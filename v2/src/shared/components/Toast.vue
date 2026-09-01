@@ -1,34 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-
-const visible = ref(false)
-const message = ref('')
-const actionLabel = ref('')
-let actionCb: (() => void) | null = null
-let timer: ReturnType<typeof setTimeout>
-
-/** B2：show(msg) 或 show(msg, { label, cb })——带操作按钮时 5 秒驻留（如「撤销」） */
-function show(msg: string, action?: { label: string; cb: () => void }) {
-  message.value = msg
-  actionLabel.value = action?.label || ''
-  actionCb = action?.cb || null
-  visible.value = true
-  clearTimeout(timer)
-  timer = setTimeout(() => visible.value = false, action ? 5000 : 2500)
-}
-function runAction() {
-  actionCb?.()
-  visible.value = false
-}
-
-defineExpose({ show })
+/** REQ-030：Toast 收敛为全局单例——本组件仅负责渲染，状态/计时由 toast.ts 单例持有 */
+import { toastState, runToastAction } from './toast'
 </script>
 
 <template>
   <Transition name="toast">
-    <div v-if="visible" class="toast">
-      {{ message }}
-      <span v-if="actionLabel" class="toast-action" @click="runAction">{{ actionLabel }}</span>
+    <div v-if="toastState.visible.value" class="toast">
+      {{ toastState.message.value }}
+      <span v-if="toastState.action.value" class="toast-action" @click="runToastAction">{{ toastState.action.value.label }}</span>
     </div>
   </Transition>
 </template>

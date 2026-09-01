@@ -4,7 +4,7 @@ import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
 import Drawer from '@/shared/components/Drawer.vue'
-import Toast from '@/shared/components/Toast.vue'
+import { showToast } from '@/shared/components/toast'
 import type { TaskCard, Metric } from '@/shared/models'
 
 /** 第卅三轮 REQ-016：成功指标添加任务双模式（新建 / 关联）
@@ -22,7 +22,6 @@ const emit = defineEmits<{ close: [] }>()
 
 const store = useAppStore()
 const { d } = useCompass()
-const toast = ref<InstanceType<typeof Toast> | null>(null)
 
 const tab = ref<'create' | 'link'>('create')
 
@@ -61,7 +60,7 @@ function findMetric(): Metric | undefined {
 /** 新建任务：创建 TaskCard 并挂到指标（taskIds 去重） */
 function createTask() {
   const title = newTitle.value.trim()
-  if (!title) { toast.value?.show('请输入任务标题'); return }
+  if (!title) { showToast('请输入任务标题'); return }
   const task: TaskCard = {
     id: uid('tk'), kind: 'task', title, status: 'todo', priority: newPriority.value,
     projectId: props.projectId, metricId: props.metricId,
@@ -72,7 +71,7 @@ function createTask() {
   const m = findMetric()
   if (m && !m.taskIds.includes(task.id)) m.taskIds.push(task.id)
   store.persist()
-  toast.value?.show('✓ 任务已创建并计入指标进度')
+  showToast('✓ 任务已创建并计入指标进度')
   emit('close')
 }
 
@@ -104,7 +103,7 @@ function toggleSel(id: string) {
 
 /** 关联：选中的任务转移归属到本指标（从所有旧指标 taskIds 移除，防止多归属） */
 function linkTasks() {
-  if (!selected.value.size) { toast.value?.show('请先勾选要关联的任务'); return }
+  if (!selected.value.size) { showToast('请先勾选要关联的任务'); return }
   const ids = [...selected.value]
   for (const dir of d.value.compass.directions) {
     for (const proj of dir.projects) {
@@ -120,7 +119,7 @@ function linkTasks() {
     if (m && !m.taskIds.includes(id)) m.taskIds.push(id)
   }
   store.persist()
-  toast.value?.show(`✓ 已关联 ${ids.length} 个任务，计入指标进度`)
+  showToast(`✓ 已关联 ${ids.length} 个任务，计入指标进度`)
   emit('close')
 }
 </script>
@@ -171,7 +170,7 @@ function linkTasks() {
       </div>
     </div>
   </Drawer>
-  <Toast ref="toast" />
+  
 </template>
 
 <style scoped>

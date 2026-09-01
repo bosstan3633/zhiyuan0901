@@ -347,7 +347,7 @@
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">扩展版本</span>
-              <div class="gs-sr-control" style="color:var(--text-2);font-size:12px">V2.12.0</div>
+              <div class="gs-sr-control" style="color:var(--text-2);font-size:12px">V2.13.0</div>
             </div>
           </div>
         </div>
@@ -425,11 +425,6 @@
         </div>
       </div>
     </Teleport>
-
-    <!-- Toast -->
-    <Teleport to="body">
-      <div class="gs-toast" :class="{ show: toastVisible }">{{ toastMsg }}</div>
-    </Teleport>
   </div>
 </template>
 
@@ -439,6 +434,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { useConfirm } from '@/shared/components/confirm'
+import { showToast } from '@/shared/components/toast'
 import FieldEditor from './FieldEditor.vue'
 import logoUrl from '@/assets/logo.png'
 import { createDefaultData } from '@/shared/storage/defaults'
@@ -1009,16 +1005,6 @@ const appShortcuts = [
 // ---- 使用手册（第二十轮：数据外置 manual-data.ts，五篇结构） ----
 const activeManualSec = ref('quick-1')
 
-// ---- Toast ----
-const toastVisible = ref(false)
-const toastMsg = ref('')
-let toastTimer: ReturnType<typeof setTimeout> | null = null
-function showToast(msg: string) {
-  toastMsg.value = msg
-  toastVisible.value = true
-  if (toastTimer) clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toastVisible.value = false }, 2200)
-}
 </script>
 
 <style scoped>
@@ -1156,10 +1142,6 @@ function showToast(msg: string) {
 .gs-confirm-input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; outline: none; font-family: inherit; margin-top: 8px; background: var(--surface); color: var(--text); }
 .gs-confirm-input:focus { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(196,68,68,.15); }
 .gs-modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
-
-/* Toast */
-.gs-toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1A1D23; color: #fff; padding: 9px 18px; border-radius: 6px; font-size: 12.5px; z-index: 400; opacity: 0; transition: all .25s; pointer-events: none; box-shadow: var(--shadow-lg); }
-.gs-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* 使用手册（左目录右内容） */
 .gs-manual { display: flex; gap: 16px; align-items: flex-start; }

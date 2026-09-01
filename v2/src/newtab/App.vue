@@ -5,6 +5,7 @@ import { useAppStore } from './stores/app'
 import { uid, dateKey } from '@/shared/utils'
 import type { Workspace } from '@/shared/models'
 import Toast from '@/shared/components/Toast.vue'
+import { showToast } from '@/shared/components/toast'
 import GlobalPopups from './components/GlobalPopups.vue'
 import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
 import Icon from '@/shared/components/Icon.vue'
@@ -13,7 +14,6 @@ import logoUrl from '@/assets/logo.png'
 const router = useRouter()
 const route = useRoute()
 const store = useAppStore()
-const toast = ref<InstanceType<typeof Toast> | null>(null)
 // B30a：全局渲染错误边界——捕获后保持导航可用，内容区显示错误卡片，杜绝整页不可用
 const renderError = ref<string | null>(null)
 onErrorCaptured((err) => {
@@ -107,7 +107,7 @@ function confirmAddWs() {
   })
   store.persist()
   navigate(`/workspace/${ws.id}`)
-  toast.value?.show(`工作台「${name}」已创建`)
+  showToast(`工作台「${name}」已创建`)
 }
 
 // 右键菜单
@@ -140,7 +140,7 @@ function confirmRename() {
   if (ws && renameDraft.value.trim()) {
     ws.name = `${ws.icon} ${renameDraft.value.trim()}`
     store.persist()
-    toast.value?.show('已重命名')
+    showToast('已重命名')
   }
   renamingWs.value = null
 }
@@ -165,7 +165,7 @@ function deleteWorkspace() {
   store.persist()
   closeMenu()
   if (activeWorkspaceId.value === ws.id) navigate('/')
-  toast.value?.show('工作台已删除')
+  showToast('工作台已删除')
 }
 
 // ===== 全局快捷键 =====
@@ -221,7 +221,7 @@ function onWsTabDrop(e: DragEvent, ws: Workspace) {
   list.forEach((w, i) => { w.order = i })
   store.persist()
   dragWsId = null
-  toast.value?.show('✓ 已调整工作台顺序')
+  showToast('✓ 已调整工作台顺序')
 }
 
 function onGlobalKeydown(e: KeyboardEvent) {
@@ -390,7 +390,7 @@ const taskBadge = computed(() => {
     </Teleport>
 
     <GlobalPopups ref="globalPopups" />
-    <Toast ref="toast" />
+    <Toast />
     <ConfirmDialog />
   </div>
 </template>

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AppData, Workspace, UIPrefs } from '@/shared/models'
-import { getData, saveData, loadUIPrefs, saveUIPrefs, subscribe, syncCache } from '@/shared/storage/repository'
+import { getData, saveData, loadUIPrefs, saveUIPrefs, subscribe, syncCache, isSelfWrite } from '@/shared/storage/repository'
 
 export const useAppStore = defineStore('app', () => {
   // ---- 数据 ----
@@ -25,14 +25,17 @@ export const useAppStore = defineStore('app', () => {
     })
 
     // 监听 chrome.storage 变更（popup/content 写入后同步）
+    // REQ-031 P-031-6：本页自身写入（saveData/saveDataNow 前置 selfWrite 标记）跳过全树替换，
+    // 避免每次保存都触发 storage 读回 → syncCache + data 全树替换 → 全部 computed 失效重算。
+    // 本地 listener（subscribe）已同步新引用，无需重复替换；外部写入（popup/content）仍正常全量同步。
     if (typeof chrome !== 'undefined' && chrome.storage) {
       chrome.storage.onChanged.addListener((changes, area) => {
         if (area === 'local' && changes.zy_data_v2) {
           const newData = changes.zy_data_v2.newValue as AppData
-          if (newData) {
-            syncCache(newData)
-            data.value = newData
-          }
+          if (!newData) return
+          if (isSelfWrite(Date.now())) return
+          syncCache(newData)
+          data.value = newData
         }
       })
     }

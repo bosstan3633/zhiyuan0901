@@ -136,46 +136,15 @@
 
       <!-- 右侧展示区 -->
       <div class="ws-content">
-        <!-- ===== 卡片视图：置顶区 / 非置顶区 分区展示 ===== -->
+        <!-- ===== 卡片视图：REQ-027 按分类分组分区（取消全平铺/置顶独立分区） ===== -->
         <div v-if="viewMode==='card'">
-          <template v-if="pinnedResources.length">
-            <div class="section-label">📌 置顶 · {{ pinnedResources.length }}</div>
-            <div class="card-grid">
-              <div v-for="r in pinnedResources" :key="r.id" class="res-card pinned" :class="{flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
-                :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
-                @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragleave="clearDropMark"
-                @contextmenu.prevent="openResCtx($event, r)">
-                <div v-if="batchMode" class="rc-batch-check" :class="{on: selectedIds.has(r.id)}" @click.stop="toggleSelect(r.id)">{{ selectedIds.has(r.id)?'✓':'' }}</div>
-                <div class="res-card-actions">
-                  <div class="rc-action pin" @click.stop="togglePin(r)" title="取消置顶">📌</div>
-                  <div class="rc-action" :class="{on: r.starred}" :title="r.starred?'取消星标':'星标' " @click.stop="toggleStar(r)">⭐</div>
-                  <div class="rc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</div>
-                  <div class="rc-action delete" @click.stop="deleteResource(r)" title="删除">🗑</div>
-                </div>
-                <div class="rc-fields">
-                  <template v-for="f in rFields" :key="f.key">
-                    <div v-if="isTitleKey(f.key)" class="rc-title">{{ val(r, f.key) }}</div>
-                    <div v-else-if="f.key==='link' && r.link" class="rc-link" :class="r.linkType">{{ linkIcon(r.linkType) }} {{ linkDisplay(r.link) }}</div>
-                    <div v-else-if="f.key==='description' && r.description" class="rc-summary">{{ r.description }}</div>
-                    <div v-else-if="f.key==='tags' && r.tags.length" class="rc-tags"><span v-for="t in r.tags" :key="t" class="rc-tag">#{{ t }}</span></div>
-                    <div v-else-if="f.key==='sourceType' && r.sourceType" class="rc-src">{{ srcLabel(r.sourceType) }}</div>
-                    <div v-else-if="f.key==='createdAt' && val(r,f.key)" class="rc-date">🕐 {{ val(r,f.key) }}</div>
-                    <div v-else-if="f.key.startsWith('custom_') && val(r,f.key)" class="rc-custom"><span>{{ f.label }}:</span>{{ val(r,f.key) }}</div>
-                  </template>
-                </div>
-                <div class="rc-footer">
-                  <span class="rc-cat" title="点击查看所在分类" @click.stop="activeCategory = r.categoryId || 'uncat'">{{ catIconOf(r) }} {{ catNameOfFamily(r) }}</span>
-                  <span v-if="r.callCount" class="rc-calls" title="被打开次数">🔥{{ r.callCount }}</span>
-                  <span class="rc-open-hint">双击打开链接</span>
-                </div>
-              </div>
+          <template v-for="(g, gi) in resourceGroups" :key="g.key">
+            <div class="section-label ws-cat-head" :class="{first: gi===0}" @click="toggleGroupCollapse(g.key)">
+              <span>📁 {{ g.title }} · {{ g.count }}</span>
+              <span class="ws-cat-collapse">{{ collapsedGroups.has(g.key) ? '▸' : '▾' }}</span>
             </div>
-          </template>
-
-          <template v-if="unpinnedResources.length">
-            <div class="section-label" :class="{first: !pinnedResources.length}">📁 {{ activeCategoryLabel }} · {{ unpinnedResources.length }}</div>
-            <div class="card-grid">
-              <div v-for="r in unpinnedResources" :key="r.id" class="res-card" :class="{flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
+            <div v-show="!collapsedGroups.has(g.key)" class="card-grid">
+              <div v-for="r in g.items" :key="r.id" class="res-card" :class="{pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
                 @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragleave="clearDropMark"
                 @contextmenu.prevent="openResCtx($event, r)">
@@ -198,28 +167,31 @@
                   </template>
                 </div>
                 <div class="rc-footer">
-                  <span class="rc-cat" title="点击查看所在分类" @click.stop="activeCategory = r.categoryId || 'uncat'">{{ catIconOf(r) }} {{ catNameOfFamily(r) }}</span>
+                  <span class="rc-cat" :class="{hidden: hideGroupBadge}" title="点击查看所在分类" @click.stop="activeCategory = r.categoryId || 'uncat'">{{ catIconOf(r) }} {{ catNameOfFamily(r) }}</span>
                   <span v-if="r.callCount" class="rc-calls" title="被打开次数">🔥{{ r.callCount }}</span>
                   <span class="rc-open-hint">双击打开链接</span>
                 </div>
               </div>
-              <div class="rc-add-card" @click="openNewResource">
+              <div v-if="gi === resourceGroups.length - 1" class="rc-add-card" @click="openNewResource">
                 <span style="font-size:20px">＋</span><span>新建资源卡</span>
               </div>
             </div>
           </template>
 
-          <EmptyState v-if="!sortedResources.length" icon="folder" title="暂无资源卡"
+          <EmptyState v-if="!resourceGroups.length" icon="folder" title="暂无资源卡"
             desc="双击卡片直达链接；单击查看详情。用 Ctrl+Shift+J 可从任意网页采集"
             action-label="＋ 新建资源卡" @action="openNewResource" />
         </div>
 
-        <!-- ===== 列表视图：置顶区 / 非置顶区 分区展示 ===== -->
+        <!-- ===== 列表视图：REQ-027 按分类分组分区（每分区标题行 + 其下条目） ===== -->
         <div v-if="viewMode==='list'">
-          <template v-if="pinnedResources.length">
-            <div class="section-label">📌 置顶 · {{ pinnedResources.length }}</div>
-            <div class="res-list">
-              <div v-for="r in pinnedResources" :key="r.id" class="res-row pinned" :class="{flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
+          <template v-for="(g, gi) in resourceGroups" :key="g.key">
+            <div class="section-label ws-cat-head" :class="{first: gi===0}" @click="toggleGroupCollapse(g.key)">
+              <span>📁 {{ g.title }} · {{ g.count }}</span>
+              <span class="ws-cat-collapse">{{ collapsedGroups.has(g.key) ? '▸' : '▾' }}</span>
+            </div>
+            <div v-show="!collapsedGroups.has(g.key)" class="res-list">
+              <div v-for="r in g.items" :key="r.id" class="res-row" :class="{pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
                 @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragleave="clearDropMark"
                 @contextmenu.prevent="openResCtx($event, r)">
@@ -235,26 +207,7 @@
               </div>
             </div>
           </template>
-          <template v-if="unpinnedResources.length">
-            <div class="section-label" :class="{first: !pinnedResources.length}">📁 {{ activeCategoryLabel }} · {{ unpinnedResources.length }}</div>
-            <div class="res-list">
-              <div v-for="r in unpinnedResources" :key="r.id" class="res-row" :class="{flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
-                :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
-                @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragleave="clearDropMark"
-                @contextmenu.prevent="openResCtx($event, r)">
-                <div v-if="batchMode" class="rc-batch-check" :class="{on: selectedIds.has(r.id)}" @click.stop="toggleSelect(r.id)">{{ selectedIds.has(r.id)?'✓':'' }}</div>
-                <span v-else class="rr-drag">⋮⋮</span>
-                <span class="rr-title">{{ val(r, titleKey) }}</span>
-                <span class="rr-f" v-for="f in listFields" :key="f.key">{{ shortVal(r, f) }}</span>
-                <span class="rr-actions">
-                  <span class="rr-action" @click.stop="togglePin(r)" :title="r.pinned?'取消置顶':'置顶'">📌</span>
-                  <span class="rr-action" :class="{on: r.starred}" @click.stop="toggleStar(r)" :title="r.starred?'取消星标':'星标'">⭐</span>
-                  <span class="rr-action delete" @click.stop="deleteResource(r)">🗑</span>
-                </span>
-              </div>
-            </div>
-          </template>
-          <div v-if="!sortedResources.length" class="empty-state">暂无资源卡，点击右上角"新建资源卡"添加</div>
+          <div v-if="!resourceGroups.length" class="empty-state">暂无资源卡，点击右上角"新建资源卡"添加</div>
         </div>
 
         <!-- 看板视图 -->
@@ -516,11 +469,6 @@
       </div>
     </div>
 
-    <!-- Toast -->
-    <div class="toast" :class="{show: toastVisible}">
-    {{ toastMsg }}
-    <span v-if="toastActionLabel" class="toast-action" @click="runToastAction">{{ toastActionLabel }}</span>
-  </div>
   </div>
   <div v-else class="ws-empty">工作台不存在</div>
 </template>
@@ -531,6 +479,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { saveUIPrefs } from '@/shared/storage/repository'
+import { showToast } from '@/shared/components/toast'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { useTaHeight } from '@/shared/utils/taHeight'
 import { uid, safeDecodeText } from '@/shared/utils'
@@ -539,6 +488,7 @@ import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { useConfirm } from '@/shared/components/confirm'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
+import { markRank } from '@/shared/utils/marksort'
 import type { ResourceCard, Category, Workspace, TaskCard, FieldDef } from '@/shared/models'
 
 const route = useRoute()
@@ -597,6 +547,13 @@ const sortBy = ref('manual')
 const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.res?.dir === 'asc') ? 'asc' : 'desc')
 const filterBy = ref('all')
 const searchQuery = ref('')
+// REQ-031 P-031-5：应用内搜索 150ms 防抖——输入框即时回显，过滤计算延迟触发（快速键入不卡顿）
+const debouncedQuery = ref('')
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+watch(searchQuery, (v) => {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+  searchDebounceTimer = setTimeout(() => { debouncedQuery.value = v }, 150)
+})
 const activeCategory = ref('all')
 
 if (store.ui?.sortPrefs?.res?.by) sortBy.value = store.ui.sortPrefs.res.by
@@ -633,8 +590,8 @@ const filteredResources = computed(() => {
     list = list.filter(r => r.categoryId && ids.includes(r.categoryId))
   }
   if (filterBy.value !== 'all') list = list.filter(r => r.linkType === filterBy.value)
-  if (searchQuery.value.trim()) {
-    const q = searchQuery.value.toLowerCase()
+  if (debouncedQuery.value.trim()) {
+    const q = debouncedQuery.value.toLowerCase()
     list = list.filter(r => r.title.toLowerCase().includes(q) || (r.description||'').toLowerCase().includes(q) || (Array.isArray(r.tags) ? r.tags : []).join(',').toLowerCase().includes(q))
   }
   return list
@@ -650,10 +607,56 @@ function applySort(list: ResourceCard[]): ResourceCard[] {
   return out
 }
 
-// 置顶分区（E2）：置顶区 / 非置顶区 独立展示
-const pinnedResources = computed(() => applySort(filteredResources.value.filter(r => r.pinned)))
-const unpinnedResources = computed(() => applySort(filteredResources.value.filter(r => !r.pinned)))
-const sortedResources = computed(() => [...pinnedResources.value, ...unpinnedResources.value])
+// REQ-028 F-028-1：分组视图分区内置顶排序——先按当前排序规则，再按 marksort 权重稳定重排（置顶>星标>普通）
+function applyGroupSort(list: ResourceCard[]): ResourceCard[] {
+  const sorted = applySort(list)
+  // 稳定排序：同权重保持 applySort 相对序（manual 保持拖拽序）
+  return sorted.sort((a, b) => markRank(b) - markRank(a))
+}
+
+// 全量可见列表（批量全选 / 空状态共用）
+const sortedResources = computed(() => applySort(filteredResources.value))
+
+// ===== REQ-027：卡片/列表视图取消全平铺，按分类分组分区 =====
+interface ResourceGroup { key: string; title: string; count: number; items: ResourceCard[] }
+/** F-027-4 折叠增强：点击分组标题折叠/展开（内存态，不持久化） */
+const collapsedGroups = ref<Set<string>>(new Set())
+/** REQ-028：分组视图下分类徽标弱化/隐藏（归属已由分区标题表达，避免信息重复） */
+const hideGroupBadge = ref(true)
+function toggleGroupCollapse(key: string) {
+  const s = new Set(collapsedGroups.value)
+  if (s.has(key)) s.delete(key); else s.add(key)
+  collapsedGroups.value = s
+}
+/**
+ * 分区规则（分区顺序与左侧分类树一致）：
+ * - 「全部」：每个一级分类一个分区（rootCats 顺序）；无分类卡归「待分类」分区置于最前
+ * - 选中父分类：其下每个二级子分类一个分区（子分类名为分组标题）；直属父级的卡归「未细分」分区置于最后
+ * - 选中「待分类」：单分区
+ * 分区内按当前排序规则排列（applySort；manual 保持数组序=手动拖拽序）。
+ */
+const resourceGroups = computed<ResourceGroup[]>(() => {
+  const filtered = filteredResources.value
+  const groups: ResourceGroup[] = []
+  const validIds = new Set(wsCats.value.map(c => c.id))
+  const uncat = applyGroupSort(filtered.filter(r => !r.categoryId || !validIds.has(r.categoryId)))
+  if (uncat.length) groups.push({ key: 'uncat', title: '待分类', count: uncat.length, items: uncat })
+  if (activeCategory.value === 'all') {
+    for (const root of rootCats.value) {
+      const ids = familyIds(root.id)
+      const items = applyGroupSort(filtered.filter(r => r.categoryId && ids.includes(r.categoryId)))
+      if (items.length) groups.push({ key: root.id, title: root.name, count: items.length, items })
+    }
+  } else if (activeCategory.value !== 'uncat') {
+    for (const sub of childCatsOf(activeCategory.value)) {
+      const items = applyGroupSort(filtered.filter(r => r.categoryId === sub.id))
+      if (items.length) groups.push({ key: sub.id, title: sub.name, count: items.length, items })
+    }
+    const direct = applyGroupSort(filtered.filter(r => r.categoryId === activeCategory.value))
+    if (direct.length) groups.push({ key: 'direct', title: '未细分', count: direct.length, items: direct })
+  }
+  return groups
+})
 
 const kanbanCategories = computed(() => {
   const cats: { key: string; name: string }[] = []
@@ -772,13 +775,20 @@ async function deleteCurrentResource() {
   store.persist()
   drawerOpen.value = false
   const target = idx >= 0 ? d.value.resources[idx] : null
-  showToast(target ? `已删除「${target.title.slice(0, 20)}」` : '资源卡已删除', { label: '撤销', cb: () => { if (target) target.deletedAt = undefined; store.persist() } })
+  showToast(target ? `已删除「${target.title.slice(0, 20)}」` : '资源卡已删除', { label: '撤销', cb: () => {
+    // REQ-030：按 id 从当前数据树查找（persist 后 onChanged 会整树替换引用，闭包旧引用已失效）
+    const cur = d.value.resources.find(x => x.id === editingResource.id)
+    if (cur && cur.deletedAt) { cur.deletedAt = undefined; store.persist() }
+  } })
 }
 async function deleteResource(r: ResourceCard) {
   r.deletedAt = Date.now()
   store.persist()
-  // B2：5 秒内可撤销
-  showToast(`已删除「${r.title.slice(0, 20)}」`, { label: '撤销', cb: () => { r.deletedAt = undefined; store.persist() } })
+  // REQ-030：3 秒内可撤销（按 id 定位当前树，根治引用替换导致的撤销失效）
+  showToast(`已删除「${r.title.slice(0, 20)}」`, { label: '撤销', cb: () => {
+    const cur = d.value.resources.find(x => x.id === r.id)
+    if (cur && cur.deletedAt) { cur.deletedAt = undefined; store.persist() }
+  } })
 }
 function togglePin(r: ResourceCard) {
   r.pinned = !r.pinned
@@ -841,11 +851,36 @@ function onDragStart(e: DragEvent, r: ResourceCard) {
   draggedItem = r
   e.dataTransfer?.setData('text/plain', r.id)
 }
+// REQ-028 F-028-3：卡片所属渲染分区（与 resourceGroups 分区 key 对齐）
+function groupKeyOf(r: ResourceCard): string {
+  const validIds = new Set(wsCats.value.map(c => c.id))
+  if (!r.categoryId || !validIds.has(r.categoryId)) return 'uncat'
+  if (activeCategory.value === 'all') {
+    for (const root of rootCats.value) {
+      if (familyIds(root.id).includes(r.categoryId)) return root.id
+    }
+    return 'uncat'
+  }
+  if (activeCategory.value === 'uncat') return 'uncat'
+  if (childCatsOf(activeCategory.value).some(s => s.id === r.categoryId)) return r.categoryId
+  return 'direct'
+}
+
 function onDropCard(e: DragEvent, target: ResourceCard) {
   if (!draggedItem || draggedItem.id === target.id) { clearDropMark(); return }
-  sortBy.value = 'manual'
+  const moved = draggedItem
   const after = dropMark.value.endsWith('-b')
-  const fromIdx = d.value.resources.findIndex(r => r.id === draggedItem!.id)
+  // REQ-028 F-028-3：跨分区拖拽 = 修改分类归属（轻提示）；同分区 = 局部排序
+  const crossGroup = groupKeyOf(moved) !== groupKeyOf(target)
+  const newCat = target.categoryId && wsCats.value.some(c => c.id === target.categoryId) ? target.categoryId : ''
+  const catChanged = (moved.categoryId || '') !== (newCat || '')
+  if (catChanged) {
+    moved.categoryId = newCat
+    moved.updatedAt = Date.now()
+    if (crossGroup) showToast(`✓ 已移动至「${newCat ? categories.value.find(c => c.id === newCat)?.name : '待分类'}」`)
+  }
+  sortBy.value = 'manual'
+  const fromIdx = d.value.resources.findIndex(r => r.id === moved.id)
   const toIdx = d.value.resources.findIndex(r => r.id === target.id)
   if (fromIdx < 0 || toIdx < 0) { clearDropMark(); return }
   const [item] = d.value.resources.splice(fromIdx, 1)
@@ -920,7 +955,14 @@ async function batchDelete() {
   removed.forEach(r => { r.deletedAt = Date.now() })
   store.persist()
   selectedIds.value.clear()
-  showToast(`已删除 ${n} 张资源卡`, { label: '撤销', cb: () => { removed.forEach(r => { r.deletedAt = undefined }); store.persist() } })
+  showToast(`已删除 ${n} 张资源卡`, { label: '撤销', cb: () => {
+    // REQ-030：按 id 批量定位当前树恢复
+    removed.forEach(r => {
+      const cur = d.value.resources.find(x => x.id === r.id)
+      if (cur && cur.deletedAt) cur.deletedAt = undefined
+    })
+    store.persist()
+  } })
 }
 function catNameOf(r: ResourceCard): string {
   if (!r.categoryId) return '待分类'
@@ -1400,6 +1442,7 @@ watch(() => route.query.hl, (hl) => {
   highlightId.value = hl
   activeCategory.value = 'all'
   searchQuery.value = ''
+  debouncedQuery.value = ''
   viewMode.value = 'card'
   nextTick(() => {
     setTimeout(() => {
@@ -1515,22 +1558,6 @@ const linkPlaceholder = computed(() => {
   if (editingResource.linkType === 'file') return 'D:\\path\\to\\file.pdf'
   return 'obsidian://open?vault=...'
 })
-
-// ===== Toast =====
-const toastVisible = ref(false)
-const toastMsg = ref('')
-const toastActionLabel = ref('')
-let toastTimer: ReturnType<typeof setTimeout> | null = null
-let toastAction: (() => void) | null = null
-function showToast(msg: string, action?: { label: string; cb: () => void }) {
-  toastMsg.value = msg
-  toastActionLabel.value = action?.label || ''
-  toastAction = action?.cb || null
-  toastVisible.value = true
-  if (toastTimer) clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toastVisible.value = false; toastAction = null }, action ? 5000 : 2000)
-}
-function runToastAction() { toastAction?.(); toastVisible.value = false; toastAction = null }
 
 // ===== 工具 =====
 // uid 已从 @/shared/utils 导入（此前为本地重复实现，已统一）
@@ -1656,6 +1683,12 @@ function runToastAction() { toastAction?.(); toastVisible.value = false; toastAc
 /* 分区标签（置顶区/非置顶区） */
 .section-label { font-size: 12px; font-weight: 600; color: var(--text-2); margin: 4px 0 10px; padding-left: 2px; }
 .card-grid + .section-label, .res-list + .section-label { margin-top: 22px; }
+/* REQ-027：分组分区标题（点击折叠/展开 F-027-4） */
+.ws-cat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer;
+  user-select: none; border-radius: 8px; padding: 6px 10px; margin-left: -10px; margin-right: -10px;
+  transition: background .15s ease; }
+.ws-cat-head:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.ws-cat-collapse { font-size: 10px; color: var(--text-4); transition: transform .18s ease; }
 
 /* 卡片视图（第卅三轮 REQ-026：间距/内边距/最小宽引用 tokens 密度令牌，一处切换全局生效） */
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-min-w), 1fr)); gap: var(--card-gap); }
@@ -1684,6 +1717,8 @@ function runToastAction() { toastAction?.(); toastVisible.value = false; toastAc
 .rc-custom span { color: var(--text-3); margin-right: 4px; }
 .rc-footer { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
 .rc-cat { font-size: 10px; color: var(--accent); background: var(--accent-light); padding: 2px 8px; border-radius: 99px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; cursor: pointer; flex-shrink: 0; }
+/* REQ-028：分组视图下分类徽标隐藏（归属已由分区标题表达） */
+.rc-cat.hidden { opacity: 0.35; background: transparent; color: var(--text-dim, #999); pointer-events: auto; }
 .rc-cat:hover { background: var(--accent); color: #fff; }
 .rc-link { font-size: 10.5px; color: var(--text-3); display: flex; align-items: center; gap: 3px; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rc-link.url { color: var(--info-blue); }
@@ -1830,8 +1865,4 @@ function runToastAction() { toastAction?.(); toastVisible.value = false; toastAc
 .bk-count { font-size: 10.5px; color: var(--text-3); background: var(--surface-3); padding: 1px 8px; border-radius: 99px; }
 
 /* Toast */
-.toast-action { color: #8FC4A3; font-weight: 600; cursor: pointer; padding: 2px 10px; border: 1px solid rgba(143,196,163,.5); border-radius: 6px; }
-.toast-action:hover { background: rgba(143,196,163,.15); }
-.toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1A1D23; color: #fff; padding: 9px 18px; border-radius: 6px; font-size: 12.5px; z-index: 400; opacity: 0; transition: all .25s; pointer-events: none; box-shadow: 0 10px 36px rgba(0,0,0,.12); }
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>

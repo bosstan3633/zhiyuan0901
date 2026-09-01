@@ -13,6 +13,12 @@ let cache: AppData | null = null
 const listeners = new Set<Listener>()
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
+// REQ-031 P-031-6：自身写入标记——saveData/saveDataNow 前置 selfWrite，onChanged 回调跳过全树替换
+let selfWriteAt = 0
+export function isSelfWrite(at: number): boolean {
+  return selfWriteAt > 0 && at <= selfWriteAt
+}
+
 function chromeStore(): chrome.storage.StorageArea | null {
   return typeof chrome !== 'undefined' && chrome.storage?.local ? chrome.storage.local : null
 }
@@ -79,6 +85,7 @@ export function saveData(): void {
   if (!cs) return
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
+    selfWriteAt = Date.now()
     cs!.set({ [STORAGE_KEY]: cache! })
     listeners.forEach((fn) => fn(cache!))
   }, 300)
@@ -90,6 +97,7 @@ export async function saveDataNow(): Promise<void> {
   const cs = chromeStore()
   if (!cs) return
   if (saveTimer) clearTimeout(saveTimer)
+  selfWriteAt = Date.now()
   await cs.set({ [STORAGE_KEY]: cache })
   listeners.forEach((fn) => fn(cache!))
 }

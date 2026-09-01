@@ -8,14 +8,13 @@ import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/uti
 import { recordResourceOpen } from '@/shared/storage/stats'
 import Drawer from '@/shared/components/Drawer.vue'
 import type { Direction, Project, Metric, TaskCard, ID } from '@/shared/models'
-import Toast from '@/shared/components/Toast.vue'
+import { showToast } from '@/shared/components/toast'
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
 import TaskAddDrawer from '../components/TaskAddDrawer.vue'
 
 const router = useRouter()
 const store = useAppStore()
 const { d, visionText, missionText, allProjects, projectProgress, toggleFocusProject } = useCompass()
-const toast = ref<InstanceType<typeof Toast> | null>(null)
 
 // ---- 展开状态 ----
 const expandedDirs = ref<Set<string>>(new Set())
@@ -91,7 +90,7 @@ function saveEdit(field: string, e: FocusEvent | KeyboardEvent) {
     store.persist()
   }
   editingField.value = null
-  toast.value?.show('✓ 已保存')
+  showToast('✓ 已保存')
 }
 
 function cancelEdit() {
@@ -110,7 +109,7 @@ function addDirection() {
   d.value.compass.directions.push(dir)
   store.persist()
   expandedDirs.value.add(dir.id)
-  toast.value?.show('✓ 战略目标已创建，点击标题编辑')
+  showToast('✓ 战略目标已创建，点击标题编辑')
 }
 
 function addProject(dirId: string) {
@@ -126,7 +125,7 @@ function addProject(dirId: string) {
   }
   dir.projects.push(proj)
   store.persist()
-  toast.value?.show('✓ 项目已创建')
+  showToast('✓ 项目已创建')
 }
 
 function addMetric(projId: string) {
@@ -140,7 +139,7 @@ function addMetric(projId: string) {
   proj.metrics.push(metric)
   store.persist()
   expandedMetrics.value.add(metric.id)
-  toast.value?.show('✓ 指标已创建')
+  showToast('✓ 指标已创建')
 }
 
 /** 第卅三轮 REQ-016：添加任务双模式（新建 / 关联）→ 共享抽屉 TaskAddDrawer */
@@ -189,7 +188,7 @@ function deleteNode(type: string, id: string) {
     if (t) t.deletedAt = Date.now()
   }
   store.persist()
-  toast.value?.show('已删除')
+  showToast('已删除')
 }
 
 // ---- 任务数据 ----
@@ -285,7 +284,7 @@ function openChipLink(kind: 'res' | 'curio', id: string) {
   if (kind === 'res') {
     const r = d.value.resources.find(x => x.id === id && !x.deletedAt)
     const url = r ? toOpenableUrl(r.linkType, r.link) : ''
-    if (!r || !url) { toast.value?.show('该卡片没有可打开的链接'); return }
+    if (!r || !url) { showToast('该卡片没有可打开的链接'); return }
     // WRR 口径：关联卡片打开同样计入调用统计（与工作台/搜索/北极星一致）
     recordResourceOpen(d.value, r)
     store.persist()
@@ -293,7 +292,7 @@ function openChipLink(kind: 'res' | 'curio', id: string) {
   } else {
     const c = d.value.curiosities.find(x => x.id === id && !x.deletedAt)
     const url = toOpenableRawLink(c?.sourceUrl)
-    if (!url) { toast.value?.show('该好奇心没有来源链接'); return }
+    if (!url) { showToast('该好奇心没有来源链接'); return }
     openExternalLink(url)
   }
 }
@@ -315,7 +314,7 @@ function openPeekLink() {
   const c = peekData.value
   if (!c || !c.link) return
   const url = toOpenableRawLink(c.link)
-  if (!url) { toast.value?.show('链接不可打开（本地文件缺少完整路径）'); return }
+  if (!url) { showToast('链接不可打开（本地文件缺少完整路径）'); return }
   openExternalLink(url)
 }
 function linkCandidates(kind: 'res' | 'curio') {
@@ -339,7 +338,7 @@ function toggleMissionProjection() {
 function toggleProjProjection(proj: Project) {
   proj.pinnedToLighthouse = !proj.pinnedToLighthouse
   store.persist()
-  toast.value?.show(proj.pinnedToLighthouse ? '📡 项目已投射至灯塔，项目策展置顶' : '已取消投射')
+  showToast(proj.pinnedToLighthouse ? '📡 项目已投射至灯塔，项目策展置顶' : '已取消投射')
 }
 
 // 第卅二轮 REQ-003：项目卡"打开项目"→ 项目全景透视抽屉（可增删改指标与任务，实时同步方向树）
@@ -674,7 +673,7 @@ onUnmounted(() => {
     <TaskAddDrawer :open="!!taskAdd" :metric-id="taskAdd?.metricId || ''" :project-id="taskAdd?.projId || ''"
       :metric-title="taskAddMetricTitle" @close="taskAdd = null" />
 
-    <Toast ref="toast" />
+    
   </div>
 </template>
 

@@ -6,14 +6,13 @@ import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
 import { useConfirm } from '@/shared/components/confirm'
 import type { Project, Direction, TaskCard, Metric } from '@/shared/models'
-import Toast from '@/shared/components/Toast.vue'
+import { showToast } from '@/shared/components/toast'
 import TaskAddDrawer from '../components/TaskAddDrawer.vue'
 
 const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
 const { d, visionText, missionText, allProjects, projectProgress } = useCompass()
-const toast = ref<InstanceType<typeof Toast> | null>(null)
 
 /* ================= 数据 ================= */
 const projects = computed(() => {
@@ -69,7 +68,7 @@ function onWallDrop(e: DragEvent, targetId: string) {
   const to = projects.value.find(p => p.id === targetId)
   if (!from || !to) return
   if (!!from.pinnedToLighthouse !== !!to.pinnedToLighthouse) {
-    toast.value?.show('跨区移动请先用 📡 投射/取消投射')
+    showToast('跨区移动请先用 📡 投射/取消投射')
     return
   }
   // 直接按目标位置重排 order（splice 在 computed 副本上不生效，必须回写 order 字段）
@@ -84,7 +83,7 @@ function onWallDrop(e: DragEvent, targetId: string) {
   })
   store.persist()
   dragWallId = null
-  toast.value?.show('✓ 已调整排序')
+  showToast('✓ 已调整排序')
 }
 async function removeMetric(m: Metric) {
   if (!currentProject.value) return
@@ -94,7 +93,7 @@ async function removeMetric(m: Metric) {
   d.value.tasks.forEach(t => { if (!t.deletedAt && t.metricId === m.id) t.metricId = undefined })
   currentProject.value.metrics = currentProject.value.metrics.filter(x => x.id !== m.id)
   store.persist()
-  toast.value?.show('已删除指标' + (taskCount ? `，${taskCount} 个任务转为未归类` : ''))
+  showToast('已删除指标' + (taskCount ? `，${taskCount} 个任务转为未归类` : ''))
 }
 /** B27：孤儿任务——所属指标已删除的任务 */
 const orphanTasks = computed(() => {
@@ -104,28 +103,28 @@ const orphanTasks = computed(() => {
 })
 function renameMetric(m: Metric, e: FocusEvent) {
   const v = (e.target as HTMLElement).textContent?.trim()
-  if (v && v !== m.title) { m.title = v; store.persist(); toast.value?.show('✓ 指标已更新，同步方向树') }
+  if (v && v !== m.title) { m.title = v; store.persist(); showToast('✓ 指标已更新，同步方向树') }
   else if (!v) { (e.target as HTMLElement).textContent = m.title }
 }
 function toggleFocus(p: Project) {
   if (!p.isFocused) {
     const focused = allProjects().filter(x => x.isFocused && x.id !== p.id)
-    if (focused.length >= 2) { toast.value?.show('主攻项目最多 2 个，请先取消其他主攻'); return }
+    if (focused.length >= 2) { showToast('主攻项目最多 2 个，请先取消其他主攻'); return }
   }
   p.isFocused = !p.isFocused
   store.persist()
-  toast.value?.show(p.isFocused ? '🎯 已设为主攻，同步今日行动' : '已取消主攻')
+  showToast(p.isFocused ? '🎯 已设为主攻，同步今日行动' : '已取消主攻')
 }
 function addMetric() {
   if (!currentProject.value) return
   currentProject.value.metrics.push({ id: uid('met'), title: '新成功指标', taskIds: [] })
   store.persist()
-  toast.value?.show('✓ 成功指标已创建，同步方向树')
+  showToast('✓ 成功指标已创建，同步方向树')
 }
 function togglePin(p: Project) {
   p.pinnedToLighthouse = !p.pinnedToLighthouse
   store.persist()
-  toast.value?.show(p.pinnedToLighthouse ? '📡 已投射至知源灯塔，自动置顶' : '已取消投射')
+  showToast(p.pinnedToLighthouse ? '📡 已投射至知源灯塔，自动置顶' : '已取消投射')
 }
 
 /* ================= 第十七轮：创建项目弹窗（愿景→使命→战略目标 → 选目标创建） ================= */
@@ -134,16 +133,16 @@ const createDirId = ref('')
 const createName = ref('')
 const hasDirs = computed(() => d.value.compass.directions.length > 0)
 function openCreateProject() {
-  if (!hasDirs.value) { toast.value?.show('还没有战略目标——请先到方向树创建'); router.push('/compass/tree'); return }
+  if (!hasDirs.value) { showToast('还没有战略目标——请先到方向树创建'); router.push('/compass/tree'); return }
   createDirId.value = d.value.compass.directions[0]!.id
   createName.value = ''
   createOpen.value = true
 }
 function confirmCreateProject() {
   const name = createName.value.trim()
-  if (!name) { toast.value?.show('请输入项目名称'); return }
+  if (!name) { showToast('请输入项目名称'); return }
   const dir = d.value.compass.directions.find(x => x.id === createDirId.value)
-  if (!dir) { toast.value?.show('请选择所属战略目标'); return }
+  if (!dir) { showToast('请选择所属战略目标'); return }
   const proj: Project = {
     id: uid('proj'), name, isFocused: false, pinnedToLighthouse: false,
     progress: 0, status: 'active', order: dir.projects.length, metrics: []
@@ -151,7 +150,7 @@ function confirmCreateProject() {
   dir.projects.push(proj)
   store.persist()
   createOpen.value = false
-  toast.value?.show(`✓ 项目「${name}」已创建`)
+  showToast(`✓ 项目「${name}」已创建`)
   openProject(proj) // 直接进入全屏展板
 }
 
@@ -189,7 +188,7 @@ function removeTask(task: TaskCard) {
     }
   }
   store.persist()
-  toast.value?.show('已删除任务')
+  showToast('已删除任务')
 }
 function toggleTaskDone(task: TaskCard) {
   task.status = task.status === 'done' ? 'todo' : 'done'
@@ -226,7 +225,7 @@ function onTaskDrop(e: DragEvent, target: TaskCard) {
   item.updatedAt = Date.now()
   store.persist()
   dragTask = null
-  toast.value?.show('✓ 已调整任务排序')
+  showToast('✓ 已调整任务排序')
 }
 function onMetricDrop(e: DragEvent, metricId: string) {
   e.preventDefault()
@@ -246,7 +245,7 @@ function onMetricDrop(e: DragEvent, metricId: string) {
   const targetName = currentProject.value?.metrics.find(m => m.id === metricId)?.title || ''
   store.persist()
   dragTask = null
-  toast.value?.show(`✓ 任务已归属「${targetName}」`)
+  showToast(`✓ 任务已归属「${targetName}」`)
 }
 function onMetricDragOver(e: DragEvent, _metricId: string) {
   (e.currentTarget as HTMLElement).classList.add('drag-over')
@@ -275,7 +274,7 @@ function saveDrawer() {
   drawerTask.value.updatedAt = Date.now()
   store.persist()
   closeDrawer()
-  toast.value?.show('✓ 已保存，同步罗盘')
+  showToast('✓ 已保存，同步罗盘')
 }
 function drawerToggleDone() {
   if (!drawerTask.value) return
@@ -303,7 +302,7 @@ function prTag(pr: string) {
   return pr === 'high' ? 'danger' : pr === 'mid' || pr === 'medium' ? 'warn' : 'ok'
 }
 /** 模板用提示 */
-function hint(msg: string) { toast.value?.show(msg) }
+function hint(msg: string) { showToast(msg) }
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
@@ -571,7 +570,7 @@ document.addEventListener('keydown', (e) => {
     <TaskAddDrawer :open="!!taskAddMetric" :metric-id="taskAddMetric?.id || ''" :project-id="currentProject?.id || ''"
       :metric-title="taskAddMetric?.title" @close="taskAddMetric = null" />
 
-    <Toast ref="toast" />
+    
   </div>
 </template>
 

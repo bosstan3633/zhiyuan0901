@@ -9,7 +9,7 @@ import { useTaHeight } from '@/shared/utils/taHeight'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import type { TaskCard, Project, FocusSlot, FieldDef } from '@/shared/models'
-import Toast from '@/shared/components/Toast.vue'
+import { showToast } from '@/shared/components/toast'
 import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import TagPicker from '@/shared/components/TagPicker.vue'
@@ -18,7 +18,6 @@ const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
 const { d, allProjects, projectProgress } = useCompass()
-const toast = ref<InstanceType<typeof Toast> | null>(null)
 
 // ---- 日期工具 ----
 function formatDate(dt: Date): string {
@@ -80,7 +79,7 @@ function selectTaskForSlot(task: TaskCard) {
   else list.push(slot)
   store.persist()
   pickerOpen.value = false
-  toast.value?.show('✓ 已添加到今日三件事')
+  showToast('✓ 已添加到今日三件事')
 }
 const pickerCandidates = computed(() => {
   const q = pickerSearch.value.trim().toLowerCase()
@@ -96,7 +95,7 @@ function pickerDisabled(t: TaskCard): boolean {
   return t.status === 'done' || pickedIds.value.has(t.id)
 }
 function selectTaskGuarded(t: TaskCard) {
-  if (pickerDisabled(t)) { toast.value?.show(t.status === 'done' ? '该任务已完成' : '该任务已选入今日三件事'); return }
+  if (pickerDisabled(t)) { showToast(t.status === 'done' ? '该任务已完成' : '该任务已选入今日三件事'); return }
   selectTaskForSlot(t)
 }
 function removeTodaySlot(idx: number) {
@@ -111,13 +110,13 @@ function copyYesterday() {
   const yesterday = dateStr(new Date(todayDate.value.getTime() - 86400_000))
   const yesterdayList = d.value.dailyFocus[yesterday]
   if (!yesterdayList || !yesterdayList.length) {
-    toast.value?.show('昨日无三件事记录')
+    showToast('昨日无三件事记录')
     return
   }
   d.value.dailyFocus[today] = JSON.parse(JSON.stringify(yesterdayList))
   d.value.dailyFocus[today].forEach(s => { s.done = false; s.doneAt = undefined })
   store.persist()
-  toast.value?.show('✓ 已复制昨日三件事')
+  showToast('✓ 已复制昨日三件事')
 }
 // ---- 第十七轮：导出弹窗（自定义时间范围 + 6 字段 CSV） ----
 const exportOpen = ref(false)
@@ -136,8 +135,8 @@ const exportBusy = ref(false)
 function doExport() {
   const from = exportFrom.value
   const to = exportTo.value
-  if (!from || !to) { toast.value?.show('请选择起止日期'); return }
-  if (from > to) { toast.value?.show('开始日期不能晚于结束日期'); return }
+  if (!from || !to) { showToast('请选择起止日期'); return }
+  if (from > to) { showToast('开始日期不能晚于结束日期'); return }
   const rows: string[][] = []
   for (const key of Object.keys(d.value.dailyFocus || {}).sort()) {
     if (key < from || key > to) continue
@@ -158,7 +157,7 @@ function doExport() {
       ])
     }
   }
-  if (!rows.length) { toast.value?.show('所选范围内没有三件事记录'); return }
+  if (!rows.length) { showToast('所选范围内没有三件事记录'); return }
   exportBusy.value = true
   const esc = (v: string) => '"' + String(v).replace(/"/g, '""') + '"'
   const csv = '任务内容,所属项目,项目→成功指标,任务状态,安排时间,创建时间,置顶,星标\n'
@@ -170,7 +169,7 @@ function doExport() {
   a.click(); URL.revokeObjectURL(url)
   exportOpen.value = false
   exportBusy.value = false
-  toast.value?.show(`✓ 已导出 ${rows.length} 条记录`)
+  showToast(`✓ 已导出 ${rows.length} 条记录`)
 }
 function toggleTodayDone(slot: FocusSlot) {
   slot.done = !slot.done
@@ -265,12 +264,16 @@ function batchDelete() {
     if (t) { t.deletedAt = Date.now(); removed.push(t) }
   })
   store.persist()
-  toast.value?.show(`已删除 ${removed.length} 个任务`, { label: '撤销', cb: () => {
+  showToast(`已删除 ${removed.length} 个任务`, { label: '撤销', cb: () => {
+    // REQ-030：按 id 从当前数据树查找（persist 后 onChanged 整树替换，removed 中的旧引用已失效）
     removed.forEach(t => {
-      t.deletedAt = undefined
-      if (t.metricId) {
-        for (const dir of d.value.compass.directions) for (const proj of dir.projects) for (const m of proj.metrics)
-          if (m.id === t.metricId && !m.taskIds.includes(t.id)) m.taskIds.push(t.id)
+      const cur = d.value.tasks.find(x => x.id === t.id)
+      if (cur && cur.deletedAt) {
+        cur.deletedAt = undefined
+        if (cur.metricId) {
+          for (const dir of d.value.compass.directions) for (const proj of dir.projects) for (const m of proj.metrics)
+            if (m.id === cur.metricId && !m.taskIds.includes(cur.id)) m.taskIds.push(cur.id)
+        }
       }
     })
     store.persist()
@@ -283,7 +286,7 @@ function batchSetStatus(status: 'todo'|'doing'|'done') {
     if (t) { t.status = status; t.updatedAt = Date.now(); if (status==='done') t.completedAt=Date.now() }
   })
   store.persist()
-  toast.value?.show(`已将 ${selectedTaskIds.value.size} 个任务设为${status==='done'?'已完成':status==='doing'?'进行中':'待开始'}`)
+  showToast(`已将 ${selectedTaskIds.value.size} 个任务设为${status==='done'?'已完成':status==='doing'?'进行中':'待开始'}`)
   selectedTaskIds.value.clear()
 }
 function batchSetPriority(priority: 'low'|'medium'|'high') {
@@ -292,7 +295,7 @@ function batchSetPriority(priority: 'low'|'medium'|'high') {
     if (t) { t.priority = priority; t.updatedAt = Date.now() }
   })
   store.persist()
-  toast.value?.show(`已将 ${selectedTaskIds.value.size} 个任务设为${priority==='high'?'高':priority==='medium'?'中':'低'}优先级`)
+  showToast(`已将 ${selectedTaskIds.value.size} 个任务设为${priority==='high'?'高':priority==='medium'?'中':'低'}优先级`)
   selectedTaskIds.value.clear()
 }
 
@@ -311,7 +314,7 @@ function openBatchMount() {
   mountModalOpen.value = true
 }
 function confirmBatchMount() {
-  if (!mountProjId.value) { toast.value?.show('请选择项目'); return }
+  if (!mountProjId.value) { showToast('请选择项目'); return }
   let count = 0
   selectedTaskIds.value.forEach(id => {
     const t = d.value.tasks.find(x => x.id === id)
@@ -333,7 +336,7 @@ function confirmBatchMount() {
   })
   store.persist()
   mountModalOpen.value = false
-  toast.value?.show(`✓ 已将 ${count} 个任务挂载到所选指标`)
+  showToast(`✓ 已将 ${count} 个任务挂载到所选指标`)
   selectedTaskIds.value.clear()
 }
 
@@ -364,7 +367,7 @@ function fmtTaskTs(ts?: number): string {
 function setTaskStatus(t: TaskCard, status: 'todo' | 'doing' | 'done') {
   if (t.status === status) return
   setTaskStatusOf(t, status)
-  toast.value?.show('✓ 状态已切换为「' + (status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始') + '」')
+  showToast('✓ 状态已切换为「' + (status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始') + '」')
 }
 async function deleteTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
@@ -372,12 +375,15 @@ async function deleteTask(taskId: string) {
   t.deletedAt = Date.now()
   store.persist()
   closeTaskSidebar()
-  // B2：撤销（含指标 taskIds 回填）
-  toast.value?.show(`已删除「${t.title.slice(0, 20)}」`, { label: '撤销', cb: () => {
-    t.deletedAt = undefined
-    if (t.metricId) {
-      for (const dir of d.value.compass.directions) for (const proj of dir.projects) for (const m of proj.metrics)
-        if (m.id === t.metricId && !m.taskIds.includes(t.id)) m.taskIds.push(t.id)
+  // REQ-030：撤销（含指标 taskIds 回填，按 id 定位当前树）
+  showToast(`已删除「${t.title.slice(0, 20)}」`, { label: '撤销', cb: () => {
+    const cur = d.value.tasks.find(x => x.id === taskId)
+    if (cur && cur.deletedAt) {
+      cur.deletedAt = undefined
+      if (cur.metricId) {
+        for (const dir of d.value.compass.directions) for (const proj of dir.projects) for (const m of proj.metrics)
+          if (m.id === cur.metricId && !m.taskIds.includes(cur.id)) m.taskIds.push(cur.id)
+      }
     }
     store.persist()
   } })
@@ -398,7 +404,7 @@ function createNewTask() {
   d.value.tasks.unshift(task)
   store.persist()
   openTaskSidebar(task)
-  toast.value?.show('✓ 新任务已创建')
+  showToast('✓ 新任务已创建')
   // 第卅一轮：自动聚焦标题并全选（此前焦点落在按钮上，默认标题「新任务」易堆积）
   nextTick(() => {
     const el = document.querySelector('.ts-title') as HTMLTextAreaElement | null
@@ -453,7 +459,7 @@ function onTaskDrop(target: TaskCard, grouped?: boolean) {
   store.persist()
   draggedTask = null
   clearTaskDrop()
-  toast.value?.show(notes.length ? `✓ ${notes.join('；')}` : '✓ 已调整排序')
+  showToast(notes.length ? `✓ ${notes.join('；')}` : '✓ 已调整排序')
 }
 // O8：看板列内卡片拖拽排序；第廿八轮：跨列落卡=改状态，分组模式跨组落卡=改项目归属（清空原指标）
 // 状态/归属均从目标卡推导：目标卡所在的列与分组即落点语义，模板无需按列传参
@@ -490,14 +496,14 @@ function onTaskCardDrop(e: DragEvent, target: TaskCard, grouped: boolean) {
   const newToIdx = d.value.tasks.findIndex(x => x.id === target.id)
   d.value.tasks.splice(after ? newToIdx + 1 : newToIdx, 0, item)
   store.persist()
-  toast.value?.show(notes.length ? `✓ ${notes.join('；')}` : '✓ 已调整排序')
+  showToast(notes.length ? `✓ ${notes.join('；')}` : '✓ 已调整排序')
 }
 function onKanbanDrop(status: 'todo' | 'doing' | 'done') {
   if (!draggedTask) return
   const t = d.value.tasks.find(x => x.id === draggedTask!.id)
   if (t && t.status !== status) {
     setTaskStatusOf(t, status)
-    toast.value?.show(`✓ 已移至「${status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始'}」`)
+    showToast(`✓ 已移至「${status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始'}」`)
   }
   draggedTask = null
 }
@@ -519,7 +525,7 @@ function onListGroupDrop(e: DragEvent, projectKey: string) {
   syncMetricTaskIds(t.id, oldMetric, undefined)
   t.updatedAt = Date.now()
   store.persist()
-  toast.value?.show('✓ 已归属「' + projectName(projectKey) + '」')
+  showToast('✓ 已归属「' + projectName(projectKey) + '」')
 }
 function kanbanGroups(status: 'todo' | 'doing' | 'done') {
   const src = status === 'todo' ? todoTasks.value : status === 'doing' ? doingTasks.value : doneTasks.value
@@ -556,7 +562,7 @@ function onKanbanGroupDrop(e: DragEvent, status: 'todo' | 'doing' | 'done', proj
     t.updatedAt = Date.now()
     store.persist()
   }
-  if (notes.length) toast.value?.show('✓ ' + notes.join('；'))
+  if (notes.length) showToast('✓ ' + notes.join('；'))
 }
 
 // ---- 字段渲染 ----
@@ -624,7 +630,7 @@ function toOpenableLinkUrl(link?: string): string {
 }
 function openCardLink(link?: string) {
   const url = toOpenableLinkUrl(link)
-  if (!url) { toast.value?.show('该卡片还没有链接，可在详情中添加'); return }
+  if (!url) { showToast('该卡片还没有链接，可在详情中添加'); return }
   if (typeof chrome !== 'undefined' && chrome.tabs?.create) chrome.tabs.create({ url })
   else window.open(url, '_blank')
 }
@@ -644,14 +650,14 @@ function toggleTaskPin(t: TaskCard) {
   // 第卅三轮 BUG-D 修复：不再物理 unshift 改源数组顺序（那会破坏用户手动拖拽排序），
   // 置顶呈现交给模板独立分区（pinnedTasks / normalTasks），顺序权威仍是源数组。
   store.persist()
-  toast.value?.show(t.pinned ? '📌 已置顶，将展示在置顶分区' : '已取消置顶')
+  showToast(t.pinned ? '📌 已置顶，将展示在置顶分区' : '已取消置顶')
 }
 /** 第卅三轮 REQ-020：任务星标切换（独立于置顶，可叠加） */
 function toggleTaskStar(t: TaskCard) {
   t.starred = !t.starred
   t.updatedAt = Date.now()
   store.persist()
-  toast.value?.show(t.starred ? '⭐ 已星标，搜索时优先展示' : '已取消星标')
+  showToast(t.starred ? '⭐ 已星标，搜索时优先展示' : '已取消星标')
 }
 /** 链接/备注就地保存 */
 function touchTask() {
@@ -662,11 +668,11 @@ function touchTask() {
 function saveTaskTitle() {
   if (!selectedTask.value) return
   const val = taskTitleDraft.value.trim()
-  if (!val) { toast.value?.show('标题不能为空'); return }
+  if (!val) { showToast('标题不能为空'); return }
   selectedTask.value.title = val
   selectedTask.value.updatedAt = Date.now()
   store.persist()
-  toast.value?.show('✓ 已保存') // 第卅三轮 REQ-015：与资源/好奇抽屉一致补 Toast
+  showToast('✓ 已保存') // 第卅三轮 REQ-015：与资源/好奇抽屉一致补 Toast
 }
 function saveTaskTitleAndClose() {
   saveTaskTitle()
@@ -1291,7 +1297,7 @@ onUnmounted(() => {
 
     <ContextMenu :state="taskCtx" :items="taskCtxItems" @close="taskCtx.open = false" />
 
-    <Toast ref="toast" />
+    
   </div>
 </template>
 

@@ -226,13 +226,18 @@ async function handleLocate(wsId: string, hl: string, senderTabId?: number): Pro
   const target = `/workspace/${wsId}`
   const tabs = await chrome.tabs.query({ url: base + '*' })
   // 1) 找已打开目标工作台的标签页
-  for (const tab of tabs) {
-    if (tab.id == null) continue
-    const path = await askRoute(tab.id)
-    if (path === target) {
-      if (tab.windowId != null) await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {})
-      await chrome.tabs.update(tab.id, { active: true })
-      await chrome.tabs.sendMessage(tab.id, { type: 'zy-locate', wsId, hl }).catch(() => {})
+  // REQ-031 P-031-7：并行询问所有标签页（150ms 短超时），取首个命中——N 个标签页不再串行 N×600ms
+  if (tabs.length) {
+    const hits = await Promise.all(tabs.map(async (tab) => {
+      if (tab.id == null) return null
+      const path = await askRoute(tab.id, 150)
+      return path === target ? tab : null
+    }))
+    const hit = hits.find((t) => t !== null)
+    if (hit) {
+      if (hit.windowId != null) await chrome.windows.update(hit.windowId, { focused: true }).catch(() => {})
+      await chrome.tabs.update(hit.id!, { active: true })
+      await chrome.tabs.sendMessage(hit.id!, { type: 'zy-locate', wsId, hl }).catch(() => {})
       return
     }
   }

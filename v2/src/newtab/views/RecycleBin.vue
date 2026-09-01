@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
-import Toast from '@/shared/components/Toast.vue'
+import { showToast } from '@/shared/components/toast'
 import type { ResourceCard, TaskCard, CuriosityCard } from '@/shared/models'
 
 /** 第卅三轮 REQ-018：回收站页面（三类卡软删数据直接复用：models 的 deletedAt）
@@ -11,7 +11,6 @@ import type { ResourceCard, TaskCard, CuriosityCard } from '@/shared/models'
 const router = useRouter()
 const store = useAppStore()
 const d = computed(() => store.data!)
-const toast = ref<InstanceType<typeof Toast> | null>(null)
 
 const tab = ref<'res' | 'task' | 'curio'>('res')
 
@@ -44,7 +43,7 @@ function fmt(t?: number): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}`
 }
-function show(msg: string) { toast.value?.show(msg) }
+function show(msg: string) { showToast(msg) }
 
 // ---- 恢复 ----
 function restoreRes(r: ResourceCard) {
@@ -192,7 +191,7 @@ const tabMeta = computed(() => [
       <div v-if="!curios.length" class="rb-empty">回收站空空如也 ✨</div>
     </div>
 
-    <Toast ref="toast" />
+    
   </div>
 </template>
 

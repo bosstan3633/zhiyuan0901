@@ -5,7 +5,7 @@ import Icon from '@/shared/components/Icon.vue'
  * 版式与工作台对齐：Hero 封面 + 左侧栏（子页导航）+ 内容区（子路由）
  * 子页按操作频率排序：今日行动 → 项目策展 → 方向树
  */
-import { computed, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
@@ -16,6 +16,27 @@ const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
 const { d, allProjects } = useCompass()
+
+// REQ-029 F-029-2：首次进入罗盘一次性气泡引导（localStorage 持久化，点击或 6s 超时消失）
+const GUIDE_KEY = 'zy_compass_guide_v1'
+const guideVisible = ref(false)
+let guideTimer: ReturnType<typeof setTimeout> | null = null
+onMounted(() => {
+  if (!localStorage.getItem(GUIDE_KEY)) {
+    guideVisible.value = true
+    guideTimer = setTimeout(dismissGuide, 6000)
+  }
+})
+function dismissGuide() {
+  if (!guideVisible.value) return
+  guideVisible.value = false
+  localStorage.setItem(GUIDE_KEY, '1')
+  if (guideTimer) { clearTimeout(guideTimer); guideTimer = null }
+}
+// REQ-029 F-029-3：hover tooltip 固定文案（回答「什么」一句话定位）
+const tipActions = '今日行动 · 回答「做什么」'
+const tipProjects = '项目策展 · 回答「是什么」'
+const tipTree = '方向树 · 回答「为什么」'
 
 const todayUndone = computed(() => {
   const list = d.value.dailyFocus[dateKey(new Date())] || []
@@ -67,19 +88,28 @@ function nav(sub: string) { router.push('/compass/' + sub) }
 
     <div class="compass-body">
       <!-- 左侧栏（版式对齐工作台分类导航） -->
-      <aside class="comp-sidebar">
+      <aside class="comp-sidebar" @click="dismissGuide">
         <div class="cs-label">罗盘工作区</div>
-        <div class="cat-item" :class="{active: activePage==='actions'}" @click="nav('actions')">
+        <div class="cat-item" :class="{active: activePage==='actions', 'guide-glow': guideVisible}" :data-tip="tipActions" @click="nav('actions')">
           <span class="ci"><Icon name="flame" :size="15" /></span><span class="cn">今日行动</span><span class="cc">{{ todayUndone }} 待办</span>
         </div>
-        <div class="cat-item" :class="{active: activePage==='projects'}" @click="nav('projects')">
+        <div class="cat-item" :class="{active: activePage==='projects', 'guide-glow': guideVisible}" :data-tip="tipProjects" @click="nav('projects')">
           <span class="ci"><Icon name="layout" :size="15" /></span><span class="cn">项目策展</span><span class="cc">{{ projectsCount }} 项目</span>
         </div>
-        <div class="cat-item" :class="{active: activePage==='tree'}" @click="nav('tree')">
+        <div class="cat-item" :class="{active: activePage==='tree', 'guide-glow': guideVisible}" :data-tip="tipTree" @click="nav('tree')">
           <span class="ci"><Icon name="branch" :size="15" /></span><span class="cn">方向树</span><span class="cc">{{ goalsCount }} 目标</span>
         </div>
         <div class="cat-divider"></div>
-        <div class="side-note">方向树给「为什么」<br>项目策展给「是什么」<br>今日行动给「做什么」</div>
+        <!-- REQ-029 F-029-1：移除常驻三行文案，改为首次气泡引导 -->
+        <transition name="guide">
+          <div v-if="guideVisible" class="guide-bubble">
+            <div class="gb-title">三个入口，各回答一个问题 👇</div>
+            <div class="gb-line">方向树 · 回答「为什么」</div>
+            <div class="gb-line">项目策展 · 回答「是什么」</div>
+            <div class="gb-line">今日行动 · 回答「做什么」</div>
+            <div class="gb-close" @click.stop="dismissGuide">知道了 ✕</div>
+          </div>
+        </transition>
       </aside>
 
       <main class="comp-content">
@@ -116,24 +146,42 @@ function nav(sub: string) { router.push('/compass/' + sub) }
 
 /* Body */
 .compass-body { display: flex; min-height: calc(100vh - 52px - 128px); }
-.comp-sidebar { width: 190px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--surface); padding: 14px 10px; overflow-y: auto; }
+.comp-sidebar { width: 190px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--surface); padding: 14px 10px; overflow: visible; position: relative; }
 .cs-label { font-size: 10px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding: 0 10px 8px; }
-.cat-item { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 8px; font-size: 12.5px; color: var(--text-2); cursor: pointer; transition: all .12s; margin-bottom: 2px; border: 1px solid transparent; }
+.cat-item { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 8px; font-size: 12.5px; color: var(--text-2); cursor: pointer; transition: all .12s; margin-bottom: 2px; border: 1px solid transparent; position: relative; }
 .cat-item:hover { background: var(--surface-3); color: var(--text); }
 .cat-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; border-color: rgba(14,122,78,.2); }
 .cat-item .ci { font-size: 14px; flex-shrink: 0; }
 .cat-item .cn { flex: 1; }
 .cat-item .cc { font-size: 10px; color: var(--text-3); background: var(--surface-2); padding: 1px 7px; border-radius: 99px; }
 .cat-item.active .cc { background: var(--surface); color: var(--accent); }
+/* REQ-029 F-029-3：hover tooltip（data-tip 文案，右侧浮出一句话定位） */
+.cat-item::after {
+  content: attr(data-tip);
+  position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
+  white-space: nowrap; font-size: 11px; color: var(--text-2); background: var(--surface-2);
+  border: 1px solid var(--border); padding: 4px 9px; border-radius: 6px;
+  opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 20; box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+.cat-item:hover::after { opacity: 1; }
 .cat-divider { height: 1px; background: var(--border); margin: 8px 10px; }
-.side-note { font-size: 10px; color: var(--text-4); padding: 8px 10px; line-height: 1.8; }
+/* REQ-029 F-029-2：首次引导气泡 + 入口呼吸高亮 */
+.guide-glow { animation: guidePulse 1.6s ease-in-out infinite; }
+@keyframes guidePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(14,122,78,.35); } 50% { box-shadow: 0 0 0 5px rgba(14,122,78,0); } }
+.guide-bubble { margin: 10px 8px 4px; padding: 10px 12px; background: var(--accent-light); border: 1px solid rgba(14,122,78,.25); border-radius: 10px; font-size: 11px; color: var(--accent); line-height: 1.9; }
+.guide-bubble .gb-title { font-weight: 700; margin-bottom: 4px; }
+.guide-bubble .gb-close { margin-top: 6px; font-size: 10px; color: var(--text-2); cursor: pointer; text-align: right; }
+.guide-bubble .gb-close:hover { color: var(--accent); }
+.guide-enter-active, .guide-leave-active { transition: opacity .2s, transform .2s; }
+.guide-enter-from, .guide-leave-to { opacity: 0; transform: translateY(-4px); }
 
 .comp-content { flex: 1; min-width: 0; padding: 20px 26px 60px; }
 
 
 @media (max-width: 1080px) {
   .comp-sidebar { width: 64px; }
-  .cs-label, .cat-item .cn, .cat-item .cc, .side-note, .cat-divider { display: none; }
+  .cs-label, .cat-item .cn, .cat-item .cc, .cat-divider, .guide-bubble { display: none; }
+  .cat-item::after { display: none; }
   .cat-item { justify-content: center; padding: 11px 0; }
 }
 </style>

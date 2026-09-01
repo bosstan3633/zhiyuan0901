@@ -235,17 +235,14 @@
     </div>
   </div>
 
-  <!-- Toast -->
-  <div class="gp-toast" :class="{show: toastVisible}">
-    <span>{{ toastMsg }}</span>
-    <span v-if="toastLink" class="gp-toast-link" @click="toastLinkAction">{{ toastLinkText }}</span>
-  </div>
+  <!-- 快捷键速查面板（? 呼出） -->
 </template>
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
+import { showToast } from '@/shared/components/toast'
 import { uid, normalizeUrl } from '@/shared/utils'
 import { matchPinyin } from '@/shared/utils/pinyin'
 import { recordResourceOpen } from '@/shared/storage/stats'
@@ -634,9 +631,9 @@ function convertCurio(item: SearchResult, target: 'res'|'task') {
     d.value.resources.unshift(r)
     c.deletedAt = Date.now()
     store.persist()
-    showToast('✓ 已转化为资源卡，存入待分类', '查看', () => {
+    showToast('✓ 已转化为资源卡，存入待分类', { label: '查看', cb: () => {
       if (r.workspaceId) router.push(`/workspace/${r.workspaceId}`)
-    })
+    } })
   } else {
     const t: TaskCard = {
       id: uid('tk'), kind: 'task', title: c.question, status: 'todo', priority: 'medium',
@@ -646,7 +643,7 @@ function convertCurio(item: SearchResult, target: 'res'|'task') {
     d.value.tasks.unshift(t)
     c.deletedAt = Date.now()
     store.persist()
-    showToast('✓ 已转化为任务，跳转任务中心', '查看', () => router.push('/compass/actions'))
+    showToast('✓ 已转化为任务，跳转任务中心', { label: '查看', cb: () => router.push('/compass/actions') })
   }
   closeAll()
 }
@@ -751,25 +748,6 @@ function saveCurio() {
   closeAll()
   showToast('💗好奇心+1')
 }
-
-// ===== Toast =====
-const toastVisible = ref(false)
-const toastMsg = ref('')
-const toastLink = ref(false)
-const toastLinkText = ref('')
-let toastLinkCb: (() => void) | null = null
-let toastTimer: ReturnType<typeof setTimeout> | null = null
-
-function showToast(msg: string, linkText?: string, linkCb?: () => void) {
-  toastMsg.value = msg
-  toastLink.value = !!linkText
-  toastLinkText.value = linkText || ''
-  toastLinkCb = linkCb || null
-  toastVisible.value = true
-  if (toastTimer) clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toastVisible.value = false }, 2500)
-}
-function toastLinkAction() { toastLinkCb?.(); toastVisible.value = false }
 
 // ===== 工具函数 =====
 function linkShort(link: string) {
@@ -1000,13 +978,4 @@ textarea.gp-field-input { resize: vertical; min-height: 90px; font-size: 14px; l
 .gp-btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px);
   box-shadow: 0 2px 4px color-mix(in srgb, var(--accent) 25%, transparent), 0 8px 20px color-mix(in srgb, var(--accent) 20%, transparent); }
 .gp-btn-primary:active { transform: translateY(0); }
-
-/* Toast */
-.gp-toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(12px); background: #1A1D23;
-  color: #fff; padding: 10px 20px; border-radius: 99px; font-size: 13px; font-weight: 500; z-index: 2000; opacity: 0;
-  transition: all .25s cubic-bezier(.16,1,.3,1); pointer-events: none; box-shadow: 0 8px 28px rgba(0,0,0,.2);
-  display: flex; align-items: center; gap: 8px; max-width: 90vw; }
-.gp-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
-.gp-toast-link { color: #8FC4A3; cursor: pointer; font-weight: 600; text-decoration: underline; margin-left: 4px; }
-.gp-toast-link:hover { color: #A8D4B8; }
 </style>

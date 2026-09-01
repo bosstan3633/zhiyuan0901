@@ -6,7 +6,7 @@ import { useAppStore } from '../../stores/app'
 import type { CuriosityCard } from '@/shared/models'
 import ModuleCard from '@/shared/components/ModuleCard.vue'
 import Drawer from '@/shared/components/Drawer.vue'
-import Toast from '@/shared/components/Toast.vue'
+import { showToast } from '@/shared/components/toast'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
@@ -19,7 +19,6 @@ const store = useAppStore()
 const d = computed(() => store.data!)
 const route = useRoute()
 const router = useRouter()
-const toast = ref<InstanceType<typeof Toast> | null>(null)
 
 // 高亮定位（B4：搜索好奇卡结果跳转）
 const highlightId = ref<string | null>(null)
@@ -90,7 +89,7 @@ function openDetail(id: string) {
 function saveDetail() {
   if (detailId.value && editDraft.value.trim()) {
     update(detailId.value, { question: editDraft.value.trim() })
-    toast.value?.show('✓ 已更新')
+    showToast('✓ 已更新')
     detailId.value = null // 第卅三轮 REQ-015：保存后关闭抽屉
   }
 }
@@ -127,7 +126,7 @@ function togglePin(id: string) {
   if (!c) return
   const next = !c.pinned
   update(id, { pinned: next })
-  toast.value?.show(next ? '📌 已置顶，将在专区顶部展示' : '已取消置顶')
+  showToast(next ? '📌 已置顶，将在专区顶部展示' : '已取消置顶')
 }
 /** 第卅三轮 REQ-020：好奇心星标切换（独立于置顶，可叠加） */
 function toggleStar(id: string) {
@@ -135,7 +134,7 @@ function toggleStar(id: string) {
   if (!c) return
   const next = !c.starred
   update(id, { starred: next, updatedAt: Date.now() })
-  toast.value?.show(next ? '⭐ 已星标，搜索时优先展示' : '已取消星标')
+  showToast(next ? '⭐ 已星标，搜索时优先展示' : '已取消星标')
 }
 
 // ---- O7：单击详情 / 双击打开来源链接（与资源卡一致） ----
@@ -155,7 +154,7 @@ function onCardDblClick(c: CuriosityCard) {
   if (url) window.open(url, '_blank')
   else {
     openDetail(c.id)
-    toast.value?.show('该好奇心还没有链接，可在详情中添加')
+    showToast('该好奇心还没有链接，可在详情中添加')
   }
 }
 function toOpenableCurioLink(link?: string): string {
@@ -171,7 +170,7 @@ async function deleteCard(c: CuriosityCard) {
   remove(c.id)
   if (detailId.value === c.id) detailId.value = null
   // B2：撤销
-  toast.value?.show(`已删除「${c.question.slice(0, 20)}」`, { label: '撤销', cb: () => {
+  showToast(`已删除「${c.question.slice(0, 20)}」`, { label: '撤销', cb: () => {
     const cur = d.value.curiosities.find(x => x.id === c.id)
     if (cur) { cur.deletedAt = undefined; store.persist() }
   } })
@@ -203,7 +202,7 @@ function onCzDrop(e: DragEvent, targetId: string, status?: CuriStatus) {
     const c = list[fi]
     if (c.status !== status) {
       setStatus(movedId, status)
-      toast.value?.show(`✓ 已移至「${STATUS_MAP[status].label}」`)
+      showToast(`✓ 已移至「${STATUS_MAP[status].label}」`)
     }
   }
   const [moved] = list.splice(fi, 1)
@@ -212,7 +211,7 @@ function onCzDrop(e: DragEvent, targetId: string, status?: CuriStatus) {
   list.splice(after ? ti + 1 : ti, 0, moved)
   store.persist()
   dragCzId = null
-  toast.value?.show('✓ 已调整排序')
+  showToast('✓ 已调整排序')
 }
 function onCzKanbanDrop(e: DragEvent, status: CuriStatus) {
   e.preventDefault()
@@ -220,7 +219,7 @@ function onCzKanbanDrop(e: DragEvent, status: CuriStatus) {
   const c = curiosities.value.find(x => x.id === dragCzId)
   if (c && c.status !== status) {
     setStatus(dragCzId, status)
-    toast.value?.show(`✓ 已移至「${STATUS_MAP[status].label}」`)
+    showToast(`✓ 已移至「${STATUS_MAP[status].label}」`)
   }
   dragCzId = null
 }
@@ -265,14 +264,14 @@ function confirmConvert() {
   const c = convertItem.value
   if (!c) return
   if (convertTarget.value === 'res') {
-    if (!convertWsId.value) { toast.value?.show('请选择工作台'); return }
+    if (!convertWsId.value) { showToast('请选择工作台'); return }
     const ws = convWorkspaces.value.find(w => w.id === convertWsId.value)
     convertToResource(c, convertWsId.value, convertCatId.value || undefined)
-    toast.value?.show(`✓ 已归档至「${ws?.name || ''}」资源工作台`)
+    showToast(`✓ 已归档至「${ws?.name || ''}」资源工作台`)
   } else {
     const proj = convProjects.value.find(p => p.id === convertProjId.value)
     convertToTask(c, convertProjId.value || undefined, convertMetId.value || undefined)
-    toast.value?.show(proj ? `✓ 已转为任务，归属「${proj.name}」` : '✓ 已转为任务，进入任务中心')
+    showToast(proj ? `✓ 已转为任务，归属「${proj.name}」` : '✓ 已转为任务，进入任务中心')
   }
   convertOpen.value = false
   detailId.value = null
@@ -288,13 +287,13 @@ function batchDelete() {
   selected.value.forEach(id => remove(id))
   selected.value.clear()
   batchMode.value = false
-  toast.value?.show('已批量删除')
+  showToast('已批量删除')
 }
 function batchSetStatus(status: CuriStatus) {
   selected.value.forEach(id => setStatus(id, status))
   selected.value.clear()
   batchMode.value = false
-  toast.value?.show('已批量更新状态')
+  showToast('已批量更新状态')
 }
 
 function fmtDate(ts?: number) {
@@ -517,7 +516,7 @@ function fmtDate(ts?: number) {
       </Transition>
     </Teleport>
 
-    <Toast ref="toast" />
+    
   </ModuleCard>
 
     <ContextMenu :state="ctx" :items="ctxItems" @close="ctx.open = false" />
