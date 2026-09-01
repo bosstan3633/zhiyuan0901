@@ -1,0 +1,656 @@
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useCuriosity, type CuriStatus } from '../../stores/curiosity'
+import { useAppStore } from '../../stores/app'
+import type { CuriosityCard } from '@/shared/models'
+import ModuleCard from '@/shared/components/ModuleCard.vue'
+import Drawer from '@/shared/components/Drawer.vue'
+import Toast from '@/shared/components/Toast.vue'
+import TagPicker from '@/shared/components/TagPicker.vue'
+import EmptyState from '@/shared/components/EmptyState.vue'
+import ContextMenu from '@/shared/components/ContextMenu.vue'
+import { saveUIPrefs } from '@/shared/storage/repository'
+import { byMarksThen } from '@/shared/utils/marksort'
+import { useTaHeight } from '@/shared/utils/taHeight'
+
+const { curiosities, STATUS_MAP, update, setStatus, remove, convertToTask, convertToResource } = useCuriosity()
+const store = useAppStore()
+const d = computed(() => store.data!)
+const route = useRoute()
+const router = useRouter()
+const toast = ref<InstanceType<typeof Toast> | null>(null)
+
+// 高亮定位（B4：搜索好奇卡结果跳转）
+const highlightId = ref<string | null>(null)
+watch(() => route.query.hl, (hl) => {
+  if (!hl || typeof hl !== 'string' || route.path !== '/') return
+  highlightId.value = hl
+  statusFilter.value = 'all'
+  viewMode.value = 'card'
+  setTimeout(() => {
+    document.querySelector(`[data-czid="${hl}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setTimeout(() => { highlightId.value = null }, 2000)
+  }, 350)
+  router.replace({ path: route.path })
+}, { immediate: true })
+
+const viewMode = ref<'card' | 'list' | 'kanban'>('card')
+const statusFilter = ref<CuriStatus | 'all'>('all')
+
+// 第卅二轮 REQ-007：好奇心时间排序方向（默认倒序=新捕获在前）+ 偏好本地记忆（UIPrefs.sortPrefs.curio）
+const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.curio?.dir === 'asc') ? 'asc' : 'desc')
+watch(sortDir, () => {
+  const sp = { ...(store.ui?.sortPrefs || {}), curio: { by: 'createdAt', dir: sortDir.value } }
+  if (store.ui) store.ui.sortPrefs = sp
+  saveUIPrefs({ sortPrefs: sp })
+})
+function toggleSortDir() { sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc' }
+
+/** 置顶优先分组：置顶在前；组内按捕获时间排序（REQ-007 方向可切换） */
+const filtered = computed(() => {
+  const list = statusFilter.value === 'all'
+    ? curiosities.value
+    : curiosities.value.filter(c => c.status === statusFilter.value)
+  const dirMul = sortDir.value === 'asc' ? 1 : -1
+  // 第卅三轮 BUG-A 修复：此前只按 createdAt 排序，置顶卡不会前置，
+  // 而模板按 i===0 / i===pinnedCount 硬渲染分组标签 → 置顶区混入普通卡。
+  // 现统一走 markRank 口径（置顶 > 星标 > 普通），组内再按时间方向。
+  return [...list].sort(
+    byMarksThen<CuriosityCard>((a, b) => dirMul * ((a.createdAt || 0) - (b.createdAt || 0)))
+  )
+})
+const pinnedCount = computed(() => filtered.value.filter(c => c.pinned).length)
+
+const statusCounts = computed(() => {
+  const counts: Record<string, number> = { all: curiosities.value.length }
+  for (const c of curiosities.value) counts[c.status] = (counts[c.status] || 0) + 1
+  return counts
+})
+
+const kanbanCols = computed(() => {
+  const statuses: CuriStatus[] = ['todo', 'doing', 'done', 'shelf']
+  return statuses.map(s => ({
+    status: s,
+    ...STATUS_MAP[s],
+    items: curiosities.value.filter(c => c.status === s)
+  }))
+})
+
+const detailId = ref<string | null>(null)
+/** 第卅三轮 REQ-024：详情文本框高度（默认 180px，拖拽记忆） */
+const { taH: detailH, startTaResize: startDetailResize } = useTaHeight('curio-detail', store.ui)
+const detailItem = computed(() => curiosities.value.find(c => c.id === detailId.value) || null)
+const editDraft = ref('')
+function openDetail(id: string) {
+  detailId.value = id
+  const c = curiosities.value.find(x => x.id === id)
+  if (c) editDraft.value = c.question
+}
+function saveDetail() {
+  if (detailId.value && editDraft.value.trim()) {
+    update(detailId.value, { question: editDraft.value.trim() })
+    toast.value?.show('✓ 已更新')
+    detailId.value = null // 第卅三轮 REQ-015：保存后关闭抽屉
+  }
+}
+
+// ---- 置顶 ----
+// B5：右键菜单 + B6 拖拽插入线
+const ctx = ref({ open: false, x: 0, y: 0 })
+const ctxItems = ref<{ label: string; icon?: string; danger?: boolean; cb: () => void }[]>([])
+const ctxTarget = ref<CuriosityCard | null>(null)
+function openCurioCtx(e: MouseEvent, c: CuriosityCard) {
+  ctxTarget.value = c
+  ctxItems.value = [
+    { label: '打开详情', icon: 'arrowright', cb: () => openDetail(c.id) },
+    { label: c.pinned ? '取消置顶' : '置顶', icon: 'pin', cb: () => togglePin(c.id) },
+    { label: c.starred ? '取消星标' : '星标', icon: 'star', cb: () => toggleStar(c.id) },
+    { label: '转为任务', icon: 'check', cb: () => openConvert(c, 'task') },
+    { label: '删除', icon: 'trash', danger: true, cb: () => deleteCard(c) }
+  ]
+  ctx.value = { open: true, x: Math.min(e.clientX, window.innerWidth - 190), y: Math.min(e.clientY, window.innerHeight - 220) }
+}
+const dropMark = ref('')
+// 第廿八轮：轴向参数化——卡片网格 X 轴判定，列表/看板（纵向堆叠）Y 轴判定
+function markDrop(e: DragEvent, key: string, axis: 'x' | 'y') {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  const after = axis === 'x'
+    ? (e.clientX - rect.left) / rect.width > 0.5
+    : (e.clientY - rect.top) / rect.height > 0.5
+  dropMark.value = key + (after ? '-b' : '-t')
+}
+function clearDropMark() { dropMark.value = '' }
+
+function togglePin(id: string) {
+  const c = curiosities.value.find(x => x.id === id)
+  if (!c) return
+  const next = !c.pinned
+  update(id, { pinned: next })
+  toast.value?.show(next ? '📌 已置顶，将在专区顶部展示' : '已取消置顶')
+}
+/** 第卅三轮 REQ-020：好奇心星标切换（独立于置顶，可叠加） */
+function toggleStar(id: string) {
+  const c = curiosities.value.find(x => x.id === id)
+  if (!c) return
+  const next = !c.starred
+  update(id, { starred: next, updatedAt: Date.now() })
+  toast.value?.show(next ? '⭐ 已星标，搜索时优先展示' : '已取消星标')
+}
+
+// ---- O7：单击详情 / 双击打开来源链接（与资源卡一致） ----
+let clickTimer: ReturnType<typeof setTimeout> | null = null
+function onCardClick(id: string) {
+  if (batchMode.value) { toggleSelect(id); return }
+  if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return }
+  clickTimer = setTimeout(() => { clickTimer = null; openDetail(id) }, 260)
+}
+function openSourceUrl(url: string) {
+  if (/^(https?|obsidian|file):/i.test(url)) window.open(url, '_blank')
+}
+function onCardDblClick(c: CuriosityCard) {
+  if (clickTimer) { clearTimeout(clickTimer); clickTimer = null }
+  // 第十三轮：链接字段统一口径（sourceUrl 即好奇心的链接，支持 URL / 本地路径 / obsidian://）
+  const url = toOpenableCurioLink(c.sourceUrl)
+  if (url) window.open(url, '_blank')
+  else {
+    openDetail(c.id)
+    toast.value?.show('该好奇心还没有链接，可在详情中添加')
+  }
+}
+function toOpenableCurioLink(link?: string): string {
+  const t = (link || '').trim()
+  if (!t) return ''
+  if (/^(https?|obsidian|file):/i.test(t)) return t
+  if (/^[a-zA-Z]:[\\/]/.test(t)) return 'file:///' + encodeURI(t.replace(/\\/g, '/')).replace(/#/g, '%23')
+  return ''
+}
+
+// ---- O6：卡片删除（删除入口在卡片上，不在详情页） ----
+async function deleteCard(c: CuriosityCard) {
+  remove(c.id)
+  if (detailId.value === c.id) detailId.value = null
+  // B2：撤销
+  toast.value?.show(`已删除「${c.question.slice(0, 20)}」`, { label: '撤销', cb: () => {
+    const cur = d.value.curiosities.find(x => x.id === c.id)
+    if (cur) { cur.deletedAt = undefined; store.persist() }
+  } })
+}
+
+// ---- O5：拖拽（卡片排序 + 看板跨状态列改状态） ----
+let dragCzId: string | null = null
+function onCzDragStart(e: DragEvent, id: string) {
+  dragCzId = id
+  ;(e.currentTarget as HTMLElement).classList.add('dragging')
+  e.dataTransfer!.effectAllowed = 'move'
+}
+function onCzDragEnd(e: DragEvent) {
+  ;(e.currentTarget as HTMLElement).classList.remove('dragging')
+  dragCzId = null
+}
+function onCzDrop(e: DragEvent, targetId: string, status?: CuriStatus) {
+  e.preventDefault(); e.stopPropagation()
+  ;(e.currentTarget as HTMLElement).classList.remove('drag-over')
+  const after = dropMark.value.endsWith('-b')
+  clearDropMark()
+  if (!dragCzId || dragCzId === targetId) return
+  const list = d.value.curiosities
+  const movedId = dragCzId
+  const fi = list.findIndex(x => x.id === movedId)
+  if (fi < 0) { dragCzId = null; return }
+  // 第廿八轮：看板跨状态列落卡 = 状态随列（列空白区落点仍走 onCzKanbanDrop）
+  if (status) {
+    const c = list[fi]
+    if (c.status !== status) {
+      setStatus(movedId, status)
+      toast.value?.show(`✓ 已移至「${STATUS_MAP[status].label}」`)
+    }
+  }
+  const [moved] = list.splice(fi, 1)
+  const ti = list.findIndex(x => x.id === targetId)
+  if (ti < 0) { list.splice(fi, 0, moved); dragCzId = null; return }
+  list.splice(after ? ti + 1 : ti, 0, moved)
+  store.persist()
+  dragCzId = null
+  toast.value?.show('✓ 已调整排序')
+}
+function onCzKanbanDrop(e: DragEvent, status: CuriStatus) {
+  e.preventDefault()
+  if (!dragCzId) return
+  const c = curiosities.value.find(x => x.id === dragCzId)
+  if (c && c.status !== status) {
+    setStatus(dragCzId, status)
+    toast.value?.show(`✓ 已移至「${STATUS_MAP[status].label}」`)
+  }
+  dragCzId = null
+}
+
+// ---- 转化（选工作台/分类 或 项目/指标）----
+const convertOpen = ref(false)
+const convertTarget = ref<'task' | 'res'>('task')
+const convertItem = ref<CuriosityCard | null>(null)
+const convertWsId = ref('')
+const convertCatId = ref('')
+const convertProjId = ref('')
+const convertMetId = ref('')
+
+const convWorkspaces = computed(() => store.data!.workspaces.filter(w => !w.archived))
+const convCategories = computed(() =>
+  store.data!.categories.filter(c => c.workspaceId === convertWsId.value)
+)
+/** 全部项目（跨方向扁平），带所属方向名 */
+const convProjects = computed(() => {
+  const list: { id: string; name: string; dir: string; metrics: { id: string; title: string }[] }[] = []
+  for (const dir of store.data!.compass.directions) {
+    for (const p of dir.projects) {
+      list.push({ id: p.id, name: p.name, dir: dir.name, metrics: p.metrics.map(m => ({ id: m.id, title: m.title })) })
+    }
+  }
+  return list
+})
+const convMetrics = computed(() =>
+  convProjects.value.find(p => p.id === convertProjId.value)?.metrics || []
+)
+
+function openConvert(c: CuriosityCard, target: 'task' | 'res') {
+  convertItem.value = c
+  convertTarget.value = target
+  convertWsId.value = convWorkspaces.value[0]?.id || ''
+  convertCatId.value = ''
+  convertProjId.value = ''
+  convertMetId.value = ''
+  convertOpen.value = true
+}
+function confirmConvert() {
+  const c = convertItem.value
+  if (!c) return
+  if (convertTarget.value === 'res') {
+    if (!convertWsId.value) { toast.value?.show('请选择工作台'); return }
+    const ws = convWorkspaces.value.find(w => w.id === convertWsId.value)
+    convertToResource(c, convertWsId.value, convertCatId.value || undefined)
+    toast.value?.show(`✓ 已归档至「${ws?.name || ''}」资源工作台`)
+  } else {
+    const proj = convProjects.value.find(p => p.id === convertProjId.value)
+    convertToTask(c, convertProjId.value || undefined, convertMetId.value || undefined)
+    toast.value?.show(proj ? `✓ 已转为任务，归属「${proj.name}」` : '✓ 已转为任务，进入任务中心')
+  }
+  convertOpen.value = false
+  detailId.value = null
+}
+
+const batchMode = ref(false)
+const selected = ref<Set<string>>(new Set())
+function toggleSelect(id: string) {
+  if (selected.value.has(id)) selected.value.delete(id)
+  else selected.value.add(id)
+}
+function batchDelete() {
+  selected.value.forEach(id => remove(id))
+  selected.value.clear()
+  batchMode.value = false
+  toast.value?.show('已批量删除')
+}
+function batchSetStatus(status: CuriStatus) {
+  selected.value.forEach(id => setStatus(id, status))
+  selected.value.clear()
+  batchMode.value = false
+  toast.value?.show('已批量更新状态')
+}
+
+function fmtDate(ts?: number) {
+  if (!ts) return ''
+  const dt = new Date(ts)
+  return `${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+</script>
+
+<template>
+  <ModuleCard icon-name="bulb" title="我的好奇心" en="CURIOSITY">
+    <template #actions>
+      <button class="cz-batch-btn" :class="{active: batchMode}" @click="batchMode = !batchMode">
+        {{ batchMode ? '完成' : '☑ 批量管理' }}
+      </button>
+    </template>
+
+    <div class="cz-body">
+      <div class="cz-filters">
+        <button class="cz-filter" :class="{active: statusFilter === 'all'}" @click="statusFilter = 'all'">
+          全部 <span class="cz-count">{{ statusCounts.all || 0 }}</span>
+        </button>
+        <button v-for="(s, key) in STATUS_MAP" :key="key"
+          class="cz-filter" :class="{active: statusFilter === key}"
+          @click="statusFilter = key as CuriStatus">
+          {{ s.icon }} {{ s.label }} <span class="cz-count">{{ statusCounts[key] || 0 }}</span>
+        </button>
+        <div class="cz-views">
+          <!-- 第卅二轮 REQ-007：时间排序方向（默认倒序，偏好本地记忆） -->
+          <button class="cz-view-btn cz-sort-dir" :title="sortDir==='desc' ? '捕获时间倒序（新→旧），点击切换正序' : '捕获时间正序（旧→新），点击切换倒序'" @click="toggleSortDir">{{ sortDir==='desc' ? '↓' : '↑' }}</button>
+          <button class="cz-view-btn" :class="{active: viewMode === 'card'}" @click="viewMode = 'card'" title="卡片视图">▦</button>
+          <button class="cz-view-btn" :class="{active: viewMode === 'list'}" @click="viewMode = 'list'" title="列表视图">☰</button>
+          <button class="cz-view-btn" :class="{active: viewMode === 'kanban'}" @click="viewMode = 'kanban'" title="看板视图">▥</button>
+        </div>
+      </div>
+
+      <Transition name="expand">
+        <div v-if="batchMode && selected.size" class="cz-batch-bar">
+          <span>已选 {{ selected.size }} 项</span>
+          <button class="mini-btn" @click="batchSetStatus('doing')">标记探索中</button>
+          <button class="mini-btn" @click="batchSetStatus('done')">标记已求证</button>
+          <button class="mini-btn" @click="batchSetStatus('shelf')">标记已搁置</button>
+          <button class="mini-btn danger" @click="batchDelete">删除</button>
+        </div>
+      </Transition>
+
+      <!-- 卡片视图 -->
+      <div v-if="viewMode === 'card'" class="cz-grid">
+        <template v-for="(c, i) in filtered" :key="c.id">
+          <div v-if="pinnedCount && i === 0" class="cz-group-label">📌 已置顶</div>
+          <div v-else-if="pinnedCount && i === pinnedCount" class="cz-group-label">全部好奇心</div>
+          <div class="cz-card"
+            :class="{selected: selected.has(c.id), pinned: c.pinned, flash: highlightId===c.id, 'drop-line-t': dropMark===c.id+'-t', 'drop-line-b': dropMark===c.id+'-b'}"
+            :data-czid="c.id" draggable="true"
+            @click="onCardClick(c.id)" @dblclick="onCardDblClick(c)"
+            @dragstart="onCzDragStart($event, c.id)" @dragend="onCzDragEnd"
+            @dragover.prevent="markDrop($event, c.id, 'x')" @dragleave="clearDropMark" @drop="onCzDrop($event, c.id)"
+            @contextmenu.prevent="openCurioCtx($event, c)">
+            <span v-if="batchMode" class="cz-check" @click.stop="toggleSelect(c.id)">{{ selected.has(c.id) ? '☑' : '☐' }}</span>
+            <span class="cz-status" :class="STATUS_MAP[c.status].cls">{{ STATUS_MAP[c.status].icon }} {{ STATUS_MAP[c.status].label }}</span>
+            <button class="cz-pin-corner" :class="{on: c.pinned}" @click.stop="togglePin(c.id)" title="置顶">📌</button>
+            <button class="cz-star-corner" :class="{on: c.starred}" @click.stop="toggleStar(c.id)" title="星标">⭐</button>
+            <div class="cz-title">{{ c.question }}</div>
+            <div class="cz-meta">📅 {{ fmtDate(c.createdAt) }}</div>
+            <div class="cz-hover-bar">
+              <button class="cz-hover-btn primary" @click.stop="openConvert(c, 'task')">转为任务</button>
+              <button class="cz-hover-btn" @click.stop="openConvert(c, 'res')">归档资源</button>
+              <button class="cz-hover-btn danger" @click.stop="deleteCard(c)" title="删除">🗑</button>
+            </div>
+          </div>
+        </template>
+        <div v-if="!filtered.length" class="cz-empty">
+          <div class="cz-empty-icon">💡</div>
+          <div>还没有好奇心 · 按 Ctrl+Shift+I 一键采集（支持选中网页文本后采集）</div>
+        </div>
+      </div>
+
+      <!-- 列表视图 -->
+      <div v-else-if="viewMode === 'list'" class="cz-list">
+        <template v-for="(c, i) in filtered" :key="c.id">
+          <div v-if="pinnedCount && i === 0" class="cz-group-label">📌 已置顶</div>
+          <div v-else-if="pinnedCount && i === pinnedCount" class="cz-group-label">全部好奇心</div>
+          <div class="cz-list-item" draggable="true"
+            @click="onCardClick(c.id)" @dblclick="onCardDblClick(c)"
+            @dragstart="onCzDragStart($event, c.id)" @dragend="onCzDragEnd"
+            @dragover.prevent="markDrop($event, c.id, 'y')" @dragleave="clearDropMark" @drop="onCzDrop($event, c.id)"
+            @contextmenu.prevent="openCurioCtx($event, c)"
+            :class="dropMark===c.id+'-t' ? 'drop-line-t' : dropMark===c.id+'-b' ? 'drop-line-b' : ''">
+            <span v-if="batchMode" class="cz-check" @click.stop="toggleSelect(c.id)">{{ selected.has(c.id) ? '☑' : '☐' }}</span>
+            <span v-else-if="c.pinned" class="cz-pin-flag">📌</span>
+            <span v-else-if="c.starred" class="cz-star-flag">⭐</span>
+            <span class="cz-status" :class="STATUS_MAP[c.status].cls">{{ STATUS_MAP[c.status].icon }}</span>
+            <span class="cz-list-text">{{ c.question }}</span>
+            <span class="cz-list-date">{{ fmtDate(c.createdAt) }}</span>
+            <div class="cz-list-actions">
+              <button class="mini-btn" :class="{pinon: c.pinned}" @click.stop="togglePin(c.id)" title="置顶">📌</button>
+              <button class="mini-btn" :class="{pinon: c.starred}" @click.stop="toggleStar(c.id)" title="星标">⭐</button>
+              <button class="mini-btn" @click.stop="openConvert(c, 'task')">转任务</button>
+              <button class="mini-btn" @click.stop="openConvert(c, 'res')">归档</button>
+              <button class="mini-btn danger" @click.stop="deleteCard(c)">🗑</button>
+            </div>
+          </div>
+        </template>
+        <EmptyState v-if="!filtered.length" icon="bulb" title="还没有好奇心"
+            desc="按 Ctrl+Shift+I 一键采集（支持先选中网页文字）"
+            action-label="盘一盘方向树" @action="$router ? null : null" />
+      </div>
+
+      <!-- 看板视图（跨列拖拽改状态） -->
+      <div v-else class="cz-kanban">
+        <div v-for="col in kanbanCols" :key="col.status" class="cz-kanban-col"
+          @dragover.prevent @drop="onCzKanbanDrop($event, col.status)">
+          <div class="cz-kanban-head">
+            <span>{{ col.icon }} {{ col.label }}</span>
+            <span class="cz-kanban-count">{{ col.items.length }}</span>
+          </div>
+          <div class="cz-kanban-body">
+            <div v-for="c in col.items" :key="c.id" class="cz-kanban-card" :class="{'drop-line-t': dropMark===c.id+'-t', 'drop-line-b': dropMark===c.id+'-b'}" draggable="true"
+              @click="onCardClick(c.id)" @dblclick="onCardDblClick(c)"
+              @dragstart="onCzDragStart($event, c.id)" @dragend="onCzDragEnd"
+              @dragover.prevent.stop="markDrop($event, c.id, 'y')" @dragleave="clearDropMark" @drop.stop="onCzDrop($event, c.id, col.status)">
+              <button class="cz-pin-corner" :class="{on: c.pinned}" @click.stop="togglePin(c.id)" title="置顶">📌</button>
+              <button class="cz-star-corner" :class="{on: c.starred}" @click.stop="toggleStar(c.id)" title="星标">⭐</button>
+              <div class="cz-kanban-text">{{ c.question }}</div>
+              <div class="cz-kanban-meta">
+                <span>{{ fmtDate(c.createdAt) }}</span>
+                <button class="cz-kb-del" @click.stop="deleteCard(c)" title="删除">🗑</button>
+              </div>
+            </div>
+            <div v-if="!col.items.length" class="cz-kanban-empty">拖拽卡片到此列</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <Drawer :open="!!detailItem" :title="detailItem ? `${STATUS_MAP[detailItem.status].icon} 好奇心详情` : ''" @close="detailId = null">
+      <template v-if="detailItem">
+        <div class="detail-status-row">
+          <button v-for="(s, key) in STATUS_MAP" :key="key"
+            class="status-chip" :class="{active: detailItem.status === key, [s.cls]: true}"
+            @click="setStatus(detailItem.id, key as CuriStatus)">
+            {{ s.icon }} {{ s.label }}
+          </button>
+        </div>
+        <!-- 第卅三轮 REQ-015：Ctrl+Enter 保存并关闭（与全局口径一致）；REQ-024：高度拖拽记忆 -->
+        <div class="ta-wrap">
+          <textarea v-model="editDraft" rows="4" class="detail-textarea" :style="{ height: detailH + 'px' }"
+            @keydown.ctrl.enter.prevent="saveDetail" @keydown.meta.enter.prevent="saveDetail" />
+          <div class="ta-resize" @mousedown="startDetailResize" title="拖拽调节高度（记忆保存）"></div>
+        </div>
+        <div class="detail-meta">
+          <span>📅 捕获于 {{ new Date(detailItem.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span>
+          <span v-if="detailItem.updatedAt" title="最近一次修改时间">✏️ 更新于 {{ new Date(detailItem.updatedAt).toLocaleString('zh-CN', { hour12: false }) }}</span>
+        </div>
+        <!-- O24：采集来源展示（标题可点击打开原页面） -->
+        <div v-if="detailItem.sourceTitle || detailItem.sourceUrl" class="detail-src">
+          <span class="ds-ico">📎</span>
+          <a v-if="detailItem.sourceUrl" class="ds-link" :title="detailItem.sourceUrl" @click.prevent="openSourceUrl(detailItem.sourceUrl!)">{{ detailItem.sourceTitle || detailItem.sourceUrl }}</a>
+          <span v-else class="ds-title">{{ detailItem.sourceTitle }}</span>
+        </div>
+        <div class="detail-link-add">
+          <input v-model="detailItem.sourceUrl" placeholder="链接（网页 / 本地路径 / obsidian://，双击卡片直达）…" class="detail-link-input" />
+          <button class="mini-btn" @click="update(detailItem.id, { sourceUrl: detailItem.sourceUrl })">保存链接</button>
+        </div>
+        <div class="detail-tags" style="margin-top:14px">
+          <div style="font-size:11px;font-weight:600;color:var(--text-3);margin-bottom:7px">🏷 标签（来自标签管理体系）</div>
+          <TagPicker v-model="detailItem.tags" @update:model-value="update(detailItem.id, { tags: $event })" />
+        </div>
+      </template>
+      <template #footer>
+        <button class="mini-btn" :class="{pinon: detailItem?.pinned}" @click="detailItem && togglePin(detailItem.id)">{{ detailItem?.pinned ? '📌 已置顶' : '📌 置顶' }}</button>
+        <button class="mini-btn" @click="detailItem && openConvert(detailItem, 'task')">转为任务</button>
+        <button class="mini-btn" @click="detailItem && openConvert(detailItem, 'res')">归档为资源</button>
+        <button class="mini-btn primary" style="margin-left:auto" @click="saveDetail">保存</button>
+      </template>
+    </Drawer>
+
+    <!-- 转化弹窗：选目标位置 -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="convertOpen" class="cz-modal-overlay" @click.self="convertOpen = false">
+          <div class="cz-modal">
+            <div class="cz-modal-head">
+              <span>{{ convertTarget === 'task' ? '✅ 转为任务' : '📄 归档为资源' }}</span>
+              <button class="mini-btn" @click="convertOpen = false">×</button>
+            </div>
+            <div class="cz-modal-sub">{{ convertItem?.question }}</div>
+
+            <template v-if="convertTarget === 'res'">
+              <label class="cz-modal-label">存入工作台</label>
+              <select v-model="convertWsId" class="cz-modal-select">
+                <option v-for="w in convWorkspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name }}</option>
+              </select>
+              <label class="cz-modal-label">分类（默认待分类）</label>
+              <select v-model="convertCatId" class="cz-modal-select">
+                <option value="">📥 待分类</option>
+                <option v-for="cat in convCategories" :key="cat.id" :value="cat.id">📂 {{ cat.name }}</option>
+              </select>
+            </template>
+
+            <template v-else>
+              <label class="cz-modal-label">所属攻坚项目（可选）</label>
+              <select v-model="convertProjId" class="cz-modal-select">
+                <option value="">暂不归属</option>
+                <option v-for="p in convProjects" :key="p.id" :value="p.id">📦 {{ p.name }}（{{ p.dir }}）</option>
+              </select>
+              <label class="cz-modal-label">成功指标（可选）</label>
+              <select v-model="convertMetId" class="cz-modal-select" :disabled="!convertProjId">
+                <option value="">暂不归属</option>
+                <option v-for="m in convMetrics" :key="m.id" :value="m.id">🎯 {{ m.title }}</option>
+              </select>
+            </template>
+
+            <div class="cz-modal-foot">
+              <button class="mini-btn" @click="convertOpen = false">取消</button>
+              <button class="mini-btn primary" @click="confirmConvert">✓ 确认转化</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <Toast ref="toast" />
+  </ModuleCard>
+
+    <ContextMenu :state="ctx" :items="ctxItems" @close="ctx.open = false" />
+</template>
+
+<style scoped>
+.cz-batch-btn { padding: 5px 12px; border-radius: 8px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; }
+.cz-batch-btn:hover { border-color: var(--border-strong); }
+.cz-batch-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.cz-add-row { background: var(--surface-2); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 14px; box-shadow: 0 0 0 3px var(--accent-glow); }
+.cz-add-input { width: 100%; border: none; outline: none; background: transparent; font-size: 14px; font-family: inherit; line-height: 1.7; color: var(--text); resize: vertical; }
+.cz-add-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+.mini-btn { padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; }
+.mini-btn:hover { border-color: var(--border-strong); color: var(--text); }
+.mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.mini-btn.primary:hover { background: var(--accent-hover); }
+.mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
+.mini-btn.danger:hover { background: color-mix(in srgb, var(--danger) 8%, transparent); border-color: var(--danger); }
+.cz-filters { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.cz-filter { font-size: 12px; padding: 5px 12px; border-radius: 99px; background: var(--surface-3); color: var(--text-2); cursor: pointer; transition: all .15s; border: none; font-family: inherit; display: flex; align-items: center; gap: 4px; }
+.cz-filter:hover { background: var(--border); }
+.cz-filter.active { background: var(--accent); color: #fff; }
+.cz-count { font-size: 10px; opacity: .7; }
+.cz-views { display: flex; gap: 2px; margin-left: auto; }
+.cz-view-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 14px; transition: all .15s; border: none; background: transparent; }
+/* 第卅二轮 REQ-007：时间排序方向切换 */
+.cz-sort-dir { font-size: 13px; font-weight: 600; margin-right: 2px; border: 1px solid var(--border); background: var(--surface); font-family: inherit; }
+.cz-sort-dir:hover { border-color: var(--accent); color: var(--accent); }
+.cz-view-btn:hover { background: var(--surface-3); color: var(--text-2); }
+.cz-view-btn.active { background: var(--accent-light); color: var(--accent); }
+.cz-batch-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--accent-light); border-radius: var(--radius-sm); margin-bottom: 14px; font-size: 12px; color: var(--accent); font-weight: 500; }
+.cz-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.cz-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
+.cz-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
+.cz-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; cursor: pointer; transition: all .15s; position: relative; overflow: hidden; }
+.cz-card.flash { animation: cz-flash 2s ease-out; }
+@keyframes cz-flash { 0%,60% { background: var(--accent-light); box-shadow: 0 0 0 2px var(--accent); } 100% { background: var(--surface-2); box-shadow: none; } }
+.cz-card.dragging { opacity: .4; }
+.cz-card.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+.cz-hover-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+.mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
+.mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+.cz-kanban-col.drag-over { box-shadow: 0 0 0 2px var(--accent-glow); }
+.cz-kanban-card.dragging { opacity: .4; }
+.cz-list-item.drop-line-t, .cz-kanban-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
+.cz-list-item.drop-line-b, .cz-kanban-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
+.cz-kb-del { margin-left: auto; border: none; background: transparent; color: var(--text-4); cursor: pointer; font-size: 11px; padding: 0 2px; font-family: inherit; }
+.cz-kb-del:hover { color: var(--danger); }
+.cz-card:hover { border-color: var(--accent); background: var(--surface); transform: translateY(-1px); box-shadow: var(--shadow); }
+.cz-card.selected { border-color: var(--accent); background: var(--accent-light); }
+.cz-check { position: absolute; top: 8px; right: 8px; font-size: 14px; z-index: 2; }
+.cz-status { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 99px; margin-bottom: 8px; font-weight: 500; }
+.cz-status.pending { background: var(--accent-light); color: var(--accent); }
+.cz-status.exploring { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
+.cz-status.verified { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
+.cz-status.shelved { background: var(--surface-3); color: var(--text-3); }
+.cz-title { font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.5; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.cz-meta { font-size: 10px; color: var(--text-3); }
+.cz-hover-bar { position: absolute; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 8px 10px; display: flex; gap: 6px; transform: translateY(100%); transition: transform .2s; }
+.cz-card:hover .cz-hover-bar { transform: translateY(0); }
+.cz-hover-btn { font-size: 10px; padding: 4px 8px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all .15s; flex: 1; text-align: center; font-family: inherit; }
+.cz-hover-btn:hover { border-color: var(--accent); color: var(--accent); }
+.cz-hover-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.cz-empty { grid-column: 1/-1; text-align: center; padding: 48px 20px; color: var(--text-3); font-size: 13px; }
+.cz-empty-icon { font-size: 36px; opacity: .4; margin-bottom: 8px; }
+.cz-list { display: flex; flex-direction: column; gap: 4px; }
+.cz-list-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-xs); cursor: pointer; transition: background .1s; }
+.cz-list-item:hover { background: var(--surface-2); }
+.cz-list-text { flex: 1; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cz-list-date { font-size: 11px; color: var(--text-3); }
+.cz-list-actions { display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
+.cz-list-item:hover .cz-list-actions { opacity: 1; }
+.cz-kanban { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.cz-kanban-col { background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px; min-height: 200px; }
+.cz-kanban-head { font-size: 12px; font-weight: 600; color: var(--text-2); padding: 4px 6px 10px; display: flex; align-items: center; justify-content: space-between; }
+.cz-kanban-count { font-size: 10px; background: var(--surface-3); color: var(--text-3); padding: 1px 7px; border-radius: 99px; }
+.cz-kanban-body { display: flex; flex-direction: column; gap: 8px; }
+.cz-kanban-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 10px; cursor: pointer; transition: all .15s; }
+.cz-kanban-card:hover { border-color: var(--accent); box-shadow: var(--shadow); }
+.cz-kanban-text { font-size: 12.5px; color: var(--text); line-height: 1.5; margin-bottom: 6px; }
+.cz-kanban-meta { font-size: 10px; color: var(--text-3); }
+.cz-kanban-empty { text-align: center; padding: 20px; font-size: 11px; color: var(--text-4); border: 1px dashed var(--border); border-radius: var(--radius-xs); }
+.detail-status-row { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.status-chip { padding: 5px 12px; border-radius: 99px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; }
+.status-chip:hover { border-color: var(--border-strong); }
+.status-chip.active.pending { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+.status-chip.active.exploring { background: var(--tag-warn-bg); color: var(--tag-warn-text); border-color: var(--tag-warn-text); }
+.status-chip.active.verified { background: var(--tag-ok-bg); color: var(--tag-ok-text); border-color: var(--tag-ok-text); }
+.status-chip.active.shelved { background: var(--surface-3); color: var(--text-2); border-color: var(--border-strong); }
+.detail-textarea { width: 100%; min-height: 96px; max-height: 400px; border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 12px; font-size: 14px; font-family: inherit; line-height: 1.7; color: var(--text); background: var(--surface); outline: none; resize: vertical; }
+.detail-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+/* 第卅三轮 REQ-024：文本框拖拽手柄（高度经 UIPrefs.taHeights 记忆） */
+.ta-wrap { position: relative; }
+.ta-resize { position: absolute; right: 3px; bottom: 3px; width: 16px; height: 12px; cursor: ns-resize; z-index: 2; opacity: .45; border-right: 3px solid var(--text-3); border-bottom: 3px solid var(--text-3); border-bottom-right-radius: 3px; }
+.ta-resize:hover { opacity: .9; }
+.detail-meta { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; font-size: 11.5px; color: var(--text-3); }
+.detail-src { display: flex; align-items: center; gap: 6px; margin: 8px 0 6px; padding: 6px 9px; background: var(--surface-2); border: 1px dashed var(--border); border-radius: 8px; font-size: 11.5px; min-width: 0; }
+.detail-src .ds-ico { flex-shrink: 0; }
+.detail-src .ds-link { color: var(--info-blue); cursor: pointer; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.detail-src .ds-link:hover { text-decoration: underline; }
+.detail-src .ds-title { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.detail-link-add { display: flex; gap: 8px; margin-top: 12px; }
+.detail-link-input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 12px; font-family: inherit; outline: none; }
+.detail-link-input:focus { border-color: var(--accent); }
+.expand-enter-active, .expand-leave-active { transition: all .15s ease; overflow: hidden; }
+.expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; }
+
+/* 置顶与分组 */
+.cz-card.pinned { border-left: 3px solid var(--accent); }
+.cz-pin-flag { position: absolute; top: 8px; right: 8px; font-size: 12px; }
+.cz-star-flag { position: absolute; top: 8px; right: 8px; font-size: 12px; }
+/* 第十七轮：置顶常驻右上角（默认半隐，hover 显现，置顶态常亮） */
+.cz-pin-corner { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: .3; transition: all .15s ease; z-index: 2; }
+/* 第卅三轮 REQ-020：星标角落按钮（与置顶并排左移） */
+.cz-star-corner { position: absolute; top: 8px; right: 36px; width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: .3; transition: all .15s ease; z-index: 2; }
+.cz-card:hover .cz-pin-corner, .cz-kanban-card:hover .cz-pin-corner, .cz-card:hover .cz-star-corner, .cz-kanban-card:hover .cz-star-corner { opacity: .8; }
+.cz-pin-corner:hover, .cz-star-corner:hover { opacity: 1 !important; background: var(--surface-3); }
+.cz-pin-corner.on { opacity: 1; background: var(--accent-light); }
+.cz-star-corner.on { opacity: 1; background: color-mix(in srgb, #f5b942 18%, transparent); }
+.mini-btn.pinon { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+.cz-group-label { grid-column: 1 / -1; font-size: 11px; font-weight: 600; color: var(--text-3); padding: 2px 2px 0; letter-spacing: .5px; }
+.cz-list .cz-group-label { padding: 6px 2px 2px; }
+.mini-btn.pinon { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+.cz-hover-btn.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* 转化弹窗 */
+.cz-modal-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,.28); display: flex; align-items: flex-start; justify-content: center; padding-top: 20vh; }
+.cz-modal { width: 400px; max-width: 92vw; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 18px 20px; }
+.cz-modal-head { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.cz-modal-sub { font-size: 12px; color: var(--text-3); line-height: 1.6; margin-bottom: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cz-modal-label { display: block; font-size: 11px; font-weight: 600; color: var(--text-3); margin: 10px 0 5px; }
+.cz-modal-select { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-size: 12.5px; color: var(--text); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; }
+.cz-modal-select:focus { border-color: var(--accent); }
+.cz-modal-select:disabled { opacity: .5; cursor: not-allowed; }
+.cz-modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+</style>

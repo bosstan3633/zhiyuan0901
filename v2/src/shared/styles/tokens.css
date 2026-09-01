@@ -1,0 +1,400 @@
+/**
+ * 知源工作台 · 设计令牌（V2.3 视觉重构 · Linear 体系）
+ *
+ * 结构语言（六主题共用）：
+ *   - 四级表面阶梯（bg → surface → surface-2 → surface-3）+ 发丝线边框承载层级，弱化阴影
+ *   - 圆角体系：卡片/弹层 12 · 输入/按钮 8 · 徽标 6（Linear rounded scale）
+ *   - 字体：Inter（拉丁）+ 系统中文回退；轻微负字距
+ *   - 强调色克制：主操作/焦点环/链接强调，不做装饰性铺色
+ *
+ * 主题（每套保留自己的色彩个性，共用 Linear 结构）：
+ *   深空薰衣草 linear —— 近黑画布 #010102 + 薰衣草蓝 #5E6AD2（默认 · Linear 原版气质）
+ *   原野绿  green  —— 绿调近黑画布 + 品牌绿
+ *   暗夜红  night  —— 中性近黑画布 + 绯红
+ *   极简白  apple  —— 浅色反相阶梯 + Apple 蓝
+ *   光速黑  raycast —— 近黑画布 + 珊瑚红
+ *   纸墨白  notion —— 暖白纸面 + Notion 蓝
+ */
+
+:root {
+  /* 字体栈 · Inter 优先（拉丁），系统中文回退 */
+  --font-sans: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "HarmonyOS Sans SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+
+  /* 字号层级 */
+  --fs-display: 22px;
+  --fs-title: 15px;
+  --fs-body: 13.5px;
+  --fs-sub: 12px;
+  --fs-caption: 10.5px;
+
+  /* 圆角体系（Linear rounded scale，全主题共享） */
+  --radius: 12px;    /* 卡片 / 弹层 */
+  --radius-sm: 8px;  /* 按钮 / 输入 */
+  --radius-xs: 6px;  /* 徽标 / 行内元素 */
+
+  /* 发丝线（共享） */
+  --hairline: 1px;
+
+  /* 密度令牌（第卅三轮 REQ-026：卡片网格，一处修改全局生效；compact 覆盖见文件尾） */
+  --card-pad-vert: 14px;
+  --card-pad-horz: 16px;
+  --card-gap: 14px;
+  --card-min-w: 260px;
+}
+
+/* ===== 深空薰衣草 · Linear 原版气质（默认） ===== */
+:root,
+[data-theme='linear'] {
+  /* 表面阶梯：近黑画布 #010102（带一丝蓝调，规范明确禁止纯黑 #000） */
+  --bg: #010102;
+  --surface: #0F1011;
+  --surface-2: #141516;
+  --surface-3: #191A1B;
+
+  /* 发丝线 */
+  --border: #23252A;
+  --border-strong: #34343A;
+
+  /* 墨色文字梯度 */
+  --text: #F7F8F8;
+  --text-2: #D0D6E0;
+  --text-3: #8A8F98;
+  --text-4: #62666D;
+
+  /* 薰衣草蓝 · 只用于主操作/焦点/链接强调 */
+  --accent: #5E6AD2;
+  --accent-2: #7A85E0;
+  --accent-light: rgba(94, 106, 210, 0.16);
+  --accent-hover: #828FFF;
+  --accent-glow: rgba(94, 106, 210, 0.32);
+
+  /* 语义色（低饱和，深色底适配） */
+  --success: #27A644;
+  --warning: #D9A03C;
+  --danger: #E5484D;
+  --stagnant: #D4715D;
+  --info-blue: #5B8DEF;
+  --info-blue-light: rgba(91, 141, 239, 0.14);
+  --curio-amber: #D9B45C;
+  --curio-bg: rgba(217, 180, 92, 0.12);
+  --violet: #A78BFA;
+
+  /* 状态标签 · 低透明度色块 */
+  --tag-warn-bg: rgba(217, 160, 60, 0.14);
+  --tag-warn-text: #EFBE66;
+  --tag-ok-bg: rgba(39, 166, 68, 0.15);
+  --tag-ok-text: #6FCE8B;
+  --tag-danger-bg: rgba(229, 72, 77, 0.15);
+  --tag-danger-text: #FF9189;
+  --tag-neutral-bg: rgba(255, 255, 255, 0.07);
+  --tag-neutral-text: #A9ADB5;
+  --tag-info-bg: rgba(91, 141, 239, 0.15);
+  --tag-info-text: #9CC0F5;
+
+  /* 遮罩 · 纯黑 scrim（规范口径） */
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+
+  /* 阴影 · Linear 以表面阶梯与发丝线承载层级，阴影仅用于悬浮弹层 */
+  --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* ===== 原野绿 · 绿调近黑（品牌绿 + Linear 结构） ===== */
+[data-theme='green'] {
+  --bg: #080B09;
+  --surface: #0E1210;
+  --surface-2: #131814;
+  --surface-3: #181E19;
+  --border: #1F2621;
+  --border-strong: #2C3630;
+  --text: #EDF2EE;
+  --text-2: #C2CEC6;
+  --text-3: #7F8C84;
+  --text-4: #5A6660;
+  --accent: #10A56E;
+  --accent-2: #2BBD85;
+  --accent-light: rgba(16, 165, 110, 0.15);
+  --accent-hover: #2BD98C;
+  --accent-glow: rgba(16, 165, 110, 0.3);
+  --success: #27A644;
+  --warning: #D9A03C;
+  --danger: #E5484D;
+  --stagnant: #D4715D;
+  --info-blue: #5B8DEF;
+  --info-blue-light: rgba(91, 141, 239, 0.14);
+  --curio-amber: #D9B45C;
+  --curio-bg: rgba(217, 180, 92, 0.12);
+  --violet: #A78BFA;
+  --tag-warn-bg: rgba(217, 160, 60, 0.14);
+  --tag-warn-text: #EFBE66;
+  --tag-ok-bg: rgba(39, 166, 68, 0.15);
+  --tag-ok-text: #6FCE8B;
+  --tag-danger-bg: rgba(229, 72, 77, 0.15);
+  --tag-danger-text: #FF9189;
+  --tag-neutral-bg: rgba(255, 255, 255, 0.07);
+  --tag-neutral-text: #A9ADB5;
+  --tag-info-bg: rgba(91, 141, 239, 0.15);
+  --tag-info-text: #9CC0F5;
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+  --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* ===== 暗夜红 · 中性近黑 + 绯红 ===== */
+[data-theme='night'] {
+  --bg: #0B0B0D;
+  --surface: #101012;
+  --surface-2: #151517;
+  --surface-3: #1A1A1D;
+  --border: #232327;
+  --border-strong: #34343A;
+  --text: #F7F7F8;
+  --text-2: #C8CBD2;
+  --text-3: #8A8F98;
+  --text-4: #62666D;
+  --accent: #E8374A;
+  --accent-2: #F2606F;
+  --accent-light: rgba(232, 55, 74, 0.15);
+  --accent-hover: #FF5C6E;
+  --accent-glow: rgba(232, 55, 74, 0.3);
+  --success: #27A644;
+  --warning: #D9A03C;
+  --danger: #E5484D;
+  --stagnant: #D4715D;
+  --info-blue: #5B8DEF;
+  --info-blue-light: rgba(91, 141, 239, 0.14);
+  --curio-amber: #D9B45C;
+  --curio-bg: rgba(217, 180, 92, 0.12);
+  --violet: #A78BFA;
+  --tag-warn-bg: rgba(217, 160, 60, 0.14);
+  --tag-warn-text: #EFBE66;
+  --tag-ok-bg: rgba(39, 166, 68, 0.15);
+  --tag-ok-text: #6FCE8B;
+  --tag-danger-bg: rgba(229, 72, 77, 0.15);
+  --tag-danger-text: #FF9189;
+  --tag-neutral-bg: rgba(255, 255, 255, 0.07);
+  --tag-neutral-text: #A9ADB5;
+  --tag-info-bg: rgba(91, 141, 239, 0.15);
+  --tag-info-text: #9CC0F5;
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+  --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* ===== 极简白 · 浅色反相阶梯 + Apple 蓝 ===== */
+[data-theme='apple'] {
+  --bg: #F7F7F8;
+  --surface: #FFFFFF;
+  --surface-2: #F7F7F8;
+  --surface-3: #EFEFF1;
+  --border: #E3E4E8;
+  --border-strong: #D5D6DB;
+  --text: #17181C;
+  --text-2: #3C3F45;
+  --text-3: #8A8F98;
+  --text-4: #B4B8BF;
+  --accent: #0071E3;
+  --accent-2: #2B8DEF;
+  --accent-light: #E8F1FD;
+  --accent-hover: #005BB8;
+  --accent-glow: rgba(0, 113, 227, 0.2);
+  --success: #27A644;
+  --warning: #A66A00;
+  --danger: #D0342C;
+  --stagnant: #D4715D;
+  --info-blue: #0071E3;
+  --info-blue-light: #E8F1FD;
+  --curio-amber: #A87B2A;
+  --curio-bg: #F9F3E4;
+  --violet: #7C3AED;
+  --tag-warn-bg: #FBF1DE;
+  --tag-warn-text: #8A5A00;
+  --tag-ok-bg: #E4F2E8;
+  --tag-ok-text: #2E7D42;
+  --tag-danger-bg: #FBEAEA;
+  --tag-danger-text: #C03B3B;
+  --tag-neutral-bg: #EFEFF1;
+  --tag-neutral-text: #63636A;
+  --tag-info-bg: #E8F1FD;
+  --tag-info-text: #0064C8;
+  --overlay-bg: rgba(0, 0, 0, 0.32);
+  --shadow: 0 0 0 1px var(--border);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 0 0 1px var(--border), 0 8px 24px rgba(0, 0, 0, 0.07);
+  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* ===== 光速黑 · 近黑 + 珊瑚红 ===== */
+[data-theme='raycast'] {
+  --bg: #0A0A0C;
+  --surface: #111113;
+  --surface-2: #161619;
+  --surface-3: #1C1C20;
+  --border: #232327;
+  --border-strong: #34343A;
+  --text: #F7F7F8;
+  --text-2: #C8CBD2;
+  --text-3: #8A8F98;
+  --text-4: #62666D;
+  --accent: #FF6363;
+  --accent-2: #FF8585;
+  --accent-light: rgba(255, 99, 99, 0.15);
+  --accent-hover: #FF7575;
+  --accent-glow: rgba(255, 99, 99, 0.3);
+  --success: #27A644;
+  --warning: #D9A03C;
+  --danger: #E5484D;
+  --stagnant: #D4715D;
+  --info-blue: #5B8DEF;
+  --info-blue-light: rgba(91, 141, 239, 0.14);
+  --curio-amber: #D9B45C;
+  --curio-bg: rgba(217, 180, 92, 0.12);
+  --violet: #A78BFA;
+  --tag-warn-bg: rgba(217, 160, 60, 0.14);
+  --tag-warn-text: #EFBE66;
+  --tag-ok-bg: rgba(39, 166, 68, 0.15);
+  --tag-ok-text: #6FCE8B;
+  --tag-danger-bg: rgba(229, 72, 77, 0.15);
+  --tag-danger-text: #FF9189;
+  --tag-neutral-bg: rgba(255, 255, 255, 0.07);
+  --tag-neutral-text: #A9ADB5;
+  --tag-info-bg: rgba(91, 141, 239, 0.15);
+  --tag-info-text: #9CC0F5;
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+  --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* ===== 纸墨白 · 暖白纸面 + Notion 蓝 ===== */
+[data-theme='notion'] {
+  --bg: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-2: #F7F6F3;
+  --surface-3: #EFEDE9;
+  --border: #E9E8E4;
+  --border-strong: #D9D7D1;
+  --text: #37352F;
+  --text-2: #73726E;
+  --text-3: #9B9A97;
+  --text-4: #C4C2BD;
+  --accent: #2383E2;
+  --accent-2: #3490EA;
+  --accent-light: #E7F1FB;
+  --accent-hover: #1B74CC;
+  --accent-glow: rgba(35, 131, 226, 0.16);
+  --success: #448361;
+  --warning: #C08A2D;
+  --danger: #E03E3E;
+  --stagnant: #D4715D;
+  --info-blue: #2383E2;
+  --info-blue-light: #E7F1FB;
+  --curio-amber: #9F7B2D;
+  --curio-bg: #F6F0DF;
+  --violet: #9065B0;
+  --tag-warn-bg: #F5E9D3;
+  --tag-warn-text: #8A5F1E;
+  --tag-ok-bg: #E4EFE7;
+  --tag-ok-text: #3F7355;
+  --tag-danger-bg: #FBE9E7;
+  --tag-danger-text: #C03B3B;
+  --tag-neutral-bg: #EFEDE8;
+  --tag-neutral-text: #787670;
+  --tag-info-bg: #E7F1FB;
+  --tag-info-text: #2383E2;
+  --overlay-bg: rgba(15, 15, 15, 0.35);
+  --shadow: 0 0 0 1px var(--border);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(15, 15, 15, 0.04);
+  --shadow-lg: 0 0 0 1px var(--border), 0 8px 24px rgba(15, 15, 15, 0.07);
+  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* ===== 全局重置 ===== */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  font-size: var(--fs-body);
+  letter-spacing: -0.011em; /* Linear 式轻微负字距（拉丁生效，中文影响可忽略） */
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Linear 规范：深色画布即留白，无氛围渐变、无聚光卡片 */
+
+/* 标题排印：600 字重 + 轻负字距（以 body 前缀稳定覆盖 scoped 样式） */
+body .module-title .name,
+body .tc-module-title .tc-name {
+  font-size: var(--fs-title);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+body .module-title .en,
+body .tc-module-title .tc-en {
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+}
+body .dash-value,
+body .ns-value,
+body .fds-value {
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 焦点环 · 2px 强调色 50%（Linear 规范） */
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  outline-offset: 1px;
+}
+
+/* 滚动条 · 更隐蔽（A6） */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+/* A3：徽章/标签统一形态（pill + caption + 低饱和） */
+body .tag, body .rc-tag, body .gp-ri-badge, body .zy-badge, body .badge,
+body .cz-status, body .kc-card-tag, body .rr-f {
+  border-radius: 999px;
+  padding: 1.5px 8px;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* A10：数字全局等宽 */
+html, body { font-variant-numeric: tabular-nums; }
+
+/* 通用动画 */
+@keyframes breathe {
+  0%, 100% { opacity: .18; transform: scale(1); }
+  50% { opacity: .36; transform: scale(1.002); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* ===== 紧凑密度（第卅三轮 REQ-026：UIPrefs.density 切换，html[data-density=compact] 生效） ===== */
+[data-density='compact'] {
+  --card-pad-vert: 9px;
+  --card-pad-horz: 12px;
+  --card-gap: 10px;
+  --card-min-w: 220px;
+}
