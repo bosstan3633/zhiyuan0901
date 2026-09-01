@@ -40,9 +40,12 @@ function unpinnedProjects() { return projects.value.filter(p => !p.pinnedToLight
 
 /** 指标下的任务（真实任务卡） */
 function tasksForMetric(metricId: string): TaskCard[] {
+  // REQ-034：按 id 去重双保险
+  const seen = new Set<string>()
   const order = new Map(d.value.tasks.map((t, i) => [t.id, i]))
   return d.value.tasks
     .filter(t => !t.deletedAt && t.metricId === metricId)
+    .filter(t => { if (seen.has(t.id)) return false; seen.add(t.id); return true })
     .sort((a, b) => (order.get(a.id)||0) - (order.get(b.id)||0))
 }
 function metricPct(metricId: string): number {

@@ -127,6 +127,20 @@ chrome.commands.onCommand.addListener(async (command) => {
       }
       break
     }
+    case 'open-settings': {
+      // 第卅五轮 REQ-037：一键直达全局设置（复用 open-dashboard 聚焦模式，路由指向 /settings）
+      const base = chrome.runtime.getURL('src/newtab/index.html')
+      const tabs = await chrome.tabs.query({ url: base + '*' })
+      const existing = tabs.find(t => t.id != null)
+      if (existing?.id != null) {
+        if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
+        await chrome.tabs.update(existing.id, { active: true })
+        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route: '/settings' }).catch(() => {})
+      } else {
+        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html#/settings') })
+      }
+      break
+    }
     case 'quick-capture': {
       // 优先：content script 页内浮层（自动注入）
       if (tab?.id) {

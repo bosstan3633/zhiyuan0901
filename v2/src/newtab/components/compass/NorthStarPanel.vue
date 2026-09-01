@@ -238,11 +238,6 @@ function changeTaskMetric(taskId: string, e: Event) {
   t.updatedAt = Date.now()
   store.persist()
 }
-
-const summaryText = computed(() => {
-  const m = metrics.value
-  return `✨ 方向${m.dhi.label}，${m.wce.label}，${m.wrr.label}`
-})
 </script>
 
 <template>
@@ -300,7 +295,6 @@ const summaryText = computed(() => {
           <div class="ns-value">{{ unarchivedTasks.length }}</div>
         </div>
       </div>
-      <div class="ns-summary">{{ summaryText }}</div>
     </div>
 
     <!-- 六指标下钻抽屉 -->
@@ -504,8 +498,9 @@ const summaryText = computed(() => {
 .period-btn.active { background: var(--surface); color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
 
 .ns-body { flex: 1; display: flex; flex-direction: column; }
-.ns-matrix { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-.ns-card { border-radius: var(--radius-xs); padding: 12px; cursor: pointer; transition: all .15s; border: 1px solid transparent; }
+/* 第卅五轮 REQ-033：2×3 指标网格撑满卡片高度，与左侧灯塔下边缘对齐（去掉状态条后无冗余留白） */
+.ns-matrix { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-auto-rows: 1fr; gap: 10px; flex: 1; }
+.ns-card { border-radius: var(--radius-xs); padding: 12px 14px; cursor: pointer; transition: all .15s; border: 1px solid transparent; display: flex; flex-direction: column; justify-content: center; }
 .ns-card:hover { border-color: var(--accent); transform: translateY(-1px); }
 .ns-card.top { background: var(--accent-light); }
 .ns-card.bottom { background: var(--surface-3); }
@@ -515,7 +510,6 @@ const summaryText = computed(() => {
 .ns-value { font-size: 20px; font-weight: 600; color: var(--text); line-height: 1.2; letter-spacing: -.2px; font-variant-numeric: tabular-nums; }
 .ns-card.top .ns-value { color: var(--accent); }
 .ns-sub { font-size: 10px; color: var(--text-3); margin-top: 3px; }
-.ns-summary { font-size: 12px; color: var(--accent); padding: 8px 10px; background: var(--accent-light); border-radius: var(--radius-xs); }
 
 /* 下钻抽屉 */
 .nd-formula { font-size: 11.5px; color: var(--accent); background: var(--accent-light); border-radius: 8px; padding: 9px 12px; line-height: 1.6; margin-bottom: 14px; }

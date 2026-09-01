@@ -4,7 +4,7 @@ export default defineManifest({
   manifest_version: 3,
   name: '知源工作台',
   short_name: '知源',
-  version: '2.13.0',
+  version: '2.14.0',
   description: '源头信息与好奇心工作台 · 从好奇出发，向源头求证 · 纯本地 · Chrome MV3',
   permissions: ['storage', 'tabs', 'activeTab', 'commands', 'scripting'],
   host_permissions: ['<all_urls>', 'file:///*'],
@@ -35,6 +35,10 @@ export default defineManifest({
     inspire: {
       suggested_key: { default: 'Ctrl+Shift+I', mac: 'MacCtrl+Shift+I' },
       description: '好奇心采集'
+    },
+    // 第卅五轮 REQ-037：不配 suggested_key（不占用 4 键上限），由用户在 chrome://extensions/shortcuts 手动分配
+    'open-settings': {
+      description: '打开全局设置'
     }
   },
   content_scripts: [

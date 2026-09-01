@@ -347,7 +347,7 @@
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">扩展版本</span>
-              <div class="gs-sr-control" style="color:var(--text-2);font-size:12px">V2.13.0</div>
+              <div class="gs-sr-control" style="color:var(--text-2);font-size:12px">V2.14.0</div>
             </div>
           </div>
         </div>

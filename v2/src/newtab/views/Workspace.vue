@@ -631,7 +631,7 @@ function toggleGroupCollapse(key: string) {
 /**
  * 分区规则（分区顺序与左侧分类树一致）：
  * - 「全部」：每个一级分类一个分区（rootCats 顺序）；无分类卡归「待分类」分区置于最前
- * - 选中父分类：其下每个二级子分类一个分区（子分类名为分组标题）；直属父级的卡归「未细分」分区置于最后
+ * - 选中父分类：直属父级的卡归「未细分」分区置于最前；其下每个二级子分类一个分区（子分类名为分组标题）
  * - 选中「待分类」：单分区
  * 分区内按当前排序规则排列（applySort；manual 保持数组序=手动拖拽序）。
  */
@@ -648,12 +648,13 @@ const resourceGroups = computed<ResourceGroup[]>(() => {
       if (items.length) groups.push({ key: root.id, title: root.name, count: items.length, items })
     }
   } else if (activeCategory.value !== 'uncat') {
+    // REQ-032：直属未细分资源强制排在最上方第一区块（子分类分区之前）
+    const direct = applyGroupSort(filtered.filter(r => r.categoryId === activeCategory.value))
+    if (direct.length) groups.push({ key: 'direct', title: '未细分', count: direct.length, items: direct })
     for (const sub of childCatsOf(activeCategory.value)) {
       const items = applyGroupSort(filtered.filter(r => r.categoryId === sub.id))
       if (items.length) groups.push({ key: sub.id, title: sub.name, count: items.length, items })
     }
-    const direct = applyGroupSort(filtered.filter(r => r.categoryId === activeCategory.value))
-    if (direct.length) groups.push({ key: 'direct', title: '未细分', count: direct.length, items: direct })
   }
   return groups
 })

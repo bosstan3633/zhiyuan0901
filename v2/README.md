@@ -1,6 +1,6 @@
 ---
 created: 2026-08-28 21:52:09
-updated: 2026-09-01 18:00:00
+updated: 2026-09-01 19:00:00
 ---
 # 知源工作台（Zhiyuan Workbench）
 
@@ -8,11 +8,11 @@ updated: 2026-09-01 18:00:00
 
 知源工作台是一套以人的认知主权为边界、以好奇心为探索起点、以源头资源为事实底盘、以六层思维链贯通方向与行动、并通过「项目」承接战略与日常的**个人增强系统**。它是一个 Chrome 浏览器扩展（MV3），接管新标签页，100% 本地运行。
 
-- **产品版本**：V2.13.0（第卅四轮迭代；版本号唯一来源 = `src/manifest.ts`，与 `package.json` 同步）
+- **产品版本**：V2.14.0（第卅五轮迭代；版本号唯一来源 = `src/manifest.ts`，与 `package.json` 同步）
 - **技术栈**：Vue 3.5 + TypeScript(strict) + Vite 5 + Pinia + @crxjs（MV3）+ UnoCSS
 - **运行环境**：Chromium 内核浏览器（Chrome / Edge / Brave 等）
 - **数据存储**：100% 本地（chrome.storage.local 单根 JSON），无 IndexedDB、无云端、无账号
-- **质量门禁**：`vue-tsc` 0 错误 + `scripts/regression.cjs` 静态断言 **242/242** 全绿（交付前缺一不可）
+- **质量门禁**：`vue-tsc` 0 错误 + `scripts/regression.cjs` 静态断言 **256/256** 全绿（交付前缺一不可）
 
 ---
 
@@ -43,7 +43,7 @@ updated: 2026-09-01 18:00:00
 2. 读 `../docs/技术架构与数据模型.md` 获取数据层全貌；
 3. 读 `../docs/开发指南与回归验证.md` 获取历史踩坑记录；
 4. 读 `../docs/项目盘点报告_2026-08-31.md` 了解现存技术债；
-5. 最新一轮做了什么，见 `../docs/交付说明_第卅四轮_V2.13.0.md`。
+5. 最新一轮做了什么，见 `../docs/交付说明_第卅五轮_V2.14.0.md`。
 
 **必须遵守的硬性规则：**
 
@@ -57,7 +57,7 @@ updated: 2026-09-01 18:00:00
 | 6 | 定位不走 tabs.query 的 hash | chrome.tabs.query 返回不含 hash，页面内定位走 zy-where 询问链路 |
 | 7 | 新增功能同步追加回归 | 每轮新功能必须在 `scripts/regression.cjs` 追加断言项，交付前全绿 |
 | 8 | 构建前清空 dist | vite 配置 `emptyOutDir:false`，不清理会累积多轮构建残留 |
-| 9 | 迭代按轮次记录 | 每完成一轮（如第卅四轮=V2.13.0）在 `../docs/` 落一份交付说明，并在 regression.cjs 轮次注释更新 |
+| 9 | 迭代按轮次记录 | 每完成一轮（如第卅五轮=V2.14.0）在 `../docs/` 落一份交付说明，并在 regression.cjs 轮次注释更新 |
 
 ---
 
@@ -168,7 +168,7 @@ v2/
 │       └── views/                     # CompassHome / CompassShell / CompassActions / ProjectCuration
 │                                      # CompassTree / Workspace / GlobalSettings / FieldEditor
 │                                      # ManualPage / RecycleBin（回收站）
-├── scripts/regression.cjs             # 静态回归断言矩阵（242 项，交付前必须全绿）
+├── scripts/regression.cjs             # 静态回归断言矩阵（256 项，交付前必须全绿）
 ├── public/ dist/                      # 静态资源 / 构建产物（可直接加载，dist 不入库）
 └── vite.config.ts tsconfig*.json uno.config.ts package.json
 ```
@@ -190,7 +190,7 @@ npm install          # 按 package-lock.json 还原依赖
 npm run dev          # 开发模式（HMR 输出到 dist/）
 npm run build        # vue-tsc --noEmit 类型检查 + vite build（交付必须两者通过）
 npm run typecheck    # 仅类型检查
-node scripts/regression.cjs   # 静态回归：必须 242/242 全绿
+node scripts/regression.cjs   # 静态回归：必须 256/256 全绿
 ```
 
 ### 4.3 加载到浏览器
@@ -247,6 +247,7 @@ node scripts/regression.cjs   # 静态回归：必须 242/242 全绿
 | `Ctrl+Shift+J` | 快速采集资源卡（自动预填标题+URL+选中文本） | 系统级 |
 | `Ctrl+Shift+I` | 好奇心采集（选中文本自动填入并附带来源） | 系统级 |
 | `Ctrl+K` | 全局搜索（分组/高亮/拼音首字母/快捷操作） | 系统级 |
+| `（可分配）` | 打开全局设置（第卅五轮新增命令项，默认未绑定键，在 `chrome://extensions/shortcuts` 手动分配） | 系统级（chrome.commands） |
 | 修饰键+1 | 知源罗盘（修饰键五选：Alt 默认/Ctrl/Ctrl+Shift/Alt+Shift/纯数字） | 新标签页内 |
 | 修饰键+2..9 | 各工作台（设置→快捷键设置逐个自定义，冲突自动清除） | 新标签页内 |
 | `Ctrl+Enter` | 保存并关闭（所有编辑弹窗/抽屉，document 级监听） | 新标签页内 |
@@ -255,7 +256,7 @@ node scripts/regression.cjs   # 静态回归：必须 242/242 全绿
 | `↑↓/Enter/空格` | 任务列表键盘导航（选中/开抽屉/批量勾选） | 任务列表 |
 | `Ctrl+←/→` | 切换今日三件事日期 | 今日行动 |
 
-> 系统级快捷键上限 4 个已占满（Chrome 平台限制），在 `chrome://extensions/shortcuts` 可改键。
+> 系统级快捷键中带默认键的 4 个已占满（Chrome suggested_key 上限 4），但命令**数量不限**——第卅五轮新增第 6 个命令「打开全局设置」（无默认键），在 `chrome://extensions/shortcuts` 找到「打开全局设置（未设置）」点击分配即可。
 
 ---
 
@@ -293,7 +294,7 @@ node scripts/regression.cjs   # 静态回归：必须 242/242 全绿
 
 ## 十、开发规范与回归基线
 
-- **交付前置**：`npm run build` 全绿（vue-tsc 0 错误）+ `node scripts/regression.cjs` **242/242**，缺一不可（回归是字符串断言，代替不了编译检查）
+- **交付前置**：`npm run build` 全绿（vue-tsc 0 错误）+ `node scripts/regression.cjs` **256/256**，缺一不可（回归是字符串断言，代替不了编译检查）
 - **数据红线**：Resource/Curiosity/TagNode 禁止 taskId；删除一律软删；stats.lastVisits 只走 recordResourceOpen
 - **标记排序**：一律走 `utils/marksort.ts`（置顶 > 星标 > 命中度），拖拽排序列表的渲染 computed 禁止 `.sort()`
 - **样式**：只用 tokens.css 语义令牌；scoped 样式无法作用到子组件内部（子组件自带样式）；v-html 内容的样式必须非 scoped
@@ -306,7 +307,8 @@ node scripts/regression.cjs   # 静态回归：必须 242/242 全绿
 
 | 版本 | 轮次 | 要点 |
 |------|------|------|
-| V2.13.0 | 第卅四轮（当前） | 分组分区视图（可折叠）、分区内置顶、拖拽分区边界、罗盘按需引导、删除撤销修复、Toast 四套收敛、性能调优 8 项（检索 Map 化/采集 O(1)/定位并行/保存跳过自身写入）；回归 218→242 项 |
+| V2.14.0 | 第卅五轮（当前） | 任务去重根治（TaskAddDrawer 双重 keydown）、好奇心拖拽排序持久化（sortOrder）、未细分区块置顶、任务状态筛选器（4 枚举持久化）、北极星视觉重构、新增「打开设置」全局快捷键命令；回归 242→256 项 |
+| V2.13.0 | 第卅四轮 | 分组分区视图（可折叠）、分区内置顶、拖拽分区边界、罗盘按需引导、删除撤销修复、Toast 四套收敛、性能调优 8 项（检索 Map 化/采集 O(1)/定位并行/保存跳过自身写入）；回归 218→242 项 |
 | V2.12.0 | 第卅三轮 | 需求盘点 5 批次交付（REQ-015~026）：任务添加抽屉、回收站、双标记体系、密度控制、分类同名标红、子分类入口、工具下沉等；修复 4 个真 Bug；回归 190→218 项；图标瘦身（1.4M→0.3M） |
 | V2.11.0 | 第卅一轮 | 上一稳定版，数据模型与视图体系定型 |
 
@@ -323,8 +325,8 @@ node scripts/regression.cjs   # 静态回归：必须 242/242 全绿
 | `docs/技术架构与数据模型.md` | 数据层全貌、存储设计、类型规范 |
 | `docs/开发指南与回归验证.md` | 历史踩坑、开发约定、回归流程 |
 | `docs/项目盘点报告_2026-08-31.md` | 现存技术债清单（巨型 SFC、静默 catch 等） |
-| `docs/交付说明_第卅四轮_V2.13.0.md` | 最新一轮交付明细 |
-| `docs/需求盘点与开发清单_第卅四轮.md` | 本轮需求清单与决策记录 |
+| `docs/交付说明_第卅五轮_V2.14.0.md` | 最新一轮交付明细 |
+| `docs/需求盘点与开发清单_第卅五轮.md` | 本轮需求清单与决策记录 |
 | `docs/产品白皮书_V2.4.md` | 产品定位与价值主张 |
 | `docs/设计规范_Linear.md` | 视觉设计令牌（Linear 风格） |
 

@@ -192,13 +192,16 @@ const sortBy = ref('manual')
 // 第卅二轮 REQ-007：任务时间/优先级排序方向（默认倒序）+ 排序偏好本地记忆（UIPrefs.sortPrefs.task）
 const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.task?.dir === 'asc') ? 'asc' : 'desc')
 if (store.ui?.sortPrefs?.task?.by) sortBy.value = store.ui.sortPrefs.task.by
-watch([sortBy, sortDir], () => {
-  const sp = { ...(store.ui?.sortPrefs || {}), task: { by: sortBy.value, dir: sortDir.value } }
+// 第卅五轮 REQ-036：状态筛选偏好持久化（UIPrefs.sortPrefs.task.filter）
+type TaskFilter = 'all' | 'todo' | 'doing' | 'done'
+const savedFilter = store.ui?.sortPrefs?.task?.filter
+const filterBy = ref<TaskFilter>(savedFilter === 'todo' || savedFilter === 'doing' || savedFilter === 'done' ? savedFilter : 'all')
+watch([sortBy, sortDir, filterBy], () => {
+  const sp = { ...(store.ui?.sortPrefs || {}), task: { by: sortBy.value, dir: sortDir.value, filter: filterBy.value } }
   if (store.ui) store.ui.sortPrefs = sp
   saveUIPrefs({ sortPrefs: sp })
 })
 function toggleSortDir() { sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc' }
-const filterBy = ref('all')
 const searchQuery = ref('')
 const batchMode = ref(false)
 
@@ -209,9 +212,8 @@ function toggleBatchMode() {
 
 const filteredTasks = computed(() => {
   let tasks = (d.value.tasks || []).filter(t => !t.deletedAt)
-  if (filterBy.value === 'high') tasks = tasks.filter(t => t.priority === 'high')
-  if (filterBy.value === 'today') tasks = tasks.filter(t => t.status === 'doing')
-  if (filterBy.value === 'done') tasks = tasks.filter(t => t.status === 'done')
+  // 第卅五轮 REQ-036：状态筛选枚举（全部状态/待办/推进中/已完成），与搜索、排序、分组多维叠加
+  if (filterBy.value !== 'all') tasks = tasks.filter(t => t.status === filterBy.value)
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     tasks = tasks.filter(t => t.title.toLowerCase().includes(q))
@@ -922,9 +924,9 @@ onUnmounted(() => {
           <!-- 第卅二轮 REQ-007：排序方向切换（默认倒序，偏好本地记忆） -->
           <button v-if="sortBy==='recent' || sortBy==='priority'" class="sel sort-dir-btn" :title="sortDir==='desc' ? '当前倒序，点击切换正序' : '当前正序，点击切换倒序'" @click="toggleSortDir">{{ sortDir==='desc' ? '↓ 倒序' : '↑ 正序' }}</button>
           <select v-model="filterBy" class="sel">
-            <option value="all">全部</option>
-            <option value="high">高优先级</option>
-            <option value="today">进行中</option>
+            <option value="all">全部状态</option>
+            <option value="todo">待办</option>
+            <option value="doing">推进中</option>
             <option value="done">已完成</option>
           </select>
           <button class="mini-btn" :class="{active: groupByProject}" @click="groupByProject = !groupByProject" title="列表视图按所属项目分组">📂 按项目分组</button>

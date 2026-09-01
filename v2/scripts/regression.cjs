@@ -87,8 +87,8 @@ check('B28 原生 confirm 全清除', () => { let n = 0; ['newtab/views/Workspac
 check('O22 使用手册完整内容（外置数据）', () => read('/newtab/manual-data.ts').includes('quick-1') && read('/newtab/manual-data.ts').includes('ref-2') && !read('/newtab/views/GlobalSettings.vue').includes('占位内容'));
 check('产品 logo 替换（首页+关于页+扩展图标）', () => read('/newtab/App.vue').includes('logoUrl') && read('/newtab/views/GlobalSettings.vue').includes('logoUrl') && fs.existsSync(base + '/assets/logo.png'));
 
-check('manifest 2.13.0', () => read('/manifest.ts').includes("version: '2.13.0'"));
-check('关于页 V2.13.0', () => read('/newtab/views/GlobalSettings.vue').includes('V2.13.0') && !read('/newtab/views/GlobalSettings.vue').includes('V2.8.0'));
+check('manifest 2.14.0', () => read('/manifest.ts').includes("version: '2.14.0'"));
+check('关于页 V2.14.0', () => read('/newtab/views/GlobalSettings.vue').includes('V2.14.0') && !read('/newtab/views/GlobalSettings.vue').includes('V2.8.0'));
 
 console.log('【第七轮】');
 check('B29 Tab 过滤单一状态源（应用内 chip 与 Tab 行共用 currentType）', () => !read('/newtab/components/GlobalPopups.vue').includes('filterType') && read('/newtab/components/GlobalPopups.vue').includes("currentType.value = cycle[(cycle.indexOf(currentType.value) + 1) % cycle.length]"));
@@ -276,7 +276,7 @@ check('R32-17 REQ-008 工作台实体进入搜索类型 Tab 与分组计数（�
 console.log('【第卅三轮 · V2.12 需求包第一批：模型/Bug · REQ-023 + BUG-A~D】');
 check('R33-2 REQ-023 三卡星标字段 starred（置顶沿用 pinned，零迁移）', () => read('/shared/models/index.ts').split('starred?: boolean').length - 1 >= 3);
 check('R33-2b REQ-023 导出 CSV 补置顶/星标两列（资源 + 任务）', () => read('/newtab/views/GlobalSettings.vue').includes("'置顶', '星标'") && read('/newtab/views/CompassActions.vue').includes('t?.pinned ? \'是\' : \'\'') && read('/newtab/views/CompassActions.vue').includes("t?.starred ? '是' : ''"));
-check('R33-3 BUG-A 好奇置顶分组错位修复（置顶卡前置 + 组内时间序）', () => read('/newtab/components/compass/CuriosityPanel.vue').includes('byMarksThen<CuriosityCard>') && read('/newtab/components/compass/CuriosityPanel.vue').includes("from '@/shared/utils/marksort'"));
+check('R33-3 BUG-A 好奇置顶分组错位修复（置顶卡前置 + 组内 sortOrder/时间序）', () => read('/newtab/components/compass/CuriosityPanel.vue').includes('markRank(b) - markRank(a)') && read('/newtab/components/compass/CuriosityPanel.vue').includes("from '@/shared/utils/marksort'"));
 check('R33-4 BUG-B Ctrl+Enter 口径统一（采集浮层标题/链接去除裸 Enter 保存）', () => !read('/newtab/components/GlobalPopups.vue').includes('@keydown.enter.prevent="saveCapture"') && read('/newtab/components/GlobalPopups.vue').includes('💾 保存（Ctrl+Enter）'));
 check('R33-5 BUG-C 新建子分类死代码修复（父级 hover ＋ 传 parentId，弹窗父级提示可达）', () => read('/newtab/views/Workspace.vue').includes('openCreateCat(sc.cat.id)') && read('/newtab/views/Workspace.vue').includes('title="创建子分类"'));
 
@@ -284,7 +284,7 @@ console.log('【第卅三轮 · V2.12 需求包第二批：标记体系 · REQ-0
 check('R33-6 REQ-019 搜索结果行星标按钮替换编辑（三类型均有）', () => read('/newtab/components/GlobalPopups.vue').includes('toggleStar(item)') && !read('/newtab/components/GlobalPopups.vue').includes('title="编辑" @click.stop="editItem(item)"'));
 check('R33-6b REQ-019 搜索结果排序加权（置顶>星标>命中度，双端同口径）', () => read('/newtab/components/GlobalPopups.vue').includes('markRank(b.raw as AnyCard) - markRank(a.raw as AnyCard)') && read('/content/search-overlay.ts').includes('x.raw.pinned ? 2 : x.raw.starred ? 1 : 0'));
 check('R33-7 REQ-020 三视图星标入口齐备（资源/任务/好奇）', () => read('/newtab/views/Workspace.vue').includes('toggleStar(r)') && read('/newtab/views/CompassActions.vue').includes('toggleTaskStar(t)') && read('/newtab/components/compass/CuriosityPanel.vue').includes('toggleStar(c.id)'));
-check('R33-7b REQ-020 置顶独立分区三视图一致（资源已改分组分区，任务已分区，好奇置顶前置修复）', () => read('/newtab/views/Workspace.vue').includes('resourceGroups') && read('/newtab/views/CompassActions.vue').includes('pinnedTasks') && read('/newtab/components/compass/CuriosityPanel.vue').includes('byMarksThen<CuriosityCard>'));
+check('R33-7b REQ-020 置顶独立分区三视图一致（资源已改分组分区，任务已分区，好奇 markRank 分区前置）', () => read('/newtab/views/Workspace.vue').includes('resourceGroups') && read('/newtab/views/CompassActions.vue').includes('pinnedTasks') && read('/newtab/components/compass/CuriosityPanel.vue').includes('markRank(b) - markRank(a)'));
 check('R33-8 REQ-020 星标卡图标呈现（看板/列表/卡片角标）', () => read('/newtab/views/Workspace.vue').includes('kc-star') && read('/newtab/views/CompassActions.vue').includes('k-star') && read('/newtab/components/compass/CuriosityPanel.vue').includes('cz-star-corner'));
 check('R33-9 REQ-020 双标记独立可叠加（置顶卡不因星标降级）', () => read('/shared/utils/marksort.ts').includes('if (c.pinned) return 2') && read('/shared/utils/marksort.ts').includes('if (c.starred) return 1'));
 
@@ -343,6 +343,32 @@ check('R34-21 REQ-031 P-031-5 应用内搜索 150ms 防抖（debouncedQuery 驱�
 check('R34-22 REQ-031 P-031-6 onChanged 自身写入跳过（repository selfWriteAt + app isSelfWrite 短路全树替换）', () => read('/shared/storage/repository.ts').includes('selfWriteAt = Date.now()') && read('/shared/storage/repository.ts').includes('export function isSelfWrite') && read('/newtab/stores/app.ts').includes('isSelfWrite(Date.now())'));
 check('R34-23 REQ-031 P-031-7 定位并行化（Promise.all 并行询问 + 150ms 短超时取首个命中）', () => read('/background/index.ts').includes('await Promise.all(tabs.map') && read('/background/index.ts').includes('askRoute(tab.id, 150)') && read('/background/index.ts').includes('hits.find((t) => t !== null)'));
 check('R34-24 REQ-031 P-031-8 采集去重 Map 化（capUrlMap 打开时构建一次 + 保存 O(1) 查重 + 增量写入）', () => read('/content/search-overlay.ts').includes('let capUrlMap: Map<string, any> | null = null') && read('/content/search-overlay.ts').includes('capUrlMap?.get(fp)') && read('/content/search-overlay.ts').includes('capUrlMap.set(nfp, resource)'));
+
+console.log('【第卅五轮 · V2.14 需求包第一批：REQ-034 任务重复项修复】');
+check('R35-1 REQ-034 根因：移除裸 Enter 双重 keydown（仅 ctrl/meta 触发一次保存）', () => !read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.enter.prevent="createTask"') && !read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.enter.prevent="linkTasks"') && read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.ctrl.enter.prevent="createTask" @keydown.meta.enter.prevent="createTask"') && read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.ctrl.enter.prevent="linkTasks" @keydown.meta.enter.prevent="linkTasks"'));
+check('R35-2 REQ-034 提交锁防重复触发（createTask/linkTasks creating/linking 标志 + finally 解锁）', () => read('/newtab/components/TaskAddDrawer.vue').includes('if (creating) return') && read('/newtab/components/TaskAddDrawer.vue').includes('if (linking) return') && read('/newtab/components/TaskAddDrawer.vue').includes('creating = true') && read('/newtab/components/TaskAddDrawer.vue').includes('finally {'));
+check('R35-3 REQ-034 渲染侧按 id 去重双保险（三处 tasksForMetric seen 集合）', () => read('/newtab/views/CompassTree.vue').includes('seen.has(t.id)') && read('/newtab/views/ProjectCuration.vue').includes('seen.has(t.id)') && read('/newtab/components/ProjectDetailDrawer.vue').includes('seen.has(t.id)'));
+
+console.log('【第卅五轮 · V2.14 需求包第二批：REQ-035 好奇心排序持久化】');
+check('R35-4 REQ-035 模型新增 sortOrder 字段（CuriosityCard 拖拽排序持久化载体）', () => read('/shared/models/index.ts').includes('sortOrder?: number') && read('/shared/models/index.ts').includes('第卅五轮 REQ-035'));
+check('R35-5 REQ-035 渲染管道 sortOrder 优先 createdAt 回退（filtered + kanbanCols 同口径）', () => read('/newtab/components/compass/CuriosityPanel.vue').includes('Number.MAX_SAFE_INTEGER') && read('/newtab/components/compass/CuriosityPanel.vue').split('Number.MAX_SAFE_INTEGER').length - 1 >= 2 && read('/newtab/components/compass/CuriosityPanel.vue').includes('markRank(b) - markRank(a)'));
+check('R35-6 REQ-035 拖拽落位后全量重写 sortOrder（排序拖拽固化，跨列改状态不重写）', () => read('/newtab/components/compass/CuriosityPanel.vue').includes('if (!status)') && read('/newtab/components/compass/CuriosityPanel.vue').includes('list.forEach((c, i) => { c.sortOrder = i })'));
+
+console.log('【第卅五轮 · V2.14 需求包第三批：REQ-032 直属未细分资源置顶】');
+check('R35-7 REQ-032 父分类下未细分区块强制置前（direct 分区在子分类循环之前插入）', () => { const src = read('/newtab/views/Workspace.vue'); return src.includes('REQ-032：直属未细分资源强制排在最上方第一区块') && src.indexOf("key: 'direct', title: '未细分'") < src.indexOf('for (const sub of childCatsOf(activeCategory.value))'); });
+
+console.log('【第卅五轮 · V2.14 需求包第四批：REQ-036 任务状态筛选器】');
+check('R35-8 REQ-036 模型 sortPrefs 扩展 filter 字段（状态筛选偏好持久化载体）', () => read('/shared/models/index.ts').includes("dir?: 'asc' | 'desc'; filter?: string"));
+check('R35-9 REQ-036 状态筛选四枚举（全部/待办/推进中/已完成，移除高优先级与 today 混入）', () => read('/newtab/views/CompassActions.vue').includes('type TaskFilter') && read('/newtab/views/CompassActions.vue').includes('if (filterBy.value !== \'all\') tasks = tasks.filter(t => t.status === filterBy.value)') && !read('/newtab/views/CompassActions.vue').includes("filterBy.value === 'high'") && !read('/newtab/views/CompassActions.vue').includes('option value="high"') && read('/newtab/views/CompassActions.vue').includes('<option value="todo">待办</option>'));
+check('R35-10 REQ-036 筛选偏好持久化（初始化读取 savedFilter + watch 写入 sortPrefs.task.filter）', () => read('/newtab/views/CompassActions.vue').includes('const savedFilter = store.ui?.sortPrefs?.task?.filter') && read('/newtab/views/CompassActions.vue').includes('filter: filterBy.value'));
+
+console.log('【第卅五轮 · V2.14 需求包第五批：REQ-033 北极星视觉重构】');
+check('R35-11 REQ-033 底部冗余状态条彻底移除（ns-summary/summaryText 无残留）', () => !read('/newtab/components/compass/NorthStarPanel.vue').includes('ns-summary') && !read('/newtab/components/compass/NorthStarPanel.vue').includes('summaryText'));
+check('R35-12 REQ-033 2×3 指标网格撑满对齐（grid-auto-rows:1fr + flex:1 + 卡片居中留白）', () => read('/newtab/components/compass/NorthStarPanel.vue').includes('grid-auto-rows: 1fr') && read('/newtab/components/compass/NorthStarPanel.vue').includes('justify-content: center'));
+
+console.log('【第卅五轮 · V2.14 需求包第六批：REQ-037 浏览器快捷键新增「打开全局设置」命令】');
+check('R35-13 REQ-037 manifest 新增 open-settings 命令（仅 description，不配 suggested_key 不占 4 键上限）', () => { const src = read('/manifest.ts'); return src.includes("'open-settings': {") && src.includes("description: '打开全局设置'") && !src.includes("'open-settings': {\n      suggested_key"); });
+check('R35-14 REQ-037 background 监听 open-settings（复用聚焦 + zy-route /settings；新建标签 #/settings 直达）', () => { const src = read('/background/index.ts'); return src.includes("case 'open-settings':") && src.includes("route: '/settings'") && src.includes("index.html#/settings"); });
 
 console.log('');
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

@@ -57,22 +57,30 @@ function findMetric(): Metric | undefined {
   return undefined
 }
 
-/** 新建任务：创建 TaskCard 并挂到指标（taskIds 去重） */
+/** 新建任务：创建 TaskCard 并挂到指标（taskIds 去重）
+ *  REQ-034：加 submitting 锁——双 keydown 绑定移除后，防御任何路径的重复触发 */
+let creating = false
 function createTask() {
+  if (creating) return
   const title = newTitle.value.trim()
   if (!title) { showToast('请输入任务标题'); return }
-  const task: TaskCard = {
-    id: uid('tk'), kind: 'task', title, status: 'todo', priority: newPriority.value,
-    projectId: props.projectId, metricId: props.metricId,
-    mountedResourceIds: [], mountedCuriosityIds: [], customFields: {},
-    createdAt: Date.now(), updatedAt: Date.now()
+  creating = true
+  try {
+    const task: TaskCard = {
+      id: uid('tk'), kind: 'task', title, status: 'todo', priority: newPriority.value,
+      projectId: props.projectId, metricId: props.metricId,
+      mountedResourceIds: [], mountedCuriosityIds: [], customFields: {},
+      createdAt: Date.now(), updatedAt: Date.now()
+    }
+    d.value.tasks.unshift(task)
+    const m = findMetric()
+    if (m && !m.taskIds.includes(task.id)) m.taskIds.push(task.id)
+    store.persist()
+    showToast('✓ 任务已创建并计入指标进度')
+    emit('close')
+  } finally {
+    creating = false
   }
-  d.value.tasks.unshift(task)
-  const m = findMetric()
-  if (m && !m.taskIds.includes(task.id)) m.taskIds.push(task.id)
-  store.persist()
-  showToast('✓ 任务已创建并计入指标进度')
-  emit('close')
 }
 
 /** 关联候选：未删除且未挂在本指标的任务（含孤儿 / 他指标任务，选中即转移归属） */
@@ -101,26 +109,34 @@ function toggleSel(id: string) {
   selected.value = s
 }
 
-/** 关联：选中的任务转移归属到本指标（从所有旧指标 taskIds 移除，防止多归属） */
+/** 关联：选中的任务转移归属到本指标（从所有旧指标 taskIds 移除，防止多归属）
+ *  REQ-034：linkTasks 同步加提交锁 */
+let linking = false
 function linkTasks() {
+  if (linking) return
   if (!selected.value.size) { showToast('请先勾选要关联的任务'); return }
-  const ids = [...selected.value]
-  for (const dir of d.value.compass.directions) {
-    for (const proj of dir.projects) {
-      for (const m of proj.metrics) {
-        if (m.id !== props.metricId) m.taskIds = m.taskIds.filter(id => !ids.includes(id))
+  linking = true
+  try {
+    const ids = [...selected.value]
+    for (const dir of d.value.compass.directions) {
+      for (const proj of dir.projects) {
+        for (const m of proj.metrics) {
+          if (m.id !== props.metricId) m.taskIds = m.taskIds.filter(id => !ids.includes(id))
+        }
       }
     }
+    for (const id of ids) {
+      const t = d.value.tasks.find(x => x.id === id)
+      if (t) { t.metricId = props.metricId; t.updatedAt = Date.now() }
+      const m = findMetric()
+      if (m && !m.taskIds.includes(id)) m.taskIds.push(id)
+    }
+    store.persist()
+    showToast(`✓ 已关联 ${ids.length} 个任务，计入指标进度`)
+    emit('close')
+  } finally {
+    linking = false
   }
-  for (const id of ids) {
-    const t = d.value.tasks.find(x => x.id === id)
-    if (t) { t.metricId = props.metricId; t.updatedAt = Date.now() }
-    const m = findMetric()
-    if (m && !m.taskIds.includes(id)) m.taskIds.push(id)
-  }
-  store.persist()
-  showToast(`✓ 已关联 ${ids.length} 个任务，计入指标进度`)
-  emit('close')
 }
 </script>
 
@@ -135,7 +151,7 @@ function linkTasks() {
     <div v-if="tab === 'create'" class="tad-body">
       <label class="tad-label">任务标题</label>
       <input v-model="newTitle" class="tad-input" placeholder="输入任务标题，Ctrl+Enter 保存"
-        @keydown.enter.prevent="createTask" @keydown.ctrl.enter.prevent="createTask" />
+        @keydown.ctrl.enter.prevent="createTask" @keydown.meta.enter.prevent="createTask" />
 
       <label class="tad-label">优先级</label>
       <div class="tad-prios">
@@ -153,7 +169,7 @@ function linkTasks() {
     <!-- 关联模式 -->
     <div v-else class="tad-body">
       <input v-model="linkQ" class="tad-input" placeholder="搜索任务标题…（已关联到本指标的不展示）"
-        @keydown.enter.prevent="linkTasks" @keydown.ctrl.enter.prevent="linkTasks" />
+        @keydown.ctrl.enter.prevent="linkTasks" @keydown.meta.enter.prevent="linkTasks" />
       <div class="tad-list">
         <label v-for="t in candidates" :key="t.id" class="tad-item" :class="{on: selected.has(t.id)}">
           <input type="checkbox" :checked="selected.has(t.id)" @change="toggleSel(t.id)" />

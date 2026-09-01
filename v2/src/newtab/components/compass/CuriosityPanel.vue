@@ -11,7 +11,7 @@ import TagPicker from '@/shared/components/TagPicker.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { saveUIPrefs } from '@/shared/storage/repository'
-import { byMarksThen } from '@/shared/utils/marksort'
+import { markRank } from '@/shared/utils/marksort'
 import { useTaHeight } from '@/shared/utils/taHeight'
 
 const { curiosities, STATUS_MAP, update, setStatus, remove, convertToTask, convertToResource } = useCuriosity()
@@ -46,18 +46,22 @@ watch(sortDir, () => {
 })
 function toggleSortDir() { sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc' }
 
-/** 置顶优先分组：置顶在前；组内按捕获时间排序（REQ-007 方向可切换） */
+/** 置顶优先分组：markRank 分区（置顶 > 星标 > 普通）不变；
+ *  第卅五轮 REQ-035：组内 sortOrder 优先、未拖拽的卡（无 sortOrder）回退捕获时间方向排序
+ *  —— 拖拽写入的自定义顺序不再被时间排序覆盖 */
 const filtered = computed(() => {
   const list = statusFilter.value === 'all'
     ? curiosities.value
     : curiosities.value.filter(c => c.status === statusFilter.value)
   const dirMul = sortDir.value === 'asc' ? 1 : -1
-  // 第卅三轮 BUG-A 修复：此前只按 createdAt 排序，置顶卡不会前置，
-  // 而模板按 i===0 / i===pinnedCount 硬渲染分组标签 → 置顶区混入普通卡。
-  // 现统一走 markRank 口径（置顶 > 星标 > 普通），组内再按时间方向。
-  return [...list].sort(
-    byMarksThen<CuriosityCard>((a, b) => dirMul * ((a.createdAt || 0) - (b.createdAt || 0)))
-  )
+  return [...list].sort((a, b) => {
+    const r = markRank(b) - markRank(a)
+    if (r !== 0) return r
+    if (a.sortOrder != null || b.sortOrder != null) {
+      return (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER)
+    }
+    return dirMul * ((a.createdAt || 0) - (b.createdAt || 0))
+  })
 })
 const pinnedCount = computed(() => filtered.value.filter(c => c.pinned).length)
 
@@ -72,7 +76,15 @@ const kanbanCols = computed(() => {
   return statuses.map(s => ({
     status: s,
     ...STATUS_MAP[s],
-    items: curiosities.value.filter(c => c.status === s)
+    // REQ-035：列内 sortOrder 优先、无 sortOrder 回退时间（filter 新数组再 sort，不改原树）
+    items: curiosities.value
+      .filter(c => c.status === s)
+      .sort((a, b) => {
+        if (a.sortOrder != null || b.sortOrder != null) {
+          return (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER)
+        }
+        return (a.createdAt || 0) - (b.createdAt || 0)
+      })
   }))
 })
 
@@ -209,6 +221,11 @@ function onCzDrop(e: DragEvent, targetId: string, status?: CuriStatus) {
   const ti = list.findIndex(x => x.id === targetId)
   if (ti < 0) { list.splice(fi, 0, moved); dragCzId = null; return }
   list.splice(after ? ti + 1 : ti, 0, moved)
+  // 第卅五轮 REQ-035：卡片/列表排序拖拽（无 status）→ 按当前物理顺序全量重写 sortOrder 固化，
+  // 渲染层组内 sortOrder 优先消费；看板跨列（有 status）只改状态不重写（避免打乱各列排序）
+  if (!status) {
+    list.forEach((c, i) => { c.sortOrder = i })
+  }
   store.persist()
   dragCzId = null
   showToast('✓ 已调整排序')

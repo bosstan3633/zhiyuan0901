@@ -193,8 +193,11 @@ function deleteNode(type: string, id: string) {
 
 // ---- 任务数据 ----
 function tasksForMetric(metricId: string): TaskCard[] {
+  // REQ-034：按 id 去重双保险
+  const seen = new Set<string>()
   return d.value.tasks
     .filter(t => !t.deletedAt && t.metricId === metricId)
+    .filter(t => { if (seen.has(t.id)) return false; seen.add(t.id); return true })
     .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
 }
 

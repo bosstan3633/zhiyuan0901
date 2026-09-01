@@ -157,6 +157,8 @@ export interface CuriosityCard {
   pinned: boolean
   /** 第卅三轮 REQ-023：星标（与置顶独立可叠加；全局检索优先级 置顶 > 星标 > 命中度） */
   starred?: boolean
+  /** 第卅五轮 REQ-035：手动拖拽排序权重（markRank 组内 sortOrder 优先、未拖拽回退 createdAt；拖拽后全量重写） */
+  sortOrder?: number
   /** 弱关联资源（查证过程中收集） */
   relatedResourceIds: ID[]
   /** N4：标签（从标签管理体系选择） */
@@ -300,7 +302,8 @@ export interface UIPrefs {
   /** B7：抽屉宽度记忆（task/resource/curiosity） */
   drawerWs?: Record<string, number>
   /** 第卅三轮 REQ-007：三视图排序偏好（res/task/curio → { by, dir }），时间排序默认倒序 */
-  sortPrefs?: Record<string, { by?: string; dir?: 'asc' | 'desc' }>
+  /** 第卅二轮 REQ-007：各模块排序偏好（by/dir）；第卅五轮 REQ-036：task.filter 状态筛选偏好持久化 */
+  sortPrefs?: Record<string, { by?: string; dir?: 'asc' | 'desc'; filter?: string }>
   /** 第卅三轮 REQ-024：详情抽屉文本框高度记忆（组件键 → px） */
   taHeights?: Record<string, number>
   /** 第卅三轮 REQ-026：卡片网格密度档位（compact=紧凑 / cozy=舒适，默认 cozy） */
