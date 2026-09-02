@@ -401,6 +401,16 @@ check("R36-19 REQ-041-② v2/README.md 含产品定位与对位叙事（按 Apri
 check('R36-20 REQ-041-③ ManualPage 头部版本 V2.14.1', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.14.1'); });
 check("R36-21 REQ-041-① 根 README 按「是什么/给谁用/解决什么/如何解决」重写", () => { const src = read('/../../README.md'); return src.includes('## 它是什么') && src.includes('## 它给谁用') && src.includes('## 它解决什么问题') && src.includes('资源失血症'); });
 check("R36-22 REQ-041-③ 使用手册「速览」篇新增定位与六动作（quick-1 / quick-2）", () => { const src = read('/newtab/manual-data.ts'); return src.includes("id: 'quick-1'") && src.includes("id: 'quick-2'") && src.includes('它是什么') && src.includes('六个核心动作'); });
+check('R36-23 两份 README 的相对文档链接无死链（防止文档导航撒谎）', () => {
+  const pairs = [['/../../README.md', path.resolve(base, '..', '..')], ['/../README.md', path.resolve(base, '..')]];
+  let total = 0;
+  for (const [rel, dir] of pairs) {
+    const src = read(rel);
+    const links = [...src.matchAll(/\]\((\.\/[^)]+?\.md)\)/g)].map((m) => m[1].replace(/^\.\//, ''));
+    for (const l of links) { total++; if (!fs.existsSync(path.resolve(dir, l))) return false; }
+  }
+  return total >= 5;
+});
 
 console.log('');
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
