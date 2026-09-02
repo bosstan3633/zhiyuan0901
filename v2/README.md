@@ -51,7 +51,7 @@ updated: 2026-09-02 11:10:00
 2. 读 `../docs/技术架构与数据模型.md` 获取数据层全貌；
 3. 读 `../docs/开发指南与回归验证.md` 获取历史踩坑记录；
 4. 读 `../docs/项目盘点报告_2026-08-31.md` 了解现存技术债；
-5. 最新一轮做了什么，见 `../docs/交付说明_第卌一轮_V2.17.0.md`。
+5. 最新一轮做了什么，见 `../docs/交付说明_第卌一轮_V2.17.1.md`。
 
 **必须遵守的硬性规则：**
 
@@ -315,7 +315,9 @@ node scripts/regression.cjs   # 静态回归：必须 256/256 全绿
 
 | 版本 | 轮次 | 要点 |
 |------|------|------|
-| V2.16.0 | 第卌轮（当前） | 统一卡片模型首刀：字段目录 FIELD_CATALOG 单一来源 + CardBase 公共基底（三卡 extends，FieldEditor 手写常量清空）；转卡无损化单向引擎 convertCard（好奇→任务/资源，公共字段全搬 + 状态显式映射 + 缺自定义 def 自动注入）；附件卡片正面展示 AssetBadge（🖼 n/🧾 n 徽章 + 弹层预览，资源/任务/好奇三视图接入）；好奇面板按 fieldConfig.curiosity 目录消费；fieldViewCfg 死代码清理；回归 314→325 项 |
+| V2.17.1 | 第卌一轮（当前） | 真实上传链路双重根因热修：① AssetManager.onFilesChange 中 `input.value=''` 先于 FileList 快照致上传 100% 静默失败（FileList 被重置）；② persist 直传 reactive 树，编辑表单展开的 Proxy 数组被 chrome.storage 序列化为类数组对象 `{"0":…}` 致卡片正面附件徽章永不渲染——saveData/saveDataNow 统一 JSON 纯净清洗。新增 DataTransfer 驱动真实 change 事件的端到端验证脚本（6 项 ALL PASS）；回归 337→339 项 |
+| V2.17.0 | 第卌一轮 | REQ-054 详情面板附件呈现（Drawer #title-extra 插槽 + 三处详情标题旁/section 头双徽章）+ REQ-055 资源卡 CSV 动态列对齐字段目录（系统字段全导 + 自定义按可见性 + 管理尾列）+ REQ-056 AssetPreview 公共 viewer 抽取（AssetManager/AssetBadge 双份合一）+ REQ-057 业务静默 catch 收敛（2 处补 Toast）；回归 325→337 项 |
+| V2.16.0 | 第卌轮 | 统一卡片模型首刀：字段目录 FIELD_CATALOG 单一来源 + CardBase 公共基底（三卡 extends，FieldEditor 手写常量清空）；转卡无损化单向引擎 convertCard（好奇→任务/资源，公共字段全搬 + 状态显式映射 + 缺自定义 def 自动注入）；附件卡片正面展示 AssetBadge（🖼 n/🧾 n 徽章 + 弹层预览，资源/任务/好奇三视图接入）；好奇面板按 fieldConfig.curiosity 目录消费；fieldViewCfg 死代码清理；回归 314→325 项 |
 | V2.15.0 | 第卅九轮 | REQ-048 卡片附件（三类卡 · IndexedDB Blob 存储 · 单文件 20MB · 图片弹窗/HTML 新标签 · 回收站硬删清附件 · 设置页占用+孤儿清理）+ #61 共享资源编辑表单 ResourceEditForm 抽取（双份合一）；回归 301→314 项 |
 | V2.14.0 | 第卅五轮 | 任务去重根治（TaskAddDrawer 双重 keydown）、好奇心拖拽排序持久化（sortOrder）、未细分区块置顶、任务状态筛选器（4 枚举持久化）、北极星视觉重构、新增「打开设置」全局快捷键命令；回归 242→256 项 |
 | V2.13.0 | 第卅四轮 | 分组分区视图（可折叠）、分区内置顶、拖拽分区边界、罗盘按需引导、删除撤销修复、Toast 四套收敛、性能调优 8 项（检索 Map 化/采集 O(1)/定位并行/保存跳过自身写入）；回归 218→242 项 |

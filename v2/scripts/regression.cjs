@@ -87,8 +87,8 @@ check('B28 原生 confirm 全清除', () => { let n = 0; ['newtab/views/Workspac
 check('O22 使用手册完整内容（外置数据）', () => read('/newtab/manual-data.ts').includes('quick-1') && read('/newtab/manual-data.ts').includes('ref-2') && !read('/newtab/views/GlobalSettings.vue').includes('占位内容'));
 check('产品 logo 替换（首页+关于页+扩展图标）', () => read('/newtab/App.vue').includes('logoUrl') && read('/newtab/views/GlobalSettings.vue').includes('logoUrl') && fs.existsSync(base + '/assets/logo.png'));
 
-check('manifest 2.17.0', () => read('/manifest.ts').includes("version: '2.17.0'"));
-check('关于页 V2.17.0（动态读取 manifest.version）', () => {
+check('manifest 2.17.1', () => read('/manifest.ts').includes("version: '2.17.1'"));
+check('关于页 V2.17.1（动态读取 manifest.version）', () => {
   const gs = read('/newtab/views/GlobalSettings.vue')
   return gs.includes('runtimeVersion') && !gs.includes('V2.14.0') && !gs.includes('V2.14.1') && !gs.includes('V2.14.2') && !gs.includes('V2.15.0') && !gs.includes('V2.16.0')
 });
@@ -398,7 +398,7 @@ check('R36-17 REQ-039 Enter 键走开链接（Ctrl+Enter 走定位+抽屉，R38 
 console.log('【第卅六轮 · V2.14.1 第三批：REQ-041 产品文案与对外呈现】');
 check("R36-18 REQ-041-① README.md（GitHub 根）不再含 V3.1 演进对照", () => { const src = read('/../../README.md'); return !src.includes('V3.1') && !src.includes('演进对照') && !src.includes('回归 218/218') && !src.includes('V2.13.0'); });
 check("R36-19 REQ-041-② v2/README.md 含产品定位与对位叙事（按 April Dunford 视角落地）", () => { const src = read('/../README.md'); return src.includes('个人资源调度台与认知增强系统') || src.includes('April Dunford'); });
-check('R36-20 REQ-041-③ ManualPage 头部版本 V2.17.0', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.17.0'); });
+check('R36-20 REQ-041-③ ManualPage 头部版本 V2.17.1', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.17.1'); });
 check("R36-21 REQ-041-① 根 README 按「是什么/给谁用/解决什么/如何解决」重写", () => { const src = read('/../../README.md'); return src.includes('## 它是什么') && src.includes('## 它给谁用') && src.includes('## 它解决什么问题') && src.includes('资源失血症'); });
 check("R36-22 REQ-041-③ 使用手册「速览」篇新增定位与六动作（quick-1 / quick-2）", () => { const src = read('/newtab/manual-data.ts'); return src.includes("id: 'quick-1'") && src.includes("id: 'quick-2'") && src.includes('它是什么') && src.includes('六个核心动作'); });
 check('R36-23 两份 README 的相对文档链接无死链（防止文档导航撒谎）', () => {
@@ -474,7 +474,7 @@ check('R40-8 REQ-051 好奇面板按 fieldConfig.curiosity 消费（visibleField
 check('R40-9 REQ-049 附件兜底：defaults 三型 assets def + repository 老数据迁移', () => { const def = read('/shared/storage/defaults.ts'); const rep = read('/shared/storage/repository.ts'); return (def.split("key: 'assets'").length - 1) === 3 && rep.includes('REQ-049：老数据字段配置补 assets'); });
 console.log('【第卌轮 · V2.16.0 第四批：REQ-052 死代码清理 + 版本门禁】');
 check('R40-10 REQ-052 fieldViewCfg 死代码全库零引用', () => { return !fs.existsSync(base + '/shared/models/index.ts') ? false : !read('/shared/models/index.ts').includes('fieldViewCfg') && !read('/shared/storage/repository.ts').includes('fieldViewCfg'); });
-check('R40-11 版本 2.17.0 五处同步（manifest/package/关于页动态/ManualPage/regression）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const gs = read('/newtab/views/GlobalSettings.vue'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes("version: '2.17.0'") && pkg.includes('"version": "2.17.0"') && gs.includes('runtimeVersion') && mp.includes('V2.17.0'); });
+check('R40-11 版本 2.17.1 五处同步（manifest/package/关于页动态/ManualPage/regression）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const gs = read('/newtab/views/GlobalSettings.vue'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes("version: '2.17.1'") && pkg.includes('"version": "2.17.1"') && gs.includes('runtimeVersion') && mp.includes('V2.17.1'); });
 
 // ============== 第卌一轮 · V2.17.0 附件详情呈现修复 + 技术债收敛（REQ-054~REQ-057，V2.16.0 交付后用户反馈驱动） ==============
 console.log('【第卌一轮 · V2.17.0 第一批：REQ-054 附件详情端到端呈现修复（详情面板徽章补齐：标题旁 + section 头）】');
@@ -492,7 +492,11 @@ check('R41-7 REQ-056 AssetBadge 改引公共组件（不再内嵌 .ab-viewer vie
 check('R41-7b REQ-056 双份 viewer 样式全库收敛（am-viewer/ab-viewer 在宿主零残留）', () => { let n = 0; ['/shared/components/AssetManager.vue','/shared/components/AssetBadge.vue','/newtab/components/compass/CuriosityPanel.vue','/newtab/views/CompassActions.vue','/newtab/components/ResourceEditForm.vue'].forEach(f => { if (read(f).includes('.am-viewer') || read(f).includes('.ab-viewer')) n++; }); return n === 0; });
 console.log('【第卌一轮 · V2.17.0 第四批：REQ-057 业务静默 catch 收敛（仅用户主动操作失败补提示）】');
 check('R41-8 REQ-057 AssetManager.removeAsset 本体删除失败补 toast（不再静默吞错）', () => { const s = read('/shared/components/AssetManager.vue'); return s.includes('await deleteAsset(meta.id)') && s.includes("console.error('[assets] deleteAsset failed:', err)") && s.includes('附件本体删除失败，可到「设置 · 数据管理」清理孤儿'); });
-check('R41-8b REQ-057 RecycleBin.purgeAssetsOf 硬删附件失败累计计数提示', () => { const s = read('/newtab/views/RecycleBin.vue'); return s.includes('let failed = 0') && s.includes('failed++') && s.includes('个附件本体删除失败'); });
+check('R41-8b REQ-057 RecycleBin.purgeAssetsOf 硬删附件失败累计计数提示', () => { const rb = read('/newtab/views/RecycleBin.vue'); return rb.includes('let failed = 0') && rb.includes('failed++') && rb.includes('个附件本体删除失败'); });
+// V2.17.1 热修：onFilesChange 必须先 Array.from 快照 FileList 再清空 input.value（设置 value='' 会重置 FileList，旧代码先存引用后清空导致真实上传链路 100% 静默失败）
+check('R41-9 V2.17.1 onFilesChange 先快照 FileList 再清空 input.value（真实上传链路时序红线）', () => { const s = read('/shared/components/AssetManager.vue'); const snap = s.indexOf('Array.from(input.files || [])'); const clear = s.indexOf("input.value = ''"); return snap >= 0 && clear >= 0 && snap < clear && s.includes('const files = Array.from(input.files || [])'); });
+// V2.17.1 热修②：persist 必须 JSON 纯净清洗——reactive 树中残留的 Vue Proxy（编辑表单展开的 assets 等）会被 chrome.storage 序列化为类数组对象 {"0":…}，读回 .length undefined → 卡片正面附件徽章永不渲染
+check('R41-10 V2.17.1 saveData/saveDataNow 入存储前 JSON.parse(JSON.stringify(cache)) 纯净清洗', () => { const s = read('/shared/storage/repository.ts'); return (s.match(/JSON\.parse\(JSON\.stringify\(cache\)\)/g) || []).length >= 2; });
 
 console.log('');
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

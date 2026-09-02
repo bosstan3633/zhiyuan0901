@@ -46,13 +46,15 @@ function fmtSize(n: number): string {
 function onPick() { fileInput.value?.click() }
 async function onFilesChange(e: Event) {
   const input = e.target as HTMLInputElement
-  const files = input.files
+  // ⚠ 第卌一轮修复：必须先快照 FileList 再清空 input.value —— 设置 value='' 会重置 FileList，
+  // 旧代码先存引用后清空导致真实上传链路 100% 静默失败（注入式验证绕过了此链路故未暴露）
+  const files = Array.from(input.files || [])
   input.value = ''
-  if (!files || !files.length || busy.value) return
+  if (!files.length || busy.value) return
   busy.value = true
   try {
     const added: AssetMeta[] = []
-    for (const f of Array.from(files)) {
+    for (const f of files) {
       const kind = guessKind(f.name, f.type)
       if (!kind) { showToast(`⚠ 仅支持图片或 HTML 文件，已跳过：${f.name.slice(0, 24)}`); continue }
       if (f.size > props.maxSizeMB * 1024 * 1024) { showToast(`⚠ ${f.name.slice(0, 24)} 超过 ${props.maxSizeMB}MB 上限，已跳过`); continue }

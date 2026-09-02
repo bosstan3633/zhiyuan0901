@@ -103,7 +103,10 @@ export function saveData(): void {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     selfWriteAt = Date.now()
-    const payload = { [STORAGE_KEY]: cache! }
+    // V2.17.1 修复：JSON 纯净清洗后再入存储——reactive 树中可能残留 Vue Proxy（如编辑表单展开出的
+    // assets Proxy 数组），chrome.storage 序列化 Proxy 时会把数组降级为类数组对象 {"0":…}，
+    // 读回后 .length 为 undefined → 卡片正面附件徽章永不渲染。JSON round-trip 保证入存储永远是 plain 结构。
+    const payload = { [STORAGE_KEY]: JSON.parse(JSON.stringify(cache)) }
     const p = cs!.set(payload)
     if (p && typeof (p as Promise<void>).then === 'function') {
       ;(p as Promise<void>)
@@ -126,7 +129,8 @@ export async function saveDataNow(): Promise<void> {
   if (saveTimer) clearTimeout(saveTimer)
   selfWriteAt = Date.now()
   try {
-    await cs.set({ [STORAGE_KEY]: cache })
+    // V2.17.1 修复：同 saveData——JSON 纯净清洗防 reactive Proxy 泄漏入存储（数组降级类数组对象）
+    await cs.set({ [STORAGE_KEY]: JSON.parse(JSON.stringify(cache)) })
     if (lastSaveError) { lastSaveError = null }
     listeners.forEach((fn) => fn(cache!))
   } catch (e) {
