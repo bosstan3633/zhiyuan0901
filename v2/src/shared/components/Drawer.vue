@@ -26,6 +26,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
       <aside v-if="open" class="drawer" :style="{ width: width || '440px' }">
         <header class="drawer-header">
           <div class="drawer-title">{{ title }}</div>
+          <!-- 第卌一轮 REQ-054：标题右侧扩展区（附件徽章等） -->
+          <div v-if="$slots['title-extra']" class="drawer-title-extra"><slot name="title-extra" /></div>
           <button class="drawer-close" @click="emit('close')">×</button>
         </header>
         <div class="drawer-body">
@@ -59,6 +61,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
   display: flex; align-items: center; gap: 10px;
 }
 .drawer-title { font-size: 15px; font-weight: 600; flex: 1; color: var(--text); }
+.drawer-title-extra { flex-shrink: 0; display: flex; align-items: center; }
 .drawer-close {
   width: 30px; height: 30px;
   display: flex; align-items: center; justify-content: center;

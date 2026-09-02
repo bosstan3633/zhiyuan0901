@@ -77,11 +77,15 @@ function restoreCurio(c: CuriosityCard) {
 }
 
 // ---- 永久删除 ----
-/** REQ-048：硬删前清理该卡附件本体（IndexedDB；软删保留，恢复后仍可打开） */
+/** REQ-048：硬删前清理该卡附件本体（IndexedDB；软删保留，恢复后仍可打开）
+ *  第卌一轮 REQ-057：业务吞错收敛——本体删除失败累计计数并提示（Blob 残留可去设置页清理孤儿） */
 async function purgeAssetsOf(metas: AssetMeta[] | null | undefined) {
-  for (const m of metas || []) {
-    try { await deleteAsset(m.id) } catch (err) { console.error('[recycle] delete asset failed:', err) }
+  const arr = metas || []
+  let failed = 0
+  for (const m of arr) {
+    try { await deleteAsset(m.id) } catch (err) { console.error('[recycle] delete asset failed:', err); failed++ }
   }
+  if (failed > 0) show(`⚠ ${failed} 个附件本体删除失败（孤儿可到「设置 · 数据管理」清理）`)
 }
 async function purgeRes(r: ResourceCard) {
   await purgeAssetsOf(r.assets)

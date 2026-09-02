@@ -1,4 +1,4 @@
-/* 知源工作台 V2.11.0 回归验证矩阵（交付前必须全绿；当前 168 项）
+/* 知源工作台 V2.11.0 回归验证矩阵（交付前必须全绿；当前 337 项）
  * 运行：node scripts/regression.cjs
  * 新增功能时同步在对应域追加检查项 */
 const fs = require('fs');
@@ -87,10 +87,10 @@ check('B28 原生 confirm 全清除', () => { let n = 0; ['newtab/views/Workspac
 check('O22 使用手册完整内容（外置数据）', () => read('/newtab/manual-data.ts').includes('quick-1') && read('/newtab/manual-data.ts').includes('ref-2') && !read('/newtab/views/GlobalSettings.vue').includes('占位内容'));
 check('产品 logo 替换（首页+关于页+扩展图标）', () => read('/newtab/App.vue').includes('logoUrl') && read('/newtab/views/GlobalSettings.vue').includes('logoUrl') && fs.existsSync(base + '/assets/logo.png'));
 
-check('manifest 2.16.0', () => read('/manifest.ts').includes("version: '2.16.0'"));
-check('关于页 V2.16.0（动态读取 manifest.version）', () => {
+check('manifest 2.17.0', () => read('/manifest.ts').includes("version: '2.17.0'"));
+check('关于页 V2.17.0（动态读取 manifest.version）', () => {
   const gs = read('/newtab/views/GlobalSettings.vue')
-  return gs.includes('runtimeVersion') && !gs.includes('V2.14.0') && !gs.includes('V2.14.1') && !gs.includes('V2.14.2') && !gs.includes('V2.15.0')
+  return gs.includes('runtimeVersion') && !gs.includes('V2.14.0') && !gs.includes('V2.14.1') && !gs.includes('V2.14.2') && !gs.includes('V2.15.0') && !gs.includes('V2.16.0')
 });
 
 console.log('【第七轮】');
@@ -259,7 +259,7 @@ check('R32-1c REQ-001 DHI 口径=已投射项目', () => read('/newtab/stores/co
 check('R32-2 REQ-003 方向树项目卡打开项目全景抽屉', () => read('/newtab/views/CompassTree.vue').includes('openProjectDrawer') && read('/newtab/views/CompassTree.vue').includes('ProjectDetailDrawer'));
 check('R32-3 REQ-004 资源详情抽屉所属工作台字段+迁移反馈', () => read('/newtab/components/ResourceEditForm.vue').includes('wsOptions') && read('/newtab/components/ResourceEditForm.vue').includes('model.workspaceId') && read('/newtab/views/Workspace.vue').includes('已保存并迁移至'));
 check('R32-4 REQ-005 分类随工作台联动重置', () => read('/newtab/components/ResourceEditForm.vue').includes('catOptions') && read('/newtab/components/ResourceEditForm.vue').includes("model.categoryId = ''"));
-check('R32-5 REQ-006 CSV 导出含更新时间列', () => read('/newtab/views/GlobalSettings.vue').includes("'创建时间', '更新时间'"));
+check('R32-5 REQ-006 CSV 导出含更新时间列（第卌一轮 REQ-055 起改动态列：更新时间以固定管理尾列导出）', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes("{ label: '更新时间', get: r => (r.updatedAt ? new Date(r.updatedAt).toISOString().slice(0, 10) : '') }"); });
 check('R32-5b REQ-006 三卡详情面板时间戳可见', () => read('/newtab/components/ResourceEditForm.vue').includes('fmtTs') && read('/newtab/views/CompassActions.vue').includes('fmtTaskTs') && read('/newtab/components/compass/CuriosityPanel.vue').includes('更新于'));
 check('R32-6 REQ-007 排序偏好记忆（res/task/curio 三键）', () => read('/newtab/views/Workspace.vue').includes('sortPrefs?.res?.by') && read('/newtab/views/CompassActions.vue').includes('sortPrefs?.task?.by') && read('/newtab/components/compass/CuriosityPanel.vue').includes('sortPrefs?.curio?.dir'));
 check('R32-6b REQ-007+bug 任务排序下拉此前未生效，已补排序逻辑', () => read('/newtab/views/CompassActions.vue').includes("if (sortBy.value !== 'manual')") && read('/newtab/views/CompassActions.vue').includes("sortDir.value === 'asc' ? 1 : -1"));
@@ -278,7 +278,7 @@ check('R32-17 REQ-008 工作台实体进入搜索类型 Tab 与分组计数（�
 
 console.log('【第卅三轮 · V2.12 需求包第一批：模型/Bug · REQ-023 + BUG-A~D】');
 check('R33-2 REQ-023 星标字段 starred（CardBase 一份 + 三卡 extends，零迁移）', () => read('/shared/models/index.ts').split('export interface CardBase').length - 1 >= 1 && read('/shared/models/index.ts').split('extends CardBase').length - 1 === 3 && read('/shared/models/index.ts').includes('starred?: boolean'));
-check('R33-2b REQ-023 导出 CSV 补置顶/星标两列（资源 + 任务）', () => read('/newtab/views/GlobalSettings.vue').includes("'置顶', '星标'") && read('/newtab/views/CompassActions.vue').includes('t?.pinned ? \'是\' : \'\'') && read('/newtab/views/CompassActions.vue').includes("t?.starred ? '是' : ''"));
+check('R33-2b REQ-023 导出 CSV 补置顶/星标两列（第卌一轮 REQ-055 资源改固定管理尾列；任务 CSV 仍含两列）', () => { const g = read('/newtab/views/GlobalSettings.vue'); const t = read('/newtab/views/CompassActions.vue'); return g.includes("{ label: '置顶', get: r => (r.pinned ? '是' : '') }") && g.includes("{ label: '星标', get: r => (r.starred ? '是' : '') }") && t.includes("t?.pinned ? '是' : ''") && t.includes("t?.starred ? '是' : ''"); });
 check('R33-3 BUG-A 好奇置顶分组错位修复（置顶卡前置 + 组内 sortOrder/时间序）', () => read('/newtab/components/compass/CuriosityPanel.vue').includes('markRank(b) - markRank(a)') && read('/newtab/components/compass/CuriosityPanel.vue').includes("from '@/shared/utils/marksort'"));
 check('R33-4 BUG-B Ctrl+Enter 口径统一（采集浮层标题/链接去除裸 Enter 保存）', () => !read('/newtab/components/GlobalPopups.vue').includes('@keydown.enter.prevent="saveCapture"') && read('/newtab/components/GlobalPopups.vue').includes('💾 保存（Ctrl+Enter）'));
 check('R33-5 BUG-C 新建子分类死代码修复（父级 hover ＋ 传 parentId，弹窗父级提示可达）', () => read('/newtab/views/Workspace.vue').includes('openCreateCat(sc.cat.id)') && read('/newtab/views/Workspace.vue').includes('title="创建子分类"'));
@@ -398,7 +398,7 @@ check('R36-17 REQ-039 Enter 键走开链接（Ctrl+Enter 走定位+抽屉，R38 
 console.log('【第卅六轮 · V2.14.1 第三批：REQ-041 产品文案与对外呈现】');
 check("R36-18 REQ-041-① README.md（GitHub 根）不再含 V3.1 演进对照", () => { const src = read('/../../README.md'); return !src.includes('V3.1') && !src.includes('演进对照') && !src.includes('回归 218/218') && !src.includes('V2.13.0'); });
 check("R36-19 REQ-041-② v2/README.md 含产品定位与对位叙事（按 April Dunford 视角落地）", () => { const src = read('/../README.md'); return src.includes('个人资源调度台与认知增强系统') || src.includes('April Dunford'); });
-check('R36-20 REQ-041-③ ManualPage 头部版本 V2.16.0', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.16.0'); });
+check('R36-20 REQ-041-③ ManualPage 头部版本 V2.17.0', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.17.0'); });
 check("R36-21 REQ-041-① 根 README 按「是什么/给谁用/解决什么/如何解决」重写", () => { const src = read('/../../README.md'); return src.includes('## 它是什么') && src.includes('## 它给谁用') && src.includes('## 它解决什么问题') && src.includes('资源失血症'); });
 check("R36-22 REQ-041-③ 使用手册「速览」篇新增定位与六动作（quick-1 / quick-2）", () => { const src = read('/newtab/manual-data.ts'); return src.includes("id: 'quick-1'") && src.includes("id: 'quick-2'") && src.includes('它是什么') && src.includes('六个核心动作'); });
 check('R36-23 两份 README 的相对文档链接无死链（防止文档导航撒谎）', () => {
@@ -474,7 +474,25 @@ check('R40-8 REQ-051 好奇面板按 fieldConfig.curiosity 消费（visibleField
 check('R40-9 REQ-049 附件兜底：defaults 三型 assets def + repository 老数据迁移', () => { const def = read('/shared/storage/defaults.ts'); const rep = read('/shared/storage/repository.ts'); return (def.split("key: 'assets'").length - 1) === 3 && rep.includes('REQ-049：老数据字段配置补 assets'); });
 console.log('【第卌轮 · V2.16.0 第四批：REQ-052 死代码清理 + 版本门禁】');
 check('R40-10 REQ-052 fieldViewCfg 死代码全库零引用', () => { return !fs.existsSync(base + '/shared/models/index.ts') ? false : !read('/shared/models/index.ts').includes('fieldViewCfg') && !read('/shared/storage/repository.ts').includes('fieldViewCfg'); });
-check('R40-11 版本 2.16.0 五处同步（manifest/package/关于页动态/ManualPage/regression）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const gs = read('/newtab/views/GlobalSettings.vue'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes("version: '2.16.0'") && pkg.includes('"version": "2.16.0"') && gs.includes('runtimeVersion') && mp.includes('V2.16.0'); });
+check('R40-11 版本 2.17.0 五处同步（manifest/package/关于页动态/ManualPage/regression）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const gs = read('/newtab/views/GlobalSettings.vue'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes("version: '2.17.0'") && pkg.includes('"version": "2.17.0"') && gs.includes('runtimeVersion') && mp.includes('V2.17.0'); });
+
+// ============== 第卌一轮 · V2.17.0 附件详情呈现修复 + 技术债收敛（REQ-054~REQ-057，V2.16.0 交付后用户反馈驱动） ==============
+console.log('【第卌一轮 · V2.17.0 第一批：REQ-054 附件详情端到端呈现修复（详情面板徽章补齐：标题旁 + section 头）】');
+check('R41-1 REQ-054 Drawer 具名插槽 #title-extra（详情标题区挂附件徽章）', () => { const s = read('/shared/components/Drawer.vue'); return s.includes('name="title-extra"') && s.includes('.drawer-title-extra'); });
+check('R41-2 REQ-054 好奇心详情抽屉双徽章：标题旁(#title-extra) + 附件 section 头(.detail-sec-head)', () => { const s = read('/newtab/components/compass/CuriosityPanel.vue'); return s.includes('#title-extra') && s.includes('.detail-sec-head') && s.includes('<AssetBadge v-if="detailItem?.assets?.length"'); });
+check('R41-3 REQ-054 任务详情侧栏双徽章：ts-head 标题旁(.ts-title-assets) + section 头(.ts-label-row)', () => { const s = read('/newtab/views/CompassActions.vue'); return s.includes('ts-title-assets') && s.includes('ts-label-row') && s.includes('class="ts-label ts-label-row"'); });
+check('R41-3b REQ-054 资源编辑表单双徽章：标题旁(.ref-title-assets) + section 头(.ref-label-row)', () => { const s = read('/newtab/components/ResourceEditForm.vue'); return s.includes('ref-title-assets') && s.includes('ref-label-row') && s.includes("import AssetBadge"); });
+console.log('【第卌一轮 · V2.17.0 第二批：REQ-055 资源卡 CSV 动态列对齐字段目录】');
+check('R41-4 REQ-055 CSV 动态列：allFields(fieldConfig) 目录驱动 + resCsvValue 取值 + 系统字段全导/自定义按可见性 + 列名取 label', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes('function resCsvValue') && s.includes("allFields(d.fieldConfig, 'resource')") && s.includes("!f.key.startsWith('custom_') || f.visible") && s.includes("const headers = cols.map(c => c.label)"); });
+check('R41-4b REQ-055 UI 文案同步动态列说明（旧硬编码 8 字段描述串已清除）', () => !read('/newtab/views/GlobalSettings.vue').includes('字段：标题/链接/链接类型/标签/分类/描述/创建时间/更新时间'));
+console.log('【第卌一轮 · V2.17.0 第三批：REQ-056 AssetPreview 公共 viewer 抽取（AssetManager/AssetBadge 双份合一）】');
+check('R41-5 REQ-056 公共组件 AssetPreview 存在（Teleport + Esc 捕获关闭 + img 渲染）', () => { const s = read('/shared/components/AssetPreview.vue'); return s.includes('<Teleport to="body">') && s.includes("e.key === 'Escape' && props.open") && s.includes('class="ap-viewer-img"') && s.includes("defineEmits<{ (e: 'close'): void }>()"); });
+check('R41-6 REQ-056 AssetManager 改引公共组件（不再内嵌 .am-viewer viewer）', () => { const s = read('/shared/components/AssetManager.vue'); return s.includes("import AssetPreview from './AssetPreview.vue'") && s.includes('<AssetPreview :open="viewerOpen"') && !s.includes('.am-viewer'); });
+check('R41-7 REQ-056 AssetBadge 改引公共组件（不再内嵌 .ab-viewer viewer）', () => { const s = read('/shared/components/AssetBadge.vue'); return s.includes("import AssetPreview from './AssetPreview.vue'") && s.includes('<AssetPreview :open="viewerOpen"') && !s.includes('.ab-viewer'); });
+check('R41-7b REQ-056 双份 viewer 样式全库收敛（am-viewer/ab-viewer 在宿主零残留）', () => { let n = 0; ['/shared/components/AssetManager.vue','/shared/components/AssetBadge.vue','/newtab/components/compass/CuriosityPanel.vue','/newtab/views/CompassActions.vue','/newtab/components/ResourceEditForm.vue'].forEach(f => { if (read(f).includes('.am-viewer') || read(f).includes('.ab-viewer')) n++; }); return n === 0; });
+console.log('【第卌一轮 · V2.17.0 第四批：REQ-057 业务静默 catch 收敛（仅用户主动操作失败补提示）】');
+check('R41-8 REQ-057 AssetManager.removeAsset 本体删除失败补 toast（不再静默吞错）', () => { const s = read('/shared/components/AssetManager.vue'); return s.includes('await deleteAsset(meta.id)') && s.includes("console.error('[assets] deleteAsset failed:', err)") && s.includes('附件本体删除失败，可到「设置 · 数据管理」清理孤儿'); });
+check('R41-8b REQ-057 RecycleBin.purgeAssetsOf 硬删附件失败累计计数提示', () => { const s = read('/newtab/views/RecycleBin.vue'); return s.includes('let failed = 0') && s.includes('failed++') && s.includes('个附件本体删除失败'); });
 
 console.log('');
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

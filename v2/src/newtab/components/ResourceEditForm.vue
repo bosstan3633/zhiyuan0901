@@ -15,6 +15,7 @@
 import { computed } from 'vue'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
+import AssetBadge from '@/shared/components/AssetBadge.vue'
 import { useAppStore } from '../stores/app'
 import { useTaHeight } from '@/shared/utils/taHeight'
 import type { ResourceCard, TaskCard, Category, AssetMeta } from '@/shared/models'
@@ -95,6 +96,7 @@ function fmtTs(ts?: number): string {
     <div class="ref-title-row" :class="{ highlight }">
       <textarea class="ref-title" v-model="model.title" rows="2" placeholder="资源卡标题..."
         @keydown.ctrl.enter.prevent="emit('save')" @keydown.meta.enter.prevent="emit('save')"></textarea>
+      <AssetBadge v-if="model.assets?.length" :assets="model.assets" class="ref-title-assets" />
       <div v-if="showClose" class="ref-close" @click="emit('close')">×</div>
     </div>
 
@@ -142,7 +144,10 @@ function fmtTs(ts?: number): string {
     </div>
 
     <div class="ref-section">
-      <div class="ref-label">📎 附件（图片弹窗预览 / HTML 新标签打开）</div>
+      <div class="ref-label ref-label-row">
+        <span>📎 附件（图片弹窗预览 / HTML 新标签打开）</span>
+        <AssetBadge v-if="model.assets?.length" :assets="model.assets" />
+      </div>
       <AssetManager v-model="model.assets" @update:model-value="onAssetsChange" />
     </div>
 
@@ -178,9 +183,11 @@ function fmtTs(ts?: number): string {
 .ref-title:focus { outline: none; border-color: var(--accent); }
 .ref-title-row.highlight .ref-title { box-shadow: 0 0 0 2px var(--accent); }
 .ref-close { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 18px; transition: all .15s; flex-shrink: 0; }
+.ref-title-assets { margin-top: 10px; flex-shrink: 0; }
 .ref-close:hover { background: var(--surface-3); color: var(--text); }
 
 .ref-label { font-size: 11px; color: var(--text-3); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
+.ref-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ref-link-type { display: flex; gap: 6px; margin-bottom: 8px; }
 .ref-link-type-btn {
   flex: 1; padding: 7px 0; text-align: center; font-size: 12.5px; cursor: pointer;

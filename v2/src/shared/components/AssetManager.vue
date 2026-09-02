@@ -11,6 +11,7 @@ import type { AssetMeta } from '@/shared/models'
 import { putAsset, getAssetBlob, deleteAsset } from '@/shared/storage/assets'
 import { uid } from '@/shared/utils'
 import { showToast } from '@/shared/components/toast'
+import AssetPreview from './AssetPreview.vue'
 
 const props = withDefaults(defineProps<{
   modelValue?: AssetMeta[] | null
@@ -76,7 +77,13 @@ async function onFilesChange(e: Event) {
 
 // ---- 删除单个 ----
 async function removeAsset(meta: AssetMeta) {
-  deleteAsset(meta.id).catch(err => console.error('[assets] deleteAsset failed:', err))
+  try {
+    await deleteAsset(meta.id)
+  } catch (err) {
+    // 第卌一轮 REQ-057：业务吞错收敛——本体删除失败必须让用户知道（meta 已软删但 Blob 残留 = 孤儿）
+    console.error('[assets] deleteAsset failed:', err)
+    showToast('⚠ 附件本体删除失败，可到「设置 · 数据管理」清理孤儿')
+  }
   emitList(list.value.filter(a => a.id !== meta.id))
   showToast('🗑 附件已移除')
 }
@@ -134,20 +141,8 @@ async function openAsset(meta: AssetMeta) {
     <input ref="fileInput" type="file" class="am-file" multiple accept="image/*,.html,.htm" @change="onFilesChange" />
     <div class="am-tip">图片点击弹窗预览；HTML 仅支持自包含单文件（引用外部 css/js/图片的页面需打包为单个文件）</div>
 
-    <!-- 图片预览弹窗 -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div v-if="viewerOpen" class="am-viewer" @click.self="closeViewer">
-          <div class="am-viewer-box">
-            <div class="am-viewer-head">
-              <span class="am-viewer-name" :title="viewerName">{{ viewerName }}</span>
-              <button class="am-viewer-close" @click="closeViewer">×</button>
-            </div>
-            <img class="am-viewer-img" :src="viewerUrl" alt="" @keydown.esc="closeViewer" />
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <!-- 第卌一轮 REQ-056：图片预览弹窗抽公共组件 AssetPreview -->
+    <AssetPreview :open="viewerOpen" :url="viewerUrl" :name="viewerName" @close="closeViewer" />
   </div>
 </template>
 
@@ -175,25 +170,4 @@ async function openAsset(meta: AssetMeta) {
 .am-add.busy { opacity: .6; cursor: default; }
 .am-file { display: none; }
 .am-tip { font-size: 10.5px; color: var(--text-3); line-height: 1.5; }
-
-.am-viewer {
-  position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,.72);
-  display: flex; align-items: center; justify-content: center; padding: 32px;
-}
-.am-viewer-box {
-  max-width: min(92vw, 1080px); max-height: 92vh; display: flex; flex-direction: column;
-  background: var(--surface); border-radius: 12px; overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0,0,0,.45);
-}
-.am-viewer-head {
-  display: flex; align-items: center; gap: 8px; padding: 8px 14px;
-  background: var(--surface-2); border-bottom: 1px solid var(--border);
-}
-.am-viewer-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: var(--text); }
-.am-viewer-close {
-  border: none; background: transparent; color: var(--text-2); font-size: 20px; cursor: pointer; line-height: 1;
-  padding: 2px 6px; border-radius: 4px;
-}
-.am-viewer-close:hover { color: var(--text); background: var(--surface-3); }
-.am-viewer-img { display: block; max-width: 100%; max-height: calc(92vh - 44px); object-fit: contain; background: repeating-conic-gradient(#1a1a1e 0 25%, #26262b 0 50%) 0 0 / 22px 22px; }
 </style>

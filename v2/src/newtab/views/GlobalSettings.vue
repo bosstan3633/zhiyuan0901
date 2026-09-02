@@ -206,7 +206,7 @@
               <button class="gs-btn gs-btn-primary" @click="exportAll">导出</button>
             </div>
             <div class="gs-export-row">
-              <div class="gs-er-info"><div class="gs-er-name">按工作台导出CSV</div><div class="gs-er-desc">字段：标题/链接/链接类型/标签/分类/描述/创建时间/更新时间，适配Airtable等多维表</div></div>
+              <div class="gs-er-info"><div class="gs-er-name">按工作台导出CSV</div><div class="gs-er-desc">字段：系统字段全导 + 自定义字段按可见性，列名/顺序跟随「字段管理」；尾随 链接类型/分类/置顶/星标/更新时间，适配Airtable等多维表</div></div>
               <select class="gs-select" v-model="csvWsId">
                 <option value="">选择工作台…</option>
                 <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name }}</option>
@@ -495,6 +495,7 @@ import { createDefaultData } from '@/shared/storage/defaults'
 import { LETTER_HTML, buildLetterStandaloneHtml } from '../letter-data'
 import { uid } from '@/shared/utils'
 import { getAssetStats, cleanupOrphanAssets } from '@/shared/storage/assets'
+import { visibleFields, allFields } from '@/shared/utils/fields'
 import type { FieldDef, AppData, ResourceCard, Workspace, Category, TagNode, AssetMeta } from '@/shared/models'
 
 const router = useRouter()
@@ -834,7 +835,40 @@ function exportAll() {
   showToast('✓ 全部数据已导出为JSON')
 }
 
-/** 按工作台导出 CSV（字段：标题/链接/链接类型/标签/分类/描述/创建时间/更新时间——第卅二轮 REQ-006 补更新时间列） */
+/** 第卌一轮 REQ-055：资源目录字段 → CSV 单元格文本（系统字段键值映射；自定义字段取 customFields） */
+function resCsvValue(r: ResourceCard, key: string): string {
+  if (key.startsWith('custom_')) {
+    const v = r.customFields?.[key]
+    return v == null ? '' : String(v)
+  }
+  switch (key) {
+    case 'title': return r.title
+    case 'link': return r.link || ''
+    case 'description': return r.description || ''
+    case 'sourceType': return r.sourceType || ''
+    case 'tags': return (r.tags || []).join(';')
+    case 'createdAt': return new Date(r.createdAt).toISOString().slice(0, 10)
+    case 'assets': {
+      // 附件列 = 文本摘要（与 fieldValue assets 同规则：N 图 · M HTML）
+      const list = r.assets || []
+      const imgs = list.filter(a => a.kind === 'image').length
+      const htmls = list.length - imgs
+      const parts: string[] = []
+      if (imgs) parts.push(`${imgs} 图`)
+      if (htmls) parts.push(`${htmls} HTML`)
+      return parts.join(' · ')
+    }
+    default: {
+      const v = (r as unknown as Record<string, unknown>)[key]
+      return v == null ? '' : String(v)
+    }
+  }
+}
+
+/** 按工作台导出 CSV —— 第卌一轮 REQ-055：动态列对齐字段目录
+ * 目录字段（title/link/description/sourceType/tags/createdAt/assets + 自定义）全按目录配置：
+ * 系统字段无条件导出、自定义字段按可见性过滤，列顺序 = fieldDef.order、列标题 = fieldDef.label（跟随重命名/显隐/排序）；
+ * 目录外管理列（链接类型/分类/置顶/星标/更新时间）为卡片固有元数据，固定尾随。 */
 function exportCsvForWorkspace() {
   if (!csvWsId.value) return
   const d = store.data!
@@ -842,19 +876,21 @@ function exportCsvForWorkspace() {
   if (!ws) return
   const catMap = new Map(d.categories.map(c => [c.id, c.name]))
   const cards = d.resources.filter(r => !r.deletedAt && r.workspaceId === csvWsId.value)
-  const headers = ['标题', '链接', '链接类型', '标签', '分类', '描述', '置顶', '星标', '创建时间', '更新时间']
-  const rows = cards.map(r => [
-    r.title,
-    r.link,
-    r.linkType === 'url' ? 'URL' : r.linkType === 'file' ? '本地文件' : 'Obsidian',
-    (r.tags || []).join(';'),
-    catMap.get(r.categoryId) || '待分类',
-    r.description || '',
-    r.pinned ? '是' : '',
-    r.starred ? '是' : '',
-    new Date(r.createdAt).toISOString().slice(0, 10),
-    r.updatedAt ? new Date(r.updatedAt).toISOString().slice(0, 10) : ''
-  ].map(csvEscape))
+  // 动态目录列：系统字段全导出（无视 visible，保证数据基线完整）+ 自定义字段按可见性过滤，按 order 排序
+  const dirCols = allFields(d.fieldConfig, 'resource')
+    .filter(f => !f.key.startsWith('custom_') || f.visible)
+    .sort((a, b) => a.order - b.order)
+  const cols: Array<{ label: string; get: (r: ResourceCard) => string }> = dirCols.map(f => ({ label: f.label, get: r => resCsvValue(r, f.key) }))
+  // 目录外管理列（卡片固有元数据，固定尾随）
+  cols.push(
+    { label: '链接类型', get: r => (r.linkType === 'url' ? 'URL' : r.linkType === 'file' ? '本地文件' : 'Obsidian') },
+    { label: '分类', get: r => catMap.get(r.categoryId) || '待分类' },
+    { label: '置顶', get: r => (r.pinned ? '是' : '') },
+    { label: '星标', get: r => (r.starred ? '是' : '') },
+    { label: '更新时间', get: r => (r.updatedAt ? new Date(r.updatedAt).toISOString().slice(0, 10) : '') }
+  )
+  const headers = cols.map(c => c.label)
+  const rows = cards.map(r => cols.map(c => csvEscape(c.get(r))))
   downloadFile(`zhiyuan_${ws.name.replace(/^[^\s]+\s/, '')}_${dateStr()}.csv`,
     '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n'),
     'text/csv;charset=utf-8')

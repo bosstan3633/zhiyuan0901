@@ -495,6 +495,9 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
     </div>
 
     <Drawer :open="!!detailItem" :title="detailItem ? `${STATUS_MAP[detailItem.status].icon} 好奇心详情` : ''" @close="detailId = null">
+      <template #title-extra>
+        <AssetBadge v-if="detailItem?.assets?.length" :assets="detailItem.assets" />
+      </template>
       <template v-if="detailItem">
         <div class="detail-status-row">
           <button v-for="(s, key) in STATUS_MAP" :key="key"
@@ -524,7 +527,10 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
           <button class="mini-btn" @click="update(detailItem.id, { sourceUrl: detailItem.sourceUrl })">保存链接</button>
         </div>
         <div style="margin-top:14px">
-          <div style="font-size:11px;font-weight:600;color:var(--text-3);margin-bottom:7px">📎 附件（图片弹窗预览 / HTML 新标签打开）</div>
+          <div class="detail-sec-head">
+            <span style="font-size:11px;font-weight:600;color:var(--text-3)">📎 附件（图片弹窗预览 / HTML 新标签打开）</span>
+            <AssetBadge v-if="detailItem?.assets?.length" :assets="detailItem.assets" />
+          </div>
           <AssetManager v-model="detailItem.assets" @update:model-value="onCurioAssetsChange" />
         </div>
         <div class="detail-tags" style="margin-top:14px">
@@ -669,6 +675,7 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
 .cz-kanban-meta { font-size: 10px; color: var(--text-3); }
 .cz-kanban-empty { text-align: center; padding: 20px; font-size: 11px; color: var(--text-4); border: 1px dashed var(--border); border-radius: var(--radius-xs); }
 .detail-status-row { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.detail-sec-head { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
 .status-chip { padding: 5px 12px; border-radius: 99px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; }
 .status-chip:hover { border-color: var(--border-strong); }
 .status-chip.active.pending { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }

@@ -11,6 +11,7 @@ import { ref, computed } from 'vue'
 import type { AssetMeta } from '@/shared/models'
 import { getAssetBlob } from '@/shared/storage/assets'
 import { showToast } from '@/shared/components/toast'
+import AssetPreview from './AssetPreview.vue'
 
 const props = withDefaults(defineProps<{
   assets?: AssetMeta[] | null
@@ -97,18 +98,8 @@ async function openAsset(meta: AssetMeta) {
         </div>
       </div>
     </Transition>
-    <!-- 图片预览弹窗 -->
-    <Transition name="fade">
-      <div v-if="viewerOpen" class="ab-viewer" @click.self="closeViewer">
-        <div class="ab-viewer-box">
-          <div class="ab-viewer-head">
-            <span class="ab-viewer-name" :title="viewerName">{{ viewerName }}</span>
-            <button class="ab-viewer-close" @click="closeViewer">×</button>
-          </div>
-          <img class="ab-viewer-img" :src="viewerUrl" alt="" @keydown.esc="closeViewer" />
-        </div>
-      </div>
-    </Transition>
+    <!-- 第卌一轮 REQ-056：图片预览弹窗抽公共组件 AssetPreview -->
+    <AssetPreview :open="viewerOpen" :url="viewerUrl" :name="viewerName" @close="closeViewer" />
   </Teleport>
 </template>
 
@@ -153,28 +144,4 @@ async function openAsset(meta: AssetMeta) {
 .ab-size { flex-shrink: 0; font-size: 10.5px; color: var(--text-3); }
 .ab-go { flex-shrink: 0; font-size: 11px; opacity: .6; }
 .ab-empty { padding: 16px; text-align: center; color: var(--text-3); font-size: 12px; }
-
-.ab-viewer {
-  position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,.72);
-  display: flex; align-items: center; justify-content: center; padding: 32px;
-}
-.ab-viewer-box {
-  max-width: min(92vw, 1080px); max-height: 92vh; display: flex; flex-direction: column;
-  background: var(--surface); border-radius: 12px; overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0,0,0,.45);
-}
-.ab-viewer-head {
-  display: flex; align-items: center; gap: 8px; padding: 8px 14px;
-  background: var(--surface-2); border-bottom: 1px solid var(--border);
-}
-.ab-viewer-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: var(--text); }
-.ab-viewer-close {
-  border: none; background: transparent; color: var(--text-2); font-size: 20px; cursor: pointer; line-height: 1;
-  padding: 2px 6px; border-radius: 4px;
-}
-.ab-viewer-close:hover { color: var(--text); background: var(--surface-3); }
-.ab-viewer-img {
-  display: block; max-width: 100%; max-height: calc(92vh - 44px); object-fit: contain;
-  background: repeating-conic-gradient(#1a1a1e 0 25%, #26262b 0 50%) 0 0 / 22px 22px;
-}
 </style>

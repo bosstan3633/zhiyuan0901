@@ -1227,6 +1227,7 @@ onUnmounted(() => {
           <div class="check-lg" :class="{done: selectedTask.status==='done'}" @click="toggleTask(selectedTask.id)">{{ selectedTask.status==='done'?'✓':'' }}</div>
           <textarea v-model="taskTitleDraft" class="ts-title" rows="2" placeholder="任务标题..."
             @blur="saveTaskTitle" />
+          <AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" class="ts-title-assets" />
           <div class="ts-close" @click="closeTaskSidebar">×</div>
         </div>
         <div class="ts-body">
@@ -1268,7 +1269,10 @@ onUnmounted(() => {
             <input v-model="selectedTask.link" class="ts-input" placeholder="https://… 或 D:\path\file.pdf" @blur="touchTask" @keydown.enter.prevent="($event.target as HTMLElement).blur()">
           </div>
           <div class="ts-section">
-            <div class="ts-label">📎 附件（图片弹窗预览 / HTML 新标签打开）</div>
+            <div class="ts-label ts-label-row">
+              <span>📎 附件（图片弹窗预览 / HTML 新标签打开）</span>
+              <AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" />
+            </div>
             <AssetManager v-model="selectedTask.assets" @update:model-value="onTaskAssetsChange" />
           </div>
           <div class="ts-section">
@@ -1531,11 +1535,13 @@ onUnmounted(() => {
 .check-lg { width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: 13px; color: #fff; background: var(--surface); }
 .check-lg.done { background: var(--success); border-color: var(--success); }
 .ts-title { flex: 1; font-size: 16px; font-weight: 600; color: var(--text); border: none; outline: none; background: transparent; font-family: inherit; line-height: 1.5; resize: none; min-height: 44px; }
+.ts-title-assets { flex-shrink: 0; }
 .ts-close { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; color: var(--text-3); font-size: 18px; flex-shrink: 0; }
 .ts-close:hover { background: var(--surface-3); color: var(--text); }
 .ts-body { flex: 1; overflow-y: auto; padding: 18px 20px; }
 .ts-section { margin-bottom: 16px; }
 .ts-label { font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin-bottom: 7px; }
+.ts-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ts-select { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: 12.5px; color: var(--text); border: 1px solid transparent; outline: none; cursor: pointer; font-family: inherit; }
 .ts-select:focus { border-color: var(--accent); }
 .ts-select:disabled { opacity: .5; cursor: not-allowed; }
