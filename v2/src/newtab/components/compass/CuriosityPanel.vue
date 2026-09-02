@@ -3,18 +3,20 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCuriosity, type CuriStatus } from '../../stores/curiosity'
 import { useAppStore } from '../../stores/app'
-import type { CuriosityCard, AssetMeta } from '@/shared/models'
+import type { CuriosityCard, AssetMeta, FieldDef } from '@/shared/models'
 import ModuleCard from '@/shared/components/ModuleCard.vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import { showToast } from '@/shared/components/toast'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
+import AssetBadge from '@/shared/components/AssetBadge.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { markRank } from '@/shared/utils/marksort'
 import { useTaHeight } from '@/shared/utils/taHeight'
 import { onOpenDrawer } from '@/shared/utils/bus'
+import { visibleFields } from '@/shared/utils/fields'
 
 const { curiosities, STATUS_MAP, update, setStatus, remove, convertToTask, convertToResource } = useCuriosity()
 const store = useAppStore()
@@ -305,8 +307,11 @@ function confirmConvert() {
     showToast(`✓ 已归档至「${ws?.name || ''}」资源工作台`)
   } else {
     const proj = convProjects.value.find(p => p.id === convertProjId.value)
+    const wasShelf = c.status === 'shelf'
     convertToTask(c, convertProjId.value || undefined, convertMetId.value || undefined)
     showToast(proj ? `✓ 已转为任务，归属「${proj.name}」` : '✓ 已转为任务，进入任务中心')
+    // 第卌轮 REQ-050：搁置 → 任务按「待开始」处理，显式提示
+    if (wasShelf) showToast('ℹ 已搁置的好奇心转为任务后按「待开始」处理')
   }
   convertOpen.value = false
   detailId.value = null
@@ -335,6 +340,17 @@ function fmtDate(ts?: number) {
   if (!ts) return ''
   const dt = new Date(ts)
   return `${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+
+// 第卌轮 REQ-051：好奇心卡正面补充字段流（按 fieldConfig.curiosity 显隐/排序；
+// question/status/createdAt 属卡片骨架不参与字段流）——字段设计一处开关即控卡片正面的标签/自定义/附件行
+const curioExtFields = computed(() =>
+  visibleFields(d.value.fieldConfig, 'curiosity')
+    .filter(f => f.key === 'assets' || f.key === 'tags' || f.key.startsWith('custom_'))
+)
+function curioExtVal(c: CuriosityCard, f: FieldDef): string {
+  const v = c.customFields?.[f.key]
+  return v == null ? '' : String(v)
 }
 </script>
 
@@ -392,6 +408,18 @@ function fmtDate(ts?: number) {
             <button class="cz-pin-corner" :class="{on: c.pinned}" @click.stop="togglePin(c.id)" title="置顶">📌</button>
             <button class="cz-star-corner" :class="{on: c.starred}" @click.stop="toggleStar(c.id)" title="星标">⭐</button>
             <div class="cz-title">{{ c.question }}</div>
+            <!-- 第卌轮 REQ-051：附件徽章 + 标签/自定义字段（字段设计控制显隐排序） -->
+            <div v-if="curioExtFields.length" class="cz-ext">
+              <template v-for="f in curioExtFields" :key="f.key">
+                <AssetBadge v-if="f.key === 'assets'" :assets="c.assets" />
+                <span v-else-if="f.key === 'tags' && c.tags?.length" class="cz-ext-tags">
+                  <span v-for="t in c.tags" :key="t" class="cz-ext-tag">#{{ t }}</span>
+                </span>
+                <span v-else-if="f.key.startsWith('custom_') && curioExtVal(c, f)" class="cz-ext-custom">
+                  <span class="cz-ext-lbl">{{ f.label }}:</span>{{ curioExtVal(c, f) }}
+                </span>
+              </template>
+            </div>
             <div class="cz-meta">📅 {{ fmtDate(c.createdAt) }}</div>
             <div class="cz-hover-bar">
               <button class="cz-hover-btn primary" @click.stop="openConvert(c, 'task')">转为任务</button>
@@ -422,6 +450,7 @@ function fmtDate(ts?: number) {
             <span v-else-if="c.starred" class="cz-star-flag">⭐</span>
             <span class="cz-status" :class="STATUS_MAP[c.status].cls">{{ STATUS_MAP[c.status].icon }}</span>
             <span class="cz-list-text">{{ c.question }}</span>
+            <AssetBadge v-if="curioExtFields.some(f => f.key === 'assets')" :assets="c.assets" class="cz-list-assets" />
             <span class="cz-list-date">{{ fmtDate(c.createdAt) }}</span>
             <div class="cz-list-actions">
               <button class="mini-btn" :class="{pinon: c.pinned}" @click.stop="togglePin(c.id)" title="置顶">📌</button>
@@ -454,6 +483,7 @@ function fmtDate(ts?: number) {
               <button class="cz-star-corner" :class="{on: c.starred}" @click.stop="toggleStar(c.id)" title="星标">⭐</button>
               <div class="cz-kanban-text">{{ c.question }}</div>
               <div class="cz-kanban-meta">
+                <AssetBadge v-if="curioExtFields.some(f => f.key === 'assets')" :assets="c.assets" />
                 <span>{{ fmtDate(c.createdAt) }}</span>
                 <button class="cz-kb-del" @click.stop="deleteCard(c)" title="删除">🗑</button>
               </div>
@@ -691,4 +721,11 @@ function fmtDate(ts?: number) {
 .cz-modal-select:focus { border-color: var(--accent); }
 .cz-modal-select:disabled { opacity: .5; cursor: not-allowed; }
 .cz-modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+/* 第卌轮 REQ-051：卡片正面补充字段流（附件徽章 / 标签 / 自定义） */
+.cz-ext { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 7px; }
+.cz-ext-tags { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.cz-ext-tag { font-size: 10px; line-height: 1; padding: 2px 7px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); }
+.cz-ext-custom { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--text-2); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cz-ext-lbl { color: var(--text-3); }
+.cz-list-assets { margin: 0 2px; }
 </style>

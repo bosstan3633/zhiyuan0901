@@ -79,6 +79,12 @@ export async function loadData(): Promise<AppData> {
       data.fieldConfig[key].push({ key: 'tags', label: '标签', type: 'tags', visible: false, order: data.fieldConfig[key].length })
     }
   }
+  // 第卌轮 REQ-049：老数据字段配置补 assets（附件展示；字段目录 base 字段，目录化兜底迁移）
+  for (const key of ['resource', 'task', 'curiosity'] as const) {
+    if (data.fieldConfig?.[key] && !data.fieldConfig[key].some(f => f.key === 'assets')) {
+      data.fieldConfig[key].push({ key: 'assets', label: '附件', type: 'text', visible: true, order: data.fieldConfig[key].length })
+    }
+  }
   cache = data
   return data
 }
@@ -207,7 +213,6 @@ export async function loadUIPrefs(): Promise<UIPrefs> {
   const defaults: UIPrefs = {
     theme: 'linear',
     viewMode: 'card',
-    fieldViewCfg: {},
     tcSplitRatio: 50,
     wsSwitchMod: 'alt'
   }

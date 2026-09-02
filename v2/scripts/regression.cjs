@@ -87,10 +87,10 @@ check('B28 原生 confirm 全清除', () => { let n = 0; ['newtab/views/Workspac
 check('O22 使用手册完整内容（外置数据）', () => read('/newtab/manual-data.ts').includes('quick-1') && read('/newtab/manual-data.ts').includes('ref-2') && !read('/newtab/views/GlobalSettings.vue').includes('占位内容'));
 check('产品 logo 替换（首页+关于页+扩展图标）', () => read('/newtab/App.vue').includes('logoUrl') && read('/newtab/views/GlobalSettings.vue').includes('logoUrl') && fs.existsSync(base + '/assets/logo.png'));
 
-check('manifest 2.15.0', () => read('/manifest.ts').includes("version: '2.15.0'"));
-check('关于页 V2.15.0（动态读取 manifest.version）', () => {
+check('manifest 2.16.0', () => read('/manifest.ts').includes("version: '2.16.0'"));
+check('关于页 V2.16.0（动态读取 manifest.version）', () => {
   const gs = read('/newtab/views/GlobalSettings.vue')
-  return gs.includes('runtimeVersion') && !gs.includes('V2.14.0') && !gs.includes('V2.14.1') && !gs.includes('V2.14.2')
+  return gs.includes('runtimeVersion') && !gs.includes('V2.14.0') && !gs.includes('V2.14.1') && !gs.includes('V2.14.2') && !gs.includes('V2.15.0')
 });
 
 console.log('【第七轮】');
@@ -210,7 +210,7 @@ check('R17-2 好奇心来源仅选中时附带（两端，可为空）', () => r
 check('R17-3 项目策展创建项目（视觉链+选战略目标+直接进展板）', () => read('/newtab/views/ProjectCuration.vue').includes('openCreateProject') && read('/newtab/views/ProjectCuration.vue').includes('confirmCreateProject') && read('/newtab/views/ProjectCuration.vue').includes('createDirId') && read('/newtab/views/ProjectCuration.vue').includes('cm-chain'));
 check('R17-4 灯塔入口移至模块右上角', () => read('/newtab/components/compass/LighthousePanel.vue').includes('<template #actions>') && read('/newtab/components/compass/LighthousePanel.vue').includes('lh-top-action') && !read('/newtab/components/compass/LighthousePanel.vue').includes('lh-footer">'));
 check('R17-5 置顶右上角统一（好奇三视图）', () => read('/newtab/components/compass/CuriosityPanel.vue').includes('cz-pin-corner') && read('/newtab/components/compass/CuriosityPanel.vue').includes('置顶优先'));
-check('R17-6 任务卡置顶（模型+列表+看板+选取）', () => read('/shared/models/index.ts').includes('pinned?: boolean  // 第十七轮') && read('/newtab/views/CompassActions.vue').includes('toggleTaskPin') && read('/newtab/views/CompassActions.vue').includes('.k-pin') && read('/newtab/views/CompassActions.vue').includes('.t-pin'));
+check('R17-6 任务卡置顶（模型+列表+看板+选取）', () => read('/shared/models/index.ts').includes('pinned?: boolean') && read('/newtab/views/CompassActions.vue').includes('toggleTaskPin') && read('/newtab/views/CompassActions.vue').includes('.k-pin') && read('/newtab/views/CompassActions.vue').includes('.t-pin'));
 
 console.log('【第十三轮 · V2.2.0 正式版】');
 check('V13-1 任务卡链接字段 + 单/双击统一', () => read('/shared/models/index.ts').includes('link?: string') && read('/newtab/views/CompassActions.vue').includes('onTaskRowDblClick') && read('/newtab/views/CompassActions.vue').includes('openCardLink'));
@@ -277,7 +277,7 @@ check('R32-16 REQ-007 三视图均提供排序方向切换按钮', () => read('/
 check('R32-17 REQ-008 工作台实体进入搜索类型 Tab 与分组计数（双端）', () => read('/content/search-overlay.ts').includes("key: 'ws'") && read('/content/search-overlay.ts').includes("label: '🗂 工作台'") && read('/newtab/components/GlobalPopups.vue').includes("{ type: 'ws', label: '🗂 工作台' }"));
 
 console.log('【第卅三轮 · V2.12 需求包第一批：模型/Bug · REQ-023 + BUG-A~D】');
-check('R33-2 REQ-023 三卡星标字段 starred（置顶沿用 pinned，零迁移）', () => read('/shared/models/index.ts').split('starred?: boolean').length - 1 >= 3);
+check('R33-2 REQ-023 星标字段 starred（CardBase 一份 + 三卡 extends，零迁移）', () => read('/shared/models/index.ts').split('export interface CardBase').length - 1 >= 1 && read('/shared/models/index.ts').split('extends CardBase').length - 1 === 3 && read('/shared/models/index.ts').includes('starred?: boolean'));
 check('R33-2b REQ-023 导出 CSV 补置顶/星标两列（资源 + 任务）', () => read('/newtab/views/GlobalSettings.vue').includes("'置顶', '星标'") && read('/newtab/views/CompassActions.vue').includes('t?.pinned ? \'是\' : \'\'') && read('/newtab/views/CompassActions.vue').includes("t?.starred ? '是' : ''"));
 check('R33-3 BUG-A 好奇置顶分组错位修复（置顶卡前置 + 组内 sortOrder/时间序）', () => read('/newtab/components/compass/CuriosityPanel.vue').includes('markRank(b) - markRank(a)') && read('/newtab/components/compass/CuriosityPanel.vue').includes("from '@/shared/utils/marksort'"));
 check('R33-4 BUG-B Ctrl+Enter 口径统一（采集浮层标题/链接去除裸 Enter 保存）', () => !read('/newtab/components/GlobalPopups.vue').includes('@keydown.enter.prevent="saveCapture"') && read('/newtab/components/GlobalPopups.vue').includes('💾 保存（Ctrl+Enter）'));
@@ -398,7 +398,7 @@ check('R36-17 REQ-039 Enter 键走开链接（Ctrl+Enter 走定位+抽屉，R38 
 console.log('【第卅六轮 · V2.14.1 第三批：REQ-041 产品文案与对外呈现】');
 check("R36-18 REQ-041-① README.md（GitHub 根）不再含 V3.1 演进对照", () => { const src = read('/../../README.md'); return !src.includes('V3.1') && !src.includes('演进对照') && !src.includes('回归 218/218') && !src.includes('V2.13.0'); });
 check("R36-19 REQ-041-② v2/README.md 含产品定位与对位叙事（按 April Dunford 视角落地）", () => { const src = read('/../README.md'); return src.includes('个人资源调度台与认知增强系统') || src.includes('April Dunford'); });
-check('R36-20 REQ-041-③ ManualPage 头部版本 V2.15.0', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.15.0'); });
+check('R36-20 REQ-041-③ ManualPage 头部版本 V2.16.0', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.16.0'); });
 check("R36-21 REQ-041-① 根 README 按「是什么/给谁用/解决什么/如何解决」重写", () => { const src = read('/../../README.md'); return src.includes('## 它是什么') && src.includes('## 它给谁用') && src.includes('## 它解决什么问题') && src.includes('资源失血症'); });
 check("R36-22 REQ-041-③ 使用手册「速览」篇新增定位与六动作（quick-1 / quick-2）", () => { const src = read('/newtab/manual-data.ts'); return src.includes("id: 'quick-1'") && src.includes("id: 'quick-2'") && src.includes('它是什么') && src.includes('六个核心动作'); });
 check('R36-23 两份 README 的相对文档链接无死链（防止文档导航撒谎）', () => {
@@ -445,7 +445,7 @@ check('R38-10 REQ-046 content 输入防抖 90→60ms', () => { const s = read('/
 
 // ============== 第卅九轮 · V2.15.0 卡片附件功能（REQ-048，第卅八轮拍板） ==============
 console.log('【第卅九轮 · V2.15.0：REQ-048 卡片附件（三类卡全支持 · IndexedDB 存储 · 单文件 20MB）】');
-check('R39-1 REQ-048 模型 AssetMeta 接口 + 三类卡 assets 字段齐全', () => { const s = read('/shared/models/index.ts'); return s.includes('export interface AssetMeta') && s.split('assets?: AssetMeta[]').length - 1 === 3; });
+check('R39-1 REQ-048 模型 AssetMeta 接口 + assets 字段（CardBase 一份 + 三卡 extends）', () => { const s = read('/shared/models/index.ts'); return s.includes('export interface AssetMeta') && s.split('extends CardBase').length - 1 === 3 && s.split('assets?: AssetMeta[]').length - 1 >= 1; });
 check('R39-2 REQ-048 IndexedDB 附件库 zy_assets 完整封装', () => { const s = read('/shared/storage/assets.ts'); return s.includes("DB_NAME = 'zy_assets'") && s.includes('export async function putAsset') && s.includes('export async function getAssetBlob') && s.includes('export async function deleteAsset') && s.includes('export async function getAssetStats') && s.includes('export async function cleanupOrphanAssets') && s.includes('export function assetIdsOf'); });
 check('R39-3 REQ-048 性能红线：附件仅存元数据引用（AssetMeta 无二进制承载字段）', () => { const s = read('/shared/models/index.ts'); return s.includes('export interface AssetMeta') && s.includes("kind: 'image' | 'html'") && s.includes('mime: string') && s.includes('createdAt: number') && !s.includes('ArrayBuffer') && !s.includes('Uint8Array'); });
 check('R39-4 REQ-048 共享组件 AssetManager 默认单文件 20MB + 限定图片/HTML', () => { const s = read('/shared/components/AssetManager.vue'); return s.includes('maxSizeMB: 20') && s.includes('accept="image/*,.html,.htm"') && s.includes('f.size > props.maxSizeMB * 1024 * 1024'); });
@@ -458,6 +458,23 @@ check('R39-10 REQ-048 好奇心卡接入（详情抽屉）', () => { const s = r
 check('R39-11 REQ-048 回收站硬删先清附件（purgeAssetsOf → deleteAsset）', () => { const s = read('/newtab/views/RecycleBin.vue'); return s.includes('async function purgeAssetsOf') && s.includes('await purgeAssetsOf(r.assets)') && s.includes('await purgeAssetsOf(t.assets)') && s.includes('await purgeAssetsOf(c.assets)') && s.includes("import { deleteAsset }"); });
 check('R39-12 REQ-048 设置导出页附件存储统计 + 孤儿清理入口', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes('getAssetStats') && s.includes('cleanupOrphanAssets') && s.includes('assetCount') && s.includes('assetBytes') && s.includes('📎 附件存储'); });
 check('R39-13 #61 共享资源编辑表单 ResourceEditForm 抽取（双份合一：Workspace 内联 + RDD 搜索抽屉）', () => { const shared = read('/newtab/components/ResourceEditForm.vue'); const d1 = read('/newtab/components/ResourceDetailDrawer.vue'); const d2 = read('/newtab/views/Workspace.vue'); return shared.includes('defineProps') && shared.includes('heightKey') && shared.includes("'save'") && shared.includes("'goto-task'") && shared.includes("<slot name=\"extra\"") && d1.includes('<ResourceEditForm') && d1.includes('@save="save"') && d1.includes('#extra') && d2.includes('<ResourceEditForm') && d2.includes('@save="saveResource"') && d2.includes(':show-close="true"'); });
+
+// ============== 第卌轮 · V2.16.0 统一卡片模型（REQ-049~REQ-052，第卅九轮拍板） ==============
+console.log('【第卌轮 · V2.16.0 第一批：REQ-049 字段目录 + CardBase 公共基底】');
+check('R40-1 REQ-049 字段目录 catalog.ts：FIELD_CATALOG 含 assets、kinds 覆盖三型', () => { const s = read('/shared/models/catalog.ts'); return s.includes('export const FIELD_CATALOG') && s.includes("{ key: 'assets', label: '附件'") && s.includes("kinds: ['resource', 'task', 'curiosity']") && s.includes('export function catalogMeta') && s.includes('export function catalogFor'); });
+check('R40-2 REQ-049 FieldEditor 手写常量清空（无 curiosity:[\'question\' 特征串；改由 catalogMeta 推导）', () => { const s = read('/newtab/views/FieldEditor.vue'); return !s.includes("curiosity: ['question'") && !s.includes("const LOCKED_KEYS") && !s.includes('ICON_MAP:') && s.includes('catalogMeta') && s.includes('crossFields'); });
+check('R40-3 REQ-049 CardBase 公共基底 + 三卡 extends', () => { const s = read('/shared/models/index.ts'); return s.includes('export interface CardBase') && s.split('extends CardBase').length - 1 === 3 && s.includes('assets?: AssetMeta[]'); });
+console.log('【第卌轮 · V2.16.0 第二批：REQ-050 转卡无损（单向唯一：好奇→任务/资源）】');
+check('R40-4 REQ-050 cards.ts 转卡引擎 convertCard + 状态显式映射 + curiosity.ts 调用（无本地重建）', () => { const c = read('/shared/utils/cards.ts'); const st = read('/newtab/stores/curiosity.ts'); return c.includes('export function convertCard') && c.includes('CURIOSITY_TO_TASK_STATUS') && c.includes('shelf: \'todo\'') && st.includes('convertCard') && st.includes('missingCustomDefs') && !st.includes('question: c.question'); });
+check('R40-5 REQ-050 转卡公共字段无损搬运（tags/pinned/starred/assets/customFields/createdAt）', () => { const c = read('/shared/utils/cards.ts'); return c.includes('tags: c.tags ? [...c.tags] : []') && c.includes('assets: c.assets && c.assets.length ? [...c.assets] : undefined') && c.includes('customFields: { ...(c.customFields || {}) }') && c.includes('mountedCuriosityIds: [c.id]') && c.includes("link: c.sourceUrl || ''"); });
+console.log('【第卌轮 · V2.16.0 第三批：REQ-051 附件卡片正面展示（AssetBadge）+ 好奇面板目录消费】');
+check('R40-6 REQ-051 共享组件 AssetBadge：分组计数徽章 + 文件列表 + 预览/打开', () => { const s = read('/shared/components/AssetBadge.vue'); return s.includes('ab-chip ab-img') && s.includes('ab-chip ab-html') && s.includes('getAssetBlob') && s.includes('chrome.tabs?.create') && s.includes('@click.stop'); });
+check('R40-7 REQ-051 AssetBadge 三视图接入（资源 Workspace/任务 CompassActions/好奇 CuriosityPanel）', () => { const w = read('/newtab/views/Workspace.vue'); const t = read('/newtab/views/CompassActions.vue'); const c = read('/newtab/components/compass/CuriosityPanel.vue'); return w.includes("import AssetBadge") && w.includes('rc-assets') && w.includes('rr-assets') && w.includes('kc-card-assets') && t.includes("import AssetBadge") && t.includes('taskAssetsOn') && t.includes('kc-assets') && c.includes("import AssetBadge") && c.includes('curioExtFields'); });
+check('R40-8 REQ-051 好奇面板按 fieldConfig.curiosity 消费（visibleFields + 附件/tags/custom 字段流）', () => { const s = read('/newtab/components/compass/CuriosityPanel.vue'); return s.includes('visibleFields(d.value.fieldConfig, \'curiosity\')') && s.includes("f.key === 'assets' || f.key === 'tags' || f.key.startsWith('custom_')") && s.includes('cz-ext-lbl'); });
+check('R40-9 REQ-049 附件兜底：defaults 三型 assets def + repository 老数据迁移', () => { const def = read('/shared/storage/defaults.ts'); const rep = read('/shared/storage/repository.ts'); return (def.split("key: 'assets'").length - 1) === 3 && rep.includes('REQ-049：老数据字段配置补 assets'); });
+console.log('【第卌轮 · V2.16.0 第四批：REQ-052 死代码清理 + 版本门禁】');
+check('R40-10 REQ-052 fieldViewCfg 死代码全库零引用', () => { return !fs.existsSync(base + '/shared/models/index.ts') ? false : !read('/shared/models/index.ts').includes('fieldViewCfg') && !read('/shared/storage/repository.ts').includes('fieldViewCfg'); });
+check('R40-11 版本 2.16.0 五处同步（manifest/package/关于页动态/ManualPage/regression）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const gs = read('/newtab/views/GlobalSettings.vue'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes("version: '2.16.0'") && pkg.includes('"version": "2.16.0"') && gs.includes('runtimeVersion') && mp.includes('V2.16.0'); });
 
 console.log('');
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

@@ -99,41 +99,53 @@ export interface Compass {
 
 // ============ 三种卡片 ============
 
-/** 资源卡（向源头求证） */
-export interface ResourceCard {
+/**
+ * 卡片公共基底（第卌轮 REQ-049 字段目录化）
+ * 三卡共享字段在此单一声明；ResourceCard/TaskCard/CuriosityCard extends 后
+ * 仅保留 type 专属字段与少量必选收窄（kind/tags/pinned 等）。
+ * 转卡公共搬运集、统一渲染、未来 CSV 对齐列 均以 base 为契约。
+ */
+export interface CardBase {
   id: ID
+  kind: 'resource' | 'task' | 'curiosity'
+  /** 描述（资源采集时自动填入选中文本；任务/好奇手动补充） */
+  description?: string
+  /** N4：标签（从标签管理体系选择） */
+  tags?: string[]
+  /** 置顶（列表/看板/选取置顶优先，右上角切换） */
+  pinned?: boolean
+  /** 第卅三轮 REQ-023：星标（与置顶独立可叠加；全局检索优先级 置顶 > 星标 > 命中度） */
+  starred?: boolean
+  /** 用户自定义字段值 */
+  customFields: Record<string, unknown>
+  createdAt: number
+  updatedAt: number
+  deletedAt?: number
+  /** REQ-048：附件元数据（本体在 IndexedDB zy_assets，仅存引用，主 JSON 绝不存 base64） */
+  assets?: AssetMeta[]
+}
+
+/** 资源卡（向源头求证） */
+export interface ResourceCard extends CardBase {
   kind: 'resource'
   title: string
   linkType: LinkType
   link: string
   workspaceId: ID
   categoryId: ID
-  /** 描述：采集时自动填入选中文本，可编辑 */
-  description?: string
   /** 来源类型（官方/学术/媒体等），不在采集弹窗中设置，后期编辑 */
   sourceType?: SourceType
   tags: string[]
-  /** 用户自定义字段值 */
-  customFields: Record<string, unknown>
   pinned: boolean
-  /** 第卅三轮 REQ-023：星标（与置顶独立可叠加；全局检索优先级 置顶 > 星标 > 命中度） */
-  starred?: boolean
   /** 调用次数（每次打开自增） */
   callCount: number
   lastCalledAt?: number
-  createdAt: number
-  updatedAt: number
-  deletedAt?: number
-  /** REQ-048：附件元数据（本体在 IndexedDB，仅存引用） */
-  assets?: AssetMeta[]
 }
 
 /** 任务卡（行动闭环） */
-export interface TaskCard {
-  id: ID
+export interface TaskCard extends CardBase {
   kind: 'task'
   title: string
-  description?: string
   /** 归属攻坚项目（第4层） */
   projectId?: ID
   /** 归属成功指标（第5层） */
@@ -142,28 +154,16 @@ export interface TaskCard {
   priority: 'high' | 'medium' | 'low'
   dueDate?: string
   estimatedMinutes?: number
-  /** 单向挂载：任务 → 资源 */
-  link?: string     // V2.2：链接（URL / 本地路径 / obsidian://），卡片双击直达
-  pinned?: boolean  // 第十七轮：置顶（列表/看板/选取置顶优先，右上角切换）
-  /** 第卅三轮 REQ-023：星标（与置顶独立可叠加；全局检索优先级 置顶 > 星标 > 命中度） */
-  starred?: boolean
+  /** V2.2：链接（URL / 本地路径 / obsidian://），卡片双击直达 */
+  link?: string
   mountedResourceIds: ID[]
   /** 单向挂载：任务 → 好奇心 */
   mountedCuriosityIds: ID[]
-  /** N4：标签（从标签管理体系选择） */
-  tags?: string[]
-  customFields: Record<string, unknown>
-  createdAt: number
-  updatedAt: number
   completedAt?: number
-  deletedAt?: number
-  /** REQ-048：附件元数据（本体在 IndexedDB，仅存引用） */
-  assets?: AssetMeta[]
 }
 
 /** 好奇心卡（从好奇出发） */
-export interface CuriosityCard {
-  id: ID
+export interface CuriosityCard extends CardBase {
   kind: 'curiosity'
   /** 问题文本：采集时只有这一个纯文本字段 */
   question: string
@@ -173,20 +173,10 @@ export interface CuriosityCard {
   /** 待探索 / 探索中 / 已求证 / 已搁置 */
   status: 'todo' | 'doing' | 'done' | 'shelf'
   pinned: boolean
-  /** 第卅三轮 REQ-023：星标（与置顶独立可叠加；全局检索优先级 置顶 > 星标 > 命中度） */
-  starred?: boolean
   /** 第卅五轮 REQ-035：手动拖拽排序权重（markRank 组内 sortOrder 优先、未拖拽回退 createdAt；拖拽后全量重写） */
   sortOrder?: number
   /** 弱关联资源（查证过程中收集） */
   relatedResourceIds: ID[]
-  /** N4：标签（从标签管理体系选择） */
-  tags?: string[]
-  customFields: Record<string, unknown>
-  createdAt: number
-  updatedAt: number
-  deletedAt?: number
-  /** REQ-048：附件元数据（本体在 IndexedDB，仅存引用） */
-  assets?: AssetMeta[]
 }
 
 export type AnyCard = ResourceCard | TaskCard | CuriosityCard
@@ -312,7 +302,6 @@ export interface ActivityLog {
 export interface UIPrefs {
   theme: string
   viewMode: 'list' | 'kanban' | 'card'
-  fieldViewCfg: Record<string, Record<string, { visible: boolean; order: number }>>
   tcSplitRatio: number
   dateStr?: string
   /** 工作台切换快捷键修饰键（O18：五种可选，默认 Alt） */

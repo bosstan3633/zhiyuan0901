@@ -15,6 +15,7 @@ import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
+import AssetBadge from '@/shared/components/AssetBadge.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -571,9 +572,12 @@ function onKanbanGroupDrop(e: DragEvent, status: 'todo' | 'doing' | 'done', proj
 
 // ---- 字段渲染 ----
 const tFields = computed(() => visibleFields(d.value.fieldConfig, 'task'))
+// R40 REQ-051：列表字段链排除 assets（正面改走 AssetBadge 徽章，不重复渲染文本摘要）
 const tListFields = computed(() =>
-  tFields.value.filter(f => !['title', 'description'].includes(f.key)).slice(0, 4)
+  tFields.value.filter(f => !['title', 'description', 'assets'].includes(f.key)).slice(0, 4)
 )
+// R40 REQ-051：assets 字段是否可见（驱动任务卡正面徽章显隐）
+const taskAssetsOn = computed(() => tFields.value.some(f => f.key === 'assets'))
 function tVal(t: TaskCard, key: string): string {
   return fieldValue(t, key, { projectName, metricName })
 }
@@ -909,6 +913,7 @@ onUnmounted(() => {
               <div class="tc-meta">
                 <span class="tag accent">📦 {{ projectName(todayTaskForSlot(slot)?.projectId) }}</span>
                 <span class="tag warn">🎯 {{ metricName(todayTaskForSlot(slot)?.metricId) }}</span>
+                <AssetBadge v-if="taskAssetsOn && todayTaskForSlot(slot)?.assets?.length" :assets="todayTaskForSlot(slot)!.assets" />
               </div>
               <div class="tc-remove" @click.stop="removeTodaySlot(idx)" title="移除">×</div>
             </div>
@@ -988,6 +993,7 @@ onUnmounted(() => {
               <span class="tname">{{ task.title }}</span>
               <div class="row-tags">
                 <span v-for="f in tListFields" :key="f.key" class="tag" :class="{'accent': f.key==='projectId', [ 'status-'+task.status ]: f.key==='status'}">{{ tShort(task, f) }}</span>
+                <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
               </div>
               <button class="t-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
               <button class="t-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
@@ -1009,6 +1015,7 @@ onUnmounted(() => {
               <span class="tname">{{ task.title }}</span>
               <div class="row-tags">
                 <span v-for="f in tListFields" :key="f.key" class="tag" :class="{'accent': f.key==='projectId', [ 'status-'+task.status ]: f.key==='status'}">{{ tShort(task, f) }}</span>
+                <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
               </div>
               <button class="t-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
               <button class="t-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
@@ -1049,7 +1056,7 @@ onUnmounted(() => {
                 <div v-for="task in grp.tasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
                   @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)">
                   <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><div class="kt">{{ task.title }}</div>
-                  <span class="tag accent">{{ projectName(task.projectId) }}</span>
+                  <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
                 </div>
                 <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
               </div>
@@ -1059,7 +1066,7 @@ onUnmounted(() => {
               <div v-for="task in todoTasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)">
                 <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><div class="kt">{{ task.title }}</div>
-                <span class="tag accent">{{ projectName(task.projectId) }}</span>
+                <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
               </div>
             </template>
           </div>
@@ -1078,7 +1085,7 @@ onUnmounted(() => {
                 <div v-for="task in grp.tasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
                   @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)">
                   <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><div class="kt">{{ task.title }}</div>
-                  <span class="tag accent">{{ projectName(task.projectId) }}</span>
+                  <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
                 </div>
                 <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
               </div>
@@ -1088,7 +1095,7 @@ onUnmounted(() => {
               <div v-for="task in doingTasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)">
                 <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><div class="kt">{{ task.title }}</div>
-                <span class="tag accent">{{ projectName(task.projectId) }}</span>
+                <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
               </div>
             </template>
           </div>
@@ -1107,7 +1114,7 @@ onUnmounted(() => {
                 <div v-for="task in grp.tasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
                   @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)">
                   <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><div class="kt">{{ task.title }}</div>
-                  <span class="tag accent">{{ projectName(task.projectId) }}</span>
+                  <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
                 </div>
                 <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
               </div>
@@ -1117,7 +1124,7 @@ onUnmounted(() => {
               <div v-for="task in doneTasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)">
                 <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><div class="kt">{{ task.title }}</div>
-                <span class="tag accent">{{ projectName(task.projectId) }}</span>
+                <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
               </div>
             </template>
           </div>
@@ -1143,7 +1150,7 @@ onUnmounted(() => {
             <div class="pi-info">
               <div class="pi-title">{{ task.title }}</div>
               <div class="pi-meta">
-                <span class="tag accent">{{ projectName(task.projectId) }}</span>
+                <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
                 <span class="tag" :class="{ok: task.status==='done'}">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
                 <span v-if="pickedIds.has(task.id)" class="tag">已选入</span>
               </div>
@@ -1352,6 +1359,8 @@ onUnmounted(() => {
 .mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 .mini-btn.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
 .tag { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; padding: 2px 8px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 500; white-space: nowrap; }
+/* R40 REQ-051：任务卡看板/选取弹窗附件徽章与项目 tag 并排时的垂直对齐 */
+.kc-assets { margin-left: 2px; }
 .tag.accent { background: var(--accent-light); color: var(--accent); }
 .tag.warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
 .tag.ok { background: var(--tag-ok-bg); color: var(--tag-ok-text); }

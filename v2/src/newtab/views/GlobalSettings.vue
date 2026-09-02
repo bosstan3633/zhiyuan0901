@@ -30,7 +30,7 @@
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">字段列表</span><span class="gs-card-desc">顺序即视图展示顺序</span></div>
           <div class="gs-card-body">
-            <FieldEditor :fields="fields.resource" card-type="resource" @change="onFieldChange" @notify="showToast" />
+            <FieldEditor :fields="fields.resource" card-type="resource" :cross-fields="fields" @change="onFieldChange" @notify="showToast" />
           </div>
         </div>
         <div class="gs-preview-section">
@@ -51,7 +51,7 @@
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">字段列表</span><span class="gs-card-desc">顺序即视图展示顺序</span></div>
           <div class="gs-card-body">
-            <FieldEditor :fields="fields.task" card-type="task" @change="onFieldChange" @notify="showToast" />
+            <FieldEditor :fields="fields.task" card-type="task" :cross-fields="fields" @change="onFieldChange" @notify="showToast" />
           </div>
         </div>
       </div>
@@ -65,7 +65,7 @@
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">字段列表</span><span class="gs-card-desc">顺序即视图展示顺序</span></div>
           <div class="gs-card-body">
-            <FieldEditor :fields="fields.curiosity" card-type="curiosity" @change="onFieldChange" @notify="showToast" />
+            <FieldEditor :fields="fields.curiosity" card-type="curiosity" :cross-fields="fields" @change="onFieldChange" @notify="showToast" />
           </div>
         </div>
       </div>

@@ -1,7 +1,8 @@
 import { computed } from 'vue'
 import { useAppStore } from './app'
 import { uid } from '@/shared/utils'
-import type { CuriosityCard, ResourceCard, TaskCard } from '@/shared/models'
+import type { CuriosityCard, ResourceCard, TaskCard, FieldDef } from '@/shared/models'
+import { convertCard, missingCustomDefs } from '@/shared/utils/cards'
 
 /** 好奇心状态 → 展示元信息 */
 export const CURIOSITY_STATUS = {
@@ -59,47 +60,36 @@ export function useCuriosity() {
     if (c) { c.deletedAt = Date.now(); store.persist() }
   }
 
-  /** 转化为任务卡 → 进入任务中心（可选归属项目/指标） */
-  function convertToTask(c: CuriosityCard, projectId?: string, metricId?: string): TaskCard {
-    const task: TaskCard = {
-      id: uid('tk'),
-      kind: 'task',
-      title: c.question,
-      status: 'todo',
-      priority: 'medium',
-      projectId,
-      metricId,
-      mountedResourceIds: [],
-      mountedCuriosityIds: [c.id],
-      customFields: {},
-      createdAt: Date.now(),
-      updatedAt: Date.now()
+  /**
+   * 第卌轮 REQ-050：源卡在目标型分区缺失的自定义字段 def 注入（保转卡后 label/类型显示不丢）
+   * 仅注入「源卡实际有值」的 custom key，避免空 def 噪音。
+   */
+  function ensureCustomDefs(c: CuriosityCard, targetKind: 'resource' | 'task') {
+    const cfg = store.data!.fieldConfig
+    const hasValue = (k: string) => Object.prototype.hasOwnProperty.call(c.customFields || {}, k)
+    const srcDefs = (cfg.curiosity || []).filter(f => hasValue(f.key))
+    const missing = missingCustomDefs(srcDefs, (cfg[targetKind] || []).map(f => f.key))
+    for (const m of missing) {
+      cfg[targetKind].push({ ...m, visible: true, order: cfg[targetKind].length } as FieldDef)
     }
+  }
+
+  /** 转化为任务卡 → 进入任务中心（可选归属项目/指标）；公共字段无损（REQ-050） */
+  function convertToTask(c: CuriosityCard, projectId?: string, metricId?: string): TaskCard {
+    const task = convertCard(c, { kind: 'task', projectId, metricId })
     d.value.tasks.unshift(task)
     c.deletedAt = Date.now()
+    ensureCustomDefs(c, 'task')
     store.persist()
     return task
   }
 
-  /** 转化为资源卡 → 进入指定工作台/分类 */
+  /** 转化为资源卡 → 进入指定工作台/分类；公共字段无损（REQ-050） */
   function convertToResource(c: CuriosityCard, workspaceId: string, categoryId?: string): ResourceCard {
-    const resource: ResourceCard = {
-      id: uid('rc'),
-      kind: 'resource',
-      title: c.question,
-      linkType: 'url',
-      link: c.sourceUrl || '',
-      workspaceId,
-      categoryId: categoryId || '',
-      tags: [],
-      customFields: {},
-      pinned: false,
-      callCount: 0,
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    }
+    const resource = convertCard(c, { kind: 'resource', workspaceId, categoryId })
     d.value.resources.unshift(resource)
     c.deletedAt = Date.now()
+    ensureCustomDefs(c, 'resource')
     store.persist()
     return resource
   }

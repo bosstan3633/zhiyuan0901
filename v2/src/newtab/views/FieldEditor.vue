@@ -1,42 +1,38 @@
 <script setup lang="ts">
 /**
- * 字段设计编辑器（B15 重写）
+ * 字段设计编辑器（B15 重写 · 第卌轮 REQ-049 目录化）
  * 标准模板绑定：显隐切换 / 拖拽排序 / 行内重命名 / 行内新增 / 删除确认。
- * 设置决定外部资源卡/任务卡/好奇心卡三视图的字段呈现。
+ * - 第卌轮：删除手写 3 份×5 组常量（ICON_MAP/SYSTEM_KEYS/AUTO_KEYS/LOCKED_KEYS/REQUIRED_KEYS），
+ *   系统字段存在性与规则改由 FIELD_CATALOG 单一目录推导（见 shared/models/catalog.ts）；
+ * - 自定义字段（custom_*）跨三卡型共享：新增/重命名/删除自动同步到 crossFields 三区，
+ *   保证「转卡无损 + 一张表管所有卡」的字段键与标签一致。
  */
 import { ref, computed } from 'vue'
 import { useConfirm } from '@/shared/components/confirm'
 import type { FieldDef } from '@/shared/models'
+import { catalogMeta, type CardKind } from '@/shared/models/catalog'
 
-const props = defineProps<{ fields: FieldDef[]; cardType: string }>()
+const props = defineProps<{
+  fields: FieldDef[]
+  cardType: string
+  /** 第卌轮：三卡型分区引用（用于自定义字段跨型同步；须含 props.fields 所在数组） */
+  crossFields?: Record<CardKind, FieldDef[]>
+}>()
 const emit = defineEmits<{ change: []; notify: [string] }>()
 
-const ICON_MAP: Record<string, Record<string, string>> = {
-  resource: { title: '📝', link: '🔗', description: '📄', sourceType: '🏷', tags: '#', createdAt: '🕐' },
-  task: { title: '📝', projectId: '📦', metricId: '🎯', priority: '🔴', dueDate: '📅', status: '🔄', description: '📄', tags: '#' },
-  curiosity: { question: '❓', sourceUrl: '🔗', status: '🔄', createdAt: '🕐', tags: '#' }
-}
-const SYSTEM_KEYS: Record<string, string[]> = {
-  resource: ['sourceType', 'tags'], task: ['projectId', 'metricId', 'status', 'tags'], curiosity: ['status', 'tags']
-}
-const AUTO_KEYS: Record<string, string[]> = {
-  resource: ['createdAt'], task: ['createdAt'], curiosity: ['createdAt']
-}
-const LOCKED_KEYS: Record<string, string[]> = {
-  resource: ['title'], task: ['title'], curiosity: ['question']
-}
-const REQUIRED_KEYS: Record<string, string[]> = {
-  resource: ['title', 'link'], task: ['title'], curiosity: ['question']
-}
+const kind = computed<CardKind>(() => (props.cardType as CardKind) || 'resource')
 
 const sorted = computed(() => [...props.fields].sort((a, b) => a.order - b.order))
 const hintText = computed(() => props.cardType === 'resource'
   ? '标题与链接为必填基础字段；隐藏的字段在详情抽屉中仍可查看和编辑。字段顺序和显隐将同步应用于卡片、列表、看板三视图。'
   : '标题字段固定在第一位且不可隐藏；隐藏的字段在详情抽屉中仍可查看和编辑。')
 
+function isCustom(f: FieldDef) { return f.key.startsWith('custom_') }
+function catOf(f: FieldDef) { return isCustom(f) ? undefined : catalogMeta(kind.value, f.key) }
+
 function fieldIcon(f: FieldDef) {
-  if (f.key.startsWith('custom_')) return '⭐'
-  return ICON_MAP[props.cardType]?.[f.key] || '📝'
+  if (isCustom(f)) return '⭐'
+  return catOf(f)?.icon || '📝'
 }
 function typeLabel(f: FieldDef) {
   if (f.key === 'description') return '长文本'
@@ -44,19 +40,26 @@ function typeLabel(f: FieldDef) {
   return m[f.type] || '文本'
 }
 function fieldCat(f: FieldDef): string {
-  if (LOCKED_KEYS[props.cardType]?.includes(f.key) || REQUIRED_KEYS[props.cardType]?.includes(f.key)) return 'required'
-  if (SYSTEM_KEYS[props.cardType]?.includes(f.key)) return 'system'
-  if (AUTO_KEYS[props.cardType]?.includes(f.key)) return 'auto'
-  if (f.key.startsWith('custom_')) return 'custom'
-  return 'optional'
+  if (isCustom(f)) return 'custom'
+  const cat = catOf(f)?.cat
+  if (!cat) return 'optional'
+  // locked 必填字段（标题/问题）以 required 呈现；其余按目录分类
+  return cat
 }
 function catLabel(f: FieldDef) {
   const c = fieldCat(f)
   return c === 'required' ? '必填' : c === 'system' ? '系统' : c === 'auto' ? '自动' : c === 'custom' ? '自定义' : '可选'
 }
-function isLocked(f: FieldDef) { return LOCKED_KEYS[props.cardType]?.includes(f.key) || false }
+function isLocked(f: FieldDef) { return !isCustom(f) && catOf(f)?.locked === true }
 function canDelete(f: FieldDef) { if (isLocked(f)) return false; const c = fieldCat(f); return c !== 'system' && c !== 'auto' }
 function canEdit(f: FieldDef) { return canDelete(f) }
+
+/** 第卌轮：自定义字段同步目标数组 = 三卡型分区（无重复数组、不含 undefined） */
+function crossArrays(): FieldDef[][] {
+  if (!props.crossFields) return [props.fields]
+  const arrs = Object.values(props.crossFields).filter(Boolean) as FieldDef[][]
+  return arrs.length ? arrs : [props.fields]
+}
 
 // ---- 拖拽排序 ----
 const dragIndex = ref(-1)
@@ -78,7 +81,7 @@ function toggleVisibility(f: FieldDef) {
   f.visible = !f.visible
   emit('change'); emit('notify', f.visible ? `「${f.label}」已显示` : `「${f.label}」已隐藏`)
 }
-// ---- 行内新增 ----
+// ---- 行内新增（自定义字段跨三型共享） ----
 const adding = ref(false)
 const newName = ref('')
 const newType = ref<'text' | 'tags' | 'date' | 'number' | 'select'>('text')
@@ -87,13 +90,17 @@ function confirmAdd() {
   const name = newName.value.trim()
   if (!name) { adding.value = false; return }
   if (props.fields.some(f => f.label === name)) { emit('notify', '已存在同名字段'); return }
-  const node: FieldDef = { key: 'custom_' + Date.now().toString(36), label: name, type: newType.value, visible: true, order: sorted.value.length }
-  if (newType.value === 'select') node.options = ['是', '否']
-  props.fields.push(node)
+  const key = 'custom_' + Date.now().toString(36)
+  for (const arr of crossArrays()) {
+    if (arr.some(f => f.key === key)) continue
+    const node: FieldDef = { key, label: name, type: newType.value, visible: true, order: arr.length }
+    if (newType.value === 'select') node.options = ['是', '否']
+    arr.push(node)
+  }
   adding.value = false
-  emit('change'); emit('notify', `已添加自定义字段「${name}」`)
+  emit('change'); emit('notify', `已添加自定义字段「${name}」（三卡型共享）`)
 }
-// ---- 行内重命名 ----
+// ---- 行内重命名（跨型同步 label） ----
 const editingId = ref<string | null>(null)
 const renameValue = ref('')
 function startRename(f: FieldDef) {
@@ -107,17 +114,23 @@ function confirmRename(f: FieldDef) {
   const v = renameValue.value.trim()
   if (!v || v === f.label) return
   f.label = v
-  emit('change'); emit('notify', '字段已重命名')
+  for (const arr of crossArrays()) {
+    const t = arr.find(x => x.key === f.key)
+    if (t) t.label = v
+  }
+  emit('change'); emit('notify', '字段已重命名（三卡型同步）')
 }
 function cancelRename() { editingId.value = null }
-// ---- 删除 ----
+// ---- 删除（跨型同步） ----
 async function deleteField(f: FieldDef) {
   if (!canDelete(f)) return
-  if (!(await useConfirm({ title: '删除字段', message: `确定删除字段「${f.label}」？`, confirmText: '确认删除' }))) return
-  const idx = props.fields.indexOf(f)
-  if (idx >= 0) props.fields.splice(idx, 1)
+  if (!(await useConfirm({ title: '删除字段', message: `确定删除字段「${f.label}」？将同步从三种卡片移除。`, confirmText: '确认删除' }))) return
+  for (const arr of crossArrays()) {
+    const idx = arr.findIndex(x => x.key === f.key)
+    if (idx >= 0) arr.splice(idx, 1)
+  }
   sorted.value.forEach((x, i) => { x.order = i })
-  emit('change'); emit('notify', `字段「${f.label}」已删除`)
+  emit('change'); emit('notify', `字段「${f.label}」已删除（三卡型同步）`)
 }
 const vFocus = { mounted: (el: HTMLInputElement) => el.focus() }
 </script>

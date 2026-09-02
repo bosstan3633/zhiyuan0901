@@ -163,6 +163,7 @@
                     <div v-else-if="f.key==='tags' && r.tags.length" class="rc-tags"><span v-for="t in r.tags" :key="t" class="rc-tag">#{{ t }}</span></div>
                     <div v-else-if="f.key==='sourceType' && r.sourceType" class="rc-src">{{ srcLabel(r.sourceType) }}</div>
                     <div v-else-if="f.key==='createdAt' && val(r,f.key)" class="rc-date">🕐 {{ val(r,f.key) }}</div>
+                    <div v-else-if="f.key==='assets' && r.assets?.length" class="rc-assets"><AssetBadge :assets="r.assets" /></div>
                     <div v-else-if="f.key.startsWith('custom_') && val(r,f.key)" class="rc-custom"><span>{{ f.label }}:</span>{{ val(r,f.key) }}</div>
                   </template>
                 </div>
@@ -198,6 +199,7 @@
                 <div v-if="batchMode" class="rc-batch-check" :class="{on: selectedIds.has(r.id)}" @click.stop="toggleSelect(r.id)">{{ selectedIds.has(r.id)?'✓':'' }}</div>
                 <span v-else class="rr-drag">⋮⋮</span>
                 <span class="rr-title">{{ val(r, titleKey) }}</span>
+                <AssetBadge v-if="hasField('assets') && r.assets?.length" :assets="r.assets" class="rr-assets" />
                 <span class="rr-f" v-for="f in listFields" :key="f.key">{{ shortVal(r, f) }}</span>
                 <span class="rr-actions">
                   <span class="rr-action" @click.stop="togglePin(r)" :title="r.pinned?'取消置顶':'置顶'">📌</span>
@@ -227,6 +229,7 @@
                 <div class="kc-card-footer">
                   <span v-if="hasField('tags') && r.tags.length" v-for="t in r.tags" :key="t" class="kc-card-tag">#{{ t }}</span>
                   <span class="kc-card-link" :class="r.linkType" v-if="r.link">{{ linkIcon(r.linkType) }}</span>
+                  <span v-if="hasField('assets') && r.assets?.length" class="kc-card-assets"><AssetBadge :assets="r.assets" /></span>
                 </div>
               </div>
             </div>
@@ -441,6 +444,7 @@ import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
 import { useConfirm } from '@/shared/components/confirm'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import { markRank } from '@/shared/utils/marksort'
+import AssetBadge from '@/shared/components/AssetBadge.vue'
 import type { ResourceCard, Category, Workspace, TaskCard, FieldDef } from '@/shared/models'
 
 const route = useRoute()
@@ -470,7 +474,7 @@ const lastUpdateText = computed(() => {
 // ===== 字段渲染（F1：全局设置的字段设计在此生效） =====
 const rFields = computed(() => visibleFields(d.value.fieldConfig, 'resource'))
 const titleKey = computed(() => rFields.value.find(f => isTitleKey(f.key))?.key || 'title')
-const listFields = computed(() => rFields.value.filter(f => !isTitleKey(f.key)).slice(0, 3))
+const listFields = computed(() => rFields.value.filter(f => !isTitleKey(f.key) && f.key !== 'assets').slice(0, 3))
 function hasField(key: string): boolean {
   return rFields.value.some(f => f.key === key)
 }
@@ -1637,6 +1641,7 @@ function linkDisplay(link: string) {
 .rc-tag { font-size: 10px; padding: 2px 7px; border-radius: 99px; background: var(--accent-light); color: var(--accent); }
 .rc-src { font-size: 10px; padding: 1px 8px; border-radius: 99px; background: var(--tag-info-bg); color: var(--tag-info-text); align-self: flex-start; font-weight: 500; }
 .rc-date { font-size: 10px; color: var(--text-3); }
+.rc-assets { margin-top: 1px; }
 .rc-custom { font-size: 11px; color: var(--text-2); }
 .rc-custom span { color: var(--text-3); margin-right: 4px; }
 .rc-footer { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
@@ -1675,6 +1680,7 @@ function linkDisplay(link: string) {
 .rr-title { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .res-row.pinned .rr-title { font-weight: 600; }
 .rr-f { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rr-assets { flex-shrink: 0; display: inline-flex; margin-left: 2px; }
 .rr-actions { display: flex; gap: 2px; flex-shrink: 0; opacity: 0; transition: opacity .15s; }
 .res-row:hover .rr-actions { opacity: 1; }
 .rr-action { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: 12px; color: var(--text-3); cursor: pointer; transition: all .1s; }
@@ -1702,6 +1708,7 @@ function linkDisplay(link: string) {
 .kc-card.pinned { border-left: 3px solid var(--accent); }
 .kc-card-title { font-size: 12px; font-weight: 500; color: var(--text); line-height: 1.4; margin-bottom: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .kc-card-footer { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.kc-card-assets { display: inline-flex; }
 .kc-card-tag { font-size: 9px; padding: 1px 5px; border-radius: 99px; background: var(--accent-light); color: var(--accent); }
 .kc-card-link { font-size: 10px; margin-left: auto; }
 .kc-card-link.url { color: var(--info-blue); }

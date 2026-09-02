@@ -53,6 +53,16 @@ export function fieldValue(
       return map[s] || s
     }
     case 'createdAt': return c.createdAt ? new Date(Number(c.createdAt)).toLocaleDateString('zh-CN') : ''
+    case 'assets': {
+      // 第卌轮 REQ-051：附件字段文本摘要（列表/CSV/预览兜底），如「2 图 · 1 HTML」
+      const list = (c.assets as Array<{ kind: 'image' | 'html' }> | undefined) || []
+      const imgs = list.filter(a => a.kind === 'image').length
+      const htmls = list.length - imgs
+      const parts: string[] = []
+      if (imgs) parts.push(`${imgs} 图`)
+      if (htmls) parts.push(`${htmls} HTML`)
+      return parts.join(' · ')
+    }
     case 'workspaceId': return ctx.wsName ? ctx.wsName(String(c.workspaceId ?? '')) : ''
     case 'categoryId': return ctx.catName ? ctx.catName(String(c.categoryId ?? '')) : ''
     default: {
@@ -63,10 +73,11 @@ export function fieldValue(
 }
 
 /** 字段值类型，用于视图决定渲染形态 */
-export function fieldRenderKind(key: string, f?: FieldDef): 'title' | 'link' | 'tags' | 'date' | 'text' {
+export function fieldRenderKind(key: string, f?: FieldDef): 'title' | 'link' | 'tags' | 'date' | 'assets' | 'text' {
   if (key === 'title' || key === 'question') return 'title'
   if (key === 'link' || key === 'sourceUrl') return 'link'
   if (key === 'tags' || f?.type === 'tags') return 'tags'
+  if (key === 'assets') return 'assets'
   if (key === 'createdAt' || f?.type === 'date') return 'date'
   return 'text'
 }

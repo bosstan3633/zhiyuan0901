@@ -11,7 +11,8 @@ function defaultFieldDefs() {
     { key: 'description', label: '描述', type: 'text', visible: true, order: 2 },
     { key: 'sourceType', label: '来源类型', type: 'select', options: ['官方', '学术', '媒体', '个人', 'AI工具', '个人成果'], visible: false, order: 3 },
     { key: 'tags', label: '标签', type: 'tags', visible: false, order: 4 },
-    { key: 'createdAt', label: '创建时间', type: 'date', visible: false, order: 5 }
+    { key: 'createdAt', label: '创建时间', type: 'date', visible: false, order: 5 },
+    { key: 'assets', label: '附件', type: 'text', visible: true, order: 6 }
   ]
   const task: FieldDef[] = [
     { key: 'title', label: '任务名', type: 'text', visible: true, order: 0 },
@@ -21,14 +22,16 @@ function defaultFieldDefs() {
     { key: 'dueDate', label: '截止时间', type: 'date', visible: true, order: 4 },
     { key: 'status', label: '状态', type: 'select', options: ['待办', '进行中', '已完成'], visible: false, order: 5 },
     { key: 'description', label: '描述', type: 'text', visible: false, order: 6 },
-    { key: 'tags', label: '标签', type: 'tags', visible: false, order: 7 }
+    { key: 'tags', label: '标签', type: 'tags', visible: false, order: 7 },
+    { key: 'assets', label: '附件', type: 'text', visible: true, order: 8 }
   ]
   const curiosity: FieldDef[] = [
     { key: 'question', label: '问题', type: 'text', visible: true, order: 0 },
     { key: 'sourceUrl', label: '来源链接', type: 'text', visible: false, order: 1 },
     { key: 'status', label: '状态', type: 'select', options: ['待探索', '探索中', '已求证', '已搁置'], visible: true, order: 2 },
     { key: 'createdAt', label: '创建时间', type: 'date', visible: false, order: 3 },
-    { key: 'tags', label: '标签', type: 'tags', visible: false, order: 4 }
+    { key: 'tags', label: '标签', type: 'tags', visible: false, order: 4 },
+    { key: 'assets', label: '附件', type: 'text', visible: true, order: 5 }
   ]
   return { resource, task, curiosity }
 }
