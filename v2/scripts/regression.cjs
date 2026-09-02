@@ -87,10 +87,10 @@ check('B28 原生 confirm 全清除', () => { let n = 0; ['newtab/views/Workspac
 check('O22 使用手册完整内容（外置数据）', () => read('/newtab/manual-data.ts').includes('quick-1') && read('/newtab/manual-data.ts').includes('ref-2') && !read('/newtab/views/GlobalSettings.vue').includes('占位内容'));
 check('产品 logo 替换（首页+关于页+扩展图标）', () => read('/newtab/App.vue').includes('logoUrl') && read('/newtab/views/GlobalSettings.vue').includes('logoUrl') && fs.existsSync(base + '/assets/logo.png'));
 
-check('manifest 2.14.2', () => read('/manifest.ts').includes("version: '2.14.2'"));
-check('关于页 V2.14.2（动态读取 manifest.version）', () => {
+check('manifest 2.14.3', () => read('/manifest.ts').includes("version: '2.14.3'"));
+check('关于页 V2.14.3（动态读取 manifest.version）', () => {
   const gs = read('/newtab/views/GlobalSettings.vue')
-  return gs.includes('runtimeVersion') && !gs.includes('V2.14.0') && !gs.includes('V2.14.1')
+  return gs.includes('runtimeVersion') && !gs.includes('V2.14.0') && !gs.includes('V2.14.1') && !gs.includes('V2.14.2')
 });
 
 console.log('【第七轮】');
@@ -339,7 +339,7 @@ check('R34-16 REQ-029 F-029-3 hover tooltip 固定文案（三入口 data-tip �
 
 console.log('【第卅四轮 · V2.13 需求包第五批：REQ-031 系统性能调优】');
 check('R34-17 REQ-031 P-031-1 搜索关联 Map 化（buildSearchMaps 一次遍历 + collectResults O(1) 查找 + 卡数累加）', () => read('/content/search-overlay.ts').includes('function buildSearchMaps') && read('/content/search-overlay.ts').includes('maps.wsName.get(r.workspaceId)') && read('/content/search-overlay.ts').includes('maps.projName.get(t.projectId)') && read('/content/search-overlay.ts').includes('maps.wsCount.get(w.id)'));
-check('R34-18 REQ-031 P-031-2 结果分组一次遍历归桶（buckets 数组替代 filter+indexOf 嵌套）', () => read('/content/search-overlay.ts').includes("const buckets: Record<string, any[]>") && read('/content/search-overlay.ts').includes('buckets[r.type]') && read('/content/search-overlay.ts').includes('items.forEach(function (item: any, j: number)') && read('/content/search-overlay.ts').includes('const i = offset + j'));
+check('R34-18 REQ-031 P-031-2 结果分组一次遍历归桶（buckets 数组替代 filter+indexOf 嵌套）', () => read('/content/search-overlay.ts').includes("const buckets: Record<string, any[]>") && read('/content/search-overlay.ts').includes('buckets[r.type]') && read('/content/search-overlay.ts').includes('shown.forEach(function (item: any, j: number)') && read('/content/search-overlay.ts').includes('const i = offset + j'));
 check('R34-19 REQ-031 P-031-3 计数缓存 + Tab DOM 按需重建（countCache 仅数据变更失效，searchType 不变只更计数）', () => read('/content/search-overlay.ts').includes('function invalidateCountCache') && read('/content/search-overlay.ts').includes('function computeCounts') && read('/content/search-overlay.ts').includes("tabs.getAttribute('data-search-type')") && read('/content/search-overlay.ts').includes('invalidateCountCache()'));
 check('R34-20 REQ-031 P-031-4 escapeHtml 正则化（createElement → 正则白名单替换）', () => read('/content/search-overlay.ts').includes("String(s ?? '')\n    .replace(/&/g, '&amp;')") && !read('/content/search-overlay.ts').includes("const div = document.createElement('div')\n  div.textContent = s"));
 check('R34-21 REQ-031 P-031-5 应用内搜索 150ms 防抖（debouncedQuery 驱动过滤，输入框即时回显）', () => read('/newtab/views/Workspace.vue').includes('const debouncedQuery = ref') && read('/newtab/views/Workspace.vue').includes('searchDebounceTimer = setTimeout(() => { debouncedQuery.value = v }, 150)') && read('/newtab/views/Workspace.vue').includes('if (debouncedQuery.value.trim())'));
@@ -392,13 +392,13 @@ check('R36-12 REQ-039-③ CuriosityPanel 接 kind=curio 抽屉总线', () => { c
 check('R36-13 REQ-039-③ CompassTree 接 kind=project 抽屉总线', () => { const src = read('/newtab/views/CompassTree.vue'); return src.includes('onOpenDrawer') && src.includes("if (p.kind === 'project')"); });
 check('R36-14 REQ-039-① App.vue zy-route 监听扩展 drawer 参数', () => { const src = read('/newtab/App.vue'); return src.includes("msg?.type === 'zy-route'") && src.includes('emitOpenDrawer(msg.drawer)') && src.includes('msg.drawer'); });
 check("R36-15 REQ-039-④ content script 单击/双击分离（openSearchLocator + 双击走原 openSearchResult）", () => { const src = read('/content/search-overlay.ts'); return src.includes('function openSearchLocator') && src.includes("addEventListener('dblclick'") && src.includes('title = '); });
-check('R36-16 REQ-039-⑤ GlobalPopups 单击/双击分离（runFlatLocator + selectResultLocator）', () => { const src = read('/newtab/components/GlobalPopups.vue'); return src.includes('runFlatLocator') && src.includes('selectResultLocator') && src.includes("@dblclick=\"selectResult(grp.offset+j, true)\""); });
-check('R36-17 REQ-039 Enter 键走单击行为（runFlatLocator 而非 runFlat）', () => { const src = read('/newtab/components/GlobalPopups.vue'); return src.includes("if (selIndex.value >= 0) runFlatLocator(selIndex.value)"); });
+check('R36-16 REQ-039-⑤ GlobalPopups 单击开链接 + Ctrl+Enter 定位抽屉（R38 固化后）', () => { const src = read('/newtab/components/GlobalPopups.vue'); return src.includes('runFlatLocator') && src.includes('@click="selectResult(grp.offset+j, true)"') && src.includes("@dblclick=\"selectResult(grp.offset+j, true)\""); });
+check('R36-17 REQ-039 Enter 键走开链接（Ctrl+Enter 走定位+抽屉，R38 固化后）', () => { const src = read('/newtab/components/GlobalPopups.vue'); return src.includes("if (e.ctrlKey || e.metaKey) runFlatLocator(selIndex.value)") && src.includes('else runFlat(selIndex.value)'); });
 
 console.log('【第卅六轮 · V2.14.1 第三批：REQ-041 产品文案与对外呈现】');
 check("R36-18 REQ-041-① README.md（GitHub 根）不再含 V3.1 演进对照", () => { const src = read('/../../README.md'); return !src.includes('V3.1') && !src.includes('演进对照') && !src.includes('回归 218/218') && !src.includes('V2.13.0'); });
 check("R36-19 REQ-041-② v2/README.md 含产品定位与对位叙事（按 April Dunford 视角落地）", () => { const src = read('/../README.md'); return src.includes('个人资源调度台与认知增强系统') || src.includes('April Dunford'); });
-check('R36-20 REQ-041-③ ManualPage 头部版本 V2.14.2', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.14.2'); });
+check('R36-20 REQ-041-③ ManualPage 头部版本 V2.14.3', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.14.3'); });
 check("R36-21 REQ-041-① 根 README 按「是什么/给谁用/解决什么/如何解决」重写", () => { const src = read('/../../README.md'); return src.includes('## 它是什么') && src.includes('## 它给谁用') && src.includes('## 它解决什么问题') && src.includes('资源失血症'); });
 check("R36-22 REQ-041-③ 使用手册「速览」篇新增定位与六动作（quick-1 / quick-2）", () => { const src = read('/newtab/manual-data.ts'); return src.includes("id: 'quick-1'") && src.includes("id: 'quick-2'") && src.includes('它是什么') && src.includes('六个核心动作'); });
 check('R36-23 两份 README 的相对文档链接无死链（防止文档导航撒谎）', () => {
@@ -428,6 +428,20 @@ check('R37-9 REQ-044 新定位「个人资源调度台与认知增强系统」�
 check('R37-10 REQ-044 手册新增「它与同类相比 · 独特价值」节（quick-3）', () => { const s = read('/newtab/manual-data.ts'); return s.includes("id: 'quick-3'") && s.includes('直接竞品') && s.includes('间接竞品'); });
 check('R37-11 REQ-044 根 README 竞品对比增强（直接竞品/间接竞品两表）', () => { const s = read('/../../README.md'); return s.includes('### 直接竞品') && s.includes('### 间接竞品') && s.includes('Notion') && s.includes('Flomo'); });
 check('R37-12 REQ-044 旧浅表述「17 个 AI 工具入口」已从 README 移除', () => { const r1 = read('/../../README.md'); const r2 = read('/../README.md'); return !r1.includes('17 个 AI 工具入口') && !r2.includes('17 个 AI 工具入口'); });
+
+// ============== 第卅八轮 · V2.14.3 搜索交互固化 + 响应速度优化（REQ-045 ~ REQ-046） ==============
+console.log('【第卅八轮 · V2.14.3 第一批：REQ-045 搜索交互固化（单击/Enter 开链接，Ctrl+Enter 定位+抽屉）】');
+check('R38-1 REQ-045 background zy-open-route 支持 drawer 透传（修复单击落空根因）', () => { const s = read('/background/index.ts'); return s.includes('const drawer') && s.includes('...(drawer ? { drawer } : {})'); });
+check('R38-2 REQ-045 content 单击 = 开链接（bindResultEvents click → openSearchResult）', () => { const s = read('/content/search-overlay.ts'); const m = s.match(/addEventListener\('click', \(\) => \{([\s\S]*?)openSearchResult/); return !!m; });
+check('R38-3 REQ-045 content Enter=开链接 / Ctrl+Enter=定位+抽屉', () => { const s = read('/content/search-overlay.ts'); return s.includes("if (e.ctrlKey || e.metaKey)") && s.includes('openSearchLocator(searchResults[searchSelIndex])') && s.includes('openSearchResult(searchResults[searchSelIndex])'); });
+check('R38-4 REQ-045 content 定位消息走 zy-open-route（不再用无分支的 zy-route）', () => { const s = read('/content/search-overlay.ts'); return s.includes("type: 'zy-open-route', route, drawer") && !s.includes("type: 'zy-route', route, drawer"); });
+check('R38-5 REQ-045 GlobalPopups 单击 = 开链接（selectResult 而非 selectResultLocator）', () => { const s = read('/newtab/components/GlobalPopups.vue'); return s.includes('@click="selectResult(grp.offset+j, true)"') && !s.includes('selectResultLocator'); });
+check('R38-6 REQ-045 GlobalPopups Enter=runFlat / Ctrl+Enter=runFlatLocator', () => { const s = read('/newtab/components/GlobalPopups.vue'); return s.includes("if (e.ctrlKey || e.metaKey) runFlatLocator(selIndex.value)") && s.includes('else runFlat(selIndex.value)'); });
+check('R38-7 REQ-045 双击去重防双开（300ms 同项）', () => { const s1 = read('/content/search-overlay.ts'); const s2 = read('/newtab/components/GlobalPopups.vue'); return s1.includes('lastOpenId') && s1.includes('now - lastOpenTs < 300') && s2.includes('lastOpenId') && s2.includes('now - lastOpenTs < 300'); });
+console.log('【第卅八轮 · V2.14.3 第二批：REQ-046 交互响应速度优化（速度第一）】');
+check('R38-8 REQ-046 content 结果每组限 30 条（防 DOM 爆炸）', () => { const s = read('/content/search-overlay.ts'); return s.includes('MAX_PER_GROUP = 30') && s.includes('zy-group-more'); });
+check('R38-9 REQ-046 GlobalPopups 结果每组限 30 条', () => { const s = read('/newtab/components/GlobalPopups.vue'); return s.includes('MAX_PER_GROUP = 30') && s.includes('gp-group-more'); });
+check('R38-10 REQ-046 content 输入防抖 90→60ms', () => { const s = read('/content/search-overlay.ts'); return s.includes('setTimeout(() => runSearch(input.value), 60)'); });
 
 console.log('');
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

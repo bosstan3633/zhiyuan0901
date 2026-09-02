@@ -37,8 +37,8 @@
             <div class="gp-group-title">最近打开</div>
             <div v-for="(r, j) in recentResources" :key="r.id"
               class="gp-result-item" :class="{selected: selIndex===QUICK_ACTIONS.length+j}"
-              @click="runFlatLocator(QUICK_ACTIONS.length+j)" @dblclick="runFlat(QUICK_ACTIONS.length+j)" @mouseenter="selIndex=QUICK_ACTIONS.length+j"
-              :title="'单击 → 打开详情  ·  双击 → 跳转链接'">
+              @click="runFlat(QUICK_ACTIONS.length+j)" @dblclick="runFlat(QUICK_ACTIONS.length+j)" @mouseenter="selIndex=QUICK_ACTIONS.length+j"
+              :title="'单击 → 打开链接（无链接则定位） · Ctrl+Enter → 定位并打开详情'">
               <div class="gp-ri-icon res">📄</div>
               <div class="gp-ri-main"><div class="gp-ri-title">{{ r.title }}</div></div>
               <span class="gp-ri-link url">🔥{{ r.callCount }}</span>
@@ -52,11 +52,11 @@
           <div class="gp-se-text">没有匹配的卡片<br><span style="font-size:11px">试试更短的关键词</span></div>
         </div>
         <template v-for="grp in groupedResults" :key="grp.label">
-          <div class="gp-group-title">{{ grp.label }} <span class="gp-group-cnt">{{ grp.items.length }}</span></div>
+          <div class="gp-group-title">{{ grp.label }} <span class="gp-group-cnt">{{ grp.total }}</span></div>
           <div v-for="(item, j) in grp.items" :key="item.id"
             class="gp-result-item" :class="{selected: grp.offset+j===selIndex}"
-            @click="selectResultLocator(grp.offset+j)" @dblclick="selectResult(grp.offset+j, true)" @mouseenter="selIndex=grp.offset+j"
-            :title="'单击 → 打开详情  ·  双击 → 跳转链接'">
+            @click="selectResult(grp.offset+j, true)" @dblclick="selectResult(grp.offset+j, true)" @mouseenter="selIndex=grp.offset+j"
+            :title="'单击 → 打开链接（无链接则定位） · Ctrl+Enter → 定位并打开详情'">
             <div class="gp-ri-icon" :class="item.iconClass">{{ item.iconText }}</div>
             <div class="gp-ri-main">
               <div class="gp-ri-title" v-html="hlTitle(item.title)"></div>
@@ -69,6 +69,7 @@
             </div>
             <div v-if="item.summary" class="gp-ri-summary" v-html="hlTitle(item.summary)"></div>
           </div>
+          <div v-if="grp.total > grp.items.length" class="gp-group-more">… 还有 {{ grp.total - grp.items.length }} 条，输入更精确的关键词</div>
           <div class="gp-ri-actions">
             <template v-if="item.type==='res'">
               <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)">⭐</button>
@@ -498,11 +499,13 @@ const groupedResults = computed(() => {
     { type: 'res', label: '📄 资源卡' }, { type: 'task', label: '✅ 任务卡' }, { type: 'curio', label: '💡 好奇心' },
     { type: 'ws', label: '🗂 工作台' }
   ]
+  // REQ-046 速度优化：每组最多渲染 30 条，防超大结果集首屏卡顿
+  const MAX_PER_GROUP = 30
   let offset = 0
-  const out: { label: string; items: SearchResult[]; offset: number }[] = []
+  const out: { label: string; items: SearchResult[]; offset: number; total: number }[] = []
   for (const d0 of defs) {
-    const items = filteredResults.value.filter(r => r.type === d0.type)
-    if (items.length) { out.push({ label: d0.label, items, offset }); offset += items.length }
+    const all = filteredResults.value.filter(r => r.type === d0.type)
+    if (all.length) { out.push({ label: d0.label, items: all.slice(0, MAX_PER_GROUP), offset, total: all.length }); offset += all.length }
   }
   return out
 })
@@ -566,7 +569,13 @@ function clearFilter() { currentType.value = 'all' }
 function onSearchKeydown(e: KeyboardEvent) {
   if (e.key === 'ArrowDown') { e.preventDefault(); selIndex.value = Math.min(selIndex.value+1, flatList.value.length-1); scrollToSelected() }
   else if (e.key === 'ArrowUp') { e.preventDefault(); selIndex.value = Math.max(selIndex.value-1, 0); scrollToSelected() }
-  else if (e.key === 'Enter') { e.preventDefault(); if (selIndex.value >= 0) runFlatLocator(selIndex.value) }
+  else if (e.key === 'Enter') {
+    e.preventDefault()
+    if (selIndex.value < 0 || selIndex.value >= flatList.value.length) return
+    // 第卅七轮 REQ-045：Enter=开链接（无链接定位）；Ctrl+Enter=定位并打开详情抽屉
+    if (e.ctrlKey || e.metaKey) runFlatLocator(selIndex.value)
+    else runFlat(selIndex.value)
+  }
   else if (e.key === 'Tab') {
     // B29：Tab 过滤类型——输入「任务/资源/好奇/全部」+ Tab 直达对应类型；否则四类循环切换。
     // 关键词被视为指令（消费掉），普通关键词保留；chip 与类型 Tab 行高亮同步更新
@@ -596,39 +605,13 @@ function selectResult(i: number, fromClick: boolean) {
   if (fromClick) openItem(filteredResults.value[i])
 }
 
-function selectResultLocator(i: number) {
-  // 第卅六轮 REQ-039：单击分组结果 → 跳视图 + drawer（不直接打开链接）
-  selIndex.value = i
-  const item = filteredResults.value[i]
-  if (!item) return
-  if (item.type === 'res') {
-    const r = item.raw as ResourceCard
-    router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: item.id } })
-    closeAll()
-    emitOpenDrawer({ kind: 'res', id: item.id })
-    return
-  }
-  if (item.type === 'task') {
-    router.push({ path: '/compass/actions', query: { hl: item.id } })
-    closeAll()
-    emitOpenDrawer({ kind: 'task', id: item.id })
-    return
-  }
-  if (item.type === 'curio') {
-    router.push({ path: '/', query: { hl: item.id } })
-    closeAll()
-    emitOpenDrawer({ kind: 'curio', id: item.id })
-    return
-  }
-  if (item.type === 'ws') {
-    router.push({ path: `/workspace/${item.id}` })
-    closeAll()
-    emitOpenDrawer({ kind: 'ws', id: item.id })
-    return
-  }
-}
-
+// 第卅七轮 REQ-045：300ms 同项去重——单击/双击都走 openItem，避免双击双开
+let lastOpenId = ''
+let lastOpenTs = 0
 function openItem(item: SearchResult) {
+  const now = Date.now()
+  if (item?.id && item.id === lastOpenId && now - lastOpenTs < 300) return
+  if (item?.id) { lastOpenId = item.id; lastOpenTs = now }
   if (item.type === 'ws') {
     // 第卅二轮 REQ-008：工作台条目 → 直接打开对应工作台
     router.push(`/workspace/${item.id}`)
@@ -911,6 +894,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 /* B1：分组标题与关键词高亮 */
 .gp-group-title { font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .08em; padding: 10px 12px 4px; display: flex; align-items: center; gap: 6px; }
 .gp-group-cnt { font-weight: 500; color: var(--text-4); }
+.gp-group-more { font-size: 11px; color: var(--text-4); padding: 6px 12px; border-top: 1px dashed var(--border); }
 .gp-ri-title :deep(mark.gp-hl), .gp-ri-summary :deep(mark.gp-hl) { background: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--text); border-radius: 3px; padding: 0 1px; }
 
 /* 结果区 */

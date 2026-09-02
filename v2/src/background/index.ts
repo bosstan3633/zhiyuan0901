@@ -212,7 +212,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg?.type === 'zy-open-route') {
     const route: string = msg.route || '/'
-    handleOpenRoute(route, sender.tab?.id).then(() => sendResponse({ ok: true }))
+    const drawer: { kind: string; id: string } | undefined = msg.drawer
+    handleOpenRoute(route, sender.tab?.id, drawer).then(() => sendResponse({ ok: true }))
     return true
   }
 })
@@ -276,22 +277,22 @@ async function handleLocate(wsId: string, hl: string, senderTabId?: number): Pro
   chrome.tabs.create({ url: `${base}#${target}${hl ? `?hl=${encodeURIComponent(hl)}` : ''}` })
 }
 
-/** 通用路由打开（B4：搜索结果定位任务/好奇心），优先复用已开新标签页 */
-async function handleOpenRoute(route: string, senderTabId?: number): Promise<void> {
+/** 通用路由打开（B4：搜索结果定位任务/好奇心），优先复用已开新标签页；可选透传 drawer（打开详情抽屉） */
+async function handleOpenRoute(route: string, senderTabId?: number, drawer?: { kind: string; id: string }): Promise<void> {
   const base = await newtabBase()
   const tabs = await chrome.tabs.query({ url: base + '*' })
   const host = tabs.find(t => t.id != null && t.id !== senderTabId) || tabs.find(t => t.id != null)
   if (host?.id != null) {
     if (host.windowId != null) await chrome.windows.update(host.windowId, { focused: true }).catch(() => {})
     await chrome.tabs.update(host.id, { active: true })
-    await chrome.tabs.sendMessage(host.id, { type: 'zy-route', route }).catch(() => {})
+    await chrome.tabs.sendMessage(host.id, { type: 'zy-route', route, ...(drawer ? { drawer } : {}) }).catch(() => {})
     return
   }
   if (senderTabId != null) {
     try {
       const senderTab = await chrome.tabs.get(senderTabId)
       if (senderTab.url?.startsWith(base)) {
-        await chrome.tabs.sendMessage(senderTabId, { type: 'zy-route', route }).catch(() => {})
+        await chrome.tabs.sendMessage(senderTabId, { type: 'zy-route', route, ...(drawer ? { drawer } : {}) }).catch(() => {})
         return
       }
     } catch { /* fallthrough */ }

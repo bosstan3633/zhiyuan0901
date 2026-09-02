@@ -119,6 +119,7 @@ function injectStyles() {
     .zy-ri-link.obsidian{color:#7C3AED;}
     .zy-ri-summary{font-size:11.5px;color:#9AA0A6;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .zy-group-title{font-size:10.5px;font-weight:700;color:#8A8F98;letter-spacing:.08em;padding:10px 12px 4px;}
+    .zy-group-more{font-size:11px;color:#9AA0A6;padding:6px 12px;border-top:1px dashed rgba(138,143,152,.25);}
     .zy-empty{padding:40px 20px;text-align:center;color:#9AA0A6;}
     .zy-empty .icon{font-size:32px;margin-bottom:8px;opacity:.4;}
     .zy-empty .text{font-size:13px;line-height:1.7;}
@@ -315,7 +316,7 @@ async function openSearch() {
   let searchTimer: ReturnType<typeof setTimeout> | null = null
   input.addEventListener('input', () => {
     if (searchTimer) clearTimeout(searchTimer)
-    searchTimer = setTimeout(() => runSearch(input.value), 90) // B36：输入防抖
+    searchTimer = setTimeout(() => runSearch(input.value), 60) // REQ-046：输入防抖 90→60ms（速度第一）
   })
   input.addEventListener('keydown', onSearchKeydown)
   document.getElementById('__zy_esc__')?.addEventListener('click', closeOverlay)
@@ -538,18 +539,13 @@ function bindResultEvents(el: HTMLElement) {
     const e = elm as HTMLElement
     const idx = parseInt(e.dataset.idx || '0')
     const item = searchResults[idx]
-    // 第卅六轮 REQ-039：title 提示单击/双击分工
-    if (item && (item.type === 'qa' || item.type === 'ws')) {
-      e.title = '回车 / 单击 → 直达'
-    } else {
-      e.title = '单击 → 打开详情  ·  双击 → 跳转链接'
-    }
+    // 第卅七轮 REQ-045：交互固化——单击/Enter=开链接（无链接定位）；Ctrl+Enter=定位+详情抽屉；双击=开链接（去重防双开）
+    e.title = '单击 → 打开链接（无链接则定位） · Ctrl+Enter → 定位并打开详情'
     e.addEventListener('click', () => {
-      // 第卅六轮 REQ-039：单击 → 跳转到对应视图并携带 drawer 打开详情
-      openSearchLocator(searchResults[idx])
+      openSearchResult(searchResults[idx])
     })
     e.addEventListener('dblclick', () => {
-      // 第卅六轮 REQ-039：双击 → 直开链接 / 跳路由（保留原行为）
+      // 双击 = 开链接；click 已处理，此处仅作兜底（300ms 去重保证只开一次）
       openSearchResult(searchResults[idx])
     })
     e.addEventListener('mouseenter', () => {
@@ -602,13 +598,17 @@ function renderResults() {
   // REQ-031 P-031-2：单次 for 按 type 归桶（去掉 filter + indexOf 嵌套，O(n)）
   const buckets: Record<string, any[]> = { res: [], task: [], curio: [], ws: [] }
   for (const r of searchResults) if (buckets[r.type]) buckets[r.type].push(r)
+  // REQ-046 速度优化：每组最多渲染 30 条，防 DOM 爆炸（超大结果集首屏秒出）
+  const MAX_PER_GROUP = 30
   let html = ''
   let offset = 0
   for (const g of groups) {
     const items = buckets[g.type]
     if (!items.length) continue
+    const shown = items.slice(0, MAX_PER_GROUP)
+    const rest = items.length - shown.length
     html += '<div class="zy-group-title">' + g.label + ' <span style="color:#BFC3C9;font-weight:400">' + items.length + '</span></div>'
-    items.forEach(function (item: any, j: number) {
+    shown.forEach(function (item: any, j: number) {
       const i = offset + j
       const badgesHtml = item.badges.map(function (b: any) { return '<span class="zy-badge ' + b.type + '">' + b.text + '</span>' }).join('')
       const linkHtml = item.link ? '<span class="zy-ri-link ' + item.link.type + '">' + (item.link.type === 'url' ? '🔗' : item.link.type === 'file' ? '📁' : '📝') + ' ' + item.link.text + '</span>' : ''
@@ -620,6 +620,7 @@ function renderResults() {
         '<div class="zy-ri-meta"><span class="zy-badge ws">' + escapeHtml(item.ws) + '</span><span class="zy-badge cat">' + escapeHtml(item.cat) + '</span>' + badgesHtml + linkHtml + '</div>' +
         summaryHtml + '</div></div>'
     })
+    if (rest > 0) html += '<div class="zy-group-more">… 还有 ' + rest + ' 条，输入更精确的关键词</div>'
     offset += items.length
   }
   el.innerHTML = html
@@ -641,7 +642,16 @@ function onSearchKeydown(e: KeyboardEvent) {
     document.querySelector('.zy-result-item.sel')?.scrollIntoView({ block: 'nearest' })
   } else if (e.key === 'Enter') {
     e.preventDefault()
-    if (searchSelIndex >= 0 && searchResults[searchSelIndex]) openSearchLocator(searchResults[searchSelIndex])
+    if (!searchSelIndex && searchSelIndex !== 0) return
+    if (searchResults[searchSelIndex]) {
+      if (e.ctrlKey || e.metaKey) {
+        // Ctrl+Enter：定位到卡片所在处并打开详情抽屉
+        openSearchLocator(searchResults[searchSelIndex])
+      } else {
+        // Enter：直接打开链接（无链接则定位）
+        openSearchResult(searchResults[searchSelIndex])
+      }
+    }
   } else if (e.key === 'Tab') {
     // B29：Tab 过滤类型——输入「任务/资源/好奇/全部」+ Tab 直达对应类型；否则四类循环切换。
     // 关键词被视为指令（消费掉），普通关键词保留；搜索框 chip 与类型 Tab 行同步更新
@@ -666,9 +676,10 @@ function onSearchKeydown(e: KeyboardEvent) {
 }
 
 function openSearchLocator(item: any) {
-  // 第卅六轮 REQ-039：单击搜索结果 → 跳到对应视图 + 通过 zy-open-route 携带 drawer 打开详情
+  // 第卅七轮 REQ-045：Ctrl+Enter / 定位专用 —— 跳转到对应视图 + 打开详情抽屉
+  // 走 zy-open-route（background 有处理）+ 透传 drawer 参数（background 转发给宿主 newtab）
   const send = (route: string, drawer: { kind: string; id: string }) => {
-    try { chrome.runtime.sendMessage({ type: 'zy-route', route, drawer }) } catch {}
+    try { chrome.runtime.sendMessage({ type: 'zy-open-route', route, drawer }) } catch {}
   }
   if (item.type === 'qa') {
     try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: item.qa.route }) } catch {}
@@ -691,8 +702,14 @@ function openSearchLocator(item: any) {
   closeOverlay()
 }
 
+// 300ms 同项去重：单击/双击都走 openSearchResult，避免双击双开
+let lastOpenId = ''
+let lastOpenTs = 0
 function openSearchResult(item: any) {
-  // 第卅六轮 REQ-039：双击搜索结果 → 直开链接 / 跳路由（不打开抽屉）
+  const now = Date.now()
+  if (item?.id && item.id === lastOpenId && now - lastOpenTs < 300) return
+  if (item?.id) { lastOpenId = item.id; lastOpenTs = now }
+  // 第卅七轮 REQ-045：单击/Enter/双击 —— 直接打开链接；无链接则定位到卡片所在处
   if (item.type === 'qa') {
     try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: item.qa.route }) } catch {}
     closeOverlay()
