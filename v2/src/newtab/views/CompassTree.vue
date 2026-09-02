@@ -352,6 +352,16 @@ function openProjectDrawer(projId: string) {
   projDrawerOpen.value = true
 }
 
+// 第卅六轮 REQ-039：搜索浮层单击 → 项目详情抽屉
+import { onOpenDrawer } from '@/shared/utils/bus'
+let unsubProjDrawer: (() => void) | null = null
+onMounted(() => {
+  unsubProjDrawer = onOpenDrawer((p) => {
+    if (p.kind === 'project') openProjectDrawer(p.id)
+  })
+})
+onUnmounted(() => { unsubProjDrawer?.() })
+
 // 滚动监听挂到外层滚动容器（罗盘容器的 .comp-content）
 let scrollParent: HTMLElement | null = null
 onMounted(() => {

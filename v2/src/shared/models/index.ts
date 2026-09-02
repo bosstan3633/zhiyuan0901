@@ -308,6 +308,12 @@ export interface UIPrefs {
   taHeights?: Record<string, number>
   /** 第卅三轮 REQ-026：卡片网格密度档位（compact=紧凑 / cozy=舒适，默认 cozy） */
   density?: 'compact' | 'cozy'
+  /** 第卅六轮 REQ-038：备份提醒开关（true=启用，false=关闭） */
+  backupReminderEnabled?: boolean
+  /** 第卅六轮 REQ-038：上次导出/备份时间戳（毫秒），用于设置页与顶栏红点判断「多久未备份」 */
+  lastBackupAt?: number
+  /** 第卅六轮 REQ-038：上次主动关闭提醒的时间戳（24h 内不再提示） */
+  backupReminderSnoozedAt?: number
 }
 
 // ============ 常量 ============

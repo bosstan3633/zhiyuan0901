@@ -535,13 +535,26 @@ const QUICK_ACTIONS_ZY = [
 
 function bindResultEvents(el: HTMLElement) {
   el.querySelectorAll('.zy-result-item').forEach(elm => {
-    elm.addEventListener('click', () => {
-      const idx = parseInt((elm as HTMLElement).dataset.idx || '0')
+    const e = elm as HTMLElement
+    const idx = parseInt(e.dataset.idx || '0')
+    const item = searchResults[idx]
+    // 第卅六轮 REQ-039：title 提示单击/双击分工
+    if (item && (item.type === 'qa' || item.type === 'ws')) {
+      e.title = '回车 / 单击 → 直达'
+    } else {
+      e.title = '单击 → 打开详情  ·  双击 → 跳转链接'
+    }
+    e.addEventListener('click', () => {
+      // 第卅六轮 REQ-039：单击 → 跳转到对应视图并携带 drawer 打开详情
+      openSearchLocator(searchResults[idx])
+    })
+    e.addEventListener('dblclick', () => {
+      // 第卅六轮 REQ-039：双击 → 直开链接 / 跳路由（保留原行为）
       openSearchResult(searchResults[idx])
     })
-    elm.addEventListener('mouseenter', () => {
-      searchSelIndex = parseInt((elm as HTMLElement).dataset.idx || '0')
-      document.querySelectorAll('.zy-result-item').forEach((e, j) => e.classList.toggle('sel', j === searchSelIndex))
+    e.addEventListener('mouseenter', () => {
+      searchSelIndex = parseInt(e.dataset.idx || '0')
+      document.querySelectorAll('.zy-result-item').forEach((e2, j) => e2.classList.toggle('sel', j === searchSelIndex))
     })
   })
 }
@@ -628,7 +641,7 @@ function onSearchKeydown(e: KeyboardEvent) {
     document.querySelector('.zy-result-item.sel')?.scrollIntoView({ block: 'nearest' })
   } else if (e.key === 'Enter') {
     e.preventDefault()
-    if (searchSelIndex >= 0 && searchResults[searchSelIndex]) openSearchResult(searchResults[searchSelIndex])
+    if (searchSelIndex >= 0 && searchResults[searchSelIndex]) openSearchLocator(searchResults[searchSelIndex])
   } else if (e.key === 'Tab') {
     // B29：Tab 过滤类型——输入「任务/资源/好奇/全部」+ Tab 直达对应类型；否则四类循环切换。
     // 关键词被视为指令（消费掉），普通关键词保留；搜索框 chip 与类型 Tab 行同步更新
@@ -652,14 +665,40 @@ function onSearchKeydown(e: KeyboardEvent) {
   }
 }
 
-function openSearchResult(item: any) {
+function openSearchLocator(item: any) {
+  // 第卅六轮 REQ-039：单击搜索结果 → 跳到对应视图 + 通过 zy-open-route 携带 drawer 打开详情
+  const send = (route: string, drawer: { kind: string; id: string }) => {
+    try { chrome.runtime.sendMessage({ type: 'zy-route', route, drawer }) } catch {}
+  }
   if (item.type === 'qa') {
     try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: item.qa.route }) } catch {}
     closeOverlay()
     return
   }
   if (item.type === 'ws') {
-    // 第卅二轮 REQ-008：工作台条目 → 打开对应工作台
+    send('/workspace/' + item.id, { kind: 'ws', id: item.id })
+    closeOverlay()
+    return
+  }
+  if (item.type === 'res') {
+    send('/workspace/' + item.raw.workspaceId, { kind: 'res', id: item.id })
+  } else if (item.type === 'task') {
+    send('/compass/actions', { kind: 'task', id: item.id })
+  } else {
+    // 好奇心/项目：跳首页抽屉由 CuriosityPanel 处理；项目走 CompassTree
+    send('/', { kind: item.type === 'curio' ? 'curio' : 'project', id: item.id })
+  }
+  closeOverlay()
+}
+
+function openSearchResult(item: any) {
+  // 第卅六轮 REQ-039：双击搜索结果 → 直开链接 / 跳路由（不打开抽屉）
+  if (item.type === 'qa') {
+    try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: item.qa.route }) } catch {}
+    closeOverlay()
+    return
+  }
+  if (item.type === 'ws') {
     try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: '/workspace/' + item.id }) } catch {}
     closeOverlay()
     return
@@ -683,13 +722,11 @@ function openSearchResult(item: any) {
         const fileUrl = toFileUrl(r.link)
         if (fileUrl) window.open(fileUrl, '_blank')
         else {
-          // 第卅二轮 REQ-009：本地文件仅存文件名不可打开 → 跳工作台定位补全
           showToast('⚠ 本地文件缺少完整路径，请到工作台补全')
           try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: '/workspace/' + r.workspaceId + '?hl=' + r.id }) } catch {}
         }
       }
     } else {
-      // 第卅二轮 REQ-009：无链接卡片 → 定位到所在工作台并高亮
       try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: '/workspace/' + r.workspaceId + '?hl=' + r.id }) } catch {}
       showToast('↗ 已定位到卡片所在工作台')
     }

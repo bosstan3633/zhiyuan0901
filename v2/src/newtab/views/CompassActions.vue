@@ -6,6 +6,7 @@ import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { useTaHeight } from '@/shared/utils/taHeight'
+import { onOpenDrawer } from '@/shared/utils/bus'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import type { TaskCard, Project, FocusSlot, FieldDef } from '@/shared/models'
@@ -769,6 +770,18 @@ watch(() => route.query.hl, (hl) => {
   }, 350)
   router.replace({ path: route.path })
 }, { immediate: true })
+
+// 第卅六轮 REQ-039：搜索浮层单击 → 任务行高亮（已有 highlightId 即可响应）
+onMounted(() => {
+  const off = onOpenDrawer((p) => {
+    if (p.kind === 'task') {
+      highlightId.value = p.id
+      setTimeout(() => document.querySelector(`[data-tid="${p.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+      setTimeout(() => { highlightId.value = (highlightId.value === p.id ? null : highlightId.value) }, 2000)
+    }
+  })
+  onUnmounted(() => { off() })
+})
 
 // B23：抽屉快捷键挂文档级（焦点在 TagPicker 浮层等 Teleport 内容内也能生效）
 function onSidebarDocKey(e: KeyboardEvent) {

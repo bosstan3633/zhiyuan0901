@@ -10,6 +10,9 @@ import GlobalPopups from './components/GlobalPopups.vue'
 import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
 import Icon from '@/shared/components/Icon.vue'
 import logoUrl from '@/assets/logo.png'
+import { getBytesInUse, subscribeSaveError, clearLastSaveError } from '@/shared/storage/repository'
+import { emitOpenDrawer } from '@/shared/utils/bus'
+import ResourceDetailDrawer from './components/ResourceDetailDrawer.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -244,8 +247,26 @@ function onGlobalKeydown(e: KeyboardEvent) {
     switchToIndex(Number(e.code.slice(5)))
   }
 }
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('keydown', onGlobalKeydown, true)
+  // 第卅六轮 REQ-038：初始化时拉一次容量，给顶栏备份提醒红点用
+  refreshBytes().catch(() => {})
+  // 监听 storage onChanged，更新容量（兜底：首次安装或 import 后变化）
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && (changes as Record<string, chrome.storage.StorageChange>)['zy_data_v2']) {
+        refreshBytes().catch(() => {})
+      }
+    })
+  } catch {}
+  // 第卅六轮 REQ-038：保存失败（quota/serial）→ Toast 告警
+  subscribeSaveError((e) => {
+    const tag = e.kind === 'quota' ? '配额超限' : e.kind === 'serial' ? '序列化失败' : '写入异常'
+    const sz = e.bytesInUse != null ? `（已用 ${Math.round(e.bytesInUse / 1024)} KB）` : ''
+    showToast(`⚠ 数据保存失败：${tag}${sz}，请清理或导出后重试`, {
+      label: '查看', cb: () => { clearLastSaveError(); navigate('/settings?page=about') }
+    })
+  })
   // 监听 background 发来的消息（扩展快捷键触发）
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg?.type === 'zy-ping') { sendResponse({ ok: true }); return true }
@@ -261,9 +282,13 @@ onMounted(() => {
         router.push({ path: `/workspace/${wsId}`, query: hl ? { hl } : undefined })
       }
     }
-    // 通用路由跳转（B4：搜索结果定位任务/好奇心）
+    // 通用路由跳转（B4：搜索结果定位任务/好奇心；第卅六轮扩展 drawer 参数）
     else if (msg?.type === 'zy-route') {
-      if (msg.route) router.push(msg.route)
+      if (msg.route) router.push(msg.route).catch(() => {})
+      if (msg.drawer && (msg.drawer as any).kind && (msg.drawer as any).id) {
+        // 微延迟，等 router 切到目标页 + 对应组件 onMounted 注册监听
+        setTimeout(() => emitOpenDrawer(msg.drawer), 80)
+      }
     }
   })
 })
@@ -275,6 +300,22 @@ const taskBadge = computed(() => {
   const list = store.data.dailyFocus[dateKey(new Date())] || []
   return list.filter(s => !s.done).length
 })
+
+// 第卅六轮 REQ-038：备份提醒红点（30 天未导出 或 容量超 5 MB，且开关启用）
+const BACKUP_REMIND_DAYS = 30
+const BACKUP_REMIND_BYTES = 5 * 1024 * 1024
+const bytesInUse = ref(0)
+async function refreshBytes() { bytesInUse.value = await getBytesInUse() }
+const backupReminderDot = computed(() => {
+  const ui: any = store.ui || {}
+  if (ui.backupReminderEnabled === false) return false
+  const last = typeof ui.lastBackupAt === 'number' ? ui.lastBackupAt : 0
+  const ageDays = last ? (Date.now() - last) / 86400000 : Infinity
+  if (ageDays > BACKUP_REMIND_DAYS) return true
+  if (bytesInUse.value > BACKUP_REMIND_BYTES) return true
+  return false
+})
+
 </script>
 
 <template>
@@ -357,7 +398,10 @@ const taskBadge = computed(() => {
           </Transition>
         </div>
         <div class="icon-btn" title="全局搜索 (Ctrl+K)" @click="globalPopups?.openPanel('search')"><Icon name="search" :size="16" /></div>
-        <div class="icon-btn" title="设置" @click="navigate('/settings')"><Icon name="settings" :size="16" /></div>
+        <div class="icon-btn icon-btn-bell" :class="{ 'has-dot': backupReminderDot }" title="设置" @click="navigate('/settings')">
+          <Icon name="settings" :size="16" />
+          <span v-if="backupReminderDot" class="bell-dot" title="建议导出备份" />
+        </div>
       </div>
     </header>
 
@@ -390,6 +434,7 @@ const taskBadge = computed(() => {
     </Teleport>
 
     <GlobalPopups ref="globalPopups" />
+    <ResourceDetailDrawer />
     <Toast />
     <ConfirmDialog />
   </div>
@@ -437,8 +482,11 @@ const taskBadge = computed(() => {
 .theme-check { margin-left: auto; font-size: 11px; }
 .fade-enter-active, .fade-leave-active { transition: opacity .15s, transform .15s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-4px); }
-.icon-btn { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; color: var(--text-2); transition: all .15s; font-size: 16px; }
+.icon-btn { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; color: var(--text-2); transition: all .15s; font-size: 16px; position: relative; }
 .icon-btn:hover { background: var(--surface-3); color: var(--text); }
+/* 第卅六轮 REQ-038：备份提醒红点（顶栏设置按钮） */
+.icon-btn-bell.has-dot .bell-dot { display: block; }
+.bell-dot { display: none; position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--bg, #fff); }
 .page-container { flex: 1; }
 
 

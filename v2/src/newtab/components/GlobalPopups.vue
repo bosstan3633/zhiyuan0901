@@ -37,7 +37,8 @@
             <div class="gp-group-title">最近打开</div>
             <div v-for="(r, j) in recentResources" :key="r.id"
               class="gp-result-item" :class="{selected: selIndex===QUICK_ACTIONS.length+j}"
-              @click="runFlat(QUICK_ACTIONS.length+j)" @mouseenter="selIndex=QUICK_ACTIONS.length+j">
+              @click="runFlatLocator(QUICK_ACTIONS.length+j)" @dblclick="runFlat(QUICK_ACTIONS.length+j)" @mouseenter="selIndex=QUICK_ACTIONS.length+j"
+              :title="'单击 → 打开详情  ·  双击 → 跳转链接'">
               <div class="gp-ri-icon res">📄</div>
               <div class="gp-ri-main"><div class="gp-ri-title">{{ r.title }}</div></div>
               <span class="gp-ri-link url">🔥{{ r.callCount }}</span>
@@ -54,7 +55,8 @@
           <div class="gp-group-title">{{ grp.label }} <span class="gp-group-cnt">{{ grp.items.length }}</span></div>
           <div v-for="(item, j) in grp.items" :key="item.id"
             class="gp-result-item" :class="{selected: grp.offset+j===selIndex}"
-            @click="selectResult(grp.offset+j, true)" @mouseenter="selIndex=grp.offset+j">
+            @click="selectResultLocator(grp.offset+j)" @dblclick="selectResult(grp.offset+j, true)" @mouseenter="selIndex=grp.offset+j"
+            :title="'单击 → 打开详情  ·  双击 → 跳转链接'">
             <div class="gp-ri-icon" :class="item.iconClass">{{ item.iconText }}</div>
             <div class="gp-ri-main">
               <div class="gp-ri-title" v-html="hlTitle(item.title)"></div>
@@ -248,6 +250,7 @@ import { matchPinyin } from '@/shared/utils/pinyin'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { useConfirm } from '@/shared/components/confirm'
+import { emitOpenDrawer } from '@/shared/utils/bus'
 import Icon from '@/shared/components/Icon.vue'
 import type { ResourceCard, TaskCard, CuriosityCard, Workspace, Category, AnyCard } from '@/shared/models'
 import { markRank } from '@/shared/utils/marksort'
@@ -515,10 +518,45 @@ function hlTitle(title: string): string {
   return esc.slice(0, i) + '<mark class="gp-hl">' + esc.slice(i, i + q.length) + '</mark>' + esc.slice(i + q.length)
 }
 function runFlat(index: number) {
+  // 第卅六轮 REQ-039：双击 / Enter 键行为 —— 直开链接 / 跳路由（保留原 openItem 直开逻辑）
   const it = flatList.value[index]
   if (!it) return
   if (it.kind === 'qa') { it.qa.run(); return }
   openItem(it.item)
+}
+
+function runFlatLocator(index: number) {
+  // 第卅六轮 REQ-039：单击搜索结果 → 跳转到对应视图 + 携带 drawer 打开详情（与 content script 一致）
+  const it = flatList.value[index]
+  if (!it) return
+  if (it.kind === 'qa') { it.qa.run(); return }
+  const item = it.item
+  if (item.type === 'res') {
+    const r = item.raw as ResourceCard
+    router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: item.id } })
+    closeAll()
+    emitOpenDrawer({ kind: 'res', id: item.id })
+    return
+  }
+  if (item.type === 'task') {
+    router.push({ path: '/compass/actions', query: { hl: item.id } })
+    closeAll()
+    emitOpenDrawer({ kind: 'task', id: item.id })
+    return
+  }
+  if (item.type === 'curio') {
+    router.push({ path: '/', query: { hl: item.id } })
+    closeAll()
+    emitOpenDrawer({ kind: 'curio', id: item.id })
+    return
+  }
+  if (item.type === 'ws') {
+    router.push({ path: `/workspace/${item.id}` })
+    closeAll()
+    emitOpenDrawer({ kind: 'ws', id: item.id })
+    return
+  }
+  closeAll()
 }
 
 function runSearch() { /* reactive, no-op */ }
@@ -528,7 +566,7 @@ function clearFilter() { currentType.value = 'all' }
 function onSearchKeydown(e: KeyboardEvent) {
   if (e.key === 'ArrowDown') { e.preventDefault(); selIndex.value = Math.min(selIndex.value+1, flatList.value.length-1); scrollToSelected() }
   else if (e.key === 'ArrowUp') { e.preventDefault(); selIndex.value = Math.max(selIndex.value-1, 0); scrollToSelected() }
-  else if (e.key === 'Enter') { e.preventDefault(); if (selIndex.value >= 0) runFlat(selIndex.value) }
+  else if (e.key === 'Enter') { e.preventDefault(); if (selIndex.value >= 0) runFlatLocator(selIndex.value) }
   else if (e.key === 'Tab') {
     // B29：Tab 过滤类型——输入「任务/资源/好奇/全部」+ Tab 直达对应类型；否则四类循环切换。
     // 关键词被视为指令（消费掉），普通关键词保留；chip 与类型 Tab 行高亮同步更新
@@ -556,6 +594,38 @@ function scrollToSelected() {
 function selectResult(i: number, fromClick: boolean) {
   selIndex.value = i
   if (fromClick) openItem(filteredResults.value[i])
+}
+
+function selectResultLocator(i: number) {
+  // 第卅六轮 REQ-039：单击分组结果 → 跳视图 + drawer（不直接打开链接）
+  selIndex.value = i
+  const item = filteredResults.value[i]
+  if (!item) return
+  if (item.type === 'res') {
+    const r = item.raw as ResourceCard
+    router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: item.id } })
+    closeAll()
+    emitOpenDrawer({ kind: 'res', id: item.id })
+    return
+  }
+  if (item.type === 'task') {
+    router.push({ path: '/compass/actions', query: { hl: item.id } })
+    closeAll()
+    emitOpenDrawer({ kind: 'task', id: item.id })
+    return
+  }
+  if (item.type === 'curio') {
+    router.push({ path: '/', query: { hl: item.id } })
+    closeAll()
+    emitOpenDrawer({ kind: 'curio', id: item.id })
+    return
+  }
+  if (item.type === 'ws') {
+    router.push({ path: `/workspace/${item.id}` })
+    closeAll()
+    emitOpenDrawer({ kind: 'ws', id: item.id })
+    return
+  }
 }
 
 function openItem(item: SearchResult) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCuriosity, type CuriStatus } from '../../stores/curiosity'
 import { useAppStore } from '../../stores/app'
@@ -13,6 +13,7 @@ import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { markRank } from '@/shared/utils/marksort'
 import { useTaHeight } from '@/shared/utils/taHeight'
+import { onOpenDrawer } from '@/shared/utils/bus'
 
 const { curiosities, STATUS_MAP, update, setStatus, remove, convertToTask, convertToResource } = useCuriosity()
 const store = useAppStore()
@@ -33,6 +34,18 @@ watch(() => route.query.hl, (hl) => {
   }, 350)
   router.replace({ path: route.path })
 }, { immediate: true })
+
+// 第卅六轮 REQ-039：搜索浮层单击 → 好奇心卡高亮
+onMounted(() => {
+  const off = onOpenDrawer((p) => {
+    if (p.kind === 'curio') {
+      highlightId.value = p.id
+      setTimeout(() => document.querySelector(`[data-czid="${p.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+      setTimeout(() => { highlightId.value = (highlightId.value === p.id ? null : highlightId.value) }, 2000)
+    }
+  })
+  onUnmounted(() => { off() })
+})
 
 const viewMode = ref<'card' | 'list' | 'kanban'>('card')
 const statusFilter = ref<CuriStatus | 'all'>('all')

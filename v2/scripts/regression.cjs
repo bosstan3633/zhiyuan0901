@@ -87,8 +87,11 @@ check('B28 原生 confirm 全清除', () => { let n = 0; ['newtab/views/Workspac
 check('O22 使用手册完整内容（外置数据）', () => read('/newtab/manual-data.ts').includes('quick-1') && read('/newtab/manual-data.ts').includes('ref-2') && !read('/newtab/views/GlobalSettings.vue').includes('占位内容'));
 check('产品 logo 替换（首页+关于页+扩展图标）', () => read('/newtab/App.vue').includes('logoUrl') && read('/newtab/views/GlobalSettings.vue').includes('logoUrl') && fs.existsSync(base + '/assets/logo.png'));
 
-check('manifest 2.14.0', () => read('/manifest.ts').includes("version: '2.14.0'"));
-check('关于页 V2.14.0', () => read('/newtab/views/GlobalSettings.vue').includes('V2.14.0') && !read('/newtab/views/GlobalSettings.vue').includes('V2.8.0'));
+check('manifest 2.14.1', () => read('/manifest.ts').includes("version: '2.14.1'"));
+check('关于页 V2.14.1（动态读取 manifest.version）', () => {
+  const gs = read('/newtab/views/GlobalSettings.vue')
+  return gs.includes('runtimeVersion') && !gs.includes('V2.14.0')
+});
 
 console.log('【第七轮】');
 check('B29 Tab 过滤单一状态源（应用内 chip 与 Tab 行共用 currentType）', () => !read('/newtab/components/GlobalPopups.vue').includes('filterType') && read('/newtab/components/GlobalPopups.vue').includes("currentType.value = cycle[(cycle.indexOf(currentType.value) + 1) % cycle.length]"));
@@ -369,6 +372,35 @@ check('R35-12 REQ-033 2×3 指标网格撑满对齐（grid-auto-rows:1fr + flex:
 console.log('【第卅五轮 · V2.14 需求包第六批：REQ-037 浏览器快捷键新增「打开全局设置」命令】');
 check('R35-13 REQ-037 manifest 新增 open-settings 命令（仅 description，不配 suggested_key 不占 4 键上限）', () => { const src = read('/manifest.ts'); return src.includes("'open-settings': {") && src.includes("description: '打开全局设置'") && !src.includes("'open-settings': {\n      suggested_key"); });
 check('R35-14 REQ-037 background 监听 open-settings（复用聚焦 + zy-route /settings；新建标签 #/settings 直达）', () => { const src = read('/background/index.ts'); return src.includes("case 'open-settings':") && src.includes("route: '/settings'") && src.includes("index.html#/settings"); });
+
+// ============== 第卅六轮 · V2.14.1 数据持久化加固 + 全局搜索交互统一（REQ-038~041） ==============
+console.log('【第卅六轮 · V2.14.1 第一批：REQ-038 数据持久化加固】');
+check('R36-1 REQ-038-① unlimitedStorage 权限已申请', () => read('/manifest.ts').includes("'unlimitedStorage'"));
+check('R36-2 REQ-038-② repository 保存失败告警（saveError bus + .catch 异常处理）', () => { const src = read('/shared/storage/repository.ts'); return src.includes('subscribeSaveError') && src.includes('errorListeners') && src.includes('.catch') && src.includes('SaveError'); });
+check('R36-3 REQ-038-③ 容量水位显示（getBytesInUse + UI bytesInUse）', () => { const a = read('/shared/storage/repository.ts'); const b = read('/newtab/views/GlobalSettings.vue'); return a.includes('getBytesInUse') && b.includes('bytesInUse') && b.includes('formatBytes'); });
+check('R36-4 REQ-038-③ unlimitedStorage 运行时检测 hasUnlimitedStorage', () => { const a = read('/shared/storage/repository.ts'); return a.includes('hasUnlimitedStorage') && a.includes('getManifest'); });
+check('R36-5 REQ-038-④ 备份提醒 UI 偏好字段已建模（backupReminderEnabled / lastBackupAt）', () => { const src = read('/shared/models/index.ts'); return src.includes('backupReminderEnabled?') && src.includes('lastBackupAt?') && src.includes('backupReminderSnoozedAt?'); });
+check('R36-6 REQ-038-④ 顶栏备份提醒红点（30 天未导出 或 容量 > 5MB，显示 .bell-dot）', () => { const src = read('/newtab/App.vue'); return src.includes('backupReminderDot') && src.includes('BACKUP_REMIND_DAYS = 30') && src.includes('BACKUP_REMIND_BYTES = 5 * 1024 * 1024') && src.includes('bell-dot'); });
+check('R36-7 REQ-038-④ 导出动作写入 lastBackupAt（markBackupNow 在四个 export 函数内）', () => { const src = read('/newtab/views/GlobalSettings.vue'); return src.includes('function markBackupNow') && (src.match(/markBackupNow\(\)/g) || []).length >= 4; });
+check('R36-8 REQ-038-② App.vue 订阅保存错误转发 Toast', () => { const src = read('/newtab/App.vue'); return src.includes('subscribeSaveError') && src.includes("数据保存失败：${tag}"); });
+
+console.log('【第卅六轮 · V2.14.1 第二批：REQ-039 全局搜索交互统一（P1 方案）】');
+check('R36-9 REQ-039-① bus 极简事件中心（避免引入 mitt）', () => { const src = read('/shared/utils/bus.ts'); return src.includes('onOpenDrawer') && src.includes('emitOpenDrawer') && src.includes('DrawerPayload'); });
+check('R36-10 REQ-039-② 新建 ResourceDetailDrawer.vue（只读预览 + 全屏编辑按钮）', () => { const src = read('/newtab/components/ResourceDetailDrawer.vue'); return src.includes('rdd-drawer') && src.includes('jumpToWorkspaceEdit') && src.includes('只读'); });
+check('R36-11 REQ-039-③ CompassActions 接 kind=task 抽屉总线', () => { const src = read('/newtab/views/CompassActions.vue'); return src.includes('onOpenDrawer') && src.includes("if (p.kind === 'task')"); });
+check('R36-12 REQ-039-③ CuriosityPanel 接 kind=curio 抽屉总线', () => { const src = read('/newtab/components/compass/CuriosityPanel.vue'); return src.includes('onOpenDrawer') && src.includes("if (p.kind === 'curio')"); });
+check('R36-13 REQ-039-③ CompassTree 接 kind=project 抽屉总线', () => { const src = read('/newtab/views/CompassTree.vue'); return src.includes('onOpenDrawer') && src.includes("if (p.kind === 'project')"); });
+check('R36-14 REQ-039-① App.vue zy-route 监听扩展 drawer 参数', () => { const src = read('/newtab/App.vue'); return src.includes("msg?.type === 'zy-route'") && src.includes('emitOpenDrawer(msg.drawer)') && src.includes('msg.drawer'); });
+check("R36-15 REQ-039-④ content script 单击/双击分离（openSearchLocator + 双击走原 openSearchResult）", () => { const src = read('/content/search-overlay.ts'); return src.includes('function openSearchLocator') && src.includes("addEventListener('dblclick'") && src.includes('title = '); });
+check('R36-16 REQ-039-⑤ GlobalPopups 单击/双击分离（runFlatLocator + selectResultLocator）', () => { const src = read('/newtab/components/GlobalPopups.vue'); return src.includes('runFlatLocator') && src.includes('selectResultLocator') && src.includes("@dblclick=\"selectResult(grp.offset+j, true)\""); });
+check('R36-17 REQ-039 Enter 键走单击行为（runFlatLocator 而非 runFlat）', () => { const src = read('/newtab/components/GlobalPopups.vue'); return src.includes("if (selIndex.value >= 0) runFlatLocator(selIndex.value)"); });
+
+console.log('【第卅六轮 · V2.14.1 第三批：REQ-041 产品文案与对外呈现】');
+check("R36-18 REQ-041-① README.md（GitHub 根）不再含 V3.1 演进对照", () => { const src = read('/../../README.md'); return !src.includes('V3.1') && !src.includes('演进对照') && !src.includes('回归 218/218') && !src.includes('V2.13.0'); });
+check("R36-19 REQ-041-② v2/README.md 含产品定位与对位叙事（按 April Dunford 视角落地）", () => { const src = read('/../README.md'); return src.includes('AI 时代的个人资源调度层') || src.includes('AI 工具爆炸') || src.includes('个人资源调度层'); });
+check('R36-20 REQ-041-③ ManualPage 头部版本 V2.14.1', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.14.1'); });
+check("R36-21 REQ-041-① 根 README 按「是什么/给谁用/解决什么/如何解决」重写", () => { const src = read('/../../README.md'); return src.includes('## 它是什么') && src.includes('## 它给谁用') && src.includes('## 它解决什么问题') && src.includes('资源失血症'); });
+check("R36-22 REQ-041-③ 使用手册「速览」篇新增定位与六动作（quick-1 / quick-2）", () => { const src = read('/newtab/manual-data.ts'); return src.includes("id: 'quick-1'") && src.includes("id: 'quick-2'") && src.includes('它是什么') && src.includes('六个核心动作'); });
 
 console.log('');
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

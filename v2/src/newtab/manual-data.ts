@@ -10,24 +10,43 @@ export const MANUAL: ManualPart[] = [
   {
     title: '速览 · 一页上手',
     sections: [
-      { id: 'quick-1', title: '30 秒看懂知源', html: `
-        <p>知源工作台接管你的浏览器新标签页。它做三件事：<strong>把好东西收进来、把方向摆在眼前、把任务落到今天</strong>。</p>
-        <div class="mc-flow">🔍 Ctrl+K 搜一切 ｜ 📥 Ctrl+Shift+J 采集网页 ｜ 💡 Ctrl+Shift+I 记灵感</div>
-        <h4>每天的节奏</h4>
-        <div class="mc-steps">
-          <div class="mc-step"><b>1</b><span>打开新标签页 → 首页确认方向（灯塔 + 北极星 + 好奇心）</span></div>
-          <div class="mc-step"><b>2</b><span>进知源罗盘 → 今日三件事，锁定今天最重要的 3 件事</span></div>
-          <div class="mc-step"><b>3</b><span>干活中随手三键采集，双击卡片直达资源</span></div>
-          <div class="mc-step"><b>4</b><span>睡前看一眼北极星——它是镜子，不是考核</span></div>
-        </div>
-        <h4>三个主场景</h4>
+      { id: 'quick-1', title: '它是什么 · 给谁用 · 解决什么', html: `
+        <p>知源工作台是一套 <strong>浏览器扩展</strong>（Chrome / Edge / Brave 等 MV3），<strong>接管你的新标签页</strong>，把每天使用的链接、本地文件、Obsidian 笔记、AI 聊天金句、零星念头——统一收纳为可被你自己指挥的卡片，<strong>三秒内召唤回来</strong>。</p>
+        <h4>一句话定位</h4>
+        <div class="mc-quote">你有 17 个 AI 工具入口，却没有一个总调度。<br>知源 · AI 时代的个人资源调度层 —— 收得进、看得见、找得到、信得过、带得走。</div>
+        <h4>它给谁用</h4>
+        <p><strong>首选：</strong>AI 重度使用的"独立深度研究者 / 咨询顾问"——有 5+ AI 工具、主要在浏览器里干活、产出高度碎片化、独立工作者、对数据主权敏感。创作者与终身学习者同类型适用。</p>
+        <p><strong>不面向：</strong>"存一堆链接就不看"的人、已有完整 Notion/Obsidian 工作流且满意的人、换电脑无所谓反正有云同步的人。</p>
+        <h4>它解决什么 —— 时代的病根</h4>
         <table class="mc-table">
-          <tr><th>我想…</th><th>去哪里</th><th>怎么做</th></tr>
-          <tr><td>收一个网页/灵感</td><td>任意页面三键</td><td>J 采集资源 · I 记好奇心 · K 全局搜索</td></tr>
-          <tr><td>推进今天的任务</td><td>知源罗盘 → 今日行动</td><td>三件事勾选完成，看板拖拽流转</td></tr>
-          <tr><td>调用收藏的资源</td><td>工作台 / Ctrl+K</td><td>双击卡片直达链接；搜索支持拼音首字母</td></tr>
+          <tr><th>时代病根</th><th>你日常的痛</th><th>知源怎么治</th></tr>
+          <tr><td>工具碎片化</td><td>几秒切一次 Tab，节奏全断</td><td>链接/文件/笔记/Obsidian 一卡通吃，新标签页即指挥台</td></tr>
+          <tr><td>资源失血症</td><td>做过、找不回、重做</td><td>全本地单根 JSON，三秒拼音首字母召回</td></tr>
+          <tr><td>数据被绑架</td><td>换工具等于从零开始</td><td>零账号零云端；导出=复制粘贴</td></tr>
         </table>
-        <div class="mc-tip">💡 先花 1 分钟打开 <code>chrome://extensions/shortcuts</code> 把三键改成你的肌肉记忆——这是高效使用知源的第一步。</div>
+        <h4>它坚持不做什么</h4>
+        <p>❌ <b>不做云同步</b>——同步 = 把你的数据上别人的服务器；<br>❌ <b>不做 AI 替你决策</b>——AI 是你的部队，知源是你的指挥台；<br>❌ <b>不做"第二大脑"</b>——不抢 Notion/Obsidian 的写作市场，只调度素材；<br>❌ <b>不做社交/协作</b>——单一用户的认知工具；<br>❌ <b>不做跟踪分析</b>——没有用户画像、没有广告位。</p>
+      ` },
+      { id: 'quick-2', title: '六个核心动作', html: `
+        <h4>六个核心动作 · 时间即价值</h4>
+        <table class="mc-table">
+          <tr><th>#</th><th>动作</th><th>触发</th><th>时间</th></tr>
+          <tr><td>1</td><td>快速采集</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> 任意网页</td><td>5 秒</td></tr>
+          <tr><td>2</td><td>三秒搜索</td><td><kbd>Ctrl</kbd>+<kbd>K</kbd> 全场景（任意网页浮层 / newtab 内）</td><td>3 秒</td></tr>
+          <tr><td>3</td><td>追想法念头</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd></td><td>10 秒</td></tr>
+          <tr><td>4</td><td>一键直跳</td><td>双击搜索结果（单击开详情 / 双击跳转链接）</td><td>0 思考</td></tr>
+          <tr><td>5</td><td>方向管理</td><td>知源罗盘（愿景 / 使命 / 方向 / 项目 / 指标 / 任务）</td><td>锚定主攻</td></tr>
+          <tr><td>6</td><td>完整导出</td><td>设置 → 导出全部数据</td><td>一份 JSON</td></tr>
+        </table>
+        <div class="mc-flow">🔍 <kbd>Ctrl</kbd>+<kbd>K</kbd> ｜ 📥 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> ｜ 💡 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd> ｜ ⚙ 在 <code>chrome://extensions/shortcuts</code> 绑定第 6 键"打开设置"</div>
+        <div class="mc-tip">💡 键盘党第一步：打开 <code>chrome://extensions/shortcuts</code> 把三键改成你的肌肉记忆。第 6 个命令项"打开设置"在快捷键页会显示为"未设置"——按需分配一个键即可，从工作台任意场景一键直达设置。</div>
+        <h4>每天的节奏 · 4 步闭环</h4>
+        <div class="mc-steps">
+          <div class="mc-step"><b>1</b><span>打开新标签页 → 首页确认方向（罗盘主入口可见今日三件事）</span></div>
+          <div class="mc-step"><b>2</b><span>进知源罗盘 → 今日行动，锁定今天最重要的 3 件事</span></div>
+          <div class="mc-step"><b>3</b><span>干活中随手三键采集，搜索 / 双击直达</span></div>
+          <div class="mc-step"><b>4</b><span>睡前看一眼北极星 —— 它是镜子，不是考核</span></div>
+        </div>
       ` }
     ]
   },

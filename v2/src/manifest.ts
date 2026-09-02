@@ -4,9 +4,9 @@ export default defineManifest({
   manifest_version: 3,
   name: '知源工作台',
   short_name: '知源',
-  version: '2.14.0',
+  version: '2.14.1',
   description: '源头信息与好奇心工作台 · 从好奇出发，向源头求证 · 纯本地 · Chrome MV3',
-  permissions: ['storage', 'tabs', 'activeTab', 'commands', 'scripting'],
+  permissions: ['storage', 'unlimitedStorage', 'tabs', 'activeTab', 'commands', 'scripting'],
   host_permissions: ['<all_urls>', 'file:///*'],
   chrome_url_overrides: {
     newtab: 'src/newtab/index.html'

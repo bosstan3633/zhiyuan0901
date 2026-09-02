@@ -180,6 +180,25 @@
           <div class="gs-page-desc">导出工作台数据用于备份或跨设备迁移</div>
         </div>
         <div class="gs-card">
+          <div class="gs-card-header"><span class="gs-card-title">备份提醒（第卅六轮）</span></div>
+          <div class="gs-card-body">
+            <div class="gs-export-row">
+              <div class="gs-er-info">
+                <div class="gs-er-name">自动提醒</div>
+                <div class="gs-er-desc">
+                  开启后，若 30 天未导出备份、或存储容量超过 5 MB 时，顶部右上角显示红点提醒。
+                  {{ backupReminderEnabled ? '当前已启用' : '当前已关闭' }}
+                  {{ lastBackupAt ? '· 上次导出：' + formatBackupAgo(lastBackupAt) : '· 尚无导出记录' }}
+                </div>
+              </div>
+              <label class="gs-switch">
+                <input type="checkbox" :checked="backupReminderEnabled" @change="toggleBackupReminder" />
+                <span class="gs-switch-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">导出方式</span></div>
           <div class="gs-card-body">
             <div class="gs-export-row">
@@ -347,7 +366,7 @@
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">扩展版本</span>
-              <div class="gs-sr-control" style="color:var(--text-2);font-size:12px">V2.14.0</div>
+              <div class="gs-sr-control" style="color:var(--text-2);font-size:12px">V{{ runtimeVersion }}</div>
             </div>
           </div>
         </div>
@@ -393,13 +412,32 @@
           <div class="gs-card-body gs-about-card">
             <div class="gs-about-logo"><img :src="logoUrl" alt="知源工作台" /></div>
             <div class="gs-about-name">知源工作台</div>
-            <div class="gs-about-version">版本 V2.1</div>
+            <div class="gs-about-version">版本 V{{ runtimeVersion }}</div>
             <div class="gs-about-motto">"从好奇出发，向源头求证"</div>
           </div>
         </div>
         <div class="gs-card">
           <div class="gs-card-body">
-            <div class="gs-about-row"><span class="label">数据存储</span><span class="value">所有数据存储在本地，不上传云端</span></div>
+            <div class="gs-about-row">
+              <span class="label">数据存储</span>
+              <span class="value">
+                全部在本地，不上传云端
+                <span v-if="bytesInUse > 0" class="gs-storage-detail">
+                  · 当前占 {{ formatBytes(bytesInUse) }}
+                  <template v-if="!unlimitedStorage"> / 配额上限 10 MB</template>
+                  <template v-else>（已申请 unlimitedStorage，无 10 MB 上限）</template>
+                </span>
+              </span>
+            </div>
+            <div v-if="saveError" class="gs-about-row gs-about-row-danger">
+              <span class="label">⚠ 写入异常</span>
+              <span class="value">
+                <span class="gs-save-error-kind">{{ saveErrorLabel(saveError.kind) }}</span>
+                · {{ saveError.message }}
+                <span v-if="saveError.bytesInUse != null">（当前 {{ formatBytes(saveError.bytesInUse) }}）</span>
+                <span class="gs-link" @click="markSaveErrorRead" style="margin-left:8px">已处理 ›</span>
+              </span>
+            </div>
             <div class="gs-about-row"><span class="label">检查更新</span><span class="value gs-link" @click="showToast('当前已是最新版本')">检查更新 ›</span></div>
             <div class="gs-about-row"><span class="label">开源致谢</span><span class="value gs-link" @click="showToast('Vue 3 · TypeScript · Vite · Pinia · @crxjs')">查看 ›</span></div>
           </div>
@@ -432,7 +470,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
-import { saveUIPrefs } from '@/shared/storage/repository'
+import { saveUIPrefs, getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage } from '@/shared/storage/repository'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
 import FieldEditor from './FieldEditor.vue'
@@ -473,7 +511,63 @@ function pageFromQuery(): string | null {
   if (typeof p !== 'string') return null
   return navGroups.some(g => g.items.some(i => i.key === p)) ? p : null
 }
-onMounted(() => { const p = pageFromQuery(); if (p) activePage.value = p })
+onMounted(() => {
+  const p = pageFromQuery(); if (p) activePage.value = p
+  // 第卅六轮 REQ-038：关于页容量水位 + 保存错误订阅 + 备份提醒状态
+  refreshStorage()
+  const unsub = subscribeSaveError((e) => { saveError.value = e })
+  // 卸载时取消订阅（实例可能被路由复用）
+  return () => unsub && unsub()
+})
+
+/** 第卅六轮 REQ-038：关于页运行时版本号 + 数据水位 + 错误显示 */
+const runtimeVersion = (() => {
+  try {
+    const m = (chrome as any)?.runtime?.getManifest?.()
+    return m?.version || '?'
+  } catch { return '?' }
+})()
+const bytesInUse = ref(0)
+const unlimitedStorage = ref(hasUnlimitedStorage())
+const saveError = ref(getLastSaveError())
+async function refreshStorage() {
+  bytesInUse.value = await getBytesInUse()
+}
+function markSaveErrorRead() {
+  clearLastSaveError()
+  saveError.value = null
+  showToast('已清除异常标记')
+}
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / (1024 * 1024)).toFixed(2)} MB`
+}
+function saveErrorLabel(k: 'quota' | 'serial' | 'unknown'): string {
+  return k === 'quota' ? '配额超限' : k === 'serial' ? '序列化失败' : '写入异常'
+}
+
+/** 第卅六轮 REQ-038：备份提醒开关 + 上次备份时间 */
+const backupReminderEnabled = ref<boolean>(typeof store.ui?.backupReminderEnabled === 'boolean' ? store.ui.backupReminderEnabled : true)
+const lastBackupAt = ref<number | undefined>(store.ui?.lastBackupAt)
+function toggleBackupReminder(ev: Event) {
+  const checked = (ev.target as HTMLInputElement).checked
+  backupReminderEnabled.value = checked
+  saveUIPrefs({ backupReminderEnabled: checked })
+}
+function markBackupNow() {
+  const t = Date.now()
+  lastBackupAt.value = t
+  saveUIPrefs({ lastBackupAt: t })
+}
+function formatBackupAgo(ts: number): string {
+  const ms = Date.now() - ts
+  const day = Math.floor(ms / 86400000)
+  if (day <= 0) return '今天'
+  if (day === 1) return '昨天'
+  if (day < 30) return `${day} 天前`
+  return new Date(ts).toLocaleDateString('zh-CN')
+}
 watch(() => route.query.page, () => { const p = pageFromQuery(); if (p) activePage.value = p })
 const navGroups = [
   { title: '卡片字段', items: [
@@ -683,6 +777,7 @@ function dateStr() { return new Date().toISOString().slice(0, 10) }
 function exportAll() {
   const d = store.data!
   downloadFile(`zhiyuan_backup_${dateStr()}.json`, JSON.stringify(d, null, 2))
+  markBackupNow()
   showToast('✓ 全部数据已导出为JSON')
 }
 
@@ -710,6 +805,7 @@ function exportCsvForWorkspace() {
   downloadFile(`zhiyuan_${ws.name.replace(/^[^\s]+\s/, '')}_${dateStr()}.csv`,
     '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n'),
     'text/csv;charset=utf-8')
+  markBackupNow()
   showToast(`✓ 「${ws.name.replace(/^[^\s]+\s/, '')}」已导出 ${cards.length} 条资源卡 CSV`)
 }
 
@@ -726,6 +822,7 @@ function exportWorkspace() {
     curiosities: d.curiosities.filter(c => c.relatedResourceIds?.some(rid => d.resources.find(r => r.id === rid)?.workspaceId === ws.id))
   }
   downloadFile(`zhiyuan_${ws.name}_${dateStr()}.json`, JSON.stringify(subset, null, 2))
+  markBackupNow()
   showToast(`✓ 「${ws.name}」已导出`)
 }
 
@@ -752,6 +849,7 @@ function exportMarkdown() {
     }
   }
   downloadFile(`zhiyuan_resources_${dateStr()}.md`, md, 'text/markdown;charset=utf-8')
+  markBackupNow()
   showToast('✓ 资源卡已导出为Markdown')
 }
 
@@ -1095,6 +1193,19 @@ const activeManualSec = ref('quick-1')
 .gs-er-info { flex: 1; }
 .gs-er-name { font-size: 12.5px; font-weight: 500; color: var(--text); }
 .gs-er-desc { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+/* 第卅六轮 REQ-038：开关 + 容量/异常行 */
+.gs-switch { position: relative; display: inline-block; width: 36px; height: 20px; flex: 0 0 auto; }
+.gs-switch input { opacity: 0; width: 0; height: 0; }
+.gs-switch-slider { position: absolute; cursor: pointer; inset: 0; background: var(--surface-3); border-radius: 99px; transition: .2s; }
+.gs-switch-slider::before { content: ''; position: absolute; height: 16px; width: 16px; left: 2px; top: 2px; background: var(--text); border-radius: 50%; transition: .2s; }
+.gs-switch input:checked + .gs-switch-slider { background: var(--accent); }
+.gs-switch input:checked + .gs-switch-slider::before { transform: translateX(16px); background: #fff; }
+
+.gs-storage-detail { color: var(--text-3); font-size: 11px; }
+.gs-about-row-danger { color: var(--danger); }
+.gs-about-row-danger .label { color: var(--danger); }
+.gs-save-error-kind { display: inline-block; padding: 1px 6px; background: rgba(196,68,68,.12); color: var(--danger); border-radius: 4px; font-weight: 500; font-size: 11px; margin-right: 4px; }
 
 /* 危险区 */
 .gs-danger-zone { border-color: rgba(196,68,68,.2); }

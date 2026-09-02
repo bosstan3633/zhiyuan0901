@@ -8,9 +8,20 @@ import { createDefaultData } from './defaults'
 import { safeDecodeText } from '@/shared/utils'
 
 type Listener = (data: AppData) => void
+type ErrorListener = (err: SaveError) => void
+
+/** 第卅六轮 REQ-038：保存失败事件总线（配额超限 / 序列化失败 / 未知 IO 错误） */
+export interface SaveError {
+  at: number
+  kind: 'quota' | 'serial' | 'unknown'
+  message: string
+  bytesInUse?: number
+}
 
 let cache: AppData | null = null
 const listeners = new Set<Listener>()
+const errorListeners = new Set<ErrorListener>()
+let lastSaveError: SaveError | null = null
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 // REQ-031 P-031-6：自身写入标记——saveData/saveDataNow 前置 selfWrite，onChanged 回调跳过全树替换
@@ -86,8 +97,18 @@ export function saveData(): void {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     selfWriteAt = Date.now()
-    cs!.set({ [STORAGE_KEY]: cache! })
-    listeners.forEach((fn) => fn(cache!))
+    const payload = { [STORAGE_KEY]: cache! }
+    const p = cs!.set(payload)
+    if (p && typeof (p as Promise<void>).then === 'function') {
+      ;(p as Promise<void>)
+        .then(() => {
+          if (lastSaveError) { lastSaveError = null; listeners.forEach((fn) => fn(cache!)) }
+          listeners.forEach((fn) => fn(cache!))
+        })
+        .catch((e: unknown) => emitSaveError(e))
+    } else {
+      listeners.forEach((fn) => fn(cache!))
+    }
   }, 300)
 }
 
@@ -98,8 +119,65 @@ export async function saveDataNow(): Promise<void> {
   if (!cs) return
   if (saveTimer) clearTimeout(saveTimer)
   selfWriteAt = Date.now()
-  await cs.set({ [STORAGE_KEY]: cache })
-  listeners.forEach((fn) => fn(cache!))
+  try {
+    await cs.set({ [STORAGE_KEY]: cache })
+    if (lastSaveError) { lastSaveError = null }
+    listeners.forEach((fn) => fn(cache!))
+  } catch (e) {
+    emitSaveError(e)
+    throw e
+  }
+}
+
+/** 第卅六轮 REQ-038：保存失败时分类告警（含最近一次写入的容量水位） */
+function emitSaveError(e: unknown): void {
+  const msg = e instanceof Error ? e.message : String(e)
+  const kind: SaveError['kind'] =
+    /quota|QUOTA_EXCEEDED|maxBytes/i.test(msg) ? 'quota' :
+    /circular|JSON|stringify|serializ/i.test(msg) ? 'serial' : 'unknown'
+  lastSaveError = { at: Date.now(), kind, message: msg }
+  // 异步取一次当前已用字节（best-effort，配额错误才有意义，但容错写入）
+  try {
+    chromeStore()?.getBytesInUse?.((bytes) => {
+      if (lastSaveError) lastSaveError.bytesInUse = bytes
+      errorListeners.forEach((fn) => fn(lastSaveError!))
+    })
+  } catch {
+    errorListeners.forEach((fn) => fn(lastSaveError!))
+  }
+}
+
+/** 订阅保存失败事件（用于触发 Toast / 设置页红点 / 顶栏告警） */
+export function subscribeSaveError(fn: ErrorListener): () => void {
+  errorListeners.add(fn)
+  if (lastSaveError) fn(lastSaveError)
+  return () => errorListeners.delete(fn)
+}
+
+/** 取最近一次保存失败（用于设置页诊断） */
+export function getLastSaveError(): SaveError | null { return lastSaveError }
+
+/** 清除最近一次保存失败标记（恢复后调用） */
+export function clearLastSaveError(): void { lastSaveError = null }
+
+/** 第卅六轮 REQ-038：当前 chrome.storage.local 已用字节（同步回调包装成 Promise） */
+export function getBytesInUse(): Promise<number> {
+  return new Promise((resolve) => {
+    const cs = chromeStore()
+    if (!cs || !cs.getBytesInUse) return resolve(0)
+    cs.getBytesInUse([STORAGE_KEY], (bytes) => resolve(bytes || 0))
+  })
+}
+
+/** 第卅六轮 REQ-038：是否已申请 unlimitedStorage（直接读运行时 manifest，零依赖） */
+export function hasUnlimitedStorage(): boolean {
+  try {
+    const m = (chrome as { runtime?: { getManifest?: () => { permissions?: string[] } } }).runtime?.getManifest?.()
+    const perms = m?.permissions || []
+    return Array.isArray(perms) && perms.includes('unlimitedStorage')
+  } catch {
+    return false
+  }
 }
 
 /** 订阅数据变更 */
