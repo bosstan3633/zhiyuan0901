@@ -7,7 +7,7 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: () => import('./views/CompassHome.vue'),
-      meta: { title: '知源工作台 · 首页' }
+      meta: { title: '知源工作台 · 知源罗盘' }
     },
     {
       path: '/compass',
@@ -18,19 +18,19 @@ const router = createRouter({
           path: 'actions',
           name: 'compass-actions',
           component: () => import('./views/CompassActions.vue'),
-          meta: { title: '知源罗盘 · 今日行动' }
+          meta: { title: '知源引擎 · 今日行动' }
         },
         {
           path: 'projects',
           name: 'compass-projects',
           component: () => import('./views/ProjectCuration.vue'),
-          meta: { title: '知源罗盘 · 项目策展' }
+          meta: { title: '知源引擎 · 项目策展' }
         },
         {
           path: 'tree',
           name: 'compass-tree',
           component: () => import('./views/CompassTree.vue'),
-          meta: { title: '知源罗盘 · 方向树' }
+          meta: { title: '知源引擎 · 方向树' }
         }
       ]
     },

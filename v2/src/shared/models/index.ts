@@ -297,7 +297,7 @@ export interface UIPrefs {
   dateStr?: string
   /** 工作台切换快捷键修饰键（O18：五种可选，默认 Alt） */
   wsSwitchMod?: 'ctrl' | 'alt' | 'ctrl-shift' | 'alt-shift' | 'none'
-  /** 知源罗盘上次停留的子页（默认今日行动） */
+  /** 知源引擎上次停留的子页（默认今日行动） */
   compassTab?: '/compass/actions' | '/compass/projects' | '/compass/tree'
   /** B7：抽屉宽度记忆（task/resource/curiosity） */
   drawerWs?: Record<string, number>

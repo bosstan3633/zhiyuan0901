@@ -255,8 +255,8 @@
               <span class="gs-sr-label">切换工作台</span>
               <div class="gs-sr-control">
                 <select class="gs-select" v-model="wsMod" @change="saveWsMod">
-            <option value="alt">Alt + 数字键（1=知源罗盘，2+=第 N 个工作台）</option>
-            <option value="ctrl">Ctrl + 数字键（1=知源罗盘，2+=第 N 个工作台）</option>
+            <option value="alt">Alt + 数字键（1=知源引擎，2+=第 N 个工作台）</option>
+            <option value="ctrl">Ctrl + 数字键（1=知源引擎，2+=第 N 个工作台）</option>
                   <option value="ctrl-shift">Ctrl + Shift + 数字键</option>
                   <option value="alt-shift">Alt + Shift + 数字键</option>
                   <option value="none">纯数字键（无修饰键）</option>
@@ -275,7 +275,7 @@
       <div v-if="activePage === 'shortcuts'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">🎛 工作台快捷键</div>
-          <div class="gs-page-desc">在工作台标签页内按「修饰键 + 数字」直达；数字 1 固定留给知源罗盘；顺序即快捷键——拖动顶部工作台 Tab 调整位置，快捷键随之变化</div>
+          <div class="gs-page-desc">在工作台标签页内按「修饰键 + 数字」直达；数字 1 固定留给知源引擎；顺序即快捷键——拖动顶部工作台 Tab 调整位置，快捷键随之变化</div>
         </div>
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">映射表（按顶部导航顺序）</span><span class="gs-card-desc">第 N 个工作台 = 修饰键 + N+1（最多到数字 9）</span></div>
@@ -332,7 +332,7 @@
           <div class="gs-card-header"><span class="gs-card-title">⚠ 危险操作区</span></div>
           <div class="gs-card-body">
             <div class="gs-danger-action">
-              <div class="gs-da-info"><div class="gs-da-name">一键回滚至初始状态</div><div class="gs-da-desc">清空所有用户创建的工作台和所有资源卡、好奇心卡、任务卡，仅保留知源罗盘首页、任务中心和工作台</div></div>
+              <div class="gs-da-info"><div class="gs-da-name">一键回滚至初始状态</div><div class="gs-da-desc">清空所有用户创建的工作台和所有资源卡、好奇心卡、任务卡，仅保留知源罗盘、知源引擎（任务中心）和默认工作台</div></div>
               <button class="gs-btn gs-btn-danger" @click="showResetModal = true">回滚</button>
             </div>
             <div class="gs-danger-action">
@@ -451,7 +451,7 @@
         <div class="gs-modal">
           <div class="gs-modal-header">⚠ 确认回滚至初始状态</div>
           <div class="gs-modal-body">
-            <p>此操作将清空所有用户创建的工作台和所有资源卡、好奇心卡、任务卡，<b style="color:var(--danger)">仅保留知源罗盘首页、任务中心和工作台</b>。</p>
+            <p>此操作将清空所有用户创建的工作台和所有资源卡、好奇心卡、任务卡，<b style="color:var(--danger)">仅保留知源罗盘、知源引擎（任务中心）和默认工作台</b>。</p>
             <p>此操作<b style="color:var(--danger)">不可恢复</b>，建议先导出数据备份。</p>
             <p>请输入 <b>"回滚"</b> 以确认：</p>
             <input v-model="resetConfirmText" type="text" class="gs-confirm-input" placeholder="请输入 回滚" />

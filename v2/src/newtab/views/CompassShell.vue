@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import Icon from '@/shared/components/Icon.vue'
 /**
- * 知源罗盘 · 一级工作区容器
+ * 知源引擎 · 一级工作区容器
  * 版式与工作台对齐：Hero 封面 + 左侧栏（子页导航）+ 内容区（子路由）
  * 子页按操作频率排序：今日行动 → 项目策展 → 方向树
  */
@@ -70,7 +70,7 @@ function nav(sub: string) { router.push('/compass/' + sub) }
   <div class="compass-page">
     <!-- Hero（版式对齐工作台封面） -->
     <div class="compass-hero">
-      <div class="hero-name"><span class="icon"><Icon name="compass" :size="20" /></span>知源罗盘</div>
+      <div class="hero-name"><span class="icon"><Icon name="compass" :size="20" /></span>知源引擎</div>
       <div class="hero-desc">看见：大方向（六层思维链） → 项目（中观策展） → 每日行动（今日三件事）</div>
       <div class="hero-bottom">
         <div class="hero-stats">

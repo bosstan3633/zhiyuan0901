@@ -378,7 +378,7 @@ onUnmounted(() => {
     <!-- 六层悬浮目录 -->
 
       <div class="tree-page-head">
-        <div class="crumb">知源罗盘 <span class="sep">/</span> <b>方向树</b> · 六层思维链完整呈现</div>
+        <div class="crumb">知源引擎 <span class="sep">/</span> <b>方向树</b> · 六层思维链完整呈现</div>
         <div class="spacer"></div>
         <div class="dhi-badge" :class="dhiStatus.cls">
           <span>🧭</span>

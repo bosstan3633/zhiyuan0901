@@ -685,7 +685,7 @@ function openSearchLocator(item: any) {
   } else if (item.type === 'task') {
     send('/compass/actions', { kind: 'task', id: item.id })
   } else {
-    // 好奇心/项目：跳首页抽屉由 CuriosityPanel 处理；项目走 CompassTree
+    // 好奇心/项目：跳知源罗盘抽屉由 CuriosityPanel 处理；项目走 CompassTree
     send('/', { kind: item.type === 'curio' ? 'curio' : 'project', id: item.id })
   }
   closeOverlay()
@@ -735,7 +735,7 @@ function openSearchResult(item: any) {
     showToast('↗ 已定位到今日行动的任务')
   } else {
     try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: '/?hl=' + item.id }) } catch {}
-    showToast('↗ 已定位到首页好奇心')
+    showToast('↗ 已定位到知源罗盘好奇心')
   }
   closeOverlay()
 }

@@ -859,7 +859,7 @@ onUnmounted(() => {
 <template>
   <div class="actions-page">
     <div class="page-head">
-      <div class="crumb">知源罗盘 <span class="sep">/</span> <b>今日行动</b> · 让轨迹被自己看见</div>
+      <div class="crumb">知源引擎 <span class="sep">/</span> <b>今日行动</b> · 让轨迹被自己看见</div>
       <div class="spacer" />
       <div class="hint-chip">今日三件事呼吸灯 · 聚焦不抢眼</div>
     </div>

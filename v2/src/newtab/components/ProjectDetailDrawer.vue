@@ -177,7 +177,7 @@ function removeTask(taskId: string) {
       </div>
       <button class="pd-add-metric" @click="addMetric">＋ 添加成功指标</button>
 
-      <div class="pd-sync-hint">💡 此处编辑实时写回罗盘，知源罗盘二级界面同步生效</div>
+      <div class="pd-sync-hint">💡 此处编辑实时写回知源罗盘，知源引擎二级界面同步生效</div>
     </template>
   </Drawer>
 

@@ -78,7 +78,7 @@ export function throttle<T extends (...args: unknown[]) => void>(fn: T, ms: numb
   }) as T
 }
 
-/** H1：工作台快捷键有效映射——显式 hotkey 优先，其余按顺序自动分配 2-9（1 保留给知源罗盘） */
+/** H1：工作台快捷键有效映射——显式 hotkey 优先，其余按顺序自动分配 2-9（1 保留给知源引擎） */
 export function effectiveWsHotkeys(workspaces: { id: string; hotkey?: number }[]): Map<string, number> {
   const used = new Set<number>()
   const explicit = new Map<string, number>()

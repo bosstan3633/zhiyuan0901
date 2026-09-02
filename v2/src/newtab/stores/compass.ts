@@ -6,7 +6,7 @@ import type { Direction, Project } from '@/shared/models'
 export { recordResourceOpen } from '@/shared/storage/stats'
 
 /**
- * 知源罗盘数据管理
+ * 知源引擎数据管理
  * 六层链：Vision → Mission → Direction(战略目标) → Project(攻坚项目) → Metric(成功指标) → Task
  */
 export function useCompass() {

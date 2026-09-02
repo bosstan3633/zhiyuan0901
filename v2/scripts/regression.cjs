@@ -87,10 +87,10 @@ check('B28 原生 confirm 全清除', () => { let n = 0; ['newtab/views/Workspac
 check('O22 使用手册完整内容（外置数据）', () => read('/newtab/manual-data.ts').includes('quick-1') && read('/newtab/manual-data.ts').includes('ref-2') && !read('/newtab/views/GlobalSettings.vue').includes('占位内容'));
 check('产品 logo 替换（首页+关于页+扩展图标）', () => read('/newtab/App.vue').includes('logoUrl') && read('/newtab/views/GlobalSettings.vue').includes('logoUrl') && fs.existsSync(base + '/assets/logo.png'));
 
-check('manifest 2.14.1', () => read('/manifest.ts').includes("version: '2.14.1'"));
-check('关于页 V2.14.1（动态读取 manifest.version）', () => {
+check('manifest 2.14.2', () => read('/manifest.ts').includes("version: '2.14.2'"));
+check('关于页 V2.14.2（动态读取 manifest.version）', () => {
   const gs = read('/newtab/views/GlobalSettings.vue')
-  return gs.includes('runtimeVersion') && !gs.includes('V2.14.0')
+  return gs.includes('runtimeVersion') && !gs.includes('V2.14.0') && !gs.includes('V2.14.1')
 });
 
 console.log('【第七轮】');
@@ -386,7 +386,7 @@ check('R36-8 REQ-038-② App.vue 订阅保存错误转发 Toast', () => { const 
 
 console.log('【第卅六轮 · V2.14.1 第二批：REQ-039 全局搜索交互统一（P1 方案）】');
 check('R36-9 REQ-039-① bus 极简事件中心（避免引入 mitt）', () => { const src = read('/shared/utils/bus.ts'); return src.includes('onOpenDrawer') && src.includes('emitOpenDrawer') && src.includes('DrawerPayload'); });
-check('R36-10 REQ-039-② 新建 ResourceDetailDrawer.vue（只读预览 + 全屏编辑按钮）', () => { const src = read('/newtab/components/ResourceDetailDrawer.vue'); return src.includes('rdd-drawer') && src.includes('jumpToWorkspaceEdit') && src.includes('只读'); });
+check('R36-10 REQ-039-② ResourceDetailDrawer 存在且支持编辑保存（R37 升级覆盖只读断言）', () => { const src = read('/newtab/components/ResourceDetailDrawer.vue'); return src.includes('function save') && src.includes('store.persist'); });
 check('R36-11 REQ-039-③ CompassActions 接 kind=task 抽屉总线', () => { const src = read('/newtab/views/CompassActions.vue'); return src.includes('onOpenDrawer') && src.includes("if (p.kind === 'task')"); });
 check('R36-12 REQ-039-③ CuriosityPanel 接 kind=curio 抽屉总线', () => { const src = read('/newtab/components/compass/CuriosityPanel.vue'); return src.includes('onOpenDrawer') && src.includes("if (p.kind === 'curio')"); });
 check('R36-13 REQ-039-③ CompassTree 接 kind=project 抽屉总线', () => { const src = read('/newtab/views/CompassTree.vue'); return src.includes('onOpenDrawer') && src.includes("if (p.kind === 'project')"); });
@@ -397,8 +397,8 @@ check('R36-17 REQ-039 Enter 键走单击行为（runFlatLocator 而非 runFlat�
 
 console.log('【第卅六轮 · V2.14.1 第三批：REQ-041 产品文案与对外呈现】');
 check("R36-18 REQ-041-① README.md（GitHub 根）不再含 V3.1 演进对照", () => { const src = read('/../../README.md'); return !src.includes('V3.1') && !src.includes('演进对照') && !src.includes('回归 218/218') && !src.includes('V2.13.0'); });
-check("R36-19 REQ-041-② v2/README.md 含产品定位与对位叙事（按 April Dunford 视角落地）", () => { const src = read('/../README.md'); return src.includes('AI 时代的个人资源调度层') || src.includes('AI 工具爆炸') || src.includes('个人资源调度层'); });
-check('R36-20 REQ-041-③ ManualPage 头部版本 V2.14.1', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.14.1'); });
+check("R36-19 REQ-041-② v2/README.md 含产品定位与对位叙事（按 April Dunford 视角落地）", () => { const src = read('/../README.md'); return src.includes('个人资源调度台与认知增强系统') || src.includes('April Dunford'); });
+check('R36-20 REQ-041-③ ManualPage 头部版本 V2.14.2', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.14.2'); });
 check("R36-21 REQ-041-① 根 README 按「是什么/给谁用/解决什么/如何解决」重写", () => { const src = read('/../../README.md'); return src.includes('## 它是什么') && src.includes('## 它给谁用') && src.includes('## 它解决什么问题') && src.includes('资源失血症'); });
 check("R36-22 REQ-041-③ 使用手册「速览」篇新增定位与六动作（quick-1 / quick-2）", () => { const src = read('/newtab/manual-data.ts'); return src.includes("id: 'quick-1'") && src.includes("id: 'quick-2'") && src.includes('它是什么') && src.includes('六个核心动作'); });
 check('R36-23 两份 README 的相对文档链接无死链（防止文档导航撒谎）', () => {
@@ -411,6 +411,23 @@ check('R36-23 两份 README 的相对文档链接无死链（防止文档导航�
   }
   return total >= 5;
 });
+
+// ============== 第卅七轮 · V2.14.2 抽屉可编辑 + 命名体系 + 定位文案（REQ-042~044） ==============
+console.log('【第卅七轮 · V2.14.2 第一批：REQ-042 搜索抽屉升级（可编辑 + 共享 Drawer + 删除）】');
+check('R37-1 REQ-042 ResourceDetailDrawer 改用共享 Drawer.vue 容器', () => { const s = read('/newtab/components/ResourceDetailDrawer.vue'); return s.includes("import Drawer from '@/shared/components/Drawer.vue'") && s.includes('<Drawer'); });
+check('R37-2 REQ-042 抽屉内嵌完整编辑表单（标题/工作台/分类/TagPicker）', () => { const s = read('/newtab/components/ResourceDetailDrawer.vue'); return s.includes('editing.title') && s.includes('editing.workspaceId') && s.includes('editing.categoryId') && s.includes('TagPicker') && s.includes('editing.description'); });
+check('R37-3 REQ-042 抽屉删除 = 软删 deletedAt + 撤销', () => { const s = read('/newtab/components/ResourceDetailDrawer.vue'); return s.includes('deletedAt = Date.now()') && s.includes("label: '撤销'") && s.includes('function remove'); });
+check('R37-4 REQ-042 抽屉总线触发（onOpenDrawer kind=res）保留', () => { const s = read('/newtab/components/ResourceDetailDrawer.vue'); return s.includes('onOpenDrawer') && s.includes("p.kind !== 'res'"); });
+console.log('【第卅七轮 · V2.14.2 第二批：REQ-043 命名体系（首页→知源罗盘 / 知源罗盘→知源引擎）】');
+check('R37-5 REQ-043 导航 Tab：首页→知源罗盘、知源罗盘→知源引擎', () => { const s = read('/newtab/App.vue'); return s.includes('>知源罗盘') && s.includes('知源引擎<span'); });
+check('R37-6 REQ-043 路由 meta：home=知源罗盘、compass 三子页=知源引擎', () => { const s = read('/newtab/router.ts'); return s.includes("title: '知源工作台 · 知源罗盘'") && s.includes("title: '知源引擎 · 今日行动'") && s.includes("title: '知源引擎 · 项目策展'") && s.includes("title: '知源引擎 · 方向树'"); });
+check('R37-7 REQ-043 好奇心卡归属名保持「知源罗盘」（首页即知源罗盘，归属自洽）', () => { const s1 = read('/content/search-overlay.ts'); const s2 = read('/newtab/components/GlobalPopups.vue'); return s1.includes("ws: '知源罗盘'") && s2.includes("ws: '知源罗盘'"); });
+check('R37-8 REQ-043 使用手册命名统一（含知源引擎与知源罗盘新章节标题，无旧「首页：30 秒」）', () => { const s = read('/newtab/manual-data.ts'); return s.includes('知源引擎') && s.includes('知源罗盘：30 秒方向确认仪式') && !s.includes('首页：30 秒方向确认仪式') && !s.includes('🏠 首页（看方向'); });
+console.log('【第卅七轮 · V2.14.2 第三批：REQ-044 定位文案深化 + 竞品对比】');
+check('R37-9 REQ-044 新定位「个人资源调度台与认知增强系统」三处统一（README/v2/手册）', () => { const r1 = read('/../../README.md'); const r2 = read('/../README.md'); const m = read('/newtab/manual-data.ts'); return r1.includes('个人资源调度台与认知增强系统') && r2.includes('个人资源调度台与认知增强系统') && m.includes('个人资源调度台与认知增强系统'); });
+check('R37-10 REQ-044 手册新增「它与同类相比 · 独特价值」节（quick-3）', () => { const s = read('/newtab/manual-data.ts'); return s.includes("id: 'quick-3'") && s.includes('直接竞品') && s.includes('间接竞品'); });
+check('R37-11 REQ-044 根 README 竞品对比增强（直接竞品/间接竞品两表）', () => { const s = read('/../../README.md'); return s.includes('### 直接竞品') && s.includes('### 间接竞品') && s.includes('Notion') && s.includes('Flomo'); });
+check('R37-12 REQ-044 旧浅表述「17 个 AI 工具入口」已从 README 移除', () => { const r1 = read('/../../README.md'); const r2 = read('/../README.md'); return !r1.includes('17 个 AI 工具入口') && !r2.includes('17 个 AI 工具入口'); });
 
 console.log('');
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

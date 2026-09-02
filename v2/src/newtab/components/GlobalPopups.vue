@@ -89,7 +89,7 @@
                   <div class="gp-convert-menu-item" @click="convertCurio(item, 'task')">✅ 转化为任务卡</div>
                 </div>
               </div>
-              <button class="gp-ri-act go" title="跳转知源罗盘" @click.stop="openItem(item)">↗</button>
+              <button class="gp-ri-act go" title="跳转知源引擎" @click.stop="openItem(item)">↗</button>
             </template>
           </div>
           </div><!-- /gp-result-item -->
@@ -145,7 +145,7 @@
               <label class="gp-field-label">存入工作台</label>
               <select class="gp-status-select" v-model="capForm.workspaceId">
                 <option v-for="ws in userWorkspaces" :key="ws.id" :value="ws.id">{{ ws.icon }} {{ ws.name }}</option>
-                <option disabled>🧭 知源罗盘（系统）</option>
+                <option disabled>🧭 知源引擎（系统）</option>
                 <option disabled>✅ 任务中心（系统）</option>
               </select>
             </div>
@@ -656,7 +656,7 @@ function openItem(item: SearchResult) {
     showToast('↗ 已定位到今日行动的任务')
   } else {
     router.push({ path: '/', query: { hl: item.id } })
-    showToast('↗ 已定位到首页好奇心')
+    showToast('↗ 已定位到知源罗盘好奇心')
   }
   closeAll()
 }
@@ -727,7 +727,7 @@ const SHORTCUT_GROUPS = [
     { keys: 'Ctrl+Shift+K', desc: '打开工作台' },
   ]},
   { title: '应用内', items: [
-    { keys: 'Alt+1', desc: '知源罗盘（修饰键可自定义）' },
+    { keys: 'Alt+1', desc: '知源引擎（修饰键可自定义）' },
     { keys: 'Alt+2…9', desc: '各工作台' },
     { keys: '?', desc: '呼出本速查' },
   ]},

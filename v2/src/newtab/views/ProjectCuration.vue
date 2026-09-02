@@ -318,7 +318,7 @@ document.addEventListener('keydown', (e) => {
 <template>
   <div>
     <div class="page-head">
-      <div class="crumb">知源罗盘 <span class="sep">/</span> <b>项目策展</b> · 以项目为单位的全景展览</div>
+      <div class="crumb">知源引擎 <span class="sep">/</span> <b>项目策展</b> · 以项目为单位的全景展览</div>
       <div class="spacer" />
       <div class="hint-chip">拖拽排序 · 📡 投射灯塔自动置顶 · 点击展板进入全屏策展</div>
     </div>
@@ -497,7 +497,7 @@ document.addEventListener('keydown', (e) => {
         </div>
       </div>
       <button class="mini-btn primary" style="width:100%;padding:10px;justify-content:center" @click="addMetric()">＋ 添加成功指标（同步方向树）</button>
-      <div class="board-foot-hint">本展板与知源罗盘 · 方向树实时双向同步 · 任务完成自动回流指标进度与北极星 DHI</div>
+      <div class="board-foot-hint">本展板与知源引擎 · 方向树实时双向同步 · 任务完成自动回流指标进度与北极星 DHI</div>
     </div>
     </div>
 

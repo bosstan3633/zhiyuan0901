@@ -172,7 +172,7 @@ function deleteWorkspace() {
 }
 
 // ===== 全局快捷键 =====
-// Esc 关闭弹窗；Ctrl+1=知源罗盘、Ctrl+2/3…=工作台（修饰键可配置）；首页不设快捷键（刷新自动回首页）
+// Esc 关闭弹窗；Ctrl+1=知源引擎、Ctrl+2/3…=工作台（修饰键可配置）；知源罗盘不设快捷键（刷新自动回罗盘）
 // 第廿九轮拍板：快捷键跟随位置——switchToIndex 按导航顺序取工作台，拖动 Tab 调位后映射随之变化
 function isEditableTarget(e: KeyboardEvent): boolean {
   const t = e.target as HTMLElement | null
@@ -182,7 +182,7 @@ function isEditableTarget(e: KeyboardEvent): boolean {
 }
 
 function switchToIndex(n: number) {
-  // n=1 → 知源罗盘；n>=2 → 第 n-1 个工作台
+  // n=1 → 知源引擎；n>=2 → 第 n-1 个工作台
   if (n === 1) { openCompass(); return }
   const ws = store.workspaces[n - 2]
   if (ws) navigate(`/workspace/${ws.id}`)
@@ -294,7 +294,7 @@ onMounted(async () => {
 })
 onUnmounted(() => { window.removeEventListener('keydown', onGlobalKeydown, true) })
 
-// 角标 = 今日三件事未完成数（≤3），挂知源罗盘主 Tab
+// 角标 = 今日三件事未完成数（≤3），挂知源引擎主 Tab
 const taskBadge = computed(() => {
   if (!store.data) return 0
   const list = store.data.dailyFocus[dateKey(new Date())] || []
@@ -324,10 +324,10 @@ const backupReminderDot = computed(() => {
       <nav class="tabs">
         <!-- 固定页 -->
         <div class="tab" :class="{active: activeTab === 'home'}" @click="navigate('/')">
-          <img :src="logoUrl" class="home-logo" alt="知源工作台">首页
+          <img :src="logoUrl" class="home-logo" alt="知源工作台">知源罗盘
         </div>
         <div class="tab" :class="{active: activeTab === 'compass'}" @click="openCompass">
-          <Icon name="compass" :size="15" />知源罗盘<span v-if="taskBadge" class="badge">{{ taskBadge }}</span>
+          <Icon name="compass" :size="15" />知源引擎<span v-if="taskBadge" class="badge">{{ taskBadge }}</span>
         </div>
 
         <div class="tab-divider" />
