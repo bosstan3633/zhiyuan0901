@@ -186,7 +186,7 @@
               <div class="gs-er-info">
                 <div class="gs-er-name">自动提醒</div>
                 <div class="gs-er-desc">
-                  开启后，若 30 天未导出备份、或存储容量超过 5 MB 时，顶部右上角显示红点提醒。
+                  开启后，若 30 天未导出备份、或存储容量超过 50 MB 时，顶部右上角显示红点提醒。
                   {{ backupReminderEnabled ? '当前已启用' : '当前已关闭' }}
                   {{ lastBackupAt ? '· 上次导出：' + formatBackupAgo(lastBackupAt) : '· 尚无导出记录' }}
                 </div>

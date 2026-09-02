@@ -301,9 +301,10 @@ const taskBadge = computed(() => {
   return list.filter(s => !s.done).length
 })
 
-// 第卅六轮 REQ-038：备份提醒红点（30 天未导出 或 容量超 5 MB，且开关启用）
+// 第卅六轮 REQ-038：备份提醒红点（30 天未导出 或 容量超 50 MB，且开关启用）
+// 第卅八轮 V2.14.3：已申请 unlimitedStorage 容量不受限，5MB 提醒线失去意义 → 上调 50MB（用户拍板）
 const BACKUP_REMIND_DAYS = 30
-const BACKUP_REMIND_BYTES = 5 * 1024 * 1024
+const BACKUP_REMIND_BYTES = 50 * 1024 * 1024
 const bytesInUse = ref(0)
 async function refreshBytes() { bytesInUse.value = await getBytesInUse() }
 const backupReminderDot = computed(() => {
