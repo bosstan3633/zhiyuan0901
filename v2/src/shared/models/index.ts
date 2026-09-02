@@ -18,6 +18,20 @@ export type LinkType = 'url' | 'file' | 'obsidian'
 /** 来源类型（影响搜索排序权重，在卡片详情中设置） */
 export type SourceType = 'official' | 'academic' | 'media' | 'personal' | 'ai-tool' | 'own-work'
 
+// ============ 卡片附件（第卅九轮 REQ-048） ============
+
+/** 附件元数据：只存引用，二进制本体在 IndexedDB 库 zy_assets（key=assetId, value=Blob）
+ *  性能红线：主 JSON zy_data_v2 绝不存 base64——几百 MB 附件会击穿全量序列化/启动/跨页同步 */
+export interface AssetMeta {
+  id: ID
+  /** image=弹窗预览 / html=新标签打开（仅支持自包含单文件 HTML） */
+  kind: 'image' | 'html'
+  name: string
+  size: number
+  mime: string
+  createdAt: number
+}
+
 // ============ 六层思维链 ============
 
 /** 愿景 / 使命 节点（1:1 绑定） */
@@ -110,6 +124,8 @@ export interface ResourceCard {
   createdAt: number
   updatedAt: number
   deletedAt?: number
+  /** REQ-048：附件元数据（本体在 IndexedDB，仅存引用） */
+  assets?: AssetMeta[]
 }
 
 /** 任务卡（行动闭环） */
@@ -141,6 +157,8 @@ export interface TaskCard {
   updatedAt: number
   completedAt?: number
   deletedAt?: number
+  /** REQ-048：附件元数据（本体在 IndexedDB，仅存引用） */
+  assets?: AssetMeta[]
 }
 
 /** 好奇心卡（从好奇出发） */
@@ -167,6 +185,8 @@ export interface CuriosityCard {
   createdAt: number
   updatedAt: number
   deletedAt?: number
+  /** REQ-048：附件元数据（本体在 IndexedDB，仅存引用） */
+  assets?: AssetMeta[]
 }
 
 export type AnyCard = ResourceCard | TaskCard | CuriosityCard

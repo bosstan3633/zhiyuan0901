@@ -249,64 +249,17 @@
 
     <!-- 资源卡详情抽屉（单击打开） -->
     <div class="overlay" :class="{open: drawerOpen}" @click="closeDrawer"></div>
-    <div class="drawer" :class="{open: drawerOpen}" @keydown.ctrl.enter.prevent="saveResource" @keydown.meta.enter.prevent="saveResource">
-      <div class="dr-header">
-        <!-- 第卅三轮 REQ-015：标题 textarea 补 Ctrl+Enter 保存（此前仅链接/注解有） -->
-        <textarea class="dr-title" v-model="editingResource.title" rows="2" placeholder="资源卡标题..."
-          @keydown.ctrl.enter.prevent="saveResource" @keydown.meta.enter.prevent="saveResource"></textarea>
-        <div class="dr-close" @click="closeDrawer">×</div>
-      </div>
+    <div class="drawer" :class="{open: drawerOpen}">
+      <!-- 第卅九轮 #61：资源字段表单已抽至共享 ResourceEditForm（搜索抽屉 / 内联抽屉同源单份） -->
       <div class="dr-body">
-        <div class="dr-section">
-          <div class="dr-label">🔗 链接（双击卡片即可打开）</div>
-          <div class="dr-link-type">
-            <div class="dr-link-type-btn" :class="{active: editingResource.linkType==='url'}" @click="editingResource.linkType='url'">🔗 URL</div>
-            <div class="dr-link-type-btn" :class="{active: editingResource.linkType==='file'}" @click="editingResource.linkType='file'">📁 本地文件</div>
-            <div class="dr-link-type-btn" :class="{active: editingResource.linkType==='obsidian'}" @click="editingResource.linkType='obsidian'">📝 Obsidian</div>
-          </div>
-          <input type="text" class="dr-link-input" v-model="editingResource.link" :placeholder="linkPlaceholder"
-            @keydown.ctrl.enter.prevent="saveResource" @keydown.meta.enter.prevent="saveResource">
-          <div v-if="editingResource.linkType==='file' && editingResource.link && !isFullPath(editingResource.link)" class="dr-warn">
-            ⚠ 当前仅存文件名，双击打开前请补全完整路径（如 D:\docs\file.pdf）
-          </div>
-        </div>
-        <div class="dr-section">
-          <div class="dr-label">🗂 所属工作台（切换保存后即跨工作台迁移）</div>
-          <select class="dr-category-select" v-model="editingResource.workspaceId" @change="onDrawerWorkspaceChange">
-            <option v-for="w in drawerWsOptions" :key="w.id" :value="w.id">{{ w.name }}</option>
-          </select>
-        </div>
-        <div class="dr-section">
-          <div class="dr-label">📁 所属分类（随所属工作台联动）</div>
-          <select class="dr-category-select" v-model="editingResource.categoryId">
-            <option value="">📥 待分类</option>
-            <option v-for="opt in drawerCatOptions" :key="opt.id" :value="opt.id">📂 {{ opt.label }}</option>
-          </select>
-        </div>
-        <div class="dr-section">
-          <div class="dr-label"># 标签（来自标签管理体系）</div>
-          <TagPicker v-model="editingResource.tags" />
-        </div>
-        <div class="dr-section">
-          <div class="dr-label">📝 我的注解</div>
-          <div class="ta-wrap">
-            <textarea class="dr-note" v-model="editingResource.description" :style="{ height: noteH + 'px' }" placeholder="对这个资源的注解、思考、摘录..."
-              @keydown.ctrl.enter.prevent="saveResource" @keydown.meta.enter.prevent="saveResource"></textarea>
-            <div class="ta-resize" @mousedown="startNoteResize" title="拖拽调节高度（记忆保存）"></div>
-          </div>
-        </div>
-        <div class="dr-section">
-          <div class="dr-label">📋 被任务挂载（只读）</div>
-          <div class="dr-mounted-list">
-            <div v-for="t in mountedTasks" :key="t.id" class="dr-mounted-item" @click="goToTask(t)">
-              <span class="mi-icon">📋</span> {{ t.title }}
-            </div>
-            <div v-if="!mountedTasks.length" class="dr-empty">暂无任务挂载此资源</div>
-          </div>
-        </div>
-        <div v-if="editingResource.createdAt" class="dr-section">
-          <div class="dr-time-text">🕐 创建 {{ fmtTs(editingResource.createdAt) }} ｜ 更新 {{ fmtTs(editingResource.updatedAt) }}</div>
-        </div>
+        <ResourceEditForm
+          :model="editingResource"
+          height-key="ws-note"
+          :show-close="true"
+          @save="saveResource"
+          @goto-task="goToTask"
+          @close="closeDrawer"
+        />
       </div>
       <div class="dr-footer">
         <button class="dr-footer-btn danger" @click="deleteCurrentResource">🗑 删除</button>
@@ -481,11 +434,10 @@ import { recordResourceOpen } from '@/shared/storage/stats'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
-import { useTaHeight } from '@/shared/utils/taHeight'
 import { uid, safeDecodeText } from '@/shared/utils'
-import TagPicker from '@/shared/components/TagPicker.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
+import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
 import { useConfirm } from '@/shared/components/confirm'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import { markRank } from '@/shared/utils/marksort'
@@ -674,9 +626,6 @@ function resourcesByCategory(catId: string) {
 }
 
 // ===== 链接打开（E1：双击 = 打开链接；第卅二轮 REQ-010 归一化逻辑统一在 shared/utils/link） =====
-function isFullPath(link: string): boolean {
-  return /^([a-zA-Z]:[\\/]|file:\/\/|\/)/.test(link.trim())
-}
 /** 第卅二轮 REQ-010：打开通道统一下沉至 shared/utils/link（URL→file→obsidian 按 linkType 归一化；file 仅文件名=不可打开） */
 function openResourceLink(r: ResourceCard) {
   const url = toOpenableUrl(r.linkType, r.link)
@@ -703,15 +652,8 @@ const drawerOpen = ref(false)
 const editingResource = reactive<ResourceCard>(emptyResource())
 const isNewResource = ref(false)
 
-// ===== 第卅二轮 REQ-004/005：详情抽屉「所属工作台」字段 + 分类联动 =====
-const drawerWsOptions = computed(() => d.value.workspaces.filter(w => !w.archived))
-/** 分类选项随抽屉中所选工作台联动（REQ-005：仅展示目标工作台的分类集合） */
-const drawerCatOptions = computed(() => treeCatOptions(d.value.categories.filter(c => c.workspaceId === editingResource.workspaceId)))
-let drawerOriginalWsId = ''
-/** REQ-005：更换工作台后分类重置（目标工作台分类集合不同，防跨台分类残留） */
-function onDrawerWorkspaceChange() {
-  editingResource.categoryId = ''
-}
+// 表单主体已抽至共享 ResourceEditForm（REQ-042/#61）；此处仅保留宿主动作：打开/保存/删除/复制/跳转
+let drawerOriginalWsId = '' // REQ-004：跨工作台迁移检测基准（打开/新建时记录）
 
 function emptyResource(): ResourceCard {
   return { id: '', kind: 'resource', title: '', linkType: 'url', link: '', workspaceId: workspaceId.value, categoryId: '', description: '', tags: [], customFields: {}, pinned: false, callCount: 0, createdAt: 0, updatedAt: 0 }
@@ -744,11 +686,6 @@ function openResource(r: ResourceCard) {
   recordResourceOpen(d.value, r)
   store.persist()
 }
-/** 第卅二轮 REQ-006：详情面板时间戳可见 */
-function fmtTs(ts?: number): string {
-  return ts ? new Date(ts).toLocaleString('zh-CN', { hour12: false }) : '—'
-}
-
 function closeDrawer() { drawerOpen.value = false }
 function saveResource() {
   if (!editingResource.title.trim()) { showToast('请输入标题'); return }
@@ -804,20 +741,11 @@ function toggleStar(r: ResourceCard) {
   store.persist()
   showToast(r.starred ? '⭐ 已星标，搜索时优先展示' : '已取消星标')
 }
-/** 第卅三轮 REQ-024：注解文本框高度（默认 180px，拖拽记忆） */
-const { taH: noteH, startTaResize: startNoteResize } = useTaHeight('ws-note', store.ui)
 function copyLink() {
   if (!editingResource.link) { showToast('无链接'); return }
   navigator.clipboard.writeText(editingResource.link).then(() => showToast('✓ 链接已复制'))
 }
-
-// ===== 标签（TagPicker 统一入口，抽屉内直接编辑） =====
-function removeTag(i: number) { editingResource.tags.splice(i, 1) }
-
-// ===== 被任务挂载 =====
-const mountedTasks = computed(() => {
-  return d.value.tasks.filter(t => !t.deletedAt && (t.mountedResourceIds||[]).includes(editingResource.id))
-})
+// 挂载任务点击（共享表单 emit goto-task）→ 跳任务中心
 function goToTask(t: TaskCard) {
   router.push('/compass/actions')
   showToast(`已跳转任务中心：${t.title}`)
@@ -1554,11 +1482,6 @@ function linkDisplay(link: string) {
   const parts = link.split(/[\\/]/)
   return parts[parts.length-1].substring(0,25)
 }
-const linkPlaceholder = computed(() => {
-  if (editingResource.linkType === 'url') return 'https://...'
-  if (editingResource.linkType === 'file') return 'D:\\path\\to\\file.pdf'
-  return 'obsidian://open?vault=...'
-})
 
 // ===== 工具 =====
 // uid 已从 @/shared/utils 导入（此前为本地重复实现，已统一）
@@ -1800,39 +1723,7 @@ const linkPlaceholder = computed(() => {
 .overlay.open { opacity: 1; pointer-events: auto; }
 .drawer { position: fixed; top: 0; right: 0; width: 440px; height: 100%; background: var(--surface); z-index: 201; transform: translateX(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); box-shadow: 0 10px 36px rgba(0,0,0,.08); display: flex; flex-direction: column; }
 .drawer.open { transform: translateX(0); }
-.dr-header { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; }
-.dr-title { flex: 1; font-size: 15px; font-weight: 600; color: var(--text); border: none; outline: none; background: transparent; font-family: inherit; line-height: 1.4; resize: none; min-height: 40px; }
-.dr-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 18px; transition: all .15s; flex-shrink: 0; }
-.dr-close:hover { background: var(--surface-3); color: var(--text); }
 .dr-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
-.dr-section { margin-bottom: 16px; }
-.dr-label { font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 7px; display: flex; align-items: center; gap: 5px; }
-.dr-warn { margin-top: 7px; font-size: 11px; color: var(--tag-warn-text); background: var(--tag-warn-bg); padding: 7px 10px; border-radius: 6px; line-height: 1.5; }
-.dr-link-type { display: flex; gap: 6px; margin-bottom: 8px; }
-.dr-link-type-btn { padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all .15s; }
-.dr-link-type-btn.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); font-weight: 500; }
-.dr-link-input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; outline: none; font-family: inherit; transition: all .15s; background: var(--surface); color: var(--text); }
-.dr-link-input:focus { border-color: var(--accent); }
-.dr-category-select { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 6px; font-size: 12.5px; color: var(--text); cursor: pointer; transition: all .15s; border: 1px solid transparent; outline: none; }
-.dr-category-select:hover { border-color: var(--border); background: var(--surface); }
-.dr-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.dr-tag { display: flex; align-items: center; gap: 4px; padding: 3px 9px; background: var(--accent-light); border-radius: 99px; font-size: 11px; color: var(--accent); }
-.dr-tag .remove { cursor: pointer; opacity: .6; font-size: 10px; }
-.dr-tag .remove:hover { opacity: 1; }
-.dr-tag-add { font-size: 11px; color: var(--text-3); cursor: pointer; padding: 3px 9px; border: 1px dashed var(--border-strong); border-radius: 99px; transition: all .15s; }
-.dr-tag-add:hover { color: var(--accent); border-color: var(--accent); }
-.dr-note { width: 100%; min-height: 80px; max-height: 420px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; outline: none; font-family: inherit; resize: vertical; line-height: 1.6; transition: all .15s; background: var(--surface); color: var(--text); }
-.dr-note:focus { border-color: var(--accent); }
-/* 第卅三轮 REQ-024：文本框拖拽手柄（右下角），高度经 UIPrefs.taHeights 记忆 */
-.ta-wrap { position: relative; }
-.ta-resize { position: absolute; right: 3px; bottom: 3px; width: 16px; height: 12px; cursor: ns-resize; z-index: 2; opacity: .45; border-right: 3px solid var(--text-3); border-bottom: 3px solid var(--text-3); border-bottom-right-radius: 3px; }
-.ta-resize:hover { opacity: .9; }
-.dr-mounted-list { display: flex; flex-direction: column; gap: 5px; }
-.dr-mounted-item { padding: 7px 10px; background: var(--surface-2); border-radius: 6px; font-size: 11.5px; color: var(--text-2); cursor: pointer; transition: all .1s; display: flex; align-items: center; gap: 6px; }
-.dr-mounted-item:hover { background: var(--accent-light); color: var(--accent); }
-.dr-mounted-item .mi-icon { font-size: 12px; }
-.dr-empty { padding: 10px; text-align: center; color: var(--text-3); font-size: 11px; }
-.dr-time-text { font-size: 11px; color: var(--text-3); }
 .dr-footer { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
 .dr-footer-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px; border-radius: 8px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all .15s; font-family: inherit; }
 .dr-footer-btn:hover { border-color: var(--accent); color: var(--accent); }

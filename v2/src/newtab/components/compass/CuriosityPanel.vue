@@ -3,11 +3,12 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCuriosity, type CuriStatus } from '../../stores/curiosity'
 import { useAppStore } from '../../stores/app'
-import type { CuriosityCard } from '@/shared/models'
+import type { CuriosityCard, AssetMeta } from '@/shared/models'
 import ModuleCard from '@/shared/components/ModuleCard.vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import { showToast } from '@/shared/components/toast'
 import TagPicker from '@/shared/components/TagPicker.vue'
+import AssetManager from '@/shared/components/AssetManager.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { saveUIPrefs } from '@/shared/storage/repository'
@@ -117,6 +118,10 @@ function saveDetail() {
     showToast('✓ 已更新')
     detailId.value = null // 第卅三轮 REQ-015：保存后关闭抽屉
   }
+}
+/** REQ-048：好奇心附件变更即时持久化 */
+function onCurioAssetsChange(v: AssetMeta[]) {
+  if (detailId.value) update(detailId.value, { assets: v })
 }
 
 // ---- 置顶 ----
@@ -487,6 +492,10 @@ function fmtDate(ts?: number) {
         <div class="detail-link-add">
           <input v-model="detailItem.sourceUrl" placeholder="链接（网页 / 本地路径 / obsidian://，双击卡片直达）…" class="detail-link-input" />
           <button class="mini-btn" @click="update(detailItem.id, { sourceUrl: detailItem.sourceUrl })">保存链接</button>
+        </div>
+        <div style="margin-top:14px">
+          <div style="font-size:11px;font-weight:600;color:var(--text-3);margin-bottom:7px">📎 附件（图片弹窗预览 / HTML 新标签打开）</div>
+          <AssetManager v-model="detailItem.assets" @update:model-value="onCurioAssetsChange" />
         </div>
         <div class="detail-tags" style="margin-top:14px">
           <div style="font-size:11px;font-weight:600;color:var(--text-3);margin-bottom:7px">🏷 标签（来自标签管理体系）</div>

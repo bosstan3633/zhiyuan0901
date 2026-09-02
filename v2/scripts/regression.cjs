@@ -87,8 +87,8 @@ check('B28 原生 confirm 全清除', () => { let n = 0; ['newtab/views/Workspac
 check('O22 使用手册完整内容（外置数据）', () => read('/newtab/manual-data.ts').includes('quick-1') && read('/newtab/manual-data.ts').includes('ref-2') && !read('/newtab/views/GlobalSettings.vue').includes('占位内容'));
 check('产品 logo 替换（首页+关于页+扩展图标）', () => read('/newtab/App.vue').includes('logoUrl') && read('/newtab/views/GlobalSettings.vue').includes('logoUrl') && fs.existsSync(base + '/assets/logo.png'));
 
-check('manifest 2.14.3', () => read('/manifest.ts').includes("version: '2.14.3'"));
-check('关于页 V2.14.3（动态读取 manifest.version）', () => {
+check('manifest 2.15.0', () => read('/manifest.ts').includes("version: '2.15.0'"));
+check('关于页 V2.15.0（动态读取 manifest.version）', () => {
   const gs = read('/newtab/views/GlobalSettings.vue')
   return gs.includes('runtimeVersion') && !gs.includes('V2.14.0') && !gs.includes('V2.14.1') && !gs.includes('V2.14.2')
 });
@@ -216,7 +216,7 @@ console.log('【第十三轮 · V2.2.0 正式版】');
 check('V13-1 任务卡链接字段 + 单/双击统一', () => read('/shared/models/index.ts').includes('link?: string') && read('/newtab/views/CompassActions.vue').includes('onTaskRowDblClick') && read('/newtab/views/CompassActions.vue').includes('openCardLink'));
 check('V13-2 任务抽屉链接+备注（可拖拽调高）', () => read('/newtab/views/CompassActions.vue').includes('selectedTask.link') && read('/newtab/views/CompassActions.vue').includes('selectedTask.description') && read('/newtab/views/CompassActions.vue').includes('.ts-note {'));
 check('V13-3 好奇心链接口径（sourceUrl+本地路径直达）', () => read('/newtab/components/compass/CuriosityPanel.vue').includes('toOpenableCurioLink') && read('/newtab/components/compass/CuriosityPanel.vue').includes('链接（网页 / 本地路径 / obsidian://，双击卡片直达）'));
-check('V13-4 文本框可拖拽调高（三卡详情）', () => read('/newtab/views/Workspace.vue').includes('.dr-note { width: 100%; min-height: 80px; max-height: 420px;') && read('/newtab/components/compass/CuriosityPanel.vue').includes('max-height: 400px') && read('/newtab/views/CompassActions.vue').includes('max-height: 320px'));
+check('V13-4 文本框可拖拽调高（三卡详情）', () => read('/newtab/components/ResourceEditForm.vue').includes('.ref-note {') && read('/newtab/components/compass/CuriosityPanel.vue').includes('max-height: 400px') && read('/newtab/views/CompassActions.vue').includes('max-height: 320px'));
 check('V13-5 罗盘子页 out-in 过渡移除（切换即时）', () => !read('/newtab/views/CompassShell.vue').includes('mode="out-in"'));
 check('V13-6 刷新骨架品牌动画保留（仅加载时）', () => read('/../src/newtab/index.html').includes('zy-skl'));
 
@@ -257,10 +257,10 @@ check('R32-1 REQ-001 战略目标层投射已移除（函数与字段三清）',
 check('R32-1b REQ-001 愿景/使命/项目投射保留（用户拍板）', () => read('/newtab/views/CompassTree.vue').includes('toggleVisionProjection') && read('/newtab/views/CompassTree.vue').includes('toggleMissionProjection') && read('/newtab/views/CompassTree.vue').includes('toggleProjProjection'));
 check('R32-1c REQ-001 DHI 口径=已投射项目', () => read('/newtab/stores/compass.ts').includes('pinnedProjects') && read('/newtab/stores/compass.ts').includes('已投射至灯塔的项目'));
 check('R32-2 REQ-003 方向树项目卡打开项目全景抽屉', () => read('/newtab/views/CompassTree.vue').includes('openProjectDrawer') && read('/newtab/views/CompassTree.vue').includes('ProjectDetailDrawer'));
-check('R32-3 REQ-004 资源详情抽屉所属工作台字段+迁移反馈', () => read('/newtab/views/Workspace.vue').includes('drawerWsOptions') && read('/newtab/views/Workspace.vue').includes('onDrawerWorkspaceChange') && read('/newtab/views/Workspace.vue').includes('已保存并迁移至'));
-check('R32-4 REQ-005 分类随工作台联动重置', () => read('/newtab/views/Workspace.vue').includes('drawerCatOptions') && read('/newtab/views/Workspace.vue').includes("editingResource.categoryId = ''"));
+check('R32-3 REQ-004 资源详情抽屉所属工作台字段+迁移反馈', () => read('/newtab/components/ResourceEditForm.vue').includes('wsOptions') && read('/newtab/components/ResourceEditForm.vue').includes('model.workspaceId') && read('/newtab/views/Workspace.vue').includes('已保存并迁移至'));
+check('R32-4 REQ-005 分类随工作台联动重置', () => read('/newtab/components/ResourceEditForm.vue').includes('catOptions') && read('/newtab/components/ResourceEditForm.vue').includes("model.categoryId = ''"));
 check('R32-5 REQ-006 CSV 导出含更新时间列', () => read('/newtab/views/GlobalSettings.vue').includes("'创建时间', '更新时间'"));
-check('R32-5b REQ-006 三卡详情面板时间戳可见', () => read('/newtab/views/Workspace.vue').includes('fmtTs') && read('/newtab/views/CompassActions.vue').includes('fmtTaskTs') && read('/newtab/components/compass/CuriosityPanel.vue').includes('更新于'));
+check('R32-5b REQ-006 三卡详情面板时间戳可见', () => read('/newtab/components/ResourceEditForm.vue').includes('fmtTs') && read('/newtab/views/CompassActions.vue').includes('fmtTaskTs') && read('/newtab/components/compass/CuriosityPanel.vue').includes('更新于'));
 check('R32-6 REQ-007 排序偏好记忆（res/task/curio 三键）', () => read('/newtab/views/Workspace.vue').includes('sortPrefs?.res?.by') && read('/newtab/views/CompassActions.vue').includes('sortPrefs?.task?.by') && read('/newtab/components/compass/CuriosityPanel.vue').includes('sortPrefs?.curio?.dir'));
 check('R32-6b REQ-007+bug 任务排序下拉此前未生效，已补排序逻辑', () => read('/newtab/views/CompassActions.vue').includes("if (sortBy.value !== 'manual')") && read('/newtab/views/CompassActions.vue').includes("sortDir.value === 'asc' ? 1 : -1"));
 check('R32-7 REQ-008 应用内搜索命中工作台实体', () => read('/newtab/components/GlobalPopups.vue').includes("type: 'ws'") && read('/newtab/components/GlobalPopups.vue').includes('工作台条目'));
@@ -292,10 +292,10 @@ check('R33-8 REQ-020 星标卡图标呈现（看板/列表/卡片角标）', () 
 check('R33-9 REQ-020 双标记独立可叠加（置顶卡不因星标降级）', () => read('/shared/utils/marksort.ts').includes('if (c.pinned) return 2') && read('/shared/utils/marksort.ts').includes('if (c.starred) return 1'));
 
 console.log('【第卅三轮 · V2.12 需求包第三批：交互补齐 · REQ-015/017/024】');
-check('R33-10 REQ-015 三卡抽屉 Ctrl+Enter 保存统一（资源标题/好奇/任务 Toast）', () => read('/newtab/views/Workspace.vue').split('@keydown.ctrl.enter.prevent="saveResource"').length >= 2 && read('/newtab/components/compass/CuriosityPanel.vue').includes('@keydown.ctrl.enter.prevent="saveDetail"') && read('/newtab/components/compass/CuriosityPanel.vue').includes('detailId.value = null') && read('/newtab/views/CompassActions.vue').includes("showToast('✓ 已保存')"));
+check('R33-10 REQ-015 三卡抽屉 Ctrl+Enter 保存统一（资源标题/好奇/任务 Toast）', () => read('/newtab/components/ResourceEditForm.vue').split('emit(\'save\')').length >= 2 && read('/newtab/components/compass/CuriosityPanel.vue').includes('@keydown.ctrl.enter.prevent="saveDetail"') && read('/newtab/components/compass/CuriosityPanel.vue').includes('detailId.value = null') && read('/newtab/views/CompassActions.vue').includes("showToast('✓ 已保存')"));
 check('R33-11 REQ-017 关联卡片卡片化（lc-ico/lc-text 两行截断，非胶囊）', () => read('/newtab/views/CompassTree.vue').includes('lc-ico') && read('/newtab/views/CompassTree.vue').includes('-webkit-line-clamp: 2') && read('/newtab/views/CompassTree.vue').includes('border-radius: var(--radius-sm)'));
-check('R33-12 REQ-024 文本框高度记忆（UIPrefs.taHeights + 三组件接线）', () => read('/shared/models/index.ts').includes('taHeights?: Record<string, number>') && read('/shared/utils/taHeight.ts').includes('saveUIPrefs') && read('/newtab/views/Workspace.vue').includes("useTaHeight('ws-note'") && read('/newtab/views/CompassActions.vue').includes("useTaHeight('task-note'") && read('/newtab/components/compass/CuriosityPanel.vue').includes("useTaHeight('curio-detail'"));
-check('R33-12b REQ-024 默认高度加大（180px 起步 + 拖拽手柄三处）', () => read('/shared/utils/taHeight.ts').includes('def = 180') && read('/newtab/views/Workspace.vue').split('.ta-resize').length >= 2 && read('/newtab/views/CompassActions.vue').split('.ta-resize').length >= 2 && read('/newtab/components/compass/CuriosityPanel.vue').split('.ta-resize').length >= 2);
+check('R33-12 REQ-024 文本框高度记忆（UIPrefs.taHeights + 三组件接线）', () => read('/shared/models/index.ts').includes('taHeights?: Record<string, number>') && read('/shared/utils/taHeight.ts').includes('saveUIPrefs') && read('/newtab/components/ResourceEditForm.vue').includes("useTaHeight(props.heightKey") && read('/newtab/views/Workspace.vue').includes('height-key="ws-note"') && read('/newtab/views/CompassActions.vue').includes("useTaHeight('task-note'") && read('/newtab/components/compass/CuriosityPanel.vue').includes("useTaHeight('curio-detail'"));
+check('R33-12b REQ-024 默认高度加大（180px 起步 + 拖拽手柄三处）', () => read('/shared/utils/taHeight.ts').includes('def = 180') && read('/newtab/components/ResourceEditForm.vue').includes('.ref-ta-resize') && read('/newtab/views/CompassActions.vue').split('.ta-resize').length >= 2 && read('/newtab/components/compass/CuriosityPanel.vue').split('.ta-resize').length >= 2);
 
 console.log('【第卅三轮 · V2.12 需求包第四批：结构改造 · REQ-016/018/021/022】');
 check('R33-13 REQ-016 共享任务添加抽屉（新建/关联双 Tab + Ctrl+Enter）', () => read('/newtab/components/TaskAddDrawer.vue').includes("tab === 'create'") && read('/newtab/components/TaskAddDrawer.vue').includes("tab === 'link'") && read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.ctrl.enter.prevent="createTask"') && read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.ctrl.enter.prevent="linkTasks"'));
@@ -398,7 +398,7 @@ check('R36-17 REQ-039 Enter 键走开链接（Ctrl+Enter 走定位+抽屉，R38 
 console.log('【第卅六轮 · V2.14.1 第三批：REQ-041 产品文案与对外呈现】');
 check("R36-18 REQ-041-① README.md（GitHub 根）不再含 V3.1 演进对照", () => { const src = read('/../../README.md'); return !src.includes('V3.1') && !src.includes('演进对照') && !src.includes('回归 218/218') && !src.includes('V2.13.0'); });
 check("R36-19 REQ-041-② v2/README.md 含产品定位与对位叙事（按 April Dunford 视角落地）", () => { const src = read('/../README.md'); return src.includes('个人资源调度台与认知增强系统') || src.includes('April Dunford'); });
-check('R36-20 REQ-041-③ ManualPage 头部版本 V2.14.3', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.14.3'); });
+check('R36-20 REQ-041-③ ManualPage 头部版本 V2.15.0', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.15.0'); });
 check("R36-21 REQ-041-① 根 README 按「是什么/给谁用/解决什么/如何解决」重写", () => { const src = read('/../../README.md'); return src.includes('## 它是什么') && src.includes('## 它给谁用') && src.includes('## 它解决什么问题') && src.includes('资源失血症'); });
 check("R36-22 REQ-041-③ 使用手册「速览」篇新增定位与六动作（quick-1 / quick-2）", () => { const src = read('/newtab/manual-data.ts'); return src.includes("id: 'quick-1'") && src.includes("id: 'quick-2'") && src.includes('它是什么') && src.includes('六个核心动作'); });
 check('R36-23 两份 README 的相对文档链接无死链（防止文档导航撒谎）', () => {
@@ -415,7 +415,7 @@ check('R36-23 两份 README 的相对文档链接无死链（防止文档导航�
 // ============== 第卅七轮 · V2.14.2 抽屉可编辑 + 命名体系 + 定位文案（REQ-042~044） ==============
 console.log('【第卅七轮 · V2.14.2 第一批：REQ-042 搜索抽屉升级（可编辑 + 共享 Drawer + 删除）】');
 check('R37-1 REQ-042 ResourceDetailDrawer 改用共享 Drawer.vue 容器', () => { const s = read('/newtab/components/ResourceDetailDrawer.vue'); return s.includes("import Drawer from '@/shared/components/Drawer.vue'") && s.includes('<Drawer'); });
-check('R37-2 REQ-042 抽屉内嵌完整编辑表单（标题/工作台/分类/TagPicker）', () => { const s = read('/newtab/components/ResourceDetailDrawer.vue'); return s.includes('editing.title') && s.includes('editing.workspaceId') && s.includes('editing.categoryId') && s.includes('TagPicker') && s.includes('editing.description'); });
+check('R37-2 REQ-042 抽屉内嵌完整编辑表单（标题/工作台/分类/TagPicker）', () => { const s = read('/newtab/components/ResourceEditForm.vue'); return s.includes('model.title') && s.includes('model.workspaceId') && s.includes('model.categoryId') && s.includes('TagPicker') && s.includes('model.description'); });
 check('R37-3 REQ-042 抽屉删除 = 软删 deletedAt + 撤销', () => { const s = read('/newtab/components/ResourceDetailDrawer.vue'); return s.includes('deletedAt = Date.now()') && s.includes("label: '撤销'") && s.includes('function remove'); });
 check('R37-4 REQ-042 抽屉总线触发（onOpenDrawer kind=res）保留', () => { const s = read('/newtab/components/ResourceDetailDrawer.vue'); return s.includes('onOpenDrawer') && s.includes("p.kind !== 'res'"); });
 console.log('【第卅七轮 · V2.14.2 第二批：REQ-043 命名体系（首页→知源罗盘 / 知源罗盘→知源引擎）】');
@@ -442,6 +442,22 @@ console.log('【第卅八轮 · V2.14.3 第二批：REQ-046 交互响应速度�
 check('R38-8 REQ-046 content 结果每组限 30 条（防 DOM 爆炸）', () => { const s = read('/content/search-overlay.ts'); return s.includes('MAX_PER_GROUP = 30') && s.includes('zy-group-more'); });
 check('R38-9 REQ-046 GlobalPopups 结果每组限 30 条', () => { const s = read('/newtab/components/GlobalPopups.vue'); return s.includes('MAX_PER_GROUP = 30') && s.includes('gp-group-more'); });
 check('R38-10 REQ-046 content 输入防抖 90→60ms', () => { const s = read('/content/search-overlay.ts'); return s.includes('setTimeout(() => runSearch(input.value), 60)'); });
+
+// ============== 第卅九轮 · V2.15.0 卡片附件功能（REQ-048，第卅八轮拍板） ==============
+console.log('【第卅九轮 · V2.15.0：REQ-048 卡片附件（三类卡全支持 · IndexedDB 存储 · 单文件 20MB）】');
+check('R39-1 REQ-048 模型 AssetMeta 接口 + 三类卡 assets 字段齐全', () => { const s = read('/shared/models/index.ts'); return s.includes('export interface AssetMeta') && s.split('assets?: AssetMeta[]').length - 1 === 3; });
+check('R39-2 REQ-048 IndexedDB 附件库 zy_assets 完整封装', () => { const s = read('/shared/storage/assets.ts'); return s.includes("DB_NAME = 'zy_assets'") && s.includes('export async function putAsset') && s.includes('export async function getAssetBlob') && s.includes('export async function deleteAsset') && s.includes('export async function getAssetStats') && s.includes('export async function cleanupOrphanAssets') && s.includes('export function assetIdsOf'); });
+check('R39-3 REQ-048 性能红线：附件仅存元数据引用（AssetMeta 无二进制承载字段）', () => { const s = read('/shared/models/index.ts'); return s.includes('export interface AssetMeta') && s.includes("kind: 'image' | 'html'") && s.includes('mime: string') && s.includes('createdAt: number') && !s.includes('ArrayBuffer') && !s.includes('Uint8Array'); });
+check('R39-4 REQ-048 共享组件 AssetManager 默认单文件 20MB + 限定图片/HTML', () => { const s = read('/shared/components/AssetManager.vue'); return s.includes('maxSizeMB: 20') && s.includes('accept="image/*,.html,.htm"') && s.includes('f.size > props.maxSizeMB * 1024 * 1024'); });
+check('R39-5 REQ-048 AssetManager 上传即写 IndexedDB（putAsset + uid）', () => { const s = read('/shared/components/AssetManager.vue'); return s.includes('putAsset(') && s.includes("uid('at')") && s.includes('emitList'); });
+check('R39-6 REQ-048 AssetManager 打开：图片全屏弹窗预览 / HTML 新标签页', () => { const s = read('/shared/components/AssetManager.vue'); return s.includes('URL.createObjectURL') && s.includes('chrome.tabs?.create') && s.includes("meta.kind === 'image'") && s.includes('viewerOpen.value = true') && s.includes('自包含 HTML'); });
+check('R39-7 REQ-048 AssetManager 删除联动 deleteAsset（软删保留、硬删由回收站清）', () => { const s = read('/shared/components/AssetManager.vue'); return s.includes('async function removeAsset') && s.includes('deleteAsset(meta.id)'); });
+check('R39-8 REQ-048 资源卡双入口接入：搜索抽屉 + 工作台内联抽屉', () => { const shared = read('/newtab/components/ResourceEditForm.vue'); const d1 = read('/newtab/components/ResourceDetailDrawer.vue'); const d2 = read('/newtab/views/Workspace.vue'); return shared.includes('AssetManager') && shared.includes('function onAssetsChange') && d1.includes('ResourceEditForm') && d1.includes('height-key') && d2.includes('ResourceEditForm') && d2.includes('height-key="ws-note"'); });
+check('R39-9 REQ-048 任务卡接入（任务侧边栏）', () => { const s = read('/newtab/views/CompassActions.vue'); return s.includes('AssetManager') && s.includes('function onTaskAssetsChange') && s.includes('selectedTask.assets'); });
+check('R39-10 REQ-048 好奇心卡接入（详情抽屉）', () => { const s = read('/newtab/components/compass/CuriosityPanel.vue'); return s.includes('AssetManager') && s.includes('function onCurioAssetsChange') && s.includes('update(detailId.value, { assets: v })'); });
+check('R39-11 REQ-048 回收站硬删先清附件（purgeAssetsOf → deleteAsset）', () => { const s = read('/newtab/views/RecycleBin.vue'); return s.includes('async function purgeAssetsOf') && s.includes('await purgeAssetsOf(r.assets)') && s.includes('await purgeAssetsOf(t.assets)') && s.includes('await purgeAssetsOf(c.assets)') && s.includes("import { deleteAsset }"); });
+check('R39-12 REQ-048 设置导出页附件存储统计 + 孤儿清理入口', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes('getAssetStats') && s.includes('cleanupOrphanAssets') && s.includes('assetCount') && s.includes('assetBytes') && s.includes('📎 附件存储'); });
+check('R39-13 #61 共享资源编辑表单 ResourceEditForm 抽取（双份合一：Workspace 内联 + RDD 搜索抽屉）', () => { const shared = read('/newtab/components/ResourceEditForm.vue'); const d1 = read('/newtab/components/ResourceDetailDrawer.vue'); const d2 = read('/newtab/views/Workspace.vue'); return shared.includes('defineProps') && shared.includes('heightKey') && shared.includes("'save'") && shared.includes("'goto-task'") && shared.includes("<slot name=\"extra\"") && d1.includes('<ResourceEditForm') && d1.includes('@save="save"') && d1.includes('#extra') && d2.includes('<ResourceEditForm') && d2.includes('@save="saveResource"') && d2.includes(':show-close="true"'); });
 
 console.log('');
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

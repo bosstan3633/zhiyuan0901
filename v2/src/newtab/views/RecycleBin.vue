@@ -3,7 +3,8 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { showToast } from '@/shared/components/toast'
-import type { ResourceCard, TaskCard, CuriosityCard } from '@/shared/models'
+import { deleteAsset } from '@/shared/storage/assets'
+import type { ResourceCard, TaskCard, CuriosityCard, AssetMeta } from '@/shared/models'
 
 /** 第卅三轮 REQ-018：回收站页面（三类卡软删数据直接复用：models 的 deletedAt）
  *  列表 + 恢复 + 永久删除 + 清空；入口在全局设置危险操作区
@@ -76,12 +77,20 @@ function restoreCurio(c: CuriosityCard) {
 }
 
 // ---- 永久删除 ----
-function purgeRes(r: ResourceCard) {
+/** REQ-048：硬删前清理该卡附件本体（IndexedDB；软删保留，恢复后仍可打开） */
+async function purgeAssetsOf(metas: AssetMeta[] | null | undefined) {
+  for (const m of metas || []) {
+    try { await deleteAsset(m.id) } catch (err) { console.error('[recycle] delete asset failed:', err) }
+  }
+}
+async function purgeRes(r: ResourceCard) {
+  await purgeAssetsOf(r.assets)
   d.value.resources = d.value.resources.filter(x => x.id !== r.id)
   store.persist()
   show('🗑 已永久删除')
 }
-function purgeTask(t: TaskCard) {
+async function purgeTask(t: TaskCard) {
+  await purgeAssetsOf(t.assets)
   // 从所有指标 taskIds 摘除引用，再移除实体
   for (const dir of d.value.compass.directions) {
     for (const proj of dir.projects) {
@@ -92,7 +101,8 @@ function purgeTask(t: TaskCard) {
   store.persist()
   show('🗑 已永久删除')
 }
-function purgeCurio(c: CuriosityCard) {
+async function purgeCurio(c: CuriosityCard) {
+  await purgeAssetsOf(c.assets)
   d.value.curiosities = d.value.curiosities.filter(x => x.id !== c.id)
   store.persist()
   show('🗑 已永久删除')
@@ -106,10 +116,13 @@ function restoreAll() {
   else curios.value.forEach(c => restoreCurio(c))
   store.persist()
 }
-function purgeAll() {
+async function purgeAll() {
   const cur = tab.value
-  if (cur === 'res') d.value.resources = d.value.resources.filter(r => !r.deletedAt)
-  else if (cur === 'task') {
+  if (cur === 'res') {
+    for (const r of res.value) await purgeAssetsOf(r.assets)
+    d.value.resources = d.value.resources.filter(r => !r.deletedAt)
+  } else if (cur === 'task') {
+    for (const t of tasks.value) await purgeAssetsOf(t.assets)
     for (const dir of d.value.compass.directions) {
       for (const proj of dir.projects) {
         for (const m of proj.metrics) m.taskIds = m.taskIds.filter(id => !d.value.tasks.some(t => t.id === id && t.deletedAt))
@@ -117,7 +130,10 @@ function purgeAll() {
     }
     d.value.tasks = d.value.tasks.filter(t => !t.deletedAt)
   }
-  else d.value.curiosities = d.value.curiosities.filter(c => !c.deletedAt)
+  else {
+    for (const c of curios.value) await purgeAssetsOf(c.assets)
+    d.value.curiosities = d.value.curiosities.filter(c => !c.deletedAt)
+  }
   store.persist()
   show('✓ 当前分区已清空')
 }

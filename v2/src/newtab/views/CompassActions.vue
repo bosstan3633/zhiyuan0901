@@ -9,11 +9,12 @@ import { useTaHeight } from '@/shared/utils/taHeight'
 import { onOpenDrawer } from '@/shared/utils/bus'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
-import type { TaskCard, Project, FocusSlot, FieldDef } from '@/shared/models'
+import type { TaskCard, Project, FocusSlot, FieldDef, AssetMeta } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import TagPicker from '@/shared/components/TagPicker.vue'
+import AssetManager from '@/shared/components/AssetManager.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -668,6 +669,12 @@ function touchTask() {
   selectedTask.value.updatedAt = Date.now()
   store.persist()
 }
+/** REQ-048：任务附件变更即时持久化 */
+function onTaskAssetsChange(v: AssetMeta[]) {
+  if (!selectedTask.value) return
+  selectedTask.value.assets = v
+  touchTask()
+}
 function saveTaskTitle() {
   if (!selectedTask.value) return
   const val = taskTitleDraft.value.trim()
@@ -1252,6 +1259,10 @@ onUnmounted(() => {
           <div class="ts-section">
             <div class="ts-label">🔗 链接（网页 / 本地路径 / obsidian:// · 双击卡片直达）</div>
             <input v-model="selectedTask.link" class="ts-input" placeholder="https://… 或 D:\path\file.pdf" @blur="touchTask" @keydown.enter.prevent="($event.target as HTMLElement).blur()">
+          </div>
+          <div class="ts-section">
+            <div class="ts-label">📎 附件（图片弹窗预览 / HTML 新标签打开）</div>
+            <AssetManager v-model="selectedTask.assets" @update:model-value="onTaskAssetsChange" />
           </div>
           <div class="ts-section">
             <div class="ts-label">📝 备注（可拖拽右下角调整高度）</div>

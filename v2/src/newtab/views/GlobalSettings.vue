@@ -227,6 +227,22 @@
             </div>
           </div>
         </div>
+        <div class="gs-card">
+          <div class="gs-card-header"><span class="gs-card-title">📎 附件存储（第卅九轮）</span><span class="gs-card-desc">图片/HTML 本体在 IndexedDB，不占主数据</span></div>
+          <div class="gs-card-body">
+            <div class="gs-export-row">
+              <div class="gs-er-info">
+                <div class="gs-er-name">附件占用：{{ assetCount }} 个 · {{ formatBytes(assetBytes) }}</div>
+                <div class="gs-er-desc">JSON 导出不包含附件本体（保持轻量）；附件不随跨设备迁移，仅本机可见</div>
+              </div>
+              <button class="gs-btn" @click="refreshAssetStats">刷新</button>
+            </div>
+            <div class="gs-export-row">
+              <div class="gs-er-info"><div class="gs-er-name">清理孤儿附件</div><div class="gs-er-desc">删除未被任何卡片引用的残留附件（上传中断等异常场景产生）</div></div>
+              <button class="gs-btn" @click="cleanupOrphanAssetsAction">清理</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ===== 快捷键设置 ===== -->
@@ -478,7 +494,8 @@ import logoUrl from '@/assets/logo.png'
 import { createDefaultData } from '@/shared/storage/defaults'
 import { LETTER_HTML, buildLetterStandaloneHtml } from '../letter-data'
 import { uid } from '@/shared/utils'
-import type { FieldDef, AppData, ResourceCard, Workspace, Category, TagNode } from '@/shared/models'
+import { getAssetStats, cleanupOrphanAssets } from '@/shared/storage/assets'
+import type { FieldDef, AppData, ResourceCard, Workspace, Category, TagNode, AssetMeta } from '@/shared/models'
 
 const router = useRouter()
 const route = useRoute()
@@ -515,6 +532,8 @@ onMounted(() => {
   const p = pageFromQuery(); if (p) activePage.value = p
   // 第卅六轮 REQ-038：关于页容量水位 + 保存错误订阅 + 备份提醒状态
   refreshStorage()
+  // REQ-048：深链直达导出页时初始化附件统计
+  if (activePage.value === 'export') refreshAssetStats()
   const unsub = subscribeSaveError((e) => { saveError.value = e })
   // 卸载时取消订阅（实例可能被路由复用）
   return () => unsub && unsub()
@@ -546,6 +565,40 @@ function formatBytes(n: number): string {
 function saveErrorLabel(k: 'quota' | 'serial' | 'unknown'): string {
   return k === 'quota' ? '配额超限' : k === 'serial' ? '序列化失败' : '写入异常'
 }
+
+// ---- REQ-048：附件存储统计 + 孤儿清理（导出数据页） ----
+const assetCount = ref(0)
+const assetBytes = ref(0)
+async function refreshAssetStats() {
+  try {
+    const s = await getAssetStats()
+    assetCount.value = s.count
+    assetBytes.value = s.bytes
+  } catch (err) {
+    console.error('[assets] stats failed:', err)
+  }
+}
+/** 清理孤儿：保留所有卡片（含回收站软删卡）引用的附件，删除其余 */
+async function cleanupOrphanAssetsAction() {
+  try {
+    const keep = new Set<string>()
+    const collect = (cards: AssetMeta[] | undefined) => (cards || []).forEach(m => keep.add(m.id))
+    const all = store.data
+    if (all) {
+      all.resources.forEach(r => collect(r.assets))
+      all.tasks.forEach(t => collect(t.assets))
+      all.curiosities.forEach(c => collect(c.assets))
+    }
+    const n = await cleanupOrphanAssets(keep)
+    await refreshAssetStats()
+    if (n > 0) showToast(`🧹 已清理 ${n} 个孤儿附件`)
+    else showToast('✓ 无孤儿附件，一切干净')
+  } catch (err) {
+    console.error('[assets] cleanup failed:', err)
+    showToast('⚠ 清理失败，请重试')
+  }
+}
+watch(activePage, (p) => { if (p === 'export') refreshAssetStats() })
 
 /** 第卅六轮 REQ-038：备份提醒开关 + 上次备份时间 */
 const backupReminderEnabled = ref<boolean>(typeof store.ui?.backupReminderEnabled === 'boolean' ? store.ui.backupReminderEnabled : true)
