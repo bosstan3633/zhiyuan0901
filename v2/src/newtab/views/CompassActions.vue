@@ -679,6 +679,21 @@ function onTaskAssetsChange(v: AssetMeta[]) {
   selectedTask.value.assets = v
   touchTask()
 }
+/** 第卌二轮 REQ-061：任务卡 HTML 上传联动——标题取文件名（仅空标题/旧文件名时覆盖，q-2 拍板） */
+function onTaskHtmlAdded(meta: AssetMeta, replacedOld: AssetMeta | null) {
+  if (!selectedTask.value) return
+  const stem = (meta.name || '').replace(/\.html?$/i, '')
+  const oldStems = [replacedOld, ...(selectedTask.value.assets || []).filter(a => a.kind === 'html' && a.id !== meta.id)]
+    .filter((a): a is AssetMeta => !!a)
+    .map(a => (a.name || '').replace(/\.html?$/i, ''))
+  const cur = (selectedTask.value.title || '').trim()
+  if (!cur || oldStems.includes(cur)) {
+    if (stem) { selectedTask.value.title = stem; taskTitleDraft.value = stem }
+  } else {
+    showToast('已替换原 HTML；标题保留手打内容，可自行编辑')
+  }
+  touchTask()
+}
 function saveTaskTitle() {
   if (!selectedTask.value) return
   const val = taskTitleDraft.value.trim()
@@ -1273,7 +1288,7 @@ onUnmounted(() => {
               <span>📎 附件（图片弹窗预览 / HTML 新标签打开）</span>
               <AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" />
             </div>
-            <AssetManager v-model="selectedTask.assets" @update:model-value="onTaskAssetsChange" />
+            <AssetManager v-model="selectedTask.assets" @update:model-value="onTaskAssetsChange" @html-added="onTaskHtmlAdded" />
           </div>
           <div class="ts-section">
             <div class="ts-label">📝 备注（可拖拽右下角调整高度）</div>

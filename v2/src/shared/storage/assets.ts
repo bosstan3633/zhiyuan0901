@@ -133,3 +133,23 @@ export function assetIdsOf(metas: { id: string }[] | null | undefined): Set<stri
   ;(metas || []).forEach(m => s.add(m.id))
   return s
 }
+
+/** 第卌二轮 REQ-059：读取全部附件（id + Blob）——附件包导出用 */
+export async function getAllAssets(): Promise<{ id: string; blob: Blob }[]> {
+  const out: { id: string; blob: Blob }[] = []
+  await forEachAsset((id, blob) => out.push({ id, blob }))
+  return out
+}
+
+/** 第卌二轮 REQ-059：批量写入附件（附件包导入用；同 ID 覆盖，q-3 拍板） */
+export async function putAssets(items: { id: string; blob: Blob }[]): Promise<void> {
+  const db = await openDb()
+  if (!db) return
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite')
+    const store = tx.objectStore(STORE)
+    for (const it of items) store.put(it.blob, it.id)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error || new Error('idb bulk put failed'))
+  })
+}

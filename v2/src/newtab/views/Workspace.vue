@@ -437,6 +437,7 @@ import { recordResourceOpen } from '@/shared/storage/stats'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
+import { openHtmlAsset } from '@/shared/utils/htmlAsset'
 import { uid, safeDecodeText } from '@/shared/utils'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
@@ -630,11 +631,19 @@ function resourcesByCategory(catId: string) {
 }
 
 // ===== 链接打开（E1：双击 = 打开链接；第卅二轮 REQ-010 归一化逻辑统一在 shared/utils/link） =====
-/** 第卅二轮 REQ-010：打开通道统一下沉至 shared/utils/link（URL→file→obsidian 按 linkType 归一化；file 仅文件名=不可打开） */
+/** 第卌二轮 REQ-061：双击卡片打开——挂了 HTML 附件的资源卡（link=zy-asset://<id>）走 openHtmlAsset
+ *  file:// 落盘完整打开，与详情内打开同一函数同一效果（新标签页，内联脚本可运行） */
 function openResourceLink(r: ResourceCard) {
-  const url = toOpenableUrl(r.linkType, r.link)
   recordResourceOpen(d.value, r)
   store.persist()
+  if (r.linkType === 'file' && /^zy-asset:\/\//i.test((r.link || '').trim())) {
+    const assetId = (r.link || '').trim().replace(/^zy-asset:\/\//i, '')
+    const meta = (r.assets || []).find(a => a.id === assetId)
+    if (!meta || meta.kind !== 'html') { showToast('⚠ 卡片指向的 HTML 附件不存在或已失效'); return }
+    openHtmlAsset(meta)
+    return
+  }
+  const url = toOpenableUrl(r.linkType, r.link)
   if (!url) { showToast('⚠ 请先补全链接（本地文件需完整路径，如 D:\\docs\\file.pdf）'); return }
   openExternalLink(url)
 }

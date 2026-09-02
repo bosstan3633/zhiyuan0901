@@ -153,6 +153,11 @@
               <div><div class="gs-io-name">导入知源工作台数据</div><div class="gs-io-desc">选择JSON文件，与现有数据取并集（同ID更新，不同ID新增）</div></div>
               <button class="gs-btn gs-btn-primary gs-io-btn">选择文件</button>
             </div>
+            <div class="gs-import-option" @click="assetPackInput?.click()">
+              <div class="gs-io-icon">🗂</div>
+              <div><div class="gs-io-name">导入附件包（第卌二轮）</div><div class="gs-io-desc">选择「导出附件包」生成的 zip，附件本体按 assetId 写回（同 ID 覆盖）；先导 JSON 再导附件包 = 完整迁移</div></div>
+              <button class="gs-btn gs-io-btn">选择文件</button>
+            </div>
             <div class="gs-import-option" @click="bookmarkInput?.click()">
               <div class="gs-io-icon">🔖</div>
               <div><div class="gs-io-name">导入书签文件</div><div class="gs-io-desc">选择浏览器导出的书签HTML，文件夹作为标签，链接+标题写入资源卡</div></div>
@@ -170,6 +175,7 @@
           </div>
         </div>
         <input ref="fileInput" type="file" accept=".json" style="display:none" @change="handleFileImport" />
+        <input ref="assetPackInput" type="file" accept=".zip" style="display:none" @change="handleAssetPackImport" />
         <input ref="bookmarkInput" type="file" accept=".html,.htm" style="display:none" @change="handleBookmarkImport" />
       </div>
 
@@ -233,9 +239,13 @@
             <div class="gs-export-row">
               <div class="gs-er-info">
                 <div class="gs-er-name">附件占用：{{ assetCount }} 个 · {{ formatBytes(assetBytes) }}</div>
-                <div class="gs-er-desc">JSON 导出不包含附件本体（保持轻量）；附件不随跨设备迁移，仅本机可见</div>
+                <div class="gs-er-desc">JSON 导出不含附件本体（保持轻量）；附件本体用下方附件包导出/导入迁移</div>
               </div>
               <button class="gs-btn" @click="refreshAssetStats">刷新</button>
+            </div>
+            <div class="gs-export-row">
+              <div class="gs-er-info"><div class="gs-er-name">导出附件包（第卌二轮）</div><div class="gs-er-desc">全部附件本体打包为 zip；与「导出全部数据 JSON」配合 = 完整可迁移备份</div></div>
+              <button class="gs-btn gs-btn-primary" @click="exportAssetPack">导出附件包</button>
             </div>
             <div class="gs-export-row">
               <div class="gs-er-info"><div class="gs-er-name">清理孤儿附件</div><div class="gs-er-desc">删除未被任何卡片引用的残留附件（上传中断等异常场景产生）</div></div>
@@ -494,7 +504,8 @@ import logoUrl from '@/assets/logo.png'
 import { createDefaultData } from '@/shared/storage/defaults'
 import { LETTER_HTML, buildLetterStandaloneHtml } from '../letter-data'
 import { uid } from '@/shared/utils'
-import { getAssetStats, cleanupOrphanAssets } from '@/shared/storage/assets'
+import { getAssetStats, cleanupOrphanAssets, getAllAssets, putAssets } from '@/shared/storage/assets'
+import { buildZip, readZip, type ZipEntry } from '@/shared/utils/zip'
 import { visibleFields, allFields } from '@/shared/utils/fields'
 import type { FieldDef, AppData, ResourceCard, Workspace, Category, TagNode, AssetMeta } from '@/shared/models'
 
@@ -601,6 +612,52 @@ async function cleanupOrphanAssetsAction() {
 }
 watch(activePage, (p) => { if (p === 'export') refreshAssetStats() })
 
+// ---- 第卌二轮 REQ-059：附件包导出/导入（zip STORE 模式，零依赖） ----
+/** 导出附件包：全部附件本体 → 附件包 zip（manifest + assets/<id> 原件）。与主数据 JSON 备份配合 = 完整可迁移备份 */
+async function exportAssetPack() {
+  try {
+    const all = await getAllAssets()
+    if (!all.length) { showToast('暂无附件可导出'); return }
+    const manifest = JSON.stringify({
+      type: 'zy_asset_pack', version: 1, exportedAt: new Date().toISOString(), count: all.length,
+      items: all.map(a => ({ id: a.id, size: a.blob.size, mime: a.blob.type || '' }))
+    }, null, 2)
+    const entries: ZipEntry[] = [
+      { name: 'manifest.json', data: new TextEncoder().encode(manifest) }
+    ]
+    for (const a of all) entries.push({ name: `assets/${a.id}`, data: new Uint8Array(await a.blob.arrayBuffer()) })
+    const zip = buildZip(entries)
+    const url = URL.createObjectURL(zip)
+    const aEl = document.createElement('a')
+    aEl.href = url; aEl.download = `zhiyuan_assets_${dateStr()}.zip`; aEl.click()
+    URL.revokeObjectURL(url)
+    showToast(`✓ 附件包已导出：${all.length} 个附件`)
+  } catch (err) {
+    console.error('[assets] export pack failed:', err)
+    showToast('⚠ 附件包导出失败，请重试')
+  }
+}
+
+/** 导入附件包：解包 zip → 按 assetId 写回 zy_assets（同 ID 覆盖，q-3 拍板） */
+async function handleAssetPackImport(e: Event) {
+  const input = e.target as HTMLInputElement
+  // ⚠ 第卌一轮教训：先快照再清空 input.value（清空会重置 FileList）
+  const file = (input.files || [])[0]
+  input.value = ''
+  if (!file) return
+  try {
+    const entries = readZip(await file.arrayBuffer())
+    const assets = entries.filter(en => en.name.startsWith('assets/'))
+    if (!assets.length) { showToast('⚠ 附件包内无附件数据（manifest 或 zip 格式不符）'); return }
+    await putAssets(assets.map(en => ({ id: en.name.slice('assets/'.length), blob: new Blob([en.data]) })))
+    await refreshAssetStats()
+    showToast(`✓ 附件包导入完成：${assets.length} 个附件（同 ID 已覆盖）`)
+  } catch (err) {
+    console.error('[assets] import pack failed:', err)
+    showToast(`⚠ 附件包导入失败：${err instanceof Error ? err.message : '格式不符'}`)
+  }
+}
+
 /** 第卅六轮 REQ-038：备份提醒开关 + 上次备份时间 */
 const backupReminderEnabled = ref<boolean>(typeof store.ui?.backupReminderEnabled === 'boolean' ? store.ui.backupReminderEnabled : true)
 const lastBackupAt = ref<number | undefined>(store.ui?.lastBackupAt)
@@ -699,6 +756,7 @@ const resourcePreviewHtml = computed(() => {
 
 // ---- 导入 ----
 const fileInput = ref<HTMLInputElement | null>(null)
+const assetPackInput = ref<HTMLInputElement | null>(null)
 const bookmarkInput = ref<HTMLInputElement | null>(null)
 const bookmarkTargetWs = ref('__new__')
 

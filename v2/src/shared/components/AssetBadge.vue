@@ -11,6 +11,7 @@ import { ref, computed } from 'vue'
 import type { AssetMeta } from '@/shared/models'
 import { getAssetBlob } from '@/shared/storage/assets'
 import { showToast } from '@/shared/components/toast'
+import { openHtmlAsset } from '@/shared/utils/htmlAsset'
 import AssetPreview from './AssetPreview.vue'
 
 const props = withDefaults(defineProps<{
@@ -35,38 +36,55 @@ const listOpen = ref(false)
 function openList() { if (has.value) listOpen.value = true }
 function closeList() { listOpen.value = false }
 
-// ---- 打开（图片弹窗 / HTML 新标签），同 AssetManager ----
+// ---- 打开（图片弹窗多图预览 / HTML file:// 完整打开），与 AssetManager 同行为 ----
 const viewerOpen = ref(false)
 const viewerUrl = ref('')
 const viewerName = ref('')
+/** 第卌二轮 REQ-061：多图左右切换 */
+const imageUrls = ref<string[]>([])
+const imageIdx = ref(0)
 let lastViewerUrl = ''
 function revokeViewer() {
   if (lastViewerUrl) { try { URL.revokeObjectURL(lastViewerUrl) } catch { /* noop */ } lastViewerUrl = '' }
 }
-function closeViewer() { viewerOpen.value = false; revokeViewer() }
+function closeViewer() {
+  viewerOpen.value = false
+  for (const u of imageUrls.value) { try { URL.revokeObjectURL(u) } catch { /* noop */ } }
+  imageUrls.value = []
+  lastViewerUrl = ''
+}
+function showImageAt(i: number) {
+  if (i < 0 || i >= imageUrls.value.length || !imageUrls.value[i]) return
+  revokeViewer()
+  imageIdx.value = i
+  lastViewerUrl = imageUrls.value[i]
+  viewerUrl.value = imageUrls.value[i]
+  viewerName.value = list.value.filter(a => a.kind === 'image')[i]?.name || ''
+}
 
 async function openAsset(meta: AssetMeta) {
   closeList()
-  let blob: Blob | null = null
-  try { blob = await getAssetBlob(meta.id) } catch (err) { console.error('[assets] get failed:', err) }
-  if (!blob) { showToast('⚠ 附件本体缺失（可能已被清理），请重新上传'); return }
-  const url = URL.createObjectURL(blob)
   if (meta.kind === 'image') {
-    revokeViewer()
-    lastViewerUrl = url
-    viewerName.value = meta.name
-    viewerUrl.value = url
-    viewerOpen.value = true
-  } else {
-    try {
-      if (typeof chrome !== 'undefined' && chrome.tabs?.create) chrome.tabs.create({ url })
-      else window.open(url, '_blank')
-    } catch (err) {
-      console.error('[assets] open html failed:', err)
-      showToast('⚠ 无法打开 HTML 附件')
+    // 多图模式：一次性加载全部图片 blob，支持左右切换
+    const imgs = list.value.filter(a => a.kind === 'image')
+    const idx = Math.max(0, imgs.findIndex(a => a.id === meta.id))
+    const urls: string[] = []
+    for (const im of imgs) {
+      try {
+        const b = await getAssetBlob(im.id)
+        urls.push(b ? URL.createObjectURL(b) : '')
+      } catch { urls.push('') }
     }
-    setTimeout(() => { try { URL.revokeObjectURL(url) } catch { /* noop */ } }, 60000)
-    showToast('已在新标签页打开（自包含 HTML 才能完整显示）')
+    if (!urls.some(Boolean)) { showToast('⚠ 附件本体缺失（可能已被清理），请重新上传'); return }
+    closeViewer()
+    imageUrls.value = urls
+    viewerOpen.value = true
+    let at = idx >= 0 ? idx : 0
+    if (!urls[at]) { const first = urls.findIndex(Boolean); at = first >= 0 ? first : 0 }
+    showImageAt(at)
+  } else {
+    // 第卌二轮 REQ-058：file:// 落盘完整打开（复用既有副本；失败降级 blob）
+    await openHtmlAsset(meta)
   }
 }
 </script>
@@ -98,8 +116,11 @@ async function openAsset(meta: AssetMeta) {
         </div>
       </div>
     </Transition>
-    <!-- 第卌一轮 REQ-056：图片预览弹窗抽公共组件 AssetPreview -->
-    <AssetPreview :open="viewerOpen" :url="viewerUrl" :name="viewerName" @close="closeViewer" />
+    <!-- 第卌一轮 REQ-056：图片预览弹窗抽公共组件 AssetPreview；第卌二轮 REQ-061 多图左右切换 -->
+    <AssetPreview :open="viewerOpen" :url="viewerUrl" :name="viewerName"
+      :has-prev="imageIdx > 0" :has-next="imageIdx < imageUrls.length - 1"
+      :pos-label="imageUrls.length > 1 ? `${imageIdx + 1}/${imageUrls.length}` : ''"
+      @close="closeViewer" @prev="showImageAt(imageIdx - 1)" @next="showImageAt(imageIdx + 1)" />
   </Teleport>
 </template>
 

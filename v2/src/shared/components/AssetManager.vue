@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /**
  * 第卅九轮 REQ-048：卡片附件管理器（共享组件）
- * - 上传：图片 / 自包含 HTML（单文件 ≤ 20MB，可多选）→ 写入 IndexedDB zy_assets，meta 引用 emit 给父级
+ * - 上传：图片（第卌二轮规范：单卡 ≤9 张、单张 ≤10MB）/ HTML（单卡唯一 ≤20MB，重复上传=替换）→ IndexedDB zy_assets
  * - 展示：附件 chip（图标+名称+大小），溢出省略
- * - 打开：图片 → 全屏弹窗预览（blob URL）；HTML → 新标签页打开（blob URL）
+ * - 打开：图片 → 全屏弹窗预览（多图左右切换）；HTML → openHtmlAsset（file:// 落盘完整打开，REQ-058）
+ * - 联动：HTML 上传成功 emit('html-added', meta) —— 宿主做标题/链接属性联动（资源卡：标题取文件名 + linkType=file）
  * - 性能红线：主 JSON 只存 meta，Blob 本体永不进 JSON
  */
 import { ref, computed } from 'vue'
@@ -11,17 +12,26 @@ import type { AssetMeta } from '@/shared/models'
 import { putAsset, getAssetBlob, deleteAsset } from '@/shared/storage/assets'
 import { uid } from '@/shared/utils'
 import { showToast } from '@/shared/components/toast'
+import { openHtmlAsset } from '@/shared/utils/htmlAsset'
 import AssetPreview from './AssetPreview.vue'
 
 const props = withDefaults(defineProps<{
   modelValue?: AssetMeta[] | null
-  /** 单文件上限（MB） */
+  /** 单文件上限（MB，HTML 用；图片固定 10MB 上限） */
   maxSizeMB?: number
 }>(), {
   modelValue: null,
   maxSizeMB: 20
 })
-const emit = defineEmits<{ (e: 'update:modelValue', v: AssetMeta[]): void }>()
+const emit = defineEmits<{
+  (e: 'update:modelValue', v: AssetMeta[]): void
+  /** 第卌二轮 REQ-061：HTML 上传成功（含替换），meta 为新 HTML 附件；replacedOld 为被替换的旧 HTML（无则 null） */
+  (e: 'html-added', meta: AssetMeta, replacedOld: AssetMeta | null): void
+}>()
+
+/** 第卌二轮 REQ-061 上传规范常量 */
+const IMG_MAX_COUNT = 9
+const IMG_MAX_MB = 10
 
 const list = computed<AssetMeta[]>(() => props.modelValue || [])
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -54,10 +64,20 @@ async function onFilesChange(e: Event) {
   busy.value = true
   try {
     const added: AssetMeta[] = []
+    let replacedOld: AssetMeta | null = null // REQ-061：HTML 唯一——替换旧 HTML 时记录
+    // REQ-061：图片数量上限预检（本批可再收几张）
+    let imgQuota = IMG_MAX_COUNT - list.value.filter(a => a.kind === 'image').length
     for (const f of files) {
       const kind = guessKind(f.name, f.type)
       if (!kind) { showToast(`⚠ 仅支持图片或 HTML 文件，已跳过：${f.name.slice(0, 24)}`); continue }
-      if (f.size > props.maxSizeMB * 1024 * 1024) { showToast(`⚠ ${f.name.slice(0, 24)} 超过 ${props.maxSizeMB}MB 上限，已跳过`); continue }
+      // REQ-061：图片 ≤10MB（独立于 HTML 的 maxSizeMB 上限）
+      const limitMB = kind === 'image' ? IMG_MAX_MB : props.maxSizeMB
+      if (f.size > limitMB * 1024 * 1024) { showToast(`⚠ ${f.name.slice(0, 24)} 超过 ${limitMB}MB 上限，已跳过`); continue }
+      // REQ-061：单卡图片 ≤9 张，超额拒绝
+      if (kind === 'image') {
+        if (imgQuota <= 0) { showToast(`⚠ 图片数量已达上限 ${IMG_MAX_COUNT} 张，已跳过：${f.name.slice(0, 24)}`); continue }
+        imgQuota--
+      }
       const id = uid('at')
       try {
         await putAsset(id, f)
@@ -66,11 +86,27 @@ async function onFilesChange(e: Event) {
         showToast(`⚠ 附件写入失败：${f.name.slice(0, 24)}`)
         continue
       }
-      added.push({ id, kind, name: f.name, size: f.size, mime: f.type || (kind === 'image' ? 'image/png' : 'text/html'), createdAt: Date.now() })
+      const meta: AssetMeta = { id, kind, name: f.name, size: f.size, mime: f.type || (kind === 'image' ? 'image/png' : 'text/html'), createdAt: Date.now() }
+      // REQ-061：HTML 唯一（拍板 q-1=替换旧的）——删除旧 HTML 本体并从列表移除
+      if (kind === 'html') {
+        const olds = list.value.filter(a => a.kind === 'html')
+        for (const old of olds) {
+          try { await deleteAsset(old.id) } catch (err) { console.error('[assets] replace old html delete failed:', err) }
+          if (!replacedOld) replacedOld = old
+        }
+      }
+      added.push(meta)
     }
     if (added.length) {
-      emitList([...list.value, ...added])
-      showToast(`✓ 已上传 ${added.length} 个附件（${fmtSize(added.reduce((s, a) => s + a.size, 0))}）`)
+      const hadOldHtml = !!replacedOld
+      const nextList = [...list.value.filter(a => !(a.kind === 'html' && added.some(n => n.kind === 'html'))), ...added]
+      emitList(nextList)
+      if (added.some(a => a.kind === 'html')) {
+        // REQ-061：通知宿主做标题/链接属性联动（每个新 HTML 通知一次）
+        for (const m of added.filter(a => a.kind === 'html')) emit('html-added', m, replacedOld)
+      }
+      const htmlPart = added.some(a => a.kind === 'html') ? (hadOldHtml ? '，已替换原 HTML 附件' : '') : ''
+      showToast(`✓ 已上传 ${added.length} 个附件（${fmtSize(added.reduce((s, a) => s + a.size, 0))}${htmlPart}）`)
     }
   } finally {
     busy.value = false
@@ -90,38 +126,57 @@ async function removeAsset(meta: AssetMeta) {
   showToast('🗑 附件已移除')
 }
 
-// ---- 打开（图片弹窗 / HTML 新标签） ----
+// ---- 打开（图片弹窗多图预览 / HTML file:// 完整打开） ----
 const viewerOpen = ref(false)
 const viewerUrl = ref('')
 const viewerName = ref('')
+/** 第卌二轮 REQ-061：多图左右切换——宿主持图片序列与游标 */
+const imageUrls = ref<string[]>([])
+const imageIdx = ref(0)
 let lastViewerUrl = ''
 function revokeViewer() {
   if (lastViewerUrl) { try { URL.revokeObjectURL(lastViewerUrl) } catch { /* noop */ } lastViewerUrl = '' }
 }
-function closeViewer() { viewerOpen.value = false; revokeViewer() }
+function closeViewer() {
+  viewerOpen.value = false
+  // 多图模式：批量回收所有 blob
+  for (const u of imageUrls.value) { try { URL.revokeObjectURL(u) } catch { /* noop */ } }
+  imageUrls.value = []
+  lastViewerUrl = ''
+}
+
+/** 切换到第 i 张（宿主更新 url/name；旧 blob 由 revokeViewer 清） */
+function showImageAt(i: number) {
+  if (i < 0 || i >= imageUrls.value.length || !imageUrls.value[i]) return
+  revokeViewer()
+  imageIdx.value = i
+  lastViewerUrl = imageUrls.value[i]
+  viewerUrl.value = imageUrls.value[i]
+  viewerName.value = list.value.filter(a => a.kind === 'image')[i]?.name || ''
+}
 
 async function openAsset(meta: AssetMeta) {
-  let blob: Blob | null = null
-  try { blob = await getAssetBlob(meta.id) } catch (err) { console.error('[assets] get failed:', err) }
-  if (!blob) { showToast('⚠ 附件本体缺失（可能已被清理），请重新上传'); return }
-  const url = URL.createObjectURL(blob)
   if (meta.kind === 'image') {
-    revokeViewer()
-    lastViewerUrl = url
-    viewerName.value = meta.name
-    viewerUrl.value = url
-    viewerOpen.value = true
-  } else {
-    // HTML：新标签打开；blob URL 需延后回收（60s 足够页面加载）
-    try {
-      if (typeof chrome !== 'undefined' && chrome.tabs?.create) chrome.tabs.create({ url })
-      else window.open(url, '_blank')
-    } catch (err) {
-      console.error('[assets] open html failed:', err)
-      showToast('⚠ 无法打开 HTML 附件')
+    // 多图模式：一次性加载全部图片 blob（上限 9 张，代价可控），支持左右切换
+    const imgs = list.value.filter(a => a.kind === 'image')
+    const idx = Math.max(0, imgs.findIndex(a => a.id === meta.id))
+    const urls: string[] = []
+    for (const im of imgs) {
+      try {
+        const b = await getAssetBlob(im.id)
+        if (b) urls.push(URL.createObjectURL(b))
+        else urls.push('')
+      } catch { urls.push('') }
     }
-    setTimeout(() => { try { URL.revokeObjectURL(url) } catch { /* noop */ } }, 60000)
-    showToast('已在新标签页打开（自包含 HTML 才能完整显示）')
+    const valid = urls.filter(Boolean)
+    if (!valid.length) { showToast('⚠ 附件本体缺失（可能已被清理），请重新上传'); return }
+    closeViewer()
+    imageUrls.value = urls
+    viewerOpen.value = true
+    showImageAt(idx >= 0 ? idx : 0)
+  } else {
+    // 第卌二轮 REQ-058：file:// 落盘完整打开（复用既有副本；失败降级 blob）
+    await openHtmlAsset(meta)
   }
 }
 </script>
@@ -141,10 +196,13 @@ async function openAsset(meta: AssetMeta) {
       {{ busy ? '⏳ 上传中…' : '📎 添加附件（图片 / HTML，单文件 ≤ ' + maxSizeMB + 'MB）' }}
     </button>
     <input ref="fileInput" type="file" class="am-file" multiple accept="image/*,.html,.htm" @change="onFilesChange" />
-    <div class="am-tip">图片点击弹窗预览；HTML 仅支持自包含单文件（引用外部 css/js/图片的页面需打包为单个文件）</div>
+    <div class="am-tip">图片 ≤9 张（单张 ≤10MB）弹窗预览可左右切换；HTML 单卡 1 个（重复上传=替换），上传后新标签页完整打开</div>
 
-    <!-- 第卌一轮 REQ-056：图片预览弹窗抽公共组件 AssetPreview -->
-    <AssetPreview :open="viewerOpen" :url="viewerUrl" :name="viewerName" @close="closeViewer" />
+    <!-- 第卌一轮 REQ-056：图片预览弹窗抽公共组件 AssetPreview；第卌二轮 REQ-061 多图左右切换 -->
+    <AssetPreview :open="viewerOpen" :url="viewerUrl" :name="viewerName"
+      :has-prev="imageIdx > 0" :has-next="imageIdx < imageUrls.length - 1"
+      :pos-label="imageUrls.length > 1 ? `${imageIdx + 1}/${imageUrls.length}` : ''"
+      @close="closeViewer" @prev="showImageAt(imageIdx - 1)" @next="showImageAt(imageIdx + 1)" />
   </div>
 </template>
 

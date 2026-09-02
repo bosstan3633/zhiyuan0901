@@ -16,6 +16,7 @@ import { computed } from 'vue'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
+import { showToast } from '@/shared/components/toast'
 import { useAppStore } from '../stores/app'
 import { useTaHeight } from '@/shared/utils/taHeight'
 import type { ResourceCard, TaskCard, Category, AssetMeta } from '@/shared/models'
@@ -84,6 +85,28 @@ function onAssetsChange(v: AssetMeta[] | null | undefined) {
   if (idx >= 0) { store.data.resources[idx] = { ...props.model }; store.persist() }
 }
 
+/**
+ * 第卌二轮 REQ-061：HTML 上传联动（拍板 q-2：仅空标题/等于旧文件名时覆盖，保护手打标题）
+ * - 标题：空 或 等于旧 HTML 文件名（去扩展名）→ 自动取新 HTML 文件名（去扩展名）；否则保留并 Toast 提示
+ * - 链接属性：linkType → 'file'（本地文件）；link → 'zy-asset://<id>'（内部附件引用，不暴露本机路径）
+ */
+function onHtmlAdded(meta: AssetMeta, replacedOld: AssetMeta | null) {
+  const stem = (meta.name || '').replace(/\.html?$/i, '')
+  const oldStems = [replacedOld, ...(props.model.assets || []).filter(a => a.kind === 'html' && a.id !== meta.id)]
+    .filter((a): a is AssetMeta => !!a)
+    .map(a => (a.name || '').replace(/\.html?$/i, ''))
+  const cur = (props.model.title || '').trim()
+  if (!cur || oldStems.includes(cur)) {
+    if (stem) props.model.title = stem
+  } else {
+    showToast('已替换原 HTML；标题保留手打内容，可自行编辑')
+  }
+  props.model.linkType = 'file'
+  props.model.link = `zy-asset://${meta.id}`
+  showToast('✓ 已挂载 HTML：双击卡片即可在新标签页完整打开')
+  onAssetsChange(props.model.assets)
+}
+
 function goOpenTask(t: TaskCard) { emit('goto-task', t) }
 
 function fmtTs(ts?: number): string {
@@ -148,7 +171,7 @@ function fmtTs(ts?: number): string {
         <span>📎 附件（图片弹窗预览 / HTML 新标签打开）</span>
         <AssetBadge v-if="model.assets?.length" :assets="model.assets" />
       </div>
-      <AssetManager v-model="model.assets" @update:model-value="onAssetsChange" />
+      <AssetManager v-model="model.assets" @update:model-value="onAssetsChange" @html-added="onHtmlAdded" />
     </div>
 
     <!-- 宿主差异内容（如 RDD 使用统计）：插在附件与挂载之间，保持原字段顺序 -->

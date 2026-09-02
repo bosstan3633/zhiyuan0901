@@ -125,6 +125,20 @@ function saveDetail() {
 function onCurioAssetsChange(v: AssetMeta[]) {
   if (detailId.value) update(detailId.value, { assets: v })
 }
+/** 第卌二轮 REQ-061：好奇卡 HTML 上传联动——标题（question）取文件名（仅空标题/旧文件名时覆盖，q-2 拍板） */
+function onCurioHtmlAdded(meta: AssetMeta, replacedOld: AssetMeta | null) {
+  if (!detailItem.value) return
+  const stem = (meta.name || '').replace(/\.html?$/i, '')
+  const oldStems = [replacedOld, ...(detailItem.value.assets || []).filter(a => a.kind === 'html' && a.id !== meta.id)]
+    .filter((a): a is AssetMeta => !!a)
+    .map(a => (a.name || '').replace(/\.html?$/i, ''))
+  const cur = (detailItem.value.question || '').trim()
+  if (!cur || oldStems.includes(cur)) {
+    if (stem) update(detailItem.value.id, { question: stem })
+  } else {
+    showToast('已替换原 HTML；标题保留手打内容，可自行编辑')
+  }
+}
 
 // ---- 置顶 ----
 // B5：右键菜单 + B6 拖拽插入线
@@ -531,7 +545,7 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
             <span style="font-size:11px;font-weight:600;color:var(--text-3)">📎 附件（图片弹窗预览 / HTML 新标签打开）</span>
             <AssetBadge v-if="detailItem?.assets?.length" :assets="detailItem.assets" />
           </div>
-          <AssetManager v-model="detailItem.assets" @update:model-value="onCurioAssetsChange" />
+          <AssetManager v-model="detailItem.assets" @update:model-value="onCurioAssetsChange" @html-added="onCurioHtmlAdded" />
         </div>
         <div class="detail-tags" style="margin-top:14px">
           <div style="font-size:11px;font-weight:600;color:var(--text-3);margin-bottom:7px">🏷 标签（来自标签管理体系）</div>

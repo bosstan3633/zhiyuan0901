@@ -51,7 +51,7 @@ updated: 2026-09-02 11:10:00
 2. 读 `../docs/技术架构与数据模型.md` 获取数据层全貌；
 3. 读 `../docs/开发指南与回归验证.md` 获取历史踩坑记录；
 4. 读 `../docs/项目盘点报告_2026-08-31.md` 了解现存技术债；
-5. 最新一轮做了什么，见 `../docs/交付说明_第卌一轮_V2.17.1.md`。
+5. 最新一轮做了什么，见 `../docs/交付说明_第卌二轮_V2.18.0.md`。
 
 **必须遵守的硬性规则：**
 
@@ -315,7 +315,8 @@ node scripts/regression.cjs   # 静态回归：必须 256/256 全绿
 
 | 版本 | 轮次 | 要点 |
 |------|------|------|
-| V2.17.1 | 第卌一轮（当前） | 真实上传链路双重根因热修：① AssetManager.onFilesChange 中 `input.value=''` 先于 FileList 快照致上传 100% 静默失败（FileList 被重置）；② persist 直传 reactive 树，编辑表单展开的 Proxy 数组被 chrome.storage 序列化为类数组对象 `{"0":…}` 致卡片正面附件徽章永不渲染——saveData/saveDataNow 统一 JSON 纯净清洗。新增 DataTransfer 驱动真实 change 事件的端到端验证脚本（6 项 ALL PASS）；回归 337→339 项 |
+| V2.18.0 | 第卌二轮（当前） | REQ-058 HTML 附件 file:// 完整打开通道（openHtmlAsset 三态：落盘「下载目录/知源附件/」确定性路径 + 路径记忆 zy_html_paths + fetch 探测复用 + blob 降级；**修复 manifest 漏加 downloads 权限**——代码用了 API 但权限没给，真机 file:// 链路静默降级）+ REQ-059 附件导出/导入闭环（零依赖 zip STORE+CRC32 + getAllAssets/putAssets + 同 ID 覆盖）+ REQ-060 高频操作性能实测（五项基线全绿：启动 200ms/搜索 325ms 含防抖/切台 595ms/Drawer 104ms/persist 9ms@107KB——无红线；「搜索 2.5~6 秒」定性测量假象）+ REQ-061 附件上传规范（9 图/10MB/HTML 唯一替换 + html-added 三处宿主联动 + 双击 zy-asset 打开 + AssetPreview 多图切换）；回归 339→358 项 |
+| V2.17.1 | 第卌一轮 | 真实上传链路双重根因热修：① AssetManager.onFilesChange 中 `input.value=''` 先于 FileList 快照致上传 100% 静默失败（FileList 被重置）；② persist 直传 reactive 树，编辑表单展开的 Proxy 数组被 chrome.storage 序列化为类数组对象 `{"0":…}` 致卡片正面附件徽章永不渲染——saveData/saveDataNow 统一 JSON 纯净清洗。新增 DataTransfer 驱动真实 change 事件的端到端验证脚本（6 项 ALL PASS）；回归 337→339 项 |
 | V2.17.0 | 第卌一轮 | REQ-054 详情面板附件呈现（Drawer #title-extra 插槽 + 三处详情标题旁/section 头双徽章）+ REQ-055 资源卡 CSV 动态列对齐字段目录（系统字段全导 + 自定义按可见性 + 管理尾列）+ REQ-056 AssetPreview 公共 viewer 抽取（AssetManager/AssetBadge 双份合一）+ REQ-057 业务静默 catch 收敛（2 处补 Toast）；回归 325→337 项 |
 | V2.16.0 | 第卌轮 | 统一卡片模型首刀：字段目录 FIELD_CATALOG 单一来源 + CardBase 公共基底（三卡 extends，FieldEditor 手写常量清空）；转卡无损化单向引擎 convertCard（好奇→任务/资源，公共字段全搬 + 状态显式映射 + 缺自定义 def 自动注入）；附件卡片正面展示 AssetBadge（🖼 n/🧾 n 徽章 + 弹层预览，资源/任务/好奇三视图接入）；好奇面板按 fieldConfig.curiosity 目录消费；fieldViewCfg 死代码清理；回归 314→325 项 |
 | V2.15.0 | 第卅九轮 | REQ-048 卡片附件（三类卡 · IndexedDB Blob 存储 · 单文件 20MB · 图片弹窗/HTML 新标签 · 回收站硬删清附件 · 设置页占用+孤儿清理）+ #61 共享资源编辑表单 ResourceEditForm 抽取（双份合一）；回归 301→314 项 |
@@ -337,8 +338,8 @@ node scripts/regression.cjs   # 静态回归：必须 256/256 全绿
 | `docs/技术架构与数据模型.md` | 数据层全貌、存储设计、类型规范 |
 | `docs/开发指南与回归验证.md` | 历史踩坑、开发约定、回归流程 |
 | `docs/项目盘点报告_2026-08-31.md` | 现存技术债清单（巨型 SFC、静默 catch 等） |
-| `docs/交付说明_第卌轮_V2.16.0.md` | 最新一轮交付明细（V2.16.0：统一卡片模型——字段目录 + 转卡无损 + 附件正面展示） |
-| `docs/需求盘点与开发清单_第卌轮.md` | 本轮需求清单与决策记录 |
+| `docs/交付说明_第卌二轮_V2.18.0.md` | 最新一轮交付明细（V2.18.0：HTML 附件 file:// 完整打开 + 附件包导入导出 + 性能实测 + 上传规范） |
+| `docs/需求盘点与开发清单_第卌一轮.md` | 最近一份需求清单与决策记录（V2.18 需求为交付后会话拍板，见交付说明 §三） |
 | `docs/产品白皮书_V2.4.md` | 产品定位与价值主张 |
 | `docs/设计规范_Linear.md` | 视觉设计令牌（Linear 风格） |
 
