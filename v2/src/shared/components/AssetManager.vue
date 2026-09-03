@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
  * 第卅九轮 REQ-048：卡片附件管理器（共享组件）
- * - 上传：图片（第卌二轮规范：单卡 ≤9 张、单张 ≤10MB）/ HTML（单卡唯一 ≤20MB，重复上传=替换）→ IndexedDB zy_assets
+ * - 上传：图片（第卌二轮规范：单卡 ≤9 张、单张 ≤10MB）/ HTML（单卡唯一 ≤20MB，重复上传=替换）/ PDF（第卌四轮：单卡唯一 ≤100MB，重复上传=替换）→ IndexedDB zy_assets
  * - 展示：附件 chip（图标+名称+大小），溢出省略
- * - 打开：图片 → 全屏弹窗预览（多图左右切换）；HTML → openHtmlAsset（file:// 落盘完整打开，REQ-058）
- * - 联动：HTML 上传成功 emit('html-added', meta) —— 宿主做标题/链接属性联动（资源卡：标题取文件名 + linkType=file）
+ * - 打开：图片 → 全屏弹窗预览（多图左右切换）；HTML/PDF → openHtmlAsset（file:// 落盘完整打开，REQ-058 + 第卌四轮泛化；PDF 由 Chrome 内置 viewer 渲染）
+ * - 联动：HTML/PDF 上传成功 emit('html-added', meta) —— 宿主做标题/链接属性联动（资源卡：标题取文件名 + linkType=file + link=zy-asset://）
  * - 性能红线：主 JSON 只存 meta，Blob 本体永不进 JSON
  */
 import { ref, computed } from 'vue'
@@ -29,9 +29,10 @@ const emit = defineEmits<{
   (e: 'html-added', meta: AssetMeta, replacedOld: AssetMeta | null): void
 }>()
 
-/** 第卌二轮 REQ-061 上传规范常量 */
+/** 第卌二轮 REQ-061 上传规范常量；第卌四轮 T-08：PDF 100MB 上限（用户拍板） */
 const IMG_MAX_COUNT = 9
 const IMG_MAX_MB = 10
+const PDF_MAX_MB = 100
 
 const list = computed<AssetMeta[]>(() => props.modelValue || [])
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -40,10 +41,11 @@ const busy = ref(false)
 function emitList(next: AssetMeta[]) { emit('update:modelValue', next) }
 
 // ---- 类型判定（扩展名兜底 file.type 缺失） ----
-function guessKind(name: string, mime: string): 'image' | 'html' | null {
+function guessKind(name: string, mime: string): 'image' | 'html' | 'pdf' | null {
   if (/^image\//i.test(mime)) return 'image'
   if (/\.(png|jpe?g|gif|webp|svg|bmp|avif|ico)$/i.test(name)) return 'image'
   if (/\.html?$/i.test(name) || /\.htm$/i.test(name)) return 'html'
+  if (/\.pdf$/i.test(name) || /^application\/pdf$/i.test(mime)) return 'pdf'
   return null
 }
 function fmtSize(n: number): string {
@@ -64,14 +66,16 @@ async function onFilesChange(e: Event) {
   busy.value = true
   try {
     const added: AssetMeta[] = []
-    let replacedOld: AssetMeta | null = null // REQ-061：HTML 唯一——替换旧 HTML 时记录
+    let replacedOld: AssetMeta | null = null // REQ-061：HTML/PDF 单卡唯一——替换旧附件时记录
     // REQ-061：图片数量上限预检（本批可再收几张）
     let imgQuota = IMG_MAX_COUNT - list.value.filter(a => a.kind === 'image').length
+    // 第卌四轮：HTML 与 PDF 均为单卡唯一，同类新附件替换旧附件
+    const isDocKind = (k: string) => k === 'html' || k === 'pdf'
     for (const f of files) {
       const kind = guessKind(f.name, f.type)
-      if (!kind) { showToast(`⚠ 仅支持图片或 HTML 文件，已跳过：${f.name.slice(0, 24)}`); continue }
-      // REQ-061：图片 ≤10MB（独立于 HTML 的 maxSizeMB 上限）
-      const limitMB = kind === 'image' ? IMG_MAX_MB : props.maxSizeMB
+      if (!kind) { showToast(`⚠ 仅支持图片 / HTML / PDF 文件，已跳过：${f.name.slice(0, 24)}`); continue }
+      // REQ-061：图片 ≤10MB（独立上限）；PDF ≤100MB（第卌四轮拍板）；HTML 沿宿主 maxSizeMB
+      const limitMB = kind === 'image' ? IMG_MAX_MB : kind === 'pdf' ? PDF_MAX_MB : props.maxSizeMB
       if (f.size > limitMB * 1024 * 1024) { showToast(`⚠ ${f.name.slice(0, 24)} 超过 ${limitMB}MB 上限，已跳过`); continue }
       // REQ-061：单卡图片 ≤9 张，超额拒绝
       if (kind === 'image') {
@@ -86,27 +90,28 @@ async function onFilesChange(e: Event) {
         showToast(`⚠ 附件写入失败：${f.name.slice(0, 24)}`)
         continue
       }
-      const meta: AssetMeta = { id, kind, name: f.name, size: f.size, mime: f.type || (kind === 'image' ? 'image/png' : 'text/html'), createdAt: Date.now() }
-      // REQ-061：HTML 唯一（拍板 q-1=替换旧的）——删除旧 HTML 本体并从列表移除
-      if (kind === 'html') {
-        const olds = list.value.filter(a => a.kind === 'html')
+      const meta: AssetMeta = { id, kind, name: f.name, size: f.size, mime: f.type || (kind === 'image' ? 'image/png' : kind === 'pdf' ? 'application/pdf' : 'text/html'), createdAt: Date.now() }
+      // 第卌四轮 T-08：HTML/PDF 单卡唯一（拍板 q-1=替换旧的）——删除旧同类附件本体并从列表移除
+      if (isDocKind(kind)) {
+        const olds = list.value.filter(a => a.kind === kind)
         for (const old of olds) {
-          try { await deleteAsset(old.id) } catch (err) { console.error('[assets] replace old html delete failed:', err) }
+          try { await deleteAsset(old.id) } catch (err) { console.error('[assets] replace old doc delete failed:', err) }
           if (!replacedOld) replacedOld = old
         }
       }
       added.push(meta)
     }
     if (added.length) {
-      const hadOldHtml = !!replacedOld
-      const nextList = [...list.value.filter(a => !(a.kind === 'html' && added.some(n => n.kind === 'html'))), ...added]
+      const hadOldDoc = !!replacedOld
+      const docKindsAdded = new Set(added.filter(a => isDocKind(a.kind)).map(a => a.kind))
+      const nextList = [...list.value.filter(a => !(isDocKind(a.kind) && docKindsAdded.has(a.kind))), ...added]
       emitList(nextList)
-      if (added.some(a => a.kind === 'html')) {
-        // REQ-061：通知宿主做标题/链接属性联动（每个新 HTML 通知一次）
-        for (const m of added.filter(a => a.kind === 'html')) emit('html-added', m, replacedOld)
+      if (added.some(a => isDocKind(a.kind))) {
+        // REQ-061：通知宿主做标题/链接属性联动（每个新 HTML/PDF 通知一次）
+        for (const m of added.filter(a => isDocKind(a.kind))) emit('html-added', m, replacedOld)
       }
-      const htmlPart = added.some(a => a.kind === 'html') ? (hadOldHtml ? '，已替换原 HTML 附件' : '') : ''
-      showToast(`✓ 已上传 ${added.length} 个附件（${fmtSize(added.reduce((s, a) => s + a.size, 0))}${htmlPart}）`)
+      const docPart = added.some(a => isDocKind(a.kind)) ? (hadOldDoc ? '，已替换原同名类型附件' : '') : ''
+      showToast(`✓ 已上传 ${added.length} 个附件（${fmtSize(added.reduce((s, a) => s + a.size, 0))}${docPart}）`)
     }
   } finally {
     busy.value = false
@@ -175,7 +180,7 @@ async function openAsset(meta: AssetMeta) {
     viewerOpen.value = true
     showImageAt(idx >= 0 ? idx : 0)
   } else {
-    // 第卌二轮 REQ-058：file:// 落盘完整打开（复用既有副本；失败降级 blob）
+    // 第卌二轮 REQ-058 + 第卌四轮 T-08：HTML/PDF file:// 落盘完整打开（复用既有副本；失败降级 blob）
     await openHtmlAsset(meta)
   }
 }
@@ -185,7 +190,7 @@ async function openAsset(meta: AssetMeta) {
   <div class="am">
     <div v-if="list.length" class="am-list">
       <div v-for="a in list" :key="a.id" class="am-item" :title="`${a.name}（${fmtSize(a.size)}）`">
-        <span class="am-ico">{{ a.kind === 'image' ? '🖼' : '🧾' }}</span>
+        <span class="am-ico">{{ a.kind === 'image' ? '🖼' : a.kind === 'pdf' ? '📕' : '🧾' }}</span>
         <span class="am-name" @click="openAsset(a)">{{ a.name }}</span>
         <span class="am-size">{{ fmtSize(a.size) }}</span>
         <span class="am-open" @click="openAsset(a)" :title="a.kind === 'image' ? '弹窗预览' : '新标签页打开'">{{ a.kind === 'image' ? '👁' : '↗' }}</span>
@@ -193,10 +198,10 @@ async function openAsset(meta: AssetMeta) {
       </div>
     </div>
     <button class="am-add" :class="{ busy }" :disabled="busy" @click="onPick">
-      {{ busy ? '⏳ 上传中…' : '📎 添加附件（图片 / HTML，单文件 ≤ ' + maxSizeMB + 'MB）' }}
+      {{ busy ? '⏳ 上传中…' : '📎 添加附件（图片 / HTML / PDF）' }}
     </button>
-    <input ref="fileInput" type="file" class="am-file" multiple accept="image/*,.html,.htm" @change="onFilesChange" />
-    <div class="am-tip">图片 ≤9 张（单张 ≤10MB）弹窗预览可左右切换；HTML 单卡 1 个（重复上传=替换），上传后新标签页完整打开</div>
+    <input ref="fileInput" type="file" class="am-file" multiple accept="image/*,.html,.htm,.pdf" @change="onFilesChange" />
+    <div class="am-tip">图片 ≤9 张（单张 ≤10MB）弹窗预览可左右切换；HTML 单卡 1 个（≤20MB，重复上传=替换）；PDF 单卡 1 份（≤100MB，重复上传=替换），新标签页打开</div>
 
     <!-- 第卌一轮 REQ-056：图片预览弹窗抽公共组件 AssetPreview；第卌二轮 REQ-061 多图左右切换 -->
     <AssetPreview :open="viewerOpen" :url="viewerUrl" :name="viewerName"

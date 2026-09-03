@@ -87,23 +87,27 @@ function onAssetsChange(v: AssetMeta[] | null | undefined) {
 
 /**
  * 第卌二轮 REQ-061：HTML 上传联动（拍板 q-2：仅空标题/等于旧文件名时覆盖，保护手打标题）
- * - 标题：空 或 等于旧 HTML 文件名（去扩展名）→ 自动取新 HTML 文件名（去扩展名）；否则保留并 Toast 提示
+ * 第卌四轮 T-08：泛化支持 PDF（AssetManager 对 HTML/PDF 均发 html-added 事件）
+ * - 标题：空 或 等于旧文档文件名（去扩展名）→ 自动取新文件名（去扩展名）；否则保留并 Toast 提示
  * - 链接属性：linkType → 'file'（本地文件）；link → 'zy-asset://<id>'（内部附件引用，不暴露本机路径）
  */
+const DOC_NAME_RE = /\.(html?|pdf)$/i
 function onHtmlAdded(meta: AssetMeta, replacedOld: AssetMeta | null) {
-  const stem = (meta.name || '').replace(/\.html?$/i, '')
-  const oldStems = [replacedOld, ...(props.model.assets || []).filter(a => a.kind === 'html' && a.id !== meta.id)]
+  const stem = (meta.name || '').replace(DOC_NAME_RE, '')
+  const oldStems = [replacedOld, ...(props.model.assets || []).filter(a => a.kind === meta.kind && a.id !== meta.id)]
     .filter((a): a is AssetMeta => !!a)
-    .map(a => (a.name || '').replace(/\.html?$/i, ''))
+    .map(a => (a.name || '').replace(DOC_NAME_RE, ''))
   const cur = (props.model.title || '').trim()
   if (!cur || oldStems.includes(cur)) {
     if (stem) props.model.title = stem
   } else {
-    showToast('已替换原 HTML；标题保留手打内容，可自行编辑')
+    showToast(`已替换原 ${meta.kind === 'pdf' ? 'PDF' : 'HTML'}；标题保留手打内容，可自行编辑`)
   }
   props.model.linkType = 'file'
   props.model.link = `zy-asset://${meta.id}`
-  showToast('✓ 已挂载 HTML：双击卡片即可在新标签页完整打开')
+  showToast(meta.kind === 'pdf'
+    ? '✓ 已挂载 PDF：双击卡片即可在新标签页打开（Chrome 内置 viewer）'
+    : '✓ 已挂载 HTML：双击卡片即可在新标签页完整打开')
   onAssetsChange(props.model.assets)
 }
 

@@ -24,8 +24,8 @@ export type SourceType = 'official' | 'academic' | 'media' | 'personal' | 'ai-to
  *  性能红线：主 JSON zy_data_v2 绝不存 base64——几百 MB 附件会击穿全量序列化/启动/跨页同步 */
 export interface AssetMeta {
   id: ID
-  /** image=弹窗预览 / html=新标签打开（仅支持自包含单文件 HTML） */
-  kind: 'image' | 'html'
+  /** image=弹窗预览 / html=新标签打开（仅支持自包含单文件 HTML）/ pdf=新标签 Chrome 内置 viewer 打开（第卌四轮） */
+  kind: 'image' | 'html' | 'pdf'
   name: string
   size: number
   mime: string

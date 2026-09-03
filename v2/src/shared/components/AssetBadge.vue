@@ -106,7 +106,7 @@ async function openAsset(meta: AssetMeta) {
           </div>
           <div class="ab-pop-body">
             <div v-for="a in list" :key="a.id" class="ab-item" :title="`${a.name}（${fmtSize(a.size)}）`" @click="openAsset(a)">
-              <span class="ab-ico">{{ a.kind === 'image' ? '🖼' : '🧾' }}</span>
+              <span class="ab-ico">{{ a.kind === 'image' ? '🖼' : a.kind === 'pdf' ? '📕' : '🧾' }}</span>
               <span class="ab-name">{{ a.name }}</span>
               <span class="ab-size">{{ fmtSize(a.size) }}</span>
               <span class="ab-go" :title="a.kind === 'image' ? '弹窗预览' : '新标签页打开'">{{ a.kind === 'image' ? '👁' : '↗' }}</span>

@@ -19,18 +19,24 @@ const metrics = computed(() => northStarMetrics(period.value))
 const periodLabel = computed(() => period.value === 'week' ? '本周' : period.value === 'month' ? '本月' : '累计')
 
 // ---- 下钻抽屉 ----
-type DrawerType = 'dhi' | 'wce' | 'wrr' | 'groups' | 'resources' | 'tasks'
+// 第卌四轮 T-02：撤出 groups/resources（迁往设置页工作台全景/仪表盘），新增 today-add/today-del
+type DrawerType = 'dhi' | 'wce' | 'wrr' | 'today-add' | 'today-del' | 'tasks'
 const drawerOpen = ref(false)
 const drawerType = ref<DrawerType>('dhi')
 const drawerTitle = computed(() => ({
   dhi: '🧭 方向健康度明细 · DHI',
   wce: '💡 好奇探索明细 · WCE',
   wrr: '🟢 有效复用明细 · WRR',
-  groups: '🗂 模块分组明细（按工作台）',
-  resources: '🔗 链接卡片明细',
+  'today-add': '📈 今日新增明细',
+  'today-del': '📉 今日删除明细',
   tasks: '📥 未归档任务 · 待归档清单'
 }[drawerType.value]))
-const drawerFormula = computed(() => (formulas as Record<string, string>)[drawerType.value] || '')
+/** 第卌四轮：今日增删口径说明（本地维护，compass.formulas 不含） */
+const localFormulas: Record<string, string> = {
+  'today-add': '今日新增 = 今天 0 点后创建的三卡总数（资源+任务+好奇，实时派生自 createdAt）',
+  'today-del': '今日删除 = 今天 0 点后软删除的三卡总数（派生自 deletedAt，可在回收站恢复）'
+}
+const drawerFormula = computed(() => localFormulas[drawerType.value] || (formulas as Record<string, string>)[drawerType.value] || '')
 
 function openDrawer(type: DrawerType) {
   drawerType.value = type
@@ -74,134 +80,60 @@ function wsName(id: string): string {
   return d.value.workspaces.find(w => w.id === id)?.name || '未知'
 }
 
-// ---- 第卅一轮：模块分组（模块卡，点击弹窗查看卡片清单；不可编辑，顺序在顶部 Tab 拖拽调整） ----
-const groupRows = computed(() =>
-  d.value.workspaces
-    .filter(w => !w.archived)
-    .map(w => ({
-      workspace: w,
-      folders: d.value.categories
-        .filter(c => c.workspaceId === w.id)
-        .sort((a, b) => a.order - b.order)
-    }))
-)
-function cardCountOf(wsId: string): number {
-  return d.value.resources.filter(r => !r.deletedAt && r.workspaceId === wsId).length
+// ---- 第卌四轮 T-02：今日新增 / 今日删除（纯派生 createdAt/deletedAt，零新增存储） ----
+const startOfToday = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); return dt.getTime() })()
+type FlatCard = { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; createdAt: number; deletedAt?: number }
+const allCardsFlat = computed<FlatCard[]>(() => [
+  ...d.value.resources.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title || '（无标题）', createdAt: r.createdAt || 0, deletedAt: r.deletedAt })),
+  ...d.value.tasks.map(t => ({ kind: 'task' as const, id: t.id, title: t.title || '（无标题）', createdAt: t.createdAt || 0, deletedAt: t.deletedAt })),
+  ...d.value.curiosities.map(c => ({ kind: 'curiosity' as const, id: c.id, title: c.question || '（无标题）', createdAt: c.createdAt || 0, deletedAt: c.deletedAt }))
+])
+function kindIcon(kind: FlatCard['kind']): string { return kind === 'resource' ? '📇' : kind === 'task' ? '✅' : '💡' }
+function fmtClock(ts?: number): string {
+  if (!ts) return ''
+  const dt = new Date(ts)
+  return `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`
 }
-const wsPopupOpen = ref(false)
-const wsPopupId = ref<string | null>(null)
-const wsPopup = computed(() => d.value.workspaces.find(w => w.id === wsPopupId.value) || null)
-const wsPopupCards = computed(() => wsPopupId.value ? d.value.resources.filter(r => !r.deletedAt && r.workspaceId === wsPopupId.value) : [])
-/** 第卅三轮 REQ-025：抽屉内平铺分类（含卡数），点击分类直接进入卡片列表弹窗（三次点击→两次） */
-const catCountMap = computed(() => {
-  const m = new Map<string, number>()
-  for (const r of d.value.resources) {
-    if (r.deletedAt) continue
-    const k = r.categoryId || '__none__'
-    m.set(k, (m.get(k) || 0) + 1)
-  }
-  return m
-})
-function catCount(catId: string): number { return catCountMap.value.get(catId) || 0 }
-function uncatCountOf(wsId: string): number {
-  return d.value.resources.filter(r => !r.deletedAt && r.workspaceId === wsId && !r.categoryId).length
+function kindSub(list: FlatCard[]): string {
+  const n = { resource: 0, task: 0, curiosity: 0 }
+  for (const x of list) n[x.kind]++
+  return `资源${n.resource}·任务${n.task}·好奇${n.curiosity}`
 }
-function openWsPopup(wsId: string, catId?: string | null) {
-  wsPopupId.value = wsId
-  activeCatId.value = catId ?? null
-  wsPopupLevel.value = 'cards'
-  wsPopupOpen.value = true
-}
+const todayAddList = computed(() =>
+  allCardsFlat.value.filter(x => !x.deletedAt && x.createdAt >= startOfToday)
+    .sort((a, b) => b.createdAt - a.createdAt))
+const todayDelList = computed(() =>
+  allCardsFlat.value.filter(x => x.deletedAt && x.deletedAt >= startOfToday)
+    .sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
+const todayAddSub = computed(() => kindSub(todayAddList.value))
+const todayDelSub = computed(() => kindSub(todayDelList.value))
 
-// ---- 第卅二轮 REQ-013/014：模块分组明细重构 —— 二级=分类名+数量，三级=分类下资源卡列表（支持返回上一层） ----
-const wsPopupLevel = ref<'cats' | 'cards'>('cats')
-const activeCatId = ref<string | null>(null)
-const wsPopupCats = computed(() => {
-  if (!wsPopupId.value) return []
-  const cats = d.value.categories
-    .filter(c => c.workspaceId === wsPopupId.value)
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-  return cats.map(c => ({ id: c.id, name: c.name, count: d.value.resources.filter(r => !r.deletedAt && r.categoryId === c.id).length }))
-})
-const wsPopupUncatCount = computed(() =>
-  wsPopupId.value ? d.value.resources.filter(r => !r.deletedAt && r.workspaceId === wsPopupId.value && !r.categoryId).length : 0
-)
-const activeCatName = computed(() => {
-  if (!activeCatId.value) return '📥 待分类'
-  return d.value.categories.find(c => c.id === activeCatId.value)?.name || '📥 待分类'
-})
-const activeCatCards = computed(() => {
-  if (!wsPopupId.value) return []
-  return wsPopupCards.value.filter(r => activeCatId.value ? r.categoryId === activeCatId.value : !r.categoryId)
-})
-function openCatCards(catId: string | null) { activeCatId.value = catId; wsPopupLevel.value = 'cards' }
-function backToCats() { wsPopupLevel.value = 'cats'; activeCatId.value = null }
-/** 卡片行类型图标（REQ-014：列表项含标题与类型图标） */
-function linkTypeIcon(r: ResourceCard): string {
-  return r.linkType === 'file' ? '📄' : r.linkType === 'obsidian' ? '📝' : '🌐'
-}
-
-function wsDisplayName(w: { icon?: string; name: string }): string {
-  return (w.icon || '📁') + ' ' + w.name.replace(/^[^\s]+\s/, '')
-}
-
-// ---- 第卅一轮：链接卡片明细（全量 + 搜索 + 按模块分组） ----
-const resSearch = ref('')
-const allLinkCards = computed(() => d.value.resources.filter(r => !r.deletedAt && (r.link || '').trim()))
-const filteredLinkCards = computed(() => {
-  const q = resSearch.value.trim().toLowerCase()
-  if (!q) return allLinkCards.value
-  return allLinkCards.value.filter(r => {
-    const hay = [r.title, r.link, wsName(r.workspaceId), catNameOf(r), ...(Array.isArray(r.tags) ? r.tags : [])].join(' ').toLowerCase()
-    return hay.includes(q)
-  })
-})
-const groupedLinkCards = computed(() => {
-  const groups: { wsId: string; name: string; cards: ResourceCard[] }[] = []
-  for (const w of d.value.workspaces.filter(w => !w.archived)) {
-    const cards = filteredLinkCards.value.filter(r => r.workspaceId === w.id)
-    if (cards.length) groups.push({ wsId: w.id, name: wsDisplayName(w), cards })
-  }
-  const other = filteredLinkCards.value.filter(r => !d.value.workspaces.some(w => w.id === r.workspaceId))
-  if (other.length) groups.push({ wsId: '__none__', name: '🗂 未归类', cards: other })
-  return groups
-})
-function catNameOf(r: ResourceCard): string {
-  return d.value.categories.find(c => c.id === r.categoryId)?.name || '待分类'
-}
-function linkHost(r: ResourceCard): string {
-  if (r.linkType === 'file') return '📄 ' + (r.link.split(/[\\/]/).pop() || r.link)
-  if (r.linkType === 'obsidian') return 'Obsidian'
-  try { return new URL(r.link).host } catch { return r.link.slice(0, 40) }
-}
-
-// 卡片行交互：单击（260ms 判定）=详情抽屉；双击=打开链接（三卡统一交互）
-const detailRes = ref<ResourceCard | null>(null)
-let resClickTimer: ReturnType<typeof setTimeout> | null = null
-function onCardRowClick(r: ResourceCard) {
-  if (resClickTimer) { window.clearTimeout(resClickTimer); resClickTimer = null; return }
-  resClickTimer = setTimeout(() => { resClickTimer = null; detailRes.value = r }, 260)
-}
-function onCardRowDblClick(r: ResourceCard) {
-  if (resClickTimer) { window.clearTimeout(resClickTimer); resClickTimer = null }
-  openResLink(r)
-}
-
-// ---- 链接卡片：打开 / 跳转工作台（第卅二轮 REQ-010：统一打开通道；不可打开→跳转工作台定位） ----
+// ---- 链接打开（WRR 抽屉复用；第卅二轮 REQ-010 统一打开通道） ----
 function openResLink(r: ResourceCard) {
   recordResourceOpen(d.value, r)
   store.persist()
   const url = toOpenableUrl(r.linkType, r.link)
   if (url) openExternalLink(url)
-  else openProjectWorkspace(r)
-}
-function openProjectWorkspace(r: ResourceCard) {
-  chrome.runtime.sendMessage({ type: 'zy-locate-workspace', wsId: r.workspaceId, hl: r.id })
 }
 
-// ---- O23：未归档任务（指标缺失也算未归档）+ 级联归档操作 ----
+// ---- O23 未归档任务：第卌四轮 T-01 双重有效性校验（bug 根因修复） ----
+// 旧判定只看 !t.metricId——悬挂引用（指标已被删/导入残留）被假归档，3/10 实际应 10/10。
+// 新判定：项目存在 + 指标存在于该项目之下，二者缺一或失效 → 未归档，并给出原因徽标。
+const projectById = computed(() => {
+  const m = new Map<string, { id: string; name: string; metrics: { id: string }[] }>()
+  for (const dir of d.value.compass.directions) for (const p of dir.projects) m.set(p.id, p)
+  return m
+})
+function taskArchiveIssue(t: { projectId?: string; metricId?: string }): string {
+  if (!t.projectId) return '未挂项目'
+  const proj = projectById.value.get(t.projectId)
+  if (!proj) return '⚠ 项目失效'
+  if (!t.metricId) return '未挂指标'
+  if (!proj.metrics.some(mt => mt.id === t.metricId)) return '⚠ 指标失效'
+  return ''
+}
 const unarchivedTasks = computed(() =>
-  d.value.tasks.filter(t => !t.deletedAt && !t.metricId)
+  d.value.tasks.filter(t => !t.deletedAt && taskArchiveIssue(t) !== '')
 )
 // R43-3 未归档任务 N/M 分母：全部未删除任务数（含已归档）
 const totalTasks = computed(() => d.value.tasks.filter(t => !t.deletedAt).length)
@@ -284,15 +216,15 @@ function changeTaskMetric(taskId: string, e: Event) {
           <div class="ns-value">{{ metrics.wrr.label }}</div>
           <div class="ns-sub">{{ metrics.wrr.sub }}</div>
         </div>
-        <div class="ns-card bottom" @click="openDrawer('groups')">
-          <div class="ns-label">🗂 模块分组 <span class="ns-hint">↗</span></div>
-          <div class="ns-value">{{ metrics.categories }}</div>
-          <div class="ns-sub">全量 · 不分期</div>
+        <div class="ns-card bottom" @click="openDrawer('today-add')">
+          <div class="ns-label">📈 今日新增 <span class="ns-hint">↗</span></div>
+          <div class="ns-value">{{ todayAddList.length }}</div>
+          <div class="ns-sub">{{ todayAddSub }} · 不分期</div>
         </div>
-        <div class="ns-card bottom" @click="openDrawer('resources')">
-          <div class="ns-label">🔗 链接卡片 <span class="ns-hint">↗</span></div>
-          <div class="ns-value">{{ metrics.resources }}</div>
-          <div class="ns-sub">全量 · 不分期</div>
+        <div class="ns-card bottom" @click="openDrawer('today-del')">
+          <div class="ns-label">📉 今日删除 <span class="ns-hint">↗</span></div>
+          <div class="ns-value">{{ todayDelList.length }}</div>
+          <div class="ns-sub">{{ todayDelSub }} · 不分期</div>
         </div>
         <div class="ns-card bottom" @click="openDrawer('tasks')">
           <div class="ns-label">📥 未归档任务 <span class="ns-hint">↗</span></div>
@@ -348,61 +280,38 @@ function changeTaskMetric(taskId: string, e: Event) {
         </div>
       </template>
 
-      <!-- 模块分组（第卅一轮：模块卡；第卅三轮 REQ-025：抽屉内直接平铺分类，点击直达卡片列表） -->
-      <template v-else-if="drawerType === 'groups'">
-        <div class="nd-flat">
-          <template v-for="grp in groupRows" :key="grp.workspace.id">
-            <div class="nd-flat-ws">
-              <span class="nd-flat-ws-name">{{ grp.workspace.icon || '📁' }} {{ grp.workspace.name.replace(/^[^\s]+\s/, '') }}</span>
-              <span class="nd-count">{{ cardCountOf(grp.workspace.id) }} 张卡</span>
-            </div>
-            <div v-if="grp.folders.length || uncatCountOf(grp.workspace.id)" class="nd-flat-cats">
-              <div v-for="c in grp.folders" :key="c.id" class="nw-row clickable"
-                :title="'查看「' + c.name + '」的卡片'" @click="openWsPopup(grp.workspace.id, c.id)">
-                <div class="nd-row-main">
-                  <div class="nw-row-title">📂 {{ c.name }}</div>
-                </div>
-                <div class="nw-row-side"><span class="nw-chip">{{ catCount(c.id) }} 张卡</span><span class="nd-ws-go">›</span></div>
-              </div>
-              <div v-if="uncatCountOf(grp.workspace.id)" class="nw-row clickable" @click="openWsPopup(grp.workspace.id, null)">
-                <div class="nd-row-main">
-                  <div class="nw-row-title">📥 待分类</div>
-                </div>
-                <div class="nw-row-side"><span class="nw-chip">{{ uncatCountOf(grp.workspace.id) }} 张卡</span><span class="nd-ws-go">›</span></div>
-              </div>
-            </div>
-            <div v-else class="nd-flat-empty">暂无分类，去工作台侧栏创建</div>
-          </template>
-          <div v-if="!groupRows.length" class="nd-empty">暂无工作台</div>
+      <!-- 第卌四轮 T-02：今日新增明细 -->
+      <template v-else-if="drawerType === 'today-add'">
+        <div class="dhi-list">
+          <div v-for="x in todayAddList" :key="x.kind + x.id" class="nd-item">
+            <div class="nd-name text">{{ kindIcon(x.kind) }} {{ x.title }}</div>
+            <div class="nd-meta">{{ fmtClock(x.createdAt) }}</div>
+          </div>
+          <div v-if="!todayAddList.length" class="nd-empty">今天还没有新增卡片——去采集一张，这里立刻 +1</div>
         </div>
-        <div class="nd-tip">按工作台分区平铺 · 点击分类直接查看卡片清单 · 顺序在顶部导航拖拽 Tab 调整 · 分类增删改在工作台侧栏</div>
+        <div class="nd-tip">实时派生自卡片 createdAt · 新增即保存，无需手动确认</div>
       </template>
 
-      <!-- 链接卡片（第卅一轮：全量 + 搜索 + 按模块分组 + 单击详情/双击打开） -->
-      <template v-else-if="drawerType === 'resources'">
-        <input class="nd-search" v-model="resSearch" placeholder="🔍 搜索标题 / 标签 / 链接 / 模块…" />
-        <template v-for="g in groupedLinkCards" :key="g.wsId">
-          <div class="nd-group-name">{{ g.name }}<span class="nd-count">{{ g.cards.length }}</span></div>
-          <div class="dhi-list">
-            <div v-for="r in g.cards" :key="r.id" class="nd-item clickable" :title="'单击查看详情 · 双击打开链接'"
-              @click="onCardRowClick(r)" @dblclick="onCardRowDblClick(r)">
-              <div class="nd-row-main">
-                <div class="nd-name text">{{ r.title }}</div>
-                <div class="nd-sub-line">{{ linkHost(r) }} · {{ catNameOf(r) }}</div>
-              </div>
-              <span v-if="r.callCount" class="nd-fire">🔥{{ r.callCount }}</span>
-            </div>
+      <!-- 第卌四轮 T-02：今日删除明细 -->
+      <template v-else-if="drawerType === 'today-del'">
+        <div class="dhi-list">
+          <div v-for="x in todayDelList" :key="x.kind + x.id" class="nd-item">
+            <div class="nd-name text">{{ kindIcon(x.kind) }} {{ x.title }}</div>
+            <div class="nd-meta">{{ fmtClock(x.deletedAt) }}</div>
           </div>
-        </template>
-        <div v-if="!filteredLinkCards.length" class="nd-empty">{{ resSearch ? '没有匹配的卡片，换个关键词试试' : '暂无含链接的资源卡' }}</div>
-        <div class="nd-tip">单击查看详情 · 双击打开链接 · 支持按标题/标签/链接/模块搜索</div>
+          <div v-if="!todayDelList.length" class="nd-empty">今天没有删除卡片</div>
+        </div>
+        <div class="nd-tip">软删除可在 回收站 恢复 · 永久删除会记入操作日志</div>
       </template>
 
       <!-- O23 未归档任务：级联归档（关联成功后即时从清单消失） -->
       <template v-else>
         <div class="dhi-list">
           <div v-for="t in unarchivedTasks" :key="t.id" class="nd-task-row">
-            <div class="nd-name text">{{ t.title }}</div>
+            <div class="nd-task-head">
+              <div class="nd-name text">{{ t.title }}</div>
+              <div class="nd-tag warn">{{ taskArchiveIssue(t) }}</div>
+            </div>
             <div class="nd-task-links">
               <select class="nd-select" :value="t.projectId || ''" @change="changeTaskProject(t.id, $event)">
                 <option value="">📦 未关联项目</option>
@@ -417,68 +326,6 @@ function changeTaskMetric(taskId: string, e: Event) {
           <div v-if="!unarchivedTasks.length" class="nd-empty">🎉 没有未归档任务——所有任务都已挂到成功指标</div>
         </div>
         <div class="nd-tip">📥 未归档 = 未挂成功指标的任务（含未挂项目的）。先选项目再选指标，关联成功后任务立即从清单消失，任务中心与罗盘同步生效</div>
-      </template>
-    </Drawer>
-
-    <!-- 第卅二轮 REQ-013/014：模块分组下钻弹窗（二级=分类名+数量；三级=分类下资源卡列表，可返回上一层） -->
-    <Teleport to="body">
-      <div v-if="wsPopupOpen" class="nw-overlay" @click.self="wsPopupOpen = false">
-        <div class="nw-panel">
-          <div class="nw-head">
-            <button v-if="wsPopupLevel === 'cards'" class="nw-back" @click="backToCats" title="返回上一层">‹ 返回</button>
-            <div class="nw-title">{{ wsPopup ? wsDisplayName(wsPopup) : '' }}<template v-if="wsPopupLevel === 'cards'"> / {{ activeCatName }}</template> · {{ wsPopupLevel === 'cats' ? '分类清单' : '资源卡列表' }}<span class="nw-count">{{ wsPopupLevel === 'cats' ? wsPopupCats.length + (wsPopupUncatCount ? 1 : 0) : activeCatCards.length }}</span></div>
-            <button class="nw-close" @click="wsPopupOpen = false">×</button>
-          </div>
-          <div class="nw-body">
-            <!-- 二级：分类名 + 资源卡数量 -->
-            <template v-if="wsPopupLevel === 'cats'">
-              <div v-for="c in wsPopupCats" :key="c.id" class="nw-row clickable" @click="openCatCards(c.id)">
-                <div class="nd-row-main">
-                  <div class="nw-row-title">📂 {{ c.name }}</div>
-                </div>
-                <div class="nw-row-side"><span class="nw-chip">{{ c.count }} 张卡</span><span class="nd-ws-go">›</span></div>
-              </div>
-              <div v-if="wsPopupUncatCount" class="nw-row clickable" @click="openCatCards(null)">
-                <div class="nd-row-main">
-                  <div class="nw-row-title">📥 待分类</div>
-                </div>
-                <div class="nw-row-side"><span class="nw-chip">{{ wsPopupUncatCount }} 张卡</span><span class="nd-ws-go">›</span></div>
-              </div>
-              <div v-if="!wsPopupCats.length && !wsPopupUncatCount" class="nd-empty">该模块暂无分类 · 去工作台侧栏创建</div>
-            </template>
-            <!-- 三级：分类下资源卡列表 -->
-            <template v-else>
-              <div v-for="r in activeCatCards" :key="r.id" class="nw-row" title="单击查看详情 · 双击打开链接"
-                @click="onCardRowClick(r)" @dblclick="onCardRowDblClick(r)">
-                <div class="nd-row-main">
-                  <div class="nw-row-title">{{ linkTypeIcon(r) }} {{ r.title }}</div>
-                  <div class="nw-row-sub">{{ linkHost(r) }}</div>
-                </div>
-                <div class="nw-row-side">
-                  <span v-if="r.callCount" class="nd-fire">🔥{{ r.callCount }}</span>
-                </div>
-              </div>
-              <div v-if="!activeCatCards.length" class="nd-empty">该分类暂无资源卡</div>
-            </template>
-          </div>
-          <div class="nw-foot">{{ wsPopupLevel === 'cats' ? '点击分类查看资源卡列表' : '单击查看详情 · 双击打开链接' }}</div>
-        </div>
-      </div>
-    </Teleport>
-
-    <!-- 第卅一轮：卡片详情抽屉（单击打开） -->
-    <Drawer :open="!!detailRes" title="🔗 卡片详情" @close="detailRes = null">
-      <template v-if="detailRes">
-        <div class="nr-title">{{ detailRes.title }}</div>
-        <div class="nr-row"><span class="nr-k">链接</span><span class="nr-v link">{{ detailRes.link }}</span></div>
-        <div class="nr-row"><span class="nr-k">类型</span><span class="nr-v">{{ detailRes.linkType === 'url' ? '🌐 网页' : detailRes.linkType === 'file' ? '📄 本地文件' : 'Obsidian' }}</span></div>
-        <div class="nr-row"><span class="nr-k">模块</span><span class="nr-v">{{ wsName(detailRes.workspaceId).replace(/^[^\s]+\s/, '') }} / {{ catNameOf(detailRes) }}</span></div>
-        <div class="nr-row" v-if="detailRes.description"><span class="nr-k">描述</span><span class="nr-v">{{ detailRes.description }}</span></div>
-        <div class="nr-row" v-if="Array.isArray(detailRes.tags) && detailRes.tags.length"><span class="nr-k">标签</span><span class="nr-v">#{{ detailRes.tags.join(' #') }}</span></div>
-        <div class="nr-actions">
-          <button class="nd-btn" @click="detailRes && openResLink(detailRes)">↗ 打开链接</button>
-          <button class="nd-btn ghost" @click="detailRes && openProjectWorkspace(detailRes)">📂 前往工作台</button>
-        </div>
       </template>
     </Drawer>
 
@@ -548,62 +395,16 @@ function changeTaskMetric(taskId: string, e: Event) {
 .nd-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: 11px; cursor: pointer; font-family: inherit; }
 .nd-btn.ghost { background: var(--surface); border-color: var(--border); color: var(--text-2); }
 .nd-task-row { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-xs); margin-bottom: 8px; background: var(--surface); }
+.nd-task-head { display: flex; align-items: center; gap: 8px; }
+.nd-task-head .nd-name { flex: 1; }
 .nd-task-links { display: flex; gap: 6px; margin-top: 8px; }
 .nd-select { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 11px; color: var(--text-2); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; }
 .nd-select:focus { border-color: var(--accent); }
 .nd-select:disabled { opacity: .5; cursor: not-allowed; }
 
-/* 第卅一轮：模块分组·模块卡 */
-.nd-ws-list { display: flex; flex-direction: column; gap: 8px; }
-.nd-ws-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); transition: all .15s; }
-.nd-ws-card.clickable { cursor: pointer; }
-.nd-ws-card.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
-.nd-ws-icon { width: 34px; height: 34px; border-radius: 8px; background: var(--surface-3); display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
-.nd-ws-main { flex: 1; min-width: 0; }
-.nd-ws-name { font-size: 13.5px; font-weight: 600; color: var(--text); }
-.nd-ws-meta { font-size: 11px; color: var(--text-3); margin-top: 2px; }
-.nd-ws-go { font-size: 16px; color: var(--text-4); transition: all .15s; }
-.nd-ws-card:hover .nd-ws-go { color: var(--accent); transform: translateX(2px); }
+/* 第卌四轮 T-02：模块分组/链接卡片下钻 UI 已撤卡（wsPopup/nd-ws/nd-flat/nw-* 死样式全清），全景下钻由设置页「工作台全景」承接 */
 
-/* 第卅三轮 REQ-025：模块分组平铺（工作台分区 → 分类行，点击直达卡片列表） */
-.nd-flat { display: flex; flex-direction: column; gap: 4px; }
-.nd-flat-ws { display: flex; align-items: center; justify-content: space-between; padding: 14px 4px 6px; border-bottom: 1px solid var(--border); }
-.nd-flat-ws:first-child { padding-top: 4px; }
-.nd-flat-ws-name { font-size: 13px; font-weight: 700; color: var(--text); }
-.nd-flat-cats { display: flex; flex-direction: column; gap: 6px; padding: 6px 0 4px; }
-.nd-flat-empty { font-size: 11.5px; color: var(--text-3); padding: 6px 4px 10px; }
-
-/* 第卅一轮：链接卡片搜索 + 分组 + 行 */
-.nd-search { width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-size: 12.5px; font-family: inherit; outline: none; margin-bottom: 12px; transition: border-color .15s; }
-.nd-search:focus { border-color: var(--accent); }
-.nd-search::placeholder { color: var(--text-4); }
-.nd-group-name { font-size: 11.5px; font-weight: 700; color: var(--text-2); margin: 12px 0 7px; display: flex; align-items: center; gap: 6px; }
-.nd-count { font-size: 10px; color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 1px 7px; font-weight: 500; }
-.nd-row-main { flex: 1; min-width: 0; }
-.nd-sub-line { font-size: 10.5px; color: var(--text-4); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nd-fire { font-size: 10.5px; color: var(--curio-amber, #E8A33D); flex-shrink: 0; }
-
-/* 第卅一轮：模块卡片清单弹窗 */
-.nw-overlay { position: fixed; inset: 0; background: var(--overlay-bg, rgba(0,0,0,.4)); z-index: 300; display: flex; align-items: center; justify-content: center; }
-.nw-panel { width: 560px; max-width: 92vw; max-height: 78vh; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
-.nw-head { padding: 15px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; }
-.nw-title { font-size: 13.5px; font-weight: 600; color: var(--text); flex: 1; }
-.nw-count { margin-left: 8px; font-size: 10.5px; color: var(--accent); background: var(--accent-light); border-radius: 99px; padding: 1px 8px; font-weight: 500; }
-.nw-close { width: 28px; height: 28px; border-radius: 7px; border: none; background: transparent; color: var(--text-3); font-size: 17px; cursor: pointer; font-family: inherit; }
-.nw-back { flex-shrink: 0; margin-right: 10px; padding: 3px 10px; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--text-2); font-size: 11.5px; cursor: pointer; font-family: inherit; }
-.nw-back:hover { border-color: var(--accent); color: var(--accent); }
-.nw-row.clickable:hover { border-color: var(--accent); }
-.nw-close:hover { background: var(--surface-3); color: var(--text); }
-.nw-body { flex: 1; overflow-y: auto; padding: 12px 14px; }
-.nw-row { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-xs); margin-bottom: 6px; background: var(--surface); cursor: pointer; transition: all .15s; }
-.nw-row:hover { border-color: var(--accent); background: var(--accent-light); }
-.nw-row-title { font-size: 12.5px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nw-row-sub { font-size: 10.5px; color: var(--text-4); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nw-row-side { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.nw-chip { font-size: 10px; color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 2px 8px; white-space: nowrap; }
-.nw-foot { padding: 10px 18px; border-top: 1px solid var(--border); font-size: 10.5px; color: var(--text-4); text-align: center; }
-
-/* 第卅一轮：卡片详情抽屉 */
+/* 第卌一轮：卡片详情抽屉 */
 .nr-title { font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.5; margin-bottom: 14px; }
 .nr-row { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
 .nr-k { width: 40px; flex-shrink: 0; color: var(--text-4); }

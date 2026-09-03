@@ -21,6 +21,209 @@
       <!-- 返回按钮 -->
       <div class="gs-back-btn" @click="router.push('/compass')">← 返回</div>
 
+      <!-- ===== 知源仪表盘（第卌四轮 T-03：默认首屏） ===== -->
+      <div v-if="activePage === 'dashboard'" class="gs-panel">
+        <div class="gs-page-header">
+          <div class="gs-page-title">📊 知源仪表盘 <span class="gs-dash-en">DASHBOARD</span></div>
+          <div class="gs-page-desc">数据总览 · 操作有痕 · 一键导出核对（本页为设置默认首屏）</div>
+        </div>
+
+        <!-- ① 核心指标 5 卡 -->
+        <div class="gs-dash-stats">
+          <div class="gs-dash-stat" @click="openStatDrawer('all')">
+            <div class="gs-ds-label">总卡片</div>
+            <div class="gs-ds-value">{{ totalCards }}<span class="gs-ds-today" v-if="statTodayAdd">今日 +{{ statTodayAdd }}</span></div>
+          </div>
+          <div class="gs-dash-stat" @click="openStatDrawer('resource')">
+            <div class="gs-ds-label">📇 资源卡</div>
+            <div class="gs-ds-value">{{ resLiveCount }}<span class="gs-ds-today" v-if="statTodayRes">+{{ statTodayRes }}</span></div>
+          </div>
+          <div class="gs-dash-stat" @click="openStatDrawer('task')">
+            <div class="gs-ds-label">✅ 任务卡</div>
+            <div class="gs-ds-value">{{ taskLiveCount }}<span class="gs-ds-today" v-if="statTodayTask">+{{ statTodayTask }}</span></div>
+          </div>
+          <div class="gs-dash-stat" @click="openStatDrawer('curiosity')">
+            <div class="gs-ds-label">💡 好奇心卡</div>
+            <div class="gs-ds-value">{{ curioLiveCount }}<span class="gs-ds-today" v-if="statTodayCurio">+{{ statTodayCurio }}</span></div>
+          </div>
+          <div class="gs-dash-stat" @click="openStatDrawer('link')">
+            <div class="gs-ds-label">🔗 链接卡片</div>
+            <div class="gs-ds-value">{{ linkCardCount }}</div>
+            <div class="gs-ds-sub">跨全部工作台</div>
+          </div>
+        </div>
+
+        <!-- ② 动态条（可点击 → 抽屉明细，交互对齐北极星） -->
+        <div class="gs-dash-dynamic">
+          <div class="gs-dd-seg" @click="openDynDrawer('today-add')">今日 <b class="up">+{{ todayAddCount }}</b> / <b class="down">−{{ todayDelCount }}</b></div>
+          <div class="gs-dd-sep">│</div>
+          <div class="gs-dd-seg" @click="openDynDrawer('week-add')">本周 <b class="up">+{{ weekAddCount }}</b> / <b class="down">−{{ weekDelCount }}</b></div>
+          <div class="gs-dd-sep">│</div>
+          <div class="gs-dd-seg" @click="openDynDrawer('cum-del')">累计删除 <b>{{ cumDelCount }}</b></div>
+          <button class="gs-btn gs-btn-primary gs-dd-export" @click="exportEventsCsv">⬇ 导出 CSV（按筛选）</button>
+        </div>
+
+        <!-- ③ 操作记录时间线 -->
+        <div class="gs-card">
+          <div class="gs-card-header"><span class="gs-card-title">🕘 操作记录</span><span class="gs-card-desc">类型 × 动作 × 时间 三维筛选 · 点击行展开详情 · CSV 按当前筛选导出</span></div>
+          <div class="gs-card-body">
+            <div class="gs-ev-filters">
+              <span class="gs-ev-fl">类型</span>
+              <select class="gs-select" v-model="evKind">
+                <option value="all">全部</option><option value="resource">资源</option><option value="task">任务</option><option value="curiosity">好奇</option>
+              </select>
+              <span class="gs-ev-fl">动作</span>
+              <select class="gs-select" v-model="evAction">
+                <option value="all">全部</option><option value="create">新增</option><option value="delete">删除</option><option value="restore">恢复</option><option value="purge">永久删除</option>
+              </select>
+              <span class="gs-ev-fl">时间</span>
+              <input type="date" class="gs-select gs-ev-date" v-model="evFrom" />
+              <span class="gs-ev-tilde">~</span>
+              <input type="date" class="gs-select gs-ev-date" v-model="evTo" />
+              <span class="gs-ev-count">{{ filteredEvents.length }} 条</span>
+            </div>
+            <div class="gs-ev-list">
+              <template v-for="e in filteredEvents.slice(0, 200)" :key="e.id">
+                <div class="gs-ev-row" @click="expandedEventId = expandedEventId === e.id ? '' : e.id">
+                  <span class="gs-ev-time">{{ fmtEventTime(e.ts) }}</span>
+                  <span class="gs-ev-badge" :class="e.action">{{ eventActionLabel(e.action) }}</span>
+                  <span class="gs-ev-kind">{{ eventKindLabel(e.kind) }}</span>
+                  <span class="gs-ev-title">{{ e.title }}</span>
+                  <span class="gs-ev-go">{{ expandedEventId === e.id ? '▾' : '▸' }}</span>
+                </div>
+                <div v-if="expandedEventId === e.id" class="gs-ev-detail">
+                  <div v-for="line in eventDetailLines(e)" :key="line" class="gs-ev-dl">{{ line }}</div>
+                </div>
+              </template>
+              <div v-if="!filteredEvents.length" class="gs-ev-empty">当前筛选下没有操作记录</div>
+              <div v-if="filteredEvents.length > 200" class="gs-ev-empty">仅显示最近 200 条 · 导出 CSV 可获得完整筛选结果</div>
+            </div>
+            <div class="gs-field-hint">💡 日志容量 {{ eventLog.length }} / 5000 条滚动保留（含恢复与永久删除）；老数据无日志时自动回退为卡片时间派生。导出为 UTF-8+BOM CSV，可直接导入 Airtable。</div>
+          </div>
+        </div>
+
+        <!-- 核心指标下钻抽屉 -->
+        <Drawer :open="!!statDrawer" :title="statDrawerTitle" width="460px" @close="statDrawer = ''">
+          <div class="gs-ev-list">
+            <div v-for="c in statList.slice(0, 300)" :key="c.id" class="gs-ev-row static">
+              <span class="gs-ev-kind">📇</span>
+              <span class="gs-ev-title">{{ c.title }}</span>
+              <span class="gs-ev-time">{{ fmtDay(c.ts) }}</span>
+            </div>
+            <div v-if="!statList.length" class="gs-ev-empty">暂无卡片</div>
+            <div v-if="statList.length > 300" class="gs-ev-empty">仅显示前 300 条</div>
+          </div>
+        </Drawer>
+
+        <!-- 动态条明细抽屉（交互对齐北极星） -->
+        <Drawer :open="!!dynDrawer" :title="dynDrawerTitle" width="460px" @close="dynDrawer = ''">
+          <div class="gs-ev-list">
+            <div v-for="e in dynList.slice(0, 300)" :key="e.id" class="gs-ev-row static">
+              <span class="gs-ev-time">{{ fmtEventTime(e.ts) }}</span>
+              <span class="gs-ev-badge" :class="e.action">{{ eventActionLabel(e.action) }}</span>
+              <span class="gs-ev-kind">{{ eventKindLabel(e.kind) }}</span>
+              <span class="gs-ev-title">{{ e.title }}</span>
+            </div>
+            <div v-if="!dynList.length" class="gs-ev-empty">该时间范围内没有记录</div>
+          </div>
+          <div class="gs-field-hint">💡 操作有痕：新增即保存，无需手动确认；删除进回收站可恢复。</div>
+        </Drawer>
+      </div>
+
+      <!-- ===== 工作台全景（第卌四轮 T-04：双栏 Master-Detail，第二屏） ===== -->
+      <div v-if="activePage === 'panorama'" class="gs-panel gs-pan-panel">
+        <div class="gs-page-header">
+          <div class="gs-page-title">🗺 工作台全景</div>
+          <div class="gs-page-desc">左栏看全景（工作台 → 分类 → 子分类），右栏做整理 · 勾选卡片拖到左栏目标分类即可批量移动 · 单击详情 / 双击打开 · 仅含资源工作台</div>
+        </div>
+        <div class="gs-pan-wrap">
+          <!-- 左栏：全景计数树（默认全展开） -->
+          <div class="gs-pan-tree">
+            <div class="gs-pan-tree-head">全景 · {{ panTree.length }} 工作台 · {{ panTotalCats }} 分类 · {{ panTotalCards }} 卡</div>
+            <div v-for="wsNode in panTree" :key="wsNode.ws.id" class="gs-pan-ws">
+              <div class="gs-pan-row gs-pan-ws-row" :class="{ active: panSelWs === wsNode.ws.id && !panSelCat, drop: dropTarget === 'ws:' + wsNode.ws.id }"
+                draggable="false" @click="selectPanWs(wsNode.ws.id)"
+                @dragover.prevent="dropTarget = 'ws:' + wsNode.ws.id" @dragleave="dropTarget === 'ws:' + wsNode.ws.id && (dropTarget = '')" @drop.prevent="onPanDrop('ws:' + wsNode.ws.id, wsNode.ws.id, '')">
+                <span class="gs-pan-toggle leaf" @click.stop="togglePanCollapse('ws:' + wsNode.ws.id)">{{ panCollapsed.has('ws:' + wsNode.ws.id) ? '▸' : '▾' }}</span>
+                <span class="gs-pan-name">{{ wsNode.ws.icon || '📁' }} {{ wsNode.ws.name.replace(/^[^\s]+\s/, '') }}</span>
+                <span class="gs-pan-count">{{ wsNode.count }}</span>
+              </div>
+              <template v-if="!panCollapsed.has('ws:' + wsNode.ws.id)">
+                <div v-for="node in wsNode.cats" :key="node.cat.id">
+                  <div class="gs-pan-row gs-pan-cat-row" :class="{ active: panSelCat === node.cat.id, drop: dropTarget === 'cat:' + node.cat.id }"
+                    @click="selectPanCat(node.cat.id)"
+                    @dragover.prevent="dropTarget = 'cat:' + node.cat.id" @dragleave="dropTarget === 'cat:' + node.cat.id && (dropTarget = '')" @drop.prevent="onPanDrop('cat:' + node.cat.id, node.cat.workspaceId, node.cat.id)">
+                    <span v-if="node.children.length" class="gs-pan-toggle" @click.stop="togglePanCollapse('cat:' + node.cat.id)">{{ panCollapsed.has('cat:' + node.cat.id) ? '▸' : '▾' }}</span>
+                    <span v-else class="gs-pan-toggle leaf">·</span>
+                    <span class="gs-pan-name">📂 {{ node.cat.name }}</span>
+                    <span class="gs-pan-count">{{ node.count }}</span>
+                  </div>
+                  <template v-if="!panCollapsed.has('cat:' + node.cat.id)">
+                    <div v-for="ch in node.children" :key="ch.cat.id" class="gs-pan-row gs-pan-sub-row" :class="{ active: panSelCat === ch.cat.id, drop: dropTarget === 'cat:' + ch.cat.id }"
+                      @click="selectPanCat(ch.cat.id)"
+                      @dragover.prevent="dropTarget = 'cat:' + ch.cat.id" @dragleave="dropTarget === 'cat:' + ch.cat.id && (dropTarget = '')" @drop.prevent="onPanDrop('cat:' + ch.cat.id, ch.cat.workspaceId, ch.cat.id)">
+                      <span class="gs-pan-toggle leaf">·</span>
+                      <span class="gs-pan-name">└ {{ ch.cat.name }}</span>
+                      <span class="gs-pan-count">{{ ch.count }}</span>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
+            <div v-if="!panTree.length" class="gs-ev-empty">暂无工作台</div>
+          </div>
+          <!-- 右栏：当前分类卡片列表 -->
+          <div class="gs-pan-list-wrap">
+            <div class="gs-pan-list-head">
+              <span class="gs-pan-crumb">{{ panCrumb }}</span>
+              <label class="gs-pan-allcheck"><input type="checkbox" :checked="panAllChecked" @change="togglePanAll" /> 全选本分类</label>
+            </div>
+            <div class="gs-pan-list">
+              <div v-for="r in panCards" :key="r.id" class="gs-pan-card" :class="{ selected: panSelected.has(r.id) }" draggable="true"
+                @dragstart="onPanDragStart($event, r.id)" @dragend="dropTarget = ''"
+                @click="onPanCardClick(r)" @dblclick="onPanCardDblClick(r)">
+                <input type="checkbox" class="gs-pan-check" :checked="panSelected.has(r.id)" @click.stop @change="togglePanCard(r.id)" />
+                <div class="gs-pan-card-main">
+                  <div class="gs-pan-card-title">{{ r.title }}</div>
+                  <div class="gs-pan-card-sub">{{ panCardSub(r) }}</div>
+                </div>
+                <span class="gs-pan-card-date">{{ fmtDay(r.createdAt) }}</span>
+              </div>
+              <div v-if="!panCards.length" class="gs-ev-empty">左侧选择工作台或分类查看卡片</div>
+            </div>
+            <div v-if="panSelected.size" class="gs-pan-batch">
+              <span class="gs-pan-batch-n">已选 {{ panSelected.size }} 张</span>
+              <select class="gs-select" v-model="panMoveWs" @change="panMoveCat = ''">
+                <option value="">目标工作台…</option>
+                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name }}</option>
+              </select>
+              <select class="gs-select" v-model="panMoveCat" :disabled="!panMoveWs">
+                <option value="">目标分类（可选）</option>
+                <option v-for="c in panMoveCatOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+              <button class="gs-btn gs-btn-primary" :disabled="!panMoveWs" @click="movePanSelection">移动</button>
+              <button class="gs-btn" @click="panSelected = new Set()">取消</button>
+            </div>
+            <div class="gs-pan-foot">拖拽动线：勾选卡片 → 拖到左栏目标分类（虚线高亮）松手即移动 · 也可用下方按钮兜底 · 单击详情 双击打开</div>
+          </div>
+        </div>
+
+        <!-- 全景卡片详情抽屉（单击打开） -->
+        <Drawer :open="!!panDetail" title="🔗 卡片详情" @close="panDetail = null">
+          <template v-if="panDetail">
+            <div class="gs-pd-title">{{ panDetail.title }}</div>
+            <div class="gs-pd-row"><span class="gs-pd-k">链接</span><span class="gs-pd-v">{{ panDetail.link || '—' }}</span></div>
+            <div class="gs-pd-row"><span class="gs-pd-k">归属</span><span class="gs-pd-v">{{ gWsName(panDetail.workspaceId) }} / {{ gCatName(panDetail.categoryId) || '待分类' }}</span></div>
+            <div class="gs-pd-row" v-if="panDetail.description"><span class="gs-pd-k">描述</span><span class="gs-pd-v">{{ panDetail.description }}</span></div>
+            <div class="gs-pd-row" v-if="panDetail.tags && panDetail.tags.length"><span class="gs-pd-k">标签</span><span class="gs-pd-v">#{{ panDetail.tags.join(' #') }}</span></div>
+            <div class="gs-pd-actions">
+              <button class="gs-btn gs-btn-primary" @click="onPanCardDblClick(panDetail)">↗ 打开链接</button>
+              <button class="gs-btn" @click="panDetail = null">关闭</button>
+            </div>
+          </template>
+        </Drawer>
+      </div>
+
       <!-- ===== 资源卡字段 ===== -->
       <div v-if="activePage === 'resource'" class="gs-panel">
         <div class="gs-page-header">
@@ -533,7 +736,8 @@ function openManualTab() {
 }
 
 // ---- 导航 ----
-const activePage = ref('resource')
+// 第卌四轮 T-03：设置默认首屏 = 知源仪表盘
+const activePage = ref('dashboard')
 /** 深链：/settings?page=tags 直达指定面板（TagPicker 空体系引导跳转用） */
 function pageFromQuery(): string | null {
   const p = route.query.page
@@ -681,18 +885,26 @@ function formatBackupAgo(ts: number): string {
 }
 watch(() => route.query.page, () => { const p = pageFromQuery(); if (p) activePage.value = p })
 const navGroups = [
-  { title: '卡片字段', items: [
+  // 第卌四轮 T-03：五组重组（拍板 Q-6，12 项一项不减）——总览=仪表盘默认首屏；整理=工作台全景第二屏
+  { title: '总览', items: [
+    { key: 'dashboard', icon: '📊', label: '知源仪表盘' },
+  ]},
+  { title: '整理', items: [
+    { key: 'panorama', icon: '🗺', label: '工作台全景' },
+  ]},
+  { title: '卡片与字段', items: [
     { key: 'resource', icon: '📇', label: '资源卡' },
     { key: 'task', icon: '✅', label: '任务卡' },
     { key: 'curiosity', icon: '💡', label: '好奇心卡' },
-  ]},
-  { title: '数据管理', items: [
+    // 第卌四轮 Q-6：标签管理上移——它服务卡片呈现，与三卡同组
     { key: 'tags', icon: '🏷', label: '标签管理' },
+  ]},
+  { title: '数据', items: [
     { key: 'import', icon: '⬇', label: '导入数据' },
     { key: 'export', icon: '⬆', label: '导出数据' },
     { key: 'reset', icon: '🔄', label: '重置与回滚' },
   ]},
-  { title: '其他', items: [
+  { title: '系统', items: [
     { key: 'extension', icon: '🔌', label: '扩展设置' },
     { key: 'shortcuts', icon: '⌨', label: '快捷键设置' },
     { key: 'manual', icon: '📖', label: '使用手册' },
@@ -708,6 +920,336 @@ const fields = computed({
 })
 function onFieldChange() { store.persist() }
 function onFieldNotify(msg: string) { showToast(msg) }
+
+// ============================================================
+// 第卌四轮 T-03/T-06/T-07：知源仪表盘（核心指标 + 动态条 + 操作记录 + CSV）
+// ============================================================
+import Drawer from '@/shared/components/Drawer.vue'
+import { readEventLog, type CardEvent } from '@/shared/utils/eventLog'
+import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
+import { recordResourceOpen } from '../stores/compass'
+import { openHtmlAsset } from '@/shared/utils/htmlAsset'
+
+const gd = computed(() => store.data!)
+const gResLive = computed(() => gd.value.resources.filter(r => !r.deletedAt))
+const gTaskLive = computed(() => gd.value.tasks.filter(t => !t.deletedAt))
+const gCurioLive = computed(() => gd.value.curiosities.filter(c => !c.deletedAt))
+const totalCards = computed(() => gResLive.value.length + gTaskLive.value.length + gCurioLive.value.length)
+const resLiveCount = computed(() => gResLive.value.length)
+const taskLiveCount = computed(() => gTaskLive.value.length)
+const curioLiveCount = computed(() => gCurioLive.value.length)
+const linkCardCount = computed(() => gResLive.value.filter(r => (r.link || '').trim()).length)
+
+const gStartOfToday = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); return dt.getTime() })()
+const gStartOfWeek = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7)); return dt.getTime() })()
+type GFlat = { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; createdAt: number; deletedAt?: number }
+const gFlat = computed<GFlat[]>(() => [
+  ...gd.value.resources.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title || '（无标题）', createdAt: r.createdAt || 0, deletedAt: r.deletedAt })),
+  ...gd.value.tasks.map(t => ({ kind: 'task' as const, id: t.id, title: t.title || '（无标题）', createdAt: t.createdAt || 0, deletedAt: t.deletedAt })),
+  ...gd.value.curiosities.map(c => ({ kind: 'curiosity' as const, id: c.id, title: c.question || '（无标题）', createdAt: c.createdAt || 0, deletedAt: c.deletedAt }))
+])
+const todayAddCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.createdAt >= gStartOfToday).length)
+const todayDelCount = computed(() => gFlat.value.filter(x => x.deletedAt && x.deletedAt >= gStartOfToday).length)
+const weekAddCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.createdAt >= gStartOfWeek).length)
+const weekDelCount = computed(() => gFlat.value.filter(x => x.deletedAt && x.deletedAt >= gStartOfWeek).length)
+const statTodayAdd = computed(() => todayAddCount.value)
+const statTodayRes = computed(() => gFlat.value.filter(x => x.kind === 'resource' && !x.deletedAt && x.createdAt >= gStartOfToday).length)
+const statTodayTask = computed(() => gFlat.value.filter(x => x.kind === 'task' && !x.deletedAt && x.createdAt >= gStartOfToday).length)
+const statTodayCurio = computed(() => gFlat.value.filter(x => x.kind === 'curiosity' && !x.deletedAt && x.createdAt >= gStartOfToday).length)
+
+// ---- 操作记录：事件日志优先，老数据无日志回退卡片时间派生 ----
+const eventLog = ref<CardEvent[]>([])
+const logEmpty = ref(true)
+const expandedEventId = ref('')
+const cumDelCount = ref(0)
+const evKind = ref<'all' | 'resource' | 'task' | 'curiosity'>('all')
+const evAction = ref<'all' | 'create' | 'delete' | 'restore' | 'purge'>('all')
+const evFrom = ref('')
+const evTo = ref('')
+
+async function refreshEventLog() {
+  const log = await readEventLog()
+  eventLog.value = log.slice().reverse() // 新→旧
+  logEmpty.value = log.length === 0
+  cumDelCount.value = log.length
+    ? log.filter(e => e.action === 'delete' || e.action === 'purge').length
+    : gFlat.value.filter(x => x.deletedAt).length
+}
+const derivedEvents = computed<CardEvent[]>(() => {
+  const out: CardEvent[] = []
+  for (const x of gFlat.value) {
+    if (x.createdAt) out.push({ id: `d-${x.id}-c`, ts: x.createdAt, action: 'create', kind: x.kind, title: x.title, cardId: x.id })
+    if (x.deletedAt) out.push({ id: `d-${x.id}-d`, ts: x.deletedAt, action: 'delete', kind: x.kind, title: x.title, cardId: x.id })
+  }
+  return out.sort((a, b) => b.ts - a.ts)
+})
+const timelineEvents = computed<CardEvent[]>(() => (logEmpty.value ? derivedEvents.value : eventLog.value))
+const filteredEvents = computed<CardEvent[]>(() => {
+  const from = evFrom.value ? new Date(evFrom.value + 'T00:00:00').getTime() : 0
+  const to = evTo.value ? new Date(evTo.value + 'T23:59:59').getTime() : Infinity
+  return timelineEvents.value.filter(e => {
+    if (evKind.value !== 'all' && e.kind !== evKind.value && e.kind !== 'system') return false
+    if (evAction.value !== 'all' && e.action !== evAction.value) return false
+    if (e.ts < from || e.ts > to) return false
+    return true
+  })
+})
+function eventActionLabel(a: CardEvent['action']): string {
+  return a === 'create' ? '+ 新增' : a === 'delete' ? '− 删除' : a === 'restore' ? '↩ 恢复' : '✕ 永久删除'
+}
+function eventKindLabel(k: CardEvent['kind']): string {
+  return k === 'resource' ? '资源' : k === 'task' ? '任务' : k === 'curiosity' ? '好奇' : '系统'
+}
+function fmtEventTime(ts: number): string {
+  const dt = new Date(ts)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}`
+}
+function fmtDay(ts?: number): string {
+  if (!ts) return ''
+  const dt = new Date(ts)
+  return `${dt.getMonth() + 1}-${dt.getDate()}`
+}
+function gWsName(id: string): string { return gd.value.workspaces.find(w => w.id === id)?.name || '' }
+function gCatName(id: string): string { return gd.value.categories.find(c => c.id === id)?.name || '' }
+function eventDetailLines(e: CardEvent): string[] {
+  const lines: string[] = [`卡片 ID：${e.cardId || '—'}`]
+  const findCard = () => gd.value.resources.find(x => x.id === e.cardId) || gd.value.tasks.find(x => x.id === e.cardId) || gd.value.curiosities.find(x => x.id === e.cardId)
+  if (e.kind === 'resource') {
+    const r = gd.value.resources.find(x => x.id === e.cardId)
+    if (r) { lines.push(`归属：${gWsName(r.workspaceId) || '—'} / ${gCatName(r.categoryId) || '待分类'}`); if (r.link) lines.push(`链接：${r.link}`) }
+  } else if (e.kind === 'task') {
+    const t = gd.value.tasks.find(x => x.id === e.cardId)
+    if (t) lines.push(`状态：${t.status === 'done' ? '已完成' : t.status === 'doing' ? '进行中' : '待办'}`)
+  } else if (e.kind === 'curiosity') {
+    const c = gd.value.curiosities.find(x => x.id === e.cardId)
+    if (c) lines.push(`探索状态：${c.status === 'done' ? '已求证' : c.status === 'doing' ? '探索中' : c.status === 'shelf' ? '已搁置' : '待探索'}`)
+  }
+  if (!findCard() && e.kind !== 'system') lines.push('（卡片已不在库中：可能已永久删除）')
+  return lines
+}
+
+// ---- CSV 导出（导出对象 = 操作记录时间线的当前筛选结果；Airtable 兼容 UTF-8+BOM） ----
+function csvCell(v: string): string {
+  const s = (v ?? '').toString()
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
+}
+function exportEventsCsv() {
+  const rows: string[] = [['时间', '动作', '卡片类型', '标题', '归属', '卡片ID'].join(',')]
+  for (const e of filteredEvents.value) {
+    let owner = ''
+    if (e.kind === 'resource') {
+      const r = gd.value.resources.find(x => x.id === e.cardId)
+      if (r) owner = `${gWsName(r.workspaceId)} / ${gCatName(r.categoryId) || '待分类'}`
+    }
+    rows.push([fmtEventTime(e.ts), eventActionLabel(e.action), eventKindLabel(e.kind), csvCell(e.title), csvCell(owner), e.cardId].join(','))
+  }
+  // UTF-8 BOM：Excel/Airtable 打开不乱码
+  const blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  const dt = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  a.href = url
+  a.download = `zhiyuan_操作记录_${dt.getFullYear()}${p(dt.getMonth() + 1)}${p(dt.getDate())}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+  showToast(`✓ 已导出 ${filteredEvents.value.length} 条操作记录（按当前筛选）`)
+}
+
+// ---- 核心指标下钻抽屉 ----
+type StatDrawerType = '' | 'all' | 'resource' | 'task' | 'curiosity' | 'link'
+const statDrawer = ref<StatDrawerType>('')
+const statList = computed(() => {
+  switch (statDrawer.value) {
+    case 'resource': return gResLive.value.map(r => ({ id: r.id, title: r.title, ts: r.createdAt }))
+    case 'task': return gTaskLive.value.map(t => ({ id: t.id, title: t.title, ts: t.createdAt }))
+    case 'curiosity': return gCurioLive.value.map(c => ({ id: c.id, title: c.question, ts: c.createdAt }))
+    case 'link': return gResLive.value.filter(r => (r.link || '').trim()).map(r => ({ id: r.id, title: r.title, ts: r.createdAt }))
+    case 'all': return gFlat.value.filter(x => !x.deletedAt).map(x => ({ id: x.id, title: x.title, ts: x.createdAt }))
+    default: return []
+  }
+})
+function openStatDrawer(t: StatDrawerType) { statDrawer.value = t }
+const statDrawerTitle = computed(() => ({
+  all: `📊 全部卡片明细（${totalCards}）`,
+  resource: `📇 资源卡明细（${resLiveCount.value}）`,
+  task: `✅ 任务卡明细（${taskLiveCount.value}）`,
+  curiosity: `💡 好奇心卡明细（${curioLiveCount.value}）`,
+  link: `🔗 链接卡片明细（${linkCardCount.value} · 跨全部工作台）`,
+  '': ''
+}[statDrawer.value]))
+
+// ---- 动态条抽屉（交互对齐北极星：点击数字 → 右侧抽屉逐条明细） ----
+type DynDrawerType = '' | 'today-add' | 'today-del' | 'week-add' | 'week-del' | 'cum-del'
+const dynDrawer = ref<DynDrawerType>('')
+function openDynDrawer(t: DynDrawerType) { dynDrawer.value = t; if (!eventLog.value.length) refreshEventLog() }
+const dynRange = computed<[number, number] | null>(() => {
+  switch (dynDrawer.value) {
+    case 'today-add': case 'today-del': return [gStartOfToday, Infinity]
+    case 'week-add': case 'week-del': return [gStartOfWeek, Infinity]
+    default: return null
+  }
+})
+const dynList = computed(() => {
+  if (!dynDrawer.value) return []
+  const wantCreate = dynDrawer.value === 'today-add' || dynDrawer.value === 'week-add'
+  const [from, to] = dynRange.value || [0, Infinity]
+  if (dynDrawer.value === 'cum-del') {
+    return timelineEvents.value.filter(e => e.action === 'delete' || e.action === 'purge')
+  }
+  return timelineEvents.value.filter(e => {
+    if (wantCreate && e.action !== 'create') return false
+    if (!wantCreate && !(e.action === 'delete' || e.action === 'purge')) return false
+    return e.ts >= from && e.ts <= to
+  })
+})
+const dynDrawerTitle = computed(() => ({
+  'today-add': `📈 今日新增明细（${dynList.value.length}）`,
+  'today-del': `📉 今日删除明细（${dynList.value.length}）`,
+  'week-add': `📈 本周新增明细（${dynList.value.length}）`,
+  'week-del': `📉 本周删除明细（${dynList.value.length}）`,
+  'cum-del': `🗑 累计删除明细（${dynList.value.length}）`,
+  '': ''
+}[dynDrawer.value]))
+
+// ============================================================
+// 第卌四轮 T-04/T-04'：工作台全景（双栏 Master-Detail + 批量移动双通道）
+// ============================================================
+interface PanCatNode { cat: { id: string; name: string; workspaceId: string }; count: number; children: PanCatNode[] }
+interface PanWsNode { ws: { id: string; name: string; icon?: string }; count: number; cats: PanCatNode[] }
+function panCountByCat(catId: string): number { return gResLive.value.filter(r => r.categoryId === catId).length }
+const panTree = computed<PanWsNode[]>(() =>
+  store.workspaces.map(w => {
+    const roots = gd.value.categories.filter(c => c.workspaceId === w.id && !c.parentId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    const toNode = (c: { id: string; name: string; workspaceId: string }): PanCatNode => ({
+      cat: { id: c.id, name: c.name, workspaceId: c.workspaceId },
+      count: panCountByCat(c.id),
+      children: gd.value.categories.filter(ch => ch.parentId === c.id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map(ch => ({
+        cat: { id: ch.id, name: ch.name, workspaceId: ch.workspaceId }, count: panCountByCat(ch.id), children: []
+      }))
+    })
+    return { ws: { id: w.id, name: w.name, icon: w.icon }, count: gResLive.value.filter(r => r.workspaceId === w.id).length, cats: roots.map(toNode) }
+  })
+)
+const panTotalCats = computed(() => gd.value.categories.filter(c => store.workspaces.some(w => w.id === c.workspaceId)).length)
+const panTotalCards = computed(() => store.workspaces.reduce((s, w) => s + gResLive.value.filter(r => r.workspaceId === w.id).length, 0))
+const panCollapsed = ref<Set<string>>(new Set()) // 默认全展开
+function togglePanCollapse(key: string) {
+  const next = new Set(panCollapsed.value)
+  if (next.has(key)) next.delete(key); else next.add(key)
+  panCollapsed.value = next
+}
+const panSelWs = ref('')
+const panSelCat = ref('')
+const panSelected = ref<Set<string>>(new Set())
+const dropTarget = ref('')
+let panDragIds: string[] = []
+function selectPanWs(wsId: string) { panSelWs.value = wsId; panSelCat.value = ''; panSelected.value = new Set() }
+function selectPanCat(catId: string) {
+  const cat = gd.value.categories.find(c => c.id === catId)
+  panSelCat.value = catId
+  panSelWs.value = cat?.workspaceId || panSelWs.value
+  panSelected.value = new Set()
+}
+const panCards = computed(() => {
+  if (panSelCat.value) return gResLive.value.filter(r => r.categoryId === panSelCat.value)
+  if (panSelWs.value) return gResLive.value.filter(r => r.workspaceId === panSelWs.value)
+  return []
+})
+const panCrumb = computed(() => {
+  if (panSelCat.value) {
+    const cat = gd.value.categories.find(c => c.id === panSelCat.value)
+    if (cat) {
+      const parent = cat.parentId ? gCatName(cat.parentId) + ' / ' : ''
+      return `${gWsName(cat.workspaceId)} / ${parent}${cat.name} · ${panCards.value.length} 张`
+    }
+  }
+  if (panSelWs.value) return `${gWsName(panSelWs.value)} · 全部卡片 ${panCards.value.length} 张`
+  return '左侧选择工作台或分类'
+})
+const panAllChecked = computed(() => panCards.value.length > 0 && panCards.value.every(r => panSelected.value.has(r.id)))
+function togglePanAll() {
+  if (panAllChecked.value) panSelected.value = new Set()
+  else panSelected.value = new Set(panCards.value.map(r => r.id))
+}
+function togglePanCard(id: string) {
+  const next = new Set(panSelected.value)
+  if (next.has(id)) next.delete(id); else next.add(id)
+  panSelected.value = next
+}
+function onPanDragStart(e: DragEvent, id: string) {
+  panDragIds = panSelected.value.has(id) ? [...panSelected.value] : [id]
+  if (!panSelected.value.has(id)) togglePanCard(id)
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+}
+function onPanDrop(_key: string, wsId: string, catId: string) {
+  dropTarget.value = ''
+  if (!panDragIds.length) return
+  movePanCards(panDragIds, wsId, catId)
+  panDragIds = []
+}
+function movePanCards(ids: string[], wsId: string, catId: string) {
+  const cat = catId ? gd.value.categories.find(c => c.id === catId) : null
+  const targetWs = cat ? cat.workspaceId : wsId
+  let moved = 0
+  for (const id of ids) {
+    const r = gd.value.resources.find(x => x.id === id)
+    if (!r) continue
+    r.workspaceId = targetWs
+    r.categoryId = cat ? cat.id : ''
+    r.updatedAt = Date.now()
+    moved++
+  }
+  if (moved) { store.persist(); showToast(`✓ 已移动 ${moved} 张卡片`); panSelected.value = new Set() }
+}
+const panMoveWs = ref('')
+const panMoveCat = ref('')
+const panMoveCatOptions = computed(() => {
+  if (!panMoveWs.value) return []
+  const roots = gd.value.categories.filter(c => c.workspaceId === panMoveWs.value && !c.parentId)
+  const out: { id: string; name: string }[] = []
+  for (const c of roots) {
+    out.push({ id: c.id, name: c.name })
+    for (const ch of gd.value.categories.filter(x => x.parentId === c.id)) out.push({ id: ch.id, name: c.name + ' / ' + ch.name })
+  }
+  return out
+})
+function movePanSelection() {
+  if (!panMoveWs.value || !panSelected.value.size) return
+  movePanCards([...panSelected.value], panMoveWs.value, panMoveCat.value)
+  panMoveWs.value = ''; panMoveCat.value = ''
+}
+// 单击详情 / 双击打开（260ms 判定，与全产品统一）
+const panDetail = ref< ResourceCard | null >(null)
+let panClickTimer: ReturnType<typeof setTimeout> | null = null
+function panCardSub(r: ResourceCard): string {
+  const src = r.sourceType ? ({ official: '官方', academic: '学术', media: '媒体', personal: '个人', 'ai-tool': 'AI 工具', 'own-work': '自有' } as Record<string, string>)[r.sourceType] || '' : ''
+  const host = r.linkType === 'url' ? (() => { try { return new URL(r.link).host } catch { return '' } })() : r.linkType === 'file' ? '本地文件' : 'Obsidian'
+  return [host, src].filter(Boolean).join(' · ')
+}
+function onPanCardClick(r: ResourceCard) {
+  if (panClickTimer) { clearTimeout(panClickTimer); panClickTimer = null; return }
+  panClickTimer = setTimeout(() => { panClickTimer = null; panDetail.value = r }, 260)
+}
+function onPanCardDblClick(r: ResourceCard) {
+  if (panClickTimer) { clearTimeout(panClickTimer); panClickTimer = null }
+  recordResourceOpen(gd.value, r)
+  store.persist()
+  if (r.linkType === 'file' && /^zy-asset:\/\//i.test((r.link || '').trim())) {
+    const assetId = (r.link || '').trim().replace(/^zy-asset:\/\//i, '')
+    const meta = (r.assets || []).find(a => a.id === assetId)
+    if (meta && (meta.kind === 'html' || meta.kind === 'pdf')) { openHtmlAsset(meta); return }
+  }
+  const url = toOpenableUrl(r.linkType, r.link)
+  if (url) openExternalLink(url)
+  else showToast('⚠ 该卡片无可打开链接')
+}
+watch(activePage, (p) => {
+  if (p === 'dashboard') refreshEventLog()
+  if (p === 'panorama' && !panSelWs.value && store.workspaces.length) selectPanWs(store.workspaces[0].id)
+})
+refreshEventLog()
 
 // ---- 资源卡实时预览（对齐原型） ----
 const previewMode = ref<'card' | 'list' | 'kanban'>('card')
@@ -1479,4 +2021,82 @@ const activeManualSec = ref('quick-1')
 .gs-tt-act { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: 11px; color: var(--text-3); cursor: pointer; }
 .gs-tt-act:hover { background: var(--surface-3); color: var(--text); }
 .gs-tt-act.del:hover { color: var(--danger); }
+
+/* ===== 第卌四轮：知源仪表盘 ===== */
+.gs-dash-en { font-size: 10px; color: var(--text-3); letter-spacing: 2px; margin-left: 6px; }
+.gs-dash-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
+.gs-dash-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; cursor: pointer; transition: all .15s; }
+.gs-dash-stat:hover { border-color: var(--accent); background: var(--accent-light); }
+.gs-ds-label { font-size: 11.5px; color: var(--text-2); margin-bottom: 6px; }
+.gs-ds-value { font-size: 24px; font-weight: 700; color: var(--text); line-height: 1.1; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 8px; }
+.gs-ds-today { font-size: 10.5px; font-weight: 600; color: var(--accent); background: var(--accent-light); border-radius: 99px; padding: 1px 8px; }
+.gs-ds-sub { font-size: 10px; color: var(--text-3); margin-top: 3px; }
+.gs-dash-dynamic { display: flex; align-items: center; gap: 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 16px; margin-bottom: 14px; }
+.gs-dd-seg { font-size: 13px; color: var(--text-2); cursor: pointer; border-radius: 6px; padding: 2px 6px; transition: all .15s; }
+.gs-dd-seg:hover { background: var(--accent-light); color: var(--accent); }
+.gs-dd-seg b.up { color: var(--accent); font-size: 15px; }
+.gs-dd-seg b.down { color: var(--danger); font-size: 15px; }
+.gs-dd-sep { color: var(--border); }
+.gs-dd-export { margin-left: auto; }
+.gs-ev-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.gs-ev-fl { font-size: 11.5px; color: var(--text-3); }
+.gs-ev-date { width: auto; padding: 4px 8px; }
+.gs-ev-tilde { color: var(--text-3); }
+.gs-ev-count { margin-left: auto; font-size: 11px; color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 2px 9px; }
+.gs-ev-list { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; }
+.gs-ev-row { display: flex; align-items: center; gap: 10px; padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); cursor: pointer; transition: all .12s; font-size: 12.5px; }
+.gs-ev-row:hover { border-color: var(--accent); background: var(--accent-light); }
+.gs-ev-row.static { cursor: default; }
+.gs-ev-row.static:hover { border-color: var(--border); background: var(--surface); }
+.gs-ev-time { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.gs-ev-badge { font-size: 10.5px; border-radius: 5px; padding: 2px 8px; font-weight: 600; flex-shrink: 0; }
+.gs-ev-badge.create { color: #7fbf8a; background: rgba(127,191,138,.14); }
+.gs-ev-badge.delete { color: #e07a7a; background: rgba(224,122,122,.14); }
+.gs-ev-badge.restore { color: var(--accent); background: var(--accent-light); }
+.gs-ev-badge.purge { color: #d46a6a; background: rgba(212,106,106,.2); }
+.gs-ev-kind { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; }
+.gs-ev-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.gs-ev-go { font-size: 10px; color: var(--text-3); flex-shrink: 0; }
+.gs-ev-detail { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 9px 13px; margin-top: -2px; }
+.gs-ev-dl { font-size: 11.5px; color: var(--text-2); line-height: 1.7; word-break: break-all; }
+.gs-ev-empty { text-align: center; padding: 22px; color: var(--text-3); font-size: 12.5px; }
+
+/* ===== 第卌四轮：工作台全景（双栏 Master-Detail） ===== */
+.gs-pan-panel { display: flex; flex-direction: column; }
+.gs-pan-wrap { display: grid; grid-template-columns: 250px 1fr; gap: 12px; align-items: start; }
+.gs-pan-tree { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; max-height: 560px; overflow-y: auto; }
+.gs-pan-tree-head { font-size: 10.5px; color: var(--text-3); padding: 2px 6px 8px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+.gs-pan-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 12.5px; color: var(--text-2); transition: all .12s; border: 1px dashed transparent; }
+.gs-pan-row:hover { background: var(--surface-3); color: var(--text); }
+.gs-pan-row.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.gs-pan-row.drop { border-color: var(--accent); background: var(--accent-light); }
+.gs-pan-ws-row { font-weight: 600; color: var(--text); }
+.gs-pan-cat-row { padding-left: 18px; }
+.gs-pan-sub-row { padding-left: 34px; font-size: 12px; }
+.gs-pan-toggle { width: 14px; flex-shrink: 0; font-size: 10px; color: var(--text-3); text-align: center; cursor: pointer; user-select: none; }
+.gs-pan-toggle.leaf { cursor: default; opacity: .4; }
+.gs-pan-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs-pan-count { font-size: 10.5px; color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 1px 8px; flex-shrink: 0; }
+.gs-pan-row.active .gs-pan-count { color: var(--accent); background: var(--accent-light); }
+.gs-pan-list-wrap { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; max-height: 560px; }
+.gs-pan-list-head { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
+.gs-pan-crumb { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
+.gs-pan-allcheck { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-2); cursor: pointer; }
+.gs-pan-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 5px; }
+.gs-pan-card { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); cursor: pointer; transition: all .12s; }
+.gs-pan-card:hover { border-color: var(--accent); background: var(--accent-light); }
+.gs-pan-card.selected { border-color: var(--accent); background: var(--accent-light); }
+.gs-pan-check { flex-shrink: 0; cursor: pointer; }
+.gs-pan-card-main { flex: 1; min-width: 0; }
+.gs-pan-card-title { font-size: 12.5px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs-pan-card-sub { font-size: 10.5px; color: var(--text-4); margin-top: 1px; }
+.gs-pan-card-date { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; }
+.gs-pan-batch { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); background: var(--accent-light); border-radius: 0 0 var(--radius) var(--radius); }
+.gs-pan-batch-n { font-size: 12px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+.gs-pan-foot { padding: 9px 14px; border-top: 1px solid var(--border); font-size: 10.5px; color: var(--text-3); }
+.gs-pd-title { font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.5; margin-bottom: 12px; }
+.gs-pd-row { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.gs-pd-k { width: 40px; flex-shrink: 0; color: var(--text-4); }
+.gs-pd-v { flex: 1; min-width: 0; color: var(--text-2); word-break: break-all; line-height: 1.6; }
+.gs-pd-actions { display: flex; gap: 8px; margin-top: 14px; }
 </style>

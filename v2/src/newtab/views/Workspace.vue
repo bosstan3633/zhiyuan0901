@@ -639,7 +639,7 @@ function openResourceLink(r: ResourceCard) {
   if (r.linkType === 'file' && /^zy-asset:\/\//i.test((r.link || '').trim())) {
     const assetId = (r.link || '').trim().replace(/^zy-asset:\/\//i, '')
     const meta = (r.assets || []).find(a => a.id === assetId)
-    if (!meta || meta.kind !== 'html') { showToast('⚠ 卡片指向的 HTML 附件不存在或已失效'); return }
+    if (!meta || (meta.kind !== 'html' && meta.kind !== 'pdf')) { showToast('⚠ 卡片指向的文档附件不存在或已失效'); return }
     openHtmlAsset(meta)
     return
   }

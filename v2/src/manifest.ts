@@ -4,7 +4,7 @@ export default defineManifest({
   manifest_version: 3,
   name: '知源工作台',
   short_name: '知源',
-  version: '2.18.1',
+  version: '2.19.0',
   description: '源头信息与好奇心工作台 · 从好奇出发，向源头求证 · 纯本地 · Chrome MV3',
   permissions: ['storage', 'unlimitedStorage', 'tabs', 'activeTab', 'commands', 'scripting', 'downloads'],
   host_permissions: ['<all_urls>', 'file:///*'],

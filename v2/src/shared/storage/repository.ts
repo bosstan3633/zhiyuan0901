@@ -6,6 +6,8 @@ import type { AppData, UIPrefs } from '@/shared/models'
 import { STORAGE_KEY, UI_KEY } from '@/shared/models'
 import { createDefaultData } from './defaults'
 import { safeDecodeText } from '@/shared/utils'
+// 第卌四轮 T-05：卡片操作事件日志——保存链路快照 diff 自动产出 create/delete/restore/purge
+import { rebuildEventSnapshot, flushCardEvents } from '@/shared/utils/eventLog'
 
 type Listener = (data: AppData) => void
 type ErrorListener = (err: SaveError) => void
@@ -86,6 +88,8 @@ export async function loadData(): Promise<AppData> {
     }
   }
   cache = data
+  // 第卌四轮 T-05：初始化快照（静默，不产生历史事件）
+  rebuildEventSnapshot(data)
   return data
 }
 
@@ -103,6 +107,8 @@ export function saveData(): void {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     selfWriteAt = Date.now()
+    // 第卌四轮 T-05：保存前快照 diff 产出操作事件（fire-and-forget，失败不影响主数据）
+    if (cache) { try { flushCardEvents(cache) } catch { /* noop */ } }
     // V2.17.1 修复：JSON 纯净清洗后再入存储——reactive 树中可能残留 Vue Proxy（如编辑表单展开出的
     // assets Proxy 数组），chrome.storage 序列化 Proxy 时会把数组降级为类数组对象 {"0":…}，
     // 读回后 .length 为 undefined → 卡片正面附件徽章永不渲染。JSON round-trip 保证入存储永远是 plain 结构。
@@ -128,6 +134,8 @@ export async function saveDataNow(): Promise<void> {
   if (!cs) return
   if (saveTimer) clearTimeout(saveTimer)
   selfWriteAt = Date.now()
+  // 第卌四轮 T-05：同 saveData——保存前 diff 产出操作事件
+  try { flushCardEvents(cache) } catch { /* noop */ }
   try {
     // V2.17.1 修复：同 saveData——JSON 纯净清洗防 reactive Proxy 泄漏入存储（数组降级类数组对象）
     await cs.set({ [STORAGE_KEY]: JSON.parse(JSON.stringify(cache)) })
@@ -205,6 +213,8 @@ export async function replaceData(newData: AppData): Promise<void> {
 /** 同步缓存引用（外部 storage 变更时调用，保持 cache 与最新数据一致） */
 export function syncCache(newData: AppData): void {
   cache = newData
+  // 第卌四轮 T-05：外部写入静默重建快照——事件由执行写入的上下文记录，避免双记
+  rebuildEventSnapshot(newData)
 }
 
 // ============ UI 偏好 ============

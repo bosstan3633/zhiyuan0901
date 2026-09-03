@@ -689,18 +689,18 @@ function onTaskAssetsChange(v: AssetMeta[]) {
   selectedTask.value.assets = v
   touchTask()
 }
-/** 第卌二轮 REQ-061：任务卡 HTML 上传联动——标题取文件名（仅空标题/旧文件名时覆盖，q-2 拍板） */
+/** 第卌二轮 REQ-061：任务卡 HTML 上传联动——标题取文件名（仅空标题/旧文件名时覆盖，q-2 拍板）；第卌四轮 T-08 泛化支持 PDF */
 function onTaskHtmlAdded(meta: AssetMeta, replacedOld: AssetMeta | null) {
   if (!selectedTask.value) return
-  const stem = (meta.name || '').replace(/\.html?$/i, '')
-  const oldStems = [replacedOld, ...(selectedTask.value.assets || []).filter(a => a.kind === 'html' && a.id !== meta.id)]
+  const stem = (meta.name || '').replace(/\.(html?|pdf)$/i, '')
+  const oldStems = [replacedOld, ...(selectedTask.value.assets || []).filter(a => a.kind === meta.kind && a.id !== meta.id)]
     .filter((a): a is AssetMeta => !!a)
-    .map(a => (a.name || '').replace(/\.html?$/i, ''))
+    .map(a => (a.name || '').replace(/\.(html?|pdf)$/i, ''))
   const cur = (selectedTask.value.title || '').trim()
   if (!cur || oldStems.includes(cur)) {
     if (stem) { selectedTask.value.title = stem; taskTitleDraft.value = stem }
   } else {
-    showToast('已替换原 HTML；标题保留手打内容，可自行编辑')
+    showToast(`已替换原 ${meta.kind === 'pdf' ? 'PDF' : 'HTML'}；标题保留手打内容，可自行编辑`)
   }
   touchTask()
 }

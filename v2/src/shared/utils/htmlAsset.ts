@@ -1,23 +1,25 @@
 /**
  * 第卌二轮 REQ-058：HTML 附件「file:// 完整打开」通道
+ * 第卌四轮 T-08：泛化为通用文件通道——同函数同时服务 HTML 与 PDF 附件（openFileAsset 别名）。
+ * PDF 经落盘 file:// 打开由 Chrome 内置 PDF viewer 渲染（已真机实证）。
  *
  * 根因（用户真机反馈）：blob:chrome-extension:// 页面继承扩展 MV3 CSP（script-src 'self'），
  * 自包含 HTML 里的内联 <script> 被静默拦截 → "双击完整、知源打开丢内容"。
  * 治本：落盘真实文件 → file:// 打开（与双击 100% 等效：内联脚本/localStorage/编码全一致）。
  *
- * 行为约定（第卌二轮拍板）：
+ * 行为约定：
  *  - 落盘目录固定「下载目录/知源附件/」，文件名 = <assetId>-<净化原名>（确定性路径）
  *  - 复用：优先 fetch(file://…) 探测既有文件（200 → 直接打开不重复下载）；探测失败或 404 →
  *    chrome.downloads 重新落盘（conflictAction:'overwrite'，同路径覆盖不产生重复副本）
  *  - 兜底：downloads 不可用 / 落盘失败（如文件网址权限未开）→ 降级 blob URL 打开 + Toast 引导
- *  - 路径记忆存独立存储键 zy_html_paths（不进主 JSON zy_data_v2，不碰卡片模型）
+ *  - 路径记忆存独立存储键 zy_file_paths（第卌四轮由 zy_html_paths 泛化更名；不进主 JSON，不碰卡片模型）
  */
 import type { AssetMeta } from '@/shared/models'
 import { getAssetBlob } from '@/shared/storage/assets'
 import { openExternalLink } from '@/shared/utils/link'
 import { showToast } from '@/shared/components/toast'
 
-const PATHS_KEY = 'zy_html_paths'
+const PATHS_KEY = 'zy_file_paths'
 
 type HtmlPathMap = Record<string, string>
 
@@ -27,7 +29,7 @@ function hasDownloads(): boolean {
 
 /** 净化文件名：去路径分隔符与非法字符，限长 */
 function sanitizeName(name: string): string {
-  const base = (name || 'attachment.html').replace(/[\\/:*?"<>|]/g, '_').replace(/^\.+/, '_')
+  const base = (name || 'attachment.pdf').replace(/[\\/:*?"<>|]/g, '_').replace(/^\.+/, '_')
   return base.length > 60 ? base.slice(-60) : base
 }
 
@@ -103,8 +105,8 @@ function downloadToDisk(meta: AssetMeta, blob: Blob): Promise<string> {
 }
 
 /**
- * 打开 HTML 附件（新标签页，与双击本地文件等效）。
- * 返回实际使用的通道：'file'（落盘完整打开）| 'blob'（降级）| 'missing'（本体缺失）
+ * 打开 HTML / PDF 附件（新标签页，与双击本地文件等效）。
+ * PDF 由 Chrome 内置 viewer 渲染；返回实际使用的通道：'file'（落盘完整打开）| 'blob'（降级）| 'missing'（本体缺失）
  */
 export async function openHtmlAsset(meta: AssetMeta): Promise<'file' | 'blob' | 'missing'> {
   let blob: Blob | null = null
@@ -142,3 +144,6 @@ export async function openHtmlAsset(meta: AssetMeta): Promise<'file' | 'blob' | 
   setTimeout(() => { try { URL.revokeObjectURL(url) } catch { /* noop */ } }, 300000)
   return 'blob'
 }
+
+/** 第卌四轮 T-08：通用文件打开别名——PDF 与 HTML 共用同一条落盘 file:// 通道 */
+export const openFileAsset = openHtmlAsset
