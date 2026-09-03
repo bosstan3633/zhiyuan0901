@@ -30,6 +30,8 @@
         <div class="hero-stats">
           <span>📊 <b>{{ resourceCount }}</b> 张资源卡</span>
           <span>📁 <b>{{ categoryCount }}</b> 个分类</span>
+          <span>🟢 今日新增 <b>{{ wsTodayAdd }}</b></span>
+          <span>🔴 今日删除 <b>{{ wsTodayDel }}</b></span>
           <span>🕐 最近更新 {{ lastUpdateText }}</span>
         </div>
         <div class="hero-actions">
@@ -463,6 +465,14 @@ const categories = computed(() => d.value.categories.filter(c => c.workspaceId =
 const resourceCount = computed(() => allResources.value.length)
 const categoryCount = computed(() => categories.value.length)
 const uncategorizedCount = computed(() => allResources.value.filter(r => !r.categoryId).length)
+// R45-2（V2.20.0）：页头新增「今日新增/今日删除」字段——工作台范围实时派生（含软删口径：新增排除已删、删除取 deletedAt）
+const startOfToday = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); return dt.getTime() })()
+const wsTodayAdd = computed(() => d.value.resources
+  .filter(r => r.workspaceId === workspaceId.value && r.createdAt >= startOfToday)
+  .length)
+const wsTodayDel = computed(() => d.value.resources
+  .filter(r => r.workspaceId === workspaceId.value && r.deletedAt && r.deletedAt >= startOfToday)
+  .length)
 const lastUpdateText = computed(() => {
   const latest = allResources.value.reduce((max, r) => Math.max(max, r.updatedAt || r.createdAt), 0)
   if (!latest) return '—'

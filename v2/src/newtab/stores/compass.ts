@@ -66,7 +66,8 @@ export function useCompass() {
   }
 
   // ---- 北极星指标 ----
-  type Period = 'week' | 'month' | 'all'
+  // R45-1（V2.20.0）：周期调整为「日/周/累计」三档（撤月档），上排 DHI/WCE/WRR 与下排新增/删除卡全档联动
+  type Period = 'day' | 'week' | 'all'
 
   function isWithinDays(ts: number | undefined, days: number): boolean {
     if (!ts) return false
@@ -74,17 +75,17 @@ export function useCompass() {
   }
 
   function northStarMetrics(period: Period) {
-    const days = period === 'week' ? 7 : period === 'month' ? 30 : 9999
-    const pLabel = period === 'week' ? '本周' : period === 'month' ? '本月' : '累计'
+    const days = period === 'day' ? 1 : period === 'week' ? 7 : 9999
+    const pLabel = period === 'day' ? '今日' : period === 'week' ? '本周' : '累计'
     const dirs = d.value.compass.directions
     const projects = allProjects()
 
     // DHI 方向健康度（第卅二轮 REQ-001 口径调整：仅统计已投射至灯塔的项目）
     // 清晰=已投射项目 窗口内 全部有任务推进；关注=过半；模糊=不足半数；未投射=—
-    // R43-3 「在轨」活跃窗口随周/月/累计周期联动：周=近14天(沿用历史口径) / 月=近30天 / 累计=全部
+    // R43-3/R45-1 「在轨」活跃窗口随周期联动：日=今日有推进 / 周=近14天(沿用历史口径) / 累计=全部
     // 投射能力仅项目层支持（战略目标层级开关已移除，REQ-001）
     const pinnedProjects = projects.filter(p => p.pinnedToLighthouse)
-    const dhiDays = period === 'week' ? 14 : period === 'month' ? 30 : 9999
+    const dhiDays = period === 'day' ? 1 : period === 'week' ? 14 : 9999
     const activeProjects = pinnedProjects.filter(p => {
       return d.value.tasks.some(t =>
         !t.deletedAt && t.projectId === p.id &&
@@ -101,11 +102,13 @@ export function useCompass() {
     const newInPeriod = curiosities.filter(c => isWithinDays(c.createdAt, days)).length
 
     // WRR 有效复用：资源卡被打开的累计次数（工作台点击/双击打开/搜索打开均计数）
-    // R43-3 副标随周期：周=本周次数(stats.wrr.thisWeekUsage)；月/累计=累计口径(stats.wrr.totalCumulativeUsage，月档独立统计待后续采集)
+    // R45-1 副标随周期：日=今日打开卡数(lastCalledAt) / 周=本周次数(stats.wrr.thisWeekUsage) / 累计=累计口径
     const totalCalls = d.value.resources.filter(r => !r.deletedAt)
       .reduce((sum, r) => sum + (r.callCount || 0), 0)
     const thisWeekUsage = d.value.stats?.wrr?.thisWeekUsage ?? 0
     const totalCumUsage = d.value.stats?.wrr?.totalCumulativeUsage ?? totalCalls
+    const sot = new Date(); sot.setHours(0, 0, 0, 0)
+    const todayOpened = d.value.resources.filter(r => !r.deletedAt && (r.lastCalledAt || 0) >= sot.getTime()).length
 
     // 模块分组数 = 所有工作台的文件夹（分组）总数
     const categoryCount = d.value.categories.length
@@ -117,7 +120,7 @@ export function useCompass() {
     return {
       dhi: { label: dhiLabel, sub: `${dirs.length}方向·${pinnedProjects.length}已投射·${activeProjects}在轨` },
       wce: { label: `${wceCount}项激活`, sub: `${pLabel}+${newInPeriod}` },
-      wrr: { label: `${totalCalls}次打开`, sub: period === 'week' ? `本周${thisWeekUsage}次` : `累计${totalCumUsage}次` },
+      wrr: { label: `${totalCalls}次打开`, sub: period === 'day' ? `今日${todayOpened}卡打开` : period === 'week' ? `本周${thisWeekUsage}次` : `累计${totalCumUsage}次` },
       categories: categoryCount,
       resources: resourceCount,
       taskRate: tasks.length ? `${taskRate}%` : '—'
@@ -126,9 +129,9 @@ export function useCompass() {
 
   /** 北极星指标计算公式（用于下钻抽屉展示） */
   const formulas = {
-    dhi: 'DHI = 已投射至灯塔的项目中「周期窗口内有任务推进」的占比：全部=清晰，过半=关注，不足半数=模糊；活跃窗口随周期联动（周=近14天/月=近30天/累计=全部）；投射仅项目层支持（战略目标层级已移除）',
-    wce: 'WCE = 状态为「探索中 + 已求证」的好奇心卡片数；副指标 = 本周期新捕获数（周/月/累计随上方周期切换）',
-    wrr: 'WRR = 所有资源卡「被打开次数」之和（累计不清零）；副指标 = 本周打开次数；月/累计档暂以累计口径呈现（月档独立统计待采集）',
+    dhi: 'DHI = 已投射至灯塔的项目中「周期窗口内有任务推进」的占比：全部=清晰，过半=关注，不足半数=模糊；活跃窗口随周期联动（日=今日/周=近14天/累计=全部）；投射仅项目层支持（战略目标层级已移除）',
+    wce: 'WCE = 状态为「探索中 + 已求证」的好奇心卡片数；副指标 = 本周期新捕获数（日/周/累计随上方周期切换）',
+    wrr: 'WRR = 所有资源卡「被打开次数」之和（累计不清零）；副指标 = 日档今日打开卡数 / 周档本周打开次数 / 累计档累计次数',
     groups: '模块分组数 = 所有工作台下的文件夹（分组）总数',
     resources: '链接卡片总数 = 全部资源卡数量（不含回收站）',
     taskRate: '未归档任务 = 未挂成功指标的任务数（含未挂项目的）；在抽屉中级联关联项目→指标后即完成归档'

@@ -2,7 +2,7 @@
 import { computed, ref, onErrorCaptured, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from './stores/app'
-import { uid, dateKey } from '@/shared/utils'
+import { uid } from '@/shared/utils'
 import type { Workspace } from '@/shared/models'
 import Toast from '@/shared/components/Toast.vue'
 import { showToast } from '@/shared/components/toast'
@@ -294,12 +294,7 @@ onMounted(async () => {
 })
 onUnmounted(() => { window.removeEventListener('keydown', onGlobalKeydown, true) })
 
-// 角标 = 今日三件事未完成数（≤3），挂知源引擎主 Tab
-const taskBadge = computed(() => {
-  if (!store.data) return 0
-  const list = store.data.dailyFocus[dateKey(new Date())] || []
-  return list.filter(s => !s.done).length
-})
+// R45-5（V2.20.0）：资源引擎 Tab 角标彻底移除——不做任务管理平台，去掉任务数催办感（理念对齐：项目驱动）
 
 // 第卅六轮 REQ-038：备份提醒红点（30 天未导出 或 容量超 50 MB，且开关启用）
 // 第卅八轮 V2.14.3：已申请 unlimitedStorage 容量不受限，5MB 提醒线失去意义 → 上调 50MB（用户拍板）
@@ -328,7 +323,7 @@ const backupReminderDot = computed(() => {
           <img :src="logoUrl" class="home-logo" alt="知源工作台">知源罗盘
         </div>
         <div class="tab" :class="{active: activeTab === 'compass'}" @click="openCompass">
-          <Icon name="compass" :size="15" />知源引擎<span v-if="taskBadge" class="badge">{{ taskBadge }}</span>
+          <Icon name="compass" :size="15" />知源引擎
         </div>
 
         <div class="tab-divider" />
@@ -451,7 +446,7 @@ const backupReminderDot = computed(() => {
 .tab.active { color: var(--accent); font-weight: 600; }
 .tab.active { color: var(--text); }
 .tab.active::after { content: ''; position: absolute; bottom: -14px; left: 12px; right: 12px; height: 2px; background: var(--accent); border-radius: 2px; }
-.tab .badge { background: var(--danger); color: #fff; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 99px; min-width: 16px; text-align: center; }
+/* R45-5：.badge 样式随角标移除一并清理（全应用已无渲染点） */
 .tab-divider { width: 1px; height: 20px; background: var(--border); margin: 0 6px; }
 .tab.drop-line-l { box-shadow: inset 2px 0 0 var(--accent); }
 .tab.drop-line-r { box-shadow: inset -2px 0 0 var(--accent); }

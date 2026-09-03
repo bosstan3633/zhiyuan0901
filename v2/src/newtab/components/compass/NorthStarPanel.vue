@@ -14,9 +14,10 @@ const { northStarMetrics, formulas, allProjects, projectProgress } = useCompass(
 const store = useAppStore()
 const d = computed(() => store.data!)
 
-const period = ref<'week' | 'month' | 'all'>('week')
+// R45-1（V2.20.0）：周期三档 日/周/累计（撤月档），下排新增/删除卡随档位联动
+const period = ref<'day' | 'week' | 'all'>('day')
 const metrics = computed(() => northStarMetrics(period.value))
-const periodLabel = computed(() => period.value === 'week' ? '本周' : period.value === 'month' ? '本月' : '累计')
+const periodLabel = computed(() => period.value === 'day' ? '今日' : period.value === 'week' ? '本周' : '累计')
 
 // ---- 下钻抽屉 ----
 // 第卌四轮 T-02：撤出 groups/resources（迁往设置页工作台全景/仪表盘），新增 today-add/today-del
@@ -27,16 +28,19 @@ const drawerTitle = computed(() => ({
   dhi: '🧭 方向健康度明细 · DHI',
   wce: '💡 好奇探索明细 · WCE',
   wrr: '🟢 有效复用明细 · WRR',
-  'today-add': '📈 今日新增明细',
-  'today-del': '📉 今日删除明细',
+  'today-add': `📈 新增卡片明细 · ${periodLabel.value}`,
+  'today-del': `📉 删除卡片明细 · ${periodLabel.value}`,
   tasks: '📥 未归档任务 · 待归档清单'
 }[drawerType.value]))
-/** 第卌四轮：今日增删口径说明（本地维护，compass.formulas 不含） */
-const localFormulas: Record<string, string> = {
-  'today-add': '今日新增 = 今天 0 点后创建的三卡总数（资源+任务+好奇，实时派生自 createdAt）',
-  'today-del': '今日删除 = 今天 0 点后软删除的三卡总数（派生自 deletedAt，可在回收站恢复）'
-}
-const drawerFormula = computed(() => localFormulas[drawerType.value] || (formulas as Record<string, string>)[drawerType.value] || '')
+/** R45-1：新增/删除卡片口径说明（随档位联动，本地维护，compass.formulas 不含） */
+const localFormulas = computed<Record<string, string>>(() => {
+  const win = period.value === 'day' ? '今天 0 点' : period.value === 'week' ? '本周一 0 点' : '建库以来'
+  return {
+    'today-add': `新增卡片 = ${win}创建的三卡总数（资源+任务+好奇，实时派生自 createdAt，随上方周期切换）`,
+    'today-del': `删除卡片 = ${win}软删除的三卡总数（派生自 deletedAt，可在回收站恢复，随上方周期切换）`
+  }
+})
+const drawerFormula = computed(() => localFormulas.value[drawerType.value] || (formulas as Record<string, string>)[drawerType.value] || '')
 
 function openDrawer(type: DrawerType) {
   drawerType.value = type
@@ -80,8 +84,14 @@ function wsName(id: string): string {
   return d.value.workspaces.find(w => w.id === id)?.name || '未知'
 }
 
-// ---- 第卌四轮 T-02：今日新增 / 今日删除（纯派生 createdAt/deletedAt，零新增存储） ----
-const startOfToday = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); return dt.getTime() })()
+// ---- R45-1：新增/删除卡片（纯派生 createdAt/deletedAt，零新增存储；窗口随周期三档联动） ----
+function startOf(ts: number, unit: 'day' | 'week'): number {
+  const dt = new Date(ts); dt.setHours(0, 0, 0, 0)
+  if (unit === 'day') return dt.getTime()
+  const dow = (dt.getDay() + 6) % 7
+  dt.setDate(dt.getDate() - dow)
+  return dt.getTime()
+}
 type FlatCard = { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; createdAt: number; deletedAt?: number }
 const allCardsFlat = computed<FlatCard[]>(() => [
   ...d.value.resources.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title || '（无标题）', createdAt: r.createdAt || 0, deletedAt: r.deletedAt })),
@@ -89,21 +99,25 @@ const allCardsFlat = computed<FlatCard[]>(() => [
   ...d.value.curiosities.map(c => ({ kind: 'curiosity' as const, id: c.id, title: c.question || '（无标题）', createdAt: c.createdAt || 0, deletedAt: c.deletedAt }))
 ])
 function kindIcon(kind: FlatCard['kind']): string { return kind === 'resource' ? '📇' : kind === 'task' ? '✅' : '💡' }
-function fmtClock(ts?: number): string {
+/** 日档只显 HH:mm；周/累计档显 MM-DD HH:mm */
+function fmtStamp(ts?: number): string {
   if (!ts) return ''
   const dt = new Date(ts)
-  return `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`
+  const hm = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`
+  return period.value === 'day' ? hm : `${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')} ${hm}`
 }
 function kindSub(list: FlatCard[]): string {
   const n = { resource: 0, task: 0, curiosity: 0 }
   for (const x of list) n[x.kind]++
   return `资源${n.resource}·任务${n.task}·好奇${n.curiosity}`
 }
+/** 周期窗口起点：日=今天 0 点 / 周=本周一 0 点 / 累计=0（全量） */
+const periodStart = computed(() => period.value === 'all' ? 0 : startOf(Date.now(), period.value))
 const todayAddList = computed(() =>
-  allCardsFlat.value.filter(x => !x.deletedAt && x.createdAt >= startOfToday)
+  allCardsFlat.value.filter(x => !x.deletedAt && x.createdAt >= periodStart.value)
     .sort((a, b) => b.createdAt - a.createdAt))
 const todayDelList = computed(() =>
-  allCardsFlat.value.filter(x => x.deletedAt && x.deletedAt >= startOfToday)
+  allCardsFlat.value.filter(x => x.deletedAt && x.deletedAt >= periodStart.value)
     .sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
 const todayAddSub = computed(() => kindSub(todayAddList.value))
 const todayDelSub = computed(() => kindSub(todayDelList.value))
@@ -192,9 +206,9 @@ function changeTaskMetric(taskId: string, e: Event) {
 
     <template #actions>
       <div class="period-switch">
-        <button v-for="p in (['week','month','all'] as const)" :key="p"
+        <button v-for="p in (['day','week','all'] as const)" :key="p"
           class="period-btn" :class="{active: period === p}" @click="period = p">
-          {{ p === 'week' ? '周' : p === 'month' ? '月' : '累计' }}
+          {{ p === 'day' ? '日' : p === 'week' ? '周' : '累计' }}
         </button>
       </div>
     </template>
@@ -217,14 +231,14 @@ function changeTaskMetric(taskId: string, e: Event) {
           <div class="ns-sub">{{ metrics.wrr.sub }}</div>
         </div>
         <div class="ns-card bottom" @click="openDrawer('today-add')">
-          <div class="ns-label">📈 今日新增 <span class="ns-hint">↗</span></div>
+          <div class="ns-label">📈 新增卡片 <span class="ns-hint">↗</span></div>
           <div class="ns-value">{{ todayAddList.length }}</div>
-          <div class="ns-sub">{{ todayAddSub }} · 不分期</div>
+          <div class="ns-sub">{{ todayAddSub }} · {{ periodLabel }}</div>
         </div>
         <div class="ns-card bottom" @click="openDrawer('today-del')">
-          <div class="ns-label">📉 今日删除 <span class="ns-hint">↗</span></div>
+          <div class="ns-label">📉 删除卡片 <span class="ns-hint">↗</span></div>
           <div class="ns-value">{{ todayDelList.length }}</div>
-          <div class="ns-sub">{{ todayDelSub }} · 不分期</div>
+          <div class="ns-sub">{{ todayDelSub }} · {{ periodLabel }}</div>
         </div>
         <div class="ns-card bottom" @click="openDrawer('tasks')">
           <div class="ns-label">📥 未归档任务 <span class="ns-hint">↗</span></div>
@@ -285,9 +299,9 @@ function changeTaskMetric(taskId: string, e: Event) {
         <div class="dhi-list">
           <div v-for="x in todayAddList" :key="x.kind + x.id" class="nd-item">
             <div class="nd-name text">{{ kindIcon(x.kind) }} {{ x.title }}</div>
-            <div class="nd-meta">{{ fmtClock(x.createdAt) }}</div>
+            <div class="nd-meta">{{ fmtStamp(x.createdAt) }}</div>
           </div>
-          <div v-if="!todayAddList.length" class="nd-empty">今天还没有新增卡片——去采集一张，这里立刻 +1</div>
+          <div v-if="!todayAddList.length" class="nd-empty">{{ periodLabel }}还没有新增卡片——去采集一张，这里立刻 +1</div>
         </div>
         <div class="nd-tip">实时派生自卡片 createdAt · 新增即保存，无需手动确认</div>
       </template>
@@ -297,9 +311,9 @@ function changeTaskMetric(taskId: string, e: Event) {
         <div class="dhi-list">
           <div v-for="x in todayDelList" :key="x.kind + x.id" class="nd-item">
             <div class="nd-name text">{{ kindIcon(x.kind) }} {{ x.title }}</div>
-            <div class="nd-meta">{{ fmtClock(x.deletedAt) }}</div>
+            <div class="nd-meta">{{ fmtStamp(x.deletedAt) }}</div>
           </div>
-          <div v-if="!todayDelList.length" class="nd-empty">今天没有删除卡片</div>
+          <div v-if="!todayDelList.length" class="nd-empty">{{ periodLabel }}没有删除卡片</div>
         </div>
         <div class="nd-tip">软删除可在 回收站 恢复 · 永久删除会记入操作日志</div>
       </template>
