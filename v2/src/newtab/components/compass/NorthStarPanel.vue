@@ -203,6 +203,8 @@ function openProjectWorkspace(r: ResourceCard) {
 const unarchivedTasks = computed(() =>
   d.value.tasks.filter(t => !t.deletedAt && !t.metricId)
 )
+// R43-3 未归档任务 N/M 分母：全部未删除任务数（含已归档）
+const totalTasks = computed(() => d.value.tasks.filter(t => !t.deletedAt).length)
 function projectName(projectId?: string): string {
   if (!projectId) return ''
   return allProjects().find(p => p.id === projectId)?.name || ''
@@ -285,14 +287,17 @@ function changeTaskMetric(taskId: string, e: Event) {
         <div class="ns-card bottom" @click="openDrawer('groups')">
           <div class="ns-label">🗂 模块分组 <span class="ns-hint">↗</span></div>
           <div class="ns-value">{{ metrics.categories }}</div>
+          <div class="ns-sub">全量 · 不分期</div>
         </div>
         <div class="ns-card bottom" @click="openDrawer('resources')">
           <div class="ns-label">🔗 链接卡片 <span class="ns-hint">↗</span></div>
           <div class="ns-value">{{ metrics.resources }}</div>
+          <div class="ns-sub">全量 · 不分期</div>
         </div>
         <div class="ns-card bottom" @click="openDrawer('tasks')">
           <div class="ns-label">📥 未归档任务 <span class="ns-hint">↗</span></div>
-          <div class="ns-value">{{ unarchivedTasks.length }}</div>
+          <div class="ns-value">{{ unarchivedTasks.length }}/{{ totalTasks }}</div>
+          <div class="ns-sub">未挂指标 · 不分期</div>
         </div>
       </div>
     </div>

@@ -233,6 +233,12 @@ const filteredTasks = computed(() => {
   }
   return tasks
 })
+// R43-2 任务总数双值展示：当前筛选 N 条 / 全部 M（M 不随 filterBy/searchQuery 变化）
+const totalTaskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt).length)
+function clearTaskFilter() {
+  filterBy.value = 'all'
+  searchQuery.value = ''
+}
 // O14：按所属项目分组
 const groupedTasks = computed(() => {
   const tasks = filteredTasks.value
@@ -618,10 +624,14 @@ const mountSearchR = ref('')
 const mountSearchC = ref('')
 
 function openTaskSidebar(task: TaskCard) {
-  selectedTask.value = task
-  taskTitleDraft.value = task.title
-  selProjectId.value = task.projectId || ''
-  selMetricId.value = task.metricId || ''
+  // R43-0 BUG-1 修复：selectedTask 必须指向 store 内的 reactive Proxy 元素。
+  // 新建任务传入的是 unshift 前的原始对象——直接持有它会绕过 Proxy 的 set trap，
+  // Ctrl+Enter 保存（selectedTask.value.title = val）不触发 trigger，列表不响应更新
+  // （数据其实已入库，二次从列表点开才"看起来正常"）。find 取 Proxy 引用后一切赋值走响应式。
+  selectedTask.value = d.value.tasks.find(x => x.id === task.id) || task
+  taskTitleDraft.value = selectedTask.value.title
+  selProjectId.value = selectedTask.value.projectId || ''
+  selMetricId.value = selectedTask.value.metricId || ''
   mountSearchR.value = ''
   mountSearchC.value = ''
   sidebarOpen.value = true
@@ -698,8 +708,12 @@ function saveTaskTitle() {
   if (!selectedTask.value) return
   const val = taskTitleDraft.value.trim()
   if (!val) { showToast('标题不能为空'); return }
-  selectedTask.value.title = val
-  selectedTask.value.updatedAt = Date.now()
+  // R43-0 BUG-1 兜底：优先对 store 内 Proxy 元素写入（响应式），防 selectedTask 持有原始对象引用导致列表不更新
+  const inStore = d.value.tasks.find(x => x.id === selectedTask.value!.id)
+  const t = inStore || selectedTask.value
+  t.title = val
+  t.updatedAt = Date.now()
+  selectedTask.value = t
   store.persist()
   showToast('✓ 已保存') // 第卅三轮 REQ-015：与资源/好奇抽屉一致补 Toast
 }
@@ -950,7 +964,7 @@ onUnmounted(() => {
           <button class="mini-btn primary" @click="createNewTask"><span>＋</span>新建任务</button>
         </div>
       </div>
-      <div class="mgr-body">
+      <div class="mgr-body" :class="{batch: batchMode}">
         <div class="mgr-toolbar">
           <div class="view-tabs">
             <div class="view-tab" :class="{active: viewMode==='list'}" @click="viewMode='list'">☰ 列表</div>
@@ -971,6 +985,8 @@ onUnmounted(() => {
           </select>
           <button class="mini-btn" :class="{active: groupByProject}" @click="groupByProject = !groupByProject" title="列表视图按所属项目分组">📂 按项目分组</button>
           <div class="search-box"><span>🔍</span><input v-model="searchQuery" placeholder="搜索任务..."></div>
+          <!-- R43-2 任务总数：当前筛选 N 条 / 全部 M，点击"全部 M"清除筛选 -->
+          <span class="mgr-count"><span class="cur">{{ filteredTasks.length }} 条</span><span class="total" :class="{act: filterBy !== 'all' || searchQuery.trim()}" @click="clearTaskFilter" :title="filterBy !== 'all' || searchQuery.trim() ? '点击查看全部任务' : '全部任务数'">/ 全部 {{ totalTaskCount }}</span></span>
         </div>
 
         <!-- 批量操作栏 -->
@@ -1012,6 +1028,7 @@ onUnmounted(() => {
               </div>
               <button class="t-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
               <button class="t-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
+              <button class="t-del" @click.stop="deleteTask(task.id)" title="删除任务">🗑</button>
             </div>
           </div>
           <div v-if="!filteredTasks.length" class="list-empty">暂无任务</div>
@@ -1034,6 +1051,7 @@ onUnmounted(() => {
               </div>
               <button class="t-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
               <button class="t-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
+              <button class="t-del" @click.stop="deleteTask(task.id)" title="删除任务">🗑</button>
             </div>
           </template>
           <div v-for="(task, navIdx) in normalTasks" :key="task.id" class="trow" :class="{done: task.status==='done', selected: selectedTaskIds.has(task.id), flash: highlightId===task.id, navsel: navIdx===taskNavIndex}"
@@ -1048,6 +1066,7 @@ onUnmounted(() => {
             </div>
             <button class="t-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
             <button class="t-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
+            <button class="t-del" @click.stop="deleteTask(task.id)" title="删除任务">🗑</button>
           </div>
           <EmptyState v-if="!filteredTasks.length" icon="clipboard" title="暂无任务"
             desc="点击下方按钮新建，或在方向树的成功指标下添加任务"
@@ -1406,10 +1425,11 @@ onUnmounted(() => {
 .date-nav .dn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-2); font-size: 14px; }
 .date-nav .dn:hover { background: var(--surface-3); }
 .date-nav .dd { padding: 0 12px; font-size: 12px; font-weight: 500; border-left: 1px solid var(--border); border-right: 1px solid var(--border); min-width: 128px; text-align: center; }
-.today-body { padding: 0 20px 20px; }
-.today-toolbar { display: flex; gap: 6px; margin-bottom: 14px; }
-.today-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-.today-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 18px; cursor: pointer; transition: all .15s ease; position: relative; min-height: 128px; display: flex; flex-direction: column; }
+.today-body { padding: 0 20px 16px; }
+.today-toolbar { display: flex; gap: 6px; margin-bottom: 10px; }
+.today-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+/* R43-3 紧凑化：取消 min-height、收紧 padding/间距，高度随内容自适应 */
+.today-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px 11px; cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; }
 .today-card:not(.empty-card) { animation: tcBreathe 4s ease-in-out infinite; }
 @keyframes tcBreathe { 0%,100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 6%, transparent); } }
 .today-card:hover { border-color: var(--border-strong); background: var(--surface); }
@@ -1417,13 +1437,14 @@ onUnmounted(() => {
 .today-card.done .tc-title { text-decoration: line-through; color: var(--text-3); }
 .today-card.empty-card { opacity: .55; border-style: dashed; background: transparent; align-items: center; justify-content: center; }
 .today-card.empty-card:hover { opacity: .9; border-color: var(--accent); color: var(--accent); }
-.tc-num { position: absolute; top: 13px; right: 15px; font-size: 11px; color: var(--text-3); font-weight: 600; }
-.tc-check { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; flex-shrink: 0; font-size: 12px; color: #fff; background: var(--surface); }
+.tc-num { position: absolute; top: 10px; right: 12px; font-size: 11px; color: var(--text-3); font-weight: 600; }
+.tc-check { width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; flex-shrink: 0; font-size: 11px; color: #fff; background: var(--surface); }
 .tc-check.done { background: var(--success); border-color: var(--success); }
-.tc-title { font-size: 14px; font-weight: 600; line-height: 1.5; flex: 1; }
+.tc-title { font-size: 14px; font-weight: 600; line-height: 1.4; flex: 1; }
 .tc-title.empty-t { color: var(--text-3); font-weight: 400; }
-.tc-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.tc-remove { position: absolute; top: 10px; left: 14px; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 14px; color: var(--text-3); cursor: pointer; opacity: 0; transition: all .15s; }
+.tc-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.tc-meta .tag { font-size: 11px; padding: 1px 7px; }
+.tc-remove { position: absolute; top: 8px; left: 12px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 13px; color: var(--text-3); cursor: pointer; opacity: 0; transition: all .15s; }
 .today-card:hover .tc-remove { opacity: 1; }
 .tc-remove:hover { background: var(--danger); color: #fff; }
 
@@ -1439,6 +1460,12 @@ onUnmounted(() => {
 .search-box { margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
 .search-box:focus-within { border-color: var(--accent); }
 .search-box input { border: none; outline: none; font-size: 12px; width: 150px; background: transparent; color: var(--text); font-family: inherit; }
+/* R43-2 任务总数双值展示 */
+.mgr-count { display: flex; align-items: center; gap: 2px; font-size: 12px; color: var(--text-3); white-space: nowrap; flex-shrink: 0; padding-right: 4px; }
+.mgr-count .cur { color: var(--text-2); font-weight: 600; }
+.mgr-count .total { cursor: default; }
+.mgr-count .total.act { cursor: pointer; color: var(--accent); font-weight: 600; }
+.mgr-count .total.act:hover { text-decoration: underline; }
 .batch-bar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: var(--accent-light); border-radius: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 .batch-count { font-size: 12px; font-weight: 700; color: var(--accent); margin-right: 4px; }
 .task-list { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
@@ -1457,6 +1484,8 @@ onUnmounted(() => {
 .batch-check { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #fff; background: var(--surface); }
 .batch-check.checked { background: var(--accent); border-color: var(--accent); }
 .check-sm { width: 17px; height: 17px; border-radius: 5px; border: 1.5px solid var(--border-strong); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; background: var(--surface); cursor: pointer; }
+/* R43-1 批量模式只保留勾选框：隐藏状态切换 check-sm，避免双复选框 */
+.mgr-body.batch .check-sm { display: none; }
 .check-sm.done { background: var(--success); border-color: var(--success); }
 .tname { font-size: 13px; flex: 1; min-width: 0; cursor: pointer; }
 .tname:hover { color: var(--accent); }
@@ -1510,9 +1539,12 @@ onUnmounted(() => {
 /* 列表行置顶按钮 */
 .t-pin { width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: 0; transition: all .15s ease; flex-shrink: 0; }
 .t-star { width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: 0; transition: all .15s ease; flex-shrink: 0; }
-.trow:hover .t-pin, .trow:hover .t-star { opacity: .6; }
+.t-del { width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: 0; transition: all .15s ease; flex-shrink: 0; }
+.trow:hover .t-pin, .trow:hover .t-star, .trow:hover .t-del { opacity: .6; }
 .t-pin:hover, .t-star:hover { opacity: 1 !important; background: var(--surface-3); }
 .t-pin.on, .t-star.on { opacity: 1; }
+/* R43-2 卡片 hover 删除按钮：悬停变红警示 */
+.t-del:hover { opacity: 1 !important; background: var(--danger-light, rgba(231,76,60,.12)); color: var(--danger, #e74c3c); }
 
 /* 弹窗 */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 200; }

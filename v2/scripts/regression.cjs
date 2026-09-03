@@ -87,7 +87,7 @@ check('B28 原生 confirm 全清除', () => { let n = 0; ['newtab/views/Workspac
 check('O22 使用手册完整内容（外置数据）', () => read('/newtab/manual-data.ts').includes('quick-1') && read('/newtab/manual-data.ts').includes('ref-2') && !read('/newtab/views/GlobalSettings.vue').includes('占位内容'));
 check('产品 logo 替换（首页+关于页+扩展图标）', () => read('/newtab/App.vue').includes('logoUrl') && read('/newtab/views/GlobalSettings.vue').includes('logoUrl') && fs.existsSync(base + '/assets/logo.png'));
 
-check('manifest 2.18.0', () => read('/manifest.ts').includes("version: '2.18.0'"));
+check('manifest 2.18.1', () => read('/manifest.ts').includes("version: '2.18.1'"));
 check('关于页版本动态（读取 manifest.version，无历史版本硬编码残留）', () => {
   const gs = read('/newtab/views/GlobalSettings.vue')
   return gs.includes('runtimeVersion') && !gs.includes('V2.14.0') && !gs.includes('V2.14.1') && !gs.includes('V2.14.2') && !gs.includes('V2.15.0') && !gs.includes('V2.16.0') && !gs.includes('V2.17.0') && !gs.includes('V2.17.1')
@@ -398,7 +398,7 @@ check('R36-17 REQ-039 Enter 键走开链接（Ctrl+Enter 走定位+抽屉，R38 
 console.log('【第卅六轮 · V2.14.1 第三批：REQ-041 产品文案与对外呈现】');
 check("R36-18 REQ-041-① README.md（GitHub 根）不再含 V3.1 演进对照", () => { const src = read('/../../README.md'); return !src.includes('V3.1') && !src.includes('演进对照') && !src.includes('回归 218/218') && !src.includes('V2.13.0'); });
 check("R36-19 REQ-041-② v2/README.md 含产品定位与对位叙事（按 April Dunford 视角落地）", () => { const src = read('/../README.md'); return src.includes('个人资源调度台与认知增强系统') || src.includes('April Dunford'); });
-check('R36-20 REQ-041-③ ManualPage 头部版本 V2.18.0', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.18.0'); });
+check('R36-20 REQ-041-③ ManualPage 头部版本 V2.18.1', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.18.1'); });
 check("R36-21 REQ-041-① 根 README 按「是什么/给谁用/解决什么/如何解决」重写", () => { const src = read('/../../README.md'); return src.includes('## 它是什么') && src.includes('## 它给谁用') && src.includes('## 它解决什么问题') && src.includes('资源失血症'); });
 check("R36-22 REQ-041-③ 使用手册「速览」篇新增定位与六动作（quick-1 / quick-2）", () => { const src = read('/newtab/manual-data.ts'); return src.includes("id: 'quick-1'") && src.includes("id: 'quick-2'") && src.includes('它是什么') && src.includes('六个核心动作'); });
 check('R36-23 两份 README 的相对文档链接无死链（防止文档导航撒谎）', () => {
@@ -474,7 +474,7 @@ check('R40-8 REQ-051 好奇面板按 fieldConfig.curiosity 消费（visibleField
 check('R40-9 REQ-049 附件兜底：defaults 三型 assets def + repository 老数据迁移', () => { const def = read('/shared/storage/defaults.ts'); const rep = read('/shared/storage/repository.ts'); return (def.split("key: 'assets'").length - 1) === 3 && rep.includes('REQ-049：老数据字段配置补 assets'); });
 console.log('【第卌轮 · V2.16.0 第四批：REQ-052 死代码清理 + 版本门禁】');
 check('R40-10 REQ-052 fieldViewCfg 死代码全库零引用', () => { return !fs.existsSync(base + '/shared/models/index.ts') ? false : !read('/shared/models/index.ts').includes('fieldViewCfg') && !read('/shared/storage/repository.ts').includes('fieldViewCfg'); });
-check('R40-11 版本 2.18.0 五处同步（manifest/package/关于页动态/ManualPage/regression）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const gs = read('/newtab/views/GlobalSettings.vue'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes("version: '2.18.0'") && pkg.includes('"version": "2.18.0"') && gs.includes('runtimeVersion') && mp.includes('V2.18.0'); });
+check('R40-11 版本 2.18.1 五处同步（manifest/package/关于页动态/ManualPage/regression）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const gs = read('/newtab/views/GlobalSettings.vue'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes("version: '2.18.1'") && pkg.includes('"version": "2.18.1"') && gs.includes('runtimeVersion') && mp.includes('V2.18.1'); });
 
 // ============== 第卌一轮 · V2.17.0 附件详情呈现修复 + 技术债收敛（REQ-054~REQ-057，V2.16.0 交付后用户反馈驱动） ==============
 console.log('【第卌一轮 · V2.17.0 第一批：REQ-054 附件详情端到端呈现修复（详情面板徽章补齐：标题旁 + section 头）】');
@@ -521,6 +521,21 @@ check('R42-15 REQ-059 设置页导出附件包（exportAssetPack 按钮 + zip �
 check('R42-16 REQ-059 设置页导入附件包（assetPackInput + handleAssetPackImport + 同 ID 覆盖写回文案）', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes('const assetPackInput') && s.includes('handleAssetPackImport') && s.includes('同 ID 覆盖'); });
 check('R42-17 REQ-060 附件管理 maxSizeMB 文案（上传区按钮提示单文件 ≤10MB——图片独立上限）', () => { const s = read('/shared/components/AssetManager.vue'); return s.includes("'📎 添加附件（图片 / HTML，单文件 ≤ ' + maxSizeMB + 'MB）'"); });
 check('R42-18 REQ-058 manifest 含 downloads 权限（chrome.downloads.download 可用，否则 file:// 落盘链路静默降级）', () => read('/manifest.ts').includes("'downloads'"));
+
+// ============== 第卌三轮 · V2.18.1 补丁：BUG-2 双复选框 + R-1~R-5 任务中心/北极星迭代 ==============
+console.log('【第卌三轮 · V2.18.1 第一批：任务中心 Bug 修复（批量双复选框 + 卡片删除 + 总数双值）】');
+check('R43-1 BUG-2 批量模式只保留勾选框：mgr-body 携带 batch class 且 CSS 隐藏 check-sm（避免双复选框）', () => { const s = read('/newtab/views/CompassActions.vue'); return s.includes('class="mgr-body" :class="{batch: batchMode}"') && s.includes('.mgr-body.batch .check-sm { display: none; }'); });
+check('R43-2 R-1 任务卡 hover 删除按钮：t-del 样式 + 三处任务行均绑定 deleteTask', () => { const s = read('/newtab/views/CompassActions.vue'); return s.includes('class="t-del" @click.stop="deleteTask(task.id)"') && (s.match(/class="t-del" @click\.stop="deleteTask\(task\.id\)"/g) || []).length === 3 && s.includes('.t-del:hover'); });
+check('R43-3 R-2 任务列表总数双值：totalTaskCount 分母 + 工具栏 mgr-count（当前 N 条 / 全部 M 可点击清除筛选）', () => { const s = read('/newtab/views/CompassActions.vue'); return s.includes('const totalTaskCount = computed') && s.includes('function clearTaskFilter()') && s.includes('class="mgr-count"') && s.includes('全部 {{ totalTaskCount }}'); });
+console.log('【第卌三轮 · V2.18.1 第二批：今日三件事紧凑化】');
+check('R43-4 R-3 今日三件事卡片紧凑化：取消 min-height、padding 收窄（12px 14px 11px）、标题行高 1.4', () => { const s = read('/newtab/views/CompassActions.vue'); return s.includes('padding: 12px 14px 11px') && !s.includes('min-height: 128px') && s.includes('line-height: 1.4; flex: 1'); });
+console.log('【第卌三轮 · V2.18.1 第三批：北极星指标迭代（N/M + 周期联动）】');
+check('R43-5 R-4 北极星未归档任务 N/M（未归档/任务总数，totalTasks 分母）+ 保留级联归档抽屉', () => { const s = read('/newtab/components/compass/NorthStarPanel.vue'); return s.includes('const totalTasks = computed') && s.includes('{{ unarchivedTasks.length }}/{{ totalTasks }}') && s.includes("nd-task-row"); });
+check('R43-6 R-5 北极星 bottom 三卡（模块分组/链接卡片/未归档）标注「全量/未挂指标 · 不分期」副标', () => { const s = read('/newtab/components/compass/NorthStarPanel.vue'); return s.includes('全量 · 不分期') && s.includes('未挂指标 · 不分期'); });
+check('R43-7 R-5 北极星 DHI「在轨」活跃窗口随周期联动（week=近14天/month=近30天/all=全部，dhiDays）', () => { const s = read('/newtab/stores/compass.ts'); return s.includes('const dhiDays = period') && s.includes('isWithinDays(t.completedAt, dhiDays)') && s.includes('已投射至灯塔的项目'); });
+check('R43-8 R-5 北极星 WCE/WRR 副标随周期（pLabel 周/月/累计新增 + thisWeekUsage 本周次数 + totalCumUsage 累计口径）', () => { const s = read('/newtab/stores/compass.ts'); return s.includes("const pLabel = period") && s.includes('sub: `${pLabel}+${newInPeriod}`') && s.includes('thisWeekUsage') && s.includes('totalCumUsage'); });
+console.log('【第卌三轮 · V2.18.1 第四批：BUG-1 新建任务保存不更新（reactive Proxy 引用修复）】');
+check('R43-9 BUG-1 根因修复：openTaskSidebar/saveTaskTitle 均经 d.value.tasks.find 取 store Proxy 元素写入（绕 Proxy set trap 会导致 Ctrl+Enter 保存后列表不刷新）', () => { const s = read('/newtab/views/CompassActions.vue'); return s.includes('selectedTask.value = d.value.tasks.find(x => x.id === task.id) || task') && s.includes('const inStore = d.value.tasks.find(x => x.id === selectedTask.value!.id)'); });
 
 console.log('');
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
