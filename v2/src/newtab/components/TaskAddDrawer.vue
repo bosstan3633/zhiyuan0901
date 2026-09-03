@@ -127,7 +127,7 @@ function linkTasks() {
     }
     for (const id of ids) {
       const t = d.value.tasks.find(x => x.id === id)
-      if (t) { t.metricId = props.metricId; t.updatedAt = Date.now() }
+      if (t) { t.metricId = props.metricId; t.projectId = props.projectId; t.updatedAt = Date.now() }
       const m = findMetric()
       if (m && !m.taskIds.includes(id)) m.taskIds.push(id)
     }

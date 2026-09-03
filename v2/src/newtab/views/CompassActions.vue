@@ -367,8 +367,10 @@ onUnmounted(() => { document.removeEventListener('keydown', onDateKey, true) })
             <div v-if="todayTaskForSlot(slot)" class="today-card" :class="{done: slot.done, sel: focusSelIdx===idx}"
               @click="onFocusCardClick(idx)" @dblclick="drawerRef?.open(todayTaskForSlot(slot)!)">
               <div class="tc-num">{{ String(idx+1).padStart(2,'0') }}</div>
-              <div class="tc-check" :class="{done: slot.done}" @click.stop="toggleTodayDone(slot)">{{ slot.done?'✓':'' }}</div>
-              <div class="tc-title">{{ slot.text }}</div>
+              <div class="tc-row">
+                <div class="tc-check" :class="{done: slot.done}" @click.stop="toggleTodayDone(slot)">{{ slot.done?'✓':'' }}</div>
+                <div class="tc-title">{{ slot.text }}</div>
+              </div>
               <div class="tc-meta">
                 <span class="tag accent">📦 {{ projectName(todayTaskForSlot(slot)?.projectId) }}</span>
                 <span class="tag warn">🎯 {{ metricName(todayTaskForSlot(slot)?.metricId) }}</span>
@@ -599,25 +601,30 @@ onUnmounted(() => { document.removeEventListener('keydown', onDateKey, true) })
 .today-body { padding: 0 20px 16px; }
 .today-toolbar { display: flex; gap: 6px; margin-bottom: 10px; }
 .today-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-/* R43-3 紧凑化 + 呼吸灯视觉引导 */
+/* R43-3 紧凑化 + 呼吸灯视觉引导；R46-OPT 复选框并入标题行 + 呼吸灯增强 */
 .today-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px 11px; cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; }
 .today-card:not(.empty-card) { animation: tcBreathe 4s ease-in-out infinite; }
-@keyframes tcBreathe { 0%,100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 6%, transparent); } }
+@keyframes tcBreathe {
+  0%,100% { box-shadow: 0 0 0 0 transparent; border-color: var(--border); }
+  50% { box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 18%, transparent); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+}
 .today-card:hover { border-color: var(--border-strong); background: var(--surface); }
-/* T-04：选中态（联动项目策展） */
-.today-card.sel { border-color: var(--accent); background: var(--accent-light); }
-.today-card.done { opacity: .6; }
+/* T-04/R46：选中态停止呼吸改常亮（避免干扰），accent 边框 + 浅底 */
+.today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 22%, transparent); }
+.today-card.done { opacity: .6; animation: none; }
 .today-card.done .tc-title { text-decoration: line-through; color: var(--text-3); }
 .today-card.empty-card { opacity: .55; border-style: dashed; background: transparent; align-items: center; justify-content: center; }
 .today-card.empty-card:hover { opacity: .9; border-color: var(--accent); color: var(--accent); }
 .tc-num { position: absolute; top: 10px; right: 12px; font-size: 11px; color: var(--text-3); font-weight: 600; }
-.tc-check { width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; flex-shrink: 0; font-size: 11px; color: #fff; background: var(--surface); }
+.tc-row { display: flex; align-items: flex-start; gap: 8px; }
+.tc-check { width: 16px; height: 16px; border-radius: 5px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 10px; color: #fff; background: var(--surface); margin-top: 2px; }
 .tc-check.done { background: var(--success); border-color: var(--success); }
 .tc-title { font-size: 14px; font-weight: 600; line-height: 1.4; flex: 1; }
 .tc-title.empty-t { color: var(--text-3); font-weight: 400; }
 .tc-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 .tc-meta .tag { font-size: 11px; padding: 1px 7px; }
-.tc-remove { position: absolute; top: 8px; left: 12px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 13px; color: var(--text-3); cursor: pointer; opacity: 0; transition: all .15s; }
+/* R46-OPT：移除 × 移到编号左侧（右上区域），hover 出现，不再与复选框同角 */
+.tc-remove { position: absolute; top: 7px; right: 32px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 13px; color: var(--text-3); cursor: pointer; opacity: 0; transition: all .15s; }
 .today-card:hover .tc-remove { opacity: 1; }
 .tc-remove:hover { background: var(--danger); color: #fff; }
 

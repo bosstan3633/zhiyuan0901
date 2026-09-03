@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 第卌五轮 T-03：好奇心专区头部 Tab——我的好奇心（默认）｜任务管理，各自整体卡片数量徽标
+// 第卌五轮 T-03：好奇心专区头部 Tab——好奇心卡库（默认）｜任务卡库，各自整体卡片数量徽标（V2.20.1 改名）
 import { ref, computed } from 'vue'
 import LighthousePanel from '../components/compass/LighthousePanel.vue'
 import NorthStarPanel from '../components/compass/NorthStarPanel.vue'
@@ -21,14 +21,14 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
       <NorthStarPanel />
     </section>
 
-    <!-- 下部 · 好奇心专区（Tab：我的好奇心 默认 ｜ 任务管理） -->
+    <!-- 下部 · 好奇心专区（Tab：好奇心卡库 默认 ｜ 任务卡库） -->
     <section class="module">
       <div class="zone-tabs">
         <div class="zone-tab" :class="{active: zone==='curio'}" @click="zone='curio'">
-          💡 我的好奇心<span class="zc">{{ curioCount }}</span>
+          💡 好奇心卡库<span class="zc">{{ curioCount }}</span>
         </div>
         <div class="zone-tab" :class="{active: zone==='task'}" @click="zone='task'">
-          📋 任务管理<span class="zc">{{ taskCount }}</span>
+          📋 任务卡库<span class="zc">{{ taskCount }}</span>
         </div>
         <span class="zone-en">CURIOSITY ZONE · 好奇心驱动的方向校准</span>
       </div>

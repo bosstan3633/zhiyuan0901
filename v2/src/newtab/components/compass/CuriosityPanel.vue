@@ -369,7 +369,7 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
 </script>
 
 <template>
-  <ModuleCard icon-name="bulb" title="我的好奇心" en="CURIOSITY">
+  <ModuleCard icon-name="bulb" title="好奇心卡库" en="CURIOSITY">
     <template #actions>
       <button class="cz-batch-btn" :class="{active: batchMode}" @click="batchMode = !batchMode">
         {{ batchMode ? '完成' : '☑ 批量管理' }}
@@ -605,10 +605,8 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
       </Transition>
     </Teleport>
 
-    
-  </ModuleCard>
-
     <ContextMenu :state="ctx" :items="ctxItems" @close="ctx.open = false" />
+  </ModuleCard>
 </template>
 
 <style scoped>

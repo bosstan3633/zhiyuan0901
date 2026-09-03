@@ -8,8 +8,9 @@
  *   E2E-4  北极星「新增卡片/删除卡片」卡渲染（R45-1 三档周期联动改名）
  *   E2E-5  PDF 附件双击 file:// 打开（data 层种卡 + IndexedDB blob → 双击卡片 → 新标签 file://…pdf）
  *   E2E-6  事件日志 zy_event_log 独立 key 落盘（打开资源卡产生事件）
- *   E2E-7  好奇心专区 Tab：我的好奇心默认 → 切任务管理 → 卡片视图默认渲染（R45 迁移）
+ *   E2E-7  好奇心专区 Tab：好奇心卡库默认 → 切任务卡库 → 卡片视图默认渲染 + 好奇面板隐藏（R45 迁移 + R46 BUG-1）
  *   E2E-8  今日行动项目策展面板（愿景/使命小卡 + 战略目标 + 四数值，R45 T-04）
+ *   E2E-9  存量回填迁移：有 metricId 无 projectId 的任务启动后按指标反查补齐 + projBackfillFixed 记录（R46 BUG-2）
  */
 const path = require('path')
 const fs = require('fs')
@@ -148,12 +149,19 @@ async function main() {
       data.compass.directions = (data.compass.directions || []).filter((x) => x.id !== 'e2e-dir-1')
       data.compass.directions.push({ id: 'e2e-dir-1', name: 'E2E 战略目标', status: 'active', term: 'short', projects: [] })
       const dir = data.compass.directions.find((x) => x.id === 'e2e-dir-1')
-      dir.projects = dir.projects.filter((p) => p.id !== 'e2e-proj-1')
+      dir.projects = dir.projects.filter((p) => p.id !== 'e2e-proj-1' && p.id !== 'e2e-proj-2')
       dir.projects.push({ id: 'e2e-proj-1', name: 'E2E 策展项目', isFocused: false, progress: 0, status: 'active', metrics: [{ id: 'e2e-metric-1', title: 'E2E 成功指标', target: '10', acceptance: '', taskIds: ['e2e-task-1'] }] })
-      data.tasks = (data.tasks || []).filter((t) => t.id !== 'e2e-task-1')
+      // R46 E2E-9 种子：历史脏数据——task-2 有 metricId 但缺 projectId（回填迁移应补齐为 e2e-proj-2）
+      dir.projects.push({ id: 'e2e-proj-2', name: 'E2E 回填项目', isFocused: false, progress: 0, status: 'active', metrics: [{ id: 'e2e-metric-2', title: 'E2E 回填指标', target: '5', acceptance: '', taskIds: ['e2e-task-2'] }] })
+      data.tasks = (data.tasks || []).filter((t) => t.id !== 'e2e-task-1' && t.id !== 'e2e-task-2')
       data.tasks.push({
         id: 'e2e-task-1', kind: 'task', title: 'E2E 任务卡', projectId: 'e2e-proj-1', metricId: 'e2e-metric-1',
         status: 'doing', priority: 'high', mountedResourceIds: [], mountedCuriosityIds: [], customFields: {}, tags: [], pinned: false,
+        createdAt: now, updatedAt: now
+      })
+      data.tasks.push({
+        id: 'e2e-task-2', kind: 'task', title: 'E2E 回填任务卡', metricId: 'e2e-metric-2',
+        status: 'todo', priority: 'medium', mountedResourceIds: [], mountedCuriosityIds: [], customFields: {}, tags: [], pinned: false,
         createdAt: now, updatedAt: now
       })
       data.dailyFocus = data.dailyFocus || {}
@@ -163,20 +171,22 @@ async function main() {
   })
   await page.waitForTimeout(800)
 
-  // E2E-7 好奇心专区 Tab（R45 T-03）：默认我的好奇心 → 切任务管理 → 卡片视图默认
+  // E2E-7 好奇心专区 Tab（R45 T-03 + R46 BUG-1）：默认好奇心卡库 → 切任务卡库 → 卡片视图默认 + 好奇面板隐藏
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   const tabsCount = await page.locator('.zone-tab').count()
   const curioDefault = await page.locator('.zone-tab.active').first().textContent().catch(() => '')
-  const curioPanelOn = await page.locator('.zone-tab.active').first().evaluate((el) => el.textContent.includes('我的好奇心')).catch(() => false)
+  const curioPanelOn = await page.locator('.zone-tab.active').first().evaluate((el) => el.textContent.includes('好奇心卡库')).catch(() => false)
+  const curioCardVisible = await page.locator('.module-card').filter({ hasText: '好奇心卡库' }).first().isVisible().catch(() => false)
   await page.locator('.zone-tab').nth(1).click().catch(() => {})
   await page.waitForTimeout(1500)
-  const mgrTitle = await page.getByText('任务管理').first().isVisible().catch(() => false)
+  const mgrTitle = await page.getByText('任务卡库').first().isVisible().catch(() => false)
+  const curioHiddenAfter = await page.locator('.module-card').filter({ hasText: '好奇心卡库' }).first().isVisible().then((v) => !v).catch(() => false)
   const cardTabActive = await page.locator('.view-tab.active').first().textContent().then((t) => (t || '').includes('卡片')).catch(() => false)
   const gridOn = await page.locator('.tm-grid').first().isVisible().catch(() => false)
   const tmCardCount = await page.locator('.tm-card').count()
-  report('E2E-7 好奇心专区 Tab：我的好奇心默认｜任务管理卡片视图默认', tabsCount === 2 && curioPanelOn && mgrTitle && cardTabActive && gridOn && tmCardCount >= 1,
-    `tabs=${tabsCount} defaultTab=${(curioDefault || '').trim()} tmCards=${tmCardCount} cardActive=${cardTabActive} grid=${gridOn}`)
+  report('E2E-7 好奇心专区 Tab：好奇心卡库默认｜任务卡库切换互斥（BUG-1 修复）', tabsCount === 2 && curioPanelOn && curioCardVisible && mgrTitle && curioHiddenAfter && cardTabActive && gridOn && tmCardCount >= 1,
+    `tabs=${tabsCount} defaultTab=${(curioDefault || '').trim()} curioOn=${curioCardVisible} hiddenAfter=${curioHiddenAfter} tmCards=${tmCardCount} cardActive=${cardTabActive} grid=${gridOn}`)
 
   // E2E-8 今日行动项目策展面板（R45 T-04）：三件事卡片 + 愿景/使命小卡 + 战略目标 + 四数值
   await page.goto(base + '#/compass/actions', { waitUntil: 'domcontentloaded' })
@@ -190,6 +200,18 @@ async function main() {
   const statCount = await page.locator('.cur-stat').count()
   report('E2E-8 今日行动项目策展面板（愿景/使命+战略目标+四数值）', todayCard && curationOn && visionMini && missionMini && goalOn && statCount === 4,
     `todayCard=${todayCard} curation=${curationOn} stats=${statCount} goal=${goalOn}`)
+
+  // E2E-9 存量回填迁移（R46 BUG-2）：重新加载页面触发 init 回填 → task-2 补齐 projectId + projBackfillFixed 记录
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+  const backfill = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const data = cur['zy_data_v2']
+    if (!data) return { fixed: false, recorded: 0 }
+    const t2 = (data.tasks || []).find((t) => t.id === 'e2e-task-2')
+    return { fixed: !!(t2 && t2.projectId === 'e2e-proj-2'), recorded: data.projBackfillFixed || 0 }
+  }))
+  report('E2E-9 存量回填：缺 projectId 的任务按指标反查补齐 + 记录条数', backfill.fixed && backfill.recorded >= 1,
+    `projectIdFixed=${backfill.fixed} projBackfillFixed=${backfill.recorded}`)
 
   await ctx.close()
   const fail = results.filter(r => !r.ok).length

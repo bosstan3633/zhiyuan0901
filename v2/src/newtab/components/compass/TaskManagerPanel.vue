@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 第卌五轮 T-03：全域任务管理面板（自 CompassActions.vue 整体抽离，迁入「资源罗盘 → 我的好奇心」专区 Tab）
+// 第卌五轮 T-03：全域任务管理面板（自 CompassActions.vue 整体抽离，迁入「资源罗盘 → 好奇心卡库」专区 Tab；V2.20.1 改名任务卡库）
 // 全量能力保留：批量管理 / 状态筛选 / 排序+方向 / 按项目分组 / 搜索 / 拖拽排序（跨组=改归属）/ 看板 / 右键菜单 / 键盘导航
 // 第卌五轮新增：卡片视图（默认），与好奇心卡片视觉一致
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
@@ -542,7 +542,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 </script>
 
 <template>
-  <ModuleCard icon-name="clipboard" title="任务管理" en="TASK MANAGER" desc="所有任务的多维管理">
+  <ModuleCard icon-name="clipboard" title="任务卡库" en="TASK MANAGER" desc="所有任务的多维管理">
     <template #actions>
       <button class="mini-btn" :class="{active: batchMode}" @click="toggleBatchMode">{{ batchMode ? '✓ 完成' : '☑ 批量管理' }}</button>
       <button class="mini-btn primary" @click="createNewTask"><span>＋</span>新建任务</button>

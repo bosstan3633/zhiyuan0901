@@ -19,6 +19,29 @@ export const useAppStore = defineStore('app', () => {
     data.value = getData()
     ui.value = await loadUIPrefs()
 
+    // V2.20.1 BUG-2 存量回填（幂等，静默）：凡有 metricId 而 projectId 为空的任务，
+    // 按指标反查所属项目补齐 projectId（历史版本关联任务时漏写 projectId 的修复）。
+    if (data.value) {
+      const projOfMetric = new Map<string, string>()
+      for (const dir of data.value.compass?.directions || []) {
+        for (const p of dir.projects) {
+          for (const m of p.metrics) projOfMetric.set(m.id, p.id)
+        }
+      }
+      let fixed = 0
+      for (const t of data.value.tasks || []) {
+        if (t.metricId && !t.projectId && projOfMetric.has(t.metricId)) {
+          t.projectId = projOfMetric.get(t.metricId)
+          t.updatedAt = Date.now()
+          fixed++
+        }
+      }
+      if (fixed > 0) {
+        data.value.projBackfillFixed = fixed
+        saveData()
+      }
+    }
+
     // 订阅数据变更（跨页面同步）—— 保持同一引用，不做深拷贝
     subscribe((d) => {
       data.value = d

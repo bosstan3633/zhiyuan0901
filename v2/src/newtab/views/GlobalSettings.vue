@@ -105,13 +105,17 @@
         <!-- 核心指标下钻抽屉 -->
         <Drawer :open="!!statDrawer" :title="statDrawerTitle" width="460px" @close="statDrawer = ''">
           <div class="gs-ev-list">
-            <div v-for="c in statList.slice(0, 300)" :key="c.id" class="gs-ev-row static">
-              <span class="gs-ev-kind">📇</span>
+            <div v-for="c in statList.slice(0, statLimit)" :key="c.id" class="gs-ev-row static clickable" @click="openStatCard(c)">
+              <span class="gs-ev-kind">{{ statKindIcon(c.kind) }}</span>
+              <span class="gs-ev-badge">{{ statKindLabel(c.kind) }}</span>
               <span class="gs-ev-title">{{ c.title }}</span>
               <span class="gs-ev-time">{{ fmtDay(c.ts) }}</span>
             </div>
             <div v-if="!statList.length" class="gs-ev-empty">暂无卡片</div>
-            <div v-if="statList.length > 300" class="gs-ev-empty">仅显示前 300 条</div>
+            <div v-if="statList.length > statLimit" class="gs-ev-more" @click="statLimit += STAT_PAGE">
+              加载更多（已显示 {{ statLimit }} / {{ statList.length }} 条）
+            </div>
+            <div v-if="statList.length" class="gs-field-hint">💡 单击行可跳转定位到卡片所在页面。</div>
           </div>
         </Drawer>
 
@@ -391,6 +395,13 @@
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">备份提醒（第卅六轮）</span></div>
           <div class="gs-card-body">
+            <!-- V2.20.1 BUG-2：存量归属修复记录（静默回填，仅修复时显示） -->
+            <div v-if="gd.projBackfillFixed" class="gs-export-row">
+              <div class="gs-er-info">
+                <div class="gs-er-name">🛠 存量归属修复（V2.20.1）</div>
+                <div class="gs-er-desc">启动时已自动修复 {{ gd.projBackfillFixed }} 个任务的项目归属（有成功指标但缺项目关联的历史数据，按指标反查所属项目补齐），数据一致性已恢复。</div>
+              </div>
+            </div>
             <div class="gs-export-row">
               <div class="gs-er-info">
                 <div class="gs-er-name">自动提醒</div>
@@ -1062,17 +1073,33 @@ type StatDrawerType = '' | 'all' | 'resource' | 'task' | 'curiosity' | 'link'
 const statDrawer = ref<StatDrawerType>('')
 const statList = computed(() => {
   switch (statDrawer.value) {
-    case 'resource': return gResLive.value.map(r => ({ id: r.id, title: r.title, ts: r.createdAt }))
-    case 'task': return gTaskLive.value.map(t => ({ id: t.id, title: t.title, ts: t.createdAt }))
-    case 'curiosity': return gCurioLive.value.map(c => ({ id: c.id, title: c.question, ts: c.createdAt }))
-    case 'link': return gResLive.value.filter(r => (r.link || '').trim()).map(r => ({ id: r.id, title: r.title, ts: r.createdAt }))
-    case 'all': return gFlat.value.filter(x => !x.deletedAt).map(x => ({ id: x.id, title: x.title, ts: x.createdAt }))
+    case 'resource': return gResLive.value.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title, ts: r.createdAt }))
+    case 'task': return gTaskLive.value.map(t => ({ kind: 'task' as const, id: t.id, title: t.title, ts: t.createdAt }))
+    case 'curiosity': return gCurioLive.value.map(c => ({ kind: 'curiosity' as const, id: c.id, title: c.question, ts: c.createdAt }))
+    case 'link': return gResLive.value.filter(r => (r.link || '').trim()).map(r => ({ kind: 'resource' as const, id: r.id, title: r.title, ts: r.createdAt }))
+    case 'all': return gFlat.value.filter(x => !x.deletedAt).map(x => ({ kind: x.kind, id: x.id, title: x.title, ts: x.createdAt }))
     default: return []
   }
 })
-function openStatDrawer(t: StatDrawerType) { statDrawer.value = t }
+// V2.20.1 BUG-3b：分批加载 + 行点击跳转定位（对齐北极星/全局弹窗交互）
+const STAT_PAGE = 200
+const statLimit = ref(STAT_PAGE)
+function openStatDrawer(t: StatDrawerType) { statDrawer.value = t; statLimit.value = STAT_PAGE }
+function statKindIcon(kind: string) { return kind === 'task' ? '✅' : kind === 'curiosity' ? '💡' : '📇' }
+function statKindLabel(kind: string) { return kind === 'task' ? '任务' : kind === 'curiosity' ? '好奇' : '资源' }
+function openStatCard(x: { kind: string; id: string }) {
+  if (x.kind === 'resource') {
+    const r = gd.value.resources.find(v => v.id === x.id)
+    if (r) { router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: r.id } }); statDrawer.value = ''; return }
+  } else if (x.kind === 'task') {
+    router.push({ path: '/compass/actions', query: { hl: x.id } }); statDrawer.value = ''; return
+  } else {
+    router.push({ path: '/', query: { hl: x.id } }); statDrawer.value = ''; return
+  }
+  showToast('⚠ 该卡片已不在库中')
+}
 const statDrawerTitle = computed(() => ({
-  all: `📊 全部卡片明细（${totalCards}）`,
+  all: `📊 全部卡片明细（${totalCards.value}）`,
   resource: `📇 资源卡明细（${resLiveCount.value}）`,
   task: `✅ 任务卡明细（${taskLiveCount.value}）`,
   curiosity: `💡 好奇心卡明细（${curioLiveCount.value}）`,
@@ -2048,6 +2075,11 @@ const activeManualSec = ref('quick-1')
 .gs-ev-row:hover { border-color: var(--accent); background: var(--accent-light); }
 .gs-ev-row.static { cursor: default; }
 .gs-ev-row.static:hover { border-color: var(--border); background: var(--surface); }
+/* V2.20.1 BUG-3b：下钻明细行可点击定位 + 加载更多 */
+.gs-ev-row.static.clickable { cursor: pointer; }
+.gs-ev-row.static.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
+.gs-ev-more { text-align: center; padding: 8px; font-size: 12px; color: var(--accent); cursor: pointer; border: 1px dashed var(--border); border-radius: var(--radius-xs); user-select: none; }
+.gs-ev-more:hover { background: var(--accent-light); border-color: var(--accent); }
 .gs-ev-time { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .gs-ev-badge { font-size: 10.5px; border-radius: 5px; padding: 2px 8px; font-weight: 600; flex-shrink: 0; }
 .gs-ev-badge.create { color: #7fbf8a; background: rgba(127,191,138,.14); }

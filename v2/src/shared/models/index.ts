@@ -286,6 +286,8 @@ export interface AppData {
   fieldConfig: FieldConfig
   stats: Stats
   activityLogs: ActivityLog[]
+  /** V2.20.1 BUG-2：存量回填记录——启动时按指标反查补齐 projectId 的任务条数（幂等，仅首次修复时写入） */
+  projBackfillFixed?: number
 }
 
 export interface ActivityLog {
