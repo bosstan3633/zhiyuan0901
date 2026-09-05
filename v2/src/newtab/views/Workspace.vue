@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="ws-page" v-if="workspace">
     <!-- ① Hero头部 -->
     <div class="ws-hero">
@@ -87,8 +87,15 @@
 
     <!-- ③ 资源策展区 -->
     <div class="ws-body">
-      <!-- 左侧分类导航（第八轮：树形 2 级 + 置顶分区 + 拖拽排序/挂子级） -->
+      <!-- 左侧分类导航（第八轮：树形 2 级 + 置顶分区 + 拖拽排序/挂子级；R48-V2：Linear 风格树 + 展开/折叠） -->
       <div class="ws-sidebar">
+        <div class="cat-toolbar">
+          <span class="ct-label">目录</span>
+          <span class="ct-actions">
+            <span class="ct-btn" title="一键收纳为工作台根部" @click="collapseAllCats">⊟ 收起</span>
+            <span class="ct-btn" title="全部展开" @click="expandAllCats">⊞ 展开</span>
+          </span>
+        </div>
         <div class="cat-item" :class="{active: activeCategory==='all'}" @click="activeCategory='all'">
           <span class="cat-icon">📁</span><span class="cat-name">全部</span>
           <span class="cat-count">{{ allResources.length }}</span>
@@ -105,16 +112,21 @@
           <div class="cat-item" :class="{
               active: activeCategory===sc.cat.id,
               sub: sc.depth===1,
+              collapsed: sc.depth===0 && collapsedCats.has(sc.cat.id),
+              flash: catFlashId===sc.cat.id,
               'card-drop': cardDropTarget===sc.cat.id,
               'drop-child': catDropTarget===sc.cat.id && catDropMode==='child',
               'drop-before': catDropTarget===sc.cat.id && catDropMode==='before',
               'drop-after': catDropTarget===sc.cat.id && catDropMode==='after'
             }"
+            :data-catid="sc.cat.id"
             :draggable="!batchMode"
-            @click="activeCategory=sc.cat.id"
+            @click="selectSidebarCat(sc)"
             @dragstart="onCatDragStart($event, sc.cat)" @dragend="onCatDragEnd"
             @dragover.prevent.stop="onCatDragOver($event, sc.cat)" @drop.stop="onCatDrop($event, sc.cat)">
-            <span class="cat-icon">{{ sc.depth===1 ? '↳' : sc.cat.pinned ? '📌' : '📂' }}</span>
+            <span v-if="sc.depth===0 && childCatsOf(sc.cat.id).length" class="cat-caret" :class="{open: !collapsedCats.has(sc.cat.id)}" title="展开/折叠" @click.stop="toggleCatCollapse(sc.cat.id)">▸</span>
+            <span v-else-if="sc.depth===0" class="cat-caret placeholder"></span>
+            <span class="cat-icon" :title="sc.depth===0 && childCatsOf(sc.cat.id).length ? '展开/折叠' : ''" @click.stop="sc.depth===0 && childCatsOf(sc.cat.id).length && toggleCatCollapse(sc.cat.id)">{{ sc.depth===1 ? '↳' : sc.cat.pinned ? '📌' : (childCatsOf(sc.cat.id).length ? (collapsedCats.has(sc.cat.id) ? '📁' : '📂') : '📁') }}</span>
             <span class="cat-name">{{ sc.cat.name }}</span>
             <span class="cat-actions">
               <span v-if="sc.depth===0" class="cat-act" :class="{on: sc.cat.pinned}" :title="sc.cat.pinned?'取消置顶':'置顶'" @click.stop="toggleCatPin(sc.cat)">📌</span>
@@ -435,7 +447,7 @@
 import { ref, computed, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
-import { recordResourceOpen } from '@/shared/storage/stats'
+import { recordResourceOpen, recordWorkspaceOpen } from '@/shared/storage/stats'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
@@ -457,6 +469,13 @@ const d = computed(() => store.data!)
 
 const workspaceId = computed(() => route.params.id as string)
 const workspace = computed(() => d.value.workspaces.find(w => w.id === workspaceId.value))
+
+// R47-B4：进入/切换工作台 = 一次「调用」，计入热度（全局检索无输入时工作台参与热度排序）
+watch(workspaceId, (id) => {
+  if (!id) return
+  const ws = d.value?.workspaces?.find(w => w.id === id)
+  if (ws) { recordWorkspaceOpen(d.value, ws); store.persist() }
+}, { immediate: true })
 
 
 // ===== 数据 =====
@@ -770,7 +789,7 @@ function copyLink() {
 }
 // 挂载任务点击（共享表单 emit goto-task）→ 跳任务中心
 function goToTask(t: TaskCard) {
-  router.push('/compass/actions')
+  router.push('/')
   showToast(`已跳转任务中心：${t.title}`)
 }
 
@@ -965,15 +984,34 @@ function treeCatOptions(cats: Category[]): { id: string; label: string }[] {
 }
 /** 左栏渲染的扁平序列（分区标签 + 缩进标记） */
 interface SidebarCat { cat: Category; depth: 0 | 1; sectionLabel: string }
+// R48-V2：树状目录展开/折叠（默认全局展开；折叠状态仅会话内记忆）
+const collapsedCats = ref<Set<string>>(new Set())
+function toggleCatCollapse(id: string) {
+  const s = new Set(collapsedCats.value)
+  if (s.has(id)) s.delete(id); else s.add(id)
+  collapsedCats.value = s
+}
+/** 一键收纳为工作台根部：所有含子分类的父级全部折叠 */
+function collapseAllCats() {
+  collapsedCats.value = new Set(wsCats.value.filter(c => childCatsOf(c.id).length).map(c => c.id))
+}
+function expandAllCats() { collapsedCats.value = new Set() }
+function selectSidebarCat(sc: SidebarCat) {
+  activeCategory.value = sc.cat.id
+  // 选中子分类时自动展开其父级，避免「选中被藏住」
+  if (sc.depth === 1 && sc.cat.parentId && collapsedCats.value.has(sc.cat.parentId)) {
+    const s = new Set(collapsedCats.value); s.delete(sc.cat.parentId); collapsedCats.value = s
+  }
+}
 const sidebarCats = computed<SidebarCat[]>(() => {
   const out: SidebarCat[] = []
   pinnedRootCats.value.forEach((c, i) => {
     out.push({ cat: c, depth: 0, sectionLabel: i === 0 ? '📌 置顶' : '' })
-    childCatsOf(c.id).forEach(k => out.push({ cat: k, depth: 1, sectionLabel: '' }))
+    if (!collapsedCats.value.has(c.id)) childCatsOf(c.id).forEach(k => out.push({ cat: k, depth: 1, sectionLabel: '' }))
   })
   unpinnedRootCats.value.forEach((c, i) => {
     out.push({ cat: c, depth: 0, sectionLabel: (i === 0 && pinnedRootCats.value.length) ? '📁 分类' : '' })
-    childCatsOf(c.id).forEach(k => out.push({ cat: k, depth: 1, sectionLabel: '' }))
+    if (!collapsedCats.value.has(c.id)) childCatsOf(c.id).forEach(k => out.push({ cat: k, depth: 1, sectionLabel: '' }))
   })
   return out
 })
@@ -1405,6 +1443,35 @@ watch(() => route.query.hl, (hl) => {
   router.replace({ path: route.path })
 }, { immediate: true })
 
+// ===== R49-G3：全局检索分类定位（/workspace/:id?cat=xx）=====
+// 有卡 → 选中分类 + 高亮该分类下第一张卡；无卡 → 展开 + 高亮分类行本身
+const catFlashId = ref<string | null>(null)
+watch(() => route.query.cat, (cat) => {
+  if (!cat || typeof cat !== 'string' || typeof route.query.hl === 'string') return
+  const c = categories.value.find(x => x.id === cat)
+  if (!c) return
+  activeCategory.value = cat
+  // 展开全部祖先（折叠态下定位会落空）
+  let p = c.parentId ? categories.value.find(x => x.id === c.parentId) : null
+  while (p) { collapsedCats.value.delete(p.id); p = p.parentId ? categories.value.find(x => x.id === p!.parentId) : null }
+  const family = new Set(familyIds(cat))
+  const first = allResources.value.find(r => family.has(r.categoryId || ''))
+  nextTick(() => {
+    setTimeout(() => {
+      if (first) {
+        highlightId.value = first.id
+        document.querySelector(`[data-rid="${first.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setTimeout(() => { highlightId.value = null }, 2000)
+      } else {
+        catFlashId.value = cat
+        document.querySelector(`[data-catid="${cat}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setTimeout(() => { catFlashId.value = null }, 2000)
+      }
+    }, 300)
+  })
+  router.replace({ path: route.path })
+}, { immediate: true })
+
 // ===== Hero 编辑 =====
 /** B32：名称展示统一剥离 icon 前缀（数据约定：name 首段为图标） */
 const wsDisplayName = computed(() => (workspace.value?.name || '').replace(/^[^\s]+\s/, ''))
@@ -1587,26 +1654,38 @@ function linkDisplay(link: string) {
 /* Body */
 .ws-body { display: flex; min-height: calc(100vh - 52px - 170px - 47px); }
 
-/* 侧边栏 */
-.ws-sidebar { width: 190px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--surface); padding: 14px 10px; overflow-y: auto; }
-.cat-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: all .1s; margin-bottom: 2px; }
+/* 侧边栏（R48-V2：Linear 风格树——紧凑行高、缩进导轨、chevron 旋转、弱化计数） */
+.ws-sidebar { width: 200px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--surface); padding: 10px 10px 14px; overflow-y: auto; }
+.cat-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px 8px; }
+.cat-toolbar .ct-label { font-size: 10px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; }
+.cat-toolbar .ct-actions { display: inline-flex; gap: 2px; }
+.cat-toolbar .ct-btn { font-size: 10.5px; color: var(--text-3); padding: 2px 6px; border-radius: 5px; cursor: pointer; transition: all .12s; }
+.cat-toolbar .ct-btn:hover { color: var(--accent); background: var(--accent-light); }
+.cat-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: background .1s, color .1s; margin-bottom: 1px; }
 .cat-item:hover { background: var(--surface-3); color: var(--text); }
 .cat-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
 /* 第廿九轮：卡片拖入分类行的归属落点高亮（与分类拖拽指示区分） */
 .cat-item.card-drop { background: var(--accent-light); color: var(--accent); font-weight: 600; box-shadow: inset 0 0 0 1px var(--accent); }
-.cat-item .cat-icon { font-size: 13px; flex-shrink: 0; }
+.cat-item .cat-icon { font-size: 12.5px; flex-shrink: 0; }
 .cat-item .cat-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cat-item .cat-count { font-size: 10px; color: var(--text-3); background: var(--surface-2); padding: 1px 6px; border-radius: 99px; flex-shrink: 0; }
-.cat-item.active .cat-count { background: var(--surface); color: var(--accent); }
+.cat-item .cat-count { font-size: 10px; color: var(--text-3); background: transparent; padding: 1px 6px; border-radius: 99px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.cat-item:hover .cat-count { background: var(--surface-2); }
+.cat-item.active .cat-count { color: var(--accent); font-weight: 600; }
 .cat-add { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: 11.5px; color: var(--text-3); cursor: pointer; transition: all .1s; margin-top: 6px; }
 .cat-add:hover { color: var(--accent); background: var(--accent-light); }
 .cat-merge { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: 11.5px; color: var(--text-3); cursor: pointer; transition: all .1s; border: 1px dashed var(--border); margin-top: 4px; }
 .cat-merge:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
 .cat-divider { height: 1px; background: var(--border); margin: 8px 10px; }
 /* 第八轮：分类树 + 置顶分区 + 拖拽指示 + hover 操作 */
-.cat-section-label { font-size: 10px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding: 8px 10px 4px; }
-.cat-item.sub { margin-left: 14px; position: relative; }
-.cat-item.sub::before { content: ''; position: absolute; left: -8px; top: 0; bottom: 50%; width: 1px; background: var(--border-strong); }
+.cat-section-label { font-size: 10px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding: 8px 8px 4px; }
+/* R48-V2：Linear 风格树——子级缩进 + 左侧导轨线；caret 点击展开/折叠（旋转过渡） */
+.cat-item.sub { margin-left: 12px; position: relative; padding-left: 14px; }
+.cat-item.sub::before { content: ''; position: absolute; left: 4px; top: 0; bottom: 0; width: 1px; background: var(--border); }
+.cat-caret { width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; color: var(--text-3); flex-shrink: 0; line-height: 1; cursor: pointer; border-radius: 4px; transition: transform .15s ease, background .12s; margin-left: -4px; }
+.cat-caret:hover { background: var(--surface-3); color: var(--text); }
+.cat-caret.open { transform: rotate(90deg); }
+.cat-caret.placeholder { cursor: default; }
+.cat-item.collapsed { color: var(--text-2); }
 .cat-item .cat-actions { display: none; gap: 2px; flex-shrink: 0; }
 .cat-item:hover .cat-actions { display: inline-flex; }
 .cat-item:hover .cat-count { display: none; }
@@ -1680,6 +1759,7 @@ function linkDisplay(link: string) {
 
 /* 采集跳转高亮（2秒渐隐） */
 .res-card.flash, .res-row.flash { animation: rc-flash 2s ease-out; }
+.cat-item.flash { animation: rc-flash 2s ease-out; }
 @keyframes rc-flash {
   0% { box-shadow: 0 0 0 3px var(--accent), 0 4px 20px color-mix(in srgb, var(--accent) 35%, transparent); background: var(--accent-light); }
   60% { box-shadow: 0 0 0 3px var(--accent); background: var(--accent-light); }

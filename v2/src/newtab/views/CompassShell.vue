@@ -1,187 +1,366 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import Icon from '@/shared/components/Icon.vue'
 /**
- * 知源引擎 · 一级工作区容器
- * 版式与工作台对齐：Hero 封面 + 左侧栏（子页导航）+ 内容区（子路由）
- * 子页按操作频率排序：今日行动 → 项目策展 → 方向树
+ * 方向台 · 一级工作区（R49 V2.22.0 三大系统页改版）
+ * 满宽模块化：指标条（方向状态）→ 主航线（愿景→使命→战略目标→项目）→ 项目总览
+ * 二级覆盖层：完整方向树（/compass/tree）、项目详情（/compass/projects）
  */
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useAppStore } from '../stores/app'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useCompass } from '../stores/compass'
-import { dateKey } from '@/shared/utils'
+import { useAppStore } from '../stores/app'
 import { saveUIPrefs } from '@/shared/storage/repository'
+import { uid } from '@/shared/utils'
+import { useConfirm } from '@/shared/components/confirm'
+import { showToast } from '@/shared/components/toast'
+import type { Project } from '@/shared/models'
+import MetricBar from '../components/compass/MetricBar.vue'
+import LighthousePanel from '../components/compass/LighthousePanel.vue'
 
-const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
-const { d, allProjects } = useCompass()
+const { d, allProjects, projectProgress, isProjectStalled } = useCompass()
 
-// REQ-029 F-029-2：首次进入罗盘一次性气泡引导（localStorage 持久化，点击或 6s 超时消失）
-const GUIDE_KEY = 'zy_compass_guide_v1'
-const guideVisible = ref(false)
-let guideTimer: ReturnType<typeof setTimeout> | null = null
-onMounted(() => {
-  if (!localStorage.getItem(GUIDE_KEY)) {
-    guideVisible.value = true
-    guideTimer = setTimeout(dismissGuide, 6000)
-  }
-})
-function dismissGuide() {
-  if (!guideVisible.value) return
-  guideVisible.value = false
-  localStorage.setItem(GUIDE_KEY, '1')
-  if (guideTimer) { clearTimeout(guideTimer); guideTimer = null }
+// ---- 已完成项目显隐（C6：与主航线/完整方向树三处同步） ----
+const showDone = computed(() => store.ui?.showDoneProjects !== false)
+function toggleShowDone() {
+  const next = !showDone.value
+  if (store.ui) store.ui.showDoneProjects = next
+  saveUIPrefs({ showDoneProjects: next })
 }
-// REQ-029 F-029-3：hover tooltip 固定文案（回答「什么」一句话定位）
-const tipActions = '今日行动 · 回答「做什么」'
-const tipProjects = '项目策展 · 回答「是什么」'
-const tipTree = '方向树 · 回答「为什么」'
+/** 项目总览（按显隐开关过滤） */
+const visibleProjects = computed(() => allProjects().filter(p => showDone.value || p.status !== 'archived'))
 
-const todayUndone = computed(() => {
-  const list = d.value.dailyFocus[dateKey(new Date())] || []
-  return list.filter(s => !s.done).length
-})
-const goalsCount = computed(() => d.value.compass.directions.length)
-const projectsCount = computed(() => allProjects().length)
-const pinnedCount = computed(() => allProjects().filter(p => p.pinnedToLighthouse).length)
+const projectsCount = computed(() => visibleProjects.value.length)
+const pinnedCount = computed(() => visibleProjects.value.filter(p => p.pinnedToLighthouse).length)
+const doneProjects = computed(() => allProjects().filter(p => p.status === 'archived').length)
 
-const activePage = computed(() => {
-  if (route.path.startsWith('/compass/projects')) return 'projects'
-  if (route.path.startsWith('/compass/tree')) return 'tree'
-  return 'actions'
-})
+/** 项目总览卡（C5：名称/战略目标/🎯/📋/状态） */
+function goalNameOf(p: Project): string {
+  const dir = d.value.compass.directions.find(d2 => d2.projects.some(x => x.id === p.id))
+  return dir?.name || '—'
+}
+function openProject(p: Project) {
+  router.push({ path: '/compass/projects', query: { p: p.id } })
+}
+function openTree() {
+  router.push('/compass/tree')
+}
+const stalled = (p: Project) => isProjectStalled(p)
 
-// 记住上次停留的子页
-watch(() => route.fullPath, (fp) => {
-  if (fp.startsWith('/compass/')) {
-    const tab = fp.split('?')[0] as '/compass/actions' | '/compass/projects' | '/compass/tree'
-    if (store.ui && store.ui.compassTab !== tab) {
-      store.ui.compassTab = tab
-      saveUIPrefs({ compassTab: tab })
-    }
+/* ================= C8 项目总览管理增强：新建 / 编辑 / 删除 / 置顶分组 / 拖拽排序 ================= */
+/** 项目列表按 order 稳定（渲染 computed 不原地 sort 红线：先副本再排） */
+function sortedCopy(list: Project[]): Project[] {
+  return [...list].sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+}
+const pinnedGroup = computed<Project[]>(() => sortedCopy(visibleProjects.value.filter(p => p.pinned)))
+const normalGroup = computed<Project[]>(() => sortedCopy(visibleProjects.value.filter(p => !p.pinned)))
+
+/** 新建项目（选所属战略目标） */
+const createOpen = ref(false)
+const createDirId = ref('')
+const createName = ref('')
+function openCreate() {
+  if (!d.value.compass.directions.length) { showToast('还没有战略目标——请先到完整方向树创建'); openTree(); return }
+  createDirId.value = d.value.compass.directions[0]!.id
+  createName.value = ''
+  createOpen.value = true
+}
+function confirmCreate() {
+  const name = createName.value.trim()
+  if (!name) { showToast('请输入项目名称'); return }
+  const dir = d.value.compass.directions.find(x => x.id === createDirId.value)
+  if (!dir) { showToast('请选择所属战略目标'); return }
+  const proj: Project = { id: uid('proj'), name, isFocused: false, pinnedToLighthouse: false, pinned: false, progress: 0, status: 'active', order: dir.projects.length, metrics: [] }
+  dir.projects.push(proj)
+  store.persist()
+  createOpen.value = false
+  showToast(`✓ 项目「${name}」已创建`)
+}
+/** 原位改名（contenteditable blur 保存；编辑中禁用拖拽防冲突） */
+const editingProjId = ref<string | null>(null)
+function renameProject(p: Project, e: FocusEvent) {
+  editingProjId.value = null
+  const v = (e.target as HTMLElement).textContent?.trim()
+  if (v && v !== p.name) { p.name = v; store.persist(); showToast('✓ 项目名已更新') }
+  else if (e.target) (e.target as HTMLElement).textContent = p.name
+}
+function onNameEnter(e: KeyboardEvent) { (e.target as HTMLElement).blur() }
+/** 删除项目（摘除式：任务转未归档、指标随项目移除、不进回收站——D1 拍板口径） */
+async function removeProject(p: Project) {
+  const taskCount = d.value.tasks.filter(t => !t.deletedAt && t.projectId === p.id).length
+  const ok = await useConfirm({
+    title: '删除项目',
+    message: taskCount ? `确定删除「${p.name}」？\n其下 ${taskCount} 个任务将转为「未归档任务」（不删除，可重新关联），${p.metrics.length} 个成功指标随项目移除。` : `确定删除「${p.name}」？`,
+    confirmText: '确认删除',
+    danger: true
+  })
+  if (!ok) return
+  const metricIds = new Set(p.metrics.map(m => m.id))
+  for (const t of d.value.tasks) {
+    if (t.projectId === p.id) { t.projectId = undefined; t.metricId = undefined; t.updatedAt = Date.now() }
+    else if (t.metricId && metricIds.has(t.metricId)) { t.metricId = undefined; t.updatedAt = Date.now() }
   }
-})
-
-function nav(sub: string) { router.push('/compass/' + sub) }
+  for (const dir of d.value.compass.directions) {
+    const idx = dir.projects.findIndex(x => x.id === p.id)
+    if (idx >= 0) { dir.projects.splice(idx, 1); break }
+  }
+  store.persist()
+  showToast(`已删除「${p.name}」` + (taskCount ? `，${taskCount} 个任务转为未归档` : ''))
+}
+/** 置顶切换（与 📡投射独立） */
+function togglePin(p: Project) {
+  p.pinned = !p.pinned
+  store.persist()
+  showToast(p.pinned ? '📌 已置顶' : '已取消置顶')
+}
+/** 组内拖拽排序（order 全量规整回写，与工作台 Tab 同模式） */
+let dragProjId: string | null = null
+let dragFromPinned = false
+function onProjDragStart(e: DragEvent, p: Project) {
+  dragProjId = p.id
+  dragFromPinned = !!p.pinned
+  ;(e.currentTarget as HTMLElement).classList.add('dragging')
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+}
+function onProjDragEnd(e: DragEvent) {
+  ;(e.currentTarget as HTMLElement).classList.remove('dragging')
+  dragProjId = null
+}
+function onProjDrop(e: DragEvent, target: Project) {
+  e.preventDefault()
+  ;(e.currentTarget as HTMLElement).classList.remove('drag-over')
+  if (!dragProjId || dragProjId === target.id) { dragProjId = null; return }
+  if (dragFromPinned !== !!target.pinned) {
+    showToast('跨区移动请先用 📌 置顶/取消置顶')
+    dragProjId = null
+    return
+  }
+  const sectionIds = (target.pinned ? pinnedGroup.value : normalGroup.value).map(x => x.id)
+  const fi = sectionIds.indexOf(dragProjId)
+  const ti = sectionIds.indexOf(target.id)
+  if (fi < 0 || ti < 0) { dragProjId = null; return }
+  sectionIds.splice(ti, 0, sectionIds.splice(fi, 1)[0])
+  sectionIds.forEach((id, i) => {
+    const x = allProjects().find(v => v.id === id)
+    if (x) x.order = i
+  })
+  store.persist()
+  dragProjId = null
+  showToast('✓ 已调整排序')
+}
+function onProjDragOver(e: DragEvent, p: Project) {
+  if (!dragProjId || dragProjId === p.id || dragFromPinned !== !!p.pinned) return
+  e.preventDefault()
+  ;(e.currentTarget as HTMLElement).classList.add('drag-over')
+}
+function onProjDragLeave(e: DragEvent) {
+  ;(e.currentTarget as HTMLElement).classList.remove('drag-over')
+}
 </script>
 
 <template>
-  <div class="compass-page">
-    <!-- Hero（版式对齐工作台封面） -->
-    <div class="compass-hero">
-      <div class="hero-name"><span class="icon"><Icon name="compass" :size="20" /></span>知源引擎</div>
-      <div class="hero-desc">看见：大方向（六层思维链） → 项目（中观策展） → 每日行动（今日三件事）</div>
-      <div class="hero-bottom">
-        <div class="hero-stats">
-          <span class="stat"><Icon name="target" :size="13" /> <b>{{ goalsCount }}</b> 战略目标</span>
-          <span class="stat"><Icon name="layers" :size="13" /> <b>{{ projectsCount }}</b> 攻坚项目</span>
-          <span class="stat"><Icon name="radio" :size="13" /> <b>{{ pinnedCount }}</b> 已投射灯塔</span>
-          <span class="stat"><Icon name="flame" :size="13" /> <b>{{ todayUndone }}</b> 今日要事</span>
+  <div class="page">
+    <div class="page-head">
+      <div class="crumb"><b>方向台</b> · 主航线与项目全景</div>
+      <div class="spacer" />
+      <button class="mini-btn" @click="openTree"><Icon name="branch" :size="13" /> 完整方向树</button>
+    </div>
+
+    <!-- 模块一 · 指标条（方向状态：DHI/WCE/WRR/偏航行动，C1） -->
+    <section class="module">
+      <MetricBar />
+    </section>
+
+    <!-- 模块二 · 主航线（愿景→使命→战略目标→项目为止） -->
+    <section class="module">
+      <LighthousePanel />
+    </section>
+
+    <!-- 模块三 · 项目总览（满宽 3 列） -->
+    <section class="module">
+      <div class="ov-card">
+        <div class="ov-head">
+          <span class="ic"><Icon name="layout" :size="16" /></span>
+          <span class="nm">项目总览</span>
+          <span class="en">PROJECT OVERVIEW</span>
+          <span class="ds">{{ projectsCount }} 项目 · {{ pinnedCount }} 已投射<template v-if="showDone"> · {{ doneProjects }} 已完成</template></span>
+          <span class="ov-toggle" :class="{ off: !showDone }" @click="toggleShowDone" title="与主航线/完整方向树三处同步">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</span>
+          <span class="ov-link" @click="openTree">去方向树管理 ›</span>
+          <button class="ov-add" @click="openCreate">＋ 新建项目</button>
         </div>
-        <div class="hero-actions">
-          <button class="hero-btn primary" @click="nav('projects')"><Icon name="layout" :size="13" /> 项目策展</button>
-          <button class="hero-btn ghost" @click="nav('tree')"><Icon name="branch" :size="13" /> 方向树</button>
+        <!-- 📌 置顶组 -->
+        <div v-if="pinnedGroup.length" class="ov-section">
+          <div class="ov-sec-label">📌 已置顶 <span>{{ pinnedGroup.length }}</span></div>
+          <div class="ov-grid">
+            <div v-for="p in pinnedGroup" :key="p.id" class="ov-card-item" :class="{focused: p.isFocused, archived: p.status === 'archived'}" :draggable="editingProjId !== p.id"
+              @dragstart="onProjDragStart($event, p)" @dragend="onProjDragEnd" @dragover.prevent="onProjDragOver($event, p)" @dragleave="onProjDragLeave" @drop="onProjDrop($event, p)"
+              @click="openProject(p)">
+              <div class="ov-name">
+                <span class="ov-pname" contenteditable="true" spellcheck="false" @click.stop @focus="editingProjId = p.id" @blur="renameProject(p, $event)" @keydown.enter.prevent="onNameEnter">{{ p.name }}</span>
+                <span v-if="p.isFocused" class="chip chip-accent">🎯 主攻</span>
+                <span v-if="p.pinnedToLighthouse" class="chip">📡 已投射</span>
+                <span v-if="stalled(p)" class="chip chip-warn">⚠ 停滞</span>
+              </div>
+              <div class="ov-goal">服务战略目标 · {{ goalNameOf(p) }}</div>
+              <div class="ov-meta">
+                <span>🎯 {{ p.metrics.length }}</span>
+                <span>📋 {{ projectProgress(p).total }}</span>
+                <span class="ov-progress"><i :style="{ width: projectProgress(p).pct + '%' }" /></span>
+                <span class="ov-pct">{{ projectProgress(p).pct }}%</span>
+              </div>
+              <div class="ov-tools" @click.stop>
+                <button class="ov-tool on" title="取消置顶" @click.stop="togglePin(p)">📌</button>
+                <button class="ov-tool" title="投射灯塔" :class="{on: p.pinnedToLighthouse}" @click.stop="p.pinnedToLighthouse = !p.pinnedToLighthouse; store.persist()">📡</button>
+                <button class="ov-tool danger" title="删除项目（任务转未归档）" @click.stop="removeProject(p)">🗑</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 全部组 -->
+        <div class="ov-section">
+          <div class="ov-sec-label" :style="pinnedGroup.length ? '' : 'margin-top:0'">📦 全部项目 <span>{{ normalGroup.length }}</span></div>
+          <div class="ov-grid">
+            <div v-for="p in normalGroup" :key="p.id" class="ov-card-item" :class="{focused: p.isFocused, archived: p.status === 'archived'}" :draggable="editingProjId !== p.id"
+              @dragstart="onProjDragStart($event, p)" @dragend="onProjDragEnd" @dragover.prevent="onProjDragOver($event, p)" @dragleave="onProjDragLeave" @drop="onProjDrop($event, p)"
+              @click="openProject(p)">
+              <div class="ov-name">
+                <span class="ov-pname" contenteditable="true" spellcheck="false" @click.stop @focus="editingProjId = p.id" @blur="renameProject(p, $event)" @keydown.enter.prevent="onNameEnter">{{ p.name }}</span>
+                <span v-if="p.isFocused" class="chip chip-accent">🎯 主攻</span>
+                <span v-if="p.pinnedToLighthouse" class="chip">📡 已投射</span>
+                <span v-if="stalled(p)" class="chip chip-warn">⚠ 停滞</span>
+              </div>
+              <div class="ov-goal">服务战略目标 · {{ goalNameOf(p) }}</div>
+              <div class="ov-meta">
+                <span>🎯 {{ p.metrics.length }}</span>
+                <span>📋 {{ projectProgress(p).total }}</span>
+                <span class="ov-progress"><i :style="{ width: projectProgress(p).pct + '%' }" /></span>
+                <span class="ov-pct">{{ projectProgress(p).pct }}%</span>
+              </div>
+              <div class="ov-tools" @click.stop>
+                <button class="ov-tool" title="置顶" @click.stop="togglePin(p)">📌</button>
+                <button class="ov-tool" title="投射灯塔" :class="{on: p.pinnedToLighthouse}" @click.stop="p.pinnedToLighthouse = !p.pinnedToLighthouse; store.persist()">📡</button>
+                <button class="ov-tool danger" title="删除项目（任务转未归档）" @click.stop="removeProject(p)">🗑</button>
+              </div>
+            </div>
+            <div class="ov-add-card" @click="openCreate"><span>＋</span><span>新建 / 规划项目</span></div>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="compass-body">
-      <!-- 左侧栏（版式对齐工作台分类导航） -->
-      <aside class="comp-sidebar" @click="dismissGuide">
-        <div class="cs-label">罗盘工作区</div>
-        <div class="cat-item" :class="{active: activePage==='actions', 'guide-glow': guideVisible}" :data-tip="tipActions" @click="nav('actions')">
-          <span class="ci"><Icon name="flame" :size="15" /></span><span class="cn">今日行动</span><span class="cc">{{ todayUndone }} 待办</span>
+    <!-- 新建项目弹窗 -->
+    <Transition name="fade">
+      <div v-if="createOpen" class="ov-overlay" @click="createOpen = false" />
+    </Transition>
+    <Transition name="pop">
+      <div v-if="createOpen" class="ov-modal">
+        <div class="ov-modal-head">
+          <span>📦 新建 / 规划项目</span>
+          <span class="ov-modal-close" @click="createOpen = false">×</span>
         </div>
-        <div class="cat-item" :class="{active: activePage==='projects', 'guide-glow': guideVisible}" :data-tip="tipProjects" @click="nav('projects')">
-          <span class="ci"><Icon name="layout" :size="15" /></span><span class="cn">项目策展</span><span class="cc">{{ projectsCount }} 项目</span>
+        <div class="ov-modal-body">
+          <div class="ovm-label">所属战略目标</div>
+          <select v-model="createDirId" class="ovm-select">
+            <option v-for="dir in d.compass.directions" :key="dir.id" :value="dir.id">🎯 {{ dir.name }}</option>
+          </select>
+          <div class="ovm-label">项目名称</div>
+          <input v-model="createName" class="ovm-input" placeholder="如「产品视觉重构」…" @keydown.enter.prevent="confirmCreate" @keydown.esc="createOpen = false" autofocus>
         </div>
-        <div class="cat-item" :class="{active: activePage==='tree', 'guide-glow': guideVisible}" :data-tip="tipTree" @click="nav('tree')">
-          <span class="ci"><Icon name="branch" :size="15" /></span><span class="cn">方向树</span><span class="cc">{{ goalsCount }} 目标</span>
+        <div class="ov-modal-foot">
+          <button class="ovm-btn" @click="createOpen = false">取消</button>
+          <button class="ovm-btn primary" @click="confirmCreate">✓ 创建</button>
         </div>
-        <div class="cat-divider"></div>
-        <!-- REQ-029 F-029-1：移除常驻三行文案，改为首次气泡引导 -->
-        <transition name="guide">
-          <div v-if="guideVisible" class="guide-bubble">
-            <div class="gb-title">三个入口，各回答一个问题 👇</div>
-            <div class="gb-line">方向树 · 回答「为什么」</div>
-            <div class="gb-line">项目策展 · 回答「是什么」</div>
-            <div class="gb-line">今日行动 · 回答「做什么」</div>
-            <div class="gb-close" @click.stop="dismissGuide">知道了 ✕</div>
-          </div>
-        </transition>
-      </aside>
-
-      <main class="comp-content">
-        <!-- 第十三轮：移除子页 out-in 过渡，罗盘内切换即时渲染 -->
-        <router-view v-slot="{ Component }">
-          <component :is="Component" />
-        </router-view>
-      </main>
-    </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <style scoped>
-.compass-page { padding: 0 20px 24px; min-height: calc(100vh - 52px); }
+.page { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
+.page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.page-head .crumb { font-size: 13px; color: var(--text-2); }
+.page-head .crumb b { color: var(--text); font-weight: 600; font-size: 15px; }
+.page-head .spacer { flex: 1; }
+.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; user-select: none; }
+.mini-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-/* Hero（对齐工作台封面） */
-/* P2 视觉重构：Hero 改为 Linear 表面面板（surface-1 + 发丝线），去装饰渐变与光晕 */
-.compass-hero { position: relative; height: 128px; background: var(--surface); border-bottom: 1px solid var(--border); border-radius: 0 0 12px 12px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 28px 16px; }
-.hero-name { font-size: 21px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 10px; position: relative; z-index: 1; letter-spacing: .3px; }
-.hero-name .icon { color: var(--accent); display: flex; align-items: center; }
-.hero-desc { font-size: 12.5px; color: var(--text-3); margin-top: 3px; position: relative; z-index: 1; }
-.hero-bottom { display: flex; align-items: center; gap: 16px; margin-top: 9px; position: relative; z-index: 1; }
-.hero-stats { display: flex; gap: 14px; font-size: 11.5px; color: var(--text-3); }
-.hero-stats .stat { display: inline-flex; align-items: center; gap: 5px; }
-.hero-btn { gap: 6px; }
-.hero-btn svg { flex-shrink: 0; }
-.hero-stats b { color: var(--text); font-weight: 600; }
-.hero-actions { margin-left: auto; display: flex; gap: 8px; }
-.hero-btn { padding: 6px 14px; border-radius: 8px; font-size: 12px; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 5px; font-weight: 500; border: none; font-family: inherit; }
-.hero-btn.primary { background: var(--accent); color: #fff; }
-.hero-btn.primary:hover { transform: translateY(-1px); }
-.hero-btn.ghost { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
-.hero-btn.ghost:hover { background: var(--surface-3); color: var(--text); }
+.module { margin-top: 18px; }
+.module:first-of-type { margin-top: 0; }
 
-/* Body */
-.compass-body { display: flex; min-height: calc(100vh - 52px - 128px); }
-.comp-sidebar { width: 190px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--surface); padding: 14px 10px; overflow: visible; position: relative; }
-.cs-label { font-size: 10px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding: 0 10px 8px; }
-.cat-item { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 8px; font-size: 12.5px; color: var(--text-2); cursor: pointer; transition: all .12s; margin-bottom: 2px; border: 1px solid transparent; position: relative; }
-.cat-item:hover { background: var(--surface-3); color: var(--text); }
-.cat-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; border-color: rgba(14,122,78,.2); }
-.cat-item .ci { font-size: 14px; flex-shrink: 0; }
-.cat-item .cn { flex: 1; }
-.cat-item .cc { font-size: 10px; color: var(--text-3); background: var(--surface-2); padding: 1px 7px; border-radius: 99px; }
-.cat-item.active .cc { background: var(--surface); color: var(--accent); }
-/* REQ-029 F-029-3：hover tooltip（data-tip 文案，右侧浮出一句话定位） */
-.cat-item::after {
-  content: attr(data-tip);
-  position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
-  white-space: nowrap; font-size: 11px; color: var(--text-2); background: var(--surface-2);
-  border: 1px solid var(--border); padding: 4px 9px; border-radius: 6px;
-  opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 20; box-shadow: 0 2px 8px rgba(0,0,0,.12);
-}
-.cat-item:hover::after { opacity: 1; }
-.cat-divider { height: 1px; background: var(--border); margin: 8px 10px; }
-/* REQ-029 F-029-2：首次引导气泡 + 入口呼吸高亮 */
-.guide-glow { animation: guidePulse 1.6s ease-in-out infinite; }
-@keyframes guidePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(14,122,78,.35); } 50% { box-shadow: 0 0 0 5px rgba(14,122,78,0); } }
-.guide-bubble { margin: 10px 8px 4px; padding: 10px 12px; background: var(--accent-light); border: 1px solid rgba(14,122,78,.25); border-radius: 10px; font-size: 11px; color: var(--accent); line-height: 1.9; }
-.guide-bubble .gb-title { font-weight: 700; margin-bottom: 4px; }
-.guide-bubble .gb-close { margin-top: 6px; font-size: 10px; color: var(--text-2); cursor: pointer; text-align: right; }
-.guide-bubble .gb-close:hover { color: var(--accent); }
-.guide-enter-active, .guide-leave-active { transition: opacity .2s, transform .2s; }
-.guide-enter-from, .guide-leave-to { opacity: 0; transform: translateY(-4px); }
+/* 项目总览（满宽 3 列，Linear 卡片） */
+.ov-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,.025); }
+.ov-head { display: flex; align-items: center; gap: 8px; padding: 16px 20px 12px; flex-wrap: wrap; }
+.ov-head .ic { color: var(--accent); display: flex; align-items: center; }
+.ov-head .nm { font-size: 15px; font-weight: 600; letter-spacing: .3px; }
+.ov-head .en { font-size: 9px; color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; }
+.ov-head .ds { font-size: 11.5px; color: var(--text-3); margin-left: 6px; flex: 1; }
+.ov-link { font-size: 11.5px; color: var(--accent); cursor: pointer; }
+.ov-link:hover { text-decoration: underline; }
+.ov-toggle { font-size: 11px; color: var(--text-3); cursor: pointer; white-space: nowrap; }
+.ov-toggle:hover { color: var(--accent); }
+.ov-toggle.off { opacity: .6; }
+.ov-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 0 20px 18px; }
+.ov-card-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 13px 15px; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 7px; }
+.ov-card-item:hover { border-color: var(--border-strong); background: var(--surface); transform: translateY(-1px); }
+.ov-card-item.focused { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.ov-card-item.archived { opacity: .55; }
+.ov-name { font-size: 13.5px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.chip { font-size: 9.5px; padding: 1px 7px; border-radius: 99px; background: var(--surface-3); color: var(--text-3); font-weight: 500; white-space: nowrap; }
+.chip-accent { background: var(--accent-light); color: var(--accent); }
+.chip-warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
+.ov-goal { font-size: 11px; color: var(--text-3); }
+.ov-meta { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.ov-progress { flex: 1; height: 5px; background: var(--surface-3); border-radius: 99px; overflow: hidden; }
+.ov-progress > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
+.ov-pct { font-weight: 700; color: var(--text); }
+.ov-empty { grid-column: 1 / -1; text-align: center; padding: 30px; font-size: 12.5px; color: var(--text-3); }
 
-.comp-content { flex: 1; min-width: 0; padding: 20px 26px 60px; }
+/* C8 管理增强 */
+.ov-add { border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 600; border-radius: 8px; padding: 5px 13px; cursor: pointer; font-family: inherit; transition: all .15s; }
+.ov-add:hover { background: var(--accent-hover); }
+.ov-section { padding: 0 20px 12px; }
+.ov-section:last-child { padding-bottom: 18px; }
+.ov-sec-label { font-size: 11.5px; font-weight: 600; color: var(--text-2); margin: 10px 0 10px; display: flex; align-items: center; gap: 6px; }
+.ov-sec-label span { font-size: 10px; color: var(--text-3); background: var(--surface-3); padding: 1px 8px; border-radius: 99px; font-variant-numeric: tabular-nums; }
+.ov-card-item { position: relative; }
+.ov-card-item.dragging { opacity: .4; }
+.ov-card-item.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent); }
+.ov-pname { outline: none; border-radius: 5px; padding: 1px 4px; margin: -1px -4px; cursor: text; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ov-pname:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.ov-pname:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
+.ov-tools { position: absolute; top: 8px; right: 8px; display: none; gap: 3px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 2px; box-shadow: 0 1px 4px rgba(0,0,0,.12); z-index: 2; }
+.ov-card-item:hover .ov-tools { display: flex; }
+.ov-tool { width: 22px; height: 22px; border: none; border-radius: 5px; background: transparent; color: var(--text-3); font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.ov-tool:hover { background: var(--surface-3); color: var(--text); }
+.ov-tool.on { color: var(--accent); background: var(--accent-light); }
+.ov-tool.danger:hover { color: var(--danger); }
+.ov-add-card { border: 1.5px dashed var(--border-strong); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 96px; cursor: pointer; color: var(--text-3); font-size: 12.5px; transition: all .15s; }
+.ov-add-card:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 
+/* 新建弹窗 */
+.ov-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 220; }
+.ov-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 420px; max-width: 94vw; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); z-index: 221; }
+.ov-modal-head { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; font-size: 14px; font-weight: 600; }
+.ov-modal-head span:first-child { flex: 1; }
+.ov-modal-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 17px; }
+.ov-modal-close:hover { background: var(--surface-3); color: var(--text); }
+.ov-modal-body { padding: 16px 20px; }
+.ovm-label { font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin-bottom: 6px; }
+.ovm-select { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: 12.5px; color: var(--text); border: 1px solid transparent; outline: none; cursor: pointer; font-family: inherit; margin-bottom: 12px; }
+.ovm-input { width: 100%; padding: 10px 13px; background: var(--surface-2); border-radius: 8px; font-size: 13px; color: var(--text); border: 1px solid transparent; outline: none; font-family: inherit; }
+.ovm-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
+.ov-modal-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 14px 20px; border-top: 1px solid var(--border); }
+.ovm-btn { padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 12px; cursor: pointer; font-family: inherit; }
+.ovm-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.ovm-btn.primary:hover { background: var(--accent-hover); }
+
+.pop-enter-active, .pop-leave-active { transition: all .18s ease; }
+.pop-enter-from, .pop-leave-to { opacity: 0; transform: translate(-50%, -50%) scale(.96); }
+.fade-enter-active, .fade-leave-active { transition: opacity .2s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 
 @media (max-width: 1080px) {
-  .comp-sidebar { width: 64px; }
-  .cs-label, .cat-item .cn, .cat-item .cc, .cat-divider, .guide-bubble { display: none; }
-  .cat-item::after { display: none; }
-  .cat-item { justify-content: center; padding: 11px 0; }
+  .ov-grid { grid-template-columns: 1fr; }
 }
 </style>

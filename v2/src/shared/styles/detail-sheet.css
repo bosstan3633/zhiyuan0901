@@ -1,0 +1,92 @@
+/**
+ * R48 详情页重设计（参考 Linear 设计规范）——三卡详情统一结构样式
+ * 适用：TaskDetailDrawer.vue / CuriosityPanel.vue 详情 / ResourceEditForm.vue
+ *
+ * 四原则（与线框图 V1 一致）：
+ *  ① Hero 区唯一焦点（摘录/说明/链接卡）
+ *  ② 属性紧凑化（下拉双列、chip 行，纵向高度大幅压缩）
+ *  ③ 色彩只做语义信号（状态/优先级/主按钮）
+ *  ④ 操作分层（Footer 左弱化次操作 + 右唯一主操作，危险操作降级）
+ */
+
+/* ---- Hero 引用体（好奇心摘录：无底色大框，左侧竖线，内容即主角） ---- */
+.ds-quote-wrap { position: relative; }
+.ds-quote {
+  width: 100%; box-sizing: border-box; resize: none; border: none; outline: none;
+  background: transparent; color: var(--text); font-family: inherit;
+  font-size: 14px; line-height: 1.8; padding: 2px 4px 2px 14px;
+  border-left: 3px solid var(--accent); min-height: 72px;
+}
+.ds-quote::placeholder { color: var(--text-4, #b8b8bd); }
+.ds-quote:focus { border-left-color: var(--accent-hover, var(--accent)); }
+
+/* ---- Hero 说明区（任务说明 / 资源注释：浅底大编辑区） ---- */
+.ds-desc {
+  width: 100%; box-sizing: border-box; resize: none; border: 1px solid transparent;
+  border-radius: 8px; background: var(--surface-2); color: var(--text);
+  padding: 10px 12px; font-size: 13px; line-height: 1.7; font-family: inherit; outline: none;
+}
+.ds-desc:focus { border-color: var(--accent); background: var(--surface); }
+
+/* ---- Hero 标签行（SOUL 区上方的小节标签） ---- */
+.ds-hero-label {
+  font-size: 10.5px; font-weight: 700; color: var(--text-3);
+  letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px;
+  display: flex; align-items: baseline; gap: 8px;
+}
+.ds-hero-label .hint { font-weight: 400; letter-spacing: 0; text-transform: none; }
+
+/* ---- 属性双列（项目/指标、工作台/分类：四个纵向大块 → 一行两列） ---- */
+.ds-props2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ds-props2 .ds-prop-field { min-width: 0; }
+.ds-prop-label { font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .04em; margin-bottom: 5px; display: block; }
+.ds-prop-select {
+  width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 8px;
+  border: 1px solid transparent; background: var(--surface-2); color: var(--text);
+  font-size: 12px; font-family: inherit; outline: none; cursor: pointer;
+}
+.ds-prop-select:focus { border-color: var(--accent); background: var(--surface); }
+.ds-prop-select:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ---- 元数据行（捕获/更新时间等：一行小字灰） ---- */
+.ds-meta { display: flex; align-items: center; gap: 14px; font-size: 11px; color: var(--text-3); flex-wrap: wrap; }
+.ds-meta .lnk { color: var(--text-3); cursor: pointer; border-bottom: 1px dashed var(--border-strong); }
+.ds-meta .lnk:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.ds-meta a { color: inherit; }
+
+/* ---- 折叠附属区（附件/挂载：默认收起，有内容显示计数） ---- */
+.ds-details { border-top: 1px solid var(--border); padding-top: 10px; }
+.ds-details > summary {
+  list-style: none; cursor: pointer; user-select: none;
+  font-size: 11.5px; font-weight: 600; color: var(--text-2);
+  display: flex; align-items: center; gap: 7px; padding: 2px 0 10px;
+}
+.ds-details > summary::-webkit-details-marker { display: none; }
+.ds-details > summary::before {
+  content: '▸'; font-size: 10px; color: var(--text-3);
+  transition: transform .15s ease; width: 12px;
+}
+.ds-details[open] > summary::before { transform: rotate(90deg); }
+.ds-details > summary .cnt { color: var(--text-3); font-weight: 400; }
+.ds-details > summary .right { margin-left: auto; font-size: 10.5px; color: var(--text-3); font-weight: 400; }
+.ds-details[open] > summary { color: var(--text); }
+
+/* ---- 头部状态 chip（点击弹层切换，替代四个大按钮/三枚大 chip） ---- */
+.ds-status-wrap { position: relative; display: inline-flex; }
+.ds-status-chip2 {
+  display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px;
+  border-radius: 999px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+  border: none; font-family: inherit; transition: all .12s; white-space: nowrap;
+}
+.ds-status-chip2::after { content: '▾'; font-size: 9px; opacity: .6; }
+.ds-status-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 60;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,.14)); padding: 4px; min-width: 132px;
+}
+.ds-status-menu .mi {
+  display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 7px;
+  font-size: 12px; color: var(--text-2); cursor: pointer; white-space: nowrap;
+}
+.ds-status-menu .mi:hover { background: var(--surface-3); color: var(--text); }
+.ds-status-menu .mi.on { color: var(--accent); font-weight: 600; background: var(--accent-light); }

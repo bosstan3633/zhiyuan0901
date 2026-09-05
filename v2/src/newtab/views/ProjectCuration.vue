@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
@@ -8,11 +8,17 @@ import { useConfirm } from '@/shared/components/confirm'
 import type { Project, Direction, TaskCard, Metric } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import TaskAddDrawer from '../components/TaskAddDrawer.vue'
+import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
+import AssetBadge from '@/shared/components/AssetBadge.vue'
 
 const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
 const { d, visionText, missionText, allProjects, projectProgress } = useCompass()
+
+/** R49-D6：任务详情 = 共享 TaskDetailDrawer（R48 重设计组件） */
+const detailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
+function openTaskDetail(t: TaskCard) { detailRef.value?.open(t) }
 
 /* ================= 数据 ================= */
 const projects = computed(() => {
@@ -35,8 +41,6 @@ function isStalled(p: Project): boolean {
   const recent = tasks.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0]
   return recent ? Date.now() - (recent.updatedAt || 0) > 14 * 86400_000 : tasks.length > 0
 }
-function pinnedProjects() { return projects.value.filter(p => p.pinnedToLighthouse).sort((a, b) => (a.order||0) - (b.order||0)) }
-function unpinnedProjects() { return projects.value.filter(p => !p.pinnedToLighthouse).sort((a, b) => (a.order||0) - (b.order||0)) }
 
 /** 指标下的任务（真实任务卡） */
 function tasksForMetric(metricId: string): TaskCard[] {
@@ -53,41 +57,6 @@ function metricPct(metricId: string): number {
   return ts.length ? Math.round(ts.filter(t => t.status === 'done').length / ts.length * 100) : 0
 }
 
-/* ================= 全景墙 ================= */
-let dragWallId: string | null = null
-function onWallDragStart(e: DragEvent, id: string) {
-  dragWallId = id
-  ;(e.currentTarget as HTMLElement).classList.add('dragging')
-  e.dataTransfer!.effectAllowed = 'move'
-}
-function onWallDragEnd(e: DragEvent) {
-  ;(e.currentTarget as HTMLElement).classList.remove('dragging')
-  dragWallId = null
-}
-function onWallDrop(e: DragEvent, targetId: string) {
-  e.preventDefault()
-  if (!dragWallId || dragWallId === targetId) return
-  const from = projects.value.find(p => p.id === dragWallId)
-  const to = projects.value.find(p => p.id === targetId)
-  if (!from || !to) return
-  if (!!from.pinnedToLighthouse !== !!to.pinnedToLighthouse) {
-    showToast('跨区移动请先用 📡 投射/取消投射')
-    return
-  }
-  // 直接按目标位置重排 order（splice 在 computed 副本上不生效，必须回写 order 字段）
-  const sectionIds = (from.pinnedToLighthouse ? pinnedProjects() : unpinnedProjects()).map(p => p.id)
-  const fi = sectionIds.indexOf(from.id)
-  const ti = sectionIds.indexOf(to.id)
-  if (fi < 0 || ti < 0) return
-  sectionIds.splice(ti, 0, sectionIds.splice(fi, 1)[0])
-  sectionIds.forEach((id, i) => {
-    const p = projects.value.find(x => x.id === id)
-    if (p) p.order = i
-  })
-  store.persist()
-  dragWallId = null
-  showToast('✓ 已调整排序')
-}
 async function removeMetric(m: Metric) {
   if (!currentProject.value) return
   const taskCount = d.value.tasks.filter(t => !t.deletedAt && t.metricId === m.id).length
@@ -163,13 +132,17 @@ let currentDir: Direction | null = null
 function openProject(p: Project) {
   currentProject.value = p
   currentDir = goalOf(p)
+  // R49：保留 ?p 参数（刷新后仍定位到该项目详情）
+  if (route.query.p !== p.id) router.replace({ path: route.path, query: { p: p.id } })
 }
-function closeProject() { currentProject.value = null }
-watch(() => route.query.p, (pid) => {
-  if (!pid || typeof pid !== 'string') return
-  const p = projects.value.find(x => x.id === pid)
-  if (p) openProject(p)
+function closeProject() {
+  currentProject.value = null
   router.replace({ path: route.path })
+}
+watch(() => route.query.p, (pid) => {
+  if (!pid || typeof pid !== 'string') { if (!route.query.p) currentProject.value = null; return }
+  const p = projects.value.find(x => x.id === pid)
+  if (p) { currentProject.value = p; currentDir = goalOf(p) }
 }, { immediate: true })
 
 function renameProject(e: FocusEvent) {
@@ -257,133 +230,60 @@ function onMetricDragLeave(e: DragEvent) {
   (e.currentTarget as HTMLElement).classList.remove('drag-over')
 }
 
-/* ---- 任务详情抽屉（Ctrl+Enter / Esc） ---- */
-const drawerOpen = ref(false)
-const drawerTask = ref<TaskCard | null>(null)
-const drawerTitle = ref('')
-const drawerNote = ref('')
-function openDrawer(task: TaskCard) {
-  drawerTask.value = task
-  drawerTitle.value = task.title
-  drawerNote.value = task.description || ''
-  drawerOpen.value = true
-}
-function closeDrawer() { drawerOpen.value = false; drawerTask.value = null }
-function saveDrawer() {
-  if (!drawerTask.value) return
-  const v = drawerTitle.value.trim()
-  if (v) drawerTask.value.title = v
-  drawerTask.value.description = drawerNote.value.trim()
-  drawerTask.value.updatedAt = Date.now()
-  store.persist()
-  closeDrawer()
-  showToast('✓ 已保存，同步罗盘')
-}
-function drawerToggleDone() {
-  if (!drawerTask.value) return
-  drawerTask.value.status = drawerTask.value.status === 'done' ? 'todo' : 'done'
-  drawerTask.value.completedAt = drawerTask.value.status === 'done' ? Date.now() : undefined
-  drawerTask.value.updatedAt = Date.now()
-  store.persist()
-}
-function drawerCyclePriority() {
-  if (!drawerTask.value) return
-  const order: Array<'low'|'medium'|'high'> = ['low', 'medium', 'high']
-  drawerTask.value.priority = order[(order.indexOf(drawerTask.value.priority) + 1) % 3]
-  drawerTask.value.updatedAt = Date.now()
-  store.persist()
-}
-async function drawerDelete() {
-  if (!drawerTask.value) return
-  removeTask(drawerTask.value)
-  closeDrawer()
-}
 function prLabel(pr: string) {
   return pr === 'high' ? '🔴 高优先级' : pr === 'mid' || pr === 'medium' ? '🟡 中优先级' : '🟢 低优先级'
 }
 function prTag(pr: string) {
   return pr === 'high' ? 'danger' : pr === 'mid' || pr === 'medium' ? 'warn' : 'ok'
 }
-/** 模板用提示 */
-function hint(msg: string) { showToast(msg) }
 
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    if (drawerOpen.value) { closeDrawer(); return }
-    if (currentProject.value) closeProject()
-  }
+/* ================= R49-D4：任务附件区（按任务聚合，AssetBadge 复用现有打开逻辑） ================= */
+const tasksWithAssets = computed(() => {
+  const p = currentProject.value
+  if (!p) return []
+  return d.value.tasks.filter(t => !t.deletedAt && t.projectId === p.id && t.assets && t.assets.length)
 })
+const assetSizeLabel = (n?: number) => !n ? '' : n > 1024 * 1024 ? (n / 1024 / 1024).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'
+function taskAssetCount(t: TaskCard): number {
+  return (t.assets || []).length
+}
+function taskAssetSize(t: TaskCard): string {
+  const total = (t.assets || []).reduce((s, a) => s + (a.size || 0), 0)
+  return assetSizeLabel(total)
+}
+
+/** D1：头部级「＋添加任务」——有指标选第一个，无指标先建一个 */
+function addTaskFromHeader() {
+  const p = currentProject.value
+  if (!p) return
+  if (!p.metrics.length) {
+    p.metrics.push({ id: uid('met'), title: '新成功指标', taskIds: [] })
+    store.persist()
+    showToast('✓ 已创建首个成功指标，继续添加任务')
+  }
+  taskAddMetric.value = p.metrics[0]!
+}
 </script>
 
 <template>
   <div>
     <div class="page-head">
-      <div class="crumb">知源引擎 <span class="sep">/</span> <b>项目策展</b> · 以项目为单位的全景展览</div>
+      <div class="crumb"><b>项目详情</b> · 项目 → 成功指标 → 任务</div>
       <div class="spacer" />
-      <div class="hint-chip">拖拽排序 · 📡 投射灯塔自动置顶 · 点击展板进入全屏策展</div>
+      <button class="mini-btn" @click="router.push('/compass')">← 返回方向台</button>
+      <div class="hint-chip">任务可拖拽排序 / 跨指标归属 · 点击任务开详情</div>
     </div>
 
-    <!-- ===== 全景墙 ===== -->
+    <!-- ===== 项目选择（无 ?p 时的落地视图；全景墙管理已由方向台·项目总览承接） ===== -->
     <div v-if="!currentProject">
-      <div v-if="pinnedProjects().length" class="wall-section">
-        <div class="section-label">📡 已投射灯塔 · 置顶 <span class="sl-count">{{ pinnedProjects().length }}</span></div>
-        <div class="wall-grid">
-          <div v-for="p in pinnedProjects()" :key="p.id" class="pcard" draggable="true"
-            @dragstart="onWallDragStart($event, p.id)" @dragend="onWallDragEnd" @dragover.prevent @drop="onWallDrop($event, p.id)"
-            @click="openProject(p)">
-            <div class="ptop">
-              <span v-if="p.isFocused" class="tag accent">主攻</span>
-              <span v-if="isStalled(p)" class="tag warn">⚠ 停滞</span>
-              <span class="pname">{{ p.name }}</span>
-              <span class="pin-btn" :class="{on: p.pinnedToLighthouse}" title="取消投射灯塔" @click.stop="togglePin(p)">📡</span>
-            </div>
-            <div class="chain">愿景<span class="sep">→</span>使命<span class="sep">→</span><b>{{ goalOf(p)?.name || '—' }}</b></div>
-            <div class="mrows">
-              <div v-for="m in p.metrics" :key="m.id" class="mrow">
-                <span class="mn">🎯 {{ m.title }}</span>
-                <span class="progress bar"><i :style="{width: metricPct(m.id) + '%'}" /></span>
-                <span class="pct">{{ metricPct(m.id) }}%</span>
-              </div>
-            </div>
-            <div class="pfoot">
-              <span style="cursor:grab" title="拖拽排序">⋮⋮</span>
-              <span>📋 {{ projectTasksCount(p) }}</span>
-              <span v-if="p.endDate">🕐 {{ p.endDate }}</span>
-              <span class="enter">进入策展 →</span>
-            </div>
-          </div>
+      <div class="sel-grid">
+        <div v-for="p in projects" :key="p.id" class="sel-item" @click="openProject(p)">
+          <div class="sel-name">{{ p.name }}<span v-if="p.isFocused" class="tag accent">🎯 主攻</span></div>
+          <div class="sel-goal">{{ goalOf(p)?.name || '—' }}</div>
+          <div class="sel-meta">🎯 {{ p.metrics.length }} · 📋 {{ projectTasksCount(p) }} · {{ projectProgress(p).pct }}%</div>
         </div>
-      </div>
-      <div class="wall-section">
-        <div class="section-label" :style="pinnedProjects().length ? '' : 'margin-top:0'">📦 全部项目 <span class="sl-count">{{ unpinnedProjects().length }}</span></div>
-        <div class="wall-grid">
-          <div v-for="p in unpinnedProjects()" :key="p.id" class="pcard" draggable="true"
-            @dragstart="onWallDragStart($event, p.id)" @dragend="onWallDragEnd" @dragover.prevent @drop="onWallDrop($event, p.id)"
-            @click="openProject(p)">
-            <div class="ptop">
-              <span v-if="p.isFocused" class="tag accent">主攻</span>
-              <span v-if="isStalled(p)" class="tag warn">⚠ 停滞</span>
-              <span class="pname">{{ p.name }}</span>
-              <span class="pin-btn" :class="{on: p.pinnedToLighthouse}" title="投射至知源灯塔（自动置顶）" @click.stop="togglePin(p)">📡</span>
-            </div>
-            <div class="chain">愿景<span class="sep">→</span>使命<span class="sep">→</span><b>{{ goalOf(p)?.name || '—' }}</b></div>
-            <div class="mrows">
-              <div v-for="m in p.metrics" :key="m.id" class="mrow">
-                <span class="mn">🎯 {{ m.title }}</span>
-                <span class="progress bar"><i :style="{width: metricPct(m.id) + '%'}" /></span>
-                <span class="pct">{{ metricPct(m.id) }}%</span>
-              </div>
-            </div>
-            <div class="pfoot">
-              <span style="cursor:grab" title="拖拽排序">⋮⋮</span>
-              <span>📋 {{ projectTasksCount(p) }}</span>
-              <span v-if="p.endDate">🕐 {{ p.endDate }}</span>
-              <span class="enter">进入策展 →</span>
-            </div>
-          </div>
-          <div class="wall-add" @click="openCreateProject">
-            <span style="font-size:20px">＋</span><span>新建 / 规划项目</span>
-          </div>
+        <div class="wall-add" @click="openCreateProject">
+          <span style="font-size:20px">＋</span><span>新建 / 规划项目</span>
         </div>
       </div>
       <div v-if="!projects.length" class="empty-state">点击上方「新建 / 规划项目」，选择战略目标后开始</div>
@@ -402,30 +302,37 @@ document.addEventListener('keydown', (e) => {
     </aside>
     <div class="board">
       <div class="back-row">
-        <button class="back-btn" @click="closeProject">← 返回全景墙</button>
+        <button class="back-btn" @click="closeProject">← 返回项目列表</button>
+        <span class="tag">ID · {{ currentProject.id.slice(0, 12) }}</span>
         <span class="tag accent">{{ goalOf(currentProject)?.name || '—' }}</span>
-        <span v-if="currentProject.isFocused" class="tag accent">主攻</span>
+        <span v-if="currentProject.isFocused" class="tag accent">🎯 主攻</span>
         <span v-if="currentProject.pinnedToLighthouse" class="tag info">📡 已投射灯塔</span>
         <div style="flex:1" />
-        <button class="mini-btn" @click="router.push('/compass/tree')">🌳 在方向树中查看</button>
+        <button class="mini-btn primary" @click="addTaskFromHeader">＋ 添加任务</button>
+        <button class="mini-btn" @click="router.push('/compass/tree')">🌳 完整方向树</button>
       </div>
 
-      <!-- 愿景 → 使命 → 战略目标 视觉链 -->
+      <!-- 愿景 → 使命 → 战略目标 → 项目 归属链（D2：四段可点击，前三段跳完整方向树） -->
       <div class="chain-box">
         <div class="chain-line">
-          <div class="ch-node">
+          <div class="ch-node clickable" title="在完整方向树中查看" @click="router.push('/compass/tree')">
             <div class="ch-ic">🔭</div>
             <div class="ch-body"><div class="ch-lab">愿景 · Vision</div><div class="ch-txt">{{ visionText || '尚未设定愿景' }}</div></div>
           </div>
           <div class="ch-link" />
-          <div class="ch-node">
+          <div class="ch-node clickable" title="在完整方向树中查看" @click="router.push('/compass/tree')">
             <div class="ch-ic">💡</div>
             <div class="ch-body"><div class="ch-lab">使命 · Mission</div><div class="ch-txt">{{ missionText || '尚未设定使命' }}</div></div>
           </div>
           <div class="ch-link" />
-          <div class="ch-node hi">
+          <div class="ch-node clickable hi" title="在完整方向树中查看" @click="router.push('/compass/tree')">
             <div class="ch-ic">🎯</div>
-            <div class="ch-body" style="padding-bottom:2px"><div class="ch-lab">战略目标 · Direction</div><div class="ch-txt">{{ goalOf(currentProject)?.name }}（{{ goalOf(currentProject)?.term==='long'?'远期':goalOf(currentProject)?.term==='short'?'近期':'中期' }}）</div></div>
+            <div class="ch-body"><div class="ch-lab">战略目标 · Direction</div><div class="ch-txt">{{ goalOf(currentProject)?.name }}（{{ goalOf(currentProject)?.term==='long'?'远期':goalOf(currentProject)?.term==='short'?'近期':'中期' }}）</div></div>
+          </div>
+          <div class="ch-link" />
+          <div class="ch-node current">
+            <div class="ch-ic">📦</div>
+            <div class="ch-body" style="padding-bottom:2px"><div class="ch-lab">攻坚项目 · Project</div><div class="ch-txt">{{ currentProject.name }}</div></div>
           </div>
         </div>
       </div>
@@ -471,8 +378,9 @@ document.addEventListener('keydown', (e) => {
             @dragover.prevent.stop @drop.stop="onTaskDrop($event, task)">
             <span class="bdrag" title="拖拽排序 / 跨指标归属">⋮⋮</span>
             <span class="bcheck" :class="{done: task.status==='done'}" @click="toggleTaskDone(task)">{{ task.status==='done'?'✓':'' }}</span>
-            <span class="bt" @click="openDrawer(task)" title="点击打开任务详情">{{ task.title }}</span>
+            <span class="bt" @click="openTaskDetail(task)" title="点击打开任务详情">{{ task.title }}</span>
             <span class="tag" :class="prTag(task.priority)">{{ prLabel(task.priority) }}</span>
+            <AssetBadge v-if="task.assets?.length" :assets="task.assets" />
             <button class="icon-btn-sm del" @click="removeTask(task)">×</button>
           </div>
           <div class="task-add" @click="openTaskAdd(m)">＋ 添加任务（新建 / 关联）</div>
@@ -490,14 +398,31 @@ document.addEventListener('keydown', (e) => {
             @dragstart="onTaskDragStart($event, t, '__orphan__')" @dragend="onTaskDragEnd" @dragover.prevent @drop="onTaskDrop($event, t)">
             <span class="bdrag" title="拖拽到指标归属">⋮⋮</span>
             <span class="bcheck" :class="{done: t.status==='done'}" @click="toggleTaskDone(t)">{{ t.status==='done'?'✓':'' }}</span>
-            <span class="bt" @click="openDrawer(t)" title="点击打开任务详情">{{ t.title }}</span>
+            <span class="bt" @click="openTaskDetail(t)" title="点击打开任务详情">{{ t.title }}</span>
             <span class="tag" :class="prTag(t.priority)">{{ prLabel(t.priority) }}</span>
             <button class="icon-btn-sm del" @click="removeTask(t)">×</button>
           </div>
         </div>
       </div>
       <button class="mini-btn primary" style="width:100%;padding:10px;justify-content:center" @click="addMetric()">＋ 添加成功指标（同步方向树）</button>
-      <div class="board-foot-hint">本展板与知源引擎 · 方向树实时双向同步 · 任务完成自动回流指标进度与北极星 DHI</div>
+
+      <!-- R49-D4：任务附件区（按任务聚合，复用 AssetBadge 打开逻辑；资源卡本体在资源台管理，此处不呈现） -->
+      <div class="metric-sec asset-sec">
+        <div class="metric-head2">
+          <span class="tag ok" style="flex-shrink:0">📎 任务附件</span>
+          <span class="mname">按任务聚合 · 🖼 图片弹窗预览 / 🌐 HTML / 📕 PDF 新标签打开</span>
+        </div>
+        <div class="task-rows">
+          <div v-for="t in tasksWithAssets" :key="t.id" class="btask asset-row" @click="openTaskDetail(t)">
+            <span class="bt">{{ t.title }}</span>
+            <span class="tag">{{ taskAssetCount(t) }} 个 · {{ taskAssetSize(t) }}</span>
+            <AssetBadge :assets="t.assets || []" />
+          </div>
+          <div v-if="!tasksWithAssets.length" class="empty-asset">该项目下暂无任务附件——在任务详情中上传后在此聚合呈现</div>
+        </div>
+      </div>
+      <!-- R49-D5：好奇心规则提示条（好奇心卡通过「转为任务/归档为资源」进入项目） -->
+      <div class="board-foot-hint">💡 好奇心卡通过「转为任务 / 归档为资源」进入项目 · 本页与完整方向树实时双向同步 · 任务完成自动回流指标进度与 DHI</div>
     </div>
     </div>
 
@@ -535,39 +460,9 @@ document.addEventListener('keydown', (e) => {
       </div>
     </Transition>
 
-    <!-- ===== 任务详情抽屉 ===== -->
-    <Transition name="fade">
-      <div v-if="drawerOpen" class="drawer-overlay" @click="closeDrawer" />
-    </Transition>
-    <Transition name="slide">
-      <aside v-if="drawerOpen && drawerTask" class="tdrawer" @keydown.ctrl.enter.prevent="saveDrawer" @keydown.meta.enter.prevent="saveDrawer">
-        <div class="td-head">
-          <div class="td-check" :class="{done: drawerTask.status==='done'}" @click="drawerToggleDone">{{ drawerTask.status==='done'?'✓':'' }}</div>
-          <textarea v-model="drawerTitle" class="td-title" rows="2" placeholder="任务标题..." />
-          <div class="td-close" @click="closeDrawer">×</div>
-        </div>
-        <div class="td-body">
-          <div class="td-label">📂 归属</div>
-          <div class="td-field"><span>📦</span><span class="fv">{{ currentProject?.name }}</span></div>
-          <div class="td-field"><span>🎯</span><span class="fv">{{ currentProject?.metrics.find(m=>m.id===drawerTask?.metricId)?.title || '—' }}</span></div>
-          <div class="td-label">⚡ 优先级</div>
-          <div class="td-field" @click="drawerCyclePriority">
-            <span class="fv">{{ prLabel(drawerTask.priority) }}</span><span class="fh">点击切换 ›</span>
-          </div>
-          <div class="td-label">📌 状态</div>
-          <div class="td-field" @click="drawerToggleDone">
-            <span class="fv">{{ drawerTask.status==='done' ? '✅ 已完成' : drawerTask.status==='doing' ? '◐ 进行中' : '○ 待开始' }}</span><span class="fh">点击切换 ›</span>
-          </div>
-          <div class="td-label">📝 备注</div>
-          <textarea v-model="drawerNote" class="td-note" placeholder="补充说明、验收标准、上下文链接…" />
-          <div class="td-hint">💡 Ctrl+Enter 快速保存并关闭 · Esc 关闭</div>
-        </div>
-        <div class="td-foot">
-          <button class="mini-btn danger" @click="drawerDelete">🗑 删除任务</button>
-          <button class="mini-btn primary" @click="saveDrawer">✓ 保存并关闭（Ctrl+Enter）</button>
-        </div>
-      </aside>
-    </Transition>
+    <!-- R49-D6：任务详情 = 共享 TaskDetailDrawer（R48 重设计组件，宿主于此页） -->
+    <TaskDetailDrawer ref="detailRef" />
+
 
     <!-- 第卅三轮 REQ-016：指标添加任务双模式（新建 / 关联） -->
     <TaskAddDrawer :open="!!taskAddMetric" :metric-id="taskAddMetric?.id || ''" :project-id="currentProject?.id || ''"
@@ -610,6 +505,22 @@ document.addEventListener('keydown', (e) => {
 .pcard:hover .pfoot .enter { opacity: 1; }
 .wall-add { border: 1.5px dashed var(--border-strong); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; min-height: 130px; cursor: pointer; color: var(--text-3); font-size: 12.5px; transition: all .15s; flex-direction: column; gap: 6px; }
 .wall-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+/* R49-D：项目选择列表（无 ?p 落地视图） */
+.sel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.sel-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 7px; }
+.sel-item:hover { border-color: var(--border-strong); background: var(--surface-2); transform: translateY(-1px); }
+.sel-name { font-size: 14px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sel-goal { font-size: 11px; color: var(--text-3); }
+.sel-meta { font-size: 11px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* R49-D2：归属链可点击 */
+.ch-node.clickable { cursor: pointer; border-radius: 8px; padding: 3px 6px; margin: -3px -6px; transition: background .12s; }
+.ch-node.clickable:hover { background: var(--surface-2); }
+.ch-node.current .ch-ic { background: var(--accent); }
+.ch-node.current .ch-txt { color: var(--text); font-weight: 700; font-size: 14px; }
+/* R49-D4：任务附件区 */
+.asset-sec { margin-top: 12px; }
+.asset-row { cursor: pointer; }
+.empty-asset { text-align: center; padding: 16px; font-size: 11.5px; color: var(--text-4); }
 .empty-state { text-align: center; padding: 48px 20px; color: var(--text-3); font-size: 13px; }
 
 /* 展板 */
@@ -685,42 +596,6 @@ document.addEventListener('keydown', (e) => {
 
 /* 抽屉 */
 .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 400; }
-.create-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 440px; max-width: 94vw; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); z-index: 401; }
-.cm-head { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; font-size: 14px; font-weight: 600; }
-.cm-head span:first-child { flex: 1; }
-.cm-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 17px; }
-.cm-close:hover { background: var(--surface-3); color: var(--text); }
-.cm-body { padding: 18px 20px; }
-.cm-chain { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
-.cm-node { display: flex; align-items: flex-start; gap: 9px; padding: 6px 0; }
-.cm-node .cm-ic { font-size: 14px; padding-top: 1px; }
-.cm-txt { font-size: 12.5px; color: var(--text-2); line-height: 1.5; min-width: 0; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
-.cm-txt i { font-style: normal; font-size: 10px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin-right: 8px; text-transform: uppercase; }
-.cm-link { width: 2px; height: 12px; margin-left: 6px; background: linear-gradient(to bottom, var(--accent), color-mix(in srgb, var(--accent) 25%, transparent)); border-radius: 2px; }
-.cm-select { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: var(--radius-sm); font-size: 12.5px; color: var(--text); border: 1px solid var(--border); outline: none; cursor: pointer; font-family: inherit; margin-bottom: 12px; }
-.cm-select:focus { border-color: var(--accent); }
-.cm-input { width: 100%; padding: 10px 13px; background: var(--surface-2); border-radius: var(--radius-sm); font-size: 13px; color: var(--text); border: 1px solid var(--border); outline: none; font-family: inherit; }
-.cm-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-.cm-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 14px 20px; border-top: 1px solid var(--border); }
-.tdrawer { position: fixed; top: 0; right: 0; width: 400px; max-width: 94vw; height: 100%; background: var(--surface); border-left: 1px solid var(--border); z-index: 401; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
-.td-head { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; }
-.td-check { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: 12px; color: #fff; background: var(--surface); }
-.td-check.done { background: var(--success); border-color: var(--success); }
-.td-title { flex: 1; font-size: 15px; font-weight: 600; border: none; outline: none; background: transparent; font-family: inherit; line-height: 1.5; resize: none; color: var(--text); min-height: 44px; }
-.td-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 17px; flex-shrink: 0; }
-.td-close:hover { background: var(--surface-3); color: var(--text); }
-.td-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
-.td-label { font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin: 14px 0 7px; }
-.td-label:first-child { margin-top: 0; }
-.td-field { padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: 12.5px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 8px; border: 1px solid transparent; }
-.td-field:hover { border-color: var(--border); background: var(--surface); }
-.td-field .fv { flex: 1; }
-.td-field .fh { font-size: 10px; color: var(--text-4); }
-.td-note { width: 100%; min-height: 72px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; outline: none; font-family: inherit; resize: vertical; line-height: 1.6; background: var(--surface); color: var(--text); }
-.td-note:focus { border-color: var(--accent); }
-.td-hint { font-size: 10px; color: var(--text-4); text-align: center; margin-top: 10px; }
-.td-foot { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
-.td-foot .mini-btn { flex: 1; justify-content: center; padding: 9px; }
 
 .mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; user-select: none; }
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }

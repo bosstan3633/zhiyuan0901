@@ -1,18 +1,18 @@
-import { defineManifest } from '@crxjs/vite-plugin'
+﻿import { defineManifest } from '@crxjs/vite-plugin'
 
 export default defineManifest({
   manifest_version: 3,
-  name: '知源工作台',
+  name: '知源调度台',
   short_name: '知源',
-  version: '2.20.1',
-  description: '源头信息与好奇心工作台 · 从好奇出发，向源头求证 · 纯本地 · Chrome MV3',
+  version: '2.22.0',
+  description: '信息洪流中的控制中心 · 个人资源调度台 · 本地优先 · Chrome MV3',
   permissions: ['storage', 'unlimitedStorage', 'tabs', 'activeTab', 'commands', 'scripting', 'downloads'],
   host_permissions: ['<all_urls>', 'file:///*'],
   chrome_url_overrides: {
     newtab: 'src/newtab/index.html'
   },
   action: {
-    default_title: '知源工作台 · 点击打开采集小窗'
+    default_title: '知源调度台 · 点击打开采集小窗'
   },
   options_page: 'src/options/index.html',
   background: {
@@ -22,7 +22,7 @@ export default defineManifest({
   commands: {
     'open-dashboard': {
       suggested_key: { default: 'Ctrl+Shift+K', mac: 'MacCtrl+Shift+K' },
-      description: '打开知源工作台（新标签页）'
+      description: '打开知源调度台（新标签页）'
     },
     'quick-capture': {
       suggested_key: { default: 'Ctrl+Shift+J', mac: 'MacCtrl+Shift+J' },
@@ -38,7 +38,14 @@ export default defineManifest({
     },
     // 第卅五轮 REQ-037：不配 suggested_key（不占用 4 键上限），由用户在 chrome://extensions/shortcuts 手动分配
     'open-settings': {
-      description: '打开全局设置'
+      description: '全局设置'
+    },
+    // R49-I1：方向台/资源台浏览器级命令（无默认键，chrome://extensions/shortcuts 自定义；资源台 V2.23.x 交付，本轮占位）
+    'open-compass': {
+      description: '打开方向台'
+    },
+    'open-resource': {
+      description: '打开资源台（下轮交付）'
     }
   },
   content_scripts: [

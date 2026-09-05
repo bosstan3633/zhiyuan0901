@@ -7,30 +7,29 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: () => import('./views/CompassHome.vue'),
-      meta: { title: '知源工作台 · 知源罗盘' }
+      meta: { title: '知源调度台 · 调度台' }
     },
     {
+      // R49（V2.22.0）：旧「今日行动」页整体移除（三件事迁调度台首页、任务管理在调度台底部 Tab）
+      path: '/compass/actions',
+      redirect: '/'
+    },
+    {
+      // 方向台：满宽模块页；projects=项目详情二级页、tree=完整方向树二级页
       path: '/compass',
       component: () => import('./views/CompassShell.vue'),
-      redirect: '/compass/actions',
       children: [
-        {
-          path: 'actions',
-          name: 'compass-actions',
-          component: () => import('./views/CompassActions.vue'),
-          meta: { title: '知源引擎 · 今日行动' }
-        },
         {
           path: 'projects',
           name: 'compass-projects',
           component: () => import('./views/ProjectCuration.vue'),
-          meta: { title: '知源引擎 · 项目策展' }
+          meta: { title: '知源调度台 · 项目详情' }
         },
         {
           path: 'tree',
           name: 'compass-tree',
           component: () => import('./views/CompassTree.vue'),
-          meta: { title: '知源引擎 · 方向树' }
+          meta: { title: '知源调度台 · 完整方向树' }
         }
       ]
     },

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="gs-page">
     <!-- 左侧导航 -->
     <aside class="gs-nav">
@@ -55,11 +55,14 @@
 
         <!-- ② 动态条（可点击 → 抽屉明细，交互对齐北极星） -->
         <div class="gs-dash-dynamic">
-          <div class="gs-dd-seg" @click="openDynDrawer('today-add')">今日 <b class="up">+{{ todayAddCount }}</b> / <b class="down">−{{ todayDelCount }}</b></div>
+          <div class="gs-dd-seg" @click="openDynDrawer('today-add')">今日 <b class="up">+{{ todayAddCount }}</b><b v-if="todayImportCount" class="up gs-dd-imp" :title="`其中 ${todayImportCount} 张来自导入（继承原创建时间）`">导{{ todayImportCount }}</b> / <b class="down">−{{ todayDelCount }}</b></div>
           <div class="gs-dd-sep">│</div>
-          <div class="gs-dd-seg" @click="openDynDrawer('week-add')">本周 <b class="up">+{{ weekAddCount }}</b> / <b class="down">−{{ weekDelCount }}</b></div>
+          <div class="gs-dd-seg" @click="openDynDrawer('week-add')">本周 <b class="up">+{{ weekAddCount }}</b><b v-if="weekImportCount" class="up gs-dd-imp" :title="`其中 ${weekImportCount} 张来自导入（继承原创建时间）`">导{{ weekImportCount }}</b> / <b class="down">−{{ weekDelCount }}</b></div>
           <div class="gs-dd-sep">│</div>
           <div class="gs-dd-seg" @click="openDynDrawer('cum-del')">累计删除 <b>{{ cumDelCount }}</b></div>
+          <div class="gs-dd-sep" v-if="errorLogCount">│</div>
+          <!-- R48-A1：运行错误留痕入口（TDZ 排查弹药，一键导出堆栈） -->
+          <div v-if="errorLogCount" class="gs-dd-seg gs-dd-err" title="点击导出运行错误堆栈（含 TDZ 类崩溃），供定位根因" @click="exportErrorLog">⚠ 运行错误 <b class="down">{{ errorLogCount }}</b></div>
           <button class="gs-btn gs-btn-primary gs-dd-export" @click="exportEventsCsv">⬇ 导出 CSV（按筛选）</button>
         </div>
 
@@ -102,35 +105,51 @@
           </div>
         </div>
 
-        <!-- 核心指标下钻抽屉 -->
+        <!-- 核心指标下钻抽屉（R48-B1：搜索 + 翻页 20 条） -->
         <Drawer :open="!!statDrawer" :title="statDrawerTitle" width="460px" @close="statDrawer = ''">
+          <div class="gs-drawer-search">
+            <input v-model="statSearch" placeholder="🔍 搜索标题 / 项目 · 指标">
+            <span class="cnt">{{ statFiltered.length }} 条</span>
+          </div>
           <div class="gs-ev-list">
-            <div v-for="c in statList.slice(0, statLimit)" :key="c.id" class="gs-ev-row static clickable" @click="openStatCard(c)">
+            <div v-for="c in statShown" :key="c.id" class="gs-ev-row static clickable" @click="openStatCard(c)">
               <span class="gs-ev-kind">{{ statKindIcon(c.kind) }}</span>
               <span class="gs-ev-badge">{{ statKindLabel(c.kind) }}</span>
               <span class="gs-ev-title">{{ c.title }}</span>
+              <span v-if="c.kind === 'task'" class="gs-ev-owner">{{ c.owner }}</span>
               <span class="gs-ev-time">{{ fmtDay(c.ts) }}</span>
             </div>
-            <div v-if="!statList.length" class="gs-ev-empty">暂无卡片</div>
-            <div v-if="statList.length > statLimit" class="gs-ev-more" @click="statLimit += STAT_PAGE">
-              加载更多（已显示 {{ statLimit }} / {{ statList.length }} 条）
-            </div>
+            <div v-if="!statFiltered.length" class="gs-ev-empty">{{ statSearch.trim() ? '没有匹配的卡片' : '暂无卡片' }}</div>
             <div v-if="statList.length" class="gs-field-hint">💡 单击行可跳转定位到卡片所在页面。</div>
+          </div>
+          <div v-if="statPageCount > 1" class="gs-pager">
+            <button :disabled="statPage <= 1" @click="statGo(-1)">‹ 上一页</button>
+            <span>第 {{ statPage }} / {{ statPageCount }} 页 · 每页 {{ STAT_PAGE }} 条</span>
+            <button :disabled="statPage >= statPageCount" @click="statGo(1)">下一页 ›</button>
           </div>
         </Drawer>
 
-        <!-- 动态条明细抽屉（交互对齐北极星） -->
+        <!-- 动态条明细抽屉（R48-B1 翻页 + R48-B2 双口径徽标：新增/导入/删除同源卡片字段） -->
         <Drawer :open="!!dynDrawer" :title="dynDrawerTitle" width="460px" @close="dynDrawer = ''">
+          <div class="gs-drawer-search">
+            <input v-model="dynSearch" placeholder="🔍 搜索卡片标题">
+            <span class="cnt">{{ dynFiltered.length }} 条</span>
+          </div>
           <div class="gs-ev-list">
-            <div v-for="e in dynList.slice(0, 300)" :key="e.id" class="gs-ev-row static">
+            <div v-for="e in dynShown" :key="e.id" class="gs-ev-row static">
               <span class="gs-ev-time">{{ fmtEventTime(e.ts) }}</span>
-              <span class="gs-ev-badge" :class="e.action">{{ eventActionLabel(e.action) }}</span>
+              <span class="gs-ev-badge" :class="e.action === 'import' ? 'create' : e.action">{{ e.action === 'import' ? '⇪ 导入' : eventActionLabel(e.action) }}</span>
               <span class="gs-ev-kind">{{ eventKindLabel(e.kind) }}</span>
               <span class="gs-ev-title">{{ e.title }}</span>
             </div>
-            <div v-if="!dynList.length" class="gs-ev-empty">该时间范围内没有记录</div>
+            <div v-if="!dynFiltered.length" class="gs-ev-empty">{{ dynSearch.trim() ? '没有匹配的记录' : '该时间范围内没有记录' }}</div>
           </div>
-          <div class="gs-field-hint">💡 操作有痕：新增即保存，无需手动确认；删除进回收站可恢复。</div>
+          <div v-if="dynPageCount > 1" class="gs-pager">
+            <button :disabled="dynPage <= 1" @click="dynGo(-1)">‹ 上一页</button>
+            <span>第 {{ dynPage }} / {{ dynPageCount }} 页 · 每页 {{ STAT_PAGE }} 条</span>
+            <button :disabled="dynPage >= dynPageCount" @click="dynGo(1)">下一页 ›</button>
+          </div>
+          <div class="gs-field-hint">💡 操作有痕：新增即保存，删除进回收站可恢复；导入的卡带「⇪ 导入」徽标（继承原创建时间）。</div>
         </Drawer>
       </div>
 
@@ -357,7 +376,7 @@
           <div class="gs-card-body">
             <div class="gs-import-option" @click="triggerFileImport">
               <div class="gs-io-icon">📦</div>
-              <div><div class="gs-io-name">导入知源工作台数据</div><div class="gs-io-desc">选择JSON文件，与现有数据取并集（同ID更新，不同ID新增）</div></div>
+              <div><div class="gs-io-name">导入知源调度台数据</div><div class="gs-io-desc">选择JSON文件，与现有数据取并集（同ID更新，不同ID新增）</div></div>
               <button class="gs-btn gs-btn-primary gs-io-btn">选择文件</button>
             </div>
             <div class="gs-import-option" @click="assetPackInput?.click()">
@@ -422,7 +441,7 @@
           <div class="gs-card-header"><span class="gs-card-title">导出方式</span></div>
           <div class="gs-card-body">
             <div class="gs-export-row">
-              <div class="gs-er-info"><div class="gs-er-name">导出全部数据</div><div class="gs-er-desc">所有工作台、资源卡、任务卡、好奇心卡导出为JSON文件</div></div>
+              <div class="gs-er-info"><div class="gs-er-name">导出全部数据</div><div class="gs-er-desc">全量JSON：调度台（愿景/使命/方向/项目/成功指标/灯塔投射）+ 方向台（工作台/三卡/标签/统计）及全部数据关系，用于整体迁移备份</div></div>
               <button class="gs-btn gs-btn-primary" @click="exportAll">导出</button>
             </div>
             <div class="gs-export-row">
@@ -473,17 +492,17 @@
       <div v-if="activePage === 'shortcuts'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">⌨ 快捷键设置</div>
-          <div class="gs-page-desc">💡 系统级快捷键请在浏览器地址栏打开 chrome://extensions/shortcuts 自定义（高效使用知源的第一步）；应用内快捷键开箱即用</div>
+          <div class="gs-page-desc">💡 系统级快捷键（含方向台/资源台）请在浏览器地址栏打开 chrome://extensions/shortcuts 自定义（高效使用知源的第一步）；应用内快捷键开箱即用</div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">全局快捷键（任意网页可用）</span><span class="gs-card-desc">由 Chrome 统一管理</span></div>
+          <div class="gs-card-header"><span class="gs-card-title">全局快捷键（任意网页可用）</span><span class="gs-card-desc">由 Chrome 统一管理 · 方向台/资源台无默认键，需手动分配</span></div>
           <div class="gs-card-body">
             <div class="gs-setting-row" v-for="c in chromeCommands" :key="c.name">
               <span class="gs-sr-label">{{ c.description }}</span>
               <div class="gs-sr-control"><span class="gs-keycap">{{ c.shortcut || '未设置' }}</span></div>
             </div>
             <div class="gs-setting-row">
-              <span class="gs-sr-label">修改全局快捷键</span>
+              <span class="gs-sr-label">修改全局快捷键（含方向台 / 资源台）</span>
               <div class="gs-sr-control"><a :href="shortcutsUrl" target="_blank" class="gs-shortcut-link">前往 chrome://extensions/shortcuts ›</a></div>
             </div>
           </div>
@@ -495,8 +514,8 @@
               <span class="gs-sr-label">切换工作台</span>
               <div class="gs-sr-control">
                 <select class="gs-select" v-model="wsMod" @change="saveWsMod">
-            <option value="alt">Alt + 数字键（1=知源引擎，2+=第 N 个工作台）</option>
-            <option value="ctrl">Ctrl + 数字键（1=知源引擎，2+=第 N 个工作台）</option>
+            <option value="alt">Alt + 数字键（1=第 1 个工作台）</option>
+            <option value="ctrl">Ctrl + 数字键（1=第 1 个工作台）</option>
                   <option value="ctrl-shift">Ctrl + Shift + 数字键</option>
                   <option value="alt-shift">Alt + Shift + 数字键</option>
                   <option value="none">纯数字键（无修饰键）</option>
@@ -511,18 +530,18 @@
         </div>
       </div>
 
-      <!-- ===== 工作台快捷键（第廿九轮：顺序即快捷键，跟随顶部 Tab 位置） ===== -->
+      <!-- ===== 工作台快捷键（R49-I2：用户自建工作台从 1 起按创建顺序计数） ===== -->
       <div v-if="activePage === 'shortcuts'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">🎛 工作台快捷键</div>
-          <div class="gs-page-desc">在工作台标签页内按「修饰键 + 数字」直达；数字 1 固定留给知源引擎；顺序即快捷键——拖动顶部工作台 Tab 调整位置，快捷键随之变化</div>
+          <div class="gs-page-desc">在工作台标签页内按「修饰键 + 数字」直达；用户自建工作台从 1 起按创建顺序计数；调度台刷新自动回首页、方向台/资源台在浏览器快捷键（chrome://extensions/shortcuts）里自定义</div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">映射表（按顶部导航顺序）</span><span class="gs-card-desc">第 N 个工作台 = 修饰键 + N+1（最多到数字 9）</span></div>
+          <div class="gs-card-header"><span class="gs-card-title">映射表（按顶部导航顺序）</span><span class="gs-card-desc">第 N 个工作台 = 修饰键 + N（最多到数字 9）</span></div>
           <div class="gs-card-body">
             <div class="gs-setting-row" v-for="(w, i) in store.workspaces" :key="w.id">
               <span class="gs-sr-label">第 {{ i + 1 }} 个 · {{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</span>
-              <div class="gs-sr-control"><span class="gs-keycap">{{ i + 2 <= 9 ? modLabel() + ' + ' + (i + 2) : '—' }}</span></div>
+              <div class="gs-sr-control"><span class="gs-keycap">{{ i + 1 <= 9 ? modLabel() + ' + ' + (i + 1) : '—' }}</span></div>
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">修饰键</span>
@@ -552,7 +571,7 @@
       <div v-if="activePage === 'letter'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">✉️ 写给用户的一封信</div>
-          <div class="gs-page-desc">donge 哥 · 致每一位知源工作台的同行者</div>
+          <div class="gs-page-desc">donge 哥 · 致每一位知源调度台的同行者</div>
         </div>
         <div class="gs-card">
           <div class="gs-card-body gs-letter" v-html="LETTER_HTML"></div>
@@ -572,7 +591,7 @@
           <div class="gs-card-header"><span class="gs-card-title">⚠ 危险操作区</span></div>
           <div class="gs-card-body">
             <div class="gs-danger-action">
-              <div class="gs-da-info"><div class="gs-da-name">一键回滚至初始状态</div><div class="gs-da-desc">清空所有用户创建的工作台和所有资源卡、好奇心卡、任务卡，仅保留知源罗盘、知源引擎（任务中心）和默认工作台</div></div>
+              <div class="gs-da-info"><div class="gs-da-name">一键回滚至初始状态</div><div class="gs-da-desc">清空所有用户创建的工作台和所有资源卡、好奇心卡、任务卡，仅保留调度台、方向台（任务中心）和默认工作台</div></div>
               <button class="gs-btn gs-btn-danger" @click="showResetModal = true">回滚</button>
             </div>
             <div class="gs-danger-action">
@@ -650,8 +669,8 @@
         <div class="gs-page-header"><div class="gs-page-title">ℹ 关于</div></div>
         <div class="gs-card">
           <div class="gs-card-body gs-about-card">
-            <div class="gs-about-logo"><img :src="logoUrl" alt="知源工作台" /></div>
-            <div class="gs-about-name">知源工作台</div>
+            <div class="gs-about-logo"><img :src="logoUrl" alt="知源调度台" /></div>
+            <div class="gs-about-name">知源调度台</div>
             <div class="gs-about-version">版本 V{{ runtimeVersion }}</div>
             <div class="gs-about-motto">"从好奇出发，向源头求证"</div>
           </div>
@@ -691,7 +710,7 @@
         <div class="gs-modal">
           <div class="gs-modal-header">⚠ 确认回滚至初始状态</div>
           <div class="gs-modal-body">
-            <p>此操作将清空所有用户创建的工作台和所有资源卡、好奇心卡、任务卡，<b style="color:var(--danger)">仅保留知源罗盘、知源引擎（任务中心）和默认工作台</b>。</p>
+            <p>此操作将清空所有用户创建的工作台和所有资源卡、好奇心卡、任务卡，<b style="color:var(--danger)">仅保留调度台、方向台（任务中心）和默认工作台</b>。</p>
             <p>此操作<b style="color:var(--danger)">不可恢复</b>，建议先导出数据备份。</p>
             <p>请输入 <b>"回滚"</b> 以确认：</p>
             <input v-model="resetConfirmText" type="text" class="gs-confirm-input" placeholder="请输入 回滚" />
@@ -721,7 +740,7 @@ import { uid } from '@/shared/utils'
 import { getAssetStats, cleanupOrphanAssets, getAllAssets, putAssets } from '@/shared/storage/assets'
 import { buildZip, readZip, type ZipEntry } from '@/shared/utils/zip'
 import { visibleFields, allFields } from '@/shared/utils/fields'
-import type { FieldDef, AppData, ResourceCard, Workspace, Category, TagNode, AssetMeta } from '@/shared/models'
+import type { FieldDef, AppData, ResourceCard, Workspace, Category, TagNode, AssetMeta, ID } from '@/shared/models'
 
 const router = useRouter()
 const route = useRoute()
@@ -937,6 +956,7 @@ function onFieldNotify(msg: string) { showToast(msg) }
 // ============================================================
 import Drawer from '@/shared/components/Drawer.vue'
 import { readEventLog, type CardEvent } from '@/shared/utils/eventLog'
+import { readErrorLog } from '@/shared/utils/runtimeError'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { recordResourceOpen } from '../stores/compass'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
@@ -953,15 +973,18 @@ const linkCardCount = computed(() => gResLive.value.filter(r => (r.link || '').t
 
 const gStartOfToday = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); return dt.getTime() })()
 const gStartOfWeek = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7)); return dt.getTime() })()
-type GFlat = { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; createdAt: number; deletedAt?: number }
+type GFlat = { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; createdAt: number; deletedAt?: number; importedAt?: number }
 const gFlat = computed<GFlat[]>(() => [
-  ...gd.value.resources.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title || '（无标题）', createdAt: r.createdAt || 0, deletedAt: r.deletedAt })),
-  ...gd.value.tasks.map(t => ({ kind: 'task' as const, id: t.id, title: t.title || '（无标题）', createdAt: t.createdAt || 0, deletedAt: t.deletedAt })),
-  ...gd.value.curiosities.map(c => ({ kind: 'curiosity' as const, id: c.id, title: c.question || '（无标题）', createdAt: c.createdAt || 0, deletedAt: c.deletedAt }))
+  ...gd.value.resources.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title || '（无标题）', createdAt: r.createdAt || 0, deletedAt: r.deletedAt, importedAt: r.importedAt })),
+  ...gd.value.tasks.map(t => ({ kind: 'task' as const, id: t.id, title: t.title || '（无标题）', createdAt: t.createdAt || 0, deletedAt: t.deletedAt, importedAt: t.importedAt })),
+  ...gd.value.curiosities.map(c => ({ kind: 'curiosity' as const, id: c.id, title: c.question || '（无标题）', createdAt: c.createdAt || 0, deletedAt: c.deletedAt, importedAt: c.importedAt }))
 ])
 const todayAddCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.createdAt >= gStartOfToday).length)
+// R48-B2 双口径：导入单独计数（importedAt 由导入动作落戳），不与新建混淆
+const todayImportCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.importedAt && x.importedAt >= gStartOfToday).length)
 const todayDelCount = computed(() => gFlat.value.filter(x => x.deletedAt && x.deletedAt >= gStartOfToday).length)
 const weekAddCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.createdAt >= gStartOfWeek).length)
+const weekImportCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.importedAt && x.importedAt >= gStartOfWeek).length)
 const weekDelCount = computed(() => gFlat.value.filter(x => x.deletedAt && x.deletedAt >= gStartOfWeek).length)
 const statTodayAdd = computed(() => todayAddCount.value)
 const statTodayRes = computed(() => gFlat.value.filter(x => x.kind === 'resource' && !x.deletedAt && x.createdAt >= gStartOfToday).length)
@@ -1070,8 +1093,9 @@ function exportEventsCsv() {
 
 // ---- 核心指标下钻抽屉 ----
 type StatDrawerType = '' | 'all' | 'resource' | 'task' | 'curiosity' | 'link'
+interface StatRow { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; ts: number; owner?: string }
 const statDrawer = ref<StatDrawerType>('')
-const statList = computed(() => {
+const statList = computed<StatRow[]>(() => {
   switch (statDrawer.value) {
     case 'resource': return gResLive.value.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title, ts: r.createdAt }))
     case 'task': return gTaskLive.value.map(t => ({ kind: 'task' as const, id: t.id, title: t.title, ts: t.createdAt }))
@@ -1081,10 +1105,37 @@ const statList = computed(() => {
     default: return []
   }
 })
-// V2.20.1 BUG-3b：分批加载 + 行点击跳转定位（对齐北极星/全局弹窗交互）
-const STAT_PAGE = 200
-const statLimit = ref(STAT_PAGE)
-function openStatDrawer(t: StatDrawerType) { statDrawer.value = t; statLimit.value = STAT_PAGE }
+// R48-B1：明细抽屉改为「翻页 20 条 + 搜索过滤」，替换 R47-A5 滚动加载（大库下滚动加载触底延迟高、无从定向找卡）
+const STAT_PAGE = 20
+const statPage = ref(1)
+const statSearch = ref('')
+function openStatDrawer(t: StatDrawerType) { statDrawer.value = t; statPage.value = 1; statSearch.value = '' }
+const statFiltered = computed<StatRow[]>(() => {
+  const q = statSearch.value.trim().toLowerCase()
+  if (!q) return statList.value
+  return statList.value.filter(c => c.title.toLowerCase().includes(q) || (c.owner || '').toLowerCase().includes(q))
+})
+const statPageCount = computed(() => Math.max(1, Math.ceil(statFiltered.value.length / STAT_PAGE)))
+const statShown = computed(() => statFiltered.value.slice((statPage.value - 1) * STAT_PAGE, statPage.value * STAT_PAGE))
+function statGo(delta: number) { statPage.value = Math.min(statPageCount.value, Math.max(1, statPage.value + delta)) }
+// R47-B2：任务归属反查（优先 metricId → 指标所属项目；否则 projectId；缺失显示「未关联」）
+const projMetIndex = computed(() => {
+  const metMap = new Map<string, { proj: string; met: string }>()
+  const projMap = new Map<string, string>()
+  for (const dir of gd.value.compass.directions || []) {
+    for (const proj of dir.projects || []) {
+      projMap.set(proj.id, proj.name)
+      for (const met of proj.metrics || []) metMap.set(met.id, { proj: proj.name, met: met.title })
+    }
+  }
+  return { metMap, projMap }
+})
+function taskOwnerOf(t: { metricId?: string; projectId?: string }): string {
+  const { metMap, projMap } = projMetIndex.value
+  const met = t.metricId ? metMap.get(t.metricId) : undefined
+  const projName = met?.proj || (t.projectId ? projMap.get(t.projectId) : undefined)
+  return `${projName || '未关联项目'} · ${met?.met || '未关联指标'}`
+}
 function statKindIcon(kind: string) { return kind === 'task' ? '✅' : kind === 'curiosity' ? '💡' : '📇' }
 function statKindLabel(kind: string) { return kind === 'task' ? '任务' : kind === 'curiosity' ? '好奇' : '资源' }
 function openStatCard(x: { kind: string; id: string }) {
@@ -1092,7 +1143,7 @@ function openStatCard(x: { kind: string; id: string }) {
     const r = gd.value.resources.find(v => v.id === x.id)
     if (r) { router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: r.id } }); statDrawer.value = ''; return }
   } else if (x.kind === 'task') {
-    router.push({ path: '/compass/actions', query: { hl: x.id } }); statDrawer.value = ''; return
+    router.push({ path: '/', query: { hl: x.id } }); statDrawer.value = ''; return
   } else {
     router.push({ path: '/', query: { hl: x.id } }); statDrawer.value = ''; return
   }
@@ -1110,7 +1161,7 @@ const statDrawerTitle = computed(() => ({
 // ---- 动态条抽屉（交互对齐北极星：点击数字 → 右侧抽屉逐条明细） ----
 type DynDrawerType = '' | 'today-add' | 'today-del' | 'week-add' | 'week-del' | 'cum-del'
 const dynDrawer = ref<DynDrawerType>('')
-function openDynDrawer(t: DynDrawerType) { dynDrawer.value = t; if (!eventLog.value.length) refreshEventLog() }
+function openDynDrawer(t: DynDrawerType) { dynDrawer.value = t; dynPage.value = 1; dynSearch.value = ''; if (!eventLog.value.length) refreshEventLog() }
 const dynRange = computed<[number, number] | null>(() => {
   switch (dynDrawer.value) {
     case 'today-add': case 'today-del': return [gStartOfToday, Infinity]
@@ -1118,19 +1169,41 @@ const dynRange = computed<[number, number] | null>(() => {
     default: return null
   }
 })
-const dynList = computed(() => {
+// R48-B2：新增/删除明细改为卡片字段派生（与动态条数字同源，不再依赖事件日志是否齐全）——
+// 新增=createdAt、导入=importedAt（双口径分徽标）、删除=deletedAt；累计删除仍走事件日志（保留 purge 记录）
+type DynRow = Omit<CardEvent, 'action'> & { action: 'create' | 'delete' | 'import' }
+const dynList = computed<DynRow[]>(() => {
   if (!dynDrawer.value) return []
-  const wantCreate = dynDrawer.value === 'today-add' || dynDrawer.value === 'week-add'
   const [from, to] = dynRange.value || [0, Infinity]
   if (dynDrawer.value === 'cum-del') {
-    return timelineEvents.value.filter(e => e.action === 'delete' || e.action === 'purge')
+    // 累计删除沿用事件日志（含 purge）；类型上与 DynRow 兼容呈现（create/restore 徽标不会出现在该筛选下）
+    return timelineEvents.value.filter(e => e.action === 'delete' || e.action === 'purge') as unknown as DynRow[]
   }
-  return timelineEvents.value.filter(e => {
-    if (wantCreate && e.action !== 'create') return false
-    if (!wantCreate && !(e.action === 'delete' || e.action === 'purge')) return false
-    return e.ts >= from && e.ts <= to
-  })
+  const wantAdd = dynDrawer.value === 'today-add' || dynDrawer.value === 'week-add'
+  const rows: DynRow[] = []
+  for (const x of gFlat.value) {
+    if (wantAdd) {
+      if (x.deletedAt) continue
+      if (x.importedAt && x.importedAt >= from && x.importedAt <= to)
+        rows.push({ id: 'i-' + x.id, ts: x.importedAt, action: 'import', kind: x.kind, title: x.title, cardId: x.id })
+      else if (x.createdAt >= from && x.createdAt <= to)
+        rows.push({ id: 'c-' + x.id, ts: x.createdAt, action: 'create', kind: x.kind, title: x.title, cardId: x.id })
+    } else if (x.deletedAt && x.deletedAt >= from && x.deletedAt <= to) {
+      rows.push({ id: 'd-' + x.id, ts: x.deletedAt, action: 'delete', kind: x.kind, title: x.title, cardId: x.id })
+    }
+  }
+  return rows.sort((a, b) => b.ts - a.ts)
 })
+const dynPage = ref(1)
+const dynSearch = ref('')
+const dynFiltered = computed<DynRow[]>(() => {
+  const q = dynSearch.value.trim().toLowerCase()
+  if (!q) return dynList.value
+  return dynList.value.filter(e => e.title.toLowerCase().includes(q))
+})
+const dynPageCount = computed(() => Math.max(1, Math.ceil(dynFiltered.value.length / STAT_PAGE)))
+const dynShown = computed(() => dynFiltered.value.slice((dynPage.value - 1) * STAT_PAGE, dynPage.value * STAT_PAGE))
+function dynGo(delta: number) { dynPage.value = Math.min(dynPageCount.value, Math.max(1, dynPage.value + delta)) }
 const dynDrawerTitle = computed(() => ({
   'today-add': `📈 今日新增明细（${dynList.value.length}）`,
   'today-del': `📉 今日删除明细（${dynList.value.length}）`,
@@ -1278,6 +1351,28 @@ watch(activePage, (p) => {
 })
 refreshEventLog()
 
+// ---- R48-A1：运行错误留痕（zy_error_log，TDZ 排查弹药） ----
+const errorLogCount = ref(0)
+async function refreshErrorCount() { errorLogCount.value = (await readErrorLog()).length }
+async function exportErrorLog() {
+  const logs = await readErrorLog()
+  if (!logs.length) { showToast('没有运行错误记录'); return }
+  const rows = logs.map(e =>
+    `[${new Date(e.ts).toLocaleString('zh-CN', { hour12: false })}] ${e.source} @ ${e.route}\n${e.message}\n${e.stack}`
+  ).join('\n\n———\n\n')
+  const blob = new Blob([rows], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  const dt = new Date()
+  const p2 = (n: number) => String(n).padStart(2, '0')
+  a.href = url
+  a.download = `zhiyuan_运行错误_${dt.getFullYear()}${p2(dt.getMonth() + 1)}${p2(dt.getDate())}.txt`
+  a.click()
+  URL.revokeObjectURL(url)
+  showToast(`✓ 已导出 ${logs.length} 条运行错误（含完整堆栈）`)
+}
+refreshErrorCount()
+
 // ---- 资源卡实时预览（对齐原型） ----
 const previewMode = ref<'card' | 'list' | 'kanban'>('card')
 const previewModes = [
@@ -1293,7 +1388,7 @@ const resourcePreviewHtml = computed(() => {
 
   if (previewMode.value === 'card') {
     let html = ''
-    if (has('title')) html += '<div class="gs-pv-field gs-pv-field-title">知源工作台V2.12全产品PRD手册</div>'
+    if (has('title')) html += '<div class="gs-pv-field gs-pv-field-title">知源调度台V2.12全产品PRD手册</div>'
     if (has('link')) html += '<div class="gs-pv-field"><span class="gs-pv-field-link">🔗 D:\\zhiyuan-V2.12\\PRD手册.docx</span></div>'
     if (has('description')) html += '<div class="gs-pv-field"><span class="gs-pv-field-text" style="color:var(--text-3);font-size:11px">完整记录V2.12版本的功能设计、交互规范和数据模型...</span></div>'
     if (has('sourceType')) html += '<div class="gs-pv-field"><span class="gs-pv-field-label">来源:</span><span class="gs-pv-field-text">学术</span></div>'
@@ -1303,7 +1398,7 @@ const resourcePreviewHtml = computed(() => {
   }
   if (previewMode.value === 'list') {
     let html = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-    if (has('title')) html += '<span style="font-weight:600;font-size:12px">知源工作台V2.12全产品PRD手册</span>'
+    if (has('title')) html += '<span style="font-weight:600;font-size:12px">知源调度台V2.12全产品PRD手册</span>'
     if (has('link')) html += '<span class="gs-pv-field-link">🔗</span>'
     if (has('description')) html += '<span style="font-size:10px;color:var(--text-3)">PRD手册...</span>'
     if (has('sourceType')) html += '<span style="font-size:10px;color:var(--text-3)">学术</span>'
@@ -1314,7 +1409,7 @@ const resourcePreviewHtml = computed(() => {
   }
   // kanban
   let html = ''
-  if (has('title')) html += '<div class="gs-pv-field gs-pv-field-title" style="font-size:12px">知源工作台V2.12全产品PRD手册</div>'
+  if (has('title')) html += '<div class="gs-pv-field gs-pv-field-title" style="font-size:12px">知源调度台V2.12全产品PRD手册</div>'
   if (has('tags')) html += '<div class="gs-pv-field"><span class="gs-pv-field-tags"><span class="gs-pv-tag">#PRD</span></span></div>'
   if (has('link')) html += '<div class="gs-pv-field"><span class="gs-pv-field-link" style="font-size:10px">🔗 PRD手册.docx</span></div>'
   if (has('description')) html += '<div class="gs-pv-field"><span style="font-size:10px;color:var(--text-3)">功能设计、交互规范...</span></div>'
@@ -1339,8 +1434,14 @@ function handleFileImport(e: Event) {
   reader.onload = () => {
     try {
       const imported = JSON.parse(reader.result as string) as AppData
-      mergeImport(imported)
-      showToast('✓ 导入成功，与现有数据取并集')
+      // R47-A2：版本校验（不兼容直接拒绝，不做部分导入）
+      if (!imported || typeof imported !== 'object' || imported.version !== 2) {
+        showToast('✗ 数据版本不兼容（需 v2 格式），已取消导入'); return
+      }
+      // R47-A2：导入前自动备份当前数据到本地文件（防误合并，T3 安全网）
+      try { downloadFile(`zhiyuan_auto_backup_before_import_${dateStr()}.json`, JSON.stringify(store.data, null, 2)) } catch {}
+      const n = mergeImport(imported)
+      showToast(`✓ 导入完成（并集）：卡片 ${n.cards}、罗盘方向 ${n.dirs}、工作台 ${n.ws}；已自动下载导入前备份`)
     } catch { showToast('✗ 文件格式错误，请选择有效的JSON文件') }
   }
   reader.readAsText(file)
@@ -1414,18 +1515,97 @@ function handleBookmarkImport(e: Event) {
   input.value = ''
 }
 
-function mergeImport(imported: AppData) {
+/** R47-A2：全量并集合并——罗盘（愿景/使命/方向→项目→指标/灯塔投射）+ 引擎数据 + 全部关系字段
+ *  原则：卡片/指标按 id 去重合并；「关系列表」（taskIds/linkedResourceIds 等）一律取并集；
+ *        计数类（stats.wrr）取最大值；标量以导入方覆盖（无 updatedAt 的层级按导入值合并）。 */
+function mergeImport(imported: AppData): { cards: number; dirs: number; ws: number } {
   const d = store.data!
   const mergeById = <T extends { id: string }>(existing: T[], incoming: T[]): T[] => {
     const map = new Map(existing.map(x => [x.id, x]))
     for (const item of incoming) map.set(item.id, { ...map.get(item.id), ...item })
     return [...map.values()]
   }
+  const union = (...lists: (ID[] | undefined)[]): ID[] => Array.from(new Set(lists.flatMap(l => l || [])))
+  const wsBefore = d.workspaces.length
+
+  // ---- 方向台：工作台 / 分类 / 三卡 ----
+  // R48-B2：导入卡片统一打 importedAt 戳（双口径统计「新建 X · 导入 Y」的依据；合并进既有卡也重打——它确实在本次被导入）
+  const importedNow = Date.now()
   d.workspaces = mergeById(d.workspaces, imported.workspaces || [])
   d.categories = mergeById(d.categories, imported.categories || [])
-  d.resources = mergeById(d.resources, imported.resources || [])
-  d.tasks = mergeById(d.tasks, imported.tasks || [])
-  d.curiosities = mergeById(d.curiosities, imported.curiosities || [])
+  d.resources = mergeById(d.resources, (imported.resources || []).map(r => ({ ...r, importedAt: importedNow })))
+  d.tasks = mergeById(d.tasks, (imported.tasks || []).map(t => ({ ...t, importedAt: importedNow })))
+  d.curiosities = mergeById(d.curiosities, (imported.curiosities || []).map(c => ({ ...c, importedAt: importedNow })))
+  const cardsAdded = (imported.resources?.length || 0) + (imported.tasks?.length || 0) + (imported.curiosities?.length || 0)
+
+  // ---- 调度台：愿景/使命（内容取较新，关联取并集）----
+  if (imported.compass) {
+    const ic = imported.compass
+    for (const key of ['vision', 'mission'] as const) {
+      const inc = ic[key]
+      if (!inc) continue
+      const cur = d.compass[key]
+      if (!cur || (inc.updatedAt || 0) > (cur.updatedAt || 0)) {
+        d.compass[key] = { ...inc, linkedResourceIds: union(cur?.linkedResourceIds, inc.linkedResourceIds), linkedCuriosityIds: union(cur?.linkedCuriosityIds, inc.linkedCuriosityIds) }
+      } else {
+        cur.linkedResourceIds = union(cur.linkedResourceIds, inc.linkedResourceIds)
+        cur.linkedCuriosityIds = union(cur.linkedCuriosityIds, inc.linkedCuriosityIds)
+      }
+    }
+    // ---- 方向 → 项目 → 指标 三层按 id 合并，指标 taskIds 取并集（保留任务↔指标关系）----
+    for (const incDir of ic.directions || []) {
+      const curDir = d.compass.directions.find(x => x.id === incDir.id)
+      if (!curDir) { d.compass.directions.push(JSON.parse(JSON.stringify(incDir))); continue }
+      curDir.name = incDir.name ?? curDir.name
+      curDir.status = incDir.status ?? curDir.status
+      curDir.term = incDir.term ?? curDir.term
+      curDir.calibratedAt = incDir.calibratedAt ?? curDir.calibratedAt
+      for (const incProj of incDir.projects || []) {
+        const curProj = curDir.projects.find(x => x.id === incProj.id)
+        if (!curProj) { curDir.projects.push(JSON.parse(JSON.stringify(incProj))); continue }
+        Object.assign(curProj, incProj, { metrics: curProj.metrics })
+        curProj.pinnedToLighthouse = incProj.pinnedToLighthouse || curProj.pinnedToLighthouse
+        for (const incMet of incProj.metrics || []) {
+          const curMet = curProj.metrics.find(x => x.id === incMet.id)
+          if (!curMet) { curProj.metrics.push(JSON.parse(JSON.stringify(incMet))); continue }
+          Object.assign(curMet, incMet, { taskIds: union(curMet.taskIds, incMet.taskIds) })
+        }
+      }
+    }
+  }
+
+  // ---- 今日三件事：按日期合并，槽位按 id 去重 ----
+  if (imported.dailyFocus) {
+    for (const [date, slots] of Object.entries(imported.dailyFocus)) {
+      const cur = d.dailyFocus[date]
+      if (!cur) { d.dailyFocus[date] = slots; continue }
+      const seen = new Set(cur.map(s => s.id))
+      for (const s of slots) if (!seen.has(s.id)) cur.push(s)
+    }
+  }
+
+  // ---- 统计：计数取最大，map 按键取较大时间/次数 ----
+  if (imported.stats) {
+    if (imported.stats.wrr && d.stats.wrr) {
+      d.stats.wrr.totalCumulativeUsage = Math.max(d.stats.wrr.totalCumulativeUsage || 0, imported.stats.wrr.totalCumulativeUsage || 0)
+      d.stats.wrr.thisWeekUsage = Math.max(d.stats.wrr.thisWeekUsage || 0, imported.stats.wrr.thisWeekUsage || 0)
+      d.stats.wrr.lastUpdatedAt = Math.max(d.stats.wrr.lastUpdatedAt || 0, imported.stats.wrr.lastUpdatedAt || 0)
+    }
+    for (const key of ['lastReuse', 'lastVisits'] as const) {
+      const inc = imported.stats[key]
+      if (!inc) continue
+      const cur = d.stats[key] as Record<string, number>
+      for (const [k, v] of Object.entries(inc)) cur[k] = Math.max(cur[k] || 0, v)
+    }
+  }
+
+  // ---- 行为日志：按 id 追加去重 ----
+  if (imported.activityLogs?.length) {
+    const ids = new Set(d.activityLogs.map(l => l.id))
+    for (const l of imported.activityLogs) if (!ids.has(l.id)) d.activityLogs.push(l)
+  }
+
+  // ---- 标签体系 / 字段配置（原有逻辑保留）----
   if (imported.tagTree?.length) {
     const existIds = new Set(d.tagTree.map(t => t.id))
     for (const root of imported.tagTree) if (!existIds.has(root.id)) d.tagTree.push(root)
@@ -1439,6 +1619,7 @@ function mergeImport(imported: AppData) {
     }
   }
   store.persist()
+  return { cards: cardsAdded, dirs: imported.compass?.directions?.length || 0, ws: d.workspaces.length - wsBefore + (imported.workspaces?.length || 0) }
 }
 
 
@@ -1546,7 +1727,7 @@ function exportMarkdown() {
   const d = store.data!
   const wsMap = new Map(d.workspaces.map(w => [w.id, w.name]))
   const catMap = new Map(d.categories.map(c => [c.id, c.name]))
-  let md = '# 知源工作台 · 资源卡导出\n\n'
+  let md = '# 知源调度台 · 资源卡导出\n\n'
   for (const ws of d.workspaces) {
     const cards = d.resources.filter(r => r.workspaceId === ws.id && !r.deletedAt)
     if (cards.length === 0) continue
@@ -1640,7 +1821,7 @@ if (typeof chrome !== 'undefined' && chrome.commands?.getAll) {
     chromeCommands.value = cmds.map(c => ({
       name: c.name || '',
       description: ({
-        'open-dashboard': '打开知源工作台（新标签页）',
+        'open-dashboard': '打开知源调度台（新标签页）',
         'quick-capture': '快速采集当前浏览的页面',
         'search': '打开全局搜索',
         'inspire': '好奇心采集'
@@ -2008,17 +2189,17 @@ const activeManualSec = ref('quick-1')
 
 /* 一封信 */
 /* 信纸排版（第廿九轮：明显留白——行距 2.75 / 段距 32px / 640px 窄栏 / 落款前 72px，给读者呼吸感） */
-.gs-letter { max-width: 640px; margin: 0 auto; padding: 72px 64px !important; background: var(--surface); font-family: "Songti SC", "Noto Serif SC", "SimSun", Georgia, serif; }
-.gs-letter .lp-saluta { font-size: 15px; margin-bottom: 36px; color: var(--text); }
-.gs-letter .lp-body p { font-size: 13.5px; line-height: 2.75; margin: 0 0 32px; text-align: justify; color: var(--text-2); }
+.gs-letter { max-width: 640px; margin: 0 auto; padding: 80px 64px !important; background: var(--surface); font-family: "Songti SC", "Noto Serif SC", "SimSun", Georgia, serif; }
+.gs-letter .lp-saluta { font-size: 15px; margin-bottom: 44px; color: var(--text); }
+.gs-letter .lp-body p { font-size: 13.5px; line-height: 3.1; margin: 0 0 40px; text-align: justify; color: var(--text-2); }
 .gs-letter .lp-body b { color: var(--text); }
-.gs-letter .lp-sign { margin-top: 72px; text-align: right; font-size: 13px; line-height: 2.2; color: var(--text-3); }
+.gs-letter .lp-sign { margin-top: 84px; text-align: right; font-size: 13px; line-height: 2.2; color: var(--text-3); }
 .gs-letter .lp-sign b { font-size: 14px; color: var(--text); }
 .gs-letter .lp-date { font-size: 11px; color: var(--text-4); margin-top: 10px; letter-spacing: .05em; }
-/* 第卅轮：模块化分节——lp-h 节头（粗体转折句独立成节）/ lp-turn 节内停顿（短句）/ lp-creed 信念行 */
-.gs-letter .lp-body p.lp-h { margin: 56px 0 32px; font-size: 14.5px; color: var(--text); }
-.gs-letter .lp-body p.lp-turn { margin: 20px 0 32px; color: var(--text); }
-.gs-letter .lp-body p.lp-creed { margin: 48px 0 0; letter-spacing: .08em; color: var(--text); font-weight: 600; }
+/* 第卅轮：模块化分节——lp-h 节头（粗体转折句独立成节） lp-turn 节内停顿（短句）/ lp-creed 信念行；R49 加大留白 */
+.gs-letter .lp-body p.lp-h { margin: 68px 0 40px; font-size: 14.5px; color: var(--text); }
+.gs-letter .lp-body p.lp-turn { margin: 24px 0 40px; color: var(--text); }
+.gs-letter .lp-body p.lp-creed { margin: 56px 0 0; letter-spacing: .08em; color: var(--text); font-weight: 600; }
 /* 标签管理（N4） */
 .gs-tt-row.editing { border-color: var(--accent); }
 .gs-tt-input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: 12.5px; font-family: inherit; color: var(--text); padding: 2px 4px; }
@@ -2063,6 +2244,19 @@ const activeManualSec = ref('quick-1')
 .gs-dd-seg:hover { background: var(--accent-light); color: var(--accent); }
 .gs-dd-seg b.up { color: var(--accent); font-size: 15px; }
 .gs-dd-seg b.down { color: var(--danger); font-size: 15px; }
+.gs-dd-imp { font-size: 10.5px !important; color: var(--text-3) !important; margin-left: 4px; font-weight: 600 !important; }
+.gs-dd-err { color: var(--danger); }
+.gs-dd-err b { font-size: 13px !important; }
+/* R48-B1：明细抽屉搜索框 + 翻页器 */
+.gs-drawer-search { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.gs-drawer-search input { flex: 1; padding: 7px 11px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; font-family: inherit; outline: none; background: var(--surface); color: var(--text); }
+.gs-drawer-search input:focus { border-color: var(--accent); }
+.gs-drawer-search .cnt { font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.gs-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 2px 0; border-top: 1px solid var(--border); }
+.gs-pager span { font-size: 11px; color: var(--text-3); }
+.gs-pager button { padding: 5px 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); font-size: 11.5px; color: var(--text-2); cursor: pointer; font-family: inherit; transition: all .12s; }
+.gs-pager button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.gs-pager button:disabled { opacity: .4; cursor: not-allowed; }
 .gs-dd-sep { color: var(--border); }
 .gs-dd-export { margin-left: auto; }
 .gs-ev-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -2078,14 +2272,14 @@ const activeManualSec = ref('quick-1')
 /* V2.20.1 BUG-3b：下钻明细行可点击定位 + 加载更多 */
 .gs-ev-row.static.clickable { cursor: pointer; }
 .gs-ev-row.static.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
-.gs-ev-more { text-align: center; padding: 8px; font-size: 12px; color: var(--accent); cursor: pointer; border: 1px dashed var(--border); border-radius: var(--radius-xs); user-select: none; }
-.gs-ev-more:hover { background: var(--accent-light); border-color: var(--accent); }
 .gs-ev-time { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .gs-ev-badge { font-size: 10.5px; border-radius: 5px; padding: 2px 8px; font-weight: 600; flex-shrink: 0; }
 .gs-ev-badge.create { color: #7fbf8a; background: rgba(127,191,138,.14); }
 .gs-ev-badge.delete { color: #e07a7a; background: rgba(224,122,122,.14); }
 .gs-ev-badge.restore { color: var(--accent); background: var(--accent-light); }
 .gs-ev-badge.purge { color: #d46a6a; background: rgba(212,106,106,.2); }
+/* R47-B2：任务明细行「项目 · 指标」归属徽标 */
+.gs-ev-owner { font-size: 11px; color: var(--text-2); background: var(--bg-3, rgba(127,127,127,.12)); border-radius: 4px; padding: 1px 6px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
 .gs-ev-kind { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; }
 .gs-ev-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .gs-ev-go { font-size: 10px; color: var(--text-3); flex-shrink: 0; }

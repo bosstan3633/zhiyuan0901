@@ -181,10 +181,21 @@ function onSelMetricChange() {
   selectedTask.value.updatedAt = Date.now()
   store.persist()
 }
-function cyclePriority() {
+// R48 详情重设计：头部状态下拉（替代 body 内三枚大 chip）
+const statusMenuOpen = ref(false)
+const STATUS_UI: Record<'todo' | 'doing' | 'done', { label: string; cls: string }> = {
+  todo: { label: '○ 待开始', cls: 'st-todo' },
+  doing: { label: '◐ 进行中', cls: 'st-doing' },
+  done: { label: '✓ 已完成', cls: 'st-done' }
+}
+function pickStatus(status: 'todo' | 'doing' | 'done') {
+  statusMenuOpen.value = false
+  if (selectedTask.value) setTaskStatus(selectedTask.value, status)
+}
+/** R48：优先级下拉直选（替代点击循环切换） */
+function setPriority(p: 'low' | 'medium' | 'high') {
   if (!selectedTask.value) return
-  const order: Array<'low'|'medium'|'high'> = ['low', 'medium', 'high']
-  selectedTask.value.priority = order[(order.indexOf(selectedTask.value.priority) + 1) % 3]
+  selectedTask.value.priority = p
   selectedTask.value.updatedAt = Date.now()
   store.persist()
 }
@@ -247,67 +258,72 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         <div class="check-lg" :class="{done: selectedTask.status==='done'}" @click="toggleTask(selectedTask.id)">{{ selectedTask.status==='done'?'✓':'' }}</div>
         <textarea v-model="taskTitleDraft" class="ts-title" rows="2" placeholder="任务标题..."
           @blur="saveTaskTitle" />
+        <!-- R48 详情重设计：状态下拉 chip 收进头部（色彩只做语义信号） -->
+        <div class="ds-status-wrap" @click.stop>
+          <button class="ds-status-chip2" :class="STATUS_UI[selectedTask.status].cls" @click.stop="statusMenuOpen = !statusMenuOpen">{{ STATUS_UI[selectedTask.status].label }}</button>
+          <div v-if="statusMenuOpen" class="ds-status-menu">
+            <div v-for="(ui, key) in STATUS_UI" :key="key" class="mi" :class="{on: selectedTask.status === key}" @click.stop="pickStatus(key as 'todo'|'doing'|'done')">{{ ui.label }}</div>
+          </div>
+        </div>
         <AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" class="ts-title-assets" />
         <div class="ts-close" @click="close">×</div>
       </div>
       <div class="ts-body">
+        <!-- R48：说明区上移为 Hero（此前被四个大下拉挤到最底部） -->
         <div class="ts-section">
-          <div class="ts-time-text">🕐 创建 {{ fmtTaskTs(selectedTask.createdAt) }} ｜ 更新 {{ fmtTaskTs(selectedTask.updatedAt) }}</div>
-        </div>
-        <div class="ts-section">
-          <div class="ts-label">📦 所属项目（级联选择）</div>
-          <select v-model="selProjectId" class="ts-select" @change="onSelProjectChange">
-            <option value="">未关联项目</option>
-            <option v-for="p in sidebarProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
-          </select>
-        </div>
-        <div class="ts-section">
-          <div class="ts-label">🎯 成功指标（随项目级联）</div>
-          <select v-model="selMetricId" class="ts-select" :disabled="!selProjectId" @change="onSelMetricChange">
-            <option value="">暂不归属指标</option>
-            <option v-for="m in sidebarMetrics" :key="m.id" :value="m.id">{{ m.title }}</option>
-          </select>
-          <div class="ts-goto" @click="router.push('/compass/tree')">🧭 没有合适的项目/指标？前往方向树创建 ›</div>
-        </div>
-        <div class="ts-section">
-          <div class="ts-label">⚡ 优先级</div>
-          <div class="ts-field" @click="cyclePriority">
-            <span class="fv">{{ selectedTask.priority==='high'?'🔴 高优先级':selectedTask.priority==='medium'?'🟡 中优先级':'🟢 低优先级' }}</span>
-            <span class="fh">点击切换 ›</span>
-          </div>
-        </div>
-        <div class="ts-section">
-          <div class="ts-label">📌 状态</div>
-          <div class="ts-status-row">
-            <button class="ts-status-chip" :class="{active: selectedTask.status==='todo'}" @click="setTaskStatus(selectedTask, 'todo')">○ 待开始</button>
-            <button class="ts-status-chip" :class="{active: selectedTask.status==='doing'}" @click="setTaskStatus(selectedTask, 'doing')">◐ 进行中</button>
-            <button class="ts-status-chip" :class="{active: selectedTask.status==='done'}" @click="setTaskStatus(selectedTask, 'done')">✅ 已完成</button>
-          </div>
-        </div>
-        <div class="ts-section">
-          <div class="ts-label">🔗 链接（网页 / 本地路径 / obsidian:// · 双击卡片直达）</div>
-          <input v-model="selectedTask.link" class="ts-input" placeholder="https://… 或 D:\path\file.pdf" @blur="touchTask" @keydown.enter.prevent="($event.target as HTMLElement).blur()">
-        </div>
-        <div class="ts-section">
-          <div class="ts-label ts-label-row">
-            <span>📎 附件（图片弹窗预览 / HTML 新标签打开）</span>
-            <AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" />
-          </div>
-          <AssetManager v-model="selectedTask.assets" @update:model-value="onTaskAssetsChange" @html-added="onTaskHtmlAdded" />
-        </div>
-        <div class="ts-section">
-          <div class="ts-label">📝 备注（可拖拽右下角调整高度）</div>
+          <div class="ds-hero-label">说明 <span class="hint">— 补充上下文 · 验收标准</span></div>
           <div class="ta-wrap">
-            <textarea v-model="selectedTask.description" class="ts-note" :style="{ height: taskNoteH + 'px' }" placeholder="补充说明、上下文、验收标准…" @blur="touchTask"></textarea>
+            <textarea v-model="selectedTask.description" class="ds-desc" :style="{ height: taskNoteH + 'px' }" placeholder="补充说明、上下文、验收标准…" @blur="touchTask"></textarea>
             <div class="ta-resize" @mousedown="startTaskNoteResize" title="拖拽调节高度（记忆保存）"></div>
           </div>
         </div>
+        <!-- R48：属性紧凑化——项目/指标双列一行，优先级/链接紧随 -->
+        <div class="ts-section ds-props2">
+          <div class="ds-prop-field">
+            <label class="ds-prop-label">📦 项目</label>
+            <select v-model="selProjectId" class="ds-prop-select" @change="onSelProjectChange">
+              <option value="">未关联项目</option>
+              <option v-for="p in sidebarProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+          </div>
+          <div class="ds-prop-field">
+            <label class="ds-prop-label">🎯 指标</label>
+            <select v-model="selMetricId" class="ds-prop-select" :disabled="!selProjectId" @change="onSelMetricChange">
+              <option value="">暂不归属</option>
+              <option v-for="m in sidebarMetrics" :key="m.id" :value="m.id">{{ m.title }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="ts-section ds-props2">
+          <div class="ds-prop-field">
+            <label class="ds-prop-label">⚡ 优先级</label>
+            <select class="ds-prop-select" :value="selectedTask.priority" @change="setPriority(($event.target as HTMLSelectElement).value as 'low'|'medium'|'high')">
+              <option value="high">🔴 高</option>
+              <option value="medium">🟡 中</option>
+              <option value="low">🟢 低</option>
+            </select>
+          </div>
+          <div class="ds-prop-field">
+            <label class="ds-prop-label">🔗 链接</label>
+            <input v-model="selectedTask.link" class="ds-prop-select" style="cursor:text" placeholder="https://… / D:\path\file.pdf" @blur="touchTask" @keydown.enter.prevent="($event.target as HTMLElement).blur()">
+          </div>
+        </div>
+        <!-- R48：标签一行 -->
         <div class="ts-section">
-          <div class="ts-label">🏷 标签（来自标签管理体系）</div>
           <TagPicker v-model="selectedTask.tags" />
         </div>
-        <div class="ts-section">
-          <div class="ts-label">🔗 挂载资源卡（单向挂载）</div>
+        <div class="ts-section ds-meta">
+          <span>创建 {{ fmtTaskTs(selectedTask.createdAt) }}</span>
+          <span>更新 {{ fmtTaskTs(selectedTask.updatedAt) }}</span>
+          <span class="ts-goto ds-goto-inline" @click="router.push('/compass/tree')">🧭 没有合适的项目/指标？去方向树创建 ›</span>
+        </div>
+        <!-- R48：附属区折叠（附件 / 单向挂载） -->
+        <details class="ds-details" style="margin-top:14px">
+          <summary>📎 附件 <span v-if="selectedTask.assets?.length" class="cnt">({{ selectedTask.assets.length }})</span><AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" /><span class="right">图片 / HTML / PDF</span></summary>
+          <AssetManager v-model="selectedTask.assets" @update:model-value="onTaskAssetsChange" @html-added="onTaskHtmlAdded" />
+        </details>
+        <details class="ds-details" style="margin-top:12px">
+          <summary>🔗 挂载资源卡 <span class="cnt">({{ selectedTask.mountedResourceIds.filter(id => resourceTitle(id)).length }})</span><span class="right">单向挂载 · 点条目取消</span></summary>
           <div class="ts-mount-list">
             <div v-for="rid in selectedTask.mountedResourceIds.filter(id => resourceTitle(id))" :key="rid" class="ts-mount-item" @click="toggleMountResource(rid)" title="点击取消挂载">
               📄 {{ resourceTitle(rid) }} <span class="remove">×</span>
@@ -324,9 +340,9 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
               <div v-if="!mountResourceCandidates.length" class="ts-mount-empty" style="padding:10px">无匹配资源</div>
             </div>
           </div>
-        </div>
-        <div class="ts-section">
-          <div class="ts-label">💡 挂载好奇心卡（单向挂载）</div>
+        </details>
+        <details class="ds-details" style="margin-top:12px">
+          <summary>💡 挂载好奇心卡 <span class="cnt">({{ selectedTask.mountedCuriosityIds.filter(id => curiosityTitle(id)).length }})</span><span class="right">单向挂载 · 点条目取消</span></summary>
           <div class="ts-mount-list">
             <div v-for="cid in selectedTask.mountedCuriosityIds.filter(id => curiosityTitle(id))" :key="cid" class="ts-mount-item" @click="toggleMountCuriosity(cid)" title="点击取消挂载">
               💡 {{ curiosityTitle(cid) }} <span class="remove">×</span>
@@ -343,11 +359,13 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
               <div v-if="!mountCuriosityCandidates.length" class="ts-mount-empty" style="padding:10px">无匹配好奇心</div>
             </div>
           </div>
-        </div>
+        </details>
       </div>
       <div class="ts-foot">
-        <button class="mini-btn danger" @click="deleteTask(selectedTask.id)">🗑 删除任务</button>
-        <button class="mini-btn primary" @click="saveTaskTitleAndClose">✓ 完成并关闭（Ctrl+Enter）</button>
+        <!-- R48：删除按钮降级（ghost 弱化，hover 扣动扳机），主操作唯一 -->
+        <button class="ts-del-ghost" @click="deleteTask(selectedTask.id)" title="删除任务（可在回收站撤销）">🗑 删除</button>
+        <span class="ts-foot-spacer"></span>
+        <button class="mini-btn primary" @click="saveTaskTitleAndClose">✓ 完成并关闭 <span class="ts-kbd">Ctrl+↩</span></button>
       </div>
     </div>
   </Transition>
@@ -396,7 +414,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ta-resize { position: absolute; right: 3px; bottom: 3px; width: 16px; height: 12px; cursor: ns-resize; z-index: 2; opacity: .45; border-right: 3px solid var(--text-3); border-bottom: 3px solid var(--text-3); border-bottom-right-radius: 3px; }
 .ta-resize:hover { opacity: .9; }
 /* B22：状态三选 chips */
-.ts-status-row { display: flex; gap: 6px; }
 .ts-status-chip { flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); font-size: 11.5px; cursor: pointer; font-family: inherit; color: var(--text-2); transition: all .12s; white-space: nowrap; }
 .ts-status-chip:hover { border-color: var(--accent); color: var(--accent); }
 .ts-status-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
@@ -417,6 +434,19 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-mount-cand { padding: 6px 10px; border-radius: 6px; font-size: 12px; color: var(--text-2); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ts-mount-cand:hover { background: var(--accent-light); color: var(--accent); }
 .ts-mount-cand.on { background: var(--accent-light); color: var(--accent); font-weight: 600; }
-.ts-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
-.ts-foot .mini-btn { flex: 1; justify-content: center; padding: 9px; }
+.ts-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
+.ts-foot .mini-btn { justify-content: center; padding: 9px 16px; }
+.ts-del-ghost { display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; border: none; background: transparent; border-radius: 6px; font-size: 11.5px; cursor: pointer; color: var(--text-3); font-family: inherit; transition: all .15s; user-select: none; }
+.ts-del-ghost:hover { color: var(--danger); background: var(--danger-light, rgba(231,76,60,.1)); }
+.ts-foot-spacer { flex: 1; }
+.ts-kbd { font-size: 10px; background: rgba(255,255,255,.22); border-radius: 4px; padding: 1px 5px; font-weight: 400; margin-left: 2px; }
+
+/* ===== R48 详情重设计 ===== */
+.ds-status-wrap { margin-left: auto; }
+.ds-status-chip2.st-todo { background: var(--tag-neutral-bg, var(--surface-3)); color: var(--text-2); }
+.ds-status-chip2.st-doing { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
+.ds-status-chip2.st-done { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
+.ds-goto-inline { color: var(--accent); cursor: pointer; }
+.ds-goto-inline:hover { text-decoration: underline; }
+.ds-prop-select { margin-top: 1px; }
 </style>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 资源卡打开计数 · 全端统一实现（第卅二轮 B40 自 stores/compass 下沉）
  *
  * 应用端（Pinia store.persist）与网页端（content script saveData）共用，
@@ -32,4 +32,21 @@ export function recordResourceOpen(data: AppData, resource: ResourceCard): void 
     data.stats.wrr.thisWeekUsage += 1
     data.stats.wrr.lastUpdatedAt = now
   }
+}
+
+/**
+ * R47-B4：任务/好奇心卡打开计数（调起详情抽屉等「调用」动作统一入口）
+ * 不进 WRR 口径（WRR 仅统计资源卡复用），只维护卡片自身的热度字段。
+ */
+export function recordCardOpen(data: AppData | null, card: { callCount?: number; lastCalledAt?: number } | null | undefined): void {
+  if (!card) return
+  card.callCount = (card.callCount || 0) + 1
+  card.lastCalledAt = Date.now()
+}
+
+/** R47-B4：工作台打开计数（切换/进入工作台统一入口） */
+export function recordWorkspaceOpen(data: AppData | null, ws: { callCount?: number; lastCalledAt?: number } | null | undefined): void {
+  if (!ws) return
+  ws.callCount = (ws.callCount || 0) + 1
+  ws.lastCalledAt = Date.now()
 }

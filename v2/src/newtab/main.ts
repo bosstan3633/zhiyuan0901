@@ -4,10 +4,15 @@ import App from './App.vue'
 import router from './router'
 import 'virtual:uno.css'
 import '@/shared/styles/tokens.css'
+import '@/shared/styles/detail-sheet.css'
 import { loadData, loadUIPrefs, replaceData } from '@/shared/storage/repository'
 import { migrateV1ToV2 } from '@/shared/storage/migration'
 import { STORAGE_KEY } from '@/shared/models'
 import { useAppStore } from './stores/app'
+// R48-A1：错误留痕必须最先注册——TDZ 崩溃多发于模块初始化期，晚注册接不住
+import { installRuntimeErrorCapture } from '@/shared/utils/runtimeError'
+
+installRuntimeErrorCapture()
 
 /** B34：数据预启动——V2 数据已存在时跳过 V1 迁移检测（老用户每次开新标签页省一次 IO） */
 async function ensureBootData(): Promise<void> {
@@ -26,6 +31,7 @@ async function ensureBootData(): Promise<void> {
 }
 
 async function bootstrap() {
+  const t0 = Date.now()
   const app = createApp(App)
   app.use(createPinia())
   app.use(router)
@@ -40,13 +46,47 @@ async function bootstrap() {
   const store = useAppStore()
   store.init()
 
-  // 每次打开新标签页/刷新，固定回到首页；但保留深链（手册/设置等，第廿五轮）
+  // 每次打开新标签页/刷新，固定回到首页（调度台）；但保留深链（手册/设置等，第廿五轮）
   const p = router.currentRoute.value.path
   if (p !== '/' && !p.startsWith('/settings') && !p.startsWith('/manual')) {
     router.replace('/')
   }
 
-  app.mount('#app')
+  // R49-H：刷新动画节奏——总时长硬约束 300–600ms
+  // 快加载：补足到 360ms 再切「资源归位 · 调度就绪」→ 220ms 淡出挂载（合计 ≤600ms，第二段定时器做漂移校正）
+  // 慢加载：不强制延长——立即切完成态，短淡出后挂载；Esc/单击随时跳过
+  const skl = () => document.querySelector('.zy-skl') as HTMLElement | null
+  function showDone() {
+    const s = skl()
+    if (s) s.classList.add('done')
+  }
+  function skipSplash() {
+    const s = skl()
+    if (s) s.remove()
+    window.removeEventListener('keydown', onSkipKey, true)
+    document.removeEventListener('click', onSkipClick, true)
+  }
+  function onSkipKey(e: KeyboardEvent) { if (e.key === 'Escape') skipSplash() }
+  function onSkipClick() { skipSplash() }
+  window.addEventListener('keydown', onSkipKey, true)
+  document.addEventListener('click', onSkipClick, true)
+
+  const mount = () => {
+    ;(window as unknown as { __zySplashMs?: number }).__zySplashMs = Date.now() - t0
+    app.mount('#app')
+  }
+  const elapsed = Date.now() - t0
+  if (elapsed < 360) {
+    setTimeout(() => {
+      showDone()
+      const late = Date.now() - t0 - 360
+      setTimeout(mount, Math.max(0, 220 - late))
+    }, Math.max(0, 360 - elapsed))
+  } else {
+    // 慢加载：完成态短暂呈现即挂载，不为品牌延长加载
+    showDone()
+    setTimeout(mount, 160)
+  }
 }
 
 bootstrap()

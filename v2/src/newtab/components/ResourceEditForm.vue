@@ -119,6 +119,7 @@ function fmtTs(ts?: number): string {
 </script>
 
 <template>
+  <!-- R48 详情重设计：链接区为 Hero（类型紧凑切换），工作台/分类双列，注解上移，附件/挂载折叠 -->
   <div class="ref-form">
     <div class="ref-title-row" :class="{ highlight }">
       <textarea class="ref-title" v-model="model.title" rows="2" placeholder="资源卡标题..."
@@ -127,11 +128,12 @@ function fmtTs(ts?: number): string {
       <div v-if="showClose" class="ref-close" @click="emit('close')">×</div>
     </div>
 
+    <!-- Hero：链接（资源卡的存在意义就是快速回到它） -->
     <div class="ref-section">
-      <div class="ref-label">🔗 链接（双击卡片即可打开）</div>
+      <div class="ds-hero-label">链接 <span class="hint">— 双击卡片即可打开 · Ctrl+↩ 保存</span></div>
       <div class="ref-link-type">
-        <div class="ref-link-type-btn" :class="{ active: model.linkType === 'url' }" @click="model.linkType = 'url'">🔗 URL</div>
-        <div class="ref-link-type-btn" :class="{ active: model.linkType === 'file' }" @click="model.linkType = 'file'">📁 本地文件</div>
+        <div class="ref-link-type-btn" :class="{ active: model.linkType === 'url' }" @click="model.linkType = 'url'">URL</div>
+        <div class="ref-link-type-btn" :class="{ active: model.linkType === 'file' }" @click="model.linkType = 'file'">📁 本地</div>
         <div class="ref-link-type-btn" :class="{ active: model.linkType === 'obsidian' }" @click="model.linkType = 'obsidian'">📝 Obsidian</div>
       </div>
       <input type="text" class="ref-link-input" v-model="model.link" :placeholder="linkPlaceholder"
@@ -141,60 +143,61 @@ function fmtTs(ts?: number): string {
       </div>
     </div>
 
-    <div class="ref-section">
-      <div class="ref-label">🗂 所属工作台（切换保存后即跨工作台迁移）</div>
-      <select class="ref-select" v-model="model.workspaceId" @change="onWsChange">
-        <option v-for="w in wsOptions" :key="w.id" :value="w.id">{{ w.name }}</option>
-      </select>
+    <!-- 属性双列：工作台 / 分类（切换保存后即跨台迁移；级联不变） -->
+    <div class="ds-props2">
+      <div class="ds-prop-field">
+        <label class="ds-prop-label">🗂 工作台</label>
+        <select class="ds-prop-select" v-model="model.workspaceId" @change="onWsChange">
+          <option v-for="w in wsOptions" :key="w.id" :value="w.id">{{ w.name }}</option>
+        </select>
+      </div>
+      <div class="ds-prop-field">
+        <label class="ds-prop-label">📁 分类</label>
+        <select class="ds-prop-select" v-model="model.categoryId">
+          <option value="">📥 待分类</option>
+          <option v-for="opt in catOptions" :key="opt.id" :value="opt.id">📂 {{ opt.label }}</option>
+        </select>
+      </div>
     </div>
 
-    <div class="ref-section">
-      <div class="ref-label">📁 所属分类（随所属工作台联动）</div>
-      <select class="ref-select" v-model="model.categoryId">
-        <option value="">📥 待分类</option>
-        <option v-for="opt in catOptions" :key="opt.id" :value="opt.id">📂 {{ opt.label }}</option>
-      </select>
-    </div>
-
-    <div class="ref-section">
-      <div class="ref-label"># 标签（来自标签管理体系）</div>
+    <div class="ref-section" style="margin-top:12px">
       <TagPicker v-model="model.tags" />
     </div>
 
-    <div class="ref-section">
-      <div class="ref-label">📝 我的注解</div>
+    <!-- 注解上移：紧跟属性，定位「为什么收藏它」 -->
+    <div class="ref-section" style="margin-top:12px">
+      <div class="ds-hero-label">我的注解 <span class="hint">— 为什么收藏它 · 拖右下角调高</span></div>
       <div class="ref-ta-wrap">
-        <textarea class="ref-note" v-model="model.description" :style="{ height: noteH + 'px' }" placeholder="对这个资源的注解、思考、摘录..."
+        <textarea class="ds-desc" v-model="model.description" :style="{ height: noteH + 'px' }" placeholder="对这个资源的注解、思考、摘录..."
           @keydown.ctrl.enter.prevent="emit('save')" @keydown.meta.enter.prevent="emit('save')"></textarea>
         <div class="ref-ta-resize" @mousedown="startNoteResize" title="拖拽调节高度（记忆保存）"></div>
       </div>
     </div>
 
-    <div class="ref-section">
-      <div class="ref-label ref-label-row">
-        <span>📎 附件（图片弹窗预览 / HTML 新标签打开）</span>
-        <AssetBadge v-if="model.assets?.length" :assets="model.assets" />
-      </div>
+    <!-- 附件折叠 -->
+    <details class="ds-details" style="margin-top:12px">
+      <summary>📎 附件 <span v-if="model.assets?.length" class="cnt">({{ model.assets.length }})</span><span class="right">图片弹窗预览 / HTML 新标签打开</span></summary>
       <AssetManager v-model="model.assets" @update:model-value="onAssetsChange" @html-added="onHtmlAdded" />
-    </div>
+    </details>
 
     <!-- 宿主差异内容（如 RDD 使用统计）：插在附件与挂载之间，保持原字段顺序 -->
     <slot name="extra" />
 
-    <div class="ref-section">
-      <div class="ref-label">📋 被任务挂载 ({{ mountedTasks.length }})</div>
+    <details class="ds-details" style="margin-top:12px">
+      <summary>📋 被任务挂载 <span v-if="mountedTasks.length" class="cnt">({{ mountedTasks.length }})</span></summary>
       <div v-if="mountedTasks.length" class="ref-mounted-list">
         <div v-for="t in mountedTasks" :key="t.id" class="ref-mounted-item" @click="goOpenTask(t)">
           <span class="ref-mi-icon">📋</span> {{ t.title }}
         </div>
       </div>
       <div v-else class="ref-empty">暂无任务挂载此资源</div>
-    </div>
+    </details>
 
-  <div v-if="model.createdAt" class="ref-section">
-    <div class="ref-time">🕐 创建 {{ fmtTs(model.createdAt) }} ｜ 更新 {{ fmtTs(model.updatedAt) }}</div>
+    <div v-if="model.createdAt" class="ds-meta" style="margin-top:6px">
+      <span>创建 {{ fmtTs(model.createdAt) }}</span>
+      <span>更新 {{ fmtTs(model.updatedAt) }}</span>
+    </div>
   </div>
-</div>
 </template>
 
 <style scoped>

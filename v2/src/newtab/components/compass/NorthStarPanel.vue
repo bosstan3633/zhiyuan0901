@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useCompass } from '../../stores/compass'
 import { useAppStore } from '../../stores/app'
@@ -92,11 +92,11 @@ function startOf(ts: number, unit: 'day' | 'week'): number {
   dt.setDate(dt.getDate() - dow)
   return dt.getTime()
 }
-type FlatCard = { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; createdAt: number; deletedAt?: number }
+type FlatCard = { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; createdAt: number; deletedAt?: number; importedAt?: number }
 const allCardsFlat = computed<FlatCard[]>(() => [
-  ...d.value.resources.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title || '（无标题）', createdAt: r.createdAt || 0, deletedAt: r.deletedAt })),
-  ...d.value.tasks.map(t => ({ kind: 'task' as const, id: t.id, title: t.title || '（无标题）', createdAt: t.createdAt || 0, deletedAt: t.deletedAt })),
-  ...d.value.curiosities.map(c => ({ kind: 'curiosity' as const, id: c.id, title: c.question || '（无标题）', createdAt: c.createdAt || 0, deletedAt: c.deletedAt }))
+  ...d.value.resources.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title || '（无标题）', createdAt: r.createdAt || 0, deletedAt: r.deletedAt, importedAt: r.importedAt })),
+  ...d.value.tasks.map(t => ({ kind: 'task' as const, id: t.id, title: t.title || '（无标题）', createdAt: t.createdAt || 0, deletedAt: t.deletedAt, importedAt: t.importedAt })),
+  ...d.value.curiosities.map(c => ({ kind: 'curiosity' as const, id: c.id, title: c.question || '（无标题）', createdAt: c.createdAt || 0, deletedAt: c.deletedAt, importedAt: c.importedAt }))
 ])
 function kindIcon(kind: FlatCard['kind']): string { return kind === 'resource' ? '📇' : kind === 'task' ? '✅' : '💡' }
 /** 日档只显 HH:mm；周/累计档显 MM-DD HH:mm */
@@ -119,7 +119,11 @@ const todayAddList = computed(() =>
 const todayDelList = computed(() =>
   allCardsFlat.value.filter(x => x.deletedAt && x.deletedAt >= periodStart.value)
     .sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
-const todayAddSub = computed(() => kindSub(todayAddList.value))
+const todayAddSub = computed(() => {
+  // R48-B2 双口径：窗口内有导入卡时，副标提示「含导入 N」（导入继承原 createdAt，不混入新建数）
+  const imp = todayAddList.value.filter(x => x.importedAt && x.importedAt >= periodStart.value).length
+  return kindSub(todayAddList.value) + (imp ? ` · 含导入${imp}` : '')
+})
 const todayDelSub = computed(() => kindSub(todayDelList.value))
 
 // ---- 链接打开（WRR 抽屉复用；第卅二轮 REQ-010 统一打开通道） ----
@@ -189,7 +193,7 @@ function changeTaskMetric(taskId: string, e: Event) {
 </script>
 
 <template>
-  <ModuleCard title="知源北极星" en="NORTH STAR">
+  <ModuleCard title="方向状态" en="NORTH STAR">
     <template #title>
       <!-- 北极星可视化图标：四芒星 + 光晕 -->
       <span class="ns-star" aria-hidden="true">
@@ -200,7 +204,7 @@ function changeTaskMetric(taskId: string, e: Event) {
           <circle cx="12" cy="12" r="1.6" fill="var(--surface)" />
         </svg>
       </span>
-      <span class="ns-name">知源北极星</span>
+      <span class="ns-name">方向状态</span>
       <span class="ns-en">NORTH STAR</span>
     </template>
 
@@ -294,16 +298,16 @@ function changeTaskMetric(taskId: string, e: Event) {
         </div>
       </template>
 
-      <!-- 第卌四轮 T-02：今日新增明细 -->
+      <!-- 第卌四轮 T-02：今日新增明细（R48-B2：导入卡带 ⇪ 徽标，双口径可辨） -->
       <template v-else-if="drawerType === 'today-add'">
         <div class="dhi-list">
           <div v-for="x in todayAddList" :key="x.kind + x.id" class="nd-item">
-            <div class="nd-name text">{{ kindIcon(x.kind) }} {{ x.title }}</div>
-            <div class="nd-meta">{{ fmtStamp(x.createdAt) }}</div>
+            <div class="nd-name text">{{ kindIcon(x.kind) }} {{ x.title }}<span v-if="x.importedAt && x.importedAt >= periodStart" class="ns-imp-badge" title="本次导入 · 继承原创建时间">⇪ 导入</span></div>
+            <div class="nd-meta">{{ fmtStamp(x.importedAt && x.importedAt >= periodStart ? x.importedAt : x.createdAt) }}</div>
           </div>
           <div v-if="!todayAddList.length" class="nd-empty">{{ periodLabel }}还没有新增卡片——去采集一张，这里立刻 +1</div>
         </div>
-        <div class="nd-tip">实时派生自卡片 createdAt · 新增即保存，无需手动确认</div>
+        <div class="nd-tip">实时派生自卡片 createdAt · 导入卡带 ⇪ 徽标（继承原创建时间）</div>
       </template>
 
       <!-- 第卌四轮 T-02：今日删除明细 -->
@@ -393,6 +397,8 @@ function changeTaskMetric(taskId: string, e: Event) {
 .nd-edit-hint:hover { color: var(--accent); }
 .nd-empty { text-align: center; padding: 32px; color: var(--text-3); font-size: 13px; }
 .nd-tip { margin-top: 12px; font-size: 11px; color: var(--text-3); text-align: center; }
+/* R48-B2：导入卡徽标（双口径可辨） */
+.ns-imp-badge { display: inline-block; margin-left: 6px; font-size: 9.5px; font-weight: 600; padding: 0 6px; border-radius: 99px; background: var(--accent-light); color: var(--accent); vertical-align: 1px; }
 
 .nd-stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
 .nd-stat { background: var(--surface-2); border-radius: var(--radius-xs); padding: 12px; text-align: center; }

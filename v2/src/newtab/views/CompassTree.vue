@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
@@ -7,6 +7,7 @@ import { uid } from '@/shared/utils'
 import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import Drawer from '@/shared/components/Drawer.vue'
+import { saveUIPrefs } from '@/shared/storage/repository'
 import type { Direction, Project, Metric, TaskCard, ID } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
@@ -27,6 +28,29 @@ function expandAllNodes() {
   })
 }
 watch(() => d.value?.compass.directions, () => expandAllNodes(), { deep: true, immediate: true })
+
+/** R49-C7：一键展开/收起全部（展开=全层级展开；收起=全部战略目标与指标折叠） */
+function collapseAllNodes() {
+  expandedDirs.value.clear()
+  expandedMetrics.value.clear()
+}
+
+// ---- R49-C6：已完成（archived）项目显隐（与主航线/项目总览三处同步） ----
+const showDone = computed(() => store.ui?.showDoneProjects !== false)
+function toggleShowDone() {
+  const next = !showDone.value
+  if (store.ui) store.ui.showDoneProjects = next
+  saveUIPrefs({ showDoneProjects: next })
+}
+function visibleProjectsOf(dir: Direction): Project[] {
+  return dir.projects.filter(p => showDone.value || p.status !== 'archived')
+}
+const treeStats = computed(() => ({
+  dirs: d.value.compass.directions.length,
+  projects: d.value.compass.directions.reduce((s, dir) => s + visibleProjectsOf(dir).length, 0),
+  metrics: d.value.compass.directions.reduce((s, dir) => s + dir.projects.reduce((s2, p) => s2 + p.metrics.length, 0), 0),
+  tasks: d.value.tasks.filter(t => !t.deletedAt).length
+}))
 
 function toggleDir(id: string) {
   if (expandedDirs.value.has(id)) expandedDirs.value.delete(id)
@@ -341,7 +365,7 @@ function toggleMissionProjection() {
 function toggleProjProjection(proj: Project) {
   proj.pinnedToLighthouse = !proj.pinnedToLighthouse
   store.persist()
-  showToast(proj.pinnedToLighthouse ? '📡 项目已投射至灯塔，项目策展置顶' : '已取消投射')
+  showToast(proj.pinnedToLighthouse ? '📡 项目已投射至主航线，项目总览置顶' : '已取消投射')
 }
 
 // 第卅二轮 REQ-003：项目卡"打开项目"→ 项目全景透视抽屉（可增删改指标与任务，实时同步方向树）
@@ -378,8 +402,12 @@ onUnmounted(() => {
     <!-- 六层悬浮目录 -->
 
       <div class="tree-page-head">
-        <div class="crumb">知源引擎 <span class="sep">/</span> <b>方向树</b> · 六层思维链完整呈现</div>
+        <div class="crumb"><b>完整方向树</b> · 六层思维链全深度</div>
         <div class="spacer"></div>
+        <div class="tree-stats">愿景 1 · 使命 1 · 战略目标 {{ treeStats.dirs }} · 项目 {{ treeStats.projects }} · 指标 {{ treeStats.metrics }} · 任务 {{ treeStats.tasks }}</div>
+        <button class="tree-tool" @click="expandAllNodes" title="展开全部层级">⊞ 展开</button>
+        <button class="tree-tool" @click="collapseAllNodes" title="收起全部战略目标与指标">⊟ 收起</button>
+        <button class="tree-tool" :class="{ off: !showDone }" @click="toggleShowDone" title="与主航线/项目总览三处同步">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
         <div class="dhi-badge" :class="dhiStatus.cls">
           <span>🧭</span>
           <span>方向健康度：{{ dhiStatus.label }}</span>
@@ -551,7 +579,7 @@ onUnmounted(() => {
                     <div class="sub-layer-add" @click.stop="addProject(dir.id)">＋ 添加</div>
                   </div>
 
-                  <div v-for="(proj, pIdx) in dir.projects" :key="proj.id" class="project-branch">
+                  <div v-for="(proj, pIdx) in visibleProjectsOf(dir)" :key="proj.id" class="project-branch">
                     <div class="branch-connector">
                       <div class="branch-h" />
                       <div class="branch-v" />
@@ -652,7 +680,7 @@ onUnmounted(() => {
                     </div>
                   </div>
 
-                  <div v-if="!dir.projects.length" class="empty-sub">暂无攻坚项目，点击上方"＋ 添加"创建</div>
+                  <div v-if="!visibleProjectsOf(dir).length" class="empty-sub">暂无可见攻坚项目（已完成项目可能已隐藏），点击上方"＋ 添加"创建</div>
                 </div>
               </div>
             </div>
@@ -751,6 +779,11 @@ onUnmounted(() => {
 .tree-page-head .crumb b { color: var(--text); font-weight: 600; }
 .tree-page-head .crumb .sep { color: var(--text-4); margin: 0 6px; }
 .tree-page-head .spacer { flex: 1; }
+/* R49-C7：顶部统计 + 展开收起/显隐工具 */
+.tree-stats { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tree-tool { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 11.5px; border-radius: 8px; padding: 5px 11px; cursor: pointer; font-family: inherit; transition: all .15s; white-space: nowrap; }
+.tree-tool:hover { border-color: var(--accent); color: var(--accent); }
+.tree-tool.off { opacity: .6; }
 
 /* D8：六层目录 = 布局内左栏 + sticky 跟随（目录在左，内容在右，随滚动吸附） */
 .layer-toc { position: sticky; top: 16px; align-self: flex-start; width: 200px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 10px; display: flex; flex-direction: column; gap: 3px; box-shadow: var(--shadow); max-height: calc(100vh - 120px); overflow-y: auto; }

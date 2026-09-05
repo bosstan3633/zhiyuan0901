@@ -1,4 +1,4 @@
-/** 生成唯一 ID */
+﻿/** 生成唯一 ID */
 export function uid(prefix = 'id'): string {
   return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
 }
@@ -78,7 +78,7 @@ export function throttle<T extends (...args: unknown[]) => void>(fn: T, ms: numb
   }) as T
 }
 
-/** H1：工作台快捷键有效映射——显式 hotkey 优先，其余按顺序自动分配 2-9（1 保留给知源引擎） */
+/** H1：工作台快捷键有效映射——显式 hotkey 优先，其余按顺序自动分配 2-9（1 保留给方向台） */
 export function effectiveWsHotkeys(workspaces: { id: string; hotkey?: number }[]): Map<string, number> {
   const used = new Set<number>()
   const explicit = new Map<string, number>()

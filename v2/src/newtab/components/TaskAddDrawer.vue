@@ -91,8 +91,25 @@ const candidates = computed(() => {
     .slice(0, 40)
 })
 
+/** R47-B1：任务归属反查——项目名（projectId 优先，否则由 metricId 反查），缺失显示「未关联项目」 */
+function projectNameOf(t: TaskCard): string {
+  if (t.projectId) {
+    for (const dir of d.value.compass.directions) {
+      const p = dir.projects.find(x => x.id === t.projectId)
+      if (p) return p.name
+    }
+  }
+  if (t.metricId) {
+    for (const dir of d.value.compass.directions) {
+      const p = dir.projects.find(x => x.metrics.some(m => m.id === t.metricId))
+      if (p) return p.name
+    }
+  }
+  return '未关联项目'
+}
+
 function metricNameOf(metricId?: string): string {
-  if (!metricId) return '未归类'
+  if (!metricId) return '未关联指标'
   for (const dir of d.value.compass.directions) {
     for (const proj of dir.projects) {
       const m = proj.metrics.find(x => x.id === metricId)
@@ -174,7 +191,7 @@ function linkTasks() {
         <label v-for="t in candidates" :key="t.id" class="tad-item" :class="{on: selected.has(t.id)}">
           <input type="checkbox" :checked="selected.has(t.id)" @change="toggleSel(t.id)" />
           <span class="tad-item-title">{{ t.title }}</span>
-          <span class="tad-item-meta">{{ metricNameOf(t.metricId) }}</span>
+          <span class="tad-item-meta">{{ projectNameOf(t) }} · {{ metricNameOf(t.metricId) }}</span>
         </label>
         <div v-if="!candidates.length" class="tad-empty">
           {{ linkQ.trim() ? '没有匹配的任务' : '暂无可关联任务（其他任务均已在指标下）' }}

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, ref, onErrorCaptured, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from './stores/app'
@@ -69,9 +69,13 @@ const activeTab = computed(() => {
   return activeWorkspaceId.value || 'home'
 })
 
-/** 罗盘 Tab 点击：固定进入今日行动（O15） */
+/** 方向台 Tab 点击（R49：调度台/方向台/资源台三系统页 + 用户工作台） */
 function openCompass() {
-  navigate('/compass/actions')
+  navigate('/compass')
+}
+/** 资源台占位（V2.23.x 交付） */
+function openResource() {
+  showToast('资源台下轮交付 · 敬请期待 V2.23.x')
 }
 
 // 工作台 CRUD
@@ -172,8 +176,8 @@ function deleteWorkspace() {
 }
 
 // ===== 全局快捷键 =====
-// Esc 关闭弹窗；Ctrl+1=知源引擎、Ctrl+2/3…=工作台（修饰键可配置）；知源罗盘不设快捷键（刷新自动回罗盘）
-// 第廿九轮拍板：快捷键跟随位置——switchToIndex 按导航顺序取工作台，拖动 Tab 调位后映射随之变化
+// Esc 关闭弹窗；修饰键+数字 = 用户自建工作台（从 1 起按导航顺序计数，R49 拍板）
+// 调度台刷新自动回首页、方向台/资源台走 chrome.commands 自定义（chrome://extensions/shortcuts）
 function isEditableTarget(e: KeyboardEvent): boolean {
   const t = e.target as HTMLElement | null
   if (!t) return false
@@ -182,10 +186,10 @@ function isEditableTarget(e: KeyboardEvent): boolean {
 }
 
 function switchToIndex(n: number) {
-  // n=1 → 知源引擎；n>=2 → 第 n-1 个工作台
-  if (n === 1) { openCompass(); return }
-  const ws = store.workspaces[n - 2]
+  // R49：n=1..N → 第 n 个用户工作台（原「1=方向台、2..=工作台」方案废止）
+  const ws = store.workspaces[n - 1]
   if (ws) navigate(`/workspace/${ws.id}`)
+  else showToast(`没有第 ${n} 个工作台（当前共 ${store.workspaces.length} 个）`)
 }
 
 // ===== 第廿九轮：工作台 Tab 拖拽排序 =====
@@ -290,6 +294,10 @@ onMounted(async () => {
         setTimeout(() => emitOpenDrawer(msg.drawer), 80)
       }
     }
+    // R49-I4：background 命令透传 toast（资源台占位提示等）
+    else if (msg?.type === 'zy-toast' && msg.text) {
+      showToast(String(msg.text))
+    }
   })
 })
 onUnmounted(() => { window.removeEventListener('keydown', onGlobalKeydown, true) })
@@ -318,12 +326,15 @@ const backupReminderDot = computed(() => {
   <div class="app-shell" @click="menuWs && closeMenu(); themeOpen && (themeOpen = false)">
     <header class="topbar">
       <nav class="tabs">
-        <!-- 固定页 -->
+        <!-- 固定页：调度台 / 方向台 / 资源台（R49 三大系统页） -->
         <div class="tab" :class="{active: activeTab === 'home'}" @click="navigate('/')">
-          <img :src="logoUrl" class="home-logo" alt="知源工作台">知源罗盘
+          <img :src="logoUrl" class="home-logo" alt="知源调度台">调度台
         </div>
         <div class="tab" :class="{active: activeTab === 'compass'}" @click="openCompass">
-          <Icon name="compass" :size="15" />知源引擎
+          <Icon name="compass" :size="15" />方向台
+        </div>
+        <div class="tab tab-reserved" :class="{active: false}" title="下轮交付" @click="openResource">
+          <Icon name="layout" :size="15" />资源台
         </div>
 
         <div class="tab-divider" />
@@ -448,6 +459,9 @@ const backupReminderDot = computed(() => {
 .tab.active::after { content: ''; position: absolute; bottom: -14px; left: 12px; right: 12px; height: 2px; background: var(--accent); border-radius: 2px; }
 /* R45-5：.badge 样式随角标移除一并清理（全应用已无渲染点） */
 .tab-divider { width: 1px; height: 20px; background: var(--border); margin: 0 6px; }
+/* R49：资源台占位（下轮交付）——弱化呈现 */
+.tab.tab-reserved { opacity: .45; }
+.tab.tab-reserved:hover { opacity: .8; }
 .tab.drop-line-l { box-shadow: inset 2px 0 0 var(--accent); }
 .tab.drop-line-r { box-shadow: inset -2px 0 0 var(--accent); }
 .tab-add { padding: 8px 12px; color: var(--text-3); font-size: 16px; font-weight: 300; }

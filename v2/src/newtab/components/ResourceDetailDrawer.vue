@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 第卅七轮 REQ-042：资源卡可编辑详情抽屉（搜索单击触发）
  * - 由 zy-open-drawer 总线（kind='res'）触发打开
@@ -107,7 +107,7 @@ function copyLink() {
 }
 
 function goToTask(t: TaskCard) {
-  router.push('/compass/actions')
+  router.push('/')
   showToast(`已跳转任务中心：${t.title}`)
 }
 

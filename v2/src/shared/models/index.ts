@@ -1,5 +1,5 @@
-/**
- * 知源工作台 V2.0 · 核心数据模型
+﻿/**
+ * 知源调度台 V2.0 · 核心数据模型
  *
  * 设计原则：
  * 1. 三卡分立：ResourceCard / TaskCard / CuriosityCard 各自独立，不再混存
@@ -71,10 +71,12 @@ export interface Project {
   progress: number
   status: 'active' | 'paused' | 'done' | 'archived'
   retrospective?: string
-  /** 投射至知源灯塔（项目策展页置顶分区 + 首页灯塔展示） */
+  /** 投射至知源灯塔（主航线展示 + 首页灯塔区） */
   pinnedToLighthouse?: boolean
-  /** 项目策展排序（拖拽自由排序） */
+  /** 项目排序（拖拽自由排序） */
   order?: number
+  /** R49-C8/D2：手动置顶（方向台项目总览置顶分组；与 📡投射 pinnedToLighthouse 独立） */
+  pinned?: boolean
   /** 第5层：成功指标 */
   metrics: Metric[]
 }
@@ -121,6 +123,8 @@ export interface CardBase {
   createdAt: number
   updatedAt: number
   deletedAt?: number
+  /** R48-B2：导入落戳（双口径统计「新建 X · 导入 Y」；继承原 createdAt，故导入单独计数） */
+  importedAt?: number
   /** REQ-048：附件元数据（本体在 IndexedDB zy_assets，仅存引用，主 JSON 绝不存 base64） */
   assets?: AssetMeta[]
 }
@@ -160,6 +164,9 @@ export interface TaskCard extends CardBase {
   /** 单向挂载：任务 → 好奇心 */
   mountedCuriosityIds: ID[]
   completedAt?: number
+  /** R47-B4：被打开（调起详情/直达）次数与最近打开时间——全局检索无输入时按近期热度排序 */
+  callCount?: number
+  lastCalledAt?: number
 }
 
 /** 好奇心卡（从好奇出发） */
@@ -177,6 +184,9 @@ export interface CuriosityCard extends CardBase {
   sortOrder?: number
   /** 弱关联资源（查证过程中收集） */
   relatedResourceIds: ID[]
+  /** R47-B4：被打开（调起详情）次数与最近打开时间——热度排序 */
+  callCount?: number
+  lastCalledAt?: number
 }
 
 export type AnyCard = ResourceCard | TaskCard | CuriosityCard
@@ -195,6 +205,9 @@ export interface Workspace {
   archived: boolean
   /** H1：工作台快捷键固定映射（2-9，空 = 自动分配） */
   hotkey?: number
+  /** R47-B4：被打开次数与最近打开时间——全局检索无输入时工作台参与热度排序 */
+  callCount?: number
+  lastCalledAt?: number
 }
 
 /** N4：树状标签节点 */
@@ -308,8 +321,8 @@ export interface UIPrefs {
   dateStr?: string
   /** 工作台切换快捷键修饰键（O18：五种可选，默认 Alt） */
   wsSwitchMod?: 'ctrl' | 'alt' | 'ctrl-shift' | 'alt-shift' | 'none'
-  /** 知源引擎上次停留的子页（默认今日行动） */
-  compassTab?: '/compass/actions' | '/compass/projects' | '/compass/tree'
+  /** 方向台上次停留的二级页（R49 起仅项目详情/完整方向树；旧值 /compass/actions 由 CompassShell 容错归一） */
+  compassTab?: '/compass/projects' | '/compass/tree'
   /** B7：抽屉宽度记忆（task/resource/curiosity） */
   drawerWs?: Record<string, number>
   /** 第卅三轮 REQ-007：三视图排序偏好（res/task/curio → { by, dir }），时间排序默认倒序 */
@@ -322,6 +335,8 @@ export interface UIPrefs {
   /** 第卅六轮 REQ-038：备份提醒开关（true=启用，false=关闭） */
   backupReminderEnabled?: boolean
   /** 第卅六轮 REQ-038：上次导出/备份时间戳（毫秒），用于设置页与顶栏红点判断「多久未备份」 */
+  /** R49-C6：已完成（archived）项目全局显隐（主航线/项目总览/完整方向树三处同步，默认显示） */
+  showDoneProjects?: boolean
   lastBackupAt?: number
   /** 第卅六轮 REQ-038：上次主动关闭提醒的时间戳（24h 内不再提示） */
   backupReminderSnoozedAt?: number

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCuriosity, type CuriStatus } from '../../stores/curiosity'
@@ -17,6 +17,7 @@ import { markRank } from '@/shared/utils/marksort'
 import { useTaHeight } from '@/shared/utils/taHeight'
 import { onOpenDrawer } from '@/shared/utils/bus'
 import { visibleFields } from '@/shared/utils/fields'
+import { recordCardOpen } from '@/shared/storage/stats'
 
 const { curiosities, STATUS_MAP, update, setStatus, remove, convertToTask, convertToResource } = useCuriosity()
 const store = useAppStore()
@@ -105,6 +106,8 @@ const kanbanCols = computed(() => {
 })
 
 const detailId = ref<string | null>(null)
+// R48 详情重设计：状态下拉 chip（头部一枚，替代四个大按钮）
+const curioStatusMenuOpen = ref(false)
 /** 第卅三轮 REQ-024：详情文本框高度（默认 180px，拖拽记忆） */
 const { taH: detailH, startTaResize: startDetailResize } = useTaHeight('curio-detail', store.ui)
 const detailItem = computed(() => curiosities.value.find(c => c.id === detailId.value) || null)
@@ -112,7 +115,12 @@ const editDraft = ref('')
 function openDetail(id: string) {
   detailId.value = id
   const c = curiosities.value.find(x => x.id === id)
-  if (c) editDraft.value = c.question
+  if (c) {
+    editDraft.value = c.question
+    // R47-B4：调起详情 = 一次「调用」，计入热度
+    recordCardOpen(d.value, c)
+    store.persist()
+  }
 }
 function saveDetail() {
   if (detailId.value && editDraft.value.trim()) {
@@ -369,7 +377,7 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
 </script>
 
 <template>
-  <ModuleCard icon-name="bulb" title="好奇心卡库" en="CURIOSITY">
+  <ModuleCard icon-name="bulb" title="问题探索" en="CURIOSITY">
     <template #actions>
       <button class="cz-batch-btn" :class="{active: batchMode}" @click="batchMode = !batchMode">
         {{ batchMode ? '完成' : '☑ 批量管理' }}
@@ -508,55 +516,49 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
       </div>
     </div>
 
-    <Drawer :open="!!detailItem" :title="detailItem ? `${STATUS_MAP[detailItem.status].icon} 好奇心详情` : ''" @close="detailId = null">
+    <!-- R48 详情重设计：状态收进头部下拉 chip；摘录升为 Hero 引用体；元数据一行小字；附件折叠 -->
+    <Drawer :open="!!detailItem" :title="detailItem ? '好奇心详情' : ''" @close="detailId = null; curioStatusMenuOpen = false">
       <template #title-extra>
+        <div v-if="detailItem" class="ds-status-wrap" @click.stop>
+          <button class="ds-status-chip2" :class="STATUS_MAP[detailItem.status].cls" @click.stop="curioStatusMenuOpen = !curioStatusMenuOpen">{{ STATUS_MAP[detailItem.status].icon }} {{ STATUS_MAP[detailItem.status].label }}</button>
+          <div v-if="curioStatusMenuOpen" class="ds-status-menu">
+            <div v-for="(s, key) in STATUS_MAP" :key="key" class="mi" :class="{on: detailItem.status === key}"
+              @click.stop="setStatus(detailItem.id, key as CuriStatus); curioStatusMenuOpen = false">{{ s.icon }} {{ s.label }}</div>
+          </div>
+        </div>
         <AssetBadge v-if="detailItem?.assets?.length" :assets="detailItem.assets" />
       </template>
       <template v-if="detailItem">
-        <div class="detail-status-row">
-          <button v-for="(s, key) in STATUS_MAP" :key="key"
-            class="status-chip" :class="{active: detailItem.status === key, [s.cls]: true}"
-            @click="setStatus(detailItem.id, key as CuriStatus)">
-            {{ s.icon }} {{ s.label }}
-          </button>
-        </div>
-        <!-- 第卅三轮 REQ-015：Ctrl+Enter 保存并关闭（与全局口径一致）；REQ-024：高度拖拽记忆 -->
-        <div class="ta-wrap">
-          <textarea v-model="editDraft" rows="4" class="detail-textarea" :style="{ height: detailH + 'px' }"
+        <!-- Hero：摘录即主角（第卅三轮 REQ-015 Ctrl+Enter 保存；REQ-024 高度拖拽记忆） -->
+        <div class="ds-hero-label">摘录 <span class="hint">— 点击即编辑 · Ctrl+↩ 保存并关闭</span></div>
+        <div class="ta-wrap ds-quote-wrap">
+          <textarea v-model="editDraft" rows="4" class="ds-quote" :style="{ height: detailH + 'px' }"
             @keydown.ctrl.enter.prevent="saveDetail" @keydown.meta.enter.prevent="saveDetail" />
           <div class="ta-resize" @mousedown="startDetailResize" title="拖拽调节高度（记忆保存）"></div>
         </div>
-        <div class="detail-meta">
-          <span>📅 捕获于 {{ new Date(detailItem.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span>
-          <span v-if="detailItem.updatedAt" title="最近一次修改时间">✏️ 更新于 {{ new Date(detailItem.updatedAt).toLocaleString('zh-CN', { hour12: false }) }}</span>
+        <!-- 元数据一行小字（O24 来源链接可点） -->
+        <div class="ds-meta" style="margin-top:12px">
+          <span>捕获 {{ new Date(detailItem.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span>
+          <span v-if="detailItem.updatedAt" title="最近一次修改时间">更新 {{ new Date(detailItem.updatedAt).toLocaleString('zh-CN', { hour12: false }) }}</span>
+          <a v-if="detailItem.sourceUrl" class="lnk ds-src-link" :title="detailItem.sourceUrl" @click.prevent="openSourceUrl(detailItem.sourceUrl!)">{{ detailItem.sourceTitle || detailItem.sourceUrl }}</a>
         </div>
-        <!-- O24：采集来源展示（标题可点击打开原页面） -->
-        <div v-if="detailItem.sourceTitle || detailItem.sourceUrl" class="detail-src">
-          <span class="ds-ico">📎</span>
-          <a v-if="detailItem.sourceUrl" class="ds-link" :title="detailItem.sourceUrl" @click.prevent="openSourceUrl(detailItem.sourceUrl!)">{{ detailItem.sourceTitle || detailItem.sourceUrl }}</a>
-          <span v-else class="ds-title">{{ detailItem.sourceTitle }}</span>
+        <div class="detail-link-add" style="margin-top:10px">
+          <input v-model="detailItem.sourceUrl" placeholder="来源链接（网页 / 本地路径 / obsidian://，失焦即保存）…" class="detail-link-input"
+            @change="update(detailItem.id, { sourceUrl: detailItem.sourceUrl })" />
         </div>
-        <div class="detail-link-add">
-          <input v-model="detailItem.sourceUrl" placeholder="链接（网页 / 本地路径 / obsidian://，双击卡片直达）…" class="detail-link-input" />
-          <button class="mini-btn" @click="update(detailItem.id, { sourceUrl: detailItem.sourceUrl })">保存链接</button>
-        </div>
-        <div style="margin-top:14px">
-          <div class="detail-sec-head">
-            <span style="font-size:11px;font-weight:600;color:var(--text-3)">📎 附件（图片弹窗预览 / HTML 新标签打开）</span>
-            <AssetBadge v-if="detailItem?.assets?.length" :assets="detailItem.assets" />
-          </div>
-          <AssetManager v-model="detailItem.assets" @update:model-value="onCurioAssetsChange" @html-added="onCurioHtmlAdded" />
-        </div>
-        <div class="detail-tags" style="margin-top:14px">
-          <div style="font-size:11px;font-weight:600;color:var(--text-3);margin-bottom:7px">🏷 标签（来自标签管理体系）</div>
+        <div style="margin-top:12px">
           <TagPicker v-model="detailItem.tags" @update:model-value="update(detailItem.id, { tags: $event })" />
         </div>
+        <details class="ds-details" style="margin-top:14px">
+          <summary>📎 附件 <span v-if="detailItem.assets?.length" class="cnt">({{ detailItem.assets.length }})</span><span class="right">图片弹窗预览 / HTML 新标签打开</span></summary>
+          <AssetManager v-model="detailItem.assets" @update:model-value="onCurioAssetsChange" @html-added="onCurioHtmlAdded" />
+        </details>
       </template>
       <template #footer>
         <button class="mini-btn" :class="{pinon: detailItem?.pinned}" @click="detailItem && togglePin(detailItem.id)">{{ detailItem?.pinned ? '📌 已置顶' : '📌 置顶' }}</button>
         <button class="mini-btn" @click="detailItem && openConvert(detailItem, 'task')">转为任务</button>
         <button class="mini-btn" @click="detailItem && openConvert(detailItem, 'res')">归档为资源</button>
-        <button class="mini-btn primary" style="margin-left:auto" @click="saveDetail">保存</button>
+        <button class="mini-btn primary" style="margin-left:auto" @click="saveDetail">保存 <span style="font-size:10px;opacity:.75;margin-left:2px">⏎</span></button>
       </template>
     </Drawer>
 
@@ -622,6 +624,10 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
 .mini-btn.primary:hover { background: var(--accent-hover); }
 .mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
 .mini-btn.danger:hover { background: color-mix(in srgb, var(--danger) 8%, transparent); border-color: var(--danger); }
+/* R48 详情重设计补充 */
+.ds-src-link { max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: bottom; }
+.ds-status-wrap { margin-left: 8px; }
+.ds-status-chip2:active { transform: scale(.97); }
 .cz-filters { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
 .cz-filter { font-size: 12px; padding: 5px 12px; border-radius: 99px; background: var(--surface-3); color: var(--text-2); cursor: pointer; transition: all .15s; border: none; font-family: inherit; display: flex; align-items: center; gap: 4px; }
 .cz-filter:hover { background: var(--border); }
@@ -686,7 +692,6 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
 .cz-kanban-text { font-size: 12.5px; color: var(--text); line-height: 1.5; margin-bottom: 6px; }
 .cz-kanban-meta { font-size: 10px; color: var(--text-3); }
 .cz-kanban-empty { text-align: center; padding: 20px; font-size: 11px; color: var(--text-4); border: 1px dashed var(--border); border-radius: var(--radius-xs); }
-.detail-status-row { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
 .detail-sec-head { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
 .status-chip { padding: 5px 12px; border-radius: 99px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; }
 .status-chip:hover { border-color: var(--border-strong); }

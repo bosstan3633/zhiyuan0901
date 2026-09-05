@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+﻿import { computed } from 'vue'
 import { useAppStore } from './app'
 import type { Direction, Project } from '@/shared/models'
 
@@ -6,7 +6,7 @@ import type { Direction, Project } from '@/shared/models'
 export { recordResourceOpen } from '@/shared/storage/stats'
 
 /**
- * 知源引擎数据管理
+ * 方向台数据管理
  * 六层链：Vision → Mission → Direction(战略目标) → Project(攻坚项目) → Metric(成功指标) → Task
  */
 export function useCompass() {
@@ -65,6 +65,23 @@ export function useCompass() {
     return { done, total, pct }
   }
 
+  /** R49-C2/C5：项目停滞判定（简版口径：有任务但近 14 天无推进/完成活动） */
+  function isProjectStalled(project: Project): boolean {
+    const tasks = d.value.tasks.filter(t => !t.deletedAt && t.projectId === project.id)
+    if (!tasks.length) return false
+    const recent = tasks.some(t =>
+      t.status === 'doing' ||
+      (t.updatedAt || 0) >= Date.now() - 14 * 86400_000 ||
+      (t.completedAt || 0) >= Date.now() - 14 * 86400_000
+    )
+    return !recent
+  }
+
+  /** R49-C1：偏航行动 = 未关联项目（无 projectId）的活跃任务数（只读计算，不改写卡片） */
+  function offCourseCount(): number {
+    return d.value.tasks.filter(t => !t.deletedAt && t.status !== 'done' && !t.projectId).length
+  }
+
   // ---- 北极星指标 ----
   // R45-1（V2.20.0）：周期调整为「日/周/累计」三档（撤月档），上排 DHI/WCE/WRR 与下排新增/删除卡全档联动
   type Period = 'day' | 'week' | 'all'
@@ -109,6 +126,10 @@ export function useCompass() {
     const totalCumUsage = d.value.stats?.wrr?.totalCumulativeUsage ?? totalCalls
     const sot = new Date(); sot.setHours(0, 0, 0, 0)
     const todayOpened = d.value.resources.filter(r => !r.deletedAt && (r.lastCalledAt || 0) >= sot.getTime()).length
+    // R47-A1：主数字随档位联动（日=今日打开卡数 / 周=本周次数 / 累计=累计次数），副标给出参照口径
+    const wrrMain = period === 'day' ? todayOpened : period === 'week' ? thisWeekUsage : totalCumUsage
+    const wrrUnit = period === 'day' ? '今日' : period === 'week' ? '本周' : '累计'
+    const wrrSub = period === 'all' ? `今日${todayOpened}卡打开` : `累计${totalCumUsage}次`
 
     // 模块分组数 = 所有工作台的文件夹（分组）总数
     const categoryCount = d.value.categories.length
@@ -120,7 +141,7 @@ export function useCompass() {
     return {
       dhi: { label: dhiLabel, sub: `${dirs.length}方向·${pinnedProjects.length}已投射·${activeProjects}在轨` },
       wce: { label: `${wceCount}项激活`, sub: `${pLabel}+${newInPeriod}` },
-      wrr: { label: `${totalCalls}次打开`, sub: period === 'day' ? `今日${todayOpened}卡打开` : period === 'week' ? `本周${thisWeekUsage}次` : `累计${totalCumUsage}次` },
+      wrr: { label: `${wrrUnit}${wrrMain}次打开`, sub: wrrSub },
       categories: categoryCount,
       resources: resourceCount,
       taskRate: tasks.length ? `${taskRate}%` : '—'
@@ -131,7 +152,7 @@ export function useCompass() {
   const formulas = {
     dhi: 'DHI = 已投射至灯塔的项目中「周期窗口内有任务推进」的占比：全部=清晰，过半=关注，不足半数=模糊；活跃窗口随周期联动（日=今日/周=近14天/累计=全部）；投射仅项目层支持（战略目标层级已移除）',
     wce: 'WCE = 状态为「探索中 + 已求证」的好奇心卡片数；副指标 = 本周期新捕获数（日/周/累计随上方周期切换）',
-    wrr: 'WRR = 所有资源卡「被打开次数」之和（累计不清零）；副指标 = 日档今日打开卡数 / 周档本周打开次数 / 累计档累计次数',
+    wrr: 'WRR 主数字随周期联动：日=今日打开卡数 / 周=本周打开次数(stats.wrr.thisWeekUsage) / 累计=所有资源卡被打开次数之和；副指标给出参照口径（日/周档显示累计值，累计档显示今日值）',
     groups: '模块分组数 = 所有工作台下的文件夹（分组）总数',
     resources: '链接卡片总数 = 全部资源卡数量（不含回收站）',
     taskRate: '未归档任务 = 未挂成功指标的任务数（含未挂项目的）；在抽屉中级联关联项目→指标后即完成归档'
@@ -140,6 +161,7 @@ export function useCompass() {
   return {
     d, visionText, missionText, directions, allProjects, projectById,
     focusedProjects, toggleFocusProject, projectProgress,
+    isProjectStalled, offCourseCount,
     northStarMetrics, formulas
   }
 }

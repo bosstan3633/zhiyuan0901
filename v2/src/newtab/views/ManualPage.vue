@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 使用手册独立页（/manual，第廿一轮 Bug4）
  * 左目录锚点定位 + 右内容；富文本样式为非 scoped，v-html 内容可完整生效。
@@ -24,18 +24,18 @@ function downloadShare() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = '知源工作台使用手册.html'
+  a.download = '知源调度台使用手册.html'
   a.click()
   URL.revokeObjectURL(url)
 }
-onMounted(() => { document.title = '使用手册 · 知源工作台' })
+onMounted(() => { document.title = '使用手册 · 知源调度台' })
 </script>
 
 <template>
   <div class="mn-page">
     <header class="mn-head">
       <button class="mn-back" @click="router.push('/settings')"><Icon name="arrowright" :size="13" style="transform: rotate(180deg)" />返回设置</button>
-      <div class="mn-brand">📖 知源工作台 · 使用手册 <span class="mn-ver">V2.20.1</span></div>
+      <div class="mn-brand">📖 知源调度台 · 使用手册 <span class="mn-ver">V2.22.0</span></div>
       <div class="mn-spacer" />
       <button class="mn-dl" @click="downloadShare">⬇ 下载分享版</button>
     </header>
@@ -55,7 +55,7 @@ onMounted(() => { document.title = '使用手册 · 知源工作台' })
             <div class="mn-content" v-html="sec.html"></div>
           </section>
         </template>
-        <div class="mn-foot">知源工作台 · 从好奇出发，向源头求证</div>
+        <div class="mn-foot">知源调度台 · 从好奇出发，向源头求证</div>
       </main>
     </div>
   </div>

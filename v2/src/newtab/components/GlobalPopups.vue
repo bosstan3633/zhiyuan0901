@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- 全局搜索 -->
   <div class="gp-overlay" :class="{open: activePanel==='search'}" @click.self="closeAll">
     <div class="gp-panel">
@@ -22,6 +22,9 @@
         <div class="gp-type-tab" :class="{active: currentType==='res'}" @click="setType('res')">📄 资源卡 <span class="gp-tt-count">{{ counts.res }}</span></div>
         <div class="gp-type-tab" :class="{active: currentType==='task'}" @click="setType('task')">✅ 任务卡 <span class="gp-tt-count">{{ counts.task }}</span></div>
         <div class="gp-type-tab" :class="{active: currentType==='curio'}" @click="setType('curio')">💡 好奇心 <span class="gp-tt-count">{{ counts.curio }}</span></div>
+        <!-- R49-G：工作台（分类树定位）/ 项目（直达项目详情）双类型 -->
+        <div class="gp-type-tab" :class="{active: currentType==='ws'}" @click="setType('ws')">🗂 工作台 <span class="gp-tt-count">{{ counts.ws }}</span></div>
+        <div class="gp-type-tab" :class="{active: currentType==='proj'}" @click="setType('proj')">📦 项目 <span class="gp-tt-count">{{ counts.proj }}</span></div>
       </div>
       <div class="gp-results" ref="resultsEl">
         <!-- B1：浏览模式（空查询）= 快捷操作 + 最近打开 -->
@@ -34,18 +37,45 @@
             <span class="gp-ri-link url">↵</span>
           </div>
           <template v-if="recentResources.length">
-            <div class="gp-group-title">最近打开</div>
+            <div class="gp-group-title">🔥 近期最常用 · 按调用次数</div>
             <div v-for="(r, j) in recentResources" :key="r.id"
               class="gp-result-item" :class="{selected: selIndex===QUICK_ACTIONS.length+j}"
               @click="runFlat(QUICK_ACTIONS.length+j)" @dblclick="runFlat(QUICK_ACTIONS.length+j)" @mouseenter="selIndex=QUICK_ACTIONS.length+j"
               :title="'单击 → 打开链接（无链接则定位） · Ctrl+Enter → 定位并打开详情'">
-              <div class="gp-ri-icon res">📄</div>
-              <div class="gp-ri-main"><div class="gp-ri-title">{{ r.title }}</div></div>
-              <span class="gp-ri-link url">🔥{{ r.callCount }}</span>
+              <div class="gp-ri-icon" :class="r.iconClass">{{ r.iconText }}</div>
+              <div class="gp-ri-main"><div class="gp-ri-title">{{ r.title }}</div>
+                <div class="gp-ri-cat">{{ r.ws }}<template v-if="r.cat"> · {{ r.cat }}</template></div>
+              </div>
+              <span class="gp-ri-link url">🔥{{ (r.raw as any).callCount || 0 }}</span>
             </div>
           </template>
         </template>
         <!-- B1：搜索模式 = 分组 + 关键词高亮 -->
+        <template v-else>
+        <!-- R49-G2：工作台类型 → 工作台→分类树（点击分类定位：有卡=高亮第一张，无卡=高亮分类行） -->
+        <template v-if="currentType==='ws'">
+          <div v-if="!wsTree.length" class="gp-search-empty">
+            <div class="gp-se-icon">🗂</div>
+            <div class="gp-se-text">没有匹配的工作台</div>
+          </div>
+          <template v-for="wsn in wsTree" :key="wsn.id">
+            <div class="gp-group-title">🗂 {{ wsNameOf(wsn.id) }} <span class="gp-group-cnt">{{ wsn.cards }} 张卡</span></div>
+            <div v-for="cn in wsn.cats" :key="wsn.id + '-' + cn.id"
+              class="gp-result-item" @click="locateCat(wsn.id, cn)" @dblclick="locateCat(wsn.id, cn)"
+              title="单击 → 定位到该分类（有卡高亮第一张，无卡高亮分类行）">
+              <div class="gp-ri-icon ws">📁</div>
+              <div class="gp-ri-main">
+                <div class="gp-ri-title">{{ cn.name }}</div>
+                <div class="gp-ri-meta">
+                  <span class="gp-ri-badge cat">{{ cn.count }} 张卡</span>
+                  <span v-if="!cn.count" class="gp-ri-badge">空分类 · 定位到分类</span>
+                </div>
+              </div>
+              <span class="gp-ri-link url">定位 ↗</span>
+            </div>
+            <div v-if="!wsn.cats.length" class="gp-group-more">该工作台暂无分类</div>
+          </template>
+        </template>
         <template v-else>
         <div v-if="!filteredResults.length" class="gp-search-empty">
           <div class="gp-se-icon">🪹</div>
@@ -90,19 +120,20 @@
                   <div class="gp-convert-menu-item" @click="convertCurio(item, 'task')">✅ 转化为任务卡</div>
                 </div>
               </div>
-              <button class="gp-ri-act go" title="跳转知源引擎" @click.stop="openItem(item)">↗</button>
+              <button class="gp-ri-act go" title="跳转方向台" @click.stop="openItem(item)">↗</button>
             </template>
           </div>
           </div><!-- /gp-result-item -->
         </template>
         </template>
+        </template><!-- /R49-G ws 树分支 v-else -->
       </div>
       <div class="gp-panel-foot">
         <span><kbd>↑↓</kbd> 选择</span>
         <span><kbd>⏎</kbd> 打开</span>
         <span><kbd>Tab</kbd> 过滤类型</span>
         <span><kbd>Esc</kbd> 关闭</span>
-        <span class="gp-foot-brand">知源工作台 · 从好奇出发，向源头求证</span>
+        <span class="gp-foot-brand">知源调度台 · 你不缺信息，你缺一座控制中心</span>
       </div>
     </div>
   </div>
@@ -146,7 +177,7 @@
               <label class="gp-field-label">存入工作台</label>
               <select class="gp-status-select" v-model="capForm.workspaceId">
                 <option v-for="ws in userWorkspaces" :key="ws.id" :value="ws.id">{{ ws.icon }} {{ ws.name }}</option>
-                <option disabled>🧭 知源引擎（系统）</option>
+                <option disabled>🧭 方向台（系统）</option>
                 <option disabled>✅ 任务中心（系统）</option>
               </select>
             </div>
@@ -247,8 +278,9 @@ import { useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
 import { showToast } from '@/shared/components/toast'
 import { uid, normalizeUrl } from '@/shared/utils'
-import { matchPinyin } from '@/shared/utils/pinyin'
-import { recordResourceOpen } from '@/shared/storage/stats'
+// V2.21：拼音字典改为按需加载（约 296KB），未就绪时降级为纯文本匹配
+import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
+import { recordResourceOpen, recordCardOpen, recordWorkspaceOpen } from '@/shared/storage/stats'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { useConfirm } from '@/shared/components/confirm'
 import { emitOpenDrawer } from '@/shared/utils/bus'
@@ -273,7 +305,9 @@ function openPanel(p: PanelType) {
   lastFocused = document.activeElement as HTMLElement | null
   activePanel.value = p
   if (p === 'capture') { capSaved.value = false }
-  if (p === 'search') { currentType.value = 'all' }
+  // V2.21：字典按需加载——仅在搜索面板被打开时才拉取，不进新标签页首屏同步路径
+  // R47-A4：每次唤起清空上次查询词，恢复浏览态（无输入=近期热度排序）
+  if (p === 'search') { currentType.value = 'all'; searchQuery.value = ''; void ensurePinyin() }
   if (p === 'curio') {
     // 第十七轮：仅当选中文本时附带来源；无选中 → 链接为空，不预设默认值
     curioForm.sourceTitle = ''
@@ -347,13 +381,21 @@ async function prefillCapture() {
 
 // ===== 全局搜索 =====
 const searchQuery = ref('')
-/** B29：类型过滤单一状态源——搜索框 chip 与类型 Tab 行共用，Tab 切换两者同步 */
-const currentType = ref<'all'|'res'|'task'|'curio'>('all')
+/**
+ * V2.21：拼音字典就绪状态（响应式）。
+ * filteredResults 通过读取它建立依赖——字典异步加载完成后，
+ * computed 自动重算一次，把拼音/首字母命中补进结果，无需用户重新输入。
+ */
+const pinyinReady = ref(isPinyinReady())
+onPinyinReady(() => { pinyinReady.value = true })
+/** B29：类型过滤单一状态源——搜索框 chip 与类型 Tab 行共用，Tab 切换两者同步
+ *  R49-G：新增 'ws' 工作台（分类树定位）/ 'proj' 项目（直达项目详情）两类型 */
+const currentType = ref<'all'|'res'|'task'|'curio'|'ws'|'proj'>('all')
 const selIndex = ref(0)
 const convertMenuId = ref<string | null>(null)
 
-function typeLabel(t: 'all'|'res'|'task'|'curio'): string {
-  return t === 'res' ? '📄 资源卡' : t === 'task' ? '✅ 任务卡' : t === 'curio' ? '💡 好奇心' : '🔍 搜全部'
+function typeLabel(t: 'all'|'res'|'task'|'curio'|'ws'|'proj'): string {
+  return t === 'res' ? '📄 资源卡' : t === 'task' ? '✅ 任务卡' : t === 'curio' ? '💡 好奇心' : t === 'ws' ? '🗂 工作台' : t === 'proj' ? '📦 项目' : '🔍 搜全部'
 }
 const filterLabel = computed(() => typeLabel(currentType.value))
 
@@ -363,14 +405,16 @@ const counts = computed(() => {
     all: all.resources.filter(r=>!r.deletedAt).length + all.tasks.filter(t=>!t.deletedAt).length + all.curiosities.filter(c=>!c.deletedAt).length + all.workspaces.filter(w=>!w.archived).length,
     res: all.resources.filter(r=>!r.deletedAt).length,
     task: all.tasks.filter(t=>!t.deletedAt).length,
-    curio: all.curiosities.filter(c=>!c.deletedAt).length
+    curio: all.curiosities.filter(c=>!c.deletedAt).length,
+    ws: all.workspaces.filter(w=>!w.archived).length,
+    proj: allProjects().filter(p => showDoneProjects.value || p.status !== 'archived').length
   }
 })
 
 interface SearchResult {
   id: string
-  // 第卅二轮 REQ-008：新增 'ws' 工作台实体命中
-  type: 'res'|'task'|'curio'|'ws'
+  // 第卅二轮 REQ-008：新增 'ws' 工作台实体命中；R49-G：新增 'proj' 项目实体命中
+  type: 'res'|'task'|'curio'|'ws'|'proj'
   iconClass: string
   iconText: string
   title: string
@@ -426,7 +470,7 @@ const allResults = computed<SearchResult[]>(() => {
     const statusText = c.status==='todo'?'🔵 待探索':c.status==='doing'?'🟡 探索中':c.status==='done'?'🟢 已求证':'⚪ 已搁置'
     results.push({
       id: c.id, type: 'curio', iconClass: 'curio', iconText: '💡',
-      title: c.question, ws: '知源罗盘', cat: '好奇心',
+      title: c.question, ws: '调度台', cat: '好奇心',
       badges: [{type:'curio-status', text: statusText}],
       raw: c
     })
@@ -444,8 +488,54 @@ const allResults = computed<SearchResult[]>(() => {
     })
   })
 
+  // R49-G：项目实体（点击直达项目详情 /compass/projects?p=；受已完成显隐开关约束）
+  allProjects().filter(p => showDoneProjects.value || p.status !== 'archived').forEach(p => {
+    const dir = d.value.compass.directions.find(dr => dr.projects.some(x => x.id === p.id))
+    const badges: {type:string,text:string}[] = []
+    if (p.isFocused) badges.push({ type: 'prio-high', text: '🎯 主攻' })
+    if (p.pinnedToLighthouse) badges.push({ type: 'ws-badge', text: '📡 已投射' })
+    if (p.status === 'archived') badges.push({ type: 'curio-status', text: '已完成' })
+    results.push({
+      id: p.id, type: 'proj', iconClass: 'ws', iconText: '📦',
+      title: p.name, ws: '方向台', cat: dir?.name || '—',
+      badges,
+      summary: '',
+      raw: p as any
+    })
+  })
+
   return results
 })
+
+/** R49-G4：项目类型受已完成显隐开关约束（与主航线/项目总览/完整方向树共用 UIPrefs） */
+const showDoneProjects = computed(() => (store.ui as any)?.showDoneProjects !== false)
+
+/** R49-G2：工作台类型 → 工作台→分类树（含分类卡片数；关键字过滤工作台名/分类名） */
+const wsTree = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  return d.value.workspaces.filter(w => !w.archived)
+    .filter(w => !q || w.name.toLowerCase().includes(q))
+    .map(w => {
+      const cats = d.value.categories.filter(c => c.workspaceId === w.id)
+        .filter(c => !q || c.name.toLowerCase().includes(q))
+        .map(c => {
+          const fam = new Set([c.id, ...d.value.categories.filter(x => x.parentId === c.id).map(x => x.id)])
+          return { id: c.id, name: c.name, count: d.value.resources.filter(r => !r.deletedAt && r.workspaceId === w.id && fam.has(r.categoryId || '')).length }
+        })
+      return { id: w.id, name: w.name, cards: d.value.resources.filter(r => !r.deletedAt && r.workspaceId === w.id).length, cats }
+    })
+})
+function wsNameOf(id: string): string {
+  return (d.value.workspaces.find(w => w.id === id)?.name || '').replace(/^[^\s]+\s/, '')
+}
+/** R49-G3：点击分类 → 定位工作台该分类（有卡=高亮第一张；无卡=高亮分类行） */
+function locateCat(wsId: string, cat: { id: string; name: string }) {
+  recordWorkspaceOpen(d.value, d.value.workspaces.find(w => w.id === wsId))
+  store.persist()
+  closeAll()
+  router.push({ path: `/workspace/${wsId}`, query: { cat: cat.id } })
+  showToast(`↗ 定位到「${cat.name}」`)
+}
 
 const filteredResults = computed<SearchResult[]>(() => {
   let list = allResults.value
@@ -456,7 +546,10 @@ const filteredResults = computed<SearchResult[]>(() => {
     list = list.filter(r => {
       const blob = (r.title + ' ' + r.ws + ' ' + r.cat + ' ' + (r.summary||'') + ' ' + (r.link?.text||'')).toLowerCase()
       // 第十九轮：支持拼音/首字母命中中文标题（如 sj → 设计…）
-      return parts.every(p => blob.includes(p) || matchPinyin(r.title, p))
+      // V2.21：先读 pinyinReady 建立响应式依赖——字典未就绪时短路，纯文本匹配照常；
+      //        字典到位后 pinyinReady 翻转，本 computed 自动重算，拼音命中无缝补入。
+      const pinyinOn = pinyinReady.value
+      return parts.every(p => blob.includes(p) || (pinyinOn && matchPinyin(r.title, p)))
     })
   }
   // 第卅三轮 REQ-020：全局检索加权排序 —— 置顶 > 星标 > 普通命中度（稳定排序，同权重保持原顺序）
@@ -471,33 +564,35 @@ watch(filteredResults, () => { selIndex.value = flatList.value.length ? 0 : -1 }
 const isBrowseMode = computed(() => !searchQuery.value.trim() && currentType.value === 'all')
 
 const QUICK_ACTIONS = [
-  { label: '打开今日行动', icon: 'flame', run: () => { closeAll(); router.push('/compass/actions') } },
-  { label: '打开项目策展', icon: 'layout', run: () => { closeAll(); router.push('/compass/projects') } },
+  { label: '打开方向台', icon: 'compass', run: () => { closeAll(); router.push('/compass') } },
+  { label: '打开项目详情', icon: 'layout', run: () => { closeAll(); router.push('/compass/projects') } },
   { label: '打开方向树', icon: 'branch', run: () => { closeAll(); router.push('/compass/tree') } },
   { label: '打开设置', icon: 'settings', run: () => { closeAll(); router.push('/settings') } },
   { label: '采集资源卡（Ctrl+Shift+J）', icon: 'download', run: () => openPanel('capture') },
   { label: '采集好奇心（Ctrl+Shift+I）', icon: 'bulb', run: () => openPanel('curio') },
 ]
-const recentResources = computed(() =>
-  d.value.resources.filter(r => !r.deletedAt && (r.lastCalledAt || r.callCount))
-    .sort((a, b) => (b.lastCalledAt || 0) - (a.lastCalledAt || 0)).slice(0, 5)
-)
+// R47-B4：浏览模式热度列表——全类型（资源/任务/好奇/工作台）按调用次数降序，次数并列按最近打开时间
+const recentResources = computed<SearchResult[]>(() => {
+  const heat = allResults.value.filter(x => (x.raw as AnyCard | Workspace).callCount)
+  heat.sort((a, b) => {
+    const dc = ((b.raw as any).callCount || 0) - ((a.raw as any).callCount || 0)
+    return dc !== 0 ? dc : ((b.raw as any).lastCalledAt || 0) - ((a.raw as any).lastCalledAt || 0)
+  })
+  return heat.slice(0, 8)
+})
 /** 浏览模式的扁平列表（快捷操作 + 最近打开） */
 type FlatItem = { kind: 'qa'; qa: typeof QUICK_ACTIONS[number] } | { kind: 'res'; item: SearchResult } | { kind: 'result'; item: SearchResult }
 const flatList = computed<FlatItem[]>(() => {
   if (!isBrowseMode.value) return filteredResults.value.map(item => ({ kind: 'result' as const, item }))
   const out: FlatItem[] = []
   QUICK_ACTIONS.forEach(qa => out.push({ kind: 'qa', qa }))
-  recentResources.value.forEach(r => {
-    const item = allResults.value.find(x => x.id === r.id)
-    if (item) out.push({ kind: 'res', item })
-  })
+  recentResources.value.forEach(item => out.push({ kind: 'res', item }))
   return out
 })
 const groupedResults = computed(() => {
-  const defs: { type: 'res'|'task'|'curio'|'ws'; label: string }[] = [
+  const defs: { type: 'res'|'task'|'curio'|'ws'|'proj'; label: string }[] = [
     { type: 'res', label: '📄 资源卡' }, { type: 'task', label: '✅ 任务卡' }, { type: 'curio', label: '💡 好奇心' },
-    { type: 'ws', label: '🗂 工作台' }
+    { type: 'ws', label: '🗂 工作台' }, { type: 'proj', label: '📦 项目' }
   ]
   // REQ-046 速度优化：每组最多渲染 30 条，防超大结果集首屏卡顿
   const MAX_PER_GROUP = 30
@@ -542,7 +637,7 @@ function runFlatLocator(index: number) {
     return
   }
   if (item.type === 'task') {
-    router.push({ path: '/compass/actions', query: { hl: item.id } })
+    router.push({ path: '/', query: { hl: item.id } })
     closeAll()
     emitOpenDrawer({ kind: 'task', id: item.id })
     return
@@ -563,7 +658,7 @@ function runFlatLocator(index: number) {
 }
 
 function runSearch() { /* reactive, no-op */ }
-function setType(t: 'all'|'res'|'task'|'curio') { currentType.value = t }
+function setType(t: 'all'|'res'|'task'|'curio'|'ws'|'proj') { currentType.value = t }
 function clearFilter() { currentType.value = 'all' }
 
 function onSearchKeydown(e: KeyboardEvent) {
@@ -581,10 +676,10 @@ function onSearchKeydown(e: KeyboardEvent) {
     // 关键词被视为指令（消费掉），普通关键词保留；chip 与类型 Tab 行高亮同步更新
     e.preventDefault()
     const q = searchQuery.value.trim()
-    const kw = ([['任务', 'task'], ['资源', 'res'], ['好奇心', 'curio'], ['好奇', 'curio'], ['全部', 'all']] as const).find(([k]) => k === q)
+    const kw = ([['任务', 'task'], ['资源', 'res'], ['好奇心', 'curio'], ['好奇', 'curio'], ['工作台', 'ws'], ['项目', 'proj'], ['全部', 'all']] as const).find(([k]) => k === q)
     if (kw) { currentType.value = kw[1]; searchQuery.value = '' }
     else {
-      const cycle: Array<'all'|'res'|'task'|'curio'> = ['all', 'res', 'task', 'curio']
+      const cycle: Array<'all'|'res'|'task'|'curio'|'ws'|'proj'> = ['all', 'res', 'task', 'curio', 'ws', 'proj']
       currentType.value = cycle[(cycle.indexOf(currentType.value) + 1) % cycle.length]
     }
     selIndex.value = 0
@@ -614,8 +709,17 @@ function openItem(item: SearchResult) {
   if (item?.id) { lastOpenId = item.id; lastOpenTs = now }
   if (item.type === 'ws') {
     // 第卅二轮 REQ-008：工作台条目 → 直接打开对应工作台
+    recordWorkspaceOpen(d.value, d.value.workspaces.find(w => w.id === item.id))
+    store.persist()
     router.push(`/workspace/${item.id}`)
     closeAll()
+    return
+  }
+  if (item.type === 'proj') {
+    // R49-G：项目条目 → 直达项目详情（二级页）
+    router.push({ path: '/compass/projects', query: { p: item.id } })
+    closeAll()
+    showToast('↗ 已打开项目详情')
     return
   }
   if (item.type === 'res') {
@@ -635,11 +739,15 @@ function openItem(item: SearchResult) {
       showToast('↗ 已定位到卡片所在工作台')
     }
   } else if (item.type === 'task') {
-    router.push({ path: '/compass/actions', query: { hl: item.id } })
-    showToast('↗ 已定位到今日行动的任务')
-  } else {
+    recordCardOpen(d.value, d.value.tasks.find(t => t.id === item.id))
+    store.persist()
     router.push({ path: '/', query: { hl: item.id } })
-    showToast('↗ 已定位到知源罗盘好奇心')
+    showToast('↗ 已定位到调度台的任务')
+  } else {
+    recordCardOpen(d.value, d.value.curiosities.find(c => c.id === item.id))
+    store.persist()
+    router.push({ path: '/', query: { hl: item.id } })
+    showToast('↗ 已定位到调度台好奇心')
   }
   closeAll()
 }
@@ -696,7 +804,7 @@ function convertCurio(item: SearchResult, target: 'res'|'task') {
     d.value.tasks.unshift(t)
     c.deletedAt = Date.now()
     store.persist()
-    showToast('✓ 已转化为任务，跳转任务中心', { label: '查看', cb: () => router.push('/compass/actions') })
+    showToast('✓ 已转化为任务，前往任务调度', { label: '查看', cb: () => router.push('/') })
   }
   closeAll()
 }
@@ -710,7 +818,7 @@ const SHORTCUT_GROUPS = [
     { keys: 'Ctrl+Shift+K', desc: '打开工作台' },
   ]},
   { title: '应用内', items: [
-    { keys: 'Alt+1', desc: '知源引擎（修饰键可自定义）' },
+    { keys: 'Alt+1', desc: '方向台（修饰键可自定义）' },
     { keys: 'Alt+2…9', desc: '各工作台' },
     { keys: '?', desc: '呼出本速查' },
   ]},
@@ -819,6 +927,11 @@ function findProject(projId: string) {
   return null
 }
 
+/** R49-G：跨方向扁平项目列表（复用 useCompass 口径，避免多处手写双循环漂移） */
+function allProjects() {
+  return d.value.compass.directions.flatMap(dir => dir.projects)
+}
+
 // 快捷键由 App.vue 统一管理，通过 openPanel/closeAll 暴露方法
 // 「已保存」状态下捕获 Enter / Esc
 onMounted(() => window.addEventListener('keydown', onSavedKeydown, true))
@@ -922,6 +1035,8 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-ri-icon.ws { background: var(--accent-light); }
 .gp-ri-badge.ws-badge { background: var(--accent-light); color: var(--accent); }
 .gp-ri-main { flex: 1; min-width: 0; }
+/* R47-B4：浏览态热度条目的归属小字 */
+.gp-ri-cat { font-size: 11px; color: var(--text-3); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gp-ri-title { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; line-height: 1.4; }
 .gp-ri-meta { display: flex; gap: 5px; margin-top: 3px; flex-wrap: wrap; align-items: center; }

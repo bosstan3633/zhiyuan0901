@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="AOkgI94beFohiSTARfuWfl">
+<head data-page-node-id="OTn7h4GsOLdgP2Ejvwh6xv">
+<meta charset="UTF-8" data-page-node-id="FQZf1CVcsdY358cbxDKBYQ">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="s5n1bZMu1NQ5niCWWMWhb1">
+<title>知源工作台 · 详情页重设计线框图 V1（参考 Linear 设计规范）</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --surface:#ffffff; --border:#e4e4e7; --border-strong:#d4d4d8;
+    --text:#18181b; --text-2:#52525b; --text-3:#a1a1aa;
+    --accent:#5e6ad2; --accent-soft:#eef0fb;
+    --green:#16a34a; --green-soft:#ecfdf3;
+    --amber:#d97706; --amber-soft:#fffbeb;
+    --red:#dc2626; --red-soft:#fef2f2;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.5;padding:40px 32px 80px;}
+  .wrap{max-width:1520px;margin:0 auto;}
+
+  /* ===== header ===== */
+  h1{font-size:22px;font-weight:600;letter-spacing:-.01em;}
+  .sub{color:var(--text-2);margin-top:6px;font-size:13px;}
+  .principles{display:flex;gap:12px;margin:28px 0 40px;flex-wrap:wrap;}
+  .principle{flex:1;min-width:260px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+  .principle b{display:block;font-size:13px;font-weight:600;margin-bottom:6px;}
+  .principle span{font-size:12px;color:var(--text-2);}
+
+  /* ===== wireframe rows ===== */
+  .row{display:flex;gap:28px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap;}
+  .panel-col{flex:0 0 460px;}
+  .notes-col{flex:1;min-width:380px;}
+  .panel-title{font-size:16px;font-weight:600;margin-bottom:4px;}
+  .panel-title small{font-weight:400;color:var(--text-3);font-size:12px;margin-left:8px;}
+  .panel-sub{font-size:12px;color:var(--text-2);margin-bottom:12px;}
+
+  /* ===== the mock detail sheet ===== */
+  .sheet{background:var(--surface);border:1px solid var(--border-strong);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.06);overflow:hidden;font-size:13px;}
+  .sh{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);}
+  .sh .type-ic{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;}
+  .sh h3{font-size:14px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .icon-btn{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:13px;flex:none;}
+  .icon-btn:hover{background:#f4f4f5;color:var(--text-2);}
+
+  .chip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;border-radius:999px;font-size:11.5px;font-weight:500;flex:none;}
+  .chip .dot{width:6px;height:6px;border-radius:50%;}
+  .chip.caret::after{content:"▾";font-size:9px;color:inherit;opacity:.6;margin-left:1px;}
+  .chip.exploring{background:var(--amber-soft);color:var(--amber);}
+  .chip.exploring .dot{background:var(--amber);}
+  .chip.doing{background:var(--accent-soft);color:var(--accent);}
+  .chip.doing .dot{background:var(--accent);}
+  .chip.neutral{background:#f4f4f5;color:var(--text-2);}
+  .chip.neutral .dot{background:var(--text-3);}
+
+  /* hero */
+  .hero{padding:20px 20px 16px;}
+  .hero-label{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--text-3);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+  .hero-label .k{font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-3);}
+  .quote{border-left:3px solid var(--accent);padding:2px 0 2px 14px;color:var(--text);font-size:14px;line-height:1.7;}
+  .quote .dim{color:var(--text-3);}
+  .desc-area{min-height:120px;border:1px dashed var(--border-strong);border-radius:8px;padding:12px 14px;color:var(--text-2);font-size:13.5px;line-height:1.7;}
+  .link-card{display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:9px;padding:10px 12px;background:#fafafa;}
+  .favicon{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#5e6ad2,#8b5cf6);flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;}
+  .link-card .meta{flex:1;min-width:0;}
+  .link-card .u{font-size:12.5px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .link-card .d{font-size:11px;color:var(--text-3);}
+  .open-btn{flex:none;background:var(--accent);color:#fff;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:500;}
+
+  /* meta line */
+  .metaline{padding:0 20px 14px;font-size:11.5px;color:var(--text-3);display:flex;gap:14px;align-items:center;}
+  .metaline .lnk{color:var(--text-3);border-bottom:1px dashed var(--border-strong);}
+
+  /* property tokens */
+  .props{padding:4px 20px 16px;display:flex;flex-wrap:wrap;gap:8px;}
+  .prop{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text-2);background:var(--surface);}
+  .prop .k{color:var(--text-3);}
+  .prop .v{color:var(--text);font-weight:500;}
+  .prop .ic{font-size:12px;}
+  .prop::after{content:"▾";font-size:9px;color:var(--text-3);}
+  .prop.tag::after{content:none;}
+  .prop.tag.add{border-style:dashed;color:var(--text-3);background:transparent;}
+
+  /* sections */
+  .sect{border-top:1px solid var(--border);}
+  .sect-h{display:flex;align-items:center;gap:8px;padding:10px 20px;font-size:12px;font-weight:500;color:var(--text-2);cursor:default;}
+  .sect-h .tw{color:var(--text-3);font-size:10px;}
+  .sect-h .cnt{color:var(--text-3);font-weight:400;}
+  .sect-h .right{margin-left:auto;color:var(--text-3);font-size:11px;}
+  .sect-b{padding:0 20px 16px 42px;}
+  .attach-row{display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12.5px;color:var(--text-2);margin-bottom:8px;background:#fafafa;}
+  .attach-row .ext{width:30px;height:22px;border-radius:5px;background:#eef0fb;color:var(--accent);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none;}
+  .attach-add{border:1px dashed var(--border-strong);border-radius:8px;padding:8px;color:var(--text-3);font-size:12px;text-align:center;}
+  .hist-row{display:flex;gap:10px;font-size:12px;color:var(--text-2);padding:4px 0;}
+  .hist-row .t{color:var(--text-3);flex:none;width:110px;}
+
+  /* footer */
+  .ft{display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1px solid var(--border);background:#fafafa;}
+  .btn{height:30px;padding:0 13px;border-radius:8px;font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;gap:6px;}
+  .btn.ghost{color:var(--text-2);}
+  .btn.ghost:hover{background:#f0f0f1;}
+  .btn.primary{background:var(--accent);color:#fff;}
+  .btn.danger-ghost{color:var(--red);}
+  .btn .kbd{font-size:10px;background:rgba(255,255,255,.22);border-radius:4px;padding:1px 5px;font-weight:400;}
+  .ft .spacer{flex:1;}
+
+  /* annotations */
+  .note{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px 8px;margin-bottom:14px;}
+  .note b{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px;}
+  .note p{font-size:12.5px;color:var(--text-2);padding-bottom:10px;}
+  .num{width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;display:inline-flex;align-items:center;justify-content:center;flex:none;font-weight:600;}
+  .tag-pill{display:inline-block;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:5px;margin-right:6px;vertical-align:1px;}
+  .tag-red{background:var(--red-soft);color:var(--red);}
+  .tag-green{background:var(--green-soft);color:var(--green);}
+  .tag-blue{background:var(--accent-soft);color:var(--accent);}
+
+  /* change table */
+  h2{font-size:18px;font-weight:600;margin:48px 0 16px;}
+  table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:12.5px;}
+  th{background:#fafafa;text-align:left;font-weight:600;color:var(--text-2);padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;}
+  td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text-2);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  td:first-child{color:var(--text);font-weight:500;white-space:nowrap;}
+</style>
+</head>
+<body data-page-node-id="9bFAuGErGHdWPlEP2RqSVk">
+<div class="wrap" data-page-node-id="pinwR4xIJfNDy9EaJRf9HF">
+  <h1 data-page-node-id="yaRPSO0xK3EQeGCBYpyp1v">知源工作台 · 详情页重设计线框图 <small style="font-size:13px;color:var(--text-3);font-weight:400;" data-page-node-id="NIB4srlgk8EOaLhMHdPArR">V1 · 供审核 · 参考 Linear 设计规范</small></h1>
+  <p class="sub" data-page-node-id="9ngF3FFBjzSrvMUP10sTVb">适用组件：CuriosityPanel.vue（好奇心详情） / TaskDetailDrawer.vue（任务详情） / ResourceEditForm.vue（资源卡详情）</p>
+
+  <div class="principles" data-page-node-id="aMWdqFKcpRi1tynzxYkPRW">
+    <div class="principle" data-page-node-id="Jij9NEQkRPPmIKNi2M4DaK"><b data-page-node-id="8UP178OGUOI4zp3kPmPc9g">① Hero 区唯一焦点</b><span data-page-node-id="1rPSE9lfdMR72IyObzzS60">每张卡只有一个"灵魂内容区"占据最大视觉权重，其余全部降级为小字灰色元数据。</span></div>
+    <div class="principle" data-page-node-id="WFPxuNmCojzawiObKjCIYw"><b data-page-node-id="qj0CTJ2zfHXbQ8AyXcJqSV">② 属性 Token 化</b><span data-page-node-id="oGzY94gOxPOIWGpDDOoReI">项目/指标/工作台/分类/优先级改为紧凑 chip，一行排多个，点击即改；纵向高度约减 60%。</span></div>
+    <div class="principle" data-page-node-id="xD81Wj5jqinV1tnrMdUoJi"><b data-page-node-id="y1O5kkISM7slh9dQSsrWkG">③ 色彩只做语义信号</b><span data-page-node-id="MKJgApKI8oglPqfYFOPpnF">灰阶为主，仅状态 / 优先级 / 主按钮用色；去掉彩色 emoji 图标堆砌，统一线性小图标。</span></div>
+    <div class="principle" data-page-node-id="IpWcCTZOtPMpqQHPLaOXPp"><b data-page-node-id="GqpIT8AHerrETxk3C9P44I">④ 操作分层 + 快捷键</b><span data-page-node-id="rEI84xbiA44YNPNCy1SbrD">Footer 左=弱化次操作，右=唯一高对比主操作（⏎），危险操作收进 ⋯ 溢出菜单。</span></div>
+  </div>
+
+  <!-- ============ 好奇心 ============ -->
+  <div class="row" data-page-node-id="iI4DnWLNYnD2YFQoDv3s46">
+    <div class="panel-col" data-page-node-id="crFFbqqc0r7hL5UzAk724n">
+      <div class="panel-title" data-page-node-id="pKF1LysNd08VGv9rECC2aW">好奇心详情 <small data-page-node-id="FjdBwJyLmzKf0GiuxlDXgS">CuriosityPanel.vue</small></div>
+      <div class="panel-sub" data-page-node-id="NSdHu6D4XR0916AELiXW9V">灵魂内容 = 原文摘录；状态由四个大按钮 → 一枚下拉 chip</div>
+      <div class="sheet" data-page-node-id="qgzwFQNWYbAQgeUtAJzqkr">
+        <div class="sh" data-page-node-id="6jqj2qsfv31wvHis5BmfzC">
+          <div class="type-ic" style="background:var(--amber-soft);" data-page-node-id="esw5O3sa7ztq4Kyu3iuq70">💡</div>
+          <h3 data-page-node-id="TNhNU7OlORmWtDxxYsENDa">普通人未来3年的机会</h3>
+          <span class="chip exploring caret" data-page-node-id="ZIxZxFFSAWHX1nCNAVFgWW"><span class="dot" data-page-node-id="65bRzTkWD8QR0SD9AaGzOH"></span>待探索</span>
+          <div class="icon-btn" data-page-node-id="9tAEWXeuFeM06dwe47kqST">★</div>
+          <div class="icon-btn" data-page-node-id="XGTUCDlk5aeOEpE219DCQH">⋯</div>
+          <div class="icon-btn" data-page-node-id="i0wNW4EQe2OfTtXujVbXBv">✕</div>
+        </div>
+        <div class="hero" data-page-node-id="SmBGL9ASQOSDblNxcGc5le">
+          <div class="hero-label" data-page-node-id="kGBGBwA2abKhgPhAryd6XL">摘录 <span class="k" data-page-node-id="FDOjvT2Hy6hxqmB5JUAs0X">— 点击即编辑</span></div>
+          <div class="quote" data-page-node-id="k8yuztZFPKHkxa6IPpPVxE">
+            最近看到黄仁勋说了一句话，我挺认同的：普通人和未来3年的机会，其实就三样——数学脑子 + 英语嘴巴 + 一门手艺。<span class="dim" data-page-node-id="I3drRhgB1u3NHB0AaDvaFu">数学脑子不是让我们去学高数，也不是让我们变学霸……</span>
+          </div>
+        </div>
+        <div class="metaline" data-page-node-id="CBAnomfG5k89U8izt1gNRi">
+          <span data-page-node-id="DqQkSKXlBfr53XzCLSota3">捕获 2026/8/31</span><span data-page-node-id="GY8UKOn52CMkRKbutzMXrO">更新 9/2 17:54</span>
+          <span class="lnk" data-page-node-id="u020WnP5CsGNtjF8Ul4VrY">🕘 (2) 历史</span>
+          <span class="lnk" data-page-node-id="tETnHfRIVaLkpCeltKOFng">x.com/i/history ↗</span>
+        </div>
+        <div class="props" data-page-node-id="hZMJ03QZyWqobf0fehVVgR">
+          <span class="prop" data-page-node-id="3y8SQw9TKiHtPXwPnzsS2B"><span class="k" data-page-node-id="ZHQIa6AnJYA963UKEHLcYu">转为</span><span class="v" data-page-node-id="p7QigBhZvG2BP5Dtp5VEHJ">任务</span></span>
+          <span class="prop" data-page-node-id="ueaxKpoNjwlxiTKmPJEuEt"><span class="k" data-page-node-id="GY4rEvmqFtU9ski7a2TgeC">归档为</span><span class="v" data-page-node-id="6qtNlkySRZ47LGDVy7SHSa">资源</span></span>
+          <span class="prop tag" data-page-node-id="kABuzyqLNvhFIj2qm1tYmy">🏷 高考志愿</span>
+          <span class="prop tag" data-page-node-id="khDPXJxZM7lKLwNNDNevua">🏷 AI 观察</span>
+          <span class="prop tag add" data-page-node-id="DpVCMpFiNM3AbzbH3os2Fp">＋ 标签</span>
+        </div>
+        <div class="sect" data-page-node-id="GAmr0CIubCCxb1hC4FrZ3v">
+          <div class="sect-h" data-page-node-id="eahRnkXzIHWvXRSlNtJa1D"><span class="tw" data-page-node-id="AWvuBZOXbO8GoZVQfs7jma">▸</span> 附件 <span class="cnt" data-page-node-id="7jkIY9zsRMmJe69C1vWTZo">(1)</span><span class="right" data-page-node-id="iuEKjXUTxw4BAl8PdSaWDy">图片 / HTML / PDF · 拖入即传</span></div>
+          <div class="sect-b" style="display:none;" data-page-node-id="qo4dFR13sumuDu0ueJy2qu"></div>
+        </div>
+        <div class="ft" data-page-node-id="GLOKnvqyc2m43Q4xaVmsH9">
+          <span class="btn ghost" data-page-node-id="kAysg4X7oQoiKawSly3rA7">📌 置顶</span>
+          <span class="btn ghost" data-page-node-id="fKEIHGgYIBfQeoUolcWxKA">🕘 历史 (2)</span>
+          <span class="spacer" data-page-node-id="OSWpkLXztFG6n4Sie5gNlj"></span>
+          <span class="btn primary" data-page-node-id="ijQ4n1vR4ytGVBzO6rqhF9">保存 <span class="kbd" data-page-node-id="HSVjkvcmfB6VQ5TecZlGyt">⏎</span></span>
+        </div>
+      </div>
+    </div>
+    <div class="notes-col" data-page-node-id="GyF5Q2CowlSGsxtARzsqWw">
+      <div class="note" data-page-node-id="s4tpQu7fAQ9RKRtfEZQZmN"><b data-page-node-id="klrX6bSMBnTUw9QYR0Bhet"><span class="num" data-page-node-id="KER2ZI60v2QvbGuRDDd9Oo">1</span>状态 chip 化</b><p data-page-node-id="EPslixmQiFeQYQh1odtgnG">四个状态大按钮（待探索/探索中/已求证/已搁置）压缩为头部一枚彩色下拉 chip，点击展开菜单切换。省出整块纵向空间，色彩只落在状态这一个语义点上。</p></div>
+      <div class="note" data-page-node-id="EaTPcH3lwlrT6Z4g1SDwRa"><b data-page-node-id="QLUpPfeKk2Qg9mHBPBRMUn"><span class="num" data-page-node-id="6yfEzq0ktVvkGlIeWj4xsH">2</span>摘录升级为 Hero 引用体</b><p data-page-node-id="3Qb2hHHcaxWRJ5qXyjVxnX">去掉灰底大输入框，改为左侧竖线引用样式、14px 正文、无底色——内容成为页面唯一的视觉主体；来源链接（x.com/…）从独立输入框降级为元数据行内的可点击短链。</p></div>
+      <div class="note" data-page-node-id="ftRLALe5cTToykgKwSuA65"><b data-page-node-id="h7VBGcF5BPkwWGH6A3Aido"><span class="num" data-page-node-id="a3PPRsiGcfDKP3jcmPEswG">3</span>元数据降级为一行小字</b><p data-page-node-id="Vks2dueqiAIkT1MBA77Inb">捕获/更新时间、历史、来源链接合并为一行 11.5px 灰字，去图标堆砌。</p></div>
+      <div class="note" data-page-node-id="MhXeTy34fgGImEMbHd0u7g"><b data-page-node-id="BsAaDh3Pm1HhAoGWEDPgyr"><span class="num" data-page-node-id="C8yqbWVjFaaPMliI9kFxnC">4</span>"转为任务/归档为资源"改为属性区 token</b><p data-page-node-id="gbL27LQAPmFxUNCeGTuccH">这两个动作本质是"改变卡片类型"，与标签同级，收进属性 chip 行；置顶进 Footer 次操作位；"保存链接"按钮取消——来源链接随保存自动写入。</p></div>
+    </div>
+  </div>
+
+  <!-- ============ 任务 ============ -->
+  <div class="row" data-page-node-id="5JFsOV0zPLaAYtZWBo9qXn">
+    <div class="panel-col" data-page-node-id="udYPmiyLPfY9bzcXmPHFcM">
+      <div class="panel-title" data-page-node-id="zKV6vxqRbyKGhO2AHc2XEV">任务详情 <small data-page-node-id="lBJfCdC1gMdsoLYzYXXDiW">TaskDetailDrawer.vue</small></div>
+      <div class="panel-sub" data-page-node-id="zYYHXHLPCUvw5QaArF5Jxs">灵魂内容 = 任务说明；四个大下拉 → 两枚属性 chip；删除收进 ⋯</div>
+      <div class="sheet" data-page-node-id="BWhXSPEnrbqnovb5GMPGKg">
+        <div class="sh" data-page-node-id="1lGAUO34oohV3ZVAsXC7Qx">
+          <div class="type-ic" style="background:var(--accent-soft);" data-page-node-id="RUGiy9Rc5dsDiYotab3ogh">🎯</div>
+          <h3 data-page-node-id="r1kzo5U1nROPh1wLkEkR4q">知源工作台命名在思考</h3>
+          <span class="chip doing caret" data-page-node-id="h24JjHUqOI4XMZExdPzsVy"><span class="dot" data-page-node-id="2bxxF9Fa2SlsSL21xeZ6Po"></span>进行中</span>
+          <div class="icon-btn" data-page-node-id="mK2UMcxjLCNOMyQz1peKHO">★</div>
+          <div class="icon-btn" data-page-node-id="Izw2xcdOICU81XWzrrzwuH">⋯</div>
+          <div class="icon-btn" data-page-node-id="c4zb8ihushxN3qWgBduSRc">✕</div>
+        </div>
+        <div class="hero" data-page-node-id="hXZXu3ZoycX51KXeAmonOk">
+          <div class="hero-label" data-page-node-id="UoCw29PC3kZKwzsEqfNjvS">说明 <span class="k" data-page-node-id="DVdYCVylWJPOuWcrHlmoAR">— 补充上下文 · 验收标准</span></div>
+          <div class="desc-area" data-page-node-id="qYN4eS7z0y8H3AfXYOwHso">补充说明、上下文、验收标准…<br data-page-node-id="3LPHVhNAQdJfbgTAgHrZyZ"><span style="color:var(--text-3);" data-page-node-id="XRb21Hm6GE3IXAUDpAuESl">（支持拖拽右下角调整高度，占据主内容区最大空间）</span></div>
+        </div>
+        <div class="props" data-page-node-id="SvuoK2BHYAdHVCxbS2tapS">
+          <span class="prop" data-page-node-id="2zoHQD0L8NnFOHm3VuFjny"><span class="ic" data-page-node-id="gDpPJcPO7IEQdhnpN5Bb3V">📁</span><span class="k" data-page-node-id="zKJ6Lu3KxIzGV6nYKleTFS">项目</span><span class="v" data-page-node-id="5GAFDf0lcf5l7EvV0Iiojg">知源产品打造与销售</span></span>
+          <span class="prop" data-page-node-id="uZTBJ5Mh8PYNEhK2Tuq3bo"><span class="ic" data-page-node-id="1QI2PCF5KwFTnM3eKTcrM2">🎯</span><span class="k" data-page-node-id="RowWCG1IskfHVtw7zqpEBJ">指标</span><span class="v" data-page-node-id="gnQPw5J2YWd2TkfqrZRnvl">知源产品上线并使用</span></span>
+        </div>
+        <div class="props" style="padding-top:0;" data-page-node-id="5MeNtRmaaI2mH8CaeZ7muE">
+          <span class="prop" data-page-node-id="l04Db2GGVLuZ2sUtFrHzBh"><span class="ic" data-page-node-id="0vz79IV4fZ1GlGvkTZArXJ">🟡</span><span class="k" data-page-node-id="5vX8jGhqlqwW4kSNu9PSvD">优先级</span><span class="v" data-page-node-id="fCBfmLmQO3U7QFPhvYLche">中</span></span>
+          <span class="prop tag" data-page-node-id="tFLskU1NBlOw9qC0Hm19Tu">🏷 产品</span>
+          <span class="prop tag add" data-page-node-id="dEUGpYCIG216PFOstBjTdG">＋ 标签</span>
+          <span class="prop" style="border-style:dashed;" data-page-node-id="8Kf5uR2ylxKUGxwbYVnxnb"><span class="ic" data-page-node-id="4yVTgv3xPnJUOIOIBSb2Tt">🔗</span><span class="v" data-page-node-id="B8CcuRXx8X99W3TpTPanwz">添加链接</span></span>
+        </div>
+        <div class="metaline" data-page-node-id="FUXyb6SU7TGHXrKkpdsA4J"><span data-page-node-id="tcUHY0tO2bREIospXjrVHb">创建 9/4 09:31</span><span data-page-node-id="F07HP5jPbe7K1Orfvc4E5F">更新 9/4 17:08</span><span class="lnk" data-page-node-id="YO36myxE3uybm3mRhZDqNU">无合适项目/指标？去方向树创建 →</span></div>
+        <div class="sect" data-page-node-id="6nEM7lACBoDrDIeuHQSezR">
+          <div class="sect-h" data-page-node-id="TTA82Attw4peHdZbZLJhz8"><span class="tw" data-page-node-id="eokVYxhMDMPDibHBUMveUr">▸</span> 附件 <span class="cnt" data-page-node-id="ZH1fkYQr1afI4hlamHLSBq">(0)</span><span class="right" data-page-node-id="HcoN176kKSG9aCAPYC5shT">图片 / HTML / PDF</span></div>
+        </div>
+        <div class="ft" data-page-node-id="fxWXrEWPd8IDovzZDwbrPh">
+          <span class="btn ghost" data-page-node-id="8pAeVuygFL06pCgP6aCQZw">🔗 链接</span>
+          <span class="btn ghost" data-page-node-id="4SMkLxrRD2jCeIrTG70Yy7">📎 附件</span>
+          <span class="spacer" data-page-node-id="rJRnUIbFIfi78Wx6uMtD7b"></span>
+          <span class="btn primary" data-page-node-id="vAU1DejCsOTCHJjWBRbsb5">✓ 完成并关闭 <span class="kbd" data-page-node-id="mCKSjbVDUuxAedUH1JuCQJ">⏎</span></span>
+        </div>
+      </div>
+    </div>
+    <div class="notes-col" data-page-node-id="zUGbTmfHIf4ZgxWsdwviVk">
+      <div class="note" data-page-node-id="a1n21YN48aDYcrF90Q7uLh"><b data-page-node-id="FPI7eo6FnUPSx6mAK2R18y"><span class="num" data-page-node-id="yxHsB0erWvX5QTEQCl0wrr">1</span>说明区上移为 Hero</b><p data-page-node-id="pHQx0TRaQ0bLpkknC0lkXL">现状"备注"被四个大下拉挤到最底部；重设计后说明区紧跟标题，占据主内容区最大空间——Linear 的核心做法：任务详情 = 标题 + 描述，属性全部侧置/紧凑化。</p></div>
+      <div class="note" data-page-node-id="9vQQc4lYB0GxjZkVk5VsDi"><b data-page-node-id="tV5xIaKXtBPNEVCZZeoGZW"><span class="num" data-page-node-id="q2XIAcOE8usoAAoKP5vjkz">2</span>属性两行 chip，点击即改</b><p data-page-node-id="JTbpHNB6VkIGhLi3PAzL4J">项目/指标（级联不变）、优先级/标签/链接，从四个纵向大块压缩为两行 28px chip，纵向节省约 300px；"没有合适项目/指标"提示降级为元数据行内链接。</p></div>
+      <div class="note" data-page-node-id="4UjEFkdugcUJoyiIGawMQi"><b data-page-node-id="9BDuSYuIGSQu54U4eOUilV"><span class="num" data-page-node-id="pf7Tms1D7KQiaWytgnP1hd">3</span><span class="tag-pill tag-red" data-page-node-id="7XO9YDPTgWpoqN10MBhXA0">危险隔离</span>删除收进 ⋯ 菜单</b><p data-page-node-id="Ck2AH5hvQWhFOzbQBCtH4y">"删除任务"不再与"完成并关闭"并列——移入头部 ⋯ 溢出菜单（红色项，二次确认）。Footer 主操作唯一："完成并关闭 ⏎"。</p></div>
+      <div class="note" data-page-node-id="PNpKiAb0q0PcFsHAC3Afdx"><b data-page-node-id="9czbvtbGCk0mc24ZQyEZ7Q"><span class="num" data-page-node-id="UtzbNQdYr229VtD1bURvl5">4</span>状态 chip 沿用三态</b><p data-page-node-id="Zyu8Nav5VT8ZhFTWXiwyXV">待开始/进行中/已完成压缩为头部一枚下拉 chip（沿用现有级联校验逻辑，仅视觉收窄）。</p></div>
+    </div>
+  </div>
+
+  <!-- ============ 资源 ============ -->
+  <div class="row" data-page-node-id="aqY60Ani10YH2BS1NiyAc2">
+    <div class="panel-col" data-page-node-id="BeGLsjHod2LQMiCcFEHkD9">
+      <div class="panel-title" data-page-node-id="GmDxqOsdS26VFFAHaPLrhz">资源卡详情 <small data-page-node-id="xVbkmpfLvPPPMPtd2fTpYZ">ResourceEditForm.vue</small></div>
+      <div class="panel-sub" data-page-node-id="aAIhtXrNIcSJSboea0dTCp">灵魂内容 = 链接卡 + 打开动作前置；三类型大 tab → 一枚类型 chip</div>
+      <div class="sheet" data-page-node-id="uOhzRvWh5DFRvbW3GeIgqI">
+        <div class="sh" data-page-node-id="6SgtD9vrDPJ4oKEkKiMFHU">
+          <div class="type-ic" style="background:#ecfdf3;" data-page-node-id="q0TKzCzZHLZCHSpFnmqxuW">🔗</div>
+          <h3 data-page-node-id="Qeu9WtnyvmuGrfeHDg7HH1">样格｜公众号视觉模板提取</h3>
+          <span class="chip neutral caret" data-page-node-id="34FHBWxuyIgJ5hXYaohrkW"><span class="dot" data-page-node-id="74CqjdiClDGNmIWe7eNWeU"></span>URL</span>
+          <div class="icon-btn" data-page-node-id="qqYNKlxRGBjBRZGxKjGu5M">★</div>
+          <div class="icon-btn" data-page-node-id="SASSMLRFjRIMmh0VaN1pqi">⋯</div>
+          <div class="icon-btn" data-page-node-id="KTl7AQe5ENmX4J5fH7eUGd">✕</div>
+        </div>
+        <div class="hero" data-page-node-id="CqUqXrVwd07BCduxuYUl9G">
+          <div class="hero-label" data-page-node-id="v2bjX51G4uxQakrJNSx9c3">链接 <span class="k" data-page-node-id="tFhkWhbSS1vg6vfk0tHUed">— 双击卡片即打开</span></div>
+          <div class="link-card" data-page-node-id="70Dshk7AG7gi2CbNL32haB">
+            <div class="favicon" data-page-node-id="uCshB8AnOT622zFvrqv4FQ">样</div>
+            <div class="meta" data-page-node-id="gYhwpwwyDIG0ajYbnbA1LI">
+              <div class="u" data-page-node-id="3ZMg7Y4XeVlF7RtPTBFzRy">wechat-style-extractor.godkey810.chatgpt.site</div>
+              <div class="d" data-page-node-id="spicOuNMGUjCNEdKQ0GrFs">上次打开 9/3 · 已复制 2 次</div>
+            </div>
+            <span class="open-btn" data-page-node-id="CWb4L9vlCTgJKRK104pr3n">打开 ↗</span>
+          </div>
+        </div>
+        <div class="props" data-page-node-id="bXuHp1MKZ8SK1YpluzgSrS">
+          <span class="prop" data-page-node-id="eqP8bEsmNGB0CnnNwbDtH3"><span class="ic" data-page-node-id="p7Pj3cD5l8XKvUhqr48X35">💼</span><span class="k" data-page-node-id="VStl3kKHTxlUObunqOjGMr">工作台</span><span class="v" data-page-node-id="X4EBsMVaP5AV2pEDdzeMvg">内容工程</span></span>
+          <span class="prop" data-page-node-id="hZLkprFCgZrWBKVT2BpSvD"><span class="ic" data-page-node-id="FSGvs4IWml8GSPX17UnyNe">📂</span><span class="k" data-page-node-id="oVfF1E2b1ChKGRPfBWqf1a">分类</span><span class="v" data-page-node-id="pHqqIlE3JFZAkFyuZtAFai">公众号</span></span>
+          <span class="prop tag" data-page-node-id="mE7cESrwZUiBjPCP7SI0C9">🏷 视觉模板</span>
+          <span class="prop tag add" data-page-node-id="JSPDdxzC2Y83YjC8dlZz88">＋ 标签</span>
+        </div>
+        <div class="hero" style="padding-top:8px;" data-page-node-id="qpcfUZcuk45WrzejJdklui">
+          <div class="hero-label" data-page-node-id="lE7G4ZL6XQtS2bmwhkepFm">我的注释 <span class="k" data-page-node-id="4KeZELIBnRVrIIU4XBG553">— 为什么收藏它</span></div>
+          <div class="desc-area" style="min-height:88px;" data-page-node-id="breVsVMcWWJO3ZLLpcBUTa">别人文章的排版风格提炼出来，然后形成自己的，直接快速复用，用来排版公众号文章。</div>
+        </div>
+        <div class="metaline" data-page-node-id="RaY7jcbG4CwKM27NNPKQJE"><span data-page-node-id="xsAUaMrDFLGVFydufOQ6Sb">收藏 2026/9/2</span><span data-page-node-id="rraNbPRaBSa0ibAFHLZFQh">来源：网页剪藏</span><span class="lnk" data-page-node-id="5oH81e9GZwlF2U2MHcabLQ">切换类型：URL / 本地文件 / Obsidian</span></div>
+        <div class="sect" data-page-node-id="jTqZmvYZYIP5Ug4zFCLkCk">
+          <div class="sect-h" data-page-node-id="Ij7S6JddgXTLzZR4P77xqp"><span class="tw" data-page-node-id="3SBbqMEF03lnCt5rS5UGG5">▸</span> 附件 <span class="cnt" data-page-node-id="D8CiW6bIqXKJ8JZaDeVbGl">(0)</span><span class="right" data-page-node-id="Wj3pb86muqoxFRiBrs3nHB">图片 / HTML / PDF</span></div>
+        </div>
+        <div class="ft" data-page-node-id="26NsofnBB7dlCRUc6WQcsc">
+          <span class="btn ghost" data-page-node-id="x6Nd0aObjsVILpDpGAYHrk">⧉ 复制链接</span>
+          <span class="btn ghost" data-page-node-id="PzvREaluYhEIPBrRrnQAHt">🗑 删除</span>
+          <span class="spacer" data-page-node-id="LmBR9XAyu0ORYzEUR7EEtn"></span>
+          <span class="btn primary" data-page-node-id="HHSpycDRtYZ3p8FzFizdwn">打开链接 ↗ <span class="kbd" data-page-node-id="rP1Jz439D7EGNxU8VmZR26">⏎</span></span>
+        </div>
+      </div>
+    </div>
+    <div class="notes-col" data-page-node-id="cqLtG730BSp27UD2WE7dqj">
+      <div class="note" data-page-node-id="xfW0EwghImXgiclL6G3Dnt"><b data-page-node-id="9TPqGCT5DItcVWlGSWYQCa"><span class="num" data-page-node-id="1oOWMJEtyGVf3bYxpfuDLT">1</span><span class="tag-pill tag-green" data-page-node-id="6T3oj6syBwk4cWn74cxge8">高频前置</span>链接卡 + 打开按钮上移到 Hero</b><p data-page-node-id="jHMxbuy7pVXYdI4lYcSiOe">资源卡的存在意义就是"快速回到这个链接"，所以链接卡（favicon + 域名 + 打开↗）放在标题下方第一位；Footer 主操作同步为"打开链接 ⏎"。</p></div>
+      <div class="note" data-page-node-id="VD1tUQhiKeE894iHMsZnHA"><b data-page-node-id="C0MD8x6ONGVFD8FVcDzTbY"><span class="num" data-page-node-id="BbgoXzWH9ep4CQWoE1uHHR">2</span>三类型大 tab → 一枚类型 chip</b><p data-page-node-id="lASvrHvkFZ0wELS8Zx5yyp">URL/本地文件/Obsidian 三个大按钮压缩为头部一枚中性 chip（下拉切换），切换后链接卡自动换形态；省出约 120px。</p></div>
+      <div class="note" data-page-node-id="e4D5oKshlRNdKX6Nxv8AA9"><b data-page-node-id="fZg1tFrZGnTmwaml80WTmh"><span class="num" data-page-node-id="lAGngUxklAmlaVFUKzJ5GV">3</span>注释有了明确定位："为什么收藏它"</b><p data-page-node-id="8nGM0V4MBwFgj31jMFrsyx">从"空占一大块的表单"变为紧跟属性的说明区，label 直接提示用途，降低空白时的心理负担。</p></div>
+      <div class="note" data-page-node-id="UH9HMgFJrAgNMDDN6gjGfO"><b data-page-node-id="u96EUP5XROLRWatIAScdGJ"><span class="num" data-page-node-id="OsQrDsqn5z4q5Y4htlITAF">4</span>删除降级</b><p data-page-node-id="HdtFnq24wgk9CLK03eyq0v">删除从 Footer 平铺大按钮改为弱化 ghost 样式（hover 变红确认），或收进 ⋯；"复制链接"保留为次操作。</p></div>
+    </div>
+  </div>
+
+  <!-- ============ 改动对照 ============ -->
+  <h2 data-page-node-id="aTOyi9wepg1DVBr9HN8wAL">三卡统一模板 · 现状 → 重设计改动对照</h2>
+  <table data-page-node-id="zlDZoe1hSp9gWut3okdswq">
+    <tr data-page-node-id="m3FVyqgcADhBoWVbZfQOwy"><th data-page-node-id="EQuo2wT7qW0DhoaVvnlpLJ">区域</th><th data-page-node-id="spbFx3Av1rLHHIYiAEnksl">现状</th><th data-page-node-id="11G1hxP48MnMEEO7iuAWI9">重设计后</th></tr>
+    <tr data-page-node-id="zTuaGo2kcxztH3E5T55hWb"><td data-page-node-id="0nMY75Cf9DdZx16Yq6jvbO">头部</td><td data-page-node-id="QnqCJBhwQ8RCT8IhqdokMp">标题 + 状态按钮组（好奇心4枚）/ 无状态（资源）</td><td data-page-node-id="4vCiJV0IFenvuthMvtYVpO">类型图标 + 标题 + 一枚状态下拉 chip + ★置顶 + ⋯溢出（含删除） + ✕</td></tr>
+    <tr data-page-node-id="vvhjnm5LOFqfH6WlRDBAG9"><td data-page-node-id="9Cdn6u3Ov6Xx8mHpm0tIG6">Hero 主内容</td><td data-page-node-id="Nmj3vfRP09uq2Rwov1ZxQM">与元数据同级灰底大框，权重被稀释</td><td data-page-node-id="RJR1WCE7KeofGoRAJFCxAe">唯一焦点：好奇心=引用体摘录 / 任务=说明区 / 资源=链接卡+打开按钮</td></tr>
+    <tr data-page-node-id="Kc5BvpCWinzznMlWvBrFP0"><td data-page-node-id="pVAJ6sPcnFgSyPVdDPnzG2">属性</td><td data-page-node-id="t2yNRRUiodd0qHwsPk1CP2">纵向大块下拉（任务4块/资源2块+3大tab）</td><td data-page-node-id="oHHmrhaHkYFmIAzicaivBg">紧凑 chip 行，1–2 行排完，点击即改，级联逻辑不变</td></tr>
+    <tr data-page-node-id="OkWr6vWjaABNqjoshywTfC"><td data-page-node-id="KNQNeAJKn65MLSgEqAPYZK">元数据</td><td data-page-node-id="2SKW5DNJ4U2O5DVenwSRAG">捕获/更新时间带图标占独立行</td><td data-page-node-id="VSzFxh1CsnvHyGY0kUXVtb">合并一行 11.5px 灰字，放属性区之下</td></tr>
+    <tr data-page-node-id="VZnySIPC1DEWt7n38mRfSG"><td data-page-node-id="GIGbErrN5FFXOYsXBBS8Pi">附属</td><td data-page-node-id="0h3gmVLBztTd4KiDGZQlFn">附件/历史平铺展开</td><td data-page-node-id="jVaNI6TYJj54pjux3dbKYn">折叠 section（默认收起，有内容时显示计数）</td></tr>
+    <tr data-page-node-id="B5B9xruUboouyzXwhHoP7L"><td data-page-node-id="q77trMUMWNcW8PR6FMeEXw">Footer</td><td data-page-node-id="vHOgm9qo7Ouau6IpUshkSK">3–4 个平铺按钮，危险与主操作并列，与右下角浮层重叠</td><td data-page-node-id="7S1bMdbmnCui02dKU42QfL">左=弱化次操作，右=唯一主操作（⏎ 快捷键），删除收进 ⋯ 二次确认</td></tr>
+    <tr data-page-node-id="uQogrWfRH4DQQ5nL8aX7Ez"><td data-page-node-id="ni1bXUId2FlsEENpUt9FyV">视觉语言</td><td data-page-node-id="8pAjIPk2UOE6EjfZt517q4">彩色 emoji 图标 + 大面积灰底输入框</td><td data-page-node-id="9G9fDbEYwR3xg75vDiAtp0">灰阶为主 + 状态/优先级/主按钮三处用色，统一线性小图标</td></tr>
+  </table>
+
+  <p class="sub" style="margin-top:24px;" data-page-node-id="2379XHrXZ3A2JcmJyWKeG2">备注：本图为低保真线框，仅定结构与层级；配色/字号/圆角等视觉细稿在结构拍板后出。三卡均为抽屉式详情（右侧滑出），模板统一后可抽成一个 DetailSheet 基础组件，三卡复用。</p>
+</div>
+</body>
+</html>

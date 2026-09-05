@@ -1,6 +1,8 @@
 /**
  * 写给用户的一封信（donge 哥）· 内容数据
  * 用于：设置 → 一封信（v-html 渲染）+ 独立 HTML 导出分享。
+ * R49：围绕「知源调度台」品牌与定位重写——信息洪流中的控制中心；
+ *      两道闸（好奇过滤 / 调度致用）与独特性护城河入信；情绪基调与旧版保持一致。
  */
 
 export const LETTER_HTML = `
@@ -14,18 +16,23 @@ export const LETTER_HTML = `
   <p class="lp-h"><b>我今天做的这些，和我真正想成为的那个人，有什么关系？</b></p>
   <p>这个问题，工具回答不了。</p>
   <p>我后来想明白了一件事：这不是自律问题，也不是工具不够强。一个知识工作者每天同时站在三个现场——获取信息的现场、调用资源的现场、确认方向的现场。流行的工具各自守着一个现场，而焦虑，恰恰发生在现场的断裂处。一件收藏的真实价值，从来不取决于它本身有多好，而在于你需要的那一刻，能不能找到它、用上它、用对它。</p>
-  <p class="lp-turn">所以，我做了知源工作台。</p>
-  <p>它不长在云端，就住在你的浏览器里。三秒钟，把一个网页、一份本地文件、一个灵感，收进属于你自己的地方；需要的时候，一次搜索，秒级直达——哪怕你只记得拼音的首字母。它把你的愿景和使命摆在每天打开的第一屏，把今天最重要的三件事放在手边；它收下你的每一个好奇心，却不催促它们变成任务——问题可以长期悬置，等你，也等你准备好。</p>
-  <p>它同样重要的，是它<b>不做什么</b>。我向你保证：它绝不用红点和警报逼迫你，绝不上传你的任何数据，绝不内置什么"AI 替你思考"，绝不给你的好奇心打分、设截止日期——来源可信与否，也永远由你判断。工具应当扩大人的自主性，而不是让人依赖它——这句话是一位叫伊里奇的思想家说的，我把它当作这个产品的底线。还有一位叫舍恩的学者说，反馈应该是一面镜子，而不是一张考卷。知源里的每一个数字，都是镜子。</p>
+  <p>我还想明白了一件更重要的事：<b>你不缺信息。</b>这个时代把信息灌给你，像一场没有尽头的洪水。你缺的从来不是更大的容器——不是再多一个收藏夹，再多一个笔记软件。你缺的，是一座属于你自己的<b>控制中心</b>。</p>
+  <p class="lp-turn">所以，我做了知源调度台。</p>
+  <p>它不长在云端，就住在你的浏览器里——接管你每天打开几十次的新标签页，把它变成你的控制中心。它只守两道闸。</p>
+  <p>第一道闸，是<b>好奇心</b>。一闪而过的疑问，三秒钟记下；值得留的页面，五秒钟收进。它只问你一句话：这是你此刻好奇的吗？是，入台；不是，放过。注意力，就从洪流里被一寸一寸赎了回来。</p>
+  <p>第二道闸，是<b>调度</b>。每一条进入知源的资源，都有状态、有任务、有去向。需要的时候，一次搜索，秒级直达——哪怕你只记得拼音的首字母。存起来不是终点，调得出来、用得上，才算真正属于你。</p>
+  <p>它把你的愿景和使命摆在每天打开的第一屏，把今天最重要的三件事放在手边。它收下你的每一个好奇心，却不催促它们变成任务——问题可以长期悬置，等你，也等你准备好。</p>
+  <p>它同样重要的，是它<b>不做什么</b>。我向你保证：它绝不用红点和警报逼迫你，绝不上传你的任何数据——数据百分百在你自己的电脑里，你随时可以带着全部资产完整离开；它绝不内置什么"AI 替你思考"，绝不给你的好奇心打分、设截止日期——来源可信与否，也永远由你判断。工具应当扩大人的自主性，而不是让人依赖它——这句话是一位叫伊里奇的思想家说的，我把它当作这个产品的底线。还有一位叫舍恩的学者说，反馈应该是一面镜子，而不是一张考卷。知源里的每一个数字，都是镜子。</p>
   <p>有位咨询顾问跟我讲过他的变化。从前他被客户问住，只能尴尬地说稍后回复；用了知源之后，每次查资料他都顺手标记来源、写下一句话备注。又一次汇报，同样的问题被问起，他按下搜索，卡片浮出——"官方原文，您看第三条。"他说，底气不是天生的，<b>底气来自对源头的掌控</b>。</p>
+  <p>我更看重的是另一件事。调度一年，你会发现自己和别人用同样的工具，长出了完全不同的资产网络——因为每一次过滤出自你的好奇，每一次调度出于你的目的。AI 可以在几秒钟内生成一切答案，但它生成不了你的好奇，也复制不了你的调度历史。<b>独特性不是天赋，是调度的复利</b>——那才是这个时代，你唯一的护城河。</p>
   <p>我想看见的你，也是这样：先是打开新标签页时不再被推送牵着走；然后是拥有了一份属于自己的、越用越可信的资产网络；最后是——工具在变，算法在变，但你始终知道，自己真正想问的问题是什么，自己的源头在哪里。</p>
   <p>AI 可以在几秒钟内给出答案，但它不会替你保留真正想问的问题，也不会替你承担判断的责任。在快时代里，找到属于自己的慢节奏，是我们最核心的竞争力，也是我们最珍贵的权利。</p>
   <p>愿你在某一天睡前，感到你知道自己在做什么、为什么做、正在成为你想成为的那个人。</p>
-  <p class="lp-creed">从好奇出发，向源头求证。</p>
+  <p class="lp-creed">以好奇过滤信息，以调度致用于己。</p>
 </div>
 <div class="lp-sign">
   <div class="lp-name">你的同路人<br><b>donge 哥</b></div>
-  <div class="lp-date">2026 年 · 写于知源工作台发布之际</div>
+  <div class="lp-date">2026 年 · 写于知源调度台发布之际</div>
 </div>
 `
 
@@ -36,29 +43,29 @@ export function buildLetterStandaloneHtml(): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>写给用户的一封信 · 知源工作台</title>
+<title>写给用户的一封信 · 知源调度台</title>
 <style>
   body { margin: 0; background: #F3F1EC; font-family: "Songti SC", "Noto Serif SC", "SimSun", Georgia, serif; color: #2B2B28; }
-  .paper { max-width: 640px; margin: 72px auto; background: #FFFDF8; border: 1px solid #EBE7DD; border-radius: 2px; box-shadow: 0 1px 32px rgba(60,50,30,.06); padding: 88px 76px; box-sizing: border-box; }
-  .brand { text-align: center; font-size: 11px; letter-spacing: .4em; color: #A8A399; margin-bottom: 64px; }
-  .lp-saluta { font-size: 16px; margin-bottom: 40px; }
-  .lp-body p { font-size: 15px; line-height: 2.8; margin: 0 0 36px; text-align: justify; }
+  .paper { max-width: 640px; margin: 72px auto; background: #FFFDF8; border: 1px solid #EBE7DD; border-radius: 2px; box-shadow: 0 1px 32px rgba(60,50,30,.06); padding: 96px 76px; box-sizing: border-box; }
+  .brand { text-align: center; font-size: 11px; letter-spacing: .4em; color: #A8A399; margin-bottom: 72px; }
+  .lp-saluta { font-size: 16px; margin-bottom: 48px; }
+  .lp-body p { font-size: 15px; line-height: 3.1; margin: 0 0 44px; text-align: justify; }
   .lp-body b { color: #1F1E1A; }
-  .lp-sign { margin-top: 88px; text-align: right; font-size: 14px; line-height: 2.2; color: #55524A; }
+  .lp-sign { margin-top: 96px; text-align: right; font-size: 14px; line-height: 2.2; color: #55524A; }
   .lp-sign b { font-size: 15px; color: #2B2B28; }
   .lp-date { font-size: 12px; color: #9B968A; margin-top: 10px; letter-spacing: .05em; }
-  /* 第卅轮：模块化分节——节头/停顿/信念行（与应用内同构） */
-  .lp-body p.lp-h { margin: 64px 0 36px; font-size: 16.5px; color: #2B2B28; }
-  .lp-body p.lp-turn { margin: 24px 0 36px; color: #2B2B28; }
-  .lp-body p.lp-creed { margin: 56px 0 0; letter-spacing: .08em; color: #2B2B28; font-weight: 600; }
-  .foot { text-align: center; font-size: 10px; color: #B4AFA4; margin: 36px 0 48px; letter-spacing: .15em; }
+  /* 模块化分节——节头/停顿/信念行（与应用内同构）；R49 加大留白 */
+  .lp-body p.lp-h { margin: 76px 0 44px; font-size: 16.5px; color: #2B2B28; }
+  .lp-body p.lp-turn { margin: 28px 0 44px; color: #2B2B28; }
+  .lp-body p.lp-creed { margin: 64px 0 0; letter-spacing: .08em; color: #2B2B28; font-weight: 600; }
+  .foot { text-align: center; font-size: 10px; color: #B4AFA4; margin: 40px 0 48px; letter-spacing: .15em; }
   @media print { body { background: #fff; } .paper { border: none; box-shadow: none; margin: 0 auto; } }
 </style>
 </head>
 <body>
-  <div class="brand">知源工作台 · 从好奇出发，向源头求证</div>
+  <div class="brand">知源调度台 · 你不缺信息，你缺一座控制中心</div>
   <div class="paper">${LETTER_HTML}</div>
-  <div class="foot">— 由知源工作台导出分享 —</div>
+  <div class="foot">— 由知源调度台导出分享 —</div>
 </body>
 </html>`
 }

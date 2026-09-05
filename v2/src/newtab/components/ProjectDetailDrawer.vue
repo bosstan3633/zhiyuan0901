@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 项目详情抽屉（可编辑）
  * 用于：知源灯塔主攻项目点击、北极星 DHI/任务推进率下钻、任务中心项目看板。
@@ -177,7 +177,7 @@ function removeTask(taskId: string) {
       </div>
       <button class="pd-add-metric" @click="addMetric">＋ 添加成功指标</button>
 
-      <div class="pd-sync-hint">💡 此处编辑实时写回知源罗盘，知源引擎二级界面同步生效</div>
+      <div class="pd-sync-hint">💡 此处编辑实时写回调度台，方向台二级界面同步生效</div>
     </template>
   </Drawer>
 

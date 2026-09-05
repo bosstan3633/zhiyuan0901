@@ -1,7 +1,9 @@
 /**
- * 产品使用手册数据（第二十轮重写）
+ * 产品使用手册数据（第二十轮重写；R49 V2.22.0 三大系统页改版全量同步）
  * 五篇结构：速览 / 基础 / 方法 / 理念 / 附录
  * html 字段由 GlobalSettings 手册面板以 v-html 渲染。
+ * 命名口径（R49）：调度台 / 方向台 / 资源台 / 用户工作台；主航线 / 完整方向树；
+ *                方向状态（指标条）；问题探索 / 任务调度；项目详情 / 项目总览。
  */
 export interface ManualSection { id: string; title: string; html: string }
 export interface ManualPart { title: string; sections: ManualSection[] }
@@ -11,24 +13,26 @@ export const MANUAL: ManualPart[] = [
     title: '速览 · 一页上手',
     sections: [
       { id: 'quick-1', title: '它是什么 · 给谁用 · 解决什么', html: `
-        <p>知源工作台是一套 <strong>浏览器扩展</strong>（Chrome / Edge / Brave 等 MV3），<strong>接管你的新标签页</strong>，把每天使用的链接、本地文件、Obsidian 笔记、AI 聊天金句、零星念头——统一收纳为可被你自己指挥的卡片，<strong>三秒内召唤回来</strong>。</p>
+        <p>知源调度台是一套 <strong>浏览器扩展</strong>（Chrome / Edge / Brave 等 MV3），<strong>接管你的新标签页</strong>，把每天使用的链接、本地文件、Obsidian 笔记、AI 聊天金句、零星念头——统一收纳为可被你自己指挥的卡片，<strong>三秒内召唤回来</strong>。</p>
         <h4>一句话定位</h4>
-        <div class="mc-quote">知源 · <strong>AI 时代的个人资源调度台与认知增强系统</strong> —— 收得进、看得见、找得到、信得过、带得走。</div>
-        <p>AI 让「产出」变得前所未有的廉价，于是个人认知的真正瓶颈不再是"能不能创造"，而是<strong>"能不能把散落各处的产出，在正确的时刻重新调度回来"</strong>。知源不生产内容——它经营你的<strong>认知周转率</strong>：每一个被你见过的信息，都应当在未来的某个时刻恰好回到你手边。它不是你的又一个收藏夹，而是你的<strong>调度层</strong>：一层横在所有 AI 工具、笔记、文件之上的总指挥。</p>
+        <div class="mc-quote">知源 · <strong>信息洪流中的控制中心</strong>——你不缺信息，你缺一座控制中心。以好奇过滤信息，以调度致用于己，成就独一无二的自己。</div>
+        <p>AI 让「生成」变得前所未有地廉价，信息像洪水一样灌给你。个人认知的真正瓶颈不再是"能不能创造"，而是<strong>"能不能把流经你的万物，调度成属于自己的资产"</strong>。知源不生产内容——它经营你的<strong>认知周转率</strong>：每一个被你见过的信息，都应当在未来的某个时刻恰好回到你手边。它不是你的又一个收藏夹，而是你的<strong>调度层</strong>：一层横在所有 AI 工具、笔记、文件之上的控制中心。</p>
         <h4>它给谁用</h4>
         <p><strong>首选：</strong>AI 重度使用的"独立深度研究者 / 咨询顾问"——有 5+ AI 工具、主要在浏览器里干活、产出高度碎片化、独立工作者、对数据主权敏感。创作者与终身学习者同类型适用。</p>
         <p><strong>不面向：</strong>"存一堆链接就不看"的人、已有完整 Notion/Obsidian 工作流且满意的人、换电脑无所谓反正有云同步的人。</p>
         <h4>它解决什么 —— 时代的病根</h4>
         <table class="mc-table">
           <tr><th>时代病根</th><th>你日常的痛</th><th>知源怎么治</th></tr>
-          <tr><td>工具碎片化</td><td>产出爆炸、几秒切一次 Tab，节奏全断</td><td>链接/文件/笔记/Obsidian 一卡通吃，新标签页即指挥台</td></tr>
+          <tr><td>工具碎片化</td><td>产出爆炸、几秒切一次 Tab，节奏全断</td><td>链接/文件/笔记/Obsidian 一卡通吃，新标签页即控制中心</td></tr>
           <tr><td>资源失血症</td><td>做过、找不回、重做</td><td>全本地单根 JSON，三秒拼音首字母召回</td></tr>
           <tr><td>数据被绑架</td><td>换工具等于从零开始</td><td>零账号零云端；导出=复制粘贴</td></tr>
         </table>
         <h4>它坚持不做什么</h4>
-        <p>❌ <b>不做云同步</b>——同步 = 把你的数据上别人的服务器；<br>❌ <b>不做 AI 替你决策</b>——AI 是你的部队，知源是你的指挥台；<br>❌ <b>不做"第二大脑"</b>——不抢 Notion/Obsidian 的写作市场，只调度素材；<br>❌ <b>不做社交/协作</b>——单一用户的认知工具；<br>❌ <b>不做跟踪分析</b>——没有用户画像、没有广告位。</p>
+        <p>❌ <b>不做云同步</b>——同步 = 把你的数据上别人的服务器；<br>❌ <b>不做 AI 替你决策</b>——AI 是被你调度的机组，你是塔台；<br>❌ <b>不做"第二大脑"</b>——不抢 Notion/Obsidian 的写作市场，只调度素材；<br>❌ <b>不做社交/协作</b>——单一用户的认知工具；<br>❌ <b>不做跟踪分析</b>——没有用户画像、没有广告位。</p>
       ` },
-      { id: 'quick-2', title: '六个核心动作', html: `
+      { id: 'quick-2', title: '三大系统页与六个核心动作', html: `
+        <h4>三大系统页 · 一条动线</h4>
+        <div class="mc-flow">🎛 调度台（今天从哪里出发）→ 🧭 方向台（主航线与项目）→ 📦 资源台（下轮交付）→ 📂 用户工作台（资源策展）</div>
         <h4>六个核心动作 · 时间即价值</h4>
         <table class="mc-table">
           <tr><th>#</th><th>动作</th><th>触发</th><th>时间</th></tr>
@@ -36,17 +40,17 @@ export const MANUAL: ManualPart[] = [
           <tr><td>2</td><td>三秒搜索</td><td><kbd>Ctrl</kbd>+<kbd>K</kbd> 全场景（任意网页浮层 / newtab 内）</td><td>3 秒</td></tr>
           <tr><td>3</td><td>追想法念头</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd></td><td>10 秒</td></tr>
           <tr><td>4</td><td>一键直跳</td><td>双击搜索结果（单击开详情 / 双击跳转链接）</td><td>0 思考</td></tr>
-          <tr><td>5</td><td>方向管理</td><td>知源引擎（愿景 / 使命 / 方向 / 项目 / 指标 / 任务）</td><td>锚定主攻</td></tr>
+          <tr><td>5</td><td>方向管理</td><td>方向台（愿景 / 使命 / 战略目标 / 项目 / 指标 / 任务）</td><td>锚定主攻</td></tr>
           <tr><td>6</td><td>完整导出</td><td>设置 → 导出全部数据</td><td>一份 JSON</td></tr>
         </table>
-        <div class="mc-flow">🔍 <kbd>Ctrl</kbd>+<kbd>K</kbd> ｜ 📥 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> ｜ 💡 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd> ｜ ⚙ 在 <code>chrome://extensions/shortcuts</code> 绑定第 6 键"打开设置"</div>
-        <div class="mc-tip">💡 键盘党第一步：打开 <code>chrome://extensions/shortcuts</code> 把三键改成你的肌肉记忆。第 6 个命令项"打开设置"在快捷键页会显示为"未设置"——按需分配一个键即可，从工作台任意场景一键直达设置。</div>
+        <div class="mc-flow">🔍 <kbd>Ctrl</kbd>+<kbd>K</kbd> ｜ 📥 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> ｜ 💡 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd> ｜ ⚙ 在 <code>chrome://extensions/shortcuts</code> 绑定"打开设置/方向台/资源台"</div>
+        <div class="mc-tip">💡 键盘党第一步：打开 <code>chrome://extensions/shortcuts</code> 把三键改成你的肌肉记忆。「打开设置」「打开方向台」「打开资源台」三个命令无默认键——按需分配即可。</div>
         <h4>每天的节奏 · 4 步闭环</h4>
         <div class="mc-steps">
-          <div class="mc-step"><b>1</b><span>打开新标签页 → 知源罗盘确认方向（主入口可见今日三件事）</span></div>
-          <div class="mc-step"><b>2</b><span>进知源引擎 → 今日行动，锁定今天最重要的 3 件事</span></div>
+          <div class="mc-step"><b>1</b><span>刷新 → 调度台：今日记录条 + 今日三件事（最多 3 件），30 秒方向确认</span></div>
+          <div class="mc-step"><b>2</b><span>切方向台 → 看指标条与主航线，确认没把战争打在防守的战场</span></div>
           <div class="mc-step"><b>3</b><span>干活中随手三键采集，搜索 / 双击直达</span></div>
-          <div class="mc-step"><b>4</b><span>睡前看一眼北极星 —— 它是镜子，不是考核</span></div>
+          <div class="mc-step"><b>4</b><span>睡前看一眼方向状态指标条——它是镜子，不是考核</span></div>
         </div>
       ` },
       { id: 'quick-3', title: '它与同类相比 · 独特价值', html: `
@@ -56,9 +60,9 @@ export const MANUAL: ManualPart[] = [
           <tr><th>竞品</th><th>它是什么</th><th>知源的不同</th></tr>
           <tr><td>Notion</td><td>一体化工作空间（笔记/数据库/协作）</td><td>知源不做笔记与数据库，只做调度台。Notion 用户最常见的困境是"库越建越重、找回越来越慢"——知源把"三秒进出"做到极致，把深度写作交还给它。</td></tr>
           <tr><td>Obsidian</td><td>本地双链笔记</td><td>知源与 Obsidian 互补而非竞争：知源收录并直达 <code>obsidian://</code> 链接，深度写作仍留在 Obsidian。</td></tr>
-          <tr><td>Flomo</td><td>碎片化记录</td><td>好奇心与 Flomo 同源，但好奇心只是六层链的一环——知源把它接进方向、项目与北极星，不止是"存起来"。</td></tr>
+          <tr><td>Flomo</td><td>碎片化记录</td><td>好奇心与 Flomo 同源，但好奇心只是六层链的一环——知源把它接进方向、项目与指标条，不止是"存起来"。</td></tr>
           <tr><td>Raindrop.io / Eagle</td><td>书签管理 / 素材管理</td><td>它们收藏"链接"本身；知源调度"资源 + 任务 + 好奇心 + 方向"四类对象，且数据 100% 本机。</td></tr>
-          <tr><td>Raycast / LaunchBar</td><td>启动器（命令/检索）</td><td>同频"三秒召回"，但它们是系统级命令面板，知源是个人认知资源的总调度——有方向、有策展、有北极星。</td></tr>
+          <tr><td>Raycast / LaunchBar</td><td>启动器（命令/检索）</td><td>同频"三秒召回"，但它们是系统级命令面板，知源是个人认知资源的总调度——有方向、有策展、有主航线。</td></tr>
         </table>
         <h4>间接竞品：AI 时代的默认选项</h4>
         <table class="mc-table">
@@ -75,25 +79,26 @@ export const MANUAL: ManualPart[] = [
   {
     title: '基础篇 · 上手',
     sections: [
-      { id: 'basic-1', title: '界面全景', html: `
-        <p>整个产品就是一条<strong>「方向 → 行动 → 资源」</strong>的动线，全部住在浏览器新标签页里。</p>
-        <div class="mc-flow">🧭 知源罗盘（看方向与好奇心）→ ⚙ 知源引擎（今日行动 / 项目策展 / 方向树）→ 📂 工作台（资源策展）</div>
-        <h4>知源罗盘：30 秒方向确认仪式</h4>
+      { id: 'basic-1', title: '界面全景（R49 三大系统页）', html: `
+        <p>整个产品是一条<strong>「调度 → 方向 → 资源」</strong>的动线，全部住在浏览器新标签页里。顶部导航：<strong>调度台（默认）/ 方向台 / 资源台（下轮交付）/ 用户工作台列表</strong>。</p>
+        <div class="mc-flow">🎛 调度台（今日记录 + 三件事 + 问题探索/任务调度）→ 🧭 方向台（指标条 / 主航线 / 项目总览）→ 📦 资源台（V2.23.x）→ 📂 用户工作台</div>
+        <h4>调度台：今天，从哪里出发</h4>
         <ul>
-          <li><b>知源灯塔</b>：愿景、使命与主攻项目——在方向树里点亮 📡 投射后自动出现；右上角可跳转知源引擎；点击项目卡滑出详情抽屉。</li>
-          <li><b>知源北极星</b>：六面镜子（方向健康度 / 好奇探索 / 有效复用 / 新增卡片 / 删除卡片 / 未归档任务），日/周/累计三档切换全档联动，全部可点击下钻查看明细。</li>
-          <li><b>好奇心卡库</b>：专区头部 Tab = 好奇心卡库（默认）｜任务卡库（各自标注整体卡片数量）；好奇心卡片 / 列表 / 看板三种视图；单击看详情，双击打开链接；右上角 📌 置顶。</li>
+          <li><b>今日记录条</b>：今日入台 / 今日移出 / 今日调出 / 写入记录——四个计数，单击任意一格打开明细抽屉（搜索 + 每页 20 条翻页 + 单击定位）。</li>
+          <li><b>今日三件事（左栏）</b>：硬上限 3 件（方法论见方法篇）；单击任务卡联动右栏，双击开详情。</li>
+          <li><b>项目调度（右栏）</b>：呈现选中任务隶属的项目——归属链 + 任务进度 + 成功指标，可就地增删指标与任务。</li>
+          <li><b>底部 Tab</b>：问题探索（默认）｜任务调度——好奇心与任务的完整管理台。</li>
         </ul>
-        <h4>导航</h4>
-        <table class="mc-table">
-          <tr><th>去哪里</th><th>快捷键</th><th>说明</th></tr>
-          <tr><td>⚙ 知源引擎</td><td><kbd>Alt</kbd>+<kbd>1</kbd></td><td>今日行动 / 项目策展 / 方向树</td></tr>
-          <tr><td>📂 各工作台</td><td><kbd>Alt</kbd>+<kbd>2…9</kbd></td><td>设置 → 快捷键设置可逐个自定义</td></tr>
-          <tr><td>⌨ 快捷键速查</td><td><kbd>?</kbd></td><td>任意页面呼出全量速查表</td></tr>
-        </table>
-        <div class="mc-tip">💡 无论停在哪一页，刷新固定回知源罗盘——方向优先，是知源的第一设计。</div>
+        <h4>方向台：主航线与项目全景</h4>
+        <ul>
+          <li><b>指标条（方向状态）</b>：DHI 方向契合度 / WCE 好奇探索 / WRR 资源复用 / 偏航行动四格，日/周/累计三档；「📊 详细指标」下钻完整六指标（新增/删除卡等）。</li>
+          <li><b>主航线</b>：愿景 → 使命 → 战略目标 → <strong>项目为止</strong>；项目行带 🎯主攻 / 📡已投射 / ⚠停滞 标记与进度，点击进项目详情。</li>
+          <li><b>项目总览</b>：满宽三列卡；📌 置顶分组、拖拽排序、新建/改名/删除（摘除式）全套管理。</li>
+          <li><b>完整方向树</b>（右上角进入）：六层全深度 + 顶部统计 + 一键展开/收起 + 已完成项目显隐。</li>
+        </ul>
+        <div class="mc-tip">💡 无论停在哪一页，刷新固定回调度台——「今天从哪里出发」优先，是知源的第一设计。冷启动时你会看到品牌动画（300–600ms），按 Esc 或单击可跳过。</div>
       ` },
-      { id: 'basic-2', title: '三键采集', html: `
+      { id: 'basic-2', title: '三键采集与全局搜索', html: `
         <div class="mc-steps">
           <div class="mc-step"><b>1</b><span>在任意网页按 <kbd>Ctrl+Shift+J</kbd>，弹窗自动预填标题与链接；先选中文字，会自动填入描述</span></div>
           <div class="mc-step"><b>2</b><span><kbd>Enter</kbd> 保存 → 弹窗变「✓ 已保存」→ 再按 <kbd>Enter</kbd> 直接打开看板并高亮新卡</span></div>
@@ -112,9 +117,11 @@ export const MANUAL: ManualPart[] = [
         </ul>
         <h4>🔍 全局搜索 · Ctrl+K</h4>
         <ul>
-          <li>穿透三卡与全部工作台；空查询时显示<strong>快捷操作 + 最近打开</strong>。</li>
-          <li>结果按 📄 资源 / ✅ 任务 / 💡 好奇 <b>分组</b>呈现，关键词<b>高亮</b>；支持<b>拼音与首字母</b>（输入 sj 能命中「设计」）。</li>
-          <li><kbd>Tab</kbd> 循环过滤类型，或输入「任务」「资源」「好奇」+ Tab 直达。</li>
+          <li>穿透三卡、全部工作台与项目；空查询时显示<strong>快捷操作 + 最近打开</strong>。</li>
+          <li>结果按 📄 资源 / ✅ 任务 / 💡 好奇 / 🗂 工作台 / 📦 项目 <b>分组</b>呈现，关键词<b>高亮</b>；支持<b>拼音与首字母</b>（输入 sj 能命中「设计」）。</li>
+          <li><kbd>Tab</kbd> 循环过滤类型，或输入「任务」「资源」「好奇」「工作台」「项目」+ Tab 直达。</li>
+          <li><strong>工作台类型 = 分类树</strong>：展示每个工作台下的分类与卡片数；单击分类即定位——分类下有卡则高亮第一张，无卡则高亮分类行本身。</li>
+          <li><strong>项目类型</strong>：列出全部项目（主攻/已投射/已完成标记），单击直达项目详情。</li>
           <li>选中结果按 <kbd>Ctrl</kbd>+<kbd>C</kbd> 复制 Markdown 引用（标题+链接）。</li>
         </ul>
         <div class="mc-warn">⚠ chrome:// 等不可注入页面会自动改用独立小窗，体验一致。</div>
@@ -122,11 +129,12 @@ export const MANUAL: ManualPart[] = [
       { id: 'basic-3', title: '工作台策展', html: `
         <h4>单击看详情 · 双击开链接（三卡一致）</h4>
         <div class="mc-flow">单击卡片 → 详情抽屉 ｜ 双击卡片 → 打开链接（网页 / 本地文件 / Obsidian）</div>
-        <h4>分类：最多 2 级的树</h4>
+        <h4>分类：最多 2 级的树（V2.21.3 美化）</h4>
         <ul>
           <li>「＋ 新建分类」弹窗输入即建；hover 出 <b>📌 置顶 / ✎ 重命名 / 🗑 删除</b>，也可右键呼出菜单。</li>
           <li>拖拽三语义：上下沿=同级排序（有插入线）；拖到根分类中间=成为子分类；拖到底部「⬆ 升为一级」区=恢复顶级。</li>
           <li>点父分类聚合显示全部子孙资源；卡片左下角 📂 分类标签可点击跳转。</li>
+          <li><strong>展开 / 折叠</strong>：点 ▸ 箭头或文件夹图标逐节点收展；顶部工具条「⊟ 收起」一键收起到根部、「⊞ 展开」全局展开（默认全展开，选中被收起的子分类会自动展开父级）。</li>
         </ul>
         <h4>置顶与批量</h4>
         <ul>
@@ -136,22 +144,40 @@ export const MANUAL: ManualPart[] = [
         </ul>
         <div class="mc-tip">💡 右键卡片 = 完整操作菜单（打开 / 复制链接 / 移动分类 / 置顶 / 删除），比找小按钮更快。</div>
       ` },
-      { id: 'basic-4', title: '今日行动', html: `
-        <p>按 <kbd>Alt</kbd>+<kbd>1</kbd> 进入知源引擎，默认停在今日行动。</p>
-        <h4>🕯 今日三件事</h4>
+      { id: 'basic-4', title: '调度台 · 今日三件事与项目调度', html: `
+        <p>刷新即回调度台。三件事住在首页左栏，项目调度在右栏。</p>
+        <h4>🕯 今日三件事（硬上限 3 件）</h4>
         <ul>
+          <li><strong>为什么最多 3 件</strong>：三件事的价值在于"取舍"，不在于"全记"。超过 3 件，它就退化成又一张 Todo 清单——而你要的每天只有三件事是：今天结束了，最重要的几件事真的推进了。满员时显示 ⚖ 锁定条（3/3），「从库选取」与拖拽两条路径都会被拦截——先完成或移除一件，空位立即开放。</li>
           <li>空槽「＋ 从库选取」：已完成与已选入的任务自动置灰；置顶任务排在最前。</li>
-          <li><strong>呼吸灯</strong>提示聚焦（选中/完成后转为常亮）；复选框并入标题行；<strong>单击</strong>任务卡 → 下方「项目策展」联动呈现其隶属项目；<strong>双击</strong> → 打开任务详情抽屉；右上角 × 可移除后从任务库重选。</li>
-          <li>勾选 = 同步完成任务状态；可删除后从任务库重选；「复制昨日」一键延续；<kbd>Ctrl</kbd>+<kbd>←</kbd>/<kbd>→</kbd> 快速切日期。</li>
+          <li><strong>呼吸灯</strong>提示聚焦（选中/完成后转为常亮）；复选框并入标题行；<strong>单击</strong>任务卡 → 右栏「项目调度」联动呈现其隶属项目；<strong>双击</strong> → 打开任务详情抽屉；右上角 × 可移除后从任务库重选。</li>
+          <li>勾选 = 同步完成任务状态；「复制昨日」一键延续；<kbd>Ctrl</kbd>+<kbd>←</kbd>/<kbd>→</kbd> 快速切日期。</li>
           <li>「导出」弹窗自选时间范围，CSV 六字段：任务内容 / 所属项目 / 项目→成功指标 / 任务状态 / 安排时间 / 创建时间。</li>
         </ul>
-        <h4>🖼 项目策展</h4>
+        <h4>📦 项目调度（右栏）</h4>
         <ul>
-          <li>默认呈现第一件事所隶属的项目，单击上方任务卡即联动切换。</li>
-          <li>左列：项目名 + 愿景 / 使命（只读）+ <strong>战略目标</strong>放大呈现；下方四大数值：成功指标 / 任务总数 / 已完成 / 进行中。</li>
-          <li>右列按成功指标分组呈现任务，支持「＋ 新建任务」（可指定指标）与「🔗 关联任务」。</li>
+          <li>默认呈现第一件事所隶属的项目，单击左栏任务卡即联动切换。</li>
+          <li>项目名 + 愿景 / 使命（只读）+ <strong>战略目标</strong> + 四大数值：成功指标 / 任务总数 / 已完成 / 进行中。</li>
+          <li>按成功指标分组呈现任务，支持「＋ 新建任务」（可指定指标）与「🔗 关联任务」；指标可就地新增/删除（删除=摘除关联，任务转未关联，不丢失）。</li>
         </ul>
-        <div class="mc-tip">💡 任务的多维管理已迁至「资源罗盘 → 好奇心卡库」专区 Tab「任务卡库」（卡片 / 列表 / 看板三视图）——今日行动只聚焦当下，项目只呈现全景。</div>
+        <div class="mc-tip">💡 任务的多维管理在调度台底部 Tab「任务调度」（卡片 / 列表 / 看板三视图）——三件事只聚焦当下，项目只呈现全景。</div>
+        <h4>🗑 删除入口（V2.21.3 补全）</h4>
+        <ul>
+          <li>任务调度<strong>卡片 / 列表 / 看板三视图</strong>均有删除入口：hover 卡片出现 🗑，或右键菜单「删除」；删除有 5 秒撤销。</li>
+          <li>任务详情抽屉左下角提供降级样式的「🗑 删除」，不与主按钮抢视觉。</li>
+        </ul>
+        <h4>🪟 详情页新结构（V2.21.3 重设计）</h4>
+        <ul>
+          <li>三卡详情统一为：<strong>标题 + 状态下拉 chip</strong> → <strong>灵魂内容区</strong>（好奇心=摘录引用体 / 任务=说明 / 资源=链接）→ <strong>紧凑属性行</strong>（项目·指标双列、优先级、标签）→ <strong>折叠附属区</strong>（附件 / 挂载）。</li>
+          <li>操作分层：左侧弱化次操作，右侧唯一主按钮（<kbd>Ctrl+↩</kbd> 保存）；危险操作一律降级。</li>
+        </ul>
+        <h4>📦 项目详情（方向台项目总览 / 搜索项目进入）</h4>
+        <ul>
+          <li>归属链四段可点击：愿景 → 使命 → 战略目标 → 项目（前三段跳完整方向树）。</li>
+          <li>项目树：项目 → 成功指标 → 任务，默认展开，指标行带进度条；任务拖拽排序、跨指标归属。</li>
+          <li><strong>任务附件区</strong>：按任务聚合展示附件（🖼 图片弹窗预览 / 🌐 HTML / 📕 PDF 新标签打开）；资源卡本体在用户工作台管理，此处不重复呈现。</li>
+          <li>好奇心不直接挂进项目——通过「转为任务 / 归档为资源」进入，这是产品规则。</li>
+        </ul>
       ` }
     ]
   },
@@ -163,42 +189,44 @@ export const MANUAL: ManualPart[] = [
         <p>AI 时代从不缺第一项。知源的每个功能都在为后三项概率服务：</p>
         <table class="mc-table">
           <tr><th>提升哪项</th><th>对应功能</th><th>你的动作</th></tr>
-          <tr><td>被找到</td><td>Ctrl+K（拼音首字母）· 标签树 · 分类树</td><td>收录时打对标签、放进合适分类</td></tr>
-          <tr><td>被及时调用</td><td>双击直达 · Alt+数字 · 📌 置顶 · 最近打开</td><td>高频资源置顶，快捷键炼成肌肉记忆</td></tr>
+          <tr><td>被找到</td><td>Ctrl+K（拼音首字母/工作台分类树/项目直达）· 标签树 · 分类树</td><td>收录时打对标签、放进合适分类</td></tr>
+          <tr><td>被及时调用</td><td>双击直达 · 修饰键+数字 · 📌 置顶 · 最近打开</td><td>高频资源置顶，快捷键炼成肌肉记忆</td></tr>
           <tr><td>被正确使用</td><td>我的注解 · 采集时选中文字自动入描述</td><td>采集那一刻写一句「为什么留它」</td></tr>
         </table>
         <h4>用 🔥 做月度复用复盘</h4>
-        <p>每张卡片的 🔥 = 被打开次数，北极星 <b>WRR</b> 是它们的周期总和。每月看一次：0 次调用的卡片，要么给它一个被找到的位置，要么诚实删掉——回收站永远兜底，而且删除后有 5 秒撤销。</p>
+        <p>每张卡片的 🔥 = 被打开次数，指标条 <b>WRR</b> 是它们的周期总和。每月看一次：0 次调用的卡片，要么给它一个被找到的位置，要么诚实删掉——回收站永远兜底，而且删除后有 5 秒撤销。</p>
       ` },
       { id: 'mid-2', title: '六层思维链', html: `
         <div class="mc-flow">1 愿景 Why → 2 使命 How → 3 战略目标 → 4 攻坚项目 → 5 成功指标 → 6 任务</div>
         <ul>
-          <li>全部节点点击即编辑（Enter 保存 / Esc 取消）；默认全局展开，可逐层折叠。</li>
-          <li>四层 📡 投射至灯塔——知源罗盘只显示你此刻认定的方向。灯塔放不下，说明你想要的太多。</li>
-          <li>🎯 主攻（最多 2 个）直通今日行动速览条；14 天无推进自动亮 ⚠ 停滞。</li>
+          <li>全部节点点击即编辑（Enter 保存 / Esc 取消）；完整方向树默认全局展开，可逐层折叠，也可「⊞ 展开 / ⊟ 收起」一键全开全收。</li>
+          <li>愿景 / 使命 / 项目三层 📡 投射——主航线只显示你此刻认定的方向。主航线放不下，说明你想要的太多。</li>
+          <li>🎯 主攻（最多 2 个）直通调度台速览；14 天无推进自动亮 ⚠ 停滞。</li>
           <li>愿景/使命可「🔗 关联卡片」挂资源与好奇——为方向配上策展证据。</li>
         </ul>
         <div class="mc-tip">💡 不必一次写完六层。今天只有一个模糊愿景加一个项目，也完全合法——方向是长出来的，不是填出来的。</div>
       ` },
-      { id: 'mid-3', title: '项目策展', html: `
-        <div class="mc-flow">全景墙（每项目一块展板卡）→ 点击进入全屏展板 → 就地策展指标与任务</div>
+      { id: 'mid-3', title: '项目总览与项目详情', html: `
+        <div class="mc-flow">方向台 · 项目总览（置顶分组 + 拖拽排序）→ 点击项目卡进入项目详情 → 就地策展指标与任务</div>
         <ul>
-          <li>「新建 / 规划项目」弹窗里展示<b>愿景→使命→战略目标</b>视觉链，选择归属后一键创建并直接进入展板。</li>
-          <li>展板内就地添加指标与任务；任务拖拽排序、跨指标拖拽归属；删除指标时任务自动转入「⚠ 未归类任务」，永不丢失。</li>
-          <li>项目详情抽屉（知源罗盘灯塔/北极星点入的是同一个）就地编辑一切，实时同步知源引擎。</li>
+          <li><b>📌 置顶分组</b>：置顶组与全部组分块呈现（与 📡 投射灯塔互相独立）；跨区拖拽会被拦截——先用 📌 决定分区。</li>
+          <li><b>拖拽排序</b>：组内拖拽自由排序，刷新后保持；项目名单击即改名。</li>
+          <li><b>删除项目 = 摘除式</b>：其下任务转为「未归档任务」（不删除，可重新关联），成功指标随项目移除——数据永不静默丢失。</li>
+          <li>项目详情页：归属链可点击、任务附件按任务聚合、任务拖拽跨指标归属；与完整方向树实时双向同步。</li>
         </ul>
-        <div class="mc-tip">💡 建议每周进一次展板做「策展式回顾」——这是给你自己看的，不是给老板看的。</div>
+        <div class="mc-tip">💡 建议每周进一次项目详情做「策展式回顾」——这是给你自己看的，不是给老板看的。</div>
       ` },
 
-      { id: 'mid-4', title: '北极星与未归档任务', html: `
+      { id: 'mid-4', title: '方向状态与未归档任务', html: `
         <table class="mc-table">
           <tr><th>指标</th><th>口径</th><th>照见什么</th></tr>
-          <tr><td>DHI 方向健康度</td><td>活跃项目 14 天内有推进=清晰</td><td>项目是否集体沉默</td></tr>
+          <tr><td>DHI 方向契合度</td><td>已投射项目中周期窗口内有推进的占比</td><td>项目是否集体沉默</td></tr>
           <tr><td>WCE 好奇探索</td><td>探索中 + 已求证的好奇数</td><td>认知活力</td></tr>
           <tr><td>WRR 有效复用</td><td>周期内资源被打开次数</td><td>调度系统是否真在被用</td></tr>
+          <tr><td>偏航行动</td><td>未关联项目的活跃任务数</td><td>行动是否脱离了方向</td></tr>
           <tr><td>📥 未归档任务</td><td>未挂成功指标的任务数（含未挂项目）</td><td>散落任务是否需要归位</td></tr>
         </table>
-        <p>六卡全部可下钻：未归档任务抽屉里<strong>级联选择项目→指标即完成归档</strong>，任务当场从清单消失。</p>
+        <p>指标条「📊 详细指标」下钻完整六指标，全部可下钻：未归档任务抽屉里<strong>级联选择项目→指标即完成归档</strong>，任务当场从清单消失。</p>
         <div class="mc-tip">💡 每周一早上看一次「周」口径。数字不好看先别自责——问是方向错了，还是节奏断了。</div>
       ` },
       { id: 'mid-5', title: '标签与字段', html: `
@@ -216,13 +244,13 @@ export const MANUAL: ManualPart[] = [
     sections: [
       { id: 'adv-1', title: '知源哲学', html: `
         <div class="mc-quote">「知」，是深刻地明白；「源」，是万物的起点。<br>真正有力量的人，不是信息最多的人，而是始终<b>知道自己源头在哪里</b>的人。</div>
-        <p>AI 把个人生产力放大了百倍，也带来了工具爆炸与节奏失控。知源不做「又一个 AI 助手」，而做<b>资源调度层与认知控制塔</b>——AI 是被调度的工具，人才是判断与行动的主体。八大关键词：</p>
+        <p>AI 把个人生产力放大了百倍，也带来了工具爆炸与节奏失控。知源不做「又一个 AI 助手」，而做<b>信息洪流中的控制中心</b>——用好奇心决定什么进得来，用调度决定进来的怎么用；AI 是被调度的机组，人才是判断与行动的主体。八大关键词：</p>
         <table class="mc-table">
           <tr><th>关键词</th><th>主张</th></tr>
           <tr><td>知源</td><td>知道自己源头在哪里</td></tr>
-          <tr><td>好奇心</td><td>不是待办清单，是与认知未来签下的温柔约定</td></tr>
-          <tr><td>源头</td><td>长期核验的一手来源，不可被 AI 复制的认知壁垒</td></tr>
-          <tr><td>调度</td><td>在正确的时刻调用正确的资源</td></tr>
+          <tr><td>好奇心</td><td>过滤器：由内向外，决定什么值得入台</td></tr>
+          <tr><td>调度</td><td>态度：由外向内，一切资源以「为己所用」为唯一认知</td></tr>
+          <tr><td>独特性</td><td>调度的复利——AI 生成不了你的好奇，复制不了你的调度历史</td></tr>
           <tr><td>看见</td><td>无法调用看不见的资源，无法深化看不见的好奇</td></tr>
           <tr><td>无摩擦</td><td>每一毫秒延迟都是对认知节奏的打断</td></tr>
           <tr><td>策展</td><td>不是管理资源，是为认知生活做郑重选择</td></tr>
@@ -236,10 +264,10 @@ export const MANUAL: ManualPart[] = [
           <tr><td>系统架构</td><td>恩格尔巴特 · 智力增强</td><td>六层思维链是脚手架不是牢笼；双向透射</td></tr>
           <tr><td>交互媒介</td><td>布雷特·维克多 · 动态媒介</td><td>毫秒级响应、直接操纵、拒绝隐藏导航</td></tr>
           <tr><td>资源组织</td><td>维纳·布什 · Memex</td><td>关联而非文件夹；允许杂乱</td></tr>
-          <tr><td>成长反馈</td><td>唐纳德·舍恩 · 反思性实践</td><td>北极星提供镜子而非评分</td></tr>
+          <tr><td>成长反馈</td><td>唐纳德·舍恩 · 反思性实践</td><td>方向状态提供镜子而非评分</td></tr>
           <tr><td>意义生成</td><td>卡尔·维克 · 意义建构</td><td>支持自下而上修正愿景；允许模糊</td></tr>
         </table>
-        <div class="mc-tip">💡 延伸阅读：布什 1945 年《As We May Think》——Memex 的联想路径就是今天你的方向树与关联卡片。</div>
+        <div class="mc-tip">💡 延伸阅读：布什 1945 年《As We May Think》——Memex 的联想路径就是今天你的完整方向树与关联卡片。</div>
       ` },
       { id: 'adv-3', title: '七不原则', html: `
         <ul>
@@ -255,19 +283,28 @@ export const MANUAL: ManualPart[] = [
       ` },
       { id: 'adv-4', title: '个性化探索', html: `
         <h4>① 设计你的每日动线</h4>
-        <div class="mc-flow">刷新 → 知源罗盘 30 秒 → <kbd>Alt+1</kbd> 今日行动 → 干活中 <kbd>J</kbd>/<kbd>I</kbd>/<kbd>K</kbd> 随手采集 → 睡前照 1 分钟北极星</div>
+        <div class="mc-flow">刷新 → 调度台 30 秒（记录条 + 三件事）→ 方向台看主航线 → 干活中 <kbd>J</kbd>/<kbd>I</kbd>/<kbd>K</kbd> 随手采集 → 睡前照 1 分钟指标条</div>
         <h4>② 工作台即人生域</h4>
-        <p>按人生项目或资源类型建工作台均可；⌘ 图标与名称随点随改；<kbd>Alt</kbd>+数字炼成肌肉记忆——<b>当你不再思考「工具在哪」，工具才真正消失</b>。</p>
+        <p>按人生项目或资源类型建工作台均可；图标与名称随点随改；左侧目录树支持<strong>逐节点展开/折叠</strong>（点 ▸ 箭头或文件夹图标），工具条<strong>「⊟ 收起」</strong>一键收起到根部、<strong>「⊞ 展开」</strong>全局展开（默认全展开）；<kbd>修饰键</kbd>+数字炼成肌肉记忆——<b>当你不再思考「工具在哪」，工具才真正消失</b>。</p>
         <h4>③ 数据主权演练</h4>
         <ul>
           <li>设置 → 导出数据：JSON 全量 / CSV / Markdown，建议每月一次。</li>
-          <li>设置 → 📊 知源仪表盘：核心指标卡与动态条<strong>单击下钻明细</strong>，<strong>单击明细行</strong>即跳转定位到卡片所在页面；明细超过 200 条自动分批「加载更多」。</li>
+          <li>设置 → 📊 知源仪表盘：核心指标卡与动态条<strong>单击下钻明细</strong>，<strong>单击明细行</strong>即跳转定位到卡片所在页面；明细抽屉内置<strong>搜索框</strong>与<strong>左右翻页（每页 20 条）</strong>，大库也能快速找卡。</li>
+          <li><strong>新增/导入双口径（V2.21.3 起）</strong>：「今日/本周新增」按<strong>新建 X</strong> 计数（卡片 createdAt），导入的卡单独显示<strong>「导 Y」</strong>并继承原创建时间——不会把导入错记成今天新建，明细里导入卡带「⇪ 导入」徽标。</li>
+          <li><strong>运行错误留痕</strong>：出现崩溃/异常时，仪表盘动态条会出现「⚠ 运行错误 N」——单击即可导出含完整堆栈的 txt 文件，无需开 F12 就能把现场发给开发者定位。</li>
           <li>换电脑：新机装扩展 → 导入 JSON，一切如初；删除的卡片在回收站，且有 5 秒撤销兜底。</li>
         </ul>
-        <h4>④ 留给你的探索题</h4>
+        <h4>④ 数据迁移语义（V2.21.2 起）</h4>
         <ul>
-          <li>把好奇心看板当创意漏斗：每周只转化一张卡，一个月后观察 WCE 与方向树的变化。</li>
-          <li>每个战略目标只投射 1 个项目上灯塔——放不下时，不是灯塔太小，是你想要的太多。</li>
+          <li><strong>导出 = 全量快照</strong>：「导出全部数据」是一份完整 JSON——罗盘数据（愿景/使命/方向→项目→成功指标→任务关联、灯塔投射）+ 调度台与工作台数据（工作台/目录树/三类卡片/今日三件事/统计/行为日志）及<strong>全部数据关系</strong>都在其中。</li>
+          <li><strong>导入 = 并集合并</strong>：按 ID 与现有数据取并集，同 ID 以导入文件为准覆盖；指标的任务关联（taskIds）取并集，不丢任何一侧的关联。</li>
+          <li><strong>导入前自动备份</strong>：点击导入时，扩展会先把当前全部数据自动下载为一份 JSON 备份——合并结果不满意，可再导入这份备份还原。</li>
+          <li><strong>格式校验</strong>：仅接受知源 v2 格式的导出文件；其他 JSON 会被拒绝，不改动现有数据。</li>
+        </ul>
+        <h4>⑤ 留给你的探索题</h4>
+        <ul>
+          <li>把问题探索看板当创意漏斗：每周只转化一张卡，一个月后观察 WCE 与主航线的变化。</li>
+          <li>每个战略目标只投射 1 个项目上主航线——放不下时，不是航线太窄，是你想要的太多。</li>
           <li>用「我的注解」写「为什么留它」：半年后，这是唯一不会被 AI 替代的检索信号。</li>
         </ul>
         <div class="mc-quote">愿你在某一天睡前感到：我知道自己在做什么、为什么做、正在成为想成为的人。</div>
@@ -280,27 +317,31 @@ export const MANUAL: ManualPart[] = [
       { id: 'ref-1', title: '快捷键全表', html: `
         <table class="mc-table">
           <tr><th>场景</th><th>按键</th><th>作用</th></tr>
-          <tr><td rowspan="4">全局（任意网页）</td><td><kbd>Ctrl+Shift+J</kbd></td><td>快速采集资源卡</td></tr>
+          <tr><td rowspan="6">全局（任意网页）</td><td><kbd>Ctrl+Shift+J</kbd></td><td>快速采集资源卡</td></tr>
           <tr><td><kbd>Ctrl+Shift+I</kbd></td><td>采集好奇心（选中文字附带来源）</td></tr>
           <tr><td><kbd>Ctrl+K</kbd></td><td>全局搜索（空查询=快捷操作+最近打开）</td></tr>
-          <tr><td><kbd>Ctrl+Shift+K</kbd></td><td>打开工作台</td></tr>
-          <tr><td rowspan="3">应用内</td><td><kbd>Alt</kbd>+<kbd>1</kbd> / <kbd>2…9</kbd></td><td>知源引擎 / 各工作台（可自定义）</td></tr>
+          <tr><td><kbd>Ctrl+Shift+K</kbd></td><td>打开调度台</td></tr>
+          <tr><td>（自定义）</td><td>打开方向台 / 打开资源台 / 打开设置——在 <code>chrome://extensions/shortcuts</code> 分配</td></tr>
+          <tr><td></td><td></td></tr>
+          <tr><td rowspan="4">应用内</td><td><kbd>修饰键</kbd>+<kbd>1…N</kbd></td><td>各用户工作台（从 1 起按导航顺序计数，修饰键可自定义）</td></tr>
           <tr><td><kbd>?</kbd></td><td>快捷键速查面板</td></tr>
           <tr><td><kbd>Ctrl</kbd>+<kbd>←</kbd>/<kbd>→</kbd></td><td>今日三件事切换日期</td></tr>
+          <tr><td></td><td></td></tr>
           <tr><td rowspan="4">编辑与列表</td><td><kbd>Ctrl+Enter</kbd></td><td>保存并关闭（所有弹窗/抽屉）</td></tr>
-          <tr><td><kbd>Esc</kbd></td><td>逐层关闭</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>逐层关闭（含刷新动画跳过）</td></tr>
           <tr><td><kbd>↑↓</kbd> / <kbd>Enter</kbd> / <kbd>空格</kbd></td><td>任务列表：选择 / 开抽屉 / 批量勾选</td></tr>
           <tr><td><kbd>Tab</kbd></td><td>搜索内循环过滤类型</td></tr>
           <tr><td rowspan="3">鼠标</td><td>单击 / 双击</td><td>三卡一致：单击详情，双击打开链接</td></tr>
           <tr><td>右键</td><td>卡片操作菜单</td></tr>
           <tr><td>拖拽</td><td>排序 / 跨列改状态 / 跨组改归属（有插入线）</td></tr>
         </table>
-        <div class="mc-warn">⌨ 系统级四键在 <code>chrome://extensions/shortcuts</code> 自定义——高效使用知源的第一步。</div>
+        <div class="mc-warn">⌨ 系统级四键已占满默认键位；「打开设置 / 方向台 / 资源台」在 <code>chrome://extensions/shortcuts</code> 手动分配——高效使用知源的第一步。</div>
       ` },
       { id: 'ref-2', title: '数据与安全', html: `
         <ul>
           <li>所有数据 100% 存储在本机（chrome.storage.local），无账号、无云端、无「同步中」的谎言。</li>
           <li>设置 → 导出数据：JSON 全量 / 按工作台 CSV / Markdown，建议每月备份。</li>
+          <li>导入 JSON：<strong>并集合并</strong>，含罗盘数据与调度台全部数据及关系；导入前自动下载当前数据备份，仅接受 v2 格式（详见「日常仪式 · 数据迁移语义」）。</li>
           <li>删除一律软删：回收站可恢复；删除瞬间 toast 有 5 秒撤销。</li>
           <li>设置 → 重置与回滚：输入「回滚」确认后恢复初始状态（先导出！）。</li>
         </ul>
@@ -328,7 +369,7 @@ export function buildManualStandaloneHtml(): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>知源工作台 · 使用手册</title>
+<title>知源调度台 · 使用手册</title>
 <style>
   body { margin: 0; background: #FAFAFB; color: #17181C; font-family: "Inter", -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif; font-size: 14.5px; line-height: 2.05; letter-spacing: -0.011em; }
   header { background: #010102; color: #F7F8F8; padding: 26px 32px; }
@@ -366,9 +407,9 @@ export function buildManualStandaloneHtml(): string {
 </style>
 </head>
 <body>
-  <header><div class="t">📖 知源工作台 · 使用手册</div><div class="s">速览 / 基础 / 方法 / 理念 / 附录 · 从好奇出发，向源头求证</div></header>
+  <header><div class="t">📖 知源调度台 · 使用手册</div><div class="s">速览 / 基础 / 方法 / 理念 / 附录 · 你不缺信息，你缺一座控制中心</div></header>
   <div class="wrap"><nav>${toc}</nav><main>${body}</main></div>
-  <footer>— 由知源工作台导出分享 —</footer>
+  <footer>— 由知源调度台导出分享 —</footer>
 </body>
 </html>`
 }

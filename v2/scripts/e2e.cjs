@@ -9,7 +9,7 @@
  *   E2E-5  PDF 附件双击 file:// 打开（data 层种卡 + IndexedDB blob → 双击卡片 → 新标签 file://…pdf）
  *   E2E-6  事件日志 zy_event_log 独立 key 落盘（打开资源卡产生事件）
  *   E2E-7  好奇心专区 Tab：好奇心卡库默认 → 切任务卡库 → 卡片视图默认渲染 + 好奇面板隐藏（R45 迁移 + R46 BUG-1）
- *   E2E-8  今日行动项目策展面板（愿景/使命小卡 + 战略目标 + 四数值，R45 T-04）
+ *   E2E-8  调度台三件事 + 项目调度面板（愿景/使命小卡 + 战略目标 + 四数值，R45 T-04 → R49 迁移）
  *   E2E-9  存量回填迁移：有 metricId 无 projectId 的任务启动后按指标反查补齐 + projBackfillFixed 记录（R46 BUG-2）
  */
 const path = require('path')
@@ -104,13 +104,18 @@ async function main() {
   const treeWs = await page.locator('.gs-pan-ws').count()
   report('E2E-3 工作台全景双栏+计数树', panVisible && treeWs >= 1, `panel=${panVisible} wsNodes=${treeWs}`)
 
-  // E2E-4 北极星新增/删除卡（R45-1：标题改为「新增卡片/删除卡片」，随日/周/累计档位联动）
-  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  // E2E-4 方向台指标条（R49-C1）：4 格 DHI/WCE/WRR/偏航 + 详细指标下钻含北极星「新增卡片/删除卡片」
+  await page.goto(base + '#/compass', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
+  const metricBarOn = await page.locator('.mb-cells').first().isVisible().catch(() => false)
+  const offCourse = await page.getByText('偏航行动').first().isVisible().catch(() => false)
+  await page.locator('.mb-drill').click().catch(() => {})
+  await page.waitForTimeout(1200)
   const todayAdd = await page.getByText('新增卡片').first().isVisible().catch(() => false)
   const todayDel = await page.getByText('删除卡片').first().isVisible().catch(() => false)
   const oldLabelGone = !(await page.getByText('今日新增', { exact: true }).first().isVisible().catch(() => false))
-  report('E2E-4 北极星「新增卡片/删除卡片」卡（旧「今日新增」已移除）', todayAdd && todayDel && oldLabelGone)
+  report('E2E-4 方向台指标条 4 格 + 详细指标下钻（北极星新增/删除卡在抽屉内）', metricBarOn && offCourse && todayAdd && todayDel && oldLabelGone,
+    `bar=${metricBarOn} offCourse=${offCourse} add=${todayAdd} del=${todayDel}`)
 
   // E2E-5 PDF 双击 file:// 打开
   await page.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })
@@ -171,34 +176,33 @@ async function main() {
   })
   await page.waitForTimeout(800)
 
-  // E2E-7 好奇心专区 Tab（R45 T-03 + R46 BUG-1）：默认好奇心卡库 → 切任务卡库 → 卡片视图默认 + 好奇面板隐藏
+  // E2E-7 调度台底部 Tab（R45 T-03 + R46 BUG-1 + R49 改名）：默认问题探索 → 切任务调度 → 卡片视图默认 + 探索面板隐藏
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   const tabsCount = await page.locator('.zone-tab').count()
   const curioDefault = await page.locator('.zone-tab.active').first().textContent().catch(() => '')
-  const curioPanelOn = await page.locator('.zone-tab.active').first().evaluate((el) => el.textContent.includes('好奇心卡库')).catch(() => false)
-  const curioCardVisible = await page.locator('.module-card').filter({ hasText: '好奇心卡库' }).first().isVisible().catch(() => false)
+  const curioPanelOn = await page.locator('.zone-tab.active').first().evaluate((el) => el.textContent.includes('问题探索')).catch(() => false)
+  const curioCardVisible = await page.locator('.module-card').filter({ hasText: '好奇心' }).first().isVisible().catch(() => false)
   await page.locator('.zone-tab').nth(1).click().catch(() => {})
   await page.waitForTimeout(1500)
-  const mgrTitle = await page.getByText('任务卡库').first().isVisible().catch(() => false)
-  const curioHiddenAfter = await page.locator('.module-card').filter({ hasText: '好奇心卡库' }).first().isVisible().then((v) => !v).catch(() => false)
+  const mgrTitle = await page.getByText('任务调度').first().isVisible().catch(() => false)
+  const curioHiddenAfter = await page.locator('.module-card').filter({ hasText: '好奇心' }).first().isVisible().then((v) => !v).catch(() => false)
   const cardTabActive = await page.locator('.view-tab.active').first().textContent().then((t) => (t || '').includes('卡片')).catch(() => false)
   const gridOn = await page.locator('.tm-grid').first().isVisible().catch(() => false)
   const tmCardCount = await page.locator('.tm-card').count()
-  report('E2E-7 好奇心专区 Tab：好奇心卡库默认｜任务卡库切换互斥（BUG-1 修复）', tabsCount === 2 && curioPanelOn && curioCardVisible && mgrTitle && curioHiddenAfter && cardTabActive && gridOn && tmCardCount >= 1,
+  report('E2E-7 调度台底部 Tab：问题探索默认｜任务调度切换互斥（R49 改名）', tabsCount === 2 && curioPanelOn && curioCardVisible && mgrTitle && curioHiddenAfter && cardTabActive && gridOn && tmCardCount >= 1,
     `tabs=${tabsCount} defaultTab=${(curioDefault || '').trim()} curioOn=${curioCardVisible} hiddenAfter=${curioHiddenAfter} tmCards=${tmCardCount} cardActive=${cardTabActive} grid=${gridOn}`)
 
-  // E2E-8 今日行动项目策展面板（R45 T-04）：三件事卡片 + 愿景/使命小卡 + 战略目标 + 四数值
-  await page.goto(base + '#/compass/actions', { waitUntil: 'domcontentloaded' })
+  // E2E-8 调度台首页（R49 迁移）：三件事卡片 + 项目调度面板（愿景/使命小卡 + 战略目标 + 四数值）
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  if (!page.url().includes('/compass/actions')) { await page.evaluate(() => { location.hash = '#/compass/actions' }); await page.waitForTimeout(1800) }
   const todayCard = await page.locator('.today-card').first().isVisible().catch(() => false)
-  const curationOn = await page.locator('.cur-body').first().isVisible().catch(() => false)
+  const curationOn = await page.locator('.cur-body-v').first().isVisible().catch(() => false)
   const visionMini = await page.getByText('愿景 · Vision').first().isVisible().catch(() => false)
   const missionMini = await page.getByText('使命 · Mission').first().isVisible().catch(() => false)
   const goalOn = await page.getByText('E2E 战略目标').first().isVisible().catch(() => false)
   const statCount = await page.locator('.cur-stat').count()
-  report('E2E-8 今日行动项目策展面板（愿景/使命+战略目标+四数值）', todayCard && curationOn && visionMini && missionMini && goalOn && statCount === 4,
+  report('E2E-8 调度台三件事 + 项目调度面板（愿景/使命+战略目标+四数值）', todayCard && curationOn && visionMini && missionMini && goalOn && statCount === 4,
     `todayCard=${todayCard} curation=${curationOn} stats=${statCount} goal=${goalOn}`)
 
   // E2E-9 存量回填迁移（R46 BUG-2）：重新加载页面触发 init 回填 → task-2 补齐 projectId + projBackfillFixed 记录
