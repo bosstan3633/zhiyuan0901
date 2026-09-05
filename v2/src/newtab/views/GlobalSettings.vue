@@ -105,51 +105,55 @@
           </div>
         </div>
 
-        <!-- 核心指标下钻抽屉（R48-B1：搜索 + 翻页 20 条） -->
+        <!-- 核心指标下钻抽屉（R48-B1：搜索 + 翻页 20 条；R51-B7 列表撑满抽屉消除下方空白） -->
         <Drawer :open="!!statDrawer" :title="statDrawerTitle" width="460px" @close="statDrawer = ''">
-          <div class="gs-drawer-search">
-            <input v-model="statSearch" placeholder="🔍 搜索标题 / 项目 · 指标">
-            <span class="cnt">{{ statFiltered.length }} 条</span>
-          </div>
-          <div class="gs-ev-list">
-            <div v-for="c in statShown" :key="c.id" class="gs-ev-row static clickable" @click="openStatCard(c)">
-              <span class="gs-ev-kind">{{ statKindIcon(c.kind) }}</span>
-              <span class="gs-ev-badge">{{ statKindLabel(c.kind) }}</span>
-              <span class="gs-ev-title">{{ c.title }}</span>
-              <span v-if="c.kind === 'task'" class="gs-ev-owner">{{ c.owner }}</span>
-              <span class="gs-ev-time">{{ fmtDay(c.ts) }}</span>
+          <div class="gs-drawer-fill">
+            <div class="gs-drawer-search">
+              <input v-model="statSearch" placeholder="🔍 搜索标题 / 项目 · 指标">
+              <span class="cnt">{{ statFiltered.length }} 条</span>
             </div>
-            <div v-if="!statFiltered.length" class="gs-ev-empty">{{ statSearch.trim() ? '没有匹配的卡片' : '暂无卡片' }}</div>
-            <div v-if="statList.length" class="gs-field-hint">💡 单击行可跳转定位到卡片所在页面。</div>
-          </div>
-          <div v-if="statPageCount > 1" class="gs-pager">
-            <button :disabled="statPage <= 1" @click="statGo(-1)">‹ 上一页</button>
-            <span>第 {{ statPage }} / {{ statPageCount }} 页 · 每页 {{ STAT_PAGE }} 条</span>
-            <button :disabled="statPage >= statPageCount" @click="statGo(1)">下一页 ›</button>
+            <div class="gs-ev-list">
+              <div v-for="c in statShown" :key="c.id" class="gs-ev-row static clickable" @click="openStatCard(c)">
+                <span class="gs-ev-kind">{{ statKindIcon(c.kind) }}</span>
+                <span class="gs-ev-badge">{{ statKindLabel(c.kind) }}</span>
+                <span class="gs-ev-title">{{ c.title }}</span>
+                <span v-if="c.kind === 'task'" class="gs-ev-owner">{{ c.owner }}</span>
+                <span class="gs-ev-time">{{ fmtDay(c.ts) }}</span>
+              </div>
+              <div v-if="!statFiltered.length" class="gs-ev-empty">{{ statSearch.trim() ? '没有匹配的卡片' : '暂无卡片' }}</div>
+              <div v-if="statList.length" class="gs-field-hint">💡 单击行可跳转定位到卡片所在页面。</div>
+            </div>
+            <div v-if="statPageCount > 1" class="gs-pager">
+              <button :disabled="statPage <= 1" @click="statGo(-1)">‹ 上一页</button>
+              <span>第 {{ statPage }} / {{ statPageCount }} 页 · 每页 {{ STAT_PAGE }} 条</span>
+              <button :disabled="statPage >= statPageCount" @click="statGo(1)">下一页 ›</button>
+            </div>
           </div>
         </Drawer>
 
-        <!-- 动态条明细抽屉（R48-B1 翻页 + R48-B2 双口径徽标：新增/导入/删除同源卡片字段） -->
+        <!-- 动态条明细抽屉（R48-B1 翻页 + R48-B2 双口径徽标：新增/导入/删除同源卡片字段；R51-B7 列表撑满） -->
         <Drawer :open="!!dynDrawer" :title="dynDrawerTitle" width="460px" @close="dynDrawer = ''">
-          <div class="gs-drawer-search">
-            <input v-model="dynSearch" placeholder="🔍 搜索卡片标题">
-            <span class="cnt">{{ dynFiltered.length }} 条</span>
-          </div>
-          <div class="gs-ev-list">
-            <div v-for="e in dynShown" :key="e.id" class="gs-ev-row static">
-              <span class="gs-ev-time">{{ fmtEventTime(e.ts) }}</span>
-              <span class="gs-ev-badge" :class="e.action === 'import' ? 'create' : e.action">{{ e.action === 'import' ? '⇪ 导入' : eventActionLabel(e.action) }}</span>
-              <span class="gs-ev-kind">{{ eventKindLabel(e.kind) }}</span>
-              <span class="gs-ev-title">{{ e.title }}</span>
+          <div class="gs-drawer-fill">
+            <div class="gs-drawer-search">
+              <input v-model="dynSearch" placeholder="🔍 搜索卡片标题">
+              <span class="cnt">{{ dynFiltered.length }} 条</span>
             </div>
-            <div v-if="!dynFiltered.length" class="gs-ev-empty">{{ dynSearch.trim() ? '没有匹配的记录' : '该时间范围内没有记录' }}</div>
+            <div class="gs-ev-list">
+              <div v-for="e in dynShown" :key="e.id" class="gs-ev-row static">
+                <span class="gs-ev-time">{{ fmtEventTime(e.ts) }}</span>
+                <span class="gs-ev-badge" :class="e.action === 'import' ? 'create' : e.action">{{ e.action === 'import' ? '⇪ 导入' : eventActionLabel(e.action) }}</span>
+                <span class="gs-ev-kind">{{ eventKindLabel(e.kind) }}</span>
+                <span class="gs-ev-title">{{ e.title }}</span>
+              </div>
+              <div v-if="!dynFiltered.length" class="gs-ev-empty">{{ dynSearch.trim() ? '没有匹配的记录' : '该时间范围内没有记录' }}</div>
+            </div>
+            <div v-if="dynPageCount > 1" class="gs-pager">
+              <button :disabled="dynPage <= 1" @click="dynGo(-1)">‹ 上一页</button>
+              <span>第 {{ dynPage }} / {{ dynPageCount }} 页 · 每页 {{ STAT_PAGE }} 条</span>
+              <button :disabled="dynPage >= dynPageCount" @click="dynGo(1)">下一页 ›</button>
+            </div>
+            <div class="gs-field-hint">💡 操作有痕：新增即保存，删除进回收站可恢复；导入的卡带「⇪ 导入」徽标（继承原创建时间）。</div>
           </div>
-          <div v-if="dynPageCount > 1" class="gs-pager">
-            <button :disabled="dynPage <= 1" @click="dynGo(-1)">‹ 上一页</button>
-            <span>第 {{ dynPage }} / {{ dynPageCount }} 页 · 每页 {{ STAT_PAGE }} 条</span>
-            <button :disabled="dynPage >= dynPageCount" @click="dynGo(1)">下一页 ›</button>
-          </div>
-          <div class="gs-field-hint">💡 操作有痕：新增即保存，删除进回收站可恢复；导入的卡带「⇪ 导入」徽标（继承原创建时间）。</div>
         </Drawer>
       </div>
 
@@ -672,7 +676,7 @@
             <div class="gs-about-logo"><img :src="logoUrl" alt="知源调度台" /></div>
             <div class="gs-about-name">知源调度台</div>
             <div class="gs-about-version">版本 V{{ runtimeVersion }}</div>
-            <div class="gs-about-motto">"从好奇出发，向源头求证"</div>
+            <div class="gs-about-motto">你不缺信息，你缺一座控制中心。</div>
           </div>
         </div>
         <div class="gs-card">
@@ -2265,6 +2269,11 @@ const activeManualSec = ref('quick-1')
 .gs-ev-tilde { color: var(--text-3); }
 .gs-ev-count { margin-left: auto; font-size: 11px; color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 2px 9px; }
 .gs-ev-list { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; }
+/* R51-B7：抽屉内列表撑满高度——搜索固定、列表 flex 撑满、翻页贴底，消除下方大片空白 */
+.gs-drawer-fill { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.gs-drawer-fill .gs-drawer-search { flex-shrink: 0; }
+.gs-drawer-fill .gs-ev-list { flex: 1; max-height: none; overflow-y: auto; min-height: 0; }
+.gs-drawer-fill .gs-pager { flex-shrink: 0; margin-top: 10px; }
 .gs-ev-row { display: flex; align-items: center; gap: 10px; padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); cursor: pointer; transition: all .12s; font-size: 12.5px; }
 .gs-ev-row:hover { border-color: var(--accent); background: var(--accent-light); }
 .gs-ev-row.static { cursor: default; }

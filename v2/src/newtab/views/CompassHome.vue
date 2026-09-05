@@ -3,8 +3,8 @@
 // - 今日记录条（入台/移出/调出/写入记录，点击开抽屉）
 // - 左右分栏：左=今日三件事（硬上限 3，自 CompassActions 整体迁入，交互逐项一致）｜右=项目调度面板（单击三件事联动）
 // - 底部 Tab：好奇心培育（默认）｜任务调度（原好奇心培育/任务调度改名，面板组件复用）
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
@@ -17,10 +17,12 @@ import { showToast } from '@/shared/components/toast'
 import Icon from '@/shared/components/Icon.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
+import Drawer from '@/shared/components/Drawer.vue'
 import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
 import TaskManagerPanel from '../components/compass/TaskManagerPanel.vue'
 
 const router = useRouter()
+const route = useRoute()
 const store = useAppStore()
 const { d, visionText, missionText, allProjects, projectProgress } = useCompass()
 
@@ -91,7 +93,11 @@ async function loadEventLog() {
     const all = await readEventLog()
     const todays = all.filter(e => e.ts >= todayStart)
     logRaw.value = todays
-    logItems.value = todays.map(e => ({ kind: e.kind === 'curiosity' ? 'curio' : e.kind === 'task' ? 'task' : e.kind === 'resource' ? 'resource' : undefined, title: `${ACT_LABEL[e.action] || e.action} · ${e.title}`, ts: e.ts, clickable: false }))
+    // R51-F12：写入记录按时间降序——最新记录在最前
+    logItems.value = todays
+      .slice()
+      .sort((a, b) => b.ts - a.ts)
+      .map(e => ({ kind: e.kind === 'curiosity' ? 'curio' : e.kind === 'task' ? 'task' : e.kind === 'resource' ? 'resource' : undefined, title: `${ACT_LABEL[e.action] || e.action} · ${e.title}`, ts: e.ts, clickable: false }))
   } catch { logRaw.value = [] }
 }
 
@@ -495,32 +501,15 @@ async function onStorageClick() {
   showToast(`存储正常 · 已用 ${(bytes / 1024).toFixed(0)} KB${hasUnlimitedStorage() ? ' · 不限容量' : ''}`)
 }
 
-// ================= 左右分栏拖拽（30%–75%，默认 55%） =================
-const splitPct = ref(Number(localStorage.getItem('zy_dispatch_split') || 55))
-let dragging = false
-function onSplitDown(e: MouseEvent) {
-  dragging = true
-  const move = (ev: MouseEvent) => {
-    if (!dragging) return
-    const el = document.getElementById('dispatch-split')
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    const pct = Math.min(75, Math.max(30, ((ev.clientX - rect.left) / rect.width) * 100))
-    splitPct.value = Math.round(pct)
-  }
-  const up = () => {
-    dragging = false
-    localStorage.setItem('zy_dispatch_split', String(splitPct.value))
-    document.removeEventListener('mousemove', move)
-    document.removeEventListener('mouseup', up)
-  }
-  document.addEventListener('mousemove', move)
-  document.addEventListener('mouseup', up)
-  e.preventDefault()
-}
+// R51-F10：恢复上下联动布局——三件事居上（视觉焦点），项目调度联动在下；原左右分栏拖拽移除
 
 // ================= 底部 Tab：好奇心培育 / 任务调度 =================
 const zone = ref<'curio' | 'task'>('curio')
+// R51-F15：支持 query.zone 预设底部 Tab（未归档任务定位 → 任务调度）
+watch(() => route.query.zone, (z) => {
+  if (z === 'task') zone.value = 'task'
+  else if (z === 'curio') zone.value = 'curio'
+}, { immediate: true })
 const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.deletedAt).length)
 const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt).length)
 </script>
@@ -559,7 +548,8 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
     <!-- 左右分栏：今日三件事 ｜ 项目调度 -->
     <div id="dispatch-split" class="split">
       <!-- 左列 · 今日三件事 -->
-      <section class="module left-col" :style="{ width: splitPct + '%' }">
+      <!-- 上 · 今日三件事（R51-F10：视觉焦点） -->
+      <section class="module left-col">
         <div class="card">
           <div class="card-head">
             <span class="ic"><Icon name="flame" :size="17" /></span><span class="nm">今日三件事</span><span class="en">TODAY'S FOCUS</span><span class="ds">锁定今日最重要的 3 件事</span>
@@ -605,14 +595,11 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
         </div>
       </section>
 
-      <!-- 分栏拖拽手柄 -->
-      <div class="split-handle" @mousedown="onSplitDown"><i /></div>
-
-      <!-- 右列 · 项目调度 -->
+      <!-- 下 · 项目调度（选中任务联动） -->
       <section class="module right-col">
         <div class="card curation">
           <div class="card-head">
-            <span class="ic"><Icon name="target" :size="17" /></span><span class="nm">项目调度</span><span class="en">PROJECT SPOTLIGHT</span>            <span class="ds">选中任务所属项目 · 单击左栏任务卡联动</span>
+            <span class="ic"><Icon name="target" :size="17" /></span><span class="nm">项目调度</span><span class="en">PROJECT SPOTLIGHT</span>            <span class="ds">选中任务所属项目 · 单击上方任务卡联动</span>
             <button class="mini-btn" title="进入完整方向树全景（查看/编辑方向结构）" @click="router.push('/compass/tree')"><Icon name="branch" :size="13" />方向树</button>
           </div>
           <div v-if="curProject" class="cur-body-v">
@@ -674,7 +661,7 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
           </div>
           <div v-else class="cur-empty">
             <div class="ce-icon">🧭</div>
-            <div class="ce-title">左栏三件事尚未指向项目</div>
+            <div class="ce-title">上方三件事尚未指向项目</div>
             <div class="ce-desc">单击任务卡联动项目；若任务还未关联项目，可在任务详情（双击打开）中选择所属项目</div>
           </div>
         </div>
@@ -783,18 +770,11 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
       </div>
     </Transition>
 
-    <!-- ===== 今日记录抽屉 ===== -->
-    <Transition name="fade">
-      <div v-if="recOpen" class="overlay" @click="recOpen=''" />
-    </Transition>
-    <Transition name="modal">
-      <div v-if="recOpen" class="picker-modal">
-        <div class="pm-head">
-          <span>{{ recTitles[recOpen] }} · 共 {{ recFiltered.length }} 条</span>
-          <div class="pm-close" @click="recOpen=''">×</div>
-        </div>
-        <div class="pm-body">
-          <div class="search-box" style="margin:0 0 12px"><span>🔍</span><input v-model="recSearch" placeholder="按标题过滤..." @input="recPage=1"></div>
+    <!-- ===== 今日记录抽屉（R51-F16：右侧滑出） ===== -->
+    <Drawer :open="!!recOpen" :title="recOpen ? `${recTitles[recOpen]} · 共 ${recFiltered.length} 条` : ''" width="460px" @close="recOpen = ''">
+      <div class="rec-fill">
+        <div class="search-box" style="margin:0 0 12px"><span>🔍</span><input v-model="recSearch" placeholder="按标题过滤..." @input="recPage=1"></div>
+        <div class="rec-list-scroll">
           <div v-for="(x, i) in recSlice" :key="i" class="picker-item" :class="{disabled: !x.clickable}" @click="locateRec(x)">
             <div class="pi-check pi-ghost">{{ kindIcon(x.kind) }}</div>
             <div class="pi-info">
@@ -804,14 +784,14 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
             <span v-if="x.clickable" class="rec-go">定位 ↗</span>
           </div>
           <div v-if="!recFiltered.length" class="list-empty">今天暂无记录</div>
-          <div v-if="recPageCount > 1" class="pager">
-            <button class="mini-btn" :disabled="recPage<=1" @click="recPage--">‹</button>
-            <span class="pg-num">{{ recPage }} / {{ recPageCount }}</span>
-            <button class="mini-btn" :disabled="recPage>=recPageCount" @click="recPage++">›</button>
-          </div>
+        </div>
+        <div v-if="recPageCount > 1" class="pager">
+          <button class="mini-btn" :disabled="recPage<=1" @click="recPage--">‹</button>
+          <span class="pg-num">{{ recPage }} / {{ recPageCount }}</span>
+          <button class="mini-btn" :disabled="recPage>=recPageCount" @click="recPage++">›</button>
         </div>
       </div>
-    </Transition>
+    </Drawer>
 
     <!-- 任务详情抽屉（共享组件） -->
     <TaskDetailDrawer ref="drawerRef" />
@@ -822,7 +802,7 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
 .page { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
 .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-left: 22px; }
 .page-head .crumb { font-size: 13px; color: var(--text-2); }
-.page-head .crumb b { color: var(--text); font-weight: 600; font-size: 15px; }
+.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
 .page-head .spacer { flex: 1; }
 .hint-chip { font-size: 10.5px; color: var(--text-3); background: var(--surface); border: 1px dashed var(--border-strong); padding: 3px 10px; border-radius: 99px; }
 
@@ -845,12 +825,10 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
 .rc-sub { font-size: 10.5px; color: var(--text-3); padding-left: 22px; font-variant-numeric: tabular-nums; }
 
 /* 左右分栏 */
-.split { display: flex; align-items: stretch; margin-bottom: 4px; }
-.left-col { flex-shrink: 0; min-width: 0; }
-.split-handle { width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.split-handle i { width: 2px; height: 56px; border-radius: 2px; background: var(--border); transition: background .15s; }
-.split-handle:hover i { background: var(--accent); }
-.right-col { flex: 1; min-width: 0; margin-left: 0; }
+/* R51-F10：上下联动——三件事在上占视觉焦点，项目调度在下 */
+.split { display: flex; flex-direction: column; gap: 14px; margin-bottom: 4px; }
+.left-col { min-width: 0; }
+.right-col { min-width: 0; }
 
 .module { margin-top: 0; }
 .page > .module { margin-top: 22px; }
@@ -970,6 +948,10 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
 /* 弹窗 */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 200; }
 .picker-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 480px; max-width: 92vw; max-height: 70vh; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); z-index: 201; display: flex; flex-direction: column; overflow: hidden; }
+/* R51-F16：记录抽屉右侧滑出——列表撑满、翻页贴底 */
+.rec-fill { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.rec-list-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.rec-fill .pager { flex-shrink: 0; margin-top: 10px; }
 .pm-head { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; font-size: 14px; font-weight: 600; }
 .pm-head span:first-child { flex: 1; }
 .pm-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 17px; }
@@ -998,9 +980,6 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
 .modal-enter-active, .modal-leave-active { transition: all .15s ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; transform: translate(-50%, -50%) scale(.95); }
 @media (max-width: 1080px) {
-  .split { flex-direction: column; }
-  .left-col { width: 100% !important; }
-  .split-handle { display: none; }
   .rec-strip { grid-template-columns: repeat(2, 1fr); }
 }
 </style>

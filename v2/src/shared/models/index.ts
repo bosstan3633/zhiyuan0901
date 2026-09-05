@@ -159,8 +159,10 @@ export interface CurationProjection {
   wsId: ID
   catId?: ID
   cardId?: ID
-  /** 投入策展中心的分类（空=未分类区） */
+  /** 投入策展中心的分类（空 = 未分类区） */
   targetCatId?: ID
+  /** R51-F21：分类镜像分组在策展树中的显示名（零影响改名，不改源分类） */
+  displayName?: string
   addedAt: number
 }
 

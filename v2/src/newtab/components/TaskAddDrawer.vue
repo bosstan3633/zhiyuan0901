@@ -18,7 +18,7 @@ const props = defineProps<{
   projectId: string
   metricTitle?: string
 }>()
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; created: [task: TaskCard] }>()
 
 const store = useAppStore()
 const { d } = useCompass()
@@ -77,6 +77,7 @@ function createTask() {
     if (m && !m.taskIds.includes(task.id)) m.taskIds.push(task.id)
     store.persist()
     showToast('✓ 任务已创建并计入指标进度')
+    emit('created', task)
     emit('close')
   } finally {
     creating = false

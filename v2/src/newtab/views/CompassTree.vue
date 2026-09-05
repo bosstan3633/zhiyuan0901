@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
@@ -12,6 +12,7 @@ import type { Direction, Project, Metric, TaskCard, ID } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
 import TaskAddDrawer from '../components/TaskAddDrawer.vue'
+import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 
 const router = useRouter()
 const store = useAppStore()
@@ -171,6 +172,9 @@ const taskAdd = ref<{ metricId: string; projId: string } | null>(null)
 function openTaskAdd(metricId: string, projId: string) {
   taskAdd.value = { metricId, projId }
 }
+/** R51-B6：创建成功后直接打开详情抽屉 */
+const detailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
+function onTaskCreated(t: TaskCard) { detailRef.value?.open(t) }
 const taskAddMetricTitle = computed(() => {
   if (!taskAdd.value) return ''
   for (const dir of d.value.compass.directions) {
@@ -712,7 +716,10 @@ onUnmounted(() => {
 
     <!-- 第卅三轮 REQ-016：指标添加任务双模式（新建 / 关联） -->
     <TaskAddDrawer :open="!!taskAdd" :metric-id="taskAdd?.metricId || ''" :project-id="taskAdd?.projId || ''"
-      :metric-title="taskAddMetricTitle" @close="taskAdd = null" />
+      :metric-title="taskAddMetricTitle" @close="taskAdd = null" @created="onTaskCreated" />
+
+  <!-- R51-B6：创建成功后直接打开详情抽屉 -->
+  <TaskDetailDrawer ref="detailRef" />
 
     
   </div>
@@ -776,7 +783,7 @@ onUnmounted(() => {
 
 .tree-page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .tree-page-head .crumb { font-size: 12.5px; color: var(--text-2); }
-.tree-page-head .crumb b { color: var(--text); font-weight: 600; }
+.tree-page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
 .tree-page-head .crumb .sep { color: var(--text-4); margin: 0 6px; }
 .tree-page-head .spacer { flex: 1; }
 /* R49-C7：顶部统计 + 展开收起/显隐工具 */

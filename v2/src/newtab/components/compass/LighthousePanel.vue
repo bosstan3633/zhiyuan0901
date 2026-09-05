@@ -1,12 +1,14 @@
 <script setup lang="ts">
 /**
- * R49-C2/C3/C6 + R50-F4 主航线 · 方向台核心模块
- * 树状：愿景 → 使命 → 战略目标（行内嵌项目 chip：已投射在前、最多 2 个 +「更多 N」滚动定位项目总览）
- * - 点击项目 chip 进项目详情（/compass/projects?p=）；「更多」平滑滚动至项目总览并闪烁高亮
- * - 愿景/使命层可折叠；战略目标行不再纵向展开，为主航线/项目总览节省纵向空间
- * - 已完成（archived）项目受全局显隐开关控制（UIPrefs.showDoneProjects，与项目总览/完整方向树三处同步）
+ * R49-C2/C3/C6 + R50-F4 + R51-F18/F19 主航线 · 方向台核心模块
+ * 树状：愿景 → 使命 → 战略目标（行内嵌项目 chip）
+ * - R51-F18：主航线只呈现已投射（pinnedToLighthouse）的项目——未投射不出现在主航线
+ * - R51-F19：chip 全部呈现（换行铺开）；超过 6 个折「更多 N」，点击行内展开
+ * - 点击项目 chip 进项目详情（/compass/projects?p=）；「更多」行内展开剩余 chip
+ * - R51-F15：DHI 明细定位——监听 zy-locate-goal，滚动到对应战略目标行并闪烁高亮
+ * - 愿景/使命层可折叠；已完成（archived）项目受全局显隐开关控制
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCompass } from '../../stores/compass'
 import { useAppStore } from '../../stores/app'
@@ -49,23 +51,39 @@ function projectsOf(dirIdx: number): Project[] {
   if (!dir) return []
   return dir.projects.filter(p => showDone.value || p.status !== 'archived')
 }
-/** R50-F4：目标行内嵌项目 chip（已投射在前，最多 2 个 + 更多） */
+/** R51-F18：主航线只呈现已投射项目；R51-F19：全部呈现，>6 折「更多 N」行内展开 */
+const CHIP_LIMIT = 6
+const expandedGoals = ref<Set<string>>(new Set())
 function chipsOf(dirIdx: number): Project[] {
-  const list = [...projectsOf(dirIdx)]
-  list.sort((a, b) => (Number(b.pinnedToLighthouse) - Number(a.pinnedToLighthouse)) || (a.order ?? 999) - (b.order ?? 999))
-  return list.slice(0, 2)
+  const dir = d.value.compass.directions[dirIdx]
+  if (!dir) return []
+  const list = projectsOf(dirIdx).filter(p => p.pinnedToLighthouse)
+  list.sort((a, b) => (Number(b.isFocused) - Number(a.isFocused)) || (a.order ?? 999) - (b.order ?? 999))
+  if (expandedGoals.value.has(dir.id)) return list
+  return list.slice(0, CHIP_LIMIT)
 }
 function moreOf(dirIdx: number): number {
-  return Math.max(0, projectsOf(dirIdx).length - 2)
+  const dir = d.value.compass.directions[dirIdx]
+  if (!dir || expandedGoals.value.has(dir.id)) return 0
+  return Math.max(0, projectsOf(dirIdx).filter(p => p.pinnedToLighthouse).length - CHIP_LIMIT)
 }
-/** 更多 → 滚动定位到项目总览模块并高亮闪烁 */
-function goMore() {
-  const el = document.querySelector('.ov-card')
+function toggleMore(dirId: string) {
+  if (expandedGoals.value.has(dirId)) expandedGoals.value.delete(dirId)
+  else expandedGoals.value.add(dirId)
+}
+/** R51-F15：DHI 明细定位 → 滚动到对应战略目标行并闪烁 */
+function onLocateGoal(e: Event) {
+  const dirId = (e as CustomEvent).detail?.dirId as string
+  if (!dirId) return
+  expanded.value.add('mission')
+  const el = document.querySelector(`[data-dir-id="${dirId}"]`) as HTMLElement | null
   if (!el) return
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  el.classList.add('ov-flash')
-  setTimeout(() => el.classList.remove('ov-flash'), 1400)
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  el.classList.add('goal-flash')
+  setTimeout(() => el.classList.remove('goal-flash'), 1400)
 }
+onMounted(() => window.addEventListener('zy-locate-goal', onLocateGoal))
+onUnmounted(() => window.removeEventListener('zy-locate-goal', onLocateGoal))
 const doneCount = computed(() => allProjects().filter(p => p.status === 'archived').length)
 
 function openProject(p: Project) {
@@ -103,10 +121,10 @@ function openTree() { router.push('/compass/tree') }
           <span class="mr-text" :class="{ empty: !missionText }">{{ missionText || '尚未设定使命' }}</span>
         </div>
 
-        <!-- 战略目标行（R50-F4：项目以 chip 内嵌，已投射在前 · 最多 2 个 + 更多） -->
+        <!-- 战略目标行（R51-F18/F19：仅已投射项目 · 全部呈现 · >6 折更多行内展开） -->
         <div v-show="expanded.has('mission')" class="mr-children">
           <template v-for="(dir, di) in d.compass.directions" :key="dir.id">
-            <div class="mr-row level-goal">
+            <div class="mr-row level-goal" :data-dir-id="dir.id">
               <span class="mr-tier">目标</span>
               <span class="mr-text strong">{{ dir.name }}</span>
               <span class="mr-goals">
@@ -114,7 +132,7 @@ function openTree() { router.push('/compass/tree') }
                   :title="p.name + ' · 点击进入项目详情'" @click.stop="openProject(p)">
                   <span v-if="p.pinnedToLighthouse">📡</span>{{ p.name }}
                 </span>
-                <span v-if="moreOf(di)" class="mr-chip chip-more" title="定位到项目总览" @click.stop="goMore">更多 {{ moreOf(di) }}</span>
+                <span v-if="moreOf(di)" class="mr-chip chip-more" title="展开其余已投射项目" @click.stop="toggleMore(dir.id)">更多 {{ moreOf(di) }}</span>
               </span>
               <span class="mr-meta">项目 {{ projectsOf(di).length }}</span>
             </div>
@@ -159,6 +177,9 @@ function openTree() { router.push('/compass/tree') }
 .chip-proj.accent { background: var(--accent-light); color: var(--accent); }
 .chip-more { background: transparent; border: 1px dashed var(--border-strong); color: var(--text-3); cursor: pointer; }
 .chip-more:hover { color: var(--accent); border-color: var(--accent); }
+/* R51-F15：DHI 明细定位闪烁 */
+.mr-row.level-goal.goal-flash { animation: goalFlash 1.2s ease; }
+@keyframes goalFlash { 0%, 100% { background: transparent; box-shadow: none; } 30% { background: var(--accent-light); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); } }
 
 .mr-children { margin-left: 22px; padding-left: 10px; border-left: 1px solid var(--border); }
 

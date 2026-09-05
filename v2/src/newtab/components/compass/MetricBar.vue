@@ -1,13 +1,16 @@
 ﻿<script setup lang="ts">
 /**
- * R49-C1 + R50-F5 方向台 · 指标条（方向状态）
+ * R49-C1 + R50-F5 + R51-F14/F17 方向台 · 指标条（方向状态）
  * 4 格：DHI 方向契合度 / WCE 好奇探索 / WRR 资源复用 / 未归档任务（口径与 NorthStarPanel O23 一致）
- * - 4 格全部可点击下钻，统一打开「详细指标」抽屉（NorthStarPanel 完整六指标）
- * - 日/周/累计 档位与下钻按钮并入指标条表头（R50-F5 布局优化，不再右侧悬浮）
+ * - R51-F14：4 格各自独立明细（MetricDrillDrawer 右侧抽屉），条目点击定位到对应卡片
+ * - R51-F17：下钻全部改为右侧抽屉滑出（「📋 详细指标」= 右侧抽屉承载完整北极星）
+ * - 日/周/累计 档位并入指标条表头
  */
 import { ref, computed } from 'vue'
+import Drawer from '@/shared/components/Drawer.vue'
 import { useCompass } from '../../stores/compass'
 import NorthStarPanel from './NorthStarPanel.vue'
+import MetricDrillDrawer from './MetricDrillDrawer.vue'
 
 const { d, northStarMetrics, unarchivedTaskCount, totalTaskCount } = useCompass()
 
@@ -52,9 +55,11 @@ const dhiState = computed(() => {
 const unarchived = computed(() => unarchivedTaskCount())
 const totalTasks = computed(() => totalTaskCount())
 
-/** 下钻：4 格统一打开完整北极星抽屉 */
-const drillOpen = ref(false)
-function openDrill() { drillOpen.value = true }
+/** R51-F14/F17：四格独立下钻（右侧抽屉）+ 详细指标完整面板（右侧抽屉） */
+const drillCell = ref<'' | 'dhi' | 'wce' | 'wrr' | 'unarch'>('')
+function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
+const fullOpen = ref(false)
+function openFull() { fullOpen.value = true }
 </script>
 
 <template>
@@ -66,25 +71,25 @@ function openDrill() { drillOpen.value = true }
         <span :class="{ on: period === 'week' }" @click="setPeriod('week')">周</span>
         <span :class="{ on: period === 'all' }" @click="setPeriod('all')">累计</span>
       </div>
-      <button class="mb-drill" @click="openDrill">📋 详细指标</button>
+      <button class="mb-drill" @click="openFull">📋 详细指标</button>
     </div>
     <div class="mb-cells">
-      <div class="mb-cell clickable" :class="'st-' + dhiState" title="DHI 方向契合度 = 已投射项目中周期窗口内有任务推进的占比 · 点击下钻详细指标" @click="openDrill">
+      <div class="mb-cell clickable" :class="'st-' + dhiState" title="DHI 方向契合度 = 已投射项目中周期窗口内有任务推进的占比 · 点击下钻各方向明细" @click="openCell('dhi')">
         <div class="mb-label">DHI 方向契合度</div>
         <div class="mb-num">{{ dhiMain }}</div>
         <div class="mb-sub">{{ m.dhi.label }} · {{ m.dhi.sub }}</div>
       </div>
-      <div class="mb-cell clickable" title="WCE 好奇探索率 = 探索中+已求证的好奇心数 · 点击下钻详细指标" @click="openDrill">
+      <div class="mb-cell clickable" title="WCE 好奇探索率 = 探索中+已求证的好奇心数 · 点击下钻激活好奇项清单" @click="openCell('wce')">
         <div class="mb-label">WCE 好奇探索</div>
         <div class="mb-num">{{ (m.wce.label || '').replace('项激活', '') || 0 }}</div>
         <div class="mb-sub">激活项 · {{ periodLabel }}新增 {{ wceNew }}</div>
       </div>
-      <div class="mb-cell clickable" title="WRR 资源复用 = 资源卡被打开次数 · 点击下钻详细指标" @click="openDrill">
+      <div class="mb-cell clickable" title="WRR 资源复用 = 资源卡被打开次数 · 点击下钻调出资源清单" @click="openCell('wrr')">
         <div class="mb-label">WRR 资源复用</div>
         <div class="mb-num">{{ wrrMain }}</div>
         <div class="mb-sub">{{ m.wrr.sub }}</div>
       </div>
-      <div class="mb-cell clickable" :class="{ 'st-warn': unarchived > 0 }" title="未归档任务 = 未挂项目/指标或引用失效的任务（口径同详细指标）· 点击下钻归档" @click="openDrill">
+      <div class="mb-cell clickable" :class="{ 'st-warn': unarchived > 0 }" title="未归档任务 = 未挂项目/指标或引用失效的任务（口径同详细指标）· 点击下钻归档" @click="openCell('unarch')">
         <div class="mb-label">未归档任务</div>
         <div class="mb-num">{{ unarchived }}<span class="mb-denom">/{{ totalTasks }}</span></div>
         <div class="mb-sub">未挂项目/指标 · 点击下钻归档</div>
@@ -92,21 +97,13 @@ function openDrill() { drillOpen.value = true }
     </div>
   </div>
 
-  <!-- 详细指标下钻抽屉（完整北极星） -->
-  <Transition name="fade">
-    <div v-if="drillOpen" class="mb-overlay" @click="drillOpen = false" />
-  </Transition>
-  <Transition name="pop">
-    <div v-if="drillOpen" class="mb-drawer">
-      <div class="mb-drawer-head">
-        <span>📊 方向状态 · 完整指标</span>
-        <span class="mb-drawer-close" @click="drillOpen = false">×</span>
-      </div>
-      <div class="mb-drawer-body">
-        <NorthStarPanel />
-      </div>
-    </div>
-  </Transition>
+  <!-- R51-F14：四格独立明细（右侧抽屉） -->
+  <MetricDrillDrawer :cell="drillCell" :period="period" @close="drillCell = ''" />
+
+  <!-- R51-F17：详细指标完整面板（右侧抽屉，替代居中弹窗） -->
+  <Drawer :open="fullOpen" title="📊 方向状态 · 完整指标" width="640px" @close="fullOpen = false">
+    <NorthStarPanel />
+  </Drawer>
 </template>
 
 <style scoped>
@@ -133,19 +130,7 @@ function openDrill() { drillOpen.value = true }
 .mb-cell.st-none .mb-num { color: var(--text-4); }
 .mb-sub { font-size: 10px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* 下钻抽屉 */
-.mb-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 210; }
-.mb-drawer { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 640px; max-width: 94vw; max-height: 80vh; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); z-index: 211; display: flex; flex-direction: column; overflow: hidden; }
-.mb-drawer-head { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; font-size: 14px; font-weight: 600; }
-.mb-drawer-head span:first-child { flex: 1; }
-.mb-drawer-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 17px; }
-.mb-drawer-close:hover { background: var(--surface-3); color: var(--text); }
-.mb-drawer-body { flex: 1; overflow-y: auto; padding: 14px 20px; }
-
-.fade-enter-active, .fade-leave-active { transition: opacity .2s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-.pop-enter-active, .pop-leave-active { transition: all .18s ease; }
-.pop-enter-from, .pop-leave-to { opacity: 0; transform: translate(-50%, -50%) scale(.96); }
+/* R51-F17：下钻改右侧抽屉（Drawer 组件承载），原居中弹窗样式移除 */
 
 @media (max-width: 1080px) {
   .mb-cells { grid-template-columns: repeat(2, 1fr); }

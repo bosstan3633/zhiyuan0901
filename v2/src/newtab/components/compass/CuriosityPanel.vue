@@ -25,8 +25,10 @@ const d = computed(() => store.data!)
 const route = useRoute()
 const router = useRouter()
 
-// 高亮定位（B4：搜索好奇卡结果跳转）
+// 高亮定位（B4：搜索好奇卡结果跳转；R51：声明顺序修复——viewMode/statusFilter 须先于 immediate watcher）
 const highlightId = ref<string | null>(null)
+const viewMode = ref<'card' | 'list' | 'kanban'>('card')
+const statusFilter = ref<CuriStatus | 'all'>('all')
 watch(() => route.query.hl, (hl) => {
   if (!hl || typeof hl !== 'string' || route.path !== '/') return
   highlightId.value = hl
@@ -50,9 +52,6 @@ onMounted(() => {
   })
   onUnmounted(() => { off() })
 })
-
-const viewMode = ref<'card' | 'list' | 'kanban'>('card')
-const statusFilter = ref<CuriStatus | 'all'>('all')
 
 // 第卅二轮 REQ-007：好奇心时间排序方向（默认倒序=新捕获在前）+ 偏好本地记忆（UIPrefs.sortPrefs.curio）
 const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.curio?.dir === 'asc') ? 'asc' : 'desc')

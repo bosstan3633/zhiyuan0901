@@ -7,10 +7,11 @@
 import { computed, ref } from 'vue'
 import { useAppStore } from '@/newtab/stores/app'
 import { uid } from '@/shared/utils'
-import type { Direction, Project } from '@/shared/models'
+import type { Direction, Project, TaskCard } from '@/shared/models'
 import Drawer from '@/shared/components/Drawer.vue'
 import { useConfirm } from '@/shared/components/confirm'
 import TaskAddDrawer from './TaskAddDrawer.vue'
+import TaskDetailDrawer from './compass/TaskDetailDrawer.vue'
 
 const props = defineProps<{
   open: boolean
@@ -117,6 +118,9 @@ async function removeMetric(metricId: string) {
 /** 第卅三轮 REQ-016：指标添加任务双模式（新建 / 关联）→ 共享抽屉 TaskAddDrawer */
 const taskAddMetricId = ref<string | null>(null)
 function openTaskAdd(metricId: string) { taskAddMetricId.value = metricId }
+/** R51-B6：创建成功后直接打开详情抽屉 */
+const detailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
+function onTaskCreated(t: TaskCard) { detailRef.value?.open(t) }
 function removeTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
   if (!t) return
@@ -183,7 +187,10 @@ function removeTask(taskId: string) {
 
   <!-- 第卅三轮 REQ-016：指标添加任务双模式（新建 / 关联） -->
   <TaskAddDrawer :open="!!taskAddMetricId" :metric-id="taskAddMetricId || ''" :project-id="project?.id || ''"
-    :metric-title="project?.metrics.find(m => m.id === taskAddMetricId)?.title" @close="taskAddMetricId = null" />
+    :metric-title="project?.metrics.find(m => m.id === taskAddMetricId)?.title" @close="taskAddMetricId = null" @created="onTaskCreated" />
+
+  <!-- R51-B6：创建成功后直接打开详情抽屉 -->
+  <TaskDetailDrawer ref="detailRef" />
 </template>
 
 <style scoped>

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import Icon from '@/shared/components/Icon.vue'
 /**
  * 方向台 · 一级工作区（R49 V2.22.0 三大系统页改版）
@@ -284,7 +284,7 @@ function onProjDragLeave(e: DragEvent) {
 .page { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
 .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-left: 22px; }
 .page-head .crumb { font-size: 13px; color: var(--text-2); }
-.page-head .crumb b { color: var(--text); font-weight: 600; font-size: 15px; }
+.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
 .page-head .spacer { flex: 1; }
 .mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; user-select: none; }
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }

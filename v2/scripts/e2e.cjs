@@ -263,7 +263,15 @@ async function main() {
   report('E2E-10 策展中心：页面渲染+镜像实时+原生卡+清空零影响', curHead && mirCard && wsMirror && nativeCard && mirrorGone && nativeKept && srcKept,
     `head=${curHead} mir=${mirCard} wsMirror=${wsMirror} native=${nativeCard} gone=${mirrorGone} kept=${nativeKept} src=${srcKept}`)
 
-  // E2E-11 主航线紧凑化 + 指标条（R50-F4/F5）：目标行 chip + goMore；未归档任务格 + 表头档位
+  // E2E-11 主航线（R51-F18/F19）：仅已投射项目 chip（先种投射）+ 指标条未归档任务格 + 表头档位
+  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const data = cur['zy_data_v2']
+    if (!data) return
+    for (const dir of data.compass?.directions || []) for (const p of dir.projects || []) if (p.id === 'e2e-proj-1') p.pinnedToLighthouse = true
+    return chrome.storage.local.set({ zy_data_v2: data })
+  }))
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
   await page.evaluate(() => { location.hash = '#/compass' })
   await page.waitForTimeout(2000)
   const goalChip = await page.locator('.chip-proj').first().isVisible().catch(() => false)

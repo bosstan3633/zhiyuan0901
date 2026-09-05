@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
@@ -156,6 +156,8 @@ function onNameEnter(e: KeyboardEvent) { (e.target as HTMLElement).blur() }
 /** 第卅三轮 REQ-016：添加任务双模式（新建 / 关联）→ 共享抽屉 TaskAddDrawer */
 const taskAddMetric = ref<Metric | null>(null)
 function openTaskAdd(m: Metric) { taskAddMetric.value = m }
+/** R51-B6：创建成功后直接打开 R48 详情抽屉（与调度台新建任务口径一致） */
+function onTaskCreated(t: TaskCard) { openTaskDetail(t) }
 function removeTask(task: TaskCard) {
   task.deletedAt = Date.now()
   for (const dir of d.value.compass.directions) {
@@ -466,7 +468,7 @@ function addTaskFromHeader() {
 
     <!-- 第卅三轮 REQ-016：指标添加任务双模式（新建 / 关联） -->
     <TaskAddDrawer :open="!!taskAddMetric" :metric-id="taskAddMetric?.id || ''" :project-id="currentProject?.id || ''"
-      :metric-title="taskAddMetric?.title" @close="taskAddMetric = null" />
+      :metric-title="taskAddMetric?.title" @close="taskAddMetric = null" @created="onTaskCreated" />
 
     
   </div>
@@ -476,7 +478,7 @@ function addTaskFromHeader() {
 .page { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
 .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-left: 22px; }
 .page-head .crumb { font-size: 12.5px; color: var(--text-2); }
-.page-head .crumb b { color: var(--text); font-weight: 600; }
+.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
 .page-head .crumb .sep { color: var(--text-4); margin: 0 6px; }
 .page-head .spacer { flex: 1; }
 .hint-chip { font-size: 10.5px; color: var(--text-3); background: var(--surface); border: 1px dashed var(--border-strong); padding: 3px 10px; border-radius: 99px; }

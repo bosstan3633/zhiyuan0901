@@ -46,12 +46,13 @@ async function bootstrap() {
   const store = useAppStore()
   store.init()
 
-  // 每次打开新标签页/刷新，固定回到首页（调度台）；但保留深链（手册/设置等，第廿五轮）
+  // 每次打开新标签页/刷新，固定回到首页（调度台）；仅保留功能入口页深链（设置/手册，第廿五轮）
   // R50-B3：必须等 router ready（初始 hash 解析完成）再判断——ready 前 currentRoute 恒为 '/'，判断永不生效
+  // R51-B5：/compass/tree、/compass/projects 移出白名单——刷新一律回调度台（含方向树/项目详情）；
+  //         快捷键驱动的跳转（open-tree 等）发生在启动重定向之后，不受影响
   router.isReady().then(() => {
     const p = router.currentRoute.value.path
-    if (p !== '/' && !p.startsWith('/settings') && !p.startsWith('/manual')
-      && !p.startsWith('/compass/projects') && !p.startsWith('/compass/tree')) {
+    if (p !== '/' && !p.startsWith('/settings') && !p.startsWith('/manual')) {
       router.replace('/')
     }
   })
