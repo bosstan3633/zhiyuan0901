@@ -11,6 +11,8 @@
  *   E2E-7  好奇心专区 Tab：好奇心卡库默认 → 切任务卡库 → 卡片视图默认渲染 + 好奇面板隐藏（R45 迁移 + R46 BUG-1）
  *   E2E-8  调度台三件事 + 项目调度面板（愿景/使命小卡 + 战略目标 + 四数值，R45 T-04 → R49 迁移）
  *   E2E-9  存量回填迁移：有 metricId 无 projectId 的任务启动后按指标反查补齐 + projBackfillFixed 记录（R46 BUG-2）
+ *   E2E-10 策展中心：页面渲染 + 工作台镜像实时 + 原生卡新建 + 清空投射源数据零影响（R50-F3）
+ *   E2E-11 主航线目标行 chip + 指标条未归档任务格 + 档位入表头（R50-F4/F5）
  */
 const path = require('path')
 const fs = require('fs')
@@ -104,11 +106,12 @@ async function main() {
   const treeWs = await page.locator('.gs-pan-ws').count()
   report('E2E-3 工作台全景双栏+计数树', panVisible && treeWs >= 1, `panel=${panVisible} wsNodes=${treeWs}`)
 
-  // E2E-4 方向台指标条（R49-C1）：4 格 DHI/WCE/WRR/偏航 + 详细指标下钻含北极星「新增卡片/删除卡片」
+  // E2E-4 方向台指标条（R49-C1+R50-F5）：4 格 DHI/WCE/WRR/未归档任务 + 详细指标下钻含北极星「新增卡片/删除卡片」
   await page.goto(base + '#/compass', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
+  if (!page.url().includes('/compass')) { await page.evaluate(() => { location.hash = '#/compass' }); await page.waitForTimeout(1800) }
   const metricBarOn = await page.locator('.mb-cells').first().isVisible().catch(() => false)
-  const offCourse = await page.getByText('偏航行动').first().isVisible().catch(() => false)
+  const offCourse = await page.getByText('未归档任务').first().isVisible().catch(() => false)
   await page.locator('.mb-drill').click().catch(() => {})
   await page.waitForTimeout(1200)
   const todayAdd = await page.getByText('新增卡片').first().isVisible().catch(() => false)
@@ -176,12 +179,12 @@ async function main() {
   })
   await page.waitForTimeout(800)
 
-  // E2E-7 调度台底部 Tab（R45 T-03 + R46 BUG-1 + R49 改名）：默认问题探索 → 切任务调度 → 卡片视图默认 + 探索面板隐藏
+  // E2E-7 调度台底部 Tab（R45 T-03 + R46 BUG-1 + R49 改名）：默认好奇心培育 → 切任务调度 → 卡片视图默认 + 探索面板隐藏
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   const tabsCount = await page.locator('.zone-tab').count()
   const curioDefault = await page.locator('.zone-tab.active').first().textContent().catch(() => '')
-  const curioPanelOn = await page.locator('.zone-tab.active').first().evaluate((el) => el.textContent.includes('问题探索')).catch(() => false)
+  const curioPanelOn = await page.locator('.zone-tab.active').first().evaluate((el) => el.textContent.includes('好奇心培育')).catch(() => false)
   const curioCardVisible = await page.locator('.module-card').filter({ hasText: '好奇心' }).first().isVisible().catch(() => false)
   await page.locator('.zone-tab').nth(1).click().catch(() => {})
   await page.waitForTimeout(1500)
@@ -190,7 +193,7 @@ async function main() {
   const cardTabActive = await page.locator('.view-tab.active').first().textContent().then((t) => (t || '').includes('卡片')).catch(() => false)
   const gridOn = await page.locator('.tm-grid').first().isVisible().catch(() => false)
   const tmCardCount = await page.locator('.tm-card').count()
-  report('E2E-7 调度台底部 Tab：问题探索默认｜任务调度切换互斥（R49 改名）', tabsCount === 2 && curioPanelOn && curioCardVisible && mgrTitle && curioHiddenAfter && cardTabActive && gridOn && tmCardCount >= 1,
+  report('E2E-7 调度台底部 Tab：好奇心培育默认｜任务调度切换互斥（R49 改名）', tabsCount === 2 && curioPanelOn && curioCardVisible && mgrTitle && curioHiddenAfter && cardTabActive && gridOn && tmCardCount >= 1,
     `tabs=${tabsCount} defaultTab=${(curioDefault || '').trim()} curioOn=${curioCardVisible} hiddenAfter=${curioHiddenAfter} tmCards=${tmCardCount} cardActive=${cardTabActive} grid=${gridOn}`)
 
   // E2E-8 调度台首页（R49 迁移）：三件事卡片 + 项目调度面板（愿景/使命小卡 + 战略目标 + 四数值）
@@ -216,6 +219,59 @@ async function main() {
   }))
   report('E2E-9 存量回填：缺 projectId 的任务按指标反查补齐 + 记录条数', backfill.fixed && backfill.recorded >= 1,
     `projectIdFixed=${backfill.fixed} projBackfillFixed=${backfill.recorded}`)
+
+  // E2E-10 策展中心（R50-F3）：Tab 进入 + 工作台镜像实时渲染 + 清空后源数据零影响 + 原生卡新建
+  await page.goto(base + '#/curation', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+  if (!page.url().includes('/curation')) { await page.evaluate(() => { location.hash = '#/curation' }); await page.waitForTimeout(1500) }
+  // 种一张源卡 + 工作台投射记录（UI 右键在 headless 不稳定，数据层直种）
+  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const data = cur['zy_data_v2']
+    if (!data) return
+    const wsId = data.workspaces[0].id
+    if (!data.resources.some((r) => r.id === 'e2e-mir-1')) {
+      data.resources.push({ id: 'e2e-mir-1', kind: 'resource', title: 'E2E 镜像卡', linkType: 'url', link: 'https://example.com/e2e-mir', workspaceId: wsId, categoryId: '', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now() })
+    }
+    data.curationProjections = [{ id: 'e2e-curp-ws', kind: 'workspace', wsId, addedAt: Date.now() }]
+    return chrome.storage.local.set({ zy_data_v2: data })
+  }))
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+  await page.evaluate(() => { location.hash = '#/curation' })
+  await page.waitForTimeout(1800)
+  const curHead = await page.getByText('灵活策展空间').first().isVisible().catch(() => false)
+  const mirCard = await page.getByText('E2E 镜像卡').first().isVisible().catch(() => false)
+  const wsMirror = await page.getByText('整个工作台 · 实时镜像').first().isVisible().catch(() => false)
+  // 原生卡
+  await page.getByText('＋ 新建卡片').first().click().catch(() => {})
+  await page.waitForTimeout(500)
+  await page.locator('.mc-field input').first().fill('E2E 原生策展卡').catch(() => {})
+  await page.locator('.mini-btn.primary').last().click().catch(() => {})
+  await page.waitForTimeout(1200)
+  const nativeCard = await page.getByText('E2E 原生策展卡').first().isVisible().catch(() => false)
+  // 清空投射
+  await page.getByText('🧹 清空投射').first().click().catch(() => {})
+  await page.waitForTimeout(800)
+  await page.locator('.cdf-btn.ok').filter({ hasText: '清空投射' }).last().click().catch(() => {})
+  await page.waitForTimeout(1200)
+  const mirrorGone = !(await page.getByText('整个工作台 · 实时镜像').first().isVisible().catch(() => false))
+  const nativeKept = await page.getByText('E2E 原生策展卡').first().isVisible().catch(() => false)
+  const srcKept = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const data = cur['zy_data_v2']
+    return data.resources.some((r) => r.id === 'e2e-mir-1' && !r.deletedAt) && (data.curationProjections || []).length === 0
+  }))
+  report('E2E-10 策展中心：页面渲染+镜像实时+原生卡+清空零影响', curHead && mirCard && wsMirror && nativeCard && mirrorGone && nativeKept && srcKept,
+    `head=${curHead} mir=${mirCard} wsMirror=${wsMirror} native=${nativeCard} gone=${mirrorGone} kept=${nativeKept} src=${srcKept}`)
+
+  // E2E-11 主航线紧凑化 + 指标条（R50-F4/F5）：目标行 chip + goMore；未归档任务格 + 表头档位
+  await page.evaluate(() => { location.hash = '#/compass' })
+  await page.waitForTimeout(2000)
+  const goalChip = await page.locator('.chip-proj').first().isVisible().catch(() => false)
+  const unarchivedCell = await page.getByText('未归档任务').first().isVisible().catch(() => false)
+  const mbHeadPeriod = await page.locator('.mb-head .mb-period').first().isVisible().catch(() => false)
+  const offCourseGone = !(await page.getByText('偏航行动').first().isVisible().catch(() => false))
+  report('E2E-11 主航线目标行 chip + 指标条未归档任务格+档位入表头', goalChip && unarchivedCell && mbHeadPeriod && offCourseGone,
+    `chip=${goalChip} unarch=${unarchivedCell} periodInHead=${mbHeadPeriod} offCourseGone=${offCourseGone}`)
 
   await ctx.close()
   const fail = results.filter(r => !r.ok).length

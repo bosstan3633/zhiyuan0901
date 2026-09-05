@@ -82,6 +82,22 @@ export function useCompass() {
     return d.value.tasks.filter(t => !t.deletedAt && t.status !== 'done' && !t.projectId).length
   }
 
+  /** R50-F5：未归档任务口径（与 NorthStarPanel/O23 一致——项目存在 + 指标存在于该项目之下，缺一或失效即未归档） */
+  function taskArchiveIssue(t: { projectId?: string; metricId?: string }): string {
+    if (!t.projectId) return '未挂项目'
+    const proj = allProjects().find(p => p.id === t.projectId)
+    if (!proj) return '⚠ 项目失效'
+    if (!t.metricId) return '未挂指标'
+    if (!proj.metrics.some(mt => mt.id === t.metricId)) return '⚠ 指标失效'
+    return ''
+  }
+  function unarchivedTaskCount(): number {
+    return d.value.tasks.filter(t => !t.deletedAt && taskArchiveIssue(t) !== '').length
+  }
+  function totalTaskCount(): number {
+    return d.value.tasks.filter(t => !t.deletedAt).length
+  }
+
   // ---- 北极星指标 ----
   // R45-1（V2.20.0）：周期调整为「日/周/累计」三档（撤月档），上排 DHI/WCE/WRR 与下排新增/删除卡全档联动
   type Period = 'day' | 'week' | 'all'
@@ -161,7 +177,7 @@ export function useCompass() {
   return {
     d, visionText, missionText, directions, allProjects, projectById,
     focusedProjects, toggleFocusProject, projectProgress,
-    isProjectStalled, offCourseCount,
+    isProjectStalled, offCourseCount, taskArchiveIssue, unarchivedTaskCount, totalTaskCount,
     northStarMetrics, formulas
   }
 }

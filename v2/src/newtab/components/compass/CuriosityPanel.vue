@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCuriosity, type CuriStatus } from '../../stores/curiosity'
@@ -377,7 +377,7 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
 </script>
 
 <template>
-  <ModuleCard icon-name="bulb" title="问题探索" en="CURIOSITY">
+  <ModuleCard icon-name="bulb" title="好奇心培育" en="CURIOSITY">
     <template #actions>
       <button class="cz-batch-btn" :class="{active: batchMode}" @click="batchMode = !batchMode">
         {{ batchMode ? '完成' : '☑ 批量管理' }}

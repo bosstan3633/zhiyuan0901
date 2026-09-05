@@ -6,7 +6,7 @@ import Icon from '@/shared/components/Icon.vue'
  * 二级覆盖层：完整方向树（/compass/tree）、项目详情（/compass/projects）
  */
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useCompass } from '../stores/compass'
 import { useAppStore } from '../stores/app'
 import { saveUIPrefs } from '@/shared/storage/repository'
@@ -18,6 +18,8 @@ import MetricBar from '../components/compass/MetricBar.vue'
 import LighthousePanel from '../components/compass/LighthousePanel.vue'
 
 const router = useRouter()
+const route = useRoute()
+const isChildActive = computed(() => route.matched.length > 1 && route.path !== '/compass')
 const store = useAppStore()
 const { d, allProjects, projectProgress, isProjectStalled } = useCompass()
 
@@ -160,7 +162,9 @@ function onProjDragLeave(e: DragEvent) {
 </script>
 
 <template>
-  <div class="page">
+  <!-- R50-B1/B2：子路由激活时满宽渲染二级页（完整方向树/项目详情），否则渲染三模块 -->
+  <RouterView v-if="isChildActive" />
+  <div v-else class="page">
     <div class="page-head">
       <div class="crumb"><b>方向台</b> · 主航线与项目全景</div>
       <div class="spacer" />
@@ -278,7 +282,7 @@ function onProjDragLeave(e: DragEvent) {
 
 <style scoped>
 .page { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
-.page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-left: 22px; }
 .page-head .crumb { font-size: 13px; color: var(--text-2); }
 .page-head .crumb b { color: var(--text); font-weight: 600; font-size: 15px; }
 .page-head .spacer { flex: 1; }
@@ -305,6 +309,9 @@ function onProjDragLeave(e: DragEvent) {
 .ov-card-item:hover { border-color: var(--border-strong); background: var(--surface); transform: translateY(-1px); }
 .ov-card-item.focused { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
 .ov-card-item.archived { opacity: .55; }
+/* R50-F4：主航线「更多」滚动定位高亮 */
+.ov-card.ov-flash { animation: ovFlash 1.2s ease; }
+@keyframes ovFlash { 0%, 100% { border-color: var(--border); box-shadow: none; } 30% { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); } }
 .ov-name { font-size: 13.5px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .chip { font-size: 9.5px; padding: 1px 7px; border-radius: 99px; background: var(--surface-3); color: var(--text-3); font-weight: 500; white-space: nowrap; }
 .chip-accent { background: var(--accent-light); color: var(--accent); }

@@ -2,6 +2,7 @@
 import { computed, ref, onErrorCaptured, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from './stores/app'
+import { useCompass } from './stores/compass'
 import { uid } from '@/shared/utils'
 import type { Workspace } from '@/shared/models'
 import Toast from '@/shared/components/Toast.vue'
@@ -17,6 +18,7 @@ import ResourceDetailDrawer from './components/ResourceDetailDrawer.vue'
 const router = useRouter()
 const route = useRoute()
 const store = useAppStore()
+const compassData = useCompass().d
 // B30a：全局渲染错误边界——捕获后保持导航可用，内容区显示错误卡片，杜绝整页不可用
 const renderError = ref<string | null>(null)
 onErrorCaptured((err) => {
@@ -65,17 +67,18 @@ function navigate(path: string) { router.push(path) }
 const activeTab = computed(() => {
   if (route.path === '/') return 'home'
   if (route.path.startsWith('/compass')) return 'compass'
+  if (route.path.startsWith('/curation')) return 'curation'
   if (route.path.startsWith('/settings')) return 'settings'
   return activeWorkspaceId.value || 'home'
 })
 
-/** 方向台 Tab 点击（R49：调度台/方向台/资源台三系统页 + 用户工作台） */
+/** 方向台 Tab 点击（R49：调度台/方向台/策展中心三系统页 + 用户工作台） */
 function openCompass() {
   navigate('/compass')
 }
-/** 资源台占位（V2.23.x 交付） */
+/** 策展中心（R50-F3：灵活策展空间，镜像其他工作台内容） */
 function openResource() {
-  showToast('资源台下轮交付 · 敬请期待 V2.23.x')
+  navigate('/curation')
 }
 
 // 工作台 CRUD
@@ -129,6 +132,22 @@ function onTabContextMenu(e: MouseEvent, ws: Workspace) {
   menuPos.value = { x: e.clientX, y: e.clientY }
 }
 function closeMenu() { menuWs.value = null }
+
+/** R50-F3：整个工作台一键投射到策展中心（引用式镜像：一个 workspace 投射记录即可实时渲染全部分类与卡片） */
+function projectWorkspaceToCuration() {
+  const ws = menuWs.value
+  if (!ws) return
+  closeMenu()
+  const d = compassData.value
+  d.curationProjections = d.curationProjections || []
+  if (d.curationProjections.some(p => p.kind === 'workspace' && p.wsId === ws.id)) {
+    showToast('ℹ 该工作台已在策展中心镜像中')
+    return
+  }
+  d.curationProjections.push({ id: uid('curp'), kind: 'workspace', wsId: ws.id, addedAt: Date.now() })
+  store.persist()
+  showToast('📤 已投射整个工作台到策展中心（引用式镜像，源数据不受影响）')
+}
 
 function startRename() {
   if (!menuWs.value) return
@@ -333,8 +352,8 @@ const backupReminderDot = computed(() => {
         <div class="tab" :class="{active: activeTab === 'compass'}" @click="openCompass">
           <Icon name="compass" :size="15" />方向台
         </div>
-        <div class="tab tab-reserved" :class="{active: false}" title="下轮交付" @click="openResource">
-          <Icon name="layout" :size="15" />资源台
+        <div class="tab tab-reserved" :class="{active: activeTab === 'curation'}" title="策展中心 · 灵活策展空间（镜像其他工作台内容）" @click="openResource">
+          <Icon name="layout" :size="15" />策展中心
         </div>
 
         <div class="tab-divider" />
@@ -436,6 +455,7 @@ const backupReminderDot = computed(() => {
     <Teleport to="body">
       <div v-if="menuWs" class="ctx-menu" :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }" @click.stop>
         <div class="ctx-item" @click="startRename">✏️ 重命名</div>
+        <div class="ctx-item" @click="projectWorkspaceToCuration">📤 整个工作台投射到策展中心</div>
         <div class="ctx-item danger" @click="deleteWorkspace">🗑 删除工作台</div>
       </div>
     </Teleport>

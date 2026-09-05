@@ -266,7 +266,7 @@ function addTaskFromHeader() {
 </script>
 
 <template>
-  <div>
+  <div class="page">
     <div class="page-head">
       <div class="crumb"><b>项目详情</b> · 项目 → 成功指标 → 任务</div>
       <div class="spacer" />
@@ -473,7 +473,8 @@ function addTaskFromHeader() {
 </template>
 
 <style scoped>
-.page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.page { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
+.page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-left: 22px; }
 .page-head .crumb { font-size: 12.5px; color: var(--text-2); }
 .page-head .crumb b { color: var(--text); font-weight: 600; }
 .page-head .crumb .sep { color: var(--text-4); margin: 0 6px; }

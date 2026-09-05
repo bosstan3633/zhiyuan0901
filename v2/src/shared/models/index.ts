@@ -137,13 +137,31 @@ export interface ResourceCard extends CardBase {
   link: string
   workspaceId: ID
   categoryId: ID
-  /** 来源类型（官方/学术/媒体等），不在采集弹窗中设置，后期编辑 */
+  /** 来源类型（官�?学术/媒体等），不在采集弹窗中设置，后期编�*/
   sourceType?: SourceType
   tags: string[]
   pinned: boolean
-  /** 调用次数（每次打开自增） */
+  /** 调用次数（每次打开自增）*/
   callCount: number
   lastCalledAt?: number
+  /** R50-F3：策展中心原生卡排序（仅 workspaceId=zy-curation 的卡使用；拖拽规整回写） */
+  curOrder?: number
+}
+
+/**
+ * R50-F3 策展中心投射记录（引用式镜像）
+ * kind=card：镜像单卡（cardId）；kind=category：镜像整组分类（catId，实时含其卡片）；kind=workspace：镜像整个工作台（全部分类+卡片）
+ * 清空/移出仅删记录，源数据零影响
+ */
+export interface CurationProjection {
+  id: ID
+  kind: 'card' | 'category' | 'workspace'
+  wsId: ID
+  catId?: ID
+  cardId?: ID
+  /** 投入策展中心的分类（空=未分类区） */
+  targetCatId?: ID
+  addedAt: number
 }
 
 /** 任务卡（行动闭环） */
@@ -301,6 +319,8 @@ export interface AppData {
   activityLogs: ActivityLog[]
   /** V2.20.1 BUG-2：存量回填记录——启动时按指标反查补齐 projectId 的任务条数（幂等，仅首次修复时写入） */
   projBackfillFixed?: number
+  /** R50-F3：策展中心投射清单（引用式镜像；导入合并按 id 取并集） */
+  curationProjections?: CurationProjection[]
 }
 
 export interface ActivityLog {
@@ -347,6 +367,8 @@ export interface UIPrefs {
 export const STORAGE_KEY = 'zy_data_v2'
 export const UI_KEY = 'zy_ui_v2'
 export const LEGACY_KEY = 'lm_data_v5'
+/** R50-F3：策展中心系统空间 ID（不建 Workspace 实体，仅作为 categories/resources 的归属标记） */
+export const CURATION_WS_ID = 'zy-curation'
 
 export const DEFAULT_COVER_THEME = 'deep-sea'
 

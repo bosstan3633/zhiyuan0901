@@ -47,10 +47,14 @@ async function bootstrap() {
   store.init()
 
   // 每次打开新标签页/刷新，固定回到首页（调度台）；但保留深链（手册/设置等，第廿五轮）
-  const p = router.currentRoute.value.path
-  if (p !== '/' && !p.startsWith('/settings') && !p.startsWith('/manual')) {
-    router.replace('/')
-  }
+  // R50-B3：必须等 router ready（初始 hash 解析完成）再判断——ready 前 currentRoute 恒为 '/'，判断永不生效
+  router.isReady().then(() => {
+    const p = router.currentRoute.value.path
+    if (p !== '/' && !p.startsWith('/settings') && !p.startsWith('/manual')
+      && !p.startsWith('/compass/projects') && !p.startsWith('/compass/tree')) {
+      router.replace('/')
+    }
+  })
 
   // R49-H：刷新动画节奏——总时长硬约束 300–600ms
   // 快加载：补足到 360ms 再切「资源归位 · 调度就绪」→ 220ms 淡出挂载（合计 ≤600ms，第二段定时器做漂移校正）

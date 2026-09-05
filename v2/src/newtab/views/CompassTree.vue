@@ -719,7 +719,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.compass-layout { display: block; min-height: 100%; }
+.compass-layout { display: block; min-height: 100%; padding: 20px 24px 48px; max-width: 1440px; margin: 0 auto; }
 .tree-layout { display: flex; gap: 20px; align-items: flex-start; }
 /* N1：愿景/使命关联卡片 */
 .node { position: relative; }

@@ -1,5 +1,5 @@
-﻿<script setup lang="ts">
-// 第卌五轮 T-03：全域任务管理面板（自 CompassActions.vue 整体抽离，迁入「资源罗盘 → 问题探索」专区 Tab；V2.20.1 改名任务调度）
+<script setup lang="ts">
+// 第卌五轮 T-03：全域任务管理面板（自 CompassActions.vue 整体抽离，迁入「资源罗盘 → 好奇心培育」专区 Tab；V2.20.1 改名任务调度）
 // 全量能力保留：批量管理 / 状态筛选 / 排序+方向 / 按项目分组 / 搜索 / 拖拽排序（跨组=改归属）/ 看板 / 右键菜单 / 键盘导航
 // 第卌五轮新增：卡片视图（默认），与好奇心卡片视觉一致
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
@@ -596,7 +596,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
         <button class="mini-btn" @click="selectedTaskIds.clear()">取消</button>
       </div>
 
-      <!-- 卡片视图（第卌五轮新增 · 默认；R47-A3：置顶/非置顶分组区块渲染，与问题探索同款） -->
+      <!-- 卡片视图（第卌五轮新增 · 默认；R47-A3：置顶/非置顶分组区块渲染，与好奇心培育同款） -->
       <div v-if="viewMode==='card'" class="tm-grid">
         <div v-if="!filteredTasks.length" class="tm-grid-empty">
           <EmptyState icon="clipboard" title="暂无任务"

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="gs-page">
     <!-- 左侧导航 -->
     <aside class="gs-nav">
@@ -492,17 +492,17 @@
       <div v-if="activePage === 'shortcuts'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">⌨ 快捷键设置</div>
-          <div class="gs-page-desc">💡 系统级快捷键（含方向台/资源台）请在浏览器地址栏打开 chrome://extensions/shortcuts 自定义（高效使用知源的第一步）；应用内快捷键开箱即用</div>
+          <div class="gs-page-desc">💡 系统级快捷键（含方向台/策展中心/完整方向树）请在浏览器地址栏打开 chrome://extensions/shortcuts 自定义（高效使用知源的第一步）；应用内快捷键开箱即用</div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">全局快捷键（任意网页可用）</span><span class="gs-card-desc">由 Chrome 统一管理 · 方向台/资源台无默认键，需手动分配</span></div>
+          <div class="gs-card-header"><span class="gs-card-title">全局快捷键（任意网页可用）</span><span class="gs-card-desc">由 Chrome 统一管理 · 方向台/策展中心/完整方向树无默认键，需手动分配</span></div>
           <div class="gs-card-body">
             <div class="gs-setting-row" v-for="c in chromeCommands" :key="c.name">
               <span class="gs-sr-label">{{ c.description }}</span>
               <div class="gs-sr-control"><span class="gs-keycap">{{ c.shortcut || '未设置' }}</span></div>
             </div>
             <div class="gs-setting-row">
-              <span class="gs-sr-label">修改全局快捷键（含方向台 / 资源台）</span>
+              <span class="gs-sr-label">修改全局快捷键（含方向台 / 策展中心 / 完整方向树）</span>
               <div class="gs-sr-control"><a :href="shortcutsUrl" target="_blank" class="gs-shortcut-link">前往 chrome://extensions/shortcuts ›</a></div>
             </div>
           </div>
@@ -534,7 +534,7 @@
       <div v-if="activePage === 'shortcuts'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">🎛 工作台快捷键</div>
-          <div class="gs-page-desc">在工作台标签页内按「修饰键 + 数字」直达；用户自建工作台从 1 起按创建顺序计数；调度台刷新自动回首页、方向台/资源台在浏览器快捷键（chrome://extensions/shortcuts）里自定义</div>
+          <div class="gs-page-desc">在工作台标签页内按「修饰键 + 数字」直达；用户自建工作台从 1 起按创建顺序计数；调度台刷新自动回首页、方向台/策展中心/完整方向树在浏览器快捷键（chrome://extensions/shortcuts）里自定义</div>
         </div>
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">映射表（按顶部导航顺序）</span><span class="gs-card-desc">第 N 个工作台 = 修饰键 + N（最多到数字 9）</span></div>

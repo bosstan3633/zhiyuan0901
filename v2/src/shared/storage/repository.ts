@@ -90,6 +90,7 @@ export async function loadData(): Promise<AppData> {
   cache = data
   // 第卌四轮 T-05：初始化快照（静默，不产生历史事件）
   rebuildEventSnapshot(data)
+  markSaveOk()
   return data
 }
 
@@ -117,11 +118,13 @@ export function saveData(): void {
     if (p && typeof (p as Promise<void>).then === 'function') {
       ;(p as Promise<void>)
         .then(() => {
+          markSaveOk()
           if (lastSaveError) { lastSaveError = null; listeners.forEach((fn) => fn(cache!)) }
           listeners.forEach((fn) => fn(cache!))
         })
         .catch((e: unknown) => emitSaveError(e))
     } else {
+      markSaveOk()
       listeners.forEach((fn) => fn(cache!))
     }
   }, 300)
@@ -139,6 +142,7 @@ export async function saveDataNow(): Promise<void> {
   try {
     // V2.17.1 修复：同 saveData——JSON 纯净清洗防 reactive Proxy 泄漏入存储（数组降级类数组对象）
     await cs.set({ [STORAGE_KEY]: JSON.parse(JSON.stringify(cache)) })
+    markSaveOk()
     if (lastSaveError) { lastSaveError = null }
     listeners.forEach((fn) => fn(cache!))
   } catch (e) {
@@ -174,6 +178,11 @@ export function subscribeSaveError(fn: ErrorListener): () => void {
 
 /** 取最近一次保存失败（用于设置页诊断） */
 export function getLastSaveError(): SaveError | null { return lastSaveError }
+
+/** R50-F2：最近一次成功写入时间戳（0 = 本次会话尚无成功写入；loadData 成功也会置位） */
+let lastSaveOkAt = 0
+export function getLastSaveOkAt(): number { return lastSaveOkAt }
+function markSaveOk(): void { lastSaveOkAt = Date.now() }
 
 /** 清除最近一次保存失败标记（恢复后调用） */
 export function clearLastSaveError(): void { lastSaveError = null }

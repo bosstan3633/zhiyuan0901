@@ -1,0 +1,306 @@
+{
+  "../../../@crx/manifest": {
+    "file": "assets/chunk-TnkXzXpI.js",
+    "name": "crx-manifest.js",
+    "src": "../../../@crx/manifest",
+    "isEntry": true
+  },
+  "_chunk-!~{00l}~.js": {
+    "file": "assets/ProjectDetailDrawer-BzCnOOEp.css",
+    "src": "_chunk-!~{00l}~.js"
+  },
+  "_chunk-!~{00m}~.js": {
+    "file": "assets/EmptyState-YvuAyq_7.css",
+    "src": "_chunk-!~{00m}~.js"
+  },
+  "_chunk-!~{00o}~.js": {
+    "file": "assets/TaskDetailDrawer-DC_Gnv9H.css",
+    "src": "_chunk-!~{00o}~.js"
+  },
+  "_chunk-!~{00p}~.js": {
+    "file": "assets/TaskAddDrawer-DLzL8A61.css",
+    "src": "_chunk-!~{00p}~.js"
+  },
+  "_chunk-B5LsIB8d.js": {
+    "file": "assets/chunk-B5LsIB8d.js",
+    "name": "pinyin",
+    "imports": [
+      "_chunk-CLcXU_4U.js"
+    ],
+    "dynamicImports": [
+      "node_modules/pinyin-pro/dist/esm/index.mjs"
+    ]
+  },
+  "_chunk-BRYgAqdg.js": {
+    "file": "assets/chunk-BRYgAqdg.js",
+    "name": "fields"
+  },
+  "_chunk-CLcXU_4U.js": {
+    "file": "assets/chunk-CLcXU_4U.js",
+    "name": "preload-helper"
+  },
+  "_chunk-CPfnCXH5.js": {
+    "file": "assets/chunk-CPfnCXH5.js",
+    "name": "ProjectDetailDrawer",
+    "imports": [
+      "src/newtab/index.html",
+      "_chunk-Dzqq55a_.js"
+    ],
+    "css": [
+      "assets/ProjectDetailDrawer-BzCnOOEp.css"
+    ]
+  },
+  "_chunk-Cmx56_rL.js": {
+    "file": "assets/chunk-Cmx56_rL.js",
+    "name": "compass",
+    "imports": [
+      "src/newtab/index.html"
+    ]
+  },
+  "_chunk-D6q2aML7.js": {
+    "file": "assets/chunk-D6q2aML7.js",
+    "name": "EmptyState",
+    "imports": [
+      "src/newtab/index.html"
+    ],
+    "css": [
+      "assets/EmptyState-YvuAyq_7.css"
+    ]
+  },
+  "_chunk-DpQHNg-P.js": {
+    "file": "assets/chunk-DpQHNg-P.js",
+    "name": "TaskDetailDrawer",
+    "imports": [
+      "src/newtab/index.html",
+      "_chunk-Cmx56_rL.js"
+    ],
+    "css": [
+      "assets/TaskDetailDrawer-DC_Gnv9H.css"
+    ]
+  },
+  "_chunk-Dzqq55a_.js": {
+    "file": "assets/chunk-Dzqq55a_.js",
+    "name": "TaskAddDrawer",
+    "imports": [
+      "src/newtab/index.html",
+      "_chunk-Cmx56_rL.js"
+    ],
+    "css": [
+      "assets/TaskAddDrawer-DLzL8A61.css"
+    ]
+  },
+  "node_modules/pinyin-pro/dist/esm/index.mjs": {
+    "file": "assets/chunk-D35Zzh6R.js",
+    "name": "index",
+    "src": "node_modules/pinyin-pro/dist/esm/index.mjs",
+    "isDynamicEntry": true
+  },
+  "search-overlay.ts-loader.js": {
+    "file": "assets/search-overlay.ts-loader-yONPyubp.js",
+    "src": "search-overlay.ts-loader.js"
+  },
+  "src/assets/logo.png": {
+    "file": "assets/logo-DiULfq8t.png",
+    "src": "src/assets/logo.png"
+  },
+  "src/background/index.ts": {
+    "file": "assets/chunk-ZO_YYLCN.js",
+    "name": "index.ts",
+    "src": "src/background/index.ts",
+    "isEntry": true
+  },
+  "src/content/overlay-impl.ts": {
+    "file": "assets/chunk-Cgv4CxEU.js",
+    "name": "overlay-impl",
+    "src": "src/content/overlay-impl.ts",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-B5LsIB8d.js",
+      "src/content/search-overlay.ts",
+      "_chunk-CLcXU_4U.js"
+    ]
+  },
+  "src/content/search-overlay.ts": {
+    "file": "assets/chunk-CxsnJ3lm.js",
+    "name": "search-overlay.ts",
+    "src": "src/content/search-overlay.ts",
+    "isEntry": true,
+    "imports": [
+      "_chunk-CLcXU_4U.js"
+    ],
+    "dynamicImports": [
+      "src/content/overlay-impl.ts"
+    ]
+  },
+  "src/newtab/index.html": {
+    "file": "assets/chunk-4TkA4zsD.js",
+    "name": "index.html",
+    "src": "src/newtab/index.html",
+    "isEntry": true,
+    "imports": [
+      "_chunk-B5LsIB8d.js",
+      "_chunk-CLcXU_4U.js"
+    ],
+    "dynamicImports": [
+      "src/newtab/views/CompassHome.vue",
+      "src/newtab/views/CompassShell.vue",
+      "src/newtab/views/CompassActions.vue",
+      "src/newtab/views/ProjectCuration.vue",
+      "src/newtab/views/CompassTree.vue",
+      "src/newtab/views/Workspace.vue",
+      "src/newtab/views/GlobalSettings.vue",
+      "src/newtab/views/RecycleBin.vue",
+      "src/newtab/views/ManualPage.vue"
+    ],
+    "css": [
+      "assets/index-CPOnCWwI.css"
+    ],
+    "assets": [
+      "assets/logo-DiULfq8t.png"
+    ]
+  },
+  "src/newtab/views/CompassActions.vue": {
+    "file": "assets/chunk-D2WvPbeN.js",
+    "name": "CompassActions",
+    "src": "src/newtab/views/CompassActions.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/newtab/index.html",
+      "_chunk-Cmx56_rL.js",
+      "_chunk-BRYgAqdg.js",
+      "_chunk-DpQHNg-P.js",
+      "_chunk-B5LsIB8d.js",
+      "_chunk-CLcXU_4U.js"
+    ],
+    "css": [
+      "assets/CompassActions-CqorbcPZ.css"
+    ]
+  },
+  "src/newtab/views/CompassHome.vue": {
+    "file": "assets/chunk-BdwNRsAa.js",
+    "name": "CompassHome",
+    "src": "src/newtab/views/CompassHome.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/newtab/index.html",
+      "_chunk-Cmx56_rL.js",
+      "_chunk-CPfnCXH5.js",
+      "_chunk-D6q2aML7.js",
+      "_chunk-BRYgAqdg.js",
+      "_chunk-DpQHNg-P.js",
+      "_chunk-B5LsIB8d.js",
+      "_chunk-CLcXU_4U.js",
+      "_chunk-Dzqq55a_.js"
+    ],
+    "css": [
+      "assets/CompassHome-C0Wlcc_V.css"
+    ]
+  },
+  "src/newtab/views/CompassShell.vue": {
+    "file": "assets/chunk-F_Wo9Nki.js",
+    "name": "CompassShell",
+    "src": "src/newtab/views/CompassShell.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/newtab/index.html",
+      "_chunk-Cmx56_rL.js",
+      "_chunk-B5LsIB8d.js",
+      "_chunk-CLcXU_4U.js"
+    ],
+    "css": [
+      "assets/CompassShell-nNVWSnQt.css"
+    ]
+  },
+  "src/newtab/views/CompassTree.vue": {
+    "file": "assets/chunk-B5fo5QCJ.js",
+    "name": "CompassTree",
+    "src": "src/newtab/views/CompassTree.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/newtab/index.html",
+      "_chunk-Cmx56_rL.js",
+      "_chunk-CPfnCXH5.js",
+      "_chunk-Dzqq55a_.js",
+      "_chunk-B5LsIB8d.js",
+      "_chunk-CLcXU_4U.js"
+    ],
+    "css": [
+      "assets/CompassTree-DIBJKpIX.css"
+    ]
+  },
+  "src/newtab/views/GlobalSettings.vue": {
+    "file": "assets/chunk-DlUb1al8.js",
+    "name": "GlobalSettings",
+    "src": "src/newtab/views/GlobalSettings.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/newtab/index.html",
+      "_chunk-BRYgAqdg.js",
+      "_chunk-B5LsIB8d.js",
+      "_chunk-CLcXU_4U.js"
+    ],
+    "css": [
+      "assets/GlobalSettings-B5hE5tTz.css"
+    ]
+  },
+  "src/newtab/views/ManualPage.vue": {
+    "file": "assets/chunk-vSFXg5pi.js",
+    "name": "ManualPage",
+    "src": "src/newtab/views/ManualPage.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/newtab/index.html",
+      "_chunk-B5LsIB8d.js",
+      "_chunk-CLcXU_4U.js"
+    ],
+    "css": [
+      "assets/ManualPage-BmrmxZMd.css"
+    ]
+  },
+  "src/newtab/views/ProjectCuration.vue": {
+    "file": "assets/chunk-1l78wJnD.js",
+    "name": "ProjectCuration",
+    "src": "src/newtab/views/ProjectCuration.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/newtab/index.html",
+      "_chunk-Cmx56_rL.js",
+      "_chunk-Dzqq55a_.js",
+      "_chunk-B5LsIB8d.js",
+      "_chunk-CLcXU_4U.js"
+    ],
+    "css": [
+      "assets/ProjectCuration-CAYgTlU3.css"
+    ]
+  },
+  "src/newtab/views/RecycleBin.vue": {
+    "file": "assets/chunk-BA7NFcx3.js",
+    "name": "RecycleBin",
+    "src": "src/newtab/views/RecycleBin.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/newtab/index.html",
+      "_chunk-B5LsIB8d.js",
+      "_chunk-CLcXU_4U.js"
+    ],
+    "css": [
+      "assets/RecycleBin-43u_5F7c.css"
+    ]
+  },
+  "src/newtab/views/Workspace.vue": {
+    "file": "assets/chunk-cVFa-q-s.js",
+    "name": "Workspace",
+    "src": "src/newtab/views/Workspace.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/newtab/index.html",
+      "_chunk-D6q2aML7.js",
+      "_chunk-BRYgAqdg.js",
+      "_chunk-B5LsIB8d.js",
+      "_chunk-CLcXU_4U.js"
+    ],
+    "css": [
+      "assets/Workspace-Bm40wZnr.css"
+    ]
+  }
+}

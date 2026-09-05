@@ -2,8 +2,8 @@
  * 产品使用手册数据（第二十轮重写；R49 V2.22.0 三大系统页改版全量同步）
  * 五篇结构：速览 / 基础 / 方法 / 理念 / 附录
  * html 字段由 GlobalSettings 手册面板以 v-html 渲染。
- * 命名口径（R49）：调度台 / 方向台 / 资源台 / 用户工作台；主航线 / 完整方向树；
- *                方向状态（指标条）；问题探索 / 任务调度；项目详情 / 项目总览。
+ * 命名口径（R50）：调度台 / 方向台 / 策展中心 / 用户工作台；主航线 / 完整方向树；
+ *                方向状态（指标条）；好奇心培育 / 任务调度；项目详情 / 项目总览。
  */
 export interface ManualSection { id: string; title: string; html: string }
 export interface ManualPart { title: string; sections: ManualSection[] }
@@ -32,7 +32,7 @@ export const MANUAL: ManualPart[] = [
       ` },
       { id: 'quick-2', title: '三大系统页与六个核心动作', html: `
         <h4>三大系统页 · 一条动线</h4>
-        <div class="mc-flow">🎛 调度台（今天从哪里出发）→ 🧭 方向台（主航线与项目）→ 📦 资源台（下轮交付）→ 📂 用户工作台（资源策展）</div>
+        <div class="mc-flow">🎛 调度台（今天从哪里出发）→ 🧭 方向台（主航线与项目）→ 📦 策展中心（灵活策展空间）→ 📂 用户工作台（资源策展）</div>
         <h4>六个核心动作 · 时间即价值</h4>
         <table class="mc-table">
           <tr><th>#</th><th>动作</th><th>触发</th><th>时间</th></tr>
@@ -43,8 +43,8 @@ export const MANUAL: ManualPart[] = [
           <tr><td>5</td><td>方向管理</td><td>方向台（愿景 / 使命 / 战略目标 / 项目 / 指标 / 任务）</td><td>锚定主攻</td></tr>
           <tr><td>6</td><td>完整导出</td><td>设置 → 导出全部数据</td><td>一份 JSON</td></tr>
         </table>
-        <div class="mc-flow">🔍 <kbd>Ctrl</kbd>+<kbd>K</kbd> ｜ 📥 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> ｜ 💡 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd> ｜ ⚙ 在 <code>chrome://extensions/shortcuts</code> 绑定"打开设置/方向台/资源台"</div>
-        <div class="mc-tip">💡 键盘党第一步：打开 <code>chrome://extensions/shortcuts</code> 把三键改成你的肌肉记忆。「打开设置」「打开方向台」「打开资源台」三个命令无默认键——按需分配即可。</div>
+        <div class="mc-flow">🔍 <kbd>Ctrl</kbd>+<kbd>K</kbd> ｜ 📥 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> ｜ 💡 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd> ｜ ⚙ 在 <code>chrome://extensions/shortcuts</code> 绑定「打开设置/方向台/策展中心/完整方向树」</div>
+        <div class="mc-tip">💡 键盘党第一步：打开 <code>chrome://extensions/shortcuts</code> 把三键改成你的肌肉记忆。「打开设置」「打开方向台」「打开策展中心」「打开完整方向树」四个命令无默认键——按需分配即可。</div>
         <h4>每天的节奏 · 4 步闭环</h4>
         <div class="mc-steps">
           <div class="mc-step"><b>1</b><span>刷新 → 调度台：今日记录条 + 今日三件事（最多 3 件），30 秒方向确认</span></div>
@@ -80,21 +80,28 @@ export const MANUAL: ManualPart[] = [
     title: '基础篇 · 上手',
     sections: [
       { id: 'basic-1', title: '界面全景（R49 三大系统页）', html: `
-        <p>整个产品是一条<strong>「调度 → 方向 → 资源」</strong>的动线，全部住在浏览器新标签页里。顶部导航：<strong>调度台（默认）/ 方向台 / 资源台（下轮交付）/ 用户工作台列表</strong>。</p>
-        <div class="mc-flow">🎛 调度台（今日记录 + 三件事 + 问题探索/任务调度）→ 🧭 方向台（指标条 / 主航线 / 项目总览）→ 📦 资源台（V2.23.x）→ 📂 用户工作台</div>
+        <p>整个产品是一条<strong>「调度 → 方向 → 资源」</strong>的动线，全部住在浏览器新标签页里。顶部导航：<strong>调度台（默认）/ 方向台 / 策展中心 / 用户工作台列表</strong>。</p>
+        <div class="mc-flow">🎛 调度台（今日记录 + 三件事 + 好奇心培育/任务调度）→ 🧭 方向台（指标条 / 主航线 / 项目总览）→ 📦 策展中心（镜像策展）→ 📂 用户工作台</div>
         <h4>调度台：今天，从哪里出发</h4>
         <ul>
           <li><b>今日记录条</b>：今日入台 / 今日移出 / 今日调出 / 写入记录——四个计数，单击任意一格打开明细抽屉（搜索 + 每页 20 条翻页 + 单击定位）。</li>
-          <li><b>今日三件事（左栏）</b>：硬上限 3 件（方法论见方法篇）；单击任务卡联动右栏，双击开详情。</li>
-          <li><b>项目调度（右栏）</b>：呈现选中任务隶属的项目——归属链 + 任务进度 + 成功指标，可就地增删指标与任务。</li>
-          <li><b>底部 Tab</b>：问题探索（默认）｜任务调度——好奇心与任务的完整管理台。</li>
+          <li><b>今日三件事（左栏）</b>：硬上限 3 件（方法论见方法篇），纵向排列；单击任务卡联动右栏，双击开详情。</li>
+          <li><b>项目调度（右栏）</b>：呈现选中任务隶属的项目——归属链 + 任务进度 + 成功指标，可就地增删指标与任务；右上角「方向树」直达完整方向树。</li>
+          <li><b>今日记录条</b>：入台/移出/调出/写入记录四格，主计数 + 分类型副行（任务/好奇/资源）；写入记录 = 当日写入 + 删除 + 全局调度调出。</li>
+          <li><b>底部 Tab</b>：好奇心培育（默认）｜任务调度——好奇心与任务的完整管理台。</li>
         </ul>
         <h4>方向台：主航线与项目全景</h4>
         <ul>
-          <li><b>指标条（方向状态）</b>：DHI 方向契合度 / WCE 好奇探索 / WRR 资源复用 / 偏航行动四格，日/周/累计三档；「📊 详细指标」下钻完整六指标（新增/删除卡等）。</li>
-          <li><b>主航线</b>：愿景 → 使命 → 战略目标 → <strong>项目为止</strong>；项目行带 🎯主攻 / 📡已投射 / ⚠停滞 标记与进度，点击进项目详情。</li>
-          <li><b>项目总览</b>：满宽三列卡；📌 置顶分组、拖拽排序、新建/改名/删除（摘除式）全套管理。</li>
-          <li><b>完整方向树</b>（右上角进入）：六层全深度 + 顶部统计 + 一键展开/收起 + 已完成项目显隐。</li>
+          <li><b>指标条（方向状态）</b>：DHI 方向契合度 / WCE 好奇探索 / WRR 资源复用 / 未归档任务四格，日/周/累计三档并入指标条表头，四格全部可点击下钻；「📋 详细指标」下钻完整六指标（新增/删除卡等）。</li>
+          <li><b>主航线（R50 紧凑化）</b>：愿景 → 使命 → 战略目标行<strong>内嵌项目 chip</strong>（已投射在前、最多 2 个 +「更多 N」）；点击 chip 进项目详情，「更多」滚动定位到项目总览并高亮。</li>
+          <li><b>项目总览</b>：满宽三列卡；点击任意项目卡进项目策展详情；📌 置顶分组、拖拽排序、新建/改名/删除（摘除式）全套管理。</li>
+          <li><b>完整方向树</b>（右上角/项目调度右上角/快捷键进入）：六层全深度 + 顶部统计 + 一键展开/收起 + 已完成项目显隐。</li>
+        </ul>
+        <h4>策展中心：灵活策展空间（引用式镜像）</h4>
+        <ul>
+          <li><b>镜像投射</b>：其他工作台的卡片（右键）/ 分类（目录树 📤）/ 整个工作台（Tab 右键）一键投射到策展中心，<strong>实时同步</strong>显示源内容；源增删改即时反映。</li>
+          <li><b>原生内容</b>：策展中心有自己的目录树（增删改）与原生卡片（新建/编辑/置顶/拖拽排序），原生卡 <strong>左侧蓝色竖线</strong>、投射卡 <strong>虚线边框 + 📡</strong>，视觉一眼区分。</li>
+          <li><b>零影响承诺</b>：「🧹 清空投射」/单条「✕ 移出投射」只删投射记录，源工作台数据零影响。</li>
         </ul>
         <div class="mc-tip">💡 无论停在哪一页，刷新固定回调度台——「今天从哪里出发」优先，是知源的第一设计。冷启动时你会看到品牌动画（300–600ms），按 Esc 或单击可跳过。</div>
       ` },
@@ -223,7 +230,7 @@ export const MANUAL: ManualPart[] = [
           <tr><td>DHI 方向契合度</td><td>已投射项目中周期窗口内有推进的占比</td><td>项目是否集体沉默</td></tr>
           <tr><td>WCE 好奇探索</td><td>探索中 + 已求证的好奇数</td><td>认知活力</td></tr>
           <tr><td>WRR 有效复用</td><td>周期内资源被打开次数</td><td>调度系统是否真在被用</td></tr>
-          <tr><td>偏航行动</td><td>未关联项目的活跃任务数</td><td>行动是否脱离了方向</td></tr>
+          <tr><td>未归档任务</td><td>未关联项目的活跃任务数</td><td>归档清单是否干净（下钻级联归档）</td></tr>
           <tr><td>📥 未归档任务</td><td>未挂成功指标的任务数（含未挂项目）</td><td>散落任务是否需要归位</td></tr>
         </table>
         <p>指标条「📊 详细指标」下钻完整六指标，全部可下钻：未归档任务抽屉里<strong>级联选择项目→指标即完成归档</strong>，任务当场从清单消失。</p>
@@ -303,7 +310,7 @@ export const MANUAL: ManualPart[] = [
         </ul>
         <h4>⑤ 留给你的探索题</h4>
         <ul>
-          <li>把问题探索看板当创意漏斗：每周只转化一张卡，一个月后观察 WCE 与主航线的变化。</li>
+          <li>把好奇心培育看板当创意漏斗：每周只转化一张卡，一个月后观察 WCE 与主航线的变化。</li>
           <li>每个战略目标只投射 1 个项目上主航线——放不下时，不是航线太窄，是你想要的太多。</li>
           <li>用「我的注解」写「为什么留它」：半年后，这是唯一不会被 AI 替代的检索信号。</li>
         </ul>
@@ -321,7 +328,7 @@ export const MANUAL: ManualPart[] = [
           <tr><td><kbd>Ctrl+Shift+I</kbd></td><td>采集好奇心（选中文字附带来源）</td></tr>
           <tr><td><kbd>Ctrl+K</kbd></td><td>全局搜索（空查询=快捷操作+最近打开）</td></tr>
           <tr><td><kbd>Ctrl+Shift+K</kbd></td><td>打开调度台</td></tr>
-          <tr><td>（自定义）</td><td>打开方向台 / 打开资源台 / 打开设置——在 <code>chrome://extensions/shortcuts</code> 分配</td></tr>
+          <tr><td>（自定义）</td><td>打开方向台 / 打开策展中心 / 打开完整方向树 / 打开设置——在 <code>chrome://extensions/shortcuts</code> 分配</td></tr>
           <tr><td></td><td></td></tr>
           <tr><td rowspan="4">应用内</td><td><kbd>修饰键</kbd>+<kbd>1…N</kbd></td><td>各用户工作台（从 1 起按导航顺序计数，修饰键可自定义）</td></tr>
           <tr><td><kbd>?</kbd></td><td>快捷键速查面板</td></tr>
@@ -335,7 +342,7 @@ export const MANUAL: ManualPart[] = [
           <tr><td>右键</td><td>卡片操作菜单</td></tr>
           <tr><td>拖拽</td><td>排序 / 跨列改状态 / 跨组改归属（有插入线）</td></tr>
         </table>
-        <div class="mc-warn">⌨ 系统级四键已占满默认键位；「打开设置 / 方向台 / 资源台」在 <code>chrome://extensions/shortcuts</code> 手动分配——高效使用知源的第一步。</div>
+        <div class="mc-warn">⌨ 系统级四键已占满默认键位；「打开设置 / 方向台 / 策展中心 / 完整方向树」在 <code>chrome://extensions/shortcuts</code> 手动分配——高效使用知源的第一步。</div>
       ` },
       { id: 'ref-2', title: '数据与安全', html: `
         <ul>

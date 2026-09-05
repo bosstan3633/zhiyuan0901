@@ -156,17 +156,30 @@ chrome.commands.onCommand.addListener(async (command) => {
       break
     }
     case 'open-resource': {
-      // R49-I4：资源台命令先建好——本轮占位（跳调度台 + toast 下轮交付，V2.23.x 零成本启用）
+      // R50-F3：策展中心启用（V2.22 占位正式转正）
       const base = chrome.runtime.getURL('src/newtab/index.html')
       const tabs = await chrome.tabs.query({ url: base + '*' })
       const existing = tabs.find(t => t.id != null)
       if (existing?.id != null) {
         if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
         await chrome.tabs.update(existing.id, { active: true })
-        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route: '/' }).catch(() => {})
-        chrome.tabs.sendMessage(existing.id, { type: 'zy-toast', text: '资源台下轮交付 · 敬请期待 V2.23.x' }).catch(() => {})
+        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route: '/curation' }).catch(() => {})
       } else {
-        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html') })
+        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html#/curation') })
+      }
+      break
+    }
+    case 'open-tree': {
+      // R50-F8：完整方向树浏览器级命令（chrome://extensions/shortcuts 自定义键位）
+      const base = chrome.runtime.getURL('src/newtab/index.html')
+      const tabs = await chrome.tabs.query({ url: base + '*' })
+      const existing = tabs.find(t => t.id != null)
+      if (existing?.id != null) {
+        if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
+        await chrome.tabs.update(existing.id, { active: true })
+        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route: '/compass/tree' }).catch(() => {})
+      } else {
+        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html#/compass/tree') })
       }
       break
     }

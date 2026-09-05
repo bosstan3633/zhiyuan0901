@@ -133,6 +133,7 @@
               <!-- 第卅三轮 BUG-C 修复 + REQ-022：父级分类 hover 出现「创建子分类」入口（此前 openCreateCat 恒空参，弹窗父级提示不可达） -->
               <span v-if="sc.depth===0" class="cat-act" title="创建子分类" @click.stop="openCreateCat(sc.cat.id)">＋</span>
               <span class="cat-act" title="重命名" @click.stop="openRenameCat(sc.cat)">✎</span>
+              <span class="cat-act" title="整组投射到策展中心" @click.stop="projectCategoryToCuration(sc.cat)">📤</span>
               <span class="cat-act danger" title="删除" @click.stop="deleteCategory(sc.cat)">🗑</span>
             </span>
             <span class="cat-count">{{ sc.depth===1 ? allResources.filter(r=>r.categoryId===sc.cat.id).length : catAggCount(sc.cat.id) }}</span>
@@ -460,7 +461,7 @@ import { useConfirm } from '@/shared/components/confirm'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import { markRank } from '@/shared/utils/marksort'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
-import type { ResourceCard, Category, Workspace, TaskCard, FieldDef } from '@/shared/models'
+import { CURATION_WS_ID, type ResourceCard, type Category, type Workspace, type TaskCard, type FieldDef } from '@/shared/models'
 
 const route = useRoute()
 const router = useRouter()
@@ -804,9 +805,31 @@ function openResCtx(e: MouseEvent, r: ResourceCard) {
     { label: '复制链接', icon: 'copy', cb: () => { if (r.link) { navigator.clipboard.writeText(r.link); showToast('✓ 链接已复制') } } },
     { label: '移动分类', icon: 'folder', cb: () => openMoveOne(r) },
     { label: r.pinned ? '取消置顶' : '置顶', icon: 'pin', cb: () => togglePin(r) },
+    { label: '投射到策展中心', icon: 'star', cb: () => projectCardToCuration(r) },
     { label: '删除', icon: 'trash', danger: true, cb: () => deleteResource(r) }
   ]
   resCtx.value = { open: true, x: Math.min(e.clientX, window.innerWidth - 190), y: Math.min(e.clientY, window.innerHeight - 240) }
+}
+
+/** R50-F3：单卡投射到策展中心（引用式镜像记录；策展中心实时渲染源卡，清空/移出零影响源数据） */
+function projectCardToCuration(r: ResourceCard) {
+  if (r.workspaceId === CURATION_WS_ID) { showToast('ℹ 策展中心原生卡无需投射'); return }
+  const d2 = d.value
+  d2.curationProjections = d2.curationProjections || []
+  if (d2.curationProjections.some(p => p.kind === 'card' && p.cardId === r.id)) { showToast('ℹ 该卡已在策展中心镜像中'); return }
+  d2.curationProjections.push({ id: uid('curp'), kind: 'card', wsId: r.workspaceId, cardId: r.id, catId: r.categoryId, targetCatId: '', addedAt: Date.now() })
+  store.persist()
+  showToast('📤 已投射到策展中心（引用式镜像）')
+}
+
+/** R50-F3：整组分类投射（含其子分类的卡片，实时镜像） */
+function projectCategoryToCuration(cat: Category) {
+  const d2 = d.value
+  d2.curationProjections = d2.curationProjections || []
+  if (d2.curationProjections.some(p => p.kind === 'category' && p.catId === cat.id)) { showToast('ℹ 该分类已在策展中心镜像中'); return }
+  d2.curationProjections.push({ id: uid('curp'), kind: 'category', wsId: cat.workspaceId, catId: cat.id, targetCatId: '', addedAt: Date.now() })
+  store.persist()
+  showToast('📤 已整组投射到策展中心（含子分类，实时镜像）')
 }
 // B6：拖拽插入线（X 轴卡片 / Y 轴列表）
 const dropMark = ref('')

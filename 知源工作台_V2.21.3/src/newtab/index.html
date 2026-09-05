@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>知源工作台</title>
+  <style>
+    /* B34：内联骨架屏——JS 加载完成前即时绘制，消灭新标签页白屏 */
+    #app:empty::before { content: ''; }
+    /* Linear 体系：近黑画布 #010102 + 薰衣草蓝 */
+    .zy-skl { position: fixed; inset: 0; background: #010102; display: flex; flex-direction: column; align-items: center; padding-top: 12vh; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', sans-serif; }
+    .zy-skl-logo { font-size: 30px; font-weight: 600; color: #F7F8F8; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
+    .zy-skl-logo .dot { width: 30px; height: 30px; border-radius: 8px; background: #5E6AD2; animation: zySklPulse 1.2s ease-in-out infinite; }
+    .zy-skl-sub { margin-top: 10px; font-size: 12px; color: #8A8F98; letter-spacing: 0.08em; }
+    .zy-skl-bars { margin-top: 42px; width: min(720px, 82vw); display: flex; flex-direction: column; gap: 12px; }
+    .zy-skl-bar { height: 14px; border-radius: 6px; border: 1px solid #23252A; background: linear-gradient(90deg, #0F1011 25%, #191A1B 45%, #0F1011 65%); background-size: 200% 100%; animation: zySklShimmer 1.3s linear infinite; }
+    .zy-skl-bar:nth-child(2) { width: 78%; }
+    .zy-skl-bar:nth-child(3) { width: 60%; }
+    .zy-skl-bar:nth-child(4) { width: 70%; }
+    @keyframes zySklShimmer { from { background-position: 180% 0; } to { background-position: -20% 0; } }
+    @keyframes zySklPulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+  </style>
+  <script type="module" crossorigin src="/assets/chunk-4TkA4zsD.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/chunk-CLcXU_4U.js">
+  <link rel="modulepreload" crossorigin href="/assets/chunk-B5LsIB8d.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-CPOnCWwI.css">
+</head>
+<body>
+  <div id="app">
+    <div class="zy-skl">
+      <div class="zy-skl-logo"><span class="dot"></span>知源工作台</div>
+      <div class="zy-skl-sub">从好奇出发，向源头求证</div>
+      <div class="zy-skl-bars"><div class="zy-skl-bar"></div><div class="zy-skl-bar"></div><div class="zy-skl-bar"></div><div class="zy-skl-bar"></div></div>
+    </div>
+  </div>
+</body>
+</html>

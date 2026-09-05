@@ -40,6 +40,13 @@ const router = createRouter({
       meta: { title: '工作台' }
     },
     {
+      // R50-F3：策展中心（灵活策展空间：镜像其他工作台 + 原生卡片/分类）
+      path: '/curation',
+      name: 'curation',
+      component: () => import('./views/CurationCenter.vue'),
+      meta: { title: '知源调度台 · 策展中心' }
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('./views/GlobalSettings.vue'),

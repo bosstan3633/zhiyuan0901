@@ -1,17 +1,15 @@
 ﻿<script setup lang="ts">
 /**
- * R49-C1 方向台 · 指标条（方向状态）
- * 4 格：DHI 方向契合度 / WCE 好奇探索 / WRR 资源复用 / 偏航行动
- * 前三项复用 useCompass().northStarMetrics 三档口径（日/周/累计）；偏航=未关联项目的活跃任务数
- * 「详细指标」下钻抽屉复用 NorthStarPanel 完整六指标（北极星随改版收进下钻）
+ * R49-C1 + R50-F5 方向台 · 指标条（方向状态）
+ * 4 格：DHI 方向契合度 / WCE 好奇探索 / WRR 资源复用 / 未归档任务（口径与 NorthStarPanel O23 一致）
+ * - 4 格全部可点击下钻，统一打开「详细指标」抽屉（NorthStarPanel 完整六指标）
+ * - 日/周/累计 档位与下钻按钮并入指标条表头（R50-F5 布局优化，不再右侧悬浮）
  */
 import { ref, computed } from 'vue'
-import { useAppStore } from '../../stores/app'
 import { useCompass } from '../../stores/compass'
 import NorthStarPanel from './NorthStarPanel.vue'
 
-const store = useAppStore()
-const { d, northStarMetrics, offCourseCount } = useCompass()
+const { d, northStarMetrics, unarchivedTaskCount, totalTaskCount } = useCompass()
 
 const period = ref<'day' | 'week' | 'all'>('day')
 const m = computed(() => northStarMetrics(period.value))
@@ -50,41 +48,47 @@ const dhiState = computed(() => {
   return label === '清晰' ? 'ok' : label === '关注' ? 'mid' : label === '—' ? 'none' : 'warn'
 })
 
-/** 下钻：完整北极星（抽屉内含三档联动与新增/删除卡） */
+/** R50-F5：未归档任务（N/M 分母=全部未删除任务，口径同详细指标抽屉） */
+const unarchived = computed(() => unarchivedTaskCount())
+const totalTasks = computed(() => totalTaskCount())
+
+/** 下钻：4 格统一打开完整北极星抽屉 */
 const drillOpen = ref(false)
+function openDrill() { drillOpen.value = true }
 </script>
 
 <template>
   <div class="metric-bar">
-    <div class="mb-cells">
-      <div class="mb-cell" :class="'st-' + dhiState" title="DHI 方向契合度 = 已投射项目中周期窗口内有任务推进的占比">
-        <div class="mb-label">DHI 方向契合度</div>
-        <div class="mb-num">{{ dhiMain }}</div>
-        <div class="mb-sub">{{ m.dhi.label }} · {{ m.dhi.sub }}</div>
-      </div>
-      <div class="mb-cell" title="WCE 好奇探索率 = 探索中+已求证的好奇心数">
-        <div class="mb-label">WCE 好奇探索</div>
-        <div class="mb-num">{{ (m.wce.label || '').replace('项激活', '') || 0 }}</div>
-        <div class="mb-sub">激活项 · {{ periodLabel }}新增 {{ wceNew }}</div>
-      </div>
-      <div class="mb-cell" title="WRR 资源复用 = 资源卡被打开次数">
-        <div class="mb-label">WRR 资源复用</div>
-        <div class="mb-num">{{ wrrMain }}</div>
-        <div class="mb-sub">{{ m.wrr.sub }}</div>
-      </div>
-      <div class="mb-cell" :class="{ 'st-warn': offCourseCount() > 0 }" title="偏航行动 = 未关联项目的活跃任务数">
-        <div class="mb-label">偏航行动</div>
-        <div class="mb-num">{{ offCourseCount() }}</div>
-        <div class="mb-sub">未关联项目的活跃任务</div>
-      </div>
-    </div>
-    <div class="mb-side">
+    <div class="mb-head">
+      <span class="mb-title">📊 方向状态</span>
       <div class="mb-period">
         <span :class="{ on: period === 'day' }" @click="setPeriod('day')">日</span>
         <span :class="{ on: period === 'week' }" @click="setPeriod('week')">周</span>
         <span :class="{ on: period === 'all' }" @click="setPeriod('all')">累计</span>
       </div>
-      <button class="mb-drill" @click="drillOpen = true">📊 详细指标</button>
+      <button class="mb-drill" @click="openDrill">📋 详细指标</button>
+    </div>
+    <div class="mb-cells">
+      <div class="mb-cell clickable" :class="'st-' + dhiState" title="DHI 方向契合度 = 已投射项目中周期窗口内有任务推进的占比 · 点击下钻详细指标" @click="openDrill">
+        <div class="mb-label">DHI 方向契合度</div>
+        <div class="mb-num">{{ dhiMain }}</div>
+        <div class="mb-sub">{{ m.dhi.label }} · {{ m.dhi.sub }}</div>
+      </div>
+      <div class="mb-cell clickable" title="WCE 好奇探索率 = 探索中+已求证的好奇心数 · 点击下钻详细指标" @click="openDrill">
+        <div class="mb-label">WCE 好奇探索</div>
+        <div class="mb-num">{{ (m.wce.label || '').replace('项激活', '') || 0 }}</div>
+        <div class="mb-sub">激活项 · {{ periodLabel }}新增 {{ wceNew }}</div>
+      </div>
+      <div class="mb-cell clickable" title="WRR 资源复用 = 资源卡被打开次数 · 点击下钻详细指标" @click="openDrill">
+        <div class="mb-label">WRR 资源复用</div>
+        <div class="mb-num">{{ wrrMain }}</div>
+        <div class="mb-sub">{{ m.wrr.sub }}</div>
+      </div>
+      <div class="mb-cell clickable" :class="{ 'st-warn': unarchived > 0 }" title="未归档任务 = 未挂项目/指标或引用失效的任务（口径同详细指标）· 点击下钻归档" @click="openDrill">
+        <div class="mb-label">未归档任务</div>
+        <div class="mb-num">{{ unarchived }}<span class="mb-denom">/{{ totalTasks }}</span></div>
+        <div class="mb-sub">未挂项目/指标 · 点击下钻归档</div>
+      </div>
     </div>
   </div>
 
@@ -106,24 +110,28 @@ const drillOpen = ref(false)
 </template>
 
 <style scoped>
-.metric-bar { display: flex; align-items: stretch; gap: 12px; }
-.mb-cells { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.metric-bar { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.mb-head { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.mb-title { font-size: 12px; font-weight: 600; color: var(--text-2); flex: 1; }
+.mb-period { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.mb-period span { padding: 4px 12px; font-size: 11.5px; color: var(--text-2); cursor: pointer; transition: all .12s; }
+.mb-period span + span { border-left: 1px solid var(--border); }
+.mb-period span:hover { background: var(--surface-3); }
+.mb-period span.on { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.mb-drill { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 11.5px; border-radius: 8px; padding: 4px 12px; cursor: pointer; font-family: inherit; transition: all .15s; }
+.mb-drill:hover { border-color: var(--accent); color: var(--accent); }
+.mb-cells { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); }
 .mb-cell { background: var(--surface); padding: 12px 16px; display: flex; flex-direction: column; gap: 3px; }
+.mb-cell.clickable { cursor: pointer; transition: background .12s; }
+.mb-cell.clickable:hover { background: var(--surface-2); }
 .mb-label { font-size: 10.5px; font-weight: 600; color: var(--text-3); letter-spacing: .5px; }
 .mb-num { font-size: 20px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.25; }
+.mb-denom { font-size: 12px; font-weight: 500; color: var(--text-3); }
 .mb-cell.st-ok .mb-num { color: var(--success); }
 .mb-cell.st-mid .mb-num { color: var(--text); }
 .mb-cell.st-warn .mb-num { color: var(--tag-warn-text); }
 .mb-cell.st-none .mb-num { color: var(--text-4); }
 .mb-sub { font-size: 10px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mb-side { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 7px; flex-shrink: 0; }
-.mb-period { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.mb-period span { padding: 5px 12px; font-size: 11.5px; color: var(--text-2); cursor: pointer; transition: all .12s; }
-.mb-period span + span { border-left: 1px solid var(--border); }
-.mb-period span:hover { background: var(--surface-3); }
-.mb-period span.on { background: var(--accent-light); color: var(--accent); font-weight: 600; }
-.mb-drill { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 11.5px; border-radius: 8px; padding: 5px 12px; cursor: pointer; font-family: inherit; transition: all .15s; }
-.mb-drill:hover { border-color: var(--accent); color: var(--accent); }
 
 /* 下钻抽屉 */
 .mb-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 210; }
@@ -140,8 +148,7 @@ const drillOpen = ref(false)
 .pop-enter-from, .pop-leave-to { opacity: 0; transform: translate(-50%, -50%) scale(.96); }
 
 @media (max-width: 1080px) {
-  .metric-bar { flex-direction: column; }
   .mb-cells { grid-template-columns: repeat(2, 1fr); }
-  .mb-side { flex-direction: row; width: 100%; justify-content: flex-end; }
+  .mb-head { flex-wrap: wrap; }
 }
 </style>

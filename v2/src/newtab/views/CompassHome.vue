@@ -1,8 +1,8 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 // R49（V2.22.0）三大系统页改版：本页 = 调度台（默认首页）
 // - 今日记录条（入台/移出/调出/写入记录，点击开抽屉）
 // - 左右分栏：左=今日三件事（硬上限 3，自 CompassActions 整体迁入，交互逐项一致）｜右=项目调度面板（单击三件事联动）
-// - 底部 Tab：问题探索（默认）｜任务调度（原问题探索/任务调度改名，面板组件复用）
+// - 底部 Tab：好奇心培育（默认）｜任务调度（原好奇心培育/任务调度改名，面板组件复用）
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
@@ -10,6 +10,8 @@ import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
 import { visibleFields } from '@/shared/utils/fields'
 import { readEventLog } from '@/shared/utils/eventLog'
+import { subscribeSaveError, getLastSaveOkAt, getBytesInUse, hasUnlimitedStorage, saveDataNow } from '@/shared/storage/repository'
+import type { SaveError } from '@/shared/storage/repository'
 import type { TaskCard, Project, FocusSlot, Direction } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import Icon from '@/shared/components/Icon.vue'
@@ -50,21 +52,47 @@ const todayOut = computed<RecItem[]>(() => {
   for (const c of d.value.curiosities) if (c.deletedAt && c.deletedAt >= todayStart) list.push({ id: c.id, kind: 'curio', title: c.question || '（无标题）', ts: c.deletedAt, clickable: true })
   return list.sort((a, b) => b.ts - a.ts)
 })
-const todayCalled = computed<RecItem[]>(() =>
-  d.value.resources.filter(r => !r.deletedAt && (r.lastCalledAt || 0) >= todayStart)
-    .map(r => ({ id: r.id, kind: 'resource' as const, title: r.title, ts: r.lastCalledAt || 0, clickable: true }))
-    .sort((a, b) => b.ts - a.ts)
-)
-const logCount = ref(0)
+const todayCalled = computed<RecItem[]>(() => {
+  const list: RecItem[] = []
+  for (const r of d.value.resources) if (!r.deletedAt && (r.lastCalledAt || 0) >= todayStart) list.push({ id: r.id, kind: 'resource', title: r.title, ts: r.lastCalledAt || 0, clickable: true })
+  for (const t of d.value.tasks) if (!t.deletedAt && (t.lastCalledAt || 0) >= todayStart) list.push({ id: t.id, kind: 'task', title: t.title, ts: t.lastCalledAt || 0, clickable: true })
+  for (const c of d.value.curiosities) if (!c.deletedAt && (c.lastCalledAt || 0) >= todayStart) list.push({ id: c.id, kind: 'curio', title: c.question || '（无标题）', ts: c.lastCalledAt || 0, clickable: true })
+  return list.sort((a, b) => b.ts - a.ts)
+})
+
+/** R50-F7：今日记录条副行拆解（任务/好奇/资源 分类型计数） */
+const kindLabel = { task: '任务', curio: '好奇', resource: '资源' } as const
+function breakdownOf(items: RecItem[]): string {
+  const c = { task: 0, curio: 0, resource: 0 }
+  for (const it of items) if (it.kind) c[it.kind]++
+  return `任务${c.task} · 好奇${c.curio} · 资源${c.resource}`
+}
+const inSub = computed(() => breakdownOf(todayIn.value))
+const outSub = computed(() => breakdownOf(todayOut.value))
+const calledSub = computed(() => breakdownOf(todayCalled.value))
+/** 写入记录 = 当日写入 + 删除 + 全局调度调出（全部操作计数，副行拆 任务/好奇/资源） */
+const logSub = computed(() => {
+  const c = { task: 0, curio: 0, resource: 0 }
+  for (const e of logRaw.value) {
+    if (e.kind === 'task') c.task++
+    else if (e.kind === 'curiosity') c.curio++
+    else if (e.kind === 'resource') c.resource++
+  }
+  for (const it of todayCalled.value) if (it.kind) c[it.kind]++
+  return `任务${c.task} · 好奇${c.curio} · 资源${c.resource}`
+})
+const logTotal = computed(() => logRaw.value.length + todayCalled.value.length)
+const logCount = computed(() => logTotal.value)
 const logItems = ref<RecItem[]>([])
+const logRaw = ref<{ action: string; kind: string; title: string; ts: number }[]>([])
 const ACT_LABEL: Record<string, string> = { create: '新增', delete: '删除', restore: '恢复', purge: '清理' }
 async function loadEventLog() {
   try {
     const all = await readEventLog()
     const todays = all.filter(e => e.ts >= todayStart)
-    logItems.value = todays.map(e => ({ title: `${ACT_LABEL[e.action] || e.action} · ${e.title}`, ts: e.ts, clickable: false }))
-    logCount.value = todays.length
-  } catch { logCount.value = 0 }
+    logRaw.value = todays
+    logItems.value = todays.map(e => ({ kind: e.kind === 'curiosity' ? 'curio' : e.kind === 'task' ? 'task' : e.kind === 'resource' ? 'resource' : undefined, title: `${ACT_LABEL[e.action] || e.action} · ${e.title}`, ts: e.ts, clickable: false }))
+  } catch { logRaw.value = [] }
 }
 
 // 记录抽屉（R49-B2：搜索 + 每页 20 条翻页 + 点击定位）
@@ -429,8 +457,43 @@ function onDateKey(e: KeyboardEvent) {
 onMounted(() => {
   document.addEventListener('keydown', onDateKey, true)
   loadEventLog()
+  saveErrSub = subscribeSaveError(e => { saveErr.value = e })
+  lastOkTick.value = getLastSaveOkAt()
+  storageTimer = window.setInterval(() => { lastOkTick.value = getLastSaveOkAt() }, 30000)
 })
-onUnmounted(() => { document.removeEventListener('keydown', onDateKey, true) })
+onUnmounted(() => {
+  document.removeEventListener('keydown', onDateKey, true)
+  if (saveErrSub) saveErrSub()
+  if (storageTimer) clearInterval(storageTimer)
+})
+
+// ================= 数据存储状态栏（R50-F2） =================
+const saveErr = ref<SaveError | null>(null)
+const lastOkTick = ref(0)
+let saveErrSub: (() => void) | null = null
+let storageTimer = 0
+const storageOk = computed(() => !saveErr.value)
+const ERR_LABEL: Record<string, string> = { quota: '存储空间已满', serial: '数据序列化失败', unknown: '未知写入错误' }
+const storageText = computed(() => saveErr.value
+  ? `存储异常 · ${ERR_LABEL[saveErr.value.kind] || '写入失败'}`
+  : lastOkTick.value
+    ? `数据存储正常 · ${timeAgo(lastOkTick.value)}`
+    : '数据存储正常')
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts
+  if (diff < 60_000) return '刚刚写入'
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前写入`
+  return `${Math.floor(diff / 3_600_000)} 小时前写入`
+}
+async function onStorageClick() {
+  if (saveErr.value) {
+    try { await saveDataNow(); showToast('✓ 已重试写入，存储恢复正常') }
+    catch { showToast('✗ 重试仍失败，建议导出备份（设置 → 导出数据）') }
+    return
+  }
+  const bytes = await getBytesInUse()
+  showToast(`存储正常 · 已用 ${(bytes / 1024).toFixed(0)} KB${hasUnlimitedStorage() ? ' · 不限容量' : ''}`)
+}
 
 // ================= 左右分栏拖拽（30%–75%，默认 55%） =================
 const splitPct = ref(Number(localStorage.getItem('zy_dispatch_split') || 55))
@@ -456,7 +519,7 @@ function onSplitDown(e: MouseEvent) {
   e.preventDefault()
 }
 
-// ================= 底部 Tab：问题探索 / 任务调度 =================
+// ================= 底部 Tab：好奇心培育 / 任务调度 =================
 const zone = ref<'curio' | 'task'>('curio')
 const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.deletedAt).length)
 const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt).length)
@@ -467,22 +530,29 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
     <div class="page-head">
       <div class="crumb"><b>调度台</b> · 今天，从哪里出发</div>
       <div class="spacer" />
-      <div class="hint-chip">三件事呼吸灯 · 单击联动项目 · 双击看详情</div>
+      <button class="storage-chip" :class="{ err: !storageOk }" :title="storageOk ? '点击查看存储用量' : '点击重试写入'" @click="onStorageClick">
+        <span class="sc-dot" />
+        <span>{{ storageText }}</span>
+      </button>
     </div>
 
-    <!-- 今日记录条（44px 细条） -->
+    <!-- 今日记录条（R50-F7：两行 = 主计数 + 分类型副行） -->
     <div class="rec-strip">
       <div class="rec-cell" @click="openRec('in')">
-        <span class="rc-ic">⬇</span><span class="rc-lab">今日入台</span><span class="rc-num">{{ todayIn.length }}</span>
+        <div class="rc-main"><span class="rc-ic">⬇</span><span class="rc-lab">今日入台</span><span class="rc-num">{{ todayIn.length }}</span></div>
+        <div class="rc-sub">{{ inSub }}</div>
       </div>
       <div class="rec-cell" @click="openRec('out')">
-        <span class="rc-ic">⬆</span><span class="rc-lab">今日移出</span><span class="rc-num">{{ todayOut.length }}</span>
+        <div class="rc-main"><span class="rc-ic">⬆</span><span class="rc-lab">今日移出</span><span class="rc-num">{{ todayOut.length }}</span></div>
+        <div class="rc-sub">{{ outSub }}</div>
       </div>
       <div class="rec-cell" @click="openRec('called')">
-        <span class="rc-ic">↗</span><span class="rc-lab">今日调出</span><span class="rc-num">{{ todayCalled.length }}</span>
+        <div class="rc-main"><span class="rc-ic">↗</span><span class="rc-lab">今日调出</span><span class="rc-num">{{ todayCalled.length }}</span></div>
+        <div class="rc-sub">{{ calledSub }}</div>
       </div>
       <div class="rec-cell" @click="openRec('log')">
-        <span class="rc-ic">✎</span><span class="rc-lab">写入记录</span><span class="rc-num">{{ logCount }}</span>
+        <div class="rc-main"><span class="rc-ic">✎</span><span class="rc-lab">写入记录</span><span class="rc-num">{{ logCount }}</span></div>
+        <div class="rc-sub">{{ logSub }}</div>
       </div>
     </div>
 
@@ -542,7 +612,8 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
       <section class="module right-col">
         <div class="card curation">
           <div class="card-head">
-            <span class="ic"><Icon name="target" :size="17" /></span><span class="nm">项目调度</span><span class="en">PROJECT SPOTLIGHT</span><span class="ds">选中任务所属项目 · 单击左栏任务卡联动</span>
+            <span class="ic"><Icon name="target" :size="17" /></span><span class="nm">项目调度</span><span class="en">PROJECT SPOTLIGHT</span>            <span class="ds">选中任务所属项目 · 单击左栏任务卡联动</span>
+            <button class="mini-btn" title="进入完整方向树全景（查看/编辑方向结构）" @click="router.push('/compass/tree')"><Icon name="branch" :size="13" />方向树</button>
           </div>
           <div v-if="curProject" class="cur-body-v">
             <div class="cur-proj-name">📦 {{ curProject.name }}</div>
@@ -610,11 +681,11 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
       </section>
     </div>
 
-    <!-- 底部 · 问题探索 / 任务调度 -->
+    <!-- 底部 · 好奇心培育 / 任务调度 -->
     <section class="module">
       <div class="zone-tabs">
         <div class="zone-tab" :class="{active: zone==='curio'}" @click="zone='curio'">
-          💡 问题探索<span class="zc">{{ curioCount }}</span>
+          💡 好奇心培育<span class="zc">{{ curioCount }}</span>
         </div>
         <div class="zone-tab" :class="{active: zone==='task'}" @click="zone='task'">
           📋 任务调度<span class="zc">{{ taskCount }}</span>
@@ -749,19 +820,29 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
 
 <style scoped>
 .page { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
-.page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-left: 22px; }
 .page-head .crumb { font-size: 13px; color: var(--text-2); }
 .page-head .crumb b { color: var(--text); font-weight: 600; font-size: 15px; }
 .page-head .spacer { flex: 1; }
 .hint-chip { font-size: 10.5px; color: var(--text-3); background: var(--surface); border: 1px dashed var(--border-strong); padding: 3px 10px; border-radius: 99px; }
 
-/* 今日记录条（44px 细条，Linear 发丝线） */
+/* R50-F2 数据存储状态栏 */
+.storage-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); padding: 4px 12px; border-radius: 99px; cursor: pointer; transition: border-color .15s; font-family: inherit; }
+.storage-chip:hover { border-color: var(--border-strong); }
+.storage-chip .sc-dot { width: 7px; height: 7px; border-radius: 99px; background: #2EA043; box-shadow: 0 0 6px rgba(46,160,67,.55); flex-shrink: 0; }
+.storage-chip.err { color: #F85149; border-color: color-mix(in srgb, #F85149 45%, var(--border)); }
+.storage-chip.err .sc-dot { background: #F85149; box-shadow: 0 0 6px rgba(248,81,73,.55); animation: scBlink 1.2s ease-in-out infinite; }
+@keyframes scBlink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* 今日记录条（R50-F7：主计数 + 分类型副行） */
 .rec-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 16px; }
-.rec-cell { height: 44px; display: flex; align-items: center; gap: 9px; padding: 0 16px; background: var(--surface); cursor: pointer; transition: background .12s; }
+.rec-cell { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 16px; background: var(--surface); cursor: pointer; transition: background .12s; }
 .rec-cell:hover { background: var(--surface-3); }
+.rc-main { display: flex; align-items: center; gap: 9px; }
 .rc-ic { font-size: 13px; color: var(--text-3); }
 .rc-lab { font-size: 12px; color: var(--text-2); }
 .rc-num { margin-left: auto; font-size: 15px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.rc-sub { font-size: 10.5px; color: var(--text-3); padding-left: 22px; font-variant-numeric: tabular-nums; }
 
 /* 左右分栏 */
 .split { display: flex; align-items: stretch; margin-bottom: 4px; }
@@ -798,7 +879,7 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
 .today-body { padding: 0 20px 16px; }
 .today-toolbar { display: flex; gap: 6px; margin-bottom: 10px; }
 .lock-bar { display: flex; align-items: center; justify-content: center; font-size: 11.5px; color: var(--text-3); background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: 8px; padding: 6px 10px; margin-bottom: 10px; }
-.today-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.today-cards { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .today-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px 11px; cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; }
 .today-card:not(.empty-card) { animation: tcBreathe 4s ease-in-out infinite; }
 @keyframes tcBreathe {
@@ -917,7 +998,6 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
 .modal-enter-active, .modal-leave-active { transition: all .15s ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; transform: translate(-50%, -50%) scale(.95); }
 @media (max-width: 1080px) {
-  .today-cards { grid-template-columns: 1fr; }
   .split { flex-direction: column; }
   .left-col { width: 100% !important; }
   .split-handle { display: none; }
