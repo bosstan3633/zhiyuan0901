@@ -192,6 +192,8 @@ export interface TaskCard extends CardBase {
   /** R47-B4：被打开（调起详情/直达）次数与最近打开时间——全局检索无输入时按近期热度排序 */
   callCount?: number
   lastCalledAt?: number
+  /** R56-V1：手动拖拽排序权重（任务管理面板 manual 态：拖拽后全量重写；未拖拽回退 createdAt 最新在前） */
+  sortOrder?: number
 }
 
 /** 好奇心卡（从好奇出发） */

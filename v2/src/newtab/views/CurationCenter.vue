@@ -48,9 +48,10 @@ function toggleExpand(id: string) {
 function expandAllCats() { for (const c of cats.value) expandedCats.value.add(c.id) }
 function collapseAllCats() { expandedCats.value.clear() }
 
-// ---- 节点计数（自身原生卡 + 自身投射卡 + 镜像源卡 + 子级聚合） ----
+// ---- 节点计数（自身原生卡 + 自身投射卡 + 未投射源卡 + 子级聚合；R56-A：镜像分类不再双计已投射源卡） ----
 function nodeCount(c: Category): number {
-  let n = cardsIn(c.id).length + projCardsIn(c.id).length + (c.curFrom ? liveCardsOfCat(c.curFrom.catId).length : 0)
+  let n = cardsIn(c.id).length + projCardsIn(c.id).length
+    + (c.curFrom ? liveCardsOfCat(c.curFrom.catId).filter(it => !projections.value.some(p => p.kind === 'card' && p.cardId === it.card.id)).length : 0)
   for (const ch of childCats(c.id)) n += nodeCount(ch)
   return n
 }
@@ -153,10 +154,7 @@ function liveCardsOfCat(sourceCatId: string): { card: ResourceCard; sub?: string
   }
   return out
 }
-const viewLive = computed(() => {
-  const c = cats.value.find(x => x.id === activeCat.value)
-  return c?.curFrom ? liveCardsOfCat(c.curFrom.catId) : []
-})
+// R56-A：源分类实时卡已并入统一混排网格（未投射源卡垫后、拖动即物化），独立实时镜像视图取消
 
 // ---- 内容区（按当前视图组装） ----
 const viewLabel = computed(() => {
@@ -174,20 +172,34 @@ const viewProjCards = computed(() => {
   return projCardsIn(activeCat.value)
 })
 /** R55-A1：统一混排列表——原生卡+投射卡同一网格按 置顶 > curOrder > createdAt 排列，权重一致 */
-type MixedCard = { id: string; type: 'native' | 'proj'; r?: ResourceCard; p?: CurationProjection }
+type MixedCard = { id: string; type: 'native' | 'proj' | 'live'; r?: ResourceCard; p?: CurationProjection }
 function mixedCardsOf(catKey: string): MixedCard[] {
   const nat: MixedCard[] = nativeCards.value.filter(r => (r.categoryId || '') === catKey).map(r => ({ id: r.id, type: 'native', r }))
   const prj: MixedCard[] = projections.value
     .filter(p => p.kind === 'card' && (p.targetCatId || '') === catKey && cardById(p.cardId))
     .map(p => ({ id: p.id, type: 'proj', p }))
+  // R56-A：镜像分类——未投射源卡（curFrom 源分类实时卡）以源序垫后，拖动即物化为投射
+  const cat = d.value.categories.find(c => c.id === catKey)
+  if (cat?.curFrom) {
+    for (const it of liveCardsOfCat(cat.curFrom.catId)) {
+      if (projections.value.some(p => p.kind === 'card' && p.cardId === it.card.id)) continue
+      prj.push({ id: 'live:' + it.card.id, type: 'live', p: { id: 'live:' + it.card.id, kind: 'card', wsId: it.card.workspaceId, cardId: it.card.id, catId: it.card.categoryId, targetCatId: catKey, addedAt: 0 } } as unknown as MixedCard)
+    }
+  }
+  // R56-PERF-b：预建 cardId→createdAt Map，排序比较器 O(1)（旧实现每比较全量 find，O(n²)）
+  const createdAtOf = new Map<string, number>()
+  for (const m of prj) { const c = cardById(m.p!.cardId); if (c) createdAtOf.set(m.id, c.createdAt) }
+  // R56-A：未投射源卡「源序垫后」——恒排在已排序卡（原生+投射）之后，按源分类内物理序
+  const LIVE_BASE = 1e12
+  const srcIndexOf = new Map<string, number>()
+  if (cat?.curFrom) liveCardsOfCat(cat.curFrom.catId).forEach((it, i) => srcIndexOf.set(it.card.id, i))
   const orderOf = (m: MixedCard): number =>
-    m.type === 'native' ? (m.r!.curOrder ?? m.r!.createdAt) : (m.p!.curOrder ?? cardById(m.p!.cardId)?.createdAt ?? 0)
-  return [...nat, ...prj].sort((a, b) => {
-    const pa = a.type === 'native' && a.r!.pinned ? 1 : 0
-    const pb = b.type === 'native' && b.r!.pinned ? 1 : 0
-    if (pa !== pb) return pb - pa
-    return orderOf(a) - orderOf(b)
-  })
+    m.type === 'native' ? (m.r!.curOrder ?? m.r!.createdAt)
+      : m.type === 'live' ? (LIVE_BASE + (m.p!.cardId ? (srcIndexOf.get(m.p!.cardId) ?? 0) : 0))
+      : (m.p!.curOrder ?? createdAtOf.get(m.id) ?? 0)
+  const pairs = [...nat, ...prj].map(m => ({ m, ord: orderOf(m), pinned: m.type === 'native' && m.r!.pinned ? 1 : 0 }))
+  pairs.sort((a, b) => (b.pinned - a.pinned) || (a.ord - b.ord))
+  return pairs.map(x => x.m)
 }
 const viewMixed = computed<MixedCard[]>(() => {
   if (activeCat.value === PENDING) return pendingProjections.value.map(p => ({ id: p.id, type: 'proj' as const, p }))
@@ -195,6 +207,8 @@ const viewMixed = computed<MixedCard[]>(() => {
 })
 const viewNativeCount = computed(() => viewMixed.value.filter(m => m.type === 'native').length)
 const viewProjCount = computed(() => viewMixed.value.filter(m => m.type === 'proj').length)
+/** R56-A：区块计数 = 混排网格实况（未投射源卡单列，不再双计已投射源卡） */
+const viewLiveCount = computed(() => viewMixed.value.filter(m => m.type === 'live').length)
 
 // ---- 卡片打开（原生/镜像共用 WRR 口径） ----
 function openCard(r: ResourceCard) {
@@ -340,7 +354,7 @@ function moveProjectionTo(pid: string, targetCatId: string) {
 }
 /** R54-D3：拖拽结束统一复位（drop 后也会触发，防取消拖拽时状态残留） */
 function clearDragState() { dragId.value = ''; dragCatId.value = ''; dropMark.value = null }
-/** R54-D2：源镜像卡（📡 源分类实时镜像区）拖拽即投射——落目标分类（已有记录则移动） */
+/** R54-D2 + R56-A：未投射源卡拖拽即投射——落目标分类（已有记录则移动；源数据零影响） */
 function projectSourceCardTo(srcCardId: string, targetCatId: string) {
   const src = d.value.resources.find(x => x.id === srcCardId && !x.deletedAt && x.workspaceId !== CURATION_WS_ID)
   if (!src) return false
@@ -401,6 +415,36 @@ function onAnyCardDrop(e: DragEvent, target: ResourceCard | CurationProjection, 
 /** 源卡被拖入后其投射记录 id（用于混排插入定位） */
 function projectRecordIdOf(srcCardId: string): string | undefined {
   return projections.value.find(x => x.kind === 'card' && x.cardId === srcCardId)?.id
+}
+/** R56-A：拖到未投射源卡上——目标键 = 镜像分类自身（源卡 categoryId 是源台分类，不可用）；
+ *  源卡拖入 = 物化并落位到该源卡之前；原生/投射卡拖入 = 移入分组并落位 */
+function onLiveDrop(e: DragEvent, m: MixedCard) {
+  const catKey = m.p!.targetCatId || ''
+  const targetId = m.id // 'live:' + cardId，与 mixedCardsOf 的 id 同构
+  const pid = dragId.value || e.dataTransfer?.getData('text/plain') || ''
+  dragId.value = ''
+  if (!pid || pid === m.p!.cardId) return
+  const srcCard = d.value.resources.find(x => x.id === pid && !x.deletedAt && x.workspaceId !== CURATION_WS_ID)
+  if (srcCard) {
+    projectSourceCardTo(srcCard.id, catKey)
+    reorderMixed(catKey, projectRecordIdOf(srcCard.id) || '', targetId)
+    store.persist()
+    return
+  }
+  const draggedIsProj = pid.startsWith('curp-') || projections.value.some(x => x.id === pid)
+  let moved = false
+  if (draggedIsProj) {
+    const p = projections.value.find(x => x.id === pid)
+    if (!p) return
+    if (p.targetCatId !== (catKey || undefined)) { p.targetCatId = catKey || undefined; moved = true }
+  } else {
+    const r = d.value.resources.find(x => x.id === pid && x.workspaceId === CURATION_WS_ID)
+    if (!r) return
+    if (r.categoryId !== catKey) { r.categoryId = catKey; moved = true }
+  }
+  const sorted = reorderMixed(catKey, pid, targetId)
+  store.persist()
+  showToast(moved ? '✓ 卡片已移入该分组' : sorted ? '✓ 卡片已排序' : '✓ 已更新')
 }
 /** 卡/投射拖入树节点（R53：任意策展分类，含镜像分类——同为真实分类） */
 function onTreeDrop(e: DragEvent, catId: string) {
@@ -554,7 +598,7 @@ function onCatDrop(e: DragEvent, target: Category) {
       <div class="cur-main">
         <div class="cur-sec-label">
           {{ viewLabel }}
-          <span>原生 {{ viewNativeCount }} · 投射 {{ viewProjCount }}<template v-if="viewLive.length"> · 源镜像 {{ viewLive.length }}</template></span>
+          <span>原生 {{ viewNativeCount }} · 投射 {{ viewProjCount }}<template v-if="viewLiveCount"> · 源镜像 {{ viewLiveCount }}</template></span>
         </div>
 
         <!-- R55-A1：统一混排网格——原生卡与投射卡权重一致，同列表自由拖拽排列 -->
@@ -601,28 +645,26 @@ function onCatDrop(e: DragEvent, target: Category) {
                 <div class="cc-tools"><span class="cc-act danger" title="移出投射" @click.stop="removeProjection(m.p)">✕</span></div>
               </template>
             </div>
+            <!-- R56-A：未投射源卡（📡 源序垫后，拖动即物化为投射；可作落位锚点） -->
+            <div v-else-if="m.type === 'live' && m.p" class="cur-card mirror live" draggable="true"
+              @dragstart="onSrcDragStart($event, cardById(m.p!.cardId)!)" @dragover.prevent @drop="onLiveDrop($event, m)" @dragend="clearDragState"
+              @click="onCardClick(() => { const src = cardById(m.p!.cardId); if (src) mirrorDetail = { card: src, proj: { id: '', kind: 'card', wsId: src.workspaceId, addedAt: 0 } } })"
+              @dblclick="cardById(m.p!.cardId) && onCardDblClick(() => openCard(cardById(m.p!.cardId)!))"
+              title="📡 未投射源卡 · 单击详情 · 双击打开 · 拖动即物化为投射卡">
+              <template v-if="cardById(m.p!.cardId)">
+                <div class="cc-title"><span class="cc-badge">📡</span>{{ cardById(m.p!.cardId)!.title }}<span class="cc-src">· {{ wsName(m.p.wsId) }}</span></div>
+                <div v-if="cardById(m.p!.cardId)!.link" class="cc-link">{{ cardById(m.p!.cardId)!.link }}</div>
+                <div class="cc-tools">
+                  <span class="cc-act" title="打开链接" @click.stop="openCard(cardById(m.p!.cardId)!)">↗</span>
+                  <span class="cc-act" title="定位到源工作台" @click.stop="locateSource(cardById(m.p!.cardId)!)">🎯</span>
+                </div>
+              </template>
+            </div>
           </template>
-          <div v-if="!viewMixed.length && !viewLive.length" class="cur-empty-native">当前分组还没有卡片 —— 右上角「＋ 新建卡片」，或从工作台拖卡/右键镜像过来</div>
+          <div v-if="!viewMixed.length" class="cur-empty-native">当前分组还没有卡片 —— 右上角「＋ 新建卡片」，或从工作台拖卡/右键镜像过来</div>
         </div>
 
-        <!-- 镜像分类视图：源分类实时卡片 -->
-        <template v-if="viewLive.length">
-          <div class="cur-sec-label proj">📡 源分类实时镜像 <span>{{ viewLive.length }}</span></div>
-          <div class="cur-grid">
-            <div v-for="it in viewLive" :key="it.card.id" class="cur-card mirror" title="单击详情 · 双击打开链接 · 拖拽即镜像入其他分组"
-              draggable="true" @dragstart="onSrcDragStart($event, it.card)" @dragend="clearDragState"
-              @click="onCardClick(() => { mirrorDetail = { card: it.card, proj: { id: '', kind: 'card', wsId: it.card.workspaceId, addedAt: 0 } } })" @dblclick="onCardDblClick(() => openCard(it.card))">
-              <div class="cc-title"><span v-if="it.sub" class="cc-subcat">↳{{ it.sub }}</span>{{ it.card.title }}</div>
-              <div v-if="it.card.link" class="cc-link">{{ it.card.link }}</div>
-              <div class="cc-tools">
-                <span class="cc-act" title="打开链接" @click.stop="openCard(it.card)">↗</span>
-                <span class="cc-act" title="定位到源工作台" @click.stop="locateSource(it.card)">🎯</span>
-              </div>
-            </div>
-          </div>
-        </template>
-
-        <div v-if="!viewMixed.length && !viewLive.length" class="cur-empty">
+        <div v-if="!viewMixed.length" class="cur-empty">
           当前分类还是空的 —— 从其他工作台右键卡片「📡 镜像到策展中心」/ 目录树 📤 镜像分类 / 工作台 Tab 右键整台打包镜像，或在这里新建原生卡片
         </div>
       </div>

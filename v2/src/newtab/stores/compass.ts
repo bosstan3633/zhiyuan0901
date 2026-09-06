@@ -4,12 +4,33 @@ import type { Direction, Project } from '@/shared/models'
 
 // B40：recordResourceOpen 已下沉至 shared/storage/stats（应用端与网页端共用同一实现）
 export { recordResourceOpen } from '@/shared/storage/stats'
+import { getDataVersion } from '@/shared/storage/repository'
 
 /**
  * 方向台数据管理
  * 六层链：Vision → Mission → Direction(战略目标) → Project(攻坚项目) → Metric(成功指标) → Task
  */
 export function useCompass() {
+
+  // ---- R56-PERF-c：项目任务索引（单次遍历，供 isProjectDone/isProjectStalled/projectProgress 共享） ----
+  let ptIndexVersion = -1
+  let ptIndex: Map<string, typeof d.value.tasks> = new Map()
+  function projectTasksIndex(): Map<string, typeof d.value.tasks> {
+    if (ptIndexVersion !== getDataVersion()) {
+      const m: Map<string, typeof d.value.tasks> = new Map()
+      for (const t of d.value.tasks) {
+        if (t.deletedAt || !t.projectId) continue
+        let arr = m.get(t.projectId)
+        if (!arr) { arr = []; m.set(t.projectId, arr) }
+        arr.push(t)
+      }
+      ptIndex = m
+      ptIndexVersion = getDataVersion()
+    }
+    return ptIndex
+  }
+  function projectTasksOf(projectId: string) { return projectTasksIndex().get(projectId) || [] }
+
   const store = useAppStore()
   const d = computed(() => store.data!)
 
@@ -56,9 +77,7 @@ export function useCompass() {
   // ---- 项目进度计算 ----
   function projectProgress(project: Project): { done: number; total: number; pct: number } {
     const metricIds = project.metrics.map(m => m.id)
-    const tasks = d.value.tasks.filter(t =>
-      !t.deletedAt && t.projectId === project.id
-    )
+    const tasks = projectTasksOf(project.id)
     const done = tasks.filter(t => t.status === 'done').length
     const total = tasks.length
     const pct = total ? Math.round((done / total) * 100) : (project.progress || 0)
@@ -69,13 +88,13 @@ export function useCompass() {
    *  1) 手动 status=done/archived；2) 派生完成——项目下有任务且全部 done（纯计算，不回写 status） */
   function isProjectDone(project: Project): boolean {
     if (project.status === 'done' || project.status === 'archived') return true
-    const tasks = d.value.tasks.filter(t => !t.deletedAt && t.projectId === project.id)
+    const tasks = projectTasksOf(project.id)
     return tasks.length > 0 && tasks.every(t => t.status === 'done')
   }
 
   /** R49-C2/C5：项目停滞判定（简版口径：有任务但近 14 天无推进/完成活动） */
   function isProjectStalled(project: Project): boolean {
-    const tasks = d.value.tasks.filter(t => !t.deletedAt && t.projectId === project.id)
+    const tasks = projectTasksOf(project.id)
     if (!tasks.length) return false
     const recent = tasks.some(t =>
       t.status === 'doing' ||
@@ -115,7 +134,17 @@ export function useCompass() {
     return Date.now() - ts < days * 86400_000
   }
 
+  // R56-PERF-d：北极星结果按 period+数据版本 memo（迁调度台后常驻首页，避免每次数据变更全量重算）
+  let nsMemoKey = ''
+  let nsMemo: ReturnType<typeof northStarMetricsRaw> | null = null
   function northStarMetrics(period: Period) {
+    const key = period + ':' + getDataVersion()
+    if (nsMemo && nsMemoKey === key) return nsMemo
+    nsMemoKey = key
+    nsMemo = northStarMetricsRaw(period)
+    return nsMemo
+  }
+  function northStarMetricsRaw(period: Period) {
     const days = period === 'day' ? 1 : period === 'week' ? 7 : 9999
     const pLabel = period === 'day' ? '今日' : period === 'week' ? '本周' : '累计'
     const dirs = d.value.compass.directions
@@ -188,7 +217,7 @@ export function useCompass() {
   return {
     d, visionText, missionText, directions, allProjects, projectById,
     focusedProjects, toggleFocusProject, projectProgress,
-    isProjectStalled, isProjectDone, offCourseCount, taskArchiveIssue, unarchivedTaskCount, totalTaskCount,
+    isProjectStalled, isProjectDone, projectTasksOf, offCourseCount, taskArchiveIssue, unarchivedTaskCount, totalTaskCount,
     northStarMetrics, formulas
   }
 }

@@ -104,7 +104,7 @@ function openFull() { fullOpen.value = true }
 
 <style scoped>
 .metric-bar { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
-.mb-head { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.mb-head { display: flex; align-items: center; gap: 12px; padding: 6px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
 .mb-title { font-size: 12px; font-weight: 600; color: var(--text-2); flex: 1; }
 .mb-period { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .mb-period span { padding: 4px 12px; font-size: 11.5px; color: var(--text-2); cursor: pointer; transition: all .12s; }
@@ -114,11 +114,11 @@ function openFull() { fullOpen.value = true }
 .mb-drill { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 11.5px; border-radius: 8px; padding: 4px 12px; cursor: pointer; font-family: inherit; transition: all .15s; }
 .mb-drill:hover { border-color: var(--accent); color: var(--accent); }
 .mb-cells { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); }
-.mb-cell { background: var(--surface); padding: 12px 16px; display: flex; flex-direction: column; gap: 3px; }
+.mb-cell { background: var(--surface); padding: 8px 16px; display: flex; flex-direction: column; gap: 2px; }
 .mb-cell.clickable { cursor: pointer; transition: background .12s; }
 .mb-cell.clickable:hover { background: var(--surface-2); }
 .mb-label { font-size: 10.5px; font-weight: 600; color: var(--text-3); letter-spacing: .5px; }
-.mb-num { font-size: 20px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.25; }
+.mb-num { font-size: 18px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.25; }
 .mb-denom { font-size: 12px; font-weight: 500; color: var(--text-3); }
 .mb-cell.st-ok .mb-num { color: var(--success); }
 .mb-cell.st-mid .mb-num { color: var(--text); }

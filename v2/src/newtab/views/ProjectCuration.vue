@@ -538,7 +538,7 @@ function addTaskFromHeader() {
             <span class="bt" @click="openTaskDetail(task)" title="点击打开任务详情">{{ task.title }}</span>
             <span class="tag" :class="prTag(task.priority)">{{ prLabel(task.priority) }}</span>
             <AssetBadge v-if="task.assets?.length" :assets="task.assets" />
-            <button class="icon-btn-sm del" @click="removeTask(task)">×</button>
+            <button class="icon-btn-sm del" title="删除任务（进回收站）" @click="removeTask(task)">🗑</button>
           </div>
           <div class="task-add" @click="openTaskAdd(m)">＋ 添加任务（新建 / 关联）</div>
         </div>
@@ -558,7 +558,7 @@ function addTaskFromHeader() {
             <span class="bcheck" :class="{done: t.status==='done'}" @click="toggleTaskDone(t)">{{ t.status==='done'?'✓':'' }}</span>
             <span class="bt" @click="openTaskDetail(t)" title="点击打开任务详情">{{ t.title }}</span>
             <span class="tag" :class="prTag(t.priority)">{{ prLabel(t.priority) }}</span>
-            <button class="icon-btn-sm del" @click="removeTask(t)">×</button>
+            <button class="icon-btn-sm del" title="删除任务（进回收站）" @click="removeTask(t)">🗑</button>
           </div>
         </div>
       </div>
@@ -689,9 +689,9 @@ function addTaskFromHeader() {
 /* 展板 */
 .board-layout { display: flex; gap: 16px; align-items: flex-start; }
 /* R55-G1：左栏双列联动目录——第一列全部项目 + 第二列当前项目目录树 */
-.proj-rail { position: sticky; top: 16px; display: flex; gap: 8px; flex-shrink: 0; width: 372px; max-height: calc(100vh - 200px); }
+.proj-rail { position: sticky; top: 16px; display: flex; gap: 8px; flex-shrink: 0; width: 302px; max-height: calc(100vh - 200px); }
 .pr-col { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 8px; box-shadow: var(--shadow); overflow-y: auto; }
-.pr-projects { width: 148px; flex-shrink: 0; }
+.pr-projects { width: 126px; flex-shrink: 0; }
 .pr-tree { flex: 1; min-width: 0; }
 .pt-title { font-size: 10.5px; font-weight: 700; color: var(--accent); letter-spacing: .5px; padding: 0 8px 8px; }
 .pt-item { display: flex; align-items: center; gap: 6px; padding: 7px 9px; border-radius: 8px; cursor: pointer; transition: all .12s; border: 1px solid transparent; }
@@ -709,12 +709,12 @@ function addTaskFromHeader() {
 .prt-metric.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .prt-metric.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
 .prt-metric[draggable="true"] > .prt-mrow { cursor: grab; }
-.prt-mrow { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: background .12s; }
+.prt-mrow { display: flex; align-items: center; gap: 6px; padding: 8px 8px; border-radius: 6px; cursor: pointer; transition: background .12s; }
 .prt-mrow:hover { background: var(--surface-2); }
 .prt-dot { font-size: 11px; flex-shrink: 0; }
 .prt-name { flex: 1; min-width: 0; font-size: 11.5px; font-weight: 600; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .prt-meta { font-size: 9.5px; color: var(--text-4); font-variant-numeric: tabular-nums; flex-shrink: 0; }
-.prt-task { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 24px; border-radius: 6px; cursor: pointer; transition: background .12s; }
+.prt-task { display: flex; align-items: center; gap: 6px; padding: 7px 8px 7px 26px; border-radius: 6px; cursor: pointer; transition: background .12s; }
 .prt-task:hover { background: var(--surface-2); }
 .prt-task[draggable="true"] { cursor: grab; }
 .prt-task-dot { font-size: 9px; width: 14px; text-align: center; flex-shrink: 0; color: var(--text-3); border-radius: 99px; }

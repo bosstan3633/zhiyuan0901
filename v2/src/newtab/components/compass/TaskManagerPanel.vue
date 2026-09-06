@@ -59,7 +59,8 @@ const filteredTasks = computed(() => {
     const q = searchQuery.value.toLowerCase()
     tasks = tasks.filter(t => t.title.toLowerCase().includes(q))
   }
-  // 第卅二轮 REQ-007 + bug 修复：排序下拉实际生效（manual=保持原顺序）
+  // 第卅二轮 REQ-007 + bug 修复：排序下拉实际生效
+  // R56-V1：manual（默认）= 拖拽序（sortOrder）优先，无拖拽序 = 最新创建在前；选其他排序即覆盖
   if (sortBy.value !== 'manual') {
     const dirMul = sortDir.value === 'asc' ? 1 : -1
     const rank: Record<string, number> = { high: 3, medium: 2, low: 1 }
@@ -68,6 +69,11 @@ const filteredTasks = computed(() => {
       if (sortBy.value === 'priority') return dirMul * ((rank[a.priority || 'low'] || 0) - (rank[b.priority || 'low'] || 0))
       return 0
     })
+  } else {
+    const hasDrag = tasks.some(t => t.sortOrder != null)
+    tasks = [...tasks].sort((a, b) => hasDrag
+      ? (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER)
+      : (b.createdAt || 0) - (a.createdAt || 0))
   }
   return tasks
 })
@@ -288,6 +294,8 @@ function onTaskDrop(target: TaskCard, grouped?: boolean) {
   const [item] = d.value.tasks.splice(fromIdx, 1)
   const newIdx = d.value.tasks.findIndex(x => x.id === target.id)
   d.value.tasks.splice(after ? newIdx + 1 : newIdx, 0, item)
+  // R56-V1：拖拽序物化——全量重写 sortOrder（否则「无拖拽序=最新在前」会吞掉拖拽结果）
+  d.value.tasks.filter(t => !t.deletedAt).forEach((t, i) => { t.sortOrder = i })
   store.persist()
   draggedTask = null
   clearTaskDrop()

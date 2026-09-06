@@ -17,12 +17,17 @@
  *   E2E-13 方向树返回方向台 + 项目详情头部添加成功指标 + 返回项目列表移除（R52-F5/F6/F8）
  *   E2E-14 项目调度指标下钻弹窗（R54-B2）
  *   E2E-15 面包屑 + 来源感知返回 + 树定位闭环（R54-A）
+ *   E2E-16 快速采集任务面板（R55-C）
+ *   E2E-17 项目调度 4 指标恢复左列 + 下钻链路（R56-P1）
  */
 const path = require('path')
 const fs = require('fs')
 const { chromium } = require('playwright-core')
 
-const CHROME = path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1223', 'chrome-win64', 'chrome.exe')
+// R56：跨平台 Chromium 路径（Windows = playwright 缓存 chrome-win64；macOS = 缓存内 Chrome for Testing）
+const CHROME = process.platform === 'darwin'
+  ? path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright', 'chromium-1234', 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing')
+  : path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1223', 'chrome-win64', 'chrome.exe')
 const DIST = path.resolve(__dirname, '..', 'dist')
 const EXT_INDEX = 'src/newtab/index.html'
 
@@ -33,7 +38,7 @@ function report(name, ok, detail) {
 }
 
 async function main() {
-  if (!fs.existsSync(CHROME)) throw new Error('chromium-1223 不存在：' + CHROME)
+  if (!fs.existsSync(CHROME)) throw new Error('Chromium 不存在：' + CHROME)
   const ctx = await chromium.launchPersistentContext('', {
     headless: true,
     executablePath: CHROME,
@@ -137,7 +142,17 @@ async function main() {
     if (/^file:\/\//i.test(u) || /^blob:/i.test(u)) pdfTab = u
   } catch { /* timeout */ }
   const fileOk = !!pdfTab && /^file:\/\//i.test(pdfTab)
-  report('E2E-5 PDF 附件双击打开（file:// 落盘通道）', fileOk, pdfTab || `cardVisible=${cardVisible} 未捕获新标签（headless 下载目录为 GUID 命名，.pdf 后缀在真实环境由 filename 参数保证）`)
+  // R56：headless（尤其 macOS）禁止 file:// 导航——落盘通道以 chrome.downloads 完成 + zy_file_paths 路径记忆为证，file:// 打开留真机复核
+  let dlOk = false, pathsOk = false
+  if (!pdfTab && cardVisible) {
+    dlOk = await page.evaluate(() => new Promise((res) => {
+      try { chrome.downloads.search({ limit: 10, orderBy: ['-startTime'] }, (items) => res((items || []).some(it => it.state === 'complete' || (it.filename || '').length > 0))) } catch { res(false) }
+    })).catch(() => false)
+    pathsOk = await page.evaluate(() => new Promise((res) => {
+      chrome.storage.local.get('zy_file_paths', (r) => res(Object.keys(r['zy_file_paths'] || {}).length > 0))
+    })).catch(() => false)
+  }
+  report('E2E-5 PDF 附件双击打开（file:// 落盘通道）', fileOk || (dlOk && pathsOk), pdfTab || `cardVisible=${cardVisible} headless落盘证据 downloads=${dlOk} zy_file_paths=${pathsOk}（file:// 导航 headless 不可捕获，真机复核）`)
 
   // E2E-6 事件日志落盘：右键软删种子卡 → delete 事件写入 zy_event_log（外部种卡按设计静默，不产事件）
   const delBtn = page.locator('.res-card[data-rid="e2e-res-1"] .rc-action.delete')
@@ -203,8 +218,9 @@ async function main() {
   const visionMini = await page.getByText('愿景 · Vision').first().isVisible().catch(() => false)
   const missionMini = await page.getByText('使命 · Mission').first().isVisible().catch(() => false)
   const goalOn = await page.getByText('E2E 战略目标').first().isVisible().catch(() => false)
-  const statCount = await page.locator('.cur-stat-strip .css-item').count()
-  report('E2E-8 调度台三件事 + 项目调度面板（愿景/使命+战略目标+状态栏四格 R55-D2）', todayCard && curationOn && visionMini && missionMini && goalOn && statCount === 4,
+  // R56-P1：4 指标恢复左列（cur-stats-v2 一行四格），头部状态栏已移除
+  const statCount = await page.locator('.cur-stats-v2 .csv-cell').count()
+  report('E2E-8 调度台三件事 + 项目调度面板（愿景/使命+战略目标+左列四指标 R56-P1）', todayCard && curationOn && visionMini && missionMini && goalOn && statCount === 4,
     `todayCard=${todayCard} curation=${curationOn} stats=${statCount} goal=${goalOn}`)
 
   // E2E-9 存量回填迁移（R46 BUG-2）：重新加载页面触发 init 回填 → task-2 补齐 projectId + projBackfillFixed 记录
@@ -310,7 +326,8 @@ async function main() {
   await page.waitForTimeout(2500)
   const pageErrors = []
   page.on('pageerror', e => pageErrors.push(String(e).slice(0, 120)))
-  await page.locator('.cur-stat-strip .css-item').first().click().catch(() => {})
+  // R56-P1：4 指标恢复左列（cur-stats-v2），cur-stat-strip 已随恢复移除
+  await page.locator('.cur-stats-v2 .csv-cell').first().click().catch(() => {})
   await page.waitForTimeout(600)
   const drillModal = await page.getByText('成功指标 · E2E 策展项目').first().isVisible().catch(() => false)
   const drillRow = await page.getByText('E2E 成功指标').first().isVisible().catch(() => false)
@@ -356,6 +373,26 @@ async function main() {
   const taskIn = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => (r['zy_data_v2'].tasks || []).some(t => t.title === 'R55 采集任务')))
   report('E2E-16 快速采集任务面板（R55-C）', tcPanelOn && tcSavedOn && taskIn,
     'panel=' + tcPanelOn + ' saved=' + tcSavedOn + ' inDb=' + taskIn + ' errs=' + JSON.stringify(pageErrs))
+
+
+  // E2E-17 项目调度 4 指标恢复（R56-P1）：左列一行四格 → 弹窗下钻 → 点击任务开右侧详情抽屉
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+  const cellsOn = await page.locator('.cur-stats-v2 .csv-cell').count()
+  const stripGone = await page.locator('.cur-stat-strip').count()
+  await page.locator('.cur-stats-v2 .csv-cell').nth(3).click().catch(() => {}) // 第 4 格 = 进行中
+  await page.waitForTimeout(600)
+  const drillTitle = await page.getByText('进行中任务 · E2E 策展项目').first().isVisible().catch(() => false)
+  const drillTaskRow = await page.getByText('E2E 任务卡').first().isVisible().catch(() => false)
+  await page.evaluate(() => { const rows = [...document.querySelectorAll('.picker-modal .picker-item')]; const hit = rows.find(r => r.textContent.includes('E2E 任务卡')); if (hit) hit.click() })
+  await page.waitForTimeout(900)
+  const drawerOpen = await page.evaluate(() => {
+    const t = document.querySelector('.ts-title')
+    return !!t && ((t.value || t.textContent || '').includes('E2E 任务卡'))
+  })
+  const cellStat = cellsOn === 4 && stripGone === 0
+  report('E2E-17 项目调度4指标恢复左列+下钻链路（R56-P1）', cellStat && drillTitle && drillTaskRow && drawerOpen,
+    'cells=' + cellsOn + ' stripGone=' + (stripGone === 0) + ' modal=' + drillTitle + ' row=' + drillTaskRow + ' drawer=' + drawerOpen)
 
 
   await ctx.close()

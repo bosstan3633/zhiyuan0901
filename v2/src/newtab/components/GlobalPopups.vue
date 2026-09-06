@@ -213,7 +213,7 @@
   </div>
 
   <!-- R55-C：快速采集任务（四字段全非必填，直存全域任务） -->
-  <div class="gp-overlay corner" :class="{open: activePanel==='taskcapture'}" @click.self="closeAll">
+  <div class="gp-overlay" :class="{open: activePanel==='taskcapture'}" @click.self="closeAll">
     <div class="gp-panel gp-panel-narrow">
       <template v-if="!tcSaved">
         <div class="gp-cap-head">

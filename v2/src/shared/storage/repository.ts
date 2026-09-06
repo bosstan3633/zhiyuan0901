@@ -28,6 +28,10 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 // REQ-031 P-031-6：自身写入标记——saveData/saveDataNow 前置 selfWrite，onChanged 回调跳过全树替换
 let selfWriteAt = 0
+
+// R56-PERF-c：数据版本号——每次成功写入/外部同步自增（重计算 memo 的失效键）
+let dataVersion = 0
+export function getDataVersion(): number { return dataVersion }
 export function isSelfWrite(at: number): boolean {
   return selfWriteAt > 0 && at <= selfWriteAt
 }
@@ -122,6 +126,7 @@ export function saveData(): void {
     if (p && typeof (p as Promise<void>).then === 'function') {
       ;(p as Promise<void>)
         .then(() => {
+          dataVersion++
           markSaveOk()
           if (lastSaveError) { lastSaveError = null; listeners.forEach((fn) => fn(cache!)) }
           listeners.forEach((fn) => fn(cache!))
@@ -146,6 +151,7 @@ export async function saveDataNow(): Promise<void> {
   try {
     // V2.17.1 修复：同 saveData——JSON 纯净清洗防 reactive Proxy 泄漏入存储（数组降级类数组对象）
     await cs.set({ [STORAGE_KEY]: JSON.parse(JSON.stringify(cache)) })
+    dataVersion++
     markSaveOk()
     if (lastSaveError) { lastSaveError = null }
     listeners.forEach((fn) => fn(cache!))
@@ -226,6 +232,7 @@ export async function replaceData(newData: AppData): Promise<void> {
 /** 同步缓存引用（外部 storage 变更时调用，保持 cache 与最新数据一致） */
 export function syncCache(newData: AppData): void {
   cache = newData
+  dataVersion++
   // 第卌四轮 T-05：外部写入静默重建快照——事件由执行写入的上下文记录，避免双记
   rebuildEventSnapshot(newData)
 }

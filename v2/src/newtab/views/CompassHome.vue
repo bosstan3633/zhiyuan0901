@@ -64,27 +64,9 @@ const todayCalled = computed<RecItem[]>(() => {
 
 /** R50-F7：今日记录条副行拆解（任务/好奇/资源 分类型计数） */
 const kindLabel = { task: '任务', curio: '好奇', resource: '资源' } as const
-function breakdownOf(items: RecItem[]): string {
-  const c = { task: 0, curio: 0, resource: 0 }
-  for (const it of items) if (it.kind) c[it.kind]++
-  return `任务${c.task} · 好奇${c.curio} · 资源${c.resource}`
-}
-const inSub = computed(() => breakdownOf(todayIn.value))
-const outSub = computed(() => breakdownOf(todayOut.value))
-const calledSub = computed(() => breakdownOf(todayCalled.value))
 /** R52-BUG-1：写入记录口径 = 当日三卡事件（新增/删除/恢复/清理）+ 三卡调出，主计数 = 副行之和；
  *  非三卡事件（愿景/使命等系统写入）不计数，抽屉中灰显可见 */
 const CARD_KINDS = new Set(['task', 'curiosity', 'resource'])
-const logSub = computed(() => {
-  const c = { task: 0, curio: 0, resource: 0 }
-  for (const e of logRaw.value) {
-    if (e.kind === 'task') c.task++
-    else if (e.kind === 'curiosity') c.curio++
-    else if (e.kind === 'resource') c.resource++
-  }
-  for (const it of todayCalled.value) if (it.kind) c[it.kind]++
-  return `任务${c.task} · 好奇${c.curio} · 资源${c.resource}`
-})
 const logCount = computed(() =>
   logRaw.value.filter(e => CARD_KINDS.has(e.kind)).length + todayCalled.value.length)
 const logItems = ref<RecItem[]>([])
@@ -590,30 +572,17 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
         <span class="sc-dot" />
         <span>{{ storageText }}</span>
       </button>
+      <!-- R56-P2：今日记录 4 计数缩至页头右对齐一行（同字号级；点击下钻抽屉保留） -->
+      <div class="rec-mini">
+        <span class="rm-cell" title="今日入台 · 点击看明细" @click="openRec('in')">⬇ {{ todayIn.length }}</span>
+        <span class="rm-cell" title="今日移出 · 点击看明细" @click="openRec('out')">⬆ {{ todayOut.length }}</span>
+        <span class="rm-cell" title="今日调出 · 点击看明细" @click="openRec('called')">↗ {{ todayCalled.length }}</span>
+        <span class="rm-cell" title="写入记录 · 点击看明细" @click="openRec('log')">✎ {{ logCount }}</span>
+      </div>
     </div>
 
     <!-- R55-D1：方向状态（DHI/WCE/WRR/未归档任务四格）迁至调度台最顶部 -->
     <MetricBar />
-
-    <!-- 今日记录条（R50-F7：两行 = 主计数 + 分类型副行） -->
-    <div class="rec-strip">
-      <div class="rec-cell" @click="openRec('in')">
-        <div class="rc-main"><span class="rc-ic">⬇</span><span class="rc-lab">今日入台</span><span class="rc-num">{{ todayIn.length }}</span></div>
-        <div class="rc-sub">{{ inSub }}</div>
-      </div>
-      <div class="rec-cell" @click="openRec('out')">
-        <div class="rc-main"><span class="rc-ic">⬆</span><span class="rc-lab">今日移出</span><span class="rc-num">{{ todayOut.length }}</span></div>
-        <div class="rc-sub">{{ outSub }}</div>
-      </div>
-      <div class="rec-cell" @click="openRec('called')">
-        <div class="rc-main"><span class="rc-ic">↗</span><span class="rc-lab">今日调出</span><span class="rc-num">{{ todayCalled.length }}</span></div>
-        <div class="rc-sub">{{ calledSub }}</div>
-      </div>
-      <div class="rec-cell" @click="openRec('log')">
-        <div class="rc-main"><span class="rc-ic">✎</span><span class="rc-lab">写入记录</span><span class="rc-num">{{ logCount }}</span></div>
-        <div class="rc-sub">{{ logSub }}</div>
-      </div>
-    </div>
 
     <!-- 左右分栏：今日三件事 ｜ 项目调度 -->
     <div id="dispatch-split" class="split">
@@ -668,13 +637,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
         <div class="card curation">
           <div class="card-head">
             <span class="ic"><Icon name="target" :size="17" /></span><span class="nm">项目调度</span><span class="en">PROJECT SPOTLIGHT</span>            <span class="ds">选中任务所属项目 · 单击上方任务卡联动</span>
-            <!-- R55-D2：4 指标降级为一行状态栏（点击下钻保留） -->
-            <div class="cur-stat-strip">
-              <span class="css-item" title="成功指标 · 点击下钻" @click="openCurDrill('metrics')">🎯 {{ projMetrics.length }}</span>
-              <span class="css-item" title="任务总数 · 点击下钻" @click="openCurDrill('total')">📋 {{ projTasks.length }}</span>
-              <span class="css-item ok" title="已完成 · 点击下钻" @click="openCurDrill('done')">✓ {{ projDoneCount }}</span>
-              <span class="css-item warn" title="进行中 · 点击下钻" @click="openCurDrill('doing')">◐ {{ projDoingCount }}</span>
-            </div>
+            <!-- R56-P1：头部迷你计数条移除——4 指标已恢复至左列 -->
             <button class="mini-btn" title="进入完整方向树全景（查看/编辑方向结构）" @click="router.push('/compass/tree')"><Icon name="branch" :size="13" />方向树</button>
           </div>
           <div v-if="curProject" class="cur-body-v">
@@ -701,6 +664,13 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
                     <span class="cur-goal-pct">项目进度 {{ projectProgress(curProject).pct }}%</span>
                     <span class="cur-goal-link" @click="router.push({ path: '/compass/projects', query: { p: curProject.id } })">进入项目详情 ›</span>
                   </div>
+                </div>
+                <!-- R56-P1：恢复项目调度 4 指标卡（点击→弹窗下钻→任务点击开右侧抽屉） -->
+                <div class="cur-stats-v2">
+                  <div class="csv-cell clickable" title="成功指标 · 点击下钻" @click="openCurDrill('metrics')"><div class="csv-num">{{ projMetrics.length }}</div><div class="csv-lab">成功指标</div></div>
+                  <div class="csv-cell clickable" title="任务总数 · 点击下钻" @click="openCurDrill('total')"><div class="csv-num">{{ projTasks.length }}</div><div class="csv-lab">任务总数</div></div>
+                  <div class="csv-cell clickable" title="已完成 · 点击下钻" @click="openCurDrill('done')"><div class="csv-num ok">{{ projDoneCount }}</div><div class="csv-lab">已完成</div></div>
+                  <div class="csv-cell clickable" title="进行中 · 点击下钻" @click="openCurDrill('doing')"><div class="csv-num warn">{{ projDoingCount }}</div><div class="csv-lab">进行中</div></div>
                 </div>
               </div>
               <div class="cur-split" @mousedown="startCurSplitDrag" title="拖拽调节左右宽度（30%–75%）" />
@@ -922,15 +892,10 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .storage-chip.err .sc-dot { background: #F85149; box-shadow: 0 0 6px rgba(248,81,73,.55); animation: scBlink 1.2s ease-in-out infinite; }
 @keyframes scBlink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
-/* 今日记录条（R50-F7：主计数 + 分类型副行） */
-.rec-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 16px; }
-.rec-cell { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 16px; background: var(--surface); cursor: pointer; transition: background .12s; }
-.rec-cell:hover { background: var(--surface-3); }
-.rc-main { display: flex; align-items: center; gap: 9px; }
-.rc-ic { font-size: 13px; color: var(--text-3); }
-.rc-lab { font-size: 12px; color: var(--text-2); }
-.rc-num { margin-left: auto; font-size: 15px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
-.rc-sub { font-size: 10.5px; color: var(--text-3); padding-left: 22px; font-variant-numeric: tabular-nums; }
+/* R56-P2：今日记录 4 计数页头迷你条（右对齐、同存储 chip 量级） */
+.rec-mini { display: inline-flex; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 4px 8px; }
+.rec-mini .rm-cell { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-2); padding: 2px 7px; border-radius: 99px; cursor: pointer; font-variant-numeric: tabular-nums; transition: all .12s; white-space: nowrap; }
+.rec-mini .rm-cell:hover { background: var(--accent-light); color: var(--accent); }
 
 /* 左右分栏 */
 /* R51-F10：上下联动——三件事在上占视觉焦点，项目调度在下 */
@@ -939,7 +904,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .right-col { min-width: 0; }
 
 .module { margin-top: 0; }
-.page > .module { margin-top: 22px; }
+.page > .module { margin-top: 14px; }
 .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,.025); height: 100%; }
 .card-head { display: flex; align-items: center; gap: 8px; padding: 16px 20px 10px; flex-wrap: wrap; }
 .card-head .ic { font-size: 16px; color: var(--accent); display: flex; align-items: center; }
@@ -969,18 +934,13 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .card.focus .card-head .ic { color: var(--accent); }
 .card.focus .tc-title { font-size: 15px; font-weight: 650; }
 .card.focus .tc-num { color: var(--accent); font-weight: 700; }
-.card.focus .today-card { padding: 13px 15px 12px; }
+.card.focus .today-card { padding: 10px 13px 9px; }
 .card.focus .today-card:not(.empty-card) { border-color: color-mix(in srgb, var(--accent) 22%, var(--border)); }
 .card.focus .today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 26%, transparent); }
-.lock-bar { display: flex; align-items: center; justify-content: center; font-size: 11.5px; color: var(--text-3); background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: 8px; padding: 6px 10px; margin-bottom: 10px; }
+.lock-bar { display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text-3); background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: 8px; padding: 4px 10px; margin-bottom: 8px; }
 /* R52-F1：三件事横向并列——3 槽一行，压缩纵向空间 */
 .today-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.today-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px 11px; cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; }
-.today-card:not(.empty-card) { animation: tcBreathe 4s ease-in-out infinite; }
-@keyframes tcBreathe {
-  0%,100% { box-shadow: 0 0 0 0 transparent; border-color: var(--border); }
-  50% { box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 18%, transparent); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
-}
+.today-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px 8px; cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; }
 .today-card:hover { border-color: var(--border-strong); background: var(--surface); }
 .today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 22%, transparent); }
 .today-card.done { opacity: .6; animation: none; }
@@ -1018,7 +978,15 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cur-goal-pct { font-size: 11px; color: var(--text-2); }
 .cur-goal-link { font-size: 11px; color: var(--accent); cursor: pointer; margin-left: auto; }
 .cur-goal-link:hover { text-decoration: underline; }
-.cur-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+/* R56-P1：项目调度 4 指标卡（左列一行四格，紧凑下钻入口） */
+.cur-stats-v2 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.csv-cell { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 4px; text-align: center; }
+.csv-cell.clickable { cursor: pointer; transition: all .12s; }
+.csv-cell.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
+.csv-num { font-size: 16px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.csv-num.ok { color: var(--success); }
+.csv-num.warn { color: var(--warning, #e67e22); }
+.csv-lab { font-size: 9.5px; color: var(--text-3); margin-top: 1px; }
 /* R54-B1：分栏拖拽分隔条 */
 /* R55-E2：分隔条常显可见（细线）+ hover/拖动增强，命中区 8px */
 .cur-split { width: 8px; border-radius: 99px; cursor: col-resize; background: transparent; transition: background .15s; align-self: stretch; position: relative; }
@@ -1030,11 +998,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cur-stat.clickable:hover { border-color: var(--accent); transform: translateY(-1px); }
 .cur-stat.clickable:hover .cs-lab { color: var(--accent); }
 /* R55-D2：4 指标降级为一行状态栏（card-head 右侧，点击下钻保留） */
-.cur-stat-strip { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 3px 6px; }
-.cur-stat-strip .css-item { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-2); padding: 2px 7px; border-radius: 6px; cursor: pointer; font-variant-numeric: tabular-nums; transition: all .12s; white-space: nowrap; }
-.cur-stat-strip .css-item:hover { background: var(--accent-light); color: var(--accent); }
-.cur-stat-strip .css-item.ok { color: var(--success); }
-.cur-stat-strip .css-item.warn { color: var(--warning, #e67e22); }
 .cur-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 6px; text-align: center; }
 .cs-num { font-size: 22px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
 .cs-num.ok { color: var(--success); }
@@ -1120,7 +1083,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .picker-item.sys { opacity: .45; }
 .picker-item.sys .pi-title { color: var(--text-3); font-weight: 400; }
 @media (max-width: 1080px) {
-  .rec-strip { grid-template-columns: repeat(2, 1fr); }
   /* R52-F1/F2：窄窗口降级回纵向 */
   .today-cards { grid-template-columns: 1fr; }
   .cur-cols { grid-template-columns: 1fr; }
