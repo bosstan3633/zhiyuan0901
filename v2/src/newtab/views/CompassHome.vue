@@ -24,7 +24,7 @@ import MetricBar from '../components/compass/MetricBar.vue'
 const router = useRouter()
 const route = useRoute()
 const store = useAppStore()
-const { d, visionText, missionText, allProjects, projectProgress } = useCompass()
+const { d, visionText, missionText, allProjects, projectProgress, projectTasksOf } = useCompass()
 
 const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 
@@ -36,29 +36,31 @@ function formatDate(dt: Date): string {
 function dateStr(dt: Date): string {
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`
 }
-const todayStart = (() => { const t = new Date(); t.setHours(0,0,0,0); return t.getTime() })()
+// R58-B3：「今日」边界动态化——页面常开跨零点后口径自动前移（30s 粒度，复用既有 storage 定时器节拍另起一个轻计时器）
+const nowTick = ref(Date.now())
+const todayStart = computed(() => { const t = new Date(nowTick.value); t.setHours(0, 0, 0, 0); return t.getTime() })
 
 // ================= 今日记录条（R49-B1） =================
 type RecItem = { id?: string; kind?: 'resource' | 'task' | 'curio'; title: string; ts: number; clickable: boolean }
 const todayIn = computed<RecItem[]>(() => {
   const list: RecItem[] = []
-  for (const r of d.value.resources) if (!r.deletedAt && r.createdAt >= todayStart) list.push({ id: r.id, kind: 'resource', title: r.title, ts: r.createdAt, clickable: true })
-  for (const t of d.value.tasks) if (!t.deletedAt && t.createdAt >= todayStart) list.push({ id: t.id, kind: 'task', title: t.title, ts: t.createdAt, clickable: true })
-  for (const c of d.value.curiosities) if (!c.deletedAt && c.createdAt >= todayStart) list.push({ id: c.id, kind: 'curio', title: c.question || '（无标题）', ts: c.createdAt, clickable: true })
+  for (const r of d.value.resources) if (!r.deletedAt && r.createdAt >= todayStart.value) list.push({ id: r.id, kind: 'resource', title: r.title, ts: r.createdAt, clickable: true })
+  for (const t of d.value.tasks) if (!t.deletedAt && t.createdAt >= todayStart.value) list.push({ id: t.id, kind: 'task', title: t.title, ts: t.createdAt, clickable: true })
+  for (const c of d.value.curiosities) if (!c.deletedAt && c.createdAt >= todayStart.value) list.push({ id: c.id, kind: 'curio', title: c.question || '（无标题）', ts: c.createdAt, clickable: true })
   return list.sort((a, b) => b.ts - a.ts)
 })
 const todayOut = computed<RecItem[]>(() => {
   const list: RecItem[] = []
-  for (const r of d.value.resources) if (r.deletedAt && r.deletedAt >= todayStart) list.push({ id: r.id, kind: 'resource', title: r.title, ts: r.deletedAt, clickable: true })
-  for (const t of d.value.tasks) if (t.deletedAt && t.deletedAt >= todayStart) list.push({ id: t.id, kind: 'task', title: t.title, ts: t.deletedAt, clickable: true })
-  for (const c of d.value.curiosities) if (c.deletedAt && c.deletedAt >= todayStart) list.push({ id: c.id, kind: 'curio', title: c.question || '（无标题）', ts: c.deletedAt, clickable: true })
+  for (const r of d.value.resources) if (r.deletedAt && r.deletedAt >= todayStart.value) list.push({ id: r.id, kind: 'resource', title: r.title, ts: r.deletedAt, clickable: true })
+  for (const t of d.value.tasks) if (t.deletedAt && t.deletedAt >= todayStart.value) list.push({ id: t.id, kind: 'task', title: t.title, ts: t.deletedAt, clickable: true })
+  for (const c of d.value.curiosities) if (c.deletedAt && c.deletedAt >= todayStart.value) list.push({ id: c.id, kind: 'curio', title: c.question || '（无标题）', ts: c.deletedAt, clickable: true })
   return list.sort((a, b) => b.ts - a.ts)
 })
 const todayCalled = computed<RecItem[]>(() => {
   const list: RecItem[] = []
-  for (const r of d.value.resources) if (!r.deletedAt && (r.lastCalledAt || 0) >= todayStart) list.push({ id: r.id, kind: 'resource', title: r.title, ts: r.lastCalledAt || 0, clickable: true })
-  for (const t of d.value.tasks) if (!t.deletedAt && (t.lastCalledAt || 0) >= todayStart) list.push({ id: t.id, kind: 'task', title: t.title, ts: t.lastCalledAt || 0, clickable: true })
-  for (const c of d.value.curiosities) if (!c.deletedAt && (c.lastCalledAt || 0) >= todayStart) list.push({ id: c.id, kind: 'curio', title: c.question || '（无标题）', ts: c.lastCalledAt || 0, clickable: true })
+  for (const r of d.value.resources) if (!r.deletedAt && (r.lastCalledAt || 0) >= todayStart.value) list.push({ id: r.id, kind: 'resource', title: r.title, ts: r.lastCalledAt || 0, clickable: true })
+  for (const t of d.value.tasks) if (!t.deletedAt && (t.lastCalledAt || 0) >= todayStart.value) list.push({ id: t.id, kind: 'task', title: t.title, ts: t.lastCalledAt || 0, clickable: true })
+  for (const c of d.value.curiosities) if (!c.deletedAt && (c.lastCalledAt || 0) >= todayStart.value) list.push({ id: c.id, kind: 'curio', title: c.question || '（无标题）', ts: c.lastCalledAt || 0, clickable: true })
   return list.sort((a, b) => b.ts - a.ts)
 })
 
@@ -75,7 +77,7 @@ const ACT_LABEL: Record<string, string> = { create: '新增', delete: '删除', 
 async function loadEventLog() {
   try {
     const all = await readEventLog()
-    const todays = all.filter(e => e.ts >= todayStart)
+    const todays = all.filter(e => e.ts >= todayStart.value)
     logRaw.value = todays
     // R52-BUG-1：写入记录明细 = 三卡事件 + 当日调出 + 系统事件（灰显不计数），按时间降序
     logItems.value = ([
@@ -318,9 +320,7 @@ const curProject = computed<Project | null>(() => {
   return allProjects().find(p => p.id === pid) || null
 })
 const projMetrics = computed(() => curProject.value?.metrics || [])
-const projTasks = computed(() =>
-  curProject.value ? d.value.tasks.filter(t => !t.deletedAt && t.projectId === curProject.value!.id) : []
-)
+const projTasks = computed(() => (curProject.value ? projectTasksOf(curProject.value.id) : []))
 const projDoneCount = computed(() => projTasks.value.filter(t => t.status === 'done').length)
 const projDoingCount = computed(() => projTasks.value.filter(t => t.status === 'doing').length)
 /** 按成功指标分组（+ 未归类），空指标组隐藏；R52-F2：默认全部展开，可手动折叠 */
@@ -520,7 +520,10 @@ onMounted(() => {
   loadEventLog()
   saveErrSub = subscribeSaveError(e => { saveErr.value = e })
   lastOkTick.value = getLastSaveOkAt()
-  storageTimer = window.setInterval(() => { lastOkTick.value = getLastSaveOkAt() }, 30000)
+  storageTimer = window.setInterval(() => {
+    lastOkTick.value = getLastSaveOkAt()
+    nowTick.value = Date.now()
+  }, 30000)
 })
 onUnmounted(() => {
   document.removeEventListener('keydown', onDateKey, true)

@@ -310,7 +310,8 @@ function confirmCard() {
     d.value.resources.push({
       id: uid('res'), kind: 'resource', title, linkType: 'url', link: m.link.trim(),
       description: m.desc.trim(), workspaceId: CURATION_WS_ID, categoryId: m.catId, tags: [], pinned: false,
-      callCount: 0, customFields: cf, createdAt: now, updatedAt: now, curOrder: (cardsIn(m.catId).length)
+      // R58-B5：curOrder 取混排全量长度（原生+投射），新卡稳定落在已排序段末尾，不与投射卡序号交错
+      callCount: 0, customFields: cf, createdAt: now, updatedAt: now, curOrder: (mixedCardsOf(m.catId).length)
     } as ResourceCard)
     showToast('✓ 策展卡已创建')
   }

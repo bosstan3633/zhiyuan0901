@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AppData, Workspace, UIPrefs } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
-import { getData, saveData, loadUIPrefs, saveUIPrefs, subscribe, syncCache, isSelfWrite } from '@/shared/storage/repository'
+import { getData, saveData, loadUIPrefs, saveUIPrefs, subscribe, syncCache, mergeExternalData, isSelfWrite } from '@/shared/storage/repository'
 import { migrateCurationTree } from '@/shared/storage/curationMigration'
 
 export const useAppStore = defineStore('app', () => {
@@ -64,8 +64,8 @@ export const useAppStore = defineStore('app', () => {
           const newData = changes.zy_data_v2.newValue as AppData
           if (!newData) return
           if (isSelfWrite(Date.now())) return
-          syncCache(newData)
-          data.value = newData
+          // R58-B2：本页有未落盘修改时做卡片级 LWW 合并（防跨标签页/浮层并发写静默丢改），否则整树替换
+          data.value = mergeExternalData(newData)
         }
       })
     }

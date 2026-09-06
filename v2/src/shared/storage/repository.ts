@@ -91,7 +91,10 @@ export async function loadData(): Promise<AppData> {
       data.fieldConfig[key].push({ key: 'assets', label: '附件', type: 'text', visible: true, order: data.fieldConfig[key].length })
     }
   }
+  // R58-B5：activityLogs 已无写入方（事件日志迁 zy_event_log 独立键）——启动期清空瘦身
+  if (Array.isArray(data.activityLogs) && data.activityLogs.length) data.activityLogs = []
   cache = data
+  markStorageMirror(data)
   // 第卌四轮 T-05：初始化快照（静默，不产生历史事件）
   rebuildEventSnapshot(data)
   markSaveOk()
@@ -111,6 +114,7 @@ export function saveData(): void {
   if (!cs) return
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
+    saveTimer = null
     selfWriteAt = Date.now()
     // 第卌四轮 T-05：保存前快照 diff 产出操作事件（fire-and-forget，失败不影响主数据）
     if (cache) { try { flushCardEvents(cache) } catch { /* noop */ } }
@@ -119,14 +123,17 @@ export function saveData(): void {
     // 读回后 .length 为 undefined → 卡片正面附件徽章永不渲染。JSON round-trip 保证入存储永远是 plain 结构。
     // R53-E3：序列化包 try——异常走 SaveError('serial')（此前在定时器内未捕获会静默丢保存）
     let payload: Record<string, unknown>
+    let payloadJson = ''
     try {
-      payload = { [STORAGE_KEY]: JSON.parse(JSON.stringify(cache)) }
+      payloadJson = JSON.stringify(JSON.parse(JSON.stringify(cache)))
+      payload = { [STORAGE_KEY]: JSON.parse(payloadJson) }
     } catch (e) { emitSaveError(e); return }
     const p = cs!.set(payload)
     if (p && typeof (p as Promise<void>).then === 'function') {
       ;(p as Promise<void>)
         .then(() => {
           dataVersion++
+          lastPersistedJson = payloadJson
           markSaveOk()
           if (lastSaveError) { lastSaveError = null; listeners.forEach((fn) => fn(cache!)) }
           listeners.forEach((fn) => fn(cache!))
@@ -150,8 +157,10 @@ export async function saveDataNow(): Promise<void> {
   try { flushCardEvents(cache) } catch { /* noop */ }
   try {
     // V2.17.1 修复：同 saveData——JSON 纯净清洗防 reactive Proxy 泄漏入存储（数组降级类数组对象）
-    await cs.set({ [STORAGE_KEY]: JSON.parse(JSON.stringify(cache)) })
+    const payloadJson = JSON.stringify(JSON.parse(JSON.stringify(cache)))
+    await cs.set({ [STORAGE_KEY]: JSON.parse(payloadJson) })
     dataVersion++
+    lastPersistedJson = payloadJson
     markSaveOk()
     if (lastSaveError) { lastSaveError = null }
     listeners.forEach((fn) => fn(cache!))
@@ -233,8 +242,85 @@ export async function replaceData(newData: AppData): Promise<void> {
 export function syncCache(newData: AppData): void {
   cache = newData
   dataVersion++
+  markStorageMirror(newData)
   // 第卌四轮 T-05：外部写入静默重建快照——事件由执行写入的上下文记录，避免双记
   rebuildEventSnapshot(newData)
+}
+
+// ============ R58-B2 · 跨上下文并发写合并 ============
+// 旧语义：外部写入到达 → syncCache 整树替换 → 本页 300ms 防抖窗口内（以及表单直改树、尚未落盘）的
+// 修改被静默吞掉（双标签页/新标签页+网页浮层组合实机复现丢改）。新语义：本页有未落盘改动时做
+// 卡片级 LWW 合并；非卡段「本页相对存储镜像有改动则保留本页，否则取外部」。
+// lastPersistedJson 恒等「storage 当前内容」的镜像：本地保存成功=载荷，外部接收=外部树，合并后=外部树
+//（合并结果随后经 saveData 落盘时再刷新）。
+let lastPersistedJson = ''
+function markStorageMirror(data: AppData): void {
+  try { lastPersistedJson = JSON.stringify(data) } catch { lastPersistedJson = '' }
+}
+function jsonEq(a: unknown, b: unknown): boolean {
+  try { return JSON.stringify(a) === JSON.stringify(b) } catch { return false }
+}
+interface MergeCard { id: string; updatedAt?: number }
+/** 卡片数组合并：以本页数组顺序为骨架；本页未动的卡取外部；本页动过的卡与外部按 updatedAt LWW（平手取本地，保护正在输入的表单）；外部新建收编；外部物理移除（回收站清空）且本页未动 → 尊重外部 */
+function mergeCardArr<T extends MergeCard>(localArr: T[], snapArr: T[], extArr: T[]): T[] {
+  const snapById = new Map(snapArr.map(c => [c.id, c]))
+  const extById = new Map(extArr.map(c => [c.id, c]))
+  const out: T[] = []
+  const seen = new Set<string>()
+  for (const l of localArr) {
+    seen.add(l.id)
+    const e = extById.get(l.id)
+    const sn = snapById.get(l.id)
+    const localDirty = !sn || !jsonEq(l, sn)
+    if (!e) { if (localDirty) out.push(l); continue }
+    if (!localDirty) { out.push(e); continue }
+    out.push(((e.updatedAt || 0) > (l.updatedAt || 0)) ? e : l)
+  }
+  for (const e of extArr) if (!seen.has(e.id)) out.push(e)
+  return out
+}
+/** dailyFocus 按日期键合并：单边改动整键取该侧；双边同键都改过 → 槽级 LWW（按槽 id，FocusSlot 无 updatedAt，平手取本地） */
+function mergeDailyFocus(curD: AppData['dailyFocus'], snapD: AppData['dailyFocus'], extD: AppData['dailyFocus']): AppData['dailyFocus'] {
+  const out: AppData['dailyFocus'] = { ...(extD || {}) }
+  const keys = new Set([...Object.keys(curD || {}), ...Object.keys(snapD || {})])
+  for (const k of keys) {
+    const c = (curD || {})[k], sn = (snapD || {})[k], e = (extD || {})[k]
+    if (jsonEq(c, sn)) { if (e) out[k] = e; else delete out[k]; continue }
+    if (jsonEq(e, sn) || !e) { if (c && c.length) out[k] = c; else delete out[k]; continue }
+    out[k] = mergeCardArr(c || [], sn || [], e || []).slice(0, 3)
+  }
+  return out
+}
+/** 外部写入合并入口：无未落盘修改时走原整树替换（零开销快路径）；有则按段合并；合并结果与外部全等时不再回写（切断「回声→合并→写→回声」环） */
+export function mergeExternalData(ext: AppData): AppData {
+  const cur = cache
+  if (!cur || !saveTimer) { syncCache(ext); return ext }
+  let snap: AppData | null = null
+  try { snap = lastPersistedJson ? (JSON.parse(lastPersistedJson) as AppData) : null } catch { snap = null }
+  if (!snap) { syncCache(ext); return ext }
+  const merged: AppData = {
+    ...ext,
+    resources: mergeCardArr(cur.resources || [], snap.resources || [], ext.resources || []),
+    tasks: mergeCardArr(cur.tasks || [], snap.tasks || [], ext.tasks || []),
+    curiosities: mergeCardArr(cur.curiosities || [], snap.curiosities || [], ext.curiosities || []),
+    dailyFocus: mergeDailyFocus(cur.dailyFocus, snap.dailyFocus, ext.dailyFocus),
+    compass: jsonEq(cur.compass, snap.compass) ? ext.compass : cur.compass,
+    workspaces: jsonEq(cur.workspaces, snap.workspaces) ? ext.workspaces : cur.workspaces,
+    categories: jsonEq(cur.categories, snap.categories) ? ext.categories : cur.categories,
+    tagTree: jsonEq(cur.tagTree, snap.tagTree) ? ext.tagTree : cur.tagTree,
+    fieldConfig: jsonEq(cur.fieldConfig, snap.fieldConfig) ? ext.fieldConfig : cur.fieldConfig,
+    stats: jsonEq(cur.stats, snap.stats) ? ext.stats : cur.stats,
+    curationProjections: jsonEq(cur.curationProjections, snap.curationProjections) ? ext.curationProjections : cur.curationProjections
+  }
+  // 合并结果与外部全等 = 本页没有需要保全的改动（例如自有写入的回声）→ 只同步不回写，杜绝写环
+  if (jsonEq(merged, ext)) { syncCache(ext); return ext }
+  cache = merged
+  dataVersion++
+  // 存储镜像仍指向 storage 实际内容（ext）——本页未落盘改动在后续外部事件到达时保持「脏」判定
+  markStorageMirror(ext)
+  rebuildEventSnapshot(merged)
+  saveData()
+  return merged
 }
 
 // ============ UI 偏好 ============

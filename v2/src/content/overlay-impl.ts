@@ -480,7 +480,9 @@ function collectResults(d: any, query: string, results: any[], maps: SearchMaps)
       if (t.priority === 'high') badges.push({ type: 'prio-high', text: '🔴 高' })
       else if (t.priority === 'medium') badges.push({ type: 'prio-mid', text: '🟡 中' })
       badges.push({ type: `status-${t.status}`, text: t.status === 'done' ? '已完成' : t.status === 'doing' ? '进行中' : '待开始' })
-      const blob = t.title + ' ' + (t.description || '')
+      // R58-B4：命中字段两端同构——任务补标签 + 项目名（与应用内一致）
+      const tTags = Array.isArray(t.tags) ? t.tags.join(' ') : ''
+      const blob = t.title + ' ' + (t.description || '') + ' ' + tTags + ' ' + projName
       if (match(blob) || matchPinyin(t.title || '', query)) {
         const statusIcon = t.status === 'done' ? '✓' : t.status === 'doing' ? '◐' : '○'
         results.push({
@@ -494,7 +496,8 @@ function collectResults(d: any, query: string, results: any[], maps: SearchMaps)
   if (searchType === 'all' || searchType === 'curio') {
     d.curiosities?.filter((c: any) => !c.deletedAt).forEach((c: any) => {
       const statusText = c.status === 'todo' ? '🔵 待探索' : c.status === 'doing' ? '🟡 探索中' : c.status === 'done' ? '🟢 已求证' : '⚪ 已搁置'
-      if (match(c.question) || matchPinyin(c.question || '', query)) {
+      const cTags = Array.isArray(c.tags) ? c.tags.join(' ') : ''
+      if (match(c.question + ' ' + cTags) || matchPinyin(c.question || '', query)) {
         results.push({
           type: 'curio', iconClass: 'curio', iconText: '💡', id: c.id,
           title: c.question, ws: '调度台', cat: '好奇心',

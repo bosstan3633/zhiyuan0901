@@ -1608,13 +1608,17 @@ function exportWorkspace() {
   settingsMenuOpen.value = false
 }
 async function deleteWorkspace() {
-  if (!(await useConfirm({ title: '删除工作台', message: `确定删除工作台「${workspace.value?.name.replace(/^[^\s]+\s/, '')}」？\n其中资源卡与分类将一并删除，此操作不可恢复。`, confirmText: '确认删除' }))) return
+  // R58-B1：策展空间是全局工作台，不可从此入口删除
+  if (workspaceId.value === CURATION_WS_ID) { showToast('ℹ 策展中心为全局空间，不在此删除'); return }
+  // R58-B1：红线修复——资源卡一律软删（deletedAt，回收站可恢复），不再物理移除
+  if (!(await useConfirm({ title: '删除工作台', message: `确定删除工作台「${workspace.value?.name.replace(/^[^\s]+\s/, '')}」？\n其中资源卡将全部移入回收站（可恢复），分类与工作台本身将删除且不可恢复。`, confirmText: '确认删除' }))) return
   const idx = d.value.workspaces.findIndex(w => w.id === workspaceId.value)
   if (idx >= 0) d.value.workspaces.splice(idx, 1)
-  d.value.resources = d.value.resources.filter(r => r.workspaceId !== workspaceId.value)
+  const now = Date.now()
+  for (const r of d.value.resources) if (r.workspaceId === workspaceId.value && !r.deletedAt) r.deletedAt = now
   d.value.categories = d.value.categories.filter(c => c.workspaceId !== workspaceId.value)
   store.persist()
-  showToast('工作台已删除')
+  showToast('工作台已删除（资源卡已移入回收站）')
   router.push('/compass')
 }
 

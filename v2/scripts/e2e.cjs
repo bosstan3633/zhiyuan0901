@@ -20,6 +20,7 @@
  *   E2E-16 快速采集任务面板（R55-C）
  *   E2E-17 项目调度 4 指标恢复左列 + 下钻链路（R56-P1）
  *   E2E-18 策展卡可拖真值（draggable="true"）+ 区域级落卡（R57-F1）
+ *   E2E-19 删除工作台软删（deletedAt）+ 回收站可见可恢复（R58-B1）
  */
 const path = require('path')
 const fs = require('fs')
@@ -449,6 +450,42 @@ async function main() {
   const attrOk = dragAttrs.native === 'true' && dragAttrsMirror.mirror === 'true' && dragAttrsMirror.live === 'true'
   report('E2E-18 策展卡可拖真值+区域落卡（R57-F1）', attrOk && seedOk && areaDrop === 'dispatched' && projAfter === projBefore + 1 && newCardOk,
     'attr=' + JSON.stringify(Object.assign({}, dragAttrs, dragAttrsMirror)) + ' area=' + areaDrop + ' proj=' + projBefore + '→' + projAfter)
+
+
+  // E2E-19 删除工作台软删（R58-B1）：删除后资源卡带 deletedAt 进回收站，恢复时孤卡回落首个可用工作台
+  await page.evaluate(() => new Promise((res) => {
+    chrome.storage.local.get('zy_data_v2').then(({ ['zy_data_v2']: d }) => {
+      if (!d || d.version !== 2) { res(false); return }
+      if (!d.workspaces.some(w => w.id === 'e2e-del-ws')) {
+        d.workspaces.push({ id: 'e2e-keep-ws', name: '📦 保留台', icon: '📦', order: 90, archived: false })
+        d.workspaces.push({ id: 'e2e-del-ws', name: '📦 待删台', icon: '📦', order: 91, archived: false })
+        d.resources.push({ id: 'e2e-del-card', kind: 'resource', title: 'E2E 待删台资源卡', linkType: 'url', link: 'https://e.com/del', workspaceId: 'e2e-del-ws', categoryId: '', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now() })
+      }
+      chrome.storage.local.set({ ['zy_data_v2']: d }).then(() => res(true))
+    })
+  }))
+  await page.evaluate(() => { location.hash = '#/workspace/e2e-del-ws' })
+  await page.waitForTimeout(1600)
+  await page.evaluate(() => { const b = document.querySelector('.hero-btn.settings'); if (b) b.click() })
+  await page.waitForTimeout(400)
+  await page.evaluate(() => { const it = [...document.querySelectorAll('.sm-item')].find(x => x.textContent.includes('删除工作台')); if (it) it.click() })
+  await page.waitForTimeout(500)
+  const confirmMsg = await page.getByText('移入回收站').first().isVisible().catch(() => false)
+  await page.evaluate(() => { const b = document.querySelector('.cdf-btn.ok'); if (b) b.click() })
+  await page.waitForTimeout(1200)
+  const afterDel = await page.evaluate(() => new Promise((res) => chrome.storage.local.get('zy_data_v2').then(r => {
+    const dd = r['zy_data_v2']
+    const card = (dd.resources || []).find(x => x.id === 'e2e-del-card')
+    res({ wsGone: !(dd.workspaces || []).some(w => w.id === 'e2e-del-ws'), softDeleted: !!(card && card.deletedAt && !card.purged), cardExists: !!card })
+  })))
+  await page.evaluate(() => { location.hash = '#/recycle' })
+  await page.waitForTimeout(1400)
+  const inRecycle = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('[data-rid], .recycle-item, .rb-item, tr, .res-row')].map(n => n.textContent || '')
+    return rows.some(t => t.includes('E2E 待删台资源卡')) || (document.body.textContent || '').includes('E2E 待删台资源卡')
+  })
+  report('E2E-19 删除工作台软删+回收站可见（R58-B1）', confirmMsg && afterDel.wsGone && afterDel.softDeleted && inRecycle,
+    'confirm=' + confirmMsg + ' wsGone=' + afterDel.wsGone + ' softDeleted=' + afterDel.softDeleted + ' inRecycle=' + inRecycle)
 
 
   await ctx.close()

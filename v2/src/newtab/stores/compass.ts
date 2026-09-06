@@ -138,7 +138,9 @@ export function useCompass() {
   let nsMemoKey = ''
   let nsMemo: ReturnType<typeof northStarMetricsRaw> | null = null
   function northStarMetrics(period: Period) {
-    const key = period + ':' + getDataVersion()
+    // R58-B3：memo 键拼上当日日期——跨零点后日窗口口径自动刷新，不再沿用昨日缓存
+    const dayKey = new Date().toDateString()
+    const key = period + ':' + dayKey + ':' + getDataVersion()
     if (nsMemo && nsMemoKey === key) return nsMemo
     nsMemoKey = key
     nsMemo = northStarMetricsRaw(period)
