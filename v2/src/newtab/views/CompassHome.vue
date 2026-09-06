@@ -978,8 +978,8 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cur-goal-pct { font-size: 11px; color: var(--text-2); }
 .cur-goal-link { font-size: 11px; color: var(--accent); cursor: pointer; margin-left: auto; }
 .cur-goal-link:hover { text-decoration: underline; }
-/* R56-P1：项目调度 4 指标卡（左列一行四格，紧凑下钻入口） */
-.cur-stats-v2 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+/* R56-P1：项目调度 4 指标卡 ｜ R57-F2：两两一行排成两行（省横向空间） */
+.cur-stats-v2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
 .csv-cell { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 4px; text-align: center; }
 .csv-cell.clickable { cursor: pointer; transition: all .12s; }
 .csv-cell.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
@@ -1003,7 +1003,9 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cs-num.ok { color: var(--success); }
 .cs-num.warn { color: var(--warning, #e67e22); }
 .cs-lab { font-size: 10px; color: var(--text-3); margin-top: 2px; }
-.cur-groups { display: flex; flex-direction: column; gap: 10px; }
+/* R57-F2：指标组两两并列（两列网格）；新增指标/空态/输入行跨双列 */
+.cur-groups { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; align-items: start; }
+.cur-groups > .cg-empty, .cur-groups > .cur-add-metric, .cur-groups > .cur-add-metric-link { grid-column: 1 / -1; }
 .cur-group { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
 .cg-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--surface-3); cursor: pointer; user-select: none; }
 /* R52-F2：指标组折叠 caret */
@@ -1086,6 +1088,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
   /* R52-F1/F2：窄窗口降级回纵向 */
   .today-cards { grid-template-columns: 1fr; }
   .cur-cols { grid-template-columns: 1fr; }
+  .cur-groups { grid-template-columns: 1fr; }
   .cur-split { display: none; }
 }
 </style>

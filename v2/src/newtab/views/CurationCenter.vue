@@ -335,16 +335,16 @@ const mirrorDetail = ref<{ card: ResourceCard; proj: CurationProjection } | null
 const dragId = ref('')
 function onCardDragStart(e: DragEvent, r: ResourceCard) {
   dragId.value = r.id
-  e.dataTransfer?.setData('text/plain', r.id)
+  if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', r.id) }
 }
 function onProjDragStart(e: DragEvent, p: CurationProjection) {
   dragId.value = p.id
-  e.dataTransfer?.setData('text/plain', p.id)
+  if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', p.id) }
 }
 /** R54-D2：源镜像卡拖拽起点（源卡 id 进 dragId，drop 侧识别为「拖拽即投射」） */
 function onSrcDragStart(e: DragEvent, r: ResourceCard) {
   dragId.value = r.id
-  e.dataTransfer?.setData('text/plain', r.id)
+  if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', r.id) }
 }
 function moveProjectionTo(pid: string, targetCatId: string) {
   const p = projections.value.find(x => x.id === pid)
@@ -469,11 +469,48 @@ const dragCatId = ref('')
 const dropMark = ref<{ id: string; mode: 't' | 'b' | 'in' } | null>(null)
 function onCatDragStart(e: DragEvent, c: Category) {
   dragCatId.value = c.id
-  e.dataTransfer?.setData('text/plain', 'cat:' + c.id)
+  if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'cat:' + c.id) }
+}
+/** R57-F1：接受拖入的 dragover 统一应答（preventDefault + dropEffect=move，防真实拖拽被判定为不可落） */
+function acceptDragOver(e: DragEvent) {
+  e.preventDefault()
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+}
+/** R57-F1：区域级 dragover——卡片拖拽悬停于当前分类网格任意处（含空白）均可落 */
+function onAreaDragOver(e: DragEvent) {
+  if (dragId.value) acceptDragOver(e)
+}
+/** R57-F1：区域级 drop——拖到当前分类网格空白处 = 移入当前分类（镜像分类下源卡 = 物化垫后追加） */
+function onAreaDrop(e: DragEvent) {
+  const pid = dragId.value || e.dataTransfer?.getData('text/plain') || ''
+  dragId.value = ''
+  dropMark.value = null
+  if (!pid) return
+  const targetKey = activeCat.value === PENDING ? '' : activeCat.value
+  const srcCard = d.value.resources.find(x => x.id === pid && !x.deletedAt && x.workspaceId !== CURATION_WS_ID)
+  if (srcCard) { projectSourceCardTo(srcCard.id, targetKey); store.persist(); return }
+  if (activeCat.value === PENDING) {
+    const p = projections.value.find(x => x.id === pid)
+    if (p && p.kind === 'card' && p.targetCatId) { p.targetCatId = undefined; store.persist(); showToast('✓ 投射卡已移入待分类') }
+    return
+  }
+  const draggedIsProj = pid.startsWith('curp-') || projections.value.some(x => x.id === pid)
+  if (draggedIsProj) {
+    const p = projections.value.find(x => x.id === pid)
+    if (!p || p.kind !== 'card') return
+    if (p.targetCatId !== (targetKey || undefined)) { p.targetCatId = targetKey || undefined; store.persist(); showToast('✓ 投射卡已移入该分组') }
+    return
+  }
+  const r = d.value.resources.find(x => x.id === pid && x.workspaceId === CURATION_WS_ID)
+  if (!r || r.categoryId === targetKey) return
+  r.categoryId = targetKey
+  cardsIn(targetKey).forEach((x, i) => { x.curOrder = i })
+  store.persist()
+  showToast('✓ 已移入分类')
 }
 /** 节点 dragover：卡片拖入（放行 drop + drop-into 高亮反馈 R54-D4）与分类节点拖拽（dropMark 三段位）双语义 */
 function onNodeDragOver(e: DragEvent, c: Category) {
-  if (dragId.value) { e.preventDefault(); dropMark.value = { id: c.id, mode: 'in' }; return }
+  if (dragId.value) { acceptDragOver(e); dropMark.value = { id: c.id, mode: 'in' }; return }
   if (!dragCatId.value || dragCatId.value === c.id) return
   e.preventDefault()
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -602,11 +639,11 @@ function onCatDrop(e: DragEvent, target: Category) {
         </div>
 
         <!-- R55-A1：统一混排网格——原生卡与投射卡权重一致，同列表自由拖拽排列 -->
-        <div class="cur-grid">
+        <div class="cur-grid" @dragover="onAreaDragOver" @drop="onAreaDrop">
           <template v-for="m in viewMixed" :key="m.type + m.id">
             <!-- 原生卡 -->
             <div v-if="m.type === 'native' && m.r" class="cur-card native" :class="{ pinned: m.r.pinned }"
-              draggable @dragstart="onCardDragStart($event, m.r)" @dragover.prevent @drop="onAnyCardDrop($event, m.r, false)" @dragend="clearDragState"
+              draggable="true" @dragstart="onCardDragStart($event, m.r)" @dragover.prevent @drop.stop="onAnyCardDrop($event, m.r, false)" @dragend="clearDragState"
               @click="onCardClick(() => openEditCard(m.r!))" @dblclick="onCardDblClick(() => openCard(m.r!))"
               :title="'单击详情 · 双击打开链接 · 拖拽移入其他分类/与镜像卡相互排列'">
               <div class="cc-title">
@@ -626,7 +663,7 @@ function onCatDrop(e: DragEvent, target: Category) {
             </div>
             <!-- 投射卡（镜像） -->
             <div v-else-if="m.type === 'proj' && m.p" class="cur-card mirror"
-              draggable @dragstart="onProjDragStart($event, m.p)" @dragover.prevent @drop="onAnyCardDrop($event, m.p, true)" @dragend="clearDragState"
+              draggable="true" @dragstart="onProjDragStart($event, m.p)" @dragover.prevent @drop.stop="onAnyCardDrop($event, m.p, true)" @dragend="clearDragState"
               @click="cardById(m.p!.cardId) && onCardClick(() => { mirrorDetail = { card: cardById(m.p!.cardId)!, proj: m.p! } })"
               @dblclick="cardById(m.p!.cardId) && onCardDblClick(() => openCard(cardById(m.p!.cardId)!))"
               title="单击详情 · 双击打开链接 · 拖拽移入其他分类/与原生卡相互排列">
@@ -647,7 +684,7 @@ function onCatDrop(e: DragEvent, target: Category) {
             </div>
             <!-- R56-A：未投射源卡（📡 源序垫后，拖动即物化为投射；可作落位锚点） -->
             <div v-else-if="m.type === 'live' && m.p" class="cur-card mirror live" draggable="true"
-              @dragstart="onSrcDragStart($event, cardById(m.p!.cardId)!)" @dragover.prevent @drop="onLiveDrop($event, m)" @dragend="clearDragState"
+              @dragstart="onSrcDragStart($event, cardById(m.p!.cardId)!)" @dragover.prevent @drop.stop="onLiveDrop($event, m)" @dragend="clearDragState"
               @click="onCardClick(() => { const src = cardById(m.p!.cardId); if (src) mirrorDetail = { card: src, proj: { id: '', kind: 'card', wsId: src.workspaceId, addedAt: 0 } } })"
               @dblclick="cardById(m.p!.cardId) && onCardDblClick(() => openCard(cardById(m.p!.cardId)!))"
               title="📡 未投射源卡 · 单击详情 · 双击打开 · 拖动即物化为投射卡">

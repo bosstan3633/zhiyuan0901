@@ -19,6 +19,7 @@
  *   E2E-15 面包屑 + 来源感知返回 + 树定位闭环（R54-A）
  *   E2E-16 快速采集任务面板（R55-C）
  *   E2E-17 项目调度 4 指标恢复左列 + 下钻链路（R56-P1）
+ *   E2E-18 策展卡可拖真值（draggable="true"）+ 区域级落卡（R57-F1）
  */
 const path = require('path')
 const fs = require('fs')
@@ -115,18 +116,18 @@ async function main() {
   const treeWs = await page.locator('.gs-pan-ws').count()
   report('E2E-3 工作台全景双栏+计数树', panVisible && treeWs >= 1, `panel=${panVisible} wsNodes=${treeWs}`)
 
-  // E2E-4 方向状态四格（R55-D1：迁调度台顶部）：4 格 + 详细指标下钻含北极星「新增卡片/删除卡片」
+  // E2E-4 方向状态四格（R55-D1 迁调度台顶部；R57-F3 详细指标按钮移除 → 改验证四格自下钻抽屉）
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   const metricBarOn = await page.locator('.mb-cells').first().isVisible().catch(() => false)
   const offCourse = await page.getByText('未归档任务').first().isVisible().catch(() => false)
-  await page.locator('.mb-drill').click().catch(() => {})
-  await page.waitForTimeout(1200)
-  const todayAdd = await page.getByText('新增卡片').first().isVisible().catch(() => false)
-  const todayDel = await page.getByText('删除卡片').first().isVisible().catch(() => false)
-  const oldLabelGone = !(await page.getByText('今日新增', { exact: true }).first().isVisible().catch(() => false))
-  report('E2E-4 方向状态四格迁调度台顶部 + 详细指标下钻（R55-D1）', metricBarOn && offCourse && todayAdd && todayDel && oldLabelGone,
-    'bar=' + metricBarOn + ' unarch=' + offCourse + ' add=' + todayAdd + ' del=' + todayDel)
+  const drillBtnGone = (await page.locator('.mb-drill').count()) === 0
+  await page.locator('.mb-cell').nth(3).click().catch(() => {})
+  await page.waitForTimeout(900)
+  const cellDrawer = await page.getByText('未归档任务 · 待归档清单').first().isVisible().catch(() => false)
+  await page.keyboard.press('Escape').catch(() => {})
+  report('E2E-4 方向状态四格迁调度台顶部 + 四格自下钻（R55-D1→R57-F3）', metricBarOn && offCourse && drillBtnGone && cellDrawer,
+    'bar=' + metricBarOn + ' unarch=' + offCourse + ' drillBtnGone=' + drillBtnGone + ' cellDrawer=' + cellDrawer)
 
   // E2E-5 PDF 双击 file:// 打开
   await page.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })
@@ -393,6 +394,61 @@ async function main() {
   const cellStat = cellsOn === 4 && stripGone === 0
   report('E2E-17 项目调度4指标恢复左列+下钻链路（R56-P1）', cellStat && drillTitle && drillTaskRow && drawerOpen,
     'cells=' + cellsOn + ' stripGone=' + (stripGone === 0) + ' modal=' + drillTitle + ' row=' + drillTaskRow + ' drawer=' + drawerOpen)
+
+
+  // E2E-18 策展卡可拖真值 + 区域级落卡（R57-F1）：根因=裸 draggable 渲染为非法空值致真实拖拽不启动
+  await page.goto(base + '#/curation', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2200)
+  // 先种数据：镜像分类（源分类 2 卡：1 已投射 1 未投射）+ 未分类原生卡
+  const seedOk = await page.evaluate(() => new Promise((res) => {
+    chrome.storage.local.get('zy_data_v2').then(({ ['zy_data_v2']: d }) => {
+      if (!d || d.version !== 2) { res(false); return }
+      if (!d.categories.some(c => c.id === 'e2e-mirror')) {
+        const wsId = d.workspaces[0]?.id || 'ws'
+        d.categories.push({ id: 'e2e-mirror-src', workspaceId: wsId, name: 'E2E 镜像源', order: 99 })
+        d.categories.push({ id: 'e2e-mirror', workspaceId: 'zy-curation', name: 'E2E 镜像分组', order: 99, curFrom: { wsId, catId: 'e2e-mirror-src', projId: '' } })
+        d.resources.push({ id: 'e2e-src-live', kind: 'resource', title: 'E2E 未投射源卡', linkType: 'url', link: 'https://e.com/1', workspaceId: wsId, categoryId: 'e2e-mirror-src', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now() })
+        d.resources.push({ id: 'e2e-src-proj', kind: 'resource', title: 'E2E 已投射源卡', linkType: 'url', link: 'https://e.com/2', workspaceId: wsId, categoryId: 'e2e-mirror-src', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now() - 1, updatedAt: Date.now() })
+        d.resources.push({ id: 'e2e-newcard', kind: 'resource', title: 'E2E 新建策展卡', linkType: 'url', link: '', workspaceId: 'zy-curation', categoryId: '', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now() - 2, updatedAt: Date.now() })
+        d.curationProjections = (d.curationProjections || []).concat([{ id: 'e2e-curp-1', kind: 'card', wsId, cardId: 'e2e-src-proj', catId: 'e2e-mirror-src', targetCatId: 'e2e-mirror', addedAt: Date.now() }])
+      }
+      chrome.storage.local.set({ ['zy_data_v2']: d }).then(() => res(true))
+    })
+  }))
+  // 不 reload——应用「刷新固定回调度台」白名单不含 /curation；直接 hash 导航 + storage.onChanged 同步
+  await page.waitForTimeout(700)
+  await page.evaluate(() => { location.hash = '#/curation' })
+  await page.waitForTimeout(1400)
+  const dragAttrs = await page.evaluate(() => ({
+    native: document.querySelector('.cur-card.native')?.getAttribute('draggable') || '(无卡)'
+  }))
+  await page.evaluate(() => { const n = [...document.querySelectorAll('.cat-item')].find(x => x.textContent.includes('E2E 镜像分组')); if (n) n.click() })
+  await page.waitForTimeout(700)
+  const dragAttrsMirror = await page.evaluate(() => ({
+    mirror: document.querySelector('.cur-card.mirror:not(.live)')?.getAttribute('draggable') || '(无投射卡)',
+    live: document.querySelector('.cur-card.live')?.getAttribute('draggable') || '(无源卡)'
+  }))
+  // 区域级落卡：镜像分组视图内，把未投射源卡拖到网格空白处 = 物化为投射
+  const projBefore = await page.evaluate(() => new Promise((res) => chrome.storage.local.get('zy_data_v2').then(r => res((r['zy_data_v2'].curationProjections || []).filter(p => p.kind === 'card').length))))
+  const areaDrop = await page.evaluate(() => {
+    const src = document.querySelector('.cur-card.live')
+    const grid = document.querySelector('.cur-grid')
+    if (!src || !grid) return 'missing'
+    const dt = new DataTransfer()
+    src.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    grid.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    grid.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    src.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    return 'dispatched'
+  })
+  await page.waitForTimeout(700)
+  const projAfter = await page.evaluate(() => new Promise((res) => chrome.storage.local.get('zy_data_v2').then(r => res((r['zy_data_v2'].curationProjections || []).filter(p => p.kind === 'card').length))))
+  const newCardOk = await page.evaluate(() => new Promise((res) => chrome.storage.local.get('zy_data_v2').then(r => {
+    res((r['zy_data_v2'].resources || []).some(x => x.id === 'e2e-newcard'))
+  })))
+  const attrOk = dragAttrs.native === 'true' && dragAttrsMirror.mirror === 'true' && dragAttrsMirror.live === 'true'
+  report('E2E-18 策展卡可拖真值+区域落卡（R57-F1）', attrOk && seedOk && areaDrop === 'dispatched' && projAfter === projBefore + 1 && newCardOk,
+    'attr=' + JSON.stringify(Object.assign({}, dragAttrs, dragAttrsMirror)) + ' area=' + areaDrop + ' proj=' + projBefore + '→' + projAfter)
 
 
   await ctx.close()
