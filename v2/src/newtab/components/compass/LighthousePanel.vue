@@ -1,12 +1,12 @@
 <script setup lang="ts">
 /**
- * R49-C2/C3/C6 + R50-F4 + R51-F18/F19 主航线 · 方向台核心模块
+ * R49-C2/C3/C6 + R50-F4 + R51-F19 + R52-F4 主航线 · 方向台核心模块
  * 树状：愿景 → 使命 → 战略目标（行内嵌项目 chip）
- * - R51-F18：主航线只呈现已投射（pinnedToLighthouse）的项目——未投射不出现在主航线
- * - R51-F19：chip 全部呈现（换行铺开）；超过 6 个折「更多 N」，点击行内展开
+ * - R52-F4（修订 R51-F18）：主航线呈现全部项目（无论是否投射，📡 仅作区分标记）；>6 折「更多 N」行内展开
+ * - R52-BUG-2：已完成项目口径 = isProjectDone（手动 done/archived 或全任务完成派生），与项目总览/完整方向树一致
  * - 点击项目 chip 进项目详情（/compass/projects?p=）；「更多」行内展开剩余 chip
  * - R51-F15：DHI 明细定位——监听 zy-locate-goal，滚动到对应战略目标行并闪烁高亮
- * - 愿景/使命层可折叠；已完成（archived）项目受全局显隐开关控制
+ * - 愿景/使命层可折叠；已完成项目受全局显隐开关控制
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -17,7 +17,7 @@ import ModuleCard from '@/shared/components/ModuleCard.vue'
 import type { Project } from '@/shared/models'
 
 const router = useRouter()
-const { d, visionText, missionText, allProjects, projectProgress } = useCompass()
+const { d, visionText, missionText, allProjects, projectProgress, isProjectDone } = useCompass()
 const store = useAppStore()
 
 // ---- 显隐开关（C6 三处同步） ----
@@ -45,27 +45,27 @@ function toggle(key: string) {
 const showVision = computed(() => d.value.compass.vision.pinnedToLighthouse)
 const showMission = computed(() => d.value.compass.mission.pinnedToLighthouse)
 
-/** 项目按显隐开关过滤 */
+/** 项目按显隐开关过滤（R52-BUG-2：口径统一为 isProjectDone——手动 done/archived 或全任务完成派生） */
 function projectsOf(dirIdx: number): Project[] {
   const dir = d.value.compass.directions[dirIdx]
   if (!dir) return []
-  return dir.projects.filter(p => showDone.value || p.status !== 'archived')
+  return dir.projects.filter(p => showDone.value || !isProjectDone(p))
 }
-/** R51-F18：主航线只呈现已投射项目；R51-F19：全部呈现，>6 折「更多 N」行内展开 */
+/** R52-F4（修订 R51-F18 口径）：主航线呈现全部项目（无论是否投射，📡 仅作标记）；>6 折「更多 N」行内展开 */
 const CHIP_LIMIT = 6
 const expandedGoals = ref<Set<string>>(new Set())
 function chipsOf(dirIdx: number): Project[] {
   const dir = d.value.compass.directions[dirIdx]
   if (!dir) return []
-  const list = projectsOf(dirIdx).filter(p => p.pinnedToLighthouse)
-  list.sort((a, b) => (Number(b.isFocused) - Number(a.isFocused)) || (a.order ?? 999) - (b.order ?? 999))
+  const list = projectsOf(dirIdx).slice()
+  list.sort((a, b) => (Number(b.isFocused) - Number(a.isFocused)) || (Number(b.pinnedToLighthouse || false) - Number(a.pinnedToLighthouse || false)) || (a.order ?? 999) - (b.order ?? 999))
   if (expandedGoals.value.has(dir.id)) return list
   return list.slice(0, CHIP_LIMIT)
 }
 function moreOf(dirIdx: number): number {
   const dir = d.value.compass.directions[dirIdx]
   if (!dir || expandedGoals.value.has(dir.id)) return 0
-  return Math.max(0, projectsOf(dirIdx).filter(p => p.pinnedToLighthouse).length - CHIP_LIMIT)
+  return Math.max(0, projectsOf(dirIdx).length - CHIP_LIMIT)
 }
 function toggleMore(dirId: string) {
   if (expandedGoals.value.has(dirId)) expandedGoals.value.delete(dirId)
@@ -84,7 +84,7 @@ function onLocateGoal(e: Event) {
 }
 onMounted(() => window.addEventListener('zy-locate-goal', onLocateGoal))
 onUnmounted(() => window.removeEventListener('zy-locate-goal', onLocateGoal))
-const doneCount = computed(() => allProjects().filter(p => p.status === 'archived').length)
+const doneCount = computed(() => allProjects().filter(p => isProjectDone(p)).length)
 
 function openProject(p: Project) {
   router.push({ path: '/compass/projects', query: { p: p.id } })
@@ -121,7 +121,7 @@ function openTree() { router.push('/compass/tree') }
           <span class="mr-text" :class="{ empty: !missionText }">{{ missionText || '尚未设定使命' }}</span>
         </div>
 
-        <!-- 战略目标行（R51-F18/F19：仅已投射项目 · 全部呈现 · >6 折更多行内展开） -->
+        <!-- 战略目标行（R52-F4：全部项目呈现（📡仅标记）· >6 折更多行内展开） -->
         <div v-show="expanded.has('mission')" class="mr-children">
           <template v-for="(dir, di) in d.compass.directions" :key="dir.id">
             <div class="mr-row level-goal" :data-dir-id="dir.id">
@@ -132,7 +132,7 @@ function openTree() { router.push('/compass/tree') }
                   :title="p.name + ' · 点击进入项目详情'" @click.stop="openProject(p)">
                   <span v-if="p.pinnedToLighthouse">📡</span>{{ p.name }}
                 </span>
-                <span v-if="moreOf(di)" class="mr-chip chip-more" title="展开其余已投射项目" @click.stop="toggleMore(dir.id)">更多 {{ moreOf(di) }}</span>
+                <span v-if="moreOf(di)" class="mr-chip chip-more" title="展开其余项目" @click.stop="toggleMore(dir.id)">更多 {{ moreOf(di) }}</span>
               </span>
               <span class="mr-meta">项目 {{ projectsOf(di).length }}</span>
             </div>

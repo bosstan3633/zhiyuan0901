@@ -21,9 +21,9 @@ const router = useRouter()
 const route = useRoute()
 const isChildActive = computed(() => route.matched.length > 1 && route.path !== '/compass')
 const store = useAppStore()
-const { d, allProjects, projectProgress, isProjectStalled } = useCompass()
+const { d, allProjects, projectProgress, isProjectStalled, isProjectDone } = useCompass()
 
-// ---- 已完成项目显隐（C6：与主航线/完整方向树三处同步） ----
+// ---- 已完成项目显隐（C6：与主航线/完整方向树三处同步；R52-BUG-2 口径统一 isProjectDone） ----
 const showDone = computed(() => store.ui?.showDoneProjects !== false)
 function toggleShowDone() {
   const next = !showDone.value
@@ -31,11 +31,11 @@ function toggleShowDone() {
   saveUIPrefs({ showDoneProjects: next })
 }
 /** 项目总览（按显隐开关过滤） */
-const visibleProjects = computed(() => allProjects().filter(p => showDone.value || p.status !== 'archived'))
+const visibleProjects = computed(() => allProjects().filter(p => showDone.value || !isProjectDone(p)))
 
 const projectsCount = computed(() => visibleProjects.value.length)
 const pinnedCount = computed(() => visibleProjects.value.filter(p => p.pinnedToLighthouse).length)
-const doneProjects = computed(() => allProjects().filter(p => p.status === 'archived').length)
+const doneProjects = computed(() => allProjects().filter(p => isProjectDone(p)).length)
 
 /** 项目总览卡（C5：名称/战略目标/🎯/📋/状态） */
 function goalNameOf(p: Project): string {

@@ -407,7 +407,7 @@ const counts = computed(() => {
     task: all.tasks.filter(t=>!t.deletedAt).length,
     curio: all.curiosities.filter(c=>!c.deletedAt).length,
     ws: all.workspaces.filter(w=>!w.archived).length,
-    proj: allProjects().filter(p => showDoneProjects.value || p.status !== 'archived').length
+    proj: allProjects().filter(p => showDoneProjects.value || !isProjectDone(p)).length
   }
 })
 
@@ -489,7 +489,7 @@ const allResults = computed<SearchResult[]>(() => {
   })
 
   // R49-G：项目实体（点击直达项目详情 /compass/projects?p=；受已完成显隐开关约束）
-  allProjects().filter(p => showDoneProjects.value || p.status !== 'archived').forEach(p => {
+  allProjects().filter(p => showDoneProjects.value || !isProjectDone(p)).forEach(p => {
     const dir = d.value.compass.directions.find(dr => dr.projects.some(x => x.id === p.id))
     const badges: {type:string,text:string}[] = []
     if (p.isFocused) badges.push({ type: 'prio-high', text: '🎯 主攻' })
@@ -930,6 +930,12 @@ function findProject(projId: string) {
 /** R49-G：跨方向扁平项目列表（复用 useCompass 口径，避免多处手写双循环漂移） */
 function allProjects() {
   return d.value.compass.directions.flatMap(dir => dir.projects)
+}
+/** R52-BUG-2：项目完成口径与 useCompass.isProjectDone 一致（手动 done/archived 或全任务完成派生） */
+function isProjectDone(p: { status: string; id: string }): boolean {
+  if (p.status === 'done' || p.status === 'archived') return true
+  const ts = d.value.tasks.filter(t => !t.deletedAt && t.projectId === p.id)
+  return ts.length > 0 && ts.every(t => t.status === 'done')
 }
 
 // 快捷键由 App.vue 统一管理，通过 openPanel/closeAll 暴露方法

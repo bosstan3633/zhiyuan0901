@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
@@ -15,8 +15,41 @@ import TaskAddDrawer from '../components/TaskAddDrawer.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 
 const router = useRouter()
+const route = useRoute()
 const store = useAppStore()
-const { d, visionText, missionText, allProjects, projectProgress, toggleFocusProject } = useCompass()
+const { d, visionText, missionText, allProjects, projectProgress, toggleFocusProject, isProjectDone } = useCompass()
+
+// ---- R54-A1：来源感知返回（?from=proj&p= → 项目详情；默认方向台）+ A3 定位 + A4 Esc ----
+const fromProjId = computed(() => route.query.from === 'proj' && typeof route.query.p === 'string' ? route.query.p : '')
+const fromProjName = computed(() => fromProjId.value ? allProjects().find(p => p.id === fromProjId.value)?.name || '项目详情' : '')
+function goBack() {
+  if (fromProjId.value) router.push({ path: '/compass/projects', query: { p: fromProjId.value } })
+  else router.push('/compass')
+}
+function locateHlGoal() {
+  const dirId = route.query.hl
+  if (!dirId || typeof dirId !== 'string') return
+  expandedDirs.value.add(dirId)
+  nextTick(() => {
+    const el = document.querySelector(`[data-dir-id="${dirId}"]`) as HTMLElement | null
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('goal-flash')
+    setTimeout(() => el.classList.remove('goal-flash'), 1500)
+  })
+}
+function onPageEsc(e: KeyboardEvent) {
+  if (e.key !== 'Escape') return
+  if (document.querySelector('.task-sidebar, .overlay, .modal-mask')) return
+  e.preventDefault()
+  goBack()
+}
+onMounted(() => {
+  document.addEventListener('keydown', onPageEsc, true)
+  locateHlGoal()
+})
+onUnmounted(() => document.removeEventListener('keydown', onPageEsc, true))
+watch(() => route.query.hl, () => locateHlGoal())
 
 // ---- 展开状态 ----
 const expandedDirs = ref<Set<string>>(new Set())
@@ -44,7 +77,8 @@ function toggleShowDone() {
   saveUIPrefs({ showDoneProjects: next })
 }
 function visibleProjectsOf(dir: Direction): Project[] {
-  return dir.projects.filter(p => showDone.value || p.status !== 'archived')
+  // R52-BUG-2：口径统一 isProjectDone（手动 done/archived 或全任务完成派生），修复「已完成项目显隐」开关失效
+  return dir.projects.filter(p => showDone.value || !isProjectDone(p))
 }
 const treeStats = computed(() => ({
   dirs: d.value.compass.directions.length,
@@ -406,8 +440,10 @@ onUnmounted(() => {
     <!-- 六层悬浮目录 -->
 
       <div class="tree-page-head">
-        <div class="crumb"><b>完整方向树</b> · 六层思维链全深度</div>
+        <div class="crumb"><span class="crumb-up" title="返回方向台" @click="router.push('/compass')">方向台</span><span class="crumb-sep"> / </span><b>完整方向树</b> · 六层思维链全深度</div>
         <div class="spacer"></div>
+        <!-- R54-A1：来源感知返回（从项目详情进入时返回该项目详情） -->
+        <button class="tree-tool accent" @click="goBack" :title="fromProjId ? '返回项目详情' : '返回方向台'">← {{ fromProjId ? '返回项目详情' : '返回方向台' }}</button>
         <div class="tree-stats">愿景 1 · 使命 1 · 战略目标 {{ treeStats.dirs }} · 项目 {{ treeStats.projects }} · 指标 {{ treeStats.metrics }} · 任务 {{ treeStats.tasks }}</div>
         <button class="tree-tool" @click="expandAllNodes" title="展开全部层级">⊞ 展开</button>
         <button class="tree-tool" @click="collapseAllNodes" title="收起全部战略目标与指标">⊟ 收起</button>
@@ -546,7 +582,7 @@ onUnmounted(() => {
 
           <div class="goals-row">
             <div v-for="dir in d.compass.directions" :key="dir.id" class="goal-col">
-              <div class="node goal-node" :class="{stagnant: isStagnant(dir)}" @click="toggleDir(dir.id)">
+              <div class="node goal-node" :class="{stagnant: isStagnant(dir)}" :data-dir-id="dir.id" @click="toggleDir(dir.id)">
                 <div class="node-top">
                   <span v-if="isStagnant(dir)" class="stagnant-tag">⚠ 停滞</span>
                   <span class="node-tag dir-tag">DIRECTION</span>
@@ -614,6 +650,8 @@ onUnmounted(() => {
                       </div>
                       <div class="node-actions">
                         <div class="node-action" @click.stop="openProjectDrawer(proj.id)" title="打开项目全景">🗂</div>
+                        <!-- R54-A2：进入项目详情页（方向树 ↔ 项目详情闭环） -->
+                        <div class="node-action" @click.stop="router.push({ path: '/compass/projects', query: { p: proj.id, from: 'tree' } })" title="进入项目详情页">📄</div>
                         <div class="node-action" @click.stop="addMetric(proj.id)" title="添加指标">＋</div>
                         <div class="node-action danger" @click.stop="deleteNode('proj', proj.id)" title="删除">🗑</div>
                       </div>
@@ -791,6 +829,14 @@ onUnmounted(() => {
 .tree-tool { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 11.5px; border-radius: 8px; padding: 5px 11px; cursor: pointer; font-family: inherit; transition: all .15s; white-space: nowrap; }
 .tree-tool:hover { border-color: var(--accent); color: var(--accent); }
 .tree-tool.off { opacity: .6; }
+/* R52-F8/R54-A1：返回入口（accent 强调）+ 面包屑上级可点 */
+.tree-tool.accent { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+.tree-page-head .crumb .crumb-up { cursor: pointer; color: var(--text-3); }
+.tree-page-head .crumb .crumb-up:hover { color: var(--accent); }
+.tree-page-head .crumb .crumb-sep { color: var(--text-4); }
+/* R54-A3：?hl 定位闪烁 */
+.node.goal-node.goal-flash { animation: treeGoalFlash 1.4s ease; }
+@keyframes treeGoalFlash { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); border-color: var(--accent); } }
 
 /* D8：六层目录 = 布局内左栏 + sticky 跟随（目录在左，内容在右，随滚动吸附） */
 .layer-toc { position: sticky; top: 16px; align-self: flex-start; width: 200px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 10px; display: flex; flex-direction: column; gap: 3px; box-shadow: var(--shadow); max-height: calc(100vh - 120px); overflow-y: auto; }

@@ -146,12 +146,15 @@ export interface ResourceCard extends CardBase {
   lastCalledAt?: number
   /** R50-F3：策展中心原生卡排序（仅 workspaceId=zy-curation 的卡使用；拖拽规整回写） */
   curOrder?: number
+  /** R52-F7：策展中心内原生卡的策展归属覆盖（仅策展中心消费）。R53-A1 迁移后不再使用
+   *  （镜像分类已物化为真实分类，归属统一写 categoryId）；存量值由迁移归一并清空 */
+  curCatId?: string
 }
 
 /**
- * R50-F3 策展中心投射记录（引用式镜像）
- * kind=card：镜像单卡（cardId）；kind=category：镜像整组分类（catId，实时含其卡片）；kind=workspace：镜像整个工作台（全部分类+卡片）
- * 清空/移出仅删记录，源数据零影响
+ * 策展中心投射记录（引用式镜像，R50-F3 引入）
+ * R53-A1 起仅 kind='card' 继续新增（单卡镜像落待分类）；kind='category'/'workspace' 为遗留形状，
+ * 由 migrateCurationTree 启动期一次性物化为带 curFrom 的真实策展分类后移除。
  */
 export interface CurationProjection {
   id: ID
@@ -161,7 +164,7 @@ export interface CurationProjection {
   cardId?: ID
   /** 投入策展中心的分类（空 = 未分类区） */
   targetCatId?: ID
-  /** R51-F21：分类镜像分组在策展树中的显示名（零影响改名，不改源分类） */
+  /** R51-F21：分类镜像分组在策展树中的显示名（遗留；迁移时转为策展分类名） */
   displayName?: string
   addedAt: number
 }
@@ -242,8 +245,11 @@ export interface Category {
   workspaceId: ID
   name: string
   order: number
-  parentId?: ID    // 第八轮：父分类 id（最多 2 级；缺省 = 一级分类）
+  parentId?: ID    // 第八轮：父分类 id（最多 2 级；缺省 = 一级分类）。R53 起可指向策展镜像分类 id（同为真实 Category）
   pinned?: boolean // 第八轮：置顶分类（左栏顶部置顶分区）
+  /** R53-A1：策展中心镜像分类溯源标记（workspaceId=CURATION_WS_ID 时有效）——
+   *  镜像分类物化为真实策展 Category，树内与原生分类同构（混排/父子/拖拽）；源数据零影响 */
+  curFrom?: { wsId: ID; catId: ID; projId: ID }
 }
 
 // ============ 今日三件事 ============
@@ -340,6 +346,8 @@ export interface UIPrefs {
   theme: string
   viewMode: 'list' | 'kanban' | 'card'
   tcSplitRatio: number
+  /** R54-B1：调度台项目调度左右分栏比例（左列 %，30–75） */
+  curSplit?: number
   dateStr?: string
   /** 工作台切换快捷键修饰键（O18：五种可选，默认 Alt） */
   wsSwitchMod?: 'ctrl' | 'alt' | 'ctrl-shift' | 'alt-shift' | 'none'

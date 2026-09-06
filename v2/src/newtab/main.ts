@@ -94,4 +94,19 @@ async function bootstrap() {
   }
 }
 
-bootstrap()
+/** R53-E3：数据加载健壮化——失败重试一次；仍失败则骨架屏转错误横幅且**不挂载**。
+ *  绝不以空默认数据兜底挂载：后续任意 persist 会把空数据覆写回 storage，造成真实数据丢失。 */
+async function bootDataRobust(): Promise<boolean> {
+  try { await ensureBootData(); return true } catch (e1) { console.error('[知源V2] 数据加载异常，重试一次：', e1) }
+  await new Promise(r => setTimeout(r, 150))
+  try { await ensureBootData(); return true } catch (e2) { console.error('[知源V2] 数据加载两次失败：', e2) }
+  const skl = document.querySelector('.zy-skl') as HTMLElement | null
+  if (skl) skl.innerHTML = '<div style="padding:48px 32px;text-align:center;color:var(--danger,#F85149);font-size:14px;line-height:2">⚠ 数据加载异常，应用未启动以保护本地数据。<br>请关闭此标签页后重新打开；若反复出现，请勿导入/清空数据，并通过 设置 → 仪表盘 → 错误日志 反馈。</div>'
+  return false
+}
+
+async function bootstrapSafe() {
+  if (await bootDataRobust()) await bootstrap()
+}
+
+bootstrapSafe().catch(e => console.error('[知源V2] 启动失败：', e))

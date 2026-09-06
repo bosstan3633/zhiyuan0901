@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
@@ -87,11 +87,20 @@ function toggleFocus(p: Project) {
   store.persist()
   showToast(p.isFocused ? '🎯 已设为主攻，同步今日行动' : '已取消主攻')
 }
-function addMetric() {
-  if (!currentProject.value) return
-  currentProject.value.metrics.push({ id: uid('met'), title: '新成功指标', taskIds: [] })
+/** R52-F6：头部级「＋添加成功指标」——与「＋添加任务」并置，输入名后创建（同步方向树） */
+const headerMetricAdding = ref(false)
+const headerMetricTitle = ref('')
+const vFocus = { mounted: (el: HTMLElement) => el.focus() }
+function startHeaderAddMetric() { headerMetricAdding.value = true; headerMetricTitle.value = '' }
+function confirmHeaderAddMetric() {
+  const p = currentProject.value
+  const title = headerMetricTitle.value.trim()
+  if (!p) { headerMetricAdding.value = false; return }
+  if (!title) { headerMetricAdding.value = false; return }
+  p.metrics.push({ id: uid('met'), title, taskIds: [] })
   store.persist()
   showToast('✓ 成功指标已创建，同步方向树')
+  headerMetricAdding.value = false
 }
 function togglePin(p: Project) {
   p.pinnedToLighthouse = !p.pinnedToLighthouse
@@ -135,10 +144,29 @@ function openProject(p: Project) {
   // R49：保留 ?p 参数（刷新后仍定位到该项目详情）
   if (route.query.p !== p.id) router.replace({ path: route.path, query: { p: p.id } })
 }
-function closeProject() {
-  currentProject.value = null
-  router.replace({ path: route.path })
+// R52-F5：「返回项目列表」按钮移除——右上角「← 返回方向台」为唯一返回路径；项目切换走左侧目录
+// R54-A1：来源感知返回——从方向树进入（?from=tree）时返回方向树，否则返回方向台
+const fromTree = computed(() => route.query.from === 'tree')
+function goBack() {
+  if (fromTree.value) router.push('/compass/tree')
+  else router.push('/compass')
 }
+/** R54-A3：跳完整方向树并定位到本项目战略目标（?hl=<dirId> 滚动+闪烁） */
+function goTreeLocated() {
+  const p = currentProject.value
+  if (!p) { router.push('/compass/tree'); return }
+  const dir = goalOf(p)
+  router.push({ path: '/compass/tree', query: { from: 'proj', p: p.id, ...(dir ? { hl: dir.id } : {}) } })
+}
+/** R54-A4：Esc = 返回上级（抽屉/弹层打开时让位其自关） */
+function onPageEsc(e: KeyboardEvent) {
+  if (e.key !== 'Escape') return
+  if (document.querySelector('.task-sidebar, .overlay, .modal-mask')) return
+  e.preventDefault()
+  goBack()
+}
+onMounted(() => document.addEventListener('keydown', onPageEsc, true))
+onUnmounted(() => document.removeEventListener('keydown', onPageEsc, true))
 watch(() => route.query.p, (pid) => {
   if (!pid || typeof pid !== 'string') { if (!route.query.p) currentProject.value = null; return }
   const p = projects.value.find(x => x.id === pid)
@@ -270,9 +298,10 @@ function addTaskFromHeader() {
 <template>
   <div class="page">
     <div class="page-head">
-      <div class="crumb"><b>项目详情</b> · 项目 → 成功指标 → 任务</div>
+      <div class="crumb"><span class="crumb-up" title="返回方向台" @click="router.push('/compass')">方向台</span><span class="crumb-sep"> / </span><b>项目详情</b><span v-if="currentProject"> · {{ currentProject.name }}</span></div>
       <div class="spacer" />
-      <button class="mini-btn" @click="router.push('/compass')">← 返回方向台</button>
+      <!-- R54-A1：来源感知返回（从方向树进入时返回方向树） -->
+      <button class="mini-btn" @click="goBack">← {{ fromTree ? '返回方向树' : '返回方向台' }}</button>
       <div class="hint-chip">任务可拖拽排序 / 跨指标归属 · 点击任务开详情</div>
     </div>
 
@@ -304,30 +333,38 @@ function addTaskFromHeader() {
     </aside>
     <div class="board">
       <div class="back-row">
-        <button class="back-btn" @click="closeProject">← 返回项目列表</button>
         <span class="tag">ID · {{ currentProject.id.slice(0, 12) }}</span>
         <span class="tag accent">{{ goalOf(currentProject)?.name || '—' }}</span>
         <span v-if="currentProject.isFocused" class="tag accent">🎯 主攻</span>
         <span v-if="currentProject.pinnedToLighthouse" class="tag info">📡 已投射灯塔</span>
         <div style="flex:1" />
+        <!-- R52-F6：添加成功指标与添加任务并置 -->
+        <button class="mini-btn" @click="startHeaderAddMetric">🎯 添加成功指标</button>
         <button class="mini-btn primary" @click="addTaskFromHeader">＋ 添加任务</button>
-        <button class="mini-btn" @click="router.push('/compass/tree')">🌳 完整方向树</button>
+        <button class="mini-btn" @click="goTreeLocated">🌳 完整方向树</button>
+      </div>
+      <!-- R52-F6：成功指标名输入行 -->
+      <div v-if="headerMetricAdding" class="metric-add-row">
+        <input v-model="headerMetricTitle" placeholder="成功指标名称，回车确认（同步完整方向树）" v-focus
+          @keydown.enter.prevent="confirmHeaderAddMetric" @keydown.esc="headerMetricAdding=false" />
+        <button class="mini-btn primary" @click="confirmHeaderAddMetric">确定</button>
+        <button class="mini-btn" @click="headerMetricAdding=false">取消</button>
       </div>
 
       <!-- 愿景 → 使命 → 战略目标 → 项目 归属链（D2：四段可点击，前三段跳完整方向树） -->
       <div class="chain-box">
         <div class="chain-line">
-          <div class="ch-node clickable" title="在完整方向树中查看" @click="router.push('/compass/tree')">
+          <div class="ch-node clickable" title="在完整方向树中查看" @click="goTreeLocated">
             <div class="ch-ic">🔭</div>
             <div class="ch-body"><div class="ch-lab">愿景 · Vision</div><div class="ch-txt">{{ visionText || '尚未设定愿景' }}</div></div>
           </div>
           <div class="ch-link" />
-          <div class="ch-node clickable" title="在完整方向树中查看" @click="router.push('/compass/tree')">
+          <div class="ch-node clickable" title="在完整方向树中查看" @click="goTreeLocated">
             <div class="ch-ic">💡</div>
             <div class="ch-body"><div class="ch-lab">使命 · Mission</div><div class="ch-txt">{{ missionText || '尚未设定使命' }}</div></div>
           </div>
           <div class="ch-link" />
-          <div class="ch-node clickable hi" title="在完整方向树中查看" @click="router.push('/compass/tree')">
+          <div class="ch-node clickable hi" title="在完整方向树中定位此战略目标" @click="goTreeLocated">
             <div class="ch-ic">🎯</div>
             <div class="ch-body"><div class="ch-lab">战略目标 · Direction</div><div class="ch-txt">{{ goalOf(currentProject)?.name }}（{{ goalOf(currentProject)?.term==='long'?'远期':goalOf(currentProject)?.term==='short'?'近期':'中期' }}）</div></div>
           </div>
@@ -388,7 +425,7 @@ function addTaskFromHeader() {
           <div class="task-add" @click="openTaskAdd(m)">＋ 添加任务（新建 / 关联）</div>
         </div>
       </div>
-      <div v-if="!currentProject.metrics.length" class="empty-state">该项目暂无成功指标，点击下方添加</div>
+      <div v-if="!currentProject.metrics.length" class="empty-state">该项目暂无成功指标——点击上方「🎯 添加成功指标」开始</div>
       <!-- B27：未归类任务（指标已删除的孤儿任务） -->
       <div v-if="orphanTasks.length" class="metric-sec">
         <div class="metric-head2">
@@ -406,7 +443,7 @@ function addTaskFromHeader() {
           </div>
         </div>
       </div>
-      <button class="mini-btn primary" style="width:100%;padding:10px;justify-content:center" @click="addMetric()">＋ 添加成功指标（同步方向树）</button>
+      <!-- R52-F6：添加成功指标入口上移至头部操作区（原底部通栏按钮移除） -->
 
       <!-- R49-D4：任务附件区（按任务聚合，复用 AssetBadge 打开逻辑；资源卡本体在资源台管理，此处不呈现） -->
       <div class="metric-sec asset-sec">
@@ -480,6 +517,10 @@ function addTaskFromHeader() {
 .page-head .crumb { font-size: 12.5px; color: var(--text-2); }
 .page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
 .page-head .crumb .sep { color: var(--text-4); margin: 0 6px; }
+/* R54-A1：面包屑上级可点 */
+.page-head .crumb .crumb-up { cursor: pointer; color: var(--text-3); }
+.page-head .crumb .crumb-up:hover { color: var(--accent); }
+.page-head .crumb .crumb-sep { color: var(--text-4); }
 .page-head .spacer { flex: 1; }
 .hint-chip { font-size: 10.5px; color: var(--text-3); background: var(--surface); border: 1px dashed var(--border-strong); padding: 3px 10px; border-radius: 99px; }
 
@@ -541,8 +582,10 @@ function addTaskFromHeader() {
 .metric-sec .mname:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .metric-sec .mname:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
 .back-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-.back-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 12.5px; cursor: pointer; font-family: inherit; transition: all .15s; }
-.back-btn:hover { border-color: var(--accent); color: var(--accent); }
+/* R52-F6：成功指标名输入行 */
+.metric-add-row { display: flex; gap: 8px; margin: -6px 0 14px; }
+.metric-add-row input { flex: 1; border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; color: var(--text); outline: none; font-family: inherit; }
+.metric-add-row input:focus { border-color: var(--accent); }
 .chain-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 22px; margin-bottom: 16px; }
 .chain-line { display: flex; flex-direction: column; }
 .ch-node { display: flex; align-items: flex-start; gap: 12px; }

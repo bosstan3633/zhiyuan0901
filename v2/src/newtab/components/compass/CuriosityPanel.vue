@@ -575,7 +575,7 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
             <template v-if="convertTarget === 'res'">
               <label class="cz-modal-label">存入工作台</label>
               <select v-model="convertWsId" class="cz-modal-select">
-                <option v-for="w in convWorkspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name }}</option>
+                <option v-for="w in convWorkspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^s]+s/, '') }}</option>
               </select>
               <label class="cz-modal-label">分类（默认待分类）</label>
               <select v-model="convertCatId" class="cz-modal-select">

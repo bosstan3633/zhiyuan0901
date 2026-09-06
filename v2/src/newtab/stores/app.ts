@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AppData, Workspace, UIPrefs } from '@/shared/models'
+import { CURATION_WS_ID } from '@/shared/models'
 import { getData, saveData, loadUIPrefs, saveUIPrefs, subscribe, syncCache, isSelfWrite } from '@/shared/storage/repository'
+import { migrateCurationTree } from '@/shared/storage/curationMigration'
 
 export const useAppStore = defineStore('app', () => {
   // ---- 数据 ----
@@ -9,8 +11,10 @@ export const useAppStore = defineStore('app', () => {
   const ui = ref<UIPrefs | null>(null)
 
   // ---- 计算属性 ----
+  // R52-BUG-3：工作台枚举全局排除策展空间（zy-curation 是归属标记不是 Workspace 实体，
+  // 防御导入/历史脏数据出现同 id 实体时泄漏进顶栏 Tab、设置-工作台全景、导出、快捷键等所有枚举点）
   const workspaces = computed<Workspace[]>(() =>
-    data.value?.workspaces.filter((w) => !w.archived).sort((a, b) => a.order - b.order) || []
+    data.value?.workspaces.filter((w) => !w.archived && w.id !== CURATION_WS_ID).sort((a, b) => a.order - b.order) || []
   )
   const theme = computed(() => ui.value?.theme || 'green')
 
@@ -18,6 +22,9 @@ export const useAppStore = defineStore('app', () => {
   async function init() {
     data.value = getData()
     ui.value = await loadUIPrefs()
+
+    // R53-A1：策展树统一迁移——遗留分类/工作台投射记录物化为带 curFrom 的真实策展分类（幂等）
+    if (data.value && migrateCurationTree(data.value)) saveData()
 
     // V2.20.1 BUG-2 存量回填（幂等，静默）：凡有 metricId 而 projectId 为空的任务，
     // 按指标反查所属项目补齐 projectId（历史版本关联任务时漏写 projectId 的修复）。

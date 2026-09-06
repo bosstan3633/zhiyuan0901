@@ -91,15 +91,19 @@ export function initSelectionCapture(): void {
   document.addEventListener('mousedown', () => { selCache.text = '' }, true)
 
   if (IS_TOP) {
+    // R53-E3：接收子帧选区转发——targetOrigin 无法枚举（跨源帧 origin 各异），改为接收侧消毒：
+    // 仅接受字符串字段 + 长度截断，恶意页面可伪造的只是一段"选区预填文本"，不触达任何特权 API
+    const clip = (v: unknown, cap: number): string =>
+      typeof v === 'string' ? v.slice(0, cap) : ''
     window.addEventListener('message', (e: MessageEvent) => {
-      const d0 = e.data as { __zy_sel?: { text: string; title: string; url: string } } | null
-      if (d0 && d0.__zy_sel && d0.__zy_sel.text) {
-        selCache = {
-          text: d0.__zy_sel.text,
-          title: d0.__zy_sel.title || '',
-          url: d0.__zy_sel.url || '',
-          at: Date.now()
-        }
+      const d0 = e.data as { __zy_sel?: { text?: unknown; title?: unknown; url?: unknown } } | null
+      const text = clip(d0?.__zy_sel?.text, 8000)
+      if (!d0 || !d0.__zy_sel || !text) return
+      selCache = {
+        text,
+        title: clip(d0.__zy_sel.title, 512),
+        url: clip(d0.__zy_sel.url, 2048),
+        at: Date.now()
       }
     })
   }

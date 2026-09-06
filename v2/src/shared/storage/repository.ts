@@ -113,7 +113,11 @@ export function saveData(): void {
     // V2.17.1 修复：JSON 纯净清洗后再入存储——reactive 树中可能残留 Vue Proxy（如编辑表单展开出的
     // assets Proxy 数组），chrome.storage 序列化 Proxy 时会把数组降级为类数组对象 {"0":…}，
     // 读回后 .length 为 undefined → 卡片正面附件徽章永不渲染。JSON round-trip 保证入存储永远是 plain 结构。
-    const payload = { [STORAGE_KEY]: JSON.parse(JSON.stringify(cache)) }
+    // R53-E3：序列化包 try——异常走 SaveError('serial')（此前在定时器内未捕获会静默丢保存）
+    let payload: Record<string, unknown>
+    try {
+      payload = { [STORAGE_KEY]: JSON.parse(JSON.stringify(cache)) }
+    } catch (e) { emitSaveError(e); return }
     const p = cs!.set(payload)
     if (p && typeof (p as Promise<void>).then === 'function') {
       ;(p as Promise<void>)
@@ -247,8 +251,8 @@ export async function loadUIPrefs(): Promise<UIPrefs> {
   uiCache = { ...defaults, ...(result[UI_KEY] as UIPrefs | undefined) }
   // O18：旧默认 ctrl 迁移为 alt
   if (uiCache.wsSwitchMod === 'ctrl') { uiCache.wsSwitchMod = 'alt'; saveUIPrefs({ wsSwitchMod: 'alt' }) }
-  // 视觉重构（V2.3）：旧默认 green 一次性迁移为 linear（深空薰衣草）
-  if (uiCache.theme === 'green') { uiCache.theme = 'linear'; saveUIPrefs({ theme: 'linear' }) }
+  // 视觉重构（V2.3）：旧默认 green 迁移为 linear；R53-D：主题精简四套——已删除的 green/night 一并迁移（幂等）
+  if (uiCache.theme === 'green' || uiCache.theme === 'night') { uiCache.theme = 'linear'; saveUIPrefs({ theme: 'linear' }) }
   return uiCache
 }
 

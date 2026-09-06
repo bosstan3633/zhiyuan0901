@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from './stores/app'
 import { useCompass } from './stores/compass'
 import { uid } from '@/shared/utils'
-import type { Workspace } from '@/shared/models'
+import { CURATION_WS_ID, type Workspace } from '@/shared/models'
 import Toast from '@/shared/components/Toast.vue'
 import { showToast } from '@/shared/components/toast'
 import GlobalPopups from './components/GlobalPopups.vue'
@@ -29,12 +29,11 @@ onErrorCaptured((err) => {
 function reloadPage() { location.reload() }
 const globalPopups = ref<InstanceType<typeof GlobalPopups> | null>(null)
 
+// R53-D：主题精简为四套（删除 原野绿/暗夜红；存量 green/night 由 repository 启动迁移到深空薰衣草）
 const themes = [
   { id: 'linear', name: '深空薰衣草', dot: '#5E6AD2' },
-  { id: 'green', name: '原野绿', dot: '#10A56E' },
-  { id: 'night', name: '暗夜红', dot: '#E8374A' },
-  { id: 'apple', name: '极简白', dot: '#0071E3' },
   { id: 'raycast', name: '光速黑', dot: '#FF6363' },
+  { id: 'apple', name: '极简白', dot: '#0071E3' },
   { id: 'notion', name: '纸墨白', dot: '#2383E2' }
 ]
 
@@ -133,20 +132,26 @@ function onTabContextMenu(e: MouseEvent, ws: Workspace) {
 }
 function closeMenu() { menuWs.value = null }
 
-/** R50-F3：整个工作台一键投射到策展中心（引用式镜像：一个 workspace 投射记录即可实时渲染全部分类与卡片） */
+/** R53-A3（修订 R50-F3/R52-F7a）：整个工作台镜像 = 分类镜像打包版——
+ *  逐顶层分类物化为带 curFrom 的真实策展分类（同树混排）；此后源工作台新增/删除分类不自动跟随 */
 function projectWorkspaceToCuration() {
   const ws = menuWs.value
   if (!ws) return
   closeMenu()
   const d = compassData.value
-  d.curationProjections = d.curationProjections || []
-  if (d.curationProjections.some(p => p.kind === 'workspace' && p.wsId === ws.id)) {
-    showToast('ℹ 该工作台已在策展中心镜像中')
-    return
+  const roots = d.categories.filter(c => c.workspaceId === ws.id && !c.parentId)
+  if (!roots.length) { showToast('ℹ 该工作台没有分类，可对单卡右键「📡 镜像到策展中心」'); return }
+  let maxOrder = -1
+  for (const c of d.categories) if (c.workspaceId === CURATION_WS_ID && (c.order ?? 0) > maxOrder) maxOrder = c.order ?? 0
+  let added = 0
+  for (const c of roots) {
+    if (d.categories.some(x => x.workspaceId === CURATION_WS_ID && x.curFrom?.wsId === ws.id && x.curFrom?.catId === c.id)) continue
+    maxOrder++
+    d.categories.push({ id: uid('cat'), workspaceId: CURATION_WS_ID, name: c.name, order: maxOrder, curFrom: { wsId: ws.id, catId: c.id, projId: 'ws:' + ws.id + ':' + c.id } })
+    added++
   }
-  d.curationProjections.push({ id: uid('curp'), kind: 'workspace', wsId: ws.id, addedAt: Date.now() })
   store.persist()
-  showToast('📤 已投射整个工作台到策展中心（引用式镜像，源数据不受影响）')
+  showToast(added ? `📤 已按 ${added} 个分类打包镜像到策展中心（源后续变更不自动同步）` : 'ℹ 该工作台的分类均已镜像过')
 }
 
 function startRename() {
@@ -187,6 +192,14 @@ function deleteWorkspace() {
       r.workspaceId = otherWs.id
       r.categoryId = cat!.id
     })
+  }
+  // R53-A3：级联清理该工作台的策展镜像分类（停入卡回落未分类、投射卡回待分类、子分类提根）
+  const mirrorIds = new Set(store.data!.categories.filter(c => c.workspaceId === CURATION_WS_ID && c.curFrom?.wsId === ws.id).map(c => c.id))
+  if (mirrorIds.size) {
+    for (const r of store.data!.resources) if (r.workspaceId === CURATION_WS_ID && mirrorIds.has(r.categoryId || '')) r.categoryId = ''
+    for (const p of store.data!.curationProjections || []) if (p.kind === 'card' && p.targetCatId && mirrorIds.has(p.targetCatId)) p.targetCatId = undefined
+    for (const c of store.data!.categories) if (c.parentId && mirrorIds.has(c.parentId)) c.parentId = undefined
+    store.data!.categories = store.data!.categories.filter(c => !mirrorIds.has(c.id))
   }
   store.persist()
   closeMenu()
@@ -455,7 +468,7 @@ const backupReminderDot = computed(() => {
     <Teleport to="body">
       <div v-if="menuWs" class="ctx-menu" :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }" @click.stop>
         <div class="ctx-item" @click="startRename">✏️ 重命名</div>
-        <div class="ctx-item" @click="projectWorkspaceToCuration">📤 整个工作台投射到策展中心</div>
+        <div class="ctx-item" @click="projectWorkspaceToCuration">📤 整个工作台镜像到策展中心（按分类打包）</div>
         <div class="ctx-item danger" @click="deleteWorkspace">🗑 删除工作台</div>
       </div>
     </Teleport>

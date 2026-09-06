@@ -1,7 +1,7 @@
 ﻿/**
  * 知源调度台 · 设计令牌（V2.3 视觉重构 · Linear 体系）
  *
- * 结构语言（六主题共用）：
+ * 结构语言（四主题共用，R53 精简）：
  *   - 四级表面阶梯（bg → surface → surface-2 → surface-3）+ 发丝线边框承载层级，弱化阴影
  *   - 圆角体系：卡片/弹层 12 · 输入/按钮 8 · 徽标 6（Linear rounded scale）
  *   - 字体：Inter（拉丁）+ 系统中文回退；轻微负字距
@@ -9,8 +9,6 @@
  *
  * 主题（每套保留自己的色彩个性，共用 Linear 结构）：
  *   深空薰衣草 linear —— 近黑画布 #010102 + 薰衣草蓝 #5E6AD2（默认 · Linear 原版气质）
- *   原野绿  green  —— 绿调近黑画布 + 品牌绿
- *   暗夜红  night  —— 中性近黑画布 + 绯红
  *   极简白  apple  —— 浅色反相阶梯 + Apple 蓝
  *   光速黑  raycast —— 近黑画布 + 珊瑚红
  *   纸墨白  notion —— 暖白纸面 + Notion 蓝
@@ -101,94 +99,6 @@
   --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
   --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
 }
-
-/* ===== 原野绿 · 绿调近黑（品牌绿 + Linear 结构） ===== */
-[data-theme='green'] {
-  --bg: #080B09;
-  --surface: #0E1210;
-  --surface-2: #131814;
-  --surface-3: #181E19;
-  --border: #1F2621;
-  --border-strong: #2C3630;
-  --text: #EDF2EE;
-  --text-2: #C2CEC6;
-  --text-3: #7F8C84;
-  --text-4: #5A6660;
-  --accent: #10A56E;
-  --accent-2: #2BBD85;
-  --accent-light: rgba(16, 165, 110, 0.15);
-  --accent-hover: #2BD98C;
-  --accent-glow: rgba(16, 165, 110, 0.3);
-  --success: #27A644;
-  --warning: #D9A03C;
-  --danger: #E5484D;
-  --stagnant: #D4715D;
-  --info-blue: #5B8DEF;
-  --info-blue-light: rgba(91, 141, 239, 0.14);
-  --curio-amber: #D9B45C;
-  --curio-bg: rgba(217, 180, 92, 0.12);
-  --violet: #A78BFA;
-  --tag-warn-bg: rgba(217, 160, 60, 0.14);
-  --tag-warn-text: #EFBE66;
-  --tag-ok-bg: rgba(39, 166, 68, 0.15);
-  --tag-ok-text: #6FCE8B;
-  --tag-danger-bg: rgba(229, 72, 77, 0.15);
-  --tag-danger-text: #FF9189;
-  --tag-neutral-bg: rgba(255, 255, 255, 0.07);
-  --tag-neutral-text: #A9ADB5;
-  --tag-info-bg: rgba(91, 141, 239, 0.15);
-  --tag-info-text: #9CC0F5;
-  --overlay-bg: rgba(0, 0, 0, 0.6);
-  --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
-  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
-}
-
-/* ===== 暗夜红 · 中性近黑 + 绯红 ===== */
-[data-theme='night'] {
-  --bg: #0B0B0D;
-  --surface: #101012;
-  --surface-2: #151517;
-  --surface-3: #1A1A1D;
-  --border: #232327;
-  --border-strong: #34343A;
-  --text: #F7F7F8;
-  --text-2: #C8CBD2;
-  --text-3: #8A8F98;
-  --text-4: #62666D;
-  --accent: #E8374A;
-  --accent-2: #F2606F;
-  --accent-light: rgba(232, 55, 74, 0.15);
-  --accent-hover: #FF5C6E;
-  --accent-glow: rgba(232, 55, 74, 0.3);
-  --success: #27A644;
-  --warning: #D9A03C;
-  --danger: #E5484D;
-  --stagnant: #D4715D;
-  --info-blue: #5B8DEF;
-  --info-blue-light: rgba(91, 141, 239, 0.14);
-  --curio-amber: #D9B45C;
-  --curio-bg: rgba(217, 180, 92, 0.12);
-  --violet: #A78BFA;
-  --tag-warn-bg: rgba(217, 160, 60, 0.14);
-  --tag-warn-text: #EFBE66;
-  --tag-ok-bg: rgba(39, 166, 68, 0.15);
-  --tag-ok-text: #6FCE8B;
-  --tag-danger-bg: rgba(229, 72, 77, 0.15);
-  --tag-danger-text: #FF9189;
-  --tag-neutral-bg: rgba(255, 255, 255, 0.07);
-  --tag-neutral-text: #A9ADB5;
-  --tag-info-bg: rgba(91, 141, 239, 0.15);
-  --tag-info-text: #9CC0F5;
-  --overlay-bg: rgba(0, 0, 0, 0.6);
-  --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
-  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
-}
-
-/* ===== 极简白 · 浅色反相阶梯 + Apple 蓝 ===== */
 [data-theme='apple'] {
   --bg: #F7F7F8;
   --surface: #FFFFFF;

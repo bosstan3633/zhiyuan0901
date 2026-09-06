@@ -222,7 +222,7 @@
               <span class="gs-pan-batch-n">已选 {{ panSelected.size }} 张</span>
               <select class="gs-select" v-model="panMoveWs" @change="panMoveCat = ''">
                 <option value="">目标工作台…</option>
-                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name }}</option>
+                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</option>
               </select>
               <select class="gs-select" v-model="panMoveCat" :disabled="!panMoveWs">
                 <option value="">目标分类（可选）</option>
@@ -398,7 +398,7 @@
               <div class="gs-sr-control">
                 <select class="gs-select" v-model="bookmarkTargetWs">
                   <option value="__new__">🆕 新建工作台「书签导入」</option>
-                  <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name }}</option>
+                  <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</option>
                 </select>
               </div>
             </div>
@@ -452,7 +452,7 @@
               <div class="gs-er-info"><div class="gs-er-name">按工作台导出CSV</div><div class="gs-er-desc">字段：系统字段全导 + 自定义字段按可见性，列名/顺序跟随「字段管理」；尾随 链接类型/分类/置顶/星标/更新时间，适配Airtable等多维表</div></div>
               <select class="gs-select" v-model="csvWsId">
                 <option value="">选择工作台…</option>
-                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name }}</option>
+                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</option>
               </select>
               <button class="gs-btn" @click="exportCsvForWorkspace" :disabled="!csvWsId">导出CSV</button>
             </div>
@@ -460,7 +460,7 @@
               <div class="gs-er-info"><div class="gs-er-name">导出指定工作台</div><div class="gs-er-desc">选择一个工作台导出为JSON</div></div>
               <select class="gs-select" v-model="exportWsId">
                 <option value="">选择工作台…</option>
-                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name }}</option>
+                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</option>
               </select>
               <button class="gs-btn" @click="exportWorkspace" :disabled="!exportWsId">导出</button>
             </div>
@@ -496,7 +496,7 @@
       <div v-if="activePage === 'shortcuts'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">⌨ 快捷键设置</div>
-          <div class="gs-page-desc">💡 系统级快捷键（含方向台/策展中心/完整方向树）请在浏览器地址栏打开 chrome://extensions/shortcuts 自定义（高效使用知源的第一步）；应用内快捷键开箱即用</div>
+          <div class="gs-page-desc">💡 系统级快捷键（含方向台/策展中心/完整方向树/任务调度）请在浏览器地址栏打开 chrome://extensions/shortcuts 自定义（高效使用知源的第一步）；应用内快捷键开箱即用</div>
         </div>
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">全局快捷键（任意网页可用）</span><span class="gs-card-desc">由 Chrome 统一管理 · 方向台/策展中心/完整方向树无默认键，需手动分配</span></div>
@@ -646,7 +646,7 @@
               <span class="gs-sr-label">默认存入工作台</span>
               <div class="gs-sr-control">
                 <select class="gs-select" v-model="defaultCaptureWs" @change="persistCapturePref">
-                  <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name }}（待分类）</option>
+                  <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}（待分类）</option>
                 </select>
               </div>
             </div>
@@ -919,11 +919,9 @@ function formatBackupAgo(ts: number): string {
 }
 watch(() => route.query.page, () => { const p = pageFromQuery(); if (p) activePage.value = p })
 const navGroups = [
-  // 第卌四轮 T-03：五组重组（拍板 Q-6，12 项一项不减）——总览=仪表盘默认首屏；整理=工作台全景第二屏
+  // R54-E1（修订第卌四轮五组拍板）：总览 = 知源仪表盘 + 工作台全景并列，「整理」组取消
   { title: '总览', items: [
     { key: 'dashboard', icon: '📊', label: '知源仪表盘' },
-  ]},
-  { title: '整理', items: [
     { key: 'panorama', icon: '🗺', label: '工作台全景' },
   ]},
   { title: '卡片与字段', items: [
@@ -1607,6 +1605,11 @@ function mergeImport(imported: AppData): { cards: number; dirs: number; ws: numb
   if (imported.activityLogs?.length) {
     const ids = new Set(d.activityLogs.map(l => l.id))
     for (const l of imported.activityLogs) if (!ids.has(l.id)) d.activityLogs.push(l)
+  }
+
+  // ---- R53-E1（P0 修复）：策展投射清单并入——此前导入合并遗漏此字段，备份→恢复会静默丢弃全部策展投射 ----
+  if (imported.curationProjections?.length || d.curationProjections?.length) {
+    d.curationProjections = mergeById(d.curationProjections || [], imported.curationProjections || [])
   }
 
   // ---- 标签体系 / 字段配置（原有逻辑保留）----

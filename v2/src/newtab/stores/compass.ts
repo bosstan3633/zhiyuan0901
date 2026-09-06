@@ -65,6 +65,14 @@ export function useCompass() {
     return { done, total, pct }
   }
 
+  /** R52-BUG-2：项目完成共享口径（一处定义、五处消费：主航线/项目总览/完整方向树/搜索项目类型）
+   *  1) 手动 status=done/archived；2) 派生完成——项目下有任务且全部 done（纯计算，不回写 status） */
+  function isProjectDone(project: Project): boolean {
+    if (project.status === 'done' || project.status === 'archived') return true
+    const tasks = d.value.tasks.filter(t => !t.deletedAt && t.projectId === project.id)
+    return tasks.length > 0 && tasks.every(t => t.status === 'done')
+  }
+
   /** R49-C2/C5：项目停滞判定（简版口径：有任务但近 14 天无推进/完成活动） */
   function isProjectStalled(project: Project): boolean {
     const tasks = d.value.tasks.filter(t => !t.deletedAt && t.projectId === project.id)
@@ -177,7 +185,7 @@ export function useCompass() {
   return {
     d, visionText, missionText, directions, allProjects, projectById,
     focusedProjects, toggleFocusProject, projectProgress,
-    isProjectStalled, offCourseCount, taskArchiveIssue, unarchivedTaskCount, totalTaskCount,
+    isProjectStalled, isProjectDone, offCourseCount, taskArchiveIssue, unarchivedTaskCount, totalTaskCount,
     northStarMetrics, formulas
   }
 }

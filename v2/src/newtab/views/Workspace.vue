@@ -168,6 +168,8 @@
                   <div class="rc-action pin" @click.stop="togglePin(r)" title="置顶">📌</div>
                   <div class="rc-action" :class="{on: r.starred}" :title="r.starred?'取消星标':'星标'" @click.stop="toggleStar(r)">⭐</div>
                   <div class="rc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</div>
+                  <!-- R53-B：卡面单卡镜像入口（与右键菜单同函数） -->
+                  <div v-if="r.workspaceId !== CURATION_WS_ID" class="rc-action" @click.stop="projectCardToCuration(r)" title="镜像到策展中心">📡</div>
                   <div class="rc-action delete" @click.stop="deleteResource(r)" title="删除">🗑</div>
                 </div>
                 <div class="rc-fields">
@@ -805,31 +807,32 @@ function openResCtx(e: MouseEvent, r: ResourceCard) {
     { label: '复制链接', icon: 'copy', cb: () => { if (r.link) { navigator.clipboard.writeText(r.link); showToast('✓ 链接已复制') } } },
     { label: '移动分类', icon: 'folder', cb: () => openMoveOne(r) },
     { label: r.pinned ? '取消置顶' : '置顶', icon: 'pin', cb: () => togglePin(r) },
-    { label: '投射到策展中心', icon: 'star', cb: () => projectCardToCuration(r) },
+    { label: '📡 镜像到策展中心', icon: 'star', cb: () => projectCardToCuration(r) },
     { label: '删除', icon: 'trash', danger: true, cb: () => deleteResource(r) }
   ]
   resCtx.value = { open: true, x: Math.min(e.clientX, window.innerWidth - 190), y: Math.min(e.clientY, window.innerHeight - 240) }
 }
 
-/** R50-F3：单卡投射到策展中心（引用式镜像记录；策展中心实时渲染源卡，清空/移出零影响源数据） */
+/** R50-F3 + R53：单卡镜像到策展中心（引用式镜像记录，落「待分类」；策展中心实时渲染源卡，移出/清空零影响源数据） */
 function projectCardToCuration(r: ResourceCard) {
-  if (r.workspaceId === CURATION_WS_ID) { showToast('ℹ 策展中心原生卡无需投射'); return }
+  if (r.workspaceId === CURATION_WS_ID) { showToast('ℹ 策展中心原生卡无需镜像'); return }
   const d2 = d.value
   d2.curationProjections = d2.curationProjections || []
   if (d2.curationProjections.some(p => p.kind === 'card' && p.cardId === r.id)) { showToast('ℹ 该卡已在策展中心镜像中'); return }
   d2.curationProjections.push({ id: uid('curp'), kind: 'card', wsId: r.workspaceId, cardId: r.id, catId: r.categoryId, targetCatId: '', addedAt: Date.now() })
   store.persist()
-  showToast('📤 已投射到策展中心（引用式镜像）')
+  showToast('📡 已镜像到策展中心（引用式镜像）')
 }
 
-/** R50-F3：整组分类投射（含其子分类的卡片，实时镜像） */
+/** R53-A3（修订 R50-F3）：整组分类镜像——物化为带 curFrom 的真实策展分类（同树混排；源卡含子分类实时呈现） */
 function projectCategoryToCuration(cat: Category) {
   const d2 = d.value
-  d2.curationProjections = d2.curationProjections || []
-  if (d2.curationProjections.some(p => p.kind === 'category' && p.catId === cat.id)) { showToast('ℹ 该分类已在策展中心镜像中'); return }
-  d2.curationProjections.push({ id: uid('curp'), kind: 'category', wsId: cat.workspaceId, catId: cat.id, targetCatId: '', addedAt: Date.now() })
+  if (d2.categories.some(x => x.workspaceId === CURATION_WS_ID && x.curFrom?.wsId === cat.workspaceId && x.curFrom?.catId === cat.id)) { showToast('ℹ 该分类已在策展中心镜像中'); return }
+  let maxOrder = -1
+  for (const c of d2.categories) if (c.workspaceId === CURATION_WS_ID && (c.order ?? 0) > maxOrder) maxOrder = c.order ?? 0
+  d2.categories.push({ id: uid('cat'), workspaceId: CURATION_WS_ID, name: cat.name, order: maxOrder + 1, curFrom: { wsId: cat.workspaceId, catId: cat.id, projId: 'cat:' + cat.id } })
   store.persist()
-  showToast('📤 已整组投射到策展中心（含子分类，实时镜像）')
+  showToast('📡 已镜像分类到策展中心（含子分类实时呈现）')
 }
 // B6：拖拽插入线（X 轴卡片 / Y 轴列表）
 const dropMark = ref('')
@@ -1095,6 +1098,15 @@ async function deleteCategory(cat: Category) {
     allResources.value.forEach(r => { if (r.categoryId === cat.id) r.categoryId = '' })
   }
   d.value.categories = d.value.categories.filter(c => c.id !== cat.id)
+  // R53-A3：级联清理该源分类的策展镜像分类（停入卡回落未分类、投射卡回待分类、子分类提根）
+  const mirrorCats = d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID && c.curFrom?.catId === cat.id)
+  for (const mc of mirrorCats) {
+    const midIds = new Set<string>([mc.id])
+    for (const r of d.value.resources) if (r.workspaceId === CURATION_WS_ID && midIds.has(r.categoryId || '')) r.categoryId = ''
+    for (const p of d.value.curationProjections || []) if (p.kind === 'card' && p.targetCatId && midIds.has(p.targetCatId)) p.targetCatId = undefined
+    for (const c of d.value.categories) if (c.parentId && midIds.has(c.parentId)) c.parentId = undefined
+    d.value.categories = d.value.categories.filter(c => c.id !== mc.id)
+  }
   if (activeCategory.value === cat.id) activeCategory.value = 'all'
   normalizeCatOrders('')
   store.persist()
