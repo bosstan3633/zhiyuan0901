@@ -3,3 +3,6 @@
 .DS_Store
 Thumbs.db
 .vite/
+.r55-*.cjs
+.e2e-fix*
+.dbg-*.cjs
