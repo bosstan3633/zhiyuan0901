@@ -78,6 +78,83 @@ function renameMetric(m: Metric, e: FocusEvent) {
   if (v && v !== m.title) { m.title = v; store.persist(); showToast('✓ 指标已更新，同步方向树') }
   else if (!v) { (e.target as HTMLElement).textContent = m.title }
 }
+/* ================= R55-G1：左栏项目目录树（拖任务跨指标 / 拖指标排序 / 定位） ================= */
+const treeDrop = ref<{ id: string; mode: 't' | 'b' } | null>(null)
+let treeDragMetric: Metric | null = null
+let treeDragTask: TaskCard | null = null
+const taskFlashId = ref('')
+const metricFlashId = ref('')
+function treeMetricDragStart(e: DragEvent, m: Metric) {
+  treeDragMetric = m
+  treeDragTask = null
+  e.dataTransfer?.setData('text/plain', 'metric:' + m.id)
+}
+function treeMetricDragOver(e: DragEvent, m: Metric) {
+  if (!treeDragMetric || treeDragMetric.id === m.id) return
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  treeDrop.value = { id: m.id, mode: (e.clientY - rect.top) / rect.height > 0.5 ? 'b' : 't' }
+}
+function treeMetricDrop(e: DragEvent, target: Metric) {
+  const mode = treeDrop.value?.mode
+  const drag = treeDragMetric
+  treeDragMetric = null
+  treeDrop.value = null
+  if (!drag || drag.id === target.id || !currentProject.value) return
+  const arr = currentProject.value.metrics
+  const fi = arr.findIndex(x => x.id === drag.id)
+  const ti = arr.findIndex(x => x.id === target.id)
+  if (fi < 0 || ti < 0) return
+  const [moved] = arr.splice(fi, 1)
+  const tj = arr.findIndex(x => x.id === target.id)
+  arr.splice(mode === 'b' ? tj + 1 : tj, 0, moved)
+  store.persist()
+  showToast(`✓ 指标「${drag.title}」已排序（同步调度台项目调度）`)
+}
+function treeTaskDragStart(e: DragEvent, t: TaskCard) {
+  treeDragTask = t
+  treeDragMetric = null
+  e.dataTransfer?.setData('text/plain', 'task:' + t.id)
+}
+function treeTaskDropOnMetric(e: DragEvent, m: Metric | null) {
+  const t = treeDragTask
+  treeDragTask = null
+  if (!t || !currentProject.value) return
+  const oldMetric = t.metricId
+  if (m) {
+    if (t.metricId === m.id) return
+    t.metricId = m.id
+    t.projectId = currentProject.value.id
+  } else {
+    // 拖到「未归类」= 摘除指标（保留项目）
+    if (!t.metricId) return
+    t.metricId = undefined
+  }
+  for (const dir of d.value.compass.directions) {
+    for (const proj of dir.projects) {
+      for (const mt of proj.metrics) {
+        if (oldMetric && mt.id === oldMetric) mt.taskIds = mt.taskIds.filter(x => x !== t.id)
+        if (m && mt.id === m.id && !mt.taskIds.includes(t.id)) mt.taskIds.push(t.id)
+      }
+    }
+  }
+  t.updatedAt = Date.now()
+  store.persist()
+  showToast(m ? `✓ 任务已归属「${m.title}」` : '✓ 任务已转为未归类')
+}
+function scrollToMetric(id: string) {
+  const el = document.getElementById('metric-sec-' + id)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  metricFlashId.value = id
+  setTimeout(() => { metricFlashId.value = '' }, 1500)
+}
+function scrollToTask(id: string) {
+  const el = document.querySelector(`.btask[data-task-id="${id}"]`)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  taskFlashId.value = id
+  setTimeout(() => { taskFlashId.value = '' }, 1500)
+}
 function toggleFocus(p: Project) {
   if (!p.isFocused) {
     const focused = allProjects().filter(x => x.isFocused && x.id !== p.id)
@@ -322,13 +399,53 @@ function addTaskFromHeader() {
 
     <!-- ===== 单项目全屏展板 ===== -->
     <div v-else class="board-layout">
-    <!-- O12/D8：左侧项目目录（sticky 跟随） -->
-    <aside class="proj-toc">
-      <div class="pt-title">📦 全部项目</div>
-      <div v-for="p in projects.slice().sort((a,b)=>(a.order||0)-(b.order||0))" :key="p.id"
-        class="pt-item" :class="{active: currentProject.id === p.id}" @click="openProject(p)">
-        <span class="pt-name">{{ p.name }}</span>
-        <span class="pt-pct">{{ projectProgress(p).pct }}%</span>
+    <!-- R55-G1：左栏双列联动目录——第一列全部项目（单击切换），第二列当前项目目录树（拖任务跨指标/拖指标排序） -->
+    <aside class="proj-rail">
+      <div class="pr-col pr-projects">
+        <div class="pt-title">📦 全部项目</div>
+        <div v-for="p in projects.slice().sort((a,b)=>(a.order||0)-(b.order||0))" :key="p.id"
+          class="pt-item" :class="{active: currentProject.id === p.id}" @click="openProject(p)">
+          <span class="pt-name">{{ p.name }}</span>
+          <span class="pt-pct">{{ projectProgress(p).pct }}%</span>
+        </div>
+      </div>
+      <div class="pr-col pr-tree">
+        <div class="pt-title">📐 项目目录</div>
+        <div class="prt-root">
+          <span class="prt-root-name">{{ currentProject.name }}</span>
+          <span class="prt-root-pct">{{ projectProgress(currentProject).pct }}%</span>
+        </div>
+        <template v-for="(m, mi) in currentProject.metrics" :key="m.id">
+          <div class="prt-metric" :class="{'drop-line-t': treeDrop?.id === m.id && treeDrop?.mode === 't', 'drop-line-b': treeDrop?.id === m.id && treeDrop?.mode === 'b' }"
+            draggable="true" @dragstart="treeMetricDragStart($event, m)" @dragover.prevent="treeMetricDragOver($event, m)" @dragleave="treeDrop = null" @drop.prevent="treeMetricDrop($event, m)">
+            <div class="prt-mrow" :title="'🎯 ' + m.title + ' · 单击定位 · 拖动排序'" @click="scrollToMetric(m.id)">
+              <span class="prt-dot">🎯</span><span class="prt-name">{{ m.title }}</span>
+              <span class="prt-meta">{{ metricPct(m.id) }}% · {{ tasksForMetric(m.id).length }}</span>
+            </div>
+            <div v-for="t in tasksForMetric(m.id)" :key="t.id" class="prt-task"
+              :class="{ flash: taskFlashId === t.id }"
+              draggable="true" @dragstart.stop="treeTaskDragStart($event, t)" @dragover.stop.prevent
+              @drop.stop.prevent="treeTaskDropOnMetric($event, m)"
+              :title="t.title + ' · 拖到其他指标 = 变更归属'" @click.stop="scrollToTask(t.id)">
+              <span class="prt-task-dot" :class="'st-' + t.status">{{ t.status==='done'?'✓':t.status==='doing'?'◐':'○' }}</span>
+              <span class="prt-task-name">{{ t.title }}</span>
+            </div>
+          </div>
+        </template>
+        <div v-if="orphanTasks.length" class="prt-metric orphan">
+          <div class="prt-mrow" title="原指标已删除的任务">
+            <span class="prt-dot">⚠</span><span class="prt-name">未归类任务</span>
+            <span class="prt-meta">{{ orphanTasks.length }}</span>
+          </div>
+          <div v-for="t in orphanTasks" :key="t.id" class="prt-task"
+            draggable="true" @dragstart.stop="treeTaskDragStart($event, t)" @dragover.stop.prevent
+            @drop.stop.prevent="treeTaskDropOnMetric($event, null)"
+            @click.stop="scrollToTask(t.id)">
+            <span class="prt-task-dot">○</span>
+            <span class="prt-task-name">{{ t.title }}</span>
+          </div>
+        </div>
+        <div v-if="!currentProject.metrics.length" class="prt-empty">暂无成功指标——点上方「🎯 添加成功指标」</div>
       </div>
     </aside>
     <div class="board">
@@ -400,7 +517,7 @@ function addTaskFromHeader() {
 
       <!-- 成功指标 → 任务 -->
       <div class="layer-header"><div class="layer-num">5</div><div class="layer-name">成功指标 → 任务</div><div class="layer-desc">· 拖拽 ⋮⋮ 排序或跨指标归属</div></div>
-      <div v-for="(m, mi) in currentProject.metrics" :key="m.id" class="metric-sec"
+      <div v-for="(m, mi) in currentProject.metrics" :key="m.id" class="metric-sec" :id="'metric-sec-' + m.id" :class="{ 'sec-flash': metricFlashId === m.id }"
         @dragover.prevent="onMetricDragOver($event, m.id)" @dragleave="onMetricDragLeave" @drop="onMetricDrop($event, m.id)">
         <div class="metric-head2">
           <span class="tag ok" style="flex-shrink:0">🎯 指标 {{ mi+1 }}</span>
@@ -412,7 +529,8 @@ function addTaskFromHeader() {
           <button class="icon-btn-sm del" title="删除指标" @click="removeMetric(m)">🗑</button>
         </div>
         <div class="task-rows">
-          <div v-for="task in tasksForMetric(m.id)" :key="task.id" class="btask" :class="{done: task.status==='done'}" draggable="true"
+          <div v-for="task in tasksForMetric(m.id)" :key="task.id" class="btask" :class="{done: task.status==='done', 'task-flash': taskFlashId === task.id}" draggable="true"
+            :data-task-id="task.id"
             @dragstart="onTaskDragStart($event, task, m.id)" @dragend="onTaskDragEnd"
             @dragover.prevent.stop @drop.stop="onTaskDrop($event, task)">
             <span class="bdrag" title="拖拽排序 / 跨指标归属">⋮⋮</span>
@@ -433,7 +551,8 @@ function addTaskFromHeader() {
           <span class="mname">原指标已删除 · 可拖回任意指标或删除</span>
         </div>
         <div class="task-rows">
-          <div v-for="t in orphanTasks" :key="t.id" class="btask" :class="{done: t.status==='done'}" draggable="true"
+          <div v-for="t in orphanTasks" :key="t.id" class="btask" :class="{done: t.status==='done', 'task-flash': taskFlashId === t.id}" draggable="true"
+            :data-task-id="t.id"
             @dragstart="onTaskDragStart($event, t, '__orphan__')" @dragend="onTaskDragEnd" @dragover.prevent @drop="onTaskDrop($event, t)">
             <span class="bdrag" title="拖拽到指标归属">⋮⋮</span>
             <span class="bcheck" :class="{done: t.status==='done'}" @click="toggleTaskDone(t)">{{ t.status==='done'?'✓':'' }}</span>
@@ -568,15 +687,44 @@ function addTaskFromHeader() {
 .empty-state { text-align: center; padding: 48px 20px; color: var(--text-3); font-size: 13px; }
 
 /* 展板 */
-.board-layout { display: flex; gap: 20px; align-items: flex-start; }
-.proj-toc { position: sticky; top: 16px; width: 200px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 8px; box-shadow: var(--shadow); max-height: calc(100vh - 200px); overflow-y: auto; }
+.board-layout { display: flex; gap: 16px; align-items: flex-start; }
+/* R55-G1：左栏双列联动目录——第一列全部项目 + 第二列当前项目目录树 */
+.proj-rail { position: sticky; top: 16px; display: flex; gap: 8px; flex-shrink: 0; width: 372px; max-height: calc(100vh - 200px); }
+.pr-col { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 8px; box-shadow: var(--shadow); overflow-y: auto; }
+.pr-projects { width: 148px; flex-shrink: 0; }
+.pr-tree { flex: 1; min-width: 0; }
 .pt-title { font-size: 10.5px; font-weight: 700; color: var(--accent); letter-spacing: .5px; padding: 0 8px 8px; }
 .pt-item { display: flex; align-items: center; gap: 6px; padding: 7px 9px; border-radius: 8px; cursor: pointer; transition: all .12s; border: 1px solid transparent; }
 .pt-item:hover { background: var(--surface-3); }
-.pt-item.active { background: var(--accent-light); border-color: rgba(14,122,78,.25); }
+.pt-item.active { background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
 .pt-item.active .pt-name { color: var(--accent); font-weight: 600; }
 .pt-name { flex: 1; min-width: 0; font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pt-pct { font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+/* 第二列 · 项目目录树 */
+.prt-root { display: flex; align-items: center; gap: 6px; padding: 7px 9px; margin-bottom: 4px; background: var(--accent-light); border-radius: 8px; }
+.prt-root-name { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 700; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prt-root-pct { font-size: 10.5px; color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 600; }
+.prt-metric { border-radius: 8px; padding: 2px 0; }
+.prt-metric + .prt-metric { margin-top: 2px; }
+.prt-metric.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
+.prt-metric.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
+.prt-metric[draggable="true"] > .prt-mrow { cursor: grab; }
+.prt-mrow { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: background .12s; }
+.prt-mrow:hover { background: var(--surface-2); }
+.prt-dot { font-size: 11px; flex-shrink: 0; }
+.prt-name { flex: 1; min-width: 0; font-size: 11.5px; font-weight: 600; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prt-meta { font-size: 9.5px; color: var(--text-4); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.prt-task { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 24px; border-radius: 6px; cursor: pointer; transition: background .12s; }
+.prt-task:hover { background: var(--surface-2); }
+.prt-task[draggable="true"] { cursor: grab; }
+.prt-task-dot { font-size: 9px; width: 14px; text-align: center; flex-shrink: 0; color: var(--text-3); border-radius: 99px; }
+.prt-task-dot.st-doing { color: var(--tag-warn-text); }
+.prt-task-dot.st-done { color: var(--success); }
+.prt-task-name { flex: 1; min-width: 0; font-size: 11px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prt-task.flash { background: var(--accent-light); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+.prt-task.flash .prt-task-name { color: var(--accent); }
+.prt-metric.sec-flash { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.prt-empty { font-size: 10.5px; color: var(--text-4); padding: 8px; text-align: center; }
 .board { flex: 1; min-width: 0; max-width: 920px; }
 .metric-sec .mname { outline: none; border-radius: 5px; padding: 2px 5px; margin: -2px -5px; cursor: text; }
 .metric-sec .mname:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
@@ -586,16 +734,17 @@ function addTaskFromHeader() {
 .metric-add-row { display: flex; gap: 8px; margin: -6px 0 14px; }
 .metric-add-row input { flex: 1; border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; color: var(--text); outline: none; font-family: inherit; }
 .metric-add-row input:focus { border-color: var(--accent); }
-.chain-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 22px; margin-bottom: 16px; }
-.chain-line { display: flex; flex-direction: column; }
-.ch-node { display: flex; align-items: flex-start; gap: 12px; }
-.ch-ic { width: 30px; height: 30px; border-radius: 8px; background: var(--surface-3); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.chain-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 16px; }
+/* R55-G2：归属链横向化——愿景→使命→战略目标→项目 一行呈现，压缩纵向空间 */
+.chain-line { display: flex; flex-direction: row; align-items: stretch; gap: 10px; }
+.ch-node { display: flex; align-items: flex-start; gap: 10px; flex: 1; min-width: 0; }
+.ch-ic { width: 28px; height: 28px; border-radius: 8px; background: var(--surface-3); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
 .ch-node.hi .ch-ic { background: var(--accent-light); }
-.ch-body { flex: 1; min-width: 0; padding-bottom: 14px; }
-.ch-lab { font-size: 9.5px; font-weight: 700; letter-spacing: 1px; color: var(--text-3); text-transform: uppercase; }
-.ch-txt { font-size: 13px; color: var(--text-2); line-height: 1.6; }
-.ch-node.hi .ch-txt { color: var(--accent); font-weight: 600; font-size: 14px; }
-.ch-link { width: 2px; height: 16px; margin-left: 14px; background: linear-gradient(to bottom, var(--accent), color-mix(in srgb, var(--accent) 25%, transparent)); border-radius: 2px; }
+.ch-body { flex: 1; min-width: 0; padding-bottom: 0; }
+.ch-lab { font-size: 9px; font-weight: 700; letter-spacing: 1px; color: var(--text-3); text-transform: uppercase; }
+.ch-txt { font-size: 12px; color: var(--text-2); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ch-node.hi .ch-txt { color: var(--accent); font-weight: 600; font-size: 12.5px; }
+.ch-link { width: 18px; height: 2px; align-self: center; flex-shrink: 0; margin: 0; background: linear-gradient(to right, var(--accent), color-mix(in srgb, var(--accent) 25%, transparent)); border-radius: 2px; }
 .hero { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 16px; }
 .hero-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .hero-pname { font-size: 20px; font-weight: 700; letter-spacing: .2px; outline: none; border-radius: 6px; padding: 2px 6px; margin: -2px -6px; cursor: text; }
@@ -618,6 +767,10 @@ function addTaskFromHeader() {
 .layer-desc { font-size: 11px; color: var(--text-3); }
 
 .metric-sec { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px; transition: border-color .15s, box-shadow .15s; }
+/* R55-G1：目录树定位闪烁 */
+.metric-sec.sec-flash { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.btask.task-flash { background: var(--accent-light); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+.btask.task-flash .bt { color: var(--accent); }
 .metric-sec.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
 .metric-head2 { display: flex; align-items: center; gap: 10px; }
 .metric-head2 .mname { font-size: 13.5px; font-weight: 600; flex: 1; min-width: 0; }

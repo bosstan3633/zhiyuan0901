@@ -164,6 +164,8 @@ export interface CurationProjection {
   cardId?: ID
   /** 投入策展中心的分类（空 = 未分类区） */
   targetCatId?: ID
+  /** R55-A1：策展视图统一排序键（与原生卡 curOrder 同键，混排列表统一重编号） */
+  curOrder?: number
   /** R51-F21：分类镜像分组在策展树中的显示名（遗留；迁移时转为策展分类名） */
   displayName?: string
   addedAt: number

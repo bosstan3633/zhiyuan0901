@@ -212,6 +212,68 @@
     </div>
   </div>
 
+  <!-- R55-C：快速采集任务（四字段全非必填，直存全域任务） -->
+  <div class="gp-overlay corner" :class="{open: activePanel==='taskcapture'}" @click.self="closeAll">
+    <div class="gp-panel gp-panel-narrow">
+      <template v-if="!tcSaved">
+        <div class="gp-cap-head">
+          <div class="gp-cap-icon res">⚡</div>
+          <div class="gp-cap-titles">
+            <div class="gp-cap-title">快速采集任务</div>
+            <div class="gp-cap-sub">四项皆可留空 · 存入全域任务统一管理</div>
+          </div>
+          <button class="gp-cap-close" @click="closeAll">×</button>
+        </div>
+        <div class="gp-cap-body">
+          <div class="gp-field">
+            <label class="gp-field-label">任务名称</label>
+            <input ref="tcTitleInput" type="text" class="gp-field-input" v-model="tcForm.title" placeholder="要做什么（可留空）"
+              @keydown.ctrl.enter.prevent="saveTaskCapture" @keydown.meta.enter.prevent="saveTaskCapture">
+          </div>
+          <div class="gp-field">
+            <label class="gp-field-label">任务内容</label>
+            <textarea class="gp-field-input gp-cap-desc" v-model="tcForm.description"
+              placeholder="补充说明、上下文、验收标准（可留空）"
+              @keydown.ctrl.enter.prevent="saveTaskCapture" @keydown.meta.enter.prevent="saveTaskCapture"></textarea>
+          </div>
+          <div class="gp-field-row">
+            <div class="gp-field">
+              <label class="gp-field-label">所属项目（可留空）</label>
+              <select class="gp-status-select" v-model="tcForm.projectId">
+                <option value="">未关联项目</option>
+                <option v-for="p in tcProjects" :key="p.id" :value="p.id">📦 {{ p.name }}</option>
+              </select>
+            </div>
+            <div class="gp-field">
+              <label class="gp-field-label">所属指标（可留空）</label>
+              <select class="gp-status-select" v-model="tcForm.metricId" :disabled="!tcForm.projectId">
+                <option value="">暂不归属</option>
+                <option v-for="m in tcMetrics" :key="m.id" :value="m.id">🎯 {{ m.title }}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="gp-cap-foot">
+          <button class="gp-btn gp-btn-ghost" @click="closeAll">取消</button>
+          <button class="gp-btn gp-btn-primary" @click="saveTaskCapture">⚡ 保存任务（Ctrl+Enter）</button>
+        </div>
+      </template>
+      <template v-else>
+        <div class="gp-saved">
+          <div class="gp-saved-icon">⚡</div>
+          <div class="gp-saved-title">任务已保存</div>
+          <div class="gp-saved-sub">{{ tcForm.projectId ? '已挂项目/指标 · 全域任务统一管理' : '暂为未归档任务 · 可随时在方向台归档' }}</div>
+          <div class="gp-saved-hint">按 <kbd>Enter</kbd> 打开任务管理</div>
+          <div class="gp-saved-sub">按 <kbd>Esc</kbd> 关闭 · 5 秒后自动关闭</div>
+          <div class="gp-saved-actions">
+            <button class="gp-btn gp-btn-ghost" @click="resetTcForm(); closeAll()">关闭</button>
+            <button class="gp-btn gp-btn-primary" @click="tcOpenBoard">打开任务管理（Enter）</button>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
   <!-- 采集好奇心 -->
   <div class="gp-overlay" :class="{open: activePanel==='curio'}" @click.self="closeAll">
     <div class="gp-panel gp-panel-curio">
@@ -293,11 +355,12 @@ const store = useAppStore()
 const d = computed(() => store.data!)
 
 // 弹窗状态
-type PanelType = 'search' | 'capture' | 'curio' | 'shortcuts' | null
+type PanelType = 'search' | 'capture' | 'curio' | 'shortcuts' | 'taskcapture' | null
 const activePanel = ref<PanelType>(null)
 const searchInput = ref<HTMLInputElement | null>(null)
 const capTitleInput = ref<HTMLInputElement | null>(null)
 const curioInput = ref<HTMLTextAreaElement | null>(null)
+const tcTitleInput = ref<HTMLInputElement | null>(null)
 const resultsEl = ref<HTMLDivElement | null>(null)
 
 let lastFocused: HTMLElement | null = null
@@ -308,6 +371,14 @@ function openPanel(p: PanelType) {
   // V2.21：字典按需加载——仅在搜索面板被打开时才拉取，不进新标签页首屏同步路径
   // R47-A4：每次唤起清空上次查询词，恢复浏览态（无输入=近期热度排序）
   if (p === 'search') { currentType.value = 'all'; searchQuery.value = ''; void ensurePinyin() }
+  if (p === 'taskcapture') {
+    // R55-C：快速采集任务——四字段全非必填，直存全域任务
+    tcSaved.value = false
+    tcForm.title = ''
+    tcForm.description = ''
+    tcForm.projectId = ''
+    tcForm.metricId = ''
+  }
   if (p === 'curio') {
     // 第十七轮：仅当选中文本时附带来源；无选中 → 链接为空，不预设默认值
     curioForm.sourceTitle = ''
@@ -331,6 +402,7 @@ function openPanel(p: PanelType) {
       capTitleInput.value?.focus(); capTitleInput.value?.select()
     }
     if (p === 'curio') { curioInput.value?.focus() }
+    if (p === 'taskcapture') { tcTitleInput.value?.focus() }
   })
 }
 function closeAll() {
@@ -352,6 +424,11 @@ function openSavedBoard() {
 }
 
 function onSavedKeydown(e: KeyboardEvent) {
+  if (activePanel.value === 'taskcapture' && tcSaved.value) {
+    if (e.key === 'Enter') { e.preventDefault(); tcOpenBoard() }
+    else if (e.key === 'Escape') { e.preventDefault(); resetTcForm(); closeAll() }
+    return
+  }
   if (activePanel.value !== 'capture' || !capSaved.value) return
   if (e.key === 'Enter') { e.preventDefault(); openSavedBoard() }
   else if (e.key === 'Escape') { e.preventDefault(); closeAll() }
@@ -769,7 +846,7 @@ function toggleStar(item: SearchResult) {
 }
 
 async function deleteItem(item: SearchResult) {
-  if (!(await useConfirm({ title: '删除卡片', message: `确定删除「${item.title}」？\n删除后可在回收站恢复。`, confirmText: '确认删除' }))) return
+  // R55-H1：检索结果删除免二次确认——直接软删（allResults 过滤 !deletedAt，卡片即时从结果列表消失，可回收站恢复）
   if (item.type === 'res') { (item.raw as ResourceCard).deletedAt = Date.now() }
   else if (item.type === 'task') { (item.raw as TaskCard).deletedAt = Date.now() }
   else { (item.raw as CuriosityCard).deletedAt = Date.now() }
@@ -845,6 +922,47 @@ let savedTimer: ReturnType<typeof setTimeout> | null = null
 
 const userWorkspaces = computed(() => d.value.workspaces.filter(w => !w.archived))
 const capCategories = computed(() => d.value.categories.filter(c => c.workspaceId === capForm.workspaceId))
+
+// ===== R55-C：快速采集任务（四字段全非必填，直存全域任务；未挂项目=未归档） =====
+const tcForm = reactive({ title: '', description: '', projectId: '', metricId: '' })
+const tcSaved = ref(false)
+let tcSavedTimer: ReturnType<typeof setTimeout> | null = null
+const tcProjects = computed(() => d.value.compass.directions.flatMap(dir => dir.projects).filter(p => showDoneProjects.value || !isProjectDone(p)))
+const tcMetrics = computed(() => tcProjects.value.find(p => p.id === tcForm.projectId)?.metrics || [])
+watch(() => tcForm.projectId, () => { tcForm.metricId = '' })
+function saveTaskCapture() {
+  const now = Date.now()
+  const task = {
+    id: uid('tk'), kind: 'task' as const,
+    title: tcForm.title.trim() || '快速任务',
+    description: tcForm.description.trim(),
+    status: 'todo' as const, priority: 'medium' as const,
+    projectId: tcForm.projectId || undefined,
+    metricId: tcForm.metricId || undefined,
+    mountedResourceIds: [] as string[], mountedCuriosityIds: [] as string[],
+    customFields: {}, tags: [] as string[], pinned: false,
+    createdAt: now, updatedAt: now
+  }
+  d.value.tasks.unshift(task)
+  if (task.metricId) {
+    for (const dir of d.value.compass.directions) for (const p of dir.projects) for (const m of p.metrics)
+      if (m.id === task.metricId && !m.taskIds.includes(task.id)) m.taskIds.push(task.id)
+  }
+  store.persist()
+  tcSaved.value = true
+  if (tcSavedTimer) clearTimeout(tcSavedTimer)
+  tcSavedTimer = setTimeout(() => { closeAll(); tcSaved.value = false }, 5000)
+}
+function tcOpenBoard() {
+  resetTcForm()
+  closeAll()
+  router.push({ path: '/compass', query: { zone: 'task' } })
+}
+function resetTcForm() {
+  tcForm.title = ''; tcForm.description = ''; tcForm.projectId = ''; tcForm.metricId = ''
+  if (tcSavedTimer) { clearTimeout(tcSavedTimer); tcSavedTimer = null }
+  tcSaved.value = false
+}
 
 const capLinkPlaceholder = computed(() => {
   if (capForm.linkType === 'url') return 'https://…'

@@ -29,12 +29,16 @@ const windowStart = computed(() => {
   return 0
 })
 
-/** DHI：各战略目标 → 已投射项目 / 周期内有任务推进 / 在轨率 */
+/** DHI（R55-D3 新口径）：各战略目标 → 已投射项目 / 在轨项目（窗口内有任务完成 或 有进行中 或 全部完成） */
 const dhiRows = computed(() => {
   return d.value.compass.directions.map((dir) => {
     const projs = dir.projects
     const pinned = projs.filter(p => p.pinnedToLighthouse)
-    const active = pinned.filter(p => d.value.tasks.some(t => !t.deletedAt && t.projectId === p.id && t.updatedAt >= windowStart.value))
+    const active = pinned.filter(p => {
+      const ts = d.value.tasks.filter(t => !t.deletedAt && t.projectId === p.id)
+      const allDone = ts.length > 0 && ts.every(t => t.status === 'done')
+      return allDone || ts.some(t => t.status === 'doing') || ts.some(t => !!t.completedAt && t.completedAt >= windowStart.value)
+    })
     return { id: dir.id, name: dir.name, pinned: pinned.length, active: active.length, pct: pinned.length ? Math.round((active.length / pinned.length) * 100) : 0 }
   })
 })
@@ -116,7 +120,7 @@ function locateRes(id: string) {
 }
 function locateTask(id: string) {
   emit('close')
-  router.push({ path: '/', query: { hl: id, zone: 'task' } })
+  router.push({ path: '/compass', query: { hl: id, zone: 'task' } })
 }
 </script>
 

@@ -1755,7 +1755,7 @@ function linkDisplay(link: string) {
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-min-w), 1fr)); gap: var(--card-gap); }
 .res-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .res-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.res-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: var(--card-pad-vert) var(--card-pad-horz); cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; min-height: 120px; }
+.res-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: var(--card-pad-vert) var(--card-pad-horz); cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; min-height: 120px; /* R55-F4：屏外卡片跳过渲染（切工作台 595ms 的渲染段优化） */ content-visibility: auto; contain-intrinsic-size: auto 132px; }
 .res-card:hover { border-color: var(--accent); background: var(--surface-2); }
 .res-card.selected { border-color: var(--accent); background: var(--accent-light); }
 .res-card.pinned { border-left: 3px solid var(--accent); }

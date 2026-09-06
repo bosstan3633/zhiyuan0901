@@ -110,10 +110,9 @@ async function main() {
   const treeWs = await page.locator('.gs-pan-ws').count()
   report('E2E-3 工作台全景双栏+计数树', panVisible && treeWs >= 1, `panel=${panVisible} wsNodes=${treeWs}`)
 
-  // E2E-4 方向台指标条（R49-C1+R50-F5）：4 格 DHI/WCE/WRR/未归档任务 + 详细指标下钻含北极星「新增卡片/删除卡片」
-  await page.goto(base + '#/compass', { waitUntil: 'domcontentloaded' })
+  // E2E-4 方向状态四格（R55-D1：迁调度台顶部）：4 格 + 详细指标下钻含北极星「新增卡片/删除卡片」
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  if (!page.url().includes('/compass')) { await page.evaluate(() => { location.hash = '#/compass' }); await page.waitForTimeout(1800) }
   const metricBarOn = await page.locator('.mb-cells').first().isVisible().catch(() => false)
   const offCourse = await page.getByText('未归档任务').first().isVisible().catch(() => false)
   await page.locator('.mb-drill').click().catch(() => {})
@@ -121,8 +120,8 @@ async function main() {
   const todayAdd = await page.getByText('新增卡片').first().isVisible().catch(() => false)
   const todayDel = await page.getByText('删除卡片').first().isVisible().catch(() => false)
   const oldLabelGone = !(await page.getByText('今日新增', { exact: true }).first().isVisible().catch(() => false))
-  report('E2E-4 方向台指标条 4 格 + 详细指标下钻（北极星新增/删除卡在抽屉内）', metricBarOn && offCourse && todayAdd && todayDel && oldLabelGone,
-    `bar=${metricBarOn} offCourse=${offCourse} add=${todayAdd} del=${todayDel}`)
+  report('E2E-4 方向状态四格迁调度台顶部 + 详细指标下钻（R55-D1）', metricBarOn && offCourse && todayAdd && todayDel && oldLabelGone,
+    'bar=' + metricBarOn + ' unarch=' + offCourse + ' add=' + todayAdd + ' del=' + todayDel)
 
   // E2E-5 PDF 双击 file:// 打开
   await page.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })
@@ -183,22 +182,18 @@ async function main() {
   })
   await page.waitForTimeout(800)
 
-  // E2E-7 调度台底部 Tab（R45 T-03 + R46 BUG-1 + R49 改名）：默认好奇心培育 → 切任务调度 → 卡片视图默认 + 探索面板隐藏
+  // E2E-7 底部专区（R55-B2）：好奇心培育单区直呈（无 Tab 头）；任务调度模块在方向台
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   const tabsCount = await page.locator('.zone-tab').count()
-  const curioDefault = await page.locator('.zone-tab.active').first().textContent().catch(() => '')
-  const curioPanelOn = await page.locator('.zone-tab.active').first().evaluate((el) => el.textContent.includes('好奇心培育')).catch(() => false)
-  const curioCardVisible = await page.locator('.module-card').filter({ hasText: '好奇心' }).first().isVisible().catch(() => false)
-  await page.locator('.zone-tab').nth(1).click().catch(() => {})
-  await page.waitForTimeout(1500)
-  const mgrTitle = await page.getByText('任务调度').first().isVisible().catch(() => false)
-  const curioHiddenAfter = await page.locator('.module-card').filter({ hasText: '好奇心' }).first().isVisible().then((v) => !v).catch(() => false)
+  const curioPanelOn = await page.locator('.module-card').filter({ hasText: '好奇心' }).first().isVisible().catch(() => false)
+  await page.evaluate(() => { location.hash = '#/compass' })
+  await page.waitForTimeout(1800)
+  const taskModuleOn = await page.locator('#task-mgmt-module').first().isVisible().catch(() => false)
   const cardTabActive = await page.locator('.view-tab.active').first().textContent().then((t) => (t || '').includes('卡片')).catch(() => false)
-  const gridOn = await page.locator('.tm-grid').first().isVisible().catch(() => false)
   const tmCardCount = await page.locator('.tm-card').count()
-  report('E2E-7 调度台底部 Tab：好奇心培育默认｜任务调度切换互斥（R49 改名）', tabsCount === 2 && curioPanelOn && curioCardVisible && mgrTitle && curioHiddenAfter && cardTabActive && gridOn && tmCardCount >= 1,
-    `tabs=${tabsCount} defaultTab=${(curioDefault || '').trim()} curioOn=${curioCardVisible} hiddenAfter=${curioHiddenAfter} tmCards=${tmCardCount} cardActive=${cardTabActive} grid=${gridOn}`)
+  report('E2E-7 底部好奇心单区 + 方向台任务调度模块（R55-B1/B2）', tabsCount === 0 && curioPanelOn && taskModuleOn && cardTabActive && tmCardCount >= 1,
+    'tabs=' + tabsCount + ' curioOn=' + curioPanelOn + ' taskModule=' + taskModuleOn + ' cardActive=' + cardTabActive + ' tmCards=' + tmCardCount)
 
   // E2E-8 调度台首页（R49 迁移）：三件事卡片 + 项目调度面板（愿景/使命小卡 + 战略目标 + 四数值）
   await page.goto(base, { waitUntil: 'domcontentloaded' })
@@ -208,8 +203,8 @@ async function main() {
   const visionMini = await page.getByText('愿景 · Vision').first().isVisible().catch(() => false)
   const missionMini = await page.getByText('使命 · Mission').first().isVisible().catch(() => false)
   const goalOn = await page.getByText('E2E 战略目标').first().isVisible().catch(() => false)
-  const statCount = await page.locator('.cur-stat').count()
-  report('E2E-8 调度台三件事 + 项目调度面板（愿景/使命+战略目标+四数值）', todayCard && curationOn && visionMini && missionMini && goalOn && statCount === 4,
+  const statCount = await page.locator('.cur-stat-strip .css-item').count()
+  report('E2E-8 调度台三件事 + 项目调度面板（愿景/使命+战略目标+状态栏四格 R55-D2）', todayCard && curationOn && visionMini && missionMini && goalOn && statCount === 4,
     `todayCard=${todayCard} curation=${curationOn} stats=${statCount} goal=${goalOn}`)
 
   // E2E-9 存量回填迁移（R46 BUG-2）：重新加载页面触发 init 回填 → task-2 补齐 projectId + projBackfillFixed 记录
@@ -273,7 +268,7 @@ async function main() {
   report('E2E-10 策展统一树：迁移物化+源卡实时+原生卡+清空回落零影响（R53）', curHead && mirrorCatNode && mirCard && nativeCard && mirrorGone && nativeKept && srcKept,
     `head=${curHead} node=${mirrorCatNode} mir=${mirCard} native=${nativeCard} gone=${mirrorGone} kept=${nativeKept} src=${srcKept}`)
 
-  // E2E-11 主航线（R51-F18/F19）：仅已投射项目 chip（先种投射）+ 指标条未归档任务格 + 表头档位
+  // E2E-11 主航线（R55-D1 后）：目标行 chip；未归档格随 MetricBar 迁调度台（E2E-4 已覆盖）
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const data = cur['zy_data_v2']
     if (!data) return
@@ -285,11 +280,9 @@ async function main() {
   await page.evaluate(() => { location.hash = '#/compass' })
   await page.waitForTimeout(2000)
   const goalChip = await page.locator('.chip-proj').first().isVisible().catch(() => false)
-  const unarchivedCell = await page.getByText('未归档任务').first().isVisible().catch(() => false)
-  const mbHeadPeriod = await page.locator('.mb-head .mb-period').first().isVisible().catch(() => false)
   const offCourseGone = !(await page.getByText('偏航行动').first().isVisible().catch(() => false))
-  report('E2E-11 主航线目标行 chip + 指标条未归档任务格+档位入表头', goalChip && unarchivedCell && mbHeadPeriod && offCourseGone,
-    `chip=${goalChip} unarch=${unarchivedCell} periodInHead=${mbHeadPeriod} offCourseGone=${offCourseGone}`)
+  report('E2E-11 主航线目标行 chip（未归档格迁调度台由 E2E-4 覆盖）', goalChip && offCourseGone,
+    `chip=${goalChip} offCourseGone=${offCourseGone}`)
 
   // E2E-12 主航线全量呈现（R52-F4）：未投射项目也出现在战略目标行 chip（修订 R51-F18「仅已投射」）
   const chipCount = await page.locator('.chip-proj').count()
@@ -317,7 +310,7 @@ async function main() {
   await page.waitForTimeout(2500)
   const pageErrors = []
   page.on('pageerror', e => pageErrors.push(String(e).slice(0, 120)))
-  await page.getByText('成功指标', { exact: true }).first().click().catch(() => {})
+  await page.locator('.cur-stat-strip .css-item').first().click().catch(() => {})
   await page.waitForTimeout(600)
   const drillModal = await page.getByText('成功指标 · E2E 策展项目').first().isVisible().catch(() => false)
   const drillRow = await page.getByText('E2E 成功指标').first().isVisible().catch(() => false)
@@ -345,6 +338,25 @@ async function main() {
   const backOnProj = page.url().includes('/compass/projects') && page.url().includes('p=e2e-proj-1')
   report('E2E-15 面包屑+来源感知返回+树定位闭环（R54-A）', crumbUp && urlHasFrom && backToProjBtn && backOnProj,
     `crumb=${crumbUp} fromHl=${urlHasFrom} backBtn=${backToProjBtn} backOnProj=${backOnProj}`)
+
+
+  // E2E-16 快速采集任务（R55-C）：应用内面板四字段非必填 → 保存进全域任务
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+  await page.evaluate(() => chrome.runtime.sendMessage({ type: 'zy-open-task-capture' }))
+  await page.waitForTimeout(800)
+  const pageErrs = []
+  page.on('pageerror', e => pageErrs.push(String(e).slice(0, 150)))
+  const tcPanelOn = await page.getByText('快速采集任务').first().isVisible().catch(() => false)
+  await page.getByPlaceholder('要做什么（可留空）').fill('R55 采集任务').catch(() => {})
+  await page.getByPlaceholder('补充说明、上下文、验收标准（可留空）').fill('E2E 内容').catch(() => {})
+  await page.evaluate(() => { const b = [...document.querySelectorAll('.gp-btn-primary')].find(x => x.textContent.includes('保存任务')); if (b) b.click() })
+  await page.waitForTimeout(1000)
+  const tcSavedOn = await page.getByText('任务已保存').first().isVisible().catch(() => false)
+  const taskIn = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => (r['zy_data_v2'].tasks || []).some(t => t.title === 'R55 采集任务')))
+  report('E2E-16 快速采集任务面板（R55-C）', tcPanelOn && tcSavedOn && taskIn,
+    'panel=' + tcPanelOn + ' saved=' + tcSavedOn + ' inDb=' + taskIn + ' errs=' + JSON.stringify(pageErrs))
+
 
   await ctx.close()
   const fail = results.filter(r => !r.ok).length

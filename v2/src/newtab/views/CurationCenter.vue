@@ -173,6 +173,28 @@ const viewProjCards = computed(() => {
   if (activeCat.value === PENDING) return pendingProjections.value
   return projCardsIn(activeCat.value)
 })
+/** R55-A1：统一混排列表——原生卡+投射卡同一网格按 置顶 > curOrder > createdAt 排列，权重一致 */
+type MixedCard = { id: string; type: 'native' | 'proj'; r?: ResourceCard; p?: CurationProjection }
+function mixedCardsOf(catKey: string): MixedCard[] {
+  const nat: MixedCard[] = nativeCards.value.filter(r => (r.categoryId || '') === catKey).map(r => ({ id: r.id, type: 'native', r }))
+  const prj: MixedCard[] = projections.value
+    .filter(p => p.kind === 'card' && (p.targetCatId || '') === catKey && cardById(p.cardId))
+    .map(p => ({ id: p.id, type: 'proj', p }))
+  const orderOf = (m: MixedCard): number =>
+    m.type === 'native' ? (m.r!.curOrder ?? m.r!.createdAt) : (m.p!.curOrder ?? cardById(m.p!.cardId)?.createdAt ?? 0)
+  return [...nat, ...prj].sort((a, b) => {
+    const pa = a.type === 'native' && a.r!.pinned ? 1 : 0
+    const pb = b.type === 'native' && b.r!.pinned ? 1 : 0
+    if (pa !== pb) return pb - pa
+    return orderOf(a) - orderOf(b)
+  })
+}
+const viewMixed = computed<MixedCard[]>(() => {
+  if (activeCat.value === PENDING) return pendingProjections.value.map(p => ({ id: p.id, type: 'proj' as const, p }))
+  return mixedCardsOf(activeCat.value)
+})
+const viewNativeCount = computed(() => viewMixed.value.filter(m => m.type === 'native').length)
+const viewProjCount = computed(() => viewMixed.value.filter(m => m.type === 'proj').length)
 
 // ---- 卡片打开（原生/镜像共用 WRR 口径） ----
 function openCard(r: ResourceCard) {
@@ -335,7 +357,22 @@ function projectSourceCardTo(srcCardId: string, targetCatId: string) {
   }
   return true
 }
-/** R54-D1：卡对卡统一 drop——同分组排序 / 跨分组移动（原生↔投射↔源镜像卡混合同样成立） */
+/** R55-A1：混排列表内把 pid 插到 targetId 之前并统一重编号（原生写 r.curOrder / 投射写 p.curOrder） */
+function reorderMixed(catKey: string, pid: string, targetId: string): boolean {
+  const mixed = mixedCardsOf(catKey)
+  const fi = mixed.findIndex(m => m.id === pid)
+  const ti = mixed.findIndex(m => m.id === targetId)
+  if (fi < 0 || ti < 0) return false
+  const [moved] = mixed.splice(fi, 1)
+  const tj = mixed.findIndex(m => m.id === targetId)
+  mixed.splice(tj, 0, moved)
+  mixed.forEach((m, i) => {
+    if (m.type === 'native') m.r!.curOrder = i
+    else m.p!.curOrder = i
+  })
+  return true
+}
+/** R54-D1 + R55-A1：卡对卡统一 drop——混排列表内同组排序 / 跨组移动（原生↔投射↔源镜像卡权重一致） */
 function onAnyCardDrop(e: DragEvent, target: ResourceCard | CurationProjection, targetIsProj: boolean) {
   const pid = dragId.value || e.dataTransfer?.getData('text/plain') || ''
   dragId.value = ''
@@ -345,38 +382,25 @@ function onAnyCardDrop(e: DragEvent, target: ResourceCard | CurationProjection, 
     : ((target as ResourceCard).categoryId || '')
   // 源镜像卡拖到卡上 = 镜像入该卡所在分组
   const srcCard = d.value.resources.find(x => x.id === pid && !x.deletedAt && x.workspaceId !== CURATION_WS_ID)
-  if (srcCard) { projectSourceCardTo(srcCard.id, targetKey); return }
+  if (srcCard) { projectSourceCardTo(srcCard.id, targetKey); reorderMixed(targetKey, projectRecordIdOf(pid) || '', (target as { id: string }).id); return }
   const draggedIsProj = pid.startsWith('curp-') || projections.value.some(x => x.id === pid)
+  let moved = false
   if (draggedIsProj) {
     const p = projections.value.find(x => x.id === pid)
     if (!p) return
-    const moved = p.targetCatId !== targetKey
-    if (moved) moveProjectionTo(pid, targetKey)
-    // 分组内按投射数组序插到目标之前
-    ensureProjArr()
-    const list = [...(d.value.curationProjections || [])]
-    const fi = list.findIndex(x => x.id === pid)
-    let ti = list.findIndex(x => x.id === (target as CurationProjection).id)
-    if (fi >= 0 && ti >= 0) {
-      const [m] = list.splice(fi, 1)
-      ti = list.findIndex(x => x.id === (target as CurationProjection).id)
-      list.splice(ti, 0, m)
-      d.value.curationProjections = list
-    }
-    store.persist()
-    showToast(moved ? '✓ 投射卡已移入该分组' : '✓ 投射卡已排序')
-    return
+    if (p.targetCatId !== (targetKey || undefined)) { p.targetCatId = targetKey || undefined; moved = true }
+  } else {
+    const r = d.value.resources.find(x => x.id === pid && x.workspaceId === CURATION_WS_ID)
+    if (!r) return
+    if (r.categoryId !== targetKey) { r.categoryId = targetKey; moved = true }
   }
-  const r = d.value.resources.find(x => x.id === pid && x.workspaceId === CURATION_WS_ID)
-  if (!r) return
-  r.categoryId = targetKey
-  const list = cardsIn(targetKey).filter(x => x.id !== r.id)
-  const ti = list.findIndex(x => x.id === (target as ResourceCard).id)
-  if (ti >= 0) list.splice(ti, 0, r)
-  else list.push(r)
-  list.forEach((x, i) => { x.curOrder = i })
+  const sorted = reorderMixed(targetKey, pid, (target as { id: string }).id)
   store.persist()
-  showToast('✓ 卡片已移动/排序')
+  showToast(moved ? '✓ 卡片已移入该分组' : sorted ? '✓ 卡片已排序' : '✓ 已更新')
+}
+/** 源卡被拖入后其投射记录 id（用于混排插入定位） */
+function projectRecordIdOf(srcCardId: string): string | undefined {
+  return projections.value.find(x => x.kind === 'card' && x.cardId === srcCardId)?.id
 }
 /** 卡/投射拖入树节点（R53：任意策展分类，含镜像分类——同为真实分类） */
 function onTreeDrop(e: DragEvent, catId: string) {
@@ -530,59 +554,56 @@ function onCatDrop(e: DragEvent, target: Category) {
       <div class="cur-main">
         <div class="cur-sec-label">
           {{ viewLabel }}
-          <span>原生 {{ viewNative.length }} · 投射 {{ viewProjCards.length }}<template v-if="viewLive.length"> · 源镜像 {{ viewLive.length }}</template></span>
+          <span>原生 {{ viewNativeCount }} · 投射 {{ viewProjCount }}<template v-if="viewLive.length"> · 源镜像 {{ viewLive.length }}</template></span>
         </div>
 
-        <!-- 原生卡片区 -->
+        <!-- R55-A1：统一混排网格——原生卡与投射卡权重一致，同列表自由拖拽排列 -->
         <div class="cur-grid">
-          <div v-for="r in viewNative" :key="r.id" class="cur-card native" :class="{ pinned: r.pinned }"
-            draggable @dragstart="onCardDragStart($event, r)" @dragover.prevent @drop="onAnyCardDrop($event, r, false)" @dragend="clearDragState"
-            @click="onCardClick(() => openEditCard(r))" @dblclick="onCardDblClick(() => openCard(r))"
-            :title="'单击详情 · 双击打开链接 · 拖拽移入其他分类'">
-            <div class="cc-title">
-              <span v-if="r.pinned" class="cc-pin">📌</span>{{ r.title }}
+          <template v-for="m in viewMixed" :key="m.type + m.id">
+            <!-- 原生卡 -->
+            <div v-if="m.type === 'native' && m.r" class="cur-card native" :class="{ pinned: m.r.pinned }"
+              draggable @dragstart="onCardDragStart($event, m.r)" @dragover.prevent @drop="onAnyCardDrop($event, m.r, false)" @dragend="clearDragState"
+              @click="onCardClick(() => openEditCard(m.r!))" @dblclick="onCardDblClick(() => openCard(m.r!))"
+              :title="'单击详情 · 双击打开链接 · 拖拽移入其他分类/与镜像卡相互排列'">
+              <div class="cc-title">
+                <span v-if="m.r.pinned" class="cc-pin">📌</span>{{ m.r.title }}
+              </div>
+              <div v-if="m.r.link" class="cc-link">{{ m.r.link }}</div>
+              <div v-if="m.r.description" class="cc-desc">{{ m.r.description }}</div>
+              <div v-if="Object.keys(m.r.customFields || {}).length" class="cc-fields">
+                <span v-for="(v, k) in m.r.customFields" :key="k" class="cc-field-chip">{{ v }}</span>
+              </div>
+              <div class="cc-tools">
+                <span v-if="m.r.link" class="cc-act" title="打开链接" @click.stop="openCard(m.r)">↗</span>
+                <span class="cc-act" :class="{ on: m.r.pinned }" :title="m.r.pinned ? '取消置顶' : '置顶'" @click.stop="togglePin(m.r)">📌</span>
+                <span class="cc-act" title="编辑" @click.stop="openEditCard(m.r)">✎</span>
+                <span class="cc-act danger" title="删除（进回收站）" @click.stop="deleteNative(m.r)">🗑</span>
+              </div>
             </div>
-            <div v-if="r.link" class="cc-link">{{ r.link }}</div>
-            <div v-if="r.description" class="cc-desc">{{ r.description }}</div>
-            <div v-if="Object.keys(r.customFields || {}).length" class="cc-fields">
-              <span v-for="(v, k) in r.customFields" :key="k" class="cc-field-chip">{{ v }}</span>
-            </div>
-            <div class="cc-tools">
-              <span v-if="r.link" class="cc-act" title="打开链接" @click.stop="openCard(r)">↗</span>
-              <span class="cc-act" :class="{ on: r.pinned }" :title="r.pinned ? '取消置顶' : '置顶'" @click.stop="togglePin(r)">📌</span>
-              <span class="cc-act" title="编辑" @click.stop="openEditCard(r)">✎</span>
-              <span class="cc-act danger" title="删除（进回收站）" @click.stop="deleteNative(r)">🗑</span>
-            </div>
-          </div>
-          <div v-if="!viewNative.length && activeCat !== PENDING && !viewLive.length" class="cur-empty-native">暂无原生卡片 —— 右上角「＋ 新建卡片」创建策展卡</div>
-        </div>
-
-        <!-- 视图内投射卡（待分类 / 任意分类停入） -->
-        <template v-if="viewProjCards.length">
-          <div class="cur-sec-label proj">📡 投射卡片 <span>{{ viewProjCards.length }}</span></div>
-          <div class="cur-grid">
-            <div v-for="p in viewProjCards" :key="p.id" class="cur-card mirror"
-              draggable @dragstart="onProjDragStart($event, p)" @dragover.prevent @drop="onAnyCardDrop($event, p, true)" @dragend="clearDragState"
-              @click="cardById(p.cardId) && onCardClick(() => { mirrorDetail = { card: cardById(p.cardId)!, proj: p } })"
-              @dblclick="cardById(p.cardId) && onCardDblClick(() => openCard(cardById(p.cardId)!))"
-              title="单击详情 · 双击打开链接 · 拖拽移入其他分类">
-              <template v-if="cardById(p.cardId)">
-                <div class="cc-title"><span class="cc-badge">📡</span>{{ cardById(p.cardId)!.title }}<span class="cc-src">· {{ wsName(p.wsId) }}</span></div>
-                <div v-if="cardById(p.cardId)!.link" class="cc-link">{{ cardById(p.cardId)!.link }}</div>
-                <div v-if="cardById(p.cardId)!.description" class="cc-desc">{{ cardById(p.cardId)!.description }}</div>
+            <!-- 投射卡（镜像） -->
+            <div v-else-if="m.type === 'proj' && m.p" class="cur-card mirror"
+              draggable @dragstart="onProjDragStart($event, m.p)" @dragover.prevent @drop="onAnyCardDrop($event, m.p, true)" @dragend="clearDragState"
+              @click="cardById(m.p!.cardId) && onCardClick(() => { mirrorDetail = { card: cardById(m.p!.cardId)!, proj: m.p! } })"
+              @dblclick="cardById(m.p!.cardId) && onCardDblClick(() => openCard(cardById(m.p!.cardId)!))"
+              title="单击详情 · 双击打开链接 · 拖拽移入其他分类/与原生卡相互排列">
+              <template v-if="cardById(m.p.cardId)">
+                <div class="cc-title"><span class="cc-badge">📡</span>{{ cardById(m.p.cardId)!.title }}<span class="cc-src">· {{ wsName(m.p.wsId) }}</span></div>
+                <div v-if="cardById(m.p.cardId)!.link" class="cc-link">{{ cardById(m.p.cardId)!.link }}</div>
+                <div v-if="cardById(m.p.cardId)!.description" class="cc-desc">{{ cardById(m.p.cardId)!.description }}</div>
                 <div class="cc-tools">
-                  <span class="cc-act" title="打开链接" @click.stop="openCard(cardById(p.cardId)!)">↗</span>
-                  <span class="cc-act" title="定位到源工作台" @click.stop="locateSource(cardById(p.cardId)!)">🎯</span>
-                  <span class="cc-act danger" title="移出投射（源数据不受影响）" @click.stop="removeProjection(p)">✕</span>
+                  <span class="cc-act" title="打开链接" @click.stop="openCard(cardById(m.p.cardId)!)">↗</span>
+                  <span class="cc-act" title="定位到源工作台" @click.stop="locateSource(cardById(m.p.cardId)!)">🎯</span>
+                  <span class="cc-act danger" title="移出投射（源数据不受影响）" @click.stop="removeProjection(m.p)">✕</span>
                 </div>
               </template>
               <template v-else>
-                <div class="cc-title cc-gone">📡 源卡已删除/移出 <span class="cc-src">· {{ wsName(p.wsId) }}</span></div>
-                <div class="cc-tools"><span class="cc-act danger" title="移出投射" @click.stop="removeProjection(p)">✕</span></div>
+                <div class="cc-title cc-gone">📡 源卡已删除/移出 <span class="cc-src">· {{ wsName(m.p.wsId) }}</span></div>
+                <div class="cc-tools"><span class="cc-act danger" title="移出投射" @click.stop="removeProjection(m.p)">✕</span></div>
               </template>
             </div>
-          </div>
-        </template>
+          </template>
+          <div v-if="!viewMixed.length && !viewLive.length" class="cur-empty-native">当前分组还没有卡片 —— 右上角「＋ 新建卡片」，或从工作台拖卡/右键镜像过来</div>
+        </div>
 
         <!-- 镜像分类视图：源分类实时卡片 -->
         <template v-if="viewLive.length">
@@ -601,7 +622,7 @@ function onCatDrop(e: DragEvent, target: Category) {
           </div>
         </template>
 
-        <div v-if="!viewNative.length && !viewProjCards.length && !viewLive.length" class="cur-empty">
+        <div v-if="!viewMixed.length && !viewLive.length" class="cur-empty">
           当前分类还是空的 —— 从其他工作台右键卡片「📡 镜像到策展中心」/ 目录树 📤 镜像分类 / 工作台 Tab 右键整台打包镜像，或在这里新建原生卡片
         </div>
       </div>

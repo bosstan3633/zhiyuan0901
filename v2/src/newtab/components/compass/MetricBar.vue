@@ -37,14 +37,10 @@ const wceNew = computed(() => {
   return d.value.curiosities.filter(c => !c.deletedAt && Date.now() - c.createdAt < days * 86400_000).length
 })
 
-/** DHI 数值焦点：清晰=100 / 关注=50+ / 模糊=<50 / —（无投射项目） */
+/** DHI 数值焦点（R55-D3）：主数字 = 在轨项目占已投射项目百分比；无投射 = — */
 const dhiMain = computed(() => {
-  const sub = m.value.dhi.sub || ''
-  const mt = sub.match(/(\d+)已投射·(\d+)在轨/)
-  if (!mt) return '—'
-  const pinned = Number(mt[1]); const active = Number(mt[2])
-  if (!pinned) return '—'
-  return Math.round((active / pinned) * 100) + '%'
+  const pct = m.value.dhi.pct
+  return pct == null || pct < 0 ? '—' : pct + '%'
 })
 const dhiState = computed(() => {
   const label = m.value.dhi.label

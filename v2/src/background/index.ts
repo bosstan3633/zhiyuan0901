@@ -184,17 +184,17 @@ chrome.commands.onCommand.addListener(async (command) => {
       break
     }
     case 'open-tasks': {
-      // R54-C1：任务调度直达（浏览器级命令，无默认键；zone=task 预设调度台底部 Tab）
-      const base = chrome.runtime.getURL('src/newtab/index.html')
-      const tabs = await chrome.tabs.query({ url: base + '*' })
-      const existing = tabs.find(t => t.id != null)
-      if (existing?.id != null) {
-        if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
-        await chrome.tabs.update(existing.id, { active: true })
-        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route: '/?zone=task' }).catch(() => {})
-      } else {
-        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html#/?zone=task') })
+      // R55-C：快速采集任务（浏览器级命令，无默认键）——优先页内浮层（含新标签页应用内面板），降级独立弹窗
+      if (tab?.id) {
+        const ok = await notifyTab(tab.id, 'zy-open-task-capture')
+        if (ok) break
       }
+      if (tab) {
+        await chrome.storage.session.set({
+          [SESSION_KEY]: { title: '', url: tab.url || '', mode: 'task' }
+        })
+      }
+      openPopupWindow('src/popup/index.html?mode=task', 460, 480)
       break
     }
     case 'quick-capture': {

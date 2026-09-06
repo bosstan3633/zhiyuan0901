@@ -4,7 +4,7 @@ export default defineManifest({
   manifest_version: 3,
   name: '知源调度台',
   short_name: '知源',
-  version: '2.27.0',
+  version: '2.28.0',
   description: '信息洪流中的控制中心 · 个人资源调度台 · 本地优先 · Chrome MV3',
   permissions: ['storage', 'unlimitedStorage', 'tabs', 'activeTab', 'commands', 'scripting', 'downloads'],
   host_permissions: ['<all_urls>', 'file:///*'],
@@ -50,9 +50,9 @@ export default defineManifest({
     'open-tree': {
       description: '打开完整方向树'
     },
-    // R54-C1：任务调度直达（无默认键，chrome://extensions/shortcuts 自定义）
+    // R55-C：快速采集任务（无默认键，chrome://extensions/shortcuts 自定义）
     'open-tasks': {
-      description: '打开任务调度'
+      description: '快速采集任务'
     }
   },
   content_scripts: [

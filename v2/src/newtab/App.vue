@@ -310,6 +310,7 @@ onMounted(async () => {
     if (msg?.type === 'zy-open-search') globalPopups.value?.openPanel('search')
     else if (msg?.type === 'zy-open-capture') globalPopups.value?.openPanel('capture')
     else if (msg?.type === 'zy-open-curiosity') globalPopups.value?.openPanel('curio')
+    else if (msg?.type === 'zy-open-task-capture') globalPopups.value?.openPanel('taskcapture')
     // 工作台单例定位（G）：跳转到目标工作台并高亮资源卡
     else if (msg?.type === 'zy-locate') {
       const wsId: string = msg.wsId || ''

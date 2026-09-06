@@ -54,16 +54,26 @@ export function onPinyinReady(cb: () => void): void {
 }
 
 const cache = new Map<string, { full: string; initials: string }>()
+/** R55-F3：LRU 上限——超出时逐出最旧（旧实现整表 clear 会造成大库反复重算抖动） */
+const CACHE_MAX = 3000
 
 export function pinyinOf(text: string): { full: string; initials: string } {
   if (!core) return { full: '', initials: '' }
   const hit = cache.get(text)
-  if (hit) return hit
+  if (hit) {
+    // LRU 触碰：删后重插使其回到最新端
+    cache.delete(text)
+    cache.set(text, hit)
+    return hit
+  }
   try {
     const full = core.pinyin(text, { pattern: 'pinyin', toneType: 'none', type: 'array' }).join(' ').toLowerCase()
     const initials = core.pinyin(text, { pattern: 'first', toneType: 'none', type: 'array' }).join('').toLowerCase()
     const v = { full, initials }
-    if (cache.size > 3000) cache.clear()
+    if (cache.size >= CACHE_MAX) {
+      const oldest = cache.keys().next().value
+      if (oldest !== undefined) cache.delete(oldest)
+    }
     cache.set(text, v)
     return v
   } catch {

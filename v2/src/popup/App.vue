@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { uid } from '@/shared/utils'
 import type { AppData } from '@/shared/models'
 
-const mode = ref<'capture' | 'curiosity'>('capture')
+const mode = ref<'capture' | 'curiosity' | 'task'>('capture')
 const title = ref('')
 const linkType = ref<'url' | 'file' | 'obsidian'>('url')
 const link = ref('')
@@ -13,6 +13,12 @@ const categoryId = ref('')
 const curiosityText = ref('')
 const curioSource = ref({ title: '', url: '' })
 const workspaces = ref<{id: string; name: string}[]>([])
+// R55-C：快速采集任务（popup 降级；四字段全非必填）
+const taskTitle = ref('')
+const taskDesc = ref('')
+const taskProjectId = ref('')
+const taskMetricId = ref('')
+const taskProjects = ref<{ id: string; name: string; metrics: { id: string; title: string }[] }[]>([])
 const saved = ref(false)
 const savedWsId = ref('')
 const savedResourceId = ref('')
@@ -30,6 +36,7 @@ onMounted(async () => {
         // 第廿二轮：降级路径好奇心同样附带来源（标题+链接）
         curioSource.value = { title: p.title || '', url: p.url || '' }
       }
+      if (p.mode === 'task') { mode.value = 'task' }
     }
   }
   if (typeof chrome !== 'undefined' && chrome.storage?.local) {
@@ -39,12 +46,20 @@ onMounted(async () => {
       workspaces.value = d.workspaces.filter(w => !w.archived)
       if (workspaces.value[0]) workspaceId.value = workspaces.value[0].id
     }
+    if (d?.compass?.directions) {
+      const list: { id: string; name: string; metrics: { id: string; title: string }[] }[] = []
+      for (const dir of d.compass.directions) for (const proj of dir.projects || []) list.push({ id: proj.id, name: proj.name, metrics: proj.metrics || [] })
+      taskProjects.value = list
+    }
   }
-  // 自动聚焦：好奇心聚焦文本域，采集聚焦标题
+  // 自动聚焦：好奇心/任务聚焦文本域或标题，采集聚焦标题
   setTimeout(() => {
     if (mode.value === 'curiosity') {
       const ta = document.getElementById('cz-textarea') as HTMLTextAreaElement
       ta?.focus()
+    } else if (mode.value === 'task') {
+      const ti = document.getElementById('task-title') as HTMLInputElement
+      ti?.focus()
     } else {
       const ti = document.getElementById('cap-title') as HTMLInputElement
       ti?.focus(); ti?.select()
@@ -88,6 +103,39 @@ function openBoard() {
 }
 
 async function save() {
+  if (mode.value === 'task') {
+    // R55-C：快速采集任务（popup 降级；四字段全非必填）
+    const d = await getData()
+    if (d) {
+      const task = {
+        id: uid('tk'),
+        kind: 'task' as const,
+        title: taskTitle.value.trim() || '快速任务',
+        description: taskDesc.value.trim(),
+        status: 'todo' as const,
+        priority: 'medium' as const,
+        projectId: taskProjectId.value || undefined,
+        metricId: taskMetricId.value || undefined,
+        mountedResourceIds: [] as string[],
+        mountedCuriosityIds: [] as string[],
+        customFields: {},
+        tags: [] as string[],
+        pinned: false,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      }
+      d.tasks.unshift(task)
+      if (task.metricId) {
+        for (const dir of d.compass.directions) for (const p of dir.projects) for (const m of p.metrics)
+          if (m.id === task.metricId && !m.taskIds.includes(task.id)) m.taskIds.push(task.id)
+      }
+      await setData(d)
+    }
+    saved.value = true
+    if (savedTimer) clearTimeout(savedTimer)
+    savedTimer = setTimeout(() => closeWindow(0), 5000)
+    return
+  }
   if (mode.value === 'curiosity') {
     if (!curiosityText.value.trim()) return
     const d = await getData()
@@ -147,9 +195,13 @@ async function save() {
   <div class="popup-shell">
     <!-- 已保存状态：Enter 打开看板 / Esc 关闭 / 5 秒自动关闭 -->
     <div v-if="saved" class="save-state">
-      <div class="save-icon">✓</div>
-      <div class="save-title">{{ mode === 'curiosity' ? '💗好奇心+1' : '资源卡已保存' }}</div>
-      <template v-if="mode === 'capture'">
+      <div class="save-icon">{{ mode === 'task' ? '⚡' : mode === 'curiosity' ? '✓' : '✓' }}</div>
+      <div class="save-title">{{ mode === 'task' ? '⚡任务已保存' : mode === 'curiosity' ? '💗好奇心+1' : '资源卡已保存' }}</div>
+      <template v-if="mode === 'task'">
+        <div class="save-sub">{{ taskProjectId ? '已挂项目/指标 · 全域任务统一管理' : '暂为未归档任务 · 可随时在方向台归档' }}</div>
+        <div class="save-sub">窗口即将自动关闭…</div>
+      </template>
+      <template v-else-if="mode === 'capture'">
         <div class="save-hint">按 <kbd>Enter</kbd> 打开看板 · 定位新卡片</div>
         <div class="save-sub">按 <kbd>Esc</kbd> 关闭 · 5 秒后自动关闭</div>
         <div class="save-actions">
@@ -162,14 +214,43 @@ async function save() {
 
     <template v-else>
       <div class="popup-head">
-        <div class="popup-icon">{{ mode === 'capture' ? '📥' : '💡' }}</div>
+        <div class="popup-icon">{{ mode === 'capture' ? '📥' : mode === 'task' ? '⚡' : '💡' }}</div>
         <div class="popup-titles">
-          <div class="popup-title">{{ mode === 'capture' ? '快速采集资源卡' : '采集好奇心' }}</div>
-          <div class="popup-sub">{{ mode === 'capture' ? '把当前页面收进你的来源网络' : '从好奇出发，向源头求证' }}</div>
+          <div class="popup-title">{{ mode === 'capture' ? '快速采集资源卡' : mode === 'task' ? '快速采集任务' : '采集好奇心' }}</div>
+          <div class="popup-sub">{{ mode === 'capture' ? '把当前页面收进你的来源网络' : mode === 'task' ? '四项皆可留空 · 存入全域任务' : '从好奇出发，向源头求证' }}</div>
         </div>
       </div>
       <div class="popup-body">
-        <template v-if="mode === 'capture'">
+        <template v-if="mode === 'task'">
+          <div class="field">
+            <label class="field-label">任务名称</label>
+            <input id="task-title" v-model="taskTitle" class="field-input" placeholder="要做什么（可留空）"
+              @keydown.ctrl.enter.prevent="save" @keydown.meta.enter.prevent="save" />
+          </div>
+          <div class="field">
+            <label class="field-label">任务内容</label>
+            <textarea v-model="taskDesc" class="field-input" rows="3" placeholder="补充说明、上下文、验收标准（可留空）"
+              @keydown.ctrl.enter.prevent="save" @keydown.meta.enter.prevent="save"></textarea>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">所属项目（可留空）</label>
+              <select v-model="taskProjectId" class="field-select">
+                <option value="">未关联项目</option>
+                <option v-for="p in taskProjects" :key="p.id" :value="p.id">📦 {{ p.name }}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label">所属指标（可留空）</label>
+              <select v-model="taskMetricId" class="field-select" :disabled="!taskProjectId">
+                <option value="">暂不归属</option>
+                <option v-for="m in (taskProjects.find(p => p.id === taskProjectId)?.metrics || [])" :key="m.id" :value="m.id">🎯 {{ m.title }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-hint">Ctrl+Enter 快速保存 · 未挂项目 = 未归档任务</div>
+        </template>
+        <template v-else-if="mode === 'capture'">
           <div class="field">
             <label class="field-label">标题</label>
             <input id="cap-title" v-model="title" class="field-input" placeholder="资源卡标题"

@@ -120,6 +120,9 @@ function injectStyles() {
     .zy-ri-link.file{color:#A87B2A;}
     .zy-ri-link.obsidian{color:#7C3AED;}
     .zy-ri-summary{font-size:11.5px;color:#9AA0A6;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .zy-ri-del{font-size:12px;color:#9AA0A6;cursor:pointer;padding:3px 6px;border-radius:6px;flex-shrink:0;opacity:0;transition:all .12s;}
+    .zy-result-item:hover .zy-ri-del{opacity:1;}
+    .zy-ri-del:hover{color:#E5484D;background:rgba(229,72,77,.12);}
     .zy-group-title{font-size:10.5px;font-weight:700;color:#8A8F98;letter-spacing:.08em;padding:10px 12px 4px;}
     .zy-group-more{font-size:11px;color:#9AA0A6;padding:6px 12px;border-top:1px dashed rgba(138,143,152,.25);}
     .zy-empty{padding:40px 20px;text-align:center;color:#9AA0A6;}
@@ -558,8 +561,27 @@ function bindResultEvents(el: HTMLElement) {
   }
   el.querySelectorAll('.zy-result-item').forEach(elm => {
     const e = elm as HTMLElement
-    // 第卅七轮 REQ-045：交互固化——单击/Enter=开链接（无链接定位）；Ctrl+Enter=定位+详情抽屉；双击=开链接（去重防双开）
+    // 第卅七轮 REQ-045：交互固化——单击/Enter=开链接（无链接则定位）；Ctrl+Enter=定位+详情抽屉；双击=开链接（去重防双开）
     e.title = '单击 → 打开链接（无链接则定位） · Ctrl+Enter → 定位并打开详情'
+    // R55-H2：🗑 直接删除（无二次确认，软删进回收站）——先于行点击，阻断打开链接
+    const delBtn = e.querySelector('.zy-ri-del') as HTMLElement | null
+    if (delBtn) {
+      delBtn.addEventListener('click', async (ev) => {
+        ev.stopPropagation()
+        const id = delBtn.dataset.delId || ''
+        const d2 = await getData()
+        if (!d2) return
+        const hit = (d2.resources || []).find((r: any) => r.id === id) ||
+          (d2.tasks || []).find((r: any) => r.id === id) ||
+          (d2.curiosities || []).find((r: any) => r.id === id)
+        if (!hit || hit.deletedAt) return
+        hit.deletedAt = Date.now()
+        await saveData(d2)
+        searchResults = searchResults.filter(r => String(r?.id || '') !== id)
+        renderResults()
+        showToast('已删除，可在回收站恢复')
+      })
+    }
     e.addEventListener('click', () => {
       const item = resolveResult(e)
       if (item) openSearchResult(item)
@@ -679,12 +701,16 @@ function renderResults() {
       const badgesHtml = item.badges.map(function (b: any) { return '<span class="zy-badge ' + b.type + '">' + b.text + '</span>' }).join('')
       const linkHtml = item.link ? '<span class="zy-ri-link ' + item.link.type + '">' + (item.link.type === 'url' ? '🔗' : item.link.type === 'file' ? '📁' : '📝') + ' ' + item.link.text + '</span>' : ''
       const summaryHtml = item.summary ? '<div class="zy-ri-summary">' + hl(item.summary) + '</div>' : ''
+      // R55-H2：三卡结果行提供直接删除（无二次确认，软删进回收站）
+      const delHtml = (g.type === 'res' || g.type === 'task' || g.type === 'curio')
+        ? '<span class="zy-ri-del" data-del-id="' + escapeHtml(String(item.id || '')) + '" title="直接删除（可回收站恢复）">🗑</span>'
+        : ''
       html += '<div class="zy-result-item' + (i === searchSelIndex ? ' sel' : '') + '" data-idx="' + i + '" data-id="' + escapeHtml(String(item.id || '')) + '">' +
         '<div class="zy-ri-icon ' + item.iconClass + '">' + item.iconText + '</div>' +
         '<div class="zy-ri-main">' +
         '<div class="zy-ri-title">' + hl(item.title) + '</div>' +
         '<div class="zy-ri-meta"><span class="zy-badge ws">' + escapeHtml(item.ws) + '</span><span class="zy-badge cat">' + escapeHtml(item.cat) + '</span>' + badgesHtml + linkHtml + '</div>' +
-        summaryHtml + '</div></div>'
+        summaryHtml + '</div>' + delHtml + '</div>'
     })
     if (rest > 0) html += '<div class="zy-group-more">… 还有 ' + rest + ' 条，输入更精确的关键词</div>'
     offset += items.length
@@ -1085,6 +1111,90 @@ function onSavedKeydown(e: KeyboardEvent) {
 }
 
 // ============ 采集好奇心（居中，选中文本预填 + O24 自动附带页面来源） ============
+/** R55-C：快速采集任务（任意网页快捷键触发；四字段全非必填，直存全域任务） */
+async function openTaskCapture() {
+  const d = await getData()
+  const projects: any[] = []
+  for (const dir of d?.compass?.directions || []) for (const p of dir.projects || []) projects.push({ id: p.id, name: p.name, metrics: p.metrics || [] })
+  openOverlay('corner', closeOverlay)
+  const root = ensureRoot()
+  const panel = document.createElement('div')
+  panel.className = 'zy-panel'
+  panel.innerHTML = `
+    <div class="zy-cap-head">
+      <div class="zy-cap-icon res">⚡</div>
+      <div class="zy-cap-titles">
+        <div class="zy-cap-title">快速采集任务</div>
+        <div class="zy-cap-sub">四项皆可留空 · 存入全域任务统一管理</div>
+      </div>
+      <button class="zy-cap-close" id="__zy_tc_close__">×</button>
+    </div>
+    <div class="zy-cap-body">
+      <div class="zy-field"><label class="zy-field-label">任务名称</label>
+        <input type="text" class="zy-field-input" id="__zy_tc_title__" placeholder="要做什么（可留空）"></div>
+      <div class="zy-field"><label class="zy-field-label">任务内容</label>
+        <textarea class="zy-field-input" id="__zy_tc_desc__" placeholder="补充说明、上下文、验收标准（可留空）"></textarea></div>
+      <div class="zy-field-row">
+        <div class="zy-field"><label class="zy-field-label">所属项目（可留空）</label>
+          <select class="zy-field-select" id="__zy_tc_proj__"><option value="">未关联项目</option>
+          ${projects.map((p: any) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('')}</select></div>
+        <div class="zy-field"><label class="zy-field-label">所属指标（可留空）</label>
+          <select class="zy-field-select" id="__zy_tc_met__" disabled><option value="">暂不归属</option></select></div>
+      </div>
+    </div>
+    <div class="zy-cap-foot">
+      <button class="zy-btn zy-btn-ghost" id="__zy_tc_cancel__">取消</button>
+      <button class="zy-btn zy-btn-primary" id="__zy_tc_save__">⚡ 保存任务（Ctrl+Enter）</button>
+    </div>
+  `
+  root.appendChild(panel)
+  const titleInput = document.getElementById('__zy_tc_title__') as HTMLInputElement
+  const projSel = document.getElementById('__zy_tc_proj__') as HTMLSelectElement
+  const metSel = document.getElementById('__zy_tc_met__') as HTMLSelectElement
+  setTimeout(() => { titleInput.focus() }, 50)
+  projSel.addEventListener('change', () => {
+    const prj = projects.find(x => x.id === projSel.value)
+    metSel.disabled = !prj
+    metSel.innerHTML = '<option value="">暂不归属</option>' + (prj ? prj.metrics.map((m: any) => `<option value="${m.id}">${escapeHtml(m.title)}</option>`).join('') : '')
+  })
+  document.getElementById('__zy_tc_close__')?.addEventListener('click', closeOverlay)
+  document.getElementById('__zy_tc_cancel__')?.addEventListener('click', closeOverlay)
+  const saveTc = async () => {
+    const d2 = await getData()
+    if (!d2) { showToast('数据加载失败'); return }
+    const desc = (document.getElementById('__zy_tc_desc__') as HTMLTextAreaElement)?.value.trim() || ''
+    const task: any = {
+      id: uid('tk'), kind: 'task', title: titleInput.value.trim() || '快速任务',
+      description: desc, status: 'todo', priority: 'medium',
+      projectId: projSel.value || undefined, metricId: metSel.value || undefined,
+      mountedResourceIds: [], mountedCuriosityIds: [], customFields: {}, tags: [], pinned: false,
+      createdAt: Date.now(), updatedAt: Date.now()
+    }
+    d2.tasks?.unshift(task)
+    if (task.metricId) {
+      for (const dir of d2.compass?.directions || []) for (const prj of dir.projects || []) for (const m of prj.metrics || [])
+        if (m.id === task.metricId && !m.taskIds.includes(task.id)) m.taskIds.push(task.id)
+    }
+    await saveData(d2)
+    panel.innerHTML = `
+      <div class="zy-saved">
+        <div class="zy-saved-icon" style="background:#E8F5EE;color:#0E7A4E;">⚡</div>
+        <div class="zy-saved-title">任务已保存</div>
+        <div class="zy-saved-sub">${task.projectId ? '已挂项目/指标 · 全域任务统一管理' : '暂为未归档任务 · 可随时在方向台归档'}</div>
+        <div class="zy-saved-sub">按 <kbd>Esc</kbd> 关闭 · 5 秒后自动关闭</div>
+      </div>`
+    savedState = true
+    if (savedTimer) clearTimeout(savedTimer)
+    savedTimer = setTimeout(() => { closeOverlay(); savedState = false; savedTimer = null }, 5000)
+  }
+  document.getElementById('__zy_tc_save__')?.addEventListener('click', saveTc)
+  const onTcKey = (e: KeyboardEvent) => {
+    if (!document.getElementById('__zy_tc_save__')) return
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); saveTc() }
+  }
+  document.addEventListener('keydown', onTcKey, true)
+}
+
 async function openCuriosity() {
   // 第廿四轮：实时选区优先 → 预取缓存兜底（缓存是选中当下捕获的，不受后续清选影响）
   // V2.21：先取缓存快照再清空——原实现只清 text、保留 url/title，此处语义保持一致
@@ -1212,4 +1322,4 @@ function escapeHtml(s: string) {
 // ============ 对外入口 ============
 // V2.21：本文件由信号层 search-overlay.ts 在首次唤起时动态 import，
 // 不再于页面加载期随 content script 同步执行。子帧（iframe）永不加载本文件。
-export { openSearch, openCapture, openCuriosity }
+export { openSearch, openCapture, openCuriosity, openTaskCapture }

@@ -5,7 +5,7 @@ import Icon from '@/shared/components/Icon.vue'
  * 满宽模块化：指标条（方向状态）→ 主航线（愿景→使命→战略目标→项目）→ 项目总览
  * 二级覆盖层：完整方向树（/compass/tree）、项目详情（/compass/projects）
  */
-import { computed, ref } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCompass } from '../stores/compass'
 import { useAppStore } from '../stores/app'
@@ -14,14 +14,26 @@ import { uid } from '@/shared/utils'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
 import type { Project } from '@/shared/models'
-import MetricBar from '../components/compass/MetricBar.vue'
 import LighthousePanel from '../components/compass/LighthousePanel.vue'
+import TaskManagerPanel from '../components/compass/TaskManagerPanel.vue'
 
 const router = useRouter()
 const route = useRoute()
 const isChildActive = computed(() => route.matched.length > 1 && route.path !== '/compass')
 const store = useAppStore()
 const { d, allProjects, projectProgress, isProjectStalled, isProjectDone } = useCompass()
+
+// R55-B3：/compass?zone=task → 滚动定位到任务调度模块并高亮（置于声明之后，避免 TDZ）
+watch(() => route.query.zone, (z) => {
+  if (z !== 'task') return
+  nextTick(() => {
+    const el = document.getElementById('task-mgmt-module')
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    el.classList.add('module-flash')
+    setTimeout(() => el.classList.remove('module-flash'), 1500)
+  })
+}, { immediate: true })
 
 // ---- 已完成项目显隐（C6：与主航线/完整方向树三处同步；R52-BUG-2 口径统一 isProjectDone） ----
 const showDone = computed(() => store.ui?.showDoneProjects !== false)
@@ -171,12 +183,7 @@ function onProjDragLeave(e: DragEvent) {
       <button class="mini-btn" @click="openTree"><Icon name="branch" :size="13" /> 完整方向树</button>
     </div>
 
-    <!-- 模块一 · 指标条（方向状态：DHI/WCE/WRR/偏航行动，C1） -->
-    <section class="module">
-      <MetricBar />
-    </section>
-
-    <!-- 模块二 · 主航线（愿景→使命→战略目标→项目为止） -->
+    <!-- 模块一 · 主航线（R55-D1：方向状态四格已迁调度台顶部） -->
     <section class="module">
       <LighthousePanel />
     </section>
@@ -253,6 +260,11 @@ function onProjDragLeave(e: DragEvent) {
       </div>
     </section>
 
+    <!-- 模块四 · 任务调度（R55-B1：全域任务管理自调度台迁入，默认展开；卡片/列表/看板三视图与筛选全量保留） -->
+    <section class="module" id="task-mgmt-module">
+      <TaskManagerPanel />
+    </section>
+
     <!-- 新建项目弹窗 -->
     <Transition name="fade">
       <div v-if="createOpen" class="ov-overlay" @click="createOpen = false" />
@@ -290,6 +302,9 @@ function onProjDragLeave(e: DragEvent) {
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 .module { margin-top: 18px; }
+/* R55-B3：zone=task 定位高亮 */
+.module.module-flash { animation: moduleFlash 1.4s ease; }
+@keyframes moduleFlash { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); } }
 .module:first-of-type { margin-top: 0; }
 
 /* 项目总览（满宽 3 列，Linear 卡片） */

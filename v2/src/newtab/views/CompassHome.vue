@@ -2,8 +2,8 @@
 // R49（V2.22.0）三大系统页改版：本页 = 调度台（默认首页）
 // - 今日记录条（入台/移出/调出/写入记录，点击开抽屉）
 // - 左右分栏：左=今日三件事（硬上限 3，自 CompassActions 整体迁入，交互逐项一致）｜右=项目调度面板（单击三件事联动）
-// - 底部 Tab：好奇心培育（默认）｜任务调度（原好奇心培育/任务调度改名，面板组件复用）
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+// - 底部专区：好奇心培育单区直呈（R55-B2：任务调度迁方向台）
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
@@ -19,7 +19,7 @@ import AssetBadge from '@/shared/components/AssetBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
-import TaskManagerPanel from '../components/compass/TaskManagerPanel.vue'
+import MetricBar from '../components/compass/MetricBar.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -141,8 +141,9 @@ function locateRec(x: RecItem) {
     const wsId = r?.workspaceId || store.workspaces[0]?.id
     if (wsId) router.push({ path: `/workspace/${wsId}`, query: { hl: x.id } })
   } else {
-    // R53-C2：任务/好奇带 zone 预设底部 Tab（TaskManagerPanel 为 v-if 按需挂载，无 zone 时 hl 无消费方）
-    router.push({ path: '/', query: { hl: x.id, zone: x.kind === 'task' ? 'task' : 'curio' } })
+    // R55-B3：任务定位改指方向台任务调度模块（/compass?zone=task）；好奇定位仍在调度台
+    if (x.kind === 'task') router.push({ path: '/compass', query: { zone: 'task', hl: x.id } })
+    else router.push({ path: '/', query: { hl: x.id } })
   }
 }
 
@@ -372,7 +373,7 @@ function startCurSplitDrag(e: MouseEvent) {
   document.addEventListener('mousemove', move)
   document.addEventListener('mouseup', up)
 }
-const curColsStyle = computed(() => `minmax(240px, ${curSplit}%) 6px 1fr`)
+const curColsStyle = computed(() => `minmax(0, ${curSplit.value}%) 8px 1fr`)
 /** R54-B2：4 指标下钻弹窗（成功指标 / 任务总数 / 已完成 / 进行中） */
 const curDrill = ref<null | { key: 'metrics' | 'total' | 'done' | 'doing'; title: string }>(null)
 const drillMetricPct = (metricId: string) => {
@@ -576,15 +577,8 @@ async function onStorageClick() {
 
 // R51-F10：恢复上下联动布局——三件事居上（视觉焦点），项目调度联动在下；原左右分栏拖拽移除
 
-// ================= 底部 Tab：好奇心培育 / 任务调度 =================
-const zone = ref<'curio' | 'task'>('curio')
-// R51-F15：支持 query.zone 预设底部 Tab（未归档任务定位 → 任务调度）
-watch(() => route.query.zone, (z) => {
-  if (z === 'task') zone.value = 'task'
-  else if (z === 'curio') zone.value = 'curio'
-}, { immediate: true })
+// ================= 底部专区（R55-B2：任务调度已迁方向台，好奇心培育单区直呈） =================
 const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.deletedAt).length)
-const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt).length)
 </script>
 
 <template>
@@ -597,6 +591,9 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
         <span>{{ storageText }}</span>
       </button>
     </div>
+
+    <!-- R55-D1：方向状态（DHI/WCE/WRR/未归档任务四格）迁至调度台最顶部 -->
+    <MetricBar />
 
     <!-- 今日记录条（R50-F7：两行 = 主计数 + 分类型副行） -->
     <div class="rec-strip">
@@ -671,6 +668,13 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
         <div class="card curation">
           <div class="card-head">
             <span class="ic"><Icon name="target" :size="17" /></span><span class="nm">项目调度</span><span class="en">PROJECT SPOTLIGHT</span>            <span class="ds">选中任务所属项目 · 单击上方任务卡联动</span>
+            <!-- R55-D2：4 指标降级为一行状态栏（点击下钻保留） -->
+            <div class="cur-stat-strip">
+              <span class="css-item" title="成功指标 · 点击下钻" @click="openCurDrill('metrics')">🎯 {{ projMetrics.length }}</span>
+              <span class="css-item" title="任务总数 · 点击下钻" @click="openCurDrill('total')">📋 {{ projTasks.length }}</span>
+              <span class="css-item ok" title="已完成 · 点击下钻" @click="openCurDrill('done')">✓ {{ projDoneCount }}</span>
+              <span class="css-item warn" title="进行中 · 点击下钻" @click="openCurDrill('doing')">◐ {{ projDoingCount }}</span>
+            </div>
             <button class="mini-btn" title="进入完整方向树全景（查看/编辑方向结构）" @click="router.push('/compass/tree')"><Icon name="branch" :size="13" />方向树</button>
           </div>
           <div v-if="curProject" class="cur-body-v">
@@ -697,13 +701,6 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
                     <span class="cur-goal-pct">项目进度 {{ projectProgress(curProject).pct }}%</span>
                     <span class="cur-goal-link" @click="router.push({ path: '/compass/projects', query: { p: curProject.id } })">进入项目详情 ›</span>
                   </div>
-                </div>
-                <!-- R54-B2：4 指标卡可点击下钻 -->
-                <div class="cur-stats cur-stats-2">
-                  <div class="cur-stat clickable" title="点击查看指标清单" @click="openCurDrill('metrics')"><div class="cs-num">{{ projMetrics.length }}</div><div class="cs-lab">成功指标</div></div>
-                  <div class="cur-stat clickable" title="点击查看全部任务" @click="openCurDrill('total')"><div class="cs-num">{{ projTasks.length }}</div><div class="cs-lab">任务总数</div></div>
-                  <div class="cur-stat clickable" title="点击查看已完成任务" @click="openCurDrill('done')"><div class="cs-num ok">{{ projDoneCount }}</div><div class="cs-lab">已完成</div></div>
-                  <div class="cur-stat clickable" title="点击查看进行中任务" @click="openCurDrill('doing')"><div class="cs-num warn">{{ projDoingCount }}</div><div class="cs-lab">进行中</div></div>
                 </div>
               </div>
               <div class="cur-split" @mousedown="startCurSplitDrag" title="拖拽调节左右宽度（30%–75%）" />
@@ -751,19 +748,9 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
       </section>
     </div>
 
-    <!-- 底部 · 好奇心培育 / 任务调度 -->
+    <!-- 底部 · 好奇心培育（R55-B2：任务调度已迁方向台，单区直呈） -->
     <section class="module">
-      <div class="zone-tabs">
-        <div class="zone-tab" :class="{active: zone==='curio'}" @click="zone='curio'">
-          💡 好奇心培育<span class="zc">{{ curioCount }}</span>
-        </div>
-        <div class="zone-tab" :class="{active: zone==='task'}" @click="zone='task'">
-          📋 任务调度<span class="zc">{{ taskCount }}</span>
-        </div>
-        <span class="zone-en">CURIOSITY ZONE · 好奇心驱动的方向校准</span>
-      </div>
-      <CuriosityPanel v-show="zone==='curio'" />
-      <TaskManagerPanel v-if="zone==='task'" />
+      <CuriosityPanel />
     </section>
 
     <!-- ===== 任务选取弹窗 ===== -->
@@ -1015,7 +1002,8 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
 /* 项目调度（R52-F2：左右两列——左=方向感，右=执行面） */
 .cur-body-v { padding: 0 20px 18px; display: flex; flex-direction: column; gap: 10px; }
 /* R54-B1：左右两列 + 可拖拽分隔条（行内 style 动态列宽，此处为基础回退值） */
-.cur-cols { display: grid; grid-template-columns: minmax(240px, 38%) 6px 1fr; gap: 0 10px; align-items: stretch; }
+/* R55-E（修复 R54-B1）：列宽绑定 ${curSplit.value}——此前 ${curSplit} 插值 ref 对象生成非法值被 CSSOM 静默拒绝 */
+.cur-cols { display: grid; grid-template-columns: minmax(0, 38%) 8px 1fr; gap: 0 10px; align-items: stretch; }
 .cur-col-l, .cur-col-r { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .cur-proj-name { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: .3px; }
 .cur-vision-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -1032,14 +1020,21 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
 .cur-goal-link:hover { text-decoration: underline; }
 .cur-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 /* R54-B1：分栏拖拽分隔条 */
-.cur-split { width: 6px; border-radius: 99px; cursor: col-resize; background: transparent; transition: background .15s; align-self: stretch; }
-.cur-split:hover, .cur-split:active { background: var(--accent); opacity: .35; }
+/* R55-E2：分隔条常显可见（细线）+ hover/拖动增强，命中区 8px */
+.cur-split { width: 8px; border-radius: 99px; cursor: col-resize; background: transparent; transition: background .15s; align-self: stretch; position: relative; }
+.cur-split::after { content: ''; position: absolute; left: 3px; top: 6px; bottom: 6px; width: 2px; border-radius: 99px; background: var(--border-strong); opacity: .5; transition: all .15s; }
+.cur-split:hover, .cur-split:active { background: var(--accent-light); }
+.cur-split:hover::after, .cur-split:active::after { background: var(--accent); opacity: 1; top: 0; bottom: 0; }
 /* R54-B2：指标卡可点击 */
 .cur-stat.clickable { cursor: pointer; transition: border-color .15s, transform .12s; }
 .cur-stat.clickable:hover { border-color: var(--accent); transform: translateY(-1px); }
 .cur-stat.clickable:hover .cs-lab { color: var(--accent); }
-/* R52-F2：左列 4 指标 2×2 */
-.cur-stats-2 { grid-template-columns: repeat(2, 1fr); }
+/* R55-D2：4 指标降级为一行状态栏（card-head 右侧，点击下钻保留） */
+.cur-stat-strip { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 3px 6px; }
+.cur-stat-strip .css-item { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-2); padding: 2px 7px; border-radius: 6px; cursor: pointer; font-variant-numeric: tabular-nums; transition: all .12s; white-space: nowrap; }
+.cur-stat-strip .css-item:hover { background: var(--accent-light); color: var(--accent); }
+.cur-stat-strip .css-item.ok { color: var(--success); }
+.cur-stat-strip .css-item.warn { color: var(--warning, #e67e22); }
 .cur-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 6px; text-align: center; }
 .cs-num { font-size: 22px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
 .cs-num.ok { color: var(--success); }
@@ -1086,13 +1081,6 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
 .ce-desc { font-size: 11.5px; color: var(--text-3); margin-bottom: 12px; line-height: 1.7; }
 
 /* 底部专区 Tab */
-.zone-tabs { display: flex; align-items: center; gap: 8px; margin-bottom: -6px; padding: 0 4px; }
-.zone-tab { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 9px 9px 0 0; font-size: 13px; font-weight: 600; color: var(--text-3); cursor: pointer; transition: all .15s; border: 1px solid transparent; border-bottom: none; user-select: none; }
-.zone-tab:hover { color: var(--text-2); }
-.zone-tab.active { background: var(--surface); color: var(--accent); border-color: rgba(0,0,0,.025); box-shadow: 0 -1px 4px rgba(0,0,0,.04); }
-.zone-tab .zc { font-size: 10px; font-weight: 600; padding: 1px 8px; border-radius: 99px; background: var(--surface-3); color: var(--text-3); font-variant-numeric: tabular-nums; }
-.zone-tab.active .zc { background: var(--accent-light); color: var(--accent); }
-.zone-en { font-size: 9px; color: var(--text-4); letter-spacing: 1.4px; text-transform: uppercase; margin-left: 8px; }
 
 /* 弹窗 */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 200; }
@@ -1136,5 +1124,6 @@ const taskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt)
   /* R52-F1/F2：窄窗口降级回纵向 */
   .today-cards { grid-template-columns: 1fr; }
   .cur-cols { grid-template-columns: 1fr; }
+  .cur-split { display: none; }
 }
 </style>
