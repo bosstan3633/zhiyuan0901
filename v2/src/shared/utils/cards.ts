@@ -55,6 +55,7 @@ export function convertCard(c: CuriosityCard, target: ConvertTarget): ConvertedC
       metricId: target.metricId,
       mountedResourceIds: [],
       mountedCuriosityIds: [c.id],
+      fromCuriosityId: c.id,
       ...common
     }
     return card
@@ -69,6 +70,7 @@ export function convertCard(c: CuriosityCard, target: ConvertTarget): ConvertedC
     workspaceId: target.workspaceId,
     categoryId: target.categoryId || '',
     callCount: 0,
+    fromCuriosityId: c.id,
     ...common
   }
   return card

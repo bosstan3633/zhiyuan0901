@@ -254,7 +254,8 @@ function onProjDragLeave(e: DragEvent) {
                 <button class="ov-tool danger" title="删除项目（任务转未归档）" @click.stop="removeProject(p)">🗑</button>
               </div>
             </div>
-            <div class="ov-add-card" @click="openCreate"><span>＋</span><span>新建 / 规划项目</span></div>
+            <!-- R59-T7：网格内「新建/规划项目」占位卡移除——头部「＋ 新建项目」为唯一入口 -->
+            <div v-if="!visibleProjects.length" class="ov-empty-hint">还没有项目——点右上角「＋ 新建项目」开始规划</div>
           </div>
         </div>
       </div>
@@ -357,8 +358,8 @@ function onProjDragLeave(e: DragEvent) {
 .ov-tool:hover { background: var(--surface-3); color: var(--text); }
 .ov-tool.on { color: var(--accent); background: var(--accent-light); }
 .ov-tool.danger:hover { color: var(--danger); }
-.ov-add-card { border: 1.5px dashed var(--border-strong); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 96px; cursor: pointer; color: var(--text-3); font-size: 12.5px; transition: all .15s; }
-.ov-add-card:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+/* R59-T7：占位卡移除后保留零项目空态提示 */
+.ov-empty-hint { grid-column: 1 / -1; text-align: center; padding: 22px; font-size: 12.5px; color: var(--text-4); border: 1px dashed var(--border); border-radius: var(--radius-sm); }
 
 /* 新建弹窗 */
 .ov-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 220; }

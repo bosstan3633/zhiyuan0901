@@ -5,6 +5,7 @@ Thumbs.db
 dist/
 .workbuddy/git-recovery/
 .workbuddy/memory/
+.workbuddy/
 vite.config.ts.timestamp-*.mjs
 *.timestamp-*.mjs
 知源工作台_V2.12.0.zip

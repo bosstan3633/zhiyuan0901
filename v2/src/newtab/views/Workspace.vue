@@ -242,7 +242,8 @@
               <div v-for="r in resourcesByCategory(cat.key)" :key="r.id" class="kc-card" :class="{pinned: r.pinned, 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :draggable="!batchMode" @dragstart="onDragStart($event,r)" @dragover.prevent.stop="markDrop($event, r.id, 'y')" @dragleave="clearDropMark" @drop.stop="onKanbanCardDrop($event, r)" @click="onCardClick(r)" @dblclick="onCardDblClick(r)">
                 <div class="kc-card-title">
-                  <span v-if="r.starred" class="kc-star" title="已星标">⭐</span>{{ val(r, titleKey) }}</div>
+                  <span v-if="r.starred" class="kc-star" title="已星标">⭐</span>{{ val(r, titleKey) }}
+                  <span class="kc-del" title="删除" @click.stop="deleteResource(r)">🗑</span></div>
                 <div class="kc-card-footer">
                   <span v-if="hasField('tags') && r.tags.length" v-for="t in r.tags" :key="t" class="kc-card-tag">#{{ t }}</span>
                   <span class="kc-card-link" :class="r.linkType" v-if="r.link">{{ linkIcon(r.linkType) }}</span>
@@ -463,7 +464,7 @@ import { useConfirm } from '@/shared/components/confirm'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import { markRank } from '@/shared/utils/marksort'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
-import { CURATION_WS_ID, type ResourceCard, type Category, type Workspace, type TaskCard, type FieldDef } from '@/shared/models'
+import { CURATION_WS_ID, type AppData, type ResourceCard, type Category, type Workspace, type TaskCard, type FieldDef } from '@/shared/models'
 
 const route = useRoute()
 const router = useRouter()
@@ -590,6 +591,13 @@ const filteredResources = computed(() => {
 function applySort(list: ResourceCard[]): ResourceCard[] {
   const out = [...list]
   const dirMul = sortDir.value === 'asc' ? 1 : -1
+  // R56-V1：手动（默认）态 = 拖拽序优先（curOrder），无拖拽序的最新在前
+  if (sortBy.value === 'manual') {
+    const hasDrag = out.some(r => r.curOrder != null)
+    if (!hasDrag) { out.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); return out }
+    out.sort((a, b) => (a.curOrder ?? 999999) - (b.curOrder ?? 999999))
+    return out
+  }
   if (sortBy.value === 'recent') out.sort((a,b) => dirMul * ((a.createdAt||0) - (b.createdAt||0)))
   else if (sortBy.value === 'visited') out.sort((a,b) => dirMul * ((a.lastCalledAt||0) - (b.lastCalledAt||0)))
   else if (sortBy.value === 'title') out.sort((a,b) => a.title.localeCompare(b.title, 'zh-CN'))
@@ -659,7 +667,8 @@ const kanbanCategories = computed(() => {
 })
 
 function resourcesByCategory(catId: string) {
-  return allResources.value.filter(r => (r.categoryId||'') === catId)
+  // R56-V1：看板列内与卡片/列表视图同口径——applySort 消费（手动=拖拽序 curOrder 优先，无拖拽序最新在前）
+  return applySort(allResources.value.filter(r => (r.categoryId||'') === catId))
 }
 
 // ===== 链接打开（E1：双击 = 打开链接；第卅二轮 REQ-010 归一化逻辑统一在 shared/utils/link） =====
@@ -883,6 +892,9 @@ function onDropCard(e: DragEvent, target: ResourceCard) {
   const [item] = d.value.resources.splice(fromIdx, 1)
   const newIdx = d.value.resources.findIndex(r => r.id === target.id)
   d.value.resources.splice(after ? newIdx + 1 : newIdx, 0, item)
+  // R56-V1：拖拽序物化——落位分区按物理序全量重写 curOrder（否则「无拖拽序=最新在前」会吞掉拖拽结果）
+  const landedKey = groupKeyOf(moved)
+  d.value.resources.filter(r => !r.deletedAt && groupKeyOf(r) === landedKey).forEach((r, i) => { r.curOrder = i })
   store.persist()
   draggedItem = null
   clearDropMark()
@@ -906,6 +918,9 @@ function onKanbanCardDrop(e: DragEvent, target: ResourceCard) {
   const [item] = d.value.resources.splice(fromIdx, 1)
   const newToIdx = d.value.resources.findIndex(x => x.id === target.id)
   d.value.resources.splice(after ? newToIdx + 1 : newToIdx, 0, item)
+  // R56-V1：看板拖拽同样物化拖拽序——落位列全量重写 curOrder，列内 applySort 稳定消费
+  const colKey = target.categoryId || ''
+  d.value.resources.filter(r => !r.deletedAt && (r.categoryId || '') === colKey).forEach((r, i) => { r.curOrder = i })
   store.persist()
   draggedItem = null
   showToast('✓ 已调整排序')
@@ -1572,27 +1587,38 @@ function editDesc() {
   })
 }
 function exportWorkspace() {
-  const data = {
-    workspace: workspace.value,
-    categories: categories.value,
-    resources: allResources.value
-  }
+  const ws = workspace.value
+  if (!ws) return
+  const wsId = workspaceId.value
+  // R56-I：改为 AppData 子集同构导出——旧自定义形状 {workspace,categories,resources} 缺 version/tagTree/
+  // tasks/curiosities/compass/stats，导入端版本校验直接拒绝，标签体系等全局数据随之丢失。
+  // 现为 ...d 全量展开（全局段随行）+ 工作台段按当前台过滤；导出物可直接走「导入数据」并集合并。
+  const data = JSON.parse(JSON.stringify({
+    ...d.value,
+    workspaces: [ws],
+    categories: d.value.categories.filter(c => c.workspaceId === wsId),
+    resources: d.value.resources.filter(r => r.workspaceId === wsId)
+  })) as AppData
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  a.href = url; a.download = `${workspace.value?.name}_数据.json`
+  a.href = url; a.download = `${ws.name}_数据.json`
   a.click(); URL.revokeObjectURL(url)
-  showToast('✓ 工作台数据已导出')
+  showToast('✓ 工作台数据已导出（含标签树/罗盘/任务/好奇心等全局段）')
   settingsMenuOpen.value = false
 }
 async function deleteWorkspace() {
-  if (!(await useConfirm({ title: '删除工作台', message: `确定删除工作台「${workspace.value?.name.replace(/^[^\s]+\s/, '')}」？\n其中资源卡与分类将一并删除，此操作不可恢复。`, confirmText: '确认删除' }))) return
+  // R58-B1：策展空间是全局工作台，不可从此入口删除
+  if (workspaceId.value === CURATION_WS_ID) { showToast('ℹ 策展中心为全局空间，不在此删除'); return }
+  // R58-B1：红线修复——资源卡一律软删（deletedAt，回收站可恢复），不再物理移除
+  if (!(await useConfirm({ title: '删除工作台', message: `确定删除工作台「${workspace.value?.name.replace(/^[^\s]+\s/, '')}」？\n其中资源卡将全部移入回收站（可恢复），分类与工作台本身将删除且不可恢复。`, confirmText: '确认删除' }))) return
   const idx = d.value.workspaces.findIndex(w => w.id === workspaceId.value)
   if (idx >= 0) d.value.workspaces.splice(idx, 1)
-  d.value.resources = d.value.resources.filter(r => r.workspaceId !== workspaceId.value)
+  const now = Date.now()
+  for (const r of d.value.resources) if (r.workspaceId === workspaceId.value && !r.deletedAt) r.deletedAt = now
   d.value.categories = d.value.categories.filter(c => c.workspaceId !== workspaceId.value)
   store.persist()
-  showToast('工作台已删除')
+  showToast('工作台已删除（资源卡已移入回收站）')
   router.push('/compass')
 }
 
@@ -1841,6 +1867,9 @@ function linkDisplay(link: string) {
 .kc-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 8%, transparent); }
 .kc-card.pinned { border-left: 3px solid var(--accent); }
 .kc-card-title { font-size: 12px; font-weight: 500; color: var(--text); line-height: 1.4; margin-bottom: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.kc-del { margin-left: auto; font-size: 11px; color: var(--text-3); cursor: pointer; opacity: 0; transition: all .12s; padding: 0 3px; border-radius: 4px; flex-shrink: 0; }
+.kc-card-title:hover .kc-del { opacity: 1; }
+.kc-del:hover { color: var(--danger); }
 .kc-card-footer { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .kc-card-assets { display: inline-flex; }
 .kc-card-tag { font-size: 9px; padding: 1px 5px; border-radius: 99px; background: var(--accent-light); color: var(--accent); }

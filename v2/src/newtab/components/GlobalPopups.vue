@@ -213,7 +213,7 @@
   </div>
 
   <!-- R55-C：快速采集任务（四字段全非必填，直存全域任务） -->
-  <div class="gp-overlay corner" :class="{open: activePanel==='taskcapture'}" @click.self="closeAll">
+  <div class="gp-overlay" :class="{open: activePanel==='taskcapture'}" @click.self="closeAll">
     <div class="gp-panel gp-panel-narrow">
       <template v-if="!tcSaved">
         <div class="gp-cap-head">
@@ -618,10 +618,12 @@ const filteredResults = computed<SearchResult[]>(() => {
   let list = allResults.value
   if (currentType.value !== 'all') list = list.filter(r => r.type === currentType.value)
   const q = searchQuery.value.trim().toLowerCase()
+  const parts = q ? q.split(/\s+/) : []
   if (q) {
-    const parts = q.split(/\s+/)
     list = list.filter(r => {
-      const blob = (r.title + ' ' + r.ws + ' ' + r.cat + ' ' + (r.summary||'') + ' ' + (r.link?.text||'')).toLowerCase()
+      // R58-B4：命中字段两端同构——补标签（与网页浮层一致；raw 为原始卡）
+      const rawTags = Array.isArray((r.raw as { tags?: string[] })?.tags) ? ((r.raw as { tags?: string[] }).tags as string[]).join(' ') : ''
+      const blob = (r.title + ' ' + r.ws + ' ' + r.cat + ' ' + (r.summary||'') + ' ' + (r.link?.text||'') + ' ' + rawTags).toLowerCase()
       // 第十九轮：支持拼音/首字母命中中文标题（如 sj → 设计…）
       // V2.21：先读 pinyinReady 建立响应式依赖——字典未就绪时短路，纯文本匹配照常；
       //        字典到位后 pinyinReady 翻转，本 computed 自动重算，拼音命中无缝补入。
@@ -629,9 +631,20 @@ const filteredResults = computed<SearchResult[]>(() => {
       return parts.every(p => blob.includes(p) || (pinyinOn && matchPinyin(r.title, p)))
     })
   }
-  // 第卅三轮 REQ-020：全局检索加权排序 —— 置顶 > 星标 > 普通命中度（稳定排序，同权重保持原顺序）
-  list = [...list].sort((a, b) =>
-    markRank(b.raw as AnyCard) - markRank(a.raw as AnyCard))
+  // 第卅三轮 REQ-020：置顶 > 星标 ｜ R58-O1：同权重三级兜底——标题全词命中 > 调用热度 > 最近调出（召回排序与「三秒调度」心智对齐）
+  const lowTitle = (x: SearchResult) => x.title.toLowerCase()
+  const titleHit = (x: SearchResult) => parts.every(p => lowTitle(x).includes(p) || (pinyinReady.value && matchPinyin(x.title, p)))
+  list = [...list].sort((a, b) => {
+    const mr = markRank(b.raw as AnyCard) - markRank(a.raw as AnyCard)
+    if (mr) return mr
+    if (parts.length) {
+      const th = (titleHit(b) ? 1 : 0) - (titleHit(a) ? 1 : 0)
+      if (th) return th
+    }
+    const dc = (((b.raw as AnyCard).callCount || 0) - ((a.raw as AnyCard).callCount || 0))
+    if (dc) return dc
+    return (((b.raw as AnyCard).lastCalledAt || 0) - ((a.raw as AnyCard).lastCalledAt || 0))
+  })
   return list
 })
 

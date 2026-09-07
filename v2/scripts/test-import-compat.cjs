@@ -8,7 +8,10 @@ const path = require('path')
 const fs = require('fs')
 const { chromium } = require('playwright-core')
 
-const CHROME = path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1223', 'chrome-win64', 'chrome.exe')
+// R56：跨平台 Chromium 路径（与 e2e.cjs 同规则）
+const CHROME = process.platform === 'darwin'
+  ? path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright', 'chromium-1234', 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing')
+  : path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1223', 'chrome-win64', 'chrome.exe')
 const DIST = path.resolve(__dirname, '..', 'dist')
 const results = []
 function report(name, ok, detail) {
@@ -89,7 +92,8 @@ async function main() {
   // 验证 3：调度台首页正常打开（今日记录条/三件事区域不因旧数据报错）——先整页 reload（模拟重开新标签页）
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
-  const recStrip = await page.locator('.rec-strip').first().isVisible().catch(() => false)
+  // R56-P2：今日记录缩至页头 rec-mini
+  const recStrip = await page.locator('.rec-mini').first().isVisible().catch(() => false)
   const errBoundary = await page.locator('.render-error').first().isVisible().catch(() => false)
   report('K4 调度台首页正常渲染（无渲染错误兜底）', recStrip && !errBoundary, `recStrip=${recStrip} error=${errBoundary}`)
 

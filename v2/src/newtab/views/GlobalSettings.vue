@@ -1602,10 +1602,8 @@ function mergeImport(imported: AppData): { cards: number; dirs: number; ws: numb
   }
 
   // ---- 行为日志：按 id 追加去重 ----
-  if (imported.activityLogs?.length) {
-    const ids = new Set(d.activityLogs.map(l => l.id))
-    for (const l of imported.activityLogs) if (!ids.has(l.id)) d.activityLogs.push(l)
-  }
+  // R58-B5：activityLogs 已退役（事件日志迁 zy_event_log），导入不再搬运死字段
+  d.activityLogs = []
 
   // ---- R53-E1（P0 修复）：策展投射清单并入——此前导入合并遗漏此字段，备份→恢复会静默丢弃全部策展投射 ----
   if (imported.curationProjections?.length || d.curationProjections?.length) {

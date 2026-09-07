@@ -4,12 +4,33 @@ import type { Direction, Project } from '@/shared/models'
 
 // B40：recordResourceOpen 已下沉至 shared/storage/stats（应用端与网页端共用同一实现）
 export { recordResourceOpen } from '@/shared/storage/stats'
+import { getDataVersion } from '@/shared/storage/repository'
 
 /**
  * 方向台数据管理
  * 六层链：Vision → Mission → Direction(战略目标) → Project(攻坚项目) → Metric(成功指标) → Task
  */
 export function useCompass() {
+
+  // ---- R56-PERF-c：项目任务索引（单次遍历，供 isProjectDone/isProjectStalled/projectProgress 共享） ----
+  let ptIndexVersion = -1
+  let ptIndex: Map<string, typeof d.value.tasks> = new Map()
+  function projectTasksIndex(): Map<string, typeof d.value.tasks> {
+    if (ptIndexVersion !== getDataVersion()) {
+      const m: Map<string, typeof d.value.tasks> = new Map()
+      for (const t of d.value.tasks) {
+        if (t.deletedAt || !t.projectId) continue
+        let arr = m.get(t.projectId)
+        if (!arr) { arr = []; m.set(t.projectId, arr) }
+        arr.push(t)
+      }
+      ptIndex = m
+      ptIndexVersion = getDataVersion()
+    }
+    return ptIndex
+  }
+  function projectTasksOf(projectId: string) { return projectTasksIndex().get(projectId) || [] }
+
   const store = useAppStore()
   const d = computed(() => store.data!)
 
@@ -56,9 +77,7 @@ export function useCompass() {
   // ---- 项目进度计算 ----
   function projectProgress(project: Project): { done: number; total: number; pct: number } {
     const metricIds = project.metrics.map(m => m.id)
-    const tasks = d.value.tasks.filter(t =>
-      !t.deletedAt && t.projectId === project.id
-    )
+    const tasks = projectTasksOf(project.id)
     const done = tasks.filter(t => t.status === 'done').length
     const total = tasks.length
     const pct = total ? Math.round((done / total) * 100) : (project.progress || 0)
@@ -69,13 +88,13 @@ export function useCompass() {
    *  1) 手动 status=done/archived；2) 派生完成——项目下有任务且全部 done（纯计算，不回写 status） */
   function isProjectDone(project: Project): boolean {
     if (project.status === 'done' || project.status === 'archived') return true
-    const tasks = d.value.tasks.filter(t => !t.deletedAt && t.projectId === project.id)
+    const tasks = projectTasksOf(project.id)
     return tasks.length > 0 && tasks.every(t => t.status === 'done')
   }
 
   /** R49-C2/C5：项目停滞判定（简版口径：有任务但近 14 天无推进/完成活动） */
   function isProjectStalled(project: Project): boolean {
-    const tasks = d.value.tasks.filter(t => !t.deletedAt && t.projectId === project.id)
+    const tasks = projectTasksOf(project.id)
     if (!tasks.length) return false
     const recent = tasks.some(t =>
       t.status === 'doing' ||
@@ -115,7 +134,19 @@ export function useCompass() {
     return Date.now() - ts < days * 86400_000
   }
 
+  // R56-PERF-d：北极星结果按 period+数据版本 memo（迁调度台后常驻首页，避免每次数据变更全量重算）
+  let nsMemoKey = ''
+  let nsMemo: ReturnType<typeof northStarMetricsRaw> | null = null
   function northStarMetrics(period: Period) {
+    // R58-B3：memo 键拼上当日日期——跨零点后日窗口口径自动刷新，不再沿用昨日缓存
+    const dayKey = new Date().toDateString()
+    const key = period + ':' + dayKey + ':' + getDataVersion()
+    if (nsMemo && nsMemoKey === key) return nsMemo
+    nsMemoKey = key
+    nsMemo = northStarMetricsRaw(period)
+    return nsMemo
+  }
+  function northStarMetricsRaw(period: Period) {
     const days = period === 'day' ? 1 : period === 'week' ? 7 : 9999
     const pLabel = period === 'day' ? '今日' : period === 'week' ? '本周' : '累计'
     const dirs = d.value.compass.directions
@@ -142,7 +173,10 @@ export function useCompass() {
 
     // WCE 好奇探索：激活数=「探索中+已求证」的好奇心数；新增=周期内捕获数
     const curiosities = d.value.curiosities.filter(c => !c.deletedAt)
+    // R59-T9：WCE 口径扩展——激活好奇项 + 「好奇 → 任务/资源」转化卡数（fromCuriosityId 标记，按卡计）
     const wceCount = curiosities.filter(c => c.status === 'doing' || c.status === 'done').length
+    const convertedCount = [...d.value.tasks, ...d.value.resources]
+      .filter(x => !x.deletedAt && x.fromCuriosityId).length
     const newInPeriod = curiosities.filter(c => isWithinDays(c.createdAt, days)).length
 
     // WRR 有效复用：资源卡被打开的累计次数（工作台点击/双击打开/搜索打开均计数）
@@ -167,7 +201,7 @@ export function useCompass() {
 
     return {
       dhi: { label: dhiLabel, pct: dhiPct, sub: `${dirs.length}方向·${pinnedProjects.length}已投射·${activeProjects}在轨` },
-      wce: { label: `${wceCount}项激活`, sub: `${pLabel}+${newInPeriod}` },
+      wce: { label: `${wceCount + convertedCount} 项激活+转化`, sub: `${pLabel}新增 ${newInPeriod}`, count: wceCount + convertedCount },
       wrr: { label: `${wrrUnit}${wrrMain}次打开`, sub: wrrSub },
       categories: categoryCount,
       resources: resourceCount,
@@ -178,7 +212,7 @@ export function useCompass() {
   /** 北极星指标计算公式（用于下钻抽屉展示） */
   const formulas = {
     dhi: 'DHI = 在轨项目占已投射项目的百分比；在轨 = 窗口内有任务完成 或 有进行中任务 或 项目任务已全部完成（R55 新口径）；档位 清晰≥75% / 关注≥40% / 模糊>0 / 未启动=0；活跃窗口随周期联动（日=今日/周=近14天/累计=全部）；投射仅项目层支持（战略目标层级已移除）',
-    wce: 'WCE = 状态为「探索中 + 已求证」的好奇心卡片数；副指标 = 本周期新捕获数（日/周/累计随上方周期切换）',
+    wce: 'WCE（R59 扩展口径）= 「探索中 + 已求证」好奇项数 + 好奇卡转化为任务/资源的卡数；副指标 = 本周期新捕获数（日/周/累计随上方周期切换）',
     wrr: 'WRR 主数字随周期联动：日=今日打开卡数 / 周=本周打开次数(stats.wrr.thisWeekUsage) / 累计=所有资源卡被打开次数之和；副指标给出参照口径（日/周档显示累计值，累计档显示今日值）',
     groups: '模块分组数 = 所有工作台下的文件夹（分组）总数',
     resources: '链接卡片总数 = 全部资源卡数量（不含回收站）',
@@ -188,7 +222,7 @@ export function useCompass() {
   return {
     d, visionText, missionText, directions, allProjects, projectById,
     focusedProjects, toggleFocusProject, projectProgress,
-    isProjectStalled, isProjectDone, offCourseCount, taskArchiveIssue, unarchivedTaskCount, totalTaskCount,
+    isProjectStalled, isProjectDone, projectTasksOf, offCourseCount, taskArchiveIssue, unarchivedTaskCount, totalTaskCount,
     northStarMetrics, formulas
   }
 }

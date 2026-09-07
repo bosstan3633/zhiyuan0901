@@ -22,7 +22,7 @@ import TaskDetailDrawer from './TaskDetailDrawer.vue'
 const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
-const { d, allProjects, projectProgress } = useCompass()
+const { d, allProjects, projectProgress, taskArchiveIssue } = useCompass()
 
 const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 
@@ -34,10 +34,10 @@ const sortBy = ref('manual')
 // 第卅二轮 REQ-007：任务时间/优先级排序方向（默认倒序）+ 排序偏好本地记忆（UIPrefs.sortPrefs.task）
 const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.task?.dir === 'asc') ? 'asc' : 'desc')
 if (store.ui?.sortPrefs?.task?.by) sortBy.value = store.ui.sortPrefs.task.by
-// 第卅五轮 REQ-036：状态筛选偏好持久化（UIPrefs.sortPrefs.task.filter）
-type TaskFilter = 'all' | 'todo' | 'doing' | 'done'
+// 第卅五轮 REQ-036：状态筛选偏好持久化（UIPrefs.sortPrefs.task.filter）｜ R58-O2：新增「未归档」维度（快速采集沉淀池的就地治理入口）
+type TaskFilter = 'all' | 'todo' | 'doing' | 'done' | 'unarchived'
 const savedFilter = store.ui?.sortPrefs?.task?.filter
-const filterBy = ref<TaskFilter>(savedFilter === 'todo' || savedFilter === 'doing' || savedFilter === 'done' ? savedFilter : 'all')
+const filterBy = ref<TaskFilter>(savedFilter === 'todo' || savedFilter === 'doing' || savedFilter === 'done' || savedFilter === 'unarchived' ? savedFilter : 'all')
 watch([sortBy, sortDir, filterBy], () => {
   const sp = { ...(store.ui?.sortPrefs || {}), task: { by: sortBy.value, dir: sortDir.value, filter: filterBy.value } }
   if (store.ui) store.ui.sortPrefs = sp
@@ -54,12 +54,15 @@ function toggleBatchMode() {
 
 const filteredTasks = computed(() => {
   let tasks = (d.value.tasks || []).filter(t => !t.deletedAt)
-  if (filterBy.value !== 'all') tasks = tasks.filter(t => t.status === filterBy.value)
+  // R58-O2：未归档口径与北极星 O23 一致（taskArchiveIssue：未挂项目/指标或引用失效）
+  if (filterBy.value === 'unarchived') tasks = tasks.filter(t => !!taskArchiveIssue(t))
+  else if (filterBy.value !== 'all') tasks = tasks.filter(t => t.status === filterBy.value)
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     tasks = tasks.filter(t => t.title.toLowerCase().includes(q))
   }
-  // 第卅二轮 REQ-007 + bug 修复：排序下拉实际生效（manual=保持原顺序）
+  // 第卅二轮 REQ-007 + bug 修复：排序下拉实际生效
+  // R56-V1：manual（默认）= 拖拽序（sortOrder）优先，无拖拽序 = 最新创建在前；选其他排序即覆盖
   if (sortBy.value !== 'manual') {
     const dirMul = sortDir.value === 'asc' ? 1 : -1
     const rank: Record<string, number> = { high: 3, medium: 2, low: 1 }
@@ -68,6 +71,11 @@ const filteredTasks = computed(() => {
       if (sortBy.value === 'priority') return dirMul * ((rank[a.priority || 'low'] || 0) - (rank[b.priority || 'low'] || 0))
       return 0
     })
+  } else {
+    const hasDrag = tasks.some(t => t.sortOrder != null)
+    tasks = [...tasks].sort((a, b) => hasDrag
+      ? (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER)
+      : (b.createdAt || 0) - (a.createdAt || 0))
   }
   return tasks
 })
@@ -288,6 +296,8 @@ function onTaskDrop(target: TaskCard, grouped?: boolean) {
   const [item] = d.value.tasks.splice(fromIdx, 1)
   const newIdx = d.value.tasks.findIndex(x => x.id === target.id)
   d.value.tasks.splice(after ? newIdx + 1 : newIdx, 0, item)
+  // R56-V1：拖拽序物化——全量重写 sortOrder（否则「无拖拽序=最新在前」会吞掉拖拽结果）
+  d.value.tasks.filter(t => !t.deletedAt).forEach((t, i) => { t.sortOrder = i })
   store.persist()
   draggedTask = null
   clearTaskDrop()
@@ -575,6 +585,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           <option value="todo">待办</option>
           <option value="doing">推进中</option>
           <option value="done">已完成</option>
+          <option value="unarchived">⚠ 未归档</option>
         </select>
         <button v-if="viewMode!=='card'" class="mini-btn" :class="{active: groupByProject}" @click="groupByProject = !groupByProject" title="按所属项目分组">📂 按项目分组</button>
         <div class="search-box"><span>🔍</span><input v-model="searchQuery" placeholder="搜索任务..."></div>

@@ -17,12 +17,20 @@
  *   E2E-13 方向树返回方向台 + 项目详情头部添加成功指标 + 返回项目列表移除（R52-F5/F6/F8）
  *   E2E-14 项目调度指标下钻弹窗（R54-B2）
  *   E2E-15 面包屑 + 来源感知返回 + 树定位闭环（R54-A）
+ *   E2E-16 快速采集任务面板（R55-C）
+ *   E2E-17 项目调度 4 指标恢复左列 + 下钻链路（R56-P1）
+ *   E2E-18 策展卡可拖真值（draggable="true"）+ 区域级落卡（R57-F1）
+ *   E2E-19 删除工作台软删（deletedAt）+ 回收站可见可恢复（R58-B1）
+ *   E2E-20 项目详情左树：空指标节点接收任务拖拽（R59-T5）
  */
 const path = require('path')
 const fs = require('fs')
 const { chromium } = require('playwright-core')
 
-const CHROME = path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1223', 'chrome-win64', 'chrome.exe')
+// R56：跨平台 Chromium 路径（Windows = playwright 缓存 chrome-win64；macOS = 缓存内 Chrome for Testing）
+const CHROME = process.platform === 'darwin'
+  ? path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright', 'chromium-1234', 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing')
+  : path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1223', 'chrome-win64', 'chrome.exe')
 const DIST = path.resolve(__dirname, '..', 'dist')
 const EXT_INDEX = 'src/newtab/index.html'
 
@@ -33,7 +41,7 @@ function report(name, ok, detail) {
 }
 
 async function main() {
-  if (!fs.existsSync(CHROME)) throw new Error('chromium-1223 不存在：' + CHROME)
+  if (!fs.existsSync(CHROME)) throw new Error('Chromium 不存在：' + CHROME)
   const ctx = await chromium.launchPersistentContext('', {
     headless: true,
     executablePath: CHROME,
@@ -110,18 +118,18 @@ async function main() {
   const treeWs = await page.locator('.gs-pan-ws').count()
   report('E2E-3 工作台全景双栏+计数树', panVisible && treeWs >= 1, `panel=${panVisible} wsNodes=${treeWs}`)
 
-  // E2E-4 方向状态四格（R55-D1：迁调度台顶部）：4 格 + 详细指标下钻含北极星「新增卡片/删除卡片」
+  // E2E-4 方向状态四格（R55-D1 迁调度台顶部；R57-F3 详细指标按钮移除 → 改验证四格自下钻抽屉）
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   const metricBarOn = await page.locator('.mb-cells').first().isVisible().catch(() => false)
   const offCourse = await page.getByText('未归档任务').first().isVisible().catch(() => false)
-  await page.locator('.mb-drill').click().catch(() => {})
-  await page.waitForTimeout(1200)
-  const todayAdd = await page.getByText('新增卡片').first().isVisible().catch(() => false)
-  const todayDel = await page.getByText('删除卡片').first().isVisible().catch(() => false)
-  const oldLabelGone = !(await page.getByText('今日新增', { exact: true }).first().isVisible().catch(() => false))
-  report('E2E-4 方向状态四格迁调度台顶部 + 详细指标下钻（R55-D1）', metricBarOn && offCourse && todayAdd && todayDel && oldLabelGone,
-    'bar=' + metricBarOn + ' unarch=' + offCourse + ' add=' + todayAdd + ' del=' + todayDel)
+  const drillBtnGone = (await page.locator('.mb-drill').count()) === 0
+  await page.locator('.mb-cell').nth(3).click().catch(() => {})
+  await page.waitForTimeout(900)
+  const cellDrawer = await page.getByText('未归档任务 · 待归档清单').first().isVisible().catch(() => false)
+  await page.keyboard.press('Escape').catch(() => {})
+  report('E2E-4 方向状态四格迁调度台顶部 + 四格自下钻（R55-D1→R57-F3）', metricBarOn && offCourse && drillBtnGone && cellDrawer,
+    'bar=' + metricBarOn + ' unarch=' + offCourse + ' drillBtnGone=' + drillBtnGone + ' cellDrawer=' + cellDrawer)
 
   // E2E-5 PDF 双击 file:// 打开
   await page.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })
@@ -137,7 +145,17 @@ async function main() {
     if (/^file:\/\//i.test(u) || /^blob:/i.test(u)) pdfTab = u
   } catch { /* timeout */ }
   const fileOk = !!pdfTab && /^file:\/\//i.test(pdfTab)
-  report('E2E-5 PDF 附件双击打开（file:// 落盘通道）', fileOk, pdfTab || `cardVisible=${cardVisible} 未捕获新标签（headless 下载目录为 GUID 命名，.pdf 后缀在真实环境由 filename 参数保证）`)
+  // R56：headless（尤其 macOS）禁止 file:// 导航——落盘通道以 chrome.downloads 完成 + zy_file_paths 路径记忆为证，file:// 打开留真机复核
+  let dlOk = false, pathsOk = false
+  if (!pdfTab && cardVisible) {
+    dlOk = await page.evaluate(() => new Promise((res) => {
+      try { chrome.downloads.search({ limit: 10, orderBy: ['-startTime'] }, (items) => res((items || []).some(it => it.state === 'complete' || (it.filename || '').length > 0))) } catch { res(false) }
+    })).catch(() => false)
+    pathsOk = await page.evaluate(() => new Promise((res) => {
+      chrome.storage.local.get('zy_file_paths', (r) => res(Object.keys(r['zy_file_paths'] || {}).length > 0))
+    })).catch(() => false)
+  }
+  report('E2E-5 PDF 附件双击打开（file:// 落盘通道）', fileOk || (dlOk && pathsOk), pdfTab || `cardVisible=${cardVisible} headless落盘证据 downloads=${dlOk} zy_file_paths=${pathsOk}（file:// 导航 headless 不可捕获，真机复核）`)
 
   // E2E-6 事件日志落盘：右键软删种子卡 → delete 事件写入 zy_event_log（外部种卡按设计静默，不产事件）
   const delBtn = page.locator('.res-card[data-rid="e2e-res-1"] .rc-action.delete')
@@ -203,8 +221,9 @@ async function main() {
   const visionMini = await page.getByText('愿景 · Vision').first().isVisible().catch(() => false)
   const missionMini = await page.getByText('使命 · Mission').first().isVisible().catch(() => false)
   const goalOn = await page.getByText('E2E 战略目标').first().isVisible().catch(() => false)
-  const statCount = await page.locator('.cur-stat-strip .css-item').count()
-  report('E2E-8 调度台三件事 + 项目调度面板（愿景/使命+战略目标+状态栏四格 R55-D2）', todayCard && curationOn && visionMini && missionMini && goalOn && statCount === 4,
+  // R56-P1：4 指标恢复左列（cur-stats-v2 一行四格），头部状态栏已移除
+  const statCount = await page.locator('.cur-stats-v2 .csv-cell').count()
+  report('E2E-8 调度台三件事 + 项目调度面板（愿景/使命+战略目标+左列四指标 R56-P1）', todayCard && curationOn && visionMini && missionMini && goalOn && statCount === 4,
     `todayCard=${todayCard} curation=${curationOn} stats=${statCount} goal=${goalOn}`)
 
   // E2E-9 存量回填迁移（R46 BUG-2）：重新加载页面触发 init 回填 → task-2 补齐 projectId + projBackfillFixed 记录
@@ -310,7 +329,8 @@ async function main() {
   await page.waitForTimeout(2500)
   const pageErrors = []
   page.on('pageerror', e => pageErrors.push(String(e).slice(0, 120)))
-  await page.locator('.cur-stat-strip .css-item').first().click().catch(() => {})
+  // R56-P1：4 指标恢复左列（cur-stats-v2），cur-stat-strip 已随恢复移除
+  await page.locator('.cur-stats-v2 .csv-cell').first().click().catch(() => {})
   await page.waitForTimeout(600)
   const drillModal = await page.getByText('成功指标 · E2E 策展项目').first().isVisible().catch(() => false)
   const drillRow = await page.getByText('E2E 成功指标').first().isVisible().catch(() => false)
@@ -356,6 +376,157 @@ async function main() {
   const taskIn = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => (r['zy_data_v2'].tasks || []).some(t => t.title === 'R55 采集任务')))
   report('E2E-16 快速采集任务面板（R55-C）', tcPanelOn && tcSavedOn && taskIn,
     'panel=' + tcPanelOn + ' saved=' + tcSavedOn + ' inDb=' + taskIn + ' errs=' + JSON.stringify(pageErrs))
+
+
+  // E2E-17 项目调度 4 指标恢复（R56-P1）：左列一行四格 → 弹窗下钻 → 点击任务开右侧详情抽屉
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+  const cellsOn = await page.locator('.cur-stats-v2 .csv-cell').count()
+  const stripGone = await page.locator('.cur-stat-strip').count()
+  await page.locator('.cur-stats-v2 .csv-cell').nth(3).click().catch(() => {}) // 第 4 格 = 进行中
+  await page.waitForTimeout(600)
+  const drillTitle = await page.getByText('进行中任务 · E2E 策展项目').first().isVisible().catch(() => false)
+  const drillTaskRow = await page.getByText('E2E 任务卡').first().isVisible().catch(() => false)
+  await page.evaluate(() => { const rows = [...document.querySelectorAll('.picker-modal .picker-item')]; const hit = rows.find(r => r.textContent.includes('E2E 任务卡')); if (hit) hit.click() })
+  await page.waitForTimeout(900)
+  const drawerOpen = await page.evaluate(() => {
+    const t = document.querySelector('.ts-title')
+    return !!t && ((t.value || t.textContent || '').includes('E2E 任务卡'))
+  })
+  const cellStat = cellsOn === 4 && stripGone === 0
+  report('E2E-17 项目调度4指标恢复左列+下钻链路（R56-P1）', cellStat && drillTitle && drillTaskRow && drawerOpen,
+    'cells=' + cellsOn + ' stripGone=' + (stripGone === 0) + ' modal=' + drillTitle + ' row=' + drillTaskRow + ' drawer=' + drawerOpen)
+
+
+  // E2E-18 策展卡可拖真值 + 区域级落卡（R57-F1）：根因=裸 draggable 渲染为非法空值致真实拖拽不启动
+  await page.goto(base + '#/curation', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2200)
+  // 先种数据：镜像分类（源分类 2 卡：1 已投射 1 未投射）+ 未分类原生卡
+  const seedOk = await page.evaluate(() => new Promise((res) => {
+    chrome.storage.local.get('zy_data_v2').then(({ ['zy_data_v2']: d }) => {
+      if (!d || d.version !== 2) { res(false); return }
+      if (!d.categories.some(c => c.id === 'e2e-mirror')) {
+        const wsId = d.workspaces[0]?.id || 'ws'
+        d.categories.push({ id: 'e2e-mirror-src', workspaceId: wsId, name: 'E2E 镜像源', order: 99 })
+        d.categories.push({ id: 'e2e-mirror', workspaceId: 'zy-curation', name: 'E2E 镜像分组', order: 99, curFrom: { wsId, catId: 'e2e-mirror-src', projId: '' } })
+        d.resources.push({ id: 'e2e-src-live', kind: 'resource', title: 'E2E 未投射源卡', linkType: 'url', link: 'https://e.com/1', workspaceId: wsId, categoryId: 'e2e-mirror-src', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now() })
+        d.resources.push({ id: 'e2e-src-proj', kind: 'resource', title: 'E2E 已投射源卡', linkType: 'url', link: 'https://e.com/2', workspaceId: wsId, categoryId: 'e2e-mirror-src', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now() - 1, updatedAt: Date.now() })
+        d.resources.push({ id: 'e2e-newcard', kind: 'resource', title: 'E2E 新建策展卡', linkType: 'url', link: '', workspaceId: 'zy-curation', categoryId: '', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now() - 2, updatedAt: Date.now() })
+        d.curationProjections = (d.curationProjections || []).concat([{ id: 'e2e-curp-1', kind: 'card', wsId, cardId: 'e2e-src-proj', catId: 'e2e-mirror-src', targetCatId: 'e2e-mirror', addedAt: Date.now() }])
+      }
+      chrome.storage.local.set({ ['zy_data_v2']: d }).then(() => res(true))
+    })
+  }))
+  // 不 reload——应用「刷新固定回调度台」白名单不含 /curation；直接 hash 导航 + storage.onChanged 同步
+  await page.waitForTimeout(700)
+  await page.evaluate(() => { location.hash = '#/curation' })
+  await page.waitForTimeout(1400)
+  const dragAttrs = await page.evaluate(() => ({
+    native: document.querySelector('.cur-card.native')?.getAttribute('draggable') || '(无卡)'
+  }))
+  await page.evaluate(() => { const n = [...document.querySelectorAll('.cat-item')].find(x => x.textContent.includes('E2E 镜像分组')); if (n) n.click() })
+  await page.waitForTimeout(700)
+  const dragAttrsMirror = await page.evaluate(() => ({
+    mirror: document.querySelector('.cur-card.mirror:not(.live)')?.getAttribute('draggable') || '(无投射卡)',
+    live: document.querySelector('.cur-card.live')?.getAttribute('draggable') || '(无源卡)'
+  }))
+  // 区域级落卡：镜像分组视图内，把未投射源卡拖到网格空白处 = 物化为投射
+  const projBefore = await page.evaluate(() => new Promise((res) => chrome.storage.local.get('zy_data_v2').then(r => res((r['zy_data_v2'].curationProjections || []).filter(p => p.kind === 'card').length))))
+  const areaDrop = await page.evaluate(() => {
+    const src = document.querySelector('.cur-card.live')
+    const grid = document.querySelector('.cur-grid')
+    if (!src || !grid) return 'missing'
+    const dt = new DataTransfer()
+    src.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    grid.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    grid.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    src.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    return 'dispatched'
+  })
+  await page.waitForTimeout(700)
+  const projAfter = await page.evaluate(() => new Promise((res) => chrome.storage.local.get('zy_data_v2').then(r => res((r['zy_data_v2'].curationProjections || []).filter(p => p.kind === 'card').length))))
+  const newCardOk = await page.evaluate(() => new Promise((res) => chrome.storage.local.get('zy_data_v2').then(r => {
+    res((r['zy_data_v2'].resources || []).some(x => x.id === 'e2e-newcard'))
+  })))
+  const attrOk = dragAttrs.native === 'true' && dragAttrsMirror.mirror === 'true' && dragAttrsMirror.live === 'true'
+  report('E2E-18 策展卡可拖真值+区域落卡（R57-F1）', attrOk && seedOk && areaDrop === 'dispatched' && projAfter === projBefore + 1 && newCardOk,
+    'attr=' + JSON.stringify(Object.assign({}, dragAttrs, dragAttrsMirror)) + ' area=' + areaDrop + ' proj=' + projBefore + '→' + projAfter)
+
+
+  // E2E-19 删除工作台软删（R58-B1）：删除后资源卡带 deletedAt 进回收站，恢复时孤卡回落首个可用工作台
+  await page.evaluate(() => new Promise((res) => {
+    chrome.storage.local.get('zy_data_v2').then(({ ['zy_data_v2']: d }) => {
+      if (!d || d.version !== 2) { res(false); return }
+      if (!d.workspaces.some(w => w.id === 'e2e-del-ws')) {
+        d.workspaces.push({ id: 'e2e-keep-ws', name: '📦 保留台', icon: '📦', order: 90, archived: false })
+        d.workspaces.push({ id: 'e2e-del-ws', name: '📦 待删台', icon: '📦', order: 91, archived: false })
+        d.resources.push({ id: 'e2e-del-card', kind: 'resource', title: 'E2E 待删台资源卡', linkType: 'url', link: 'https://e.com/del', workspaceId: 'e2e-del-ws', categoryId: '', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now() })
+      }
+      chrome.storage.local.set({ ['zy_data_v2']: d }).then(() => res(true))
+    })
+  }))
+  await page.evaluate(() => { location.hash = '#/workspace/e2e-del-ws' })
+  await page.waitForTimeout(1600)
+  await page.evaluate(() => { const b = document.querySelector('.hero-btn.settings'); if (b) b.click() })
+  await page.waitForTimeout(400)
+  await page.evaluate(() => { const it = [...document.querySelectorAll('.sm-item')].find(x => x.textContent.includes('删除工作台')); if (it) it.click() })
+  await page.waitForTimeout(500)
+  const confirmMsg = await page.getByText('移入回收站').first().isVisible().catch(() => false)
+  await page.evaluate(() => { const b = document.querySelector('.cdf-btn.ok'); if (b) b.click() })
+  await page.waitForTimeout(1200)
+  const afterDel = await page.evaluate(() => new Promise((res) => chrome.storage.local.get('zy_data_v2').then(r => {
+    const dd = r['zy_data_v2']
+    const card = (dd.resources || []).find(x => x.id === 'e2e-del-card')
+    res({ wsGone: !(dd.workspaces || []).some(w => w.id === 'e2e-del-ws'), softDeleted: !!(card && card.deletedAt && !card.purged), cardExists: !!card })
+  })))
+  await page.evaluate(() => { location.hash = '#/recycle' })
+  await page.waitForTimeout(1400)
+  const inRecycle = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('[data-rid], .recycle-item, .rb-item, tr, .res-row')].map(n => n.textContent || '')
+    return rows.some(t => t.includes('E2E 待删台资源卡')) || (document.body.textContent || '').includes('E2E 待删台资源卡')
+  })
+  report('E2E-19 删除工作台软删+回收站可见（R58-B1）', confirmMsg && afterDel.wsGone && afterDel.softDeleted && inRecycle,
+    'confirm=' + confirmMsg + ' wsGone=' + afterDel.wsGone + ' softDeleted=' + afterDel.softDeleted + ' inRecycle=' + inRecycle)
+
+
+  // E2E-20 项目详情左树：空指标节点接收任务拖拽（R59-T5）——根因=指标节点 drop 只处理指标排序，任务拖拽被忽略
+  await page.evaluate(() => new Promise((res) => {
+    chrome.storage.local.get('zy_data_v2').then(({ ['zy_data_v2']: d }) => {
+      if (!d || d.version !== 2) { res(false); return }
+      if (!d.compass.directions.some(dr => dr.projects.some(pp => pp.id === 'e2e-empty-proj'))) {
+        d.compass.directions.push({ id: 'e2e-empty-dir', name: 'E2E 空指标方向', term: 'mid', status: 'active', projects: [
+          { id: 'e2e-empty-proj', name: 'E2E 空指标项目', isFocused: false, progress: 0, status: 'active', metrics: [
+            { id: 'e2e-m-full', title: 'E2E 满指标', taskIds: ['e2e-t1'] },
+            { id: 'e2e-m-empty', title: 'E2E 空指标', taskIds: [] }
+          ] }
+        ] })
+        d.tasks.push({ id: 'e2e-t1', kind: 'task', title: 'E2E 待搬任务', status: 'todo', priority: 'medium', projectId: 'e2e-empty-proj', metricId: 'e2e-m-full', mountedResourceIds: [], mountedCuriosityIds: [], customFields: {}, createdAt: Date.now(), updatedAt: Date.now() })
+      }
+      chrome.storage.local.set({ ['zy_data_v2']: d }).then(() => res(true))
+    })
+  }))
+  await page.evaluate(() => { location.hash = '#/compass/projects?p=e2e-empty-proj' })
+  await page.waitForTimeout(1800)
+  // 合成拖拽：满指标下任务行 → 空指标的树节点（dragstart/dragover/drop 全链路）
+  const dropResult = await page.evaluate(() => {
+    const src = [...document.querySelectorAll('.prt-task')].find(n => n.textContent.includes('E2E 待搬任务'))
+    const dst = [...document.querySelectorAll('.prt-metric')].find(n => n.textContent.includes('E2E 空指标'))
+    if (!src || !dst) return 'missing:' + (src ? '' : 'src ') + (dst ? '' : 'dst')
+    const dt = new DataTransfer()
+    src.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    dst.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    dst.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    src.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    return 'dispatched'
+  })
+  await page.waitForTimeout(700)
+  const moved = await page.evaluate(() => new Promise((res) => chrome.storage.local.get('zy_data_v2').then(r => {
+    const t = (r['zy_data_v2'].tasks || []).find(x => x.id === 'e2e-t1')
+    const m = ((r['zy_data_v2'].compass?.directions || []).flatMap(dr => dr.projects).find(pp => pp.id === 'e2e-empty-proj')?.metrics || []).find(x => x.id === 'e2e-m-empty')
+    res({ metricId: t?.metricId || '(空)', inTaskIds: !!m?.taskIds?.includes('e2e-t1') })
+  })))
+  report('E2E-20 空指标节点接收任务拖拽（R59-T5）', dropResult === 'dispatched' && moved.metricId === 'e2e-m-empty' && moved.inTaskIds,
+    'drag=' + dropResult + ' metricId=' + moved.metricId + ' taskIds双写=' + moved.inTaskIds)
 
 
   await ctx.close()

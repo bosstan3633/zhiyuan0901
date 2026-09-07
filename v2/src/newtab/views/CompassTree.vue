@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
+import { matchPinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import Drawer from '@/shared/components/Drawer.vue'
@@ -78,7 +79,11 @@ function toggleShowDone() {
 }
 function visibleProjectsOf(dir: Direction): Project[] {
   // R52-BUG-2：口径统一 isProjectDone（手动 done/archived 或全任务完成派生），修复「已完成项目显隐」开关失效
-  return dir.projects.filter(p => showDone.value || !isProjectDone(p))
+  // R59-T3：主攻项目置前（稳定排序，组内保持原有顺序）
+  return dir.projects
+    .filter(p => showDone.value || !isProjectDone(p))
+    .slice()
+    .sort((a, b) => (Number(b.isFocused) - Number(a.isFocused)))
 }
 const treeStats = computed(() => ({
   dirs: d.value.compass.directions.length,
@@ -312,12 +317,16 @@ const dhiStatus = computed(() => {
 })
 
 // ---- N1：愿景/使命关联资源卡/好奇心卡 ----
-const linkPopFor = ref<'vision' | 'mission' | null>(null)
+// R59-T4：关联卡片升级为居中弹窗选择器（关键词+拼音过滤、全量滚动、勾选即存）
+const pinyinOn = ref(isPinyinReady())
+onPinyinReady(() => { pinyinOn.value = true })
+const linkModal = ref<{ node: 'vision' | 'mission' } | null>(null)
 const linkQ = ref('')
 function toggleLinkPop(node: 'vision' | 'mission') {
-  linkPopFor.value = linkPopFor.value === node ? null : node
+  linkModal.value = linkModal.value?.node === node ? null : { node }
   linkQ.value = ''
 }
+function closeLinkModal() { linkModal.value = null }
 function linkIds(node: 'vision' | 'mission', kind: 'res' | 'curio'): ID[] {
   const c = d.value.compass[node]
   if (!c) return []
@@ -384,27 +393,14 @@ function openPeekLink() {
 }
 function linkCandidates(kind: 'res' | 'curio') {
   const q = linkQ.value.trim().toLowerCase()
+  const hit = (text: string) => !!text && (!q || text.toLowerCase().includes(q) || (pinyinOn.value && matchPinyin(text, q)))
   if (kind === 'res') {
-    return d.value.resources.filter(r => !r.deletedAt && (!q || r.title.toLowerCase().includes(q))).slice(0, 12)
-      .map(r => ({ id: r.id, title: r.title }))
+    return d.value.resources.filter(r => !r.deletedAt && hit(r.title)).map(r => ({ id: r.id, title: r.title }))
   }
-  return d.value.curiosities.filter(c => !c.deletedAt && (!q || c.question.toLowerCase().includes(q))).slice(0, 12)
-    .map(c => ({ id: c.id, title: c.question }))
+  return d.value.curiosities.filter(c => !c.deletedAt && hit(c.question)).map(c => ({ id: c.id, title: c.question }))
 }
-// 投射开关（第卅二轮 REQ-001：战略目标层投射已移除；愿景/使命/项目层保留——用户拍板）
-function toggleVisionProjection() {
-  d.value.compass.vision.pinnedToLighthouse = !d.value.compass.vision.pinnedToLighthouse
-  store.persist()
-}
-function toggleMissionProjection() {
-  d.value.compass.mission.pinnedToLighthouse = !d.value.compass.mission.pinnedToLighthouse
-  store.persist()
-}
-function toggleProjProjection(proj: Project) {
-  proj.pinnedToLighthouse = !proj.pinnedToLighthouse
-  store.persist()
-  showToast(proj.pinnedToLighthouse ? '📡 项目已投射至主航线，项目总览置顶' : '已取消投射')
-}
+// R59-T2：愿景/使命投射开关随主航线全量呈现退役（数据字段保留，主航线 📡 徽标仍消费）
+// R59-T2：项目投射开关退役（数据字段保留）
 
 // 第卅二轮 REQ-003：项目卡"打开项目"→ 项目全景透视抽屉（可增删改指标与任务，实时同步方向树）
 const projDrawerOpen = ref(false)
@@ -485,10 +481,6 @@ onUnmounted(() => {
               @keydown.enter.ctrl.prevent="saveEdit('vision', $event)"
               @keydown.esc="cancelEdit">{{ visionText || '点击设定你的核心愿景…' }}</div>
             <div class="node-meta">
-              <span class="proj-toggle" @click.stop="toggleVisionProjection">
-                📡 投射至灯塔
-                <div class="toggle" :class="{on: d.compass.vision.pinnedToLighthouse}" @click.stop="toggleVisionProjection" />
-              </span>
               <span class="proj-toggle" @click.stop="toggleLinkPop('vision')">
                 🔗 关联卡片
                 <span class="link-count">{{ linkCount('vision') }}</span>
@@ -497,21 +489,6 @@ onUnmounted(() => {
             <div v-if="linkCount('vision')" class="linked-chips" @click.stop>
               <span v-for="rid in linkIds('vision', 'res')" :key="'vr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico">📄</span><span class="lc-text">{{ resTitle(rid) }}</span></span>
               <span v-for="cid in linkIds('vision', 'curio')" :key="'vc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico">💡</span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
-            </div>
-            <!-- N1 关联选择浮层 -->
-            <div v-if="linkPopFor === 'vision'" class="link-pop" @click.stop>
-              <input v-model="linkQ" class="link-pop-search" placeholder="搜索资源卡 / 好奇心卡…" @keydown.esc.stop="linkPopFor = null">
-              <div class="link-pop-sec">📄 资源卡</div>
-              <label v-for="r in linkCandidates('res')" :key="r.id" class="link-pop-item">
-                <input type="checkbox" :checked="isLinked('vision', 'res', r.id)" @change="toggleLinked('vision', 'res', r.id)">
-                <span>{{ r.title }}</span>
-              </label>
-              <div class="link-pop-sec">💡 好奇心卡</div>
-              <label v-for="c in linkCandidates('curio')" :key="c.id" class="link-pop-item">
-                <input type="checkbox" :checked="isLinked('vision', 'curio', c.id)" @change="toggleLinked('vision', 'curio', c.id)">
-                <span>{{ c.title }}</span>
-              </label>
-              <div v-if="!linkCandidates('res').length && !linkCandidates('curio').length" class="link-pop-empty">无匹配卡片</div>
             </div>
           </div>
 
@@ -536,10 +513,6 @@ onUnmounted(() => {
               @keydown.enter.ctrl.prevent="saveEdit('mission', $event)"
               @keydown.esc="cancelEdit">{{ missionText || '点击设定你的核心使命…' }}</div>
             <div class="node-meta">
-              <span class="proj-toggle" @click.stop="toggleMissionProjection">
-                📡 投射至灯塔
-                <div class="toggle" :class="{on: d.compass.mission.pinnedToLighthouse}" @click.stop="toggleMissionProjection" />
-              </span>
               <span class="proj-toggle" @click.stop="toggleLinkPop('mission')">
                 🔗 关联卡片
                 <span class="link-count">{{ linkCount('mission') }}</span>
@@ -548,20 +521,6 @@ onUnmounted(() => {
             <div v-if="linkCount('mission')" class="linked-chips" @click.stop>
               <span v-for="rid in linkIds('mission', 'res')" :key="'mr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico">📄</span><span class="lc-text">{{ resTitle(rid) }}</span></span>
               <span v-for="cid in linkIds('mission', 'curio')" :key="'mc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico">💡</span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
-            </div>
-            <div v-if="linkPopFor === 'mission'" class="link-pop" @click.stop>
-              <input v-model="linkQ" class="link-pop-search" placeholder="搜索资源卡 / 好奇心卡…" @keydown.esc.stop="linkPopFor = null">
-              <div class="link-pop-sec">📄 资源卡</div>
-              <label v-for="r in linkCandidates('res')" :key="r.id" class="link-pop-item">
-                <input type="checkbox" :checked="isLinked('mission', 'res', r.id)" @change="toggleLinked('mission', 'res', r.id)">
-                <span>{{ r.title }}</span>
-              </label>
-              <div class="link-pop-sec">💡 好奇心卡</div>
-              <label v-for="c in linkCandidates('curio')" :key="c.id" class="link-pop-item">
-                <input type="checkbox" :checked="isLinked('mission', 'curio', c.id)" @change="toggleLinked('mission', 'curio', c.id)">
-                <span>{{ c.title }}</span>
-              </label>
-              <div v-if="!linkCandidates('res').length && !linkCandidates('curio').length" class="link-pop-empty">无匹配卡片</div>
             </div>
           </div>
 
@@ -628,12 +587,8 @@ onUnmounted(() => {
                       <div class="node-top">
                         <span v-if="proj.isFocused" class="primary-badge">主攻</span>
                         <span class="node-tag proj-tag">PROJECT</span>
-                        <span class="proj-toggle" @click.stop title="主攻项目（同步今日行动）">
-                          🎯 <div class="toggle" :class="{on: proj.isFocused}" @click.stop="toggleFocusProject(proj.id)" />
-                        </span>
-                        <span class="proj-toggle" @click.stop title="投射至知源灯塔">
-                          📡 <div class="toggle" :class="{on: proj.pinnedToLighthouse}" @click.stop="toggleProjProjection(proj)" />
-                        </span>
+                        <button class="focus-btn" :class="{on: proj.isFocused}" @click.stop="toggleFocusProject(proj.id)"
+                          :title="proj.isFocused ? '主攻项目（再次点击取消）——主攻项目在列表置前并以强调色区分' : '设为主攻项目——列表置前并以强调色区分'">🎯 主攻</button>
                       </div>
                       <div class="node-title editable"
                         :class="{editing: editingField === 'proj-' + proj.id}"
@@ -737,6 +692,44 @@ onUnmounted(() => {
       </div>
       </div>
 
+    <!-- R59-T4：关联卡片选择器（居中弹窗：关键词+拼音过滤 / 资源+好奇分区 / 全量滚动 / 勾选即存） -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="linkModal" class="lm-mask" @click.self="closeLinkModal">
+          <div class="lm-box">
+            <div class="lm-head">
+              <span>🔗 关联卡片 · {{ linkModal.node === 'vision' ? '愿景' : '使命' }}</span>
+              <span class="lm-count">已选 {{ linkCount(linkModal.node) }}</span>
+              <div class="pm-close" @click="closeLinkModal">×</div>
+            </div>
+            <div class="lm-body">
+              <input v-model="linkQ" class="lm-search" placeholder="关键词或拼音首字母过滤（如 sj）…" v-focus @keydown.esc.stop="closeLinkModal">
+              <div class="link-pop-sec">📄 资源卡（{{ linkCandidates('res').length }}）</div>
+              <div class="lm-list">
+                <label v-for="r in linkCandidates('res')" :key="r.id" class="link-pop-item">
+                  <input type="checkbox" :checked="isLinked(linkModal.node, 'res', r.id)" @change="toggleLinked(linkModal.node, 'res', r.id)">
+                  <span :title="r.title">{{ r.title }}</span>
+                </label>
+                <div v-if="!linkCandidates('res').length" class="link-pop-empty">无匹配资源卡</div>
+              </div>
+              <div class="link-pop-sec">💡 好奇心卡（{{ linkCandidates('curio').length }}）</div>
+              <div class="lm-list">
+                <label v-for="c in linkCandidates('curio')" :key="c.id" class="link-pop-item">
+                  <input type="checkbox" :checked="isLinked(linkModal.node, 'curio', c.id)" @change="toggleLinked(linkModal.node, 'curio', c.id)">
+                  <span :title="c.title">{{ c.title }}</span>
+                </label>
+                <div v-if="!linkCandidates('curio').length" class="link-pop-empty">无匹配好奇心卡</div>
+              </div>
+            </div>
+            <div class="lm-foot">
+              <span class="lm-tip">勾选即时保存 · 单击已关联卡片可在下方芯片处查看（双击打开）</span>
+              <button class="mini-btn primary" @click="closeLinkModal">完成</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- B24：关联卡片详情抽屉 -->
     <Drawer :open="!!peekData" :title="peek?.kind === 'res' ? '📄 资源卡详情' : '💡 好奇心卡详情'" @close="peek = null">
       <template v-if="peekData">
@@ -769,9 +762,21 @@ onUnmounted(() => {
 /* N1：愿景/使命关联卡片 */
 .node { position: relative; }
 .link-count { font-size: 10px; color: var(--accent); background: var(--accent-light); padding: 1px 7px; border-radius: 99px; font-weight: 600; }
-.link-pop { position: absolute; bottom: calc(100% + 6px); left: 12px; width: 320px; max-width: 92%; z-index: 80; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg); padding: 10px; }
-.link-pop-search { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 12px; outline: none; font-family: inherit; background: var(--surface); color: var(--text); margin-bottom: 6px; }
-.link-pop-search:focus { border-color: var(--accent); }
+/* R59-T4：关联卡片选择器（居中弹窗） */
+.lm-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 640; display: flex; align-items: center; justify-content: center; }
+.lm-box { width: 520px; max-width: 94vw; max-height: 82vh; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
+.lm-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px 10px; font-size: 14px; font-weight: 700; color: var(--text); }
+.lm-count { font-size: 11px; font-weight: 500; color: var(--accent); background: var(--accent-light); border-radius: 99px; padding: 2px 10px; }
+.lm-head .pm-close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; padding: 0 4px; }
+.lm-head .pm-close:hover { color: var(--text); }
+.lm-body { padding: 0 18px 8px; overflow: hidden; display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.lm-search { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-size: 12.5px; outline: none; font-family: inherit; background: var(--surface-2); color: var(--text); margin-bottom: 6px; }
+.lm-search:focus { border-color: var(--accent); }
+.lm-list { max-height: 30vh; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 4px; margin-bottom: 6px; }
+.lm-foot { display: flex; align-items: center; gap: 10px; padding: 10px 18px 14px; border-top: 1px solid var(--border); }
+.lm-tip { flex: 1; font-size: 11px; color: var(--text-4); }
+.mini-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 12px; border-radius: 8px; padding: 5px 12px; cursor: pointer; font-family: inherit; }
+.mini-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .link-pop-sec { font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding: 6px 4px 3px; }
 .link-pop-item { display: flex; align-items: center; gap: 8px; padding: 6px 6px; border-radius: 6px; cursor: pointer; font-size: 12px; color: var(--text-2); }
 .link-pop-item:hover { background: var(--surface-2); color: var(--text); }
@@ -920,8 +925,12 @@ onUnmounted(() => {
 
 /* 项目节点 */
 .project-node { margin-bottom: 0; }
-.project-node.primary { border: 1px solid var(--accent); background: var(--accent-light); }
+/* R59-T3：主攻项目——强调色凸显（边+底色+左侧强调条），与普通项目一眼区分 */
+.project-node.primary { border: 1px solid var(--accent); background: var(--accent-light); box-shadow: inset 3px 0 0 var(--accent), 0 0 12px color-mix(in srgb, var(--accent) 14%, transparent); }
 .project-node.primary .node-title { color: var(--accent); }
+.focus-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; color: var(--text-3); background: var(--surface-3); border: 1px solid var(--border); border-radius: 99px; padding: 2px 10px; cursor: pointer; font-family: inherit; transition: all .12s; flex-shrink: 0; }
+.focus-btn:hover { border-color: var(--accent); color: var(--accent); }
+.focus-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .primary-badge { background: var(--accent); color: #fff; font-size: 9.5px; padding: 2px 7px; border-radius: 99px; font-weight: 500; }
 .proj-tag { background: var(--surface-3); color: var(--text-2); }
 

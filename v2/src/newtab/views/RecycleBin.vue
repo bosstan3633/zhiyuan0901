@@ -5,6 +5,7 @@ import { useAppStore } from '../stores/app'
 import { showToast } from '@/shared/components/toast'
 import { deleteAsset } from '@/shared/storage/assets'
 import type { ResourceCard, TaskCard, CuriosityCard, AssetMeta } from '@/shared/models'
+import { CURATION_WS_ID } from '@/shared/models'
 
 /** 第卅三轮 REQ-018：回收站页面（三类卡软删数据直接复用：models 的 deletedAt）
  *  列表 + 恢复 + 永久删除 + 清空；入口在全局设置危险操作区
@@ -47,11 +48,24 @@ function fmt(t?: number): string {
 function show(msg: string) { showToast(msg) }
 
 // ---- 恢复 ----
+/** R58-B1：恢复时原工作台/分类可能已随「删除工作台」消失——回落到第一个可用工作台的未分类，保证卡片可见可用 */
+function rehomeIfOrphan(r: ResourceCard): string {
+  let note = ''
+  if (!d.value.workspaces.some(w => w.id === r.workspaceId)) {
+    const fallback = d.value.workspaces.find(w => w.id !== CURATION_WS_ID) || d.value.workspaces[0]
+    if (fallback) { r.workspaceId = fallback.id; note = '（原工作台已删除，已移入「' + fallback.name.replace(/^[^\s]+\s/, '') + '」未分类）' }
+  } else if (r.categoryId && !d.value.categories.some(c => c.id === r.categoryId)) {
+    r.categoryId = ''
+    note = '（原分类已删除，已移入未分类）'
+  }
+  return note
+}
 function restoreRes(r: ResourceCard) {
   r.deletedAt = undefined
+  const note = rehomeIfOrphan(r)
   r.updatedAt = Date.now()
   store.persist()
-  show(`✓ 已恢复「${r.title.slice(0, 20)}」`)
+  show(`✓ 已恢复「${r.title.slice(0, 20)}」${note}`)
 }
 function restoreTask(t: TaskCard) {
   t.deletedAt = undefined

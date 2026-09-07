@@ -146,6 +146,8 @@ export interface ResourceCard extends CardBase {
   lastCalledAt?: number
   /** R50-F3：策展中心原生卡排序（仅 workspaceId=zy-curation 的卡使用；拖拽规整回写） */
   curOrder?: number
+  /** R59-T9：由好奇心卡转化而来（convertCard 写源卡 id）——WCE 转化口径消费 */
+  fromCuriosityId?: ID
   /** R52-F7：策展中心内原生卡的策展归属覆盖（仅策展中心消费）。R53-A1 迁移后不再使用
    *  （镜像分类已物化为真实分类，归属统一写 categoryId）；存量值由迁移归一并清空 */
   curCatId?: string
@@ -192,6 +194,10 @@ export interface TaskCard extends CardBase {
   /** R47-B4：被打开（调起详情/直达）次数与最近打开时间——全局检索无输入时按近期热度排序 */
   callCount?: number
   lastCalledAt?: number
+  /** R56-V1：手动拖拽排序权重（任务管理面板 manual 态：拖拽后全量重写；未拖拽回退 createdAt 最新在前） */
+  sortOrder?: number
+  /** R59-T9：由好奇心卡转化而来（convertCard 写源卡 id）——WCE 转化口径消费 */
+  fromCuriosityId?: ID
 }
 
 /** 好奇心卡（从好奇出发） */

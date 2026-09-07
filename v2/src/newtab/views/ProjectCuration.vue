@@ -79,7 +79,7 @@ function renameMetric(m: Metric, e: FocusEvent) {
   else if (!v) { (e.target as HTMLElement).textContent = m.title }
 }
 /* ================= R55-G1：左栏项目目录树（拖任务跨指标 / 拖指标排序 / 定位） ================= */
-const treeDrop = ref<{ id: string; mode: 't' | 'b' } | null>(null)
+const treeDrop = ref<{ id: string; mode: 't' | 'b' | 'in' } | null>(null)
 let treeDragMetric: Metric | null = null
 let treeDragTask: TaskCard | null = null
 const taskFlashId = ref('')
@@ -90,11 +90,16 @@ function treeMetricDragStart(e: DragEvent, m: Metric) {
   e.dataTransfer?.setData('text/plain', 'metric:' + m.id)
 }
 function treeMetricDragOver(e: DragEvent, m: Metric) {
+  // R59-T5：任务拖拽悬停 = drop-into 高亮（整节点为落点，空指标同样可见）
+  if (treeDragTask) { treeDrop.value = { id: m.id, mode: 'in' }; return }
   if (!treeDragMetric || treeDragMetric.id === m.id) return
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
   treeDrop.value = { id: m.id, mode: (e.clientY - rect.top) / rect.height > 0.5 ? 'b' : 't' }
 }
 function treeMetricDrop(e: DragEvent, target: Metric) {
+  // R59-T5：任务拖到指标节点（含空指标）= 变更归属（此前任务拖拽在节点上被静默忽略，
+  // 只有拖到已有任务行上才生效——空指标因此无法接收）
+  if (treeDragTask) { treeTaskDropOnMetric(e, target); return }
   const mode = treeDrop.value?.mode
   const drag = treeDragMetric
   treeDragMetric = null
@@ -222,8 +227,8 @@ function openProject(p: Project) {
   if (route.query.p !== p.id) router.replace({ path: route.path, query: { p: p.id } })
 }
 // R52-F5：「返回项目列表」按钮移除——右上角「← 返回方向台」为唯一返回路径；项目切换走左侧目录
-// R54-A1：来源感知返回——从方向树进入（?from=tree）时返回方向树，否则返回方向台
-const fromTree = computed(() => route.query.from === 'tree')
+// R59-T1：返回按钮恒为「返回方向台」（完整方向树已有独立入口，见操作区「🌲 完整方向树」）
+const fromTree = computed(() => false)
 function goBack() {
   if (fromTree.value) router.push('/compass/tree')
   else router.push('/compass')
@@ -377,8 +382,8 @@ function addTaskFromHeader() {
     <div class="page-head">
       <div class="crumb"><span class="crumb-up" title="返回方向台" @click="router.push('/compass')">方向台</span><span class="crumb-sep"> / </span><b>项目详情</b><span v-if="currentProject"> · {{ currentProject.name }}</span></div>
       <div class="spacer" />
-      <!-- R54-A1：来源感知返回（从方向树进入时返回方向树） -->
-      <button class="mini-btn" @click="goBack">← {{ fromTree ? '返回方向树' : '返回方向台' }}</button>
+      <!-- R59-T1：返回按钮恒为方向台（旧来源感知分支已退役） -->
+      <button class="mini-btn" @click="goBack">← 返回方向台</button>
       <div class="hint-chip">任务可拖拽排序 / 跨指标归属 · 点击任务开详情</div>
     </div>
 
@@ -416,7 +421,7 @@ function addTaskFromHeader() {
           <span class="prt-root-pct">{{ projectProgress(currentProject).pct }}%</span>
         </div>
         <template v-for="(m, mi) in currentProject.metrics" :key="m.id">
-          <div class="prt-metric" :class="{'drop-line-t': treeDrop?.id === m.id && treeDrop?.mode === 't', 'drop-line-b': treeDrop?.id === m.id && treeDrop?.mode === 'b' }"
+          <div class="prt-metric" :class="{'drop-line-t': treeDrop?.id === m.id && treeDrop?.mode === 't', 'drop-line-b': treeDrop?.id === m.id && treeDrop?.mode === 'b', 'drop-into': treeDrop?.id === m.id && treeDrop?.mode === 'in' }"
             draggable="true" @dragstart="treeMetricDragStart($event, m)" @dragover.prevent="treeMetricDragOver($event, m)" @dragleave="treeDrop = null" @drop.prevent="treeMetricDrop($event, m)">
             <div class="prt-mrow" :title="'🎯 ' + m.title + ' · 单击定位 · 拖动排序'" @click="scrollToMetric(m.id)">
               <span class="prt-dot">🎯</span><span class="prt-name">{{ m.title }}</span>
@@ -538,7 +543,7 @@ function addTaskFromHeader() {
             <span class="bt" @click="openTaskDetail(task)" title="点击打开任务详情">{{ task.title }}</span>
             <span class="tag" :class="prTag(task.priority)">{{ prLabel(task.priority) }}</span>
             <AssetBadge v-if="task.assets?.length" :assets="task.assets" />
-            <button class="icon-btn-sm del" @click="removeTask(task)">×</button>
+            <button class="icon-btn-sm del" title="删除任务（进回收站）" @click="removeTask(task)">🗑</button>
           </div>
           <div class="task-add" @click="openTaskAdd(m)">＋ 添加任务（新建 / 关联）</div>
         </div>
@@ -558,7 +563,7 @@ function addTaskFromHeader() {
             <span class="bcheck" :class="{done: t.status==='done'}" @click="toggleTaskDone(t)">{{ t.status==='done'?'✓':'' }}</span>
             <span class="bt" @click="openTaskDetail(t)" title="点击打开任务详情">{{ t.title }}</span>
             <span class="tag" :class="prTag(t.priority)">{{ prLabel(t.priority) }}</span>
-            <button class="icon-btn-sm del" @click="removeTask(t)">×</button>
+            <button class="icon-btn-sm del" title="删除任务（进回收站）" @click="removeTask(t)">🗑</button>
           </div>
         </div>
       </div>
@@ -689,9 +694,9 @@ function addTaskFromHeader() {
 /* 展板 */
 .board-layout { display: flex; gap: 16px; align-items: flex-start; }
 /* R55-G1：左栏双列联动目录——第一列全部项目 + 第二列当前项目目录树 */
-.proj-rail { position: sticky; top: 16px; display: flex; gap: 8px; flex-shrink: 0; width: 372px; max-height: calc(100vh - 200px); }
+.proj-rail { position: sticky; top: 16px; display: flex; gap: 8px; flex-shrink: 0; width: 302px; max-height: calc(100vh - 200px); }
 .pr-col { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 8px; box-shadow: var(--shadow); overflow-y: auto; }
-.pr-projects { width: 148px; flex-shrink: 0; }
+.pr-projects { width: 126px; flex-shrink: 0; }
 .pr-tree { flex: 1; min-width: 0; }
 .pt-title { font-size: 10.5px; font-weight: 700; color: var(--accent); letter-spacing: .5px; padding: 0 8px 8px; }
 .pt-item { display: flex; align-items: center; gap: 6px; padding: 7px 9px; border-radius: 8px; cursor: pointer; transition: all .12s; border: 1px solid transparent; }
@@ -706,15 +711,16 @@ function addTaskFromHeader() {
 .prt-root-pct { font-size: 10.5px; color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 600; }
 .prt-metric { border-radius: 8px; padding: 2px 0; }
 .prt-metric + .prt-metric { margin-top: 2px; }
+.prt-metric.drop-into { outline: 2px dashed var(--accent); outline-offset: -2px; background: var(--accent-light); }
 .prt-metric.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .prt-metric.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
 .prt-metric[draggable="true"] > .prt-mrow { cursor: grab; }
-.prt-mrow { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: background .12s; }
+.prt-mrow { display: flex; align-items: center; gap: 6px; padding: 8px 8px; border-radius: 6px; cursor: pointer; transition: background .12s; }
 .prt-mrow:hover { background: var(--surface-2); }
 .prt-dot { font-size: 11px; flex-shrink: 0; }
 .prt-name { flex: 1; min-width: 0; font-size: 11.5px; font-weight: 600; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .prt-meta { font-size: 9.5px; color: var(--text-4); font-variant-numeric: tabular-nums; flex-shrink: 0; }
-.prt-task { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 24px; border-radius: 6px; cursor: pointer; transition: background .12s; }
+.prt-task { display: flex; align-items: center; gap: 6px; padding: 7px 8px 7px 26px; border-radius: 6px; cursor: pointer; transition: background .12s; }
 .prt-task:hover { background: var(--surface-2); }
 .prt-task[draggable="true"] { cursor: grab; }
 .prt-task-dot { font-size: 9px; width: 14px; text-align: center; flex-shrink: 0; color: var(--text-3); border-radius: 99px; }
