@@ -588,7 +588,8 @@ const atChipTitle = computed(() => {
 })
 let atSyncing = false
 async function onSyncChipClick() {
-  if (!atConfigured.value) { router.push('/settings?page=airtable'); return }
+  // R64-F5：出错态点击 → 直落设置同步分区归因（日志含具体原因），不再盲目重试
+  if (!atConfigured.value || atSyncErr.value) { router.push('/settings?page=airtable'); return }
   if (atSyncing) return
   atSyncing = true
   try {
@@ -641,7 +642,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
       <section class="module left-col">
         <div class="card focus">
           <div class="card-head">
-            <span class="ic"><Icon name="flame" :size="18" /></span><span class="nm">今日三件事</span><span class="en">TODAY'S FOCUS</span><span class="ds">锁定今日最重要的 3 件事</span>
+            <span class="ic"><Icon name="flame" :size="18" /></span><span class="nm">今日三件事</span><span class="en">TODAY'S FOCUS</span>
             <button class="mini-btn" @click="copyYesterday"><Icon name="copy" :size="13" />复制昨日</button>
             <button class="mini-btn" @click="openExportModal"><Icon name="download" :size="13" />导出</button>
             <div class="date-nav">
@@ -652,8 +653,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
           </div>
           <div class="today-body">
             <!-- R53-C1：「从库选取」按钮移除——空槽「＋ 从任务库选取」即入口；复制昨日/导出移至卡片头部 -->
-            <!-- 满员锁定条 -->
-            <div v-if="focusFull" class="lock-bar">⚖ 今日三件事已满 3/3 · 完成或移除一件后可再加入</div>
             <div class="today-cards">
               <template v-for="(slot, idx) in todayFocusList" :key="idx">
                 <div v-if="todayTaskForSlot(slot)" class="today-card" :class="{done: slot.done, sel: focusSelIdx===idx}"
@@ -966,7 +965,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .module { margin-top: 0; }
 .page > .module { margin-top: 14px; }
 .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,.025); height: 100%; }
-.card-head { display: flex; align-items: center; gap: 8px; padding: 16px 20px 10px; flex-wrap: wrap; }
+.card-head { display: flex; align-items: center; gap: 8px; padding: 10px 20px 6px; flex-wrap: wrap; }
 .card-head .ic { font-size: 16px; color: var(--accent); display: flex; align-items: center; }
 .card-head .nm { font-size: 15px; font-weight: 600; letter-spacing: .3px; }
 .card-head .en { font-size: 9px; color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; }
@@ -987,7 +986,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .date-nav .dn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-2); font-size: 14px; }
 .date-nav .dn:hover { background: var(--surface-3); }
 .date-nav .dd { padding: 0 12px; font-size: 12px; font-weight: 500; border-left: 1px solid var(--border); border-right: 1px solid var(--border); min-width: 128px; text-align: center; }
-.today-body { padding: 0 20px 16px; }
+.today-body { padding: 0 20px 10px; }
 /* R53-C1：视觉强化——三件事模块为首页焦点 */
 .card.focus { border-color: color-mix(in srgb, var(--accent) 30%, transparent); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, var(--surface)), var(--surface) 70%); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent), var(--shadow); }
 .card.focus .card-head .nm { font-size: 17px; font-weight: 700; color: var(--text); }
@@ -997,10 +996,9 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .card.focus .today-card { padding: 10px 13px 9px; }
 .card.focus .today-card:not(.empty-card) { border-color: color-mix(in srgb, var(--accent) 22%, var(--border)); }
 .card.focus .today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 26%, transparent); }
-.lock-bar { display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text-3); background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: 8px; padding: 4px 10px; margin-bottom: 8px; }
 /* R52-F1：三件事横向并列——3 槽一行，压缩纵向空间 */
-.today-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.today-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px 8px; cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; }
+.today-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.today-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 12px 6px; cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; }
 .today-card:hover { border-color: var(--border-strong); background: var(--surface); }
 .today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 22%, transparent); }
 .today-card.done { opacity: .6; animation: none; }
@@ -1013,7 +1011,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .tc-check.done { background: var(--success); border-color: var(--success); }
 .tc-title { font-size: 14px; font-weight: 600; line-height: 1.4; flex: 1; }
 .tc-title.empty-t { color: var(--text-3); font-weight: 400; }
-.tc-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.tc-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
 .tc-meta .tag { font-size: 11px; padding: 1px 7px; }
 .tc-remove { position: absolute; top: 7px; right: 32px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 13px; color: var(--text-3); cursor: pointer; opacity: 0; transition: all .15s; }
 .today-card:hover .tc-remove { opacity: 1; }

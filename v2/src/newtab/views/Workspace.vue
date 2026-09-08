@@ -1,46 +1,23 @@
 ﻿<template>
   <div class="ws-page" v-if="workspace">
-    <!-- ① Hero头部 -->
-    <div class="ws-hero">
-      <div class="hero-name">
-        <!-- B32：图标可点击管理（选择/自定义/删除），名称按规范剥离 icon 前缀显示 -->
-        <span class="icon ws-icon-btn" title="点击更换或删除图标" @click.stop="toggleIconPick">{{ workspace.icon || '📁' }}</span>
-        <span class="name-text" contenteditable="true" spellcheck="false" @blur="onNameBlur" @keydown.enter.prevent="onNameEnter">{{ wsDisplayName }}</span>
-      </div>
-      <!-- B32：图标管理弹层（Teleport 到 body，避免被 hero overflow 裁剪） -->
-      <Teleport to="body">
-        <div v-if="iconPickOpen" class="icon-pick-mask" @click="iconPickOpen = false" />
-        <div v-if="iconPickOpen" class="icon-pick" :style="{ left: iconPickPos.left + 'px', top: iconPickPos.top + 'px' }" @click.stop>
-          <div class="ip-title">🎨 工作台图标</div>
-          <div class="ip-grid">
-            <span v-for="e in WS_ICONS" :key="e" class="ip-cell" :class="{on: workspace.icon === e}" @click="setWsIcon(e)">{{ e }}</span>
-          </div>
-          <div class="ip-custom">
-            <input v-model="iconCustom" class="ip-input" maxlength="4" placeholder="自定义 emoji" @keydown.enter.prevent="setWsIcon(iconCustom.trim())">
-            <button class="ip-btn" @click="setWsIcon(iconCustom.trim())">使用</button>
-          </div>
-          <div class="ip-foot">
-            <button class="ip-btn ghost" @click="setWsIcon('')">🗑 删除图标</button>
-            <button class="ip-btn ghost" @click="iconPickOpen = false">关闭</button>
-          </div>
+    <!-- R64-F13：hero 大标题区删除——重命名/图标/描述编辑收进 ⚙ 菜单，导入/新建按钮上移工具条 -->
+    <Teleport to="body">
+      <div v-if="iconPickOpen" class="icon-pick-mask" @click="iconPickOpen = false" />
+      <div v-if="iconPickOpen" class="icon-pick" :style="{ left: iconPickPos.left + 'px', top: iconPickPos.top + 'px' }" @click.stop>
+        <div class="ip-title">🎨 工作台图标</div>
+        <div class="ip-grid">
+          <span v-for="e in WS_ICONS" :key="e" class="ip-cell" :class="{on: workspace.icon === e}" @click="setWsIcon(e)">{{ e }}</span>
         </div>
-      </Teleport>
-      <div class="hero-desc" contenteditable="true" @blur="onDescBlur" @keydown.enter.prevent="onDescEnter">{{ workspace.desc || '点击编辑工作台描述...' }}</div>
-      <div class="hero-bottom">
-        <div class="hero-stats">
-          <span>📊 <b>{{ resourceCount }}</b> 张资源卡</span>
-          <span>📁 <b>{{ categoryCount }}</b> 个分类</span>
-          <span>🟢 今日新增 <b>{{ wsTodayAdd }}</b></span>
-          <span>🔴 今日删除 <b>{{ wsTodayDel }}</b></span>
-          <span>🕐 最近更新 {{ lastUpdateText }}</span>
+        <div class="ip-custom">
+          <input v-model="iconCustom" class="ip-input" maxlength="4" placeholder="自定义 emoji" @keydown.enter.prevent="setWsIcon(iconCustom.trim())">
+          <button class="ip-btn" @click="setWsIcon(iconCustom.trim())">使用</button>
         </div>
-        <div class="hero-actions">
-          <button class="hero-btn primary" @click="importModalOpen = true">⬇ 导入资源</button>
-          <button class="hero-btn ghost" @click="openNewResource">＋ 新建资源卡</button>
-          <button class="hero-btn settings" @click.stop="settingsMenuOpen = !settingsMenuOpen">⚙</button>
+        <div class="ip-foot">
+          <button class="ip-btn ghost" @click="setWsIcon('')">🗑 删除图标</button>
+          <button class="ip-btn ghost" @click="iconPickOpen = false">关闭</button>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- R62-1：策展台 5 指标条（资源台不显示；数据源 hub.curationMetrics） -->
     <div v-if="!isHub" class="ws-metrics">
@@ -79,6 +56,7 @@
     <div class="settings-menu" :class="{open: settingsMenuOpen}" @click.stop>
       <div class="sm-item" @click="renameWs">✏️ 重命名</div>
       <div class="sm-item" @click="editDesc">📝 编辑描述</div>
+      <div class="sm-item" @click="toggleIconPick($event)">🎨 更换图标</div>
       <div class="sm-divider"></div>
       <div class="sm-item" @click="exportWorkspace">📦 导出工作台数据</div>
       <div class="sm-divider"></div>
@@ -118,6 +96,10 @@
         <input type="text" v-model="searchQuery" placeholder="搜索工作台内资源...">
       </div>
       <button class="toolbar-batch" :class="{active: batchMode}" @click="toggleBatchMode">{{ batchMode ? '✓ 完成批量' : '☑ 批量管理' }}</button>
+      <!-- R64-F13：hero 删除后按钮上移工具条 -->
+      <button class="hero-btn primary" @click="importModalOpen = true">⬇ 导入</button>
+      <button class="hero-btn ghost" @click="openNewResource">＋ 新建</button>
+      <button class="hero-btn settings" title="工作台设置" @click.stop="settingsMenuOpen = !settingsMenuOpen">⚙</button>
     </div>
 
     <!-- ③ 资源策展区 -->
@@ -188,11 +170,12 @@
 
       <!-- 右侧展示区 -->
       <div class="ws-content">
-        <!-- ===== 卡片视图：REQ-027 按分类分组分区（取消全平铺/置顶独立分区） ===== -->
+        <!-- ===== 卡片视图：REQ-027 按分类分组分区；R64-F9 树状递归分组（depth 缩进呈现层级） ===== -->
         <div v-if="viewMode==='card'">
           <template v-for="(g, gi) in resourceGroups" :key="g.key">
-            <div class="section-label ws-cat-head" :class="{first: gi===0}" @click="toggleGroupCollapse(g.key)">
-              <span>📁 {{ g.title }} · {{ g.count }}</span>
+            <div :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
+            <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
+              <span>{{ g.depth ? '↳' : '📁' }} {{ g.title }} · {{ g.count }}</span>
               <span class="ws-cat-collapse">{{ collapsedGroups.has(g.key) ? '▸' : '▾' }}</span>
             </div>
             <div v-show="!collapsedGroups.has(g.key)" class="card-grid">
@@ -220,7 +203,7 @@
                   </template>
                 </div>
                 <div class="rc-footer">
-                  <span class="rc-cat" :class="{hidden: hideGroupBadge}" title="点击查看所在分类" @click.stop="activeCategory = r.categoryId || 'uncat'">{{ catIconOf(r) }} {{ catNameOfFamily(r) }}</span>
+                  <span class="rc-cat" title="点击查看所在分类" @click.stop="activeCategory = r.categoryId || 'uncat'">{{ catIconOf(r) }} {{ catNameOfFamily(r) }}</span>
                   <span v-if="r.callCount" class="rc-calls" title="被打开次数">🔥{{ r.callCount }}</span>
                   <span class="rc-open-hint">双击打开链接</span>
                 </div>
@@ -229,6 +212,7 @@
                 <span style="font-size:20px">＋</span><span>新建资源卡</span>
               </div>
             </div>
+            </div>
           </template>
 
           <EmptyState v-if="!resourceGroups.length" icon="folder" title="暂无资源卡"
@@ -236,11 +220,12 @@
             action-label="＋ 新建资源卡" @action="openNewResource" />
         </div>
 
-        <!-- ===== 列表视图：REQ-027 按分类分组分区（每分区标题行 + 其下条目） ===== -->
+        <!-- ===== 列表视图：REQ-027 按分类分组分区（每分区标题行 + 其下条目）；R64-F9 树状缩进 ===== -->
         <div v-if="viewMode==='list'">
           <template v-for="(g, gi) in resourceGroups" :key="g.key">
-            <div class="section-label ws-cat-head" :class="{first: gi===0}" @click="toggleGroupCollapse(g.key)">
-              <span>📁 {{ g.title }} · {{ g.count }}</span>
+            <div :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
+            <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
+              <span>{{ g.depth ? '↳' : '📁' }} {{ g.title }} · {{ g.count }}</span>
               <span class="ws-cat-collapse">{{ collapsedGroups.has(g.key) ? '▸' : '▾' }}</span>
             </div>
             <div v-show="!collapsedGroups.has(g.key)" class="res-list">
@@ -259,6 +244,7 @@
                   <span class="rr-action delete" @click.stop="deleteResource(r)">🗑</span>
                 </span>
               </div>
+            </div>
             </div>
           </template>
           <div v-if="!resourceGroups.length" class="empty-state">暂无资源卡，点击右上角"新建资源卡"添加</div>
@@ -289,8 +275,11 @@
           </div>
         </div>
 
-        <!-- ===== R62-5：金字塔视图（L1 中心论点根 + 分类树逐层铺开 + 卡片拖换节点） ===== -->
-        <div v-if="viewMode==='pyramid'" class="pyramid">
+        <!-- ===== R62-5：金字塔视图（L1 中心论点根 + 分类树逐层铺开 + 卡片拖换节点）；R64-F11 SVG 结构连线 ===== -->
+        <div v-if="viewMode==='pyramid'" class="pyramid" ref="pyWrapRef">
+          <svg class="py-links-svg" aria-hidden="true">
+            <path v-for="(pth, pi) in pyLinkPaths" :key="pi" :d="pth" />
+          </svg>
           <!-- L1 根：中心论点卡 -->
           <div class="py-root" :class="{droppable: pyRootDrop}" @dragover.prevent="onPyRootDragOver" @dragleave="pyRootDrop=false" @drop.stop.prevent="onPyRootDrop">
             <template v-if="thesisCard">
@@ -301,7 +290,7 @@
               </div>
               <span class="py-root-unset" title="取消中心论点" @click.stop="unsetThesis">✕</span>
             </template>
-            <div v-else class="py-root-empty">🏛 尚未设立中心论点 —— 右键任一台内卡片 →「设为中心论点」</div>
+            <div v-else class="py-root-empty clickable" @click="openThesisCreate">🏛 点击设立中心论点 —— 填写卡片保存后自动落为 L1 根节点</div>
           </div>
           <!-- L2 起分类节点（分类树按深度铺开；节点可拖拽挂子级 / ⟨⟩ 调同级顺序 / 卡片拖入节点） -->
           <div v-for="(lv, li) in pyramidLevels" :key="li" class="py-level">
@@ -623,7 +612,13 @@ function unsetThesis() {
 }
 function openThesisDetail() {
   if (thesisCard.value) openResource(thesisCard.value)
-  else showToast('右键任一台内卡片 →「设为中心论点」（每台仅一张）')
+  else openThesisCreate()
+}
+/** R64-F12：点击空态 → 弹出新建抽屉（预置 isThesis），保存后自动落为 L1 根节点 */
+function openThesisCreate() {
+  openNewResource()
+  editingResource.isThesis = true
+  showToast('🏛 填写论点标题保存后，自动成为中心论点（L1 根）')
 }
 
 const drillOpen = ref(false)
@@ -839,43 +834,46 @@ function applyGroupSort(list: ResourceCard[]): ResourceCard[] {
 const sortedResources = computed(() => applySort(filteredResources.value))
 
 // ===== REQ-027：卡片/列表视图取消全平铺，按分类分组分区 =====
-interface ResourceGroup { key: string; title: string; count: number; items: ResourceCard[] }
+interface ResourceGroup { key: string; title: string; count: number; items: ResourceCard[]; depth: number }
 /** F-027-4 折叠增强：点击分组标题折叠/展开（内存态，不持久化） */
 const collapsedGroups = ref<Set<string>>(new Set())
-/** REQ-028：分组视图下分类徽标弱化/隐藏（归属已由分区标题表达，避免信息重复） */
-const hideGroupBadge = ref(true)
 function toggleGroupCollapse(key: string) {
   const s = new Set(collapsedGroups.value)
   if (s.has(key)) s.delete(key); else s.add(key)
   collapsedGroups.value = s
 }
 /**
- * 分区规则（分区顺序与左侧分类树一致）：
- * - 「全部」：每个一级分类一个分区（rootCats 顺序）；无分类卡归「待分类」分区置于最前
- * - 选中父分类：直属父级的卡归「未细分」分区置于最前；其下每个二级子分类一个分区（子分类名为分组标题）
- * - 选中「待分类」：单分区
- * 分区内按当前排序规则排列（applySort；manual 保持数组序=手动拖拽序）。
+ * 分区规则（R64-F9 树状递归分组：子分类不再混入父组平铺，逐级下钻、depth 缩进呈现层级）：
+ * - 「全部」：按左树顺序逐分类 walk——直属卡一组（组标题=分类名），子分类递归（depth+1）；
+ *   无分类卡归「待分类」分区置于最前
+ * - 选中父分类：直属卡一组，其下子分类递归
+ * 分区内按当前排序规则排列（applyGroupSort；manual 保持数组序=手动拖拽序）。
  */
 const resourceGroups = computed<ResourceGroup[]>(() => {
   const filtered = filteredResources.value
   const groups: ResourceGroup[] = []
   const validIds = new Set(wsCats.value.map(c => c.id))
   const uncat = applyGroupSort(filtered.filter(r => !r.categoryId || !validIds.has(r.categoryId)))
-  if (uncat.length) groups.push({ key: 'uncat', title: '待分类', count: uncat.length, items: uncat })
+  if (uncat.length) groups.push({ key: 'uncat', title: '待分类', count: uncat.length, items: uncat, depth: 0 })
+  /** 子树内是否有卡（含直属）——空分支不生成组 */
+  const subtreeHasCards = (catId: string) => {
+    const ids = familyIds(catId)
+    return filtered.some(r => r.categoryId && ids.includes(r.categoryId))
+  }
+  const walk = (catId: string, name: string, depth: number) => {
+    const direct = applyGroupSort(filtered.filter(r => r.categoryId === catId))
+    if (direct.length) groups.push({ key: catId, title: name, count: direct.length, items: direct, depth })
+    for (const sub of childCatsOf(catId)) {
+      if (subtreeHasCards(sub.id)) walk(sub.id, sub.name, depth + 1)
+    }
+  }
   if (activeCategory.value === 'all') {
     for (const root of rootCats.value) {
-      const ids = familyIds(root.id)
-      const items = applyGroupSort(filtered.filter(r => r.categoryId && ids.includes(r.categoryId)))
-      if (items.length) groups.push({ key: root.id, title: root.name, count: items.length, items })
+      if (subtreeHasCards(root.id)) walk(root.id, root.name, 0)
     }
   } else if (activeCategory.value !== 'uncat') {
-    // REQ-032：直属未细分资源强制排在最上方第一区块（子分类分区之前）
-    const direct = applyGroupSort(filtered.filter(r => r.categoryId === activeCategory.value))
-    if (direct.length) groups.push({ key: 'direct', title: '未细分', count: direct.length, items: direct })
-    for (const sub of childCatsOf(activeCategory.value)) {
-      const items = applyGroupSort(filtered.filter(r => r.categoryId === sub.id))
-      if (items.length) groups.push({ key: sub.id, title: sub.name, count: items.length, items })
-    }
+    const sel = wsCats.value.find(c => c.id === activeCategory.value)
+    if (sel) walk(sel.id, sel.name, 0)
   }
   return groups
 })
@@ -1236,11 +1234,19 @@ function catNameOf(r: ResourceCard): string {
 function catIconOf(r: ResourceCard): string {
   return r.categoryId && wsCats.value.some(c => c.id === r.categoryId) ? '📂' : '📥'
 }
+/** R64-F10：卡面所属文件夹徽标——完整分类路径（根→当前，4 级全链） */
 function catNameOfFamily(r: ResourceCard): string {
   const cat = wsCats.value.find(c => c.id === r.categoryId)
   if (!cat) return '待分类'
-  const parent = cat.parentId ? wsCats.value.find(c => c.id === cat.parentId) : null
-  return parent ? `${parent.name} / ${cat.name}` : cat.name
+  const names: string[] = [cat.name]
+  let cur = cat.parentId ? wsCats.value.find(c => c.id === cat.parentId) : undefined
+  let guard = 0
+  while (cur && guard < 5) {
+    names.unshift(cur.name)
+    cur = cur.parentId ? wsCats.value.find(c => c.id === cur!.parentId) : undefined
+    guard++
+  }
+  return names.join(' / ')
 }
 
 // ===== 第八轮：分类树（2 级）+ 置顶 + 聚合计数 =====
@@ -1457,8 +1463,8 @@ function onUncatDrop(e: DragEvent) {
   onDropToCategory(e, '')
 }
 function clearCardDropTarget() { cardDropTarget.value = '' }
-onMounted(() => { window.addEventListener('dragend', clearCardDropTarget); document.addEventListener('click', closeSettingsMenu) })
-onUnmounted(() => { window.removeEventListener('dragend', clearCardDropTarget) })
+onMounted(() => { window.addEventListener('dragend', clearCardDropTarget); document.addEventListener('click', closeSettingsMenu); window.addEventListener('resize', drawPyLinks); nextTick(drawPyLinks) })
+onUnmounted(() => { window.removeEventListener('dragend', clearCardDropTarget); window.removeEventListener('resize', drawPyLinks) })
 function onCatDragStart(e: DragEvent, cat: Category) {
   dragCatId = cat.id
   e.dataTransfer!.effectAllowed = 'move'
@@ -1648,6 +1654,44 @@ function moveCatSibling(cat: Category, dir: -1 | 1) {
 }
 /** 层级上限工具（复用 R61-4 口径：分类最多 4 级） */
 function pyLevelOf(c: Category): number { return pyDepthOf(c) + 1 }
+
+// ===== R64-F11：金字塔 SVG 结构连线（根→L2、父节点→子节点，贝塞尔细线） =====
+const pyWrapRef = ref<HTMLElement | null>(null)
+const pyLinkPaths = ref<string[]>([])
+function drawPyLinks() {
+  const wrap = pyWrapRef.value
+  if (!wrap || viewMode.value !== 'pyramid') { pyLinkPaths.value = []; return }
+  const wr = wrap.getBoundingClientRect()
+  const anchor = (el: Element) => {
+    const r = el.getBoundingClientRect()
+    return { x: r.left - wr.left + r.width / 2, top: r.top - wr.top, bottom: r.bottom - wr.top }
+  }
+  const link = (a: { x: number; bottom: number }, b: { x: number; top: number }) => {
+    const mid = (a.bottom + b.top) / 2
+    return `M ${a.x} ${a.bottom} C ${a.x} ${mid}, ${b.x} ${mid}, ${b.x} ${b.top}`
+  }
+  const lines: string[] = []
+  const allNodes = [...wrap.querySelectorAll('[data-pyid]')] as HTMLElement[]
+  const byId = new Map(allNodes.map(el => [el.dataset.pyid!, el]))
+  const rootEl = wrap.querySelector('.py-root-card, .py-root-empty')
+  if (rootEl) {
+    const rc = anchor(rootEl)
+    for (const n of allNodes.filter(el => {
+      const cat = wsCats.value.find(c => c.id === el.dataset.pyid)
+      return cat && !cat.parentId
+    })) {
+      lines.push(link(rc, anchor(n)))
+    }
+  }
+  for (const c of wsCats.value) {
+    if (!c.parentId) continue
+    const pe = byId.get(c.parentId); const ce = byId.get(c.id)
+    if (!pe || !ce) continue
+    lines.push(link(anchor(pe), anchor(ce)))
+  }
+  pyLinkPaths.value = lines
+}
+watch([pyramidLevels, viewMode, thesisCard], () => nextTick(drawPyLinks))
 function pyHeightOf(c: Category): number {
   const ch = wsCats.value.filter(x => x.parentId === c.id)
   return ch.length ? Math.max(...ch.map(pyHeightOf)) + 1 : 1
@@ -2117,13 +2161,7 @@ function linkDisplay(link: string) {
 .ws-page { min-height: 100vh; background: var(--bg); padding: 0 20px 24px; }
 .ws-empty { display: flex; align-items: center; justify-content: center; height: 100vh; color: var(--text-3); }
 
-/* Hero */
-.ws-hero { position: relative; height: 150px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 28px 18px; }
-.ws-hero::before { content: ''; position: absolute; top: -30px; right: -20px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.08), transparent 70%); }
-.ws-hero::after { content: ''; position: absolute; bottom: -40px; left: 30%; width: 300px; height: 120px; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.05), transparent 70%); }
-.hero-name { font-size: 22px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 10px; position: relative; z-index: 1; }
-.hero-name .icon { font-size: 20px; }
-/* B32：图标管理 */
+/* Hero 已删（R64-F13：大标题区移除，编辑入口收进 ⚙ 菜单）——仅保留图标管理弹层样式 */
 .ws-icon-btn { cursor: pointer; border-radius: 8px; padding: 2px 7px; transition: background .15s; }
 .ws-icon-btn:hover { background: var(--surface-3); }
 .icon-pick-mask { position: fixed; inset: 0; z-index: 690; }
@@ -2144,12 +2182,7 @@ function linkDisplay(link: string) {
 .ip-foot { display: flex; gap: 8px; }
 .name-text { outline: none; border-radius: 4px; padding: 2px 4px; }
 .name-text:focus { background: rgba(255,255,255,.15); }
-.hero-desc { font-size: 12.5px; color: var(--text-3); margin-top: 4px; position: relative; z-index: 1; outline: none; border-radius: 4px; padding: 2px 4px; min-height: 18px; }
-.hero-desc:focus { background: rgba(255,255,255,.1); }
-.hero-bottom { display: flex; align-items: center; gap: 16px; margin-top: 10px; position: relative; z-index: 1; }
-.hero-stats { display: flex; gap: 14px; font-size: 11.5px; color: var(--text-3); }
-.hero-stats b { color: var(--text); font-weight: 600; }
-.hero-actions { margin-left: auto; display: flex; gap: 8px; }
+/* hero-btn 保留（R64 上移工具条继续使用） */
 .hero-btn { padding: 6px 14px; border-radius: 8px; font-size: 12px; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 5px; font-weight: 500; border: none; }
 .hero-btn.primary { background: var(--accent); color: #fff; }
 .hero-btn.primary:hover { background: var(--accent-hover); }
@@ -2158,8 +2191,8 @@ function linkDisplay(link: string) {
 .hero-btn.settings { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); padding: 6px 10px; }
 .hero-btn.settings:hover { background: var(--surface-3); color: var(--text); }
 
-/* 设置菜单 */
-.settings-menu { position: fixed; top: 130px; right: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 36px rgba(0,0,0,.12); z-index: 60; min-width: 190px; overflow: hidden; display: none; }
+/* 设置菜单（R64：hero 删除后上移至工具条下方） */
+.settings-menu { position: fixed; top: 54px; right: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 36px rgba(0,0,0,.12); z-index: 60; min-width: 190px; overflow: hidden; display: none; }
 .settings-menu.open { display: block; }
 .sm-item { padding: 9px 14px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: all .1s; display: flex; align-items: center; gap: 8px; }
 .sm-item:hover { background: var(--surface-3); color: var(--text); }
@@ -2282,8 +2315,8 @@ function linkDisplay(link: string) {
 .rc-custom span { color: var(--text-3); margin-right: 4px; }
 .rc-footer { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
 .rc-cat { font-size: 10px; color: var(--accent); background: var(--accent-light); padding: 2px 8px; border-radius: 99px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; cursor: pointer; flex-shrink: 0; }
-/* REQ-028：分组视图下分类徽标隐藏（归属已由分区标题表达） */
-.rc-cat.hidden { opacity: 0.35; background: transparent; color: var(--text-dim, #999); pointer-events: auto; }
+/* R64-F9：子分类分组标题弱化样式（层级由缩进表达） */
+.ws-cat-head.sub span { color: var(--text-3); font-weight: 500; }
 .rc-cat:hover { background: var(--accent); color: #fff; }
 .rc-link { font-size: 10.5px; color: var(--text-3); display: flex; align-items: center; gap: 3px; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rc-link.url { color: var(--info-blue); }
@@ -2406,15 +2439,16 @@ function linkDisplay(link: string) {
 /* Toast */
 
 /* ===== R62-1：策展台 5 指标条 ===== */
-.ws-metrics { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; gap: 10px; margin: 12px 0 0; }
-.metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; cursor: pointer; transition: all .15s; min-width: 0; }
-.metric-card:hover { border-color: var(--accent); background: var(--surface-2); transform: translateY(-1px); }
-.mc-label { font-size: 10.5px; color: var(--text-3); margin-bottom: 4px; }
-.mc-value { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.2; font-variant-numeric: tabular-nums; }
-.mc-value.thesis { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mc-value.small { font-size: 15px; }
+/* R64-F13：指标条压缩为紧凑单行（非重点信息，让位策展区） */
+.ws-metrics { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; gap: 8px; margin: 10px 0 0; }
+.metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 4px 12px; cursor: pointer; transition: all .15s; min-width: 0; display: flex; align-items: center; gap: 10px; }
+.metric-card:hover { border-color: var(--accent); background: var(--surface-2); }
+.mc-label { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; }
+.mc-value { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc-value.thesis { font-size: 12.5px; font-weight: 600; flex: 1; }
+.mc-value.small { font-size: 12.5px; }
 .mc-sep { color: var(--text-4); font-weight: 400; margin: 0 3px; }
-.mc-hint { font-size: 10px; color: var(--text-4); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc-hint { font-size: 10px; color: var(--text-4); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
 
 /* ===== R62-4：层级色点 ===== */
 .cat-depth-dot { width: 6px; height: 6px; border-radius: 2px; flex-shrink: 0; }
@@ -2424,7 +2458,11 @@ function linkDisplay(link: string) {
 .cat-depth-dot[data-lv="3"] { background: #d99a1e; }
 
 /* ===== R62-5：金字塔视图 ===== */
-.pyramid { display: flex; flex-direction: column; gap: 14px; }
+/* R64-F11：结构连线层（细实线贝塞尔，视觉让位于节点） */
+.pyramid { display: flex; flex-direction: column; gap: 14px; position: relative; }
+.py-links-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.py-links-svg path { fill: none; stroke: var(--border-strong, #555); stroke-width: 1; opacity: .5; }
+.pyramid .py-root, .pyramid .py-level { position: relative; z-index: 1; }
 .py-root { position: relative; display: flex; justify-content: center; padding: 6px 0 10px; border-radius: 10px; transition: background .15s, box-shadow .15s; }
 .py-root.droppable { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-light); }
 .py-root-card { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--surface)), var(--surface)); border: 1.5px solid var(--accent); border-radius: 12px; padding: 12px 22px; max-width: 520px; text-align: center; cursor: pointer; transition: all .15s; }
@@ -2435,6 +2473,8 @@ function linkDisplay(link: string) {
 .py-root-unset { position: absolute; top: 2px; right: 8px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 11px; color: var(--text-3); cursor: pointer; }
 .py-root-unset:hover { background: var(--surface-3); color: var(--danger); }
 .py-root-empty { border: 1.5px dashed var(--border-strong); border-radius: 12px; padding: 14px 24px; font-size: 12px; color: var(--text-3); text-align: center; width: 100%; }
+.py-root-empty.clickable { cursor: pointer; transition: all .15s; }
+.py-root-empty.clickable:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .py-level { display: flex; flex-direction: column; gap: 6px; }
 .py-level-label { font-size: 10px; font-weight: 700; color: var(--text-4); letter-spacing: 1px; }
 .py-level-nodes { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }

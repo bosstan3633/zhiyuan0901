@@ -18,7 +18,7 @@ const { d, taskArchiveIssue, unarchivedTaskCount } = useCompass()
 const store = useAppStore()
 const router = useRouter()
 
-const titles = { dhi: 'DHI 方向契合度 · 明细', wce: 'WCE 好奇探索 · 明细', wrr: 'WRR 资源复用 · 明细', unarch: '未归档任务 · 待归档清单' } as const
+const titles = { dhi: '战略目标 / 推进项目 · 明细', wce: 'WCE 好奇探索 · 明细', wrr: 'WRR 资源复用 · 明细', unarch: '未归档任务 · 待归档清单' } as const
 const periodLabel = computed(() => (props.period === 'day' ? '今日' : props.period === 'week' ? '本周' : '累计'))
 
 /** 周期起点 */
@@ -29,20 +29,12 @@ const windowStart = computed(() => {
   return 0
 })
 
-/** DHI（R60 新口径，与 northStarMetrics 同一口径）：各战略目标 → 主攻项目 / 在轨项目
- *  在轨 = 全部任务完成 ｜ 窗口内有任务完成 ｜ 有 doing 任务且该任务在窗口内有更新 */
+/** 方向状态明细（R64 口径）：各战略目标 → 项目数 / 推进中项目数（挂有非软删任务即推进） */
 const dhiRows = computed(() => {
-  return d.value.compass.directions.map((dir) => {
-    const projs = dir.projects
-    const pinned = projs.filter(p => p.isFocused && p.status !== 'archived')
-    const active = pinned.filter(p => {
-      const ts = d.value.tasks.filter(t => !t.deletedAt && t.projectId === p.id)
-      const allDone = ts.length > 0 && ts.every(t => t.status === 'done')
-      return allDone ||
-        ts.some(t => !!t.completedAt && t.completedAt >= windowStart.value) ||
-        ts.some(t => t.status === 'doing' && (t.updatedAt || t.createdAt) >= windowStart.value)
-    })
-    return { id: dir.id, name: dir.name, pinned: pinned.length, active: active.length, pct: pinned.length ? Math.round((active.length / pinned.length) * 100) : 0 }
+  return d.value.compass.directions.filter(dir => dir.status !== 'archived').map((dir) => {
+    const projs = dir.projects.filter(p => p.status !== 'archived')
+    const pushing = projs.filter(p => d.value.tasks.some(t => !t.deletedAt && t.projectId === p.id)).length
+    return { id: dir.id, name: dir.name, pinned: projs.length, active: pushing, pct: projs.length ? Math.round((pushing / projs.length) * 100) : 0 }
   })
 })
 
@@ -135,7 +127,7 @@ function locateTask(id: string) {
         <div v-for="row in dhiRows" :key="row.id" class="md-row clickable" title="点击定位到主航线对应行" @click="locateGoal(row.id)">
           <div class="md-main">
             <span class="md-title">🎯 {{ row.name }}</span>
-            <span class="md-sub">🎯 主攻 {{ row.pinned }} · 在轨推进 {{ row.active }}</span>
+            <span class="md-sub">📦 项目 {{ row.pinned }} · 推进中 {{ row.active }}</span>
           </div>
           <div class="md-right">
             <span class="md-pct" :class="{ warn: row.pinned && row.pct < 50 }">{{ row.pct }}%</span>
@@ -144,7 +136,7 @@ function locateTask(id: string) {
         </div>
         <div v-if="!dhiRows.length" class="md-empty">暂无战略目标——去完整方向树创建</div>
       </div>
-      <div class="md-tip">DHI = 主攻项目中，周期窗口内有任务推进的占比。点击行定位到主航线对应战略目标。</div>
+      <div class="md-tip">推进中 = 该项目下挂有任务（任务数 ≠ 0）。点击行定位到主航线对应战略目标。</div>
     </template>
 
     <!-- WCE：激活好奇项 -->

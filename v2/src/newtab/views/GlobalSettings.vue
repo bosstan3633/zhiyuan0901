@@ -609,7 +609,7 @@
           <div class="gs-card-body">
             <div class="gs-setting-row">
               <span class="gs-sr-label">同步范围</span>
-              <div class="gs-sr-control" style="font-size:12px;color:var(--text-2);max-width:380px;line-height:1.7;text-align:left">调度台好奇心卡 · 方向台任务卡 · 资源台资源卡 · 各策展台台内卡与镜像卡（镜像按真身单条记录，工作台列标注镜像去向）· 主题卡以「是否中心论点」列体现</div>
+              <div class="gs-sr-control" style="font-size:12px;color:var(--text-2);max-width:380px;line-height:1.7;text-align:left">调度台好奇心卡 · 方向台任务卡 · 资源台资源卡 · 各策展台镜像卡（每条镜像为独立记录，带各自所属工作台标识）· 主题卡以「是否中心论点」列体现</div>
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">增量游标</span>

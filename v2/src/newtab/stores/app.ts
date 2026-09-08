@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import type { AppData, Workspace, UIPrefs } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 import { getData, saveData, loadUIPrefs, saveUIPrefs, subscribe, syncCache, mergeExternalData, isSelfWrite } from '@/shared/storage/repository'
-import { migrateCurationTree, migrateHubStructure } from '@/shared/storage/curationMigration'
+import { migrateCurationTree, migrateHubStructure, migrateHubMerge } from '@/shared/storage/curationMigration'
 
 export const useAppStore = defineStore('app', () => {
   // ---- 数据 ----
@@ -39,12 +39,14 @@ export const useAppStore = defineStore('app', () => {
     // R53-A1：策展树统一迁移——遗留分类/工作台投射记录物化为带 curFrom 的真实策展分类（幂等）
     // R61：资源台结构迁移（幂等，hubMigratedAt 标记）——首次执行前自动备份下载（沿用 R47-A2 安全网约定）
     if (data.value) {
-      if (!data.value.hubMigratedAt) {
+      if (!data.value.hubMigratedAt || !data.value.hubMergedAt) {
         try { backupBeforeHubMigration(data.value) } catch { /* 备份失败不阻断迁移 */ }
       }
       const t1 = migrateCurationTree(data.value)
       const t2 = migrateHubStructure(data.value)
-      if (t1 || t2) saveData()
+      // R64：旧工作台并入资源台（幂等 hubMergedAt；旧台实体删除、树挂同名根分类）
+      const t3 = migrateHubMerge(data.value)
+      if (t1 || t2 || t3) saveData()
     }
 
     // R60：投射至灯塔功能取消——清除存量 vision/mission/project 上的 pinnedToLighthouse 残留字段（幂等，静默）

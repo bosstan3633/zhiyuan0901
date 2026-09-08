@@ -340,6 +340,7 @@ import { useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
 import { showToast } from '@/shared/components/toast'
 import { uid, normalizeUrl } from '@/shared/utils'
+import { CURATION_WS_ID } from '@/shared/models'
 // V2.21：拼音字典改为按需加载（约 296KB），未就绪时降级为纯文本匹配
 import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { recordResourceOpen, recordCardOpen, recordWorkspaceOpen } from '@/shared/storage/stats'
@@ -399,6 +400,8 @@ function openPanel(p: PanelType) {
     if (p === 'search') { searchInput.value?.focus(); runSearch() }
     if (p === 'capture') {
       prefillCapture()
+      // R64-F8：默认选中资源台（下拉回显一致）
+      if (!capForm.workspaceId) capForm.workspaceId = defaultCaptureWsId()
       if (capSaved.value) return
       capTitleInput.value?.focus(); capTitleInput.value?.select()
     }
@@ -981,6 +984,11 @@ const savedWsId = ref('')
 let savedTimer: ReturnType<typeof setTimeout> | null = null
 
 const userWorkspaces = computed(() => d.value.workspaces.filter(w => !w.archived))
+/** R64-F8：采集默认落资源台（未被删即资源台，否则回退第一个台） */
+function defaultCaptureWsId(): string {
+  const hub = d.value.workspaces.find(w => w.id === CURATION_WS_ID && !w.archived)
+  return hub?.id || userWorkspaces.value[0]?.id || ''
+}
 const capCategories = computed(() => d.value.categories.filter(c => c.workspaceId === capForm.workspaceId))
 
 // ===== R55-C：快速采集任务（四字段全非必填，直存全域任务；未挂项目=未归档） =====
@@ -1055,7 +1063,7 @@ async function saveCapture() {
   const r: ResourceCard = {
     id: uid('res'), kind: 'resource', title: capForm.title.trim(),
     linkType: capForm.linkType, link: capForm.link.trim(),
-    workspaceId: capForm.workspaceId || userWorkspaces.value[0]?.id || '',
+    workspaceId: capForm.workspaceId || defaultCaptureWsId(),
     categoryId: capForm.categoryId, description: capForm.description.trim(),
     tags: [], customFields: {}, pinned: false, callCount: 0,
     createdAt: Date.now(), updatedAt: Date.now()

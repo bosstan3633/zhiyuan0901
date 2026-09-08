@@ -112,3 +112,56 @@ export function migrateHubStructure(d: AppData): boolean {
   d.hubMigratedAt = Date.now()
   return true
 }
+
+/** 资源台根分类的下一个排序键 */
+function nextHubRootOrder(d: AppData): number {
+  let max = -1
+  for (const c of d.categories) if (c.workspaceId === CURATION_WS_ID && !c.parentId && (c.order ?? 0) > max) max = c.order ?? 0
+  return max + 1
+}
+
+/**
+ * R64：旧工作台并入资源台（幂等，AppData.hubMergedAt 标记；调用方在首次执行前负责自动备份下载）
+ * 拍板：资源台 = 旧版工作台数据的汇聚地——
+ *  1. 每个 curation 台（≠资源台）的分类树整体平移进资源台：原根分类挂到资源台根下「同名根分类」防冲突
+ *  2. 该台原生卡随分类平移（workspaceId→CURATION_WS_ID，categoryId 不变）
+ *  3. 指向该台的投射记录删除（真身已在资源台，悬空投射无意义）
+ *  4. 该工作台实体删除（拍板：不留空壳）
+ */
+export function migrateHubMerge(d: AppData): boolean {
+  if (d.hubMergedAt) return false
+  d.hubMergedAt = Date.now()
+  const hub = d.workspaces.find(w => w.id === CURATION_WS_ID && !w.archived)
+  if (!hub) return false
+  const boards = d.workspaces.filter(w => w.id !== CURATION_WS_ID && w.kind === 'curation' && !w.archived)
+  if (!boards.length) return false
+  let changed = false
+  for (const b of boards) {
+    // ① 资源台根下同名根分类（已有同名根则复用）
+    let root = d.categories.find(c => c.workspaceId === CURATION_WS_ID && !c.parentId && c.name === b.name)
+    if (!root) {
+      root = { id: uid('cat'), workspaceId: CURATION_WS_ID, name: b.name, order: nextHubRootOrder(d) }
+      d.categories.push(root)
+      changed = true
+    }
+    // ② 分类树平移：原根分类挂到同名根下，其余跟随（parentId 本就指向本台内分类，改 workspaceId 即可）
+    for (const c of d.categories) {
+      if (c.workspaceId !== b.id) continue
+      c.workspaceId = CURATION_WS_ID
+      if (!c.parentId) c.parentId = root.id
+      changed = true
+    }
+    // ③ 原生卡平移
+    for (const r of d.resources) {
+      if (r.workspaceId === b.id) { r.workspaceId = CURATION_WS_ID; changed = true }
+    }
+    // ④ 指向该台的投射删除
+    const before = d.curationProjections?.length || 0
+    d.curationProjections = (d.curationProjections || []).filter(p => p.targetWsId !== b.id)
+    if ((d.curationProjections?.length || 0) !== before) changed = true
+    // ⑤ 工作台实体删除
+    d.workspaces = d.workspaces.filter(w => w.id !== b.id)
+    changed = true
+  }
+  return changed
+}

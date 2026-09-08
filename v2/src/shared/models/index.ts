@@ -346,6 +346,8 @@ export interface AppData {
   curationProjections?: CurationProjection[]
   /** R61：资源台结构迁移完成时间戳（幂等标记——有值即跳过迁移；迁移前自动备份下载由调用方执行） */
   hubMigratedAt?: number
+  /** R64：旧工作台并入资源台完成时间戳（幂等标记；迁移前自动备份下载由调用方执行） */
+  hubMergedAt?: number
   /** R63：Airtable 单向同步配置与状态（知源 → Airtable，PAT 明文随设备不跨端） */
   airtableSync?: AirtableSyncState
   /** R63：知源卡 id ↔ Airtable recordId 映射表（同步成功后写回；导入合并按 id 取并集） */

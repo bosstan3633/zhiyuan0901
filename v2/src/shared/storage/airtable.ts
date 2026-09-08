@@ -6,12 +6,18 @@
  * - 缺失字段自动创建（用户为 Base Creator，schema.bases:write）；已存在列不改名不改类型；
  *   formula/rollup/lookup 计算列一律跳过
  * - 增量：updatedAt > cursorAt 的卡才推送；映射表 airtableMap（知源卡 id ↔ recordId）
- * - 限流：每批 ≤10 条、批间 200ms、429 退避 30s；累计调用计数供配额提示（Free 版 1000 次/月）
+ * - 限流：每批 ≤10 条、批间 200ms、429 退避 30s；累计调用计数仅作展示（R64：用户为付费会员，无配额口径）
  * - 主题卡：isThesis 仅作为「是否中心论点」列值（拍板 C：不额外加列，此列随基础字段自动建）
  *
  * 同步范围（拍板）：
  * - 调度台好奇心卡 / 方向台任务卡 / 资源台资源卡 / 各策展台台内卡（+ 主题卡标记）
- * - 镜像卡按真身单条记录（所属工作台列标注「资源台 · 📡镜像至 台A/台B」），避免一卡多记录
+ * - R64 拍板：镜像卡是独立记录（幂等键 cardId:m:targetWsId，所属工作台=落点台名），
+ *   真身与镜像在 Airtable 各自成行，均带各自工作台标识
+ *
+ * R64 自愈（用户报 422：Record does not exist）：
+ * - 映射优先级改为远端索引优先（远端实测存在才可信，本地 map 仅兜底）
+ * - 批量 PATCH 失败且含记录不存在语义 → 该批逐条重试，单条仍不存在 → 转 POST 重建写回映射
+ * - 单条重建失败只记 log，不拖垮整轮同步
  */
 import type { AppData, AirtableSyncState, AirtableLogEntry, AnyCard } from '../models'
 import { CURATION_WS_ID } from '../models'
@@ -97,24 +103,13 @@ export function collectSyncRows(d: AppData): SyncRow[] {
       dueDate: t.dueDate || '', updatedAt: t.updatedAt, deleted: !!t.deletedAt
     })
   }
-  // 3) 资源卡：真身单条（资源台 / 策展台台内），镜像信息并入 wsName
-  const mirrorMap = new Map<string, string[]>() // cardId → 台名列表
+  // 3) 资源卡：R64 拍板——镜像卡是独立记录（幂等键 cardId:m:targetWsId），真身/台内卡仍以卡 id 为键
   const boards = curationBoards(d)
-  for (const b of boards) {
-    for (const p of d.curationProjections || []) {
-      if (p.kind === 'card' && p.targetWsId === b.id && p.cardId) {
-        const list = mirrorMap.get(p.cardId) || []
-        list.push(b.name)
-        mirrorMap.set(p.cardId, list)
-      }
-    }
-  }
   for (const r of d.resources) {
     if (r.workspaceId === CURATION_WS_ID) {
       const cp = catPathOf(d, CURATION_WS_ID, r.categoryId)
-      const mirrored = mirrorMap.get(r.id)
       rows.push({
-        key: r.id, cardType: '资源', wsName: mirrored?.length ? `${hubName} · 📡镜像至 ${mirrored.join('/')}` : hubName,
+        key: r.id, cardType: '资源', wsName: hubName,
         catPath: cp.path, level: cp.level, isThesis: !!r.isThesis,
         title: r.title || '', link: r.link || '', description: r.description || '',
         tags: (r.tags || []).join(';'), status: '', priority: '', dueDate: '',
@@ -131,6 +126,22 @@ export function collectSyncRows(d: AppData): SyncRow[] {
       })
     }
     // 归档台/其它来源卡不同步（范围拍板外）
+  }
+  // 4) 镜像卡独立行：内容取真身，所属工作台/分类路径取投射落点（R64-F2）
+  for (const p of d.curationProjections || []) {
+    if (p.kind !== 'card' || !p.targetWsId || !p.cardId) continue
+    const src = d.resources.find(r => r.id === p.cardId)
+    if (!src) continue
+    const targetName = d.workspaces.find(w => w.id === p.targetWsId)?.name
+    if (!targetName) continue
+    const cp = catPathOf(d, p.targetWsId, p.targetCatId)
+    rows.push({
+      key: `${p.cardId}:m:${p.targetWsId}`, cardType: '资源', wsName: targetName,
+      catPath: cp.path, level: cp.level, isThesis: !!src.isThesis,
+      title: src.title || '', link: src.link || '', description: src.description || '',
+      tags: (src.tags || []).join(';'), status: '', priority: '', dueDate: '',
+      updatedAt: src.updatedAt, deleted: !!src.deletedAt
+    })
   }
   return rows
 }
@@ -315,29 +326,63 @@ export async function runSync(d: AppData): Promise<{ pushed: number; created: nu
       .filter(r => !map[r.key] || map[r.key].syncedAt < r.updatedAt || r.deleted)
 
     let pushed = 0
+    /** 记录不存在语义（422/404）——触发单条降级重建 */
+    const isMissingRecord = (msg: string) => /does not exist|422|404/i.test(msg)
+    /** 单条创建（自愈重建用），返回新 recordId */
+    const createOne = async (fields: Record<string, unknown>): Promise<string> => {
+      const res = await atFetch(state, `${API}/${state.baseId}/${state.tableId}`, {
+        method: 'POST', body: JSON.stringify({ records: [{ fields }] })
+      })
+      const body = await res.json() as { records: { id: string }[] }
+      calls++
+      return body.records?.[0]?.id || ''
+    }
     for (let i = 0; i < todo.length; i += BATCH_SIZE) {
       const batch = todo.slice(i, i + BATCH_SIZE)
-      const creates: { fields: Record<string, unknown> }[] = []
-      const updates: { id: string; fields: Record<string, unknown> }[] = []
+      const creates: { fields: Record<string, unknown>; key: string }[] = []
+      const updates: { id: string; fields: Record<string, unknown>; key: string }[] = []
       for (const row of batch) {
         const fields = rowToFields(row)
-        const rid = map[row.key]?.recordId || remote.get(row.key)
-        if (rid) { updates.push({ id: rid, fields }); map[row.key] = { recordId: rid, syncedAt: row.updatedAt } }
-        else creates.push({ fields })
+        // R64 自愈 R1：远端索引优先（远端实测存在的 recordId 才可信），本地 map 仅兜底
+        const rid = remote.get(row.key) || map[row.key]?.recordId
+        if (rid) { updates.push({ id: rid, fields, key: row.key }); map[row.key] = { recordId: rid, syncedAt: row.updatedAt } }
+        else creates.push({ fields, key: row.key })
       }
       if (creates.length) {
         const res = await atFetch(state, `${API}/${state.baseId}/${state.tableId}`, {
-          method: 'POST', body: JSON.stringify({ records: creates })
+          method: 'POST', body: JSON.stringify({ records: creates.map(c => ({ fields: c.fields })) })
         })
         const body = await res.json() as { records: { id: string; fields: Record<string, unknown> }[] }
-        body.records?.forEach((rec, idx) => { map[creates[idx].fields['知源ID'] as string] = { recordId: rec.id, syncedAt: Date.now() } })
+        body.records?.forEach((rec, idx) => { map[creates[idx].key] = { recordId: rec.id, syncedAt: Date.now() } })
         calls++; pushed += creates.length
       }
       if (updates.length) {
-        await atFetch(state, `${API}/${state.baseId}/${state.tableId}`, {
-          method: 'PATCH', body: JSON.stringify({ records: updates })
-        })
-        calls++; pushed += updates.length
+        try {
+          await atFetch(state, `${API}/${state.baseId}/${state.tableId}`, {
+            method: 'PATCH', body: JSON.stringify({ records: updates.map(u => ({ id: u.id, fields: u.fields })) })
+          })
+          calls++; pushed += updates.length
+        } catch (batchErr) {
+          const batchMsg = batchErr instanceof Error ? batchErr.message : String(batchErr)
+          if (!isMissingRecord(batchMsg)) throw batchErr
+          // R64 自愈 R2：批量 PATCH 撞到已删记录 → 逐条降级；仍不存在则转 POST 重建
+          pushLog(state, 'info', `检测到远端记录被删除，逐条自愈重建（${updates.length} 条）`)
+          for (const u of updates) {
+            try {
+              await atFetch(state, `${API}/${state.baseId}/${state.tableId}`, {
+                method: 'PATCH', body: JSON.stringify({ records: [{ id: u.id, fields: u.fields }] })
+              })
+              calls++; pushed++
+            } catch (oneErr) {
+              const oneMsg = oneErr instanceof Error ? oneErr.message : String(oneErr)
+              if (!isMissingRecord(oneMsg)) throw oneErr
+              const newId = await createOne(u.fields)
+              if (newId) { map[u.key] = { recordId: newId, syncedAt: Date.now() }; pushed++ }
+              else pushLog(state, 'error', `重建失败：${u.key}`)
+            }
+            await sleep(BATCH_GAP)
+          }
+        }
       }
       if (i + BATCH_SIZE < todo.length) await sleep(BATCH_GAP)
     }
@@ -365,13 +410,11 @@ export async function runSync(d: AppData): Promise<{ pushed: number; created: nu
   }
 }
 
-/** 配额提示文案（Free 1000 次/月口径） */
+/** 调用计数提示（R64：用户为付费会员版，去掉 Free 配额口径，仅报次数） */
 export function quotaHint(state: AirtableSyncState): string {
   const used = state.totalApiCalls || 0
   if (!used) return ''
-  const pct = Math.round((used / 1000) * 100)
-  if (pct >= 80) return `⚠ 累计调用 ${used} 次（约 Free 版月配额 ${pct}%）——建议升级 Team 或降低同步频率`
-  return `累计调用 ${used} 次（约 Free 版月配额 ${pct}%）`
+  return `累计调用 ${used} 次`
 }
 
 /** 卡片类型守卫（同步行只来自三类卡） */

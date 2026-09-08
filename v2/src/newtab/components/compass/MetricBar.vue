@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 /**
  * R49-C1 + R50-F5 + R51-F14/F17 方向台 · 指标条（方向状态）
- * 4 格：DHI 方向契合度 / WCE 好奇探索 / WRR 资源复用 / 未归档任务（口径与 NorthStarPanel O23 一致）
+ * 4 格：方向状态（R64：战略目标/推进项目，DHI 退役）/ WCE 好奇探索 / WRR 资源复用 / 未归档任务
  * - R51-F14：4 格各自独立明细（MetricDrillDrawer 右侧抽屉），条目点击定位到对应卡片
  * - R57-F3：「📋 详细指标」完整面板入口移除（口径收束到四格自下钻 + 页头今日记录组）
  * - 日/周/累计 档位并入指标条表头
@@ -35,15 +35,8 @@ const wceNew = computed(() => {
   return d.value.curiosities.filter(c => !c.deletedAt && Date.now() - c.createdAt < days * 86400_000).length
 })
 
-/** DHI 数值焦点（R60 新口径）：主数字 = 在轨项目占主攻项目百分比；未设主攻 = — */
-const dhiMain = computed(() => {
-  const pct = m.value.dhi.pct
-  return pct == null || pct < 0 ? '—' : pct + '%'
-})
-const dhiState = computed(() => {
-  const label = m.value.dhi.label
-  return label === '清晰' ? 'ok' : label === '关注' ? 'mid' : label === '—' ? 'none' : 'warn'
-})
+/** 方向状态主数字（R64 口径）：主数字 = 战略目标数；副行 = 推进中项目数 */
+const dhiMain = computed(() => String(m.value.dhi.goals ?? 0))
 
 /** R50-F5：未归档任务（N/M 分母=全部未删除任务，口径同详细指标抽屉） */
 const unarchived = computed(() => unarchivedTaskCount())
@@ -65,10 +58,10 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
       </div>
     </div>
     <div class="mb-cells">
-      <div class="mb-cell clickable" :class="'st-' + dhiState" title="DHI 方向契合度 = 主攻项目中周期窗口内有任务推进的占比 · 点击下钻各方向明细" @click="openCell('dhi')">
-        <div class="mb-label">DHI 方向契合度</div>
-        <div class="mb-num">{{ dhiMain }}</div>
-        <div class="mb-sub">{{ m.dhi.label }} · {{ m.dhi.sub }}</div>
+      <div class="mb-cell clickable" title="战略目标 = 使命下拆解的方向数；推进中项目 = 挂有任务（任务数≠0）的项目数 · 点击下钻各目标明细" @click="openCell('dhi')">
+        <div class="mb-label">战略目标 / 推进项目</div>
+        <div class="mb-num">{{ dhiMain }} <span class="mb-num-unit">目标</span></div>
+        <div class="mb-sub">{{ m.dhi.pushing }} 项目推进中</div>
       </div>
       <div class="mb-cell clickable" title="WCE 好奇探索率 = 探索中+已求证的好奇心数 · 点击下钻激活好奇项清单" @click="openCell('wce')">
         <div class="mb-label">WCE 好奇探索</div>
@@ -94,20 +87,21 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
 
 <style scoped>
 /* R59-T8：与今日三件事模块拉开间距，视觉焦点回归三件事 */
-.metric-bar { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 14px; }
-.mb-head { display: flex; align-items: center; gap: 12px; padding: 6px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.metric-bar { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 10px; }
+.mb-head { display: flex; align-items: center; gap: 12px; padding: 3px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
 .mb-title { font-size: 12px; font-weight: 600; color: var(--text-2); flex: 1; }
 .mb-period { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.mb-period span { padding: 4px 12px; font-size: 11.5px; color: var(--text-2); cursor: pointer; transition: all .12s; }
+.mb-period span { padding: 2px 12px; font-size: 11.5px; color: var(--text-2); cursor: pointer; transition: all .12s; }
 .mb-period span + span { border-left: 1px solid var(--border); }
 .mb-period span:hover { background: var(--surface-3); }
 .mb-period span.on { background: var(--accent-light); color: var(--accent); font-weight: 600; }
 .mb-cells { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); }
-.mb-cell { background: var(--surface); padding: 8px 16px; display: flex; flex-direction: column; gap: 2px; }
+.mb-cell { background: var(--surface); padding: 4px 16px; display: flex; flex-direction: column; gap: 0; }
 .mb-cell.clickable { cursor: pointer; transition: background .12s; }
 .mb-cell.clickable:hover { background: var(--surface-2); }
 .mb-label { font-size: 10.5px; font-weight: 600; color: var(--text-3); letter-spacing: .5px; }
-.mb-num { font-size: 18px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.25; }
+.mb-num { font-size: 15px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.3; }
+.mb-num-unit { font-size: 10px; font-weight: 500; color: var(--text-3); margin-left: 2px; }
 .mb-denom { font-size: 12px; font-weight: 500; color: var(--text-3); }
 .mb-cell.st-ok .mb-num { color: var(--success); }
 .mb-cell.st-mid .mb-num { color: var(--text); }

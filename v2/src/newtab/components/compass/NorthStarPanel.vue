@@ -220,9 +220,9 @@ function changeTaskMetric(taskId: string, e: Event) {
     <div class="ns-body">
       <div class="ns-matrix">
         <div class="ns-card top" @click="openDrawer('dhi')">
-          <div class="ns-label">🧭 DHI <span class="ns-hint">↗</span></div>
-          <div class="ns-value">{{ metrics.dhi.label }}</div>
-          <div class="ns-sub">{{ metrics.dhi.sub }}</div>
+          <div class="ns-label">🧭 方向状态 <span class="ns-hint">↗</span></div>
+          <div class="ns-value">{{ metrics.dhi.goals }} 战略目标</div>
+          <div class="ns-sub">{{ metrics.dhi.pushing }} 项目推进中</div>
         </div>
         <div class="ns-card top" @click="openDrawer('wce')">
           <div class="ns-label">💡 WCE <span class="ns-hint">↗</span></div>
