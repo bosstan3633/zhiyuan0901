@@ -3,7 +3,7 @@
  * R49-C2/C3/C6 + R50-F4 + R51-F19 + R52-F4 主航线 · 方向台核心模块
  * R57-F4 模块化重排：第一行 = 愿景｜使命 两列并列卡；第二行 = 战略目标模块网格
  *   （每模块 = 目标头 + 项目小模块 chip-proj，点击进项目详情；>6 折「更多 N」）
- * - R52-F4（修订 R51-F18）：主航线呈现全部项目（无论是否投射，📡 仅作区分标记）
+ * - R52-F4（修订 R51-F18）：主航线呈现全部项目（R60：原 📡 投射标记已取消，改以 🎯 主攻作区分）
  * - R52-BUG-2：已完成项目口径 = isProjectDone（手动 done/archived 或全任务完成派生）
  * - R51-F15：DHI 明细定位——监听 zy-locate-goal，滚动到对应战略目标模块并闪烁高亮
  * - 已完成项目受全局显隐开关控制；原愿景/使命树状折叠随重排退役
@@ -28,9 +28,7 @@ function toggleShowDone() {
   saveUIPrefs({ showDoneProjects: next })
 }
 
-/** 已投射标记（C4：口径=CompassNode/Project 自身 pinnedToLighthouse；战略目标层无投射，REQ-001） */
-const showVision = computed(() => d.value.compass.vision.pinnedToLighthouse)
-const showMission = computed(() => d.value.compass.mission.pinnedToLighthouse)
+/** R60：原投射标记已随功能退役——愿景/使命无条件呈现，重心标记仅保留 🎯 主攻 */
 
 /** 项目按显隐开关过滤（R52-BUG-2：口径统一为 isProjectDone——手动 done/archived 或全任务完成派生） */
 function projectsOf(dirIdx: number): Project[] {
@@ -38,14 +36,14 @@ function projectsOf(dirIdx: number): Project[] {
   if (!dir) return []
   return dir.projects.filter(p => showDone.value || !isProjectDone(p))
 }
-/** R52-F4（修订 R51-F18 口径）：主航线呈现全部项目（无论是否投射，📡 仅作标记）；>6 折「更多 N」行内展开 */
+/** R52-F4（修订 R51-F18 口径）：主航线呈现全部项目（R60：🎯 主攻置前作区分）；>6 折「更多 N」行内展开 */
 const CHIP_LIMIT = 6
 const expandedGoals = ref<Set<string>>(new Set())
 function chipsOf(dirIdx: number): Project[] {
   const dir = d.value.compass.directions[dirIdx]
   if (!dir) return []
   const list = projectsOf(dirIdx).slice()
-  list.sort((a, b) => (Number(b.isFocused) - Number(a.isFocused)) || (Number(b.pinnedToLighthouse || false) - Number(a.pinnedToLighthouse || false)) || (a.order ?? 999) - (b.order ?? 999))
+  list.sort((a, b) => (Number(b.isFocused) - Number(a.isFocused)) || (a.order ?? 999) - (b.order ?? 999))
   if (expandedGoals.value.has(dir.id)) return list
   return list.slice(0, CHIP_LIMIT)
 }
@@ -97,11 +95,11 @@ function openTree() { router.push('/compass/tree') }
     <!-- R57-F4 第一行两列 ｜ R59-T6：愿景/使命 accent 凸显（与战略目标模块区分），整卡可点击进入完整方向树 -->
     <div class="mr-vm-row">
       <div class="mr-vm-card" title="点击进入完整方向树（愿景层）" @click="openTree">
-        <div class="mr-vm-head"><span class="mr-tier tier-vision">愿景</span><span v-if="showVision" class="mr-chip chip-project">📡 已投射</span><span class="mr-vm-go">进入方向树 ›</span></div>
+        <div class="mr-vm-head"><span class="mr-tier tier-vision">愿景</span><span class="mr-vm-go">进入方向树 ›</span></div>
         <div class="mr-vm-text" :class="{ empty: !visionText }">{{ visionText || '尚未设定愿景' }}</div>
       </div>
       <div class="mr-vm-card" title="点击进入完整方向树（使命层）" @click="openTree">
-        <div class="mr-vm-head"><span class="mr-tier">使命</span><span v-if="showMission" class="mr-chip chip-project">📡 已投射</span><span class="mr-vm-go">进入方向树 ›</span></div>
+        <div class="mr-vm-head"><span class="mr-tier">使命</span><span class="mr-vm-go">进入方向树 ›</span></div>
         <div class="mr-vm-text" :class="{ empty: !missionText }">{{ missionText || '尚未设定使命' }}</div>
       </div>
     </div>
@@ -118,7 +116,7 @@ function openTree() { router.push('/compass/tree') }
         <div class="mgc-projects">
           <span v-for="p in chipsOf(di)" :key="p.id" class="chip-proj" :class="{ accent: p.isFocused }"
             :title="p.name + ' · 点击进入项目详情'" @click="openProject(p)">
-            <span v-if="p.pinnedToLighthouse">📡</span>{{ p.name }}
+            {{ p.name }}
           </span>
           <span v-if="moreOf(di)" class="chip-more" title="展开其余项目" @click="toggleMore(dir.id)">更多 {{ moreOf(di) }}</span>
           <span v-if="!projectsOf(di).length" class="mgc-empty">暂无项目——去完整方向树创建</span>

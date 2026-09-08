@@ -368,7 +368,7 @@ function changeTaskMetric(taskId: string, e: Event) {
 .period-btn.active { background: var(--surface); color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
 
 .ns-body { flex: 1; display: flex; flex-direction: column; }
-/* 第卅五轮 REQ-033：2×3 指标网格撑满卡片高度，与左侧灯塔下边缘对齐（去掉状态条后无冗余留白） */
+/* 第卅五轮 REQ-033：2×3 指标网格撑满卡片高度，与左侧主航线下边缘对齐（去掉状态条后无冗余留白） */
 .ns-matrix { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-auto-rows: 1fr; gap: 10px; flex: 1; }
 .ns-card { border-radius: var(--radius-xs); padding: 12px 14px; cursor: pointer; transition: all .15s; border: 1px solid transparent; display: flex; flex-direction: column; justify-content: center; }
 .ns-card:hover { border-color: var(--accent); transform: translateY(-1px); }

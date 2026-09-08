@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * R51-F14/F15/F17 指标下钻右侧抽屉：四格各自明细 + 条目点击定位
- * - dhi：各战略目标行（投射/在轨/推进）→ 定位主航线对应行（闪烁高亮）
+ * - dhi：各战略目标行（主攻/在轨/推进）→ 定位主航线对应行（闪烁高亮）
  * - wce：激活好奇项清单 → 跳调度台好奇心培育定位（route.query.hl）
  * - wrr：周期内调出资源 → 跳所属工作台定位（query.hl）
  * - unarch：未归档任务清单（口径同 NorthStarPanel O23）→ 就地级联归档 + 跳任务调度定位
@@ -29,15 +29,18 @@ const windowStart = computed(() => {
   return 0
 })
 
-/** DHI（R55-D3 新口径）：各战略目标 → 已投射项目 / 在轨项目（窗口内有任务完成 或 有进行中 或 全部完成） */
+/** DHI（R60 新口径，与 northStarMetrics 同一口径）：各战略目标 → 主攻项目 / 在轨项目
+ *  在轨 = 全部任务完成 ｜ 窗口内有任务完成 ｜ 有 doing 任务且该任务在窗口内有更新 */
 const dhiRows = computed(() => {
   return d.value.compass.directions.map((dir) => {
     const projs = dir.projects
-    const pinned = projs.filter(p => p.pinnedToLighthouse)
+    const pinned = projs.filter(p => p.isFocused && p.status !== 'archived')
     const active = pinned.filter(p => {
       const ts = d.value.tasks.filter(t => !t.deletedAt && t.projectId === p.id)
       const allDone = ts.length > 0 && ts.every(t => t.status === 'done')
-      return allDone || ts.some(t => t.status === 'doing') || ts.some(t => !!t.completedAt && t.completedAt >= windowStart.value)
+      return allDone ||
+        ts.some(t => !!t.completedAt && t.completedAt >= windowStart.value) ||
+        ts.some(t => t.status === 'doing' && (t.updatedAt || t.createdAt) >= windowStart.value)
     })
     return { id: dir.id, name: dir.name, pinned: pinned.length, active: active.length, pct: pinned.length ? Math.round((active.length / pinned.length) * 100) : 0 }
   })
@@ -132,7 +135,7 @@ function locateTask(id: string) {
         <div v-for="row in dhiRows" :key="row.id" class="md-row clickable" title="点击定位到主航线对应行" @click="locateGoal(row.id)">
           <div class="md-main">
             <span class="md-title">🎯 {{ row.name }}</span>
-            <span class="md-sub">📡 已投射 {{ row.pinned }} · 在轨推进 {{ row.active }}</span>
+            <span class="md-sub">🎯 主攻 {{ row.pinned }} · 在轨推进 {{ row.active }}</span>
           </div>
           <div class="md-right">
             <span class="md-pct" :class="{ warn: row.pinned && row.pct < 50 }">{{ row.pct }}%</span>
@@ -141,7 +144,7 @@ function locateTask(id: string) {
         </div>
         <div v-if="!dhiRows.length" class="md-empty">暂无战略目标——去完整方向树创建</div>
       </div>
-      <div class="md-tip">DHI = 已投射项目中，周期窗口内有任务推进的占比。点击行定位到主航线对应战略目标。</div>
+      <div class="md-tip">DHI = 主攻项目中，周期窗口内有任务推进的占比。点击行定位到主航线对应战略目标。</div>
     </template>
 
     <!-- WCE：激活好奇项 -->

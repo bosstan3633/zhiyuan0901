@@ -83,9 +83,9 @@
         </div>
         <template v-for="grp in groupedResults" :key="grp.label">
           <div class="gp-group-title">{{ grp.label }} <span class="gp-group-cnt">{{ grp.total }}</span></div>
-          <div v-for="(item, j) in grp.items" :key="item.id"
-            class="gp-result-item" :class="{selected: grp.offset+j===selIndex}"
-            @click="selectResult(grp.offset+j, true)" @dblclick="selectResult(grp.offset+j, true)" @mouseenter="selIndex=grp.offset+j"
+          <div v-for="item in grp.items" :key="item.id"
+            class="gp-result-item" :class="{selected: item.id===selectedId}"
+            @click="selectItem(item)" @dblclick="selectItem(item)" @mouseenter="selectHover(item)"
             :title="'单击 → 打开链接（无链接则定位） · Ctrl+Enter → 定位并打开详情'">
             <div class="gp-ri-icon" :class="item.iconClass">{{ item.iconText }}</div>
             <div class="gp-ri-main">
@@ -370,7 +370,8 @@ function openPanel(p: PanelType) {
   if (p === 'capture') { capSaved.value = false }
   // V2.21：字典按需加载——仅在搜索面板被打开时才拉取，不进新标签页首屏同步路径
   // R47-A4：每次唤起清空上次查询词，恢复浏览态（无输入=近期热度排序）
-  if (p === 'search') { currentType.value = 'all'; searchQuery.value = ''; void ensurePinyin() }
+  // R60-2：selectedId 与 searchQuery 必须同时清空，否则下次唤起会锚定到上一次选中的卡
+  if (p === 'search') { currentType.value = 'all'; searchQuery.value = ''; selectedId.value = ''; void ensurePinyin() }
   if (p === 'taskcapture') {
     // R55-C：快速采集任务——四字段全非必填，直存全域任务
     tcSaved.value = false
@@ -469,6 +470,22 @@ onPinyinReady(() => { pinyinReady.value = true })
  *  R49-G：新增 'ws' 工作台（分类树定位）/ 'proj' 项目（直达项目详情）两类型 */
 const currentType = ref<'all'|'res'|'task'|'curio'|'ws'|'proj'>('all')
 const selIndex = ref(0)
+/**
+ * R60-1/2：选中项锚点 = 卡片 id。
+ * 原实现以「下标」为锚，而下标会随结果重排漂移（拼音补跑 / 类型过滤 / 分组渲染顺序），
+ * 导致「点 A 开 B」。改为 id 锚定后：点击、hover、Enter 三者永不脱钩。
+ */
+const selectedId = ref('')
+/** 由下标反推 id（键盘上下键后调用） */
+function syncIdFromIndex() {
+  const it = flatList.value[selIndex.value]
+  selectedId.value = it && it.kind !== 'qa' ? it.item.id : ''
+}
+/** 由 id 反推下标（点击 / hover 后调用，保证 Enter 打开的与高亮的是同一条） */
+function syncIndexFromId() {
+  selectedId.value = selectedId.value || ''
+  selIndex.value = flatList.value.findIndex(x => x.kind !== 'qa' && x.item.id === selectedId.value)
+}
 const convertMenuId = ref<string | null>(null)
 
 function typeLabel(t: 'all'|'res'|'task'|'curio'|'ws'|'proj'): string {
@@ -570,7 +587,6 @@ const allResults = computed<SearchResult[]>(() => {
     const dir = d.value.compass.directions.find(dr => dr.projects.some(x => x.id === p.id))
     const badges: {type:string,text:string}[] = []
     if (p.isFocused) badges.push({ type: 'prio-high', text: '🎯 主攻' })
-    if (p.pinnedToLighthouse) badges.push({ type: 'ws-badge', text: '📡 已投射' })
     if (p.status === 'archived') badges.push({ type: 'curio-status', text: '已完成' })
     results.push({
       id: p.id, type: 'proj', iconClass: 'ws', iconText: '📦',
@@ -648,7 +664,19 @@ const filteredResults = computed<SearchResult[]>(() => {
   return list
 })
 
-watch(filteredResults, () => { selIndex.value = flatList.value.length ? 0 : -1 })
+// R60-2：换查询词 / 换类型 = 换了条件，选中态重置（必须在下一条 watch 之前注册）
+watch([searchQuery, currentType], () => { selectedId.value = '' })
+// R60-2：结果集变化（含「拼音字典就绪后补跑命中」）→ 优先锚定回原选中项。
+// 原实现无条件 `selIndex = 0`，补跑一发生就把用户当前选中弹回第一条，且顺序已变 → 点 A 开 B。
+watch(filteredResults, () => {
+  if (selectedId.value) {
+    const i = flatList.value.findIndex(x => x.kind !== 'qa' && x.item.id === selectedId.value)
+    if (i >= 0) { selIndex.value = i; return }
+  }
+  // 无锚点或锚点已消失 → 默认选中第一条（需求：默认选中检索结果到第一个）
+  selIndex.value = flatList.value.length ? 0 : -1
+  syncIdFromIndex()
+})
 
 // ---- B1：命令面板升级（分组 / 高亮 / 快捷操作 / 最近打开） ----
 const isBrowseMode = computed(() => !searchQuery.value.trim() && currentType.value === 'all')
@@ -673,7 +701,14 @@ const recentResources = computed<SearchResult[]>(() => {
 /** 浏览模式的扁平列表（快捷操作 + 最近打开） */
 type FlatItem = { kind: 'qa'; qa: typeof QUICK_ACTIONS[number] } | { kind: 'res'; item: SearchResult } | { kind: 'result'; item: SearchResult }
 const flatList = computed<FlatItem[]>(() => {
-  if (!isBrowseMode.value) return filteredResults.value.map(item => ({ kind: 'result' as const, item }))
+  if (!isBrowseMode.value) {
+    // R60-1：搜索模式下的展开顺序必须与模板「按类型分组渲染」的顺序完全一致。
+    // 原实现直接 map(filteredResults)，而模板按 res/task/curio/ws/proj 分组渲染，
+    // 两者顺序不同 → selIndex 指向的条目与用户看到的条目不是同一条（键盘/Enter 错位）。
+    const out: FlatItem[] = []
+    for (const g of groupedResults.value) for (const item of g.items) out.push({ kind: 'result' as const, item })
+    return out
+  }
   const out: FlatItem[] = []
   QUICK_ACTIONS.forEach(qa => out.push({ kind: 'qa', qa }))
   recentResources.value.forEach(item => out.push({ kind: 'res', item }))
@@ -752,8 +787,8 @@ function setType(t: 'all'|'res'|'task'|'curio'|'ws'|'proj') { currentType.value 
 function clearFilter() { currentType.value = 'all' }
 
 function onSearchKeydown(e: KeyboardEvent) {
-  if (e.key === 'ArrowDown') { e.preventDefault(); selIndex.value = Math.min(selIndex.value+1, flatList.value.length-1); scrollToSelected() }
-  else if (e.key === 'ArrowUp') { e.preventDefault(); selIndex.value = Math.max(selIndex.value-1, 0); scrollToSelected() }
+  if (e.key === 'ArrowDown') { e.preventDefault(); selIndex.value = Math.min(selIndex.value+1, flatList.value.length-1); syncIdFromIndex(); scrollToSelected() }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); selIndex.value = Math.max(selIndex.value-1, 0); syncIdFromIndex(); scrollToSelected() }
   else if (e.key === 'Enter') {
     e.preventDefault()
     if (selIndex.value < 0 || selIndex.value >= flatList.value.length) return
@@ -785,9 +820,21 @@ function scrollToSelected() {
   })
 }
 
-function selectResult(i: number, fromClick: boolean) {
-  selIndex.value = i
-  if (fromClick) openItem(filteredResults.value[i])
+/**
+ * R60-1：点击 / 双击搜索结果 —— 直接以「结果对象」为准，彻底绕开下标。
+ * 原实现 `openItem(filteredResults.value[i])`，模板传入的 i = grp.offset+j，
+ * 而 offset 是按类型分组累计的，与排序后的混合列表下标并不对应 → 点 A 开 B。
+ */
+function selectItem(item: SearchResult) {
+  selectedId.value = item.id
+  syncIndexFromId()
+  openItem(item)
+}
+/** R60-1：hover 只改高亮不开卡，同样以 id 为准（保证 Enter 打开的与高亮的是同一条） */
+function selectHover(item: SearchResult) {
+  if (selectedId.value === item.id && selIndex.value >= 0) return
+  selectedId.value = item.id
+  syncIndexFromId()
 }
 
 // 第卅七轮 REQ-045：300ms 同项去重——单击/双击都走 openItem，避免双击双开

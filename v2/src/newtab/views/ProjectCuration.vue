@@ -184,11 +184,7 @@ function confirmHeaderAddMetric() {
   showToast('✓ 成功指标已创建，同步方向树')
   headerMetricAdding.value = false
 }
-function togglePin(p: Project) {
-  p.pinnedToLighthouse = !p.pinnedToLighthouse
-  store.persist()
-  showToast(p.pinnedToLighthouse ? '📡 已投射至知源灯塔，自动置顶' : '已取消投射')
-}
+/* R60：原「投射至灯塔」开关已取消，重心语义统一由「🎯 主攻 isFocused」承担 */
 
 /* ================= 第十七轮：创建项目弹窗（愿景→使命→战略目标 → 选目标创建） ================= */
 const createOpen = ref(false)
@@ -207,7 +203,7 @@ function confirmCreateProject() {
   const dir = d.value.compass.directions.find(x => x.id === createDirId.value)
   if (!dir) { showToast('请选择所属战略目标'); return }
   const proj: Project = {
-    id: uid('proj'), name, isFocused: false, pinnedToLighthouse: false,
+    id: uid('proj'), name, isFocused: false,
     progress: 0, status: 'active', order: dir.projects.length, metrics: []
   }
   dir.projects.push(proj)
@@ -458,7 +454,6 @@ function addTaskFromHeader() {
         <span class="tag">ID · {{ currentProject.id.slice(0, 12) }}</span>
         <span class="tag accent">{{ goalOf(currentProject)?.name || '—' }}</span>
         <span v-if="currentProject.isFocused" class="tag accent">🎯 主攻</span>
-        <span v-if="currentProject.pinnedToLighthouse" class="tag info">📡 已投射灯塔</span>
         <div style="flex:1" />
         <!-- R52-F6：添加成功指标与添加任务并置 -->
         <button class="mini-btn" @click="startHeaderAddMetric">🎯 添加成功指标</button>
@@ -504,7 +499,6 @@ function addTaskFromHeader() {
           <div class="hero-pname" contenteditable="true" spellcheck="false" @blur="renameProject" @keydown.enter.prevent="onNameEnter">{{ currentProject.name }}</div>
           <span v-if="currentProject.startDate || currentProject.endDate" class="tag info">⏱ {{ currentProject.startDate || '—' }} → {{ currentProject.endDate || '—' }}</span>
           <span class="tag" :class="isStalled(currentProject) ? 'warn' : 'ok'">{{ isStalled(currentProject) ? '⚠ 存在停滞' : '● 推进中' }}</span>
-          <button class="pin-toggle" :class="{on: currentProject.pinnedToLighthouse}" @click="togglePin(currentProject)">📡 {{ currentProject.pinnedToLighthouse ? '已投射灯塔' : '投射灯塔' }}</button>
           <button class="pin-toggle" :class="{on: currentProject.isFocused}" @click="toggleFocus(currentProject)">🎯 {{ currentProject.isFocused ? '主攻中' : '设为主攻' }}</button>
         </div>
         <div class="hero-progress">

@@ -273,12 +273,10 @@ function migrateCompass(v1c?: V1Compass): Compass {
   return {
     vision: {
       content: v1c?.vision || '',
-      pinnedToLighthouse: !!v1c?.vision,
       updatedAt: v1c?.vision ? now : 0
     },
     mission: {
       content: v1c?.mission || '',
-      pinnedToLighthouse: !!v1c?.mission,
       updatedAt: v1c?.mission ? now : 0
     },
     directions

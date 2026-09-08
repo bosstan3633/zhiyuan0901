@@ -47,8 +47,8 @@ export function createDefaultData(): AppData {
   return {
     version: 2,
     compass: {
-      vision: { content: '', pinnedToLighthouse: false, updatedAt: 0 },
-      mission: { content: '', pinnedToLighthouse: false, updatedAt: 0 },
+      vision: { content: '', updatedAt: 0 },
+      mission: { content: '', updatedAt: 0 },
       directions: []
     },
     workspaces: [

@@ -35,7 +35,7 @@ const wceNew = computed(() => {
   return d.value.curiosities.filter(c => !c.deletedAt && Date.now() - c.createdAt < days * 86400_000).length
 })
 
-/** DHI 数值焦点（R55-D3）：主数字 = 在轨项目占已投射项目百分比；无投射 = — */
+/** DHI 数值焦点（R60 新口径）：主数字 = 在轨项目占主攻项目百分比；未设主攻 = — */
 const dhiMain = computed(() => {
   const pct = m.value.dhi.pct
   return pct == null || pct < 0 ? '—' : pct + '%'
@@ -65,7 +65,7 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
       </div>
     </div>
     <div class="mb-cells">
-      <div class="mb-cell clickable" :class="'st-' + dhiState" title="DHI 方向契合度 = 已投射项目中周期窗口内有任务推进的占比 · 点击下钻各方向明细" @click="openCell('dhi')">
+      <div class="mb-cell clickable" :class="'st-' + dhiState" title="DHI 方向契合度 = 主攻项目中周期窗口内有任务推进的占比 · 点击下钻各方向明细" @click="openCell('dhi')">
         <div class="mb-label">DHI 方向契合度</div>
         <div class="mb-num">{{ dhiMain }}</div>
         <div class="mb-sub">{{ m.dhi.label }} · {{ m.dhi.sub }}</div>

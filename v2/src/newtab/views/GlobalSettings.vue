@@ -445,7 +445,7 @@
           <div class="gs-card-header"><span class="gs-card-title">导出方式</span></div>
           <div class="gs-card-body">
             <div class="gs-export-row">
-              <div class="gs-er-info"><div class="gs-er-name">导出全部数据</div><div class="gs-er-desc">全量JSON：调度台（愿景/使命/方向/项目/成功指标/灯塔投射）+ 方向台（工作台/三卡/标签/统计）及全部数据关系，用于整体迁移备份</div></div>
+              <div class="gs-er-info"><div class="gs-er-name">导出全部数据</div><div class="gs-er-desc">全量JSON：调度台（愿景/使命/方向/项目/成功指标）+ 方向台（工作台/三卡/标签/统计）及全部数据关系，用于整体迁移备份</div></div>
               <button class="gs-btn gs-btn-primary" @click="exportAll">导出</button>
             </div>
             <div class="gs-export-row">
@@ -1517,7 +1517,7 @@ function handleBookmarkImport(e: Event) {
   input.value = ''
 }
 
-/** R47-A2：全量并集合并——罗盘（愿景/使命/方向→项目→指标/灯塔投射）+ 引擎数据 + 全部关系字段
+/** R47-A2：全量并集合并——罗盘（愿景/使命/方向→项目→指标）+ 引擎数据 + 全部关系字段
  *  原则：卡片/指标按 id 去重合并；「关系列表」（taskIds/linkedResourceIds 等）一律取并集；
  *        计数类（stats.wrr）取最大值；标量以导入方覆盖（无 updatedAt 的层级按导入值合并）。 */
 function mergeImport(imported: AppData): { cards: number; dirs: number; ws: number } {
@@ -1566,7 +1566,6 @@ function mergeImport(imported: AppData): { cards: number; dirs: number; ws: numb
         const curProj = curDir.projects.find(x => x.id === incProj.id)
         if (!curProj) { curDir.projects.push(JSON.parse(JSON.stringify(incProj))); continue }
         Object.assign(curProj, incProj, { metrics: curProj.metrics })
-        curProj.pinnedToLighthouse = incProj.pinnedToLighthouse || curProj.pinnedToLighthouse
         for (const incMet of incProj.metrics || []) {
           const curMet = curProj.metrics.find(x => x.id === incMet.id)
           if (!curMet) { curProj.metrics.push(JSON.parse(JSON.stringify(incMet))); continue }

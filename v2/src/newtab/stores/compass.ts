@@ -64,7 +64,7 @@ export function useCompass() {
     return allProjects().find(p => p.id === id)
   }
 
-  // ---- 灯塔投射：isFocused 项目 ----
+  // ---- 主攻项目（R60：原「投射至灯塔」语义已取消，重心口径统一收敛于此） ----
   const focusedProjects = computed<Project[]>(() =>
     allProjects().filter(p => p.isFocused && p.status !== 'archived')
   )
@@ -152,23 +152,24 @@ export function useCompass() {
     const dirs = d.value.compass.directions
     const projects = allProjects()
 
-    // DHI 方向契合度（R55-D3 新口径，拍板）：在轨 = 窗口内有任务完成 或 有进行中任务 或 项目任务已全部完成
-    // （修复旧口径「全部完成的项目因 completedAt 超窗口反而掉出在轨」——做完即掉分不合理）
-    // 主数字 = 在轨项目占已投射项目百分比；档位 清晰≥75% / 关注≥40% / 模糊>0 / 未启动=0 / 无投射=—
-    // 投射能力仅项目层支持（战略目标层级开关已移除，REQ-001）
-    const pinnedProjects = projects.filter(p => p.pinnedToLighthouse)
-    const dhiDays = period === 'day' ? 1 : period === 'week' ? 14 : 9999
+    // DHI 方向契合度（R60 新口径，拍板）：在轨项目 ÷ 主攻项目
+    //   R60 三项变更：① 分母由「已投射灯塔」改为「主攻项目 isFocused」（投射功能取消）；
+    //   ② 窗口由 DHI 私有的 14 天统一为与 WCE/WRR 一致的 days（日1/周7/累计全量）；
+    //   ③ 在轨判定加「近期确有推进」——仅有 doing 任务但长期无更新不再计入（防挂任务假装在轨）
+    // 在轨 = 全部任务已完成 ｜ 窗口内有任务完成 ｜ 有 doing 任务且该任务在窗口内有更新
+    // 档位 清晰≥75% / 关注≥40% / 模糊>0 / 未启动=0 / 未设主攻=—
+    const focused = focusedProjects.value
     let activeProjects = 0
-    for (const p of pinnedProjects) {
+    for (const p of focused) {
       const ts = d.value.tasks.filter(t => !t.deletedAt && t.projectId === p.id)
       const allDone = ts.length > 0 && ts.every(t => t.status === 'done')
       const onTrack = allDone ||
-        ts.some(t => t.status === 'doing') ||
-        ts.some(t => !!t.completedAt && isWithinDays(t.completedAt, dhiDays))
+        ts.some(t => !!t.completedAt && isWithinDays(t.completedAt, days)) ||
+        ts.some(t => t.status === 'doing' && isWithinDays(t.updatedAt || t.createdAt, days))
       if (onTrack) activeProjects++
     }
-    const dhiPct = pinnedProjects.length ? Math.round((activeProjects / pinnedProjects.length) * 100) : -1
-    const dhiLabel = !pinnedProjects.length ? '—'
+    const dhiPct = focused.length ? Math.round((activeProjects / focused.length) * 100) : -1
+    const dhiLabel = !focused.length ? '未设主攻'
       : dhiPct >= 75 ? '清晰' : dhiPct >= 40 ? '关注' : dhiPct > 0 ? '模糊' : '未启动'
 
     // WCE 好奇探索：激活数=「探索中+已求证」的好奇心数；新增=周期内捕获数
@@ -200,7 +201,7 @@ export function useCompass() {
     const taskRate = tasks.length ? Math.round((doneTasks / tasks.length) * 100) : 0
 
     return {
-      dhi: { label: dhiLabel, pct: dhiPct, sub: `${dirs.length}方向·${pinnedProjects.length}已投射·${activeProjects}在轨` },
+      dhi: { label: dhiLabel, pct: dhiPct, sub: `${dirs.length}方向·${focused.length}主攻·${activeProjects}在轨` },
       wce: { label: `${wceCount + convertedCount} 项激活+转化`, sub: `${pLabel}新增 ${newInPeriod}`, count: wceCount + convertedCount },
       wrr: { label: `${wrrUnit}${wrrMain}次打开`, sub: wrrSub },
       categories: categoryCount,
@@ -211,7 +212,7 @@ export function useCompass() {
 
   /** 北极星指标计算公式（用于下钻抽屉展示） */
   const formulas = {
-    dhi: 'DHI = 在轨项目占已投射项目的百分比；在轨 = 窗口内有任务完成 或 有进行中任务 或 项目任务已全部完成（R55 新口径）；档位 清晰≥75% / 关注≥40% / 模糊>0 / 未启动=0；活跃窗口随周期联动（日=今日/周=近14天/累计=全部）；投射仅项目层支持（战略目标层级已移除）',
+    dhi: 'DHI = 在轨项目 ÷ 主攻项目（R60 新口径）；在轨 = 项目任务全部完成 或 窗口内有任务完成 或 有「进行中」任务且该任务在窗口内有更新；档位 清晰≥75% / 关注≥40% / 模糊>0 / 未启动=0 / 未设主攻=—；活跃窗口与 WCE/WRR 统一（日=今日/周=近7天/累计=全部）',
     wce: 'WCE（R59 扩展口径）= 「探索中 + 已求证」好奇项数 + 好奇卡转化为任务/资源的卡数；副指标 = 本周期新捕获数（日/周/累计随上方周期切换）',
     wrr: 'WRR 主数字随周期联动：日=今日打开卡数 / 周=本周打开次数(stats.wrr.thisWeekUsage) / 累计=所有资源卡被打开次数之和；副指标给出参照口径（日/周档显示累计值，累计档显示今日值）',
     groups: '模块分组数 = 所有工作台下的文件夹（分组）总数',

@@ -46,7 +46,8 @@ function toggleShowDone() {
 const visibleProjects = computed(() => allProjects().filter(p => showDone.value || !isProjectDone(p)))
 
 const projectsCount = computed(() => visibleProjects.value.length)
-const pinnedCount = computed(() => visibleProjects.value.filter(p => p.pinnedToLighthouse).length)
+/** R60：原「已投射」计数改为「主攻」计数（投射功能取消，重心口径收敛到 isFocused） */
+const pinnedCount = computed(() => visibleProjects.value.filter(p => p.isFocused).length)
 const doneProjects = computed(() => allProjects().filter(p => isProjectDone(p)).length)
 
 /** 项目总览卡（C5：名称/战略目标/🎯/📋/状态） */
@@ -85,7 +86,7 @@ function confirmCreate() {
   if (!name) { showToast('请输入项目名称'); return }
   const dir = d.value.compass.directions.find(x => x.id === createDirId.value)
   if (!dir) { showToast('请选择所属战略目标'); return }
-  const proj: Project = { id: uid('proj'), name, isFocused: false, pinnedToLighthouse: false, pinned: false, progress: 0, status: 'active', order: dir.projects.length, metrics: [] }
+  const proj: Project = { id: uid('proj'), name, isFocused: false, pinned: false, progress: 0, status: 'active', order: dir.projects.length, metrics: [] }
   dir.projects.push(proj)
   store.persist()
   createOpen.value = false
@@ -122,7 +123,7 @@ async function removeProject(p: Project) {
   store.persist()
   showToast(`已删除「${p.name}」` + (taskCount ? `，${taskCount} 个任务转为未归档` : ''))
 }
-/** 置顶切换（与 📡投射独立） */
+/** 置顶切换（与 🎯 主攻独立） */
 function togglePin(p: Project) {
   p.pinned = !p.pinned
   store.persist()
@@ -195,7 +196,7 @@ function onProjDragLeave(e: DragEvent) {
           <span class="ic"><Icon name="layout" :size="16" /></span>
           <span class="nm">项目总览</span>
           <span class="en">PROJECT OVERVIEW</span>
-          <span class="ds">{{ projectsCount }} 项目 · {{ pinnedCount }} 已投射<template v-if="showDone"> · {{ doneProjects }} 已完成</template></span>
+          <span class="ds">{{ projectsCount }} 项目 · {{ pinnedCount }} 主攻<template v-if="showDone"> · {{ doneProjects }} 已完成</template></span>
           <span class="ov-toggle" :class="{ off: !showDone }" @click="toggleShowDone" title="与主航线/完整方向树三处同步">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</span>
           <span class="ov-link" @click="openTree">去方向树管理 ›</span>
           <button class="ov-add" @click="openCreate">＋ 新建项目</button>
@@ -210,7 +211,6 @@ function onProjDragLeave(e: DragEvent) {
               <div class="ov-name">
                 <span class="ov-pname" contenteditable="true" spellcheck="false" @click.stop @focus="editingProjId = p.id" @blur="renameProject(p, $event)" @keydown.enter.prevent="onNameEnter">{{ p.name }}</span>
                 <span v-if="p.isFocused" class="chip chip-accent">🎯 主攻</span>
-                <span v-if="p.pinnedToLighthouse" class="chip">📡 已投射</span>
                 <span v-if="stalled(p)" class="chip chip-warn">⚠ 停滞</span>
               </div>
               <div class="ov-goal">服务战略目标 · {{ goalNameOf(p) }}</div>
@@ -222,7 +222,6 @@ function onProjDragLeave(e: DragEvent) {
               </div>
               <div class="ov-tools" @click.stop>
                 <button class="ov-tool on" title="取消置顶" @click.stop="togglePin(p)">📌</button>
-                <button class="ov-tool" title="投射灯塔" :class="{on: p.pinnedToLighthouse}" @click.stop="p.pinnedToLighthouse = !p.pinnedToLighthouse; store.persist()">📡</button>
                 <button class="ov-tool danger" title="删除项目（任务转未归档）" @click.stop="removeProject(p)">🗑</button>
               </div>
             </div>
@@ -238,7 +237,6 @@ function onProjDragLeave(e: DragEvent) {
               <div class="ov-name">
                 <span class="ov-pname" contenteditable="true" spellcheck="false" @click.stop @focus="editingProjId = p.id" @blur="renameProject(p, $event)" @keydown.enter.prevent="onNameEnter">{{ p.name }}</span>
                 <span v-if="p.isFocused" class="chip chip-accent">🎯 主攻</span>
-                <span v-if="p.pinnedToLighthouse" class="chip">📡 已投射</span>
                 <span v-if="stalled(p)" class="chip chip-warn">⚠ 停滞</span>
               </div>
               <div class="ov-goal">服务战略目标 · {{ goalNameOf(p) }}</div>
@@ -250,7 +248,6 @@ function onProjDragLeave(e: DragEvent) {
               </div>
               <div class="ov-tools" @click.stop>
                 <button class="ov-tool" title="置顶" @click.stop="togglePin(p)">📌</button>
-                <button class="ov-tool" title="投射灯塔" :class="{on: p.pinnedToLighthouse}" @click.stop="p.pinnedToLighthouse = !p.pinnedToLighthouse; store.persist()">📡</button>
                 <button class="ov-tool danger" title="删除项目（任务转未归档）" @click.stop="removeProject(p)">🗑</button>
               </div>
             </div>

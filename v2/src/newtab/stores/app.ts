@@ -26,6 +26,22 @@ export const useAppStore = defineStore('app', () => {
     // R53-A1：策展树统一迁移——遗留分类/工作台投射记录物化为带 curFrom 的真实策展分类（幂等）
     if (data.value && migrateCurationTree(data.value)) saveData()
 
+    // R60：投射至灯塔功能取消——清除存量 vision/mission/project 上的 pinnedToLighthouse 残留字段（幂等，静默）
+    if (data.value) {
+      let cleaned = false
+      const cp = data.value.compass
+      if (cp) {
+        if (cp.vision && 'pinnedToLighthouse' in cp.vision) { delete (cp.vision as Record<string, unknown>).pinnedToLighthouse; cleaned = true }
+        if (cp.mission && 'pinnedToLighthouse' in cp.mission) { delete (cp.mission as Record<string, unknown>).pinnedToLighthouse; cleaned = true }
+        for (const dir of cp.directions || []) {
+          for (const p of dir.projects || []) {
+            if ('pinnedToLighthouse' in p) { delete (p as Record<string, unknown>).pinnedToLighthouse; cleaned = true }
+          }
+        }
+      }
+      if (cleaned) saveData()
+    }
+
     // V2.20.1 BUG-2 存量回填（幂等，静默）：凡有 metricId 而 projectId 为空的任务，
     // 按指标反查所属项目补齐 projectId（历史版本关联任务时漏写 projectId 的修复）。
     if (data.value) {

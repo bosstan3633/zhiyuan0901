@@ -399,8 +399,7 @@ function linkCandidates(kind: 'res' | 'curio') {
   }
   return d.value.curiosities.filter(c => !c.deletedAt && hit(c.question)).map(c => ({ id: c.id, title: c.question }))
 }
-// R59-T2：愿景/使命投射开关随主航线全量呈现退役（数据字段保留，主航线 📡 徽标仍消费）
-// R59-T2：项目投射开关退役（数据字段保留）
+// R60：愿景/使命/项目的「灯塔投射」开关与数据字段均已移除；重心语义由「🎯 主攻 isFocused」承担
 
 // 第卅二轮 REQ-003：项目卡"打开项目"→ 项目全景透视抽屉（可增删改指标与任务，实时同步方向树）
 const projDrawerOpen = ref(false)
@@ -980,7 +979,7 @@ onUnmounted(() => {
 .empty-state { text-align: center; padding: 40px 20px; color: var(--text-3); font-size: 13px; }
 .empty-icon { font-size: 32px; opacity: .4; margin-bottom: 8px; }
 
-/* 投射开关 */
+/* 节点链接弹窗开关（愿景/使命关联资源） */
 .proj-toggle { display: flex; align-items: center; gap: 5px; cursor: pointer; }
 .toggle { position: relative; width: 30px; height: 16px; border-radius: 99px; background: var(--border-strong); cursor: pointer; transition: background .2s; flex-shrink: 0; }
 .toggle.on { background: var(--accent); }

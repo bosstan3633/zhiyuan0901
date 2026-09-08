@@ -37,8 +37,6 @@ export interface AssetMeta {
 /** 愿景 / 使命 节点（1:1 绑定） */
 export interface CompassNode {
   content: string
-  /** 是否投射至首页知源灯塔 */
-  pinnedToLighthouse: boolean
   updatedAt: number
   /** N1：关联资源卡（愿景/使命为持有方，单向） */
   linkedResourceIds?: ID[]
@@ -55,7 +53,7 @@ export interface Direction {
   /** 远期 / 中期 / 近期 */
   term?: 'long' | 'mid' | 'short'
   calibratedAt?: number
-  /** 第卅二轮 REQ-001：投射至灯塔仅项目层支持，战略目标层级投射已移除 */
+  /** R60：投射至灯塔功能已取消；主航线与 DHI 统一以「主攻 isFocused」为口径 */
   /** 第4层：攻坚项目 */
   projects: Project[]
 }
@@ -71,11 +69,10 @@ export interface Project {
   progress: number
   status: 'active' | 'paused' | 'done' | 'archived'
   retrospective?: string
-  /** 投射至知源灯塔（主航线展示 + 首页灯塔区） */
-  pinnedToLighthouse?: boolean
+  /** R60：原「投射至灯塔」字段已移除，重心语义统一收敛到 isFocused（主攻） */
   /** 项目排序（拖拽自由排序） */
   order?: number
-  /** R49-C8/D2：手动置顶（方向台项目总览置顶分组；与 📡投射 pinnedToLighthouse 独立） */
+  /** R49-C8/D2：手动置顶（方向台项目总览置顶分组） */
   pinned?: boolean
   /** 第5层：成功指标 */
   metrics: Metric[]

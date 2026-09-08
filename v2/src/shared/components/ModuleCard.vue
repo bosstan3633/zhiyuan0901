@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 模块卡片容器 · 与首页原型一致的结构
- * 用法：<ModuleCard icon="🔭" title="知源灯塔" en="COMPASS LIGHTHOUSE" desc="...">
+ * 用法：<ModuleCard icon="🧭" title="主航线" en="MAIN ROUTE" desc="...">
  * A1：iconName 传入线性图标名（优先于 emoji icon）
  */
 import Icon from './Icon.vue'

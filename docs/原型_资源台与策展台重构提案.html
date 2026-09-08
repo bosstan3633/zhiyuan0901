@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="linear" data-page-node-id="Tzwe9kMlRobqzzlquuB4E5">
+<head data-page-node-id="C3tEIOjJxRF5DjFhVppr8C">
+<meta charset="UTF-8" data-page-node-id="mDDKrKe59l2RZiHhARjTJK">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="M3Ax2CClWZqBkqBo7nbDTV">
+<title>知源调度台 · 资源台与策展台重构提案原型</title>
+<style>
+[data-theme='linear']{
+  --bg:#010102; --surface:#0F1011; --surface-2:#141516; --surface-3:#191A1B;
+  --border:#23252A; --border-strong:#34343A;
+  --text:#F7F8F8; --text-2:#D0D6E0; --text-3:#8A8F98; --text-4:#5F636B;
+  --accent:#5E6AD2; --accent-2:#7A85E0; --accent-light:rgba(94,106,210,.16);
+  --accent-hover:#828FFF; --accent-glow:rgba(94,106,210,.32);
+  --success:#27A644; --warning:#A66A00; --danger:#D0342C; --violet:#7C3AED;
+}
+[data-theme='apple']{
+  --bg:#F7F7F8; --surface:#FFFFFF; --surface-2:#F7F7F8; --surface-3:#EFEFF1;
+  --border:#E3E4E8; --border-strong:#D5D6DB;
+  --text:#17181C; --text-2:#3C3F45; --text-3:#8A8F98; --text-4:#B4B8BF;
+  --accent:#0071E3; --accent-2:#2B8DEF; --accent-light:#E8F1FD;
+  --accent-hover:#005BB8; --accent-glow:rgba(0,113,227,.2);
+  --success:#27A644; --warning:#A66A00; --danger:#D0342C; --violet:#7C3AED;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--text);font-size:13.5px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;letter-spacing:-.01em;
+}
+.app{min-height:100vh;display:flex;flex-direction:column}
+
+/* ===== 顶栏 ===== */
+.topbar{
+  display:flex;align-items:center;gap:4px;padding:0 16px;height:46px;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:50;
+}
+.logo{display:flex;align-items:center;gap:8px;padding-right:14px;margin-right:6px;font-weight:500;font-size:14px}
+.logo-mark{width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,var(--accent),var(--violet));display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff}
+.tab{
+  padding:5px 11px;border-radius:8px;font-size:13px;color:var(--text-3);
+  cursor:pointer;white-space:nowrap;transition:.12s;border:1px solid transparent;
+  display:flex;align-items:center;gap:5px;user-select:none;
+}
+.tab:hover{background:var(--surface-2);color:var(--text-2)}
+.tab.active{background:var(--accent-light);color:var(--accent);border-color:var(--accent-glow)}
+.tab .caret{font-size:9px;opacity:.7}
+.tab-add{color:var(--text-4);font-size:15px;padding:5px 9px}
+.spacer{flex:1}
+.tb-btn{
+  padding:5px 10px;border-radius:8px;font-size:12.5px;color:var(--text-3);
+  cursor:pointer;border:1px solid var(--border);background:var(--surface-2);transition:.12s;
+}
+.tb-btn:hover{color:var(--text);border-color:var(--border-strong)}
+
+/* 页签下拉 */
+.tab-wrap{position:relative}
+.dropdown{
+  position:absolute;top:38px;left:0;min-width:210px;background:var(--surface-2);
+  border:1px solid var(--border-strong);border-radius:10px;padding:6px;z-index:60;display:none;
+  box-shadow:0 12px 32px rgba(0,0,0,.45);
+}
+.dropdown.open{display:block}
+.dd-label{font-size:10.5px;color:var(--text-4);padding:6px 8px 4px;letter-spacing:.04em}
+.dd-item{padding:7px 9px;border-radius:7px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dd-item:hover{background:var(--surface-3)}
+.dd-item.on{background:var(--accent-light);color:var(--accent)}
+.dd-item .cnt{font-size:11px;color:var(--text-4)}
+.dd-sep{height:1px;background:var(--border);margin:5px 2px}
+
+/* ===== 页面 ===== */
+.page{display:none;flex:1}
+.page.active{display:flex;flex-direction:column}
+.notice{
+  margin:12px 20px 0;padding:9px 13px;border-radius:9px;font-size:12.5px;
+  background:var(--accent-light);border:1px solid var(--accent-glow);color:var(--text-2);
+  display:flex;gap:9px;align-items:flex-start;
+}
+.notice b{color:var(--accent);font-weight:500}
+
+.pagehead{padding:18px 22px 14px;display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.ph-title{font-size:20px;font-weight:500;letter-spacing:-.02em;display:flex;align-items:center;gap:9px}
+.ph-desc{font-size:12.5px;color:var(--text-3);margin-top:3px}
+.ph-stats{display:flex;gap:16px;margin-left:auto;align-items:center}
+.stat{text-align:right}
+.stat .n{font-size:17px;font-weight:500;line-height:1.2}
+.stat .l{font-size:11px;color:var(--text-4)}
+
+.viewswitch{display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:2px;gap:2px}
+.vs-btn{padding:5px 13px;border-radius:7px;font-size:12.5px;color:var(--text-3);cursor:pointer;transition:.12s;white-space:nowrap}
+.vs-btn.on{background:var(--accent);color:#fff}
+
+.body{display:flex;flex:1;min-height:0;gap:0}
+.sidebar{
+  width:230px;flex-shrink:0;border-right:1px solid var(--border);padding:10px 10px 30px;
+  overflow-y:auto;background:var(--surface);
+}
+.sb-title{font-size:10.5px;color:var(--text-4);padding:8px 8px 6px;letter-spacing:.05em}
+.tree-node{
+  padding:6px 9px;border-radius:7px;font-size:12.5px;color:var(--text-2);cursor:pointer;
+  display:flex;align-items:center;gap:7px;transition:.1s;
+}
+.tree-node:hover{background:var(--surface-2)}
+.tree-node.on{background:var(--accent-light);color:var(--accent)}
+.tree-node .c{font-size:11px;color:var(--text-4);margin-left:auto}
+.tree-node.sub{padding-left:24px;font-size:12px}
+.tree-node.mirror .nm{font-style:italic;opacity:.85}
+.main{flex:1;padding:14px 22px 60px;overflow-y:auto;min-width:0}
+
+/* ===== 卡片 ===== */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:12px}
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:13px 15px;cursor:pointer;transition:.13s;position:relative;
+}
+.card:hover{border-color:var(--border-strong);transform:translateY(-1px)}
+.card.mirror{border-style:dashed}
+.card.mirror::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:var(--accent);border-radius:12px 0 0 12px;opacity:.55;
+}
+.card-t{font-size:13.5px;font-weight:500;line-height:1.45;margin-bottom:5px;display:flex;gap:6px;align-items:flex-start}
+.card-d{font-size:11.5px;color:var(--text-3);line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-f{display:flex;align-items:center;gap:6px;margin-top:9px;flex-wrap:wrap}
+.chip{
+  font-size:10.5px;padding:2px 7px;border-radius:6px;background:var(--surface-3);
+  color:var(--text-3);border:1px solid var(--border);white-space:nowrap;
+}
+.chip.acc{background:var(--accent-light);color:var(--accent);border-color:var(--accent-glow)}
+.chip.vio{background:color-mix(in srgb,var(--violet) 16%,transparent);color:var(--violet);border-color:color-mix(in srgb,var(--violet) 32%,transparent)}
+.card-act{position:absolute;top:9px;right:9px;display:none;gap:3px}
+.card:hover .card-act{display:flex}
+.act{
+  width:22px;height:22px;border-radius:6px;background:var(--surface-3);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;color:var(--text-3);
+}
+.act:hover{color:var(--text);border-color:var(--border-strong)}
+
+.sect-head{
+  font-size:11px;color:var(--text-4);padding:16px 2px 9px;letter-spacing:.04em;
+  display:flex;align-items:center;gap:8px;
+}
+.sect-head::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ===== 金字塔 ===== */
+.pyr-wrap{position:relative;padding:6px 0 40px}
+#pyr-links{position:absolute;left:0;top:0;pointer-events:none;z-index:0}
+.pyr-layer{position:relative;z-index:1;margin:0 auto 18px;transition:.2s}
+.pyr-layer .layer-tag{
+  font-size:10.5px;color:var(--text-4);text-align:center;margin-bottom:7px;
+  letter-spacing:.06em;display:flex;align-items:center;justify-content:center;gap:7px;
+}
+.pyr-layer .layer-tag .ln{color:var(--accent);font-weight:500}
+.layer-body{
+  display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+  padding:12px;border-radius:12px;border:1px solid var(--border);
+  background:color-mix(in srgb,var(--surface) 70%,transparent);
+}
+.layer-body.drop-on{border-color:var(--accent);background:var(--accent-light)}
+
+.node{
+  background:var(--surface-2);border:1px solid var(--border-strong);border-radius:10px;
+  padding:10px 13px;min-width:170px;max-width:290px;flex:1;position:relative;transition:.13s;
+}
+.node.drop-on{border-color:var(--accent);background:var(--accent-light)}
+.node.l1{background:var(--accent-light);border-color:var(--accent-glow);max-width:420px;text-align:center}
+.node.l1 .node-t{font-size:14.5px;color:var(--accent);font-weight:500}
+.node-t{font-size:12.5px;font-weight:500;line-height:1.5;margin-bottom:4px;display:flex;align-items:flex-start;gap:6px}
+.node-m{font-size:10.5px;color:var(--text-4);display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.node-fold{
+  position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:5px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--text-4);
+  background:var(--surface-3);border:1px solid var(--border);
+}
+.node-fold:hover{color:var(--text)}
+.node-cards{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.pcard{
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:7px 10px;font-size:11.5px;cursor:grab;max-width:210px;transition:.12s;
+  display:flex;align-items:center;gap:6px;
+}
+.pcard:hover{border-color:var(--border-strong);background:var(--surface-2)}
+.pcard.dragging{opacity:.4}
+.pcard.mirror{border-style:dashed}
+.pcard .pt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcard .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.pcard.local .dot{background:var(--violet)}
+.add-mini{
+  border:1px dashed var(--border-strong);border-radius:8px;padding:7px 11px;font-size:11.5px;
+  color:var(--text-4);cursor:pointer;transition:.12s;background:transparent;
+}
+.add-mini:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-light)}
+
+/* ===== 弹窗 / Toast ===== */
+.mask{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100;
+  backdrop-filter:blur(3px);
+}
+.mask.open{display:flex}
+.modal{
+  background:var(--surface-2);border:1px solid var(--border-strong);border-radius:14px;
+  width:480px;max-width:92vw;max-height:84vh;overflow-y:auto;padding:20px 22px;
+}
+.modal h3{font-size:15.5px;font-weight:500;margin-bottom:4px;line-height:1.5}
+.modal .sub{font-size:11.5px;color:var(--text-4);margin-bottom:14px}
+.mrow{display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--border);font-size:12.5px}
+.mrow .k{width:76px;color:var(--text-4);flex-shrink:0;font-size:11.5px}
+.mrow .v{flex:1;color:var(--text-2);min-width:0}
+.reflist{display:flex;flex-direction:column;gap:5px}
+.refitem{
+  font-size:11.5px;padding:6px 9px;border-radius:7px;background:var(--surface-3);
+  border:1px solid var(--border);color:var(--text-2);display:flex;gap:7px;align-items:center;
+}
+.mfoot{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.btn{padding:7px 14px;border-radius:8px;font-size:12.5px;cursor:pointer;border:1px solid var(--border);background:var(--surface-3);color:var(--text-2)}
+.btn:hover{border-color:var(--border-strong);color:var(--text)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.pri:hover{background:var(--accent-hover)}
+.btn.dgr{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 40%,transparent)}
+
+.toast{
+  position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--surface-3);border:1px solid var(--border-strong);border-radius:10px;
+  padding:10px 17px;font-size:12.5px;color:var(--text);z-index:200;opacity:0;transition:.25s;
+  box-shadow:0 8px 28px rgba(0,0,0,.5);max-width:80vw;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast .hi{color:var(--accent)}
+
+.hint{font-size:11.5px;color:var(--text-4);padding:10px 2px;display:flex;gap:6px;align-items:center}
+</style>
+</head>
+<body data-page-node-id="HfSD7ZqnszeKUvly8VnAQc">
+<div class="app" data-page-node-id="7hJtczqGz7CFtheIltIknU">
+
+  <header class="topbar" data-page-node-id="8bxRjrlJj1ug4w1xccZhEj">
+    <div class="logo" data-page-node-id="IFwsgIb86wENWdDwYqQeqJ"><span class="logo-mark" data-page-node-id="jQY1dRZKAZcY8y3vWmyKhs">知</span>知源调度台</div>
+    <div class="tab" data-page="home" data-page-node-id="wAYObGCC2BCCr6xOtjpZ1F">调度台</div>
+    <div class="tab" data-page="home" data-page-node-id="poNQgScOzLDbvURCC88797">方向台</div>
+    <div class="tab" data-page="resource" data-page-node-id="FDZqzhkQICnq7hoDl1R0JO">资源台</div>
+    <div class="tab-wrap" data-page-node-id="bJoH7OQF0S298TIEJhqIQU">
+      <div class="tab active" id="curTab" data-page-node-id="Co91A5cpLMbkKlxcF6fCE4">策展台 <span class="caret" data-page-node-id="nKD82zprucc99BovhmiLJZ">▾</span></div>
+      <div class="dropdown" id="curDrop" data-page-node-id="dVNiVXdHkFtLBYvyZlwGwR"></div>
+    </div>
+    <div class="tab tab-add" data-page-node-id="8ng87zMQFaAEspEmRoHSNI">＋</div>
+    <div class="spacer" data-page-node-id="mNFx8fdmSEPJI9RBmJxGCd"></div>
+    <div class="tb-btn" id="themeBtn" data-page-node-id="J1PdXzMDkhL5kDVW41xAln">◐ 极简白</div>
+    <div class="tb-btn" data-page-node-id="aYaNubLH4NQYWWVJ9eAVWD">🔍 搜索</div>
+    <div class="tb-btn" data-page-node-id="jQZMhEUqJoeMcYkDzKBUBt">⚙</div>
+  </header>
+
+  <!-- 资源台 -->
+  <section class="page" id="page-resource" data-page-node-id="pwNzrczvg2qCb7GWskpNVa">
+    <div class="notice" data-page-node-id="KqKxJSpHSahBnUZnzNCKdT">
+      <span data-page-node-id="0SQceOOWnHe6ScyKC2pBh8">◈</span>
+      <div data-page-node-id="yXVDOiXqa1lmjg6W3EcpZI"><b data-page-node-id="VcG5BSMFInsPj7DOVLM4ik">资源台＝资源卡的「唯一真身」。</b>所有卡片在这里落地、被编辑、被删除；策展台只是对它的引用式呈现。
+      卡片上的「📡 被 N 台引用」角标，是真身与镜像关系的可视化——删这里，N 个策展台的镜像同步失效（原型数据为模拟）。</div>
+    </div>
+    <div class="pagehead" data-page-node-id="rMsBZ9FKn6iwDVmiVs1iPP">
+      <div data-page-node-id="85tl20zURKTDF5getBGsSo">
+        <div class="ph-title" data-page-node-id="RCSuPHJiuKQfJJEGUhh3W5">🗄 资源台 <span class="chip" data-page-node-id="gGRvsdDac1ZfRKn3lJFgU2">唯一真身</span></div>
+        <div class="ph-desc" data-page-node-id="I7UZ3as2h9J5lN8CycKJyW">所有资源卡的存储地 · 策展台从这里镜像，不复制</div>
+      </div>
+      <div class="ph-stats" data-page-node-id="iQHyXU2svZOr0IHvTGtAil">
+        <div class="stat" data-page-node-id="fLIYZME2qRGECfPC9W6qKK"><div class="n" id="rsTotal" data-page-node-id="Vget5OPZvnb1xyuh6vl3bQ">—</div><div class="l" data-page-node-id="fVSFF1NL4Ba9KZISVu8XXI">资源卡</div></div>
+        <div class="stat" data-page-node-id="t0KLO13cIHCypfo88Phh2b"><div class="n" id="rsRef" data-page-node-id="wihcoKp3kNTleZkRHQHHRc">—</div><div class="l" data-page-node-id="jrRclPp5EVsRRh4vD0cJi1">被引用次数</div></div>
+        <div class="stat" data-page-node-id="fQ5Pu1kDyCWWkgBWX6JcDG"><div class="n" data-page-node-id="r9Q7NJ2u3jX9OpnK0UgyFQ">4</div><div class="l" data-page-node-id="GinfRgHavftnwKjkw3A5q3">分类</div></div>
+      </div>
+    </div>
+    <div class="body" data-page-node-id="VC4Af27UnFI21qRdNzHrjx">
+      <aside class="sidebar" id="rsTree" data-page-node-id="1fUFYvvlHl7XtfAI99f1pw"></aside>
+      <div class="main" data-page-node-id="dJd4S89t8oRuyg6jpc95fM"><div class="grid" id="rsGrid" data-page-node-id="F8LOZQrv9UQIvkOuJYxuXN"></div></div>
+    </div>
+  </section>
+
+  <!-- 策展台 -->
+  <section class="page active" id="page-curation" data-page-node-id="qxdbYKlvBrlnbrMYiWoNEX">
+    <div class="notice" data-page-node-id="o01EchMCPzeATymFY68RbU">
+      <span data-page-node-id="JjCMOp20Gekm1hsgkGCFUB">◈</span>
+      <div data-page-node-id="sDliYjyVavyygS4Rs3HvI4"><b data-page-node-id="xTjqAGh7rueF7LLGF4mIrl">策展台＝引用的舞台，不是第二个仓库。</b>卡片来自「资源台镜像」或「台内新建（自动入资源台并镜像回来）」。
+      两种视图：<b data-page-node-id="vDHKluqqN589irxePzHfjs">分组分类</b>（默认，沿用现策展中心）与 <b data-page-node-id="zGdL3fsVfh7hGU6zKjmh35">金字塔结构</b>（按分类树的层级做金字塔呈现，结论在上、证据在下）。</div>
+    </div>
+    <div class="pagehead" data-page-node-id="OuzCjdGhXBhKs73g9HfUES">
+      <div data-page-node-id="H0rzi8hiyEaeHAeve9E7fc">
+        <div class="ph-title" id="curTitle" data-page-node-id="MfaJXXbOW2ITAvOzVO4MWt">◫ 新高考政策研究</div>
+        <div class="ph-desc" id="curDesc" data-page-node-id="bf2CLzPfNRpjjAMXRygk1W">—</div>
+      </div>
+      <div class="ph-stats" data-page-node-id="yMGp8CQ2WrgMqQBFp5F5XC">
+        <div class="viewswitch" data-page-node-id="2HacPgmEwo5HJeJBtKTRY3">
+          <div class="vs-btn on" data-view="group" data-page-node-id="h48QBUwO9K3cSk5D4hXgMZ">▦ 分组分类</div>
+          <div class="vs-btn" data-view="pyramid" data-page-node-id="EnhGrlFWKPQzEh51NrNr0A">△ 金字塔结构</div>
+        </div>
+        <div class="stat" data-page-node-id="rEvzYPonAzDGZ111kvHsok"><div class="n" id="curCnt" data-page-node-id="fCwMFgxtWhrbozDx3sJcps">—</div><div class="l" data-page-node-id="QoWqUBEpHvFjXPm1SX6YHR">卡片</div></div>
+        <div class="stat" data-page-node-id="tV6OGCt3SF7yC4aszB0Djn"><div class="n" id="curMir" data-page-node-id="yAmtFX5B0ydvJZmC2GWUmP">—</div><div class="l" data-page-node-id="3C4slnYEcq8Ek00e2svCZ8">镜像</div></div>
+      </div>
+    </div>
+    <div class="body" id="curBody" data-page-node-id="L5hHtGOY2gylYlvxrAfBcH"></div>
+  </section>
+
+</div>
+
+<div class="mask" id="mask" data-page-node-id="0F1Z6bHhfRTQBIMcrcj8yE"><div class="modal" id="modal" data-page-node-id="W6Skdc9HS6FIocIQAiJjzw"></div></div>
+<div class="toast" id="toast" data-page-node-id="MPCD23K3qq6wzBu4RHmmEE"></div>
+
+<script>
+/* ============ 模拟数据 ============ */
+const CATS = [
+  {id:'c1',name:'政策文件',n:3},
+  {id:'c2',name:'数据报告',n:5},
+  {id:'c3',name:'学生档案',n:2},
+  {id:'c4',name:'工具方法',n:2},
+];
+
+let uid = 100;
+const R = (t,cat,d,refs)=>({id:'r'+(++uid),title:t,cat,desc:d,refs:refs||[]});
+const RESOURCES = [
+  R('教育部《普通高校本科招生专业选考科目要求指引》','政策文件','通用版指引，明确各专业类目对选考科目的硬性要求，是选科合规性的第一层约束。',['新高考政策研究 · L3 国家级指引']),
+  R('湖北省 2027 年拟在鄂招生专业选考科目要求','政策文件','省级实施细则，含省内高校与跨省院校在鄂招生的科目要求明细表。',['新高考政策研究 · L3 省级细则']),
+  R('36 所 985 高校选科要求对照表','政策文件','按院校×专业类目整理的对照表，用于快速判断某选科组合能覆盖的目标院校范围。',['新高考政策研究 · L3 高校要求']),
+  R('新高考等级赋分制原理与换算示例','数据报告','解释原始分→等级→赋分的换算逻辑，说明为何"卷面分高"不等于"计入总分高"。',['新高考政策研究 · L3 赋分原理']),
+  R('2025 湖北省选科人数分布统计','数据报告','各选科组合的报考人数与占比，是测算竞争强度的基础数据。',['新高考政策研究 · L3 人数分布','武汉升学规划 · L3 竞争格局']),
+  R('再选科目竞争强度测算模型','数据报告','基于人数分布与成绩分布的简易测算模型，用于比较不同再选科目的赋分期望。',['新高考政策研究 · L3 赋分原理']),
+  R('霍兰德职业兴趣测评 · 学生A报告','学生档案','学生 A 的兴趣类型分布与适配职业群，用于选科与专业方向的匹配校验。',['新高考政策研究 · L3 兴趣测评']),
+  R('学科能力诊断：物理 / 历史对比分析','学生档案','基于三次大考的学科位次与提升斜率，判断学生更适合物理组还是历史组。',['新高考政策研究 · L3 能力诊断']),
+  R('选科决策家庭访谈提纲','工具方法','12 个问题，帮家庭把"谁说了算""怕什么""要什么"摆到桌面上。',['新高考政策研究 · L3 家庭沟通']),
+  R('决策平衡单模板','工具方法','把多个选科方案按维度打分，把模糊纠结转成可比较的结构化表格。',['新高考政策研究 · L3 家庭沟通']),
+  R('武汉各区高中 985 / 211 录取率盘点','数据报告','中心城区与新城区高中的升学表现对比，含分配生政策影响说明。',['武汉升学规划 · L3 区域差异']),
+  R('AI 时代专业就业前景分析框架','数据报告','从任务可替代性、技能半衰期、入口壁垒三个维度评估专业前景。',[]),
+];
+
+const STATIONS = [
+  {
+    id:'s1', name:'新高考政策研究', icon:'◫',
+    desc:'用于给高三家庭做选科决策咨询的论证材料库',
+    groups:[
+      {name:'政策规则', mirror:false, cards:['r101','r102','r103']},
+      {name:'赋分与竞争', mirror:false, cards:['r104','r105','r106']},
+      {name:'学生匹配', mirror:false, cards:['r107','r108','r109','r110']},
+      {name:'📡 资源台·数据报告（镜像）', mirror:true, cards:['r111','r112']},
+    ],
+    pyramid:{
+      t:'新高考「3+1+2」下，选科决策应优先于分数最大化',
+      children:[
+        {t:'政策规则决定可选专业池', children:[
+          {t:'国家级指引', cards:['r101']},
+          {t:'省级实施细则', cards:['r102']},
+          {t:'高校层面要求', cards:['r103']},
+        ]},
+        {t:'赋分制下，竞争强度比绝对分更重要', children:[
+          {t:'等级赋分原理', cards:['r104','r106']},
+          {t:'选科人数分布', cards:['r105']},
+        ]},
+        {t:'学科优势与职业倾向需双向匹配', children:[
+          {t:'兴趣测评', cards:['r107']},
+          {t:'学科能力诊断', cards:['r108']},
+          {t:'家庭沟通与决策', cards:['r109','r110']},
+        ]},
+      ]
+    }
+  },
+  {
+    id:'s2', name:'武汉升学规划咨询', icon:'◫',
+    desc:'面向武汉家庭的区域高中选择论证',
+    groups:[
+      {name:'区域差异', mirror:false, cards:['r111']},
+      {name:'竞争格局', mirror:false, cards:['r105']},
+      {name:'前景判断', mirror:false, cards:['r112']},
+    ],
+    pyramid:{
+      t:'武汉中心城区高中选择，要兼顾分配生政策与学校加工能力',
+      children:[
+        {t:'政策变量：分配生', children:[{t:'名额分配机制', cards:['r111']}]},
+        {t:'竞争变量：同届位次', children:[{t:'选科人数与位次', cards:['r105']}]},
+        {t:'长期变量：出口前景', children:[{t:'AI 时代专业前景', cards:['r112']}]},
+      ]
+    }
+  },
+];
+
+let curStation = STATIONS[0];
+let curView = 'group';
+let collapsed = new Set();
+const cardById = id => RESOURCES.find(r=>r.id===id);
+
+/* ============ 工具 ============ */
+const $ = s=>document.querySelector(s);
+const esc = s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+let toastTimer;
+function toast(msg){
+  const t=$('#toast'); t.innerHTML=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+/* ============ 顶栏 ============ */
+document.querySelectorAll('.tab[data-page]').forEach(el=>{
+  el.onclick=()=>{
+    if(!$('#page-'+el.dataset.page)){
+      toast('本原型聚焦「资源台 + 策展台」两块重构；调度台 / 方向台<span class="hi">结构与交互保持现状</span>');
+      return;
+    }
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+    $('#curDrop').classList.remove('open');
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    $('#page-'+el.dataset.page).classList.add('active');
+    if(el.dataset.page==='curation') renderCuration();
+  };
+});
+$('#curTab').onclick=e=>{
+  e.stopPropagation();
+  $('#curTab').classList.add('active');
+  document.querySelectorAll('.tab[data-page]').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  $('#page-curation').classList.add('active');
+  renderCuration();
+  $('#curDrop').classList.toggle('open');
+};
+document.addEventListener('click',()=>$('#curDrop').classList.remove('open'));
+
+function renderDrop(){
+  const d=$('#curDrop');
+  d.innerHTML='<div class="dd-label">策展台</div>'+STATIONS.map(s=>{
+    const n=countCards(s.pyramid);
+    return `<div class="dd-item ${s.id===curStation.id?'on':''}" data-sid="${s.id}">
+      <span>${s.icon} ${esc(s.name)}</span><span class="cnt">${n} 卡</span></div>`;
+  }).join('')+'<div class="dd-sep"></div><div class="dd-item" data-new="1">＋ 新建策展台</div>';
+  d.querySelectorAll('[data-sid]').forEach(el=>{
+    el.onclick=()=>{ curStation=STATIONS.find(s=>s.id===el.dataset.sid); collapsed=new Set(); renderCuration(); renderDrop(); };
+  });
+  d.querySelector('[data-new]').onclick=()=>toast('新建策展台：命名 → 选主题 → 从资源台镜像或台内新建（<span class="hi">与现策展中心一致</span>）');
+}
+
+$('#themeBtn').onclick=()=>{
+  const isL=document.documentElement.dataset.theme==='linear';
+  document.documentElement.dataset.theme=isL?'apple':'linear';
+  $('#themeBtn').textContent=isL?'◐ 深空薰衣草':'◐ 极简白';
+  renderCuration(); renderResource();
+};
+
+/* ============ 资源台 ============ */
+function renderResource(){
+  $('#rsTree').innerHTML='<div class="sb-title">分类</div>'+
+    `<div class="tree-node on" data-cat="all"><span>▦</span>全部<span class="c">${RESOURCES.length}</span></div>`+
+    CATS.map(c=>`<div class="tree-node sub" data-cat="${esc(c.name)}"><span>📁</span>${esc(c.name)}<span class="c">${c.n}</span></div>`).join('');
+  $('#rsTree').querySelectorAll('[data-cat]').forEach(el=>{
+    el.onclick=()=>{
+      $('#rsTree').querySelectorAll('.tree-node').forEach(n=>n.classList.remove('on'));
+      el.classList.add('on');
+      drawResCards(el.dataset.cat);
+    };
+  });
+  drawResCards('all');
+  $('#rsTotal').textContent=RESOURCES.length;
+  $('#rsRef').textContent=RESOURCES.reduce((a,r)=>a+r.refs.length,0);
+}
+function drawResCards(cat){
+  const list = cat==='all'?RESOURCES:RESOURCES.filter(r=>r.cat===cat);
+  $('#rsGrid').innerHTML = list.map(r=>{
+    const n=r.refs.length;
+    return `<div class="card" data-rid="${r.id}">
+      <div class="card-act">
+        <div class="act" data-act="edit" data-rid="${r.id}">✎</div>
+        <div class="act" data-act="del" data-rid="${r.id}">🗑</div>
+      </div>
+      <div class="card-t"><span>📄</span><span>${esc(r.title)}</span></div>
+      <div class="card-d">${esc(r.desc)}</div>
+      <div class="card-f">
+        <span class="chip">${esc(r.cat)}</span>
+        ${n?`<span class="chip acc">📡 被 ${n} 处引用</span>`:'<span class="chip">未被引用</span>'}
+      </div>
+    </div>`;
+  }).join('') || '<div class="hint">该分类暂无卡片</div>';
+  $('#rsGrid').querySelectorAll('.card').forEach(el=>el.onclick=e=>{
+    if(e.target.dataset.act) return;
+    openResourceCard(el.dataset.rid);
+  });
+  $('#rsGrid').querySelectorAll('[data-act]').forEach(el=>{
+    el.onclick=e=>{
+      e.stopPropagation();
+      if(el.dataset.act==='del') openResourceCard(el.dataset.rid,true);
+      else toast('编辑真身：改动<span class="hi">实时同步到所有引用它的策展台</span>（源改我知）');
+    };
+  });
+}
+function openResourceCard(id,delMode){
+  const r=cardById(id); const n=r.refs.length;
+  $('#modal').innerHTML=`
+    <h3>${esc(r.title)}</h3>
+    <div class="sub">资源台 · 真身卡片 ${delMode?'· 删除确认':''}</div>
+    <div class="mrow"><div class="k">分类</div><div class="v">${esc(r.cat)}</div></div>
+    <div class="mrow"><div class="k">说明</div><div class="v">${esc(r.desc)}</div></div>
+    <div class="mrow"><div class="k">被引用</div><div class="v">
+      ${n?`<div class="reflist">${r.refs.map(x=>`<div class="refitem"><span>📡</span>${esc(x)}</div>`).join('')}</div>`
+         :'<span style="color:var(--text-4)">暂无策展台引用</span>'}
+    </div></div>
+    ${delMode?`<div class="mrow"><div class="k">影响</div><div class="v" style="color:var(--danger)">
+      删除真身将使 ${n} 处镜像同步失效（策展台显示「源卡已删除」）。删除一律软删，回收站可恢复。</div></div>`:''}
+    <div class="mfoot">
+      <button class="btn" onclick="closeModal()">关闭</button>
+      ${delMode?`<button class="btn dgr" onclick="closeModal();toast('已软删至回收站 · <span class="hi">${n}</span> 处镜像转为失效态')">确认删除</button>`
+               :`<button class="btn pri" onclick="closeModal();toast('已镜像到「${esc(curStation.name)}」· 源数据零影响')">📡 镜像到当前策展台</button>`}
+    </div>`;
+  $('#mask').classList.add('open');
+}
+
+/* ============ 策展台 ============ */
+function countCards(p){
+  let n=0; const walk=nodes=>nodes.forEach(x=>{n+=(x.cards||[]).length; if(x.children)walk(x.children)});
+  walk(p.children||[]); return n;
+}
+document.querySelectorAll('.vs-btn').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('.vs-btn').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); curView=b.dataset.view; renderCuration();
+  };
+});
+function renderCuration(){
+  $('#curTitle').textContent=curStation.icon+' '+curStation.name;
+  $('#curDesc').textContent=curStation.desc;
+  const total=countCards(curStation.pyramid);
+  $('#curCnt').textContent=total;
+  $('#curMir').textContent=total-1;
+  $('#curBody').innerHTML = curView==='group'?renderGroup():renderPyramid();
+  if(curView==='group') bindGroup(); else bindPyramid();
+}
+
+/* --- 分组分类视图（默认，沿用现策展中心） --- */
+function renderGroup(){
+  const tree = curStation.groups.map((g,i)=>
+    `<div class="tree-node ${g.mirror?'mirror':''} ${i===0?'on':''}" data-g="${i}">
+      <span>${g.mirror?'📡':'📁'}</span><span class="nm">${esc(g.name)}</span><span class="c">${g.cards.length}</span></div>`
+  ).join('');
+  const sections = curStation.groups.map((g,i)=>{
+    const cards=g.cards.map(id=>cardById(id)).filter(Boolean);
+    return `<div class="sect-head">${esc(g.name)} · ${cards.length}</div>
+      <div class="grid">${cards.map(r=>pcardHtml(r,g.mirror)).join('')}
+        <div class="card" style="border-style:dashed;display:flex;align-items:center;justify-content:center;color:var(--text-4);font-size:12px;min-height:96px">＋ 新建 / 从资源台镜像</div>
+      </div>`;
+  }).join('');
+  return `<aside class="sidebar"><div class="sb-title">分类（含镜像）</div>${tree}
+      <div class="sb-title" style="margin-top:14px">说明</div>
+      <div style="padding:0 9px;font-size:11.5px;color:var(--text-4);line-height:1.7">
+        虚线名 = 镜像分类，源自资源台某个分类；原生与镜像同树混排、拖拽平权，源数据零影响。</div>
+    </aside>
+    <div class="main">${sections}</div>`;
+}
+function pcardHtml(r,isMirror){
+  return `<div class="card ${isMirror?'mirror':''}" data-rid="${r.id}">
+    <div class="card-act"><div class="act" data-act="locate" data-rid="${r.id}">🎯</div>
+      <div class="act" data-act="out" data-rid="${r.id}">⨯</div></div>
+    <div class="card-t"><span>📄</span><span>${esc(r.title)}</span></div>
+    <div class="card-d">${esc(r.desc)}</div>
+    <div class="card-f">
+      <span class="chip ${isMirror?'acc':''}">${isMirror?'📡 镜像自资源台':'⇪ 台内新建 · 已入资源台'}</span>
+      <span class="chip">${esc(r.cat)}</span>
+    </div>
+  </div>`;
+}
+function bindGroup(){
+  $('#curBody').querySelectorAll('.card[data-rid]').forEach(el=>{
+    el.onclick=e=>{
+      if(e.target.dataset.act){
+        const a=e.target.dataset.act;
+        if(a==='locate') return toast('🎯 已定位到资源台真身：<span class="hi">'+esc(cardById(el.dataset.rid).title.slice(0,18))+'…</span>');
+        if(a==='out'){ el.remove(); return toast('已移出本策展台 · <span class="hi">资源台真身不受影响</span>'); }
+      }
+      openCurationCard(el.dataset.rid);
+    };
+  });
+}
+
+/* --- 金字塔结构视图 --- */
+function renderPyramid(){
+  const p=curStation.pyramid;
+  const layers=[];
+  layers.push({tag:'L1 · 中心论点', nodes:[{node:{t:p.t}, lvl:1, key:'root'}]});
+  // L2 + L3 + cards
+  const walk=(nodes,lvl,parentKey,out)=>{
+    nodes.forEach((n,i)=>{
+      const key=parentKey+'.'+i;
+      out.push({node:n,lvl,key});
+      if(n.children&&!collapsed.has(key)) walk(n.children,lvl+1,key,out);
+    });
+  };
+  const flat=[];
+  (p.children||[]).forEach((n,i)=>{
+    const key='root.'+i;
+    flat.push({node:n,lvl:2,key});
+    if(n.children&&!collapsed.has(key)) n.children.forEach((c,j)=>flat.push({node:c,lvl:3,key:key+'.'+j}));
+  });
+  const byLvl={2:[],3:[]};
+  flat.forEach(x=>byLvl[x.lvl].push(x));
+
+  const nodeHtml=(x)=>{
+    const hasKids=!!x.node.children;
+    const col=collapsed.has(x.key);
+    const cards=(x.node.cards||[]).map(id=>cardById(id)).filter(Boolean);
+    return `<div class="node l${x.lvl}" data-key="${x.key}" data-drop="node">
+      ${hasKids?`<div class="node-fold" data-fold="${x.key}">${col?'▸':'▾'}</div>`:''}
+      <div class="node-t">${x.lvl===1?'':''}<span>${esc(x.node.t)}</span></div>
+      <div class="node-m">
+        <span>${x.lvl===2?'分论点':x.lvl===3?'论据':'论点'}</span>
+        ${cards.length?`<span>· ${cards.length} 张证据</span>`:''}
+        ${hasKids&&col?'<span>· 已折叠</span>':''}
+      </div>
+      ${cards.length?`<div class="node-cards" data-drop="node">${cards.map(r=>`
+        <div class="pcard ${r.refs.length?'mirror':'local'}" draggable="true" data-rid="${r.id}">
+          <span class="dot"></span><span class="pt">${esc(r.title)}</span></div>`).join('')}
+        <div class="add-mini" data-add="${x.key}">＋</div></div>`:''}
+    </div>`;
+  };
+  const W={1:'42%',2:'68%',3:'100%'};
+  const body = [
+    `<div class="pyr-layer" style="width:${W[1]}"><div class="layer-tag"><span class="ln">L1</span> 中心论点 · 结论先行</div>
+      <div class="layer-body">${nodeHtml(layers[0].nodes[0])}</div></div>`,
+    `<div class="pyr-layer" style="width:${W[2]}"><div class="layer-tag"><span class="ln">L2</span> 分论点 · 归类分组（MECE）</div>
+      <div class="layer-body">${byLvl[2].map(nodeHtml).join('')}<div class="add-mini" data-addlvl="2">＋ 分论点</div></div></div>`,
+    `<div class="pyr-layer" style="width:${W[3]}"><div class="layer-tag"><span class="ln">L3</span> 论据 · 上统下（每层都是下层的结论）</div>
+      <div class="layer-body">${byLvl[3].map(nodeHtml).join('')}<div class="add-mini" data-addlvl="3">＋ 论据</div></div></div>`,
+  ].join('');
+  return `<div class="main" style="padding-top:8px">
+    <div class="hint">△ 金字塔结构 · 拖拽卡片可跨层改变归属与位置；点节点左上角 ▾ 折叠；点卡片看来源</div>
+    <div class="pyr-wrap" id="pyrWrap"><svg id="pyr-links"></svg>${body}</div>
+  </div>`;
+}
+function bindPyramid(){
+  // 折叠
+  $('#curBody').querySelectorAll('[data-fold]').forEach(el=>{
+    el.onclick=e=>{
+      e.stopPropagation();
+      const k=el.dataset.fold;
+      collapsed.has(k)?collapsed.delete(k):collapsed.add(k);
+      renderCuration();
+    };
+  });
+  // 添加
+  $('#curBody').querySelectorAll('[data-add]').forEach(el=>{
+    el.onclick=e=>{e.stopPropagation();
+      toast('从资源台选取卡片镜像到本层，或台内新建（<span class="hi">自动入资源台并镜像回来</span>）');};
+  });
+  $('#curBody').querySelectorAll('[data-addlvl]').forEach(el=>{
+    el.onclick=e=>{e.stopPropagation();
+      toast('新增'+(el.dataset.addlvl==='2'?'分论点':'论据')+'：金字塔层级来自分类树，可继续下钻（<span class="hi">现有 2 级限制需放开</span>）');};
+  });
+  // 卡片点击
+  $('#curBody').querySelectorAll('.pcard').forEach(el=>{
+    el.onclick=e=>{e.stopPropagation(); openCurationCard(el.dataset.rid);};
+  });
+  // 拖拽
+  let dragId=null;
+  $('#curBody').querySelectorAll('.pcard').forEach(el=>{
+    el.ondragstart=e=>{ dragId=el.dataset.rid; el.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; };
+    el.ondragend=()=>{ el.classList.remove('dragging'); };
+  });
+  $('#curBody').querySelectorAll('[data-drop]').forEach(zone=>{
+    zone.ondragover=e=>{ e.preventDefault(); zone.classList.add('drop-on'); };
+    zone.ondragleave=()=>zone.classList.remove('drop-on');
+    zone.ondrop=e=>{
+      e.preventDefault(); zone.classList.remove('drop-on');
+      if(!dragId) return;
+      const r=cardById(dragId);
+      const targetKey=zone.dataset.key||'该层';
+      toast('已将「<span class="hi">'+esc(r.title.slice(0,16))+'…</span>」移动到该论据下 · 排序位与归属已更新（<span class="hi">拖拽即改归属，源数据零影响</span>）');
+    };
+  });
+  requestAnimationFrame(drawLinks);
+}
+function drawLinks(){
+  const wrap=$('#pyrWrap'); const svg=$('#pyr-links');
+  if(!wrap||!svg) return;
+  const wb=wrap.getBoundingClientRect();
+  svg.setAttribute('viewBox',`0 0 ${wrap.scrollWidth} ${wrap.scrollHeight}`);
+  svg.style.width=wrap.scrollWidth+'px'; svg.style.height=wrap.scrollHeight+'px';
+  svg.innerHTML='';
+  const layers=[...wrap.querySelectorAll('.pyr-layer')];
+  for(let i=0;i<layers.length-1;i++){
+    const up=[...layers[i].querySelectorAll('.node')];
+    const dn=[...layers[i+1].querySelectorAll('.node')];
+    up.forEach(a=>{
+      const ab=a.getBoundingClientRect();
+      dn.forEach(b=>{
+        const bb=b.getBoundingClientRect();
+        const x1=ab.left-wb.left+ab.width/2, y1=ab.bottom-wb.top;
+        const x2=bb.left-wb.left+bb.width/2, y2=bb.top-wb.top;
+        const my=(y1+y2)/2;
+        svg.insertAdjacentHTML('beforeend',
+          `<path d="M${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}" fill="none" stroke="var(--border-strong)" stroke-width="1" opacity=".55"/>`);
+      });
+    });
+  }
+}
+window.addEventListener('resize',()=>{ if(curView==='pyramid') drawLinks(); });
+
+function openCurationCard(id){
+  const r=cardById(id);
+  const isMirror = r.refs.length>0;
+  $('#modal').innerHTML=`
+    <h3>${esc(r.title)}</h3>
+    <div class="sub">${esc(curStation.name)} · ${isMirror?'镜像卡':'台内新建卡'}</div>
+    <div class="mrow"><div class="k">来源</div><div class="v">${isMirror
+      ?'<span class="chip acc">📡 镜像自资源台</span> 源卡在资源台，改动双向同步'
+      :'<span class="chip vio">⇪ 台内新建</span> 真身已写入资源台，本台为镜像呈现'}</div></div>
+    <div class="mrow"><div class="k">说明</div><div class="v">${esc(r.desc)}</div></div>
+    <div class="mrow"><div class="k">层级</div><div class="v">金字塔 L3 · 论据层</div></div>
+    <div class="mfoot">
+      <button class="btn" onclick="closeModal()">关闭</button>
+      <button class="btn" onclick="closeModal();toast('🎯 已在资源台定位真身')">🎯 定位源卡</button>
+      <button class="btn pri" onclick="closeModal()">打开链接 ↗</button>
+    </div>`;
+  $('#mask').classList.add('open');
+}
+function closeModal(){ $('#mask').classList.remove('open'); }
+$('#mask').onclick=e=>{ if(e.target.id==='mask') closeModal(); };
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+/* init */
+renderDrop(); renderCuration(); renderResource();
+</script>
+</body>
+</html>

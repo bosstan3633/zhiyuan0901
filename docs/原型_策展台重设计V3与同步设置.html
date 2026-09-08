@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="linear" data-page-node-id="U9PXnmRv7KxBMnCXPCG55F">
+<head data-page-node-id="JklyimJKN9mcbvtm8o1GeB">
+<meta charset="UTF-8" data-page-node-id="TpOqUk0Qtg3RyCbtvOapaJ">
+<meta name="viewport" content="width=device-width,initial-scale=1.0" data-page-node-id="HxvMTRMsMSs5SryHhxgZ4e">
+<title>知源调度台 · 策展台重设计 V3 + Airtable 同步设置</title>
+<style>
+[data-theme='linear']{
+  --bg:#010102;--surface:#0F1011;--surface-2:#141516;--surface-3:#191A1B;
+  --border:#23252A;--border-strong:#34343A;
+  --text:#F7F8F8;--text-2:#D0D6E0;--text-3:#8A8F98;--text-4:#5F636B;
+  --accent:#5E6AD2;--accent-2:#7A85E0;--accent-light:rgba(94,106,210,.16);
+  --accent-hover:#828FFF;--accent-glow:rgba(94,106,210,.32);
+  --success:#27A644;--warning:#A66A00;--danger:#D0342C;--violet:#7C3AED;
+}
+[data-theme='apple']{
+  --bg:#F7F7F8;--surface:#FFFFFF;--surface-2:#F7F7F8;--surface-3:#EFEFF1;
+  --border:#E3E4E8;--border-strong:#D5D6DB;
+  --text:#17181C;--text-2:#3C3F45;--text-3:#8A8F98;--text-4:#B4B8BF;
+  --accent:#0071E3;--accent-2:#2B8BEF;--accent-light:#E8F1FD;
+  --accent-hover:#005BB8;--accent-glow:rgba(0,113,227,.2);
+  --success:#27A644;--warning:#A66A00;--danger:#D0342C;--violet:#7C3AED;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--text);font-size:13.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.app{min-height:100vh;display:flex;flex-direction:column}
+
+/* 顶栏 */
+.topbar{display:flex;align-items:center;gap:4px;padding:0 16px;height:46px;background:var(--surface);
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:80}
+.logo{display:flex;align-items:center;gap:8px;padding-right:14px;margin-right:6px;font-weight:500;font-size:14px}
+.logo-mark{width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,var(--accent),var(--violet));
+  display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff}
+.tab{padding:5px 11px;border-radius:8px;font-size:13px;color:var(--text-3);cursor:pointer;white-space:nowrap;
+  transition:.12s;border:1px solid transparent;display:flex;align-items:center;gap:5px;user-select:none}
+.tab:hover{background:var(--surface-2);color:var(--text-2)}
+.tab.active{background:var(--accent-light);color:var(--accent);border-color:var(--accent-glow)}
+.tab .caret{font-size:9px;opacity:.7}
+.spacer{flex:1}
+.tb-btn{padding:5px 10px;border-radius:8px;font-size:12.5px;color:var(--text-3);cursor:pointer;
+  border:1px solid var(--border);background:var(--surface-2);transition:.12s;user-select:none}
+.tb-btn:hover{color:var(--text);border-color:var(--border-strong)}
+.tb-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tb-btn.primary:hover{background:var(--accent-hover)}
+.tb-btn.sm{padding:3px 8px;font-size:11.5px}
+
+/* 顶栏同步胶囊 */
+.sync-pill{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11.5px;
+  border:1px solid var(--border);background:var(--surface-2);color:var(--text-3);cursor:pointer;user-select:none}
+.sync-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--success)}
+.sync-pill.warn .dot{background:var(--warning)}
+.sync-pill.running .dot{background:var(--accent);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* 下拉 */
+.tab-wrap{position:relative}
+.dropdown{position:absolute;top:38px;left:0;min-width:212px;background:var(--surface-2);
+  border:1px solid var(--border-strong);border-radius:10px;padding:6px;z-index:90;display:none;
+  box-shadow:0 12px 32px rgba(0,0,0,.4)}
+.dropdown.open{display:block}
+.dd-item{padding:6px 9px;border-radius:7px;font-size:13px;color:var(--text-2);cursor:pointer;
+  display:flex;align-items:center;gap:8px;white-space:nowrap}
+.dd-item:hover{background:var(--surface-3)}
+.dd-item.on{color:var(--accent);background:var(--accent-light)}
+.dd-sep{height:1px;background:var(--border);margin:4px 2px}
+.dd-hint{font-size:10.5px;color:var(--text-4);padding:2px 9px 4px}
+
+/* 页面 */
+.page{display:none}.page.on{display:flex;flex-direction:column;flex:1;min-height:0}
+
+/* ===== 策展台 ===== */
+.overview{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap}
+.ov{flex:1;min-width:118px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:9px 11px}
+.ov .k{font-size:10.5px;color:var(--text-4);display:flex;align-items:center;gap:5px}
+.ov .v{font-size:19px;font-weight:600;line-height:1.25;margin-top:1px}
+.ov .sub{font-size:10.5px;color:var(--text-4)}
+.bar{display:flex;height:4px;border-radius:3px;overflow:hidden;margin-top:5px;gap:1px}
+.bar i{display:block;height:100%}
+.split{display:flex;gap:8px;margin-top:4px;font-size:10.5px;color:var(--text-3);flex-wrap:wrap}
+.split span{display:flex;align-items:center;gap:3px}
+.sw{width:6px;height:6px;border-radius:2px;display:inline-block}
+
+.body{display:flex;flex:1;min-height:0}
+.sidebar{width:246px;flex:none;border-right:1px solid var(--border);background:var(--surface);
+  overflow:auto;padding:10px 8px}
+.side-h{font-size:10.5px;color:var(--text-4);letter-spacing:.05em;padding:2px 8px 8px;
+  display:flex;align-items:center;justify-content:space-between}
+.tree-row{display:flex;align-items:center;gap:5px;padding:4px 7px;border-radius:7px;font-size:12.5px;
+  color:var(--text-2);cursor:pointer;user-select:none;transition:.1s}
+.tree-row:hover{background:var(--surface-2)}
+.tree-row.sel{background:var(--accent-light);color:var(--accent)}
+.tree-row .tw{width:12px;display:flex;justify-content:center;color:var(--text-4);font-size:8px;flex:none}
+.tree-row .tn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tree-row .tc{font-size:10px;color:var(--text-4)}
+.tree-row .ts{font-size:8px}
+.lvdot{width:4px;height:4px;border-radius:50%;flex:none}
+
+.main{flex:1;overflow:auto;padding:14px 16px 60px;min-width:0}
+.subbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.seg{display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:2px;gap:2px}
+.seg-item{padding:4px 12px;border-radius:7px;font-size:12.5px;color:var(--text-3);cursor:pointer;user-select:none;transition:.12s}
+.seg-item.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.seg-item:hover{color:var(--text-2)}
+.hint{font-size:11.5px;color:var(--text-4)}
+
+/* 金字塔 */
+.pyr-wrap{position:relative;min-height:480px}
+#pyrLines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.pyr-layer{display:flex;justify-content:center;align-items:flex-start;gap:16px;position:relative;z-index:1;margin-bottom:4px}
+.pnode{background:var(--surface);border:1px solid var(--border);border-radius:11px;display:flex;flex-direction:column;
+  transition:.14s;position:relative}
+.pnode.dragover{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.pnode.dragging{opacity:.4}
+.pnode.sel{border-color:var(--accent)}
+.pnode-h{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--border);
+  border-radius:10px 10px 0 0;background:var(--surface-2)}
+.handle{cursor:grab;color:var(--text-4);font-size:11px;user-select:none}
+.handle:active{cursor:grabbing}
+.chev{width:14px;height:14px;display:flex;align-items:center;justify-content:center;font-size:8px;
+  color:var(--text-3);cursor:pointer;transition:.15s;border-radius:4px;flex:none}
+.chev:hover{background:var(--surface-3)}
+.chev.collapsed{transform:rotate(-90deg)}
+.node-name{font-size:12px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.node-count{font-size:10px;color:var(--text-4)}
+.orderbtn{font-size:9px;color:var(--text-4);cursor:pointer;padding:0 2px;border-radius:3px;user-select:none}
+.orderbtn:hover{background:var(--surface-3);color:var(--text-2)}
+.pnode-b{padding:6px;display:flex;flex-direction:column;gap:4px;min-height:32px}
+.pnode-b.collapsed{display:none}
+.pcard{background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:4px 7px;
+  font-size:11.5px;color:var(--text-2);cursor:grab;display:flex;align-items:center;gap:6px;transition:.12s}
+.pcard:hover{border-color:var(--border-strong);color:var(--text);background:var(--surface-3)}
+.pcard.dragging{opacity:.35}
+.pcard .ct{width:5px;height:5px;border-radius:50%;flex:none}
+.ct-res{background:var(--accent)}.ct-task{background:var(--success)}.ct-cur{background:var(--violet)}
+.pcard .ctitle{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.s-ok{color:var(--success)}.s-pend{color:var(--warning)}.s-conf{color:var(--danger)}.s-fail{color:var(--danger)}
+.pnode.thesis{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-glow),0 8px 28px rgba(94,106,210,.16);
+  background:linear-gradient(180deg,var(--accent-light),var(--surface) 60%)}
+.thesis-badge{font-size:9.5px;padding:1px 6px;border-radius:5px;background:var(--accent);color:#fff;flex:none}
+.thesis-card{background:var(--surface);border:1px dashed var(--accent-glow);border-radius:8px;padding:8px 10px;
+  font-size:12.5px;color:var(--text);line-height:1.5}
+.thesis-meta{font-size:10px;color:var(--text-4);margin-top:3px}
+.add-card{border:1px dashed var(--border-strong);border-radius:7px;padding:3px;text-align:center;
+  font-size:10.5px;color:var(--text-4);cursor:pointer;transition:.12s}
+.add-card:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
+.badge-lv{font-size:9.5px;padding:1px 5px;border-radius:5px;background:var(--surface-3);color:var(--text-3);
+  border:1px solid var(--border);flex:none}
+
+/* 分组视图 */
+.grp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.grp{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:10px}
+.grp-h{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.grp-list{display:flex;flex-direction:column;gap:5px}
+
+/* 提示条 */
+.deny{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--danger);color:#fff;
+  padding:8px 16px;border-radius:9px;font-size:12.5px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.4);
+  display:none;max-width:80vw}
+.deny.show{display:block}
+
+/* ===== 设置页 ===== */
+.set-body{display:flex;flex:1;min-height:0}
+.set-nav{width:200px;flex:none;border-right:1px solid var(--border);background:var(--surface);padding:12px 8px;overflow:auto}
+.set-nav .h{font-size:10.5px;color:var(--text-4);padding:8px 10px 5px;letter-spacing:.05em}
+.set-nav .i{padding:6px 10px;border-radius:7px;font-size:12.5px;color:var(--text-2);cursor:pointer;user-select:none}
+.set-nav .i:hover{background:var(--surface-2)}
+.set-nav .i.on{background:var(--accent-light);color:var(--accent)}
+.set-main{flex:1;overflow:auto;padding:18px 20px 70px;min-width:0}
+.set-title{font-size:16px;font-weight:600;margin-bottom:4px}
+.set-desc{font-size:12px;color:var(--text-4);margin-bottom:16px;line-height:1.7}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px}
+.panel-h{padding:10px 13px;border-bottom:1px solid var(--border);background:var(--surface-2);font-size:12.5px;
+  font-weight:500;display:flex;align-items:center;gap:8px}
+.panel-h .sub{font-size:11px;color:var(--text-4);font-weight:400}
+.panel-b{padding:13px}
+.field{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.field label{width:88px;font-size:12px;color:var(--text-3);flex:none}
+.field input,.field select{flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;
+  padding:6px 9px;font-size:12.5px;color:var(--text);outline:none;font-family:inherit;min-width:0}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.mono{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:11.5px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:7px 9px;color:var(--text-4);font-weight:500;font-size:11px;border-bottom:1px solid var(--border)}
+td{padding:7px 9px;border-bottom:1px solid var(--border);color:var(--text-2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.ftype{font-size:10px;padding:1px 6px;border-radius:5px;background:var(--surface-3);color:var(--text-3);
+  border:1px solid var(--border);white-space:nowrap}
+.st{font-size:10.5px;padding:1.5px 7px;border-radius:6px;white-space:nowrap}
+.st-ok{background:rgba(39,166,68,.13);color:var(--success)}
+.st-new{background:var(--accent-light);color:var(--accent)}
+.st-warn{background:rgba(166,106,0,.14);color:var(--warning)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:3px 9px;border-radius:20px;font-size:11.5px;border:1px solid var(--border);background:var(--surface-2);
+  color:var(--text-3);cursor:pointer;user-select:none;transition:.12s}
+.chip.on{background:var(--accent-light);color:var(--accent);border-color:var(--accent-glow)}
+.chip:hover{border-color:var(--border-strong)}
+.row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:none}
+.row .rl{flex:1;font-size:12.5px;color:var(--text-2)}
+.row .rl .d{font-size:11px;color:var(--text-4);margin-top:1px}
+.toggle{width:36px;height:20px;border-radius:11px;background:var(--surface-3);border:1px solid var(--border);
+  cursor:pointer;position:relative;transition:.15s;flex:none}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+  background:var(--text-4);transition:.15s}
+.toggle.on{background:var(--accent-light);border-color:var(--accent-glow)}
+.toggle.on::after{left:18px;background:var(--accent)}
+.note{background:var(--surface-2);border:1px solid var(--border);border-left:2.5px solid var(--warning);
+  border-radius:8px;padding:9px 11px;font-size:11.5px;color:var(--text-3);line-height:1.75}
+.note.danger{border-left-color:var(--danger)}
+.note.info{border-left-color:var(--accent)}
+.note b{color:var(--text-2);font-weight:500}
+.keycap{display:inline-block;padding:2px 7px;border-radius:6px;background:var(--surface-3);
+  border:1px solid var(--border-strong);font-family:"SF Mono",Menlo,monospace;font-size:11px;color:var(--text-2)}
+.link{color:var(--accent);cursor:pointer;text-decoration:none;font-size:11.5px}
+.link:hover{text-decoration:underline}
+.logbox{background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:9px;
+  font-family:"SF Mono",Menlo,Consolas,monospace;font-size:11px;max-height:200px;overflow:auto;
+  color:var(--text-3);line-height:1.75}
+.logbox .ok{color:var(--success)}.logbox .warn{color:var(--warning)}
+.logbox .err{color:var(--danger)}.logbox .dim{color:var(--text-4)}.logbox .hl{color:var(--accent)}
+
+/* ===== 调度台 ===== */
+.home-top{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+.home-top .t{flex:1}
+.h1{font-size:17px;font-weight:600}
+.h1d{font-size:12px;color:var(--text-4);margin-top:2px}
+.sync-card{width:250px;flex:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.sc-h{padding:8px 11px;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+.sc-b{padding:10px 11px}
+.sc-line{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-3);padding:2px 0}
+.sc-line b{color:var(--text-2);font-weight:500}
+.sc-acts{display:flex;gap:6px;margin-top:9px}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px}
+.card .k{font-size:11px;color:var(--text-4)}
+.card .v{font-size:22px;font-weight:600;margin-top:2px}
+.card .d{font-size:11px;color:var(--text-4);margin-top:2px}
+</style>
+</head>
+<body data-page-node-id="Rz9q3g5RDIvDlkxBhAxfHj">
+<div class="app" data-page-node-id="t0cEosGBojA2dIB3ty1Wpa">
+
+<!-- ================= 顶栏 ================= -->
+<div class="topbar" data-page-node-id="V7KQPjvCti2fHpPlcIxBbC">
+  <div class="logo" data-page-node-id="SN1HCQ1J8kAPRsmR8rf1Rv"><span class="logo-mark" data-page-node-id="gJ8fOhEoHoalOKww3lbBAG">源</span>知源调度台</div>
+  <div class="tab active" data-page="home" data-page-node-id="CMOLsmj4bh7BDouEGJvvsz">调度台</div>
+  <div class="tab" data-page="direction" data-page-node-id="TlQVpZhSaR5rPBmgGI7CGC">方向台</div>
+  <div class="tab" data-page="resource" data-page-node-id="HqpxQnRoc4kh4L7HTNNQlK">资源台</div>
+  <div class="tab-wrap" data-page-node-id="kgUfzjBCbjxIo3RmKXUUuz">
+    <div class="tab" id="wsTab" data-page-node-id="B3GQ3cg3DFLDYBz0EvXEmu">策展台 <span class="caret" data-page-node-id="nlFXqeNMxIDjB9QGJdk5ZL">▾</span></div>
+    <div class="dropdown" id="wsDD" data-page-node-id="B8GkjnwXvpuc0xvSEDkKL6">
+      <div class="dd-item on" data-ws="c1" data-page-node-id="jxgZByh1jpdleJuIvGtKUw">◆ AI 生存力内容库</div>
+      <div class="dd-item" data-ws="c2" data-page-node-id="t82faKF2pOYREkb5k8Q1H1">◆ 升学规划咨询库</div>
+      <div class="dd-sep" data-page-node-id="fY0xvzmapdPGrNLZsqv7yu"></div>
+      <div class="dd-item" data-ws="new" data-page-node-id="rCW08OtsHRpk3sBY0qcRrS">＋ 新建策展台…</div>
+    </div>
+  </div>
+  <div class="spacer" data-page-node-id="QU1vhVsiHBahKDI0Q1YB1p"></div>
+  <div class="sync-pill" id="topPill" data-page-node-id="MsKZzlFHBjvOedk8Qp0qhU"><span class="dot" data-page-node-id="FTFdrDg1IJuxHArYUnWlMg"></span><span id="topPillTxt" data-page-node-id="4PMTjiSaauvtPWFusBnGls">已同步 · 09:41</span></div>
+  <div class="tab" data-page="settings" data-page-node-id="OPSFXACsOUxAB7m87X0bAy">⚙ 设置</div>
+  <div class="tb-btn" id="themeBtn" data-page-node-id="lMa89HS6GD613RbilLRIQf">◐ 极简白</div>
+</div>
+
+<!-- ================= 调度台 ================= -->
+<div class="page on" id="page-home" data-page-node-id="D3MS0AGcduvoi06smHkFDf">
+  <div style="padding:16px;overflow:auto;flex:1" data-page-node-id="9iTCa3KBjG9n1LVDvCPLV1">
+    <div class="home-top" data-page-node-id="bSDETZNiZilZI1AlnZkwA8">
+      <div class="t" data-page-node-id="gRBmisgfR01eHoDsRqjHqv">
+        <div class="h1" data-page-node-id="B5dp7sCRAoFwKoXno6JTK2">调度台</div>
+        <div class="h1d" data-page-node-id="OkzKTCeGePQQSrJDmCVjA9">信息洪流中的控制中心 · 今日三件事与方向状态</div>
+      </div>
+      <!-- 同步状态卡片：首页右上角 -->
+      <div class="sync-card" data-page-node-id="2UvhnsHmlRVpvkT8vfZzFq">
+        <div class="sc-h" data-page-node-id="Q0mZxMVS51e4IR7mxdxF13">
+          <span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--success)" data-page-node-id="EVPgLzNYxBBNsJqk9Z1Y7I"></span>
+          <span style="font-size:12px;font-weight:500" data-page-node-id="P2ySEwIfG2HXZSZWCxxitD">Airtable 同步</span>
+          <span class="spacer" style="flex:1" data-page-node-id="ymKZiB9qT9aFNX3ppbCssH"></span>
+          <span style="font-size:10.5px;color:var(--text-4)" data-page-node-id="RCPBxPNjIskjuII3DD5wLF">手动</span>
+        </div>
+        <div class="sc-b" data-page-node-id="ejYJXhiXCvk9Cydj0bBK2l">
+          <div class="sc-line" data-page-node-id="GBks3BlDRpt1sJKu6hxAn6"><span data-page-node-id="XtYSzno5KmzdKcvGn8BOjh">上次同步</span><b id="scLast" data-page-node-id="8DmSKDh0j45p8ucjMWOwwA">今天 09:41</b></div>
+          <div class="sc-line" data-page-node-id="ULGhhZ4XCrvQ8z8S30ULYI"><span data-page-node-id="QNvvjYTDUruSANsYLU8f3G">已同步记录</span><b id="scCount" data-page-node-id="nghN9t2vQ4dsJyGoaYtUwt">328</b></div>
+          <div class="sc-line" data-page-node-id="ihEA1TUIsnZl16wCDZLhSh"><span data-page-node-id="BGIpgvioTMU8mWF7P5zZOP">待推送</span><b style="color:var(--warning)" id="scPend" data-page-node-id="sTjgZYRcYhQ3lpQJX5gw90">7</b></div>
+          <div class="sc-line" data-page-node-id="2Zd6pgCQ82X35HCI4e9o4q"><span data-page-node-id="Envian45PwUPBLEklHbTUi">耗时 / 调用</span><b data-page-node-id="C3d2dTv9ImRsN91rqsNFrN">2.4s · 4 次</b></div>
+          <div class="sc-acts" data-page-node-id="MXIvmcK0j1On0MJwtFCMmv">
+            <div class="tb-btn primary sm" id="homeSyncBtn" style="flex:1;text-align:center" data-page-node-id="HAXTnmOXl2mCBDCPRv9HBu">⇄ 立即同步</div>
+            <div class="tb-btn sm" data-goto="settings" data-page-node-id="ckCqZKFULn79HHzwk2sDgi">设置</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="grid4" data-page-node-id="Ag1NUL6utdAOZbfiFdt3h0">
+      <div class="card" data-page-node-id="CeKGgmE8zTqPb7ZzuogWNV"><div class="k" data-page-node-id="zIsQmb6igr87ghxSH8zYQ9">今日三件事</div><div class="v" data-page-node-id="2Wwtzjv8FhlH3D2OAYGWgf">2 / 3</div><div class="d" data-page-node-id="3hySYJKm57kBwZe5ois6W4">还可再排 1 件</div></div>
+      <div class="card" data-page-node-id="hbtS8IPFbmaOXWhPLcnPN9"><div class="k" data-page-node-id="w99IcMxVkrAtA7mgliB4nn">方向契合度 DHI</div><div class="v" data-page-node-id="DKBLFGtSTIfqz7jhkxUCDp">78</div><div class="d" data-page-node-id="IFqFaBtF7nIBo0ENlbynF3">较上周 +6</div></div>
+      <div class="card" data-page-node-id="7wbU5E47aaNQCf0xhw2uGq"><div class="k" data-page-node-id="01RhOe97yGXQfQeoRzqnU4">资源复用 WRR</div><div class="v" data-page-node-id="Xxyr6okGpvLEgVnCmaaX6u">41%</div><div class="d" data-page-node-id="Gmv7qZbV0vTpP3Ysa3OdhI">本月调出 128 次</div></div>
+      <div class="card" data-page-node-id="o2lddqDt5udDjFmBGtvW6x"><div class="k" data-page-node-id="qUOYazzq5jJqnlwGLC0KVo">未归档任务</div><div class="v" style="color:var(--warning)" data-page-node-id="jBG3mDxQTGjFHrCJYojI0J">9</div><div class="d" data-page-node-id="LxFxqtXLIzyI45IsCJECLz">点击去归位</div></div>
+    </div>
+    <div class="note info" data-page-node-id="uITbY5BtM4w0QG520SdYLt">
+      <b data-page-node-id="9EEiLKhXcufpktVxsJ5Ses">同步入口收敛在这里</b>：调度台右上角常驻同步状态卡（已同步时间 / 待推送数 / 耗时 / API 调用数），
+      一键「立即同步」或进设置。快捷键触发后，结果同样回落到这张卡上 —— 你在任何网页按快捷键，回到新标签页就能看到结果。
+    </div>
+  </div>
+</div>
+
+<!-- ================= 方向台 / 资源台（占位） ================= -->
+<div class="page" id="page-direction" data-page-node-id="UC87ZlQlNvIvkIUuqescmD">
+  <div style="padding:24px;flex:1" data-page-node-id="SHcLP9rckKKQgXKvU8FDgz"><div class="note info" data-page-node-id="Ze2zw8T9FkZmCKtxcWUlSQ"><b data-page-node-id="wP4azdvAYbZnPZYqivkboE">方向台</b>：任务卡是四类同步源之一（方向台任务卡 → Airtable「卡片类型 = 任务」）。本轮原型聚焦策展台与同步设置，此处不展开。</div></div>
+</div>
+<div class="page" id="page-resource" data-page-node-id="u7xG2j5GIrRAyDoLIdqGGy">
+  <div style="padding:24px;flex:1" data-page-node-id="jxzH8BjIzTRxnkTXnRheV2"><div class="note info" data-page-node-id="Q11xQBpVSlDbO97XjqbDl5"><b data-page-node-id="S4UTJWCCTxYRJjQxje2h7P">资源台</b>：资源卡唯一真身存储地，四类同步源之一。本轮原型聚焦策展台与同步设置，此处不展开。</div></div>
+</div>
+
+<!-- ================= 策展台 ================= -->
+<div class="page" id="page-curation" data-page-node-id="iUvCGVO7sQFMFnHXJzYfsA">
+  <!-- 概览条：整体卡片情况数据 -->
+  <div class="overview" data-page-node-id="ZhTQyGiqpbG3g3adGp9aGi">
+    <div class="ov" data-page-node-id="IjvIS2GV3PmqFxPpNDnMWT">
+      <div class="k" data-page-node-id="00rjytobyLrAkfGsesKzqS">卡片总数</div><div class="v" id="ovTotal" data-page-node-id="oU7DHi0Fmj2NEJIGFSEvOz">13</div>
+      <div class="sub" data-page-node-id="orzUTWVlqVnNI6U9TaMASz">分布在 <b id="ovNodes" data-page-node-id="ZUTYV0QhwFjS0NSaorQ7QT">8</b> 个节点</div>
+      <div class="bar" data-page-node-id="4GrMLQIiFFwNzjUDeAtBsW">
+        <i style="width:62%;background:var(--accent)" data-page-node-id="DX3MkUQtxxRg1Yu4dgr5of"></i>
+        <i style="width:23%;background:var(--success)" data-page-node-id="AbFHcdzcJOFQPE4ZNIvkT6"></i>
+        <i style="width:15%;background:var(--violet)" data-page-node-id="bqmZrzjoCP8ZWMOqlDXQee"></i>
+      </div>
+      <div class="split" data-page-node-id="8cfWvBxrka5WTsJra8hEbL"><span data-page-node-id="tkjetg1dzhcLDOjOKFVPZM"><i class="sw" style="background:var(--accent)" data-page-node-id="r19L4djIe70fY5KPWEvqGy"></i>资源 8</span><span data-page-node-id="dmZRHiONgT9qiDY95Yxnja"><i class="sw" style="background:var(--success)" data-page-node-id="mF46eVrtELAMCFy4Gz5ZOS"></i>任务 2</span><span data-page-node-id="cIRF5sSNamnKLCJpgbMAIa"><i class="sw" style="background:var(--violet)" data-page-node-id="MgZbwGzVZXLYubauPr5XP2"></i>好奇 3</span></div>
+    </div>
+    <div class="ov" data-page-node-id="ZGdSV2Qt7HT2N951Ak8nJK">
+      <div class="k" data-page-node-id="3HhKeAtE23vbadzoFrLrpX">来源构成</div><div class="v" data-page-node-id="9EHeexlNLmABqpHyYX2P1z">11 / 2</div>
+      <div class="sub" data-page-node-id="763BDnRk8LnjU6czhjWnzb">资源台镜像 / 台内新建</div>
+      <div class="bar" data-page-node-id="ne8BSMwvdLGdG8MaggxaoC"><i style="width:85%;background:var(--accent)" data-page-node-id="Uizczsv34Bz5EICmqlvi9E"></i><i style="width:15%;background:var(--violet)" data-page-node-id="DJHZAr2Fw27lbweVs5edsY"></i></div>
+    </div>
+    <div class="ov" data-page-node-id="AgSWXJe0WvUSJALs8mBZWe">
+      <div class="k" data-page-node-id="UHDDlzImnoHK9GEZypuIbj">层级分布</div><div class="v" data-page-node-id="Vn3CklxnDv8aFsgqA2LHWj">L4</div>
+      <div class="sub" data-page-node-id="cVWYA7ngscvEHdKj691eOG">L2 · 3 个　L3 · 3 个　L4 · 1 个</div>
+      <div class="bar" data-page-node-id="nG6aM4p7FBS6nejGPkm6yB"><i style="width:43%;background:var(--accent)" data-page-node-id="LJQT7GiFncSw3kmdLlVDBl"></i><i style="width:43%;background:var(--accent-2)" data-page-node-id="g9oBPDgxpSOV5WlpZTiqCd"></i><i style="width:14%;background:var(--violet)" data-page-node-id="Q6Hv7g8FCNNTQvFq1TpvKV"></i></div>
+    </div>
+    <div class="ov" data-page-node-id="YL83NglWwImciptYkDCX6H">
+      <div class="k" data-page-node-id="cOEYHiGj8kVWs4pwcLK307">同步状态</div><div class="v" style="color:var(--warning)" id="ovPend" data-page-node-id="Rlnd6hLnTDr0DnsAEYRF3r">7</div>
+      <div class="sub" data-page-node-id="qELkUAlcKRMMc8qHTCy3iP">待推送 · 已同步 6</div>
+      <div class="bar" data-page-node-id="RZe9WtfC9srSTcNI6qkIeL"><i style="width:54%;background:var(--warning)" data-page-node-id="G9SiADAtGQZR7ZbLyL2Ujk"></i><i style="width:46%;background:var(--success)" data-page-node-id="GUWsMc7dvYTNOnpqIGjQQ6"></i></div>
+    </div>
+    <div class="ov" data-page-node-id="e1ZQ5dfAuAXSwd9Zzv5J2O">
+      <div class="k" data-page-node-id="hmcF39GIxG5BbVF6Tf0tJ5">最近更新</div><div class="v" style="font-size:14px" data-page-node-id="hGnYb27kRnRBZqXUF7orma">09-08 14:02</div>
+      <div class="sub" data-page-node-id="KgNHNNbNH5UKCcwnpe4h4u">「导出格式对比」被移动</div>
+    </div>
+    <div class="ov" data-page-node-id="Z7MCTefhHag3nbda8uKQ7K">
+      <div class="k" data-page-node-id="fC6Jfizkv8mDRY6AkNPq6c">空节点</div><div class="v" id="ovEmpty" data-page-node-id="qonPIBmAg8O0Gj7zkbsfF6">0</div>
+      <div class="sub" data-page-node-id="2KFUuJUetaFQGSR3eqjvYF">无卡片的分组</div>
+    </div>
+  </div>
+
+  <div class="body" data-page-node-id="1Gk7biGu2gFE9Kt0suZSDR">
+    <!-- 左侧树状架构 -->
+    <div class="sidebar" data-page-node-id="rdqhrnjlDW6R0k5w7llDpQ">
+      <div class="side-h" data-page-node-id="4yD8n0iJHHkYhSt8fdVGUP"><span data-page-node-id="XQjGahatd54TECS92mZbdF">结构树 · 金字塔层级</span><span id="treeToggleAll" style="cursor:pointer" data-page-node-id="cIrw0IrADS62xEP4ADnshD">收起全部</span></div>
+      <div id="treeBox" data-page-node-id="GOF0EyJp1Dhb0ZYE0oloyK"></div>
+    </div>
+
+    <!-- 主区 -->
+    <div class="main" data-page-node-id="OdrnUfgjbBGxIdfWK8teGw">
+      <div class="subbar" data-page-node-id="AFtvKbKDXoh243CVAKQNOj">
+        <div class="seg" id="viewSeg" data-page-node-id="J0kwhDHiwUZ36pgce1AP3Y">
+          <div class="seg-item" data-view="group" data-page-node-id="ytY3Y1PWu8W8pgDE1uBnsE">▦ 分组分类</div>
+          <div class="seg-item on" data-view="pyramid" data-page-node-id="ItTL3bqi278A6AQC9oXSxN">△ 金字塔结构</div>
+        </div>
+        <div class="tab-wrap" data-page-node-id="LR7L8rUQIa5Xw6yndBKnxL">
+          <div class="tb-btn" id="addNodeBtn" data-page-node-id="uDWD8Gdh1lOJjbf1mT8AIJ">＋ 新增节点 ▾</div>
+          <div class="dropdown" id="addNodeDD" style="top:32px;min-width:238px" data-page-node-id="LjDgzxTYmOEyrQOt5x1URY">
+            <div class="dd-hint" data-page-node-id="dDM2P5XXVnxoRGxc1YkbP9">在选中节点「<span id="anTarget" data-page-node-id="BMkCzqTSEWe4CdQs3pFmri">论点一：资产必须可控</span>」上新增</div>
+            <div class="dd-item" data-add="child" data-page-node-id="xO5yfxjTR0aHcgsIB6pCr9">└ ＋ 新建子论点（下一层）</div>
+            <div class="dd-item" data-add="sibling" data-page-node-id="chTdAHHg8Fn7vjXran5m7U">├ ＋ 新建同级节点</div>
+            <div class="dd-item" data-add="mirror" data-page-node-id="bvV5EGS0A2KGkxE9ODTfhj">⇪ 从资源台镜像分类…</div>
+            <div class="dd-item" data-add="pack" data-page-node-id="uig3R8Cu11bz9vVyWIhX8Y">▣ 把选中卡片打包成节点</div>
+            <div class="dd-sep" data-page-node-id="FPHqNW30RPofwkf3z9Hqj5"></div>
+            <div class="dd-item" data-add="rename" data-page-node-id="XnaeIjCTDMQ4Hyyb1e1aV5">✎ 重命名 / 改颜色</div>
+            <div class="dd-item" data-add="del" style="color:var(--danger)" data-page-node-id="hj329D09FxgB4I4yiAOLnQ">🗑 删除节点（卡片回资源台）</div>
+          </div>
+        </div>
+        <span class="badge-lv" data-page-node-id="9AikDgFSwvJHo0QTpqohBS">层级上限 L4</span>
+        <div class="spacer" style="flex:1" data-page-node-id="NLpPrYut4qxBhu5prtAdRD"></div>
+        <span class="hint" id="viewHint" data-page-node-id="wkYGmr34Nr1FZJS0BjmA3A">拖 ⣿ 改归属　⟨ ⟩ 调同级顺序　拖卡片换节点</span>
+      </div>
+
+      <div id="view-group" style="display:none" data-page-node-id="YE8wWcSf1vbqyYQhnREP8h">
+        <div class="grp-grid" id="grpGrid" data-page-node-id="BQCY3PHeQkQ2UOHJ0s68pn"></div>
+      </div>
+      <div id="view-pyramid" data-page-node-id="Pc3n8jb9JtrcJCuMQiMlP4">
+        <div class="pyr-wrap" id="pyrWrap" data-page-node-id="T64cBGM1QuYeEJAa7BFEhD">
+          <svg id="pyrLines" data-page-node-id="ZAnz70gaPB6aVMMHHjVfUd"></svg>
+          <div id="pyrBody" data-page-node-id="G3QEHZnPMtIBTAEvBCt6Ox"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 设置 ================= -->
+<div class="page" id="page-settings" data-page-node-id="sJG4uEo2PAheFaCe15TDB6">
+  <div class="set-body" data-page-node-id="QviFowmRE2mqdxURGyKHPV">
+    <div class="set-nav" data-page-node-id="3sMFUMcIgR49IOyYOM3Re7">
+      <div class="h" data-page-node-id="OmiWxbGoAm3Be0Tp8FV5PU">设置中心</div>
+      <div class="i" data-set="general" data-page-node-id="7U5dFq2ELIFBj9YDPXZC70">仪表盘</div>
+      <div class="i" data-set="ws" data-page-node-id="EnvTG5O3hIip58pkKelsLh">工作台全景</div>
+      <div class="i" data-set="fields" data-page-node-id="a0MeUyxHowVftObaSQa4v8">字段设计器</div>
+      <div class="i" data-set="tags" data-page-node-id="p9GROefbIAVOlmQ6BKhJk7">标签树</div>
+      <div class="i on" data-set="airtable" data-page-node-id="H873QRDkBU8Yye4QYGeJBC">⇄ Airtable 同步</div>
+      <div class="i" data-set="shortcuts" data-page-node-id="kCvCZFcDpWYXOVYeb2PZ1a">⌨ 快捷键设置</div>
+      <div class="i" data-set="io" data-page-node-id="UMKkG7O0WaAtgxrJyOCEGD">导入导出</div>
+      <div class="i" data-set="log" data-page-node-id="xnGsYIVMZ9qhGvay8E9mhw">错误日志</div>
+    </div>
+
+    <div class="set-main" data-page-node-id="Mvd3kVcCPsHqyH28lc8c4v">
+      <!-- ===== Airtable 同步 ===== -->
+      <div class="set-pane on" id="set-airtable" data-page-node-id="JlvOCr7Z3yPxcGTWPn5Tfl">
+        <div class="set-title" data-page-node-id="KF4QmC0m8Eyim3NxwhChUO">⇄ Airtable 同步</div>
+        <div class="set-desc" data-page-node-id="bHa8W3P9GhiHIVUGOk3xeI">
+          单向同步：<b data-page-node-id="VHLMbWiEtP0xlcQSLDDAXd">知源 → Airtable</b>。以知源卡片字段为准，自动在目标表创建缺失字段。
+          同步范围涵盖调度台好奇心卡、方向台任务卡、资源台资源卡，以及你新建的每个策展台。
+        </div>
+
+        <div class="panel" data-page-node-id="hADDAoSqKiFVPg6HDaUWDX">
+          <div class="panel-h" data-page-node-id="9kectQrhQTvuxO8H7FTE9U">🔗 连接配置 <span class="sub" data-page-node-id="oBbEUfZp7YVG0bk8x4osof">仅本机存储，不经过任何中间服务</span></div>
+          <div class="panel-b" data-page-node-id="9rNJ1ru23XdHj75C3ZxBpF">
+            <div class="field" data-page-node-id="5bEfBuq24FZfL04ZaWq7or"><label data-page-node-id="8OWWU7p3zD9aBBCBV1nJUb">Base ID</label><input class="mono" value="appLkNDICXNqxSDhG" data-page-node-id="6F4slOqKZ8IVTlQGZEAIPS"><span class="link" data-page-node-id="DHSflNPAZ5hGgvaMiMFshu">获取方式</span></div>
+            <div class="field" data-page-node-id="zEWt8rTvhr0Kytj2YcdWhW"><label data-page-node-id="zVde6ZLXvrJpyytc0ZBNlb">数据表</label><input value="知源统一卡片池" data-page-node-id="bgYAjvv41Z0uz4MZKA9OnO"><span class="link" data-page-node-id="hQrsQELy3XJyqrFYuCftoO">新建表</span></div>
+            <div class="field" data-page-node-id="GDupkLhiYzIaFfWrnyOdFH"><label data-page-node-id="26En8c0CToKEWtRbgoEKeM">访问令牌</label><input class="mono" type="password" value="pat••••••••••••4f2a" data-page-node-id="x3OOWfWBELWJKYYoNqAgi4"><span class="link" data-page-node-id="CWzCJ3umOKbmsWuA2pFAeq">申请 PAT</span></div>
+            <div class="note info" style="margin-top:10px" data-page-node-id="nhsgOvQdHdmvSgcuUFXMcV">
+              <b data-page-node-id="8wSFMEEPkPpN7hX1JFyfBg">令牌需要 3 个 scope</b>：<span class="mono" data-page-node-id="13QoA2OBDBD5OBwuFEEXYk">data.records:read</span>、
+              <span class="mono" data-page-node-id="LVcsAf8VEU3px4iyDUHsbM">data.records:write</span>、<span class="mono" data-page-node-id="IwUI9oEQXNpLH6cQA7RvZ3">schema.bases:write</span>（自动建字段用）。
+              另外，<b data-page-node-id="xjq3gmK8CJdfXE6mwM8sju">建字段要求账号是该 Base 的 Creator</b> —— 若提示 403，说明你是 Editor，需要在 Airtable 里手动先建好列。
+            </div>
+            <div style="display:flex;gap:8px;margin-top:10px" data-page-node-id="uis0RbgF59BXBiCf8HcRgh">
+              <div class="tb-btn primary" id="testConn" data-page-node-id="YiXkNDp7qqHW4Emhne4maA">测试连接</div>
+              <div class="tb-btn" id="createFields" data-page-node-id="hvP6OqaEn53mxftyqxQkT7">⚙ 一键补齐缺失字段</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" data-page-node-id="9zVw98TOeyLv7iqJzoE1zX">
+          <div class="panel-h" data-page-node-id="2KotzGmgIXyHLfidwZxVUQ">🗂 字段映射 <span class="sub" data-page-node-id="AlIPhgtR5a27iUbBX3uFWh">以知源为准 · 缺失自动创建</span>
+            <span class="spacer" style="flex:1" data-page-node-id="1jwrSlMm2CzO6V3mSCwqvS"></span>
+            <span class="st st-new" id="missBadge" data-page-node-id="P5Bsl45pRy4oCpjbLs9dLp">3 个待创建</span>
+          </div>
+          <div style="overflow-x:auto" data-page-node-id="NVH18FbqSPcmjHlYTgOGsS">
+            <table data-page-node-id="GhRxcugyfM2GX9SaoBb7l5">
+              <thead data-page-node-id="c5v7hOToHU46Z3yG9xC1Ue"><tr data-page-node-id="MenOvWlAkWkGzS7y5H3bBu"><th data-page-node-id="HoA1rxW02RXzM3ZieCRrgA">知源字段</th><th data-page-node-id="lYnHNTQa0ckHvKVthgFlHj">Airtable 列名</th><th data-page-node-id="lpG61G6ItJce9tQPfdU9Q6">类型</th><th data-page-node-id="iFnA3WyKd6m5cJpTbfaUTz">表内状态</th><th data-page-node-id="i7XGe92g7LddJtYClGqMVl">说明</th></tr></thead>
+              <tbody id="fmapBody" data-page-node-id="bUUjR2n9r6jluhAYhVsVBv"></tbody>
+            </table>
+          </div>
+          <div class="panel-b" style="border-top:1px solid var(--border)" data-page-node-id="7RyVwpSdgNLZ6bmC4QXDCt">
+            <div class="note" data-page-node-id="i9sr2SK2IMgJ81qs6iWfQG">
+              <b data-page-node-id="PwcUjeqODREHJnB1FxOrfp">自动建字段规则</b>：同步前先 <span class="mono" data-page-node-id="yV5EG5FRGUE9UNxvs6m1nV">GET /meta/bases/{base}/tables</span> 读现有 schema，
+              按列名比对；缺失的列用 <span class="mono" data-page-node-id="OW9Y0Nojjetg8I5vNyRQJD">POST /meta/.../fields</span> 创建。
+              <b data-page-node-id="iMUTzW4pzBVF99NIu6kphi">已存在的列不改名不改类型</b>（避免破坏你在 Airtable 里的视图与公式）—— 只有类型冲突时才提示你手工处理。
+              公式 / 汇总 / 查找列是 Airtable 的计算列，<b data-page-node-id="3P55qcm8P3vu2DVi2EZbCP">API 建不了也写不了</b>，知源不会去碰。
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" data-page-node-id="saouXfAeRC5Q30lSNEAlrb">
+          <div class="panel-h" data-page-node-id="Z0L4d6OXpyMzu2q7TYETrU">🎯 同步范围 <span class="sub" data-page-node-id="leQYyKxcsffu1jhuOxc1Wp">四类来源统一进一张表</span></div>
+          <div class="panel-b" data-page-node-id="Ja642sbvA1q2IlQtcHGJBr">
+            <div class="chips" data-page-node-id="W1NVDHwlEUpEuBQrDjzsUK">
+              <div class="chip on" data-page-node-id="jFj0K0JsPeJjDcvjHO0Qpi">📦 资源台 · 资源卡</div>
+              <div class="chip on" data-page-node-id="fYW3YlTFj8H1m4fQLK7IUR">✓ 方向台 · 任务卡</div>
+              <div class="chip on" data-page-node-id="EsBIhebC3XE5GMjpnlrGjE">✦ 调度台 · 好奇心卡</div>
+              <div class="chip on" data-page-node-id="Vr9eqi9WfAD60EcnCAj01w">◆ 策展台 · AI 生存力内容库</div>
+              <div class="chip on" data-page-node-id="TXT2K59dIYb2QZXkxhJUjI">◆ 策展台 · 升学规划咨询库</div>
+              <div class="chip" style="opacity:.55" data-page-node-id="4MV8oxlZpgQLBify2DJ97G">＋ 新建策展台默认勾选</div>
+            </div>
+            <div class="note info" style="margin-top:10px" data-page-node-id="EvCXDD783eOgyBItpTkFc5">
+              四类卡靠两列区分：<span class="mono" data-page-node-id="AdXNEGXPx0pYGaRDoOUpxv">卡片类型</span>（资源 / 任务 / 好奇心）+ <span class="mono" data-page-node-id="fPuhsoRyfkxbvpIltYs7cx">所属工作台</span>
+              （资源台 / 各策展台名 / 调度台 / 方向台）。策展台里的镜像卡与台内新建卡都同步，
+              并额外带上 <span class="mono" data-page-node-id="UwYG4P0hbjjf74hhF9PoIH">金字塔层级路径</span>（如 <span class="mono" data-page-node-id="MefDMKs1GnRxbryHfvE7kT">L2 数据主权 / L3 迁移成本</span>）与层级数字。
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" data-page-node-id="7HD0Pkoa42pEUwxlJa07uc">
+          <div class="panel-h" data-page-node-id="73QPf1gFB7x5u3sXwyVXdg">⚡ 触发方式</div>
+          <div class="panel-b" data-page-node-id="D0T1puj1r5uhXKAhqsP1yP">
+            <div class="row" data-page-node-id="wRA3Seszj7HCxcd6eRseRy">
+              <div class="rl" data-page-node-id="5PH81ErwVfPRYyrmEKW344">手动同步<div class="d" data-page-node-id="tboBX39J3yTQpIqOifsH2P">设置页按钮 / 调度台右上角卡片 / 浏览器快捷键</div></div>
+              <div class="toggle on" data-tg="manual" data-page-node-id="JyrivqWKYL5iFuj3Q7c31m"></div>
+            </div>
+            <div class="row" data-page-node-id="U3ID3HHRPN1prkONIVsuJz">
+              <div class="rl" data-page-node-id="B4myOCL0BYcymtWar6xFWz">每 3 小时自动轮询<div class="d" data-page-node-id="o3uUHHmBqy2CkRCsVtFFV3">用 chrome.alarms 唤醒，<b data-page-node-id="3btfgynDbW6AkFsEhN6XVC">在 Service Worker 里跑，不占用页面主线程</b>；实测不卡 UI 才建议开</div></div>
+              <div class="toggle" data-tg="poll" data-page-node-id="T6FxOwqVoK3k8i4SZk39Oz"></div>
+            </div>
+            <div class="row" data-page-node-id="qamiVdauN74vtqw0FHmTKK">
+              <div class="rl" data-page-node-id="JZx8zidsMBQVmUI6m7Bk2v">空闲时补推<div class="d" data-page-node-id="IqtBVuHeobZonYtS81mVMI">切换页面或静置 30 秒后，若有待推送则静默补一次（5 秒内完成）</div></div>
+              <div class="toggle on" data-tg="idle" data-page-node-id="ZEnzAo9DogjlXkqVFpmBAj"></div>
+            </div>
+            <div class="note" style="margin-top:10px" data-page-node-id="f7NKlqmuObGqw288sve6wv">
+              <b data-page-node-id="V9GDqHab4pXMSYInTukolH">为什么默认不开轮询</b>：MV3 Service Worker 空闲 30 秒就会被浏览器回收，3 小时轮询未必每次都能跑完；
+              且每次轮询要消耗 API 配额。所以<b data-page-node-id="yvAynCfLhDg8Gp6dnSi0rf">默认手动</b> —— 你按快捷键即可，零延迟零风险。
+              先跑一段时间手动，确认不影响流畅度后再打开 3 小时轮询。
+            </div>
+            <div style="display:flex;gap:8px;margin-top:10px" data-page-node-id="B8C5sHG41w4tPqQm5x2epc">
+              <div class="tb-btn primary" id="setSyncBtn" data-page-node-id="KhFU8X5CWwPOC211jSnC0Y">▶ 立即同步</div>
+              <div class="tb-btn" data-page-node-id="COdANKt4RpD7RjvBLLFn29">首次全量回填</div>
+              <div class="tb-btn" data-page-node-id="nT9mrAxjcM4geYXnCnXH0d">清空映射重来</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" data-page-node-id="IxG5s6hCJB88a6BEOtQj7w">
+          <div class="panel-h" data-page-node-id="BaoAAfkOJRGo3XneWYvzVu">📜 同步日志</div>
+          <div class="panel-b" data-page-node-id="ubhd4IPzpcZhLfa089MC9c">
+            <div class="logbox" id="logBox" data-page-node-id="jtpOhdbODlHtqfAWP4Zec2"><div class="dim" data-page-node-id="JCUCpEcwDxmwGQbpKLpTbV">$ 等待同步…</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 快捷键 ===== -->
+      <div class="set-pane" id="set-shortcuts" style="display:none" data-page-node-id="5VNpd8C8SzyZapMnduV2wo">
+        <div class="set-title" data-page-node-id="mwHDus40CGBuejMF2FtzLI">⌨ 快捷键设置</div>
+        <div class="set-desc" data-page-node-id="8QRmm5IJvgYfyFAzDzEoxL">系统级快捷键由 Chrome 统一管理，扩展内无法直接修改 —— 点击下方入口在浏览器里自定义。</div>
+
+        <div class="panel" data-page-node-id="J0oFCq4mWGtmWQuXeUu8rn">
+          <div class="panel-h" data-page-node-id="E2TZ4wo2tXwMxTXEZAMPRn">浏览器级快捷键 <span class="sub" data-page-node-id="Hf8co9ABVfIFeVwnclUgvs">任意网页可用</span></div>
+          <div class="panel-b" data-page-node-id="Fs87ifImdq6bReVCgQowXa">
+            <div class="row" data-page-node-id="6x6RF69MkQ9jzsSD0EnWiS">
+              <div class="rl" data-page-node-id="CoxqVJKt92GkxhHfRS8J5a">⇄ 手动触发 Airtable 同步
+                <div class="d" data-page-node-id="OCUv5Hb7JHgtDinIgaS5Tx">新增命令 <span class="mono" data-page-node-id="StgbDrbNeYSNCZqvWkupGJ">sync-airtable</span>；与方向台/策展台一样不占默认键，需你手动分配</div>
+              </div>
+              <span class="keycap" data-page-node-id="P01AXXF9S1gjqCUB1tocvv">未分配</span>
+            </div>
+            <div class="row" data-page-node-id="m1DgDVj2dOkmYCMaBfCpF3">
+              <div class="rl" data-page-node-id="S9nFBrShdcqLHnjLO8BHmy">打开知源调度台</div><span class="keycap" data-page-node-id="yMMbY8OI6PNwaqkLf67ZRH">Ctrl+Shift+K</span>
+            </div>
+            <div class="row" data-page-node-id="vT5szVmCOOcbasE9EQNyzs">
+              <div class="rl" data-page-node-id="WdEpRO1Wp5IM1RECxyoXXH">快速采集当前页面</div><span class="keycap" data-page-node-id="aDJEYD4F7hEku7KM0o0gBX">Ctrl+Shift+J</span>
+            </div>
+            <div class="row" data-page-node-id="JHDBS104z5kBQPStZK7VGE">
+              <div class="rl" data-page-node-id="DTg1oheBiZAd770nkCinzz">好奇心采集</div><span class="keycap" data-page-node-id="3cDIj571WplhR3CAAPjcz9">Ctrl+Shift+I</span>
+            </div>
+            <div class="row" data-page-node-id="ZDvGQGogiliSK231qiES01">
+              <div class="rl" data-page-node-id="YBgF1JsjoEMvPMXAI7gUkV">打开方向台 / 策展台 / 完整方向树<div class="d" data-page-node-id="w9YArGAnyMRMaZuA0i8sdw">无默认键</div></div>
+              <span class="keycap" data-page-node-id="NTD7tPC1dILMlYw7kZFpe3">未分配</span>
+            </div>
+            <div style="margin-top:10px" data-page-node-id="rH6jjPm7jjmcmQqjOITqR5">
+              <div class="tb-btn primary" id="gotoShortcuts" data-page-node-id="FTonf9rxuCS0nXndURbH7H">前往 chrome://extensions/shortcuts 自定义 ›</div>
+            </div>
+            <div class="note danger" style="margin-top:10px" data-page-node-id="BsVHSZzEpoqspGwSpQClaI">
+              <b data-page-node-id="9z0WAywnEkNKIczY2nJNTk">Chrome 硬限制（不是我们不做）</b>：MV3 规范下，扩展<b data-page-node-id="P29dcCGnMb55LKASnv0N4X">没有 API 可以在自己的界面里修改快捷键</b>，
+              唯一官方途径就是跳转 <span class="mono" data-page-node-id="cLq5cOxIXAEQHtutbR7Ppx">chrome://extensions/shortcuts</span> 由用户手动设置；
+              且每个扩展最多只能声明 <b data-page-node-id="x8lsAVESvqRDRDPDvwIGrL">4 个默认键</b>（已被 调度台/采集/搜索/好奇 占满）。
+              设置页会用 <span class="mono" data-page-node-id="u1hkdBaD3oCQAzIFIWaSaR">chrome.commands.getAll()</span> <b data-page-node-id="AHo8Oq8samRnRNCsp65guy">读取你实际分配到的按键并实时显示在这里</b>，所以改完回来就能看到生效值。
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" data-page-node-id="mPk18q61NkVcKk5l2oRq8L">
+          <div class="panel-h" data-page-node-id="habtUtPZGqNFWuE5EHRfNm">应用内快捷键 <span class="sub" data-page-node-id="bLJSDDoXytVU63FworoEIV">开箱即用，无需配置</span></div>
+          <div class="panel-b" data-page-node-id="fOnzVr1PRmUCEBmJg1f2KW">
+            <div class="row" data-page-node-id="SQzy0xj5A7nwQffUBbNVRk"><div class="rl" data-page-node-id="la1Qz6RpUOtrbHCibCn7ni">全局搜索</div><span class="keycap" data-page-node-id="b70j37AR2mKTPGi4LuTNMV">Ctrl+K</span></div>
+            <div class="row" data-page-node-id="u3zpIvDvMp5NmcVmN65aOg"><div class="rl" data-page-node-id="8OgwWzOzLqjyrUZR0I4rBV">关闭浮层 / 取消</div><span class="keycap" data-page-node-id="xOFGYWOWwwbiIa9Iz7UwiH">Esc</span></div>
+            <div class="row" data-page-node-id="9hsCVUBDzwAgvrwU4BmvwN"><div class="rl" data-page-node-id="paxzL1daCLVtA9NWFOydZM">工作台内直达第 N 个台</div><span class="keycap" data-page-node-id="mbASy5XZpPIQaPXvBdwywh">Alt + 数字</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 其他占位 -->
+      <div class="set-pane" id="set-other" style="display:none" data-page-node-id="3Pf04bS2VwbH94UU2HR5HD">
+        <div class="set-title" data-page-node-id="Xt6HNES9SG2CQSr6s5DTnU">设置</div>
+        <div class="set-desc" data-page-node-id="K4ROYD7KM8fw4uyHgiZpJG">本轮原型聚焦「Airtable 同步」与「快捷键」两个分区，其余分区维持现状。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="deny" id="deny" data-page-node-id="uiTg0XBVTNqUVxzerhiUmJ"></div>
+
+<script>
+/* ================= 数据 ================= */
+var MAX_LEVEL = 4;
+var selNode = 'n2';   // 当前选中节点（新增节点/树定位用）
+
+var CARDS = {
+  r201:{t:'AI 时代，个人知识资产必须回到本地', k:'res', s:'ok'},
+  r101:{t:'本地优先的三种成本', k:'res', s:'ok'},
+  r102:{t:'数据主权：你的资产锁在谁云端', k:'res', s:'ok'},
+  r103:{t:'迁移成本实测：Obsidian → 知源', k:'res', s:'pend'},
+  r104:{t:'导出格式对比 JSON/CSV/MD', k:'res', s:'pend'},
+  r105:{t:'供应商锁定案例：某笔记停服', k:'res', s:'ok'},
+  r106:{t:'知识复用率 = 调度能力', k:'res', s:'ok'},
+  r107:{t:'三秒召回：拼音首字母检索', k:'res', s:'pend'},
+  r108:{t:'温度：被调出的次数', k:'res', s:'ok'},
+  r109:{t:'好奇心 → 任务转化路径', k:'cur', s:'pend'},
+  r110:{t:'策展即论证：金字塔结构', k:'res', s:'conf'},
+  r111:{t:'整理 WCE 口径说明文档', k:'task', s:'pend'},
+  r112:{t:'为什么有人宁愿重复造轮子', k:'cur', s:'fail'}
+};
+
+var TREE = {
+  id:'n1', level:1, isThesis:true, name:'中心论点', cards:['r201'], collapsed:false,
+  children:[
+    { id:'n2', level:2, name:'论点一：资产必须可控', cards:['r101','r102'], collapsed:false,
+      children:[
+        { id:'n3', level:3, name:'论据 A：迁移成本', cards:['r103','r104'], collapsed:false,
+          children:[ { id:'n4', level:4, name:'细目：格式兼容性', cards:['r105'], collapsed:false, children:[] } ] },
+        { id:'n5', level:3, name:'论据 B：供应商风险', cards:['r106'], collapsed:false, children:[] }
+      ] },
+    { id:'n6', level:2, name:'论点二：调度决定价值', cards:['r107','r108'], collapsed:false,
+      children:[ { id:'n7', level:3, name:'论据 C：召回效率', cards:['r109'], collapsed:false, children:[] } ] },
+    { id:'n8', level:2, name:'论点三：结构即说服力', cards:['r110','r111','r112'], collapsed:false, children:[] }
+  ]
+};
+
+var NODE_W = {1:560, 2:216, 3:186, 4:164};
+var idx = {};
+
+/* ================= 树工具 ================= */
+function indexTree(n){ idx[n.id]=n; (n.children||[]).forEach(indexTree); }
+function findNode(id){ return idx[id]||null; }
+function allNodes(){ var o=[]; (function w(n){ o.push(n); (n.children||[]).forEach(w); })(TREE); return o; }
+function visNodes(){ var o=[]; (function w(n){ o.push(n); if(!n.collapsed)(n.children||[]).forEach(w); })(TREE); return o; }
+function parentOf(id){ var r=null; (function w(n,p){ (n.children||[]).forEach(function(c){ if(c.id===id) r=p===undefined?n:p; w(c,n); }); })(TREE); return r; }
+function depthOf(n){ var k=n.children||[]; if(!k.length)return 1; var m=0; k.forEach(function(c){m=Math.max(m,depthOf(c));}); return m+1; }
+function relevel(n,lv){ n.level=lv; (n.children||[]).forEach(function(c){ relevel(c,lv+1); }); }
+function removeCard(cid){ allNodes().forEach(function(n){ n.cards=(n.cards||[]).filter(function(c){return c!==cid;}); }); }
+
+/* ================= 渲染 ================= */
+var S_MARK={ok:['s-ok','●','已同步'],pend:['s-pend','◔','待推送'],conf:['s-conf','▲','冲突'],fail:['s-fail','✕','失败']};
+function cardHTML(cid){
+  var c=CARDS[cid]; if(!c) return '';
+  var kc = c.k==='task'?'ct-task':(c.k==='cur'?'ct-cur':'ct-res');
+  var s=S_MARK[c.s]||S_MARK.ok;
+  return '<div class="pcard" draggable="true" data-card="'+cid+'" title="'+s[2]+'">'
+    +'<span class="ct '+kc+'"></span><span class="ctitle">'+c.t+'</span>'
+    +'<span class="'+s[0]+'" style="font-size:9px">'+s[1]+'</span></div>';
+}
+function nodeHTML(n){
+  var w=NODE_W[n.level]||164;
+  var h='<div class="pnode'+(n.isThesis?' thesis':'')+(n.id===selNode?' sel':'')+'" data-node="'+n.id+'" style="width:'+w+'px">';
+  h+='<div class="pnode-h">';
+  if(!n.isThesis) h+='<span class="handle" draggable="true" data-hnode="'+n.id+'" title="拖动改变归属">⣿</span>';
+  h+= n.isThesis ? '<span class="thesis-badge">L1 · 中心论点</span>' : '<span class="badge-lv">L'+n.level+'</span>';
+  h+='<span class="node-name">'+n.name+'</span>';
+  h+='<span class="node-count">'+(n.cards||[]).length+'</span>';
+  if(!n.isThesis){
+    h+='<span class="orderbtn" data-mv="left" data-node="'+n.id+'" title="同层左移">⟨</span>';
+    h+='<span class="orderbtn" data-mv="right" data-node="'+n.id+'" title="同层右移">⟩</span>';
+  }
+  if((n.children||[]).length) h+='<span class="chev'+(n.collapsed?' collapsed':'')+'" data-chev="'+n.id+'">▼</span>';
+  h+='</div>';
+  h+='<div class="pnode-b'+(n.collapsed?' collapsed':'')+'">';
+  if(n.isThesis){
+    var c=CARDS[n.cards[0]];
+    h+='<div class="thesis-card">'+(c?c.t:'（未设置中心论点）')+'<div class="thesis-meta">根节点 · 卡片即论点 · 可编辑</div></div>';
+  }else{
+    (n.cards||[]).forEach(function(cid){ h+=cardHTML(cid); });
+    h+='<div class="add-card" data-addcard="'+n.id+'">＋ 在此节点新建卡</div>';
+  }
+  h+='</div></div>';
+  return h;
+}
+function renderPyramid(){
+  idx={}; indexTree(TREE);
+  var by={}; visNodes().forEach(function(n){ (by[n.level]=by[n.level]||[]).push(n); });
+  var h='';
+  Object.keys(by).sort().forEach(function(lv){
+    h+='<div class="pyr-layer">';
+    by[lv].forEach(function(n){ h+=nodeHTML(n); });
+    h+='</div>';
+  });
+  document.getElementById('pyrBody').innerHTML=h;
+  requestAnimationFrame(drawLines);
+}
+function drawLines(){
+  var svg=document.getElementById('pyrLines'), wrap=document.getElementById('pyrWrap');
+  var wr=wrap.getBoundingClientRect();
+  svg.setAttribute('width',wrap.scrollWidth); svg.setAttribute('height',wrap.scrollHeight);
+  svg.style.height=wrap.scrollHeight+'px';
+  var s='', vis=visNodes(), ids={}; vis.forEach(function(n){ids[n.id]=1;});
+  vis.forEach(function(n){
+    if(n.collapsed) return;
+    (n.children||[]).forEach(function(c){
+      if(!ids[c.id]) return;
+      var pe=wrap.querySelector('.pnode[data-node="'+n.id+'"]'), ce=wrap.querySelector('.pnode[data-node="'+c.id+'"]');
+      if(!pe||!ce) return;
+      var pr=pe.getBoundingClientRect(), cr=ce.getBoundingClientRect();
+      var x1=pr.left-wr.left+pr.width/2, y1=pr.bottom-wr.top;
+      var x2=cr.left-wr.left+cr.width/2, y2=cr.top-wr.top, my=(y1+y2)/2;
+      s+='<path d="M '+x1+' '+y1+' C '+x1+' '+my+', '+x2+' '+my+', '+x2+' '+y2+'" fill="none" stroke="var(--border-strong)" stroke-width="1.4"/>';
+    });
+  });
+  svg.innerHTML=s;
+}
+window.addEventListener('resize',function(){ if(document.getElementById('page-curation').classList.contains('on')) drawLines(); });
+
+/* 左树 */
+function renderTree(){
+  var h='';
+  (function w(n,d){
+    var has=(n.children||[]).length;
+    h+='<div class="tree-row'+(n.id===selNode?' sel':'')+'" data-tnode="'+n.id+'" style="padding-left:'+(7+d*13)+'px">';
+    h+='<span class="tw">'+(has?(n.collapsed?'▶':'▼'):'')+'</span>';
+    h+='<span class="lvdot" style="background:'+(n.level===1?'var(--accent)':n.level===2?'var(--accent-2)':n.level===3?'var(--violet)':'var(--text-4)')+'"></span>';
+    h+='<span class="tn">'+n.name+'</span>';
+    h+='<span class="tc">'+(n.cards||[]).length+'</span>';
+    var pen=(n.cards||[]).filter(function(c){return CARDS[c]&&CARDS[c].s!=='ok';}).length;
+    h+='<span class="ts '+(pen?'s-pend':'s-ok')+'">'+(pen?'◔':'●')+'</span>';
+    h+='</div>';
+    if(!n.collapsed) (n.children||[]).forEach(function(c){ w(c,d+1); });
+  })(TREE,0);
+  document.getElementById('treeBox').innerHTML=h;
+}
+function renderGroups(){
+  var h='';
+  allNodes().forEach(function(n){
+    if(n.isThesis) return;
+    h+='<div class="grp"><div class="grp-h"><span class="badge-lv">L'+n.level+'</span>'
+      +'<span class="node-name" style="font-size:12.5px">'+n.name+'</span>'
+      +'<span class="node-count">'+(n.cards||[]).length+'</span></div><div class="grp-list">';
+    (n.cards||[]).forEach(function(cid){ h+=cardHTML(cid); });
+    if(!(n.cards||[]).length) h+='<div class="hint" style="padding:4px 2px">空节点</div>';
+    h+='</div></div>';
+  });
+  document.getElementById('grpGrid').innerHTML=h;
+}
+function renderOverview(){
+  var ns=allNodes().filter(function(n){return !n.isThesis;});
+  document.getElementById('ovTotal').textContent=Object.keys(CARDS).length;
+  document.getElementById('ovNodes').textContent=ns.length;
+  var pend=Object.keys(CARDS).filter(function(k){return CARDS[k].s!=='ok';}).length;
+  document.getElementById('ovPend').textContent=pend;
+  document.getElementById('ovEmpty').textContent=ns.filter(function(n){return !(n.cards||[]).length;}).length;
+}
+function renderAll(){ renderPyramid(); renderTree(); renderGroups(); renderOverview(); }
+
+/* ================= 交互 ================= */
+function toast(msg,warn){
+  var t=document.getElementById('deny');
+  t.style.background = warn ? 'var(--danger)' : 'var(--accent)';
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(function(){t.classList.remove('show');},2400);
+}
+
+document.addEventListener('click',function(e){
+  /* 顶栏页签 */
+  var top=e.target.closest('[data-page]');
+  if(top){
+    var p=top.getAttribute('data-page');
+    document.querySelectorAll('[data-page]').forEach(function(x){x.classList.remove('active');});
+    if(p==='home') document.querySelector('[data-page="home"]').classList.add('active');
+    document.querySelectorAll('.page').forEach(function(x){x.classList.remove('on');});
+    document.getElementById('page-'+p).classList.add('on');
+    if(p==='curation') requestAnimationFrame(drawLines);
+    return;
+  }
+  /* 策展台下拉选台 → 进策展台 */
+  var ws=e.target.closest('[data-ws]');
+  if(ws){
+    document.querySelectorAll('.page').forEach(function(x){x.classList.remove('on');});
+    document.getElementById('page-curation').classList.add('on');
+    document.querySelectorAll('[data-page]').forEach(function(x){x.classList.remove('active');});
+    document.getElementById('wsDD').classList.remove('open');
+    requestAnimationFrame(drawLines);
+    return;
+  }
+  /* 折叠 */
+  var chev=e.target.closest('[data-chev]');
+  if(chev){ var n=findNode(chev.getAttribute('data-chev')); if(n){n.collapsed=!n.collapsed; renderAll();} return; }
+  /* 树行点击 → 选中 + 定位 */
+  var tr=e.target.closest('[data-tnode]');
+  if(tr){
+    var id=tr.getAttribute('data-tnode'), tn=findNode(id);
+    var chevHit=e.target.classList.contains('tw');
+    if(chevHit && tn && (tn.children||[]).length){ tn.collapsed=!tn.collapsed; renderAll(); return; }
+    selNode=id; renderAll();
+    var el=document.querySelector('.pnode[data-node="'+id+'"]');
+    if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); }
+    document.getElementById('anTarget').textContent = tn?tn.name:'—';
+    return;
+  }
+  /* 同层左右移动 */
+  var mv=e.target.closest('[data-mv]');
+  if(mv){
+    var mid=mv.getAttribute('data-node'), p=parentOf(mid);
+    if(p&&p.children){
+      var i=p.children.findIndex(function(c){return c.id===mid;});
+      var dir=mv.getAttribute('data-mv')==='left'?-1:1, j=i+dir;
+      if(j>=0&&j<p.children.length){ var tmp=p.children[i]; p.children[i]=p.children[j]; p.children[j]=tmp; renderAll();
+        toast('已在同层调整顺序（位置已持久化）'); }
+      else toast('已经是最'+(dir<0?'左':'右')+'侧了');
+    }
+    return;
+  }
+  /* 节点内新建卡 */
+  var ac=e.target.closest('[data-addcard]');
+  if(ac){
+    var an=findNode(ac.getAttribute('data-addcard'));
+    if(an){
+      var nid='x'+Date.now();
+      CARDS[nid]={t:'新建卡片 · 已入资源台',k:'res',s:'pend'};
+      an.cards.push(nid); selNode=an.id; renderAll();
+      toast('已在「'+an.name+'」新建卡：真身写资源台，镜像回本台，状态置为待推送');
+    }
+    return;
+  }
+  /* 新增节点选项 */
+  var ad=e.target.closest('[data-add]');
+  if(ad){
+    var kind=ad.getAttribute('data-add'), sn=findNode(selNode);
+    document.getElementById('addNodeDD').classList.remove('open');
+    if(!sn){ toast('请先在左侧树或图中选中一个节点'); return; }
+    var pid='k'+Date.now();
+    if(kind==='child'){
+      if(sn.level+1>MAX_LEVEL){ toast('已到 L'+MAX_LEVEL+'，不能再往下加层级',true); return; }
+      sn.children=sn.children||[];
+      sn.children.push({id:pid,level:sn.level+1,name:'新论点',cards:[],collapsed:false,children:[]});
+      sn.collapsed=false; relevel(TREE,1); renderAll();
+      toast('已在「'+sn.name+'」下新建 L'+(sn.level+1)+' 子论点');
+    }else if(kind==='sibling'){
+      var pp=parentOf(sn.id);
+      if(!pp){ toast('根节点没有同级'); return; }
+      pp.children.push({id:pid,level:sn.level,name:'新同级节点',cards:[],collapsed:false,children:[]});
+      relevel(TREE,1); renderAll(); toast('已新建同级节点');
+    }else if(kind==='mirror'){
+      if(sn.level+1>MAX_LEVEL){ toast('层级不足，无法镜像为子节点',true); return; }
+      sn.children=sn.children||[];
+      sn.children.push({id:pid,level:sn.level+1,name:'⇪ 镜像：数据主权',cards:['r102'],collapsed:false,children:[]});
+      sn.collapsed=false; relevel(TREE,1); renderAll();
+      toast('已从资源台镜像分类「数据主权」到 L'+(sn.level+1)+'（引用式，源数据零影响）');
+    }else if(kind==='pack'){
+      if(sn.level+1>MAX_LEVEL){ toast('层级不足',true); return; }
+      sn.children=sn.children||[];
+      sn.children.push({id:pid,level:sn.level+1,name:'▣ 打包节点',cards:[],collapsed:false,children:[]});
+      sn.collapsed=false; relevel(TREE,1); renderAll();
+      toast('已创建打包节点，把卡片拖进去即可');
+    }else if(kind==='rename'){
+      toast('重命名（原型未展开）');
+    }else if(kind==='del'){
+      if(sn.isThesis){ toast('中心论点不可删除',true); return; }
+      var p2=parentOf(sn.id);
+      if(p2) p2.children=p2.children.filter(function(c){return c.id!==sn.id;});
+      relevel(TREE,1); selNode=TREE.children[0]?TREE.children[0].id:'n1'; renderAll();
+      toast('节点已删除 · 卡片保留在资源台（镜像解除，真身不受影响）');
+    }
+    return;
+  }
+  /* 视图切换 */
+  var si=e.target.closest('.seg-item');
+  if(si){
+    document.querySelectorAll('.seg-item').forEach(function(x){x.classList.remove('on');});
+    si.classList.add('on');
+    var v=si.getAttribute('data-view');
+    document.getElementById('view-group').style.display = v==='group'?'block':'none';
+    document.getElementById('view-pyramid').style.display = v==='pyramid'?'block':'none';
+    document.getElementById('viewHint').textContent = v==='group'
+      ? '默认视图 · 按分类分组平铺（沿用现策展中心）'
+      : '拖 ⣿ 改归属　⟨ ⟩ 调同级顺序　拖卡片换节点';
+    if(v==='pyramid') requestAnimationFrame(drawLines);
+    return;
+  }
+  /* 设置侧栏 */
+  var snav=e.target.closest('[data-set]');
+  if(snav){
+    document.querySelectorAll('[data-set]').forEach(function(x){x.classList.remove('on');});
+    snav.classList.add('on');
+    var k=snav.getAttribute('data-set');
+    document.querySelectorAll('.set-pane').forEach(function(x){x.style.display='none';});
+    var pane=document.getElementById('set-'+k);
+    if(pane) pane.style.display='block'; else document.getElementById('set-other').style.display='block';
+    return;
+  }
+  /* 跳设置 */
+  var gt=e.target.closest('[data-goto]');
+  if(gt){
+    document.querySelectorAll('.page').forEach(function(x){x.classList.remove('on');});
+    document.getElementById('page-settings').classList.add('on');
+  }
+});
+
+/* 下拉开合 */
+document.getElementById('wsTab').addEventListener('click',function(e){ e.stopPropagation();
+  document.getElementById('wsDD').classList.toggle('open'); });
+document.getElementById('addNodeBtn').addEventListener('click',function(e){ e.stopPropagation();
+  document.getElementById('addNodeDD').classList.toggle('open'); });
+document.addEventListener('click',function(){
+  document.getElementById('wsDD').classList.remove('open');
+  document.getElementById('addNodeDD').classList.remove('open');
+});
+
+/* ================= 拖拽 ================= */
+var payload=null;
+document.addEventListener('dragstart',function(e){
+  var c=e.target.closest('[data-card]');
+  if(c){ payload={type:'card',id:c.getAttribute('data-card')}; c.classList.add('dragging');
+    try{e.dataTransfer.setData('text/plain','card');}catch(err){} return; }
+  var h=e.target.closest('[data-hnode]');
+  if(h){ payload={type:'node',id:h.getAttribute('data-hnode')};
+    try{e.dataTransfer.setData('text/plain','node');}catch(err){}
+    var pn=h.closest('.pnode'); if(pn) pn.classList.add('dragging'); }
+});
+document.addEventListener('dragend',function(){
+  payload=null;
+  document.querySelectorAll('.dragging').forEach(function(x){x.classList.remove('dragging');});
+  document.querySelectorAll('.dragover').forEach(function(x){x.classList.remove('dragover');});
+});
+document.addEventListener('dragover',function(e){
+  if(!payload) return;
+  var n=e.target.closest('.pnode'); if(!n) return;
+  e.preventDefault();
+  document.querySelectorAll('.dragover').forEach(function(x){x.classList.remove('dragover');});
+  n.classList.add('dragover');
+});
+document.addEventListener('drop',function(e){
+  if(!payload) return;
+  var el=e.target.closest('.pnode'); if(!el) return;
+  e.preventDefault();
+  var target=findNode(el.getAttribute('data-node')); if(!target) return;
+  if(payload.type==='card'){
+    if(target.isThesis){ toast('中心论点（L1）只放论点卡，请拖到 L2 及以下',true); return; }
+    removeCard(payload.id); target.cards.push(payload.id);
+    if(CARDS[payload.id]) CARDS[payload.id].s='pend';
+    selNode=target.id; renderAll();
+    toast('已移入「'+target.name+'」· 同步状态置为待推送');
+  }else{
+    var src=findNode(payload.id); if(!src||src.id===target.id) return;
+    var inSub=false; (function chk(n){ if(n.id===target.id) inSub=true; (n.children||[]).forEach(chk); })(src);
+    if(inSub){ toast('不能把节点拖进自己的子节点',true); return; }
+    var top=target.level+depthOf(src);
+    if(top>MAX_LEVEL){ toast('层级超限：移入后最深到 L'+top+'，上限 L'+MAX_LEVEL,true); return; }
+    var p=parentOf(src.id);
+    if(p) p.children=p.children.filter(function(c){return c.id!==src.id;});
+    target.children=target.children||[]; target.children.push(src);
+    target.collapsed=false; relevel(TREE,1); selNode=src.id; renderAll();
+    toast('「'+src.name+'」已挂到「'+target.name+'」下，层级自动重算为 L'+src.level);
+  }
+  payload=null;
+});
+
+/* ================= 主题 ================= */
+document.getElementById('themeBtn').addEventListener('click',function(){
+  var r=document.documentElement, toApple=r.getAttribute('data-theme')==='linear';
+  r.setAttribute('data-theme',toApple?'apple':'linear');
+  this.textContent=toApple?'◐ 暗夜':'◐ 极简白';
+  requestAnimationFrame(drawLines);
+});
+
+/* ================= 字段映射表 ================= */
+var FIELDS=[
+  ['id','zy_id','singleLineText','ok','卡片主键，去重依据'],
+  ['kind','卡片类型','singleSelect','ok','资源 / 任务 / 好奇心'],
+  ['归属','所属工作台','singleSelect','ok','资源台 / 策展台名 / 调度台 / 方向台'],
+  ['title / question','标题','singleLineText','ok','好奇心卡取 question'],
+  ['description','描述','multilineText','ok','采集选中文本'],
+  ['link','链接','url','ok',''],
+  ['status','状态','singleSelect','ok','待探索 / 进行中 / 已完成'],
+  ['tags[]','标签','multipleSelects','new','自动建，选项按需追加'],
+  ['pinned / starred','置顶 / 星标','checkbox','new','两个勾选列'],
+  ['分类路径','金字塔层级路径','singleLineText','new','L2 数据主权 / L3 迁移成本'],
+  ['层级','层级','number','ok','1–4'],
+  ['createdAt','创建时间','dateTime','ok',''],
+  ['updatedAt','更新时间','dateTime','ok','增量游标'],
+  ['deletedAt','已删除','checkbox','ok','软删同步，不物理删']
+];
+function renderFields(){
+  var h='';
+  FIELDS.forEach(function(f,i){
+    var st = f[3]==='ok' ? '<span class="st st-ok">✓ 已存在</span>' : '<span class="st st-new">＋ 待创建</span>';
+    h+='<tr><td class="mono">'+f[0]+'</td><td class="mono">'+f[1]+'</td>'
+      +'<td><span class="ftype">'+f[2]+'</span></td><td>'+st+'</td>'
+      +'<td style="color:var(--text-4);font-size:11px">'+f[4]+'</td></tr>';
+  });
+  document.getElementById('fmapBody').innerHTML=h;
+  var miss=FIELDS.filter(function(f){return f[3]!=='ok';}).length;
+  document.getElementById('missBadge').textContent=miss+' 个待创建';
+}
+
+/* ================= 同步日志模拟 ================= */
+var LOGS=[];
+function log(cls,txt){ LOGS.push('<div class="'+cls+'">'+txt+'</div>');
+  var b=document.getElementById('logBox'); b.innerHTML=LOGS.join(''); b.scrollTop=b.scrollHeight; }
+var STEPS=[
+  ['dim','$ zy_sync push --scope=all --auto-create-fields'],
+  ['hl','[1/5] 读取目标表 schema… GET /meta/bases/appLk…/tables'],
+  ['ok','      ✓ 已存在 11 列 · 缺失 3 列'],
+  ['hl','[2/5] 以知源字段为准创建缺失列…'],
+  ['dim','      POST /meta/.../fields {"name":"标签","type":"multipleSelects"}'],
+  ['ok','      ✓ 200 创建成功 fld9Kx2'],
+  ['dim','      POST /meta/.../fields {"name":"置顶","type":"checkbox"}'],
+  ['ok','      ✓ 200 创建成功 fld7Qm1'],
+  ['dim','      POST /meta/.../fields {"name":"金字塔层级路径","type":"singleLineText"}'],
+  ['ok','      ✓ 200 创建成功 fld3Zp8'],
+  ['warn','      · 已存在的列不改名不改类型，避免破坏你的视图与公式'],
+  ['hl','[3/5] 扫描四类来源… 调度台 3 / 方向台 2 / 资源台 5 / 策展台 ×'],
+  ['ok','      ✓ 待推送 7 条（updatedAt > 游标 09-08 09:41）'],
+  ['ok','      ✓ 软删 0 条；zy_event_log 补 create 1'],
+  ['hl','[4/5] 分片写入：7 条 → 1 批（每批 ≤10）· 队列间隔 200ms'],
+  ['ok','      ✓ 200 OK · 写入 7 · 未触发 429'],
+  ['hl','[5/5] 写回游标 2026-09-08T14:55:12Z'],
+  ['ok','✔ 同步完成 · 2.4s · 消耗 4 次调用（配额 4.1%）· 结果已回写调度台右上角']
+];
+function runSync(){
+  LOGS=[];
+  var i=0;
+  var pill=document.getElementById('topPill'), txt=document.getElementById('topPillTxt');
+  pill.className='sync-pill running'; txt.textContent='同步中…';
+  var t=setInterval(function(){
+    if(i>=STEPS.length){
+      clearInterval(t);
+      pill.className='sync-pill'; txt.textContent='已同步 · 14:55';
+      document.getElementById('scLast').textContent='今天 14:55';
+      document.getElementById('scCount').textContent='335';
+      document.getElementById('scPend').textContent='0';
+      document.getElementById('scPend').style.color='var(--success)';
+      return;
+    }
+    log(STEPS[i][0],STEPS[i][1]); i++;
+  },140);
+}
+document.getElementById('setSyncBtn').addEventListener('click',function(){
+  document.getElementById('logBox').scrollIntoView({behavior:'smooth',block:'center'});
+  runSync();
+});
+document.getElementById('homeSyncBtn').addEventListener('click',function(){
+  document.querySelectorAll('.page').forEach(function(x){x.classList.remove('on');});
+  document.getElementById('page-settings').classList.add('on');
+  document.getElementById('logBox').scrollIntoView({behavior:'smooth',block:'center'});
+  runSync();
+});
+document.getElementById('testConn').addEventListener('click',function(){
+  LOGS=[];
+  log('dim','$ GET /meta/bases/appLkNDICXNqxSDhG/tables');
+  log('ok','  ✓ 200 · 表「知源统一卡片池」存在 · 11 列');
+  log('ok','  ✓ scope: data.records:read ✓ data.records:write ✓ schema.bases:write ✓');
+  log('warn','  ⚠ 缺失 3 列 → 点「一键补齐缺失字段」自动创建');
+});
+document.getElementById('createFields').addEventListener('click',function(){
+  LOGS=[];
+  log('hl','按知源字段清单比对目标表…');
+  log('ok','  ✓ 创建「标签」multipleSelects');
+  log('ok','  ✓ 创建「置顶」checkbox');
+  log('ok','  ✓ 创建「金字塔层级路径」singleLineText');
+  log('ok','✔ 字段已对齐，缺失 0 列');
+  FIELDS.forEach(function(f){ f[3]='ok'; });
+  renderFields();
+});
+document.getElementById('gotoShortcuts').addEventListener('click',function(){
+  toast('原型环境无法跳转；实装为 chrome.tabs.create({url:"chrome://extensions/shortcuts"})');
+});
+
+/* ================= 开关 ================= */
+document.querySelectorAll('.toggle').forEach(function(tg){
+  tg.addEventListener('click',function(){ tg.classList.toggle('on');
+    var k=tg.getAttribute('data-tg');
+    if(k==='poll') toast(tg.classList.contains('on')?'已开启 3 小时轮询（后台跑，不占主线程）':'已关闭自动轮询，改为纯手动');
+  });
+});
+
+/* ================= 初始化 ================= */
+renderFields();
+renderAll();
+</script>
+</body>
+</html>

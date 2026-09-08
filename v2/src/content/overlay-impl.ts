@@ -238,6 +238,8 @@ function showToast(msg: string, duration = 2000) {
 // ============ 全局搜索浮层（居中 Raycast 式） ============
 let searchType: 'all' | 'res' | 'task' | 'curio' | 'ws' | 'proj' = 'all'
 let searchSelIndex = 0
+/** R60-3：选中项锚点 = 卡片 id。下标会随补跑/重排漂移，id 不会——与 R48-A2 的点击修复统一口径 */
+let searchSelId = ''
 let searchResults: any[] = []
 let lastQuery = ''
 
@@ -246,6 +248,7 @@ async function openSearch() {
   void ensurePinyin()
   searchType = 'all'
   searchSelIndex = 0
+  searchSelId = ''
   openOverlay('center', closeOverlay)
   const root = ensureRoot()
   const panel = document.createElement('div')
@@ -394,6 +397,12 @@ async function runSearch(q: string, opts?: { mergeAppend?: boolean }) {
     })
   }
   searchSelIndex = Math.min(searchSelIndex < 0 ? 0 : searchSelIndex, Math.max(searchResults.length - 1, -1))
+  // R60-3：按 id 恢复选中项——补跑/重排后不再把用户当前选中弹回第一条
+  if (searchSelId) {
+    const k = searchResults.findIndex((r: any) => String(r?.id || '') === searchSelId)
+    if (k >= 0) searchSelIndex = k
+  }
+  { const cur: any = searchResults[searchSelIndex]; searchSelId = cur ? String(cur.id || '') : '' }
   renderResults()  // V2.21：拼音字典异步加载，未就绪时 matchPinyin 降级为 false（纯文本匹配照常生效）。
   // 字典到位后自动用同一查询词补跑一次，把拼音/首字母命中补进结果——用户无需任何感知。
   armPinyinRefresh()
@@ -528,7 +537,6 @@ function collectResults(d: any, query: string, results: any[], maps: SearchMaps)
       ;(dir.projects || []).forEach((p: any) => {
         const badges: any[] = []
         if (p.isFocused) badges.push({ type: 'prio-high', text: '🎯 主攻' })
-        if (p.pinnedToLighthouse) badges.push({ type: 'ws-badge', text: '📡 已投射' })
         if (p.status === 'archived') badges.push({ type: 'curio-status', text: '已完成' })
         if (match(p.name || '') || matchPinyin(p.name || '', query)) {
           results.push({
@@ -596,6 +604,8 @@ function bindResultEvents(el: HTMLElement) {
     })
     e.addEventListener('mouseenter', () => {
       searchSelIndex = parseInt(e.dataset.idx || '0')
+      // R60-3：同步 id 锚点——hover 之后即便结果集因拼音补跑而重排，Enter 打开的仍是这一张
+      searchSelId = e.dataset.id || ''
       document.querySelectorAll('.zy-result-item').forEach((e2, j) => e2.classList.toggle('sel', j === searchSelIndex))
     })
   })
@@ -625,6 +635,7 @@ function renderResults() {
       ...recent.map(function (r: any) { return { type: 'res', iconClass: 'res', iconText: '📄', id: r.id, title: r.title, ws: '', cat: '', badges: [], raw: r } })
     ]
     searchSelIndex = searchResults.length ? 0 : -1
+    { const cur: any = searchResults[searchSelIndex]; searchSelId = cur ? String(cur.id || '') : '' }
     const qaHtml = QUICK_ACTIONS_ZY.map(function (qa, i) {
       return '<div class="zy-result-item' + (i === searchSelIndex ? ' sel' : '') + '" data-idx="' + i + '">' +
         '<div class="zy-ri-icon res">↵</div>' +
@@ -728,23 +739,29 @@ function onSearchKeydown(e: KeyboardEvent) {
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     searchSelIndex = Math.min(searchSelIndex + 1, searchResults.length - 1)
+    searchSelId = String((searchResults[searchSelIndex] || {}).id || '')
     document.querySelectorAll('.zy-result-item').forEach((el, i) => el.classList.toggle('sel', i === searchSelIndex))
     document.querySelector('.zy-result-item.sel')?.scrollIntoView({ block: 'nearest' })
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
     searchSelIndex = Math.max(searchSelIndex - 1, 0)
+    searchSelId = String((searchResults[searchSelIndex] || {}).id || '')
     document.querySelectorAll('.zy-result-item').forEach((el, i) => el.classList.toggle('sel', i === searchSelIndex))
     document.querySelector('.zy-result-item.sel')?.scrollIntoView({ block: 'nearest' })
   } else if (e.key === 'Enter') {
     e.preventDefault()
     if (!searchSelIndex && searchSelIndex !== 0) return
-    if (searchResults[searchSelIndex]) {
+    // R60-3：优先按 id 解析——补跑/重排后下标会漂移，id 永远指向用户选中的那一张
+    const selItem =
+      (searchSelId ? searchResults.find((r: any) => String(r?.id || '') === searchSelId) : undefined) ||
+      searchResults[searchSelIndex]
+    if (selItem) {
       if (e.ctrlKey || e.metaKey) {
         // Ctrl+Enter：定位到卡片所在处并打开详情抽屉
-        openSearchLocator(searchResults[searchSelIndex])
+        openSearchLocator(selItem)
       } else {
         // Enter：直接打开链接（无链接则定位）
-        openSearchResult(searchResults[searchSelIndex])
+        openSearchResult(selItem)
       }
     }
   } else if (e.key === 'Tab') {
