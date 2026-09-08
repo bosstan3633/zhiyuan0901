@@ -458,9 +458,13 @@ const backupReminderDot = computed(() => {
 
     <main class="page-container">
       <template v-if="!renderError">
-        <!-- C1：移除 out-in 过渡（每次切换强制串行两段动画 ~300ms），切换即时渲染 -->
+        <!-- C1：移除 out-in 过渡（每次切换强制串行两段动画 ~300ms），切换即时渲染
+             R65-F7：KeepAlive 缓存调度台/资源台/策展台三主视图——切台免重挂载（595ms 基线的主要构成）；
+             三视图均以 store 响应式数据为源，缓存仅省去 DOM 重建与首次计算 -->
         <router-view v-slot="{ Component }">
-          <component :is="Component" />
+          <keep-alive include="CompassHomeView,CurationCenterView,WorkspaceView">
+            <component :is="Component" />
+          </keep-alive>
         </router-view>
       </template>
       <!-- B30a：渲染错误兜底卡片（替代黑屏，保持系统可用） -->

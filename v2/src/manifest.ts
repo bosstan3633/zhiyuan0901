@@ -4,7 +4,7 @@ export default defineManifest({
   manifest_version: 3,
   name: '知源调度台',
   short_name: '知源',
-  version: '2.34.0',
+  version: '2.35.0',
   description: '信息洪流中的控制中心 · 个人资源调度台 · 本地优先 · Chrome MV3',
   permissions: ['storage', 'unlimitedStorage', 'tabs', 'activeTab', 'commands', 'scripting', 'downloads', 'alarms'],
   host_permissions: ['<all_urls>', 'file:///*'],
@@ -40,12 +40,12 @@ export default defineManifest({
     'open-settings': {
       description: '全局设置'
     },
-    // R49-I1 + R50-F3/F8：方向台/策展中心/完整方向树浏览器级命令（无默认键，chrome://extensions/shortcuts 自定义）
+    // R49-I1 + R50-F3/F8 + R65-F6：方向台/资源台/完整方向树浏览器级命令（无默认键，chrome://extensions/shortcuts 自定义）
     'open-compass': {
       description: '打开方向台'
     },
     'open-resource': {
-      description: '打开策展中心'
+      description: '打开资源台'
     },
     'open-tree': {
       description: '打开完整方向树'

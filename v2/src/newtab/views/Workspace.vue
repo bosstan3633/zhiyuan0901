@@ -295,7 +295,7 @@
           <!-- L2 起分类节点（分类树按深度铺开；节点可拖拽挂子级 / ⟨⟩ 调同级顺序 / 卡片拖入节点） -->
           <div v-for="(lv, li) in pyramidLevels" :key="li" class="py-level">
             <div class="py-level-label">L{{ li + 2 }}</div>
-            <div class="py-level-nodes">
+            <div class="py-level-nodes" :style="{ '--py-cols': pyLevelCols[li] || 4 }">
               <div v-for="node in lv" :key="node.cat.id" class="py-node"
                 :class="{ 'drop-child': pyDropTarget===node.cat.id && pyDropMode==='child', 'drop-sib': pyDropTarget===node.cat.id && pyDropMode!=='child', flash: catFlashId===node.cat.id }"
                 :data-pyid="node.cat.id"
@@ -316,6 +316,11 @@
                     <span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ r.title }}
                   </span>
                   <span v-if="!node.cards.length" class="py-node-empty">拖入资源卡</span>
+                </div>
+                <!-- R65-F3：节点双入口——关联资源卡（资源台选择器镜像）/ 新建卡片（台内卡，可挂附件） -->
+                <div class="py-node-foot">
+                  <span class="py-foot-btn" title="从资源台选择资源卡镜像到该节点" @click.stop="openLinkCards(node.cat)">🔗 关联资源卡</span>
+                  <span class="py-foot-btn" title="新建台内卡（可挂附件，真身留在本台）" @click.stop="addResourceToCategory(node.cat.id)">➕ 新建卡片</span>
                 </div>
                 <span v-if="pyDepthOf(node.cat) < 3" class="py-node-add" title="新建子节点" @click.stop="openCreateCat(node.cat.id)">＋</span>
               </div>
@@ -362,60 +367,28 @@
       </div>
     </div>
 
-    <!-- 导入弹窗：书签导入 / 本地文件导入 -->
+    <!-- R65-F4：导入弹窗——策展台只收策展数据包 JSON（书签/本地文件导入已移交资源台） -->
     <div class="modal-overlay" :class="{open: importModalOpen}" @click.self="importModalOpen=false">
       <div class="modal">
         <div class="modal-header">
           <span style="font-size:16px">⬇</span>
-          <span class="mh-title">导入资源</span>
+          <span class="mh-title">导入策展台数据包</span>
           <div class="modal-close" @click="importModalOpen=false">×</div>
         </div>
         <div class="modal-body">
-          <div class="modal-option" @click="bookmarkInput?.click()">
-            <span class="mo-icon">🔖</span>
+          <div class="modal-option" @click="boardImportInput?.click()">
+            <span class="mo-icon">🧩</span>
             <div>
-              <div class="mo-name">导入书签文件</div>
-              <div class="mo-desc">选择浏览器导出的书签 HTML，文件夹结构生成为分类（最多 2 级），链接+标题按原归类写入资源卡</div>
-            </div>
-          </div>
-          <div class="modal-option" @click="fileImport">
-            <span class="mo-icon">📁</span>
-            <div>
-              <div class="mo-name">本地文件导入</div>
-              <div class="mo-desc">获取文件名写入资源卡，双击打开前补全完整路径即可本地打开</div>
+              <div class="mo-name">导入策展台数据包（JSON）</div>
+              <div class="mo-desc">选择本台「⚙ 导出工作台数据」导出的 JSON 文件：论点分类树 + 台内卡 + 镜像投射按 ID 并集合并，现有数据不受影响（书签/本地文件导入在资源台）</div>
             </div>
           </div>
         </div>
       </div>
     </div>
-    <input ref="bookmarkInput" type="file" accept=".html,.htm" style="display:none" @change="handleBookmarkImport" />
-    <input ref="fileImportInput" type="file" multiple style="display:none" @change="handleFileImport" />
+    <input ref="boardImportInput" type="file" accept=".json,application/json" style="display:none" @change="handleBoardImport" />
 
-    <!-- 书签导入：文件夹选择（第卅轮：文件夹结构生成为分类树） -->
-    <div class="modal-overlay" :class="{open: bookmarkModalOpen}" @click.self="bookmarkModalOpen=false">
-      <div class="modal">
-        <div class="modal-header">
-          <span style="font-size:16px">🔖</span>
-          <span class="mh-title">选择要导入的书签文件夹</span>
-          <div class="modal-close" @click="bookmarkModalOpen=false">×</div>
-        </div>
-        <div class="modal-body bk-body">
-          <div class="bk-hint">导入后将按文件夹结构生成分类（前 2 级，同名自动合并），卡片归入原文件夹对应的分类；更深层级转为标签。后续可自行增删改分类。</div>
-          <label class="bk-all"><input type="checkbox" :checked="allBkChecked" @change="toggleAllBk" /> 全部导入（{{ bkTotalCount }} 个书签）</label>
-          <div class="bk-list">
-            <label v-for="f in bkFolders" :key="f.path" class="bk-item">
-              <input type="checkbox" v-model="f.checked" />
-              <span class="bk-name">📁 {{ f.path }}</span>
-              <span class="bk-count">{{ f.count }} 个书签</span>
-            </label>
-          </div>
-        </div>
-        <div class="modal-footer-row">
-          <button class="dr-footer-btn" @click="bookmarkModalOpen=false">取消</button>
-          <button class="dr-footer-btn primary" @click="confirmBookmarkImport">✓ 导入所选</button>
-        </div>
-      </div>
-    </div>
+    <!-- 书签导入弹窗已随 R65-F4 移交资源台（CurationCenter），策展台不再提供 -->
 
     <!-- 批量移动弹窗（第八轮：工作台→分类级联，含当前工作台） -->
     <div class="modal-overlay" :class="{open: moveModalOpen}" @click.self="moveModalOpen=false">
@@ -445,6 +418,36 @@
         <div class="modal-footer-row">
           <button class="dr-footer-btn" @click="moveModalOpen=false">取消</button>
           <button class="dr-footer-btn primary" @click="confirmBatchMove">✓ 确认移动</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- R65-F3：节点关联资源卡（资源台全量卡选择器：关键词过滤 + 多选 + 镜像到节点） -->
+    <div class="modal-overlay" :class="{open: !!linkCardsModal}" @click.self="linkCardsModal=null">
+      <div class="modal" style="width:480px">
+        <div class="modal-header">
+          <span style="font-size:16px">🔗</span>
+          <span class="mh-title">关联资源卡到「{{ linkCardsModal?.catName }}」</span>
+          <div class="modal-close" @click="linkCardsModal=null">×</div>
+        </div>
+        <div class="modal-body">
+          <div class="lc-search">
+            <span>🔍</span>
+            <input v-model="linkCardsQ" placeholder="关键词过滤资源台资源卡（标题/链接）" />
+          </div>
+          <div class="lc-list">
+            <label v-for="c in linkCandidates" :key="c.r.id" class="lc-item" :class="{ picked: linkCardsModal?.picked.has(c.r.id), mirrored: c.mirrored }">
+              <input v-if="!c.mirrored" type="checkbox" :checked="linkCardsModal?.picked.has(c.r.id)" @change="toggleLinkPick(c.r.id)" />
+              <span v-else class="lc-badge">已在该台</span>
+              <span class="lc-title">{{ c.r.pinned ? '📌 ' : '' }}{{ c.r.title }}</span>
+              <span class="lc-link">{{ c.r.link }}</span>
+            </label>
+            <div v-if="!linkCandidates.length" class="lc-empty">无匹配的资源台资源卡</div>
+          </div>
+        </div>
+        <div class="modal-footer-row">
+          <button class="dr-footer-btn" @click="linkCardsModal=null">取消</button>
+          <button class="dr-footer-btn primary" @click="confirmLinkCards">📡 镜像所选到该节点</button>
         </div>
       </div>
     </div>
@@ -561,6 +564,8 @@
 </template>
 
 <script setup lang="ts">
+// R65-F7：KeepAlive 缓存实例名（App.vue router-view include）
+defineOptions({ name: 'WorkspaceView' })
 import { ref, computed, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
@@ -569,7 +574,7 @@ import { saveUIPrefs } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
-import { uid, safeDecodeText } from '@/shared/utils'
+import { uid } from '@/shared/utils'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
@@ -578,7 +583,7 @@ import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import { markRank } from '@/shared/utils/marksort'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import { CURATION_WS_ID, type AppData, type ResourceCard, type Category, type Workspace, type TaskCard, type FieldDef } from '@/shared/models'
-import { boardCardsOf, isMirrorView, removeProjection, curationMetrics, setThesis, mirrorCategoryToBoard, canMountInNode, isHubWs, type MirrorView } from '@/shared/storage/hub'
+import { boardCardsOf, isMirrorView, removeProjection, curationMetrics, setThesis, mirrorCategoryToBoard, canMountInNode, isHubWs, projectCardToBoard, type MirrorView } from '@/shared/storage/hub'
 import CurationDrillDrawer from '@/newtab/components/CurationDrillDrawer.vue'
 import type { DrillCatRow, DrillCardRow } from '@/newtab/components/CurationDrillDrawer.vue'
 
@@ -588,6 +593,16 @@ const store = useAppStore()
 const d = computed(() => store.data!)
 
 const workspaceId = computed(() => route.params.id as string)
+// R65-F7：KeepAlive 缓存实例——切换不同策展台（:id 变化）时复位本台局部状态，防上一台残留
+watch(() => route.params.id, (nv, ov) => {
+  if (nv && ov && nv !== ov) {
+    activeCategory.value = 'all'
+    searchQuery.value = ''
+    debouncedQuery.value = ''
+    selectedIds.value.clear()
+    collapsedGroups.value = new Set()
+  }
+})
 const workspace = computed(() => d.value.workspaces.find(w => w.id === workspaceId.value))
 /** R62：资源台（isHub）不显示策展指标条与主题卡语义 */
 const isHub = computed(() => isHubWs(workspace.value))
@@ -1463,8 +1478,14 @@ function onUncatDrop(e: DragEvent) {
   onDropToCategory(e, '')
 }
 function clearCardDropTarget() { cardDropTarget.value = '' }
-onMounted(() => { window.addEventListener('dragend', clearCardDropTarget); document.addEventListener('click', closeSettingsMenu); window.addEventListener('resize', drawPyLinks); nextTick(drawPyLinks) })
-onUnmounted(() => { window.removeEventListener('dragend', clearCardDropTarget); window.removeEventListener('resize', drawPyLinks) })
+onMounted(() => { window.addEventListener('dragend', clearCardDropTarget); document.addEventListener('click', closeSettingsMenu); window.addEventListener('resize', pyLinksThrottled); nextTick(drawPyLinks) })
+onUnmounted(() => { window.removeEventListener('dragend', clearCardDropTarget); window.removeEventListener('resize', pyLinksThrottled) })
+// R65-F7：resize 重绘节流（150ms 尾随，防拖拽窗口时高频全量重算）
+let pyLinksTimer: ReturnType<typeof setTimeout> | null = null
+function pyLinksThrottled() {
+  if (pyLinksTimer) return
+  pyLinksTimer = setTimeout(() => { pyLinksTimer = null; drawPyLinks() }, 150)
+}
 function onCatDragStart(e: DragEvent, cat: Category) {
   dragCatId = cat.id
   e.dataTransfer!.effectAllowed = 'move'
@@ -1623,7 +1644,8 @@ function pyDepthOf(c: Category): number {
   while (cur) { n++; cur = wsCats.value.find(x => x.id === cur!.parentId) }
   return n
 }
-/** 金字塔层级数据：按分类深度铺开（深度0=L2）；卡片=直属（排除主题卡，主题卡是 L1 根） */
+/** 金字塔层级数据：按分类深度铺开（深度0=L2）；卡片=直属（排除主题卡，主题卡是 L1 根）
+ *  R65-F3：各层节点按树先序（DFS）排序——同父节点严格紧邻，兄弟顺序跟随父节点位置 */
 const pyramidLevels = computed<PyNode[][]>(() => {
   const byDepth = new Map<number, PyNode[]>()
   for (const c of wsCats.value) {
@@ -1631,7 +1653,17 @@ const pyramidLevels = computed<PyNode[][]>(() => {
     if (!byDepth.has(depth)) byDepth.set(depth, [])
     byDepth.get(depth)!.push({ cat: c, depth, cards: [] })
   }
-  for (const arr of byDepth.values()) arr.sort((a, b) => a.cat.order - b.cat.order)
+  // R65-F3：树先序遍历序号（同父紧邻的依据）
+  const dfsOrder = new Map<string, number>()
+  let seq = 0
+  const walk = (pid: string) => {
+    for (const c of wsCats.value.filter(x => (x.parentId || '') === pid).sort((a, b) => a.order - b.order)) {
+      dfsOrder.set(c.id, seq++)
+      walk(c.id)
+    }
+  }
+  walk('')
+  for (const arr of byDepth.values()) arr.sort((a, b) => (dfsOrder.get(a.cat.id) ?? 0) - (dfsOrder.get(b.cat.id) ?? 0))
   for (const r of allResources.value) {
     if (r.isThesis) continue
     for (const arr of byDepth.values()) {
@@ -1640,6 +1672,17 @@ const pyramidLevels = computed<PyNode[][]>(() => {
     }
   }
   return [...byDepth.keys()].sort((a, b) => a - b).map(k => byDepth.get(k)!)
+})
+/** R65-F2：每层列数 = clamp(节点数, 2, 7)，且不小于上一层（子模块宽度恒 ≤ 父模块） */
+const PY_MIN_COLS = 2
+const PY_MAX_COLS = 7
+const pyLevelCols = computed<number[]>(() => {
+  const out: number[] = []
+  for (const lv of pyramidLevels.value) {
+    const own = Math.min(PY_MAX_COLS, Math.max(PY_MIN_COLS, lv.length))
+    out.push(Math.max(own, out.length ? out[out.length - 1]! : PY_MIN_COLS))
+  }
+  return out
 })
 /** 同级顺序调整（⟨ 前移 / ⟩ 后移） */
 function moveCatSibling(cat: Category, dir: -1 | 1) {
@@ -1651,6 +1694,45 @@ function moveCatSibling(cat: Category, dir: -1 | 1) {
   const tmp = sibs[i]!; sibs[i] = sibs[j]!; sibs[j] = tmp
   sibs.forEach((c, k) => { c.order = k })
   store.persist()
+}
+
+// ===== R65-F3：节点关联资源卡（资源台全量卡选择器 → 镜像到节点）=====
+const linkCardsModal = ref<{ catId: string; catName: string; picked: Set<string> } | null>(null)
+const linkCardsQ = ref('')
+function openLinkCards(cat: Category) {
+  linkCardsQ.value = ''
+  linkCardsModal.value = { catId: cat.id, catName: cat.name, picked: new Set() }
+}
+function toggleLinkPick(id: string) {
+  const m = linkCardsModal.value
+  if (!m) return
+  if (m.picked.has(id)) m.picked.delete(id)
+  else m.picked.add(id)
+}
+/** 候选 = 资源台全部资源卡（关键词过滤）；已镜像到本台的标记「已在该台」不可重选 */
+const linkCandidates = computed<{ r: ResourceCard; mirrored: boolean }[]>(() => {
+  if (!linkCardsModal.value) return []
+  const q = linkCardsQ.value.trim().toLowerCase()
+  const mirroredSet = new Set((d.value.curationProjections || [])
+    .filter(p => p.kind === 'card' && p.targetWsId === workspaceId.value).map(p => p.cardId))
+  return d.value.resources
+    .filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
+    .filter(r => !q || (r.title + ' ' + (r.link || '')).toLowerCase().includes(q))
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt)
+    .map(r => ({ r, mirrored: mirroredSet.has(r.id) }))
+})
+function confirmLinkCards() {
+  const m = linkCardsModal.value
+  if (!m) return
+  const targets = [...m.picked].filter(id => !linkCandidates.value.find(c => c.r.id === id)?.mirrored)
+  if (!targets.length) { showToast('未选择可镜像的资源卡'); return }
+  let ok = 0
+  for (const id of targets) {
+    if (projectCardToBoard(d.value, id, workspaceId.value, m.catId)) ok++
+  }
+  store.persist()
+  linkCardsModal.value = null
+  showToast(ok ? `📡 已镜像 ${ok} 张资源卡到「${m.catName}」` : 'ℹ 所选卡片均已在该台镜像中')
 }
 /** 层级上限工具（复用 R61-4 口径：分类最多 4 级） */
 function pyLevelOf(c: Category): number { return pyDepthOf(c) + 1 }
@@ -1847,145 +1929,44 @@ function confirmMirrorCat() {
   else showToast('ℹ 该分类已镜像过本台')
 }
 
-// ===== 导入：书签 HTML / 本地文件（E3） =====
+// ===== R65-F4：策展台导入 = 策展台数据包 JSON（书签/本地文件导入已移交资源台） =====
 const importModalOpen = ref(false)
-const bookmarkInput = ref<HTMLInputElement | null>(null)
-const fileImportInput = ref<HTMLInputElement | null>(null)
+const boardImportInput = ref<HTMLInputElement | null>(null)
 
-interface BkFolder { path: string; name: string; count: number; checked: boolean }
-interface BkNode { title: string; url: string; path: string[] }
-
-const bookmarkModalOpen = ref(false)
-const bkFolders = ref<BkFolder[]>([])
-let bkBookmarks: BkNode[] = []
-
-function ensureUncat(): Category {
-  let cat = d.value.categories.find(c => c.workspaceId === workspaceId.value && c.name === '待分类')
-  if (!cat) {
-    cat = { id: uid('cat'), workspaceId: workspaceId.value, name: '待分类', order: d.value.categories.filter(c => c.workspaceId === workspaceId.value).length }
-    d.value.categories.push(cat)
-  }
-  return cat
-}
-function makeResource(title: string, linkType: ResourceCard['linkType'], link: string, categoryId: string, tags: string[] = []): ResourceCard {
-  return {
-    id: uid('res'), kind: 'resource', title, linkType, link,
-    workspaceId: workspaceId.value, categoryId, description: '', tags,
-    customFields: {}, pinned: false, callCount: 0, createdAt: Date.now(), updatedAt: Date.now()
-  }
-}
-
-/** 解析 Netscape 书签 HTML（浏览器导出格式） */
-function parseBookmarksHtml(html: string): BkNode[] {
-  const doc = new DOMParser().parseFromString(html, 'text/html')
-  const out: BkNode[] = []
-  function walk(dl: Element | null, path: string[]) {
-    if (!dl) return
-    for (const dt of Array.from(dl.children).filter(el => el.tagName === 'DT')) {
-      const h3 = dt.querySelector(':scope > h3')
-      const a = dt.querySelector(':scope > a')
-      if (h3) {
-        // 第廿九轮：文件夹名 URL 编码容错解码
-        const name = safeDecodeText(h3.textContent?.trim() || '未命名')
-        walk(dt.querySelector(':scope > dl'), [...path, name])
-      } else if (a) {
-        const url = a.getAttribute('href') || ''
-        if (url && /^(https?:|file:|obsidian:)/i.test(url)) {
-          out.push({ title: safeDecodeText(a.textContent?.trim() || url), url, path })
-        }
-      }
-    }
-  }
-  walk(doc.querySelector('dl'), [])
-  return out
-}
-
-function handleBookmarkImport(e: Event) {
+/** 策展台数据包导入：与 ⚙ 导出工作台数据同格式（AppData 子集），按 ID 并集合并本台段 */
+function handleBoardImport(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
   const reader = new FileReader()
   reader.onload = () => {
     try {
-      bkBookmarks = parseBookmarksHtml(reader.result as string)
-      if (!bkBookmarks.length) { showToast('未在文件中解析到书签，请确认是浏览器导出的书签 HTML'); return }
-      // 按顶层文件夹归组；无文件夹的归入「未分组」
-      const groups = new Map<string, BkNode[]>()
-      for (const b of bkBookmarks) {
-        const key = b.path.length ? b.path.join(' / ') : '未分组'
-        if (!groups.has(key)) groups.set(key, [])
-        groups.get(key)!.push(b)
+      const ext = JSON.parse(reader.result as string) as AppData
+      if (!ext || typeof ext !== 'object' || !String(ext.version || '').startsWith('2')) { showToast('✗ 文件格式不识别——仅接受本产品导出的 v2 数据包'); return }
+      const importedNow = Date.now()
+      const mergeById = <T extends { id: string }>(existing: T[], incoming: T[]): T[] => {
+        const map = new Map(existing.map(x => [x.id, x]))
+        for (const item of incoming) map.set(item.id, { ...map.get(item.id), ...item })
+        return [...map.values()]
       }
-      bkFolders.value = Array.from(groups.entries())
-        .map(([path, items]) => ({ path, name: path.split(' / ').pop() || path, count: items.length, checked: true }))
-        .sort((a, b) => b.count - a.count)
-      bookmarkModalOpen.value = true
+      // 只并本台段：工作台/分类/台内卡 + 投射清单中指向本台的记录（全局段不在此入口搬运，走设置页「导入数据」）
+      const wsId = workspaceId.value
+      const incCats = (ext.categories || []).filter(c => c.workspaceId === wsId)
+      const incRes = (ext.resources || []).filter(r => r.workspaceId === wsId).map(r => ({ ...r, importedAt: importedNow }))
+      const incProj = (ext.curationProjections || []).filter(p => p.targetWsId === wsId)
+      const cardsBefore = d.value.resources.length
+      d.value.workspaces = mergeById(d.value.workspaces, ext.workspaces?.filter(w => w.id === wsId) || [])
+      d.value.categories = mergeById(d.value.categories, incCats)
+      d.value.resources = mergeById(d.value.resources, incRes as ResourceCard[])
+      if (incProj.length) d.value.curationProjections = mergeById(d.value.curationProjections || [], incProj)
+      store.persist()
       importModalOpen.value = false
-    } catch { showToast('✗ 书签文件解析失败') }
+      const added = d.value.resources.length - cardsBefore
+      showToast(`✓ 已导入：分类 ${incCats.length} · 卡片 ${incRes.length}（新增 ${added}，其余按 ID 覆盖合并）`)
+    } catch { showToast('✗ JSON 解析失败，请确认是「导出工作台数据」生成的文件') }
   }
   reader.readAsText(file)
   input.value = ''
-}
-
-const allBkChecked = computed(() => bkFolders.value.length > 0 && bkFolders.value.every(f => f.checked))
-const bkTotalCount = computed(() => bkBookmarks.length)
-function toggleAllBk() {
-  const next = !allBkChecked.value
-  bkFolders.value.forEach(f => { f.checked = next })
-}
-
-/** 第卅轮：浏览器标准根文件夹不生成分类（书签栏/收藏栏/其他书签等） */
-const BK_ROOT_NAMES = new Set(['书签栏', '收藏栏', '其他书签', 'Bookmarks bar', 'Bookmarks Toolbar', 'Favorites bar', 'Mobile bookmarks', '移动书签'])
-
-/** 第卅轮：按路径前 2 级确保分类存在（同名同级复用，不重建），返回卡片归属的分类 id（'' = 待分类） */
-function ensureBookmarkCategory(segs: string[]): string {
-  let parentId: string | undefined
-  let catId = ''
-  for (const seg of segs.slice(0, 2)) {
-    const name = seg.trim()
-    if (!name) break
-    let cat = d.value.categories.find(c => c.workspaceId === workspaceId.value && (c.parentId || undefined) === parentId && c.name === name)
-    if (!cat) {
-      cat = { id: uid('cat'), workspaceId: workspaceId.value, name, order: d.value.categories.filter(c => c.workspaceId === workspaceId.value && (c.parentId || undefined) === parentId).length }
-      if (parentId) cat.parentId = parentId
-      d.value.categories.push(cat)
-    }
-    catId = cat.id
-    parentId = cat.id
-  }
-  return catId
-}
-
-function confirmBookmarkImport() {
-  const checkedPaths = new Set(bkFolders.value.filter(f => f.checked).map(f => f.path))
-  const items = bkBookmarks.filter(b => checkedPaths.has(b.path.length ? b.path.join(' / ') : '未分组'))
-  if (!items.length) { showToast('未选择任何文件夹'); return }
-  for (const b of items) {
-    // 第卅轮：路径前 2 级（去除标准根）→ 分类树，卡片归入最深分类；第 3 级及更深 → 标签（分类层级不重复打标签）
-    const segs = b.path.filter(p => p && !BK_ROOT_NAMES.has(p))
-    const catId = ensureBookmarkCategory(segs)
-    const tags = Array.from(new Set(segs.slice(2)))
-    let linkType: ResourceCard['linkType'] = 'url'
-    if (b.url.startsWith('file:')) linkType = 'file'
-    else if (b.url.startsWith('obsidian:')) linkType = 'obsidian'
-    d.value.resources.unshift(makeResource(b.title.substring(0, 120), linkType, b.url, catId, tags))
-  }
-  store.persist()
-  bookmarkModalOpen.value = false
-  showToast(`✓ 已导入 ${items.length} 个书签（文件夹结构已生成为分类，可自行增删改）`)
-}
-
-function fileImport() { fileImportInput.value?.click() }
-function handleFileImport(e: Event) {
-  const input = e.target as HTMLInputElement
-  const files = Array.from(input.files || [])
-  if (!files.length) return
-  const cat = ensureUncat()
-  files.forEach(f => d.value.resources.unshift(makeResource(f.name.replace(/\.[^.]+$/, ''), 'file', f.name, cat.id)))
-  store.persist()
-  input.value = ''
-  importModalOpen.value = false
-  showToast(`✓ 已导入 ${files.length} 个文件（双击打开前请补全完整路径）`)
 }
 
 // ===== 设置菜单 =====
@@ -2477,8 +2458,9 @@ function linkDisplay(link: string) {
 .py-root-empty.clickable:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .py-level { display: flex; flex-direction: column; gap: 6px; }
 .py-level-label { font-size: 10px; font-weight: 700; color: var(--text-4); letter-spacing: 1px; }
-.py-level-nodes { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
-.py-node { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; min-width: 200px; max-width: 280px; flex: 1 1 200px; transition: border-color .15s, box-shadow .15s; }
+/* R65-F2：每层 grid 自适应列（2~7 列，子层列数 ≥ 父层 → 子模块恒 ≤ 父模块） */
+.py-level-nodes { display: grid; grid-template-columns: repeat(var(--py-cols, 4), 1fr); gap: 10px; align-items: start; }
+.py-node { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; min-width: 0; transition: border-color .15s, box-shadow .15s; }
 .py-node:hover { border-color: var(--border-strong); }
 .py-node.drop-child { border-color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
 .py-node.drop-sib { box-shadow: inset 0 2px 0 var(--accent); }
@@ -2495,6 +2477,22 @@ function linkDisplay(link: string) {
 .py-card-chip { font-size: 11px; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; cursor: pointer; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all .12s; }
 .py-card-chip:hover { border-color: var(--accent); color: var(--text); background: var(--accent-light); }
 .py-node-empty { font-size: 10.5px; color: var(--text-4); }
+/* R65-F3：节点双入口底栏 */
+.py-node-foot { display: flex; gap: 6px; padding: 0 10px 9px; }
+.py-foot-btn { flex: 1; text-align: center; font-size: 10.5px; color: var(--text-3); background: var(--surface-2); border: 1px dashed var(--border); border-radius: 6px; padding: 4px 6px; cursor: pointer; transition: all .12s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.py-foot-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+/* R65-F3：关联资源卡选择器 */
+.lc-search { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); margin-bottom: 10px; }
+.lc-search input { border: none; outline: none; background: transparent; font-size: 12px; flex: 1; color: var(--text); }
+.lc-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.lc-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; transition: background .1s; }
+.lc-item:hover { background: var(--surface-2); }
+.lc-item.picked { background: var(--accent-light); }
+.lc-item.mirrored { opacity: .55; cursor: default; }
+.lc-badge { font-size: 10px; color: var(--text-3); background: var(--surface-3); padding: 1px 8px; border-radius: 99px; flex-shrink: 0; }
+.lc-title { flex: 1; min-width: 0; font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-link { font-size: 10px; color: var(--text-4); max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+.lc-empty { text-align: center; padding: 24px; font-size: 12px; color: var(--text-4); }
 .py-node-add { position: absolute; right: -8px; top: -8px; width: 20px; height: 20px; display: none; align-items: center; justify-content: center; border-radius: 6px; background: var(--accent); color: #fff; font-size: 13px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
 .py-node:hover .py-node-add { display: flex; }
 .py-level-empty { font-size: 10.5px; color: var(--text-4); padding: 4px 0; }

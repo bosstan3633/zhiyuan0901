@@ -157,11 +157,11 @@
         </Drawer>
       </div>
 
-      <!-- ===== 工作台全景（第卌四轮 T-04：双栏 Master-Detail，第二屏） ===== -->
+      <!-- ===== 资源台全景（第卌四轮 T-04 双栏 Master-Detail；R65-F5 只呈现资源台，策展台不再进全景） ===== -->
       <div v-if="activePage === 'panorama'" class="gs-panel gs-pan-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">🗺 工作台全景</div>
-          <div class="gs-page-desc">左栏看全景（工作台 → 分类 → 子分类），右栏做整理 · 勾选卡片拖到左栏目标分类即可批量移动 · 单击详情 / 双击打开 · 仅含资源工作台</div>
+          <div class="gs-page-title">🗺 资源台全景</div>
+          <div class="gs-page-desc">左栏看全景（资源台 → 分类 → 子分类），右栏做整理 · 勾选卡片拖到左栏目标分类即可批量移动 · 单击详情 / 双击打开</div>
         </div>
         <div class="gs-pan-wrap">
           <!-- 左栏：全景计数树（默认全展开） -->
@@ -1025,7 +1025,7 @@ const navGroups = [
   // R54-E1（修订第卌四轮五组拍板）：总览 = 知源仪表盘 + 工作台全景并列，「整理」组取消
   { title: '总览', items: [
     { key: 'dashboard', icon: '📊', label: '知源仪表盘' },
-    { key: 'panorama', icon: '🗺', label: '工作台全景' },
+    { key: 'panorama', icon: '🗺', label: '资源台全景' },
   ]},
   { title: '卡片与字段', items: [
     { key: 'resource', icon: '📇', label: '资源卡' },
@@ -1334,15 +1334,17 @@ function panCountByCat(cat: { id: string; workspaceId: string }): number {
   }
   return boardCardsOf(store.data!, cat.workspaceId).filter(r => (r.categoryId || '') === cat.id).length
 }
-/** R63-1：台卡片计数——资源台原生卡数；策展台含镜像 */
+/** R63-1：台卡片计数——资源台原生卡数；策展台含镜像（R65-F5 全景仅资源台，策展台分支保留兜底） */
 function panCountByWs(wsId: string): number {
   if (isHubWs(store.workspaces.find(w => w.id === wsId))) {
     return gResLive.value.filter(r => r.workspaceId === wsId).length
   }
   return boardCardsOf(store.data!, wsId).length
 }
+/** R65-F5：全景树只呈现资源台（策展台不进全景） */
+const panHubWss = computed(() => store.workspaces.filter(w => isHubWs(w)))
 const panTree = computed<PanWsNode[]>(() =>
-  store.workspaces.map(w => {
+  panHubWss.value.map(w => {
     const roots = gd.value.categories.filter(c => c.workspaceId === w.id && !c.parentId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     const toNode = (c: { id: string; name: string; workspaceId: string }): PanCatNode => ({
       cat: { id: c.id, name: c.name, workspaceId: c.workspaceId },
@@ -1354,8 +1356,8 @@ const panTree = computed<PanWsNode[]>(() =>
     return { ws: { id: w.id, name: w.name, icon: w.icon }, count: panCountByWs(w.id), cats: roots.map(toNode) }
   })
 )
-const panTotalCats = computed(() => gd.value.categories.filter(c => store.workspaces.some(w => w.id === c.workspaceId)).length)
-const panTotalCards = computed(() => store.workspaces.reduce((s, w) => s + panCountByWs(w.id), 0))
+const panTotalCats = computed(() => gd.value.categories.filter(c => panHubWss.value.some(w => w.id === c.workspaceId)).length)
+const panTotalCards = computed(() => panHubWss.value.reduce((s, w) => s + panCountByWs(w.id), 0))
 const panCollapsed = ref<Set<string>>(new Set()) // 默认全展开
 function togglePanCollapse(key: string) {
   const next = new Set(panCollapsed.value)

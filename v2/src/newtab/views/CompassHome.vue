@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// R65-F7：KeepAlive 缓存实例名（App.vue router-view include）
+defineOptions({ name: 'CompassHomeView' })
 // R49（V2.22.0）三大系统页改版：本页 = 调度台（默认首页）
 // - 今日记录条（入台/移出/调出/写入记录，点击开抽屉）
 // - 左右分栏：左=今日三件事（硬上限 3，自 CompassActions 整体迁入，交互逐项一致）｜右=项目调度面板（单击三件事联动）

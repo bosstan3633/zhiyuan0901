@@ -156,7 +156,7 @@ chrome.commands.onCommand.addListener(async (command) => {
       break
     }
     case 'open-resource': {
-      // R50-F3：策展中心启用（V2.22 占位正式转正）
+      // R50-F3 启用 + R61 资源台转正 + R65-F6：命令口径改「打开资源台」（/curation 即资源台路由）
       const base = chrome.runtime.getURL('src/newtab/index.html')
       const tabs = await chrome.tabs.query({ url: base + '*' })
       const existing = tabs.find(t => t.id != null)

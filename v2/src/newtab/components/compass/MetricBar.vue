@@ -5,6 +5,7 @@
  * - R51-F14：4 格各自独立明细（MetricDrillDrawer 右侧抽屉），条目点击定位到对应卡片
  * - R57-F3：「📋 详细指标」完整面板入口移除（口径收束到四格自下钻 + 页头今日记录组）
  * - 日/周/累计 档位并入指标条表头
+ * - R65-F8：纵向再压缩——单行指标条（副行信息收 tooltip，下钻抽屉不变）
  */
 import { ref, computed } from 'vue'
 import { useCompass } from '../../stores/compass'
@@ -48,35 +49,30 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
 </script>
 
 <template>
+  <!-- R65-F8：纵向再压缩——单行指标条（标题+档位+四指标一行；副行信息收进 tooltip，下钻抽屉不变） -->
   <div class="metric-bar">
-    <div class="mb-head">
+    <div class="mb-row">
       <span class="mb-title">📊 方向状态</span>
       <div class="mb-period">
         <span :class="{ on: period === 'day' }" @click="setPeriod('day')">日</span>
         <span :class="{ on: period === 'week' }" @click="setPeriod('week')">周</span>
         <span :class="{ on: period === 'all' }" @click="setPeriod('all')">累计</span>
       </div>
-    </div>
-    <div class="mb-cells">
+      <span class="mb-divider" />
       <div class="mb-cell clickable" title="战略目标 = 使命下拆解的方向数；推进中项目 = 挂有任务（任务数≠0）的项目数 · 点击下钻各目标明细" @click="openCell('dhi')">
-        <div class="mb-label">战略目标 / 推进项目</div>
-        <div class="mb-num">{{ dhiMain }} <span class="mb-num-unit">目标</span></div>
-        <div class="mb-sub">{{ m.dhi.pushing }} 项目推进中</div>
+        <span class="mb-k">战略目标</span><span class="mb-v">{{ dhiMain }}</span><span class="mb-k2">推进 {{ m.dhi.pushing }}</span>
       </div>
-      <div class="mb-cell clickable" title="WCE 好奇探索率 = 探索中+已求证的好奇心数 · 点击下钻激活好奇项清单" @click="openCell('wce')">
-        <div class="mb-label">WCE 好奇探索</div>
-        <div class="mb-num">{{ m.wce.count ?? 0 }}</div>
-        <div class="mb-sub">{{ m.wce.sub }}</div>
+      <span class="mb-divider" />
+      <div class="mb-cell clickable" title="WCE 好奇探索率 = 探索中+已求证的好奇心数（{{ m.wce.sub }}）· 点击下钻激活好奇项清单" @click="openCell('wce')">
+        <span class="mb-k">WCE 探索</span><span class="mb-v">{{ m.wce.count ?? 0 }}</span><span class="mb-k2">{{ m.wce.sub }}</span>
       </div>
-      <div class="mb-cell clickable" title="WRR 资源复用 = 资源卡被打开次数 · 点击下钻调出资源清单" @click="openCell('wrr')">
-        <div class="mb-label">WRR 资源复用</div>
-        <div class="mb-num">{{ wrrMain }}</div>
-        <div class="mb-sub">{{ m.wrr.sub }}</div>
+      <span class="mb-divider" />
+      <div class="mb-cell clickable" title="WRR 资源复用 = 资源卡被打开次数（{{ m.wrr.sub }}）· 点击下钻调出资源清单" @click="openCell('wrr')">
+        <span class="mb-k">WRR 复用</span><span class="mb-v">{{ wrrMain }}</span><span class="mb-k2">{{ m.wrr.sub }}</span>
       </div>
+      <span class="mb-divider" />
       <div class="mb-cell clickable" :class="{ 'st-warn': unarchived > 0 }" title="未归档任务 = 未挂项目/指标或引用失效的任务（口径同详细指标）· 点击下钻归档" @click="openCell('unarch')">
-        <div class="mb-label">未归档任务</div>
-        <div class="mb-num">{{ unarchived }}<span class="mb-denom">/{{ totalTasks }}</span></div>
-        <div class="mb-sub">未挂项目/指标 · 点击下钻归档</div>
+        <span class="mb-k">未归档</span><span class="mb-v">{{ unarchived }}<i class="mb-denom">/{{ totalTasks }}</i></span><span class="mb-k2">点击归档</span>
       </div>
     </div>
   </div>
@@ -86,33 +82,26 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
 </template>
 
 <style scoped>
-/* R59-T8：与今日三件事模块拉开间距，视觉焦点回归三件事 */
-.metric-bar { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 10px; }
-.mb-head { display: flex; align-items: center; gap: 12px; padding: 3px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
-.mb-title { font-size: 12px; font-weight: 600; color: var(--text-2); flex: 1; }
-.mb-period { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.mb-period span { padding: 2px 12px; font-size: 11.5px; color: var(--text-2); cursor: pointer; transition: all .12s; }
+/* R65-F8：单行指标条（原双行四格压缩为一行，纵向 ~30px） */
+.metric-bar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px; }
+.mb-row { display: flex; align-items: center; gap: 12px; padding: 6px 14px; min-width: 0; }
+.mb-title { font-size: 11.5px; font-weight: 600; color: var(--text-2); flex-shrink: 0; }
+.mb-period { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+.mb-period span { padding: 2px 10px; font-size: 11px; color: var(--text-2); cursor: pointer; transition: all .12s; }
 .mb-period span + span { border-left: 1px solid var(--border); }
 .mb-period span:hover { background: var(--surface-3); }
 .mb-period span.on { background: var(--accent-light); color: var(--accent); font-weight: 600; }
-.mb-cells { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); }
-.mb-cell { background: var(--surface); padding: 4px 16px; display: flex; flex-direction: column; gap: 0; }
+.mb-divider { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; }
+.mb-cell { display: flex; align-items: baseline; gap: 6px; min-width: 0; padding: 2px 6px; border-radius: 6px; }
 .mb-cell.clickable { cursor: pointer; transition: background .12s; }
 .mb-cell.clickable:hover { background: var(--surface-2); }
-.mb-label { font-size: 10.5px; font-weight: 600; color: var(--text-3); letter-spacing: .5px; }
-.mb-num { font-size: 15px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.3; }
-.mb-num-unit { font-size: 10px; font-weight: 500; color: var(--text-3); margin-left: 2px; }
-.mb-denom { font-size: 12px; font-weight: 500; color: var(--text-3); }
-.mb-cell.st-ok .mb-num { color: var(--success); }
-.mb-cell.st-mid .mb-num { color: var(--text); }
-.mb-cell.st-warn .mb-num { color: var(--tag-warn-text); }
-.mb-cell.st-none .mb-num { color: var(--text-4); }
-.mb-sub { font-size: 10px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* R51-F17 下钻右侧抽屉 ｜ R57-F3：「详细指标」入口与 NorthStarPanel 引用移除（NorthStarPanel.vue 保留为北极星口径锚点） */
+.mb-k { font-size: 10.5px; font-weight: 600; color: var(--text-3); letter-spacing: .3px; flex-shrink: 0; }
+.mb-v { font-size: 13.5px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.mb-k2 { font-size: 10px; color: var(--text-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mb-denom { font-size: 10.5px; font-weight: 500; color: var(--text-3); font-style: normal; }
+.mb-cell.st-warn .mb-v { color: var(--tag-warn-text); }
 
 @media (max-width: 1080px) {
-  .mb-cells { grid-template-columns: repeat(2, 1fr); }
-  .mb-head { flex-wrap: wrap; }
+  .mb-row { flex-wrap: wrap; row-gap: 4px; }
 }
 </style>

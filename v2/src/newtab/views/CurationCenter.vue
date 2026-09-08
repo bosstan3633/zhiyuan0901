@@ -8,23 +8,26 @@
  * - R52-F7a：整工作台镜像 = 分类镜像打包版（App.vue 物化，源后续变更不自动同步）
  * - R51-F25：单卡投射落入「待分类」；R51-F22：单击出详情、双击打开链接；R51-F23：自定义字段池
  * - 原生内容：新建/编辑/置顶/拖拽排序/删除；源数据零影响
+ * - R65-F1 资源台对齐旧工作台：顶部工具条（卡片/列表/看板视图切换 + 搜索 + 批量管理 + 导入 + 新建）、
+ *   单击右侧抽屉详情（共享 ResourceEditForm，替代居中弹窗）、批量操作浮动栏、书签/本地文件导入
  */
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, reactive, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
 import { CURATION_WS_ID, type ResourceCard, type Category, type CurationProjection } from '@/shared/models'
 import { curationBoards, projectCardToBoard, mirrorCategoryToBoard } from '@/shared/storage/hub'
-import { uid } from '@/shared/utils'
+import { uid, safeDecodeText } from '@/shared/utils'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
-import { visibleFields } from '@/shared/utils/fields'
-import type { FieldDef } from '@/shared/models'
+import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
 
 const router = useRouter()
 const store = useAppStore()
+// R65-F7：KeepAlive 缓存实例名（App.vue router-view include）
+defineOptions({ name: 'CurationCenterView' })
 const d = useCompass().d
 const vFocus = { mounted: (el: HTMLElement) => el.focus() }
 
@@ -251,6 +254,44 @@ const viewProjCount = computed(() => viewMixed.value.filter(m => m.type === 'pro
 /** R56-A：区块计数 = 混排网格实况（未投射源卡单列，不再双计已投射源卡） */
 const viewLiveCount = computed(() => viewMixed.value.filter(m => m.type === 'live').length)
 
+// ---- R65-F1：视图切换 + 搜索（对齐旧工作台工具条） ----
+const viewMode = ref<'card' | 'list' | 'kanban'>('card')
+const resSearch = ref('')
+/** 关键词命中（标题/链接/描述；proj/live 卡解析真身后匹配） */
+function searchHit(m: MixedCard): boolean {
+  const q = resSearch.value.trim().toLowerCase()
+  if (!q) return true
+  const r = m.r || cardById(m.p?.cardId)
+  if (!r) return false
+  return (r.title + ' ' + (r.link || '') + ' ' + (r.description || '')).toLowerCase().includes(q)
+}
+/** 搜索过滤后的分区视图（计数随过滤实时重算） */
+const sectionsView = computed(() => renderSections.value
+  .map(s => {
+    const cards = s.cards.filter(searchHit)
+    return { ...s, cards, ...secCounts(cards) }
+  })
+  .filter(s => s.cards.length > 0 || s.key === activeCat.value))
+/** 看板列：未分类 + 根分类（直属混排卡） */
+const kanbanCols = computed<{ key: string; name: string; mirror?: boolean }[]>(() => [
+  { key: '', name: '未分类' },
+  ...rootCats.value.map(c => ({ key: c.id, name: c.name, mirror: isMirror(c) }))
+])
+/** 列表/看板行取卡（原生 or 投射/源卡解析真身） */
+function rowCard(m: MixedCard): ResourceCard | undefined {
+  return m.r || (m.p ? cardById(m.p.cardId) : undefined)
+}
+function rowClick(m: MixedCard) {
+  const r = rowCard(m)
+  if (!r) return
+  if (batchMode.value && m.type === 'native') { toggleSelect(r.id); return }
+  onCardClick(() => openResource(r))
+}
+function rowDblClick(m: MixedCard) {
+  const r = rowCard(m)
+  if (r) onCardDblClick(() => openCard(r))
+}
+
 // ---- 卡片打开（原生/镜像共用 WRR 口径） ----
 function openCard(r: ResourceCard) {
   if (r.linkType === 'file' && /^zy-asset:\/\//i.test((r.link || '').trim())) {
@@ -283,82 +324,63 @@ function onCardDblClick(fn: () => void) {
   fn()
 }
 
-// ---- R51-F23：字段池（三类卡字段并集，按 key 去重；排除详情弹窗内建字段） ----
-const BUILTIN_KEYS = new Set(['title', 'question', 'link', 'sourceUrl', 'description', 'categoryId', 'workspaceId', 'assets', 'pinned', 'starred'])
-const fieldPool = computed<FieldDef[]>(() => {
-  const cfg = d.value.fieldConfig
-  const map = new Map<string, FieldDef>()
-  for (const kind of ['resource', 'task', 'curiosity'] as const) {
-    for (const f of (cfg[kind] || [])) {
-      if (BUILTIN_KEYS.has(f.key) || map.has(f.key)) continue
-      map.set(f.key, f)
-    }
-  }
-  return [...map.values()].sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'))
-})
+// ---- R65-F1：资源卡详情右侧抽屉（共享 ResourceEditForm，对齐旧工作台；替代原居中编辑弹窗） ----
+const drawerOpen = ref(false)
+const editingResource = reactive<ResourceCard>({ id: '', kind: 'resource', title: '', linkType: 'url', link: '', workspaceId: CURATION_WS_ID, categoryId: '', description: '', tags: [], customFields: {}, pinned: false, callCount: 0, createdAt: 0, updatedAt: 0 })
+const isNewResource = ref(false)
 
-// ---- 新建/编辑卡片（详情弹窗 = 单击详情 + 字段增删） ----
-const cardModal = ref<{ id?: string; title: string; link: string; desc: string; catId: string; fields: { key: string; label: string; type: string; options?: string[]; value: string }[] } | null>(null)
-const fieldAdding = ref(false)
-function poolLeft(m: { fields: { key: string }[] }) {
-  return fieldPool.value.filter(f => !m.fields.some(x => x.key === f.key))
+function emptyResource(): ResourceCard {
+  return { id: '', kind: 'resource', title: '', linkType: 'url', link: '', workspaceId: CURATION_WS_ID, categoryId: '', description: '', tags: [], customFields: {}, pinned: false, callCount: 0, createdAt: 0, updatedAt: 0 }
 }
-function addPoolField(m: typeof cardModal.value & object, key: string) {
-  const def = fieldPool.value.find(f => f.key === key)
-  if (!def) return
-  m.fields.push({ key: def.key, label: def.label, type: def.type, options: def.options, value: '' })
-  fieldAdding.value = false
-}
-function addCustomField(m: typeof cardModal.value & object) {
-  const label = fieldCustomLabel.value.trim()
-  if (!label) { showToast('⚠ 请输入字段名'); return }
-  m.fields.push({ key: 'custom_' + uid('f'), label, type: 'text', value: '' })
-  fieldCustomLabel.value = ''
-  fieldAdding.value = false
-}
-const fieldCustomLabel = ref('')
+/** 新建卡片：抽屉打开，落当前视图分类（真身=资源台） */
 function openCreateCard() {
-  cardModal.value = { title: '', link: '', desc: '', catId: (activeCat.value && activeCat.value !== PENDING) ? activeCat.value : '', fields: [] }
+  Object.assign(editingResource, emptyResource())
+  editingResource.id = uid('res')
+  editingResource.createdAt = Date.now()
+  if (activeCat.value && activeCat.value !== PENDING) editingResource.categoryId = activeCat.value
+  isNewResource.value = true
+  drawerOpen.value = true
 }
-function openEditCard(r: ResourceCard) {
-  const fields: { key: string; label: string; type: string; options?: string[]; value: string }[] = []
-  for (const [k, v] of Object.entries(r.customFields || {})) {
-    if (BUILTIN_KEYS.has(k)) continue
-    const def = fieldPool.value.find(f => f.key === k)
-    fields.push({ key: k, label: def?.label || k.replace(/^custom_/, ''), type: def?.type || 'text', options: def?.options, value: v == null ? '' : String(v) })
-  }
-  cardModal.value = { id: r.id, title: r.title, link: r.link || '', desc: r.description || '', catId: r.categoryId || '', fields }
+/** 单击详情：抽屉打开 + WRR 记一次调用 */
+function openResource(r: ResourceCard) {
+  Object.assign(editingResource, JSON.parse(JSON.stringify(r)))
+  isNewResource.value = false
+  drawerOpen.value = true
+  recordResourceOpen(d.value, r)
+  store.persist()
 }
-function confirmCard() {
-  const m = cardModal.value
-  if (!m) return
-  const title = m.title.trim()
-  if (!title) { showToast('⚠ 请填写卡片标题'); return }
-  const now = Date.now()
-  if (m.id) {
-    const r = d.value.resources.find(x => x.id === m.id)
-    if (r) {
-      r.title = title; r.link = m.link.trim(); r.description = m.desc.trim(); r.categoryId = m.catId; r.updatedAt = now
-      if (r.curCatId !== undefined) r.curCatId = undefined
-      const cf: Record<string, string> = {}
-      for (const f of m.fields) cf[f.key] = f.value.trim()
-      r.customFields = cf
-    }
-    showToast('✓ 卡片已更新')
+function closeDrawer() { drawerOpen.value = false }
+function saveResource() {
+  if (!editingResource.title.trim()) { showToast('请输入标题'); return }
+  editingResource.updatedAt = Date.now()
+  if (isNewResource.value) {
+    // R58-B5 口径延续（R65 抽屉化）：新卡 curOrder = 混排全量长度，稳定落在已排序段末尾
+    editingResource.curOrder = mixedCardsOf(editingResource.categoryId).length
+    d.value.resources.unshift({ ...editingResource })
   } else {
-    const cf: Record<string, string> = {}
-    for (const f of m.fields) cf[f.key] = f.value.trim()
-    d.value.resources.push({
-      id: uid('res'), kind: 'resource', title, linkType: 'url', link: m.link.trim(),
-      description: m.desc.trim(), workspaceId: CURATION_WS_ID, categoryId: m.catId, tags: [], pinned: false,
-      // R58-B5：curOrder 取混排全量长度（原生+投射），新卡稳定落在已排序段末尾，不与投射卡序号交错
-      callCount: 0, customFields: cf, createdAt: now, updatedAt: now, curOrder: (mixedCardsOf(m.catId).length)
-    } as ResourceCard)
-    showToast('✓ 策展卡已创建')
+    const idx = d.value.resources.findIndex(r => r.id === editingResource.id)
+    if (idx >= 0) d.value.resources[idx] = { ...editingResource }
   }
   store.persist()
-  cardModal.value = null
+  drawerOpen.value = false
+  showToast(isNewResource.value ? '✓ 策展卡已创建' : '✓ 已保存')
 }
+async function deleteCurrentResource() {
+  const idx = d.value.resources.findIndex(r => r.id === editingResource.id)
+  if (idx >= 0) d.value.resources[idx].deletedAt = Date.now()
+  store.persist()
+  drawerOpen.value = false
+  const target = idx >= 0 ? d.value.resources[idx] : null
+  showToast(target ? `已删除「${target.title.slice(0, 20)}」` : '资源卡已删除', { label: '撤销', cb: () => {
+    const cur = d.value.resources.find(x => x.id === editingResource.id)
+    if (cur && cur.deletedAt) { cur.deletedAt = undefined; store.persist() }
+  } })
+}
+function copyLink() {
+  if (!editingResource.link) { showToast('无链接'); return }
+  navigator.clipboard.writeText(editingResource.link).then(() => showToast('✓ 链接已复制'))
+}
+
 async function deleteNative(r: ResourceCard) {
   if (!await useConfirm({ message: `删除策展卡「${r.title}」？可到回收站恢复`, confirmText: '删除卡片', danger: true })) return
   r.deletedAt = Date.now()
@@ -368,6 +390,213 @@ async function deleteNative(r: ResourceCard) {
 function togglePin(r: ResourceCard) {
   r.pinned = !r.pinned
   store.persist()
+}
+
+// ---- R65-F1：批量管理（对齐旧工作台：勾选浮栏 + 批量打开/移动/删除） ----
+const batchMode = ref(false)
+const selectedIds = ref<Set<string>>(new Set())
+function toggleBatchMode() {
+  batchMode.value = !batchMode.value
+  if (!batchMode.value) selectedIds.value.clear()
+}
+function toggleSelect(id: string) {
+  if (selectedIds.value.has(id)) selectedIds.value.delete(id)
+  else selectedIds.value.add(id)
+}
+function visibleNativeCards(): ResourceCard[] {
+  const q = resSearch.value.trim().toLowerCase()
+  return nativeCards.value.filter(r => {
+    if (activeCat.value !== '' && activeCat.value !== PENDING) {
+      const cat = cats.value.find(c => c.id === activeCat.value)
+      const ids = cat ? new Set([cat.id, ...deepDescendantIds(cat.id)]) : null
+      if (ids && !ids.has(r.categoryId || '')) return false
+    }
+    if (activeCat.value === PENDING) return false
+    if (!q) return true
+    return (r.title + ' ' + (r.link || '') + ' ' + (r.description || '')).toLowerCase().includes(q)
+  })
+}
+function selectAllVisible() {
+  const all = visibleNativeCards()
+  if (selectedIds.value.size >= all.length) selectedIds.value.clear()
+  else all.forEach(r => selectedIds.value.add(r.id))
+}
+function selectedCards(): ResourceCard[] {
+  return nativeCards.value.filter(r => selectedIds.value.has(r.id))
+}
+async function batchOpen() {
+  const items = selectedCards().filter(r => r.link)
+  if (!items.length) { showToast('所选资源卡均无链接'); return }
+  if (items.length > 15 && !(await useConfirm({ title: '批量打开链接', message: `即将打开 ${items.length} 个标签页，确认继续？`, confirmText: '继续打开', danger: false }))) return
+  items.forEach(r => openCard(r))
+  showToast(`✓ 已打开 ${items.length} 个链接`)
+}
+async function batchDelete() {
+  const removed = selectedCards()
+  if (!removed.length) return
+  if (!(await useConfirm({ message: `批量删除 ${removed.length} 张资源卡？可到回收站恢复`, confirmText: '批量删除', danger: true }))) return
+  removed.forEach(r => { r.deletedAt = Date.now() })
+  store.persist()
+  selectedIds.value.clear()
+  showToast(`已删除 ${removed.length} 张资源卡`, { label: '撤销', cb: () => {
+    removed.forEach(r => {
+      const cur = d.value.resources.find(x => x.id === r.id)
+      if (cur && cur.deletedAt) cur.deletedAt = undefined
+    })
+    store.persist()
+  } })
+}
+// 批量移动（目标 = 资源台分类树；层级化选项与旧工作台同构）
+const moveModalOpen = ref(false)
+const moveTarget = ref('')
+const moveCatOptions = computed(() => {
+  const out: { id: string; label: string }[] = [{ id: '', label: '未分类' }]
+  const push = (c: Category, depth: number) => {
+    out.push({ id: c.id, label: '└'.repeat(depth) + (depth ? ' ' : '') + c.name })
+    for (const ch of childCats(c.id)) push(ch, depth + 1)
+  }
+  for (const r0 of rootCats.value) push(r0, 0)
+  return out
+})
+function openBatchMove() { moveTarget.value = ''; moveModalOpen.value = true }
+function confirmBatchMove() {
+  const items = selectedCards()
+  if (!items.length) { moveModalOpen.value = false; return }
+  items.forEach(r => { r.categoryId = moveTarget.value })
+  const list = cardsIn(moveTarget.value)
+  list.forEach((x, i) => { x.curOrder = i })
+  store.persist()
+  moveModalOpen.value = false
+  showToast(`✓ 已移动 ${items.length} 张资源卡`)
+}
+
+// ---- R65-F1：导入（书签 HTML / 本地文件，对齐旧工作台；真身落资源台） ----
+const importModalOpen = ref(false)
+const bookmarkInput = ref<HTMLInputElement | null>(null)
+const fileImportInput = ref<HTMLInputElement | null>(null)
+
+interface BkFolder { path: string; name: string; count: number; checked: boolean }
+interface BkNode { title: string; url: string; path: string[] }
+
+const bookmarkModalOpen = ref(false)
+const bkFolders = ref<BkFolder[]>([])
+let bkBookmarks: BkNode[] = []
+
+function makeResource(title: string, linkType: ResourceCard['linkType'], link: string, categoryId: string, tags: string[] = []): ResourceCard {
+  return {
+    id: uid('res'), kind: 'resource', title, linkType, link,
+    workspaceId: CURATION_WS_ID, categoryId, description: '', tags,
+    customFields: {}, pinned: false, callCount: 0, createdAt: Date.now(), updatedAt: Date.now()
+  }
+}
+
+/** 解析 Netscape 书签 HTML（浏览器导出格式） */
+function parseBookmarksHtml(html: string): BkNode[] {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const out: BkNode[] = []
+  function walk(dl: Element | null, path: string[]) {
+    if (!dl) return
+    for (const dt of Array.from(dl.children).filter(el => el.tagName === 'DT')) {
+      const h3 = dt.querySelector(':scope > h3')
+      const a = dt.querySelector(':scope > a')
+      if (h3) {
+        const name = safeDecodeText(h3.textContent?.trim() || '未命名')
+        walk(dt.querySelector(':scope > dl'), [...path, name])
+      } else if (a) {
+        const url = a.getAttribute('href') || ''
+        if (url && /^(https?:|file:|obsidian:)/i.test(url)) {
+          out.push({ title: safeDecodeText(a.textContent?.trim() || url), url, path })
+        }
+      }
+    }
+  }
+  walk(doc.querySelector('dl'), [])
+  return out
+}
+
+function handleBookmarkImport(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => {
+    try {
+      bkBookmarks = parseBookmarksHtml(reader.result as string)
+      if (!bkBookmarks.length) { showToast('未在文件中解析到书签，请确认是浏览器导出的书签 HTML'); return }
+      const groups = new Map<string, BkNode[]>()
+      for (const b of bkBookmarks) {
+        const key = b.path.length ? b.path.join(' / ') : '未分组'
+        if (!groups.has(key)) groups.set(key, [])
+        groups.get(key)!.push(b)
+      }
+      bkFolders.value = Array.from(groups.entries())
+        .map(([path, items]) => ({ path, name: path.split(' / ').pop() || path, count: items.length, checked: true }))
+        .sort((a, b) => b.count - a.count)
+      bookmarkModalOpen.value = true
+      importModalOpen.value = false
+    } catch { showToast('✗ 书签文件解析失败') }
+  }
+  reader.readAsText(file)
+  input.value = ''
+}
+
+const allBkChecked = computed(() => bkFolders.value.length > 0 && bkFolders.value.every(f => f.checked))
+const bkTotalCount = computed(() => bkBookmarks.length)
+function toggleAllBk() {
+  const next = !allBkChecked.value
+  bkFolders.value.forEach(f => { f.checked = next })
+}
+
+/** 浏览器标准根文件夹不生成分类 */
+const BK_ROOT_NAMES = new Set(['书签栏', '收藏栏', '其他书签', 'Bookmarks bar', 'Bookmarks Toolbar', 'Favorites bar', 'Mobile bookmarks', '移动书签'])
+
+/** 按路径前 2 级确保资源台分类存在（同名同级复用），返回卡片归属分类 id（'' = 未分类） */
+function ensureBookmarkCategory(segs: string[]): string {
+  let parentId: string | undefined
+  let catId = ''
+  for (const seg of segs.slice(0, 2)) {
+    const name = seg.trim()
+    if (!name) break
+    let cat = d.value.categories.find(c => c.workspaceId === CURATION_WS_ID && (c.parentId || undefined) === parentId && c.name === name)
+    if (!cat) {
+      cat = { id: uid('cat'), workspaceId: CURATION_WS_ID, name, order: d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID && (c.parentId || undefined) === parentId).length }
+      if (parentId) cat.parentId = parentId
+      d.value.categories.push(cat)
+    }
+    catId = cat.id
+    parentId = cat.id
+  }
+  return catId
+}
+
+function confirmBookmarkImport() {
+  const checkedPaths = new Set(bkFolders.value.filter(f => f.checked).map(f => f.path))
+  const items = bkBookmarks.filter(b => checkedPaths.has(b.path.length ? b.path.join(' / ') : '未分组'))
+  if (!items.length) { showToast('未选择任何文件夹'); return }
+  for (const b of items) {
+    const segs = b.path.filter(p => p && !BK_ROOT_NAMES.has(p))
+    const catId = ensureBookmarkCategory(segs)
+    const tags = Array.from(new Set(segs.slice(2)))
+    let linkType: ResourceCard['linkType'] = 'url'
+    if (b.url.startsWith('file:')) linkType = 'file'
+    else if (b.url.startsWith('obsidian:')) linkType = 'obsidian'
+    d.value.resources.unshift(makeResource(b.title.substring(0, 120), linkType, b.url, catId, tags))
+  }
+  store.persist()
+  bookmarkModalOpen.value = false
+  showToast(`✓ 已导入 ${items.length} 个书签（文件夹结构已生成为分类，可自行增删改）`)
+}
+
+function fileImport() { fileImportInput.value?.click() }
+function handleFileImport(e: Event) {
+  const input = e.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+  if (!files.length) return
+  files.forEach(f => d.value.resources.unshift(makeResource(f.name.replace(/\.[^.]+$/, ''), 'file', f.name, activeCat.value && activeCat.value !== PENDING ? activeCat.value : '')))
+  store.persist()
+  input.value = ''
+  importModalOpen.value = false
+  showToast(`✓ 已导入 ${files.length} 个文件（双击打开前请补全完整路径）`)
 }
 
 // ---- 镜像卡详情（只读） ----
@@ -631,9 +860,21 @@ function onCatDrop(e: DragEvent, target: Category) {
 
 <template>
   <div class="page">
+    <!-- R65-F1：顶部工具条（对齐旧工作台：视图切换 + 搜索 + 批量 + 导入 + 新建） -->
     <div class="page-head">
       <div class="crumb"><b>资源台</b> · 资源卡唯一存储 · 镜像源头</div>
       <div class="spacer" />
+      <div class="view-tabs">
+        <div class="view-tab" :class="{active: viewMode==='card'}" @click="viewMode='card'">▦ 卡片</div>
+        <div class="view-tab" :class="{active: viewMode==='list'}" @click="viewMode='list'">☰ 列表</div>
+        <div class="view-tab" :class="{active: viewMode==='kanban'}" @click="viewMode='kanban'">▤ 看板</div>
+      </div>
+      <div class="toolbar-search">
+        <span class="s-icon">🔍</span>
+        <input type="text" v-model="resSearch" placeholder="搜索资源台内资源...">
+      </div>
+      <button class="toolbar-batch" :class="{active: batchMode}" @click="toggleBatchMode">{{ batchMode ? '✓ 完成批量' : '☑ 批量管理' }}</button>
+      <button class="mini-btn" @click="importModalOpen = true">⬇ 导入</button>
       <span class="hint-chip">卡片在此存储为真身 · 📡 单卡/📤 分类可镜像到各策展台 · 源数据零影响</span>
       <button class="mini-btn primary" @click="openCreateCard">＋ 新建卡片</button>
     </div>
@@ -702,15 +943,16 @@ function onCatDrop(e: DragEvent, target: Category) {
         <div class="cat-add" @click="startCreateCat()"><span>＋</span><span>新建分类</span></div>
       </aside>
 
-      <!-- 右 · 内容区 -->
+      <!-- 右 · 内容区（R65-F1：卡片/列表/看板三视图，对齐旧工作台） -->
       <div class="cur-main">
         <div class="cur-sec-label">
           {{ viewLabel }}
           <span>原生 {{ viewNativeCount }} · 投射 {{ viewProjCount }}<template v-if="viewLiveCount"> · 源镜像 {{ viewLiveCount }}</template></span>
         </div>
 
-        <!-- R55-A1 统一混排网格 ｜ R59-T10：父分类视图分区呈现（未细分优先 + 子分类依次），区域级 drop 指向所在分区 -->
-        <template v-for="sec in renderSections" :key="sec.key">
+        <!-- ===== 卡片视图：R55-A1 统一混排网格 ｜ R59-T10 父分类分区 ｜ R65 批量勾选 ===== -->
+        <template v-if="viewMode==='card'">
+        <template v-for="sec in sectionsView" :key="sec.key">
           <div v-if="sec.title" class="cur-sec-label sec-child" :class="{ proj: sec.isMirror }">
             {{ sec.icon }} {{ sec.title }}
             <span>原生 {{ sec.n }} · 投射 {{ sec.p }}<template v-if="sec.l"> · 源镜像 {{ sec.l }}</template></span>
@@ -718,10 +960,11 @@ function onCatDrop(e: DragEvent, target: Category) {
           <div class="cur-grid" @dragover="onAreaDragOver($event, sec.key)" @drop="onAreaDrop($event, sec.key)">
           <template v-for="m in sec.cards" :key="sec.key + m.type + m.id">
             <!-- 原生卡 -->
-            <div v-if="m.type === 'native' && m.r" class="cur-card native" :class="{ pinned: m.r.pinned }"
+            <div v-if="m.type === 'native' && m.r" class="cur-card native" :class="{ pinned: m.r.pinned, selected: batchMode && selectedIds.has(m.r.id) }"
               draggable="true" @dragstart="onCardDragStart($event, m.r)" @dragover.prevent @drop.stop="onAnyCardDrop($event, m.r, false)" @dragend="clearDragState"
-              @click="onCardClick(() => openEditCard(m.r!))" @dblclick="onCardDblClick(() => openCard(m.r!))"
+              @click="batchMode ? toggleSelect(m.r!.id) : onCardClick(() => openResource(m.r!))" @dblclick="onCardDblClick(() => openCard(m.r!))"
               :title="'单击详情 · 双击打开链接 · 拖拽移入其他分类/与镜像卡相互排列'">
+              <div v-if="batchMode" class="cc-batch-check" :class="{on: selectedIds.has(m.r.id)}">{{ selectedIds.has(m.r.id)?'✓':'' }}</div>
               <div class="cc-title">
                 <span v-if="m.r.pinned" class="cc-pin">📌</span>{{ m.r.title }}
               </div>
@@ -734,7 +977,6 @@ function onCatDrop(e: DragEvent, target: Category) {
                 <span v-if="m.r.link" class="cc-act" title="打开链接" @click.stop="openCard(m.r)">↗</span>
                 <span class="cc-act" :class="{ on: m.r.pinned }" :title="m.r.pinned ? '取消置顶' : '置顶'" @click.stop="togglePin(m.r)">📌</span>
                 <span class="cc-act" title="镜像到策展台" @click.stop="openMirrorCard(m.r)">📡</span>
-                <span class="cc-act" title="编辑" @click.stop="openEditCard(m.r)">✎</span>
                 <span class="cc-act danger" title="删除（进回收站）" @click.stop="deleteNative(m.r)">🗑</span>
               </div>
             </div>
@@ -778,64 +1020,163 @@ function onCatDrop(e: DragEvent, target: Category) {
           <div v-if="!sec.cards.length" class="cur-empty-native">当前分组还没有卡片 —— 右上角「＋ 新建卡片」，或从采集浮层（Ctrl+Shift+J）入台</div>
           </div>
         </template>
-
         <div v-if="!isParentView && !viewMixed.length" class="cur-empty">
           当前分类还是空的 —— 顶部「＋ 新建卡片」，或从采集浮层（Ctrl+Shift+J）把资源收入资源台；需要策展时用 📡/📤 镜像到策展台
+        </div>
+        </template>
+
+        <!-- ===== 列表视图（R65-F1） ===== -->
+        <div v-else-if="viewMode==='list'">
+          <template v-for="sec in sectionsView" :key="sec.key">
+            <div v-if="sec.title" class="cur-sec-label sec-child" :class="{ proj: sec.isMirror }">{{ sec.icon }} {{ sec.title }} <span>{{ sec.cards.length }} 张</span></div>
+            <div class="res-list">
+              <div v-for="m in sec.cards" :key="sec.key + m.type + m.id" class="res-row" :class="{ selected: batchMode && m.type==='native' && m.r && selectedIds.has(m.r.id) }"
+                @click="rowClick(m)" @dblclick="rowDblClick(m)">
+                <div v-if="batchMode && m.type==='native' && m.r" class="cc-batch-check inline" :class="{on: selectedIds.has(m.r.id)}" @click.stop="toggleSelect(m.r.id)">{{ selectedIds.has(m.r.id)?'✓':'' }}</div>
+                <span v-else-if="m.type!=='native'" class="cc-badge">📡</span>
+                <span class="rr-title" :class="{ mirror: m.type!=='native' }">{{ rowCard(m)?.title }}</span>
+                <span class="rr-f">{{ rowCard(m)?.link }}</span>
+                <span class="rr-actions">
+                  <span v-if="m.type==='native' && m.r" class="rr-action" :class="{on: m.r.pinned}" @click.stop="togglePin(m.r)">📌</span>
+                  <span v-if="m.type==='native' && m.r" class="rr-action delete" @click.stop="deleteNative(m.r)">🗑</span>
+                  <span v-if="m.type!=='native'" class="rr-action" @click.stop="rowCard(m) && openCard(rowCard(m)!)" title="打开链接">↗</span>
+                </span>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- ===== 看板视图（R65-F1：未分类 + 根分类两轴，卡片可拖入换列） ===== -->
+        <div v-else-if="viewMode==='kanban'" class="kanban">
+          <div v-for="col in kanbanCols" :key="col.key" class="kanban-col"
+            @dragover="onAreaDragOver($event, col.key)" @drop="onAreaDrop($event, col.key)">
+            <div class="kc-header">
+              <span class="kc-name">{{ col.mirror ? '📡' : '📂' }} {{ col.name }}</span>
+              <span class="kc-count">{{ mixedCardsOf(col.key).length }}</span>
+            </div>
+            <div class="kc-body">
+              <div v-for="m in mixedCardsOf(col.key)" :key="m.type + m.id" class="kc-card" :class="{ pinned: m.type==='native' && m.r?.pinned }"
+                :draggable="true" @dragstart="m.type==='native' && m.r ? onCardDragStart($event, m.r) : (m.p && onProjDragStart($event, m.p))"
+                @click="rowClick(m)" @dblclick="rowDblClick(m)">
+                <div class="kc-card-title"><span v-if="m.type!=='native'" class="cc-badge">📡</span>{{ rowCard(m)?.title }}</div>
+                <div class="kc-card-footer">
+                  <span v-if="(m.r || cardById(m.p?.cardId))?.link" class="kc-card-link">🔗</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 新建/编辑卡片弹窗（R51-F22 详情 + R51-F23 自定义字段增删） -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div v-if="cardModal" class="modal-mask" @click.self="cardModal = null">
-          <div class="modal-card">
-            <div class="mc-title">{{ cardModal.id ? '✎ 卡片详情' : '＋ 新建策展卡' }}</div>
-            <div class="mc-field"><label>标题 *</label><input v-model="cardModal.title" placeholder="卡片标题" v-focus @keydown.enter.prevent="confirmCard" /></div>
-            <div class="mc-field"><label>链接</label><input v-model="cardModal.link" placeholder="https://…（可留空）" /></div>
-            <div class="mc-field"><label>描述</label><textarea v-model="cardModal.desc" rows="3" placeholder="策展备注（可留空）" /></div>
-            <div class="mc-field"><label>所属分类</label>
-              <select v-model="cardModal.catId">
-                <option value="">未分类</option>
-                <option v-for="c in cats" :key="c.id" :value="c.id">{{ isMirror(c) ? '📡 ' : '' }}{{ c.name }}</option>
-              </select>
+    <!-- R65-F1：批量操作浮动栏 -->
+    <Transition name="batch">
+      <div v-if="batchMode && selectedIds.size" class="batch-bar">
+        <span class="batch-count">已选 {{ selectedIds.size }} 张</span>
+        <button class="batch-btn" @click="selectAllVisible">全选/反选</button>
+        <button class="batch-btn" @click="batchOpen">🔗 批量打开链接</button>
+        <button class="batch-btn" @click="openBatchMove">📦 移动到…</button>
+        <button class="batch-btn danger" @click="batchDelete">🗑 批量删除</button>
+        <button class="batch-btn" @click="selectedIds.clear()">取消</button>
+      </div>
+    </Transition>
+
+    <!-- R65-F1：资源卡详情抽屉（单击打开，共享 ResourceEditForm，对齐旧工作台） -->
+    <div class="overlay" :class="{open: drawerOpen}" @click="closeDrawer"></div>
+    <div class="drawer" :class="{open: drawerOpen}">
+      <div class="dr-body">
+        <ResourceEditForm
+          :model="editingResource"
+          height-key="cur-note"
+          :show-close="true"
+          @save="saveResource"
+          @close="closeDrawer"
+        />
+      </div>
+      <div class="dr-footer">
+        <button class="dr-footer-btn danger" @click="deleteCurrentResource">🗑 删除</button>
+        <button class="dr-footer-btn" @click="copyLink">🔗 复制链接</button>
+        <button class="dr-footer-btn" @click="openCard(editingResource)">↗ 打开链接</button>
+        <button class="dr-footer-btn primary" @click="saveResource">✓ 保存</button>
+      </div>
+    </div>
+
+    <!-- R65-F1：导入弹窗（书签导入 / 本地文件导入） -->
+    <div class="modal-overlay" :class="{open: importModalOpen}" @click.self="importModalOpen=false">
+      <div class="modal">
+        <div class="modal-header">
+          <span style="font-size:16px">⬇</span>
+          <span class="mh-title">导入资源到资源台</span>
+          <div class="modal-close" @click="importModalOpen=false">×</div>
+        </div>
+        <div class="modal-body">
+          <div class="modal-option" @click="bookmarkInput?.click()">
+            <span class="mo-icon">🔖</span>
+            <div>
+              <div class="mo-name">导入书签文件</div>
+              <div class="mo-desc">选择浏览器导出的书签 HTML，文件夹结构生成为分类（最多 2 级），链接+标题按原归类写入资源卡</div>
             </div>
-            <!-- R51-F23：自定义字段（字段池 = 三类卡字段并集，可增删） -->
-            <div v-if="cardModal.fields.length" class="mc-fields">
-              <div v-for="(f, fi) in cardModal.fields" :key="f.key" class="mc-field mc-custom">
-                <label>{{ f.label }}
-                  <span class="mc-field-rm" title="移除该字段" @click="cardModal.fields.splice(fi, 1)">✕</span>
-                </label>
-                <select v-if="f.type === 'select' && f.options?.length" v-model="f.value">
-                  <option value="">（未设置）</option>
-                  <option v-for="o in f.options" :key="o" :value="o">{{ o }}</option>
-                </select>
-                <input v-else-if="f.type === 'date'" type="date" v-model="f.value" />
-                <input v-else v-model="f.value" :placeholder="f.label" />
-              </div>
-            </div>
-            <div class="mc-addfield">
-              <template v-if="fieldAdding && cardModal">
-                <select class="mc-pool-select" @change="addPoolField(cardModal as any, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
-                  <option value="">从字段池选择…</option>
-                  <option v-for="f in poolLeft(cardModal)" :key="f.key" :value="f.key">{{ f.label }}</option>
-                </select>
-                <input v-model="fieldCustomLabel" class="mc-pool-input" placeholder="或自定义字段名，回车添加"
-                  @keydown.enter.prevent="addCustomField(cardModal as any)" />
-                <button class="mini-btn" @click="fieldAdding = false">取消</button>
-              </template>
-              <template v-else>
-                <span class="mc-add-btn" @click="fieldAdding = true">＋ 添加字段（字段池 / 自定义）</span>
-              </template>
-            </div>
-            <div class="mc-foot">
-              <button class="mini-btn" @click="cardModal = null">取消</button>
-              <button class="mini-btn primary" @click="confirmCard">{{ cardModal.id ? '保存' : '创建' }}</button>
+          </div>
+          <div class="modal-option" @click="fileImport">
+            <span class="mo-icon">📁</span>
+            <div>
+              <div class="mo-name">本地文件导入</div>
+              <div class="mo-desc">获取文件名写入资源卡，双击打开前补全完整路径即可本地打开</div>
             </div>
           </div>
         </div>
-      </Transition>
-    </Teleport>
+      </div>
+    </div>
+    <input ref="bookmarkInput" type="file" accept=".html,.htm" style="display:none" @change="handleBookmarkImport" />
+    <input ref="fileImportInput" type="file" multiple style="display:none" @change="handleFileImport" />
+
+    <!-- R65-F1：书签导入文件夹选择 -->
+    <div class="modal-overlay" :class="{open: bookmarkModalOpen}" @click.self="bookmarkModalOpen=false">
+      <div class="modal">
+        <div class="modal-header">
+          <span style="font-size:16px">🔖</span>
+          <span class="mh-title">选择要导入的书签文件夹</span>
+          <div class="modal-close" @click="bookmarkModalOpen=false">×</div>
+        </div>
+        <div class="modal-body bk-body">
+          <div class="bk-hint">导入后将按文件夹结构生成分类（前 2 级，同名自动合并），卡片归入原文件夹对应的分类；更深层级转为标签。后续可自行增删改分类。</div>
+          <label class="bk-all"><input type="checkbox" :checked="allBkChecked" @change="toggleAllBk" /> 全部导入（{{ bkTotalCount }} 个书签）</label>
+          <div class="bk-list">
+            <label v-for="f in bkFolders" :key="f.path" class="bk-item">
+              <input type="checkbox" v-model="f.checked" />
+              <span class="bk-name">📁 {{ f.path }}</span>
+              <span class="bk-count">{{ f.count }} 个书签</span>
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer-row">
+          <button class="dr-footer-btn" @click="bookmarkModalOpen=false">取消</button>
+          <button class="dr-footer-btn primary" @click="confirmBookmarkImport">✓ 导入所选</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- R65-F1：批量移动弹窗（目标 = 资源台分类树） -->
+    <div class="modal-overlay" :class="{open: moveModalOpen}" @click.self="moveModalOpen=false">
+      <div class="modal" style="width:420px">
+        <div class="modal-header">
+          <span style="font-size:16px">📦</span>
+          <span class="mh-title">移动 {{ selectedIds.size }} 张资源卡</span>
+          <div class="modal-close" @click="moveModalOpen=false">×</div>
+        </div>
+        <div class="modal-body">
+          <div class="mc-field"><label>目标分类</label>
+            <select v-model="moveTarget" class="bk-count" style="width:100%;padding:8px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:12.5px;color:var(--text)">
+              <option v-for="o in moveCatOptions" :key="o.id" :value="o.id">{{ o.label }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer-row">
+          <button class="dr-footer-btn" @click="moveModalOpen=false">取消</button>
+          <button class="dr-footer-btn primary" @click="confirmBatchMove">✓ 移动</button>
+        </div>
+      </div>
+    </div>
 
     <!-- 镜像卡详情（只读，R51-F22） -->
     <Teleport to="body">
@@ -970,17 +1311,100 @@ function onCatDrop(e: DragEvent, target: Category) {
 .mc-field input, .mc-field textarea, .mc-field select { width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-size: 12.5px; color: var(--text); outline: none; font-family: inherit; resize: vertical; }
 .mc-field input:focus, .mc-field textarea:focus { border-color: var(--accent); }
 .mc-ro { font-size: 12.5px; color: var(--text-2); background: var(--surface-2); border-radius: 8px; padding: 8px 11px; word-break: break-all; }
-.mc-custom label { display: flex; align-items: center; justify-content: space-between; }
-.mc-field-rm { font-size: 10.5px; color: var(--text-4); cursor: pointer; padding: 1px 5px; border-radius: 4px; }
-.mc-field-rm:hover { color: #F85149; background: var(--surface-3); }
-.mc-addfield { margin: 4px 0 0; }
-.mc-add-btn { font-size: 11.5px; color: var(--accent); cursor: pointer; }
-.mc-add-btn:hover { text-decoration: underline; }
-.mc-pool-select { flex: 1; min-width: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--text); outline: none; font-family: inherit; }
-.mc-pool-input { flex: 1; min-width: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--text); outline: none; font-family: inherit; }
-.mc-addfield template > * { display: inline-block; }
 .mc-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 
 .fade-enter-active, .fade-leave-active { transition: opacity .18s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+/* ===== R65-F1：工具条（对齐旧工作台） ===== */
+.view-tabs { display: flex; background: var(--surface-2); border-radius: 8px; padding: 3px; gap: 2px; }
+.view-tab { padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; color: var(--text-2); transition: all .15s; display: flex; align-items: center; gap: 4px; }
+.view-tab:hover { color: var(--text); }
+.view-tab.active { background: var(--surface); color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.toolbar-search { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); transition: all .15s; }
+.toolbar-search:focus-within { border-color: var(--accent); }
+.toolbar-search input { border: none; outline: none; font-size: 12px; width: 150px; background: transparent; color: var(--text); }
+.toolbar-search .s-icon { color: var(--text-3); font-size: 13px; }
+.toolbar-batch { padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; white-space: nowrap; }
+.toolbar-batch:hover { border-color: var(--accent); color: var(--accent); }
+.toolbar-batch.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+/* ===== R65-F1：批量勾选框 + 浮动栏 ===== */
+.cc-batch-check { position: absolute; top: 8px; left: 8px; width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-strong); background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 11px; color: #fff; z-index: 3; }
+.cc-batch-check.on { background: var(--accent); border-color: var(--accent); }
+.cc-batch-check.inline { position: static; flex-shrink: 0; }
+.cur-card.selected { outline: 2px solid var(--accent); outline-offset: -2px; }
+.batch-bar { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 150; display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); flex-wrap: wrap; }
+.batch-count { font-size: 12.5px; font-weight: 700; color: var(--accent); margin-right: 4px; }
+.batch-btn { padding: 6px 13px; border-radius: 8px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all .15s; font-family: inherit; }
+.batch-btn:hover { border-color: var(--accent); color: var(--accent); }
+.batch-btn.danger { color: #F85149; border-color: color-mix(in srgb, #F85149 30%, var(--border)); }
+.batch-btn.danger:hover { background: #F85149; color: #fff; border-color: #F85149; }
+.batch-enter-active, .batch-leave-active { transition: all .2s cubic-bezier(.16,1,.3,1); }
+.batch-enter-from, .batch-leave-to { opacity: 0; transform: translateX(-50%) translateY(12px); }
+
+/* ===== R65-F1：抽屉 ===== */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 200; opacity: 0; pointer-events: none; transition: opacity .25s; }
+.overlay.open { opacity: 1; pointer-events: auto; }
+.drawer { position: fixed; top: 0; right: 0; width: 440px; height: 100%; background: var(--surface); z-index: 201; transform: translateX(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); box-shadow: 0 10px 36px rgba(0,0,0,.08); display: flex; flex-direction: column; }
+.drawer.open { transform: translateX(0); }
+.dr-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
+.dr-footer { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+.dr-footer-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px; border-radius: 8px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all .15s; font-family: inherit; }
+.dr-footer-btn:hover { border-color: var(--accent); color: var(--accent); }
+.dr-footer-btn.danger:hover { border-color: #F85149; color: #F85149; }
+.dr-footer-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ===== R65-F1：导入/移动弹窗（modal-overlay 体系） ===== */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 300; display: none; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border-radius: 12px; box-shadow: 0 10px 36px rgba(0,0,0,.12); width: 480px; max-width: 90vw; overflow: hidden; }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.modal-header .mh-title { font-size: 14px; font-weight: 600; color: var(--text); flex: 1; }
+.modal-close { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 16px; }
+.modal-close:hover { background: var(--surface-3); color: var(--text); }
+.modal-body { padding: 18px 20px; max-height: 50vh; overflow-y: auto; }
+.modal-footer-row { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+.modal-option { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px; cursor: pointer; transition: all .15s; }
+.modal-option:hover { border-color: var(--accent); background: var(--accent-light); }
+.modal-option .mo-icon { font-size: 20px; }
+.modal-option .mo-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.modal-option .mo-desc { font-size: 10.5px; color: var(--text-3); margin-top: 2px; line-height: 1.5; }
+.bk-hint { font-size: 11.5px; color: var(--text-3); line-height: 1.7; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; margin-bottom: 8px; }
+.bk-all { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--text); padding: 6px 0 10px; cursor: pointer; }
+.bk-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.bk-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; transition: background .1s; }
+.bk-item:hover { background: var(--surface-2); }
+.bk-name { flex: 1; font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk-count { font-size: 10.5px; color: var(--text-3); background: var(--surface-3); padding: 1px 8px; border-radius: 99px; }
+
+/* ===== R65-F1：列表视图 ===== */
+.res-list { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+.res-row { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: all .1s; }
+.res-row:last-child { border-bottom: none; }
+.res-row:hover { background: var(--surface-2); }
+.res-row.selected { background: var(--accent-light); }
+.rr-title { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rr-title.mirror { color: var(--text-2); }
+.rr-f { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rr-actions { display: flex; gap: 2px; flex-shrink: 0; opacity: 0; transition: opacity .15s; }
+.res-row:hover .rr-actions { opacity: 1; }
+.rr-action { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: 12px; color: var(--text-3); cursor: pointer; transition: all .1s; }
+.rr-action:hover { background: var(--surface-3); color: var(--text); }
+.rr-action.delete:hover { color: #F85149; }
+.rr-action.on { color: #d99a1e; }
+
+/* ===== R65-F1：看板视图 ===== */
+.kanban { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 10px; min-height: 400px; }
+.kanban-col { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; width: 260px; flex-shrink: 0; display: flex; flex-direction: column; max-height: calc(100vh - 220px); }
+.kc-header { position: sticky; top: 0; z-index: 1; background: var(--surface-2); padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.kc-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.kc-count { font-size: 10px; background: var(--surface); color: var(--text-3); padding: 1px 7px; border-radius: 99px; }
+.kc-body { padding: 8px; overflow-y: auto; flex: 1; min-height: 60px; }
+.kc-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 7px; cursor: pointer; transition: all .15s; }
+.kc-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 8%, transparent); }
+.kc-card.pinned { border-left: 3px solid var(--accent); }
+.kc-card-title { font-size: 12px; font-weight: 500; color: var(--text); line-height: 1.4; margin-bottom: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.kc-card-footer { display: flex; align-items: center; gap: 5px; }
+.kc-card-link { font-size: 10px; margin-left: auto; }
 </style>
