@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import type { AppData, Workspace, UIPrefs } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 import { getData, saveData, loadUIPrefs, saveUIPrefs, subscribe, syncCache, mergeExternalData, isSelfWrite } from '@/shared/storage/repository'
-import { migrateCurationTree } from '@/shared/storage/curationMigration'
+import { migrateCurationTree, migrateHubStructure } from '@/shared/storage/curationMigration'
 
 export const useAppStore = defineStore('app', () => {
   // ---- 数据 ----
@@ -11,12 +11,25 @@ export const useAppStore = defineStore('app', () => {
   const ui = ref<UIPrefs | null>(null)
 
   // ---- 计算属性 ----
-  // R52-BUG-3：工作台枚举全局排除策展空间（zy-curation 是归属标记不是 Workspace 实体，
-  // 防御导入/历史脏数据出现同 id 实体时泄漏进顶栏 Tab、设置-工作台全景、导出、快捷键等所有枚举点）
+  // R52-BUG-3（R61 修订语义）：此处枚举 = 「策展台列表」——排除资源台（kind='resource'）与已归档台。
+  // R61 后资源台是真实 Workspace 实体，顶栏以固定「资源台」Tab 呈现（/curation 路由），
+  // 采集/移动/检索等全量枚举点（遍历 data.workspaces）自然包含资源台。
   const workspaces = computed<Workspace[]>(() =>
     data.value?.workspaces.filter((w) => !w.archived && w.id !== CURATION_WS_ID).sort((a, b) => a.order - b.order) || []
   )
   const theme = computed(() => ui.value?.theme || 'green')
+
+  /** R61：资源台结构迁移前的自动备份下载（一次性，防误迁移） */
+  function backupBeforeHubMigration(d: AppData) {
+    const blob = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `zhiyuan_auto_backup_before_hub_${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000)
+  }
 
   // ---- 初始化 ----
   async function init() {
@@ -24,7 +37,15 @@ export const useAppStore = defineStore('app', () => {
     ui.value = await loadUIPrefs()
 
     // R53-A1：策展树统一迁移——遗留分类/工作台投射记录物化为带 curFrom 的真实策展分类（幂等）
-    if (data.value && migrateCurationTree(data.value)) saveData()
+    // R61：资源台结构迁移（幂等，hubMigratedAt 标记）——首次执行前自动备份下载（沿用 R47-A2 安全网约定）
+    if (data.value) {
+      if (!data.value.hubMigratedAt) {
+        try { backupBeforeHubMigration(data.value) } catch { /* 备份失败不阻断迁移 */ }
+      }
+      const t1 = migrateCurationTree(data.value)
+      const t2 = migrateHubStructure(data.value)
+      if (t1 || t2) saveData()
+    }
 
     // R60：投射至灯塔功能取消——清除存量 vision/mission/project 上的 pinnedToLighthouse 残留字段（幂等，静默）
     if (data.value) {

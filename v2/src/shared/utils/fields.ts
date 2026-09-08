@@ -4,15 +4,18 @@
  */
 import type { FieldConfig, FieldDef, ResourceCard, TaskCard, CuriosityCard, AnyCard } from '@/shared/models'
 
+/** 字段组类型（R62-3：thesis = 策展主题卡组） */
+export type FieldGroupKind = 'resource' | 'task' | 'curiosity' | 'thesis'
+
 /** 取某类卡片已启用（可见）的字段，按 order 排序 */
-export function visibleFields(cfg: FieldConfig, type: 'resource' | 'task' | 'curiosity'): FieldDef[] {
+export function visibleFields(cfg: FieldConfig, type: FieldGroupKind): FieldDef[] {
   return (cfg[type] || [])
     .filter(f => f.visible)
     .sort((a, b) => a.order - b.order)
 }
 
 /** 取某类卡片的全部字段（含隐藏），按 order 排序 */
-export function allFields(cfg: FieldConfig, type: 'resource' | 'task' | 'curiosity'): FieldDef[] {
+export function allFields(cfg: FieldConfig, type: FieldGroupKind): FieldDef[] {
   return [...(cfg[type] || [])].sort((a, b) => a.order - b.order)
 }
 

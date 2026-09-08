@@ -13,6 +13,7 @@ import Icon from '@/shared/components/Icon.vue'
 import logoUrl from '@/assets/logo.png'
 import { getBytesInUse, subscribeSaveError, clearLastSaveError } from '@/shared/storage/repository'
 import { emitOpenDrawer } from '@/shared/utils/bus'
+import { runSync } from '@/shared/storage/airtable'
 import ResourceDetailDrawer from './components/ResourceDetailDrawer.vue'
 
 const router = useRouter()
@@ -71,16 +72,16 @@ const activeTab = computed(() => {
   return activeWorkspaceId.value || 'home'
 })
 
-/** 方向台 Tab 点击（R49：调度台/方向台/策展中心三系统页 + 用户工作台） */
+/** 方向台 Tab 点击（R49：调度台/方向台/资源台三系统页 + 用户策展台） */
 function openCompass() {
   navigate('/compass')
 }
-/** 策展中心（R50-F3：灵活策展空间，镜像其他工作台内容） */
+/** 资源台（R61：原策展中心转正——资源卡唯一存储与镜像源头） */
 function openResource() {
   navigate('/curation')
 }
 
-// 工作台 CRUD
+// 策展台 CRUD
 const addingWs = ref(false)
 const newWsName = ref('')
 const wsIcons = ['💼', '🛠', '📚', '🎨', '🔬', '🌱', '✍️', '🎯']
@@ -116,7 +117,7 @@ function confirmAddWs() {
   })
   store.persist()
   navigate(`/workspace/${ws.id}`)
-  showToast(`工作台「${name}」已创建`)
+  showToast(`策展台「${name}」已创建`)
 }
 
 // 右键菜单
@@ -131,28 +132,6 @@ function onTabContextMenu(e: MouseEvent, ws: Workspace) {
   menuPos.value = { x: e.clientX, y: e.clientY }
 }
 function closeMenu() { menuWs.value = null }
-
-/** R53-A3（修订 R50-F3/R52-F7a）：整个工作台镜像 = 分类镜像打包版——
- *  逐顶层分类物化为带 curFrom 的真实策展分类（同树混排）；此后源工作台新增/删除分类不自动跟随 */
-function projectWorkspaceToCuration() {
-  const ws = menuWs.value
-  if (!ws) return
-  closeMenu()
-  const d = compassData.value
-  const roots = d.categories.filter(c => c.workspaceId === ws.id && !c.parentId)
-  if (!roots.length) { showToast('ℹ 该工作台没有分类，可对单卡右键「📡 镜像到策展中心」'); return }
-  let maxOrder = -1
-  for (const c of d.categories) if (c.workspaceId === CURATION_WS_ID && (c.order ?? 0) > maxOrder) maxOrder = c.order ?? 0
-  let added = 0
-  for (const c of roots) {
-    if (d.categories.some(x => x.workspaceId === CURATION_WS_ID && x.curFrom?.wsId === ws.id && x.curFrom?.catId === c.id)) continue
-    maxOrder++
-    d.categories.push({ id: uid('cat'), workspaceId: CURATION_WS_ID, name: c.name, order: maxOrder, curFrom: { wsId: ws.id, catId: c.id, projId: 'ws:' + ws.id + ':' + c.id } })
-    added++
-  }
-  store.persist()
-  showToast(added ? `📤 已按 ${added} 个分类打包镜像到策展中心（源后续变更不自动同步）` : 'ℹ 该工作台的分类均已镜像过')
-}
 
 function startRename() {
   if (!menuWs.value) return
@@ -193,6 +172,10 @@ function deleteWorkspace() {
       r.categoryId = cat!.id
     })
   }
+  // R61：删除策展台 = 级联移除其收到的全部镜像记录（引用随台走，资源台源卡零影响）
+  if (store.data!.curationProjections?.length) {
+    store.data!.curationProjections = store.data!.curationProjections.filter(p => !(p.kind === 'card' && p.targetWsId === ws.id))
+  }
   // R53-A3：级联清理该工作台的策展镜像分类（停入卡回落未分类、投射卡回待分类、子分类提根）
   const mirrorIds = new Set(store.data!.categories.filter(c => c.workspaceId === CURATION_WS_ID && c.curFrom?.wsId === ws.id).map(c => c.id))
   if (mirrorIds.size) {
@@ -204,7 +187,7 @@ function deleteWorkspace() {
   store.persist()
   closeMenu()
   if (activeWorkspaceId.value === ws.id) navigate('/')
-  showToast('工作台已删除')
+  showToast('策展台已删除')
 }
 
 // ===== 全局快捷键 =====
@@ -331,8 +314,36 @@ onMounted(async () => {
     else if (msg?.type === 'zy-toast' && msg.text) {
       showToast(String(msg.text))
     }
+    // R63-8/63-10：background 触发 Airtable 同步（命令/轮询）——只在 newtab 上下文写数据
+    else if (msg?.type === 'zy-airtable-sync') {
+      runAirtableSync(msg.silent !== false)
+    }
   })
+  // R63-8：background 开的新页带自动同步标记 → 挂载后执行一次
+  if (new URLSearchParams(location.search).has('zy-autosync')) {
+    setTimeout(() => runAirtableSync(new URLSearchParams(location.search).get('zy-autosync') === '1'), 1500)
+  }
 })
+
+// ---- R63：Airtable 同步执行器（单例防重入；配置缺失静默跳过，手动触发给 toast） ----
+let atSyncBusy = false
+async function runAirtableSync(withToast: boolean): Promise<void> {
+  if (atSyncBusy) return
+  const s = store.data?.airtableSync
+  if (!s?.pat || !s.baseId || !s.tableId) {
+    if (withToast) showToast('请先在 设置 → Airtable 同步 完成连接配置')
+    return
+  }
+  atSyncBusy = true
+  try {
+    const r = await runSync(store.data!)
+    store.persist()
+    if (withToast) showToast(`✓ Airtable 同步完成：推送 ${r.pushed} 条 · 调用 ${r.calls} 次`)
+  } catch (e) {
+    store.persist()
+    if (withToast) showToast('✗ Airtable 同步失败：' + (e instanceof Error ? e.message : String(e)))
+  } finally { atSyncBusy = false }
+}
 onUnmounted(() => { window.removeEventListener('keydown', onGlobalKeydown, true) })
 
 // R45-5（V2.20.0）：资源引擎 Tab 角标彻底移除——不做任务管理平台，去掉任务数催办感（理念对齐：项目驱动）
@@ -366,8 +377,8 @@ const backupReminderDot = computed(() => {
         <div class="tab" :class="{active: activeTab === 'compass'}" @click="openCompass">
           <Icon name="compass" :size="15" />方向台
         </div>
-        <div class="tab tab-reserved" :class="{active: activeTab === 'curation'}" title="策展中心 · 灵活策展空间（镜像其他工作台内容）" @click="openResource">
-          <Icon name="layout" :size="15" />策展中心
+        <div class="tab tab-reserved" :class="{active: activeTab === 'curation'}" title="资源台 · 资源卡唯一存储与镜像源头" @click="openResource">
+          <Icon name="layout" :size="15" />资源台
         </div>
 
         <div class="tab-divider" />
@@ -469,8 +480,7 @@ const backupReminderDot = computed(() => {
     <Teleport to="body">
       <div v-if="menuWs" class="ctx-menu" :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }" @click.stop>
         <div class="ctx-item" @click="startRename">✏️ 重命名</div>
-        <div class="ctx-item" @click="projectWorkspaceToCuration">📤 整个工作台镜像到策展中心（按分类打包）</div>
-        <div class="ctx-item danger" @click="deleteWorkspace">🗑 删除工作台</div>
+        <div class="ctx-item danger" @click="deleteWorkspace">🗑 删除策展台</div>
       </div>
     </Teleport>
 

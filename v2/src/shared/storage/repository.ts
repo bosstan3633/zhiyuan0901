@@ -4,7 +4,7 @@
  */
 import type { AppData, UIPrefs } from '@/shared/models'
 import { STORAGE_KEY, UI_KEY } from '@/shared/models'
-import { createDefaultData } from './defaults'
+import { createDefaultData, defaultThesisFieldDefs } from './defaults'
 import { safeDecodeText } from '@/shared/utils'
 // 第卌四轮 T-05：卡片操作事件日志——保存链路快照 diff 自动产出 create/delete/restore/purge
 import { rebuildEventSnapshot, flushCardEvents } from '@/shared/utils/eventLog'
@@ -85,14 +85,28 @@ export async function loadData(): Promise<AppData> {
       data.fieldConfig[key].push({ key: 'tags', label: '标签', type: 'tags', visible: false, order: data.fieldConfig[key].length })
     }
   }
+  // R62-3：策展主题卡字段组——老数据无 thesis 组则补默认（幂等）
+  if (data.fieldConfig && !data.fieldConfig.thesis) data.fieldConfig.thesis = defaultThesisFieldDefs()
   // 第卌轮 REQ-049：老数据字段配置补 assets（附件展示；字段目录 base 字段，目录化兜底迁移）
-  for (const key of ['resource', 'task', 'curiosity'] as const) {
+  for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const) {
     if (data.fieldConfig?.[key] && !data.fieldConfig[key].some(f => f.key === 'assets')) {
       data.fieldConfig[key].push({ key: 'assets', label: '附件', type: 'text', visible: true, order: data.fieldConfig[key].length })
     }
   }
   // R58-B5：activityLogs 已无写入方（事件日志迁 zy_event_log 独立键）——启动期清空瘦身
   if (Array.isArray(data.activityLogs) && data.activityLogs.length) data.activityLogs = []
+  // R63：Airtable 同步状态归一化（老数据无则补默认；log 截断防膨胀；map 保证为对象）
+  if (!data.airtableSync) {
+    data.airtableSync = { pat: '', baseId: '', tableId: '', pollEnabled: false }
+  } else {
+    const s = data.airtableSync
+    if (typeof s.pat !== 'string') s.pat = ''
+    if (typeof s.baseId !== 'string') s.baseId = ''
+    if (typeof s.tableId !== 'string') s.tableId = ''
+    if (!s.pollEnabled) s.pollEnabled = false
+    if (Array.isArray(s.log) && s.log.length > 40) s.log = s.log.slice(-40)
+  }
+  if (!data.airtableMap || typeof data.airtableMap !== 'object') data.airtableMap = {}
   cache = data
   markStorageMirror(data)
   // 第卌四轮 T-05：初始化快照（静默，不产生历史事件）

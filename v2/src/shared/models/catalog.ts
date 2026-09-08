@@ -9,10 +9,10 @@
  */
 import type { FieldDef } from './index'
 
-/** 卡型 */
-export type CardKind = 'resource' | 'task' | 'curiosity'
+/** 卡型（R62-3：thesis = 策展主题卡字段组，对应 isThesis 资源卡，非独立卡片 kind） */
+export type CardKind = 'resource' | 'task' | 'curiosity' | 'thesis'
 
-export const CARD_KINDS: CardKind[] = ['resource', 'task', 'curiosity']
+export const CARD_KINDS: CardKind[] = ['resource', 'task', 'curiosity', 'thesis']
 
 /** 目录字段分类（FieldEditor 徽章 + 可删性规则） */
 export type FieldCat = 'required' | 'system' | 'auto' | 'optional'
@@ -57,7 +57,10 @@ export const FIELD_CATALOG: CatalogField[] = [
   // ===== type · 好奇心卡 =====
   { key: 'question', label: '问题', type: 'text', scope: 'type', kinds: ['curiosity'], cat: 'required', locked: true, icon: '❓' },
   { key: 'sourceUrl', label: '来源链接', type: 'text', scope: 'type', kinds: ['curiosity'], cat: 'optional', icon: '🔗' },
-  { key: 'status', label: '状态', type: 'select', options: ['待探索', '探索中', '已求证', '已搁置'], scope: 'type', kinds: ['curiosity'], cat: 'system', icon: '🔄' }
+  { key: 'status', label: '状态', type: 'select', options: ['待探索', '探索中', '已求证', '已搁置'], scope: 'type', kinds: ['curiosity'], cat: 'system', icon: '🔄' },
+  // ===== type · 策展主题卡（R62-3：字段组界面层，实体仍是 isThesis 资源卡） =====
+  { key: 'title', label: '论点', type: 'text', scope: 'type', kinds: ['thesis'], cat: 'required', locked: true, icon: '🏛' },
+  { key: 'link', label: '链接', type: 'text', scope: 'type', kinds: ['thesis'], cat: 'optional', icon: '🔗' }
 ]
 
 /** 取某卡型的目录条目（含 base + type） */

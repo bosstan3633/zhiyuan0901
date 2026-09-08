@@ -82,3 +82,33 @@ export function migrateCurationTree(d: AppData): boolean {
   d.curationProjections = projections.filter(p => p.kind === 'card')
   return true
 }
+
+/**
+ * R61：资源台结构迁移（幂等，AppData.hubMigratedAt 标记；调用方在首次执行前负责自动备份下载）
+ *  1. 资源台转正：id=CURATION_WS_ID 的真实 Workspace 实体（缺则建，名为「资源台」，置顶 order=-1）
+ *  2. 台类型补齐：其余工作台 kind='curation'
+ *  3. 策展中心内镜像分类 curFrom 剥离——物化分类转为资源台原生分类（镜像方向反转后溯源失效）
+ *  4. 旧方向投射记录（工作台→策展中心）清空：源卡本就留在原工作台（R61 后=策展台），无数据丢失
+ */
+export function migrateHubStructure(d: AppData): boolean {
+  if (d.hubMigratedAt) return false
+  // ① 资源台实体转正
+  const hub = d.workspaces.find(w => w.id === CURATION_WS_ID)
+  if (hub) {
+    hub.kind = 'resource'
+    if (!hub.name || /策展/.test(hub.name)) hub.name = '资源台'
+  } else {
+    d.workspaces.push({
+      id: CURATION_WS_ID, name: '资源台', icon: '🗂', color: '#3A6B4C',
+      coverTheme: 'deep-sea', order: -1, archived: false, kind: 'resource'
+    })
+  }
+  // ② 其余台补类型
+  for (const w of d.workspaces) if (w.id !== CURATION_WS_ID && !w.kind) w.kind = 'curation'
+  // ③ 镜像分类 → 原生资源分类
+  for (const c of d.categories) if (c.workspaceId === CURATION_WS_ID && c.curFrom) c.curFrom = undefined
+  // ④ 旧方向投射清空
+  d.curationProjections = []
+  d.hubMigratedAt = Date.now()
+  return true
+}

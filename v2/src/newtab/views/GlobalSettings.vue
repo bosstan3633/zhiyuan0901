@@ -172,7 +172,7 @@
                 draggable="false" @click="selectPanWs(wsNode.ws.id)"
                 @dragover.prevent="dropTarget = 'ws:' + wsNode.ws.id" @dragleave="dropTarget === 'ws:' + wsNode.ws.id && (dropTarget = '')" @drop.prevent="onPanDrop('ws:' + wsNode.ws.id, wsNode.ws.id, '')">
                 <span class="gs-pan-toggle leaf" @click.stop="togglePanCollapse('ws:' + wsNode.ws.id)">{{ panCollapsed.has('ws:' + wsNode.ws.id) ? '▸' : '▾' }}</span>
-                <span class="gs-pan-name">{{ wsNode.ws.icon || '📁' }} {{ wsNode.ws.name.replace(/^[^\s]+\s/, '') }}</span>
+                <span class="gs-pan-name">{{ wsNode.ws.icon || '📁' }} {{ wsNode.ws.name.replace(/^[^\s]+\s/, '') }}<span class="gs-pan-kind">{{ isHubWs(store.workspaces.find(w => w.id === wsNode.ws.id)) ? '资源台' : '策展台' }}</span></span>
                 <span class="gs-pan-count">{{ wsNode.count }}</span>
               </div>
               <template v-if="!panCollapsed.has('ws:' + wsNode.ws.id)">
@@ -211,7 +211,7 @@
                 @click="onPanCardClick(r)" @dblclick="onPanCardDblClick(r)">
                 <input type="checkbox" class="gs-pan-check" :checked="panSelected.has(r.id)" @click.stop @change="togglePanCard(r.id)" />
                 <div class="gs-pan-card-main">
-                  <div class="gs-pan-card-title">{{ r.title }}</div>
+                  <div class="gs-pan-card-title"><span v-if="isMirrorView(r)" title="资源台镜像（真身在资源台）">📡 </span>{{ r.title }}</div>
                   <div class="gs-pan-card-sub">{{ panCardSub(r) }}</div>
                 </div>
                 <span class="gs-pan-card-date">{{ fmtDay(r.createdAt) }}</span>
@@ -241,6 +241,11 @@
             <div class="gs-pd-title">{{ panDetail.title }}</div>
             <div class="gs-pd-row"><span class="gs-pd-k">链接</span><span class="gs-pd-v">{{ panDetail.link || '—' }}</span></div>
             <div class="gs-pd-row"><span class="gs-pd-k">归属</span><span class="gs-pd-v">{{ gWsName(panDetail.workspaceId) }} / {{ gCatName(panDetail.categoryId) || '待分类' }}</span></div>
+            <!-- R63-1：镜像卡展示真身归属 + 跳转 -->
+            <template v-if="panMirrorSrc">
+              <div class="gs-pd-row"><span class="gs-pd-k">📡 镜像</span><span class="gs-pd-v">真身在 {{ gWsName(panMirrorSrc.workspaceId) }} / {{ gCatName(panMirrorSrc.categoryId) || '待分类' }}</span></div>
+              <div class="gs-pd-actions"><button class="gs-btn" @click="jumpMirrorSource">↩ 前往资源台真身</button></div>
+            </template>
             <div class="gs-pd-row" v-if="panDetail.description"><span class="gs-pd-k">描述</span><span class="gs-pd-v">{{ panDetail.description }}</span></div>
             <div class="gs-pd-row" v-if="panDetail.tags && panDetail.tags.length"><span class="gs-pd-k">标签</span><span class="gs-pd-v">#{{ panDetail.tags.join(' #') }}</span></div>
             <div class="gs-pd-actions">
@@ -296,6 +301,20 @@
           <div class="gs-card-header"><span class="gs-card-title">字段列表</span><span class="gs-card-desc">顺序即视图展示顺序</span></div>
           <div class="gs-card-body">
             <FieldEditor :fields="fields.curiosity" card-type="curiosity" :cross-fields="fields" @change="onFieldChange" @notify="showToast" />
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 策展主题卡字段（R62-3：isThesis 资源卡专用组，服务策展台金字塔根节点呈现） ===== -->
+      <div v-if="activePage === 'thesis'" class="gs-panel">
+        <div class="gs-page-header">
+          <div class="gs-page-title">🏛 策展主题卡字段设计</div>
+          <div class="gs-page-desc">主题卡 = 策展台的中心论点（每台一张）；此组仅作用于标记为中心论点的卡片</div>
+        </div>
+        <div class="gs-card">
+          <div class="gs-card-header"><span class="gs-card-title">字段列表</span><span class="gs-card-desc">顺序即视图展示顺序</span></div>
+          <div class="gs-card-body">
+            <FieldEditor :fields="fields.thesis || []" card-type="thesis" :cross-fields="fields" @change="onFieldChange" @notify="showToast" />
           </div>
         </div>
       </div>
@@ -496,17 +515,17 @@
       <div v-if="activePage === 'shortcuts'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">⌨ 快捷键设置</div>
-          <div class="gs-page-desc">💡 系统级快捷键（含方向台/策展中心/完整方向树/任务调度）请在浏览器地址栏打开 chrome://extensions/shortcuts 自定义（高效使用知源的第一步）；应用内快捷键开箱即用</div>
+          <div class="gs-page-desc">💡 系统级快捷键（含方向台/资源台/完整方向树/任务调度）请在浏览器地址栏打开 chrome://extensions/shortcuts 自定义（高效使用知源的第一步）；应用内快捷键开箱即用</div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">全局快捷键（任意网页可用）</span><span class="gs-card-desc">由 Chrome 统一管理 · 方向台/策展中心/完整方向树无默认键，需手动分配</span></div>
+          <div class="gs-card-header"><span class="gs-card-title">全局快捷键（任意网页可用）</span><span class="gs-card-desc">由 Chrome 统一管理 · 方向台/资源台/完整方向树无默认键，需手动分配</span></div>
           <div class="gs-card-body">
             <div class="gs-setting-row" v-for="c in chromeCommands" :key="c.name">
               <span class="gs-sr-label">{{ c.description }}</span>
               <div class="gs-sr-control"><span class="gs-keycap">{{ c.shortcut || '未设置' }}</span></div>
             </div>
             <div class="gs-setting-row">
-              <span class="gs-sr-label">修改全局快捷键（含方向台 / 策展中心 / 完整方向树）</span>
+              <span class="gs-sr-label">修改全局快捷键（含方向台 / 资源台 / 完整方向树）</span>
               <div class="gs-sr-control"><a :href="shortcutsUrl" target="_blank" class="gs-shortcut-link">前往 chrome://extensions/shortcuts ›</a></div>
             </div>
           </div>
@@ -538,7 +557,7 @@
       <div v-if="activePage === 'shortcuts'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">🎛 工作台快捷键</div>
-          <div class="gs-page-desc">在工作台标签页内按「修饰键 + 数字」直达；用户自建工作台从 1 起按创建顺序计数；调度台刷新自动回首页、方向台/策展中心/完整方向树在浏览器快捷键（chrome://extensions/shortcuts）里自定义</div>
+          <div class="gs-page-desc">在策展台标签页内按「修饰键 + 数字」直达；用户自建工作台从 1 起按创建顺序计数；调度台刷新自动回首页、方向台/资源台/完整方向树在浏览器快捷键（chrome://extensions/shortcuts）里自定义</div>
         </div>
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">映射表（按顶部导航顺序）</span><span class="gs-card-desc">第 N 个工作台 = 修饰键 + N（最多到数字 9）</span></div>
@@ -550,6 +569,85 @@
             <div class="gs-setting-row">
               <span class="gs-sr-label">修饰键</span>
               <div class="gs-sr-control"><span class="gs-keycap">{{ modLabel() }} + 数字</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Airtable 同步（R63-4：单向推送，手动为主） ===== -->
+      <div v-if="activePage === 'airtable'" class="gs-panel">
+        <div class="gs-page-header">
+          <div class="gs-page-title">⇄ Airtable 同步</div>
+          <div class="gs-page-desc">单向：知源 → Airtable，绝不回写本地 · 缺失字段自动创建（已存在列不改名不改类型，计算列不碰）· 软删卡置「已删除」勾选不物理删 · 手动触发为主</div>
+        </div>
+        <div class="gs-card">
+          <div class="gs-card-header"><span class="gs-card-title">连接配置</span><span class="gs-card-desc">PAT 明文仅存本机 chrome.storage.local，随设备不跨端</span></div>
+          <div class="gs-card-body">
+            <div class="gs-setting-row">
+              <span class="gs-sr-label">Personal Access Token</span>
+              <div class="gs-sr-control"><input class="gs-input" type="password" v-model="atPat" placeholder="pat…（需 data.records 读写 + schema.bases 写权限）" style="width:320px" /></div>
+            </div>
+            <div class="gs-setting-row">
+              <span class="gs-sr-label">Base ID</span>
+              <div class="gs-sr-control"><input class="gs-input" v-model="atBaseId" placeholder="app 开头" style="width:260px" /></div>
+            </div>
+            <div class="gs-setting-row">
+              <span class="gs-sr-label">Table ID</span>
+              <div class="gs-sr-control"><input class="gs-input" v-model="atTableId" placeholder="tbl 开头（表 URL 中获取）" style="width:260px" /></div>
+            </div>
+            <div class="gs-setting-row">
+              <span class="gs-sr-label">连接测试</span>
+              <div class="gs-sr-control" style="display:flex;gap:10px;align-items:center">
+                <button class="gs-btn" :disabled="atBusy || !atPat || !atBaseId || !atTableId" @click="testAtConnection">{{ atBusy ? '测试中…' : '测试连接' }}</button>
+                <span v-if="atTableName" style="font-size:12px;color:var(--ok,var(--info-green,#3A6B4C))">✓ 已连上「{{ atTableName }}」</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="gs-card">
+          <div class="gs-card-header"><span class="gs-card-title">同步范围与触发</span></div>
+          <div class="gs-card-body">
+            <div class="gs-setting-row">
+              <span class="gs-sr-label">同步范围</span>
+              <div class="gs-sr-control" style="font-size:12px;color:var(--text-2);max-width:380px;line-height:1.7;text-align:left">调度台好奇心卡 · 方向台任务卡 · 资源台资源卡 · 各策展台台内卡与镜像卡（镜像按真身单条记录，工作台列标注镜像去向）· 主题卡以「是否中心论点」列体现</div>
+            </div>
+            <div class="gs-setting-row">
+              <span class="gs-sr-label">增量游标</span>
+              <div class="gs-sr-control" style="font-size:12px;color:var(--text-2)">只推上次同步后有更新的卡（updatedAt 游标）</div>
+            </div>
+            <div class="gs-setting-row">
+              <span class="gs-sr-label">3 小时自动轮询</span>
+              <div class="gs-sr-control">
+                <label class="gs-switch">
+                  <input type="checkbox" :checked="atPoll" @change="toggleAtPoll" />
+                  <span class="gs-switch-slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="gs-setting-row">
+              <span class="gs-sr-label">立即同步</span>
+              <div class="gs-sr-control" style="display:flex;gap:10px;align-items:center">
+                <button class="gs-btn gs-btn-primary" :disabled="atBusy || !atPat || !atBaseId || !atTableId" @click="runAtSync">{{ atBusy ? '同步中…' : '立即同步' }}</button>
+                <span v-if="quotaText" style="font-size:12px;color:var(--text-3)">{{ quotaText }}</span>
+              </div>
+            </div>
+            <div class="gs-setting-row" v-if="atStatusText">
+              <span class="gs-sr-label">上次同步</span>
+              <div class="gs-sr-control" style="font-size:12px;color:var(--text-2)">{{ atStatusText }}</div>
+            </div>
+            <div class="gs-setting-row" v-if="atErrorText">
+              <span class="gs-sr-label">上次错误</span>
+              <div class="gs-sr-control" style="font-size:12px;color:var(--danger,#c0392b)">{{ atErrorText }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="gs-card">
+          <div class="gs-card-header"><span class="gs-card-title">同步日志</span><span class="gs-card-desc">最近 {{ atLog.length }} 条（最多保留 40 条）</span></div>
+          <div class="gs-card-body">
+            <div v-if="!atLog.length" class="gs-ev-empty">暂无同步记录——配置完成后点「立即同步」</div>
+            <div v-for="(l, i) in atLog" :key="i" class="gs-setting-row" style="align-items:flex-start">
+              <span class="gs-sr-label" style="white-space:nowrap">{{ new Date(l.at).toLocaleString('zh-CN') }}</span>
+              <div class="gs-sr-control" style="font-size:12px;text-align:left;max-width:420px;color:var(--text-2)">{{ l.kind === 'error' ? '✗ ' : l.kind === 'ok' ? '✓ ' : '· ' }}{{ l.msg }}</div>
             </div>
           </div>
         </div>
@@ -730,7 +828,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, watchEffect, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { saveUIPrefs, getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage } from '@/shared/storage/repository'
@@ -738,13 +836,18 @@ import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
 import FieldEditor from './FieldEditor.vue'
 import logoUrl from '@/assets/logo.png'
-import { createDefaultData } from '@/shared/storage/defaults'
+import { createDefaultData, defaultThesisFieldDefs } from '@/shared/storage/defaults'
+// R63-4：Airtable 单向同步（连接测试 / 立即同步 / 配额提示）
+import { testConnection, runSync, quotaHint, catPathOf } from '@/shared/storage/airtable'
 import { LETTER_HTML, buildLetterStandaloneHtml } from '../letter-data'
 import { uid } from '@/shared/utils'
 import { getAssetStats, cleanupOrphanAssets, getAllAssets, putAssets } from '@/shared/storage/assets'
 import { buildZip, readZip, type ZipEntry } from '@/shared/utils/zip'
 import { visibleFields, allFields } from '@/shared/utils/fields'
 import type { FieldDef, AppData, ResourceCard, Workspace, Category, TagNode, AssetMeta, ID } from '@/shared/models'
+// R63-1/63-2：全景两级（资源台/策展台）与导出镜像卡适配
+import { isHubWs, boardCardsOf, isMirrorView } from '@/shared/storage/hub'
+import { CURATION_WS_ID } from '@/shared/models'
 
 const router = useRouter()
 const route = useRoute()
@@ -928,6 +1031,8 @@ const navGroups = [
     { key: 'resource', icon: '📇', label: '资源卡' },
     { key: 'task', icon: '✅', label: '任务卡' },
     { key: 'curiosity', icon: '💡', label: '好奇心卡' },
+    // R62-3：策展主题卡字段组（isThesis 资源卡专用）
+    { key: 'thesis', icon: '🏛', label: '策展主题卡' },
     // 第卌四轮 Q-6：标签管理上移——它服务卡片呈现，与三卡同组
     { key: 'tags', icon: '🏷', label: '标签管理' },
   ]},
@@ -939,6 +1044,8 @@ const navGroups = [
   { title: '系统', items: [
     { key: 'extension', icon: '🔌', label: '扩展设置' },
     { key: 'shortcuts', icon: '⌨', label: '快捷键设置' },
+    // R63-4：Airtable 单向同步（知源 → Airtable，手动为主）
+    { key: 'airtable', icon: '⇄', label: 'Airtable 同步' },
     { key: 'manual', icon: '📖', label: '使用手册' },
     { key: 'letter', icon: '✉️', label: '一封信' },
     { key: 'about', icon: 'ℹ', label: '关于' },
@@ -1217,25 +1324,38 @@ const dynDrawerTitle = computed(() => ({
 
 // ============================================================
 // 第卌四轮 T-04/T-04'：工作台全景（双栏 Master-Detail + 批量移动双通道）
-// ============================================================
+// R63-1：资源台/策展台两级——策展台计数与列表含镜像卡（boardCardsOf），镜像卡标 📡 可跳真身
 interface PanCatNode { cat: { id: string; name: string; workspaceId: string }; count: number; children: PanCatNode[] }
 interface PanWsNode { ws: { id: string; name: string; icon?: string }; count: number; cats: PanCatNode[] }
-function panCountByCat(catId: string): number { return gResLive.value.filter(r => r.categoryId === catId).length }
+/** R63-1：分类计数——资源台按原生卡，策展台按台内+镜像（镜像归到台内落点分类） */
+function panCountByCat(cat: { id: string; workspaceId: string }): number {
+  if (isHubWs(store.workspaces.find(w => w.id === cat.workspaceId))) {
+    return gResLive.value.filter(r => r.categoryId === cat.id).length
+  }
+  return boardCardsOf(store.data!, cat.workspaceId).filter(r => (r.categoryId || '') === cat.id).length
+}
+/** R63-1：台卡片计数——资源台原生卡数；策展台含镜像 */
+function panCountByWs(wsId: string): number {
+  if (isHubWs(store.workspaces.find(w => w.id === wsId))) {
+    return gResLive.value.filter(r => r.workspaceId === wsId).length
+  }
+  return boardCardsOf(store.data!, wsId).length
+}
 const panTree = computed<PanWsNode[]>(() =>
   store.workspaces.map(w => {
     const roots = gd.value.categories.filter(c => c.workspaceId === w.id && !c.parentId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     const toNode = (c: { id: string; name: string; workspaceId: string }): PanCatNode => ({
       cat: { id: c.id, name: c.name, workspaceId: c.workspaceId },
-      count: panCountByCat(c.id),
+      count: panCountByCat(c),
       children: gd.value.categories.filter(ch => ch.parentId === c.id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map(ch => ({
-        cat: { id: ch.id, name: ch.name, workspaceId: ch.workspaceId }, count: panCountByCat(ch.id), children: []
+        cat: { id: ch.id, name: ch.name, workspaceId: ch.workspaceId }, count: panCountByCat(ch), children: []
       }))
     })
-    return { ws: { id: w.id, name: w.name, icon: w.icon }, count: gResLive.value.filter(r => r.workspaceId === w.id).length, cats: roots.map(toNode) }
+    return { ws: { id: w.id, name: w.name, icon: w.icon }, count: panCountByWs(w.id), cats: roots.map(toNode) }
   })
 )
 const panTotalCats = computed(() => gd.value.categories.filter(c => store.workspaces.some(w => w.id === c.workspaceId)).length)
-const panTotalCards = computed(() => store.workspaces.reduce((s, w) => s + gResLive.value.filter(r => r.workspaceId === w.id).length, 0))
+const panTotalCards = computed(() => store.workspaces.reduce((s, w) => s + panCountByWs(w.id), 0))
 const panCollapsed = ref<Set<string>>(new Set()) // 默认全展开
 function togglePanCollapse(key: string) {
   const next = new Set(panCollapsed.value)
@@ -1254,7 +1374,12 @@ function selectPanCat(catId: string) {
   panSelWs.value = cat?.workspaceId || panSelWs.value
   panSelected.value = new Set()
 }
-const panCards = computed(() => {
+const panCards = computed<ResourceCard[]>(() => {
+  if (panSelWs.value && !isHubWs(store.workspaces.find(w => w.id === panSelWs.value))) {
+    // R63-1：策展台 = 台内原生 + 镜像卡（视图模型），按分类过滤
+    const cards = boardCardsOf(store.data!, panSelWs.value)
+    return panSelCat.value ? cards.filter(r => (r.categoryId || '') === panSelCat.value) : cards
+  }
   if (panSelCat.value) return gResLive.value.filter(r => r.categoryId === panSelCat.value)
   if (panSelWs.value) return gResLive.value.filter(r => r.workspaceId === panSelWs.value)
   return []
@@ -1294,16 +1419,35 @@ function onPanDrop(_key: string, wsId: string, catId: string) {
 function movePanCards(ids: string[], wsId: string, catId: string) {
   const cat = catId ? gd.value.categories.find(c => c.id === catId) : null
   const targetWs = cat ? cat.workspaceId : wsId
+  const targetIsHub = isHubWs(store.workspaces.find(w => w.id === targetWs))
   let moved = 0
+  let mirrorMoved = 0
   for (const id of ids) {
+    // R63-1：镜像卡移动 = 改投射落点（真身零影响）——先按视图模型判定
+    const view = panCards.value.find(x => x.id === id)
+    if (view && isMirrorView(view)) {
+      const p = (gd.value.curationProjections || []).find(pp => pp.id === view.__mirrorProjId)
+      if (p) {
+        if (p.targetWsId !== targetWs) p.targetWsId = targetWs
+        p.targetCatId = cat?.id
+        mirrorMoved++
+      }
+      continue
+    }
     const r = gd.value.resources.find(x => x.id === id)
     if (!r) continue
+    // R63-1：资源台真身不可直接搬进策展台——改用资源台「📡 镜像到策展台」入台
+    if (!targetIsHub && r.workspaceId === CURATION_WS_ID) { showToast('⚠ 资源台真身不能直接搬入策展台，请用资源台的「📡 镜像到策展台」'); continue }
     r.workspaceId = targetWs
     r.categoryId = cat ? cat.id : ''
     r.updatedAt = Date.now()
     moved++
   }
-  if (moved) { store.persist(); showToast(`✓ 已移动 ${moved} 张卡片`); panSelected.value = new Set() }
+  if (moved || mirrorMoved) {
+    store.persist()
+    showToast(`✓ 已移动 ${moved} 张卡片${mirrorMoved ? ` · 调整 ${mirrorMoved} 个镜像落点` : ''}`)
+    panSelected.value = new Set()
+  }
 }
 const panMoveWs = ref('')
 const panMoveCat = ref('')
@@ -1325,8 +1469,21 @@ function movePanSelection() {
 // 单击详情 / 双击打开（260ms 判定，与全产品统一）
 const panDetail = ref< ResourceCard | null >(null)
 let panClickTimer: ReturnType<typeof setTimeout> | null = null
-function panCardSub(r: ResourceCard): string {
-  const src = r.sourceType ? ({ official: '官方', academic: '学术', media: '媒体', personal: '个人', 'ai-tool': 'AI 工具', 'own-work': '自有' } as Record<string, string>)[r.sourceType] || '' : ''
+/** R63-1：全景详情抽屉——镜像卡的真身引用（非镜像为 null） */
+const panMirrorSrc = computed<ResourceCard | null>(() => {
+  const det = panDetail.value
+  if (!det || !isMirrorView(det)) return null
+  const p = (gd.value.curationProjections || []).find(pp => pp.id === det.__mirrorProjId)
+  if (!p?.cardId) return null
+  return gd.value.resources.find(r => r.id === p.cardId) || null
+})
+function jumpMirrorSource() {
+  const src = panMirrorSrc.value
+  if (!src) return
+  panDetail.value = null
+  router.push(`/workspace/${CURATION_WS_ID}?hl=${src.id}`)
+}
+function panCardSub(r: ResourceCard): string {  const src = r.sourceType ? ({ official: '官方', academic: '学术', media: '媒体', personal: '个人', 'ai-tool': 'AI 工具', 'own-work': '自有' } as Record<string, string>)[r.sourceType] || '' : ''
   const host = r.linkType === 'url' ? (() => { try { return new URL(r.link).host } catch { return '' } })() : r.linkType === 'file' ? '本地文件' : 'Obsidian'
   return [host, src].filter(Boolean).join(' · ')
 }
@@ -1335,8 +1492,7 @@ function onPanCardClick(r: ResourceCard) {
   panClickTimer = setTimeout(() => { panClickTimer = null; panDetail.value = r }, 260)
 }
 function onPanCardDblClick(r: ResourceCard) {
-  if (panClickTimer) { clearTimeout(panClickTimer); panClickTimer = null }
-  recordResourceOpen(gd.value, r)
+  if (panClickTimer) { clearTimeout(panClickTimer); panClickTimer = null }  recordResourceOpen(gd.value, r)
   store.persist()
   if (r.linkType === 'file' && /^zy-asset:\/\//i.test((r.link || '').trim())) {
     const assetId = (r.link || '').trim().replace(/^zy-asset:\/\//i, '')
@@ -1609,16 +1765,27 @@ function mergeImport(imported: AppData): { cards: number; dirs: number; ws: numb
     d.curationProjections = mergeById(d.curationProjections || [], imported.curationProjections || [])
   }
 
+  // ---- R63-2：Airtable 映射表并入（recordId 以导入方为准同 id 覆盖；不覆盖本地较新的 syncedAt） ----
+  if (imported.airtableMap) {
+    d.airtableMap = { ...(imported.airtableMap), ...(d.airtableMap || {}) }
+  }
+
   // ---- 标签体系 / 字段配置（原有逻辑保留）----
   if (imported.tagTree?.length) {
     const existIds = new Set(d.tagTree.map(t => t.id))
     for (const root of imported.tagTree) if (!existIds.has(root.id)) d.tagTree.push(root)
   }
   if (imported.fieldConfig) {
-    for (const key of ['resource', 'task', 'curiosity'] as const) {
-      const existingKeys = new Set(d.fieldConfig[key].map(f => f.key))
-      for (const f of imported.fieldConfig[key]) {
-        if (!existingKeys.has(f.key)) d.fieldConfig[key].push(f)
+    const cfg = d.fieldConfig
+    // R62-3：thesis 组老数据可能缺失——先补默认再合并
+    if (!cfg.thesis) cfg.thesis = defaultThesisFieldDefs()
+    for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const) {
+      const importedGroup = imported.fieldConfig[key]
+      const group = cfg[key]
+      if (!importedGroup || !group) continue
+      const existingKeys = new Set(group.map(f => f.key))
+      for (const f of importedGroup) {
+        if (!existingKeys.has(f.key)) group.push(f)
       }
     }
   }
@@ -1687,7 +1854,11 @@ function exportCsvForWorkspace() {
   const ws = d.workspaces.find(w => w.id === csvWsId.value)
   if (!ws) return
   const catMap = new Map(d.categories.map(c => [c.id, c.name]))
-  const cards = d.resources.filter(r => !r.deletedAt && r.workspaceId === csvWsId.value)
+  // R63-2：资源台 = 原生卡；策展台 = 台内 + 镜像（boardCardsOf），与台内视图一致
+  const isBoard = !isHubWs(ws)
+  const cards = isBoard
+    ? boardCardsOf(d, ws.id)
+    : d.resources.filter(r => !r.deletedAt && r.workspaceId === csvWsId.value)
   // 动态目录列：系统字段全导出（无视 visible，保证数据基线完整）+ 自定义字段按可见性过滤，按 order 排序
   const dirCols = allFields(d.fieldConfig, 'resource')
     .filter(f => !f.key.startsWith('custom_') || f.visible)
@@ -1697,6 +1868,11 @@ function exportCsvForWorkspace() {
   cols.push(
     { label: '链接类型', get: r => (r.linkType === 'url' ? 'URL' : r.linkType === 'file' ? '本地文件' : 'Obsidian') },
     { label: '分类', get: r => catMap.get(r.categoryId) || '待分类' },
+    // R63-2：金字塔路径/层级/中心论点（适配多维表分层分析）
+    { label: '分类路径', get: r => catPathOf(d, r.workspaceId, r.categoryId).path || '待分类' },
+    { label: '层级', get: r => String(catPathOf(d, r.workspaceId, r.categoryId).level) },
+    { label: '是否中心论点', get: r => (r.isThesis ? '是' : '') },
+    { label: '镜像标记', get: r => (isMirrorView(r) ? '📡' : '') },
     { label: '置顶', get: r => (r.pinned ? '是' : '') },
     { label: '星标', get: r => (r.starred ? '是' : '') },
     { label: '更新时间', get: r => (r.updatedAt ? new Date(r.updatedAt).toISOString().slice(0, 10) : '') }
@@ -1720,7 +1896,9 @@ function exportWorkspace() {
     ...d, workspaces: [ws], categories: cats,
     resources: d.resources.filter(r => r.workspaceId === ws.id),
     tasks: d.tasks.filter(t => t.mountedResourceIds?.some(rid => d.resources.find(r => r.id === rid)?.workspaceId === ws.id)),
-    curiosities: d.curiosities.filter(c => c.relatedResourceIds?.some(rid => d.resources.find(r => r.id === rid)?.workspaceId === ws.id))
+    curiosities: d.curiosities.filter(c => c.relatedResourceIds?.some(rid => d.resources.find(r => r.id === rid)?.workspaceId === ws.id)),
+    // R63-2：只带本台的镜像引用（projection 指向资源台真身，导入合并按 id 并集恢复）
+    curationProjections: (d.curationProjections || []).filter(p => p.targetWsId === ws.id)
   }
   downloadFile(`zhiyuan_${ws.name}_${dateStr()}.json`, JSON.stringify(subset, null, 2))
   markBackupNow()
@@ -1847,6 +2025,81 @@ function saveWsMod() { /* computed setter 已持久化 */ }
 function modLabel(): string {
   const m = store.ui?.wsSwitchMod || 'alt'
   return m === 'ctrl' ? 'Ctrl' : m === 'ctrl-shift' ? 'Ctrl+Shift' : m === 'alt-shift' ? 'Alt+Shift' : m === 'none' ? '数字键' : 'Alt'
+}
+
+// ---- Airtable 同步（R63-4） ----
+const atBusy = ref(false)
+const atTableName = ref('')
+const atPat = ref('')
+const atBaseId = ref('')
+const atTableId = ref('')
+// 配置回填（不在模板直接 v-model 到 storage——「改完即写」会把半截 PAT 存库；失焦/操作时统一写回）
+watchEffect(() => {
+  const s = store.data?.airtableSync
+  if (!s) return
+  if (!atPat.value) atPat.value = s.pat
+  if (!atBaseId.value) atBaseId.value = s.baseId
+  if (!atTableId.value) atTableId.value = s.tableId
+  if (s.tableName && !atTableName.value) atTableName.value = s.tableName
+})
+function syncAtConfig() {
+  const s = store.data!.airtableSync!
+  s.pat = atPat.value.trim()
+  s.baseId = atBaseId.value.trim()
+  s.tableId = atTableId.value.trim()
+  store.persist()
+}
+const atState = computed(() => store.data!.airtableSync!)
+const atPoll = computed(() => !!atState.value.pollEnabled)
+const atLog = computed(() => atState.value.log || [])
+const quotaText = computed(() => quotaHint(atState.value))
+const atStatusText = computed(() => {
+  const s = atState.value
+  if (!s.lastSyncAt) return ''
+  const parts = [new Date(s.lastSyncAt).toLocaleString('zh-CN')]
+  if (s.lastSyncedCount != null) parts.push(`推送 ${s.lastSyncedCount} 条`)
+  if (s.lastSyncMs != null) parts.push(`耗时 ${(s.lastSyncMs / 1000).toFixed(1)}s`)
+  if (s.lastSyncCalls != null) parts.push(`调用 ${s.lastSyncCalls} 次`)
+  return parts.join(' · ')
+})
+const atErrorText = computed(() => atState.value.lastError || '')
+
+async function testAtConnection() {
+  if (atBusy.value) return
+  atBusy.value = true
+  try {
+    syncAtConfig()
+    const name = await testConnection(atState.value)
+    atTableName.value = name
+    atState.value.tableName = name
+    store.persist()
+    showToast('✓ 连接成功：' + name)
+  } catch (e) {
+    showToast('✗ ' + (e instanceof Error ? e.message : String(e)))
+  } finally { atBusy.value = false }
+}
+
+async function runAtSync() {
+  if (atBusy.value) return
+  if (!atPat.value.trim() || !atBaseId.value.trim() || !atTableId.value.trim()) { showToast('请先填写完整连接配置'); return }
+  atBusy.value = true
+  try {
+    syncAtConfig()
+    const r = await runSync(store.data!)
+    store.persist()
+    showToast(`✓ 同步完成：推送 ${r.pushed} 条 · 调用 ${r.calls} 次`)
+  } catch (e) {
+    store.persist()
+    showToast('✗ 同步失败：' + (e instanceof Error ? e.message : String(e)))
+  } finally { atBusy.value = false }
+}
+
+function toggleAtPoll() {
+  const s = atState.value
+  s.pollEnabled = !s.pollEnabled
+  store.persist()
+  // 轮询注册由 background 监听 storage 变化自管（63-10）
+  showToast(s.pollEnabled ? '✓ 已开启 3 小时自动轮询' : '已关闭自动轮询')
 }
 
 // ---- N4 标签管理 ----
@@ -2311,6 +2564,7 @@ const activeManualSec = ref('quick-1')
 .gs-pan-toggle { width: 14px; flex-shrink: 0; font-size: 10px; color: var(--text-3); text-align: center; cursor: pointer; user-select: none; }
 .gs-pan-toggle.leaf { cursor: default; opacity: .4; }
 .gs-pan-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs-pan-kind { display: inline-block; margin-left: 6px; padding: 0 6px; font-size: 10px; line-height: 16px; border-radius: 99px; background: var(--accent-light); color: var(--accent); vertical-align: 1px; }
 .gs-pan-count { font-size: 10.5px; color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 1px 8px; flex-shrink: 0; }
 .gs-pan-row.active .gs-pan-count { color: var(--accent); background: var(--accent-light); }
 .gs-pan-list-wrap { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; max-height: 560px; }

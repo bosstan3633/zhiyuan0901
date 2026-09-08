@@ -42,6 +42,39 @@
       </div>
     </div>
 
+    <!-- R62-1：策展台 5 指标条（资源台不显示；数据源 hub.curationMetrics） -->
+    <div v-if="!isHub" class="ws-metrics">
+      <div class="metric-card" @click="openThesisDetail">
+        <div class="mc-label">🏛 策展主题</div>
+        <div class="mc-value thesis" :title="thesisCard?.title">{{ thesisCard?.title || '未设立' }}</div>
+        <div class="mc-hint">{{ thesisCard ? '点击编辑论点卡' : '右键台内卡片可设立' }}</div>
+      </div>
+      <div class="metric-card" @click="openDrill('total')">
+        <div class="mc-label">📊 卡片总数</div>
+        <div class="mc-value">{{ metrics.total }}</div>
+        <div class="mc-hint">台内 {{ metrics.native }} · 镜像 {{ metrics.mirrored }}</div>
+      </div>
+      <div class="metric-card" @click="openDrill('source')">
+        <div class="mc-label">🔀 来源构成</div>
+        <div class="mc-value">{{ metrics.native }}<span class="mc-sep">/</span>{{ metrics.mirrored }}</div>
+        <div class="mc-hint">台内 / 资源台镜像</div>
+      </div>
+      <div class="metric-card" @click="openDrill('assets')">
+        <div class="mc-label">📎 附件数量</div>
+        <div class="mc-value">{{ metrics.attachmentCount }}</div>
+        <div class="mc-hint">点击查看明细</div>
+      </div>
+      <div class="metric-card" @click="openDrill('recent')">
+        <div class="mc-label">🕐 最近更新</div>
+        <div class="mc-value small">{{ lastUpdateText }}</div>
+        <div class="mc-hint">点击查看流水</div>
+      </div>
+    </div>
+
+    <!-- 下钻抽屉（R62-2） -->
+    <CurationDrillDrawer :open="drillOpen" :mode="drillMode" :cat-rows="drillCatRows" :native-cards="drillNative" :mirror-cards="drillMirror" :asset-rows="metrics.attachmentItems" :recent-rows="drillRecent"
+      @close="drillOpen=false" @jump-cat="onDrillJumpCat" @open-card="onDrillOpenCard" @locate="onDrillLocate" />
+
     <!-- 设置下拉菜单（固定定位，避免被 hero 圆角裁剪） -->
     <div class="settings-menu" :class="{open: settingsMenuOpen}" @click.stop>
       <div class="sm-item" @click="renameWs">✏️ 重命名</div>
@@ -58,6 +91,8 @@
         <div class="view-tab" :class="{active: viewMode==='card'}" @click="viewMode='card'">▦ 卡片</div>
         <div class="view-tab" :class="{active: viewMode==='list'}" @click="viewMode='list'">☰ 列表</div>
         <div class="view-tab" :class="{active: viewMode==='kanban'}" @click="viewMode='kanban'">▤ 看板</div>
+        <!-- R62-5：金字塔结构视图 -->
+        <div class="view-tab" :class="{active: viewMode==='pyramid'}" @click="viewMode='pyramid'">⬡ 金字塔</div>
       </div>
       <select class="toolbar-select" v-model="sortBy">
         <option value="manual">手动拖拽</option>
@@ -111,32 +146,34 @@
           <div v-if="sc.sectionLabel" class="cat-section-label">{{ sc.sectionLabel }}</div>
           <div class="cat-item" :class="{
               active: activeCategory===sc.cat.id,
-              sub: sc.depth===1,
-              collapsed: sc.depth===0 && collapsedCats.has(sc.cat.id),
+              sub: sc.depth>=1,
+              collapsed: childCatsOf(sc.cat.id).length && collapsedCats.has(sc.cat.id),
               flash: catFlashId===sc.cat.id,
               'card-drop': cardDropTarget===sc.cat.id,
               'drop-child': catDropTarget===sc.cat.id && catDropMode==='child',
               'drop-before': catDropTarget===sc.cat.id && catDropMode==='before',
               'drop-after': catDropTarget===sc.cat.id && catDropMode==='after'
             }"
+            :style="sc.depth > 1 ? { marginLeft: ((sc.depth - 1) * 14) + 'px' } : undefined"
             :data-catid="sc.cat.id"
             :draggable="!batchMode"
             @click="selectSidebarCat(sc)"
             @dragstart="onCatDragStart($event, sc.cat)" @dragend="onCatDragEnd"
             @dragover.prevent.stop="onCatDragOver($event, sc.cat)" @drop.stop="onCatDrop($event, sc.cat)">
-            <span v-if="sc.depth===0 && childCatsOf(sc.cat.id).length" class="cat-caret" :class="{open: !collapsedCats.has(sc.cat.id)}" title="展开/折叠" @click.stop="toggleCatCollapse(sc.cat.id)">▸</span>
-            <span v-else-if="sc.depth===0" class="cat-caret placeholder"></span>
-            <span class="cat-icon" :title="sc.depth===0 && childCatsOf(sc.cat.id).length ? '展开/折叠' : ''" @click.stop="sc.depth===0 && childCatsOf(sc.cat.id).length && toggleCatCollapse(sc.cat.id)">{{ sc.depth===1 ? '↳' : sc.cat.pinned ? '📌' : (childCatsOf(sc.cat.id).length ? (collapsedCats.has(sc.cat.id) ? '📁' : '📂') : '📁') }}</span>
+            <span v-if="childCatsOf(sc.cat.id).length" class="cat-caret" :class="{open: !collapsedCats.has(sc.cat.id)}" title="展开/折叠" @click.stop="toggleCatCollapse(sc.cat.id)">▸</span>
+            <span v-else class="cat-caret placeholder"></span>
+            <span class="cat-icon" :title="childCatsOf(sc.cat.id).length ? '展开/折叠' : ''" @click.stop="childCatsOf(sc.cat.id).length && toggleCatCollapse(sc.cat.id)">{{ sc.depth>0 && !childCatsOf(sc.cat.id).length ? '↳' : sc.cat.pinned ? '📌' : (childCatsOf(sc.cat.id).length ? (collapsedCats.has(sc.cat.id) ? '📁' : '📂') : '📁') }}<template v-if="isMirrorCat(sc.cat)">📡</template></span>
+            <!-- R62-4：层级色点（L1-L4 一眼分层） -->
+            <span class="cat-depth-dot" :data-lv="sc.depth"></span>
             <span class="cat-name">{{ sc.cat.name }}</span>
             <span class="cat-actions">
               <span v-if="sc.depth===0" class="cat-act" :class="{on: sc.cat.pinned}" :title="sc.cat.pinned?'取消置顶':'置顶'" @click.stop="toggleCatPin(sc.cat)">📌</span>
-              <!-- 第卅三轮 BUG-C 修复 + REQ-022：父级分类 hover 出现「创建子分类」入口（此前 openCreateCat 恒空参，弹窗父级提示不可达） -->
-              <span v-if="sc.depth===0" class="cat-act" title="创建子分类" @click.stop="openCreateCat(sc.cat.id)">＋</span>
+              <!-- R61-4：父级分类 hover 出现「创建子分类」入口（4 级内） -->
+              <span v-if="sc.depth < 3" class="cat-act" title="创建子分类" @click.stop="openCreateCat(sc.cat.id)">＋</span>
               <span class="cat-act" title="重命名" @click.stop="openRenameCat(sc.cat)">✎</span>
-              <span class="cat-act" title="整组投射到策展中心" @click.stop="projectCategoryToCuration(sc.cat)">📤</span>
               <span class="cat-act danger" title="删除" @click.stop="deleteCategory(sc.cat)">🗑</span>
             </span>
-            <span class="cat-count">{{ sc.depth===1 ? allResources.filter(r=>r.categoryId===sc.cat.id).length : catAggCount(sc.cat.id) }}</span>
+            <span class="cat-count">{{ childCatsOf(sc.cat.id).length ? catAggCount(sc.cat.id) : allResources.filter(r=>r.categoryId===sc.cat.id).length }}</span>
           </div>
         </template>
         <div v-if="dragCatId" class="cat-root-drop" @dragover.prevent @drop="onCatRootDrop">⬆ 松手升为一级分类</div>
@@ -168,13 +205,11 @@
                   <div class="rc-action pin" @click.stop="togglePin(r)" title="置顶">📌</div>
                   <div class="rc-action" :class="{on: r.starred}" :title="r.starred?'取消星标':'星标'" @click.stop="toggleStar(r)">⭐</div>
                   <div class="rc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</div>
-                  <!-- R53-B：卡面单卡镜像入口（与右键菜单同函数） -->
-                  <div v-if="r.workspaceId !== CURATION_WS_ID" class="rc-action" @click.stop="projectCardToCuration(r)" title="镜像到策展中心">📡</div>
                   <div class="rc-action delete" @click.stop="deleteResource(r)" title="删除">🗑</div>
                 </div>
                 <div class="rc-fields">
-                  <template v-for="f in rFields" :key="f.key">
-                    <div v-if="isTitleKey(f.key)" class="rc-title">{{ val(r, f.key) }}</div>
+                  <template v-for="f in fieldsOf(r)" :key="f.key">
+                    <div v-if="isTitleKey(f.key)" class="rc-title"><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ val(r, f.key) }}</div>
                     <div v-else-if="f.key==='link' && r.link" class="rc-link" :class="r.linkType">{{ linkIcon(r.linkType) }} {{ linkDisplay(r.link) }}</div>
                     <div v-else-if="f.key==='description' && r.description" class="rc-summary">{{ r.description }}</div>
                     <div v-else-if="f.key==='tags' && r.tags.length" class="rc-tags"><span v-for="t in r.tags" :key="t" class="rc-tag">#{{ t }}</span></div>
@@ -215,7 +250,7 @@
                 @contextmenu.prevent="openResCtx($event, r)">
                 <div v-if="batchMode" class="rc-batch-check" :class="{on: selectedIds.has(r.id)}" @click.stop="toggleSelect(r.id)">{{ selectedIds.has(r.id)?'✓':'' }}</div>
                 <span v-else class="rr-drag">⋮⋮</span>
-                <span class="rr-title">{{ val(r, titleKey) }}</span>
+                <span class="rr-title"><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ val(r, titleKey) }}</span>
                 <AssetBadge v-if="hasField('assets') && r.assets?.length" :assets="r.assets" class="rr-assets" />
                 <span class="rr-f" v-for="f in listFields" :key="f.key">{{ shortVal(r, f) }}</span>
                 <span class="rr-actions">
@@ -252,6 +287,54 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- ===== R62-5：金字塔视图（L1 中心论点根 + 分类树逐层铺开 + 卡片拖换节点） ===== -->
+        <div v-if="viewMode==='pyramid'" class="pyramid">
+          <!-- L1 根：中心论点卡 -->
+          <div class="py-root" :class="{droppable: pyRootDrop}" @dragover.prevent="onPyRootDragOver" @dragleave="pyRootDrop=false" @drop.stop.prevent="onPyRootDrop">
+            <template v-if="thesisCard">
+              <div class="py-root-card" @click="onCardClick(thesisCard)" @dblclick.stop="openResourceLink(thesisCard)">
+                <span class="py-root-badge">🏛 中心论点</span>
+                <span class="py-root-title">{{ thesisCard.title }}</span>
+                <span v-if="thesisCard.description" class="py-root-desc">{{ thesisCard.description }}</span>
+              </div>
+              <span class="py-root-unset" title="取消中心论点" @click.stop="unsetThesis">✕</span>
+            </template>
+            <div v-else class="py-root-empty">🏛 尚未设立中心论点 —— 右键任一台内卡片 →「设为中心论点」</div>
+          </div>
+          <!-- L2 起分类节点（分类树按深度铺开；节点可拖拽挂子级 / ⟨⟩ 调同级顺序 / 卡片拖入节点） -->
+          <div v-for="(lv, li) in pyramidLevels" :key="li" class="py-level">
+            <div class="py-level-label">L{{ li + 2 }}</div>
+            <div class="py-level-nodes">
+              <div v-for="node in lv" :key="node.cat.id" class="py-node"
+                :class="{ 'drop-child': pyDropTarget===node.cat.id && pyDropMode==='child', 'drop-sib': pyDropTarget===node.cat.id && pyDropMode!=='child', flash: catFlashId===node.cat.id }"
+                :data-pyid="node.cat.id"
+                @dragover.prevent.stop="onPyDragOver($event, node.cat)" @dragleave.stop="pyDropTarget=''" @drop.stop.prevent="onPyDrop($event, node.cat)">
+                <div class="py-node-head" :draggable="!batchMode" @dragstart.stop="onCatDragStart($event, node.cat)" @dragend="onCatDragEnd">
+                  <span class="py-node-name" :title="node.cat.name" @click="selectPyNode(node.cat)">{{ node.cat.name }}<template v-if="isMirrorCat(node.cat)"> 📡</template></span>
+                  <span class="py-node-count">{{ node.cards.length }}</span>
+                  <span class="py-node-ops">
+                    <span class="py-op" title="前移" @click.stop="moveCatSibling(node.cat, -1)">⟨</span>
+                    <span class="py-op" title="后移" @click.stop="moveCatSibling(node.cat, 1)">⟩</span>
+                    <span class="py-op" title="节点菜单" @click.stop="openNodeMenu($event, node.cat)">⋯</span>
+                  </span>
+                </div>
+                <div class="py-node-body">
+                  <span v-for="r in node.cards" :key="r.id" class="py-card-chip" :draggable="!batchMode" :data-rid="r.id"
+                    @dragstart="onDragStart($event, r)" @dragend="clearCardDropTarget"
+                    @click.stop="onCardClick(r)" @dblclick.stop="onCardDblClick(r)" @contextmenu.prevent.stop="openResCtx($event, r)">
+                    <span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ r.title }}
+                  </span>
+                  <span v-if="!node.cards.length" class="py-node-empty">拖入资源卡</span>
+                </div>
+                <span v-if="pyDepthOf(node.cat) < 3" class="py-node-add" title="新建子节点" @click.stop="openCreateCat(node.cat.id)">＋</span>
+              </div>
+              <div v-if="!lv.length" class="py-level-empty">本层暂无节点</div>
+            </div>
+          </div>
+          <EmptyState v-if="!pyramidLevels.length && !thesisCard" icon="folder" title="金字塔还空着"
+            desc="左侧目录「＋ 新建分类」建立论点骨架；右键台内卡片可设为中心论点（L1 根）" />
         </div>
       </div>
     </div>
@@ -443,6 +526,47 @@
       </div>
     </div>
 
+    <!-- B5：右键菜单（R62 接线：组件此前已导入但未渲染，卡片/镜像菜单自此生效） -->
+    <ContextMenu :state="resCtx" :items="resCtxItems" @close="resCtx.open = false" />
+
+    <!-- R62-6：金字塔节点菜单（⋯ 展开，6 项） -->
+    <Teleport to="body">
+      <div v-if="nodeMenu.open" class="node-menu-mask" @click="nodeMenu.open=false" />
+      <div v-if="nodeMenu.open" class="node-menu" :style="{ left: nodeMenu.x + 'px', top: nodeMenu.y + 'px' }" @click.stop>
+        <div class="nm-item" @click="nmCreateChild">🌳 新建子论点（子节点）</div>
+        <div class="nm-item" @click="nmCreateSibling">🌿 新建同级节点</div>
+        <div class="nm-item" @click="nmMirrorCat">📤 从资源台镜像分类</div>
+        <div class="nm-item" @click="nmPack">🗂 打包所选卡片入此节点</div>
+        <div class="nm-item" @click="nmRename">✎ 重命名</div>
+        <div class="nm-divider"></div>
+        <div class="nm-item danger" @click="nmDelete">🗑 删除节点（卡片回待分类）</div>
+      </div>
+    </Teleport>
+
+    <!-- R62-6：从资源台镜像分类弹窗 -->
+    <div class="modal-overlay" :class="{open: mirrorCatModal.open}" @click.self="mirrorCatModal.open=false">
+      <div class="modal" style="width:420px">
+        <div class="modal-header">
+          <span style="font-size:16px">📤</span>
+          <span class="mh-title">从资源台镜像分类到本台</span>
+          <div class="modal-close" @click="mirrorCatModal.open=false">×</div>
+        </div>
+        <div class="modal-body">
+          <div class="dr-section">
+            <div class="dr-label">选择资源台分类（含子分类，现有卡自动镜像）</div>
+            <select class="dr-category-select" v-model="mirrorCatModal.catId">
+              <option v-for="opt in hubCatOptions" :key="opt.id" :value="opt.id">📂 {{ opt.label }}</option>
+            </select>
+          </div>
+          <div v-if="!hubCatOptions.length" class="ws-modal-hint">资源台暂无分类——先去资源台建分类、收资源</div>
+        </div>
+        <div class="modal-footer-row">
+          <button class="dr-footer-btn" @click="mirrorCatModal.open=false">取消</button>
+          <button class="dr-footer-btn primary" :disabled="!mirrorCatModal.catId" @click="confirmMirrorCat">✓ 镜像到本台</button>
+        </div>
+      </div>
+    </div>
+
   </div>
   <div v-else class="ws-empty">工作台不存在</div>
 </template>
@@ -465,6 +589,9 @@ import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import { markRank } from '@/shared/utils/marksort'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import { CURATION_WS_ID, type AppData, type ResourceCard, type Category, type Workspace, type TaskCard, type FieldDef } from '@/shared/models'
+import { boardCardsOf, isMirrorView, removeProjection, curationMetrics, setThesis, mirrorCategoryToBoard, canMountInNode, isHubWs, type MirrorView } from '@/shared/storage/hub'
+import CurationDrillDrawer from '@/newtab/components/CurationDrillDrawer.vue'
+import type { DrillCatRow, DrillCardRow } from '@/newtab/components/CurationDrillDrawer.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -473,6 +600,68 @@ const d = computed(() => store.data!)
 
 const workspaceId = computed(() => route.params.id as string)
 const workspace = computed(() => d.value.workspaces.find(w => w.id === workspaceId.value))
+/** R62：资源台（isHub）不显示策展指标条与主题卡语义 */
+const isHub = computed(() => isHubWs(workspace.value))
+
+// ===== R62-1/2：策展台 5 指标 + 下钻 =====
+const metrics = computed(() => curationMetrics(d.value, workspaceId.value))
+const thesisCard = computed<ResourceCard | null>(() => {
+  const t = metrics.value.thesisId
+  if (!t) return null
+  return allResources.value.find(r => r.id === t) || null
+})
+function setThesisCard(r: ResourceCard) {
+  if (isMirrorView(r)) { showToast('📡 镜像卡不能作为本台中心论点——请先移出镜像或选台内卡'); return }
+  setThesis(d.value, workspaceId.value, r.id)
+  store.persist()
+  showToast(`🏛 「${r.title.slice(0, 16)}」已设为中心论点（金字塔 L1 根）`)
+}
+function unsetThesis() {
+  setThesis(d.value, workspaceId.value, null)
+  store.persist()
+  showToast('已取消中心论点')
+}
+function openThesisDetail() {
+  if (thesisCard.value) openResource(thesisCard.value)
+  else showToast('右键任一台内卡片 →「设为中心论点」（每台仅一张）')
+}
+
+const drillOpen = ref(false)
+const drillMode = ref<'total' | 'source' | 'assets' | 'recent'>('total')
+function openDrill(mode: 'total' | 'source' | 'assets' | 'recent') { drillMode.value = mode; drillOpen.value = true }
+/** 总数下钻：按分类（深度缩进 + 直属卡数），含待分类行 */
+const drillCatRows = computed<DrillCatRow[]>(() => {
+  const rows: DrillCatRow[] = []
+  const walk = (parentId: string | undefined, depth: number) => {
+    for (const c of wsCats.value.filter(x => (x.parentId || undefined) === parentId).sort((a, b) => a.order - b.order)) {
+      rows.push({ id: c.id, name: c.name, count: allResources.value.filter(r => (r.categoryId || '') === c.id).length, depth })
+      walk(c.id, depth + 1)
+    }
+  }
+  walk(undefined, 0)
+  const uncat = allResources.value.filter(r => !r.categoryId || !wsCats.value.some(c => c.id === r.categoryId)).length
+  if (uncat) rows.push({ id: 'uncat', name: '待分类', count: uncat, depth: 0 })
+  return rows
+})
+const drillNative = computed<DrillCardRow[]>(() => allResources.value.filter(r => !isMirrorView(r)).map(r => ({ id: r.id, title: r.title, updatedAt: r.updatedAt || r.createdAt })))
+const drillMirror = computed<DrillCardRow[]>(() => allResources.value.filter(isMirrorView).map(r => ({ id: r.id, title: r.title, updatedAt: r.updatedAt || r.createdAt })))
+const drillRecent = computed<DrillCardRow[]>(() => allResources.value.map(r => ({ id: r.id, title: r.title, updatedAt: r.updatedAt || r.createdAt })))
+function onDrillJumpCat(id: string) {
+  drillOpen.value = false
+  if (id === 'uncat') { activeCategory.value = 'uncat'; if (viewMode.value === 'pyramid') viewMode.value = 'card'; return }
+  activeCategory.value = id
+  if (viewMode.value === 'pyramid') { catFlashId.value = id; setTimeout(() => { catFlashId.value = null }, 2000) }
+}
+function onDrillOpenCard(id: string) {
+  drillOpen.value = false
+  const r = allResources.value.find(x => x.id === id)
+  if (r && !isMirrorView(r)) openResource(r)
+}
+function onDrillLocate(id: string) {
+  drillOpen.value = false
+  const r = allResources.value.find(x => x.id === id)
+  if (r) locateMirrorSource(r)
+}
 
 // R47-B4：进入/切换工作台 = 一次「调用」，计入热度（全局检索无输入时工作台参与热度排序）
 watch(workspaceId, (id) => {
@@ -483,11 +672,40 @@ watch(workspaceId, (id) => {
 
 
 // ===== 数据 =====
-const allResources = computed(() => d.value.resources.filter(r => r.workspaceId === workspaceId.value && !r.deletedAt))
+// R61：本台全量可见卡 = 台内原生卡 + 资源台镜像卡（boardCardsOf 注入视图模型：
+// 镜像卡为浅拷贝 + categoryId 重映射到台内分类，带 __mirrorProjId 标记——写操作一律拦截/回落资源台）
+const allResources = computed<ResourceCard[]>(() => boardCardsOf(d.value, workspaceId.value))
 const categories = computed(() => d.value.categories.filter(c => c.workspaceId === workspaceId.value).sort((a,b) => a.order - b.order))
 const resourceCount = computed(() => allResources.value.length)
 const categoryCount = computed(() => categories.value.length)
 const uncategorizedCount = computed(() => allResources.value.filter(r => !r.categoryId).length)
+/** R61：本台分类是否为资源台镜像分类 */
+function isMirrorCat(c: Category): boolean {
+  return c.curFrom?.wsId === CURATION_WS_ID
+}
+/** R61：镜像卡落点更新（拖拽/树落）——只改投射记录，源卡零影响 */
+function moveMirrorTo(m: MirrorView, catId: string) {
+  const p = (d.value.curationProjections || []).find(x => x.id === m.__mirrorProjId)
+  if (!p) return
+  if ((p.targetCatId || '') === (catId || '')) return
+  p.targetCatId = catId || undefined
+  store.persist()
+  showToast(`📡 镜像已移入「${catId ? categories.value.find(c => c.id === catId)?.name : '待分类'}」`)
+}
+/** R61：移出镜像（只删引用，源卡保留在资源台） */
+function removeMirror(r: ResourceCard) {
+  if (!isMirrorView(r)) return
+  removeProjection(d.value, r.__mirrorProjId)
+  store.persist()
+  showToast('✓ 已移出镜像（源卡保留在资源台）')
+}
+/** R61：定位到资源台源卡 */
+function locateMirrorSource(r: ResourceCard) {
+  const src = d.value.resources.find(x => x.id === r.id)
+  if (!src) { showToast('ℹ 源卡已删除'); return }
+  router.push('/curation')
+  showToast(`↗ 源卡在资源台 · ${src.title.slice(0, 20)}`)
+}
 // R45-2（V2.20.0）：页头新增「今日新增/今日删除」字段——工作台范围实时派生（含软删口径：新增排除已删、删除取 deletedAt）
 const startOfToday = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); return dt.getTime() })()
 const wsTodayAdd = computed(() => d.value.resources
@@ -507,6 +725,12 @@ const lastUpdateText = computed(() => {
 
 // ===== 字段渲染（F1：全局设置的字段设计在此生效） =====
 const rFields = computed(() => visibleFields(d.value.fieldConfig, 'resource'))
+/** R62-3：主题卡（isThesis 资源卡）走 thesis 独立字段组，其余走 resource 组 */
+function fieldsOf(r: ResourceCard): FieldDef[] {
+  return (r.isThesis && !isMirrorView(r))
+    ? visibleFields(d.value.fieldConfig, 'thesis')
+    : rFields.value
+}
 const titleKey = computed(() => rFields.value.find(f => isTitleKey(f.key))?.key || 'title')
 const listFields = computed(() => rFields.value.filter(f => !isTitleKey(f.key) && f.key !== 'assets').slice(0, 3))
 function hasField(key: string): boolean {
@@ -531,7 +755,7 @@ function srcLabel(s?: string): string {
 }
 
 // ===== 视图状态 =====
-const viewMode = ref<'card'|'list'|'kanban'>('card')
+const viewMode = ref<'card'|'list'|'kanban'|'pyramid'>('card')
 const sortBy = ref('manual')
 // 第卅二轮 REQ-007：时间排序方向（默认倒序）+ 排序偏好本地记忆（UIPrefs.sortPrefs.res）
 const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.res?.dir === 'asc') ? 'asc' : 'desc')
@@ -658,9 +882,16 @@ const resourceGroups = computed<ResourceGroup[]>(() => {
 
 const kanbanCategories = computed(() => {
   const cats: { key: string; name: string }[] = []
+  const pathOf = (c: Category): string => {
+    const parent = c.parentId ? wsCats.value.find(x => x.id === c.parentId) : null
+    return parent ? pathOf(parent) + ' / ' + c.name : c.name
+  }
   for (const root of rootCats.value) {
     cats.push({ key: root.id, name: root.name })
-    for (const ch of childCatsOf(root.id)) cats.push({ key: ch.id, name: root.name + ' / ' + ch.name })
+    for (const id of descendantIds(root.id)) {
+      const c = wsCats.value.find(x => x.id === id)
+      if (c) cats.push({ key: c.id, name: pathOf(c) })
+    }
   }
   cats.push({ key: '', name: '待分类' })
   return cats
@@ -693,6 +924,12 @@ function openResourceLink(r: ResourceCard) {
 let clickTimer: ReturnType<typeof setTimeout> | null = null
 function onCardClick(r: ResourceCard) {
   if (batchMode.value) { toggleSelect(r.id); return }
+  if (isMirrorView(r)) {
+    // R61：镜像卡单击 = 只读提示（编辑请到资源台；双击打开链接照常）
+    if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return }
+    clickTimer = setTimeout(() => { clickTimer = null; showToast('📡 镜像卡为引用（源在资源台）——双击打开链接，编辑请定位到资源台') }, 260)
+    return
+  }
   if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return }
   clickTimer = setTimeout(() => { clickTimer = null; openResource(r) }, 260)
 }
@@ -774,6 +1011,7 @@ async function deleteCurrentResource() {
   } })
 }
 async function deleteResource(r: ResourceCard) {
+  if (isMirrorView(r)) { removeMirror(r); return }
   r.deletedAt = Date.now()
   store.persist()
   // REQ-030：3 秒内可撤销（按 id 定位当前树，根治引用替换导致的撤销失效）
@@ -783,6 +1021,7 @@ async function deleteResource(r: ResourceCard) {
   } })
 }
 function togglePin(r: ResourceCard) {
+  if (isMirrorView(r)) { showToast('📡 镜像卡为引用——置顶请在资源台操作'); return }
   r.pinned = !r.pinned
   r.updatedAt = Date.now()
   store.persist()
@@ -790,6 +1029,7 @@ function togglePin(r: ResourceCard) {
 }
 /** 第卅三轮 REQ-020：星标切换（独立于置顶，可叠加） */
 function toggleStar(r: ResourceCard) {
+  if (isMirrorView(r)) { showToast('📡 镜像卡为引用——星标请在资源台操作'); return }
   r.starred = !r.starred
   r.updatedAt = Date.now()
   store.persist()
@@ -811,38 +1051,30 @@ let draggedItem: ResourceCard | null = null
 const resCtx = ref({ open: false, x: 0, y: 0 })
 const resCtxItems = ref<{ label: string; icon?: string; danger?: boolean; cb: () => void }[]>([])
 function openResCtx(e: MouseEvent, r: ResourceCard) {
-  resCtxItems.value = [
-    { label: '打开链接', icon: 'arrowright', cb: () => openResourceLink(r) },
-    { label: '复制链接', icon: 'copy', cb: () => { if (r.link) { navigator.clipboard.writeText(r.link); showToast('✓ 链接已复制') } } },
-    { label: '移动分类', icon: 'folder', cb: () => openMoveOne(r) },
-    { label: r.pinned ? '取消置顶' : '置顶', icon: 'pin', cb: () => togglePin(r) },
-    { label: '📡 镜像到策展中心', icon: 'star', cb: () => projectCardToCuration(r) },
-    { label: '删除', icon: 'trash', danger: true, cb: () => deleteResource(r) }
-  ]
+  if (isMirrorView(r)) {
+    // R61：镜像卡右键——只读引用语义（打开/复制/定位源/移出镜像）
+    resCtxItems.value = [
+      { label: '打开链接', icon: 'arrowright', cb: () => openResourceLink(r) },
+      { label: '复制链接', icon: 'copy', cb: () => { if (r.link) { navigator.clipboard.writeText(r.link); showToast('✓ 链接已复制') } } },
+      { label: '🎯 定位到资源台', icon: 'folder', cb: () => locateMirrorSource(r) },
+      { label: '✕ 移出镜像', icon: 'trash', danger: true, cb: () => removeMirror(r) }
+    ]
+  } else {
+    resCtxItems.value = [
+      { label: '打开链接', icon: 'arrowright', cb: () => openResourceLink(r) },
+      { label: '复制链接', icon: 'copy', cb: () => { if (r.link) { navigator.clipboard.writeText(r.link); showToast('✓ 链接已复制') } } },
+      { label: '移动分类', icon: 'folder', cb: () => openMoveOne(r) },
+      { label: r.pinned ? '取消置顶' : '置顶', icon: 'pin', cb: () => togglePin(r) },
+      // R62-3：中心论点（每台一张；设立即替换旧论点）
+      r.isThesis
+        ? { label: '取消中心论点', icon: 'star', cb: () => unsetThesis() }
+        : { label: '🏛 设为中心论点', icon: 'star', cb: () => setThesisCard(r) },
+      { label: '删除', icon: 'trash', danger: true, cb: () => deleteResource(r) }
+    ]
+  }
   resCtx.value = { open: true, x: Math.min(e.clientX, window.innerWidth - 190), y: Math.min(e.clientY, window.innerHeight - 240) }
 }
 
-/** R50-F3 + R53：单卡镜像到策展中心（引用式镜像记录，落「待分类」；策展中心实时渲染源卡，移出/清空零影响源数据） */
-function projectCardToCuration(r: ResourceCard) {
-  if (r.workspaceId === CURATION_WS_ID) { showToast('ℹ 策展中心原生卡无需镜像'); return }
-  const d2 = d.value
-  d2.curationProjections = d2.curationProjections || []
-  if (d2.curationProjections.some(p => p.kind === 'card' && p.cardId === r.id)) { showToast('ℹ 该卡已在策展中心镜像中'); return }
-  d2.curationProjections.push({ id: uid('curp'), kind: 'card', wsId: r.workspaceId, cardId: r.id, catId: r.categoryId, targetCatId: '', addedAt: Date.now() })
-  store.persist()
-  showToast('📡 已镜像到策展中心（引用式镜像）')
-}
-
-/** R53-A3（修订 R50-F3）：整组分类镜像——物化为带 curFrom 的真实策展分类（同树混排；源卡含子分类实时呈现） */
-function projectCategoryToCuration(cat: Category) {
-  const d2 = d.value
-  if (d2.categories.some(x => x.workspaceId === CURATION_WS_ID && x.curFrom?.wsId === cat.workspaceId && x.curFrom?.catId === cat.id)) { showToast('ℹ 该分类已在策展中心镜像中'); return }
-  let maxOrder = -1
-  for (const c of d2.categories) if (c.workspaceId === CURATION_WS_ID && (c.order ?? 0) > maxOrder) maxOrder = c.order ?? 0
-  d2.categories.push({ id: uid('cat'), workspaceId: CURATION_WS_ID, name: cat.name, order: maxOrder + 1, curFrom: { wsId: cat.workspaceId, catId: cat.id, projId: 'cat:' + cat.id } })
-  store.persist()
-  showToast('📡 已镜像分类到策展中心（含子分类实时呈现）')
-}
 // B6：拖拽插入线（X 轴卡片 / Y 轴列表）
 const dropMark = ref('')
 function markDrop(e: DragEvent, key: string, axis: 'x' | 'y') {
@@ -875,6 +1107,14 @@ function groupKeyOf(r: ResourceCard): string {
 function onDropCard(e: DragEvent, target: ResourceCard) {
   if (!draggedItem || draggedItem.id === target.id) { clearDropMark(); return }
   const moved = draggedItem
+  // R61：镜像卡拖拽 = 只改投射落点（源卡零影响，不参与物理排序）
+  if (isMirrorView(moved)) {
+    const mCat = target.categoryId && wsCats.value.some(c => c.id === target.categoryId) ? target.categoryId : ''
+    moveMirrorTo(moved, mCat)
+    draggedItem = null
+    clearDropMark()
+    return
+  }
   const after = dropMark.value.endsWith('-b')
   // REQ-028 F-028-3：跨分区拖拽 = 修改分类归属（轻提示）；同分区 = 局部排序
   const crossGroup = groupKeyOf(moved) !== groupKeyOf(target)
@@ -907,6 +1147,12 @@ function onKanbanCardDrop(e: DragEvent, target: ResourceCard) {
   if (!draggedItem || draggedItem.id === target.id) return
   sortBy.value = 'manual'
   const moved = draggedItem
+  // R61：镜像卡拖拽 = 只改投射落点
+  if (isMirrorView(moved)) {
+    moveMirrorTo(moved, target.categoryId || '')
+    draggedItem = null
+    return
+  }
   const fromIdx = d.value.resources.findIndex(x => x.id === moved.id)
   const toIdx = d.value.resources.findIndex(x => x.id === target.id)
   if (fromIdx < 0 || toIdx < 0) return
@@ -927,6 +1173,8 @@ function onKanbanCardDrop(e: DragEvent, target: ResourceCard) {
 }
 function onDropToCategory(e: DragEvent, catId: string) {
   if (!draggedItem) return
+  // R61：镜像卡落树节点 = 只改投射落点
+  if (isMirrorView(draggedItem)) { moveMirrorTo(draggedItem, catId); draggedItem = null; clearCardDropTarget(); return }
   draggedItem.categoryId = catId
   draggedItem.updatedAt = Date.now()
   store.persist()
@@ -964,12 +1212,17 @@ async function batchOpen() {
 async function batchDelete() {
   const n = selectedIds.value.size
   const removed = selectedCards()
-  removed.forEach(r => { r.deletedAt = Date.now() })
+  // R61：镜像卡参与批量删除 = 移出镜像（源卡保留）；原生卡照常软删
+  const mirrors = removed.filter(isMirrorView)
+  const natives = removed.filter(r => !isMirrorView(r))
+  mirrors.forEach(m => removeProjection(d.value, (m as MirrorView).__mirrorProjId))
+  natives.forEach(r => { r.deletedAt = Date.now() })
   store.persist()
   selectedIds.value.clear()
-  showToast(`已删除 ${n} 张资源卡`, { label: '撤销', cb: () => {
+  const mirrorNote = mirrors.length ? `（含 ${mirrors.length} 张镜像卡已移出镜像）` : ''
+  showToast(`已删除 ${natives.length} 张资源卡${mirrorNote}`, { label: '撤销', cb: () => {
     // REQ-030：按 id 批量定位当前树恢复
-    removed.forEach(r => {
+    natives.forEach(r => {
       const cur = d.value.resources.find(x => x.id === r.id)
       if (cur && cur.deletedAt) cur.deletedAt = undefined
     })
@@ -1000,31 +1253,37 @@ const rootCats = computed(() => wsCats.value
   .sort((a, b) => a.order - b.order))
 const pinnedRootCats = computed(() => rootCats.value.filter(c => c.pinned))
 const unpinnedRootCats = computed(() => rootCats.value.filter(c => !c.pinned))
-function childIds(catId: string): string[] {
-  return wsCats.value.filter(c => c.parentId === catId).map(c => c.id)
+/** R61-4：全部后代 id（深层递归）——4 级树过滤/计数/防环共用 */
+function descendantIds(catId: string): string[] {
+  const out: string[] = []
+  const walk = (pid: string) => { for (const c of wsCats.value.filter(x => x.parentId === pid)) { out.push(c.id); walk(c.id) } }
+  walk(catId)
+  return out
 }
-/** 家族 id（自己 + 全部子分类）——过滤与计数共用口径 */
+function childIds(catId: string): string[] {
+  return descendantIds(catId)
+}
+/** 家族 id（自己 + 全部后代分类）——过滤与计数共用口径（R61-4 深化至 4 级） */
 function familyIds(catId: string): string[] {
-  return [catId, ...childIds(catId)]
+  return [catId, ...descendantIds(catId)]
 }
 function catAggCount(catId: string): number {
   const ids = familyIds(catId)
   return allResources.value.filter(r => r.categoryId && ids.includes(r.categoryId)).length
 }
-/** 分类选择器的层级化选项（下拉/弹窗共用） */
+/** 分类选择器的层级化选项（下拉/弹窗共用）——R61-4：递归支持 4 级 */
 function treeCatOptions(cats: Category[]): { id: string; label: string }[] {
   const roots = cats.filter(c => !c.parentId || !cats.some(p => p.id === c.parentId)).sort((a, b) => a.order - b.order)
   const out: { id: string; label: string }[] = []
-  for (const r0 of roots) {
-    out.push({ id: r0.id, label: r0.name })
-    for (const ch of cats.filter(c => c.parentId === r0.id).sort((a, b) => a.order - b.order)) {
-      out.push({ id: ch.id, label: '└ ' + ch.name })
-    }
+  const push = (c: Category, depth: number) => {
+    out.push({ id: c.id, label: '└'.repeat(depth) + (depth ? ' ' : '') + c.name })
+    for (const ch of cats.filter(x => x.parentId === c.id).sort((a, b) => a.order - b.order)) push(ch, depth + 1)
   }
+  for (const r0 of roots) push(r0, 0)
   return out
 }
-/** 左栏渲染的扁平序列（分区标签 + 缩进标记） */
-interface SidebarCat { cat: Category; depth: 0 | 1; sectionLabel: string }
+/** 左栏渲染的扁平序列（分区标签 + 缩进标记）——R61-4：递归支持 4 级 */
+interface SidebarCat { cat: Category; depth: number; sectionLabel: string }
 // R48-V2：树状目录展开/折叠（默认全局展开；折叠状态仅会话内记忆）
 const collapsedCats = ref<Set<string>>(new Set())
 function toggleCatCollapse(id: string) {
@@ -1039,20 +1298,25 @@ function collapseAllCats() {
 function expandAllCats() { collapsedCats.value = new Set() }
 function selectSidebarCat(sc: SidebarCat) {
   activeCategory.value = sc.cat.id
-  // 选中子分类时自动展开其父级，避免「选中被藏住」
-  if (sc.depth === 1 && sc.cat.parentId && collapsedCats.value.has(sc.cat.parentId)) {
-    const s = new Set(collapsedCats.value); s.delete(sc.cat.parentId); collapsedCats.value = s
+  // 选中深层分类时自动展开其全部祖先，避免「选中被藏住」
+  let pid = sc.cat.parentId
+  while (pid && collapsedCats.value.has(pid)) {
+    const s = new Set(collapsedCats.value); s.delete(pid); collapsedCats.value = s
+    pid = wsCats.value.find(c => c.id === pid)?.parentId
   }
 }
 const sidebarCats = computed<SidebarCat[]>(() => {
   const out: SidebarCat[] = []
+  const pushTree = (c: Category, depth: number, sectionLabel: string) => {
+    out.push({ cat: c, depth, sectionLabel })
+    if (depth > 0 && collapsedCats.value.has(c.id)) return
+    if (!collapsedCats.value.has(c.id)) for (const k of childCatsOf(c.id)) pushTree(k, depth + 1, '')
+  }
   pinnedRootCats.value.forEach((c, i) => {
-    out.push({ cat: c, depth: 0, sectionLabel: i === 0 ? '📌 置顶' : '' })
-    if (!collapsedCats.value.has(c.id)) childCatsOf(c.id).forEach(k => out.push({ cat: k, depth: 1, sectionLabel: '' }))
+    pushTree(c, 0, i === 0 ? '📌 置顶' : '')
   })
   unpinnedRootCats.value.forEach((c, i) => {
-    out.push({ cat: c, depth: 0, sectionLabel: (i === 0 && pinnedRootCats.value.length) ? '📁 分类' : '' })
-    if (!collapsedCats.value.has(c.id)) childCatsOf(c.id).forEach(k => out.push({ cat: k, depth: 1, sectionLabel: '' }))
+    pushTree(c, 0, (i === 0 && pinnedRootCats.value.length) ? '📁 分类' : '')
   })
   return out
 })
@@ -1085,6 +1349,12 @@ function confirmCatModal() {
   if (!name) { showToast('请输入分类名称'); return }
   if (catNameDup.value) { showToast('该工作台已存在同名分类，请更换名称'); return }
   if (m.mode === 'create') {
+    // R61-4：4 级上限校验
+    if (m.parentId) {
+      const parent = wsCats.value.find(c => c.id === m.parentId)
+      const levelOf = (c: Category): number => { let n = 1; let cur = wsCats.value.find(x => x.id === c.parentId); while (cur) { n++; cur = wsCats.value.find(x => x.id === cur!.parentId) } return n }
+      if (parent && levelOf(parent) + 1 > 4) { showToast('ℹ 最多 4 级——该分类已处于最深层'); return }
+    }
     const siblings = wsCats.value.filter(c => (c.parentId || '') === m.parentId)
     const cat: Category = { id: uid('cat'), workspaceId: workspaceId.value, name, order: siblings.length, parentId: m.parentId || undefined }
     d.value.categories.push(cat)
@@ -1113,7 +1383,9 @@ async function deleteCategory(cat: Category) {
     allResources.value.forEach(r => { if (r.categoryId === cat.id) r.categoryId = '' })
   }
   d.value.categories = d.value.categories.filter(c => c.id !== cat.id)
-  // R53-A3：级联清理该源分类的策展镜像分类（停入卡回落未分类、投射卡回待分类、子分类提根）
+  // R61：清理以该分类为落点的镜像记录（落点回落该台待分类；源卡零影响）
+  for (const p of d.value.curationProjections || []) if (p.kind === 'card' && p.targetWsId === workspaceId.value && p.targetCatId === cat.id) p.targetCatId = undefined
+  // R53-A3：级联清理该源分类的策展镜像分类（旧方向遗留逻辑，R61 后 hub 分类无 curFrom，保留兜底）
   const mirrorCats = d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID && c.curFrom?.catId === cat.id)
   for (const mc of mirrorCats) {
     const midIds = new Set<string>([mc.id])
@@ -1230,8 +1502,11 @@ function onCatDrop(e: DragEvent, cat: Category) {
   const target = wsCats.value.find(c => c.id === targetId)
   if (!dragged || !target) return
   if (childIds(dragged.id).includes(target.id)) { showToast('不能移动到自己的子分类'); return }
+  // R61-4：层级工具（4 级上限）
+  const levelOf = (c: Category): number => { let n = 1; let cur = wsCats.value.find(x => x.id === c.parentId); while (cur) { n++; cur = wsCats.value.find(x => x.id === cur!.parentId) } return n }
+  const heightOf = (c: Category): number => { const ch = childCatsOf(c.id); return ch.length ? Math.max(...ch.map(heightOf)) + 1 : 1 }
   if (mode === 'child') {
-    if (dragged.parentId) { showToast('最多 2 级，子分类不能再嵌套'); return }
+    if (levelOf(target) + heightOf(dragged) > 4) { showToast(`ℹ 最多 4 级——「${dragged.name}」（含 ${heightOf(dragged) - 1} 层子级）放入后将超出层级上限`); return }
     dragged.parentId = target.id
     dragged.pinned = undefined
     dragged.order = childCatsOf(target.id).length
@@ -1281,6 +1556,10 @@ function openBatchMove() {
 function confirmBatchMove() {
   const items = selectedCards()
   if (!items.length || !moveWsId.value) { showToast('请选择目标工作台'); return }
+  // R61：镜像卡不参与跨台移动（引用随台走），先移出镜像再提示
+  const mirrors = items.filter(isMirrorView)
+  const natives = items.filter(r => !isMirrorView(r))
+  if (mirrors.length && !natives.length) { showToast('📡 所选均为镜像卡——移动请在资源台操作，或先移出镜像'); return }
   let catId = moveCatId.value
   if (!catId) {
     let cat = d.value.categories.find(c => c.workspaceId === moveWsId.value && c.name === '待分类')
@@ -1293,7 +1572,8 @@ function confirmBatchMove() {
   items.forEach(r => { r.workspaceId = moveWsId.value; r.categoryId = catId; r.updatedAt = Date.now() })
   store.persist()
   moveModalOpen.value = false
-  showToast(`✓ 已移动 ${items.length} 张资源卡`)
+  const mirrorNote = mirrors.length ? `（${mirrors.length} 张镜像卡未移动）` : ''
+  showToast(`✓ 已移动 ${natives.length} 张资源卡${mirrorNote}`)
   selectedIds.value.clear()
 }
 
@@ -1303,6 +1583,7 @@ const moveOneCatId = ref('')
 let moveOneTarget: ResourceCard | null = null
 const moveOneOptions = computed(() => treeCatOptions(wsCats.value))
 function openMoveOne(r: ResourceCard) {
+  if (isMirrorView(r)) { showToast('📡 镜像卡为引用——移动落点请直接拖拽，编辑请到资源台'); return }
   moveOneTarget = r
   moveOneCatId.value = r.categoryId || ''
   moveOneOpen.value = true
@@ -1326,6 +1607,200 @@ function confirmInputModal() {
   const v = inputModal.value.value.trim()
   if (v && inputModal.value.cb) inputModal.value.cb(v)
   inputModal.value.open = false
+}
+
+// ===== R62-5/6/8：金字塔视图逻辑 =====
+interface PyNode { cat: Category; depth: number; cards: ResourceCard[] }
+/** 节点深度（根=0；防环靠 parentId 单向链） */
+function pyDepthOf(c: Category): number {
+  let n = 0; let cur = wsCats.value.find(x => x.id === c.parentId)
+  while (cur) { n++; cur = wsCats.value.find(x => x.id === cur!.parentId) }
+  return n
+}
+/** 金字塔层级数据：按分类深度铺开（深度0=L2）；卡片=直属（排除主题卡，主题卡是 L1 根） */
+const pyramidLevels = computed<PyNode[][]>(() => {
+  const byDepth = new Map<number, PyNode[]>()
+  for (const c of wsCats.value) {
+    const depth = pyDepthOf(c)
+    if (!byDepth.has(depth)) byDepth.set(depth, [])
+    byDepth.get(depth)!.push({ cat: c, depth, cards: [] })
+  }
+  for (const arr of byDepth.values()) arr.sort((a, b) => a.cat.order - b.cat.order)
+  for (const r of allResources.value) {
+    if (r.isThesis) continue
+    for (const arr of byDepth.values()) {
+      const hit = arr.find(n => n.cat.id === r.categoryId)
+      if (hit) { hit.cards.push(r); break }
+    }
+  }
+  return [...byDepth.keys()].sort((a, b) => a - b).map(k => byDepth.get(k)!)
+})
+/** 同级顺序调整（⟨ 前移 / ⟩ 后移） */
+function moveCatSibling(cat: Category, dir: -1 | 1) {
+  const pid = cat.parentId || ''
+  const sibs = wsCats.value.filter(c => (c.parentId || '') === pid).sort((a, b) => a.order - b.order)
+  const i = sibs.findIndex(c => c.id === cat.id)
+  const j = i + dir
+  if (i < 0 || j < 0 || j >= sibs.length) return
+  const tmp = sibs[i]!; sibs[i] = sibs[j]!; sibs[j] = tmp
+  sibs.forEach((c, k) => { c.order = k })
+  store.persist()
+}
+/** 层级上限工具（复用 R61-4 口径：分类最多 4 级） */
+function pyLevelOf(c: Category): number { return pyDepthOf(c) + 1 }
+function pyHeightOf(c: Category): number {
+  const ch = wsCats.value.filter(x => x.parentId === c.id)
+  return ch.length ? Math.max(...ch.map(pyHeightOf)) + 1 : 1
+}
+// 节点拖拽状态（卡片走 draggedItem；分类走 dragCatId）
+const pyDropTarget = ref('')
+const pyDropMode = ref<'' | 'child' | 'before' | 'after'>('')
+const pyRootDrop = ref(false)
+function onPyDragOver(e: DragEvent, cat: Category) {
+  if (draggedItem && !dragCatId) {
+    // 卡片拖入：整节点高亮为归属落点
+    pyDropTarget.value = cat.id; pyDropMode.value = 'child'
+    return
+  }
+  if (!dragCatId || dragCatId === cat.id) return
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  const y = e.clientY - rect.top
+  pyDropMode.value = y > rect.height * 0.75 ? 'before' : 'child'
+  pyDropTarget.value = cat.id
+}
+function onPyDrop(e: DragEvent, cat: Category) {
+  e.preventDefault(); e.stopPropagation()
+  const targetId = pyDropTarget.value; const mode = pyDropMode.value
+  pyDropTarget.value = ''; pyDropMode.value = ''
+  // ① 卡片落节点 = 改归属（canMountInNode 校验：金字塔节点只挂资源卡）
+  if (draggedItem && !dragCatId) {
+    if (!canMountInNode(draggedItem)) { showToast('⚠ 金字塔节点只允许挂资源卡'); return }
+    if (isMirrorView(draggedItem)) { moveMirrorTo(draggedItem, cat.id) }
+    else {
+      draggedItem.categoryId = cat.id
+      draggedItem.updatedAt = Date.now()
+      store.persist()
+      showToast(`✓ 已挂入「${cat.name}」`)
+    }
+    draggedItem = null
+    clearCardDropTarget()
+    return
+  }
+  // ② 分类落节点：上沿=同级排序，其余=挂子级（成环 + 层级校验）
+  const draggedId = dragCatId
+  onCatDragEnd()
+  if (!draggedId || draggedId === targetId) return
+  const dragged = wsCats.value.find(c => c.id === draggedId)
+  const target = wsCats.value.find(c => c.id === targetId)
+  if (!dragged || !target) return
+  if (childIds(dragged.id).includes(target.id)) { showToast('不能移动到自己的子分类'); return }
+  if (mode === 'before') {
+    moveCatSibling(target, 1) // 空出目标位
+    dragged.parentId = target.parentId || undefined
+    const sibs = wsCats.value.filter(c => (c.parentId || '') === (target.parentId || '') && c.id !== draggedId).sort((a, b) => a.order - b.order)
+    const ti = sibs.findIndex(c => c.id === targetId)
+    sibs.splice(Math.max(0, ti), 0, dragged)
+    sibs.forEach((c, i) => { c.order = i })
+    store.persist()
+    return
+  }
+  if (pyLevelOf(target) + pyHeightOf(dragged) > 4) {
+    showToast(`ℹ 最多 4 级——「${dragged.name}」（含 ${pyHeightOf(dragged) - 1} 层子级）放入后将超出层级上限`)
+    return
+  }
+  dragged.parentId = target.id
+  dragged.pinned = undefined
+  dragged.order = wsCats.value.filter(c => c.parentId === target.id).length - 1
+  normalizeCatOrders('')
+  store.persist()
+  showToast(`✓ 「${dragged.name}」已挂入「${target.name}」`)
+}
+function onPyRootDragOver() {
+  if (!dragCatId) return
+  pyRootDrop.value = true
+}
+/** 根区落点：分类升为一级；卡片拖到根 = 提示（主题卡唯一，不收卡） */
+function onPyRootDrop(e: DragEvent) {
+  e.preventDefault(); e.stopPropagation()
+  pyRootDrop.value = false
+  if (draggedItem && !dragCatId) { showToast('🏛 中心论点位不收卡——请拖到具体节点'); draggedItem = null; return }
+  const draggedId = dragCatId
+  onCatDragEnd()
+  if (!draggedId) return
+  const dragged = wsCats.value.find(c => c.id === draggedId)
+  if (!dragged || !dragged.parentId) return
+  dragged.parentId = undefined
+  dragged.order = rootCats.value.length
+  normalizeCatOrders('')
+  store.persist()
+  showToast(`✓ 「${dragged.name}」已升为一级节点`)
+}
+/** 金字塔节点点击定位：与左侧树联动（选中 + 闪节点） */
+function selectPyNode(cat: Category) {
+  activeCategory.value = cat.id
+  catFlashId.value = cat.id
+  setTimeout(() => { if (catFlashId.value === cat.id) catFlashId.value = null }, 1600)
+}
+
+// ===== R62-6：节点菜单（⋯ 6 项） =====
+const nodeMenu = ref<{ open: boolean; x: number; y: number; catId: string }>({ open: false, x: 0, y: 0, catId: '' })
+function openNodeMenu(e: MouseEvent, cat: Category) {
+  nodeMenu.value = { open: true, x: Math.min(e.clientX, window.innerWidth - 230), y: Math.min(e.clientY, window.innerHeight - 240), catId: cat.id }
+}
+function nmCat(): Category | null { return wsCats.value.find(c => c.id === nodeMenu.value.catId) || null }
+function nmCreateChild() {
+  const cat = nmCat(); nodeMenu.value.open = false
+  if (cat) openCreateCat(cat.id)
+}
+function nmCreateSibling() {
+  const cat = nmCat(); nodeMenu.value.open = false
+  if (cat) openCreateCat(cat.parentId || '')
+}
+function nmMirrorCat() {
+  nodeMenu.value.open = false
+  mirrorCatModal.value = { open: true, catId: '' }
+}
+function nmPack() {
+  const cat = nmCat(); nodeMenu.value.open = false
+  packIntoNode(cat || undefined)
+}
+function nmRename() {
+  const cat = nmCat(); nodeMenu.value.open = false
+  if (cat) openRenameCat(cat)
+}
+async function nmDelete() {
+  const cat = nmCat(); nodeMenu.value.open = false
+  if (cat) await deleteCategory(cat)
+}
+/** R62-6：打包所选卡片成节点（batchBar / 节点菜单共用；入参节点 = 挂其下，否则建一级） */
+function packIntoNode(parentCat?: Category) {
+  const natives = selectedCards().filter(r => !isMirrorView(r))
+  if (!selectedIds.value.size) { showToast('请先开启「☑ 批量管理」选择卡片'); return }
+  if (!natives.length) { showToast('📡 所选均为镜像卡，打包请在资源台操作'); return }
+  const mirrorNote = selectedIds.value.size - natives.length
+  openInputModal(parentCat ? `🗂 新节点（挂「${parentCat.name}」下）` : '🗂 新节点（一级）', '', (name) => {
+    if (parentCat && pyLevelOf(parentCat) + 1 > 4) { showToast('ℹ 最多 4 级——该节点已处于最深层'); return }
+    const siblings = wsCats.value.filter(c => (c.parentId || '') === (parentCat?.id || ''))
+    const cat: Category = { id: uid('cat'), workspaceId: workspaceId.value, name, order: siblings.length, parentId: parentCat?.id || undefined }
+    d.value.categories.push(cat)
+    natives.forEach(r => { r.categoryId = cat.id; r.updatedAt = Date.now() })
+    store.persist()
+    selectedIds.value.clear()
+    showToast(`✓ 已打包 ${natives.length} 张卡入「${name}」${mirrorNote ? `（${mirrorNote} 张镜像卡未移动）` : ''}`)
+  })
+}
+
+// ===== R62-6：从资源台镜像分类（弹窗选分类 → mirrorCategoryToBoard） =====
+const mirrorCatModal = ref<{ open: boolean; catId: string }>({ open: false, catId: '' })
+const hubCatOptions = computed(() => treeCatOptions(d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID)))
+function confirmMirrorCat() {
+  const catId = mirrorCatModal.value.catId
+  if (!catId) return
+  const ok = mirrorCategoryToBoard(d.value, catId, workspaceId.value)
+  store.persist()
+  mirrorCatModal.value.open = false
+  if (ok) showToast('📤 已镜像分类到本台（源分类现有卡自动镜像，引用式）')
+  else showToast('ℹ 该分类已镜像过本台')
 }
 
 // ===== 导入：书签 HTML / 本地文件（E3） =====
@@ -1609,7 +2084,7 @@ function exportWorkspace() {
 }
 async function deleteWorkspace() {
   // R58-B1：策展空间是全局工作台，不可从此入口删除
-  if (workspaceId.value === CURATION_WS_ID) { showToast('ℹ 策展中心为全局空间，不在此删除'); return }
+  if (workspaceId.value === CURATION_WS_ID) { showToast('ℹ 资源台为系统空间，不在此删除'); return }
   // R58-B1：红线修复——资源卡一律软删（deletedAt，回收站可恢复），不再物理移除
   if (!(await useConfirm({ title: '删除工作台', message: `确定删除工作台「${workspace.value?.name.replace(/^[^\s]+\s/, '')}」？\n其中资源卡将全部移入回收站（可恢复），分类与工作台本身将删除且不可恢复。`, confirmText: '确认删除' }))) return
   const idx = d.value.workspaces.findIndex(w => w.id === workspaceId.value)
@@ -1795,6 +2270,8 @@ function linkDisplay(link: string) {
 .rc-action.delete:hover { color: var(--danger); }
 .rc-fields { display: flex; flex-direction: column; gap: 5px; flex: 1; }
 .rc-title { font-size: 13.5px; font-weight: 600; color: var(--text); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-right: 20px; }
+/* R61：镜像卡徽标 */
+.rc-mirror-badge { display: inline-block; font-size: 10px; margin-right: 4px; opacity: .85; filter: saturate(.9); }
 .rc-summary { font-size: 11.5px; color: var(--text-3); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .rc-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .rc-tag { font-size: 10px; padding: 2px 7px; border-radius: 99px; background: var(--accent-light); color: var(--accent); }
@@ -1927,4 +2404,68 @@ function linkDisplay(link: string) {
 .bk-count { font-size: 10.5px; color: var(--text-3); background: var(--surface-3); padding: 1px 8px; border-radius: 99px; }
 
 /* Toast */
+
+/* ===== R62-1：策展台 5 指标条 ===== */
+.ws-metrics { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; gap: 10px; margin: 12px 0 0; }
+.metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; cursor: pointer; transition: all .15s; min-width: 0; }
+.metric-card:hover { border-color: var(--accent); background: var(--surface-2); transform: translateY(-1px); }
+.mc-label { font-size: 10.5px; color: var(--text-3); margin-bottom: 4px; }
+.mc-value { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.2; font-variant-numeric: tabular-nums; }
+.mc-value.thesis { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc-value.small { font-size: 15px; }
+.mc-sep { color: var(--text-4); font-weight: 400; margin: 0 3px; }
+.mc-hint { font-size: 10px; color: var(--text-4); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ===== R62-4：层级色点 ===== */
+.cat-depth-dot { width: 6px; height: 6px; border-radius: 2px; flex-shrink: 0; }
+.cat-depth-dot[data-lv="0"] { background: var(--accent); }
+.cat-depth-dot[data-lv="1"] { background: #4A7FB5; }
+.cat-depth-dot[data-lv="2"] { background: #8b6fc9; }
+.cat-depth-dot[data-lv="3"] { background: #d99a1e; }
+
+/* ===== R62-5：金字塔视图 ===== */
+.pyramid { display: flex; flex-direction: column; gap: 14px; }
+.py-root { position: relative; display: flex; justify-content: center; padding: 6px 0 10px; border-radius: 10px; transition: background .15s, box-shadow .15s; }
+.py-root.droppable { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-light); }
+.py-root-card { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--surface)), var(--surface)); border: 1.5px solid var(--accent); border-radius: 12px; padding: 12px 22px; max-width: 520px; text-align: center; cursor: pointer; transition: all .15s; }
+.py-root-card:hover { transform: translateY(-1px); box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 18%, transparent); }
+.py-root-badge { display: block; font-size: 10px; color: var(--accent); font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
+.py-root-title { display: block; font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.5; }
+.py-root-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 11.5px; color: var(--text-3); margin-top: 4px; line-height: 1.5; }
+.py-root-unset { position: absolute; top: 2px; right: 8px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 11px; color: var(--text-3); cursor: pointer; }
+.py-root-unset:hover { background: var(--surface-3); color: var(--danger); }
+.py-root-empty { border: 1.5px dashed var(--border-strong); border-radius: 12px; padding: 14px 24px; font-size: 12px; color: var(--text-3); text-align: center; width: 100%; }
+.py-level { display: flex; flex-direction: column; gap: 6px; }
+.py-level-label { font-size: 10px; font-weight: 700; color: var(--text-4); letter-spacing: 1px; }
+.py-level-nodes { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+.py-node { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; min-width: 200px; max-width: 280px; flex: 1 1 200px; transition: border-color .15s, box-shadow .15s; }
+.py-node:hover { border-color: var(--border-strong); }
+.py-node.drop-child { border-color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.py-node.drop-sib { box-shadow: inset 0 2px 0 var(--accent); }
+.py-node.flash { animation: rc-flash 1.6s ease-out; }
+.py-node-head { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border); cursor: grab; }
+.py-node-name { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.py-node-name:hover { color: var(--accent); }
+.py-node-count { font-size: 10px; color: var(--accent); background: var(--accent-light); padding: 1px 7px; border-radius: 99px; font-weight: 600; }
+.py-node-ops { display: inline-flex; gap: 2px; opacity: 0; transition: opacity .15s; }
+.py-node-head:hover .py-node-ops { opacity: 1; }
+.py-op { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 11px; color: var(--text-3); cursor: pointer; }
+.py-op:hover { background: var(--surface-3); color: var(--accent); }
+.py-node-body { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 10px 10px; min-height: 34px; }
+.py-card-chip { font-size: 11px; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; cursor: pointer; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all .12s; }
+.py-card-chip:hover { border-color: var(--accent); color: var(--text); background: var(--accent-light); }
+.py-node-empty { font-size: 10.5px; color: var(--text-4); }
+.py-node-add { position: absolute; right: -8px; top: -8px; width: 20px; height: 20px; display: none; align-items: center; justify-content: center; border-radius: 6px; background: var(--accent); color: #fff; font-size: 13px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+.py-node:hover .py-node-add { display: flex; }
+.py-level-empty { font-size: 10.5px; color: var(--text-4); padding: 4px 0; }
+.py-empty { font-size: 12px; color: var(--text-3); padding: 24px 0; text-align: center; }
+
+/* ===== R62-6：节点菜单 ===== */
+.node-menu-mask { position: fixed; inset: 0; z-index: 690; }
+.node-menu { position: fixed; z-index: 691; width: 216px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; animation: ipIn .16s cubic-bezier(.16,1,.3,1); }
+.nm-item { padding: 8px 11px; border-radius: 7px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: all .1s; }
+.nm-item:hover { background: var(--surface-3); color: var(--text); }
+.nm-item.danger { color: var(--danger); }
+.nm-item.danger:hover { background: var(--tag-danger-bg); }
+.nm-divider { height: 1px; background: var(--border); margin: 4px 6px; }
 </style>

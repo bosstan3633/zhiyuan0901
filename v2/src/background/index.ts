@@ -234,6 +234,63 @@ chrome.commands.onCommand.addListener(async (command) => {
       chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html#/compass') })
       break
     }
+    case 'sync-airtable': {
+      // R63-8：Airtable 手动同步（无默认键，chrome://extensions/shortcuts 自定义）。
+      // background 不写主数据（整根 JSON 跨上下文覆盖风险）——交给已开新标签页执行；
+      // 没有就开一个带 zy-autosync 标记的新标签页，App 挂载后自动执行。
+      await triggerAirtableSync(false)
+      break
+    }
+  }
+})
+
+/** R63-10：触发新标签页执行 Airtable 同步（无页则开新页带自动同步标记） */
+async function triggerAirtableSync(silent: boolean): Promise<void> {
+  const base = chrome.runtime.getURL('src/newtab/index.html')
+  const tabs = await chrome.tabs.query({ url: base + '*' })
+  const host = tabs.find(t => t.id != null)
+  if (host?.id != null) {
+    try {
+      await chrome.tabs.sendMessage(host.id, { type: 'zy-airtable-sync', silent })
+      return
+    } catch { /* 页面未就绪，落入开新页 */ }
+  }
+  chrome.tabs.create({ url: `${base}?zy-autosync=${silent ? '1' : 'toast'}` })
+}
+
+/** R63-10：3 小时轮询——SW 每次唤醒按开关对齐 alarm（开关默认关） */
+const AT_POLL_ALARM = 'airtable-poll'
+async function alignAirtableAlarm(): Promise<void> {
+  try {
+    const data = await chrome.storage.local.get('zy_data_v2')
+    const enabled = !!(data['zy_data_v2'] as { airtableSync?: { pollEnabled?: boolean; pat?: string; baseId?: string; tableId?: string } } | undefined)?.airtableSync?.pollEnabled
+    const alarm = await chrome.alarms.get(AT_POLL_ALARM)
+    if (enabled && !alarm) {
+      chrome.alarms.create(AT_POLL_ALARM, { periodInMinutes: 180 })
+    } else if (!enabled && alarm) {
+      chrome.alarms.clear(AT_POLL_ALARM)
+    }
+  } catch { /* 存储未就绪忽略，下次唤醒再对齐 */ }
+}
+alignAirtableAlarm()
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name !== AT_POLL_ALARM) return
+  // 轮询静默执行：无已开新标签页则跳过本轮（不为此打开页面打扰用户）
+  ;(async () => {
+    const base = chrome.runtime.getURL('src/newtab/index.html')
+    const tabs = await chrome.tabs.query({ url: base + '*' })
+    const host = tabs.find(t => t.id != null)
+    if (host?.id != null) {
+      chrome.tabs.sendMessage(host.id, { type: 'zy-airtable-sync', silent: true }).catch(() => {})
+    } else {
+      console.log('[知源V2] Airtable 轮询跳过：无已开新标签页')
+    }
+  })()
+})
+// 开关变化即时对齐 alarm（设置页 toggle 后无需等 SW 唤醒）
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && (changes as Record<string, chrome.storage.StorageChange>)['zy_data_v2']) {
+    alignAirtableAlarm()
   }
 })
 

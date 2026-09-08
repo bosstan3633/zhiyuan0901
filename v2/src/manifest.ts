@@ -4,9 +4,9 @@ export default defineManifest({
   manifest_version: 3,
   name: '知源调度台',
   short_name: '知源',
-  version: '2.32.0',
+  version: '2.33.0',
   description: '信息洪流中的控制中心 · 个人资源调度台 · 本地优先 · Chrome MV3',
-  permissions: ['storage', 'unlimitedStorage', 'tabs', 'activeTab', 'commands', 'scripting', 'downloads'],
+  permissions: ['storage', 'unlimitedStorage', 'tabs', 'activeTab', 'commands', 'scripting', 'downloads', 'alarms'],
   host_permissions: ['<all_urls>', 'file:///*'],
   chrome_url_overrides: {
     newtab: 'src/newtab/index.html'
@@ -53,6 +53,10 @@ export default defineManifest({
     // R55-C：快速采集任务（无默认键，chrome://extensions/shortcuts 自定义）
     'open-tasks': {
       description: '快速采集任务'
+    },
+    // R63-8：Airtable 手动同步（无默认键，不占 4 键上限）
+    'sync-airtable': {
+      description: '同步到 Airtable'
     }
   },
   content_scripts: [

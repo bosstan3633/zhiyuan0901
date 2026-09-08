@@ -33,7 +33,21 @@ function defaultFieldDefs() {
     { key: 'tags', label: '标签', type: 'tags', visible: false, order: 4 },
     { key: 'assets', label: '附件', type: 'text', visible: true, order: 5 }
   ]
-  return { resource, task, curiosity }
+  // R62-3：策展主题卡字段组（论点卡无链接语义，链接默认隐藏；论点/结论/适用场景用自定义字段承载）
+  const thesis: FieldDef[] = [
+    { key: 'title', label: '论点', type: 'text', visible: true, order: 0 },
+    { key: 'description', label: '论证', type: 'text', visible: true, order: 1 },
+    { key: 'tags', label: '标签', type: 'tags', visible: false, order: 2 },
+    { key: 'createdAt', label: '创建时间', type: 'date', visible: false, order: 3 },
+    { key: 'link', label: '链接', type: 'text', visible: false, order: 4 },
+    { key: 'assets', label: '附件', type: 'text', visible: true, order: 5 }
+  ]
+  return { resource, task, curiosity, thesis }
+}
+
+/** R62-3：老数据归一化用——thesis 字段组缺省补齐 */
+export function defaultThesisFieldDefs(): FieldDef[] {
+  return defaultFieldDefs().thesis!
 }
 
 export function createDefaultData(): AppData {

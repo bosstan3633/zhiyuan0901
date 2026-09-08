@@ -148,6 +148,9 @@ export interface ResourceCard extends CardBase {
   /** R52-F7：策展中心内原生卡的策展归属覆盖（仅策展中心消费）。R53-A1 迁移后不再使用
    *  （镜像分类已物化为真实分类，归属统一写 categoryId）；存量值由迁移归一并清空 */
   curCatId?: string
+  /** R61：主题卡标记（策展台的中心论点，金字塔 L1 根）——纯界面层呈现，不参与同步列；
+   *  卡片归属策展台（workspaceId=台 id），每台最多一张（界面层约束，R62 落） */
+  isThesis?: boolean
 }
 
 /**
@@ -158,10 +161,13 @@ export interface ResourceCard extends CardBase {
 export interface CurationProjection {
   id: ID
   kind: 'card' | 'category' | 'workspace'
+  /** 源工作台（R61 起新方向：资源台 CURATION_WS_ID） */
   wsId: ID
   catId?: ID
   cardId?: ID
-  /** 投入策展中心的分类（空 = 未分类区） */
+  /** R61：目标策展台 id（方向反转标记——资源台 → 策展台；无此字段 = R60 前旧方向记录，迁移时清空） */
+  targetWsId?: ID
+  /** 投入目标策展台的分类（空 = 该台未分类区） */
   targetCatId?: ID
   /** R55-A1：策展视图统一排序键（与原生卡 curOrder 同键，混排列表统一重编号） */
   curOrder?: number
@@ -231,6 +237,8 @@ export interface Workspace {
   desc?: string
   order: number
   archived: boolean
+  /** R61：台类型——'resource'=资源台（全局唯一，id 固定 CURATION_WS_ID，资源卡镜像源头）；缺省/'curation'=策展台（接收资源台镜像 + 台内新建卡） */
+  kind?: 'resource' | 'curation'
   /** H1：工作台快捷键固定映射（2-9，空 = 自动分配） */
   hotkey?: number
   /** R47-B4：被打开次数与最近打开时间——全局检索无输入时工作台参与热度排序 */
@@ -288,6 +296,8 @@ export interface FieldConfig {
   resource: FieldDef[]
   task: FieldDef[]
   curiosity: FieldDef[]
+  /** R62-3：策展主题卡字段组（isThesis 资源卡专用，界面层独立配置；老数据无此组，加载期补默认） */
+  thesis?: FieldDef[]
 }
 
 // ============ 统计指标 ============
@@ -332,8 +342,61 @@ export interface AppData {
   activityLogs: ActivityLog[]
   /** V2.20.1 BUG-2：存量回填记录——启动时按指标反查补齐 projectId 的任务条数（幂等，仅首次修复时写入） */
   projBackfillFixed?: number
-  /** R50-F3：策展中心投射清单（引用式镜像；导入合并按 id 取并集） */
+  /** R50-F3：策展中心投射清单（引用式镜像；导入合并按 id 取并集）。R61 起方向反转：资源台 → 策展台（targetWsId 标记） */
   curationProjections?: CurationProjection[]
+  /** R61：资源台结构迁移完成时间戳（幂等标记——有值即跳过迁移；迁移前自动备份下载由调用方执行） */
+  hubMigratedAt?: number
+  /** R63：Airtable 单向同步配置与状态（知源 → Airtable，PAT 明文随设备不跨端） */
+  airtableSync?: AirtableSyncState
+  /** R63：知源卡 id ↔ Airtable recordId 映射表（同步成功后写回；导入合并按 id 取并集） */
+  airtableMap?: Record<string, AirtableMapEntry>
+}
+
+/** R63：Airtable 单向同步配置 + 状态（存 AppData 单根内，随导出带走） */
+export interface AirtableSyncState {
+  /** Personal Access Token（明文存 chrome.storage.local，零云端立场） */
+  pat: string
+  /** Base ID（app 开头） */
+  baseId: string
+  /** Table ID（tbl 开头，连接测试后自动回填） */
+  tableId: string
+  /** 表名（回显用） */
+  tableName?: string
+  /** 3 小时轮询开关（默认关，R63-10） */
+  pollEnabled?: boolean
+  /** 上次同步完成时间戳 */
+  lastSyncAt?: number
+  /** 上次同步耗时 ms */
+  lastSyncMs?: number
+  /** 上次同步消耗的 API 调用次数 */
+  lastSyncCalls?: number
+  /** 上次同步推送的记录数（含新建+更新） */
+  lastSyncedCount?: number
+  /** 上次同步后仍待推送的卡片数（失败/未扫到的） */
+  pendingCount?: number
+  /** 增量游标：只推 updatedAt > cursorAt 的卡片 */
+  cursorAt?: number
+  /** 累计 API 调用计数（配额提示用，自用户配置起算） */
+  totalApiCalls?: number
+  /** 最近同步日志（尾部追加，最多 40 条） */
+  log?: AirtableLogEntry[]
+  /** 上次同步错误摘要（空串=无错误） */
+  lastError?: string
+}
+
+/** R63：同步日志条目 */
+export interface AirtableLogEntry {
+  at: number
+  /** pushed=成功推送条数 fields=补建字段数 error=错误摘要 */
+  msg: string
+  kind: 'ok' | 'error' | 'info'
+}
+
+/** R63：映射表条目 */
+export interface AirtableMapEntry {
+  recordId: string
+  /** 该卡上次同步成功时本地updatedAt */
+  syncedAt: number
 }
 
 export interface ActivityLog {
@@ -382,7 +445,8 @@ export interface UIPrefs {
 export const STORAGE_KEY = 'zy_data_v2'
 export const UI_KEY = 'zy_ui_v2'
 export const LEGACY_KEY = 'lm_data_v5'
-/** R50-F3：策展中心系统空间 ID（不建 Workspace 实体，仅作为 categories/resources 的归属标记） */
+/** R50-F3：策展中心系统空间 ID。R61 起转正为「资源台」——唯一 kind='resource' 的真实 Workspace 实体
+ *  （id 保持不变 ⇒ 存量 categories/resources 归属零迁移），是资源卡镜像的源头 */
 export const CURATION_WS_ID = 'zy-curation'
 
 export const DEFAULT_COVER_THEME = 'deep-sea'

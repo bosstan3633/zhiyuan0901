@@ -15,8 +15,8 @@ import { catalogMeta, type CardKind } from '@/shared/models/catalog'
 const props = defineProps<{
   fields: FieldDef[]
   cardType: string
-  /** 第卌轮：三卡型分区引用（用于自定义字段跨型同步；须含 props.fields 所在数组） */
-  crossFields?: Record<CardKind, FieldDef[]>
+  /** 卡型分区引用（用于自定义字段跨型同步；R62-3 起 thesis 组可选） */
+  crossFields?: Partial<Record<CardKind, FieldDef[]>>
 }>()
 const emit = defineEmits<{ change: []; notify: [string] }>()
 

@@ -11,6 +11,7 @@ import { uid } from '@/shared/utils'
 import { visibleFields } from '@/shared/utils/fields'
 import { readEventLog } from '@/shared/utils/eventLog'
 import { subscribeSaveError, getLastSaveOkAt, getBytesInUse, hasUnlimitedStorage, saveDataNow, saveUIPrefs } from '@/shared/storage/repository'
+import { pendingRows, runSync } from '@/shared/storage/airtable'
 import type { SaveError } from '@/shared/storage/repository'
 import type { TaskCard, Project, FocusSlot, Direction } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
@@ -560,6 +561,46 @@ async function onStorageClick() {
   showToast(`存储正常 · 已用 ${(bytes / 1024).toFixed(0)} KB${hasUnlimitedStorage() ? ' · 不限容量' : ''}`)
 }
 
+// ================= Airtable 同步状态卡（R63-9） =================
+const atSync = computed(() => store.data?.airtableSync)
+const atConfigured = computed(() => !!(atSync.value?.pat && atSync.value?.baseId && atSync.value?.tableId))
+const atSyncErr = computed(() => atSync.value?.lastError || '')
+const atPending = computed(() => {
+  if (!atConfigured.value) return 0
+  return pendingRows(store.data!).rows.length
+})
+const atChipText = computed(() => {
+  const s = atSync.value
+  if (!atConfigured.value) return '⇄ 未配置同步'
+  if (atSyncErr.value) return '⇄ 同步出错'
+  if (!s?.lastSyncAt) return `⇄ 待同步 ${atPending.value}`
+  const ago = Date.now() - s.lastSyncAt
+  const agoText = ago < 3600_000 ? Math.max(1, Math.round(ago / 60000)) + ' 分钟前' : ago < 86400_000 ? Math.round(ago / 3600_000) + ' 小时前' : Math.round(ago / 86400_000) + ' 天前'
+  return `⇄ ${agoText}同步${atPending.value ? ` · 待推 ${atPending.value}` : ''}`
+})
+const atChipTitle = computed(() => {
+  const s = atSync.value
+  if (!atConfigured.value) return '点击完成 Airtable 连接配置'
+  const parts = ['点击立即同步到 Airtable']
+  if (s?.lastSyncedCount != null) parts.push(`上次推送 ${s.lastSyncedCount} 条`)
+  if (s?.lastSyncCalls != null) parts.push(`调用 ${s.lastSyncCalls} 次`)
+  return parts.join(' · ')
+})
+let atSyncing = false
+async function onSyncChipClick() {
+  if (!atConfigured.value) { router.push('/settings?page=airtable'); return }
+  if (atSyncing) return
+  atSyncing = true
+  try {
+    const r = await runSync(store.data!)
+    store.persist()
+    showToast(`✓ 已同步到 Airtable：推送 ${r.pushed} 条 · 调用 ${r.calls} 次`)
+  } catch (e) {
+    store.persist()
+    showToast('✗ 同步失败：' + (e instanceof Error ? e.message : String(e)))
+  } finally { atSyncing = false }
+}
+
 // R51-F10：恢复上下联动布局——三件事居上（视觉焦点），项目调度联动在下；原左右分栏拖拽移除
 
 // ================= 底部专区（R55-B2：任务调度已迁方向台，好奇心培育单区直呈） =================
@@ -574,6 +615,12 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
       <button class="storage-chip" :class="{ err: !storageOk }" :title="storageOk ? '点击查看存储用量' : '点击重试写入'" @click="onStorageClick">
         <span class="sc-dot" />
         <span>{{ storageText }}</span>
+      </button>
+      <!-- R63-9：Airtable 同步状态卡（右上角常驻；点击=立即同步，⚙ 进设置） -->
+      <button class="sync-chip" :class="{ on: atConfigured, err: !!atSyncErr }" :title="atChipTitle" @click="onSyncChipClick">
+        <span class="sc-dot" />
+        <span>{{ atChipText }}</span>
+        <span class="sync-gear" title="Airtable 同步设置" @click.stop="router.push('/settings?page=airtable')">⚙</span>
       </button>
       <!-- R56-P2：今日记录 4 计数缩至页头右对齐一行（同字号级；点击下钻抽屉保留） -->
       <div class="rec-mini">
@@ -894,6 +941,16 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .storage-chip.err { color: #F85149; border-color: color-mix(in srgb, #F85149 45%, var(--border)); }
 .storage-chip.err .sc-dot { background: #F85149; box-shadow: 0 0 6px rgba(248,81,73,.55); animation: scBlink 1.2s ease-in-out infinite; }
 @keyframes scBlink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* R63-9：Airtable 同步状态卡（右上角常驻，量级对齐 storage-chip） */
+.sync-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); padding: 4px 12px; border-radius: 99px; cursor: pointer; transition: border-color .15s; font-family: inherit; }
+.sync-chip:hover { border-color: var(--border-strong); }
+.sync-chip .sc-dot { width: 7px; height: 7px; border-radius: 99px; background: var(--text-3); flex-shrink: 0; }
+.sync-chip.on .sc-dot { background: #2EA043; box-shadow: 0 0 6px rgba(46,160,67,.55); }
+.sync-chip.err { color: #F85149; border-color: color-mix(in srgb, #F85149 45%, var(--border)); }
+.sync-chip.err .sc-dot { background: #F85149; box-shadow: 0 0 6px rgba(248,81,73,.55); animation: scBlink 1.2s ease-in-out infinite; }
+.sync-chip .sync-gear { font-size: 11px; opacity: .55; padding: 0 2px; }
+.sync-chip .sync-gear:hover { opacity: 1; }
 
 /* R56-P2：今日记录 4 计数页头迷你条（右对齐、同存储 chip 量级） */
 .rec-mini { display: inline-flex; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 4px 8px; }

@@ -14,6 +14,7 @@ import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
 import { CURATION_WS_ID, type ResourceCard, type Category, type CurationProjection } from '@/shared/models'
+import { curationBoards, projectCardToBoard, mirrorCategoryToBoard } from '@/shared/storage/hub'
 import { uid } from '@/shared/utils'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { recordResourceOpen } from '@/shared/storage/stats'
@@ -31,12 +32,31 @@ const vFocus = { mounted: (el: HTMLElement) => el.focus() }
 const PENDING = '__pending__'
 const activeCat = ref('')
 
-// ---- 分类树（策展中心自有，2 级；镜像分类=带 curFrom 的真实分类，与原生同构） ----
+// ---- 分类树（资源台自有；R61 起层级放开 4 级，L1 中心论点为根——金字塔呈现见 R62） ----
 const cats = computed(() => d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)))
 const rootCats = computed(() => cats.value.filter(c => !c.parentId))
 const childCats = (pid: string) => cats.value.filter(c => c.parentId === pid)
 const isMirror = (c: Category) => !!c.curFrom
 const mirrorSourceLabel = (c: Category) => c.curFrom ? `${wsName(c.curFrom.wsId)} · ${catName(c.curFrom.catId)}` : ''
+
+// R61-4：层级工具（4 级上限）——真实层级（沿父链上行）与子树高度（防拖入超限/防环）
+const MAX_CAT_LEVEL = 4
+function levelOf(c: Category): number {
+  let n = 1
+  let cur = cats.value.find(x => x.id === c.parentId)
+  while (cur) { n++; cur = cats.value.find(x => x.id === cur!.parentId) }
+  return n
+}
+function subtreeHeight(c: Category): number {
+  const ch = childCats(c.id)
+  return ch.length ? Math.max(...ch.map(subtreeHeight)) + 1 : 1
+}
+function deepDescendantIds(id: string): string[] {
+  const out: string[] = []
+  const walk = (pid: string) => { for (const ch of childCats(pid)) { out.push(ch.id); walk(ch.id) } }
+  walk(id)
+  return out
+}
 
 // R51-F21 + R53：默认全部展开；一键收起/展开
 const expandedCats = ref<Set<string>>(new Set())
@@ -67,6 +87,12 @@ function startCreateCat(parentId?: string) { catCreating.value = { parentId, nam
 function confirmCreateCat() {
   const name = (catCreating.value?.name || '').trim()
   if (!name) { catCreating.value = null; return }
+  const parentId = catCreating.value?.parentId
+  // R61-4：4 级上限校验
+  if (parentId) {
+    const parent = cats.value.find(c => c.id === parentId)
+    if (parent && levelOf(parent) + 1 > MAX_CAT_LEVEL) { showToast(`ℹ 最多 ${MAX_CAT_LEVEL} 级——该节点已处于最深层`); return }
+  }
   const siblings = cats.value.filter(c => c.parentId === (catCreating.value?.parentId || undefined))
   const cat: Category = { id: uid('cat'), workspaceId: CURATION_WS_ID, name, order: siblings.length, parentId: catCreating.value?.parentId }
   d.value.categories.push(cat)
@@ -111,23 +137,10 @@ const nativeCards = computed(() =>
 )
 const cardsIn = (catId: string) => nativeCards.value.filter(r => (r.categoryId || '') === catId)
 
-// ---- 投射清单（R53 起仅单卡记录；镜像分类已物化为真实分类） ----
-const projections = computed<CurationProjection[]>(() => d.value.curationProjections || [])
+// ---- 投射清单（R61 起只保留「无 targetWsId」的历史残留过滤；新镜像方向为资源台→策展台，由 hub.ts 管理） ----
+const projections = computed<CurationProjection[]>(() => (d.value.curationProjections || []).filter(p => !p.targetWsId))
 function ensureProjArr() { d.value.curationProjections = d.value.curationProjections || [] }
-async function clearProjections() {
-  if (!projections.value.length && !cats.value.some(isMirror)) { showToast('ℹ 当前没有投射内容'); return }
-  const mirrorN = cats.value.filter(isMirror).length
-  if (!await useConfirm({ message: `一键清空全部投射（${projections.value.length} 条单卡${mirrorN ? ` + ${mirrorN} 个镜像分类` : ''}）？停入的卡片回落「待分类/未分类」，源工作台数据零影响`, confirmText: '清空投射', danger: true })) return
-  const mirrorIds = new Set(cats.value.filter(isMirror).map(c => c.id))
-  for (const r of d.value.resources) if (r.workspaceId === CURATION_WS_ID && mirrorIds.has(r.categoryId || '')) r.categoryId = ''
-  for (const p of d.value.curationProjections || []) if (p.kind === 'card' && p.targetCatId && mirrorIds.has(p.targetCatId)) p.targetCatId = undefined
-  for (const c of cats.value) if (c.parentId && mirrorIds.has(c.parentId)) c.parentId = undefined
-  d.value.categories = d.value.categories.filter(c => !mirrorIds.has(c.id))
-  d.value.curationProjections = []
-  if (activeCat.value && activeCat.value !== PENDING && (mirrorIds.has(activeCat.value) || !cats.value.some(c => c.id === activeCat.value))) activeCat.value = ''
-  store.persist()
-  showToast('🧹 已清空投射（源数据不受影响）')
-}
+// ---- 投射清单过滤后不再有入站内容：clearProjections（R60 前功能）随方向反转退役 ----
 function removeProjection(p: CurationProjection) {
   ensureProjArr()
   d.value.curationProjections = (d.value.curationProjections || []).filter(x => x.id !== p.id)
@@ -241,7 +254,7 @@ const viewLiveCount = computed(() => viewMixed.value.filter(m => m.type === 'liv
 // ---- 卡片打开（原生/镜像共用 WRR 口径） ----
 function openCard(r: ResourceCard) {
   if (r.linkType === 'file' && /^zy-asset:\/\//i.test((r.link || '').trim())) {
-    showToast('ℹ 附件卡请到源工作台打开（策展中心为镜像展示）'); return
+    showToast('ℹ 附件卡请到源工作台打开'); return
   }
   const url = toOpenableUrl(r.linkType, r.link)
   if (!url) {
@@ -359,6 +372,38 @@ function togglePin(r: ResourceCard) {
 
 // ---- 镜像卡详情（只读） ----
 const mirrorDetail = ref<{ card: ResourceCard; proj: CurationProjection } | null>(null)
+
+// ---- R61：镜像到策展台（单卡 📡 / 分类 📤；方向反转：资源台 → 策展台） ----
+const boards = computed(() => curationBoards(d.value))
+const mirrorModal = ref<{ kind: 'card' | 'cat'; cardId?: string; catId?: string; catName?: string; toWs: string; toCat: string } | null>(null)
+function openMirrorCard(r: ResourceCard) {
+  if (!boards.value.length) { showToast('ℹ 还没有策展台——顶栏「＋ 新建策展台」先建一个'); return }
+  mirrorModal.value = { kind: 'card', cardId: r.id, toWs: boards.value[0].id, toCat: '' }
+}
+function openMirrorCat(c: Category) {
+  if (!boards.value.length) { showToast('ℹ 还没有策展台——顶栏「＋ 新建策展台」先建一个'); return }
+  mirrorModal.value = { kind: 'cat', catId: c.id, catName: c.name, toWs: boards.value[0].id, toCat: '' }
+}
+const mirrorTargetCats = computed(() => {
+  const m = mirrorModal.value
+  return m ? d.value.categories.filter(c => c.workspaceId === m.toWs) : []
+})
+function confirmMirror() {
+  const m = mirrorModal.value
+  if (!m) return
+  if (!m.toWs) { showToast('ℹ 请选择目标策展台'); return }
+  if (m.kind === 'card') {
+    const ok = projectCardToBoard(d.value, m.cardId!, m.toWs, m.toCat || undefined)
+    if (ok) showToast('📡 已镜像到策展台（引用式，源数据零影响）')
+    else showToast('ℹ 未完成——该卡可能已在该台镜像中')
+  } else {
+    const ok = mirrorCategoryToBoard(d.value, m.catId!, m.toWs)
+    if (ok) showToast('📤 已镜像分类到策展台（现有卡片一并投射）')
+    else showToast('ℹ 该分类已在该策展台镜像中')
+  }
+  store.persist()
+  mirrorModal.value = null
+}
 
 // ---- 拖拽：卡片（原生/投射自由拖入任意策展分类） ----
 const dragId = ref('')
@@ -561,11 +606,10 @@ function onCatDrop(e: DragEvent, target: Category) {
   if (!id || !mark || id === target.id || mark.id !== target.id) return
   const dragged = cats.value.find(c => c.id === id)
   if (!dragged) return
-  // 防环：不能把自己拖进自己的子级
-  if (childCats(dragged.id).some(ch => ch.id === target.id)) { showToast('ℹ 最多两级——子分类不能包含父分类'); return }
-  const depth = (c: Category) => c.parentId ? 1 : 0
+  // R61-4：防环（深查所有后代）+ 4 级上限（目标层级 + 拖动子树高度）
+  if (deepDescendantIds(dragged.id).includes(target.id)) { showToast('ℹ 不能把自己拖进自己的子级'); return }
   if (mark.mode === 'in') {
-    if (depth(target) !== 0 || depth(dragged) !== 0) { showToast('ℹ 最多两级——仅一级分类可拖入另一级成为子分类'); return }
+    if (levelOf(target) + subtreeHeight(dragged) > MAX_CAT_LEVEL) { showToast(`ℹ 最多 ${MAX_CAT_LEVEL} 级——「${dragged.name}」（含 ${subtreeHeight(dragged) - 1} 层子级）放入后将超出层级上限`); return }
     dragged.parentId = target.id
     const siblings = childCats(target.id)
     siblings.forEach((s, i) => { s.order = i })
@@ -588,10 +632,9 @@ function onCatDrop(e: DragEvent, target: Category) {
 <template>
   <div class="page">
     <div class="page-head">
-      <div class="crumb"><b>策展中心</b> · 灵活策展空间</div>
+      <div class="crumb"><b>资源台</b> · 资源卡唯一存储 · 镜像源头</div>
       <div class="spacer" />
-      <span class="hint-chip">镜像分类与原生分类同树混排 · 卡片自由拖拽 · 源数据零影响 · 单卡投射 {{ projTotal }} 条</span>
-      <button class="mini-btn" title="清空全部投射（源数据不受影响）" @click="clearProjections">🧹 清空投射</button>
+      <span class="hint-chip">卡片在此存储为真身 · 📡 单卡/📤 分类可镜像到各策展台 · 源数据零影响</span>
       <button class="mini-btn primary" @click="openCreateCard">＋ 新建卡片</button>
     </div>
 
@@ -609,11 +652,6 @@ function onCatDrop(e: DragEvent, target: Category) {
           <span class="cat-caret placeholder" /><span class="cat-icon">📥</span><span class="cat-name">未分类</span>
           <span class="cat-count">{{ cardsIn('').length }}</span>
         </div>
-        <div class="cat-item" :class="{ active: activeCat === PENDING }" @click="activeCat = PENDING"
-          @dragover.prevent @drop="onTreeDrop($event, '')">
-          <span class="cat-caret placeholder" /><span class="cat-icon">📡</span><span class="cat-name">待分类</span>
-          <span class="cat-count">{{ pendingProjections.length }}</span>
-        </div>
         <div class="cat-divider" />
         <template v-for="c in rootCats" :key="c.id">
           <div class="cat-item" :class="{ active: activeCat === c.id, 'mirror-node': isMirror(c), 'drop-into': dropMark?.id === c.id && dropMark?.mode === 'in', 'drop-line-t': dropMark?.id === c.id && dropMark?.mode === 't', 'drop-line-b': dropMark?.id === c.id && dropMark?.mode === 'b' }"
@@ -629,6 +667,7 @@ function onCatDrop(e: DragEvent, target: Category) {
               <span class="cat-name">{{ c.name }}</span>
             </template>
             <span class="cat-actions">
+              <span v-if="!isMirror(c)" class="cat-act" title="镜像分类到策展台（含现有卡片）" @click.stop="openMirrorCat(c)">📤</span>
               <span class="cat-act" title="创建子分类" @click.stop="startCreateCat(c.id)">＋</span>
               <span class="cat-act" :title="isMirror(c) ? '重命名（源分类不受影响）' : '重命名'" @click.stop="startRenameCat(c)">✎</span>
               <span class="cat-act danger" :title="isMirror(c) ? '移出投射（源数据不受影响）' : '删除分类'" @click.stop="deleteCat(c)">{{ isMirror(c) ? '✕' : '🗑' }}</span>
@@ -648,6 +687,7 @@ function onCatDrop(e: DragEvent, target: Category) {
                 <span class="cat-name">{{ ch.name }}</span>
               </template>
               <span class="cat-actions">
+                <span v-if="!isMirror(ch)" class="cat-act" title="镜像分类到策展台（含现有卡片）" @click.stop="openMirrorCat(ch)">📤</span>
                 <span class="cat-act" :title="isMirror(ch) ? '重命名（源分类不受影响）' : '重命名'" @click.stop="startRenameCat(ch)">✎</span>
                 <span class="cat-act danger" :title="isMirror(ch) ? '移出投射（源数据不受影响）' : '删除分类'" @click.stop="deleteCat(ch)">{{ isMirror(ch) ? '✕' : '🗑' }}</span>
               </span>
@@ -693,6 +733,7 @@ function onCatDrop(e: DragEvent, target: Category) {
               <div class="cc-tools">
                 <span v-if="m.r.link" class="cc-act" title="打开链接" @click.stop="openCard(m.r)">↗</span>
                 <span class="cc-act" :class="{ on: m.r.pinned }" :title="m.r.pinned ? '取消置顶' : '置顶'" @click.stop="togglePin(m.r)">📌</span>
+                <span class="cc-act" title="镜像到策展台" @click.stop="openMirrorCard(m.r)">📡</span>
                 <span class="cc-act" title="编辑" @click.stop="openEditCard(m.r)">✎</span>
                 <span class="cc-act danger" title="删除（进回收站）" @click.stop="deleteNative(m.r)">🗑</span>
               </div>
@@ -734,12 +775,12 @@ function onCatDrop(e: DragEvent, target: Category) {
               </template>
             </div>
           </template>
-          <div v-if="!sec.cards.length" class="cur-empty-native">当前分组还没有卡片 —— 右上角「＋ 新建卡片」，或从工作台拖卡/右键镜像过来</div>
+          <div v-if="!sec.cards.length" class="cur-empty-native">当前分组还没有卡片 —— 右上角「＋ 新建卡片」，或从采集浮层（Ctrl+Shift+J）入台</div>
           </div>
         </template>
 
         <div v-if="!isParentView && !viewMixed.length" class="cur-empty">
-          当前分类还是空的 —— 从其他工作台右键卡片「📡 镜像到策展中心」/ 目录树 📤 镜像分类 / 工作台 Tab 右键整台打包镜像，或在这里新建原生卡片
+          当前分类还是空的 —— 顶部「＋ 新建卡片」，或从采集浮层（Ctrl+Shift+J）把资源收入资源台；需要策展时用 📡/📤 镜像到策展台
         </div>
       </div>
     </div>
@@ -810,6 +851,34 @@ function onCatDrop(e: DragEvent, target: Category) {
               <button class="mini-btn" @click="locateSource(mirrorDetail.card)">🎯 定位源卡</button>
               <button class="mini-btn primary" @click="openCard(mirrorDetail.card); mirrorDetail = null">↗ 打开链接</button>
               <button class="mini-btn" @click="mirrorDetail = null">关闭</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+    <!-- R61：镜像到策展台（单卡/分类） -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="mirrorModal" class="modal-mask" @click.self="mirrorModal = null">
+          <div class="modal-card">
+            <div class="mc-title">{{ mirrorModal.kind === 'card' ? '📡 镜像卡片到策展台' : '📤 镜像分类到策展台' }}</div>
+            <div class="mc-field"><label>目标策展台 *</label>
+              <select v-model="mirrorModal.toWs">
+                <option v-for="b in boards" :key="b.id" :value="b.id">{{ b.name }}</option>
+              </select>
+            </div>
+            <div v-if="mirrorModal.kind === 'card'" class="mc-field"><label>落入分类</label>
+              <select v-model="mirrorModal.toCat">
+                <option value="">未分类（该台）</option>
+                <option v-for="c in mirrorTargetCats" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+            </div>
+            <div v-else class="mc-field"><label>说明</label>
+              <div class="mc-ro">「{{ mirrorModal.catName }}」将物化为目标台的镜像分类，现有卡片一并投射；此后源分类新增卡片需手动再镜像。</div>
+            </div>
+            <div class="mc-foot">
+              <button class="mini-btn" @click="mirrorModal = null">取消</button>
+              <button class="mini-btn primary" @click="confirmMirror">镜像</button>
             </div>
           </div>
         </div>
