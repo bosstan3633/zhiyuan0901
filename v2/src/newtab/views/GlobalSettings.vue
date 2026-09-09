@@ -172,7 +172,7 @@
                 draggable="false" @click="selectPanWs(wsNode.ws.id)"
                 @dragover.prevent="dropTarget = 'ws:' + wsNode.ws.id" @dragleave="dropTarget === 'ws:' + wsNode.ws.id && (dropTarget = '')" @drop.prevent="onPanDrop('ws:' + wsNode.ws.id, wsNode.ws.id, '')">
                 <span class="gs-pan-toggle leaf" @click.stop="togglePanCollapse('ws:' + wsNode.ws.id)">{{ panCollapsed.has('ws:' + wsNode.ws.id) ? '▸' : '▾' }}</span>
-                <span class="gs-pan-name">{{ wsNode.ws.icon || '📁' }} {{ wsNode.ws.name.replace(/^[^\s]+\s/, '') }}<span class="gs-pan-kind">{{ isHubWs(store.workspaces.find(w => w.id === wsNode.ws.id)) ? '资源台' : '策展台' }}</span></span>
+                <span class="gs-pan-name">{{ wsNode.ws.icon || '📁' }} {{ wsNode.ws.name.replace(/^[^\s]+\s/, '') }}<span class="gs-pan-kind">{{ isHubWs(gWsById(wsNode.ws.id)) ? '资源台' : '策展台' }}</span></span>
                 <span class="gs-pan-count">{{ wsNode.count }}</span>
               </div>
               <template v-if="!panCollapsed.has('ws:' + wsNode.ws.id)">
@@ -1320,22 +1320,26 @@ const dynDrawerTitle = computed(() => ({
 // R63-1：资源台/策展台两级——策展台计数与列表含镜像卡（boardCardsOf），镜像卡标 📡 可跳真身
 interface PanCatNode { cat: { id: string; name: string; workspaceId: string }; count: number; children: PanCatNode[] }
 interface PanWsNode { ws: { id: string; name: string; icon?: string }; count: number; cats: PanCatNode[] }
+/** R67-F3：按原始数据查台——app store 的 workspaces getter 显式排除资源台（id=CURATION_WS_ID），
+ *  全景内一切 isHubWs 判定不得走该 getter，否则资源台被判为「不存在」→ 右栏串台到策展台 */
+function gWsById(wsId: string) { return (store.data?.workspaces || []).find(w => w.id === wsId) }
 /** R63-1：分类计数——资源台按原生卡，策展台按台内+镜像（镜像归到台内落点分类） */
 function panCountByCat(cat: { id: string; workspaceId: string }): number {
-  if (isHubWs(store.workspaces.find(w => w.id === cat.workspaceId))) {
+  if (isHubWs(gWsById(cat.workspaceId))) {
     return gResLive.value.filter(r => r.categoryId === cat.id).length
   }
   return boardCardsOf(store.data!, cat.workspaceId).filter(r => (r.categoryId || '') === cat.id).length
 }
 /** R63-1：台卡片计数——资源台原生卡数；策展台含镜像（R65-F5 全景仅资源台，策展台分支保留兜底） */
 function panCountByWs(wsId: string): number {
-  if (isHubWs(store.workspaces.find(w => w.id === wsId))) {
+  if (isHubWs(gWsById(wsId))) {
     return gResLive.value.filter(r => r.workspaceId === wsId).length
   }
   return boardCardsOf(store.data!, wsId).length
 }
-/** R65-F5：全景树只呈现资源台（策展台不进全景）｜ R66-F6：子分类改递归 N 级渲染（原写死 2 级，深层分类不同步呈现） */
-const panHubWss = computed(() => store.workspaces.filter(w => isHubWs(w)))
+/** R65-F5：全景树只呈现资源台（策展台不进全景）｜ R66-F6：子分类递归 N 级渲染
+ *  ｜ R67-F3：数据源改原始 workspaces（getter 排除资源台 → panTree 恒空 bug 根因） */
+const panHubWss = computed(() => (store.data?.workspaces || []).filter(w => isHubWs(w) && !w.archived))
 const panTree = computed<PanWsNode[]>(() =>
   panHubWss.value.map(w => {
     const roots = gd.value.categories.filter(c => c.workspaceId === w.id && !c.parentId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
@@ -1380,7 +1384,7 @@ function selectPanCat(catId: string) {
   panSelected.value = new Set()
 }
 const panCards = computed<ResourceCard[]>(() => {
-  if (panSelWs.value && !isHubWs(store.workspaces.find(w => w.id === panSelWs.value))) {
+  if (panSelWs.value && !isHubWs(gWsById(panSelWs.value))) {
     // R63-1：策展台 = 台内原生 + 镜像卡（视图模型），按分类过滤
     const cards = boardCardsOf(store.data!, panSelWs.value)
     return panSelCat.value ? cards.filter(r => (r.categoryId || '') === panSelCat.value) : cards
@@ -1424,7 +1428,7 @@ function onPanDrop(_key: string, wsId: string, catId: string) {
 function movePanCards(ids: string[], wsId: string, catId: string) {
   const cat = catId ? gd.value.categories.find(c => c.id === catId) : null
   const targetWs = cat ? cat.workspaceId : wsId
-  const targetIsHub = isHubWs(store.workspaces.find(w => w.id === targetWs))
+  const targetIsHub = isHubWs(gWsById(targetWs))
   let moved = 0
   let mirrorMoved = 0
   for (const id of ids) {
@@ -1510,7 +1514,12 @@ function onPanCardDblClick(r: ResourceCard) {
 }
 watch(activePage, (p) => {
   if (p === 'dashboard') refreshEventLog()
-  if (p === 'panorama' && !panSelWs.value && store.workspaces.length) selectPanWs(store.workspaces[0].id)
+  if (p === 'panorama' && !panSelWs.value) {
+    // R67-F3：默认选中资源台本体（原 workspaces[0] 是第一个策展台，右栏因此串台）
+    const hubWs = panHubWss.value[0]
+    if (hubWs) selectPanWs(hubWs.id)
+    else if (store.workspaces.length) selectPanWs(store.workspaces[0].id)
+  }
 })
 refreshEventLog()
 

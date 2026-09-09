@@ -517,9 +517,22 @@ function onDrillEsc(e: KeyboardEvent) {
   e.preventDefault()
   curDrill.value = null
 }
+// R67-F4：浏览器快捷键模块直达（curiosity=好奇心培养 / project=项目调度）——滚动定位 + 高亮闪烁
+function gotoAnchor(name: string) {
+  const id = name === 'curiosity' ? 'zy-mod-curiosity' : name === 'project' ? 'zy-mod-tasks' : ''
+  if (!id) return
+  const el = document.getElementById(id)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  el.classList.remove('anchor-flash')
+  requestAnimationFrame(() => el.classList.add('anchor-flash'))
+  setTimeout(() => el.classList.remove('anchor-flash'), 2400)
+}
+function onAnchorEvt(e: Event) { gotoAnchor(String((e as CustomEvent).detail || '')) }
 onMounted(() => {
   document.addEventListener('keydown', onDateKey, true)
   document.addEventListener('keydown', onDrillEsc, true)
+  window.addEventListener('zy-goto-anchor', onAnchorEvt)
   loadEventLog()
   saveErrSub = subscribeSaveError(e => { saveErr.value = e })
   lastOkTick.value = getLastSaveOkAt()
@@ -531,6 +544,7 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', onDateKey, true)
   document.removeEventListener('keydown', onDrillEsc, true)
+  window.removeEventListener('zy-goto-anchor', onAnchorEvt)
   if (saveErrSub) saveErrSub()
   if (storageTimer) clearInterval(storageTimer)
 })
@@ -686,8 +700,8 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
         </div>
       </section>
 
-      <!-- 下 · 项目调度（选中任务联动） -->
-      <section class="module right-col">
+    <!-- 下 · 项目调度（选中任务联动）｜ R67-F4：id 供快捷键直达锚点 -->
+    <section id="zy-mod-tasks" class="module right-col">
         <div class="card curation">
           <div class="card-head">
             <span class="ic"><Icon name="target" :size="17" /></span><span class="nm">项目调度</span><span class="en">PROJECT SPOTLIGHT</span>            <span class="ds">选中任务所属项目 · 单击上方任务卡联动</span>
@@ -698,10 +712,11 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
             <!-- R66-F2：删顶部项目名行与愿景/使命模块（数据保留在方向台）——项目名大字下移为模块主体首行，纵向压缩 -->
             <div class="cur-cols" :style="{ gridTemplateColumns: curColsStyle }">
               <div class="cur-col-l">
-                <div class="cur-proj-name big">📦 {{ curProject.name }}</div>
+                <!-- R67-F1：紫框主体重排——战略目标小字在上，项目名称大字在下（顶部独立项目名行删除） -->
                 <div class="cur-goal">
                   <div class="cur-goal-lab">🎯 战略目标 · STRATEGIC DIRECTION</div>
                   <div class="cur-goal-name">{{ goalOf(curProject)?.name || '—' }}</div>
+                  <div class="cur-proj-name big">📦 {{ curProject.name }}</div>
                   <div class="cur-goal-meta">
                     <span v-if="dirTermLabel(goalOf(curProject))" class="tag">{{ dirTermLabel(goalOf(curProject)) }}</span>
                     <span class="cur-goal-pct">项目进度 {{ projectProgress(curProject).pct }}%</span>
@@ -761,8 +776,8 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
       </section>
     </div>
 
-    <!-- 底部 · 好奇心培育（R55-B2：任务调度已迁方向台，单区直呈） -->
-    <section class="module">
+    <!-- 底部 · 好奇心培育（R55-B2：任务调度已迁方向台，单区直呈）｜ R67-F4：id 供快捷键直达锚点 -->
+    <section id="zy-mod-curiosity" class="module">
       <CuriosityPanel />
     </section>
 
@@ -959,6 +974,12 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .right-col { min-width: 0; }
 
 .module { margin-top: 0; }
+/* R67-F4：快捷键直达模块的高亮闪烁（滚动定位后 2.2s 渐隐） */
+.module.anchor-flash { animation: zyAnchorFlash 2.2s ease; }
+@keyframes zyAnchorFlash {
+  0%, 55% { box-shadow: 0 0 0 2px var(--accent), 0 0 20px color-mix(in srgb, var(--accent) 32%, transparent); }
+  100% { box-shadow: none; }
+}
 .page > .module { margin-top: 14px; }
 .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,.025); height: 100%; }
 .card-head { display: flex; align-items: center; gap: 8px; padding: 10px 20px 6px; flex-wrap: wrap; }
@@ -1020,8 +1041,8 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cur-cols { display: grid; grid-template-columns: minmax(0, 38%) 8px 1fr; gap: 0 10px; align-items: stretch; }
 .cur-col-l, .cur-col-r { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .cur-proj-name { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: .3px; }
-/* R66-F2：项目名大字成为左列主体首行（愿景/使命模块已移除呈现） */
-.cur-proj-name.big { font-size: 21px; margin-bottom: 8px; }
+/* R67-F1：项目名大字移入紫框内（战略目标小字上 → 项目名大字下），顶部独立行删除 */
+.cur-proj-name.big { font-size: 21px; margin-top: 3px; }
 /* R66-F2：愿景/使命模块呈现移除（数据保留在方向台），样式一并退役 */
 .cur-goal { background: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius: var(--radius-sm); padding: 12px 14px; }
 .cur-goal-lab { font-size: 9.5px; font-weight: 700; color: var(--accent); letter-spacing: 1px; margin-bottom: 4px; }

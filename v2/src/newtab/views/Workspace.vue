@@ -21,7 +21,8 @@
 
     <!-- R62-1：策展台 5 指标条（资源台不显示；数据源 hub.curationMetrics） -->
     <div v-if="!isHub" class="ws-metrics">
-      <div class="metric-card" @click="openThesisDetail">
+      <!-- R67-F2：策展主题格高亮——主题色描边+微底色，与后续统计格拉开层级 -->
+      <div class="metric-card thesis-hl" @click="openThesisDetail">
         <div class="mc-label">🏛 策展主题</div>
         <div class="mc-value thesis" :title="thesisCard?.title">{{ thesisCard?.title || '未设立' }}</div>
         <div class="mc-hint">{{ thesisCard ? '点击编辑论点卡' : '右键台内卡片可设立' }}</div>
@@ -2451,6 +2452,9 @@ function linkDisplay(link: string) {
 .ws-metrics { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; gap: 8px; margin: 10px 0 0; }
 .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 4px 12px; cursor: pointer; transition: all .15s; min-width: 0; display: flex; align-items: center; gap: 10px; }
 .metric-card:hover { border-color: var(--accent); background: var(--surface-2); }
+/* R67-F2：策展主题格常亮高亮（主题色描边+淡底+微光），非 hover 态也可辨识 */
+.metric-card.thesis-hl { border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: var(--accent-light); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent), 0 2px 10px color-mix(in srgb, var(--accent) 12%, transparent); }
+.metric-card.thesis-hl .mc-label { color: var(--accent); }
 .mc-label { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; }
 .mc-value { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mc-value.thesis { font-size: 12.5px; font-weight: 600; flex: 1; }

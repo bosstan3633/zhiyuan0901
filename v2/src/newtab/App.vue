@@ -305,6 +305,11 @@ onMounted(async () => {
     // 通用路由跳转（B4：搜索结果定位任务/好奇心；第卅六轮扩展 drawer 参数）
     else if (msg?.type === 'zy-route') {
       if (msg.route) router.push(msg.route).catch(() => {})
+      // R67-F4：模块直达锚点（好奇心培养/项目调度）——路由落位后派发全局事件
+      if (msg.anchor) {
+        const anchor = String(msg.anchor)
+        setTimeout(() => window.dispatchEvent(new CustomEvent('zy-goto-anchor', { detail: anchor })), 150)
+      }
       if (msg.drawer && (msg.drawer as any).kind && (msg.drawer as any).id) {
         // 微延迟，等 router 切到目标页 + 对应组件 onMounted 注册监听
         setTimeout(() => emitOpenDrawer(msg.drawer), 80)
@@ -323,6 +328,9 @@ onMounted(async () => {
   if (new URLSearchParams(location.search).has('zy-autosync')) {
     setTimeout(() => runAirtableSync(new URLSearchParams(location.search).get('zy-autosync') === '1'), 1500)
   }
+  // R67-F4：background 开的新页带模块直达标记（?zy-anchor=curiosity|project）→ 视图挂载后定位闪烁
+  const zyAnchor = new URLSearchParams(location.search).get('zy-anchor')
+  if (zyAnchor) setTimeout(() => window.dispatchEvent(new CustomEvent('zy-goto-anchor', { detail: zyAnchor })), 900)
 })
 
 // ---- R63：Airtable 同步执行器（单例防重入；配置缺失静默跳过，手动触发给 toast） ----

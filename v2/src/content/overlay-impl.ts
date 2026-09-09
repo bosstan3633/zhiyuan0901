@@ -1144,7 +1144,8 @@ async function openTaskCapture() {
   const d = await getData()
   const projects: any[] = []
   for (const dir of d?.compass?.directions || []) for (const p of dir.projects || []) projects.push({ id: p.id, name: p.name, metrics: p.metrics || [] })
-  openOverlay('corner', closeOverlay)
+  // R67-F2：任务采集弹窗改页面正中弹出（与好奇心速记一致；原先 corner 在插件图标附近）
+  openOverlay('center', closeOverlay)
   const root = ensureRoot()
   const panel = document.createElement('div')
   panel.className = 'zy-panel'

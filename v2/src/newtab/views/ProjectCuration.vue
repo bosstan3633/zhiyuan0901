@@ -7,6 +7,7 @@ import { uid } from '@/shared/utils'
 import { useConfirm } from '@/shared/components/confirm'
 import type { Project, Direction, TaskCard, Metric } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
+import { loadUIPrefs, saveUIPrefs } from '@/shared/storage/repository'
 import TaskAddDrawer from '../components/TaskAddDrawer.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
@@ -79,6 +80,48 @@ function renameMetric(m: Metric, e: FocusEvent) {
   else if (!v) { (e.target as HTMLElement).textContent = m.title }
 }
 /* ================= R55-G1：左栏项目目录树（拖任务跨指标 / 拖指标排序 / 定位） ================= */
+/* ================= R67-F5：左栏宽/高拖拽（持久化 UIPrefs.projRailW/projRailH） ================= */
+const railW = ref<number | undefined>(undefined)
+const railH = ref<number | undefined>(undefined)
+const railStyle = computed(() => ({
+  width: railW.value ? railW.value + 'px' : undefined,
+  height: railH.value ? railH.value + 'px' : undefined,
+  maxHeight: railH.value ? railH.value + 'px' : undefined
+}))
+let railDrag: { mode: 'w' | 'h'; startX: number; startY: number; baseW: number; baseH: number } | null = null
+function startRailResize(e: MouseEvent, mode: 'w' | 'h') {
+  e.preventDefault()
+  const el = (e.currentTarget as HTMLElement).parentElement
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  railDrag = { mode, startX: e.clientX, startY: e.clientY, baseW: rect.width, baseH: rect.height }
+  document.body.classList.add('rail-resizing', mode === 'w' ? 'rail-w' : 'rail-h')
+  window.addEventListener('mousemove', onRailResizeMove)
+  window.addEventListener('mouseup', onRailResizeUp)
+}
+function onRailResizeMove(e: MouseEvent) {
+  if (!railDrag) return
+  if (railDrag.mode === 'w') {
+    railW.value = Math.round(Math.min(560, Math.max(230, railDrag.baseW + (e.clientX - railDrag.startX))))
+  } else {
+    railH.value = Math.round(Math.min(window.innerHeight - 90, Math.max(240, railDrag.baseH + (e.clientY - railDrag.startY))))
+  }
+}
+function onRailResizeUp() {
+  window.removeEventListener('mousemove', onRailResizeMove)
+  window.removeEventListener('mouseup', onRailResizeUp)
+  document.body.classList.remove('rail-resizing', 'rail-w', 'rail-h')
+  if (railDrag && railW.value != null) saveUIPrefs({ projRailW: railW.value })
+  if (railDrag && railH.value != null) saveUIPrefs({ projRailH: railH.value })
+  railDrag = null
+}
+onMounted(async () => {
+  try {
+    const ui = await loadUIPrefs()
+    if (ui.projRailW) railW.value = ui.projRailW
+    if (ui.projRailH) railH.value = ui.projRailH
+  } catch { /* 偏好读取失败按默认布局 */ }
+})
 const treeDrop = ref<{ id: string; mode: 't' | 'b' | 'in' } | null>(null)
 let treeDragMetric: Metric | null = null
 let treeDragTask: TaskCard | null = null
@@ -400,8 +443,9 @@ function addTaskFromHeader() {
 
     <!-- ===== 单项目全屏展板 ===== -->
     <div v-else class="board-layout">
-    <!-- R55-G1：左栏双列联动目录——第一列全部项目（单击切换），第二列当前项目目录树（拖任务跨指标/拖指标排序） -->
-    <aside class="proj-rail">
+    <!-- R55-G1：左栏双列联动目录——第一列全部项目（单击切换），第二列当前项目目录树（拖任务跨指标/拖指标排序）
+         ｜ R67-F5：栏体宽/高可拖拽（右缘调宽、底缘调高），右侧展板自适应重排 -->
+    <aside class="proj-rail" :style="railStyle">
       <div class="pr-col pr-projects">
         <div class="pt-title">📦 全部项目</div>
         <div v-for="p in projects.slice().sort((a,b)=>(a.order||0)-(b.order||0))" :key="p.id"
@@ -448,6 +492,9 @@ function addTaskFromHeader() {
         </div>
         <div v-if="!currentProject.metrics.length" class="prt-empty">暂无成功指标——点上方「🎯 添加成功指标」</div>
       </div>
+      <!-- R67-F5：宽/高拖拽手柄（右缘调宽 · 底缘调高） -->
+      <span class="rail-grip rail-grip-w" title="拖拽调宽" @mousedown="startRailResize($event, 'w')" />
+      <span class="rail-grip rail-grip-h" title="拖拽调高" @mousedown="startRailResize($event, 'h')" />
     </aside>
     <div class="board">
       <div class="back-row">
@@ -689,6 +736,15 @@ function addTaskFromHeader() {
 .board-layout { display: flex; gap: 16px; align-items: flex-start; }
 /* R55-G1：左栏双列联动目录——第一列全部项目 + 第二列当前项目目录树 */
 .proj-rail { position: sticky; top: 16px; display: flex; gap: 8px; flex-shrink: 0; width: 302px; max-height: calc(100vh - 200px); }
+/* R67-F5：宽/高拖拽手柄——悬停微亮提示可拖，拖拽中全局锁定光标 */
+.rail-grip { position: absolute; z-index: 6; }
+.rail-grip-w { top: 0; right: -5px; width: 9px; height: 100%; cursor: col-resize; border-radius: 99px; }
+.rail-grip-w:hover { background: var(--accent-light); box-shadow: inset 1px 0 0 var(--accent); }
+.rail-grip-h { left: 0; bottom: -5px; height: 9px; width: 100%; cursor: row-resize; border-radius: 99px; }
+.rail-grip-h:hover { background: var(--accent-light); box-shadow: inset 0 1px 0 var(--accent); }
+body.rail-resizing { user-select: none; }
+body.rail-resizing.rail-w { cursor: col-resize; }
+body.rail-resizing.rail-h { cursor: row-resize; }
 .pr-col { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 8px; box-shadow: var(--shadow); overflow-y: auto; }
 .pr-projects { width: 126px; flex-shrink: 0; }
 .pr-tree { flex: 1; min-width: 0; }

@@ -183,6 +183,22 @@ chrome.commands.onCommand.addListener(async (command) => {
       }
       break
     }
+    case 'goto-curiosity':
+    case 'goto-tasks': {
+      // R67-F4：调度台内模块直达（好奇心培养/项目调度）——打开/聚焦调度台后滚动定位+高亮
+      const anchor = command === 'goto-curiosity' ? 'curiosity' : 'project'
+      const base = chrome.runtime.getURL('src/newtab/index.html')
+      const tabs = await chrome.tabs.query({ url: base + '*' })
+      const existing = tabs.find(t => t.id != null)
+      if (existing?.id != null) {
+        if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
+        await chrome.tabs.update(existing.id, { active: true })
+        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route: '/', anchor }).catch(() => {})
+      } else {
+        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html?zy-anchor=' + anchor + '#/') })
+      }
+      break
+    }
     case 'open-tasks': {
       // R55-C：快速采集任务（浏览器级命令，无默认键）——优先页内浮层（含新标签页应用内面板），降级独立弹窗
       if (tab?.id) {

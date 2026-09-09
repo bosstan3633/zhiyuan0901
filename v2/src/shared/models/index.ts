@@ -440,6 +440,9 @@ export interface UIPrefs {
   lastBackupAt?: number
   /** 第卅六轮 REQ-038：上次主动关闭提醒的时间戳（24h 内不再提示） */
   backupReminderSnoozedAt?: number
+  /** R67-F5：方向台·项目详情左栏（全部项目+项目目录）拖拽记忆（宽 px / 高 px） */
+  projRailW?: number
+  projRailH?: number
 }
 
 // ============ 常量 ============

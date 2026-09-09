@@ -60,7 +60,7 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
       </div>
       <span class="mb-divider" />
       <div class="mb-cell clickable" title="战略目标 = 使命下拆解的方向数；推进中项目 = 挂有任务（任务数≠0）的项目数 · 点击下钻各目标明细" @click="openCell('dhi')">
-        <span class="mb-k">战略目标</span><span class="mb-v">{{ dhiMain }}</span><span class="mb-k2">推进 {{ m.dhi.pushing }}</span>
+        <span class="mb-k">战略目标</span><span class="mb-v">{{ dhiMain }}</span><span class="mb-k2">推进项目 {{ m.dhi.pushing }}</span>
       </div>
       <span class="mb-divider" />
       <div class="mb-cell clickable" title="WCE 好奇探索率 = 探索中+已求证的好奇心数（{{ m.wce.sub }}）· 点击下钻激活好奇项清单" @click="openCell('wce')">
