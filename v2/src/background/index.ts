@@ -141,22 +141,10 @@ chrome.commands.onCommand.addListener(async (command) => {
       }
       break
     }
-    case 'open-compass': {
-      // R49-I1：打开方向台（浏览器级命令，chrome://extensions/shortcuts 自定义键位）
-      const base = chrome.runtime.getURL('src/newtab/index.html')
-      const tabs = await chrome.tabs.query({ url: base + '*' })
-      const existing = tabs.find(t => t.id != null)
-      if (existing?.id != null) {
-        if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
-        await chrome.tabs.update(existing.id, { active: true })
-        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route: '/compass' }).catch(() => {})
-      } else {
-        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html#/compass') })
-      }
-      break
-    }
+    // R68-F3：「打开方向台」「打开资源台」两命令退役（open-compass/open-resource 已从 manifest 下架）——改由应用内 Alt+数字（台签顺序）切台，见 App.vue switchToIndex
     case 'open-resource': {
       // R50-F3 启用 + R61 资源台转正 + R65-F6：命令口径改「打开资源台」（/curation 即资源台路由）
+      // R68-F3：本 case 保留兜底（历史已分配键位不失效），但 manifest 已下架不再出现在快捷键设置页
       const base = chrome.runtime.getURL('src/newtab/index.html')
       const tabs = await chrome.tabs.query({ url: base + '*' })
       const existing = tabs.find(t => t.id != null)
@@ -185,17 +173,19 @@ chrome.commands.onCommand.addListener(async (command) => {
     }
     case 'goto-curiosity':
     case 'goto-tasks': {
-      // R67-F4：调度台内模块直达（好奇心培养/项目调度）——打开/聚焦调度台后滚动定位+高亮
-      const anchor = command === 'goto-curiosity' ? 'curiosity' : 'project'
+      // R68-F3：直达「任务调度」模块——路由从调度台项目调度改为方向台任务调度面板（CompassShell #task-mgmt-module，复用 anchor 机制）
+      const anchor = command === 'goto-curiosity' ? 'curiosity' : 'task'
+      const route = command === 'goto-curiosity' ? '/' : '/compass'
+      const hash = command === 'goto-curiosity' ? '#/' : '#/compass'
       const base = chrome.runtime.getURL('src/newtab/index.html')
       const tabs = await chrome.tabs.query({ url: base + '*' })
       const existing = tabs.find(t => t.id != null)
       if (existing?.id != null) {
         if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
         await chrome.tabs.update(existing.id, { active: true })
-        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route: '/', anchor }).catch(() => {})
+        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route, anchor }).catch(() => {})
       } else {
-        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html?zy-anchor=' + anchor + '#/') })
+        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html?zy-anchor=' + anchor + hash) })
       }
       break
     }

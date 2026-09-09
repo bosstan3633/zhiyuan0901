@@ -499,11 +499,11 @@ const filterLabel = computed(() => typeLabel(currentType.value))
 const counts = computed(() => {
   const all = d.value
   return {
-    all: all.resources.filter(r=>!r.deletedAt).length + all.tasks.filter(t=>!t.deletedAt).length + all.curiosities.filter(c=>!c.deletedAt).length + all.workspaces.filter(w=>!w.archived).length,
+    all: all.resources.filter(r=>!r.deletedAt).length + all.tasks.filter(t=>!t.deletedAt).length + all.curiosities.filter(c=>!c.deletedAt).length + all.workspaces.filter(w=>!w.archived && w.id !== CURATION_WS_ID).length,
     res: all.resources.filter(r=>!r.deletedAt).length,
     task: all.tasks.filter(t=>!t.deletedAt).length,
     curio: all.curiosities.filter(c=>!c.deletedAt).length,
-    ws: all.workspaces.filter(w=>!w.archived).length,
+    ws: all.workspaces.filter(w=>!w.archived && w.id !== CURATION_WS_ID).length,
     proj: allProjects().filter(p => showDoneProjects.value || !isProjectDone(p)).length
   }
 })
@@ -609,7 +609,8 @@ const showDoneProjects = computed(() => (store.ui as any)?.showDoneProjects !== 
 /** R49-G2：工作台类型 → 工作台→分类树（含分类卡片数；关键字过滤工作台名/分类名） */
 const wsTree = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  return d.value.workspaces.filter(w => !w.archived)
+  // R68-F1：口径对齐台签栏——排除资源台本体实体（固定 Tab，非台签工作台），历史遗留实体不再混入
+  return d.value.workspaces.filter(w => !w.archived && w.id !== CURATION_WS_ID)
     .filter(w => !q || w.name.toLowerCase().includes(q))
     .map(w => {
       const cats = d.value.categories.filter(c => c.workspaceId === w.id)
@@ -959,7 +960,8 @@ const SHORTCUT_GROUPS = [
   ]},
   { title: '应用内', items: [
     { keys: 'Alt+1', desc: '方向台（修饰键可自定义）' },
-    { keys: 'Alt+2…9', desc: '各工作台' },
+    { keys: 'Alt+2', desc: '资源台' },
+    { keys: 'Alt+3…9', desc: '各工作台（按台签顺序）' },
     { keys: '?', desc: '呼出本速查' },
   ]},
   { title: '编辑与导航', items: [

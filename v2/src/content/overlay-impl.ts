@@ -10,6 +10,7 @@
  */
 
 import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
+import { CURATION_WS_ID } from '@/shared/models'
 import { getSelCache, clearSelCache, getSelectionText, resolveSelection } from './selection'
 
 const ROOT_ID = '__zy_global_overlay__'
@@ -30,11 +31,26 @@ function uid(prefix: string) {
 // ============ 数据缓存（B36：搜索/采集每次按键不再重复读 storage） ============
 let dataCache: any = null
 let dataCacheAt = 0
+// R68-F1：已完成项目显隐口径（与方向台 showDoneProjects 同源，读 zy_ui_v2；缺省=显示）
+let showDoneProjectsCache = true
+async function loadShowDonePref() {
+  try {
+    const r = await chrome.storage.local.get('zy_ui_v2')
+    showDoneProjectsCache = (r['zy_ui_v2'] as any)?.showDoneProjects !== false
+  } catch { showDoneProjectsCache = true }
+}
+/** R68-F1：项目完成口径（对齐 newtab isProjectDone：手动 done/archived 或全部任务完成派生） */
+function isProjDone(p: any, d: any): boolean {
+  if (p.status === 'done' || p.status === 'archived') return true
+  const ts = (d.tasks || []).filter((t: any) => !t.deletedAt && t.projectId === p.id)
+  return ts.length > 0 && ts.every((t: any) => t.status === 'done')
+}
 async function getData(): Promise<any> {
   if (dataCache && Date.now() - dataCacheAt < 1500) return dataCache
   const d = await loadData()
   dataCache = d
   dataCacheAt = Date.now()
+  void loadShowDonePref()
   ;(window as any).__zyDataCache = d
   return d
 }
@@ -47,6 +63,8 @@ if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
       // REQ-031 P-031-3：数据变更后计数缓存失效，下次查询重算
       invalidateCountCache()
     }
+    // R68-F1：界面偏好变化（已完成项目显隐）实时生效
+    if (area === 'local' && changes['zy_ui_v2']) void loadShowDonePref()
   })
 }
 
@@ -315,8 +333,8 @@ function computeCounts(): Record<string, number> {
     for (const r of d.resources || []) if (!r.deletedAt) c.res++
     for (const t of d.tasks || []) if (!t.deletedAt) c.task++
     for (const x of d.curiosities || []) if (!x.deletedAt) c.curio++
-    for (const w of d.workspaces || []) if (!w.archived) c.ws++
-    for (const dir of (d.compass && d.compass.directions) || []) for (const p of dir.projects || []) if (!p.archived && p.status !== 'archived') c.proj++
+    for (const w of d.workspaces || []) if (!w.archived && w.id !== CURATION_WS_ID) c.ws++
+    for (const dir of (d.compass && d.compass.directions) || []) for (const p of dir.projects || []) { if (!p.archived && (showDoneProjectsCache || !isProjDone(p, d))) c.proj++ }
     c.all = c.res + c.task + c.curio
   }
   countCache = c
@@ -517,8 +535,9 @@ function collectResults(d: any, query: string, results: any[], maps: SearchMaps)
   }
 
   // 第卅二轮 REQ-008：检索范围扩展至工作台实体（模糊匹配工作台名称，专属图标）
+  // R68-F1：口径对齐台签栏（app store workspaces getter）——排除资源台本体实体（固定 Tab，非台签工作台）+ 已归档，历史遗留实体不再混入
   if (searchType === 'all' || searchType === 'ws') {
-    d.workspaces?.filter((w: any) => !w.archived).forEach((w: any) => {
+    d.workspaces?.filter((w: any) => !w.archived && w.id !== CURATION_WS_ID).forEach((w: any) => {
       if (match(w.name || '') || matchPinyin(w.name || '', query)) {
         const cardCount = maps.wsCount.get(w.id) || 0
         results.push({
@@ -531,10 +550,11 @@ function collectResults(d: any, query: string, results: any[], maps: SearchMaps)
   }
 
   // R49-G：项目实体（点击直达项目详情 /compass/projects?p=）
-  // 说明：content 端无 UIPrefs 缓存，已完成项目默认呈现（newtab 端按 showDoneProjects 开关过滤）
+  // R68-F1：口径对齐方向台——尊重 showDoneProjects 开关（zy_ui_v2，默认显示），已完成/归档项目不再混入「历史版本项目」
   if (searchType === 'all' || searchType === 'proj') {
     ;((d.compass && d.compass.directions) || []).forEach((dir: any) => {
       ;(dir.projects || []).forEach((p: any) => {
+        if (!showDoneProjectsCache && isProjDone(p, d)) return
         const badges: any[] = []
         if (p.isFocused) badges.push({ type: 'prio-high', text: '🎯 主攻' })
         if (p.status === 'archived') badges.push({ type: 'curio-status', text: '已完成' })

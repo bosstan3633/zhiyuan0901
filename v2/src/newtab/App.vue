@@ -13,6 +13,8 @@ import Icon from '@/shared/components/Icon.vue'
 import logoUrl from '@/assets/logo.png'
 import { getBytesInUse, subscribeSaveError, clearLastSaveError } from '@/shared/storage/repository'
 import { emitOpenDrawer } from '@/shared/utils/bus'
+// V2.21：拼音字典按需动态加载；R68-F6 起启动 idle 预热（见 onMounted）
+import { ensurePinyin } from '@/shared/utils/pinyin'
 import { runSync } from '@/shared/storage/airtable'
 import ResourceDetailDrawer from './components/ResourceDetailDrawer.vue'
 
@@ -192,7 +194,7 @@ function deleteWorkspace() {
 
 // ===== 全局快捷键 =====
 // Esc 关闭弹窗；修饰键+数字 = 用户自建工作台（从 1 起按导航顺序计数，R49 拍板）
-// 调度台刷新自动回首页、方向台/资源台走 chrome.commands 自定义（chrome://extensions/shortcuts）
+// 调度台刷新自动回首页；R68-F3：方向台(Alt+1)/资源台(Alt+2)/工作台(Alt+3..) 按台签顺序应用内切台
 function isEditableTarget(e: KeyboardEvent): boolean {
   const t = e.target as HTMLElement | null
   if (!t) return false
@@ -201,10 +203,13 @@ function isEditableTarget(e: KeyboardEvent): boolean {
 }
 
 function switchToIndex(n: number) {
-  // R49：n=1..N → 第 n 个用户工作台（原「1=方向台、2..=工作台」方案废止）
-  const ws = store.workspaces[n - 1]
+  // R68-F3：n=1 方向台、n=2 资源台（固定页），n≥3 按台签顺序对应用户工作台（拖拽改序后数字键跟随顺序，不绑定具体台）
+  // R49 旧口径（1..N=用户工作台）废止；调度台为首页刷新自动回，不占数字键
+  if (n === 1) { openCompass(); return }
+  if (n === 2) { openResource(); return }
+  const ws = store.workspaces[n - 3]
   if (ws) navigate(`/workspace/${ws.id}`)
-  else showToast(`没有第 ${n} 个工作台（当前共 ${store.workspaces.length} 个）`)
+  else showToast(`没有第 ${n} 号台（当前共 ${store.workspaces.length} 个工作台）`)
 }
 
 // ===== 第廿九轮：工作台 Tab 拖拽排序 =====
@@ -268,6 +273,9 @@ function onGlobalKeydown(e: KeyboardEvent) {
 }
 onMounted(async () => {
   window.addEventListener('keydown', onGlobalKeydown, true)
+  // R68-F6：拼音字典启动预热（idle 后台加载 ~300KB，首次 Ctrl+K 拼音/首字母搜索零等待）
+  const idle = (window as any).requestIdleCallback || ((cb: () => void) => setTimeout(cb, 1200))
+  idle(() => { void ensurePinyin() })
   // 第卅六轮 REQ-038：初始化时拉一次容量，给顶栏备份提醒红点用
   refreshBytes().catch(() => {})
   // 监听 storage onChanged，更新容量（兜底：首次安装或 import 后变化）
@@ -470,7 +478,7 @@ const backupReminderDot = computed(() => {
              R65-F7：KeepAlive 缓存调度台/资源台/策展台三主视图——切台免重挂载（595ms 基线的主要构成）；
              三视图均以 store 响应式数据为源，缓存仅省去 DOM 重建与首次计算 -->
         <router-view v-slot="{ Component }">
-          <keep-alive include="CompassHomeView,CurationCenterView,WorkspaceView">
+          <keep-alive include="CompassHomeView,CurationCenterView,WorkspaceView,CompassShell">
             <component :is="Component" />
           </keep-alive>
         </router-view>

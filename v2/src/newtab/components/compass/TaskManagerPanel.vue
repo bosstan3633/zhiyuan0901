@@ -14,6 +14,7 @@ import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import type { TaskCard, FieldDef } from '@/shared/models'
 import { recordCardOpen } from '@/shared/storage/stats'
 import { showToast } from '@/shared/components/toast'
+import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import ModuleCard from '@/shared/components/ModuleCard.vue'
@@ -783,7 +784,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               </div>
               <div v-for="task in grp.tasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
-                <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务">🗑</button><div class="kt">{{ task.title }}</div>
+                <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt">{{ task.title }}</div>
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
@@ -793,7 +794,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           <template v-else>
             <div v-for="task in todoTasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
-              <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务">🗑</button><div class="kt">{{ task.title }}</div>
+              <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt">{{ task.title }}</div>
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
             </div>
           </template>
@@ -812,7 +813,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               </div>
               <div v-for="task in grp.tasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
-                <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务">🗑</button><div class="kt">{{ task.title }}</div>
+                <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt">{{ task.title }}</div>
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
@@ -822,7 +823,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           <template v-else>
             <div v-for="task in doingTasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
-              <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务">🗑</button><div class="kt">{{ task.title }}</div>
+              <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt">{{ task.title }}</div>
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
             </div>
           </template>
@@ -841,7 +842,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               </div>
               <div v-for="task in grp.tasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
-                <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务">🗑</button><div class="kt">{{ task.title }}</div>
+                <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt">{{ task.title }}</div>
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
@@ -851,7 +852,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           <template v-else>
             <div v-for="task in doneTasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
-              <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务">🗑</button><div class="kt">{{ task.title }}</div>
+              <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt">{{ task.title }}</div>
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
             </div>
           </template>
@@ -1012,10 +1013,11 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .kt { font-size: 12.5px; font-weight: 500; line-height: 1.5; margin-bottom: 6px; }
 .k-pin { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: 11px; cursor: pointer; opacity: 0; transition: all .15s ease; z-index: 1; }
 .k-star { position: absolute; top: 6px; right: 32px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: 11px; cursor: pointer; opacity: 0; transition: all .15s ease; z-index: 1; }
-.k-del { position: absolute; top: 6px; right: 58px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: 11px; cursor: pointer; opacity: 0; transition: all .15s ease; z-index: 1; }
-.kcard:hover .k-pin, .kcard:hover .k-star, .kcard:hover .k-del { opacity: .6; }
+/* R68-F2：删除按钮 emoji → 主题色线性图标（深色主题下 🗑 深灰单色 emoji 在近黑卡上不可见） */
+.k-del { position: absolute; top: 6px; right: 58px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: 11px; cursor: pointer; opacity: 0; transition: all .15s ease; z-index: 1; color: var(--text-3); display: flex; align-items: center; justify-content: center; }
+.kcard:hover .k-pin, .kcard:hover .k-star, .kcard:hover .k-del { opacity: .85; }
 .k-pin:hover, .k-star:hover { opacity: 1 !important; background: var(--surface-3); }
-.k-del:hover { opacity: 1 !important; background: var(--danger-light, rgba(231,76,60,.12)); color: var(--danger, #e74c3c); }
+.k-del:hover { opacity: 1 !important; background: var(--tag-danger-bg); color: var(--danger, #e74c3c); }
 .k-pin.on, .k-star.on { opacity: 1; }
 .t-pin { width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: 0; transition: all .15s ease; flex-shrink: 0; }
 .t-star { width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: 0; transition: all .15s ease; flex-shrink: 0; }

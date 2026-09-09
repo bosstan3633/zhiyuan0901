@@ -1,11 +1,13 @@
 <script setup lang="ts">
+// R68-F6：显式实例名——KeepAlive include 四主视图缓存切台免重挂
+defineOptions({ name: 'CompassShell' })
 import Icon from '@/shared/components/Icon.vue'
 /**
  * 方向台 · 一级工作区（R49 V2.22.0 三大系统页改版）
  * 满宽模块化：指标条（方向状态）→ 主航线（愿景→使命→战略目标→项目）→ 项目总览
  * 二级覆盖层：完整方向树（/compass/tree）、项目详情（/compass/projects）
  */
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCompass } from '../stores/compass'
 import { useAppStore } from '../stores/app'
@@ -26,6 +28,11 @@ const { d, allProjects, projectProgress, isProjectStalled, isProjectDone } = use
 // R55-B3：/compass?zone=task → 滚动定位到任务调度模块并高亮（置于声明之后，避免 TDZ）
 watch(() => route.query.zone, (z) => {
   if (z !== 'task') return
+  flashTaskModule()
+}, { immediate: true })
+
+/** R68-F3：滚动定位 + 高亮任务调度模块（zone=task 与 goto-tasks 快捷键共用） */
+function flashTaskModule() {
   nextTick(() => {
     const el = document.getElementById('task-mgmt-module')
     if (!el) return
@@ -33,7 +40,13 @@ watch(() => route.query.zone, (z) => {
     el.classList.add('module-flash')
     setTimeout(() => el.classList.remove('module-flash'), 1500)
   })
-}, { immediate: true })
+}
+// R68-F3：goto-tasks 浏览器命令 → App.vue 派发 zy-goto-anchor('task') → 定位高亮
+function onGotoAnchor(e: Event) {
+  if ((e as CustomEvent).detail === 'task') flashTaskModule()
+}
+onMounted(() => window.addEventListener('zy-goto-anchor', onGotoAnchor))
+onUnmounted(() => window.removeEventListener('zy-goto-anchor', onGotoAnchor))
 
 // ---- 已完成项目显隐（C6：与主航线/完整方向树三处同步；R52-BUG-2 口径统一 isProjectDone） ----
 const showDone = computed(() => store.ui?.showDoneProjects !== false)

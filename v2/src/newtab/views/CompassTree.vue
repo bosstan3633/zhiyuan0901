@@ -875,8 +875,9 @@ onUnmounted(() => {
 .node .node-meta { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 10.5px; color: var(--text-3); flex-wrap: wrap; }
 .node .node-actions { position: absolute; top: 6px; right: 6px; display: flex; gap: 2px; opacity: 0; transition: opacity .15s; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 2px; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
 .node:hover .node-actions { opacity: 1; }
-.node-action { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; color: var(--text-3); transition: all .15s; background: rgba(255,255,255,.9); }
-.node-action:hover { background: var(--surface-3); color: var(--text); }
+/* R68-F4：操作按钮主题感知——原硬编码不透明白底 + 浅灰图标，深色主题（近黑画布）下对比度崩坏看不到入口 */
+.node-action { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; color: var(--text-2); transition: all .15s; background: var(--surface-3); border: 1px solid var(--border); }
+.node-action:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
 .node-action.danger:hover { color: var(--danger); }
 
 /* 愿景节点 */
