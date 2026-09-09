@@ -27,7 +27,7 @@ import MetricBar from '../components/compass/MetricBar.vue'
 const router = useRouter()
 const route = useRoute()
 const store = useAppStore()
-const { d, visionText, missionText, allProjects, projectProgress, projectTasksOf } = useCompass()
+const { d, allProjects, projectProgress, projectTasksOf } = useCompass()
 
 const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 
@@ -615,6 +615,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
     <div class="page-head">
       <div class="crumb"><b>调度台</b> · 今天，从哪里出发</div>
       <div class="spacer" />
+      <!-- R66-F3：操作记录四格移至方向状态指标条右端（右对齐），存储/同步 chip 留右上角右对齐 -->
       <button class="storage-chip" :class="{ err: !storageOk }" :title="storageOk ? '点击查看存储用量' : '点击重试写入'" @click="onStorageClick">
         <span class="sc-dot" />
         <span>{{ storageText }}</span>
@@ -625,17 +626,19 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
         <span>{{ atChipText }}</span>
         <span class="sync-gear" title="Airtable 同步设置" @click.stop="router.push('/settings?page=airtable')">⚙</span>
       </button>
-      <!-- R56-P2：今日记录 4 计数缩至页头右对齐一行（同字号级；点击下钻抽屉保留） -->
-      <div class="rec-mini">
-        <span class="rm-cell" title="今日入台 · 点击看明细" @click="openRec('in')">⬇ {{ todayIn.length }}</span>
-        <span class="rm-cell" title="今日移出 · 点击看明细" @click="openRec('out')">⬆ {{ todayOut.length }}</span>
-        <span class="rm-cell" title="今日调出 · 点击看明细" @click="openRec('called')">↗ {{ todayCalled.length }}</span>
-        <span class="rm-cell" title="写入记录 · 点击看明细" @click="openRec('log')">✎ {{ logCount }}</span>
-      </div>
     </div>
 
-    <!-- R55-D1：方向状态（DHI/WCE/WRR/未归档任务四格）迁至调度台最顶部 -->
-    <MetricBar />
+    <!-- R55-D1：方向状态（战略目标/WCE/WRR/未归档四格）迁至调度台最顶部 ｜ R66-F3：右端挂操作记录四格 -->
+    <MetricBar>
+      <template #right>
+        <div class="rec-mini in-bar">
+          <span class="rm-cell" title="今日入台 · 点击看明细" @click="openRec('in')">⬇ {{ todayIn.length }}</span>
+          <span class="rm-cell" title="今日移出 · 点击看明细" @click="openRec('out')">⬆ {{ todayOut.length }}</span>
+          <span class="rm-cell" title="今日调出 · 点击看明细" @click="openRec('called')">↗ {{ todayCalled.length }}</span>
+          <span class="rm-cell" title="写入记录 · 点击看明细" @click="openRec('log')">✎ {{ logCount }}</span>
+        </div>
+      </template>
+    </MetricBar>
 
     <!-- 左右分栏：今日三件事 ｜ 项目调度 -->
     <div id="dispatch-split" class="split">
@@ -692,21 +695,10 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
             <button class="mini-btn" title="进入完整方向树全景（查看/编辑方向结构）" @click="router.push('/compass/tree')"><Icon name="branch" :size="13" />方向树</button>
           </div>
           <div v-if="curProject" class="cur-body-v">
-            <div class="cur-proj-name">📦 {{ curProject.name }}</div>
-            <!-- R52-F2：左右两列——左=愿景使命（降级）+战略目标（核心突出）+4指标；右=指标→任务树（默认全展开/可折叠/去关联/单击开详情） -->
-            <!-- R54-B1：左右分栏可拖拽（中缝分隔条，30–75% 持久化） -->
+            <!-- R66-F2：删顶部项目名行与愿景/使命模块（数据保留在方向台）——项目名大字下移为模块主体首行，纵向压缩 -->
             <div class="cur-cols" :style="{ gridTemplateColumns: curColsStyle }">
               <div class="cur-col-l">
-                <div class="cur-vision-row">
-                  <div class="cur-mini" :title="visionText">
-                    <div class="cur-mini-lab">🔭 愿景 · Vision</div>
-                    <div class="cur-mini-txt">{{ visionText || '尚未设定愿景' }}</div>
-                  </div>
-                  <div class="cur-mini" :title="missionText">
-                    <div class="cur-mini-lab">💡 使命 · Mission</div>
-                    <div class="cur-mini-txt">{{ missionText || '尚未设定使命' }}</div>
-                  </div>
-                </div>
+                <div class="cur-proj-name big">📦 {{ curProject.name }}</div>
                 <div class="cur-goal">
                   <div class="cur-goal-lab">🎯 战略目标 · STRATEGIC DIRECTION</div>
                   <div class="cur-goal-name">{{ goalOf(curProject)?.name || '—' }}</div>
@@ -955,6 +947,8 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 
 /* R56-P2：今日记录 4 计数页头迷你条（右对齐、同存储 chip 量级） */
 .rec-mini { display: inline-flex; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 4px 8px; }
+/* R66-F3：指标条内嵌态——去边框，融入单行指标条右端 */
+.rec-mini.in-bar { background: transparent; border: none; padding: 0; }
 .rec-mini .rm-cell { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-2); padding: 2px 7px; border-radius: 99px; cursor: pointer; font-variant-numeric: tabular-nums; transition: all .12s; white-space: nowrap; }
 .rec-mini .rm-cell:hover { background: var(--accent-light); color: var(--accent); }
 
@@ -1026,11 +1020,9 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cur-cols { display: grid; grid-template-columns: minmax(0, 38%) 8px 1fr; gap: 0 10px; align-items: stretch; }
 .cur-col-l, .cur-col-r { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .cur-proj-name { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: .3px; }
-.cur-vision-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-/* R52-F2：愿景/使命降一级——更小更弱化 */
-.cur-mini { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 9px; }
-.cur-mini-lab { font-size: 9px; font-weight: 700; color: var(--text-4); letter-spacing: .8px; margin-bottom: 2px; }
-.cur-mini-txt { font-size: 10px; color: var(--text-3); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* R66-F2：项目名大字成为左列主体首行（愿景/使命模块已移除呈现） */
+.cur-proj-name.big { font-size: 21px; margin-bottom: 8px; }
+/* R66-F2：愿景/使命模块呈现移除（数据保留在方向台），样式一并退役 */
 .cur-goal { background: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius: var(--radius-sm); padding: 12px 14px; }
 .cur-goal-lab { font-size: 9.5px; font-weight: 700; color: var(--accent); letter-spacing: 1px; margin-bottom: 4px; }
 .cur-goal-name { font-size: 16px; font-weight: 700; color: var(--accent); line-height: 1.4; }

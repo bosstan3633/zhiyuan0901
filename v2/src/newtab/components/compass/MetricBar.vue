@@ -74,6 +74,8 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
       <div class="mb-cell clickable" :class="{ 'st-warn': unarchived > 0 }" title="未归档任务 = 未挂项目/指标或引用失效的任务（口径同详细指标）· 点击下钻归档" @click="openCell('unarch')">
         <span class="mb-k">未归档</span><span class="mb-v">{{ unarchived }}<i class="mb-denom">/{{ totalTasks }}</i></span><span class="mb-k2">点击归档</span>
       </div>
+      <!-- R66-F3：右侧扩展位（调度台放操作记录四格，右对齐） -->
+      <div class="mb-right"><slot name="right" /></div>
     </div>
   </div>
 
@@ -100,6 +102,8 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
 .mb-k2 { font-size: 10px; color: var(--text-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .mb-denom { font-size: 10.5px; font-weight: 500; color: var(--text-3); font-style: normal; }
 .mb-cell.st-warn .mb-v { color: var(--tag-warn-text); }
+/* R66-F3：右端扩展位——操作记录四格右对齐挂载点 */
+.mb-right { margin-left: auto; display: flex; align-items: center; flex-shrink: 0; }
 
 @media (max-width: 1080px) {
   .mb-row { flex-wrap: wrap; row-gap: 4px; }

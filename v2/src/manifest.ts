@@ -4,8 +4,8 @@ export default defineManifest({
   manifest_version: 3,
   name: '知源调度台',
   short_name: '知源',
-  version: '2.35.0',
-  description: '信息洪流中的控制中心 · 个人资源调度台 · 本地优先 · Chrome MV3',
+  version: '2.36.0',
+  description: '你在浏览器里的个人调度中台 · 万千可调用，自有我方向 · 本地优先 · Chrome MV3',
   permissions: ['storage', 'unlimitedStorage', 'tabs', 'activeTab', 'commands', 'scripting', 'downloads', 'alarms'],
   host_permissions: ['<all_urls>', 'file:///*'],
   chrome_url_overrides: {

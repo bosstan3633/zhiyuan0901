@@ -176,25 +176,18 @@
                 <span class="gs-pan-count">{{ wsNode.count }}</span>
               </div>
               <template v-if="!panCollapsed.has('ws:' + wsNode.ws.id)">
-                <div v-for="node in wsNode.cats" :key="node.cat.id">
-                  <div class="gs-pan-row gs-pan-cat-row" :class="{ active: panSelCat === node.cat.id, drop: dropTarget === 'cat:' + node.cat.id }"
-                    @click="selectPanCat(node.cat.id)"
-                    @dragover.prevent="dropTarget = 'cat:' + node.cat.id" @dragleave="dropTarget === 'cat:' + node.cat.id && (dropTarget = '')" @drop.prevent="onPanDrop('cat:' + node.cat.id, node.cat.workspaceId, node.cat.id)">
-                    <span v-if="node.children.length" class="gs-pan-toggle" @click.stop="togglePanCollapse('cat:' + node.cat.id)">{{ panCollapsed.has('cat:' + node.cat.id) ? '▸' : '▾' }}</span>
+                <!-- R66-F6：递归 N 级扁平行渲染（原固定 2 级），深层子分类缩进呈现、折叠语义沿祖先链 -->
+                <template v-for="row in flattenPanCats(wsNode.cats, 0)" :key="row.node.cat.id">
+                  <div class="gs-pan-row" :class="[row.depth === 0 ? 'gs-pan-cat-row' : 'gs-pan-sub-row', { active: panSelCat === row.node.cat.id, drop: dropTarget === 'cat:' + row.node.cat.id }]"
+                    :style="row.depth ? { paddingLeft: (row.depth * 14) + 'px' } : undefined"
+                    @click="selectPanCat(row.node.cat.id)"
+                    @dragover.prevent="dropTarget = 'cat:' + row.node.cat.id" @dragleave="dropTarget === 'cat:' + row.node.cat.id && (dropTarget = '')" @drop.prevent="onPanDrop('cat:' + row.node.cat.id, row.node.cat.workspaceId, row.node.cat.id)">
+                    <span v-if="row.node.children.length" class="gs-pan-toggle" @click.stop="togglePanCollapse('cat:' + row.node.cat.id)">{{ panCollapsed.has('cat:' + row.node.cat.id) ? '▸' : '▾' }}</span>
                     <span v-else class="gs-pan-toggle leaf">·</span>
-                    <span class="gs-pan-name">📂 {{ node.cat.name }}</span>
-                    <span class="gs-pan-count">{{ node.count }}</span>
+                    <span class="gs-pan-name">{{ row.depth === 0 ? '📂 ' : '└ ' }}{{ row.node.cat.name }}</span>
+                    <span class="gs-pan-count">{{ row.node.count }}</span>
                   </div>
-                  <template v-if="!panCollapsed.has('cat:' + node.cat.id)">
-                    <div v-for="ch in node.children" :key="ch.cat.id" class="gs-pan-row gs-pan-sub-row" :class="{ active: panSelCat === ch.cat.id, drop: dropTarget === 'cat:' + ch.cat.id }"
-                      @click="selectPanCat(ch.cat.id)"
-                      @dragover.prevent="dropTarget = 'cat:' + ch.cat.id" @dragleave="dropTarget === 'cat:' + ch.cat.id && (dropTarget = '')" @drop.prevent="onPanDrop('cat:' + ch.cat.id, ch.cat.workspaceId, ch.cat.id)">
-                      <span class="gs-pan-toggle leaf">·</span>
-                      <span class="gs-pan-name">└ {{ ch.cat.name }}</span>
-                      <span class="gs-pan-count">{{ ch.count }}</span>
-                    </div>
-                  </template>
-                </div>
+                </template>
               </template>
             </div>
             <div v-if="!panTree.length" class="gs-ev-empty">暂无工作台</div>
@@ -399,7 +392,7 @@
           <div class="gs-card-body">
             <div class="gs-import-option" @click="triggerFileImport">
               <div class="gs-io-icon">📦</div>
-              <div><div class="gs-io-name">导入知源调度台数据</div><div class="gs-io-desc">选择JSON文件，与现有数据取并集（同ID更新，不同ID新增）</div></div>
+              <div><div class="gs-io-name">导入知源调度台数据</div><div class="gs-io-desc">选择JSON文件，与现有数据取并集（同ID更新，不同ID新增）；全量包附带界面偏好（主题/密度）时自动应用</div></div>
               <button class="gs-btn gs-btn-primary gs-io-btn">选择文件</button>
             </div>
             <div class="gs-import-option" @click="assetPackInput?.click()">
@@ -774,7 +767,7 @@
             <div class="gs-about-logo"><img :src="logoUrl" alt="知源调度台" /></div>
             <div class="gs-about-name">知源调度台</div>
             <div class="gs-about-version">版本 V{{ runtimeVersion }}</div>
-            <div class="gs-about-motto">你不缺信息，你缺一座控制中心。</div>
+            <div class="gs-about-motto">万千可调用，自有我方向。</div>
           </div>
         </div>
         <div class="gs-card">
@@ -831,7 +824,7 @@
 import { ref, reactive, computed, watch, watchEffect, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
-import { saveUIPrefs, getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage } from '@/shared/storage/repository'
+import { saveUIPrefs, loadUIPrefs, getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage } from '@/shared/storage/repository'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
 import FieldEditor from './FieldEditor.vue'
@@ -1341,7 +1334,7 @@ function panCountByWs(wsId: string): number {
   }
   return boardCardsOf(store.data!, wsId).length
 }
-/** R65-F5：全景树只呈现资源台（策展台不进全景） */
+/** R65-F5：全景树只呈现资源台（策展台不进全景）｜ R66-F6：子分类改递归 N 级渲染（原写死 2 级，深层分类不同步呈现） */
 const panHubWss = computed(() => store.workspaces.filter(w => isHubWs(w)))
 const panTree = computed<PanWsNode[]>(() =>
   panHubWss.value.map(w => {
@@ -1349,9 +1342,10 @@ const panTree = computed<PanWsNode[]>(() =>
     const toNode = (c: { id: string; name: string; workspaceId: string }): PanCatNode => ({
       cat: { id: c.id, name: c.name, workspaceId: c.workspaceId },
       count: panCountByCat(c),
-      children: gd.value.categories.filter(ch => ch.parentId === c.id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map(ch => ({
-        cat: { id: ch.id, name: ch.name, workspaceId: ch.workspaceId }, count: panCountByCat(ch), children: []
-      }))
+      children: gd.value.categories
+        .filter(ch => ch.parentId === c.id)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .map(toNode)
     })
     return { ws: { id: w.id, name: w.name, icon: w.icon }, count: panCountByWs(w.id), cats: roots.map(toNode) }
   })
@@ -1359,6 +1353,15 @@ const panTree = computed<PanWsNode[]>(() =>
 const panTotalCats = computed(() => gd.value.categories.filter(c => panHubWss.value.some(w => w.id === c.workspaceId)).length)
 const panTotalCards = computed(() => panHubWss.value.reduce((s, w) => s + panCountByWs(w.id), 0))
 const panCollapsed = ref<Set<string>>(new Set()) // 默认全展开
+/** R66-F6：递归扁平行（折叠沿祖先链：父收起则整棵子树不渲染） */
+function flattenPanCats(cats: { cat: { id: string; name: string; workspaceId: string }; count: number; children: any[] }[], depth: number): { node: any; depth: number }[] {
+  const out: { node: any; depth: number }[] = []
+  for (const n of cats) {
+    out.push({ node: n, depth })
+    if (n.children?.length && !panCollapsed.value.has('cat:' + n.cat.id)) out.push(...flattenPanCats(n.children, depth + 1))
+  }
+  return out
+}
 function togglePanCollapse(key: string) {
   const next = new Set(panCollapsed.value)
   if (next.has(key)) next.delete(key); else next.add(key)
@@ -1601,7 +1604,20 @@ function handleFileImport(e: Event) {
       // R47-A2：导入前自动备份当前数据到本地文件（防误合并，T3 安全网）
       try { downloadFile(`zhiyuan_auto_backup_before_import_${dateStr()}.json`, JSON.stringify(store.data, null, 2)) } catch {}
       const n = mergeImport(imported)
-      showToast(`✓ 导入完成（并集）：卡片 ${n.cards}、罗盘方向 ${n.dirs}、工作台 ${n.ws}；已自动下载导入前备份`)
+      // R66-F4：全量包附带 uiPrefs 时自动应用主题/密度（即时生效，不再询问）
+      const ui = (imported as unknown as Record<string, unknown>).uiPrefs as Record<string, unknown> | undefined
+      if (ui && typeof ui === 'object') {
+        if (typeof ui.theme === 'string' && ui.theme) {
+          document.documentElement.setAttribute('data-theme', ui.theme)
+          saveUIPrefs({ theme: ui.theme })
+        }
+        if (typeof ui.density === 'string' && ui.density) {
+          if (ui.density === 'compact') document.documentElement.setAttribute('data-density', 'compact')
+          else document.documentElement.removeAttribute('data-density')
+          saveUIPrefs({ density: ui.density as 'compact' | 'cozy' })
+        }
+      }
+      showToast(`✓ 导入完成（并集）：卡片 ${n.cards}、罗盘方向 ${n.dirs}、工作台 ${n.ws}${ui ? '；界面偏好已应用' : ''}；已自动下载导入前备份`)
     } catch { showToast('✗ 文件格式错误，请选择有效的JSON文件') }
   }
   reader.readAsText(file)
@@ -1809,11 +1825,15 @@ function downloadFile(filename: string, content: string, type = 'application/jso
 }
 function dateStr() { return new Date().toISOString().slice(0, 10) }
 
-function exportAll() {
+/** R66-F4：全量导出 = AppData 全段 + UI 偏好（主题/密度等 zy_ui_v2 独立键并入 uiPrefs 段，导入侧自动应用） */
+async function exportAll() {
   const d = store.data!
-  downloadFile(`zhiyuan_backup_${dateStr()}.json`, JSON.stringify(d, null, 2))
+  let uiPrefs: Record<string, unknown> | undefined
+  try { uiPrefs = await loadUIPrefs() as unknown as Record<string, unknown> } catch {}
+  const payload = uiPrefs ? { ...d, uiPrefs } : { ...d }
+  downloadFile(`zhiyuan_backup_${dateStr()}.json`, JSON.stringify(payload, null, 2))
   markBackupNow()
-  showToast('✓ 全部数据已导出为JSON')
+  showToast('✓ 全量数据已导出（含全部工作台与界面偏好）')
 }
 
 /** 第卌一轮 REQ-055：资源目录字段 → CSV 单元格文本（系统字段键值映射；自定义字段取 customFields） */

@@ -292,41 +292,40 @@
             </template>
             <div v-else class="py-root-empty clickable" @click="openThesisCreate">🏛 点击设立中心论点 —— 填写卡片保存后自动落为 L1 根节点</div>
           </div>
-          <!-- L2 起分类节点（分类树按深度铺开；节点可拖拽挂子级 / ⟨⟩ 调同级顺序 / 卡片拖入节点） -->
-          <div v-for="(lv, li) in pyramidLevels" :key="li" class="py-level">
-            <div class="py-level-label">L{{ li + 2 }}</div>
-            <div class="py-level-nodes" :style="{ '--py-cols': pyLevelCols[li] || 4 }">
-              <div v-for="node in lv" :key="node.cat.id" class="py-node"
-                :class="{ 'drop-child': pyDropTarget===node.cat.id && pyDropMode==='child', 'drop-sib': pyDropTarget===node.cat.id && pyDropMode!=='child', flash: catFlashId===node.cat.id }"
-                :data-pyid="node.cat.id"
-                @dragover.prevent.stop="onPyDragOver($event, node.cat)" @dragleave.stop="pyDropTarget=''" @drop.stop.prevent="onPyDrop($event, node.cat)">
-                <div class="py-node-head" :draggable="!batchMode" @dragstart.stop="onCatDragStart($event, node.cat)" @dragend="onCatDragEnd">
-                  <span class="py-node-name" :title="node.cat.name" @click="selectPyNode(node.cat)">{{ node.cat.name }}<template v-if="isMirrorCat(node.cat)"> 📡</template></span>
-                  <span class="py-node-count">{{ node.cards.length }}</span>
-                  <span class="py-node-ops">
-                    <span class="py-op" title="前移" @click.stop="moveCatSibling(node.cat, -1)">⟨</span>
-                    <span class="py-op" title="后移" @click.stop="moveCatSibling(node.cat, 1)">⟩</span>
-                    <span class="py-op" title="节点菜单" @click.stop="openNodeMenu($event, node.cat)">⋯</span>
-                  </span>
-                </div>
-                <div class="py-node-body">
-                  <span v-for="r in node.cards" :key="r.id" class="py-card-chip" :draggable="!batchMode" :data-rid="r.id"
-                    @dragstart="onDragStart($event, r)" @dragend="clearCardDropTarget"
-                    @click.stop="onCardClick(r)" @dblclick.stop="onCardDblClick(r)" @contextmenu.prevent.stop="openResCtx($event, r)">
-                    <span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ r.title }}
-                  </span>
-                  <span v-if="!node.cards.length" class="py-node-empty">拖入资源卡</span>
-                </div>
-                <!-- R65-F3：节点双入口——关联资源卡（资源台选择器镜像）/ 新建卡片（台内卡，可挂附件） -->
-                <div class="py-node-foot">
-                  <span class="py-foot-btn" title="从资源台选择资源卡镜像到该节点" @click.stop="openLinkCards(node.cat)">🔗 关联资源卡</span>
-                  <span class="py-foot-btn" title="新建台内卡（可挂附件，真身留在本台）" @click.stop="addResourceToCategory(node.cat.id)">➕ 新建卡片</span>
-                </div>
-                <span v-if="pyDepthOf(node.cat) < 3" class="py-node-add" title="新建子节点" @click.stop="openCreateCat(node.cat.id)">＋</span>
+          <!-- L2 起分类节点（R66-F5：居中树布局——叶子占列、父节点跨其子组全部列：父模块横向恒=子组横向、居中悬于子组上方，子组永不跨入其他父节点的横向空间；连线横平竖直直角折线） -->
+          <div class="py-board" :style="{ gridTemplateColumns: `repeat(${pyLayout.cols}, minmax(170px, 250px))` }">
+            <div v-for="cell in pyLayout.cells" :key="cell.cat.id" class="py-node"
+              :class="{ 'drop-child': pyDropTarget===cell.cat.id && pyDropMode==='child', 'drop-sib': pyDropTarget===cell.cat.id && pyDropMode!=='child', flash: catFlashId===cell.cat.id }"
+              :style="{ gridRow: cell.depth + 1, gridColumn: `${cell.colStart + 1} / span ${cell.colSpan}` }"
+              :data-pyid="cell.cat.id"
+              @dragover.prevent.stop="onPyDragOver($event, cell.cat)" @dragleave.stop="pyDropTarget=''" @drop.stop.prevent="onPyDrop($event, cell.cat)">
+              <div class="py-node-head" :draggable="!batchMode" @dragstart.stop="onCatDragStart($event, cell.cat)" @dragend="onCatDragEnd">
+                <span class="py-node-lv">L{{ cell.depth + 2 }}</span>
+                <span class="py-node-name" :title="cell.cat.name" @click="selectPyNode(cell.cat)">{{ cell.cat.name }}<template v-if="isMirrorCat(cell.cat)"> 📡</template></span>
+                <span class="py-node-count">{{ cell.cards.length }}</span>
+                <span class="py-node-ops">
+                  <span class="py-op" title="前移" @click.stop="moveCatSibling(cell.cat, -1)">⟨</span>
+                  <span class="py-op" title="后移" @click.stop="moveCatSibling(cell.cat, 1)">⟩</span>
+                  <span class="py-op" title="节点菜单" @click.stop="openNodeMenu($event, cell.cat)">⋯</span>
+                </span>
               </div>
-              <div v-if="!lv.length" class="py-level-empty">本层暂无节点</div>
+              <div class="py-node-body">
+                <span v-for="r in cell.cards" :key="r.id" class="py-card-chip" :draggable="!batchMode" :data-rid="r.id"
+                  @dragstart="onDragStart($event, r)" @dragend="clearCardDropTarget"
+                  @click.stop="onCardClick(r)" @dblclick.stop="onCardDblClick(r)" @contextmenu.prevent.stop="openResCtx($event, r)">
+                  <span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ r.title }}
+                </span>
+                <span v-if="!cell.cards.length" class="py-node-empty">拖入资源卡</span>
+              </div>
+              <!-- R65-F3：节点双入口——关联资源卡（资源台选择器镜像）/ 新建卡片（台内卡，可挂附件） -->
+              <div class="py-node-foot">
+                <span class="py-foot-btn" title="从资源台选择资源卡镜像到该节点" @click.stop="openLinkCards(cell.cat)">🔗 关联资源卡</span>
+                <span class="py-foot-btn" title="新建台内卡（可挂附件，真身留在本台）" @click.stop="addResourceToCategory(cell.cat.id)">➕ 新建卡片</span>
+              </div>
+              <span v-if="pyDepthOf(cell.cat) < 3" class="py-node-add" title="新建子节点" @click.stop="openCreateCat(cell.cat.id)">＋</span>
             </div>
           </div>
+          <div v-if="!pyLayout.cells.length && thesisCard" class="py-level-empty" style="text-align:center;padding:10px 0">还没有论点节点 —— 节点卡右上「＋」或左侧目录「＋ 新建分类」建立骨架</div>
           <EmptyState v-if="!pyramidLevels.length && !thesisCard" icon="folder" title="金字塔还空着"
             desc="左侧目录「＋ 新建分类」建立论点骨架；右键台内卡片可设为中心论点（L1 根）" />
         </div>
@@ -1673,16 +1672,40 @@ const pyramidLevels = computed<PyNode[][]>(() => {
   }
   return [...byDepth.keys()].sort((a, b) => a - b).map(k => byDepth.get(k)!)
 })
-/** R65-F2：每层列数 = clamp(节点数, 2, 7)，且不小于上一层（子模块宽度恒 ≤ 父模块） */
-const PY_MIN_COLS = 2
-const PY_MAX_COLS = 7
-const pyLevelCols = computed<number[]>(() => {
-  const out: number[] = []
-  for (const lv of pyramidLevels.value) {
-    const own = Math.min(PY_MAX_COLS, Math.max(PY_MIN_COLS, lv.length))
-    out.push(Math.max(own, out.length ? out[out.length - 1]! : PY_MIN_COLS))
+/** R66-F5：居中树布局——叶子节点各占 1 列（树先序），父节点跨「其子组全部列」：
+ *  父模块横向恒等于子组横向并居中悬于其上；子组永不跨入其他父节点的横向空间（列独占）；
+ *  宽度自适应（列宽 minmax(170px,250px)），整体不占满横向空间。 */
+const pyLayout = computed<{ cols: number; cells: { cat: Category; depth: number; colStart: number; colSpan: number; cards: ResourceCard[] }[] }>(() => {
+  const cardsBy = new Map<string, ResourceCard[]>()
+  for (const r of allResources.value) {
+    if (r.isThesis) continue
+    const arr = cardsBy.get(r.categoryId) || []
+    arr.push(r)
+    cardsBy.set(r.categoryId, arr)
   }
-  return out
+  const cells: { cat: Category; depth: number; colStart: number; colSpan: number; cards: ResourceCard[] }[] = []
+  let leafSeq = 0
+  /** 后序布点：叶子占新列；父节点跨其子组全部列（列独占，兄弟子树互不侵入） */
+  const placeCat = (cat: Category, depth: number): { start: number; span: number } => {
+    const kids = wsCats.value.filter(x => x.parentId === cat.id).sort((a, b) => a.order - b.order)
+    if (!kids.length) {
+      const col = leafSeq++
+      cells.push({ cat, depth, colStart: col, colSpan: 1, cards: cardsBy.get(cat.id) || [] })
+      return { start: col, span: 1 }
+    }
+    let start = Infinity
+    let end = -1
+    for (const k of kids) {
+      const sub = placeCat(k, depth + 1)
+      start = Math.min(start, sub.start)
+      end = Math.max(end, sub.start + sub.span - 1)
+    }
+    const span = end - start + 1
+    cells.push({ cat, depth, colStart: start, colSpan: span, cards: cardsBy.get(cat.id) || [] })
+    return { start, span }
+  }
+  for (const root of wsCats.value.filter(x => !x.parentId).sort((a, b) => a.order - b.order)) placeCat(root, 0)
+  return { cols: Math.max(leafSeq, 1), cells }
 })
 /** 同级顺序调整（⟨ 前移 / ⟩ 后移） */
 function moveCatSibling(cat: Category, dir: -1 | 1) {
@@ -1743,14 +1766,18 @@ const pyLinkPaths = ref<string[]>([])
 function drawPyLinks() {
   const wrap = pyWrapRef.value
   if (!wrap || viewMode.value !== 'pyramid') { pyLinkPaths.value = []; return }
+  // R66-F5：横向滚动时连线画布覆盖全部滚动区（CSS 不再定宽，由 JS 设定）
+  const svgEl = wrap.querySelector('svg.py-links-svg')
+  if (svgEl) { svgEl.setAttribute('width', String(wrap.scrollWidth)); svgEl.setAttribute('height', String(wrap.scrollHeight)) }
   const wr = wrap.getBoundingClientRect()
   const anchor = (el: Element) => {
     const r = el.getBoundingClientRect()
     return { x: r.left - wr.left + r.width / 2, top: r.top - wr.top, bottom: r.bottom - wr.top }
   }
   const link = (a: { x: number; bottom: number }, b: { x: number; top: number }) => {
+    // R66-F5：横平竖直直角折线（父底中点 ↓ 横移 ↑/↓ 子顶中点），替代贝塞尔曲线
     const mid = (a.bottom + b.top) / 2
-    return `M ${a.x} ${a.bottom} C ${a.x} ${mid}, ${b.x} ${mid}, ${b.x} ${b.top}`
+    return `M ${a.x} ${a.bottom} L ${a.x} ${mid} L ${b.x} ${mid} L ${b.x} ${b.top}`
   }
   const lines: string[] = []
   const allNodes = [...wrap.querySelectorAll('[data-pyid]')] as HTMLElement[]
@@ -1773,7 +1800,7 @@ function drawPyLinks() {
   }
   pyLinkPaths.value = lines
 }
-watch([pyramidLevels, viewMode, thesisCard], () => nextTick(drawPyLinks))
+watch([pyLayout, viewMode, thesisCard], () => nextTick(drawPyLinks))
 function pyHeightOf(c: Category): number {
   const ch = wsCats.value.filter(x => x.parentId === c.id)
   return ch.length ? Math.max(...ch.map(pyHeightOf)) + 1 : 1
@@ -2439,11 +2466,11 @@ function linkDisplay(link: string) {
 .cat-depth-dot[data-lv="3"] { background: #d99a1e; }
 
 /* ===== R62-5：金字塔视图 ===== */
-/* R64-F11：结构连线层（细实线贝塞尔，视觉让位于节点） */
-.pyramid { display: flex; flex-direction: column; gap: 14px; position: relative; }
-.py-links-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+/* R66-F5：结构连线层（横平竖直直角折线；画布尺寸由 drawPyLinks 按滚动区设定） */
+.pyramid { display: flex; flex-direction: column; gap: 14px; position: relative; overflow-x: auto; }
+.py-links-svg { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 0; }
 .py-links-svg path { fill: none; stroke: var(--border-strong, #555); stroke-width: 1; opacity: .5; }
-.pyramid .py-root, .pyramid .py-level { position: relative; z-index: 1; }
+.pyramid .py-root, .pyramid .py-board { position: relative; z-index: 1; }
 .py-root { position: relative; display: flex; justify-content: center; padding: 6px 0 10px; border-radius: 10px; transition: background .15s, box-shadow .15s; }
 .py-root.droppable { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-light); }
 .py-root-card { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--surface)), var(--surface)); border: 1.5px solid var(--accent); border-radius: 12px; padding: 12px 22px; max-width: 520px; text-align: center; cursor: pointer; transition: all .15s; }
@@ -2456,16 +2483,17 @@ function linkDisplay(link: string) {
 .py-root-empty { border: 1.5px dashed var(--border-strong); border-radius: 12px; padding: 14px 24px; font-size: 12px; color: var(--text-3); text-align: center; width: 100%; }
 .py-root-empty.clickable { cursor: pointer; transition: all .15s; }
 .py-root-empty.clickable:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-.py-level { display: flex; flex-direction: column; gap: 6px; }
-.py-level-label { font-size: 10px; font-weight: 700; color: var(--text-4); letter-spacing: 1px; }
-/* R65-F2：每层 grid 自适应列（2~7 列，子层列数 ≥ 父层 → 子模块恒 ≤ 父模块） */
-.py-level-nodes { display: grid; grid-template-columns: repeat(var(--py-cols, 4), 1fr); gap: 10px; align-items: start; }
+/* R66-F5：居中树 board——列宽自适应 minmax(170px,250px)，整体 fit-content 水平居中不占满；
+   行距 34px 留出直角连线空间；父节点跨子组全部列（横向恒=子组、居中悬于其上） */
+.py-board { display: grid; gap: 34px 12px; width: fit-content; margin: 6px auto 0; align-items: stretch; min-width: 40%; }
 .py-node { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; min-width: 0; transition: border-color .15s, box-shadow .15s; }
 .py-node:hover { border-color: var(--border-strong); }
 .py-node.drop-child { border-color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
 .py-node.drop-sib { box-shadow: inset 0 2px 0 var(--accent); }
 .py-node.flash { animation: rc-flash 1.6s ease-out; }
 .py-node-head { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border); cursor: grab; }
+/* R66-F5：节点层级小徽标（原每行 L 标签随 board 布局退役） */
+.py-node-lv { font-size: 9px; font-weight: 700; color: var(--text-4); background: var(--surface-3); border-radius: 4px; padding: 1px 5px; flex-shrink: 0; letter-spacing: .5px; }
 .py-node-name { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .py-node-name:hover { color: var(--accent); }
 .py-node-count { font-size: 10px; color: var(--accent); background: var(--accent-light); padding: 1px 7px; border-radius: 99px; font-weight: 600; }

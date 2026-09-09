@@ -133,7 +133,7 @@
         <span><kbd>⏎</kbd> 打开</span>
         <span><kbd>Tab</kbd> 过滤类型</span>
         <span><kbd>Esc</kbd> 关闭</span>
-        <span class="gp-foot-brand">知源调度台 · 你不缺信息，你缺一座控制中心</span>
+        <span class="gp-foot-brand">知源调度台 · 万千可调用，自有我方向</span>
       </div>
     </div>
   </div>

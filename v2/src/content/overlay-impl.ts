@@ -269,7 +269,7 @@ async function openSearch() {
       <span><kbd>⏎</kbd> 打开</span>
       <span><kbd>Tab</kbd> 切换类型</span>
       <span><kbd>Esc</kbd> 关闭</span>
-      <span class="zy-foot-brand">知源调度台 · 你不缺信息，你缺一座控制中心</span>
+      <span class="zy-foot-brand">知源调度台 · 万千可调用，自有我方向</span>
     </div>
   `
   root.appendChild(panel)
@@ -1131,8 +1131,16 @@ function onSavedKeydown(e: KeyboardEvent) {
 }
 
 // ============ 采集好奇心（居中，选中文本预填 + O24 自动附带页面来源） ============
-/** R55-C：快速采集任务（任意网页快捷键触发；四字段全非必填，直存全域任务） */
+/** R55-C：快速采集任务（任意网页快捷键触发；四字段全非必填，直存全域任务）
+ *  R66-F1：对齐好奇心速记——选中文本→任务内容、网页标题→任务名称、页面URL→链接（均可编辑） */
 async function openTaskCapture() {
+  // R66-F1：实时选区优先 → 预取缓存兜底（与 openCuriosity 同一链路）
+  const cached = getSelCache()
+  const selection = resolveSelection()
+  const hasSel = !!selection
+  const pageTitle = hasSel ? ((cached.url === location.href && cached.title) || (document.title || '').trim()) : ''
+  const pageUrl = hasSel ? ((cached.url === location.href && cached.url) || location.href) : ''
+  clearSelCache()
   const d = await getData()
   const projects: any[] = []
   for (const dir of d?.compass?.directions || []) for (const p of dir.projects || []) projects.push({ id: p.id, name: p.name, metrics: p.metrics || [] })
@@ -1150,10 +1158,12 @@ async function openTaskCapture() {
       <button class="zy-cap-close" id="__zy_tc_close__">×</button>
     </div>
     <div class="zy-cap-body">
-      <div class="zy-field"><label class="zy-field-label">任务名称</label>
-        <input type="text" class="zy-field-input" id="__zy_tc_title__" placeholder="要做什么（可留空）"></div>
-      <div class="zy-field"><label class="zy-field-label">任务内容</label>
-        <textarea class="zy-field-input" id="__zy_tc_desc__" placeholder="补充说明、上下文、验收标准（可留空）"></textarea></div>
+      <div class="zy-field"><label class="zy-field-label">任务名称${hasSel ? '（已填入网页标题，可编辑）' : ''}</label>
+        <input type="text" class="zy-field-input" id="__zy_tc_title__" placeholder="要做什么（可留空）" value="${escapeHtml(hasSel ? pageTitle : '')}"></div>
+      <div class="zy-field"><label class="zy-field-label">任务内容${hasSel ? '（已填入选中文本，可编辑）' : ''}</label>
+        <textarea class="zy-field-input" id="__zy_tc_desc__" placeholder="补充说明、上下文、验收标准（可留空）">${escapeHtml(selection)}</textarea></div>
+      <div class="zy-field"><label class="zy-field-label">🔗 链接${hasSel ? '（已自动捕获当前页，可编辑）' : '（可选，留空即无链接）'}</label>
+        <input type="text" class="zy-field-input" id="__zy_tc_link__" placeholder="https://…" value="${escapeHtml(hasSel ? pageUrl : '')}"></div>
       <div class="zy-field-row">
         <div class="zy-field"><label class="zy-field-label">所属项目（可留空）</label>
           <select class="zy-field-select" id="__zy_tc_proj__"><option value="">未关联项目</option>
@@ -1169,9 +1179,11 @@ async function openTaskCapture() {
   `
   root.appendChild(panel)
   const titleInput = document.getElementById('__zy_tc_title__') as HTMLInputElement
+  const descInput = document.getElementById('__zy_tc_desc__') as HTMLTextAreaElement
+  const linkInput = document.getElementById('__zy_tc_link__') as HTMLInputElement
   const projSel = document.getElementById('__zy_tc_proj__') as HTMLSelectElement
   const metSel = document.getElementById('__zy_tc_met__') as HTMLSelectElement
-  setTimeout(() => { titleInput.focus() }, 50)
+  setTimeout(() => { (hasSel ? descInput : titleInput).focus() }, 50)
   projSel.addEventListener('change', () => {
     const prj = projects.find(x => x.id === projSel.value)
     metSel.disabled = !prj
@@ -1182,10 +1194,11 @@ async function openTaskCapture() {
   const saveTc = async () => {
     const d2 = await getData()
     if (!d2) { showToast('数据加载失败'); return }
-    const desc = (document.getElementById('__zy_tc_desc__') as HTMLTextAreaElement)?.value.trim() || ''
+    const desc = descInput?.value.trim() || ''
+    const link = linkInput?.value.trim() || ''
     const task: any = {
       id: uid('tk'), kind: 'task', title: titleInput.value.trim() || '快速任务',
-      description: desc, status: 'todo', priority: 'medium',
+      description: desc, link: link || undefined, status: 'todo', priority: 'medium',
       projectId: projSel.value || undefined, metricId: metSel.value || undefined,
       mountedResourceIds: [], mountedCuriosityIds: [], customFields: {}, tags: [], pinned: false,
       createdAt: Date.now(), updatedAt: Date.now()
