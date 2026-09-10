@@ -311,7 +311,7 @@ async function openSearch() {
 }
 
 function typeLabel(t: 'all'|'res'|'task'|'curio'|'ws'|'proj'): string {
-  return t === 'res' ? '📄 资源卡' : t === 'task' ? '✅ 任务卡' : t === 'curio' ? '💡 好奇心' : t === 'ws' ? '🗂 工作台' : t === 'proj' ? '📦 项目' : '🔍 搜全部'
+  return t === 'res' ? '📄 资源卡' : t === 'task' ? '✅ 任务卡' : t === 'curio' ? '💡 好奇心' : t === 'ws' ? '🗂 策展台' : t === 'proj' ? '📦 项目' : '🔍 搜全部'
 }
 
 /** B29：搜索框前过滤 chip（searchType 非 all 时出现，与 Tab / Tab 行同步） */
@@ -362,7 +362,7 @@ function renderTypeTabs() {
     { key: 'res', label: '📄 资源卡' },
     { key: 'task', label: '✅ 任务卡' },
     { key: 'curio', label: '💡 好奇心' },
-    { key: 'ws', label: '🗂 工作台' },
+    { key: 'ws', label: '🗂 策展台' },
     { key: 'proj', label: '📦 项目' }
   ]
   tabs.setAttribute('data-search-type', searchType)
@@ -456,7 +456,7 @@ function hl(title: string): string {
   return esc.slice(0, i) + '<mark class="zy-hl" style="background:rgba(94,106,210,.32);color:#1A1D23;border-radius:3px;">' + esc.slice(i, i + q.length) + '</mark>' + esc.slice(i + q.length)
 }
 
-// REQ-031 P-031-1：搜索关联 Map 化——一次遍历构建 ws/cat/project 名称 Map + 工作台卡数累加，查找 O(1)
+// REQ-031 P-031-1：搜索关联 Map 化——一次遍历构建 ws/cat/project 名称 Map + 策展台卡数累加，查找 O(1)
 interface SearchMaps {
   wsName: Map<string, string>
   catName: Map<string, string>
@@ -534,16 +534,16 @@ function collectResults(d: any, query: string, results: any[], maps: SearchMaps)
     })
   }
 
-  // 第卅二轮 REQ-008：检索范围扩展至工作台实体（模糊匹配工作台名称，专属图标）
-  // R68-F1：口径对齐台签栏（app store workspaces getter）——排除资源台本体实体（固定 Tab，非台签工作台）+ 已归档，历史遗留实体不再混入
+  // 第卅二轮 REQ-008：检索范围扩展至策展台实体（模糊匹配策展台名称，专属图标）
+  // R68-F1：口径对齐台签栏（app store workspaces getter）——排除资源台本体实体（固定 Tab，非台签策展台）+ 已归档，历史遗留实体不再混入
   if (searchType === 'all' || searchType === 'ws') {
     d.workspaces?.filter((w: any) => !w.archived && w.id !== CURATION_WS_ID).forEach((w: any) => {
       if (match(w.name || '') || matchPinyin(w.name || '', query)) {
         const cardCount = maps.wsCount.get(w.id) || 0
         results.push({
           type: 'ws', iconClass: 'ws', iconText: '🗂', id: w.id,
-          title: w.name, ws: '工作台', cat: cardCount + ' 张资源卡',
-          badges: [{ type: 'ws-badge', text: '工作台' }], raw: w
+          title: w.name, ws: '策展台', cat: cardCount + ' 张资源卡',
+          badges: [{ type: 'ws-badge', text: '策展台' }], raw: w
         })
       }
     })
@@ -673,7 +673,7 @@ function renderResults() {
     bindResultEvents(el)
     return
   }
-  // R49-G2：工作台类型 → 工作台→分类树（点击分类定位：有卡高亮第一张，无卡高亮分类行）
+  // R49-G2：策展台类型 → 策展台→分类树（点击分类定位：有卡高亮第一张，无卡高亮分类行）
   if (searchType === 'ws') {
     const d2: any = dataCache || (window as any).__zyDataCache
     const q = lastQuery.toLowerCase()
@@ -692,9 +692,9 @@ function renderResults() {
           '<div class="zy-ri-meta"><span class="zy-badge cat">' + cnt + ' 张卡</span>' + (cnt ? '' : '<span class="zy-badge">空分类 · 定位到分类</span>') + '</div></div>' +
           '<span class="zy-ri-link url">定位 ↗</span></div>'
       }
-      if (!cats.length) treeHtml += '<div class="zy-group-more">该工作台暂无分类</div>'
+      if (!cats.length) treeHtml += '<div class="zy-group-more">该策展台暂无分类</div>'
     }
-    el.innerHTML = treeHtml || '<div class="zy-empty"><div class="icon">🗂</div><div class="text">没有匹配的工作台</div></div>'
+    el.innerHTML = treeHtml || '<div class="zy-empty"><div class="icon">🗂</div><div class="text">没有匹配的策展台</div></div>'
     el.querySelectorAll<HTMLElement>('.zy-result-item[data-wscat]').forEach(n => {
       n.addEventListener('click', () => {
         const wsId = n.dataset.wscat || ''
@@ -714,7 +714,7 @@ function renderResults() {
     { label: '📄 资源卡', type: 'res' },
     { label: '✅ 任务卡', type: 'task' },
     { label: '💡 好奇心', type: 'curio' },
-    { label: '🗂 工作台', type: 'ws' },
+    { label: '🗂 策展台', type: 'ws' },
     { label: '📦 项目', type: 'proj' }
   ]
   // REQ-031 P-031-2：单次 for 按 type 归桶（去掉 filter + indexOf 嵌套，O(n)）
@@ -790,7 +790,7 @@ function onSearchKeydown(e: KeyboardEvent) {
     e.preventDefault()
     const input = document.getElementById('__zy_si__') as HTMLInputElement | null
     const q = (input?.value || '').trim()
-    const kw = ([['任务', 'task'], ['资源', 'res'], ['好奇心', 'curio'], ['好奇', 'curio'], ['工作台', 'ws'], ['项目', 'proj'], ['全部', 'all']] as const).find(([k]) => k === q)
+    const kw = ([['任务', 'task'], ['资源', 'res'], ['好奇心', 'curio'], ['好奇', 'curio'], ['策展台', 'ws'], ['工作台', 'ws'], ['项目', 'proj'], ['全部', 'all']] as const).find(([k]) => k === q)
     if (kw) {
       searchType = kw[1]
       if (input) input.value = ''
@@ -893,13 +893,13 @@ function openSearchResult(item: any) {
         const fileUrl = toFileUrl(r.link)
         if (fileUrl) window.open(fileUrl, '_blank')
         else {
-          showToast('⚠ 本地文件缺少完整路径，请到工作台补全')
+          showToast('⚠ 本地文件缺少完整路径，请到资源台补全')
           try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: '/workspace/' + r.workspaceId + '?hl=' + r.id }) } catch {}
         }
       }
     } else {
       try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: '/workspace/' + r.workspaceId + '?hl=' + r.id }) } catch {}
-      showToast('↗ 已定位到卡片所在工作台')
+      showToast('↗ 已定位到卡片所在资源台')
     }
   } else if (item.type === 'task') {
     bumpHeat('task', item.id)
@@ -978,7 +978,7 @@ async function openCapture() {
       </div>
       <div class="zy-field-row">
         <div class="zy-field">
-          <label class="zy-field-label">存入工作台</label>
+          <label class="zy-field-label">存入台面</label>
           <select class="zy-field-select" id="__zy_cap_ws__">
             ${workspaces.map((w: any) => `<option value="${w.id}">${escapeHtml(w.name)}</option>`).join('')}
           </select>
@@ -1094,7 +1094,7 @@ function showDupConfirm(dupTitle: string, onJump: () => void) {
     <div class="zy-saved">
       <div class="zy-saved-icon" style="background:#FBF1DE;color:#8A5A00;">⚠️</div>
       <div class="zy-saved-title">该页面已收录</div>
-      <div class="zy-saved-sub">「${escapeHtml(dupTitle)}」已存在于工作台，只能定位不能重复收录</div>
+      <div class="zy-saved-sub">「${escapeHtml(dupTitle)}」已存在于资源台，只能定位不能重复收录</div>
       <div class="zy-saved-actions">
         <button class="zy-btn zy-btn-ghost" id="__zy_dup_cancel__">取消</button>
         <button class="zy-btn zy-btn-primary" id="__zy_dup_jump__">定位到卡片</button>
@@ -1129,7 +1129,7 @@ function showSaved(wsId: string, hl: string) {
   document.addEventListener('keydown', onSavedKeydown, true)
 
   function openBoard() {
-    // 通知 background：单例定位到已打开的工作台标签页，或新建
+    // 通知 background：单例定位到已打开的策展台标签页，或新建
     try { chrome.runtime.sendMessage({ type: 'zy-locate-workspace', wsId, hl }) } catch { /* ignore */ }
     closeOverlay()
   }

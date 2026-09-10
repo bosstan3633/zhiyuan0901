@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>知源调度台 · 架构图集（V2.32.0）</title>
+<html lang="zh-CN" data-page-node-id="FdegtSudhFQrbabt1AASHA">
+<head data-page-node-id="DnrCsE1dspREhk6MAoNu02">
+<meta charset="UTF-8" data-page-node-id="X4INDBtEGJKTtfXDxdGbjg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="AR92GfAsZiZ4X0ueZA8TCn">
+<title>知源调度台 · 架构图集（V2.38.0）</title>
 <style>
   :root{
     --bg:#010102; --surface:#0E0F13; --surface2:#15161C; --surface3:#1D1F27;
@@ -100,477 +100,494 @@
   @media print{ nav{display:none} body{background:#fff;color:#111} .board,.layer,.box,.step,.node{background:#fff;border-color:#ccc} }
 </style>
 </head>
-<body>
+<body data-page-node-id="zpjBPvvk9jVn7iBNn6Z9l8">
 
-<header>
-  <div class="kicker">ZHIYUAN CONTROL CENTER · V2.32.0</div>
-  <h1>知源调度台 · 架构图集</h1>
-  <div class="sub">你在浏览器里的个人调度中台——围绕自己的方向，组织探索、调用与成果的工作空间</div>
-  <div class="meta">
-    <span class="chip">版本 <b>V2.32.0</b> · 2026-09-07</span>
-    <span class="chip">形态 <b>Chrome 扩展（MV3）</b></span>
-    <span class="chip">数据 <b>100% 本地</b></span>
-    <span class="chip">核心闭环 <b>入台 → 归位 → 调出 → 复用 → 校准</b></span>
+<header data-page-node-id="hXMKLt3CPGLSnDfNAqVEqh">
+  <div class="kicker" data-page-node-id="0AwNCd4KvBTDEqjGJkedJg">ZHIYUAN CONTROL CENTER · V2.38.0</div>
+  <h1 data-page-node-id="X71GDODHWK2DBq988Ebyq7">知源调度台 · 架构图集</h1>
+  <div class="sub" data-page-node-id="O5v6eNKbzH8qJjCxxsALLk">你在浏览器里的个人调度中台——围绕自己的方向，组织探索、调用与成果的工作空间</div>
+  <div class="meta" data-page-node-id="XdIpGAmMbAf13yNqx4RHPg">
+    <span class="chip" data-page-node-id="izz1eblQ86T4FEpe63lKfu">版本 <b data-page-node-id="EEUUOG4QWRFifdM3YKsnYr">V2.38.0</b> · 2026-09-10</span>
+    <span class="chip" data-page-node-id="rhbRRWVAif4b7ApLot0Pn4">形态 <b data-page-node-id="MQQVodEFs8545Q4gfFD5AP">Chrome 扩展（MV3）</b></span>
+    <span class="chip" data-page-node-id="gTSIHe7q047Y3srNmKzHFd">数据 <b data-page-node-id="c33NG1l93D3ykMfso3bWnU">本机存储</b> · 同步 <b data-page-node-id="p7MmjuHh8QzUrIqIacJKn6">可选 Airtable 单向</b></span>
+    <span class="chip" data-page-node-id="tMxmfB9MDrL5y58T0pGGiZ">核心闭环 <b data-page-node-id="sddtVM0THOjn4W9g9yHvlE">入台 → 归位 → 调出 → 复用 → 校准</b></span>
   </div>
 </header>
 
-<nav><div class="in">
-  <a href="#d1">① 产品架构</a>
-  <a href="#d2">② 技术架构</a>
-  <a href="#d3">③ 数据架构</a>
-  <a href="#d4">④ 功能模块架构</a>
-  <a href="#d5">⑤ 产品设计架构</a>
-  <a href="#d6">⑥ 核心业务流程</a>
+<nav data-page-node-id="gmIYTrAgDZUGUlmbAowuLr"><div class="in" data-page-node-id="Eff1tuo2ZLBwnaqnZOLu0t">
+  <a href="#d1" data-page-node-id="SdBMlilEVsQZC6v5jaV3zj">① 产品架构</a>
+  <a href="#d2" data-page-node-id="zRNO6DwHKfys3wNq2ETT2G">② 技术架构</a>
+  <a href="#d3" data-page-node-id="CLuDa4XWXz47kbqkEe6MnV">③ 数据架构</a>
+  <a href="#d4" data-page-node-id="DqhRhxaBFuRuKF9a1wAXbP">④ 功能模块架构</a>
+  <a href="#d5" data-page-node-id="TWCv3NVFb1gZvAMBqb5cyu">⑤ 产品设计架构</a>
+  <a href="#d6" data-page-node-id="Z7ZGxAoO0QMmo5vsfGDlXs">⑥ 核心业务流程</a>
 </div></nav>
 
-<main>
+<main data-page-node-id="CwgkCIGkYFIWXYQb7XXNcA">
 
 <!-- ============ ① 产品架构 ============ -->
-<section id="d1">
-  <div class="sec-head"><span class="no">①</span><h2>产品架构图</h2><span class="en">PRODUCT ARCHITECTURE</span></div>
-  <p class="sec-desc">一个中心（调度台）、三张台面（方向台 / 策展中心）、N 个工作台，外加贯通任意网页的全局调度层与本地数据底盘。自上而下即用户接触产品的顺序。</p>
-  <div class="board">
-    <div class="layer" style="border-color:var(--accent)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--accent)"></span>全局调度层 · 任意网页可用 <span class="tag">GLOBAL</span></div>
-      <div class="row">
-        <div class="box hl"><h4>⌨ Ctrl+Shift+J · 快速采集</h4><p>5 秒入台：自动预填标题 / URL / 选中文本；任务采集同面板三端（浮层 / 应用内 / 降级弹窗）</p></div>
-        <div class="box hl"><h4>⌨ Ctrl+K · 全局搜索</h4><p>三秒调出：关键词 / 拼音首字母；命中标题·标签·分类·项目名；双击直达</p></div>
-        <div class="box hl"><h4>⌨ Ctrl+Shift+I · 好奇速记</h4><p>3 秒接住念头：选中文本自动填入并附来源；可转任务 / 资源</p></div>
+<section id="d1" data-page-node-id="kRRj6JQyZEcuodgt73HhG3">
+  <div class="sec-head" data-page-node-id="QJGjG0Okk0mG45RASDAc6t"><span class="no" data-page-node-id="rchTLyWuQ6gFbXU4B8EsW9">①</span><h2 data-page-node-id="Aq540iUlO9KcoG7cPyhEof">产品架构图</h2><span class="en" data-page-node-id="sn1sPzNjH5iAnx6H7P3K5Y">PRODUCT ARCHITECTURE</span></div>
+  <p class="sec-desc" data-page-node-id="CnxA51Rta4tKpY3jgJ9O8g">一个中心（调度台）、两张固定台面（方向台 / 资源台）＋ N 个用户自建策展台，外加贯通任意网页的全局调度层与本地数据底盘。自上而下即用户接触产品的顺序。</p>
+  <div class="board" data-page-node-id="f8INcD842dEZnd1RGlGDj5">
+    <div class="layer" style="border-color:var(--accent)" data-page-node-id="WkaXEycGiNdWjvjD3PEj3J">
+      <div class="layer-title" data-page-node-id="aDZ1owPr8ifXih2uPY6Bcf"><span class="c-dot" style="background:var(--accent)" data-page-node-id="Pg6lY5MQpbQ3WazSw8TGCZ"></span>全局调度层 · 任意网页可用 <span class="tag" data-page-node-id="R7DvzPgABDkEWbZWg0usxz">GLOBAL</span></div>
+      <div class="row" data-page-node-id="XgrFWiu4KfLsmVkcEVvrcl">
+        <div class="box hl" data-page-node-id="CkOMq8cj8BRnBISEE1iuzj"><h4 data-page-node-id="DkdHwOf1IRYY7NAEZHrsFK">⌨ Ctrl+Shift+J · 快速采集</h4><p data-page-node-id="Bgz8PRgkIhQBSUa5SUzhMV">5 秒入台：自动预填标题 / URL / 选中文本；任务采集同面板三端（浮层 / 应用内 / 降级弹窗）</p></div>
+        <div class="box hl" data-page-node-id="CtC35NKBiDNELxb4jg35cX"><h4 data-page-node-id="o1FGxrXVkhJRT9u2G6V4K0">⌨ Ctrl+K · 全局搜索</h4><p data-page-node-id="7CVfSDMrXI1ooC0flSZEiP">三秒调出：关键词 / 拼音首字母；命中标题·标签·分类·项目名；双击直达</p></div>
+        <div class="box hl" data-page-node-id="AqChWRQMf5rDgwdEmsfh2S"><h4 data-page-node-id="RTX05iifwHxFWW6rlVTfZT">⌨ Ctrl+Shift+I · 好奇速记</h4><p data-page-node-id="6RUZI1Rg7eE6PXEItVjhfU">3 秒接住念头：选中文本自动填入并附来源；可转任务 / 资源</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer" style="border-color:var(--accent2)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--accent2)"></span>调度台（默认首页）· 今天，从哪里出发 <span class="tag">TODAY</span></div>
-      <div class="row">
-        <div class="box"><h4>方向状态四指标</h4><p>DHI 方向契合度 / WCE 好奇探索（含转化）/ WRR 复用 / 未归档任务；日·周·累计，格格可下钻</p></div>
-        <div class="box"><h4>今日三件事</h4><p>≤3 槽锁定今日；挂项目与指标；复制昨日；CSV 导出</p></div>
-        <div class="box"><h4>项目调度</h4><p>选中任务联动项目：愿景·使命·战略目标 + 四项指标 + 指标分组任务树</p></div>
-        <div class="box"><h4>好奇心培育</h4><p>四态流转（待探索→已求证）；批量；转任务 / 资源</p></div>
-        <div class="box"><h4>今日记录</h4><p>入台 / 移出 / 调出 / 写入四计数，下钻明细</p></div>
+    <div class="arrow-row" data-page-node-id="Qbbll96isxqkGar29h64vu"><span class="dn" data-page-node-id="xhy0XPNHC8UIPSNO0eSyQV"></span></div>
+    <div class="layer" style="border-color:var(--accent2)" data-page-node-id="H9zBDkEDysYT4neAaCFsAI">
+      <div class="layer-title" data-page-node-id="cHNcdFxqzVH1rWLWRLom9G"><span class="c-dot" style="background:var(--accent2)" data-page-node-id="ZLGfZF7Cl0T5xXyYov0mXg"></span>调度台（默认首页）· 今天，从哪里出发 <span class="tag" data-page-node-id="eqWYOi9zcTL7Q6c2QaQFAx">TODAY</span></div>
+      <div class="row" data-page-node-id="sCBxAb1sCC01HfXZpXzdSb">
+        <div class="box" data-page-node-id="GIzbOSwhWaqoGviT4YQsyC"><h4 data-page-node-id="61APqMOPUfiC2Fa3Euw4x2">方向状态四指标</h4><p data-page-node-id="cmd9lITUBBDuFfa8jZxrJ5"><b data-page-node-id="oUqGuDpKe07OenApchsG8O">战略目标数</b>（副行：推进项目数）/ WCE 好奇探索（含转化）/ WRR 复用 / 未归档任务；日·周·累计，格格可下钻（DHI 已退役）</p></div>
+        <div class="box" data-page-node-id="FL5YqpSutgcC3z8N5fsF4S"><h4 data-page-node-id="d9carSeUZ4HoEiCMaYS498">今日三件事</h4><p data-page-node-id="FMzmvqSQFAO21ZKRz1wJLB">≤3 槽锁定今日；挂项目与指标；复制昨日；CSV 导出</p></div>
+        <div class="box" data-page-node-id="EJLla3noAwD8AsmaR8offf"><h4 data-page-node-id="gHy6PxsAI8aej4sj9h6sFX">项目调度</h4><p data-page-node-id="SCO8mSCHmFjoSmIU7SDfpq">选中任务联动项目：项目名 → 战略目标（含进度）→ 四指标格 + 指标分组任务树</p></div>
+        <div class="box" data-page-node-id="TZbysFRS2ODjL9XZElxHUi"><h4 data-page-node-id="vMj5yDQZX73mXJL7Bm6EQE">好奇心培育</h4><p data-page-node-id="rsYlCgdu1XsKvZZ24o7qY6">五档筛选（全部/待探索/探索中/已求证/已搁置）；批量；转任务 / 资源</p></div>
+        <div class="box" data-page-node-id="n05pZi97SDtsNK6IVTpKyB"><h4 data-page-node-id="ulSsyRRcObQKF4nVLfhjEl">今日记录</h4><p data-page-node-id="Ck1JrvziQJBYoa4rdLkIzj">入台 / 移出 / 调出 / 写入四计数，下钻明细</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer">
-      <div class="layer-title"><span class="c-dot" style="background:var(--cyan)"></span>方向台 · 方向与项目的家 <span class="tag">DIRECTION</span></div>
-      <div class="row">
-        <div class="box"><h4>主航线</h4><p>愿景 / 使命两列凸显（点击进方向树）；战略目标模块化，项目小模块随挂</p></div>
-        <div class="box"><h4>项目总览</h4><p>全部项目卡片：主攻🎯 / 投射📡 / 进度 / 已完成显隐</p></div>
-        <div class="box"><h4>项目详情</h4><p>左栏双列目录（拖任务跨指标 / 拖指标排序）+ 展板四指标</p></div>
-        <div class="box"><h4>完整方向树</h4><p>六层链原位编辑；🎯 主攻按钮；关联卡片弹窗（拼音多选）</p></div>
-        <div class="box"><h4>任务调度</h4><p>全域任务：卡片 / 列表 / 看板；分组、批量、未归档筛选</p></div>
+    <div class="arrow-row" data-page-node-id="vrgNhJ5MN4gIcpDnXTesfT"><span class="dn" data-page-node-id="G2IHSpDag08vSbT48sEt0U"></span></div>
+    <div class="layer" data-page-node-id="5EneppsCiXtrlJYKsHskMx">
+      <div class="layer-title" data-page-node-id="GuaQXSEg3hOsRXB7O3AXkx"><span class="c-dot" style="background:var(--cyan)" data-page-node-id="w6X9zjQlBMJ6TtbN7YwQQl"></span>方向台 · 方向与项目的家 <span class="tag" data-page-node-id="BjBhBNEyDnFWWHZjaqkQHq">DIRECTION</span></div>
+      <div class="row" data-page-node-id="dRjKDdc9tNR1gEpOk8Z77H">
+        <div class="box" data-page-node-id="nhh3LcJRHCn7YEGo2avGlF"><h4 data-page-node-id="fsbtXmEDDgM0uRDEQmu7eR">主航线</h4><p data-page-node-id="XDNM3t7zM453zK8dRB5Nzf">愿景 / 使命两列凸显（点击进方向树）；战略目标模块化，项目小模块随挂</p></div>
+        <div class="box" data-page-node-id="Vw7Z6BsSADySBFZCCLBXxk"><h4 data-page-node-id="hF7YFgAC90vNMqsBYH0CfY">项目总览</h4><p data-page-node-id="vtWiy6SPOlVmlycp0ro2xG">全部项目卡片：主攻🎯 / 投射📡 / 进度 / 已完成显隐</p></div>
+        <div class="box" data-page-node-id="MCBvGJM2gjmsBZOicdWBtF"><h4 data-page-node-id="LXEOzs5ltEqyrcddCbySHi">项目详情</h4><p data-page-node-id="XenPXL51DMjzVnX6PiPrHv">左栏双列目录（拖任务跨指标 / 拖指标排序）+ 展板四指标</p></div>
+        <div class="box" data-page-node-id="Dvts4FyMtA5NLROL5e8GW4"><h4 data-page-node-id="tbAuUjiagzEyRzfQeCGfJo">完整方向树</h4><p data-page-node-id="X9TDHE6rt7CwM26yFAigHS">六层链原位编辑；🎯 主攻按钮；关联卡片弹窗（拼音多选）</p></div>
+        <div class="box" data-page-node-id="0qN5KXDmXBp2LELUOso5m5"><h4 data-page-node-id="c0ggXTCm7JcCSxXgBr8jh9">任务调度</h4><p data-page-node-id="tgq2r5USDSH7ttR4rSjdCj">全域任务：卡片 / 列表 / 看板；分组、批量、未归档筛选</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer">
-      <div class="layer-title"><span class="c-dot" style="background:var(--pink)"></span>策展中心 · 跨台灵活策展空间 <span class="tag">CURATION</span></div>
-      <div class="row">
-        <div class="box"><h4>统一分类树</h4><p>原生分类与镜像分类同树；父子两级；拖拽排序 / 成组</p></div>
-        <div class="box"><h4>统一混排网格</h4><p>原生卡 / 投射卡 / 未投射源卡自由拖拽，拖动即物化</p></div>
-        <div class="box"><h4>父分类分区</h4><p>直属"未细分"优先，子分类依次分区呈现</p></div>
-        <div class="box"><h4>源数据零影响</h4><p>镜像实时呈现；源删自动回落；清空投射不伤源</p></div>
+    <div class="arrow-row" data-page-node-id="08UBcaMK1R5UGe3qpqLb4k"><span class="dn" data-page-node-id="J19TFwYRa6mEAVL65owsGL"></span></div>
+    <div class="layer" data-page-node-id="aEClhR5mMXgQIiZQqaSaGz">
+      <div class="layer-title" data-page-node-id="1uUtfPEItvftAoCATDy0pf"><span class="c-dot" style="background:var(--pink)" data-page-node-id="i5OyECIxDLO4nxiTBUtXw8"></span>资源台 · 资源卡唯一存储与镜像源头 <span class="tag" data-page-node-id="vLRSgJ2F1pitwiwJTZg7ds">RESOURCE</span></div>
+      <div class="row" data-page-node-id="wlvTqxS6FM9FtzEGtAoREf">
+        <div class="box" data-page-node-id="NFwoN0CrFQoBg99FZUnky2"><h4 data-page-node-id="sKRFe8mcjFG7bPUqj3ugOd">三视图 + 树状分组</h4><p data-page-node-id="hqT4J0rtHry0zuiQxTZali">卡片 / 列表 / 看板；子分类递归缩进，空分支自动隐藏</p></div>
+        <div class="box" data-page-node-id="VgG4iTjqhzRY7hziwBxAr7"><h4 data-page-node-id="9NpEReKq2xWfm8wIyYxPST">完整分类路径徽标</h4><p data-page-node-id="48hCC57xomMARRrTtHVM5V">卡面显示「父 / 子」路径，归位一目了然</p></div>
+        <div class="box" data-page-node-id="FmI3QWWPoNNzLgjDpB0nrw"><h4 data-page-node-id="J9kseSCoKf0sZfB07UMskE">批量管理</h4><p data-page-node-id="WyLcIZBBC1ouo5yOebpTQJ">全选 / 批量打开 / 移动到 / 批量删除（可撤销）</p></div>
+        <div class="box" data-page-node-id="sjj7oMHVcB34dCewC7DfVQ"><h4 data-page-node-id="0wZHAfRPoR91eyX8FYk4eq">采集与编辑</h4><p data-page-node-id="F2HGXcApB2pu2etyUlmtTq">单击抽屉编辑、双击打开链接；书签 HTML 导入（前 2 级分类，3 级+转标签）+ 本地文件</p></div>
+        <div class="box" data-page-node-id="IA3fkcD6Ey6YvnRAZA7s67"><h4 data-page-node-id="r7g2nN2LtrAAf5UMcbCPmt">资源台全景</h4><p data-page-node-id="Z5FKOfvtkGjkZUmeCFQF2F">设置内递归 N 级总览，分类变更实时呈现</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer">
-      <div class="layer-title"><span class="c-dot" style="background:var(--amber)"></span>工作台 ×N · 资源的家（用户自定义） <span class="tag">WORKSPACE</span></div>
-      <div class="row">
-        <div class="box"><h4>分类树</h4><p>2 级分类；父子分区呈现（未细分优先）</p></div>
-        <div class="box"><h4>三视图</h4><p>卡片 / 列表 / 看板；最新在前默认，拖拽序优先</p></div>
-        <div class="box"><h4>资产运营</h4><p>置顶 / 星标 / 🔥调用计数 / 标签 / 自定义字段</p></div>
-        <div class="box"><h4>附件</h4><p>图片 / HTML / PDF 挂卡（≤20MB，IndexedDB）</p></div>
-        <div class="box"><h4>书签导入</h4><p>浏览器书签 HTML 一键迁移入台</p></div>
+    <div class="arrow-row" data-page-node-id="rGrEJb190ufbTj4RajGp3L"><span class="dn" data-page-node-id="0u7E9rYyreJA5d9gAyeEGy"></span></div>
+    <div class="layer" data-page-node-id="Cx9s7ooXLuuh5a8RREP7qz">
+      <div class="layer-title" data-page-node-id="nERsqPyGJp7kMMQFCL4pNu"><span class="c-dot" style="background:var(--pink)" data-page-node-id="cCUCiwCAe38TzvPKsWuwyQ"></span>策展台 ×N · 用户的策展空间（原「工作台」） <span class="tag" data-page-node-id="0qDvg514NMuuMcGmPMK3uL">CURATION</span></div>
+      <div class="row" data-page-node-id="WCCiBmmS7twOMFrfqTEmeZ">
+        <div class="box" data-page-node-id="zuN0neiaKKiikEWJeDkGqP"><h4 data-page-node-id="Hba1YHpbACgVxFQDhOdpLx">金字塔居中树</h4><p data-page-node-id="w4xTIt46z2LHp6yEhnaGgT">父模块跨子组全部列、居中悬于上方；直角折线连线随滚动区重绘</p></div>
+        <div class="box" data-page-node-id="nHmHnu0pkWoYIMsnZ09QFn"><h4 data-page-node-id="iBdM1WY6GqYVnFofzCY0WP">节点双入口</h4><p data-page-node-id="9xoRAOP5liSGshp1fw4M8e">关联资源卡（多选逐张镜像）/ 新建台内卡（不写资源台，可挂附件）</p></div>
+        <div class="box" data-page-node-id="etwMywFhqY5VHFeqFTOKRu"><h4 data-page-node-id="5vSGJiC7XAuGxNJwnPKBwZ">拖拽组织</h4><p data-page-node-id="05yttz1cSKtqtTKiPzca6P">卡片跨节点、节点排序 / 改层级 / 回根层；防循环 + 4 级上限</p></div>
+        <div class="box" data-page-node-id="wd5N5WqgGkZdaOwYOo3rJV"><h4 data-page-node-id="gKTUFBLlAg2SaPqHnrCS25">源数据零影响</h4><p data-page-node-id="VV8WlKHEWzxksDEqG8E0vM">镜像实时呈现；源删自动回落；清空投射不伤源</p></div>
+        <div class="box" data-page-node-id="ZlRowKHA3kOW8DnjtPEEVP"><h4 data-page-node-id="kxpMnKCTDkRuvNEh1DPZCV">数据包导入导出</h4><p data-page-node-id="stnCD22n5ZBKsaUv0qIayW">JSON 版本校验 + 按 ID 并集合并本台段 + 投射清单</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer" style="border-color:var(--ok)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--ok)"></span>数据底盘 · 本地优先 <span class="tag">LOCAL-First</span></div>
-      <div class="row">
-        <div class="box"><h4>本机单根 JSON</h4><p>chrome.storage.local（unlimitedStorage）</p></div>
-        <div class="box"><h4>附件 IndexedDB</h4><p>图片 / HTML / PDF Blob 本地</p></div>
-        <div class="box"><h4>回收站</h4><p>删除一律软删，可恢复；永久删除清附件</p></div>
-        <div class="box"><h4>导出全家桶</h4><p>JSON 全量 / 工作台同构 / CSV / Markdown / 附件包</p></div>
-        <div class="box"><h4>写入可感知</h4><p>存储状态回执；失败告警一键重试；并发写合并</p></div>
+    <div class="arrow-row" data-page-node-id="hCOTQkEBvqzrG86Xq7tVDz"><span class="dn" data-page-node-id="w7Or8FcEjMjC6nSHzqqcZj"></span></div>
+    <div class="layer" style="border-color:var(--ok)" data-page-node-id="gxICloFCMk6g80F8RKnf4Z">
+      <div class="layer-title" data-page-node-id="GTt7oDkxFTalOTS0HtdsD2"><span class="c-dot" style="background:var(--ok)" data-page-node-id="KLtGZdBqukLu9QwInbOYzM"></span>数据底盘 · 本机优先，外部留存可选 <span class="tag" data-page-node-id="gQHKDG5cXP2NKCFHEtu1PK">LOCAL-First</span></div>
+      <div class="row" data-page-node-id="hdyZHhfP0aHbKfACqE72ll">
+        <div class="box" data-page-node-id="K5DBWAd4JvIGXGDGETlzDE"><h4 data-page-node-id="yHu2gyxhqHfvLmFKgQsZYA">本机单根 JSON</h4><p data-page-node-id="vj1hAZbImb6yYU55iHrWmg">chrome.storage.local（unlimitedStorage）</p></div>
+        <div class="box" data-page-node-id="MNkSX1P1HxV3nqFPWAsOAs"><h4 data-page-node-id="TeVSDJPTe1LF2LrSXeYVOC">附件 IndexedDB</h4><p data-page-node-id="Ap4OMJfxslooDtBFRZVAUS">库 zy_assets；图片 / HTML / PDF Blob（≤20MB）</p></div>
+        <div class="box" data-page-node-id="x9wgBKu5rTN2RsKgHXibjN"><h4 data-page-node-id="EkWK3U9Zc9NIUiuaZXg236">回收站</h4><p data-page-node-id="84NkdOhvPoJtFUHtSD5IXq">删除一律软删，可恢复；永久删除清附件</p></div>
+        <div class="box" data-page-node-id="D2kZJzUnDhvboNO9M1YbYf"><h4 data-page-node-id="KdXx36NZbrIjW27SRKGD6w">导出全家桶</h4><p data-page-node-id="ZtqdqMRj2pyBLnweSKEBfn">JSON 全量（含界面偏好）/ 按台 / 策展台数据包 / CSV / Markdown / 书签 HTML</p></div>
+        <div class="box" data-page-node-id="VyhnLvwfUwa4DOJhqb1ccc"><h4 data-page-node-id="AWQuvGmYnzVpxmF2AWPaKt">Airtable 单向同步</h4><p data-page-node-id="jdH6CZgdrehJOYDBEfZJWy">用户自备凭证、手动触发；<b data-page-node-id="YnwgIdwSMgjTLFGYVYdAzA">只出不回</b>，绝不修改本地数据</p></div>
+        <div class="box" data-page-node-id="2wdEFUbRm3SDLVvpW64Vhq"><h4 data-page-node-id="ARPWwHq5ypRWHSUuCdWF17">写入可感知</h4><p data-page-node-id="3TREkaAJ4MVOrEFO7BhvyX">存储状态回执；失败告警一键重试；并发写合并</p></div>
       </div>
     </div>
-    <div class="side-note"><b>阅读顺序</b>：自上而下 = 用户接触产品的自然顺序——先在任意网页被三个快捷键接住，每天从调度台出发，向上管理方向（方向台）、向旁组织资产（策展中心 / 工作台），一切落在本机数据底盘上。</div>
+    <div class="side-note" data-page-node-id="Bwi14quktP8EG7ptS4HEtt"><b data-page-node-id="cGzNIrLMXVyEmLPtUgrkrw">阅读顺序</b>：自上而下 = 用户接触产品的自然顺序——先在任意网页被三个快捷键接住，每天从调度台出发，向上管理方向（方向台），向旁沉淀资源（资源台）并按主题策展（策展台），一切落在本机数据底盘上；需要外部留存时，由用户自行推送一份到自己的 Airtable。</div>
   </div>
 </section>
 
 <!-- ============ ② 技术架构 ============ -->
-<section id="d2">
-  <div class="sec-head"><span class="no">②</span><h2>技术架构图</h2><span class="en">TECHNICAL ARCHITECTURE · Chrome MV3</span></div>
-  <p class="sec-desc">四运行时（新标签页 / Content Script / Service Worker / Popup）+ chrome API + 本地存储。栈：Vue 3.5 + TypeScript strict + Vite 5(@crxjs) + Pinia + Vue Router(hash)。</p>
-  <div class="board">
-    <div class="layer" style="border-color:var(--accent2)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--accent2)"></span>New Tab Page · 主应用（Vue 3 + Pinia + Router hash）</div>
-      <div class="row">
-        <div class="box"><h4>views/</h4><ul><li>CompassHome 调度台</li><li>CompassShell 方向台</li><li>ProjectCuration 项目详情</li><li>CompassTree 方向树</li><li>CurationCenter 策展</li><li>Workspace 工作台</li><li>GlobalSettings / RecycleBin / Manual</li></ul></div>
-        <div class="box"><h4>stores/</h4><ul><li>useAppStore（单一数据仓）</li><li>useCompass（六层链/北极星/索引）</li><li>useCuriosity（CRUD/转化）</li></ul></div>
-        <div class="box"><h4>components/</h4><ul><li>GlobalPopups 三浮层</li><li>TaskDetailDrawer</li><li>TaskAddDrawer</li><li>MetricBar / MetricDrillDrawer</li><li>LighthousePanel / TaskManagerPanel</li></ul></div>
-        <div class="box"><h4>shared/</h4><ul><li>models（类型唯一源）</li><li>storage（repository/assets/stats/migration）</li><li>utils（link/pinyin/marksort/cards…）</li><li>components（Drawer/Toast/Confirm…）</li><li>tokens.css 设计令牌</li></ul></div>
+<section id="d2" data-page-node-id="6mqijOZuyLZT7r7G466E4D">
+  <div class="sec-head" data-page-node-id="2VIMx01hwYYdsf59dspMCw"><span class="no" data-page-node-id="tlN3VLy8aMgXVXdmq33bWG">②</span><h2 data-page-node-id="Y1QF6cT47nSzrrNUykKIeW">技术架构图</h2><span class="en" data-page-node-id="X6AwuPnbM2WiBbZWtfLIbe">TECHNICAL ARCHITECTURE · Chrome MV3</span></div>
+  <p class="sec-desc" data-page-node-id="JqPOz0kNpPruM07HztCRwa">五运行时（新标签页 / Content Script / Service Worker / Options / Popup）+ chrome API + 本地存储。栈：Vue 3.5 + TypeScript strict + Vite 5(@crxjs) + Pinia + Vue Router(hash) + <b data-page-node-id="RPIYdPqRuZ4tffWnw7dWsl">UnoCSS</b> + pinyin-pro（动态加载）。</p>
+  <div class="board" data-page-node-id="NQQFFJFprzcRTkjBZxJqEp">
+    <div class="layer" style="border-color:var(--accent2)" data-page-node-id="ctJ1THdMm6N8sMPKEgLtAh">
+      <div class="layer-title" data-page-node-id="fGRYPrzCP9C0MNbydvWDza"><span class="c-dot" style="background:var(--accent2)" data-page-node-id="oWvnLbrsVHroajQT4UvOsO"></span>New Tab Page · 主应用（Vue 3 + Pinia + Router hash）</div>
+      <div class="row" data-page-node-id="IAedVos0RMMpKzvTqXODzy">
+        <div class="box" data-page-node-id="CwuAfl39rOFJ5tLKtakV0F"><h4 data-page-node-id="clyHWIpQJN8fQYpHFiL6uQ">views/ · 路由级懒加载</h4><ul data-page-node-id="lLvMTaLqWg3N6SComI0sov"><li data-page-node-id="gd6CLpLeTMsjHt6LuPwpZC">CompassHome 调度台</li><li data-page-node-id="IG8hEfi2HwapBHKTnjcPHu">CompassShell 方向台</li><li data-page-node-id="iuXkjIPMlB9b2EEc8FVGL9">ProjectCuration 项目详情</li><li data-page-node-id="vn5z343uZTMPx1Cz5RuNzH">CompassTree 方向树</li><li data-page-node-id="4k7dlAbf0tHPCDRO54hK6I">CurationCenter 资源台</li><li data-page-node-id="f85E0baZcoUuExL2XnUBmj">Workspace 策展台</li><li data-page-node-id="7RIMt4kHJ1EgOEoBh7sHtr">GlobalSettings / RecycleBin / Manual</li></ul></div>
+        <div class="box" data-page-node-id="O5ctlPvg6ozwjtBaDMFCNx"><h4 data-page-node-id="yFCfoHaCoGPDTw9hSOJtid">stores/</h4><ul data-page-node-id="sPmZa9EsHXXrAKvLWyJtPy"><li data-page-node-id="Nsk7wRDpUgVmXDkWdy2ipq">useAppStore（单一数据仓）</li><li data-page-node-id="tcAna4akDe5zEf535fGJFq">useCompass（六层链/北极星/索引）</li><li data-page-node-id="hOxswSzk2XQtz6A42PwBQc">useCuriosity（CRUD/转化）</li></ul></div>
+        <div class="box" data-page-node-id="Sk5b4AHPmUsX1tlQCf0XFn"><h4 data-page-node-id="bpifbpFucr8HqR3FeRZUC0">components/</h4><ul data-page-node-id="fe9sXGRry3LIshUDM0dFmt"><li data-page-node-id="oSmyc9BzOULrWZ11jX7u5Y">GlobalPopups 三浮层</li><li data-page-node-id="EV3tXkGcSVsVC33lsYLjT1">TaskDetailDrawer</li><li data-page-node-id="r71rMkyjmHeBdHlsBQ1MT2">TaskAddDrawer</li><li data-page-node-id="Azm6pC7GREHtv8otRBPtP0">MetricBar / MetricDrillDrawer</li><li data-page-node-id="XlY4rU1J3Fgxa0uUxZH8cv">LighthousePanel / TaskManagerPanel</li></ul></div>
+        <div class="box" data-page-node-id="ipZxYK4WJI6XOv95x6rEyk"><h4 data-page-node-id="8d7dM2G0qGAfFmsEBcWmLq">shared/</h4><ul data-page-node-id="cvf8QARIwMO7uswwSrAsSc"><li data-page-node-id="NLG2XqorjaYmkv3SAF4Z7f">models（类型唯一源）</li><li data-page-node-id="zanipjCMOwsnEGtnMlIgLZ">storage（repository/assets/hub/airtable/stats/migration）</li><li data-page-node-id="CQtg4YCQt6sFkCICRWeyND">utils（link/pinyin/marksort/cards…）</li><li data-page-node-id="sbwKvnMmEdLnqpCSld4lvo">components（Drawer/Toast/Confirm…）</li><li data-page-node-id="Nw2ZZ1Z8R4rCjNztOf4lGJ">tokens.css 设计令牌 + uno.config.ts</li></ul></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="row" style="gap:10px">
-      <div class="layer" style="flex:1;border-color:var(--cyan);margin:0">
-        <div class="layer-title"><span class="c-dot" style="background:var(--cyan)"></span>Content Script · 任意网页浮层 <span class="tag">纯 Vanilla · Shadow DOM</span></div>
-        <div class="row">
-          <div class="box"><h4>search-overlay.ts</h4><p>信号层：接收 SW 命令</p></div>
-          <div class="box"><h4>overlay-impl.ts</h4><p>浮层实现：搜索 / 采集 / 好奇 / 任务采集；1.5s 内存缓存 + onChanged 失效</p></div>
-          <div class="box"><h4>selection.ts</h4><p>选区捕获：自动预填</p></div>
+    <div class="arrow-row" data-page-node-id="aKw9xZSzGgP2Dq102F3Qez"><span class="dn" data-page-node-id="JaxoWl460DC5IYXQi8iOD6"></span></div>
+    <div class="row" style="gap:10px" data-page-node-id="VA9rPKHNUAaIGwnw55do5e">
+      <div class="layer" style="flex:1;border-color:var(--cyan);margin:0" data-page-node-id="wuK7EpIKsNQdbSeqtZRMeu">
+        <div class="layer-title" data-page-node-id="1TcVQmBFk1T307UnHqeU5W"><span class="c-dot" style="background:var(--cyan)" data-page-node-id="Dm9XGvECwYCFYBMezOxHi5"></span>Content Script · 任意网页浮层 <span class="tag" data-page-node-id="y2WfaPy8SCGCZXtEquiobW">纯 Vanilla · Shadow DOM</span></div>
+        <div class="row" data-page-node-id="F3wp7Wli5UaNqGdyJJGutj">
+          <div class="box" data-page-node-id="s3wbXkHW6qlBhTNq7HKSze"><h4 data-page-node-id="Dakxds4uRfxcjOlVzFRdbs">search-overlay.ts</h4><p data-page-node-id="GLQltsF52vSTZ3leFpYWx4">信号层：接收 SW 命令</p></div>
+          <div class="box" data-page-node-id="D9BCskmxH8M1qU3mItrOl9"><h4 data-page-node-id="t0KcF6T4tMc4WMJfgFCDZQ">overlay-impl.ts</h4><p data-page-node-id="woYi9llXJBcGolE9ZMc7oX">浮层实现：搜索 / 采集 / 好奇 / 任务采集；1.5s 内存缓存 + onChanged 失效</p></div>
+          <div class="box" data-page-node-id="F5CcjofSjZzkA47L4NX1j3"><h4 data-page-node-id="uHySYnjENYHG9OimKj6M5o">selection.ts</h4><p data-page-node-id="t32wXMJU20hFoHq5ndpP0y">选区捕获：自动预填</p></div>
         </div>
       </div>
-      <div class="layer" style="flex:1;border-color:var(--amber);margin:0">
-        <div class="layer-title"><span class="c-dot" style="background:var(--amber)"></span>Service Worker · background <span class="tag">SW</span></div>
-        <div class="row">
-          <div class="box"><h4>commands</h4><p>系统快捷键命令分发</p></div>
-          <div class="box"><h4>zy-ping</h4><p>浮层注入决策</p></div>
-          <div class="box"><h4>zy-locate-workspace</h4><p>单例定位（zy-where 询问链）</p></div>
-          <div class="box"><h4>zy-open-route</h4><p>通用路由中转</p></div>
+      <div class="layer" style="flex:1;border-color:var(--amber);margin:0" data-page-node-id="CD4vV35zI6cIoESvQc5Wic">
+        <div class="layer-title" data-page-node-id="NDXjhcx1KXo7JbjkcwJZR8"><span class="c-dot" style="background:var(--amber)" data-page-node-id="kzIozBXNY17cjmaj2vuKad"></span>Service Worker · background <span class="tag" data-page-node-id="wOdz58hE9k4E968jb9iSLb">SW</span></div>
+        <div class="row" data-page-node-id="dS2y0LHmgv2GsYaY9sRU9v">
+          <div class="box" data-page-node-id="AbXTGO1GpPBCdnlJH6ha54"><h4 data-page-node-id="CjJFrKu8YR8LVgHHKuBxve">commands</h4><p data-page-node-id="jZqzsF3kT4AhnAAifyFzjJ">系统快捷键命令分发</p></div>
+          <div class="box" data-page-node-id="m32dwvRAaKo5ErOvHUTC74"><h4 data-page-node-id="MMNMNZNHWAsY0FRcD81x59">zy-ping</h4><p data-page-node-id="wkWOk5Cb6kP1GdlJSkpQ5E">浮层注入决策</p></div>
+          <div class="box" data-page-node-id="uGh3jrtd6ZF45TsGugDpVP"><h4 data-page-node-id="VfACZYQs5ne7iCEti4NlEf">zy-locate-workspace</h4><p data-page-node-id="1UkRuBPfiRu8M4xqGqcAvp">单例定位（zy-where 询问链）</p></div>
+          <div class="box" data-page-node-id="pfzRe9O28C7BxTrEGdqISJ"><h4 data-page-node-id="Iu83AmbjvBMVX7s5DzaJLw">zy-open-route</h4><p data-page-node-id="CVXJrQuCeNaIYn17jLTCER">通用路由中转</p></div>
         </div>
       </div>
-      <div class="layer" style="width:210px;border-color:var(--pink);margin:0">
-        <div class="layer-title"><span class="c-dot" style="background:var(--pink)"></span>Popup 降级</div>
-        <div class="box"><h4>chrome:// 等不可注入页</h4><p>mode=task 等独立弹窗，session 预填</p></div>
+      <div class="layer" style="width:210px;border-color:var(--pink);margin:0" data-page-node-id="O34DG6ZTB4mlxsBFyP3WM5">
+        <div class="layer-title" data-page-node-id="cOGBNtdHpZ1RJQxhxqdQWs"><span class="c-dot" style="background:var(--pink)" data-page-node-id="MnRo9F3hjsgsyhuchKiyag"></span>Popup 降级</div>
+        <div class="box" data-page-node-id="HNYEJElZ2DVQr4UBEwZW3a"><h4 data-page-node-id="c8bpSy4yMIPAC6RwCl8bBy">chrome:// 等不可注入页</h4><p data-page-node-id="2dbcMHbQBJ6ErNDmEtf6MU">mode=task 等独立弹窗，session 预填</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer" style="border-color:var(--warn)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--warn)"></span>Chrome API · 消息与能力 <span class="tag">MV3</span></div>
-      <div class="row">
-        <div class="box"><h4>runtime 消息协议</h4><p>zy-ping / zy-open-* / zy-locate-* / zy-where / zy-open-route</p></div>
-        <div class="box"><h4>commands</h4><p>4 系统级快捷键 + 可分配项</p></div>
-        <div class="box"><h4>downloads</h4><p>附件落盘（zy-asset://）</p></div>
-        <div class="box"><h4>storage.onChanged</h4><p>跨上下文同步触发器</p></div>
+    <div class="arrow-row" data-page-node-id="6tGP5ZQLHDFksNiOKtcbTH"><span class="dn" data-page-node-id="8JPjutoKoj3jykS1TBvZKC"></span></div>
+    <div class="layer" style="border-color:var(--warn)" data-page-node-id="NdA4xNAh5QADFPyTB99Q4d">
+      <div class="layer-title" data-page-node-id="dKMf6jGGXefE7C7feP45mj"><span class="c-dot" style="background:var(--warn)" data-page-node-id="zCXGEQR1x92fHaiF3jEjoZ"></span>Chrome API · 消息与能力 <span class="tag" data-page-node-id="oT3CyuS3a0L7NEqonDvuse">MV3</span></div>
+      <div class="row" data-page-node-id="Z68w1253uHS7vaYA74YIbc">
+        <div class="box" data-page-node-id="GrOGSvGLYJfjOI3ySKCHpF"><h4 data-page-node-id="FCliEmn1W0NgcCbl5GdKC7">runtime 消息协议</h4><p data-page-node-id="Dtxak9v00w2WiNrOrzbORn">zy-ping / zy-open-* / zy-locate-* / zy-where / zy-open-route</p></div>
+        <div class="box" data-page-node-id="waZZEcALcAAdsTBRnBqvx2"><h4 data-page-node-id="aoAyondGRmNb9YQwa1RwhE">commands</h4><p data-page-node-id="uaFsEH0QuygZNB4FW1e61G">4 系统级快捷键 + 可分配项</p></div>
+        <div class="box" data-page-node-id="esUWQHWS1MZBt0gzWccCfh"><h4 data-page-node-id="2kO4YNfbSvY2ApXYSIVmy8">downloads</h4><p data-page-node-id="nvTSDIlNcJiv0GdtJbX715">附件落盘（zy-asset://）</p></div>
+        <div class="box" data-page-node-id="9NuXVFaeEf0kCmme3XeO7Q"><h4 data-page-node-id="Cnfyb4VmDEpRDCOXtNbGuT">storage.onChanged</h4><p data-page-node-id="eMFAEvY9wORhFbBl8e2L2a">跨上下文同步触发器</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer" style="border-color:var(--ok)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--ok)"></span>本地存储 <span class="tag">无云端 · 无账号 · 无追踪</span></div>
-      <div class="row">
-        <div class="box"><h4>chrome.storage.local</h4><p>zy_data_v2 主数据 / zy_ui_v2 偏好 / zy_event_log / zy_file_paths / zy_capture_pref</p></div>
-        <div class="box"><h4>IndexedDB</h4><p>附件 Blob（≤20MB/文件）</p></div>
-        <div class="box"><h4>lm_data_v5</h4><p>V1 迁移源 + 备份</p></div>
+    <div class="arrow-row" data-page-node-id="NHfuBoARfgMBhToHU2al8k"><span class="dn" data-page-node-id="LlcNOvH1FT6S3rZbfrljq7"></span></div>
+    <div class="layer" style="border-color:var(--ok)" data-page-node-id="kFcBzjr6jZpbOhbDiaWn2U">
+      <div class="layer-title" data-page-node-id="dcY157tlFFGh4CBJwwDmgJ"><span class="c-dot" style="background:var(--ok)" data-page-node-id="ONEePtjOzDkjm5jrzSQO0O"></span>本地存储 <span class="tag" data-page-node-id="5EdHvNA5VqlbziFcqHM7Ul">无知源云端 · 无账号 · 无追踪</span></div>
+      <div class="row" data-page-node-id="BgVQ68PfULKJFqg1zbgCCM">
+        <div class="box" data-page-node-id="x2mbtmdi4HAA1m4OGaqqCt"><h4 data-page-node-id="u1iOgXTAXSAhSCpQLBR8O6">chrome.storage.local</h4><p data-page-node-id="R46f5r8XEYRWuQo0VJWFHv">zy_data_v2 主数据 / zy_ui_v2 偏好 / zy_event_log 事件日志 / zy_file_paths / zy_capture_pref</p></div>
+        <div class="box" data-page-node-id="xAijpIEofU9IJHCRcM9sF4"><h4 data-page-node-id="FhcjmabQGDFtbKQZQIh6pY">IndexedDB（zy_assets）</h4><p data-page-node-id="tWcR6H380TmXzrjltMiMAO">附件 Blob（≤20MB/文件）</p></div>
+        <div class="box" data-page-node-id="kIGF57pgnGfhfYD23z9INP"><h4 data-page-node-id="hBjdn6BFRjh5ZGBMa61svz">lm_data_v5</h4><p data-page-node-id="qE8VRKZsosoLZ2MnJpDZFB">V1 迁移源 + 备份</p></div>
+        <div class="box" data-page-node-id="ttodaYMncElljHUz7k4coD"><h4 data-page-node-id="fD9ONtSTMCCPTw8BnZmbmH">Airtable（可选 · 出网唯一口）</h4><p data-page-node-id="NZmbcQrUpAZaTIOmeFyfDT">用户自备 PAT，手动触发；单向推送，<b data-page-node-id="CR2Adp8V0MHdyp0UpPQFYn">不回写</b>本地</p></div>
       </div>
     </div>
-    <div class="side-note"><b>关键机制</b>：① 浮层按命令动态注入，不申请常驻 host 权限；② hash 不入 tabs.query——单例定位走 zy-where 询问链；③ content script 纯 Vanilla 不引 Vue（体积/启动）；④ 每次新标签页 = 迁移检测 → loadData 自愈 → store.init → 固定回调度台。</div>
+    <div class="side-note" data-page-node-id="U4GPn5ZUhRpr8azEFuz8m9"><b data-page-node-id="Vuj5Cd50zx2Yf8IaXrMaVT">关键机制</b>：① 浮层按命令动态注入，不在 chrome:// 等受限页强行注入（host 权限为 <code data-page-node-id="NzunRMiqDAWm7HuuqXurYk">&lt;all_urls&gt;</code> + <code data-page-node-id="gcVFPPV570fDRk0UbFqd5D">file:///*</code>，content script 以 <code data-page-node-id="x89o9OoWrwFhxnEgDeZ5Mr">all_frames</code> 运行）；② hash 不入 tabs.query——单例定位走 zy-where 询问链；③ content script 纯 Vanilla 不引 Vue（体积/启动），信号层与浮层实现分离、按需拉取；④ KeepAlive 缓存四大主视图（调度台 / 方向台 / 资源台 / 策展台），切台免重挂载；⑤ 拼音库纯动态 import，未就绪降级纯文本匹配、就绪后补跑；⑥ 每次新标签页 = 迁移检测 → loadData 自愈 → store.init → 固定回调度台。</div>
   </div>
 </section>
 
 <!-- ============ ③ 数据架构 ============ -->
-<section id="d3">
-  <div class="sec-head"><span class="no">③</span><h2>数据架构图</h2><span class="en">DATA ARCHITECTURE</span></div>
-  <p class="sec-desc">主数据 = 单根 JSON（AppData）；附件 = IndexedDB；事件 = 独立键滚动日志。写入有回执、删除全软删、并发有合并、导入先备份。</p>
-  <div class="board">
-    <div class="layer" style="border-color:var(--accent)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--accent)"></span>zy_data_v2 · AppData 单根 JSON（主数据）</div>
-      <div class="row">
-        <div class="box"><h4>compass 目标与行动结构</h4><p>vision / mission（linked* 关联卡）→ directions[] → projects[]（主攻/投射）→ metrics[]（taskIds）</p></div>
-        <div class="box"><h4>三卡</h4><p><b>resources[]</b>（linkType/复用计数/curOrder）<br><b>tasks[]</b>（双挂项目指标/mounted*/sortOrder）<br><b>curiosities[]</b>（四态/sortOrder）</p></div>
-        <div class="box"><h4>组织</h4><p>workspaces[] ×N<br>categories[]（≤2 级；策展分类含 curFrom）</p></div>
-        <div class="box"><h4>沉淀</h4><p>dailyFocus[日期→≤3 槽]<br>tagTree[]（≤3 级）<br>fieldConfig 三卡字段目录</p></div>
-        <div class="box"><h4>策展</h4><p>curationProjections[]（引用式投射，curOrder）</p></div>
-        <div class="box"><h4>统计</h4><p>stats.wrr（周/累计复用）</p></div>
+<section id="d3" data-page-node-id="1mZpojVDzObFRaKUD2hhEK">
+  <div class="sec-head" data-page-node-id="cRWFTiQSz2jmEZ2acLamhb"><span class="no" data-page-node-id="71z9zasUKNpjgGji6L1EEo">③</span><h2 data-page-node-id="pKQ0vI8WBn0nj7KvWHYHnj">数据架构图</h2><span class="en" data-page-node-id="CZt8pO2Hy61vrDlHc4MB65">DATA ARCHITECTURE</span></div>
+  <p class="sec-desc" data-page-node-id="kn0PiWHRXZ3GGHWcmBHrgC">主数据 = 单根 JSON（AppData）；附件 = IndexedDB（zy_assets）；事件 = 独立键滚动日志；界面偏好 = 独立键 zy_ui_v2。写入有回执、删除全软删、并发有合并、导入先备份；外部留存走用户自备凭证的 Airtable 单向推送（只出不回）。</p>
+  <div class="board" data-page-node-id="EGnd9wb9AHlnWmzE8R5OBK">
+    <div class="layer" style="border-color:var(--accent)" data-page-node-id="rzE0Eqcn8vnnSHGLzsxo9T">
+      <div class="layer-title" data-page-node-id="Le3Hk9aiPsCmjKJR9SAK0f"><span class="c-dot" style="background:var(--accent)" data-page-node-id="AF3TEL8W81SOLf5ylpaB0t"></span>zy_data_v2 · AppData 单根 JSON（主数据）</div>
+      <div class="row" data-page-node-id="tHGQvtLk6qw3GWIscJYivt">
+        <div class="box" data-page-node-id="7svzpLOAfmsRTrHFLhZjqw"><h4 data-page-node-id="EtwDRqXIYcFlVeHQptUs31">compass 目标与行动结构</h4><p data-page-node-id="ifAzPx4sQjrAvaqILKY9nc">vision / mission（linked* 关联卡）→ directions[] → projects[]（主攻/投射）→ metrics[]（taskIds）</p></div>
+        <div class="box" data-page-node-id="JWNrCpGTqdEDch5TqcBdRx"><h4 data-page-node-id="RQCh5OF0iTwwm18FUy7RYX">三卡</h4><p data-page-node-id="MdUH5S7eQAgjGpGKZXtlDT"><b data-page-node-id="7CU4JnYXBy2ebuP17LDBej">resources[]</b>（linkType/复用计数/curOrder）<br data-page-node-id="kgxQAVkEgI29WGKycm4itM"><b data-page-node-id="Ry2rtwc0xcDAWv3qgE8q71">tasks[]</b>（双挂项目指标/mounted*/sortOrder）<br data-page-node-id="UY0DBSEKPN99vBlZHU1Ii1"><b data-page-node-id="qe4rwabtD4lRsIoZtxDRTB">curiosities[]</b>（四态/sortOrder）</p></div>
+        <div class="box" data-page-node-id="OWbSvLaErqdAjUKmHwoaDe"><h4 data-page-node-id="8cmGJILAyEKUoMfEJMIwaK">组织</h4><p data-page-node-id="yIWX410RxBWd06k3Z7OW2A">策展台 ×N（用户自建）<br data-page-node-id="01NgrK3wDrbMTwUIqbfqzx">资源台为固定实体（常量 CURATION_WS_ID）<br data-page-node-id="aLSBUPNopJVlcUdIE8I87O">categories[]（树状递归，卡面带路径徽标）</p></div>
+        <div class="box" data-page-node-id="Xo3CowjLO3HVl2wBHliPTI"><h4 data-page-node-id="HpPyydANG06MJm3Tv8aJc1">沉淀</h4><p data-page-node-id="xTuD7pE2ZcMUq8CfLMG3Av">dailyFocus[日期→≤3 槽]<br data-page-node-id="4rEHdS7NU2JJdTLoCI2P2H">tagTree[]（≤3 级）<br data-page-node-id="DkGLYKIrmQYCbdULE3mclC">fieldConfig 三卡字段目录</p></div>
+        <div class="box" data-page-node-id="fTTDLbFZpVXGB6l9niTMVf"><h4 data-page-node-id="ikLUw4htKiZupsqEMfYtms">策展</h4><p data-page-node-id="1hGuMx9fNnGxiakG3UKvMQ">curationProjections[]（镜像＝引用式投射，源数据零影响）</p></div>
+        <div class="box" data-page-node-id="VDAuI1NdbsAxMQHHD4xiD5"><h4 data-page-node-id="HhvQYaxHfK1UBpTyr5cWvh">同步与统计</h4><p data-page-node-id="AYynyT0oW30CyVgcstkH34">airtableMap（卡 id ↔ recordId）+ 游标 cursorAt<br data-page-node-id="dlujZHwCDYWXPoNAxMUwEN">stats.wrr（周/累计复用）</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="row" style="gap:10px">
-      <div class="layer" style="flex:1;margin:0;border-color:var(--cyan)">
-        <div class="layer-title"><span class="c-dot" style="background:var(--cyan)"></span>辅助键</div>
-        <div class="box"><h4>zy_ui_v2 / zy_event_log / zy_file_paths / zy_capture_pref</h4><p>UI 偏好与排序记忆 · 事件日志（5000 滚动）· 附件落盘路径 · 采集偏好</p></div>
+    <div class="arrow-row" data-page-node-id="UfLBPta9s2CHiAPbfmjiD7"><span class="dn" data-page-node-id="Az9kJfI0UUTCcAQWXJNUPO"></span></div>
+    <div class="row" style="gap:10px" data-page-node-id="HR0vrAfJTqXi45TTQ0EZrM">
+      <div class="layer" style="flex:1;margin:0;border-color:var(--cyan)" data-page-node-id="a8x2pqsBn9CQupPIisTkOM">
+        <div class="layer-title" data-page-node-id="O5f3qy7eCnOZpHNLHVyfRz"><span class="c-dot" style="background:var(--cyan)" data-page-node-id="rMKpXzWu8F9el5vv3wGmrx"></span>辅助键</div>
+        <div class="box" data-page-node-id="GQautnt2d1iH1Ex5LFdcEu"><h4 data-page-node-id="4hGLjeIAlA8iF4g0IkaUpH">zy_ui_v2 / zy_event_log / zy_file_paths / zy_capture_pref</h4><p data-page-node-id="AhASt0uGMnddpSbhuu6Vwu">UI 偏好与排序记忆 · 事件日志（5000 滚动）· 附件落盘路径 · 采集偏好</p></div>
       </div>
-      <div class="layer" style="flex:1;margin:0;border-color:var(--pink)">
-        <div class="layer-title"><span class="c-dot" style="background:var(--pink)"></span>IndexedDB 附件仓</div>
-        <div class="box"><h4>图片 / HTML / PDF Blob</h4><p>单文件 ≤20MB；卡片正面 AssetBadge；硬删同步清理</p></div>
+      <div class="layer" style="flex:1;margin:0;border-color:var(--pink)" data-page-node-id="epKWFxPfXpJ2PZ7qUY5IO0">
+        <div class="layer-title" data-page-node-id="Tjq5gq7QPIXKVswEPPy467"><span class="c-dot" style="background:var(--pink)" data-page-node-id="4PKCKMBJEMDb6isMEFGIkF"></span>IndexedDB 附件仓</div>
+        <div class="box" data-page-node-id="Lnpv9f2A3ohJTzEBVPh9Cu"><h4 data-page-node-id="nQMAyXhwVsnQ7Y5qAExOVz">图片 / HTML / PDF Blob</h4><p data-page-node-id="tA6KAHw2MbXa9G1MomWBgV">单文件 ≤20MB；卡片正面 AssetBadge；硬删同步清理</p></div>
       </div>
-      <div class="layer" style="flex:1;margin:0;border-color:var(--text4)">
-        <div class="layer-title"><span class="c-dot" style="background:var(--text4)"></span>迁移</div>
-        <div class="box"><h4>lm_data_v5 → zy_data_v2</h4><p>V1 检测即迁移并备份；loadData 自愈（tags 归一 / URL 解码 / 字段补行）</p></div>
+      <div class="layer" style="flex:1;margin:0;border-color:var(--text4)" data-page-node-id="7BLhAnTjcgcMsghJe4Mpyv">
+        <div class="layer-title" data-page-node-id="fllDfzAICj9TkrNfqjqSLP"><span class="c-dot" style="background:var(--text4)" data-page-node-id="isYFAAePABBvSEDZU2sKHI"></span>迁移</div>
+        <div class="box" data-page-node-id="9wBiv40uAHZ4tijTCAqbSA"><h4 data-page-node-id="H6WZQWn6FMGXT4s1rks3hE">lm_data_v5 → zy_data_v2</h4><p data-page-node-id="53lpEMDhdbA184D76LodUZ">V1 检测即迁移并备份；loadData 自愈（tags 归一 / URL 解码 / 字段补行）</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"><span class="arrow-label">读 = cache 直读 · 写 = 300ms 防抖 → JSON 纯净清洗 → storage.set</span></span></div>
-    <div class="layer" style="border-color:var(--warn)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--warn)"></span>写入与并发链路（R58）</div>
-      <div class="lane" style="border:none;margin:0">
-        <div class="lane-body" style="padding:6px 2px;background:transparent">
-          <span class="node">组件改 reactive 树</span><span class="fa">→</span>
-          <span class="node">persist() 防抖 300ms</span><span class="fa">→</span>
-          <span class="node">storage.set + 存储镜像刷新</span><span class="fa">→</span>
-          <span class="node">dataVersion++ / 事件 diff</span><span class="fa">→</span>
-          <span class="node end">onChanged 广播</span>
-          <span class="fa" style="width:100%;margin-top:6px">外部写入到达 ↓</span>
-          <span class="node">isSelfWrite? 忽略回环</span><span class="fa">→</span>
-          <span class="node warn">本页无未落盘修改?</span><span class="fa">→ 是 →</span>
-          <span class="node">整树替换（快路径）</span>
-          <span class="fa">｜ 否 →</span>
-          <span class="node end">mergeExternalData：卡片按 id+updatedAt LWW（平手保本地）· dailyFocus 槽级合并 · 与外部全等不回写（断回声环）</span>
+    <div class="arrow-row" data-page-node-id="MZuhnsmgxxY7f83aZQ1kVL"><span class="dn" data-page-node-id="ezFP9uo6DEyYh3c7t4BFaJ"><span class="arrow-label" data-page-node-id="iMgesNgWQOsKnWO17R3VU1">读 = cache 直读 · 写 = 300ms 防抖 → JSON 纯净清洗 → storage.set</span></span></div>
+    <div class="layer" style="border-color:var(--warn)" data-page-node-id="LDe1W1uFFPpFVMkn7EB7X0">
+      <div class="layer-title" data-page-node-id="ngpSyMBOEOhi3bz1fVrNt0"><span class="c-dot" style="background:var(--warn)" data-page-node-id="QhxaMHgnaI95jaffvkpKXk"></span>写入与并发链路（R58）</div>
+      <div class="lane" style="border:none;margin:0" data-page-node-id="uA7M5Hf6LJdp5573FEJC1T">
+        <div class="lane-body" style="padding:6px 2px;background:transparent" data-page-node-id="X0F8orKWJ7txMZknHCiHhi">
+          <span class="node" data-page-node-id="5vYfPdAL2hLjT3nkwh5NDh">组件改 reactive 树</span><span class="fa" data-page-node-id="t2gUJSJL1j0QFjQIQb24b9">→</span>
+          <span class="node" data-page-node-id="HNqrr2N5qf5AcXjQzSwTlR">persist() 防抖 300ms</span><span class="fa" data-page-node-id="dU4cSLHrUUl5ZJxr8TZRea">→</span>
+          <span class="node" data-page-node-id="9xKNykiOT8rE5qjcg4csA3">storage.set + 存储镜像刷新</span><span class="fa" data-page-node-id="o428bcRveGEx1TjhSM9d7P">→</span>
+          <span class="node" data-page-node-id="yyoZwKRERRQOmwnoXOn6XW">dataVersion++ / 事件 diff</span><span class="fa" data-page-node-id="8LHtje1gwzsD1oDDNnHZVX">→</span>
+          <span class="node end" data-page-node-id="wYgYSDVElAx4y3qTDEpfNl">onChanged 广播</span>
+          <span class="fa" style="width:100%;margin-top:6px" data-page-node-id="U7tTzqYdtVftwcyCCSO9zm">外部写入到达 ↓</span>
+          <span class="node" data-page-node-id="ChDlYuf0lHMoEkMBR5JmBI">isSelfWrite? 忽略回环</span><span class="fa" data-page-node-id="FCaH4fDwmaCx5DJYTGttLs">→</span>
+          <span class="node warn" data-page-node-id="F9CgVEiewpH9DKFW0i53Qx">本页无未落盘修改?</span><span class="fa" data-page-node-id="BU4nGRRcLWZRbtZrDf5FfD">→ 是 →</span>
+          <span class="node" data-page-node-id="FD3uM4AEF4iwf972R6zcAz">整树替换（快路径）</span>
+          <span class="fa" data-page-node-id="aoISH5O7WjoWAMm81pPhBb">｜ 否 →</span>
+          <span class="node end" data-page-node-id="HRTthPjJrBb0ScPiVHcO8o">mergeExternalData：卡片按 id+updatedAt LWW（平手保本地）· dailyFocus 槽级合并 · 与外部全等不回写（断回声环）</span>
         </div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer" style="border-color:var(--danger)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--danger)"></span>红线（违反即返工）</div>
-      <div class="row">
-        <div class="box"><h4>单向挂载</h4><p>仅 TaskCard 持有 mountedResourceIds / mountedCuriosityIds；Resource / Curiosity / TagNode 禁止 taskId</p></div>
-        <div class="box"><h4>软删体系</h4><p>删除一律 deletedAt → 回收站可恢复；工作台删除同样软删，孤卡恢复自动回落</p></div>
-        <div class="box"><h4>导入安全</h4><p>version===2 校验 → 导入前自动备份 → 并集合并（同 ID 更新）</p></div>
-        <div class="box"><h4>版本唯一源</h4><p>manifest.ts 五处同步</p></div>
+    <div class="arrow-row" data-page-node-id="LPDkYupuz4V7BHPbbQc3hy"><span class="dn" data-page-node-id="JqF6Gm8TFmBbANBQ2sQMiP"></span></div>
+    <div class="layer" style="border-color:var(--danger)" data-page-node-id="txLsDPc5iWkR7VSdEHxpVC">
+      <div class="layer-title" data-page-node-id="Aw5zhDAZqjCiLTvHm1ywXa"><span class="c-dot" style="background:var(--danger)" data-page-node-id="1iHJk9FTu68ze0uiqwVsWs"></span>红线（违反即返工）</div>
+      <div class="row" data-page-node-id="bJvcFRiGfZkPdInRej32Pa">
+        <div class="box" data-page-node-id="z0eMTz6uFwgg9oLceNYUAl"><h4 data-page-node-id="mViYwdPsq2yVIqE8JPFQSZ">单向挂载</h4><p data-page-node-id="hOJ3VhsQesZFkC6ETPmU8M">仅 TaskCard 持有 mountedResourceIds / mountedCuriosityIds；Resource / Curiosity / TagNode 禁止 taskId</p></div>
+        <div class="box" data-page-node-id="7jlHsjzsBtBvfRqyJ557jE"><h4 data-page-node-id="VouRIQ867s3w6KL9m48lAv">软删体系</h4><p data-page-node-id="qkPykmHHns4kfqQ3ftPYP2">删除一律 deletedAt → 回收站可恢复；策展台删除级联移除其镜像记录，资源台源卡零影响</p></div>
+        <div class="box" data-page-node-id="AofvGcEL1ndU92C8voqTgC"><h4 data-page-node-id="JIl0061KgC2BDWTgCQBcmc">导入安全</h4><p data-page-node-id="vWd5c9FuZvE0nIiGYaf1pU">version===2 校验 → 导入前自动备份 → 并集合并（同 ID 更新）</p></div>
+        <div class="box" data-page-node-id="oJWKtH82TH1p2ZANqfRlrR"><h4 data-page-node-id="KqU8sFsjoRQIBoOzDEYnFA">同步只出不回</h4><p data-page-node-id="oOPu0NpRQ0fbUORHBVakpI">Airtable 推送绝不被读回写入本地；凭证（PAT）由用户自持，软删卡置「已删除」而不物理删远端</p></div>
+        <div class="box" data-page-node-id="4BfA8zNDEpqVIQ9W9T6hPg"><h4 data-page-node-id="tMlDMc5lgaybGE0JIfwrdR">版本唯一源</h4><p data-page-node-id="OdBNQrMARijxWy2E5HkD2R">manifest.ts 五处同步</p></div>
       </div>
     </div>
   </div>
 </section>
 
 <!-- ============ ④ 功能模块架构 ============ -->
-<section id="d4">
-  <div class="sec-head"><span class="no">④</span><h2>功能模块架构图</h2><span class="en">FEATURE MODULE ARCHITECTURE</span></div>
-  <p class="sec-desc">按"五动词闭环"组织全部功能模块：每一列服务闭环的一段，避免功能孤岛。</p>
-  <div class="board">
-    <div class="layer" style="border-color:var(--accent)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--accent)"></span>入台 IN · 把一切收进来</div>
-      <div class="row">
-        <div class="box"><h4>快速采集</h4><p>网页 / 选中文本自动预填</p></div>
-        <div class="box"><h4>任务采集三端</h4><p>四字段非必填，直存全域</p></div>
-        <div class="box"><h4>好奇心速记</h4><p>念头 + 来源，3 秒</p></div>
-        <div class="box"><h4>书签导入</h4><p>HTML 顶层文件夹→标签</p></div>
-        <div class="box"><h4>本地文件 / Obsidian</h4><p>file:// / obsidian:// 建卡</p></div>
-        <div class="box"><h4>策展镜像</h4><p>右键镜像 / 整台打包 / 分类镜像</p></div>
+<section id="d4" data-page-node-id="orvBmyRCLPzRBZ7oyntVti">
+  <div class="sec-head" data-page-node-id="qTqCZwkC7UWo7oDvVcCUt3"><span class="no" data-page-node-id="VTsHl530Hvdkhv6Jg8YA0E">④</span><h2 data-page-node-id="VporEiDT3RxEpg5FCW4AvE">功能模块架构图</h2><span class="en" data-page-node-id="RUhBcQGl3p1oCaMcqaGYMm">FEATURE MODULE ARCHITECTURE</span></div>
+  <p class="sec-desc" data-page-node-id="7DKq5pXS9rGFErxhifhVDF">按"五动词闭环"组织全部功能模块：每一列服务闭环的一段，避免功能孤岛。</p>
+  <div class="board" data-page-node-id="iOfQaAhFY0sWPPLoXPBI6i">
+    <div class="layer" style="border-color:var(--accent)" data-page-node-id="nsqUtDn1rQVLKa2yscucNu">
+      <div class="layer-title" data-page-node-id="NU0Y91Pi4FulaJBS7psTGt"><span class="c-dot" style="background:var(--accent)" data-page-node-id="hg1fP3n186zG6sQJOYyQID"></span>入台 IN · 把一切收进来</div>
+      <div class="row" data-page-node-id="s0CT7YY6BSmtX7vGhJIx8X">
+        <div class="box" data-page-node-id="VIhpsXE6Njgdk2FeEy0FEd"><h4 data-page-node-id="zkASzwanMOjRpZNDVamdxr">快速采集</h4><p data-page-node-id="KKAiCirZL7k4LfTDNUHH2M">网页 / 选中文本自动预填</p></div>
+        <div class="box" data-page-node-id="HMZzhWqApIyy9v68RvLmdA"><h4 data-page-node-id="7sDKBgafcMg2P8mikrFEiW">任务采集三端</h4><p data-page-node-id="8HE1oMW6PgpD4R7dFKSHqQ">四字段非必填，直存全域</p></div>
+        <div class="box" data-page-node-id="AmKJERwcGYLIhHrLZc9UNw"><h4 data-page-node-id="shNHDCoDgBUNNtB5aAEPer">好奇心速记</h4><p data-page-node-id="3OfGX6c7dsA1dGnXgA4fas">念头 + 来源，3 秒</p></div>
+        <div class="box" data-page-node-id="CT5DJra4limtW3Z9fm1oVg"><h4 data-page-node-id="D94wBeNBUAffJFx2uVcEFp">书签导入</h4><p data-page-node-id="QhVaoZnYLWEJUARxJlAYck">HTML 顶层文件夹→标签</p></div>
+        <div class="box" data-page-node-id="ZEQaUeNO28hvJlsOXEmeFM"><h4 data-page-node-id="kC1oQA1kqLLvEeBoCLlehn">本地文件 / Obsidian</h4><p data-page-node-id="YB3vtNfBg2JG6BXKVu1scO">file:// / obsidian:// 建卡</p></div>
+        <div class="box" data-page-node-id="PuOFvjQ8qtcR0Ynu0AAklK"><h4 data-page-node-id="0Q1Zl9PTr8zGhhrGmUVHtV">资源镜像</h4><p data-page-node-id="HQmkR4fzBrUMmsAvISazRk">策展台节点「关联资源卡」多选 → 逐张镜像；源数据零影响</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer" style="border-color:var(--cyan)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--cyan)"></span>归位 ORGANIZE · 给每张卡归属</div>
-      <div class="row">
-        <div class="box"><h4>工作台 + 分类树</h4><p>按主题建域，父子两级</p></div>
-        <div class="box"><h4>标签体系</h4><p>3 级标签树，随导出同构</p></div>
-        <div class="box"><h4>拖拽归位</h4><p>工作台 / 策展 / 展板 / 左树四处拖拽语义</p></div>
-        <div class="box"><h4>项目·指标挂载</h4><p>任务双挂；未挂=未归档可治理</p></div>
-        <div class="box"><h4>自定义字段</h4><p>字段设计器（三卡目录）</p></div>
+    <div class="arrow-row" data-page-node-id="n4wCHBOk6kjojbTFbrz5Db"><span class="dn" data-page-node-id="vRnYXOpaoQCVAIdPsmuc2S"></span></div>
+    <div class="layer" style="border-color:var(--cyan)" data-page-node-id="Zxd0HGMuZTkJSR3GbCZ2Fz">
+      <div class="layer-title" data-page-node-id="fmfdb3MDjH4W5FvLgOwZIK"><span class="c-dot" style="background:var(--cyan)" data-page-node-id="YgToGloD0k50fUkbtwPIAG"></span>归位 ORGANIZE · 给每张卡归属</div>
+      <div class="row" data-page-node-id="Yts3H0OrGXVxZRHPR32DvX">
+        <div class="box" data-page-node-id="yQJoTLRKNqgyPjKGSUVnbn"><h4 data-page-node-id="dIPyHevp9DdEhglE6kVWSO">资源台 + 分类树</h4><p data-page-node-id="w4XT6SnD5nap1Zbn8uiP7P">按主题建分类，树状递归分组 + 路径徽标</p></div>
+        <div class="box" data-page-node-id="P3kcxlpFtFSfIxpjwfmRg3"><h4 data-page-node-id="vWG3DGQzGFNRG3HEmS0soo">标签体系</h4><p data-page-node-id="ZvPHcJMgfDPbTkFneshiN1">3 级标签树，随导出同构</p></div>
+        <div class="box" data-page-node-id="1CnrzHpxOzF0rQuioR4nyy"><h4 data-page-node-id="2SRF4oY06yGyZ4aQl6zceg">拖拽归位</h4><p data-page-node-id="sBOiVyfp3T1iXPJp2rUry7">资源台 / 策展台金字塔 / 展板 / 左树四处拖拽语义</p></div>
+        <div class="box" data-page-node-id="exvrLqdruAbYL3Sy1CDGgj"><h4 data-page-node-id="RMeuDCcbs8wM1HSp97uF3j">项目·指标挂载</h4><p data-page-node-id="9l0QuTVh8Q20YuFNAddVct">任务双挂；未挂=未归档可治理</p></div>
+        <div class="box" data-page-node-id="XL1PPaEouOTeLNGCQ8Jc0Z"><h4 data-page-node-id="ESaHFuBg94TSPRGZ42Petp">自定义字段</h4><p data-page-node-id="12snyzGD0dDdGv6qXQEj0V">字段设计器（三卡目录）</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer" style="border-color:var(--accent2)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--accent2)"></span>调出 RECALL · 三秒，把对的送回来</div>
-      <div class="row">
-        <div class="box"><h4>全局搜索 Ctrl+K</h4><p>两端一致；标签/项目名命中；拼音首字母</p></div>
-        <div class="box"><h4>召回排序</h4><p>置顶>星标>标题命中>热度>最近调出</p></div>
-        <div class="box"><h4>双击直达</h4><p>Web / file:// / obsidian:// / 附件</p></div>
-        <div class="box"><h4>热度浏览</h4><p>无输入按复用排序 Top</p></div>
-        <div class="box"><h4>定位链路</h4><p>搜索行 / 指标下钻 → hl 高亮定位</p></div>
+    <div class="arrow-row" data-page-node-id="EEClHTHMp7Z6kKsH9j1FyI"><span class="dn" data-page-node-id="V1EwupHfCA7omBY7npTqHs"></span></div>
+    <div class="layer" style="border-color:var(--accent2)" data-page-node-id="TFR2HT2ydfQrMCNTC1yQGH">
+      <div class="layer-title" data-page-node-id="E734f7EzLpv24LwJRfzDKc"><span class="c-dot" style="background:var(--accent2)" data-page-node-id="jZljpIZ7MojdYBfFxiZ0Nz"></span>调出 RECALL · 三秒，把对的送回来</div>
+      <div class="row" data-page-node-id="nwdyasMbJ7fO5jZyNrPiyL">
+        <div class="box" data-page-node-id="BRYCJNtE6fIQGvOqLAjC4C"><h4 data-page-node-id="Y5M6xj4ppw2lmsDPMNGQCY">全局搜索 Ctrl+K</h4><p data-page-node-id="hvdAgwhTMRXRFYuIaOyiQU">两端一致；标签/项目名命中；拼音首字母</p></div>
+        <div class="box" data-page-node-id="kCBuER5b7MGH4botLkDCpb"><h4 data-page-node-id="CTV1BcVwJcSH1Y53opXCJX">召回排序</h4><p data-page-node-id="IUH7BsMUWrpkdhp46Y3JaV">置顶>星标>标题命中>热度>最近调出</p></div>
+        <div class="box" data-page-node-id="7wQhWLN1UMhTQum7fLHuAk"><h4 data-page-node-id="KBgxBiivXX9GE7AKW4bk65">双击直达</h4><p data-page-node-id="6OZPxPDmUcvuRfHgwi0Gts">Web / file:// / obsidian:// / 附件</p></div>
+        <div class="box" data-page-node-id="hYriiOmaQTnsxjk0bYmMYB"><h4 data-page-node-id="7eS54Tn35Gamz40eMQH36Z">热度浏览</h4><p data-page-node-id="BkhodmCxbKPlGvJ4sIAKJ0">无输入按复用排序 Top</p></div>
+        <div class="box" data-page-node-id="zlHXYcXizN6F1wSkcgnsT6"><h4 data-page-node-id="iQEgFGy8BkSvJSCxg65BIv">定位链路</h4><p data-page-node-id="c8dX4TElmk7hUQSFzLQHEw">搜索行 / 指标下钻 → hl 高亮定位</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer" style="border-color:var(--amber)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--amber)"></span>复用 REUSE · 让资产越用越厚</div>
-      <div class="row">
-        <div class="box"><h4>调用计数 🔥</h4><p>recordResourceOpen 唯一口径</p></div>
-        <div class="box"><h4>WRR 复用指标</h4><p>日 / 周 / 累计三档</p></div>
-        <div class="box"><h4>策展复用</h4><p>镜像让跨台资产一处可见</p></div>
-        <div class="box"><h4>附件复用</h4><p>报告 / 原文挂卡即调</p></div>
-        <div class="box"><h4>今日记录</h4><p>调出明细可回看</p></div>
+    <div class="arrow-row" data-page-node-id="9nmjGSGd9tCnXwnrA7f7BG"><span class="dn" data-page-node-id="9hsB9hufo7MK6fnN7PTPce"></span></div>
+    <div class="layer" style="border-color:var(--amber)" data-page-node-id="nAwbGZnsQkCTk7uE1UU0WN">
+      <div class="layer-title" data-page-node-id="1Nne926OBmUv7hzIXXfrVw"><span class="c-dot" style="background:var(--amber)" data-page-node-id="NsVLyfhh7MFFj7M9ax7Ltx"></span>复用 REUSE · 让资产越用越厚</div>
+      <div class="row" data-page-node-id="20iHGK2Qx7VxDluCxKFtFD">
+        <div class="box" data-page-node-id="3RN6IiHWaBvk73Vf6EHd4L"><h4 data-page-node-id="GHBftDXdgmA4z6vkFQCv5H">调用计数 🔥</h4><p data-page-node-id="68hkZsegO3HqE2IANn9PvB">recordResourceOpen 唯一口径</p></div>
+        <div class="box" data-page-node-id="43q7bJ7btA6KFylBGJJ2Ft"><h4 data-page-node-id="lFgBfByJcoeULFtDCCPDFS">WRR 复用指标</h4><p data-page-node-id="Axap6zgymfDXi8ClhRJvUm">日 / 周 / 累计三档</p></div>
+        <div class="box" data-page-node-id="yA0DjOaLPQc1bxFvbrq5zq"><h4 data-page-node-id="NiDYZkwOScTdqDRrB2ZP51">策展复用</h4><p data-page-node-id="o6pGjqo7P4za7Auc5bAHZW">镜像让跨台资产一处可见</p></div>
+        <div class="box" data-page-node-id="MDaHuHDxvmJ5wy78xGuE9W"><h4 data-page-node-id="Oq1CPyuw5Y6EjpjsgmmxHf">附件复用</h4><p data-page-node-id="IWJVCFTBkSgB9sdFpNsqL1">报告 / 原文挂卡即调</p></div>
+        <div class="box" data-page-node-id="xFJ3rDZEHPHlwEySDgyi5e"><h4 data-page-node-id="DnfGV3x1wK7xumcOyq0c1t">今日记录</h4><p data-page-node-id="UVEMl0CBc0pJfsKm34IPtW">调出明细可回看</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer" style="border-color:var(--ok)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--ok)"></span>校准 ALIGN · 行动对得上方向</div>
-      <div class="row">
-        <div class="box"><h4>方向状态四指标</h4><p>DHI / WCE / WRR / 未归档</p></div>
-        <div class="box"><h4>今日三件事</h4><p>≤3 槽，行动聚焦</p></div>
-        <div class="box"><h4>项目调度</h4><p>任务联动项目与指标</p></div>
-        <div class="box"><h4>目标与行动（六层结构）</h4><p>愿景→使命→目标→项目→指标→任务</p></div>
-        <div class="box"><h4>主攻</h4><p>项目置前高亮</p></div>
-        <div class="box"><h4>未归档治理</h4><p>下钻就地归档</p></div>
+    <div class="arrow-row" data-page-node-id="4n7Gn3ZRdADOGvNiilGhtW"><span class="dn" data-page-node-id="oMoM1oBDatt8GJELLixfXA"></span></div>
+    <div class="layer" style="border-color:var(--ok)" data-page-node-id="KGMZ9KTJSsoRs3W6cPq11F">
+      <div class="layer-title" data-page-node-id="IvSbhzyPQBMwAliNRmQZfK"><span class="c-dot" style="background:var(--ok)" data-page-node-id="TDvq5kBbJ5P0R7976W3ni1"></span>校准 ALIGN · 行动对得上方向</div>
+      <div class="row" data-page-node-id="HiXDnAzaad31OwkNS0iXIX">
+        <div class="box" data-page-node-id="X9AzaSdCEhOaWxDEz2fCCy"><h4 data-page-node-id="D3f2BtlamsbsSPeXTiuDdn">方向状态四指标</h4><p data-page-node-id="6maCEZAQb7CmkPbgd0QmBd">战略目标·推进项目 / WCE / WRR / 未归档</p></div>
+        <div class="box" data-page-node-id="AmpSYppyoMo3cSZgUf7Yby"><h4 data-page-node-id="xrOL9wGby7PacUFzkPi0eL">今日三件事</h4><p data-page-node-id="yMoEZ5HpuKbpFAEHkoEv7n">≤3 槽，行动聚焦</p></div>
+        <div class="box" data-page-node-id="WqpV7JEwKDHSYKhFkCa6D1"><h4 data-page-node-id="PfLiY2Rf5eZ3GvoFZCJTx8">项目调度</h4><p data-page-node-id="rqRHJYA3LAYNTzr2t1QzTm">任务联动项目与指标</p></div>
+        <div class="box" data-page-node-id="Ky69BK5cx5dnspyEpLUXLW"><h4 data-page-node-id="1qHl7Dm67tASUHHG7AfP17">目标与行动（六层结构）</h4><p data-page-node-id="x5sRp2DrHXHksVb7ZgGo9g">愿景→使命→目标→项目→指标→任务</p></div>
+        <div class="box" data-page-node-id="8T7BdmXqGjko1oPN0y6pl8"><h4 data-page-node-id="t2nslQPo8q7BAeyB0BUxQA">主攻</h4><p data-page-node-id="ZJrfW5K8tqKeTeBYJ3R7pB">项目置前高亮</p></div>
+        <div class="box" data-page-node-id="E12RlEhtrtpGj0HYrqWolN"><h4 data-page-node-id="4VlhD6KPc0QDUaRJ4xOCDN">未归档治理</h4><p data-page-node-id="1Cr7ZBgjRI8zjeZ92o9r1R">下钻就地归档</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer">
-      <div class="layer-title"><span class="c-dot" style="background:var(--text3)"></span>底座支撑</div>
-      <div class="row">
-        <div class="box"><h4>设置中心</h4><p>字段设计 / 标签 / 快捷键 / 主题密度 / 手册</p></div>
-        <div class="box"><h4>回收站</h4><p>软删恢复 / 永久删除</p></div>
-        <div class="box"><h4>导入导出</h4><p>JSON / CSV / Markdown / 附件包</p></div>
-        <div class="box"><h4>今日记录</h4><p>四计数 + 明细下钻</p></div>
+    <div class="arrow-row" data-page-node-id="c9B1EDYAP2yctkrRpCLUFr"><span class="dn" data-page-node-id="pEiSRtbzCE6HXhDmR8SzZz"></span></div>
+    <div class="layer" data-page-node-id="wOfbHe9ypqawcKE3UPxE7R">
+      <div class="layer-title" data-page-node-id="oSoxrVAFDjryyIFjRGtV1Z"><span class="c-dot" style="background:var(--text3)" data-page-node-id="h28ADi3mgYIU7MD8Ra8dVY"></span>底座支撑</div>
+      <div class="row" data-page-node-id="nVYY9Zx2MmH8O9nGiQ2dWJ">
+        <div class="box" data-page-node-id="tbpghkuD6cyR8TIqa1hpbn"><h4 data-page-node-id="9vKEDLZl9qA6tvcGMV7Czn">设置中心</h4><p data-page-node-id="XpiY8CNWNEoTcqfbYpivqc">字段设计 / 标签 / 快捷键 / 主题密度 / 资源台全景 / Airtable 同步 / 手册</p></div>
+        <div class="box" data-page-node-id="sX8CsFXYQcQvD7gjBNLBmi"><h4 data-page-node-id="ypw911aiI8J8wajDkFqKBk">回收站</h4><p data-page-node-id="J1plpwaQmnMX2eVoI0tltE">软删恢复 / 永久删除</p></div>
+        <div class="box" data-page-node-id="tP6BgDEVvoa45JRfHpurbs"><h4 data-page-node-id="3iwnWtaxmNkUPqVZVMhq0C">导入导出</h4><p data-page-node-id="oKd9X8EdKPn90JV11j61sS">JSON（含界面偏好）/ 按台 / 策展台数据包 / CSV / Markdown</p></div>
+        <div class="box" data-page-node-id="3sNDj5FdLqPdEbKeDZ5x2W"><h4 data-page-node-id="Y84seKz0Ho6Uft0Km1SRlG">Airtable 单向同步</h4><p data-page-node-id="KdPhRGPfwRpRtD6v30nbhP">用户自备 PAT，手动推送；只出不回</p></div>
+        <div class="box" data-page-node-id="2ry09iuHWXNzCv1wdNmdnJ"><h4 data-page-node-id="gjVYbeqbnW61xFPGL04Ma1">今日记录</h4><p data-page-node-id="z9KiizQfHjLJDxo3afyl7M">四计数 + 明细下钻</p></div>
       </div>
     </div>
   </div>
 </section>
 
 <!-- ============ ⑤ 产品设计架构 ============ -->
-<section id="d5">
-  <div class="sec-head"><span class="no">⑤</span><h2>产品设计架构图</h2><span class="en">DESIGN SYSTEM ARCHITECTURE</span></div>
-  <p class="sec-desc">从体验原则 → 设计令牌 → 组件基元 → 品牌化交互词典 → 文案与验证，五层保证"定位被体验，而非被文案描述"。唯一令牌源：tokens.css（四主题 × 三密度）。</p>
-  <div class="board">
-    <div class="layer" style="border-color:var(--accent)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--accent)"></span>L1 体验原则 · 设计的宪法</div>
-      <div class="row">
-        <div class="box"><h4>调度优先</h4><p>调出一步可达；首屏给行动不给仓库</p></div>
-        <div class="box"><h4>高频低摩擦</h4><p>入台 ≤5s、调出 ≤3s、归位一次拖拽</p></div>
-        <div class="box"><h4>写入可感知</h4><p>存没存上必须看得见</p></div>
-        <div class="box"><h4>关系可追溯</h4><p>任务↔项目↔方向↔来源链路点得回</p></div>
-        <div class="box"><h4>状态可见不焦虑</h4><p>指标是镜子不是评分</p></div>
-        <div class="box"><h4>用户有控制权</h4><p>可撤销 / 可导出 / Esc 逐层退出</p></div>
+<section id="d5" data-page-node-id="6Tw0zKrkuTmf4hSyIDI9Te">
+  <div class="sec-head" data-page-node-id="YdZp07NNOJ55WHiwTk18Nx"><span class="no" data-page-node-id="uRj4bkF867UIqDQko7Fos4">⑤</span><h2 data-page-node-id="fgLymSNnwWjYCr5CzdCtd6">产品设计架构图</h2><span class="en" data-page-node-id="1BodgkoTfTCoo0m5ajRdez">DESIGN SYSTEM ARCHITECTURE</span></div>
+  <p class="sec-desc" data-page-node-id="1Lx44CUkimQzWVnBDaX1pY">从体验原则 → 设计令牌 → 组件基元 → 品牌化交互词典 → 文案与验证，五层保证"定位被体验，而非被文案描述"。唯一令牌源：tokens.css（四主题 × 三密度），配 UnoCSS（preset-uno + preset-icons）承担原子类与图标。</p>
+  <div class="board" data-page-node-id="3jq2IBfVwAEXzMSGz3NI3G">
+    <div class="layer" style="border-color:var(--accent)" data-page-node-id="JoK5GcZxpiLjVTq18ue27M">
+      <div class="layer-title" data-page-node-id="Rfril9ei3QEPAlMAikF7qm"><span class="c-dot" style="background:var(--accent)" data-page-node-id="AmXDVkevxtxlnjkGCnYdZs"></span>L1 体验原则 · 设计的宪法</div>
+      <div class="row" data-page-node-id="9aLq7OLtHxfwrpQ42frWCq">
+        <div class="box" data-page-node-id="ApqxKehGkJbfItgKeKnuQA"><h4 data-page-node-id="HEhOpQT37sR4rW2dilDP1Z">调度优先</h4><p data-page-node-id="D8dvRHwpaDFhNNfLTamDF1">调出一步可达；首屏给行动不给仓库</p></div>
+        <div class="box" data-page-node-id="LsLxEcqxlrTLP1RkGwlRju"><h4 data-page-node-id="5RHvGeszihLEle2PiO09rm">高频低摩擦</h4><p data-page-node-id="0uirhZu5MHBi1xZxwL8iqR">入台 ≤5s、调出 ≤3s、归位一次拖拽</p></div>
+        <div class="box" data-page-node-id="tMJxY9B4jASCjqvJRZsTyN"><h4 data-page-node-id="WAGxNET1xJ9WVWTN2OIsDA">写入可感知</h4><p data-page-node-id="jGPa6toTVbeiGb9M1X4BPu">存没存上必须看得见</p></div>
+        <div class="box" data-page-node-id="80HY9PNeDvXGK6rL757pqO"><h4 data-page-node-id="B65uTt347LobZRbgVoZ2vt">关系可追溯</h4><p data-page-node-id="XXBUoEpuK2mhHD78dJIzGl">任务↔项目↔方向↔来源链路点得回</p></div>
+        <div class="box" data-page-node-id="3okvut8KhIjXtJjTHTHnLH"><h4 data-page-node-id="Q1QlD8wzOhduuh9QUJXODC">状态可见不焦虑</h4><p data-page-node-id="xAKFCgsOEwRBntpdr4VHJx">指标是镜子不是评分</p></div>
+        <div class="box" data-page-node-id="G7WE9CQG2J6cUysYI3AGGE"><h4 data-page-node-id="lrsujHiheCM7Ac4o7tXbD9">用户有控制权</h4><p data-page-node-id="qA6Vy8lRYPRUHLR04QwOCd">可撤销 / 可导出 / Esc 逐层退出</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer" style="border-color:var(--accent2)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--accent2)"></span>L2 设计令牌 · tokens.css（唯一源，禁硬编码）</div>
-      <div class="row">
-        <div class="box"><h4>四主题</h4><p>深空薰衣草（默认·近黑画布 #5E6AD2 系）/ 原野绿 / 暗夜红 / 极简白</p></div>
-        <div class="box"><h4>三密度</h4><p>紧凑 / 舒适 / 宽敞（间距与行高随动）</p></div>
-        <div class="box"><h4>语义族</h4><p>--bg/--surface(-2/3)/--border(--strong)/--text(-2/3/4)/--accent(系)/--success/--warn/--danger</p></div>
-        <div class="box"><h4>排版</h4><p>Inter + 中文系统字 · 负字距 · tabular-nums · 圆角 12/8/6 · 2px 焦点环</p></div>
+    <div class="arrow-row" data-page-node-id="sVpFAaWrnStfHSNDGCjAgS"><span class="dn" data-page-node-id="MyS9HHiosOReqTrKDJ8a4q"></span></div>
+    <div class="layer" style="border-color:var(--accent2)" data-page-node-id="DMFJgimVfxmNEciImdkfLt">
+      <div class="layer-title" data-page-node-id="mRkEpcErRdO8MJzCZHz5Xb"><span class="c-dot" style="background:var(--accent2)" data-page-node-id="HsigabzfJbP4I67VfPXVJn"></span>L2 设计令牌 · tokens.css（唯一源，禁硬编码）</div>
+      <div class="row" data-page-node-id="EDaICaI9qY4EBroRZa2lQA">
+        <div class="box" data-page-node-id="2zHQFwj1hv5MQeDz1Bk3dG"><h4 data-page-node-id="epPJEO819tJOZOKBlKFebc">四主题</h4><p data-page-node-id="ovUUVR2NNtj9Yj9iZtRiHx">深空薰衣草（默认·近黑画布 #5E6AD2 系）/ 原野绿 / 暗夜红 / 极简白</p></div>
+        <div class="box" data-page-node-id="jNVMBhgPTTji4jBoqpUxTJ"><h4 data-page-node-id="S0CCh6BFnsZGGP4AA4yd2I">三密度</h4><p data-page-node-id="7tLz0xXfMufTEoOFLxGOzg">紧凑 / 舒适 / 宽敞（间距与行高随动）</p></div>
+        <div class="box" data-page-node-id="iOEuuJFD6yGoTg5Ea41goG"><h4 data-page-node-id="6sFvQ2JuYdLTx3UXFHObGE">语义族</h4><p data-page-node-id="3Z6C7ESCYslVWGGcDxpCHk">--bg/--surface(-2/3)/--border(--strong)/--text(-2/3/4)/--accent(系)/--success/--warn/--danger</p></div>
+        <div class="box" data-page-node-id="NAMvTcSyzrl8j0EVx6HcC5"><h4 data-page-node-id="tDlOAugxkAnZx9v67qhRn7">排版</h4><p data-page-node-id="nynWrHPHdxSw0Uzp7L74Xd">Inter + 中文系统字 · 负字距 · tabular-nums · 圆角 12/8/6 · 2px 焦点环</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer" style="border-color:var(--cyan)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--cyan)"></span>L3 组件基元 · 复用优先，不自造同义组件</div>
-      <div class="row">
-        <div class="box"><h4>ModuleCard</h4><p>模块卡容器（图标+标题+工具区）</p></div>
-        <div class="box"><h4>Drawer 抽屉</h4><p>详情/记录/下钻统一侧滑</p></div>
-        <div class="box"><h4>Toast</h4><p>深色底白字回执，可带撤销</p></div>
-        <div class="box"><h4>ConfirmDialog</h4><p>后果与可逆性如实告知</p></div>
-        <div class="box"><h4>ContextMenu / TagPicker</h4><p>右键语义 / 标签选择</p></div>
-        <div class="box"><h4>AssetBadge / AssetPreview</h4><p>附件徽章与预览</p></div>
+    <div class="arrow-row" data-page-node-id="2p2cHs5xf6FuOtKIYoA2Pr"><span class="dn" data-page-node-id="fO4UKJuNzkbYLOhTzFCA3Y"></span></div>
+    <div class="layer" style="border-color:var(--cyan)" data-page-node-id="fuXBd6u9svxZzY7m9DaIiX">
+      <div class="layer-title" data-page-node-id="46rYK11T5GYC6GZPJElPNT"><span class="c-dot" style="background:var(--cyan)" data-page-node-id="4ZvA5m7crsiSgJqgGvnNJs"></span>L3 组件基元 · 复用优先，不自造同义组件</div>
+      <div class="row" data-page-node-id="6Qb6FJ6YwN9s2KDteHWR30">
+        <div class="box" data-page-node-id="NSZX6F2GAZ5mw6H8PIruM5"><h4 data-page-node-id="BhSUcdpc093Z2OHCk3fNvi">ModuleCard</h4><p data-page-node-id="16nUTdhwphD7nY9TUuyfFa">模块卡容器（图标+标题+工具区）</p></div>
+        <div class="box" data-page-node-id="cCV8gOA6phwq4c1qnk9iBf"><h4 data-page-node-id="f9SSvJoDMZAMHkcUAvmVtW">Drawer 抽屉</h4><p data-page-node-id="IMG8N5DXyO2dj2uPkrBZYV">详情/记录/下钻统一侧滑</p></div>
+        <div class="box" data-page-node-id="A3jrA4P7hD7quG904kmdgW"><h4 data-page-node-id="C5MgjlXKy3TKhewS2rBCw1">Toast</h4><p data-page-node-id="ObsCKYZqBLRzXjVFfa8X3c">深色底白字回执，可带撤销</p></div>
+        <div class="box" data-page-node-id="HtlTdF8urqYzXTVbZ5fyjG"><h4 data-page-node-id="nEnLVRlCQlq9aH17nSCJVa">ConfirmDialog</h4><p data-page-node-id="TLs3xBWPuBlnzRYCkynxuG">后果与可逆性如实告知</p></div>
+        <div class="box" data-page-node-id="siyNSpqfTqoiiZh7EPIQDL"><h4 data-page-node-id="JMy5M7F6vpViAVSUmqTHcj">ContextMenu / TagPicker</h4><p data-page-node-id="DtnhqKjxpYpM0WKHGtfm2g">右键语义 / 标签选择</p></div>
+        <div class="box" data-page-node-id="Lz2wCVSzQAsDRx9BCxJkls"><h4 data-page-node-id="fTTFGLxna8gzABqfuXJm22">AssetBadge / AssetPreview</h4><p data-page-node-id="qCbeO3SnfNCaLCUmL51C2s">附件徽章与预览</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer" style="border-color:var(--amber)">
-      <div class="layer-title"><span class="c-dot" style="background:var(--amber)"></span>L4 品牌化交互词典 · 界面动词 = 品牌动词</div>
-      <div class="row">
-        <div class="box"><h4>入台 →「✓ 已入台」</h4><p>采集回执</p></div>
-        <div class="box"><h4>归位 → 落点高亮+「已移入」</h4><p>拖拽反馈</p></div>
-        <div class="box"><h4>调出 → 结果行+直达</h4><p>三秒标准</p></div>
-        <div class="box"><h4>复用 → 🔥 +1 可见</h4><p>计数反馈</p></div>
-        <div class="box"><h4>校准 → 四指标下钻</h4><p>镜子不打分</p></div>
-        <div class="box"><h4>求证 / 移出 / 保存至本机</h4><p>状态色 / 软删可撤销 / 导出回执</p></div>
+    <div class="arrow-row" data-page-node-id="jNOjGSHTJFO0nOBeyI4Qn2"><span class="dn" data-page-node-id="1cUzgTcue8dqzCVZOR23fp"></span></div>
+    <div class="layer" style="border-color:var(--amber)" data-page-node-id="EusBH4kQCF9U667TDcvOkB">
+      <div class="layer-title" data-page-node-id="FsCMHIF8hN4l6yqjOBhrT8"><span class="c-dot" style="background:var(--amber)" data-page-node-id="i1CffkUTAsIiPn11sRh3Up"></span>L4 品牌化交互词典 · 界面动词 = 品牌动词</div>
+      <div class="row" data-page-node-id="QuHXyykSOXBGAgDb9WLNwh">
+        <div class="box" data-page-node-id="qUvV6P3ym0LPyfEMCvIDRC"><h4 data-page-node-id="5LvYsYXt6wg97k39gv8iVx">入台 →「✓ 已入台」</h4><p data-page-node-id="psWBIIBAdBmGaJl94u7IlE">采集回执</p></div>
+        <div class="box" data-page-node-id="zdC3G4UFODusrHchmy2j0S"><h4 data-page-node-id="D88O8Zg2t98t7zRCTyAnns">归位 → 落点高亮+「已移入」</h4><p data-page-node-id="ciTe4y0aZLP9ChcIlPlIMU">拖拽反馈</p></div>
+        <div class="box" data-page-node-id="Pu0nbFPosp9V0bPtz58pbR"><h4 data-page-node-id="DYzKtjDHw3RzHv8X0NRDB0">调出 → 结果行+直达</h4><p data-page-node-id="LoD2bvsu28t2eEkyMsidYE">三秒标准</p></div>
+        <div class="box" data-page-node-id="C5s2ygXkIyFn69IiEPMJ2B"><h4 data-page-node-id="hXYmRnNSw2BnjdxXhUFENz">复用 → 🔥 +1 可见</h4><p data-page-node-id="aLCtV0s0p9YsaV7eY4bNXi">计数反馈</p></div>
+        <div class="box" data-page-node-id="lIDJkXsXgM3GBHY2LCaWMp"><h4 data-page-node-id="pSkowuz31Hns7Khrk0HLUG">校准 → 四指标下钻</h4><p data-page-node-id="6fGEyiE5u0ytQVE4pvVrnQ">镜子不打分</p></div>
+        <div class="box" data-page-node-id="Iyk7uvFTlR6bUXAf5HDkAs"><h4 data-page-node-id="y1BAPazN2O9nXrUp27lUfx">求证 / 移出 / 保存至本机</h4><p data-page-node-id="JbgIOikZh8I4CUgXWa61CL">状态色 / 软删可撤销 / 导出回执</p></div>
       </div>
     </div>
-    <div class="arrow-row"><span class="dn"></span></div>
-    <div class="layer">
-      <div class="layer-title"><span class="c-dot" style="background:var(--text3)"></span>L5 文案与验证</div>
-      <div class="row">
-        <div class="box"><h4>文案规范</h4><p>标题三段式 / 按钮动词开头 / 空态给下一步 / 错误给人话+动作</p></div>
-        <div class="box"><h4>可用性五问</h4><p>懂"调度台"？ 分得清系统页与工作台？ 3 秒调出？ 看懂行动↔方向？ 确认数据在本地？</p></div>
-        <div class="box"><h4>走查纪律</h4><p>新 UI 四主题逐一走查；动效 ≤150ms；常驻动画禁止</p></div>
+    <div class="arrow-row" data-page-node-id="aCdr5TjBnst2liAlR0A4rq"><span class="dn" data-page-node-id="JErMeJTKch6QCHUgRzHHKY"></span></div>
+    <div class="layer" data-page-node-id="jXVzlCtXFGnp16L8nupLii">
+      <div class="layer-title" data-page-node-id="ljvEMiSo0G3dMgXjuCYxCU"><span class="c-dot" style="background:var(--text3)" data-page-node-id="Cxi5EG1etELWAHvSXPKNkb"></span>L5 文案与验证</div>
+      <div class="row" data-page-node-id="rXpRleodfq4zfCHNcBzD6b">
+        <div class="box" data-page-node-id="dQjGReE241tx1KZLJpnD6K"><h4 data-page-node-id="g5YI3AENj9GNqP6FD4tanX">文案规范</h4><p data-page-node-id="okL3uCQ7HEPOwim3f8IMc1">标题三段式 / 按钮动词开头 / 空态给下一步 / 错误给人话+动作</p></div>
+        <div class="box" data-page-node-id="KGCIL2Qu60PTJkCveF4GFs"><h4 data-page-node-id="ovDspPSMMpwhjShPVz7pap">可用性五问</h4><p data-page-node-id="ZdJdwkll0dfn53ZE83W7cg">懂"调度台"？ 分得清系统页与策展台？ 3 秒调出？ 看懂行动↔方向？ 确认数据在本地？</p></div>
+        <div class="box" data-page-node-id="AAuZFDHCvjsMteCSQJetVi"><h4 data-page-node-id="YugIfOBfhfjOTfPHRUJ2H0">走查纪律</h4><p data-page-node-id="PhvOzRXGQwEVjYPUuwCIi0">新 UI 四主题逐一走查；动效 ≤150ms；常驻动画禁止</p></div>
       </div>
     </div>
   </div>
 </section>
 
 <!-- ============ ⑥ 核心业务流程 ============ -->
-<section id="d6">
-  <div class="sec-head"><span class="no">⑥</span><h2>核心业务流程图</h2><span class="en">CORE BUSINESS FLOWS</span></div>
-  <p class="sec-desc">四大主干流程：五动词主闭环、入台与调出的微观路径、好奇转化流、方向校准与数据保护流。</p>
+<section id="d6" data-page-node-id="U4gBKQkjFZHAgrEU0Ab1d4">
+  <div class="sec-head" data-page-node-id="lJsqGlWRqllrNQnmdTnGZf"><span class="no" data-page-node-id="zxbXLx1A9enrCbx6fWcl6F">⑥</span><h2 data-page-node-id="dSQ2D52EgGvVZSYGCp8Y3j">核心业务流程图</h2><span class="en" data-page-node-id="RK9TkQ2m9rd2lZsWZCQujc">CORE BUSINESS FLOWS</span></div>
+  <p class="sec-desc" data-page-node-id="a7eR04FeHoXgM5qAG0CVFr">四大主干流程：五动词主闭环、入台与调出的微观路径、好奇转化流、方向校准与数据保护流。</p>
 
-  <div class="board" style="margin-bottom:14px">
-    <div class="layer-title" style="font-size:14px">主闭环 · 调度的复利</div>
-    <div class="cycle">
-      <div class="cstep"><h4>入台</h4><p>5 秒收进来<br>万物成卡</p></div>
-      <div class="carrow">→</div>
-      <div class="cstep"><h4>归位</h4><p>给归属<br>台/类/签/项目</p></div>
-      <div class="carrow">→</div>
-      <div class="cstep"><h4>调出</h4><p>三秒召回<br>双击直达</p></div>
-      <div class="carrow">→</div>
-      <div class="cstep"><h4>复用</h4><p>计数可见<br>高频浮现</p></div>
-      <div class="carrow">→</div>
-      <div class="cstep"><h4>校准</h4><p>四指标照镜<br>行动对方向</p></div>
-      <div class="carrow" style="transform:rotate(180deg);display:inline-block">→</div>
-      <div style="font-size:11px;color:var(--text3);max-width:150px">校准反过来滋养下一轮：<br>好奇什么 → 入台什么</div>
+  <div class="board" style="margin-bottom:14px" data-page-node-id="BrqwRLU8AfjtUDCJ85pFB1">
+    <div class="layer-title" style="font-size:14px" data-page-node-id="LItt8NEIGzrakbCdZCqynW">主闭环 · 调度的复利</div>
+    <div class="cycle" data-page-node-id="cf4J0SmLmCry3wzccRxAOs">
+      <div class="cstep" data-page-node-id="4mf2kh072BhwZ5DZSBqOfY"><h4 data-page-node-id="E6BfNVO1CnHikGqGtvXnKS">入台</h4><p data-page-node-id="Oqcj04ogGyKuy5o9CLFDPF">5 秒收进来<br data-page-node-id="Sgm08L9zVoqX8TtGtvJb2M">万物成卡</p></div>
+      <div class="carrow" data-page-node-id="uJCnOdCjAmykt7R8gCr4Kz">→</div>
+      <div class="cstep" data-page-node-id="06ZFigXUbgC7XrHFvUWLJJ"><h4 data-page-node-id="1XDvVbY7rBm1EOplSFGugJ">归位</h4><p data-page-node-id="IDzrGC8ATCMduGRnYeA8aQ">给归属<br data-page-node-id="jt3QGoHB2qqGOFQH1ewaCZ">台/类/签/项目</p></div>
+      <div class="carrow" data-page-node-id="3mkHJxWiW0GBGKe1ZsCYet">→</div>
+      <div class="cstep" data-page-node-id="iONqCIDshmumJMxHK5qT63"><h4 data-page-node-id="PEnG9V6xyYkbCaDejSFwP1">调出</h4><p data-page-node-id="NwGyoWm2s0yazcjkQuOeMB">三秒召回<br data-page-node-id="CgA0iSPFTje9f1AW9UuQE2">双击直达</p></div>
+      <div class="carrow" data-page-node-id="ALU5pdLFDRwH86S1UJgEQV">→</div>
+      <div class="cstep" data-page-node-id="EvIbED0X0RWeU3YJzKiVjV"><h4 data-page-node-id="tZY8AB0jjaCY9nJQqLlGdP">复用</h4><p data-page-node-id="tFlOfEyIsHG07xROZ5J0bF">计数可见<br data-page-node-id="ByLDdWBFHxq1XXxrM8rXi8">高频浮现</p></div>
+      <div class="carrow" data-page-node-id="NaefqpgxEyEQJTU4bImbDw">→</div>
+      <div class="cstep" data-page-node-id="eRhnPd3M7UDWM78SLLqbXR"><h4 data-page-node-id="tigPXx0FThzOrb5R0cZxIj">校准</h4><p data-page-node-id="VsfFrvOYYN47mq6vEeDuWV">四指标照镜<br data-page-node-id="xfkghOm4hh56A9a4yG4vDz">行动对方向</p></div>
+      <div class="carrow" style="transform:rotate(180deg);display:inline-block" data-page-node-id="LSSPIGE3hCMNh8HE88prR1">→</div>
+      <div style="font-size:11px;color:var(--text3);max-width:150px" data-page-node-id="9AcDUmJZuS0RlkSP1Cx5VH">校准反过来滋养下一轮：<br data-page-node-id="IkElMKFVMhCoKcs9LtCpEY">好奇什么 → 入台什么</div>
     </div>
   </div>
 
-  <div class="board" style="margin-bottom:14px">
-    <div class="layer-title" style="font-size:14px">流程 A · 入台（采集）</div>
-    <div class="flow">
-      <div class="step"><div class="no">01</div><h4>看到有价值信息</h4><p>任意网页，不打断心流</p></div>
-      <div class="step-arrow">→</div>
-      <div class="step"><div class="no">02</div><h4>唤起采集浮层</h4><p>应用内/降级弹窗同语义</p><span class="hotkey">Ctrl+Shift+J</span></div>
-      <div class="step-arrow">→</div>
-      <div class="step"><div class="no">03</div><h4>自动预填</h4><p>标题 / URL / 选中文本；一句话注解</p></div>
-      <div class="step-arrow">→</div>
-      <div class="step"><div class="no">04</div><h4>保存</h4><p>Enter 即走；300ms 内落盘</p><span class="hotkey">Ctrl+Enter</span></div>
-      <div class="step-arrow">→</div>
-      <div class="step"><div class="no">05</div><h4>回执</h4><p>「✓ 已入台」+ 今日记录 +1</p></div>
+  <div class="board" style="margin-bottom:14px" data-page-node-id="kN1Lk0BgiKidD3CaEyggcJ">
+    <div class="layer-title" style="font-size:14px" data-page-node-id="7AVCMETGjpN3GWC6JrXo83">流程 A · 入台（采集）</div>
+    <div class="flow" data-page-node-id="MYmaJ8sVL4yxxxU3Yg2tQh">
+      <div class="step" data-page-node-id="wVeiD3ugT8HKJhPNavPnkU"><div class="no" data-page-node-id="jQQlkWYd398WDYmhcvM8yC">01</div><h4 data-page-node-id="MJWjxm6AGS72ik1zYG35fC">看到有价值信息</h4><p data-page-node-id="IMD4zkqyiiBxtXPRrIlo5Y">任意网页，不打断心流</p></div>
+      <div class="step-arrow" data-page-node-id="FjvLLWOgMFGSRrJOYpYASD">→</div>
+      <div class="step" data-page-node-id="CVD1NBmCpHhxP7WPD3Kj9B"><div class="no" data-page-node-id="GQT6GziEUnKKGJc0RnUKi1">02</div><h4 data-page-node-id="ZxEVINh4P48voyXCv7CF8I">唤起采集浮层</h4><p data-page-node-id="l55N3SpJfy6qsxjab0g2tZ">应用内/降级弹窗同语义</p><span class="hotkey" data-page-node-id="e12BDJdc4Tp8n2GT0jaiX6">Ctrl+Shift+J</span></div>
+      <div class="step-arrow" data-page-node-id="CS1oAUHjsqOkZA3hitmb16">→</div>
+      <div class="step" data-page-node-id="XUUDiTlECXP10Y2EfL8nJl"><div class="no" data-page-node-id="LBgvHwHKX3MJo5GwCCrT18">03</div><h4 data-page-node-id="J9dlXFh74VNGv3sayEGGaI">自动预填</h4><p data-page-node-id="x0cR3VtbQzj2Xtv8TKSYD9">标题 / URL / 选中文本；一句话注解</p></div>
+      <div class="step-arrow" data-page-node-id="yg68SCJnSG7YnAF0G5FIJD">→</div>
+      <div class="step" data-page-node-id="OEbhJYtInVY3IPC8XkRzrI"><div class="no" data-page-node-id="xlSXbU2SEC9JMGtSGYELAZ">04</div><h4 data-page-node-id="iyCgCg4A6f8zEyEgyoIIFd">保存</h4><p data-page-node-id="eBAWpduBCVkLFSXuwqZTDW">Enter 即走；300ms 内落盘</p><span class="hotkey" data-page-node-id="Bq71I6L9TSPjQ6kFSMPr9J">Ctrl+Enter</span></div>
+      <div class="step-arrow" data-page-node-id="lH246TgKNfBZEl4lscstzz">→</div>
+      <div class="step" data-page-node-id="0Rn1LdX3mM7GCuO0fCbRwK"><div class="no" data-page-node-id="oLQZLmKgomBefeQHFKYCNN">05</div><h4 data-page-node-id="zpxCmHAqNverhwZkP8m5hW">回执</h4><p data-page-node-id="O9NXoilv4mXoujD1xYkTnw">「✓ 已入台」+ 今日记录 +1</p></div>
     </div>
   </div>
 
-  <div class="board" style="margin-bottom:14px">
-    <div class="layer-title" style="font-size:14px">流程 B · 调出（三秒标准）</div>
-    <div class="flow">
-      <div class="step"><div class="no">01</div><h4>需要它的一刻</h4><p>客户问 / 写到一半 / 被质询</p></div>
-      <div class="step-arrow">→</div>
-      <div class="step"><div class="no">02</div><h4>唤起全局搜索</h4><p>任意网页可用</p><span class="hotkey">Ctrl+K</span></div>
-      <div class="step-arrow">→</div>
-      <div class="step"><div class="no">03</div><h4>键入</h4><p>关键词 / 拼音首字母（sj→设计）；命中标题·标签·分类·项目</p></div>
-      <div class="step-arrow">→</div>
-      <div class="step"><div class="no">04</div><h4>排序呈现</h4><p>置顶 > 星标 > 标题命中 > 热度 > 最近调出</p></div>
-      <div class="step-arrow">→</div>
-      <div class="step"><div class="no">05</div><h4>打开</h4><p>回车 / 双击直达原文件、原网页</p></div>
-      <div class="step-arrow">→</div>
-      <div class="step"><div class="no">06</div><h4>复用 +1</h4><p>🔥 计数 / 最近调出更新</p></div>
+  <div class="board" style="margin-bottom:14px" data-page-node-id="ckAhzm5A9oTDEi0jr1vHbD">
+    <div class="layer-title" style="font-size:14px" data-page-node-id="NBRPUPQbD6OmJ7ISpMY2LC">流程 B · 调出（三秒标准）</div>
+    <div class="flow" data-page-node-id="9TfADkBFNOiU1VZcYMgxl3">
+      <div class="step" data-page-node-id="XGFa3elGHFyzuWtZXFz7xF"><div class="no" data-page-node-id="UhHpp8dWCqcGMRZjnEjGp0">01</div><h4 data-page-node-id="b4r0JhzmIDLDzi7M64qMEm">需要它的一刻</h4><p data-page-node-id="zVBQAF8Lep1OvEoBQNpM7q">客户问 / 写到一半 / 被质询</p></div>
+      <div class="step-arrow" data-page-node-id="iiT3SlaEwCUAutlnihqCy2">→</div>
+      <div class="step" data-page-node-id="khXAEArCnlDvBNCQdY1GRG"><div class="no" data-page-node-id="56PHJuEdPgfVMZqFsC5DuK">02</div><h4 data-page-node-id="DNqAfyEi5543RNG1OxuDDM">唤起全局搜索</h4><p data-page-node-id="kuxIfTEdzzUor40nP77KyQ">任意网页可用</p><span class="hotkey" data-page-node-id="EAoSAojzebYTidW6cIFNAh">Ctrl+K</span></div>
+      <div class="step-arrow" data-page-node-id="BLjArqavHcRSLHo1bIGX2D">→</div>
+      <div class="step" data-page-node-id="Z7YdlZJHEE9FTnjvvlS5GH"><div class="no" data-page-node-id="oHNL3jRLn7xkC33lmcBgfi">03</div><h4 data-page-node-id="0xtpWKlaYZ5yvQfK0zeOZT">键入</h4><p data-page-node-id="hhdADdMWUhQXfOQmIiQbj8">关键词 / 拼音首字母（sj→设计）；命中标题·标签·分类·项目</p></div>
+      <div class="step-arrow" data-page-node-id="5rsgDs8V0VBIem5K0kDG9E">→</div>
+      <div class="step" data-page-node-id="BcavJ8if8VLbNaVPStDxT2"><div class="no" data-page-node-id="DGUmzbOjbGiOaHHVNk1SWJ">04</div><h4 data-page-node-id="YgnNyAKt3er4JUXudeKJF1">排序呈现</h4><p data-page-node-id="cCc1YvF1B82IptecdNj1yw">置顶 > 星标 > 标题命中 > 热度 > 最近调出</p></div>
+      <div class="step-arrow" data-page-node-id="XTHa2I62cESZ7WvP9bnKtJ">→</div>
+      <div class="step" data-page-node-id="v7aEpI4ItBBzubru9Oz4Rp"><div class="no" data-page-node-id="yMeLajV1IrcNGvpWCHBa6f">05</div><h4 data-page-node-id="k11UZHFFZXAaIw7HkzFj2Q">打开</h4><p data-page-node-id="RV5UlB8AEIUNCxlvKfWUrV">回车 / 双击直达原文件、原网页</p></div>
+      <div class="step-arrow" data-page-node-id="VCoPCbACgw9GyvHH68qxe6">→</div>
+      <div class="step" data-page-node-id="7G44Q08ohCr6HbfiuCs763"><div class="no" data-page-node-id="yPHtDn9DsWT8N0q4wpQja6">06</div><h4 data-page-node-id="9ksK8wmkDpJSfbR7mOX5hs">复用 +1</h4><p data-page-node-id="Qhi3vGHCqGinThDyfJf4xd">🔥 计数 / 最近调出更新</p></div>
     </div>
-    <div class="loopback"><b>↺ 未调出即答案？</b> Tab 切类型（任务/资源/好奇），或直接在结果上 🗑 免确认删除（软删可回）。</div>
+    <div class="loopback" data-page-node-id="xjdhkqLWl1U8Y6r1d8pKbu"><b data-page-node-id="IMAOAvsUdJnf4jTBH7Jlee">↺ 未调出即答案？</b> Tab 切类型（任务/资源/好奇），或直接在结果上 🗑 免确认删除（软删可回）。</div>
   </div>
 
-  <div class="board" style="margin-bottom:14px">
-    <div class="layer-title" style="font-size:14px">流程 C · 好奇转化（WCE 口径）</div>
-    <div class="flow">
-      <div class="step"><div class="no">01</div><h4>念头闪现</h4><p>问题 / 灵感</p></div>
-      <div class="step-arrow">→</div>
-      <div class="step"><div class="no">02</div><h4>好奇速记</h4><p>附来源，3 秒</p><span class="hotkey">Ctrl+Shift+I</span></div>
-      <div class="step-arrow">→</div>
-      <div class="step"><div class="no">03</div><h4>四态推进</h4><p>待探索 → 探索中 → 已求证 / 已搁置</p></div>
-      <div class="step-arrow">→</div>
-      <div class="step"><div class="no">04</div><h4>转化</h4><p>转任务（要做）或转资源（结论）；写 fromCuriosityId</p></div>
-      <div class="step-arrow">→</div>
-      <div class="step"><div class="no">05</div><h4>计入 WCE</h4><p>激活项 + 转化卡数，好奇心不白记</p></div>
+  <div class="board" style="margin-bottom:14px" data-page-node-id="r10zEyCxlFnlFywWcuAnaJ">
+    <div class="layer-title" style="font-size:14px" data-page-node-id="YmZH9O6ANHXHx6WsZD9TiF">流程 C · 好奇转化（WCE 口径）</div>
+    <div class="flow" data-page-node-id="BtwV7tm9H6zEFmRV3Hi1nT">
+      <div class="step" data-page-node-id="RH0InzeQqTXFWB9sly5tXv"><div class="no" data-page-node-id="9Mu9FpTw37YxbIVuCsUGDC">01</div><h4 data-page-node-id="ziUwSOnhPNNFdxfKlPv2Ug">念头闪现</h4><p data-page-node-id="EtpPIf3luHmh4bsiorKpKA">问题 / 灵感</p></div>
+      <div class="step-arrow" data-page-node-id="AEOQT79h5Oq6UcxGZZ76jz">→</div>
+      <div class="step" data-page-node-id="6X5JMOkeH5dJq0SWT6R5Aa"><div class="no" data-page-node-id="AZ5PJGNksPkxXuXA0VioJd">02</div><h4 data-page-node-id="kmRHEt8C70yGXFgiBVf489">好奇速记</h4><p data-page-node-id="zpGR4TNDvU53qLawXUuJC9">附来源，3 秒</p><span class="hotkey" data-page-node-id="sO2GS6zZjMX5cwWHAYecKe">Ctrl+Shift+I</span></div>
+      <div class="step-arrow" data-page-node-id="DGvwTEpIx1FbJKqIPNw5vn">→</div>
+      <div class="step" data-page-node-id="DE4pzs0sWDDg4KaiLhKZYp"><div class="no" data-page-node-id="yoZ2KAINoP3nu2EE3cWR81">03</div><h4 data-page-node-id="T15tFfiPwMXt3yJSi7I0MB">四态推进</h4><p data-page-node-id="cmG2OJo6rOSmp8JuAbdEmV">待探索 → 探索中 → 已求证 / 已搁置</p></div>
+      <div class="step-arrow" data-page-node-id="WnHNgUj3M3VbbbNZ8zoFOW">→</div>
+      <div class="step" data-page-node-id="SPHgnwCy7rypEAxdXXRHbt"><div class="no" data-page-node-id="VfUFb7KzmmU29XkUSC1PuD">04</div><h4 data-page-node-id="mpcXTpzcTFRRYvzdJrTEWb">转化</h4><p data-page-node-id="5DO60e920DzeeHJ0MWx4Q1">转任务（要做）或转资源（结论）；写 fromCuriosityId</p></div>
+      <div class="step-arrow" data-page-node-id="S11BHSEOMHalIY8TSQniQy">→</div>
+      <div class="step" data-page-node-id="F0unrk6057osDhM9WPqpu2"><div class="no" data-page-node-id="cGaOQqtcdMuO8FROFPMHFe">05</div><h4 data-page-node-id="8dCK2h96cDDCCROTq0do7k">计入 WCE</h4><p data-page-node-id="qzDSfYwXRQO9ziK8GLH0RZ">激活项 + 转化卡数，好奇心不白记</p></div>
     </div>
   </div>
 
-  <div class="board">
-    <div class="layer-title" style="font-size:14px">流程 D · 方向校准与数据保护（泳道）</div>
-    <div class="lane">
-      <div class="lane-name">每周校准<small>方向台 / 调度台</small></div>
-      <div class="lane-body">
-        <span class="node start">打开方向状态</span><span class="fa">→</span>
-        <span class="node">DHI 在轨占比</span><span class="fa">→</span>
-        <span class="node">WCE 探索与转化</span><span class="fa">→</span>
-        <span class="node">WRR 复用</span><span class="fa">→</span>
-        <span class="node warn">未归档 ↑?</span><span class="fa">→</span>
-        <span class="node">任务库筛「⚠ 未归档」就地归档</span><span class="fa">→</span>
-        <span class="node end">定下周主攻与三件事</span>
+  <div class="board" data-page-node-id="EhMruIKiYmeHrUoGsboWFv">
+    <div class="layer-title" style="font-size:14px" data-page-node-id="oUDZ1uWICZ5unUDY2hYYku">流程 D · 方向校准与数据保护（泳道）</div>
+    <div class="lane" data-page-node-id="TKQGJ3KfkCbRDvw5Fk04zj">
+      <div class="lane-name" data-page-node-id="PNmlt2mFoY6LIuGxBB97h3">每周校准<small data-page-node-id="ESSTgWTSQmSU3JoGc8gX8m">方向台 / 调度台</small></div>
+      <div class="lane-body" data-page-node-id="LTvVMltWUSZCllkDf2zI5d">
+        <span class="node start" data-page-node-id="cgtsdsAF4HxkcdITUhbGI0">打开方向状态</span><span class="fa" data-page-node-id="ffeEAh558UBJjx7f0JDYjs">→</span>
+        <span class="node" data-page-node-id="FKD8PSwZXrWhu4hehmA6OX">战略目标 · 推进项目数</span><span class="fa" data-page-node-id="eN6NqIxUU264F5CvAB8a5M">→</span>
+        <span class="node" data-page-node-id="LafmZwxHhJ6NlQF1WqrdMY">WCE 探索与转化</span><span class="fa" data-page-node-id="0cfDdJOjOQq9RJYTEprCBG">→</span>
+        <span class="node" data-page-node-id="eXQsZuwbgxmVjaSWDJyhAO">WRR 复用</span><span class="fa" data-page-node-id="UofED9Rfw4BNLA7sRLyjh9">→</span>
+        <span class="node warn" data-page-node-id="J73XavlcJrmUMqpk9KH0pU">未归档 ↑?</span><span class="fa" data-page-node-id="PbWt0vfATJxdowMCDlW126">→</span>
+        <span class="node" data-page-node-id="ykB8Zqlw7Jut7a2ignrNmE">任务库筛「⚠ 未归档」就地归档</span><span class="fa" data-page-node-id="urzi4c9Sq25cEs5dXuYl33">→</span>
+        <span class="node end" data-page-node-id="zaSFsV88GLBi2SWQC1bz8D">定下周主攻与三件事</span>
       </div>
     </div>
-    <div class="lane">
-      <div class="lane-name">删除保护<small>任何视图</small></div>
-      <div class="lane-body">
-        <span class="node warn">🗑 删除</span><span class="fa">→</span>
-        <span class="node">写 deletedAt（软删）</span><span class="fa">→</span>
-        <span class="node">Toast 可撤销</span><span class="fa">→</span>
-        <span class="node">回收站</span><span class="fa">→</span>
-        <span class="node end">恢复（孤卡回落可用台）</span>
-        <span class="fa">｜ 或 →</span>
-        <span class="node warn">永久删除（清附件）</span>
+    <div class="lane" data-page-node-id="WzfbntuoSngEt4GUmodOU5">
+      <div class="lane-name" data-page-node-id="UmHG7nkEBt8pn3ACiz6TTO">删除保护<small data-page-node-id="JtTickd0u9ULehVgT8imQF">任何视图</small></div>
+      <div class="lane-body" data-page-node-id="QhXdUauZqynNQjAFP5e6yf">
+        <span class="node warn" data-page-node-id="Fa6vJ1oIjYa3TfYBmQK8yQ">🗑 删除</span><span class="fa" data-page-node-id="BslbqA8FiuJqDrKgiGn5oB">→</span>
+        <span class="node" data-page-node-id="ezTYUdVJJ9xgECYtZRX0PQ">写 deletedAt（软删）</span><span class="fa" data-page-node-id="PT8ajE58NuEMpJjidBhxCk">→</span>
+        <span class="node" data-page-node-id="8JZFz6ZTTnD0GKdH0tNM6O">Toast 可撤销</span><span class="fa" data-page-node-id="HexbAgIeiWYIa00RNRv6dw">→</span>
+        <span class="node" data-page-node-id="oJsLEQDPa09TXLRT6zEOwk">回收站</span><span class="fa" data-page-node-id="fKTJFZpulsyV3DwVkgEjD8">→</span>
+        <span class="node end" data-page-node-id="rIE83yKYf9GdAGKqWNCQFA">恢复（孤卡回落可用台）</span>
+        <span class="fa" data-page-node-id="jx9jF4kNBEglIZX62JnsJC">｜ 或 →</span>
+        <span class="node warn" data-page-node-id="EDj28ogcOdiHlkNMLBN6GK">永久删除（清附件）</span>
       </div>
     </div>
-    <div class="lane">
-      <div class="lane-name">迁移保护<small>设置 / 换机</small></div>
-      <div class="lane-body">
-        <span class="node">导出 JSON 全量</span><span class="fa">→</span>
-        <span class="node">新机导入</span><span class="fa">→</span>
-        <span class="node warn">自动备份当前库</span><span class="fa">→</span>
-        <span class="node">version 校验 + 并集合并</span><span class="fa">→</span>
-        <span class="node end">标签树 / 目标与行动 / 三卡全部随行</span>
+    <div class="lane" data-page-node-id="U7QZssbcxn0xMeUE5o4UD5">
+      <div class="lane-name" data-page-node-id="DAtUEC8KVFCsAPQLMInmwB">迁移保护<small data-page-node-id="VZdpGb79TTx9i36u8aMrCR">设置 / 换机</small></div>
+      <div class="lane-body" data-page-node-id="WREjzkDOVCs0UA01XK5UBc">
+        <span class="node" data-page-node-id="QPsbkU8L3F34pM5bBTBGCV">导出 JSON 全量</span><span class="fa" data-page-node-id="QUWyXTMHe4sF5ACUYSOOmO">→</span>
+        <span class="node" data-page-node-id="xDhegJ3vGkvHpcWhNKxR3Q">新机导入</span><span class="fa" data-page-node-id="c8YImoCN4IyGhMdaKY9qn9">→</span>
+        <span class="node warn" data-page-node-id="zbZwZc1UpL479vekraeWyw">自动备份当前库</span><span class="fa" data-page-node-id="FlVd61bFyKJ06vECAmMZtA">→</span>
+        <span class="node" data-page-node-id="qewjodRE4jsBDpHWLz6rc3">version 校验 + 并集合并</span><span class="fa" data-page-node-id="MbZc8AO0Qs15ljKSfpzc8m">→</span>
+        <span class="node end" data-page-node-id="dqlOw5VoUBNRfXIawMxCrx">标签树 / 目标与行动 / 三卡全部随行</span>
       </div>
     </div>
-    <div class="lane" style="margin-bottom:0">
-      <div class="lane-name">并发保护<small>多窗口 / 浮层</small></div>
-      <div class="lane-body">
-        <span class="node">窗口 B 修改中（未落盘）</span><span class="fa">→</span>
-        <span class="node">窗口 A 写入广播</span><span class="fa">→</span>
-        <span class="node warn">B 有未落盘修改?</span><span class="fa">→</span>
-        <span class="node end">卡片级 LWW 合并（保 B 未存修改 + 收 A 改动）</span>
-        <span class="fa">｜ 无 →</span>
-        <span class="node">整树替换</span>
+    <div class="lane" data-page-node-id="ZoHLSBpLo6Je7z4vwhVI9J">
+      <div class="lane-name" data-page-node-id="UCvk9nfqN5FqR7v13KAOsD">外部留存<small data-page-node-id="1peHiuAlRVYvYK9Bcw3fJs">可选 · 设置</small></div>
+      <div class="lane-body" data-page-node-id="BA2Brz3jFnrLRZfNbWU0sd">
+        <span class="node" data-page-node-id="RRw7ty31lNWKhM3ERbY76x">设置 → Airtable 同步</span><span class="fa" data-page-node-id="CpWTysvGZJhFtfSp0RTh1z">→</span>
+        <span class="node" data-page-node-id="hg6EL7gLegAIHXAfFG6Dqk">填入自己的 Personal Access Token</span><span class="fa" data-page-node-id="oeGLhzElhJrbAqljalLYCS">→</span>
+        <span class="node warn" data-page-node-id="xPxnaYxfMzYf7y21C7EokB">凭据仅存本机</span><span class="fa" data-page-node-id="EoD9kHJQOcF2tD27LHXZq1">→</span>
+        <span class="node" data-page-node-id="JEhvMDGDveY4brNBrHesBU">连接测试</span><span class="fa" data-page-node-id="cBJ73BBBZkNKf2bGgfZPZa">→</span>
+        <span class="node end" data-page-node-id="xCEx2vOziF1OeWRTvPcJGQ">手动「立即同步」：单向推送到自有 Base，绝不回写本地</span>
+        <span class="fa" data-page-node-id="bdWVeRpc3kTGKNcSHKOJr3">｜ 撞已删记录 →</span>
+        <span class="node" data-page-node-id="zSC9AZS5IKLKiilwTGFALB">逐条自愈重建并写回映射</span>
+      </div>
+    </div>
+    <div class="lane" style="margin-bottom:0" data-page-node-id="tq8tQfBdpU1q6yGEjTq5Do">
+      <div class="lane-name" data-page-node-id="7XOFz1Ls0xFW7TvLVxU00j">并发保护<small data-page-node-id="Hs6MDiwot41sE38xoMAAaF">多窗口 / 浮层</small></div>
+      <div class="lane-body" data-page-node-id="1GUMHQ1iEqFIubhQXmBTmS">
+        <span class="node" data-page-node-id="8zEdSqrwP3LvXNQIgrxje6">窗口 B 修改中（未落盘）</span><span class="fa" data-page-node-id="ELUANEW1YrLhoolmHC0gqT">→</span>
+        <span class="node" data-page-node-id="2u4iOGY1PgU6iELJaJjtaq">窗口 A 写入广播</span><span class="fa" data-page-node-id="Lsdk92yLP1HQZqopPC2zbI">→</span>
+        <span class="node warn" data-page-node-id="xNq4uzZKFliMjhnVDUHOEf">B 有未落盘修改?</span><span class="fa" data-page-node-id="z3P8zSqQ01dfxBMOpH0lYS">→</span>
+        <span class="node end" data-page-node-id="RuhM12Hq0yArYePDptTUij">卡片级 LWW 合并（保 B 未存修改 + 收 A 改动）</span>
+        <span class="fa" data-page-node-id="UxTIgnAu70R0zvpk4GkbRB">｜ 无 →</span>
+        <span class="node" data-page-node-id="jhd10fHlCyGsAE0su2L0mo">整树替换</span>
       </div>
     </div>
   </div>
@@ -578,9 +595,9 @@
 
 </main>
 
-<footer>
-  <div>知源调度台 · 架构图集 · V2.32.0 · 2026-09-07</div>
-  <div>万千可调用，自有我方向。看见方向，留下好奇，调用所需，策展成果。</div>
+<footer data-page-node-id="xpgsMuwdo8YG2AYzHFIAmm">
+  <div data-page-node-id="docNUGrEaR5fB4g6ZCOy4n">知源调度台 · 架构图集 · V2.38.0 · 2026-09-10</div>
+  <div data-page-node-id="zgqjYpVEhWqNTtFGN7wYCx">万千可调用，自有我方向。看见方向，留下好奇，调用所需，策展成果。</div>
 </footer>
 
 </body>

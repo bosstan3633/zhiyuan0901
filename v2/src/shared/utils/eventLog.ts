@@ -8,7 +8,7 @@
  *  - 独立存储键 zy_event_log（不进主 JSON zy_data_v2，不碰卡片模型）
  *  - 由 repository 层在 saveData/saveDataNow 时对卡片做快照 diff 自动产出事件：
  *    新 id=create / deletedAt 置位=delete / deletedAt 清除=restore / id 消失=purge
- *    —— 任何业务路径（工作台/任务中心/罗盘/回收站/采集弹窗）统一覆盖，零散点挂钩易漏
+ *    —— 任何业务路径（策展台/任务中心/罗盘/回收站/采集弹窗）统一覆盖，零散点挂钩易漏
  *  - 5000 条滚动淘汰（≈0.6MB）；批量导入/回滚等大规模变动合并为一条 system 摘要事件防爆量
  *  - 外部写入（chrome.storage.onChanged → syncCache）静默重建快照：事件由执行写入的上下文记录
  *  - 日志为空时（老数据）UI 回退纯派生（createdAt/deletedAt），新旧无缝

@@ -274,7 +274,7 @@ async function save() {
           </div>
           <div class="field-row">
             <div class="field">
-              <label class="field-label">存入工作台</label>
+              <label class="field-label">存入台面</label>
               <select v-model="workspaceId" class="field-select">
                 <option v-for="w in workspaces" :key="w.id" :value="w.id">{{ w.name }}</option>
               </select>

@@ -2,11 +2,11 @@
 /**
  * 第卅九轮 V2.15.0（技术债，第卅七轮 REQ-042 拍板）：资源卡编辑表单（共享单份）
  * - 合一对象：Workspace 内联抽屉（原 dr-* 字段区/标题/footer）与 ResourceDetailDrawer（原 red-* 全套）
- * - 范围：标题 / 链接(类型·输入·file 告警) / 工作台 / 分类(随台联动) / TagPicker / 描述(拖拽记忆) /
+ * - 范围：标题 / 链接(类型·输入·file 告警) / 策展台 / 分类(随台联动) / TagPicker / 描述(拖拽记忆) /
  *         附件(REQ-048) / extra 插槽(宿主差异内容，如使用统计) / 被任务挂载 / 创建更新时刻 / footer 动作条
  * - 行为约定（与两宿主原实现完全一致）：
  *   ① 标题/链接/描述 Ctrl+Enter 保存（emit save）
- *   ② 切换工作台 → 清空分类（REQ-005）
+ *   ② 切换策展台 → 清空分类（REQ-005）
  *   ③ 附件变更即时持久化：已入库卡(idx>=0)写回 + persist；新建未入库仅暂挂 model（宿主保存时统一入库）
  *   ④ 挂载任务点击 → 跳任务中心（emit goto-task）
  *   ⑤ footer：删除/复制链接/打开链接/保存 → 宿主各自 handler（新建/编辑差异、deleting 锁差异在宿主）
@@ -44,9 +44,9 @@ const store = useAppStore()
 const d = computed(() => store.data!)
 const { taH: noteH, startTaResize: startNoteResize } = useTaHeight(props.heightKey, store.ui)
 
-/** 工作台选项（store.workspaces 已过滤 archived + 排序） */
+/** 策展台选项（store.workspaces 已过滤 archived + 排序） */
 const wsOptions = computed(() => store.workspaces)
-/** 分类随所选工作台联动（REQ-005） */
+/** 分类随所选策展台联动（REQ-005） */
 const catOptions = computed(() => treeCatOptions((d.value.categories || []).filter(c => c.workspaceId === props.model.workspaceId)))
 /** 被任务挂载（只读，点击跳任务中心） */
 const mountedTasks = computed(() => d.value.tasks.filter(t => !t.deletedAt && (t.mountedResourceIds || []).includes(props.model.id)))
@@ -72,7 +72,7 @@ function isFullPath(link: string): boolean {
   return /^([a-zA-Z]:[\\/]|file:\/\/|\/)/.test(link.trim())
 }
 
-/** 切换工作台后清空分类（REQ-005） */
+/** 切换策展台后清空分类（REQ-005） */
 function onWsChange() {
   props.model.categoryId = ''
 }
@@ -119,7 +119,7 @@ function fmtTs(ts?: number): string {
 </script>
 
 <template>
-  <!-- R48 详情重设计：链接区为 Hero（类型紧凑切换），工作台/分类双列，注解上移，附件/挂载折叠 -->
+  <!-- R48 详情重设计：链接区为 Hero（类型紧凑切换），策展台/分类双列，注解上移，附件/挂载折叠 -->
   <div class="ref-form">
     <div class="ref-title-row" :class="{ highlight }">
       <textarea class="ref-title" v-model="model.title" rows="2" placeholder="资源卡标题..."
@@ -143,10 +143,10 @@ function fmtTs(ts?: number): string {
       </div>
     </div>
 
-    <!-- 属性双列：工作台 / 分类（切换保存后即跨台迁移；级联不变） -->
+    <!-- 属性双列：策展台 / 分类（切换保存后即跨台迁移；级联不变） -->
     <div class="ds-props2">
       <div class="ds-prop-field">
-        <label class="ds-prop-label">🗂 工作台</label>
+        <label class="ds-prop-label">🗂 策展台</label>
         <select class="ds-prop-select" v-model="model.workspaceId" @change="onWsChange">
           <option v-for="w in wsOptions" :key="w.id" :value="w.id">{{ w.name }}</option>
         </select>

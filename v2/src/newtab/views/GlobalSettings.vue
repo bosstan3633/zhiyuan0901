@@ -49,7 +49,7 @@
           <div class="gs-dash-stat" @click="openStatDrawer('link')">
             <div class="gs-ds-label">🔗 链接卡片</div>
             <div class="gs-ds-value">{{ linkCardCount }}</div>
-            <div class="gs-ds-sub">跨全部工作台</div>
+            <div class="gs-ds-sub">跨全部台面</div>
           </div>
         </div>
 
@@ -166,7 +166,7 @@
         <div class="gs-pan-wrap">
           <!-- 左栏：全景计数树（默认全展开） -->
           <div class="gs-pan-tree">
-            <div class="gs-pan-tree-head">全景 · {{ panTree.length }} 工作台 · {{ panTotalCats }} 分类 · {{ panTotalCards }} 卡</div>
+            <div class="gs-pan-tree-head">全景 · {{ panTree.length }} 策展台 · {{ panTotalCats }} 分类 · {{ panTotalCards }} 卡</div>
             <div v-for="wsNode in panTree" :key="wsNode.ws.id" class="gs-pan-ws">
               <div class="gs-pan-row gs-pan-ws-row" :class="{ active: panSelWs === wsNode.ws.id && !panSelCat, drop: dropTarget === 'ws:' + wsNode.ws.id }"
                 draggable="false" @click="selectPanWs(wsNode.ws.id)"
@@ -190,7 +190,7 @@
                 </template>
               </template>
             </div>
-            <div v-if="!panTree.length" class="gs-ev-empty">暂无工作台</div>
+            <div v-if="!panTree.length" class="gs-ev-empty">暂无策展台</div>
           </div>
           <!-- 右栏：当前分类卡片列表 -->
           <div class="gs-pan-list-wrap">
@@ -209,12 +209,12 @@
                 </div>
                 <span class="gs-pan-card-date">{{ fmtDay(r.createdAt) }}</span>
               </div>
-              <div v-if="!panCards.length" class="gs-ev-empty">左侧选择工作台或分类查看卡片</div>
+              <div v-if="!panCards.length" class="gs-ev-empty">左侧选择策展台或分类查看卡片</div>
             </div>
             <div v-if="panSelected.size" class="gs-pan-batch">
               <span class="gs-pan-batch-n">已选 {{ panSelected.size }} 张</span>
               <select class="gs-select" v-model="panMoveWs" @change="panMoveCat = ''">
-                <option value="">目标工作台…</option>
+                <option value="">目标策展台…</option>
                 <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</option>
               </select>
               <select class="gs-select" v-model="panMoveCat" :disabled="!panMoveWs">
@@ -385,7 +385,7 @@
       <div v-if="activePage === 'import'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">⬇ 导入数据</div>
-          <div class="gs-page-desc">从外部导入资源卡或工作台数据，导入时与现有数据取并集</div>
+          <div class="gs-page-desc">从外部导入资源卡或策展台数据，导入时与现有数据取并集</div>
         </div>
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">导入方式</span></div>
@@ -409,7 +409,7 @@
               <span class="gs-sr-label">书签导入到</span>
               <div class="gs-sr-control">
                 <select class="gs-select" v-model="bookmarkTargetWs">
-                  <option value="__new__">🆕 新建工作台「书签导入」</option>
+                  <option value="__new__">🆕 新建策展台「书签导入」</option>
                   <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</option>
                 </select>
               </div>
@@ -425,7 +425,7 @@
       <div v-if="activePage === 'export'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">⬆ 导出数据</div>
-          <div class="gs-page-desc">导出工作台数据用于备份或跨设备迁移</div>
+          <div class="gs-page-desc">导出策展台数据用于备份或跨设备迁移</div>
         </div>
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">备份提醒（第卅六轮）</span></div>
@@ -457,21 +457,21 @@
           <div class="gs-card-header"><span class="gs-card-title">导出方式</span></div>
           <div class="gs-card-body">
             <div class="gs-export-row">
-              <div class="gs-er-info"><div class="gs-er-name">导出全部数据</div><div class="gs-er-desc">全量JSON：调度台（愿景/使命/方向/项目/成功指标）+ 方向台（工作台/三卡/标签/统计）及全部数据关系，用于整体迁移备份</div></div>
+              <div class="gs-er-info"><div class="gs-er-name">导出全部数据</div><div class="gs-er-desc">全量JSON：调度台（愿景/使命/方向/项目/成功指标）+ 方向台（策展台/三卡/标签/统计）及全部数据关系，用于整体迁移备份</div></div>
               <button class="gs-btn gs-btn-primary" @click="exportAll">导出</button>
             </div>
             <div class="gs-export-row">
-              <div class="gs-er-info"><div class="gs-er-name">按工作台导出CSV</div><div class="gs-er-desc">字段：系统字段全导 + 自定义字段按可见性，列名/顺序跟随「字段管理」；尾随 链接类型/分类/置顶/星标/更新时间，适配Airtable等多维表</div></div>
+              <div class="gs-er-info"><div class="gs-er-name">按策展台导出CSV</div><div class="gs-er-desc">字段：系统字段全导 + 自定义字段按可见性，列名/顺序跟随「字段管理」；尾随 链接类型/分类/置顶/星标/更新时间，适配Airtable等多维表</div></div>
               <select class="gs-select" v-model="csvWsId">
-                <option value="">选择工作台…</option>
+                <option value="">选择策展台…</option>
                 <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</option>
               </select>
               <button class="gs-btn" @click="exportCsvForWorkspace" :disabled="!csvWsId">导出CSV</button>
             </div>
             <div class="gs-export-row">
-              <div class="gs-er-info"><div class="gs-er-name">导出指定工作台</div><div class="gs-er-desc">选择一个工作台导出为JSON</div></div>
+              <div class="gs-er-info"><div class="gs-er-name">导出指定策展台</div><div class="gs-er-desc">选择一个策展台导出为JSON</div></div>
               <select class="gs-select" v-model="exportWsId">
-                <option value="">选择工作台…</option>
+                <option value="">选择策展台…</option>
                 <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</option>
               </select>
               <button class="gs-btn" @click="exportWorkspace" :disabled="!exportWsId">导出</button>
@@ -518,7 +518,7 @@
               <div class="gs-sr-control"><span class="gs-keycap">{{ c.shortcut || '未设置' }}</span></div>
             </div>
             <div class="gs-setting-row">
-              <span class="gs-sr-label">修改全局快捷键（含方向台 / 资源台 / 完整方向树）</span>
+              <span class="gs-sr-label">修改全局快捷键（完整方向树等）</span>
               <div class="gs-sr-control"><a :href="shortcutsUrl" target="_blank" class="gs-shortcut-link">前往 chrome://extensions/shortcuts ›</a></div>
             </div>
           </div>
@@ -527,11 +527,11 @@
           <div class="gs-card-header"><span class="gs-card-title">应用内快捷键</span></div>
           <div class="gs-card-body">
             <div class="gs-setting-row">
-              <span class="gs-sr-label">切换工作台</span>
+              <span class="gs-sr-label">应用内切台</span>
               <div class="gs-sr-control">
                 <select class="gs-select" v-model="wsMod" @change="saveWsMod">
-            <option value="alt">Alt + 数字键（1=第 1 个工作台）</option>
-            <option value="ctrl">Ctrl + 数字键（1=第 1 个工作台）</option>
+            <option value="alt">Alt + 数字键（1=方向台、2=资源台、3 起=各策展台）</option>
+            <option value="ctrl">Ctrl + 数字键（1=方向台、2=资源台、3 起=各策展台）</option>
                   <option value="ctrl-shift">Ctrl + Shift + 数字键</option>
                   <option value="alt-shift">Alt + Shift + 数字键</option>
                   <option value="none">纯数字键（无修饰键）</option>
@@ -546,18 +546,18 @@
         </div>
       </div>
 
-      <!-- ===== 工作台快捷键（R49-I2：用户自建工作台从 1 起按创建顺序计数） ===== -->
+      <!-- ===== 策展台快捷键（R49-I2 引入；R69：键位改为 1=方向台、2=资源台、3 起=各策展台） ===== -->
       <div v-if="activePage === 'shortcuts'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">🎛 工作台快捷键</div>
-          <div class="gs-page-desc">在策展台标签页内按「修饰键 + 数字」直达；用户自建工作台从 1 起按创建顺序计数；调度台刷新自动回首页、方向台/资源台/完整方向树在浏览器快捷键（chrome://extensions/shortcuts）里自定义</div>
+          <div class="gs-page-title">🎛 策展台快捷键</div>
+          <div class="gs-page-desc">应用内按「修饰键 + 数字」切台：1 = 方向台、2 = 资源台、3 起按台签顺序对应各策展台（拖拽改序后数字键跟随顺序）；调度台为首页刷新自动回，不占数字键；完整方向树等浏览器级命令在 chrome://extensions/shortcuts 自定义</div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">映射表（按顶部导航顺序）</span><span class="gs-card-desc">第 N 个工作台 = 修饰键 + N（最多到数字 9）</span></div>
+          <div class="gs-card-header"><span class="gs-card-title">映射表（按顶部导航顺序）</span><span class="gs-card-desc">第 N 个策展台 = 修饰键 + (N+2)（最多到数字 9）</span></div>
           <div class="gs-card-body">
             <div class="gs-setting-row" v-for="(w, i) in store.workspaces" :key="w.id">
               <span class="gs-sr-label">第 {{ i + 1 }} 个 · {{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</span>
-              <div class="gs-sr-control"><span class="gs-keycap">{{ i + 1 <= 9 ? modLabel() + ' + ' + (i + 1) : '—' }}</span></div>
+              <div class="gs-sr-control"><span class="gs-keycap">{{ i + 3 <= 9 ? modLabel() + ' + ' + (i + 3) : '—' }}</span></div>
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">修饰键</span>
@@ -686,7 +686,7 @@
           <div class="gs-card-header"><span class="gs-card-title">⚠ 危险操作区</span></div>
           <div class="gs-card-body">
             <div class="gs-danger-action">
-              <div class="gs-da-info"><div class="gs-da-name">一键回滚至初始状态</div><div class="gs-da-desc">清空所有用户创建的工作台和所有资源卡、好奇心卡、任务卡，仅保留调度台、方向台（任务中心）和默认工作台</div></div>
+              <div class="gs-da-info"><div class="gs-da-name">一键回滚至初始状态</div><div class="gs-da-desc">清空所有用户创建的策展台和所有资源卡、好奇心卡、任务卡，仅保留调度台、方向台（任务中心）和默认策展台</div></div>
               <button class="gs-btn gs-btn-danger" @click="showResetModal = true">回滚</button>
             </div>
             <div class="gs-danger-action">
@@ -734,7 +734,7 @@
               </div>
             </div>
             <div class="gs-setting-row">
-              <span class="gs-sr-label">默认存入工作台</span>
+              <span class="gs-sr-label">默认存入台面</span>
               <div class="gs-sr-control">
                 <select class="gs-select" v-model="defaultCaptureWs" @change="persistCapturePref">
                   <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}（待分类）</option>
@@ -805,7 +805,7 @@
         <div class="gs-modal">
           <div class="gs-modal-header">⚠ 确认回滚至初始状态</div>
           <div class="gs-modal-body">
-            <p>此操作将清空所有用户创建的工作台和所有资源卡、好奇心卡、任务卡，<b style="color:var(--danger)">仅保留调度台、方向台（任务中心）和默认工作台</b>。</p>
+            <p>此操作将清空所有用户创建的策展台和所有资源卡、好奇心卡、任务卡，<b style="color:var(--danger)">仅保留调度台、方向台（任务中心）和默认策展台</b>。</p>
             <p>此操作<b style="color:var(--danger)">不可恢复</b>，建议先导出数据备份。</p>
             <p>请输入 <b>"回滚"</b> 以确认：</p>
             <input v-model="resetConfirmText" type="text" class="gs-confirm-input" placeholder="请输入 回滚" />
@@ -1015,7 +1015,7 @@ function formatBackupAgo(ts: number): string {
 }
 watch(() => route.query.page, () => { const p = pageFromQuery(); if (p) activePage.value = p })
 const navGroups = [
-  // R54-E1（修订第卌四轮五组拍板）：总览 = 知源仪表盘 + 工作台全景并列，「整理」组取消
+  // R54-E1（修订第卌四轮五组拍板）：总览 = 知源仪表盘 + 策展台全景并列，「整理」组取消
   { title: '总览', items: [
     { key: 'dashboard', icon: '📊', label: '知源仪表盘' },
     { key: 'panorama', icon: '🗺', label: '资源台全景' },
@@ -1256,7 +1256,7 @@ const statDrawerTitle = computed(() => ({
   resource: `📇 资源卡明细（${resLiveCount.value}）`,
   task: `✅ 任务卡明细（${taskLiveCount.value}）`,
   curiosity: `💡 好奇心卡明细（${curioLiveCount.value}）`,
-  link: `🔗 链接卡片明细（${linkCardCount.value} · 跨全部工作台）`,
+  link: `🔗 链接卡片明细（${linkCardCount.value} · 跨全部台面）`,
   '': ''
 }[statDrawer.value]))
 
@@ -1316,7 +1316,7 @@ const dynDrawerTitle = computed(() => ({
 }[dynDrawer.value]))
 
 // ============================================================
-// 第卌四轮 T-04/T-04'：工作台全景（双栏 Master-Detail + 批量移动双通道）
+// 第卌四轮 T-04/T-04'：策展台全景（双栏 Master-Detail + 批量移动双通道）
 // R63-1：资源台/策展台两级——策展台计数与列表含镜像卡（boardCardsOf），镜像卡标 📡 可跳真身
 interface PanCatNode { cat: { id: string; name: string; workspaceId: string }; count: number; children: PanCatNode[] }
 interface PanWsNode { ws: { id: string; name: string; icon?: string }; count: number; cats: PanCatNode[] }
@@ -1402,7 +1402,7 @@ const panCrumb = computed(() => {
     }
   }
   if (panSelWs.value) return `${gWsName(panSelWs.value)} · 全部卡片 ${panCards.value.length} 张`
-  return '左侧选择工作台或分类'
+  return '左侧选择策展台或分类'
 })
 const panAllChecked = computed(() => panCards.value.length > 0 && panCards.value.every(r => panSelected.value.has(r.id)))
 function togglePanAll() {
@@ -1626,7 +1626,7 @@ function handleFileImport(e: Event) {
           saveUIPrefs({ density: ui.density as 'compact' | 'cozy' })
         }
       }
-      showToast(`✓ 导入完成（并集）：卡片 ${n.cards}、罗盘方向 ${n.dirs}、工作台 ${n.ws}${ui ? '；界面偏好已应用' : ''}；已自动下载导入前备份`)
+      showToast(`✓ 导入完成（并集）：卡片 ${n.cards}、罗盘方向 ${n.dirs}、策展台 ${n.ws}${ui ? '；界面偏好已应用' : ''}；已自动下载导入前备份`)
     } catch { showToast('✗ 文件格式错误，请选择有效的JSON文件') }
   }
   reader.readAsText(file)
@@ -1713,7 +1713,7 @@ function mergeImport(imported: AppData): { cards: number; dirs: number; ws: numb
   const union = (...lists: (ID[] | undefined)[]): ID[] => Array.from(new Set(lists.flatMap(l => l || [])))
   const wsBefore = d.workspaces.length
 
-  // ---- 方向台：工作台 / 分类 / 三卡 ----
+  // ---- 方向台：策展台 / 分类 / 三卡 ----
   // R48-B2：导入卡片统一打 importedAt 戳（双口径统计「新建 X · 导入 Y」的依据；合并进既有卡也重打——它确实在本次被导入）
   const importedNow = Date.now()
   d.workspaces = mergeById(d.workspaces, imported.workspaces || [])
@@ -1842,7 +1842,7 @@ async function exportAll() {
   const payload = uiPrefs ? { ...d, uiPrefs } : { ...d }
   downloadFile(`zhiyuan_backup_${dateStr()}.json`, JSON.stringify(payload, null, 2))
   markBackupNow()
-  showToast('✓ 全量数据已导出（含全部工作台与界面偏好）')
+  showToast('✓ 全量数据已导出（含全部策展台与界面偏好）')
 }
 
 /** 第卌一轮 REQ-055：资源目录字段 → CSV 单元格文本（系统字段键值映射；自定义字段取 customFields） */
@@ -1875,7 +1875,7 @@ function resCsvValue(r: ResourceCard, key: string): string {
   }
 }
 
-/** 按工作台导出 CSV —— 第卌一轮 REQ-055：动态列对齐字段目录
+/** 按策展台导出 CSV —— 第卌一轮 REQ-055：动态列对齐字段目录
  * 目录字段（title/link/description/sourceType/tags/createdAt/assets + 自定义）全按目录配置：
  * 系统字段无条件导出、自定义字段按可见性过滤，列顺序 = fieldDef.order、列标题 = fieldDef.label（跟随重命名/显隐/排序）；
  * 目录外管理列（链接类型/分类/置顶/星标/更新时间）为卡片固有元数据，固定尾随。 */
@@ -2281,8 +2281,8 @@ const appShortcuts = [
   { label: '保存（所有编辑弹窗）', keys: 'Ctrl+Enter' },
   { label: '关闭弹窗/浮层', keys: 'Esc' },
   { label: '搜索浮层内过滤类型', keys: '输入「任务/资源/好奇心」+ Tab' },
-  { label: '工作台：双击卡片打开链接', keys: '双击' },
-  { label: '资源卡批量管理', keys: '工作台工具条「☑ 批量管理」' }
+  { label: '资源台：双击卡片打开链接', keys: '双击' },
+  { label: '资源卡批量管理', keys: '资源台工具条「☑ 批量管理」' }
 ]
 
 // ---- 使用手册（第二十轮：数据外置 manual-data.ts，五篇结构） ----
@@ -2580,7 +2580,7 @@ const activeManualSec = ref('quick-1')
 .gs-ev-dl { font-size: 11.5px; color: var(--text-2); line-height: 1.7; word-break: break-all; }
 .gs-ev-empty { text-align: center; padding: 22px; color: var(--text-3); font-size: 12.5px; }
 
-/* ===== 第卌四轮：工作台全景（双栏 Master-Detail） ===== */
+/* ===== 第卌四轮：策展台全景（双栏 Master-Detail） ===== */
 .gs-pan-panel { display: flex; flex-direction: column; }
 .gs-pan-wrap { display: grid; grid-template-columns: 250px 1fr; gap: 12px; align-items: start; }
 .gs-pan-tree { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; max-height: 560px; overflow-y: auto; }

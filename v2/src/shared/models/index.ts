@@ -161,7 +161,7 @@ export interface ResourceCard extends CardBase {
 export interface CurationProjection {
   id: ID
   kind: 'card' | 'category' | 'workspace'
-  /** 源工作台（R61 起新方向：资源台 CURATION_WS_ID） */
+  /** 源策展台（R61 起新方向：资源台 CURATION_WS_ID） */
   wsId: ID
   catId?: ID
   cardId?: ID
@@ -225,7 +225,7 @@ export interface CuriosityCard extends CardBase {
 
 export type AnyCard = ResourceCard | TaskCard | CuriosityCard
 
-// ============ 工作台与分类 ============
+// ============ 策展台与分类 ============
 
 export interface Workspace {
   id: ID
@@ -239,9 +239,9 @@ export interface Workspace {
   archived: boolean
   /** R61：台类型——'resource'=资源台（全局唯一，id 固定 CURATION_WS_ID，资源卡镜像源头）；缺省/'curation'=策展台（接收资源台镜像 + 台内新建卡） */
   kind?: 'resource' | 'curation'
-  /** H1：工作台快捷键固定映射（2-9，空 = 自动分配） */
+  /** H1：策展台快捷键固定映射（R68 起键位由台签顺序推导，本字段保留兼容） */
   hotkey?: number
-  /** R47-B4：被打开次数与最近打开时间——全局检索无输入时工作台参与热度排序 */
+  /** R47-B4：被打开次数与最近打开时间——全局检索无输入时策展台参与热度排序 */
   callCount?: number
   lastCalledAt?: number
 }
@@ -419,7 +419,7 @@ export interface UIPrefs {
   /** R54-B1：调度台项目调度左右分栏比例（左列 %，30–75） */
   curSplit?: number
   dateStr?: string
-  /** 工作台切换快捷键修饰键（O18：五种可选，默认 Alt） */
+  /** 应用内切台快捷键修饰键（O18：五种可选，默认 Alt） */
   wsSwitchMod?: 'ctrl' | 'alt' | 'ctrl-shift' | 'alt-shift' | 'none'
   /** 方向台上次停留的二级页（R49 起仅项目详情/完整方向树；旧值 /compass/actions 由 CompassShell 容错归一） */
   compassTab?: '/compass/projects' | '/compass/tree'

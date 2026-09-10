@@ -67,7 +67,7 @@ function save() {
   close()
   if (wsChanged) {
     const target = store.workspaces.find(w => w.id === editing.workspaceId)
-    showToast(`✓ 已保存并迁移至「${target?.name.replace(/^[^\s]+\s/, '') || '目标工作台'}」`)
+    showToast(`✓ 已保存并迁移至「${target?.name.replace(/^[^\s]+\s/, '') || '目标策展台'}」`)
   } else {
     showToast('✓ 已保存')
   }

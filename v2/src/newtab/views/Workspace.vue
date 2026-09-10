@@ -4,7 +4,7 @@
     <Teleport to="body">
       <div v-if="iconPickOpen" class="icon-pick-mask" @click="iconPickOpen = false" />
       <div v-if="iconPickOpen" class="icon-pick" :style="{ left: iconPickPos.left + 'px', top: iconPickPos.top + 'px' }" @click.stop>
-        <div class="ip-title">🎨 工作台图标</div>
+        <div class="ip-title">🎨 策展台图标</div>
         <div class="ip-grid">
           <span v-for="e in WS_ICONS" :key="e" class="ip-cell" :class="{on: workspace.icon === e}" @click="setWsIcon(e)">{{ e }}</span>
         </div>
@@ -59,9 +59,9 @@
       <div class="sm-item" @click="editDesc">📝 编辑描述</div>
       <div class="sm-item" @click="toggleIconPick($event)">🎨 更换图标</div>
       <div class="sm-divider"></div>
-      <div class="sm-item" @click="exportWorkspace">📦 导出工作台数据</div>
+      <div class="sm-item" @click="exportWorkspace">📦 导出策展台数据</div>
       <div class="sm-divider"></div>
-      <div class="sm-item danger" @click="deleteWorkspace">🗑 删除工作台</div>
+      <div class="sm-item danger" @click="deleteWorkspace">🗑 删除策展台</div>
     </div>
 
     <!-- ② 策展工具条 -->
@@ -94,13 +94,13 @@
       </select>
       <div class="toolbar-search">
         <span class="s-icon">🔍</span>
-        <input type="text" v-model="searchQuery" placeholder="搜索工作台内资源...">
+        <input type="text" v-model="searchQuery" placeholder="搜索策展台内资源...">
       </div>
       <button class="toolbar-batch" :class="{active: batchMode}" @click="toggleBatchMode">{{ batchMode ? '✓ 完成批量' : '☑ 批量管理' }}</button>
       <!-- R64-F13：hero 删除后按钮上移工具条 -->
       <button class="hero-btn primary" @click="importModalOpen = true">⬇ 导入</button>
       <button class="hero-btn ghost" @click="openNewResource">＋ 新建</button>
-      <button class="hero-btn settings" title="工作台设置" @click.stop="settingsMenuOpen = !settingsMenuOpen">⚙</button>
+      <button class="hero-btn settings" title="策展台设置" @click.stop="settingsMenuOpen = !settingsMenuOpen">⚙</button>
     </div>
 
     <!-- ③ 资源策展区 -->
@@ -110,7 +110,7 @@
         <div class="cat-toolbar">
           <span class="ct-label">目录</span>
           <span class="ct-actions">
-            <span class="ct-btn" title="一键收纳为工作台根部" @click="collapseAllCats">⊟ 收起</span>
+            <span class="ct-btn" title="一键收纳为策展台根部" @click="collapseAllCats">⊟ 收起</span>
             <span class="ct-btn" title="全部展开" @click="expandAllCats">⊞ 展开</span>
           </span>
         </div>
@@ -380,7 +380,7 @@
             <span class="mo-icon">🧩</span>
             <div>
               <div class="mo-name">导入策展台数据包（JSON）</div>
-              <div class="mo-desc">选择本台「⚙ 导出工作台数据」导出的 JSON 文件：论点分类树 + 台内卡 + 镜像投射按 ID 并集合并，现有数据不受影响（书签/本地文件导入在资源台）</div>
+              <div class="mo-desc">选择本台「⚙ 导出策展台数据」导出的 JSON 文件：论点分类树 + 台内卡 + 镜像投射按 ID 并集合并，现有数据不受影响（书签/本地文件导入在资源台）</div>
             </div>
           </div>
         </div>
@@ -390,7 +390,7 @@
 
     <!-- 书签导入弹窗已随 R65-F4 移交资源台（CurationCenter），策展台不再提供 -->
 
-    <!-- 批量移动弹窗（第八轮：工作台→分类级联，含当前工作台） -->
+    <!-- 批量移动弹窗（第八轮：策展台→分类级联，含当前策展台） -->
     <div class="modal-overlay" :class="{open: moveModalOpen}" @click.self="moveModalOpen=false">
       <div class="modal" style="width:420px">
         <div class="modal-header">
@@ -400,7 +400,7 @@
         </div>
         <div class="modal-body">
           <div class="dr-section">
-            <div class="dr-label">目标工作台（含当前工作台，可只换分类）</div>
+            <div class="dr-label">目标策展台（含当前策展台，可只换分类）</div>
             <select class="dr-category-select" v-model="moveWsId">
               <option v-for="w in moveWorkspaces" :key="w.id" :value="w.id">
                 {{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}{{ w.id === workspaceId ? '（当前）' : '' }}
@@ -487,7 +487,7 @@
         <div class="modal-body">
           <input type="text" class="ws-modal-input" :class="{dup: catNameDup}" v-model="catModal.name" placeholder="分类名称…"
             @keydown.enter.prevent="confirmCatModal" @keydown.esc="catModal.open=false" autofocus />
-          <div v-if="catNameDup" class="ws-modal-error">⚠ 该工作台已存在同名分类，请更换名称</div>
+          <div v-if="catNameDup" class="ws-modal-error">⚠ 该策展台已存在同名分类，请更换名称</div>
           <div v-if="catModal.mode==='create' && catModal.parentId" class="ws-modal-hint">
             将创建在「{{ wsCats.find(c=>c.id===catModal.parentId)?.name }}」之下
           </div>
@@ -499,7 +499,7 @@
       </div>
     </div>
 
-    <!-- 第八轮：通用输入弹窗（工作台重命名/描述） -->
+    <!-- 第八轮：通用输入弹窗（策展台重命名/描述） -->
     <div class="modal-overlay" :class="{open: inputModal.open}" @click.self="inputModal.open=false">
       <div class="modal" style="width:380px">
         <div class="modal-header">
@@ -560,7 +560,7 @@
     </div>
 
   </div>
-  <div v-else class="ws-empty">工作台不存在</div>
+  <div v-else class="ws-empty">策展台不存在</div>
 </template>
 
 <script setup lang="ts">
@@ -673,7 +673,7 @@ function onDrillLocate(id: string) {
   if (r) locateMirrorSource(r)
 }
 
-// R47-B4：进入/切换工作台 = 一次「调用」，计入热度（全局检索无输入时工作台参与热度排序）
+// R47-B4：进入/切换策展台 = 一次「调用」，计入热度（全局检索无输入时策展台参与热度排序）
 watch(workspaceId, (id) => {
   if (!id) return
   const ws = d.value?.workspaces?.find(w => w.id === id)
@@ -716,7 +716,7 @@ function locateMirrorSource(r: ResourceCard) {
   router.push('/curation')
   showToast(`↗ 源卡在资源台 · ${src.title.slice(0, 20)}`)
 }
-// R45-2（V2.20.0）：页头新增「今日新增/今日删除」字段——工作台范围实时派生（含软删口径：新增排除已删、删除取 deletedAt）
+// R45-2（V2.20.0）：页头新增「今日新增/今日删除」字段——策展台范围实时派生（含软删口径：新增排除已删、删除取 deletedAt）
 const startOfToday = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); return dt.getTime() })()
 const wsTodayAdd = computed(() => d.value.resources
   .filter(r => r.workspaceId === workspaceId.value && r.createdAt >= startOfToday)
@@ -957,7 +957,7 @@ const editingResource = reactive<ResourceCard>(emptyResource())
 const isNewResource = ref(false)
 
 // 表单主体已抽至共享 ResourceEditForm（REQ-042/#61）；此处仅保留宿主动作：打开/保存/删除/复制/跳转
-let drawerOriginalWsId = '' // REQ-004：跨工作台迁移检测基准（打开/新建时记录）
+let drawerOriginalWsId = '' // REQ-004：跨策展台迁移检测基准（打开/新建时记录）
 
 function emptyResource(): ResourceCard {
   return { id: '', kind: 'resource', title: '', linkType: 'url', link: '', workspaceId: workspaceId.value, categoryId: '', description: '', tags: [], customFields: {}, pinned: false, callCount: 0, createdAt: 0, updatedAt: 0 }
@@ -993,7 +993,7 @@ function openResource(r: ResourceCard) {
 function closeDrawer() { drawerOpen.value = false }
 function saveResource() {
   if (!editingResource.title.trim()) { showToast('请输入标题'); return }
-  // REQ-004：检测是否跨工作台迁移，保存后给出迁移反馈
+  // REQ-004：检测是否跨策展台迁移，保存后给出迁移反馈
   const wsChanged = !isNewResource.value && !!drawerOriginalWsId && editingResource.workspaceId !== drawerOriginalWsId
   editingResource.updatedAt = Date.now()
   if (isNewResource.value) {
@@ -1006,7 +1006,7 @@ function saveResource() {
   drawerOpen.value = false
   if (wsChanged) {
     const target = d.value.workspaces.find(w => w.id === editingResource.workspaceId)
-    showToast(`✓ 已保存并迁移至「${target?.name.replace(/^[^\s]+\s/, '') || '目标工作台'}」`)
+    showToast(`✓ 已保存并迁移至「${target?.name.replace(/^[^\s]+\s/, '') || '目标策展台'}」`)
   } else {
     showToast('✓ 已保存')
   }
@@ -1312,7 +1312,7 @@ function toggleCatCollapse(id: string) {
   if (s.has(id)) s.delete(id); else s.add(id)
   collapsedCats.value = s
 }
-/** 一键收纳为工作台根部：所有含子分类的父级全部折叠 */
+/** 一键收纳为策展台根部：所有含子分类的父级全部折叠 */
 function collapseAllCats() {
   collapsedCats.value = new Set(wsCats.value.filter(c => childCatsOf(c.id).length).map(c => c.id))
 }
@@ -1357,7 +1357,7 @@ function openCreateCat(parentId = '') {
 function openRenameCat(cat: Category) {
   catModal.value = { open: true, mode: 'rename', name: cat.name, parentId: '', editId: cat.id }
 }
-/** 第卅三轮 REQ-021：同名即时校验（作用域=当前工作台全分类树，重命名排除自身） */
+/** 第卅三轮 REQ-021：同名即时校验（作用域=当前策展台全分类树，重命名排除自身） */
 const catNameDup = computed(() => {
   const m = catModal.value
   const name = m.name.trim()
@@ -1368,7 +1368,7 @@ function confirmCatModal() {
   const m = catModal.value
   const name = m.name.trim()
   if (!name) { showToast('请输入分类名称'); return }
-  if (catNameDup.value) { showToast('该工作台已存在同名分类，请更换名称'); return }
+  if (catNameDup.value) { showToast('该策展台已存在同名分类，请更换名称'); return }
   if (m.mode === 'create') {
     // R61-4：4 级上限校验
     if (m.parentId) {
@@ -1425,7 +1425,7 @@ function toggleCatPin(cat: Category) {
   store.persist()
   showToast(cat.pinned ? '📌 分类已置顶' : '已取消置顶')
 }
-/** 第卅三轮 REQ-021：存量重复分类合并工具（同一工作台内同名分组，资源并入首个，子分类升级一级） */
+/** 第卅三轮 REQ-021：存量重复分类合并工具（同一策展台内同名分组，资源并入首个，子分类升级一级） */
 async function mergeDupCats() {
   const groups = new Map<string, Category[]>()
   for (const c of wsCats.value) {
@@ -1436,7 +1436,7 @@ async function mergeDupCats() {
     groups.set(key, arr)
   }
   const dupGroups = [...groups.values()].filter(g => g.length > 1)
-  if (!dupGroups.length) { showToast('当前工作台无重复分类 ✨'); return }
+  if (!dupGroups.length) { showToast('当前策展台无重复分类 ✨'); return }
   const totalDup = dupGroups.reduce((s, g) => s + g.length - 1, 0)
   if (!(await useConfirm({
     title: '合并重复分类',
@@ -1568,7 +1568,7 @@ function onCatRootDrop(e: DragEvent) {
   showToast(`✓ 「${dragged.name}」已升为一级分类`)
 }
 
-// ===== 批量移动（第八轮：工作台→分类级联，含当前工作台） =====
+// ===== 批量移动（第八轮：策展台→分类级联，含当前策展台） =====
 const moveModalOpen = ref(false)
 const moveWsId = ref('')
 const moveCatId = ref('')
@@ -1582,7 +1582,7 @@ function openBatchMove() {
 }
 function confirmBatchMove() {
   const items = selectedCards()
-  if (!items.length || !moveWsId.value) { showToast('请选择目标工作台'); return }
+  if (!items.length || !moveWsId.value) { showToast('请选择目标策展台'); return }
   // R61：镜像卡不参与跨台移动（引用随台走），先移出镜像再提示
   const mirrors = items.filter(isMirrorView)
   const natives = items.filter(r => !isMirrorView(r))
@@ -1624,7 +1624,7 @@ function confirmMoveOne() {
   showToast('✓ 已移动分类')
 }
 
-// ===== 通用输入弹窗（第八轮：工作台重命名/描述，替代原生 prompt） =====
+// ===== 通用输入弹窗（第八轮：策展台重命名/描述，替代原生 prompt） =====
 const inputModal = ref<{ open: boolean; title: string; value: string; cb: ((v: string) => void) | null }>(
   { open: false, title: '', value: '', cb: null })
 function openInputModal(title: string, value: string, cb: (v: string) => void) {
@@ -1961,7 +1961,7 @@ function confirmMirrorCat() {
 const importModalOpen = ref(false)
 const boardImportInput = ref<HTMLInputElement | null>(null)
 
-/** 策展台数据包导入：与 ⚙ 导出工作台数据同格式（AppData 子集），按 ID 并集合并本台段 */
+/** 策展台数据包导入：与 ⚙ 导出策展台数据同格式（AppData 子集），按 ID 并集合并本台段 */
 function handleBoardImport(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
@@ -1977,7 +1977,7 @@ function handleBoardImport(e: Event) {
         for (const item of incoming) map.set(item.id, { ...map.get(item.id), ...item })
         return [...map.values()]
       }
-      // 只并本台段：工作台/分类/台内卡 + 投射清单中指向本台的记录（全局段不在此入口搬运，走设置页「导入数据」）
+      // 只并本台段：策展台/分类/台内卡 + 投射清单中指向本台的记录（全局段不在此入口搬运，走设置页「导入数据」）
       const wsId = workspaceId.value
       const incCats = (ext.categories || []).filter(c => c.workspaceId === wsId)
       const incRes = (ext.resources || []).filter(r => r.workspaceId === wsId).map(r => ({ ...r, importedAt: importedNow }))
@@ -1991,7 +1991,7 @@ function handleBoardImport(e: Event) {
       importModalOpen.value = false
       const added = d.value.resources.length - cardsBefore
       showToast(`✓ 已导入：分类 ${incCats.length} · 卡片 ${incRes.length}（新增 ${added}，其余按 ID 覆盖合并）`)
-    } catch { showToast('✗ JSON 解析失败，请确认是「导出工作台数据」生成的文件') }
+    } catch { showToast('✗ JSON 解析失败，请确认是「导出策展台数据」生成的文件') }
   }
   reader.readAsText(file)
   input.value = ''
@@ -2098,7 +2098,7 @@ function renameWs() {
   const raw = workspace.value?.name || ''
   const current = raw.replace(/^[^\s]+\s/, '')
   settingsMenuOpen.value = false
-  openInputModal('✏️ 重命名工作台', current, (v) => {
+  openInputModal('✏️ 重命名策展台', current, (v) => {
     if (!workspace.value) return
     workspace.value.name = (workspace.value.icon ? workspace.value.icon + ' ' : '') + v
     store.persist()
@@ -2107,7 +2107,7 @@ function renameWs() {
 }
 function editDesc() {
   settingsMenuOpen.value = false
-  openInputModal('📝 编辑工作台描述', workspace.value?.desc || '', (v) => {
+  openInputModal('📝 编辑策展台描述', workspace.value?.desc || '', (v) => {
     if (!workspace.value) return
     workspace.value.desc = v
     store.persist()
@@ -2120,7 +2120,7 @@ function exportWorkspace() {
   const wsId = workspaceId.value
   // R56-I：改为 AppData 子集同构导出——旧自定义形状 {workspace,categories,resources} 缺 version/tagTree/
   // tasks/curiosities/compass/stats，导入端版本校验直接拒绝，标签体系等全局数据随之丢失。
-  // 现为 ...d 全量展开（全局段随行）+ 工作台段按当前台过滤；导出物可直接走「导入数据」并集合并。
+  // 现为 ...d 全量展开（全局段随行）+ 策展台段按当前台过滤；导出物可直接走「导入数据」并集合并。
   const data = JSON.parse(JSON.stringify({
     ...d.value,
     workspaces: [ws],
@@ -2132,21 +2132,21 @@ function exportWorkspace() {
   const a = document.createElement('a')
   a.href = url; a.download = `${ws.name}_数据.json`
   a.click(); URL.revokeObjectURL(url)
-  showToast('✓ 工作台数据已导出（含标签树/罗盘/任务/好奇心等全局段）')
+  showToast('✓ 策展台数据已导出（含标签树/罗盘/任务/好奇心等全局段）')
   settingsMenuOpen.value = false
 }
 async function deleteWorkspace() {
-  // R58-B1：策展空间是全局工作台，不可从此入口删除
+  // R58-B1：资源台是全局策展空间，不可从此入口删除
   if (workspaceId.value === CURATION_WS_ID) { showToast('ℹ 资源台为系统空间，不在此删除'); return }
   // R58-B1：红线修复——资源卡一律软删（deletedAt，回收站可恢复），不再物理移除
-  if (!(await useConfirm({ title: '删除工作台', message: `确定删除工作台「${workspace.value?.name.replace(/^[^\s]+\s/, '')}」？\n其中资源卡将全部移入回收站（可恢复），分类与工作台本身将删除且不可恢复。`, confirmText: '确认删除' }))) return
+  if (!(await useConfirm({ title: '删除策展台', message: `确定删除策展台「${workspace.value?.name.replace(/^[^\s]+\s/, '')}」？\n其中资源卡将全部移入回收站（可恢复），分类与策展台本身将删除且不可恢复。`, confirmText: '确认删除' }))) return
   const idx = d.value.workspaces.findIndex(w => w.id === workspaceId.value)
   if (idx >= 0) d.value.workspaces.splice(idx, 1)
   const now = Date.now()
   for (const r of d.value.resources) if (r.workspaceId === workspaceId.value && !r.deletedAt) r.deletedAt = now
   d.value.categories = d.value.categories.filter(c => c.workspaceId !== workspaceId.value)
   store.persist()
-  showToast('工作台已删除（资源卡已移入回收站）')
+  showToast('策展台已删除（资源卡已移入回收站）')
   router.push('/compass')
 }
 
@@ -2298,7 +2298,7 @@ function linkDisplay(link: string) {
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-min-w), 1fr)); gap: var(--card-gap); }
 .res-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .res-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.res-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: var(--card-pad-vert) var(--card-pad-horz); cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; min-height: 120px; /* R55-F4：屏外卡片跳过渲染（切工作台 595ms 的渲染段优化） */ content-visibility: auto; contain-intrinsic-size: auto 132px; }
+.res-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: var(--card-pad-vert) var(--card-pad-horz); cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; min-height: 120px; /* R55-F4：屏外卡片跳过渲染（切策展台 595ms 的渲染段优化） */ content-visibility: auto; contain-intrinsic-size: auto 132px; }
 .res-card:hover { border-color: var(--accent); background: var(--surface-2); }
 .res-card.selected { border-color: var(--accent); background: var(--accent-light); }
 .res-card.pinned { border-left: 3px solid var(--accent); }

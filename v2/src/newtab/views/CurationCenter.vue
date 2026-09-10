@@ -5,10 +5,10 @@
  *   与原生分类同构——同一颗树、自由混排、拖拽排序、拖拽成父子（最多 2 级）
  * - R53-A2/E2：卡片自由拖拽——原生卡/投射卡均可拖入任意策展分类（含镜像分类）；
  *   删除分类/移出投射/清空投射时，停入的卡与投射引用一律回落（待分类/未分类），杜绝孤儿引用
- * - R52-F7a：整工作台镜像 = 分类镜像打包版（App.vue 物化，源后续变更不自动同步）
+ * - R52-F7a：整策展台镜像 = 分类镜像打包版（App.vue 物化，源后续变更不自动同步）
  * - R51-F25：单卡投射落入「待分类」；R51-F22：单击出详情、双击打开链接；R51-F23：自定义字段池
  * - 原生内容：新建/编辑/置顶/拖拽排序/删除；源数据零影响
- * - R65-F1 资源台对齐旧工作台：顶部工具条（卡片/列表/看板视图切换 + 搜索 + 批量管理 + 导入 + 新建）、
+ * - R65-F1 资源台对齐策展台：顶部工具条（卡片/列表/看板视图切换 + 搜索 + 批量管理 + 导入 + 新建）、
  *   单击右侧抽屉详情（共享 ResourceEditForm，替代居中弹窗）、批量操作浮动栏、书签/本地文件导入
  */
 import { ref, computed, reactive, watch, onMounted, onUnmounted } from 'vue'
@@ -31,9 +31,10 @@ defineOptions({ name: 'CurationCenterView' })
 const d = useCompass().d
 const vFocus = { mounted: (el: HTMLElement) => el.focus() }
 
-// ---- 视图选择：''=未分类 '__pending__'=待分类 分类id=策展分类（原生/镜像同构） ----
+// ---- 视图选择：'__all__'=全部分类（默认根节点，聚合全台卡片） ''=未分类 '__pending__'=待分类 分类id=策展分类（原生/镜像同构） ----
+const ALL_CAT = '__all__'
 const PENDING = '__pending__'
-const activeCat = ref('')
+const activeCat = ref(ALL_CAT)
 
 // ---- 分类树（资源台自有；R61 起层级放开 4 级，L1 中心论点为根——金字塔呈现见 R62） ----
 const cats = computed(() => d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)))
@@ -116,7 +117,7 @@ async function deleteCat(c: Category) {
   const mirror = isMirror(c)
   const n = nodeCount(c)
   const msg = mirror
-    ? `移出投射「${c.name}」？镜像源卡与停入的卡片将回落到「待分类/未分类」，源工作台零影响`
+    ? `移出投射「${c.name}」？镜像源卡与停入的卡片将回落到「待分类/未分类」，源策展台零影响`
     : `删除分类「${c.name}」？${n ? `其中卡片将移入「未分类」` : ''}`
   if (!await useConfirm({ message: msg, confirmText: mirror ? '移出投射' : '删除分类', danger: true })) return
   // ① 停在该分类（含子级）的原生卡 → 未分类
@@ -128,7 +129,7 @@ async function deleteCat(c: Category) {
   // ③ 子分类提为根
   for (const ch of childCats(c.id)) ch.parentId = undefined
   d.value.categories = d.value.categories.filter(x => x.id !== c.id)
-  if (activeCat.value === c.id) activeCat.value = ''
+  if (activeCat.value === c.id) activeCat.value = ALL_CAT
   store.persist()
   showToast(mirror ? '✓ 已移出投射（源数据不受影响）' : '✓ 分类已删除')
 }
@@ -150,7 +151,7 @@ function removeProjection(p: CurationProjection) {
   store.persist()
   showToast('✓ 已移出投射（源数据不受影响）')
 }
-const wsName = (wsId: string) => d.value.workspaces.find(w => w.id === wsId)?.name || '（工作台已删除）'
+const wsName = (wsId: string) => d.value.workspaces.find(w => w.id === wsId)?.name || '（策展台已删除）'
 const catName = (catId?: string) => d.value.categories.find(c => c.id === catId)?.name || '未分类'
 
 /** 待分类投射卡（targetCatId 为空） */
@@ -174,6 +175,7 @@ function liveCardsOfCat(sourceCatId: string): { card: ResourceCard; sub?: string
 
 // ---- 内容区（按当前视图组装） ----
 const viewLabel = computed(() => {
+  if (activeCat.value === ALL_CAT) return '🗂 全部分类'
   if (activeCat.value === '') return '📥 未分类'
   if (activeCat.value === PENDING) return '📥 待分类（投射）'
   const c = cats.value.find(x => x.id === activeCat.value)
@@ -181,15 +183,17 @@ const viewLabel = computed(() => {
 })
 const viewNative = computed(() => {
   if (activeCat.value === PENDING) return []
+  if (activeCat.value === ALL_CAT) return nativeCards.value
   return cardsIn(activeCat.value)
 })
 const viewProjCards = computed(() => {
   if (activeCat.value === PENDING) return pendingProjections.value
+  if (activeCat.value === ALL_CAT) return projections.value.filter(p => p.kind === 'card' && cardById(p.cardId))
   return projCardsIn(activeCat.value)
 })
-/** R59-T10：父分类分区呈现——「未细分」（直属混排卡）优先，其后按子分类顺序逐区（同工作台方式） */
+/** R59-T10：父分类分区呈现——「未细分」（直属混排卡）优先，其后按子分类顺序逐区（同策展台方式）；R69：「全部分类」扁平聚合，不进分区 */
 const isParentView = computed(() => {
-  if (activeCat.value === '' || activeCat.value === PENDING) return false
+  if (activeCat.value === '' || activeCat.value === PENDING || activeCat.value === ALL_CAT) return false
   return childCats(activeCat.value).length > 0
 })
 const secCounts = (cards: MixedCard[]) => ({
@@ -218,12 +222,14 @@ const renderSections = computed(() => {
 /** R55-A1：统一混排列表——原生卡+投射卡同一网格按 置顶 > curOrder > createdAt 排列，权重一致 */
 type MixedCard = { id: string; type: 'native' | 'proj' | 'live'; r?: ResourceCard; p?: CurationProjection }
 function mixedCardsOf(catKey: string): MixedCard[] {
-  const nat: MixedCard[] = nativeCards.value.filter(r => (r.categoryId || '') === catKey).map(r => ({ id: r.id, type: 'native', r }))
+  // R69：「全部分类」聚合视图——不按分类过滤，返回全台原生卡 + 全部投射卡
+  const all = catKey === ALL_CAT
+  const nat: MixedCard[] = nativeCards.value.filter(r => all || (r.categoryId || '') === catKey).map(r => ({ id: r.id, type: 'native', r }))
   const prj: MixedCard[] = projections.value
-    .filter(p => p.kind === 'card' && (p.targetCatId || '') === catKey && cardById(p.cardId))
+    .filter(p => p.kind === 'card' && (all || (p.targetCatId || '') === catKey) && cardById(p.cardId))
     .map(p => ({ id: p.id, type: 'proj', p }))
-  // R56-A：镜像分类——未投射源卡（curFrom 源分类实时卡）以源序垫后，拖动即物化为投射
-  const cat = d.value.categories.find(c => c.id === catKey)
+  // R56-A：镜像分类——未投射源卡（curFrom 源分类实时卡）以源序垫后，拖动即物化为投射（聚合视图不涉及）
+  const cat = all ? undefined : d.value.categories.find(c => c.id === catKey)
   if (cat?.curFrom) {
     for (const it of liveCardsOfCat(cat.curFrom.catId)) {
       if (projections.value.some(p => p.kind === 'card' && p.cardId === it.card.id)) continue
@@ -254,7 +260,7 @@ const viewProjCount = computed(() => viewMixed.value.filter(m => m.type === 'pro
 /** R56-A：区块计数 = 混排网格实况（未投射源卡单列，不再双计已投射源卡） */
 const viewLiveCount = computed(() => viewMixed.value.filter(m => m.type === 'live').length)
 
-// ---- R65-F1：视图切换 + 搜索（对齐旧工作台工具条） ----
+// ---- R65-F1：视图切换 + 搜索（对齐策展台工具条） ----
 const viewMode = ref<'card' | 'list' | 'kanban'>('card')
 const resSearch = ref('')
 /** 关键词命中（标题/链接/描述；proj/live 卡解析真身后匹配） */
@@ -295,7 +301,7 @@ function rowDblClick(m: MixedCard) {
 // ---- 卡片打开（原生/镜像共用 WRR 口径） ----
 function openCard(r: ResourceCard) {
   if (r.linkType === 'file' && /^zy-asset:\/\//i.test((r.link || '').trim())) {
-    showToast('ℹ 附件卡请到源工作台打开'); return
+    showToast('ℹ 附件卡请到源策展台打开'); return
   }
   const url = toOpenableUrl(r.linkType, r.link)
   if (!url) {
@@ -310,7 +316,7 @@ function openCard(r: ResourceCard) {
 function locateSource(r: ResourceCard) {
   if (r.workspaceId === CURATION_WS_ID) return
   router.push(`/workspace/${r.workspaceId}?cat=${r.categoryId || 'uncat'}`)
-  showToast('↗ 已定位到源工作台')
+  showToast('↗ 已定位到源策展台')
 }
 
 // ---- R51-F22：单击详情 / 双击打开链接（260ms 单双击判别） ----
@@ -324,7 +330,7 @@ function onCardDblClick(fn: () => void) {
   fn()
 }
 
-// ---- R65-F1：资源卡详情右侧抽屉（共享 ResourceEditForm，对齐旧工作台；替代原居中编辑弹窗） ----
+// ---- R65-F1：资源卡详情右侧抽屉（共享 ResourceEditForm，对齐策展台；替代原居中编辑弹窗） ----
 const drawerOpen = ref(false)
 const editingResource = reactive<ResourceCard>({ id: '', kind: 'resource', title: '', linkType: 'url', link: '', workspaceId: CURATION_WS_ID, categoryId: '', description: '', tags: [], customFields: {}, pinned: false, callCount: 0, createdAt: 0, updatedAt: 0 })
 const isNewResource = ref(false)
@@ -332,12 +338,16 @@ const isNewResource = ref(false)
 function emptyResource(): ResourceCard {
   return { id: '', kind: 'resource', title: '', linkType: 'url', link: '', workspaceId: CURATION_WS_ID, categoryId: '', description: '', tags: [], customFields: {}, pinned: false, callCount: 0, createdAt: 0, updatedAt: 0 }
 }
-/** 新建卡片：抽屉打开，落当前视图分类（真身=资源台） */
+/** 新建卡片：抽屉打开，落当前视图分类（真身=资源台）；R69：聚合/待分类视图落「未分类」 */
+function newCardCatId(): string {
+  const c = activeCat.value
+  return (c && c !== PENDING && c !== ALL_CAT) ? c : ''
+}
 function openCreateCard() {
   Object.assign(editingResource, emptyResource())
   editingResource.id = uid('res')
   editingResource.createdAt = Date.now()
-  if (activeCat.value && activeCat.value !== PENDING) editingResource.categoryId = activeCat.value
+  if (activeCat.value && activeCat.value !== PENDING && activeCat.value !== ALL_CAT) editingResource.categoryId = activeCat.value
   isNewResource.value = true
   drawerOpen.value = true
 }
@@ -392,7 +402,7 @@ function togglePin(r: ResourceCard) {
   store.persist()
 }
 
-// ---- R65-F1：批量管理（对齐旧工作台：勾选浮栏 + 批量打开/移动/删除） ----
+// ---- R65-F1：批量管理（对齐策展台：勾选浮栏 + 批量打开/移动/删除） ----
 const batchMode = ref(false)
 const selectedIds = ref<Set<string>>(new Set())
 function toggleBatchMode() {
@@ -406,7 +416,7 @@ function toggleSelect(id: string) {
 function visibleNativeCards(): ResourceCard[] {
   const q = resSearch.value.trim().toLowerCase()
   return nativeCards.value.filter(r => {
-    if (activeCat.value !== '' && activeCat.value !== PENDING) {
+    if (activeCat.value !== '' && activeCat.value !== PENDING && activeCat.value !== ALL_CAT) {
       const cat = cats.value.find(c => c.id === activeCat.value)
       const ids = cat ? new Set([cat.id, ...deepDescendantIds(cat.id)]) : null
       if (ids && !ids.has(r.categoryId || '')) return false
@@ -446,7 +456,7 @@ async function batchDelete() {
     store.persist()
   } })
 }
-// 批量移动（目标 = 资源台分类树；层级化选项与旧工作台同构）
+// 批量移动（目标 = 资源台分类树；层级化选项与策展台同构）
 const moveModalOpen = ref(false)
 const moveTarget = ref('')
 const moveCatOptions = computed(() => {
@@ -470,7 +480,7 @@ function confirmBatchMove() {
   showToast(`✓ 已移动 ${items.length} 张资源卡`)
 }
 
-// ---- R65-F1：导入（书签 HTML / 本地文件，对齐旧工作台；真身落资源台） ----
+// ---- R65-F1：导入（书签 HTML / 本地文件，对齐策展台；真身落资源台） ----
 const importModalOpen = ref(false)
 const bookmarkInput = ref<HTMLInputElement | null>(null)
 const fileImportInput = ref<HTMLInputElement | null>(null)
@@ -592,7 +602,7 @@ function handleFileImport(e: Event) {
   const input = e.target as HTMLInputElement
   const files = Array.from(input.files || [])
   if (!files.length) return
-  files.forEach(f => d.value.resources.unshift(makeResource(f.name.replace(/\.[^.]+$/, ''), 'file', f.name, activeCat.value && activeCat.value !== PENDING ? activeCat.value : '')))
+  files.forEach(f => d.value.resources.unshift(makeResource(f.name.replace(/\.[^.]+$/, ''), 'file', f.name, newCardCatId())))
   store.persist()
   input.value = ''
   importModalOpen.value = false
@@ -790,7 +800,7 @@ function onAreaDrop(e: DragEvent, catKey?: string) {
   dragId.value = ''
   dropMark.value = null
   if (!pid) return
-  const secKey = catKey ?? activeCat.value
+  const secKey = catKey ?? (activeCat.value === ALL_CAT ? '' : activeCat.value)
   const targetKey = secKey === PENDING ? '' : secKey
   const srcCard = d.value.resources.find(x => x.id === pid && !x.deletedAt && x.workspaceId !== CURATION_WS_ID)
   if (srcCard) { projectSourceCardTo(srcCard.id, targetKey); store.persist(); return }
@@ -860,7 +870,7 @@ function onCatDrop(e: DragEvent, target: Category) {
 
 <template>
   <div class="page">
-    <!-- R65-F1：顶部工具条（对齐旧工作台：视图切换 + 搜索 + 批量 + 导入 + 新建） -->
+    <!-- R65-F1：顶部工具条（对齐策展台：视图切换 + 搜索 + 批量 + 导入 + 新建） -->
     <div class="page-head">
       <div class="crumb"><b>资源台</b> · 资源卡唯一存储 · 镜像源头</div>
       <div class="spacer" />
@@ -887,6 +897,12 @@ function onCatDrop(e: DragEvent, target: Category) {
             <span class="cat-act" title="收起全部分类" @click="collapseAllCats">⇤ 收起</span>
             <span class="cat-act" title="展开全部分类" @click="expandAllCats">展开 ⇥</span>
           </span>
+        </div>
+        <!-- R69：默认根节点「全部分类」——聚合全台卡片，作为进入资源台的默认落点 -->
+        <div class="cat-item" :class="{ active: activeCat === ALL_CAT }" @click="activeCat = ALL_CAT"
+          title="聚合资源台全部分类下的卡片">
+          <span class="cat-caret placeholder" /><span class="cat-icon">🗂</span><span class="cat-name">全部分类</span>
+          <span class="cat-count">{{ nativeCards.length }}</span>
         </div>
         <div class="cat-item" :class="{ active: activeCat === '' }" @click="activeCat = ''"
           @dragover.prevent @drop="onTreeDrop($event, '')">
@@ -943,7 +959,7 @@ function onCatDrop(e: DragEvent, target: Category) {
         <div class="cat-add" @click="startCreateCat()"><span>＋</span><span>新建分类</span></div>
       </aside>
 
-      <!-- 右 · 内容区（R65-F1：卡片/列表/看板三视图，对齐旧工作台） -->
+      <!-- 右 · 内容区（R65-F1：卡片/列表/看板三视图，对齐策展台） -->
       <div class="cur-main">
         <div class="cur-sec-label">
           {{ viewLabel }}
@@ -992,7 +1008,7 @@ function onCatDrop(e: DragEvent, target: Category) {
                 <div v-if="cardById(m.p.cardId)!.description" class="cc-desc">{{ cardById(m.p.cardId)!.description }}</div>
                 <div class="cc-tools">
                   <span class="cc-act" title="打开链接" @click.stop="openCard(cardById(m.p.cardId)!)">↗</span>
-                  <span class="cc-act" title="定位到源工作台" @click.stop="locateSource(cardById(m.p.cardId)!)">🎯</span>
+                  <span class="cc-act" title="定位到源策展台" @click.stop="locateSource(cardById(m.p.cardId)!)">🎯</span>
                   <span class="cc-act danger" title="移出投射（源数据不受影响）" @click.stop="removeProjection(m.p)">✕</span>
                 </div>
               </template>
@@ -1012,7 +1028,7 @@ function onCatDrop(e: DragEvent, target: Category) {
                 <div v-if="cardById(m.p!.cardId)!.link" class="cc-link">{{ cardById(m.p!.cardId)!.link }}</div>
                 <div class="cc-tools">
                   <span class="cc-act" title="打开链接" @click.stop="openCard(cardById(m.p!.cardId)!)">↗</span>
-                  <span class="cc-act" title="定位到源工作台" @click.stop="locateSource(cardById(m.p!.cardId)!)">🎯</span>
+                  <span class="cc-act" title="定位到源策展台" @click.stop="locateSource(cardById(m.p!.cardId)!)">🎯</span>
                 </div>
               </template>
             </div>
@@ -1081,7 +1097,7 @@ function onCatDrop(e: DragEvent, target: Category) {
       </div>
     </Transition>
 
-    <!-- R65-F1：资源卡详情抽屉（单击打开，共享 ResourceEditForm，对齐旧工作台） -->
+    <!-- R65-F1：资源卡详情抽屉（单击打开，共享 ResourceEditForm，对齐策展台） -->
     <div class="overlay" :class="{open: drawerOpen}" @click="closeDrawer"></div>
     <div class="drawer" :class="{open: drawerOpen}">
       <div class="dr-body">
@@ -1316,7 +1332,7 @@ function onCatDrop(e: DragEvent, target: Category) {
 .fade-enter-active, .fade-leave-active { transition: opacity .18s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-/* ===== R65-F1：工具条（对齐旧工作台） ===== */
+/* ===== R65-F1：工具条（对齐策展台） ===== */
 .view-tabs { display: flex; background: var(--surface-2); border-radius: 8px; padding: 3px; gap: 2px; }
 .view-tab { padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; color: var(--text-2); transition: all .15s; display: flex; align-items: center; gap: 4px; }
 .view-tab:hover { color: var(--text); }

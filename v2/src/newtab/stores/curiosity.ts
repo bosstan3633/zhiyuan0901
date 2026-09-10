@@ -84,7 +84,7 @@ export function useCuriosity() {
     return task
   }
 
-  /** 转化为资源卡 → 进入指定工作台/分类；公共字段无损（REQ-050） */
+  /** 转化为资源卡 → 进入指定策展台/分类；公共字段无损（REQ-050） */
   function convertToResource(c: CuriosityCard, workspaceId: string, categoryId?: string): ResourceCard {
     const resource = convertCard(c, { kind: 'resource', workspaceId, categoryId })
     d.value.resources.unshift(resource)

@@ -4,7 +4,7 @@
  * 检查项：
  *   E2E-1  MV3 扩展加载（worker = CRXJS service-worker-loader.js）
  *   E2E-2  设置页默认首屏 = 知源仪表盘（导航四组 R54 + 动态条/操作记录时间线）
- *   E2E-3  工作台全景第二屏可切换（双栏 + 三级计数树）
+ *   E2E-3  资源台全景第二屏可切换（双栏 + 三级计数树）
  *   E2E-4  北极星「新增卡片/删除卡片」卡渲染（R45-1 三档周期联动改名）
  *   E2E-5  PDF 附件双击 file:// 打开（data 层种卡 + IndexedDB blob → 双击卡片 → 新标签 file://…pdf）
  *   E2E-6  事件日志 zy_event_log 独立 key 落盘（打开资源卡产生事件）
@@ -20,7 +20,7 @@
  *   E2E-16 快速采集任务面板（R55-C）
  *   E2E-17 项目调度 4 指标恢复左列 + 下钻链路（R56-P1）
  *   E2E-18 策展卡可拖真值（draggable="true"）+ 区域级落卡（R57-F1）
- *   E2E-19 删除工作台软删（deletedAt）+ 回收站可见可恢复（R58-B1）
+ *   E2E-19 删除策展台软删（deletedAt）+ 回收站可见可恢复（R58-B1）
  *   E2E-20 项目详情左树：空指标节点接收任务拖拽（R59-T5）
  */
 const path = require('path')
@@ -111,12 +111,12 @@ async function main() {
   const timelineVisible = await page.locator('.gs-ev-head, .gs-ev-empty, .gs-dash-dyn').first().isVisible().catch(() => false)
   report('E2E-2 设置默认首屏=知源仪表盘（导航四组 R54 + 动态/时间线区）', dashVisible && groupCount === 4, `groups=${groupCount} timeline=${timelineVisible}`)
 
-  // E2E-3 工作台全景
-  await page.getByText('工作台全景').first().click().catch(() => {})
+  // E2E-3 资源台全景
+  await page.getByText('资源台全景').first().click().catch(() => {})
   await page.waitForTimeout(1200)
   const panVisible = await page.locator('.gs-pan-panel').isVisible().catch(() => false)
   const treeWs = await page.locator('.gs-pan-ws').count()
-  report('E2E-3 工作台全景双栏+计数树', panVisible && treeWs >= 1, `panel=${panVisible} wsNodes=${treeWs}`)
+  report('E2E-3 资源台全景双栏+计数树', panVisible && treeWs >= 1, `panel=${panVisible} wsNodes=${treeWs}`)
 
   // E2E-4 方向状态四格（R55-D1 迁调度台顶部；R57-F3 详细指标按钮移除 → 改验证四格自下钻抽屉）
   await page.goto(base, { waitUntil: 'domcontentloaded' })
@@ -453,7 +453,7 @@ async function main() {
     'attr=' + JSON.stringify(Object.assign({}, dragAttrs, dragAttrsMirror)) + ' area=' + areaDrop + ' proj=' + projBefore + '→' + projAfter)
 
 
-  // E2E-19 删除工作台软删（R58-B1）：删除后资源卡带 deletedAt 进回收站，恢复时孤卡回落首个可用工作台
+  // E2E-19 删除策展台软删（R58-B1）：删除后资源卡带 deletedAt 进回收站，恢复时孤卡回落首个可用策展台
   await page.evaluate(() => new Promise((res) => {
     chrome.storage.local.get('zy_data_v2').then(({ ['zy_data_v2']: d }) => {
       if (!d || d.version !== 2) { res(false); return }
@@ -469,7 +469,7 @@ async function main() {
   await page.waitForTimeout(1600)
   await page.evaluate(() => { const b = document.querySelector('.hero-btn.settings'); if (b) b.click() })
   await page.waitForTimeout(400)
-  await page.evaluate(() => { const it = [...document.querySelectorAll('.sm-item')].find(x => x.textContent.includes('删除工作台')); if (it) it.click() })
+  await page.evaluate(() => { const it = [...document.querySelectorAll('.sm-item')].find(x => x.textContent.includes('删除策展台')); if (it) it.click() })
   await page.waitForTimeout(500)
   const confirmMsg = await page.getByText('移入回收站').first().isVisible().catch(() => false)
   await page.evaluate(() => { const b = document.querySelector('.cdf-btn.ok'); if (b) b.click() })
@@ -485,7 +485,7 @@ async function main() {
     const rows = [...document.querySelectorAll('[data-rid], .recycle-item, .rb-item, tr, .res-row')].map(n => n.textContent || '')
     return rows.some(t => t.includes('E2E 待删台资源卡')) || (document.body.textContent || '').includes('E2E 待删台资源卡')
   })
-  report('E2E-19 删除工作台软删+回收站可见（R58-B1）', confirmMsg && afterDel.wsGone && afterDel.softDeleted && inRecycle,
+  report('E2E-19 删除策展台软删+回收站可见（R58-B1）', confirmMsg && afterDel.wsGone && afterDel.softDeleted && inRecycle,
     'confirm=' + confirmMsg + ' wsGone=' + afterDel.wsGone + ' softDeleted=' + afterDel.softDeleted + ' inRecycle=' + inRecycle)
 
 

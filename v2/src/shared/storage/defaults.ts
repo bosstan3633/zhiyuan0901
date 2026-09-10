@@ -66,8 +66,8 @@ export function createDefaultData(): AppData {
       directions: []
     },
     workspaces: [
-      { id: wsBiz, name: '事业工作台', icon: '💼', color: '#3A6B4C', coverTheme: 'deep-sea', desc: '', order: 0, archived: false },
-      { id: wsTools, name: '工具工作台', icon: '🛠', color: '#4A7FB5', coverTheme: 'deep-sea', desc: '', order: 1, archived: false }
+      { id: wsBiz, name: '事业策展台', icon: '💼', color: '#3A6B4C', coverTheme: 'deep-sea', desc: '', order: 0, archived: false },
+      { id: wsTools, name: '工具策展台', icon: '🛠', color: '#4A7FB5', coverTheme: 'deep-sea', desc: '', order: 1, archived: false }
     ],
     categories: [
       { id: catProduct, workspaceId: wsBiz, name: '产品设计', order: 0 },

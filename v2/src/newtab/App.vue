@@ -40,7 +40,7 @@ const themes = [
   { id: 'notion', name: '纸墨白', dot: '#2383E2' }
 ]
 
-// 工作台折叠状态
+// 策展台折叠状态
 const workspacesCollapsed = ref(false)
 const themeOpen = ref(false)
 
@@ -159,9 +159,9 @@ function confirmRename() {
 function deleteWorkspace() {
   if (!menuWs.value) return
   const ws = menuWs.value
-  if (!confirm(`确认删除工作台「${ws.name}」？其中的资源卡将移至待分类。`)) { closeMenu(); return }
+  if (!confirm(`确认删除策展台「${ws.name}」？其中的资源卡将移至待分类。`)) { closeMenu(); return }
   ws.archived = true
-  // 资源卡移至第一个可用工作台的待分类
+  // 资源卡移至第一个可用策展台的待分类
   const otherWs = store.data!.workspaces.find(w => !w.archived && w.id !== ws.id)
   if (otherWs) {
     let cat = store.data!.categories.find(c => c.workspaceId === otherWs.id && c.name === '待分类')
@@ -178,7 +178,7 @@ function deleteWorkspace() {
   if (store.data!.curationProjections?.length) {
     store.data!.curationProjections = store.data!.curationProjections.filter(p => !(p.kind === 'card' && p.targetWsId === ws.id))
   }
-  // R53-A3：级联清理该工作台的策展镜像分类（停入卡回落未分类、投射卡回待分类、子分类提根）
+  // R53-A3：级联清理该策展台的策展镜像分类（停入卡回落未分类、投射卡回待分类、子分类提根）
   const mirrorIds = new Set(store.data!.categories.filter(c => c.workspaceId === CURATION_WS_ID && c.curFrom?.wsId === ws.id).map(c => c.id))
   if (mirrorIds.size) {
     for (const r of store.data!.resources) if (r.workspaceId === CURATION_WS_ID && mirrorIds.has(r.categoryId || '')) r.categoryId = ''
@@ -193,8 +193,8 @@ function deleteWorkspace() {
 }
 
 // ===== 全局快捷键 =====
-// Esc 关闭弹窗；修饰键+数字 = 用户自建工作台（从 1 起按导航顺序计数，R49 拍板）
-// 调度台刷新自动回首页；R68-F3：方向台(Alt+1)/资源台(Alt+2)/工作台(Alt+3..) 按台签顺序应用内切台
+// Esc 关闭弹窗；修饰键+数字 = 用户自建策展台（台签顺序计数，R49 引入、R68 改口径）
+// 调度台刷新自动回首页；R68-F3：方向台(Alt+1)/资源台(Alt+2)/策展台(Alt+3..) 按台签顺序应用内切台
 function isEditableTarget(e: KeyboardEvent): boolean {
   const t = e.target as HTMLElement | null
   if (!t) return false
@@ -203,16 +203,16 @@ function isEditableTarget(e: KeyboardEvent): boolean {
 }
 
 function switchToIndex(n: number) {
-  // R68-F3：n=1 方向台、n=2 资源台（固定页），n≥3 按台签顺序对应用户工作台（拖拽改序后数字键跟随顺序，不绑定具体台）
-  // R49 旧口径（1..N=用户工作台）废止；调度台为首页刷新自动回，不占数字键
+  // R68-F3：n=1 方向台、n=2 资源台（固定页），n≥3 按台签顺序对应用户策展台（拖拽改序后数字键跟随顺序，不绑定具体台）
+  // R49 旧口径（1..N=用户策展台）废止；调度台为首页刷新自动回，不占数字键
   if (n === 1) { openCompass(); return }
   if (n === 2) { openResource(); return }
   const ws = store.workspaces[n - 3]
   if (ws) navigate(`/workspace/${ws.id}`)
-  else showToast(`没有第 ${n} 号台（当前共 ${store.workspaces.length} 个工作台）`)
+  else showToast(`没有第 ${n} 号台（当前共 ${store.workspaces.length} 个策展台）`)
 }
 
-// ===== 第廿九轮：工作台 Tab 拖拽排序 =====
+// ===== 第廿九轮：策展台 Tab 拖拽排序 =====
 let dragWsId: string | null = null
 const wsDropMark = ref('')
 function onWsTabDragStart(e: DragEvent, ws: Workspace) {
@@ -248,7 +248,7 @@ function onWsTabDrop(e: DragEvent, ws: Workspace) {
   list.forEach((w, i) => { w.order = i })
   store.persist()
   dragWsId = null
-  showToast('✓ 已调整工作台顺序')
+  showToast('✓ 已调整策展台顺序')
 }
 
 function onGlobalKeydown(e: KeyboardEvent) {
@@ -256,7 +256,7 @@ function onGlobalKeydown(e: KeyboardEvent) {
     globalPopups.value?.closeAll()
     return
   }
-  // O18：工作台切换修饰键五种可选（默认 Alt）
+  // O18：应用内切台修饰键五种可选（默认 Alt）
   const mod = store.ui?.wsSwitchMod || 'alt'
   let modPressed = false
   if (mod === 'ctrl') modPressed = e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey
@@ -302,7 +302,7 @@ onMounted(async () => {
     else if (msg?.type === 'zy-open-capture') globalPopups.value?.openPanel('capture')
     else if (msg?.type === 'zy-open-curiosity') globalPopups.value?.openPanel('curio')
     else if (msg?.type === 'zy-open-task-capture') globalPopups.value?.openPanel('taskcapture')
-    // 工作台单例定位（G）：跳转到目标工作台并高亮资源卡
+    // 策展台单例定位（G）：跳转到目标策展台并高亮资源卡
     else if (msg?.type === 'zy-locate') {
       const wsId: string = msg.wsId || ''
       const hl: string = msg.hl || ''
@@ -399,7 +399,7 @@ const backupReminderDot = computed(() => {
 
         <div class="tab-divider" />
 
-        <!-- 工作台列表（第廿九轮：Tab 拖拽排序，仅工作台区间内换位，固定页锚点不变） -->
+        <!-- 策展台列表（第廿九轮：Tab 拖拽排序，仅策展台区间内换位，固定页锚点不变） -->
         <div
           v-for="ws in visibleWorkspaces" :key="ws.id"
           class="tab" :class="{active: activeTab === ws.id, 'drop-line-l': wsDropMark === ws.id + '-l', 'drop-line-r': wsDropMark === ws.id + '-r'}"
@@ -425,23 +425,23 @@ const backupReminderDot = computed(() => {
           </template>
         </div>
 
-        <!-- 新增工作台 -->
+        <!-- 新增策展台 -->
         <div v-if="addingWs" class="tab adding">
           <input
             id="ws-name-input"
             v-model="newWsName"
             class="tab-rename-input"
-            placeholder="工作台名称…"
+            placeholder="策展台名称…"
             @keydown.enter="confirmAddWs"
             @keydown.esc="addingWs = false"
             @blur="confirmAddWs"
           />
         </div>
-        <div v-else class="tab tab-add" title="新增工作台" @click="addWorkspace">＋</div>
+        <div v-else class="tab tab-add" title="新增策展台" @click="addWorkspace">＋</div>
 
         <!-- 折叠/展开 -->
         <div v-if="store.workspaces.length > 1" class="tab tab-collapse"
-          :title="workspacesCollapsed ? '展开工作台' : '收起工作台'"
+          :title="workspacesCollapsed ? '展开策展台' : '收起策展台'"
           @click="workspacesCollapsed = !workspacesCollapsed">
           {{ workspacesCollapsed ? '»' : '«' }}
         </div>

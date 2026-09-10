@@ -86,7 +86,7 @@ export function migrateCurationTree(d: AppData): boolean {
 /**
  * R61：资源台结构迁移（幂等，AppData.hubMigratedAt 标记；调用方在首次执行前负责自动备份下载）
  *  1. 资源台转正：id=CURATION_WS_ID 的真实 Workspace 实体（缺则建，名为「资源台」，置顶 order=-1）
- *  2. 台类型补齐：其余工作台 kind='curation'
+ *  2. 台类型补齐：其余策展台 kind='curation'
  *  3. 策展中心内镜像分类 curFrom 剥离——物化分类转为资源台原生分类（镜像方向反转后溯源失效）
  *  4. 旧方向投射记录（工作台→策展中心）清空：源卡本就留在原工作台（R61 后=策展台），无数据丢失
  */

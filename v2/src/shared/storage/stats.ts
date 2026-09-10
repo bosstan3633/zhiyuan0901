@@ -9,7 +9,7 @@ import type { AppData, ResourceCard } from '@/shared/models'
 import { dateKey, weekStartKey } from '@/shared/utils'
 
 /**
- * 记录一次资源卡打开（工作台单击/双击/搜索打开/关联卡片/北极星下钻统一入口）
+ * 记录一次资源卡打开（资源台单击/双击/搜索打开/关联卡片/北极星下钻统一入口）
  * 维护：callCount、lastCalledAt、本周计数（lastVisits，跨周自动重置）、WRR 累计
  */
 export function recordResourceOpen(data: AppData, resource: ResourceCard): void {
@@ -44,7 +44,7 @@ export function recordCardOpen(data: AppData | null, card: { callCount?: number;
   card.lastCalledAt = Date.now()
 }
 
-/** R47-B4：工作台打开计数（切换/进入工作台统一入口） */
+/** R47-B4：策展台打开计数（切换/进入策展台统一入口） */
 export function recordWorkspaceOpen(data: AppData | null, ws: { callCount?: number; lastCalledAt?: number } | null | undefined): void {
   if (!ws) return
   ws.callCount = (ws.callCount || 0) + 1

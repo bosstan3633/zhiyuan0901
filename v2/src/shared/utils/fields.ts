@@ -1,6 +1,6 @@
 /**
  * 字段配置 → 视图渲染助手
- * 让「全局设置 · 卡片字段设计」的排序与显隐真正作用于工作台卡片/列表/看板三视图
+ * 让「全局设置 · 卡片字段设计」的排序与显隐真正作用于策展台卡片/列表/看板三视图
  */
 import type { FieldConfig, FieldDef, ResourceCard, TaskCard, CuriosityCard, AnyCard } from '@/shared/models'
 

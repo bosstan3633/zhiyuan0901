@@ -36,7 +36,7 @@
 }
 .ds-hero-label .hint { font-weight: 400; letter-spacing: 0; text-transform: none; }
 
-/* ---- 属性双列（项目/指标、工作台/分类：四个纵向大块 → 一行两列） ---- */
+/* ---- 属性双列（项目/指标、策展台/分类：四个纵向大块 → 一行两列） ---- */
 .ds-props2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .ds-props2 .ds-prop-field { min-width: 0; }
 .ds-prop-label { font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .04em; margin-bottom: 5px; display: block; }

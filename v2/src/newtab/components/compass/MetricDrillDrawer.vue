@@ -3,7 +3,7 @@
  * R51-F14/F15/F17 指标下钻右侧抽屉：四格各自明细 + 条目点击定位
  * - dhi：各战略目标行（主攻/在轨/推进）→ 定位主航线对应行（闪烁高亮）
  * - wce：激活好奇项清单 → 跳调度台好奇心培育定位（route.query.hl）
- * - wrr：周期内调出资源 → 跳所属工作台定位（query.hl）
+ * - wrr：周期内调出资源 → 跳所属策展台定位（query.hl）
  * - unarch：未归档任务清单（口径同 NorthStarPanel O23）→ 就地级联归档 + 跳任务调度定位
  */
 import { computed, ref } from 'vue'
@@ -159,7 +159,7 @@ function locateTask(id: string) {
     <template v-else-if="cell === 'wrr'">
       <div class="md-head-count">{{ wrrRows.length }} 张资源被打开</div>
       <div class="md-list">
-        <div v-for="r in wrrRows" :key="r.id" class="md-row clickable" title="点击定位到资源卡所在工作台" @click="locateRes(r.id)">
+        <div v-for="r in wrrRows" :key="r.id" class="md-row clickable" title="点击定位到资源卡所在策展台" @click="locateRes(r.id)">
           <div class="md-main">
             <span class="md-title">🔗 {{ r.title }}</span>
             <span class="md-sub">最近打开 {{ fmtDay(r.lastCalledAt) }} · 累计 {{ r.callCount || 0 }} 次</span>
@@ -168,7 +168,7 @@ function locateTask(id: string) {
         </div>
         <div v-if="!wrrRows.length" class="md-empty">{{ periodLabel }}没有资源被打开</div>
       </div>
-      <div class="md-tip">WRR = 资源卡被打开次数。点击行跳转所属工作台并定位卡片。</div>
+      <div class="md-tip">WRR = 资源卡被打开次数。点击行跳转所属策展台并定位卡片。</div>
     </template>
 
     <!-- 未归档任务 -->

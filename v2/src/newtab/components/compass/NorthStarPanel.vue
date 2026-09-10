@@ -20,7 +20,7 @@ const metrics = computed(() => northStarMetrics(period.value))
 const periodLabel = computed(() => period.value === 'day' ? '今日' : period.value === 'week' ? '本周' : '累计')
 
 // ---- 下钻抽屉 ----
-// 第卌四轮 T-02：撤出 groups/resources（迁往设置页工作台全景/仪表盘），新增 today-add/today-del
+// 第卌四轮 T-02：撤出 groups/resources（迁往设置页策展台全景/仪表盘），新增 today-add/today-del
 type DrawerType = 'dhi' | 'wce' | 'wrr' | 'today-add' | 'today-del' | 'tasks'
 const drawerOpen = ref(false)
 const drawerType = ref<DrawerType>('dhi')
@@ -294,7 +294,7 @@ function changeTaskMetric(taskId: string, e: Event) {
             <div class="nd-meta">🔥{{ r.callCount }}次</div>
             <span class="nd-edit-hint">↗</span>
           </div>
-          <div v-if="!wrrTop.length" class="nd-empty">还没有资源被打开过——去工作台双击卡片或搜索打开</div>
+          <div v-if="!wrrTop.length" class="nd-empty">还没有资源被打开过——去资源台双击卡片或搜索打开</div>
         </div>
       </template>
 
@@ -422,7 +422,7 @@ function changeTaskMetric(taskId: string, e: Event) {
 .nd-select:focus { border-color: var(--accent); }
 .nd-select:disabled { opacity: .5; cursor: not-allowed; }
 
-/* 第卌四轮 T-02：模块分组/链接卡片下钻 UI 已撤卡（wsPopup/nd-ws/nd-flat/nw-* 死样式全清），全景下钻由设置页「工作台全景」承接 */
+/* 第卌四轮 T-02：模块分组/链接卡片下钻 UI 已撤卡（wsPopup/nd-ws/nd-flat/nw-* 死样式全清），全景下钻由设置页「策展台全景」承接 */
 
 /* 第卌一轮：卡片详情抽屉 */
 .nr-title { font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.5; margin-bottom: 14px; }

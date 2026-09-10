@@ -3,7 +3,7 @@
  * 事件：'zy-open-drawer'，payload = DrawerPayload
  */
 export interface DrawerPayload {
-  /** 资源卡 / 任务卡 / 好奇心卡 / 项目 / 工作台 */
+  /** 资源卡 / 任务卡 / 好奇心卡 / 项目 / 策展台 */
   kind: 'res' | 'task' | 'curio' | 'project' | 'ws'
   id: string
 }

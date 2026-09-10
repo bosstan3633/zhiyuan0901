@@ -171,7 +171,7 @@ export function useCompass() {
       .filter(x => !x.deletedAt && x.fromCuriosityId).length
     const newInPeriod = curiosities.filter(c => isWithinDays(c.createdAt, days)).length
 
-    // WRR 有效复用：资源卡被打开的累计次数（工作台点击/双击打开/搜索打开均计数）
+    // WRR 有效复用：资源卡被打开的累计次数（策展台点击/双击打开/搜索打开均计数）
     // R45-1 副标随周期：日=今日打开卡数(lastCalledAt) / 周=本周次数(stats.wrr.thisWeekUsage) / 累计=累计口径
     const totalCalls = d.value.resources.filter(r => !r.deletedAt)
       .reduce((sum, r) => sum + (r.callCount || 0), 0)
@@ -184,7 +184,7 @@ export function useCompass() {
     const wrrUnit = period === 'day' ? '今日' : period === 'week' ? '本周' : '累计'
     const wrrSub = period === 'all' ? `今日${todayOpened}卡打开` : `累计${totalCumUsage}次`
 
-    // 模块分组数 = 所有工作台的文件夹（分组）总数
+    // 模块分组数 = 所有策展台的文件夹（分组）总数
     const categoryCount = d.value.categories.length
     const resourceCount = d.value.resources.filter(r => !r.deletedAt).length
     const tasks = d.value.tasks.filter(t => !t.deletedAt)
@@ -206,7 +206,7 @@ export function useCompass() {
     dhi: 'R64 口径：战略目标 = 使命下拆解的方向数（非归档 Direction）；推进中项目 = 全部项目中挂有非软删任务（任务数 ≠ 0）的项目数。不再计算 DHI 百分比。',
     wce: 'WCE（R59 扩展口径）= 「探索中 + 已求证」好奇项数 + 好奇卡转化为任务/资源的卡数；副指标 = 本周期新捕获数（日/周/累计随上方周期切换）',
     wrr: 'WRR 主数字随周期联动：日=今日打开卡数 / 周=本周打开次数(stats.wrr.thisWeekUsage) / 累计=所有资源卡被打开次数之和；副指标给出参照口径（日/周档显示累计值，累计档显示今日值）',
-    groups: '模块分组数 = 所有工作台下的文件夹（分组）总数',
+    groups: '模块分组数 = 所有策展台下的文件夹（分组）总数',
     resources: '链接卡片总数 = 全部资源卡数量（不含回收站）',
     taskRate: '未归档任务 = 未挂成功指标的任务数（含未挂项目的）；在抽屉中级联关联项目→指标后即完成归档'
   }

@@ -359,7 +359,7 @@ function openChipLink(kind: 'res' | 'curio', id: string) {
     const r = d.value.resources.find(x => x.id === id && !x.deletedAt)
     const url = r ? toOpenableUrl(r.linkType, r.link) : ''
     if (!r || !url) { showToast('该卡片没有可打开的链接'); return }
-    // WRR 口径：关联卡片打开同样计入调用统计（与工作台/搜索/北极星一致）
+    // WRR 口径：关联卡片打开同样计入调用统计（与资源台/搜索/北极星一致）
     recordResourceOpen(d.value, r)
     store.persist()
     openExternalLink(url)
@@ -733,7 +733,7 @@ onUnmounted(() => {
     <Drawer :open="!!peekData" :title="peek?.kind === 'res' ? '📄 资源卡详情' : '💡 好奇心卡详情'" @close="peek = null">
       <template v-if="peekData">
         <div class="peek-row"><span class="peek-label">标题</span><div class="peek-val strong">{{ peekData.title }}</div></div>
-        <div class="peek-row"><span class="peek-label">来源</span><div class="peek-val">{{ peekData.kind === 'res' ? '资源工作台' : '我的好奇心' }}{{ peekData.linkType ? ' · ' + peekData.linkType : '' }}</div></div>
+        <div class="peek-row"><span class="peek-label">来源</span><div class="peek-val">{{ peekData.kind === 'res' ? '资源台' : '我的好奇心' }}{{ peekData.linkType ? ' · ' + peekData.linkType : '' }}</div></div>
         <div v-if="peekData.link" class="peek-row"><span class="peek-label">链接</span><div class="peek-val link">{{ peekData.link }}</div></div>
         <div v-if="peekData.desc" class="peek-row"><span class="peek-label">描述</span><div class="peek-val">{{ peekData.desc }}</div></div>
         <div v-if="peekData.tags.length" class="peek-row"><span class="peek-label">标签</span><div class="peek-val"><span v-for="t in peekData.tags" :key="t" class="peek-tag">#{{ t }}</span></div></div>

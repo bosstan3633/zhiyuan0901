@@ -139,10 +139,10 @@ export async function migrateV1ToV2(): Promise<AppData> {
   const v1 = (result.lm_data_v5 || {}) as V1Data
   const defaults = createDefaultData()
 
-  // ---- 1. 迁移工作台 ----
+  // ---- 1. 迁移策展台 ----
   const workspaces: Workspace[] = (v1.workspaces || []).map((w) => ({
     id: w.id,
-    name: w.name || '未命名工作台',
+    name: w.name || '未命名策展台',
     icon: w.icon || '📂',
     color: w.color || '#3A6B4C',
     coverTheme: 'deep-sea',
@@ -151,7 +151,7 @@ export async function migrateV1ToV2(): Promise<AppData> {
     archived: !!w.archived
   }))
 
-  // 确保至少有一个工作台
+  // 确保至少有一个策展台
   if (workspaces.length === 0) {
     workspaces.push(...defaults.workspaces)
   }

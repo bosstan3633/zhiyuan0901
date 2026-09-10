@@ -22,8 +22,8 @@
         <div class="gp-type-tab" :class="{active: currentType==='res'}" @click="setType('res')">📄 资源卡 <span class="gp-tt-count">{{ counts.res }}</span></div>
         <div class="gp-type-tab" :class="{active: currentType==='task'}" @click="setType('task')">✅ 任务卡 <span class="gp-tt-count">{{ counts.task }}</span></div>
         <div class="gp-type-tab" :class="{active: currentType==='curio'}" @click="setType('curio')">💡 好奇心 <span class="gp-tt-count">{{ counts.curio }}</span></div>
-        <!-- R49-G：工作台（分类树定位）/ 项目（直达项目详情）双类型 -->
-        <div class="gp-type-tab" :class="{active: currentType==='ws'}" @click="setType('ws')">🗂 工作台 <span class="gp-tt-count">{{ counts.ws }}</span></div>
+        <!-- R49-G：策展台（分类树定位）/ 项目（直达项目详情）双类型 -->
+        <div class="gp-type-tab" :class="{active: currentType==='ws'}" @click="setType('ws')">🗂 策展台 <span class="gp-tt-count">{{ counts.ws }}</span></div>
         <div class="gp-type-tab" :class="{active: currentType==='proj'}" @click="setType('proj')">📦 项目 <span class="gp-tt-count">{{ counts.proj }}</span></div>
       </div>
       <div class="gp-results" ref="resultsEl">
@@ -52,11 +52,11 @@
         </template>
         <!-- B1：搜索模式 = 分组 + 关键词高亮 -->
         <template v-else>
-        <!-- R49-G2：工作台类型 → 工作台→分类树（点击分类定位：有卡=高亮第一张，无卡=高亮分类行） -->
+        <!-- R49-G2：策展台类型 → 策展台→分类树（点击分类定位：有卡=高亮第一张，无卡=高亮分类行） -->
         <template v-if="currentType==='ws'">
           <div v-if="!wsTree.length" class="gp-search-empty">
             <div class="gp-se-icon">🗂</div>
-            <div class="gp-se-text">没有匹配的工作台</div>
+            <div class="gp-se-text">没有匹配的策展台</div>
           </div>
           <template v-for="wsn in wsTree" :key="wsn.id">
             <div class="gp-group-title">🗂 {{ wsNameOf(wsn.id) }} <span class="gp-group-cnt">{{ wsn.cards }} 张卡</span></div>
@@ -73,7 +73,7 @@
               </div>
               <span class="gp-ri-link url">定位 ↗</span>
             </div>
-            <div v-if="!wsn.cats.length" class="gp-group-more">该工作台暂无分类</div>
+            <div v-if="!wsn.cats.length" class="gp-group-more">该策展台暂无分类</div>
           </template>
         </template>
         <template v-else>
@@ -174,11 +174,11 @@
           </div>
           <div class="gp-field-row">
             <div class="gp-field">
-              <label class="gp-field-label">存入工作台</label>
+              <label class="gp-field-label">存入台面</label>
               <select class="gp-status-select" v-model="capForm.workspaceId">
                 <option v-for="ws in userWorkspaces" :key="ws.id" :value="ws.id">{{ ws.icon }} {{ ws.name }}</option>
                 <option disabled>🧭 方向台（系统）</option>
-                <option disabled>✅ 任务中心（系统）</option>
+                <option disabled>✅ 任务调度（系统）</option>
               </select>
             </div>
             <div class="gp-field">
@@ -470,7 +470,7 @@ const searchQuery = ref('')
 const pinyinReady = ref(isPinyinReady())
 onPinyinReady(() => { pinyinReady.value = true })
 /** B29：类型过滤单一状态源——搜索框 chip 与类型 Tab 行共用，Tab 切换两者同步
- *  R49-G：新增 'ws' 工作台（分类树定位）/ 'proj' 项目（直达项目详情）两类型 */
+ *  R49-G：新增 'ws' 策展台（分类树定位）/ 'proj' 项目（直达项目详情）两类型 */
 const currentType = ref<'all'|'res'|'task'|'curio'|'ws'|'proj'>('all')
 const selIndex = ref(0)
 /**
@@ -492,7 +492,7 @@ function syncIndexFromId() {
 const convertMenuId = ref<string | null>(null)
 
 function typeLabel(t: 'all'|'res'|'task'|'curio'|'ws'|'proj'): string {
-  return t === 'res' ? '📄 资源卡' : t === 'task' ? '✅ 任务卡' : t === 'curio' ? '💡 好奇心' : t === 'ws' ? '🗂 工作台' : t === 'proj' ? '📦 项目' : '🔍 搜全部'
+  return t === 'res' ? '📄 资源卡' : t === 'task' ? '✅ 任务卡' : t === 'curio' ? '💡 好奇心' : t === 'ws' ? '🗂 策展台' : t === 'proj' ? '📦 项目' : '🔍 搜全部'
 }
 const filterLabel = computed(() => typeLabel(currentType.value))
 
@@ -510,7 +510,7 @@ const counts = computed(() => {
 
 interface SearchResult {
   id: string
-  // 第卅二轮 REQ-008：新增 'ws' 工作台实体命中；R49-G：新增 'proj' 项目实体命中
+  // 第卅二轮 REQ-008：新增 'ws' 策展台实体命中；R49-G：新增 'proj' 项目实体命中
   type: 'res'|'task'|'curio'|'ws'|'proj'
   iconClass: string
   iconText: string
@@ -573,13 +573,13 @@ const allResults = computed<SearchResult[]>(() => {
     })
   })
 
-  // 第卅二轮 REQ-008：检索范围扩展至工作台实体（模糊匹配工作台名称，专属图标区分类别）
+  // 第卅二轮 REQ-008：检索范围扩展至策展台实体（模糊匹配策展台名称，专属图标区分类别）
   d.value.workspaces.filter(w => !w.archived).forEach(w => {
     const cardCount = d.value.resources.filter(r => !r.deletedAt && r.workspaceId === w.id).length
     results.push({
       id: w.id, type: 'ws', iconClass: 'ws', iconText: '🗂',
-      title: w.name, ws: '工作台', cat: `${cardCount} 张资源卡`,
-      badges: [{ type: 'ws-badge', text: '工作台' }],
+      title: w.name, ws: '策展台', cat: `${cardCount} 张资源卡`,
+      badges: [{ type: 'ws-badge', text: '策展台' }],
       summary: '',
       raw: w
     })
@@ -606,10 +606,10 @@ const allResults = computed<SearchResult[]>(() => {
 /** R49-G4：项目类型受已完成显隐开关约束（与主航线/项目总览/完整方向树共用 UIPrefs） */
 const showDoneProjects = computed(() => (store.ui as any)?.showDoneProjects !== false)
 
-/** R49-G2：工作台类型 → 工作台→分类树（含分类卡片数；关键字过滤工作台名/分类名） */
+/** R49-G2：策展台类型 → 策展台→分类树（含分类卡片数；关键字过滤策展台名/分类名） */
 const wsTree = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  // R68-F1：口径对齐台签栏——排除资源台本体实体（固定 Tab，非台签工作台），历史遗留实体不再混入
+  // R68-F1：口径对齐台签栏——排除资源台本体实体（固定 Tab，非台签策展台），历史遗留实体不再混入
   return d.value.workspaces.filter(w => !w.archived && w.id !== CURATION_WS_ID)
     .filter(w => !q || w.name.toLowerCase().includes(q))
     .map(w => {
@@ -625,7 +625,7 @@ const wsTree = computed(() => {
 function wsNameOf(id: string): string {
   return (d.value.workspaces.find(w => w.id === id)?.name || '').replace(/^[^\s]+\s/, '')
 }
-/** R49-G3：点击分类 → 定位工作台该分类（有卡=高亮第一张；无卡=高亮分类行） */
+/** R49-G3：点击分类 → 定位策展台该分类（有卡=高亮第一张；无卡=高亮分类行） */
 function locateCat(wsId: string, cat: { id: string; name: string }) {
   recordWorkspaceOpen(d.value, d.value.workspaces.find(w => w.id === wsId))
   store.persist()
@@ -693,7 +693,7 @@ const QUICK_ACTIONS = [
   { label: '采集资源卡（Ctrl+Shift+J）', icon: 'download', run: () => openPanel('capture') },
   { label: '采集好奇心（Ctrl+Shift+I）', icon: 'bulb', run: () => openPanel('curio') },
 ]
-// R47-B4：浏览模式热度列表——全类型（资源/任务/好奇/工作台）按调用次数降序，次数并列按最近打开时间
+// R47-B4：浏览模式热度列表——全类型（资源/任务/好奇/策展台）按调用次数降序，次数并列按最近打开时间
 const recentResources = computed<SearchResult[]>(() => {
   const heat = allResults.value.filter(x => (x.raw as AnyCard | Workspace).callCount)
   heat.sort((a, b) => {
@@ -721,7 +721,7 @@ const flatList = computed<FlatItem[]>(() => {
 const groupedResults = computed(() => {
   const defs: { type: 'res'|'task'|'curio'|'ws'|'proj'; label: string }[] = [
     { type: 'res', label: '📄 资源卡' }, { type: 'task', label: '✅ 任务卡' }, { type: 'curio', label: '💡 好奇心' },
-    { type: 'ws', label: '🗂 工作台' }, { type: 'proj', label: '📦 项目' }
+    { type: 'ws', label: '🗂 策展台' }, { type: 'proj', label: '📦 项目' }
   ]
   // REQ-046 速度优化：每组最多渲染 30 条，防超大结果集首屏卡顿
   const MAX_PER_GROUP = 30
@@ -805,7 +805,7 @@ function onSearchKeydown(e: KeyboardEvent) {
     // 关键词被视为指令（消费掉），普通关键词保留；chip 与类型 Tab 行高亮同步更新
     e.preventDefault()
     const q = searchQuery.value.trim()
-    const kw = ([['任务', 'task'], ['资源', 'res'], ['好奇心', 'curio'], ['好奇', 'curio'], ['工作台', 'ws'], ['项目', 'proj'], ['全部', 'all']] as const).find(([k]) => k === q)
+    const kw = ([['任务', 'task'], ['资源', 'res'], ['好奇心', 'curio'], ['好奇', 'curio'], ['策展台', 'ws'], ['工作台', 'ws'], ['项目', 'proj'], ['全部', 'all']] as const).find(([k]) => k === q)
     if (kw) { currentType.value = kw[1]; searchQuery.value = '' }
     else {
       const cycle: Array<'all'|'res'|'task'|'curio'|'ws'|'proj'> = ['all', 'res', 'task', 'curio', 'ws', 'proj']
@@ -849,7 +849,7 @@ function openItem(item: SearchResult) {
   if (item?.id && item.id === lastOpenId && now - lastOpenTs < 300) return
   if (item?.id) { lastOpenId = item.id; lastOpenTs = now }
   if (item.type === 'ws') {
-    // 第卅二轮 REQ-008：工作台条目 → 直接打开对应工作台
+    // 第卅二轮 REQ-008：策展台条目 → 直接打开对应策展台
     recordWorkspaceOpen(d.value, d.value.workspaces.find(w => w.id === item.id))
     store.persist()
     router.push(`/workspace/${item.id}`)
@@ -865,19 +865,19 @@ function openItem(item: SearchResult) {
   }
   if (item.type === 'res') {
     const r = item.raw as ResourceCard
-    // 第卅二轮 REQ-009 统一打开规则：有链接（URL/本地文件/Obsidian）→ 直接打开；无链接 → 定位到所在工作台并高亮
+    // 第卅二轮 REQ-009 统一打开规则：有链接（URL/本地文件/Obsidian）→ 直接打开；无链接 → 定位到所在资源台并高亮
     const url = toOpenableUrl(r.linkType, r.link)
     if (url) {
       recordResourceOpen(d.value, r)
       store.persist()
       openExternalLink(url)
     } else if (r.link) {
-      // 有链接值但不可打开（本地文件仅文件名）→ 跳工作台定位，提示补全
-      showToast('⚠ 本地文件缺少完整路径，请到工作台补全')
+      // 有链接值但不可打开（本地文件仅文件名）→ 跳资源台定位，提示补全
+      showToast('⚠ 本地文件缺少完整路径，请到资源台补全')
       router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: r.id } })
     } else {
       router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: r.id } })
-      showToast('↗ 已定位到卡片所在工作台')
+      showToast('↗ 已定位到卡片所在资源台')
     }
   } else if (item.type === 'task') {
     recordCardOpen(d.value, d.value.tasks.find(t => t.id === item.id))
@@ -956,12 +956,12 @@ const SHORTCUT_GROUPS = [
     { keys: 'Ctrl+Shift+J', desc: '快速采集当前网页' },
     { keys: 'Ctrl+Shift+I', desc: '采集好奇心（选中文字可附带来源）' },
     { keys: 'Ctrl+K', desc: '全局搜索' },
-    { keys: 'Ctrl+Shift+K', desc: '打开工作台' },
+    { keys: 'Ctrl+Shift+K', desc: '打开调度台' },
   ]},
   { title: '应用内', items: [
     { keys: 'Alt+1', desc: '方向台（修饰键可自定义）' },
     { keys: 'Alt+2', desc: '资源台' },
-    { keys: 'Alt+3…9', desc: '各工作台（按台签顺序）' },
+    { keys: 'Alt+3…9', desc: '各策展台（按台签顺序）' },
     { keys: '?', desc: '呼出本速查' },
   ]},
   { title: '编辑与导航', items: [

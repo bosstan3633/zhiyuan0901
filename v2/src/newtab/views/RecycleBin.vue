@@ -24,7 +24,7 @@ const curios = computed(() =>
   d.value.curiosities.filter(c => c.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
 
 function wsNameOf(id: string): string {
-  return d.value.workspaces.find(w => w.id === id)?.name.replace(/^[^\s]+\s/, '') || '未知工作台'
+  return d.value.workspaces.find(w => w.id === id)?.name.replace(/^[^\s]+\s/, '') || '未知策展台'
 }
 function catNameOf(id: string): string {
   return d.value.categories.find(c => c.id === id)?.name || '待分类'
@@ -48,12 +48,12 @@ function fmt(t?: number): string {
 function show(msg: string) { showToast(msg) }
 
 // ---- 恢复 ----
-/** R58-B1：恢复时原工作台/分类可能已随「删除工作台」消失——回落到第一个可用工作台的未分类，保证卡片可见可用 */
+/** R58-B1：恢复时原策展台/分类可能已随「删除策展台」消失——回落到第一个可用策展台的未分类，保证卡片可见可用 */
 function rehomeIfOrphan(r: ResourceCard): string {
   let note = ''
   if (!d.value.workspaces.some(w => w.id === r.workspaceId)) {
     const fallback = d.value.workspaces.find(w => w.id !== CURATION_WS_ID) || d.value.workspaces[0]
-    if (fallback) { r.workspaceId = fallback.id; note = '（原工作台已删除，已移入「' + fallback.name.replace(/^[^\s]+\s/, '') + '」未分类）' }
+    if (fallback) { r.workspaceId = fallback.id; note = '（原策展台已删除，已移入「' + fallback.name.replace(/^[^\s]+\s/, '') + '」未分类）' }
   } else if (r.categoryId && !d.value.categories.some(c => c.id === r.categoryId)) {
     r.categoryId = ''
     note = '（原分类已删除，已移入未分类）'

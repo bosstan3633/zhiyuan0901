@@ -4,7 +4,7 @@ export default defineManifest({
   manifest_version: 3,
   name: '知源调度台',
   short_name: '知源',
-  version: '2.38.0',
+  version: '2.38.1',
   description: '你在浏览器里的个人调度中台 · 万千可调用，自有我方向 · 本地优先 · Chrome MV3',
   permissions: ['storage', 'unlimitedStorage', 'tabs', 'activeTab', 'commands', 'scripting', 'downloads', 'alarms'],
   host_permissions: ['<all_urls>', 'file:///*'],
@@ -41,7 +41,7 @@ export default defineManifest({
       description: '全局设置'
     },
     // R49-I1 + R50-F3/F8 + R65-F6：浏览器级命令（无默认键，chrome://extensions/shortcuts 自定义）
-    // R68-F3：「打开方向台」「打开资源台」退役——方向台/资源台/工作台改由应用内 Alt+数字（台签顺序）切台
+    // R68-F3：「打开方向台」「打开资源台」退役——方向台/资源台/策展台改由应用内 Alt+数字（台签顺序）切台
     'open-tree': {
       description: '打开完整方向树'
     },

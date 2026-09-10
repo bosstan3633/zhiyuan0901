@@ -142,7 +142,7 @@ function togglePin(p: Project) {
   store.persist()
   showToast(p.pinned ? '📌 已置顶' : '已取消置顶')
 }
-/** 组内拖拽排序（order 全量规整回写，与工作台 Tab 同模式） */
+/** 组内拖拽排序（order 全量规整回写，与策展台 Tab 同模式） */
 let dragProjId: string | null = null
 let dragFromPinned = false
 function onProjDragStart(e: DragEvent, p: Project) {

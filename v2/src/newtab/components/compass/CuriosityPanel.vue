@@ -282,7 +282,7 @@ function onCzKanbanDrop(e: DragEvent, status: CuriStatus) {
   dragCzId = null
 }
 
-// ---- 转化（选工作台/分类 或 项目/指标）----
+// ---- 转化（选策展台/分类 或 项目/指标）----
 const convertOpen = ref(false)
 const convertTarget = ref<'task' | 'res'>('task')
 const convertItem = ref<CuriosityCard | null>(null)
@@ -322,10 +322,10 @@ function confirmConvert() {
   const c = convertItem.value
   if (!c) return
   if (convertTarget.value === 'res') {
-    if (!convertWsId.value) { showToast('请选择工作台'); return }
+    if (!convertWsId.value) { showToast('请选择策展台'); return }
     const ws = convWorkspaces.value.find(w => w.id === convertWsId.value)
     convertToResource(c, convertWsId.value, convertCatId.value || undefined)
-    showToast(`✓ 已归档至「${ws?.name || ''}」资源工作台`)
+    showToast(`✓ 已归档至「${ws?.name || ''}」资源台`)
   } else {
     const proj = convProjects.value.find(p => p.id === convertProjId.value)
     const wasShelf = c.status === 'shelf'
@@ -573,7 +573,7 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
             <div class="cz-modal-sub">{{ convertItem?.question }}</div>
 
             <template v-if="convertTarget === 'res'">
-              <label class="cz-modal-label">存入工作台</label>
+              <label class="cz-modal-label">存入策展台</label>
               <select v-model="convertWsId" class="cz-modal-select">
                 <option v-for="w in convWorkspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^s]+s/, '') }}</option>
               </select>

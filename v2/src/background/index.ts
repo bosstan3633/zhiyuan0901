@@ -316,10 +316,10 @@ chrome.action.onClicked.addListener(async () => {
 })
 
 /**
- * 工作台单例定位（G / B3）：
+ * 策展台单例定位（G / B3）：
  * chrome.tabs.query 的 URL 匹配不含 # 锚点，无法直接按 hash 路由查找，
  * 因此查询所有扩展新标签页 → 逐个询问当前路由 →
- *   命中目标工作台 → 激活并转发定位消息（页内跳转+高亮）
+ *   命中目标策展台 → 激活并转发定位消息（页内跳转+高亮）
  *   未命中 → 发送方是新标签页则本页跳转；否则新建
  */
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -359,7 +359,7 @@ async function handleLocate(wsId: string, hl: string, senderTabId?: number): Pro
   const base = await newtabBase()
   const target = `/workspace/${wsId}`
   const tabs = await chrome.tabs.query({ url: base + '*' })
-  // 1) 找已打开目标工作台的标签页
+  // 1) 找已打开目标策展台的标签页
   // REQ-031 P-031-7：并行询问所有标签页（150ms 短超时），取首个命中——N 个标签页不再串行 N×600ms
   if (tabs.length) {
     const hits = await Promise.all(tabs.map(async (tab) => {
@@ -375,7 +375,7 @@ async function handleLocate(wsId: string, hl: string, senderTabId?: number): Pro
       return
     }
   }
-  // 2) 无已开工作台：发送方是新标签页则本页跳转
+  // 2) 无已开策展台：发送方是新标签页则本页跳转
   if (senderTabId != null) {
     try {
       const senderTab = await chrome.tabs.get(senderTabId)
