@@ -352,6 +352,8 @@ export interface AppData {
   airtableSync?: AirtableSyncState
   /** R63：知源卡 id ↔ Airtable recordId 映射表（同步成功后写回；导入合并按 id 取并集） */
   airtableMap?: Record<string, AirtableMapEntry>
+  /** R80（R1 遗留）：资源卡标签默认可见迁移完成时间戳（幂等标记——有值即跳过） */
+  tagsVisibleMigratedAt?: number
 }
 
 /** R63：Airtable 单向同步配置 + 状态（存 AppData 单根内，随导出带走） */

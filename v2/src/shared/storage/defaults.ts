@@ -10,7 +10,8 @@ function defaultFieldDefs() {
     { key: 'link', label: '链接', type: 'text', visible: true, order: 1 },
     { key: 'description', label: '描述', type: 'text', visible: true, order: 2 },
     { key: 'sourceType', label: '来源类型', type: 'select', options: ['官方', '学术', '媒体', '个人', 'AI工具', '个人成果'], visible: false, order: 3 },
-    { key: 'tags', label: '标签', type: 'tags', visible: false, order: 4 },
+    // R80（R1 遗留）：tags 改默认可见——R1「补齐 #标签」此前在默认配置下根本不显示
+    { key: 'tags', label: '标签', type: 'tags', visible: true, order: 4 },
     { key: 'createdAt', label: '创建时间', type: 'date', visible: false, order: 5 },
     { key: 'assets', label: '附件', type: 'text', visible: true, order: 6 }
   ]

@@ -13,6 +13,8 @@ import { putAsset, getAssetBlob, deleteAsset } from '@/shared/storage/assets'
 import { uid } from '@/shared/utils'
 import { showToast } from '@/shared/components/toast'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
+// R80（R13）：guessAssetKind / ASSET_KIND_MB 由 shared/utils/assetKind 提供（不再本地实现）
+import { guessAssetKind, ASSET_KIND_MB } from '@/shared/utils/assetKind'
 import AssetPreview from './AssetPreview.vue'
 
 const props = withDefaults(defineProps<{
@@ -29,10 +31,11 @@ const emit = defineEmits<{
   (e: 'html-added', meta: AssetMeta, replacedOld: AssetMeta | null): void
 }>()
 
-/** 第卌二轮 REQ-061 上传规范常量；第卌四轮 T-08：PDF 100MB 上限（用户拍板） */
+/** 第卌二轮 REQ-061 上传规范常量；第卌四轮 T-08：PDF 100MB 上限（用户拍板）
+ *  R80（R13）：图片/PDF 上限改由共享 ASSET_KIND_MB 供值（导入侧同口径），HTML 仍走 props.maxSizeMB */
 const IMG_MAX_COUNT = 9
-const IMG_MAX_MB = 10
-const PDF_MAX_MB = 100
+const IMG_MAX_MB = ASSET_KIND_MB.image
+const PDF_MAX_MB = ASSET_KIND_MB.pdf
 
 const list = computed<AssetMeta[]>(() => props.modelValue || [])
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -41,13 +44,8 @@ const busy = ref(false)
 function emitList(next: AssetMeta[]) { emit('update:modelValue', next) }
 
 // ---- 类型判定（扩展名兜底 file.type 缺失） ----
-function guessKind(name: string, mime: string): 'image' | 'html' | 'pdf' | null {
-  if (/^image\//i.test(mime)) return 'image'
-  if (/\.(png|jpe?g|gif|webp|svg|bmp|avif|ico)$/i.test(name)) return 'image'
-  if (/\.html?$/i.test(name) || /\.htm$/i.test(name)) return 'html'
-  if (/\.pdf$/i.test(name) || /^application\/pdf$/i.test(mime)) return 'pdf'
-  return null
-}
+// R80（R13）：判定抽到共享工具，供本地文件导入复用——两处口径必须只有一份实现
+const guessKind = guessAssetKind
 function fmtSize(n: number): string {
   if (n < 1024) return n + ' B'
   if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' KB'

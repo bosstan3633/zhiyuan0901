@@ -459,7 +459,8 @@
     </div>
     <input ref="boardImportInput" type="file" accept=".json,application/json" style="display:none" @change="handleBoardImport" />
     <input ref="bookmarkInput" type="file" accept=".html,.htm" style="display:none" @change="handleBookmarkImport" />
-    <input ref="fileImportInput" type="file" multiple style="display:none" @change="handleFileImport" />
+    <!-- R80（R13）：accept 列出支持类型（图片 / HTML / PDF）——改前是裸 multiple，选了 zip/docx 只能导入后才发现被跳过 -->
+    <input ref="fileImportInput" type="file" multiple accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.avif,.ico,.html,.htm,.pdf,application/pdf,text/html" style="display:none" @change="handleFileImport" />
 
     <!-- R73-S2：书签导入文件夹选择（自 CurationCenter 迁入） -->
     <div class="modal-overlay" :class="{open: bookmarkModalOpen}" @click.self="bookmarkModalOpen=false">
@@ -618,6 +619,9 @@
     <!-- B5：右键菜单（R62 接线：组件此前已导入但未渲染，卡片/镜像菜单自此生效） -->
     <ContextMenu :state="resCtx" :items="resCtxItems" @close="resCtx.open = false" />
 
+    <!-- R80（R14）：图片附件卡预览——双击 `zy-asset://` 图片卡就地弹窗（此前会落到「文档附件不存在」误报） -->
+    <AssetPreview :open="previewOpen" :url="previewUrl" :name="previewName" @close="closePreview" />
+
     <!-- R62-6：金字塔节点菜单（⋯ 展开，6 项） -->
     <Teleport to="body">
       <div v-if="nodeMenu.open" class="node-menu-mask" @click="nodeMenu.open=false" />
@@ -708,6 +712,10 @@ import { saveUIPrefs } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
+// R80（R13/R14）：附件类型判定与体积上限抽为共享工具（导入侧与 AssetManager 同口径）
+import { guessAssetKind, assetMimeOf, stripExt, ASSET_KIND_MB } from '@/shared/utils/assetKind'
+import { putAsset, getAssetBlob } from '@/shared/storage/assets'
+import AssetPreview from '@/shared/components/AssetPreview.vue'
 import { uid, safeDecodeText } from '@/shared/utils'
 import { MAX_CAT_LEVEL, sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
 import { buildCatIndex, buildBucketIndex } from '@/shared/utils/catIndex'
@@ -720,7 +728,7 @@ import { markRank } from '@/shared/utils/marksort'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
 import { useCardCols } from '@/shared/utils/cardCols'
-import { CURATION_WS_ID, type AppData, type ResourceCard, type Category, type Workspace, type TaskCard, type FieldDef } from '@/shared/models'
+import { CURATION_WS_ID, type AppData, type ResourceCard, type Category, type Workspace, type TaskCard, type FieldDef, type AssetMeta } from '@/shared/models'
 import { boardCardsOf, isMirrorView, removeProjection, curationMetrics, setThesis, mirrorCategoryToBoard, canMountInNode, isHubWs, projectCardToBoard, curationBoards, type MirrorView } from '@/shared/storage/hub'
 import CurationDrillDrawer from '@/newtab/components/CurationDrillDrawer.vue'
 import type { DrillCatRow, DrillCardRow } from '@/newtab/components/CurationDrillDrawer.vue'
@@ -1102,16 +1110,39 @@ const kanbanColumns = computed(() => kanbanCategories.value.map(c => {
 }))
 
 // ===== 链接打开（E1：双击 = 打开链接；第卅二轮 REQ-010 归一化逻辑统一在 shared/utils/link） =====
+/** 图片附件预览（R80/R14）：blob URL 需回收，打开下一张前先 revoke 上一张 */
+const previewOpen = ref(false)
+const previewUrl = ref('')
+const previewName = ref('')
+let lastPreviewUrl = ''
+function revokePreview() {
+  if (lastPreviewUrl) { URL.revokeObjectURL(lastPreviewUrl); lastPreviewUrl = '' }
+}
+function closePreview() { previewOpen.value = false; revokePreview(); previewUrl.value = '' }
+async function openImageAsset(meta: AssetMeta) {
+  let blob: Blob | null = null
+  try { blob = await getAssetBlob(meta.id) } catch { blob = null }
+  if (!blob) { showToast('⚠ 附件本体缺失（可能已被清理），请重新上传'); return }
+  revokePreview()
+  previewUrl.value = URL.createObjectURL(blob)
+  lastPreviewUrl = previewUrl.value
+  previewName.value = meta.name
+  previewOpen.value = true
+}
 /** 第卌二轮 REQ-061：双击卡片打开——挂了 HTML 附件的资源卡（link=zy-asset://<id>）走 openHtmlAsset
- *  file:// 落盘完整打开，与详情内打开同一函数同一效果（新标签页，内联脚本可运行） */
+ *  file:// 落盘完整打开，与详情内打开同一函数同一效果（新标签页，内联脚本可运行）
+ *  R80（R14）：补上 image 分支——此前判据只放行 html/pdf，图片附件卡双击会落到
+ *  「文档附件不存在或已失效」的误报；现图片走 AssetPreview 就地预览。 */
 function openResourceLink(r: ResourceCard) {
   recordResourceOpen(d.value, r)
   store.persist()
   if (r.linkType === 'file' && /^zy-asset:\/\//i.test((r.link || '').trim())) {
     const assetId = (r.link || '').trim().replace(/^zy-asset:\/\//i, '')
     const meta = (r.assets || []).find(a => a.id === assetId)
-    if (!meta || (meta.kind !== 'html' && meta.kind !== 'pdf')) { showToast('⚠ 卡片指向的文档附件不存在或已失效'); return }
-    openHtmlAsset(meta)
+    if (!meta) { showToast('⚠ 卡片指向的附件不存在或已失效，请重新上传'); return }
+    if (meta.kind === 'image') { void openImageAsset(meta); return }
+    if (meta.kind === 'html' || meta.kind === 'pdf') { openHtmlAsset(meta); return }
+    showToast('⚠ 卡片指向的附件不存在或已失效，请重新上传')
     return
   }
   const url = toOpenableUrl(r.linkType, r.link)
@@ -2435,18 +2466,61 @@ function confirmBookmarkImport() {
   showToast(`✓ 已导入 ${items.length} 个书签（文件夹结构已生成为分类，可自行增删改）`)
 }
 
-/** 本地文件批量导入（R13 将改写为「每文件一张带附件的卡」，此处先保持迁移前口径） */
+/** 本地文件批量导入（R13）：**每文件一张带附件的卡**。
+ *  改前只把文件名当 link 存进卡里（如「报告.pdf」）——`toOpenableUrl('file','报告.pdf')` 因不是完整
+ *  路径直接返回空，双击只提示「未设置链接」⇒ 用户既打不开也修不好，即 04-18 §261 所说的**哑卡**。
+ *  现改为：guessAssetKind 判定 → putAsset 写 IndexedDB 本体 → 建卡（link='zy-asset://<id>' + assets=[meta]），
+ *  **图片 / HTML / PDF 一律一文件一卡**（Q10 拍板）；不支持的类型跳过并汇总，不建哑卡。 */
 function fileImport() { fileImportInput.value?.click() }
-function handleFileImport(e: Event) {
+async function handleFileImport(e: Event) {
   const input = e.target as HTMLInputElement
+  // ⚠ 必须先快照 FileList 再清空 input.value——置空会重置 FileList（第卌一轮同款坑）
   const files = Array.from(input.files || [])
+  input.value = ''
   if (!files.length) return
   const catId = newCardCatId()
-  files.forEach(f => d.value.resources.unshift(makeHubResource(f.name.replace(/\.[^.]+$/, ''), 'file', f.name, catId)))
-  store.persist()
-  input.value = ''
+  const skipped: string[] = []
+  let added = 0
+  let totalBytes = 0
+  for (const f of files) {
+    const kind = guessAssetKind(f.name, f.type)
+    if (!kind) { skipped.push(f.name); continue }
+    if (f.size > ASSET_KIND_MB[kind] * 1024 * 1024) { skipped.push(f.name); continue }
+    const id = uid('at')
+    try {
+      await putAsset(id, f)
+    } catch (err) {
+      console.error('[import] putAsset failed:', err)
+      skipped.push(f.name)
+      continue
+    }
+    const meta: AssetMeta = {
+      id, kind, name: f.name, size: f.size,
+      mime: assetMimeOf(kind, f.type), createdAt: Date.now()
+    }
+    const now = Date.now()
+    d.value.resources.unshift({
+      id: uid('rc'), kind: 'resource',
+      title: stripExt(f.name) || f.name,
+      linkType: 'file', link: `zy-asset://${id}`,
+      workspaceId: workspaceId.value, categoryId: catId,
+      description: '', tags: [], assets: [meta], customFields: {},
+      pinned: false, callCount: 0, createdAt: now, updatedAt: now
+    })
+    added++
+    totalBytes += f.size
+  }
+  if (added) { store.persist() }
   importModalOpen.value = false
-  showToast(`✓ 已导入 ${files.length} 个文件（双击打开前请补全完整路径）`)
+  const mb = (totalBytes / 1024 / 1024).toFixed(1)
+  const skipNote = skipped.length
+    ? ` ⚠ 已跳过 ${skipped.length} 个不支持的文件：${skipped.slice(0, 3).join('、')}${skipped.length > 3 ? '…' : ''}`
+    : ''
+  showToast(
+    added
+      ? `✓ 已导入 ${added} 个文件（共 ${mb} MB）${skipNote}`
+      : `✗ 无可用文件${skipNote}`
+  )
 }
 
 // ===== 设置菜单 =====

@@ -105,6 +105,17 @@ export async function loadData(): Promise<AppData> {
       data.fieldConfig[key].push({ key: 'assets', label: '附件', type: 'text', visible: true, order: data.fieldConfig[key].length })
     }
   }
+  // R80（R1 遗留）：资源卡标签默认可见——一次性幂等迁移。
+  // 背景：字段池四组的 tags 自建立起就是 visible:false，导致 R1「补齐 #标签」在存量数据上
+  // 从未真正生效（用户不知道要去设置里打开）。此处对 resource 组一次性置 true。
+  // ⚠ 取舍：若用户此前**主动**关掉过标签，本次会被重新打开——R1 是 P0 且标签是资源卡核心元数据，
+  //   判"不知道能开"的概率远高于"主动关掉"。回退只需在设置里再关一次（或删掉标记后重启）。
+  if (!data.tagsVisibleMigratedAt) {
+    const res = data.fieldConfig?.resource
+    const tag = res?.find(f => f.key === 'tags')
+    if (tag) tag.visible = true
+    data.tagsVisibleMigratedAt = Date.now()
+  }
   // R58-B5：activityLogs 已无写入方（事件日志迁 zy_event_log 独立键）——启动期清空瘦身
   if (Array.isArray(data.activityLogs) && data.activityLogs.length) data.activityLogs = []
   // R63：Airtable 同步状态归一化（老数据无则补默认；log 截断防膨胀；map 保证为对象）
