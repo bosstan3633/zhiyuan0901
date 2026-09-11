@@ -21,6 +21,10 @@ export function toOpenableUrl(linkType: LinkType, link: string): string {
     }
     return ''
   }
+  // R70：拦截可执行伪协议——此前 url 类型「原样返回」，录入或导入的 javascript: / data: 链接点击即执行脚本
+  //（同文件 toOpenableRawLink 已有协议白名单，此处是遗漏）。用黑名单而非白名单，是为了不误伤
+  // obsidian:// 等合法自定义协议。
+  if (/^\s*(javascript|data|vbscript|blob):/i.test(t)) return ''
   return t
 }
 

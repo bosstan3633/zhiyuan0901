@@ -25,7 +25,7 @@ type DrawerType = 'dhi' | 'wce' | 'wrr' | 'today-add' | 'today-del' | 'tasks'
 const drawerOpen = ref(false)
 const drawerType = ref<DrawerType>('dhi')
 const drawerTitle = computed(() => ({
-  dhi: '🧭 方向健康度明细 · DHI',
+  dhi: '🧭 方向健康度明细 · 战略目标 / 推进项目',
   wce: '💡 好奇探索明细 · WCE',
   wrr: '🟢 有效复用明细 · WRR',
   'today-add': `📈 新增卡片明细 · ${periodLabel.value}`,
@@ -47,7 +47,7 @@ function openDrawer(type: DrawerType) {
   drawerOpen.value = true
 }
 
-// ---- DHI：项目列表 → 点击打开可编辑项目抽屉 ----
+// ---- 战略目标 / 推进项目：项目列表 → 点击打开可编辑项目抽屉（R70：原 DHI 口径已于 R64 退役） ----
 const projects = computed(() => allProjects())
 const dhiList = computed(() => projects.value.map(p => {
   const prog = projectProgress(p)
@@ -256,7 +256,7 @@ function changeTaskMetric(taskId: string, e: Event) {
     <Drawer :open="drawerOpen" :title="drawerTitle" width="460px" @close="drawerOpen = false">
       <div class="nd-formula">📐 {{ drawerFormula }}</div>
 
-      <!-- DHI -->
+      <!-- 战略目标 / 推进项目 -->
       <template v-if="drawerType === 'dhi'">
         <div class="dhi-list">
           <div v-for="item in dhiList" :key="item.project.id" class="nd-item clickable" @click="openProject(item.project)">

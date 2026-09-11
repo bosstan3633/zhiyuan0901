@@ -102,7 +102,7 @@ export const useAppStore = defineStore('app', () => {
         if (area === 'local' && changes.zy_data_v2) {
           const newData = changes.zy_data_v2.newValue as AppData
           if (!newData) return
-          if (isSelfWrite(Date.now())) return
+          if (isSelfWrite(newData)) return  // R70：内容指纹比对（原为恒 false 的时间戳比较，守卫从未生效）
           // R58-B2：本页有未落盘修改时做卡片级 LWW 合并（防跨标签页/浮层并发写静默丢改），否则整树替换
           data.value = mergeExternalData(newData)
         }

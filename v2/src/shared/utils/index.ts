@@ -1,6 +1,12 @@
-﻿/** 生成唯一 ID */
+﻿/** 生成唯一 ID（R70：优先 crypto.randomUUID——原实现「毫秒时间戳 + 6 位随机」在同毫秒批量创建/导入时存在碰撞可能） */
 export function uid(prefix = 'id'): string {
-  return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+  try {
+    const c = globalThis.crypto as { randomUUID?: () => string } | undefined
+    if (c && typeof c.randomUUID === 'function') {
+      return prefix + '_' + c.randomUUID().replace(/-/g, '').slice(0, 16)
+    }
+  } catch { /* 降级到时间戳方案 */ }
+  return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6)
 }
 
 /** 日期键 YYYY-MM-DD */
@@ -11,9 +17,12 @@ export function dateKey(d: Date = new Date()): string {
   return `${y}-${m}-${day}`
 }
 
-/** 周一日期键 */
+/** 周一日期键（R70：显式按**本地时区**构造日期）
+ *  原实现 `new Date('YYYY-MM-DD')` 按 UTC 解析，再取本地 getDay()——东八区下会把当天的
+ *  本地时间整体前移 8 小时，跨周边界（周一 00:00–08:00）会算错周起点，「本周」统计随之错位。 */
 export function weekStartKey(dk: string): string {
-  const d = new Date(dk)
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dk || '')
+  const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(dk)
   const day = d.getDay() || 7
   d.setDate(d.getDate() - day + 1)
   return dateKey(d)
@@ -78,23 +87,9 @@ export function throttle<T extends (...args: unknown[]) => void>(fn: T, ms: numb
   }) as T
 }
 
-/** H1：策展台快捷键有效映射（历史遗留；R68 起应用内切台由台签顺序推导：1=方向台、2=资源台、3 起=各策展台） */
-export function effectiveWsHotkeys(workspaces: { id: string; hotkey?: number }[]): Map<string, number> {
-  const used = new Set<number>()
-  const explicit = new Map<string, number>()
-  for (const w of workspaces) {
-    if (w.hotkey && w.hotkey >= 2 && w.hotkey <= 9) { explicit.set(w.id, w.hotkey); used.add(w.hotkey) }
-  }
-  const map = new Map<string, number>()
-  let next = 2
-  for (const w of workspaces) {
-    if (explicit.has(w.id)) { map.set(w.id, explicit.get(w.id)!); continue }
-    while (used.has(next) && next <= 9) next++
-    if (next <= 9) { map.set(w.id, next); used.add(next) }
-    next++
-  }
-  return map
-}
+// R70：effectiveWsHotkeys 已下线（死代码）——R68 起应用内切台改由台签顺序推导
+// （1=方向台、2=资源台、3 起=各策展台，见 App.vue switchToIndex），本函数自此无任何调用方。
+// Workspace.hotkey 字段保留：老数据里可能有值，删字段会造成迁移噪音，但已不参与逻辑。
 
 /** 第廿九轮：URL 编码文本解码（容错）——修复书签导入等场景把 percent-encoding 存为名称的乱码 */
 export function safeDecodeText(s: string): string {

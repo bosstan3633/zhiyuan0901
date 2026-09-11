@@ -318,6 +318,11 @@ function openConvert(c: CuriosityCard, target: 'task' | 'res') {
   convertMetId.value = ''
   convertOpen.value = true
 }
+/** R70：项目下拉变更 → 无条件复位指标：
+ *  - 项目清空后遗留的旧指标 → convertToTask(c, undefined, 'X') 会产出「有指标无项目」的非法任务（R49 起点名）；
+ *  - 项目 A→B 切换后旧指标不在 B 的指标列表内，同属非法。
+ *  convertToTask 内另有数据层兜底（双保险）。 */
+function onConvertProjChange() { convertMetId.value = '' }
 function confirmConvert() {
   const c = convertItem.value
   if (!c) return
@@ -586,7 +591,8 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
 
             <template v-else>
               <label class="cz-modal-label">所属攻坚项目（可选）</label>
-              <select v-model="convertProjId" class="cz-modal-select">
+              <!-- R70：项目变更时复位指标（见 onConvertProjChange）——此前只 disabled 不清空，可提交出「有指标无项目」的非法任务 -->
+              <select v-model="convertProjId" class="cz-modal-select" @change="onConvertProjChange">
                 <option value="">暂不归属</option>
                 <option v-for="p in convProjects" :key="p.id" :value="p.id">📦 {{ p.name }}（{{ p.dir }}）</option>
               </select>

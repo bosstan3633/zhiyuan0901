@@ -306,7 +306,7 @@ function onCanvasScroll() {
   activeLayer.value = current
 }
 
-// ---- DHI ----
+// ---- 战略目标 / 推进项目（R70：原 DHI 口径已于 R64 退役） ----
 const dhiStatus = computed(() => {
   const dirs = d.value.compass.directions
   if (!dirs.length) return { label: '待聚焦', cls: 'warning' }

@@ -121,7 +121,7 @@ function locateTask(id: string) {
 
 <template>
   <Drawer :open="!!cell" :title="cell ? `${titles[cell]}（${periodLabel}）` : ''" width="520px" @close="emit('close')">
-    <!-- DHI：战略目标行明细 -->
+    <!-- 战略目标行明细（R70：原 DHI 口径已于 R64 退役） -->
     <template v-if="cell === 'dhi'">
       <div class="md-list">
         <div v-for="row in dhiRows" :key="row.id" class="md-row clickable" title="点击定位到主航线对应行" @click="locateGoal(row.id)">

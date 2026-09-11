@@ -5,7 +5,7 @@
  *   （每模块 = 目标头 + 项目小模块 chip-proj，点击进项目详情；>6 折「更多 N」）
  * - R52-F4（修订 R51-F18）：主航线呈现全部项目（R60：原 📡 投射标记已取消，改以 🎯 主攻作区分）
  * - R52-BUG-2：已完成项目口径 = isProjectDone（手动 done/archived 或全任务完成派生）
- * - R51-F15：DHI 明细定位——监听 zy-locate-goal，滚动到对应战略目标模块并闪烁高亮
+ * - R51-F15：战略目标明细定位——监听 zy-locate-goal，滚动到对应战略目标模块并闪烁高亮
  * - 已完成项目受全局显隐开关控制；原愿景/使命树状折叠随重排退役
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
@@ -56,7 +56,7 @@ function toggleMore(dirId: string) {
   if (expandedGoals.value.has(dirId)) expandedGoals.value.delete(dirId)
   else expandedGoals.value.add(dirId)
 }
-/** R51-F15：DHI 明细定位 → 滚动到对应战略目标模块并闪烁 */
+/** R51-F15：战略目标明细定位 → 滚动到对应战略目标模块并闪烁 */
 function onLocateGoal(e: Event) {
   const dirId = (e as CustomEvent).detail?.dirId as string
   if (!dirId) return
@@ -168,7 +168,7 @@ function openTree() { router.push('/compass/tree') }
 .chip-more:hover { color: var(--accent); border-color: var(--accent); }
 .mgc-empty { font-size: 11px; color: var(--text-4); }
 
-/* R51-F15：DHI 明细定位闪烁 */
+/* R51-F15：战略目标明细定位闪烁 */
 .mr-goal-card.goal-flash { animation: goalFlash 1.2s ease; }
 @keyframes goalFlash { 0%, 100% { background: var(--surface-2); box-shadow: none; } 30% { background: var(--accent-light); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); } }
 

@@ -6,6 +6,7 @@ import type { AppData, UIPrefs } from '@/shared/models'
 import { STORAGE_KEY, UI_KEY } from '@/shared/models'
 import { createDefaultData, defaultThesisFieldDefs } from './defaults'
 import { safeDecodeText } from '@/shared/utils'
+import { pruneDanglingProjections } from './hub'
 // 第卌四轮 T-05：卡片操作事件日志——保存链路快照 diff 自动产出 create/delete/restore/purge
 import { rebuildEventSnapshot, flushCardEvents } from '@/shared/utils/eventLog'
 
@@ -26,14 +27,21 @@ const errorListeners = new Set<ErrorListener>()
 let lastSaveError: SaveError | null = null
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-// REQ-031 P-031-6：自身写入标记——saveData/saveDataNow 前置 selfWrite，onChanged 回调跳过全树替换
-let selfWriteAt = 0
+// REQ-031 P-031-6 + R70：自身写入标记。
+// 原实现是时间戳比较：selfWriteAt 在写入**前**赋值，而 chrome.storage.onChanged 在写入**后**到达，
+// 于是 `at <= selfWriteAt` 恒为 false —— 守卫从未生效，每次保存都会走「storage 读回 → syncCache →
+// data 全树替换 → 全部 computed 失效重算」。R70 改为**内容指纹**：记下最近一次自身写入的载荷 JSON，
+// onChanged 的新值与它全等即视为本页写入（本地 subscribe 已同步引用，无需重复替换）。
+// 采用内容全等而非时间窗，是为了避免把「恰好落在时间窗内的外部写入」误判为自身写入而丢改动。
+let lastSelfWriteJson = ''
 
 // R56-PERF-c：数据版本号——每次成功写入/外部同步自增（重计算 memo 的失效键）
 let dataVersion = 0
 export function getDataVersion(): number { return dataVersion }
-export function isSelfWrite(at: number): boolean {
-  return selfWriteAt > 0 && at <= selfWriteAt
+/** 判断一次 storage 变更是否由本上下文写入（内容指纹比对；非本页写入返回 false，走合并路径） */
+export function isSelfWrite(newValue: unknown): boolean {
+  if (!lastSelfWriteJson) return false
+  try { return JSON.stringify(newValue) === lastSelfWriteJson } catch { return false }
 }
 
 function chromeStore(): chrome.storage.StorageArea | null {
@@ -107,6 +115,8 @@ export async function loadData(): Promise<AppData> {
     if (Array.isArray(s.log) && s.log.length > 40) s.log = s.log.slice(-40)
   }
   if (!data.airtableMap || typeof data.airtableMap !== 'object') data.airtableMap = {}
+  // R70：悬空投射清理——源卡被硬删（回收站清空）后指向它的投射记录会永久留存、无界增长。幂等，启动期一次。
+  try { pruneDanglingProjections(data) } catch { /* noop */ }
   cache = data
   markStorageMirror(data)
   // 第卌四轮 T-05：初始化快照（静默，不产生历史事件）
@@ -129,7 +139,6 @@ export function saveData(): void {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     saveTimer = null
-    selfWriteAt = Date.now()
     // 第卌四轮 T-05：保存前快照 diff 产出操作事件（fire-and-forget，失败不影响主数据）
     if (cache) { try { flushCardEvents(cache) } catch { /* noop */ } }
     // V2.17.1 修复：JSON 纯净清洗后再入存储——reactive 树中可能残留 Vue Proxy（如编辑表单展开出的
@@ -141,6 +150,7 @@ export function saveData(): void {
     try {
       payloadJson = JSON.stringify(JSON.parse(JSON.stringify(cache)))
       payload = { [STORAGE_KEY]: JSON.parse(payloadJson) }
+      lastSelfWriteJson = payloadJson  // R70：记下自身写入载荷，供 onChanged 内容指纹比对
     } catch (e) { emitSaveError(e); return }
     const p = cs!.set(payload)
     if (p && typeof (p as Promise<void>).then === 'function') {
@@ -166,12 +176,12 @@ export async function saveDataNow(): Promise<void> {
   const cs = chromeStore()
   if (!cs) return
   if (saveTimer) clearTimeout(saveTimer)
-  selfWriteAt = Date.now()
   // 第卌四轮 T-05：同 saveData——保存前 diff 产出操作事件
   try { flushCardEvents(cache) } catch { /* noop */ }
   try {
     // V2.17.1 修复：同 saveData——JSON 纯净清洗防 reactive Proxy 泄漏入存储（数组降级类数组对象）
     const payloadJson = JSON.stringify(JSON.parse(JSON.stringify(cache)))
+    lastSelfWriteJson = payloadJson  // R70：同上
     await cs.set({ [STORAGE_KEY]: JSON.parse(payloadJson) })
     dataVersion++
     lastPersistedJson = payloadJson
@@ -248,6 +258,11 @@ export function subscribe(fn: Listener): () => void {
 
 /** 替换全部数据（导入用） */
 export async function replaceData(newData: AppData): Promise<void> {
+  // R70：纵深校验——本函数此前零校验直接落盘（调用方虽然有 version 校验，但函数本身不设防）。
+  // 非法结构一旦进库，会被后续每一次 persist 固化，且分类树等递归路径会直接卡死页面。
+  if (!newData || typeof newData !== 'object' || (newData as { version?: unknown }).version !== 2) {
+    throw new Error('replaceData: 数据版本不兼容（需 v2 格式），已拒绝写入')
+  }
   cache = newData
   await saveDataNow()
 }
@@ -293,6 +308,27 @@ function mergeCardArr<T extends MergeCard>(localArr: T[], snapArr: T[], extArr: 
   for (const e of extArr) if (!seen.has(e.id)) out.push(e)
   return out
 }
+/** R70：通用「按 id 并集」合并——用于**无 updatedAt 的实体段**（策展台/分类/标签树/投射）。
+ *  此前这些段走的是「全有或全无」：只要本页与外部都动过就整段取本地，
+ *  外部新建的策展台/分类/投射会被静默丢弃（本页只改了一个字段，代价却是别人新建的整段消失）。
+ *  规则：本页没动 → 取外部；本页动过外部也动过 → 取本地（无版本可比，保护正在输入的表单）；
+ *  外部新增收编；外部已删且本页没动 → 尊重外部删除。 */
+function mergeByIdArr<T extends { id: string }>(localArr: T[], snapArr: T[], extArr: T[]): T[] {
+  const snapById = new Map(snapArr.map(c => [c.id, c]))
+  const extById = new Map(extArr.map(c => [c.id, c]))
+  const out: T[] = []
+  const seen = new Set<string>()
+  for (const l of localArr) {
+    seen.add(l.id)
+    const e = extById.get(l.id)
+    const sn = snapById.get(l.id)
+    if (!e) { if (!sn || !jsonEq(l, sn)) out.push(l); continue }
+    if (!sn || jsonEq(l, sn)) { out.push(e); continue }
+    out.push(l)
+  }
+  for (const e of extArr) if (!seen.has(e.id)) out.push(e)
+  return out
+}
 /** dailyFocus 按日期键合并：单边改动整键取该侧；双边同键都改过 → 槽级 LWW（按槽 id，FocusSlot 无 updatedAt，平手取本地） */
 function mergeDailyFocus(curD: AppData['dailyFocus'], snapD: AppData['dailyFocus'], extD: AppData['dailyFocus']): AppData['dailyFocus'] {
   const out: AppData['dailyFocus'] = { ...(extD || {}) }
@@ -319,12 +355,14 @@ export function mergeExternalData(ext: AppData): AppData {
     curiosities: mergeCardArr(cur.curiosities || [], snap.curiosities || [], ext.curiosities || []),
     dailyFocus: mergeDailyFocus(cur.dailyFocus, snap.dailyFocus, ext.dailyFocus),
     compass: jsonEq(cur.compass, snap.compass) ? ext.compass : cur.compass,
-    workspaces: jsonEq(cur.workspaces, snap.workspaces) ? ext.workspaces : cur.workspaces,
-    categories: jsonEq(cur.categories, snap.categories) ? ext.categories : cur.categories,
-    tagTree: jsonEq(cur.tagTree, snap.tagTree) ? ext.tagTree : cur.tagTree,
+    // R70：数组型实体段改「按 id 并集」；compass（三层嵌套）/ fieldConfig / stats 仍是对象型，
+    // 深度合并风险大于收益，保留原判据（单边改动时取改动侧）。
+    workspaces: mergeByIdArr(cur.workspaces || [], snap.workspaces || [], ext.workspaces || []),
+    categories: mergeByIdArr(cur.categories || [], snap.categories || [], ext.categories || []),
+    tagTree: mergeByIdArr(cur.tagTree || [], snap.tagTree || [], ext.tagTree || []),
     fieldConfig: jsonEq(cur.fieldConfig, snap.fieldConfig) ? ext.fieldConfig : cur.fieldConfig,
     stats: jsonEq(cur.stats, snap.stats) ? ext.stats : cur.stats,
-    curationProjections: jsonEq(cur.curationProjections, snap.curationProjections) ? ext.curationProjections : cur.curationProjections
+    curationProjections: mergeByIdArr(cur.curationProjections || [], snap.curationProjections || [], ext.curationProjections || [])
   }
   // 合并结果与外部全等 = 本页没有需要保全的改动（例如自有写入的回声）→ 只同步不回写，杜绝写环
   if (jsonEq(merged, ext)) { syncCache(ext); return ext }

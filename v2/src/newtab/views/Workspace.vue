@@ -575,6 +575,7 @@ import { showToast } from '@/shared/components/toast'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
 import { uid } from '@/shared/utils'
+import { MAX_CAT_LEVEL, sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
@@ -642,8 +643,11 @@ function openDrill(mode: 'total' | 'source' | 'assets' | 'recent') { drillMode.v
 /** 总数下钻：按分类（深度缩进 + 直属卡数），含待分类行 */
 const drillCatRows = computed<DrillCatRow[]>(() => {
   const rows: DrillCatRow[] = []
+  const seen = new Set<string>()  // R70：防环
   const walk = (parentId: string | undefined, depth: number) => {
     for (const c of wsCats.value.filter(x => (x.parentId || undefined) === parentId).sort((a, b) => a.order - b.order)) {
+      if (seen.has(c.id)) continue
+      seen.add(c.id)
       rows.push({ id: c.id, name: c.name, count: allResources.value.filter(r => (r.categoryId || '') === c.id).length, depth })
       walk(c.id, depth + 1)
     }
@@ -875,7 +879,10 @@ const resourceGroups = computed<ResourceGroup[]>(() => {
     const ids = familyIds(catId)
     return filtered.some(r => r.categoryId && ids.includes(r.categoryId))
   }
+  const seenGroup = new Set<string>()  // R70：防环
   const walk = (catId: string, name: string, depth: number) => {
+    if (seenGroup.has(catId)) return
+    seenGroup.add(catId)
     const direct = applyGroupSort(filtered.filter(r => r.categoryId === catId))
     if (direct.length) groups.push({ key: catId, title: name, count: direct.length, items: direct, depth })
     for (const sub of childCatsOf(catId)) {
@@ -895,9 +902,12 @@ const resourceGroups = computed<ResourceGroup[]>(() => {
 
 const kanbanCategories = computed(() => {
   const cats: { key: string; name: string }[] = []
-  const pathOf = (c: Category): string => {
+  const pathOf = (c: Category, seen = new Set<string>()): string => {
+    // R70：带 visited——环数据下 pathOf 会无限递归
+    if (seen.has(c.id)) return c.name
+    seen.add(c.id)
     const parent = c.parentId ? wsCats.value.find(x => x.id === c.parentId) : null
-    return parent ? pathOf(parent) + ' / ' + c.name : c.name
+    return parent ? pathOf(parent, seen) + ' / ' + c.name : c.name
   }
   for (const root of rootCats.value) {
     cats.push({ key: root.id, name: root.name })
@@ -1274,10 +1284,18 @@ const rootCats = computed(() => wsCats.value
   .sort((a, b) => a.order - b.order))
 const pinnedRootCats = computed(() => rootCats.value.filter(c => c.pinned))
 const unpinnedRootCats = computed(() => rootCats.value.filter(c => !c.pinned))
-/** R61-4：全部后代 id（深层递归）——4 级树过滤/计数/防环共用 */
+/** R61-4：全部后代 id（深层递归）——4 级树过滤/计数/防环共用；R70 带 visited（环数据不得无限递归） */
 function descendantIds(catId: string): string[] {
   const out: string[] = []
-  const walk = (pid: string) => { for (const c of wsCats.value.filter(x => x.parentId === pid)) { out.push(c.id); walk(c.id) } }
+  const seen = new Set<string>([catId])
+  const walk = (pid: string) => {
+    for (const c of wsCats.value.filter(x => x.parentId === pid)) {
+      if (seen.has(c.id)) continue
+      seen.add(c.id)
+      out.push(c.id)
+      walk(c.id)
+    }
+  }
   walk(catId)
   return out
 }
@@ -1296,7 +1314,10 @@ function catAggCount(catId: string): number {
 function treeCatOptions(cats: Category[]): { id: string; label: string }[] {
   const roots = cats.filter(c => !c.parentId || !cats.some(p => p.id === c.parentId)).sort((a, b) => a.order - b.order)
   const out: { id: string; label: string }[] = []
+  const seenOpt = new Set<string>()  // R70：防环
   const push = (c: Category, depth: number) => {
+    if (seenOpt.has(c.id)) return
+    seenOpt.add(c.id)
     out.push({ id: c.id, label: '└'.repeat(depth) + (depth ? ' ' : '') + c.name })
     for (const ch of cats.filter(x => x.parentId === c.id).sort((a, b) => a.order - b.order)) push(ch, depth + 1)
   }
@@ -1321,14 +1342,19 @@ function selectSidebarCat(sc: SidebarCat) {
   activeCategory.value = sc.cat.id
   // 选中深层分类时自动展开其全部祖先，避免「选中被藏住」
   let pid = sc.cat.parentId
-  while (pid && collapsedCats.value.has(pid)) {
+  const guard = new Set<string>([sc.cat.id])  // R70：防环
+  while (pid && !guard.has(pid) && collapsedCats.value.has(pid)) {
+    guard.add(pid)
     const s = new Set(collapsedCats.value); s.delete(pid); collapsedCats.value = s
     pid = wsCats.value.find(c => c.id === pid)?.parentId
   }
 }
 const sidebarCats = computed<SidebarCat[]>(() => {
   const out: SidebarCat[] = []
+  const seenSide = new Set<string>()  // R70：防环
   const pushTree = (c: Category, depth: number, sectionLabel: string) => {
+    if (seenSide.has(c.id)) return
+    seenSide.add(c.id)
     out.push({ cat: c, depth, sectionLabel })
     if (depth > 0 && collapsedCats.value.has(c.id)) return
     if (!collapsedCats.value.has(c.id)) for (const k of childCatsOf(c.id)) pushTree(k, depth + 1, '')
@@ -1373,8 +1399,8 @@ function confirmCatModal() {
     // R61-4：4 级上限校验
     if (m.parentId) {
       const parent = wsCats.value.find(c => c.id === m.parentId)
-      const levelOf = (c: Category): number => { let n = 1; let cur = wsCats.value.find(x => x.id === c.parentId); while (cur) { n++; cur = wsCats.value.find(x => x.id === cur!.parentId) } return n }
-      if (parent && levelOf(parent) + 1 > 4) { showToast('ℹ 最多 4 级——该分类已处于最深层'); return }
+      // R70：改用 pyDepthOf（带 visited 防环）——内联的 while 上行走链在环数据下会死转
+      if (parent && pyDepthOf(parent) + 2 > MAX_CAT_LEVEL) { showToast(`ℹ 最多 ${MAX_CAT_LEVEL} 级——该分类已处于最深层`); return }
     }
     const siblings = wsCats.value.filter(c => (c.parentId || '') === m.parentId)
     const cat: Category = { id: uid('cat'), workspaceId: workspaceId.value, name, order: siblings.length, parentId: m.parentId || undefined }
@@ -1530,10 +1556,11 @@ function onCatDrop(e: DragEvent, cat: Category) {
   if (!dragged || !target) return
   if (childIds(dragged.id).includes(target.id)) { showToast('不能移动到自己的子分类'); return }
   // R61-4：层级工具（4 级上限）
-  const levelOf = (c: Category): number => { let n = 1; let cur = wsCats.value.find(x => x.id === c.parentId); while (cur) { n++; cur = wsCats.value.find(x => x.id === cur!.parentId) } return n }
-  const heightOf = (c: Category): number => { const ch = childCatsOf(c.id); return ch.length ? Math.max(...ch.map(heightOf)) + 1 : 1 }
+  // R70：层级/高度一律走带 visited 的实现（pyDepthOf 防环上行、pyHeightOf 防环下降）
+  const levelOf = (c: Category): number => pyDepthOf(c) + 1
+  const heightOf = (c: Category): number => pyHeightOf(c)
   if (mode === 'child') {
-    if (levelOf(target) + heightOf(dragged) > 4) { showToast(`ℹ 最多 4 级——「${dragged.name}」（含 ${heightOf(dragged) - 1} 层子级）放入后将超出层级上限`); return }
+    if (levelOf(target) + heightOf(dragged) > MAX_CAT_LEVEL) { showToast(`ℹ 最多 ${MAX_CAT_LEVEL} 级——「${dragged.name}」（含 ${heightOf(dragged) - 1} 层子级）放入后将超出层级上限`); return }
     dragged.parentId = target.id
     dragged.pinned = undefined
     dragged.order = childCatsOf(target.id).length
@@ -1638,10 +1665,17 @@ function confirmInputModal() {
 
 // ===== R62-5/6/8：金字塔视图逻辑 =====
 interface PyNode { cat: Category; depth: number; cards: ResourceCard[] }
-/** 节点深度（根=0；防环靠 parentId 单向链） */
+/** 节点深度（根=0）——R70：带 visited 显式防环（此前仅靠「parentId 单向链」的假设） */
 function pyDepthOf(c: Category): number {
-  let n = 0; let cur = wsCats.value.find(x => x.id === c.parentId)
-  while (cur) { n++; cur = wsCats.value.find(x => x.id === cur!.parentId) }
+  const seen = new Set<string>([c.id])
+  let n = 0
+  let cur: Category | undefined = c.parentId ? wsCats.value.find(x => x.id === c.parentId) : undefined
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id)
+    n++
+    const pid = cur.parentId
+    cur = pid ? wsCats.value.find(x => x.id === pid) : undefined
+  }
   return n
 }
 /** 金字塔层级数据：按分类深度铺开（深度0=L2）；卡片=直属（排除主题卡，主题卡是 L1 根）
@@ -1656,8 +1690,11 @@ const pyramidLevels = computed<PyNode[][]>(() => {
   // R65-F3：树先序遍历序号（同父紧邻的依据）
   const dfsOrder = new Map<string, number>()
   let seq = 0
+  const seenDfs = new Set<string>()  // R70：防环
   const walk = (pid: string) => {
     for (const c of wsCats.value.filter(x => (x.parentId || '') === pid).sort((a, b) => a.order - b.order)) {
+      if (seenDfs.has(c.id)) continue
+      seenDfs.add(c.id)
       dfsOrder.set(c.id, seq++)
       walk(c.id)
     }
@@ -1686,9 +1723,12 @@ const pyLayout = computed<{ cols: number; cells: { cat: Category; depth: number;
   }
   const cells: { cat: Category; depth: number; colStart: number; colSpan: number; cards: ResourceCard[] }[] = []
   let leafSeq = 0
+  /** R70：visited——环状树不得让后序布点无限递归 */
+  const placed = new Set<string>()
   /** 后序布点：叶子占新列；父节点跨其子组全部列（列独占，兄弟子树互不侵入） */
   const placeCat = (cat: Category, depth: number): { start: number; span: number } => {
-    const kids = wsCats.value.filter(x => x.parentId === cat.id).sort((a, b) => a.order - b.order)
+    placed.add(cat.id)
+    const kids = wsCats.value.filter(x => x.parentId === cat.id && !placed.has(x.id)).sort((a, b) => a.order - b.order)
     if (!kids.length) {
       const col = leafSeq++
       cells.push({ cat, depth, colStart: col, colSpan: 1, cards: cardsBy.get(cat.id) || [] })
@@ -1706,6 +1746,9 @@ const pyLayout = computed<{ cols: number; cells: { cat: Category; depth: number;
     return { start, span }
   }
   for (const root of wsCats.value.filter(x => !x.parentId).sort((a, b) => a.order - b.order)) placeCat(root, 0)
+  // R70：环内节点无根可达，此前被静默忽略——分类与其卡会从金字塔里凭空消失（数据静默丢失）。
+  // 补一轮纳入布局，保证「树里有多少节点，金字塔里就渲染多少节点」。
+  for (const c of wsCats.value) { if (!placed.has(c.id)) placeCat(c, 0) }
   return { cols: Math.max(leafSeq, 1), cells }
 })
 /** 同级顺序调整（⟨ 前移 / ⟩ 后移） */
@@ -1802,9 +1845,12 @@ function drawPyLinks() {
   pyLinkPaths.value = lines
 }
 watch([pyLayout, viewMode, thesisCard], () => nextTick(drawPyLinks))
-function pyHeightOf(c: Category): number {
+function pyHeightOf(c: Category, seen = new Set<string>()): number {
+  // R70：带 visited——防环
+  if (seen.has(c.id)) return 1
+  seen.add(c.id)
   const ch = wsCats.value.filter(x => x.parentId === c.id)
-  return ch.length ? Math.max(...ch.map(pyHeightOf)) + 1 : 1
+  return ch.length ? Math.max(...ch.map(x => pyHeightOf(x, seen))) + 1 : 1
 }
 // 节点拖拽状态（卡片走 draggedItem；分类走 dragCatId）
 const pyDropTarget = ref('')
@@ -1971,6 +2017,11 @@ function handleBoardImport(e: Event) {
     try {
       const ext = JSON.parse(reader.result as string) as AppData
       if (!ext || typeof ext !== 'object' || !String(ext.version || '').startsWith('2')) { showToast('✗ 文件格式不识别——仅接受本产品导出的 v2 数据包'); return }
+      // R70：结构校验与净化——此前只认 version。含环的 categories 会经 mergeById 的
+      // { ...existing, ...incoming } 覆盖 parentId 进库，随后分类树渲染/计数递归无限展开
+      // → 本台永久打不开（卡在渲染上，界面里没有入口能删掉坏分类）。
+      const san = sanitizeCategoryTree(ext.categories || [])
+      if (!san.ok) { showToast('✗ 数据包分类数量超出上限，已取消导入'); return }
       const importedNow = Date.now()
       const mergeById = <T extends { id: string }>(existing: T[], incoming: T[]): T[] => {
         const map = new Map(existing.map(x => [x.id, x]))
@@ -1979,7 +2030,7 @@ function handleBoardImport(e: Event) {
       }
       // 只并本台段：策展台/分类/台内卡 + 投射清单中指向本台的记录（全局段不在此入口搬运，走设置页「导入数据」）
       const wsId = workspaceId.value
-      const incCats = (ext.categories || []).filter(c => c.workspaceId === wsId)
+      const incCats = san.cats.filter(c => c.workspaceId === wsId)
       const incRes = (ext.resources || []).filter(r => r.workspaceId === wsId).map(r => ({ ...r, importedAt: importedNow }))
       const incProj = (ext.curationProjections || []).filter(p => p.targetWsId === wsId)
       const cardsBefore = d.value.resources.length
@@ -1990,7 +2041,8 @@ function handleBoardImport(e: Event) {
       store.persist()
       importModalOpen.value = false
       const added = d.value.resources.length - cardsBefore
-      showToast(`✓ 已导入：分类 ${incCats.length} · 卡片 ${incRes.length}（新增 ${added}，其余按 ID 覆盖合并）`)
+      const fixNote = catTreeFixedAny(san.fixed) ? `（已自动修复：${catTreeFixNote(san.fixed)}）` : ''
+      showToast(`✓ 已导入：分类 ${incCats.length} · 卡片 ${incRes.length}（新增 ${added}，其余按 ID 覆盖合并）${fixNote}`)
     } catch { showToast('✗ JSON 解析失败，请确认是「导出策展台数据」生成的文件') }
   }
   reader.readAsText(file)
@@ -2121,8 +2173,12 @@ function exportWorkspace() {
   // R56-I：改为 AppData 子集同构导出——旧自定义形状 {workspace,categories,resources} 缺 version/tagTree/
   // tasks/curiosities/compass/stats，导入端版本校验直接拒绝，标签体系等全局数据随之丢失。
   // 现为 ...d 全量展开（全局段随行）+ 策展台段按当前台过滤；导出物可直接走「导入数据」并集合并。
+  // R70：剥离 Airtable 凭证与映射——导出物会被分享/传网盘，明文 PAT 泄露＝对方可读写用户 Base。
+  // 与设置页「导出数据」同口径：数据可带走，凭证不随行。
+  const rootForExport = { ...d.value } as Record<string, unknown>
+  delete rootForExport.airtableSync
   const data = JSON.parse(JSON.stringify({
-    ...d.value,
+    ...rootForExport,
     workspaces: [ws],
     categories: d.value.categories.filter(c => c.workspaceId === wsId),
     resources: d.value.resources.filter(r => r.workspaceId === wsId)

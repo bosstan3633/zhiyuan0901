@@ -30,6 +30,8 @@ export const BATCH_SIZE = 10
 const BATCH_GAP = 200
 /** 429 退避 ms */
 const RATE_LIMIT_BACKOFF = 30000
+/** R70：429 最多重试次数（退避时长按第几次递增：30s / 60s / 90s） */
+const RATE_LIMIT_MAX_RETRY = 3
 
 // ===== 同步行收集 =====
 
@@ -164,9 +166,12 @@ async function atFetch(state: AirtableSyncState, url: string, init?: RequestInit
   } catch (e) {
     throw new Error('网络请求失败：' + (e instanceof Error ? e.message : String(e)))
   }
-  if (res.status === 429) {
-    // 限流退避后单次重试
-    await sleep(RATE_LIMIT_BACKOFF)
+  // R70：429 限流改**指数退避、最多重试 3 次**。此前只退避一次就放弃：仍 429 会让整轮同步失败，
+  // 下次从头重扫（走 UPDATE 不重复建行，无数据损坏，但白白浪费配额与时间）。
+  let retry429 = 0
+  while (res.status === 429 && retry429 < RATE_LIMIT_MAX_RETRY) {
+    retry429++
+    await sleep(RATE_LIMIT_BACKOFF * retry429)
     res = await fetch(url, {
       ...init,
       headers: { Authorization: `Bearer ${state.pat}`, 'Content-Type': 'application/json', ...(init?.headers || {}) }

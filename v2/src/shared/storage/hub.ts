@@ -59,6 +59,8 @@ export function projectCardToBoard(d: AppData, cardId: ID, toWsId: ID, targetCat
   }
   const rec: CurationProjection = {
     id: uid('curp'), kind: 'card', wsId: CURATION_WS_ID, cardId,
+    // R70 说明：catId 是「镜像时刻源卡所在分类」的历史快照，不参与任何业务判定——
+    // 渲染与计数一律以源卡实时的 categoryId 为准（见 boardCardsOf），源卡换分类后此字段陈旧无害。
     catId: src.categoryId, targetWsId: toWsId, targetCatId: targetCatId || undefined, addedAt: Date.now()
   }
   d.curationProjections.push(rec)
@@ -203,4 +205,21 @@ export function setThesis(d: AppData, wsId: ID, cardId: ID | null): boolean {
   card.isThesis = true
   card.updatedAt = Date.now()
   return true
+}
+
+/**
+ * R70：悬空投射清理（幂等）。
+ * 源卡被**硬删**（回收站清空）后，指向它的 curationProjections 记录会永久留存、数组无界增长；
+ * 目标策展台被删除时同理。注意：软删的卡仍留在 resources 数组里（只是带 deletedAt），
+ * 因此本函数**不影响**「回收站恢复后镜像自动回来」的语义。
+ * @returns 本次清理掉的记录数
+ */
+export function pruneDanglingProjections(d: AppData): number {
+  const arr = d.curationProjections
+  if (!Array.isArray(arr) || !arr.length) return 0
+  const aliveCards = new Set(d.resources.map(r => r.id))
+  const aliveWs = new Set(d.workspaces.map(w => w.id))
+  const before = arr.length
+  d.curationProjections = arr.filter(p => p.kind === 'card' ? (aliveCards.has(p.cardId || '') && aliveWs.has(p.targetWsId || '')) : true)
+  return before - d.curationProjections.length
 }

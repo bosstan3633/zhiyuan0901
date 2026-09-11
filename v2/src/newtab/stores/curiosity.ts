@@ -76,8 +76,19 @@ export function useCuriosity() {
 
   /** 转化为任务卡 → 进入任务中心（可选归属项目/指标）；公共字段无损（REQ-050） */
   function convertToTask(c: CuriosityCard, projectId?: string, metricId?: string): TaskCard {
-    const task = convertCard(c, { kind: 'task', projectId, metricId })
+    // R70-a：归属兜底——「有指标却无项目」是非法态（指标必然隶属某个项目）。
+    // 此前 CuriosityPanel 允许「先选项目+指标、再把项目改回不归属」提交出这种任务，
+    // 会让指标进度/下钻口径统计不到它（视图层已同步加 @change 复位，此处是数据层双保险）。
+    const safeMetricId = projectId ? metricId : undefined
+    const task = convertCard(c, { kind: 'task', projectId, metricId: safeMetricId })
     d.value.tasks.unshift(task)
+    // R70-b：补写 metric.taskIds——这是全项目唯一漏双写的路径（对比 TaskAddDrawer、
+    // CompassHome.syncMetricTaskIds、TaskManagerPanel），不补会破坏
+    // 「TaskCard.metricId ↔ Metric.taskIds」的双向不变量，让后续以 taskIds 为准的功能踩坑。
+    if (task.metricId) {
+      for (const dir of d.value.compass?.directions || []) for (const prj of dir.projects || []) for (const m of prj.metrics || [])
+        if (m.id === task.metricId && !m.taskIds.includes(task.id)) m.taskIds.push(task.id)
+    }
     c.deletedAt = Date.now()
     ensureCustomDefs(c, 'task')
     store.persist()

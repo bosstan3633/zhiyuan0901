@@ -126,7 +126,7 @@ export function useCompass() {
   }
 
   // ---- 北极星指标 ----
-  // R45-1（V2.20.0）：周期调整为「日/周/累计」三档（撤月档），上排 DHI/WCE/WRR 与下排新增/删除卡全档联动
+  // R45-1（V2.20.0）：周期调整为「日/周/累计」三档（撤月档），上排 战略目标/WCE/WRR 与下排新增/删除卡全档联动
   type Period = 'day' | 'week' | 'all'
 
   function isWithinDays(ts: number | undefined, days: number): boolean {

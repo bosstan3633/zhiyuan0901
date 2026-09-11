@@ -834,6 +834,7 @@ import { createDefaultData, defaultThesisFieldDefs } from '@/shared/storage/defa
 import { testConnection, runSync, quotaHint, catPathOf } from '@/shared/storage/airtable'
 import { LETTER_HTML, buildLetterStandaloneHtml } from '../letter-data'
 import { uid } from '@/shared/utils'
+import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
 import { getAssetStats, cleanupOrphanAssets, getAllAssets, putAssets } from '@/shared/storage/assets'
 import { buildZip, readZip, type ZipEntry } from '@/shared/utils/zip'
 import { visibleFields, allFields } from '@/shared/utils/fields'
@@ -1611,7 +1612,12 @@ function handleFileImport(e: Event) {
         showToast('✗ 数据版本不兼容（需 v2 格式），已取消导入'); return
       }
       // R47-A2：导入前自动备份当前数据到本地文件（防误合并，T3 安全网）
-      try { downloadFile(`zhiyuan_auto_backup_before_import_${dateStr()}.json`, JSON.stringify(store.data, null, 2)) } catch {}
+      // R70：自动备份同样剥离 Airtable 凭证与同步映射——用户不会预期「我只是导入，怎么生成了一个含令牌的文件」。
+      try {
+        const safeBackup = { ...(store.data as unknown as Record<string, unknown>) }
+        delete safeBackup.airtableSync
+        downloadFile(`zhiyuan_auto_backup_before_import_${dateStr()}.json`, JSON.stringify(safeBackup, null, 2))
+      } catch {}
       const n = mergeImport(imported)
       // R66-F4：全量包附带 uiPrefs 时自动应用主题/密度（即时生效，不再询问）
       const ui = (imported as unknown as Record<string, unknown>).uiPrefs as Record<string, unknown> | undefined
@@ -1626,7 +1632,7 @@ function handleFileImport(e: Event) {
           saveUIPrefs({ density: ui.density as 'compact' | 'cozy' })
         }
       }
-      showToast(`✓ 导入完成（并集）：卡片 ${n.cards}、罗盘方向 ${n.dirs}、策展台 ${n.ws}${ui ? '；界面偏好已应用' : ''}；已自动下载导入前备份`)
+      showToast(`✓ 导入完成（并集）：卡片 ${n.cards}、罗盘方向 ${n.dirs}、策展台 ${n.ws}${ui ? '；界面偏好已应用' : ''}${n.catFix ? `；分类树已自动修复（${n.catFix}）` : ''}；已自动下载导入前备份`)
     } catch { showToast('✗ 文件格式错误，请选择有效的JSON文件') }
   }
   reader.readAsText(file)
@@ -1703,8 +1709,15 @@ function handleBookmarkImport(e: Event) {
 /** R47-A2：全量并集合并——罗盘（愿景/使命/方向→项目→指标）+ 引擎数据 + 全部关系字段
  *  原则：卡片/指标按 id 去重合并；「关系列表」（taskIds/linkedResourceIds 等）一律取并集；
  *        计数类（stats.wrr）取最大值；标量以导入方覆盖（无 updatedAt 的层级按导入值合并）。 */
-function mergeImport(imported: AppData): { cards: number; dirs: number; ws: number } {
+function mergeImport(imported: AppData): { cards: number; dirs: number; ws: number; catFix: string } {
   const d = store.data!
+  // R70：分类树结构净化（唯一的导入防线）——此前只认 version。含环的 categories 经下面的
+  // mergeById（{ ...existing, ...incoming } 会覆盖 parentId）进库后，分类树渲染/计数递归会无限
+  // 展开（或 while 上行走链死转）→ 资源台与相关策展台永久打不开，且界面里没有入口能删掉坏分类。
+  // 净化失败（节点数超上限）时只跳过分类段，其余段照常合并，把损失限制到最小。
+  const catSan = sanitizeCategoryTree(imported.categories || [])
+  const safeCats = catSan.ok ? catSan.cats : []
+  const catFix = catSan.ok ? (catTreeFixedAny(catSan.fixed) ? catTreeFixNote(catSan.fixed) : '') : '分类数量超上限，已跳过分类段'
   const mergeById = <T extends { id: string }>(existing: T[], incoming: T[]): T[] => {
     const map = new Map(existing.map(x => [x.id, x]))
     for (const item of incoming) map.set(item.id, { ...map.get(item.id), ...item })
@@ -1717,7 +1730,7 @@ function mergeImport(imported: AppData): { cards: number; dirs: number; ws: numb
   // R48-B2：导入卡片统一打 importedAt 戳（双口径统计「新建 X · 导入 Y」的依据；合并进既有卡也重打——它确实在本次被导入）
   const importedNow = Date.now()
   d.workspaces = mergeById(d.workspaces, imported.workspaces || [])
-  d.categories = mergeById(d.categories, imported.categories || [])
+  d.categories = mergeById(d.categories, safeCats)
   d.resources = mergeById(d.resources, (imported.resources || []).map(r => ({ ...r, importedAt: importedNow })))
   d.tasks = mergeById(d.tasks, (imported.tasks || []).map(t => ({ ...t, importedAt: importedNow })))
   d.curiosities = mergeById(d.curiosities, (imported.curiosities || []).map(c => ({ ...c, importedAt: importedNow })))
@@ -1817,7 +1830,7 @@ function mergeImport(imported: AppData): { cards: number; dirs: number; ws: numb
     }
   }
   store.persist()
-  return { cards: cardsAdded, dirs: imported.compass?.directions?.length || 0, ws: d.workspaces.length - wsBefore + (imported.workspaces?.length || 0) }
+  return { cards: cardsAdded, dirs: imported.compass?.directions?.length || 0, ws: d.workspaces.length - wsBefore + (imported.workspaces?.length || 0), catFix }
 }
 
 
@@ -1839,7 +1852,11 @@ async function exportAll() {
   const d = store.data!
   let uiPrefs: Record<string, unknown> | undefined
   try { uiPrefs = await loadUIPrefs() as unknown as Record<string, unknown> } catch {}
-  const payload = uiPrefs ? { ...d, uiPrefs } : { ...d }
+  // R70：剥离 Airtable 凭证与同步映射——导出物会被分享/传网盘（产品本身就鼓励「导出即带走」），
+  // airtableSync.pat 明文随文件外流＝拿到的人可读写用户的 Airtable Base，与「数据 100% 本机、不代持凭证」冲突。
+  const safeData = { ...(d as unknown as Record<string, unknown>) }
+  delete safeData.airtableSync
+  const payload = uiPrefs ? { ...safeData, uiPrefs } : safeData
   downloadFile(`zhiyuan_backup_${dateStr()}.json`, JSON.stringify(payload, null, 2))
   markBackupNow()
   showToast('✓ 全量数据已导出（含全部策展台与界面偏好）')
@@ -1923,8 +1940,11 @@ function exportWorkspace() {
   const ws = d.workspaces.find(w => w.id === exportWsId.value)
   if (!ws) return
   const cats = d.categories.filter(c => c.workspaceId === ws.id)
+  // R70：同 exportAll——导出物不含 Airtable 凭证
+  const rootForExport = { ...(d as unknown as Record<string, unknown>) }
+  delete rootForExport.airtableSync
   const subset: AppData = {
-    ...d, workspaces: [ws], categories: cats,
+    ...(rootForExport as unknown as AppData), workspaces: [ws], categories: cats,
     resources: d.resources.filter(r => r.workspaceId === ws.id),
     tasks: d.tasks.filter(t => t.mountedResourceIds?.some(rid => d.resources.find(r => r.id === rid)?.workspaceId === ws.id)),
     curiosities: d.curiosities.filter(c => c.relatedResourceIds?.some(rid => d.resources.find(r => r.id === rid)?.workspaceId === ws.id)),

@@ -18,6 +18,7 @@ import { useCompass } from '../stores/compass'
 import { CURATION_WS_ID, type ResourceCard, type Category, type CurationProjection } from '@/shared/models'
 import { curationBoards, projectCardToBoard, mirrorCategoryToBoard } from '@/shared/storage/hub'
 import { uid, safeDecodeText } from '@/shared/utils'
+import { MAX_CAT_LEVEL } from '@/shared/utils/catTree'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { useConfirm } from '@/shared/components/confirm'
@@ -44,20 +45,39 @@ const isMirror = (c: Category) => !!c.curFrom
 const mirrorSourceLabel = (c: Category) => c.curFrom ? `${wsName(c.curFrom.wsId)} · ${catName(c.curFrom.catId)}` : ''
 
 // R61-4：层级工具（4 级上限）——真实层级（沿父链上行）与子树高度（防拖入超限/防环）
-const MAX_CAT_LEVEL = 4
+// R70：MAX_CAT_LEVEL 收敛到 shared/utils/catTree；下面的上行走链与向下递归一律带 visited——
+// 导入数据可能已含环（历史坏数据/跨设备合并/手工编辑），而这里是**渲染与计数路径**，一旦死转页面就永久打不开。
 function levelOf(c: Category): number {
+  const seen = new Set<string>()
   let n = 1
-  let cur = cats.value.find(x => x.id === c.parentId)
-  while (cur) { n++; cur = cats.value.find(x => x.id === cur!.parentId) }
+  let cur: Category | undefined = c
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id)
+    const pid: string | undefined = cur.parentId
+    const p: Category | undefined = pid ? cats.value.find(x => x.id === pid) : undefined
+    if (!p) break
+    n++
+    cur = p
+  }
   return n
 }
-function subtreeHeight(c: Category): number {
+function subtreeHeight(c: Category, seen = new Set<string>()): number {
+  if (seen.has(c.id)) return 1
+  seen.add(c.id)
   const ch = childCats(c.id)
-  return ch.length ? Math.max(...ch.map(subtreeHeight)) + 1 : 1
+  return ch.length ? Math.max(...ch.map(x => subtreeHeight(x, seen))) + 1 : 1
 }
 function deepDescendantIds(id: string): string[] {
   const out: string[] = []
-  const walk = (pid: string) => { for (const ch of childCats(pid)) { out.push(ch.id); walk(ch.id) } }
+  const seen = new Set<string>([id])
+  const walk = (pid: string) => {
+    for (const ch of childCats(pid)) {
+      if (seen.has(ch.id)) continue
+      seen.add(ch.id)
+      out.push(ch.id)
+      walk(ch.id)
+    }
+  }
   walk(id)
   return out
 }
@@ -73,10 +93,13 @@ function expandAllCats() { for (const c of cats.value) expandedCats.value.add(c.
 function collapseAllCats() { expandedCats.value.clear() }
 
 // ---- 节点计数（自身原生卡 + 自身投射卡 + 未投射源卡 + 子级聚合；R56-A：镜像分类不再双计已投射源卡） ----
-function nodeCount(c: Category): number {
+function nodeCount(c: Category, seen = new Set<string>()): number {
+  // R70：带 visited——环状分类树不得让计数递归无限展开（此函数在模板中被调用，卡死即整页打不开）
+  if (seen.has(c.id)) return 0
+  seen.add(c.id)
   let n = cardsIn(c.id).length + projCardsIn(c.id).length
     + (c.curFrom ? liveCardsOfCat(c.curFrom.catId).filter(it => !projections.value.some(p => p.kind === 'card' && p.cardId === it.card.id)).length : 0)
-  for (const ch of childCats(c.id)) n += nodeCount(ch)
+  for (const ch of childCats(c.id)) n += nodeCount(ch, seen)
   return n
 }
 const catAggCount = (pid: string) => {

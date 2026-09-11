@@ -65,13 +65,39 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
   const entry = IMPL_ENTRY[msg?.type]
   if (!entry) return
-  void loadImpl()
-    .then((m) => (m[entry] as () => unknown)())
-    .catch((e) => {
-      // 浮层拉起失败不应在宿主页面抛出未捕获异常
-      console.error('[知源] 浮层加载失败', e)
-    })
+  // R70：失败自动重试一次（loadImpl 不缓存失败态，会重新发起 import）；仍失败则给出页面级提示。
+  // 此前只 console.error——用户按 Ctrl+K / Ctrl+Shift+J 后页面毫无反应，也无从判断原因。
+  void (async () => {
+    let mod: OverlayImpl | null = null
+    try {
+      mod = await loadImpl()
+    } catch {
+      try {
+        mod = await loadImpl()
+      } catch (e) {
+        console.error('[知源] 浮层加载失败', e)
+        showLoadError()
+        return
+      }
+    }
+    try { (mod[entry] as () => unknown)() } catch (e) { console.error('[知源] 浮层入口执行失败', e) }
+  })()
 })
+
+/** R70：功能加载失败提示（自包含轻量 DOM，不依赖浮层实现，失败时也能显示） */
+function showLoadError(): void {
+  try {
+    const id = '__zy_load_err__'
+    const old = document.getElementById(id)
+    if (old) old.remove()
+    const el = document.createElement('div')
+    el.id = id
+    el.textContent = '知源：功能加载失败，请刷新页面后重试'
+    el.setAttribute('style', 'position:fixed;right:16px;bottom:16px;z-index:2147483647;max-width:320px;padding:10px 14px;border-radius:10px;background:#2B2F36;color:#FFF;font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.28)')
+    document.documentElement.appendChild(el)
+    setTimeout(() => { try { el.remove() } catch { /* noop */ } }, 5000)
+  } catch { /* 宿主页不可注入，放弃提示 */ }
+}
 
 // ============ 空闲预热：仅顶层帧，且只预取浮层实现，不预取字典 ============
 // 目的：让首次 Ctrl+K 的渲染零等待。

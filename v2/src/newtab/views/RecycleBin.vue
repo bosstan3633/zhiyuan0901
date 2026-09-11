@@ -139,6 +139,9 @@ async function purgeAll() {
   if (cur === 'res') {
     for (const r of res.value) await purgeAssetsOf(r.assets)
     d.value.resources = d.value.resources.filter(r => !r.deletedAt)
+    // R70：同步清理指向这些卡片的投射记录（硬删后它们永远悬空，会让 curationProjections 无界增长）
+    const aliveRes = new Set(d.value.resources.map(r => r.id))
+    d.value.curationProjections = (d.value.curationProjections || []).filter(p => p.kind !== 'card' || aliveRes.has(p.cardId || ''))
   } else if (cur === 'task') {
     for (const t of tasks.value) await purgeAssetsOf(t.assets)
     for (const dir of d.value.compass.directions) {

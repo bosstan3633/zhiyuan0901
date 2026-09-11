@@ -71,6 +71,8 @@ export function initSelectionCapture(): void {
       selCache = { text: t, title: document.title || '', url: location.href, at: Date.now() }
       if (!IS_TOP) {
         try {
+          // R70：targetOrigin 仍为 '*'——子帧无法预知顶层 origin（多层嵌套时 ancestorOrigins[0] 指向的是
+          // 直接父帧，收窄会直接丢消息）。风险改由接收侧把关：拒绝「自称本窗口」的消息 + 字段消毒（见下方监听）。
           window.top?.postMessage({ __zy_sel: { text: t, title: selCache.title, url: selCache.url } }, '*')
         } catch { /* 跨源 frame 不可达，忽略 */ }
       }
@@ -96,6 +98,9 @@ export function initSelectionCapture(): void {
     const clip = (v: unknown, cap: number): string =>
       typeof v === 'string' ? v.slice(0, cap) : ''
     window.addEventListener('message', (e: MessageEvent) => {
+      // R70：拒绝自消息——宿主页面自己 window.postMessage(...) 是最廉价的伪造方式
+      //（targetOrigin 无法收窄，见上方说明；此处是接收侧的第一道闸）
+      if (e.source === window) return
       const d0 = e.data as { __zy_sel?: { text?: unknown; title?: unknown; url?: unknown } } | null
       const text = clip(d0?.__zy_sel?.text, 8000)
       if (!d0 || !d0.__zy_sel || !text) return

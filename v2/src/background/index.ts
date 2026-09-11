@@ -117,7 +117,7 @@ chrome.commands.onCommand.addListener(async (command) => {
       // B10：已有新标签页则聚焦回归（回首页），避免重复开 tab
       const base = chrome.runtime.getURL('src/newtab/index.html')
       const tabs = await chrome.tabs.query({ url: base + '*' })
-      const existing = tabs.find(t => t.id != null)
+      const existing = tabs.find(t => t.id != null && t.windowId === tab?.windowId) || tabs.find(t => t.id != null)
       if (existing?.id != null) {
         if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
         await chrome.tabs.update(existing.id, { active: true })
@@ -131,7 +131,7 @@ chrome.commands.onCommand.addListener(async (command) => {
       // 第卅五轮 REQ-037：一键直达全局设置（复用 open-dashboard 聚焦模式，路由指向 /settings）
       const base = chrome.runtime.getURL('src/newtab/index.html')
       const tabs = await chrome.tabs.query({ url: base + '*' })
-      const existing = tabs.find(t => t.id != null)
+      const existing = tabs.find(t => t.id != null && t.windowId === tab?.windowId) || tabs.find(t => t.id != null)
       if (existing?.id != null) {
         if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
         await chrome.tabs.update(existing.id, { active: true })
@@ -147,7 +147,7 @@ chrome.commands.onCommand.addListener(async (command) => {
       // R68-F3：本 case 保留兜底（历史已分配键位不失效），但 manifest 已下架不再出现在快捷键设置页
       const base = chrome.runtime.getURL('src/newtab/index.html')
       const tabs = await chrome.tabs.query({ url: base + '*' })
-      const existing = tabs.find(t => t.id != null)
+      const existing = tabs.find(t => t.id != null && t.windowId === tab?.windowId) || tabs.find(t => t.id != null)
       if (existing?.id != null) {
         if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
         await chrome.tabs.update(existing.id, { active: true })
@@ -161,7 +161,7 @@ chrome.commands.onCommand.addListener(async (command) => {
       // R50-F8：完整方向树浏览器级命令（chrome://extensions/shortcuts 自定义键位）
       const base = chrome.runtime.getURL('src/newtab/index.html')
       const tabs = await chrome.tabs.query({ url: base + '*' })
-      const existing = tabs.find(t => t.id != null)
+      const existing = tabs.find(t => t.id != null && t.windowId === tab?.windowId) || tabs.find(t => t.id != null)
       if (existing?.id != null) {
         if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
         await chrome.tabs.update(existing.id, { active: true })
@@ -179,7 +179,7 @@ chrome.commands.onCommand.addListener(async (command) => {
       const hash = command === 'goto-curiosity' ? '#/' : '#/compass'
       const base = chrome.runtime.getURL('src/newtab/index.html')
       const tabs = await chrome.tabs.query({ url: base + '*' })
-      const existing = tabs.find(t => t.id != null)
+      const existing = tabs.find(t => t.id != null && t.windowId === tab?.windowId) || tabs.find(t => t.id != null)
       if (existing?.id != null) {
         if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
         await chrome.tabs.update(existing.id, { active: true })

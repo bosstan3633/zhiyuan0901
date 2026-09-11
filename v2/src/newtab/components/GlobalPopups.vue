@@ -574,7 +574,9 @@ const allResults = computed<SearchResult[]>(() => {
   })
 
   // 第卅二轮 REQ-008：检索范围扩展至策展台实体（模糊匹配策展台名称，专属图标区分类别）
-  d.value.workspaces.filter(w => !w.archived).forEach(w => {
+  // R70：补 CURATION_WS_ID 过滤——R68 修口径时计数（counts）与类型树（wsTree）都排除了资源台本体，
+  // 唯独结果集漏了（此处直读 d.value.workspaces，绕过了 store 的 workspaces getter）。
+  d.value.workspaces.filter(w => !w.archived && w.id !== CURATION_WS_ID).forEach(w => {
     const cardCount = d.value.resources.filter(r => !r.deletedAt && r.workspaceId === w.id).length
     results.push({
       id: w.id, type: 'ws', iconClass: 'ws', iconText: '🗂',
@@ -737,12 +739,16 @@ function escapeHtmlTitle(t: string): string {
   return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 function hlTitle(title: string): string {
-  const esc = escapeHtmlTitle(title)
   const q = searchQuery.value.trim()
-  if (!q) return esc
-  const i = esc.toLowerCase().indexOf(q.toLowerCase())
-  if (i < 0) return esc
-  return esc.slice(0, i) + '<mark class="gp-hl">' + esc.slice(i, i + q.length) + '</mark>' + esc.slice(i + q.length)
+  if (!q) return escapeHtmlTitle(title)
+  // R70：先在**原始标题**上定位，再对切片分别转义。
+  // 此前是「先整体转义、再按原始查询长度切分」——转义会把 & 变成 &amp;（长度变化），
+  // 于是标题 AT&T 搜 & 时切片落到实体中间，渲染出 AT&amp;T（用户看到字面量）。
+  const i = title.toLowerCase().indexOf(q.toLowerCase())
+  if (i < 0) return escapeHtmlTitle(title)
+  return escapeHtmlTitle(title.slice(0, i))
+    + '<mark class="gp-hl">' + escapeHtmlTitle(title.slice(i, i + q.length)) + '</mark>'
+    + escapeHtmlTitle(title.slice(i + q.length))
 }
 function runFlat(index: number) {
   // 第卅六轮 REQ-039：双击 / Enter 键行为 —— 直开链接 / 跳路由（保留原 openItem 直开逻辑）

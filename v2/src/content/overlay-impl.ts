@@ -233,6 +233,7 @@ function closeOverlay() {
     root.classList.remove('open', 'center', 'corner')
     root.innerHTML = ''
     document.removeEventListener('keydown', onSavedKeydown, true)
+    activeTcSave = null  // R70：面板已销毁 → 保存回调失效（onTcKeydown 为模块级常驻，无需反复解绑）
   }
 }
 
@@ -925,6 +926,19 @@ function toFileUrl(link: string): string {
 }
 
 // ============ 快速采集资源卡（右上角小窗） ============
+/** R70：任务采集浮层「保存」回调（模块级单例）。
+ *  此前 onTcKey 是 openTaskCapture 内部的局部闭包，每次唤起都往 document 上挂一个新的 keydown
+ *  监听，而全文没有对应的解绑（closeOverlay 只 innerHTML=''）——同一页面第 N 次唤起任务采集后，
+ *  按 Ctrl+Enter 会同时触发 N 个监听器（每层的 getElementById 守卫都命中新浮层）→ 一次保存写 N 条重复任务。
+ *  改为模块级具名函数：浏览器对「同函数引用 + 同 capture」的重复 addEventListener 自动去重，天然不累积。 */
+let activeTcSave: (() => void) | null = null
+function onTcKeydown(e: KeyboardEvent) {
+  if (!activeTcSave || !document.getElementById('__zy_tc_save__')) return
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); activeTcSave() }
+}
+// overlay-impl 为动态 import：模块只求值一次，此处注册一次即可
+document.addEventListener('keydown', onTcKeydown, true)
+
 let savedState = false
 let savedTimer: ReturnType<typeof setTimeout> | null = null
 // REQ-031 P-031-8：采集去重 Map——打开小窗时构建一次 url→resource，保存时 O(1) 查重（千卡下不再全量扫描）
@@ -1242,11 +1256,8 @@ async function openTaskCapture() {
     savedTimer = setTimeout(() => { closeOverlay(); savedState = false; savedTimer = null }, 5000)
   }
   document.getElementById('__zy_tc_save__')?.addEventListener('click', saveTc)
-  const onTcKey = (e: KeyboardEvent) => {
-    if (!document.getElementById('__zy_tc_save__')) return
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); saveTc() }
-  }
-  document.addEventListener('keydown', onTcKey, true)
+  // R70：注册到模块级单例（见 onTcKeydown）——不再在此处新建 keydown 闭包
+  activeTcSave = saveTc
 }
 
 async function openCuriosity() {

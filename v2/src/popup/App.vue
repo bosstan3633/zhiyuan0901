@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { uid } from '@/shared/utils'
+import { loadData, saveDataNow } from '@/shared/storage/repository'
 import type { AppData } from '@/shared/models'
 
 const mode = ref<'capture' | 'curiosity' | 'task'>('capture')
@@ -77,13 +78,16 @@ function onSavedKeydown(e: KeyboardEvent) {
 }
 
 async function getData(): Promise<AppData | null> {
+  // R70：改走 repository——此前直读 chrome.storage.local 全量，绕过仓库缓存与序列化口径
   if (typeof chrome === 'undefined') return null
-  const r = await chrome.storage.local.get('zy_data_v2')
-  return (r.zy_data_v2 as AppData) || null
+  try { return await loadData() } catch { return null }
 }
 
-async function setData(d: AppData) {
-  await chrome.storage.local.set({ zy_data_v2: d })
+async function setData(): Promise<void> {
+  // R70：改走 repository——此前直写 chrome.storage.local 有两个实质问题：
+  //  ① 绕过 flushCardEvents，popup 新建的卡不会进操作事件日志；
+  //  ② 是无合并保护的全量读-改-写，与主界面并发保存会互相覆盖（现在统一走仓库落盘链路）。
+  await saveDataNow()
 }
 
 function closeWindow(delay = 0) {
@@ -129,7 +133,7 @@ async function save() {
         for (const dir of d.compass.directions) for (const p of dir.projects) for (const m of p.metrics)
           if (m.id === task.metricId && !m.taskIds.includes(task.id)) m.taskIds.push(task.id)
       }
-      await setData(d)
+      await setData()
     }
     saved.value = true
     if (savedTimer) clearTimeout(savedTimer)
@@ -153,7 +157,7 @@ async function save() {
         createdAt: Date.now(),
         updatedAt: Date.now()
       })
-      await setData(d)
+      await setData()
     }
     saved.value = true
     if (savedTimer) clearTimeout(savedTimer)
@@ -180,7 +184,7 @@ async function save() {
         updatedAt: Date.now()
       }
       d.resources.unshift(resource)
-      await setData(d)
+      await setData()
       savedWsId.value = resource.workspaceId
       savedResourceId.value = resource.id
     }
