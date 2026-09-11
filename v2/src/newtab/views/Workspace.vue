@@ -144,13 +144,13 @@
         </div>
         <div class="cat-item" :class="{active: activeCategory==='all'}" @click="activeCategory='all'">
           <span class="cat-icon">📁</span><span class="cat-name">全部</span>
-          <span class="cat-count">{{ allResources.length }}</span>
+          <span class="cat-count" title="本台全部可见卡（策展台含资源台镜像卡）">{{ allResources.length }}</span>
         </div>
         <!-- 第廿九轮：「待分类」成为卡片归属落点 -->
         <div class="cat-item" :class="{active: activeCategory==='uncat', 'card-drop': cardDropTarget==='uncat'}" @click="activeCategory='uncat'"
           @dragover="onUncatDragOver" @dragleave="cardDropTarget==='uncat' && (cardDropTarget='')" @drop.stop="onUncatDrop">
           <span class="cat-icon">📥</span><span class="cat-name">待分类</span>
-          <span class="cat-count">{{ uncategorizedCount }}</span>
+          <span class="cat-count" title="未归入任何分类，或所属分类已失效">{{ uncategorizedCount }}</span>
         </div>
         <div class="cat-divider"></div>
         <template v-for="sc in sidebarCats" :key="sc.cat.id">
@@ -186,7 +186,7 @@
               <span class="cat-act" title="重命名" @click.stop="openRenameCat(sc.cat)">✎</span>
               <span class="cat-act danger" title="删除" @click.stop="deleteCategory(sc.cat)">🗑</span>
             </span>
-            <span class="cat-count">{{ sc.hasChildren ? sc.aggCount : sc.directCount }}</span>
+            <span class="cat-count" :title="sc.hasChildren ? `仅本分类直属 ${sc.directCount} 张 · 含 ${sc.childCount} 个子分类（共 ${sc.aggCount} 张）` : `仅本分类直属 ${sc.directCount} 张`">{{ sc.directCount }}</span>
           </div>
         </template>
         <div v-if="dragCatId" class="cat-root-drop" @dragover.prevent @drop="onCatRootDrop">⬆ 松手升为一级分类</div>
@@ -774,7 +774,7 @@ const drillCatRows = computed<DrillCatRow[]>(() => {
     }
   }
   walk(undefined, 0)
-  const uncat = allResources.value.filter(r => !r.categoryId || !catIdx.value.byId.has(r.categoryId)).length
+  const uncat = allResources.value.filter(r => isUncat(r, catIdx.value.byId)).length
   if (uncat) rows.push({ id: 'uncat', name: '待分类', count: uncat, depth: 0 })
   return rows
 })
@@ -815,7 +815,14 @@ const allResources = computed<ResourceCard[]>(() => boardCardsOf(d.value, worksp
 const categories = computed(() => d.value.categories.filter(c => c.workspaceId === workspaceId.value).sort((a,b) => a.order - b.order))
 const resourceCount = computed(() => allResources.value.length)
 const categoryCount = computed(() => categories.value.length)
-const uncategorizedCount = computed(() => allResources.value.filter(r => !r.categoryId).length)
+/** R76（R3）：待分类判据——无分类，**或**分类已失效（categoryId 指向本台不存在的分类）。
+ *  此前左树与指标条用严格口径（只看 !categoryId），而卡面「所在分类」、卡片/列表分组、下钻抽屉
+ *  都用宽松口径 ⇒ 卡面写着「待分类」的悬空卡，点左树「待分类」却找不到。此处收敛为唯一实现。
+ *  @param validIds 本台有效分类集合（catIdx.byId 的 Map，或自建 id Set）——只用到 has，故二者皆可 */
+function isUncat(r: ResourceCard, validIds: { has(id: string): boolean }): boolean {
+  return !r.categoryId || !validIds.has(r.categoryId)
+}
+const uncategorizedCount = computed(() => allResources.value.filter(r => isUncat(r, catIdx.value.byId)).length)
 /** R61：本台分类是否为资源台镜像分类 */
 function isMirrorCat(c: Category): boolean {
   return c.curFrom?.wsId === CURATION_WS_ID
@@ -1021,7 +1028,7 @@ const resourceGroups = computed<ResourceGroup[]>(() => {
   /** R71：先按分类分桶一次，后续所有「某分类的卡」都是 O(1) 取用——
    *  此前每个节点都要对 filtered 全量 filter（O(节点数×卡数)），并对每个子节点再扫一遍判空 */
   const bucket = buildBucketIndex(filtered, (r) => r.categoryId || '')
-  const uncat = applyGroupSort(filtered.filter(r => !r.categoryId || !validIds.has(r.categoryId)))
+  const uncat = applyGroupSort(filtered.filter(r => isUncat(r, validIds)))
   if (uncat.length) groups.push({ key: 'uncat', title: '待分类', count: uncat.length, items: uncat, depth: 0 })
   /** 子树内是否有卡（含直属）——查分桶，空分支不生成组 */
   const subtreeHasCards = (catId: string) => {
@@ -1283,7 +1290,7 @@ function onDragStart(e: DragEvent, r: ResourceCard) {
 // REQ-028 F-028-3：卡片所属渲染分区（与 resourceGroups 分区 key 对齐）
 function groupKeyOf(r: ResourceCard): string {
   const validIds = new Set(wsCats.value.map(c => c.id))
-  if (!r.categoryId || !validIds.has(r.categoryId)) return 'uncat'
+  if (isUncat(r, validIds)) return 'uncat'
   if (activeCategory.value === 'all') {
     for (const root of rootCats.value) {
       if (familyIds(root.id).includes(r.categoryId)) return root.id
@@ -1476,7 +1483,7 @@ function catIconOf(r: ResourceCard): string {
 /** R64-F10：卡面所属文件夹徽标——完整分类路径（根→当前，4 级全链）
  *  R71：走索引缓存（此前沿父链反复全表 find，O(depth×n)；且此函数在卡面模板里逐卡调用） */
 function catNameOfFamily(r: ResourceCard): string {
-  if (!r.categoryId || !catIdx.value.byId.has(r.categoryId)) return '待分类'
+  if (isUncat(r, catIdx.value.byId)) return '待分类'
   return catIdx.value.pathOf(r.categoryId)
 }
 
@@ -1530,7 +1537,9 @@ function treeCatOptions(cats: Category[]): { id: string; label: string }[] {
   return out
 }
 /** 左栏渲染的扁平序列（分区标签 + 缩进标记）——R61-4：递归支持 4 级 */
-interface SidebarCat { cat: Category; depth: number; sectionLabel: string; hasChildren: boolean; aggCount: number; directCount: number }
+// R76（R3）：count 一律取 directCount（与看板列、卡片/列表分组同口径）；
+// childCount + aggCount 只用于 title 补充说明，不再作为显示值，避免同屏出现两个数
+interface SidebarCat { cat: Category; depth: number; sectionLabel: string; hasChildren: boolean; childCount: number; aggCount: number; directCount: number }
 // R48-V2：树状目录展开/折叠（默认全局展开；折叠状态仅会话内记忆）
 const collapsedCats = ref<Set<string>>(new Set())
 function toggleCatCollapse(id: string) {
@@ -1563,6 +1572,7 @@ const sidebarCats = computed<SidebarCat[]>(() => {
     out.push({
       cat: c, depth, sectionLabel,
       hasChildren: catIdx.value.hasChildren(c.id),
+      childCount: childCatsOf(c.id).length,
       aggCount: catAggCount(c.id),
       directCount: (resBucket.value.get(c.id) || []).length
     })
