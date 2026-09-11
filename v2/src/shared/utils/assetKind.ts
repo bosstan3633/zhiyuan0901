@@ -37,3 +37,22 @@ export function assetMimeOf(kind: AssetKind, fallback: string): string {
 export function stripExt(name: string): string {
   return name.replace(/\.[^.]+$/, '')
 }
+
+/**
+ * 附件文本摘要（R81/R15）：「N 图 · N PDF · M HTML」
+ *
+ * 改前三处各自写着 `htmls = list.length - imgs`，把 **PDF 算进 HTML 档**——
+ * 徽标、卡片字段值、CSV 导出三个出口同时错。抽到此处后三处共用同一口径。
+ * ⚠ 仅当卡上确有 PDF 时输出才会变化；无 PDF 的卡输出逐字不变。
+ */
+export function assetSummary(list: Array<{ kind: AssetMeta['kind'] }> | undefined | null): string {
+  const arr = list || []
+  const imgs = arr.filter(a => a.kind === 'image').length
+  const pdfs = arr.filter(a => a.kind === 'pdf').length
+  const htmls = arr.filter(a => a.kind === 'html').length
+  const parts: string[] = []
+  if (imgs) parts.push(`${imgs} 图`)
+  if (pdfs) parts.push(`${pdfs} PDF`)
+  if (htmls) parts.push(`${htmls} HTML`)
+  return parts.join(' · ')
+}

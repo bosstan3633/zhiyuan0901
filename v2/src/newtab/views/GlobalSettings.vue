@@ -839,6 +839,7 @@ import { getAssetStats, cleanupOrphanAssets, getAllAssets, putAssets } from '@/s
 import { buildZip, readZip, type ZipEntry } from '@/shared/utils/zip'
 import { visibleFields, allFields } from '@/shared/utils/fields'
 import { sanitizeCardCols } from '@/shared/utils/cardCols'
+import { assetSummary } from '@/shared/utils/assetKind'
 import type { FieldDef, AppData, ResourceCard, Workspace, Category, TagNode, AssetMeta, ID } from '@/shared/models'
 // R63-1/63-2：全景两级（资源台/策展台）与导出镜像卡适配
 import { isHubWs, boardCardsOf, isMirrorView } from '@/shared/storage/hub'
@@ -1879,16 +1880,10 @@ function resCsvValue(r: ResourceCard, key: string): string {
     case 'sourceType': return r.sourceType || ''
     case 'tags': return (r.tags || []).join(';')
     case 'createdAt': return new Date(r.createdAt).toISOString().slice(0, 10)
-    case 'assets': {
-      // 附件列 = 文本摘要（与 fieldValue assets 同规则：N 图 · M HTML）
-      const list = r.assets || []
-      const imgs = list.filter(a => a.kind === 'image').length
-      const htmls = list.length - imgs
-      const parts: string[] = []
-      if (imgs) parts.push(`${imgs} 图`)
-      if (htmls) parts.push(`${htmls} HTML`)
-      return parts.join(' · ')
-    }
+    case 'assets':
+      // 附件列 = 文本摘要（与 fieldValue assets 同规则：N 图 · N PDF · M HTML）
+      // R81（R15）：原实现把 PDF 算进 HTML 档，改调共享 assetSummary，与徽标/字段值三出口同源
+      return assetSummary(r.assets)
     default: {
       const v = (r as unknown as Record<string, unknown>)[key]
       return v == null ? '' : String(v)

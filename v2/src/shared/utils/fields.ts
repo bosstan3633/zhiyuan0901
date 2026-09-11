@@ -3,6 +3,7 @@
  * 让「全局设置 · 卡片字段设计」的排序与显隐真正作用于策展台卡片/列表/看板三视图
  */
 import type { FieldConfig, FieldDef, ResourceCard, TaskCard, CuriosityCard, AnyCard } from '@/shared/models'
+import { assetSummary } from './assetKind'
 
 /** 字段组类型（R62-3：thesis = 策展主题卡组） */
 export type FieldGroupKind = 'resource' | 'task' | 'curiosity' | 'thesis'
@@ -56,16 +57,10 @@ export function fieldValue(
       return map[s] || s
     }
     case 'createdAt': return c.createdAt ? new Date(Number(c.createdAt)).toLocaleDateString('zh-CN') : ''
-    case 'assets': {
-      // 第卌轮 REQ-051：附件字段文本摘要（列表/CSV/预览兜底），如「2 图 · 1 HTML」
-      const list = (c.assets as Array<{ kind: 'image' | 'html' }> | undefined) || []
-      const imgs = list.filter(a => a.kind === 'image').length
-      const htmls = list.length - imgs
-      const parts: string[] = []
-      if (imgs) parts.push(`${imgs} 图`)
-      if (htmls) parts.push(`${htmls} HTML`)
-      return parts.join(' · ')
-    }
+    case 'assets':
+      // 第卌轮 REQ-051：附件字段文本摘要（列表/CSV/预览兜底），如「2 图 · 1 PDF · 1 HTML」
+      // R81（R15）：原实现 `htmls = list.length - imgs` 把 PDF 算进 HTML 档，改调共享 assetSummary
+      return assetSummary(c.assets as Array<{ kind: 'image' | 'pdf' | 'html' }> | undefined)
     case 'workspaceId': return ctx.wsName ? ctx.wsName(String(c.workspaceId ?? '')) : ''
     case 'categoryId': return ctx.catName ? ctx.catName(String(c.categoryId ?? '')) : ''
     default: {

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * 第卌轮 REQ-051：卡片正面附件徽章（资源/任务/好奇心卡片三视图共用）
- * - 显示：图片附件 🖼 n / HTML 附件 🧾 n 分组计数徽章（n=数量，卡片正面一眼可见挂了几图几 HTML）
- * - 交互：点击徽章 → 文件列表浮层；点单条 → 图片弹窗预览 / HTML 新标签打开（与 AssetManager 同行为）
+ * - 显示：图片 🖼 n / PDF 📕 n / HTML 🧾 n 三档分组计数徽章（n=数量，卡片正面一眼可见各挂了几个）
+ * - 交互：点击徽章 → 单个附件一击直达；多个 → 文件列表浮层；点单条 → 图片弹窗预览 / HTML·PDF 新标签打开（与 AssetManager 同行为）
  * - 样式：全部走 tokens.css 令牌；徽章点击 stopPropagation，不触发宿主卡片的单击/双击
  * - 说明：图片预览 viewer 与 AssetManager.vue 为同款逻辑独立实现（第卌轮暂不重构共享，
  *   避免牵动 R39 附件回归断言；后续可再抽公共 viewer 组件收敛两处）
@@ -21,14 +21,33 @@ const props = withDefaults(defineProps<{
 })
 
 const list = computed<AssetMeta[]>(() => props.assets || [])
+// R81（R15）：三档独立计数——改前 `htmlCount = list.length - imgCount` 把 PDF 算进了 HTML 档
 const imgCount = computed(() => list.value.filter(a => a.kind === 'image').length)
-const htmlCount = computed(() => list.value.length - imgCount.value)
+const pdfCount = computed(() => list.value.filter(a => a.kind === 'pdf').length)
+const htmlCount = computed(() => list.value.filter(a => a.kind === 'html').length)
 const has = computed(() => list.value.length > 0)
 
 function fmtSize(n: number): string {
   if (n < 1024) return n + ' B'
   if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' KB'
   return (n / 1024 / 1024).toFixed(1) + ' MB'
+}
+
+// ---- R81（R15）：徽标单击分流 + 随数量变化的悬浮提示 ----
+const badgeTitle = computed(() => {
+  const n = list.value.length
+  if (n <= 1) {
+    const a = list.value[0]
+    if (!a) return ''
+    return a.kind === 'image' ? `${a.name} · 点击预览` : `${a.name} · 点击打开`
+  }
+  return `点击查看 ${n} 个附件`
+})
+/** 只有 1 个附件时不再弹列表——弹一个只有一行的列表是纯多一步 */
+function onBadgeClick() {
+  if (!has.value) return
+  if (list.value.length === 1) { void openAsset(list.value[0]); return }
+  openList()
 }
 
 // ---- 文件列表浮层 ----
@@ -90,8 +109,9 @@ async function openAsset(meta: AssetMeta) {
 </script>
 
 <template>
-  <span v-if="has" class="ab" title="点击查看附件" @click.stop="openList" @dblclick.stop>
+  <span v-if="has" class="ab" :title="badgeTitle" @click.stop="onBadgeClick" @dblclick.stop>
     <span v-if="imgCount" class="ab-chip ab-img">🖼 {{ imgCount }}</span>
+    <span v-if="pdfCount" class="ab-chip ab-pdf">📕 {{ pdfCount }}</span>
     <span v-if="htmlCount" class="ab-chip ab-html">🧾 {{ htmlCount }}</span>
   </span>
 
@@ -133,6 +153,7 @@ async function openAsset(meta: AssetMeta) {
 }
 .ab-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .ab-img { }
+.ab-pdf { }
 .ab-html { }
 
 .ab-pop {
