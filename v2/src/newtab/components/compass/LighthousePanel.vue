@@ -17,7 +17,7 @@ import ModuleCard from '@/shared/components/ModuleCard.vue'
 import type { Project } from '@/shared/models'
 
 const router = useRouter()
-const { d, visionText, missionText, allProjects, projectProgress, isProjectDone } = useCompass()
+const { d, visionText, missionText, allProjects, projectProgress, isProjectStalled, isProjectDone } = useCompass()
 const store = useAppStore()
 
 // ---- 显隐开关（C6 三处同步） ----
@@ -70,6 +70,19 @@ onMounted(() => window.addEventListener('zy-locate-goal', onLocateGoal))
 onUnmounted(() => window.removeEventListener('zy-locate-goal', onLocateGoal))
 const doneCount = computed(() => allProjects().filter(p => isProjectDone(p)).length)
 /** R57-F4：战略目标进度（模块头展示，复用 projectProgress 口径） */
+/**
+ * R83（M3）· 性能红线：项目进度/停滞/完成**预计算成索引**，不在模板里逐 chip 调函数。
+ * `projectProgress` / `isProjectStalled` 内部都要遍历 d.tasks；在模板里对每个 chip 调一次
+ * 就是 O(项目数 × 任务数) 每次重渲染（R71 确立的"模板方法调用消除"）。
+ */
+const projMeta = computed(() => {
+  const m = new Map<string, { pct: number; done: number; total: number; stall: boolean; finished: boolean }>()
+  for (const p of allProjects()) {
+    const pr = projectProgress(p)
+    m.set(p.id, { pct: pr.pct, done: pr.done, total: pr.total, stall: isProjectStalled(p), finished: isProjectDone(p) })
+  }
+  return m
+})
 function goalPct(dirIdx: number): number {
   const dir = d.value.compass.directions[dirIdx]
   if (!dir || !dir.projects.length) return 0
@@ -77,6 +90,14 @@ function goalPct(dirIdx: number): number {
   return Math.round(total / dir.projects.length)
 }
 
+/** R83（M2）：期限映射；未设期限由模板 v-if 挡掉（不显示，不留空位） */
+function termText(term?: 'long' | 'mid' | 'short'): string {
+  return term === 'long' ? '远期' : term === 'mid' ? '中期' : term === 'short' ? '近期' : ''
+}
+/** R83（M2）：主攻项目数（只在 >0 时显示——写「主攻 0」是噪音） */
+function focusedOf(dirIdx: number): number {
+  return projectsOf(dirIdx).filter(p => p.isFocused).length
+}
 function openProject(p: Project) {
   router.push({ path: '/compass/projects', query: { p: p.id } })
 }
@@ -92,16 +113,15 @@ function openTree() { router.push('/compass/tree') }
       </div>
     </template>
 
-    <!-- R57-F4 第一行两列 ｜ R59-T6：愿景/使命 accent 凸显（与战略目标模块区分），整卡可点击进入完整方向树 -->
-    <div class="mr-vm-row">
-      <div class="mr-vm-card" title="点击进入完整方向树（愿景层）" @click="openTree">
-        <div class="mr-vm-head"><span class="mr-tier tier-vision">愿景</span><span class="mr-vm-go">进入方向树 ›</span></div>
-        <div class="mr-vm-text" :class="{ empty: !visionText }">{{ visionText || '尚未设定愿景' }}</div>
-      </div>
-      <div class="mr-vm-card" title="点击进入完整方向树（使命层）" @click="openTree">
-        <div class="mr-vm-head"><span class="mr-tier">使命</span><span class="mr-vm-go">进入方向树 ›</span></div>
-        <div class="mr-vm-text" :class="{ empty: !missionText }">{{ missionText || '尚未设定使命' }}</div>
-      </div>
+    <!-- R57-F4 第一行两列 ｜ R59-T6 accent 凸显 ｜ R83（M1）：两张占地方的卡 → 一条 44px 锚点条
+         —— 首屏最贵的位置不该被两块卡占着；完整内容仍在完整方向树里，此处只是"锚点"（单行省略 + title 全文） -->
+    <div class="mr-vm-bar" title="点击进入完整方向树（愿景 / 使命层）" @click="openTree">
+      <span class="mr-tier tier-vision">愿景</span>
+      <span class="mr-vm-text" :class="{ empty: !visionText }" :title="visionText">{{ visionText || '尚未设定愿景' }}</span>
+      <span class="mr-vm-sep" />
+      <span class="mr-tier">使命</span>
+      <span class="mr-vm-text" :class="{ empty: !missionText }" :title="missionText">{{ missionText || '尚未设定使命' }}</span>
+      <span class="mr-vm-go">进入方向树 ›</span>
     </div>
 
     <!-- R57-F4：第二行 = 战略目标模块网格（模块内含项目小模块） -->
@@ -110,13 +130,24 @@ function openTree() { router.push('/compass/tree') }
         <div class="mgc-head">
           <span class="mr-tier tier-goal">目标</span>
           <span class="mgc-name" :title="dir.name">{{ dir.name }}</span>
-          <span class="mgc-pct">{{ goalPct(di) }}%</span>
-          <span class="mr-meta">项目 {{ projectsOf(di).length }}</span>
+          <!-- R83（M2）：期限 + 主攻数 + 进度口径 tooltip——此前只有光秃秃的百分比 -->
+          <span class="mr-meta">项目 {{ projectsOf(di).length }}<template v-if="focusedOf(di)">（主攻 {{ focusedOf(di) }}）</template></span>
+          <span v-if="dir.term" class="mgc-term">{{ termText(dir.term) }}</span>
+          <span class="mgc-pct">{{ goalPct(di) }}%<span class="mgc-pct-tip" title="各项目进度的算术平均；项目有任务时 = 已完成任务 / 全部任务，无任务时取项目手动进度">ⓘ</span></span>
         </div>
         <div class="mgc-projects">
-          <span v-for="p in chipsOf(di)" :key="p.id" class="chip-proj" :class="{ accent: p.isFocused }"
+          <!-- R83（M3）：一行光秃秃的名字 → 两行小卡（主攻/停滞 + 迷你进度条 + pct% · done/total） -->
+          <span v-for="p in chipsOf(di)" :key="p.id" class="chip-proj" :class="{ accent: p.isFocused, done: projMeta.get(p.id)?.finished }"
             :title="p.name + ' · 点击进入项目详情'" @click="openProject(p)">
-            {{ p.name }}
+            <span class="cp-row">
+              <span v-if="p.isFocused" class="cp-mark" title="主攻项目">🎯</span>
+              <span class="cp-name">{{ p.name }}</span>
+              <span v-if="projMeta.get(p.id)?.stall" class="cp-flag" title="有任务但近 14 天无推进/完成活动">停滞</span>
+            </span>
+            <span class="cp-row cp-foot">
+              <span class="cp-bar"><i :style="{ width: (projMeta.get(p.id)?.pct || 0) + '%' }" /></span>
+              <span class="cp-pct">{{ projMeta.get(p.id)?.pct || 0 }}% · {{ projMeta.get(p.id)?.done || 0 }}/{{ projMeta.get(p.id)?.total || 0 }}</span>
+            </span>
           </span>
           <span v-if="moreOf(di)" class="chip-more" title="展开其余项目" @click="toggleMore(dir.id)">更多 {{ moreOf(di) }}</span>
           <span v-if="!projectsOf(di).length" class="mgc-empty">暂无项目——去完整方向树创建</span>
@@ -142,15 +173,16 @@ function openTree() { router.push('/compass/tree') }
 .mr-meta { font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }
 .mr-empty { font-size: 11.5px; color: var(--text-4); padding: 6px 12px; cursor: pointer; }
 
-/* R57-F4 第一行 ｜ R59-T6：愿景/使命 accent 凸显 + 可点击进方向树 */
-.mr-vm-row { display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; margin-bottom: 10px; }
-.mr-vm-card { background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border)); border-radius: var(--radius-sm); padding: 10px 14px 11px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all .15s; }
-.mr-vm-card:hover { border-color: var(--accent); box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 16%, transparent); transform: translateY(-1px); }
-.mr-vm-head { display: flex; align-items: center; gap: 8px; }
-.mr-vm-go { margin-left: auto; font-size: 10.5px; color: var(--accent); opacity: .8; }
-.mr-vm-card:hover .mr-vm-go { opacity: 1; text-decoration: underline; }
-.mr-vm-text { font-size: 13.5px; font-weight: 600; color: var(--text); line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* R57-F4 第一行 ｜ R59-T6 accent 凸显 ｜ R83（M1）：两张卡 → 一条 44px 锚点条（首屏让出约 40px 给目标网格） */
+.mr-vm-bar { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; margin-bottom: 10px; background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border)); border-radius: var(--radius-sm); cursor: pointer; transition: all .15s; }
+.mr-vm-bar:hover { border-color: var(--accent); box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 16%, transparent); }
+.mr-vm-text { flex: 1.2; min-width: 0; font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mr-vm-text.empty { color: var(--text-4); font-weight: 400; }
+/* 使命段沿用原 1.2fr:1fr 的重心比例（愿景 1.2 / 使命 1 ⇒ 1 : 0.833） */
+.mr-vm-sep { flex: 0 0 1px; align-self: stretch; margin: 9px 2px; background: var(--border); }
+.mr-vm-sep ~ .mr-vm-text { flex: 1; }
+.mr-vm-go { flex-shrink: 0; font-size: 10.5px; color: var(--accent); opacity: .8; white-space: nowrap; }
+.mr-vm-bar:hover .mr-vm-go { opacity: 1; text-decoration: underline; }
 
 /* R57-F4：第二行 战略目标模块网格 */
 .mr-goals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; }
@@ -160,10 +192,20 @@ function openTree() { router.push('/compass/tree') }
 .mgc-name { font-size: 13px; font-weight: 650; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mgc-pct { font-size: 11px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .mgc-projects { display: flex; flex-wrap: wrap; gap: 6px; }
-/* 项目小模块 */
-.chip-proj { font-size: 11px; padding: 4px 10px; border-radius: 8px; font-weight: 500; background: var(--surface); border: 1px solid var(--border); color: var(--text-2); cursor: pointer; transition: all .12s; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* R83（M3）：项目小模块 —— 一行光名字 → 两行小卡（主攻/停滞 + 迷你进度条 + pct% · done/total） */
+.chip-proj { display: flex; flex-direction: column; gap: 4px; width: 168px; min-width: 150px; max-width: 210px; padding: 6px 9px 7px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); color: var(--text-2); cursor: pointer; transition: all .12s; }
 .chip-proj:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .chip-proj.accent { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); color: var(--accent); }
+/* 已完成降透明度——对齐 .archived 的既有口径（CompassShell.vue:337 的 opacity .55） */
+.chip-proj.done { opacity: .55; }
+.cp-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.cp-mark { flex-shrink: 0; font-size: 10px; }
+.cp-name { flex: 1; min-width: 0; font-size: 11.5px; font-weight: 500; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-flag { flex-shrink: 0; font-size: 9px; padding: 1px 4px; border-radius: 3px; background: var(--tag-warn-bg); color: var(--warning); white-space: nowrap; }
+.cp-foot { gap: 6px; }
+.cp-bar { flex: 1; min-width: 0; height: 3px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
+.cp-bar i { display: block; height: 100%; border-radius: 99px; background: var(--accent); }
+.cp-pct { flex-shrink: 0; font-size: 9.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .chip-more { font-size: 11px; padding: 4px 10px; border-radius: 8px; background: transparent; border: 1px dashed var(--border-strong); color: var(--text-3); cursor: pointer; }
 .chip-more:hover { color: var(--accent); border-color: var(--accent); }
 .mgc-empty { font-size: 11px; color: var(--text-4); }
