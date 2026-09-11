@@ -162,6 +162,12 @@ function injectStyles() {
     .zy-ri-del{font-size:12px;color:var(--zy-text-3);cursor:pointer;padding:3px 6px;border-radius:6px;flex-shrink:0;opacity:0;transition:all .12s;}
     .zy-result-item:hover .zy-ri-del{opacity:1;}
     .zy-ri-del:hover{color:#E5484D;background:rgba(229,72,77,.12);}
+    /* R78（A7）：「→ 三件事」按钮——仅任务卡有；默认隐藏，hover 或当前选中行才显形（与删除按钮同一节奏） */
+    .zy-ri-focus{font-size:11px;color:var(--zy-text-3);cursor:pointer;padding:3px 8px;border-radius:7px;flex-shrink:0;white-space:nowrap;
+      border:1px solid var(--zy-border-strong);background:var(--zy-bg-2);opacity:0;transition:all .12s;}
+    .zy-result-item:hover .zy-ri-focus,.zy-result-item.sel .zy-ri-focus{opacity:1;}
+    .zy-ri-focus:hover{color:var(--zy-accent);border-color:var(--zy-accent);background:color-mix(in srgb, var(--zy-accent) 10%, transparent);}
+    .zy-ri-focus.on{opacity:1;color:var(--zy-text-4);border-color:var(--zy-border);background:transparent;cursor:default;}
     .zy-group-title{font-size:10.5px;font-weight:700;color:var(--zy-text-3);letter-spacing:.08em;padding:10px 12px 4px;}
     .zy-group-more{font-size:11px;color:var(--zy-text-3);padding:6px 12px;border-top:1px dashed var(--zy-border);}
     .zy-empty{padding:40px 20px;text-align:center;color:var(--zy-text-3);}
@@ -271,6 +277,7 @@ function ensureRoot(): HTMLElement {
 /** 打开浮层：center=居中搜索；corner=右上角采集小窗 */
 function openOverlay(mode: 'center' | 'corner', onScrimClick?: () => void) {
   injectStyles() // V2.21：样式注入收敛到真正渲染浮层时（幂等），页面加载期不再触碰 DOM
+  clearSavedState() // R78（A3）：新浮层一开，上一次的保存回执态（含 Enter 打开看板）即作废
   const root = ensureRoot()
   void applyThemeAccent() // R77（A1）：强调色取知源当前主题（异步读 storage，不阻塞渲染）
   root.className = mode === 'center' ? 'center open' : 'corner open'
@@ -287,6 +294,8 @@ function closeOverlay() {
   if (root) {
     root.classList.remove('open', 'center', 'corner')
     root.innerHTML = ''
+    savedOpenBoard = null      // R78（A3）：浮层已销毁 → 回执期内的「打开看板」动作同步失效
+    pendingReplaceSlot = null  // R78（A7）：两段式替换的中间态随浮层关闭作废
     document.removeEventListener('keydown', onSavedKeydown, true)
     activeTcSave = null  // R70：面板已销毁 → 保存回调失效（onTcKeydown 为模块级常驻，无需反复解绑）
   }
@@ -341,6 +350,7 @@ async function openSearch() {
     <div class="zy-foot">
       <span><kbd>↑↓</kbd> 选择</span>
       <span><kbd>⏎</kbd> 打开</span>
+      <span><kbd>→</kbd> 三件事</span>
       <span><kbd>Tab</kbd> 切换类型</span>
       <span><kbd>Esc</kbd> 关闭</span>
       <span class="zy-foot-brand">知源调度台 · 万千可调用，自有我方向</span>
@@ -650,7 +660,8 @@ function bindResultEvents(el: HTMLElement) {
   el.querySelectorAll('.zy-result-item').forEach(elm => {
     const e = elm as HTMLElement
     // 第卅七轮 REQ-045：交互固化——单击/Enter=开链接（无链接则定位）；Ctrl+Enter=定位+详情抽屉；双击=开链接（去重防双开）
-    e.title = '单击 → 打开链接（无链接则定位） · Ctrl+Enter → 定位并打开详情'
+    const focusElm = e.querySelector('.zy-ri-focus')
+    e.title = '单击 → 打开链接（无链接则定位） · Ctrl+Enter → 定位并打开详情' + (focusElm ? ' · → 加入今日三件事' : '')
     // R55-H2：🗑 直接删除（无二次确认，软删进回收站）——先于行点击，阻断打开链接
     const delBtn = e.querySelector('.zy-ri-del') as HTMLElement | null
     if (delBtn) {
@@ -668,6 +679,16 @@ function bindResultEvents(el: HTMLElement) {
         searchResults = searchResults.filter(r => String(r?.id || '') !== id)
         renderResults()
         showToast('已删除，可在回收站恢复')
+      })
+    }
+    // R78（A7）：「→ 三件事」按钮——先于行点击，阻断打开链接/定位
+    const focusBtn = e.querySelector('.zy-ri-focus') as HTMLElement | null
+    if (focusBtn) {
+      focusBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation()
+        const fid = focusBtn.dataset.focusId || ''
+        const hit = searchResults.find(r => String(r?.id || '') === fid)
+        if (hit) void addTaskToDailyFocus(hit)
       })
     }
     e.addEventListener('click', () => {
@@ -688,9 +709,82 @@ function bindResultEvents(el: HTMLElement) {
   })
 }
 
+// ============ R78（A7）：浮层内「加入今日三件事」（仅任务卡） ============
+/** 今日键：本地时区 YYYY-MM-DD，与 CompassHome.dateStr 口径一致 */
+function todayKeyStr(): string {
+  const t = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate())
+}
+/** A7-a：刷新「已入选今日三件事」的任务 id 集合（结果项置灰去重用）。
+ *  渲染前调用一次即可——每次写入后会同步 dataCache 并再次调用，保证集合不陈旧。 */
+function refreshTodayFocus() {
+  const list: any[] = dataCache?.dailyFocus?.[todayKeyStr()] || []
+  todayFocusSourceIds = new Set(list.map((s: any) => String(s?.sourceId || '')).filter(Boolean))
+}
+/** A7-b：就地刷新所有「→ 三件事」按钮的置灰与文案（不整表重渲染，避免打断输入焦点与选中行） */
+function refreshFocusButtons() {
+  document.querySelectorAll<HTMLElement>('.zy-ri-focus').forEach(b => {
+    const on = todayFocusSourceIds.has(b.dataset.focusId || '')
+    b.classList.toggle('on', on)
+    b.textContent = on ? '✓ 已入选' : '→ 三件事'
+    b.title = on ? '已在今日三件事中（点击定位）' : '加入今日三件事（→）'
+  })
+}
+/** A7-e：任务定位分流——挂了项目/指标 → 项目详情；否则 → 调度台任务调度模块高亮 */
+function focusLocateTask(item: any) {
+  const t = item?.raw || item
+  const id = String(t?.id || item?.id || '')
+  const route = t?.projectId ? '/compass/projects?p=' + t.projectId : '/?hl=' + id
+  try { chrome.runtime.sendMessage({ type: 'zy-open-route', route }) } catch { /* ignore */ }
+  showToast(t?.projectId ? '↗ 已定位到项目详情' : '↗ 已定位到调度台的任务')
+  closeOverlay()
+}
+/** A7-d：把任务卡加入今日三件事
+ *  ① 去重：已入选则不再写库，直接定位；
+ *  ② ≤3 硬上限：满则两段式替换（首次只提示，再按一次才落库，防误替换）；
+ *  ③ 跨上下文合并：读写一律绕过 1500ms 缓存——loadData 取最新快照 → 改 → saveData → 同步 dataCache，
+ *     把「读—改—写」压在一次往返内，避免与新标签页的整体覆盖写互相吃掉（lost update）。 */
+async function addTaskToDailyFocus(item: any) {
+  const t = item?.raw || item
+  const taskId = String(t?.id || '')
+  if (!taskId) return
+  if (todayFocusSourceIds.has(taskId)) { showToast('该任务已在今日三件事中'); focusLocateTask(item); return }
+  const key = todayKeyStr()
+  const d = await loadData() // 绕过缓存，取 storage 最新快照
+  if (!d) { showToast('数据加载失败'); return }
+  d.dailyFocus = d.dailyFocus || {}
+  const list: any[] = d.dailyFocus[key] || []
+  // 与 CompassHome.selectTaskForSlot 完全同构，保证调度台三件事卡片能直接识别
+  const slot = {
+    id: uid('focus'), sourceType: 'task', sourceId: taskId,
+    text: String(t?.title || '快速任务'), done: t?.status === 'done', doneAt: t?.completedAt
+  }
+  let replaced = -1
+  if (list.length >= FOCUS_LIMIT) {
+    if (pendingReplaceSlot === null) {
+      pendingReplaceSlot = 0
+      showToast('今日三件事已满 3/3 · 再按一次替换第 1 件')
+      return
+    }
+    replaced = Math.min(Math.max(pendingReplaceSlot, 0), FOCUS_LIMIT - 1)
+    list[replaced] = slot
+    pendingReplaceSlot = null
+  } else {
+    list.push(slot)
+  }
+  d.dailyFocus[key] = list
+  await saveData(d)
+  dataCache = d; dataCacheAt = Date.now() // 同步缓存，后续读不再取到旧快照
+  refreshTodayFocus()
+  showToast(replaced >= 0 ? '✓ 已替换今日第 ' + (replaced + 1) + ' 件事' : '✓ 已加入今日三件事（' + list.length + '/' + FOCUS_LIMIT + '）')
+  refreshFocusButtons()
+}
+
 function renderResults() {
   const el = document.getElementById('__zy_results__')
   if (!el) return
+  refreshTodayFocus() // R78（A7-a）：每次渲染前对齐一次已入选集合
   // B1：浏览模式（空查询 + 全部）= 快捷操作 + 近期最常用（R47-B4：全类型按调用次数降序）
   if (!lastQuery && searchType === 'all') {
     const dc = dataCache
@@ -796,12 +890,18 @@ function renderResults() {
       const delHtml = (g.type === 'res' || g.type === 'task' || g.type === 'curio')
         ? '<span class="zy-ri-del" data-del-id="' + escapeHtml(String(item.id || '')) + '" title="直接删除（可回收站恢复）">🗑</span>'
         : ''
+      // R78（A7-b）：仅任务卡提供「加入今日三件事」；已入选的置灰并改文案
+      const inFocus = todayFocusSourceIds.has(String(item.id || ''))
+      const focusHtml = g.type === 'task'
+        ? '<span class="zy-ri-focus' + (inFocus ? ' on' : '') + '" data-focus-id="' + escapeHtml(String(item.id || '')) + '" title="' +
+          (inFocus ? '已在今日三件事中（点击定位）' : '加入今日三件事（→）') + '">' + (inFocus ? '✓ 已入选' : '→ 三件事') + '</span>'
+        : ''
       html += '<div class="zy-result-item' + (i === searchSelIndex ? ' sel' : '') + '" data-idx="' + i + '" data-id="' + escapeHtml(String(item.id || '')) + '">' +
         '<div class="zy-ri-icon ' + item.iconClass + '">' + item.iconText + '</div>' +
         '<div class="zy-ri-main">' +
         '<div class="zy-ri-title">' + hl(item.title) + '</div>' +
         '<div class="zy-ri-meta"><span class="zy-badge ws">' + escapeHtml(item.ws) + '</span><span class="zy-badge cat">' + escapeHtml(item.cat) + '</span>' + badgesHtml + linkHtml + '</div>' +
-        summaryHtml + '</div>' + delHtml + '</div>'
+        summaryHtml + '</div>' + focusHtml + delHtml + '</div>'
     })
     if (rest > 0) html += '<div class="zy-group-more">… 还有 ' + rest + ' 条，输入更精确的关键词</div>'
     offset += items.length
@@ -841,6 +941,19 @@ function onSearchKeydown(e: KeyboardEvent) {
         openSearchResult(selItem)
       }
     }
+  } else if (e.key === 'ArrowRight') {
+    // R78（A7-c）：→ 加入今日三件事（仅任务卡）。两处克制：
+    // ① 不动 Ctrl+Enter——它已是「定位并打开详情抽屉」；
+    // ② → 在搜索框里本就是「光标右移」，故仅当光标已在末尾（右移本就无意义）时才截获，不抢编辑键位。
+    const inp = document.getElementById('__zy_si__') as HTMLInputElement | null
+    const atEnd = !inp || (inp.selectionStart === inp.value.length && inp.selectionEnd === inp.value.length)
+    if (!atEnd) return
+    const selItem =
+      (searchSelId ? searchResults.find((r: any) => String(r?.id || '') === searchSelId) : undefined) ||
+      searchResults[searchSelIndex]
+    if (!selItem || selItem.type !== 'task') return
+    e.preventDefault(); e.stopPropagation()
+    void addTaskToDailyFocus(selItem)
   } else if (e.key === 'Tab') {
     // B29：Tab 过滤类型——输入「任务/资源/好奇/全部」+ Tab 直达对应类型；否则四类循环切换。
     // 关键词被视为指令（消费掉），普通关键词保留；搜索框 chip 与类型 Tab 行同步更新
@@ -997,6 +1110,15 @@ document.addEventListener('keydown', onTcKeydown, true)
 
 let savedState = false
 let savedTimer: ReturnType<typeof setTimeout> | null = null
+/** R78（A3）：保存回执 toast 化后，整屏确认块消失，但「Enter 打开看板」仍要在回执期内可用
+ *  ⇒ 把动作挂到模块级，供 onSavedKeydown 调用（原实现依赖已被移除的 __zy_saved_open__ 按钮） */
+let savedOpenBoard: (() => void) | null = null
+/** R78（A7）：今日三件事——已入选任务的 sourceId 集合（浮层打开时读取，供结果项置灰去重） */
+let todayFocusSourceIds = new Set<string>()
+/** R78（A7）：三件事已满时的两段式替换——记录待替换槽位（0..2），关闭浮层即清空 */
+let pendingReplaceSlot: number | null = null
+/** R78（A7）：三件事槽位硬上限（与 shared/models 的「每天最多 3 个」及 CompassHome.FOCUS_LIMIT 一致） */
+const FOCUS_LIMIT = 3
 // REQ-031 P-031-8：采集去重 Map——打开小窗时构建一次 url→resource，保存时 O(1) 查重（千卡下不再全量扫描）
 let capUrlMap: Map<string, any> | null = null
 
@@ -1150,8 +1272,11 @@ async function openCapture() {
       if (!capUrlMap.has(nfp)) capUrlMap.set(nfp, resource)
     }
     await saveData(d2)
-    // 进入「已保存」状态：Enter 打开看板，Esc 关闭，5 秒自动消失
-    showSaved(resource.workspaceId, resource.id)
+    // R78（A3）：回执 toast 化——不再整屏确认；回执期内 Enter 仍可打开看板并定位到这张卡
+    showSaved('✓ 已入台 · Enter 打开看板', () => {
+      // 通知 background：单例定位到已打开的策展台标签页，或新建
+      chrome.runtime.sendMessage({ type: 'zy-locate-workspace', wsId: resource.workspaceId, hl: resource.id })
+    })
   }
 }
 
@@ -1175,44 +1300,37 @@ function showDupConfirm(dupTitle: string, onJump: () => void) {
   document.getElementById('__zy_dup_jump__')?.addEventListener('click', onJump)
 }
 
-/** 已保存状态条（Enter=打开看板单例定位，Esc=关闭，5 秒自动消失） */
-function showSaved(wsId: string, hl: string) {
+/** R78（A3）：保存回执轻量化——整屏确认块收窄为一行 toast，2.5 秒自动消失。
+ *  「Enter 打开看板」在回执期内仍然可用：动作挂到模块级 savedOpenBoard（原实现依赖的整屏按钮已随
+ *  确认块一起移除）。openAction 传空时只提示、不挂 Enter。
+ *  注意：重复卡确认视图（showDupConfirm）是「只能定位不能重复收录」的阻断态，按需求维持整屏，不走这里。 */
+function showSaved(toastMsg: string, openAction: (() => void) | null) {
   savedState = true
-  const root = ensureRoot()
-  const panel = root.querySelector('.zy-panel') as HTMLElement | null
-  if (!panel) return
-  panel.innerHTML = `
-    <div class="zy-saved">
-      <div class="zy-saved-icon">✓</div>
-      <div class="zy-saved-title">资源卡已保存</div>
-      <div class="zy-saved-hint">按 <kbd>Enter</kbd> 打开看板 · 定位新卡片</div>
-      <div class="zy-saved-sub">按 <kbd>Esc</kbd> 关闭 · 5 秒后自动关闭</div>
-      <div class="zy-saved-actions">
-        <button class="zy-btn zy-btn-ghost" id="__zy_saved_close__">关闭</button>
-        <button class="zy-btn zy-btn-primary" id="__zy_saved_open__">打开看板（Enter）</button>
-      </div>
-    </div>
-  `
-  document.getElementById('__zy_saved_close__')?.addEventListener('click', closeOverlay)
-  document.getElementById('__zy_saved_open__')?.addEventListener('click', openBoard)
-  // B9：挂载 Enter / Esc 监听（保存后按 Enter 打开看板定位新卡）
+  closeOverlay() // 先销毁采集面板并清掉遗留监听，再挂本次回执动作
+  savedOpenBoard = openAction
+    ? () => {
+        try { openAction() } catch { /* ignore */ }
+        clearSavedState()
+      }
+    : null
+  showToast(toastMsg, 2500)
   document.addEventListener('keydown', onSavedKeydown, true)
-
-  function openBoard() {
-    // 通知 background：单例定位到已打开的策展台标签页，或新建
-    try { chrome.runtime.sendMessage({ type: 'zy-locate-workspace', wsId, hl }) } catch { /* ignore */ }
-    closeOverlay()
-  }
-
   if (savedTimer) clearTimeout(savedTimer)
-  savedTimer = setTimeout(() => { savedState = false; closeOverlay() }, 5000)
+  savedTimer = setTimeout(clearSavedState, 2500)
+}
+/** R78（A3）：回执态复位——状态位、待执行动作、定时器、键盘监听一并清理 */
+function clearSavedState() {
+  savedState = false
+  savedOpenBoard = null
+  if (savedTimer) { clearTimeout(savedTimer); savedTimer = null }
+  document.removeEventListener('keydown', onSavedKeydown, true)
 }
 
 function onSavedKeydown(e: KeyboardEvent) {
   if (!savedState) return
   if (e.key === 'Enter') {
     e.preventDefault(); e.stopPropagation()
-    document.getElementById('__zy_saved_open__')?.click()
+    savedOpenBoard?.()
   } else if (e.key === 'Escape') {
     e.preventDefault(); e.stopPropagation()
     savedState = false
@@ -1300,16 +1418,12 @@ async function openTaskCapture() {
         if (m.id === task.metricId && !m.taskIds.includes(task.id)) m.taskIds.push(task.id)
     }
     await saveData(d2)
-    panel.innerHTML = `
-      <div class="zy-saved">
-        <div class="zy-saved-icon">⚡</div>
-        <div class="zy-saved-title">任务已保存</div>
-        <div class="zy-saved-sub">${task.projectId ? '已挂项目/指标 · 全域任务统一管理' : '暂为未归档任务 · 可随时在方向台归档'}</div>
-        <div class="zy-saved-sub">按 <kbd>Esc</kbd> 关闭 · 5 秒后自动关闭</div>
-      </div>`
-    savedState = true
-    if (savedTimer) clearTimeout(savedTimer)
-    savedTimer = setTimeout(() => { closeOverlay(); savedState = false; savedTimer = null }, 5000)
+    // R78（A3）：回执 toast 化——原整屏确认块与「5 秒后自动关闭」一并移除。
+    // 回执期内 Enter 打开落点：挂了项目/指标 → 项目详情；否则 → 调度台高亮这张任务卡。
+    const tcRoute = task.projectId ? '/compass/projects?p=' + task.projectId : '/?hl=' + task.id
+    showSaved('✓ 任务已保存 · Enter 打开' + (task.projectId ? '项目' : '方向台'), () => {
+      chrome.runtime.sendMessage({ type: 'zy-open-route', route: tcRoute })
+    })
   }
   document.getElementById('__zy_tc_save__')?.addEventListener('click', saveTc)
   // R70：注册到模块级单例（见 onTcKeydown）——不再在此处新建 keydown 闭包
