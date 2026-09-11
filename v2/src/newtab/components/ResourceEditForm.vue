@@ -12,13 +12,15 @@
  *   ⑤ footer：删除/复制链接/打开链接/保存 → 宿主各自 handler（新建/编辑差异、deleting 锁差异在宿主）
  * - 宿主保留：容器与开关态（Drawer.vue 或自绘 overlay/drawer）、save/delete/open/copy handler、highlight 触发
  */
-import { computed } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import { showToast } from '@/shared/components/toast'
 import { useAppStore } from '../stores/app'
 import { useTaHeight } from '@/shared/utils/taHeight'
+// R87（R7）：链接三态判据收敛到 shared/utils/link（此前 isFullPath 是本组件私有函数，卡片视图用不到）
+import { linkStateOf } from '@/shared/utils/link'
 import type { ResourceCard, TaskCard, Category, AssetMeta } from '@/shared/models'
 
 const props = defineProps<{
@@ -68,9 +70,17 @@ function treeCatOptions(cats: Category[]): { id: string; label: string }[] {
   return out
 }
 
-function isFullPath(link: string): boolean {
-  return /^([a-zA-Z]:[\\/]|file:\/\/|\/)/.test(link.trim())
+// R87（R7）：本地 isFullPath 退役 —— 判据迁至 shared/utils/link 的 linkStateOf。
+// 行为差异（**修正既有缺陷**）：zy-asset:// 附件卡（R80 起本地文件导入的标准形态）linkType 是 file 但
+// 走预览通道打开，此前会被误报「仅存文件名，请补全完整路径」；现 linkStateOf 判为 ok，告警不再出现。
+const linkIncomplete = computed(() => linkStateOf(props.model.linkType, props.model.link) === 'incomplete')
+
+/** R87（R7-②）：一键补全入口——宿主点卡片上的 ⚠ 徽标后调到此处，直接把光标送进链接输入框 */
+const linkInputRef = ref<HTMLInputElement | null>(null)
+function focusLink() {
+  nextTick(() => { linkInputRef.value?.focus(); linkInputRef.value?.select() })
 }
+defineExpose({ focusLink })
 
 /** 切换策展台后清空分类（REQ-005） */
 function onWsChange() {
@@ -136,9 +146,9 @@ function fmtTs(ts?: number): string {
         <div class="ref-link-type-btn" :class="{ active: model.linkType === 'file' }" @click="model.linkType = 'file'">📁 本地</div>
         <div class="ref-link-type-btn" :class="{ active: model.linkType === 'obsidian' }" @click="model.linkType = 'obsidian'">📝 Obsidian</div>
       </div>
-      <input type="text" class="ref-link-input" v-model="model.link" :placeholder="linkPlaceholder"
+      <input ref="linkInputRef" type="text" class="ref-link-input" v-model="model.link" :placeholder="linkPlaceholder"
         @keydown.ctrl.enter.prevent="emit('save')" @keydown.meta.enter.prevent="emit('save')">
-      <div v-if="model.linkType === 'file' && model.link && !isFullPath(model.link)" class="ref-warn">
+      <div v-if="linkIncomplete" class="ref-warn">
         ⚠ 当前仅存文件名，双击打开前请补全完整路径（如 D:\docs\file.pdf）
       </div>
     </div>

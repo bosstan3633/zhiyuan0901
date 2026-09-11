@@ -102,19 +102,31 @@
         <!-- R62-5：金字塔结构视图 -->
         <div class="view-tab" :class="{active: viewMode==='pyramid'}" @click="setViewMode('pyramid')">⬡ 金字塔</div>
       </div>
+      <!-- R87（R5-①）：补「调用最多」档（callCount 降序）——数据早已在维护（三视图 footer 的 🔥N），缺的只是排序出口 -->
       <select class="toolbar-select" v-model="sortBy">
         <option value="manual">手动拖拽</option>
         <option value="recent">最近添加</option>
         <option value="visited">最近访问</option>
+        <option value="hot">调用最多</option>
         <option value="title">标题 A-Z</option>
       </select>
       <!-- 第卅二轮 REQ-007：时间排序方向切换（默认倒序，偏好本地记忆） -->
       <button v-if="sortBy==='recent' || sortBy==='visited'" class="toolbar-select sort-dir-btn" :title="sortDir==='desc' ? '当前倒序（新→旧），点击切换正序' : '当前正序（旧→新），点击切换倒序'" @click="toggleSortDir">{{ sortDir==='desc' ? '↓ 新→旧' : '↑ 旧→新' }}</button>
+      <!-- R87（R5-②）：筛选扩为两组 8 档——原四档是 linkType 维度，新四档是语义谓词维度，
+           不同维度不能塞进同一个 === 判定，故下方 filteredResources 改为谓词表 -->
       <select class="toolbar-select" v-model="filterBy">
-        <option value="all">全部</option>
-        <option value="url">URL链接</option>
-        <option value="file">本地文件</option>
-        <option value="obsidian">Obsidian</option>
+        <optgroup label="按链接类型">
+          <option value="all">全部</option>
+          <option value="url">URL链接</option>
+          <option value="file">本地文件</option>
+          <option value="obsidian">Obsidian</option>
+        </optgroup>
+        <optgroup label="按状态">
+          <option value="hasLink">有链接</option>
+          <option value="brokenPath">⚠ 待补全路径</option>
+          <option value="hasAssets">有附件</option>
+          <option value="unmounted">未挂载任务</option>
+        </optgroup>
       </select>
       <!-- 第卅三轮 REQ-026：密度档位（紧凑/舒适，记忆 UIPrefs.density） -->
       <select class="toolbar-select" v-model="density" :title="'密度档位：' + (density === 'compact' ? '紧凑' : '舒适')">
@@ -262,6 +274,8 @@
                 </div>
                 <div class="rc-footer">
                   <span class="rc-cat" title="点击查看所在分类" @click.stop="activeCategory = r.categoryId || 'uncat'">{{ catIconOf(r) }} {{ catNameOfFamily(r) }}</span>
+                  <!-- R87（R7-①）：⚠ 待补全徽标（此前只有编辑抽屉里才有这条提示，卡片上看不见） -->
+                  <span v-if="isBrokenPath(r)" class="rc-broken" title="仅存文件名，双击无法打开 —— 点击补全完整路径" @click.stop="fixLink(r)">⚠ 待补全</span>
                   <span v-if="r.callCount" class="rc-calls" title="被打开次数">🔥{{ r.callCount }}</span>
                   <span class="rc-open-hint">双击打开链接</span>
                 </div>
@@ -273,9 +287,13 @@
             </div>
           </template>
 
-          <EmptyState v-if="!resourceGroups.length" icon="folder" title="暂无资源卡"
-            desc="双击卡片直达链接；单击查看详情。用 Ctrl+Shift+J 可从任意网页采集"
-            action-label="＋ 新建资源卡" @action="openNewResource" />
+          <!-- R87（R5 收尾）：有筛选/搜索却零结果时，空态要说明**原因**并给一键清除——
+               否则用户只看到「暂无资源卡」，会以为卡丢了（与 D-B 项目总览同款口径） -->
+          <EmptyState v-if="!resourceGroups.length" icon="folder"
+            :title="hasActiveFilter ? '当前筛选没有匹配的资源卡' : '暂无资源卡'"
+            :desc="hasActiveFilter ? '已按「' + filterLabel + '」过滤' + (debouncedQuery.trim() ? '，且搜索「' + debouncedQuery.trim() + '」无命中' : '') : '双击卡片直达链接；单击查看详情。用 Ctrl+Shift+J 可从任意网页采集'"
+            :action-label="hasActiveFilter ? '清除筛选' : '＋ 新建资源卡'"
+            @action="hasActiveFilter ? resetFilters() : openNewResource()" />
         </div>
 
         <!-- ===== 列表视图：REQ-027 按分类分组分区（每分区标题行 + 其下条目）；R64-F9 树状缩进 ===== -->
@@ -295,6 +313,8 @@
                 <span v-else class="rr-drag">⋮⋮</span>
                 <span class="rr-title"><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ val(r, titleKey) }}</span>
                 <AssetBadge v-if="hasField('assets') && r.assets?.length" :assets="r.assets" class="rr-assets" />
+                <!-- R87（R7-①）：列表视图同一枚徽标（三视图与卡片同源，见 R79 立的推平原则） -->
+                <span v-if="isBrokenPath(r)" class="rr-broken" title="仅存文件名，双击无法打开 —— 点击补全完整路径" @click.stop="fixLink(r)">⚠ 待补全</span>
                 <!-- R79（R1-列）：调用次数不在字段池里（callCount 无 FieldDef），故与卡片视图一样硬编码一行 -->
                 <span v-if="r.callCount" class="rr-calls" title="被打开次数">🔥{{ r.callCount }}</span>
                 <span class="rr-f" v-for="f in listFields" :key="f.key">{{ shortVal(r, f) }}</span>
@@ -341,6 +361,8 @@
                   <span v-if="r.starred" class="kc-star" title="已星标">⭐</span>{{ val(r, titleKey) }}
                 </div>
                 <div class="kc-card-footer">
+                  <!-- R87（R7-①）：看板同第三枚 -->
+                  <span v-if="isBrokenPath(r)" class="kc-broken" title="仅存文件名，双击无法打开 —— 点击补全完整路径" @click.stop="fixLink(r)">⚠ 待补全</span>
                   <span v-if="r.callCount" class="kc-calls" title="被打开次数">🔥{{ r.callCount }}</span>
                   <span v-if="hasField('tags') && r.tags.length" v-for="t in r.tags" :key="t" class="kc-card-tag">#{{ t }}</span>
                   <span class="kc-card-link" :class="r.linkType" v-if="r.link">{{ linkIcon(r.linkType) }}</span>
@@ -426,6 +448,7 @@
       <!-- 第卅九轮 #61：资源字段表单已抽至共享 ResourceEditForm（搜索抽屉 / 内联抽屉同源单份） -->
       <div class="dr-body">
         <ResourceEditForm
+          ref="resFormRef"
           :model="editingResource"
           height-key="ws-note"
           :show-close="true"
@@ -760,7 +783,7 @@ import { useCompass } from '@/newtab/stores/compass'
 import { recordResourceOpen, recordWorkspaceOpen } from '@/shared/storage/stats'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
-import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
+import { toOpenableUrl, openExternalLink, linkStateOf } from '@/shared/utils/link'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
 // R80（R13/R14）：附件类型判定与体积上限抽为共享工具（导入侧与 AssetManager 同口径）
 import { guessAssetKind, assetMimeOf, stripExt, ASSET_KIND_MB } from '@/shared/utils/assetKind'
@@ -1030,6 +1053,11 @@ function setViewMode(m: 'card'|'list'|'kanban'|'pyramid') {
 // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.res；网格模板由 --grid-cols 驱动）
 // 资源台（isHub）与策展台为同一组件同一网格 ⇒ 共用 'res' 键，列数在两台一致
 const resCols = useCardCols('res', store.ui)
+/** R87（R5-①）：排序档位白名单——sortPrefs.res.by 是持久化字段，防止未来退役档位后读到死值卡住 UI */
+const SORT_BY_KEYS = ['manual', 'recent', 'visited', 'hot', 'title']
+/** R87（R5-②）：筛选档位白名单（4 类型 + 4 状态）；筛选是临时视图态，**不进 UIPrefs**——
+ *  持久化会造成「下次打开发现卡少了」的困惑，与既有行为一致 */
+const FILTER_KEYS = ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'unmounted']
 const sortBy = ref('manual')
 // 第卅二轮 REQ-007：时间排序方向（默认倒序）+ 排序偏好本地记忆（UIPrefs.sortPrefs.res）
 const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.res?.dir === 'asc') ? 'asc' : 'desc')
@@ -1044,7 +1072,7 @@ watch(searchQuery, (v) => {
 })
 const activeCategory = ref('all')
 
-if (store.ui?.sortPrefs?.res?.by) sortBy.value = store.ui.sortPrefs.res.by
+if (store.ui?.sortPrefs?.res?.by && SORT_BY_KEYS.includes(store.ui.sortPrefs.res.by)) sortBy.value = store.ui.sortPrefs.res.by
 watch([sortBy, sortDir], () => {
   const sp = { ...(store.ui?.sortPrefs || {}), res: { by: sortBy.value, dir: sortDir.value } }
   if (store.ui) store.ui.sortPrefs = sp
@@ -1069,6 +1097,46 @@ const activeCategoryLabel = computed(() => {
   return categories.value.find(c => c.id === activeCategory.value)?.name || '分组'
 })
 
+/**
+ * R87（R5-②）：反查索引 —— 被未软删任务挂载的资源 id 集合。
+ * ★ 单向挂载红线：资源卡不得新增反向字段，要知道「有没有被挂载」只能反查 d.tasks；
+ *   但不能在筛选里逐卡 mountedTaskCount（O(卡数×任务数)，触 R83 性能红线），故一次遍历建 Set。
+ */
+const mountedResIds = computed<Set<string>>(() => {
+  const s = new Set<string>()
+  for (const t of d.value.tasks) {
+    if (t.deletedAt) continue
+    for (const id of t.mountedResourceIds || []) s.add(id)
+  }
+  return s
+})
+/** R87（R5 收尾）：当前是否有生效的过滤（类型/状态筛选 或 搜索词）——空态据此换文案与动作 */
+const hasActiveFilter = computed(() => filterBy.value !== 'all' || !!debouncedQuery.value.trim())
+const FILTER_LABELS: Record<string, string> = {
+  all: '全部', url: 'URL链接', file: '本地文件', obsidian: 'Obsidian',
+  hasLink: '有链接', brokenPath: '⚠ 待补全路径', hasAssets: '有附件', unmounted: '未挂载任务'
+}
+const filterLabel = computed(() => FILTER_LABELS[filterBy.value] || '全部')
+function resetFilters() {
+  filterBy.value = 'all'
+  searchQuery.value = ''
+  debouncedQuery.value = ''
+}
+/** R87（R7）：链接三态的卡片级封装——三视图徽标、筛选、双击 toast 共用同一个判据 */
+function isBrokenPath(r: ResourceCard): boolean {
+  return linkStateOf(r.linkType, r.link) === 'incomplete'
+}
+/** R87（R5-②）：8 档筛选谓词表。类型四档沿用 linkType 直判（保留既有持久化值），状态四档为语义谓词 */
+const FILTER_PREDICATES: Record<string, (r: ResourceCard) => boolean> = {
+  url: (r) => r.linkType === 'url',
+  file: (r) => r.linkType === 'file',
+  obsidian: (r) => r.linkType === 'obsidian',
+  hasLink: (r) => linkStateOf(r.linkType, r.link) !== 'none',
+  brokenPath: (r) => isBrokenPath(r),
+  hasAssets: (r) => (r.assets?.length || 0) > 0,
+  unmounted: (r) => !mountedResIds.value.has(r.id)
+}
+
 // 筛选（第八轮：点击父分类 = 聚合显示本级 + 全部子分类）
 const filteredResources = computed(() => {
   let list = allResources.value
@@ -1077,7 +1145,8 @@ const filteredResources = computed(() => {
     const ids = familyIds(activeCategory.value)
     list = list.filter(r => r.categoryId && ids.includes(r.categoryId))
   }
-  if (filterBy.value !== 'all') list = list.filter(r => r.linkType === filterBy.value)
+  const pred = FILTER_PREDICATES[filterBy.value]
+  if (pred) list = list.filter(pred)
   if (debouncedQuery.value.trim()) {
     const q = debouncedQuery.value.toLowerCase()
     list = list.filter(r => r.title.toLowerCase().includes(q) || (r.description||'').toLowerCase().includes(q) || (Array.isArray(r.tags) ? r.tags : []).join(',').toLowerCase().includes(q))
@@ -1098,6 +1167,8 @@ function applySort(list: ResourceCard[]): ResourceCard[] {
   }
   if (sortBy.value === 'recent') out.sort((a,b) => dirMul * ((a.createdAt||0) - (b.createdAt||0)))
   else if (sortBy.value === 'visited') out.sort((a,b) => dirMul * ((a.lastCalledAt||0) - (b.lastCalledAt||0)))
+  // R87（R5-①）：调用最多 —— callCount 降序，同热度用最近调用时间兜底（避免零热度段次序随机）
+  else if (sortBy.value === 'hot') out.sort((a,b) => ((b.callCount||0) - (a.callCount||0)) || ((b.lastCalledAt||0) - (a.lastCalledAt||0)))
   else if (sortBy.value === 'title') out.sort((a,b) => a.title.localeCompare(b.title, 'zh-CN'))
   return out
 }
@@ -1225,8 +1296,26 @@ function openResourceLink(r: ResourceCard) {
     return
   }
   const url = toOpenableUrl(r.linkType, r.link)
-  if (!url) { showToast('⚠ 请先补全链接（本地文件需完整路径，如 D:\\docs\\file.pdf）'); return }
+  if (!url) {
+    // R87（R7-③）：此前一律回「本地文件需完整路径」，对 URL 型空链接卡是错话。按链接三态分流：
+    const st = linkStateOf(r.linkType, r.link)
+    if (st === 'none') showToast('⚠ 该卡还没填链接 —— 点卡片右上角 ↗ 或进入详情补一个')
+    else if (st === 'incomplete') showToast('⚠ 仅存文件名，需补全完整路径（如 D:\\docs\\file.pdf）')
+    else showToast('⚠ 该链接无法打开（协议不受支持）')
+    return
+  }
   openExternalLink(url)
+}
+
+/**
+ * R87（R7-②）：「⚠ 待补全」徽标的一键补全 —— 打开详情抽屉并把光标送进链接输入框。
+ * 镜像卡是策展台里的只读引用（与 📌⭐🗑 同款拦截），补全得上资源台真身卡。
+ */
+const resFormRef = ref<InstanceType<typeof ResourceEditForm> | null>(null)
+function fixLink(r: ResourceCard) {
+  if (isMirrorView(r)) { showToast('📡 镜像卡为引用——补全路径请到资源台'); return }
+  openResource(r)
+  nextTick(() => resFormRef.value?.focusLink())
 }
 
 // 单击（详情）与双击（打开链接）区分
@@ -3032,6 +3121,10 @@ function linkDisplay(link: string) {
 .rc-calls { font-size: 10px; color: var(--curio-amber); background: var(--curio-bg); padding: 1px 7px; border-radius: 99px; font-weight: 500; }
 /* R79（R1-列/看）：列表与看板的调用次数徽章——同一条规则覆盖两个类，与卡片 .rc-calls 同色同形 */
 .rr-calls, .kc-calls { font-size: 10px; color: var(--curio-amber); background: var(--curio-bg); padding: 1px 7px; border-radius: 99px; font-weight: 500; flex-shrink: 0; }
+/* R87（R7-①）：⚠ 待补全徽标——三视图同形（与 .rc-calls 同一视觉语法：10px / 99px 圆角），
+   颜色只走 tokens 的 --warning，不引新色；hover 加下划线提示可点 */
+.rc-broken, .rr-broken, .kc-broken { font-size: 10px; color: var(--warning); background: var(--surface-2); border: 1px solid var(--warning); padding: 0 7px; border-radius: 99px; font-weight: 500; cursor: pointer; flex-shrink: 0; white-space: nowrap; }
+.rc-broken:hover, .rr-broken:hover, .kc-broken:hover { text-decoration: underline; }
 .rc-open-hint { margin-left: auto; font-size: 9.5px; color: var(--text-4); opacity: 0; transition: opacity .15s; }
 .res-card:hover .rc-open-hint { opacity: 1; }
 .rc-add-card { border: 1.5px dashed var(--border-strong); border-radius: 8px; display: flex; align-items: center; justify-content: center; min-height: 120px; cursor: pointer; color: var(--text-3); font-size: 12px; transition: all .15s; flex-direction: column; gap: 6px; }

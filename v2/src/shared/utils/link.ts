@@ -39,6 +39,36 @@ export function toOpenableRawLink(link?: string): string {
   return ''
 }
 
+// ===== R87（R5/R7）：链接状态三态判据 =====
+/**
+ * 是否内部附件引用（R80/R13 起本地文件导入生成的卡）：`zy-asset://<assetId>`。
+ * 这类卡 linkType 是 'file'，但**故意不暴露本机路径**——打开走 AssetPreview / openHtmlAsset，
+ * 故**不能**被判为「待补全路径」。
+ */
+export function isZyAssetLink(link?: string): boolean {
+  return /^zy-asset:\/\//i.test((link || '').trim())
+}
+
+/** 是否为完整路径（盘符 / file:// / unix 根）——自 ResourceEditForm 迁出，全应用唯一实现 */
+export function isFullPath(link: string): boolean {
+  return /^([a-zA-Z]:[\\/]|file:\/\/|\/)/.test(link.trim())
+}
+
+/**
+ * R87（R7）：链接三态 —— 一个口径，多个出口（筛选「有链接」/「⚠待补全路径」、卡片徽标、双击 toast）。
+ *  - none       空链接
+ *  - ok         可打开（含 zy-asset:// 附件引用）
+ *  - incomplete 本地文件仅存文件名（双击打不开，需补全完整路径）
+ * ⚠ 顺序要紧：zy-asset:// 必须先判，否则会被 file 型的 isFullPath 误判为 incomplete。
+ */
+export function linkStateOf(linkType: LinkType, link: string): 'none' | 'ok' | 'incomplete' {
+  const t = (link || '').trim()
+  if (!t) return 'none'
+  if (isZyAssetLink(t)) return 'ok'
+  if (linkType === 'file' && !isFullPath(t)) return 'incomplete'
+  return 'ok'
+}
+
 /** 统一打开通道（chrome.tabs.create 优先，网页端降级 window.open）；空 URL 返回 false */
 export function openExternalLink(url: string): boolean {
   if (!url) return false
