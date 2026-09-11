@@ -26,7 +26,26 @@
       </div>
     </Teleport>
 
-    <!-- R62-1：策展台 5 指标条（资源台不显示；数据源 hub.curationMetrics） -->
+    <!-- R75（R18）：指标条按台身份分流——资源台 3 格 / 策展台 5 格（数据源同为 hub.curationMetrics） -->
+    <!-- 资源台（hub）3 格：论点格与来源构成格对资源台无意义——单向挂载红线 ⇒ 无投射指向资源台，metrics.mirrored 恒 0 -->
+    <div v-if="isHub" class="ws-metrics hub3">
+      <div class="metric-card" @click="openDrill('total')">
+        <div class="mc-label">📊 卡片总数</div>
+        <div class="mc-value">{{ metrics.total }}</div>
+        <div class="mc-hint">{{ hubCountHint }}</div>
+      </div>
+      <div class="metric-card" @click="openDrill('assets')">
+        <div class="mc-label">📎 附件数量</div>
+        <div class="mc-value">{{ metrics.attachmentCount }}</div>
+        <div class="mc-hint">点击查看明细</div>
+      </div>
+      <div class="metric-card" @click="openDrill('recent')">
+        <div class="mc-label">🕐 最近更新</div>
+        <div class="mc-value small">{{ lastUpdateText }}</div>
+        <div class="mc-hint">点击查看流水</div>
+      </div>
+    </div>
+    <!-- R62-1：策展台 5 指标条（数据源 hub.curationMetrics） -->
     <div v-if="!isHub" class="ws-metrics">
       <!-- R67-F2：策展主题格高亮——主题色描边+微底色，与后续统计格拉开层级 -->
       <div class="metric-card thesis-hl" @click="openThesisDetail">
@@ -840,6 +859,15 @@ const lastUpdateText = computed(() => {
   if (diff < 172800000) return '昨天'
   return new Date(latest).toLocaleDateString('zh-CN')
 })
+/** R75（R18）：资源台「卡片总数」格的补充口径。
+ *  拍板原文是「台内 / 镜像」提示，但单向挂载红线 ⇒ 无投射指向资源台，metrics.mirrored 恒 0，
+ *  照搬会常驻「镜像 0」噪声 ⇒ 改用结构口径（分类数 / 待分类数），数据源全部现成、无需新计算。
+ *  镜像数 > 0 只可能是历史脏数据，此时优先暴露异常提示清理。 */
+const hubCountHint = computed(() =>
+  metrics.value.mirrored > 0
+    ? `⚠ 镜像 ${metrics.value.mirrored} 条待清理`
+    : `分类 ${metrics.value.categoryCount} · 待分类 ${uncategorizedCount.value}`
+)
 
 // ===== 字段渲染（F1：全局设置的字段设计在此生效） =====
 const rFields = computed(() => visibleFields(d.value.fieldConfig, 'resource'))
@@ -2864,8 +2892,10 @@ function linkDisplay(link: string) {
 
 /* Toast */
 
-/* ===== R62-1：策展台 5 指标条 ===== */
+/* ===== R62-1：指标条（策展台 5 格；R75 起资源台 3 格） ===== */
 /* R64-F13：指标条压缩为紧凑单行（非重点信息，让位策展区） */
+/* R75（R18）：资源台 3 格版——论点格与来源构成格对 hub 无意义；只加修饰类，不改 5 格本体 */
+.ws-metrics.hub3 { grid-template-columns: repeat(3, 1fr); }
 .ws-metrics { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; gap: 8px; margin: 10px 0 0; }
 .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 4px 12px; cursor: pointer; transition: all .15s; min-width: 0; display: flex; align-items: center; gap: 10px; }
 .metric-card:hover { border-color: var(--accent); background: var(--surface-2); }
