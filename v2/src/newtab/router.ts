@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { CURATION_WS_ID } from '@/shared/models'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -40,10 +41,13 @@ const router = createRouter({
       meta: { title: '策展台' }
     },
     {
-      // R61：资源台（原策展中心转正——资源卡唯一存储与镜像源头；路由路径保留 /curation 兼容旧链接）
+      // R73（R16 收敛）：资源台两入口合一。
+      // 旧路径 /curation 不再渲染独立组件，改为 redirect 到 hub 工作区（Workspace.vue 的 isHub 分支）；
+      // 显式透传 to.query，保住 ?hl=<cardId> 高亮定位与 ?cat= 分类定位。
+      // 顶栏「资源台」仍 navigate('/curation')，由本 redirect 落到 /workspace/zy-curation。
       path: '/curation',
       name: 'curation',
-      component: () => import('./views/CurationCenter.vue'),
+      redirect: to => ({ path: '/workspace/' + CURATION_WS_ID, query: to.query }),
       meta: { title: '知源调度台 · 资源台' }
     },
     {

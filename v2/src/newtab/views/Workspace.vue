@@ -1,5 +1,12 @@
 ﻿<template>
-  <div class="ws-page" v-if="workspace">
+  <div class="ws-page" v-if="workspace" :style="{ '--grid-cols': String(resCols) }">
+    <!-- R73-S5a（R16 收敛）：资源台页头。
+         R64-F13 删掉 hero 大标题后，hub 分支一直没有页面标题；而 R16 收敛后 CurationCenter 不再挂载，
+         其 crumb「资源台 · 资源卡唯一存储 · 镜像源头」也随之消失 ⇒ 在此补回，避免资源台无标题。 -->
+    <div v-if="isHub" class="ws-hub-head">
+      <div class="crumb"><b>资源台</b> · 资源卡唯一存储 · 镜像源头</div>
+      <span class="hub-hint">📡 单卡 / 📤 分类 可镜像到各策展台 · 源数据零影响</span>
+    </div>
     <!-- R64-F13：hero 大标题区删除——重命名/图标/描述编辑收进 ⚙ 菜单，导入/新建按钮上移工具条 -->
     <Teleport to="body">
       <div v-if="iconPickOpen" class="icon-pick-mask" @click="iconPickOpen = false" />
@@ -92,6 +99,8 @@
         <option value="cozy">舒适密度</option>
         <option value="compact">紧凑密度</option>
       </select>
+      <!-- R72：卡片视图横向列数（4/5/6/7，仅卡片视图出现） -->
+      <ColsPicker v-if="viewMode==='card'" v-model="resCols" label="列数" />
       <div class="toolbar-search">
         <span class="s-icon">🔍</span>
         <input type="text" v-model="searchQuery" placeholder="搜索策展台内资源...">
@@ -151,6 +160,8 @@
             <span class="cat-name">{{ sc.cat.name }}</span>
             <span class="cat-actions">
               <span v-if="sc.depth===0" class="cat-act" :class="{on: sc.cat.pinned}" :title="sc.cat.pinned?'取消置顶':'置顶'" @click.stop="toggleCatPin(sc.cat)">📌</span>
+              <!-- R73-S3：镜像分类到策展台（仅资源台、且非镜像分类——镜像分类源头已在策展台） -->
+              <span v-if="isHub && !isMirrorCat(sc.cat)" class="cat-act" title="镜像分类到策展台（含现有卡片）" @click.stop="openMirrorCat(sc.cat)">📤</span>
               <!-- R61-4：父级分类 hover 出现「创建子分类」入口（4 级内） -->
               <span v-if="sc.depth < 3" class="cat-act" title="创建子分类" @click.stop="openCreateCat(sc.cat.id)">＋</span>
               <span class="cat-act" title="重命名" @click.stop="openRenameCat(sc.cat)">✎</span>
@@ -179,16 +190,19 @@
               <span>{{ g.depth ? '↳' : '📁' }} {{ g.title }} · {{ g.count }}</span>
               <span class="ws-cat-collapse">{{ collapsedGroups.has(g.key) ? '▸' : '▾' }}</span>
             </div>
-            <div v-show="!collapsedGroups.has(g.key)" class="card-grid">
+            <div v-show="!collapsedGroups.has(g.key)" class="card-grid"
+              @dragover="onAreaDragOver($event, g.key)" @drop="onAreaDrop($event, g.key)">
               <div v-for="r in g.items" :key="r.id" class="res-card" :class="{pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
-                @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragleave="clearDropMark"
+                @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragend="clearDragState" @dragleave="clearDropMark"
                 @contextmenu.prevent="openResCtx($event, r)">
                 <div v-if="batchMode" class="rc-batch-check" :class="{on: selectedIds.has(r.id)}" @click.stop="toggleSelect(r.id)">{{ selectedIds.has(r.id)?'✓':'' }}</div>
                 <div class="res-card-actions">
                   <div class="rc-action pin" @click.stop="togglePin(r)" title="置顶">📌</div>
                   <div class="rc-action" :class="{on: r.starred}" :title="r.starred?'取消星标':'星标'" @click.stop="toggleStar(r)">⭐</div>
                   <div class="rc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</div>
+                  <!-- R73-S3：镜像到策展台（仅资源台真身卡；镜像卡为引用，源头在资源台，故不提供） -->
+                  <div v-if="isHub && !isMirrorView(r)" class="rc-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</div>
                   <div class="rc-action delete" @click.stop="deleteResource(r)" title="删除">🗑</div>
                 </div>
                 <div class="rc-fields">
@@ -232,7 +246,7 @@
             <div v-show="!collapsedGroups.has(g.key)" class="res-list">
               <div v-for="r in g.items" :key="r.id" class="res-row" :class="{pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
-                @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragleave="clearDropMark"
+                @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragend="clearDragState" @dragleave="clearDropMark"
                 @contextmenu.prevent="openResCtx($event, r)">
                 <div v-if="batchMode" class="rc-batch-check" :class="{on: selectedIds.has(r.id)}" @click.stop="toggleSelect(r.id)">{{ selectedIds.has(r.id)?'✓':'' }}</div>
                 <span v-else class="rr-drag">⋮⋮</span>
@@ -262,7 +276,7 @@
             </div>
             <div class="kc-body">
               <div v-for="r in cat.items" :key="r.id" class="kc-card" :class="{pinned: r.pinned, 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
-                :draggable="!batchMode" @dragstart="onDragStart($event,r)" @dragover.prevent.stop="markDrop($event, r.id, 'y')" @dragleave="clearDropMark" @drop.stop="onKanbanCardDrop($event, r)" @click="onCardClick(r)" @dblclick="onCardDblClick(r)">
+                :draggable="!batchMode" @dragstart="onDragStart($event,r)" @dragover.prevent.stop="markDrop($event, r.id, 'y')" @dragend="clearDragState" @dragleave="clearDropMark" @drop.stop="onKanbanCardDrop($event, r)" @click="onCardClick(r)" @dblclick="onCardDblClick(r)">
                 <div class="kc-card-title">
                   <span v-if="r.starred" class="kc-star" title="已星标">⭐</span>{{ val(r, titleKey) }}
                   <span class="kc-del" title="删除" @click.stop="deleteResource(r)">🗑</span></div>
@@ -367,28 +381,72 @@
       </div>
     </div>
 
-    <!-- R65-F4：导入弹窗——策展台只收策展数据包 JSON（书签/本地文件导入已移交资源台） -->
+    <!-- R73-S2（R16 收敛）：导入弹窗改为 **mode-aware**
+         · hub（资源台）→ 书签 HTML 导入 + 本地文件导入（自 CurationCenter 迁入）
+         · 策展台 → 只收策展数据包 JSON -->
     <div class="modal-overlay" :class="{open: importModalOpen}" @click.self="importModalOpen=false">
       <div class="modal">
         <div class="modal-header">
           <span style="font-size:16px">⬇</span>
-          <span class="mh-title">导入策展台数据包</span>
+          <span class="mh-title">{{ isHub ? '导入资源到资源台' : '导入策展台数据包' }}</span>
           <div class="modal-close" @click="importModalOpen=false">×</div>
         </div>
         <div class="modal-body">
-          <div class="modal-option" @click="boardImportInput?.click()">
+          <template v-if="isHub">
+            <div class="modal-option" @click="bookmarkInput?.click()">
+              <span class="mo-icon">🔖</span>
+              <div>
+                <div class="mo-name">导入书签文件</div>
+                <div class="mo-desc">选择浏览器导出的书签 HTML，文件夹结构生成为分类（最多 2 级），链接+标题按原归类写入资源卡</div>
+              </div>
+            </div>
+            <div class="modal-option" @click="fileImport">
+              <span class="mo-icon">📁</span>
+              <div>
+                <div class="mo-name">本地文件导入</div>
+                <div class="mo-desc">获取文件名写入资源卡，双击打开前补全完整路径即可本地打开</div>
+              </div>
+            </div>
+          </template>
+          <div v-else class="modal-option" @click="boardImportInput?.click()">
             <span class="mo-icon">🧩</span>
             <div>
               <div class="mo-name">导入策展台数据包（JSON）</div>
-              <div class="mo-desc">选择本台「⚙ 导出策展台数据」导出的 JSON 文件：论点分类树 + 台内卡 + 镜像投射按 ID 并集合并，现有数据不受影响（书签/本地文件导入在资源台）</div>
+              <div class="mo-desc">选择本台「⚙ 导出策展台数据」导出的 JSON 文件：论点分类树 + 台内卡 + 镜像投射按 ID 并集合并，现有数据不受影响</div>
             </div>
           </div>
         </div>
       </div>
     </div>
     <input ref="boardImportInput" type="file" accept=".json,application/json" style="display:none" @change="handleBoardImport" />
+    <input ref="bookmarkInput" type="file" accept=".html,.htm" style="display:none" @change="handleBookmarkImport" />
+    <input ref="fileImportInput" type="file" multiple style="display:none" @change="handleFileImport" />
 
-    <!-- 书签导入弹窗已随 R65-F4 移交资源台（CurationCenter），策展台不再提供 -->
+    <!-- R73-S2：书签导入文件夹选择（自 CurationCenter 迁入） -->
+    <div class="modal-overlay" :class="{open: bookmarkModalOpen}" @click.self="bookmarkModalOpen=false">
+      <div class="modal">
+        <div class="modal-header">
+          <span style="font-size:16px">🔖</span>
+          <span class="mh-title">选择要导入的书签文件夹</span>
+          <div class="modal-close" @click="bookmarkModalOpen=false">×</div>
+        </div>
+        <div class="modal-body bk-body">
+          <div class="bk-hint">导入后将按文件夹结构生成分类（前 2 级，同名自动合并），卡片归入原文件夹对应的分类；更深层级转为标签。后续可自行增删改分类。</div>
+          <label class="bk-all"><input type="checkbox" :checked="allBkChecked" @change="toggleAllBk" /> 全部导入（{{ bkTotalCount }} 个书签）</label>
+          <div class="bk-list">
+            <label v-for="f in bkFolders" :key="f.path" class="bk-item">
+              <input type="checkbox" v-model="f.checked" />
+              <span class="bk-name">📁 {{ f.path }}</span>
+              <span class="bk-count">{{ f.count }} 个书签</span>
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer-row">
+          <button class="dr-footer-btn" @click="bookmarkModalOpen=false">取消</button>
+          <button class="dr-footer-btn primary" @click="confirmBookmarkImport">✓ 导入所选</button>
+        </div>
+      </div>
+    </div>
 
     <!-- 批量移动弹窗（第八轮：策展台→分类级联，含当前策展台） -->
     <div class="modal-overlay" :class="{open: moveModalOpen}" @click.self="moveModalOpen=false">
@@ -559,6 +617,43 @@
       </div>
     </div>
 
+    <!-- R73-S3：镜像到策展台（资源台 → 策展台；单卡 📡 / 分类 📤） -->
+    <div class="modal-overlay" :class="{open: !!mirrorPushModal}" @click.self="mirrorPushModal=null">
+      <div class="modal" style="width:440px">
+        <div class="modal-header">
+          <span style="font-size:16px">{{ mirrorPushModal?.kind === 'card' ? '📡' : '📤' }}</span>
+          <span class="mh-title">{{ mirrorPushModal?.kind === 'card' ? '镜像卡片到策展台' : '镜像分类到策展台' }}</span>
+          <div class="modal-close" @click="mirrorPushModal=null">×</div>
+        </div>
+        <div class="modal-body">
+          <template v-if="mirrorPushModal">
+            <div class="dr-section">
+              <div class="dr-label">目标策展台 *</div>
+              <select class="dr-category-select" v-model="mirrorPushModal.toWs">
+                <option v-for="b in boards" :key="b.id" :value="b.id">{{ b.name }}</option>
+              </select>
+            </div>
+            <div v-if="mirrorPushModal.kind === 'card'" class="dr-section">
+              <div class="dr-label">落入分类（可留空 = 该台未分类）</div>
+              <select class="dr-category-select" v-model="mirrorPushModal.toCat">
+                <option value="">未分类（该台）</option>
+                <option v-for="c in mirrorPushTargetCats" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+            </div>
+            <div v-else class="dr-section">
+              <div class="dr-label">说明</div>
+              <div class="ws-modal-hint">「{{ mirrorPushModal.catName }}」将物化为目标台的镜像分类，现有卡片一并投射；此后源分类新增卡片需手动再镜像。</div>
+            </div>
+          </template>
+          <div v-if="!boards.length" class="ws-modal-hint">还没有策展台——顶栏「＋ 新建策展台」先建一个</div>
+        </div>
+        <div class="modal-footer-row">
+          <button class="dr-footer-btn" @click="mirrorPushModal=null">取消</button>
+          <button class="dr-footer-btn primary" :disabled="!boards.length" @click="confirmMirrorPush">✓ 镜像</button>
+        </div>
+      </div>
+    </div>
+
   </div>
   <div v-else class="ws-empty">策展台不存在</div>
 </template>
@@ -574,7 +669,7 @@ import { saveUIPrefs } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
-import { uid } from '@/shared/utils'
+import { uid, safeDecodeText } from '@/shared/utils'
 import { MAX_CAT_LEVEL, sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
 import { buildCatIndex, buildBucketIndex } from '@/shared/utils/catIndex'
 import EmptyState from '@/shared/components/EmptyState.vue'
@@ -584,8 +679,10 @@ import { useConfirm } from '@/shared/components/confirm'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import { markRank } from '@/shared/utils/marksort'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
+import ColsPicker from '@/shared/components/ColsPicker.vue'
+import { useCardCols } from '@/shared/utils/cardCols'
 import { CURATION_WS_ID, type AppData, type ResourceCard, type Category, type Workspace, type TaskCard, type FieldDef } from '@/shared/models'
-import { boardCardsOf, isMirrorView, removeProjection, curationMetrics, setThesis, mirrorCategoryToBoard, canMountInNode, isHubWs, projectCardToBoard, type MirrorView } from '@/shared/storage/hub'
+import { boardCardsOf, isMirrorView, removeProjection, curationMetrics, setThesis, mirrorCategoryToBoard, canMountInNode, isHubWs, projectCardToBoard, curationBoards, type MirrorView } from '@/shared/storage/hub'
 import CurationDrillDrawer from '@/newtab/components/CurationDrillDrawer.vue'
 import type { DrillCatRow, DrillCardRow } from '@/newtab/components/CurationDrillDrawer.vue'
 
@@ -788,6 +885,9 @@ function srcLabel(s?: string): string {
 
 // ===== 视图状态 =====
 const viewMode = ref<'card'|'list'|'kanban'|'pyramid'>('card')
+// R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.res；网格模板由 --grid-cols 驱动）
+// 资源台（isHub）与策展台为同一组件同一网格 ⇒ 共用 'res' 键，列数在两台一致
+const resCols = useCardCols('res', store.ui)
 const sortBy = ref('manual')
 // 第卅二轮 REQ-007：时间排序方向（默认倒序）+ 排序偏好本地记忆（UIPrefs.sortPrefs.res）
 const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.res?.dir === 'asc') ? 'asc' : 'desc')
@@ -994,12 +1094,24 @@ function emptyResource(): ResourceCard {
   return { id: '', kind: 'resource', title: '', linkType: 'url', link: '', workspaceId: workspaceId.value, categoryId: '', description: '', tags: [], customFields: {}, pinned: false, callCount: 0, createdAt: 0, updatedAt: 0 }
 }
 
+/**
+ * R73-S4a（L4）：资源台聚合哨兵回落。
+ * 当前分类处于「全部」（聚合根）或「待分类」时，新建卡 / 导入文件 / 空白区落卡
+ * 一律回落「未分类」（''），**不得把聚合键写进数据层**。
+ * 口径与 CurationCenter 的 newCardCatId() 一致（'all' = 全部分类聚合根，'uncat' = 待分类）。
+ */
+function newCardCatId(): string {
+  const c = activeCategory.value
+  return (c && c !== 'uncat' && c !== 'all') ? c : ''
+}
+
 function openNewResource() {
   Object.assign(editingResource, emptyResource())
   editingResource.id = uid('res')
   editingResource.createdAt = Date.now()
   drawerOriginalWsId = editingResource.workspaceId
-  if (activeCategory.value !== 'all' && activeCategory.value !== 'uncat') editingResource.categoryId = activeCategory.value
+  // R73-S4a：聚合/待分类视图下回落未分类（与导入、空白区落卡同口径）
+  editingResource.categoryId = newCardCatId()
   isNewResource.value = true
   drawerOpen.value = true
 }
@@ -1129,6 +1241,13 @@ function markDrop(e: DragEvent, key: string, axis: 'x' | 'y') {
   dropMark.value = key + (after ? '-b' : '-t')
 }
 function clearDropMark() { dropMark.value = '' }
+/** R73-S4b（L5）：接受拖入的统一应答（preventDefault + dropEffect=move，防真实拖拽被判定为不可落） */
+function acceptDragOver(e: DragEvent) {
+  e.preventDefault()
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+}
+/** R73-S4b（L5）：拖拽结束统一复位（drop 后也会触发，防取消拖拽时状态残留） */
+function clearDragState() { draggedItem = null; dragCatId = null; dropMark.value = '' }
 function onDragStart(e: DragEvent, r: ResourceCard) {
   draggedItem = r
   e.dataTransfer?.setData('text/plain', r.id)
@@ -1225,6 +1344,52 @@ function onDropToCategory(e: DragEvent, catId: string) {
   showToast(`✓ 已移入「${catId ? categories.value.find(c=>c.id===catId)?.name : '待分类'}」`)
   draggedItem = null
   clearCardDropTarget()
+}
+
+// ===== R73-S4b（L5）：区域级落卡 + 混排重编号（自 CurationCenter 迁入，补齐 hub 缺口） =====
+/** 分区 key → 真实分类 id（聚合哨兵 'all' / 'uncat' 一律回落「未分类」''） */
+function catKeyToCatId(key?: string): string {
+  const k = key ?? ''
+  return (k === 'all' || k === 'uncat') ? '' : k
+}
+/** 区域级 dragover —— 卡片拖拽悬停于分区网格任意处（含空白）均可落 */
+function onAreaDragOver(e: DragEvent, groupKey?: string) {
+  if (draggedItem) acceptDragOver(e)
+  void groupKey
+}
+/** 区域级 drop —— 拖到分区网格空白处 = 移入该分区（聚合视图回落未分类；镜像卡只改投射落点） */
+function onAreaDrop(e: DragEvent, groupKey?: string) {
+  clearDropMark()
+  const moved = draggedItem
+  draggedItem = null
+  if (!moved) return
+  const targetKey = catKeyToCatId(groupKey)
+  // R61：镜像卡为引用 —— 拖拽只改投射落点，源卡零影响
+  if (isMirrorView(moved)) { moveMirrorTo(moved, targetKey); return }
+  const changed = (moved.categoryId || '') !== targetKey
+  if (changed) {
+    moved.categoryId = targetKey
+    moved.updatedAt = Date.now()
+    sortBy.value = 'manual'
+  }
+  // 落位分区按物理序全量重写 curOrder（与 onDropCard 同口径）
+  const landedKey = groupKeyOf(moved)
+  d.value.resources.filter(r => !r.deletedAt && groupKeyOf(r) === landedKey).forEach((r, i) => { r.curOrder = i })
+  store.persist()
+  showToast(changed ? `✓ 已移动至「${targetKey ? categories.value.find(c => c.id === targetKey)?.name : '待分类'}」` : '✓ 已更新')
+}
+/** 混排重编号 —— 把 id 插到 targetId 之前，并把落位分区内的 curOrder 统一重写 */
+function reorderMixed(groupKey: string, id: string, targetId: string): boolean {
+  const key = catKeyToCatId(groupKey)
+  const list = d.value.resources.filter(r => !r.deletedAt && (r.categoryId || '') === key)
+  const fi = list.findIndex(r => r.id === id)
+  const ti = list.findIndex(r => r.id === targetId)
+  if (fi < 0 || ti < 0) return false
+  const [moved] = list.splice(fi, 1)
+  const tj = list.findIndex(r => r.id === targetId)
+  list.splice(tj, 0, moved)
+  list.forEach((r, i) => { r.curOrder = i })
+  return true
 }
 
 // ===== 批量操作（E4） =====
@@ -1999,6 +2164,41 @@ function packIntoNode(parentCat?: Category) {
   })
 }
 
+// ===== R73-S3（R16 收敛）：镜像到策展台（单卡 📡 / 分类 📤；方向 = 资源台 → 策展台） =====
+// 自 CurationCenter 迁入。底层 API（projectCardToBoard / mirrorCategoryToBoard）此前已在
+// 本文件被「从资源台拉取」的入口使用，此处补的是**反向的推送入口 UI**（选目标策展台）。
+// 仅在 hub（资源台）出现：策展台上的卡片源头就是资源台，策展台再推给别的台无意义。
+const boards = computed(() => curationBoards(d.value))
+const mirrorPushModal = ref<{ kind: 'card' | 'cat'; cardId?: string; catId?: string; catName?: string; toWs: string; toCat: string } | null>(null)
+function openMirrorCard(r: ResourceCard) {
+  if (!boards.value.length) { showToast('ℹ 还没有策展台——顶栏「＋ 新建策展台」先建一个'); return }
+  mirrorPushModal.value = { kind: 'card', cardId: r.id, toWs: boards.value[0].id, toCat: '' }
+}
+function openMirrorCat(c: Category) {
+  if (!boards.value.length) { showToast('ℹ 还没有策展台——顶栏「＋ 新建策展台」先建一个'); return }
+  mirrorPushModal.value = { kind: 'cat', catId: c.id, catName: c.name, toWs: boards.value[0].id, toCat: '' }
+}
+const mirrorPushTargetCats = computed(() => {
+  const m = mirrorPushModal.value
+  return m ? d.value.categories.filter(c => c.workspaceId === m.toWs) : []
+})
+function confirmMirrorPush() {
+  const m = mirrorPushModal.value
+  if (!m) return
+  if (!m.toWs) { showToast('ℹ 请选择目标策展台'); return }
+  if (m.kind === 'card') {
+    const ok = projectCardToBoard(d.value, m.cardId!, m.toWs, m.toCat || undefined)
+    if (ok) showToast('📡 已镜像到策展台（引用式，源数据零影响）')
+    else showToast('ℹ 未完成——该卡可能已在该台镜像中')
+  } else {
+    const ok = mirrorCategoryToBoard(d.value, m.catId!, m.toWs)
+    if (ok) showToast('📤 已镜像分类到策展台（现有卡片一并投射）')
+    else showToast('ℹ 该分类已在该策展台镜像中')
+  }
+  store.persist()
+  mirrorPushModal.value = null
+}
+
 // ===== R62-6：从资源台镜像分类（弹窗选分类 → mirrorCategoryToBoard） =====
 const mirrorCatModal = ref<{ open: boolean; catId: string }>({ open: false, catId: '' })
 const hubCatOptions = computed(() => treeCatOptions(d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID)))
@@ -2056,6 +2256,139 @@ function handleBoardImport(e: Event) {
   }
   reader.readAsText(file)
   input.value = ''
+}
+
+// ===== R73-S2（R16 收敛）：书签 HTML 导入 + 本地文件导入（自 CurationCenter 迁入，真身落资源台） =====
+const bookmarkInput = ref<HTMLInputElement | null>(null)
+const fileImportInput = ref<HTMLInputElement | null>(null)
+
+interface BkFolder { path: string; name: string; count: number; checked: boolean }
+interface BkNode { title: string; url: string; path: string[] }
+
+const bookmarkModalOpen = ref(false)
+const bkFolders = ref<BkFolder[]>([])
+let bkBookmarks: BkNode[] = []
+
+/** 建一张资源台真身卡（分类由调用方给定；聚合视图下须传 newCardCatId() 的回落值） */
+function makeHubResource(title: string, linkType: ResourceCard['linkType'], link: string, categoryId: string, tags: string[] = []): ResourceCard {
+  return {
+    id: uid('res'), kind: 'resource', title, linkType, link,
+    workspaceId: CURATION_WS_ID, categoryId, description: '', tags,
+    customFields: {}, pinned: false, callCount: 0, createdAt: Date.now(), updatedAt: Date.now()
+  }
+}
+
+/** 解析 Netscape 书签 HTML（浏览器导出格式）：DL/DT/H3 递归，取 A 的 href 与文本 */
+function parseBookmarksHtml(html: string): BkNode[] {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const out: BkNode[] = []
+  function walk(dl: Element | null, path: string[]) {
+    if (!dl) return
+    for (const dt of Array.from(dl.children).filter(el => el.tagName === 'DT')) {
+      const h3 = dt.querySelector(':scope > h3')
+      const a = dt.querySelector(':scope > a')
+      if (h3) {
+        const name = safeDecodeText(h3.textContent?.trim() || '未命名')
+        walk(dt.querySelector(':scope > dl'), [...path, name])
+      } else if (a) {
+        const url = a.getAttribute('href') || ''
+        if (url && /^(https?:|file:|obsidian:)/i.test(url)) {
+          out.push({ title: safeDecodeText(a.textContent?.trim() || url), url, path })
+        }
+      }
+    }
+  }
+  walk(doc.querySelector('dl'), [])
+  return out
+}
+
+/** 选中书签文件 → 解析 → 按文件夹路径分组 → 弹出文件夹勾选弹窗 */
+function handleBookmarkImport(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => {
+    try {
+      bkBookmarks = parseBookmarksHtml(reader.result as string)
+      if (!bkBookmarks.length) { showToast('未在文件中解析到书签，请确认是浏览器导出的书签 HTML'); return }
+      const groups = new Map<string, BkNode[]>()
+      for (const b of bkBookmarks) {
+        const key = b.path.length ? b.path.join(' / ') : '未分组'
+        if (!groups.has(key)) groups.set(key, [])
+        groups.get(key)!.push(b)
+      }
+      bkFolders.value = Array.from(groups.entries())
+        .map(([path, items]) => ({ path, name: path.split(' / ').pop() || path, count: items.length, checked: true }))
+        .sort((a, b) => b.count - a.count)
+      bookmarkModalOpen.value = true
+      importModalOpen.value = false
+    } catch { showToast('✗ 书签文件解析失败') }
+  }
+  reader.readAsText(file)
+  input.value = ''
+}
+
+const allBkChecked = computed(() => bkFolders.value.length > 0 && bkFolders.value.every(f => f.checked))
+const bkTotalCount = computed(() => bkBookmarks.length)
+function toggleAllBk() {
+  const next = !allBkChecked.value
+  bkFolders.value.forEach(f => { f.checked = next })
+}
+
+/** 浏览器标准根文件夹不生成分类 */
+const BK_ROOT_NAMES = new Set(['书签栏', '收藏栏', '其他书签', 'Bookmarks bar', 'Bookmarks Toolbar', 'Favorites bar', 'Mobile bookmarks', '移动书签'])
+
+/** 按路径前 2 级确保资源台分类存在（同名同级复用），返回卡片归属分类 id（'' = 未分类） */
+function ensureBookmarkCategory(segs: string[]): string {
+  let parentId: string | undefined
+  let catId = ''
+  for (const seg of segs.slice(0, 2)) {
+    const name = seg.trim()
+    if (!name) break
+    let cat = d.value.categories.find(c => c.workspaceId === CURATION_WS_ID && (c.parentId || undefined) === parentId && c.name === name)
+    if (!cat) {
+      cat = { id: uid('cat'), workspaceId: CURATION_WS_ID, name, order: d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID && (c.parentId || undefined) === parentId).length }
+      if (parentId) cat.parentId = parentId
+      d.value.categories.push(cat)
+    }
+    catId = cat.id
+    parentId = cat.id
+  }
+  return catId
+}
+
+/** 按勾选文件夹导入：前 2 级建分类、第 3 级+ 并入标签（R30-4 / R30-5 口径） */
+function confirmBookmarkImport() {
+  const checkedPaths = new Set(bkFolders.value.filter(f => f.checked).map(f => f.path))
+  const items = bkBookmarks.filter(b => checkedPaths.has(b.path.length ? b.path.join(' / ') : '未分组'))
+  if (!items.length) { showToast('未选择任何文件夹'); return }
+  for (const b of items) {
+    const segs = b.path.filter(p => p && !BK_ROOT_NAMES.has(p))
+    const catId = ensureBookmarkCategory(segs)
+    const tags = Array.from(new Set(segs.slice(2)))
+    let linkType: ResourceCard['linkType'] = 'url'
+    if (b.url.startsWith('file:')) linkType = 'file'
+    else if (b.url.startsWith('obsidian:')) linkType = 'obsidian'
+    d.value.resources.unshift(makeHubResource(b.title.substring(0, 120), linkType, b.url, catId, tags))
+  }
+  store.persist()
+  bookmarkModalOpen.value = false
+  showToast(`✓ 已导入 ${items.length} 个书签（文件夹结构已生成为分类，可自行增删改）`)
+}
+
+/** 本地文件批量导入（R13 将改写为「每文件一张带附件的卡」，此处先保持迁移前口径） */
+function fileImport() { fileImportInput.value?.click() }
+function handleFileImport(e: Event) {
+  const input = e.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+  if (!files.length) return
+  const catId = newCardCatId()
+  files.forEach(f => d.value.resources.unshift(makeHubResource(f.name.replace(/\.[^.]+$/, ''), 'file', f.name, catId)))
+  store.persist()
+  input.value = ''
+  importModalOpen.value = false
+  showToast(`✓ 已导入 ${files.length} 个文件（双击打开前请补全完整路径）`)
 }
 
 // ===== 设置菜单 =====
@@ -2235,6 +2568,13 @@ function linkDisplay(link: string) {
 .ws-page { min-height: 100vh; background: var(--bg); padding: 0 20px 24px; }
 .ws-empty { display: flex; align-items: center; justify-content: center; height: 100vh; color: var(--text-3); }
 
+/* R73-S5a：资源台页头（R64-F13 删掉 hero 大标题后，hub 一直没有页面标题；
+    R16 收敛后 CurationCenter 的 crumb 也不再出现 ⇒ 在此补回） */
+.ws-hub-head { display: flex; align-items: center; gap: 10px; padding: 18px 0 14px; }
+.ws-hub-head .crumb { font-size: 13px; color: var(--text-2); }
+.ws-hub-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
+.hub-hint { margin-left: auto; font-size: 10.5px; color: var(--text-3); background: var(--surface); border: 1px dashed var(--border-strong); padding: 3px 10px; border-radius: 99px; }
+
 /* Hero 已删（R64-F13：大标题区移除，编辑入口收进 ⚙ 菜单）——仅保留图标管理弹层样式 */
 .ws-icon-btn { cursor: pointer; border-radius: 8px; padding: 2px 7px; transition: background .15s; }
 .ws-icon-btn:hover { background: var(--surface-3); }
@@ -2360,7 +2700,8 @@ function linkDisplay(link: string) {
 .ws-cat-collapse { font-size: 10px; color: var(--text-4); transition: transform .18s ease; }
 
 /* 卡片视图（第卅三轮 REQ-026：间距/内边距/最小宽引用 tokens 密度令牌，一处切换全局生效） */
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-min-w), 1fr)); gap: var(--card-gap); }
+/* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 --card-min-w */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(var(--card-min-w), calc((100% - (var(--grid-cols, 5) - 1) * var(--card-gap)) / var(--grid-cols, 5))), 1fr)); gap: var(--card-gap); }
 .res-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .res-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
 .res-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: var(--card-pad-vert) var(--card-pad-horz); cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; min-height: 120px; /* R55-F4：屏外卡片跳过渲染（切策展台 595ms 的渲染段优化） */ content-visibility: auto; contain-intrinsic-size: auto 132px; }
@@ -2502,6 +2843,15 @@ function linkDisplay(link: string) {
 .modal-option .mo-icon { font-size: 20px; }
 .modal-option .mo-name { font-size: 13px; font-weight: 500; color: var(--text); }
 .modal-option .mo-desc { font-size: 10.5px; color: var(--text-3); margin-top: 2px; line-height: 1.5; }
+
+/* R73-S2：书签导入文件夹选择（自 CurationCenter 迁入） */
+.bk-hint { font-size: 11.5px; color: var(--text-3); line-height: 1.7; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; margin-bottom: 8px; }
+.bk-all { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--text); padding: 6px 0 10px; cursor: pointer; }
+.bk-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.bk-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; transition: background .1s; }
+.bk-item:hover { background: var(--surface-2); }
+.bk-name { flex: 1; font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk-count { font-size: 10.5px; color: var(--text-3); background: var(--surface-3); padding: 1px 8px; border-radius: 99px; }
 
 /* 书签文件夹选择 */
 .bk-hint { font-size: 11.5px; color: var(--text-3); line-height: 1.7; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; margin-bottom: 8px; }

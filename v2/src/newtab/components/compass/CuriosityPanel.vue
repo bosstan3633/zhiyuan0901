@@ -12,7 +12,9 @@ import AssetManager from '@/shared/components/AssetManager.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
+import ColsPicker from '@/shared/components/ColsPicker.vue'
 import { saveUIPrefs } from '@/shared/storage/repository'
+import { useCardCols } from '@/shared/utils/cardCols'
 import { markRank } from '@/shared/utils/marksort'
 import { useTaHeight } from '@/shared/utils/taHeight'
 import { onOpenDrawer } from '@/shared/utils/bus'
@@ -28,6 +30,8 @@ const router = useRouter()
 // 高亮定位（B4：搜索好奇卡结果跳转；R51：声明顺序修复——viewMode/statusFilter 须先于 immediate watcher）
 const highlightId = ref<string | null>(null)
 const viewMode = ref<'card' | 'list' | 'kanban'>('card')
+// R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.curio；网格模板由 --grid-cols 驱动）
+const curioCols = useCardCols('curio', store.ui)
 const statusFilter = ref<CuriStatus | 'all'>('all')
 watch(() => route.query.hl, (hl) => {
   if (!hl || typeof hl !== 'string' || route.path !== '/') return
@@ -399,6 +403,8 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
           {{ s.icon }} {{ s.label }} <span class="cz-count">{{ statusCounts[key] || 0 }}</span>
         </button>
         <div class="cz-views">
+          <!-- R72：卡片视图横向列数（4/5/6/7，仅卡片视图出现） -->
+          <ColsPicker v-if="viewMode === 'card'" v-model="curioCols" label="列数" />
           <!-- 第卅二轮 REQ-007：时间排序方向（默认倒序，偏好本地记忆） -->
           <button class="cz-view-btn cz-sort-dir" :title="sortDir==='desc' ? '捕获时间倒序（新→旧），点击切换正序' : '捕获时间正序（旧→新），点击切换倒序'" @click="toggleSortDir">{{ sortDir==='desc' ? '↓' : '↑' }}</button>
           <button class="cz-view-btn" :class="{active: viewMode === 'card'}" @click="viewMode = 'card'" title="卡片视图">▦</button>
@@ -418,7 +424,7 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
       </Transition>
 
       <!-- 卡片视图 -->
-      <div v-if="viewMode === 'card'" class="cz-grid">
+      <div v-if="viewMode === 'card'" class="cz-grid" :style="{ '--grid-cols': String(curioCols) }">
         <template v-for="(c, i) in filtered" :key="c.id">
           <div v-if="pinnedCount && i === 0" class="cz-group-label">📌 已置顶</div>
           <div v-else-if="pinnedCount && i === pinnedCount" class="cz-group-label">全部好奇心</div>
@@ -646,7 +652,8 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
 .cz-view-btn:hover { background: var(--surface-3); color: var(--text-2); }
 .cz-view-btn.active { background: var(--accent-light); color: var(--accent); }
 .cz-batch-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--accent-light); border-radius: var(--radius-sm); margin-bottom: 14px; font-size: 12px; color: var(--accent); font-weight: 500; }
-.cz-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+/* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 200px */
+.cz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(200px, calc((100% - (var(--grid-cols, 4) - 1) * 12px) / var(--grid-cols, 4))), 1fr)); gap: 12px; }
 .cz-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .cz-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
 .cz-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; cursor: pointer; transition: all .15s; position: relative; overflow: hidden; }

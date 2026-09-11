@@ -70,6 +70,8 @@ const activeTab = computed(() => {
   if (route.path === '/') return 'home'
   if (route.path.startsWith('/compass')) return 'compass'
   if (route.path.startsWith('/curation')) return 'curation'
+  // R73（R16 收敛）：/curation 已 redirect 到 /workspace/zy-curation ⇒ hub 工作区同样点亮「资源台」Tab
+  if (activeWorkspaceId.value === CURATION_WS_ID) return 'curation'
   if (route.path.startsWith('/settings')) return 'settings'
   return activeWorkspaceId.value || 'home'
 })
@@ -476,9 +478,10 @@ const backupReminderDot = computed(() => {
       <template v-if="!renderError">
         <!-- C1：移除 out-in 过渡（每次切换强制串行两段动画 ~300ms），切换即时渲染
              R65-F7：KeepAlive 缓存调度台/资源台/策展台三主视图——切台免重挂载（595ms 基线的主要构成）；
-             三视图均以 store 响应式数据为源，缓存仅省去 DOM 重建与首次计算 -->
+             三视图均以 store 响应式数据为源，缓存仅省去 DOM 重建与首次计算
+             R73（R16 收敛）：资源台两入口合一后不再有独立视图 ⇒ 摘除 CurationCenterView -->
         <router-view v-slot="{ Component }">
-          <keep-alive include="CompassHomeView,CurationCenterView,WorkspaceView,CompassShell">
+          <keep-alive include="CompassHomeView,WorkspaceView,CompassShell">
             <component :is="Component" />
           </keep-alive>
         </router-view>

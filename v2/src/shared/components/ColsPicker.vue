@@ -1,0 +1,42 @@
+<script setup lang="ts">
+/**
+ * R72-2：卡片视图横向列数选择器（4 / 5 / 6 / 7）。
+ *
+ * 三个卡片网格模块共用（好奇心培育 / 任务调度 / 资源台·策展台），
+ * 视觉语言对齐既有 `.view-tabs`（分段控件），样式全走 tokens.css。
+ * 仅在卡片视图下由宿主 `v-if` 控制显隐；点击 stopPropagation，不触发宿主卡片的单击/双击。
+ */
+import { CARD_COL_OPTIONS } from '@/shared/utils/cardCols'
+
+withDefaults(defineProps<{
+  /** 当前列数（4~7） */
+  modelValue: number
+  /** 前缀标签，用于 title 提示 */
+  label?: string
+}>(), { label: '列数' })
+
+const emit = defineEmits<{ (e: 'update:modelValue', v: number): void }>()
+</script>
+
+<template>
+  <div class="cp" :title="`${label}：${modelValue} 列（卡片宽度自适应）`">
+    <span class="cp-label">{{ label }}</span>
+    <div class="cp-seg">
+      <button v-for="n in CARD_COL_OPTIONS" :key="n" class="cp-btn" :class="{ on: modelValue === n }"
+        :title="`每行 ${n} 个卡片`" @click.stop="emit('update:modelValue', n)">{{ n }}</button>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.cp { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.cp-label { font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.cp-seg { display: flex; background: var(--surface-2); border-radius: 8px; padding: 3px; gap: 2px; }
+.cp-btn {
+  min-width: 22px; padding: 3px 6px; border: none; border-radius: 6px; background: transparent;
+  font-family: inherit; font-size: 11.5px; line-height: 1.2; color: var(--text-2);
+  cursor: pointer; transition: all .15s;
+}
+.cp-btn:hover { background: var(--surface-3); color: var(--text); }
+.cp-btn.on { background: var(--surface); color: var(--accent); font-weight: 700; box-shadow: var(--shadow); }
+</style>

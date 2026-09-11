@@ -1,5 +1,14 @@
 <script setup lang="ts">
 /**
+ * ⚠️ @deprecated R73（V2.42.0）· R16 资源台收敛 —— **本文件已摘除路由，请勿再挂载。**
+ * - 收敛决策：`/curation` 已改为 redirect 到 `/workspace/zy-curation`（见 `router.ts`），
+ *   资源台统一由 `Workspace.vue` 的 `isHub` 分支渲染；本组件的 3 组活能力
+ *   （书签 HTML 导入 / 本地文件导入 / 资源台侧镜像到策展台 📡📤）已迁入 hub 分支。
+ * - 保留原因：本文件仍被 **58 条回归断言**引用，暂留可让回归项数**只增不减**（零回归损失）。
+ *   删除文件 + 断言处置 **推迟到 R74**（见 `文档中心/04_产品与设计/04-23_S1等价性审计报告_资源台收敛.md` §七 路线乙）。
+ * - 其中约 20% 的代码（依赖 `curFrom` 的旧方向镜像机械）**恒不执行**，属死代码，清单见 `04-23 §三`。
+ *
+ * ── 以下为原实现说明（R61 起已由 hub 分支承接）──
  * R50-F3 + R51 + R52 + R53-A2 策展中心 · 灵活策展空间
  * - R53-A2 统一树：镜像分类物化为带 curFrom 的**真实策展分类**（migrateCurationTree 启动期迁移），
  *   与原生分类同构——同一颗树、自由混排、拖拽排序、拖拽成父子（最多 2 级）
@@ -24,6 +33,8 @@ import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
+import ColsPicker from '@/shared/components/ColsPicker.vue'
+import { useCardCols } from '@/shared/utils/cardCols'
 import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
 
 const router = useRouter()
@@ -336,6 +347,9 @@ const viewLiveCount = computed(() => viewCounts.value.live)
 
 // ---- R65-F1：视图切换 + 搜索（对齐策展台工具条） ----
 const viewMode = ref<'card' | 'list' | 'kanban'>('card')
+// R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.res；网格模板由 --grid-cols 驱动）
+// 与 Workspace.vue（资源台 isHub 分支 / 策展台）共用 'res' 键 ⇒ R16 收敛后偏好无缝延续
+const resCols = useCardCols('res', store.ui)
 const resSearch = ref('')
 /** 关键词命中（标题/链接/描述；proj/live 卡解析真身后匹配） */
 function searchHit(m: MixedCard): boolean {
@@ -943,7 +957,7 @@ function onCatDrop(e: DragEvent, target: Category) {
 </script>
 
 <template>
-  <div class="page">
+  <div class="page" :style="{ '--grid-cols': String(resCols) }">
     <!-- R65-F1：顶部工具条（对齐策展台：视图切换 + 搜索 + 批量 + 导入 + 新建） -->
     <div class="page-head">
       <div class="crumb"><b>资源台</b> · 资源卡唯一存储 · 镜像源头</div>
@@ -953,6 +967,8 @@ function onCatDrop(e: DragEvent, target: Category) {
         <div class="view-tab" :class="{active: viewMode==='list'}" @click="viewMode='list'">☰ 列表</div>
         <div class="view-tab" :class="{active: viewMode==='kanban'}" @click="viewMode='kanban'">▤ 看板</div>
       </div>
+      <!-- R72：卡片视图横向列数（4/5/6/7，仅卡片视图出现） -->
+      <ColsPicker v-if="viewMode==='card'" v-model="resCols" label="列数" />
       <div class="toolbar-search">
         <span class="s-icon">🔍</span>
         <input type="text" v-model="resSearch" placeholder="搜索资源台内资源...">
@@ -1367,7 +1383,8 @@ function onCatDrop(e: DragEvent, target: Category) {
 /* R59-T10：父分类视图的子分区标题 */
 .cur-sec-label.sec-child { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--border); }
 .cur-sec-label.sec-child:first-of-type { border-top: none; margin-top: 4px; padding-top: 0; }
-.cur-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+/* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 240px */
+.cur-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(240px, calc((100% - (var(--grid-cols, 5) - 1) * 10px) / var(--grid-cols, 5))), 1fr)); gap: 10px; }
 .cur-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 6px;
   /* R71：屏外卡片跳过渲染（对齐策展台 .res-card 的 R55-F4 做法） */
   content-visibility: auto; contain-intrinsic-size: auto 132px; }

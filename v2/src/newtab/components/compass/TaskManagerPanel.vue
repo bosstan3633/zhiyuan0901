@@ -18,6 +18,8 @@ import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import ModuleCard from '@/shared/components/ModuleCard.vue'
+import ColsPicker from '@/shared/components/ColsPicker.vue'
+import { useCardCols } from '@/shared/utils/cardCols'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
 
 const route = useRoute()
@@ -30,6 +32,8 @@ const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 // ---- 视图与工具栏状态 ----
 // 第卌五轮：卡片视图默认（card | list | kanban）
 const viewMode = ref<'card' | 'list' | 'kanban'>('card')
+// R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.task；网格模板由 --grid-cols 驱动）
+const taskCols = useCardCols('task', store.ui)
 const groupByProject = ref(false)
 const sortBy = ref('manual')
 // 第卅二轮 REQ-007：任务时间/优先级排序方向（默认倒序）+ 排序偏好本地记忆（UIPrefs.sortPrefs.task）
@@ -575,6 +579,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           <div class="view-tab" :class="{active: viewMode==='list'}" @click="viewMode='list'">☰ 列表</div>
           <div class="view-tab" :class="{active: viewMode==='kanban'}" @click="viewMode='kanban'">▥ 看板</div>
         </div>
+        <!-- R72：卡片视图横向列数（4/5/6/7，仅卡片视图出现） -->
+        <ColsPicker v-if="viewMode==='card'" v-model="taskCols" label="列数" />
         <select v-model="sortBy" class="sel">
           <option value="manual">手动排序</option>
           <option value="recent">最近添加</option>
@@ -609,7 +615,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
       </div>
 
       <!-- 卡片视图（第卌五轮新增 · 默认；R47-A3：置顶/非置顶分组区块渲染，与好奇心培育同款） -->
-      <div v-if="viewMode==='card'" class="tm-grid">
+      <div v-if="viewMode==='card'" class="tm-grid" :style="{ '--grid-cols': String(taskCols) }">
         <div v-if="!filteredTasks.length" class="tm-grid-empty">
           <EmptyState icon="clipboard" title="暂无任务"
             desc="点击右上角按钮新建，或在方向树的成功指标下添加任务"
@@ -934,7 +940,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 /* ===== 卡片视图（第卌五轮） ===== */
 .tm-grid { padding-bottom: 4px; }
 .tm-group-label { font-size: 11px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin: 2px 0 8px; }
-.tm-grid-inner { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+/* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 240px */
+.tm-grid-inner { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(240px, calc((100% - (var(--grid-cols, 5) - 1) * 12px) / var(--grid-cols, 5))), 1fr)); gap: 12px; }
 .tm-card { position: relative; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; cursor: pointer; transition: all .15s ease; display: flex; flex-direction: column; gap: 7px; }
 .tm-card:hover { border-color: var(--border-strong); background: var(--surface); box-shadow: var(--shadow); }
 .tm-card.done { opacity: .62; }

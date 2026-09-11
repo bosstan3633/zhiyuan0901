@@ -838,6 +838,7 @@ import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/
 import { getAssetStats, cleanupOrphanAssets, getAllAssets, putAssets } from '@/shared/storage/assets'
 import { buildZip, readZip, type ZipEntry } from '@/shared/utils/zip'
 import { visibleFields, allFields } from '@/shared/utils/fields'
+import { sanitizeCardCols } from '@/shared/utils/cardCols'
 import type { FieldDef, AppData, ResourceCard, Workspace, Category, TagNode, AssetMeta, ID } from '@/shared/models'
 // R63-1/63-2：全景两级（资源台/策展台）与导出镜像卡适配
 import { isHubWs, boardCardsOf, isMirrorView } from '@/shared/storage/hub'
@@ -1631,6 +1632,9 @@ function handleFileImport(e: Event) {
           else document.documentElement.removeAttribute('data-density')
           saveUIPrefs({ density: ui.density as 'compact' | 'cozy' })
         }
+        // R72-G7：界面偏好包补齐「卡片视图列数」（按模块键 + 4/5/6/7 白名单校验后落库，非法值丢弃）
+        const cols = sanitizeCardCols(ui.cardCols)
+        if (Object.keys(cols).length) saveUIPrefs({ cardCols: cols })
       }
       showToast(`✓ 导入完成（并集）：卡片 ${n.cards}、罗盘方向 ${n.dirs}、策展台 ${n.ws}${ui ? '；界面偏好已应用' : ''}${n.catFix ? `；分类树已自动修复（${n.catFix}）` : ''}；已自动下载导入前备份`)
     } catch { showToast('✗ 文件格式错误，请选择有效的JSON文件') }
