@@ -1,11 +1,14 @@
 ﻿<template>
   <div class="ws-page" v-if="workspace" :style="{ '--grid-cols': String(resCols) }">
-    <!-- R73-S5a（R16 收敛）：资源台页头。
-         R64-F13 删掉 hero 大标题后，hub 分支一直没有页面标题；而 R16 收敛后 CurationCenter 不再挂载，
-         其 crumb「资源台 · 资源卡唯一存储 · 镜像源头」也随之消失 ⇒ 在此补回，避免资源台无标题。 -->
-    <div v-if="isHub" class="ws-hub-head">
-      <div class="crumb"><b>资源台</b> · 资源卡唯一存储 · 镜像源头</div>
-      <span class="hub-hint">📡 单卡 / 📤 分类 可镜像到各策展台 · 源数据零影响</span>
+    <!-- R84（W1）：台身份页头——图标 + 台名 + 台描述 + 右端结构摘要（一行 ≤40px）。
+         改前：仅资源台有一段 R73-S5a 写死的 .ws-hub-head（无图标、非 workspace.name/description），
+         而 **策展台的台名与台描述在页面内零出现**——用户置身于某个策展台，却不知道这是哪个台。
+         现统一为这一条，所有台都渲染；hub 描述为空时回落 R73 原文案（零信息损失）。 -->
+    <div class="ws-id-head">
+      <span class="wsh-icon">{{ workspace.icon || (isHub ? '📦' : '🗂') }}</span>
+      <b class="wsh-name">{{ workspace.name }}</b>
+      <span v-if="wsHeadDesc" class="wsh-desc" :title="wsHeadDesc">· {{ wsHeadDesc }}</span>
+      <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="isHub"> · 可镜像到策展台</template><template v-else-if="metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template></span>
     </div>
     <!-- R64-F13：hero 大标题区删除——重命名/图标/描述编辑收进 ⚙ 菜单，导入/新建按钮上移工具条 -->
     <Teleport to="body">
@@ -93,11 +96,11 @@
     <!-- ② 策展工具条 -->
     <div class="ws-toolbar">
       <div class="view-tabs">
-        <div class="view-tab" :class="{active: viewMode==='card'}" @click="viewMode='card'">▦ 卡片</div>
-        <div class="view-tab" :class="{active: viewMode==='list'}" @click="viewMode='list'">☰ 列表</div>
-        <div class="view-tab" :class="{active: viewMode==='kanban'}" @click="viewMode='kanban'">▤ 看板</div>
+        <div class="view-tab" :class="{active: viewMode==='card'}" @click="setViewMode('card')">▦ 卡片</div>
+        <div class="view-tab" :class="{active: viewMode==='list'}" @click="setViewMode('list')">☰ 列表</div>
+        <div class="view-tab" :class="{active: viewMode==='kanban'}" @click="setViewMode('kanban')">▤ 看板</div>
         <!-- R62-5：金字塔结构视图 -->
-        <div class="view-tab" :class="{active: viewMode==='pyramid'}" @click="viewMode='pyramid'">⬡ 金字塔</div>
+        <div class="view-tab" :class="{active: viewMode==='pyramid'}" @click="setViewMode('pyramid')">⬡ 金字塔</div>
       </div>
       <select class="toolbar-select" v-model="sortBy">
         <option value="manual">手动拖拽</option>
@@ -203,6 +206,20 @@
       <div class="ws-content">
         <!-- ===== 卡片视图：REQ-027 按分类分组分区；R64-F9 树状递归分组（depth 缩进呈现层级） ===== -->
         <div v-if="viewMode==='card'">
+          <!-- R84（W2-①）：中心论点提到首屏——此前论点只出现在指标条第一格与金字塔 L1 根，
+               卡片视图（默认视图）里完全看不到。已设立 → 标题 + 查看金字塔；未设立 → 一行轻引导。 -->
+          <div class="thesis-banner" :class="{ empty: !thesisCard }">
+            <template v-if="thesisCard">
+              <span class="tb-mark">🏛</span>
+              <span class="tb-label">中心论点</span>
+              <span class="tb-title" :title="thesisCard.title" @click.stop="onCardClick(thesisCard)">{{ thesisCard.title }}</span>
+              <span class="tb-go" @click="setViewMode('pyramid')">查看金字塔 →</span>
+            </template>
+            <template v-else>
+              <span class="tb-mark">🏛</span>
+              <span class="tb-hint">尚未设立中心论点 —— 右键台内卡片可设立（设立后即成为金字塔 L1 根）</span>
+            </template>
+          </div>
           <template v-for="(g, gi) in resourceGroups" :key="g.key">
             <div :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
             <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
@@ -761,6 +778,7 @@ import { markRank } from '@/shared/utils/marksort'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
 import { useCardCols } from '@/shared/utils/cardCols'
+import { readWsView, writeWsView } from '@/shared/utils/wsView'
 import { CURATION_WS_ID, type AppData, type ResourceCard, type Category, type Workspace, type TaskCard, type FieldDef, type AssetMeta } from '@/shared/models'
 import { boardCardsOf, isMirrorView, removeProjection, curationMetrics, setThesis, mirrorCategoryToBoard, canMountInNode, isHubWs, projectCardToBoard, curationBoards, type MirrorView } from '@/shared/storage/hub'
 import CurationDrillDrawer from '@/newtab/components/CurationDrillDrawer.vue'
@@ -790,6 +808,16 @@ const isHub = computed(() => isHubWs(workspace.value))
 
 // ===== R62-1/2：策展台 5 指标 + 下钻 =====
 const metrics = computed(() => curationMetrics(d.value, workspaceId.value))
+/**
+ * R84（W1）：页头描述——有台描述就用它，**为空则不占位**（原文验收要点）。
+ * 唯一例外：资源台（hub）description 通常为空，此时回落 R73-S5a 的既有教学文案
+ * 「资源卡唯一存储 · 镜像源头」——那段是 R16 收敛时特意补的，丢了可惜。
+ */
+const wsHeadDesc = computed(() => {
+  const desc = (workspace.value?.desc || '').trim()
+  if (desc) return desc
+  return isHub.value ? '资源卡唯一存储 · 镜像源头' : ''
+})
 const thesisCard = computed<ResourceCard | null>(() => {
   const t = metrics.value.thesisId
   if (!t) return null
@@ -869,6 +897,8 @@ watch(workspaceId, (id) => {
   const ws = d.value?.workspaces?.find(w => w.id === id)
   if (ws) { recordWorkspaceOpen(d.value, ws); store.persist() }
 }, { immediate: true })
+// R84（W2-②）：切台时重算视图偏好——不同台各有各的选择，不能把 A 台的金字塔串到 B 台
+watch(workspaceId, () => nextTick(applyWsView))
 
 
 // ===== 数据 =====
@@ -982,7 +1012,21 @@ function srcLabel(s?: string): string {
 }
 
 // ===== 视图状态 =====
+/**
+ * R84（W2-②）：视图模式改为**按台记忆**并持久化。
+ * - 改前 `ref('card')` 纯内存 ⇒ 切台/重开都回到卡片视图，原文"用户切过视图后记忆其选择"无从谈起。
+ * - 现在：① 该台已存偏好 → 用它；② 无偏好 → **已设中心论点 ⇒ 金字塔，否则卡片**。
+ * - ⚠ 不复用 UIPrefs.viewMode（全局死字段、且不含 pyramid）；用 UIPrefs.wsViewMode[<台 id>]。
+ */
 const viewMode = ref<'card'|'list'|'kanban'|'pyramid'>('card')
+function applyWsView() {
+  const saved = readWsView(store.ui, workspaceId.value)
+  viewMode.value = saved || (thesisCard.value ? 'pyramid' : 'card')
+}
+function setViewMode(m: 'card'|'list'|'kanban'|'pyramid') {
+  viewMode.value = m
+  writeWsView(store.ui, workspaceId.value, m)
+}
 // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.res；网格模板由 --grid-cols 驱动）
 // 资源台（isHub）与策展台为同一组件同一网格 ⇒ 共用 'res' 键，列数在两台一致
 const resCols = useCardCols('res', store.ui)
@@ -1812,7 +1856,7 @@ function onUncatDrop(e: DragEvent) {
   onDropToCategory(e, '')
 }
 function clearCardDropTarget() { cardDropTarget.value = '' }
-onMounted(() => { window.addEventListener('dragend', clearCardDropTarget); document.addEventListener('click', closeSettingsMenu); window.addEventListener('resize', pyLinksThrottled); nextTick(drawPyLinks) })
+onMounted(() => { applyWsView(); window.addEventListener('dragend', clearCardDropTarget); document.addEventListener('click', closeSettingsMenu); window.addEventListener('resize', pyLinksThrottled); nextTick(drawPyLinks) })
 onUnmounted(() => { window.removeEventListener('dragend', clearCardDropTarget); window.removeEventListener('resize', pyLinksThrottled) })
 // R65-F7：resize 重绘节流（150ms 尾随，防拖拽窗口时高频全量重算）
 let pyLinksTimer: ReturnType<typeof setTimeout> | null = null
@@ -2801,10 +2845,25 @@ function linkDisplay(link: string) {
 
 /* R73-S5a：资源台页头（R64-F13 删掉 hero 大标题后，hub 一直没有页面标题；
     R16 收敛后 CurationCenter 的 crumb 也不再出现 ⇒ 在此补回） */
-.ws-hub-head { display: flex; align-items: center; gap: 10px; padding: 18px 0 14px; }
-.ws-hub-head .crumb { font-size: 13px; color: var(--text-2); }
-.ws-hub-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
-.hub-hint { margin-left: auto; font-size: 10.5px; color: var(--text-3); background: var(--surface); border: 1px dashed var(--border-strong); padding: 3px 10px; border-radius: 99px; }
+/* R84（W1）：台身份页头——图标 + 台名 + 台描述 + 右端结构摘要（一行 ≤40px，所有台都渲染）。
+   改前只有资源台一段写死的 .ws-hub-head（padding 18/14 ⇒ 约 60px 高），策展台零页头。 */
+.ws-id-head { display: flex; align-items: center; gap: 8px; min-height: 34px; max-height: 40px; padding: 6px 0 8px; overflow: hidden; }
+.wsh-icon { flex-shrink: 0; font-size: 16px; line-height: 1; }
+/* 19px 沿用 R51-F11「页头标题统一放大」的既有规范（三主页面 + 项目详情/方向树 crumb 同款），
+   不另起字号；19px 行高 ≈23px + padding 14px = 37px，仍在 W1 的 ≤40px 之内 */
+.wsh-name { flex-shrink: 0; font-size: 19px; letter-spacing: .3px; font-weight: 700; color: var(--text); }
+.wsh-desc { flex: 1; min-width: 0; font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wsh-summary { flex-shrink: 0; margin-left: auto; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* R84（W2-①）：中心论点横幅（卡片视图顶部）——已设立 / 未设立两态 */
+.thesis-banner { display: flex; align-items: center; gap: 8px; height: 34px; margin-bottom: 10px; padding: 0 12px; background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); border-radius: var(--radius-sm); }
+.thesis-banner.empty { background: var(--surface-2); border-color: var(--border); }
+.tb-mark { flex-shrink: 0; font-size: 13px; }
+.tb-label { flex-shrink: 0; font-size: 10px; font-weight: 700; letter-spacing: .5px; color: var(--accent); background: var(--accent-light); padding: 2px 7px; border-radius: 99px; }
+.tb-title { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.tb-title:hover { color: var(--accent); }
+.tb-go { flex-shrink: 0; font-size: 11px; color: var(--accent); cursor: pointer; white-space: nowrap; }
+.tb-go:hover { text-decoration: underline; }
+.tb-hint { flex: 1; min-width: 0; font-size: 11.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Hero 已删（R64-F13：大标题区移除，编辑入口收进 ⚙ 菜单）——仅保留图标管理弹层样式 */
 .ws-icon-btn { cursor: pointer; border-radius: 8px; padding: 2px 7px; transition: background .15s; }

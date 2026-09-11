@@ -436,6 +436,8 @@ export interface UIPrefs {
   density?: 'compact' | 'cozy'
   /** R72-1：卡片视图横向列数偏好（模块键 curio/task/res → 4~7 列；缺省取各模块默认值，见 shared/utils/cardCols.ts） */
   cardCols?: Record<string, number>
+  /** R84（W2-②）：各台视图模式偏好（台 id → 卡片/列表/看板/金字塔）；缺省由调用方按「已设论点 → 金字塔，否则卡片」决定。见 shared/utils/wsView.ts */
+  wsViewMode?: Record<string, 'card' | 'list' | 'kanban' | 'pyramid'>
   /** 第卅六轮 REQ-038：备份提醒开关（true=启用，false=关闭） */
   backupReminderEnabled?: boolean
   /** 第卅六轮 REQ-038：上次导出/备份时间戳（毫秒），用于设置页与顶栏红点判断「多久未备份」 */
