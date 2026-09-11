@@ -21,6 +21,7 @@ import { useAppStore } from '../stores/app'
 import { useTaHeight } from '@/shared/utils/taHeight'
 // R87（R7）：链接三态判据收敛到 shared/utils/link（此前 isFullPath 是本组件私有函数，卡片视图用不到）
 import { linkStateOf } from '@/shared/utils/link'
+import { CURATION_WS_ID } from '@/shared/models'
 import type { ResourceCard, TaskCard, Category, AssetMeta } from '@/shared/models'
 
 const props = defineProps<{
@@ -46,8 +47,23 @@ const store = useAppStore()
 const d = computed(() => store.data!)
 const { taH: noteH, startTaResize: startNoteResize } = useTaHeight(props.heightKey, store.ui)
 
-/** 策展台选项（store.workspaces 已过滤 archived + 排序） */
-const wsOptions = computed(() => store.workspaces)
+/**
+ * 策展台选项（store.workspaces 已过滤 archived + 排序）
+ *
+ * R90（R17）：`store.workspaces` **显式排除资源台**（`stores/app.ts:18` `w.id !== CURATION_WS_ID`）。
+ * 于是在资源台打开一张真身卡时，`v-model` 的值在选项列表里**不存在** ⇒ 下拉显示空白；
+ * 用户随手改选并保存，卡片 `workspaceId` 被改写 ⇒ **真身静默迁去策展台**，
+ * 而 `curationProjections` 里指向它的镜像仍留在原地。
+ * 故在 `model.workspaceId === CURATION_WS_ID` 时于**首位注入**「资源台（真身）」并自然选中。
+ *
+ * ⚠ 不改 `store.workspaces` 本体——那是**全局口径**，别处出现的"策展台列表"
+ * （GlobalSettings 的搬家目标台、overlay 的台计数）都不该混入资源台。此处只是表单层的局部补救。
+ */
+const wsOptions = computed(() => {
+  const list = store.workspaces
+  if (props.model.workspaceId !== CURATION_WS_ID) return list
+  return [{ id: CURATION_WS_ID, name: '🗂 资源台（真身）' } as (typeof list)[number], ...list]
+})
 /** 分类随所选策展台联动（REQ-005） */
 const catOptions = computed(() => treeCatOptions((d.value.categories || []).filter(c => c.workspaceId === props.model.workspaceId)))
 /** 被任务挂载（只读，点击跳任务中心） */

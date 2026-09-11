@@ -7,8 +7,13 @@
     <div class="ws-id-head">
       <span class="wsh-icon">{{ workspace.icon || (isHub ? '📦' : '🗂') }}</span>
       <b class="wsh-name">{{ workspace.name }}</b>
-      <span v-if="wsHeadDesc" class="wsh-desc" :title="wsHeadDesc">· {{ wsHeadDesc }}</span>
-      <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="isHub"> · 可镜像到策展台</template><template v-else-if="metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template></span>
+      <!-- R90（R8-③）：台描述分两态——**用户自写的台描述仍内联**（R84 / W1 要的就是台身份可见）；
+           资源台无描述时回落的定位语「资源卡唯一存储 · 镜像源头」**降为 ⓘ tooltip**（它是定位语，不是每屏必读） -->
+      <span v-if="wsHeadDescOwn" class="wsh-desc" :title="wsHeadDescOwn">· {{ wsHeadDescOwn }}</span>
+      <span v-else-if="wsHeadDescFallback" class="wsh-locator" :title="wsHeadDescFallback">ⓘ</span>
+      <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="!isHub && metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template></span>
+      <!-- R90（R8-①）：常驻教学文案改「?」气泡——原文案一字不丢（见 HUB_HELP_TEXT），只是不再每屏占位 -->
+      <span v-if="isHub" class="wsh-help" :title="HUB_HELP_TEXT">?</span>
     </div>
     <!-- R64-F13：hero 大标题区删除——重命名/图标/描述编辑收进 ⚙ 菜单，导入/新建按钮上移工具条 -->
     <Teleport to="body">
@@ -108,6 +113,10 @@
         <!-- R62-5：金字塔结构视图 -->
         <div class="view-tab" :class="{active: viewMode==='pyramid'}" @click="setViewMode('pyramid')">⬡ 金字塔</div>
       </div>
+      <!-- R90（R8-②）：主 CTA「＋新建」前置——从最右移到视图 Tab 之后、搜索之前。
+           R88 只做了"分级"（一级收到 5 件），**位置仍在右端**；R8 要的是"主 CTA 不被挤到最右"。 -->
+      <button class="hero-btn primary" @click="openNewResource">＋ 新建</button>
+      <div class="toolbar-spacer"></div>
       <div class="toolbar-search">
         <span class="s-icon">🔍</span>
         <input type="text" v-model="searchQuery" placeholder="搜索策展台内资源..."
@@ -180,8 +189,8 @@
       </div>
       <!-- R88（W3）：批量模式激活时**必须**在一级留退出按钮——.batch-bar 浮动栏的条件是
            batchMode && selectedIds.size，一张都没选时它不出现，此时这里是唯一退出通道 -->
+      <!-- 注：主 CTA「＋新建」已按 R8 前置到视图 Tab 之后（见上），此处不再重复 -->
       <button v-if="batchMode" class="toolbar-batch active" @click="toggleBatchMode">✓ 完成批量</button>
-      <button class="hero-btn primary" @click="openNewResource">＋ 新建</button>
       <button class="hero-btn settings" title="策展台设置" @click.stop="toggleSettingsMenu">⚙</button>
     </div>
 
@@ -895,14 +904,18 @@ const isHub = computed(() => isHubWs(workspace.value))
 const metrics = computed(() => curationMetrics(d.value, workspaceId.value))
 /**
  * R84（W1）：页头描述——有台描述就用它，**为空则不占位**（原文验收要点）。
- * 唯一例外：资源台（hub）description 通常为空，此时回落 R73-S5a 的既有教学文案
- * 「资源卡唯一存储 · 镜像源头」——那段是 R16 收敛时特意补的，丢了可惜。
+ * R90（R8-③）：拆成两态——
+ *   · `wsHeadDescOwn`      用户自写的台描述（信息量真实）→ **内联**显示
+ *   · `wsHeadDescFallback` 资源台无描述时回落的定位语 → 降为 **ⓘ tooltip**
+ * 合并成一个 `wsHeadDesc` 时二者不可区分，一刀切降 tooltip 会把 W1 刚立起来的台身份又抹掉。
  */
-const wsHeadDesc = computed(() => {
-  const desc = (workspace.value?.desc || '').trim()
-  if (desc) return desc
-  return isHub.value ? '资源卡唯一存储 · 镜像源头' : ''
-})
+const wsHeadDescOwn = computed(() => (workspace.value?.desc || '').trim())
+const wsHeadDescFallback = computed(() => (wsHeadDescOwn.value ? '' : (isHub.value ? '资源卡唯一存储 · 镜像源头' : '')))
+/**
+ * R90（R8-①）：常驻提示条的教学文案（04-18 §R8 原句，一字未改）收进 `?` 的 title。
+ * 用原生 title 而非自绘气泡：页头高度已锁 max-height:40px（R84 约束），自绘会撑破或需 Teleport。
+ */
+const HUB_HELP_TEXT = '卡片在此存储为真身 · 📡 单卡 / 📤 分类可镜像到各策展台 · 源数据零影响'
 const thesisCard = computed<ResourceCard | null>(() => {
   const t = metrics.value.thesisId
   if (!t) return null
@@ -1611,14 +1624,22 @@ function openResCtx(e: MouseEvent, r: ResourceCard) {
     resCtxItems.value = [
       { label: '打开链接', icon: 'arrowright', cb: () => openResourceLink(r) },
       { label: '复制链接', icon: 'copy', cb: () => { if (r.link) { navigator.clipboard.writeText(r.link); showToast('✓ 链接已复制') } } },
+      // R90（R10）：编辑——右键直达抽屉。此前右键菜单只有"打开链接"，要**改**内容必须先单击卡进详情
+      { label: '✏️ 编辑详情', icon: 'edit', cb: () => openResource(r) },
       { label: '移动分类', icon: 'folder', cb: () => openMoveOne(r) },
       // R82（R4）：挂载到任务——与动作条同一入口的两条路径之一。镜像分支不提供（只读引用）。
       { label: mountedTaskCount(r) ? `挂载到任务（已挂 ${mountedTaskCount(r)}）` : '挂载到任务…', icon: 'clipboard', cb: () => openMountOne(r) },
+      // R90（R10）：镜像到策展台——**仅资源台真身卡**有语义（策展台的卡源头就是资源台，再推给别的台无意义）。
+      // openMirrorCard 内部已对「还没有策展台」给提示，此处不重复兜底。
+      ...(isHub.value ? [{ label: '📡 镜像到策展台', icon: 'share', cb: () => openMirrorCard(r) }] : []),
       { label: r.pinned ? '取消置顶' : '置顶', icon: 'pin', cb: () => togglePin(r) },
+      // R90（R10）：星标——toggleStar 能力早就在、hover 动作条早早就有 ⭐，右键此前一直缺
+      { label: r.starred ? '☆ 取消星标' : '⭐ 星标', icon: 'star', cb: () => toggleStar(r) },
       // R62-3：中心论点（每台一张；设立即替换旧论点）
+      // R90：图标 'star' → 'target' —— ICONS 原本没有 star 键，会静默回落成罗盘；且星标项已占用 star
       r.isThesis
-        ? { label: '取消中心论点', icon: 'star', cb: () => unsetThesis() }
-        : { label: '🏛 设为中心论点', icon: 'star', cb: () => setThesisCard(r) },
+        ? { label: '取消中心论点', icon: 'target', cb: () => unsetThesis() }
+        : { label: '🏛 设为中心论点', icon: 'target', cb: () => setThesisCard(r) },
       { label: '删除', icon: 'trash', danger: true, cb: () => deleteResource(r) }
     ]
   }
@@ -3093,6 +3114,11 @@ function linkDisplay(link: string) {
 .wsh-name { flex-shrink: 0; font-size: 19px; letter-spacing: .3px; font-weight: 700; color: var(--text); }
 .wsh-desc { flex: 1; min-width: 0; font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wsh-summary { flex-shrink: 0; margin-left: auto; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* R90（R8-①/③）：ⓘ 定位语（fallback 降为 tooltip 后的落点）与 ? 教学气泡触发点。
+   页头高度锁 40px，故两点都做成 ≤16px 的行内元素，不新增行高 */
+.wsh-locator { flex-shrink: 0; font-size: 11px; color: var(--text-3); cursor: help; }
+.wsh-help { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; margin-left: 6px; border: 1px solid var(--border); border-radius: 50%; font-size: 9.5px; line-height: 1; color: var(--text-3); background: var(--surface-2); cursor: help; }
+.wsh-help:hover { color: var(--accent); border-color: var(--accent); }
 /* R84（W2-①）：中心论点横幅（卡片视图顶部）——已设立 / 未设立两态 */
 .thesis-banner { display: flex; align-items: center; gap: 8px; height: 34px; margin-bottom: 10px; padding: 0 12px; background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); border-radius: var(--radius-sm); }
 .thesis-banner.empty { background: var(--surface-2); border-color: var(--border); }
@@ -3155,7 +3181,9 @@ function linkDisplay(link: string) {
 .sort-dir-btn { font-family: inherit; white-space: nowrap; }
 .sort-dir-btn:hover { border-color: var(--accent); color: var(--text-1); }
 .toolbar-select:hover { border-color: var(--accent); color: var(--accent); }
-.toolbar-search { margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); transition: all .15s; }
+/* R90（R8-②）：右推职责交给 .toolbar-spacer（主 CTA 前置后，搜索不再是第一个右端元素） */
+.toolbar-spacer { flex: 1; }
+.toolbar-search { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); transition: all .15s; }
 .toolbar-search:focus-within { border-color: var(--accent); }
 .toolbar-search input { border: none; outline: none; font-size: 12px; width: 160px; background: transparent; color: var(--text); }
 .toolbar-search .s-icon { color: var(--text-3); font-size: 13px; }
