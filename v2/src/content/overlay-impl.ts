@@ -74,13 +74,30 @@ function injectStyles() {
   const s = document.createElement('style')
   s.id = '__zy_styles__'
   s.textContent = `
-    #${ROOT_ID}{position:fixed;inset:0;z-index:2147483647;display:none;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",sans-serif;}
+    /* R77（A1）：浮层变量体系——底色/文字跟随宿主 prefers-color-scheme，强调色由 JS 按知源主题注入。
+       浮层运行在宿主文档，取不到新标签页的 tokens.css，故在此自建 --zy-* 变量；
+       色值取自 shared/styles/tokens.css（linear 主题的明暗两套），回归断言 R77-3 锁定主题色不漂移。 */
+    #${ROOT_ID}{position:fixed;inset:0;z-index:2147483647;display:none;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",sans-serif;
+      --zy-bg:#FFFFFF;--zy-bg-2:#F7F7F8;--zy-bg-3:#EFEFF1;
+      --zy-border:#E3E4E8;--zy-border-strong:#D5D6DB;
+      --zy-text:#17181C;--zy-text-2:#3C3F45;--zy-text-3:#8A8F98;--zy-text-4:#B4B8BF;
+      --zy-link:#3573B9;--zy-link-file:#A87B2A;--zy-link-obs:#7C3AED;
+      --zy-accent:#0071E3;--zy-on-accent:#FFFFFF;
+      --zy-accent-ring:color-mix(in srgb, var(--zy-accent) 34%, transparent);}
+    @media (prefers-color-scheme: dark){
+      #${ROOT_ID}{--zy-bg:#0F1011;--zy-bg-2:#141516;--zy-bg-3:#191A1B;
+        --zy-border:#23252A;--zy-border-strong:#34343A;
+        --zy-text:#F7F8F8;--zy-text-2:#D0D6E0;--zy-text-3:#8A8F98;--zy-text-4:#62666D;
+        --zy-link:#6BA6E8;--zy-link-file:#D9A94A;--zy-link-obs:#A78BFA;}
+    }
     #${ROOT_ID}.open{display:block;}
-    #${ROOT_ID} .zy-scrim{position:absolute;inset:0;background:rgba(15,17,20,.18);}
-    #${ROOT_ID}.center{display:flex;align-items:flex-start;justify-content:center;padding-top:12vh;background:rgba(245,243,238,.72);backdrop-filter:blur(20px) saturate(1.4);}
+    /* R77（A2）：轻 scrim——rgba(0,0,0,.18) + blur 6px，页面内容仍可辨 */
+    #${ROOT_ID} .zy-scrim{position:absolute;inset:0;background:rgba(0,0,0,.18);}
+    #${ROOT_ID}.center{display:flex;align-items:flex-start;justify-content:center;padding-top:12vh;background:rgba(0,0,0,.18);backdrop-filter:blur(6px);}
     #${ROOT_ID}.corner{display:flex;align-items:flex-start;justify-content:flex-end;padding:10px 10px 14px;}
 
-    .zy-panel{position:relative;background:#FDFDFC;border-radius:16px;box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 0 0 1px rgba(0,0,0,.05),0 12px 32px rgba(0,0,0,.10),0 32px 72px rgba(0,0,0,.14);overflow:hidden;font-size:14px;color:#1A1D23;animation:zyPanelIn .22s cubic-bezier(.16,1,.3,1);}
+    /* R77（A2）：加强浮层自身阴影 + 1px 边框（scrim 变轻后靠自身边界撑住层级） */
+    .zy-panel{position:relative;background:var(--zy-bg);border:1px solid var(--zy-border);border-radius:16px;box-shadow:0 0 0 1px rgba(0,0,0,.05),0 12px 32px rgba(0,0,0,.14),0 32px 72px rgba(0,0,0,.22);overflow:hidden;font-size:14px;color:var(--zy-text);animation:zyPanelIn .22s cubic-bezier(.16,1,.3,1);}
     @keyframes zyPanelIn{from{opacity:0;transform:translateY(-8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
     /* 居中搜索面板 */
     #${ROOT_ID}.center .zy-panel{width:640px;max-width:92vw;}
@@ -88,31 +105,34 @@ function injectStyles() {
     #${ROOT_ID}.center .zy-panel.curio{width:640px;}
     /* 右上角采集小窗（对标 Obsidian Web Clipper：400×600） */
     #${ROOT_ID}.corner .zy-panel{width:400px;max-width:calc(100vw - 28px);max-height:min(600px,calc(100vh - 72px));overflow-y:auto;}
-    .zy-panel::before{content:'';position:absolute;top:0;left:15%;right:15%;height:2px;background:linear-gradient(90deg,transparent,#0E7A4E 25%,#159258 50%,#0E7A4E 75%,transparent);border-radius:0 0 2px 2px;opacity:.9;}
+    /* R77（A1）：原顶部的绿色渐变装饰条已移除 */
 
     /* ===== 搜索 ===== */
     .zy-search-head{display:flex;align-items:center;gap:12px;padding:18px 22px 0;}
-    .zy-search-icon{width:22px;height:22px;color:#9AA0A6;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
-    .zy-search-input{flex:1;border:none;outline:none;background:transparent;font-size:17px;font-weight:500;color:#1A1D23;font-family:inherit;min-width:0;line-height:1.4;}
-    .zy-search-input::placeholder{color:#BFC3C9;font-weight:400;}
-    .zy-esc-btn{font-size:11px;color:#9AA0A6;background:#F7F5F0;border:1px solid #E8E5DE;border-radius:6px;padding:3px 8px;flex-shrink:0;cursor:pointer;font-family:inherit;}
-    .zy-esc-btn:hover{color:#5C6370;border-color:#D4D0C8;}
-    /* B29：搜索框内类型过滤 chip（与 Tab 切换同步，与新版应用内搜索一致） */
-    .zy-search-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:8px;background:#E7F3EC;color:#0E7A4E;font-size:12.5px;font-weight:600;flex-shrink:0;animation:zyChipIn .2s ease;}
+    .zy-search-icon{width:22px;height:22px;color:var(--zy-text-3);flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+    .zy-search-input{flex:1;border:none;outline:none;background:transparent;font-size:17px;font-weight:500;color:var(--zy-text);font-family:inherit;min-width:0;line-height:1.4;}
+    .zy-search-input::placeholder{color:var(--zy-text-4);font-weight:400;}
+    .zy-esc-btn{font-size:11px;color:var(--zy-text-3);background:var(--zy-bg-2);border:1px solid var(--zy-border);border-radius:6px;padding:3px 8px;flex-shrink:0;cursor:pointer;font-family:inherit;}
+    .zy-esc-btn:hover{color:var(--zy-text-2);border-color:var(--zy-border-strong);}
+    /* B29：搜索框内类型过滤 chip（与 Tab 切换同步，与新版应用内搜索一致）· R77（C2）改中性 */
+    .zy-search-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:8px;background:var(--zy-bg-3);color:var(--zy-text-2);font-size:12.5px;font-weight:600;flex-shrink:0;animation:zyChipIn .2s ease;}
     .zy-search-chip .zy-chip-x{width:15px;height:15px;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;font-size:11px;}
-    .zy-search-chip .zy-chip-x:hover{opacity:1;background:rgba(14,122,78,.15);}
+    .zy-search-chip .zy-chip-x:hover{opacity:1;background:var(--zy-border);}
     @keyframes zyChipIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
     .zy-type-tabs{display:flex;gap:2px;padding:12px 22px 8px;}
-    .zy-type-tab{padding:5px 12px;border-radius:8px;font-size:12.5px;color:#9AA0A6;cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:5px;font-weight:500;}
-    .zy-type-tab:hover{color:#5C6370;background:#F7F5F0;}
-    .zy-type-tab.active{color:#0E7A4E;background:#E7F3EC;font-weight:600;}
-    .zy-type-tab .cnt{font-size:10.5px;color:#BFC3C9;font-weight:500;}
-    .zy-type-tab.active .cnt{color:#0E7A4E;opacity:.7;}
+    .zy-type-tab{padding:5px 12px;border-radius:8px;font-size:12.5px;color:var(--zy-text-3);cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:5px;font-weight:500;}
+    .zy-type-tab:hover{color:var(--zy-text-2);background:var(--zy-bg-2);}
+    /* R77（C2）：选中态改中性——强调色只保留主按钮 / 焦点环 / 当前选中行 */
+    .zy-type-tab.active{color:var(--zy-text);background:var(--zy-bg-3);font-weight:600;}
+    .zy-type-tab .cnt{font-size:10.5px;color:var(--zy-text-4);font-weight:500;}
+    .zy-type-tab.active .cnt{color:var(--zy-text-2);opacity:.7;}
     .zy-results{max-height:48vh;overflow-y:auto;padding:4px 12px 8px;}
     .zy-results::-webkit-scrollbar{width:6px;}
-    .zy-results::-webkit-scrollbar-thumb{background:#D4D0C8;border-radius:3px;}
+    .zy-results::-webkit-scrollbar-thumb{background:var(--zy-border-strong);border-radius:3px;}
     .zy-result-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:11px;cursor:pointer;border-left:3px solid transparent;transition:background .1s,border-color .1s;position:relative;margin-bottom:2px;}
-    .zy-result-item:hover,.zy-result-item.sel{background:linear-gradient(90deg,#E7F3EC,rgba(231,243,236,.3) 60%,transparent);border-left-color:#0E7A4E;}
+    /* R77（C2）：hover 改中性底，仅 .sel（当前选中行）保留强调色左边框 */
+    .zy-result-item:hover{background:var(--zy-bg-2);}
+    .zy-result-item.sel{background:var(--zy-bg-3);border-left-color:var(--zy-accent);}
     .zy-ri-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
     .zy-ri-icon.res{background:#E9F1FA;}
     .zy-ri-icon.task-done{background:#E4F2E8;}
@@ -122,85 +142,119 @@ function injectStyles() {
     .zy-ri-icon.ws{background:#E9EAF6;}
     .zy-badge.ws-badge{background:#E9EAF6;color:#3D439B;}
     .zy-ri-main{flex:1;min-width:0;}
-    .zy-ri-title{font-size:14px;font-weight:600;color:#1A1D23;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;}
+    .zy-ri-title{font-size:14px;font-weight:600;color:var(--zy-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;}
     .zy-ri-meta{display:flex;gap:5px;margin-top:3px;flex-wrap:wrap;align-items:center;}
     .zy-badge{font-size:10.5px;padding:1.5px 8px;border-radius:99px;font-weight:500;line-height:1.5;}
-    .zy-badge.ws{background:#E7F3EC;color:#0E7A4E;}
-    .zy-badge.cat{background:#EFEDE7;color:#5C6370;}
+    /* R77（C2）：台徽标改中性 */
+    .zy-badge.ws{background:var(--zy-bg-3);color:var(--zy-text-2);}
+    .zy-badge.cat{background:var(--zy-bg-3);color:var(--zy-text-2);}
     .zy-badge.prio-high{background:#FBEAEA;color:#C03B3B;}
     .zy-badge.prio-mid{background:#FBF1DE;color:#8A5A00;}
     .zy-badge.status-todo{background:#EFEFEA;color:#6E6E66;}
     .zy-badge.status-doing{background:#FBF1DE;color:#8A5A00;}
     .zy-badge.status-done{background:#E4F2E8;color:#2E7D42;}
-    .zy-badge.curio-status{background:#EFEDE7;color:#5C6370;}
-    .zy-ri-link{font-size:11px;color:#9AA0A6;display:flex;align-items:center;gap:3px;white-space:nowrap;}
-    .zy-ri-link.url{color:#3573B9;}
-    .zy-ri-link.file{color:#A87B2A;}
-    .zy-ri-link.obsidian{color:#7C3AED;}
-    .zy-ri-summary{font-size:11.5px;color:#9AA0A6;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .zy-ri-del{font-size:12px;color:#9AA0A6;cursor:pointer;padding:3px 6px;border-radius:6px;flex-shrink:0;opacity:0;transition:all .12s;}
+    .zy-badge.curio-status{background:var(--zy-bg-3);color:var(--zy-text-2);}
+    .zy-ri-link{font-size:11px;color:var(--zy-text-3);display:flex;align-items:center;gap:3px;white-space:nowrap;}
+    .zy-ri-link.url{color:var(--zy-link);}
+    .zy-ri-link.file{color:var(--zy-link-file);}
+    .zy-ri-link.obsidian{color:var(--zy-link-obs);}
+    .zy-ri-summary{font-size:11.5px;color:var(--zy-text-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .zy-ri-del{font-size:12px;color:var(--zy-text-3);cursor:pointer;padding:3px 6px;border-radius:6px;flex-shrink:0;opacity:0;transition:all .12s;}
     .zy-result-item:hover .zy-ri-del{opacity:1;}
     .zy-ri-del:hover{color:#E5484D;background:rgba(229,72,77,.12);}
-    .zy-group-title{font-size:10.5px;font-weight:700;color:#8A8F98;letter-spacing:.08em;padding:10px 12px 4px;}
-    .zy-group-more{font-size:11px;color:#9AA0A6;padding:6px 12px;border-top:1px dashed rgba(138,143,152,.25);}
-    .zy-empty{padding:40px 20px;text-align:center;color:#9AA0A6;}
+    .zy-group-title{font-size:10.5px;font-weight:700;color:var(--zy-text-3);letter-spacing:.08em;padding:10px 12px 4px;}
+    .zy-group-more{font-size:11px;color:var(--zy-text-3);padding:6px 12px;border-top:1px dashed var(--zy-border);}
+    .zy-empty{padding:40px 20px;text-align:center;color:var(--zy-text-3);}
     .zy-empty .icon{font-size:32px;margin-bottom:8px;opacity:.4;}
     .zy-empty .text{font-size:13px;line-height:1.7;}
-    .zy-empty .text b{color:#5C6370;font-weight:600;}
-    .zy-foot{display:flex;align-items:center;gap:16px;padding:10px 22px;border-top:1px solid #E8E5DE;background:#F7F5F0;font-size:11px;color:#BFC3C9;}
-    .zy-foot kbd{background:#FDFDFC;border:1px solid #E8E5DE;border-radius:5px;padding:1px 6px;font-family:inherit;font-size:10.5px;color:#5C6370;margin:0 2px;box-shadow:0 1px 0 #E8E5DE;}
-    .zy-foot .brand{margin-left:auto;font-size:10.5px;color:#BFC3C9;opacity:.7;letter-spacing:.3px;}
+    .zy-empty .text b{color:var(--zy-text-2);font-weight:600;}
+    .zy-foot{display:flex;align-items:center;gap:16px;padding:10px 22px;border-top:1px solid var(--zy-border);background:var(--zy-bg-2);font-size:11px;color:var(--zy-text-4);}
+    .zy-foot kbd{background:var(--zy-bg);border:1px solid var(--zy-border);border-radius:5px;padding:1px 6px;font-family:inherit;font-size:10.5px;color:var(--zy-text-2);margin:0 2px;}
+    .zy-foot .brand{margin-left:auto;font-size:10.5px;color:var(--zy-text-4);opacity:.7;letter-spacing:.3px;}
 
     /* ===== 采集小窗通用 ===== */
     .zy-cap-head{padding:18px 20px 0;display:flex;align-items:flex-start;gap:12px;}
     .zy-cap-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
-    .zy-cap-icon.res{background:#E7F3EC;}
+    /* R77（C2）：资源图标底改用语义蓝（与结果列表 .zy-ri-icon.res 一致），不再铺品牌绿淡底 */
+    .zy-cap-icon.res{background:#E9F1FA;}
     .zy-cap-icon.curio{background:#F9F3E4;}
     .zy-cap-titles{flex:1;min-width:0;}
-    .zy-cap-title{font-size:15.5px;font-weight:700;color:#1A1D23;letter-spacing:-.2px;}
-    .zy-cap-sub{font-size:11px;color:#9AA0A6;margin-top:2px;}
-    .zy-cap-close{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#9AA0A6;font-size:17px;transition:all .12s;flex-shrink:0;background:transparent;border:none;font-family:inherit;}
-    .zy-cap-close:hover{background:#EFEDE7;color:#1A1D23;}
+    .zy-cap-title{font-size:15.5px;font-weight:700;color:var(--zy-text);letter-spacing:-.2px;}
+    .zy-cap-sub{font-size:11px;color:var(--zy-text-3);margin-top:2px;}
+    .zy-cap-close{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--zy-text-3);font-size:17px;transition:all .12s;flex-shrink:0;background:transparent;border:none;font-family:inherit;}
+    .zy-cap-close:hover{background:var(--zy-bg-3);color:var(--zy-text);}
     .zy-cap-body{padding:14px 20px 16px;}
     .zy-field{margin-bottom:12px;}
     .zy-field:last-child{margin-bottom:0;}
-    .zy-field-label{display:block;font-size:11px;font-weight:600;color:#9AA0A6;margin-bottom:5px;letter-spacing:.2px;}
-    .zy-field-input{width:100%;border:1px solid #E8E5DE;border-radius:10px;padding:9px 12px;font-size:13px;color:#1A1D23;background:#FDFDFC;outline:none;font-family:inherit;transition:all .15s;line-height:1.5;box-sizing:border-box;}
-    .zy-field-input::placeholder{color:#BFC3C9;}
-    .zy-field-input:focus{border-color:#0E7A4E;box-shadow:0 0 0 3px rgba(14,122,78,.14);}
+    .zy-field-label{display:block;font-size:11px;font-weight:600;color:var(--zy-text-3);margin-bottom:5px;letter-spacing:.2px;}
+    .zy-field-input{width:100%;border:1px solid var(--zy-border);border-radius:10px;padding:9px 12px;font-size:13px;color:var(--zy-text);background:var(--zy-bg);outline:none;font-family:inherit;transition:all .15s;line-height:1.5;box-sizing:border-box;}
+    .zy-field-input::placeholder{color:var(--zy-text-4);}
+    /* R77（C2）：焦点环保留强调色 */
+    .zy-field-input:focus{border-color:var(--zy-accent);box-shadow:0 0 0 3px var(--zy-accent-ring);}
     textarea.zy-field-input{resize:vertical;min-height:60px;font-size:13px;line-height:1.6;}
-    .zy-seg-control{display:flex;gap:3px;background:#F7F5F0;border-radius:9px;padding:3px;margin-bottom:8px;}
-    .zy-seg-btn{flex:1;padding:6px 6px;border-radius:7px;border:none;background:transparent;font-size:11.5px;color:#9AA0A6;cursor:pointer;transition:all .15s;font-family:inherit;font-weight:500;display:flex;align-items:center;justify-content:center;gap:3px;}
-    .zy-seg-btn:hover{color:#5C6370;}
-    .zy-seg-btn.active{background:#FDFDFC;color:#0E7A4E;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(14,122,78,.08);}
+    .zy-seg-control{display:flex;gap:3px;background:var(--zy-bg-2);border-radius:9px;padding:3px;margin-bottom:8px;}
+    .zy-seg-btn{flex:1;padding:6px 6px;border-radius:7px;border:none;background:transparent;font-size:11.5px;color:var(--zy-text-3);cursor:pointer;transition:all .15s;font-family:inherit;font-weight:500;display:flex;align-items:center;justify-content:center;gap:3px;}
+    .zy-seg-btn:hover{color:var(--zy-text-2);}
+    /* R77（C2）：分段选中态改中性 */
+    .zy-seg-btn.active{background:var(--zy-bg);color:var(--zy-text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px var(--zy-border);}
     .zy-field-row{display:flex;gap:10px;}
     .zy-field-row .zy-field{flex:1;}
-    .zy-field-select{width:100%;border:1px solid #E8E5DE;border-radius:10px;padding:9px 12px;font-size:12.5px;color:#1A1D23;background:#FDFDFC;outline:none;font-family:inherit;cursor:pointer;transition:all .15s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239AA0A6' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;box-sizing:border-box;}
-    .zy-field-select:focus{border-color:#0E7A4E;box-shadow:0 0 0 3px rgba(14,122,78,.14);}
-    .zy-cur-src{margin-top:6px;font-size:11px;color:#5C6370;background:#F7F5F0;border:1px dashed #E8E5DE;border-radius:7px;padding:5px 9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .zy-cap-foot{display:flex;gap:10px;padding:12px 20px;border-top:1px solid #E8E5DE;background:#F7F5F0;}
+    .zy-field-select{width:100%;border:1px solid var(--zy-border);border-radius:10px;padding:9px 12px;font-size:12.5px;color:var(--zy-text);background:var(--zy-bg);outline:none;font-family:inherit;cursor:pointer;transition:all .15s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239AA0A6' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;box-sizing:border-box;}
+    .zy-field-select:focus{border-color:var(--zy-accent);box-shadow:0 0 0 3px var(--zy-accent-ring);}
+    .zy-cur-src{margin-top:6px;font-size:11px;color:var(--zy-text-2);background:var(--zy-bg-2);border:1px dashed var(--zy-border);border-radius:7px;padding:5px 9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .zy-cap-foot{display:flex;gap:10px;padding:12px 20px;border-top:1px solid var(--zy-border);background:var(--zy-bg-2);}
     .zy-btn{padding:8px 16px;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;border:1px solid transparent;display:inline-flex;align-items:center;gap:6px;}
-    .zy-btn-ghost{background:#FDFDFC;border-color:#E8E5DE;color:#5C6370;}
-    .zy-btn-ghost:hover{border-color:#D4D0C8;color:#1A1D23;}
-    .zy-btn-primary{background:#0E7A4E;color:#fff;border-color:#0E7A4E;margin-left:auto;box-shadow:0 1px 2px rgba(14,122,78,.2),0 4px 12px rgba(14,122,78,.15);}
-    .zy-btn-primary:hover{background:#0B6440;transform:translateY(-1px);}
+    .zy-btn-ghost{background:var(--zy-bg);border-color:var(--zy-border);color:var(--zy-text-2);}
+    .zy-btn-ghost:hover{border-color:var(--zy-border-strong);color:var(--zy-text);}
+    /* R77（C2）：主按钮是强调色的三处合法用法之一 */
+    .zy-btn-primary{background:var(--zy-accent);color:var(--zy-on-accent);border-color:var(--zy-accent);margin-left:auto;box-shadow:0 1px 2px rgba(0,0,0,.12),0 4px 12px rgba(0,0,0,.10);}
+    .zy-btn-primary:hover{filter:brightness(1.08);}
     .zy-btn-primary:active{transform:translateY(0);}
 
     /* 已保存状态条 */
     .zy-saved{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:56px 24px 48px;text-align:center;}
     .zy-saved-icon{width:52px;height:52px;border-radius:50%;background:#E4F2E8;color:#2E7D42;font-size:24px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:14px;animation:zyPop .35s cubic-bezier(.34,1.56,.64,1);}
     @keyframes zyPop{0%{transform:scale(.5);opacity:0}100%{transform:scale(1);opacity:1}}
-    .zy-saved-title{font-size:16px;font-weight:700;color:#1A1D23;margin-bottom:6px;}
-    .zy-saved-hint{font-size:13px;color:#0E7A4E;font-weight:600;}
-    .zy-saved-hint kbd,.zy-saved-sub kbd{background:#F7F5F0;border:1px solid #E8E5DE;border-radius:5px;padding:1px 7px;font-family:inherit;font-size:11px;color:#5C6370;}
-    .zy-saved-sub{font-size:11.5px;color:#9AA0A6;margin-top:4px;}
+    .zy-saved-title{font-size:16px;font-weight:700;color:var(--zy-text);margin-bottom:6px;}
+    /* R77（C2）：保存提示改中性（A3 将把它收窄为一行 toast） */
+    .zy-saved-hint{font-size:13px;color:var(--zy-text-2);font-weight:600;}
+    .zy-saved-hint kbd,.zy-saved-sub kbd{background:var(--zy-bg-2);border:1px solid var(--zy-border);border-radius:5px;padding:1px 7px;font-family:inherit;font-size:11px;color:var(--zy-text-2);}
+    .zy-saved-sub{font-size:11.5px;color:var(--zy-text-3);margin-top:4px;}
     .zy-saved-actions{display:flex;gap:10px;margin-top:20px;}
 
     /* 保存成功提示 */
-    .zy-toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(12px);background:#1A1D23;color:#fff;padding:10px 20px;border-radius:99px;font-size:13px;font-weight:500;z-index:2147483647;opacity:0;transition:all .25s cubic-bezier(.16,1,.3,1);pointer-events:none;box-shadow:0 8px 28px rgba(0,0,0,.2);display:flex;align-items:center;gap:8px;max-width:90vw;}
+    .zy-toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--zy-text);color:var(--zy-bg);padding:10px 20px;border-radius:99px;font-size:13px;font-weight:500;z-index:2147483647;opacity:0;transition:all .25s cubic-bezier(.16,1,.3,1);pointer-events:none;box-shadow:0 8px 28px rgba(0,0,0,.2);display:flex;align-items:center;gap:8px;max-width:90vw;}
     .zy-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
   `
   document.documentElement.appendChild(s)
+}
+
+// ============ R77（A1）：主题强调色注入 ============
+/**
+ * R77（A1）：四套主题的强调色——与 `shared/styles/tokens.css` 的 `[data-theme='*'] --accent` 一一对应。
+ * 浮层运行在宿主文档，取不到新标签页的 tokens.css，故在此维护映射并由 JS 注入 CSS 变量。
+ * ⚠ 回归断言 R77-3 锁定本表与 tokens.css 一致，改任一侧都必须同步另一侧。
+ * `on` = 主按钮文字色：珊瑚红（raycast）配白字对比度仅 2.9:1，改用深字达 4.8:1。
+ */
+const THEME_ACCENT: Record<string, { accent: string; on: string }> = {
+  linear: { accent: '#5E6AD2', on: '#FFFFFF' },
+  apple: { accent: '#0071E3', on: '#FFFFFF' },
+  raycast: { accent: '#FF6363', on: '#17181C' },
+  notion: { accent: '#2383E2', on: '#FFFFFF' }
+}
+/** 读取知源当前主题并注入强调色；宿主环境不可读 storage 时回落默认主题 linear */
+async function applyThemeAccent() {
+  const root = document.getElementById(ROOT_ID)
+  if (!root) return
+  let theme = 'linear'
+  try {
+    const r = await chrome.storage.local.get('zy_ui_v2')
+    const t = (r?.zy_ui_v2 as { theme?: string } | undefined)?.theme
+    if (t && THEME_ACCENT[t]) theme = t
+  } catch { /* 无 storage 权限或尚未初始化：回落默认主题 */ }
+  const c = THEME_ACCENT[theme] || THEME_ACCENT.linear!
+  root.style.setProperty('--zy-accent', c.accent)
+  root.style.setProperty('--zy-on-accent', c.on)
 }
 
 // ============ 根容器 ============
@@ -218,6 +272,7 @@ function ensureRoot(): HTMLElement {
 function openOverlay(mode: 'center' | 'corner', onScrimClick?: () => void) {
   injectStyles() // V2.21：样式注入收敛到真正渲染浮层时（幂等），页面加载期不再触碰 DOM
   const root = ensureRoot()
+  void applyThemeAccent() // R77（A1）：强调色取知源当前主题（异步读 storage，不阻塞渲染）
   root.className = mode === 'center' ? 'center open' : 'corner open'
   root.innerHTML = ''
   if (onScrimClick) {
@@ -454,7 +509,8 @@ function hl(title: string): string {
   if (!q) return esc
   const i = esc.toLowerCase().indexOf(q.toLowerCase())
   if (i < 0) return esc
-  return esc.slice(0, i) + '<mark class="zy-hl" style="background:rgba(94,106,210,.32);color:#1A1D23;border-radius:3px;">' + esc.slice(i, i + q.length) + '</mark>' + esc.slice(i + q.length)
+  // R77（A1）：高亮底改用当前主题强调色、文字用主题文字色（原先写死成 linear 主题的那两个色值）
+  return esc.slice(0, i) + '<mark class="zy-hl" style="background:color-mix(in srgb, var(--zy-accent) 32%, transparent);color:var(--zy-text);border-radius:3px;">' + esc.slice(i, i + q.length) + '</mark>' + esc.slice(i + q.length)
 }
 
 // REQ-031 P-031-1：搜索关联 Map 化——一次遍历构建 ws/cat/project 名称 Map + 策展台卡数累加，查找 O(1)
@@ -1246,7 +1302,7 @@ async function openTaskCapture() {
     await saveData(d2)
     panel.innerHTML = `
       <div class="zy-saved">
-        <div class="zy-saved-icon" style="background:#E8F5EE;color:#0E7A4E;">⚡</div>
+        <div class="zy-saved-icon">⚡</div>
         <div class="zy-saved-title">任务已保存</div>
         <div class="zy-saved-sub">${task.projectId ? '已挂项目/指标 · 全域任务统一管理' : '暂为未归档任务 · 可随时在方向台归档'}</div>
         <div class="zy-saved-sub">按 <kbd>Esc</kbd> 关闭 · 5 秒后自动关闭</div>
