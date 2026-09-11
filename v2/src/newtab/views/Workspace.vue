@@ -226,6 +226,9 @@
                   <div class="rc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</div>
                   <!-- R73-S3：镜像到策展台（仅资源台真身卡；镜像卡为引用，源头在资源台，故不提供） -->
                   <div v-if="isHub && !isMirrorView(r)" class="rc-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</div>
+                  <!-- R82（R4）：挂载到任务——写在 task.mountedResourceIds 上，不碰资源卡（单向挂载红线）。
+                       镜像卡不给入口：它是策展台里的只读引用，写动作一律回落资源台真身卡（R61/R79 口径）。 -->
+                  <div v-if="!isMirrorView(r)" class="rc-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</div>
                   <div class="rc-action delete" @click.stop="deleteResource(r)" title="删除">🗑</div>
                 </div>
                 <div class="rc-fields">
@@ -285,6 +288,7 @@
                   <span class="rr-action" :class="{on: r.starred}" @click.stop="toggleStar(r)" :title="r.starred?'取消星标':'星标'">⭐</span>
                   <span class="rr-action" @click.stop="openMoveOne(r)" title="移动分类">📂</span>
                   <span v-if="isHub && !isMirrorView(r)" class="rr-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</span>
+                  <span v-if="!isMirrorView(r)" class="rr-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</span>
                   <span class="rr-action delete" @click.stop="deleteResource(r)" title="删除">🗑</span>
                 </span>
               </div>
@@ -313,6 +317,7 @@
                   <span class="kc-action" :class="{on: r.starred}" @click.stop="toggleStar(r)" :title="r.starred?'取消星标':'星标'">⭐</span>
                   <span class="kc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</span>
                   <span v-if="isHub && !isMirrorView(r)" class="kc-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</span>
+                  <span v-if="!isMirrorView(r)" class="kc-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</span>
                   <span class="kc-action delete" title="删除" @click.stop="deleteResource(r)">🗑</span>
                 </div>
                 <div class="kc-card-title">
@@ -574,6 +579,33 @@
       </div>
     </div>
 
+    <!-- R82（R4）：挂载到任务弹窗——搜索 + 最近任务，点一下即挂载/取消（多选切换即生效） -->
+    <div class="modal-overlay" :class="{open: mountOneOpen}" @click.self="closeMountOne">
+      <div class="modal" style="width:420px">
+        <div class="modal-header">
+          <span style="font-size:16px">📋</span>
+          <span class="mh-title">挂载「{{ mountTarget?.title.slice(0, 16) }}…」到任务</span>
+          <div class="modal-close" @click="closeMountOne">×</div>
+        </div>
+        <div class="modal-body">
+          <input type="text" class="ws-modal-input" v-model="mountSearch" placeholder="🔍 搜索任务…" @keydown.enter.prevent />
+          <div class="mt-list">
+            <div v-for="t in mountTaskOptions" :key="t.id" class="mt-item" :class="{on: isMountedOn(t)}"
+              @click="toggleMountTask(t)" :title="isMountedOn(t) ? '点击取消挂载' : '点击挂载'">
+              <span class="mt-mark">{{ isMountedOn(t) ? '✓' : '＋' }}</span>
+              <span class="mt-title">{{ t.title }}</span>
+              <span v-if="mountProjectName(t)" class="mt-proj">{{ mountProjectName(t) }}</span>
+            </div>
+            <div v-if="!mountTaskOptions.length" class="mt-empty">没有匹配的任务</div>
+          </div>
+        </div>
+        <div class="modal-footer-row">
+          <span class="mt-hint">单向挂载 · 点条目即生效</span>
+          <button class="dr-footer-btn primary" @click="closeMountOne">✓ 完成</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 第八轮：分类新建/重命名弹窗 -->
     <div class="modal-overlay" :class="{open: catModal.open}" @click.self="catModal.open=false">
       <div class="modal" style="width:380px">
@@ -707,6 +739,7 @@ defineOptions({ name: 'WorkspaceView' })
 import { ref, computed, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
+import { useCompass } from '@/newtab/stores/compass'
 import { recordResourceOpen, recordWorkspaceOpen } from '@/shared/storage/stats'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
@@ -737,6 +770,8 @@ const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
 const d = computed(() => store.data!)
+/** R82（R4）：取项目扁平表（任务的项目名展示）——与方向台共用 useCompass 的口径 */
+const { allProjects } = useCompass()
 
 const workspaceId = computed(() => route.params.id as string)
 // R65-F7：KeepAlive 缓存实例——切换不同策展台（:id 变化）时复位本台局部状态，防上一台残留
@@ -1306,6 +1341,8 @@ function openResCtx(e: MouseEvent, r: ResourceCard) {
       { label: '打开链接', icon: 'arrowright', cb: () => openResourceLink(r) },
       { label: '复制链接', icon: 'copy', cb: () => { if (r.link) { navigator.clipboard.writeText(r.link); showToast('✓ 链接已复制') } } },
       { label: '移动分类', icon: 'folder', cb: () => openMoveOne(r) },
+      // R82（R4）：挂载到任务——与动作条同一入口的两条路径之一。镜像分支不提供（只读引用）。
+      { label: mountedTaskCount(r) ? `挂载到任务（已挂 ${mountedTaskCount(r)}）` : '挂载到任务…', icon: 'clipboard', cb: () => openMountOne(r) },
       { label: r.pinned ? '取消置顶' : '置顶', icon: 'pin', cb: () => togglePin(r) },
       // R62-3：中心论点（每台一张；设立即替换旧论点）
       r.isThesis
@@ -1920,6 +1957,68 @@ function confirmMoveOne() {
   store.persist()
   moveOneOpen.value = false
   showToast('✓ 已移动分类')
+}
+
+// ===== R82（R4）：挂载到任务（资源卡侧发起端） =====
+/**
+ * ★ 单向挂载红线：只写 `task.mountedResourceIds`，**资源卡零新增反向字段**。
+ * 资源卡侧要知道"被哪些任务挂着"一律**反查** d.tasks（与 ResourceEditForm.vue:52 同款），
+ * 不落任何缓存副本——反查同一份数据 ⇒ 任务侧与资源卡侧计数天然同步。
+ */
+const mountOneOpen = ref(false)
+const mountSearch = ref('')
+let mountTarget: ResourceCard | null = null
+/** 反查：该资源被多少个未软删任务挂载（不新增反向字段） */
+function mountedTaskCount(r: ResourceCard): number {
+  return d.value.tasks.filter(t => !t.deletedAt && (t.mountedResourceIds || []).includes(r.id)).length
+}
+function isMountedOn(t: TaskCard): boolean {
+  const rid = mountTarget?.id
+  return !!rid && (t.mountedResourceIds || []).includes(rid)
+}
+/** 选择器数据源：未软删 → 关键词过滤 → 已挂载优先 → 最近更新在前 → 上限 50 */
+const mountTaskOptions = computed<TaskCard[]>(() => {
+  const kw = mountSearch.value.trim().toLowerCase()
+  const rid = mountTarget?.id || ''
+  return d.value.tasks
+    .filter(t => !t.deletedAt)
+    .filter(t => !kw || (t.title || '').toLowerCase().includes(kw))
+    .slice()                                   // computed 禁就地 sort：先复制
+    .sort((a, b) => {
+      const ma = (a.mountedResourceIds || []).includes(rid) ? 0 : 1
+      const mb = (b.mountedResourceIds || []).includes(rid) ? 0 : 1
+      if (ma !== mb) return ma - mb
+      return (b.updatedAt || 0) - (a.updatedAt || 0)
+    })
+    .slice(0, 50)
+})
+function mountProjectName(t: TaskCard): string {
+  // 项目挂在 compass.directions[].projects 下（无扁平表），走 useCompass 的 allProjects——
+  // 与方向台共用同一份扁平化口径，不在此处另写一遍 flatMap
+  const p = allProjects().find(x => x.id === t.projectId)
+  return p ? `项目·${p.name}` : ''
+}
+function openMountOne(r: ResourceCard) {
+  if (isMirrorView(r)) { showToast('📡 镜像卡为引用——挂载请在资源台操作'); return }
+  mountTarget = r
+  mountSearch.value = ''
+  mountOneOpen.value = true
+}
+/** 多选切换即生效：点一下挂载、再点一下取消（与任务侧 TaskDetailDrawer 挂载 UI 对称） */
+function toggleMountTask(t: TaskCard) {
+  const rid = mountTarget?.id
+  if (!rid) return
+  const arr = t.mountedResourceIds || []
+  // 整体替换而非 push —— 直接改数组元素的部分路径不触发响应式
+  t.mountedResourceIds = arr.includes(rid) ? arr.filter(x => x !== rid) : [...arr, rid]
+  t.updatedAt = Date.now()
+  store.persist()
+}
+function closeMountOne() {
+  const n = mountTarget ? mountedTaskCount(mountTarget) : 0
+  mountOneOpen.value = false
+  mountTarget = null
+  if (n) showToast(`✓ 已挂载 ${n} 个任务`)
 }
 
 // ===== 通用输入弹窗（第八轮：策展台重命名/描述，替代原生 prompt） =====
@@ -2909,6 +3008,8 @@ function linkDisplay(link: string) {
 .rr-action { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: 12px; color: var(--text-3); cursor: pointer; transition: all .1s; }
 .rr-action:hover { background: var(--surface-3); color: var(--text); }
 .rr-action.delete:hover { color: var(--danger); }
+/* R82（R4）：📋 挂载的已挂载态——用强调色，与 ⭐ 的金色区分；三视图同一表现，样式全走 tokens */
+.rc-action.mount.on, .rr-action.mount.on, .kc-action.mount.on { color: var(--accent); background: var(--accent-light); }
 /* 第卅三轮 REQ-020：列表行星标高亮 + 卡片操作区星标高亮 */
 .rr-action.on, .rc-action.on { color: #d99a1e; }
 .rc-action.on { background: color-mix(in srgb, #f5b942 14%, transparent); }
@@ -2984,6 +3085,17 @@ function linkDisplay(link: string) {
 .modal-option .mo-icon { font-size: 20px; }
 .modal-option .mo-name { font-size: 13px; font-weight: 500; color: var(--text); }
 .modal-option .mo-desc { font-size: 10.5px; color: var(--text-3); margin-top: 2px; line-height: 1.5; }
+/* R82（R4）：挂载任务选择器——与任务侧 TaskDetailDrawer 的挂载列表同构（✓/＋ 切换） */
+.mt-list { margin-top: 10px; max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.mt-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: all .12s; }
+.mt-item:hover { border-color: var(--accent); background: var(--accent-light); }
+.mt-item.on { border-color: var(--accent); background: var(--accent-light); }
+.mt-mark { flex-shrink: 0; width: 16px; font-size: 12px; color: var(--text-3); text-align: center; }
+.mt-item.on .mt-mark { color: var(--accent); }
+.mt-title { flex: 1; min-width: 0; font-size: 12.5px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-proj { flex-shrink: 0; font-size: 10.5px; color: var(--text-3); }
+.mt-empty { padding: 18px; text-align: center; font-size: 12px; color: var(--text-3); }
+.mt-hint { flex: 1; font-size: 11px; color: var(--text-3); line-height: 1; align-self: center; }
 
 /* R73-S2：书签导入文件夹选择（自 CurationCenter 迁入） */
 .bk-hint { font-size: 11.5px; color: var(--text-3); line-height: 1.7; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; margin-bottom: 8px; }
