@@ -84,6 +84,12 @@
 
     <!-- 设置下拉菜单（固定定位，避免被 hero 圆角裁剪） -->
     <div class="settings-menu" :class="{open: settingsMenuOpen}" @click.stop>
+      <!-- R88（W6）：「⬇ 导入」自工具条收进此处，并**按台身份改名**消歧义——
+           同一个「导入」二字在两台其实是两回事（资源台=导入资源，策展台=导入策展台数据包） -->
+      <div class="sm-item" @click="openImport">{{ isHub ? '⬇ 导入资源' : '⬇ 导入数据包' }}</div>
+      <!-- 批量管理的入口也收进此处；**退出**仍留在一级（批量中显示「✓ 完成批量」） -->
+      <div v-if="!batchMode" class="sm-item" @click="toggleBatchMode">☑ 批量管理</div>
+      <div class="sm-divider"></div>
       <div class="sm-item" @click="renameWs">✏️ 重命名</div>
       <div class="sm-item" @click="editDesc">📝 编辑描述</div>
       <div class="sm-item" @click="toggleIconPick($event)">🎨 更换图标</div>
@@ -102,48 +108,78 @@
         <!-- R62-5：金字塔结构视图 -->
         <div class="view-tab" :class="{active: viewMode==='pyramid'}" @click="setViewMode('pyramid')">⬡ 金字塔</div>
       </div>
-      <!-- R87（R5-①）：补「调用最多」档（callCount 降序）——数据早已在维护（三视图 footer 的 🔥N），缺的只是排序出口 -->
-      <select class="toolbar-select" v-model="sortBy">
-        <option value="manual">手动拖拽</option>
-        <option value="recent">最近添加</option>
-        <option value="visited">最近访问</option>
-        <option value="hot">调用最多</option>
-        <option value="title">标题 A-Z</option>
-      </select>
-      <!-- 第卅二轮 REQ-007：时间排序方向切换（默认倒序，偏好本地记忆） -->
-      <button v-if="sortBy==='recent' || sortBy==='visited'" class="toolbar-select sort-dir-btn" :title="sortDir==='desc' ? '当前倒序（新→旧），点击切换正序' : '当前正序（旧→新），点击切换倒序'" @click="toggleSortDir">{{ sortDir==='desc' ? '↓ 新→旧' : '↑ 旧→新' }}</button>
-      <!-- R87（R5-②）：筛选扩为两组 8 档——原四档是 linkType 维度，新四档是语义谓词维度，
-           不同维度不能塞进同一个 === 判定，故下方 filteredResources 改为谓词表 -->
-      <select class="toolbar-select" v-model="filterBy">
-        <optgroup label="按链接类型">
-          <option value="all">全部</option>
-          <option value="url">URL链接</option>
-          <option value="file">本地文件</option>
-          <option value="obsidian">Obsidian</option>
-        </optgroup>
-        <optgroup label="按状态">
-          <option value="hasLink">有链接</option>
-          <option value="brokenPath">⚠ 待补全路径</option>
-          <option value="hasAssets">有附件</option>
-          <option value="unmounted">未挂载任务</option>
-        </optgroup>
-      </select>
-      <!-- 第卅三轮 REQ-026：密度档位（紧凑/舒适，记忆 UIPrefs.density） -->
-      <select class="toolbar-select" v-model="density" :title="'密度档位：' + (density === 'compact' ? '紧凑' : '舒适')">
-        <option value="cozy">舒适密度</option>
-        <option value="compact">紧凑密度</option>
-      </select>
-      <!-- R72：卡片视图横向列数（4/5/6/7，仅卡片视图出现） -->
-      <ColsPicker v-if="viewMode==='card'" v-model="resCols" label="列数" />
       <div class="toolbar-search">
         <span class="s-icon">🔍</span>
         <input type="text" v-model="searchQuery" placeholder="搜索策展台内资源...">
       </div>
-      <button class="toolbar-batch" :class="{active: batchMode}" @click="toggleBatchMode">{{ batchMode ? '✓ 完成批量' : '☑ 批量管理' }}</button>
-      <!-- R64-F13：hero 删除后按钮上移工具条 -->
-      <button class="hero-btn primary" @click="importModalOpen = true">⬇ 导入</button>
-      <button class="hero-btn ghost" @click="openNewResource">＋ 新建</button>
-      <button class="hero-btn settings" title="策展台设置" @click.stop="settingsMenuOpen = !settingsMenuOpen">⚙</button>
+      <!-- R88（W3）：工具条分级——一级只留「视图 Tab ｜ 搜索 ｜ 筛选 ｜ ＋新建 ｜ ⚙」。
+           排序(+方向) / 类型筛选 / 密度 / 列数 是"改看法"的，全部收进下面的「筛选」气泡；
+           低频的导入与批量管理收进 ⚙。改前这一行堆了 11 个控件，主次不分。 -->
+      <div class="filter-wrap">
+        <button class="toolbar-filter" :class="{on: filterSummary.length}" :title="filterPopTitle"
+          @click.stop="toggleFilterPop">
+          <span class="tf-main">🔣 筛选</span>
+          <template v-if="filterSummary.length">
+            <span v-for="s in filterSummary.slice(0, 2)" :key="s" class="tf-chip">{{ s }}</span>
+            <span v-if="filterSummary.length > 2" class="tf-chip more">+{{ filterSummary.length - 2 }}</span>
+          </template>
+        </button>
+        <!-- 气泡：相对定位（.ws-page / .ws-toolbar 均无 overflow:hidden），会跟随触发按钮——
+             比写死 right 的 fixed 定位更健壮（筛选按钮宽度随徽标变化） -->
+        <div class="filter-pop" :class="{open: filterPopOpen}" @click.stop>
+          <div class="fp-row">
+            <span class="fp-label">排序</span>
+            <select class="toolbar-select" v-model="sortBy">
+              <option value="manual">手动拖拽</option>
+              <option value="recent">最近添加</option>
+              <option value="visited">最近访问</option>
+              <option value="hot">调用最多</option>
+              <option value="title">标题 A-Z</option>
+            </select>
+            <!-- 第卅二轮 REQ-007：时间排序方向切换（默认倒序，偏好本地记忆） -->
+            <button v-if="sortBy==='recent' || sortBy==='visited'" class="toolbar-select sort-dir-btn" :title="sortDir==='desc' ? '当前倒序（新→旧），点击切换正序' : '当前正序（旧→新），点击切换倒序'" @click="toggleSortDir">{{ sortDir==='desc' ? '↓ 新→旧' : '↑ 旧→新' }}</button>
+          </div>
+          <div class="fp-row">
+            <span class="fp-label">类型</span>
+            <!-- R87（R5-②）：8 档分两组——原四档是 linkType 维度，新四档是语义谓词维度 -->
+            <select class="toolbar-select" v-model="filterBy">
+              <optgroup label="按链接类型">
+                <option value="all">全部</option>
+                <option value="url">URL链接</option>
+                <option value="file">本地文件</option>
+                <option value="obsidian">Obsidian</option>
+              </optgroup>
+              <optgroup label="按状态">
+                <option value="hasLink">有链接</option>
+                <option value="brokenPath">⚠ 待补全路径</option>
+                <option value="hasAssets">有附件</option>
+                <option value="unmounted">未挂载任务</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="fp-row">
+            <span class="fp-label">密度</span>
+            <!-- 第卅三轮 REQ-026：密度档位（紧凑/舒适，记忆 UIPrefs.density） -->
+            <select class="toolbar-select" v-model="density" :title="'密度档位：' + (density === 'compact' ? '紧凑' : '舒适')">
+              <option value="cozy">舒适密度</option>
+              <option value="compact">紧凑密度</option>
+            </select>
+          </div>
+          <!-- R72：卡片视图横向列数（4/5/6/7）——W3 要求列数选择器一并收进「筛选」气泡 -->
+          <div v-if="viewMode==='card'" class="fp-row">
+            <span class="fp-label">列数</span>
+            <ColsPicker v-model="resCols" label="列数" />
+          </div>
+          <div class="fp-foot">
+            <span class="fp-reset" @click="resetAllFilters">重置全部</span>
+          </div>
+        </div>
+      </div>
+      <!-- R88（W3）：批量模式激活时**必须**在一级留退出按钮——.batch-bar 浮动栏的条件是
+           batchMode && selectedIds.size，一张都没选时它不出现，此时这里是唯一退出通道 -->
+      <button v-if="batchMode" class="toolbar-batch active" @click="toggleBatchMode">✓ 完成批量</button>
+      <button class="hero-btn primary" @click="openNewResource">＋ 新建</button>
+      <button class="hero-btn settings" title="策展台设置" @click.stop="toggleSettingsMenu">⚙</button>
     </div>
 
     <!-- ③ 资源策展区 -->
@@ -800,7 +836,7 @@ import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import { markRank } from '@/shared/utils/marksort'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
-import { useCardCols } from '@/shared/utils/cardCols'
+import { useCardCols, CARD_COLS_DEFAULT } from '@/shared/utils/cardCols'
 import { readWsView, writeWsView } from '@/shared/utils/wsView'
 import { CURATION_WS_ID, type AppData, type ResourceCard, type Category, type Workspace, type TaskCard, type FieldDef, type AssetMeta } from '@/shared/models'
 import { boardCardsOf, isMirrorView, removeProjection, curationMetrics, setThesis, mirrorCategoryToBoard, canMountInNode, isHubWs, projectCardToBoard, curationBoards, type MirrorView } from '@/shared/storage/hub'
@@ -1121,6 +1157,44 @@ function resetFilters() {
   filterBy.value = 'all'
   searchQuery.value = ''
   debouncedQuery.value = ''
+}
+
+// ===== R88（W3）：工具条分级——「筛选」气泡与生效值徽标 =====
+const filterPopOpen = ref(false)
+function toggleFilterPop() {
+  const next = !filterPopOpen.value
+  settingsMenuOpen.value = false        // 与 ⚙ 互斥
+  filterPopOpen.value = next
+}
+function closeFilterPop() { filterPopOpen.value = false }
+/** 排序档位的中文标签（生效值徽标与气泡共用；与 SORT_BY_KEYS 同序） */
+const SORT_LABELS: Record<string, string> = {
+  manual: '手动拖拽', recent: '最近添加', visited: '最近访问', hot: '调用最多', title: '标题 A-Z'
+}
+/**
+ * 当前**非默认**的视图设置（W3 的「生效值徽标」）。
+ * 全默认时返回空数组 ⇒ 按钮上不挂任何 chip（没有筛选时不喧哗）。
+ */
+const filterSummary = computed<string[]>(() => {
+  const out: string[] = []
+  if (sortBy.value !== 'manual') out.push(SORT_LABELS[sortBy.value] || sortBy.value)
+  if (filterBy.value !== 'all') out.push(filterLabel.value)
+  if (density.value !== 'cozy') out.push('紧凑')
+  // 列数只在卡片视图出现，非卡片视图时不该算作"生效中"
+  if (viewMode.value === 'card' && resCols.value !== CARD_COLS_DEFAULT.res) out.push(resCols.value + ' 列')
+  return out
+})
+/** 徽标挤不下时的兜底：hover 给出全部生效值 */
+const filterPopTitle = computed(() => filterSummary.value.length
+  ? '当前生效：' + filterSummary.value.join(' · ') + '（点击展开筛选面板）'
+  : '排序 · 类型筛选 · 密度 · 列数（点击展开筛选面板）')
+/** 气泡底部的「重置全部」：四项回默认，并清空搜索 */
+function resetAllFilters() {
+  sortBy.value = 'manual'
+  filterBy.value = 'all'
+  density.value = 'cozy'
+  resCols.value = CARD_COLS_DEFAULT.res
+  resetFilters()
 }
 /** R87（R7）：链接三态的卡片级封装——三视图徽标、筛选、双击 toast 共用同一个判据 */
 function isBrokenPath(r: ResourceCard): boolean {
@@ -1945,8 +2019,9 @@ function onUncatDrop(e: DragEvent) {
   onDropToCategory(e, '')
 }
 function clearCardDropTarget() { cardDropTarget.value = '' }
-onMounted(() => { applyWsView(); window.addEventListener('dragend', clearCardDropTarget); document.addEventListener('click', closeSettingsMenu); window.addEventListener('resize', pyLinksThrottled); nextTick(drawPyLinks) })
-onUnmounted(() => { window.removeEventListener('dragend', clearCardDropTarget); window.removeEventListener('resize', pyLinksThrottled) })
+onMounted(() => { applyWsView(); window.addEventListener('dragend', clearCardDropTarget); document.addEventListener('click', closeSettingsMenu); document.addEventListener('click', closeFilterPop); window.addEventListener('resize', pyLinksThrottled); nextTick(drawPyLinks) })
+// R88（W3）：筛选气泡与 ⚙ 菜单同为"点外部关闭"的浮层，卸载时一并摘掉监听
+onUnmounted(() => { window.removeEventListener('dragend', clearCardDropTarget); window.removeEventListener('resize', pyLinksThrottled); document.removeEventListener('click', closeSettingsMenu); document.removeEventListener('click', closeFilterPop) })
 // R65-F7：resize 重绘节流（150ms 尾随，防拖拽窗口时高频全量重算）
 let pyLinksTimer: ReturnType<typeof setTimeout> | null = null
 function pyLinksThrottled() {
@@ -2758,6 +2833,17 @@ async function handleFileImport(e: Event) {
 // ===== 设置菜单 =====
 const settingsMenuOpen = ref(false)
 function closeSettingsMenu() { settingsMenuOpen.value = false }
+/** R88（W3）：⚙ 与「筛选」气泡互斥——两个都是点击外部关闭的浮层，同时开只会互相遮挡 */
+function toggleSettingsMenu() {
+  const next = !settingsMenuOpen.value
+  filterPopOpen.value = false
+  settingsMenuOpen.value = next
+}
+/** R88（W6）：导入弹窗（自工具条收进 ⚙ 后，入口与弹窗标题同为 mode-aware） */
+function openImport() {
+  settingsMenuOpen.value = false
+  importModalOpen.value = true
+}
 
 // ===== 设置菜单关闭 + 采集跳转高亮 =====
 const highlightId = ref<string | null>(null)
@@ -3012,6 +3098,24 @@ function linkDisplay(link: string) {
 .toolbar-batch { padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; white-space: nowrap; }
 .toolbar-batch:hover { border-color: var(--accent); color: var(--accent); }
 .toolbar-batch.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+/* R88（W3）：筛选触发按钮 + 气泡（一级只留这一颗，其余四项收进气泡） */
+.filter-wrap { position: relative; display: flex; align-items: center; }
+.toolbar-filter { display: flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; white-space: nowrap; }
+.toolbar-filter:hover { border-color: var(--accent); color: var(--accent); }
+.toolbar-filter.on { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.tf-main { flex-shrink: 0; }
+.tf-chip { font-size: 9.5px; padding: 1px 5px; border-radius: 99px; background: var(--surface-3); color: var(--text-3); max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toolbar-filter.on .tf-chip { background: var(--surface); color: var(--accent); }
+.tf-chip.more { font-weight: 600; }
+/* 气泡用相对定位（.ws-page / .ws-toolbar 均无 overflow:hidden），跟随触发按钮 */
+.filter-pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; min-width: 268px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 36px rgba(0,0,0,.12); padding: 10px 12px; display: none; flex-direction: column; gap: 9px; }
+.filter-pop.open { display: flex; }
+.fp-row { display: flex; align-items: center; gap: 8px; }
+.fp-label { width: 28px; flex-shrink: 0; font-size: 10.5px; color: var(--text-3); }
+.fp-row .toolbar-select { flex: 1; min-width: 0; }
+.fp-foot { display: flex; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 7px; }
+.fp-reset { font-size: 11px; color: var(--text-3); cursor: pointer; }
+.fp-reset:hover { color: var(--accent); }
 
 /* Body */
 .ws-body { display: flex; min-height: calc(100vh - 52px - 170px - 47px); }
