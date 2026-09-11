@@ -18,7 +18,7 @@ import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 const router = useRouter()
 const route = useRoute()
 const store = useAppStore()
-const { d, visionText, missionText, allProjects, projectProgress, toggleFocusProject, isProjectDone } = useCompass()
+const { d, visionText, missionText, allProjects, projectProgress, toggleFocusProject, addProjectToDir, isProjectDone } = useCompass()
 
 // ---- R54-A1：来源感知返回（?from=proj&p= → 项目详情；默认方向台）+ A3 定位 + A4 Esc ----
 const fromProjId = computed(() => route.query.from === 'proj' && typeof route.query.p === 'string' ? route.query.p : '')
@@ -176,20 +176,18 @@ function addDirection() {
   showToast('✓ 战略目标已创建，点击标题编辑')
 }
 
+/**
+ * R85（T0-B）：改调共享 `addProjectToDir`——改前这里**缺 `pinned` 与 `order`**，
+ * 导致方向树新建的项目在主航线排序（`chipsOf` 的 `a.order ?? 999`）里永远排在最后。
+ * 「新攻坚项目」这个默认名是方向树的既有行为，保留（改名属范围外）。
+ */
 function addProject(dirId: string) {
-  const dir = d.value.compass.directions.find(x => x.id === dirId)
-  if (!dir) return
-  const proj: Project = {
-    id: uid('proj'),
-    name: '新攻坚项目',
-    isFocused: false,
-    progress: 0,
-    status: 'active',
-    metrics: []
-  }
-  dir.projects.push(proj)
-  store.persist()
-  showToast('✓ 项目已创建')
+  const proj = addProjectToDir(dirId, '新攻坚项目')
+  if (proj) showToast('✓ 项目已创建')
+}
+/** R85（T0-A）：store 现返回结构化结果（超限会被拒绝），由调用方 toast——方向树此前无任何提示 */
+function onToggleFocus(id: string) {
+  showToast(toggleFocusProject(id).msg)
 }
 
 function addMetric(projId: string) {
@@ -586,7 +584,7 @@ onUnmounted(() => {
                       <div class="node-top">
                         <span v-if="proj.isFocused" class="primary-badge">主攻</span>
                         <span class="node-tag proj-tag">PROJECT</span>
-                        <button class="focus-btn" :class="{on: proj.isFocused}" @click.stop="toggleFocusProject(proj.id)"
+                        <button class="focus-btn" :class="{on: proj.isFocused}" @click.stop="onToggleFocus(proj.id)"
                           :title="proj.isFocused ? '主攻项目（再次点击取消）——主攻项目在列表置前并以强调色区分' : '设为主攻项目——列表置前并以强调色区分'">🎯 主攻</button>
                       </div>
                       <div class="node-title editable"

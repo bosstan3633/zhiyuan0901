@@ -10,14 +10,16 @@
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useCompass } from '../../stores/compass'
+import { useCompass, FOCUS_PROJECT_LIMIT } from '../../stores/compass'
 import { useAppStore } from '../../stores/app'
 import { saveUIPrefs } from '@/shared/storage/repository'
+import { showToast } from '@/shared/components/toast'
 import ModuleCard from '@/shared/components/ModuleCard.vue'
 import type { Project } from '@/shared/models'
 
 const router = useRouter()
-const { d, visionText, missionText, allProjects, projectProgress, isProjectStalled, isProjectDone } = useCompass()
+const { d, visionText, missionText, allProjects, projectProgress, isProjectStalled, isProjectDone,
+  focusedProjects, toggleFocusProject, addProjectToDir } = useCompass()
 const store = useAppStore()
 
 // ---- 显隐开关（C6 三处同步） ----
@@ -102,6 +104,30 @@ function openProject(p: Project) {
   router.push({ path: '/compass/projects', query: { p: p.id } })
 }
 function openTree() { router.push('/compass/tree') }
+
+/** R85（M5-②）：项目小卡 hover 的「🎯 设为主攻」——store 返回结构化结果（超限会被拒绝），由调用方 toast */
+function onToggleFocus(p: Project) {
+  showToast(toggleFocusProject(p.id).msg)
+}
+
+/**
+ * R85（M5-①）：目标卡底「＋ 新建项目」——**内联输入，不弹窗**。
+ * 弹窗是"管理"，内联输入是"预置"；且省掉一次与父组件 CompassShell 的跨组件通信
+ * （`openCreate` 弹窗在 CompassShell，子组件要点它得 emit）。预选该目标：直接挂到 dir.id 下。
+ * 创建走 `addProjectToDir`——四处新建出口共用的共享函数（R85 T0-B）。
+ */
+const addingDir = ref('')
+const addName = ref('')
+const vFocus = { mounted: (el: HTMLElement) => el.focus() }
+function startAdd(dirId: string) { addingDir.value = dirId; addName.value = '' }
+function cancelAdd() { addingDir.value = '' }
+function confirmAdd(dirId: string) {
+  const name = addName.value.trim()
+  if (!name) { cancelAdd(); return }
+  const proj = addProjectToDir(dirId, name)
+  cancelAdd()
+  if (proj) showToast(`✓ 项目「${name}」已创建`)
+}
 </script>
 
 <template>
@@ -124,6 +150,23 @@ function openTree() { router.push('/compass/tree') }
       <span class="mr-vm-go">进入方向树 ›</span>
     </div>
 
+    <!-- R85（M4）：主攻聚焦条——锚点条之下，横排全部主攻项目（跨目标一览 + 直达入口）。
+         改前 `focusedProjects` 这个 computed 已存在却**零消费**：主攻只在各目标卡内的 chip 上有 🎯 标记，
+         没有跨目标的一览。无主攻时给一行轻引导，并把「最多 2 个」的规则**说在前面**——
+         而不是等用户点下去才被拒。 -->
+    <div class="mr-focus-bar" :class="{ empty: !focusedProjects.length }">
+      <template v-if="focusedProjects.length">
+        <span class="mr-tier tier-focus">主攻</span>
+        <span v-for="p in focusedProjects" :key="p.id" class="fp-item" :class="{ done: projMeta.get(p.id)?.finished }"
+          :title="p.name + ' · 点击进入项目详情'" @click="openProject(p)">
+          <span class="fp-mark">🎯</span>
+          <span class="fp-name">{{ p.name }}</span>
+          <span class="fp-pct">{{ projMeta.get(p.id)?.pct || 0 }}%</span>
+        </span>
+      </template>
+      <span v-else class="fp-hint">🎯 尚无主攻项目 —— 在项目小卡上点「🎯」即可指定（最多 {{ FOCUS_PROJECT_LIMIT }} 个）</span>
+    </div>
+
     <!-- R57-F4：第二行 = 战略目标模块网格（模块内含项目小模块） -->
     <div class="mr-goals-grid">
       <div v-for="(dir, di) in d.compass.directions" :key="dir.id" class="mr-goal-card" :data-dir-id="dir.id">
@@ -134,6 +177,9 @@ function openTree() { router.push('/compass/tree') }
           <span class="mr-meta">项目 {{ projectsOf(di).length }}<template v-if="focusedOf(di)">（主攻 {{ focusedOf(di) }}）</template></span>
           <span v-if="dir.term" class="mgc-term">{{ termText(dir.term) }}</span>
           <span class="mgc-pct">{{ goalPct(di) }}%<span class="mgc-pct-tip" title="各项目进度的算术平均；项目有任务时 = 已完成任务 / 全部任务，无任务时取项目手动进度">ⓘ</span></span>
+          <!-- R85（M5-③）：目标卡 hover 的 ⋯ = 在完整方向树中打开——**把重操作导流出去**，
+               合 D-A 的「主航线 = 读为主」。不做目标管理菜单：CompassTree 已有完整目标级操作，不造第二套。 -->
+          <span class="mgc-more" title="在完整方向树中打开" @click="openTree">⋯</span>
         </div>
         <div class="mgc-projects">
           <!-- R83（M3）：一行光秃秃的名字 → 两行小卡（主攻/停滞 + 迷你进度条 + pct% · done/total） -->
@@ -143,6 +189,11 @@ function openTree() { router.push('/compass/tree') }
               <span v-if="p.isFocused" class="cp-mark" title="主攻项目">🎯</span>
               <span class="cp-name">{{ p.name }}</span>
               <span v-if="projMeta.get(p.id)?.stall" class="cp-flag" title="有任务但近 14 天无推进/完成活动">停滞</span>
+              <!-- R85（M5-②）：hover 才显的两个动作。常态 `display:none` ⇒ **零占位**，名字照常占满整行 -->
+              <span class="cp-acts">
+                <span class="cp-act" :title="p.isFocused ? '取消主攻' : '设为主攻（最多 ' + FOCUS_PROJECT_LIMIT + ' 个）'" @click.stop="onToggleFocus(p)">🎯</span>
+                <span class="cp-act" title="进入项目详情" @click.stop="openProject(p)">›</span>
+              </span>
             </span>
             <span class="cp-row cp-foot">
               <span class="cp-bar"><i :style="{ width: (projMeta.get(p.id)?.pct || 0) + '%' }" /></span>
@@ -150,7 +201,12 @@ function openTree() { router.push('/compass/tree') }
             </span>
           </span>
           <span v-if="moreOf(di)" class="chip-more" title="展开其余项目" @click="toggleMore(dir.id)">更多 {{ moreOf(di) }}</span>
-          <span v-if="!projectsOf(di).length" class="mgc-empty">暂无项目——去完整方向树创建</span>
+          <!-- R85（M5-①）：目标卡底「＋ 新建项目」——内联输入、预选该目标。
+               与 chips 同排（**零额外行高**）；创建走 `addProjectToDir`（四处出口共用的共享函数）。 -->
+          <input v-if="addingDir === dir.id" v-model="addName" v-focus class="chip-add-input" placeholder="项目名称，回车创建"
+            @keyup.enter="confirmAdd(dir.id)" @keyup.esc="cancelAdd" @blur="cancelAdd" />
+          <span v-else class="chip-add" title="在此目标下新建项目" @click="startAdd(dir.id)">＋ 新建项目</span>
+          <span v-if="!projectsOf(di).length" class="mgc-empty">暂无项目</span>
         </div>
       </div>
       <div v-if="!d.compass.directions.length" class="mr-empty" @click="openTree">还没有战略目标 → 去完整方向树创建</div>
@@ -183,6 +239,35 @@ function openTree() { router.push('/compass/tree') }
 .mr-vm-sep ~ .mr-vm-text { flex: 1; }
 .mr-vm-go { flex-shrink: 0; font-size: 10.5px; color: var(--accent); opacity: .8; white-space: nowrap; }
 .mr-vm-bar:hover .mr-vm-go { opacity: 1; text-decoration: underline; }
+
+/* R85（M4）：主攻聚焦条——锚点条之下，一行 ≤40px，横排全部主攻项目（跨目标一览 + 直达入口） */
+.mr-focus-bar { display: flex; align-items: center; gap: 8px; min-height: 34px; max-height: 40px; padding: 0 12px; margin-bottom: 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.mr-focus-bar.empty { border-style: dashed; }
+.tier-focus { background: var(--accent-light); color: var(--accent); }
+.fp-item { display: flex; align-items: center; gap: 5px; flex-shrink: 0; max-width: 240px; padding: 3px 10px; border-radius: 99px; background: var(--surface); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border)); color: var(--text); cursor: pointer; transition: all .12s; }
+.fp-item:hover { border-color: var(--accent); background: var(--accent-light); }
+/* 已完成的主攻仍要能看到（并可从聚焦条取消掉），只降透明度——对齐 .chip-proj.done 既有口径 */
+.fp-item.done { opacity: .55; }
+.fp-mark { flex-shrink: 0; font-size: 10px; }
+.fp-name { min-width: 0; font-size: 11.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-pct { flex-shrink: 0; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.fp-hint { font-size: 11.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* R85（M5-③）：目标卡 hover 的 ⋯——常态 display:none（零占位），hover 才出 */
+.mgc-more { display: none; flex-shrink: 0; padding: 0 4px; font-size: 14px; line-height: 1; color: var(--text-3); cursor: pointer; }
+.mr-goal-card:hover .mgc-more { display: block; }
+.mgc-more:hover { color: var(--accent); }
+
+/* R85（M5-②）：项目小卡 hover 动作——常态 display:none 零占位，hover 才 flex（名字自动收缩让位） */
+.cp-acts { display: none; gap: 2px; flex-shrink: 0; margin-left: auto; }
+.chip-proj:hover .cp-acts { display: flex; }
+.cp-act { flex-shrink: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 9.5px; color: var(--text-3); background: var(--surface-2); }
+.cp-act:hover { color: var(--accent); background: var(--accent-light); }
+
+/* R85（M5-①）：目标卡底「＋ 新建项目」——与 chips 同排的 dashed 小卡（对齐 .chip-more 既有观感） */
+.chip-add { font-size: 11px; padding: 4px 10px; border-radius: 8px; background: transparent; border: 1px dashed var(--border-strong); color: var(--text-3); cursor: pointer; white-space: nowrap; }
+.chip-add:hover { color: var(--accent); border-color: var(--accent); }
+.chip-add-input { width: 150px; min-width: 120px; font-family: inherit; font-size: 11.5px; padding: 4px 9px; border-radius: 8px; border: 1px solid var(--accent); background: var(--surface); color: var(--text); outline: none; }
 
 /* R57-F4：第二行 战略目标模块网格 */
 .mr-goals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; }

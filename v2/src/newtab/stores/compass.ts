@@ -1,6 +1,16 @@
 ﻿import { computed } from 'vue'
 import { useAppStore } from './app'
+import { uid } from '@/shared/utils'
 import type { Direction, Project } from '@/shared/models'
+
+/**
+ * R85（T0-A）：主攻项目上限。
+ * 同一口径的三处出处——models/index.ts:65「最多2个」、manual-data.ts:229「🎯 主攻（最多 2 个）」、
+ * 以及 ProjectCuration.vue 原先那句 toast。此前只有 ProjectCuration 一处校验，
+ * 而本 store 的 toggleFocusProject（方向树在用）直接翻转、零校验 ⇒ 方向树能设出任意多个主攻。
+ * 现把校验下沉到这里，三处出口共用。
+ */
+export const FOCUS_PROJECT_LIMIT = 2
 
 // B40：recordResourceOpen 已下沉至 shared/storage/stats（应用端与网页端共用同一实现）
 export { recordResourceOpen } from '@/shared/storage/stats'
@@ -69,9 +79,42 @@ export function useCompass() {
     allProjects().filter(p => p.isFocused && p.status !== 'archived')
   )
 
-  function toggleFocusProject(projectId: string) {
+  /**
+   * R85（T0-A）：切换主攻——**上限校验下沉到此处**，三处出口（方向树 / 项目策展页 / 主航线）共用。
+   * 改前直接翻转、零校验 ⇒ 方向树能设出任意多个主攻，违反 models「最多2个」与手册口径。
+   * ⚠ 存量已超上限的用户**不受阻断**：超限只拒绝新增，取消与查看一律正常（不强制裁剪）。
+   * 返回结构化结果由**调用方** toast——store 是数据层，不碰 UI。
+   */
+  function toggleFocusProject(projectId: string): { ok: boolean; msg: string } {
     const p = projectById(projectId)
-    if (p) { p.isFocused = !p.isFocused; store.persist() }
+    if (!p) return { ok: false, msg: '项目不存在' }
+    if (!p.isFocused) {
+      const others = allProjects().filter(x => x.isFocused && x.id !== p.id)
+      if (others.length >= FOCUS_PROJECT_LIMIT) {
+        return { ok: false, msg: `主攻项目最多 ${FOCUS_PROJECT_LIMIT} 个，请先取消其他主攻` }
+      }
+    }
+    p.isFocused = !p.isFocused
+    store.persist()
+    return { ok: true, msg: p.isFocused ? '🎯 已设为主攻' : '已取消主攻' }
+  }
+
+  /**
+   * R85（T0-B）：新建项目——**四处**出口共用（项目总览 / 项目策展页 / 方向树 / 主航线）。
+   * 改前两处各写一份且**字段已不一致**：CompassShell 有 `pinned`+`order`，
+   * CompassTree 两者都缺 ⇒ 方向树建的项目 `order` 走 `?? 999`，永远排在最后。
+   * 字段以 CompassShell 的既有口径为准（最完整）。
+   */
+  function addProjectToDir(dirId: string, name: string): Project | null {
+    const dir = d.value.compass.directions.find(x => x.id === dirId)
+    if (!dir) return null
+    const proj: Project = {
+      id: uid('proj'), name, isFocused: false, pinned: false,
+      progress: 0, status: 'active', order: dir.projects.length, metrics: []
+    }
+    dir.projects.push(proj)
+    store.persist()
+    return proj
   }
 
   // ---- 项目进度计算 ----
@@ -213,7 +256,7 @@ export function useCompass() {
 
   return {
     d, visionText, missionText, directions, allProjects, projectById,
-    focusedProjects, toggleFocusProject, projectProgress,
+    focusedProjects, toggleFocusProject, addProjectToDir, projectProgress,
     isProjectStalled, isProjectDone, projectTasksOf, offCourseCount, taskArchiveIssue, unarchivedTaskCount, totalTaskCount,
     northStarMetrics, formulas
   }

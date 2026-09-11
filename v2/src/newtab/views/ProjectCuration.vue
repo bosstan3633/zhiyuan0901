@@ -15,7 +15,7 @@ import AssetBadge from '@/shared/components/AssetBadge.vue'
 const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
-const { d, visionText, missionText, allProjects, projectProgress } = useCompass()
+const { d, visionText, missionText, allProjects, projectProgress, toggleFocusProject, addProjectToDir } = useCompass()
 
 /** R49-D6：任务详情 = 共享 TaskDetailDrawer（R48 重设计组件） */
 const detailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
@@ -203,13 +203,15 @@ function scrollToTask(id: string) {
   taskFlashId.value = id
   setTimeout(() => { taskFlashId.value = '' }, 1500)
 }
+/**
+ * R85（T0-A）：本地那份「上限 2」校验**删除**，改调 store——方向树与主航线共用同一口径。
+ * 改前只有这一处拦着，store（方向树在用）直通 ⇒ 方向树能设出任意多个主攻，
+ * 违反 models/index.ts:65「最多2个」与手册 manual-data.ts:229。
+ * 成功后仍用原文案——「同步今日行动」这个信息不能丢。
+ */
 function toggleFocus(p: Project) {
-  if (!p.isFocused) {
-    const focused = allProjects().filter(x => x.isFocused && x.id !== p.id)
-    if (focused.length >= 2) { showToast('主攻项目最多 2 个，请先取消其他主攻'); return }
-  }
-  p.isFocused = !p.isFocused
-  store.persist()
+  const res = toggleFocusProject(p.id)
+  if (!res.ok) { showToast(res.msg); return }
   showToast(p.isFocused ? '🎯 已设为主攻，同步今日行动' : '已取消主攻')
 }
 /** R52-F6：头部级「＋添加成功指标」——与「＋添加任务」并置，输入名后创建（同步方向树） */
@@ -243,14 +245,9 @@ function openCreateProject() {
 function confirmCreateProject() {
   const name = createName.value.trim()
   if (!name) { showToast('请输入项目名称'); return }
-  const dir = d.value.compass.directions.find(x => x.id === createDirId.value)
-  if (!dir) { showToast('请选择所属战略目标'); return }
-  const proj: Project = {
-    id: uid('proj'), name, isFocused: false,
-    progress: 0, status: 'active', order: dir.projects.length, metrics: []
-  }
-  dir.projects.push(proj)
-  store.persist()
+  // R85（T0-B）：改调共享 addProjectToDir——改前这里缺 `pinned`（另外三处出口字段各不一致）
+  const proj = addProjectToDir(createDirId.value, name)
+  if (!proj) { showToast('请选择所属战略目标'); return }
   createOpen.value = false
   showToast(`✓ 项目「${name}」已创建`)
   openProject(proj) // 直接进入全屏展板

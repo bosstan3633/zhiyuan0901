@@ -23,7 +23,7 @@ const router = useRouter()
 const route = useRoute()
 const isChildActive = computed(() => route.matched.length > 1 && route.path !== '/compass')
 const store = useAppStore()
-const { d, allProjects, projectProgress, isProjectStalled, isProjectDone } = useCompass()
+const { d, allProjects, projectProgress, isProjectStalled, isProjectDone, addProjectToDir } = useCompass()
 
 // R55-B3：/compass?zone=task → 滚动定位到任务调度模块并高亮（置于声明之后，避免 TDZ）
 watch(() => route.query.zone, (z) => {
@@ -97,11 +97,9 @@ function openCreate() {
 function confirmCreate() {
   const name = createName.value.trim()
   if (!name) { showToast('请输入项目名称'); return }
-  const dir = d.value.compass.directions.find(x => x.id === createDirId.value)
-  if (!dir) { showToast('请选择所属战略目标'); return }
-  const proj: Project = { id: uid('proj'), name, isFocused: false, pinned: false, progress: 0, status: 'active', order: dir.projects.length, metrics: [] }
-  dir.projects.push(proj)
-  store.persist()
+  // R85（T0-B）：改调共享 addProjectToDir（四处新建出口统一，字段以本处既有口径为准）
+  const proj = addProjectToDir(createDirId.value, name)
+  if (!proj) { showToast('请选择所属战略目标'); return }
   createOpen.value = false
   showToast(`✓ 项目「${name}」已创建`)
 }
