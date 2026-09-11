@@ -41,7 +41,11 @@ export function getDataVersion(): number { return dataVersion }
 /** 判断一次 storage 变更是否由本上下文写入（内容指纹比对；非本页写入返回 false，走合并路径） */
 export function isSelfWrite(newValue: unknown): boolean {
   if (!lastSelfWriteJson) return false
-  try { return JSON.stringify(newValue) === lastSelfWriteJson } catch { return false }
+  try {
+    const s = JSON.stringify(newValue)
+    // R71：先比长度再比内容——非本页写入几乎都会在此短路，省掉一次整串逐字符比对
+    return s.length === lastSelfWriteJson.length && s === lastSelfWriteJson
+  } catch { return false }
 }
 
 function chromeStore(): chrome.storage.StorageArea | null {
@@ -148,7 +152,11 @@ export function saveData(): void {
     let payload: Record<string, unknown>
     let payloadJson = ''
     try {
-      payloadJson = JSON.stringify(JSON.parse(JSON.stringify(cache)))
+      // R71 性能治理：原实现是「序列化 → 解析 → 再序列化」三重往返 —— 整树 2 次序列化 + 1 次多余解析。
+      // 但 JSON.stringify(JSON.parse(X)) ≡ X（键序由插入序保持），中间那趟往返纯属冗余。
+      // 现在：一次 stringify 得到「存储实际内容」（同时充当自身写入指纹），再一次 parse 得到纯净 plain 树。
+      // 语义完全等价（reactive Proxy → plain JSON 的净化仍然发生），成本减半。
+      payloadJson = JSON.stringify(cache)
       payload = { [STORAGE_KEY]: JSON.parse(payloadJson) }
       lastSelfWriteJson = payloadJson  // R70：记下自身写入载荷，供 onChanged 内容指纹比对
     } catch (e) { emitSaveError(e); return }
@@ -180,7 +188,8 @@ export async function saveDataNow(): Promise<void> {
   try { flushCardEvents(cache) } catch { /* noop */ }
   try {
     // V2.17.1 修复：同 saveData——JSON 纯净清洗防 reactive Proxy 泄漏入存储（数组降级类数组对象）
-    const payloadJson = JSON.stringify(JSON.parse(JSON.stringify(cache)))
+    // R71：同 saveData，去掉冗余的中间往返（1 次 stringify + 1 次 parse）
+    const payloadJson = JSON.stringify(cache)
     lastSelfWriteJson = payloadJson  // R70：同上
     await cs.set({ [STORAGE_KEY]: JSON.parse(payloadJson) })
     dataVersion++

@@ -19,6 +19,7 @@ import { CURATION_WS_ID, type ResourceCard, type Category, type CurationProjecti
 import { curationBoards, projectCardToBoard, mirrorCategoryToBoard } from '@/shared/storage/hub'
 import { uid, safeDecodeText } from '@/shared/utils'
 import { MAX_CAT_LEVEL } from '@/shared/utils/catTree'
+import { buildCatIndex, buildBucketIndex } from '@/shared/utils/catIndex'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { useConfirm } from '@/shared/components/confirm'
@@ -39,8 +40,27 @@ const activeCat = ref(ALL_CAT)
 
 // ---- 分类树（资源台自有；R61 起层级放开 4 级，L1 中心论点为根——金字塔呈现见 R62） ----
 const cats = computed(() => d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)))
-const rootCats = computed(() => cats.value.filter(c => !c.parentId))
-const childCats = (pid: string) => cats.value.filter(c => c.parentId === pid)
+/**
+ * R71 性能治理：资源台分类树索引。
+ * 此前 childCats 是 filter 全表、levelOf 是沿父链 find 全表，而它们既出现在模板表达式里
+ * （左树每个节点都要算展开箭头、图标、节点计数），又被递归函数反复调用 —— 整树一次重渲染 O(n²)。
+ * 索引把「一次 O(n) 建表」与「之后 O(1) 查表」固化，模板调用签名保持不变以降低回归风险。
+ */
+const catIdx = computed(() => buildCatIndex(cats.value))
+const rootCats = computed(() => catIdx.value.roots)
+const childCats = (pid: string) => catIdx.value.childrenOf.get(pid) || []
+/** 子树高度（含自身）——预计算，O(1)（仅拖拽层级校验用，此前每次递归全表 filter） */
+const catHeightMap = computed(() => {
+  const idx = catIdx.value
+  const m = new Map<string, number>()
+  const depthSorted = [...cats.value].sort((a, b) => idx.depthOf(b.id) - idx.depthOf(a.id))
+  for (const c of depthSorted) {
+    let h = 1
+    for (const ch of idx.childrenOf.get(c.id) || []) h = Math.max(h, (m.get(ch.id) || 1) + 1)
+    m.set(c.id, h)
+  }
+  return m
+})
 const isMirror = (c: Category) => !!c.curFrom
 const mirrorSourceLabel = (c: Category) => c.curFrom ? `${wsName(c.curFrom.wsId)} · ${catName(c.curFrom.catId)}` : ''
 
@@ -48,38 +68,15 @@ const mirrorSourceLabel = (c: Category) => c.curFrom ? `${wsName(c.curFrom.wsId)
 // R70：MAX_CAT_LEVEL 收敛到 shared/utils/catTree；下面的上行走链与向下递归一律带 visited——
 // 导入数据可能已含环（历史坏数据/跨设备合并/手工编辑），而这里是**渲染与计数路径**，一旦死转页面就永久打不开。
 function levelOf(c: Category): number {
-  const seen = new Set<string>()
-  let n = 1
-  let cur: Category | undefined = c
-  while (cur && !seen.has(cur.id)) {
-    seen.add(cur.id)
-    const pid: string | undefined = cur.parentId
-    const p: Category | undefined = pid ? cats.value.find(x => x.id === pid) : undefined
-    if (!p) break
-    n++
-    cur = p
-  }
-  return n
+  // R71：索引缓存（含 visited 防环，与 R70 口径一致）
+  return catIdx.value.depthOf(c.id)
 }
-function subtreeHeight(c: Category, seen = new Set<string>()): number {
-  if (seen.has(c.id)) return 1
-  seen.add(c.id)
-  const ch = childCats(c.id)
-  return ch.length ? Math.max(...ch.map(x => subtreeHeight(x, seen))) + 1 : 1
+function subtreeHeight(c: Category): number {
+  // R71：预计算高度表（此前每次调用都向下递归并全表 filter）
+  return catHeightMap.value.get(c.id) || 1
 }
 function deepDescendantIds(id: string): string[] {
-  const out: string[] = []
-  const seen = new Set<string>([id])
-  const walk = (pid: string) => {
-    for (const ch of childCats(pid)) {
-      if (seen.has(ch.id)) continue
-      seen.add(ch.id)
-      out.push(ch.id)
-      walk(ch.id)
-    }
-  }
-  walk(id)
-  return out
+  return catIdx.value.descendants(id)
 }
 
 // R51-F21 + R53：默认全部展开；一键收起/展开
@@ -93,17 +90,43 @@ function expandAllCats() { for (const c of cats.value) expandedCats.value.add(c.
 function collapseAllCats() { expandedCats.value.clear() }
 
 // ---- 节点计数（自身原生卡 + 自身投射卡 + 未投射源卡 + 子级聚合；R56-A：镜像分类不再双计已投射源卡） ----
-function nodeCount(c: Category, seen = new Set<string>()): number {
-  // R70：带 visited——环状分类树不得让计数递归无限展开（此函数在模板中被调用，卡死即整页打不开）
-  if (seen.has(c.id)) return 0
-  seen.add(c.id)
-  let n = cardsIn(c.id).length + projCardsIn(c.id).length
-    + (c.curFrom ? liveCardsOfCat(c.curFrom.catId).filter(it => !projections.value.some(p => p.kind === 'card' && p.cardId === it.card.id)).length : 0)
-  for (const ch of childCats(c.id)) n += nodeCount(ch, seen)
-  return n
+/**
+ * R71 性能治理：节点计数从「模板内递归调用」改为**一次自底向上的预计算**。
+ * 原实现每次调用都会向下递归整棵子树、并对每个节点 filter 全量卡 —— 模板里每个节点调一次，
+ * 整树渲染是 O(节点数² × 卡数)。现在：先算每个节点的「自身计数」，再把自身计数累加到全部祖先，
+ * 总复杂度 O(节点数 × 深度 + 卡数)，且模板只做一次 Map 查表。
+ */
+const nodeCountMap = computed(() => {
+  const idx = catIdx.value
+  const self = new Map<string, number>()
+  for (const c of cats.value) {
+    let v = (nativeBucket.value.get(c.id) || []).length + (projBucket.value.get(c.id) || []).length
+    if (c.curFrom) {
+      for (const it of liveCardsOfCat(c.curFrom.catId)) {
+        if (!projectedCardIds.value.has(it.card.id)) v++
+      }
+    }
+    self.set(c.id, v)
+  }
+  const total = new Map<string, number>(self)
+  for (const c of cats.value) {
+    const add = self.get(c.id) || 0
+    if (!add) continue
+    const seen = new Set<string>([c.id])
+    let p: Category | undefined = c.parentId ? idx.byId.get(c.parentId) : undefined
+    while (p && !seen.has(p.id)) {          // R70：带 visited，环数据不得死转
+      seen.add(p.id)
+      total.set(p.id, (total.get(p.id) || 0) + add)
+      p = p.parentId ? idx.byId.get(p.parentId) : undefined
+    }
+  }
+  return total
+})
+function nodeCount(c: Category): number {
+  return nodeCountMap.value.get(c.id) || 0
 }
 const catAggCount = (pid: string) => {
-  const c = cats.value.find(x => x.id === pid)
+  const c = catIdx.value.byId.get(pid)
   return c ? nodeCount(c) : 0
 }
 
@@ -162,7 +185,9 @@ const nativeCards = computed(() =>
   d.value.resources.filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || (a.curOrder ?? 999) - (b.curOrder ?? 999) || a.createdAt - b.createdAt)
 )
-const cardsIn = (catId: string) => nativeCards.value.filter(r => (r.categoryId || '') === catId)
+/** R71：分类 → 卡 分桶（一次 O(n)，替代每次都 filter 全量卡） */
+const nativeBucket = computed(() => buildBucketIndex(nativeCards.value, (r) => r.categoryId || ''))
+const cardsIn = (catId: string) => nativeBucket.value.get(catId || '') || []
 
 // ---- 投射清单（R61 起只保留「无 targetWsId」的历史残留过滤；新镜像方向为资源台→策展台，由 hub.ts 管理） ----
 const projections = computed<CurationProjection[]>(() => (d.value.curationProjections || []).filter(p => !p.targetWsId))
@@ -174,23 +199,41 @@ function removeProjection(p: CurationProjection) {
   store.persist()
   showToast('✓ 已移出投射（源数据不受影响）')
 }
-const wsName = (wsId: string) => d.value.workspaces.find(w => w.id === wsId)?.name || '（策展台已删除）'
-const catName = (catId?: string) => d.value.categories.find(c => c.id === catId)?.name || '未分类'
+/** R71：台名 / 分类名索引（O(1)）——两者都在模板与镜像来源标签里被反复调用 */
+const wsNameById = computed(() => { const m = new Map<string, string>(); for (const w of d.value.workspaces) m.set(w.id, w.name); return m })
+const catNameByIdFull = computed(() => { const m = new Map<string, string>(); for (const c of d.value.categories) m.set(c.id, c.name); return m })
+const wsName = (wsId: string) => wsNameById.value.get(wsId) || '（策展台已删除）'
+const catName = (catId?: string) => (catId && catNameByIdFull.value.get(catId)) || '未分类'
 
 /** 待分类投射卡（targetCatId 为空） */
 const pendingProjections = computed(() => projections.value.filter(p => p.kind === 'card' && !(p.targetCatId)))
 /** 某分类下的投射卡 */
-const projCardsIn = (catId: string) => projections.value.filter(p => p.kind === 'card' && p.targetCatId === catId)
+/** R71：目标分类 → 投射 分桶 */
+const projBucket = computed(() => buildBucketIndex(projections.value.filter(p => p.kind === 'card'), (p) => p.targetCatId || ''))
+const projCardsIn = (catId: string) => projBucket.value.get(catId || '') || []
+/** R71：已投射源卡 id 集合——替代循环内 projections.value.some(...)（O(卡数×投射数)） */
+const projectedCardIds = computed(() => new Set(projections.value.filter(p => p.kind === 'card').map(p => p.cardId)))
 const projTotal = computed(() => projections.value.length)
 
-/** 源卡实时解析（引用式镜像：源删即隐） */
-const cardById = (id?: string) => d.value.resources.find(r => r.id === id && !r.deletedAt)
-/** 镜像分类的源分类实时卡片（含源子分类） */
+/** 源卡实时解析（引用式镜像：源删即隐）——R71：改 Map 查表。
+ *  此函数在模板里被调用 20+ 次（每张投射卡的标题/链接/描述/工具条各一次），
+ *  原先每次都是一次 O(n) 的 resources.find —— 400 张投射卡 × 760 张源卡 × 5 = 150 万次比较/渲染。 */
+const resById = computed(() => {
+  const m = new Map<string, ResourceCard>()
+  for (const r of d.value.resources) if (!r.deletedAt) m.set(r.id, r)
+  return m
+})
+const cardById = (id?: string) => (id ? resById.value.get(id) : undefined)
+/** 全量源卡按分类分桶（含非资源台卡，与旧实现口径一致） */
+const liveSrcBucket = computed(() => buildBucketIndex(d.value.resources.filter(r => !r.deletedAt), (r) => r.categoryId || ''))
+/** 全量分类索引（镜像源分类可能不在本台分类集合内） */
+const allCatIdx = computed(() => buildCatIndex(d.value.categories))
+/** 镜像分类的源分类实时卡片（含源子分类）——R71：分桶取用，不再嵌套全表扫描 */
 function liveCardsOfCat(sourceCatId: string): { card: ResourceCard; sub?: string }[] {
   const out: { card: ResourceCard; sub?: string }[] = []
-  for (const r of d.value.resources) if (!r.deletedAt && r.categoryId === sourceCatId) out.push({ card: r })
-  for (const child of d.value.categories.filter(c => c.parentId === sourceCatId)) {
-    for (const r of d.value.resources) if (!r.deletedAt && r.categoryId === child.id) out.push({ card: r, sub: child.name })
+  for (const card of liveSrcBucket.value.get(sourceCatId) || []) out.push({ card })
+  for (const child of allCatIdx.value.childrenOf.get(sourceCatId) || []) {
+    for (const card of liveSrcBucket.value.get(child.id) || []) out.push({ card, sub: child.name })
   }
   return out
 }
@@ -219,11 +262,12 @@ const isParentView = computed(() => {
   if (activeCat.value === '' || activeCat.value === PENDING || activeCat.value === ALL_CAT) return false
   return childCats(activeCat.value).length > 0
 })
-const secCounts = (cards: MixedCard[]) => ({
-  n: cards.filter(m => m.type === 'native').length,
-  p: cards.filter(m => m.type === 'proj').length,
-  l: cards.filter(m => m.type === 'live').length
-})
+/** R71：单遍统计（此前对同一数组 filter 三次） */
+const secCounts = (cards: MixedCard[]) => {
+  let n = 0, p = 0, l = 0
+  for (const m of cards) { if (m.type === 'native') n++; else if (m.type === 'proj') p++; else l++ }
+  return { n, p, l }
+}
 const renderSections = computed(() => {
   if (activeCat.value === PENDING) {
     return [{ key: PENDING, title: '', icon: '', isMirror: false, cards: viewMixed.value, ...secCounts(viewMixed.value) }]
@@ -251,11 +295,12 @@ function mixedCardsOf(catKey: string): MixedCard[] {
   const prj: MixedCard[] = projections.value
     .filter(p => p.kind === 'card' && (all || (p.targetCatId || '') === catKey) && cardById(p.cardId))
     .map(p => ({ id: p.id, type: 'proj', p }))
+  const mirroredNow = projectedCardIds.value
   // R56-A：镜像分类——未投射源卡（curFrom 源分类实时卡）以源序垫后，拖动即物化为投射（聚合视图不涉及）
   const cat = all ? undefined : d.value.categories.find(c => c.id === catKey)
   if (cat?.curFrom) {
     for (const it of liveCardsOfCat(cat.curFrom.catId)) {
-      if (projections.value.some(p => p.kind === 'card' && p.cardId === it.card.id)) continue
+      if (mirroredNow.has(it.card.id)) continue
       prj.push({ id: 'live:' + it.card.id, type: 'live', p: { id: 'live:' + it.card.id, kind: 'card', wsId: it.card.workspaceId, cardId: it.card.id, catId: it.card.categoryId, targetCatId: catKey, addedAt: 0 } } as unknown as MixedCard)
     }
   }
@@ -278,10 +323,16 @@ const viewMixed = computed<MixedCard[]>(() => {
   if (activeCat.value === PENDING) return pendingProjections.value.map(p => ({ id: p.id, type: 'proj' as const, p }))
   return mixedCardsOf(activeCat.value)
 })
-const viewNativeCount = computed(() => viewMixed.value.filter(m => m.type === 'native').length)
-const viewProjCount = computed(() => viewMixed.value.filter(m => m.type === 'proj').length)
+/** R71：混排网格三类计数一次遍历算全（此前三个 computed 各 filter 一遍） */
+const viewCounts = computed(() => {
+  let native = 0, proj = 0, live = 0
+  for (const m of viewMixed.value) { if (m.type === 'native') native++; else if (m.type === 'proj') proj++; else live++ }
+  return { native, proj, live }
+})
+const viewNativeCount = computed(() => viewCounts.value.native)
+const viewProjCount = computed(() => viewCounts.value.proj)
 /** R56-A：区块计数 = 混排网格实况（未投射源卡单列，不再双计已投射源卡） */
-const viewLiveCount = computed(() => viewMixed.value.filter(m => m.type === 'live').length)
+const viewLiveCount = computed(() => viewCounts.value.live)
 
 // ---- R65-F1：视图切换 + 搜索（对齐策展台工具条） ----
 const viewMode = ref<'card' | 'list' | 'kanban'>('card')
@@ -1317,7 +1368,9 @@ function onCatDrop(e: DragEvent, target: Category) {
 .cur-sec-label.sec-child { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--border); }
 .cur-sec-label.sec-child:first-of-type { border-top: none; margin-top: 4px; padding-top: 0; }
 .cur-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
-.cur-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 6px; }
+.cur-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 6px;
+  /* R71：屏外卡片跳过渲染（对齐策展台 .res-card 的 R55-F4 做法） */
+  content-visibility: auto; contain-intrinsic-size: auto 132px; }
 .cur-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
 .cur-card.native { border-left: 3px solid var(--accent); }
 .cur-card.native.pinned { background: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
@@ -1419,7 +1472,8 @@ function onCatDrop(e: DragEvent, target: Category) {
 
 /* ===== R65-F1：列表视图 ===== */
 .res-list { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
-.res-row { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: all .1s; }
+.res-row { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: all .1s;
+  content-visibility: auto; contain-intrinsic-size: auto 42px; }
 .res-row:last-child { border-bottom: none; }
 .res-row:hover { background: var(--surface-2); }
 .res-row.selected { background: var(--accent-light); }

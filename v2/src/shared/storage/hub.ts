@@ -114,15 +114,30 @@ export function isMirrorView(r: ResourceCard): r is MirrorView {
   return '__mirrorProjId' in r
 }
 
-/** 策展台全量可见卡 = 台内原生卡 + 镜像卡（视图模型） */
+/**
+ * 策展台全量可见卡 = 台内原生卡 + 镜像卡（视图模型）
+ * R71 性能治理：原实现对**每条投射**都做一次 `d.resources.find` ——
+ * O(投射数 × 资源数)，且本函数是策展台每次重渲染的根 computed（allResources / curationMetrics 都调它）。
+ * 改为一次遍历建 id→卡 Map + 一次遍历投影，降到 O(资源数 + 投射数)。
+ */
 export function boardCardsOf(d: AppData, wsId: ID): ResourceCard[] {
-  const own = d.resources.filter(r => r.workspaceId === wsId && !r.deletedAt)
+  const own: ResourceCard[] = []
+  const byId = new Map<ID, ResourceCard>()
+  for (const r of d.resources) {
+    if (r.deletedAt) continue
+    byId.set(r.id, r)
+    if (r.workspaceId === wsId) own.push(r)
+  }
   const ownIds = new Set(own.map(r => r.id))
   const mirrors: MirrorView[] = []
-  for (const p of projectionsOf(d, wsId)) {
-    const src = d.resources.find(r => r.id === p.cardId && !r.deletedAt)
-    if (!src || ownIds.has(src.id)) continue
-    mirrors.push({ ...src, categoryId: p.targetCatId || '', __mirrorProjId: p.id })
+  const projs = d.curationProjections
+  if (projs) {
+    for (const p of projs) {
+      if (p.kind !== 'card' || p.targetWsId !== wsId) continue
+      const src = byId.get(p.cardId || '')
+      if (!src || ownIds.has(src.id)) continue
+      mirrors.push({ ...src, categoryId: p.targetCatId || '', __mirrorProjId: p.id })
+    }
   }
   return [...own, ...mirrors]
 }
@@ -152,27 +167,40 @@ export interface CurationMetrics {
 export function curationMetrics(d: AppData, wsId: ID): CurationMetrics {
   const cards = boardCardsOf(d, wsId)
   const cats = d.categories.filter(c => c.workspaceId === wsId)
-  const thesis = cards.find(r => r.isThesis && r.workspaceId === wsId)
   const items: CurationMetrics['attachmentItems'] = []
+  // R71：卡片一次遍历同时得出 主题卡 / 原生镜像计数 / 附件清单 / 最近更新 / 分类卡数分布
+  // （此前对同一数组 find ×1 + filter ×3 + 分类维度的 filter×some 嵌套 —— O(分类数 × 卡数)）
   let attachmentCount = 0
   let lastUpdatedAt = 0
+  let native = 0
+  let mirrored = 0
+  let thesisId: ID | undefined
+  const cardCountByCat = new Map<string, number>()
   for (const r of cards) {
-    for (const a of r.assets || []) {
-      attachmentCount++
-      items.push({ cardId: r.id, cardTitle: r.title, assetId: a.id, name: a.name || a.id, kind: a.kind, size: a.size || 0, createdAt: a.createdAt || 0 })
+    if (isMirrorView(r)) mirrored++; else native++
+    if (!thesisId && r.isThesis && r.workspaceId === wsId) thesisId = r.id
+    const ck = r.categoryId || ''
+    cardCountByCat.set(ck, (cardCountByCat.get(ck) || 0) + 1)
+    const assets = r.assets
+    if (assets) {
+      for (const a of assets) {
+        attachmentCount++
+        items.push({ cardId: r.id, cardTitle: r.title, assetId: a.id, name: a.name || a.id, kind: a.kind, size: a.size || 0, createdAt: a.createdAt || 0 })
+      }
     }
-    lastUpdatedAt = Math.max(lastUpdatedAt, r.updatedAt || r.createdAt || 0)
+    const u = r.updatedAt || r.createdAt || 0
+    if (u > lastUpdatedAt) lastUpdatedAt = u
   }
-  const emptyNodes = cats.filter(c => {
-    const hasCard = cards.some(r => (r.categoryId || '') === c.id)
-    const hasChild = cats.some(x => x.parentId === c.id)
-    return !hasCard && !hasChild
-  }).length
+  // 空节点：无直属卡且无子分类 —— 两个 Set/Map 查询代替嵌套 filter×some
+  const hasChild = new Set<string>()
+  for (const c of cats) if (c.parentId) hasChild.add(c.parentId)
+  let emptyNodes = 0
+  for (const c of cats) if (!cardCountByCat.get(c.id) && !hasChild.has(c.id)) emptyNodes++
   return {
     total: cards.length,
-    native: cards.filter(r => !isMirrorView(r)).length,
-    mirrored: cards.filter(r => isMirrorView(r)).length,
-    thesisId: thesis?.id,
+    native,
+    mirrored,
+    thesisId,
     categoryCount: cats.length,
     emptyNodes,
     attachmentCount,

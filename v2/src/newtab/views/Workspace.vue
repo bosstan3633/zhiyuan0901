@@ -130,7 +130,7 @@
           <div class="cat-item" :class="{
               active: activeCategory===sc.cat.id,
               sub: sc.depth>=1,
-              collapsed: childCatsOf(sc.cat.id).length && collapsedCats.has(sc.cat.id),
+              collapsed: sc.hasChildren && collapsedCats.has(sc.cat.id),
               flash: catFlashId===sc.cat.id,
               'card-drop': cardDropTarget===sc.cat.id,
               'drop-child': catDropTarget===sc.cat.id && catDropMode==='child',
@@ -143,9 +143,9 @@
             @click="selectSidebarCat(sc)"
             @dragstart="onCatDragStart($event, sc.cat)" @dragend="onCatDragEnd"
             @dragover.prevent.stop="onCatDragOver($event, sc.cat)" @drop.stop="onCatDrop($event, sc.cat)">
-            <span v-if="childCatsOf(sc.cat.id).length" class="cat-caret" :class="{open: !collapsedCats.has(sc.cat.id)}" title="展开/折叠" @click.stop="toggleCatCollapse(sc.cat.id)">▸</span>
+            <span v-if="sc.hasChildren" class="cat-caret" :class="{open: !collapsedCats.has(sc.cat.id)}" title="展开/折叠" @click.stop="toggleCatCollapse(sc.cat.id)">▸</span>
             <span v-else class="cat-caret placeholder"></span>
-            <span class="cat-icon" :title="childCatsOf(sc.cat.id).length ? '展开/折叠' : ''" @click.stop="childCatsOf(sc.cat.id).length && toggleCatCollapse(sc.cat.id)">{{ sc.depth>0 && !childCatsOf(sc.cat.id).length ? '↳' : sc.cat.pinned ? '📌' : (childCatsOf(sc.cat.id).length ? (collapsedCats.has(sc.cat.id) ? '📁' : '📂') : '📁') }}<template v-if="isMirrorCat(sc.cat)">📡</template></span>
+            <span class="cat-icon" :title="sc.hasChildren ? '展开/折叠' : ''" @click.stop="sc.hasChildren && toggleCatCollapse(sc.cat.id)">{{ sc.depth>0 && !sc.hasChildren ? '↳' : sc.cat.pinned ? '📌' : (sc.hasChildren ? (collapsedCats.has(sc.cat.id) ? '📁' : '📂') : '📁') }}<template v-if="isMirrorCat(sc.cat)">📡</template></span>
             <!-- R62-4：层级色点（L1-L4 一眼分层） -->
             <span class="cat-depth-dot" :data-lv="sc.depth"></span>
             <span class="cat-name">{{ sc.cat.name }}</span>
@@ -156,7 +156,7 @@
               <span class="cat-act" title="重命名" @click.stop="openRenameCat(sc.cat)">✎</span>
               <span class="cat-act danger" title="删除" @click.stop="deleteCategory(sc.cat)">🗑</span>
             </span>
-            <span class="cat-count">{{ childCatsOf(sc.cat.id).length ? catAggCount(sc.cat.id) : allResources.filter(r=>r.categoryId===sc.cat.id).length }}</span>
+            <span class="cat-count">{{ sc.hasChildren ? sc.aggCount : sc.directCount }}</span>
           </div>
         </template>
         <div v-if="dragCatId" class="cat-root-drop" @dragover.prevent @drop="onCatRootDrop">⬆ 松手升为一级分类</div>
@@ -253,15 +253,15 @@
 
         <!-- 看板视图 -->
         <div v-if="viewMode==='kanban'" class="kanban">
-          <div v-for="cat in kanbanCategories" :key="cat.key" class="kanban-col"
+          <div v-for="cat in kanbanColumns" :key="cat.key" class="kanban-col"
             @dragover.prevent @drop="onDropToCategory($event,cat.key)">
             <div class="kc-header">
               <span class="kc-name">📂 {{ cat.name }}</span>
-              <span class="kc-count">{{ resourcesByCategory(cat.key).length }}</span>
+              <span class="kc-count">{{ cat.count }}</span>
               <div class="kc-add" @click="addResourceToCategory(cat.key)" title="在此分类新建">＋</div>
             </div>
             <div class="kc-body">
-              <div v-for="r in resourcesByCategory(cat.key)" :key="r.id" class="kc-card" :class="{pinned: r.pinned, 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
+              <div v-for="r in cat.items" :key="r.id" class="kc-card" :class="{pinned: r.pinned, 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :draggable="!batchMode" @dragstart="onDragStart($event,r)" @dragover.prevent.stop="markDrop($event, r.id, 'y')" @dragleave="clearDropMark" @drop.stop="onKanbanCardDrop($event, r)" @click="onCardClick(r)" @dblclick="onCardDblClick(r)">
                 <div class="kc-card-title">
                   <span v-if="r.starred" class="kc-star" title="已星标">⭐</span>{{ val(r, titleKey) }}
@@ -576,6 +576,7 @@ import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
 import { uid } from '@/shared/utils'
 import { MAX_CAT_LEVEL, sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
+import { buildCatIndex, buildBucketIndex } from '@/shared/utils/catIndex'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
@@ -640,26 +641,32 @@ function openThesisCreate() {
 const drillOpen = ref(false)
 const drillMode = ref<'total' | 'source' | 'assets' | 'recent'>('total')
 function openDrill(mode: 'total' | 'source' | 'assets' | 'recent') { drillMode.value = mode; drillOpen.value = true }
-/** 总数下钻：按分类（深度缩进 + 直属卡数），含待分类行 */
+/** 总数下钻：按分类（深度缩进 + 直属卡数），含待分类行
+ *  R71：抽屉关闭时直接返回空——本 computed 是抽屉组件的 prop，**每次宿主重渲染都会被求值**，
+ *  原实现无条件跑一遍整树遍历 + 全量卡分桶，纯属为看不见的 UI 付费。 */
 const drillCatRows = computed<DrillCatRow[]>(() => {
+  if (!drillOpen.value) return []
   const rows: DrillCatRow[] = []
   const seen = new Set<string>()  // R70：防环
+  const bucket = resBucket.value
   const walk = (parentId: string | undefined, depth: number) => {
-    for (const c of wsCats.value.filter(x => (x.parentId || undefined) === parentId).sort((a, b) => a.order - b.order)) {
+    for (const c of (parentId ? (catIdx.value.childrenOf.get(parentId) || []) : catIdx.value.roots)) {
       if (seen.has(c.id)) continue
       seen.add(c.id)
-      rows.push({ id: c.id, name: c.name, count: allResources.value.filter(r => (r.categoryId || '') === c.id).length, depth })
+      rows.push({ id: c.id, name: c.name, count: (bucket.get(c.id) || []).length, depth })
       walk(c.id, depth + 1)
     }
   }
   walk(undefined, 0)
-  const uncat = allResources.value.filter(r => !r.categoryId || !wsCats.value.some(c => c.id === r.categoryId)).length
+  const uncat = allResources.value.filter(r => !r.categoryId || !catIdx.value.byId.has(r.categoryId)).length
   if (uncat) rows.push({ id: 'uncat', name: '待分类', count: uncat, depth: 0 })
   return rows
 })
-const drillNative = computed<DrillCardRow[]>(() => allResources.value.filter(r => !isMirrorView(r)).map(r => ({ id: r.id, title: r.title, updatedAt: r.updatedAt || r.createdAt })))
-const drillMirror = computed<DrillCardRow[]>(() => allResources.value.filter(isMirrorView).map(r => ({ id: r.id, title: r.title, updatedAt: r.updatedAt || r.createdAt })))
-const drillRecent = computed<DrillCardRow[]>(() => allResources.value.map(r => ({ id: r.id, title: r.title, updatedAt: r.updatedAt || r.createdAt })))
+// R71：同样惰性化——三张清单各扫全量卡一遍，抽屉没开时没有任何理由付这个代价
+const toDrillRow = (r: ResourceCard): DrillCardRow => ({ id: r.id, title: r.title, updatedAt: r.updatedAt || r.createdAt })
+const drillNative = computed<DrillCardRow[]>(() => drillOpen.value ? allResources.value.filter(r => !isMirrorView(r)).map(toDrillRow) : [])
+const drillMirror = computed<DrillCardRow[]>(() => drillOpen.value ? allResources.value.filter(isMirrorView).map(toDrillRow) : [])
+const drillRecent = computed<DrillCardRow[]>(() => drillOpen.value ? allResources.value.map(toDrillRow) : [])
 function onDrillJumpCat(id: string) {
   drillOpen.value = false
   if (id === 'uncat') { activeCategory.value = 'uncat'; if (viewMode.value === 'pyramid') viewMode.value = 'card'; return }
@@ -750,10 +757,21 @@ const listFields = computed(() => rFields.value.filter(f => !isTitleKey(f.key) &
 function hasField(key: string): boolean {
   return rFields.value.some(f => f.key === key)
 }
+/** R71：分类名 / 台名索引（O(1)）——val() 由模板逐卡逐字段调用，此前每次都是一次全表 find */
+const catNameById = computed(() => {
+  const m = new Map<string, string>()
+  for (const c of d.value.categories) m.set(c.id, c.name)
+  return m
+})
+const wsNameById = computed(() => {
+  const m = new Map<string, string>()
+  for (const w of d.value.workspaces) m.set(w.id, w.name)
+  return m
+})
 function val(r: ResourceCard, key: string): string {
   return fieldValue(r, key, {
-    catName: (id) => categories.value.find(c => c.id === id)?.name || '待分类',
-    wsName: (id) => d.value.workspaces.find(w => w.id === id)?.name || ''
+    catName: (id) => catNameById.value.get(id) || '待分类',
+    wsName: (id) => wsNameById.value.get(id) || ''
   })
 }
 function isTitleKey(key: string): boolean {
@@ -871,19 +889,22 @@ function toggleGroupCollapse(key: string) {
 const resourceGroups = computed<ResourceGroup[]>(() => {
   const filtered = filteredResources.value
   const groups: ResourceGroup[] = []
-  const validIds = new Set(wsCats.value.map(c => c.id))
+  const validIds = catIdx.value.byId
+  /** R71：先按分类分桶一次，后续所有「某分类的卡」都是 O(1) 取用——
+   *  此前每个节点都要对 filtered 全量 filter（O(节点数×卡数)），并对每个子节点再扫一遍判空 */
+  const bucket = buildBucketIndex(filtered, (r) => r.categoryId || '')
   const uncat = applyGroupSort(filtered.filter(r => !r.categoryId || !validIds.has(r.categoryId)))
   if (uncat.length) groups.push({ key: 'uncat', title: '待分类', count: uncat.length, items: uncat, depth: 0 })
-  /** 子树内是否有卡（含直属）——空分支不生成组 */
+  /** 子树内是否有卡（含直属）——查分桶，空分支不生成组 */
   const subtreeHasCards = (catId: string) => {
-    const ids = familyIds(catId)
-    return filtered.some(r => r.categoryId && ids.includes(r.categoryId))
+    for (const id of catIdx.value.family(catId)) if ((bucket.get(id) || []).length) return true
+    return false
   }
   const seenGroup = new Set<string>()  // R70：防环
   const walk = (catId: string, name: string, depth: number) => {
     if (seenGroup.has(catId)) return
     seenGroup.add(catId)
-    const direct = applyGroupSort(filtered.filter(r => r.categoryId === catId))
+    const direct = applyGroupSort(bucket.get(catId) || [])
     if (direct.length) groups.push({ key: catId, title: name, count: direct.length, items: direct, depth })
     for (const sub of childCatsOf(catId)) {
       if (subtreeHasCards(sub.id)) walk(sub.id, sub.name, depth + 1)
@@ -902,18 +923,11 @@ const resourceGroups = computed<ResourceGroup[]>(() => {
 
 const kanbanCategories = computed(() => {
   const cats: { key: string; name: string }[] = []
-  const pathOf = (c: Category, seen = new Set<string>()): string => {
-    // R70：带 visited——环数据下 pathOf 会无限递归
-    if (seen.has(c.id)) return c.name
-    seen.add(c.id)
-    const parent = c.parentId ? wsCats.value.find(x => x.id === c.parentId) : null
-    return parent ? pathOf(parent, seen) + ' / ' + c.name : c.name
-  }
   for (const root of rootCats.value) {
     cats.push({ key: root.id, name: root.name })
-    for (const id of descendantIds(root.id)) {
-      const c = wsCats.value.find(x => x.id === id)
-      if (c) cats.push({ key: c.id, name: pathOf(c) })
+    for (const id of catIdx.value.descendants(root.id)) {
+      const c = catIdx.value.byId.get(id)
+      if (c) cats.push({ key: c.id, name: catIdx.value.pathOf(c.id) })
     }
   }
   cats.push({ key: '', name: '待分类' })
@@ -922,8 +936,15 @@ const kanbanCategories = computed(() => {
 
 function resourcesByCategory(catId: string) {
   // R56-V1：看板列内与卡片/列表视图同口径——applySort 消费（手动=拖拽序 curOrder 优先，无拖拽序最新在前）
-  return applySort(allResources.value.filter(r => (r.categoryId||'') === catId))
+  // R71：改走分桶索引（此前每列一次全量 filter）
+  return applySort(resBucket.value.get(catId || '') || [])
 }
+/** R71：看板列（名字 + 计数 + 卡列表）一次算好——模板此前每列把 resourcesByCategory 调两次
+ *  （一次计数、一次渲染），等于每列对全量卡 filter+sort 两遍 */
+const kanbanColumns = computed(() => kanbanCategories.value.map(c => {
+  const items = resourcesByCategory(c.key)
+  return { key: c.key, name: c.name, items, count: items.length }
+}))
 
 // ===== 链接打开（E1：双击 = 打开链接；第卅二轮 REQ-010 归一化逻辑统一在 shared/utils/link） =====
 /** 第卌二轮 REQ-061：双击卡片打开——挂了 HTML 附件的资源卡（link=zy-asset://<id>）走 openHtmlAsset
@@ -1254,78 +1275,69 @@ async function batchDelete() {
 }
 function catNameOf(r: ResourceCard): string {
   if (!r.categoryId) return '待分类'
-  return wsCats.value.find(c => c.id === r.categoryId)?.name || '待分类'
+  return catIdx.value.byId.get(r.categoryId)?.name || '待分类'
 }
 function catIconOf(r: ResourceCard): string {
-  return r.categoryId && wsCats.value.some(c => c.id === r.categoryId) ? '📂' : '📥'
+  return r.categoryId && catIdx.value.byId.has(r.categoryId) ? '📂' : '📥'
 }
-/** R64-F10：卡面所属文件夹徽标——完整分类路径（根→当前，4 级全链） */
+/** R64-F10：卡面所属文件夹徽标——完整分类路径（根→当前，4 级全链）
+ *  R71：走索引缓存（此前沿父链反复全表 find，O(depth×n)；且此函数在卡面模板里逐卡调用） */
 function catNameOfFamily(r: ResourceCard): string {
-  const cat = wsCats.value.find(c => c.id === r.categoryId)
-  if (!cat) return '待分类'
-  const names: string[] = [cat.name]
-  let cur = cat.parentId ? wsCats.value.find(c => c.id === cat.parentId) : undefined
-  let guard = 0
-  while (cur && guard < 5) {
-    names.unshift(cur.name)
-    cur = cur.parentId ? wsCats.value.find(c => c.id === cur!.parentId) : undefined
-    guard++
-  }
-  return names.join(' / ')
+  if (!r.categoryId || !catIdx.value.byId.has(r.categoryId)) return '待分类'
+  return catIdx.value.pathOf(r.categoryId)
 }
 
 // ===== 第八轮：分类树（2 级）+ 置顶 + 聚合计数 =====
 const wsCats = computed(() => d.value.categories.filter(c => c.workspaceId === workspaceId.value))
+/**
+ * R71 性能治理：分类树索引（一次 O(n) 建表 → 此后 O(1) 查表）。
+ * 此前 childCatsOf / rootCats / descendantIds / familyIds 全是「每次调用都全表扫描」的实现，
+ * 而它们被递归函数与模板表达式反复调用（侧栏单个节点就要 5 次 childCatsOf）——
+ * 整棵树一次重渲染是 O(n²)，这正是切换视图/展开目录时卡顿的主因。
+ */
+const catIdx = computed(() => buildCatIndex(wsCats.value))
+/** 卡片按分类分桶（O(1) 取「某分类的卡」，替代反复 filter 全量卡） */
+const resBucket = computed(() => buildBucketIndex(allResources.value, (r) => r.categoryId || ''))
 function childCatsOf(pid: string): Category[] {
-  return wsCats.value.filter(c => c.parentId === pid).sort((a, b) => a.order - b.order)
+  return catIdx.value.childrenOf.get(pid) || []
 }
-const rootCats = computed(() => wsCats.value
-  .filter(c => !c.parentId || !wsCats.value.some(p => p.id === c.parentId))
-  .sort((a, b) => a.order - b.order))
+const rootCats = computed(() => catIdx.value.roots)
 const pinnedRootCats = computed(() => rootCats.value.filter(c => c.pinned))
 const unpinnedRootCats = computed(() => rootCats.value.filter(c => !c.pinned))
-/** R61-4：全部后代 id（深层递归）——4 级树过滤/计数/防环共用；R70 带 visited（环数据不得无限递归） */
+/** R61-4：全部后代 id（深层递归）——4 级树过滤/计数/防环共用；R70 带 visited；R71 走索引缓存 */
 function descendantIds(catId: string): string[] {
-  const out: string[] = []
-  const seen = new Set<string>([catId])
-  const walk = (pid: string) => {
-    for (const c of wsCats.value.filter(x => x.parentId === pid)) {
-      if (seen.has(c.id)) continue
-      seen.add(c.id)
-      out.push(c.id)
-      walk(c.id)
-    }
-  }
-  walk(catId)
-  return out
+  return catIdx.value.descendants(catId)
 }
 function childIds(catId: string): string[] {
   return descendantIds(catId)
 }
 /** 家族 id（自己 + 全部后代分类）——过滤与计数共用口径（R61-4 深化至 4 级） */
 function familyIds(catId: string): string[] {
-  return [catId, ...descendantIds(catId)]
+  return catIdx.value.family(catId)
 }
+/** 家族聚合卡数：索引查表 + 分桶计数 O(家族规模)（此前是 familyIds + 全量 filter + includes） */
 function catAggCount(catId: string): number {
-  const ids = familyIds(catId)
-  return allResources.value.filter(r => r.categoryId && ids.includes(r.categoryId)).length
+  let n = 0
+  for (const id of familyIds(catId)) n += (resBucket.value.get(id) || []).length
+  return n
 }
 /** 分类选择器的层级化选项（下拉/弹窗共用）——R61-4：递归支持 4 级 */
 function treeCatOptions(cats: Category[]): { id: string; label: string }[] {
-  const roots = cats.filter(c => !c.parentId || !cats.some(p => p.id === c.parentId)).sort((a, b) => a.order - b.order)
+  // R71：本函数被多个 computed 调用（移动分类下拉等），改为一次建索引后查表
+  const idx = buildCatIndex(cats)
   const out: { id: string; label: string }[] = []
   const seenOpt = new Set<string>()  // R70：防环
   const push = (c: Category, depth: number) => {
     if (seenOpt.has(c.id)) return
     seenOpt.add(c.id)
     out.push({ id: c.id, label: '└'.repeat(depth) + (depth ? ' ' : '') + c.name })
-    for (const ch of cats.filter(x => x.parentId === c.id).sort((a, b) => a.order - b.order)) push(ch, depth + 1)
+    for (const ch of idx.childrenOf.get(c.id) || []) push(ch, depth + 1)
   }
-  for (const r0 of roots) push(r0, 0)
+  for (const r0 of idx.roots) push(r0, 0)
   return out
 }
 /** 左栏渲染的扁平序列（分区标签 + 缩进标记）——R61-4：递归支持 4 级 */
-interface SidebarCat { cat: Category; depth: number; sectionLabel: string }
+interface SidebarCat { cat: Category; depth: number; sectionLabel: string; hasChildren: boolean; aggCount: number; directCount: number }
 // R48-V2：树状目录展开/折叠（默认全局展开；折叠状态仅会话内记忆）
 const collapsedCats = ref<Set<string>>(new Set())
 function toggleCatCollapse(id: string) {
@@ -1335,7 +1347,7 @@ function toggleCatCollapse(id: string) {
 }
 /** 一键收纳为策展台根部：所有含子分类的父级全部折叠 */
 function collapseAllCats() {
-  collapsedCats.value = new Set(wsCats.value.filter(c => childCatsOf(c.id).length).map(c => c.id))
+  collapsedCats.value = new Set(wsCats.value.filter(c => catIdx.value.hasChildren(c.id)).map(c => c.id))
 }
 function expandAllCats() { collapsedCats.value = new Set() }
 function selectSidebarCat(sc: SidebarCat) {
@@ -1355,7 +1367,12 @@ const sidebarCats = computed<SidebarCat[]>(() => {
   const pushTree = (c: Category, depth: number, sectionLabel: string) => {
     if (seenSide.has(c.id)) return
     seenSide.add(c.id)
-    out.push({ cat: c, depth, sectionLabel })
+    out.push({
+      cat: c, depth, sectionLabel,
+      hasChildren: catIdx.value.hasChildren(c.id),
+      aggCount: catAggCount(c.id),
+      directCount: (resBucket.value.get(c.id) || []).length
+    })
     if (depth > 0 && collapsedCats.value.has(c.id)) return
     if (!collapsedCats.value.has(c.id)) for (const k of childCatsOf(c.id)) pushTree(k, depth + 1, '')
   }
@@ -1667,16 +1684,8 @@ function confirmInputModal() {
 interface PyNode { cat: Category; depth: number; cards: ResourceCard[] }
 /** 节点深度（根=0）——R70：带 visited 显式防环（此前仅靠「parentId 单向链」的假设） */
 function pyDepthOf(c: Category): number {
-  const seen = new Set<string>([c.id])
-  let n = 0
-  let cur: Category | undefined = c.parentId ? wsCats.value.find(x => x.id === c.parentId) : undefined
-  while (cur && !seen.has(cur.id)) {
-    seen.add(cur.id)
-    n++
-    const pid = cur.parentId
-    cur = pid ? wsCats.value.find(x => x.id === pid) : undefined
-  }
-  return n
+  // R71：改走索引缓存（此前每次沿父链全表 find；本函数在 pyramidLevels 里对每个分类各调一次）
+  return catIdx.value.depthOf(c.id) - 1  // 索引 depthOf 以根=1 计，本函数历史口径根=0
 }
 /** 金字塔层级数据：按分类深度铺开（深度0=L2）；卡片=直属（排除主题卡，主题卡是 L1 根）
  *  R65-F3：各层节点按树先序（DFS）排序——同父节点严格紧邻，兄弟顺序跟随父节点位置 */
@@ -1692,7 +1701,7 @@ const pyramidLevels = computed<PyNode[][]>(() => {
   let seq = 0
   const seenDfs = new Set<string>()  // R70：防环
   const walk = (pid: string) => {
-    for (const c of wsCats.value.filter(x => (x.parentId || '') === pid).sort((a, b) => a.order - b.order)) {
+    for (const c of (pid ? (catIdx.value.childrenOf.get(pid) || []) : catIdx.value.roots)) {
       if (seenDfs.has(c.id)) continue
       seenDfs.add(c.id)
       dfsOrder.set(c.id, seq++)
@@ -1701,12 +1710,12 @@ const pyramidLevels = computed<PyNode[][]>(() => {
   }
   walk('')
   for (const arr of byDepth.values()) arr.sort((a, b) => (dfsOrder.get(a.cat.id) ?? 0) - (dfsOrder.get(b.cat.id) ?? 0))
+  // R71：先建「分类 id → 节点」表，卡片一次遍历即可归位（此前每张卡都要逐层 arr.find，O(卡数×分类数)）
+  const nodeByCat = new Map<string, PyNode>()
+  for (const arr of byDepth.values()) for (const n of arr) nodeByCat.set(n.cat.id, n)
   for (const r of allResources.value) {
     if (r.isThesis) continue
-    for (const arr of byDepth.values()) {
-      const hit = arr.find(n => n.cat.id === r.categoryId)
-      if (hit) { hit.cards.push(r); break }
-    }
+    nodeByCat.get(r.categoryId)?.cards.push(r)
   }
   return [...byDepth.keys()].sort((a, b) => a - b).map(k => byDepth.get(k)!)
 })
@@ -1728,7 +1737,7 @@ const pyLayout = computed<{ cols: number; cells: { cat: Category; depth: number;
   /** 后序布点：叶子占新列；父节点跨其子组全部列（列独占，兄弟子树互不侵入） */
   const placeCat = (cat: Category, depth: number): { start: number; span: number } => {
     placed.add(cat.id)
-    const kids = wsCats.value.filter(x => x.parentId === cat.id && !placed.has(x.id)).sort((a, b) => a.order - b.order)
+    const kids = (catIdx.value.childrenOf.get(cat.id) || []).filter(x => !placed.has(x.id))
     if (!kids.length) {
       const col = leafSeq++
       cells.push({ cat, depth, colStart: col, colSpan: 1, cards: cardsBy.get(cat.id) || [] })
@@ -1745,7 +1754,7 @@ const pyLayout = computed<{ cols: number; cells: { cat: Category; depth: number;
     cells.push({ cat, depth, colStart: start, colSpan: span, cards: cardsBy.get(cat.id) || [] })
     return { start, span }
   }
-  for (const root of wsCats.value.filter(x => !x.parentId).sort((a, b) => a.order - b.order)) placeCat(root, 0)
+  for (const root of catIdx.value.roots) placeCat(root, 0)
   // R70：环内节点无根可达，此前被静默忽略——分类与其卡会从金字塔里凭空消失（数据静默丢失）。
   // 补一轮纳入布局，保证「树里有多少节点，金字塔里就渲染多少节点」。
   for (const c of wsCats.value) { if (!placed.has(c.id)) placeCat(c, 0) }
@@ -1849,7 +1858,7 @@ function pyHeightOf(c: Category, seen = new Set<string>()): number {
   // R70：带 visited——防环
   if (seen.has(c.id)) return 1
   seen.add(c.id)
-  const ch = wsCats.value.filter(x => x.parentId === c.id)
+  const ch = catIdx.value.childrenOf.get(c.id) || []
   return ch.length ? Math.max(...ch.map(x => pyHeightOf(x, seen))) + 1 : 1
 }
 // 节点拖拽状态（卡片走 draggedItem；分类走 dragCatId）
@@ -2404,7 +2413,9 @@ function linkDisplay(link: string) {
 
 /* 列表视图 */
 .res-list { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.res-row { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: all .1s; }
+.res-row { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: all .1s;
+  /* R71：屏外行跳过布局/绘制——长列表滚动时把成本限制在视口内 */
+  content-visibility: auto; contain-intrinsic-size: auto 44px; }
 .res-row.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .res-row.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
 .res-row:last-child { border-bottom: none; }

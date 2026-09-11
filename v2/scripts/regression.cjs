@@ -1,4 +1,4 @@
-/* 知源调度台 V2.39.0 回归验证矩阵（交付前必须全绿；当前 749 项）
+/* 知源调度台 V2.40.0 回归验证矩阵（交付前必须全绿；当前 763 项）
  * 运行：node scripts/regression.cjs
  * 新增功能时同步在对应域追加检查项 */
 const fs = require('fs');
@@ -95,7 +95,7 @@ check('B28 原生 confirm 全清除', () => { let n = 0; ['newtab/views/Workspac
 check('O22 使用手册完整内容（外置数据）', () => read('/newtab/manual-data.ts').includes('quick-1') && read('/newtab/manual-data.ts').includes('ref-2') && !read('/newtab/views/GlobalSettings.vue').includes('占位内容'));
 check('产品 logo 替换（首页+关于页+扩展图标）', () => read('/newtab/App.vue').includes('logoUrl') && read('/newtab/views/GlobalSettings.vue').includes('logoUrl') && fs.existsSync(base + '/assets/logo.png'));
 
-check('manifest 版本唯一来源', () => read('/manifest.ts').includes("version: '2.39.0'"));
+check('manifest 版本唯一来源', () => read('/manifest.ts').includes("version: '2.40.0'"));
 check('关于页版本动态（读取 manifest.version，无历史版本硬编码残留）', () => {
   const gs = read('/newtab/views/GlobalSettings.vue')
   return gs.includes('runtimeVersion') && !gs.includes('V2.14.0') && !gs.includes('V2.14.1') && !gs.includes('V2.14.2') && !gs.includes('V2.15.0') && !gs.includes('V2.16.0') && !gs.includes('V2.17.0') && !gs.includes('V2.17.1')
@@ -331,7 +331,7 @@ check('R34-5 各组件不再持有本地 Toast 实例（ref/showToast 残留清�
 console.log('【第卅四轮 · V2.13 需求包第二批：REQ-027 分组分区视图 + 折叠增强】');
 check('R34-6（R64 修订）卡片/列表分类分区：树状递归分组（walk 直属卡+子分类下钻 depth 缩进）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('const resourceGroups') && w.includes("title: '待分类'") && w.includes('walk(sub.id, sub.name, depth + 1)'); });
 check('R34-7 F-027-4 分组标题折叠/展开（collapsedGroups 内存态 + v-show + 箭头切换）', () => read('/newtab/views/Workspace.vue').includes('const collapsedGroups') && read('/newtab/views/Workspace.vue').includes('toggleGroupCollapse') && read('/newtab/views/Workspace.vue').includes("v-show=\"!collapsedGroups.has(g.key)\"") && read('/newtab/views/Workspace.vue').includes("collapsedGroups.has(g.key) ? '▸' : '▾'"));
-check('R34-8（R64 修订）卡面徽标反向强化：全路径显示（R64-F10 用户拍板要明显体现所属文件夹）', () => { const w = read('/newtab/views/Workspace.vue'); return !w.includes('hideGroupBadge') && w.includes("names.join(' / ')"); });
+check('R34-8（R64 修订）卡面徽标反向强化：全路径显示（R64-F10 用户拍板要明显体现所属文件夹）', () => { const w = read('/newtab/views/Workspace.vue'); return !w.includes('hideGroupBadge') && w.includes('return catIdx.value.pathOf(r.categoryId)'); });
 check('R34-9 REQ-027 分区标题样式与首分区标记（ws-cat-head + 折叠箭头）', () => read('/newtab/views/Workspace.vue').includes('ws-cat-head') && read('/newtab/views/Workspace.vue').includes('ws-cat-collapse') && read('/newtab/views/Workspace.vue').includes('{first: gi===0, sub: g.depth>0}'));
 
 console.log('【第卅四轮 · V2.13 需求包第三批：REQ-028 分组视图联动规范】');
@@ -406,7 +406,7 @@ check('R36-17 REQ-039 Enter 键走开链接（Ctrl+Enter 走定位+抽屉，R38 
 console.log('【第卅六轮 · V2.14.1 第三批：REQ-041 产品文案与对外呈现】');
 check("R36-18 REQ-041-① README.md（GitHub 根）不再含 V3.1 演进对照", () => { const src = read('/../../README.md'); return !src.includes('V3.1') && !src.includes('演进对照') && !src.includes('回归 218/218') && !src.includes('V2.13.0'); });
 check("R36-19 REQ-041-② v2/README.md 含产品定位与对位叙事（按 April Dunford 视角落地）", () => { const src = read('/../README.md'); return src.includes('个人资源调度台与认知增强系统') || src.includes('April Dunford'); });
-check('R36-20 REQ-041-③ ManualPage 头部版本 V2.39.0', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.39.0'); });
+check('R36-20 REQ-041-③ ManualPage 头部版本 V2.40.0', () => { const src = read('/newtab/views/ManualPage.vue'); return src.includes('V2.40.0'); });
 check("R36-21 REQ-041-① 根 README 按「是什么/给谁用/解决什么/如何解决」重写", () => { const src = read('/../../README.md'); return src.includes('## 它是什么') && src.includes('## 它给谁用') && src.includes('## 它解决什么问题') && src.includes('资源失血症'); });
 check("R36-22 REQ-041-③ 使用手册「速览」篇新增定位与六动作（quick-1 / quick-2）", () => { const src = read('/newtab/manual-data.ts'); return src.includes("id: 'quick-1'") && src.includes("id: 'quick-2'") && src.includes('它是什么') && src.includes('六个核心动作'); });
 check('R36-23 两份 README 的相对文档链接无死链（防止文档导航撒谎）', () => {
@@ -482,7 +482,7 @@ check('R40-8 REQ-051 好奇面板按 fieldConfig.curiosity 消费（visibleField
 check('R40-9 REQ-049 附件兜底：defaults 各型 assets def（R62 起 thesis 组亦含，四组）+ repository 老数据迁移', () => { const def = read('/shared/storage/defaults.ts'); const rep = read('/shared/storage/repository.ts'); return (def.split("key: 'assets'").length - 1) >= 4 && rep.includes('REQ-049：老数据字段配置补 assets'); });
 console.log('【第卌轮 · V2.16.0 第四批：REQ-052 死代码清理 + 版本门禁】');
 check('R40-10 REQ-052 fieldViewCfg 死代码全库零引用', () => { return !fs.existsSync(base + '/shared/models/index.ts') ? false : !read('/shared/models/index.ts').includes('fieldViewCfg') && !read('/shared/storage/repository.ts').includes('fieldViewCfg'); });
-check('R40-11/R49 版本五处同步（manifest/package/关于页动态/ManualPage/regression）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const gs = read('/newtab/views/GlobalSettings.vue'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes("version: '2.39.0'") && pkg.includes('"version": "2.39.0"') && gs.includes('runtimeVersion') && mp.includes('V2.39.0'); });
+check('R40-11/R49 版本五处同步（manifest/package/关于页动态/ManualPage/regression）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const gs = read('/newtab/views/GlobalSettings.vue'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes("version: '2.40.0'") && pkg.includes('"version": "2.40.0"') && gs.includes('runtimeVersion') && mp.includes('V2.40.0'); });
 
 // ============== 第卌一轮 · V2.17.0 附件详情呈现修复 + 技术债收敛（REQ-054~REQ-057，V2.16.0 交付后用户反馈驱动） ==============
 console.log('【第卌一轮 · V2.17.0 第一批：REQ-054 附件详情端到端呈现修复（详情面板徽章补齐：标题旁 + section 头）】');
@@ -504,7 +504,7 @@ check('R41-8b REQ-057 RecycleBin.purgeAssetsOf 硬删附件失败累计计数提
 // V2.17.1 热修：onFilesChange 必须先 Array.from 快照 FileList 再清空 input.value（设置 value='' 会重置 FileList，旧代码先存引用后清空导致真实上传链路 100% 静默失败）
 check('R41-9 V2.17.1 onFilesChange 先快照 FileList 再清空 input.value（真实上传链路时序红线）', () => { const s = read('/shared/components/AssetManager.vue'); const snap = s.indexOf('Array.from(input.files || [])'); const clear = s.indexOf("input.value = ''"); return snap >= 0 && clear >= 0 && snap < clear && s.includes('const files = Array.from(input.files || [])'); });
 // V2.17.1 热修②：persist 必须 JSON 纯净清洗——reactive 树中残留的 Vue Proxy（编辑表单展开的 assets 等）会被 chrome.storage 序列化为类数组对象 {"0":…}，读回 .length undefined → 卡片正面附件徽章永不渲染
-check('R41-10 V2.17.1 saveData/saveDataNow 入存储前 JSON.parse(JSON.stringify(cache)) 纯净清洗', () => { const s = read('/shared/storage/repository.ts'); return (s.match(/JSON\.parse\(JSON\.stringify\(cache\)\)/g) || []).length >= 2; });
+check('R41-10 V2.17.1 saveData/saveDataNow 入存储前 JSON.parse(JSON.stringify(cache)) 纯净清洗', () => { const s = read('/shared/storage/repository.ts'); return s.includes('payloadJson = JSON.stringify(cache)') && (s.match(/JSON\.parse\(payloadJson\)/g) || []).length >= 2; });
 
 // ============== 第卌二轮 · V2.18.0：REQ-058 file:// 完整打开 + REQ-059 附件包闭环 + REQ-060 性能专项 + REQ-061 附件上传规范 ==============
 console.log('【第卌二轮 · V2.18.0 第一批：REQ-061 卡片附件上传规范（9 图/10MB/HTML 唯一/标题与 linkType 联动）】');
@@ -612,7 +612,7 @@ check('R48-9 详情重设计·任务：说明区上移 Hero（ds-desc）+ 状态
 check('R48-10 详情重设计·好奇心：摘录 Hero 引用体（ds-quote）+ 状态头部下拉 chip（curioStatusMenuOpen）+ 元数据 ds-meta 一行 + 保存链接按钮取消（@change 即存）', () => { const s = read('/newtab/components/compass/CuriosityPanel.vue'); return s.includes('ds-quote') && s.includes('curioStatusMenuOpen') && s.includes('ds-meta') && !s.includes('detail-status-row') && !s.includes('>保存链接<'); });
 check('R48-11 详情重设计·资源：链接 Hero + 工作台/分类双列 + 注解上移「为什么收藏它」+ 附件/被任务挂载折叠', () => { const s = read('/newtab/components/ResourceEditForm.vue'); return s.includes('ds-hero-label') && s.includes('ds-props2') && s.includes('为什么收藏它') && s.includes('ds-details') && s.includes('ds-desc'); });
 check('R48-12 统一样式基建：shared/styles/detail-sheet.css（ds-quote/ds-desc/ds-props2/ds-meta/ds-details/ds-status-chip2）+ main.ts 引入', () => { const s = read('/shared/styles/detail-sheet.css'); const m = read('/newtab/main.ts'); return s.includes('.ds-quote') && s.includes('.ds-desc') && s.includes('.ds-props2') && s.includes('.ds-meta') && s.includes('.ds-details') && s.includes('.ds-status-chip2') && m.includes('detail-sheet.css'); });
-check('R48-13 版本 V2.39.0 五处同步（manifest/package/ManualPage/关于页动态/regression）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes("version: '2.39.0'") && pkg.includes('"version": "2.39.0"') && mp.includes('V2.39.0'); });
+check('R48-13 版本 V2.40.0 五处同步（manifest/package/ManualPage/关于页动态/regression）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes("version: '2.40.0'") && pkg.includes('"version": "2.40.0"') && mp.includes('V2.40.0'); });
 check('R48-14 手册同步：双口径导入说明 + 树展开折叠 + 看板删除入口 + 明细翻页说明', () => { const m = read('/newtab/manual-data.ts'); return m.includes('新增/导入双口径') && m.includes('新建 X') && m.includes('导 Y') && m.includes('收起到根部') && m.includes('看板') && m.includes('每页 20 条'); });
 
 
@@ -652,7 +652,7 @@ check('R49-28 E2 手册全量重写：三件事/上限 + 项目总览管理 + �
 check('R49-29 J 性能实测脚本：scripts/test-perf.cjs（首屏/Splash 探针/路由切换 ≤300ms 五次实测）', () => { const s = fs.readFileSync(path.resolve(__dirname, 'test-perf.cjs'), 'utf8'); return s.includes('__zySplashMs') && s.includes('ROUTE_SEL') && s.includes('routeSeq') && s.includes('300'); });
 check('R49-30 K 导入兼容实测脚本：scripts/test-import-compat.cjs（V2.21.3 旧形状 → 并集合并 + pinned/order 缺省 + 方向台渲染）', () => { const s = fs.readFileSync(path.resolve(__dirname, 'test-import-compat.cjs'), 'utf8'); return s.includes('legacy') && s.includes('K 兼容项目') && s.includes('pinned === undefined') && s.includes('ov-card-item'); });
 check('R49-31 Splash 节奏探针：main.ts mount 注入 __zySplashMs（J-2 实测口径）+ 第二段定时器漂移校正（220ms 淡出）', () => { const m = read('/newtab/main.ts'); return m.includes('__zySplashMs') && m.includes('220 - late') && m.includes('Math.max(0, 220 - late)'); });
-check('R49-32 E4 版本 2.25.0：manifest/package/ManualPage 三处静态 + regression 两处版本断言已升级', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes("version: '2.39.0'") && pkg.includes('"version": "2.39.0"') && mp.includes('V2.39.0'); });
+check('R49-32 E4 版本 2.25.0：manifest/package/ManualPage 三处静态 + regression 两处版本断言已升级', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes("version: '2.40.0'") && pkg.includes('"version": "2.40.0"') && mp.includes('V2.40.0'); });
 
 
 // ============== 第五十轮 · V2.24.0：Bug修复 + 首页布局 + 主航线/指标条 + 策展中心 + 快捷键/Splash ==============
@@ -694,8 +694,8 @@ check('R51-16 F22 单击详情/双击开链：onCardClick 260ms 判别 + mirrorD
 check('R51-17（R65 修订）F23 字段池退役：资源台编辑对齐旧工作台统一走共享 ResourceEditForm（自定义字段经字段配置承接）', () => { const c = read('/newtab/views/CurationCenter.vue'); return !c.includes('fieldPool') && !c.includes('addPoolField') && !c.includes('mc-pool-select') && c.includes('ResourceEditForm'); });
 check('R51-18（R53 重写）遗留 workspace/category 投射记录由 migrateCurationTree 启动期物化后移除（不再页面级常显）', () => { const c = read('/newtab/views/CurationCenter.vue'); const g = read('/shared/storage/curationMigration.ts'); return !c.includes("projections.value.filter(p => p.kind === 'workspace')") && g.includes("p.kind === 'workspace'") && g.includes("d.curationProjections = projections.filter(p => p.kind === 'card')"); });
 
-// ============== 第五十二轮 · V2.39.0：BUG-1 写入记录口径 + BUG-2 已完成口径 + BUG-3 策展空间隔离 + F1/F2 首页布局 + F4 主航线全量 + F5/F6 项目详情 + F7 策展镜像升级 + F8 方向树返回 ==============
-console.log('【第五十二轮 · V2.39.0：三 Bug 修复 + 首页布局改版 + 主航线全量 + 策展镜像升级】');
+// ============== 第五十二轮 · V2.40.0：BUG-1 写入记录口径 + BUG-2 已完成口径 + BUG-3 策展空间隔离 + F1/F2 首页布局 + F4 主航线全量 + F5/F6 项目详情 + F7 策展镜像升级 + F8 方向树返回 ==============
+console.log('【第五十二轮 · V2.40.0：三 Bug 修复 + 首页布局改版 + 主航线全量 + 策展镜像升级】');
 check('R52-1 BUG-1 写入记录主计数=三卡事件+三卡调出（CARD_KINDS 过滤，主数=副行之和）', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes("const CARD_KINDS = new Set(['task', 'curiosity', 'resource'])") && h.includes('logRaw.value.filter(e => CARD_KINDS.has(e.kind)).length + todayCalled.value.length'); });
 check('R52-2 BUG-1 明细与指标同源：调出条目入写入记录明细 + 系统事件灰显不计数', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('调出 · ') && h.includes('系统 · ') && h.includes('.picker-item.sys'); });
 check('R52-3 BUG-2 isProjectDone 共享口径（R56-PERF-c 修订：projectTasksOf 共享索引；口径不变=手动 done/archived + 全任务完成派生）', () => { const s = read('/newtab/stores/compass.ts'); return s.includes('function isProjectDone') && s.includes("tasks.length > 0 && tasks.every(t => t.status === 'done')") && s.includes('const tasks = projectTasksOf(project.id)') && s.includes('isProjectDone, projectTasksOf, offCourseCount'); });
@@ -711,13 +711,13 @@ check('R52-12 F8 完整方向树返回方向台入口（tree-tool accent）', ()
 check('R52-13 F7a（R61 退役）整工作台打包镜像已移除——方向反转为资源台→策展台（mirrorCategoryToBoard）', () => { const a = read('/newtab/App.vue'); const h = read('/shared/storage/hub.ts'); return !a.includes('projectWorkspaceToCuration') && h.includes('mirrorCategoryToBoard') && h.includes('curFrom: { wsId: CURATION_WS_ID'); });
 check('R52-14 F7b（R53 重写）镜像分类与原生分类同树混排：节点拖拽排序 + 拖拽成父子（最多两级）+ 新建子分类', () => { const c = read('/newtab/views/CurationCenter.vue'); return c.includes('onCatDragStart') && c.includes('分类顺序已更新') && c.includes('已移入「') && c.includes('startCreateCat(c.id)') && c.includes('onNodeDragOver'); });
 check('R52-15 F7d（R61 重写）卡片自由拖拽：资源台树落/混排沿用 + 策展台镜像卡拖拽=只改投射落点（moveMirrorTo）', () => { const c = read('/newtab/views/CurationCenter.vue'); const w = read('/newtab/views/Workspace.vue'); return c.includes('onTreeDrop') && w.includes('moveMirrorTo') && w.includes('isMirrorView(moved)') && w.includes('p.targetCatId = catId || undefined'); });
-check('R52-16 F7d（R53 重写）策展归属统一 categoryId（curCatId 退役由迁移清空）+ 镜像视图渲染原生卡 + 镜像视图新建直入', () => { const c = read('/newtab/views/CurationCenter.vue'); const m = read('/shared/models/index.ts'); return c.includes("const cardsIn = (catId: string) => nativeCards.value.filter(r => (r.categoryId || '') === catId)") && m.includes('R53-A1 迁移后不再使用') && c.includes('editingResource.categoryId = activeCat.value'); });
+check('R52-16 F7d（R53 重写）策展归属统一 categoryId（curCatId 退役由迁移清空）+ 镜像视图渲染原生卡 + 镜像视图新建直入', () => { const c = read('/newtab/views/CurationCenter.vue'); const m = read('/shared/models/index.ts'); return c.includes("const cardsIn = (catId: string) => nativeBucket.value.get(catId || '') || []") && m.includes('R53-A1 迁移后不再使用') && c.includes('editingResource.categoryId = activeCat.value'); });
 check('R52-17 F7b（R53 重写）镜像分类子分类同构呈现 + 遗留形状由迁移归一', () => { const c = read('/newtab/views/CurationCenter.vue'); const g = read('/shared/storage/curationMigration.ts'); return c.includes('childCats(c.id)') && g.includes('p.targetCatId = byRecordId.get(p.targetCatId)') && g.includes('r.curCatId = undefined'); });
-check('R52-18 版本 V2.39.0 五处同步（manifest/package/ManualPage/regression 两处 + 关于页动态）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes("version: '2.39.0'") && pkg.includes('"version": "2.39.0"') && mp.includes('V2.39.0'); });
+check('R52-18 版本 V2.40.0 五处同步（manifest/package/ManualPage/regression 两处 + 关于页动态）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes("version: '2.40.0'") && pkg.includes('"version": "2.40.0"') && mp.includes('V2.40.0'); });
 console.log('');
 
-// ============== 第五十三轮 · V2.39.0：策展统一树（镜像物化/拖拽父子）+ 工作台卡面镜像 + 三件事精简强化 + 主题四套 + 盘点 P0/P1/P2 修复 ==============
-console.log('【第五十三轮 · V2.39.0：策展统一树 + 主题精简 + 盘点修复】');
+// ============== 第五十三轮 · V2.40.0：策展统一树（镜像物化/拖拽父子）+ 工作台卡面镜像 + 三件事精简强化 + 主题四套 + 盘点 P0/P1/P2 修复 ==============
+console.log('【第五十三轮 · V2.40.0：策展统一树 + 主题精简 + 盘点修复】');
 check('R53-1 A1 迁移模块：遗留 category/workspace 投射记录物化为 curFrom 真实分类（幂等：迁移后仅剩 card 记录）', () => { const g = read('/shared/storage/curationMigration.ts'); return g.includes('export function migrateCurationTree') && g.includes("materialize(d, p.wsId, p.catId, p.displayName || sourceCatName(d, p.catId))") && g.includes("p.kind === 'workspace'") && g.includes("d.curationProjections = projections.filter(p => p.kind === 'card')"); });
 check('R53-2（R64 扩展）迁移接线：app.ts init 调用 migrateCurationTree + migrateHubStructure + migrateHubMerge 且变更时 persist', () => { const a = read('/newtab/stores/app.ts'); return a.includes('migrateCurationTree(data.value)') && a.includes('migrateHubStructure(data.value)') && a.includes('migrateHubMerge(data.value)') && a.includes('if (t1 || t2 || t3) saveData()'); });
 check('R53-3 A1 模型：Category.curFrom 溯源字段（wsId/catId/projId）+ curCatId 退役注释', () => { const m = read('/shared/models/index.ts'); return m.includes('curFrom?: { wsId: ID; catId: ID; projId: ID }') && m.includes('R53-A1 迁移后不再使用'); });
@@ -739,8 +739,8 @@ check('R53-18 E3 saveData 序列化 try 包裹（异常走 SaveError serial，�
 check('R53-19 E3 引导兜底：main.ts bootDataRobust 重试一次+失败不挂载（防空数据覆写真实数据）', () => { const m = read('/newtab/main.ts'); return m.includes('bootDataRobust') && m.includes('应用未启动以保护本地数据') && m.includes('bootstrapSafe'); });
 check('R53-20 E3 子帧选区消息消毒：selection 接收侧字段类型校验+长度截断', () => { const s = read('/content/selection.ts'); return s.includes('const clip = (v: unknown, cap: number)') && s.includes('v.slice(0, cap)') && s.includes("clip(d0?.__zy_sel?.text, 8000)"); });
 
-// ============== 第五十四轮 · V2.39.0：方向台二级导航闭环（方案A）+ 项目调度分栏拖拽/指标下钻 + 任务调度快捷键 + 策展拖拽修复 + 设置四组 + 图标去重 ==============
-console.log('【第五十四轮 · V2.39.0：二级导航闭环 + 分栏拖拽/下钻 + 策展拖拽修复 + 设置四组】');
+// ============== 第五十四轮 · V2.40.0：方向台二级导航闭环（方案A）+ 项目调度分栏拖拽/指标下钻 + 任务调度快捷键 + 策展拖拽修复 + 设置四组 + 图标去重 ==============
+console.log('【第五十四轮 · V2.40.0：二级导航闭环 + 分栏拖拽/下钻 + 策展拖拽修复 + 设置四组】');
 check('R54-1 A1（R59-T1 修订）项目详情返回按钮恒为「← 返回方向台」（完整方向树有独立入口）+ 面包屑 crumb-up', () => { const p = read('/newtab/views/ProjectCuration.vue'); return p.includes('<button class="mini-btn" @click="goBack">← 返回方向台</button>') && p.includes('crumb-up') && !p.includes("返回方向树"); });
 check('R54-2 A1 方向树来源感知返回 + 面包屑（from=proj&p= → 返回项目详情）', () => { const t = read('/newtab/views/CompassTree.vue'); return t.includes("const fromProjId = computed") && t.includes("fromProjId ? '返回项目详情' : '返回方向台'") && t.includes('crumb-up'); });
 check('R54-3 A3 项目详情跳树带定位：goTreeLocated 携带 from=proj & p & hl=<dirId>', () => { const p = read('/newtab/views/ProjectCuration.vue'); return p.includes('function goTreeLocated') && p.includes("from: 'proj'") && p.includes('hl: dir.id') && !p.includes("@click=\"router.push('/compass/tree')\""); });
@@ -757,7 +757,7 @@ check('R54-13 F1 工作台名图标去重：下拉渲染 name 去前缀（Global
 check('R63-16 手册同步口径更新（替代 R54-14 策展段）：快速采集任务语义 + 二级导航 + 分栏下钻 + 金字塔拖拽语义（R61 结构反转后策展段重写）', () => { const m = read('/newtab/manual-data.ts'); return m.includes('快速采集任务') && m.includes('二级导航（R54）') && m.includes('中缝分隔条可左右拖拽') && m.includes('节点可拖挂子级'); });
 
 // ============== 第五十五轮 · V2.28.0：策展混排平权 + 任务调度迁方向台 + 快速采集任务三端 + 方向状态迁调度台 + DHI 新口径 + 分栏修复 + 项目详情双列目录 + 检索免确认 + 体积 ==============
-console.log('【第五十五轮 · V2.39.0：八包迭代】');
+console.log('【第五十五轮 · V2.40.0：八包迭代】');
 check('R55-1 E 分栏拖拽根因修复：列宽绑定补 .value（此前 ref 插值生成非法 CSS 被 CSSOM 静默拒绝）', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('curSplit.value}%) 8px 1fr') && !h.includes('${curSplit}%)'); });
 check('R55-2 E 分隔条常显 + 命中区 8px + 窄窗隐藏', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('.cur-split::after') && h.includes('width: 8px') && h.includes('.cur-split { display: none; }'); });
 check('R55-3/R66 方向状态迁调度台：CompassHome 顶部挂 MetricBar（带 #right 扩展位），CompassShell 不再引用', () => { const h = read('/newtab/views/CompassHome.vue'); const sh = read('/newtab/views/CompassShell.vue'); return h.includes('import MetricBar') && h.includes('<MetricBar>') && h.includes('template #right') && !sh.includes('MetricBar'); });
@@ -778,8 +778,8 @@ check('R55-17 G1 树任务双写归属（sync taskIds + 未归类区摘除指标
 check('R55-18 G1 节点单击定位：scrollToMetric/scrollToTask + sec-flash/task-flash 高亮', () => { const pc = read('/newtab/views/ProjectCuration.vue'); return pc.includes('function scrollToMetric') && pc.includes('function scrollToTask') && pc.includes('metric-sec-') && pc.includes('data-task-id'); });
 check('R55-19 G2 归属链横向化：chain-line row + ch-link 横向', () => { const pc = read('/newtab/views/ProjectCuration.vue'); return pc.includes('.chain-line { display: flex; flex-direction: row') && pc.includes('.ch-link { width: 18px; height: 2px'); });
 
-// ============== 第五十六轮 · V2.39.0：项目调度4指标恢复 + 今日记录缩页头 + 纵向压缩 + 丝滑度 + 默认最新在前/删除图标 + 目录树微调 + 采集弹窗居中 + 镜像真混排 + 标签随导出 ==============
-console.log('【第五十六轮 · V2.39.0：九包迭代】');
+// ============== 第五十六轮 · V2.40.0：项目调度4指标恢复 + 今日记录缩页头 + 纵向压缩 + 丝滑度 + 默认最新在前/删除图标 + 目录树微调 + 采集弹窗居中 + 镜像真混排 + 标签随导出 ==============
+console.log('【第五十六轮 · V2.40.0：九包迭代】');
 check('R56-1 P1 项目调度 4 指标恢复左列一行四格（cur-stats-v2：成功指标/任务总数/已完成/进行中，14px 级加粗数字）', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('cur-stats-v2') && h.includes('csv-num') && h.includes('csv-lab') && h.includes('成功指标') && h.includes('任务总数') && h.includes('已完成') && h.includes('进行中') && !h.includes('cur-stat-strip'); });
 check('R56-2 P1 两级下钻链路：指标卡 openCurDrill → 弹窗 drillTasks 行点击 drawerRef?.open(t) → TaskDetailDrawer', () => { const h = read('/newtab/views/CompassHome.vue'); const m = h.indexOf('R54-B2：4 指标下钻弹窗'); const seg = h.slice(m); return h.includes('function openCurDrill') && seg.includes('v-for="t in drillTasks"') && seg.includes('drawerRef?.open(t)') && h.includes('<TaskDetailDrawer ref="drawerRef" />'); });
 check('R56-3/R66 今日记录 4 计数迁入方向状态指标条右端（rec-mini in-bar 右对齐；页头只留存储/同步 chip）', () => { const h = read('/newtab/views/CompassHome.vue'); const mb = read('/newtab/components/compass/MetricBar.vue'); const head = h.indexOf('class="page-head"'); const bar = h.indexOf('<MetricBar>'); const seg = h.slice(head, bar); return seg.includes('storage-chip') && seg.includes('sync-chip') && !seg.includes('rec-mini') && h.includes('rec-mini in-bar') && h.includes("openRec('in')") && h.includes("openRec('log')") && mb.includes('mb-right') && mb.includes('slot name="right"'); });
@@ -803,19 +803,19 @@ check('R56-20 V2 项目展板任务行删除图标语义补齐（🗑 + title �
 check('R56-21 G 目录树横向收窄（proj-rail 372→302px，第一列 148→126px）', () => { const pc = read('/newtab/views/ProjectCuration.vue'); return pc.includes('width: 302px') && pc.includes('.pr-projects { width: 126px'); });
 check('R56-22 G 行距放宽（prt-mrow 8px / prt-task 7px 纵向）', () => { const pc = read('/newtab/views/ProjectCuration.vue'); return pc.includes('.prt-mrow { display: flex; align-items: center; gap: 6px; padding: 8px 8px;') && pc.includes('padding: 7px 8px 7px 26px'); });
 check('R56-23 C 任务采集弹窗居中（taskcapture overlay 去 corner）', () => { const g = read('/newtab/components/GlobalPopups.vue'); const i = g.indexOf("activePanel==='taskcapture'"); const seg = g.slice(Math.max(0, i - 120), i + 40); return seg.includes('gp-overlay') && !seg.includes('corner'); });
-check('R56-24 A 镜像分类真混排：mixedCardsOf 并入未投射源卡（curFrom 分支 + live: 前缀临时标识）', () => { const c = read('/newtab/views/CurationCenter.vue'); return c.includes("type MixedCard = { id: string; type: 'native' | 'proj' | 'live'") && c.includes("id: 'live:' + it.card.id") && c.includes("if (projections.value.some(p => p.kind === 'card' && p.cardId === it.card.id)) continue"); });
+check('R56-24 A 镜像分类真混排：mixedCardsOf 并入未投射源卡（curFrom 分支 + live: 前缀临时标识）', () => { const c = read('/newtab/views/CurationCenter.vue'); return c.includes("type MixedCard = { id: string; type: 'native' | 'proj' | 'live'") && c.includes("id: 'live:' + it.card.id") && c.includes('const mirroredNow = projectedCardIds.value') && c.includes('if (mirroredNow.has(it.card.id)) continue'); });
 check('R56-25 A 未投射源卡源序垫后（LIVE_BASE + srcIndexOf 恒排已排序卡之后）', () => { const c = read('/newtab/views/CurationCenter.vue'); return c.includes('const LIVE_BASE = 1e12') && c.includes('srcIndexOf.set(it.card.id, i)') && c.includes('LIVE_BASE + (m.p!.cardId ? (srcIndexOf.get(m.p!.cardId) ?? 0) : 0)'); });
 check('R56-26 A 拖动即物化：live 卡 @drop=onLiveDrop（目标键=镜像分类自身；源卡 projectSourceCardTo 物化 + reorderMixed 落位）', () => { const c = read('/newtab/views/CurationCenter.vue'); return c.includes('function onLiveDrop') && c.includes('@drop.stop="onLiveDrop($event, m)"') && c.includes('projectSourceCardTo(srcCard.id, catKey)'); });
 check('R56-27 A 独立「源分类实时镜像」分区取消（文案与 viewLive 移除，统一网格唯一呈现）', () => { const c = read('/newtab/views/CurationCenter.vue'); return !c.includes('源分类实时镜像') && !c.includes('const viewLive = computed'); });
-check('R56-28 A 计数不双计：nodeCount 过滤已投射源卡 + 区块计数 viewLiveCount 取自混排网格', () => { const c = read('/newtab/views/CurationCenter.vue'); return c.includes("filter(it => !projections.value.some(p => p.kind === 'card' && p.cardId === it.card.id))") && c.includes('const viewLiveCount = computed') && c.includes('源镜像 {{ viewLiveCount }}'); });
+check('R56-28 A 计数不双计：nodeCount 过滤已投射源卡 + 区块计数 viewLiveCount 取自混排网格', () => { const c = read('/newtab/views/CurationCenter.vue'); return c.includes('if (!projectedCardIds.value.has(it.card.id)) v++') && c.includes('const viewLiveCount = computed') && c.includes('源镜像 {{ viewLiveCount }}'); });
 check('R56-29 I 工作台导出改 AppData 子集同构（...d 展开 + 全局段随行 + 工作台段按台过滤 + AppData 类型）', () => { const w = read('/newtab/views/Workspace.vue'); const i = w.indexOf('function exportWorkspace'); const seg = w.slice(i, i + 900); return seg.includes('...d.value') && seg.includes('workspaces: [ws]') && seg.includes("c.workspaceId === wsId") && seg.includes('r.workspaceId === wsId') && w.includes('type AppData'); });
 check('R56-30 I 导出物可导回：含 version:2（导入端版本校验通过），tagTree/compass/tasks/curiosities/stats 全局段随行', () => { const w = read('/newtab/views/Workspace.vue'); const i = w.indexOf('function exportWorkspace'); const seg = w.slice(i, i + 900); return seg.includes('...d.value') && seg.includes('JSON.parse(JSON.stringify'); });
-check('R56-31 版本 2.29.0 五处同步（manifest/package/ManualPage/regression/关于页动态）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); const reg = fs.readFileSync(__filename, 'utf8'); return m.includes("version: '2.39.0'") && pkg.includes('"version": "2.39.0"') && mp.includes('V2.39.0') && reg.includes("version: '2.39.0'"); });
+check('R56-31 版本 2.29.0 五处同步（manifest/package/ManualPage/regression/关于页动态）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); const reg = fs.readFileSync(__filename, 'utf8'); return m.includes("version: '2.40.0'") && pkg.includes('"version": "2.40.0"') && mp.includes('V2.40.0') && reg.includes("version: '2.40.0'"); });
 check('R56-32 E2E-17 注册（项目调度 4 指标恢复左列 + 下钻链路）', () => { const e = fs.readFileSync(path.resolve(__dirname, 'e2e.cjs'), 'utf8'); return e.includes('E2E-17 项目调度4指标恢复左列+下钻链路') && e.includes('.cur-stats-v2 .csv-cell'); });
 check('R56-33 脚本跨平台：e2e/import-compat Chromium 路径 darwin 分支（Windows 原路径保留）', () => { const e = fs.readFileSync(path.resolve(__dirname, 'e2e.cjs'), 'utf8'); const k = fs.readFileSync(path.resolve(__dirname, 'test-import-compat.cjs'), 'utf8'); return e.includes("process.platform === 'darwin'") && k.includes("process.platform === 'darwin'"); });
 
-// ============== 第五十七轮 · V2.39.0：策展拖拽根因修复 + 项目调度两行两列 + 详细指标移除 + 主航线模块化 ==============
-console.log('【第五十七轮 · V2.39.0：四包迭代】');
+// ============== 第五十七轮 · V2.40.0：策展拖拽根因修复 + 项目调度两行两列 + 详细指标移除 + 主航线模块化 ==============
+console.log('【第五十七轮 · V2.40.0：四包迭代】');
 check('R57-1 F1 根因修复：策展原生卡/投射卡 draggable="true"（裸 draggable 渲染为非法空值致 div 不可拖——工作台能拖/策展不能拖的根因）', () => { const c = read('/newtab/views/CurationCenter.vue'); return !c.includes('draggable @dragstart') && c.includes('draggable="true" @dragstart="onCardDragStart') && c.includes('draggable="true" @dragstart="onProjDragStart'); });
 check('R57-2 F1 拖拽强化：dragstart 统一 effectAllowed=move（卡/投射/源卡/分类 4 处）+ acceptDragOver 设 dropEffect=move', () => { const c = read('/newtab/views/CurationCenter.vue'); return (c.match(/effectAllowed = 'move'/g) || []).length >= 4 && c.includes('function acceptDragOver') && c.includes("e.dataTransfer.dropEffect = 'move'"); });
 check('R57-3 F1（R59-T10 修订）区域级落卡：cur-grid 绑定带分区键 + onAreaDrop（移入分区/源卡物化/PENDING 仅投射）+ 卡片 @drop.stop ×3', () => { const c = read('/newtab/views/CurationCenter.vue'); return c.includes('@dragover="onAreaDragOver($event, sec.key)"') && c.includes('@drop="onAreaDrop($event, sec.key)"') && c.includes('function onAreaDrop') && c.includes('projectSourceCardTo(srcCard.id, targetKey)') && (c.match(/@drop\.stop=/g) || []).length >= 3; });
@@ -827,11 +827,11 @@ check('R57-8 F4 主航线第一行：愿景|使命两列并列卡（mr-vm-row + 
 check('R57-9 F4 第二行战略目标模块网格：mr-goals-grid + mr-goal-card（mgc-head/mgc-projects + 项目小模块 chip-proj）', () => { const l = read('/newtab/components/compass/LighthousePanel.vue'); return l.includes('.mr-goals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));') && l.includes('class="mr-goal-card"') && l.includes('mgc-head') && l.includes('mgc-projects') && l.includes('chip-proj'); });
 check('R57-10 F4 定位链路保留：data-dir-id 落在目标模块 + goal-flash 闪烁（zy-locate-goal）', () => { const l = read('/newtab/components/compass/LighthousePanel.vue'); return l.includes(':data-dir-id="dir.id"') && l.includes('goal-flash') && l.includes("zy-locate-goal"); });
 check('R57-11 F4 更多N折叠 + 已完成显隐保留（CHIP_LIMIT/moreOf/toggleShowDone；mr-meta/chip-proj 断言锚点延续）', () => { const l = read('/newtab/components/compass/LighthousePanel.vue'); return l.includes('const CHIP_LIMIT = 6') && l.includes('function moreOf') && l.includes('function toggleShowDone') && l.includes('mr-meta'); });
-check('R57-12 版本 2.30.0 五处同步（manifest/package/ManualPage/regression/关于页动态）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); const reg = fs.readFileSync(__filename, 'utf8'); return m.includes("version: '2.39.0'") && pkg.includes('"version": "2.39.0"') && mp.includes('V2.39.0') && reg.includes("version: '2.39.0'"); });
+check('R57-12 版本 2.30.0 五处同步（manifest/package/ManualPage/regression/关于页动态）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); const reg = fs.readFileSync(__filename, 'utf8'); return m.includes("version: '2.40.0'") && pkg.includes('"version": "2.40.0"') && mp.includes('V2.40.0') && reg.includes("version: '2.40.0'"); });
 check('R57-13 E2E-18 注册（策展卡 draggable 真值 + 区域落卡）', () => { const e = fs.readFileSync(path.resolve(__dirname, 'e2e.cjs'), 'utf8'); return e.includes('E2E-18') && e.includes("getAttribute('draggable')"); });
 
-// ============== 第五十八轮 · V2.39.0：产品体检修复（工作台软删红线/并发写合并/时间边界/搜索两端同构+召回排序/未归档筛选/P3三则） ==============
-console.log('【第五十八轮 · V2.39.0：七包迭代】');
+// ============== 第五十八轮 · V2.40.0：产品体检修复（工作台软删红线/并发写合并/时间边界/搜索两端同构+召回排序/未归档筛选/P3三则） ==============
+console.log('【第五十八轮 · V2.40.0：七包迭代】');
 check('R58-1 B1 红线：删除工作台改软删（资源卡写 deletedAt 移入回收站，不再物理 filter 移除）+ 策展空间守卫', () => { const w = read('/newtab/views/Workspace.vue'); const i = w.indexOf('async function deleteWorkspace'); const seg = w.slice(i, i + 1100); return seg.includes('r.deletedAt = now') && !seg.includes('d.value.resources = d.value.resources.filter') && seg.includes('CURATION_WS_ID'); });
 check('R58-2 B1 回收站孤卡回落：restore 前 rehomeIfOrphan（原工作台/分类已删 → 首个可用台未分类）', () => { const rb = read('/newtab/views/RecycleBin.vue'); return rb.includes('function rehomeIfOrphan') && rb.includes('rehomeIfOrphan(r)') && rb.includes('CURATION_WS_ID'); });
 check('R58-3 B2 合并层：repository mergeExternalData（卡片 id+updatedAt LWW/外部新建收编/外部物理移除尊重）', () => { const r = read('/shared/storage/repository.ts'); return r.includes('export function mergeExternalData') && r.includes('function mergeCardArr') && r.includes('((e.updatedAt || 0) > (l.updatedAt || 0)) ? e : l') && r.includes('if (!cur || !saveTimer) { syncCache(ext); return ext }'); });
@@ -843,11 +843,11 @@ check('R58-8 O1 召回排序：置顶>星标 之下三级兜底（标题全词�
 check('R58-9 O2 任务卡库「未归档」筛选：TaskFilter 加 unarchived + 口径走 taskArchiveIssue（O23 同源）+ 下拉项', () => { const t = read('/newtab/components/compass/TaskManagerPanel.vue'); return t.includes("type TaskFilter = 'all' | 'todo' | 'doing' | 'done' | 'unarchived'") && t.includes("tasks.filter(t => !!taskArchiveIssue(t))") && t.includes('<option value="unarchived">⚠ 未归档</option>') && t.includes('taskArchiveIssue } = useCompass()'); });
 check('R58-10（R65 修订）B5-1 策展新建卡 curOrder = 混排全量长度（抽屉保存口径）', () => { const c = read('/newtab/views/CurationCenter.vue'); return c.includes('editingResource.curOrder = mixedCardsOf(editingResource.categoryId).length'); });
 check('R58-11 B5-3 activityLogs 退役：loadData 启动清空 + 导入不再搬运', () => { const r = read('/shared/storage/repository.ts'); const g = read('/newtab/views/GlobalSettings.vue'); return r.includes("data.activityLogs = []") && g.includes('d.activityLogs = []') && !g.includes('imported.activityLogs'); });
-check('R58-12 版本 2.31.0 五处同步', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); const reg = fs.readFileSync(__filename, 'utf8'); return m.includes("version: '2.39.0'") && pkg.includes('"version": "2.39.0"') && mp.includes('V2.39.0') && reg.includes("version: '2.39.0'"); });
+check('R58-12 版本 2.31.0 五处同步', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); const reg = fs.readFileSync(__filename, 'utf8'); return m.includes("version: '2.40.0'") && pkg.includes('"version": "2.40.0"') && mp.includes('V2.40.0') && reg.includes("version: '2.40.0'"); });
 check('R58-13 E2E-19 注册（删除工作台软删 + 回收站可见）', () => { const e = fs.readFileSync(path.resolve(__dirname, 'e2e.cjs'), 'utf8'); return e.includes('E2E-19') && e.includes('deletedAt'); });
 
-// ============== 第五十九轮 · V2.39.0：返回方向台 + 树投射退役/主攻按钮 + 关联卡片弹窗 + 空指标拖拽 + 主航线凸显 + 总览去占位 + 指标分离 + WCE转化口径 + 策展父分类分区 ==============
-console.log('【第五十九轮 · V2.39.0：十包迭代】');
+// ============== 第五十九轮 · V2.40.0：返回方向台 + 树投射退役/主攻按钮 + 关联卡片弹窗 + 空指标拖拽 + 主航线凸显 + 总览去占位 + 指标分离 + WCE转化口径 + 策展父分类分区 ==============
+console.log('【第五十九轮 · V2.40.0：十包迭代】');
 check('R59-1 T1 项目详情返回恒「← 返回方向台」', () => { const p = read('/newtab/views/ProjectCuration.vue'); return p.includes('← 返回方向台') && !p.includes('返回方向树'); });
 check('R59-2 T2 树投射开关退役（vision/mission/proj 三处函数与 UI 全无）', () => { const t = read('/newtab/views/CompassTree.vue'); return !t.includes('投射至灯塔') && !t.includes('投射至知源灯塔') && !t.includes('toggleProjProjection'); });
 check('R59-3 T3 主攻按钮 + 置前排序 + primary 强化', () => { const t = read('/newtab/views/CompassTree.vue'); return t.includes('>🎯 主攻</button>') && t.includes('.sort((a, b) => (Number(b.isFocused) - Number(a.isFocused)))') && t.includes('inset 3px 0 0 var(--accent)'); });
@@ -858,7 +858,7 @@ check('R59-7 T7 项目总览占位卡移除（ov-empty-hint 仅零项目）', ()
 check('R59-8（R65 修订）方向状态与三件事分离（metric-bar margin-bottom 10px）', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); return mb.includes('.metric-bar { background') && mb.includes('margin-bottom: 10px; }'); });
 check('R59-9 T9 WCE 转化口径：fromCuriosityId 模型/convertCard 写标记/WCE=激活+转化/MetricBar 消费 count', () => { const m = read('/shared/models/index.ts'); const c = read('/shared/utils/cards.ts'); const st = read('/newtab/stores/compass.ts'); const mb = read('/newtab/components/compass/MetricBar.vue'); return (m.match(/fromCuriosityId\?: ID/g) || []).length >= 2 && (c.match(/fromCuriosityId: c\.id/g) || []).length >= 2 && st.includes('const convertedCount = ') && st.includes('count: wceCount + convertedCount') && mb.includes('m.wce.count ?? 0'); });
 check('R59-10 T10 策展父分类分区呈现：renderSections（未细分优先+子分类依次）+ 区域级 drop 带分区键', () => { const c = read('/newtab/views/CurationCenter.vue'); return c.includes('const isParentView = computed') && c.includes('未细分 · 直属卡片') && c.includes('onAreaDragOver($event, sec.key)') && c.includes('onAreaDrop($event, sec.key)'); });
-check('R59-11 版本 2.39.0 五处同步', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); const reg = fs.readFileSync(__filename, 'utf8'); return m.includes("version: '2.39.0'") && pkg.includes('"version": "2.39.0"') && mp.includes('V2.39.0') && reg.includes("version: '2.39.0'"); });
+check('R59-11 版本 2.40.0 五处同步', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); const reg = fs.readFileSync(__filename, 'utf8'); return m.includes("version: '2.40.0'") && pkg.includes('"version": "2.40.0"') && mp.includes('V2.40.0') && reg.includes("version: '2.40.0'"); });
 check('R59-12 E2E-20 注册（空指标接收任务拖拽）', () => { const e = fs.readFileSync(path.resolve(__dirname, 'e2e.cjs'), 'utf8'); return e.includes('E2E-20'); });
 
 console.log('【R60 组 检索 id 锚定 · 灯塔退役 · DHI 新口径】');
@@ -878,7 +878,7 @@ check('R61-3 hub.ts 服务：curationBoards/boardCardsOf/isMirrorView/moveMirror
 check('R61-4 镜像卡注入策展台全视图：allResources=boardCardsOf + 卡片/列表视图镜像徽标', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('boardCardsOf(d.value, workspaceId.value)') && w.includes('rc-mirror-badge') && w.includes("isMirrorView(r)"); });
 check('R61-5 镜像卡写操作守卫：删除=移出镜像/置顶星标拦截/单击提示/批量删除拆 natives+mirrors', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('if (isMirrorView(r)) { removeMirror(r); return }') && w.includes('置顶请在资源台操作') && w.includes('星标请在资源台操作') && w.includes('const mirrors = removed.filter(isMirrorView)'); });
 check('R61-6 决策A语义：策展台新建卡不写资源台（openNewResource 保持 workspaceId=台 id）+ 删除走回收站（软删链路不变）', () => { const w = read('/newtab/views/Workspace.vue'); const h = read('/shared/storage/hub.ts'); return w.includes("workspaceId: workspaceId.value, categoryId: ''") && w.includes('r.deletedAt = Date.now()') && h.includes('toWsId === CURATION_WS_ID) return null'); });
-check('R61-7 层级 4 级落地：MAX_CAT_LEVEL 单一来源 + Workspace 深化 descendantIds + 看板/选项递归', () => { const t = read('/shared/utils/catTree.ts'); const c = read('/newtab/views/CurationCenter.vue'); const w = read('/newtab/views/Workspace.vue'); return t.includes('export const MAX_CAT_LEVEL = 4') && c.includes('levelOf(parent) + 1 > MAX_CAT_LEVEL') && w.includes('function descendantIds') && w.includes('push(ch, depth + 1)') && w.includes('pathOf(c)'); });
+check('R61-7 层级 4 级落地：MAX_CAT_LEVEL 单一来源 + Workspace 深化 descendantIds + 看板/选项递归', () => { const t = read('/shared/utils/catTree.ts'); const c = read('/newtab/views/CurationCenter.vue'); const w = read('/newtab/views/Workspace.vue'); return t.includes('export const MAX_CAT_LEVEL = 4') && c.includes('levelOf(parent) + 1 > MAX_CAT_LEVEL') && w.includes('function descendantIds') && w.includes('return catIdx.value.descendants(catId)') && w.includes('catIdx.value.pathOf'); });
 check('R61-8 命名切换：顶栏/路由/弹窗 策展中心→资源台、工作台→策展台；App.vue 打包镜像退役', () => { const r = read('/newtab/router.ts'); const a = read('/newtab/App.vue'); const c = read('/newtab/views/CurationCenter.vue'); return r.includes("meta: { title: '知源调度台 · 资源台' }") && a.includes('>资源台') && a.includes('策展台「${name}」已创建') && c.includes('<b>资源台</b>') && !a.includes('>策展中心') && !a.includes('工作台「${name}」已创建'); });
 check('R61-9 删除策展台级联：App.vue 移除该台收到的镜像记录（引用随台走，源卡零影响）', () => { const a = read('/newtab/App.vue'); return a.includes("p.targetWsId === ws.id") && a.includes('引用随台走'); });
 check('R61-10 旧方向入口全拆除：Workspace 无 projectCardToCuration/projectCategoryToCuration，CurationCenter 无 clearProjections 函数与 PENDING 树节点', () => { const w = read('/newtab/views/Workspace.vue'); const c = read('/newtab/views/CurationCenter.vue'); return !w.includes('projectCardToCuration') && !w.includes('projectCategoryToCuration') && !c.includes('function clearProjections') && !c.includes('cat-icon">📡</span><span class="cat-name">待分类'); });
@@ -914,7 +914,7 @@ check('R63-12 全景移动守卫：镜像卡=改投射落点（targetWsId/target
 check('R63-13 导出适配：CSV 策展台含镜像 + 尾随分类路径/层级/是否中心论点/镜像标记列 + exportWorkspace 只带本台投射 + mergeImport airtableMap 并集', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('boardCardsOf(d, ws.id)') && g.includes("label: '分类路径'") && g.includes("label: '层级'") && g.includes("label: '是否中心论点'") && g.includes("label: '镜像标记'") && g.includes('curationProjections: (d.curationProjections || []).filter(p => p.targetWsId === ws.id)') && g.includes('d.airtableMap = { ...(imported.airtableMap), ...(d.airtableMap || {}) }'); });
 check('R63-14 导入兼容：mergeImport 四字段组（含 thesis）合并保留 R62 语义', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes("for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const)") && g.includes('if (!cfg.thesis) cfg.thesis = defaultThesisFieldDefs()'); });
 
-// ============ R64：资源台归一 + 同步自愈 + 界面瘦身（V2.39.0） ============
+// ============ R64：资源台归一 + 同步自愈 + 界面瘦身（V2.40.0） ============
 check('R64-1 同步自愈 R1：映射优先级远端索引优先（remote.get 优先于 map 兜底）', () => { const a = read('/shared/storage/airtable.ts'); return a.includes('const rid = remote.get(row.key) || map[row.key]?.recordId'); });
 check('R64-2 同步自愈 R2/R3：批量 PATCH 失败逐条降级 + 记录不存在转 POST 重建写回 map + 单条失败仅记 log', () => { const a = read('/shared/storage/airtable.ts'); return a.includes('isMissingRecord') && a.includes('逐条自愈重建') && a.includes('createOne') && a.includes("map[u.key] = { recordId: newId"); });
 check('R64-3 镜像独立记录：投射行幂等键 cardId:m:targetWsId + wsName=落点台名 + catPath=投射分类', () => { const a = read('/shared/storage/airtable.ts'); return a.includes('`${p.cardId}:m:${p.targetWsId}`') && a.includes('R64-F2'); });
@@ -928,12 +928,12 @@ check('R64-10 hub-merge 迁移：旧台树挂资源台同名根分类 + 原生�
 check('R64-11 迁移链挂载：app.ts 调 migrateHubMerge + 备份条件含 hubMergedAt', () => { const a = read('/newtab/stores/app.ts'); return a.includes('migrateHubMerge(data.value)') && a.includes('!data.value.hubMergedAt'); });
 check('R64-12 采集默认资源台：defaultCaptureWsId 资源台优先 + 打开时回显', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes('function defaultCaptureWsId') && g.includes('capForm.workspaceId || defaultCaptureWsId()') && g.includes("if (!capForm.workspaceId) capForm.workspaceId = defaultCaptureWsId()"); });
 check('R64-13 树状递归分组：resourceGroups 带 depth + walk 递归直属卡分组（子分类不再混入父组平铺）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('items: direct, depth') && w.includes('walk(sub.id, sub.name, depth + 1)') && w.includes("g.depth ? 'margin-left:'"); });
-check('R64-14 卡面路径徽标：catNameOfFamily 全路径（根→当前 4 级链）+ 隐藏逻辑移除', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes("names.join(' / ')") && !w.includes('hideGroupBadge') && !w.includes('rc-cat.hidden'); });
+check('R64-14 卡面路径徽标：catNameOfFamily 全路径（根→当前 4 级链）+ 隐藏逻辑移除', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('return catIdx.value.pathOf(r.categoryId)') && !w.includes('hideGroupBadge') && !w.includes('rc-cat.hidden'); });
 check('R64-15 金字塔连线：SVG py-links-svg + drawPyLinks 根/父→子贝塞尔 + resize 重绘', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('py-links-svg') && w.includes('function drawPyLinks') && w.includes("querySelectorAll('[data-pyid]')") && w.includes("addEventListener('resize', pyLinksThrottled)") && w.includes('function pyLinksThrottled'); });
 check('R64-16 中心论点弹窗创建：空态点击 openThesisCreate 预置 isThesis 落 L1 + hero 删除按钮上移', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('function openThesisCreate') && w.includes('editingResource.isThesis = true') && w.includes('点击设立中心论点') && !w.includes('ws-hero') && w.includes('🎨 更换图标'); });
 
-// ============== 第六十五轮 · V2.39.0：资源台对齐旧工作台 + 金字塔树状自适应 + 节点双入口 + 策展导入导出语义 + 全景收窄 + 快捷键口径 + KeepAlive ==============
-console.log('【第六十五轮 · V2.39.0：资源台对齐旧工作台 + 金字塔 2~7 列树状自适应 + 节点双入口 + 导入导出语义修正】');
+// ============== 第六十五轮 · V2.40.0：资源台对齐旧工作台 + 金字塔树状自适应 + 节点双入口 + 策展导入导出语义 + 全景收窄 + 快捷键口径 + KeepAlive ==============
+console.log('【第六十五轮 · V2.40.0：资源台对齐旧工作台 + 金字塔 2~7 列树状自适应 + 节点双入口 + 导入导出语义修正】');
 check('R65-1 资源台工具条对齐旧工作台：卡片/列表/看板三视图 + 搜索 + 批量管理 + 导入 + 新建', () => { const c = read('/newtab/views/CurationCenter.vue'); return c.includes("viewMode = ref<'card' | 'list' | 'kanban'>('card')") && c.includes('☰ 列表') && c.includes('▤ 看板') && c.includes('toolbar-search') && c.includes('toolbar-batch') && c.includes('importModalOpen = true') && c.includes('＋ 新建卡片'); });
 check('R65-2 资源台抽屉详情：单击 openResource 开抽屉（共享 ResourceEditForm）+ 双击 openCard 打开链接 + 260ms 判别保留', () => { const c = read('/newtab/views/CurationCenter.vue'); return c.includes('ResourceEditForm') && c.includes('function openResource(r: ResourceCard)') && c.includes(':class="{open: drawerOpen}"') && c.includes('openResource(m.r!)') && c.includes('onCardDblClick(() => openCard(m.r!))') && c.includes('260'); });
 check('R65-3 资源台批量操作浮动栏：全选/批量打开/移动到/批量删除 + confirmBatchMove 落资源台分类树', () => { const c = read('/newtab/views/CurationCenter.vue'); return c.includes('batch-bar') && c.includes('selectAllVisible') && c.includes('batchOpen') && c.includes('openBatchMove') && c.includes('batchDelete') && c.includes('moveCatOptions'); });
@@ -947,8 +947,8 @@ check('R65-10（R68 修订）快捷键口径：open-resource 退役，资源台�
 check('R65-11（R68 修订）KeepAlive 切台缓存：四主视图 include（+CompassShell）+ defineOptions 实例名 + 跨台 :id 复位局部状态', () => { const a = read('/newtab/App.vue'); const w = read('/newtab/views/Workspace.vue'); const c = read('/newtab/views/CurationCenter.vue'); const h = read('/newtab/views/CompassHome.vue'); return a.includes('keep-alive include="CompassHomeView,CurationCenterView,WorkspaceView,CompassShell"') && read('/newtab/views/CompassShell.vue').includes("defineOptions({ name: 'CompassShell' })") && w.includes("defineOptions({ name: 'WorkspaceView' })") && c.includes("defineOptions({ name: 'CurationCenterView' })") && h.includes("defineOptions({ name: 'CompassHomeView' })") && w.includes('watch(() => route.params.id'); });
 check('R65-12 方向状态单行指标条：副行收 tooltip（mb-v 13.5px 单行 + st-warn 保留）', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); return mb.includes('mb-row') && mb.includes('mb-k') && mb.includes('mb-v') && mb.includes('st-warn') && !mb.includes('mb-head'); });
 
-// ============== 第六十六轮 · V2.39.0：任务采集选区预填 + 项目调度瘦身 + 操作记录整合 + 全量导入导出 uiPrefs + 全景递归 + 金字塔居中树 + 品牌刷新 ==============
-console.log('【第六十六轮 · V2.39.0：任务采集选区预填 + 金字塔居中树布局 + 品牌口径升级】');
+// ============== 第六十六轮 · V2.40.0：任务采集选区预填 + 项目调度瘦身 + 操作记录整合 + 全量导入导出 uiPrefs + 全景递归 + 金字塔居中树 + 品牌刷新 ==============
+console.log('【第六十六轮 · V2.40.0：任务采集选区预填 + 金字塔居中树布局 + 品牌口径升级】');
 check('R66-1 任务采集选区预填：openTaskCapture 接入选区链路（文本→内容/标题→名称/URL→链接字段，均可编辑）+ 保存写 link', () => { const c = read('/content/overlay-impl.ts'); return c.includes('R66-F1') && c.includes('resolveSelection()') && c.includes('clearSelCache()') && c.includes('__zy_tc_link__') && c.includes('（已填入选中文本，可编辑）') && c.includes('link: link || undefined'); });
 check('R66-2 金字塔直角连线：drawPyLinks 改横平竖直折线（父底中点↓横移↑子顶中点）+ SVG 画布按滚动区设定', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('M ${a.x} ${a.bottom} L ${a.x} ${mid} L ${b.x} ${mid} L ${b.x} ${b.top}') && w.includes('scrollWidth') && !w.includes('C ${a.x} ${mid}'); });
 check('R66-3 全量导出附 uiPrefs + 导入自动应用：exportAll 载入 UI 偏好并入包，导入侧落 data-theme/data-density', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('async function exportAll') && g.includes('loadUIPrefs') && g.includes('{ ...safeData, uiPrefs }') && g.includes("document.documentElement.setAttribute('data-theme', ui.theme)") && g.includes("saveUIPrefs({ density: ui.density as 'compact' | 'cozy' })") && g.includes('界面偏好已应用'); });
@@ -956,7 +956,7 @@ check('R66-4 资源台全景递归 N 级：panTree toNode 递归 + flattenPanCat
 check('R66-5 品牌刷新落点：启动动画/采集浮层页脚/搜索页脚/一封信全部换新 Slogan（旧「你不缺信息」清零）', () => { const h = read('/newtab/index.html'); const ov = read('/content/overlay-impl.ts'); const gp = read('/newtab/components/GlobalPopups.vue'); const lt = read('/newtab/letter-data.ts'); return h.includes('万千可调用，自有我方向') && ov.includes('知源调度台 · 万千可调用，自有我方向') && gp.includes('知源调度台 · 万千可调用，自有我方向') && lt.includes('万千可调用，自有我方向') && !lt.includes('你不缺信息') && lt.includes('lp-creed'); });
 check('R66-6 一封信按新叙事重写：新病根开场→三个看见工作流→信任承诺→新 Slogan 收束（旧「我也焦虑」开场退役）', () => { const lt = read('/newtab/letter-data.ts'); return lt.includes('外部可能性持续增加') && lt.includes('今天的行动有来处') && lt.includes('策展成可以讲给别人听的成果') && lt.includes('伊里奇') && lt.includes('万千可调用，自有我方向') && !lt.includes('我也焦虑') && lt.includes('R66'); });
 check('R66-7 应用内手册对齐新口径：quick-1 三项核心价值表 + 方向状态 R66 整合口径 + 金字塔居中树口径', () => { const m = read('/newtab/manual-data.ts'); return m.includes('三项核心价值') && m.includes('<strong>调用</strong>贯穿三者') && m.includes('R66 整合') && m.includes('R67 重排') && m.includes('R66 居中树布局') && m.includes('界面偏好段 uiPrefs'); });
-check('R66-8 docs 双文档升版 V2.39.0：功能手册/白皮书新定位与新 Slogan 落位', () => { const d1 = fs.readFileSync(path.resolve(__dirname, '../../docs/产品功能手册_V2.39.0.md'), 'utf8'); const d2 = fs.readFileSync(path.resolve(__dirname, '../../docs/产品白皮书_V2.39.0_对外版.md'), 'utf8'); return d1.includes('个人调度中台') && d1.includes('万千可调用，自有我方向') && d1.includes('V2.39.0 结构变化速览') && d2.includes('你在浏览器里的个人调度中台') && d2.includes('万千可调用，自有我方向') && !d2.includes('你不缺信息，你缺一座控制中心'); });
+check('R66-8 docs 双文档升版 V2.40.0：功能手册/白皮书新定位与新 Slogan 落位', () => { const d1 = fs.readFileSync(path.resolve(__dirname, '../../docs/产品功能手册_V2.40.0.md'), 'utf8'); const d2 = fs.readFileSync(path.resolve(__dirname, '../../docs/产品白皮书_V2.40.0_对外版.md'), 'utf8'); return d1.includes('个人调度中台') && d1.includes('万千可调用，自有我方向') && d1.includes('V2.40.0 结构变化速览') && d2.includes('你在浏览器里的个人调度中台') && d2.includes('万千可调用，自有我方向') && !d2.includes('你不缺信息，你缺一座控制中心'); });
 
 // ============== 第六十七轮 · R67：推进项目全称 + 紫框重排 + 策展主题高亮 + 任务采集居中 + 全景数据源修复 + 模块直达快捷键 + 项目目录拖拽 ==============
 console.log('【第六十七轮 · R67：方向状态全称 + 紫框重排 + 全景数据源修复 + 模块直达】');
@@ -993,10 +993,10 @@ check('R69-3 资源台聚合哨兵不污染数据层：新建卡/文件导入/�
 check('R69-4 设置页快捷键映射表键位修正：第 N 个策展台 = 修饰键 + (N+2)', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes("{{ i + 3 <= 9 ? modLabel() + ' + ' + (i + 3) : '—' }}") && s.includes('第 N 个策展台 = 修饰键 + (N+2)') && s.includes('1 = 方向台、2 = 资源台、3 起按台签顺序对应各策展台') && s.includes('Alt + 数字键（1=方向台、2=资源台、3 起=各策展台）'); });
 check('R69-5 快捷键速查口径修正：Ctrl+Shift+K 打开调度台 + Alt+3…9 各策展台', () => { const s = read('/newtab/components/GlobalPopups.vue'); return s.includes("desc: '打开调度台'") && s.includes("desc: '各策展台（按台签顺序）'") && s.includes("{ keys: 'Alt+1', desc: '方向台（修饰键可自定义）' }") && s.includes("{ keys: 'Alt+2', desc: '资源台' }"); });
 check('R69-6 垃圾清理：旧版浮层备份 search-overlay.ts.orig.bak 与 scripts/.r6a 已移除', () => !exists('/content/search-overlay.ts.orig.bak') && !fs.existsSync(path.resolve(__dirname, '..', 'scripts', '.r6a')));
-check('R69-7 版本 V2.39.0 五处同步（manifest/package/ManualPage/regression/关于页动态）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); const reg = fs.readFileSync(__filename, 'utf8'); const gs = read('/newtab/views/GlobalSettings.vue'); return m.includes("version: '2.39.0'") && pkg.includes('"version": "2.39.0"') && mp.includes('V2.39.0') && reg.includes("version: '2.39.0'") && gs.includes('runtimeVersion'); });
+check('R69-7 版本 V2.40.0 五处同步（manifest/package/ManualPage/regression/关于页动态）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); const reg = fs.readFileSync(__filename, 'utf8'); const gs = read('/newtab/views/GlobalSettings.vue'); return m.includes("version: '2.40.0'") && pkg.includes('"version": "2.40.0"') && mp.includes('V2.40.0') && reg.includes("version: '2.40.0'") && gs.includes('runtimeVersion'); });
 
-// ============== 第七十轮 · V2.39.0：全量代码审计缺陷修复（P0 分类树校验+递归防护 / P1 安全与引用一致性 / P2 健壮性） ==============
-console.log('【第七十轮 · V2.39.0：审计缺陷全量修复】');
+// ============== 第七十轮 · V2.40.0：全量代码审计缺陷修复（P0 分类树校验+递归防护 / P1 安全与引用一致性 / P2 健壮性） ==============
+console.log('【第七十轮 · V2.40.0：审计缺陷全量修复】');
 
 check('R70-1 P0 新增分类树结构校验工具（环/孤儿/超深净化 + 节点上限）', () => {
   const t = read('/shared/utils/catTree.ts');
@@ -1006,9 +1006,11 @@ check('R70-2 P0 两条导入路径接入净化（全量导入 + 策展台数据�
   const gs = read('/newtab/views/GlobalSettings.vue'); const wsp = read('/newtab/views/Workspace.vue');
   return gs.includes('sanitizeCategoryTree(imported.categories') && gs.includes('mergeById(d.categories, safeCats)') && wsp.includes('sanitizeCategoryTree(ext.categories');
 });
-check('R70-3 P0 资源台四处递归/上行走链全部带 visited', () => {
-  const c = read('/newtab/views/CurationCenter.vue');
-  return c.includes('function levelOf(c: Category): number') && c.includes('function subtreeHeight(c: Category, seen = new Set<string>())') && c.includes('function deepDescendantIds(id: string): string[]') && c.includes('function nodeCount(c: Category, seen = new Set<string>())');
+check('R70-3 P0 资源台递归/上行走链防环（R71 起收敛至索引层 visited + 缓存）', () => {
+  const c = read('/newtab/views/CurationCenter.vue'); const x = read('/shared/utils/catIndex.ts');
+  return c.includes('function levelOf(c: Category): number') && c.includes('function deepDescendantIds(id: string): string[]')
+    && c.includes('function nodeCount(c: Category): number') && c.includes('while (p && !seen.has(p.id))')
+    && x.includes('带 visited') && x.includes('DFS');
 });
 check('R70-4 P0 策展台递归防护 + 金字塔环内节点不再静默丢失', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -1076,6 +1078,72 @@ check('R70-19 P2 内容脚本失败可感知（重试 + 页面提示）', () => 
 check('R70-20 P2 DHI 文案残留清理（用户可见）', () => {
   const n = read('/newtab/components/compass/NorthStarPanel.vue'); const p = read('/newtab/views/ProjectCuration.vue');
   return n.includes('方向健康度明细 · 战略目标 / 推进项目') && p.includes('回流指标与战略目标进度');
+});
+
+// ============== 第七十一轮 · V2.40.0：结构性性能治理（分类树索引层 / 模板方法调用消除 / 数据聚合单遍化 / 持久化减负 / 长列表离屏） ==============
+console.log('【第七十一轮 · V2.40.0：结构性性能治理】');
+
+check('R71-1 P1 新增分类树索引层 buildCatIndex（byId/childrenOf/roots/depthOf/pathOf + 缓存）', () => {
+  const t = read('/shared/utils/catIndex.ts');
+  return t.includes('export function buildCatIndex') && t.includes('byId') && t.includes('childrenOf')
+    && t.includes('depthOf') && t.includes('pathOf') && t.includes('export interface CatIndex');
+});
+check('R71-2 P1 新增分桶索引 buildBucketIndex（按 key 一次分桶）', () => {
+  return read('/shared/utils/catIndex.ts').includes('export function buildBucketIndex');
+});
+check('R71-3 P1 两视图主 computed 改走索引（消除模板内 O(n) find/filter）', () => {
+  const c = read('/newtab/views/CurationCenter.vue'); const w = read('/newtab/views/Workspace.vue');
+  return c.includes('const catIdx = computed(() => buildCatIndex(cats.value))')
+    && c.includes('const nativeBucket = computed(() => buildBucketIndex(nativeCards.value')
+    && w.includes('const catIdx = computed(() => buildCatIndex(wsCats.value))')
+    && w.includes('const resBucket = computed(() => buildBucketIndex(allResources.value');
+});
+check('R71-4 P1 策展台侧栏预计算（hasChildren/aggCount/directCount 不再模板内递归）', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  return w.includes('hasChildren: boolean; aggCount: number; directCount: number')
+    && w.includes('hasChildren: catIdx.value.hasChildren(c.id)')
+    && w.includes('directCount: (resBucket.value.get(c.id) || []).length');
+});
+check('R71-5 P1 看板列改预计算 computed（每列不再各调一次分组函数）', () => {
+  return read('/newtab/views/Workspace.vue').includes('const kanbanColumns = computed(');
+});
+check('R71-6 P1 资源台节点计数改预计算表 nodeCountMap（替代模板内递归）+ 分类高度表', () => {
+  const c = read('/newtab/views/CurationCenter.vue');
+  return c.includes('const nodeCountMap = computed(') && c.includes('return nodeCountMap.value.get(c.id) || 0')
+    && c.includes('const catHeightMap = computed(');
+});
+check('R71-7 P2 boardCardsOf 改 id 索引（O(投射×资源) → O(投射+资源)）', () => {
+  const h = read('/shared/storage/hub.ts');
+  return h.includes('const byId = new Map<ID, ResourceCard>()') && h.includes('export function boardCardsOf');
+});
+check('R71-8 P2 curationMetrics 单次遍历（卡数分布 / 附件 / 镜像计数一次得出）', () => {
+  const h = read('/shared/storage/hub.ts');
+  return h.includes('const cardCountByCat = new Map<string, number>()')
+    && h.includes('const hasChild = new Set<string>()') && h.includes('if (!cardCountByCat.get(c.id) && !hasChild.has(c.id)) emptyNodes++');
+});
+check('R71-9 P2 持久化去掉冗余序列化往返（2 序列化+2 解析 → 1+1）', () => {
+  const r = read('/shared/storage/repository.ts');
+  return r.includes('payloadJson = JSON.stringify(cache)') && !r.includes('JSON.stringify(JSON.parse(JSON.stringify(cache)))');
+});
+check('R71-10 P2 isSelfWrite 先比长度再比内容（非本页写入短路）', () => {
+  return read('/shared/storage/repository.ts').includes('s.length === lastSelfWriteJson.length && s === lastSelfWriteJson');
+});
+check('R71-11 P2 事件日志就地扫描三数组（不再 collectCards 建整张中间数组）', () => {
+  const e = read('/shared/utils/eventLog.ts');
+  return e.includes('const nextSnap = new Map<string, SnapshotEntry>()')
+    && e.includes("scan('resource', d.resources)") && e.includes("scan('task', d.tasks)")
+    && !e.includes('const current = collectCards(d)');
+});
+check('R71-12 P3 长列表离屏渲染抑制（资源台+策展台 4 处 content-visibility）', () => {
+  const w = read('/newtab/views/Workspace.vue'); const c = read('/newtab/views/CurationCenter.vue');
+  const n = (w.match(/content-visibility: auto/g) || []).length + (c.match(/content-visibility: auto/g) || []).length;
+  return n >= 4 && w.includes('contain-intrinsic-size: auto 44px') && c.includes('contain-intrinsic-size: auto 42px');
+});
+check('R71-13 P3 下钻面板惰性求值（抽屉未开不做全量计算）', () => {
+  return read('/newtab/views/Workspace.vue').includes('if (!drillOpen.value) return []');
+});
+check('R71-14 P0 性能基准测试台入库（A/B 可复现）', () => {
+  return fs.existsSync(path.resolve(__dirname, '..', 'scripts', 'perf.cjs'));
 });
 
 console.log('');

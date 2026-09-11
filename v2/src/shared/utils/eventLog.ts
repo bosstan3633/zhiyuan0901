@@ -101,7 +101,6 @@ export function rebuildEventSnapshot(d: AppData): void {
  */
 export function flushCardEvents(d: AppData): void {
   const now = Date.now()
-  const current = collectCards(d)
   const events: CardEvent[] = []
   let eid = 0
   const mk = (action: EventAction, kind: CardKind | 'system', title: string, cardId: string): CardEvent =>
@@ -112,19 +111,32 @@ export function flushCardEvents(d: AppData): void {
   const restores: CardEvent[] = []
   const purges: CardEvent[] = []
 
-  for (const c of current) {
-    const prev = snapshot.get(c.id)
-    if (!prev) {
-      creates.push(mk('create', c.kind, c.title, c.id))
-    } else if (!prev.deletedAt && c.deletedAt) {
-      deletes.push(mk('delete', c.kind, c.title, c.id))
-    } else if (prev.deletedAt && !c.deletedAt) {
-      restores.push(mk('restore', c.kind, c.title, c.id))
+  // R71 性能治理：原实现先 collectCards 出整张中间数组（每张卡一个对象）再遍历——
+  // 本函数在**每次保存**时都会执行，1450 张卡就是 1450 次额外对象分配。
+  // 改为就地三数组扫描，并顺手把新快照建出来（省掉「先建数组、再遍历建快照」的两趟）。
+  const prevSnap = snapshot
+  const nextSnap = new Map<string, SnapshotEntry>()
+  const seen = new Set<string>()
+  const scan = (kind: CardKind, arr: { id?: string; title?: string; question?: string; createdAt?: number; deletedAt?: number }[] | undefined) => {
+    for (const c of arr || []) {
+      if (!c || !c.id) continue
+      seen.add(c.id)
+      nextSnap.set(c.id, { kind, title: titleOf(kind, c), createdAt: c.createdAt || 0, deletedAt: c.deletedAt })
+      const prev = prevSnap.get(c.id)
+      if (!prev) {
+        creates.push(mk('create', kind, titleOf(kind, c), c.id))
+      } else if (!prev.deletedAt && c.deletedAt) {
+        deletes.push(mk('delete', kind, titleOf(kind, c), c.id))
+      } else if (prev.deletedAt && !c.deletedAt) {
+        restores.push(mk('restore', kind, titleOf(kind, c), c.id))
+      }
     }
   }
-  const currentIds = new Set(current.map(c => c.id))
-  for (const [id, prev] of snapshot) {
-    if (!currentIds.has(id)) purges.push(mk('purge', prev.kind, prev.title, id))
+  scan('resource', d.resources)
+  scan('task', d.tasks)
+  scan('curiosity', d.curiosities)
+  for (const [id, prev] of prevSnap) {
+    if (!seen.has(id)) purges.push(mk('purge', prev.kind, prev.title, id))
   }
 
   // 批量合并：导入/回滚等场景防日志洪泛
@@ -139,10 +151,7 @@ export function flushCardEvents(d: AppData): void {
     events.push(mk('purge', 'system', `批量清理 ${purges.length} 张卡片（回滚/清空回收站）`, ''))
   } else events.push(...purges)
 
-  // 更新快照
-  snapshot = new Map()
-  for (const c of current) {
-    snapshot.set(c.id, { kind: c.kind, title: c.title, createdAt: c.createdAt, deletedAt: c.deletedAt })
-  }
+  // 更新快照（已在扫描时同步建好）
+  snapshot = nextSnap
   enqueue(events)
 }
