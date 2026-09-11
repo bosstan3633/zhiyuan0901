@@ -8,7 +8,6 @@ import { matchPinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin
 import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import Drawer from '@/shared/components/Drawer.vue'
-import { saveUIPrefs } from '@/shared/storage/repository'
 import type { Direction, Project, Metric, TaskCard, ID } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
@@ -18,7 +17,7 @@ import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 const router = useRouter()
 const route = useRoute()
 const store = useAppStore()
-const { d, visionText, missionText, allProjects, projectProgress, toggleFocusProject, addProjectToDir, isProjectDone } = useCompass()
+const { d, visionText, missionText, allProjects, projectProgress, toggleFocusProject, addProjectToDir, isProjectDone, showDone, toggleShowDone } = useCompass()
 
 // ---- R54-A1：来源感知返回（?from=proj&p= → 项目详情；默认方向台）+ A3 定位 + A4 Esc ----
 const fromProjId = computed(() => route.query.from === 'proj' && typeof route.query.p === 'string' ? route.query.p : '')
@@ -70,13 +69,7 @@ function collapseAllNodes() {
   expandedMetrics.value.clear()
 }
 
-// ---- R49-C6：已完成（archived）项目显隐（与主航线/项目总览三处同步） ----
-const showDone = computed(() => store.ui?.showDoneProjects !== false)
-function toggleShowDone() {
-  const next = !showDone.value
-  if (store.ui) store.ui.showDoneProjects = next
-  saveUIPrefs({ showDoneProjects: next })
-}
+// R86（T0）：已完成项目显隐改由 store 提供（showDone / toggleShowDone）——三处模块共用同一份实现。
 function visibleProjectsOf(dir: Direction): Project[] {
   // R52-BUG-2：口径统一 isProjectDone（手动 done/archived 或全任务完成派生），修复「已完成项目显隐」开关失效
   // R59-T3：主攻项目置前（稳定排序，组内保持原有顺序）
@@ -440,7 +433,7 @@ onUnmounted(() => {
         <div class="tree-stats">愿景 1 · 使命 1 · 战略目标 {{ treeStats.dirs }} · 项目 {{ treeStats.projects }} · 指标 {{ treeStats.metrics }} · 任务 {{ treeStats.tasks }}</div>
         <button class="tree-tool" @click="expandAllNodes" title="展开全部层级">⊞ 展开</button>
         <button class="tree-tool" @click="collapseAllNodes" title="收起全部战略目标与指标">⊟ 收起</button>
-        <button class="tree-tool" :class="{ off: !showDone }" @click="toggleShowDone" title="与主航线/项目总览三处同步">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
+        <button class="tree-tool" :class="{ off: !showDone }" @click="toggleShowDone" title="与方向台页头同一开关（同一偏好，一处切换全台生效）">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
         <div class="dhi-badge" :class="dhiStatus.cls">
           <span>🧭</span>
           <span>方向健康度：{{ dhiStatus.label }}</span>

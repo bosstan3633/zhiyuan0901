@@ -12,23 +12,16 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCompass, FOCUS_PROJECT_LIMIT } from '../../stores/compass'
 import { useAppStore } from '../../stores/app'
-import { saveUIPrefs } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
 import ModuleCard from '@/shared/components/ModuleCard.vue'
 import type { Project } from '@/shared/models'
 
 const router = useRouter()
 const { d, visionText, missionText, allProjects, projectProgress, isProjectStalled, isProjectDone,
-  focusedProjects, toggleFocusProject, addProjectToDir } = useCompass()
+  focusedProjects, toggleFocusProject, addProjectToDir, showDone, toggleShowDone } = useCompass()
 const store = useAppStore()
 
-// ---- 显隐开关（C6 三处同步） ----
-const showDone = computed(() => store.ui?.showDoneProjects !== false)
-function toggleShowDone() {
-  const next = !showDone.value
-  if (store.ui) store.ui.showDoneProjects = next
-  saveUIPrefs({ showDoneProjects: next })
-}
+// R86（T0）：显隐开关改由 store 提供（showDone / toggleShowDone）——三处模块共用同一份实现。
 
 /** R60：原投射标记已随功能退役——愿景/使命无条件呈现，重心标记仅保留 🎯 主攻 */
 
@@ -70,7 +63,7 @@ function onLocateGoal(e: Event) {
 }
 onMounted(() => window.addEventListener('zy-locate-goal', onLocateGoal))
 onUnmounted(() => window.removeEventListener('zy-locate-goal', onLocateGoal))
-const doneCount = computed(() => allProjects().filter(p => isProjectDone(p)).length)
+// R86（M7）：`doneCount` 随主航线的显隐开关一并移除——页头那处改用 CompassShell 既有的 `doneProjects`（同口径）
 /** R57-F4：战略目标进度（模块头展示，复用 projectProgress 口径） */
 /**
  * R83（M3）· 性能红线：项目进度/停滞/完成**预计算成索引**，不在模板里逐 chip 调函数。
@@ -134,7 +127,10 @@ function confirmAdd(dirId: string) {
   <ModuleCard icon-name="radio" title="主航线" en="MAIN ROUTE">
     <template #actions>
       <div class="mr-tools">
-        <span class="mr-tool" :class="{ off: !showDone }" @click="toggleShowDone" title="已完成项目显示/隐藏（主航线·项目总览·完整方向树三处同步）">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}<span v-if="doneCount && showDone">（{{ doneCount }}）</span></span>
+        <!-- R86（D-A）：分工标签——主航线 = 看主线（读为主）；与下方项目总览的「管项目」对仗。
+             R86（M7）：原「👁 已完成项目」开关**已移除**，收敛到方向台页头一处（R86/M7）。
+             ⚠「完整方向树 →」是导航入口不是开关，保留。 -->
+        <span class="mod-role" title="主航线 = 看主线（读为主）：一眼看清主线推进到哪；要新建/改名/删除项目，去下方「项目总览」">看主线</span>
         <span class="mr-tool accent" @click="openTree">完整方向树 →</span>
       </div>
     </template>

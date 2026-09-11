@@ -11,7 +11,6 @@ import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCompass } from '../stores/compass'
 import { useAppStore } from '../stores/app'
-import { saveUIPrefs } from '@/shared/storage/repository'
 import { uid } from '@/shared/utils'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
@@ -23,7 +22,7 @@ const router = useRouter()
 const route = useRoute()
 const isChildActive = computed(() => route.matched.length > 1 && route.path !== '/compass')
 const store = useAppStore()
-const { d, allProjects, projectProgress, isProjectStalled, isProjectDone, addProjectToDir } = useCompass()
+const { d, allProjects, projectProgress, isProjectStalled, isProjectDone, addProjectToDir, showDone, toggleShowDone } = useCompass()
 
 // R55-B3：/compass?zone=task → 滚动定位到任务调度模块并高亮（置于声明之后，避免 TDZ）
 watch(() => route.query.zone, (z) => {
@@ -48,19 +47,15 @@ function onGotoAnchor(e: Event) {
 onMounted(() => window.addEventListener('zy-goto-anchor', onGotoAnchor))
 onUnmounted(() => window.removeEventListener('zy-goto-anchor', onGotoAnchor))
 
-// ---- 已完成项目显隐（C6：与主航线/完整方向树三处同步；R52-BUG-2 口径统一 isProjectDone） ----
-const showDone = computed(() => store.ui?.showDoneProjects !== false)
-function toggleShowDone() {
-  const next = !showDone.value
-  if (store.ui) store.ui.showDoneProjects = next
-  saveUIPrefs({ showDoneProjects: next })
-}
+// R86（T0）：已完成项目显隐改由 store 提供（showDone / toggleShowDone）——
+// 此前主航线 / 项目总览 / 完整方向树三处各写了一份**逐字相同**的实现，现收敛为一处。
 /** 项目总览（按显隐开关过滤） */
 const visibleProjects = computed(() => allProjects().filter(p => showDone.value || !isProjectDone(p)))
 
-const projectsCount = computed(() => visibleProjects.value.length)
+// R86（D-B）：两个计数改基于 filteredProjects——**与当前所见一致**（筛了停滞就报停滞的数）
+const projectsCount = computed(() => filteredProjects.value.length)
 /** R60：原「已投射」计数改为「主攻」计数（投射功能取消，重心口径收敛到 isFocused） */
-const pinnedCount = computed(() => visibleProjects.value.filter(p => p.isFocused).length)
+const pinnedCount = computed(() => filteredProjects.value.filter(p => p.isFocused).length)
 const doneProjects = computed(() => allProjects().filter(p => isProjectDone(p)).length)
 
 /** 项目总览卡（C5：名称/战略目标/🎯/📋/状态） */
@@ -81,8 +76,42 @@ const stalled = (p: Project) => isProjectStalled(p)
 function sortedCopy(list: Project[]): Project[] {
   return [...list].sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
 }
-const pinnedGroup = computed<Project[]>(() => sortedCopy(visibleProjects.value.filter(p => p.pinned)))
-const normalGroup = computed<Project[]>(() => sortedCopy(visibleProjects.value.filter(p => !p.pinned)))
+
+/* ================= R86（D-B）：项目总览检索（搜索 + 状态筛选） =================
+ * - **项目数 >12 才启用**（原文）——≤12 个一屏看得完，搜索框是噪音。
+ * - 状态判定**一律复用既有派生函数** isProjectStalled / isProjectDone，**不自己写判定**。
+ * - ★ 性能：这两个函数内部都要遍历 d.tasks ⇒ 预计算成索引，不在模板里逐项调（R83 红线）。
+ * - 搜索与筛选都是**本地视图态**（组件 ref），不进 UIPrefs——刷新即重置，避免
+ *   "上次筛了停滞，今天进来以为项目丢了"。
+ */
+const OV_TOOLS_MIN = 12
+const showOverviewTools = computed(() => allProjects().length > OV_TOOLS_MIN)
+const ovQuery = ref('')
+const ovFilter = ref<'all' | 'active' | 'stalled' | 'done'>('all')
+const projState = computed(() => {
+  const m = new Map<string, { stall: boolean; finished: boolean }>()
+  for (const p of allProjects()) {
+    m.set(p.id, { stall: isProjectStalled(p), finished: isProjectDone(p) })
+  }
+  return m
+})
+const filteredProjects = computed<Project[]>(() => {
+  const q = ovQuery.value.trim().toLowerCase()
+  return visibleProjects.value.filter(p => {
+    if (ovFilter.value !== 'all') {
+      const st = projState.value.get(p.id)
+      if (ovFilter.value === 'stalled' && !st?.stall) return false
+      if (ovFilter.value === 'done' && !st?.finished) return false
+      if (ovFilter.value === 'active' && (st?.finished || st?.stall)) return false
+    }
+    if (!q) return true
+    return p.name.toLowerCase().includes(q) || goalNameOf(p).toLowerCase().includes(q)
+  })
+})
+function resetOvTools() { ovQuery.value = ''; ovFilter.value = 'all' }
+
+const pinnedGroup = computed<Project[]>(() => sortedCopy(filteredProjects.value.filter(p => p.pinned)))
+const normalGroup = computed<Project[]>(() => sortedCopy(filteredProjects.value.filter(p => !p.pinned)))
 
 /** 新建项目（选所属战略目标） */
 const createOpen = ref(false)
@@ -192,6 +221,10 @@ function onProjDragLeave(e: DragEvent) {
     <div class="page-head">
       <div class="crumb"><b>方向台</b> · 主航线与项目全景</div>
       <div class="spacer" />
+      <!-- R86（M7）：「已完成项目」开关**收敛到此处**——此前主航线、项目总览、完整方向树各有一处
+           （且是三份逐字重复的实现）。现方向台只有这一处：**一处切换，主航线与项目总览同时生效**
+           （完整方向树是独立页，保留它自己那一处；同一偏好，同一口径）。 -->
+      <span class="done-toggle" :class="{ off: !showDone }" @click="toggleShowDone" title="已完成项目显示/隐藏——一处切换，主航线与项目总览同时生效（完整方向树另有同一开关）">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}<span v-if="doneProjects && showDone">（{{ doneProjects }}）</span></span>
       <button class="mini-btn" @click="openTree"><Icon name="branch" :size="13" /> 完整方向树</button>
     </div>
 
@@ -207,8 +240,20 @@ function onProjDragLeave(e: DragEvent) {
           <span class="ic"><Icon name="layout" :size="16" /></span>
           <span class="nm">项目总览</span>
           <span class="en">PROJECT OVERVIEW</span>
+          <!-- R86（D-A）：分工标签——项目总览 = 管项目（写为主）；与上方主航线的「看主线」对仗。
+               R86（M7）：原「👁 已完成项目」开关已移除，收敛到方向台页头一处。 -->
+          <span class="mod-role" title="项目总览 = 管项目（写为主）：新建 / 改名 / 置顶 / 删除 / 拖拽排序都在这里">管项目</span>
           <span class="ds">{{ projectsCount }} 项目 · {{ pinnedCount }} 主攻<template v-if="showDone"> · {{ doneProjects }} 已完成</template></span>
-          <span class="ov-toggle" :class="{ off: !showDone }" @click="toggleShowDone" title="与主航线/完整方向树三处同步">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</span>
+          <!-- R86（D-B）：搜索 + 状态筛选——**项目数 >12 才出现**（≤12 时一屏看得完，控件是噪音） -->
+          <template v-if="showOverviewTools">
+            <input v-model="ovQuery" class="ov-search" placeholder="搜索项目 / 目标" />
+            <select v-model="ovFilter" class="ov-filter" title="按状态筛选（口径同项目卡：停滞 = 有任务但近 14 天无推进）">
+              <option value="all">全部</option>
+              <option value="active">进行中</option>
+              <option value="stalled">停滞</option>
+              <option value="done">已完成</option>
+            </select>
+          </template>
           <span class="ov-link" @click="openTree">去方向树管理 ›</span>
           <button class="ov-add" @click="openCreate">＋ 新建项目</button>
         </div>
@@ -262,8 +307,14 @@ function onProjDragLeave(e: DragEvent) {
                 <button class="ov-tool danger" title="删除项目（任务转未归档）" @click.stop="removeProject(p)">🗑</button>
               </div>
             </div>
-            <!-- R59-T7：网格内「新建/规划项目」占位卡移除——头部「＋ 新建项目」为唯一入口 -->
-            <div v-if="!visibleProjects.length" class="ov-empty-hint">还没有项目——点右上角「＋ 新建项目」开始规划</div>
+            <!-- R59-T7：网格内「新建/规划项目」占位卡移除——头部「＋ 新建项目」为唯一入口
+                 R86（D-B）：空态分三种——真没项目 / 被筛没了 / 筛「已完成」但页头开关关着。
+                 ⚠ 最后一种**不绕过全局开关**，而是给一键入口（口径只有一套）。 -->
+            <div v-if="!filteredProjects.length" class="ov-empty-hint">
+              <template v-if="!visibleProjects.length">还没有项目——点右上角「＋ 新建项目」开始规划</template>
+              <template v-else-if="ovFilter === 'done' && !showDone">已完成项目当前在页头被设为隐藏 · <span class="ov-empty-act" @click="toggleShowDone">显示已完成</span></template>
+              <template v-else>没有符合当前搜索/筛选的项目 · <span class="ov-empty-act" @click="resetOvTools">清除筛选</span></template>
+            </div>
           </div>
         </div>
       </div>
@@ -307,6 +358,11 @@ function onProjDragLeave(e: DragEvent) {
 .page-head .crumb { font-size: 13px; color: var(--text-2); }
 .page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
 .page-head .spacer { flex: 1; }
+/* R86（M7）：已完成项目开关——**收敛到方向台页头这一处**（原主航线 .mr-tool 与项目总览 .ov-toggle 均已移除；
+   完整方向树是独立页，保留它自己那一处）。一处切换，主航线与项目总览同时生效。 */
+.done-toggle { font-size: 11.5px; color: var(--text-3); cursor: pointer; white-space: nowrap; padding: 3px 10px; border: 1px solid var(--border); border-radius: 99px; transition: all .15s; }
+.done-toggle:hover { color: var(--accent); border-color: var(--accent); }
+.done-toggle.off { opacity: .6; }
 .mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; user-select: none; }
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
 
@@ -325,9 +381,18 @@ function onProjDragLeave(e: DragEvent) {
 .ov-head .ds { font-size: 11.5px; color: var(--text-3); margin-left: 6px; flex: 1; }
 .ov-link { font-size: 11.5px; color: var(--accent); cursor: pointer; }
 .ov-link:hover { text-decoration: underline; }
-.ov-toggle { font-size: 11px; color: var(--text-3); cursor: pointer; white-space: nowrap; }
-.ov-toggle:hover { color: var(--accent); }
-.ov-toggle.off { opacity: .6; }
+/* R86（D-A）：模块分工标签——主航线「看主线」/ 项目总览「管项目」，让用户一眼知道这儿是看还是管。
+   观感沿用既有 .mr-tier 小胶囊（accent-light 底 + accent 字），不另起视觉语言。 */
+/* ⚠ 用 :deep —— 这个标签在**两个组件**的模板里各有一处（本项目 .ov-head 一处 + 子组件
+   LighthousePanel 的 .mr-tools 一处）。scoped 样式默认管不到子组件内部，用 :deep 才能
+   **一份定义覆盖两处**（不写两份，避免以后改一处忘另一处）。 */
+:deep(.mod-role) { flex-shrink: 0; font-size: 10px; font-weight: 700; letter-spacing: .5px; color: var(--accent); background: var(--accent-light); padding: 2px 8px; border-radius: 99px; cursor: help; }
+/* R86（D-B）：项目总览检索——搜索 + 状态筛选（项目数 >12 才出现） */
+.ov-search { width: 148px; min-width: 110px; font-family: inherit; font-size: 11.5px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); outline: none; }
+.ov-search:focus { border-color: var(--accent); }
+.ov-search::placeholder { color: var(--text-4); }
+.ov-filter { font-family: inherit; font-size: 11.5px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); outline: none; cursor: pointer; }
+.ov-filter:focus { border-color: var(--accent); }
 .ov-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 0 20px 18px; }
 .ov-card-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 13px 15px; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 7px; }
 .ov-card-item:hover { border-color: var(--border-strong); background: var(--surface); transform: translateY(-1px); }
@@ -368,6 +433,8 @@ function onProjDragLeave(e: DragEvent) {
 .ov-tool.danger:hover { color: var(--danger); }
 /* R59-T7：占位卡移除后保留零项目空态提示 */
 .ov-empty-hint { grid-column: 1 / -1; text-align: center; padding: 22px; font-size: 12.5px; color: var(--text-4); border: 1px dashed var(--border); border-radius: var(--radius-sm); }
+/* R86（D-B）：空态里的可点动作（清除筛选 / 显示已完成） */
+.ov-empty-act { color: var(--accent); cursor: pointer; text-decoration: underline; }
 
 /* 新建弹窗 */
 .ov-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 220; }

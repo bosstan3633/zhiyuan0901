@@ -14,7 +14,7 @@ export const FOCUS_PROJECT_LIMIT = 2
 
 // B40：recordResourceOpen 已下沉至 shared/storage/stats（应用端与网页端共用同一实现）
 export { recordResourceOpen } from '@/shared/storage/stats'
-import { getDataVersion } from '@/shared/storage/repository'
+import { getDataVersion, saveUIPrefs } from '@/shared/storage/repository'
 
 /**
  * 方向台数据管理
@@ -72,6 +72,20 @@ export function useCompass() {
 
   function projectById(id: string): Project | undefined {
     return allProjects().find(p => p.id === id)
+  }
+
+  /**
+   * R86（T0）：已完成项目显隐——**三处模块共用同一份实现**（主航线 / 项目总览 / 完整方向树）。
+   * 改前三个组件各写了一份**逐字相同**的 `showDone` + `toggleShowDone`（三份拷贝），
+   * M7 要把 UI 开关从三处收敛到一处，不先抽共享函数就会变成两份或三份残留。
+   * 口径 `isProjectDone`（R52-BUG-2：手动 done/archived 或全任务完成派生）。
+   * ⚠ 这是**全局偏好**——一处切换，三处模块同时生效（这正是"收敛"的意义，不是 bug）。
+   */
+  const showDone = computed(() => store.ui?.showDoneProjects !== false)
+  function toggleShowDone() {
+    const next = !showDone.value
+    if (store.ui) store.ui.showDoneProjects = next
+    saveUIPrefs({ showDoneProjects: next })
   }
 
   // ---- 主攻项目（R60：原「投射至灯塔」语义已取消，重心口径统一收敛于此） ----
@@ -256,6 +270,7 @@ export function useCompass() {
 
   return {
     d, visionText, missionText, directions, allProjects, projectById,
+    showDone, toggleShowDone,
     focusedProjects, toggleFocusProject, addProjectToDir, projectProgress,
     isProjectStalled, isProjectDone, projectTasksOf, offCourseCount, taskArchiveIssue, unarchivedTaskCount, totalTaskCount,
     northStarMetrics, formulas
