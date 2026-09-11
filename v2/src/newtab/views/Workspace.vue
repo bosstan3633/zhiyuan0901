@@ -217,6 +217,10 @@
                 @contextmenu.prevent="openResCtx($event, r)">
                 <div v-if="batchMode" class="rc-batch-check" :class="{on: selectedIds.has(r.id)}" @click.stop="toggleSelect(r.id)">{{ selectedIds.has(r.id)?'✓':'' }}</div>
                 <div class="res-card-actions">
+                  <!-- R79（R1 收尾）：R1 方案列的第一个动作「↗ 打开」此前缺失——双击才能开链接，
+                       单手点到卡片右上角的动作条时没有开链入口。无链接时点击给「请先补全链接」提示，
+                       恰好把"待补全"显性化，比按钮消失更容易被发现 -->
+                  <div class="rc-action open" @click.stop="openResourceLink(r)" title="打开链接（无链接则提示补全）">↗</div>
                   <div class="rc-action pin" @click.stop="togglePin(r)" title="置顶">📌</div>
                   <div class="rc-action" :class="{on: r.starred}" :title="r.starred?'取消星标':'星标'" @click.stop="toggleStar(r)">⭐</div>
                   <div class="rc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</div>
@@ -271,11 +275,17 @@
                 <span v-else class="rr-drag">⋮⋮</span>
                 <span class="rr-title"><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ val(r, titleKey) }}</span>
                 <AssetBadge v-if="hasField('assets') && r.assets?.length" :assets="r.assets" class="rr-assets" />
+                <!-- R79（R1-列）：调用次数不在字段池里（callCount 无 FieldDef），故与卡片视图一样硬编码一行 -->
+                <span v-if="r.callCount" class="rr-calls" title="被打开次数">🔥{{ r.callCount }}</span>
                 <span class="rr-f" v-for="f in listFields" :key="f.key">{{ shortVal(r, f) }}</span>
                 <span class="rr-actions">
+                  <!-- R79（R1-列）：动作条对齐卡片视图六动作同一顺序——此前只有 📌⭐🗑 -->
+                  <span class="rr-action open" @click.stop="openResourceLink(r)" title="打开链接（无链接则提示补全）">↗</span>
                   <span class="rr-action" @click.stop="togglePin(r)" :title="r.pinned?'取消置顶':'置顶'">📌</span>
                   <span class="rr-action" :class="{on: r.starred}" @click.stop="toggleStar(r)" :title="r.starred?'取消星标':'星标'">⭐</span>
-                  <span class="rr-action delete" @click.stop="deleteResource(r)">🗑</span>
+                  <span class="rr-action" @click.stop="openMoveOne(r)" title="移动分类">📂</span>
+                  <span v-if="isHub && !isMirrorView(r)" class="rr-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</span>
+                  <span class="rr-action delete" @click.stop="deleteResource(r)" title="删除">🗑</span>
                 </span>
               </div>
             </div>
@@ -296,10 +306,20 @@
             <div class="kc-body">
               <div v-for="r in cat.items" :key="r.id" class="kc-card" :class="{pinned: r.pinned, 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :draggable="!batchMode" @dragstart="onDragStart($event,r)" @dragover.prevent.stop="markDrop($event, r.id, 'y')" @dragend="clearDragState" @dragleave="clearDropMark" @drop.stop="onKanbanCardDrop($event, r)" @click="onCardClick(r)" @dblclick="onCardDblClick(r)">
+                <!-- R79（R1-看）：看板此前只有 🗑 删除 + 只读星标，动作条与卡片/列表视图严重不齐 -->
+                <div class="kc-actions">
+                  <span class="kc-action open" @click.stop="openResourceLink(r)" title="打开链接（无链接则提示补全）">↗</span>
+                  <span class="kc-action" @click.stop="togglePin(r)" :title="r.pinned?'取消置顶':'置顶'">📌</span>
+                  <span class="kc-action" :class="{on: r.starred}" @click.stop="toggleStar(r)" :title="r.starred?'取消星标':'星标'">⭐</span>
+                  <span class="kc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</span>
+                  <span v-if="isHub && !isMirrorView(r)" class="kc-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</span>
+                  <span class="kc-action delete" title="删除" @click.stop="deleteResource(r)">🗑</span>
+                </div>
                 <div class="kc-card-title">
                   <span v-if="r.starred" class="kc-star" title="已星标">⭐</span>{{ val(r, titleKey) }}
-                  <span class="kc-del" title="删除" @click.stop="deleteResource(r)">🗑</span></div>
+                </div>
                 <div class="kc-card-footer">
+                  <span v-if="r.callCount" class="kc-calls" title="被打开次数">🔥{{ r.callCount }}</span>
                   <span v-if="hasField('tags') && r.tags.length" v-for="t in r.tags" :key="t" class="kc-card-tag">#{{ t }}</span>
                   <span class="kc-card-link" :class="r.linkType" v-if="r.link">{{ linkIcon(r.linkType) }}</span>
                   <span v-if="hasField('assets') && r.assets?.length" class="kc-card-assets"><AssetBadge :assets="r.assets" /></span>
@@ -2753,6 +2773,8 @@ function linkDisplay(link: string) {
 .rc-action { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: 12px; color: var(--text-3); cursor: pointer; transition: all .1s; background: var(--surface); }
 .rc-action:hover { background: var(--surface-3); color: var(--text); }
 .rc-action.pin:hover { color: var(--accent); }
+/* R79（R1 收尾）：↗ 打开用链接蓝，与「开链接」语义呼应；六动作里只有 pin 用强调色，主色仍稀缺 */
+.rc-action.open:hover, .rr-action.open:hover, .kc-action.open:hover { color: var(--info-blue); }
 .rc-action.delete:hover { color: var(--danger); }
 .rc-fields { display: flex; flex-direction: column; gap: 5px; flex: 1; }
 .rc-title { font-size: 13.5px; font-weight: 600; color: var(--text); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-right: 20px; }
@@ -2776,6 +2798,8 @@ function linkDisplay(link: string) {
 .rc-link.file { color: var(--curio-amber); }
 .rc-link.obsidian { color: var(--violet); }
 .rc-calls { font-size: 10px; color: var(--curio-amber); background: var(--curio-bg); padding: 1px 7px; border-radius: 99px; font-weight: 500; }
+/* R79（R1-列/看）：列表与看板的调用次数徽章——同一条规则覆盖两个类，与卡片 .rc-calls 同色同形 */
+.rr-calls, .kc-calls { font-size: 10px; color: var(--curio-amber); background: var(--curio-bg); padding: 1px 7px; border-radius: 99px; font-weight: 500; flex-shrink: 0; }
 .rc-open-hint { margin-left: auto; font-size: 9.5px; color: var(--text-4); opacity: 0; transition: opacity .15s; }
 .res-card:hover .rc-open-hint { opacity: 1; }
 .rc-add-card { border: 1.5px dashed var(--border-strong); border-radius: 8px; display: flex; align-items: center; justify-content: center; min-height: 120px; cursor: pointer; color: var(--text-3); font-size: 12px; transition: all .15s; flex-direction: column; gap: 6px; }
@@ -2828,13 +2852,18 @@ function linkDisplay(link: string) {
 .kc-body { padding: 8px; overflow-y: auto; flex: 1; min-height: 60px; }
 .kc-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .kc-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.kc-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 7px; cursor: pointer; transition: all .15s; }
+/* R79（R1-看）：position: relative 为 hover 动作条的绝对定位提供参照（插入线走 box-shadow: inset，不受影响） */
+.kc-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 7px; cursor: pointer; transition: all .15s; position: relative; }
 .kc-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 8%, transparent); }
 .kc-card.pinned { border-left: 3px solid var(--accent); }
 .kc-card-title { font-size: 12px; font-weight: 500; color: var(--text); line-height: 1.4; margin-bottom: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.kc-del { margin-left: auto; font-size: 11px; color: var(--text-3); cursor: pointer; opacity: 0; transition: all .12s; padding: 0 3px; border-radius: 4px; flex-shrink: 0; }
-.kc-card-title:hover .kc-del { opacity: 1; }
-.kc-del:hover { color: var(--danger); }
+/* R79（R1-看）：看板 hover 动作条——取代原仅有的 kc-del 删除图标，与卡片/列表视图同六动作同顺序 */
+.kc-actions { position: absolute; top: 6px; right: 6px; display: flex; gap: 2px; opacity: 0; transition: opacity .15s; z-index: 2; }
+.kc-card:hover .kc-actions { opacity: 1; }
+.kc-action { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: 11px; color: var(--text-3); cursor: pointer; transition: all .1s; background: var(--surface); }
+.kc-action:hover { background: var(--surface-3); color: var(--text); }
+.kc-action.on { color: #d99a1e; background: color-mix(in srgb, #f5b942 14%, transparent); }
+.kc-action.delete:hover { color: var(--danger); }
 .kc-card-footer { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .kc-card-assets { display: inline-flex; }
 .kc-card-tag { font-size: 9px; padding: 1px 5px; border-radius: 99px; background: var(--accent-light); color: var(--accent); }
