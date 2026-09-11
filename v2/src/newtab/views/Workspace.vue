@@ -110,7 +110,8 @@
       </div>
       <div class="toolbar-search">
         <span class="s-icon">🔍</span>
-        <input type="text" v-model="searchQuery" placeholder="搜索策展台内资源...">
+        <input type="text" v-model="searchQuery" placeholder="搜索策展台内资源..."
+          title="匹配标题 / 描述 / 标签 / 自定义字段；输入 #标签 可按标签直筛（多个取交集，如 #前端 #待读）">
       </div>
       <!-- R88（W3）：工具条分级——一级只留「视图 Tab ｜ 搜索 ｜ 筛选 ｜ ＋新建 ｜ ⚙」。
            排序(+方向) / 类型筛选 / 密度 / 列数 是"改看法"的，全部收进下面的「筛选」气泡；
@@ -153,6 +154,8 @@
                 <option value="hasLink">有链接</option>
                 <option value="brokenPath">⚠ 待补全路径</option>
                 <option value="hasAssets">有附件</option>
+                <!-- R89（W5）：星标筛选——`starred` 字段早就在模型里、三视图 ⭐ 也早就能切换，缺的只是筛出口 -->
+                <option value="starred">⭐ 星标</option>
                 <option value="unmounted">未挂载任务</option>
               </optgroup>
             </select>
@@ -286,15 +289,24 @@
                        单手点到卡片右上角的动作条时没有开链入口。无链接时点击给「请先补全链接」提示，
                        恰好把"待补全"显性化，比按钮消失更容易被发现 -->
                   <div class="rc-action open" @click.stop="openResourceLink(r)" title="打开链接（无链接则提示补全）">↗</div>
-                  <div class="rc-action pin" @click.stop="togglePin(r)" title="置顶">📌</div>
-                  <div class="rc-action" :class="{on: r.starred}" :title="r.starred?'取消星标':'星标'" @click.stop="toggleStar(r)">⭐</div>
-                  <div class="rc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</div>
-                  <!-- R73-S3：镜像到策展台（仅资源台真身卡；镜像卡为引用，源头在资源台，故不提供） -->
-                  <div v-if="isHub && !isMirrorView(r)" class="rc-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</div>
-                  <!-- R82（R4）：挂载到任务——写在 task.mountedResourceIds 上，不碰资源卡（单向挂载红线）。
-                       镜像卡不给入口：它是策展台里的只读引用，写动作一律回落资源台真身卡（R61/R79 口径）。 -->
-                  <div v-if="!isMirrorView(r)" class="rc-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</div>
-                  <div class="rc-action delete" @click.stop="deleteResource(r)" title="删除">🗑</div>
+                  <!-- R89（W4）：镜像卡是策展台里的**只读引用**——此前景泰七动作无条件渲染，
+                       其中四个点了只会弹「镜像卡为引用」的提示，🗑 更是名不副实（干的是"移出镜像"）。
+                       现写动作只对真身卡出现，镜像卡改给三个**真能用**的：打开 / 定位源 / 移出镜像。 -->
+                  <template v-if="!isMirrorView(r)">
+                    <div class="rc-action pin" @click.stop="togglePin(r)" title="置顶">📌</div>
+                    <div class="rc-action" :class="{on: r.starred}" :title="r.starred?'取消星标':'星标'" @click.stop="toggleStar(r)">⭐</div>
+                    <div class="rc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</div>
+                    <!-- R73-S3：镜像到策展台（仅资源台真身卡；镜像卡为引用，源头在资源台，故不提供） -->
+                    <div v-if="isHub" class="rc-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</div>
+                    <!-- R82（R4）：挂载到任务——写在 task.mountedResourceIds 上，不碰资源卡（单向挂载红线）。
+                         镜像卡不给入口：它是策展台里的只读引用，写动作一律回落资源台真身卡（R61/R79 口径）。 -->
+                    <div class="rc-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</div>
+                    <div class="rc-action delete" @click.stop="deleteResource(r)" title="删除">🗑</div>
+                  </template>
+                  <template v-else>
+                    <div class="rc-action locate" title="定位到资源台源卡" @click.stop="locateMirrorSource(r)">🎯</div>
+                    <div class="rc-action delete" title="移出镜像（源卡保留）" @click.stop="removeMirror(r)">✕</div>
+                  </template>
                 </div>
                 <div class="rc-fields">
                   <template v-for="f in fieldsOf(r)" :key="f.key">
@@ -357,12 +369,19 @@
                 <span class="rr-actions">
                   <!-- R79（R1-列）：动作条对齐卡片视图六动作同一顺序——此前只有 📌⭐🗑 -->
                   <span class="rr-action open" @click.stop="openResourceLink(r)" title="打开链接（无链接则提示补全）">↗</span>
-                  <span class="rr-action" @click.stop="togglePin(r)" :title="r.pinned?'取消置顶':'置顶'">📌</span>
-                  <span class="rr-action" :class="{on: r.starred}" @click.stop="toggleStar(r)" :title="r.starred?'取消星标':'星标'">⭐</span>
-                  <span class="rr-action" @click.stop="openMoveOne(r)" title="移动分类">📂</span>
-                  <span v-if="isHub && !isMirrorView(r)" class="rr-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</span>
-                  <span v-if="!isMirrorView(r)" class="rr-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</span>
-                  <span class="rr-action delete" @click.stop="deleteResource(r)" title="删除">🗑</span>
+                  <!-- R89（W4）：与卡片视图同款——真身卡七动作、镜像卡只读三件套 -->
+                  <template v-if="!isMirrorView(r)">
+                    <span class="rr-action" @click.stop="togglePin(r)" :title="r.pinned?'取消置顶':'置顶'">📌</span>
+                    <span class="rr-action" :class="{on: r.starred}" @click.stop="toggleStar(r)" :title="r.starred?'取消星标':'星标'">⭐</span>
+                    <span class="rr-action" @click.stop="openMoveOne(r)" title="移动分类">📂</span>
+                    <span v-if="isHub" class="rr-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</span>
+                    <span class="rr-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</span>
+                    <span class="rr-action delete" @click.stop="deleteResource(r)" title="删除">🗑</span>
+                  </template>
+                  <template v-else>
+                    <span class="rr-action locate" title="定位到资源台源卡" @click.stop="locateMirrorSource(r)">🎯</span>
+                    <span class="rr-action delete" title="移出镜像（源卡保留）" @click.stop="removeMirror(r)">✕</span>
+                  </template>
                 </span>
               </div>
             </div>
@@ -386,12 +405,19 @@
                 <!-- R79（R1-看）：看板此前只有 🗑 删除 + 只读星标，动作条与卡片/列表视图严重不齐 -->
                 <div class="kc-actions">
                   <span class="kc-action open" @click.stop="openResourceLink(r)" title="打开链接（无链接则提示补全）">↗</span>
-                  <span class="kc-action" @click.stop="togglePin(r)" :title="r.pinned?'取消置顶':'置顶'">📌</span>
-                  <span class="kc-action" :class="{on: r.starred}" @click.stop="toggleStar(r)" :title="r.starred?'取消星标':'星标'">⭐</span>
-                  <span class="kc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</span>
-                  <span v-if="isHub && !isMirrorView(r)" class="kc-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</span>
-                  <span v-if="!isMirrorView(r)" class="kc-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</span>
-                  <span class="kc-action delete" title="删除" @click.stop="deleteResource(r)">🗑</span>
+                  <!-- R89（W4）：与卡片/列表视图同款 -->
+                  <template v-if="!isMirrorView(r)">
+                    <span class="kc-action" @click.stop="togglePin(r)" :title="r.pinned?'取消置顶':'置顶'">📌</span>
+                    <span class="kc-action" :class="{on: r.starred}" @click.stop="toggleStar(r)" :title="r.starred?'取消星标':'星标'">⭐</span>
+                    <span class="kc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</span>
+                    <span v-if="isHub" class="kc-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</span>
+                    <span class="kc-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</span>
+                    <span class="kc-action delete" title="删除" @click.stop="deleteResource(r)">🗑</span>
+                  </template>
+                  <template v-else>
+                    <span class="kc-action locate" title="定位到资源台源卡" @click.stop="locateMirrorSource(r)">🎯</span>
+                    <span class="kc-action delete" title="移出镜像（源卡保留）" @click.stop="removeMirror(r)">✕</span>
+                  </template>
                 </div>
                 <div class="kc-card-title">
                   <span v-if="r.starred" class="kc-star" title="已星标">⭐</span>{{ val(r, titleKey) }}
@@ -1093,7 +1119,9 @@ const resCols = useCardCols('res', store.ui)
 const SORT_BY_KEYS = ['manual', 'recent', 'visited', 'hot', 'title']
 /** R87（R5-②）：筛选档位白名单（4 类型 + 4 状态）；筛选是临时视图态，**不进 UIPrefs**——
  *  持久化会造成「下次打开发现卡少了」的困惑，与既有行为一致 */
-const FILTER_KEYS = ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'unmounted']
+// R89（W5）：加 starred（⭐ 星标）——W5 的另两项 hot 排序与 hasAssets 筛选已在 R87 顺带交付
+// （R16 收敛后资源台与策展台同为 Workspace.vue 同一工具条，R5 与 W5 是同一份实现）
+const FILTER_KEYS = ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'starred', 'unmounted']
 const sortBy = ref('manual')
 // 第卅二轮 REQ-007：时间排序方向（默认倒序）+ 排序偏好本地记忆（UIPrefs.sortPrefs.res）
 const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.res?.dir === 'asc') ? 'asc' : 'desc')
@@ -1150,9 +1178,43 @@ const mountedResIds = computed<Set<string>>(() => {
 const hasActiveFilter = computed(() => filterBy.value !== 'all' || !!debouncedQuery.value.trim())
 const FILTER_LABELS: Record<string, string> = {
   all: '全部', url: 'URL链接', file: '本地文件', obsidian: 'Obsidian',
-  hasLink: '有链接', brokenPath: '⚠ 待补全路径', hasAssets: '有附件', unmounted: '未挂载任务'
+  hasLink: '有链接', brokenPath: '⚠ 待补全路径', hasAssets: '有附件', starred: '⭐ 星标', unmounted: '未挂载任务'
 }
 const filterLabel = computed(() => FILTER_LABELS[filterBy.value] || '全部')
+
+// ===== R89（R6）：搜索判据 =====
+/**
+ * 解析查询串：`#前端 #待读 关键词` → `{ tags:['前端','待读'], kw:'关键词' }`。
+ * 单个 `#`（长度 1）不算标签，回落为普通词，避免边输入边筛选。
+ */
+function parseQuery(raw: string): { tags: string[]; kw: string } {
+  const tags: string[] = []
+  const rest: string[] = []
+  for (const tok of (raw || '').trim().split(/\s+/)) {
+    if (!tok) continue
+    if (tok.length > 1 && tok.startsWith('#')) tags.push(tok.slice(1).toLowerCase())
+    else rest.push(tok.toLowerCase())
+  }
+  return { tags, kw: rest.join(' ') }
+}
+/**
+ * 卡片是否命中查询（三视图共用——它们都走 filteredResources）。
+ * - `#标签`：**全部命中才算**（取交集）。"直筛"是收窄，不是扩大。
+ * - 普通词：标题 / 描述 / 标签 / **自定义字段值**。
+ *   ⚠ 自定义字段此前能在卡片上显示（`fieldValue` 的 `custom_` 分支）却搜不到——R6 要补的就是这一处。
+ */
+function matchCard(r: ResourceCard, p: { tags: string[]; kw: string }): boolean {
+  const cardTags = (Array.isArray(r.tags) ? r.tags : []).map(t => t.toLowerCase())
+  for (const t of p.tags) if (!cardTags.includes(t)) return false
+  if (!p.kw) return true
+  if (r.title.toLowerCase().includes(p.kw)) return true
+  if ((r.description || '').toLowerCase().includes(p.kw)) return true
+  if (cardTags.some(t => t.includes(p.kw))) return true
+  for (const v of Object.values(r.customFields || {})) {
+    if (v != null && String(v).toLowerCase().includes(p.kw)) return true
+  }
+  return false
+}
 function resetFilters() {
   filterBy.value = 'all'
   searchQuery.value = ''
@@ -1208,6 +1270,7 @@ const FILTER_PREDICATES: Record<string, (r: ResourceCard) => boolean> = {
   hasLink: (r) => linkStateOf(r.linkType, r.link) !== 'none',
   brokenPath: (r) => isBrokenPath(r),
   hasAssets: (r) => (r.assets?.length || 0) > 0,
+  starred: (r) => !!r.starred,
   unmounted: (r) => !mountedResIds.value.has(r.id)
 }
 
@@ -1221,9 +1284,10 @@ const filteredResources = computed(() => {
   }
   const pred = FILTER_PREDICATES[filterBy.value]
   if (pred) list = list.filter(pred)
+  // R89（R6）：搜索判据收敛到 parseQuery + matchCard 一处（自定义字段纳入、`#标签` 直筛）
   if (debouncedQuery.value.trim()) {
-    const q = debouncedQuery.value.toLowerCase()
-    list = list.filter(r => r.title.toLowerCase().includes(q) || (r.description||'').toLowerCase().includes(q) || (Array.isArray(r.tags) ? r.tags : []).join(',').toLowerCase().includes(q))
+    const p = parseQuery(debouncedQuery.value)
+    list = list.filter(r => matchCard(r, p))
   }
   return list
 })
