@@ -21,15 +21,41 @@ const { d, visionText, missionText, allProjects, projectProgress, isProjectStall
   focusedProjects, toggleFocusProject, addProjectToDir, showDone, toggleShowDone } = useCompass()
 const store = useAppStore()
 
+/**
+ * R99（M8）：主航线状态筛选——与项目总览**共用同一份 `ovFilter`**（CompassShell 持有，v-model 传入，
+ * 一处切换两处生效）。状态判定复用 projMeta 预计算（R83 红线：不在模板里逐项调判定函数）。
+ * 门控与 D-B 同口径：项目数 >12 才出现（`toolsGate` 由宿主传入，单一来源）——≤12 时两处都不显示
+ * 控件，避免「主航线筛了、项目总览没控件却跟着变少」的分裂观感（偏离登记 04-48）。
+ */
+const props = defineProps<{ ovFilter?: 'all' | 'active' | 'stalled' | 'done'; toolsGate?: boolean }>()
+const emit = defineEmits<{ (e: 'update:ovFilter', v: 'all' | 'active' | 'stalled' | 'done'): void }>()
+const filterActive = computed(() => (props.ovFilter || 'all') !== 'all')
+/** 未做状态筛选的可见数（showDone 口径）——供空态文案区分「真没项目」与「被筛没了」 */
+function rawVisibleCount(dirIdx: number): number {
+  const dir = d.value.compass.directions[dirIdx]
+  if (!dir) return 0
+  return dir.projects.filter(p => showDone.value || !isProjectDone(p)).length
+}
+
 // R86（T0）：显隐开关改由 store 提供（showDone / toggleShowDone）——三处模块共用同一份实现。
 
 /** R60：原投射标记已随功能退役——愿景/使命无条件呈现，重心标记仅保留 🎯 主攻 */
 
-/** 项目按显隐开关过滤（R52-BUG-2：口径统一为 isProjectDone——手动 done/archived 或全任务完成派生） */
+/** 项目按显隐开关过滤（R52-BUG-2：口径统一为 isProjectDone——手动 done/archived 或全任务完成派生）
+ *  R99（M8）：叠加状态筛选（与项目总览共用 ovFilter）——计数/芯片/主攻数全部跟随所见（D-B「所见即所数」口径）；
+ *  goalPct 不受影响（它直算 dir.projects，衡量的是目标本身而非当前视图）。 */
 function projectsOf(dirIdx: number): Project[] {
   const dir = d.value.compass.directions[dirIdx]
   if (!dir) return []
-  return dir.projects.filter(p => showDone.value || !isProjectDone(p))
+  const list = dir.projects.filter(p => showDone.value || !isProjectDone(p))
+  const f = props.ovFilter || 'all'
+  if (f === 'all') return list
+  return list.filter(p => {
+    const st = projMeta.value.get(p.id)
+    if (f === 'stalled') return !!st?.stall
+    if (f === 'done') return !!st?.finished
+    return !st?.finished && !st?.stall // active
+  })
 }
 /** R52-F4（修订 R51-F18 口径）：主航线呈现全部项目（R60：🎯 主攻置前作区分）；>6 折「更多 N」行内展开 */
 const CHIP_LIMIT = 6
@@ -132,6 +158,15 @@ function confirmAdd(dirId: string) {
              ⚠「完整方向树 →」是导航入口不是开关，保留。 -->
         <span class="mod-role" title="主航线 = 看主线（读为主）：一眼看清主线推进到哪；要新建/改名/删除项目，去下方「项目总览」">看主线</span>
         <span class="mr-tool accent" @click="openTree">完整方向树 →</span>
+        <!-- R99（M8）：状态筛选——与项目总览共用同一份 ovFilter（一处切换两处生效）；门控同 D-B（项目数 >12） -->
+        <select v-if="toolsGate" class="mr-filter" :value="props.ovFilter || 'all'"
+          @change="emit('update:ovFilter', ($event.target as HTMLSelectElement).value as 'all' | 'active' | 'stalled' | 'done')"
+          title="按状态筛选（口径同项目卡：停滞 = 有任务但近 14 天无推进）；与下方项目总览共用同一筛选">
+          <option value="all">全部</option>
+          <option value="active">进行中</option>
+          <option value="stalled">停滞</option>
+          <option value="done">已完成</option>
+        </select>
       </div>
     </template>
 
@@ -202,7 +237,8 @@ function confirmAdd(dirId: string) {
           <input v-if="addingDir === dir.id" v-model="addName" v-focus class="chip-add-input" placeholder="项目名称，回车创建"
             @keyup.enter="confirmAdd(dir.id)" @keyup.esc="cancelAdd" @blur="cancelAdd" />
           <span v-else class="chip-add" title="在此目标下新建项目" @click="startAdd(dir.id)">＋ 新建项目</span>
-          <span v-if="!projectsOf(di).length" class="mgc-empty">暂无项目</span>
+          <!-- R99（M8）：空态区分「真没项目」与「被筛没了」 -->
+          <span v-if="!projectsOf(di).length" class="mgc-empty">{{ filterActive && rawVisibleCount(di) ? '无符合当前筛选的项目' : '暂无项目' }}</span>
         </div>
       </div>
       <div v-if="!d.compass.directions.length" class="mr-empty" @click="openTree">还没有战略目标 → 去完整方向树创建</div>
@@ -212,6 +248,9 @@ function confirmAdd(dirId: string) {
 
 <style scoped>
 .mr-tools { display: flex; align-items: center; gap: 10px; }
+/* R99（M8）：主航线状态筛选——观感对齐项目总览的 .ov-filter */
+.mr-filter { font-family: inherit; font-size: 11.5px; padding: 3px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); outline: none; cursor: pointer; }
+.mr-filter:focus { border-color: var(--accent); }
 .mr-tool { font-size: 11.5px; color: var(--text-3); cursor: pointer; white-space: nowrap; transition: color .12s; }
 .mr-tool:hover { color: var(--accent); }
 .mr-tool.accent { color: var(--accent); }
@@ -266,7 +305,8 @@ function confirmAdd(dirId: string) {
 .chip-add-input { width: 150px; min-width: 120px; font-family: inherit; font-size: 11.5px; padding: 4px 9px; border-radius: 8px; border: 1px solid var(--accent); background: var(--surface); color: var(--text); outline: none; }
 
 /* R57-F4：第二行 战略目标模块网格 */
-.mr-goals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; }
+/* R99（M6）：网格顶对齐——「更多 N」展开只长自己这张卡，不再把同排邻卡拉伸变形（撑破网格） */
+.mr-goals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; align-items: start; }
 .mr-goal-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px 11px; display: flex; flex-direction: column; gap: 9px; }
 .mgc-head { display: flex; align-items: center; gap: 8px; }
 .tier-goal { background: var(--accent-light); color: var(--accent); }

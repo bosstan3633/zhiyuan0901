@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.67.0'";
+const VER_ANCHOR_LITERAL = "version: '2.68.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -656,7 +656,7 @@ check('R49-14 C3/C6（R86 重指：实现已抽到 store）已完成项目显隐
 check('R49-15 C7 完整方向树：顶部统计（treeStats）+ 一键展开/收起 + 已完成过滤（visibleProjectsOf）', () => { const t = read('/newtab/views/CompassTree.vue'); return t.includes('treeStats') && t.includes('collapseAllNodes') && t.includes('visibleProjectsOf') && t.includes('完整方向树'); });
 check('R49-16 C4（R60 修订）主航线重心标记口径：仅 🎯 主攻 isFocused（📡 投射标记退役）', () => { const s = read('/newtab/components/compass/LighthousePanel.vue'); return !s.includes('pinnedToLighthouse') && !s.includes('已投射') && s.includes('p.isFocused'); });
 check('R49-17 C8 项目总览 CRUD：新建（openCreate/confirmCreate）+ 原位改名 + 摘除式删除（removeProject：任务转未归档/指标随项目移除）', () => { const s = read('/newtab/views/CompassShell.vue'); return s.includes('function openCreate') && s.includes('function confirmCreate') && s.includes('function renameProject') && s.includes('async function removeProject') && s.includes('t.projectId = undefined') && s.includes('dir.projects.splice'); });
-check('R49-18 C8 置顶分组：Project.pinned 字段（与 pinnedToLighthouse 独立）+ pinnedGroup/normalGroup 两组呈现 + 跨区拦截', () => { const m = read('/shared/models/index.ts'); const s = read('/newtab/views/CompassShell.vue'); return m.includes('pinned?: boolean') && s.includes('pinnedGroup') && s.includes('normalGroup') && s.includes('跨区移动请先用 📌'); });
+check('R49-18 C8 置顶分组（R99 重指：D-E 跨区拖拽自动切换 pinned 替代旧「跨区拦截」toast）：Project.pinned 字段（与 pinnedToLighthouse 独立）+ pinnedGroup/normalGroup 两组呈现 + 跨区自动翻 pinned', () => { const m = read('/shared/models/index.ts'); const s = read('/newtab/views/CompassShell.vue'); return m.includes('pinned?: boolean') && s.includes('pinnedGroup') && s.includes('normalGroup') && s.includes('proj.pinned = !!target.pinned'); });
 check('R49-19 C8 拖拽排序：onProjDragStart/Drop 组内 order 全量规整回写 + 编辑中禁拖（editingProjId）+ 渲染副本排序（不原地 sort 源数组）', () => { const s = read('/newtab/views/CompassShell.vue'); return s.includes('function onProjDrop') && s.includes('editingProjId') && s.includes('sortedCopy') && s.includes('x.order = i'); });
 check('R49-20 D 项目详情：?p 持久定位（刷新可恢复）+ 归属链四段可点击 + 头部 ID chip/＋添加任务', () => { const s = read('/newtab/views/ProjectCuration.vue'); return s.includes('router.replace({ path: route.path, query: { p: p.id } })') && s.includes('ch-node clickable') && s.includes('addTaskFromHeader') && s.includes('ID · '); });
 check('R49-21 D4/D5/D6 附件区+规则条+共享详情抽屉：tasksWithAssets 聚合 + AssetBadge 复用 + 好奇心规则提示条 + TaskDetailDrawer ref', () => { const s = read('/newtab/views/ProjectCuration.vue'); return s.includes('tasksWithAssets') && s.includes('<AssetBadge') && s.includes('转为任务 / 归档为资源') && s.includes('<TaskDetailDrawer ref="detailRef" />') && !s.includes('tdrawer'); });
@@ -2726,6 +2726,41 @@ check('R98-3 W9 分组标题补含子分类数：groupChildCount（uncat→0）+
     && WS98.includes("if (key === 'uncat') return 0")
     && WS98.includes('return catIdx.value.childrenOf.get(key)?.length || 0')
     && occ === 2;
+});
+
+console.log('【第九十九轮 · V2.68.0：方向台组四件（M6 + M8 + D-D + D-E）】');
+/** R99：P2 方向台组四条（三台面组收尾）。M6 网格顶对齐（展开不撑破网格）；M8 主航线筛选与项目
+ *  总览共用 ovFilter（v-model 跨组件，一处切换两处生效，门控同 D-B）；D-D 页头主线状态摘要；
+ *  D-E 跨区拖拽自动切换 pinned（连同 dragover 跨区放行——不改那条 drop 永远触发不了）。
+ *  零数据模型改动、零迁移。 */
+const LP99 = read('/newtab/components/compass/LighthousePanel.vue');
+const CS99 = read('/newtab/views/CompassShell.vue');
+check('R99-1 M6 主航线网格顶对齐：mr-goals-grid align-items:start——「更多 N」展开只长自己这张卡', () => {
+  return LP99.includes('.mr-goals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; align-items: start; }');
+});
+check('R99-2 M8 主航线筛选与项目总览共用 ovFilter：props/emits + projectsOf 三分支 + 四档 select + 宿主 v-model + 空态双文案', () => {
+  return LP99.includes("defineProps<{ ovFilter?: 'all' | 'active' | 'stalled' | 'done'; toolsGate?: boolean }>")
+    && LP99.includes("(e: 'update:ovFilter', v: 'all' | 'active' | 'stalled' | 'done')")
+    && LP99.includes("if (f === 'stalled') return !!st?.stall")
+    && LP99.includes("if (f === 'done') return !!st?.finished")
+    && LP99.includes('return !st?.finished && !st?.stall // active')
+    && LP99.includes('v-if="toolsGate" class="mr-filter"')
+    && LP99.includes('无符合当前筛选的项目')
+    && LP99.includes('function rawVisibleCount(dirIdx: number): number {')
+    && CS99.includes('<LighthousePanel v-model:ov-filter="ovFilter" :tools-gate="showOverviewTools" />');
+});
+check('R99-3 D-D 方向台页头主线状态摘要：X 目标 · Y 项目 · Z 主攻 · W 停滞（projState 预计算消费）', () => {
+  return CS99.includes('{{ d.compass.directions.length }} 目标 · {{ visibleProjects.length }} 项目 · {{ focusCount }} 主攻 · {{ stalledCount }} 停滞')
+    && CS99.includes('const focusCount = computed(() => visibleProjects.value.filter(p => p.isFocused).length)')
+    && CS99.includes('const stalledCount = computed(() => visibleProjects.value.filter(p => projState.value.get(p.id)?.stall).length)')
+    && CS99.includes('class="mainline-summary"');
+});
+check('R99-4 D-E 跨区拖拽自动切换 pinned：翻 pinned 后插入目标区序列 + 旧拦截 toast 零命中 + dragover 跨区放行', () => {
+  return CS99.includes('proj.pinned = !!target.pinned')
+    && CS99.includes('sectionIds.splice(ti, 0, dragProjId)')
+    && !CS99.includes('跨区移动请先用 📌 置顶/取消置顶')
+    && CS99.includes('// R99（D-E）：只拦同卡——跨区目标也要给 drag-over 高亮并允许 drop')
+    && CS99.includes('if (!dragProjId || dragProjId === p.id) return');
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

@@ -71,6 +71,11 @@ function openTree() {
 }
 const stalled = (p: Project) => isProjectStalled(p)
 
+/** R99（D-D）：方向台页头主线状态摘要——`X 目标 · Y 项目 · Z 主攻 · W 停滞`。
+ *  项目/主攻/停滞口径随 showDone（与项目总览 ds 一致）；停滞复用 projState 预计算（R83 红线）。 */
+const focusCount = computed(() => visibleProjects.value.filter(p => p.isFocused).length)
+const stalledCount = computed(() => visibleProjects.value.filter(p => projState.value.get(p.id)?.stall).length)
+
 /* ================= C8 项目总览管理增强：新建 / 编辑 / 删除 / 置顶分组 / 拖拽排序 ================= */
 /** 项目列表按 order 稳定（渲染 computed 不原地 sort 红线：先副本再排） */
 function sortedCopy(list: Project[]): Project[] {
@@ -187,8 +192,22 @@ function onProjDrop(e: DragEvent, target: Project) {
   ;(e.currentTarget as HTMLElement).classList.remove('drag-over')
   if (!dragProjId || dragProjId === target.id) { dragProjId = null; return }
   if (dragFromPinned !== !!target.pinned) {
-    showToast('跨区移动请先用 📌 置顶/取消置顶')
+    // R99（D-E）：跨区拖入 = 自动切换 pinned（拖入置顶区即置顶，拖回全部区即取消置顶）——
+    // 原「toast 拦截」语义废弃；拖拽语义跟随目标区。先翻 pinned 再把拖拽卡插入目标区序列。
+    const proj = allProjects().find(v => v.id === dragProjId)
+    if (!proj) { dragProjId = null; return }
+    proj.pinned = !!target.pinned
+    const sectionIds = (target.pinned ? pinnedGroup.value : normalGroup.value).map(x => x.id)
+    const ti = sectionIds.indexOf(target.id)
+    if (ti < 0) { dragProjId = null; return }
+    sectionIds.splice(ti, 0, dragProjId)
+    sectionIds.forEach((id, i) => {
+      const x = allProjects().find(v => v.id === id)
+      if (x) x.order = i
+    })
+    store.persist()
     dragProjId = null
+    showToast(proj.pinned ? '📌 已置顶（跨区拖入自动切换）' : '已取消置顶（跨区拖入自动切换）')
     return
   }
   const sectionIds = (target.pinned ? pinnedGroup.value : normalGroup.value).map(x => x.id)
@@ -205,7 +224,8 @@ function onProjDrop(e: DragEvent, target: Project) {
   showToast('✓ 已调整排序')
 }
 function onProjDragOver(e: DragEvent, p: Project) {
-  if (!dragProjId || dragProjId === p.id || dragFromPinned !== !!p.pinned) return
+  // R99（D-E）：只拦同卡——跨区目标也要给 drag-over 高亮并允许 drop（否则 D-E 的自动切换永远触发不了）
+  if (!dragProjId || dragProjId === p.id) return
   e.preventDefault()
   ;(e.currentTarget as HTMLElement).classList.add('drag-over')
 }
@@ -220,6 +240,8 @@ function onProjDragLeave(e: DragEvent) {
   <div v-else class="page">
     <div class="page-head">
       <div class="crumb"><b>方向台</b> · 主航线与项目全景</div>
+      <!-- R99（D-D）：主线状态摘要——方向台一眼读数 -->
+      <span class="mainline-summary">{{ d.compass.directions.length }} 目标 · {{ visibleProjects.length }} 项目 · {{ focusCount }} 主攻 · {{ stalledCount }} 停滞</span>
       <div class="spacer" />
       <!-- R86（M7）：「已完成项目」开关**收敛到此处**——此前主航线、项目总览、完整方向树各有一处
            （且是三份逐字重复的实现）。现方向台只有这一处：**一处切换，主航线与项目总览同时生效**
@@ -228,9 +250,10 @@ function onProjDragLeave(e: DragEvent) {
       <button class="mini-btn" @click="openTree"><Icon name="branch" :size="13" /> 完整方向树</button>
     </div>
 
-    <!-- 模块一 · 主航线（R55-D1：方向状态四格已迁调度台顶部） -->
+    <!-- 模块一 · 主航线（R55-D1：方向状态四格已迁调度台顶部）
+         R99（M8）：ovFilter 由本组件持有、v-model 传入——主航线与项目总览共用同一份筛选（一处切换两处生效） -->
     <section class="module">
-      <LighthousePanel />
+      <LighthousePanel v-model:ov-filter="ovFilter" :tools-gate="showOverviewTools" />
     </section>
 
     <!-- 模块三 · 项目总览（满宽 3 列） -->
@@ -357,6 +380,8 @@ function onProjDragLeave(e: DragEvent) {
 .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-left: 22px; }
 .page-head .crumb { font-size: 13px; color: var(--text-2); }
 .page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
+/* R99（D-D）：主线状态摘要——tabular-nums 数字稳定不跳动 */
+.mainline-summary { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .page-head .spacer { flex: 1; }
 /* R86（M7）：已完成项目开关——**收敛到方向台页头这一处**（原主航线 .mr-tool 与项目总览 .ov-toggle 均已移除；
    完整方向树是独立页，保留它自己那一处）。一处切换，主航线与项目总览同时生效。 */
