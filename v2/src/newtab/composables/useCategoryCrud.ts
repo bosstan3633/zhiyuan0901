@@ -95,7 +95,7 @@ export function useCategoryCrud(ctx: CategoryCrudCtx) {
     } else {
       allResources.value.forEach(r => { if (r.categoryId === cat.id) r.categoryId = '' })
     }
-    d.value.categories = d.value.categories.filter(c => c.id !== cat.id)
+    cat.deletedAt = Date.now() // R109（F12-b）：分类软删——回收站可恢复（子分类升级与卡片回落保持原语义，不随恢复自动还原）
     // R61：清理以该分类为落点的镜像记录（落点回落该台待分类；源卡零影响）
     for (const p of d.value.curationProjections || []) if (p.kind === 'card' && p.targetWsId === workspaceId.value && p.targetCatId === cat.id) p.targetCatId = undefined
     // R53-A3：级联清理该源分类的策展镜像分类（旧方向遗留逻辑，R61 后 hub 分类无 curFrom，保留兜底）
@@ -141,7 +141,7 @@ export function useCategoryCrud(ctx: CategoryCrudCtx) {
       for (const dup of g.slice(1)) {
         allResources.value.forEach(r => { if (r.categoryId === dup.id) r.categoryId = keep.id })
         childCatsOf(dup.id).forEach(k => { k.parentId = undefined })
-        d.value.categories = d.value.categories.filter(c => c.id !== dup.id)
+        dup.deletedAt = Date.now() // R109（F12-b）：被合并分类软删（回收站可恢复）
         merged++
       }
     }

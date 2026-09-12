@@ -9,6 +9,11 @@
         <span class="itm-target">{{ mode === 'goal' ? '导入目标：战略目标「' + targetName + '」' : '导入目标：策展台「' + targetName + '」（金字塔视图）' }}</span>
         <span class="itm-close" @click="emit('close')">×</span>
       </div>
+      <div class="itm-head-ops">
+        <button class="itm-rule-btn" @click="ruleOpen = !ruleOpen">📖 AI 整理规则{{ ruleOpen ? ' ▴' : ' ▾' }}</button>
+        <button class="itm-rule-btn" @click="copyRule">⧉ 复制规则给 AI</button>
+      </div>
+      <div v-if="ruleOpen" class="itm-rule-panel">{{ ruleText }}</div>
       <div class="itm-rule">
         <template v-if="mode === 'goal'">
           解析规则：<b># 一级标题 = 项目名称</b>（可多个）｜<b>## 二级标题 = 该项目的成功指标</b>｜<b>### 三级标题 = 该指标下的任务名称</b>｜<b>### 之下的正文 = 该任务的详情</b>（四级及以下标题并入任务详情）
@@ -111,7 +116,8 @@
  * - pyramid 模式：hasThesis=true 时 H1 被忽略（导入从二级挂入现有论点，安全默认）。
  */
 import { ref, computed, watch } from 'vue'
-import { parseGoalTemplate, parsePyramidTemplate, type GoalParseResult, type PyramidParseResult, type PyramidNode } from '@/shared/utils/mdImport'
+import { parseGoalTemplate, parsePyramidTemplate, GOAL_RULE, PYRAMID_RULE, type GoalParseResult, type PyramidParseResult, type PyramidNode } from '@/shared/utils/mdImport'
+import { showToast } from '@/shared/components/toast'
 
 const props = defineProps<{
   open: boolean
@@ -126,6 +132,14 @@ const emit = defineEmits<{
 }>()
 
 const src = ref('')
+const ruleOpen = ref(false)
+const ruleText = computed(() => props.mode === 'goal' ? GOAL_RULE : PYRAMID_RULE)
+async function copyRule() {
+  try {
+    await navigator.clipboard.writeText(ruleText.value + '\n\n现在请整理用户的以下文本：')
+    showToast('✓ 规则已复制——粘贴给任意 AI，把 AI 输出粘回左侧即可')
+  } catch { showToast('✗ 复制失败——请手动选择文本复制') }
+}
 const goal = computed<GoalParseResult>(() => props.mode === 'goal' ? parseGoalTemplate(src.value) : { projects: [], warns: [] })
 const pyr = computed<PyramidParseResult>(() => props.mode === 'pyramid' ? parsePyramidTemplate(src.value) : { thesis: null, extraH1: [], warns: [] })
 const warns = computed(() => props.mode === 'goal' ? goal.value.warns : pyr.value.warns)
@@ -168,6 +182,10 @@ watch(() => props.open, (v) => { if (v) src.value = '' })
 .itm-target { font-size: 11.5px; color: var(--text3); }
 .itm-close { margin-left: auto; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text3); font-size: 17px; }
 .itm-close:hover { background: var(--surface-3); color: var(--text); }
+.itm-head-ops { display: flex; gap: 8px; padding: 10px 18px 0; }
+.itm-rule-btn { font-size: 11.5px; color: var(--accent); background: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 99px; padding: 3px 12px; cursor: pointer; font-family: inherit; }
+.itm-rule-btn:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.itm-rule-panel { margin: 10px 18px 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-2); font-size: 12px; line-height: 1.7; white-space: pre-wrap; max-height: 220px; overflow: auto; }
 .itm-rule { margin: 10px 18px 0; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 11.5px; color: var(--text2); background: var(--surface-2); }
 .itm-rule b { color: var(--accent); }
 .itm-notice { margin: 10px 18px 0; padding: 8px 12px; border-radius: 8px; background: rgba(217,160,60,.1); border: 1px solid rgba(217,160,60,.4); color: var(--warn); font-size: 12px; }

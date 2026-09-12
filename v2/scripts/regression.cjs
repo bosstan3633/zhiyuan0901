@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.77.0'";
+const VER_ANCHOR_LITERAL = "version: '2.78.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -988,7 +988,7 @@ check('R61-7（R74 重写）层级 4 级落地：MAX_CAT_LEVEL 单一来源 + de
 check('R61-8 命名切换：顶栏/路由/弹窗 策展中心→资源台、工作台→策展台；App.vue 打包镜像退役', () => { const r = read('/newtab/router.ts'); const a = read('/newtab/App.vue'); const c = read('/newtab/views/Workspace.vue'); return r.includes("meta: { title: '知源调度台 · 资源台' }") && a.includes('>资源台') && a.includes('策展台「${name}」已创建')
   // R84 重指：原验写死的 `<b>资源台</b>`；W1 起页头台名取 workspace.name（种子数据里即"资源台"），
   // **不写死比写死更正确**——改名也能跟着变。旧称零出现仍守住（见下）。
-  && c.includes('class="wsh-name">{{ workspace.name }}') && !c.includes('<b>资源台</b>')
+  && c.includes("class=\"wsh-name\">{{ workspace.name.replace(/^[^\\s]+\\s/, '') }}") && !c.includes('<b>资源台</b>')
   && !a.includes('>策展中心') && !a.includes('工作台「${name}」已创建'); });
 check('R61-9 删除策展台级联：App.vue 移除该台收到的镜像记录（引用随台走，源卡零影响）', () => { const a = read('/newtab/App.vue'); return a.includes("p.targetWsId === ws.id") && a.includes('引用随台走'); });
 check('R61-10（R74 重写）旧方向入口全拆除：Workspace 无 projectCardToCuration/projectCategoryToCuration', () => {
@@ -1354,7 +1354,7 @@ check('R73-3 KeepAlive 不再缓存已收敛的 CurationCenterView（三主视�
 // 而且不再写死、策展台也有了。名冻结、只改断言体，零退役。
 check('R73-4 hub 补页头：资源台标题在页面内可见（R64-F13 删 hero 后的空档；R84 起走 W1 通用页头）', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes('class="ws-id-head"') && w.includes('class="wsh-name">{{ workspace.name }}')
+  return w.includes('class="ws-id-head"') && w.includes("class=\"wsh-name\">{{ workspace.name.replace(/^[^\\s]+\\s/, '') }}")
     && w.includes('资源卡唯一存储 · 镜像源头')
     && w.includes('font-size: 19px; letter-spacing: .3px');
 });
@@ -1998,7 +1998,7 @@ const HEAD_TPL = segOf(WS84, '<div class="ws-id-head">', '</div>');
 const BANNER_TPL = segOf(WS84, '<div class="thesis-banner"', '</div>');
 check('R84-1 W1 页头四要素齐全：图标 + workspace.name + 台描述 + 右端结构摘要', () => {
   return HEAD_TPL.includes("class=\"wsh-icon\">{{ workspace.icon")
-    && HEAD_TPL.includes('class="wsh-name">{{ workspace.name }}')
+    && HEAD_TPL.includes("class=\"wsh-name\">{{ workspace.name.replace(/^[^\\s]+\\s/, '') }}")
     && HEAD_TPL.includes('class="wsh-desc"')
     && HEAD_TPL.includes('class="wsh-summary"');
 });
@@ -2979,14 +2979,62 @@ check('R108-3 ★ goal 写入链：任务双挂（projectId+metricId+taskIds 回
 check('R108-4 ★ pyramid 写入链：论点卡+setThesis（本台未设时）+ 分类同父同名复用 + 每节点同名台内卡 + 200 节点上限 + 完成切金字塔视图', () => {
   return WSP108.includes('function confirmPyramidImport(payload: { pyramid?: PyramidParseResult })')
     && WSP108.includes('setThesis(d.value, workspaceId.value, card.id)')
-    && WSP108.includes('const found = d.value.categories.find(c => c.workspaceId === workspaceId.value && (c.parentId || undefined) === parentId && c.name === name)')
+    && WSP108.includes('const found = d.value.categories.find(c => c.workspaceId === workspaceId.value && !c.deletedAt && (c.parentId || undefined) === parentId && c.name === name') // R109 重指：同父同名复用排除软删分类
     && WSP108.includes('if (nodeTotal > 200) { showToast(\'⚠ 单次导入建议不超过 200 个节点——请分批导入\'); return }')
     && WSP108.includes("pyramidImportOpen.value = false") && WSP108.includes("setViewMode('pyramid')")
     && WSP108.includes('📋 导入金字塔模板');
 });
 check('R108-5 F10 页边距统一：ws-page 1440 居中 + topbar 三档（align-ws 退役）', () => {
-  return WSP108.includes('.ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }')
+  return WSP108.includes('.ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; }')
+    && WSP108.includes('.ws-content { flex: 1; min-width: 0; padding: 20px 24px 90px; overflow-y: auto; }')
     && !read('/newtab/App.vue').includes('align-ws');
+});
+
+console.log('【第一百零九轮 · V2.78.0：生产反馈第三批（F11 规则入口 + F12 全景修复与分类软删 + F13 对齐 + F14 页头/指标条）】');
+/** R109：生产反馈第三批五项。F11 导入弹窗内嵌 AI 整理规则（规则常量与 03-7 文档同源 + 复制按钮）；
+ *  F12-a 资源台全景 workspaceId 收紧（修复：全景分类视图曾按 categoryId 裸匹配——策展台卡可混入）；
+ *  F12-b 分类软删（Category.deletedAt + 回收站分类分区：删除分类/删除策展台/合并重复三链路统一软删）；
+ *  F13 资源台/策展台单一滚动域（顶部三模块移入 ws-content，右缘对齐，工具条吸顶）；
+ *  F14 页头单图标（台名剥离图标前缀）+ 指标卡纵向两行重设计。 */
+const ITM109 = read('/newtab/components/ImportTemplateModal.vue');
+const MI109 = read('/shared/utils/mdImport.ts');
+const APP109 = read('/newtab/App.vue');
+const WSP109 = read('/newtab/views/Workspace.vue');
+const GS109 = read('/newtab/views/GlobalSettings.vue');
+const RB109 = read('/newtab/views/RecycleBin.vue');
+check('R109-1 ★ F11 导入弹窗内嵌 AI 整理规则：GOAL_RULE/PYRAMID_RULE 常量 + 面板展开 + 一键复制', () => {
+  return MI109.includes('export const GOAL_RULE') && MI109.includes('export const PYRAMID_RULE')
+    && ITM109.includes('GOAL_RULE, PYRAMID_RULE')
+    && ITM109.includes('async function copyRule()')
+    && ITM109.includes("navigator.clipboard.writeText(ruleText.value")
+    && ITM109.includes('📖 AI 整理规则');
+});
+check('R109-2 ★ F13 资源台/策展台单一滚动域：顶部三模块移入 ws-content + 工具条吸顶', () => {
+  return WSP109.includes('.ws-content { flex: 1; min-width: 0; padding: 20px 24px 90px; overflow-y: auto; }')
+    && WSP109.includes('class="ws-columns">') && WSP109.includes('.ws-columns { display: flex; align-items: flex-start; }')
+    && WSP109.includes('.ws-toolbar { position: sticky; top: 0; z-index: 5;')
+    && WSP109.indexOf('class="ws-id-head"') > WSP109.indexOf('class="ws-content"');
+});
+check('R109-3 F14 页头单图标 + 指标卡两行重设计：台名剥离图标前缀 + 纵向布局 + hover 抬升', () => {
+  return WSP109.includes("workspace.name.replace(/^[^")
+    && WSP109.includes("align-items: flex-start; gap: 3px; }")
+    && WSP109.includes('.metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px;')
+    && WSP109.includes('.metric-card:hover { border-color: var(--accent); transform: translateY(-1px);')
+    && WSP109.includes('.mc-value { font-size: 20px;');
+});
+check('R109-4 ★ F12-a 资源台全景 workspaceId 收紧：分类视图/计数补 ws 过滤（策展台卡不得混入）+ 树头措辞修正', () => {
+  return GS109.includes('return gResLive.value.filter(r => r.workspaceId === panSelWs.value && r.categoryId === panSelCat.value)')
+    && GS109.includes('return gResLive.value.filter(r => r.workspaceId === cat.workspaceId && r.categoryId === cat.id).length')
+    && GS109.includes('全景 · 资源台 · {{ panTotalCats }} 分类');
+});
+check('R109-5 ★ F12-b 分类软删：Category.deletedAt + 删除分类/合并重复/删除策展台三链路统一软删 + 回收站分类分区（恢复=清 deletedAt）', () => {
+  return read('/shared/models/index.ts').includes('deletedAt?: number')
+    && WSP109.includes('for (const c of d.value.categories) if (c.workspaceId === workspaceId.value && !c.deletedAt) c.deletedAt = now')
+    && WSP109.includes('const wsCats = computed(() => d.value.categories.filter(c => c.workspaceId === workspaceId.value && !c.deletedAt))')
+    && GS109.includes('!c.parentId && !c.deletedAt')
+    && RB109.includes("const tab = ref<'res' | 'task' | 'curio' | 'cat'>('res')")
+    && RB109.includes('function restoreCat(c: { id: ID; deletedAt?: number })')
+    && RB109.includes('分类分区');
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

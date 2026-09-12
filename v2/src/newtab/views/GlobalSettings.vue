@@ -166,7 +166,7 @@
         <div class="gs-pan-wrap">
           <!-- 左栏：全景计数树（默认全展开） -->
           <div class="gs-pan-tree">
-            <div class="gs-pan-tree-head">全景 · {{ panTree.length }} 策展台 · {{ panTotalCats }} 分类 · {{ panTotalCards }} 卡</div>
+            <div class="gs-pan-tree-head">全景 · 资源台 · {{ panTotalCats }} 分类 · {{ panTotalCards }} 卡</div>
             <div v-for="wsNode in panTree" :key="wsNode.ws.id" class="gs-pan-ws">
               <div class="gs-pan-row gs-pan-ws-row" :class="{ active: panSelWs === wsNode.ws.id && !panSelCat, drop: dropTarget === 'ws:' + wsNode.ws.id }"
                 draggable="false" @click="selectPanWs(wsNode.ws.id)"
@@ -1330,7 +1330,7 @@ function gWsById(wsId: string) { return (store.data?.workspaces || []).find(w =>
 /** R63-1：分类计数——资源台按原生卡，策展台按台内+镜像（镜像归到台内落点分类） */
 function panCountByCat(cat: { id: string; workspaceId: string }): number {
   if (isHubWs(gWsById(cat.workspaceId))) {
-    return gResLive.value.filter(r => r.categoryId === cat.id).length
+    return gResLive.value.filter(r => r.workspaceId === cat.workspaceId && r.categoryId === cat.id).length // R109（F12-a）：workspaceId 收紧
   }
   return boardCardsOf(store.data!, cat.workspaceId).filter(r => (r.categoryId || '') === cat.id).length
 }
@@ -1346,19 +1346,19 @@ function panCountByWs(wsId: string): number {
 const panHubWss = computed(() => (store.data?.workspaces || []).filter(w => isHubWs(w) && !w.archived))
 const panTree = computed<PanWsNode[]>(() =>
   panHubWss.value.map(w => {
-    const roots = gd.value.categories.filter(c => c.workspaceId === w.id && !c.parentId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    const roots = gd.value.categories.filter(c => c.workspaceId === w.id && !c.parentId && !c.deletedAt).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) // R109（F12-b）：软删分类不入全景
     const toNode = (c: { id: string; name: string; workspaceId: string }): PanCatNode => ({
       cat: { id: c.id, name: c.name, workspaceId: c.workspaceId },
       count: panCountByCat(c),
       children: gd.value.categories
-        .filter(ch => ch.parentId === c.id)
+        .filter(ch => ch.parentId === c.id && !ch.deletedAt)
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         .map(toNode)
     })
     return { ws: { id: w.id, name: w.name, icon: w.icon }, count: panCountByWs(w.id), cats: roots.map(toNode) }
   })
 )
-const panTotalCats = computed(() => gd.value.categories.filter(c => panHubWss.value.some(w => w.id === c.workspaceId)).length)
+const panTotalCats = computed(() => gd.value.categories.filter(c => panHubWss.value.some(w => w.id === c.workspaceId) && !c.deletedAt).length)
 const panTotalCards = computed(() => panHubWss.value.reduce((s, w) => s + panCountByWs(w.id), 0))
 const panCollapsed = ref<Set<string>>(new Set()) // 默认全展开
 /** R66-F6：递归扁平行（折叠沿祖先链：父收起则整棵子树不渲染） */
@@ -1393,7 +1393,7 @@ const panCards = computed<ResourceCard[]>(() => {
     const cards = boardCardsOf(store.data!, panSelWs.value)
     return panSelCat.value ? cards.filter(r => (r.categoryId || '') === panSelCat.value) : cards
   }
-  if (panSelCat.value) return gResLive.value.filter(r => r.categoryId === panSelCat.value)
+  if (panSelCat.value) return gResLive.value.filter(r => r.workspaceId === panSelWs.value && r.categoryId === panSelCat.value) // R109（F12-a）：workspaceId 收紧——策展台卡不得混入资源台分类视图
   if (panSelWs.value) return gResLive.value.filter(r => r.workspaceId === panSelWs.value)
   return []
 })

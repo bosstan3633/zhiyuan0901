@@ -1,12 +1,15 @@
 ﻿<template>
   <div class="ws-page" v-if="workspace" :style="{ '--grid-cols': String(resCols) }">
     <!-- R84（W1）：台身份页头——图标 + 台名 + 台描述 + 右端结构摘要（一行 ≤40px）。
-         改前：仅资源台有一段 R73-S5a 写死的 .ws-hub-head（无图标、非 workspace.name/description），
+         改前：仅资源台有一段 R73-S5a 写死的 .ws-hub-head（无图标、非 workspace.name.replace(/^[^\s]+\s/, '')/description），
          而 **策展台的台名与台描述在页面内零出现**——用户置身于某个策展台，却不知道这是哪个台。
          现统一为这一条，所有台都渲染；hub 描述为空时回落 R73 原文案（零信息损失）。 -->
+      <!-- 左侧分类导航（第八轮：树形 2 级 + 置顶分区 + 拖拽排序/挂子级；R48-V2：Linear 风格树 + 展开/折叠） -->
+      <div class="ws-content">
+      <!-- R109（F13）：顶部三模块移入滚动容器（与卡片同 padding/滚动域）——顶栏/指标条/工具条/网格右缘成一条直线 -->
     <div class="ws-id-head">
       <span class="wsh-icon">{{ workspace.icon || (isHub ? '📦' : '🗂') }}</span>
-      <b class="wsh-name">{{ workspace.name }}</b>
+      <b class="wsh-name">{{ workspace.name.replace(/^[^\s]+\s/, '') }}</b>
       <!-- R90（R8-③）：台描述分两态——**用户自写的台描述仍内联**（R84 / W1 要的就是台身份可见）；
            资源台无描述时回落的定位语「资源卡唯一存储 · 镜像源头」**降为 ⓘ tooltip**（它是定位语，不是每屏必读） -->
       <span v-if="wsHeadDescOwn" class="wsh-desc" :title="wsHeadDescOwn">· {{ wsHeadDescOwn }}</span>
@@ -201,8 +204,7 @@
     </div>
 
     <!-- ③ 资源策展区 -->
-    <div class="ws-body">
-      <!-- 左侧分类导航（第八轮：树形 2 级 + 置顶分区 + 拖拽排序/挂子级；R48-V2：Linear 风格树 + 展开/折叠） -->
+      <div class="ws-columns">
       <div class="ws-sidebar">
         <div class="cat-toolbar">
           <span class="ct-label">目录</span>
@@ -269,7 +271,7 @@
       </div>
 
       <!-- 右侧展示区 -->
-      <div class="ws-content">
+
         <!-- ===== 卡片视图：REQ-027 按分类分组分区；R64-F9 树状递归分组（depth 缩进呈现层级） ===== -->
         <div v-if="viewMode==='card'">
           <!-- R84（W2-①）：中心论点提到首屏——此前论点只出现在指标条第一格与金字塔 L1 根，
@@ -1556,7 +1558,7 @@ function confirmPyramidImport(payload: { pyramid?: PyramidParseResult }) {
   if (nodeTotal > 200) { showToast('⚠ 单次导入建议不超过 200 个节点——请分批导入'); return }
   let catCount = 0, cardCount = 0, reused = 0
   const ensureCat = (name: string, parentId?: string): Category => {
-    const found = d.value.categories.find(c => c.workspaceId === workspaceId.value && (c.parentId || undefined) === parentId && c.name === name)
+    const found = d.value.categories.find(c => c.workspaceId === workspaceId.value && !c.deletedAt && (c.parentId || undefined) === parentId && c.name === name)
     if (found) { reused++; return found }
     const cat: Category = { id: uid('cat'), workspaceId: workspaceId.value, name, order: d.value.categories.filter(c => c.workspaceId === workspaceId.value && (c.parentId || undefined) === parentId).length }
     if (parentId) cat.parentId = parentId
@@ -1916,7 +1918,7 @@ function catNameOfFamily(r: ResourceCard): string {
 }
 
 // ===== 第八轮：分类树（2 级）+ 置顶 + 聚合计数 =====
-const wsCats = computed(() => d.value.categories.filter(c => c.workspaceId === workspaceId.value))
+const wsCats = computed(() => d.value.categories.filter(c => c.workspaceId === workspaceId.value && !c.deletedAt)) // R109（F12-b）：软删分类不入树
 /**
  * R71 性能治理：分类树索引（一次 O(n) 建表 → 此后 O(1) 查表）。
  * 此前 childCatsOf / rootCats / descendantIds / familyIds 全是「每次调用都全表扫描」的实现，
@@ -2669,7 +2671,7 @@ async function deleteWorkspace() {
   if (idx >= 0) d.value.workspaces.splice(idx, 1)
   const now = Date.now()
   for (const r of d.value.resources) if (r.workspaceId === workspaceId.value && !r.deletedAt) r.deletedAt = now
-  d.value.categories = d.value.categories.filter(c => c.workspaceId !== workspaceId.value)
+  for (const c of d.value.categories) if (c.workspaceId === workspaceId.value && !c.deletedAt) c.deletedAt = now // R109（F12-b）：分类随台软删（回收站可恢复）
   store.persist()
   showToast('策展台已删除（资源卡已移入回收站）')
   router.push('/compass')
@@ -2693,7 +2695,7 @@ function linkDisplay(link: string) {
 
 <style scoped>
 /* R108（F10）：资源台/策展台容器与调度台/方向台统一（1440 居中 + 24px 边距）——三页切换无左右跳动感 */
-.ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
+.ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; }
 .ws-empty { display: flex; align-items: center; justify-content: center; height: 100vh; color: var(--text-3); }
 
 /* R73-S5a：资源台页头（R64-F13 删掉 hero 大标题后，hub 一直没有页面标题；
@@ -2774,7 +2776,7 @@ function linkDisplay(link: string) {
 .cover-swatch.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
 
 /* 工具条 */
-.ws-toolbar { display: flex; align-items: center; gap: 10px; padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; padding: 14px 0; border-bottom: 1px solid var(--border); background: var(--bg); }
 .view-tabs { display: flex; background: var(--surface-2); border-radius: 8px; padding: 3px; gap: 2px; }
 .view-tab { padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; color: var(--text-2); transition: all .15s; display: flex; align-items: center; gap: 4px; }
 .view-tab:hover { color: var(--text); }
@@ -2812,7 +2814,8 @@ function linkDisplay(link: string) {
 .fp-reset:hover { color: var(--accent); }
 
 /* Body */
-.ws-body { display: flex; min-height: calc(100vh - 52px - 170px - 47px); }
+/* R109（F13）：单一滚动域——顶部模块移入 ws-content 后，行布局容器不再需要魔法高度 */
+.ws-columns { display: flex; align-items: flex-start; }
 
 /* 侧边栏（R48-V2：Linear 风格树——紧凑行高、缩进导轨、chevron 旋转、弱化计数） */
 .ws-sidebar { width: 200px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--surface); padding: 10px 10px 14px; overflow-y: auto; }
@@ -2864,7 +2867,7 @@ function linkDisplay(link: string) {
 .ws-modal-hint { margin-top: 8px; font-size: 11px; color: var(--text-3); }
 
 /* 内容区 */
-.ws-content { flex: 1; padding: 18px 22px 90px; overflow-y: auto; }
+.ws-content { flex: 1; min-width: 0; padding: 20px 24px 90px; overflow-y: auto; }
 
 /* 分区标签（置顶区/非置顶区） */
 .section-label { font-size: 12px; font-weight: 600; color: var(--text-2); margin: 4px 0 10px; padding-left: 2px; }
@@ -3079,17 +3082,19 @@ function linkDisplay(link: string) {
 /* R75（R18）：资源台 3 格版——论点格与来源构成格对 hub 无意义；只加修饰类，不改 5 格本体 */
 .ws-metrics.hub3 { grid-template-columns: repeat(3, 1fr); }
 .ws-metrics { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 8px; margin: 10px 0 0; }
-.metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 4px 12px; cursor: pointer; transition: all .15s; min-width: 0; display: flex; align-items: center; gap: 10px; }
+/* R109（F14）：指标卡纵向两行布局——label 上 / 数值中 / 提示下，hover 微抬升（生产反馈：纵向太窄） */
+.metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; cursor: pointer; transition: all .15s; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.metric-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: var(--shadow); }
 .metric-card:hover { border-color: var(--accent); background: var(--surface-2); }
 /* R67-F2：策展主题格常亮高亮（主题色描边+淡底+微光），非 hover 态也可辨识 */
 .metric-card.thesis-hl { border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: var(--accent-light); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent), 0 2px 10px color-mix(in srgb, var(--accent) 12%, transparent); }
 .metric-card.thesis-hl .mc-label { color: var(--accent); }
-.mc-label { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; }
-.mc-value { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc-label { font-size: 10.5px; color: var(--text-3); letter-spacing: .3px; }
+.mc-value { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .mc-value.thesis { font-size: 12.5px; font-weight: 600; flex: 1; }
 .mc-value.small { font-size: 12.5px; }
 .mc-sep { color: var(--text-4); font-weight: 400; margin: 0 3px; }
-.mc-hint { font-size: 10px; color: var(--text-4); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+.mc-hint { font-size: 10.5px; color: var(--text-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
 /* ===== R62-4：层级色点 ===== */
 .cat-depth-dot { width: 6px; height: 6px; border-radius: 2px; flex-shrink: 0; }

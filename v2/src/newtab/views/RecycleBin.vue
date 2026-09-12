@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { showToast } from '@/shared/components/toast'
 import { deleteAsset } from '@/shared/storage/assets'
-import type { ResourceCard, TaskCard, CuriosityCard, AssetMeta } from '@/shared/models'
+import type { ResourceCard, TaskCard, CuriosityCard, AssetMeta, ID } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 
 /** 第卅三轮 REQ-018：回收站页面（三类卡软删数据直接复用：models 的 deletedAt）
@@ -14,7 +14,15 @@ const router = useRouter()
 const store = useAppStore()
 const d = computed(() => store.data!)
 
-const tab = ref<'res' | 'task' | 'curio'>('res')
+const tab = ref<'res' | 'task' | 'curio' | 'cat'>('res')
+/** R109（F12-b）：软删分类（删除分类/删除策展台/合并重复 均走 deletedAt）——恢复 = 清 deletedAt */
+const cats = computed(() =>
+  d.value.categories.filter(c => c.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
+function restoreCat(c: { id: ID; deletedAt?: number }) {
+  c.deletedAt = undefined
+  store.persist()
+  show('↩️ 分类已恢复（其下卡片仍在待分类/回收站，可手动归位）')
+}
 
 const res = computed(() =>
   d.value.resources.filter(r => r.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
@@ -131,11 +139,13 @@ function restoreAll() {
   const cur = tab.value
   if (cur === 'res') res.value.forEach(r => restoreRes(r))
   else if (cur === 'task') tasks.value.forEach(t => restoreTask(t))
+  else if (cur === 'cat') cats.value.forEach(c => restoreCat(c))
   else curios.value.forEach(c => restoreCurio(c))
   store.persist()
 }
 async function purgeAll() {
   const cur = tab.value
+  if (cur === 'cat') { d.value.categories = d.value.categories.filter(c => !c.deletedAt); show('🗑 已永久删除'); store.persist(); return }
   if (cur === 'res') {
     for (const r of res.value) await purgeAssetsOf(r.assets)
     d.value.resources = d.value.resources.filter(r => !r.deletedAt)
@@ -160,6 +170,7 @@ async function purgeAll() {
 }
 const tabMeta = computed(() => [
   { k: 'res' as const, label: '📄 资源卡', list: res.value, n: res.value.length },
+  { k: 'cat' as const, label: '📁 分类', list: cats.value, n: cats.value.length },
   { k: 'task' as const, label: '📋 任务卡', list: tasks.value, n: tasks.value.length },
   { k: 'curio' as const, label: '💡 好奇心卡', list: curios.value, n: curios.value.length }
 ])
@@ -214,7 +225,7 @@ const tabMeta = computed(() => [
     </div>
 
     <!-- 好奇心卡 -->
-    <div v-else class="rb-list">
+    <div v-else-if="tab === 'curio'" class="rb-list">
       <div v-for="c in curios" :key="c.id" class="rb-item">
         <div class="rb-item-main">
           <div class="rb-item-title">{{ c.question }}</div>
@@ -226,6 +237,20 @@ const tabMeta = computed(() => [
         </div>
       </div>
       <div v-if="!curios.length" class="rb-empty">回收站空空如也 ✨</div>
+    </div>
+
+    <!-- R109（F12-b）：分类分区（删除分类/删除策展台/合并重复 均走软删；恢复=清 deletedAt） -->
+    <div v-else-if="tab === 'cat'" class="rb-list">
+      <div v-for="c in cats" :key="c.id" class="rb-item">
+        <div class="rb-item-main">
+          <div class="rb-item-title">📁 {{ c.name }}</div>
+          <div class="rb-item-meta">🗂 {{ wsNameOf(c.workspaceId) }} · 🕓 删除于 {{ fmt(c.deletedAt) }}<span style="color:var(--text4)"> · 恢复后其下卡片不会自动归位（仍在待分类/回收站）</span></div>
+        </div>
+        <div class="rb-item-ops">
+          <button class="rb-btn sm" @click="restoreCat(c)">恢复</button>
+        </div>
+      </div>
+      <div v-if="!cats.length" class="rb-empty">回收站空空如也 ✨</div>
     </div>
 
     

@@ -270,6 +270,8 @@ export interface Category {
   /** R53-A1：策展中心镜像分类溯源标记（workspaceId=CURATION_WS_ID 时有效）——
    *  镜像分类物化为真实策展 Category，树内与原生分类同构（混排/父子/拖拽）；源数据零影响 */
   curFrom?: { wsId: ID; catId: ID; projId: ID }
+  /** R109（F12-b）：分类软删——删除策展台/分类时置 deletedAt 进回收站，可恢复（卡片软删口径对齐） */
+  deletedAt?: number
 }
 
 // ============ 今日三件事 ============
