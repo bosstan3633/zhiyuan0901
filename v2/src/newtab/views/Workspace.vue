@@ -1173,6 +1173,9 @@ function matchCard(r: ResourceCard, p: { tags: string[]; kw: string }): boolean 
   if (r.title.toLowerCase().includes(p.kw)) return true
   if ((r.description || '').toLowerCase().includes(p.kw)) return true
   if (cardTags.some(t => t.includes(p.kw))) return true
+  // R105（W10）：链接文本纳入搜索（title + link + description + tags 统一口径，与浮层 res blob 同源；
+  // 拍板 2026-09-12：W10 的「link 是否纳入」按提案原文纳入）
+  if ((r.link || '').toLowerCase().includes(p.kw)) return true
   for (const v of Object.values(r.customFields || {})) {
     if (v != null && String(v).toLowerCase().includes(p.kw)) return true
   }

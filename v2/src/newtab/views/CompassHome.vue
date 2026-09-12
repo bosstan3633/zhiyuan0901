@@ -542,9 +542,20 @@ function onDrillEsc(e: KeyboardEvent) {
   curDrill.value = null
 }
 // R67-F4：浏览器快捷键模块直达（curiosity=好奇心培养 / project=项目调度）——滚动定位 + 高亮闪烁
+/** R105（B4）：好奇心培育降权——默认折叠为一行摘要（不持久化，同 R94-B2 口径） */
+const curioCollapsed = ref(true)
+const curioTeaser = computed(() => {
+  const list = (d.value.curiosities || []).filter(c => !c.deletedAt)
+  if (!list.length) return '还没有好奇心卡片 · Ctrl+Shift+I 随手记一条'
+  const todo = list.filter(c => c.status === 'todo').length
+  const doing = list.filter(c => c.status === 'doing').length
+  return `共 ${list.length} 条 · 待探索 ${todo} · 探索中 ${doing}`
+})
+
 function gotoAnchor(name: string) {
   const id = name === 'curiosity' ? 'zy-mod-curiosity' : name === 'project' ? 'zy-mod-tasks' : ''
   if (!id) return
+  if (name === 'curiosity') curioCollapsed.value = false // R105（B4）：直达 = 带意图，自动展开
   const el = document.getElementById(id)
   if (!el) return
   el.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -852,9 +863,18 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
       </section>
     </div>
 
-    <!-- 底部 · 好奇心培育（R55-B2：任务调度已迁方向台，单区直呈）｜ R67-F4：id 供快捷键直达锚点 -->
+    <!-- 底部 · 好奇心培育（R55-B2：任务调度已迁方向台）｜ R67-F4：id 供快捷键直达锚点
+         R105（B4）：好奇心培育降权——调度台首屏的主角是方向与今日行动，好奇心默认收为一行摘要，
+         点击展开完整面板。**不持久化**（默认折叠管的是"每次进门的第一眼"，同 R94-B2 口径）；
+         Ctrl+Shift+I 直达锚点时自动展开（用户带着意图来，别让 TA 再点一次）。 -->
     <section id="zy-mod-curiosity" class="module">
-      <CuriosityPanel />
+      <div v-if="curioCollapsed" class="curio-teaser" @click="curioCollapsed = false">
+        <span class="ct-icon">💡</span>
+        <span class="ct-title">好奇心培育</span>
+        <span class="ct-summary">{{ curioTeaser }}</span>
+        <span class="ct-entry">展开 ›</span>
+      </div>
+      <CuriosityPanel v-else />
     </section>
 
     <!-- ===== 任务选取弹窗 ===== -->
@@ -1067,6 +1087,13 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .left-col { min-width: 0; }
 .right-col { min-width: 0; }
 
+/* R105（B4）：好奇心培育折叠摘要行——呼应 ModuleCard 的视觉语言（surface 底 + 发丝边） */
+.curio-teaser { display: flex; align-items: center; gap: 10px; padding: 12px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all .15s; }
+.curio-teaser:hover { border-color: var(--accent); }
+.curio-teaser .ct-icon { font-size: 14px; }
+.curio-teaser .ct-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.curio-teaser .ct-summary { flex: 1; font-size: 11.5px; color: var(--text-3); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.curio-teaser .ct-entry { font-size: 11.5px; color: var(--accent); flex-shrink: 0; }
 .module { margin-top: 0; }
 /* R67-F4：快捷键直达模块的高亮闪烁（滚动定位后 2.2s 渐隐） */
 .module.anchor-flash { animation: zyAnchorFlash 2.2s ease; }

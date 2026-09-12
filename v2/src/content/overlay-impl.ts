@@ -86,7 +86,11 @@ function injectStyles() {
       /* R93（A6）：语义档令牌——取自 tokens.css 的 apple（明）/ linear（暗）两套，不臆造色值。
          状态徽标由改前的 8 种配色收敛为「中性 / 强调 / 警示」三档，这两条是后两档的落点。 */
       --zy-warn:#A66A00;--zy-ok:#1E7A34;
-      --zy-accent-ring:color-mix(in srgb, var(--zy-accent) 34%, transparent);}
+      --zy-accent-ring:color-mix(in srgb, var(--zy-accent) 34%, transparent);
+      /* R105（C3）：字号阶梯——对齐主应用文本档（2xs 微标 10.5 / xs 标签 11 / sm 正文小 12 /
+         md 正文 13 / lg 强调 14）；搜索/采集输入态保留 16-17px（提案许可）。展示级尺寸
+         （15px 以上标题/图标）不入阶梯。 */
+      --zy-fs-2xs:10.5px;--zy-fs-xs:11px;--zy-fs-sm:12px;--zy-fs-md:13px;--zy-fs-lg:14px;}
     @media (prefers-color-scheme: dark){
       #${ROOT_ID}{--zy-bg:#0F1011;--zy-bg-2:#141516;--zy-bg-3:#191A1B;
         --zy-border:#23252A;--zy-border-strong:#34343A;
@@ -102,7 +106,7 @@ function injectStyles() {
     #${ROOT_ID}.corner{display:flex;align-items:flex-start;justify-content:flex-end;padding:10px 10px 14px;}
 
     /* R77（A2）：加强浮层自身阴影 + 1px 边框（scrim 变轻后靠自身边界撑住层级） */
-    .zy-panel{position:relative;background:var(--zy-bg);border:1px solid var(--zy-border);border-radius:16px;box-shadow:0 0 0 1px rgba(0,0,0,.05),0 12px 32px rgba(0,0,0,.14),0 32px 72px rgba(0,0,0,.22);overflow:hidden;font-size:14px;color:var(--zy-text);animation:zyPanelIn .22s cubic-bezier(.16,1,.3,1);}
+    .zy-panel{position:relative;background:var(--zy-bg);border:1px solid var(--zy-border);border-radius:16px;box-shadow:0 0 0 1px rgba(0,0,0,.05),0 12px 32px rgba(0,0,0,.14),0 32px 72px rgba(0,0,0,.22);overflow:hidden;font-size:var(--zy-fs-lg);color:var(--zy-text);animation:zyPanelIn .22s cubic-bezier(.16,1,.3,1);}
     @keyframes zyPanelIn{from{opacity:0;transform:translateY(-8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
     /* 居中搜索面板 */
     #${ROOT_ID}.center .zy-panel{width:640px;max-width:92vw;}
@@ -117,21 +121,21 @@ function injectStyles() {
     .zy-search-icon{width:22px;height:22px;color:var(--zy-text-3);flex-shrink:0;display:flex;align-items:center;justify-content:center;}
     .zy-search-input{flex:1;border:none;outline:none;background:transparent;font-size:17px;font-weight:500;color:var(--zy-text);font-family:inherit;min-width:0;line-height:1.4;}
     .zy-search-input::placeholder{color:var(--zy-text-4);font-weight:400;}
-    .zy-esc-btn{font-size:11px;color:var(--zy-text-3);background:var(--zy-bg-2);border:1px solid var(--zy-border);border-radius:6px;padding:3px 8px;flex-shrink:0;cursor:pointer;font-family:inherit;}
+    .zy-esc-btn{font-size:var(--zy-fs-xs);color:var(--zy-text-3);background:var(--zy-bg-2);border:1px solid var(--zy-border);border-radius:6px;padding:3px 8px;flex-shrink:0;cursor:pointer;font-family:inherit;}
     .zy-esc-btn:hover{color:var(--zy-text-2);border-color:var(--zy-border-strong);}
     /* B29：搜索框内类型过滤 chip（与 Tab 切换同步，与新版应用内搜索一致）· R77（C2）改中性 */
-    .zy-search-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:8px;background:var(--zy-bg-3);color:var(--zy-text-2);font-size:12.5px;font-weight:600;flex-shrink:0;animation:zyChipIn .2s ease;}
-    .zy-search-chip .zy-chip-x{width:15px;height:15px;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;font-size:11px;}
+    .zy-search-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:8px;background:var(--zy-bg-3);color:var(--zy-text-2);font-size:var(--zy-fs-sm);font-weight:600;flex-shrink:0;animation:zyChipIn .2s ease;}
+    .zy-search-chip .zy-chip-x{width:15px;height:15px;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;font-size:var(--zy-fs-xs);}
     .zy-search-chip .zy-chip-x:hover{opacity:1;background:var(--zy-border);}
     @keyframes zyChipIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
     /* R93（A5）：Tab 行**轻量化**——去掉每个 tab 的背景块与 hover 底色，改为一行纯文字 + 计数；
        当前项用**文字色 + 字重 + 底部 2px 下划线**标出。
        ⚠ 不引入强调色：R77（C2）已把此处定为中性（强调色只留主按钮 / 焦点环 / 当前选中行），本轮不推翻。 */
     .zy-type-tabs{display:flex;gap:14px;padding:10px 22px 6px;}
-    .zy-type-tab{padding:0 0 5px;font-size:12px;color:var(--zy-text-3);cursor:pointer;transition:color .12s,border-color .12s;display:flex;align-items:center;gap:4px;font-weight:500;border-bottom:2px solid transparent;}
+    .zy-type-tab{padding:0 0 5px;font-size:var(--zy-fs-sm);color:var(--zy-text-3);cursor:pointer;transition:color .12s,border-color .12s;display:flex;align-items:center;gap:4px;font-weight:500;border-bottom:2px solid transparent;}
     .zy-type-tab:hover{color:var(--zy-text-2);}
     .zy-type-tab.active{color:var(--zy-text);font-weight:600;border-bottom-color:var(--zy-text-3);}
-    .zy-type-tab .cnt{font-size:10.5px;color:var(--zy-text-4);font-weight:500;}
+    .zy-type-tab .cnt{font-size:var(--zy-fs-2xs);color:var(--zy-text-4);font-weight:500;}
     .zy-type-tab.active .cnt{color:var(--zy-text-2);opacity:.7;}
     .zy-results{max-height:48vh;overflow-y:auto;padding:4px 12px 8px;}
     .zy-results::-webkit-scrollbar{width:6px;}
@@ -146,11 +150,11 @@ function injectStyles() {
        加 1px 边框：中性底在明暗两套下都需要一条边界才立得住。 */
     .zy-ri-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;background:var(--zy-bg-3);border:1px solid var(--zy-border);}
     .zy-ri-main{flex:1;min-width:0;}
-    .zy-ri-title{font-size:14px;font-weight:600;color:var(--zy-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;}
+    .zy-ri-title{font-size:var(--zy-fs-lg);font-weight:600;color:var(--zy-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;}
     .zy-ri-meta{display:flex;gap:5px;margin-top:3px;flex-wrap:wrap;align-items:center;}
     /* R93（A6）：状态徽标由 8 种配色收敛为「中性 / 强调 / 警示」三档。
        中性档即 .zy-badge 默认值（无待办含义）；强调档 = 正在推进；警示档 = 需要优先处理。 */
-    .zy-badge{font-size:10.5px;padding:1.5px 8px;border-radius:99px;font-weight:500;line-height:1.5;background:var(--zy-bg-3);color:var(--zy-text-2);}
+    .zy-badge{font-size:var(--zy-fs-2xs);padding:1.5px 8px;border-radius:99px;font-weight:500;line-height:1.5;background:var(--zy-bg-3);color:var(--zy-text-2);}
     /* —— 中性档：台 / 分类 / 策展台 / 好奇状态 / 中优先级 / 待开始 —— */
     .zy-badge.ws,.zy-badge.cat,.zy-badge.ws-badge,.zy-badge.curio-status,.zy-badge.prio-mid,.zy-badge.status-todo{background:var(--zy-bg-3);color:var(--zy-text-2);}
     /* —— 强调档：进行中（正在推进）—— */
@@ -159,29 +163,29 @@ function injectStyles() {
     .zy-badge.prio-high{background:color-mix(in srgb, var(--zy-warn) 16%, transparent);color:var(--zy-warn);}
     /* 已完成是终结态：中性 + 去饱和（对齐 .archived / .cf-item.done 既有口径） */
     .zy-badge.status-done{background:var(--zy-bg-3);color:var(--zy-text-2);opacity:.6;}
-    .zy-ri-link{font-size:11px;color:var(--zy-text-3);display:flex;align-items:center;gap:3px;white-space:nowrap;}
+    .zy-ri-link{font-size:var(--zy-fs-xs);color:var(--zy-text-3);display:flex;align-items:center;gap:3px;white-space:nowrap;}
     .zy-ri-link.url{color:var(--zy-link);}
     .zy-ri-link.file{color:var(--zy-link-file);}
     .zy-ri-link.obsidian{color:var(--zy-link-obs);}
-    .zy-ri-summary{font-size:11.5px;color:var(--zy-text-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .zy-ri-del{font-size:12px;color:var(--zy-text-3);cursor:pointer;padding:3px 6px;border-radius:6px;flex-shrink:0;opacity:0;transition:all .12s;}
+    .zy-ri-summary{font-size:var(--zy-fs-xs);color:var(--zy-text-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .zy-ri-del{font-size:var(--zy-fs-sm);color:var(--zy-text-3);cursor:pointer;padding:3px 6px;border-radius:6px;flex-shrink:0;opacity:0;transition:all .12s;}
     .zy-result-item:hover .zy-ri-del{opacity:1;}
     .zy-ri-del:hover{color:#E5484D;background:rgba(229,72,77,.12);}
     /* R78（A7）：「→ 三件事」按钮——仅任务卡有；默认隐藏，hover 或当前选中行才显形（与删除按钮同一节奏） */
-    .zy-ri-focus{font-size:11px;color:var(--zy-text-3);cursor:pointer;padding:3px 8px;border-radius:7px;flex-shrink:0;white-space:nowrap;
+    .zy-ri-focus{font-size:var(--zy-fs-xs);color:var(--zy-text-3);cursor:pointer;padding:3px 8px;border-radius:7px;flex-shrink:0;white-space:nowrap;
       border:1px solid var(--zy-border-strong);background:var(--zy-bg-2);opacity:0;transition:all .12s;}
     .zy-result-item:hover .zy-ri-focus,.zy-result-item.sel .zy-ri-focus{opacity:1;}
     .zy-ri-focus:hover{color:var(--zy-accent);border-color:var(--zy-accent);background:color-mix(in srgb, var(--zy-accent) 10%, transparent);}
     .zy-ri-focus.on{opacity:1;color:var(--zy-text-4);border-color:var(--zy-border);background:transparent;cursor:default;}
-    .zy-group-title{font-size:10.5px;font-weight:700;color:var(--zy-text-3);letter-spacing:.08em;padding:10px 12px 4px;}
-    .zy-group-more{font-size:11px;color:var(--zy-text-3);padding:6px 12px;border-top:1px dashed var(--zy-border);}
+    .zy-group-title{font-size:var(--zy-fs-2xs);font-weight:700;color:var(--zy-text-3);letter-spacing:.08em;padding:10px 12px 4px;}
+    .zy-group-more{font-size:var(--zy-fs-xs);color:var(--zy-text-3);padding:6px 12px;border-top:1px dashed var(--zy-border);}
     .zy-empty{padding:40px 20px;text-align:center;color:var(--zy-text-3);}
     .zy-empty .icon{font-size:32px;margin-bottom:8px;opacity:.4;}
-    .zy-empty .text{font-size:13px;line-height:1.7;}
+    .zy-empty .text{font-size:var(--zy-fs-md);line-height:1.7;}
     .zy-empty .text b{color:var(--zy-text-2);font-weight:600;}
-    .zy-foot{display:flex;align-items:center;gap:16px;padding:10px 22px;border-top:1px solid var(--zy-border);background:var(--zy-bg-2);font-size:11px;color:var(--zy-text-4);}
-    .zy-foot kbd{background:var(--zy-bg);border:1px solid var(--zy-border);border-radius:5px;padding:1px 6px;font-family:inherit;font-size:10.5px;color:var(--zy-text-2);margin:0 2px;}
-    .zy-foot .brand{margin-left:auto;font-size:10.5px;color:var(--zy-text-4);opacity:.7;letter-spacing:.3px;}
+    .zy-foot{display:flex;align-items:center;gap:16px;padding:10px 22px;border-top:1px solid var(--zy-border);background:var(--zy-bg-2);font-size:var(--zy-fs-xs);color:var(--zy-text-4);}
+    .zy-foot kbd{background:var(--zy-bg);border:1px solid var(--zy-border);border-radius:5px;padding:1px 6px;font-family:inherit;font-size:var(--zy-fs-2xs);color:var(--zy-text-2);margin:0 2px;}
+    .zy-foot .brand{margin-left:auto;font-size:var(--zy-fs-2xs);color:var(--zy-text-4);opacity:.7;letter-spacing:.3px;}
 
     /* ===== 采集小窗通用 ===== */
     .zy-cap-head{padding:18px 20px 0;display:flex;align-items:flex-start;gap:12px;}
@@ -190,31 +194,31 @@ function injectStyles() {
     .zy-cap-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;background:var(--zy-bg-3);border:1px solid var(--zy-border);}
     .zy-cap-titles{flex:1;min-width:0;}
     .zy-cap-title{font-size:15.5px;font-weight:700;color:var(--zy-text);letter-spacing:-.2px;}
-    .zy-cap-sub{font-size:11px;color:var(--zy-text-3);margin-top:2px;}
+    .zy-cap-sub{font-size:var(--zy-fs-xs);color:var(--zy-text-3);margin-top:2px;}
     .zy-cap-close{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--zy-text-3);font-size:17px;transition:all .12s;flex-shrink:0;background:transparent;border:none;font-family:inherit;}
     .zy-cap-close:hover{background:var(--zy-bg-3);color:var(--zy-text);}
     .zy-cap-body{padding:14px 20px 16px;}
     .zy-field{margin-bottom:12px;}
     .zy-field:last-child{margin-bottom:0;}
-    .zy-field-label{display:block;font-size:11px;font-weight:600;color:var(--zy-text-3);margin-bottom:5px;letter-spacing:.2px;}
-    .zy-field-input{width:100%;border:1px solid var(--zy-border);border-radius:10px;padding:9px 12px;font-size:13px;color:var(--zy-text);background:var(--zy-bg);outline:none;font-family:inherit;transition:all .15s;line-height:1.5;box-sizing:border-box;}
+    .zy-field-label{display:block;font-size:var(--zy-fs-xs);font-weight:600;color:var(--zy-text-3);margin-bottom:5px;letter-spacing:.2px;}
+    .zy-field-input{width:100%;border:1px solid var(--zy-border);border-radius:10px;padding:9px 12px;font-size:var(--zy-fs-md);color:var(--zy-text);background:var(--zy-bg);outline:none;font-family:inherit;transition:all .15s;line-height:1.5;box-sizing:border-box;}
     .zy-field-input::placeholder{color:var(--zy-text-4);}
     /* R77（C2）：焦点环保留强调色 */
     .zy-field-input:focus{border-color:var(--zy-accent);box-shadow:0 0 0 3px var(--zy-accent-ring);}
-    textarea.zy-field-input{resize:vertical;min-height:60px;font-size:13px;line-height:1.6;}
+    textarea.zy-field-input{resize:vertical;min-height:60px;font-size:var(--zy-fs-md);line-height:1.6;}
     .zy-seg-control{display:flex;gap:3px;background:var(--zy-bg-2);border-radius:9px;padding:3px;margin-bottom:8px;}
-    .zy-seg-btn{flex:1;padding:6px 6px;border-radius:7px;border:none;background:transparent;font-size:11.5px;color:var(--zy-text-3);cursor:pointer;transition:all .15s;font-family:inherit;font-weight:500;display:flex;align-items:center;justify-content:center;gap:3px;}
+    .zy-seg-btn{flex:1;padding:6px 6px;border-radius:7px;border:none;background:transparent;font-size:var(--zy-fs-xs);color:var(--zy-text-3);cursor:pointer;transition:all .15s;font-family:inherit;font-weight:500;display:flex;align-items:center;justify-content:center;gap:3px;}
     .zy-seg-btn:hover{color:var(--zy-text-2);}
     /* R77（C2）：分段选中态改中性 */
     .zy-seg-btn.active{background:var(--zy-bg);color:var(--zy-text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px var(--zy-border);}
     .zy-field-row{display:flex;gap:10px;}
     .zy-field-row .zy-field{flex:1;}
-    .zy-field-select{width:100%;border:1px solid var(--zy-border);border-radius:10px;padding:9px 12px;font-size:12.5px;color:var(--zy-text);background:var(--zy-bg);outline:none;font-family:inherit;cursor:pointer;transition:all .15s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239AA0A6' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;box-sizing:border-box;}
+    .zy-field-select{width:100%;border:1px solid var(--zy-border);border-radius:10px;padding:9px 12px;font-size:var(--zy-fs-sm);color:var(--zy-text);background:var(--zy-bg);outline:none;font-family:inherit;cursor:pointer;transition:all .15s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239AA0A6' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;box-sizing:border-box;}
     .zy-field-select:focus{border-color:var(--zy-accent);box-shadow:0 0 0 3px var(--zy-accent-ring);}
-    .zy-cur-src{margin-top:6px;font-size:11px;color:var(--zy-text-2);background:var(--zy-bg-2);border:1px dashed var(--zy-border);border-radius:7px;padding:5px 9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .zy-cur-src{margin-top:6px;font-size:var(--zy-fs-xs);color:var(--zy-text-2);background:var(--zy-bg-2);border:1px dashed var(--zy-border);border-radius:7px;padding:5px 9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .zy-cap-foot{display:flex;gap:10px;padding:12px 20px;border-top:1px solid var(--zy-border);background:var(--zy-bg-2);}
-    .zy-cap-boundary{font-size:11px;line-height:1.5;color:var(--zy-text-3);padding:8px 20px 0;}
-    .zy-btn{padding:8px 16px;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;border:1px solid transparent;display:inline-flex;align-items:center;gap:6px;}
+    .zy-cap-boundary{font-size:var(--zy-fs-xs);line-height:1.5;color:var(--zy-text-3);padding:8px 20px 0;}
+    .zy-btn{padding:8px 16px;border-radius:9px;font-size:var(--zy-fs-sm);font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;border:1px solid transparent;display:inline-flex;align-items:center;gap:6px;}
     .zy-btn-ghost{background:var(--zy-bg);border-color:var(--zy-border);color:var(--zy-text-2);}
     .zy-btn-ghost:hover{border-color:var(--zy-border-strong);color:var(--zy-text);}
     /* R77（C2）：主按钮是强调色的三处合法用法之一 */
@@ -231,13 +235,13 @@ function injectStyles() {
     @keyframes zyPop{0%{transform:scale(.5);opacity:0}100%{transform:scale(1);opacity:1}}
     .zy-saved-title{font-size:16px;font-weight:700;color:var(--zy-text);margin-bottom:6px;}
     /* R77（C2）：保存提示改中性（A3 将把它收窄为一行 toast） */
-    .zy-saved-hint{font-size:13px;color:var(--zy-text-2);font-weight:600;}
-    .zy-saved-hint kbd,.zy-saved-sub kbd{background:var(--zy-bg-2);border:1px solid var(--zy-border);border-radius:5px;padding:1px 7px;font-family:inherit;font-size:11px;color:var(--zy-text-2);}
-    .zy-saved-sub{font-size:11.5px;color:var(--zy-text-3);margin-top:4px;}
+    .zy-saved-hint{font-size:var(--zy-fs-md);color:var(--zy-text-2);font-weight:600;}
+    .zy-saved-hint kbd,.zy-saved-sub kbd{background:var(--zy-bg-2);border:1px solid var(--zy-border);border-radius:5px;padding:1px 7px;font-family:inherit;font-size:var(--zy-fs-xs);color:var(--zy-text-2);}
+    .zy-saved-sub{font-size:var(--zy-fs-xs);color:var(--zy-text-3);margin-top:4px;}
     .zy-saved-actions{display:flex;gap:10px;margin-top:20px;}
 
     /* 保存成功提示 */
-    .zy-toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--zy-text);color:var(--zy-bg);padding:10px 20px;border-radius:99px;font-size:13px;font-weight:500;z-index:2147483647;opacity:0;transition:all .25s cubic-bezier(.16,1,.3,1);pointer-events:none;box-shadow:0 8px 28px rgba(0,0,0,.2);display:flex;align-items:center;gap:8px;max-width:90vw;}
+    .zy-toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--zy-text);color:var(--zy-bg);padding:10px 20px;border-radius:99px;font-size:var(--zy-fs-md);font-weight:500;z-index:2147483647;opacity:0;transition:all .25s cubic-bezier(.16,1,.3,1);pointer-events:none;box-shadow:0 8px 28px rgba(0,0,0,.2);display:flex;align-items:center;gap:8px;max-width:90vw;}
     .zy-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
   `
   document.documentElement.appendChild(s)
@@ -999,7 +1003,7 @@ function renderResults() {
     return
   }
   if (!searchResults.length) {
-    el.innerHTML = '<div class="zy-empty"><div class="icon">🪹</div><div class="text">没有匹配的卡片<br><span style="font-size:11px">试试更短的关键词</span></div></div>'
+    el.innerHTML = '<div class="zy-empty"><div class="icon">🪹</div><div class="text">没有匹配的卡片<br><span style="font-size:var(--zy-fs-xs)">试试更短的关键词</span></div></div>'
     return
   }
   const groups = [
@@ -1391,15 +1395,15 @@ async function openCapture() {
     }
   }
   panel.addEventListener('keydown', onCapEnter)
-  document.getElementById('__zy_cap_save__')?.addEventListener('click', saveCapture)
+  document.getElementById('__zy_cap_save__')?.addEventListener('click', () => { void saveCapture() })
 
-  async function saveCapture() {
+  async function saveCapture(forceNew = false) {
     const title = titleInput.value.trim()
     if (!title) { showToast('请输入标题'); return }
     const d2 = await getData()
     if (!d2) { showToast('数据加载失败'); return }
-    // B5 去重：相同归一化链接 → 只能跳转（REQ-031 P-031-8：Map O(1) 查重）
-    if (linkType === 'url' && linkInput.value.trim()) {
+    // B5 去重：相同归一化链接 → 确认视图（定位原卡 / 仍然新建一张，R105-D3）；forceNew 跳过查重
+    if (!forceNew && linkType === 'url' && linkInput.value.trim()) {
       const fp = normalizeUrl(linkInput.value.trim())
       const dup = capUrlMap?.get(fp)
       if (dup) {
@@ -1408,7 +1412,7 @@ async function openCapture() {
           try { chrome.runtime.sendMessage({ type: 'zy-locate-workspace', wsId: dup.workspaceId, hl: dup.id }) } catch {}
           closeOverlay()
           showToast('↗ 已定位到已收录的卡片')
-        })
+        }, () => { void saveCapture(true) })
         return
       }
     }
@@ -1444,7 +1448,7 @@ async function openCapture() {
 }
 
 /** 采集去重确认视图（B28：替代原生 confirm，复用已保存态的视觉结构） */
-function showDupConfirm(dupTitle: string, onJump: () => void) {
+function showDupConfirm(dupTitle: string, onJump: () => void, onForceNew: () => void) {
   const root = ensureRoot()
   const panel = root.querySelector('.zy-panel') as HTMLElement | null
   if (!panel) return
@@ -1452,14 +1456,16 @@ function showDupConfirm(dupTitle: string, onJump: () => void) {
     <div class="zy-saved">
       <div class="zy-saved-icon warn">⚠️</div>
       <div class="zy-saved-title">该页面已收录</div>
-      <div class="zy-saved-sub">「${escapeHtml(dupTitle)}」已存在于资源台，只能定位不能重复收录</div>
+      <div class="zy-saved-sub">「${escapeHtml(dupTitle)}」已存在于资源台——可定位到原卡，或仍然新建一张（例如要存不同上下文的两份笔记）</div>
       <div class="zy-saved-actions">
         <button class="zy-btn zy-btn-ghost" id="__zy_dup_cancel__">取消</button>
+        <button class="zy-btn zy-btn-ghost" id="__zy_dup_force__">仍然新建一张</button>
         <button class="zy-btn zy-btn-primary" id="__zy_dup_jump__">定位到卡片</button>
       </div>
     </div>
   `
   document.getElementById('__zy_dup_cancel__')?.addEventListener('click', closeOverlay)
+  document.getElementById('__zy_dup_force__')?.addEventListener('click', onForceNew)
   document.getElementById('__zy_dup_jump__')?.addEventListener('click', onJump)
 }
 

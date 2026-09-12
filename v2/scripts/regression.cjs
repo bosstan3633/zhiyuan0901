@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.73.0'";
+const VER_ANCHOR_LITERAL = "version: '2.74.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -592,7 +592,7 @@ check('R45-1 TaskManagerPanel 组件落地 + 卡片视图默认（viewMode card|
 check('R45-2 TaskManagerPanel 全量能力保留：批量/分组/排序方向/状态筛选/搜索/拖拽（列表+看板+分组落点）/键盘导航/右键菜单/批量挂载', () => { const s = read('/newtab/components/compass/TaskManagerPanel.vue'); return s.includes('toggleBatchMode') && s.includes('groupedTasks') && s.includes('toggleSortDir') && s.includes('type TaskFilter') && s.includes('onListGroupDrop') && s.includes('onKanbanGroupDrop') && s.includes('onTaskNavKey') && s.includes('openTaskCtx') && s.includes('confirmBatchMount') && s.includes('class="mgr-count"'); });
 check('R45-3 TaskDetailDrawer 共享抽屉：defineExpose({ open, close }) + 级联/挂载/Ctrl+Enter/宽度记忆内聚', () => { const s = read('/newtab/components/compass/TaskDetailDrawer.vue'); return s.includes('defineExpose({ open, close })') && s.includes('onSelProjectChange') && s.includes('onSidebarDocKey') && s.includes('startDrawerResize') && s.includes("useTaHeight('task-note'"); });
 check('R45-4 TaskManagerPanel 与 CompassActions 均接入共享抽屉（ref + drawerRef?.open）', () => { const tm = read('/newtab/components/compass/TaskManagerPanel.vue'); const ca = read('/newtab/views/CompassHome.vue'); return tm.includes('<TaskDetailDrawer ref="drawerRef" />') && ca.includes('<TaskDetailDrawer ref="drawerRef" />') && tm.includes('drawerRef.value?.open') && ca.includes('drawerRef?.open'); });
-check('R45-5/R49（R55-B2 重写）调度台底部：好奇心培育单区直呈（无 Tab 头），任务调度已迁方向台', () => { const s = read('/newtab/views/CompassHome.vue'); return s.includes('<CuriosityPanel />') && s.includes('好奇心培育单区直呈') && !s.includes('zone-tabs') && !s.includes('TaskManagerPanel'); });
+check('R45-5/R49（R55-B2 重写）调度台底部：好奇心培育单区直呈（无 Tab 头），任务调度已迁方向台', () => { const s = read('/newtab/views/CompassHome.vue'); return s.includes('<CuriosityPanel v-else />') && s.includes('好奇心培育单区直呈') && !s.includes('zone-tabs') && !s.includes('TaskManagerPanel'); });
 check('R45-6 CompassActions 已移除全域任务管理（无 mgr-body/viewMode/批量挂载/看板），保留三件事与选取/导出弹窗', () => { const s = read('/newtab/views/CompassHome.vue'); return !s.includes('mgr-body') && !s.includes("ref<'list' | 'kanban'>") && !s.includes('confirmBatchMount') && !s.includes('kanban-board') && s.includes('openPicker') && s.includes('doExport') && s.includes('copyYesterday'); });
 console.log('【第卌五轮 第二批：T-04 今日行动项目策展面板 + 三件事交互升级】');
 check('R45-7/R66 项目调度面板结构（R66 瘦身）：项目名大字+战略目标+四项数值（愿景/使命呈现退役，数据留方向台）', () => { const s2 = read('/newtab/views/CompassHome.vue'); return s2.includes('cur-body-v') && s2.includes('cur-proj-name big') && !s2.includes('cur-vision-row') && !s2.includes('visionText') && s2.includes('cur-goal-name') && s2.includes('cur-stats') && s2.includes('projMetrics.length') && s2.includes('projDoneCount') && s2.includes('projDoingCount'); });
@@ -644,7 +644,7 @@ check('R49-2 A4 旧今日行动页移除：CompassActions.vue 不存在 + 路由
 check('R49-3 A2/B 调度台首页成立（R56-P2 修订）：今日记录 4 计数缩至页头 rec-mini 一行 + 记录抽屉（搜索+翻页20）保留', () => { const s = read('/newtab/views/CompassHome.vue'); return s.includes('rec-mini') && s.includes("openRec('in')") && s.includes("openRec('out')") && s.includes("openRec('called')") && s.includes("openRec('log')") && s.includes('readEventLog') && s.includes('REC_PAGE_SIZE = 20') && s.includes('recPageCount') && !s.includes('rec-strip'); });
 check('R49-4（R64 修订）三件事硬上限 3：FOCUS_LIMIT=3 + focusFull 逻辑 + 空位满员隐藏（锁定条已删）', () => { const s = read('/newtab/views/CompassHome.vue'); return s.includes('FOCUS_LIMIT = 3') && s.includes('focusFull') && !s.includes('lock-bar') && s.includes('v-if="!focusFull"'); });
 check('R51-F10 三件事/项目调度上下联动：split 纵向排列，分栏拖拽移除', () => { const s = read('/newtab/views/CompassHome.vue'); return s.includes('flex-direction: column; gap: 14px') && !s.includes('split-handle') && s.includes('单击上方任务卡联动'); });
-check('R49-6 B7（R55 重写）底部专区：好奇心培育命名保留 + 任务调度面板迁方向台复用', () => { const s = read('/newtab/views/CompassHome.vue'); const sh = read('/newtab/views/CompassShell.vue'); return s.includes('好奇心培育') && s.includes('<CuriosityPanel />') && !s.includes('TaskManagerPanel') && sh.includes('TaskManagerPanel'); });
+check('R49-6 B7（R55 重写）底部专区：好奇心培育命名保留 + 任务调度面板迁方向台复用', () => { const s = read('/newtab/views/CompassHome.vue'); const sh = read('/newtab/views/CompassShell.vue'); return s.includes('好奇心培育') && s.includes('<CuriosityPanel v-else />') && !s.includes('TaskManagerPanel') && sh.includes('TaskManagerPanel'); });
 check('R49-7 I2（R68 修订）数字槽：switchToIndex 1=方向台 2=资源台，用户工作台从 3 起（n-3）按台签顺序', () => { const a = read('/newtab/App.vue'); return a.includes('if (n === 1) { openCompass(); return }') && a.includes('if (n === 2) { openResource(); return }') && a.includes('const ws = store.workspaces[n - 3]') && !a.includes('store.workspaces[n - 1]'); });
 check('R49-8 方向台骨架（R55 重写）：主航线 + 项目总览 ov-grid + 任务调度模块 + 完整方向树入口，无旧 Tab 侧栏', () => { const s = read('/newtab/views/CompassShell.vue'); return s.includes('项目总览') && s.includes('完整方向树') && s.includes('ov-grid') && s.includes('task-mgmt-module') && !s.includes('MetricBar') && !s.includes('今日行动') && !s.includes('cat-item'); });
 check('R49-9 跨页跳转收口：GlobalPopups/GlobalSettings/Workspace/ResourceDetailDrawer 任务定位均指向 /（调度台）', () => { const g = read('/newtab/components/GlobalPopups.vue'); const gs = read('/newtab/views/GlobalSettings.vue'); const w = read('/newtab/views/Workspace.vue'); const rd = read('/newtab/components/ResourceDetailDrawer.vue'); return !g.includes('/compass/actions') && !gs.includes('/compass/actions') && !w.includes('/compass/actions') && !rd.includes('/compass/actions'); });
@@ -1650,7 +1650,7 @@ check('R78-2 A3 自动关闭 5000 → 2500（回执定时器统一走 clearSaved
 check('R78-3 A3 例外：重复卡确认视图维持整屏（showDupConfirm 未被牵连）', () => {
   const o = read('/content/overlay-impl.ts');
   const body = fnBody(o, 'function showDupConfirm(', '/** R78（A3）');
-  return body.includes('zy-saved-title') && body.includes('该页面已收录') && body.includes('只能定位不能重复收录');
+  return body.includes('zy-saved-title') && body.includes('该页面已收录') && body.includes('可定位到原卡，或仍然新建一张') && body.includes('__zy_dup_force__');
 });
 check('R78-4 A7 仅任务卡提供「加入今日三件事」入口（渲染分支带 g.type 守卫）', () => {
   const o = read('/content/overlay-impl.ts');
@@ -2476,7 +2476,8 @@ const OV92 = read('/content/overlay-impl.ts');
 const OV92_C = stripComments(OV92);
 const FOCUS_FN92 = fnBody(OV92, 'function focusWhenReady(', '/** 打开浮层');
 const ESC92 = fnBody(OV92, "} else if (e.key === 'Escape') {\n    // R92（D2）", 'function openSearchLocator');
-const CAP_FN92 = fnBody(OV92, 'async function saveCapture()', "document.getElementById('__zy_cap_save__')");
+// R105 重指：saveCapture 加 forceNew 参数（D3），切片头锚去闭括号
+const CAP_FN92 = fnBody(OV92, 'async function saveCapture(', "document.getElementById('__zy_cap_save__')");
 const TC_FN92 = fnBody(OV92, 'const saveTc = async () => {', "document.getElementById('__zy_tc_save__')");
 check('R92-1 ★ D1：浮层正文零「50ms 延迟聚焦」残留（四处已统一走 focusWhenReady）', () => {
   // 否定断言：注释里的同名字样已由 stripComments 剥离（§五·补十六：块注释亦剥）
@@ -2694,7 +2695,7 @@ check('R97-2 A9 前缀直筛：parseOverlayQuery（# 交集 / @ 收窄 / 单字�
 });
 check('R97-3 D4 资源采集边界说明：表单文案 + .zy-cap-boundary 令牌样式（零新增字段、零迁移）', () => {
   return OV97.includes('资源卡不挂项目——需要与行动同行时，先入台，再到任务详情里「挂载到任务」')
-    && OV97.includes('.zy-cap-boundary{font-size:11px;line-height:1.5;color:var(--zy-text-3);padding:8px 20px 0;}')
+    && OV97.includes('.zy-cap-boundary{font-size:var(--zy-fs-xs);line-height:1.5;color:var(--zy-text-3);padding:8px 20px 0;}')
     && !OV97.includes('__zy_cap_proj__');
 });
 check('R97-4 D5 document 级 Esc 收口：openOverlay 注册（capture）/ closeOverlay 移除 + savedState 让位 + 焦点在输入框让位两段式', () => {
@@ -2730,6 +2731,43 @@ check('R98-3 W9 分组标题补含子分类数：groupChildCount（uncat→0）+
     && WS98.includes("if (key === 'uncat') return 0")
     && WS98.includes('return catIdx.value.childrenOf.get(key)?.length || 0')
     && occ === 2;
+});
+
+console.log('【第一百零五轮 · V2.74.0：P2 收官（B4 + C3 + D3 + E2 + W10）】');
+/** R105：P2 最后五件（D-C 单独立项登记不在代码轮）。B4 好奇心培育降权（默认折叠一行摘要，
+ *  直达锚点自动展开）；C3 浮层字号阶梯（文本档全走 --zy-fs-*，输入态 16-17px 保留）；D3 重复卡
+ *  确认视图加「仍然新建一张」（整屏例外不变）；E2 策展台 >5 页签收起「≪ N」hover 展开（活动台
+ *  恒可见）；W10 搜索纳入 link（两台与浮层范围统一，拍板按提案原文）。 */
+const CH105 = read('/newtab/views/CompassHome.vue');
+const APP105 = read('/newtab/App.vue');
+const OV105 = read('/content/overlay-impl.ts');
+const WSP105 = read('/newtab/views/Workspace.vue');
+check('R105-1 B4 好奇心培育降权：默认折叠一行摘要（计数口径实时派生）+ 展开/折叠双态 + 直达锚点自动展开 + 不持久化', () => {
+  return CH105.includes('const curioCollapsed = ref(true)')
+    && CH105.includes('class="curio-teaser"') && CH105.includes('<CuriosityPanel v-else />')
+    && CH105.includes('共 ${list.length} 条 · 待探索 ${todo} · 探索中 ${doing}')
+    && CH105.includes("if (name === 'curiosity') curioCollapsed.value = false");
+});
+check('R105-2 C3 浮层字号阶梯：--zy-fs-2xs/xs/sm/md/lg 五档定义 + 文本档字面量归并（10-14px 零命中）+ 输入态 17px 保留', () => {
+  return OV105.includes('--zy-fs-2xs:10.5px;--zy-fs-xs:11px;--zy-fs-sm:12px;--zy-fs-md:13px;--zy-fs-lg:14px;')
+    && !/font-size:1[0-4](\.\d)?px/.test(OV105)
+    && OV105.includes('font-size:17px');
+});
+check('R105-3 D3 重复卡确认视图第三选项「仍然新建一张」：forceNew 跳过查重（Event 误传防护：点击监听箭头包装）', () => {
+  return OV105.includes("document.getElementById('__zy_dup_force__')?.addEventListener('click', onForceNew)")
+    && OV105.includes('async function saveCapture(forceNew = false)')
+    && OV105.includes('if (!forceNew && linkType === \'url\' && linkInput.value.trim())')
+    && OV105.includes("addEventListener('click', () => { void saveCapture() })");
+});
+check('R105-4 E2 策展台 >5 页签收起「≪ N」：溢出指示 + hover/点击展开 + 活动台恒可见', () => {
+  return APP105.includes('const E2_TAB_MAX = 5')
+    && APP105.includes('const wsOverflow = computed(() => store.workspaces.length > E2_TAB_MAX)')
+    && APP105.includes('class="tab tab-overflow"') && APP105.includes('≪ {{ hiddenWsCount }}')
+    && APP105.includes('@mouseleave="wsOverflowOpen = false"')
+    && APP105.includes("if (active && !head.some(w => w.id === active)) {");
+});
+check('R105-5 W10 搜索纳入 link：matchCard 补链接匹配（两台与浮层 res blob 范围统一）', () => {
+  return WSP105.includes("if ((r.link || '').toLowerCase().includes(p.kw)) return true");
 });
 
 console.log('【第一百零四轮 · V2.73.0：Workspace 纯拆分第五批·收缩版（分类 CRUD → useCategoryCrud）】');

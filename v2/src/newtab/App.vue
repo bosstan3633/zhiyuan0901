@@ -57,12 +57,29 @@ const activeWorkspaceId = computed(() => {
   return match ? match[1] : null
 })
 
+// R105（E2）：策展台 >5 时页签收起——默认只显示前 5 个 + 「≪ N」溢出指示，hover/点击「≪ N」展开全部；
+// 当前所在台在前 5 之外时始终显示（"我在哪"不可丢）。与既有 «/» 手动折叠（仅工作台页生效）正交。
+const E2_TAB_MAX = 5
+const wsOverflowOpen = ref(false)
+const wsOverflow = computed(() => store.workspaces.length > E2_TAB_MAX)
 const visibleWorkspaces = computed(() => {
   if (workspacesCollapsed.value && activeWorkspaceId.value) {
     return store.workspaces.filter(w => w.id === activeWorkspaceId.value)
   }
+  if (wsOverflow.value && !wsOverflowOpen.value) {
+    const active = activeWorkspaceId.value
+    const head = store.workspaces.slice(0, E2_TAB_MAX)
+    if (active && !head.some(w => w.id === active)) {
+      const act = store.workspaces.find(w => w.id === active)
+      if (act) return [...head.slice(0, E2_TAB_MAX - 1), act]
+    }
+    return head
+  }
   return store.workspaces
 })
+const hiddenWsCount = computed(() => (wsOverflow.value && !wsOverflowOpen.value)
+  ? store.workspaces.length - visibleWorkspaces.value.length
+  : 0)
 
 function navigate(path: string) { router.push(path) }
 
@@ -387,7 +404,7 @@ const backupReminderDot = computed(() => {
 <template>
   <div class="app-shell" @click="menuWs && closeMenu(); themeOpen && (themeOpen = false)">
     <header class="topbar">
-      <nav class="tabs">
+      <nav class="tabs"> @mouseleave="wsOverflowOpen = false"
         <!-- 固定页：调度台 / 方向台 / 资源台（R49 三大系统页） -->
         <div class="tab" :class="{active: activeTab === 'home'}" @click="navigate('/')">
           <img :src="logoUrl" class="home-logo" alt="知源调度台">调度台
@@ -425,6 +442,13 @@ const backupReminderDot = computed(() => {
           <template v-else>
             <span>{{ ws.icon || '📁' }}</span>{{ ws.name.replace(/^[^\s]+\s/, '') }}
           </template>
+        </div>
+
+        <!-- R105（E2）：溢出指示——hover 展开（离开顶栏自动收起），点击亦可保持展开 -->
+        <div v-if="hiddenWsCount > 0" class="tab tab-overflow"
+          :title="`其余 ${hiddenWsCount} 个策展台`"
+          @mouseenter="wsOverflowOpen = true" @click.stop="wsOverflowOpen = !wsOverflowOpen">
+          ≪ {{ hiddenWsCount }}
         </div>
 
         <!-- 新增策展台 -->
@@ -534,6 +558,8 @@ const backupReminderDot = computed(() => {
 .tab-add { padding: 8px 12px; color: var(--text-3); font-size: 16px; font-weight: 300; }
 .tab-add:hover { color: var(--accent); }
 .tab-collapse { padding: 8px 10px; color: var(--text-3); font-size: 13px; }
+/* R105（E2）：溢出指示页签——accent 提示可展开 */
+.tab-overflow { color: var(--accent); background: var(--accent-light); font-variant-numeric: tabular-nums; }
 .tab-rename-input { border: 1px solid var(--accent); border-radius: 6px; padding: 2px 8px; font-size: 13px; font-family: inherit; outline: none; width: 100px; background: var(--surface); color: var(--text); box-shadow: 0 0 0 3px var(--accent-glow); }
 .tab.adding { padding: 4px 10px; }
 /* B30a：错误边界卡片 */
