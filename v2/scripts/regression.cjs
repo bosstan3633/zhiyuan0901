@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.65.0'";
+const VER_ANCHOR_LITERAL = "version: '2.66.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -2662,6 +2662,43 @@ check('R96-2 架构文档事实守卫：存储段含 IndexedDB / zy_assets 附�
 const README96 = fs.readFileSync(path.resolve(__dirname, '..', 'README.md'), 'utf8');
 check('R96-3 v2/README 版本行纳入门禁（版本同步第 6 处）：版本行随版本锚走，V2.14.2 失真零命中', () => {
   return README96.includes('**产品版本**：' + CUR_VTAG) && !README96.includes('V2.14.2');
+});
+
+console.log('【第九十七轮 · V2.66.0：浮层检索升级与键盘收口（A8 + A9 + D4 + D5）】');
+/** R97：P2 浮层组首批四条，全部落 overlay-impl.ts。A8 空态「最近调出 · 近 7 天」（顺带修热词行
+ *  type 误标真 bug：此前一律标 res，任务/好奇/策展台行 Enter 会误按资源逻辑分发）；A9 `#标签`/`@项目`
+ *  前缀直筛（对齐主应用 R89 口径）；D4 资源采集边界说明（模型无 projectId，走提案「或明确边界并说明」
+ *  分支，零迁移）；D5 document 级 Esc 收口（R92 登记遗留：焦点一离开输入框 Esc 即失效、表单浮层无 Esc）。 */
+const OV97 = read('/content/overlay-impl.ts');
+check('R97-1 ★ A8 空态：「最近调出 · 近 7 天」段（7 天窗口 + lastCalledAt 降序 + 最常用段按 id 去重）+ 热词行按真实 type 分发', () => {
+  return OV97.includes('🕐 最近调出 · 近 7 天')
+    && OV97.includes('(x.raw.lastCalledAt || 0) >= nowTs - WEEK_MS')
+    && OV97.includes('.sort(function (a: any, b: any) { return (b.raw.lastCalledAt || 0) - (a.raw.lastCalledAt || 0) })')
+    && OV97.includes('!recentIdSet.has(String(x.id || \'\'))')
+    && OV97.includes('const toRow = function (r: any) {')
+    && OV97.includes('type: r.type, iconClass: r.iconClass, iconText: r.iconText')
+    && !OV97.includes("{ type: 'res', iconClass: 'res', iconText: '📄', id: r.id, title: r.title, ws: '', cat: '', badges: [], raw: r }");
+});
+check('R97-2 A9 前缀直筛：parseOverlayQuery（# 交集 / @ 收窄 / 单字符回落普通词），四类型消费 + 高亮只吃 kw', () => {
+  return OV97.includes('function parseOverlayQuery')
+    && OV97.includes("if (tok.length > 1 && tok[0] === '#') tags.push(tok.slice(1).toLowerCase())")
+    && OV97.includes("else if (tok.length > 1 && tok[0] === '@') proj = tok.slice(1).toLowerCase()")
+    && OV97.includes('pq.tags.every')
+    && OV97.includes('const projHit = (name: any) => !pq.proj ||')
+    && OV97.includes('if (pq.proj) return // R97（A9）：`@项目` 下资源卡不隶属项目，排除')
+    && OV97.includes('hlKw = parseOverlayQuery(lastQuery).kw');
+});
+check('R97-3 D4 资源采集边界说明：表单文案 + .zy-cap-boundary 令牌样式（零新增字段、零迁移）', () => {
+  return OV97.includes('资源卡不挂项目——需要与行动同行时，先入台，再到任务详情里「挂载到任务」')
+    && OV97.includes('.zy-cap-boundary{font-size:11px;line-height:1.5;color:var(--zy-text-3);padding:8px 20px 0;}')
+    && !OV97.includes('__zy_cap_proj__');
+});
+check('R97-4 D5 document 级 Esc 收口：openOverlay 注册（capture）/ closeOverlay 移除 + savedState 让位 + 焦点在输入框让位两段式', () => {
+  return OV97.includes('function onDocEsc')
+    && OV97.includes("document.addEventListener('keydown', onDocEsc, true)")
+    && OV97.includes("document.removeEventListener('keydown', onDocEsc, true)")
+    && OV97.includes('if (savedState) return // 回执态有自己的 document 级监听，让位')
+    && OV97.includes('if (e.target === input) return // 输入框自己的两段式 handler 管（target 阶段），避免双重处理');
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

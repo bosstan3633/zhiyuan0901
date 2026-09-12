@@ -213,6 +213,7 @@ function injectStyles() {
     .zy-field-select:focus{border-color:var(--zy-accent);box-shadow:0 0 0 3px var(--zy-accent-ring);}
     .zy-cur-src{margin-top:6px;font-size:11px;color:var(--zy-text-2);background:var(--zy-bg-2);border:1px dashed var(--zy-border);border-radius:7px;padding:5px 9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .zy-cap-foot{display:flex;gap:10px;padding:12px 20px;border-top:1px solid var(--zy-border);background:var(--zy-bg-2);}
+    .zy-cap-boundary{font-size:11px;line-height:1.5;color:var(--zy-text-3);padding:8px 20px 0;}
     .zy-btn{padding:8px 16px;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;border:1px solid transparent;display:inline-flex;align-items:center;gap:6px;}
     .zy-btn-ghost{background:var(--zy-bg);border-color:var(--zy-border);color:var(--zy-text-2);}
     .zy-btn-ghost:hover{border-color:var(--zy-border-strong);color:var(--zy-text);}
@@ -317,6 +318,8 @@ function openOverlay(mode: 'center' | 'corner', onScrimClick?: () => void) {
   void applyThemeAccent() // R77（A1）：强调色取知源当前主题（异步读 storage，不阻塞渲染）
   root.className = mode === 'center' ? 'center open' : 'corner open'
   root.innerHTML = ''
+  // R97（D5）：document 级 Esc 兜底（capture）——同名引用重复注册被 addEventListener 去重，重复 open 安全
+  document.addEventListener('keydown', onDocEsc, true)
   if (onScrimClick) {
     const scrim = document.createElement('div')
     scrim.className = 'zy-scrim'
@@ -332,8 +335,41 @@ function closeOverlay() {
     savedOpenBoard = null      // R78（A3）：浮层已销毁 → 回执期内的「打开看板」动作同步失效
     pendingReplaceSlot = null  // R78（A7）：两段式替换的中间态随浮层关闭作废
     document.removeEventListener('keydown', onSavedKeydown, true)
+    document.removeEventListener('keydown', onDocEsc, true) // R97（D5）
     activeTcSave = null  // R70：面板已销毁 → 保存回调失效（onTcKeydown 为模块级常驻，无需反复解绑）
   }
+}
+
+/**
+ * R97（D5）：document 级 Esc 兜底——此前全浮层只有两处 Esc：搜索输入框（R92 D2 两段式，挂在
+ * 输入框元素上）与已保存回执（onSavedKeydown）。⇒ 焦点一离开输入框（点过结果区/表单背景）Esc 即失效；
+ * corner 表单（资源/好奇/任务采集）则从来没有 Esc。统一收口到 document capture：
+ * - 已保存回执态：让位 onSavedKeydown（它自带两段语义）；
+ * - 搜索面板且焦点在输入框：让位输入框自己的两段式（target 阶段处理）；
+ * - 搜索面板且焦点不在输入框：**镜像两段式**（有内容先清空，空再关闭）——语义与框内 Esc 完全一致；
+ * - corner/center 表单浮层（资源/好奇/任务采集）：无自有 Esc，直接关闭。
+ */
+function onDocEsc(e: KeyboardEvent) {
+  if (e.key !== 'Escape') return
+  if (savedState) return // 回执态有自己的 document 级监听，让位
+  const input = document.getElementById('__zy_si__') as HTMLInputElement | null
+  if (input) { // 搜索浮层开着
+    if (e.target === input) return // 输入框自己的两段式 handler 管（target 阶段），避免双重处理
+    e.preventDefault(); e.stopPropagation()
+    if (input.value) {
+      input.value = ''
+      searchSelIndex = 0
+      searchSelId = ''
+      renderTypeTabs()
+      void runSearch('')
+    } else {
+      closeOverlay()
+    }
+    return
+  }
+  // 表单浮层（资源采集/好奇/任务采集）：无自有 Esc，文档级兜底直接关闭
+  e.preventDefault(); e.stopPropagation()
+  closeOverlay()
 }
 
 // ============ Toast ============
@@ -360,6 +396,8 @@ let searchSelIndex = 0
 let searchSelId = ''
 let searchResults: any[] = []
 let lastQuery = ''
+/** R97（A9）：高亮词 = 去掉 `#`/`@` 指令后的 kw（runSearch 每次刷新；hl 只吃它） */
+let hlKw = ''
 
 async function openSearch() {
   // V2.21：唤起即用——浮层与纯文本搜索立即生效，拼音字典并行后台加载，不阻塞首帧
@@ -497,6 +535,7 @@ function renderTypeTabs() {
 
 async function runSearch(q: string, opts?: { mergeAppend?: boolean }) {
   lastQuery = (q || '').trim()
+  hlKw = parseOverlayQuery(lastQuery).kw // R97（A9）：高亮与 ws 树过滤共用去指令后的 kw
   let d: any = null
   try {
     d = await getData()
@@ -563,7 +602,8 @@ function armPinyinRefresh(): void {
 function query0(q: string): string { return (q || '').trim().toLowerCase() }
 function hl(title: string): string {
   const esc = String(title).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const q = lastQuery
+  // R97（A9）：高亮只吃 kw——`#标签` / `@项目` 是指令，不该在标题里找 "#x" 高亮
+  const q = hlKw
   if (!q) return esc
   const i = esc.toLowerCase().indexOf(q.toLowerCase())
   if (i < 0) return esc
@@ -594,17 +634,45 @@ function buildSearchMaps(d: any): SearchMaps {
   return { wsName, catName, projName, wsCount }
 }
 
+/**
+ * R97（A9）：浮层搜索前缀直筛——`#标签` / `@项目`。
+ * - `#x` 计入 tags：**全部命中才算**（交集，「直筛是收窄不是扩大」，对齐主应用 R89 matchCard 口径）；
+ * - `@x` 计入 proj：收窄到「任务（项目名命中）+ 项目实体（名称命中）」——资源/好奇/策展台不属于任何项目，排除；
+ * - 其余词 = kw：全文 blob / 拼音 / 高亮共用；
+ * - **单个 `#` / `@`（后缀为空）回落为普通词**——避免边输入边筛把结果打空（R89 同款惯例）。
+ * content script 纯 Vanilla，就地实现（不引主应用模块，见 v2/README 已知地雷）。
+ */
+function parseOverlayQuery(q: string): { tags: string[]; proj: string; kw: string } {
+  const tags: string[] = []
+  let proj = ''
+  const words: string[] = []
+  for (const tok of (q || '').trim().split(/\s+/)) {
+    if (!tok) continue
+    if (tok.length > 1 && tok[0] === '#') tags.push(tok.slice(1).toLowerCase())
+    else if (tok.length > 1 && tok[0] === '@') proj = tok.slice(1).toLowerCase()
+    else words.push(tok.toLowerCase())
+  }
+  return { tags, proj, kw: words.join(' ') }
+}
+
 function collectResults(d: any, query: string, results: any[], maps: SearchMaps) {
-  const match = (text: string) => !query || text.toLowerCase().includes(query)
+  const pq = parseOverlayQuery(query)
+  const kw = pq.kw
+  const match = (text: string) => !kw || text.toLowerCase().includes(kw)
+  // R97（A9）：`#标签` 交集判据——卡的 tags 必须包含查询里的每一个标签（小写精确比对，与主应用 matchCard 一致）
+  const hasAllTags = (tags: any) => pq.tags.every(t => (Array.isArray(tags) ? tags : []).map((x: any) => String(x).toLowerCase()).includes(t))
+  // R97（A9）：`@项目` 收窄判据——按项目名子串命中
+  const projHit = (name: any) => !pq.proj || String(name || '').toLowerCase().includes(pq.proj)
   // 第十九轮：拼音/首字母命中（按标题）
 
   // 资源卡
   if (searchType === 'all' || searchType === 'res') {
     d.resources?.filter((r: any) => !r.deletedAt).forEach((r: any) => {
+      if (pq.proj) return // R97（A9）：`@项目` 下资源卡不隶属项目，排除
       const ws = maps.wsName.get(r.workspaceId)
       const cat = maps.catName.get(r.categoryId)
       const blob = r.title + ' ' + (r.description || '') + ' ' + (Array.isArray(r.tags) ? r.tags : []).join(',') + ' ' + (r.link || '')
-      if (match(blob) || matchPinyin(r.title || '', query)) {
+      if (hasAllTags(r.tags) && (match(blob) || matchPinyin(r.title || '', kw))) {
         results.push({
           type: 'res', iconClass: 'res', iconText: '📄', id: r.id,
           title: r.title, ws: ws || '未知', cat: cat || '待分类',
@@ -625,7 +693,7 @@ function collectResults(d: any, query: string, results: any[], maps: SearchMaps)
       // R58-B4：命中字段两端同构——任务补标签 + 项目名（与应用内一致）
       const tTags = Array.isArray(t.tags) ? t.tags.join(' ') : ''
       const blob = t.title + ' ' + (t.description || '') + ' ' + tTags + ' ' + projName
-      if (match(blob) || matchPinyin(t.title || '', query)) {
+      if (hasAllTags(t.tags) && projHit(projName) && (match(blob) || matchPinyin(t.title || '', kw))) {
         const statusIcon = t.status === 'done' ? '✓' : t.status === 'doing' ? '◐' : '○'
         results.push({
           type: 'task', iconClass: `task-${t.status}`, iconText: statusIcon, id: t.id,
@@ -637,9 +705,10 @@ function collectResults(d: any, query: string, results: any[], maps: SearchMaps)
   // 好奇心
   if (searchType === 'all' || searchType === 'curio') {
     d.curiosities?.filter((c: any) => !c.deletedAt).forEach((c: any) => {
+      if (pq.proj) return // R97（A9）：好奇心不隶属项目，排除
       const statusText = c.status === 'todo' ? '🔵 待探索' : c.status === 'doing' ? '🟡 探索中' : c.status === 'done' ? '🟢 已求证' : '⚪ 已搁置'
       const cTags = Array.isArray(c.tags) ? c.tags.join(' ') : ''
-      if (match(c.question + ' ' + cTags) || matchPinyin(c.question || '', query)) {
+      if (hasAllTags(c.tags) && (match(c.question + ' ' + cTags) || matchPinyin(c.question || '', kw))) {
         results.push({
           type: 'curio', iconClass: 'curio', iconText: '💡', id: c.id,
           title: c.question, ws: '调度台', cat: '好奇心',
@@ -653,7 +722,9 @@ function collectResults(d: any, query: string, results: any[], maps: SearchMaps)
   // R68-F1：口径对齐台签栏（app store workspaces getter）——排除资源台本体实体（固定 Tab，非台签策展台）+ 已归档，历史遗留实体不再混入
   if (searchType === 'all' || searchType === 'ws') {
     d.workspaces?.filter((w: any) => !w.archived && w.id !== CURATION_WS_ID).forEach((w: any) => {
-      if (match(w.name || '') || matchPinyin(w.name || '', query)) {
+      // R97（A9）：`#标签` / `@项目` 是卡片级收窄，策展台实体两不沾，指令在场时排除
+      if (pq.tags.length || pq.proj) return
+      if (match(w.name || '') || matchPinyin(w.name || '', kw)) {
         const cardCount = maps.wsCount.get(w.id) || 0
         results.push({
           type: 'ws', iconClass: 'ws', iconText: '🗂', id: w.id,
@@ -673,7 +744,8 @@ function collectResults(d: any, query: string, results: any[], maps: SearchMaps)
         const badges: any[] = []
         if (p.isFocused) badges.push({ type: 'prio-high', text: '🎯 主攻' })
         if (p.status === 'archived') badges.push({ type: 'curio-status', text: '已完成' })
-        if (match(p.name || '') || matchPinyin(p.name || '', query)) {
+        // R97（A9）：项目实体本身即 `@项目` 的命中对象；`#标签` 是卡片级收窄，排除实体
+        if (!pq.tags.length && projHit(p.name) && (match(p.name || '') || matchPinyin(p.name || '', kw))) {
           results.push({
             type: 'proj', iconClass: 'ws', iconText: '📦', id: p.id,
             title: p.name, ws: '方向台', cat: dir.name || '—',
@@ -833,7 +905,7 @@ function renderResults() {
   const el = document.getElementById('__zy_results__')
   if (!el) return
   refreshTodayFocus() // R78（A7-a）：每次渲染前对齐一次已入选集合
-  // B1：浏览模式（空查询 + 全部）= 快捷操作 + 近期最常用（R47-B4：全类型按调用次数降序）
+  // B1：浏览模式（空查询 + 全部）= 快捷操作 + 最近调出（近 7 天，R97-A8）+ 近期最常用（R47-B4：全类型按调用次数降序）
   if (!lastQuery && searchType === 'all') {
     const dc = dataCache
     const heat: any[] = []
@@ -848,10 +920,27 @@ function renderResults() {
       const dc2 = (b.raw.callCount || 0) - (a.raw.callCount || 0)
       return dc2 !== 0 ? dc2 : (b.raw.lastCalledAt || 0) - (a.raw.lastCalledAt || 0)
     })
-    const recent = heat.slice(0, 8)
+    // R97（A8）：「最近调出」= 近 7 天有调出记录的卡（lastCalledAt 降序，≤8 条）——
+    // 「用过多久」和「用得多频」是两个问题：上周刚翻过的资料不该被三个月没用 20 次的工具压下去。
+    const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+    const nowTs = Date.now()
+    const recentCalled = heat
+      .filter(function (x: any) { return (x.raw.lastCalledAt || 0) >= nowTs - WEEK_MS })
+      .sort(function (a: any, b: any) { return (b.raw.lastCalledAt || 0) - (a.raw.lastCalledAt || 0) })
+      .slice(0, 8)
+    const recentIdSet = new Set(recentCalled.map(function (x: any) { return String(x.id || '') }))
+    // 「近期最常用」沿用 callCount 口径，排除上一段已出现的卡（同卡不在空态出现两次）
+    const hot = heat.filter(function (x: any) { return !recentIdSet.has(String(x.id || '')) }).slice(0, 8)
+    // R97 顺带修正：热词行此前一律标 type:'res'/📄——Enter/点击对任务/好奇/策展台行会
+    // 误按资源逻辑分发（策展台行定位 /workspace/undefined；任务/好奇不写 bumpHeat 计数）。
+    // 现按 pushHeat 时的真实 type 分发（行仍带 data-id，bindResultEvents 按 id 解析不受影响）。
+    const toRow = function (r: any) {
+      return { type: r.type, iconClass: r.iconClass, iconText: r.iconText, id: r.id, title: r.title, ws: '', cat: '', badges: [], raw: r.raw }
+    }
     searchResults = [
       ...QUICK_ACTIONS_ZY.map(function (qa) { return { type: 'qa', qa: qa } }),
-      ...recent.map(function (r: any) { return { type: 'res', iconClass: 'res', iconText: '📄', id: r.id, title: r.title, ws: '', cat: '', badges: [], raw: r } })
+      ...recentCalled.map(toRow),
+      ...hot.map(toRow)
     ]
     searchSelIndex = searchResults.length ? 0 : -1
     { const cur: any = searchResults[searchSelIndex]; searchSelId = cur ? String(cur.id || '') : '' }
@@ -860,22 +949,26 @@ function renderResults() {
         '<div class="zy-ri-icon res">↵</div>' +
         '<div class="zy-ri-main"><div class="zy-ri-title">' + qa.label + '</div></div></div>'
     }).join('')
-    const recentHtml = recent.length
-      ? '<div class="zy-group-title">🔥 近期最常用 · 按调用次数</div>' + recent.map(function (r: any, j: number) {
-        return '<div class="zy-result-item' + (QUICK_ACTIONS_ZY.length + j === searchSelIndex ? ' sel' : '') + '" data-idx="' + (QUICK_ACTIONS_ZY.length + j) + '" data-id="' + escapeHtml(String(r.id || '')) + '">' +
-          '<div class="zy-ri-icon ' + r.iconClass + '">' + r.iconText + '</div>' +
-          '<div class="zy-ri-main"><div class="zy-ri-title">' + escapeHtml(r.title) + '</div></div>' +
-          '<span class="zy-ri-link url">🔥' + (r.raw.callCount || 0) + '</span></div>'
-      }).join('')
+    const heatRowHtml = function (r: any, j: number, base: number) {
+      return '<div class="zy-result-item' + (base + j === searchSelIndex ? ' sel' : '') + '" data-idx="' + (base + j) + '" data-id="' + escapeHtml(String(r.id || '')) + '">' +
+        '<div class="zy-ri-icon ' + r.iconClass + '">' + r.iconText + '</div>' +
+        '<div class="zy-ri-main"><div class="zy-ri-title">' + escapeHtml(r.title) + '</div></div>' +
+        '<span class="zy-ri-link url">🔥' + (r.raw.callCount || 0) + '</span></div>'
+    }
+    const recentHtml = recentCalled.length
+      ? '<div class="zy-group-title">🕐 最近调出 · 近 7 天</div>' + recentCalled.map(function (r: any, j: number) { return heatRowHtml(r, j, QUICK_ACTIONS_ZY.length) }).join('')
       : ''
-    el.innerHTML = '<div class="zy-group-title">快捷操作</div>' + qaHtml + recentHtml
+    const hotHtml = hot.length
+      ? '<div class="zy-group-title">🔥 近期最常用 · 按调用次数</div>' + hot.map(function (r: any, j: number) { return heatRowHtml(r, j, QUICK_ACTIONS_ZY.length + recentCalled.length) }).join('')
+      : ''
+    el.innerHTML = '<div class="zy-group-title">快捷操作</div>' + qaHtml + recentHtml + hotHtml
     bindResultEvents(el)
     return
   }
   // R49-G2：策展台类型 → 策展台→分类树（点击分类定位：有卡高亮第一张，无卡高亮分类行）
   if (searchType === 'ws') {
     const d2: any = dataCache || (window as any).__zyDataCache
-    const q = lastQuery.toLowerCase()
+    const q = hlKw // R97（A9）：树名过滤吃去指令后的 kw，`#`/`@` 不该拿来匹配台名
     const wss = (d2?.workspaces || []).filter((w: any) => !w.archived && (!q || (w.name || '').toLowerCase().includes(q)))
     let treeHtml = ''
     for (const w of wss) {
@@ -1245,6 +1338,9 @@ async function openCapture() {
           </select>
         </div>
       </div>
+      <!-- R97（D4）：资源采集不设「关联项目」——ResourceCard 模型无 projectId（单向挂载红线：
+           资源由台面/分类组织，任务才是持挂载方）。按提案「或明确边界并说明」分支，把边界写在表单里。 -->
+      <div class="zy-cap-boundary">资源卡不挂项目——需要与行动同行时，先入台，再到任务详情里「挂载到任务」</div>
     </div>
     <div class="zy-cap-foot">
       <button class="zy-btn zy-btn-ghost" id="__zy_cap_cancel__">取消</button>
