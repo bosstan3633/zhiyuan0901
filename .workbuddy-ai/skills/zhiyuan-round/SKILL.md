@@ -612,6 +612,22 @@ capture 阶段的 document handler 先于 target 元素 handler 执行，必须�
 处置是**改断言描述 + 保留不变量**（指标条存在、hub/非 hub 分流、curationMetrics 消费），
 在断言名里标注「（R98 重指：…）」留痕——判据变了要看得见，不能静默改。
 
+## 五·补廿七 · **HTML5 拖拽是双锁：dragover 不放行，drop 永远不触发**（R99 实证）
+
+**症状**：D-E（跨区拖拽自动切换 pinned）改了 `onProjDrop` 的跨区分支，功能却"永远不生效"——
+勘验发现 `onProjDragOver` 对跨区目标**不 `preventDefault` 也不 return 前 preventDefault**：
+HTML5 DnD 规范要求 dragover 事件必须 `preventDefault()` 才允许后续 drop。
+旧代码用 dragover 的跨区拦截 + drop 的跨区拦截**双重锁死**，只改其中一把锁，门还是不开。
+
+**教训**：
+
+1. **改任何拖拽行为前，先画完 `dragstart → dragover → drop → dragend` 四站链路**，
+   确认每一站的 preventDefault/守卫条件与新语义一致——drop 的行为受 dragover 支配；
+2. 「拦截 + 提示」改「放行 + 自动语义」时，**两处守卫要一起拆**，漏一处就是静默失效
+   （功能不报错、不崩、就是永远触发不了——比报错更难发现）；
+3. 跨组件共享**视图态**（同一份筛选在两个模块生效）：状态留宿主持有，`v-model:xxx` 下传 +
+   `defineEmits(update:xxx)` 回传——不要在两个组件里各存一份再手动同步。
+
 ## 五·补十四 · class 属性常是**多个类**，断言要判子串（R88 实证）
 
 **症状**：`.sort-dir-btn` 在模板里写作 `class="toolbar-select sort-dir-btn"`，
