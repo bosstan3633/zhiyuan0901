@@ -11,7 +11,8 @@
            资源台无描述时回落的定位语「资源卡唯一存储 · 镜像源头」**降为 ⓘ tooltip**（它是定位语，不是每屏必读） -->
       <span v-if="wsHeadDescOwn" class="wsh-desc" :title="wsHeadDescOwn">· {{ wsHeadDescOwn }}</span>
       <span v-else-if="wsHeadDescFallback" class="wsh-locator" :title="wsHeadDescFallback">ⓘ</span>
-      <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="!isHub && metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template></span>
+      <!-- R98（W8）：「🕐 最近更新」自指标条降为页头摘要，可点进流水下钻（入口不断，仅非 hub） -->
+      <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="!isHub && metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template><span v-if="!isHub" class="wsh-upd" title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新 {{ lastUpdateText }}</span></span>
       <!-- R90（R8-①）：常驻教学文案改「?」气泡——原文案一字不丢（见 HUB_HELP_TEXT），只是不再每屏占位 -->
       <span v-if="isHub" class="wsh-help" :title="HUB_HELP_TEXT">?</span>
     </div>
@@ -53,7 +54,8 @@
         <div class="mc-hint">点击查看流水</div>
       </div>
     </div>
-    <!-- R62-1：策展台 5 指标条（数据源 hub.curationMetrics） -->
+    <!-- R62-1：策展台指标条——R98（W8）5 格 → 3 格：构成明细本就与总数格 hint 同源同文（并入即删格）；
+         「🕐 最近更新」降为页头摘要「· 更新 X」（可点进流水下钻，入口不断） -->
     <div v-if="!isHub" class="ws-metrics">
       <!-- R67-F2：策展主题格高亮——主题色描边+微底色，与后续统计格拉开层级 -->
       <div class="metric-card thesis-hl" @click="openThesisDetail">
@@ -66,20 +68,10 @@
         <div class="mc-value">{{ metrics.total }}</div>
         <div class="mc-hint">台内 {{ metrics.native }} · 镜像 {{ metrics.mirrored }}</div>
       </div>
-      <div class="metric-card" @click="openDrill('source')">
-        <div class="mc-label">🔀 来源构成</div>
-        <div class="mc-value">{{ metrics.native }}<span class="mc-sep">/</span>{{ metrics.mirrored }}</div>
-        <div class="mc-hint">台内 / 资源台镜像</div>
-      </div>
       <div class="metric-card" @click="openDrill('assets')">
         <div class="mc-label">📎 附件数量</div>
         <div class="mc-value">{{ metrics.attachmentCount }}</div>
         <div class="mc-hint">点击查看明细</div>
-      </div>
-      <div class="metric-card" @click="openDrill('recent')">
-        <div class="mc-label">🕐 最近更新</div>
-        <div class="mc-value small">{{ lastUpdateText }}</div>
-        <div class="mc-hint">点击查看流水</div>
       </div>
     </div>
 
@@ -283,7 +275,7 @@
           <template v-for="(g, gi) in resourceGroups" :key="g.key">
             <div :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
             <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
-              <span>{{ g.depth ? '↳' : '📁' }} {{ g.title }} · {{ g.count }}</span>
+              <span>{{ g.depth ? '↳' : '📁' }} {{ g.title }} · {{ g.count }}<template v-if="groupChildCount(g.key)"> · 含 {{ groupChildCount(g.key) }} 个子分类</template></span>
               <span class="ws-cat-collapse">{{ collapsedGroups.has(g.key) ? '▸' : '▾' }}</span>
             </div>
             <div v-show="!collapsedGroups.has(g.key)" class="card-grid"
@@ -358,7 +350,7 @@
           <template v-for="(g, gi) in resourceGroups" :key="g.key">
             <div :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
             <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
-              <span>{{ g.depth ? '↳' : '📁' }} {{ g.title }} · {{ g.count }}</span>
+              <span>{{ g.depth ? '↳' : '📁' }} {{ g.title }} · {{ g.count }}<template v-if="groupChildCount(g.key)"> · 含 {{ groupChildCount(g.key) }} 个子分类</template></span>
               <span class="ws-cat-collapse">{{ collapsedGroups.has(g.key) ? '▸' : '▾' }}</span>
             </div>
             <div v-show="!collapsedGroups.has(g.key)" class="res-list">
@@ -462,6 +454,13 @@
             <div v-else class="py-root-empty clickable" @click="openThesisCreate">🏛 点击设立中心论点 —— 填写卡片保存后自动落为 L1 根节点</div>
           </div>
           <!-- L2 起分类节点（R66-F5：居中树布局——叶子占列、父节点跨其子组全部列：父模块横向恒=子组横向、居中悬于子组上方，子组永不跨入其他父节点的横向空间；连线横平竖直直角折线） -->
+          <!-- R98（W7）：层级折叠——仅 L2 / 到 L3 / 全部（本地视图态）；金字塔只有一层时无折叠意义，不渲染 -->
+          <div v-if="pyramidLevels.length >= 2" class="py-fold">
+            <span class="py-fold-label">层级</span>
+            <button class="py-fold-btn" :class="{on: pyFold==='l2'}" @click="pyFold='l2'">仅 L2</button>
+            <button class="py-fold-btn" :class="{on: pyFold==='l3'}" @click="pyFold='l3'">到 L3</button>
+            <button class="py-fold-btn" :class="{on: pyFold==='all'}" @click="pyFold='all'">全部</button>
+          </div>
           <div class="py-board" :style="{ gridTemplateColumns: `repeat(${pyLayout.cols}, minmax(170px, 250px))` }">
             <div v-for="cell in pyLayout.cells" :key="cell.cat.id" class="py-node"
               :class="{ 'drop-child': pyDropTarget===cell.cat.id && pyDropMode==='child', 'drop-sib': pyDropTarget===cell.cat.id && pyDropMode!=='child', flash: catFlashId===cell.cat.id }"
@@ -1125,6 +1124,9 @@ function setViewMode(m: 'card'|'list'|'kanban'|'pyramid') {
   viewMode.value = m
   writeWsView(store.ui, workspaceId.value, m)
 }
+/** R98（W7）：金字塔层级折叠——`仅 L2 / 到 L3 / 全部`。**本地视图态，不进 UIPrefs**（视图态
+ *  持久化会造成「每次打开都被折叠」，与 D-B 拍板同口径）；同一组件跨台复用，折叠态跟随会话。 */
+const pyFold = ref<'l2' | 'l3' | 'all'>('all')
 // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.res；网格模板由 --grid-cols 驱动）
 // 资源台（isHub）与策展台为同一组件同一网格 ⇒ 共用 'res' 键，列数在两台一致
 const resCols = useCardCols('res', store.ui)
@@ -1384,6 +1386,13 @@ const resourceGroups = computed<ResourceGroup[]>(() => {
   }
   return groups
 })
+/** R98（W9）：分组标题补「含 N 个子分类」——组内 count 是**直属**口径（walk 只 push 有直属卡的组），
+ *  与左树的聚合数不同源；同屏「左树 A 显示 5 / 分组 A 显示 3」会被当成对不上账，须写明。
+ *  子分类各自的卡有自己的组（walk 递归）；待分类无子分类。 */
+function groupChildCount(key: string): number {
+  if (key === 'uncat') return 0
+  return catIdx.value.childrenOf.get(key)?.length || 0
+}
 
 const kanbanCategories = computed(() => {
   const cats: { key: string; name: string }[] = []
@@ -2369,6 +2378,9 @@ const pyramidLevels = computed<PyNode[][]>(() => {
  *  父模块横向恒等于子组横向并居中悬于其上；子组永不跨入其他父节点的横向空间（列独占）；
  *  宽度自适应（列宽 minmax(170px,250px)），整体不占满横向空间。 */
 const pyLayout = computed<{ cols: number; cells: { cat: Category; depth: number; colStart: number; colSpan: number; cards: ResourceCard[] }[] }>(() => {
+  // R98（W7）：层级折叠——超过 maxDepth 的节点不再下钻（按叶子布点）。在布局层收口而非渲染层
+  // v-if 隐藏：父节点的 colSpan 只跨**可见**子组的列，折叠后居中树几何仍然自洽（不会留下空跨列）。
+  const maxDepth = pyFold.value === 'l2' ? 0 : pyFold.value === 'l3' ? 1 : Number.POSITIVE_INFINITY
   const cardsBy = new Map<string, ResourceCard[]>()
   for (const r of allResources.value) {
     if (r.isThesis) continue
@@ -2383,7 +2395,8 @@ const pyLayout = computed<{ cols: number; cells: { cat: Category; depth: number;
   /** 后序布点：叶子占新列；父节点跨其子组全部列（列独占，兄弟子树互不侵入） */
   const placeCat = (cat: Category, depth: number): { start: number; span: number } => {
     placed.add(cat.id)
-    const kids = (catIdx.value.childrenOf.get(cat.id) || []).filter(x => !placed.has(x.id))
+    // R98（W7）：到达折叠深度 → 按叶子收口（子树不入列，父节点自身直属卡照常呈现）
+    const kids = depth >= maxDepth ? [] : (catIdx.value.childrenOf.get(cat.id) || []).filter(x => !placed.has(x.id))
     if (!kids.length) {
       const col = leafSeq++
       cells.push({ cat, depth, colStart: col, colSpan: 1, cards: cardsBy.get(cat.id) || [] })
@@ -3114,6 +3127,15 @@ function linkDisplay(link: string) {
 .wsh-name { flex-shrink: 0; font-size: 19px; letter-spacing: .3px; font-weight: 700; color: var(--text); }
 .wsh-desc { flex: 1; min-width: 0; font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wsh-summary { flex-shrink: 0; margin-left: auto; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* R98（W8）：页头「更新 X」摘要——自指标条降级而来，保留流水下钻入口 */
+.wsh-upd { cursor: pointer; }
+.wsh-upd:hover { color: var(--accent); }
+/* R98（W7）：金字塔层级折叠控制条——右对齐一行，档位沿用分段控件惯例（tokens 令牌，零硬编码色） */
+.py-fold { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin: 0 0 8px; }
+.py-fold-label { font-size: 11px; color: var(--text-3); }
+.py-fold-btn { font-size: 11px; color: var(--text-3); background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 2px 10px; cursor: pointer; font-family: inherit; transition: all .15s; }
+.py-fold-btn:hover { color: var(--accent); border-color: var(--accent); }
+.py-fold-btn.on { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
 /* R90（R8-①/③）：ⓘ 定位语（fallback 降为 tooltip 后的落点）与 ? 教学气泡触发点。
    页头高度锁 40px，故两点都做成 ≤16px 的行内元素，不新增行高 */
 .wsh-locator { flex-shrink: 0; font-size: 11px; color: var(--text-3); cursor: help; }
@@ -3469,7 +3491,7 @@ function linkDisplay(link: string) {
 /* R64-F13：指标条压缩为紧凑单行（非重点信息，让位策展区） */
 /* R75（R18）：资源台 3 格版——论点格与来源构成格对 hub 无意义；只加修饰类，不改 5 格本体 */
 .ws-metrics.hub3 { grid-template-columns: repeat(3, 1fr); }
-.ws-metrics { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; gap: 8px; margin: 10px 0 0; }
+.ws-metrics { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 8px; margin: 10px 0 0; }
 .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 4px 12px; cursor: pointer; transition: all .15s; min-width: 0; display: flex; align-items: center; gap: 10px; }
 .metric-card:hover { border-color: var(--accent); background: var(--surface-2); }
 /* R67-F2：策展主题格常亮高亮（主题色描边+淡底+微光），非 hover 态也可辨识 */

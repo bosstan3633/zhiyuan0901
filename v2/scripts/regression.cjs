@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.66.0'";
+const VER_ANCHOR_LITERAL = "version: '2.67.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -999,7 +999,7 @@ check('R62-1 thesis 字段组四件套：FieldConfig.thesis 可选组 / defaults
 check('R62-2 thesis 老数据归一化：repository 缺组补默认（幂等）+ assets 注入循环含 thesis', () => { const r = read('/shared/storage/repository.ts'); return r.includes('defaultThesisFieldDefs') && r.includes("if (data.fieldConfig && !data.fieldConfig.thesis) data.fieldConfig.thesis = defaultThesisFieldDefs()") && r.includes("for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const)"); });
 check('R62-3 设计器第四页：设置导航「策展主题卡」+ thesis 面板 FieldEditor + 导入合并兼容 thesis 组', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes("key: 'thesis', icon: '🏛', label: '策展主题卡'") && g.includes("card-type=\"thesis\"") && g.includes("if (!cfg.thesis) cfg.thesis = defaultThesisFieldDefs()") && g.includes("for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const)"); });
 check('R62-4 视图分流：Workspace fieldsOf（isThesis 走 thesis 组）+ 卡片视图消费 fieldsOf(r)', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('function fieldsOf(r: ResourceCard): FieldDef[]') && w.includes("visibleFields(d.value.fieldConfig, 'thesis')") && w.includes('v-for="f in fieldsOf(r)"'); });
-check('R62-5 五指标条：ws-metrics 五卡（主题/总数/来源/附件/最近更新）+ curationMetrics 消费 + 资源台不显示（v-if !isHub）', () => { const w = read('/newtab/views/Workspace.vue'); const h = read('/shared/storage/hub.ts'); return w.includes('class="ws-metrics"') && w.includes('🏛 策展主题') && w.includes('🔀 来源构成') && w.includes('📎 附件数量') && w.includes('🕐 最近更新') && w.includes('curationMetrics(d.value, workspaceId.value)') && w.includes('v-if="!isHub"') && h.includes('attachmentItems'); });
+check('R62-5 指标条（R98 重指：W8 5→3 格）：ws-metrics 三卡（主题/总数/附件）+ 构成明细在总数格 hint（台内/镜像）+ curationMetrics 消费 + 资源台不显示（v-if !isHub）', () => { const w = read('/newtab/views/Workspace.vue'); const h = read('/shared/storage/hub.ts'); return w.includes('class="ws-metrics"') && w.includes('🏛 策展主题') && w.includes('📊 卡片总数') && w.includes('台内 {{ metrics.native }} · 镜像 {{ metrics.mirrored }}') && w.includes('📎 附件数量') && w.includes('curationMetrics(d.value, workspaceId.value)') && w.includes('v-if="!isHub"') && h.includes('attachmentItems'); });
 check('R62-6 下钻抽屉：CurationDrillDrawer 四模式（total/source/assets/recent）+ 附件打开（getAssetBlob 图片预览 / openHtmlAsset 文档）+ 镜像跳源', () => { const d = read('/newtab/components/CurationDrillDrawer.vue'); const w = read('/newtab/views/Workspace.vue'); return d.includes("mode: 'total' | 'source' | 'assets' | 'recent'") && d.includes('openDrillAsset') && d.includes('getAssetBlob') && d.includes('openHtmlAsset') && d.includes("emit('locate'") && w.includes('CurationDrillDrawer'); });
 check('R62-7 中心论点设立：hub.setThesis（每台唯一）+ 右键菜单「设为中心论点/取消」+ 镜像卡拦截', () => { const h = read('/shared/storage/hub.ts'); const w = read('/newtab/views/Workspace.vue'); return h.includes('export function setThesis') && h.includes('if (r.id !== cardId) r.isThesis = undefined') && w.includes('function setThesisCard') && w.includes('🏛 设为中心论点') && w.includes('取消中心论点') && w.includes('镜像卡不能作为本台中心论点'); });
 check('R62-8 金字塔视图：viewMode pyramid + pyramidLevels 按深度铺开（排除 thesis 卡）+ 卡片落节点（canMountInNode 校验）+ 镜像卡 moveMirrorTo', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes("viewMode = ref<'card'|'list'|'kanban'|'pyramid'>") && w.includes('const pyramidLevels = computed') && w.includes('if (r.isThesis) continue') && w.includes('canMountInNode(draggedItem)') && w.includes('金字塔节点只允许挂资源卡') && w.includes('moveMirrorTo(draggedItem, cat.id)'); });
@@ -1481,20 +1481,20 @@ check('R75-3 hub 块不含论点格与来源构成格（无 openThesisDetail / �
   const blk = w.slice(s, e);
   return !blk.includes('openThesisDetail') && !blk.includes("openDrill('source')") && !blk.includes('来源构成') && !blk.includes('策展主题');
 });
-check('R75-4 指标条样式分流：.ws-metrics.hub3 三列，.ws-metrics 本体仍 5 列（策展台布局未被改坏）', () => {
+check('R75-4 指标条样式分流（R98 重指：W8 后两台同为三格）：.ws-metrics.hub3 三列 repeat(3,1fr)，.ws-metrics 本体三列 1.4fr 1fr 1fr', () => {
   const w = read('/newtab/views/Workspace.vue');
   const i = w.indexOf('.ws-metrics.hub3');
   if (i < 0) return false;
   const seg = w.slice(i, i + 140);
-  return seg.includes('grid-template-columns: repeat(3, 1fr)') && w.includes('.ws-metrics { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; gap: 8px; margin: 10px 0 0; }');
+  return seg.includes('grid-template-columns: repeat(3, 1fr)') && w.includes('.ws-metrics { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 8px; margin: 10px 0 0; }');
 });
-check('R75-5 策展台 5 格块保留：v-if="!isHub" 块内仍为 5 张 metric-card', () => {
+check('R75-5 策展台指标格保留（R98 重指：W8 5→3 格）：v-if="!isHub" 块内仍为 3 张 metric-card（主题/总数/附件）', () => {
   const w = read('/newtab/views/Workspace.vue');
   const s = w.indexOf('<div v-if="!isHub" class="ws-metrics">');
   if (s < 0) return false;
   const e = w.indexOf('<CurationDrillDrawer', s);
   if (e < 0) return false;
-  return (w.slice(s, e).match(/class="metric-card/g) || []).length === 5;
+  return (w.slice(s, e).match(/class="metric-card/g) || []).length === 3;
 });
 check('R75-6 hub 卡片总数补充口径 hubCountHint：镜像异常优先暴露，否则分类数 / 待分类数', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -2699,6 +2699,33 @@ check('R97-4 D5 document 级 Esc 收口：openOverlay 注册（capture）/ close
     && OV97.includes("document.removeEventListener('keydown', onDocEsc, true)")
     && OV97.includes('if (savedState) return // 回执态有自己的 document 级监听，让位')
     && OV97.includes('if (e.target === input) return // 输入框自己的两段式 handler 管（target 阶段），避免双重处理');
+});
+
+console.log('【第九十八轮 · V2.67.0：策展台组三件（W7 + W8 + W9）】');
+/** R98：P2 策展台组三条，全部落 Workspace.vue（与 R97 浮层组对称）。W7 金字塔层级折叠
+ *  （布局层收口而非渲染层隐藏，父节点跨度只跨可见子组）；W8 指标条 5→3 格（来源构成本就与
+ *  总数格 hint 同源、最近更新降页头摘要且保住流水下钻入口）；W9 分组标题补「含 N 个子分类」
+ *  （直属口径与左树聚合口径写明，消「对不上账」观感）。零数据模型改动、零迁移。 */
+const WS98 = read('/newtab/views/Workspace.vue');
+check('R98-1 W7 金字塔层级折叠：pyFold 三档（仅 L2/到 L3/全部）+ placeCat 深度收口 + 控制条 pyramidLevels>=2 门控', () => {
+  return WS98.includes("const pyFold = ref<'l2' | 'l3' | 'all'>('all')")
+    && WS98.includes("pyFold.value === 'l2' ? 0 : pyFold.value === 'l3' ? 1 : Number.POSITIVE_INFINITY")
+    && WS98.includes('const kids = depth >= maxDepth ? [] : (catIdx.value.childrenOf.get(cat.id) || []).filter(x => !placed.has(x.id))')
+    && WS98.includes('v-if="pyramidLevels.length >= 2" class="py-fold"')
+    && WS98.includes('@click="pyFold=\'l2\'"') && WS98.includes('@click="pyFold=\'l3\'"') && WS98.includes('@click="pyFold=\'all\'"');
+});
+check('R98-2 W8 策展台指标条 5→3 格：来源构成零命中（并入总数 hint）+ 最近更新降页头 wsh-upd 且保留流水下钻', () => {
+  return WS98.includes('.ws-metrics { display: grid; grid-template-columns: 1.4fr 1fr 1fr;')
+    && !WS98.includes('🔀 来源构成')
+    && WS98.includes("class=\"wsh-upd\" title=\"查看最近更新流水\" @click.stop=\"openDrill('recent')\"")
+    && WS98.includes('· 更新 {{ lastUpdateText }}');
+});
+check('R98-3 W9 分组标题补含子分类数：groupChildCount（uncat→0）+ 卡片/列表两处组标题同款呈现', () => {
+  const occ = WS98.split('· 含 {{ groupChildCount(g.key) }} 个子分类').length - 1;
+  return WS98.includes('function groupChildCount(key: string): number {')
+    && WS98.includes("if (key === 'uncat') return 0")
+    && WS98.includes('return catIdx.value.childrenOf.get(key)?.length || 0')
+    && occ === 2;
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
