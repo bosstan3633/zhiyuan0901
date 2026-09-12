@@ -16,10 +16,12 @@ function check(name, fn) {
 // 断言语义不变：「content script 源码包含 X」——按三文件拼接后的整体判断，历史断言无需逐条改写。
 const CONTENT_SRC_FILES = ['/content/search-overlay.ts', '/content/overlay-impl.ts', '/content/selection.ts'];
 function read(p) {
+  // R110：CRLF/LF 归一化——Windows 检出（autocrlf）下多行锚串不再失配
+  const norm = (t) => t.replace(/\r\n/g, '\n');
   if (p === '/content/search-overlay.ts') {
-    return CONTENT_SRC_FILES.map(f => fs.readFileSync(base + f, 'utf8')).join('\n');
+    return norm(CONTENT_SRC_FILES.map(f => fs.readFileSync(base + f, 'utf8')).join('\n'));
   }
-  return fs.readFileSync(base + p, 'utf8');
+  return norm(fs.readFileSync(base + p, 'utf8'));
 }
 function count(p, str) { return read(p).split(str).length - 1; }
 function exists(p) { return fs.existsSync(base + p); }
