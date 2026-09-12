@@ -2808,7 +2808,7 @@ function linkDisplay(link: string) {
 .card-grid { display: grid; /* R106（F3）：精确 N 列（同 F3 口径，资源台/策展台共用） */ grid-template-columns: repeat(var(--grid-cols, 5), minmax(0, 1fr)); gap: var(--card-gap); }
 .res-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .res-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.res-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: var(--card-pad-vert) var(--card-pad-horz); cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; min-height: 120px; /* R55-F4：屏外卡片跳过渲染（切策展台 595ms 的渲染段优化） */ content-visibility: auto; contain-intrinsic-size: auto 132px; }
+.res-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: var(--card-pad-vert) var(--card-pad-horz); cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; min-height: 120px; min-width: 0; overflow: hidden; /* R107（F8）：内容自适应——防长标题/长链接撑破轨道致列宽不一 */ /* R55-F4：屏外卡片跳过渲染（切策展台 595ms 的渲染段优化） */ content-visibility: auto; contain-intrinsic-size: auto 132px; }
 .res-card:hover { border-color: var(--accent); background: var(--surface-2); }
 .res-card.selected { border-color: var(--accent); background: var(--accent-light); }
 .res-card.pinned { border-left: 3px solid var(--accent); }

@@ -942,7 +942,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .tm-group-label { font-size: 11px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin: 2px 0 8px; }
 /* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 240px */
 .tm-grid-inner { display: grid; /* R106（F3）：精确 N 列（生产反馈：auto-fill+精确分数宽在 6/7 列因取整差一位永远少一） */ grid-template-columns: repeat(var(--grid-cols, 5), minmax(0, 1fr)); gap: 12px; }
-.tm-card { position: relative; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; cursor: pointer; transition: all .15s ease; display: flex; flex-direction: column; gap: 7px; }
+.tm-card { position: relative; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; cursor: pointer; transition: all .15s ease; display: flex; flex-direction: column; gap: 7px; min-width: 0; overflow: hidden; /* R107（F8） */ }
 .tm-card:hover { border-color: var(--border-strong); background: var(--surface); box-shadow: var(--shadow); }
 .tm-card.done { opacity: .62; }
 .tm-card.done .tm-title { text-decoration: line-through; color: var(--text-3); }

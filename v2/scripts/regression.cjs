@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.75.0'";
+const VER_ANCHOR_LITERAL = "version: '2.76.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -2731,6 +2731,20 @@ check('R98-3 W9 分组标题补含子分类数：groupChildCount（uncat→0）+
     && WS98.includes("if (key === 'uncat') return 0")
     && WS98.includes('return catIdx.value.childrenOf.get(key)?.length || 0')
     && occ === 2;
+});
+
+console.log('【第一百零七轮 · V2.76.0：卡片内容自适应修复 + 安装包瘦身 + 生产复检】');
+/** R107：生产复检反馈。F8 = 精确 N 列后长内容（长标题/长链接）经 grid 项 min-width:auto
+ *  撑破轨道致列宽不一（变形）——三套卡片根补 min-width:0 + overflow:hidden（标题已有钳制）。
+ *  F9a = 安装包瘦身：发布包剥离 sourcemap（70 文件 5.3M → 46 文件 ~1.5M）。
+ *  另：两个 Markdown 模板导入（方向树/金字塔）已出设计与交互原型（04-55），待评审，未实装。 */
+const WSP107 = read('/newtab/views/Workspace.vue');
+const TM107 = read('/newtab/components/compass/TaskManagerPanel.vue');
+const CZ107 = read('/newtab/components/compass/CuriosityPanel.vue');
+check('R107-1 ★ F8 卡片内容自适应：三套卡片根 min-width:0 + overflow:hidden（防长内容撑破轨道致列宽不一）', () => {
+  return WSP107.includes('min-height: 120px; min-width: 0; overflow: hidden;')
+    && TM107.includes('display: flex; flex-direction: column; gap: 7px; min-width: 0; overflow: hidden;')
+    && CZ107.includes('position: relative; overflow: hidden; min-width: 0;');
 });
 
 console.log('【第一百零六轮 · V2.75.0：生产反馈首批（F1 乱码 + F2 顶栏对齐 + F3 精确列数 + F4 镜像三键 + F5 性能 + F7 清理镜像）】');
