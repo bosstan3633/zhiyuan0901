@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.74.0'";
+const VER_ANCHOR_LITERAL = "version: '2.75.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -337,7 +337,7 @@ console.log('【第卅三轮 · V2.12 需求包第五批：视图与布局 · RE
 check('R33-16 REQ-025 模块分组平铺（第卌四轮退役：北极星撤模块分组，平铺下钻由设置页工作台全景替代）', () => { const s = read('/newtab/components/compass/NorthStarPanel.vue'); const gs = read('/newtab/views/GlobalSettings.vue'); return !s.includes('nd-flat-ws') && !s.includes('openWsPopup') && gs.includes('const panTree = computed'); });
 check('R33-16b REQ-025 打开即卡片列表级（第卌四轮退役：openWsPopup 移除，卡片列表级由工作台全景右栏承接）', () => { const s = read('/newtab/components/compass/NorthStarPanel.vue'); const gs = read('/newtab/views/GlobalSettings.vue'); return !s.includes('wsPopupLevel') && gs.includes('const panCards = computed'); });
 check('R33-17 REQ-026 tokens spacing 令牌（卡片网格一处切换全局生效）', () => read('/shared/styles/tokens.css').includes('--card-pad-vert') && read('/shared/styles/tokens.css').includes('--card-gap') && read('/shared/styles/tokens.css').includes('--card-min-w') && read('/shared/styles/tokens.css').includes("[data-density='compact']"));
-check('R33-17b REQ-026 密度档位交互（视图控制区 select + UIPrefs 记忆 + 卡片样式引用令牌）', () => read('/newtab/views/Workspace.vue').includes('v-model="density"') && read('/newtab/views/Workspace.vue').includes("store.ui?.density || 'cozy'") && read('/newtab/views/Workspace.vue').includes('var(--card-gap)') && read('/newtab/views/Workspace.vue').includes('var(--card-min-w)') && read('/newtab/main.ts').includes("setAttribute('data-density', 'compact')") && read('/shared/models/index.ts').includes("density?: 'compact' | 'cozy'"));
+check('R33-17b REQ-026 密度档位交互（视图控制区 select + UIPrefs 记忆 + 卡片样式引用令牌）', () => read('/newtab/views/Workspace.vue').includes('v-model="density"') && read('/newtab/views/Workspace.vue').includes("store.ui?.density || 'cozy'") && read('/newtab/views/Workspace.vue').includes('var(--card-gap)') && read('/shared/styles/tokens.css').includes('--card-min-w') && read('/newtab/main.ts').includes("setAttribute('data-density', 'compact')") && read('/shared/models/index.ts').includes("density?: 'compact' | 'cozy'"));
 
 console.log('【第卅四轮 · V2.13 需求包第一批：REQ-030 撤销修复 + Toast 四套收敛】');
 check('R34-1 REQ-030 资源卡撤销按 id 定位当前树（单删/抽屉删/批量删；R61 批量拆 natives）', () => read('/newtab/views/Workspace.vue').includes('d.value.resources.find(x => x.id === r.id)') && read('/newtab/views/Workspace.vue').includes('d.value.resources.find(x => x.id === editingResource.id)') && read('/newtab/views/Workspace.vue').includes('natives.forEach(r => {'));
@@ -1320,11 +1320,11 @@ check('R72-7（R74 重写；R88 重指：门控可落在包裹行上）列数选
     return flat.includes('<ColsPicker') && GATED.test(flat);
   });
 });
-check('R72-8（R74 重写）卡片宽度自适应：三套网格模板均为 minmax(max(最小卡宽, 均分宽), 1fr)', () => {
+check('R72-8（R106 重指：F3 精确 N 列——auto-fill+精确分数宽在 6/7 列因取整差一位永远少一，生产拍板废弃降列）：三套网格均为 repeat(var(--grid-cols), minmax(0,1fr))', () => {
   const pats = [
-    ['/newtab/components/compass/CuriosityPanel.vue', 'max(200px, calc((100% - (var(--grid-cols, 4) - 1) * 12px) / var(--grid-cols, 4)))'],
-    ['/newtab/components/compass/TaskManagerPanel.vue', 'max(240px, calc((100% - (var(--grid-cols, 5) - 1) * 12px) / var(--grid-cols, 5)))'],
-    ['/newtab/views/Workspace.vue', 'max(var(--card-min-w), calc((100% - (var(--grid-cols, 5) - 1) * var(--card-gap)) / var(--grid-cols, 5)))']
+    ['/newtab/components/compass/CuriosityPanel.vue', 'repeat(var(--grid-cols, 4), minmax(0, 1fr))'],
+    ['/newtab/components/compass/TaskManagerPanel.vue', 'repeat(var(--grid-cols, 5), minmax(0, 1fr))'],
+    ['/newtab/views/Workspace.vue', 'repeat(var(--grid-cols, 5), minmax(0, 1fr))']
   ];
   return pats.every(([f, p]) => read(f).includes(p));
 });
@@ -2731,6 +2731,46 @@ check('R98-3 W9 分组标题补含子分类数：groupChildCount（uncat→0）+
     && WS98.includes("if (key === 'uncat') return 0")
     && WS98.includes('return catIdx.value.childrenOf.get(key)?.length || 0')
     && occ === 2;
+});
+
+console.log('【第一百零六轮 · V2.75.0：生产反馈首批（F1 乱码 + F2 顶栏对齐 + F3 精确列数 + F4 镜像三键 + F5 性能 + F7 清理镜像）】');
+/** R106：生产环境实测反馈修复（附截图）。F1 = R105-E2 引入的 P0（属性插成文本节点）；
+ *  F3 = R72-G6 公式在恰好 N 列时取整差一位（6/7 列永远少一），应用户拍板改精确 N 列；
+ *  F4 = 镜像卡三键（单击只读详情 / 双击开链接 / Ctrl+Enter 定位源卡）；
+ *  F5 = content 数据缓存 TTL 1.5s → 300s（onChanged 已兜底，消除每次开浮层全量重读整库）+ 测量脚本入仓；
+ *  F7 = 一键清理本台镜像卡（只删投射，源卡保留）。 */
+const APP106 = read('/newtab/App.vue');
+const WSP106 = read('/newtab/views/Workspace.vue');
+const OV106 = read('/content/overlay-impl.ts');
+check('R106-1 ★ F1 乱码修复：mouseleave 回到 nav 开标签内，文本节点残留零命中', () => {
+  return APP106.includes('<nav class="tabs" @mouseleave="wsOverflowOpen = false">')
+    && !APP106.includes('> @mouseleave');
+});
+check('R106-2 F2 顶栏对齐：topbar-inner 按路由匹配正文容器宽（四档）', () => {
+  return APP106.includes('const topbarAlign = computed(')
+    && APP106.includes("if (p.startsWith('/workspace') || p.startsWith('/curation')) return 'align-ws'")
+    && APP106.includes('.topbar-inner.align-page { max-width: 1440px; margin: 0 auto; padding: 0 24px; }')
+    && APP106.includes('.topbar-inner.align-ws { padding: 0 20px; }');
+});
+check('R106-3 F4 镜像卡三键：单击只读详情（表单禁交互+只读守卫）/ Ctrl+Enter 定位源卡 / 定位走 hl', () => {
+  return WSP106.includes('function openMirrorDetail(r: ResourceCard)')
+    && WSP106.includes('const drawerReadonly = ref(false)')
+    && WSP106.includes('.dr-body.dr-readonly .ref-form { pointer-events: none; }')
+    && WSP106.includes("if (drawerReadonly.value) { showToast('📡 镜像卡为引用——请到资源台编辑'); return }")
+    && WSP106.includes("router.push('/curation?hl=' + id)")
+    && WSP106.includes("if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); locateMirrorSourceCard() }");
+});
+check('R106-4 F7 一键清理本台镜像卡：只删投射（源卡保留）+ 确认框报数 + 仅策展台入口', () => {
+  return WSP106.includes('async function cleanAllMirrors()')
+    && WSP106.includes("if (pp.targetWsId === workspaceId.value && removeProjection(d.value, pp.id)) removed++")
+    && WSP106.includes('🧹 清理本台镜像卡')
+    && WSP106.includes("confirmText: '确认清理'");
+});
+check('R106-5 F5 性能：content 数据缓存 TTL 1.5s → 300s（onChanged 兜底新鲜度）', () => {
+  return OV106.includes('Date.now() - dataCacheAt < 300000') && !OV106.includes('- dataCacheAt < 1500');
+});
+check('R106-6 F3 精确 N 列已在仓（三套网格 + 文档口径）——由 R72-8 重指把守，此处守 cardCols 文档口径', () => {
+  return read('/shared/utils/cardCols.ts').includes('repeat(var(--grid-cols, N), minmax(0, 1fr))');
 });
 
 console.log('【第一百零五轮 · V2.74.0：P2 收官（B4 + C3 + D3 + E2 + W10）】');

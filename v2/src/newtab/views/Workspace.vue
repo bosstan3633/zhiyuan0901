@@ -86,6 +86,8 @@
       <div class="sm-item" @click="openImport">{{ isHub ? '⬇ 导入资源' : '⬇ 导入数据包' }}</div>
       <!-- 批量管理的入口也收进此处；**退出**仍留在一级（批量中显示「✓ 完成批量」） -->
       <div v-if="!batchMode" class="sm-item" @click="toggleBatchMode">☑ 批量管理</div>
+      <!-- R106（F7）：一键批量清理本台镜像卡（投射记录删除，源卡保留在资源台） -->
+      <div v-if="!isHub" class="sm-item" @click="cleanAllMirrors">🧹 清理本台镜像卡</div>
       <div class="sm-divider"></div>
       <div class="sm-item" @click="renameWs">✏️ 重命名</div>
       <div class="sm-item" @click="editDesc">📝 编辑描述</div>
@@ -516,7 +518,12 @@
     <div class="overlay" :class="{open: drawerOpen}" @click="closeDrawer"></div>
     <div class="drawer" :class="{open: drawerOpen}">
       <!-- 第卅九轮 #61：资源字段表单已抽至共享 ResourceEditForm（搜索抽屉 / 内联抽屉同源单份） -->
-      <div class="dr-body">
+      <!-- R106（F4）：镜像卡只读详情——表单禁交互（pointer-events），footer 换「定位回资源台编辑」；
+           Ctrl+Enter 语义随只读态切换为定位（用户拍板三键：单击详情 / 双击开链接 / Ctrl+Enter 定位） -->
+      <div class="dr-body" :class="{ 'dr-readonly': drawerReadonly }">
+        <div v-if="drawerReadonly" class="dr-readonly-banner">
+          📡 镜像卡为引用（只读）——编辑请到资源台；<span class="dr-ro-link" @click="locateMirrorSourceCard">定位到源卡 ›</span>
+        </div>
         <ResourceEditForm
           ref="resFormRef"
           :model="editingResource"
@@ -528,10 +535,16 @@
         />
       </div>
       <div class="dr-footer">
-        <button class="dr-footer-btn danger" @click="deleteCurrentResource">🗑 删除</button>
-        <button class="dr-footer-btn" @click="copyLink">🔗 复制链接</button>
-        <button class="dr-footer-btn" @click="openResourceLink(editingResource)">↗ 打开链接</button>
-        <button class="dr-footer-btn primary" @click="saveResource">✓ 保存</button>
+        <template v-if="drawerReadonly">
+          <button class="dr-footer-btn" @click="openResourceLink(editingResource)">↗ 打开链接</button>
+          <button class="dr-footer-btn primary" @click="locateMirrorSourceCard">📍 定位到资源台编辑</button>
+        </template>
+        <template v-else>
+          <button class="dr-footer-btn danger" @click="deleteCurrentResource">🗑 删除</button>
+          <button class="dr-footer-btn" @click="copyLink">🔗 复制链接</button>
+          <button class="dr-footer-btn" @click="openResourceLink(editingResource)">↗ 打开链接</button>
+          <button class="dr-footer-btn primary" @click="saveResource">✓ 保存</button>
+        </template>
       </div>
     </div>
 
@@ -1434,9 +1447,9 @@ let clickTimer: ReturnType<typeof setTimeout> | null = null
 function onCardClick(r: ResourceCard) {
   if (batchMode.value) { toggleSelect(r.id); return }
   if (isMirrorView(r)) {
-    // R61：镜像卡单击 = 只读提示（编辑请到资源台；双击打开链接照常）
+    // R106（F4）：镜像卡单击 = 打开只读详情（编辑定位回资源台；双击打开链接照常）
     if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return }
-    clickTimer = setTimeout(() => { clickTimer = null; showToast('📡 镜像卡为引用（源在资源台）——双击打开链接，编辑请定位到资源台') }, 260)
+    clickTimer = setTimeout(() => { clickTimer = null; openMirrorDetail(r) }, 260)
     return
   }
   if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return }
@@ -1489,7 +1502,42 @@ function addResourceToCategory(catId: string) {
   isNewResource.value = true
   drawerOpen.value = true
 }
+/** R106（F4）：镜像卡只读详情态——表单禁交互、footer 换定位按钮、Ctrl+Enter=定位源卡。
+ *  镜像 id 即源卡 id（boardCardsOf 浅拷贝），定位走 /curation?hl=<id>（redirect 透传 query）。 */
+const drawerReadonly = ref(false)
+function openMirrorDetail(r: ResourceCard) {
+  Object.assign(editingResource, JSON.parse(JSON.stringify(r)))
+  drawerOriginalWsId = editingResource.workspaceId
+  isNewResource.value = false
+  drawerReadonly.value = true
+  drawerOpen.value = true
+}
+/** R106（F7）：一键清理本台全部镜像卡——只删投射记录（removeProjection），源卡保留在资源台。
+ *  确认框报数；空台直接提示。源卡如需重建镜像，走资源台 📡 推送即可。 */
+async function cleanAllMirrors() {
+  const n = (d.value.curationProjections || []).filter(pp => pp.targetWsId === workspaceId.value).length
+  if (!n) { showToast('ℹ 本台没有镜像卡'); return }
+  if (!(await useConfirm({
+    title: '清理本台镜像卡',
+    message: `将移出本台全部 ${n} 张镜像卡（只删引用，源卡保留在资源台；可随时重新镜像）。继续？`,
+    confirmText: '确认清理'
+  }))) return
+  let removed = 0
+  for (const pp of [...(d.value.curationProjections || [])]) {
+    if (pp.targetWsId === workspaceId.value && removeProjection(d.value, pp.id)) removed++
+  }
+  store.persist()
+  showToast(`✓ 已清理 ${removed} 张镜像卡（源卡保留在资源台）`)
+}
+function locateMirrorSourceCard() {
+  const id = editingResource.id
+  drawerReadonly.value = false
+  closeDrawer()
+  router.push('/curation?hl=' + id)
+  showToast('↗ 已定位到资源台源卡')
+}
 function openResource(r: ResourceCard) {
+  drawerReadonly.value = false
   Object.assign(editingResource, JSON.parse(JSON.stringify(r)))
   drawerOriginalWsId = editingResource.workspaceId
   isNewResource.value = false
@@ -1498,8 +1546,21 @@ function openResource(r: ResourceCard) {
   recordResourceOpen(d.value, r)
   store.persist()
 }
+// R106（F4）：只读详情期 Ctrl+Enter = 定位源卡——document 捕获（焦点常在 body，元素级绑不住）；closeDrawer/watch 双路摘除
+function onRoCtrlEnter(e: KeyboardEvent) {
+  if (!drawerOpen.value || !drawerReadonly.value) return
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); locateMirrorSourceCard() }
+}
+watch(drawerReadonly, (v) => {
+  if (v) document.addEventListener('keydown', onRoCtrlEnter, true)
+  else document.removeEventListener('keydown', onRoCtrlEnter, true)
+})
+watch(drawerOpen, (v) => { if (!v) { drawerReadonly.value = false; document.removeEventListener('keydown', onRoCtrlEnter, true) } })
+onUnmounted(() => document.removeEventListener('keydown', onRoCtrlEnter, true))
+
 function closeDrawer() { drawerOpen.value = false }
 function saveResource() {
+  if (drawerReadonly.value) { showToast('📡 镜像卡为引用——请到资源台编辑'); return } // R106（F4）：只读守卫（防 Tab 聚焦写穿）
   if (!editingResource.title.trim()) { showToast('请输入标题'); return }
   // REQ-004：检测是否跨策展台迁移，保存后给出迁移反馈
   const wsChanged = !isNewResource.value && !!drawerOriginalWsId && editingResource.workspaceId !== drawerOriginalWsId
@@ -2743,8 +2804,8 @@ function linkDisplay(link: string) {
 .ws-cat-collapse { font-size: 10px; color: var(--text-4); transition: transform .18s ease; }
 
 /* 卡片视图（第卅三轮 REQ-026：间距/内边距/最小宽引用 tokens 密度令牌，一处切换全局生效） */
-/* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 --card-min-w */
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(var(--card-min-w), calc((100% - (var(--grid-cols, 5) - 1) * var(--card-gap)) / var(--grid-cols, 5))), 1fr)); gap: var(--card-gap); }
+/* R72→R106（F3）：卡片视图列数由 --grid-cols 驱动（4/5/6/7），精确 N 列 + 卡片宽度自适应收缩（密度档经 --card-gap 保持） */
+.card-grid { display: grid; /* R106（F3）：精确 N 列（同 F3 口径，资源台/策展台共用） */ grid-template-columns: repeat(var(--grid-cols, 5), minmax(0, 1fr)); gap: var(--card-gap); }
 .res-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .res-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
 .res-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: var(--card-pad-vert) var(--card-pad-horz); cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; min-height: 120px; /* R55-F4：屏外卡片跳过渲染（切策展台 595ms 的渲染段优化） */ content-visibility: auto; contain-intrinsic-size: auto 132px; }
@@ -2879,6 +2940,13 @@ function linkDisplay(link: string) {
 .drawer { position: fixed; top: 0; right: 0; width: 440px; height: 100%; background: var(--surface); z-index: 201; transform: translateX(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); box-shadow: 0 10px 36px rgba(0,0,0,.08); display: flex; flex-direction: column; }
 .drawer.open { transform: translateX(0); }
 .dr-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
+/* R106（F4）：镜像卡只读详情——banner 提示 + 表单禁交互（pointer-events 关闭，滚动/选区不受影响的是容器） */
+.dr-readonly-banner { margin: 0 0 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); font-size: 12px; color: var(--text-2); }
+.dr-readonly-banner .dr-ro-link { color: var(--accent); cursor: pointer; }
+.dr-readonly-banner .dr-ro-link:hover { text-decoration: underline; }
+.dr-body.dr-readonly .ref-form { pointer-events: none; }
+.dr-body.dr-readonly .ref-form .ref-close { pointer-events: auto; } /* 关闭按钮保留 */
+.dr-body.dr-readonly { user-select: none; }
 .dr-footer { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
 .dr-footer-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px; border-radius: 8px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all .15s; font-family: inherit; }
 .dr-footer-btn:hover { border-color: var(--accent); color: var(--accent); }

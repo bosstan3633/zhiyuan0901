@@ -40,6 +40,17 @@ const themes = [
   { id: 'notion', name: '纸墨白', dot: '#2383E2' }
 ]
 
+/** R106（F2）：顶栏内容容器按当前路由对齐各页正文容器——
+ *  调度台/方向台 1440 居中 · 资源台/策展台 满宽 20px · 设置 1200 · 手册 1120；
+ *  顶栏左缘 = 当前页正文左缘（生产反馈：宽窗口下页签贴窗缘而正文居中）。 */
+const topbarAlign = computed(() => {
+  const p = route.path
+  if (p.startsWith('/workspace') || p.startsWith('/curation')) return 'align-ws'
+  if (p.startsWith('/settings')) return 'align-settings'
+  if (p.startsWith('/manual')) return 'align-manual'
+  return 'align-page'
+})
+
 // 策展台折叠状态
 const workspacesCollapsed = ref(false)
 const themeOpen = ref(false)
@@ -404,7 +415,8 @@ const backupReminderDot = computed(() => {
 <template>
   <div class="app-shell" @click="menuWs && closeMenu(); themeOpen && (themeOpen = false)">
     <header class="topbar">
-      <nav class="tabs"> @mouseleave="wsOverflowOpen = false"
+      <div class="topbar-inner" :class="topbarAlign">
+      <nav class="tabs" @mouseleave="wsOverflowOpen = false">
         <!-- 固定页：调度台 / 方向台 / 资源台（R49 三大系统页） -->
         <div class="tab" :class="{active: activeTab === 'home'}" @click="navigate('/')">
           <img :src="logoUrl" class="home-logo" alt="知源调度台">调度台
@@ -496,6 +508,7 @@ const backupReminderDot = computed(() => {
           <span v-if="backupReminderDot" class="bell-dot" title="建议导出备份" />
         </div>
       </div>
+      </div><!-- /topbar-inner（R105-F2：顶栏与正文容器对齐） -->
     </header>
 
     <main class="page-container">
@@ -540,7 +553,13 @@ const backupReminderDot = computed(() => {
 
 <style scoped>
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
-.topbar { position: sticky; top: 0; z-index: 100; height: 56px; display: flex; align-items: center; padding: 0 20px; gap: 2px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+.topbar { position: sticky; top: 0; z-index: 100; height: 56px; display: flex; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+/* R106（F2）：顶栏内容容器按路由对齐各页正文容器（左缘一致） */
+.topbar-inner { flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; }
+.topbar-inner.align-page { max-width: 1440px; margin: 0 auto; padding: 0 24px; }
+.topbar-inner.align-ws { padding: 0 20px; }
+.topbar-inner.align-settings { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+.topbar-inner.align-manual { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }
 .home-logo { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
 .tab { padding: 7px 12px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color .15s ease, background .15s ease; position: relative; white-space: nowrap; }

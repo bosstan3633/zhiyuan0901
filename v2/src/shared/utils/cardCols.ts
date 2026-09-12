@@ -5,12 +5,14 @@
  * 资源台·策展台（card-grid、cur-grid）。偏好写入 `UIPrefs.cardCols[<模块键>]`，
  * 与 `density` / `sortPrefs` / `taHeights` 同为本地记忆（zy_ui_v2，不随数据同步）。
  *
- * 列数**不是**硬写死的 `repeat(N, 1fr)`——那样窄容器下卡片会被压扁。网格模板统一表达为：
+ * 网格模板（R106-F3 起统一为**精确 N 列**）：
  *
- *   repeat(auto-fill, minmax(max(<最小卡宽>, (100% - (N-1) * <卡间距>) / N), 1fr))
+ *   repeat(var(--grid-cols, N), minmax(0, 1fr))
  *
- * 语义 = 「首选 N 列；容器放不下 N 列时自动降列，卡片始终保持最小可用宽度」，
- * 即需求中的「卡片大小自适应」。
+ * 语义 = 「选中 N 就渲染 N 列，卡片宽度自适应收缩」。R72 原公式
+ * `auto-fill minmax(max(最小卡宽, (100%-(N-1)*gap)/N), 1fr)` 在恰好 N 列时因浏览器
+ * 取整差一位（如 5.998 → 实渲染 N-1 列），6/7 列永远不生效（生产反馈）；
+ * 应用户拍板（2026-09-12）废弃「放不下自动降列」，改为精确 N 列 + 卡片自适应收缩。
  */
 import { computed } from 'vue'
 import { saveUIPrefs } from '@/shared/storage/repository'

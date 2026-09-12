@@ -46,7 +46,10 @@ function isProjDone(p: any, d: any): boolean {
   return ts.length > 0 && ts.every((t: any) => t.status === 'done')
 }
 async function getData(): Promise<any> {
-  if (dataCache && Date.now() - dataCacheAt < 1500) return dataCache
+  // R106（F5）：TTL 1.5s → 300s——storage.onChanged 已实时兜底新鲜度（上方监听），
+  // 过短的 TTL 只会让每次打开浮层都全量重读 + JSON.parse 整库（生产反馈：采集卡顿的正源之一）。
+  // loadShowDonePref 同受此守卫（不再每次 getData 都读 zy_ui_v2）。
+  if (dataCache && Date.now() - dataCacheAt < 300000) return dataCache
   const d = await loadData()
   dataCache = d
   dataCacheAt = Date.now()

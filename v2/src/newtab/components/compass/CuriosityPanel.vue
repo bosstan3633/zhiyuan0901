@@ -653,7 +653,7 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
 .cz-view-btn.active { background: var(--accent-light); color: var(--accent); }
 .cz-batch-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--accent-light); border-radius: var(--radius-sm); margin-bottom: 14px; font-size: 12px; color: var(--accent); font-weight: 500; }
 /* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 200px */
-.cz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(200px, calc((100% - (var(--grid-cols, 4) - 1) * 12px) / var(--grid-cols, 4))), 1fr)); gap: 12px; }
+.cz-grid { display: grid; /* R106（F3）：精确 N 列——选中 N 即渲染 N 列，卡片宽度自适应收缩（含看板外全部视图） */ grid-template-columns: repeat(var(--grid-cols, 4), minmax(0, 1fr)); gap: 12px; }
 .cz-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .cz-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
 .cz-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; cursor: pointer; transition: all .15s; position: relative; overflow: hidden; }
