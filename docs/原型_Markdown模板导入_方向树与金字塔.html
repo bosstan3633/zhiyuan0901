@@ -2,94 +2,105 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>原型 · Markdown 模板导入（方向树 × 策展台金字塔）｜仅供评审</title>
+<title>原型 v2 · Markdown 模板导入（方向树 × 策展台金字塔）｜仅供评审</title>
 <style>
-:root{--bg:#010102;--surface:#0D0E12;--surface2:#15161C;--surface3:#1D1F26;--border:#23252A;--border2:#34343A;--text:#F7F8F8;--text2:#D0D6E0;--text3:#8A8F98;--text4:#62666D;--accent:#5E6AD2;--accent2:#7A86E8;--accent-light:rgba(94,106,210,.14);--warn:#D9A03C;--ok:#6FCE8B;--danger:#E5484D;--radius:12px;--rads:8px}
+:root{--bg:#010102;--surface:#0D0E12;--surface2:#15161C;--surface3:#1D1F26;--border:#23252A;--border2:#34343A;--text:#F7F8F8;--text2:#D0D6E0;--text3:#8A8F98;--text4:#62666D;--accent:#5E6AD2;--accent2:#7A86E8;--accent-light:rgba(94,106,210,.14);--warn:#D9A03C;--ok:#6FCE8B;--radius:12px;--rads:8px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.6;min-height:100vh}
 .badge{position:fixed;top:14px;right:18px;z-index:99;font-size:11px;color:var(--warn);border:1px dashed var(--warn);border-radius:99px;padding:3px 12px;background:rgba(217,160,60,.08)}
-.wrap{max-width:1280px;margin:0 auto;padding:28px 24px 80px}
+.wrap{max-width:1320px;margin:0 auto;padding:28px 24px 80px}
 h1.proto-title{font-size:19px;font-weight:700;letter-spacing:.3px}
-.proto-sub{font-size:12px;color:var(--text3);margin:4px 0 18px}
-.tabs{display:flex;gap:6px;margin-bottom:16px}
+.proto-sub{font-size:12px;color:var(--text3);margin:4px 0 6px}
+.rule{font-size:12px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin-bottom:14px}
+.rule b{color:var(--accent2)}
+.tabs{display:flex;gap:6px;margin:14px 0 16px}
 .tab{padding:8px 18px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-size:13px;transition:all .15s}
 .tab.on{color:#fff;background:var(--accent);border-color:var(--accent)}
-.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.cols{display:grid;grid-template-columns:1fr 1.15fr;gap:16px;align-items:start}
 .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
-.p-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px}
-.p-head .en{font-size:9px;color:var(--text4);letter-spacing:1.2px;font-weight:400}
+.p-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;flex-wrap:wrap}
 .p-head .hint{margin-left:auto;font-size:11px;color:var(--text3);font-weight:400}
-textarea.md{width:100%;min-height:420px;background:var(--surface2);border:none;outline:none;color:var(--text2);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.75;padding:14px 16px;resize:vertical}
-.preview{padding:14px 16px;min-height:420px}
-.stat{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
-.stat .chip{font-size:11px;color:var(--text2);background:var(--surface3);border:1px solid var(--border);border-radius:99px;padding:3px 12px;font-variant-numeric:tabular-nums}
-.stat .chip b{color:#fff}
-.stat .chip.skip{color:var(--warn)}
+textarea.md{width:100%;min-height:430px;background:var(--surface2);border:none;outline:none;color:var(--text2);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.75;padding:14px 16px;resize:vertical}
+.preview{padding:14px 16px;min-height:430px;max-height:560px;overflow:auto}
 .notice{margin:0 16px 10px;padding:8px 12px;border-radius:8px;background:rgba(217,160,60,.1);border:1px solid rgba(217,160,60,.4);color:var(--warn);font-size:12px;display:none}
 .opt{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);margin:0 16px 10px;cursor:pointer}
 .actions{padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
 .btn{padding:7px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:12.5px;cursor:pointer;font-family:inherit}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
-.btn.primary:hover{background:var(--accent2)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-/* 树预览（场景A） */
-.tree .proj{border:1px solid var(--border);border-radius:var(--rads);margin-bottom:10px;background:var(--surface2)}
-.tree .proj-h{padding:8px 12px;display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;border-bottom:1px solid var(--border)}
-.tree .proj-h .tagp{font-size:9.5px;color:var(--accent);background:var(--accent-light);padding:1px 8px;border-radius:99px}
-.tree .met{padding:6px 12px 6px 26px;font-size:12.5px;color:var(--text2)}
+.stat{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.stat .chip{font-size:11px;color:var(--text2);background:var(--surface3);border:1px solid var(--border);border-radius:99px;padding:3px 12px;font-variant-numeric:tabular-nums}
+.stat .chip b{color:#fff}
+.stat .chip.warn{color:var(--warn)}
+.tree .proj{border:1px solid var(--border);border-radius:var(--rads);margin-bottom:12px;background:var(--surface2)}
+.tree .proj-h{padding:9px 14px;display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tree .proj-h .tagp{font-size:9.5px;color:var(--accent);background:var(--accent-light);padding:1px 8px;border-radius:99px;flex-shrink:0}
+.tree .proj-h .cnt{margin-left:auto;font-size:10.5px;color:var(--text4);font-variant-numeric:tabular-nums}
+.tree .met{padding:7px 14px 3px 28px;font-size:12.5px;color:var(--text2);font-weight:600}
 .tree .met::before{content:"◎ ";color:var(--accent)}
-.tree .task{padding:4px 12px 4px 46px;font-size:12px;color:var(--text3);position:relative}
-.tree .task::before{content:"○";position:absolute;left:30px;color:var(--text4)}
-.tree .task .desc{display:block;font-size:11px;color:var(--text4);padding-left:2px;white-space:pre-wrap}
-.tree .dup{color:var(--warn)}
-.tree .dup::after{content:" · 同名跳过";font-size:10.5px}
+.tree .met .auto{color:var(--warn);font-size:10.5px;font-weight:400}
+.tree .task{margin:2px 14px 6px 44px;padding:6px 10px;background:var(--surface3);border-radius:6px;font-size:12px}
+.tree .task .tn{color:var(--text2);font-weight:500}
+.tree .task .td{font-size:11px;color:var(--text4);margin-top:3px;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.tree .task.dup{opacity:.55}
+.tree .task.dup .tn::after{content:" · 同名跳过";color:var(--warn);font-size:10.5px}
+.tree .warnline{font-size:10.5px;color:var(--warn)}
 .empty{color:var(--text4);font-size:12.5px;text-align:center;padding:60px 0}
-/* 金字塔预览（场景B） */
-.pyr{display:flex;flex-direction:column;align-items:center;gap:0;padding:8px 0}
-.l1{background:linear-gradient(180deg,rgba(94,106,210,.25),rgba(94,106,210,.1));border:1px solid var(--accent);border-radius:10px;padding:10px 26px;text-align:center;min-width:220px}
-.l1 .t{font-weight:700;font-size:14px}
-.l1 .lb{font-size:9.5px;color:var(--accent);letter-spacing:1px}
-.l2row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:14px}
-.node{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rads);padding:8px 12px;min-width:170px;max-width:260px;font-size:12.5px}
-.node .t{font-weight:600;display:flex;gap:6px;align-items:center}
-.node .lb{font-size:9px;color:var(--text4);letter-spacing:.8px;margin-left:auto}
-.node .card{margin-top:6px;border-top:1px dashed var(--border2);padding-top:6px;font-size:11px;color:var(--text3)}
-.node .card::before{content:"📄 卡片 · ";color:var(--accent);font-size:10px}
-.node .card .d{white-space:pre-wrap;color:var(--text4);font-size:10.5px;margin-top:2px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.kids{margin-top:8px;display:flex;flex-direction:column;gap:6px}
-.kids .node{min-width:0;width:100%}
-.l3row{margin-top:8px;display:flex;flex-direction:column;gap:6px;border-left:1px solid var(--border2);padding-left:10px}
 .okbar{margin-top:14px;padding:12px 16px;border-radius:var(--rads);background:rgba(111,206,139,.08);border:1px solid rgba(111,206,139,.35);color:var(--ok);font-size:12.5px;display:none}
 .okbar b{color:#fff}
+.pyr{display:flex;flex-direction:column;align-items:center}
+.l1{background:linear-gradient(180deg,rgba(94,106,210,.28),rgba(94,106,210,.1));border:1px solid var(--accent);border-radius:10px;padding:10px 28px;text-align:center;min-width:240px;max-width:460px}
+.l1 .lb{font-size:9.5px;color:var(--accent);letter-spacing:1.5px}
+.l1 .t{font-weight:700;font-size:14.5px}
+.l1 .card{margin-top:6px;border-top:1px dashed rgba(94,106,210,.4);padding-top:6px;font-size:11px;color:var(--text3);text-align:left}
+.l1 .card .d{white-space:pre-wrap;color:var(--text4);font-size:10.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.l2row{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:16px;align-items:flex-start}
+.node{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rads);padding:10px 12px;width:250px;font-size:12.5px}
+.node.promoted{border-color:var(--warn)}
+.node .t{font-weight:600;display:flex;gap:6px;align-items:center}
+.node .t .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.node .lb{font-size:9px;color:var(--text4);letter-spacing:.8px;margin-left:auto;flex-shrink:0}
+.node.promoted .lb{color:var(--warn)}
+.node .card{margin-top:7px;border-top:1px dashed var(--border2);padding-top:7px;font-size:11px;color:var(--text3)}
+.node .card::before{content:"📄 节点卡片 · ";color:var(--accent);font-size:10px}
+.node .card .d{white-space:pre-wrap;color:var(--text4);font-size:10.5px;margin-top:2px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.kids{margin-top:9px;display:flex;flex-direction:column;gap:8px}
+.sub{border-left:1px solid var(--border2);padding-left:10px;display:flex;flex-direction:column;gap:8px}
+.sub .node{width:100%}
 </style>
-<div class="badge">原型 · 仅供评审 · 非实装界面</div>
+</head>
+<body>
+<div class="badge">原型 v2 · 仅供评审 · 非实装界面</div>
 <div class="wrap">
-  <h1 class="proto-title">Markdown 模板导入 · 交互原型</h1>
-  <div class="proto-sub">设计方案见《04-55 设计方案》｜左栏可编辑（试试改标题层级/增删内容），右栏实时解析预览 ｜ <b style="color:var(--warn)">两个场景均为模拟，不会写入真实数据</b></div>
+  <h1 class="proto-title">Markdown 模板导入 · 交互原型 v2</h1>
+  <div class="proto-sub">按评审意见重做解析：左栏可编辑（试试增删标题、调层级、把正文挪位置），右栏实时按规则解析预览｜<b style="color:var(--warn)">两场景均为模拟，不写入真实数据</b></div>
   <div class="tabs">
-    <div class="tab on" id="tabA" onclick="sw('A')">场景 A · 方向树：项目 / 指标 / 任务</div>
-    <div class="tab" id="tabB" onclick="sw('B')">场景 B · 策展台：金字塔 / 节点卡片</div>
+    <div class="tab on" id="tabA" onclick="sw('A')">场景 A · 方向树：战略目标下批量导入项目 / 指标 / 任务</div>
+    <div class="tab" id="tabB" onclick="sw('B')">场景 B · 策展台：金字塔批量导入（论点 + 节点卡片）</div>
   </div>
 
-  <!-- 场景 A -->
   <div id="paneA">
+    <div class="rule">解析规则：<b># 一级标题 = 项目名称</b>（可多个）｜ <b>## 二级标题 = 该项目的成功指标</b> ｜ <b>### 三级标题 = 该指标下的任务名称</b> ｜ <b>### 标题之下的正文 = 该任务的详情</b>（多段合并；四级及以下标题并入任务详情）</div>
     <div class="cols">
       <div class="panel">
-        <div class="p-head">📋 粘贴标准化 Markdown<span class="hint"># 项目 · ## 成功指标 · ### 任务（下接正文=详情）</span></div>
+        <div class="p-head">📋 粘贴标准化 Markdown<span class="hint">导入目标：战略目标「AI 知识管理+内容生产专家」（弹窗标题锁定）</span></div>
         <textarea class="md" id="mdA" spellcheck="false"># AI 知识管理专家
 ## 内容产能
 ### 每周产出 3 篇深度教程
-围绕 workbuddy 培训项目，固定周三/周六发布，先出大纲再成文。
+围绕 workbuddy 培训项目，固定每周三、周六发布。
+先出大纲再成文，发布后复盘数据。
 ### 建立素材库
+按「案例 / 数据 / 金句 / 框架」四类归档，每周整理一次。
 ## 课程产品
 ### 搭建课程 V1.0
 完成大纲、录制与上架，跑通首个付费闭环。
+产出：课程落地页 + 3 节试听。
 </textarea>
       </div>
       <div class="panel">
-        <div class="p-head">预览 · 将创建（目标：战略目标「AI 知识管理+内容生产专家」）</div>
+        <div class="p-head">预览 · 将创建的结构</div>
         <div class="notice" id="noticeA"></div>
-        <label class="opt"><input type="checkbox" id="skipA" checked onchange="renderA()"> 跳过同名项（幂等，防重复导入）</label>
+        <label class="opt"><input type="checkbox" id="skipA" checked onchange="renderA()"> 跳过同名项（幂等：防重复导入；模拟已存在「AI 知识管理专家」）</label>
         <div class="preview"><div class="tree" id="prevA"></div></div>
         <div class="stat" id="statA"></div>
         <div class="actions"><button class="btn" onclick="resetA()">重置示例</button><button class="btn primary" id="goA" onclick="doA()">确认导入</button></div>
@@ -98,25 +109,28 @@ textarea.md{width:100%;min-height:420px;background:var(--surface2);border:none;o
     </div>
   </div>
 
-  <!-- 场景 B -->
   <div id="paneB" style="display:none">
+    <div class="rule">解析规则：<b># 一级标题 = 中心论点</b>（仅一个，多余忽略并提示）｜ <b>## 二级标题 = 第二层节点</b> ｜ <b>### 三级标题 = 第三层节点</b>（隶属上一个二级）｜ <b>#### 四级标题 = 第四层节点</b>（隶属上一个三级）｜ <b>标题下的正文 = 该节点卡片的描述内容</b>——父子关系由标题层级与出现顺序判定</div>
     <div class="cols">
       <div class="panel">
-        <div class="p-head">📋 粘贴标准化 Markdown<span class="hint"># 中心论点 · ## L2 · ### L3 · #### L4（下接正文=节点卡片详情）</span></div>
+        <div class="p-head">📋 粘贴标准化 Markdown<span class="hint">导入目标：策展台「行业洞察」（金字塔视图）</span></div>
         <textarea class="md" id="mdB" spellcheck="false"># 个人品牌靠"可验证的案例"立足
 ## 方法论
 ### 案例先行
+每个主张都配一个可复盘的完整案例，拒绝空谈。
 ### 数据佐证
-用前后对比数据支撑每一处主张，拒绝空谈。
+用前后对比数据支撑每一处主张。
 ## 案例
 ### workbuddy 培训项目
 从 0 到 1 的培训产品设计、交付与复盘全过程。
+#### 阶段一：需求定位
+先锁定岗位与人群，再做需求访谈。
 </textarea>
       </div>
       <div class="panel">
-        <div class="p-head">预览 · 金字塔结构（策展台「行业洞察」）</div>
+        <div class="p-head">预览 · 金字塔结构（每节点 = 一张新建卡片：名称 = 标题，描述 = 正文）</div>
         <div class="notice" id="noticeB"></div>
-        <label class="opt"><input type="checkbox" id="hasThesis" onchange="renderB()"> 模拟：本台已设中心论点（H1 将被忽略并提示）</label>
+        <label class="opt"><input type="checkbox" id="hasTh" onchange="renderB()"> 模拟：本台<b>未设中心论点</b>（勾选 = H1 生效；取消勾选 = 本台已设论点，H1 被忽略并提示）</label>
         <div class="preview"><div class="pyr" id="prevB"></div></div>
         <div class="stat" id="statB"></div>
         <div class="actions"><button class="btn" onclick="resetB()">重置示例</button><button class="btn primary" id="goB" onclick="doB()">确认导入</button></div>
@@ -128,68 +142,143 @@ textarea.md{width:100%;min-height:420px;background:var(--surface2);border:none;o
 <script>
 const SAMPLE_A = document.getElementById('mdA').value
 const SAMPLE_B = document.getElementById('mdB').value
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function sw(w){for(const t of ['A','B']){document.getElementById('tab'+t).classList.toggle('on',t===w);document.getElementById('pane'+t).style.display=t===w?'':'none'}}
-function parseMd(src){
-  const out=[];let cur1=null,cur2=null,cur3=null,body=[]
-  const flush=()=>{if(cur3){cur3.body=body.join('\n').trim();cur1&&cur2&&cur2.tasks.push(cur3);cur3=null}else if(cur2){cur2.body=body.join('\n').trim()}else if(cur1){cur1.body=body.join('\n').trim()}body=[]}
-  for(const raw of src.split(/\r?\n/)){
-    const line=raw.trimEnd()
-    const m=line.match(/^(#{1,6})\s+(.+)$/)
-    if(m){flush();const lv=m[1].length,name=m[2].trim()
-      if(lv===1){cur1={name,metrics:[],body:''};out.push(cur1);cur2=null;cur3=null}
-      else if(lv===2){if(!cur1)continue;cur2={name,tasks:[],body:''};cur1.metrics.push(cur2);cur3=null}
-      else{if(!cur1)continue;if(!cur2){cur2={name:'通用执行',tasks:[],body:'',auto:true};cur1.metrics.push(cur2)}cur3={name,tasks:[],body:''};cur2.tasks.push(cur3)}
-    } else if(line.trim()) body.push(line)
+
+/* ===== 场景 A 解析：H1 项目 / H2 指标 / H3 任务 / 正文=任务详情（H4+ 并入详情） ===== */
+function parseA(src){
+  const projects=[], warns=[]
+  let curP=null, curM=null, curT=null, body=[]
+  const flush=()=>{
+    const text=body.join('\n').trim(); body=[]
+    if(!text) return
+    if(curT) curT.detail = curT.detail ? curT.detail+'\n\n'+text : text
+    else warns.push('检测到不属于任何任务的正文（将忽略）——任务详情请写在 ### 三级标题之下')
   }
-  flush();return out
+  for(const raw of src.split(/\r?\n/)){
+    const line=raw.replace(/\s+$/,'')
+    const m=line.match(/^(#{1,6})\s+(.+)$/)
+    if(m){
+      flush()
+      const lv=m[1].length, name=m[2].trim()
+      if(lv===1){ curP={name,metrics:[],warns:[]}; projects.push(curP); curM=null; curT=null }
+      else if(lv===2){
+        if(!curP){ warns.push('检测到 H2 先于 H1——已自动创建项目承接'); curP={name:'未命名项目（自动创建）',metrics:[],warns:['H2 出现在任何 H1 之前——已自动创建项目承接']}; projects.push(curP) }
+        curM={name,tasks:[],auto:false}; curP.metrics.push(curM); curT=null
+      }
+      else if(lv===3){
+        if(!curP){ warns.push('检测到 H3 先于 H1——已自动创建项目承接'); curP={name:'未命名项目（自动创建）',metrics:[],warns:['H3 出现在任何 H1 之前——已自动创建项目承接']}; projects.push(curP); curM=null }
+        if(!curM){ curM={name:'通用执行',tasks:[],auto:true}; curP.metrics.push(curM); warns.push(`「${name}」前无二级标题——已自动创建指标「通用执行」承接`) }
+        curT={name,detail:''}; curM.tasks.push(curT)
+      }
+      else { body.push(line) }
+    } else if(line.trim()){ body.push(line) }
+  }
+  flush()
+  return {projects, warns}
 }
 function resetA(){document.getElementById('mdA').value=SAMPLE_A;renderA();document.getElementById('okA').style.display='none'}
-function resetB(){document.getElementById('mdB').value=SAMPLE_B;renderB();document.getElementById('okB').style.display='none'}
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')}
 let A_DATA=null
 function renderA(){
-  const src=document.getElementById('mdA').value,skip=document.getElementById('skipA').checked
-  const tree=parseMd(src);A_DATA=tree
-  const existing=new Set(['workbuddy 培训项目'])
-  let p=0,me=0,t=0,sk=0,html=''
-  for(const pr of tree){p++;const dupP=skip&&existing.has(pr.name);if(dupP)sk++;else me+=pr.metrics.length
-    html+=`<div class="proj"><div class="proj-h"><span class="tagp">项目</span><span class="${dupP?'dup':''}">${esc(pr.name)}</span></div>`
-    for(const m of pr.metrics){me+=dupP?0:1;html+=`<div class="met">${esc(m.name)}${m.auto?' <span style="color:var(--warn);font-size:10.5px">（自动创建：H3 跳级容错）</span>':''}</div>`
-      for(const tk of m.tasks){t+=dupP?0:1;html+=`<div class="task${skip&&existing.has(tk.name)?' dup':''}">${esc(tk.name)}${tk.body?`<span class="desc">${esc(tk.body)}</span>`:''}</div>`}}
-    html+='</div>'}
+  const src=document.getElementById('mdA').value, skip=document.getElementById('skipA').checked
+  const {projects,warns}=parseA(src); A_DATA=projects
+  const existing=new Set(['AI 知识管理专家'])
+  let p=0, me=0, t=0, sk=0, html=''
+  for(const pr of projects){
+    p++
+    const dupP = skip && existing.has(pr.name); if(dupP) sk++
+    let mCnt=0, tCnt=0
+    let inner=''
+    for(const m of pr.metrics){
+      const dupM = skip && existing.has(m.name)
+      if(!dupP){ if(dupM) sk++; else me++; mCnt++ }
+      inner+=`<div class="met">${esc(m.name)}${m.auto?' <span class="auto">（自动创建：H3 跳级容错）</span>':''}${dupM?' <span class="warnline">同名跳过</span>':''}</div>`
+      for(const tk of m.tasks){
+        const dupT = skip && existing.has(tk.name)
+        if(!dupP && !dupM){ if(dupT) sk++; else t++; tCnt++ }
+        inner+=`<div class="task${(dupT||dupP)?' dup':''}"><span class="tn">${esc(tk.name)}</span>${tk.detail?`<span class="td">${esc(tk.detail)}</span>`:'<span class="td">（无详情）</span>'}</div>`
+      }
+    }
+    html+=`<div class="proj"><div class="proj-h"><span class="tagp">项目</span><span style="${dupP?'color:var(--warn)':''}">${esc(pr.name)}</span><span class="cnt">${mCnt} 指标 · ${tCnt} 任务</span></div>${pr.warns.map(w=>`<div class="warnline" style="padding:4px 14px 0">${esc(w)}</div>`).join('')}${inner}</div>`
+  }
   document.getElementById('prevA').innerHTML=html||'<div class="empty">未识别到项目（# 一级标题）——解析失败不写入任何数据</div>'
-  document.getElementById('noticeA').style.display=(!tree.length&&src.trim())?'block':'none'
-  document.getElementById('noticeA').textContent='⚠ 未识别到项目（一级标题）——请检查格式'
-  document.getElementById('statA').innerHTML=`<span class="chip">项目 <b>${p}</b></span><span class="chip">成功指标 <b>${me}</b></span><span class="chip">任务 <b>${t}</b></span>${sk?`<span class="chip skip">同名跳过 ${sk}</span>`:''}`
-  document.getElementById('goA').disabled=!tree.length
+  const notice=document.getElementById('noticeA')
+  notice.style.display=warns.length?'block':'none'
+  notice.innerHTML=warns.map(esc).join('<br>')
+  document.getElementById('statA').innerHTML=`<span class="chip">项目 <b>${p}</b></span><span class="chip">成功指标 <b>${me}</b></span><span class="chip">任务 <b>${t}</b></span>${sk?`<span class="chip warn">同名跳过 ${sk}</span>`:''}`
+  document.getElementById('goA').disabled=!projects.length
 }
-function doA(){const d=A_DATA||[];let p=0,me=0,t=0;for(const pr of d){p++;me+=pr.metrics.length;for(const m of pr.metrics)t+=m.tasks.length}
-  const bar=document.getElementById('okA');bar.style.display='block';bar.innerHTML=`✓ 模拟导入成功：将在战略目标下创建 <b>${p} 个项目 · ${me} 个成功指标 · ${t} 个任务</b>（含任务详情）。<b>原型示意——实装后此步写入真实数据。</b>`}
+function doA(){const d=A_DATA||[];let p=0,me=0,t=0;for(const pr of d){p++;for(const m of pr.metrics){me++;t+=m.tasks.length}}
+  const bar=document.getElementById('okA');bar.style.display='block'
+  bar.innerHTML=`✓ 模拟导入成功：将在战略目标「AI 知识管理+内容生产专家」之下创建 <b>${p} 个项目 · ${me} 个成功指标 · ${t} 个任务</b>（任务详情一并写入）。<b>原型示意——实装后此步写入真实数据并刷新方向树。</b>`}
+
+/* ===== 场景 B 解析：H1 论点 / H2=L2 / H3=L3 / H4=L4，正文=节点卡片描述（严格按层级嵌套） ===== */
+function parseB(src){
+  const warns=[]; let thesis=null; const extraH1=[]
+  let cur2=null, cur3=null, curNode=null, body=[]
+  const flush=()=>{
+    const text=body.join('\n').trim(); body=[]
+    if(!text) return
+    if(curNode) curNode.desc = curNode.desc ? curNode.desc+'\n\n'+text : text
+    else warns.push('检测到不属于任何节点的正文（将忽略）——节点描述请写在对应标题之下')
+  }
+  for(const raw of src.split(/\r?\n/)){
+    const line=raw.replace(/\s+$/,'')
+    const m=line.match(/^(#{1,6})\s+(.+)$/)
+    if(m){
+      flush()
+      const lv=m[1].length, name=m[2].trim()
+      if(lv===1){
+        if(!thesis){ thesis={name,desc:'',children:[],level:1}; curNode=thesis; cur2=null; cur3=null }
+        else { extraH1.push(name); curNode=null }
+      } else if(lv===2){
+        if(!thesis){ thesis={name:'（未命名论点）',desc:'',children:[],level:1,virtual:true}; warns.push('H2 出现在 H1 之前——已挂入虚拟论点（实装时将提示补 H1）') }
+        cur2={name,desc:'',children:[],level:2}; thesis.children.push(cur2); cur3=null; curNode=cur2
+      } else if(lv===3){
+        if(!cur2){ warns.push(`「${name}」为 H3 但之前无 H2——已提升为 L2 承接（跳级容错）`); cur2={name,desc:'',children:[],level:2,promoted:true}; thesis.children.push(cur2); curNode=cur2 }
+        else { cur3={name,desc:'',children:[],level:3}; cur2.children.push(cur3); curNode=cur3 }
+      } else if(lv===4){
+        if(!cur3){ warns.push(`「${name}」为 H4 但之前无 H3——已提升为 L3 承接（跳级容错）`); cur3={name,desc:'',children:[],level:3,promoted:true}; cur2.children.push(cur3); curNode=cur3 }
+        else { const n={name,desc:'',children:[],level:4}; cur3.children.push(n); curNode=n }
+      } else { body.push(line) }
+    } else if(line.trim()){ body.push(line) }
+  }
+  flush()
+  return {thesis, extraH1, warns}
+}
 let B_DATA=null
 function renderB(){
-  const src=document.getElementById('mdB').value,hasTh=document.getElementById('hasThesis').checked
-  const tree=parseMd(src);B_DATA=tree
-  let thesis=null,l2=0,l3=0,l4=0,cards=0
-  if(!hasTh&&tree.length)thesis=tree[0]
-  const h1extra=(!hasTh&&tree.length>1)?tree.slice(1):[]
-  const roots=hasTh?tree:tree.slice(1)
+  const src=document.getElementById('mdB').value
+  const noThesis=document.getElementById('hasTh').checked // 勾选 = 本台未设论点（H1 生效）
+  const {thesis, extraH1, warns}=parseB(src); B_DATA=thesis
+  let l2=0,l3=0,l4=0,cards=0
+  const cnt=n=>{cards++; if(n.level===2)l2++; else if(n.level===3)l3++; else if(n.level===4)l4++; (n.children||[]).forEach(cnt)}
+  if(thesis && noThesis){ (thesis.children||[]).forEach(cnt) }
+  const nodeHtml=(n,lb)=>{
+    const kidLb = n.level===2 ? 'L3' : (n.level===3 ? 'L4' : '正文')
+    return `<div class="node${n.promoted?' promoted':''}"><div class="t"><span class="nm">${esc(n.name)}</span><span class="lb">${lb}${n.promoted?' · 跳级提升':''}</span></div>${n.desc?`<div class="card"><div class="d">${esc(n.desc)}</div></div>`:''}${(n.children||[]).length?`<div class="sub">${n.children.map(c=>nodeHtml(c,kidLb)).join('')}</div>`:''}</div>`
+  }
   let html=''
-  if(thesis||hasTh){html+=`<div class="l1"><div class="lb">L1 · 中心论点</div><div class="t">${esc(hasTh?'（本台已设的论点）':thesis.name)}</div>${!hasTh&&thesis.body?`<div class="card" style="text-align:left"><div class="d">${esc(thesis.body)}</div></div>`:''}</div>`}
-  html+='<div class="l2row">'
-  for(const n2 of roots){l2++;cards++;html+=`<div class="node"><div class="t">${esc(n2.name)}<span class="lb">L2</span></div>${n2.body?`<div class="card"><div class="d">${esc(n2.body)}</div></div>`:''}<div class="kids">`
-    for(const n3 of n2.tasks){l3++;cards++;html+=`<div class="node"><div class="t">${esc(n3.name)}<span class="lb">L3</span></div>${n3.body?`<div class="card"><div class="d">${esc(n3.body)}</div></div>`:''}<div class="l3row">`
-      for(const n4 of n3.tasks){l4++;cards++;html+=`<div class="node"><div class="t">${esc(n4.name)}<span class="lb">L4</span></div>${n4.body?`<div class="card"><div class="d">${esc(n4.body)}</div></div>`:''}</div>`}
-      html+='</div></div>'}
-    html+='</div></div>'}
-  html+='</div>'
-  if(h1extra.length)html+=`<div style="margin-top:10px;font-size:11.5px;color:var(--warn)">⚠ 多余的 H1（${h1extra.map(x=>esc(x.name)).join('、')}）将被忽略——一期只支持单论点</div>`
-  document.getElementById('prevB').innerHTML=html||'<div class="empty">未识别到有效层级（需至少一个 ## 二级标题）</div>'
-  document.getElementById('noticeB').style.display=hasTh?'block':'none'
-  document.getElementById('noticeB').textContent='⚠ 本台已设中心论点——Markdown 中的 H1 将被忽略，导入从二级层级挂入'
-  document.getElementById('statB').innerHTML=`<span class="chip">L2 分类 <b>${l2}</b></span><span class="chip">L3 分类 <b>${l3}</b></span><span class="chip">L4 分类 <b>${l4}</b></span><span class="chip">节点卡片 <b>${cards}</b></span>`
-  document.getElementById('goB').disabled=!roots.length
+  if(thesis){
+    const nameShown = noThesis ? esc(thesis.name) : '（本台已设的论点）'
+    const ownDesc = noThesis && thesis.desc ? `<div class="card"><div class="d">${esc(thesis.desc)}</div></div>` : ''
+    html+=`<div class="l1"><div class="lb">L1 · 中心论点${thesis.virtual?'（虚拟——实装时将提示）':'（来自 Markdown H1）'}</div><div class="t">${nameShown}</div>${ownDesc}</div>`
+    html+=`<div class="l2row">${(thesis.children||[]).map(n=>nodeHtml(n,'L2')).join('')}</div>`
+  } else {
+    html='<div class="empty">未识别到中心论点（# 一级标题）——解析失败不写入任何数据</div>'
+  }
+  document.getElementById('prevB').innerHTML=html
+  const notice=document.getElementById('noticeB')
+  const allWarns=[...warns]
+  if(extraH1.length) allWarns.push(`多余的 H1（${extraH1.map(esc).join('、')}）将被忽略——一期只支持单论点`)
+  if(!noThesis && thesis) allWarns.push('本台已设中心论点——Markdown 中的 H1 将被忽略，导入从二级层级挂入')
+  notice.style.display=allWarns.length?'block':'none'
+  notice.innerHTML=allWarns.map(esc).join('<br>')
+  document.getElementById('statB').innerHTML=`<span class="chip">L2 节点 <b>${l2}</b></span><span class="chip">L3 节点 <b>${l3}</b></span><span class="chip">L4 节点 <b>${l4}</b></span><span class="chip">节点卡片 <b>${cards}</b></span>`
+  document.getElementById('goB').disabled=!(thesis&&(thesis.children||[]).length)
 }
-function doB(){const bar=document.getElementById('okB');bar.style.display='block';bar.innerHTML='✓ 模拟导入成功：将创建分类节点与节点卡片并刷新金字塔视图。<b>原型示意——实装后此步写入真实数据。</b>'}
+function doB(){const bar=document.getElementById('okB');bar.style.display='block'
+  bar.innerHTML='✓ 模拟导入成功：将按层级创建分类节点与节点卡片，并刷新金字塔视图居中呈现。<b>原型示意——实装后此步写入真实数据。</b>'}
 document.getElementById('mdA').addEventListener('input',renderA)
 document.getElementById('mdB').addEventListener('input',renderB)
 renderA();renderB()
