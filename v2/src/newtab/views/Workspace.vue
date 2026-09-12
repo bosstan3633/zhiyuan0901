@@ -867,6 +867,7 @@ import { useWorkspaceImport } from '@/newtab/composables/useWorkspaceImport'
 import { useCurationDrill } from '@/newtab/composables/useCurationDrill'
 import { useWorkspaceBatch } from '@/newtab/composables/useWorkspaceBatch'
 import { useWorkspaceMirror } from '@/newtab/composables/useWorkspaceMirror'
+import { useCategoryCrud } from '@/newtab/composables/useCategoryCrud'
 import { useConfirm } from '@/shared/components/confirm'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import { markRank } from '@/shared/utils/marksort'
@@ -1885,122 +1886,13 @@ const sidebarCats = computed<SidebarCat[]>(() => {
   })
   return out
 })
-function normalizeCatOrders(parentId: string) {
-  wsCats.value
-    .filter(c => (c.parentId || '') === parentId)
-    .sort((a, b) => a.order - b.order)
-    .forEach((c, i) => { c.order = i })
-}
-
-// ===== 分类新建/重命名（第八轮：应用内弹窗，替代原生 prompt） =====
-const catModal = ref<{ open: boolean; mode: 'create' | 'rename'; name: string; parentId: string; editId: string }>(
-  { open: false, mode: 'create', name: '', parentId: '', editId: '' })
-function openCreateCat(parentId = '') {
-  catModal.value = { open: true, mode: 'create', name: '', parentId, editId: '' }
-}
-function openRenameCat(cat: Category) {
-  catModal.value = { open: true, mode: 'rename', name: cat.name, parentId: '', editId: cat.id }
-}
-/** 第卅三轮 REQ-021：同名即时校验（作用域=当前策展台全分类树，重命名排除自身） */
-const catNameDup = computed(() => {
-  const m = catModal.value
-  const name = m.name.trim()
-  if (!name) return false
-  return wsCats.value.some(c => c.name === name && c.id !== m.editId)
+// ===== R104（纯拆分第五批·收缩版）：分类 CRUD 拆入 useCategoryCrud =====
+// 新建/重命名/删除（含镜像级联清理）/置顶/重复合并 实现随迁；拖拽与侧栏折叠/选择是视图接线，留宿主
+// （与金字塔深度工具、卡片拖拽状态双向咬合，硬拆需先立共享拖拽状态层——登记另立项）。
+const { normalizeCatOrders, catModal, openCreateCat, openRenameCat, catNameDup, confirmCatModal, deleteCategory, toggleCatPin, mergeDupCats } = useCategoryCrud({
+  d, persist: () => store.persist(), workspaceId, wsCats, activeCategory, allResources,
+  pyDepthOf, childCatsOf, catAggCount
 })
-function confirmCatModal() {
-  const m = catModal.value
-  const name = m.name.trim()
-  if (!name) { showToast('请输入分类名称'); return }
-  if (catNameDup.value) { showToast('该策展台已存在同名分类，请更换名称'); return }
-  if (m.mode === 'create') {
-    // R61-4：4 级上限校验
-    if (m.parentId) {
-      const parent = wsCats.value.find(c => c.id === m.parentId)
-      // R70：改用 pyDepthOf（带 visited 防环）——内联的 while 上行走链在环数据下会死转
-      if (parent && pyDepthOf(parent) + 2 > MAX_CAT_LEVEL) { showToast(`ℹ 最多 ${MAX_CAT_LEVEL} 级——该分类已处于最深层`); return }
-    }
-    const siblings = wsCats.value.filter(c => (c.parentId || '') === m.parentId)
-    const cat: Category = { id: uid('cat'), workspaceId: workspaceId.value, name, order: siblings.length, parentId: m.parentId || undefined }
-    d.value.categories.push(cat)
-    activeCategory.value = cat.id
-    showToast('✓ 分类已创建')
-  } else {
-    const cat = wsCats.value.find(c => c.id === m.editId)
-    if (cat) cat.name = name
-    showToast('✓ 分类已重命名')
-  }
-  store.persist()
-  catModal.value.open = false
-}
-async function deleteCategory(cat: Category) {
-  const kids = childCatsOf(cat.id)
-  const n = catAggCount(cat.id)
-  const msg = kids.length
-    ? `确定删除「${cat.name}」？\n其下 ${kids.length} 个子分类将升级为一级分类，资源卡不受影响。`
-    : (n ? `确定删除「${cat.name}」？\n其中 ${n} 张资源卡将移入「待分类」，可在回收站查看。` : `确定删除「${cat.name}」？`)
-  if (!(await useConfirm({ title: '删除分类', message: msg, confirmText: '确认删除' }))) return
-  kids.forEach(k => { k.parentId = undefined })
-  if (kids.length) {
-    const target = kids[0]!.id
-    allResources.value.forEach(r => { if (r.categoryId === cat.id) r.categoryId = target })
-  } else {
-    allResources.value.forEach(r => { if (r.categoryId === cat.id) r.categoryId = '' })
-  }
-  d.value.categories = d.value.categories.filter(c => c.id !== cat.id)
-  // R61：清理以该分类为落点的镜像记录（落点回落该台待分类；源卡零影响）
-  for (const p of d.value.curationProjections || []) if (p.kind === 'card' && p.targetWsId === workspaceId.value && p.targetCatId === cat.id) p.targetCatId = undefined
-  // R53-A3：级联清理该源分类的策展镜像分类（旧方向遗留逻辑，R61 后 hub 分类无 curFrom，保留兜底）
-  const mirrorCats = d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID && c.curFrom?.catId === cat.id)
-  for (const mc of mirrorCats) {
-    const midIds = new Set<string>([mc.id])
-    for (const r of d.value.resources) if (r.workspaceId === CURATION_WS_ID && midIds.has(r.categoryId || '')) r.categoryId = ''
-    for (const p of d.value.curationProjections || []) if (p.kind === 'card' && p.targetCatId && midIds.has(p.targetCatId)) p.targetCatId = undefined
-    for (const c of d.value.categories) if (c.parentId && midIds.has(c.parentId)) c.parentId = undefined
-    d.value.categories = d.value.categories.filter(c => c.id !== mc.id)
-  }
-  if (activeCategory.value === cat.id) activeCategory.value = 'all'
-  normalizeCatOrders('')
-  store.persist()
-  showToast('已删除分类')
-}
-function toggleCatPin(cat: Category) {
-  cat.pinned = !cat.pinned
-  store.persist()
-  showToast(cat.pinned ? '📌 分类已置顶' : '已取消置顶')
-}
-/** 第卅三轮 REQ-021：存量重复分类合并工具（同一策展台内同名分组，资源并入首个，子分类升级一级） */
-async function mergeDupCats() {
-  const groups = new Map<string, Category[]>()
-  for (const c of wsCats.value) {
-    const key = c.name.trim()
-    if (!key) continue
-    const arr = groups.get(key) || []
-    arr.push(c)
-    groups.set(key, arr)
-  }
-  const dupGroups = [...groups.values()].filter(g => g.length > 1)
-  if (!dupGroups.length) { showToast('当前策展台无重复分类 ✨'); return }
-  const totalDup = dupGroups.reduce((s, g) => s + g.length - 1, 0)
-  if (!(await useConfirm({
-    title: '合并重复分类',
-    message: `发现 ${dupGroups.length} 组、共 ${totalDup} 个重复分类。\n资源卡将合并到每组第一个分类；重复分类的子分类将升级为一级分类。\n继续合并？`,
-    confirmText: '合并'
-  }))) return
-  let merged = 0
-  for (const g of dupGroups) {
-    const keep = g[0]!
-    for (const dup of g.slice(1)) {
-      allResources.value.forEach(r => { if (r.categoryId === dup.id) r.categoryId = keep.id })
-      childCatsOf(dup.id).forEach(k => { k.parentId = undefined })
-      d.value.categories = d.value.categories.filter(c => c.id !== dup.id)
-      merged++
-    }
-  }
-  normalizeCatOrders('')
-  store.persist()
-  showToast(`✓ 已合并 ${merged} 个重复分类`)
-}
 
 // ===== 分类拖拽（第八轮）：同级排序 / 挂子级 / 升一级，防循环，2 级上限 =====
 // 第廿九轮：侧栏分类行同时是资源卡归属落点——按拖起对象分流（卡片→改归属；分类→排序/挂子级）

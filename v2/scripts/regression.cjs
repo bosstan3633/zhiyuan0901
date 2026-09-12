@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.72.0'";
+const VER_ANCHOR_LITERAL = "version: '2.73.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -131,7 +131,7 @@ check('B5 应用内采集去重流程完整（dup 分支在 saveCapture 内）',
 console.log('【第八轮 · 分类体系】');
 check('W1 数据模型：Category +parentId?/pinned?', () => read('/shared/models/index.ts').includes('parentId?: ID') && read('/shared/models/index.ts').includes('pinned?: boolean'));
 check('W2 分类新建/重命名应用内弹窗（无原生 prompt）', () => read('/newtab/views/Workspace.vue').includes('confirmCatModal') && read('/newtab/views/Workspace.vue').includes('openRenameCat') && !read('/newtab/views/Workspace.vue').includes('prompt('));
-check('W3 分类删除：子级自动升级 + 资源并入/转待分类', () => read('/newtab/views/Workspace.vue').includes('deleteCategory') && read('/newtab/views/Workspace.vue').includes('升级为一级分类'));
+check('W3 分类删除（R104 重指：实现拆入 useCategoryCrud）：子级自动升级 + 资源并入/转待分类', () => read('/newtab/views/Workspace.vue').includes('deleteCategory') && read('/newtab/composables/useCategoryCrud.ts').includes('升级为一级分类'));
 check('W4 左栏树形渲染 + 置顶分区 + 聚合计数', () => read('/newtab/views/Workspace.vue').includes('sidebarCats') && read('/newtab/views/Workspace.vue').includes('pinnedRootCats') && read('/newtab/views/Workspace.vue').includes('catAggCount') && read('/newtab/views/Workspace.vue').includes('familyIds'));
 check('W5 父分类聚合过滤（点击父分类含子分类资源）', () => read('/newtab/views/Workspace.vue').includes('const ids = familyIds(activeCategory.value)'));
 check('W6 分类拖拽：挂子级/同级排序/升一级/防循环', () => read('/newtab/views/Workspace.vue').includes("catDropMode.value = 'child'") && read('/newtab/views/Workspace.vue').includes('onCatRootDrop') && read('/newtab/views/Workspace.vue').includes('不能移动到自己的子分类'));
@@ -330,8 +330,8 @@ check('R33-13c REQ-016 关联任务同步写入 metricId 与 taskIds（转移归
 check('R33-14 REQ-018 删除免二次确认（四组件删除类 confirm 移除，非删除类保留）', () => !read('/newtab/views/Workspace.vue').includes('删除后可在回收站恢复') && !read('/newtab/views/CompassHome.vue').includes('删除后可在回收站恢复') && !read('/newtab/components/compass/CuriosityPanel.vue').includes('确定删除这条好奇心') && !read('/newtab/views/ProjectCuration.vue').includes('确定删除该任务') && read('/newtab/composables/useWorkspaceBatch.ts').includes("danger: false"));
 check('R33-14b REQ-018 回收站页面（路由 + 恢复 + 永久删除 + 分区清空）', () => read('/newtab/router.ts').includes("'/recycle'") && read('/newtab/views/RecycleBin.vue').includes('restoreTask') && read('/newtab/views/RecycleBin.vue').includes('purgeTask') && read('/newtab/views/RecycleBin.vue').includes('purgeAll'));
 check('R33-14c REQ-018 回收站入口在设置页危险操作区', () => read('/newtab/views/GlobalSettings.vue').includes("router.push('/recycle')"));
-check('R33-15 REQ-021 分类同名即时校验（标红 + 阻止保存，重命名排除自身）', () => read('/newtab/views/Workspace.vue').includes('const catNameDup') && read('/newtab/views/Workspace.vue').includes('c.name === name && c.id !== m.editId') && read('/newtab/views/Workspace.vue').includes('.ws-modal-input.dup') && read('/newtab/views/Workspace.vue').includes('该策展台已存在同名分类，请更换名称'));
-check('R33-15b REQ-021 存量重复分类合并工具（分组 + 资源并入 + 子分类升级）', () => read('/newtab/views/Workspace.vue').includes('async function mergeDupCats') && read('/newtab/views/Workspace.vue').includes('r.categoryId = keep.id') && read('/newtab/views/Workspace.vue').includes('k.parentId = undefined') && read('/newtab/views/Workspace.vue').includes('class="cat-merge"'));
+check('R33-15 REQ-021 分类同名即时校验（R104 重指：实现拆入 useCategoryCrud，标红样式留宿主）', () => read('/newtab/composables/useCategoryCrud.ts').includes('const catNameDup') && read('/newtab/composables/useCategoryCrud.ts').includes('c.name === name && c.id !== m.editId') && read('/newtab/views/Workspace.vue').includes('.ws-modal-input.dup') && read('/newtab/composables/useCategoryCrud.ts').includes('该策展台已存在同名分类，请更换名称'));
+check('R33-15b REQ-021 存量重复分类合并工具（R104 重指：实现拆入 useCategoryCrud，入口样式留宿主）', () => read('/newtab/composables/useCategoryCrud.ts').includes('async function mergeDupCats') && read('/newtab/composables/useCategoryCrud.ts').includes('r.categoryId = keep.id') && read('/newtab/composables/useCategoryCrud.ts').includes('k.parentId = undefined') && read('/newtab/views/Workspace.vue').includes('class="cat-merge"'));
 
 console.log('【第卅三轮 · V2.12 需求包第五批：视图与布局 · REQ-025/026】');
 check('R33-16 REQ-025 模块分组平铺（第卌四轮退役：北极星撤模块分组，平铺下钻由设置页工作台全景替代）', () => { const s = read('/newtab/components/compass/NorthStarPanel.vue'); const gs = read('/newtab/views/GlobalSettings.vue'); return !s.includes('nd-flat-ws') && !s.includes('openWsPopup') && gs.includes('const panTree = computed'); });
@@ -785,7 +785,7 @@ check('R53-6（R74 重写）层级上限 MAX_CAT_LEVEL=4 + 超限拒绝（levelO
 // R74 退役 R53-7：随 CurationCenter.vue 删除退役（锁 curFrom 死代码链，见 04-23 §六 A 组）
 check('R53-8 A3 删除策展台级联：清理其策展镜像分类（卡回落/投射回待分类/子提根）', () => { const a = read('/newtab/App.vue'); return a.includes('级联清理该策展台的策展镜像分类') && a.includes('mirrorIds.has(p.targetCatId)'); });
 check('R53-9 A3（R61 方向反转）分类镜像物化：hub.ts mirrorCategoryToBoard 在目标策展台生成 curFrom 分类（源=资源台）', () => { const h = read('/shared/storage/hub.ts'); const w = read('/newtab/views/Workspace.vue'); return h.includes('curFrom: { wsId: CURATION_WS_ID, catId: hubCatId') && !w.includes("kind: 'category'"); });
-check('R53-10 A3 删除源分类级联：清理对应策展镜像分类（curFrom.catId === cat.id）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('curFrom?.catId === cat.id') && w.includes('级联清理该源分类的策展镜像分类'); });
+check('R53-10 A3 删除源分类级联：清理对应策展镜像分类（curFrom.catId === cat.id）', () => { const w = read('/newtab/views/Workspace.vue'); return read('/newtab/composables/useCategoryCrud.ts').includes('curFrom?.catId === cat.id') && read('/newtab/composables/useCategoryCrud.ts').includes('级联清理该源分类的策展镜像分类'); });
 check('R53-11（R74 重写）卡面镜像入口：资源台卡面 📡 镜像到策展台；策展台侧旧入口已拆', () => {
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('title="镜像到策展台"') && w.includes('openMirrorCard(r)') && !w.includes('projectCardToCuration');
@@ -800,7 +800,8 @@ check('R53-15 D 主题精简四套：tokens.css 无 green/night 块 + App themes
 check('R53-16 E1（P0 修复）导入合并补 curationProjections（备份→恢复不再丢投射）', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('d.curationProjections = mergeById(d.curationProjections || [], imported.curationProjections || [])'); });
 check('R53-17（R74 重写）删除分类引用回落 + 镜像记录清理：子分类提根 + 卡片回落待分类 + 清 targetWsId 投射', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes('kids.forEach(k => { k.parentId = undefined })') && w.includes('r.categoryId === cat.id') && w.includes('p.targetCatId = undefined') && w.includes('p.targetWsId === workspaceId.value && p.targetCatId === cat.id');
+  const cc = read('/newtab/composables/useCategoryCrud.ts');
+  return cc.includes('kids.forEach(k => { k.parentId = undefined })') && cc.includes('r.categoryId === cat.id') && cc.includes('p.targetCatId = undefined') && cc.includes('p.targetWsId === workspaceId.value && p.targetCatId === cat.id');
 });
 check('R53-18 E3 saveData 序列化 try 包裹（异常走 SaveError serial，不再定时器内未捕获）', () => { const r = read('/shared/storage/repository.ts'); return r.includes('R53-E3：序列化包 try') && r.includes('} catch (e) { emitSaveError(e); return }'); });
 check('R53-19 E3 引导兜底：main.ts bootDataRobust 重试一次+失败不挂载（防空数据覆写真实数据）', () => { const m = read('/newtab/main.ts'); return m.includes('bootDataRobust') && m.includes('应用未启动以保护本地数据') && m.includes('bootstrapSafe'); });
@@ -1439,7 +1440,8 @@ check('R74-10 hub 分类节点拖拽体系：onCatDragStart/onCatDragOver/onCatD
 });
 check('R74-11 hub 删除分类回落：子分类提根 + 卡片回落待分类 + 清 targetWsId 投射', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes('kids.forEach(k => { k.parentId = undefined })') && w.includes('r.categoryId === cat.id') && w.includes('p.targetWsId === workspaceId.value && p.targetCatId === cat.id');
+  const cc = read('/newtab/composables/useCategoryCrud.ts');
+  return cc.includes('kids.forEach(k => { k.parentId = undefined })') && cc.includes('r.categoryId === cat.id') && cc.includes('p.targetWsId === workspaceId.value && p.targetCatId === cat.id');
 });
 check('R74-12 hub 递归防环与索引层：descendantIds/childCatsOf/catAggCount + catIndex 带 visited', () => {
   const w = read('/newtab/views/Workspace.vue'); const x = read('/shared/utils/catIndex.ts');
@@ -2728,6 +2730,24 @@ check('R98-3 W9 分组标题补含子分类数：groupChildCount（uncat→0）+
     && WS98.includes("if (key === 'uncat') return 0")
     && WS98.includes('return catIdx.value.childrenOf.get(key)?.length || 0')
     && occ === 2;
+});
+
+console.log('【第一百零四轮 · V2.73.0：Workspace 纯拆分第五批·收缩版（分类 CRUD → useCategoryCrud）】');
+/** R104：末批按勘验收缩——原计划「分类树与拖拽」中，拖拽/折叠/侧栏选择与金字塔深度工具、
+ *  卡片拖拽状态双向咬合，硬拆需先立共享拖拽状态层（登记另立项）；本批拆分类 CRUD
+ *  （新建/重命名含同名校验与 4 级上限/删除含镜像级联清理/置顶/重复合并）。
+ *  拆分五批收官：3583 → 3026 行（-557），五个域级 composable。 */
+const CC104 = read('/newtab/composables/useCategoryCrud.ts');
+const WSP104 = read('/newtab/views/Workspace.vue');
+check('R104-1 ★ 分类 CRUD 拆分不变量：实现随迁 + 宿主解构绑定 + 宿主零重复实现 + 层级工具由宿主注入（唯一实现）', () => {
+  return CC104.includes('export function useCategoryCrud(')
+    && CC104.includes('function confirmCatModal()') && CC104.includes('async function deleteCategory(cat: Category)')
+    && CC104.includes('async function mergeDupCats()')
+    && CC104.includes('pyDepthOf(parent) + 2 > MAX_CAT_LEVEL')
+    && WSP104.includes('useCategoryCrud({')
+    && WSP104.includes('const { normalizeCatOrders, catModal, openCreateCat, openRenameCat, catNameDup, confirmCatModal, deleteCategory, toggleCatPin, mergeDupCats } = useCategoryCrud({')
+    && !WSP104.includes('async function deleteCategory(cat: Category)') && !WSP104.includes('async function mergeDupCats()')
+    && WSP104.includes('function pyDepthOf(c: Category): number {');
 });
 
 console.log('【第一百零三轮 · V2.72.0：Workspace 纯拆分第四批（镜像域 → useWorkspaceMirror）】');
