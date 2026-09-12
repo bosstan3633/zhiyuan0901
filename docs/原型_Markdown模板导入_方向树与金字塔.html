@@ -55,18 +55,27 @@ textarea.md{width:100%;min-height:430px;background:var(--surface2);border:none;o
 .l1 .card{margin-top:6px;border-top:1px dashed rgba(94,106,210,.4);padding-top:6px;font-size:11px;color:var(--text3);text-align:left}
 .l1 .card .d{white-space:pre-wrap;color:var(--text4);font-size:10.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .l2row{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:16px;align-items:flex-start}
-.node{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rads);padding:10px 12px;width:250px;font-size:12.5px}
+/* R107.1（评审修订）：金字塔预览 = 产品手动建金字塔的呈现方式——节点为独立盒子，
+   子节点在父节点下方分列（连接线表达父子），节点底部带「关联资源卡 / 新建卡片」双入口 */
+.node{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rads);padding:10px 12px;width:240px;font-size:12.5px;display:flex;flex-direction:column;gap:7px}
 .node.promoted{border-color:var(--warn)}
 .node .t{font-weight:600;display:flex;gap:6px;align-items:center}
 .node .t .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .node .lb{font-size:9px;color:var(--text4);letter-spacing:.8px;margin-left:auto;flex-shrink:0}
 .node.promoted .lb{color:var(--warn)}
-.node .card{margin-top:7px;border-top:1px dashed var(--border2);padding-top:7px;font-size:11px;color:var(--text3)}
+.node .card{border-top:1px dashed var(--border2);padding-top:7px;font-size:11px;color:var(--text3)}
 .node .card::before{content:"📄 节点卡片 · ";color:var(--accent);font-size:10px}
-.node .card .d{white-space:pre-wrap;color:var(--text4);font-size:10.5px;margin-top:2px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.kids{margin-top:9px;display:flex;flex-direction:column;gap:8px}
-.sub{border-left:1px solid var(--border2);padding-left:10px;display:flex;flex-direction:column;gap:8px}
-.sub .node{width:100%}
+.node .card .d{white-space:pre-wrap;color:var(--text4);font-size:10.5px;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.node .ops{display:flex;gap:6px;border-top:1px solid var(--border);padding-top:7px;margin-top:auto}
+.node .ops span{flex:1;text-align:center;font-size:10.5px;color:var(--text3);background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:3px 0;cursor:default}
+.node .ops span:hover{color:var(--accent);border-color:var(--accent)}
+.l2col{display:flex;flex-direction:column;align-items:center}
+.vline{width:2px;height:16px;background:var(--border2)}
+.kidsrow{position:relative;display:flex;gap:12px;justify-content:center;padding-top:14px}
+.kidsrow::before{content:'';position:absolute;top:0;left:120px;right:120px;height:2px;background:var(--border2)}
+.kid{display:flex;flex-direction:column;align-items:center;position:relative}
+.kid::before{content:'';width:2px;height:14px;background:var(--border2)}
+.kidsrow .kid:first-child::before,.kidsrow .kid:last-child::before{height:14px}
 </style>
 </head>
 <body>
@@ -100,9 +109,10 @@ textarea.md{width:100%;min-height:430px;background:var(--surface2);border:none;o
       <div class="panel">
         <div class="p-head">预览 · 将创建的结构</div>
         <div class="notice" id="noticeA"></div>
-        <label class="opt"><input type="checkbox" id="skipA" checked onchange="renderA()"> 跳过同名项（幂等：防重复导入；模拟已存在「AI 知识管理专家」）</label>
+        <label class="opt"><input type="checkbox" id="skipA" onchange="renderA()"> 模拟幂等跳过（勾选后：模拟已存在任务「搭建课程 V1.0」——同名任务跳过，其余照常创建）</label>
         <div class="preview"><div class="tree" id="prevA"></div></div>
         <div class="stat" id="statA"></div>
+        <div style="padding:0 16px;font-size:11px;color:var(--text4)">统计口径：以上数字 = 确认导入后「将创建」的数量（同名跳过项不计入，单独在黄色 chip 中列出）</div>
         <div class="actions"><button class="btn" onclick="resetA()">重置示例</button><button class="btn primary" id="goA" onclick="doA()">确认导入</button></div>
         <div class="okbar" id="okA"></div>
       </div>
@@ -182,7 +192,7 @@ let A_DATA=null
 function renderA(){
   const src=document.getElementById('mdA').value, skip=document.getElementById('skipA').checked
   const {projects,warns}=parseA(src); A_DATA=projects
-  const existing=new Set(['AI 知识管理专家'])
+  const existing=new Set(['搭建课程 V1.0'])
   let p=0, me=0, t=0, sk=0, html=''
   for(const pr of projects){
     p++
@@ -254,16 +264,28 @@ function renderB(){
   let l2=0,l3=0,l4=0,cards=0
   const cnt=n=>{cards++; if(n.level===2)l2++; else if(n.level===3)l3++; else if(n.level===4)l4++; (n.children||[]).forEach(cnt)}
   if(thesis && noThesis){ (thesis.children||[]).forEach(cnt) }
-  const nodeHtml=(n,lb)=>{
+  // R107.1（评审修订）：节点 = 独立盒子（子节点不嵌在父盒内，在下方分列 + 连接线）；
+  // 每个节点底部带「关联资源卡 / 新建卡片」双入口——导入生成的节点即普通分类，实装后与手动建完全同权。
+  const ops = '<div class="ops"><span title="实装后可用——与手动建金字塔的节点双入口一致">🔗 关联资源卡</span><span title="实装后可用">➕ 新建卡片</span></div>'
+  const nodeBox=(n,lb)=>{
     const kidLb = n.level===2 ? 'L3' : (n.level===3 ? 'L4' : '正文')
-    return `<div class="node${n.promoted?' promoted':''}"><div class="t"><span class="nm">${esc(n.name)}</span><span class="lb">${lb}${n.promoted?' · 跳级提升':''}</span></div>${n.desc?`<div class="card"><div class="d">${esc(n.desc)}</div></div>`:''}${(n.children||[]).length?`<div class="sub">${n.children.map(c=>nodeHtml(c,kidLb)).join('')}</div>`:''}</div>`
+    return `<div class="node${n.promoted?' promoted':''}"><div class="t"><span class="nm">${esc(n.name)}</span><span class="lb">${lb}${n.promoted?' · 跳级提升':''}</span></div>${n.desc?`<div class="card"><div class="d">${esc(n.desc)}</div></div>`:''}${ops}</div>`
+  }
+  // 子层渲染：父节点盒 → vline → 横排子节点列（每列 = 子盒 + 其下层递归）
+  const kidsRow=(kids,kidLb)=>{
+    if(!kids||!kids.length) return ''
+    const cols = kids.map(k=>{
+      const sub = (k.children&&k.children.length) ? kidsRow(k.children, k.level===2?'L4':null) : ''
+      return `<div class="kid">${nodeBox(k,kidLb)}${sub}</div>`
+    }).join('')
+    return `<div class="vline"></div><div class="kidsrow" style="--kids:${kids.length}">${cols}</div>`
   }
   let html=''
   if(thesis){
     const nameShown = noThesis ? esc(thesis.name) : '（本台已设的论点）'
     const ownDesc = noThesis && thesis.desc ? `<div class="card"><div class="d">${esc(thesis.desc)}</div></div>` : ''
     html+=`<div class="l1"><div class="lb">L1 · 中心论点${thesis.virtual?'（虚拟——实装时将提示）':'（来自 Markdown H1）'}</div><div class="t">${nameShown}</div>${ownDesc}</div>`
-    html+=`<div class="l2row">${(thesis.children||[]).map(n=>nodeHtml(n,'L2')).join('')}</div>`
+    html+=kidsRow(thesis.children||[],'L2')
   } else {
     html='<div class="empty">未识别到中心论点（# 一级标题）——解析失败不写入任何数据</div>'
   }

@@ -1,19 +1,28 @@
 /**
- * R106（F5）：生产级真机性能实测脚本（Playwright + 扩展加载）。
+ * R106-F5 / R107：生产级真机性能实测脚本（Playwright + 加载本扩展）。
  *
- * 用法：先 `npm i playwright`（任意目录）并 `npx playwright install chromium`，
- * 然后设置 EXT 指向安装包目录后 `node scripts/perf-live.cjs`。
- * 流程：加载扩展 → 灌生产级数据（默认 800 资源卡，ZY_SCALE 可调）→
- * 计时：冷加载 / 路由切换 / 应用内搜索打开与键入 / 网页端采集与搜索浮层。
- * 产出数据用于 F5 后续优化验证（本轮已落：content 数据缓存 TTL 1.5s → 300s）。
+ * 用法：
+ *   1. 任意目录 `npm i playwright` 并 `npx playwright install chromium --no-shell`（扩展需完整 Chromium）
+ *   2. 修改下方 EXT 指向安装包/构建产物目录（默认 v2/dist）
+ *   3. `node scripts/perf-live.cjs`
+ *
+ * 基线数据（2026-09-12 · V2.76.0 · 合成数据 800 资源卡 + 200 任务 + 40 分类 + 100 好奇）：
+ *   冷加载（reload→load→可交互）：843ms（MV3 固有成本，与 R71 基线 806ms 一致，无回归）
+ *   路由切换 调度台→方向台 / →资源台：中位 32ms（首进 300-500ms 为会话内首次编译+挂载）
+ *   应用内搜索浮层打开：中位 32ms
+ *   搜索键入一字符（含 60ms 防抖+检索+渲染）：中位 122ms
+ *   网页采集浮层（快捷键→可见）：~90ms
+ *   网页搜索浮层（快捷键→可见）：~67ms
+ * 结论：关键操作全部 <130ms；用户反馈的卡顿应主要来自 V2.75.0 之前（缓存 TTL 1.5s 整库重读）
+ *   与冷加载固有成本。若 V2.76.0 仍有体感卡顿，用本脚本灌用户真实数据导出后定点分析。
  */
 
 /* R106-F5 性能实测：加载扩展 → 灌生产级数据 → 计时关键操作 */
 const { chromium } = require('playwright')
 const path = require('path')
 
-const EXT = process.env.HOME + '/Desktop/知源调度台_V2.74.0'
-const EXEC = process.env.HOME + '/Library/Caches/ms-playwright/chromium-1234/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'
+const EXT = '/Users/beantan/Downloads/zhiyuan0904/v2/dist'
+const EXEC = process.env.HOME + '/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'
 const SCALE = parseInt(process.env.ZY_SCALE || '800', 10) // 资源卡数量（生产级压测）
 
 function mkData(scale) {
@@ -48,23 +57,25 @@ function mkData(scale) {
 
 ;(async () => {
   const ctx = await chromium.launchPersistentContext('', { executablePath: EXEC,
-    headless: false,
+    headless: true,
     args: [
       `--disable-extensions-except=${EXT}`,
       `--load-extension=${EXT}`,
-      '--no-first-run',
-      '--window-size=1600,1000',
-      '--window-position=2500,2500'
+      '--no-first-run'
     ]
   })
-  let [sw] = ctx.serviceWorkers()
-  if (!sw) sw = await ctx.waitForEvent('serviceworker', { timeout: 10000 })
-  const extId = new URL(sw.url()).host
-  console.log('扩展 id:', extId)
+  // R106-F5：未打包扩展 id = sha256(绝对路径) 前 32 位 hex 映射 a-p（确定性，不依赖 SW 事件）
+  const crypto = require('crypto')
+  const abs = require('fs').realpathSync(EXT)
+  const extId = crypto.createHash('sha256').update(abs).digest('hex').slice(0, 32).split('').map(c => String.fromCharCode('a'.charCodeAt(0) + parseInt(c, 16))).join('')
+  console.log('扩展 id（按路径推导）:', extId)
 
   const page = await ctx.newPage()
-  await page.goto(`chrome-extension://${extId}/src/newtab/index.html`)
-  await page.waitForTimeout(600)
+  await page.goto(`chrome-extension://${extId}/src/newtab/index.html`).catch(async e => {
+    console.error('新标签页打开失败——扩展可能未加载:', e.message.split('\n')[0]); process.exit(1)
+  })
+  try { await page.waitForSelector('.topbar', { timeout: 8000 }) } catch (e) { console.error('FAILED: 8s 内未见 .topbar——扩展未正常加载'); process.exit(1) }
+  console.log('扩展页面加载 OK（.topbar 在）')
   // 灌生产级数据
   await page.evaluate((data) => new Promise(res => chrome.storage.local.set({ zy_data_v2: data }, res)), mkData(SCALE))
   await page.reload()
@@ -77,14 +88,13 @@ function mkData(scale) {
     console.log(`${label}: 中位 ${arr[Math.floor(times / 2)].toFixed(1)}ms（${arr.map(x => x.toFixed(0)).join('/')}）`)
   }
 
-  // 1) 冷加载（整页导航 → 首帧可交互）
-  const load0 = await page.evaluate(() => new Promise(res => {
-    const t0 = performance.now()
-    location.reload()
-    window.addEventListener('load', () => res(performance.now() - t0))
-  }))
-  await page.waitForTimeout(700)
-  console.log(`冷加载（reload→load 事件）: ${load0.toFixed(0)}ms`)
+  // 1) 冷加载（整页导航 → load 事件，外部计时）
+  {
+    const t0 = Date.now()
+    await page.reload({ waitUntil: 'load' })
+    await page.waitForSelector('.topbar', { timeout: 8000 })
+    console.log(`冷加载（reload→load→topbar 可交互）: ${Date.now() - t0}ms`)
+  }
 
   // 2) 路由切换：调度台 → 方向台 → 资源台（SPA 内点击顶栏）
   await t('路由切换 调度台→方向台', () => new Promise(res => {
@@ -120,10 +130,6 @@ function mkData(scale) {
   const web = await ctx.newPage()
   await web.goto('https://example.com')
   await web.waitForTimeout(800)
-  await t('网页浮层打开（采集 corner）', () => new Promise(res => {
-    const t0 = performance.now()
-    web ? res(0) : res(0)
-  }), 1)
   // 经 background 命令打开采集浮层
   const capTimes = []
   for (let i = 0; i < 3; i++) {
