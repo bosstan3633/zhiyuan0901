@@ -864,6 +864,7 @@ import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
 import { useWorkspaceImport } from '@/newtab/composables/useWorkspaceImport'
+import { useCurationDrill } from '@/newtab/composables/useCurationDrill'
 import { useConfirm } from '@/shared/components/confirm'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import { markRank } from '@/shared/utils/marksort'
@@ -941,35 +942,6 @@ function openThesisCreate() {
   showToast('🏛 填写论点标题保存后，自动成为中心论点（L1 根）')
 }
 
-const drillOpen = ref(false)
-const drillMode = ref<'total' | 'source' | 'assets' | 'recent'>('total')
-function openDrill(mode: 'total' | 'source' | 'assets' | 'recent') { drillMode.value = mode; drillOpen.value = true }
-/** 总数下钻：按分类（深度缩进 + 直属卡数），含待分类行
- *  R71：抽屉关闭时直接返回空——本 computed 是抽屉组件的 prop，**每次宿主重渲染都会被求值**，
- *  原实现无条件跑一遍整树遍历 + 全量卡分桶，纯属为看不见的 UI 付费。 */
-const drillCatRows = computed<DrillCatRow[]>(() => {
-  if (!drillOpen.value) return []
-  const rows: DrillCatRow[] = []
-  const seen = new Set<string>()  // R70：防环
-  const bucket = resBucket.value
-  const walk = (parentId: string | undefined, depth: number) => {
-    for (const c of (parentId ? (catIdx.value.childrenOf.get(parentId) || []) : catIdx.value.roots)) {
-      if (seen.has(c.id)) continue
-      seen.add(c.id)
-      rows.push({ id: c.id, name: c.name, count: (bucket.get(c.id) || []).length, depth })
-      walk(c.id, depth + 1)
-    }
-  }
-  walk(undefined, 0)
-  const uncat = allResources.value.filter(r => isUncat(r, catIdx.value.byId)).length
-  if (uncat) rows.push({ id: 'uncat', name: '待分类', count: uncat, depth: 0 })
-  return rows
-})
-// R71：同样惰性化——三张清单各扫全量卡一遍，抽屉没开时没有任何理由付这个代价
-const toDrillRow = (r: ResourceCard): DrillCardRow => ({ id: r.id, title: r.title, updatedAt: r.updatedAt || r.createdAt })
-const drillNative = computed<DrillCardRow[]>(() => drillOpen.value ? allResources.value.filter(r => !isMirrorView(r)).map(toDrillRow) : [])
-const drillMirror = computed<DrillCardRow[]>(() => drillOpen.value ? allResources.value.filter(isMirrorView).map(toDrillRow) : [])
-const drillRecent = computed<DrillCardRow[]>(() => drillOpen.value ? allResources.value.map(toDrillRow) : [])
 function onDrillJumpCat(id: string) {
   drillOpen.value = false
   if (id === 'uncat') { activeCategory.value = 'uncat'; if (viewMode.value === 'pyramid') viewMode.value = 'card'; return }
@@ -1886,6 +1858,13 @@ const wsCats = computed(() => d.value.categories.filter(c => c.workspaceId === w
 const catIdx = computed(() => buildCatIndex(wsCats.value))
 /** 卡片按分类分桶（O(1) 取「某分类的卡」，替代反复 filter 全量卡） */
 const resBucket = computed(() => buildBucketIndex(allResources.value, (r) => r.categoryId || ''))
+
+// ===== R101（纯拆分第二批）：下钻抽屉的状态与数据拆入 useCurationDrill =====
+// 状态/数据下沉（惰性求值随迁），落点导航回调（onDrill*）留宿主——它们写视图状态，是接线不是实现。
+const { drillOpen, drillMode, openDrill, drillCatRows, drillNative, drillMirror, drillRecent } = useCurationDrill({
+  allResources, resBucket, catIdx, isUncat
+})
+
 function childCatsOf(pid: string): Category[] {
   return catIdx.value.childrenOf.get(pid) || []
 }

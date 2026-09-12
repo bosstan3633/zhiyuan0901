@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.69.0'";
+const VER_ANCHOR_LITERAL = "version: '2.70.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -1262,8 +1262,8 @@ check('R71-12（R74 重写）长列表离屏渲染抑制（资源台 2 处 conte
   const w = read('/newtab/views/Workspace.vue');
   return (w.match(/content-visibility: auto/g) || []).length >= 2 && w.includes('contain-intrinsic-size: auto 44px');
 });
-check('R71-13 P3 下钻面板惰性求值（抽屉未开不做全量计算）', () => {
-  return read('/newtab/views/Workspace.vue').includes('if (!drillOpen.value) return []');
+check('R71-13 P3 下钻面板惰性求值（R101 重指：实现拆入 useCurationDrill，宿主保留绑定）', () => {
+  return read('/newtab/composables/useCurationDrill.ts').includes('if (!drillOpen.value) return []') && read('/newtab/views/Workspace.vue').includes('useCurationDrill({');
 });
 check('R71-14 P0 性能基准测试台入库（A/B 可复现）', () => {
   return fs.existsSync(path.resolve(__dirname, '..', 'scripts', 'perf.cjs'));
@@ -1528,9 +1528,9 @@ check('R75-9 hub3 样式块零硬编码色（只用 tokens 变量）', () => {
 });
 
 console.log('【第七十六轮 · V2.45.0：资源台计数口径统一（R3）】');
-check('R76-1 待分类判据收敛为唯一实现 isUncat（含悬空卡口径）并被多处共用', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return (w.match(/isUncat\(/g) || []).length >= 6 && w.includes("function isUncat(r: ResourceCard, validIds: { has(id: string): boolean }): boolean") && w.includes('return !r.categoryId || !validIds.has(r.categoryId)');
+check('R76-1 待分类判据收敛为唯一实现 isUncat（R101 重指：下钻域拆出后，判据调用跨宿主+composable 两文件合计，实现仍唯一）', () => {
+  const w = read('/newtab/views/Workspace.vue'); const imp = read('/newtab/composables/useCurationDrill.ts');
+  return ((w.match(/isUncat\(/g) || []).length + (imp.match(/isUncat\(/g) || []).length) >= 6 && w.includes("function isUncat(r: ResourceCard, validIds: { has(id: string): boolean }): boolean") && w.includes('return !r.categoryId || !validIds.has(r.categoryId)') && imp.includes('isUncat');
 });
 check('R76-2 左树待分类计数改走 isUncat：严格口径（只看 !categoryId）退役', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -2727,6 +2727,22 @@ check('R98-3 W9 分组标题补含子分类数：groupChildCount（uncat→0）+
     && WS98.includes("if (key === 'uncat') return 0")
     && WS98.includes('return catIdx.value.childrenOf.get(key)?.length || 0')
     && occ === 2;
+});
+
+console.log('【第一百零一轮 · V2.70.0：Workspace 纯拆分第二批（下钻抽屉 → useCurationDrill）】');
+/** R101：第二刀。边界约定：状态与数据下沉（drillOpen/drillMode/openDrill + 四份惰性数据），
+ *  落点导航回调（onDrillJumpCat/onDrillOpenCard/onDrillLocate）留宿主——它们写视图状态，是接线不是实现。
+ *  R71-13/R76-1 按域重指；本断言守拆分不变量。 */
+const DR101 = read('/newtab/composables/useCurationDrill.ts');
+const WSP101 = read('/newtab/views/Workspace.vue');
+check('R101-1 ★ 下钻域拆分不变量：状态与数据在 composable（惰性求值随迁）+ 宿主解构绑定 + 落点导航回调留宿主', () => {
+  return DR101.includes('export function useCurationDrill(')
+    && DR101.includes("if (!drillOpen.value) return []")
+    && DR101.includes('const drillNative = computed') && DR101.includes('const drillMirror = computed') && DR101.includes('const drillRecent = computed')
+    && WSP101.includes('useCurationDrill({')
+    && WSP101.includes('const { drillOpen, drillMode, openDrill, drillCatRows, drillNative, drillMirror, drillRecent } = useCurationDrill({')
+    && WSP101.includes('function onDrillJumpCat(id: string) {') && WSP101.includes('function onDrillOpenCard(id: string) {') && WSP101.includes('function onDrillLocate(id: string) {')
+    && !WSP101.includes('const drillCatRows = computed');
 });
 
 console.log('【第一百轮 · V2.69.0：Workspace.vue 纯拆分第一批（导入域 → useWorkspaceImport）】');
