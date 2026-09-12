@@ -1,4 +1,4 @@
-/* 知源调度台 V2.63.0 回归验证矩阵（交付前必须全绿；当前 969 项）
+/* 知源调度台 V2.64.0 回归验证矩阵（交付前必须全绿；当前 971 项）
  * 运行：node scripts/regression.cjs
  * 新增功能时同步在对应域追加检查项 */
 const fs = require('fs');
@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.63.0'";
+const VER_ANCHOR_LITERAL = "version: '2.64.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -2621,6 +2621,23 @@ check('R94-9 版本五处同步（manifest/package/ManualPage/regression/关于�
   const reg = fs.readFileSync(__filename, 'utf8');
   return m.includes(VER_ANCHOR_LITERAL) && pkg.includes('"version": "' + CUR_VER + '"')
     && mp.includes(CUR_VTAG) && reg.includes(VER_ANCHOR_LITERAL) && GS.includes('runtimeVersion');
+});
+
+console.log('【第九十五轮 · V2.64.0：P1 收官审计与清单坏账清偿（G7 真相）】');
+/** R95：G7（cardCols 纳入界面偏好包）此前分散在 R66-3（导出整段）与 R72-9（导入归一）两条历史断言里，
+ *  没有一条从"列数偏好"角度把往返串起来；清单却长期标"G7 待排期"。本轮补守门 + 文档清偿。 */
+const CC95 = read('/shared/utils/cardCols.ts');
+const CC95_C = stripComments(CC95);
+check('R95-1 ★ G7 往返闭环：导出侧 exportAll 并入 loadUIPrefs 整段 uiPrefs，导入侧 sanitizeCardCols 归一后落库', () => {
+  return GS.includes('async function exportAll') && GS.includes('loadUIPrefs')
+    && GS.includes('{ ...safeData, uiPrefs }')
+    && GS.includes('sanitizeCardCols(ui.cardCols)') && GS.includes('saveUIPrefs({ cardCols: cols })')
+    && CC95_C.includes('export function sanitizeCardCols');
+});
+check('R95-2 G7 三模块键同源：sanitizeCardCols 的键集合取自 CARD_COLS_DEFAULT（新增模块键自动跟随，不会漏归一）', () => {
+  return CC95_C.includes('CARD_COLS_DEFAULT: Record<CardColsKey, number> = { curio: 4, task: 5, res: 5 }')
+    && CC95_C.includes('for (const key of Object.keys(CARD_COLS_DEFAULT)')
+    && !CC95_C.includes("['curio', 'task', 'res']");
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
