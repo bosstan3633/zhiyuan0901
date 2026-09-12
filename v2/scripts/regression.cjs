@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.76.0'";
+const VER_ANCHOR_LITERAL = "version: '2.77.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -2760,11 +2760,12 @@ check('R106-1 ★ F1 乱码修复：mouseleave 回到 nav 开标签内，文本�
   return APP106.includes('<nav class="tabs" @mouseleave="wsOverflowOpen = false">')
     && !APP106.includes('> @mouseleave');
 });
-check('R106-2 F2 顶栏对齐：topbar-inner 按路由匹配正文容器宽（四档）', () => {
+check('R106-2 F2 顶栏对齐（R108 重指：F10 资源台/策展台容器并入 1440，三档）', () => {
   return APP106.includes('const topbarAlign = computed(')
-    && APP106.includes("if (p.startsWith('/workspace') || p.startsWith('/curation')) return 'align-ws'")
+    && APP106.includes("if (p.startsWith('/settings')) return 'align-settings'")
+    && APP106.includes("if (p.startsWith('/manual')) return 'align-manual'")
     && APP106.includes('.topbar-inner.align-page { max-width: 1440px; margin: 0 auto; padding: 0 24px; }')
-    && APP106.includes('.topbar-inner.align-ws { padding: 0 20px; }');
+    && !APP106.includes('align-ws');
 });
 check('R106-3 F4 镜像卡三键：单击只读详情（表单禁交互+只读守卫）/ Ctrl+Enter 定位源卡 / 定位走 hl', () => {
   return WSP106.includes('function openMirrorDetail(r: ResourceCard)')
@@ -2941,6 +2942,51 @@ check('R99-4 D-E 跨区拖拽自动切换 pinned：翻 pinned 后插入目标区
     && !CS99.includes('跨区移动请先用 📌 置顶/取消置顶')
     && CS99.includes('// R99（D-E）：只拦同卡——跨区目标也要给 drag-over 高亮并允许 drop')
     && CS99.includes('if (!dragProjId || dragProjId === p.id) return');
+});
+
+console.log('【第一百零八轮 · V2.77.0：Markdown 模板导入实装（T1-T5）+ 页边距统一（F10）】');
+/** R108：① 用户确认的两项 Markdown 导入实装——方向树战略目标下批量生成项目/指标/任务
+ *  （CompassTree 📋 入口 + 共享弹窗 + 写入链），策展台金字塔批量生成论点/分类节点/节点卡片
+ *  （Workspace ⚙ 入口 + 同款弹窗 + 写入链，hasThesis 决定 H1 是否采用，完成后切金字塔视图）。
+ *  解析器入 shared/utils/mdImport.ts（纯函数，容错链经 TS 补全：H3/H4 先于父级时逐级承接）。
+ *  ② F10：资源台/策展台容器与调度台/方向台统一 1440 居中（生产反馈：三页切换左右跳动感）。 */
+const MI108 = read('/shared/utils/mdImport.ts');
+const ITM108 = read('/newtab/components/ImportTemplateModal.vue');
+const CT108 = read('/newtab/views/CompassTree.vue');
+const WSP108 = read('/newtab/views/Workspace.vue');
+check('R108-1 ★ 解析器纯函数：parseGoalTemplate（H1项目/H2指标/H3任务/正文详情+通用执行承接）+ parsePyramidTemplate（H1论点/H2-H4层级嵌套+跳级提升）', () => {
+  return MI108.includes('export function parseGoalTemplate(src: string): GoalParseResult')
+    && MI108.includes('export function parsePyramidTemplate(src: string): PyramidParseResult')
+    && MI108.includes("M = { name: '通用执行', tasks: [], auto: true }")
+    && MI108.includes('已提升为 L2 承接（跳级容错）')
+    && MI108.includes('已提升为 L3 承接（跳级容错）');
+});
+check('R108-2 共享导入弹窗：双模式（goal/pyramid）+ hasThesis 决定 H1 采用 + 实时解析预览 + 节点双入口绘制', () => {
+  return ITM108.includes("mode: 'goal' | 'pyramid'")
+    && ITM108.includes('parseGoalTemplate(src.value)')
+    && ITM108.includes('parsePyramidTemplate(src.value)')
+    && ITM108.includes('🔗 关联资源卡') && ITM108.includes('➕ 新建卡片')
+    && ITM108.includes('hasThesis')
+
+});
+check('R108-3 ★ goal 写入链：任务双挂（projectId+metricId+taskIds 回写）+ 同名跳过幂等 + 单次持久化', () => {
+  return CT108.includes('function confirmGoalImport(payload: { goal?: GoalParseResult })')
+    && CT108.includes("met = { id: uid('met'), title: m.name, taskIds: [] }")
+    && CT108.includes('met.taskIds.push(task.id)')
+    && CT108.includes('d.value.tasks.some(x => !x.deletedAt && x.projectId === proj!.id && x.metricId === met!.id && x.title === t.name)')
+    && CT108.includes('node-action" @click.stop="openGoalImport(dir)"');
+});
+check('R108-4 ★ pyramid 写入链：论点卡+setThesis（本台未设时）+ 分类同父同名复用 + 每节点同名台内卡 + 200 节点上限 + 完成切金字塔视图', () => {
+  return WSP108.includes('function confirmPyramidImport(payload: { pyramid?: PyramidParseResult })')
+    && WSP108.includes('setThesis(d.value, workspaceId.value, card.id)')
+    && WSP108.includes('const found = d.value.categories.find(c => c.workspaceId === workspaceId.value && (c.parentId || undefined) === parentId && c.name === name)')
+    && WSP108.includes('if (nodeTotal > 200) { showToast(\'⚠ 单次导入建议不超过 200 个节点——请分批导入\'); return }')
+    && WSP108.includes("pyramidImportOpen.value = false") && WSP108.includes("setViewMode('pyramid')")
+    && WSP108.includes('📋 导入金字塔模板');
+});
+check('R108-5 F10 页边距统一：ws-page 1440 居中 + topbar 三档（align-ws 退役）', () => {
+  return WSP108.includes('.ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }')
+    && !read('/newtab/App.vue').includes('align-ws');
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

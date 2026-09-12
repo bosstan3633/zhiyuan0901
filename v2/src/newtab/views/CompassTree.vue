@@ -13,6 +13,8 @@ import { showToast } from '@/shared/components/toast'
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
 import TaskAddDrawer from '../components/TaskAddDrawer.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
+import ImportTemplateModal from '../components/ImportTemplateModal.vue'
+import type { GoalParseResult } from '@/shared/utils/mdImport'
 
 const router = useRouter()
 const route = useRoute()
@@ -177,6 +179,54 @@ function addDirection() {
 function addProject(dirId: string) {
   const proj = addProjectToDir(dirId, '新攻坚项目')
   if (proj) showToast('✓ 项目已创建')
+}
+
+/** R108（T2）：战略目标 · Markdown 模板批量导入——项目/指标/任务一次生成。
+ *  同名跳过在写入层执行（需要本目标上下文）：同名项目整体跳过（幂等防重复导入），
+ *  同名指标/任务在各自层级跳过；确认前弹窗内已可见全部将创建的结构（预览即确认）。 */
+const goalImport = ref<{ open: boolean; dirId: string; dirName: string }>({ open: false, dirId: '', dirName: '' })
+function openGoalImport(dir: Direction) {
+  goalImport.value = { open: true, dirId: dir.id, dirName: dir.name }
+}
+function confirmGoalImport(payload: { goal?: GoalParseResult }) {
+  const g = payload.goal
+  if (!g) return
+  const dir = d.value.compass.directions.find(x => x.id === goalImport.value.dirId)
+  if (!dir) { showToast('未找到目标战略目标'); return }
+  let pc = 0, mc = 0, tc = 0, sk = 0
+  for (const p of g.projects) {
+    let proj: Project | undefined = dir.projects.find(x => x.name === p.name)
+    if (proj) { sk++; continue }
+    const created = addProjectToDir(dir.id, p.name)
+    if (!created) { sk++; continue }
+    proj = created
+    pc++
+    for (const m of p.metrics) {
+      let met = proj.metrics.find(x => x.title === m.name)
+      if (met) { sk++; continue }
+      met = { id: uid('met'), title: m.name, taskIds: [] }
+      proj.metrics.push(met)
+      mc++
+      for (const t of m.tasks) {
+        if (d.value.tasks.some(x => !x.deletedAt && x.projectId === proj!.id && x.metricId === met!.id && x.title === t.name)) { sk++; continue }
+        const task: TaskCard = {
+          id: uid('task'), kind: 'task', title: t.name,
+          projectId: proj.id, metricId: met.id,
+          status: 'todo', priority: 'medium',
+          description: t.detail || undefined,
+          tags: [], customFields: {}, pinned: false,
+          mountedResourceIds: [], mountedCuriosityIds: [],
+          createdAt: Date.now(), updatedAt: Date.now()
+        }
+        d.value.tasks.unshift(task)
+        met.taskIds.push(task.id)
+        tc++
+      }
+    }
+  }
+  store.persist()
+  goalImport.value.open = false
+  showToast(`✓ 已导入：项目 ${pc} · 指标 ${mc} · 任务 ${tc}${sk ? `（跳过同名 ${sk}）` : ''}`)
 }
 /** R85（T0-A）：store 现返回结构化结果（超限会被拒绝），由调用方 toast——方向树此前无任何提示 */
 function onToggleFocus(id: string) {
@@ -553,6 +603,7 @@ onUnmounted(() => {
                 </div>
                 <div class="node-actions">
                   <div class="node-action" @click.stop="addProject(dir.id)" title="添加项目">＋</div>
+                  <div class="node-action" @click.stop="openGoalImport(dir)" title="导入模板（Markdown 批量生成项目/指标/任务）">📋</div>
                   <div class="node-action danger" @click.stop="deleteNode('dir', dir.id)" title="删除">🗑</div>
                 </div>
               </div>
@@ -744,6 +795,13 @@ onUnmounted(() => {
 
     
   </div>
+  <ImportTemplateModal
+    :open="goalImport.open"
+    mode="goal"
+    :target-name="goalImport.dirName"
+    @close="goalImport.open = false"
+    @confirm="confirmGoalImport"
+  />
 </template>
 
 <style scoped>

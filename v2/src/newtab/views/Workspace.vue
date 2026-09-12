@@ -79,6 +79,16 @@
     <CurationDrillDrawer :open="drillOpen" :mode="drillMode" :cat-rows="drillCatRows" :native-cards="drillNative" :mirror-cards="drillMirror" :asset-rows="metrics.attachmentItems" :recent-rows="drillRecent"
       @close="drillOpen=false" @jump-cat="onDrillJumpCat" @open-card="onDrillOpenCard" @locate="onDrillLocate" />
 
+    <!-- R108（T3）：金字塔 Markdown 模板导入弹窗（仅策展台入口；hasThesis 决定 H1 是否被采用） -->
+    <ImportTemplateModal
+      :open="pyramidImportOpen"
+      mode="pyramid"
+      :target-name="workspace?.name || ''"
+      :has-thesis="!!thesisCard"
+      @close="pyramidImportOpen = false"
+      @confirm="confirmPyramidImport"
+    />
+
     <!-- 设置下拉菜单（固定定位，避免被 hero 圆角裁剪） -->
     <div class="settings-menu" :class="{open: settingsMenuOpen}" @click.stop>
       <!-- R88（W6）：「⬇ 导入」自工具条收进此处，并**按台身份改名**消歧义——
@@ -88,6 +98,8 @@
       <div v-if="!batchMode" class="sm-item" @click="toggleBatchMode">☑ 批量管理</div>
       <!-- R106（F7）：一键批量清理本台镜像卡（投射记录删除，源卡保留在资源台） -->
       <div v-if="!isHub" class="sm-item" @click="cleanAllMirrors">🧹 清理本台镜像卡</div>
+      <!-- R108（T3）：金字塔 Markdown 模板导入（论点 + 分类节点 + 节点卡片一次生成） -->
+      <div v-if="!isHub" class="sm-item" @click="pyramidImportOpen = true">📋 导入金字塔模板</div>
       <div class="sm-divider"></div>
       <div class="sm-item" @click="renameWs">✏️ 重命名</div>
       <div class="sm-item" @click="editDesc">📝 编辑描述</div>
@@ -881,6 +893,8 @@ import { useCurationDrill } from '@/newtab/composables/useCurationDrill'
 import { useWorkspaceBatch } from '@/newtab/composables/useWorkspaceBatch'
 import { useWorkspaceMirror } from '@/newtab/composables/useWorkspaceMirror'
 import { useCategoryCrud } from '@/newtab/composables/useCategoryCrud'
+import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'
+import { parsePyramidTemplate, type PyramidParseResult, type PyramidNode } from '@/shared/utils/mdImport'
 import { useConfirm } from '@/shared/components/confirm'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import { markRank } from '@/shared/utils/marksort'
@@ -1528,6 +1542,64 @@ async function cleanAllMirrors() {
   }
   store.persist()
   showToast(`✓ 已清理 ${removed} 张镜像卡（源卡保留在资源台）`)
+}
+/** R108（T3）：金字塔 Markdown 模板导入写入链——
+ *  论点（本台未设且 md 含 H1 → 建论点卡 + setThesis）→ 逐层建分类（同父同名复用）→
+ *  每分类节点建一张同名台内卡（正文=节点描述）；完成后切到金字塔视图呈现。 */
+const pyramidImportOpen = ref(false)
+function confirmPyramidImport(payload: { pyramid?: PyramidParseResult }) {
+  const pyr = payload.pyramid
+  if (!pyr || !pyr.thesis) { showToast('未识别到中心论点——不写入'); return }
+  let nodeTotal = 0
+  const cnt = (n: PyramidNode) => { nodeTotal++; (n.children || []).forEach(cnt) }
+  cnt(pyr.thesis)
+  if (nodeTotal > 200) { showToast('⚠ 单次导入建议不超过 200 个节点——请分批导入'); return }
+  let catCount = 0, cardCount = 0, reused = 0
+  const ensureCat = (name: string, parentId?: string): Category => {
+    const found = d.value.categories.find(c => c.workspaceId === workspaceId.value && (c.parentId || undefined) === parentId && c.name === name)
+    if (found) { reused++; return found }
+    const cat: Category = { id: uid('cat'), workspaceId: workspaceId.value, name, order: d.value.categories.filter(c => c.workspaceId === workspaceId.value && (c.parentId || undefined) === parentId).length }
+    if (parentId) cat.parentId = parentId
+    d.value.categories.push(cat)
+    catCount++
+    return cat
+  }
+  const ensureNodeCard = (cat: Category, name: string, desc: string) => {
+    const dup = d.value.resources.find(r => !r.deletedAt && r.workspaceId === workspaceId.value && r.categoryId === cat.id && r.title === name)
+    if (dup) { reused++; return }
+    d.value.resources.unshift({
+      id: uid('res'), kind: 'resource', title: name, linkType: 'url', link: '',
+      workspaceId: workspaceId.value, categoryId: cat.id,
+      description: desc || undefined, tags: [], customFields: {}, pinned: false, callCount: 0,
+      createdAt: Date.now(), updatedAt: Date.now()
+    })
+    cardCount++
+  }
+  const walk = (nodes: PyramidNode[], parentId?: string) => {
+    for (const n of nodes) {
+      const cat = ensureCat(n.name, parentId)
+      ensureNodeCard(cat, n.name, n.desc)
+      walk(n.children || [], cat.id)
+    }
+  }
+  if (!thesisCard && pyr.thesis && !pyr.thesis.virtual) {
+    const card: ResourceCard = {
+      id: uid('res'), kind: 'resource', title: pyr.thesis.name, linkType: 'url', link: '',
+      workspaceId: workspaceId.value, categoryId: '',
+      description: pyr.thesis.desc || undefined, tags: [], customFields: {}, pinned: false, callCount: 0,
+      createdAt: Date.now(), updatedAt: Date.now()
+    }
+    d.value.resources.unshift(card)
+    setThesis(d.value, workspaceId.value, card.id)
+    cardCount++
+  } else if (pyr.thesis && thesisCard) {
+    reused++
+  }
+  walk(pyr.thesis.children, undefined)
+  store.persist()
+  pyramidImportOpen.value = false
+  setViewMode('pyramid')
+  showToast(`✓ 已导入：分类 ${catCount} · 卡片 ${cardCount}${reused ? `（复用/忽略 ${reused}）` : ''}——已切换到金字塔视图`)
 }
 function locateMirrorSourceCard() {
   const id = editingResource.id
@@ -2620,7 +2692,8 @@ function linkDisplay(link: string) {
 </script>
 
 <style scoped>
-.ws-page { min-height: 100vh; background: var(--bg); padding: 0 20px 24px; }
+/* R108（F10）：资源台/策展台容器与调度台/方向台统一（1440 居中 + 24px 边距）——三页切换无左右跳动感 */
+.ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
 .ws-empty { display: flex; align-items: center; justify-content: center; height: 100vh; color: var(--text-3); }
 
 /* R73-S5a：资源台页头（R64-F13 删掉 hero 大标题后，hub 一直没有页面标题；

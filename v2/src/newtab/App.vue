@@ -40,12 +40,11 @@ const themes = [
   { id: 'notion', name: '纸墨白', dot: '#2383E2' }
 ]
 
-/** R106（F2）：顶栏内容容器按当前路由对齐各页正文容器——
- *  调度台/方向台 1440 居中 · 资源台/策展台 满宽 20px · 设置 1200 · 手册 1120；
- *  顶栏左缘 = 当前页正文左缘（生产反馈：宽窗口下页签贴窗缘而正文居中）。 */
+/** R106（F2）→ R108（F10）修订：资源台/策展台容器与调度台/方向台统一为 1440 居中后，
+ *  顶栏三档简化为：主页面（调度台/方向台/资源台/策展台）1440 居中 · 设置 1200 · 手册 1120；
+ *  顶栏左缘 = 当前页正文左缘（三页切换零跳动感）。 */
 const topbarAlign = computed(() => {
   const p = route.path
-  if (p.startsWith('/workspace') || p.startsWith('/curation')) return 'align-ws'
   if (p.startsWith('/settings')) return 'align-settings'
   if (p.startsWith('/manual')) return 'align-manual'
   return 'align-page'
@@ -557,7 +556,6 @@ const backupReminderDot = computed(() => {
 /* R106（F2）：顶栏内容容器按路由对齐各页正文容器（左缘一致） */
 .topbar-inner { flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; }
 .topbar-inner.align-page { max-width: 1440px; margin: 0 auto; padding: 0 24px; }
-.topbar-inner.align-ws { padding: 0 20px; }
 .topbar-inner.align-settings { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
 .topbar-inner.align-manual { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }
