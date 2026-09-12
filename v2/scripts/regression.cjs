@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.68.0'";
+const VER_ANCHOR_LITERAL = "version: '2.69.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -261,15 +261,15 @@ check('R29-2 快捷键跟随位置（顺序即快捷键，自定义绑定移除�
 check('R29-3 资源卡拖到侧栏分类改归属（三视图通用+待分类落点）', () => read('/newtab/views/Workspace.vue').includes('cardDropTarget') && read('/newtab/views/Workspace.vue').includes('onDropToCategory(e, cat.id)') && read('/newtab/views/Workspace.vue').includes("onDropToCategory(e, '')"));
 check('R29-4 分类落点高亮（与分类拖拽指示区分）', () => read('/newtab/views/Workspace.vue').includes('.cat-item.card-drop'));
 check('R29-5/R49 信纸明显留白（应用内+分享版同步；R49 行距 3.1）', () => read('/newtab/views/GlobalSettings.vue').includes('line-height: 3.1') && read('/newtab/letter-data.ts').includes('line-height: 3.1'));
-check('R29-6（R65 修订）分类/标签名 URL 编码归一化（书签解析移交资源台）', () => read('/shared/storage/repository.ts').includes('safeDecodeText') && read('/shared/utils/index.ts').includes('export function safeDecodeText') && read('/newtab/views/Workspace.vue').includes('safeDecodeText(h3.textContent'));
+check('R29-6（R65 修订）分类/标签名 URL 编码归一化（书签解析移交资源台）', () => read('/shared/storage/repository.ts').includes('safeDecodeText') && read('/shared/utils/index.ts').includes('export function safeDecodeText') && read('/newtab/composables/useWorkspaceImport.ts').includes('safeDecodeText(h3.textContent'));
 check('R29-7 「升为一级」落点先取引用再清理（修拖拽状态自吞）', () => read('/newtab/views/Workspace.vue').includes('先取引用再清理状态'));
 
 console.log('【第卅轮 · 信件模块化/书签导入分类树 · V2.10.0】');
 check('R30-1 信件节头+停顿+信念行（应用内样式）', () => read('/newtab/views/GlobalSettings.vue').includes('.gs-letter .lp-body p.lp-h') && read('/newtab/views/GlobalSettings.vue').includes('.gs-letter .lp-body p.lp-turn') && read('/newtab/views/GlobalSettings.vue').includes('.gs-letter .lp-body p.lp-creed'));
 check('R30-2 信件 HTML 模块化结构（两处渲染共享）', () => read('/newtab/letter-data.ts').includes('<p class="lp-h">') && read('/newtab/letter-data.ts').includes('<p class="lp-turn">') && read('/newtab/letter-data.ts').includes('<p class="lp-creed">'));
 check('R30-3 分享版分节样式同构', () => read('/newtab/letter-data.ts').includes('.lp-body p.lp-h'));
-check('R30-4（R73 修订）书签文件夹→分类树（资源台 hub 分支承接：前 2 级建分类，同名同级复用）', () => read('/newtab/views/Workspace.vue').includes('ensureBookmarkCategory') && read('/newtab/views/Workspace.vue').includes('BK_ROOT_NAMES') && read('/newtab/views/Workspace.vue').includes('cat.parentId = parentId'));
-check('R30-5（R73 修订）第 3 级+并入标签（资源台 hub 分支承接）', () => read('/newtab/views/Workspace.vue').includes('segs.slice(2)') && !read('/newtab/views/Workspace.vue').includes("b.path.filter(p => p && p !== '书签栏')"));
+check('R30-4（R73 修订；R100 重指：实现拆入 useWorkspaceImport，宿主保留绑定）书签文件夹→分类树（资源台 hub 分支承接：前 2 级建分类，同名同级复用）', () => { const imp = read('/newtab/composables/useWorkspaceImport.ts'); return imp.includes('ensureBookmarkCategory') && imp.includes('BK_ROOT_NAMES') && imp.includes('cat.parentId = parentId'); });
+check('R30-5（R73 修订；R100 重指：实现拆入 useWorkspaceImport）第 3 级+并入标签（资源台 hub 分支承接）', () => { const imp = read('/newtab/composables/useWorkspaceImport.ts'); return imp.includes('segs.slice(2)') && !imp.includes("b.path.filter(p => p && p !== '书签栏')"); });
 
 console.log('【第卅一轮 · 下钻抽屉重构/Esc修复/发版 · V2.11.0】');
 check('R31-1 Drawer 组件 Esc 关闭（open 期间 document 级捕获）', () => read('/shared/components/Drawer.vue').includes("watch(() => props.open") && read('/shared/components/Drawer.vue').includes("document.addEventListener('keydown', onKey, true)"));
@@ -1054,11 +1054,11 @@ check('R65-2（R74 重写）资源台抽屉详情：单击 openResource 开抽�
   return w.includes('ResourceEditForm') && w.includes('function openResource(r: ResourceCard)') && w.includes(':class="{open: drawerOpen}"') && w.includes('openResource(r') && w.includes('onCardDblClick(r)') && w.includes('260');
 });
 check('R65-3 资源台批量操作浮动栏：全选/批量打开/移动到/批量删除 + confirmBatchMove 落资源台分类树', () => { const c = read('/newtab/views/Workspace.vue'); return c.includes('batch-bar') && c.includes('selectAllVisible') && c.includes('batchOpen') && c.includes('openBatchMove') && c.includes('batchDelete') && c.includes('moveCatOptions'); });
-check('R65-4（R73 修订）导入书签/本地文件落资源台：hub 分支持有 bookmarkInput + handleBookmarkImport + handleFileImport + parseBookmarksHtml', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('bookmarkInput') && w.includes('handleBookmarkImport') && w.includes('handleFileImport') && w.includes('parseBookmarksHtml') && w.includes('makeHubResource'); });
+check('R65-4（R73 修订；R100 重指：实现拆入 useWorkspaceImport，宿主保留绑定）导入书签/本地文件落资源台：hub 分支持有 bookmarkInput + handleBookmarkImport + handleFileImport + parseBookmarksHtml', () => { const imp = read('/newtab/composables/useWorkspaceImport.ts'); const w = read('/newtab/views/Workspace.vue'); return imp.includes('bookmarkInput') && imp.includes('handleBookmarkImport') && imp.includes('handleFileImport') && imp.includes('parseBookmarksHtml') && imp.includes('makeHubResource') && w.includes('handleBookmarkImport') && w.includes('handleFileImport'); });
 check('R65-5/R66 金字塔居中树布局：pyLayout 叶子占列+父跨子组全部列（父横向恒=子组、居中、不跨入其他父域）+ 列宽自适应 minmax(170,250)', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('const pyLayout = computed') && w.includes('placeCat') && w.includes('/ span ${cell.colSpan}') && w.includes('minmax(170px, 250px)') && !w.includes('pyLevelCols'); });
 check('R65-6 金字塔严格树状：DFS 先序排序（同父节点紧邻）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('const dfsOrder = new Map<string, number>()') && w.includes("walk('')") && w.includes('dfsOrder.get(a.cat.id)'); });
 check('R65-7 节点双入口：🔗 关联资源卡（linkCandidates 关键词过滤 + 已在该台去重 + confirmLinkCards projectCardToBoard 镜像）+ ➕ 新建卡片（addResourceToCategory 台内卡）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('openLinkCards') && w.includes('linkCandidates') && w.includes('confirmLinkCards') && w.includes('projectCardToBoard(d.value, id, workspaceId.value, m.catId)') && w.includes('🔗 关联资源卡') && w.includes('➕ 新建卡片') && w.includes('py-node-foot'); });
-check('R65-8 策展台导入=策展台数据包 JSON：version 校验 + 按 ID 并集合并本台段 + 投射清单并入', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('handleBoardImport') && w.includes("startsWith('2')") && w.includes('mergeById(d.value.resources, incRes') && w.includes('curationProjections = mergeById'); });
+check('R65-8（R100 重指：实现拆入 useWorkspaceImport）策展台导入=策展台数据包 JSON：version 校验 + 按 ID 并集合并本台段 + 投射清单并入', () => { const imp = read('/newtab/composables/useWorkspaceImport.ts'); return imp.includes('handleBoardImport') && imp.includes("startsWith('2')") && imp.includes('mergeById(d.value.resources, incRes') && imp.includes('curationProjections = mergeById'); });
 check('R65-9 全景收窄为资源台全景：panHubWss 过滤 isHubWs + 导航/标题改名', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('const panHubWss = computed') && g.includes("(store.data?.workspaces || []).filter(w => isHubWs(w) && !w.archived)") && g.includes("label: '资源台全景'") && g.includes('🗺 资源台全景') && !g.includes("label: '工作台全景'"); });
 check('R65-10（R68 修订）快捷键口径：open-resource 退役，资源台入口=应用内 Alt+2（switchToIndex）', () => { const m = read('/manifest.ts'); const a = read('/newtab/App.vue'); return !m.includes("'open-resource'") && a.includes('if (n === 2) { openResource(); return }'); });
 check('R65-11（R74 重写）KeepAlive 切台缓存：三主视图 include（+CompassShell）+ defineOptions 实例名 + 跨台 :id 复位局部状态', () => {
@@ -1131,8 +1131,8 @@ check('R70-1 P0 新增分类树结构校验工具（环/孤儿/超深净化 + �
   return t.includes('sanitizeCategoryTree') && t.includes('MAX_CAT_LEVEL') && t.includes('MAX_CAT_NODES') && t.includes('catTreeFixNote');
 });
 check('R70-2 P0 两条导入路径接入净化（全量导入 + 策展台数据包）', () => {
-  const gs = read('/newtab/views/GlobalSettings.vue'); const wsp = read('/newtab/views/Workspace.vue');
-  return gs.includes('sanitizeCategoryTree(imported.categories') && gs.includes('mergeById(d.categories, safeCats)') && wsp.includes('sanitizeCategoryTree(ext.categories');
+  const gs = read('/newtab/views/GlobalSettings.vue'); const imp = read('/newtab/composables/useWorkspaceImport.ts');
+  return gs.includes('sanitizeCategoryTree(imported.categories') && gs.includes('mergeById(d.categories, safeCats)') && imp.includes('sanitizeCategoryTree(ext.categories');
 });
 check('R70-3（R74 重写）资源台递归/上行走链防环（R71 起收敛至索引层 visited + 缓存）', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -1361,10 +1361,10 @@ check('R73-5 导入弹窗 mode-aware：hub 提供书签+本地文件，策展台
   const w = read('/newtab/views/Workspace.vue');
   return w.includes("isHub ? '导入资源到资源台' : '导入策展台数据包'") && w.includes('bookmarkInput?.click()') && w.includes('@click="fileImport"') && w.includes('boardImportInput?.click()');
 });
-check('R73-6 书签导入全链路在 hub：解析/根文件夹白名单/前 2 级建分类/第 3 级+转标签/文件夹勾选弹窗', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('function parseBookmarksHtml') && w.includes('function ensureBookmarkCategory') && w.includes('const BK_ROOT_NAMES = new Set(')
-    && w.includes('segs.slice(2)') && w.includes('function confirmBookmarkImport') && w.includes('bkFolders');
+check('R73-6（R100 重指：实现拆入 useWorkspaceImport）书签导入全链路在 hub：解析/根文件夹白名单/前 2 级建分类/第 3 级+转标签/文件夹勾选弹窗', () => {
+  const imp = read('/newtab/composables/useWorkspaceImport.ts');
+  return imp.includes('function parseBookmarksHtml') && imp.includes('function ensureBookmarkCategory') && imp.includes('const BK_ROOT_NAMES = new Set(')
+    && imp.includes('segs.slice(2)') && imp.includes('function confirmBookmarkImport') && imp.includes('bkFolders');
 });
 check('R73-7（R89 重指：非镜像门控上移到包裹 template）hub 镜像推送入口：卡面 📡 / 分类 📤 / 目标台弹窗，且仅 hub 出现', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -1383,7 +1383,7 @@ check('R73-8 hub 补齐 L5：区域级落卡（空白区可落）+ 拖拽结束�
 check('R73-9 聚合哨兵不污染数据层（hub 口径）：新建/文件导入/空白区落卡 均经 newCardCatId 回落未分类', () => {
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('function newCardCatId(): string') && w.includes("return (c && c !== 'uncat' && c !== 'all') ? c : ''")
-    && w.includes('editingResource.categoryId = newCardCatId()') && w.includes('const catId = newCardCatId()')
+    && w.includes('editingResource.categoryId = newCardCatId()') && read('/newtab/composables/useWorkspaceImport.ts').includes('const catId = newCardCatId()')
     && w.includes('const targetKey = catKeyToCatId(groupKey)');
 });
 check('R73-10（R74 重写）旧入口组件已删除（路线乙收尾）：CurationCenter.vue 不复存在', () => {
@@ -1753,7 +1753,8 @@ check('R79-8（R89 重指：门控上移到包裹 template）三视图 📡 镜�
 });
 
 console.log('【第八十轮 · V2.49.0：附件卡闭环（R13 导入改为附件卡 + R14 开放附件卡打开）】');
-const IMPORT_FN = segOf(read('/newtab/views/Workspace.vue'), 'async function handleFileImport(', '\n// ===== 设置菜单');
+// R100 重指：导入实现拆入 useWorkspaceImport（宿主保留绑定与入口面）
+const IMPORT_FN = segOf(read('/newtab/composables/useWorkspaceImport.ts'), 'async function handleFileImport(', '\n  return {');
 const OPEN_LINK_FN = segOf(read('/newtab/views/Workspace.vue'), 'function openResourceLink(', '\n// 单击（详情）与双击（打开链接）区分');
 check('R80-1 R13 导入建卡带 zy-asset:// 链接 + assets（不再是只存文件名的哑卡）', () => {
   return IMPORT_FN.includes("link: `zy-asset://${id}`") && IMPORT_FN.includes('assets: [meta]')
@@ -1777,7 +1778,7 @@ check('R80-5 R13 guessAssetKind 抽为共享工具，AssetManager 改 import（�
   const w = read('/newtab/views/Workspace.vue');
   return ak.includes('export function guessAssetKind(') && ak.includes('export const ASSET_KIND_MB')
     && am.includes("from '@/shared/utils/assetKind'") && !am.includes('function guessKind(name: string, mime: string)')
-    && w.includes("from '@/shared/utils/assetKind'");
+    && read('/newtab/composables/useWorkspaceImport.ts').includes("from '@/shared/utils/assetKind'");
 });
 check('R80-6 R13 导入 input 的 accept 已列支持类型（图片 / HTML / PDF）', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -2726,6 +2727,23 @@ check('R98-3 W9 分组标题补含子分类数：groupChildCount（uncat→0）+
     && WS98.includes("if (key === 'uncat') return 0")
     && WS98.includes('return catIdx.value.childrenOf.get(key)?.length || 0')
     && occ === 2;
+});
+
+console.log('【第一百轮 · V2.69.0：Workspace.vue 纯拆分第一批（导入域 → useWorkspaceImport）】');
+/** R100：Workspace.vue 3583 行的技术债开始偿还——第一批拆出导入三链路（数据包/书签/本地文件，
+ *  ~220 行）为独立 composable，实现原位迁出、零行为变更。拆分约定：实现随迁（composable 内实现），
+ *  绑定留宿主（解构保持原标识符，模板与断言入口面不变），断言按域归位（R100 重指 13 处）。
+ *  本断言守拆分不变量：实现在 composable、宿主有绑定、宿主无重复实现。 */
+const IMP100 = read('/newtab/composables/useWorkspaceImport.ts');
+const WSP100 = read('/newtab/views/Workspace.vue');
+check('R100-1 ★ 导入域拆分不变量：三链路实现在 composable + 宿主经 useWorkspaceImport 解构绑定 + 宿主零重复实现', () => {
+  return IMP100.includes('export function useWorkspaceImport(')
+    && IMP100.includes('function handleBoardImport(') && IMP100.includes('function parseBookmarksHtml(')
+    && IMP100.includes('async function handleFileImport(') && IMP100.includes('function confirmBookmarkImport(')
+    && WSP100.includes('useWorkspaceImport({ d, workspaceId, newCardCatId, persist: () => store.persist() })')
+    && WSP100.includes('handleBoardImport, handleBookmarkImport, confirmBookmarkImport, toggleAllBk,')
+    && !WSP100.includes('function parseBookmarksHtml') && !WSP100.includes('function ensureBookmarkCategory')
+    && !WSP100.includes('async function handleFileImport(');
 });
 
 console.log('【第九十九轮 · V2.68.0：方向台组四件（M6 + M8 + D-D + D-E）】');

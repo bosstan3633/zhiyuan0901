@@ -14,7 +14,7 @@ updated: 2026-09-12 11:30:00
 
 **核心定位（April Dunford 视角）**：自造货架「信息洪流中的控制中心——AI 时代知识工作者的个人资源调度台」——不是书签插件、不是 PKM 笔记、不是新标签页美化。它不生产内容，而是横在所有 AI 工具、笔记、文件之上的**调度层**：经营你的认知周转率，让每一个被见过的信息都具备在正确时刻被召回的能力。
 
-- **产品版本**：V2.68.0（第 99 轮迭代；版本号唯一来源 = `src/manifest.ts`，与 `package.json`、设置页关于（动态）、手册页、`regression.cjs` 版本锚、本文件版本行共 **6 处**同步——本行自 R96 起纳入回归断言把守）
+- **产品版本**：V2.69.0（第 100 轮迭代；版本号唯一来源 = `src/manifest.ts`，与 `package.json`、设置页关于（动态）、手册页、`regression.cjs` 版本锚、本文件版本行共 **6 处**同步——本行自 R96 起纳入回归断言把守）
 - **技术栈**：Vue 3.5 + TypeScript(strict) + Vite 5 + Pinia + @crxjs（MV3）+ UnoCSS（仅引入）
 - **运行环境**：Chromium 内核浏览器（Chrome / Edge / Brave 等）
 - **数据存储**：100% 本地——主数据 `chrome.storage.local` 单根 JSON（unlimitedStorage，无 10MB 上限）+ **附件二进制 IndexedDB 库 `zy_assets`**（单文件 ≤20MB，主 JSON 绝不存 base64）；无云端、无账号
@@ -175,6 +175,7 @@ v2/
 │       │                              # /settings、/manual、/recycle
 │       ├── App.vue                    # 顶栏导航/主题/全局快捷键/错误边界/zy-*消息监听
 │       ├── manual-data.ts letter-data.ts  # 手册与一封信内容（外置数据源）
+│       ├── composables/               # useWorkspaceImport（导入三链路，R100 拆分第一批）等域级组合式
 │       ├── stores/                    # app / compass / curiosity
 │       ├── components/                # GlobalPopups（应用内浮层）/ ResourceDetailDrawer / TaskDetailDrawer
 │       │                              # TaskAddDrawer / compass 面板（LighthousePanel/NorthStarPanel/
