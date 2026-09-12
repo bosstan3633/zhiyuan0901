@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>原型 · 模板方案包 × 调度画像周报｜仅供评审</title>
+<style>
+:root{--bg:#010102;--surface:#0D0E12;--surface2:#15161C;--surface3:#1D1F26;--border:#23252A;--border2:#34343A;--text:#F7F8F8;--text2:#D0D6E0;--text3:#8A8F98;--text4:#62666D;--accent:#5E6AD2;--accent2:#7A86E8;--accent-light:rgba(94,106,210,.14);--warn:#D9A03C;--ok:#6FCE8B;--danger:#E5484D;--radius:12px;--rads:8px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.6;min-height:100vh}
+.badge{position:fixed;top:14px;right:18px;z-index:99;font-size:11px;color:var(--warn);border:1px dashed var(--warn);border-radius:99px;padding:3px 12px;background:rgba(217,160,60,.08)}
+.wrap{max-width:1280px;margin:0 auto;padding:28px 24px 80px}
+h1{font-size:19px;font-weight:700}
+.sub{font-size:12px;color:var(--text3);margin:4px 0 18px}
+.tabs{display:flex;gap:6px;margin-bottom:18px}
+.tab{padding:8px 18px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-size:13px;transition:all .15s}
+.tab.on{color:#fff;background:var(--accent);border-color:var(--accent)}
+/* ===== 模板方案包 ===== */
+.gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.role-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 16px;cursor:pointer;transition:all .2s}
+.role-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.role-card.selected{border-color:var(--accent);background:var(--accent-light)}
+.role-icon{font-size:28px;margin-bottom:8px}
+.role-name{font-size:14px;font-weight:700;margin-bottom:4px}
+.role-desc{font-size:11.5px;color:var(--text3);line-height:1.5}
+.role-meta{display:flex;gap:12px;margin-top:10px;font-size:10.5px;color:var(--text4)}
+.role-meta span{display:flex;align-items:center;gap:4px}
+.preview-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:none}
+.preview-panel.show{display:block}
+.pp-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pp-head .t{font-size:14px;font-weight:700}
+.pp-head .role-tag{font-size:10px;color:var(--accent);background:var(--accent-light);padding:2px 10px;border-radius:99px}
+.pp-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-bottom:1px solid var(--border)}
+.pp-col{padding:14px;border-right:1px solid var(--border)}
+.pp-col:last-child{border-right:none}
+.pp-col-title{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;margin-bottom:10px;text-transform:uppercase}
+.pp-item{font-size:12px;color:var(--text2);padding:5px 8px;border-radius:6px;margin-bottom:3px;display:flex;align-items:center;gap:6px}
+.pp-item .ic{font-size:11px;flex-shrink:0}
+.pp-item.sub{padding-left:22px;color:var(--text3);font-size:11.5px}
+.pp-item .n{margin-left:auto;font-size:10px;color:var(--text4)}
+.pp-foot{padding:12px 18px;display:flex;justify-content:flex-end;gap:8px;align-items:center}
+.pp-foot .note{margin-right:auto;font-size:11px;color:var(--text4)}
+.btn{padding:7px 18px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:12.5px;cursor:pointer;font-family:inherit}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.primary:hover{background:var(--accent2)}
+.ok-toast{display:none;padding:10px 18px;background:rgba(111,206,139,.1);border-top:1px solid rgba(111,206,139,.35);color:var(--ok);font-size:12.5px}
+.ok-toast.show{display:block}
+/* ===== 调度画像周报 ===== */
+.wr-overlay{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.wr-head{padding:16px 20px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.wr-head .t{font-size:16px;font-weight:700}
+.wr-head .period{font-size:12px;color:var(--text3)}
+.wr-head .switch{display:flex;gap:4px;margin-left:auto}
+.wr-head .sw-btn{padding:4px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text3);font-size:11.5px;cursor:pointer;font-family:inherit}
+.wr-head .sw-btn.on{color:#fff;background:var(--accent);border-color:var(--accent)}
+.wr-body{padding:0 20px 20px}
+.wr-section{margin-bottom:18px}
+.wr-sec-title{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;margin-bottom:10px;text-transform:uppercase}
+.wr-bignums{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.wr-bn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rads);padding:14px;text-align:center}
+.wr-bn .num{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}
+.wr-bn .lbl{font-size:11px;color:var(--text3);margin-top:2px}
+.wr-bn .trend{font-size:10.5px;margin-top:4px}
+.wr-bn .trend.up{color:var(--ok)}
+.wr-bn .trend.down{color:var(--danger)}
+.wr-bars{display:flex;flex-direction:column;gap:8px}
+.wr-bar-row{display:flex;align-items:center;gap:10px;font-size:12px}
+.wr-bar-row .name{width:140px;text-align:right;color:var(--text2);flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wr-bar-row .bar-wrap{flex:1;height:22px;background:var(--surface3);border-radius:5px;overflow:hidden}
+.wr-bar-row .bar{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .6s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-size:10.5px;color:#fff;font-variant-numeric:tabular-nums}
+.wr-top5{display:flex;flex-direction:column;gap:6px}
+.wr-top-item{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border-radius:var(--rads);font-size:12px}
+.wr-top-item .rank{width:22px;height:22px;border-radius:50%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.wr-top-item .title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)}
+.wr-top-item .fire{color:var(--warn);font-variant-numeric:tabular-nums;flex-shrink:0}
+.wr-top-item .mini-bar{width:80px;height:6px;background:var(--surface3);border-radius:99px;overflow:hidden;flex-shrink:0}
+.wr-top-item .mini-bar i{display:block;height:100%;background:var(--warn);border-radius:99px}
+.wr-funnel{display:flex;flex-direction:column;gap:6px;align-items:center}
+.wr-funnel .stage{border-radius:var(--rads);padding:8px 20px;text-align:center;font-size:12px;position:relative}
+.wr-funnel .stage .n{font-weight:700;font-size:16px}
+.wr-funnel .stage .l{font-size:10.5px;opacity:.8}
+.wr-insight{background:var(--accent-light);border:1px solid color-mix(in srgb, var(--accent) 30%, transparent);border-radius:var(--rads);padding:14px 18px;font-size:13px;color:var(--text);line-height:1.7}
+.wr-insight::before{content:"💡 ";font-size:14px}
+</style>
+</head>
+<body>
+<div class="badge">原型 · 仅供评审 · 非实装界面</div>
+<div class="wrap">
+  <h1>模板方案包 × 调度画像周报 · 交互原型</h1>
+  <div class="sub">两个中期方向的交互原型 ｜ <b style="color:var(--warn)">模拟数据 · 仅供评审 · 不写入真实数据</b></div>
+  <div class="tabs">
+    <div class="tab on" id="tabT" onclick="sw('T')">② 模板与角色方案包</div>
+    <div class="tab" id="tabW" onclick="sw('W')">③ 调度画像周报</div>
+  </div>
+
+  <!-- ===== 模板方案包 ===== -->
+  <div id="paneT">
+    <div class="sub" style="margin-bottom:14px">↓ 以下模拟调度台首次打开的引导页——点击角色卡片选中，底部展开预览详情</div>
+    <div class="gallery" id="gallery"></div>
+    <div class="preview-panel" id="previewPanel">
+      <div class="pp-head">
+        <span class="t">📋 方案预览</span>
+        <span class="role-tag" id="ppRole"></span>
+        <span style="font-size:11px;color:var(--text3)">确认后一键生成以下全部内容（同名跳过，已有数据不触碰）</span>
+      </div>
+      <div class="pp-cols">
+        <div class="pp-col">
+          <div class="pp-col-title">📁 分类树</div>
+          <div id="ppCats"></div>
+        </div>
+        <div class="pp-col">
+          <div class="pp-col-title">🌳 方向树骨架</div>
+          <div id="ppTree"></div>
+        </div>
+        <div class="pp-col">
+          <div class="pp-col-title">📄 种子卡片</div>
+          <div id="ppCards"></div>
+        </div>
+      </div>
+      <div class="pp-foot">
+        <span class="note">套用只新增、不修改、不删除已有内容；可重复套用（同名跳过）</span>
+        <button class="btn" onclick="hidePreview()">收起</button>
+        <button class="btn primary" onclick="applyTemplate()">⚡ 一键套用</button>
+      </div>
+      <div class="ok-toast" id="applyToast"></div>
+    </div>
+  </div>
+
+  <!-- ===== 调度画像周报 ===== -->
+  <div id="paneW" style="display:none">
+    <div class="sub" style="margin-bottom:14px">↓ 以下模拟调度台页头「📊 周报」点击后的全屏浮层——数据为模拟（生产环境从 zy_event_log 实时聚合）</div>
+    <div class="wr-overlay">
+      <div class="wr-head">
+        <span class="t">📊 调度画像</span>
+        <span class="period" id="wrPeriod">本周（周一 ~ 今天）</span>
+        <div class="switch">
+          <button class="sw-btn on" onclick="swWeek(this,'本周')">本周</button>
+          <button class="sw-btn" onclick="swWeek(this,'上周')">上周</button>
+        </div>
+      </div>
+      <div class="wr-body">
+        <div class="wr-section">
+          <div class="wr-sec-title">① 调度总览</div>
+          <div class="wr-bignums">
+            <div class="wr-bn"><div class="num">12</div><div class="lbl">入台卡片</div><div class="trend up">↑ 3 vs 上周</div></div>
+            <div class="wr-bn"><div class="num">28</div><div class="lbl">资源调用</div><div class="trend up">↑ 7 vs 上周</div></div>
+            <div class="wr-bn"><div class="num">3</div><div class="lbl">完成任务</div><div class="trend down">↓ 1 vs 上周</div></div>
+            <div class="wr-bn"><div class="num">5</div><div class="lbl">未归档</div><div class="trend down">↑ 2 vs 上周</div></div>
+          </div>
+        </div>
+        <div class="wr-section">
+          <div class="wr-sec-title">② 方向活跃度（本周任务完成）</div>
+          <div class="wr-bars">
+            <div class="wr-bar-row"><span class="name">AI 知识管理+内容生产专家</span><div class="bar-wrap"><div class="bar" style="width:80%">3</div></div></div>
+            <div class="wr-bar-row"><span class="name">教育+AI 专家</span><div class="bar-wrap"><div class="bar" style="width:27%">1</div></div></div>
+            <div class="wr-bar-row"><span class="name">产品全生命周期管理</span><div class="bar-wrap"><div class="bar" style="width:27%">1</div></div></div>
+          </div>
+        </div>
+        <div class="wr-section">
+          <div class="wr-sec-title">③ 资源调用 TOP 5</div>
+          <div class="wr-top5">
+            <div class="wr-top-item"><span class="rank">1</span><span class="title">Notion 模板库</span><div class="mini-bar"><i style="width:100%"></i></div><span class="fire">🔥 8</span></div>
+            <div class="wr-top-item"><span class="rank">2</span><span class="title">ChatGPT</span><div class="mini-bar"><i style="width:75%"></i></div><span class="fire">🔥 6</span></div>
+            <div class="wr-top-item"><span class="rank">3</span><span class="title">opencode</span><div class="mini-bar"><i style="width:50%"></i></div><span class="fire">🔥 4</span></div>
+            <div class="wr-top-item"><span class="rank">4</span><span class="title">政策分析框架</span><div class="mini-bar"><i style="width:38%"></i></div><span class="fire">🔥 3</span></div>
+            <div class="wr-top-item"><span class="rank">5</span><span class="title">Email - Outlook</span><div class="mini-bar"><i style="width:25%"></i></div><span class="fire">🔥 2</span></div>
+          </div>
+        </div>
+        <div class="wr-section">
+          <div class="wr-sec-title">④ 好奇心转化漏斗</div>
+          <div class="wr-funnel">
+            <div class="stage" style="background:var(--accent-light);min-width:200px"><div class="n">9</div><div class="l">好奇心总量</div></div>
+            <div style="color:var(--text4);font-size:11px">↓</div>
+            <div class="stage" style="background:var(--surface3);min-width:170px"><div class="n">5</div><div class="l">待探索</div></div>
+            <div style="color:var(--text4);font-size:11px">↓</div>
+            <div class="stage" style="background:var(--surface3);min-width:140px"><div class="n">3</div><div class="l">探索中</div></div>
+            <div style="color:var(--text4);font-size:11px">↓ 40% 转化率</div>
+            <div class="stage" style="background:rgba(111,206,139,.15);border:1px solid rgba(111,206,139,.4);min-width:120px"><div class="n" style="color:var(--ok)">2</div><div class="l">已转为任务</div></div>
+          </div>
+        </div>
+        <div class="wr-section">
+          <div class="wr-sec-title">💡 洞察</div>
+          <div class="wr-insight">你的「AI 知识管理」方向本周活跃度提升 40%——有 3 个新任务完成，保持这个节奏。另外你有 5 条好奇心待探索——选一条转成任务，让好奇心落地。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+/* ===== 模板方案包数据（六套角色） ===== */
+const ROLES = [
+  {icon:'🔬',name:'独立研究者',desc:'课题管理、文献归档、数据分析、成果追踪',cats:['课题','文献','数据','成果'],tree:{vision:'成为领域内被引用的研究者',mission:'用严谨的研究方法论产出高质量成果',goal:'完成首个独立研究课题',proj:'课题研究项目',metrics:['文献综述完成','数据分析框架搭建'],tasks:['收集核心文献 20 篇','搭建数据分析模板','撰写研究提纲']},cards:['核心文献笔记','数据源清单','研究框架模板','成果发布链接']},
+  {icon:'💼',name:'咨询顾问',desc:'客户管理、方案框架、交付模板、案例沉淀',cats:['客户','方案','交付','案例'],tree:{vision:'成为客户信赖的独立顾问',mission:'用结构化方法论交付可落地方案',goal:'完成首个咨询交付',proj:'咨询交付项目',metrics:['方案初稿完成','客户满意度 ≥ 4 分'],tasks:['客户需求访谈','方案框架搭建','交付报告撰写']},cards:['客户档案模板','方案框架库','交付清单','案例复盘']},
+  {icon:'✍️',name:'内容创作者',desc:'选题管理、素材归档、草稿迭代、发布追踪',cats:['选题','素材','草稿','已发布'],tree:{vision:'成为有影响力的内容创作者',mission:'持续产出有价值的内容',goal:'建立稳定的内容发布节奏',proj:'内容创作项目',metrics:['周更 2 篇','粉丝增长 20%'],tasks:['建立选题池','搭建素材库','写第一篇爆款分析']},cards:['选题池','素材库','爆款分析模板','发布渠道清单']},
+  {icon:'📊',name:'政策分析师',desc:'政策追踪、数据归档、分析框架、报告产出',cats:['政策','数据','报告','追踪'],tree:{vision:'成为政策解读的权威声音',mission:'用数据和框架支撑政策分析',goal:'完成首份政策分析报告',proj:'政策分析项目',metrics:['政策库覆盖 50 条','报告完成并通过评审'],tasks:['收集核心政策 30 条','搭建分析框架','撰写首份报告']},cards:['政策原文库','数据源清单','分析框架模板','报告模板']},
+  {icon:'🎓',name:'升学规划师',desc:'院校管理、政策追踪、学生档案、方案模板',cats:['院校','政策','学生','方案'],tree:{vision:'帮助 100 个学生找到最优路径',mission:'用数据驱动个性化升学方案',goal:'完成首套完整升学方案',proj:'升学规划项目',metrics:['院校库覆盖 100 所','方案满意度 ≥ 90%'],tasks:['收集院校数据','整理最新政策','搭建方案模板']},cards:['院校数据库','政策汇编','学生档案模板','方案模板']},
+  {icon:'🧠',name:'通用知识工作者',desc:'信息收集、知识整理、内容创作、输出管理',cats:['收集','整理','创作','输出'],tree:{vision:'成为持续成长的终身学习者',mission:'用系统化方法管理知识并持续输出',goal:'建立个人知识管理体系',proj:'知识管理项目',metrics:['收集 50 条高价值信息','产出 5 篇笔记'],tasks:['搭建收集流程','建立分类体系','写第一篇学习笔记']},cards:['灵感池','工具箱','阅读列表','输出渠道']},
+]
+let selectedRole = -1
+function renderGallery(){
+  const g = document.getElementById('gallery')
+  g.innerHTML = ROLES.map((r,i)=>`<div class="role-card${i===selectedRole?' selected':''}" onclick="selectRole(${i})"><div class="role-icon">${r.icon}</div><div class="role-name">${r.name}</div><div class="role-desc">${r.desc}</div><div class="role-meta"><span>📁 ${r.cats.length} 分类</span><span>📄 ${r.cards.length} 种子卡</span><span>🌳 方向树</span></div></div>`).join('')
+}
+function selectRole(i){
+  selectedRole = i
+  renderGallery()
+  const r = ROLES[i]
+  document.getElementById('previewPanel').classList.add('show')
+  document.getElementById('ppRole').textContent = r.name
+  document.getElementById('ppCats').innerHTML = r.cats.map(c=>`<div class="pp-item"><span class="ic">📁</span>${c}<span class="n">新建</span></div>`).join('')
+  document.getElementById('ppTree').innerHTML = `
+    <div class="pp-item"><span class="ic">🌟</span>愿景<span class="n">覆盖写入</span></div>
+    <div class="pp-item sub">${r.tree.vision}</div>
+    <div class="pp-item"><span class="ic">🧭</span>使命<span class="n">覆盖写入</span></div>
+    <div class="pp-item sub">${r.tree.mission}</div>
+    <div class="pp-item"><span class="ic">🎯</span>战略目标<span class="n">新建</span></div>
+    <div class="pp-item sub">${r.tree.goal}</div>
+    <div class="pp-item"><span class="ic">📦</span>项目<span class="n">新建</span></div>
+    <div class="pp-item sub">${r.tree.proj}</div>
+    ${r.tree.metrics.map(m=>`<div class="pp-item"><span class="ic">📐</span>指标<span class="n">新建</span></div><div class="pp-item sub">${m}</div>`).join('')}
+    <div class="pp-item"><span class="ic">✅</span>任务 × ${r.tree.tasks.length}<span class="n">新建</span></div>
+    ${r.tree.tasks.map(t=>`<div class="pp-item sub">${t}</div>`).join('')}`
+  document.getElementById('ppCards').innerHTML = r.cards.map(c=>`<div class="pp-item"><span class="ic">📄</span>${c}<span class="n">新建</span></div>`).join('')
+  document.getElementById('applyToast').classList.remove('show')
+}
+function applyTemplate(){
+  const r = ROLES[selectedRole]; if(!r) return
+  const bar = document.getElementById('applyToast')
+  bar.classList.add('show')
+  bar.innerHTML = `✓ 模拟套用成功：将创建 <b>${r.cats.length} 个分类 · ${r.cards.length} 张种子卡片 · 方向树骨架</b>（愿景/使命覆盖写入）。<b>原型示意——实装后此步写入真实数据并刷新调度台。</b>`
+}
+function hidePreview(){ document.getElementById('previewPanel').classList.remove('show'); selectedRole = -1; renderGallery() }
+renderGallery()
+
+/* ===== 调度画像周报 ===== */
+function swWeek(btn, period){
+  document.querySelectorAll('.sw-btn').forEach(b=>b.classList.remove('on'))
+  btn.classList.add('on')
+  document.getElementById('wrPeriod').textContent = period + '（周一 ~ 周日）'
+  // 原型：切换时数字微调模拟
+  const nums = document.querySelectorAll('.wr-bn .num')
+  const vals = period==='上周' ? [8,21,4,3] : [12,28,3,5]
+  nums.forEach((n,i)=>{ if(vals[i]!==undefined) n.textContent = vals[i] })
+}
+</script>
+</body>
+</html>
