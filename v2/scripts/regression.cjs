@@ -1,4 +1,4 @@
-/* 知源调度台 V2.59.0 回归验证矩阵（交付前必须全绿；当前 934 项）
+/* 知源调度台 V2.60.0 回归验证矩阵（交付前必须全绿；当前 942 项）
  * 运行：node scripts/regression.cjs
  * 新增功能时同步在对应域追加检查项 */
 const fs = require('fs');
@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.59.0'";
+const VER_ANCHOR_LITERAL = "version: '2.60.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -2406,6 +2406,56 @@ check('R90-10 R10 附带：Icon 补齐 edit / star / share（此前 icon:"star" 
     && CTX90.includes("icon: 'target'");
 });
 check('R90-11 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
+  const m = read('/manifest.ts');
+  const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8');
+  const mp = read('/newtab/views/ManualPage.vue');
+  const reg = fs.readFileSync(__filename, 'utf8');
+  return m.includes(VER_ANCHOR_LITERAL) && pkg.includes('"version": "' + CUR_VER + '"')
+    && mp.includes(CUR_VTAG) && reg.includes(VER_ANCHOR_LITERAL) && GS.includes('runtimeVersion');
+});
+
+console.log('【第九十一轮 · V2.60.0：主攻直通调度台速览】');
+const CH91 = read('/newtab/views/CompassHome.vue');
+/** 速览条段（以「左右分栏」注释为界，避开模板内的嵌套 template） */
+const STRIP91 = segOf(CH91, '<div class="ch-focus-strip"', '</div>\n\n    <!-- 左右分栏');
+const STRIP91_C = stripComments(STRIP91);
+const FOCUS_FN91 = segOf(CH91, 'const focusMeta = computed(', 'function openFocusProject');
+
+check('R91-1 调度台消费 focusedProjects（改前唯一消费方在方向台，调度台零消费 ⇒ 手册承诺落空）', () => {
+  return CH91.includes('focusedProjects') && STRIP91_C.includes('focusedProjects.length')
+    && CH91.includes('useCompass()');
+});
+check('R91-2 速览条位于顶部速览区：MetricBar 之后、#dispatch-split 之前', () => {
+  const at = CH91.indexOf('class="ch-focus-strip"');
+  return at > CH91.indexOf('</MetricBar>') && at < CH91.indexOf('id="dispatch-split"');
+});
+check('R91-3 ★ 性能红线：进度/停滞/待办走预计算索引 focusMeta，模板内不逐项调用遍历型函数', () => {
+  return CH91.includes('const focusMeta = computed(')
+    && !STRIP91_C.includes('projectProgress(') && !STRIP91_C.includes('isProjectStalled(')
+    && !STRIP91_C.includes('projectTasksOf(')
+    && STRIP91_C.includes('focusMeta.get(p.id)');
+});
+check('R91-4 手册承诺的「14 天无推进自动亮 ⚠ 停滞」兑现（停滞取既有 isProjectStalled 口径）', () => {
+  return stripComments(FOCUS_FN91).includes('isProjectStalled(p)') && STRIP91_C.includes('cf-stall')
+    && STRIP91_C.includes('停滞');
+});
+check('R91-5 点击直达项目详情，且与方向台主攻聚焦条同路由（/compass/projects?p=<id>）', () => {
+  const lh = read('/newtab/components/compass/LighthousePanel.vue');
+  return CH91.includes("router.push({ path: '/compass/projects', query: { p: p.id } })")
+    && lh.includes("router.push({ path: '/compass/projects', query: { p: p.id } })");
+});
+check('R91-6 无主攻时给轻引导，且**可点去方向台**（不是一句死文案）', () => {
+  return STRIP91_C.includes('cf-hint') && STRIP91_C.includes("router.push('/compass')")
+    && STRIP91_C.includes('去方向台指定');
+});
+check('R91-7 models 注释不再把主攻指向已退役的「任务中心顶部」（R49 已删 /tasks 路由）', () => {
+  const mi = read('/shared/models/index.ts');
+  const i = mi.indexOf('isFocused: boolean');
+  const before = mi.slice(Math.max(0, i - 420), i);
+  return i > 0 && before.includes('直通调度台速览')
+    && !before.includes('（最多2个，同步至任务中心顶部）');
+});
+check('R91-8 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');
   const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8');
   const mp = read('/newtab/views/ManualPage.vue');

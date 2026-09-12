@@ -27,7 +27,9 @@ import MetricBar from '../components/compass/MetricBar.vue'
 const router = useRouter()
 const route = useRoute()
 const store = useAppStore()
-const { d, allProjects, projectProgress, projectTasksOf } = useCompass()
+// R91：解构出主攻相关口径——手册「🎯 主攻（最多 2 个）直通调度台速览」此前在调度台**零消费**，
+// focusedProjects 的唯一消费方在方向台的 LighthousePanel。
+const { d, allProjects, projectProgress, projectTasksOf, focusedProjects, isProjectStalled, isProjectDone } = useCompass()
 
 const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 
@@ -620,6 +622,25 @@ async function onSyncChipClick() {
 
 // R51-F10：恢复上下联动布局——三件事居上（视觉焦点），项目调度联动在下；原左右分栏拖拽移除
 
+// ================= R91：主攻速览条（手册「直通调度台速览」的落点） =================
+/**
+ * R83 性能红线：`projectProgress` / `isProjectStalled` / `projectTasksOf` 内部都要遍历 `d.tasks`，
+ * 在模板里对每个主攻各调一次就是 O(主攻数 × 任务数) 每次重渲染。故**预计算成索引**
+ * （与 R83 的 `projMeta`、R86 的 `projState` 同款）。主攻上限 2 个，成本可忽略。
+ */
+const focusMeta = computed(() => {
+  const m = new Map<string, { pct: number; stall: boolean; finished: boolean; open: number }>()
+  for (const p of focusedProjects.value) {
+    const open = projectTasksOf(p.id).filter(t => !t.deletedAt && t.status !== 'done').length
+    m.set(p.id, { pct: projectProgress(p).pct, stall: isProjectStalled(p), finished: isProjectDone(p), open })
+  }
+  return m
+})
+/** 与方向台主攻聚焦条同路由（LighthousePanel.openProject），避免两处跳法不一致 */
+function openFocusProject(p: Project) {
+  router.push({ path: '/compass/projects', query: { p: p.id } })
+}
+
 // ================= 底部专区（R55-B2：任务调度已迁方向台，好奇心培育单区直呈） =================
 const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.deletedAt).length)
 </script>
@@ -653,6 +674,27 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
         </div>
       </template>
     </MetricBar>
+
+    <!-- R91：主攻速览条——首页面包屑写着「今天，从哪里出发」，主攻就是这个问题的答案。
+         手册承诺「🎯 主攻（最多 2 个）直通调度台速览」，而 focusedProjects 此前在调度台**零消费**
+         （唯一消费方在方向台 LighthousePanel）。与方向台那条的分工：那边在目标卡上下文里、是"管"
+         的视角；这条在"今天从哪出发"的语境里，故多了停滞警示与待办数。 -->
+    <div class="ch-focus-strip" :class="{ empty: !focusedProjects.length }">
+      <template v-if="focusedProjects.length">
+        <span class="cf-label">🎯 主攻</span>
+        <span v-for="p in focusedProjects" :key="p.id" class="cf-item" :class="{ done: focusMeta.get(p.id)?.finished }"
+          :title="p.name + ' · 点击进入项目详情'" @click="openFocusProject(p)">
+          <span class="cf-name">{{ p.name }}</span>
+          <span class="cf-pct">{{ focusMeta.get(p.id)?.pct || 0 }}%</span>
+          <span v-if="focusMeta.get(p.id)?.stall" class="cf-stall" title="近 14 天无推进">⚠ 停滞</span>
+          <span v-if="focusMeta.get(p.id)?.open" class="cf-open">待办 {{ focusMeta.get(p.id)?.open }}</span>
+        </span>
+        <span class="cf-go" title="去方向台管理主攻" @click="router.push('/compass')">去方向台 ›</span>
+      </template>
+      <span v-else class="cf-hint" title="去方向台指定主攻项目" @click="router.push('/compass')">
+        🎯 尚无主攻项目 —— 去方向台指定（最多 2 个）
+      </span>
+    </div>
 
     <!-- 左右分栏：今日三件事 ｜ 项目调度 -->
     <div id="dispatch-split" class="split">
@@ -969,6 +1011,24 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 
 /* 左右分栏 */
 /* R51-F10：上下联动——三件事在上占视觉焦点，项目调度在下 */
+/* R91：主攻速览条——与方向台 .mr-focus-bar 同款（≤40px 一行、全 tokens 变量），
+   差异只在多出的停滞警示与待办数（本条要回答的是"今天推哪个"，不只是"有哪些主攻"） */
+.ch-focus-strip { display: flex; align-items: center; gap: 8px; min-height: 34px; max-height: 40px; padding: 0 12px; margin-bottom: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.ch-focus-strip.empty { border-style: dashed; }
+.cf-label { flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--accent); }
+.cf-item { display: flex; align-items: center; gap: 6px; flex-shrink: 0; max-width: 280px; padding: 3px 10px; border-radius: 99px; background: var(--surface); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border)); color: var(--text); cursor: pointer; transition: all .12s; }
+.cf-item:hover { border-color: var(--accent); background: var(--accent-light); }
+/* 已完成的主攻仍要能看到（对齐 .fp-item.done 既有口径），只降透明度 */
+.cf-item.done { opacity: .55; }
+.cf-name { min-width: 0; font-size: 11.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-pct { flex-shrink: 0; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+/* R91：手册承诺的「14 天无推进自动亮 ⚠ 停滞」在此兑现；--warning 令牌 R87 已确认存在 */
+.cf-stall { flex-shrink: 0; padding: 0 5px; border-radius: 99px; font-size: 10px; color: var(--warning); background: var(--surface-2); }
+.cf-open { flex-shrink: 0; font-size: 10px; color: var(--text-3); }
+.cf-go { flex-shrink: 0; margin-left: auto; font-size: 11px; color: var(--text-3); cursor: pointer; }
+.cf-go:hover { color: var(--accent); }
+.cf-hint { font-size: 11.5px; color: var(--text-3); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-hint:hover { color: var(--accent); }
 .split { display: flex; flex-direction: column; gap: 14px; margin-bottom: 4px; }
 .left-col { min-width: 0; }
 .right-col { min-width: 0; }

@@ -62,7 +62,14 @@ export interface Direction {
 export interface Project {
   id: ID
   name: string
-  /** 是否主攻项目（最多2个，同步至任务中心顶部） */
+  /**
+   * 是否主攻项目（最多2个；R91 起**直通调度台速览**——调度台首页顶部常驻主攻速览条）
+   *
+   * 注：原注释写的「同步至任务中心顶部」是指向一个已不存在的页面——旧「任务中心」页
+   * （路由 `/tasks`）随 R49 退役，此后「跳任务中心」一律落到调度台首页 `/`
+   * （`Workspace.goToTask` / `ResourceDetailDrawer` 都是 `router.push('/')` + 提示"已跳转任务中心"），
+   * 二者在用户侧已等价。R91 补齐后，手册「🎯 主攻（最多 2 个）直通调度台速览」不再是空头承诺。
+   */
   isFocused: boolean
   startDate?: string
   endDate?: string
