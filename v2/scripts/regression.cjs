@@ -1,4 +1,4 @@
-/* 知源调度台 V2.61.0 回归验证矩阵（交付前必须全绿；当前 951 项）
+/* 知源调度台 V2.62.0 回归验证矩阵（交付前必须全绿；当前 960 项）
  * 运行：node scripts/regression.cjs
  * 新增功能时同步在对应域追加检查项 */
 const fs = require('fs');
@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.61.0'";
+const VER_ANCHOR_LITERAL = "version: '2.62.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -2511,6 +2511,59 @@ check('R92-8 T4 ★ 顺带修：无项目时回执写「调度台」而非「方
   return TC_FN92.includes("'/?hl=' + task.id") && !TC_FN92.includes("'方向台'");
 });
 check('R92-9 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
+  const m = read('/manifest.ts');
+  const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8');
+  const mp = read('/newtab/views/ManualPage.vue');
+  const reg = fs.readFileSync(__filename, 'utf8');
+  return m.includes(VER_ANCHOR_LITERAL) && pkg.includes('"version": "' + CUR_VER + '"')
+    && mp.includes(CUR_VTAG) && reg.includes(VER_ANCHOR_LITERAL) && GS.includes('runtimeVersion');
+});
+
+console.log('【第九十三轮 · V2.62.0：浮层视觉收敛（A5 + A6）】');
+const OV93 = read('/content/overlay-impl.ts');
+const OV93_C = stripComments(OV93);
+/** A6 要清零的硬编码浅色：图标六色 + 徽标五色（均为"写死 + 无暗色覆盖"） */
+const HEX93 = ['#E9F1FA', '#E4F2E8', '#FBF1DE', '#EFEFEA', '#F9F3E4', '#E9EAF6', '#FBEAEA', '#C03B3B', '#8A5A00', '#6E6E66', '#2E7D42', '#3D439B'];
+check('R93-1 ★ A6：图标/徽标的硬编码浅底色清零，统一走 --zy-bg-3（含采集面板 .zy-cap-icon）', () => {
+  return HEX93.every(h => !OV93_C.includes(h))
+    && OV93_C.includes('font-size:15px;flex-shrink:0;background:var(--zy-bg-3);border:1px solid var(--zy-border);}')
+    && OV93_C.includes('font-size:18px;flex-shrink:0;background:var(--zy-bg-3);border:1px solid var(--zy-border);}');
+});
+check('R93-2 A6 信息零损失：类型/状态仍靠 iconText 形状区分（📄 / ✓◐○ / 💡 一个未删）', () => {
+  return OV93.includes("iconClass: 'res', iconText: '📄'")
+    && OV93.includes("iconClass: `task-${t.status}`, iconText: statusIcon")
+    && OV93.includes("const statusIcon = t.status === 'done' ? '✓' : t.status === 'doing' ? '◐' : '○'")
+    && OV93.includes("iconClass: 'curio', iconText: '💡'");
+});
+check('R93-3 A6 三档令牌：--zy-warn / --zy-ok 明【暗】两套齐备（暗色值须在 media 块内）', () => {
+  const iMedia = OV93.indexOf('@media (prefers-color-scheme: dark)');
+  const iDark = OV93.indexOf('--zy-warn:#D9A03C;--zy-ok:#6FCE8B;');
+  return OV93.includes('--zy-warn:#A66A00;--zy-ok:#1E7A34;') && iMedia > 0 && iDark > iMedia;
+});
+check('R93-4 A6 徽标三档：进行中=强调 / 高优先级=警示 / 已完成=中性+去饱和', () => {
+  return OV93.includes('.zy-badge.status-doing{background:color-mix(in srgb, var(--zy-accent) 14%, transparent);color:var(--zy-accent);}')
+    && OV93.includes('.zy-badge.prio-high{background:color-mix(in srgb, var(--zy-warn) 16%, transparent);color:var(--zy-warn);}')
+    && /zy-badge\.status-done\{[^}]*opacity:\.6/.test(OV93);
+});
+check('R93-5 ★ A6：正文零 style="color:#BFC3C9" 残留（明色下浅灰几乎看不见，两处改 --zy-text-4）', () => {
+  return !OV93.includes('color:#BFC3C9')
+    && (OV93.split('style="color:var(--zy-text-4);font-weight:400"').length - 1) === 2;
+});
+check('R93-6 A6：.zy-saved-icon 走令牌（默认 --zy-ok / .warn 用 --zy-warn），无内联硬编码色', () => {
+  return OV93.includes('color:var(--zy-ok);') && OV93.includes('.zy-saved-icon.warn{')
+    && OV93.includes('<div class="zy-saved-icon warn">⚠️</div>')
+    && !OV93.includes('zy-saved-icon" style=');
+});
+check('R93-7 A5 Tab 行轻量：无背景块，当前项用下划线 + 文字色（维持 R77 C2 中性口径，不引入强调色）', () => {
+  return /\.zy-type-tab\{[^}]*border-bottom:2px solid transparent/.test(OV93)
+    && /\.zy-type-tab\.active\{[^}]*border-bottom-color:var\(--zy-text-3\)/.test(OV93)
+    && !/\.zy-type-tab\{[^}]*background:/.test(OV93)
+    && !OV93.includes('.zy-type-tab:hover{color:var(--zy-text-2);background:');
+});
+check('R93-8 ★ A5 去重落点：chip 只在有输入时出现（判据含 lastQuery）；无输入时由 Tab 行 active 承担', () => {
+  return OV93.includes("chip.style.display = (searchType === 'all' || !lastQuery) ? 'none' : 'inline-flex'");
+});
+check('R93-9 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');
   const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8');
   const mp = read('/newtab/views/ManualPage.vue');

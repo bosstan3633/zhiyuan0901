@@ -83,12 +83,17 @@ function injectStyles() {
       --zy-text:#17181C;--zy-text-2:#3C3F45;--zy-text-3:#8A8F98;--zy-text-4:#B4B8BF;
       --zy-link:#3573B9;--zy-link-file:#A87B2A;--zy-link-obs:#7C3AED;
       --zy-accent:#0071E3;--zy-on-accent:#FFFFFF;
+      /* R93（A6）：语义档令牌——取自 tokens.css 的 apple（明）/ linear（暗）两套，不臆造色值。
+         状态徽标由改前的 8 种配色收敛为「中性 / 强调 / 警示」三档，这两条是后两档的落点。 */
+      --zy-warn:#A66A00;--zy-ok:#1E7A34;
       --zy-accent-ring:color-mix(in srgb, var(--zy-accent) 34%, transparent);}
     @media (prefers-color-scheme: dark){
       #${ROOT_ID}{--zy-bg:#0F1011;--zy-bg-2:#141516;--zy-bg-3:#191A1B;
         --zy-border:#23252A;--zy-border-strong:#34343A;
         --zy-text:#F7F8F8;--zy-text-2:#D0D6E0;--zy-text-3:#8A8F98;--zy-text-4:#62666D;
-        --zy-link:#6BA6E8;--zy-link-file:#D9A94A;--zy-link-obs:#A78BFA;}
+        --zy-link:#6BA6E8;--zy-link-file:#D9A94A;--zy-link-obs:#A78BFA;
+        /* R93（A6）：暗色档——warn 用 linear --warning(#D9A03C)，ok 用 linear --tag-ok-text(#6FCE8B) */
+        --zy-warn:#D9A03C;--zy-ok:#6FCE8B;}
     }
     #${ROOT_ID}.open{display:block;}
     /* R77（A2）：轻 scrim——rgba(0,0,0,.18) + blur 6px，页面内容仍可辨 */
@@ -119,11 +124,13 @@ function injectStyles() {
     .zy-search-chip .zy-chip-x{width:15px;height:15px;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;font-size:11px;}
     .zy-search-chip .zy-chip-x:hover{opacity:1;background:var(--zy-border);}
     @keyframes zyChipIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
-    .zy-type-tabs{display:flex;gap:2px;padding:12px 22px 8px;}
-    .zy-type-tab{padding:5px 12px;border-radius:8px;font-size:12.5px;color:var(--zy-text-3);cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:5px;font-weight:500;}
-    .zy-type-tab:hover{color:var(--zy-text-2);background:var(--zy-bg-2);}
-    /* R77（C2）：选中态改中性——强调色只保留主按钮 / 焦点环 / 当前选中行 */
-    .zy-type-tab.active{color:var(--zy-text);background:var(--zy-bg-3);font-weight:600;}
+    /* R93（A5）：Tab 行**轻量化**——去掉每个 tab 的背景块与 hover 底色，改为一行纯文字 + 计数；
+       当前项用**文字色 + 字重 + 底部 2px 下划线**标出。
+       ⚠ 不引入强调色：R77（C2）已把此处定为中性（强调色只留主按钮 / 焦点环 / 当前选中行），本轮不推翻。 */
+    .zy-type-tabs{display:flex;gap:14px;padding:10px 22px 6px;}
+    .zy-type-tab{padding:0 0 5px;font-size:12px;color:var(--zy-text-3);cursor:pointer;transition:color .12s,border-color .12s;display:flex;align-items:center;gap:4px;font-weight:500;border-bottom:2px solid transparent;}
+    .zy-type-tab:hover{color:var(--zy-text-2);}
+    .zy-type-tab.active{color:var(--zy-text);font-weight:600;border-bottom-color:var(--zy-text-3);}
     .zy-type-tab .cnt{font-size:10.5px;color:var(--zy-text-4);font-weight:500;}
     .zy-type-tab.active .cnt{color:var(--zy-text-2);opacity:.7;}
     .zy-results{max-height:48vh;overflow-y:auto;padding:4px 12px 8px;}
@@ -133,27 +140,25 @@ function injectStyles() {
     /* R77（C2）：hover 改中性底，仅 .sel（当前选中行）保留强调色左边框 */
     .zy-result-item:hover{background:var(--zy-bg-2);}
     .zy-result-item.sel{background:var(--zy-bg-3);border-left-color:var(--zy-accent);}
-    .zy-ri-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
-    .zy-ri-icon.res{background:#E9F1FA;}
-    .zy-ri-icon.task-done{background:#E4F2E8;}
-    .zy-ri-icon.task-doing{background:#FBF1DE;}
-    .zy-ri-icon.task-todo{background:#EFEFEA;}
-    .zy-ri-icon.curio{background:#F9F3E4;}
-    .zy-ri-icon.ws{background:#E9EAF6;}
-    .zy-badge.ws-badge{background:#E9EAF6;color:#3D439B;}
+    /* R93（A6）：类型与状态一律靠 iconText 的**形状**区分（📄 ✓ ◐ ○ 💡 📁 🗂 📦）——底色统一中性。
+       改前六种硬编码浅底色（资源蓝/完成绿/进行黄/待办灰/好奇黄/策展台紫）**且全无暗色覆盖**，
+       宿主是暗色时这些浅块会直接突出来——是真缺陷，不只是"颜色多"。
+       加 1px 边框：中性底在明暗两套下都需要一条边界才立得住。 */
+    .zy-ri-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;background:var(--zy-bg-3);border:1px solid var(--zy-border);}
     .zy-ri-main{flex:1;min-width:0;}
     .zy-ri-title{font-size:14px;font-weight:600;color:var(--zy-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;}
     .zy-ri-meta{display:flex;gap:5px;margin-top:3px;flex-wrap:wrap;align-items:center;}
-    .zy-badge{font-size:10.5px;padding:1.5px 8px;border-radius:99px;font-weight:500;line-height:1.5;}
-    /* R77（C2）：台徽标改中性 */
-    .zy-badge.ws{background:var(--zy-bg-3);color:var(--zy-text-2);}
-    .zy-badge.cat{background:var(--zy-bg-3);color:var(--zy-text-2);}
-    .zy-badge.prio-high{background:#FBEAEA;color:#C03B3B;}
-    .zy-badge.prio-mid{background:#FBF1DE;color:#8A5A00;}
-    .zy-badge.status-todo{background:#EFEFEA;color:#6E6E66;}
-    .zy-badge.status-doing{background:#FBF1DE;color:#8A5A00;}
-    .zy-badge.status-done{background:#E4F2E8;color:#2E7D42;}
-    .zy-badge.curio-status{background:var(--zy-bg-3);color:var(--zy-text-2);}
+    /* R93（A6）：状态徽标由 8 种配色收敛为「中性 / 强调 / 警示」三档。
+       中性档即 .zy-badge 默认值（无待办含义）；强调档 = 正在推进；警示档 = 需要优先处理。 */
+    .zy-badge{font-size:10.5px;padding:1.5px 8px;border-radius:99px;font-weight:500;line-height:1.5;background:var(--zy-bg-3);color:var(--zy-text-2);}
+    /* —— 中性档：台 / 分类 / 策展台 / 好奇状态 / 中优先级 / 待开始 —— */
+    .zy-badge.ws,.zy-badge.cat,.zy-badge.ws-badge,.zy-badge.curio-status,.zy-badge.prio-mid,.zy-badge.status-todo{background:var(--zy-bg-3);color:var(--zy-text-2);}
+    /* —— 强调档：进行中（正在推进）—— */
+    .zy-badge.status-doing{background:color-mix(in srgb, var(--zy-accent) 14%, transparent);color:var(--zy-accent);}
+    /* —— 警示档：高优先级 —— */
+    .zy-badge.prio-high{background:color-mix(in srgb, var(--zy-warn) 16%, transparent);color:var(--zy-warn);}
+    /* 已完成是终结态：中性 + 去饱和（对齐 .archived / .cf-item.done 既有口径） */
+    .zy-badge.status-done{background:var(--zy-bg-3);color:var(--zy-text-2);opacity:.6;}
     .zy-ri-link{font-size:11px;color:var(--zy-text-3);display:flex;align-items:center;gap:3px;white-space:nowrap;}
     .zy-ri-link.url{color:var(--zy-link);}
     .zy-ri-link.file{color:var(--zy-link-file);}
@@ -180,10 +185,9 @@ function injectStyles() {
 
     /* ===== 采集小窗通用 ===== */
     .zy-cap-head{padding:18px 20px 0;display:flex;align-items:flex-start;gap:12px;}
-    .zy-cap-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
-    /* R77（C2）：资源图标底改用语义蓝（与结果列表 .zy-ri-icon.res 一致），不再铺品牌绿淡底 */
-    .zy-cap-icon.res{background:#E9F1FA;}
-    .zy-cap-icon.curio{background:#F9F3E4;}
+    /* R93（A6）：与结果行 .zy-ri-icon 同款处理——底色统一中性 + 1px 边框，
+       类型靠 emoji 区分。改前 .res 资源蓝 / .curio 好奇黄是写死浅底**且无暗色覆盖**。 */
+    .zy-cap-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;background:var(--zy-bg-3);border:1px solid var(--zy-border);}
     .zy-cap-titles{flex:1;min-width:0;}
     .zy-cap-title{font-size:15.5px;font-weight:700;color:var(--zy-text);letter-spacing:-.2px;}
     .zy-cap-sub{font-size:11px;color:var(--zy-text-3);margin-top:2px;}
@@ -219,7 +223,10 @@ function injectStyles() {
 
     /* 已保存状态条 */
     .zy-saved{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:56px 24px 48px;text-align:center;}
-    .zy-saved-icon{width:52px;height:52px;border-radius:50%;background:#E4F2E8;color:#2E7D42;font-size:24px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:14px;animation:zyPop .35s cubic-bezier(.34,1.56,.64,1);}
+    /* R93（A6）：保存成功图标改走 --zy-ok 令牌（明/暗两套）。改前是写死的浅绿底 #E4F2E8，暗色下会突出来。 */
+    .zy-saved-icon{width:52px;height:52px;border-radius:50%;background:color-mix(in srgb, var(--zy-ok) 14%, transparent);color:var(--zy-ok);font-size:24px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:14px;animation:zyPop .35s cubic-bezier(.34,1.56,.64,1);}
+    /* R93（A6）：重复卡确认是**需要用户做决定**的阻断态 ⇒ 用警示档（改前内联写死 #FBF1DE/#8A5A00） */
+    .zy-saved-icon.warn{background:color-mix(in srgb, var(--zy-warn) 16%, transparent);color:var(--zy-warn);}
     @keyframes zyPop{0%{transform:scale(.5);opacity:0}100%{transform:scale(1);opacity:1}}
     .zy-saved-title{font-size:16px;font-weight:700;color:var(--zy-text);margin-bottom:6px;}
     /* R77（C2）：保存提示改中性（A3 将把它收窄为一行 toast） */
@@ -410,12 +417,23 @@ function typeLabel(t: 'all'|'res'|'task'|'curio'|'ws'|'proj'): string {
   return t === 'res' ? '📄 资源卡' : t === 'task' ? '✅ 任务卡' : t === 'curio' ? '💡 好奇心' : t === 'ws' ? '🗂 策展台' : t === 'proj' ? '📦 项目' : '🔍 搜全部'
 }
 
-/** B29：搜索框前过滤 chip（searchType 非 all 时出现，与 Tab / Tab 行同步） */
+/**
+ * B29：搜索框前过滤 chip —— 显示当前类型，点 × 复位为「搜全部」。
+ *
+ * R93（A5）：**chip 只在有输入时出现**。
+ * 改前 chip 与下方类型 Tab 行**同时**表达同一个 searchType，屏幕上有两份；
+ * 无输入时 Tab 行就在眼前、其 active 态已经说清当前类型，chip 是纯冗余 ⇒ 此时不显示。
+ * 有输入时相反：输入框内容长、注意力在框内，chip 紧邻输入框最能说明「当前只看 X」。
+ *
+ * ⚠ 提案原文是"Tab 行只在有输入时出现、chip 常驻"；本实现**反过来**，
+ * 因为无输入时隐藏 Tab 行会砍掉"打开浮层直接点『任务卡』浏览全部任务"这条真实路径
+ * （空态只有四个「打开 X 页面」快捷操作 + 近期最常用，没有类型入口）。详见任务书 §2.1。
+ */
 function updateChip() {
   const chip = document.getElementById('__zy_chip__')
   if (!chip) return
   const label = document.getElementById('__zy_chip_label__')
-  chip.style.display = searchType === 'all' ? 'none' : 'inline-flex'
+  chip.style.display = (searchType === 'all' || !lastQuery) ? 'none' : 'inline-flex'
   if (label) label.textContent = typeLabel(searchType)
 }
 
@@ -863,7 +881,7 @@ function renderResults() {
     for (const w of wss) {
       const cats = (d2?.categories || []).filter((c: any) => c.workspaceId === w.id && (!q || (c.name || '').toLowerCase().includes(q)))
       const wsCards = (d2?.resources || []).filter((r: any) => !r.deletedAt && r.workspaceId === w.id).length
-      treeHtml += '<div class="zy-group-title">🗂 ' + escapeHtml((w.name || '').replace(/^[^\s]+\s/, '')) + ' <span style="color:#BFC3C9;font-weight:400">' + wsCards + ' 张卡</span></div>'
+      treeHtml += '<div class="zy-group-title">🗂 ' + escapeHtml((w.name || '').replace(/^[^\s]+\s/, '')) + ' <span style="color:var(--zy-text-4);font-weight:400">' + wsCards + ' 张卡</span></div>'
       for (const c of cats) {
         const fam = new Set<string>([c.id, ...(d2?.categories || []).filter((x: any) => x.parentId === c.id).map((x: any) => x.id)])
         const cnt = (d2?.resources || []).filter((r: any) => !r.deletedAt && r.workspaceId === w.id && fam.has(r.categoryId || '')).length
@@ -910,7 +928,7 @@ function renderResults() {
     if (!items.length) continue
     const shown = items.slice(0, MAX_PER_GROUP)
     const rest = items.length - shown.length
-    html += '<div class="zy-group-title">' + g.label + ' <span style="color:#BFC3C9;font-weight:400">' + items.length + '</span></div>'
+    html += '<div class="zy-group-title">' + g.label + ' <span style="color:var(--zy-text-4);font-weight:400">' + items.length + '</span></div>'
     shown.forEach(function (item: any, j: number) {
       const i = offset + j
       const badgesHtml = item.badges.map(function (b: any) { return '<span class="zy-badge ' + b.type + '">' + b.text + '</span>' }).join('')
@@ -1336,7 +1354,7 @@ function showDupConfirm(dupTitle: string, onJump: () => void) {
   if (!panel) return
   panel.innerHTML = `
     <div class="zy-saved">
-      <div class="zy-saved-icon" style="background:#FBF1DE;color:#8A5A00;">⚠️</div>
+      <div class="zy-saved-icon warn">⚠️</div>
       <div class="zy-saved-title">该页面已收录</div>
       <div class="zy-saved-sub">「${escapeHtml(dupTitle)}」已存在于资源台，只能定位不能重复收录</div>
       <div class="zy-saved-actions">
