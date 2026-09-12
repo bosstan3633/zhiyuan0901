@@ -1,6 +1,6 @@
 ﻿---
 created: 2026-08-28 21:52:09
-updated: 2026-09-02 11:10:00
+updated: 2026-09-12 11:30:00
 ---
 # 知源调度台（Zhiyuan Control Center）
 
@@ -14,10 +14,10 @@ updated: 2026-09-02 11:10:00
 
 **核心定位（April Dunford 视角）**：自造货架「信息洪流中的控制中心——AI 时代知识工作者的个人资源调度台」——不是书签插件、不是 PKM 笔记、不是新标签页美化。它不生产内容，而是横在所有 AI 工具、笔记、文件之上的**调度层**：经营你的认知周转率，让每一个被见过的信息都具备在正确时刻被召回的能力。
 
-- **产品版本**：V2.14.2（第卅七轮迭代；版本号唯一来源 = `src/manifest.ts`，与 `package.json` 同步）
-- **技术栈**：Vue 3.5 + TypeScript(strict) + Vite 5 + Pinia + @crxjs（MV3）+ UnoCSS
+- **产品版本**：V2.65.0（第 96 轮迭代；版本号唯一来源 = `src/manifest.ts`，与 `package.json`、设置页关于（动态）、手册页、`regression.cjs` 版本锚、本文件版本行共 **6 处**同步——本行自 R96 起纳入回归断言把守）
+- **技术栈**：Vue 3.5 + TypeScript(strict) + Vite 5 + Pinia + @crxjs（MV3）+ UnoCSS（仅引入）
 - **运行环境**：Chromium 内核浏览器（Chrome / Edge / Brave 等）
-- **数据存储**：100% 本地（chrome.storage.local 单根 JSON，已申请 unlimitedStorage 权限，无 10MB 上限），无 IndexedDB、无云端、无账号
+- **数据存储**：100% 本地——主数据 `chrome.storage.local` 单根 JSON（unlimitedStorage，无 10MB 上限）+ **附件二进制 IndexedDB 库 `zy_assets`**（单文件 ≤20MB，主 JSON 绝不存 base64）；无云端、无账号
 - **质量门禁**：`vue-tsc` 0 错误 + `scripts/regression.cjs` 静态断言 **当前轮全绿**（交付前缺一不可）
 
 > **品牌隔离提醒**：本产品的目标用户是知识工作者，与作者个人的"高考志愿规划师"IP 是两个独立受众体系——前者用本账号运营，后者用独立账号/笔名，否则互相污染定位。
@@ -48,16 +48,16 @@ updated: 2026-09-02 11:10:00
 本仓库的定位是：**换一个环境、由任意智能体接手后，仅凭本仓库即可继续迭代**。请按以下顺序建立上下文：
 
 1. 通读本 README（尤其本节约与第十节）；
-2. 读 `../docs/技术架构与数据模型.md` 获取数据层全貌；
+2. 读 `../docs/技术架构与数据模型.md` 获取数据层全貌（R96 已全量勘验回正）；
 3. 读 `../docs/开发指南与回归验证.md` 获取历史踩坑记录；
-4. 读 `../docs/项目盘点报告_2026-08-31.md` 了解现存技术债；
-5. 最新一轮做了什么，见 `../docs/交付说明_第卌六轮_V2.20.1.md`。
+4. 读 `../docs/项目盘点报告_2026-08-31.md` 与根目录《知源调度台_产品认知基线》了解技术债与产品现状；
+5. 最新一轮做了什么，见 `../docs/` 下编号最大的 `交付说明_R*.md`。
 
 **必须遵守的硬性规则：**
 
 | # | 规则 | 说明 |
 |---|------|------|
-| 1 | 版本号唯一来源 = `src/manifest.ts` | 改版本必须同步 `package.json`、设置页关于、手册页、`regression.cjs` 版本断言共 5 处 |
+| 1 | 版本号唯一来源 = `src/manifest.ts` | 改版本必须同步 `package.json`、设置页关于（动态）、手册页、`regression.cjs` 版本锚、本文件版本行共 **6 处**（R96 起本文件纳入门禁） |
 | 2 | 单向挂载红线 | 仅 TaskCard 持有 `mountedResourceIds/mountedCuriosityIds`；Resource/Curiosity/TagNode Schema **禁止出现 taskId** |
 | 3 | 删除一律软删 | 任何删除只写 `deletedAt`，可进回收站恢复；`stats.lastVisits` 只经 `recordResourceOpen` 更新 |
 | 4 | 排序 computed 禁止 `.sort()` | 支持拖拽排序的列表，其渲染 computed 不得原地 sort，否则拖拽错乱 |
@@ -65,7 +65,8 @@ updated: 2026-09-02 11:10:00
 | 6 | 定位不走 tabs.query 的 hash | chrome.tabs.query 返回不含 hash，页面内定位走 zy-where 询问链路 |
 | 7 | 新增功能同步追加回归 | 每轮新功能必须在 `scripts/regression.cjs` 追加断言项，交付前全绿 |
 | 8 | 构建前清空 dist | vite 配置 `emptyOutDir:false`，不清理会累积多轮构建残留 |
-| 9 | 迭代按轮次记录 | 每完成一轮（如第卅五轮=V2.14.0）在 `../docs/` 落一份交付说明，并在 regression.cjs 轮次注释更新 |
+| 9 | 迭代按轮次记录 | 每完成一轮在 `../docs/` 落一份交付说明，并在 regression.cjs 轮次注释更新 |
+| 10 | 动工前先勘验 | 收尾给出的「剩余项/进度」结论，下一轮动工前必须先证伪一遍（R95 教训：G7 坏账；书面口径与代码实装不一致=坏账） |
 
 ---
 
@@ -82,7 +83,7 @@ updated: 2026-09-02 11:10:00
 
 | 卡片类型 | 用途 | 关键字段 |
 |---------|------|---------|
-| **资源卡** | 收藏的网页、本地文件、Obsidian 笔记 | 标题、链接（URL/本地路径/obsidian://）、分类（2 级树）、标签、描述、注解、自定义字段、调用计数 |
+| **资源卡** | 收藏的网页、本地文件、Obsidian 笔记 | 标题、链接（URL/本地路径/obsidian://）、分类（≤4 级树）、标签、描述、注解、自定义字段、附件、调用计数 |
 | **任务卡** | 可执行的行动项，挂载在项目→成功指标下 | 标题、所属项目+指标（双挂）、优先级、状态、链接、备注、标签、关联资源/好奇心（单向挂载） |
 | **好奇心卡** | 一闪而过的疑问和灵感 | 问题内容、状态（待探索/探索中/已求证/已搁置）、来源链接+来源标题、标签 |
 
@@ -119,7 +120,7 @@ updated: 2026-09-02 11:10:00
 | 状态管理 | Pinia | `useAppStore` 单一数据仓 + `useCompass`/`useCuriosity` |
 | 路由 | Vue Router (hash mode) | 新标签页内路由 |
 | 样式 | 原生 CSS Variables（tokens.css）+ scoped CSS | 六主题语义令牌；`data-density` 三档密度 |
-| 存储 | chrome.storage.local 单根 JSON | 300ms 防抖合并写；无 IndexedDB |
+| 存储 | chrome.storage.local 单根 JSON（主数据）+ IndexedDB `zy_assets`（附件二进制，单文件 ≤20MB） | 300ms 防抖合并写；主 JSON 绝不存 base64 |
 | 搜索 | pinyin-pro | 全拼/首字母命中中文标题 |
 | 扩展规范 | Manifest V3 | Service Worker + Content Script（纯 Vanilla JS，不引入 Vue 运行时） |
 
@@ -155,28 +156,34 @@ v2/
 ├── src/
 │   ├── manifest.ts                    # MV3 清单（命令/权限/新标签页接管）★版本号唯一来源
 │   ├── background/index.ts            # SW：命令监听/浮层注入/单例定位/路由中转
-│   ├── content/search-overlay.ts      # 网页浮层（搜索/采集/好奇），Vanilla JS
+│   ├── content/                       # 网页浮层（Shadow DOM，Vanilla JS）
+│   │   ├── search-overlay.ts          #   入口装载（动态 import 实现层）
+│   │   ├── overlay-impl.ts            #   搜索/快速采集/好奇/任务采集 四浮层实现
+│   │   └── selection.ts               #   选区预填
 │   ├── popup/                         # 降级独立弹窗（chrome:// 页场景）
 │   ├── shared/
 │   │   ├── models/index.ts            # 全部 TS 类型（唯一数据规范来源）
-│   │   ├── storage/                   # repository（防抖持久化）/ defaults / V1→V2 迁移 / stats
-│   │   ├── utils/                     # uid/dateKey/normalizeUrl/fields/pinyin/link
-│   │   │                              # marksort（置顶>星标>命中度）/ taHeight（文本框高度记忆）
-│   │   ├── components/                # Toast/Drawer/ConfirmDialog/ContextMenu/TagPicker/Icon/EmptyState…
+│   │   ├── storage/                   # repository（防抖持久化）/ defaults / migration / assets
+│   │   │                              # stats（recordResourceOpen 统一入口）/ hub / airtable（单向同步）
+│   │   ├── utils/                     # uid/dateKey/normalizeUrl/fields/pinyin/link/marksort
+│   │   │                              # assetKind（附件三档）/cardCols（列数）/wsView（台视图）/bus（zy-open-drawer）
+│   │   ├── components/                # Toast/Drawer/ConfirmDialog/ContextMenu/TagPicker/AssetBadge/ColsPicker…
 │   │   └── styles/tokens.css          # 六主题语义令牌 + 三档密度 + 全局排版
 │   └── newtab/
-│       ├── main.ts                    # 引导：并行加载→store.init→挂载→固定回首页（应用 data-density）
-│       ├── router.ts                  # / 、/compass(actions|projects|tree)、/workspace/:id
+│       ├── main.ts                    # 引导：并行加载→store.init→挂载→固定回调度台（应用 data-density）
+│       ├── router.ts                  # / 、/compass(projects|tree)、/workspace/:id、/curation(redirect)
 │       │                              # /settings、/manual、/recycle
 │       ├── App.vue                    # 顶栏导航/主题/全局快捷键/错误边界/zy-*消息监听
 │       ├── manual-data.ts letter-data.ts  # 手册与一封信内容（外置数据源）
 │       ├── stores/                    # app / compass / curiosity
-│       ├── components/                # GlobalPopups（三浮层）/ ProjectDetailDrawer
-│       │                              # TaskAddDrawer（新建/关联双 Tab）/ compass 面板
-│       └── views/                     # CompassHome / CompassShell / CompassActions / ProjectCuration
-│                                      # CompassTree / Workspace / GlobalSettings / FieldEditor
-│                                      # ManualPage / RecycleBin（回收站）
-├── scripts/regression.cjs             # 静态回归断言矩阵（256 项，交付前必须全绿）
+│       ├── components/                # GlobalPopups（应用内浮层）/ ResourceDetailDrawer / TaskDetailDrawer
+│       │                              # TaskAddDrawer / compass 面板（LighthousePanel/NorthStarPanel/
+│       │                              # CuriosityPanel/TaskManagerPanel/MetricBar/MetricDrillDrawer）
+│       └── views/                     # CompassHome（调度台）/ CompassShell（方向台）/ CompassTree
+│                                      # ProjectCuration / Workspace（资源台+策展台合一，isHub 分支）
+│                                      # GlobalSettings / FieldEditor / ManualPage / RecycleBin
+├── scripts/                           # regression.cjs 静态断言矩阵（当前轮全绿）+ e2e.cjs + perf.cjs A/B 基准
+│                                      # perf-longtask / check-cycles / test-import-compat 等
 ├── public/ dist/                      # 静态资源 / 构建产物（可直接加载，dist 不入库）
 └── vite.config.ts tsconfig*.json uno.config.ts package.json
 ```
@@ -198,7 +205,7 @@ npm install          # 按 package-lock.json 还原依赖
 npm run dev          # 开发模式（HMR 输出到 dist/）
 npm run build        # vue-tsc --noEmit 类型检查 + vite build（交付必须两者通过）
 npm run typecheck    # 仅类型检查
-node scripts/regression.cjs   # 静态回归：必须 256/256 全绿
+node scripts/regression.cjs   # 静态回归：必须全绿（当前 974 项，只增不减）
 ```
 
 ### 4.3 加载到浏览器
@@ -220,16 +227,17 @@ node scripts/regression.cjs   # 静态回归：必须 256/256 全绿
 
 | 页面 | 路由 | 说明 |
 |------|------|------|
-| 知源罗盘（方向驾驶舱） | `/` | 灯塔（纯展示，投射控制）+ 北极星（六指标 2×3，全部可下钻）+ 我的好奇心专区（三视图/四态看板/转化）。刷新固定回此 |
-| 知源引擎·今日行动 | `/compass/actions` | 主攻速览条 + 今日三件事（≤3 槽、日期切换、范围导出 CSV）+ 全域任务管理（列表/看板、按项目分组、批量、键盘导航） |
-| 罗盘·项目策展 | `/compass/projects` | 全景墙（投射置顶+拖拽）→ 单项目全屏展板（指标→任务树、直创项目） |
-| 罗盘·方向树 | `/compass/tree` | 六层思维链全展开、全节点原位编辑、关联卡片、停滞检测 |
-| 工作台 ×N | `/workspace/:id` | 2 级分类树（三语义拖拽/聚合/置顶/安全级联删除）、三视图拖拽、批量操作、书签导入、🔥 调用计数 |
-| 设置中心 | `/settings` | 字段设计编辑器、标签管理（3 级树）、回收站入口、导入导出、快捷键中心、密度控制、手册入口、重置回滚；支持 `?page=<key>` 深链 |
-| 回收站 | `/recycle` | 资源/任务/好奇心三类卡软删集中管理：列表、恢复、永久删除、分区清空 |
+| 调度台（默认首页） | `/` | 方向状态四指标（战略目标·推进项目 / WCE / WRR / 未归档，日·周·累计三档可下钻）+ 今日三件事（≤3 槽）+ 项目调度（任务树默认折叠，R94）+ 好奇心培育 + 今日记录。刷新固定回此 |
+| 方向台 | `/compass` | 主航线（LighthousePanel：愿景/使命锚点条+目标卡+主攻聚焦条，看主线）+ 项目总览（管项目，>12 项目启用搜索/状态筛选）+ 任务调度（全域任务管理三视图） |
+| 项目详情 | `/compass/projects` | 单项目全屏展板（指标→任务树、目录树双列、指标下钻抽屉） |
+| 完整方向树 | `/compass/tree` | 六层思维链全展开、全节点原位编辑、关联卡片、停滞检测 |
+| 资源台 | `/workspace/zy-curation`（`/curation` redirect 而来） | 资源卡**唯一真身居所与镜像源头**：分类树（≤4 级）+ 卡片/列表/看板三视图 + 排序/筛选/搜索（`#标签` 直筛）+ 批量管理 + 📥 导入资源（书签 HTML / 本地文件一文件一卡）+ 指标条 3 格 |
+| 策展台 ×N | `/workspace/:id` | 金字塔居中树 + 节点双入口 + 镜像引用（只读三件套）+ 中心论点（已设论点默认金字塔视图）+ 混排 + 指标条 5 格 |
+| 设置中心 | `/settings` | 字段设计编辑器、标签管理（3 级树）、导入导出（全量/工作台/Markdown/CSV）、Airtable 单向同步、快捷键中心、密度、主题、手册入口、重置回滚；支持 `?page=<key>` 深链 |
+| 回收站 | `/recycle` | 资源/任务/好奇心三类卡软删集中管理：列表、恢复、永久删除（清附件）、分区清空 |
 | 使用手册 | `/manual` | 五篇富文本独立页，可下载分享版 HTML |
 
-全局调度层横切所有页面：搜索/采集/好奇三浮层（网页端 Shadow DOM + 应用内组件双实现，行为一致）。
+全局调度层横切所有页面：搜索/采集/好奇/任务采集浮层（网页端 Shadow DOM + 应用内组件双实现，行为一致）；`Ctrl+K` 任意网页三秒召回。
 
 ---
 
@@ -237,9 +245,9 @@ node scripts/regression.cjs   # 静态回归：必须 256/256 全绿
 
 完整定义见 `src/shared/models/index.ts`（唯一数据规范来源）。
 
-- **存储键**：`zy_data_v2`（AppData 单根 JSON）/ `zy_ui_v2`（UI 偏好）/ `zy_capture_pref`（采集偏好）；V1 旧数据 `lm_data_v5` 检测到自动迁移并备份
-- **AppData**：compass（vision/mission + directions→projects→metrics）/ workspaces / categories（parentId 2 级树）/ resources / tasks / curiosities / dailyFocus / tagTree（3 级）/ fieldConfig / stats / activityLogs
-- **UIPrefs**：主题、密度（compact/comfortable/cozy）、sortPrefs（三视图排序）、快捷键自定义等，存 `zy_ui_v2`
+- **存储键**：`zy_data_v2`（AppData 单根 JSON）/ `zy_ui_v2`（UI 偏好）/ `zy_capture_pref`（采集偏好）/ `zy_event_log`（事件日志）/ IndexedDB `zy_assets`（附件 Blob）；V1 旧数据 `lm_data_v5` 检测到自动迁移并备份
+- **AppData**：compass（vision/mission + directions→projects→metrics）/ workspaces（含资源台真身 hub，对外 getter 排除）/ categories（parentId ≤4 级树）/ resources / tasks / curiosities / **curationProjections**（策展台镜像记录）/ dailyFocus / tagTree（3 级）/ fieldConfig / stats / activityLogs / **airtableSync**（单向同步配置，导出/备份时剥离）
+- **UIPrefs**：主题、密度（compact/cozy）、sortPrefs（三视图排序）、**cardCols**（R72 列数偏好）、**wsViewMode**（R84 台视图记忆）、快捷键自定义、抽屉宽度/文本框高度记忆等，存 `zy_ui_v2`
 - **双标记体系**：`pinned`（置顶）+ `starred`（星标），排序统一走 `utils/marksort.ts`，权重 置顶 > 星标 > 命中度
 - **单向挂载红线**：只有 TaskCard 持有 `mountedResourceIds/mountedCuriosityIds`；Resource/Curiosity/TagNode Schema **禁止出现 taskId**；愿景/使命 `linked*` 为持有方引用
 - **软删除体系**：删除一律 `deletedAt`，回收站单条恢复，可清空
@@ -256,8 +264,8 @@ node scripts/regression.cjs   # 静态回归：必须 256/256 全绿
 | `Ctrl+Shift+I` | 好奇心采集（选中文本自动填入并附带来源） | 系统级 |
 | `Ctrl+K` | 全局搜索（分组/高亮/拼音首字母/快捷操作） | 系统级 |
 | `（可分配）` | 打开全局设置（第卅五轮新增命令项，默认未绑定键，在 `chrome://extensions/shortcuts` 手动分配） | 系统级（chrome.commands） |
-| 修饰键+1 | 知源引擎（修饰键五选：Alt 默认/Ctrl/Ctrl+Shift/Alt+Shift/纯数字） | 新标签页内 |
-| 修饰键+2..9 | 各工作台（设置→快捷键设置逐个自定义，冲突自动清除） | 新标签页内 |
+| 修饰键+1 | 方向台（修饰键五选：Alt 默认/Ctrl/Ctrl+Shift/Alt+Shift/纯数字；R68 改造后 1=方向台 / 2=资源台 / 3…=各策展台） | 新标签页内 |
+| 修饰键+4 / 可分配 | 任务调度模块直达等（设置→快捷键设置逐个自定义，冲突自动清除） | 新标签页内 |
 | `Ctrl+Enter` | 保存并关闭（所有编辑弹窗/抽屉，document 级监听） | 新标签页内 |
 | `Esc` | 逐层关闭（浮层→抽屉→展板） | 全局 |
 | `?` | 快捷键速查面板 | 新标签页内 |
@@ -291,10 +299,11 @@ node scripts/regression.cjs   # 静态回归：必须 256/256 全绿
 
 | 方向 | 方式 | 说明 |
 |------|------|------|
-| 导入 | 工作台 JSON | 并集合并（同 ID 更新，不同 ID 新增） |
-| 导入 | 书签 HTML | 浏览器导出的书签文件，顶层文件夹归组为标签 |
-| 导入 | 本地文件 | 取文件名建卡，提示补全完整路径 |
-| 导出 | JSON 全量 / 指定工作台 JSON / Markdown / 按工作台 CSV | CSV 含 UTF-8 BOM 适配表格软件 |
+| 导入 | 数据包 JSON | 并集合并（同 ID 更新，不同 ID 新增）；导入前自动备份（剥离 `airtableSync`） |
+| 导入 | 书签 HTML | 浏览器导出的书签文件（资源台「📥 导入资源」） |
+| 导入 | 本地文件 | **一文件一张附件卡**（图片/HTML/PDF 同规则，R80；附件进 IndexedDB，不支持类型跳过并汇总提示） |
+| 导出 | JSON 全量 / 指定工作台 JSON / Markdown / 按工作台 CSV | 全量导出并入 `uiPrefs` 界面偏好包（含 cardCols/wsViewMode）；**剥离 `airtableSync` 令牌**（R70，令牌不出包）；CSV 含 UTF-8 BOM |
+| 同步 | Airtable 单向推送 | 设置→Airtable 同步，用户自备 Token 手动触发；知源→用户自己的 Base，**绝不回写本地** |
 | 迁移 | V1 → V2 | 检测到 `lm_data_v5` 自动迁移并备份为 `lm_data_v5_backup`；已迁移用户跳过检测 |
 | 重置 | 一键回滚 | 输入「回滚」确认后恢复初始状态 |
 
@@ -302,7 +311,8 @@ node scripts/regression.cjs   # 静态回归：必须 256/256 全绿
 
 ## 十、开发规范与回归基线
 
-- **交付前置**：`npm run build` 全绿（vue-tsc 0 错误）+ `node scripts/regression.cjs` **256/256**，缺一不可（回归是字符串断言，代替不了编译检查）
+- **交付前置**：`npm run build` 全绿（vue-tsc 0 错误）+ `node scripts/regression.cjs` **全绿**（当前 974 项，每轮只增不减），缺一不可（回归是字符串断言，代替不了编译检查）
+- **性能门禁**：`scripts/perf.cjs` A/B 基准台——视图切换 <40ms 红线（R71 起）；新功能默认须过性能走查
 - **数据红线**：Resource/Curiosity/TagNode 禁止 taskId；删除一律软删；stats.lastVisits 只走 recordResourceOpen
 - **标记排序**：一律走 `utils/marksort.ts`（置顶 > 星标 > 命中度），拖拽排序列表的渲染 computed 禁止 `.sort()`
 - **样式**：只用 tokens.css 语义令牌；scoped 样式无法作用到子组件内部（子组件自带样式）；v-html 内容的样式必须非 scoped
@@ -315,8 +325,9 @@ node scripts/regression.cjs   # 静态回归：必须 256/256 全绿
 
 | 版本 | 轮次 | 要点 |
 |------|------|------|
+| V2.65.0 | 第 96 轮（当前） | P2 首轮勘验对账与坏账清偿（资源台组 R9/R11/R12 全部为坏账：R9 随 R89、R11 随 R70/stats.ts 统一入口、R12 自第卅三轮即交付）+ 文档失真修复（本 README 版本行与页面架构回正 + 架构文档「无 IndexedDB」等 V2.1 时代表述全量勘验回正；两处均纳入回归断言把守）+ 版本同步点 5→6 处（本 README 纳入门禁）+ 04-20 P2 面 17 项真待开发对账；**零业务代码改动、零数据模型改动、零迁移**；回归 971→974 |
 | V2.20.0 | 第卌五轮 | 任务管理整体迁移「资源罗盘→我的好奇心」专区 Tab（CompassHome 双 Tab 带数量徽标、我的好奇心默认；新建 TaskManagerPanel **卡片视图默认**+批量/分组/排序/拖拽/键盘/右键全量能力保留 + 共享 TaskDetailDrawer 抽屉双宿主）+ 今日行动「项目策展」面板（左列项目名+愿景/使命只读小卡+战略目标放大+四数值；右列按成功指标分组+新建/关联；三件事单击联动/双击详情/删除重选/呼吸灯）+ 北极星周期改「日/周/累计」三档联动（下排改名「新增卡片/删除卡片」）+ 工作台页头今日新增/今日删除 + 资源引擎角标彻底移除；回归 381→395 项 + E2E 8/0 |
-| V2.20.1 | 第卌六轮（当前） | BUG-1 好奇心专区 Tab 同屏修复（CuriosityPanel 多根组件 v-show 失效 → ContextMenu 移入 ModuleCard 单根化；E2E 互斥验证）+ 改名「好奇心卡库｜任务卡库」+ BUG-2 关联任务漏写 projectId 断链修复（TaskAddDrawer linkTasks 补写 + app.ts init 存量幂等回填 + AppData.projBackfillFixed 记录 + 设置页数据组展示）+ BUG-3 仪表盘下钻修复（statDrawerTitle 补 .value 撤 [object Object]；明细撤 300 硬截断改 200 分批加载更多 + 分类型图标徽标 + 单击行路由 hl 定位）+ OPT-1 三件事卡复选框并入标题行/移除 × 移至编号左侧 + 呼吸灯 18% 光晕边框脉动（选中/完成态常亮）；回归 395→405 项 + E2E 9/0 |
+| V2.20.1 | 第卌六轮 | BUG-1 好奇心专区 Tab 同屏修复（CuriosityPanel 多根组件 v-show 失效 → ContextMenu 移入 ModuleCard 单根化；E2E 互斥验证）+ 改名「好奇心卡库｜任务卡库」+ BUG-2 关联任务漏写 projectId 断链修复（TaskAddDrawer linkTasks 补写 + app.ts init 存量幂等回填 + AppData.projBackfillFixed 记录 + 设置页数据组展示）+ BUG-3 仪表盘下钻修复（statDrawerTitle 补 .value 撤 [object Object]；明细撤 300 硬截断改 200 分批加载更多 + 分类型图标徽标 + 单击行路由 hl 定位）+ OPT-1 三件事卡复选框并入标题行/移除 × 移至编号左侧 + 呼吸灯 18% 光晕边框脉动（选中/完成态常亮）；回归 395→405 项 + E2E 9/0 |
 | V2.19.0 | 第卌四轮 | 北极星 2×3 重构（下排=今日新增/今日删除卡实时派生 + 未归档双校验 projectById/taskArchiveIssue，撤模块分组/链接卡片及 wsPopup 死样式）+ 知源仪表盘默认首屏（核心指标 5 卡下钻 + 动态条三段点击抽屉 + 操作记录时间线三维筛选 + CSV 按筛选导出 UTF-8 BOM）+ 工作台全景双栏 Master-Detail（三级计数树默认全展开 + 拖拽/按钮移动双通道）+ 事件日志 zy_event_log（repository 快照 diff 全覆盖 + 5000 滚动）+ PDF 附件（kind=pdf/100MB/单卡唯一替换/file:// Chrome viewer/四宿主泛化）+ 设置页导航五组（总览/整理/卡片与字段/数据/系统，标签管理上移）；回归 367→381 项 + E2E 6/0 |
 | V2.18.1 | 第卌三轮 | 补丁版 6 项：BUG-1 新建任务 Ctrl+Enter 保存列表不刷新（openTaskSidebar 持原始对象绕 reactive Proxy set trap，修复=find 取 store Proxy 引用，真机 E2E 复现→修复闭环 3/3）+ BUG-2 批量模式双复选框（.mgr-body.batch 隐藏 check-sm）+ R-1 任务行 hover 🗑 删除 + R-2 工具栏「N 条/全部 M」总数双值 + R-3 今日三件事卡片紧凑化（去 min-height）+ R-4/R-5 北极星未归档 N/M（3/128）与周/月/累计严格周期联动（DHI 在轨窗口=14/30/全量、WCE 补累计数字、WRR 周/累计口径；月档独立统计待 V2.19 数据模型扩展）；回归 358→367 项 |
 | V2.18.0 | 第卌二轮 | REQ-058 HTML 附件 file:// 完整打开通道（openHtmlAsset 三态：落盘「下载目录/知源附件/」确定性路径 + 路径记忆 zy_html_paths + fetch 探测复用 + blob 降级；**修复 manifest 漏加 downloads 权限**——代码用了 API 但权限没给，真机 file:// 链路静默降级）+ REQ-059 附件导出/导入闭环（零依赖 zip STORE+CRC32 + getAllAssets/putAssets + 同 ID 覆盖）+ REQ-060 高频操作性能实测（五项基线全绿：启动 200ms/搜索 325ms 含防抖/切台 595ms/Drawer 104ms/persist 9ms@107KB——无红线；「搜索 2.5~6 秒」定性测量假象）+ REQ-061 附件上传规范（9 图/10MB/HTML 唯一替换 + html-added 三处宿主联动 + 双击 zy-asset 打开 + AssetPreview 多图切换）；回归 339→358 项 |
@@ -331,21 +342,22 @@ node scripts/regression.cjs   # 静态回归：必须 256/256 全绿
 
 > 更早 V2.1~V2.4 为演进早期（PRD→架构→交互→白皮书），历史过程文档已从仓库移除，仅保留核心文档于 `../docs/`。
 
+> 中间版本（V2.21~V2.64，第 47~95 轮）逐轮要点见 `../docs/交付说明_R*.md` 与《产品功能手册》对应版本册；本表仅保留接手锚点。
+
 ---
 
 ## 十二、文档导航
 
-核心文档统一存放于仓库 `docs/` 目录：
-
 | 文档 | 内容 |
 |------|------|
-| `docs/技术架构与数据模型.md` | 数据层全貌、存储设计、类型规范 |
-| `docs/开发指南与回归验证.md` | 历史踩坑、开发约定、回归流程 |
-| `docs/项目盘点报告_2026-08-31.md` | 现存技术债清单（巨型 SFC、静默 catch 等） |
-| `docs/交付说明_第卌六轮_V2.20.1.md` | 最新一轮交付明细（V2.20.1：Tab 同屏修复+卡库改名 + projectId 断链修复与存量回填 + 仪表盘下钻修复 + 三件事布局呼吸灯优化） |
-| `docs/需求盘点与开发清单_第卌六轮.md` | 最近一份需求清单与决策记录（BUG-1~3/OPT-1 + 3 条拍板） |
-| `docs/产品白皮书_V2.4.md` | 产品定位与价值主张 |
-| `docs/设计规范_Linear.md` | 视觉设计令牌（Linear 风格） |
+| `../文档中心/00_产品事实与表达母版.md` | **事实源**（母版）：品牌/定位/事实口径，改事实先改母版 |
+| `../文档中心/04_产品与设计/04-20_下一轮需求盘点与开发清单.md` | P0/P1/P2 总清单（R96 勘验对账后为真待开发 17 项） |
+| `../docs/技术架构与数据模型.md` | 数据层全貌、存储设计、类型规范（R96 回正） |
+| `../docs/开发指南与回归验证.md` | 历史踩坑、开发约定、回归流程 |
+| `../docs/交付说明_R*.md` | 逐轮交付明细（编号最大者为最新一轮） |
+| `../docs/产品功能手册_V*.md` / `../docs/产品白皮书_V*_对外版.md` | 与产品版本同步升版的对外手册/白皮书 |
+| `../知源调度台_产品认知基线_V2.40.0.md` | 接手认知入口（基线快照，细节以母版与最新交付说明为准） |
+| `../docs/设计规范_Linear.md` | 视觉设计令牌（Linear 风格） |
 
 ---
 

@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.64.0'";
+const VER_ANCHOR_LITERAL = "version: '2.65.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -2638,6 +2638,30 @@ check('R95-2 G7 三模块键同源：sanitizeCardCols 的键集合取自 CARD_CO
   return CC95_C.includes('CARD_COLS_DEFAULT: Record<CardColsKey, number> = { curio: 4, task: 5, res: 5 }')
     && CC95_C.includes('for (const key of Object.keys(CARD_COLS_DEFAULT)')
     && !CC95_C.includes("['curio', 'task', 'res']");
+});
+
+console.log('【第九十六轮 · V2.65.0：P2 首轮勘验对账与坏账清偿 + 文档失真修复（零业务代码改动）】');
+/** R96：P2 资源台组三项（R9/R11/R12）勘验全为坏账——能力早已交付、04-20 清单一直标「待排期」，
+ *  与 R95 的 G7 同类（R9 随 R89/W5 交付；R11 由 stats.ts 统一入口 + R70 修复消解；R12 自第卅三轮即存在）。
+ *  本轮零业务代码：① 把三项能力用断言钉住，防止再次劣化为坏账；
+ *  ② 把两处「AI 接手最危险」的文档失真回正并纳入门禁——架构文档「无 IndexedDB」（附件层第卅九轮即上线）
+ *  与 v2/README 版本停在 V2.14.2（后者自本轮成为版本同步第 6 处）。 */
+const WS96 = read('/newtab/views/Workspace.vue');
+const RDD96 = read('/newtab/components/ResourceDetailDrawer.vue');
+check('R96-1 ★ P2 资源台组三项能力在位：starred 筛选（R89/W5）+ 抽屉 recordResourceOpen 统一入口（R70）+ 网格末尾 rc-add-card（第卅三轮）', () => {
+  return WS96.includes("const FILTER_KEYS = ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'starred', 'unmounted']")
+    && WS96.includes('starred: (r) => !!r.starred')
+    && WS96.includes('class="rc-add-card"') && WS96.includes('@click="openNewResource"')
+    && RDD96.includes("import { recordResourceOpen } from '@/shared/storage/stats'")
+    && RDD96.includes('recordResourceOpen(store.data, r)');
+});
+const ARCH96 = fs.readFileSync(path.resolve(__dirname, '..', '..', 'docs', '技术架构与数据模型.md'), 'utf8');
+check('R96-2 架构文档事实守卫：存储段含 IndexedDB / zy_assets 附件层事实，「无 IndexedDB」失真表述零命中', () => {
+  return ARCH96.includes('IndexedDB') && ARCH96.includes('zy_assets') && !ARCH96.includes('无 IndexedDB');
+});
+const README96 = fs.readFileSync(path.resolve(__dirname, '..', 'README.md'), 'utf8');
+check('R96-3 v2/README 版本行纳入门禁（版本同步第 6 处）：版本行随版本锚走，V2.14.2 失真零命中', () => {
+  return README96.includes('**产品版本**：' + CUR_VTAG) && !README96.includes('V2.14.2');
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
