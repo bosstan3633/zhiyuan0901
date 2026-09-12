@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.71.0'";
+const VER_ANCHOR_LITERAL = "version: '2.72.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -718,7 +718,7 @@ check('R51-13（R74 重写）目录树一键展开/收起（expandAllCats/collap
 // R74 退役 R51-14：随 CurationCenter.vue 删除退役（锁 curFrom 死代码链，见 04-23 §六 A 组）
 check('R51-15（R74 重写）跨分类拖拽：投射卡改 targetCatId（源数据不动）+ 可拖入任意策展分类', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes('function moveMirrorTo') && w.includes('p.targetCatId = catId || undefined') && w.includes('function onCatDrop');
+  return read('/newtab/composables/useWorkspaceMirror.ts').includes('function moveMirrorTo') && read('/newtab/composables/useWorkspaceMirror.ts').includes('p.targetCatId = catId || undefined') && w.includes('function onCatDrop') && w.includes('moveMirrorTo');
 });
 check('R51-16（R74 重写）单击详情/双击开链：onCardClick 260ms 判别 + onCardDblClick', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -749,7 +749,7 @@ check('R52-14（R74 重写）分类节点拖拽：排序/成父子（最多两�
 });
 check('R52-15（R74 重写）卡片自由拖拽：资源台树落 + 策展台镜像卡拖拽=只改投射落点（moveMirrorTo）', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes('moveMirrorTo') && w.includes('isMirrorView') && w.includes('p.targetCatId = catId || undefined');
+  return w.includes('moveMirrorTo') && w.includes('isMirrorView') && read('/newtab/composables/useWorkspaceMirror.ts').includes('p.targetCatId = catId || undefined');
 });
 check('R52-16（R74 重写）策展归属统一 categoryId（curCatId 退役由迁移清空）+ 新建直入当前分类', () => {
   const m = read('/shared/models/index.ts');
@@ -1005,7 +1005,7 @@ check('R62-7 中心论点设立：hub.setThesis（每台唯一）+ 右键菜单�
 check('R62-8 金字塔视图：viewMode pyramid + pyramidLevels 按深度铺开（排除 thesis 卡）+ 卡片落节点（canMountInNode 校验）+ 镜像卡 moveMirrorTo', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes("viewMode = ref<'card'|'list'|'kanban'|'pyramid'>") && w.includes('const pyramidLevels = computed') && w.includes('if (r.isThesis) continue') && w.includes('canMountInNode(draggedItem)') && w.includes('金字塔节点只允许挂资源卡') && w.includes('moveMirrorTo(draggedItem, cat.id)'); });
 check('R62-9 层级/成环校验 + 同级调序 + 根区升降级：onPyDrop childIds 防环 + 4 级上限 + moveCatSibling + 根区升为一级', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('function pyLevelOf') && w.includes('function pyHeightOf') && w.includes('childIds(dragged.id).includes(target.id)') && w.includes('pyLevelOf(target) + pyHeightOf(dragged) > 4') && w.includes('function moveCatSibling') && w.includes('已升为一级节点'); });
 check('R62-10 节点菜单 6 项：新建子论点/同级/从资源台镜像分类/打包所选/重命名/删除（卡片回待分类）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('🌳 新建子论点') && w.includes('🌿 新建同级节点') && w.includes('📤 从资源台镜像分类') && w.includes('🗂 打包所选卡片入此节点') && w.includes('✎ 重命名') && w.includes('🗑 删除节点（卡片回待分类）') && w.includes('function packIntoNode'); });
-check('R62-11 镜像分类弹窗：hubCatOptions（treeCatOptions）+ confirmMirrorCat 调 mirrorCategoryToBoard + 重复镜像提示', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('mirrorCatModal') && w.includes('treeCatOptions(d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID))') && w.includes('mirrorCategoryToBoard(d.value, catId, workspaceId.value)') && w.includes('该分类已镜像过本台'); });
+check('R62-11 镜像分类弹窗：hubCatOptions（treeCatOptions）+ confirmMirrorCat 调 mirrorCategoryToBoard + 重复镜像提示', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('mirrorCatModal') && read('/newtab/composables/useWorkspaceMirror.ts').includes('treeCatOptions(d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID))') && read('/newtab/composables/useWorkspaceMirror.ts').includes('mirrorCategoryToBoard(d.value, catId, workspaceId.value)') && read('/newtab/composables/useWorkspaceMirror.ts').includes('该分类已镜像过本台'); });
 check('R62-12 右键菜单接线修复：ContextMenu 组件渲染（此前导入未挂载，resCtx 死代码转生效）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('<ContextMenu :state="resCtx" :items="resCtxItems"') && w.includes('import ContextMenu from'); });
 
 // ===== R63 · 设置改造 + Airtable 单向同步轮 =====
@@ -1372,7 +1372,7 @@ check('R73-7（R89 重指：非镜像门控上移到包裹 template）hub 镜像
   return w.includes('title="镜像到策展台"') && w.includes('openMirrorCard(r)') && w.includes('openMirrorCat(sc.cat)')
     && w.includes('v-if="isHub" class="rc-action" title="镜像到策展台"') && w.includes('<template v-if="!isMirrorView(r)">')
     && w.includes('v-if="isHub && !isMirrorCat(sc.cat)"')
-    && w.includes('function confirmMirrorPush') && w.includes('mirrorPushTargetCats');
+    && read('/newtab/composables/useWorkspaceMirror.ts').includes('function confirmMirrorPush') && read('/newtab/composables/useWorkspaceMirror.ts').includes('mirrorPushTargetCats') && w.includes('mirrorPushTargetCats');
 });
 check('R73-8 hub 补齐 L5：区域级落卡（空白区可落）+ 拖拽结束复位 + 混排重编号', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -1427,7 +1427,7 @@ check('R74-7 hub 镜像分类同树呈现（isMirrorCat 徽标，无独立镜像
 });
 check('R74-8 hub 镜像推送入口：卡面 📡 / 分类 📤 / 目标台弹窗', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes('title="镜像到策展台"') && w.includes('openMirrorCard(r)') && w.includes('openMirrorCat(sc.cat)') && w.includes('mirrorPushTargetCats') && w.includes('function confirmMirrorPush');
+  return w.includes('title="镜像到策展台"') && w.includes('openMirrorCard(r)') && w.includes('openMirrorCat(sc.cat)') && w.includes('mirrorPushTargetCats') && read('/newtab/composables/useWorkspaceMirror.ts').includes('function confirmMirrorPush');
 });
 check('R74-9 hub 区域级落卡 + 混排重编号 + 拖拽复位', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -2344,7 +2344,7 @@ check('R89-6 W4：三视图镜像专属两动作 🎯 定位源 / ✕ 移出镜�
     [KANBAN_ACTIONS, 'class="kc-action locate"', 'locateMirrorSource(r)', 'removeMirror(r)']
   ];
   return segs.every(([seg, cls, a, b]) => seg.includes(cls) && seg.includes(a) && seg.includes(b))
-    && WS89.includes('function locateMirrorSource(') && WS89.includes('function removeMirror(');
+    && read('/newtab/composables/useWorkspaceMirror.ts').includes('function locateMirrorSource(') && read('/newtab/composables/useWorkspaceMirror.ts').includes('function removeMirror(');
 });
 check('R89-7 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');
@@ -2728,6 +2728,22 @@ check('R98-3 W9 分组标题补含子分类数：groupChildCount（uncat→0）+
     && WS98.includes("if (key === 'uncat') return 0")
     && WS98.includes('return catIdx.value.childrenOf.get(key)?.length || 0')
     && occ === 2;
+});
+
+console.log('【第一百零三轮 · V2.72.0：Workspace 纯拆分第四批（镜像域 → useWorkspaceMirror）】');
+/** R103：第四刀（本批断言纠缠最大，32 行逐一勘验后仅 6 处需重指——其余靠模板零改动+绑定存续自然存活）。
+ *  三段实现：引用侧（isMirrorCat/moveMirrorTo/removeMirror/locateMirrorSource）+ 推送侧（mirrorPushModal
+ *  单卡📡/分类📤）+ 拉取侧（mirrorCatModal 分类镜像到本台）。本断言守拆分不变量。 */
+const MIR103 = read('/newtab/composables/useWorkspaceMirror.ts');
+const WSP103 = read('/newtab/views/Workspace.vue');
+check('R103-1 ★ 镜像域拆分不变量：三段实现在 composable + 宿主解构绑定（模板零改动）+ 宿主零重复实现', () => {
+  return MIR103.includes('export function useWorkspaceMirror(')
+    && MIR103.includes('function moveMirrorTo(m: MirrorView, catId: string)')
+    && MIR103.includes('function confirmMirrorPush()') && MIR103.includes('function confirmMirrorCat()')
+    && WSP103.includes('useWorkspaceMirror({ d, workspaceId, categories, router, treeCatOptions, persist: () => store.persist() })')
+    && WSP103.includes('isMirrorCat, moveMirrorTo, removeMirror, locateMirrorSource,')
+    && !WSP103.includes('function moveMirrorTo') && !WSP103.includes('function confirmMirrorPush')
+    && !WSP103.includes('const hubCatOptions = computed');
 });
 
 console.log('【第一百零二轮 · V2.71.0：Workspace 纯拆分第三批（卡片整理动作 → useWorkspaceBatch）】');

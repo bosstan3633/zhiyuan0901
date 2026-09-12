@@ -866,6 +866,7 @@ import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
 import { useWorkspaceImport } from '@/newtab/composables/useWorkspaceImport'
 import { useCurationDrill } from '@/newtab/composables/useCurationDrill'
 import { useWorkspaceBatch } from '@/newtab/composables/useWorkspaceBatch'
+import { useWorkspaceMirror } from '@/newtab/composables/useWorkspaceMirror'
 import { useConfirm } from '@/shared/components/confirm'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import { markRank } from '@/shared/utils/marksort'
@@ -986,32 +987,6 @@ function isUncat(r: ResourceCard, validIds: { has(id: string): boolean }): boole
 }
 const uncategorizedCount = computed(() => allResources.value.filter(r => isUncat(r, catIdx.value.byId)).length)
 /** R61：本台分类是否为资源台镜像分类 */
-function isMirrorCat(c: Category): boolean {
-  return c.curFrom?.wsId === CURATION_WS_ID
-}
-/** R61：镜像卡落点更新（拖拽/树落）——只改投射记录，源卡零影响 */
-function moveMirrorTo(m: MirrorView, catId: string) {
-  const p = (d.value.curationProjections || []).find(x => x.id === m.__mirrorProjId)
-  if (!p) return
-  if ((p.targetCatId || '') === (catId || '')) return
-  p.targetCatId = catId || undefined
-  store.persist()
-  showToast(`📡 镜像已移入「${catId ? categories.value.find(c => c.id === catId)?.name : '待分类'}」`)
-}
-/** R61：移出镜像（只删引用，源卡保留在资源台） */
-function removeMirror(r: ResourceCard) {
-  if (!isMirrorView(r)) return
-  removeProjection(d.value, r.__mirrorProjId)
-  store.persist()
-  showToast('✓ 已移出镜像（源卡保留在资源台）')
-}
-/** R61：定位到资源台源卡 */
-function locateMirrorSource(r: ResourceCard) {
-  const src = d.value.resources.find(x => x.id === r.id)
-  if (!src) { showToast('ℹ 源卡已删除'); return }
-  router.push('/curation')
-  showToast(`↗ 源卡在资源台 · ${src.title.slice(0, 20)}`)
-}
 // R45-2（V2.20.0）：页头新增「今日新增/今日删除」字段——策展台范围实时派生（含软删口径：新增排除已删、删除取 deletedAt）
 const startOfToday = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); return dt.getTime() })()
 const wsTodayAdd = computed(() => d.value.resources
@@ -2485,53 +2460,14 @@ function packIntoNode(parentCat?: Category) {
   })
 }
 
-// ===== R73-S3（R16 收敛）：镜像到策展台（单卡 📡 / 分类 📤；方向 = 资源台 → 策展台） =====
-// 自 CurationCenter 迁入。底层 API（projectCardToBoard / mirrorCategoryToBoard）此前已在
-// 本文件被「从资源台拉取」的入口使用，此处补的是**反向的推送入口 UI**（选目标策展台）。
-// 仅在 hub（资源台）出现：策展台上的卡片源头就是资源台，策展台再推给别的台无意义。
-const boards = computed(() => curationBoards(d.value))
-const mirrorPushModal = ref<{ kind: 'card' | 'cat'; cardId?: string; catId?: string; catName?: string; toWs: string; toCat: string } | null>(null)
-function openMirrorCard(r: ResourceCard) {
-  if (!boards.value.length) { showToast('ℹ 还没有策展台——顶栏「＋ 新建策展台」先建一个'); return }
-  mirrorPushModal.value = { kind: 'card', cardId: r.id, toWs: boards.value[0].id, toCat: '' }
-}
-function openMirrorCat(c: Category) {
-  if (!boards.value.length) { showToast('ℹ 还没有策展台——顶栏「＋ 新建策展台」先建一个'); return }
-  mirrorPushModal.value = { kind: 'cat', catId: c.id, catName: c.name, toWs: boards.value[0].id, toCat: '' }
-}
-const mirrorPushTargetCats = computed(() => {
-  const m = mirrorPushModal.value
-  return m ? d.value.categories.filter(c => c.workspaceId === m.toWs) : []
-})
-function confirmMirrorPush() {
-  const m = mirrorPushModal.value
-  if (!m) return
-  if (!m.toWs) { showToast('ℹ 请选择目标策展台'); return }
-  if (m.kind === 'card') {
-    const ok = projectCardToBoard(d.value, m.cardId!, m.toWs, m.toCat || undefined)
-    if (ok) showToast('📡 已镜像到策展台（引用式，源数据零影响）')
-    else showToast('ℹ 未完成——该卡可能已在该台镜像中')
-  } else {
-    const ok = mirrorCategoryToBoard(d.value, m.catId!, m.toWs)
-    if (ok) showToast('📤 已镜像分类到策展台（现有卡片一并投射）')
-    else showToast('ℹ 该分类已在该策展台镜像中')
-  }
-  store.persist()
-  mirrorPushModal.value = null
-}
-
-// ===== R62-6：从资源台镜像分类（弹窗选分类 → mirrorCategoryToBoard） =====
-const mirrorCatModal = ref<{ open: boolean; catId: string }>({ open: false, catId: '' })
-const hubCatOptions = computed(() => treeCatOptions(d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID)))
-function confirmMirrorCat() {
-  const catId = mirrorCatModal.value.catId
-  if (!catId) return
-  const ok = mirrorCategoryToBoard(d.value, catId, workspaceId.value)
-  store.persist()
-  mirrorCatModal.value.open = false
-  if (ok) showToast('📤 已镜像分类到本台（源分类现有卡自动镜像，引用式）')
-  else showToast('ℹ 该分类已镜像过本台')
-}
+// ===== R103（纯拆分第四批）：镜像域拆入 useWorkspaceMirror =====
+// 引用侧（移出镜像/落点更新/定位源卡）+ 推送侧（单卡 📡/分类 📤）+ 拉取侧（分类镜像到本台）
+// 实现原位迁出、零行为变更；标识符经解构保留原绑定——模板零改动。
+const {
+  isMirrorCat, moveMirrorTo, removeMirror, locateMirrorSource,
+  boards, mirrorPushModal, openMirrorCard, openMirrorCat, mirrorPushTargetCats, confirmMirrorPush,
+  mirrorCatModal, hubCatOptions, confirmMirrorCat
+} = useWorkspaceMirror({ d, workspaceId, categories, router, treeCatOptions, persist: () => store.persist() })
 
 // ===== R100（纯拆分第一批）：导入三链路（数据包 / 书签 / 本地文件）拆入 useWorkspaceImport =====
 // 实现原位迁出、零行为变更；标识符经解构保留原绑定——模板与既有断言的入口面不变（04-49 任务书）。
