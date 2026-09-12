@@ -1,4 +1,4 @@
-/* 知源调度台 V2.60.0 回归验证矩阵（交付前必须全绿；当前 942 项）
+/* 知源调度台 V2.61.0 回归验证矩阵（交付前必须全绿；当前 951 项）
  * 运行：node scripts/regression.cjs
  * 新增功能时同步在对应域追加检查项 */
 const fs = require('fs');
@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.60.0'";
+const VER_ANCHOR_LITERAL = "version: '2.61.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -2456,6 +2456,61 @@ check('R91-7 models 注释不再把主攻指向已退役的「任务中心顶部
     && !before.includes('（最多2个，同步至任务中心顶部）');
 });
 check('R91-8 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
+  const m = read('/manifest.ts');
+  const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8');
+  const mp = read('/newtab/views/ManualPage.vue');
+  const reg = fs.readFileSync(__filename, 'utf8');
+  return m.includes(VER_ANCHOR_LITERAL) && pkg.includes('"version": "' + CUR_VER + '"')
+    && mp.includes(CUR_VTAG) && reg.includes(VER_ANCHOR_LITERAL) && GS.includes('runtimeVersion');
+});
+
+console.log('【第九十二轮 · V2.61.0：浮层交互手感与未归档引导（D1 + D2 + E1）】');
+const OV92 = read('/content/overlay-impl.ts');
+const OV92_C = stripComments(OV92);
+const FOCUS_FN92 = fnBody(OV92, 'function focusWhenReady(', '/** 打开浮层');
+const ESC92 = fnBody(OV92, "} else if (e.key === 'Escape') {\n    // R92（D2）", 'function openSearchLocator');
+const CAP_FN92 = fnBody(OV92, 'async function saveCapture()', "document.getElementById('__zy_cap_save__')");
+const TC_FN92 = fnBody(OV92, 'const saveTc = async () => {', "document.getElementById('__zy_tc_save__')");
+check('R92-1 ★ D1：浮层正文零「50ms 延迟聚焦」残留（四处已统一走 focusWhenReady）', () => {
+  // 否定断言：注释里的同名字样已由 stripComments 剥离（§五·补十六：块注释亦剥）
+  // ⚠ 判据用 [^\n]* 而非 [^)]* —— 后者穿不过 `setTimeout(() => input?.focus(), 50)` 里 focus() 的右括号，
+  // 会漏检（R92 活性验证实测：注入探针后本条仍为绿，是断言的洞，不是代码对）。
+  return !/setTimeout\([^\n]*,\s*50\s*\)/.test(OV92_C);
+});
+check('R92-2 D1：focusWhenReady 一个口径、四处调用（搜索 / 资源采集 / 任务采集 / 好奇采集）', () => {
+  const calls = (OV92_C.match(/focusWhenReady\(/g) || []).length;
+  return OV92_C.includes('function focusWhenReady(') && calls >= 5; // 1 处定义 + 4 处调用
+});
+check('R92-3 D1：兜底是「下一帧仅在失焦时才重聚焦」，不是无条件重复 focus', () => {
+  const s = stripComments(FOCUS_FN92);
+  return s.includes('requestAnimationFrame(') && s.includes('document.activeElement !== el');
+});
+check('R92-4 ★ D2：搜索框 Esc 两段式——有内容先清空并重跑搜索，空才关闭', () => {
+  return ESC92.includes("document.getElementById('__zy_si__')")
+    && ESC92.includes('if (input && input.value)')
+    && ESC92.includes("input.value = ''")
+    && ESC92.includes("runSearch('')")
+    && ESC92.includes('closeOverlay()');
+});
+check('R92-5 D2 边界：右端「Esc」按钮仍直接 closeOverlay()（显式点击 ≠ 反射性按键，语义不同是有意的）', () => {
+  return OV92_C.includes('id="__zy_esc__"')
+    && OV92_C.includes("document.getElementById('__zy_esc__')?.addEventListener('click', closeOverlay)")
+    && OV92_C.includes('title="关闭浮层（键盘 Esc 会先清空搜索框，空了才关闭）"');
+});
+check('R92-6 E1：资源卡未选分类（落在待分类）时，回执带「未归档 · 去归位」', () => {
+  return CAP_FN92.includes('const filed = !!catSelect.value')
+    && CAP_FN92.includes('✓ 已入台 · 未归档 · Enter 去归位')
+    && CAP_FN92.includes('✓ 已入台 · Enter 打开看板');
+});
+check('R92-7 E1：任务卡未挂项目时回执带「未归档 · 去归位」；好奇采集 toEnd 条件保留', () => {
+  return TC_FN92.includes('const filed = !!task.projectId')
+    && TC_FN92.includes('未归档 · Enter 去归位')
+    && OV92_C.includes('focusWhenReady(textarea, { toEnd: !selection })');
+});
+check('R92-8 T4 ★ 顺带修：无项目时回执写「调度台」而非「方向台」（与 /?hl= 落点一致）', () => {
+  return TC_FN92.includes("'/?hl=' + task.id") && !TC_FN92.includes("'方向台'");
+});
+check('R92-9 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');
   const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8');
   const mp = read('/newtab/views/ManualPage.vue');

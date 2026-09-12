@@ -274,6 +274,34 @@ function ensureRoot(): HTMLElement {
   return root
 }
 
+/**
+ * R92（D1）：浮层唤起后的聚焦 —— **统一入口，不再 setTimeout(…, 50)**。
+ *
+ * 原实现四处各写一遍 `setTimeout(() => el.focus(), 50)`，本意是等面板入场动画，
+ * 代价是"唤起后立刻打字"的前几个字符会丢（焦点还没落到输入框，按键被宿主页面吃掉）。
+ * 面板此时已在 DOM 中（`root.appendChild(panel)` 先于本调用，且 `.open` 已置），
+ * 同步 `focus()` 即可生效。
+ *
+ * 仍留一帧兜底：宿主页面若在同步阶段抢回焦点，下一帧再争一次（rAF ≈16ms，远小于原 50ms）。
+ * 正常情况下兜底不触发（判 `document.activeElement !== el`，不是无条件重复 focus）。
+ *
+ * @param select 聚焦后全选（资源卡采集：标题预填了 document.title，全选便于直接改写）
+ * @param toEnd  聚焦后把光标移到末尾（好奇心采集：无选区时文本已预填，接着写更顺手）
+ */
+function focusWhenReady(el: HTMLElement | null, opts?: { select?: boolean; toEnd?: boolean }) {
+  if (!el) return
+  const doFocus = () => {
+    el.focus()
+    if (opts?.select && typeof (el as HTMLInputElement).select === 'function') (el as HTMLInputElement).select()
+    if (opts?.toEnd && typeof (el as HTMLTextAreaElement).setSelectionRange === 'function') {
+      const n = (el as HTMLTextAreaElement).value.length
+      ;(el as HTMLTextAreaElement).setSelectionRange(n, n)
+    }
+  }
+  doFocus()
+  requestAnimationFrame(() => { if (document.activeElement !== el) doFocus() })
+}
+
 /** 打开浮层：center=居中搜索；corner=右上角采集小窗 */
 function openOverlay(mode: 'center' | 'corner', onScrimClick?: () => void) {
   injectStyles() // V2.21：样式注入收敛到真正渲染浮层时（幂等），页面加载期不再触碰 DOM
@@ -343,7 +371,8 @@ async function openSearch() {
       </div>
       <span id="__zy_chip__" class="zy-search-chip" style="display:none"><span id="__zy_chip_label__"></span><span class="zy-chip-x" id="__zy_chip_x__">×</span></span>
       <input id="__zy_si__" type="text" class="zy-search-input" placeholder="搜索全部卡片…" autocomplete="off" spellcheck="false">
-      <button class="zy-esc-btn" id="__zy_esc__">Esc</button>
+      <!-- R92（D2）：按钮**保持直接关闭**（显式点击 = 明确要关），只有键盘 Esc 走两段式 -->
+      <button class="zy-esc-btn" id="__zy_esc__" title="关闭浮层（键盘 Esc 会先清空搜索框，空了才关闭）">Esc</button>
     </div>
     <div class="zy-type-tabs" id="__zy_tabs__"></div>
     <div class="zy-results" id="__zy_results__"></div>
@@ -358,7 +387,8 @@ async function openSearch() {
   `
   root.appendChild(panel)
   const input = document.getElementById('__zy_si__') as HTMLInputElement
-  setTimeout(() => input?.focus(), 50)
+  // R92（D1）：改走 focusWhenReady —— 原 50ms 延迟会让"唤起后立刻打字"的前几个字符丢失
+  focusWhenReady(input)
   let searchTimer: ReturnType<typeof setTimeout> | null = null
   input.addEventListener('input', () => {
     if (searchTimer) clearTimeout(searchTimer)
@@ -973,7 +1003,21 @@ function onSearchKeydown(e: KeyboardEvent) {
     runSearch(input?.value || '')
     showToast('🔍 ' + typeLabel(searchType))
   } else if (e.key === 'Escape') {
-    closeOverlay()
+    // R92（D2）：两段式——**有内容先清空，空再关闭**。
+    // 原实现直接 closeOverlay()，反射性按一下 Esc 就把整段查询丢掉（再唤起要重打）。
+    // ⚠ 键位与右端「Esc」按钮（#__zy_esc__）刻意不同：按钮是**显式点击意图**，保持直接关闭。
+    // 二者语义不同是有意的，别当成 bug 统一掉。
+    const input = document.getElementById('__zy_si__') as HTMLInputElement | null
+    if (input && input.value) {
+      e.preventDefault(); e.stopPropagation()
+      input.value = ''
+      searchSelIndex = 0
+      searchSelId = ''
+      renderTypeTabs()
+      runSearch('')
+    } else {
+      closeOverlay()
+    }
   }
 }
 
@@ -1200,7 +1244,8 @@ async function openCapture() {
   titleInput.value = document.title || ''
   linkInput.value = location.href || ''
 
-  setTimeout(() => { titleInput.focus(); titleInput.select() }, 50)
+  // R92（D1）：同上；标题预填了 document.title，聚焦后全选便于直接改写
+  focusWhenReady(titleInput, { select: true })
 
   document.getElementById('__zy_cap_close__')?.addEventListener('click', closeOverlay)
   document.getElementById('__zy_cap_cancel__')?.addEventListener('click', closeOverlay)
@@ -1272,8 +1317,12 @@ async function openCapture() {
       if (!capUrlMap.has(nfp)) capUrlMap.set(nfp, resource)
     }
     await saveData(d2)
+    // R92（E1）：未归档轻引导——分类下拉的「📥 待分类」是**默认项且 value 为空**，
+    // 故 catSelect.value 为空 = 这张卡落在待分类 = 还没归位。动线断点正是"采集后不归位"，
+    // 回执里点一句，而不是等用户自己想起来。**动作不变**，只说明为什么要去那儿。
+    const filed = !!catSelect.value
     // R78（A3）：回执 toast 化——不再整屏确认；回执期内 Enter 仍可打开看板并定位到这张卡
-    showSaved('✓ 已入台 · Enter 打开看板', () => {
+    showSaved(filed ? '✓ 已入台 · Enter 打开看板' : '✓ 已入台 · 未归档 · Enter 去归位', () => {
       // 通知 background：单例定位到已打开的策展台标签页，或新建
       chrome.runtime.sendMessage({ type: 'zy-locate-workspace', wsId: resource.workspaceId, hl: resource.id })
     })
@@ -1392,7 +1441,8 @@ async function openTaskCapture() {
   const linkInput = document.getElementById('__zy_tc_link__') as HTMLInputElement
   const projSel = document.getElementById('__zy_tc_proj__') as HTMLSelectElement
   const metSel = document.getElementById('__zy_tc_met__') as HTMLSelectElement
-  setTimeout(() => { (hasSel ? descInput : titleInput).focus() }, 50)
+  // R92（D1）：同上；有选区时焦点落在描述（内容已预填），否则落在标题
+  focusWhenReady(hasSel ? descInput : titleInput)
   projSel.addEventListener('change', () => {
     const prj = projects.find(x => x.id === projSel.value)
     metSel.disabled = !prj
@@ -1421,7 +1471,11 @@ async function openTaskCapture() {
     // R78（A3）：回执 toast 化——原整屏确认块与「5 秒后自动关闭」一并移除。
     // 回执期内 Enter 打开落点：挂了项目/指标 → 项目详情；否则 → 调度台高亮这张任务卡。
     const tcRoute = task.projectId ? '/compass/projects?p=' + task.projectId : '/?hl=' + task.id
-    showSaved('✓ 任务已保存 · Enter 打开' + (task.projectId ? '项目' : '方向台'), () => {
+    // R92（E1）：任务卡的"归位" = 挂到项目（指标依附于项目，项目为空时指标必然为空，只判项目即可）。
+    // R92（T4）★ 顺带修既有缺陷：无项目时路由是 `/`（**调度台**），回执却写「打开**方向台**」——
+    // 与 R91 清偿的「任务中心顶部」是同一类坏账：**文案指向的页面与实际落点不一致**。
+    const filed = !!task.projectId
+    showSaved('✓ 任务已保存 · ' + (filed ? 'Enter 打开项目' : '未归档 · Enter 去归位'), () => {
       chrome.runtime.sendMessage({ type: 'zy-open-route', route: tcRoute })
     })
   }
@@ -1474,7 +1528,8 @@ async function openCuriosity() {
   `
   root.appendChild(panel)
   const textarea = document.getElementById('__zy_cur_text__') as HTMLTextAreaElement
-  setTimeout(() => { textarea?.focus(); if (!selection) textarea.setSelectionRange(textarea.value.length, textarea.value.length) }, 50)
+  // R92（D1）：同上。⚠ toEnd 条件**必须保留** —— 有选区时文本已预填，光标应停在开头供检查，不能无脑推到末尾
+  focusWhenReady(textarea, { toEnd: !selection })
 
   document.getElementById('__zy_cur_close__')?.addEventListener('click', closeOverlay)
   document.getElementById('__zy_cur_cancel__')?.addEventListener('click', closeOverlay)
