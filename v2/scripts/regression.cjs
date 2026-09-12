@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.70.0'";
+const VER_ANCHOR_LITERAL = "version: '2.71.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -135,7 +135,7 @@ check('W3 分类删除：子级自动升级 + 资源并入/转待分类', () => 
 check('W4 左栏树形渲染 + 置顶分区 + 聚合计数', () => read('/newtab/views/Workspace.vue').includes('sidebarCats') && read('/newtab/views/Workspace.vue').includes('pinnedRootCats') && read('/newtab/views/Workspace.vue').includes('catAggCount') && read('/newtab/views/Workspace.vue').includes('familyIds'));
 check('W5 父分类聚合过滤（点击父分类含子分类资源）', () => read('/newtab/views/Workspace.vue').includes('const ids = familyIds(activeCategory.value)'));
 check('W6 分类拖拽：挂子级/同级排序/升一级/防循环', () => read('/newtab/views/Workspace.vue').includes("catDropMode.value = 'child'") && read('/newtab/views/Workspace.vue').includes('onCatRootDrop') && read('/newtab/views/Workspace.vue').includes('不能移动到自己的子分类'));
-check('W7 批量移动含当前工作台 + 分类层级缩进', () => read('/newtab/views/Workspace.vue').includes('const moveWorkspaces = computed(() => d.value.workspaces.filter(w => !w.archived))') && read('/newtab/views/Workspace.vue').includes('treeCatOptions') && read('/newtab/views/Workspace.vue').includes('📦 移动到…'));
+check('W7 批量移动含当前工作台 + 分类层级缩进（R102 重指：实现拆入 useWorkspaceBatch）', () => read('/newtab/composables/useWorkspaceBatch.ts').includes('const moveWorkspaces = computed(() => d.value.workspaces.filter(w => !w.archived))') && read('/newtab/views/Workspace.vue').includes('treeCatOptions') && read('/newtab/views/Workspace.vue').includes('📦 移动到…'));
 check('W8 单卡移动分类弹窗 + 工作台重命名/描述弹窗', () => read('/newtab/views/Workspace.vue').includes('openMoveOne') && read('/newtab/views/Workspace.vue').includes('openInputModal') && read('/newtab/views/Workspace.vue').includes('renameWs()'));
 check('W9 采集浮层分类下拉层级化', () => read('/content/search-overlay.ts').includes('treeCatLabels'));
 
@@ -327,7 +327,7 @@ console.log('【第卅三轮 · V2.12 需求包第四批：结构改造 · REQ-0
 check('R33-13 REQ-016 共享任务添加抽屉（新建/关联双 Tab + Ctrl+Enter）', () => read('/newtab/components/TaskAddDrawer.vue').includes("tab === 'create'") && read('/newtab/components/TaskAddDrawer.vue').includes("tab === 'link'") && read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.ctrl.enter.prevent="createTask"') && read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.ctrl.enter.prevent="linkTasks"'));
 check('R33-13b REQ-016 三处入口统一接入抽屉（罗盘树/项目策展/项目抽屉）', () => read('/newtab/views/CompassTree.vue').includes('openTaskAdd(metric.id, proj.id)') && read('/newtab/views/ProjectCuration.vue').includes('openTaskAdd(m)') && read('/newtab/components/ProjectDetailDrawer.vue').includes('openTaskAdd(m.id)') && read('/newtab/views/CompassTree.vue').includes('TaskAddDrawer') && read('/newtab/views/ProjectCuration.vue').includes('TaskAddDrawer') && read('/newtab/components/ProjectDetailDrawer.vue').includes('TaskAddDrawer'));
 check('R33-13c REQ-016 关联任务同步写入 metricId 与 taskIds（转移归属防多挂）', () => read('/newtab/components/TaskAddDrawer.vue').includes('t.metricId = props.metricId') && read('/newtab/components/TaskAddDrawer.vue').includes('m.taskIds.filter(id => !ids.includes(id))') && read('/newtab/components/TaskAddDrawer.vue').includes('m.taskIds.push(id)'));
-check('R33-14 REQ-018 删除免二次确认（四组件删除类 confirm 移除，非删除类保留）', () => !read('/newtab/views/Workspace.vue').includes('删除后可在回收站恢复') && !read('/newtab/views/CompassHome.vue').includes('删除后可在回收站恢复') && !read('/newtab/components/compass/CuriosityPanel.vue').includes('确定删除这条好奇心') && !read('/newtab/views/ProjectCuration.vue').includes('确定删除该任务') && read('/newtab/views/Workspace.vue').includes("danger: false"));
+check('R33-14 REQ-018 删除免二次确认（四组件删除类 confirm 移除，非删除类保留）', () => !read('/newtab/views/Workspace.vue').includes('删除后可在回收站恢复') && !read('/newtab/views/CompassHome.vue').includes('删除后可在回收站恢复') && !read('/newtab/components/compass/CuriosityPanel.vue').includes('确定删除这条好奇心') && !read('/newtab/views/ProjectCuration.vue').includes('确定删除该任务') && read('/newtab/composables/useWorkspaceBatch.ts').includes("danger: false"));
 check('R33-14b REQ-018 回收站页面（路由 + 恢复 + 永久删除 + 分区清空）', () => read('/newtab/router.ts').includes("'/recycle'") && read('/newtab/views/RecycleBin.vue').includes('restoreTask') && read('/newtab/views/RecycleBin.vue').includes('purgeTask') && read('/newtab/views/RecycleBin.vue').includes('purgeAll'));
 check('R33-14c REQ-018 回收站入口在设置页危险操作区', () => read('/newtab/views/GlobalSettings.vue').includes("router.push('/recycle')"));
 check('R33-15 REQ-021 分类同名即时校验（标红 + 阻止保存，重命名排除自身）', () => read('/newtab/views/Workspace.vue').includes('const catNameDup') && read('/newtab/views/Workspace.vue').includes('c.name === name && c.id !== m.editId') && read('/newtab/views/Workspace.vue').includes('.ws-modal-input.dup') && read('/newtab/views/Workspace.vue').includes('该策展台已存在同名分类，请更换名称'));
@@ -977,7 +977,7 @@ check('R61-1 数据模型：Workspace.kind / CurationProjection.targetWsId / Res
 check('R61-2 资源台转正迁移（幂等）：migrateHubStructure 建实体/补 kind/剥 curFrom/清旧投射 + 备份下载', () => { const m = read('/shared/storage/curationMigration.ts'); const a = read('/newtab/stores/app.ts'); return m.includes('export function migrateHubStructure') && m.includes("kind: 'resource'") && m.includes('d.curationProjections = []') && m.includes('if (d.hubMigratedAt) return false') && a.includes('backupBeforeHubMigration'); });
 check('R61-3 hub.ts 服务：curationBoards/boardCardsOf/isMirrorView/moveMirror 落点/统计', () => { const h = read('/shared/storage/hub.ts'); return h.includes('export function curationBoards') && h.includes('export function boardCardsOf') && h.includes('export function isMirrorView') && h.includes('export function curationMetrics') && h.includes('canMountInNode') && h.includes("__mirrorProjId: p.id"); });
 check('R61-4 镜像卡注入策展台全视图：allResources=boardCardsOf + 卡片/列表视图镜像徽标', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('boardCardsOf(d.value, workspaceId.value)') && w.includes('rc-mirror-badge') && w.includes("isMirrorView(r)"); });
-check('R61-5 镜像卡写操作守卫：删除=移出镜像/置顶星标拦截/单击提示/批量删除拆 natives+mirrors', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('if (isMirrorView(r)) { removeMirror(r); return }') && w.includes('置顶请在资源台操作') && w.includes('星标请在资源台操作') && w.includes('const mirrors = removed.filter(isMirrorView)'); });
+check('R61-5 镜像卡写操作守卫：删除=移出镜像/置顶星标拦截/单击提示/批量删除拆 natives+mirrors', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('if (isMirrorView(r)) { removeMirror(r); return }') && w.includes('置顶请在资源台操作') && w.includes('星标请在资源台操作') && read('/newtab/composables/useWorkspaceBatch.ts').includes('const mirrors = removed.filter(isMirrorView)'); });
 check('R61-6 决策A语义：策展台新建卡不写资源台（openNewResource 保持 workspaceId=台 id）+ 删除走回收站（软删链路不变）', () => { const w = read('/newtab/views/Workspace.vue'); const h = read('/shared/storage/hub.ts'); return w.includes("workspaceId: workspaceId.value, categoryId: ''") && w.includes('r.deletedAt = Date.now()') && h.includes('toWsId === CURATION_WS_ID) return null'); });
 check('R61-7（R74 重写）层级 4 级落地：MAX_CAT_LEVEL 单一来源 + descendantIds 深化 + 看板/选项递归', () => {
   const t = read('/shared/utils/catTree.ts');
@@ -1879,8 +1879,9 @@ const WS82 = read('/newtab/views/Workspace.vue');
 const CTX_FN = segOf(WS82, 'function openResCtx(', '// B6：拖拽插入线');
 const CTX_MIRROR = segOf(CTX_FN, 'if (isMirrorView(r)) {', '} else {');
 const CTX_OWN = segOf(CTX_FN, '} else {', 'resCtx.value = {');
-const MOUNT_FN = segOf(WS82, 'function toggleMountTask(', 'function closeMountOne');
-const MOUNT_PICKER = segOf(WS82, 'const mountTaskOptions = computed<TaskCard[]>(', 'function mountProjectName');
+// R102 重指：挂载实现拆入 useWorkspaceBatch
+const MOUNT_FN = segOf(read('/newtab/composables/useWorkspaceBatch.ts'), 'function toggleMountTask(', 'function closeMountOne');
+const MOUNT_PICKER = segOf(read('/newtab/composables/useWorkspaceBatch.ts'), 'const mountTaskOptions = computed<TaskCard[]>(', 'function mountProjectName');
 const RES_CARD_IFACE = segOf(read('/shared/models/index.ts'), 'export interface ResourceCard {', '\n}');
 check('R82-1（R89 重指：门控上移到包裹 template）R4 三视图动作条均有 📋 挂载，且镜像卡不给入口', () => {
   // R89（W4）：📋 自身的 `v-if="!isMirrorView(r)"` 上移到包裹 <template>，语义等价
@@ -1902,22 +1903,22 @@ check('R82-3 R4 右键菜单双入口：非镜像分支有挂载项，镜像分�
   return own.includes('cb: () => openMountOne(r)') && own.includes("icon: 'clipboard'")
     && !mir.includes('openMountOne');
 });
-check('R82-4 R4 单向挂载红线：写入函数只改 task，资源卡零赋值', () => {
+check('R82-4 R4 单向挂载红线（R102 重指：mountTarget 以 ref 持有，表达式随之 .value）：写入函数只改 task，资源卡零赋值', () => {
   const s = stripComments(MOUNT_FN);
-  return s.includes('const rid = mountTarget?.id')
+  return s.includes('const rid = mountTarget.value?.id')
     && !/mountTarget\??\.\w+\s*=/.test(s)
     && !s.includes('.categoryId =') && !s.includes('.pinned =') && !s.includes('.starred =');
 });
 check('R82-5 R4 单向挂载红线：ResourceCard 模型零新增挂载类反向字段', () => {
   const rc = stripComments(RES_CARD_IFACE);
   return !rc.includes('mountedTaskIds') && !rc.includes('mountedTask') && !rc.includes('taskIds')
-    && WS82.includes('function mountedTaskCount(r: ResourceCard): number');
+    && read('/newtab/composables/useWorkspaceBatch.ts').includes('function mountedTaskCount(r: ResourceCard): number');
 });
-check('R82-6 R4 选择器多选切换即生效：已挂载 filter 移出、未挂载展开加入（整体替换，非 push）', () => {
+check('R82-6 R4 选择器多选切换即生效（R102 重指：持久化经 ctx.persist 注入）：已挂载 filter 移出、未挂载展开加入（整体替换，非 push）', () => {
   const s = stripComments(MOUNT_FN);
   return s.includes('t.mountedResourceIds = arr.includes(rid) ? arr.filter(x => x !== rid) : [...arr, rid]')
     && !s.includes('.push(')
-    && s.includes('t.updatedAt = Date.now()') && s.includes('store.persist()');
+    && s.includes('t.updatedAt = Date.now()') && s.includes('persist()');
 });
 check('R82-7 R4 选择器：软删过滤 + 已挂载优先排序 + computed 内先 slice 再 sort + 上限 50', () => {
   const p = stripComments(MOUNT_PICKER);
@@ -2727,6 +2728,23 @@ check('R98-3 W9 分组标题补含子分类数：groupChildCount（uncat→0）+
     && WS98.includes("if (key === 'uncat') return 0")
     && WS98.includes('return catIdx.value.childrenOf.get(key)?.length || 0')
     && occ === 2;
+});
+
+console.log('【第一百零二轮 · V2.71.0：Workspace 纯拆分第三批（卡片整理动作 → useWorkspaceBatch）】');
+/** R102：第三刀——批量选择/批量移动/单卡移动/挂载到任务 四个子域合一迁出（~130 行散布实现）。
+ *  R82 单向挂载红线断言随实现迁入 composable（表达式随 mountTarget ref 化 / persist 注入重指）。
+ *  本断言守拆分不变量。 */
+const BAT102 = read('/newtab/composables/useWorkspaceBatch.ts');
+const WSP102 = read('/newtab/views/Workspace.vue');
+check('R102-1 ★ 整理动作域拆分不变量：四子域实现在 composable + 宿主解构绑定（含模板消费的 29 标识符）+ 宿主零重复实现', () => {
+  return BAT102.includes('export function useWorkspaceBatch(')
+    && BAT102.includes('function toggleBatchMode()') && BAT102.includes('async function batchDelete()')
+    && BAT102.includes('function confirmBatchMove()') && BAT102.includes('function confirmMoveOne()')
+    && BAT102.includes('function toggleMountTask(t: TaskCard)')
+    && WSP102.includes('} = useWorkspaceBatch({ d, persist: () => store.persist(), workspaceId, wsCats, allResources, allProjects, sortedResources, openResourceLink, treeCatOptions })')
+    && WSP102.includes('moveOneTarget, mountTarget,')
+    && !WSP102.includes('function toggleBatchMode()') && !WSP102.includes('async function batchDelete()')
+    && !WSP102.includes('function confirmBatchMove()');
 });
 
 console.log('【第一百零一轮 · V2.70.0：Workspace 纯拆分第二批（下钻抽屉 → useCurationDrill）】');
