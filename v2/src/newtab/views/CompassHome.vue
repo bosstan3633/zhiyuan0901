@@ -145,6 +145,14 @@ const todayFocusList = computed<FocusSlot[]>(() => {
 })
 const FOCUS_LIMIT = 3
 const focusFull = computed(() => todayFocusList.value.length >= FOCUS_LIMIT)
+/**
+ * R94（B3）：三件事**全完成** —— 给一个**安静**的收束。
+ * 改前勾完第三件与勾之前在视觉上毫无差别，"今天做完了"这件事页面一个字都没说。
+ * 判据：**至少有一件**（空列表不算"完成"）且**全部 done**。
+ * ⚠ 按提案要求：不用庆祝动画、不用红色、不用进度百分比（产品原则：状态可见但不焦虑）。
+ */
+const focusAllDone = computed(() =>
+  todayFocusList.value.length > 0 && todayFocusList.value.every(s => s.done))
 function todayTaskForSlot(slot: FocusSlot): TaskCard | null {
   if (slot.sourceType === 'task' && slot.sourceId) {
     return d.value.tasks.find(t => !t.deletedAt && t.id === slot.sourceId) || null
@@ -338,6 +346,18 @@ const metricGroups = computed(() => {
   if (orphan.length) groups.push({ key: '__none__', title: '未归类任务', tasks: orphan })
   return groups
 })
+/**
+ * R94（B2）：项目调度右侧任务树**默认折叠**——提案原文「默认只显示左侧摘要；
+ * 右侧任务树默认折叠，或改为点击任务后滑出的右侧抽屉」。
+ *
+ * 本轮选**默认折叠**而非抽屉：抽屉要新建组件 + 遮罩 + 焦点管理，且会引入第二套
+ * 任务编辑入口（现有点任意任务即 `drawerRef?.open(t)` 开详情，再套一层是重复）。
+ * 折叠方案复用既有结构，回退只是把 `ref(false)` 改成 `ref(true)`，收益点完全一致。
+ *
+ * ⚠ **不持久化**：写进 UIPrefs 会变成"记住上次"，与"默认折叠"矛盾（首屏就不再干净了）。
+ *   同一会话内切换项目**不重置** —— 用户已经表达要看，切个项目不该收回去。
+ */
+const curTreeOpen = ref(false)
 /** R54-B1：项目调度左右分栏拖拽（左列 30–75%，持久化 UIPrefs.curSplit） */
 const curSplit = ref(Math.min(75, Math.max(30, store.ui?.curSplit ?? 38)))
 let splitDragging = false
@@ -360,7 +380,9 @@ function startCurSplitDrag(e: MouseEvent) {
   document.addEventListener('mousemove', move)
   document.addEventListener('mouseup', up)
 }
-const curColsStyle = computed(() => `minmax(0, ${curSplit.value}%) 8px 1fr`)
+const curColsStyle = computed(() =>
+  // R94（B2）：任务树折叠时左列独占一行（首屏只显示"项目 + 进度 + 四指标"的摘要）
+  curTreeOpen.value ? `minmax(0, ${curSplit.value}%) 8px 1fr` : '1fr')
 /** R54-B2：4 指标下钻弹窗（成功指标 / 任务总数 / 已完成 / 进行中） */
 const curDrill = ref<null | { key: 'metrics' | 'total' | 'done' | 'doing'; title: string }>(null)
 const drillMetricPct = (metricId: string) => {
@@ -701,7 +723,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
       <!-- 左列 · 今日三件事 -->
       <!-- 上 · 今日三件事（R51-F10 视觉焦点；R53-C1：工具按钮移头部，槽位即入口） -->
       <section class="module left-col">
-        <div class="card focus">
+        <div class="card focus" :class="{ 'all-done': focusAllDone }">
           <div class="card-head">
             <span class="ic"><Icon name="flame" :size="18" /></span><span class="nm">今日三件事</span><span class="en">TODAY'S FOCUS</span>
             <button class="mini-btn" @click="copyYesterday"><Icon name="copy" :size="13" />复制昨日</button>
@@ -738,6 +760,9 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
                 </div>
               </template>
             </div>
+            <!-- R94（B3）：全完成的**安静**收束——一行中性小字（整块去饱和由 .all-done 承担）。
+                 不用庆祝动画、不用红色、不用进度百分比。 -->
+            <div v-if="focusAllDone" class="td-done">✓ 今日三件事 · 已完成</div>
           </div>
         </div>
       </section>
@@ -748,6 +773,11 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
           <div class="card-head">
             <span class="ic"><Icon name="target" :size="17" /></span><span class="nm">项目调度</span><span class="en">PROJECT SPOTLIGHT</span>            <span class="ds">选中任务所属项目 · 单击上方任务卡联动</span>
             <!-- R56-P1：头部迷你计数条移除——4 指标已恢复至左列 -->
+            <!-- R94（B2）：任务树**默认折叠**的切换入口，带任务数（折叠时也知道下面压着多少） -->
+            <button v-if="curProject" class="mini-btn" :title="curTreeOpen ? '收起任务树' : '展开任务树'"
+              @click="curTreeOpen = !curTreeOpen">
+              <Icon name="branch" :size="13" />任务树 {{ projTasks.length }} <span class="cur-tree-caret">{{ curTreeOpen ? '▴' : '▾' }}</span>
+            </button>
             <button class="mini-btn" title="进入完整方向树全景（查看/编辑方向结构）" @click="router.push('/compass/tree')"><Icon name="branch" :size="13" />方向树</button>
           </div>
           <div v-if="curProject" class="cur-body-v">
@@ -773,6 +803,9 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
                   <div class="csv-cell clickable" title="进行中 · 点击下钻" @click="openCurDrill('doing')"><div class="csv-num warn">{{ projDoingCount }}</div><div class="csv-lab">进行中</div></div>
                 </div>
               </div>
+              <!-- R94（B2）：折叠时**真的不渲染**（v-if 而非 v-show）——首屏的信息密度与渲染成本双降。
+                   collapsedGroups 是组件级 ref<Set>，重建不丢。 -->
+              <template v-if="curTreeOpen">
               <div class="cur-split" @mousedown="startCurSplitDrag" title="拖拽调节左右宽度（30%–75%）" />
               <div class="cur-col-r">
                 <div class="cur-groups">
@@ -807,6 +840,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
                   <div v-else class="cur-add-metric-link" @click="startAddMetric">＋ 新增成功指标</div>
                 </div>
               </div>
+              </template>
             </div>
           </div>
           <div v-else class="cur-empty">
@@ -1073,6 +1107,14 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .card.focus .today-card { padding: 10px 13px 9px; }
 .card.focus .today-card:not(.empty-card) { border-color: color-mix(in srgb, var(--accent) 22%, var(--border)); }
 .card.focus .today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 26%, transparent); }
+/* R94（B3）三件事全完成：**安静**完成态——整块轻微去饱和 + 一行中性小字。
+   ⚠ 卡头（复制昨日 / 导出 / 日期导航）**不去饱和**——那是操作区，褪色会影响可用性。
+   不用庆祝动画、不用红色、不用进度百分比。 */
+.card.focus.all-done .today-cards { filter: saturate(.5); }
+.card.focus.all-done .tc-num { color: var(--text-3); }
+.td-done { margin-top: 8px; font-size: 11.5px; color: var(--text-3); text-align: center; letter-spacing: .3px; }
+/* R94（B2）：任务树折叠/展开按钮的箭头（纯文字，不引新图标） */
+.cur-tree-caret { opacity: .7; }
 /* R52-F1：三件事横向并列——3 槽一行，压缩纵向空间 */
 .today-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .today-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 12px 6px; cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; }

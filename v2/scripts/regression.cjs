@@ -1,4 +1,4 @@
-/* 知源调度台 V2.62.0 回归验证矩阵（交付前必须全绿；当前 960 项）
+/* 知源调度台 V2.63.0 回归验证矩阵（交付前必须全绿；当前 969 项）
  * 运行：node scripts/regression.cjs
  * 新增功能时同步在对应域追加检查项 */
 const fs = require('fs');
@@ -36,7 +36,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.62.0'";
+const VER_ANCHOR_LITERAL = "version: '2.63.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -790,7 +790,10 @@ check('R53-11（R74 重写）卡面镜像入口：资源台卡面 📡 镜像到
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('title="镜像到策展台"') && w.includes('openMirrorCard(r)') && !w.includes('projectCardToCuration');
 });
-check('R53-12 C1 三件事精简：从库选取按钮移除（today-toolbar 清零）+ 复制昨日/导出移卡片头部', () => { const h = read('/newtab/views/CompassHome.vue'); return !h.includes('today-toolbar') && h.includes('@click="copyYesterday"') && h.includes('@click="openExportModal"') && h.includes('<div class="card focus">'); });
+check('R53-12 C1 三件事精简：从库选取按钮移除（today-toolbar 清零）+ 复制昨日/导出移卡片头部', () => { const h = read('/newtab/views/CompassHome.vue'); return !h.includes('today-toolbar') && h.includes('@click="copyYesterday"') && h.includes('@click="openExportModal"') && h.includes('<div class="card focus"'); });
+// ⚠ R94 重指（名冻结、只改断言体、零退役）：原名按字面量判 `<div class="card focus">`，
+// R94（B3）给该元素加了 `:class="{ 'all-done': focusAllDone }"` 后字面量失配。
+// 本条要守的「三件事区存在」能力完全未变，故按 §五·补十四 改为**子串**判据。
 check('R53-13 C1 视觉强化：card focus 焦点模块样式（渐变底/描边/标题放大/编号强调）', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('.card.focus') && h.includes('.card.focus .card-head .nm') && h.includes('.card.focus .tc-num'); });
 check('R53-14 C2（R55-B3 重写）定位链路：locateRec 任务 → /compass?zone=task，好奇 → /?hl', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes("{ path: '/compass', query: { zone: 'task', hl: x.id } }") && h.includes("{ path: '/', query: { hl: x.id } }"); });
 check('R53-15 D 主题精简四套：tokens.css 无 green/night 块 + App themes 四项 + repository 存量主题迁移', () => { const t = read('/shared/styles/tokens.css'); const a = read('/newtab/App.vue'); const r = read('/shared/storage/repository.ts'); return !t.includes("[data-theme='green']") && !t.includes("[data-theme='night']") && t.includes("[data-theme='linear']") && t.includes("[data-theme='apple']") && t.includes("[data-theme='raycast']") && t.includes("[data-theme='notion']") && a.includes("id: 'raycast'") && !a.includes("id: 'green'") && !a.includes("id: 'night'") && r.includes("uiCache.theme === 'green' || uiCache.theme === 'night'"); });
@@ -2564,6 +2567,54 @@ check('R93-8 ★ A5 去重落点：chip 只在有输入时出现（判据含 las
   return OV93.includes("chip.style.display = (searchType === 'all' || !lastQuery) ? 'none' : 'inline-flex'");
 });
 check('R93-9 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
+  const m = read('/manifest.ts');
+  const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8');
+  const mp = read('/newtab/views/ManualPage.vue');
+  const reg = fs.readFileSync(__filename, 'utf8');
+  return m.includes(VER_ANCHOR_LITERAL) && pkg.includes('"version": "' + CUR_VER + '"')
+    && mp.includes(CUR_VTAG) && reg.includes(VER_ANCHOR_LITERAL) && GS.includes('runtimeVersion');
+});
+
+console.log('【第九十四轮 · V2.63.0：调度台首屏减重与完成态（B2 + B3）】');
+const CH94 = read('/newtab/views/CompassHome.vue');
+const CH94_C = stripComments(CH94);
+const TODAY94 = fnBody(CH94, '<div class="today-body">', '<!-- 下 · 项目调度');
+/** B3 完成态样式段（.today-cards 去饱和 → .cur-tree-caret 之前），用于"安静"否定断言 */
+const DONE_STYLE94 = fnBody(CH94, '.card.focus.all-done .today-cards', '.cur-tree-caret');
+check('R94-1 B2：curTreeOpen 存在且**默认 false**（首屏只显示左侧摘要）', () => {
+  return CH94_C.includes('const curTreeOpen = ref(false)');
+});
+check('R94-2 B2：折叠时 .cur-cols 单列（curColsStyle 三目含 \'1fr\'）', () => {
+  return CH94_C.includes("curTreeOpen.value ? `minmax(0, ${curSplit.value}%) 8px 1fr` : '1fr'");
+});
+check('R94-3 ★ B2：任务树用 v-if 门控（折叠时真的不渲染）；卡头切换按钮带任务数', () => {
+  const iWrap = CH94.indexOf('<template v-if="curTreeOpen">');
+  const iSplit = CH94.indexOf('<div class="cur-split"');
+  const iColR = CH94.indexOf('<div class="cur-col-r">');
+  return iWrap > 0 && iSplit > iWrap && iColR > iSplit
+    && CH94.includes('任务树 {{ projTasks.length }}')
+    && !CH94.includes('v-show="curTreeOpen"');
+});
+check('R94-4 B2 能力保留：.cur-split 与 startCurSplitDrag 仍在（展开后仍可拖拽调宽）', () => {
+  return CH94.includes('<div class="cur-split" @mousedown="startCurSplitDrag"')
+    && CH94.includes('function startCurSplitDrag(');
+});
+check('R94-5 B3：focusAllDone = 非空 && every(done)（空列表不算完成）', () => {
+  return CH94_C.includes('todayFocusList.value.length > 0 && todayFocusList.value.every(s => s.done)');
+});
+check('R94-6 B3：完成态挂在 .card.focus 上，.today-cards 走 filter: saturate( 去饱和', () => {
+  return CH94.includes('<div class="card focus" :class="{ \'all-done\': focusAllDone }">')
+    && CH94.includes('.card.focus.all-done .today-cards { filter: saturate(.5); }');
+});
+check('R94-7 ★ B3 安静：完成行「今日三件事 · 已完成」；完成态样式零 --danger / 零 animation / 零百分比', () => {
+  return TODAY94.includes('✓ 今日三件事 · 已完成')
+    && !DONE_STYLE94.includes('--danger') && !DONE_STYLE94.includes('animation') && !DONE_STYLE94.includes('%');
+});
+check('R94-8 ★ B2 不持久化：curTreeOpen 不写 saveUIPrefs / UIPrefs（写了就变成"记住上次"，与"默认折叠"矛盾）', () => {
+  return !/saveUIPrefs\([^)]*curTreeOpen/.test(CH94_C)
+    && !CH94_C.includes('ui?.curTreeOpen') && !CH94_C.includes('curTreeOpen:');
+});
+check('R94-9 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');
   const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8');
   const mp = read('/newtab/views/ManualPage.vue');
