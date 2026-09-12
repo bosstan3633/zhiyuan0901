@@ -377,6 +377,34 @@ const CUR_VTAG = 'V' + CUR_VER;
 按行处理：该行或其后第一个 `check('R(\d+)-` 取 R 号 → 查表 → 还原；查不到就**删掉错误版本号**
 （显示错的比不显示更糟）。R90 实测还原 34 条、无据可查 0 条。
 
+> ✅ **R91 实战复核通过**：版本锚方案首次用于真实升版。只改 `VER_ANCHOR_LITERAL` 一行，
+> 78 处派生判据自动跟随；回归输出中 **R90 仍显 `【第九十轮 · V2.59.0】`**、R91 显 `V2.60.0`
+> ——历史轮次**零污染**。升版脚本的改动面因此从"几十处"降到"两处"（文件头 + 版本锚）。
+
+## 五·补十九 · `useCompass()` 里**同名族函数签名不对称**（R91 实证）
+
+**症状**：写主攻速览条时按"同一族函数参数一致"的直觉，写成：
+
+```ts
+const open = projectTasksOf(p).filter(...)   // ✗ 直觉写法
+```
+
+⇒ `vue-tsc` 报 **TS2345: Argument of type 'Project' is not assignable to parameter of type 'string'**。
+
+**真相**（`v2/src/stores/compass.ts`）：
+
+| 函数 | 参数 |
+|---|---|
+| `projectProgress(p)` | **Project 对象** |
+| `isProjectStalled(p)` | **Project 对象** |
+| `isProjectDone(p)` | **Project 对象** |
+| `projectTasksOf(projectId)` | ★ **id 字符串** |
+
+**对策**：用到这一族时先 `grep` 一眼签名，别靠对称性猜。正确写法 `projectTasksOf(p.id)`。
+
+> 顺带：这四个函数**内部都遍历 `d.tasks`**（R83 性能红线），无论参数怎么传，
+> 一律**预计算成索引**（`projMeta` / `projState` / `focusMeta`），模板内不逐项调用。
+
 ## 五·补十四 · class 属性常是**多个类**，断言要判子串（R88 实证）
 
 **症状**：`.sort-dir-btn` 在模板里写作 `class="toolbar-select sort-dir-btn"`，
@@ -597,7 +625,17 @@ function parseBlocks(text) {
   - **★ R17 的边界**：`store.workspaces` **显式排除资源台**（`app.ts:18` `w.id !== CURATION_WS_ID`），这是**全局口径，不要改**。资源台真身卡的「策展台」下拉靠 `ResourceEditForm.wsOptions` **首位注入**「🗂 资源台（真身）」来消除"无匹配值 ⇒ 空白 + 改选即真身静默迁台"。别处（GlobalSettings 搬家目标台 / overlay 台计数）不该混入资源台。
   - ⚠ **一条已重指**：`R84-2`（描述改两态，能力一致：仍 `v-if` 不占位、回落文案一字未改）。
   - **★ 版本号改动只认一处**：`regression.cjs` 顶部的 `VER_ANCHOR_LITERAL`（派生 `CUR_VER` / `CUR_VTAG`）。升版改这一行即可，**不要全局替换**（见 §五·补十八：全局替换会污染轮次标题与断言描述，R90 修了 34 条历史标注才恢复）。
-  - **★ 白皮书 §9.3 演进段已补到 28 条**（R78–R90 于 V2.59.0 补录，此前停在 R77）。新增一轮请**同步追加一条**，别让它再断 13 轮。
+  - **★ 白皮书 §9.3 演进段已补到 29 条**（R91 追加第 29 条）。新增一轮请**同步追加一条**，别让它再断。
+
+- **主攻直通调度台速览（R91 / V2.60.0 已交付，改调度台首页前必读）**：
+  - **坏账背景**：两处对外承诺**零实现**——`models/index.ts` 的 `isFocused` 注释「同步至任务中心顶部」+ `manual-data.ts:229`「🎯 主攻（最多 2 个）**直通调度台速览**；14 天无推进自动亮 ⚠ 停滞」。
+  - **★ 「任务中心」是 R49 已退役的旧页**（`/tasks` 路由已删，回归有 `旧任务中心路由已退役` 断言把守）；`goToTask` 现在 `router.push('/')`。**两处承诺指向同一处** ⇒ 落点就是 `CompassHome.vue`（调度台首页）。**别再去造"任务中心"**。
+  - **调度台主攻速览条 `.ch-focus-strip`**：位于 `</MetricBar>` 之后、`#dispatch-split` 之前（`R91-2` 把守位置）。一行 ≤40px：`🎯 主攻` + 每个主攻一枚胶囊（`名字 · 进度% · ⚠ 停滞 · 待办 N`）+ 右端「去方向台 ›」；空态 `.cf-hint`「🎯 尚无主攻项目 —— 去方向台指定（最多 2 个）」**可点**。
+  - **与方向台 `.mr-focus-bar` 是分工而非重复**：方向台那条在**目标卡上下文里**（"管"的视角，hover 能就地切主攻）；调度台这条在**「今天从哪出发」的语境里**（"看"的视角），故多停滞警示与待办数。改其中一条时**先确认是不是另一条也该动**。
+  - **★ 性能红线（同 R83/R86）**：`projectProgress` / `isProjectStalled` / `isProjectDone` / `projectTasksOf` 内部都遍历 `d.tasks` ⇒ 预计算 `focusMeta` 索引（与 `projMeta` / `projState` 同款），`R91-3` 否定断言把守模板内零逐项调用。主攻上限 2 个也不破例。
+  - **★ 同一 store 里签名不对称**（见 §五·补十九）：`projectTasksOf(projectId: string)` 收 **id**，其余三个收 **Project 对象**。写 `projectTasksOf(p)` ⇒ `TS2345`，应为 `projectTasksOf(p.id)`。
+  - **点击直达项目详情用 `/compass/projects?p=<id>`**（与方向台 `LighthousePanel.openProject` **同路由**，`R91-5` 把守）——两处跳法不一致会让用户以为是两个功能。
+  - ⚠ **遗留**：① 方向台主攻聚焦条是否也补 ⚠ 停滞（**增益**非坏账，待决策）；② `.ch-focus-strip` 与 MetricBar 的**间距需实测**（本轮独立成行，风险最低）。
 
 ## 九、文档产出惯例
 
