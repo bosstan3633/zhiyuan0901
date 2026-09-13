@@ -164,8 +164,13 @@ export interface CurationMetrics {
   lastUpdatedAt: number
 }
 
-export function curationMetrics(d: AppData, wsId: ID): CurationMetrics {
-  const cards = boardCardsOf(d, wsId)
+/**
+ * @param cardsIn R112 性能：宿主已算过 boardCardsOf 时直接传入（调用方 Workspace.vue 的
+ *   `allResources` 与 `metrics` 此前各算一遍 boardCardsOf —— 同一份数据两次全量遍历 + 建 Map/Set）。
+ *   省略则内部自算，行为不变。
+ */
+export function curationMetrics(d: AppData, wsId: ID, cardsIn?: ResourceCard[]): CurationMetrics {
+  const cards = cardsIn || boardCardsOf(d, wsId)
   const cats = d.categories.filter(c => c.workspaceId === wsId)
   const items: CurationMetrics['attachmentItems'] = []
   // R71：卡片一次遍历同时得出 主题卡 / 原生镜像计数 / 附件清单 / 最近更新 / 分类卡数分布

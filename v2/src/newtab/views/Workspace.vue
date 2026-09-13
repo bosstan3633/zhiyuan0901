@@ -5,7 +5,7 @@
          而 **策展台的台名与台描述在页面内零出现**——用户置身于某个策展台，却不知道这是哪个台。
          现统一为这一条，所有台都渲染；hub 描述为空时回落 R73 原文案（零信息损失）。 -->
       <!-- 左侧分类导航（第八轮：树形 2 级 + 置顶分区 + 拖拽排序/挂子级；R48-V2：Linear 风格树 + 展开/折叠） -->
-      <div class="ws-content">
+      <div class="ws-content" @scroll.passive="onContentScroll">
       <!-- R109（F13）：顶部三模块移入滚动容器（与卡片同 padding/滚动域）——顶栏/指标条/工具条/网格右缘成一条直线 -->
     <div class="ws-id-head">
       <span class="wsh-icon">{{ workspace.icon || (isHub ? '📦' : '🗂') }}</span>
@@ -301,7 +301,7 @@
               <span class="tb-hint">尚未设立中心论点 —— 右键台内卡片可设立（设立后即成为金字塔 L1 根）</span>
             </template>
           </div>
-          <template v-for="(g, gi) in resourceGroups" :key="g.key">
+          <template v-for="(g, gi) in renderedGroups" :key="g.key">
             <div :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
             <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
               <span>{{ g.depth ? '↳' : '📁' }} {{ g.title }} · {{ g.count }}<template v-if="groupChildCount(g.key)"> · 含 {{ groupChildCount(g.key) }} 个子分类</template></span>
@@ -358,7 +358,7 @@
                   <span class="rc-open-hint">双击打开链接</span>
                 </div>
               </div>
-              <div v-if="gi === resourceGroups.length - 1" class="rc-add-card" @click="openNewResource">
+              <div v-if="gi === renderedGroups.length - 1 && !hasMoreToRender" class="rc-add-card" @click="openNewResource">
                 <span style="font-size:20px">＋</span><span>新建资源卡</span>
               </div>
             </div>
@@ -372,11 +372,15 @@
             :desc="hasActiveFilter ? '已按「' + filterLabel + '」过滤' + (debouncedQuery.trim() ? '，且搜索「' + debouncedQuery.trim() + '」无命中' : '') : '双击卡片直达链接；单击查看详情。用 Ctrl+Shift+J 可从任意网页采集'"
             :action-label="hasActiveFilter ? '清除筛选' : '＋ 新建资源卡'"
             @action="hasActiveFilter ? resetFilters() : openNewResource()" />
+          <!-- R112 性能：增量渲染的显式入口（滚动到此处也会自动追加一屏） -->
+          <div v-if="hasMoreToRender" class="render-more" @click="renderMore">
+            ↓ 已显示 {{ renderedCount }} / {{ totalVisibleCount }} 张 —— 点此加载更多
+          </div>
         </div>
 
         <!-- ===== 列表视图：REQ-027 按分类分组分区（每分区标题行 + 其下条目）；R64-F9 树状缩进 ===== -->
         <div v-if="viewMode==='list'">
-          <template v-for="(g, gi) in resourceGroups" :key="g.key">
+          <template v-for="(g, gi) in renderedGroups" :key="g.key">
             <div :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
             <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
               <span>{{ g.depth ? '↳' : '📁' }} {{ g.title }} · {{ g.count }}<template v-if="groupChildCount(g.key)"> · 含 {{ groupChildCount(g.key) }} 个子分类</template></span>
@@ -418,6 +422,10 @@
             </div>
           </template>
           <div v-if="!resourceGroups.length" class="empty-state">暂无资源卡，点击右上角"新建资源卡"添加</div>
+          <!-- R112 性能：增量渲染的显式入口（列表视图同口径） -->
+          <div v-if="hasMoreToRender" class="render-more" @click="renderMore">
+            ↓ 已显示 {{ renderedCount }} / {{ totalVisibleCount }} 张 —— 点此加载更多
+          </div>
         </div>
 
         <!-- 看板视图 -->
@@ -935,7 +943,21 @@ const d = computed(() => store.data!)
 /** R82（R4）：取项目扁平表（任务的项目名展示）——与方向台共用 useCompass 的口径 */
 const { allProjects } = useCompass()
 
-const workspaceId = computed(() => route.params.id as string)
+/**
+ * R112 性能（P0）：路由离开 /workspace 时**保持最后一个台 id**。
+ * 原实现直接取 `route.params.id`——切到调度台/方向台/设置页时它变为 undefined，
+ * 而 workspaceId 是**几乎全部 computed 的根依赖**（allResources / metrics / catIdx /
+ * resBucket / sidebarCats / resourceGroups / lcCards / referencedAssetIds …），
+ * 于是 KeepAlive 缓存中的本组件在**隐藏期间**仍被触发一次全量重算 + 重渲染，
+ * 切回来再触发一次 —— 每次切台白做两遍，这是 M2a 切台耗时的主要构成。
+ * 保持上一个 id 后：切走与切回均零重算；切到**另一个台**时照常重算（行为不变）。
+ */
+const lastWsId = ref('')
+watch(() => route.params.id, (id) => { if (typeof id === 'string' && id) lastWsId.value = id }, { immediate: true })
+const workspaceId = computed<string>(() => {
+  const id = route.params.id
+  return (typeof id === 'string' && id) ? id : lastWsId.value
+})
 // R65-F7：KeepAlive 缓存实例——切换不同策展台（:id 变化）时复位本台局部状态，防上一台残留
 watch(() => route.params.id, (nv, ov) => {
   if (nv && ov && nv !== ov) {
@@ -951,7 +973,9 @@ const workspace = computed(() => d.value.workspaces.find(w => w.id === workspace
 const isHub = computed(() => isHubWs(workspace.value))
 
 // ===== R62-1/2：策展台 5 指标 + 下钻 =====
-const metrics = computed(() => curationMetrics(d.value, workspaceId.value))
+// R112 性能：复用 allResources 已算好的 boardCardsOf 结果（此前 metrics 与 allResources
+// 各算一遍 boardCardsOf ⇒ 每次切换/搜索对全部资源多做一次全量遍历 + 建 Map/Set）
+const metrics = computed(() => curationMetrics(d.value, workspaceId.value, allResources.value))
 /**
  * R84（W1）：页头描述——有台描述就用它，**为空则不占位**（原文验收要点）。
  * R90（R8-③）：拆成两态——
@@ -1090,10 +1114,23 @@ async function onDrillCleanupOrphans() {
 }
 
 // R47-B4：进入/切换策展台 = 一次「调用」，计入热度（全局检索无输入时策展台参与热度排序）
+// R112 性能：**落盘节流**。原实现每次切台立即 store.persist()，300ms 防抖后同步执行整树
+// JSON.stringify + JSON.parse（medium 规模 ~800 卡 / 100 分类）——切台窗口长任务的来源之一。
+// 热度是统计信息：内存态即时更新已保证本会话 UI 正确，落盘合并到 4s 后；
+// 页面隐藏 / 组件卸载时补一次，避免「切台后立刻关页」丢数据。
+let wsOpenPersistTimer: ReturnType<typeof setTimeout> | null = null
+function scheduleWsOpenPersist() {
+  if (wsOpenPersistTimer) clearTimeout(wsOpenPersistTimer)
+  wsOpenPersistTimer = setTimeout(() => { wsOpenPersistTimer = null; store.persist() }, 4000)
+}
+function flushWsOpenPersist() {
+  if (wsOpenPersistTimer) { clearTimeout(wsOpenPersistTimer); wsOpenPersistTimer = null; store.persist() }
+}
+function onWsOpenVisibility() { if (document.visibilityState === 'hidden') flushWsOpenPersist() }
 watch(workspaceId, (id) => {
   if (!id) return
   const ws = d.value?.workspaces?.find(w => w.id === id)
-  if (ws) { recordWorkspaceOpen(d.value, ws); store.persist() }
+  if (ws) { recordWorkspaceOpen(d.value, ws); scheduleWsOpenPersist() }
 }, { immediate: true })
 // R84（W2-②）：切台时重算视图偏好——不同台各有各的选择，不能把 A 台的金字塔串到 B 台
 watch(workspaceId, () => nextTick(applyWsView))
@@ -1141,11 +1178,13 @@ const hubCountHint = computed(() => `分类 ${metrics.value.categoryCount} · �
 
 // ===== 字段渲染（F1：全局设置的字段设计在此生效） =====
 const rFields = computed(() => visibleFields(d.value.fieldConfig, 'resource'))
-/** R62-3：主题卡（isThesis 资源卡）走 thesis 独立字段组，其余走 resource 组 */
+/** R112 性能：主题卡字段组也预计算（此前 fieldsOf 每次调用都跑一遍 visibleFields 过滤） */
+const thesisFields = computed(() => visibleFields(d.value.fieldConfig, 'thesis'))
+/** R62-3：主题卡（isThesis 资源卡）走 thesis 独立字段组，其余走 resource 组
+ *  R112：改为返回**已缓存的 computed 引用**——此前每卡每次重渲染都新建一个数组，
+ *  400 卡 × 每次键入重渲染会持续产生垃圾（CPU profile 中 (program) 占比高即 GC 压力）。 */
 function fieldsOf(r: ResourceCard): FieldDef[] {
-  return (r.isThesis && !isMirrorView(r))
-    ? visibleFields(d.value.fieldConfig, 'thesis')
-    : rFields.value
+  return (r.isThesis && !isMirrorView(r)) ? thesisFields.value : rFields.value
 }
 const titleKey = computed(() => rFields.value.find(f => isTitleKey(f.key))?.key || 'title')
 const listFields = computed(() => rFields.value.filter(f => !isTitleKey(f.key) && f.key !== 'assets').slice(0, 3))
@@ -1371,8 +1410,9 @@ function applyViewFilters(list: ResourceCard[]): ResourceCard[] {
   let out = list
   if (activeCategory.value === 'uncat') out = out.filter(r => !r.categoryId)
   else if (activeCategory.value !== 'all') {
-    const ids = familyIds(activeCategory.value)
-    out = out.filter(r => r.categoryId && ids.includes(r.categoryId))
+    // R112 性能：`ids.includes()` 在 filter 内是 O(卡数 × 家族规模)，改为 Set.has 的 O(卡数)
+    const ids = new Set(familyIds(activeCategory.value))
+    out = out.filter(r => r.categoryId && ids.has(r.categoryId))
   }
   const pred = FILTER_PREDICATES[filterBy.value]
   if (pred) out = out.filter(pred)
@@ -1466,6 +1506,42 @@ const resourceGroups = computed<ResourceGroup[]>(() => {
   }
   return groups
 })
+/**
+ * R112 性能（P0）：**增量渲染**。
+ * CPU profile 实测：切台/搜索窗口内 Vue `track`（依赖收集）占 19~21%、proxy `get` 占 9.6%，
+ * 叠加 `insertBefore`/`createElement`/`setElementText` 与 GC —— 瓶颈是「一次渲染数百张卡 DOM ×
+ * 每卡十余次响应式读取」，而非算法本身。`.res-card` 虽已有 `content-visibility:auto`（R55-F4，
+ * 跳过屏外卡的 layout/paint），但 **Vue 仍会为全部卡片创建 VNode/DOM 并逐卡读取响应式值**。
+ * 故：数据与分组保持全量不变，仅「已渲染份额」按需递增——滚动到接近底部再追加一屏。
+ * （等轻量虚拟滚动收益，但不破坏拖拽/分组/选中的既有结构。）
+ */
+const RENDER_STEP = 80
+const renderLimit = ref(RENDER_STEP)
+const totalVisibleCount = computed(() => resourceGroups.value.reduce((s, g) => s + g.items.length, 0))
+const renderedGroups = computed<ResourceGroup[]>(() => {
+  const groups = resourceGroups.value
+  if (renderLimit.value >= totalVisibleCount.value) return groups
+  const out: ResourceGroup[] = []
+  let budget = renderLimit.value
+  for (const g of groups) {
+    if (budget <= 0) break
+    if (g.items.length <= budget) { out.push(g); budget -= g.items.length }
+    else { out.push({ ...g, items: g.items.slice(0, budget) }); budget = 0 }
+  }
+  return out
+})
+const renderedCount = computed(() => renderedGroups.value.reduce((s, g) => s + g.items.length, 0))
+const hasMoreToRender = computed(() => renderedCount.value < totalVisibleCount.value)
+/** 资源区滚动容器（.ws-content）滚到距底 400px 内时追加一屏 */
+function onContentScroll(e: Event) {
+  if (!hasMoreToRender.value) return
+  const el = e.target as HTMLElement
+  if (el.scrollHeight - el.scrollTop - el.clientHeight < 400) renderLimit.value += RENDER_STEP
+}
+/** 「加载更多」按钮（滚动监听之外的显式入口，保证键盘/小程序场景可达） */
+function renderMore() { if (hasMoreToRender.value) renderLimit.value += RENDER_STEP }
+// 换台 / 换视图 / 换分类 / 改检索词 / 改排序 → 渲染份额复位（否则会带着上个上下文的大份额）
+watch([workspaceId, viewMode, activeCategory, debouncedQuery, sortBy, sortDir], () => { renderLimit.value = RENDER_STEP })
 /** R98（W9）：分组标题补「含 N 个子分类」——组内 count 是**直属**口径（walk 只 push 有直属卡的组），
  *  与左树的聚合数不同源；同屏「左树 A 显示 5 / 分组 A 显示 3」会被当成对不上账，须写明。
  *  子分类各自的卡有自己的组（walk 递归）；待分类无子分类。 */
@@ -2152,9 +2228,10 @@ function onUncatDrop(e: DragEvent) {
   onDropToCategory(e, '')
 }
 function clearCardDropTarget() { cardDropTarget.value = '' }
-onMounted(() => { applyWsView(); window.addEventListener('dragend', clearCardDropTarget); document.addEventListener('click', closeSettingsMenu); document.addEventListener('click', closeFilterPop); window.addEventListener('resize', pyLinksThrottled); nextTick(drawPyLinks) })
+onMounted(() => { applyWsView(); window.addEventListener('dragend', clearCardDropTarget); document.addEventListener('click', closeSettingsMenu); document.addEventListener('click', closeFilterPop); window.addEventListener('resize', pyLinksThrottled); document.addEventListener('visibilitychange', onWsOpenVisibility); nextTick(drawPyLinks) })
 // R88（W3）：筛选气泡与 ⚙ 菜单同为"点外部关闭"的浮层，卸载时一并摘掉监听
-onUnmounted(() => { window.removeEventListener('dragend', clearCardDropTarget); window.removeEventListener('resize', pyLinksThrottled); document.removeEventListener('click', closeSettingsMenu); document.removeEventListener('click', closeFilterPop) })
+// R112：同时补一次热度落盘（组件真正卸载时，节流中的待写数据不能丢）
+onUnmounted(() => { flushWsOpenPersist(); window.removeEventListener('dragend', clearCardDropTarget); window.removeEventListener('resize', pyLinksThrottled); document.removeEventListener('click', closeSettingsMenu); document.removeEventListener('click', closeFilterPop); document.removeEventListener('visibilitychange', onWsOpenVisibility) })
 // R65-F7：resize 重绘节流（150ms 尾随，防拖拽窗口时高频全量重算）
 let pyLinksTimer: ReturnType<typeof setTimeout> | null = null
 function pyLinksThrottled() {
@@ -3080,6 +3157,9 @@ function linkDisplay(link: string) {
 .res-card:hover .rc-open-hint { opacity: 1; }
 .rc-add-card { border: 1.5px dashed var(--border-strong); border-radius: 8px; display: flex; align-items: center; justify-content: center; min-height: 120px; cursor: pointer; color: var(--text-3); font-size: 12px; transition: all .15s; flex-direction: column; gap: 6px; }
 .rc-add-card:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+/* R112 性能：增量渲染的「加载更多」入口（卡片/列表视图共用） */
+.render-more { margin: 16px 0 4px; padding: 10px 0; text-align: center; font-size: 12px; color: var(--text-3); border: 1px dashed var(--border-strong); border-radius: 8px; cursor: pointer; transition: all .15s; }
+.render-more:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
 
 /* 采集跳转高亮（2秒渐隐） */
 .res-card.flash, .res-row.flash { animation: rc-flash 2s ease-out; }

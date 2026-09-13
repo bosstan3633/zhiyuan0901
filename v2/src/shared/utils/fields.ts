@@ -21,6 +21,22 @@ export function allFields(cfg: FieldConfig, type: FieldGroupKind): FieldDef[] {
 }
 
 /** 解析卡片任意字段的可展示文本值 */
+/**
+ * R112 性能：日期格式化缓存。
+ * `new Date().toLocaleDateString('zh-CN')` 每次都要初始化 Intl 格式化器，
+ * 而 val()/fieldValue 由卡面模板**逐卡逐字段**调用（400 卡一次重渲染 = 400 次 Intl 构造，
+ * 搜索键入时同一批卡还会反复重渲染）。按时间戳缓存字符串，纯函数语义，无失效风险。
+ */
+const dateFmtCache = new Map<number, string>()
+function fmtDateCN(ts: number): string {
+  const hit = dateFmtCache.get(ts)
+  if (hit !== undefined) return hit
+  const s = new Date(ts).toLocaleDateString('zh-CN')
+  if (dateFmtCache.size >= 4000) dateFmtCache.clear()
+  dateFmtCache.set(ts, s)
+  return s
+}
+
 export function fieldValue(
   card: AnyCard,
   key: string,
@@ -56,7 +72,7 @@ export function fieldValue(
       }
       return map[s] || s
     }
-    case 'createdAt': return c.createdAt ? new Date(Number(c.createdAt)).toLocaleDateString('zh-CN') : ''
+    case 'createdAt': return c.createdAt ? fmtDateCN(Number(c.createdAt)) : ''
     case 'assets':
       // 第卌轮 REQ-051：附件字段文本摘要（列表/CSV/预览兜底），如「2 图 · 1 PDF · 1 HTML」
       // R81（R15）：原实现 `htmls = list.length - imgs` 把 PDF 算进 HTML 档，改调共享 assetSummary

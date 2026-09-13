@@ -53,15 +53,22 @@ function chromeStore(): chrome.storage.StorageArea | null {
 }
 
 /** 加载数据（含首次初始化） */
-export async function loadData(): Promise<AppData> {
+export async function loadData(prefetched?: Record<string, unknown>): Promise<AppData> {
   if (cache) return cache
   const cs = chromeStore()
   if (!cs) {
     cache = createDefaultData()
     return cache
   }
-  const result = await cs.get([STORAGE_KEY])
-  let data = result[STORAGE_KEY] as AppData | undefined
+  // R112 冷启动：允许调用方把**已经读到的** raw 快照传进来，省掉一次同 key 的
+  //   chrome.storage.local 往返（启动链路里 STORAGE_KEY 曾被串行读 3 次，medium 实测单次
+  //   197~229ms）。预取只跳过 IO，**归一化一律照常执行**。
+  let raw = prefetched ? (prefetched[STORAGE_KEY] as AppData | undefined) : undefined
+  if (raw === undefined) {
+    const result = await cs.get([STORAGE_KEY])
+    raw = result[STORAGE_KEY] as AppData | undefined
+  }
+  let data = raw
   if (!data) {
     data = createDefaultData()
     await cs.set({ [STORAGE_KEY]: data })

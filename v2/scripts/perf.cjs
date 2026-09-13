@@ -109,8 +109,10 @@ window.__waitFor = function (pred, timeout) {
 /** 点击顶栏某个导航 Tab，测「点下去 → 目标视图就位」的端到端耗时（首次会含 chunk 加载） */
 window.__navTo = async function (prefix, sel) {
   // 排除「＋新增策展台」「折叠」等功能性 tab（它们的 title 也含「策展台」）
+  // R112 修脚本漂移：新增 tab-overflow 过滤——溢出指示「≪ N」的 title 是「其余 N 个策展台」，
+  // 含「策展台」三字，会被前缀匹配误命中（点它只展开溢出列表、不导航）。
   const pick = () => [...document.querySelectorAll('.tabs .tab')]
-    .filter(e => !/tab-add|tab-collapse|adding/.test(e.className))
+    .filter(e => !/tab-add|tab-collapse|adding|tab-overflow/.test(e.className))
     .find(e => ((e.getAttribute('title') || '') + (e.textContent || '')).includes(prefix))
   const tab0 = pick()
   if (!tab0) return -1
@@ -383,7 +385,10 @@ async function main() {
   log('  顶栏 Tab：' + JSON.stringify(await page.evaluate(() => [...document.querySelectorAll('.tabs .tab')].map(e => (e.textContent || '').trim().slice(0, 14)))))
   const navCC = await page.evaluate(() => window.__navTo('资源台', '.view-tab'))
   if (navCC >= 0) push('M2a_切到资源台(ms)', navCC)
-  const navWS = await page.evaluate(() => window.__navTo('策展台', '.res-card'))
+  // R112 修脚本漂移：原用前缀 '策展台'，但顶栏策展台 Tab 文本已被剥成「📘PERF0」，
+  // 唯一含「策展台」三字的可匹配项是溢出指示（见 __navTo 内注释）→ 打满 15000ms 超时。
+  // R109/R111 记录的 15006/15019ms 即此超时值，非真实耗时。改用与下方一致的 PERF0 定位。
+  const navWS = await page.evaluate(() => window.__navTo('PERF0', '.res-card'))
   if (navWS >= 0) push('M2b_切到策展台(ms)', navWS)
 
   // ══════════ 资源台 ══════════

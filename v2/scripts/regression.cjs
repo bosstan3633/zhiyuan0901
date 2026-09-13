@@ -38,7 +38,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.79.0'";
+const VER_ANCHOR_LITERAL = "version: '2.80.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -135,7 +135,8 @@ check('W1 数据模型：Category +parentId?/pinned?', () => read('/shared/model
 check('W2 分类新建/重命名应用内弹窗（无原生 prompt）', () => read('/newtab/views/Workspace.vue').includes('confirmCatModal') && read('/newtab/views/Workspace.vue').includes('openRenameCat') && !read('/newtab/views/Workspace.vue').includes('prompt('));
 check('W3 分类删除（R104 重指：实现拆入 useCategoryCrud）：子级自动升级 + 资源并入/转待分类', () => read('/newtab/views/Workspace.vue').includes('deleteCategory') && read('/newtab/composables/useCategoryCrud.ts').includes('升级为一级分类'));
 check('W4 左栏树形渲染 + 置顶分区 + 聚合计数', () => read('/newtab/views/Workspace.vue').includes('sidebarCats') && read('/newtab/views/Workspace.vue').includes('pinnedRootCats') && read('/newtab/views/Workspace.vue').includes('catAggCount') && read('/newtab/views/Workspace.vue').includes('familyIds'));
-check('W5 父分类聚合过滤（点击父分类含子分类资源）', () => read('/newtab/views/Workspace.vue').includes('const ids = familyIds(activeCategory.value)'));
+// R112 重指：familyIds 现在包一层 Set 再过滤（O(卡数×家族) → O(卡数)），聚合过滤语义不变 —— 承接 R112-7
+check('W5 父分类聚合过滤（点击父分类含子分类资源）', () => read('/newtab/views/Workspace.vue').includes('const ids = new Set(familyIds(activeCategory.value))'));
 check('W6 分类拖拽：挂子级/同级排序/升一级/防循环', () => read('/newtab/views/Workspace.vue').includes("catDropMode.value = 'child'") && read('/newtab/views/Workspace.vue').includes('onCatRootDrop') && read('/newtab/views/Workspace.vue').includes('不能移动到自己的子分类'));
 check('W7 批量移动含当前工作台 + 分类层级缩进（R102 重指：实现拆入 useWorkspaceBatch）', () => read('/newtab/composables/useWorkspaceBatch.ts').includes('const moveWorkspaces = computed(() => d.value.workspaces.filter(w => !w.archived))') && read('/newtab/views/Workspace.vue').includes('treeCatOptions') && read('/newtab/views/Workspace.vue').includes('📦 移动到…'));
 check('W8 单卡移动分类弹窗 + 工作台重命名/描述弹窗', () => read('/newtab/views/Workspace.vue').includes('openMoveOne') && read('/newtab/views/Workspace.vue').includes('openInputModal') && read('/newtab/views/Workspace.vue').includes('renameWs()'));
@@ -1002,7 +1003,7 @@ check('R62-1 thesis 字段组四件套：FieldConfig.thesis 可选组 / defaults
 check('R62-2 thesis 老数据归一化：repository 缺组补默认（幂等）+ assets 注入循环含 thesis', () => { const r = read('/shared/storage/repository.ts'); return r.includes('defaultThesisFieldDefs') && r.includes("if (data.fieldConfig && !data.fieldConfig.thesis) data.fieldConfig.thesis = defaultThesisFieldDefs()") && r.includes("for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const)"); });
 check('R62-3 设计器第四页：设置导航「策展主题卡」+ thesis 面板 FieldEditor + 导入合并兼容 thesis 组', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes("key: 'thesis', icon: '🏛', label: '策展主题卡'") && g.includes("card-type=\"thesis\"") && g.includes("if (!cfg.thesis) cfg.thesis = defaultThesisFieldDefs()") && g.includes("for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const)"); });
 check('R62-4 视图分流：Workspace fieldsOf（isThesis 走 thesis 组）+ 卡片视图消费 fieldsOf(r)', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('function fieldsOf(r: ResourceCard): FieldDef[]') && w.includes("visibleFields(d.value.fieldConfig, 'thesis')") && w.includes('v-for="f in fieldsOf(r)"'); });
-check('R62-5 指标条（R98 重指：W8 5→3 格）：ws-metrics 三卡（主题/总数/附件）+ 构成明细在总数格 hint（台内/镜像）+ curationMetrics 消费 + 资源台不显示（v-if !isHub）', () => { const w = read('/newtab/views/Workspace.vue'); const h = read('/shared/storage/hub.ts'); return w.includes('class="ws-metrics"') && w.includes('🏛 策展主题') && w.includes('📊 卡片总数') && w.includes('台内 {{ metrics.native }} · 镜像 {{ metrics.mirrored }}') && w.includes('📎 附件数量') && w.includes('curationMetrics(d.value, workspaceId.value)') && w.includes('v-if="!isHub"') && h.includes('attachmentItems'); });
+check('R62-5 指标条（R98 重指：W8 5→3 格 / R112 重指：metrics 复用 allResources）：ws-metrics 三卡（主题/总数/附件）+ 构成明细在总数格 hint（台内/镜像）+ curationMetrics 消费 + 资源台不显示（v-if !isHub）', () => { const w = read('/newtab/views/Workspace.vue'); const h = read('/shared/storage/hub.ts'); return w.includes('class="ws-metrics"') && w.includes('🏛 策展主题') && w.includes('📊 卡片总数') && w.includes('台内 {{ metrics.native }} · 镜像 {{ metrics.mirrored }}') && w.includes('📎 附件数量') && w.includes('curationMetrics(d.value, workspaceId.value, allResources.value)') && w.includes('v-if="!isHub"') && h.includes('attachmentItems'); });
 check('R62-6 下钻抽屉：CurationDrillDrawer 四模式（total/source/assets/recent）+ 附件打开（getAssetBlob 图片预览 / openHtmlAsset 文档）+ 镜像跳源', () => { const d = read('/newtab/components/CurationDrillDrawer.vue'); const w = read('/newtab/views/Workspace.vue'); return d.includes("mode: 'total' | 'source' | 'assets' | 'recent'") && d.includes('openDrillAsset') && d.includes('getAssetBlob') && d.includes('openHtmlAsset') && d.includes("emit('locate'") && w.includes('CurationDrillDrawer'); });
 check('R62-7 中心论点设立：hub.setThesis（每台唯一）+ 右键菜单「设为中心论点/取消」+ 镜像卡拦截', () => { const h = read('/shared/storage/hub.ts'); const w = read('/newtab/views/Workspace.vue'); return h.includes('export function setThesis') && h.includes('if (r.id !== cardId) r.isThesis = undefined') && w.includes('function setThesisCard') && w.includes('🏛 设为中心论点') && w.includes('取消中心论点') && w.includes('镜像卡不能作为本台中心论点'); });
 check('R62-8 金字塔视图：viewMode pyramid + pyramidLevels 按深度铺开（排除 thesis 卡）+ 卡片落节点（canMountInNode 校验）+ 镜像卡 moveMirrorTo', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes("viewMode = ref<'card'|'list'|'kanban'|'pyramid'>") && w.includes('const pyramidLevels = computed') && w.includes('if (r.isThesis) continue') && w.includes('canMountInNode(draggedItem)') && w.includes('金字塔节点只允许挂资源卡') && w.includes('moveMirrorTo(draggedItem, cat.id)'); });
@@ -1520,10 +1521,10 @@ check('R75-7 hub 三格复用既有下钻：total / assets / recent 三 mode，�
   return blk.includes("openDrill('total')") && blk.includes("openDrill('assets')") && blk.includes("openDrill('recent')")
     && dd.includes("mode: 'total' | 'source' | 'assets' | 'recent'") && names.length > 0 && names.every(n => n === 'CurationDrillDrawer.vue');
 });
-check('R75-8（R110 改写）指标条数据源仍为 curationMetrics：未新增统计函数；hub.ts 统计段唯一改动 = R110-B1-2 红线兜底镜像恒 0', () => {
+check('R75-8（R110/R112 改写）指标条数据源仍为 curationMetrics：未新增统计函数；hub.ts 统计段改动 = R110-B1-2 红线兜底镜像恒 0 + R112-4 第三参复用宿主 cards（纯签名扩展，零行为变更）', () => {
   const w = read('/newtab/views/Workspace.vue');
   const h = read('/shared/storage/hub.ts');
-  return w.includes('const metrics = computed(() => curationMetrics(d.value, workspaceId.value))') && h.includes('export function curationMetrics') && h.includes('R110-BUG1：资源台（hub）按单向挂载红线镜像恒 0');
+  return w.includes('const metrics = computed(() => curationMetrics(d.value, workspaceId.value, allResources.value))') && h.includes('export function curationMetrics') && h.includes('R110-BUG1：资源台（hub）按单向挂载红线镜像恒 0') && h.includes('cardsIn?: ResourceCard[]');
 });
 check('R75-9 hub3 样式块零硬编码色（只用 tokens 变量）', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -3079,6 +3080,95 @@ check('R110-LC-6 零迁移：lifecycleArchived 为 CardBase 可选字段（三�
 // ---- FS：金字塔全屏 ----
 check('R110-FS-1 ★ 路线 A：元素级 requestFullscreen 真全屏 + 浏览器原生 ESC（fullscreenchange 同步状态）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('await el.requestFullscreen()') && w.includes("document.addEventListener('fullscreenchange', onPyFsChange)") && w.includes('document.exitFullscreen()') && w.includes('const pyFsFallback = ref(false)'); });
 check('R110-FS-2 ★ 路线 B 自动降级：requestFullscreen 缺失/被拒 → fixed 覆盖层 + 自行监听 ESC + 显式「⛶ 退出全屏」双保险', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('pyFsFallback.value = true') && w.includes('py-fs-fallback { position: fixed; inset: 0;') && w.includes("e.key === 'Escape' && pyFsFallback.value") && w.includes('⛶ 退出全屏') && w.includes(':fullscreen { background: var(--bg);'); });
+
+// ============== 第 112 轮 · 性能专项（04-59）第一批：渲染规模治理 + 热路径削减 ==============
+console.log('【第 112 轮 · 性能专项第一批（04-59）】');
+check('R112-1 ★ 增量渲染：卡片/列表视图按份额渲染（RENDER_STEP / renderLimit / renderedGroups / 滚动追加）', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  return w.includes('const RENDER_STEP = 80')
+    && w.includes('const renderLimit = ref(RENDER_STEP)')
+    && w.includes('const renderedGroups = computed<ResourceGroup[]>(() =>')
+    && w.includes('function onContentScroll(e: Event)')
+    && w.includes('function renderMore()')
+    && w.includes('const hasMoreToRender = computed(');
+});
+check('R112-2 ★ 模板接线：两处分组循环改走 renderedGroups + 滚动容器监听 + 加载更多入口（旧全量循环零残留）', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  return (w.match(/v-for="\(g, gi\) in renderedGroups"/g) || []).length === 2
+    && w.includes('class="ws-content" @scroll.passive="onContentScroll"')
+    && w.includes('class="render-more"')
+    && w.includes('.render-more { margin: 16px 0 4px;')
+    && !w.includes('v-for="(g, gi) in resourceGroups"');
+});
+check('R112-3 ★ 挂载计数反查表：mountedTaskCount 由 O(任务数) 全表扫描改为 O(1) 查表（卡面模板每卡调用 2 次）', () => {
+  const b = read('/newtab/composables/useWorkspaceBatch.ts');
+  return b.includes('const mountedCountByResId = computed<Map<string, number>>(() =>')
+    && b.includes('return mountedCountByResId.value.get(r.id) || 0')
+    && !b.includes("return d.value.tasks.filter(t => !t.deletedAt && (t.mountedResourceIds || []).includes(r.id)).length");
+});
+check('R112-4 ★ boardCardsOf 去重：curationMetrics 复用宿主 allResources（此前 metrics 与 allResources 各算一遍全量遍历）', () => {
+  const h = read('/shared/storage/hub.ts');
+  const w = read('/newtab/views/Workspace.vue');
+  return h.includes('export function curationMetrics(d: AppData, wsId: ID, cardsIn?: ResourceCard[]): CurationMetrics')
+    && h.includes('const cards = cardsIn || boardCardsOf(d, wsId)')
+    && w.includes('curationMetrics(d.value, workspaceId.value, allResources.value)');
+});
+check('R112-5 ★ 字段组去新建：fieldsOf 返回缓存 computed 引用（thesisFields / rFields，不再逐卡 visibleFields）', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  return w.includes("const thesisFields = computed(() => visibleFields(d.value.fieldConfig, 'thesis'))")
+    && w.includes('return (r.isThesis && !isMirrorView(r)) ? thesisFields.value : rFields.value');
+});
+check('R112-6 ★ 日期格式化缓存：fieldValue 的 createdAt 分支走 fmtDateCN 记忆化（避免逐卡构造 Intl）', () => {
+  const f = read('/shared/utils/fields.ts');
+  return f.includes('const dateFmtCache = new Map<number, string>()')
+    && f.includes('function fmtDateCN(ts: number): string')
+    && f.includes("case 'createdAt': return c.createdAt ? fmtDateCN(Number(c.createdAt)) : ''");
+});
+check('R112-7 ★ 家族过滤复杂度：applyViewFilters 的 ids.includes 改 Set.has（O(卡数×家族) → O(卡数)）', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  return w.includes('const ids = new Set(familyIds(activeCategory.value))')
+    && w.includes('out = out.filter(r => r.categoryId && ids.has(r.categoryId))');
+});
+check('R112-8 渲染份额复位：换台 / 换视图 / 换分类 / 改检索词 / 改排序时回落 RENDER_STEP', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  return w.includes('watch([workspaceId, viewMode, activeCategory, debouncedQuery, sortBy, sortDir], () => { renderLimit.value = RENDER_STEP })');
+});
+check('R112-9 ★ 切台零重算：workspaceId 离开 /workspace 时保持上一个台 id（避免 KeepAlive 缓存组件在隐藏期被触发全量重算、切回再算一遍）', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  return w.includes("const lastWsId = ref('')")
+    && w.includes("watch(() => route.params.id, (id) => { if (typeof id === 'string' && id) lastWsId.value = id }, { immediate: true })")
+    && w.includes("return (typeof id === 'string' && id) ? id : lastWsId.value");
+});
+check('R112-10 ★ 切台热度落盘节流：改为 4s 合并落盘 + 页面隐藏/卸载补写（原实现每次切台立即 persist 整树 JSON）', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  return w.includes('function scheduleWsOpenPersist()')
+    && w.includes('wsOpenPersistTimer = setTimeout(() => { wsOpenPersistTimer = null; store.persist() }, 4000)')
+    && w.includes('function flushWsOpenPersist()')
+    && w.includes("document.addEventListener('visibilitychange', onWsOpenVisibility)")
+    && !w.includes('if (ws) { recordWorkspaceOpen(d.value, ws); store.persist() }');
+});
+check('R112-11 ★ perf 脚本漂移修复：tab-overflow 过滤 + 策展台切台改用 PERF0 定位（原「策展台」前缀误命中溢出指示「≪ N」，打满 15s 超时被误读为「慢」）', () => {
+  const p = read('/../scripts/perf.cjs');
+  return p.includes('|tab-overflow/')
+    && p.includes("window.__navTo('PERF0', '.res-card')")
+    && !p.includes("window.__navTo('策展台', '.res-card')");
+});
+
+check('R112-12 ★ 冷启动单次读取：ensureBootData 会话内幂等 + 首次 raw 快照复用给 loadData（原 STORAGE_KEY 被串行读 3 次，medium 实测 219+197+229ms）', () => {
+  const m = read('/newtab/main.ts');
+  const r = read('/shared/storage/repository.ts');
+  return m.includes('let bootDataDone = false')
+    && m.includes('if (bootDataDone) return')
+    && m.includes('await loadData(r)')
+    && r.includes('export async function loadData(prefetched?: Record<string, unknown>)')
+    && r.includes('prefetched ? (prefetched[STORAGE_KEY] as AppData | undefined) : undefined');
+});
+check('R112-13 预取不跳过归一化：loadData 的 fixTags/fixEncoded/fixTagNames 修复段在预取分支之后仍无条件执行', () => {
+  const r = read('/shared/storage/repository.ts');
+  const iPrefetch = r.indexOf('let raw = prefetched ?');
+  const iFix = r.indexOf('const fixTags =');
+  return iPrefetch > 0 && iFix > iPrefetch && r.includes('fixTagNames(data.resources as { tags?: string[] }[])');
+});
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);
