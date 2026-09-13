@@ -314,7 +314,7 @@ onMounted(async () => {
         refreshBytes().catch(() => {})
       }
     })
-  } catch {}
+  } catch (e) { console.warn('[zy] storage.onChanged 监听注册失败（扩展上下文失效），容量红点将不会实时更新', e) }
   // 第卅六轮 REQ-038：保存失败（quota/serial）→ Toast 告警
   subscribeSaveError((e) => {
     const tag = e.kind === 'quota' ? '配额超限' : e.kind === 'serial' ? '序列化失败' : '写入异常'

@@ -15,8 +15,10 @@
  *   M1  冷启动到首屏可用（ms，自 document start 起算）
  *   M2  策展台：视图切换 / 侧栏分类树重渲染 / 搜索键入  （卡片+镜像混排的主战场）
  *   M4  资源台：视图切换 / 左树节点计数重渲染 / 搜索键入（nodeCount 类 O(n²) 重灾区）
- *   M3  长任务总计 / 最大单任务（ms）——整段交互序列期间的主线程阻塞量
- *   M6  全局搜索浮层唤起
+ *   M3  长任务总计 / 最大单任务（ms）——交互序列（启动→M2b 窗口）的主线程阻塞量
+ *   M3b 窗口二（M2c 回调度台 + M5 全局搜索）的主线程阻塞量（R114-59 新增，与 M3 分窗互不污染）
+ *   M2c 回到调度台耗时（R114-59 新增——此前无度量）
+ *   M5  全局搜索浮层：唤起 / 键入 6 字净耗时（R114-59 重写——旧 M6 在扩展页派发合成按键，无监听者，恒 ≈0ms 假指标）
  */
 const path = require('path')
 const fs = require('fs')
@@ -181,10 +183,10 @@ window.__treeRerender = async function () {
   }, 5)
 }
 /** 搜索键入：连打全部字符 + 越过防抖窗口，扣除人为等待后的净主线程成本 */
-window.__searchType = async function (sel, q) {
+window.__searchType = async function (sel, q, debounceMs) {
   const inp = document.querySelector(sel)
   if (!inp) return -1
-  const GAP = 8, DEBOUNCE = 240
+  const GAP = 8, DEBOUNCE = debounceMs || 240
   const xs = []
   for (let k = 0; k < 5; k++) {
     const t0 = performance.now()
@@ -219,6 +221,16 @@ async function main() {
   if (!worker) worker = await ctx.waitForEvent('serviceworker', { timeout: 15000 })
   const extId = new URL(worker.url()).host
   const base = `chrome-extension://${extId}/${EXT_INDEX}`
+
+  // R114-59：全局搜索浮层的采样宿主页（content script 只注入 http/https，扩展页内测不到——
+  // 旧 M6 在 newtab 上派发合成 Ctrl+K，无监听者，恒 ≈0ms，是假指标）
+  const http = require('http')
+  const gsServer = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    res.end('<!doctype html><title>zy-perf-host</title><p>知源全局搜索采样宿主页</p>')
+  })
+  await new Promise(r => gsServer.listen(0, '127.0.0.1', r))
+  const gsPort = gsServer.address().port
 
   const page = await ctx.newPage()
   if (!JSON_ONLY) {
@@ -381,6 +393,16 @@ async function main() {
   // 交互期长任务从此刻起单独计数
   await page.evaluate(() => { window.__ltMark = (window.__lt || []).length })
 
+  // R114-59：--profile = CDP CPU 采样包住交互窗口，函数级归因 M3 长任务
+  const PROFILE = argv.includes('--profile')
+  let cdp = null
+  if (PROFILE) {
+    cdp = await ctx.newCDPSession(page)
+    await cdp.send('Profiler.enable')
+    await cdp.send('Profiler.setSamplingInterval', { interval: 1000 })
+    await cdp.send('Profiler.start')
+  }
+
   // ══════════ M2 切台耗时（顶栏导航 → 视图就位；含首次 chunk 加载）══════════
   log('  顶栏 Tab：' + JSON.stringify(await page.evaluate(() => [...document.querySelectorAll('.tabs .tab')].map(e => (e.textContent || '').trim().slice(0, 14)))))
   const navCC = await page.evaluate(() => window.__navTo('资源台', '.view-tab'))
@@ -431,14 +453,71 @@ async function main() {
   push('M3_交互期长任务总计(ms)', lt.total, { M3_长任务次数: lt.count, M3_最大单任务ms: lt.max })
   log(`  交互期长任务：${lt.count} 次 · 总计 ${lt.total}ms · 最大 ${lt.max}ms · Top5 ${JSON.stringify(lt.top5)}`)
 
-  // ══════════ M6 全局搜索浮层 ══════════
-  const m6 = await page.evaluate(async () => {
-    const t0 = performance.now()
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))
-    await new Promise(r => setTimeout(r, 400))
-    return performance.now() - t0 - 400
+  if (PROFILE && cdp) {
+    const { profile } = await cdp.send('Profiler.stop')
+    const nodes = new Map(profile.nodes.map(n => [n.id, n]))
+    const self = new Map()
+    for (const id of profile.samples || []) {
+      const n = nodes.get(id)
+      if (!n) continue
+      const cf = n.callFrame
+      const label = (cf.functionName || '(anonymous)') + ' @ ' + (cf.url || '').split('/').pop() + ':' + (cf.lineNumber + 1)
+      self.set(label, (self.get(label) || 0) + 1)
+    }
+    const top = [...self.entries()].sort((a, b) => b[1] - a[1]).slice(0, 50)
+    log('  CDP 采样 Top（样本数≈ms @1kHz）：')
+    for (const [k, v] of top) log(`    ${String(v).padStart(6)}  ${k}`)
+    fs.writeFileSync(path.resolve(__dirname, '..', '.prof-report.json'), JSON.stringify(top.map(([k, v]) => ({ samples: v, fn: k })), null, 1))
+  }
+
+  // ══════════ M2c 回调度台（R114-59：用户反馈「回到调度台慢」，此前无度量）══════════
+  const navBack = await page.evaluate(() => window.__navTo('调度台', '.wr-entry'))
+  if (navBack >= 0) push('M2c_回到调度台(ms)', navBack)
+
+  // ══════════ M5 全局搜索浮层（content 脚本，http 宿主页；R114-59 重写假 M6）══════════
+  // 新开独立长任务窗口：M3 已按原窗口（启动→M2b）汇总完毕，此处窗口二只覆盖 M2c+M5，互不污染。
+  await page.evaluate(() => { window.__ltMark2 = (window.__lt || []).length })
+  await page.goto(`http://127.0.0.1:${gsPort}/`, { waitUntil: 'load' })
+  await page.waitForTimeout(1200)   // 等 content script 注入 + 空闲预热浮层实现
+
+  const gsOpen = async () => {
+    const t0 = Date.now()
+    await worker.evaluate(async (port) => {
+      const tabs = await chrome.tabs.query({ url: 'http://127.0.0.1:' + port + '/*' })
+      if (!tabs[0]) throw new Error('宿主页 tab 未找到')
+      await chrome.tabs.sendMessage(tabs[0].id, { type: 'zy-open-search' })
+    }, gsPort)
+    await page.waitForSelector('#__zy_si__', { timeout: 8000 })
+    return Date.now() - t0
+  }
+  const gsXs = []
+  try {
+    await gsOpen()                                   // 首次唤起（含字典 chunk 并行加载，不计入）
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(400)
+    for (let k = 0; k < 2; k++) { gsXs.push(await gsOpen()); if (!k) { await page.keyboard.press('Escape'); await page.waitForTimeout(400) } }
+    gsXs.sort((a, b) => a - b)
+    push('M5a_全局搜索唤起(ms)', gsXs[Math.floor(gsXs.length / 2)])
+
+    const gsType = await page.evaluate(() => window.__searchType('#__zy_si__', '资源条目', 60))  // 浮层防抖 60ms
+    if (gsType >= 0) push('M5b_全局搜索键入6字净耗时(ms)', gsType)
+    const gsCount = await page.locator('.zy-result-item').count()
+    out.metrics.M5_结果行数 = gsCount
+  } catch (e) {
+    log('  ⚠ M5 全局搜索采样失败：' + e.message)
+    out.metrics.M5_采样失败 = 1
+  }
+  await page.keyboard.press('Escape').catch(() => {})
+  gsServer.close()
+
+  // M3b：窗口二（回调度台 + 全局搜索）的长任务汇总
+  const lt2 = await page.evaluate(() => {
+    const all = window.__lt || []
+    const arr = all.slice(window.__ltMark2 || 0).map(x => x.d).sort((a, b) => b - a)
+    return { count: arr.length, total: arr.reduce((s, x) => s + x, 0), max: arr[0] || 0, top5: arr.slice(0, 5) }
   })
-  push('M6_全局搜索浮层唤起(ms)', m6)
+  push('M3b_窗口二长任务总计(ms)', lt2.total, { M3b_长任务次数: lt2.count, M3b_最大单任务ms: lt2.max })
+  log(`  窗口二长任务（M2c+M5）：${lt2.count} 次 · 总计 ${lt2.total}ms · 最大 ${lt2.max}ms · Top5 ${JSON.stringify(lt2.top5)}`)
 
   await ctx.close()
 

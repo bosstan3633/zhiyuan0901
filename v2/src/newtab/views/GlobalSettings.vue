@@ -1657,7 +1657,11 @@ function handleFileImport(e: Event) {
         const safeBackup = { ...(store.data as unknown as Record<string, unknown>) }
         delete safeBackup.airtableSync
         downloadFile(`zhiyuan_auto_backup_before_import_${dateStr()}.json`, JSON.stringify(safeBackup, null, 2))
-      } catch {}
+      } catch (e) {
+        // R114-59：导入前自动备份是防误合并安全网——失败必须让用户知道（导入仍继续，但明示风险）
+        console.warn('[zy] 导入前自动备份失败', e)
+        showToast('⚠ 导入前自动备份失败（将直接导入，建议先取消并手动导出备份）')
+      }
       const n = mergeImport(imported)
       // R66-F4：全量包附带 uiPrefs 时自动应用主题/密度（即时生效，不再询问）
       const ui = (imported as unknown as Record<string, unknown>).uiPrefs as Record<string, unknown> | undefined
@@ -1897,7 +1901,8 @@ function dateStr() { return new Date().toISOString().slice(0, 10) }
 async function exportAll() {
   const d = store.data!
   let uiPrefs: Record<string, unknown> | undefined
-  try { uiPrefs = await loadUIPrefs() as unknown as Record<string, unknown> } catch {}
+  // R114-59：读 UI 偏好失败 → 降级为「不带 uiPrefs 段导出」，需告警而非静默（导出物缺主题段会让用户困惑）
+  try { uiPrefs = await loadUIPrefs() as unknown as Record<string, unknown> } catch (e) { console.warn('[zy] 导出时读取 UI 偏好失败，本次导出将不含 uiPrefs 段', e) }
   // R70：剥离 Airtable 凭证与同步映射——导出物会被分享/传网盘（产品本身就鼓励「导出即带走」），
   // airtableSync.pat 明文随文件外流＝拿到的人可读写用户的 Airtable Base，与「数据 100% 本机、不代持凭证」冲突。
   const safeData = { ...(d as unknown as Record<string, unknown>) }

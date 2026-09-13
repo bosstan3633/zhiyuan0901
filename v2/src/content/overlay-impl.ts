@@ -24,6 +24,18 @@ async function loadData(): Promise<any> {
 async function saveData(d: any) {
   await chrome.storage.local.set({ [DATA_KEY]: d })
 }
+/**
+ * R114-59：fire-and-forget 路由消息收敛点（替换 11 处空 catch——R114-59 清零护栏）。
+ * 双通道吞错：try/catch 兜「Extension context invalidated」同步抛（SW 更新/休眠中）；
+ * .catch 兜 MV3 Promise 拒绝（接收端不存在）。跳转类消息丢失可安全忽略——用户重试即可。
+ */
+function safeSend(msg: Record<string, unknown>): void {
+  try {
+    const p = chrome.runtime.sendMessage(msg) as unknown as Promise<void> | undefined
+    if (p && typeof p.catch === 'function') p.catch(() => { /* 接收端不存在，丢弃 */ })
+  } catch { /* 扩展上下文失效（SW 更新中），同步抛出同样可安全丢弃 */ }
+}
+
 function uid(prefix: string) {
   return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6)
 }
@@ -998,7 +1010,7 @@ function renderResults() {
       n.addEventListener('click', () => {
         const wsId = n.dataset.wscat || ''
         const catId = n.dataset.catid || ''
-        try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: '/workspace/' + wsId + '?cat=' + catId }) } catch {}
+        safeSend({ type: 'zy-open-route', route: '/workspace/' + wsId + '?cat=' + catId })
         showToast('↗ 已定位到分类')
         closeOverlay()
       })
@@ -1143,10 +1155,10 @@ function openSearchLocator(item: any) {
   // 第卅七轮 REQ-045：Ctrl+Enter / 定位专用 —— 跳转到对应视图 + 打开详情抽屉
   // 走 zy-open-route（background 有处理）+ 透传 drawer 参数（background 转发给宿主 newtab）
   const send = (route: string, drawer: { kind: string; id: string }) => {
-    try { chrome.runtime.sendMessage({ type: 'zy-open-route', route, drawer }) } catch {}
+    safeSend({ type: 'zy-open-route', route, drawer })
   }
   if (item.type === 'qa') {
-    try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: item.qa.route }) } catch {}
+    safeSend({ type: 'zy-open-route', route: item.qa.route })
     closeOverlay()
     return
   }
@@ -1189,19 +1201,19 @@ function openSearchResult(item: any) {
   if (item?.id) { lastOpenId = item.id; lastOpenTs = now }
   // 第卅七轮 REQ-045：单击/Enter/双击 —— 直接打开链接；无链接则定位到卡片所在处
   if (item.type === 'qa') {
-    try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: item.qa.route }) } catch {}
+    safeSend({ type: 'zy-open-route', route: item.qa.route })
     closeOverlay()
     return
   }
   if (item.type === 'ws') {
     bumpHeat('ws', item.id)
-    try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: '/workspace/' + item.id }) } catch {}
+    safeSend({ type: 'zy-open-route', route: '/workspace/' + item.id })
     closeOverlay()
     return
   }
   if (item.type === 'proj') {
     // R49-G：项目条目 → 直达项目详情（二级页）
-    try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: '/compass/projects?p=' + item.id }) } catch {}
+    safeSend({ type: 'zy-open-route', route: '/compass/projects?p=' + item.id })
     showToast('↗ 已打开项目详情')
     closeOverlay()
     return
@@ -1226,20 +1238,20 @@ function openSearchResult(item: any) {
         if (fileUrl) window.open(fileUrl, '_blank')
         else {
           showToast('⚠ 本地文件缺少完整路径，请到资源台补全')
-          try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: '/workspace/' + r.workspaceId + '?hl=' + r.id }) } catch {}
+          safeSend({ type: 'zy-open-route', route: '/workspace/' + r.workspaceId + '?hl=' + r.id })
         }
       }
     } else {
-      try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: '/workspace/' + r.workspaceId + '?hl=' + r.id }) } catch {}
+      safeSend({ type: 'zy-open-route', route: '/workspace/' + r.workspaceId + '?hl=' + r.id })
       showToast('↗ 已定位到卡片所在资源台')
     }
   } else if (item.type === 'task') {
     bumpHeat('task', item.id)
-    try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: '/?hl=' + item.id }) } catch {}
+    safeSend({ type: 'zy-open-route', route: '/?hl=' + item.id })
     showToast('↗ 已定位到调度台的任务')
   } else {
     bumpHeat('curio', item.id)
-    try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: '/?hl=' + item.id }) } catch {}
+    safeSend({ type: 'zy-open-route', route: '/?hl=' + item.id })
     showToast('↗ 已定位到调度台好奇心')
   }
   closeOverlay()
@@ -1412,7 +1424,7 @@ async function openCapture() {
       if (dup) {
         // B28：面板内自定义确认（替代原生 confirm）
         showDupConfirm(String(dup.title).slice(0, 40), () => {
-          try { chrome.runtime.sendMessage({ type: 'zy-locate-workspace', wsId: dup.workspaceId, hl: dup.id }) } catch {}
+          safeSend({ type: 'zy-locate-workspace', wsId: dup.workspaceId, hl: dup.id })
           closeOverlay()
           showToast('↗ 已定位到已收录的卡片')
         }, () => { void saveCapture(true) })

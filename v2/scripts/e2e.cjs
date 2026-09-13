@@ -568,10 +568,13 @@ async function main() {
   let closeVia = 'esc'
   if (!wrClosed) {
     closeVia = 'btn'
-    // force：长序列下 Transition 离场/重挂会让 actionability 检查反复 retry——只验证「点 × 可关」这一事实
-    await page.locator('.wr-close').first().click({ force: true, timeout: 4000 }).catch(() => {})
-    await page.waitForTimeout(700)
-    wrClosed = (await page.locator('.wr-overlay').count()) === 0 || !(await page.locator('.wr-overlay').first().isVisible().catch(() => false))
+    // R114：坐标点击在长序列后可能被残留浮层盖住（force 只跳过 actionability，事件仍落点到顶层元素）——
+    // 改 DOM 直调 click()，等价于按钮 @click 处理器被触发；再轮询等关闭（Transition 离场动画最长 ~500ms）
+    await page.locator('.wr-close').first().evaluate(el => el.click()).catch(() => {})
+    for (let i = 0; i < 8 && !wrClosed; i++) {
+      await page.waitForTimeout(250)
+      wrClosed = (await page.locator('.wr-overlay').count()) === 0 || !(await page.locator('.wr-overlay').first().isVisible().catch(() => false))
+    }
   }
   report('E2E-21 周报浮层可见 + 可关闭（R113-N3 P0 修复）', wrCountBefore === 0 && wrVisible && wrClosed,
     'before=' + wrCountBefore + ' visible=' + wrVisible + ' closed=' + wrClosed + ' via=' + closeVia + ' head=' + JSON.stringify(wrTitle))

@@ -2606,22 +2606,27 @@ function drawPyLinks() {
   }
   const lines: string[] = []
   const allNodes = [...wrap.querySelectorAll('[data-pyid]')] as HTMLElement[]
-  const byId = new Map(allNodes.map(el => [el.dataset.pyid!, el]))
+  // R114-59：每节点只读一次 rect（原先同一节点最多读 2 次）；分类用 Map 反查
+  // （原先根级 filter 回调里逐节点 wsCats.find，O(节点×分类)——profile 实测该函数单体 505ms，交互窗口最大热点）
+  const anchors = new Map<string, { x: number; top: number; bottom: number }>()
+  for (const el of allNodes) {
+    const r = el.getBoundingClientRect()
+    anchors.set(el.dataset.pyid!, { x: r.left - wr.left + r.width / 2, top: r.top - wr.top, bottom: r.bottom - wr.top })
+  }
+  const catById = new Map(wsCats.value.map(c => [c.id, c]))
   const rootEl = wrap.querySelector('.py-root-card, .py-root-empty')
   if (rootEl) {
     const rc = anchor(rootEl)
-    for (const n of allNodes.filter(el => {
-      const cat = wsCats.value.find(c => c.id === el.dataset.pyid)
-      return cat && !cat.parentId
-    })) {
-      lines.push(link(rc, anchor(n)))
+    for (const el of allNodes) {
+      const cat = catById.get(el.dataset.pyid!)
+      if (cat && !cat.parentId) lines.push(link(rc, anchors.get(el.dataset.pyid!)!))
     }
   }
   for (const c of wsCats.value) {
     if (!c.parentId) continue
-    const pe = byId.get(c.parentId); const ce = byId.get(c.id)
+    const pe = anchors.get(c.parentId); const ce = anchors.get(c.id)
     if (!pe || !ce) continue
-    lines.push(link(anchor(pe), anchor(ce)))
+    lines.push(link(pe, ce))
   }
   pyLinkPaths.value = lines
 }

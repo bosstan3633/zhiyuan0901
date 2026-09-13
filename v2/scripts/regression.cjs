@@ -38,7 +38,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.81.0'";
+const VER_ANCHOR_LITERAL = "version: '2.82.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -3272,6 +3272,27 @@ check('R113-9 ★ N5 金字塔真全屏：宿主上移 .ws-page（requestFullscr
     && oh.includes('export function setOverlayFsHost') && oh.includes('export function useOverlayTarget')
     && drawer.includes(':to="overlayTarget"') && cm.includes(':to="overlayTarget"') && cd.includes(':to="overlayTarget"')
     && ap.includes(':to="overlayTarget"') && ab.includes(':to="overlayTarget"') && tp.includes(':to="overlayTarget"');
+});
+
+// R114-59（批次A）：静默 catch 清零护栏——src 内不允许再出现空 catch；content 路由消息统一走 safeSend 收敛点
+check('R114-1 技术债59-⑤ 静默 catch 清零：overlay-impl 路由消息收敛 safeSend（双通道吞错+注释），App/GlobalSettings 三处可感知告警', () => {
+  const o = read('/content/overlay-impl.ts');
+  const app = read('/newtab/App.vue');
+  const g = read('/newtab/views/GlobalSettings.vue');
+  return !new RegExp('catch\s*\{\s*\}').test(o)
+    && (o.match(/safeSend\(/g) || []).length >= 11 && o.includes('function safeSend')
+    && app.includes('storage.onChanged 监听注册失败')
+    && g.includes('导入前自动备份失败') && g.includes('读取 UI 偏好失败');
+});
+check('R114-2 技术债59-B 构建期修复：modulePreload 禁用（content 隔离世界 preload 链接误解析宿主页 origin → 每次 Ctrl+K 白吃 404）+ 相对动态 import 改写插件', () => {
+  const v = fs.readFileSync(path.resolve(__dirname, '..', 'vite.config.ts'), 'utf8');
+  return v.includes('modulePreload: false') && v.includes('fix-content-dynamic-imports') && v.includes('chrome.runtime.getURL');
+});
+check('R114-3 技术债59-B drawPyLinks 减负：每节点单次 rect 读 + 分类 Map 反查（原 O(节点×分类) find 为交互窗口最大热点 505ms）', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  return w.includes('const anchors = new Map<string, { x: number; top: number; bottom: number }>()')
+    && w.includes('const catById = new Map(wsCats.value.map(c => [c.id, c]))')
+    && !w.includes('wsCats.value.find(c => c.id === el.dataset.pyid)');
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
