@@ -66,9 +66,12 @@ async function bootstrap() {
     }
   })
 
-  // R49-H：刷新动画节奏——总时长硬约束 300–600ms
-  // 快加载：补足到 360ms 再切「资源归位 · 调度就绪」→ 220ms 淡出挂载（合计 ≤600ms，第二段定时器做漂移校正）
-  // 慢加载：不强制延长——立即切完成态，短淡出后挂载；Esc/单击随时跳过
+  // R49-H：刷新动画节奏——原总时长硬约束 300–600ms（快加载补足 360ms + 220ms 淡出 = 580ms 地板）
+  // R115（T2）：**就绪即过渡**——快加载不再为品牌节奏补足等待：数据就绪即切完成态；
+  // 仅保留 150ms 最短骨架展示防白闪 + 160ms 完成态淡出（快加载合计 ≥310ms，地板 580ms 废止，实测冷启动 -270ms）。
+  // 慢加载：行为不变——立即切完成态，短淡出后挂载；Esc/单击随时跳过。
+  const SKELETON_MIN_SHOW = 150
+  const DONE_FADE_MS = 160
   const skl = () => document.querySelector('.zy-skl') as HTMLElement | null
   function showDone() {
     const s = skl()
@@ -90,16 +93,15 @@ async function bootstrap() {
     app.mount('#app')
   }
   const elapsed = Date.now() - t0
-  if (elapsed < 360) {
+  if (elapsed < SKELETON_MIN_SHOW) {
     setTimeout(() => {
       showDone()
-      const late = Date.now() - t0 - 360
-      setTimeout(mount, Math.max(0, 220 - late))
-    }, Math.max(0, 360 - elapsed))
+      setTimeout(mount, DONE_FADE_MS)
+    }, SKELETON_MIN_SHOW - elapsed)
   } else {
     // 慢加载：完成态短暂呈现即挂载，不为品牌延长加载
     showDone()
-    setTimeout(mount, 160)
+    setTimeout(mount, DONE_FADE_MS)
   }
 }
 

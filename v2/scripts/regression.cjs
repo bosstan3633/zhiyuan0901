@@ -15,11 +15,28 @@ function check(name, fn) {
 // V2.21：content script 拆为三文件（search-overlay.ts 信号层 + overlay-impl.ts 浮层实现 + selection.ts 选区捕获）。
 // 断言语义不变：「content script 源码包含 X」——按三文件拼接后的整体判断，历史断言无需逐条改写。
 const CONTENT_SRC_FILES = ['/content/search-overlay.ts', '/content/overlay-impl.ts', '/content/selection.ts'];
+// R115（04-59 技术债第三批）：Workspace.vue 按域拆为 8 个 composable + 样式外置 workspace.css。
+// 断言语义不变：「资源台/策展台源码包含 X」——按宿主 + 域文件拼接后的整体判断（沿用 content 三文件同一机制），历史断言无需逐条改写。
+const WORKSPACE_SRC_FILES = [
+  '/newtab/views/Workspace.vue',
+  '/newtab/composables/useResourceView.ts',
+  '/newtab/composables/useCatSidebar.ts',
+  '/newtab/composables/useResourceOpen.ts',
+  '/newtab/composables/useResourceDrawer.ts',
+  '/newtab/composables/useResourceDragDrop.ts',
+  '/newtab/composables/usePyramid.ts',
+  '/newtab/composables/useWsMeta.ts',
+  '/newtab/composables/useWsAssetHygiene.ts',
+  '/newtab/views/workspace.css',
+];
 function read(p) {
   // R110：CRLF/LF 归一化——Windows 检出（autocrlf）下多行锚串不再失配
   const norm = (t) => t.replace(/\r\n/g, '\n');
   if (p === '/content/search-overlay.ts') {
     return norm(CONTENT_SRC_FILES.map(f => fs.readFileSync(base + f, 'utf8')).join('\n'));
+  }
+  if (p === '/newtab/views/Workspace.vue') {
+    return norm(WORKSPACE_SRC_FILES.map(f => fs.readFileSync(base + f, 'utf8')).join('\n'));
   }
   return norm(fs.readFileSync(base + p, 'utf8'));
 }
@@ -38,7 +55,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.82.0'";
+const VER_ANCHOR_LITERAL = "version: '2.83.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -666,7 +683,7 @@ check('R49-21 D4/D5/D6 附件区+规则条+共享详情抽屉：tasksWithAssets 
 check('R49-22 G 应用内双类型：搜索 Tab 增工作台（ws）/项目（proj）+ counts.ws/proj + wsTree 分类树 + locateCat 定位', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes("currentType==='ws'") && g.includes("currentType==='proj'") && g.includes('wsTree') && g.includes('function locateCat') && g.includes('proj:'); });
 check('R49-23 G 打开路由：项目条目 → /compass/projects?p=（双端）+ 工作台分类定位 ?cat=', () => { const g = read('/newtab/components/GlobalPopups.vue'); const o = read('/content/overlay-impl.ts'); const w = read('/newtab/views/Workspace.vue'); return g.includes("/compass/projects', query: { p: item.id }") && o.includes("route: '/compass/projects?p=' + item.id") && w.includes('route.query.cat') && w.includes('catFlashId'); });
 check('R49-24 G overlay 端：searchType 增 proj + 分组渲染 proj + ws 树分支（data-wscat）+ Tab 关键词直达', () => { const o = read('/content/overlay-impl.ts'); return o.includes("'all' | 'res' | 'task' | 'curio' | 'ws' | 'proj'") && o.includes("label: '📦 项目'") && o.includes('data-wscat') && o.includes("['项目', 'proj']"); });
-check('R49-25/R66 刷新动画：index.html 品牌两行（知源调度台/万千可调用，自有我方向）+ 完成态（资源归位·调度就绪）+ main.ts 300-600ms 节奏 + Esc/单击跳过', () => { const h = read('/newtab/index.html'); const m = read('/newtab/main.ts'); return h.includes('知源调度台') && h.includes('万千可调用，自有我方向') && !h.includes('你不缺信息') && h.includes('资源归位 · 调度就绪') && m.includes('elapsed < 360') && m.includes('skipSplash') && m.includes("e.key === 'Escape'"); });
+check('R49-25/R66 刷新动画（R115 重指：就绪即过渡节奏）：index.html 品牌两行（知源调度台/万千可调用，自有我方向）+ 完成态（资源归位·调度就绪）+ main.ts 150ms 防白闪 + Esc/单击跳过', () => { const h = read('/newtab/index.html'); const m = read('/newtab/main.ts'); return h.includes('知源调度台') && h.includes('万千可调用，自有我方向') && !h.includes('你不缺信息') && h.includes('资源归位 · 调度就绪') && m.includes('elapsed < SKELETON_MIN_SHOW') && m.includes('skipSplash') && m.includes("e.key === 'Escape'"); });
 check('R49-26/R50-F8（R68 修订）快捷键全链：background open-tree/goto 命令分发 + App zy-toast 透传 + 设置页快捷键中心（chrome.commands 动态拉取）', () => { const b = read('/background/index.ts'); const a = read('/newtab/App.vue'); const g = read('/newtab/views/GlobalSettings.vue'); return b.includes("case 'open-tree':") && b.includes("case 'goto-curiosity':") && a.includes("type === 'zy-toast'") && g.includes('chromeCommands') && g.includes('chrome.commands.getAll'); });
 
 // ============== 第四十九轮批次4：E 命名清扫/E2 手册/J·K 实测/E4 版本探针 ==============
@@ -675,7 +692,7 @@ check('R49-27 E1 src 内旧品牌词清零（知源罗盘/知源引擎/好奇心
 check('R49-28 E2 手册全量重写：三件事/上限 + 项目总览管理 + 快捷键/刷新动画说明（R48-14 字符串保留）', () => { const s = read('/newtab/manual-data.ts'); return s.includes('三件事') && s.includes('上限') && s.includes('项目总览') && s.includes('快捷键') && s.includes('刷新动画') && s.includes('新增/导入双口径') && s.includes('每页 20 条'); });
 check('R49-29 J 性能实测脚本：scripts/test-perf.cjs（首屏/Splash 探针/路由切换 ≤300ms 五次实测）', () => { const s = fs.readFileSync(path.resolve(__dirname, 'test-perf.cjs'), 'utf8'); return s.includes('__zySplashMs') && s.includes('ROUTE_SEL') && s.includes('routeSeq') && s.includes('300'); });
 check('R49-30 K 导入兼容实测脚本：scripts/test-import-compat.cjs（V2.21.3 旧形状 → 并集合并 + pinned/order 缺省 + 方向台渲染）', () => { const s = fs.readFileSync(path.resolve(__dirname, 'test-import-compat.cjs'), 'utf8'); return s.includes('legacy') && s.includes('K 兼容项目') && s.includes('pinned === undefined') && s.includes('ov-card-item'); });
-check('R49-31 Splash 节奏探针：main.ts mount 注入 __zySplashMs（J-2 实测口径）+ 第二段定时器漂移校正（220ms 淡出）', () => { const m = read('/newtab/main.ts'); return m.includes('__zySplashMs') && m.includes('220 - late') && m.includes('Math.max(0, 220 - late)'); });
+check('R49-31 Splash 节奏探针（R115 重指：漂移校正随 360ms 补足一并废止）：main.ts mount 注入 __zySplashMs（J-2 实测口径）+ 160ms 完成态淡出', () => { const m = read('/newtab/main.ts'); return m.includes('__zySplashMs') && m.includes('DONE_FADE_MS = 160') && m.includes('setTimeout(mount, DONE_FADE_MS)'); });
 check('R49-32 E4 版本五处同步（manifest/package/ManualPage + regression 两处版本断言）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); return m.includes(VER_ANCHOR_LITERAL) && pkg.includes('"version": "' + CUR_VER + '"') && mp.includes(CUR_VTAG); });
 
 
@@ -1006,7 +1023,7 @@ check('R62-4 视图分流：Workspace fieldsOf（isThesis 走 thesis 组）+ 卡
 check('R62-5 指标条（R98 重指：W8 5→3 格 / R112 重指：metrics 复用 allResources）：ws-metrics 三卡（主题/总数/附件）+ 构成明细在总数格 hint（台内/镜像）+ curationMetrics 消费 + 资源台不显示（v-if !isHub）', () => { const w = read('/newtab/views/Workspace.vue'); const h = read('/shared/storage/hub.ts'); return w.includes('class="ws-metrics"') && w.includes('🏛 策展主题') && w.includes('📊 卡片总数') && w.includes('台内 {{ metrics.native }} · 镜像 {{ metrics.mirrored }}') && w.includes('📎 附件数量') && w.includes('curationMetrics(d.value, workspaceId.value, allResources.value)') && w.includes('v-if="!isHub"') && h.includes('attachmentItems'); });
 check('R62-6 下钻抽屉：CurationDrillDrawer 四模式（total/source/assets/recent）+ 附件打开（getAssetBlob 图片预览 / openHtmlAsset 文档）+ 镜像跳源', () => { const d = read('/newtab/components/CurationDrillDrawer.vue'); const w = read('/newtab/views/Workspace.vue'); return d.includes("mode: 'total' | 'source' | 'assets' | 'recent'") && d.includes('openDrillAsset') && d.includes('getAssetBlob') && d.includes('openHtmlAsset') && d.includes("emit('locate'") && w.includes('CurationDrillDrawer'); });
 check('R62-7 中心论点设立：hub.setThesis（每台唯一）+ 右键菜单「设为中心论点/取消」+ 镜像卡拦截', () => { const h = read('/shared/storage/hub.ts'); const w = read('/newtab/views/Workspace.vue'); return h.includes('export function setThesis') && h.includes('if (r.id !== cardId) r.isThesis = undefined') && w.includes('function setThesisCard') && w.includes('🏛 设为中心论点') && w.includes('取消中心论点') && w.includes('镜像卡不能作为本台中心论点'); });
-check('R62-8 金字塔视图：viewMode pyramid + pyramidLevels 按深度铺开（排除 thesis 卡）+ 卡片落节点（canMountInNode 校验）+ 镜像卡 moveMirrorTo', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes("viewMode = ref<'card'|'list'|'kanban'|'pyramid'>") && w.includes('const pyramidLevels = computed') && w.includes('if (r.isThesis) continue') && w.includes('canMountInNode(draggedItem)') && w.includes('金字塔节点只允许挂资源卡') && w.includes('moveMirrorTo(draggedItem, cat.id)'); });
+check('R62-8 金字塔视图：viewMode pyramid + pyramidLevels 按深度铺开（排除 thesis 卡）+ 卡片落节点（canMountInNode 校验）+ 镜像卡 moveMirrorTo', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes("viewMode = ref<'card'|'list'|'kanban'|'pyramid'>") && w.includes('const pyramidLevels = computed') && w.includes('if (r.isThesis) continue') && w.includes('canMountInNode(dragState.card)') && w.includes('金字塔节点只允许挂资源卡') && w.includes('moveMirrorTo(dragState.card, cat.id)'); });
 check('R62-9 层级/成环校验 + 同级调序 + 根区升降级：onPyDrop childIds 防环 + 4 级上限 + moveCatSibling + 根区升为一级', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('function pyLevelOf') && w.includes('function pyHeightOf') && w.includes('childIds(dragged.id).includes(target.id)') && w.includes('pyLevelOf(target) + pyHeightOf(dragged) > 4') && w.includes('function moveCatSibling') && w.includes('已升为一级节点'); });
 check('R62-10 节点菜单 6 项：新建子论点/同级/从资源台镜像分类/打包所选/重命名/删除（卡片回待分类）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('🌳 新建子论点') && w.includes('🌿 新建同级节点') && w.includes('📤 从资源台镜像分类') && w.includes('🗂 打包所选卡片入此节点') && w.includes('✎ 重命名') && w.includes('🗑 删除节点（卡片回待分类）') && w.includes('function packIntoNode'); });
 check('R62-11 镜像分类弹窗：hubCatOptions（treeCatOptions）+ confirmMirrorCat 调 mirrorCategoryToBoard + 重复镜像提示', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('mirrorCatModal') && read('/newtab/composables/useWorkspaceMirror.ts').includes('treeCatOptions(d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID))') && read('/newtab/composables/useWorkspaceMirror.ts').includes('mirrorCategoryToBoard(d.value, catId, workspaceId.value)') && read('/newtab/composables/useWorkspaceMirror.ts').includes('该分类已镜像过本台'); });
@@ -2019,7 +2036,7 @@ check('R84-2 W1 描述为空不占位（v-if 而非三元）+ hub 回落 R73 既
     && (stripComments(fnOwn) + stripComments(fnFb)).includes("'资源卡唯一存储 · 镜像源头'");
 });
 check('R84-3 W1 页头 ≤40px', () => {
-  return segOf(WS84, '<style scoped>', '</style>').includes('.ws-id-head { display: flex; align-items: center; gap: 8px; min-height: 34px; max-height: 40px;');
+  return read('/newtab/views/workspace.css').includes('.ws-id-head { display: flex; align-items: center; gap: 8px; min-height: 34px; max-height: 40px;');
 });
 check('R84-4 W1 页头对所有台渲染（不再是 v-if="isHub" 的 hub 专属）', () => {
   return !WS84.includes('class="ws-id-head" v-if="isHub"') && !WS84.includes('v-if="isHub" class="ws-id-head"')
@@ -2181,7 +2198,8 @@ const REF87 = read('/newtab/components/ResourceEditForm.vue');
 const MOD87 = read('/shared/models/index.ts');
 // ⚠ next 不能用裸 '</template>'——Workspace 模板里有大量嵌套 <template>（v-for / v-if），会提前截断
 const WS_TPL = segOf(WS87, '<template>', '\n</template>');
-const WS_STY = segOf(WS87, '<style scoped>', '</style>');
+// R115：样式外置 workspace.css——锚点换源（断言口径不变）
+const WS_STY = read('/newtab/views/workspace.css');
 check('R87-1 T0：链接三态判据只在 shared/utils/link.ts 定义（ResourceEditForm 的本地 isFullPath 已退役）', () => {
   return LINK87.includes('export function isZyAssetLink(') && LINK87.includes('export function isFullPath(')
     && LINK87.includes('export function linkStateOf(')
@@ -2378,7 +2396,8 @@ const HEAD90 = segOf(WS90, '<div class="ws-id-head">', '</div>');
 const TB90 = segOf(WS90, '<div class="ws-toolbar">', '<!-- ③ 资源策展区 -->');
 /** 右键菜单函数体（到 B6 拖拽段为止） */
 const CTX90 = stripComments(segOf(WS90, 'function openResCtx(', '// ===== 拖拽排序'));
-const STYLE90 = segOf(WS90, '<style scoped>', '</style>');
+// R115：样式外置 workspace.css——锚点换源（断言口径不变）
+const STYLE90 = read('/newtab/views/workspace.css');
 
 check('R90-1 ★ R8-①：常驻教学文案「· 可镜像到策展台」退出右端摘要（改「?」气泡）', () => {
   const summary = segOf(HEAD90, '<span class="wsh-summary"', '</span>');
@@ -3293,6 +3312,44 @@ check('R114-3 技术债59-B drawPyLinks 减负：每节点单次 rect 读 + 分�
   return w.includes('const anchors = new Map<string, { x: number; top: number; bottom: number }>()')
     && w.includes('const catById = new Map(wsCats.value.map(c => [c.id, c]))')
     && !w.includes('wsCats.value.find(c => c.id === el.dataset.pyid)');
+});
+
+// ===== 第 115 轮 · 架构拆分 + 骨架屏就绪即过渡（04-59 第三批） =====
+check('R115-1 ★ Workspace.vue 物理拆分：宿主 ≤1500 行 + 六域 composable + 样式外置 workspace.css（04-59 验收线）', () => {
+  const lines = (p) => fs.readFileSync(base + p, 'utf8').split('\n').length;
+  const wsLines = lines('/newtab/views/Workspace.vue');
+  return wsLines <= 1500
+    && exists('/newtab/composables/useResourceView.ts')
+    && exists('/newtab/composables/useCatSidebar.ts')
+    && exists('/newtab/composables/useResourceOpen.ts')
+    && exists('/newtab/composables/useResourceDrawer.ts')
+    && exists('/newtab/composables/useResourceDragDrop.ts')
+    && exists('/newtab/composables/usePyramid.ts')
+    && exists('/newtab/composables/useWsMeta.ts')
+    && exists('/newtab/composables/useWsAssetHygiene.ts')
+    && exists('/newtab/views/workspace.css')
+    && read('/newtab/views/Workspace.vue').includes('<style scoped src="./workspace.css"></style>');
+});
+check('R115-2 ★ 断言聚合读取机制：read(Workspace.vue) = 宿主 + 8 composable + css 拼接（沿用 content 三文件机制，历史断言零改写）', () => {
+  const src = fs.readFileSync(__filename, 'utf8');
+  return src.includes('const WORKSPACE_SRC_FILES') && src.includes("'/newtab/composables/useResourceView.ts'") && src.includes("'/newtab/views/workspace.css'");
+});
+check('R115-3 ★ 共享拖拽状态层：dragState（.card/.cat）为卡片/分类双拖拽唯一状态源，金字塔域消费同一份（原宿主共享 let 变量升层）', () => {
+  const drag = read('/newtab/composables/useResourceDragDrop.ts');
+  const py = read('/newtab/composables/usePyramid.ts');
+  return drag.includes('const dragState: DragState = { card: null, cat: null }')
+    && drag.includes('export interface DragState { card: ResourceCard | null; cat: string | null }')
+    && py.includes('dragState: DragState')
+    && py.includes('dragState.card') && py.includes('dragState.cat')
+    && !py.includes('let draggedItem') && !py.includes('let dragCatId');
+});
+check('R115-4 ★ 骨架屏「就绪即过渡」：快加载废止 360ms 补足（原 360+220=580ms 地板）→ 150ms 最短防白闪 + 160ms 完成态淡出', () => {
+  const m = read('/newtab/main.ts');
+  return m.includes('const SKELETON_MIN_SHOW = 150')
+    && m.includes('const DONE_FADE_MS = 160')
+    && m.includes('elapsed < SKELETON_MIN_SHOW')
+    && !m.includes('elapsed < 360')
+    && !m.includes('Math.max(0, 220 - late)');
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

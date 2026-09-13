@@ -903,47 +903,47 @@
   </div>
   <div v-else class="ws-empty">策展台不存在</div>
 </template>
-
 <script setup lang="ts">
 // R65-F7：KeepAlive 缓存实例名（App.vue router-view include）
 defineOptions({ name: 'WorkspaceView' })
-import { ref, computed, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
 import { useCompass } from '@/newtab/stores/compass'
-import { recordResourceOpen, recordWorkspaceOpen } from '@/shared/storage/stats'
+import { recordWorkspaceOpen } from '@/shared/storage/stats'
 import { saveUIPrefs } from '@/shared/storage/repository'
-import { setOverlayFsHost, useOverlayTarget } from '@/shared/utils/overlayHost'
+import { useOverlayTarget } from '@/shared/utils/overlayHost'
 import { showToast } from '@/shared/components/toast'
-import { toOpenableUrl, openExternalLink, linkStateOf } from '@/shared/utils/link'
-import { openHtmlAsset } from '@/shared/utils/htmlAsset'
-import { getAssetBlob, deleteAsset, cleanupOrphanAssets } from '@/shared/storage/assets'
+import { deleteAsset, cleanupOrphanAssets } from '@/shared/storage/assets'
 import AssetPreview from '@/shared/components/AssetPreview.vue'
-import { uid } from '@/shared/utils'
-import { MAX_CAT_LEVEL } from '@/shared/utils/catTree'
-import { buildCatIndex, buildBucketIndex } from '@/shared/utils/catIndex'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
-import { useWorkspaceImport } from '@/newtab/composables/useWorkspaceImport'
-import { useCurationDrill } from '@/newtab/composables/useCurationDrill'
-import { useWorkspaceBatch } from '@/newtab/composables/useWorkspaceBatch'
-import { useWorkspaceMirror } from '@/newtab/composables/useWorkspaceMirror'
-import { useCategoryCrud } from '@/newtab/composables/useCategoryCrud'
 import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'
-import { parsePyramidTemplate, type PyramidParseResult, type PyramidNode } from '@/shared/utils/mdImport'
-import { useConfirm } from '@/shared/components/confirm'
-import { visibleFields, fieldValue } from '@/shared/utils/fields'
-import { markRank } from '@/shared/utils/marksort'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
-import { useCardCols, CARD_COLS_DEFAULT } from '@/shared/utils/cardCols'
-import { readWsView, writeWsView } from '@/shared/utils/wsView'
-import { CURATION_WS_ID, type AppData, type ResourceCard, type Category, type Workspace, type TaskCard, type FieldDef, type AssetMeta } from '@/shared/models'
-import { boardCardsOf, isMirrorView, removeProjection, curationMetrics, setThesis, mirrorCategoryToBoard, canMountInNode, isHubWs, projectCardToBoard, curationBoards, type MirrorView } from '@/shared/storage/hub'
 import CurationDrillDrawer from '@/newtab/components/CurationDrillDrawer.vue'
 import type { DrillCatRow, DrillCardRow } from '@/newtab/components/CurationDrillDrawer.vue'
+import { useConfirm } from '@/shared/components/confirm'
+import { visibleFields, fieldValue } from '@/shared/utils/fields'
+import { buildCatIndex, buildBucketIndex } from '@/shared/utils/catIndex'
+import { CURATION_WS_ID, type ResourceCard, type Category, type FieldDef, type AssetMeta } from '@/shared/models'
+import { boardCardsOf, isMirrorView, curationMetrics, setThesis, isHubWs } from '@/shared/storage/hub'
+import { useCurationDrill } from '@/newtab/composables/useCurationDrill'
+import { useResourceView } from '@/newtab/composables/useResourceView'
+import { useCatSidebar, type SidebarCat } from '@/newtab/composables/useCatSidebar'
+import { useWorkspaceMirror } from '@/newtab/composables/useWorkspaceMirror'
+import { useCategoryCrud } from '@/newtab/composables/useCategoryCrud'
+import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
+import { useWorkspaceBatch } from '@/newtab/composables/useWorkspaceBatch'
+import { useResourceDrawer } from '@/newtab/composables/useResourceDrawer'
+import { useWorkspaceImport } from '@/newtab/composables/useWorkspaceImport'
+import { useResourceDragDrop } from '@/newtab/composables/useResourceDragDrop'
+import { usePyramid } from '@/newtab/composables/usePyramid'
+import { useWsMeta } from '@/newtab/composables/useWsMeta'
+import { useWsAssetHygiene } from '@/newtab/composables/useWsAssetHygiene'
 // R113-N2：LifecyclePanel / useLifecycle 移除——入口收敛到 设置→总览（GlobalSettings）
+// R115：视图/侧栏/打开/抽屉/拖拽/金字塔六域拆入 composables（04-59 技术债第三批）；实现原位迁出、零行为变更。
 
 const route = useRoute()
 const router = useRouter()
@@ -958,7 +958,7 @@ const { allProjects } = useCompass()
  * R112 性能（P0）：路由离开 /workspace 时**保持最后一个台 id**。
  * 原实现直接取 `route.params.id`——切到调度台/方向台/设置页时它变为 undefined，
  * 而 workspaceId 是**几乎全部 computed 的根依赖**（allResources / metrics / catIdx /
- * resBucket / sidebarCats / resourceGroups / lcCards / referencedAssetIds …），
+ * resBucket / sidebarCats / resourceGroups / referencedAssetIds …），
  * 于是 KeepAlive 缓存中的本组件在**隐藏期间**仍被触发一次全量重算 + 重渲染，
  * 切回来再触发一次 —— 每次切台白做两遍，这是 M2a 切台耗时的主要构成。
  * 保持上一个 id 后：切走与切回均零重算；切到**另一个台**时照常重算（行为不变）。
@@ -969,19 +969,56 @@ const workspaceId = computed<string>(() => {
   const id = route.params.id
   return (typeof id === 'string' && id) ? id : lastWsId.value
 })
-// R65-F7：KeepAlive 缓存实例——切换不同策展台（:id 变化）时复位本台局部状态，防上一台残留
-watch(() => route.params.id, (nv, ov) => {
-  if (nv && ov && nv !== ov) {
-    activeCategory.value = 'all'
-    searchQuery.value = ''
-    debouncedQuery.value = ''
-    selectedIds.value.clear()
-    collapsedGroups.value = new Set()
-  }
-})
 const workspace = computed(() => d.value.workspaces.find(w => w.id === workspaceId.value))
 /** R62：资源台（isHub）不显示策展指标条与主题卡语义 */
 const isHub = computed(() => isHubWs(workspace.value))
+
+// ===== 树工具域（R115：视图/侧栏/拖拽/金字塔四域共用的基础索引，留宿主）=====
+const wsCats = computed(() => d.value.categories.filter(c => c.workspaceId === workspaceId.value && !c.deletedAt)) // R109（F12-b）：软删分类不入树
+/**
+ * R71 性能治理：分类树索引（一次 O(n) 建表 → 此后 O(1) 查表）。
+ * 此前 childCatsOf / rootCats / descendantIds / familyIds 全是「每次调用都全表扫描」的实现，
+ * 而它们被递归函数与模板表达式反复调用（侧栏单个节点就要 5 次 childCatsOf）——
+ * 整棵树一次重渲染是 O(n²)，这正是切换视图/展开目录时卡顿的主因。
+ */
+const catIdx = computed(() => buildCatIndex(wsCats.value))
+/** 卡片按分类分桶（O(1) 取「某分类的卡」，替代反复 filter 全量卡） */
+const resBucket = computed(() => buildBucketIndex(allResources.value, (r) => r.categoryId || ''))
+const rootCats = computed(() => catIdx.value.roots)
+function childCatsOf(pid: string): Category[] {
+  return catIdx.value.childrenOf.get(pid) || []
+}
+/** R61-4：全部后代 id（深层递归）——4 级树过滤/计数/防环共用；R70 带 visited；R71 走索引缓存 */
+function descendantIds(catId: string): string[] {
+  return catIdx.value.descendants(catId)
+}
+function childIds(catId: string): string[] {
+  return descendantIds(catId)
+}
+/** 家族 id（自己 + 全部后代分类）——过滤与计数共用口径（R61-4 深化至 4 级） */
+function familyIds(catId: string): string[] {
+  return catIdx.value.family(catId)
+}
+/** 家族聚合卡数：索引查表 + 分桶计数 O(家族规模)（此前是 familyIds + 全量 filter + includes） */
+function catAggCount(catId: string): number {
+  let n = 0
+  for (const id of familyIds(catId)) n += (resBucket.value.get(id) || []).length
+  return n
+}
+/** 节点深度（根=0）——R70：带 visited 显式防环（此前仅靠「parentId 单向链」的假设） */
+function pyDepthOf(c: Category): number {
+  // R71：改走索引缓存（此前每次沿父链全表 find；本函数在 pyramidLevels 里对每个分类各调一次）
+  return catIdx.value.depthOf(c.id) - 1  // 索引 depthOf 以根=1 计，本函数历史口径根=0
+}
+function pyHeightOf(c: Category, seen = new Set<string>()): number {
+  // R70：带 visited——防环
+  if (seen.has(c.id)) return 1
+  seen.add(c.id)
+  const ch = catIdx.value.childrenOf.get(c.id) || []
+  return ch.length ? Math.max(...ch.map(x => pyHeightOf(x, seen))) + 1 : 1
+}
+/** 层级上限工具（复用 R61-4 口径：分类最多 4 级） */
+function pyLevelOf(c: Category): number { return pyDepthOf(c) + 1 }
 
 // ===== R62-1/2：策展台 5 指标 + 下钻 =====
 // R112 性能：复用 allResources 已算好的 boardCardsOf 结果（此前 metrics 与 allResources
@@ -1028,85 +1065,6 @@ function openThesisCreate() {
   showToast('🏛 填写论点标题保存后，自动成为中心论点（L1 根）')
 }
 
-function onDrillJumpCat(id: string) {
-  drillOpen.value = false
-  if (id === 'uncat') { activeCategory.value = 'uncat'; if (viewMode.value === 'pyramid') viewMode.value = 'card'; return }
-  activeCategory.value = id
-  if (viewMode.value === 'pyramid') { catFlashId.value = id; setTimeout(() => { catFlashId.value = null }, 2000) }
-}
-function onDrillOpenCard(id: string) {
-  drillOpen.value = false
-  const r = allResources.value.find(x => x.id === id)
-  if (r && !isMirrorView(r)) openResource(r)
-}
-function onDrillLocate(id: string) {
-  drillOpen.value = false
-  const r = allResources.value.find(x => x.id === id)
-  if (r) locateMirrorSource(r)
-}
-
-// R113-N2：生命周期面板接线移除（原 R110-LC 块）——归档提示条改跳 设置→总览·资源生命周期
-
-// ===== R110-BUG2：附件明细宿主接线（跨台存在性判定 / 定位 / 清理） =====
-/** 跨台全量判定：附件来源卡是否仍存在（未软删；不限本台） */
-function cardExistsGlobally(id: string): boolean {
-  return d.value.resources.some(r => r.id === id && !r.deletedAt)
-}
-/** 全局被引用附件 id 并集（含回收站软删卡的附件——软删可恢复，其附件必须保留） */
-const referencedAssetIds = computed<string[]>(() => {
-  const ids = new Set<string>()
-  const collect = (cards: { assets?: AssetMeta[] }[] | undefined) =>
-    (cards || []).forEach(c => (c.assets || []).forEach(a => ids.add(a.id)))
-  collect(d.value.resources)
-  collect(d.value.tasks)
-  collect(d.value.curiosities)
-  return [...ids]
-})
-/** 附件行点击 → 定位来源卡：本台就地高亮，跨台路由 ?hl 过去（复用既有 hl 链路） */
-function onDrillLocateAsset(cardId: string) {
-  drillOpen.value = false
-  const r = d.value.resources.find(x => x.id === cardId)
-  if (!r) { showToast('ℹ 来源卡已不存在——可点行尾 🗑 清理残留'); return }
-  if (r.workspaceId === workspaceId.value) {
-    activeCategory.value = 'all'
-    viewMode.value = 'card'
-    highlightId.value = cardId
-    nextTick(() => {
-      setTimeout(() => {
-        document.querySelector(`[data-rid="${cardId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        setTimeout(() => { highlightId.value = null }, 2000)
-      }, 120)
-    })
-  } else {
-    router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: cardId } })
-  }
-  showToast(`↗ 已定位到「${(r.title || '').slice(0, 20)}」`)
-}
-/** 单条清理：摘除卡片上的失效引用（若有）+ 删除 IndexedDB 本体 */
-async function onDrillCleanupAsset(row: { cardId: string; assetId: string }) {
-  let detached = false
-  for (const card of d.value.resources) {
-    const list = card.assets
-    if (!list || !list.some(a => a.id === row.assetId)) continue
-    card.assets = list.filter(a => a.id !== row.assetId)
-    card.updatedAt = Date.now()
-    detached = true
-  }
-  try { await deleteAsset(row.assetId) } catch { /* IndexedDB 不可用：引用已摘除，本体留待全局清理 */ }
-  store.persist()
-  showToast(detached ? '🧹 已清理失效附件引用' : '🧹 已删除残留附件本体')
-}
-/** 批量清理：复用 REQ-048 语义——保留全部卡片（含回收站）引用的附件，删除其余 */
-async function onDrillCleanupOrphans() {
-  try {
-    const n = await cleanupOrphanAssets(new Set(referencedAssetIds.value))
-    store.persist()
-    showToast(n > 0 ? `🧹 已清理 ${n} 个孤儿附件` : '✓ 无孤儿附件，一切干净')
-  } catch {
-    showToast('⚠ 清理失败，请重试')
-  }
-}
-
 // R47-B4：进入/切换策展台 = 一次「调用」，计入热度（全局检索无输入时策展台参与热度排序）
 // R112 性能：**落盘节流**。原实现每次切台立即 store.persist()，300ms 防抖后同步执行整树
 // JSON.stringify + JSON.parse（medium 规模 ~800 卡 / 100 分类）——切台窗口长任务的来源之一。
@@ -1126,9 +1084,6 @@ watch(workspaceId, (id) => {
   const ws = d.value?.workspaces?.find(w => w.id === id)
   if (ws) { recordWorkspaceOpen(d.value, ws); scheduleWsOpenPersist() }
 }, { immediate: true })
-// R84（W2-②）：切台时重算视图偏好——不同台各有各的选择，不能把 A 台的金字塔串到 B 台
-watch(workspaceId, () => nextTick(applyWsView))
-
 
 // ===== 数据 =====
 // R61：本台全量可见卡 = 台内原生卡 + 资源台镜像卡（boardCardsOf 注入视图模型：
@@ -1145,7 +1100,6 @@ function isUncat(r: ResourceCard, validIds: { has(id: string): boolean }): boole
   return !r.categoryId || !validIds.has(r.categoryId)
 }
 const uncategorizedCount = computed(() => allResources.value.filter(r => isUncat(r, catIdx.value.byId)).length)
-/** R61：本台分类是否为资源台镜像分类 */
 // R45-2（V2.20.0）：页头新增「今日新增/今日删除」字段——策展台范围实时派生（含软删口径：新增排除已删、删除取 deletedAt）
 const startOfToday = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); return dt.getTime() })()
 const wsTodayAdd = computed(() => d.value.resources
@@ -1214,865 +1168,7 @@ function srcLabel(s?: string): string {
   return s || ''
 }
 
-// ===== 视图状态 =====
-/**
- * R84（W2-②）：视图模式改为**按台记忆**并持久化。
- * - 改前 `ref('card')` 纯内存 ⇒ 切台/重开都回到卡片视图，原文"用户切过视图后记忆其选择"无从谈起。
- * - 现在：① 该台已存偏好 → 用它；② 无偏好 → **已设中心论点 ⇒ 金字塔，否则卡片**。
- * - ⚠ 不复用 UIPrefs.viewMode（全局死字段、且不含 pyramid）；用 UIPrefs.wsViewMode[<台 id>]。
- */
-const viewMode = ref<'card'|'list'|'kanban'|'pyramid'>('card')
-function applyWsView() {
-  const saved = readWsView(store.ui, workspaceId.value)
-  viewMode.value = saved || (thesisCard.value ? 'pyramid' : 'card')
-}
-function setViewMode(m: 'card'|'list'|'kanban'|'pyramid') {
-  viewMode.value = m
-  writeWsView(store.ui, workspaceId.value, m)
-}
-/** R98（W7）：金字塔层级折叠——`仅 L2 / 到 L3 / 全部`。**本地视图态，不进 UIPrefs**（视图态
- *  持久化会造成「每次打开都被折叠」，与 D-B 拍板同口径）；同一组件跨台复用，折叠态跟随会话。 */
-const pyFold = ref<'l2' | 'l3' | 'all'>('all')
-// R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.res；网格模板由 --grid-cols 驱动）
-// 资源台（isHub）与策展台为同一组件同一网格 ⇒ 共用 'res' 键，列数在两台一致
-const resCols = useCardCols('res', store.ui)
-/** R87（R5-①）：排序档位白名单——sortPrefs.res.by 是持久化字段，防止未来退役档位后读到死值卡住 UI */
-const SORT_BY_KEYS = ['manual', 'recent', 'visited', 'hot', 'title']
-/** R87（R5-②）：筛选档位白名单（4 类型 + 4 状态）；筛选是临时视图态，**不进 UIPrefs**——
- *  持久化会造成「下次打开发现卡少了」的困惑，与既有行为一致 */
-// R89（W5）：加 starred（⭐ 星标）——W5 的另两项 hot 排序与 hasAssets 筛选已在 R87 顺带交付
-// （R16 收敛后资源台与策展台同为 Workspace.vue 同一工具条，R5 与 W5 是同一份实现）
-const FILTER_KEYS = ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'starred', 'unmounted']
-const sortBy = ref('manual')
-// 第卅二轮 REQ-007：时间排序方向（默认倒序）+ 排序偏好本地记忆（UIPrefs.sortPrefs.res）
-const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.res?.dir === 'asc') ? 'asc' : 'desc')
-const filterBy = ref('all')
-const searchQuery = ref('')
-// REQ-031 P-031-5：应用内搜索 150ms 防抖——输入框即时回显，过滤计算延迟触发（快速键入不卡顿）
-const debouncedQuery = ref('')
-let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
-watch(searchQuery, (v) => {
-  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
-  searchDebounceTimer = setTimeout(() => { debouncedQuery.value = v }, 150)
-})
-const activeCategory = ref('all')
-
-if (store.ui?.sortPrefs?.res?.by && SORT_BY_KEYS.includes(store.ui.sortPrefs.res.by)) sortBy.value = store.ui.sortPrefs.res.by
-watch([sortBy, sortDir], () => {
-  const sp = { ...(store.ui?.sortPrefs || {}), res: { by: sortBy.value, dir: sortDir.value } }
-  if (store.ui) store.ui.sortPrefs = sp
-  saveUIPrefs({ sortPrefs: sp })
-})
-function toggleSortDir() { sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc' }
-
-// 第卅三轮 REQ-026：密度档位（compact/cozy，记忆 UIPrefs.density，html[data-density] 驱动 tokens 变量）
-const density = computed({
-  get: () => store.ui?.density || 'cozy',
-  set: (v: 'compact' | 'cozy') => {
-    if (store.ui) store.ui.density = v
-    saveUIPrefs({ density: v })
-    if (v === 'compact') document.documentElement.setAttribute('data-density', 'compact')
-    else document.documentElement.removeAttribute('data-density')
-  }
-})
-
-const activeCategoryLabel = computed(() => {
-  if (activeCategory.value === 'all') return '全部'
-  if (activeCategory.value === 'uncat') return '待分类'
-  return categories.value.find(c => c.id === activeCategory.value)?.name || '分组'
-})
-
-/**
- * R87（R5-②）：反查索引 —— 被未软删任务挂载的资源 id 集合。
- * ★ 单向挂载红线：资源卡不得新增反向字段，要知道「有没有被挂载」只能反查 d.tasks；
- *   但不能在筛选里逐卡 mountedTaskCount（O(卡数×任务数)，触 R83 性能红线），故一次遍历建 Set。
- */
-const mountedResIds = computed<Set<string>>(() => {
-  const s = new Set<string>()
-  for (const t of d.value.tasks) {
-    if (t.deletedAt) continue
-    for (const id of t.mountedResourceIds || []) s.add(id)
-  }
-  return s
-})
-/** R87（R5 收尾）：当前是否有生效的过滤（类型/状态筛选 或 搜索词）——空态据此换文案与动作 */
-const hasActiveFilter = computed(() => filterBy.value !== 'all' || !!debouncedQuery.value.trim())
-const FILTER_LABELS: Record<string, string> = {
-  all: '全部', url: 'URL链接', file: '本地文件', obsidian: 'Obsidian',
-  hasLink: '有链接', brokenPath: '⚠ 待补全路径', hasAssets: '有附件', starred: '⭐ 星标', unmounted: '未挂载任务'
-}
-const filterLabel = computed(() => FILTER_LABELS[filterBy.value] || '全部')
-
-// ===== R89（R6）：搜索判据 =====
-/**
- * 解析查询串：`#前端 #待读 关键词` → `{ tags:['前端','待读'], kw:'关键词' }`。
- * 单个 `#`（长度 1）不算标签，回落为普通词，避免边输入边筛选。
- */
-function parseQuery(raw: string): { tags: string[]; kw: string } {
-  const tags: string[] = []
-  const rest: string[] = []
-  for (const tok of (raw || '').trim().split(/\s+/)) {
-    if (!tok) continue
-    if (tok.length > 1 && tok.startsWith('#')) tags.push(tok.slice(1).toLowerCase())
-    else rest.push(tok.toLowerCase())
-  }
-  return { tags, kw: rest.join(' ') }
-}
-/**
- * 卡片是否命中查询（三视图共用——它们都走 filteredResources）。
- * - `#标签`：**全部命中才算**（取交集）。"直筛"是收窄，不是扩大。
- * - 普通词：标题 / 描述 / 标签 / **自定义字段值**。
- *   ⚠ 自定义字段此前能在卡片上显示（`fieldValue` 的 `custom_` 分支）却搜不到——R6 要补的就是这一处。
- */
-function matchCard(r: ResourceCard, p: { tags: string[]; kw: string }): boolean {
-  const cardTags = (Array.isArray(r.tags) ? r.tags : []).map(t => t.toLowerCase())
-  for (const t of p.tags) if (!cardTags.includes(t)) return false
-  if (!p.kw) return true
-  if (r.title.toLowerCase().includes(p.kw)) return true
-  if ((r.description || '').toLowerCase().includes(p.kw)) return true
-  if (cardTags.some(t => t.includes(p.kw))) return true
-  // R105（W10）：链接文本纳入搜索（title + link + description + tags 统一口径，与浮层 res blob 同源；
-  // 拍板 2026-09-12：W10 的「link 是否纳入」按提案原文纳入）
-  if ((r.link || '').toLowerCase().includes(p.kw)) return true
-  for (const v of Object.values(r.customFields || {})) {
-    if (v != null && String(v).toLowerCase().includes(p.kw)) return true
-  }
-  return false
-}
-function resetFilters() {
-  filterBy.value = 'all'
-  searchQuery.value = ''
-  debouncedQuery.value = ''
-}
-
-// ===== R88（W3）：工具条分级——「筛选」气泡与生效值徽标 =====
-const filterPopOpen = ref(false)
-function toggleFilterPop() {
-  const next = !filterPopOpen.value
-  settingsMenuOpen.value = false        // 与 ⚙ 互斥
-  filterPopOpen.value = next
-}
-function closeFilterPop() { filterPopOpen.value = false }
-/** 排序档位的中文标签（生效值徽标与气泡共用；与 SORT_BY_KEYS 同序） */
-const SORT_LABELS: Record<string, string> = {
-  manual: '手动拖拽', recent: '最近添加', visited: '最近访问', hot: '调用最多', title: '标题 A-Z'
-}
-/**
- * 当前**非默认**的视图设置（W3 的「生效值徽标」）。
- * 全默认时返回空数组 ⇒ 按钮上不挂任何 chip（没有筛选时不喧哗）。
- */
-const filterSummary = computed<string[]>(() => {
-  const out: string[] = []
-  if (sortBy.value !== 'manual') out.push(SORT_LABELS[sortBy.value] || sortBy.value)
-  if (filterBy.value !== 'all') out.push(filterLabel.value)
-  if (density.value !== 'cozy') out.push('紧凑')
-  // 列数只在卡片视图出现，非卡片视图时不该算作"生效中"
-  if (viewMode.value === 'card' && resCols.value !== CARD_COLS_DEFAULT.res) out.push(resCols.value + ' 列')
-  return out
-})
-/** 徽标挤不下时的兜底：hover 给出全部生效值 */
-const filterPopTitle = computed(() => filterSummary.value.length
-  ? '当前生效：' + filterSummary.value.join(' · ') + '（点击展开筛选面板）'
-  : '排序 · 类型筛选 · 密度 · 列数（点击展开筛选面板）')
-/** 气泡底部的「重置全部」：四项回默认，并清空搜索 */
-function resetAllFilters() {
-  sortBy.value = 'manual'
-  filterBy.value = 'all'
-  density.value = 'cozy'
-  resCols.value = CARD_COLS_DEFAULT.res
-  resetFilters()
-}
-/** R87（R7）：链接三态的卡片级封装——三视图徽标、筛选、双击 toast 共用同一个判据 */
-function isBrokenPath(r: ResourceCard): boolean {
-  return linkStateOf(r.linkType, r.link) === 'incomplete'
-}
-/** R87（R5-②）：8 档筛选谓词表。类型四档沿用 linkType 直判（保留既有持久化值），状态四档为语义谓词 */
-const FILTER_PREDICATES: Record<string, (r: ResourceCard) => boolean> = {
-  url: (r) => r.linkType === 'url',
-  file: (r) => r.linkType === 'file',
-  obsidian: (r) => r.linkType === 'obsidian',
-  hasLink: (r) => linkStateOf(r.linkType, r.link) !== 'none',
-  brokenPath: (r) => isBrokenPath(r),
-  hasAssets: (r) => (r.assets?.length || 0) > 0,
-  starred: (r) => !!r.starred,
-  unmounted: (r) => !mountedResIds.value.has(r.id)
-}
-
-// 筛选（第八轮：点击父分类 = 聚合显示本级 + 全部子分类）
-/** R110-LC（T3）：统一视图过滤管线（分类 → 筛选器 → 搜索），归档提示与默认列表复用同一口径 */
-function applyViewFilters(list: ResourceCard[]): ResourceCard[] {
-  let out = list
-  if (activeCategory.value === 'uncat') out = out.filter(r => !r.categoryId)
-  else if (activeCategory.value !== 'all') {
-    // R112 性能：`ids.includes()` 在 filter 内是 O(卡数 × 家族规模)，改为 Set.has 的 O(卡数)
-    const ids = new Set(familyIds(activeCategory.value))
-    out = out.filter(r => r.categoryId && ids.has(r.categoryId))
-  }
-  const pred = FILTER_PREDICATES[filterBy.value]
-  if (pred) out = out.filter(pred)
-  // R89（R6）：搜索判据收敛到 parseQuery + matchCard 一处（自定义字段纳入、`#标签` 直筛）
-  if (debouncedQuery.value.trim()) {
-    const p = parseQuery(debouncedQuery.value)
-    out = out.filter(r => matchCard(r, p))
-  }
-  return out
-}
-const filteredResources = computed(() => applyViewFilters(allResources.value).filter(r => !r.lifecycleArchived))
-/** R110-LC（T3）：归档卡从默认视图消失，「另有 N 张已归档卡片」降级提示（按当前检索口径命中数） */
-const archivedHintCount = computed(() => applyViewFilters(allResources.value.filter(r => r.lifecycleArchived)).length)
-
-// 排序（第卅二轮 REQ-007：时间类排序支持正/倒序方向）
-function applySort(list: ResourceCard[]): ResourceCard[] {
-  const out = [...list]
-  const dirMul = sortDir.value === 'asc' ? 1 : -1
-  // R56-V1：手动（默认）态 = 拖拽序优先（curOrder），无拖拽序的最新在前
-  if (sortBy.value === 'manual') {
-    const hasDrag = out.some(r => r.curOrder != null)
-    if (!hasDrag) { out.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); return out }
-    out.sort((a, b) => (a.curOrder ?? 999999) - (b.curOrder ?? 999999))
-    return out
-  }
-  if (sortBy.value === 'recent') out.sort((a,b) => dirMul * ((a.createdAt||0) - (b.createdAt||0)))
-  else if (sortBy.value === 'visited') out.sort((a,b) => dirMul * ((a.lastCalledAt||0) - (b.lastCalledAt||0)))
-  // R87（R5-①）：调用最多 —— callCount 降序，同热度用最近调用时间兜底（避免零热度段次序随机）
-  else if (sortBy.value === 'hot') out.sort((a,b) => ((b.callCount||0) - (a.callCount||0)) || ((b.lastCalledAt||0) - (a.lastCalledAt||0)))
-  else if (sortBy.value === 'title') out.sort((a,b) => a.title.localeCompare(b.title, 'zh-CN'))
-  return out
-}
-
-// REQ-028 F-028-1：分组视图分区内置顶排序——先按当前排序规则，再按 marksort 权重稳定重排（置顶>星标>普通）
-function applyGroupSort(list: ResourceCard[]): ResourceCard[] {
-  const sorted = applySort(list)
-  // 稳定排序：同权重保持 applySort 相对序（manual 保持拖拽序）
-  return sorted.sort((a, b) => markRank(b) - markRank(a))
-}
-
-// 全量可见列表（批量全选 / 空状态共用）
-const sortedResources = computed(() => applySort(filteredResources.value))
-
-// ===== REQ-027：卡片/列表视图取消全平铺，按分类分组分区 =====
-interface ResourceGroup { key: string; title: string; count: number; items: ResourceCard[]; depth: number }
-/** F-027-4 折叠增强：点击分组标题折叠/展开（内存态，不持久化） */
-const collapsedGroups = ref<Set<string>>(new Set())
-function toggleGroupCollapse(key: string) {
-  const s = new Set(collapsedGroups.value)
-  if (s.has(key)) s.delete(key); else s.add(key)
-  collapsedGroups.value = s
-}
-/**
- * 分区规则（R64-F9 树状递归分组：子分类不再混入父组平铺，逐级下钻、depth 缩进呈现层级）：
- * - 「全部」：按左树顺序逐分类 walk——直属卡一组（组标题=分类名），子分类递归（depth+1）；
- *   无分类卡归「待分类」分区置于最前
- * - 选中父分类：直属卡一组，其下子分类递归
- * 分区内按当前排序规则排列（applyGroupSort；manual 保持数组序=手动拖拽序）。
- */
-const resourceGroups = computed<ResourceGroup[]>(() => {
-  const filtered = filteredResources.value
-  const groups: ResourceGroup[] = []
-  const validIds = catIdx.value.byId
-  /** R71：先按分类分桶一次，后续所有「某分类的卡」都是 O(1) 取用——
-   *  此前每个节点都要对 filtered 全量 filter（O(节点数×卡数)），并对每个子节点再扫一遍判空 */
-  const bucket = buildBucketIndex(filtered, (r) => r.categoryId || '')
-  const uncat = applyGroupSort(filtered.filter(r => isUncat(r, validIds)))
-  if (uncat.length) groups.push({ key: 'uncat', title: '待分类', count: uncat.length, items: uncat, depth: 0 })
-  /** 子树内是否有卡（含直属）——查分桶，空分支不生成组 */
-  const subtreeHasCards = (catId: string) => {
-    for (const id of catIdx.value.family(catId)) if ((bucket.get(id) || []).length) return true
-    return false
-  }
-  const seenGroup = new Set<string>()  // R70：防环
-  const walk = (catId: string, name: string, depth: number) => {
-    if (seenGroup.has(catId)) return
-    seenGroup.add(catId)
-    const direct = applyGroupSort(bucket.get(catId) || [])
-    if (direct.length) groups.push({ key: catId, title: name, count: direct.length, items: direct, depth })
-    for (const sub of childCatsOf(catId)) {
-      if (subtreeHasCards(sub.id)) walk(sub.id, sub.name, depth + 1)
-    }
-  }
-  if (activeCategory.value === 'all') {
-    for (const root of rootCats.value) {
-      if (subtreeHasCards(root.id)) walk(root.id, root.name, 0)
-    }
-  } else if (activeCategory.value !== 'uncat') {
-    const sel = wsCats.value.find(c => c.id === activeCategory.value)
-    if (sel) walk(sel.id, sel.name, 0)
-  }
-  return groups
-})
-/**
- * R112 性能（P0）：**增量渲染**。
- * CPU profile 实测：切台/搜索窗口内 Vue `track`（依赖收集）占 19~21%、proxy `get` 占 9.6%，
- * 叠加 `insertBefore`/`createElement`/`setElementText` 与 GC —— 瓶颈是「一次渲染数百张卡 DOM ×
- * 每卡十余次响应式读取」，而非算法本身。`.res-card` 虽已有 `content-visibility:auto`（R55-F4，
- * 跳过屏外卡的 layout/paint），但 **Vue 仍会为全部卡片创建 VNode/DOM 并逐卡读取响应式值**。
- * 故：数据与分组保持全量不变，仅「已渲染份额」按需递增——滚动到接近底部再追加一屏。
- * （等轻量虚拟滚动收益，但不破坏拖拽/分组/选中的既有结构。）
- */
-const RENDER_STEP = 80
-const renderLimit = ref(RENDER_STEP)
-const totalVisibleCount = computed(() => resourceGroups.value.reduce((s, g) => s + g.items.length, 0))
-const renderedGroups = computed<ResourceGroup[]>(() => {
-  const groups = resourceGroups.value
-  if (renderLimit.value >= totalVisibleCount.value) return groups
-  const out: ResourceGroup[] = []
-  let budget = renderLimit.value
-  for (const g of groups) {
-    if (budget <= 0) break
-    if (g.items.length <= budget) { out.push(g); budget -= g.items.length }
-    else { out.push({ ...g, items: g.items.slice(0, budget) }); budget = 0 }
-  }
-  return out
-})
-const renderedCount = computed(() => renderedGroups.value.reduce((s, g) => s + g.items.length, 0))
-const hasMoreToRender = computed(() => renderedCount.value < totalVisibleCount.value)
-/** 资源区滚动容器（.ws-content）滚到距底 400px 内时追加一屏 */
-function onContentScroll(e: Event) {
-  if (!hasMoreToRender.value) return
-  const el = e.target as HTMLElement
-  if (el.scrollHeight - el.scrollTop - el.clientHeight < 400) renderLimit.value += RENDER_STEP
-}
-/** 「加载更多」按钮（滚动监听之外的显式入口，保证键盘/小程序场景可达） */
-function renderMore() { if (hasMoreToRender.value) renderLimit.value += RENDER_STEP }
-// 换台 / 换视图 / 换分类 / 改检索词 / 改排序 → 渲染份额复位（否则会带着上个上下文的大份额）
-watch([workspaceId, viewMode, activeCategory, debouncedQuery, sortBy, sortDir], () => { renderLimit.value = RENDER_STEP })
-/** R98（W9）：分组标题补「含 N 个子分类」——组内 count 是**直属**口径（walk 只 push 有直属卡的组），
- *  与左树的聚合数不同源；同屏「左树 A 显示 5 / 分组 A 显示 3」会被当成对不上账，须写明。
- *  子分类各自的卡有自己的组（walk 递归）；待分类无子分类。 */
-function groupChildCount(key: string): number {
-  if (key === 'uncat') return 0
-  return catIdx.value.childrenOf.get(key)?.length || 0
-}
-
-const kanbanCategories = computed(() => {
-  const cats: { key: string; name: string }[] = []
-  for (const root of rootCats.value) {
-    cats.push({ key: root.id, name: root.name })
-    for (const id of catIdx.value.descendants(root.id)) {
-      const c = catIdx.value.byId.get(id)
-      if (c) cats.push({ key: c.id, name: catIdx.value.pathOf(c.id) })
-    }
-  }
-  cats.push({ key: '', name: '待分类' })
-  return cats
-})
-
-function resourcesByCategory(catId: string) {
-  // R56-V1：看板列内与卡片/列表视图同口径——applySort 消费（手动=拖拽序 curOrder 优先，无拖拽序最新在前）
-  // R71：改走分桶索引（此前每列一次全量 filter）
-  return applySort(resBucket.value.get(catId || '') || [])
-}
-/** R71：看板列（名字 + 计数 + 卡列表）一次算好——模板此前每列把 resourcesByCategory 调两次
- *  （一次计数、一次渲染），等于每列对全量卡 filter+sort 两遍 */
-const kanbanColumns = computed(() => kanbanCategories.value.map(c => {
-  const items = resourcesByCategory(c.key)
-  return { key: c.key, name: c.name, items, count: items.length }
-}))
-
-// ===== 链接打开（E1：双击 = 打开链接；第卅二轮 REQ-010 归一化逻辑统一在 shared/utils/link） =====
-/** 图片附件预览（R80/R14）：blob URL 需回收，打开下一张前先 revoke 上一张 */
-const previewOpen = ref(false)
-const previewUrl = ref('')
-const previewName = ref('')
-let lastPreviewUrl = ''
-function revokePreview() {
-  if (lastPreviewUrl) { URL.revokeObjectURL(lastPreviewUrl); lastPreviewUrl = '' }
-}
-function closePreview() { previewOpen.value = false; revokePreview(); previewUrl.value = '' }
-async function openImageAsset(meta: AssetMeta) {
-  let blob: Blob | null = null
-  try { blob = await getAssetBlob(meta.id) } catch { blob = null }
-  if (!blob) { showToast('⚠ 附件本体缺失（可能已被清理），请重新上传'); return }
-  revokePreview()
-  previewUrl.value = URL.createObjectURL(blob)
-  lastPreviewUrl = previewUrl.value
-  previewName.value = meta.name
-  previewOpen.value = true
-}
-/** 第卌二轮 REQ-061：双击卡片打开——挂了 HTML 附件的资源卡（link=zy-asset://<id>）走 openHtmlAsset
- *  file:// 落盘完整打开，与详情内打开同一函数同一效果（新标签页，内联脚本可运行）
- *  R80（R14）：补上 image 分支——此前判据只放行 html/pdf，图片附件卡双击会落到
- *  「文档附件不存在或已失效」的误报；现图片走 AssetPreview 就地预览。 */
-function openResourceLink(r: ResourceCard) {
-  recordResourceOpen(d.value, r)
-  store.persist()
-  if (r.linkType === 'file' && /^zy-asset:\/\//i.test((r.link || '').trim())) {
-    const assetId = (r.link || '').trim().replace(/^zy-asset:\/\//i, '')
-    const meta = (r.assets || []).find(a => a.id === assetId)
-    if (!meta) { showToast('⚠ 卡片指向的附件不存在或已失效，请重新上传'); return }
-    if (meta.kind === 'image') { void openImageAsset(meta); return }
-    if (meta.kind === 'html' || meta.kind === 'pdf') { openHtmlAsset(meta); return }
-    showToast('⚠ 卡片指向的附件不存在或已失效，请重新上传')
-    return
-  }
-  const url = toOpenableUrl(r.linkType, r.link)
-  if (!url) {
-    // R87（R7-③）：此前一律回「本地文件需完整路径」，对 URL 型空链接卡是错话。按链接三态分流：
-    const st = linkStateOf(r.linkType, r.link)
-    if (st === 'none') showToast('⚠ 该卡还没填链接 —— 点卡片右上角 ↗ 或进入详情补一个')
-    else if (st === 'incomplete') showToast('⚠ 仅存文件名，需补全完整路径（如 D:\\docs\\file.pdf）')
-    else showToast('⚠ 该链接无法打开（协议不受支持）')
-    return
-  }
-  openExternalLink(url)
-}
-
-/**
- * R87（R7-②）：「⚠ 待补全」徽标的一键补全 —— 打开详情抽屉并把光标送进链接输入框。
- * 镜像卡是策展台里的只读引用（与 📌⭐🗑 同款拦截），补全得上资源台真身卡。
- */
-const resFormRef = ref<InstanceType<typeof ResourceEditForm> | null>(null)
-function fixLink(r: ResourceCard) {
-  if (isMirrorView(r)) { showToast('📡 镜像卡为引用——补全路径请到资源台'); return }
-  openResource(r)
-  nextTick(() => resFormRef.value?.focusLink())
-}
-
-// 单击（详情）与双击（打开链接）区分
-let clickTimer: ReturnType<typeof setTimeout> | null = null
-function onCardClick(r: ResourceCard) {
-  if (batchMode.value) { toggleSelect(r.id); return }
-  if (isMirrorView(r)) {
-    // R106（F4）：镜像卡单击 = 打开只读详情（编辑定位回资源台；双击打开链接照常）
-    if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return }
-    clickTimer = setTimeout(() => { clickTimer = null; openMirrorDetail(r) }, 260)
-    return
-  }
-  if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return }
-  clickTimer = setTimeout(() => { clickTimer = null; openResource(r) }, 260)
-}
-function onCardDblClick(r: ResourceCard) {
-  if (clickTimer) { clearTimeout(clickTimer); clickTimer = null }
-  openResourceLink(r)
-}
-
-// ===== 资源卡编辑抽屉 =====
-const drawerOpen = ref(false)
-const editingResource = reactive<ResourceCard>(emptyResource())
-const isNewResource = ref(false)
-
-// 表单主体已抽至共享 ResourceEditForm（REQ-042/#61）；此处仅保留宿主动作：打开/保存/删除/复制/跳转
-let drawerOriginalWsId = '' // REQ-004：跨策展台迁移检测基准（打开/新建时记录）
-
-function emptyResource(): ResourceCard {
-  return { id: '', kind: 'resource', title: '', linkType: 'url', link: '', workspaceId: workspaceId.value, categoryId: '', description: '', tags: [], customFields: {}, pinned: false, callCount: 0, createdAt: 0, updatedAt: 0 }
-}
-
-/**
- * R73-S4a（L4）：资源台聚合哨兵回落。
- * 当前分类处于「全部」（聚合根）或「待分类」时，新建卡 / 导入文件 / 空白区落卡
- * 一律回落「未分类」（''），**不得把聚合键写进数据层**。
- * 口径与 CurationCenter 的 newCardCatId() 一致（'all' = 全部分类聚合根，'uncat' = 待分类）。
- */
-function newCardCatId(): string {
-  const c = activeCategory.value
-  return (c && c !== 'uncat' && c !== 'all') ? c : ''
-}
-
-function openNewResource() {
-  Object.assign(editingResource, emptyResource())
-  editingResource.id = uid('res')
-  editingResource.createdAt = Date.now()
-  drawerOriginalWsId = editingResource.workspaceId
-  // R73-S4a：聚合/待分类视图下回落未分类（与导入、空白区落卡同口径）
-  editingResource.categoryId = newCardCatId()
-  isNewResource.value = true
-  drawerOpen.value = true
-}
-function addResourceToCategory(catId: string) {
-  Object.assign(editingResource, emptyResource())
-  editingResource.id = uid('res')
-  editingResource.createdAt = Date.now()
-  editingResource.categoryId = catId
-  drawerOriginalWsId = editingResource.workspaceId
-  isNewResource.value = true
-  drawerOpen.value = true
-}
-/** R106（F4）：镜像卡只读详情态——表单禁交互、footer 换定位按钮、Ctrl+Enter=定位源卡。
- *  镜像 id 即源卡 id（boardCardsOf 浅拷贝），定位走 /curation?hl=<id>（redirect 透传 query）。 */
-const drawerReadonly = ref(false)
-function openMirrorDetail(r: ResourceCard) {
-  Object.assign(editingResource, JSON.parse(JSON.stringify(r)))
-  drawerOriginalWsId = editingResource.workspaceId
-  isNewResource.value = false
-  drawerReadonly.value = true
-  drawerOpen.value = true
-}
-/** R106（F7）：一键清理本台全部镜像卡——只删投射记录（removeProjection），源卡保留在资源台。
- *  确认框报数；空台直接提示。源卡如需重建镜像，走资源台 📡 推送即可。 */
-async function cleanAllMirrors() {
-  const n = (d.value.curationProjections || []).filter(pp => pp.targetWsId === workspaceId.value).length
-  if (!n) { showToast('ℹ 本台没有镜像卡'); return }
-  if (!(await useConfirm({
-    title: '清理本台镜像卡',
-    message: `将移出本台全部 ${n} 张镜像卡（只删引用，源卡保留在资源台；可随时重新镜像）。继续？`,
-    confirmText: '确认清理'
-  }))) return
-  let removed = 0
-  for (const pp of [...(d.value.curationProjections || [])]) {
-    if (pp.targetWsId === workspaceId.value && removeProjection(d.value, pp.id)) removed++
-  }
-  store.persist()
-  showToast(`✓ 已清理 ${removed} 张镜像卡（源卡保留在资源台）`)
-}
-/** R108（T3）：金字塔 Markdown 模板导入写入链——
- *  论点（本台未设且 md 含 H1 → 建论点卡 + setThesis）→ 逐层建分类（同父同名复用）→
- *  每分类节点建一张同名台内卡（正文=节点描述）；完成后切到金字塔视图呈现。 */
-const pyramidImportOpen = ref(false)
-function confirmPyramidImport(payload: { pyramid?: PyramidParseResult }) {
-  const pyr = payload.pyramid
-  if (!pyr || !pyr.thesis) { showToast('未识别到中心论点——不写入'); return }
-  let nodeTotal = 0
-  const cnt = (n: PyramidNode) => { nodeTotal++; (n.children || []).forEach(cnt) }
-  cnt(pyr.thesis)
-  if (nodeTotal > 200) { showToast('⚠ 单次导入建议不超过 200 个节点——请分批导入'); return }
-  let catCount = 0, cardCount = 0, reused = 0
-  const ensureCat = (name: string, parentId?: string): Category => {
-    const found = d.value.categories.find(c => c.workspaceId === workspaceId.value && !c.deletedAt && (c.parentId || undefined) === parentId && c.name === name)
-    if (found) { reused++; return found }
-    const cat: Category = { id: uid('cat'), workspaceId: workspaceId.value, name, order: d.value.categories.filter(c => c.workspaceId === workspaceId.value && (c.parentId || undefined) === parentId).length }
-    if (parentId) cat.parentId = parentId
-    d.value.categories.push(cat)
-    catCount++
-    return cat
-  }
-  const ensureNodeCard = (cat: Category, name: string, desc: string) => {
-    const dup = d.value.resources.find(r => !r.deletedAt && r.workspaceId === workspaceId.value && r.categoryId === cat.id && r.title === name)
-    if (dup) { reused++; return }
-    d.value.resources.unshift({
-      id: uid('res'), kind: 'resource', title: name, linkType: 'url', link: '',
-      workspaceId: workspaceId.value, categoryId: cat.id,
-      description: desc || undefined, tags: [], customFields: {}, pinned: false, callCount: 0,
-      createdAt: Date.now(), updatedAt: Date.now()
-    })
-    cardCount++
-  }
-  const walk = (nodes: PyramidNode[], parentId?: string) => {
-    for (const n of nodes) {
-      const cat = ensureCat(n.name, parentId)
-      ensureNodeCard(cat, n.name, n.desc)
-      walk(n.children || [], cat.id)
-    }
-  }
-  if (!thesisCard && pyr.thesis && !pyr.thesis.virtual) {
-    const card: ResourceCard = {
-      id: uid('res'), kind: 'resource', title: pyr.thesis.name, linkType: 'url', link: '',
-      workspaceId: workspaceId.value, categoryId: '',
-      description: pyr.thesis.desc || undefined, tags: [], customFields: {}, pinned: false, callCount: 0,
-      createdAt: Date.now(), updatedAt: Date.now()
-    }
-    d.value.resources.unshift(card)
-    setThesis(d.value, workspaceId.value, card.id)
-    cardCount++
-  } else if (pyr.thesis && thesisCard) {
-    reused++
-  }
-  walk(pyr.thesis.children, undefined)
-  store.persist()
-  pyramidImportOpen.value = false
-  setViewMode('pyramid')
-  showToast(`✓ 已导入：分类 ${catCount} · 卡片 ${cardCount}${reused ? `（复用/忽略 ${reused}）` : ''}——已切换到金字塔视图`)
-}
-function locateMirrorSourceCard() {
-  const id = editingResource.id
-  drawerReadonly.value = false
-  closeDrawer()
-  router.push('/curation?hl=' + id)
-  showToast('↗ 已定位到资源台源卡')
-}
-function openResource(r: ResourceCard) {
-  drawerReadonly.value = false
-  Object.assign(editingResource, JSON.parse(JSON.stringify(r)))
-  drawerOriginalWsId = editingResource.workspaceId
-  isNewResource.value = false
-  drawerOpen.value = true
-  // 单击打开详情 = 一次调用（WRR 口径）
-  recordResourceOpen(d.value, r)
-  store.persist()
-}
-// R106（F4）：只读详情期 Ctrl+Enter = 定位源卡——document 捕获（焦点常在 body，元素级绑不住）；closeDrawer/watch 双路摘除
-function onRoCtrlEnter(e: KeyboardEvent) {
-  if (!drawerOpen.value || !drawerReadonly.value) return
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); locateMirrorSourceCard() }
-}
-watch(drawerReadonly, (v) => {
-  if (v) document.addEventListener('keydown', onRoCtrlEnter, true)
-  else document.removeEventListener('keydown', onRoCtrlEnter, true)
-})
-watch(drawerOpen, (v) => { if (!v) { drawerReadonly.value = false; document.removeEventListener('keydown', onRoCtrlEnter, true) } })
-onUnmounted(() => document.removeEventListener('keydown', onRoCtrlEnter, true))
-
-function closeDrawer() { drawerOpen.value = false }
-function saveResource() {
-  if (drawerReadonly.value) { showToast('📡 镜像卡为引用——请到资源台编辑'); return } // R106（F4）：只读守卫（防 Tab 聚焦写穿）
-  if (!editingResource.title.trim()) { showToast('请输入标题'); return }
-  // REQ-004：检测是否跨策展台迁移，保存后给出迁移反馈
-  const wsChanged = !isNewResource.value && !!drawerOriginalWsId && editingResource.workspaceId !== drawerOriginalWsId
-  editingResource.updatedAt = Date.now()
-  if (isNewResource.value) {
-    d.value.resources.unshift({ ...editingResource })
-  } else {
-    const idx = d.value.resources.findIndex(r => r.id === editingResource.id)
-    if (idx >= 0) d.value.resources[idx] = { ...editingResource }
-  }
-  store.persist()
-  drawerOpen.value = false
-  if (wsChanged) {
-    const target = d.value.workspaces.find(w => w.id === editingResource.workspaceId)
-    showToast(`✓ 已保存并迁移至「${target?.name.replace(/^[^\s]+\s/, '') || '目标策展台'}」`)
-  } else {
-    showToast('✓ 已保存')
-  }
-}
-async function deleteCurrentResource() {
-  const idx = d.value.resources.findIndex(r => r.id === editingResource.id)
-  if (idx >= 0) d.value.resources[idx].deletedAt = Date.now()
-  store.persist()
-  drawerOpen.value = false
-  const target = idx >= 0 ? d.value.resources[idx] : null
-  showToast(target ? `已删除「${target.title.slice(0, 20)}」` : '资源卡已删除', { label: '撤销', cb: () => {
-    // REQ-030：按 id 从当前数据树查找（persist 后 onChanged 会整树替换引用，闭包旧引用已失效）
-    const cur = d.value.resources.find(x => x.id === editingResource.id)
-    if (cur && cur.deletedAt) { cur.deletedAt = undefined; store.persist() }
-  } })
-}
-async function deleteResource(r: ResourceCard) {
-  if (isMirrorView(r)) { removeMirror(r); return }
-  r.deletedAt = Date.now()
-  store.persist()
-  // REQ-030：3 秒内可撤销（按 id 定位当前树，根治引用替换导致的撤销失效）
-  showToast(`已删除「${r.title.slice(0, 20)}」`, { label: '撤销', cb: () => {
-    const cur = d.value.resources.find(x => x.id === r.id)
-    if (cur && cur.deletedAt) { cur.deletedAt = undefined; store.persist() }
-  } })
-}
-function togglePin(r: ResourceCard) {
-  if (isMirrorView(r)) { showToast('📡 镜像卡为引用——置顶请在资源台操作'); return }
-  r.pinned = !r.pinned
-  r.updatedAt = Date.now()
-  store.persist()
-  showToast(r.pinned ? '📌 已置顶' : '已取消置顶')
-}
-/** 第卅三轮 REQ-020：星标切换（独立于置顶，可叠加） */
-function toggleStar(r: ResourceCard) {
-  if (isMirrorView(r)) { showToast('📡 镜像卡为引用——星标请在资源台操作'); return }
-  r.starred = !r.starred
-  r.updatedAt = Date.now()
-  store.persist()
-  showToast(r.starred ? '⭐ 已星标，搜索时优先展示' : '已取消星标')
-}
-function copyLink() {
-  if (!editingResource.link) { showToast('无链接'); return }
-  navigator.clipboard.writeText(editingResource.link).then(() => showToast('✓ 链接已复制'))
-}
-// 挂载任务点击（共享表单 emit goto-task）→ 跳任务中心
-function goToTask(t: TaskCard) {
-  router.push('/')
-  showToast(`已跳转任务中心：${t.title}`)
-}
-
-// ===== 拖拽排序 =====
-let draggedItem: ResourceCard | null = null
-// B5：右键菜单
-const resCtx = ref({ open: false, x: 0, y: 0 })
-const resCtxItems = ref<{ label: string; icon?: string; danger?: boolean; cb: () => void }[]>([])
-function openResCtx(e: MouseEvent, r: ResourceCard) {
-  if (isMirrorView(r)) {
-    // R61：镜像卡右键——只读引用语义（打开/复制/定位源/移出镜像）
-    resCtxItems.value = [
-      { label: '打开链接', icon: 'arrowright', cb: () => openResourceLink(r) },
-      { label: '复制链接', icon: 'copy', cb: () => { if (r.link) { navigator.clipboard.writeText(r.link); showToast('✓ 链接已复制') } } },
-      { label: '🎯 定位到资源台', icon: 'folder', cb: () => locateMirrorSource(r) },
-      { label: '✕ 移出镜像', icon: 'trash', danger: true, cb: () => removeMirror(r) }
-    ]
-  } else {
-    resCtxItems.value = [
-      { label: '打开链接', icon: 'arrowright', cb: () => openResourceLink(r) },
-      { label: '复制链接', icon: 'copy', cb: () => { if (r.link) { navigator.clipboard.writeText(r.link); showToast('✓ 链接已复制') } } },
-      // R90（R10）：编辑——右键直达抽屉。此前右键菜单只有"打开链接"，要**改**内容必须先单击卡进详情
-      { label: '✏️ 编辑详情', icon: 'edit', cb: () => openResource(r) },
-      { label: '移动分类', icon: 'folder', cb: () => openMoveOne(r) },
-      // R82（R4）：挂载到任务——与动作条同一入口的两条路径之一。镜像分支不提供（只读引用）。
-      { label: mountedTaskCount(r) ? `挂载到任务（已挂 ${mountedTaskCount(r)}）` : '挂载到任务…', icon: 'clipboard', cb: () => openMountOne(r) },
-      // R90（R10）：镜像到策展台——**仅资源台真身卡**有语义（策展台的卡源头就是资源台，再推给别的台无意义）。
-      // openMirrorCard 内部已对「还没有策展台」给提示，此处不重复兜底。
-      ...(isHub.value ? [{ label: '📡 镜像到策展台', icon: 'share', cb: () => openMirrorCard(r) }] : []),
-      { label: r.pinned ? '取消置顶' : '置顶', icon: 'pin', cb: () => togglePin(r) },
-      // R90（R10）：星标——toggleStar 能力早就在、hover 动作条早早就有 ⭐，右键此前一直缺
-      { label: r.starred ? '☆ 取消星标' : '⭐ 星标', icon: 'star', cb: () => toggleStar(r) },
-      // R62-3：中心论点（每台一张；设立即替换旧论点）
-      // R90：图标 'star' → 'target' —— ICONS 原本没有 star 键，会静默回落成罗盘；且星标项已占用 star
-      r.isThesis
-        ? { label: '取消中心论点', icon: 'target', cb: () => unsetThesis() }
-        : { label: '🏛 设为中心论点', icon: 'target', cb: () => setThesisCard(r) },
-      { label: '删除', icon: 'trash', danger: true, cb: () => deleteResource(r) }
-    ]
-  }
-  resCtx.value = { open: true, x: Math.min(e.clientX, window.innerWidth - 190), y: Math.min(e.clientY, window.innerHeight - 240) }
-}
-
-// B6：拖拽插入线（X 轴卡片 / Y 轴列表）
-const dropMark = ref('')
-function markDrop(e: DragEvent, key: string, axis: 'x' | 'y') {
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  const after = axis === 'x'
-    ? (e.clientX - rect.left) / rect.width > 0.5
-    : (e.clientY - rect.top) / rect.height > 0.5
-  dropMark.value = key + (after ? '-b' : '-t')
-}
-function clearDropMark() { dropMark.value = '' }
-/** R73-S4b（L5）：接受拖入的统一应答（preventDefault + dropEffect=move，防真实拖拽被判定为不可落） */
-function acceptDragOver(e: DragEvent) {
-  e.preventDefault()
-  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
-}
-/** R73-S4b（L5）：拖拽结束统一复位（drop 后也会触发，防取消拖拽时状态残留） */
-function clearDragState() { draggedItem = null; dragCatId = null; dropMark.value = '' }
-function onDragStart(e: DragEvent, r: ResourceCard) {
-  draggedItem = r
-  e.dataTransfer?.setData('text/plain', r.id)
-}
-// REQ-028 F-028-3：卡片所属渲染分区（与 resourceGroups 分区 key 对齐）
-function groupKeyOf(r: ResourceCard): string {
-  const validIds = new Set(wsCats.value.map(c => c.id))
-  if (isUncat(r, validIds)) return 'uncat'
-  if (activeCategory.value === 'all') {
-    for (const root of rootCats.value) {
-      if (familyIds(root.id).includes(r.categoryId)) return root.id
-    }
-    return 'uncat'
-  }
-  if (activeCategory.value === 'uncat') return 'uncat'
-  if (childCatsOf(activeCategory.value).some(s => s.id === r.categoryId)) return r.categoryId
-  return 'direct'
-}
-
-function onDropCard(e: DragEvent, target: ResourceCard) {
-  if (!draggedItem || draggedItem.id === target.id) { clearDropMark(); return }
-  const moved = draggedItem
-  // R61：镜像卡拖拽 = 只改投射落点（源卡零影响，不参与物理排序）
-  if (isMirrorView(moved)) {
-    const mCat = target.categoryId && wsCats.value.some(c => c.id === target.categoryId) ? target.categoryId : ''
-    moveMirrorTo(moved, mCat)
-    draggedItem = null
-    clearDropMark()
-    return
-  }
-  const after = dropMark.value.endsWith('-b')
-  // REQ-028 F-028-3：跨分区拖拽 = 修改分类归属（轻提示）；同分区 = 局部排序
-  const crossGroup = groupKeyOf(moved) !== groupKeyOf(target)
-  const newCat = target.categoryId && wsCats.value.some(c => c.id === target.categoryId) ? target.categoryId : ''
-  const catChanged = (moved.categoryId || '') !== (newCat || '')
-  if (catChanged) {
-    moved.categoryId = newCat
-    moved.updatedAt = Date.now()
-    if (crossGroup) showToast(`✓ 已移动至「${newCat ? categories.value.find(c => c.id === newCat)?.name : '待分类'}」`)
-  }
-  sortBy.value = 'manual'
-  const fromIdx = d.value.resources.findIndex(r => r.id === moved.id)
-  const toIdx = d.value.resources.findIndex(r => r.id === target.id)
-  if (fromIdx < 0 || toIdx < 0) { clearDropMark(); return }
-  const [item] = d.value.resources.splice(fromIdx, 1)
-  const newIdx = d.value.resources.findIndex(r => r.id === target.id)
-  d.value.resources.splice(after ? newIdx + 1 : newIdx, 0, item)
-  // R56-V1：拖拽序物化——落位分区按物理序全量重写 curOrder（否则「无拖拽序=最新在前」会吞掉拖拽结果）
-  const landedKey = groupKeyOf(moved)
-  d.value.resources.filter(r => !r.deletedAt && groupKeyOf(r) === landedKey).forEach((r, i) => { r.curOrder = i })
-  store.persist()
-  draggedItem = null
-  clearDropMark()
-}
-// O8：看板列内卡片拖拽排序；第廿八轮：跨分类列落卡 = 改分类归属（插入位置不变）
-function onKanbanCardDrop(e: DragEvent, target: ResourceCard) {
-  e.preventDefault(); e.stopPropagation()
-  const after = dropMark.value.endsWith('-b')
-  clearDropMark()
-  if (!draggedItem || draggedItem.id === target.id) return
-  sortBy.value = 'manual'
-  const moved = draggedItem
-  // R61：镜像卡拖拽 = 只改投射落点
-  if (isMirrorView(moved)) {
-    moveMirrorTo(moved, target.categoryId || '')
-    draggedItem = null
-    return
-  }
-  const fromIdx = d.value.resources.findIndex(x => x.id === moved.id)
-  const toIdx = d.value.resources.findIndex(x => x.id === target.id)
-  if (fromIdx < 0 || toIdx < 0) return
-  if ((moved.categoryId || '') !== (target.categoryId || '')) {
-    moved.categoryId = target.categoryId || ''
-    moved.updatedAt = Date.now()
-    showToast(`✓ 已移动到${target.categoryId ? categories.value.find(c => c.id === target.categoryId)?.name : '待分类'}`)
-  }
-  const [item] = d.value.resources.splice(fromIdx, 1)
-  const newToIdx = d.value.resources.findIndex(x => x.id === target.id)
-  d.value.resources.splice(after ? newToIdx + 1 : newToIdx, 0, item)
-  // R56-V1：看板拖拽同样物化拖拽序——落位列全量重写 curOrder，列内 applySort 稳定消费
-  const colKey = target.categoryId || ''
-  d.value.resources.filter(r => !r.deletedAt && (r.categoryId || '') === colKey).forEach((r, i) => { r.curOrder = i })
-  store.persist()
-  draggedItem = null
-  showToast('✓ 已调整排序')
-}
-function onDropToCategory(e: DragEvent, catId: string) {
-  if (!draggedItem) return
-  // R61：镜像卡落树节点 = 只改投射落点
-  if (isMirrorView(draggedItem)) { moveMirrorTo(draggedItem, catId); draggedItem = null; clearCardDropTarget(); return }
-  draggedItem.categoryId = catId
-  draggedItem.updatedAt = Date.now()
-  store.persist()
-  showToast(`✓ 已移入「${catId ? categories.value.find(c=>c.id===catId)?.name : '待分类'}」`)
-  draggedItem = null
-  clearCardDropTarget()
-}
-
-// ===== R73-S4b（L5）：区域级落卡 + 混排重编号（自 CurationCenter 迁入，补齐 hub 缺口） =====
-/** 分区 key → 真实分类 id（聚合哨兵 'all' / 'uncat' 一律回落「未分类」''） */
-function catKeyToCatId(key?: string): string {
-  const k = key ?? ''
-  return (k === 'all' || k === 'uncat') ? '' : k
-}
-/** 区域级 dragover —— 卡片拖拽悬停于分区网格任意处（含空白）均可落 */
-function onAreaDragOver(e: DragEvent, groupKey?: string) {
-  if (draggedItem) acceptDragOver(e)
-  void groupKey
-}
-/** 区域级 drop —— 拖到分区网格空白处 = 移入该分区（聚合视图回落未分类；镜像卡只改投射落点） */
-function onAreaDrop(e: DragEvent, groupKey?: string) {
-  clearDropMark()
-  const moved = draggedItem
-  draggedItem = null
-  if (!moved) return
-  const targetKey = catKeyToCatId(groupKey)
-  // R61：镜像卡为引用 —— 拖拽只改投射落点，源卡零影响
-  if (isMirrorView(moved)) { moveMirrorTo(moved, targetKey); return }
-  const changed = (moved.categoryId || '') !== targetKey
-  if (changed) {
-    moved.categoryId = targetKey
-    moved.updatedAt = Date.now()
-    sortBy.value = 'manual'
-  }
-  // 落位分区按物理序全量重写 curOrder（与 onDropCard 同口径）
-  const landedKey = groupKeyOf(moved)
-  d.value.resources.filter(r => !r.deletedAt && groupKeyOf(r) === landedKey).forEach((r, i) => { r.curOrder = i })
-  store.persist()
-  showToast(changed ? `✓ 已移动至「${targetKey ? categories.value.find(c => c.id === targetKey)?.name : '待分类'}」` : '✓ 已更新')
-}
-/** 混排重编号 —— 把 id 插到 targetId 之前，并把落位分区内的 curOrder 统一重写 */
-function reorderMixed(groupKey: string, id: string, targetId: string): boolean {
-  const key = catKeyToCatId(groupKey)
-  const list = d.value.resources.filter(r => !r.deletedAt && (r.categoryId || '') === key)
-  const fi = list.findIndex(r => r.id === id)
-  const ti = list.findIndex(r => r.id === targetId)
-  if (fi < 0 || ti < 0) return false
-  const [moved] = list.splice(fi, 1)
-  const tj = list.findIndex(r => r.id === targetId)
-  list.splice(tj, 0, moved)
-  list.forEach((r, i) => { r.curOrder = i })
-  return true
-}
-
-// ===== 批量操作（E4） =====
+// ===== 卡面所属分类徽标工具（R64-F10 / 批量移动共用）=====
 function catNameOf(r: ResourceCard): string {
   if (!r.categoryId) return '待分类'
   return catIdx.value.byId.get(r.categoryId)?.name || '待分类'
@@ -2087,68 +1183,178 @@ function catNameOfFamily(r: ResourceCard): string {
   return catIdx.value.pathOf(r.categoryId)
 }
 
-// ===== 第八轮：分类树（2 级）+ 置顶 + 聚合计数 =====
-const wsCats = computed(() => d.value.categories.filter(c => c.workspaceId === workspaceId.value && !c.deletedAt)) // R109（F12-b）：软删分类不入树
-/**
- * R71 性能治理：分类树索引（一次 O(n) 建表 → 此后 O(1) 查表）。
- * 此前 childCatsOf / rootCats / descendantIds / familyIds 全是「每次调用都全表扫描」的实现，
- * 而它们被递归函数与模板表达式反复调用（侧栏单个节点就要 5 次 childCatsOf）——
- * 整棵树一次重渲染是 O(n²)，这正是切换视图/展开目录时卡顿的主因。
- */
-const catIdx = computed(() => buildCatIndex(wsCats.value))
-/** 卡片按分类分桶（O(1) 取「某分类的卡」，替代反复 filter 全量卡） */
-const resBucket = computed(() => buildBucketIndex(allResources.value, (r) => r.categoryId || ''))
+// ===== 通用输入弹窗（第八轮：策展台重命名/描述，替代原生 prompt） =====
+const inputModal = ref<{ open: boolean; title: string; value: string; cb: ((v: string) => void) | null }>(
+  { open: false, title: '', value: '', cb: null })
+function openInputModal(title: string, value: string, cb: (v: string) => void) {
+  inputModal.value = { open: true, title, value, cb }
+}
+function confirmInputModal() {
+  const v = inputModal.value.value.trim()
+  if (v && inputModal.value.cb) inputModal.value.cb(v)
+  inputModal.value.open = false
+}
 
-// ===== R101（纯拆分第二批）：下钻抽屉的状态与数据拆入 useCurationDrill =====
-// 状态/数据下沉（惰性求值随迁），落点导航回调（onDrill*）留宿主——它们写视图状态，是接线不是实现。
+// ===== R49-G3：全局检索分类定位闪节点（/workspace/:id?cat=xx）=====
+const catFlashId = ref<string | null>(null)
+
+// ===== 下钻抽屉（R62-2）：状态与数据拆入 useCurationDrill =====
+// 状态与数据迁入 composable，落点导航回调（onDrill*）留宿主——它们写视图状态，是接线不是实现。
 const { drillOpen, drillMode, openDrill, drillCatRows, drillNative, drillMirror, drillRecent } = useCurationDrill({
   allResources, resBucket, catIdx, isUncat
 })
 
-function childCatsOf(pid: string): Category[] {
-  return catIdx.value.childrenOf.get(pid) || []
+function onDrillJumpCat(id: string) {
+  drillOpen.value = false
+  if (id === 'uncat') { activeCategory.value = 'uncat'; if (viewMode.value === 'pyramid') viewMode.value = 'card'; return }
+  activeCategory.value = id
+  if (viewMode.value === 'pyramid') { catFlashId.value = id; setTimeout(() => { catFlashId.value = null }, 2000) }
 }
-const rootCats = computed(() => catIdx.value.roots)
-const pinnedRootCats = computed(() => rootCats.value.filter(c => c.pinned))
-const unpinnedRootCats = computed(() => rootCats.value.filter(c => !c.pinned))
-/** R61-4：全部后代 id（深层递归）——4 级树过滤/计数/防环共用；R70 带 visited；R71 走索引缓存 */
-function descendantIds(catId: string): string[] {
-  return catIdx.value.descendants(catId)
+function onDrillOpenCard(id: string) {
+  drillOpen.value = false
+  const r = allResources.value.find(x => x.id === id)
+  if (r && !isMirrorView(r)) openResource(r)
 }
-function childIds(catId: string): string[] {
-  return descendantIds(catId)
+function onDrillLocate(id: string) {
+  drillOpen.value = false
+  const r = allResources.value.find(x => x.id === id)
+  if (r) locateMirrorSource(r)
 }
-/** 家族 id（自己 + 全部后代分类）——过滤与计数共用口径（R61-4 深化至 4 级） */
-function familyIds(catId: string): string[] {
-  return catIdx.value.family(catId)
-}
-/** 家族聚合卡数：索引查表 + 分桶计数 O(家族规模)（此前是 familyIds + 全量 filter + includes） */
-function catAggCount(catId: string): number {
-  let n = 0
-  for (const id of familyIds(catId)) n += (resBucket.value.get(id) || []).length
-  return n
-}
-/** 分类选择器的层级化选项（下拉/弹窗共用）——R61-4：递归支持 4 级 */
-function treeCatOptions(cats: Category[]): { id: string; label: string }[] {
-  // R71：本函数被多个 computed 调用（移动分类下拉等），改为一次建索引后查表
-  const idx = buildCatIndex(cats)
-  const out: { id: string; label: string }[] = []
-  const seenOpt = new Set<string>()  // R70：防环
-  const push = (c: Category, depth: number) => {
-    if (seenOpt.has(c.id)) return
-    seenOpt.add(c.id)
-    out.push({ id: c.id, label: '└'.repeat(depth) + (depth ? ' ' : '') + c.name })
-    for (const ch of idx.childrenOf.get(c.id) || []) push(ch, depth + 1)
-  }
-  for (const r0 of idx.roots) push(r0, 0)
-  return out
-}
-/** 左栏渲染的扁平序列（分区标签 + 缩进标记）——R61-4：递归支持 4 级 */
-// R76（R3）：count 一律取 directCount（与看板列、卡片/列表分组同口径）；
-// childCount + aggCount 只用于 title 补充说明，不再作为显示值，避免同屏出现两个数
-interface SidebarCat { cat: Category; depth: number; sectionLabel: string; hasChildren: boolean; childCount: number; aggCount: number; directCount: number }
 
-// ---- R113-N1：分类行「⋯」溢出菜单 ----
+// R113-N2：生命周期面板接线移除（原 R110-LC 块）——归档提示条改跳 设置→总览·资源生命周期
+
+// ===== R115 拆分接线：视图域（视图模式/排序/筛选/搜索/分组/增量渲染/看板）=====
+const {
+  viewMode, applyWsView, setViewMode, pyFold, resCols,
+  SORT_BY_KEYS, SORT_LABELS, FILTER_KEYS, FILTER_LABELS,
+  sortBy, sortDir, filterBy, searchQuery, debouncedQuery, activeCategory,
+  toggleSortDir, density, activeCategoryLabel, mountedResIds,
+  hasActiveFilter, filterLabel, parseQuery, matchCard, resetFilters,
+  filterSummary, filterPopTitle, resetAllFilters, isBrokenPath, FILTER_PREDICATES,
+  applyViewFilters, filteredResources, archivedHintCount,
+  applySort, applyGroupSort, sortedResources,
+  collapsedGroups, toggleGroupCollapse, resourceGroups,
+  RENDER_STEP, renderLimit, totalVisibleCount, renderedGroups, renderedCount, hasMoreToRender,
+  onContentScroll, renderMore, groupChildCount,
+  kanbanCategories, resourcesByCategory, kanbanColumns,
+} = useResourceView({
+  store, d, workspaceId, allResources, thesisCard, categories, wsCats, catIdx, resBucket,
+  rootCats, childCatsOf, familyIds, isUncat,
+})
+// R65-F7：KeepAlive 缓存实例——切换不同策展台（:id 变化）时复位本台局部状态，防上一台残留
+watch(() => route.params.id, (nv, ov) => {
+  if (nv && ov && nv !== ov) {
+    activeCategory.value = 'all'
+    searchQuery.value = ''
+    debouncedQuery.value = ''
+    selectedIds.value.clear()
+    collapsedGroups.value = new Set()
+  }
+})
+
+// ===== R115 拆分接线：分类侧栏 UI 域（树折叠/侧栏序列/树宽拖拽）=====
+const {
+  pinnedRootCats, unpinnedRootCats, treeCatOptions,
+  collapsedCats, toggleCatCollapse, collapseAllCats, expandAllCats, selectSidebarCat, sidebarCats,
+  SIDE_W_DEF, wsSideW, startSideResize, resetSideWidth,
+} = useCatSidebar({
+  store, wsCats, catIdx, resBucket, rootCats, activeCategory, childCatsOf, catAggCount,
+})
+
+// ===== R103（纯拆分第四批）：镜像域拆入 useWorkspaceMirror =====
+// 引用侧（移出镜像/落点更新/定位源卡）+ 推送侧（单卡 📡/分类 📤）+ 拉取侧（分类镜像到本台）
+// 实现原位迁出、零行为变更；标识符经解构保留原绑定——模板零改动。
+const {
+  isMirrorCat, moveMirrorTo, removeMirror, locateMirrorSource,
+  boards, mirrorPushModal, openMirrorCard, openMirrorCat, mirrorPushTargetCats, confirmMirrorPush,
+  mirrorCatModal, hubCatOptions, confirmMirrorCat
+} = useWorkspaceMirror({ d, workspaceId, categories, router, treeCatOptions, persist: () => store.persist() })
+
+// ===== R104（纯拆分第五批·收缩版）：分类 CRUD 拆入 useCategoryCrud =====
+// 新建/重命名/删除（含镜像级联清理）/置顶/重复合并 实现随迁；拖拽与侧栏折叠/选择是视图接线，留宿主
+// （与金字塔深度工具、卡片拖拽状态双向咬合，硬拆需先立共享拖拽状态层——R115 已立 dragState）。
+const { normalizeCatOrders, catModal, openCreateCat, openRenameCat, catNameDup, confirmCatModal, deleteCategory, toggleCatPin, mergeDupCats } = useCategoryCrud({
+  d, persist: () => store.persist(), workspaceId, wsCats, activeCategory, allResources,
+  pyDepthOf, childCatsOf, catAggCount
+})
+
+// ===== R115 拆分接线：资源打开域（预览/双击打开统一通道）=====
+const { previewOpen, previewUrl, previewName, closePreview, openImageAsset, openResourceLink } = useResourceOpen({ store, d })
+
+// ===== R102（纯拆分第三批）：卡片整理动作域（批量选择/批量移动/单卡移动/挂载）拆入 useWorkspaceBatch =====
+// 实现原位迁出、零行为变更；标识符经解构保留原绑定——三视图模板（勾选框/batch-bar/移动与挂载弹窗）零改动。
+// ★ 单向挂载红线随迁：挂载只写 task.mountedResourceIds，资源卡零新增反向字段，被谁挂着一律反查 d.tasks。
+const {
+  batchMode, selectedIds, toggleBatchMode, toggleSelect, selectAllVisible, selectedCards, batchOpen, batchDelete,
+  moveModalOpen, moveWsId, moveCatId, moveWorkspaces, moveCatOptions, openBatchMove, confirmBatchMove,
+  moveOneOpen, moveOneCatId, moveOneOptions, openMoveOne, confirmMoveOne,
+  mountOneOpen, mountSearch, mountedTaskCount, isMountedOn, mountTaskOptions, mountProjectName, openMountOne, toggleMountTask, closeMountOne,
+  moveOneTarget, mountTarget,
+} = useWorkspaceBatch({ d, persist: () => store.persist(), workspaceId, wsCats, allResources, allProjects, sortedResources, openResourceLink, treeCatOptions })
+
+// ===== R115 拆分接线：编辑抽屉域（单击/双击分流/CRUD/右键菜单）=====
+const {
+  onCardClick, onCardDblClick,
+  drawerOpen, editingResource, isNewResource, drawerReadonly,
+  newCardCatId, openNewResource, addResourceToCategory, openMirrorDetail,
+  cleanAllMirrors, locateMirrorSourceCard, openResource, closeDrawer,
+  saveResource, deleteCurrentResource, deleteResource, togglePin, toggleStar, copyLink, goToTask,
+  resFormRef, fixLink, resCtx, resCtxItems, openResCtx,
+} = useResourceDrawer({
+  store, d, workspaceId, router, isHub, categories, activeCategory, thesisCard,
+  openResourceLink, openImageAsset, setThesisCard, unsetThesis,
+  batchMode, toggleSelect, openMoveOne, openMountOne, mountedTaskCount,
+  openMirrorCard, removeMirror, locateMirrorSource,
+})
+
+// ===== R100（纯拆分第一批）：导入三链路（数据包 / 书签 / 本地文件）拆入 useWorkspaceImport =====
+// 实现原位迁出、零行为变更；标识符经解构保留原绑定——模板与既有断言的入口面不变（04-49 任务书）。
+const {
+  importModalOpen, boardImportInput,
+  bookmarkInput, fileImportInput, bookmarkModalOpen, bkFolders,
+  allBkChecked, bkTotalCount,
+  handleBoardImport, handleBookmarkImport, confirmBookmarkImport, toggleAllBk,
+  fileImport, handleFileImport, makeHubResource
+} = useWorkspaceImport({ d, workspaceId, newCardCatId, persist: () => store.persist() })
+
+// ===== R115 拆分接线：拖拽域（卡片/看板/分类/区域拖拽全量；共享拖拽状态层 dragState）=====
+const {
+  dragState, dropMark, markDrop, clearDropMark, acceptDragOver, clearDragState, onDragStart,
+  groupKeyOf, onDropCard, onKanbanCardDrop, onDropToCategory,
+  catKeyToCatId, onAreaDragOver, onAreaDrop, reorderMixed,
+  catDropTarget, catDropMode, cardDropTarget,
+  onUncatDragOver, onUncatDrop, clearCardDropTarget,
+  onCatDragStart, onCatDragEnd, onCatDragOver, onCatDrop, onCatRootDrop,
+} = useResourceDragDrop({
+  store, d, wsCats, rootCats, categories, activeCategory, sortBy, isUncat,
+  familyIds, childCatsOf, childIds, pyDepthOf, pyHeightOf,
+  moveMirrorTo, normalizeCatOrders,
+})
+/** 模板「升为一级」落点显隐消费 dragCatId（原宿主 let 变量的派生只读视图） */
+const dragCatId = computed(() => dragState.cat)
+
+// ===== R115 拆分接线：金字塔域（布局/连线/全屏/节点拖拽/节点菜单/打包/模板导入）=====
+const {
+  pyramidImportOpen, confirmPyramidImport,
+  pyramidLevels, pyLayout, moveCatSibling,
+  linkCardsModal, linkCardsQ, openLinkCards, toggleLinkPick, linkCandidates, confirmLinkCards,
+  pyWrapRef, pyFs, pyFsFallback, wsPageRef,
+  enterPyFullscreen, exitPyFullscreen, togglePyFullscreen,
+  pyLinkPaths, drawPyLinks, pyLinksThrottled,
+  pyDropTarget, pyDropMode, pyRootDrop, onPyDragOver, onPyDrop, onPyRootDragOver, onPyRootDrop,
+  selectPyNode,
+  nodeMenu, openNodeMenu, nmCreateChild, nmCreateSibling, nmMirrorCat, nmPack, nmRename, nmDelete,
+  packIntoNode,
+} = usePyramid({
+  store, d, workspaceId, wsCats, catIdx, allResources, thesisCard,
+  viewMode, pyFold, activeCategory, catFlashId, setViewMode, openInputModal,
+  pyDepthOf, pyHeightOf, pyLevelOf, childIds,
+  dragState, onCatDragEnd, clearCardDropTarget,
+  moveMirrorTo, mirrorCatModal, normalizeCatOrders, openCreateCat, openRenameCat, deleteCategory,
+  selectedCards, selectedIds,
+})
+
+// ---- R113-N1：分类行「⋯」溢出菜单（fixed 定位——不被侧栏 overflow-y 裁剪；out-of-flow 不进 flex 布局）----
 // 原实现把 5 个操作图标平铺在分类行上、且 hover 时顶掉计数，用户反馈"入口太多快淹没文件夹"。
 // 现只留「＋ 子分类」与「⋯」，其余四项收进本菜单（主次分明 + 破坏性操作进二级）。
 const catMenu = ref<{ open: boolean; x: number; y: number; cat: Category | null; depth: number; pinned: boolean; canMirror: boolean }>(
@@ -2177,624 +1383,14 @@ function runCatMenu(action: 'pin' | 'mirror' | 'rename' | 'delete') {
   else if (action === 'delete') void deleteCategory(c)
 }
 
-// ---- R113-N1：左侧分类树宽度拖拽（持久化 UIPrefs.wsSideW）----
-// 原实现宽度写死 200px（.ws-sidebar），深层级长分类名必被截断，且项目内其他三处侧栏
-// （CompassHome 的 curSplit / TaskDetailDrawer 的 drawerWs / ProjectCuration 的 projRailW）
-// 都支持拖拽，资源台是唯一例外。此处沿用 px 范式（同 TaskDetailDrawer）。
-const SIDE_W_MIN = 160
-const SIDE_W_MAX = 420
-const SIDE_W_DEF = 200
-const wsSideW = ref<number>(store.ui?.wsSideW || SIDE_W_DEF)
-let sideDrag: { startX: number; startW: number } | null = null
-function onSideResizeMove(e: MouseEvent) {
-  if (!sideDrag) return
-  wsSideW.value = Math.min(SIDE_W_MAX, Math.max(SIDE_W_MIN, sideDrag.startW + (e.clientX - sideDrag.startX)))
+// ===== R88（W3）：工具条分级——「筛选」气泡与 ⚙ 菜单（互斥浮层，留宿主）=====
+const filterPopOpen = ref(false)
+function toggleFilterPop() {
+  const next = !filterPopOpen.value
+  settingsMenuOpen.value = false        // 与 ⚙ 互斥
+  filterPopOpen.value = next
 }
-function onSideResizeUp() {
-  document.removeEventListener('mousemove', onSideResizeMove)
-  document.removeEventListener('mouseup', onSideResizeUp)
-  if (sideDrag) { saveUIPrefs({ wsSideW: wsSideW.value }); sideDrag = null }
-}
-function startSideResize(e: MouseEvent) {
-  sideDrag = { startX: e.clientX, startW: wsSideW.value }
-  document.addEventListener('mousemove', onSideResizeMove)
-  document.addEventListener('mouseup', onSideResizeUp)
-}
-function resetSideWidth() {
-  wsSideW.value = SIDE_W_DEF
-  saveUIPrefs({ wsSideW: SIDE_W_DEF })
-}
-// R48-V2：树状目录展开/折叠（默认全局展开；折叠状态仅会话内记忆）
-const collapsedCats = ref<Set<string>>(new Set())
-function toggleCatCollapse(id: string) {
-  const s = new Set(collapsedCats.value)
-  if (s.has(id)) s.delete(id); else s.add(id)
-  collapsedCats.value = s
-}
-/** 一键收纳为策展台根部：所有含子分类的父级全部折叠 */
-function collapseAllCats() {
-  collapsedCats.value = new Set(wsCats.value.filter(c => catIdx.value.hasChildren(c.id)).map(c => c.id))
-}
-function expandAllCats() { collapsedCats.value = new Set() }
-function selectSidebarCat(sc: SidebarCat) {
-  activeCategory.value = sc.cat.id
-  // 选中深层分类时自动展开其全部祖先，避免「选中被藏住」
-  let pid = sc.cat.parentId
-  const guard = new Set<string>([sc.cat.id])  // R70：防环
-  while (pid && !guard.has(pid) && collapsedCats.value.has(pid)) {
-    guard.add(pid)
-    const s = new Set(collapsedCats.value); s.delete(pid); collapsedCats.value = s
-    pid = wsCats.value.find(c => c.id === pid)?.parentId
-  }
-}
-const sidebarCats = computed<SidebarCat[]>(() => {
-  const out: SidebarCat[] = []
-  const seenSide = new Set<string>()  // R70：防环
-  const pushTree = (c: Category, depth: number, sectionLabel: string) => {
-    if (seenSide.has(c.id)) return
-    seenSide.add(c.id)
-    out.push({
-      cat: c, depth, sectionLabel,
-      hasChildren: catIdx.value.hasChildren(c.id),
-      childCount: childCatsOf(c.id).length,
-      aggCount: catAggCount(c.id),
-      directCount: (resBucket.value.get(c.id) || []).length
-    })
-    if (depth > 0 && collapsedCats.value.has(c.id)) return
-    if (!collapsedCats.value.has(c.id)) for (const k of childCatsOf(c.id)) pushTree(k, depth + 1, '')
-  }
-  pinnedRootCats.value.forEach((c, i) => {
-    pushTree(c, 0, i === 0 ? '📌 置顶' : '')
-  })
-  unpinnedRootCats.value.forEach((c, i) => {
-    pushTree(c, 0, (i === 0 && pinnedRootCats.value.length) ? '📁 分类' : '')
-  })
-  return out
-})
-// ===== R104（纯拆分第五批·收缩版）：分类 CRUD 拆入 useCategoryCrud =====
-// 新建/重命名/删除（含镜像级联清理）/置顶/重复合并 实现随迁；拖拽与侧栏折叠/选择是视图接线，留宿主
-// （与金字塔深度工具、卡片拖拽状态双向咬合，硬拆需先立共享拖拽状态层——登记另立项）。
-const { normalizeCatOrders, catModal, openCreateCat, openRenameCat, catNameDup, confirmCatModal, deleteCategory, toggleCatPin, mergeDupCats } = useCategoryCrud({
-  d, persist: () => store.persist(), workspaceId, wsCats, activeCategory, allResources,
-  pyDepthOf, childCatsOf, catAggCount
-})
-
-// ===== 分类拖拽（第八轮）：同级排序 / 挂子级 / 升一级，防循环，2 级上限 =====
-// 第廿九轮：侧栏分类行同时是资源卡归属落点——按拖起对象分流（卡片→改归属；分类→排序/挂子级）
-let dragCatId: string | null = null
-const catDropTarget = ref('')
-const catDropMode = ref<'' | 'child' | 'before' | 'after'>('')
-/** 卡片拖拽时的目标分类高亮（'分类id' 或 'uncat'） */
-const cardDropTarget = ref('')
-function onUncatDragOver(e: DragEvent) {
-  if (!draggedItem) return
-  e.preventDefault()
-  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
-  cardDropTarget.value = 'uncat'
-}
-function onUncatDrop(e: DragEvent) {
-  e.preventDefault(); e.stopPropagation()
-  cardDropTarget.value = ''
-  if (!draggedItem) return
-  onDropToCategory(e, '')
-}
-function clearCardDropTarget() { cardDropTarget.value = '' }
-onMounted(() => { applyWsView(); window.addEventListener('dragend', clearCardDropTarget); document.addEventListener('click', closeSettingsMenu); document.addEventListener('click', closeFilterPop); window.addEventListener('resize', pyLinksThrottled); document.addEventListener('visibilitychange', onWsOpenVisibility); nextTick(drawPyLinks) })
-// R88（W3）：筛选气泡与 ⚙ 菜单同为"点外部关闭"的浮层，卸载时一并摘掉监听
-// R112：同时补一次热度落盘（组件真正卸载时，节流中的待写数据不能丢）
-onUnmounted(() => { flushWsOpenPersist(); window.removeEventListener('dragend', clearCardDropTarget); window.removeEventListener('resize', pyLinksThrottled); document.removeEventListener('click', closeSettingsMenu); document.removeEventListener('click', closeFilterPop); document.removeEventListener('visibilitychange', onWsOpenVisibility) })
-// R65-F7：resize 重绘节流（150ms 尾随，防拖拽窗口时高频全量重算）
-let pyLinksTimer: ReturnType<typeof setTimeout> | null = null
-function pyLinksThrottled() {
-  if (pyLinksTimer) return
-  pyLinksTimer = setTimeout(() => { pyLinksTimer = null; drawPyLinks() }, 150)
-}
-function onCatDragStart(e: DragEvent, cat: Category) {
-  dragCatId = cat.id
-  e.dataTransfer!.effectAllowed = 'move'
-}
-function onCatDragEnd() {
-  dragCatId = null; catDropTarget.value = ''; catDropMode.value = ''
-}
-function onCatDragOver(e: DragEvent, cat: Category) {
-  // 卡片拖入：整行高亮为归属落点（与分类拖拽的 before/after/child 指示区分）
-  if (draggedItem && !dragCatId) {
-    cardDropTarget.value = cat.id
-    return
-  }
-  if (!dragCatId || dragCatId === cat.id) return
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  const y = e.clientY - rect.top
-  const h = rect.height
-  const dragged = wsCats.value.find(c => c.id === dragCatId)
-  // 中带 + 目标是根分类 + 拖动的也是根分类 → 成为子分类；否则上下沿 = 同级排序
-  if (y > h * 0.3 && y < h * 0.7 && dragged && !dragged.parentId && !cat.parentId) {
-    catDropMode.value = 'child'
-  } else {
-    catDropMode.value = y < h / 2 ? 'before' : 'after'
-  }
-  catDropTarget.value = cat.id
-}
-function onCatDrop(e: DragEvent, cat: Category) {
-  e.preventDefault(); e.stopPropagation()
-  // 卡片落分类 = 改归属（落父分类=归入本级；落子分类=归入该子分类；置顶保留）
-  if (draggedItem && !dragCatId) {
-    cardDropTarget.value = ''
-    onDropToCategory(e, cat.id)
-    return
-  }
-  const mode = catDropMode.value
-  const targetId = catDropTarget.value
-  const draggedId = dragCatId
-  onCatDragEnd()
-  if (!draggedId || draggedId === targetId) return
-  const dragged = wsCats.value.find(c => c.id === draggedId)
-  const target = wsCats.value.find(c => c.id === targetId)
-  if (!dragged || !target) return
-  if (childIds(dragged.id).includes(target.id)) { showToast('不能移动到自己的子分类'); return }
-  // R61-4：层级工具（4 级上限）
-  // R70：层级/高度一律走带 visited 的实现（pyDepthOf 防环上行、pyHeightOf 防环下降）
-  const levelOf = (c: Category): number => pyDepthOf(c) + 1
-  const heightOf = (c: Category): number => pyHeightOf(c)
-  if (mode === 'child') {
-    if (levelOf(target) + heightOf(dragged) > MAX_CAT_LEVEL) { showToast(`ℹ 最多 ${MAX_CAT_LEVEL} 级——「${dragged.name}」（含 ${heightOf(dragged) - 1} 层子级）放入后将超出层级上限`); return }
-    dragged.parentId = target.id
-    dragged.pinned = undefined
-    dragged.order = childCatsOf(target.id).length
-    normalizeCatOrders('')
-    showToast(`✓ 「${dragged.name}」已归入「${target.name}」`)
-  } else {
-    const pid = target.parentId || ''
-    if (dragged.parentId !== (pid || undefined)) dragged.parentId = pid || undefined
-    if (pid) dragged.pinned = undefined
-    const sibs = wsCats.value
-      .filter(c => (c.parentId || '') === pid && c.id !== draggedId)
-      .sort((a, b) => a.order - b.order)
-    const ti = sibs.findIndex(c => c.id === targetId)
-    sibs.splice(mode === 'before' ? ti : ti + 1, 0, dragged)
-    sibs.forEach((c, i) => { c.order = i })
-  }
-  store.persist()
-}
-/** 拖到「升为一级」投放区 = 取消子分类归属（先取引用再清理状态） */
-function onCatRootDrop(e: DragEvent) {
-  e.preventDefault()
-  const draggedId = dragCatId
-  onCatDragEnd()
-  cardDropTarget.value = ''
-  if (!draggedId) return
-  const dragged = wsCats.value.find(c => c.id === draggedId)
-  if (!dragged || !dragged.parentId) return
-  dragged.parentId = undefined
-  dragged.order = rootCats.value.length
-  normalizeCatOrders('')
-  store.persist()
-  showToast(`✓ 「${dragged.name}」已升为一级分类`)
-}
-
-// ===== R102（纯拆分第三批）：卡片整理动作域（批量选择/批量移动/单卡移动/挂载）拆入 useWorkspaceBatch =====
-// 实现原位迁出、零行为变更；标识符经解构保留原绑定——三视图模板（勾选框/batch-bar/移动与挂载弹窗）零改动。
-// ★ 单向挂载红线随迁：挂载只写 task.mountedResourceIds，资源卡零新增反向字段，被谁挂着一律反查 d.tasks。
-const {
-  batchMode, selectedIds, toggleBatchMode, toggleSelect, selectAllVisible, selectedCards, batchOpen, batchDelete,
-  moveModalOpen, moveWsId, moveCatId, moveWorkspaces, moveCatOptions, openBatchMove, confirmBatchMove,
-  moveOneOpen, moveOneCatId, moveOneOptions, openMoveOne, confirmMoveOne,
-  mountOneOpen, mountSearch, mountedTaskCount, isMountedOn, mountTaskOptions, mountProjectName, openMountOne, toggleMountTask, closeMountOne,
-  moveOneTarget, mountTarget,
-} = useWorkspaceBatch({ d, persist: () => store.persist(), workspaceId, wsCats, allResources, allProjects, sortedResources, openResourceLink, treeCatOptions })
-
-// ===== 通用输入弹窗（第八轮：策展台重命名/描述，替代原生 prompt） =====
-const inputModal = ref<{ open: boolean; title: string; value: string; cb: ((v: string) => void) | null }>(
-  { open: false, title: '', value: '', cb: null })
-function openInputModal(title: string, value: string, cb: (v: string) => void) {
-  inputModal.value = { open: true, title, value, cb }
-}
-function confirmInputModal() {
-  const v = inputModal.value.value.trim()
-  if (v && inputModal.value.cb) inputModal.value.cb(v)
-  inputModal.value.open = false
-}
-
-// ===== R62-5/6/8：金字塔视图逻辑 =====
-interface PyNode { cat: Category; depth: number; cards: ResourceCard[] }
-/** 节点深度（根=0）——R70：带 visited 显式防环（此前仅靠「parentId 单向链」的假设） */
-function pyDepthOf(c: Category): number {
-  // R71：改走索引缓存（此前每次沿父链全表 find；本函数在 pyramidLevels 里对每个分类各调一次）
-  return catIdx.value.depthOf(c.id) - 1  // 索引 depthOf 以根=1 计，本函数历史口径根=0
-}
-/** 金字塔层级数据：按分类深度铺开（深度0=L2）；卡片=直属（排除主题卡，主题卡是 L1 根）
- *  R65-F3：各层节点按树先序（DFS）排序——同父节点严格紧邻，兄弟顺序跟随父节点位置 */
-const pyramidLevels = computed<PyNode[][]>(() => {
-  const byDepth = new Map<number, PyNode[]>()
-  for (const c of wsCats.value) {
-    const depth = pyDepthOf(c)
-    if (!byDepth.has(depth)) byDepth.set(depth, [])
-    byDepth.get(depth)!.push({ cat: c, depth, cards: [] })
-  }
-  // R65-F3：树先序遍历序号（同父紧邻的依据）
-  const dfsOrder = new Map<string, number>()
-  let seq = 0
-  const seenDfs = new Set<string>()  // R70：防环
-  const walk = (pid: string) => {
-    for (const c of (pid ? (catIdx.value.childrenOf.get(pid) || []) : catIdx.value.roots)) {
-      if (seenDfs.has(c.id)) continue
-      seenDfs.add(c.id)
-      dfsOrder.set(c.id, seq++)
-      walk(c.id)
-    }
-  }
-  walk('')
-  for (const arr of byDepth.values()) arr.sort((a, b) => (dfsOrder.get(a.cat.id) ?? 0) - (dfsOrder.get(b.cat.id) ?? 0))
-  // R71：先建「分类 id → 节点」表，卡片一次遍历即可归位（此前每张卡都要逐层 arr.find，O(卡数×分类数)）
-  const nodeByCat = new Map<string, PyNode>()
-  for (const arr of byDepth.values()) for (const n of arr) nodeByCat.set(n.cat.id, n)
-  for (const r of allResources.value) {
-    if (r.isThesis) continue
-    nodeByCat.get(r.categoryId)?.cards.push(r)
-  }
-  return [...byDepth.keys()].sort((a, b) => a - b).map(k => byDepth.get(k)!)
-})
-/** R66-F5：居中树布局——叶子节点各占 1 列（树先序），父节点跨「其子组全部列」：
- *  父模块横向恒等于子组横向并居中悬于其上；子组永不跨入其他父节点的横向空间（列独占）；
- *  宽度自适应（列宽 minmax(170px,250px)），整体不占满横向空间。 */
-const pyLayout = computed<{ cols: number; cells: { cat: Category; depth: number; colStart: number; colSpan: number; cards: ResourceCard[] }[] }>(() => {
-  // R98（W7）：层级折叠——超过 maxDepth 的节点不再下钻（按叶子布点）。在布局层收口而非渲染层
-  // v-if 隐藏：父节点的 colSpan 只跨**可见**子组的列，折叠后居中树几何仍然自洽（不会留下空跨列）。
-  const maxDepth = pyFold.value === 'l2' ? 0 : pyFold.value === 'l3' ? 1 : Number.POSITIVE_INFINITY
-  const cardsBy = new Map<string, ResourceCard[]>()
-  for (const r of allResources.value) {
-    if (r.isThesis) continue
-    const arr = cardsBy.get(r.categoryId) || []
-    arr.push(r)
-    cardsBy.set(r.categoryId, arr)
-  }
-  const cells: { cat: Category; depth: number; colStart: number; colSpan: number; cards: ResourceCard[] }[] = []
-  let leafSeq = 0
-  /** R70：visited——环状树不得让后序布点无限递归 */
-  const placed = new Set<string>()
-  /** 后序布点：叶子占新列；父节点跨其子组全部列（列独占，兄弟子树互不侵入） */
-  const placeCat = (cat: Category, depth: number): { start: number; span: number } => {
-    placed.add(cat.id)
-    // R98（W7）：到达折叠深度 → 按叶子收口（子树不入列，父节点自身直属卡照常呈现）
-    const kids = depth >= maxDepth ? [] : (catIdx.value.childrenOf.get(cat.id) || []).filter(x => !placed.has(x.id))
-    if (!kids.length) {
-      const col = leafSeq++
-      cells.push({ cat, depth, colStart: col, colSpan: 1, cards: cardsBy.get(cat.id) || [] })
-      return { start: col, span: 1 }
-    }
-    let start = Infinity
-    let end = -1
-    for (const k of kids) {
-      const sub = placeCat(k, depth + 1)
-      start = Math.min(start, sub.start)
-      end = Math.max(end, sub.start + sub.span - 1)
-    }
-    const span = end - start + 1
-    cells.push({ cat, depth, colStart: start, colSpan: span, cards: cardsBy.get(cat.id) || [] })
-    return { start, span }
-  }
-  for (const root of catIdx.value.roots) placeCat(root, 0)
-  // R70：环内节点无根可达，此前被静默忽略——分类与其卡会从金字塔里凭空消失（数据静默丢失）。
-  // 补一轮纳入布局，保证「树里有多少节点，金字塔里就渲染多少节点」。
-  for (const c of wsCats.value) { if (!placed.has(c.id)) placeCat(c, 0) }
-  return { cols: Math.max(leafSeq, 1), cells }
-})
-/** 同级顺序调整（⟨ 前移 / ⟩ 后移） */
-function moveCatSibling(cat: Category, dir: -1 | 1) {
-  const pid = cat.parentId || ''
-  const sibs = wsCats.value.filter(c => (c.parentId || '') === pid).sort((a, b) => a.order - b.order)
-  const i = sibs.findIndex(c => c.id === cat.id)
-  const j = i + dir
-  if (i < 0 || j < 0 || j >= sibs.length) return
-  const tmp = sibs[i]!; sibs[i] = sibs[j]!; sibs[j] = tmp
-  sibs.forEach((c, k) => { c.order = k })
-  store.persist()
-}
-
-// ===== R65-F3：节点关联资源卡（资源台全量卡选择器 → 镜像到节点）=====
-const linkCardsModal = ref<{ catId: string; catName: string; picked: Set<string> } | null>(null)
-const linkCardsQ = ref('')
-function openLinkCards(cat: Category) {
-  linkCardsQ.value = ''
-  linkCardsModal.value = { catId: cat.id, catName: cat.name, picked: new Set() }
-}
-function toggleLinkPick(id: string) {
-  const m = linkCardsModal.value
-  if (!m) return
-  if (m.picked.has(id)) m.picked.delete(id)
-  else m.picked.add(id)
-}
-/** 候选 = 资源台全部资源卡（关键词过滤）；已镜像到本台的标记「已在该台」不可重选 */
-const linkCandidates = computed<{ r: ResourceCard; mirrored: boolean }[]>(() => {
-  if (!linkCardsModal.value) return []
-  const q = linkCardsQ.value.trim().toLowerCase()
-  const mirroredSet = new Set((d.value.curationProjections || [])
-    .filter(p => p.kind === 'card' && p.targetWsId === workspaceId.value).map(p => p.cardId))
-  return d.value.resources
-    .filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
-    .filter(r => !q || (r.title + ' ' + (r.link || '')).toLowerCase().includes(q))
-    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt)
-    .map(r => ({ r, mirrored: mirroredSet.has(r.id) }))
-})
-function confirmLinkCards() {
-  const m = linkCardsModal.value
-  if (!m) return
-  const targets = [...m.picked].filter(id => !linkCandidates.value.find(c => c.r.id === id)?.mirrored)
-  if (!targets.length) { showToast('未选择可镜像的资源卡'); return }
-  let ok = 0
-  for (const id of targets) {
-    if (projectCardToBoard(d.value, id, workspaceId.value, m.catId)) ok++
-  }
-  store.persist()
-  linkCardsModal.value = null
-  showToast(ok ? `📡 已镜像 ${ok} 张资源卡到「${m.catName}」` : 'ℹ 所选卡片均已在该台镜像中')
-}
-/** 层级上限工具（复用 R61-4 口径：分类最多 4 级） */
-function pyLevelOf(c: Category): number { return pyDepthOf(c) + 1 }
-
-// ===== R64-F11：金字塔 SVG 结构连线（根→L2、父节点→子节点，贝塞尔细线） =====
-const pyWrapRef = ref<HTMLElement | null>(null)
-
-// ===== R110-FS → R113-N5（T10）：金字塔真全屏（宿主上移 .pyramid → .ws-page） =====
-/** 全屏中（真全屏或降级覆盖层） */
-const pyFs = ref(false)
-/** true = 走 CSS fixed 覆盖层（requestFullscreen 不存在或被拒时） */
-const pyFsFallback = ref(false)
-/** R113-N5：全屏宿主 = Workspace 根节点——工具条 / 弹窗 / 抽屉全部纳入全屏子树 */
-const wsPageRef = ref<HTMLElement | null>(null)
-async function enterPyFullscreen() {
-  const el = wsPageRef.value
-  if (!el) return
-  if (typeof el.requestFullscreen === 'function') {
-    try {
-      await el.requestFullscreen()
-      pyFs.value = true
-      pyFsFallback.value = false
-      setOverlayFsHost(el)
-      nextTick(drawPyLinks)
-      return
-    } catch { /* 老浏览器 / 策略拒绝 → 落到降级路线 */ }
-  }
-  pyFsFallback.value = true
-  pyFs.value = true
-  setOverlayFsHost(el)
-  nextTick(drawPyLinks)
-}
-function exitPyFullscreen() {
-  setOverlayFsHost(null)
-  if (pyFsFallback.value) { pyFsFallback.value = false; pyFs.value = false; nextTick(drawPyLinks); return }
-  if (document.fullscreenElement) void document.exitFullscreen().catch(() => { pyFs.value = false })
-  else { pyFs.value = false; nextTick(drawPyLinks) }
-}
-function togglePyFullscreen() { pyFs.value ? exitPyFullscreen() : void enterPyFullscreen() }
-/** 真全屏下 ESC 由浏览器接管，只在状态变化时同步本组件的 pyFs（不手动拦 ESC） */
-function onPyFsChange() {
-  const on = !!document.fullscreenElement
-  if (!on) { pyFs.value = false; pyFsFallback.value = false; setOverlayFsHost(null) }
-  else setOverlayFsHost(wsPageRef.value)
-  nextTick(drawPyLinks)
-}
-/** 降级覆盖层下自行监听 ESC + 锁定背景滚动 */
-function onPyFsKeydown(e: KeyboardEvent) { if (e.key === 'Escape' && pyFsFallback.value) exitPyFullscreen() }
-onMounted(() => {
-  document.addEventListener('fullscreenchange', onPyFsChange)
-  document.addEventListener('keydown', onPyFsKeydown)
-})
-onUnmounted(() => {
-  document.removeEventListener('fullscreenchange', onPyFsChange)
-  document.removeEventListener('keydown', onPyFsKeydown)
-})
-/** 全屏中切走金字塔视图 / 切台 → 退出全屏（否则全屏元素被 v-if 卸载，浏览器层会残留黑屏） */
-watch([viewMode, workspaceId], () => { if (pyFs.value) exitPyFullscreen() })
-
-const pyLinkPaths = ref<string[]>([])
-function drawPyLinks() {
-  const wrap = pyWrapRef.value
-  if (!wrap || viewMode.value !== 'pyramid') { pyLinkPaths.value = []; return }
-  // R66-F5：横向滚动时连线画布覆盖全部滚动区（CSS 不再定宽，由 JS 设定）
-  const svgEl = wrap.querySelector('svg.py-links-svg')
-  if (svgEl) { svgEl.setAttribute('width', String(wrap.scrollWidth)); svgEl.setAttribute('height', String(wrap.scrollHeight)) }
-  const wr = wrap.getBoundingClientRect()
-  const anchor = (el: Element) => {
-    const r = el.getBoundingClientRect()
-    return { x: r.left - wr.left + r.width / 2, top: r.top - wr.top, bottom: r.bottom - wr.top }
-  }
-  const link = (a: { x: number; bottom: number }, b: { x: number; top: number }) => {
-    // R66-F5：横平竖直直角折线（父底中点 ↓ 横移 ↑/↓ 子顶中点），替代贝塞尔曲线
-    const mid = (a.bottom + b.top) / 2
-    return `M ${a.x} ${a.bottom} L ${a.x} ${mid} L ${b.x} ${mid} L ${b.x} ${b.top}`
-  }
-  const lines: string[] = []
-  const allNodes = [...wrap.querySelectorAll('[data-pyid]')] as HTMLElement[]
-  // R114-59：每节点只读一次 rect（原先同一节点最多读 2 次）；分类用 Map 反查
-  // （原先根级 filter 回调里逐节点 wsCats.find，O(节点×分类)——profile 实测该函数单体 505ms，交互窗口最大热点）
-  const anchors = new Map<string, { x: number; top: number; bottom: number }>()
-  for (const el of allNodes) {
-    const r = el.getBoundingClientRect()
-    anchors.set(el.dataset.pyid!, { x: r.left - wr.left + r.width / 2, top: r.top - wr.top, bottom: r.bottom - wr.top })
-  }
-  const catById = new Map(wsCats.value.map(c => [c.id, c]))
-  const rootEl = wrap.querySelector('.py-root-card, .py-root-empty')
-  if (rootEl) {
-    const rc = anchor(rootEl)
-    for (const el of allNodes) {
-      const cat = catById.get(el.dataset.pyid!)
-      if (cat && !cat.parentId) lines.push(link(rc, anchors.get(el.dataset.pyid!)!))
-    }
-  }
-  for (const c of wsCats.value) {
-    if (!c.parentId) continue
-    const pe = anchors.get(c.parentId); const ce = anchors.get(c.id)
-    if (!pe || !ce) continue
-    lines.push(link(pe, ce))
-  }
-  pyLinkPaths.value = lines
-}
-watch([pyLayout, viewMode, thesisCard], () => nextTick(drawPyLinks))
-function pyHeightOf(c: Category, seen = new Set<string>()): number {
-  // R70：带 visited——防环
-  if (seen.has(c.id)) return 1
-  seen.add(c.id)
-  const ch = catIdx.value.childrenOf.get(c.id) || []
-  return ch.length ? Math.max(...ch.map(x => pyHeightOf(x, seen))) + 1 : 1
-}
-// 节点拖拽状态（卡片走 draggedItem；分类走 dragCatId）
-const pyDropTarget = ref('')
-const pyDropMode = ref<'' | 'child' | 'before' | 'after'>('')
-const pyRootDrop = ref(false)
-function onPyDragOver(e: DragEvent, cat: Category) {
-  if (draggedItem && !dragCatId) {
-    // 卡片拖入：整节点高亮为归属落点
-    pyDropTarget.value = cat.id; pyDropMode.value = 'child'
-    return
-  }
-  if (!dragCatId || dragCatId === cat.id) return
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  const y = e.clientY - rect.top
-  pyDropMode.value = y > rect.height * 0.75 ? 'before' : 'child'
-  pyDropTarget.value = cat.id
-}
-function onPyDrop(e: DragEvent, cat: Category) {
-  e.preventDefault(); e.stopPropagation()
-  const targetId = pyDropTarget.value; const mode = pyDropMode.value
-  pyDropTarget.value = ''; pyDropMode.value = ''
-  // ① 卡片落节点 = 改归属（canMountInNode 校验：金字塔节点只挂资源卡）
-  if (draggedItem && !dragCatId) {
-    if (!canMountInNode(draggedItem)) { showToast('⚠ 金字塔节点只允许挂资源卡'); return }
-    if (isMirrorView(draggedItem)) { moveMirrorTo(draggedItem, cat.id) }
-    else {
-      draggedItem.categoryId = cat.id
-      draggedItem.updatedAt = Date.now()
-      store.persist()
-      showToast(`✓ 已挂入「${cat.name}」`)
-    }
-    draggedItem = null
-    clearCardDropTarget()
-    return
-  }
-  // ② 分类落节点：上沿=同级排序，其余=挂子级（成环 + 层级校验）
-  const draggedId = dragCatId
-  onCatDragEnd()
-  if (!draggedId || draggedId === targetId) return
-  const dragged = wsCats.value.find(c => c.id === draggedId)
-  const target = wsCats.value.find(c => c.id === targetId)
-  if (!dragged || !target) return
-  if (childIds(dragged.id).includes(target.id)) { showToast('不能移动到自己的子分类'); return }
-  if (mode === 'before') {
-    moveCatSibling(target, 1) // 空出目标位
-    dragged.parentId = target.parentId || undefined
-    const sibs = wsCats.value.filter(c => (c.parentId || '') === (target.parentId || '') && c.id !== draggedId).sort((a, b) => a.order - b.order)
-    const ti = sibs.findIndex(c => c.id === targetId)
-    sibs.splice(Math.max(0, ti), 0, dragged)
-    sibs.forEach((c, i) => { c.order = i })
-    store.persist()
-    return
-  }
-  if (pyLevelOf(target) + pyHeightOf(dragged) > 4) {
-    showToast(`ℹ 最多 4 级——「${dragged.name}」（含 ${pyHeightOf(dragged) - 1} 层子级）放入后将超出层级上限`)
-    return
-  }
-  dragged.parentId = target.id
-  dragged.pinned = undefined
-  dragged.order = wsCats.value.filter(c => c.parentId === target.id).length - 1
-  normalizeCatOrders('')
-  store.persist()
-  showToast(`✓ 「${dragged.name}」已挂入「${target.name}」`)
-}
-function onPyRootDragOver() {
-  if (!dragCatId) return
-  pyRootDrop.value = true
-}
-/** 根区落点：分类升为一级；卡片拖到根 = 提示（主题卡唯一，不收卡） */
-function onPyRootDrop(e: DragEvent) {
-  e.preventDefault(); e.stopPropagation()
-  pyRootDrop.value = false
-  if (draggedItem && !dragCatId) { showToast('🏛 中心论点位不收卡——请拖到具体节点'); draggedItem = null; return }
-  const draggedId = dragCatId
-  onCatDragEnd()
-  if (!draggedId) return
-  const dragged = wsCats.value.find(c => c.id === draggedId)
-  if (!dragged || !dragged.parentId) return
-  dragged.parentId = undefined
-  dragged.order = rootCats.value.length
-  normalizeCatOrders('')
-  store.persist()
-  showToast(`✓ 「${dragged.name}」已升为一级节点`)
-}
-/** 金字塔节点点击定位：与左侧树联动（选中 + 闪节点） */
-function selectPyNode(cat: Category) {
-  activeCategory.value = cat.id
-  catFlashId.value = cat.id
-  setTimeout(() => { if (catFlashId.value === cat.id) catFlashId.value = null }, 1600)
-}
-
-// ===== R62-6：节点菜单（⋯ 6 项） =====
-const nodeMenu = ref<{ open: boolean; x: number; y: number; catId: string }>({ open: false, x: 0, y: 0, catId: '' })
-function openNodeMenu(e: MouseEvent, cat: Category) {
-  nodeMenu.value = { open: true, x: Math.min(e.clientX, window.innerWidth - 230), y: Math.min(e.clientY, window.innerHeight - 240), catId: cat.id }
-}
-function nmCat(): Category | null { return wsCats.value.find(c => c.id === nodeMenu.value.catId) || null }
-function nmCreateChild() {
-  const cat = nmCat(); nodeMenu.value.open = false
-  if (cat) openCreateCat(cat.id)
-}
-function nmCreateSibling() {
-  const cat = nmCat(); nodeMenu.value.open = false
-  if (cat) openCreateCat(cat.parentId || '')
-}
-function nmMirrorCat() {
-  nodeMenu.value.open = false
-  mirrorCatModal.value = { open: true, catId: '' }
-}
-function nmPack() {
-  const cat = nmCat(); nodeMenu.value.open = false
-  packIntoNode(cat || undefined)
-}
-function nmRename() {
-  const cat = nmCat(); nodeMenu.value.open = false
-  if (cat) openRenameCat(cat)
-}
-async function nmDelete() {
-  const cat = nmCat(); nodeMenu.value.open = false
-  if (cat) await deleteCategory(cat)
-}
-/** R62-6：打包所选卡片成节点（batchBar / 节点菜单共用；入参节点 = 挂其下，否则建一级） */
-function packIntoNode(parentCat?: Category) {
-  const natives = selectedCards().filter(r => !isMirrorView(r))
-  if (!selectedIds.value.size) { showToast('请先开启「☑ 批量管理」选择卡片'); return }
-  if (!natives.length) { showToast('📡 所选均为镜像卡，打包请在资源台操作'); return }
-  const mirrorNote = selectedIds.value.size - natives.length
-  openInputModal(parentCat ? `🗂 新节点（挂「${parentCat.name}」下）` : '🗂 新节点（一级）', '', (name) => {
-    if (parentCat && pyLevelOf(parentCat) + 1 > 4) { showToast('ℹ 最多 4 级——该节点已处于最深层'); return }
-    const siblings = wsCats.value.filter(c => (c.parentId || '') === (parentCat?.id || ''))
-    const cat: Category = { id: uid('cat'), workspaceId: workspaceId.value, name, order: siblings.length, parentId: parentCat?.id || undefined }
-    d.value.categories.push(cat)
-    natives.forEach(r => { r.categoryId = cat.id; r.updatedAt = Date.now() })
-    store.persist()
-    selectedIds.value.clear()
-    showToast(`✓ 已打包 ${natives.length} 张卡入「${name}」${mirrorNote ? `（${mirrorNote} 张镜像卡未移动）` : ''}`)
-  })
-}
-
-// ===== R103（纯拆分第四批）：镜像域拆入 useWorkspaceMirror =====
-// 引用侧（移出镜像/落点更新/定位源卡）+ 推送侧（单卡 📡/分类 📤）+ 拉取侧（分类镜像到本台）
-// 实现原位迁出、零行为变更；标识符经解构保留原绑定——模板零改动。
-const {
-  isMirrorCat, moveMirrorTo, removeMirror, locateMirrorSource,
-  boards, mirrorPushModal, openMirrorCard, openMirrorCat, mirrorPushTargetCats, confirmMirrorPush,
-  mirrorCatModal, hubCatOptions, confirmMirrorCat
-} = useWorkspaceMirror({ d, workspaceId, categories, router, treeCatOptions, persist: () => store.persist() })
-
-// ===== R100（纯拆分第一批）：导入三链路（数据包 / 书签 / 本地文件）拆入 useWorkspaceImport =====
-// 实现原位迁出、零行为变更；标识符经解构保留原绑定——模板与既有断言的入口面不变（04-49 任务书）。
-const {
-  importModalOpen, boardImportInput,
-  bookmarkInput, fileImportInput, bookmarkModalOpen, bkFolders,
-  allBkChecked, bkTotalCount,
-  handleBoardImport, handleBookmarkImport, confirmBookmarkImport, toggleAllBk,
-  fileImport, handleFileImport, makeHubResource
-} = useWorkspaceImport({ d, workspaceId, newCardCatId, persist: () => store.persist() })
-
+function closeFilterPop() { filterPopOpen.value = false }
 // ===== 设置菜单 =====
 const settingsMenuOpen = ref(false)
 function closeSettingsMenu() { settingsMenuOpen.value = false }
@@ -2810,8 +1406,17 @@ function openImport() {
   importModalOpen.value = true
 }
 
+onMounted(() => { applyWsView(); window.addEventListener('dragend', clearCardDropTarget); document.addEventListener('click', closeSettingsMenu); document.addEventListener('click', closeFilterPop); window.addEventListener('resize', pyLinksThrottled); document.addEventListener('visibilitychange', onWsOpenVisibility); nextTick(drawPyLinks) })
+// R88（W3）：筛选气泡与 ⚙ 菜单同为"点外部关闭"的浮层，卸载时一并摘掉监听
+// R112：同时补一次热度落盘（组件真正卸载时，节流中的待写数据不能丢）
+onUnmounted(() => { flushWsOpenPersist(); window.removeEventListener('dragend', clearCardDropTarget); window.removeEventListener('resize', pyLinksThrottled); document.removeEventListener('click', closeSettingsMenu); document.removeEventListener('click', closeFilterPop); document.removeEventListener('visibilitychange', onWsOpenVisibility) })
+
 // ===== 设置菜单关闭 + 采集跳转高亮 =====
 const highlightId = ref<string | null>(null)
+// ===== R115 拆分接线：附件卫生域（R110-BUG2 跨台判定/定位/清理）=====
+const { cardExistsGlobally, referencedAssetIds, onDrillLocateAsset, onDrillCleanupAsset, onDrillCleanupOrphans } = useWsAssetHygiene({
+  store, d, workspaceId, router, drillOpen, activeCategory, viewMode, highlightId,
+})
 // 第廿九轮：document click / window dragend 监听统一在上方 onMounted 注册
 
 watch(() => route.query.hl, (hl) => {
@@ -2832,7 +1437,6 @@ watch(() => route.query.hl, (hl) => {
 
 // ===== R49-G3：全局检索分类定位（/workspace/:id?cat=xx）=====
 // 有卡 → 选中分类 + 高亮该分类下第一张卡；无卡 → 展开 + 高亮分类行本身
-const catFlashId = ref<string | null>(null)
 watch(() => route.query.cat, (cat) => {
   if (!cat || typeof cat !== 'string' || typeof route.query.hl === 'string') return
   const c = categories.value.find(x => x.id === cat)
@@ -2859,110 +1463,12 @@ watch(() => route.query.cat, (cat) => {
   router.replace({ path: route.path })
 }, { immediate: true })
 
-// ===== Hero 编辑 =====
-/** B32：名称展示统一剥离 icon 前缀（数据约定：name 首段为图标） */
-const wsDisplayName = computed(() => (workspace.value?.name || '').replace(/^[^\s]+\s/, ''))
-function onNameBlur(e: FocusEvent) {
-  const name = (e.target as HTMLElement).textContent?.trim()
-  if (name && workspace.value) {
-    // 保持「图标前缀 + 名称」的数据约定，同步回写
-    workspace.value.name = (workspace.value.icon ? workspace.value.icon + ' ' : '') + name
-    store.persist()
-  }
-}
-function onNameEnter(e: KeyboardEvent) { (e.target as HTMLElement).blur() }
-
-// ===== B32：图标管理 =====
-const WS_ICONS = ['💼', '🛠', '📚', '🎨', '🔬', '🌱', '✍️', '🎯', '🏠', '❤️', '⭐', '🔥', '💡', '📈', '🧠', '🚀', '🎵', '🏀', '🍎', '🌿', '🐘', '🦊', '🐳', '📌']
-const iconPickOpen = ref(false)
-const iconCustom = ref('')
-const iconPickPos = ref({ left: 0, top: 0 })
-function toggleIconPick(e: MouseEvent) {
-  iconPickOpen.value = !iconPickOpen.value
-  if (iconPickOpen.value) {
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    iconPickPos.value = {
-      left: Math.min(r.left, window.innerWidth - 290),
-      top: Math.min(r.bottom + 8, window.innerHeight - 320)
-    }
-  }
-}
-function setWsIcon(icon: string) {
-  if (!workspace.value) return
-  if (icon && !/^\p{Extended_Pictographic}$/u.test(icon)) { showToast('请输入单个 emoji 图标'); return }
-  const raw = workspace.value.name.replace(/^[^\s]+\s/, '')
-  workspace.value.icon = icon || ''
-  workspace.value.name = (icon ? icon + ' ' : '') + raw
-  store.persist()
-  iconPickOpen.value = false
-  iconCustom.value = ''
-  showToast(icon ? '✓ 图标已更新' : '已删除图标（导航将显示默认图标）')
-}
-function onDescBlur(e: FocusEvent) {
-  const desc = (e.target as HTMLElement).textContent?.trim()
-  if (workspace.value) { workspace.value.desc = desc || ''; store.persist() }
-}
-function onDescEnter(e: KeyboardEvent) { (e.target as HTMLElement).blur() }
-function renameWs() {
-  const raw = workspace.value?.name || ''
-  const current = raw.replace(/^[^\s]+\s/, '')
-  settingsMenuOpen.value = false
-  openInputModal('✏️ 重命名策展台', current, (v) => {
-    if (!workspace.value) return
-    workspace.value.name = (workspace.value.icon ? workspace.value.icon + ' ' : '') + v
-    store.persist()
-    showToast('✓ 已重命名')
-  })
-}
-function editDesc() {
-  settingsMenuOpen.value = false
-  openInputModal('📝 编辑策展台描述', workspace.value?.desc || '', (v) => {
-    if (!workspace.value) return
-    workspace.value.desc = v
-    store.persist()
-    showToast('✓ 描述已更新')
-  })
-}
-function exportWorkspace() {
-  const ws = workspace.value
-  if (!ws) return
-  const wsId = workspaceId.value
-  // R56-I：改为 AppData 子集同构导出——旧自定义形状 {workspace,categories,resources} 缺 version/tagTree/
-  // tasks/curiosities/compass/stats，导入端版本校验直接拒绝，标签体系等全局数据随之丢失。
-  // 现为 ...d 全量展开（全局段随行）+ 策展台段按当前台过滤；导出物可直接走「导入数据」并集合并。
-  // R70：剥离 Airtable 凭证与映射——导出物会被分享/传网盘，明文 PAT 泄露＝对方可读写用户 Base。
-  // 与设置页「导出数据」同口径：数据可带走，凭证不随行。
-  const rootForExport = { ...d.value } as Record<string, unknown>
-  delete rootForExport.airtableSync
-  const data = JSON.parse(JSON.stringify({
-    ...rootForExport,
-    workspaces: [ws],
-    categories: d.value.categories.filter(c => c.workspaceId === wsId),
-    resources: d.value.resources.filter(r => r.workspaceId === wsId)
-  })) as AppData
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url; a.download = `${ws.name}_数据.json`
-  a.click(); URL.revokeObjectURL(url)
-  showToast('✓ 策展台数据已导出（含标签树/罗盘/任务/好奇心等全局段）')
-  settingsMenuOpen.value = false
-}
-async function deleteWorkspace() {
-  // R58-B1：资源台是全局策展空间，不可从此入口删除
-  if (workspaceId.value === CURATION_WS_ID) { showToast('ℹ 资源台为系统空间，不在此删除'); return }
-  // R58-B1：红线修复——资源卡一律软删（deletedAt，回收站可恢复），不再物理移除
-  if (!(await useConfirm({ title: '删除策展台', message: `确定删除策展台「${workspace.value?.name.replace(/^[^\s]+\s/, '')}」？\n其中资源卡将全部移入回收站（可恢复），分类与策展台本身将删除且不可恢复。`, confirmText: '确认删除' }))) return
-  const idx = d.value.workspaces.findIndex(w => w.id === workspaceId.value)
-  if (idx >= 0) d.value.workspaces.splice(idx, 1)
-  const now = Date.now()
-  for (const r of d.value.resources) if (r.workspaceId === workspaceId.value && !r.deletedAt) r.deletedAt = now
-  for (const c of d.value.categories) if (c.workspaceId === workspaceId.value && !c.deletedAt) c.deletedAt = now // R109（F12-b）：分类随台软删（回收站可恢复）
-  store.persist()
-  showToast('策展台已删除（资源卡已移入回收站）')
-  router.push('/compass')
-}
-
+// ===== R115 拆分接线：台元信息域（台名/图标/描述/重命名/导出/删除）=====
+const {
+  wsDisplayName, onNameBlur, onNameEnter,
+  WS_ICONS, iconPickOpen, iconCustom, iconPickPos, toggleIconPick, setWsIcon,
+  onDescBlur, onDescEnter, renameWs, editDesc, exportWorkspace, deleteWorkspace,
+} = useWsMeta({ store, d, workspaceId, workspace, router, settingsMenuOpen, openInputModal })
 // ===== 分类管理（第八轮：新建/重命名/删除入口统一到左栏与应用内弹窗） =====
 
 // ===== 链接显示 =====
@@ -2976,513 +1482,7 @@ function linkDisplay(link: string) {
 }
 
 // ===== 工具 =====
-// uid 已从 @/shared/utils 导入（此前为本地重复实现，已统一）
+// uid 已从 @/shared/utils 导入（此前为本地重复实现，已统一；R115 随域迁入各 composable）
 </script>
 
-<style scoped>
-/* R108（F10）：资源台/策展台容器与调度台/方向台统一（1440 居中 + 24px 边距）——三页切换无左右跳动感 */
-.ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; }
-.ws-empty { display: flex; align-items: center; justify-content: center; height: 100vh; color: var(--text-3); }
-
-/* R73-S5a：资源台页头（R64-F13 删掉 hero 大标题后，hub 一直没有页面标题；
-    R16 收敛后 CurationCenter 的 crumb 也不再出现 ⇒ 在此补回） */
-/* R84（W1）：台身份页头——图标 + 台名 + 台描述 + 右端结构摘要（一行 ≤40px，所有台都渲染）。
-   改前只有资源台一段写死的 .ws-hub-head（padding 18/14 ⇒ 约 60px 高），策展台零页头。 */
-.ws-id-head { display: flex; align-items: center; gap: 8px; min-height: 34px; max-height: 40px; padding: 6px 0 8px; overflow: hidden; }
-.wsh-icon { flex-shrink: 0; font-size: 16px; line-height: 1; }
-/* 19px 沿用 R51-F11「页头标题统一放大」的既有规范（三主页面 + 项目详情/方向树 crumb 同款），
-   不另起字号；19px 行高 ≈23px + padding 14px = 37px，仍在 W1 的 ≤40px 之内 */
-.wsh-name { flex-shrink: 0; font-size: 19px; letter-spacing: .3px; font-weight: 700; color: var(--text); }
-.wsh-desc { flex: 1; min-width: 0; font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.wsh-summary { flex-shrink: 0; margin-left: auto; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
-/* R98（W8）：页头「更新 X」摘要——自指标条降级而来，保留流水下钻入口 */
-.wsh-upd { cursor: pointer; }
-.wsh-upd:hover { color: var(--accent); }
-/* R98（W7）：金字塔层级折叠控制条——右对齐一行，档位沿用分段控件惯例（tokens 令牌，零硬编码色） */
-.py-fold { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin: 0 0 8px; }
-.py-fold-label { font-size: 11px; color: var(--text-3); }
-.py-fold-btn { font-size: 11px; color: var(--text-3); background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 2px 10px; cursor: pointer; font-family: inherit; transition: all .15s; }
-.py-fold-btn:hover { color: var(--accent); border-color: var(--accent); }
-.py-fold-btn.on { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
-/* R90（R8-①/③）：ⓘ 定位语（fallback 降为 tooltip 后的落点）与 ? 教学气泡触发点。
-   页头高度锁 40px，故两点都做成 ≤16px 的行内元素，不新增行高 */
-.wsh-locator { flex-shrink: 0; font-size: 11px; color: var(--text-3); cursor: help; }
-.wsh-help { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; margin-left: 6px; border: 1px solid var(--border); border-radius: 50%; font-size: 9.5px; line-height: 1; color: var(--text-3); background: var(--surface-2); cursor: help; }
-.wsh-help:hover { color: var(--accent); border-color: var(--accent); }
-/* R84（W2-①）：中心论点横幅（卡片视图顶部）——已设立 / 未设立两态 */
-.thesis-banner { display: flex; align-items: center; gap: 8px; height: 34px; margin-bottom: 10px; padding: 0 12px; background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); border-radius: var(--radius-sm); }
-.thesis-banner.empty { background: var(--surface-2); border-color: var(--border); }
-.tb-mark { flex-shrink: 0; font-size: 13px; }
-.tb-label { flex-shrink: 0; font-size: 10px; font-weight: 700; letter-spacing: .5px; color: var(--accent); background: var(--accent-light); padding: 2px 7px; border-radius: 99px; }
-.tb-title { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.tb-title:hover { color: var(--accent); }
-.tb-go { flex-shrink: 0; font-size: 11px; color: var(--accent); cursor: pointer; white-space: nowrap; }
-.tb-go:hover { text-decoration: underline; }
-.tb-hint { flex: 1; min-width: 0; font-size: 11.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* Hero 已删（R64-F13：大标题区移除，编辑入口收进 ⚙ 菜单）——仅保留图标管理弹层样式 */
-.ws-icon-btn { cursor: pointer; border-radius: 8px; padding: 2px 7px; transition: background .15s; }
-.ws-icon-btn:hover { background: var(--surface-3); }
-.icon-pick-mask { position: fixed; inset: 0; z-index: 690; }
-.icon-pick { position: fixed; z-index: 691; width: 272px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 14px; animation: ipIn .18s cubic-bezier(.16,1,.3,1); }
-@keyframes ipIn { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
-.ip-title { font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
-.ip-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin-bottom: 10px; }
-.ip-cell { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 16px; border-radius: 6px; cursor: pointer; transition: all .12s; border: 1px solid transparent; }
-.ip-cell:hover { background: var(--surface-3); }
-.ip-cell.on { background: var(--accent-light); border-color: var(--accent); }
-.ip-custom { display: flex; gap: 6px; margin-bottom: 10px; }
-.ip-input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; background: var(--surface); color: var(--text); outline: none; font-family: inherit; }
-.ip-input:focus { border-color: var(--accent); }
-.ip-btn { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
-.ip-btn:hover { background: var(--accent-hover); }
-.ip-btn.ghost { background: var(--surface); border-color: var(--border); color: var(--text-2); flex: 1; }
-.ip-btn.ghost:hover { border-color: var(--accent); color: var(--accent); background: var(--surface); }
-.ip-foot { display: flex; gap: 8px; }
-.name-text { outline: none; border-radius: 4px; padding: 2px 4px; }
-.name-text:focus { background: rgba(255,255,255,.15); }
-/* hero-btn 保留（R64 上移工具条继续使用） */
-.hero-btn { padding: 6px 14px; border-radius: 8px; font-size: 12px; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 5px; font-weight: 500; border: none; }
-.hero-btn.primary { background: var(--accent); color: #fff; }
-.hero-btn.primary:hover { background: var(--accent-hover); }
-.hero-btn.ghost { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
-.hero-btn.ghost:hover { background: var(--surface-3); color: var(--text); }
-.hero-btn.settings { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); padding: 6px 10px; }
-.hero-btn.settings:hover { background: var(--surface-3); color: var(--text); }
-
-/* 设置菜单（R64：hero 删除后上移至工具条下方） */
-.settings-menu { position: fixed; top: 54px; right: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 36px rgba(0,0,0,.12); z-index: 60; min-width: 190px; overflow: hidden; display: none; }
-.settings-menu.open { display: block; }
-.sm-item { padding: 9px 14px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: all .1s; display: flex; align-items: center; gap: 8px; }
-.sm-item:hover { background: var(--surface-3); color: var(--text); }
-.sm-item.danger { color: var(--danger); }
-.sm-item.danger:hover { background: var(--tag-danger-bg); }
-.sm-divider { height: 1px; background: var(--border); margin: 4px 0; }
-.cover-swatch:hover { background: var(--surface-3); }
-.cover-swatch.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
-
-/* 工具条 */
-.ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; padding: 14px 0; border-bottom: 1px solid var(--border); background: var(--bg); }
-/* R110-LC（T3）：归档卡降级提示条（可点开生命周期面板查看 / 恢复） */
-.ws-archived-hint { margin: 8px 0 0; padding: 7px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: 11.5px; color: var(--text-3); cursor: pointer; transition: all .15s; }
-.ws-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
-.view-tabs { display: flex; background: var(--surface-2); border-radius: 8px; padding: 3px; gap: 2px; }
-.view-tab { padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; color: var(--text-2); transition: all .15s; display: flex; align-items: center; gap: 4px; }
-.view-tab:hover { color: var(--text); }
-.view-tab.active { background: var(--surface); color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
-.toolbar-select { padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); font-size: 11.5px; color: var(--text-2); cursor: pointer; outline: none; transition: all .15s; }
-.sort-dir-btn { font-family: inherit; white-space: nowrap; }
-.sort-dir-btn:hover { border-color: var(--accent); color: var(--text-1); }
-.toolbar-select:hover { border-color: var(--accent); color: var(--accent); }
-/* R90（R8-②）：右推职责交给 .toolbar-spacer（主 CTA 前置后，搜索不再是第一个右端元素） */
-.toolbar-spacer { flex: 1; }
-.toolbar-search { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); transition: all .15s; }
-.toolbar-search:focus-within { border-color: var(--accent); }
-.toolbar-search input { border: none; outline: none; font-size: 12px; width: 160px; background: transparent; color: var(--text); }
-.toolbar-search .s-icon { color: var(--text-3); font-size: 13px; }
-.toolbar-batch { padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; white-space: nowrap; }
-.toolbar-batch:hover { border-color: var(--accent); color: var(--accent); }
-.toolbar-batch.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); font-weight: 600; }
-/* R88（W3）：筛选触发按钮 + 气泡（一级只留这一颗，其余四项收进气泡） */
-.filter-wrap { position: relative; display: flex; align-items: center; }
-.toolbar-filter { display: flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; white-space: nowrap; }
-.toolbar-filter:hover { border-color: var(--accent); color: var(--accent); }
-.toolbar-filter.on { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-.tf-main { flex-shrink: 0; }
-.tf-chip { font-size: 9.5px; padding: 1px 5px; border-radius: 99px; background: var(--surface-3); color: var(--text-3); max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.toolbar-filter.on .tf-chip { background: var(--surface); color: var(--accent); }
-.tf-chip.more { font-weight: 600; }
-/* 气泡用相对定位（.ws-page / .ws-toolbar 均无 overflow:hidden），跟随触发按钮 */
-.filter-pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; min-width: 268px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 36px rgba(0,0,0,.12); padding: 10px 12px; display: none; flex-direction: column; gap: 9px; }
-.filter-pop.open { display: flex; }
-.fp-row { display: flex; align-items: center; gap: 8px; }
-.fp-label { width: 28px; flex-shrink: 0; font-size: 10.5px; color: var(--text-3); }
-.fp-row .toolbar-select { flex: 1; min-width: 0; }
-.fp-foot { display: flex; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 7px; }
-.fp-reset { font-size: 11px; color: var(--text-3); cursor: pointer; }
-.fp-reset:hover { color: var(--accent); }
-
-/* Body */
-/* R109（F13）：单一滚动域——顶部模块移入 ws-content 后，行布局容器不再需要魔法高度 */
-.ws-columns { display: flex; align-items: flex-start; }
-
-/* 侧边栏（R48-V2：Linear 风格树——紧凑行高、缩进导轨、chevron 旋转、弱化计数） */
-.ws-sidebar { width: 200px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--surface); padding: 10px 10px 14px; overflow-y: auto; }
-/* R113-N1：分类树宽度拖拽分隔条（4px 热区，hover/拖拽中高亮） */
-.ws-side-split { width: 4px; flex-shrink: 0; margin-left: -2px; cursor: col-resize; border-radius: 2px; transition: background .12s; z-index: 5; }
-.ws-side-split:hover, .ws-side-split:active { background: var(--accent); opacity: .55; }
-.cat-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px 8px; }
-.cat-toolbar .ct-label { font-size: 10px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; }
-.cat-toolbar .ct-actions { display: inline-flex; gap: 2px; }
-.cat-toolbar .ct-btn { font-size: 10.5px; color: var(--text-3); padding: 2px 6px; border-radius: 5px; cursor: pointer; transition: all .12s; }
-.cat-toolbar .ct-btn:hover { color: var(--accent); background: var(--accent-light); }
-.cat-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: background .1s, color .1s; margin-bottom: 1px; }
-.cat-item:hover { background: var(--surface-3); color: var(--text); }
-.cat-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
-/* 第廿九轮：卡片拖入分类行的归属落点高亮（与分类拖拽指示区分） */
-.cat-item.card-drop { background: var(--accent-light); color: var(--accent); font-weight: 600; box-shadow: inset 0 0 0 1px var(--accent); }
-.cat-item .cat-icon { font-size: 12.5px; flex-shrink: 0; }
-.cat-item .cat-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cat-item .cat-count { font-size: 10px; color: var(--text-3); background: transparent; padding: 1px 6px; border-radius: 99px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.cat-item:hover .cat-count { background: var(--surface-2); }
-.cat-item.active .cat-count { color: var(--accent); font-weight: 600; }
-.cat-add { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: 11.5px; color: var(--text-3); cursor: pointer; transition: all .1s; margin-top: 6px; }
-.cat-add:hover { color: var(--accent); background: var(--accent-light); }
-.cat-merge { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: 11.5px; color: var(--text-3); cursor: pointer; transition: all .1s; border: 1px dashed var(--border); margin-top: 4px; }
-.cat-merge:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
-.cat-divider { height: 1px; background: var(--border); margin: 8px 10px; }
-/* 第八轮：分类树 + 置顶分区 + 拖拽指示 + hover 操作 */
-.cat-section-label { font-size: 10px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding: 8px 8px 4px; }
-/* R48-V2：Linear 风格树——子级缩进 + 左侧导轨线；caret 点击展开/折叠（旋转过渡） */
-.cat-item.sub { margin-left: 12px; position: relative; padding-left: 14px; }
-.cat-item.sub::before { content: ''; position: absolute; left: 4px; top: 0; bottom: 0; width: 1px; background: var(--border); }
-.cat-caret { width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; color: var(--text-3); flex-shrink: 0; line-height: 1; cursor: pointer; border-radius: 4px; transition: transform .15s ease, background .12s; margin-left: -4px; }
-.cat-caret:hover { background: var(--surface-3); color: var(--text); }
-.cat-caret.open { transform: rotate(90deg); }
-.cat-caret.placeholder { cursor: default; }
-.cat-item.collapsed { color: var(--text-2); }
-/* R113-N1：分类行动作收敛——hover 只出「＋」「⋯」两项；计数恢复常驻
-   （原 :hover 时 .cat-count 被 display:none 顶掉，长分类名还会被 5 个图标挤没） */
-.cat-item .cat-actions { display: none; gap: 2px; flex-shrink: 0; }
-.cat-item:hover .cat-actions { display: inline-flex; }
-.cat-act { width: 18px; height: 18px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-3); cursor: pointer; }
-.cat-act:hover { background: var(--surface); color: var(--text); }
-.cat-act.on { color: var(--accent); }
-.cat-act.more { font-size: 12px; font-weight: 700; line-height: 1; }
-.cat-act.more:hover { color: var(--accent); }
-/* R113-N1：分类行「⋯」溢出菜单（置顶 / 镜像 / 重命名 / 删除） */
-.ctm-mask { position: fixed; inset: 0; z-index: 690; }
-.ctm { position: fixed; z-index: 691; min-width: 160px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; }
-.ctm-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 7px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: all .12s; }
-.ctm-item:hover { background: var(--surface-3); color: var(--text); }
-.ctm-item.danger:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
-.ctm-sep { height: 1px; background: var(--border); margin: 5px 4px; }
-.cat-item.drop-child { background: var(--accent-light); box-shadow: inset 0 0 0 1.5px var(--accent); }
-.cat-item.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
-.cat-item.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
-.cat-root-drop { margin: 8px 0 2px; padding: 8px 10px; border: 1.5px dashed var(--accent); border-radius: 6px; font-size: 11px; color: var(--accent); text-align: center; background: var(--accent-light); }
-.ws-modal-input { width: 100%; padding: 10px 13px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--surface); color: var(--text); outline: none; font-family: inherit; transition: all .15s; }
-.ws-modal-input.dup { border-color: #e5484d; box-shadow: 0 0 0 2px color-mix(in srgb, #e5484d 15%, transparent); }
-.ws-modal-error { color: #e5484d; font-size: 12px; margin-top: 6px; }
-.ws-modal-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
-.ws-modal-hint { margin-top: 8px; font-size: 11px; color: var(--text-3); }
-
-/* 内容区 */
-.ws-content { flex: 1; min-width: 0; padding: 20px 24px 90px; overflow-y: auto; }
-
-/* 分区标签（置顶区/非置顶区） */
-.section-label { font-size: 12px; font-weight: 600; color: var(--text-2); margin: 4px 0 10px; padding-left: 2px; }
-.card-grid + .section-label, .res-list + .section-label { margin-top: 22px; }
-/* REQ-027：分组分区标题（点击折叠/展开 F-027-4） */
-.ws-cat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer;
-  user-select: none; border-radius: 8px; padding: 6px 10px; margin-left: -10px; margin-right: -10px;
-  transition: background .15s ease; }
-.ws-cat-head:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
-.ws-cat-collapse { font-size: 10px; color: var(--text-4); transition: transform .18s ease; }
-
-/* 卡片视图（第卅三轮 REQ-026：间距/内边距/最小宽引用 tokens 密度令牌，一处切换全局生效） */
-/* R72→R106（F3）：卡片视图列数由 --grid-cols 驱动（4/5/6/7），精确 N 列 + 卡片宽度自适应收缩（密度档经 --card-gap 保持） */
-.card-grid { display: grid; /* R106（F3）：精确 N 列（同 F3 口径，资源台/策展台共用） */ grid-template-columns: repeat(var(--grid-cols, 5), minmax(0, 1fr)); gap: var(--card-gap); }
-.res-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
-.res-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.res-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: var(--card-pad-vert) var(--card-pad-horz); cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; min-height: 120px; min-width: 0; overflow: hidden; /* R107（F8）：内容自适应——防长标题/长链接撑破轨道致列宽不一 */ /* R55-F4：屏外卡片跳过渲染（切策展台 595ms 的渲染段优化） */ content-visibility: auto; contain-intrinsic-size: auto 132px; }
-.res-card:hover { border-color: var(--accent); background: var(--surface-2); }
-.res-card.selected { border-color: var(--accent); background: var(--accent-light); }
-.res-card.pinned { border-left: 3px solid var(--accent); }
-.rc-batch-check { position: absolute; top: 10px; left: 10px; width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-strong); background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 11px; color: #fff; z-index: 3; }
-.rc-batch-check.on { background: var(--accent); border-color: var(--accent); }
-.res-card-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 3px; opacity: 0; transition: opacity .15s; z-index: 2; }
-.res-card:hover .res-card-actions { opacity: 1; }
-.rc-action { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: 12px; color: var(--text-3); cursor: pointer; transition: all .1s; background: var(--surface); }
-.rc-action:hover { background: var(--surface-3); color: var(--text); }
-.rc-action.pin:hover { color: var(--accent); }
-/* R79（R1 收尾）：↗ 打开用链接蓝，与「开链接」语义呼应；六动作里只有 pin 用强调色，主色仍稀缺 */
-.rc-action.open:hover, .rr-action.open:hover, .kc-action.open:hover { color: var(--info-blue); }
-.rc-action.delete:hover { color: var(--danger); }
-.rc-fields { display: flex; flex-direction: column; gap: 5px; flex: 1; }
-.rc-title { font-size: 13.5px; font-weight: 600; color: var(--text); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-right: 20px; }
-/* R61：镜像卡徽标 */
-.rc-mirror-badge { display: inline-block; font-size: 10px; margin-right: 4px; opacity: .85; filter: saturate(.9); }
-.rc-summary { font-size: 11.5px; color: var(--text-3); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.rc-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.rc-tag { font-size: 10px; padding: 2px 7px; border-radius: 99px; background: var(--accent-light); color: var(--accent); }
-.rc-src { font-size: 10px; padding: 1px 8px; border-radius: 99px; background: var(--tag-info-bg); color: var(--tag-info-text); align-self: flex-start; font-weight: 500; }
-.rc-date { font-size: 10px; color: var(--text-3); }
-.rc-assets { margin-top: 1px; }
-.rc-custom { font-size: 11px; color: var(--text-2); }
-.rc-custom span { color: var(--text-3); margin-right: 4px; }
-.rc-footer { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
-.rc-cat { font-size: 10px; color: var(--accent); background: var(--accent-light); padding: 2px 8px; border-radius: 99px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; cursor: pointer; flex-shrink: 0; }
-/* R64-F9：子分类分组标题弱化样式（层级由缩进表达） */
-.ws-cat-head.sub span { color: var(--text-3); font-weight: 500; }
-.rc-cat:hover { background: var(--accent); color: #fff; }
-.rc-link { font-size: 10.5px; color: var(--text-3); display: flex; align-items: center; gap: 3px; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rc-link.url { color: var(--info-blue); }
-.rc-link.file { color: var(--curio-amber); }
-.rc-link.obsidian { color: var(--violet); }
-.rc-calls { font-size: 10px; color: var(--curio-amber); background: var(--curio-bg); padding: 1px 7px; border-radius: 99px; font-weight: 500; }
-/* R79（R1-列/看）：列表与看板的调用次数徽章——同一条规则覆盖两个类，与卡片 .rc-calls 同色同形 */
-.rr-calls, .kc-calls { font-size: 10px; color: var(--curio-amber); background: var(--curio-bg); padding: 1px 7px; border-radius: 99px; font-weight: 500; flex-shrink: 0; }
-/* R87（R7-①）：⚠ 待补全徽标——三视图同形（与 .rc-calls 同一视觉语法：10px / 99px 圆角），
-   颜色只走 tokens 的 --warning，不引新色；hover 加下划线提示可点 */
-.rc-broken, .rr-broken, .kc-broken { font-size: 10px; color: var(--warning); background: var(--surface-2); border: 1px solid var(--warning); padding: 0 7px; border-radius: 99px; font-weight: 500; cursor: pointer; flex-shrink: 0; white-space: nowrap; }
-.rc-broken:hover, .rr-broken:hover, .kc-broken:hover { text-decoration: underline; }
-.rc-open-hint { margin-left: auto; font-size: 9.5px; color: var(--text-4); opacity: 0; transition: opacity .15s; }
-.res-card:hover .rc-open-hint { opacity: 1; }
-.rc-add-card { border: 1.5px dashed var(--border-strong); border-radius: 8px; display: flex; align-items: center; justify-content: center; min-height: 120px; cursor: pointer; color: var(--text-3); font-size: 12px; transition: all .15s; flex-direction: column; gap: 6px; }
-.rc-add-card:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-/* R112 性能：增量渲染的「加载更多」入口（卡片/列表视图共用） */
-.render-more { margin: 16px 0 4px; padding: 10px 0; text-align: center; font-size: 12px; color: var(--text-3); border: 1px dashed var(--border-strong); border-radius: 8px; cursor: pointer; transition: all .15s; }
-.render-more:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
-
-/* 采集跳转高亮（2秒渐隐） */
-.res-card.flash, .res-row.flash { animation: rc-flash 2s ease-out; }
-.cat-item.flash { animation: rc-flash 2s ease-out; }
-@keyframes rc-flash {
-  0% { box-shadow: 0 0 0 3px var(--accent), 0 4px 20px color-mix(in srgb, var(--accent) 35%, transparent); background: var(--accent-light); }
-  60% { box-shadow: 0 0 0 3px var(--accent); background: var(--accent-light); }
-  100% { box-shadow: none; }
-}
-
-/* 列表视图 */
-.res-list { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.res-row { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: all .1s;
-  /* R71：屏外行跳过布局/绘制——长列表滚动时把成本限制在视口内 */
-  content-visibility: auto; contain-intrinsic-size: auto 44px; }
-.res-row.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
-.res-row.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.res-row:last-child { border-bottom: none; }
-.res-row:hover { background: var(--surface-2); }
-.res-row.selected { background: var(--accent-light); }
-.res-row.pinned { border-left: 3px solid var(--accent); }
-.rr-drag { color: var(--text-3); font-size: 12px; cursor: grab; flex-shrink: 0; }
-.rr-title { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.res-row.pinned .rr-title { font-weight: 600; }
-.rr-f { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rr-assets { flex-shrink: 0; display: inline-flex; margin-left: 2px; }
-.rr-actions { display: flex; gap: 2px; flex-shrink: 0; opacity: 0; transition: opacity .15s; }
-.res-row:hover .rr-actions { opacity: 1; }
-.rr-action { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: 12px; color: var(--text-3); cursor: pointer; transition: all .1s; }
-.rr-action:hover { background: var(--surface-3); color: var(--text); }
-.rr-action.delete:hover { color: var(--danger); }
-/* R82（R4）：📋 挂载的已挂载态——用强调色，与 ⭐ 的金色区分；三视图同一表现，样式全走 tokens */
-.rc-action.mount.on, .rr-action.mount.on, .kc-action.mount.on { color: var(--accent); background: var(--accent-light); }
-/* 第卅三轮 REQ-020：列表行星标高亮 + 卡片操作区星标高亮 */
-.rr-action.on, .rc-action.on { color: #d99a1e; }
-.rc-action.on { background: color-mix(in srgb, #f5b942 14%, transparent); }
-.kc-star { font-size: 12px; margin-right: 4px; }
-.empty-state { padding: 40px; text-align: center; color: var(--text-3); font-size: 13px; }
-
-/* 看板视图 */
-.kanban { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 10px; min-height: 400px; }
-.kanban-col { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; width: 260px; flex-shrink: 0; display: flex; flex-direction: column; max-height: calc(100vh - 340px); }
-.kc-header { position: sticky; top: 0; z-index: 1; background: var(--surface-2); padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.kc-name { font-size: 12px; font-weight: 600; color: var(--text); }
-.kc-count { font-size: 10px; background: var(--surface); color: var(--text-3); padding: 1px 7px; border-radius: 99px; }
-.kc-add { margin-left: auto; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 5px; cursor: pointer; color: var(--text-3); font-size: 14px; transition: all .1s; }
-.kc-add:hover { background: var(--surface-3); color: var(--accent); }
-.kc-body { padding: 8px; overflow-y: auto; flex: 1; min-height: 60px; }
-.kc-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
-.kc-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-/* R79（R1-看）：position: relative 为 hover 动作条的绝对定位提供参照（插入线走 box-shadow: inset，不受影响） */
-.kc-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 7px; cursor: pointer; transition: all .15s; position: relative; }
-.kc-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 8%, transparent); }
-.kc-card.pinned { border-left: 3px solid var(--accent); }
-.kc-card-title { font-size: 12px; font-weight: 500; color: var(--text); line-height: 1.4; margin-bottom: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-/* R79（R1-看）：看板 hover 动作条——取代原仅有的 kc-del 删除图标，与卡片/列表视图同六动作同顺序 */
-.kc-actions { position: absolute; top: 6px; right: 6px; display: flex; gap: 2px; opacity: 0; transition: opacity .15s; z-index: 2; }
-.kc-card:hover .kc-actions { opacity: 1; }
-.kc-action { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: 11px; color: var(--text-3); cursor: pointer; transition: all .1s; background: var(--surface); }
-.kc-action:hover { background: var(--surface-3); color: var(--text); }
-.kc-action.on { color: #d99a1e; background: color-mix(in srgb, #f5b942 14%, transparent); }
-.kc-action.delete:hover { color: var(--danger); }
-.kc-card-footer { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-.kc-card-assets { display: inline-flex; }
-.kc-card-tag { font-size: 9px; padding: 1px 5px; border-radius: 99px; background: var(--accent-light); color: var(--accent); }
-.kc-card-link { font-size: 10px; margin-left: auto; }
-.kc-card-link.url { color: var(--info-blue); }
-.kc-card-link.file { color: var(--curio-amber); }
-.kc-card-link.obsidian { color: var(--violet); }
-
-/* 批量操作浮动栏 */
-.batch-bar { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 150; display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); flex-wrap: wrap; }
-.batch-count { font-size: 12.5px; font-weight: 700; color: var(--accent); margin-right: 4px; }
-.batch-btn { padding: 6px 13px; border-radius: 8px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all .15s; font-family: inherit; }
-.batch-btn:hover { border-color: var(--accent); color: var(--accent); }
-.batch-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
-.batch-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
-.batch-enter-active, .batch-leave-active { transition: all .2s cubic-bezier(.16,1,.3,1); }
-.batch-enter-from, .batch-leave-to { opacity: 0; transform: translateX(-50%) translateY(12px); }
-
-/* 抽屉 */
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 200; opacity: 0; pointer-events: none; transition: opacity .25s; }
-.overlay.open { opacity: 1; pointer-events: auto; }
-.drawer { position: fixed; top: 0; right: 0; width: 440px; height: 100%; background: var(--surface); z-index: 201; transform: translateX(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); box-shadow: 0 10px 36px rgba(0,0,0,.08); display: flex; flex-direction: column; }
-.drawer.open { transform: translateX(0); }
-.dr-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
-/* R106（F4）：镜像卡只读详情——banner 提示 + 表单禁交互（pointer-events 关闭，滚动/选区不受影响的是容器） */
-.dr-readonly-banner { margin: 0 0 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); font-size: 12px; color: var(--text-2); }
-.dr-readonly-banner .dr-ro-link { color: var(--accent); cursor: pointer; }
-.dr-readonly-banner .dr-ro-link:hover { text-decoration: underline; }
-.dr-body.dr-readonly .ref-form { pointer-events: none; }
-.dr-body.dr-readonly .ref-form .ref-close { pointer-events: auto; } /* 关闭按钮保留 */
-.dr-body.dr-readonly { user-select: none; }
-.dr-footer { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
-.dr-footer-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px; border-radius: 8px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all .15s; font-family: inherit; }
-.dr-footer-btn:hover { border-color: var(--accent); color: var(--accent); }
-.dr-footer-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
-.dr-footer-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.dr-footer-btn.primary:hover { background: var(--accent-hover); }
-
-/* 导入弹窗 */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 300; display: none; align-items: center; justify-content: center; }
-.modal-overlay.open { display: flex; }
-.modal { background: var(--surface); border-radius: 12px; box-shadow: 0 10px 36px rgba(0,0,0,.12); width: 480px; max-width: 90vw; overflow: hidden; }
-.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
-.modal-header .mh-title { font-size: 14px; font-weight: 600; color: var(--text); flex: 1; }
-.modal-close { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 16px; }
-.modal-close:hover { background: var(--surface-3); color: var(--text); }
-.modal-body { padding: 18px 20px; max-height: 50vh; overflow-y: auto; }
-.modal-footer-row { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
-.modal-option { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px; cursor: pointer; transition: all .15s; }
-.modal-option:hover { border-color: var(--accent); background: var(--accent-light); }
-.modal-option .mo-icon { font-size: 20px; }
-.modal-option .mo-name { font-size: 13px; font-weight: 500; color: var(--text); }
-.modal-option .mo-desc { font-size: 10.5px; color: var(--text-3); margin-top: 2px; line-height: 1.5; }
-/* R82（R4）：挂载任务选择器——与任务侧 TaskDetailDrawer 的挂载列表同构（✓/＋ 切换） */
-.mt-list { margin-top: 10px; max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-.mt-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: all .12s; }
-.mt-item:hover { border-color: var(--accent); background: var(--accent-light); }
-.mt-item.on { border-color: var(--accent); background: var(--accent-light); }
-.mt-mark { flex-shrink: 0; width: 16px; font-size: 12px; color: var(--text-3); text-align: center; }
-.mt-item.on .mt-mark { color: var(--accent); }
-.mt-title { flex: 1; min-width: 0; font-size: 12.5px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mt-proj { flex-shrink: 0; font-size: 10.5px; color: var(--text-3); }
-.mt-empty { padding: 18px; text-align: center; font-size: 12px; color: var(--text-3); }
-.mt-hint { flex: 1; font-size: 11px; color: var(--text-3); line-height: 1; align-self: center; }
-
-/* R73-S2：书签导入文件夹选择（自 CurationCenter 迁入） */
-.bk-hint { font-size: 11.5px; color: var(--text-3); line-height: 1.7; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; margin-bottom: 8px; }
-.bk-all { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--text); padding: 6px 0 10px; cursor: pointer; }
-.bk-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-.bk-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; transition: background .1s; }
-.bk-item:hover { background: var(--surface-2); }
-.bk-name { flex: 1; font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bk-count { font-size: 10.5px; color: var(--text-3); background: var(--surface-3); padding: 1px 8px; border-radius: 99px; }
-
-/* 书签文件夹选择 */
-.bk-hint { font-size: 11.5px; color: var(--text-3); line-height: 1.7; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; margin-bottom: 8px; }
-.bk-all { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--text); padding: 6px 0 10px; cursor: pointer; }
-.bk-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-.bk-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; transition: background .1s; }
-.bk-item:hover { background: var(--surface-2); }
-.bk-name { flex: 1; font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bk-count { font-size: 10.5px; color: var(--text-3); background: var(--surface-3); padding: 1px 8px; border-radius: 99px; }
-
-/* Toast */
-
-/* ===== R62-1：指标条（策展台 5 格；R75 起资源台 3 格） ===== */
-/* R64-F13：指标条压缩为紧凑单行（非重点信息，让位策展区） */
-/* R75（R18）：资源台 3 格版——论点格与来源构成格对 hub 无意义；只加修饰类，不改 5 格本体 */
-.ws-metrics.hub3 { grid-template-columns: repeat(3, 1fr); }
-.ws-metrics { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 8px; margin: 10px 0 0; }
-/* R109（F14）：指标卡纵向两行布局——label 上 / 数值中 / 提示下，hover 微抬升（生产反馈：纵向太窄） */
-.metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; cursor: pointer; transition: all .15s; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
-.metric-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: var(--shadow); }
-.metric-card:hover { border-color: var(--accent); background: var(--surface-2); }
-/* R67-F2：策展主题格常亮高亮（主题色描边+淡底+微光），非 hover 态也可辨识 */
-.metric-card.thesis-hl { border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: var(--accent-light); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent), 0 2px 10px color-mix(in srgb, var(--accent) 12%, transparent); }
-.metric-card.thesis-hl .mc-label { color: var(--accent); }
-.mc-label { font-size: 10.5px; color: var(--text-3); letter-spacing: .3px; }
-.mc-value { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.mc-value.thesis { font-size: 12.5px; font-weight: 600; flex: 1; }
-.mc-value.small { font-size: 12.5px; }
-.mc-sep { color: var(--text-4); font-weight: 400; margin: 0 3px; }
-.mc-hint { font-size: 10.5px; color: var(--text-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-
-/* ===== R62-4：层级色点 ===== */
-.cat-depth-dot { width: 6px; height: 6px; border-radius: 2px; flex-shrink: 0; }
-.cat-depth-dot[data-lv="0"] { background: var(--accent); }
-.cat-depth-dot[data-lv="1"] { background: #4A7FB5; }
-.cat-depth-dot[data-lv="2"] { background: #8b6fc9; }
-.cat-depth-dot[data-lv="3"] { background: #d99a1e; }
-
-/* ===== R62-5：金字塔视图 ===== */
-/* R66-F5：结构连线层（横平竖直直角折线；画布尺寸由 drawPyLinks 按滚动区设定） */
-.pyramid { display: flex; flex-direction: column; gap: 14px; position: relative; overflow-x: auto; }
-/* R113-N5（T10）：真全屏宿主 = .ws-page——专注金字塔：隐藏标题/指标条/侧栏/归档提示，保留工具条（＋新建 / 📋 导入模板可用） */
-.ws-page:fullscreen { background: var(--bg); overflow-y: auto; padding: 16px 24px 90px; }
-.ws-page:fullscreen .ws-id-head, .ws-page:fullscreen .ws-metrics, .ws-page:fullscreen .ws-sidebar,
-.ws-page:fullscreen .ws-side-split, .ws-page:fullscreen .ws-archived-hint { display: none; }
-/* R110-FS：金字塔全屏——路线 A 元素级真全屏（浏览器原生 ESC），路线 B fixed 覆盖层降级（自行监听 ESC） */
-.py-fs-btn { position: absolute; top: 0; right: 0; z-index: 6; font-size: 11px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; cursor: pointer; font-family: inherit; transition: all .15s; }
-.py-fs-btn:hover { color: var(--accent); border-color: var(--accent); }
-.pyramid:fullscreen { background: var(--bg); padding: 20px 24px; overflow: auto; }
-.pyramid.py-fs-fallback { position: fixed; inset: 0; z-index: 240; background: var(--bg); padding: 20px 24px; overflow: auto; }
-.py-links-svg { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 0; }
-.py-links-svg path { fill: none; stroke: var(--border-strong, #555); stroke-width: 1; opacity: .5; }
-.pyramid .py-root, .pyramid .py-board { position: relative; z-index: 1; }
-.py-root { position: relative; display: flex; justify-content: center; padding: 6px 0 10px; border-radius: 10px; transition: background .15s, box-shadow .15s; }
-.py-root.droppable { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-light); }
-.py-root-card { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--surface)), var(--surface)); border: 1.5px solid var(--accent); border-radius: 12px; padding: 12px 22px; max-width: 520px; text-align: center; cursor: pointer; transition: all .15s; }
-.py-root-card:hover { transform: translateY(-1px); box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 18%, transparent); }
-.py-root-badge { display: block; font-size: 10px; color: var(--accent); font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
-.py-root-title { display: block; font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.5; }
-.py-root-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 11.5px; color: var(--text-3); margin-top: 4px; line-height: 1.5; }
-.py-root-unset { position: absolute; top: 2px; right: 8px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 11px; color: var(--text-3); cursor: pointer; }
-.py-root-unset:hover { background: var(--surface-3); color: var(--danger); }
-.py-root-empty { border: 1.5px dashed var(--border-strong); border-radius: 12px; padding: 14px 24px; font-size: 12px; color: var(--text-3); text-align: center; width: 100%; }
-.py-root-empty.clickable { cursor: pointer; transition: all .15s; }
-.py-root-empty.clickable:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-/* R66-F5：居中树 board——列宽自适应 minmax(170px,250px)，整体 fit-content 水平居中不占满；
-   行距 34px 留出直角连线空间；父节点跨子组全部列（横向恒=子组、居中悬于其上） */
-.py-board { display: grid; gap: 34px 12px; width: fit-content; margin: 6px auto 0; align-items: stretch; min-width: 40%; }
-.py-node { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; min-width: 0; transition: border-color .15s, box-shadow .15s; }
-.py-node:hover { border-color: var(--border-strong); }
-.py-node.drop-child { border-color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
-.py-node.drop-sib { box-shadow: inset 0 2px 0 var(--accent); }
-.py-node.flash { animation: rc-flash 1.6s ease-out; }
-.py-node-head { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border); cursor: grab; }
-/* R66-F5：节点层级小徽标（原每行 L 标签随 board 布局退役） */
-.py-node-lv { font-size: 9px; font-weight: 700; color: var(--text-4); background: var(--surface-3); border-radius: 4px; padding: 1px 5px; flex-shrink: 0; letter-spacing: .5px; }
-.py-node-name { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.py-node-name:hover { color: var(--accent); }
-.py-node-count { font-size: 10px; color: var(--accent); background: var(--accent-light); padding: 1px 7px; border-radius: 99px; font-weight: 600; }
-.py-node-ops { display: inline-flex; gap: 2px; opacity: 0; transition: opacity .15s; }
-.py-node-head:hover .py-node-ops { opacity: 1; }
-.py-op { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 11px; color: var(--text-3); cursor: pointer; }
-.py-op:hover { background: var(--surface-3); color: var(--accent); }
-.py-node-body { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 10px 10px; min-height: 34px; }
-.py-card-chip { font-size: 11px; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; cursor: pointer; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all .12s; }
-.py-card-chip:hover { border-color: var(--accent); color: var(--text); background: var(--accent-light); }
-.py-node-empty { font-size: 10.5px; color: var(--text-4); }
-/* R65-F3：节点双入口底栏 */
-.py-node-foot { display: flex; gap: 6px; padding: 0 10px 9px; }
-.py-foot-btn { flex: 1; text-align: center; font-size: 10.5px; color: var(--text-3); background: var(--surface-2); border: 1px dashed var(--border); border-radius: 6px; padding: 4px 6px; cursor: pointer; transition: all .12s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.py-foot-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
-/* R65-F3：关联资源卡选择器 */
-.lc-search { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); margin-bottom: 10px; }
-.lc-search input { border: none; outline: none; background: transparent; font-size: 12px; flex: 1; color: var(--text); }
-.lc-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-.lc-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; transition: background .1s; }
-.lc-item:hover { background: var(--surface-2); }
-.lc-item.picked { background: var(--accent-light); }
-.lc-item.mirrored { opacity: .55; cursor: default; }
-.lc-badge { font-size: 10px; color: var(--text-3); background: var(--surface-3); padding: 1px 8px; border-radius: 99px; flex-shrink: 0; }
-.lc-title { flex: 1; min-width: 0; font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lc-link { font-size: 10px; color: var(--text-4); max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
-.lc-empty { text-align: center; padding: 24px; font-size: 12px; color: var(--text-4); }
-.py-node-add { position: absolute; right: -8px; top: -8px; width: 20px; height: 20px; display: none; align-items: center; justify-content: center; border-radius: 6px; background: var(--accent); color: #fff; font-size: 13px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
-.py-node:hover .py-node-add { display: flex; }
-.py-level-empty { font-size: 10.5px; color: var(--text-4); padding: 4px 0; }
-.py-empty { font-size: 12px; color: var(--text-3); padding: 24px 0; text-align: center; }
-
-/* ===== R62-6：节点菜单 ===== */
-.node-menu-mask { position: fixed; inset: 0; z-index: 690; }
-.node-menu { position: fixed; z-index: 691; width: 216px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; animation: ipIn .16s cubic-bezier(.16,1,.3,1); }
-.nm-item { padding: 8px 11px; border-radius: 7px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: all .1s; }
-.nm-item:hover { background: var(--surface-3); color: var(--text); }
-.nm-item.danger { color: var(--danger); }
-.nm-item.danger:hover { background: var(--tag-danger-bg); }
-.nm-divider { height: 1px; background: var(--border); margin: 4px 6px; }
-</style>
+<style scoped src="./workspace.css"></style>
