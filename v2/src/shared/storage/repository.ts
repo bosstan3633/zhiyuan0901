@@ -6,7 +6,7 @@ import type { AppData, UIPrefs } from '@/shared/models'
 import { STORAGE_KEY, UI_KEY } from '@/shared/models'
 import { createDefaultData, defaultThesisFieldDefs } from './defaults'
 import { safeDecodeText } from '@/shared/utils'
-import { pruneDanglingProjections } from './hub'
+import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'
 // 第卌四轮 T-05：卡片操作事件日志——保存链路快照 diff 自动产出 create/delete/restore/purge
 import { rebuildEventSnapshot, flushCardEvents } from '@/shared/utils/eventLog'
 
@@ -132,6 +132,9 @@ export async function loadData(): Promise<AppData> {
   if (!data.airtableMap || typeof data.airtableMap !== 'object') data.airtableMap = {}
   // R70：悬空投射清理——源卡被硬删（回收站清空）后指向它的投射记录会永久留存、无界增长。幂等，启动期一次。
   try { pruneDanglingProjections(data) } catch { /* noop */ }
+  // R110-BUG1：资源台镜像标记净化——视图模型标记（__mirrorProjId/__mirrorCat）误持久化 + 指向资源台的投射
+  // 记录，都是历史脏数据，启动期幂等剥离（资源台指标格不再出现「⚠ 镜像 N 条待清理」）。一次净化后下次 persist 固化。
+  try { scrubHubMirrorMarkers(data) } catch { /* noop */ }
   cache = data
   markStorageMirror(data)
   // 第卌四轮 T-05：初始化快照（静默，不产生历史事件）

@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCuriosity, type CuriStatus } from '../../stores/curiosity'
 import { useAppStore } from '../../stores/app'
 import type { CuriosityCard, AssetMeta, FieldDef } from '@/shared/models'
 import ModuleCard from '@/shared/components/ModuleCard.vue'
 import Drawer from '@/shared/components/Drawer.vue'
+import LifecyclePanel from '@/newtab/components/LifecyclePanel.vue'
+import type { LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
+import { useLifecycle } from '@/newtab/composables/useLifecycle'
 import { showToast } from '@/shared/components/toast'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
@@ -70,9 +73,11 @@ function toggleSortDir() { sortDir.value = sortDir.value === 'desc' ? 'asc' : 'd
  *  第卅五轮 REQ-035：组内 sortOrder 优先、未拖拽的卡（无 sortOrder）回退捕获时间方向排序
  *  —— 拖拽写入的自定义顺序不再被时间排序覆盖 */
 const filtered = computed(() => {
+  // R110-LC（T3）：默认视图排除已归档好奇卡（只在 ⏳ 生命周期面板中查看 / 恢复）
+  const alive = curiosities.value.filter(c => !c.lifecycleArchived)
   const list = statusFilter.value === 'all'
-    ? curiosities.value
-    : curiosities.value.filter(c => c.status === statusFilter.value)
+    ? alive
+    : alive.filter(c => c.status === statusFilter.value)
   const dirMul = sortDir.value === 'asc' ? 1 : -1
   return [...list].sort((a, b) => {
     const r = markRank(b) - markRank(a)
@@ -82,6 +87,27 @@ const filtered = computed(() => {
     }
     return dirMul * ((a.createdAt || 0) - (b.createdAt || 0))
   })
+})
+/** R110-LC（T3）：当前筛选口径下的归档卡数——底部降级提示（≥1 才显示） */
+const archivedHintCount = computed(() => curiosities.value
+  .filter(c => c.lifecycleArchived && (statusFilter.value === 'all' || c.status === statusFilter.value)).length)
+
+// ===== R110-LC：生命周期面板（好奇心卡） =====
+const lcCards = computed<LifecycleCard[]>(() => d.value.curiosities.filter(c => !c.deletedAt))
+const { lcOpen, onLcArchive, onLcSnooze, onLcReactivate, onLcLocate } = useLifecycle({
+  cards: lcCards,
+  locate: (id) => {
+    const c = d.value.curiosities.find(x => x.id === id)
+    if (c) statusFilter.value = c.status
+    viewMode.value = 'card'
+    highlightId.value = id
+    nextTick(() => {
+      setTimeout(() => {
+        document.querySelector(`[data-czid="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setTimeout(() => { highlightId.value = null }, 2000)
+      }, 120)
+    })
+  }
 })
 const pinnedCount = computed(() => filtered.value.filter(c => c.pinned).length)
 
@@ -98,7 +124,7 @@ const kanbanCols = computed(() => {
     ...STATUS_MAP[s],
     // REQ-035：列内 sortOrder 优先、无 sortOrder 回退时间（filter 新数组再 sort，不改原树）
     items: curiosities.value
-      .filter(c => c.status === s)
+      .filter(c => c.status === s && !c.lifecycleArchived)
       .sort((a, b) => {
         if (a.sortOrder != null || b.sortOrder != null) {
           return (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER)
@@ -410,6 +436,8 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
           <button class="cz-view-btn" :class="{active: viewMode === 'card'}" @click="viewMode = 'card'" title="卡片视图">▦</button>
           <button class="cz-view-btn" :class="{active: viewMode === 'list'}" @click="viewMode = 'list'" title="列表视图">☰</button>
           <button class="cz-view-btn" :class="{active: viewMode === 'kanban'}" @click="viewMode = 'kanban'" title="看板视图">▥</button>
+          <!-- R110-LC：生命周期面板入口（活跃 / 冷却 / 归档三态） -->
+          <button class="cz-view-btn" @click="lcOpen = true" title="生命周期（活跃 / 冷却 / 归档）">⏳</button>
         </div>
       </div>
 
@@ -422,6 +450,11 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
           <button class="mini-btn danger" @click="batchDelete">删除</button>
         </div>
       </Transition>
+
+      <!-- R110-LC（T3）：归档卡已从默认视图隐藏——降级提示（可点开面板恢复） -->
+      <div v-if="archivedHintCount" class="cz-archived-hint" @click="lcOpen = true">
+        📦 另有 {{ archivedHintCount }} 张已归档好奇卡未显示（点此在 ⏳ 生命周期中查看 / 恢复）
+      </div>
 
       <!-- 卡片视图 -->
       <div v-if="viewMode === 'card'" class="cz-grid" :style="{ '--grid-cols': String(curioCols) }">
@@ -525,6 +558,10 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
         </div>
       </div>
     </div>
+
+    <!-- R110-LC：生命周期面板（好奇心卡）——须置于 v-if/v-else-if 视图链之外，否则会打断链式结构 -->
+    <LifecyclePanel :open="lcOpen" kind="curiosity" :cards="lcCards"
+      @close="lcOpen = false" @locate="onLcLocate" @archive="onLcArchive" @snooze="onLcSnooze" @reactivate="onLcReactivate" />
 
     <!-- R48 详情重设计：状态收进头部下拉 chip；摘录升为 Hero 引用体；元数据一行小字；附件折叠 -->
     <Drawer :open="!!detailItem" :title="detailItem ? '好奇心详情' : ''" @close="detailId = null; curioStatusMenuOpen = false">
@@ -651,6 +688,9 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
 .cz-sort-dir:hover { border-color: var(--accent); color: var(--accent); }
 .cz-view-btn:hover { background: var(--surface-3); color: var(--text-2); }
 .cz-view-btn.active { background: var(--accent-light); color: var(--accent); }
+/* R110-LC（T3）：归档降级提示条 */
+.cz-archived-hint { margin: 6px 0 0; padding: 6px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: 11.5px; color: var(--text-3); cursor: pointer; transition: all .15s; }
+.cz-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
 .cz-batch-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--accent-light); border-radius: var(--radius-sm); margin-bottom: 14px; font-size: 12px; color: var(--accent); font-weight: 500; }
 /* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 200px */
 .cz-grid { display: grid; /* R106（F3）：精确 N 列——选中 N 即渲染 N 列，卡片宽度自适应收缩（含看板外全部视图） */ grid-template-columns: repeat(var(--grid-cols, 4), minmax(0, 1fr)); gap: 12px; }

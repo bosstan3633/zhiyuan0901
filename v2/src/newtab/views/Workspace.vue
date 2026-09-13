@@ -80,7 +80,13 @@
 
     <!-- 下钻抽屉（R62-2） -->
     <CurationDrillDrawer :open="drillOpen" :mode="drillMode" :cat-rows="drillCatRows" :native-cards="drillNative" :mirror-cards="drillMirror" :asset-rows="metrics.attachmentItems" :recent-rows="drillRecent"
-      @close="drillOpen=false" @jump-cat="onDrillJumpCat" @open-card="onDrillOpenCard" @locate="onDrillLocate" />
+      :card-exists="cardExistsGlobally" :referenced-asset-ids="referencedAssetIds"
+      @close="drillOpen=false" @jump-cat="onDrillJumpCat" @open-card="onDrillOpenCard" @locate="onDrillLocate"
+      @locate-asset="onDrillLocateAsset" @cleanup-asset="onDrillCleanupAsset" @cleanup-orphans="onDrillCleanupOrphans" />
+
+    <!-- R110-LC：生命周期面板（资源卡；策展台镜像卡跟随源卡状态，故只列本台原生卡） -->
+    <LifecyclePanel :open="lcOpen" kind="resource" :cards="lcCards"
+      @close="lcOpen = false" @locate="onLcLocate" @archive="onLcArchive" @snooze="onLcSnooze" @reactivate="onLcReactivate" />
 
     <!-- R108（T3）：金字塔 Markdown 模板导入弹窗（仅策展台入口；hasThesis 决定 H1 是否被采用） -->
     <ImportTemplateModal
@@ -200,7 +206,14 @@
            batchMode && selectedIds.size，一张都没选时它不出现，此时这里是唯一退出通道 -->
       <!-- 注：主 CTA「＋新建」已按 R8 前置到视图 Tab 之后（见上），此处不再重复 -->
       <button v-if="batchMode" class="toolbar-batch active" @click="toggleBatchMode">✓ 完成批量</button>
+      <!-- R110-LC：生命周期面板入口（活跃 / 冷却 / 归档三态；归档卡从默认视图隐藏，在此恢复） -->
+      <button class="hero-btn settings" title="生命周期（活跃 / 冷却 / 归档）" @click.stop="lcOpen = true">⏳</button>
       <button class="hero-btn settings" title="策展台设置" @click.stop="toggleSettingsMenu">⚙</button>
+    </div>
+
+    <!-- R110-LC（T3）：归档卡已从默认视图隐藏——底部一行降级提示（可点开面板恢复） -->
+    <div v-if="archivedHintCount" class="ws-archived-hint" @click="lcOpen = true">
+      📦 另有 {{ archivedHintCount }} 张已归档卡片未显示（点此在 ⏳ 生命周期中查看 / 恢复）
     </div>
 
     <!-- ③ 资源策展区 -->
@@ -453,7 +466,10 @@
         </div>
 
         <!-- ===== R62-5：金字塔视图（L1 中心论点根 + 分类树逐层铺开 + 卡片拖换节点）；R64-F11 SVG 结构连线 ===== -->
-        <div v-if="viewMode==='pyramid'" class="pyramid" ref="pyWrapRef">
+        <div v-if="viewMode==='pyramid'" class="pyramid" ref="pyWrapRef" :class="{ 'py-fs-fallback': pyFsFallback }">
+          <!-- R110-FS：全屏切换（路线 A：Fullscreen API 元素级真全屏，浏览器原生 ESC；路线 B：fixed 覆盖层降级） -->
+          <button class="py-fs-btn" @click.stop="togglePyFullscreen"
+            :title="pyFs ? '退出全屏（ESC）' : '全屏查看金字塔（ESC 退出）'">{{ pyFs ? '⛶ 退出全屏' : '⛶ 全屏' }}</button>
           <svg class="py-links-svg" aria-hidden="true">
             <path v-for="(pth, pi) in pyLinkPaths" :key="pi" :d="pth" />
           </svg>
@@ -882,7 +898,7 @@ import { saveUIPrefs } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
 import { toOpenableUrl, openExternalLink, linkStateOf } from '@/shared/utils/link'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
-import { getAssetBlob } from '@/shared/storage/assets'
+import { getAssetBlob, deleteAsset, cleanupOrphanAssets } from '@/shared/storage/assets'
 import AssetPreview from '@/shared/components/AssetPreview.vue'
 import { uid } from '@/shared/utils'
 import { MAX_CAT_LEVEL } from '@/shared/utils/catTree'
@@ -908,6 +924,9 @@ import { CURATION_WS_ID, type AppData, type ResourceCard, type Category, type Wo
 import { boardCardsOf, isMirrorView, removeProjection, curationMetrics, setThesis, mirrorCategoryToBoard, canMountInNode, isHubWs, projectCardToBoard, curationBoards, type MirrorView } from '@/shared/storage/hub'
 import CurationDrillDrawer from '@/newtab/components/CurationDrillDrawer.vue'
 import type { DrillCatRow, DrillCardRow } from '@/newtab/components/CurationDrillDrawer.vue'
+import LifecyclePanel from '@/newtab/components/LifecyclePanel.vue'
+import type { LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
+import { useLifecycle } from '@/newtab/composables/useLifecycle'
 
 const route = useRoute()
 const router = useRouter()
@@ -991,6 +1010,85 @@ function onDrillLocate(id: string) {
   if (r) locateMirrorSource(r)
 }
 
+// ===== R110-LC：生命周期面板（资源卡 / 策展台卡——策展台镜像卡跟随源卡状态，故不单列） =====
+const lcCards = computed<LifecycleCard[]>(() => d.value.resources
+  .filter(r => !r.deletedAt && !isMirrorView(r) && r.workspaceId === workspaceId.value))
+const { lcOpen, onLcArchive, onLcSnooze, onLcReactivate, onLcLocate } = useLifecycle({
+  cards: lcCards,
+  locate: (id) => {
+    activeCategory.value = 'all'
+    viewMode.value = 'card'
+    highlightId.value = id
+    nextTick(() => {
+      setTimeout(() => {
+        document.querySelector(`[data-rid="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setTimeout(() => { highlightId.value = null }, 2000)
+      }, 120)
+    })
+    showToast('↗ 已定位到卡片')
+  }
+})
+
+// ===== R110-BUG2：附件明细宿主接线（跨台存在性判定 / 定位 / 清理） =====
+/** 跨台全量判定：附件来源卡是否仍存在（未软删；不限本台） */
+function cardExistsGlobally(id: string): boolean {
+  return d.value.resources.some(r => r.id === id && !r.deletedAt)
+}
+/** 全局被引用附件 id 并集（含回收站软删卡的附件——软删可恢复，其附件必须保留） */
+const referencedAssetIds = computed<string[]>(() => {
+  const ids = new Set<string>()
+  const collect = (cards: { assets?: AssetMeta[] }[] | undefined) =>
+    (cards || []).forEach(c => (c.assets || []).forEach(a => ids.add(a.id)))
+  collect(d.value.resources)
+  collect(d.value.tasks)
+  collect(d.value.curiosities)
+  return [...ids]
+})
+/** 附件行点击 → 定位来源卡：本台就地高亮，跨台路由 ?hl 过去（复用既有 hl 链路） */
+function onDrillLocateAsset(cardId: string) {
+  drillOpen.value = false
+  const r = d.value.resources.find(x => x.id === cardId)
+  if (!r) { showToast('ℹ 来源卡已不存在——可点行尾 🗑 清理残留'); return }
+  if (r.workspaceId === workspaceId.value) {
+    activeCategory.value = 'all'
+    viewMode.value = 'card'
+    highlightId.value = cardId
+    nextTick(() => {
+      setTimeout(() => {
+        document.querySelector(`[data-rid="${cardId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setTimeout(() => { highlightId.value = null }, 2000)
+      }, 120)
+    })
+  } else {
+    router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: cardId } })
+  }
+  showToast(`↗ 已定位到「${(r.title || '').slice(0, 20)}」`)
+}
+/** 单条清理：摘除卡片上的失效引用（若有）+ 删除 IndexedDB 本体 */
+async function onDrillCleanupAsset(row: { cardId: string; assetId: string }) {
+  let detached = false
+  for (const card of d.value.resources) {
+    const list = card.assets
+    if (!list || !list.some(a => a.id === row.assetId)) continue
+    card.assets = list.filter(a => a.id !== row.assetId)
+    card.updatedAt = Date.now()
+    detached = true
+  }
+  try { await deleteAsset(row.assetId) } catch { /* IndexedDB 不可用：引用已摘除，本体留待全局清理 */ }
+  store.persist()
+  showToast(detached ? '🧹 已清理失效附件引用' : '🧹 已删除残留附件本体')
+}
+/** 批量清理：复用 REQ-048 语义——保留全部卡片（含回收站）引用的附件，删除其余 */
+async function onDrillCleanupOrphans() {
+  try {
+    const n = await cleanupOrphanAssets(new Set(referencedAssetIds.value))
+    store.persist()
+    showToast(n > 0 ? `🧹 已清理 ${n} 个孤儿附件` : '✓ 无孤儿附件，一切干净')
+  } catch {
+    showToast('⚠ 清理失败，请重试')
+  }
+}
+
 // R47-B4：进入/切换策展台 = 一次「调用」，计入热度（全局检索无输入时策展台参与热度排序）
 watch(workspaceId, (id) => {
   if (!id) return
@@ -1036,12 +1134,10 @@ const lastUpdateText = computed(() => {
 /** R75（R18）：资源台「卡片总数」格的补充口径。
  *  拍板原文是「台内 / 镜像」提示，但单向挂载红线 ⇒ 无投射指向资源台，metrics.mirrored 恒 0，
  *  照搬会常驻「镜像 0」噪声 ⇒ 改用结构口径（分类数 / 待分类数），数据源全部现成、无需新计算。
- *  镜像数 > 0 只可能是历史脏数据，此时优先暴露异常提示清理。 */
-const hubCountHint = computed(() =>
-  metrics.value.mirrored > 0
-    ? `⚠ 镜像 ${metrics.value.mirrored} 条待清理`
-    : `分类 ${metrics.value.categoryCount} · 待分类 ${uncategorizedCount.value}`
-)
+ *  R110-BUG1：脏数据（视图模型标记被误持久化）已由启动期 scrubHubMirrorMarkers 净化 +
+ *  curationMetrics 对 hub 台镜像计数恒 0 双重兜底，此处异常提示分支已退役，
+ *  口径恒为「分类 N · 待分类 M」。 */
+const hubCountHint = computed(() => `分类 ${metrics.value.categoryCount} · 待分类 ${uncategorizedCount.value}`)
 
 // ===== 字段渲染（F1：全局设置的字段设计在此生效） =====
 const rFields = computed(() => visibleFields(d.value.fieldConfig, 'resource'))
@@ -1270,22 +1366,26 @@ const FILTER_PREDICATES: Record<string, (r: ResourceCard) => boolean> = {
 }
 
 // 筛选（第八轮：点击父分类 = 聚合显示本级 + 全部子分类）
-const filteredResources = computed(() => {
-  let list = allResources.value
-  if (activeCategory.value === 'uncat') list = list.filter(r => !r.categoryId)
+/** R110-LC（T3）：统一视图过滤管线（分类 → 筛选器 → 搜索），归档提示与默认列表复用同一口径 */
+function applyViewFilters(list: ResourceCard[]): ResourceCard[] {
+  let out = list
+  if (activeCategory.value === 'uncat') out = out.filter(r => !r.categoryId)
   else if (activeCategory.value !== 'all') {
     const ids = familyIds(activeCategory.value)
-    list = list.filter(r => r.categoryId && ids.includes(r.categoryId))
+    out = out.filter(r => r.categoryId && ids.includes(r.categoryId))
   }
   const pred = FILTER_PREDICATES[filterBy.value]
-  if (pred) list = list.filter(pred)
+  if (pred) out = out.filter(pred)
   // R89（R6）：搜索判据收敛到 parseQuery + matchCard 一处（自定义字段纳入、`#标签` 直筛）
   if (debouncedQuery.value.trim()) {
     const p = parseQuery(debouncedQuery.value)
-    list = list.filter(r => matchCard(r, p))
+    out = out.filter(r => matchCard(r, p))
   }
-  return list
-})
+  return out
+}
+const filteredResources = computed(() => applyViewFilters(allResources.value).filter(r => !r.lifecycleArchived))
+/** R110-LC（T3）：归档卡从默认视图消失，「另有 N 张已归档卡片」降级提示（按当前检索口径命中数） */
+const archivedHintCount = computed(() => applyViewFilters(allResources.value.filter(r => r.lifecycleArchived)).length)
 
 // 排序（第卅二轮 REQ-007：时间类排序支持正/倒序方向）
 function applySort(list: ResourceCard[]): ResourceCard[] {
@@ -2306,6 +2406,53 @@ function pyLevelOf(c: Category): number { return pyDepthOf(c) + 1 }
 
 // ===== R64-F11：金字塔 SVG 结构连线（根→L2、父节点→子节点，贝塞尔细线） =====
 const pyWrapRef = ref<HTMLElement | null>(null)
+
+// ===== R110-FS：金字塔全屏（04-58/FS 技术调研结论——路线 A 为主、路线 B 自动降级） =====
+/** 全屏中（真全屏或降级覆盖层） */
+const pyFs = ref(false)
+/** true = 走 CSS fixed 覆盖层（requestFullscreen 不存在或被拒时） */
+const pyFsFallback = ref(false)
+async function enterPyFullscreen() {
+  const el = pyWrapRef.value
+  if (!el) return
+  if (typeof el.requestFullscreen === 'function') {
+    try {
+      await el.requestFullscreen()
+      pyFs.value = true
+      pyFsFallback.value = false
+      nextTick(drawPyLinks)
+      return
+    } catch { /* 老浏览器 / 策略拒绝 → 落到降级路线 */ }
+  }
+  pyFsFallback.value = true
+  pyFs.value = true
+  nextTick(drawPyLinks)
+}
+function exitPyFullscreen() {
+  if (pyFsFallback.value) { pyFsFallback.value = false; pyFs.value = false; nextTick(drawPyLinks); return }
+  if (document.fullscreenElement) void document.exitFullscreen().catch(() => { pyFs.value = false })
+  else { pyFs.value = false; nextTick(drawPyLinks) }
+}
+function togglePyFullscreen() { pyFs.value ? exitPyFullscreen() : void enterPyFullscreen() }
+/** 真全屏下 ESC 由浏览器接管，只在状态变化时同步本组件的 pyFs（不手动拦 ESC） */
+function onPyFsChange() {
+  const on = !!document.fullscreenElement
+  if (!on) { pyFs.value = false; pyFsFallback.value = false }
+  nextTick(drawPyLinks)
+}
+/** 降级覆盖层下自行监听 ESC + 锁定背景滚动 */
+function onPyFsKeydown(e: KeyboardEvent) { if (e.key === 'Escape' && pyFsFallback.value) exitPyFullscreen() }
+onMounted(() => {
+  document.addEventListener('fullscreenchange', onPyFsChange)
+  document.addEventListener('keydown', onPyFsKeydown)
+})
+onUnmounted(() => {
+  document.removeEventListener('fullscreenchange', onPyFsChange)
+  document.removeEventListener('keydown', onPyFsKeydown)
+})
+/** 全屏中切走金字塔视图 / 切台 → 退出全屏（否则全屏元素被 v-if 卸载，浏览器层会残留黑屏） */
+watch([viewMode, workspaceId], () => { if (pyFs.value) exitPyFullscreen() })
+
 const pyLinkPaths = ref<string[]>([])
 function drawPyLinks() {
   const wrap = pyWrapRef.value
@@ -2777,6 +2924,9 @@ function linkDisplay(link: string) {
 
 /* 工具条 */
 .ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; padding: 14px 0; border-bottom: 1px solid var(--border); background: var(--bg); }
+/* R110-LC（T3）：归档卡降级提示条（可点开生命周期面板查看 / 恢复） */
+.ws-archived-hint { margin: 8px 0 0; padding: 7px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: 11.5px; color: var(--text-3); cursor: pointer; transition: all .15s; }
+.ws-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
 .view-tabs { display: flex; background: var(--surface-2); border-radius: 8px; padding: 3px; gap: 2px; }
 .view-tab { padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; color: var(--text-2); transition: all .15s; display: flex; align-items: center; gap: 4px; }
 .view-tab:hover { color: var(--text); }
@@ -3106,6 +3256,11 @@ function linkDisplay(link: string) {
 /* ===== R62-5：金字塔视图 ===== */
 /* R66-F5：结构连线层（横平竖直直角折线；画布尺寸由 drawPyLinks 按滚动区设定） */
 .pyramid { display: flex; flex-direction: column; gap: 14px; position: relative; overflow-x: auto; }
+/* R110-FS：金字塔全屏——路线 A 元素级真全屏（浏览器原生 ESC），路线 B fixed 覆盖层降级（自行监听 ESC） */
+.py-fs-btn { position: absolute; top: 0; right: 0; z-index: 6; font-size: 11px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; cursor: pointer; font-family: inherit; transition: all .15s; }
+.py-fs-btn:hover { color: var(--accent); border-color: var(--accent); }
+.pyramid:fullscreen { background: var(--bg); padding: 20px 24px; overflow: auto; }
+.pyramid.py-fs-fallback { position: fixed; inset: 0; z-index: 240; background: var(--bg); padding: 20px 24px; overflow: auto; }
 .py-links-svg { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 0; }
 .py-links-svg path { fill: none; stroke: var(--border-strong, #555); stroke-width: 1; opacity: .5; }
 .pyramid .py-root, .pyramid .py-board { position: relative; z-index: 1; }

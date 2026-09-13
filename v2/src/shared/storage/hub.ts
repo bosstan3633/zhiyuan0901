@@ -176,8 +176,12 @@ export function curationMetrics(d: AppData, wsId: ID): CurationMetrics {
   let mirrored = 0
   let thesisId: ID | undefined
   const cardCountByCat = new Map<string, number>()
+  // R110-BUG1：资源台（hub）按单向挂载红线镜像恒 0——不再依赖「数据一定干净」，
+  // 即使净化尚未落盘（脏数据在内存中残留一拍）也不会再冒出「⚠ 镜像 N 条待清理」噪声。
+  const isHub = isHubWs(d.workspaces.find(w => w.id === wsId))
   for (const r of cards) {
-    if (isMirrorView(r)) mirrored++; else native++
+    if (isMirrorView(r) && !isHub) mirrored++
+    if (!isMirrorView(r) || isHub) native++
     if (!thesisId && r.isThesis && r.workspaceId === wsId) thesisId = r.id
     const ck = r.categoryId || ''
     cardCountByCat.set(ck, (cardCountByCat.get(ck) || 0) + 1)
@@ -250,4 +254,28 @@ export function pruneDanglingProjections(d: AppData): number {
   const before = arr.length
   d.curationProjections = arr.filter(p => p.kind === 'card' ? (aliveCards.has(p.cardId || '') && aliveWs.has(p.targetWsId || '')) : true)
   return before - d.curationProjections.length
+}
+
+/**
+ * R110-BUG1：资源台（hub）镜像语义净化——单向挂载红线的启动期兜底。
+ *
+ * 资源台上不应存在任何镜像投影语义（投射方向只允许「资源台 → 策展台」）。历史脏数据有两种形态：
+ * ① 视图模型标记 `__mirrorProjId` / `__mirrorCat` 被误持久化到资源台卡上——表现为资源台指标格
+ *    常驻「⚠ 镜像 N 条待清理」（R75 注释自证：镜像数 > 0 只可能是历史脏数据）；
+ * ② `curationProjections` 中存在 `targetWsId` 指向资源台的投射记录（早期版本未拦截）。
+ *
+ * 本函数在启动期一次性、**幂等**剥离两者：只摘标记 / 只删投射记录，卡本体与其他字段零影响。
+ * @returns 本次净化的卡数（不含被清除的投射记录数）
+ */
+export function scrubHubMirrorMarkers(d: AppData): number {
+  let n = 0
+  for (const r of d.resources) {
+    if (r.workspaceId !== CURATION_WS_ID) continue
+    if ('__mirrorProjId' in r) { delete (r as Record<string, unknown>).__mirrorProjId; n++ }
+    if ('__mirrorCat' in r) delete (r as Record<string, unknown>).__mirrorCat
+  }
+  if (Array.isArray(d.curationProjections) && d.curationProjections.length) {
+    d.curationProjections = d.curationProjections.filter(p => p.targetWsId !== CURATION_WS_ID)
+  }
+  return n
 }

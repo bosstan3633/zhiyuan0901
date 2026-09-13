@@ -77,6 +77,10 @@
           </template>
         </template>
         <template v-else>
+        <!-- R110-LC（T3）：归档卡已从默认检索结果排除——一行降级提示（不打断结果流） -->
+        <div v-if="archivedMatchCount" class="gp-archived-hint">
+          📦 另有 {{ archivedMatchCount }} 张已归档卡片匹配（在「⏳ 生命周期」中查看 / 恢复）
+        </div>
         <div v-if="!filteredResults.length" class="gp-search-empty">
           <div class="gp-se-icon">🪹</div>
           <div class="gp-se-text">没有匹配的卡片<br><span style="font-size:11px">试试更短的关键词</span></div>
@@ -522,6 +526,8 @@ interface SearchResult {
   due?: string
   dueOverdue?: boolean
   summary?: string
+  /** R110-LC（T3）：已归档卡（默认检索结果集排除，仅用于「另有 N 张」降级提示计数） */
+  archived?: boolean
   raw: ResourceCard | TaskCard | CuriosityCard | Workspace
 }
 
@@ -540,6 +546,7 @@ const allResults = computed<SearchResult[]>(() => {
       badges: [],
       link: rlink ? { type: r.linkType, icon: r.linkType==='url'?'🔗':r.linkType==='file'?'📁':'📝', text: linkShort(rlink as string) } : undefined,
       summary: r.description,
+      archived: !!r.lifecycleArchived,
       raw: r
     })
   })
@@ -558,6 +565,7 @@ const allResults = computed<SearchResult[]>(() => {
       title: t.title, ws: '任务中心', cat: proj?.name || '未归属',
       badges,
       summary: t.description,
+      archived: !!t.lifecycleArchived,
       raw: t
     })
   })
@@ -569,6 +577,7 @@ const allResults = computed<SearchResult[]>(() => {
       id: c.id, type: 'curio', iconClass: 'curio', iconText: '💡',
       title: c.question, ws: '调度台', cat: '好奇心',
       badges: [{type:'curio-status', text: statusText}],
+      archived: !!c.lifecycleArchived,
       raw: c
     })
   })
@@ -636,23 +645,28 @@ function locateCat(wsId: string, cat: { id: string; name: string }) {
   showToast(`↗ 定位到「${cat.name}」`)
 }
 
+/**
+ * R110-LC（T3）：检索命中判据（R58-B4 字段同构 + V2.21 拼音补跑）——默认结果集与归档提示计数共用同一实现。
+ * 抽出的原因：归档卡被排除出默认结果集后，仍要能回答「另有 N 张归档卡也匹配」，两处必须同口径。
+ */
+function hitResult(r: SearchResult, parts: string[]): boolean {
+  if (!parts.length) return true
+  // R58-B4：命中字段两端同构——补标签（与网页浮层一致；raw 为原始卡）
+  const rawTags = Array.isArray((r.raw as { tags?: string[] })?.tags) ? ((r.raw as { tags?: string[] }).tags as string[]).join(' ') : ''
+  const blob = (r.title + ' ' + r.ws + ' ' + r.cat + ' ' + (r.summary||'') + ' ' + (r.link?.text||'') + ' ' + rawTags).toLowerCase()
+  // 第十九轮：支持拼音/首字母命中中文标题（如 sj → 设计…）
+  // V2.21：先读 pinyinReady 建立响应式依赖——字典未就绪时短路，纯文本匹配照常；
+  //        字典到位后 pinyinReady 翻转，本 computed 自动重算，拼音命中无缝补入。
+  const pinyinOn = pinyinReady.value
+  return parts.every(p => blob.includes(p) || (pinyinOn && matchPinyin(r.title, p)))
+}
 const filteredResults = computed<SearchResult[]>(() => {
-  let list = allResults.value
+  // R110-LC（T3）：归档卡从默认检索结果消失（只在「另有 N 张」提示里报数）
+  let list = allResults.value.filter(r => !r.archived)
   if (currentType.value !== 'all') list = list.filter(r => r.type === currentType.value)
   const q = searchQuery.value.trim().toLowerCase()
   const parts = q ? q.split(/\s+/) : []
-  if (q) {
-    list = list.filter(r => {
-      // R58-B4：命中字段两端同构——补标签（与网页浮层一致；raw 为原始卡）
-      const rawTags = Array.isArray((r.raw as { tags?: string[] })?.tags) ? ((r.raw as { tags?: string[] }).tags as string[]).join(' ') : ''
-      const blob = (r.title + ' ' + r.ws + ' ' + r.cat + ' ' + (r.summary||'') + ' ' + (r.link?.text||'') + ' ' + rawTags).toLowerCase()
-      // 第十九轮：支持拼音/首字母命中中文标题（如 sj → 设计…）
-      // V2.21：先读 pinyinReady 建立响应式依赖——字典未就绪时短路，纯文本匹配照常；
-      //        字典到位后 pinyinReady 翻转，本 computed 自动重算，拼音命中无缝补入。
-      const pinyinOn = pinyinReady.value
-      return parts.every(p => blob.includes(p) || (pinyinOn && matchPinyin(r.title, p)))
-    })
-  }
+  if (q) list = list.filter(r => hitResult(r, parts))
   // 第卅三轮 REQ-020：置顶 > 星标 ｜ R58-O1：同权重三级兜底——标题全词命中 > 调用热度 > 最近调出（召回排序与「三秒调度」心智对齐）
   const lowTitle = (x: SearchResult) => x.title.toLowerCase()
   const titleHit = (x: SearchResult) => parts.every(p => lowTitle(x).includes(p) || (pinyinReady.value && matchPinyin(x.title, p)))
@@ -668,6 +682,19 @@ const filteredResults = computed<SearchResult[]>(() => {
     return (((b.raw as AnyCard).lastCalledAt || 0) - ((a.raw as AnyCard).lastCalledAt || 0))
   })
   return list
+})
+
+/**
+ * R110-LC（T3）：归档卡命中数——归档卡已从默认结果集排除，这里用**同一命中判据**报「另有 N 张」。
+ * 只在有关键词时计数（浏览模式不提示）。
+ */
+const archivedMatchCount = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return 0
+  const parts = q.split(/\s+/)
+  let list = allResults.value.filter(r => r.archived)
+  if (currentType.value !== 'all') list = list.filter(r => r.type === currentType.value)
+  return list.filter(r => hitResult(r, parts)).length
 })
 
 // R60-2：换查询词 / 换类型 = 换了条件，选中态重置（必须在下一条 watch 之前注册）
@@ -697,7 +724,7 @@ const QUICK_ACTIONS = [
 ]
 // R47-B4：浏览模式热度列表——全类型（资源/任务/好奇/策展台）按调用次数降序，次数并列按最近打开时间
 const recentResources = computed<SearchResult[]>(() => {
-  const heat = allResults.value.filter(x => (x.raw as AnyCard | Workspace).callCount)
+  const heat = allResults.value.filter(x => !x.archived && (x.raw as AnyCard | Workspace).callCount)
   heat.sort((a, b) => {
     const dc = ((b.raw as any).callCount || 0) - ((a.raw as any).callCount || 0)
     return dc !== 0 ? dc : ((b.raw as any).lastCalledAt || 0) - ((a.raw as any).lastCalledAt || 0)
@@ -1279,6 +1306,8 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 
 /* 空状态 */
 .gp-search-empty { padding: 40px 20px; text-align: center; color: var(--text-3); }
+/* R110-LC（T3）：归档卡降级提示（搜索结果流顶部一行） */
+.gp-archived-hint { margin: 6px 0 2px; padding: 6px 10px; border: 1px dashed var(--border-strong); border-radius: 7px; font-size: 11px; color: var(--text-3); }
 .gp-se-icon { font-size: 32px; margin-bottom: 8px; opacity: .4; }
 .gp-se-text { font-size: 13px; line-height: 1.7; }
 .gp-se-text b { color: var(--text-2); font-weight: 600; }

@@ -21,6 +21,9 @@ import ModuleCard from '@/shared/components/ModuleCard.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
 import { useCardCols } from '@/shared/utils/cardCols'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
+import LifecyclePanel from '@/newtab/components/LifecyclePanel.vue'
+import type { LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
+import { useLifecycle } from '@/newtab/composables/useLifecycle'
 
 const route = useRoute()
 const router = useRouter()
@@ -57,15 +60,21 @@ function toggleBatchMode() {
   if (!batchMode.value) selectedTaskIds.value.clear()
 }
 
-const filteredTasks = computed(() => {
-  let tasks = (d.value.tasks || []).filter(t => !t.deletedAt)
+/** R110-LC（T3）：统一任务过滤管线（软删 → 状态/未归档 → 搜索）——归档提示与默认列表复用同一口径 */
+function applyTaskFilters(list: TaskCard[]): TaskCard[] {
+  let out = list.filter(t => !t.deletedAt)
   // R58-O2：未归档口径与北极星 O23 一致（taskArchiveIssue：未挂项目/指标或引用失效）
-  if (filterBy.value === 'unarchived') tasks = tasks.filter(t => !!taskArchiveIssue(t))
-  else if (filterBy.value !== 'all') tasks = tasks.filter(t => t.status === filterBy.value)
+  if (filterBy.value === 'unarchived') out = out.filter(t => !!taskArchiveIssue(t))
+  else if (filterBy.value !== 'all') out = out.filter(t => t.status === filterBy.value)
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
-    tasks = tasks.filter(t => t.title.toLowerCase().includes(q))
+    out = out.filter(t => t.title.toLowerCase().includes(q))
   }
+  return out
+}
+const filteredTasks = computed(() => {
+  // R110-LC（T3）：默认视图排除已归档任务（只在 ⏳ 生命周期面板中查看 / 恢复）
+  let tasks = applyTaskFilters(d.value.tasks || []).filter(t => !t.lifecycleArchived)
   // 第卅二轮 REQ-007 + bug 修复：排序下拉实际生效
   // R56-V1：manual（默认）= 拖拽序（sortOrder）优先，无拖拽序 = 最新创建在前；选其他排序即覆盖
   if (sortBy.value !== 'manual') {
@@ -86,6 +95,27 @@ const filteredTasks = computed(() => {
 })
 // R43-2 任务总数双值展示：当前筛选 N 条 / 全部 M
 const totalTaskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt).length)
+/** R110-LC（T3）：当前筛选/搜索口径命中的归档任务数——底部降级提示（≥1 才显示） */
+const archivedHintCount = computed(() => applyTaskFilters((d.value.tasks || []).filter(t => t.lifecycleArchived)).length)
+
+// ===== R110-LC：生命周期面板（任务卡） =====
+const lcCards = computed<LifecycleCard[]>(() => d.value.tasks.filter(t => !t.deletedAt))
+const { lcOpen, onLcArchive, onLcSnooze, onLcReactivate, onLcLocate } = useLifecycle({
+  cards: lcCards,
+  locate: (id) => {
+    filterBy.value = 'all'
+    searchQuery.value = ''
+    groupByProject.value = false
+    viewMode.value = 'card'
+    highlightId.value = id
+    nextTick(() => {
+      setTimeout(() => {
+        document.querySelector(`[data-tid="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setTimeout(() => { highlightId.value = null }, 2000)
+      }, 120)
+    })
+  }
+})
 function clearTaskFilter() {
   filterBy.value = 'all'
   searchQuery.value = ''
@@ -595,8 +625,15 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           <option value="unarchived">⚠ 未归档</option>
         </select>
         <button v-if="viewMode!=='card'" class="mini-btn" :class="{active: groupByProject}" @click="groupByProject = !groupByProject" title="按所属项目分组">📂 按项目分组</button>
+        <!-- R110-LC：生命周期面板入口（活跃 / 冷却 / 归档三态） -->
+        <button class="mini-btn" @click="lcOpen = true" title="生命周期（活跃 / 冷却 / 归档）">⏳</button>
         <div class="search-box"><span>🔍</span><input v-model="searchQuery" placeholder="搜索任务..."></div>
         <span class="mgr-count"><span class="cur">{{ filteredTasks.length }} 条</span><span class="total" :class="{act: filterBy !== 'all' || searchQuery.trim()}" @click="clearTaskFilter" :title="filterBy !== 'all' || searchQuery.trim() ? '点击查看全部任务' : '全部任务数'">/ 全部 {{ totalTaskCount }}</span></span>
+      </div>
+
+      <!-- R110-LC（T3）：归档卡已从默认视图隐藏——降级提示（可点开面板恢复） -->
+      <div v-if="archivedHintCount" class="tm-archived-hint" @click="lcOpen = true">
+        📦 另有 {{ archivedHintCount }} 张已归档任务未显示（点此在 ⏳ 生命周期中查看 / 恢复）
       </div>
 
       <!-- 批量操作栏 -->
@@ -897,6 +934,9 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 
     <ContextMenu :state="taskCtx" :items="taskCtxItems" @close="taskCtx.open = false" />
     <TaskDetailDrawer ref="drawerRef" />
+    <!-- R110-LC：生命周期面板（任务卡） -->
+    <LifecyclePanel :open="lcOpen" kind="task" :cards="lcCards"
+      @close="lcOpen = false" @locate="onLcLocate" @archive="onLcArchive" @snooze="onLcSnooze" @reactivate="onLcReactivate" />
   </ModuleCard>
 </template>
 
@@ -1047,6 +1087,9 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .ts-select-pm:disabled { opacity: .5; cursor: not-allowed; }
 .fade-enter-active, .fade-leave-active { transition: opacity .25s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+/* R110-LC（T3）：归档降级提示条 */
+.tm-archived-hint { margin: 8px 0 0; padding: 7px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: 11.5px; color: var(--text-3); cursor: pointer; transition: all .15s; }
+.tm-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
 .modal-enter-active, .modal-leave-active { transition: all .15s ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; transform: translate(-50%, -50%) scale(.95); }
 </style>

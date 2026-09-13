@@ -675,6 +675,19 @@ function openFocusProject(p: Project) {
 }
 
 // ================= 底部专区（R55-B2：任务调度已迁方向台，好奇心培育单区直呈） =================
+// ===== R111：调度画像周报 =====
+const wrOpen = ref(false)
+function onWrDrill(ev: { kind: string; cardId?: string; workspaceId?: string; dirId?: string }) {
+  if (ev.kind === 'created') { openRec('in'); return }
+  if (ev.kind === 'called') { openRec('called'); return }
+  if (ev.kind === 'done' || ev.kind === 'unarchived') { router.push({ path: '/compass', query: { zone: 'task' } }); return }
+  if (ev.kind === 'direction') { router.push('/compass'); return }
+  if (ev.kind === 'top-card' && ev.cardId && ev.workspaceId) {
+    router.push({ path: '/workspace/' + ev.workspaceId, query: { hl: ev.cardId } })
+    return
+  }
+  showToast('💡 在下方好奇心培育里管理你的好奇心')
+}
 const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.deletedAt).length)
 </script>
 
@@ -695,6 +708,9 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
         <span class="sync-gear" title="Airtable 同步设置" @click.stop="router.push('/settings?page=airtable')">⚙</span>
       </button>
     </div>
+
+      <!-- R111：调度画像周报入口 -->
+      <button class="mini-btn wr-entry" title="调度画像周报" @click="wrOpen = true">📊 周报</button>
 
     <!-- R55-D1：方向状态（战略目标/WCE/WRR/未归档四格）迁至调度台最顶部 ｜ R66-F3：右端挂操作记录四格 -->
     <MetricBar>
@@ -875,6 +891,9 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
         <span class="ct-entry">展开 ›</span>
       </div>
       <CuriosityPanel v-else />
+
+    <!-- R111：调度画像周报全屏浮层 -->
+    <WeeklyReportOverlay :open="wrOpen" @close="wrOpen = false" @drill="onWrDrill" />
     </section>
 
     <!-- ===== 任务选取弹窗 ===== -->
@@ -1062,6 +1081,8 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .rec-mini.in-bar { background: transparent; border: none; padding: 0; }
 .rec-mini .rm-cell { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-2); padding: 2px 7px; border-radius: 99px; cursor: pointer; font-variant-numeric: tabular-nums; transition: all .12s; white-space: nowrap; }
 .rec-mini .rm-cell:hover { background: var(--accent-light); color: var(--accent); }
+.wr-entry { font-size: 11px; padding: 4px 10px; border-radius: 99px; }
+.wr-entry:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
 
 /* 左右分栏 */
 /* R51-F10：上下联动——三件事在上占视觉焦点，项目调度在下 */

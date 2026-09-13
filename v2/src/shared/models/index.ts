@@ -131,6 +131,8 @@ export interface CardBase {
   importedAt?: number
   /** REQ-048：附件元数据（本体在 IndexedDB zy_assets，仅存引用，主 JSON 绝不存 base64） */
   assets?: AssetMeta[]
+  /** R110-LC：生命周期归档标记（可选字段，零迁移）——true 即从默认视图隐藏，仅 ⏳ 生命周期面板可见/可恢复 */
+  lifecycleArchived?: boolean
 }
 
 /** 资源卡（向源头求证） */
