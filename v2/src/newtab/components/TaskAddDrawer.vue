@@ -21,7 +21,7 @@ const props = defineProps<{
 const emit = defineEmits<{ close: []; created: [task: TaskCard] }>()
 
 const store = useAppStore()
-const { d } = useCompass()
+const { d, allProjects } = useCompass()
 
 const tab = ref<'create' | 'link'>('create')
 
@@ -36,6 +36,9 @@ const prioList = [
 
 // ---- 关联模式 ----
 const linkQ = ref('')
+// R113-N6：按项目筛选（与调度台「从任务库选取」保持同款形态）
+// 取值：'' = 全部项目；'__none__' = 未关联项目；其余 = project.id
+const linkProject = ref('')
 const selected = ref<Set<string>>(new Set())
 
 function reset() {
@@ -43,6 +46,7 @@ function reset() {
   newTitle.value = ''
   newPriority.value = 'medium'
   linkQ.value = ''
+  linkProject.value = '' // R113-N6：打开时复位为「全部项目」
   selected.value = new Set()
 }
 watch(() => props.open, (v) => { if (v) reset() })
@@ -84,12 +88,41 @@ function createTask() {
   }
 }
 
+/** R113-N6：任务的有效项目 id —— projectId 优先；缺失时由 metricId 反查所在项目（与 projectNameOf 同口径） */
+function effectiveProjectId(t: TaskCard): string {
+  if (t.projectId) return t.projectId
+  if (t.metricId) {
+    for (const dir of d.value.compass.directions) {
+      const p = dir.projects.find(x => x.metrics.some(m => m.id === t.metricId))
+      if (p) return p.id
+    }
+  }
+  return ''
+}
+
 /** 关联候选：未删除且未挂在本指标的任务（含孤儿 / 他指标任务，选中即转移归属） */
 const candidates = computed(() => {
   const q = linkQ.value.trim().toLowerCase()
+  const pj = linkProject.value
   return d.value.tasks
     .filter(t => !t.deletedAt && t.metricId !== props.metricId && (!q || t.title.toLowerCase().includes(q)))
+    // R113-N6：项目维度过滤（与关键词可叠加）
+    .filter(t => !pj || (pj === '__none__' ? !effectiveProjectId(t) : effectiveProjectId(t) === pj))
     .slice(0, 40)
+})
+
+/** R113-N6：项目下拉选项（只列"有可关联任务"的项目，带任务数；另给未关联计数） */
+const linkProjectOptions = computed(() => {
+  const counts = new Map<string, number>()
+  let none = 0
+  for (const t of d.value.tasks) {
+    if (t.deletedAt || t.metricId === props.metricId) continue
+    const pid = effectiveProjectId(t)
+    if (pid) counts.set(pid, (counts.get(pid) || 0) + 1)
+    else none++
+  }
+  const opts = allProjects().filter(p => counts.has(p.id)).map(p => ({ id: p.id, name: p.name, n: counts.get(p.id) || 0 }))
+  return { opts, none }
 })
 
 /** R47-B1：任务归属反查——项目名（projectId 优先，否则由 metricId 反查），缺失显示「未关联项目」 */
@@ -186,8 +219,16 @@ function linkTasks() {
 
     <!-- 关联模式 -->
     <div v-else class="tad-body">
-      <input v-model="linkQ" class="tad-input" placeholder="搜索任务标题…（已关联到本指标的不展示）"
-        @keydown.ctrl.enter.prevent="linkTasks" @keydown.meta.enter.prevent="linkTasks" />
+      <!-- R113-N6：关键词 + 项目 两维筛选可叠加 -->
+      <div class="tad-filters">
+        <input v-model="linkQ" class="tad-input" placeholder="搜索任务标题…（已关联到本指标的不展示）"
+          @keydown.ctrl.enter.prevent="linkTasks" @keydown.meta.enter.prevent="linkTasks" />
+        <select v-model="linkProject" class="tad-proj" title="按项目筛选">
+          <option value="">全部项目</option>
+          <option value="__none__">未关联项目（{{ linkProjectOptions.none }}）</option>
+          <option v-for="o in linkProjectOptions.opts" :key="o.id" :value="o.id">{{ o.name }}（{{ o.n }}）</option>
+        </select>
+      </div>
       <div class="tad-list">
         <label v-for="t in candidates" :key="t.id" class="tad-item" :class="{on: selected.has(t.id)}">
           <input type="checkbox" :checked="selected.has(t.id)" @change="toggleSel(t.id)" />
@@ -216,6 +257,12 @@ function linkTasks() {
 .tad-label { font-size: 11.5px; font-weight: 600; color: var(--text-3); letter-spacing: .4px; margin-top: 4px; }
 .tad-input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 13px; outline: none; font-family: inherit; background: var(--surface); color: var(--text); box-sizing: border-box; }
 .tad-input:focus { border-color: var(--accent); }
+/* R113-N6：关联模式的筛选行（关键词 + 项目下拉） */
+.tad-filters { display: flex; gap: 8px; align-items: center; }
+.tad-filters .tad-input { flex: 1; min-width: 0; }
+.tad-proj { flex-shrink: 0; max-width: 180px; border: 1px solid var(--border); border-radius: 8px; padding: 9px 8px; font-size: 12px; outline: none; font-family: inherit; background: var(--surface); color: var(--text-2); cursor: pointer; }
+.tad-proj:hover { border-color: var(--accent); }
+.tad-proj:focus { border-color: var(--accent); color: var(--text); }
 
 .tad-prios { display: flex; gap: 6px; }
 .tad-prio { flex: 1; padding: 8px 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; cursor: pointer; font-size: 12px; font-family: inherit; transition: all .15s; }

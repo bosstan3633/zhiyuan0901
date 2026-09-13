@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useOverlayTarget } from '@/shared/utils/overlayHost'
+// R113-N5：Teleport 目标动态化——金字塔真全屏期间浮层挂进全屏元素（否则不可见）
+const overlayTarget = useOverlayTarget()
 /**
  * B5：统一右键菜单（fixed 定位，Esc/点击空白关闭）
  * 用法：<ContextMenu :state="menu" :items="items" @close="menu=null" />
@@ -20,7 +23,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport :to="overlayTarget">
     <div v-if="state.open" class="ctx-mask" @click="emit('close')" @contextmenu.prevent="emit('close')" />
     <div v-if="state.open" class="ctx-menu-box" :style="{ left: state.x + 'px', top: state.y + 'px' }">
       <button v-for="(it, i) in items" :key="it.label" class="cx-item" :class="{ danger: it.danger }"

@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="ws-page" v-if="workspace" :style="{ '--grid-cols': String(resCols) }">
+  <div ref="wsPageRef" class="ws-page" :class="{ 'ws-fs-on': pyFs }" v-if="workspace" :style="{ '--grid-cols': String(resCols) }">
     <!-- R84（W1）：台身份页头——图标 + 台名 + 台描述 + 右端结构摘要（一行 ≤40px）。
          改前：仅资源台有一段 R73-S5a 写死的 .ws-hub-head（无图标、非 workspace.name.replace(/^[^\s]+\s/, '')/description），
          而 **策展台的台名与台描述在页面内零出现**——用户置身于某个策展台，却不知道这是哪个台。
@@ -84,9 +84,7 @@
       @close="drillOpen=false" @jump-cat="onDrillJumpCat" @open-card="onDrillOpenCard" @locate="onDrillLocate"
       @locate-asset="onDrillLocateAsset" @cleanup-asset="onDrillCleanupAsset" @cleanup-orphans="onDrillCleanupOrphans" />
 
-    <!-- R110-LC：生命周期面板（资源卡；策展台镜像卡跟随源卡状态，故只列本台原生卡） -->
-    <LifecyclePanel :open="lcOpen" kind="resource" :cards="lcCards"
-      @close="lcOpen = false" @locate="onLcLocate" @archive="onLcArchive" @snooze="onLcSnooze" @reactivate="onLcReactivate" />
+    <!-- R113-N2：生命周期入口收敛到 设置→总览（原就地面板移除） -->
 
     <!-- R108（T3）：金字塔 Markdown 模板导入弹窗（仅策展台入口；hasThesis 决定 H1 是否被采用） -->
     <ImportTemplateModal
@@ -107,8 +105,7 @@
       <div v-if="!batchMode" class="sm-item" @click="toggleBatchMode">☑ 批量管理</div>
       <!-- R106（F7）：一键批量清理本台镜像卡（投射记录删除，源卡保留在资源台） -->
       <div v-if="!isHub" class="sm-item" @click="cleanAllMirrors">🧹 清理本台镜像卡</div>
-      <!-- R108（T3）：金字塔 Markdown 模板导入（论点 + 分类节点 + 节点卡片一次生成） -->
-      <div v-if="!isHub" class="sm-item" @click="pyramidImportOpen = true">📋 导入金字塔模板</div>
+      <!-- R108（T3）：金字塔 Markdown 模板导入 —— R113-N4 已提到一级工具条（见「📋 导入模板」按钮），此处移除 -->
       <div class="sm-divider"></div>
       <div class="sm-item" @click="renameWs">✏️ 重命名</div>
       <div class="sm-item" @click="editDesc">📝 编辑描述</div>
@@ -131,6 +128,10 @@
       <!-- R90（R8-②）：主 CTA「＋新建」前置——从最右移到视图 Tab 之后、搜索之前。
            R88 只做了"分级"（一级收到 5 件），**位置仍在右端**；R8 要的是"主 CTA 不被挤到最右"。 -->
       <button class="hero-btn primary" @click="openNewResource">＋ 新建</button>
+      <!-- R113-N4：金字塔模板导入提到一级。原藏在 ⚙ 菜单第 4 项（用户反馈"埋太深、不方便"），
+           与「＋新建」同属"往本台生成内容"，紧邻放置；资源台（hub）无金字塔概念，不露出。 -->
+      <button v-if="!isHub" class="hero-btn settings py-import-btn" title="导入金字塔 Markdown 模板（论点 + 分类节点 + 节点卡片一次生成）"
+        @click="pyramidImportOpen = true">📋 导入模板</button>
       <div class="toolbar-spacer"></div>
       <div class="toolbar-search">
         <span class="s-icon">🔍</span>
@@ -207,18 +208,17 @@
       <!-- 注：主 CTA「＋新建」已按 R8 前置到视图 Tab 之后（见上），此处不再重复 -->
       <button v-if="batchMode" class="toolbar-batch active" @click="toggleBatchMode">✓ 完成批量</button>
       <!-- R110-LC：生命周期面板入口（活跃 / 冷却 / 归档三态；归档卡从默认视图隐藏，在此恢复） -->
-      <button class="hero-btn settings" title="生命周期（活跃 / 冷却 / 归档）" @click.stop="lcOpen = true">⏳</button>
       <button class="hero-btn settings" title="策展台设置" @click.stop="toggleSettingsMenu">⚙</button>
     </div>
 
-    <!-- R110-LC（T3）：归档卡已从默认视图隐藏——底部一行降级提示（可点开面板恢复） -->
-    <div v-if="archivedHintCount" class="ws-archived-hint" @click="lcOpen = true">
-      📦 另有 {{ archivedHintCount }} 张已归档卡片未显示（点此在 ⏳ 生命周期中查看 / 恢复）
+    <!-- R110-LC（T3）：归档卡已从默认视图隐藏——底部一行降级提示（R113-N2 起点击跳 设置→总览·资源生命周期） -->
+    <div v-if="archivedHintCount" class="ws-archived-hint" @click="router.push('/settings?page=lifecycle')">
+      📦 另有 {{ archivedHintCount }} 张已归档卡片未显示（点此在 设置 → 总览 · 资源生命周期 中查看 / 恢复）
     </div>
 
     <!-- ③ 资源策展区 -->
       <div class="ws-columns">
-      <div class="ws-sidebar">
+      <div class="ws-sidebar" :style="{ width: wsSideW + 'px' }">
         <div class="cat-toolbar">
           <span class="ct-label">目录</span>
           <span class="ct-actions">
@@ -261,14 +261,12 @@
             <!-- R62-4：层级色点（L1-L4 一眼分层） -->
             <span class="cat-depth-dot" :data-lv="sc.depth"></span>
             <span class="cat-name">{{ sc.cat.name }}</span>
+            <!-- R113-N1：原 5 个图标平铺（且 hover 时把计数顶掉、把分类名挤没）→ 收敛为
+                 「＋ 子分类」+「⋯ 更多」两项；置顶 / 镜像 / 重命名 / 删除 收进 ⋯ 菜单，
+                 主次分明、破坏性操作进二级（误删风险下降）。计数恢复常驻。 -->
             <span class="cat-actions">
-              <span v-if="sc.depth===0" class="cat-act" :class="{on: sc.cat.pinned}" :title="sc.cat.pinned?'取消置顶':'置顶'" @click.stop="toggleCatPin(sc.cat)">📌</span>
-              <!-- R73-S3：镜像分类到策展台（仅资源台、且非镜像分类——镜像分类源头已在策展台） -->
-              <span v-if="isHub && !isMirrorCat(sc.cat)" class="cat-act" title="镜像分类到策展台（含现有卡片）" @click.stop="openMirrorCat(sc.cat)">📤</span>
-              <!-- R61-4：父级分类 hover 出现「创建子分类」入口（4 级内） -->
               <span v-if="sc.depth < 3" class="cat-act" title="创建子分类" @click.stop="openCreateCat(sc.cat.id)">＋</span>
-              <span class="cat-act" title="重命名" @click.stop="openRenameCat(sc.cat)">✎</span>
-              <span class="cat-act danger" title="删除" @click.stop="deleteCategory(sc.cat)">🗑</span>
+              <span class="cat-act more" title="更多操作（置顶 / 镜像 / 重命名 / 删除）" @click.stop="openCatMenu($event, sc)">⋯</span>
             </span>
             <span class="cat-count" :title="sc.hasChildren ? `仅本分类直属 ${sc.directCount} 张 · 含 ${sc.childCount} 个子分类（共 ${sc.aggCount} 张）` : `仅本分类直属 ${sc.directCount} 张`">{{ sc.directCount }}</span>
           </div>
@@ -281,6 +279,18 @@
         <div class="cat-merge" @click="mergeDupCats">
           <span>🛠</span><span>合并重复分类</span>
         </div>
+      </div>
+      <!-- R113-N1：树宽拖拽手柄（160–420px；双击复位 200px；窄屏隐藏） -->
+      <div class="ws-side-split" title="拖拽调整分类树宽度（双击复位）" @mousedown.prevent="startSideResize" @dblclick="resetSideWidth"></div>
+
+      <!-- R113-N1：分类行「⋯」溢出菜单（fixed 定位——不被侧栏 overflow-y 裁剪；out-of-flow 不进 flex 布局） -->
+      <div v-if="catMenu.open" class="ctm-mask" @click="catMenu.open = false" @contextmenu.prevent="catMenu.open = false"></div>
+      <div v-if="catMenu.open" class="ctm" :style="{ left: catMenu.x + 'px', top: catMenu.y + 'px' }">
+        <div v-if="catMenu.depth === 0" class="ctm-item" @click="runCatMenu('pin')">📌 {{ catMenu.pinned ? '取消置顶' : '置顶分类' }}</div>
+        <div v-if="catMenu.canMirror" class="ctm-item" @click="runCatMenu('mirror')">📤 镜像到策展台</div>
+        <div class="ctm-item" @click="runCatMenu('rename')">✎ 重命名</div>
+        <div class="ctm-sep"></div>
+        <div class="ctm-item danger" @click="runCatMenu('delete')">🗑 删除分类</div>
       </div>
 
       <!-- 右侧展示区 -->
@@ -815,8 +825,8 @@
     <!-- R80（R14）：图片附件卡预览——双击 `zy-asset://` 图片卡就地弹窗（此前会落到「文档附件不存在」误报） -->
     <AssetPreview :open="previewOpen" :url="previewUrl" :name="previewName" @close="closePreview" />
 
-    <!-- R62-6：金字塔节点菜单（⋯ 展开，6 项） -->
-    <Teleport to="body">
+    <!-- R62-6：金字塔节点菜单（⋯ 展开，6 项）——R113-N5：动态宿主，真全屏下仍可用 -->
+    <Teleport :to="overlayTarget">
       <div v-if="nodeMenu.open" class="node-menu-mask" @click="nodeMenu.open=false" />
       <div v-if="nodeMenu.open" class="node-menu" :style="{ left: nodeMenu.x + 'px', top: nodeMenu.y + 'px' }" @click.stop>
         <div class="nm-item" @click="nmCreateChild">🌳 新建子论点（子节点）</div>
@@ -903,6 +913,7 @@ import { useAppStore } from '@/newtab/stores/app'
 import { useCompass } from '@/newtab/stores/compass'
 import { recordResourceOpen, recordWorkspaceOpen } from '@/shared/storage/stats'
 import { saveUIPrefs } from '@/shared/storage/repository'
+import { setOverlayFsHost, useOverlayTarget } from '@/shared/utils/overlayHost'
 import { showToast } from '@/shared/components/toast'
 import { toOpenableUrl, openExternalLink, linkStateOf } from '@/shared/utils/link'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
@@ -932,14 +943,14 @@ import { CURATION_WS_ID, type AppData, type ResourceCard, type Category, type Wo
 import { boardCardsOf, isMirrorView, removeProjection, curationMetrics, setThesis, mirrorCategoryToBoard, canMountInNode, isHubWs, projectCardToBoard, curationBoards, type MirrorView } from '@/shared/storage/hub'
 import CurationDrillDrawer from '@/newtab/components/CurationDrillDrawer.vue'
 import type { DrillCatRow, DrillCardRow } from '@/newtab/components/CurationDrillDrawer.vue'
-import LifecyclePanel from '@/newtab/components/LifecyclePanel.vue'
-import type { LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
-import { useLifecycle } from '@/newtab/composables/useLifecycle'
+// R113-N2：LifecyclePanel / useLifecycle 移除——入口收敛到 设置→总览（GlobalSettings）
 
 const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
 const d = computed(() => store.data!)
+/** R113-N5：浮层动态宿主——真全屏时 Teleport 目标指向全屏元素（否则挂 body 的浮层不可见） */
+const overlayTarget = useOverlayTarget()
 /** R82（R4）：取项目扁平表（任务的项目名展示）——与方向台共用 useCompass 的口径 */
 const { allProjects } = useCompass()
 
@@ -1034,24 +1045,7 @@ function onDrillLocate(id: string) {
   if (r) locateMirrorSource(r)
 }
 
-// ===== R110-LC：生命周期面板（资源卡 / 策展台卡——策展台镜像卡跟随源卡状态，故不单列） =====
-const lcCards = computed<LifecycleCard[]>(() => d.value.resources
-  .filter(r => !r.deletedAt && !isMirrorView(r) && r.workspaceId === workspaceId.value))
-const { lcOpen, onLcArchive, onLcSnooze, onLcReactivate, onLcLocate } = useLifecycle({
-  cards: lcCards,
-  locate: (id) => {
-    activeCategory.value = 'all'
-    viewMode.value = 'card'
-    highlightId.value = id
-    nextTick(() => {
-      setTimeout(() => {
-        document.querySelector(`[data-rid="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        setTimeout(() => { highlightId.value = null }, 2000)
-      }, 120)
-    })
-    showToast('↗ 已定位到卡片')
-  }
-})
+// R113-N2：生命周期面板接线移除（原 R110-LC 块）——归档提示条改跳 设置→总览·资源生命周期
 
 // ===== R110-BUG2：附件明细宿主接线（跨台存在性判定 / 定位 / 清理） =====
 /** 跨台全量判定：附件来源卡是否仍存在（未软删；不限本台） */
@@ -2153,6 +2147,63 @@ function treeCatOptions(cats: Category[]): { id: string; label: string }[] {
 // R76（R3）：count 一律取 directCount（与看板列、卡片/列表分组同口径）；
 // childCount + aggCount 只用于 title 补充说明，不再作为显示值，避免同屏出现两个数
 interface SidebarCat { cat: Category; depth: number; sectionLabel: string; hasChildren: boolean; childCount: number; aggCount: number; directCount: number }
+
+// ---- R113-N1：分类行「⋯」溢出菜单 ----
+// 原实现把 5 个操作图标平铺在分类行上、且 hover 时顶掉计数，用户反馈"入口太多快淹没文件夹"。
+// 现只留「＋ 子分类」与「⋯」，其余四项收进本菜单（主次分明 + 破坏性操作进二级）。
+const catMenu = ref<{ open: boolean; x: number; y: number; cat: Category | null; depth: number; pinned: boolean; canMirror: boolean }>(
+  { open: false, x: 0, y: 0, cat: null, depth: 0, pinned: false, canMirror: false }
+)
+function openCatMenu(ev: MouseEvent, sc: SidebarCat) {
+  const r = (ev.currentTarget as HTMLElement).getBoundingClientRect()
+  const MENU_W = 168
+  catMenu.value = {
+    open: true,
+    x: Math.max(8, Math.min(r.left, window.innerWidth - MENU_W - 8)),
+    y: Math.max(8, Math.min(r.bottom + 4, window.innerHeight - 172)),
+    cat: sc.cat,
+    depth: sc.depth,
+    pinned: !!sc.cat.pinned,
+    canMirror: !!(isHub.value && !isMirrorCat(sc.cat))
+  }
+}
+function runCatMenu(action: 'pin' | 'mirror' | 'rename' | 'delete') {
+  const c = catMenu.value.cat
+  catMenu.value.open = false
+  if (!c) return
+  if (action === 'pin') toggleCatPin(c)
+  else if (action === 'mirror') openMirrorCat(c)
+  else if (action === 'rename') openRenameCat(c)
+  else if (action === 'delete') void deleteCategory(c)
+}
+
+// ---- R113-N1：左侧分类树宽度拖拽（持久化 UIPrefs.wsSideW）----
+// 原实现宽度写死 200px（.ws-sidebar），深层级长分类名必被截断，且项目内其他三处侧栏
+// （CompassHome 的 curSplit / TaskDetailDrawer 的 drawerWs / ProjectCuration 的 projRailW）
+// 都支持拖拽，资源台是唯一例外。此处沿用 px 范式（同 TaskDetailDrawer）。
+const SIDE_W_MIN = 160
+const SIDE_W_MAX = 420
+const SIDE_W_DEF = 200
+const wsSideW = ref<number>(store.ui?.wsSideW || SIDE_W_DEF)
+let sideDrag: { startX: number; startW: number } | null = null
+function onSideResizeMove(e: MouseEvent) {
+  if (!sideDrag) return
+  wsSideW.value = Math.min(SIDE_W_MAX, Math.max(SIDE_W_MIN, sideDrag.startW + (e.clientX - sideDrag.startX)))
+}
+function onSideResizeUp() {
+  document.removeEventListener('mousemove', onSideResizeMove)
+  document.removeEventListener('mouseup', onSideResizeUp)
+  if (sideDrag) { saveUIPrefs({ wsSideW: wsSideW.value }); sideDrag = null }
+}
+function startSideResize(e: MouseEvent) {
+  sideDrag = { startX: e.clientX, startW: wsSideW.value }
+  document.addEventListener('mousemove', onSideResizeMove)
+  document.addEventListener('mouseup', onSideResizeUp)
+}
+function resetSideWidth() {
+  wsSideW.value = SIDE_W_DEF
+  saveUIPrefs({ wsSideW: SIDE_W_DEF })
+}
 // R48-V2：树状目录展开/折叠（默认全局展开；折叠状态仅会话内记忆）
 const collapsedCats = ref<Set<string>>(new Set())
 function toggleCatCollapse(id: string) {
@@ -2484,28 +2535,33 @@ function pyLevelOf(c: Category): number { return pyDepthOf(c) + 1 }
 // ===== R64-F11：金字塔 SVG 结构连线（根→L2、父节点→子节点，贝塞尔细线） =====
 const pyWrapRef = ref<HTMLElement | null>(null)
 
-// ===== R110-FS：金字塔全屏（04-58/FS 技术调研结论——路线 A 为主、路线 B 自动降级） =====
+// ===== R110-FS → R113-N5（T10）：金字塔真全屏（宿主上移 .pyramid → .ws-page） =====
 /** 全屏中（真全屏或降级覆盖层） */
 const pyFs = ref(false)
 /** true = 走 CSS fixed 覆盖层（requestFullscreen 不存在或被拒时） */
 const pyFsFallback = ref(false)
+/** R113-N5：全屏宿主 = Workspace 根节点——工具条 / 弹窗 / 抽屉全部纳入全屏子树 */
+const wsPageRef = ref<HTMLElement | null>(null)
 async function enterPyFullscreen() {
-  const el = pyWrapRef.value
+  const el = wsPageRef.value
   if (!el) return
   if (typeof el.requestFullscreen === 'function') {
     try {
       await el.requestFullscreen()
       pyFs.value = true
       pyFsFallback.value = false
+      setOverlayFsHost(el)
       nextTick(drawPyLinks)
       return
     } catch { /* 老浏览器 / 策略拒绝 → 落到降级路线 */ }
   }
   pyFsFallback.value = true
   pyFs.value = true
+  setOverlayFsHost(el)
   nextTick(drawPyLinks)
 }
 function exitPyFullscreen() {
+  setOverlayFsHost(null)
   if (pyFsFallback.value) { pyFsFallback.value = false; pyFs.value = false; nextTick(drawPyLinks); return }
   if (document.fullscreenElement) void document.exitFullscreen().catch(() => { pyFs.value = false })
   else { pyFs.value = false; nextTick(drawPyLinks) }
@@ -2514,7 +2570,8 @@ function togglePyFullscreen() { pyFs.value ? exitPyFullscreen() : void enterPyFu
 /** 真全屏下 ESC 由浏览器接管，只在状态变化时同步本组件的 pyFs（不手动拦 ESC） */
 function onPyFsChange() {
   const on = !!document.fullscreenElement
-  if (!on) { pyFs.value = false; pyFsFallback.value = false }
+  if (!on) { pyFs.value = false; pyFsFallback.value = false; setOverlayFsHost(null) }
+  else setOverlayFsHost(wsPageRef.value)
   nextTick(drawPyLinks)
 }
 /** 降级覆盖层下自行监听 ESC + 锁定背景滚动 */
@@ -3046,6 +3103,9 @@ function linkDisplay(link: string) {
 
 /* 侧边栏（R48-V2：Linear 风格树——紧凑行高、缩进导轨、chevron 旋转、弱化计数） */
 .ws-sidebar { width: 200px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--surface); padding: 10px 10px 14px; overflow-y: auto; }
+/* R113-N1：分类树宽度拖拽分隔条（4px 热区，hover/拖拽中高亮） */
+.ws-side-split { width: 4px; flex-shrink: 0; margin-left: -2px; cursor: col-resize; border-radius: 2px; transition: background .12s; z-index: 5; }
+.ws-side-split:hover, .ws-side-split:active { background: var(--accent); opacity: .55; }
 .cat-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px 8px; }
 .cat-toolbar .ct-label { font-size: 10px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; }
 .cat-toolbar .ct-actions { display: inline-flex; gap: 2px; }
@@ -3076,13 +3136,22 @@ function linkDisplay(link: string) {
 .cat-caret.open { transform: rotate(90deg); }
 .cat-caret.placeholder { cursor: default; }
 .cat-item.collapsed { color: var(--text-2); }
+/* R113-N1：分类行动作收敛——hover 只出「＋」「⋯」两项；计数恢复常驻
+   （原 :hover 时 .cat-count 被 display:none 顶掉，长分类名还会被 5 个图标挤没） */
 .cat-item .cat-actions { display: none; gap: 2px; flex-shrink: 0; }
 .cat-item:hover .cat-actions { display: inline-flex; }
-.cat-item:hover .cat-count { display: none; }
 .cat-act { width: 18px; height: 18px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-3); cursor: pointer; }
 .cat-act:hover { background: var(--surface); color: var(--text); }
 .cat-act.on { color: var(--accent); }
-.cat-act.danger:hover { color: var(--danger); }
+.cat-act.more { font-size: 12px; font-weight: 700; line-height: 1; }
+.cat-act.more:hover { color: var(--accent); }
+/* R113-N1：分类行「⋯」溢出菜单（置顶 / 镜像 / 重命名 / 删除） */
+.ctm-mask { position: fixed; inset: 0; z-index: 690; }
+.ctm { position: fixed; z-index: 691; min-width: 160px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; }
+.ctm-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 7px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: all .12s; }
+.ctm-item:hover { background: var(--surface-3); color: var(--text); }
+.ctm-item.danger:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+.ctm-sep { height: 1px; background: var(--border); margin: 5px 4px; }
 .cat-item.drop-child { background: var(--accent-light); box-shadow: inset 0 0 0 1.5px var(--accent); }
 .cat-item.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
 .cat-item.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
@@ -3336,6 +3405,10 @@ function linkDisplay(link: string) {
 /* ===== R62-5：金字塔视图 ===== */
 /* R66-F5：结构连线层（横平竖直直角折线；画布尺寸由 drawPyLinks 按滚动区设定） */
 .pyramid { display: flex; flex-direction: column; gap: 14px; position: relative; overflow-x: auto; }
+/* R113-N5（T10）：真全屏宿主 = .ws-page——专注金字塔：隐藏标题/指标条/侧栏/归档提示，保留工具条（＋新建 / 📋 导入模板可用） */
+.ws-page:fullscreen { background: var(--bg); overflow-y: auto; padding: 16px 24px 90px; }
+.ws-page:fullscreen .ws-id-head, .ws-page:fullscreen .ws-metrics, .ws-page:fullscreen .ws-sidebar,
+.ws-page:fullscreen .ws-side-split, .ws-page:fullscreen .ws-archived-hint { display: none; }
 /* R110-FS：金字塔全屏——路线 A 元素级真全屏（浏览器原生 ESC），路线 B fixed 覆盖层降级（自行监听 ESC） */
 .py-fs-btn { position: absolute; top: 0; right: 0; z-index: 6; font-size: 11px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; cursor: pointer; font-family: inherit; transition: all .15s; }
 .py-fs-btn:hover { color: var(--accent); border-color: var(--accent); }

@@ -38,7 +38,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.80.0'";
+const VER_ANCHOR_LITERAL = "version: '2.81.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -515,7 +515,7 @@ console.log('【第卌一轮 · V2.17.0 第二批：REQ-055 资源卡 CSV 动态
 check('R41-4 REQ-055 CSV 动态列：allFields(fieldConfig) 目录驱动 + resCsvValue 取值 + 系统字段全导/自定义按可见性 + 列名取 label', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes('function resCsvValue') && s.includes("allFields(d.fieldConfig, 'resource')") && s.includes("!f.key.startsWith('custom_') || f.visible") && s.includes("const headers = cols.map(c => c.label)"); });
 check('R41-4b REQ-055 UI 文案同步动态列说明（旧硬编码 8 字段描述串已清除）', () => !read('/newtab/views/GlobalSettings.vue').includes('字段：标题/链接/链接类型/标签/分类/描述/创建时间/更新时间'));
 console.log('【第卌一轮 · V2.17.0 第三批：REQ-056 AssetPreview 公共 viewer 抽取（AssetManager/AssetBadge 双份合一）】');
-check('R41-5 REQ-056 公共组件 AssetPreview 存在（Teleport + Esc/←→ 键捕获 + img 渲染 + close/prev/next emits，第卌二轮升级多图导航）', () => { const s = read('/shared/components/AssetPreview.vue'); return s.includes('<Teleport to="body">') && s.includes("e.key === 'Escape' && props.open") && s.includes("e.key === 'ArrowLeft'") && s.includes('class="ap-viewer-img"') && s.includes("(e: 'close')") && s.includes("(e: 'prev')") && s.includes("(e: 'next')"); });
+check('R41-5（R113-N5 重指：Teleport 目标动态化）REQ-056 公共组件 AssetPreview 存在（动态 Teleport + Esc/←→ 键捕获 + img 渲染 + close/prev/next emits，第卌二轮升级多图导航）', () => { const s = read('/shared/components/AssetPreview.vue'); return s.includes('<Teleport :to="overlayTarget">') && s.includes("e.key === 'Escape' && props.open") && s.includes("e.key === 'ArrowLeft'") && s.includes('class="ap-viewer-img"') && s.includes("(e: 'close')") && s.includes("(e: 'prev')") && s.includes("(e: 'next')"); });
 check('R41-6 REQ-056 AssetManager 改引公共组件（不再内嵌 .am-viewer viewer）', () => { const s = read('/shared/components/AssetManager.vue'); return s.includes("import AssetPreview from './AssetPreview.vue'") && s.includes('<AssetPreview :open="viewerOpen"') && !s.includes('.am-viewer'); });
 check('R41-7 REQ-056 AssetBadge 改引公共组件（不再内嵌 .ab-viewer viewer）', () => { const s = read('/shared/components/AssetBadge.vue'); return s.includes("import AssetPreview from './AssetPreview.vue'") && s.includes('<AssetPreview :open="viewerOpen"') && !s.includes('.ab-viewer'); });
 check('R41-7b REQ-056 双份 viewer 样式全库收敛（am-viewer/ab-viewer 在宿主零残留）', () => { let n = 0; ['/shared/components/AssetManager.vue','/shared/components/AssetBadge.vue','/newtab/components/compass/CuriosityPanel.vue','/newtab/views/CompassHome.vue','/newtab/components/ResourceEditForm.vue'].forEach(f => { if (read(f).includes('.am-viewer') || read(f).includes('.ab-viewer')) n++; }); return n === 0; });
@@ -1370,12 +1370,13 @@ check('R73-6（R100 重指：实现拆入 useWorkspaceImport）书签导入全�
   return imp.includes('function parseBookmarksHtml') && imp.includes('function ensureBookmarkCategory') && imp.includes('const BK_ROOT_NAMES = new Set(')
     && imp.includes('segs.slice(2)') && imp.includes('function confirmBookmarkImport') && imp.includes('bkFolders');
 });
-check('R73-7（R89 重指：非镜像门控上移到包裹 template）hub 镜像推送入口：卡面 📡 / 分类 📤 / 目标台弹窗，且仅 hub 出现', () => {
+check('R73-7（R89 重指：非镜像门控上移到包裹 template；R113-N1 分类 📤 收敛进 ⋯ 溢出菜单 canMirror 门控）hub 镜像推送入口：卡面 📡 / 分类 📤（菜单） / 目标台弹窗，且仅 hub 出现', () => {
   const w = read('/newtab/views/Workspace.vue');
   // R89（W4）：📡 自身的 `!isMirrorView(r)` 上移到包裹整条动作条的 <template>，语义等价（镜像卡整条不渲染写动作）
-  return w.includes('title="镜像到策展台"') && w.includes('openMirrorCard(r)') && w.includes('openMirrorCat(sc.cat)')
+  // R113-N1（承 R73-7/R74-8）：分类行 📤 从 hover 平铺图标收敛进「⋯」溢出菜单，门控 precompute 为 catMenu.canMirror
+  return w.includes('title="镜像到策展台"') && w.includes('openMirrorCard(r)') && w.includes("runCatMenu('mirror')")
     && w.includes('v-if="isHub" class="rc-action" title="镜像到策展台"') && w.includes('<template v-if="!isMirrorView(r)">')
-    && w.includes('v-if="isHub && !isMirrorCat(sc.cat)"')
+    && w.includes('canMirror: !!(isHub.value && !isMirrorCat(sc.cat))') && w.includes('openMirrorCat(c)')
     && read('/newtab/composables/useWorkspaceMirror.ts').includes('function confirmMirrorPush') && read('/newtab/composables/useWorkspaceMirror.ts').includes('mirrorPushTargetCats') && w.includes('mirrorPushTargetCats');
 });
 check('R73-8 hub 补齐 L5：区域级落卡（空白区可落）+ 拖拽结束复位 + 混排重编号', () => {
@@ -1429,9 +1430,9 @@ check('R74-7 hub 镜像分类同树呈现（isMirrorCat 徽标，无独立镜像
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('isMirrorCat(sc.cat)') && !w.includes('📡 镜像分组');
 });
-check('R74-8 hub 镜像推送入口：卡面 📡 / 分类 📤 / 目标台弹窗', () => {
+check('R74-8 hub 镜像推送入口：卡面 📡 / 分类 📤（R113-N1 起走 ⋯ 菜单 runCatMenu） / 目标台弹窗', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes('title="镜像到策展台"') && w.includes('openMirrorCard(r)') && w.includes('openMirrorCat(sc.cat)') && w.includes('mirrorPushTargetCats') && read('/newtab/composables/useWorkspaceMirror.ts').includes('function confirmMirrorPush');
+  return w.includes('title="镜像到策展台"') && w.includes('openMirrorCard(r)') && w.includes("runCatMenu('mirror')") && w.includes('openMirrorCat(c)') && w.includes('mirrorPushTargetCats') && read('/newtab/composables/useWorkspaceMirror.ts').includes('function confirmMirrorPush');
 });
 check('R74-9 hub 区域级落卡 + 混排重编号 + 拖拽复位', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -2992,7 +2993,8 @@ check('R108-4 ★ pyramid 写入链：论点卡+setThesis（本台未设时）+ 
     && WSP108.includes('const found = d.value.categories.find(c => c.workspaceId === workspaceId.value && !c.deletedAt && (c.parentId || undefined) === parentId && c.name === name') // R109 重指：同父同名复用排除软删分类
     && WSP108.includes('if (nodeTotal > 200) { showToast(\'⚠ 单次导入建议不超过 200 个节点——请分批导入\'); return }')
     && WSP108.includes("pyramidImportOpen.value = false") && WSP108.includes("setViewMode('pyramid')")
-    && WSP108.includes('📋 导入金字塔模板');
+    // R113-N4：入口从 ⚙ 溢出菜单提到一级工具条，文案缩短为「📋 导入模板」
+    && WSP108.includes('📋 导入模板') && WSP108.includes('@click="pyramidImportOpen = true">📋 导入模板</button>');
 });
 check('R108-5 F10 页边距统一：ws-page 1440 居中 + topbar 三档（align-ws 退役）', () => {
   return WSP108.includes('.ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; }')
@@ -3053,7 +3055,7 @@ console.log('【第 111 轮 · V2.79.0：调度画像周报】');
 check('R111-1 周报引擎：shared/utils/weeklyReport.ts（weekWindow 周一锚定 / buildWeeklyReport 四段式 / 洞察规则引擎非 AI）', () => { const w = read('/shared/utils/weeklyReport.ts'); return w.includes('export function weekWindow') && w.includes('export function buildWeeklyReport') && w.includes('conversionRate') && w.includes('非 AI') && !w.includes('fetch(') && !w.includes('XMLHttpRequest'); });
 check('R111-2 周报零写入红线：引擎与浮层均无 storage 写调用（saveData/localStorage/persist 零命中）', () => { const w = read('/shared/utils/weeklyReport.ts'); const o = read('/newtab/components/WeeklyReportOverlay.vue'); return !w.includes('saveData') && !w.includes('localStorage') && !o.includes('store.persist'); });
 check('R111-3 全屏浮层：WeeklyReportOverlay.vue（Teleport fixed inset 0 + 本周/上周切换 + Esc 关闭 + 洞察段）', () => { const o = read('/newtab/components/WeeklyReportOverlay.vue'); return o.includes('Teleport to="body"') && o.includes('position: fixed; inset: 0') && o.includes('setPeriod(0)') && o.includes('setPeriod(-1)') && o.includes("e.key === 'Escape'") && o.includes('💡 洞察'); });
-check('R111-4 调度台入口：页头「📊 周报」按钮（wr-entry）+ overlay 挂载 + 下钻处理 onWrDrill', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('class="mini-btn wr-entry"') && h.includes('<WeeklyReportOverlay :open="wrOpen"') && h.includes('function onWrDrill'); });
+check('R111-4 调度台入口：页头「📊 周报」按钮（wr-entry）+ overlay 挂载 + 下钻处理 onWrDrill + ★R113-N3 组件已 import', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('class="mini-btn wr-entry"') && h.includes('<WeeklyReportOverlay :open="wrOpen"') && h.includes('function onWrDrill') && h.includes("import WeeklyReportOverlay from '../components/WeeklyReportOverlay.vue'"); });
 check('R111-5 四大数字下钻：created→入台抽屉 / called→调出抽屉 / done+unarchived→方向台任务调度', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes("openRec('in')") && h.includes("openRec('called')") && h.includes("query: { zone: 'task' }"); });
 check('R111-6 TOP5 行下钻定位资源卡：/workspace/<wsId>?hl=<cardId>', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('query: { hl: ev.cardId }') && h.includes("'top-card'"); });
 check('R111-7 环比真实聚合：created/called/done 全部有 prev 对比值（上周窗口同口径）', () => { const w = read('/shared/utils/weeklyReport.ts'); return w.includes('prevW = weekWindow((offset - 1) as ReportPeriod, now)') && w.includes('reportForWindow(d, events, prevW)'); });
@@ -3072,9 +3074,9 @@ check('R110-B2-3 ★ 清理双入口（单条 🗑 + 顶部批量条）均二次
 check('R110-B2-4 ★ 清理口径含回收站软删卡（软删可恢复 ⇒ 其附件必须保留）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('const collect = (cards: { assets?: AssetMeta[] }[] | undefined) =>') && w.includes('collect(d.value.resources)') && w.includes('collect(d.value.tasks)') && w.includes('collect(d.value.curiosities)') && w.includes('referencedAssetIds = computed'); });
 // ---- LC：资源生命周期 ----
 check('R110-LC-1 生命周期引擎：三态纯计算 + 阈值固定 30/90 天 + 新卡 14 天宽限 + 进行中任务恒活跃', () => { const l = read('/shared/utils/lifecycle.ts'); return l.includes('export function lifecycleState') && l.includes('COOLING_MS = 30 * 86400_000') && l.includes('ARCHIVE_MS = 90 * 86400_000') && l.includes('NEW_GRACE_MS = 14 * 86400_000') && l.includes("card.kind === 'task' && card.status === 'doing'"); });
-check('R110-LC-2 生命周期面板：甜甜圈三态 + 数字可点击切换列表 + 归档/忽略30d/恢复 + 点击条目定位', () => { const v = read('/newtab/components/LifecyclePanel.vue'); return v.includes('lc-donut') && v.includes("setFilter('archived')") && v.includes("emit('archive', e.card.id)") && v.includes("emit('snooze', e.card.id)") && v.includes("emit('reactivate', e.card.id)") && v.includes("emit('locate', e.card.id)"); });
-check('R110-LC-3 ★ 面板被动化：面板只发意图、不改 props；宿主经 useLifecycle 对真实卡对象落库 + persist（修复「传副本 ⇒ 归档落空」）', () => { const v = read('/newtab/components/LifecyclePanel.vue'); const c = read('/newtab/composables/useLifecycle.ts'); return v.includes("(e: 'archive', id: string): void") && !v.includes('e.card.lifecycleArchived = true') && c.includes('export function useLifecycle') && c.includes('c.lifecycleArchived = true') && c.includes('store.persist()') && c.includes('reactivateCard(c)'); });
-check('R110-LC-4 三宿主接线：资源卡（资源台 ⏳ 工具条按钮）/ 好奇心卡 / 任务卡各自挂载面板', () => { const w = read('/newtab/views/Workspace.vue'); const cp = read('/newtab/components/compass/CuriosityPanel.vue'); const tp = read('/newtab/components/compass/TaskManagerPanel.vue'); return w.includes('kind="resource" :cards="lcCards"') && w.includes('@click.stop="lcOpen = true"') && cp.includes('kind="curiosity" :cards="lcCards"') && tp.includes('kind="task" :cards="lcCards"'); });
+check('R110-LC-2（R113-N2 重指：内嵌化 + 实体切换）生命周期面板：甜甜圈三态 + 数字可点击切换列表 + 归档/忽略30d/恢复 + 点击条目定位 + 顶部实体切换', () => { const v = read('/newtab/components/LifecyclePanel.vue'); return v.includes('lc-donut') && v.includes("setFilter('archived')") && v.includes("emit('archive', e.card.id)") && v.includes("emit('snooze', e.card.id)") && v.includes("emit('reactivate', e.card.id)") && v.includes("emit('locate', e.card.id, e.card.kind)") && v.includes('lc-kind-tab') && v.includes('lc-kind-badge') && !v.includes('<Drawer'); });
+check('R110-LC-3 ★（R113-N2 重指：宿主=GlobalSettings）面板被动化：面板只发意图、不改 props；设置页对真实卡对象落库 + persist（修复「传副本 ⇒ 归档落空」）', () => { const v = read('/newtab/components/LifecyclePanel.vue'); const g = read('/newtab/views/GlobalSettings.vue'); return v.includes('archive: [id: string]') && !v.includes('e.card.lifecycleArchived = true') && g.includes('function lcFind(id: string)') && g.includes('c.lifecycleArchived = true') && g.includes('store.persist()') && g.includes('reactivateCard(c)') && g.includes('snoozeCard(c)'); });
+check('R110-LC-4（R113-N2 重指：入口收敛）生命周期唯一入口 = 设置→总览·资源生命周期（navGroups 位于仪表盘与全景之间）；三宿主就地面板/⏳ 已移除；归档提示条跳设置页', () => { const g = read('/newtab/views/GlobalSettings.vue'); const w = read('/newtab/views/Workspace.vue'); const cp = read('/newtab/components/compass/CuriosityPanel.vue'); const tp = read('/newtab/components/compass/TaskManagerPanel.vue'); const gi = g.indexOf("key: 'dashboard'"), gl = g.indexOf("key: 'lifecycle'"), gp = g.indexOf("key: 'panorama'"); return gi >= 0 && gi < gl && gl < gp && g.includes('<LifecyclePanel kind="all" :cards="lcCards"') && !w.includes('<LifecyclePanel') && !cp.includes('<LifecyclePanel') && !tp.includes('<LifecyclePanel') && w.includes('/settings?page=lifecycle') && cp.includes('/settings?page=lifecycle') && tp.includes('/settings?page=lifecycle'); });
 check('R110-LC-5 ★ T3 归档集成：默认视图排除归档卡 + 三处降级提示 + 全局搜索排除归档并按同口径报数', () => { const w = read('/newtab/views/Workspace.vue'); const cp = read('/newtab/components/compass/CuriosityPanel.vue'); const tp = read('/newtab/components/compass/TaskManagerPanel.vue'); const g = read('/newtab/components/GlobalPopups.vue'); return w.includes('.filter(r => !r.lifecycleArchived)') && w.includes('ws-archived-hint') && cp.includes('!c.lifecycleArchived') && cp.includes('cz-archived-hint') && tp.includes('!t.lifecycleArchived') && tp.includes('tm-archived-hint') && g.includes('allResults.value.filter(r => !r.archived)') && g.includes('archivedMatchCount') && g.includes('gp-archived-hint') && g.includes('function hitResult('); });
 check('R110-LC-6 零迁移：lifecycleArchived 为 CardBase 可选字段（三卡共享，老数据无需迁移）', () => { const m = read('/shared/models/index.ts'); return m.includes('/** R110-LC：生命周期归档标记（可选字段，零迁移）') && m.includes('lifecycleArchived?: boolean'); });
 // ---- FS：金字塔全屏 ----
@@ -3168,6 +3170,108 @@ check('R112-13 预取不跳过归一化：loadData 的 fixTags/fixEncoded/fixTag
   const iPrefetch = r.indexOf('let raw = prefetched ?');
   const iFix = r.indexOf('const fixTags =');
   return iPrefetch > 0 && iFix > iPrefetch && r.includes('fixTagNames(data.resources as { tags?: string[] }[])');
+});
+
+// ===== R113（V2.81.0）生产反馈第三批（六项）=====
+// 本批次分四批施工（0 热修 / 1 入口交互 / 2 生命周期 / 3 全屏），断言随批次追加。
+
+// ---- 批次 0：P0 周报失效 ----
+check('R113-1 ★ P0 周报入口修复：CompassHome 的 WeeklyReportOverlay 既在模板被引用、也在 import 区被导入，且 import 位于模板引用之前', () => {
+  const h = read('/newtab/views/CompassHome.vue');
+  const tagIdx = h.indexOf('<WeeklyReportOverlay');
+  const impIdx = h.indexOf("import WeeklyReportOverlay from '../components/WeeklyReportOverlay.vue'");
+  return tagIdx > 0 && impIdx > 0 && impIdx < tagIdx;
+});
+
+/** R113-2 用：递归收集 src 下所有 .vue */
+function walkVueFiles(dir, out) {
+  out = out || [];
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) walkVueFiles(p, out);
+    else if (e.name.endsWith('.vue')) out.push(p);
+  }
+  return out;
+}
+const VUE_BUILTIN_TAGS = new Set(['Teleport', 'Transition', 'TransitionGroup', 'KeepAlive', 'Component', 'Suspense', 'Slot', 'RouterView', 'RouterLink', 'template', 'slot', 'component']);
+
+check('R113-2 ★ 孤儿组件全量护栏：src 下所有 .vue 模板中出现的自研组件标签，本文件必须存在对应 import —— 防复现 R111「模板引用了但从未 import」被 Vue 静默渲染为空节点的失效', () => {
+  const bad = [];
+  for (const f of walkVueFiles(base)) {
+    const src = fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
+    const i1 = src.indexOf('<template>');
+    const i2 = src.lastIndexOf('</template>');
+    const tplRaw = i1 >= 0 && i2 > i1 ? src.slice(i1, i2) : src;
+    // 剥掉 HTML 注释：注释里出现的 `<Set>` 之类的泛型写法不是组件标签（曾致误报）
+    const tpl = tplRaw.replace(/<!--[\s\S]*?-->/g, '');
+    const tags = new Set([...tpl.matchAll(/<([A-Z][A-Za-z0-9]*)[\s/>]/g)].map(m => m[1]));
+    for (const tag of tags) {
+      if (VUE_BUILTIN_TAGS.has(tag)) continue;
+      if (!new RegExp('import\\s+[^;]*\\b' + tag + '\\b[^;]*from').test(src)) bad.push(path.relative(base, f) + ' → ' + tag);
+    }
+  }
+  if (bad.length) console.log('      孤儿组件：' + bad.join(' | '));
+  return bad.length === 0;
+});
+
+// ---- R113 批次1（N1 / N4 / N6）----
+check('R113-3 N4 导入金字塔模板一级入口：hero-btn settings 样式（R88-8 主色稀缺约束：非 primary 非 ghost）+ pyramidImportOpen 直连', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  return w.includes('class="hero-btn settings py-import-btn"') && w.includes('@click="pyramidImportOpen = true">📋 导入模板</button>')
+    && !w.includes('📋 导入金字塔模板'); // 旧溢出菜单项已移除
+});
+check('R113-4 N1 分类行操作收敛：hover 只余「＋/⋯」两入口，原平铺 📤/✎/🗑 移入 ⋯ 溢出菜单（ctm），菜单含置顶/镜像/重命名/删除四项', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  const i = w.indexOf('<span class="cat-actions">');
+  const actions = i >= 0 ? w.slice(i, i + 500) : '';
+  return !!actions && actions.includes("openCreateCat(sc.cat.id)") && actions.includes("openCatMenu($event, sc)")
+    && !actions.includes("openRenameCat(sc.cat)") && !actions.includes("deleteCategory(sc.cat)") && !actions.includes("openMirrorCat(sc.cat)")
+    && w.includes("runCatMenu('pin')") && w.includes("runCatMenu('mirror')") && w.includes("runCatMenu('rename')") && w.includes("runCatMenu('delete')")
+    && w.includes('catMenu.canMirror') && w.includes('catMenu.depth === 0');
+});
+check('R113-5 N1 分类树宽度拖拽：ws-side-split 双向拖拽 + UIPrefs.wsSideW 持久化 + 160~420px 夹取 + 双击复位', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  const m = read('/shared/models/index.ts');
+  return w.includes('class="ws-side-split"') && w.includes('function startSideResize') && w.includes('function onSideResizeMove') && w.includes('function onSideResizeUp')
+    && w.includes('function resetSideWidth') && w.includes(':style="{ width: wsSideW + \'px\' }"')
+    && w.includes('Math.min(SIDE_W_MAX, Math.max(SIDE_W_MIN') && w.includes('saveUIPrefs({ wsSideW: wsSideW.value })')
+    && m.includes('wsSideW?: number') && w.includes('.ws-side-split:hover');
+});
+check('R113-6 N6 今日三件事任务选取弹框按项目筛选：picker 项目下拉（含「未关联项目」哨兵 __none__）+ 过滤链 + 打开时复位', () => {
+  const h = read('/newtab/views/CompassHome.vue');
+  return h.includes("const pickerProject = ref('')") && h.includes('v-model="pickerProject"') && h.includes("pickerProject.value = '' // R113-N6：每次打开复位为「全部项目」")
+    && h.includes("pj === '__none__' ? !t.projectId : t.projectId === pj") && h.includes('value="__none__"') && h.includes('const pickerProjectOptions = computed');
+});
+check('R113-7 N6 TaskAddDrawer 关联任务同样支持按项目筛选：linkProject + effectiveProjectId 反查口径 + candidates 过滤', () => {
+  const t = read('/newtab/components/TaskAddDrawer.vue');
+  return t.includes("const linkProject = ref('')") && t.includes('v-model="linkProject"') && t.includes('function effectiveProjectId(t: TaskCard): string')
+    && t.includes("pj === '__none__' ? !effectiveProjectId(t) : effectiveProjectId(t) === pj") && t.includes("linkProject.value = ''");
+});
+
+// ---- R113 批次2（N2 / T9）----
+check('R113-8 ★ T9 snooze 口径修复：独立 snoozedUntil 字段承载「忽略 30d」——snoozeCard 不再碰 lastCalledAt/updatedAt（热度排序与 WRR 统计零污染）；到期前恒活跃；重新激活清 snooze', () => {
+  const e = read('/shared/utils/lifecycle.ts');
+  const m = read('/shared/models/index.ts');
+  return e.includes('snoozedUntil?: number') && e.includes('card.snoozedUntil = Date.now() + COOLING_MS')
+    && e.includes('if (card.snoozedUntil && card.snoozedUntil > now) return \'active\'')
+    && e.includes('card.snoozedUntil = undefined')
+    && !/snoozeCard[\s\S]*?lastCalledAt\s*=\s*Date\.now/.test(e) // 旧实现（覆盖 lastCalledAt）必须不存在
+    && m.includes('snoozedUntil?: number');
+});
+check('R113-9 ★ N5 金字塔真全屏：宿主上移 .ws-page（requestFullscreen）+ overlayHost 动态浮层宿主 + 七处浮层改 :to + :fullscreen 隐藏侧栏/指标条保留工具条', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  const oh = read('/shared/utils/overlayHost.ts');
+  const drawer = read('/shared/components/Drawer.vue');
+  const cm = read('/shared/components/ContextMenu.vue');
+  const cd = read('/shared/components/ConfirmDialog.vue');
+  const ap = read('/shared/components/AssetPreview.vue');
+  const ab = read('/shared/components/AssetBadge.vue');
+  const tp = read('/shared/components/TagPicker.vue');
+  return w.includes('ref="wsPageRef"') && w.includes('el = wsPageRef.value') && w.includes('setOverlayFsHost(el)')
+    && w.includes(':to="overlayTarget"') && w.includes('.ws-page:fullscreen .ws-sidebar') && !w.includes('.ws-page:fullscreen .ws-toolbar') // 工具条保留（＋新建可用）
+    && oh.includes('export function setOverlayFsHost') && oh.includes('export function useOverlayTarget')
+    && drawer.includes(':to="overlayTarget"') && cm.includes(':to="overlayTarget"') && cd.includes(':to="overlayTarget"')
+    && ap.includes(':to="overlayTarget"') && ab.includes(':to="overlayTarget"') && tp.includes(':to="overlayTarget"');
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

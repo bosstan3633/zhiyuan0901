@@ -157,6 +157,16 @@
         </Drawer>
       </div>
 
+      <!-- ===== R113-N2：资源生命周期（三类卡聚合；内嵌式面板，数值可下钻、条目可操作转化） ===== -->
+      <div v-if="activePage === 'lifecycle'" class="gs-panel">
+        <div class="gs-page-header">
+          <div class="gs-page-title">⏳ 资源生命周期</div>
+          <div class="gs-page-desc">资源卡 / 任务卡 / 好奇心卡三类实体的活跃 · 冷却 · 归档全景 —— 点击数字下钻明细，明细行可直接归档 / 忽略 / 重新激活，点击条目跨台定位卡片</div>
+        </div>
+        <LifecyclePanel kind="all" :cards="lcCards"
+          @locate="onLcLocate" @archive="onLcArchive" @snooze="onLcSnooze" @reactivate="onLcReactivate" />
+      </div>
+
       <!-- ===== 资源台全景（第卌四轮 T-04 双栏 Master-Detail；R65-F5 只呈现资源台，策展台不再进全景） ===== -->
       <div v-if="activePage === 'panorama'" class="gs-panel gs-pan-panel">
         <div class="gs-page-header">
@@ -845,6 +855,9 @@ import type { FieldDef, AppData, ResourceCard, Workspace, Category, TagNode, Ass
 // R63-1/63-2：全景两级（资源台/策展台）与导出镜像卡适配
 import { isHubWs, boardCardsOf, isMirrorView } from '@/shared/storage/hub'
 import { CURATION_WS_ID } from '@/shared/models'
+// R113-N2：资源生命周期聚合页（入口从三宿主收敛至此；内嵌式面板 + 三类卡聚合 + 跨台定位）
+import LifecyclePanel, { type LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
+import { snoozeCard, reactivateCard } from '@/shared/utils/lifecycle'
 
 const router = useRouter()
 const route = useRoute()
@@ -1022,6 +1035,8 @@ const navGroups = [
   // R54-E1（修订第卌四轮五组拍板）：总览 = 知源仪表盘 + 策展台全景并列，「整理」组取消
   { title: '总览', items: [
     { key: 'dashboard', icon: '📊', label: '知源仪表盘' },
+    // R113-N2：资源生命周期聚合页——位置拍板「知源仪表盘之下、资源台全景之上」
+    { key: 'lifecycle', icon: '⏳', label: '资源生命周期' },
     { key: 'panorama', icon: '🗺', label: '资源台全景' },
   ]},
   { title: '卡片与字段', items: [
@@ -1056,6 +1071,28 @@ const fields = computed({
 })
 function onFieldChange() { store.persist() }
 function onFieldNotify(msg: string) { showToast(msg) }
+
+// ============================================================
+// R113-N2：资源生命周期聚合页（三类卡统一视图）
+// ============================================================
+const lcCards = computed<LifecycleCard[]>(() => {
+  const d = store.data!
+  return [
+    ...d.resources.filter(r => !r.deletedAt),
+    ...d.tasks.filter(t => !t.deletedAt),
+    ...d.curiosities.filter(c => !c.deletedAt)
+  ]
+})
+/** 按 id 找活卡——面板只发意图，宿主对真实卡对象落库 + persist（与 useLifecycle 同纪律） */
+function lcFind(id: string): LifecycleCard | undefined { return lcCards.value.find(c => c.id === id) }
+function onLcArchive(id: string) { const c = lcFind(id); if (!c) return; c.lifecycleArchived = true; c.updatedAt = Date.now(); store.persist() }
+function onLcSnooze(id: string) { const c = lcFind(id); if (!c) return; snoozeCard(c); store.persist() }
+function onLcReactivate(id: string) { const c = lcFind(id); if (!c) return; reactivateCard(c); store.persist() }
+/** 跨台定位：资源卡 → 资源台 ?hl= 精确定位；任务/好奇心卡 → 调度台（CompassHome 暂不消费 ?hl=，先切台） */
+function onLcLocate(id: string, kind: LifecycleCard['kind']) {
+  if (kind === 'resource') void router.push(`/workspace/${CURATION_WS_ID}?hl=${id}`)
+  else void router.push('/')
+}
 
 // ============================================================
 // 第卌四轮 T-03/T-06/T-07：知源仪表盘（核心指标 + 动态条 + 操作记录 + CSV）

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useOverlayTarget } from '@/shared/utils/overlayHost'
+// R113-N5：Teleport 目标动态化——金字塔真全屏期间浮层挂进全屏元素（否则不可见）
+const overlayTarget = useOverlayTarget()
 /**
  * 标签选择器（N4）
  * 唯一入口为「设置 → 标签管理」的树状标签体系；此处只做搜索 + 勾选 + 快捷新建（入树）。
@@ -78,7 +81,7 @@ function goTagManage() {
       <span v-for="t in tags" :key="t" class="tp-chip">#{{ t }} <span class="tp-x" @click="removeTag(t)">×</span></span>
       <span class="tp-add" @click.stop="openPop">＋ 标签</span>
     </div>
-    <Teleport to="body">
+    <Teleport :to="overlayTarget">
       <div v-if="open" class="tp-mask" @click="open = false" />
       <div v-if="open" class="tp-pop" :style="{ left: popLeft + 'px', top: popTop + 'px' }" @click.stop>
         <div class="tp-head">🏷 选择标签 <span class="tp-sub">来自标签管理体系（设置 → 标签管理）</span></div>

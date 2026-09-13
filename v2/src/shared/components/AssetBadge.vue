@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useOverlayTarget } from '@/shared/utils/overlayHost'
+// R113-N5：Teleport 目标动态化——金字塔真全屏期间浮层挂进全屏元素（否则不可见）
+const overlayTarget = useOverlayTarget()
 /**
  * 第卌轮 REQ-051：卡片正面附件徽章（资源/任务/好奇心卡片三视图共用）
  * - 显示：图片 🖼 n / PDF 📕 n / HTML 🧾 n 三档分组计数徽章（n=数量，卡片正面一眼可见各挂了几个）
@@ -116,7 +119,7 @@ async function openAsset(meta: AssetMeta) {
   </span>
 
   <!-- 文件列表浮层 -->
-  <Teleport to="body">
+  <Teleport :to="overlayTarget">
     <Transition name="fade">
       <div v-if="listOpen" class="ab-pop" @click.self="closeList">
         <div class="ab-pop-box">

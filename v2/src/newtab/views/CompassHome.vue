@@ -23,6 +23,9 @@ import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
 import MetricBar from '../components/compass/MetricBar.vue'
+// R113-N3：周报浮层此前只在模板中被引用、从未 import（项目无全局注册也无自动导入插件），
+// 导致 Vue 按未解析组件渲染成空节点 → 点「📊 周报」无任何反应。
+import WeeklyReportOverlay from '../components/WeeklyReportOverlay.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -171,10 +174,14 @@ function onFocusCardClick(idx: number) {
 const pickerOpen = ref(false)
 const pickerSlot = ref(0)
 const pickerSearch = ref('')
+// R113-N6：按项目筛选（用户反馈：任务库只有关键词搜索，任务一多只能逐条翻）
+// 取值：'' = 全部项目；'__none__' = 未关联项目；其余 = project.id
+const pickerProject = ref('')
 function openPicker(slot: number) {
   if (focusFull.value) { showToast('⚖ 今日三件事已满（3/3）——先完成或移除一件'); return }
   pickerSlot.value = Math.min(slot, FOCUS_LIMIT - 1)
   pickerSearch.value = ''
+  pickerProject.value = '' // R113-N6：每次打开复位为「全部项目」
   pickerOpen.value = true
 }
 function selectTaskForSlot(task: TaskCard) {
@@ -198,11 +205,26 @@ function selectTaskForSlot(task: TaskCard) {
 }
 const pickerCandidates = computed(() => {
   const q = pickerSearch.value.trim().toLowerCase()
+  const pj = pickerProject.value
   return d.value.tasks
     .filter(t => !t.deletedAt)
     .filter(t => !q || t.title.toLowerCase().includes(q))
+    // R113-N6：项目维度过滤（与关键词可叠加）
+    .filter(t => !pj || (pj === '__none__' ? !t.projectId : t.projectId === pj))
     .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) // 置顶优先
     .slice(0, 30)
+})
+/** R113-N6：项目下拉选项（只列"有未删任务"的项目，带任务数；另给未关联计数） */
+const pickerProjectOptions = computed(() => {
+  const counts = new Map<string, number>()
+  let none = 0
+  for (const t of d.value.tasks) {
+    if (t.deletedAt) continue
+    if (t.projectId) counts.set(t.projectId, (counts.get(t.projectId) || 0) + 1)
+    else none++
+  }
+  const opts = allProjects().filter(p => counts.has(p.id)).map(p => ({ id: p.id, name: p.name, n: counts.get(p.id) || 0 }))
+  return { opts, none }
 })
 /** 已完成或已选入今日三件事的任务置灰不可选 */
 const pickedIds = computed(() => new Set(todayFocusList.value.map(s => s.sourceId)))
@@ -907,7 +929,15 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
           <div class="pm-close" @click="pickerOpen=false">×</div>
         </div>
         <div class="pm-body">
-          <div class="search-box" style="margin:0 0 12px"><span>🔍</span><input v-model="pickerSearch" placeholder="搜索任务..."></div>
+          <!-- R113-N6：关键词 + 项目 两维筛选可叠加 -->
+          <div class="pm-filters">
+            <div class="search-box" style="margin:0"><span>🔍</span><input v-model="pickerSearch" placeholder="搜索任务..."></div>
+            <select v-model="pickerProject" class="pm-proj" title="按项目筛选任务">
+              <option value="">全部项目</option>
+              <option value="__none__">未关联项目（{{ pickerProjectOptions.none }}）</option>
+              <option v-for="o in pickerProjectOptions.opts" :key="o.id" :value="o.id">{{ o.name }}（{{ o.n }}）</option>
+            </select>
+          </div>
           <div v-for="task in pickerCandidates" :key="task.id" class="picker-item"
             :class="{disabled: pickerDisabled(task)}" @click="selectTaskGuarded(task)">
             <div class="pi-check">{{ pickerDisabled(task) ? '—' : '＋' }}</div>
@@ -1297,6 +1327,13 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .search-box { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
 .search-box:focus-within { border-color: var(--accent); }
 .search-box input { border: none; outline: none; font-size: 12px; width: 150px; background: transparent; color: var(--text); font-family: inherit; }
+/* R113-N6：任务选取弹窗筛选行（关键词 + 项目下拉，两维可叠加） */
+.pm-filters { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; }
+.pm-filters .search-box { flex: 1; min-width: 0; }
+.pm-filters .search-box input { width: 100%; }
+.pm-proj { flex-shrink: 0; max-width: 190px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-2); font-size: 12px; font-family: inherit; outline: none; cursor: pointer; }
+.pm-proj:hover { border-color: var(--accent); }
+.pm-proj:focus { border-color: var(--accent); color: var(--text); }
 .list-empty { text-align: center; padding: 30px; font-size: 13px; color: var(--text-3); }
 .ts-label-pm { font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin-bottom: 7px; }
 .ts-select-pm { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: 12.5px; color: var(--text); border: 1px solid transparent; outline: none; cursor: pointer; font-family: inherit; }

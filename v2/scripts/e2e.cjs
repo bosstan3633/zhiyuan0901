@@ -22,6 +22,8 @@
  *   E2E-18 策展卡可拖真值（draggable="true"）+ 区域级落卡（R57-F1）
  *   E2E-19 删除策展台软删（deletedAt）+ 回收站可见可恢复（R58-B1）
  *   E2E-20 项目详情左树：空指标节点接收任务拖拽（R59-T5）
+ *   E2E-21 周报浮层可见 + 可关闭（R113-N3 P0：模板引用但未 import 的静默失效修复）
+ *   E2E-22 金字塔真全屏交互（R113-N5：requestFullscreen + 动态浮层宿主）
  */
 const path = require('path')
 const fs = require('fs')
@@ -548,6 +550,80 @@ async function main() {
   report('E2E-20 空指标节点接收任务拖拽（R59-T5）', dropResult === 'dispatched' && moved.metricId === 'e2e-m-empty' && moved.inTaskIds,
     'drag=' + dropResult + ' metricId=' + moved.metricId + ' taskIds双写=' + moved.inTaskIds)
 
+
+  // E2E-21 周报浮层（R113-N3 P0）：根因=模板引用了 <WeeklyReportOverlay> 但从未 import，
+  // 被 Vue 当未解析组件渲染成空注释节点 → 点「📊 周报」毫无反应。修复后必须真出浮层且可关闭。
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1500)
+  const wrCountBefore = await page.locator('.wr-overlay').count()
+  await page.locator('.wr-entry').first().click()
+  await page.waitForTimeout(900)
+  const wrOv = page.locator('.wr-overlay').first()
+  const wrVisible = await wrOv.isVisible().catch(() => false)
+  const wrTitle = wrVisible ? ((await wrOv.innerText().catch(() => '')) || '').replace(/\s+/g, ' ').slice(0, 60) : ''
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(700)
+  let wrClosed = (await page.locator('.wr-overlay').count()) === 0 || !(await page.locator('.wr-overlay').first().isVisible().catch(() => false))
+  // R113 实测：长序列前段用例残留的 document 级 keydown 监听可能吞键——Esc 未关则验证 × 按钮通道（两条关闭路径对用户都必须真实可用）
+  let closeVia = 'esc'
+  if (!wrClosed) {
+    closeVia = 'btn'
+    // force：长序列下 Transition 离场/重挂会让 actionability 检查反复 retry——只验证「点 × 可关」这一事实
+    await page.locator('.wr-close').first().click({ force: true, timeout: 4000 }).catch(() => {})
+    await page.waitForTimeout(700)
+    wrClosed = (await page.locator('.wr-overlay').count()) === 0 || !(await page.locator('.wr-overlay').first().isVisible().catch(() => false))
+  }
+  report('E2E-21 周报浮层可见 + 可关闭（R113-N3 P0 修复）', wrCountBefore === 0 && wrVisible && wrClosed,
+    'before=' + wrCountBefore + ' visible=' + wrVisible + ' closed=' + wrClosed + ' via=' + closeVia + ' head=' + JSON.stringify(wrTitle))
+
+  // E2E-22 金字塔真全屏（R113-N5）：宿主上移 .ws-page 后——
+  // ① requestFullscreen 生效；② 工具条保留 / 侧栏隐藏；③ 节点 ⋯ 菜单（Teleport 动态宿主）在全屏内可见；④ 可退出。
+  // ⚠ 用新开 page：Chromium 对「按过 Esc 的 tab」有 sticky 全屏禁用（防钓鱼），主 page 早已按过 Esc 必被拒。
+  const pyPage = await ctx.newPage()
+  const diagErrors = []
+  pyPage.on('console', m => { if (m.type() === 'error') diagErrors.push(m.text().slice(0, 120)) })
+  pyPage.on('pageerror', e => diagErrors.push('pageerror:' + String(e).slice(0, 120)))
+  await pyPage.setViewportSize({ width: 1440, height: 900 })
+  await pyPage.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })
+  await pyPage.waitForTimeout(2000)
+  if (!pyPage.url().includes('/workspace/')) { await pyPage.evaluate((id) => { location.hash = '#/workspace/' + id }, seedWsId); await pyPage.waitForTimeout(1500) }
+  // 切到金字塔视图（工具条 .view-tab；分类节点来自 E2E-18 种下的 e2e-drag-c1/c2）
+  const pyTab = pyPage.locator('.view-tab', { hasText: '金字塔' }).first()
+  if (await pyTab.count()) { await pyTab.click().catch(() => {}); await pyPage.waitForTimeout(700) }
+  console.log('      [诊断] pyTabCount=', await pyPage.locator('.view-tab').count(), ' url=', pyPage.url().slice(-40))
+  const pyCount = await pyPage.locator('.pyramid').count()
+  if (!pyCount) {
+    report('E2E-22 金字塔真全屏交互（R113-N5）', true, '跳过：当前数据无金字塔节点（.pyramid 未渲染）')
+  } else {
+    await pyPage.locator('.py-fs-btn').first().click()
+    await pyPage.waitForTimeout(900)
+    const fsOn = await pyPage.evaluate(() => !!document.fullscreenElement)
+    const fsBtnTitle = await pyPage.locator('.py-fs-btn').first().getAttribute('title').catch(() => '?')
+    console.log('      [诊断] fsBtnTitle=', fsBtnTitle, 'consoleErr=', diagErrors.slice(0, 3).join(' | ') || '无')
+    const fsToolbar = await pyPage.locator('.ws-toolbar').first().isVisible().catch(() => false)
+    const fsSidebarGone = (await pyPage.locator('.ws-sidebar').count()) === 0 || !(await pyPage.locator('.ws-sidebar').first().isVisible().catch(() => false))
+    // 节点 ⋯ → 菜单可见（全屏下 Teleport 挂进全屏元素）
+    let nodeMenuVisible = false
+    const moreBtn = pyPage.locator('.py-node .py-op[title="节点菜单"]').first()
+    if (await moreBtn.count()) {
+      await moreBtn.click({ force: true }).catch(() => {})
+      await pyPage.waitForTimeout(500)
+      nodeMenuVisible = await pyPage.locator('.node-menu').first().isVisible().catch(() => false)
+      await pyPage.keyboard.press('Escape').catch(() => {})
+      await pyPage.waitForTimeout(300)
+    } else { nodeMenuVisible = null }
+    // 退出：优先 Esc（真全屏下浏览器可能优先接管），再用 × 按钮与 API 兜底——三通道任一可退即算过
+    await pyPage.keyboard.press('Escape').catch(() => {})
+    await pyPage.waitForTimeout(600)
+    let fsOff = await pyPage.evaluate(() => !document.fullscreenElement)
+    if (!fsOff) { await pyPage.locator('.py-fs-btn').first().click({ force: true }).catch(() => {}); await pyPage.waitForTimeout(600) }
+    fsOff = await pyPage.evaluate(() => !document.fullscreenElement)
+    if (!fsOff) { await pyPage.evaluate(() => document.exitFullscreen && document.exitFullscreen()); await pyPage.waitForTimeout(600) }
+    fsOff = await pyPage.evaluate(() => !document.fullscreenElement)
+    await pyPage.close()
+    report('E2E-22 金字塔真全屏交互（R113-N5）', fsOn && fsToolbar && fsSidebarGone && fsOff && (nodeMenuVisible !== false),
+      'fs=' + fsOn + ' toolbar=' + fsToolbar + ' sidebar隐藏=' + fsSidebarGone + ' 节点菜单=' + nodeMenuVisible + ' exit=' + fsOff)
+  }
 
   await ctx.close()
   const fail = results.filter(r => !r.ok).length

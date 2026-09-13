@@ -21,9 +21,7 @@ import ModuleCard from '@/shared/components/ModuleCard.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
 import { useCardCols } from '@/shared/utils/cardCols'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
-import LifecyclePanel from '@/newtab/components/LifecyclePanel.vue'
-import type { LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
-import { useLifecycle } from '@/newtab/composables/useLifecycle'
+// R113-N2：LifecyclePanel / useLifecycle 移除——生命周期入口收敛到 设置→总览
 
 const route = useRoute()
 const router = useRouter()
@@ -98,24 +96,7 @@ const totalTaskCount = computed(() => (d.value.tasks || []).filter(t => !t.delet
 /** R110-LC（T3）：当前筛选/搜索口径命中的归档任务数——底部降级提示（≥1 才显示） */
 const archivedHintCount = computed(() => applyTaskFilters((d.value.tasks || []).filter(t => t.lifecycleArchived)).length)
 
-// ===== R110-LC：生命周期面板（任务卡） =====
-const lcCards = computed<LifecycleCard[]>(() => d.value.tasks.filter(t => !t.deletedAt))
-const { lcOpen, onLcArchive, onLcSnooze, onLcReactivate, onLcLocate } = useLifecycle({
-  cards: lcCards,
-  locate: (id) => {
-    filterBy.value = 'all'
-    searchQuery.value = ''
-    groupByProject.value = false
-    viewMode.value = 'card'
-    highlightId.value = id
-    nextTick(() => {
-      setTimeout(() => {
-        document.querySelector(`[data-tid="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        setTimeout(() => { highlightId.value = null }, 2000)
-      }, 120)
-    })
-  }
-})
+// R113-N2：生命周期入口收敛到 设置→总览（原 R110-LC 面板接线移除）
 function clearTaskFilter() {
   filterBy.value = 'all'
   searchQuery.value = ''
@@ -625,15 +606,14 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           <option value="unarchived">⚠ 未归档</option>
         </select>
         <button v-if="viewMode!=='card'" class="mini-btn" :class="{active: groupByProject}" @click="groupByProject = !groupByProject" title="按所属项目分组">📂 按项目分组</button>
-        <!-- R110-LC：生命周期面板入口（活跃 / 冷却 / 归档三态） -->
-        <button class="mini-btn" @click="lcOpen = true" title="生命周期（活跃 / 冷却 / 归档）">⏳</button>
+        <!-- R113-N2：⏳ 入口移除——生命周期收敛到 设置→总览 -->
         <div class="search-box"><span>🔍</span><input v-model="searchQuery" placeholder="搜索任务..."></div>
         <span class="mgr-count"><span class="cur">{{ filteredTasks.length }} 条</span><span class="total" :class="{act: filterBy !== 'all' || searchQuery.trim()}" @click="clearTaskFilter" :title="filterBy !== 'all' || searchQuery.trim() ? '点击查看全部任务' : '全部任务数'">/ 全部 {{ totalTaskCount }}</span></span>
       </div>
 
-      <!-- R110-LC（T3）：归档卡已从默认视图隐藏——降级提示（可点开面板恢复） -->
-      <div v-if="archivedHintCount" class="tm-archived-hint" @click="lcOpen = true">
-        📦 另有 {{ archivedHintCount }} 张已归档任务未显示（点此在 ⏳ 生命周期中查看 / 恢复）
+      <!-- R110-LC（T3）：归档卡已从默认视图隐藏——降级提示（R113-N2 起点击跳 设置→总览·资源生命周期） -->
+      <div v-if="archivedHintCount" class="tm-archived-hint" @click="router.push('/settings?page=lifecycle')">
+        📦 另有 {{ archivedHintCount }} 张已归档任务未显示（点此在 设置 → 总览 · 资源生命周期 中查看 / 恢复）
       </div>
 
       <!-- 批量操作栏 -->
@@ -934,9 +914,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 
     <ContextMenu :state="taskCtx" :items="taskCtxItems" @close="taskCtx.open = false" />
     <TaskDetailDrawer ref="drawerRef" />
-    <!-- R110-LC：生命周期面板（任务卡） -->
-    <LifecyclePanel :open="lcOpen" kind="task" :cards="lcCards"
-      @close="lcOpen = false" @locate="onLcLocate" @archive="onLcArchive" @snooze="onLcSnooze" @reactivate="onLcReactivate" />
+    <!-- R113-N2：生命周期面板移除——入口收敛到 设置→总览 -->
   </ModuleCard>
 </template>
 

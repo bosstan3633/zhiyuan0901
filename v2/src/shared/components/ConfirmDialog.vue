@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useOverlayTarget } from '@/shared/utils/overlayHost'
+// R113-N5：Teleport 目标动态化——金字塔真全屏期间浮层挂进全屏元素（否则不可见）
+const overlayTarget = useOverlayTarget()
 /** B28：全局确认弹窗（居中美观，Esc=取消，Enter=确认，主题令牌适配） */
 import { onMounted, onUnmounted } from 'vue'
 import { confirmState, resolveConfirm } from './confirm'
@@ -12,7 +15,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport :to="overlayTarget">
     <Transition name="cdf">
       <div v-if="confirmState.open" class="cdf-mask" @click="resolveConfirm(false)">
         <div class="cdf-box" @click.stop>

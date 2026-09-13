@@ -1,5 +1,5 @@
 <script lang="ts">
-/** R110-LC：三卡生命周期面板（泛化组件；宿主传 kind 与**真实卡对象数组**） */
+/** R113-N2：三卡生命周期面板（内嵌化——R110 的 Drawer 外壳退役，入口收敛到 设置→总览） */
 import type { ResourceCard, TaskCard, CuriosityCard } from '@/shared/models'
 /** 三卡联合（宿主直接传 store 中的活卡引用，面板只发意图、宿主落库——面板不改 props） */
 export type LifecycleCard = ResourceCard | TaskCard | CuriosityCard
@@ -7,30 +7,31 @@ export type LifecycleCard = ResourceCard | TaskCard | CuriosityCard
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import Drawer from '@/shared/components/Drawer.vue'
 import { lifecycleState, type LifecycleState } from '@/shared/utils/lifecycle'
 import { showToast } from '@/shared/components/toast'
 
-const props = defineProps<{
-  open: boolean
-  kind: LifecycleCard['kind']
+const props = withDefaults(defineProps<{
+  /** R113-N2：支持 'all'——设置页聚合三类卡；顶部实体切换由此驱动 */
+  kind?: 'resource' | 'task' | 'curiosity' | 'all'
   cards: LifecycleCard[]
-}>()
+}>(), { kind: 'all' })
 const emit = defineEmits<{
-  (e: 'close'): void
-  /** 下钻定位：宿主关闭面板并定位到该卡（复用各自既有 hl 链路） */
-  (e: 'locate', id: string): void
-  /** R110-LC：三个写意图——宿主对**真实卡对象**落库 + persist（面板自身不改数据） */
-  (e: 'archive', id: string): void
-  (e: 'snooze', id: string): void
-  (e: 'reactivate', id: string): void
+  /** 下钻定位：宿主跨台跳转（资源卡 ?hl= 精确定位；任务/好奇心卡切调度台） */
+  locate: [id: string, kind: 'resource' | 'task' | 'curiosity']
+  /** 三个写意图——宿主对**真实卡对象**落库 + persist（面板自身不改数据） */
+  archive: [id: string]
+  snooze: [id: string]
+  reactivate: [id: string]
 }>()
 
-const TITLES: Record<string, string> = {
-  resource: '⏳ 资源生命周期',
-  task: '⏳ 任务生命周期',
-  curiosity: '⏳ 好奇心生命周期'
-}
+/** 顶部实体切换（拍板：资源卡 / 任务卡 / 好奇心卡 / 全部） */
+const activeKind = ref(props.kind)
+const KIND_TABS: Array<{ key: typeof activeKind.value; label: string }> = [
+  { key: 'all', label: '全部' },
+  { key: 'resource', label: '资源卡' },
+  { key: 'task', label: '任务卡' },
+  { key: 'curiosity', label: '好奇心卡' }
+]
 
 type Filter = 'active' | 'cooling' | 'archived'
 const filter = ref<Filter>('cooling')
@@ -39,11 +40,14 @@ interface Entry { card: LifecycleCard; state: LifecycleState; daysIdle: number }
 /** 纯计算：不写 ref、不在 computed 内取时间戳存 state（避免自触发重算） */
 const entries = computed<Entry[]>(() => {
   const now = Date.now()
-  return props.cards.map(card => ({
-    card,
-    state: lifecycleState(card, now),
-    daysIdle: Math.floor((now - lastOf(card)) / 86400_000)
-  }))
+  const k = activeKind.value
+  return props.cards
+    .filter(c => k === 'all' || c.kind === k)
+    .map(card => ({
+      card,
+      state: lifecycleState(card, now),
+      daysIdle: Math.floor((now - lastOf(card)) / 86400_000)
+    }))
 })
 
 const stats = computed(() => ({
@@ -70,6 +74,10 @@ const donut = computed(() => {
   ]
 })
 
+function setKind(k: typeof activeKind.value) {
+  activeKind.value = k
+  // 切实体后当前过滤态可能不存在条目，保持不动（空态有文案），不强制重置
+}
 function setFilter(f: Filter) { filter.value = f }
 /** 三卡标题口径：好奇心卡是 question，资源/任务卡是 title */
 function titleOf(card: LifecycleCard): string {
@@ -83,67 +91,76 @@ function lastOf(card: LifecycleCard): number {
 function onArchive(e: Entry) { emit('archive', e.card.id); showToast(`📦 已归档「${titleOf(e.card).slice(0, 24)}」`) }
 function onSnooze(e: Entry) { emit('snooze', e.card.id); showToast('⏳ 已忽略 30 天（延后评估）') }
 function onReactivate(e: Entry) { emit('reactivate', e.card.id); showToast(`🔥 「${titleOf(e.card).slice(0, 24)}」已重新激活`) }
-function onLocate(e: Entry) { emit('locate', e.card.id) }
+function onLocate(e: Entry) { emit('locate', e.card.id, e.card.kind) }
 function fmtIdle(d: number): string { return d > 0 ? `${d} 天` : '今天' }
 /** 任务/好奇心卡都有 status（资源卡无）——模板不能写 TS 断言，故收在这里 */
 function isDone(card: LifecycleCard): boolean {
   return (card as { status?: string }).status === 'done'
 }
+const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任务卡', curiosity: '好奇心卡' }
 </script>
 
 <template>
-  <Drawer :open="open" :title="TITLES[kind] || '⏳ 生命周期'" width="520px" @close="emit('close')">
-    <div class="lc-body">
-      <!-- 三态统计（R110：可点击下钻=切换列表过滤） -->
-      <div class="lc-top">
-        <svg width="92" height="92" viewBox="0 0 92 92" class="lc-donut">
-          <circle cx="46" cy="46" :r="R" fill="none" stroke="var(--surface-3)" stroke-width="10" />
-          <circle v-for="seg in donut" :key="seg.cls" class="lc-dn" :class="seg.cls" cx="46" cy="46" :r="R"
-            fill="none" stroke-width="10" :stroke-dasharray="seg.dash" :stroke-dashoffset="seg.off"
-            stroke-linecap="butt" transform="rotate(-90 46 46)" />
-          <text x="46" y="50" text-anchor="middle" class="lc-dn-num">{{ stats.total }}</text>
-        </svg>
-        <div class="lc-stats">
-          <div class="lc-stat clickable" :class="{ on: filter === 'active' }" @click="setFilter('active')">
-            <div class="lc-stat-num">🔥 {{ stats.active }}</div><div class="lc-stat-lab">活跃</div>
-          </div>
-          <div class="lc-stat clickable" :class="{ on: filter === 'cooling' }" @click="setFilter('cooling')">
-            <div class="lc-stat-num">🧊 {{ stats.cooling }}</div><div class="lc-stat-lab">冷却</div>
-          </div>
-          <div class="lc-stat clickable" :class="{ on: filter === 'archived' }" @click="setFilter('archived')">
-            <div class="lc-stat-num">📦 {{ stats.archived }}</div><div class="lc-stat-lab">归档</div>
-          </div>
+  <div class="lc-body">
+    <!-- R113-N2：顶部实体切换（拍板呈现） -->
+    <div class="lc-kinds">
+      <button v-for="t in KIND_TABS" :key="t.key" class="lc-kind-tab" :class="{ on: activeKind === t.key }"
+        @click="setKind(t.key)">{{ t.label }}</button>
+    </div>
+    <!-- 三态统计（R110：可点击下钻=切换列表过滤） -->
+    <div class="lc-top">
+      <svg width="92" height="92" viewBox="0 0 92 92" class="lc-donut">
+        <circle cx="46" cy="46" :r="R" fill="none" stroke="var(--surface-3)" stroke-width="10" />
+        <circle v-for="seg in donut" :key="seg.cls" class="lc-dn" :class="seg.cls" cx="46" cy="46" :r="R"
+          fill="none" stroke-width="10" :stroke-dasharray="seg.dash" :stroke-dashoffset="seg.off"
+          stroke-linecap="butt" transform="rotate(-90 46 46)" />
+        <text x="46" y="50" text-anchor="middle" class="lc-dn-num">{{ stats.total }}</text>
+      </svg>
+      <div class="lc-stats">
+        <div class="lc-stat clickable" :class="{ on: filter === 'active' }" @click="setFilter('active')">
+          <div class="lc-stat-num">🔥 {{ stats.active }}</div><div class="lc-stat-lab">活跃</div>
         </div>
-      </div>
-      <div class="lc-hint">阈值：30 天未活动 → 冷却 · 90 天未活动 → 归档候选 · 点击统计切换列表 · 点击条目定位卡片</div>
-
-      <!-- 列表（当前过滤态） -->
-      <div class="lc-list">
-        <div v-for="e in visible" :key="e.card.id" class="lc-row clickable" @click="onLocate(e)">
-          <div class="lc-row-main">
-            <div class="lc-row-title" :class="{ done: isDone(e.card) }">{{ titleOf(e.card) }}</div>
-            <div class="lc-row-meta">
-              <span class="lc-badge" :class="'lc-' + e.state">{{ e.state === 'active' ? '🔥 活跃' : e.state === 'cooling' ? '🧊 冷却' : '📦 归档' }} {{ fmtIdle(e.daysIdle) }}</span>
-            </div>
-          </div>
-          <div class="lc-row-ops" @click.stop>
-            <template v-if="e.state === 'cooling'">
-              <button class="lc-op" @click="onArchive(e)">📦 归档</button>
-              <button class="lc-op" @click="onSnooze(e)">忽略 30d</button>
-            </template>
-            <template v-else-if="e.state === 'archived'">
-              <button class="lc-op primary" @click="onReactivate(e)">🔥 重新激活</button>
-            </template>
-          </div>
+        <div class="lc-stat clickable" :class="{ on: filter === 'cooling' }" @click="setFilter('cooling')">
+          <div class="lc-stat-num">🧊 {{ stats.cooling }}</div><div class="lc-stat-lab">冷却</div>
         </div>
-        <div v-if="!visible.length" class="lc-empty">{{ filter === 'archived' ? '归档区是空的——冷却卡的「📦 归档」会把它移到这里' : '该状态下暂无卡片' }}</div>
+        <div class="lc-stat clickable" :class="{ on: filter === 'archived' }" @click="setFilter('archived')">
+          <div class="lc-stat-num">📦 {{ stats.archived }}</div><div class="lc-stat-lab">归档</div>
+        </div>
       </div>
     </div>
-  </Drawer>
+    <div class="lc-hint">阈值：30 天未活动 → 冷却 · 90 天未活动 → 归档候选 · 点击统计切换列表 · 点击条目定位卡片</div>
+
+    <!-- 列表（当前过滤态） -->
+    <div class="lc-list">
+      <div v-for="e in visible" :key="e.card.id" class="lc-row clickable" @click="onLocate(e)">
+        <div class="lc-row-main">
+          <div class="lc-row-title" :class="{ done: isDone(e.card) }">{{ titleOf(e.card) }}</div>
+          <div class="lc-row-meta">
+            <span class="lc-badge" :class="'lc-' + e.state">{{ e.state === 'active' ? '🔥 活跃' : e.state === 'cooling' ? '🧊 冷却' : '📦 归档' }} {{ fmtIdle(e.daysIdle) }}</span>
+            <span v-if="activeKind === 'all'" class="lc-kind-badge">{{ KIND_BADGE[e.card.kind] }}</span>
+          </div>
+        </div>
+        <div class="lc-row-ops" @click.stop>
+          <template v-if="e.state === 'cooling'">
+            <button class="lc-op" @click="onArchive(e)">📦 归档</button>
+            <button class="lc-op" @click="onSnooze(e)">忽略 30d</button>
+          </template>
+          <template v-else-if="e.state === 'archived'">
+            <button class="lc-op primary" @click="onReactivate(e)">🔥 重新激活</button>
+          </template>
+        </div>
+      </div>
+      <div v-if="!visible.length" class="lc-empty">{{ filter === 'archived' ? '归档区是空的——冷却卡的「📦 归档」会把它移到这里' : '该状态下暂无卡片' }}</div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
 .lc-body { display: flex; flex-direction: column; gap: 12px; }
+.lc-kinds { display: flex; gap: 6px; }
+.lc-kind-tab { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 12px; border-radius: 7px; padding: 4px 12px; cursor: pointer; font-family: inherit; transition: all .12s; }
+.lc-kind-tab:hover { border-color: var(--accent); color: var(--accent); }
+.lc-kind-tab.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent); font-weight: 600; }
 .lc-top { display: flex; align-items: center; gap: 18px; }
 .lc-dn-num { font-size: 15px; font-weight: 700; fill: var(--text); }
 .lc-dn.lc-dn-active { stroke: var(--success); }
@@ -164,10 +181,11 @@ function isDone(card: LifecycleCard): boolean {
 .lc-row-main { flex: 1; min-width: 0; }
 .lc-row-title { font-size: 12.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lc-row-title.done { text-decoration: line-through; color: var(--text-3); }
-.lc-row-meta { margin-top: 2px; }
+.lc-row-meta { margin-top: 2px; display: flex; gap: 8px; align-items: center; }
 .lc-badge { font-size: 10px; color: var(--text-3); }
 .lc-badge.lc-cooling { color: #E8A33D; }
 .lc-badge.lc-archived { color: var(--text-4); }
+.lc-kind-badge { font-size: 10px; color: var(--text-3); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }
 .lc-row-ops { display: flex; gap: 6px; flex-shrink: 0; }
 .lc-op { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 11px; border-radius: 6px; padding: 3px 9px; cursor: pointer; font-family: inherit; transition: all .12s; }
 .lc-op:hover { border-color: var(--accent); color: var(--accent); }

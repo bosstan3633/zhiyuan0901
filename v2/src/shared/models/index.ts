@@ -133,6 +133,8 @@ export interface CardBase {
   assets?: AssetMeta[]
   /** R110-LC：生命周期归档标记（可选字段，零迁移）——true 即从默认视图隐藏，仅 ⏳ 生命周期面板可见/可恢复 */
   lifecycleArchived?: boolean
+  /** R113-T9：「忽略 30d」独立字段（可选，零迁移）——到期前生命周期恒活跃；不碰 lastCalledAt/updatedAt，热度排序与 WRR 统计零污染 */
+  snoozedUntil?: number
 }
 
 /** 资源卡（向源头求证） */
@@ -460,6 +462,8 @@ export interface UIPrefs {
   /** R67-F5：方向台·项目详情左栏（全部项目+项目目录）拖拽记忆（宽 px / 高 px） */
   projRailW?: number
   projRailH?: number
+  /** R113-N1：资源台/策展台左侧分类树宽度记忆（px，160–420，默认 200；双击分隔条复位） */
+  wsSideW?: number
 }
 
 // ============ 常量 ============

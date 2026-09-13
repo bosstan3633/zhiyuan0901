@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useOverlayTarget } from '@/shared/utils/overlayHost'
+// R113-N5：Teleport 目标动态化——金字塔真全屏期间浮层挂进全屏元素（否则不可见）
+const overlayTarget = useOverlayTarget()
 import { onUnmounted, watch } from 'vue'
 const props = defineProps<{
   open: boolean
@@ -18,7 +21,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport :to="overlayTarget">
     <Transition name="overlay">
       <div v-if="open" class="drawer-overlay" @click="emit('close')"></div>
     </Transition>

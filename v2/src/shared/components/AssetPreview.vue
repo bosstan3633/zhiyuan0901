@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useOverlayTarget } from '@/shared/utils/overlayHost'
+// R113-N5：Teleport 目标动态化——金字塔真全屏期间浮层挂进全屏元素（否则不可见）
+const overlayTarget = useOverlayTarget()
 /**
  * 第卌一轮 REQ-056：附件图片预览公共 viewer（技术债收敛）
  * 原 AssetManager.vue 与 AssetBadge.vue 各自内嵌一份「Teleport + 全屏弹窗 + Esc/遮罩关闭 + 图片渲染」
@@ -50,7 +53,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport :to="overlayTarget">
     <Transition name="fade">
       <div v-if="open" class="ap-viewer" @click.self="emit('close')">
         <div class="ap-viewer-box">

@@ -6,9 +6,7 @@ import { useAppStore } from '../../stores/app'
 import type { CuriosityCard, AssetMeta, FieldDef } from '@/shared/models'
 import ModuleCard from '@/shared/components/ModuleCard.vue'
 import Drawer from '@/shared/components/Drawer.vue'
-import LifecyclePanel from '@/newtab/components/LifecyclePanel.vue'
-import type { LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
-import { useLifecycle } from '@/newtab/composables/useLifecycle'
+// R113-N2：LifecyclePanel / useLifecycle 移除——生命周期入口收敛到 设置→总览
 import { showToast } from '@/shared/components/toast'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
@@ -92,23 +90,7 @@ const filtered = computed(() => {
 const archivedHintCount = computed(() => curiosities.value
   .filter(c => c.lifecycleArchived && (statusFilter.value === 'all' || c.status === statusFilter.value)).length)
 
-// ===== R110-LC：生命周期面板（好奇心卡） =====
-const lcCards = computed<LifecycleCard[]>(() => d.value.curiosities.filter(c => !c.deletedAt))
-const { lcOpen, onLcArchive, onLcSnooze, onLcReactivate, onLcLocate } = useLifecycle({
-  cards: lcCards,
-  locate: (id) => {
-    const c = d.value.curiosities.find(x => x.id === id)
-    if (c) statusFilter.value = c.status
-    viewMode.value = 'card'
-    highlightId.value = id
-    nextTick(() => {
-      setTimeout(() => {
-        document.querySelector(`[data-czid="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        setTimeout(() => { highlightId.value = null }, 2000)
-      }, 120)
-    })
-  }
-})
+// R113-N2：生命周期入口收敛到 设置→总览（原 R110-LC 面板接线移除）
 const pinnedCount = computed(() => filtered.value.filter(c => c.pinned).length)
 
 const statusCounts = computed(() => {
@@ -436,8 +418,7 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
           <button class="cz-view-btn" :class="{active: viewMode === 'card'}" @click="viewMode = 'card'" title="卡片视图">▦</button>
           <button class="cz-view-btn" :class="{active: viewMode === 'list'}" @click="viewMode = 'list'" title="列表视图">☰</button>
           <button class="cz-view-btn" :class="{active: viewMode === 'kanban'}" @click="viewMode = 'kanban'" title="看板视图">▥</button>
-          <!-- R110-LC：生命周期面板入口（活跃 / 冷却 / 归档三态） -->
-          <button class="cz-view-btn" @click="lcOpen = true" title="生命周期（活跃 / 冷却 / 归档）">⏳</button>
+          <!-- R113-N2：⏳ 入口移除——生命周期收敛到 设置→总览 -->
         </div>
       </div>
 
@@ -451,9 +432,9 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
         </div>
       </Transition>
 
-      <!-- R110-LC（T3）：归档卡已从默认视图隐藏——降级提示（可点开面板恢复） -->
-      <div v-if="archivedHintCount" class="cz-archived-hint" @click="lcOpen = true">
-        📦 另有 {{ archivedHintCount }} 张已归档好奇卡未显示（点此在 ⏳ 生命周期中查看 / 恢复）
+      <!-- R110-LC（T3）：归档卡已从默认视图隐藏——降级提示（R113-N2 起点击跳 设置→总览·资源生命周期） -->
+      <div v-if="archivedHintCount" class="cz-archived-hint" @click="router.push('/settings?page=lifecycle')">
+        📦 另有 {{ archivedHintCount }} 张已归档好奇卡未显示（点此在 设置 → 总览 · 资源生命周期 中查看 / 恢复）
       </div>
 
       <!-- 卡片视图 -->
@@ -559,9 +540,7 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
       </div>
     </div>
 
-    <!-- R110-LC：生命周期面板（好奇心卡）——须置于 v-if/v-else-if 视图链之外，否则会打断链式结构 -->
-    <LifecyclePanel :open="lcOpen" kind="curiosity" :cards="lcCards"
-      @close="lcOpen = false" @locate="onLcLocate" @archive="onLcArchive" @snooze="onLcSnooze" @reactivate="onLcReactivate" />
+    <!-- R113-N2：生命周期面板移除——入口收敛到 设置→总览 -->
 
     <!-- R48 详情重设计：状态收进头部下拉 chip；摘录升为 Hero 引用体；元数据一行小字；附件折叠 -->
     <Drawer :open="!!detailItem" :title="detailItem ? '好奇心详情' : ''" @close="detailId = null; curioStatusMenuOpen = false">

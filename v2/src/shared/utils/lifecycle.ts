@@ -25,6 +25,8 @@ export interface LifecycleInput {
   updatedAt?: number
   lastCalledAt?: number
   completedAt?: number
+  /** R113-T9：「忽略 30d」独立字段——snooze 期间恒活跃，不影响 lastCalledAt（热度排序 / WRR 口径零污染） */
+  snoozedUntil?: number
 }
 
 /** 阈值（毫秒）——04-58 拍板：本期固定 30/90 天，不做设置页配置 */
@@ -32,9 +34,10 @@ export const COOLING_MS = 30 * 86400_000
 export const ARCHIVE_MS = 90 * 86400_000
 export const NEW_GRACE_MS = 14 * 86400_000
 
-/** 重新激活 = 清归档标记 + 重置活动时间为 now（回活跃态） */
+/** 重新激活 = 清归档标记 + 清 snooze + 重置活动时间为 now（回活跃态） */
 export function reactivateCard(card: LifecycleInput): void {
   card.lifecycleArchived = undefined
+  card.snoozedUntil = undefined
   card.lastCalledAt = Date.now()
   card.updatedAt = Date.now()
 }
@@ -48,6 +51,8 @@ function lastActiveOf(card: LifecycleInput): number {
 /** 三态判定（单卡，纯函数） */
 export function lifecycleState(card: LifecycleInput, now = Date.now()): LifecycleState {
   if (card.lifecycleArchived) return 'archived'
+  // R113-T9：snooze 有效期内恒活跃（替代旧「覆盖 lastCalledAt」做法——那会污染热度统计）
+  if (card.snoozedUntil && card.snoozedUntil > now) return 'active'
   const last = lastActiveOf(card)
   const created = card.createdAt || 0
   // 新卡宽限期：创建 14 天内恒活跃
@@ -59,10 +64,9 @@ export function lifecycleState(card: LifecycleInput, now = Date.now()): Lifecycl
   return 'active'
 }
 
-/** 「忽略 30d」= 临时重置活动时间（不改变调用计数），延后 30 天再评估 */
+/** 「忽略 30d」= 写独立 snoozedUntil（不动 lastCalledAt / updatedAt——R113-T9 修复热度统计污染），30 天后再评估 */
 export function snoozeCard(card: LifecycleInput): void {
-  card.lastCalledAt = Date.now()
-  card.updatedAt = Date.now()
+  card.snoozedUntil = Date.now() + COOLING_MS
 }
 
 export interface LifecycleEntry<R = LifecycleInput> {
