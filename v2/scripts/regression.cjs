@@ -55,7 +55,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.83.0'";
+const VER_ANCHOR_LITERAL = "version: '2.84.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -1565,9 +1565,9 @@ check('R76-3 左树分类计数统一取 directCount：聚合/直属三元混用
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('{{ sc.directCount }}') && !w.includes('sc.hasChildren ? sc.aggCount : sc.directCount');
 });
-check('R76-4 看板列计数仍等于列内卡片数（items.length，与列内渲染自洽，未被误改）', () => {
+check('R76-4 看板列计数仍等于列内卡片数（count=全量 items.length，R116 起切片只影响渲染集，计数口径未被误改）', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes('return { key: c.key, name: c.name, items, count: items.length }') && w.includes('{{ cat.count }}');
+  return w.includes('return { key: c.key, name: c.name, items: shown, count: items.length, hiddenCount: items.length - shown.length }') && w.includes('{{ cat.count }}');
 });
 check('R76-5 卡片/列表分组计数仍等于组内卡片数（direct.length，未被误改）', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -3150,9 +3150,9 @@ check('R112-7 ★ 家族过滤复杂度：applyViewFilters 的 ids.includes 改 
   return w.includes('const ids = new Set(familyIds(activeCategory.value))')
     && w.includes('out = out.filter(r => r.categoryId && ids.has(r.categoryId))');
 });
-check('R112-8 渲染份额复位：换台 / 换视图 / 换分类 / 改检索词 / 改排序时回落 RENDER_STEP', () => {
+check('R112-8 渲染份额复位：换台 / 换视图 / 换分类 / 改检索词 / 改排序时回落 RENDER_STEP（R116 起看板列限额一并复位）', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes('watch([workspaceId, viewMode, activeCategory, debouncedQuery, sortBy, sortDir], () => { renderLimit.value = RENDER_STEP })');
+  return w.includes("watch([workspaceId, viewMode, activeCategory, debouncedQuery, sortBy, sortDir], () => { renderLimit.value = RENDER_STEP; kanbanColLimit.value = {} })");
 });
 check('R112-9 ★ 切台零重算：workspaceId 离开 /workspace 时保持上一个台 id（避免 KeepAlive 缓存组件在隐藏期被触发全量重算、切回再算一遍）', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -3350,6 +3350,34 @@ check('R115-4 ★ 骨架屏「就绪即过渡」：快加载废止 360ms 补足�
     && m.includes('elapsed < SKELETON_MIN_SHOW')
     && !m.includes('elapsed < 360')
     && !m.includes('Math.max(0, 220 - late)');
+});
+
+// ===== R116（看板渲染增量优化）=====
+check('R116-1 ★ 看板列增量渲染：KANBAN_COL_STEP=20 + 每列切片（items: shown）+ count 恒为全量长度（hiddenCount 为差值）', () => {
+  const w = read('/newtab/composables/useResourceView.ts');
+  return w.includes('const KANBAN_COL_STEP = 20')
+    && w.includes('const shown = items.slice(0, kanbanLimitOf(c.key))')
+    && w.includes('return { key: c.key, name: c.name, items: shown, count: items.length, hiddenCount: items.length - shown.length }')
+    && w.includes('function kanbanLimitOf(key: string) { return kanbanColLimit.value[key] || KANBAN_COL_STEP }');
+});
+check('R116-2 看板列追加双通道：列体滚动近底 60px 自动追加（onKanbanColScroll）+ 列底显式入口（kanbanMore → kc-more 按钮）', () => {
+  const v = read('/newtab/views/Workspace.vue');
+  const u = read('/newtab/composables/useResourceView.ts');
+  return u.includes('if (el.scrollHeight - el.scrollTop - el.clientHeight < 60) kanbanMore(key)')
+    && v.includes('@scroll="onKanbanColScroll($event, cat.key)"')
+    && v.includes('v-if="cat.hiddenCount > 0" class="kc-more" @click="kanbanMore(cat.key)"')
+    && v.includes('显示更多 {{ cat.hiddenCount }} 张');
+});
+check('R116-3 看板列限额上下文复位 + 列表/卡片增量渲染机制未被误改（RENDER_STEP=80 仍在）', () => {
+  const u = read('/newtab/composables/useResourceView.ts');
+  return u.includes('kanbanColLimit.value = {}')
+    && u.includes('const RENDER_STEP = 80')
+    && u.includes('renderLimit.value += RENDER_STEP');
+});
+check('R116-4 列底入口样式就位（.kc-more 于 workspace.css，hover 下划线）', () => {
+  const s = read('/newtab/views/workspace.css');
+  return s.includes('.kc-more { text-align: center; padding: 8px 0 4px; font-size: 12px; color: var(--accent); cursor: pointer; user-select: none; }')
+    && s.includes('.kc-more:hover { text-decoration: underline; }');
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

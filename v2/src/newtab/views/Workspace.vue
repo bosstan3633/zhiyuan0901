@@ -447,7 +447,8 @@
               <span class="kc-count">{{ cat.count }}</span>
               <div class="kc-add" @click="addResourceToCategory(cat.key)" title="在此分类新建">＋</div>
             </div>
-            <div class="kc-body">
+            <!-- R116 性能：列体增量渲染——滚动近底自动追加（与卡片/列表 R112 同构） -->
+            <div class="kc-body" @scroll="onKanbanColScroll($event, cat.key)">
               <div v-for="r in cat.items" :key="r.id" class="kc-card" :class="{pinned: r.pinned, 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :draggable="!batchMode" @dragstart="onDragStart($event,r)" @dragover.prevent.stop="markDrop($event, r.id, 'y')" @dragend="clearDragState" @dragleave="clearDropMark" @drop.stop="onKanbanCardDrop($event, r)" @click="onCardClick(r)" @dblclick="onCardDblClick(r)">
                 <!-- R79（R1-看）：看板此前只有 🗑 删除 + 只读星标，动作条与卡片/列表视图严重不齐 -->
@@ -479,6 +480,8 @@
                   <span v-if="hasField('assets') && r.assets?.length" class="kc-card-assets"><AssetBadge :assets="r.assets" /></span>
                 </div>
               </div>
+              <!-- R116 性能：增量渲染的显式入口（看板列同口径，保证键盘/触屏场景可达） -->
+              <div v-if="cat.hiddenCount > 0" class="kc-more" @click="kanbanMore(cat.key)">显示更多 {{ cat.hiddenCount }} 张</div>
             </div>
           </div>
         </div>
@@ -1237,6 +1240,7 @@ const {
   RENDER_STEP, renderLimit, totalVisibleCount, renderedGroups, renderedCount, hasMoreToRender,
   onContentScroll, renderMore, groupChildCount,
   kanbanCategories, resourcesByCategory, kanbanColumns,
+  kanbanMore, onKanbanColScroll,
 } = useResourceView({
   store, d, workspaceId, allResources, thesisCard, categories, wsCats, catIdx, resBucket,
   rootCats, childCatsOf, familyIds, isUncat,

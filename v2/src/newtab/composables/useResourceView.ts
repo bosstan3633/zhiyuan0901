@@ -352,7 +352,8 @@ export function useResourceView(ctx: ResourceViewCtx) {
   /** 「加载更多」按钮（滚动监听之外的显式入口，保证键盘/小程序场景可达） */
   function renderMore() { if (hasMoreToRender.value) renderLimit.value += RENDER_STEP }
   // 换台 / 换视图 / 换分类 / 改检索词 / 改排序 → 渲染份额复位（否则会带着上个上下文的大份额）
-  watch([workspaceId, viewMode, activeCategory, debouncedQuery, sortBy, sortDir], () => { renderLimit.value = RENDER_STEP })
+  // R116：看板列限额一并复位
+  watch([workspaceId, viewMode, activeCategory, debouncedQuery, sortBy, sortDir], () => { renderLimit.value = RENDER_STEP; kanbanColLimit.value = {} })
   /** R98（W9）：分组标题补「含 N 个子分类」——组内 count 是**直属**口径（walk 只 push 有直属卡的组），
    *  与左树的聚合数不同源；同屏「左树 A 显示 5 / 分组 A 显示 3」会被当成对不上账，须写明。
    *  子分类各自的卡有自己的组（walk 递归）；待分类无子分类。 */
@@ -381,9 +382,25 @@ export function useResourceView(ctx: ResourceViewCtx) {
   }
   /** R71：看板列（名字 + 计数 + 卡列表）一次算好——模板此前每列把 resourcesByCategory 调两次
    *  （一次计数、一次渲染），等于每列对全量卡 filter+sort 两遍 */
+  // R116 性能：看板列**增量渲染**（与 R112 卡片/列表 RENDER_STEP 同构）——large 档看板切换 786ms
+  // 的主体是 N 列 × 全量卡一次性挂载。每列初始 20 张，列体滚动近底自动追加 + 列底显式入口；
+  // count 恒为全量长度（数据口径不变），切片只影响渲染集 items。
+  const KANBAN_COL_STEP = 20
+  const kanbanColLimit = ref<Record<string, number>>({})
+  function kanbanLimitOf(key: string) { return kanbanColLimit.value[key] || KANBAN_COL_STEP }
+  function kanbanMore(key: string) {
+    const full = resourcesByCategory(key).length
+    if (kanbanLimitOf(key) < full) kanbanColLimit.value[key] = kanbanLimitOf(key) + KANBAN_COL_STEP
+  }
+  /** 列体（.kc-body）滚到距底 60px 内追加一屏（列高固定 260px 窄栏，阈值小于卡片/列表的 400px） */
+  function onKanbanColScroll(e: Event, key: string) {
+    const el = e.target as HTMLElement
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 60) kanbanMore(key)
+  }
   const kanbanColumns = computed(() => kanbanCategories.value.map(c => {
     const items = resourcesByCategory(c.key)
-    return { key: c.key, name: c.name, items, count: items.length }
+    const shown = items.slice(0, kanbanLimitOf(c.key))
+    return { key: c.key, name: c.name, items: shown, count: items.length, hiddenCount: items.length - shown.length }
   }))
 
   return {
@@ -399,6 +416,7 @@ export function useResourceView(ctx: ResourceViewCtx) {
     RENDER_STEP, renderLimit, totalVisibleCount, renderedGroups, renderedCount, hasMoreToRender,
     onContentScroll, renderMore, groupChildCount,
     kanbanCategories, resourcesByCategory, kanbanColumns,
+    KANBAN_COL_STEP, kanbanLimitOf, kanbanMore, onKanbanColScroll,
   }
 }
 
