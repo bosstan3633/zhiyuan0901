@@ -674,7 +674,8 @@ onUnmounted(() => {
                               @keydown.enter.prevent="saveEdit('metric-' + metric.id, $event)"
                               @keydown.esc="cancelEdit">{{ metric.title }}</div>
                             <div class="metric-progress">{{ tasksForMetric(metric.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(metric.id).length }}</div>
-                            <div class="metric-task-count">📋 {{ tasksForMetric(metric.id).length }}任务</div>
+                            <div class="metric-task-count" :class="{ none: !tasksForMetric(metric.id).length }"
+                              :title="tasksForMetric(metric.id).length ? '该指标下的任务数' : '该成功指标暂无任务支撑——点右侧 ＋ 新建 / 关联任务'">{{ tasksForMetric(metric.id).length ? '📋 ' + tasksForMetric(metric.id).length + '任务' : '⚠ 暂无支撑任务' }}</div>
                             <div class="metric-expand-icon">{{ expandedMetrics.has(metric.id) ? '▼' : '▶' }}</div>
                             <div class="metric-actions" @click.stop>
                               <div class="node-action" @click="openTaskAdd(metric.id, proj.id)" title="添加任务（新建 / 关联）">＋</div>
@@ -853,7 +854,7 @@ onUnmounted(() => {
 .sidebar-item { width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; color: var(--text-3); transition: all .15s ease; position: relative; }
 .sidebar-item:hover { background: var(--surface-3); color: var(--text-2); }
 .sidebar-item.active { background: var(--accent-light); color: var(--accent); }
-.sidebar-item .tip { position: absolute; left: 48px; background: #1A1D23; color: #fff; font-size: 11px; padding: 4px 9px; border-radius: 6px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 100; }
+.sidebar-item .tip { position: absolute; left: 48px; background: var(--solid-bg); color: var(--solid-fg); font-size: 11px; padding: 4px 9px; border-radius: 6px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 100; }
 .sidebar-item:hover .tip { opacity: 1; }
 .sidebar-divider { width: 24px; height: 1px; background: var(--border); margin: 4px 0; }
 .sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 4px; align-items: center; }
@@ -974,8 +975,11 @@ onUnmounted(() => {
 
 /* 项目节点 */
 .project-node { margin-bottom: 0; }
-/* R59-T3：主攻项目——强调色凸显（边+底色+左侧强调条），与普通项目一眼区分 */
-.project-node.primary { border: 1px solid var(--accent); background: var(--accent-light); box-shadow: inset 3px 0 0 var(--accent), 0 0 12px color-mix(in srgb, var(--accent) 14%, transparent); }
+/* R59-T3：主攻项目强调色凸显｜R118（T2.4）：由「实底 + inset 3px 强调条 + 光晕」三重强调
+   降为**专属高亮微边框**（1px 强调色边 + 极淡底）——同一屏有多个主攻时不再互相抢视觉焦点，
+   「主攻」身份仍靠 .primary-badge 与 .focus-btn.on 明确标注。 */
+.project-node.primary { border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border)); background: color-mix(in srgb, var(--accent) 4%, var(--surface)); box-shadow: none; }
+.project-node.primary:hover { border-color: var(--accent); }
 .project-node.primary .node-title { color: var(--accent); }
 .focus-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; color: var(--text-3); background: var(--surface-3); border: 1px solid var(--border); border-radius: 99px; padding: 2px 10px; cursor: pointer; font-family: inherit; transition: all .12s; flex-shrink: 0; }
 .focus-btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -984,10 +988,13 @@ onUnmounted(() => {
 .proj-tag { background: var(--surface-3); color: var(--text-2); }
 
 /* 指标 */
-.metrics-wrap { margin-top: 8px; }
-.metric-item { display: flex; align-items: center; gap: 9px; padding: 8px 12px; background: var(--surface-2); border-radius: var(--radius-xs); margin-bottom: 6px; cursor: pointer; transition: all .15s; border: 1px solid transparent; position: relative; }
-.metric-item:hover { background: var(--surface); border-color: var(--border); }
-.metric-item.expanded { background: var(--surface); border-color: color-mix(in srgb, var(--accent) 20%, var(--border)); border-bottom-left-radius: 0; border-bottom-right-radius: 0; margin-bottom: 0; }
+/* R118（T2.3）：L5/L6 去「灰盒套娃」——原 .metric-item 自带 surface-2 圆角盒、.tasks-wrap 再套一层
+   描边盒，同屏三层灰块把横向空间吃光。现改为**发丝引导线 + 紧凑缩进**：层级由 1px 竖线 + 缩进表达。 */
+.metrics-wrap { margin-top: 6px; padding-left: 10px; border-left: 1px solid var(--border); }
+.metric-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: transparent; border-radius: 6px; margin-bottom: 1px; cursor: pointer; transition: background .15s; border: 0; position: relative; }
+.metric-item::before { content: ''; position: absolute; left: -11px; top: 50%; width: 8px; height: 1px; background: var(--border-strong); }
+.metric-item:hover { background: var(--surface-2); }
+.metric-item.expanded { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .metric-status { width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; }
 .metric-status.done { background: var(--success); }
 .metric-status.doing { background: var(--warning); }
@@ -997,22 +1004,25 @@ onUnmounted(() => {
 .metric-name.editing { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
 .metric-progress { font-size: 10.5px; color: var(--text-3); font-weight: 500; }
 .metric-task-count { font-size: 10px; color: var(--accent); background: var(--accent-light); padding: 2px 7px; border-radius: 99px; font-weight: 500; flex-shrink: 0; }
+/* R118（T2.4）：空指标健康度检视——没有任何任务支撑的成功指标必须显式示警，
+   否则「树看着都在推进，实际一堆指标没人干」这类问题会一直藏着。 */
+.metric-task-count.none { color: var(--warning); background: color-mix(in srgb, var(--warning) 14%, transparent); }
 .metric-expand-icon { font-size: 10px; color: var(--text-3); transition: transform .2s; flex-shrink: 0; }
 .metric-item.expanded .metric-expand-icon { transform: rotate(90deg); }
 .metric-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
 .metric-item:hover .metric-actions { opacity: 1; }
 
 /* 任务 */
-.tasks-wrap { background: var(--surface); border: 1px solid color-mix(in srgb, var(--accent) 15%, var(--border)); border-top: none; border-radius: 0 0 var(--radius-xs) var(--radius-xs); padding: 8px 12px 10px; margin-bottom: 6px; position: relative; }
-.tasks-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; padding-bottom: 5px; border-bottom: 1px dashed var(--border); }
+/* R118（T2.3）：L6 任务层同样去盒——只保留左侧发丝引导线（与 .metrics-wrap 同构），不再套描边大灰盒。 */
+.tasks-wrap { background: transparent; border: 0; border-left: 1px solid var(--border); border-radius: 0; padding: 2px 0 4px 10px; margin: 0 0 4px 6px; position: relative; }
+.tasks-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; padding: 0 0 4px; border-bottom: 0; }
 .tasks-header .th-num { width: 16px; height: 16px; border-radius: 4px; background: var(--accent-light); color: var(--accent); font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
 .tasks-header .th-name { font-size: 10.5px; font-weight: 600; color: var(--text-2); }
 .tasks-header .th-count { font-size: 10px; color: var(--text-3); margin-left: auto; }
 .tasks-header .th-add { font-size: 10px; color: var(--text-3); cursor: pointer; padding: 1px 6px; border-radius: 4px; transition: all .15s; }
 .tasks-header .th-add:hover { color: var(--accent); background: var(--accent-light); }
-.task-item { display: flex; align-items: center; gap: 7px; padding: 5px 9px 5px 20px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: all .15s; border-radius: 5px; position: relative; }
-.task-item::before { content: ''; position: absolute; left: 10px; top: 0; bottom: 0; width: 1px; background: var(--border); }
-.task-item::after { content: ''; position: absolute; left: 10px; top: 50%; width: 6px; height: 1px; background: var(--border-strong); }
+.task-item { display: flex; align-items: center; gap: 7px; padding: 4px 8px 4px 16px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: all .15s; border-radius: 5px; position: relative; }
+.task-item::after { content: ''; position: absolute; left: 6px; top: 50%; width: 6px; height: 1px; background: var(--border-strong); }
 .task-item:hover { background: var(--surface-2); color: var(--text); }
 .task-check { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; font-size: 9px; }
 .task-check:hover { border-color: var(--accent); }

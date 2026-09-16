@@ -132,6 +132,11 @@
            与「＋新建」同属"往本台生成内容"，紧邻放置；资源台（hub）无金字塔概念，不露出。 -->
       <button v-if="!isHub" class="hero-btn settings py-import-btn" title="导入金字塔 Markdown 模板（论点 + 分类节点 + 节点卡片一次生成）"
         @click="pyramidImportOpen = true">📋 导入模板</button>
+      <!-- R118（T4.1）：待分类轻量警告——待分类是系统桶，不进金字塔（金字塔只铺真实业务分类），
+           但桶里有卡时必须让人看得见，否则这些卡在金字塔视图里彻底隐形。 -->
+      <button v-if="!isHub && uncategorizedCount" class="uncat-warn"
+        :title="`有 ${uncategorizedCount} 张卡尚未归入任何业务分类 —— 点击切回卡片视图并聚焦「待分类」`"
+        @click="setViewMode('card'); activeCategory = 'uncat'">⚠ 待分类 {{ uncategorizedCount }} 张</button>
       <div class="toolbar-spacer"></div>
       <div class="toolbar-search">
         <span class="s-icon">🔍</span>
@@ -269,6 +274,10 @@
               <span class="cat-act more" title="更多操作（置顶 / 镜像 / 重命名 / 删除）" @click.stop="openCatMenu($event, sc)">⋯</span>
             </span>
             <span class="cat-count" :title="sc.hasChildren ? `仅本分类直属 ${sc.directCount} 张 · 含 ${sc.childCount} 个子分类（共 ${sc.aggCount} 张）` : `仅本分类直属 ${sc.directCount} 张`">{{ sc.directCount }}</span>
+            <!-- R118（T3.3）：直属 / 聚合口径与右侧分类头**逐字统一**——两处都呈现「N · 含 M 个子分类」，
+                 不再一处只给数字、另一处给「含 N 个子分类」，消除同屏两套算法的错觉。
+                 聚合总数只在 tooltip 里作补充说明，不冒充主值。 -->
+            <span v-if="sc.hasChildren" class="cat-sub" :title="`本分类下辖 ${sc.childCount} 个子分类（含子分类卡聚合共 ${sc.aggCount} 张）`">· 含 {{ sc.childCount }} 个子分类</span>
           </div>
         </template>
         <div v-if="dragCatId" class="cat-root-drop" @dragover.prevent @drop="onCatRootDrop">⬆ 松手升为一级分类</div>
@@ -298,7 +307,11 @@
         <!-- ===== 卡片视图：REQ-027 按分类分组分区；R64-F9 树状递归分组（depth 缩进呈现层级） ===== -->
         <div v-if="viewMode==='card'">
           <!-- R84（W2-①）：中心论点提到首屏——此前论点只出现在指标条第一格与金字塔 L1 根，
-               卡片视图（默认视图）里完全看不到。已设立 → 标题 + 查看金字塔；未设立 → 一行轻引导。 -->
+               卡片视图（默认视图）里完全看不到。已设立 → 标题 + 查看金字塔；未设立 → 一行轻引导。
+               R118（T3.2）：资源台（isHub）**一律不渲染**本横幅——「中心论点 / 金字塔 L1」是策展台的概念，
+               资源台是资源卡的唯一存储、不是论证现场，此前在资源台渲染出的空态引导指向了台内并不存在的
+               设立入口（右键菜单里根本没有该项），属对用户的错误引导。 -->
+          <template v-if="!isHub">
           <div class="thesis-banner" :class="{ empty: !thesisCard }">
             <template v-if="thesisCard">
               <span class="tb-mark">🏛</span>
@@ -311,6 +324,7 @@
               <span class="tb-hint">尚未设立中心论点 —— 右键台内卡片可设立（设立后即成为金字塔 L1 根）</span>
             </template>
           </div>
+          </template>
           <template v-for="(g, gi) in renderedGroups" :key="g.key">
             <div :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
             <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
@@ -319,7 +333,7 @@
             </div>
             <div v-show="!collapsedGroups.has(g.key)" class="card-grid"
               @dragover="onAreaDragOver($event, g.key)" @drop="onAreaDrop($event, g.key)">
-              <div v-for="r in g.items" :key="r.id" class="res-card" :class="{pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
+              <div v-for="r in g.items" :key="r.id" class="res-card" :class="{mirror: isMirrorView(r), pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
                 @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragend="clearDragState" @dragleave="clearDropMark"
                 @contextmenu.prevent="openResCtx($event, r)">
@@ -397,7 +411,7 @@
               <span class="ws-cat-collapse">{{ collapsedGroups.has(g.key) ? '▸' : '▾' }}</span>
             </div>
             <div v-show="!collapsedGroups.has(g.key)" class="res-list">
-              <div v-for="r in g.items" :key="r.id" class="res-row" :class="{pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
+              <div v-for="r in g.items" :key="r.id" class="res-row" :class="{mirror: isMirrorView(r), pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
                 @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragend="clearDragState" @dragleave="clearDropMark"
                 @contextmenu.prevent="openResCtx($event, r)">
@@ -450,7 +464,7 @@
             </div>
             <!-- R116 性能：列体增量渲染——滚动近底自动追加（与卡片/列表 R112 同构） -->
             <div class="kc-body" @scroll="onKanbanColScroll($event, cat.key)">
-              <div v-for="r in cat.items" :key="r.id" class="kc-card" :class="{pinned: r.pinned, 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
+              <div v-for="r in cat.items" :key="r.id" class="kc-card" :class="{mirror: isMirrorView(r), pinned: r.pinned, 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :draggable="!batchMode" @dragstart="onDragStart($event,r)" @dragover.prevent.stop="markDrop($event, r.id, 'y')" @dragend="clearDragState" @dragleave="clearDropMark" @drop.stop="onKanbanCardDrop($event, r)" @click="onCardClick(r)" @dblclick="onCardDblClick(r)">
                 <!-- R79（R1-看）：看板此前只有 🗑 删除 + 只读星标，动作条与卡片/列表视图严重不齐 -->
                 <div class="kc-actions">
@@ -508,12 +522,14 @@
             <div v-else class="py-root-empty clickable" @click="openThesisCreate">🏛 点击设立中心论点 —— 填写卡片保存后自动落为 L1 根节点</div>
           </div>
           <!-- L2 起分类节点（R66-F5：居中树布局——叶子占列、父节点跨其子组全部列：父模块横向恒=子组横向、居中悬于子组上方，子组永不跨入其他父节点的横向空间；连线横平竖直直角折线） -->
-          <!-- R98（W7）：层级折叠——仅 L2 / 到 L3 / 全部（本地视图态）；金字塔只有一层时无折叠意义，不渲染 -->
+          <!-- R98（W7）：层级折叠——仅 L2 / 到 L3 / 全部（本地视图态）；金字塔只有一层时无折叠意义，不渲染
+               R118（T4.2）：形态对齐原型 [仅论据 L2 ｜ 全部展开]——三档保留（到 L3 是现有能力的真子集关系，
+               删档即能力丢失），仅收敛措辞：L2 在金字塔里就是「论据层」，全部 = 全部展开。 -->
           <div v-if="pyramidLevels.length >= 2" class="py-fold">
             <span class="py-fold-label">层级</span>
-            <button class="py-fold-btn" :class="{on: pyFold==='l2'}" @click="pyFold='l2'">仅 L2</button>
+            <button class="py-fold-btn" :class="{on: pyFold==='l2'}" @click="pyFold='l2'">仅论据 L2</button>
             <button class="py-fold-btn" :class="{on: pyFold==='l3'}" @click="pyFold='l3'">到 L3</button>
-            <button class="py-fold-btn" :class="{on: pyFold==='all'}" @click="pyFold='all'">全部</button>
+            <button class="py-fold-btn" :class="{on: pyFold==='all'}" @click="pyFold='all'">全部展开</button>
           </div>
           <div class="py-board" :style="{ gridTemplateColumns: `repeat(${pyLayout.cols}, minmax(170px, 250px))` }">
             <div v-for="cell in pyLayout.cells" :key="cell.cat.id" class="py-node"
@@ -539,10 +555,13 @@
                 </span>
                 <span v-if="!cell.cards.length" class="py-node-empty">拖入资源卡</span>
               </div>
-              <!-- R65-F3：节点双入口——关联资源卡（资源台选择器镜像）/ 新建卡片（台内卡，可挂附件） -->
+              <!-- R65-F3：节点双入口——关联资源卡（资源台选择器镜像）/ 新建卡片（台内卡，可挂附件）
+                   R118（T4.3）：由「常驻实心按钮」降为**底部虚线微文字触手**（去掉面底色，只留虚线边与
+                   次要文字色），措辞对齐原型：关联资源卡 → 「关联佐证素材」（金字塔语境下它就是论据素材；
+                   函数入口 openLinkCards 未变，title 里写明「从资源台选择资源卡镜像到该节点」保住可发现性）。 -->
               <div class="py-node-foot">
-                <span class="py-foot-btn" title="从资源台选择资源卡镜像到该节点" @click.stop="openLinkCards(cell.cat)">🔗 关联资源卡</span>
-                <span class="py-foot-btn" title="新建台内卡（可挂附件，真身留在本台）" @click.stop="addResourceToCategory(cell.cat.id)">➕ 新建卡片</span>
+                <span class="py-foot-btn" title="从资源台选择资源卡镜像到该节点（论据素材）" @click.stop="openLinkCards(cell.cat)">＋ 关联佐证素材</span>
+                <span class="py-foot-btn" title="新建台内卡（可挂附件，真身留在本台）" @click.stop="addResourceToCategory(cell.cat.id)">＋ 新建卡片</span>
               </div>
               <span v-if="pyDepthOf(cell.cat) < 3" class="py-node-add" title="新建子节点" @click.stop="openCreateCat(cell.cat.id)">＋</span>
             </div>

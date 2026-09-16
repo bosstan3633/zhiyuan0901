@@ -788,9 +788,10 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
       </button>
     </div>
 
-      <!-- R111：调度画像周报入口 -->
-      <button class="mini-btn wr-entry" title="调度画像周报" @click="wrOpen = true">📊 周报</button>
-
+    <!-- R118（T1.1）：方向镜**单行通栏**——周报胶囊 + 方向状态四指标 + 操作记录四格 + 🎯 主攻条合流为一行（≤40px）。
+         三个子块各自 DOM 与顺序原样保留（MetricBar 内部零改动，避免破坏其 10+ 条断言），
+         仅由 .dir-bar 统一外观：去掉三重独立边框，共用一条发丝线，横向收为一行。 -->
+    <div class="dir-bar">
     <!-- R55-D1：方向状态（战略目标/WCE/WRR/未归档四格）迁至调度台最顶部 ｜ R66-F3：右端挂操作记录四格 -->
     <MetricBar>
       <template #right>
@@ -803,10 +804,9 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
       </template>
     </MetricBar>
 
-    <!-- R91：主攻速览条——首页面包屑写着「今天，从哪里出发」，主攻就是这个问题的答案。
+    <!-- R91：主攻速览——首页面包屑写着「今天，从哪里出发」，主攻就是这个问题的答案。
          手册承诺「🎯 主攻（最多 2 个）直通调度台速览」，而 focusedProjects 此前在调度台**零消费**
-         （唯一消费方在方向台 LighthousePanel）。与方向台那条的分工：那边在目标卡上下文里、是"管"
-         的视角；这条在"今天从哪出发"的语境里，故多了停滞警示与待办数。 -->
+         （唯一消费方在方向台 LighthousePanel）。R118（T1.1）：由独立条收编进上方向镜通栏。 -->
     <div class="ch-focus-strip" :class="{ empty: !focusedProjects.length }">
       <template v-if="focusedProjects.length">
         <span class="cf-label">🎯 主攻</span>
@@ -824,7 +824,11 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
       </span>
     </div>
 
-    <!-- 左右分栏：今日三件事 ｜ 项目调度 -->
+      <!-- R111：调度画像周报入口（R118 T1.1：由游离胶囊收编进通栏最右端） -->
+      <button class="mini-btn wr-entry" title="调度画像周报" @click="wrOpen = true">📊 周报</button>
+    </div>
+
+    <!-- 上下分区：今日三件事 → 项目调度（R118 更正 R94 注释中「左右分栏」的旧措辞——.split 实为 column） -->
     <div id="dispatch-split" class="split">
       <!-- 左列 · 今日三件事 -->
       <!-- 上 · 今日三件事（R51-F10 视觉焦点；R53-C1：工具按钮移头部，槽位即入口） -->
@@ -873,8 +877,8 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
               </template>
             </div>
             <!-- R94（B3）：全完成的**安静**收束——一行中性小字（整块去饱和由 .all-done 承担）。
-                 不用庆祝动画、不用红色、不用进度百分比。 -->
-            <div v-if="focusAllDone" class="td-done">✓ 今日三件事 · 已完成</div>
+                 R118（T1.3）：文案改为「已闭环 · 专注带来从容」，去饱和由 .5 收到 .65（保留可辨识的品牌色，不整块褪成灰）。 -->
+            <div v-if="focusAllDone" class="td-done">✓ 今日三件事已闭环 · 专注带来从容</div>
           </div>
         </div>
       </section>
@@ -1162,18 +1166,20 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 /* R50-F2 数据存储状态栏 */
 .storage-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); padding: 4px 12px; border-radius: 99px; cursor: pointer; transition: border-color .15s; font-family: inherit; }
 .storage-chip:hover { border-color: var(--border-strong); }
-.storage-chip .sc-dot { width: 7px; height: 7px; border-radius: 99px; background: #2EA043; box-shadow: 0 0 6px rgba(46,160,67,.55); flex-shrink: 0; }
-.storage-chip.err { color: #F85149; border-color: color-mix(in srgb, #F85149 45%, var(--border)); }
-.storage-chip.err .sc-dot { background: #F85149; box-shadow: 0 0 6px rgba(248,81,73,.55); animation: scBlink 1.2s ease-in-out infinite; }
+/* R118（T5）：状态点由裸 hex 改为语义令牌——原 #2EA043 / #F85149 在浅色主题（极简白/纸墨白）下
+   与色板脱节且对比过强；改消费 --success / --danger，光晕用 color-mix 由同一令牌派生。 */
+.storage-chip .sc-dot { width: 7px; height: 7px; border-radius: 99px; background: var(--success); box-shadow: 0 0 6px color-mix(in srgb, var(--success) 55%, transparent); flex-shrink: 0; }
+.storage-chip.err { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+.storage-chip.err .sc-dot { background: var(--danger); box-shadow: 0 0 6px color-mix(in srgb, var(--danger) 55%, transparent); animation: scBlink 1.2s ease-in-out infinite; }
 @keyframes scBlink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
 /* R63-9：Airtable 同步状态卡（右上角常驻，量级对齐 storage-chip） */
 .sync-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); padding: 4px 12px; border-radius: 99px; cursor: pointer; transition: border-color .15s; font-family: inherit; }
 .sync-chip:hover { border-color: var(--border-strong); }
 .sync-chip .sc-dot { width: 7px; height: 7px; border-radius: 99px; background: var(--text-3); flex-shrink: 0; }
-.sync-chip.on .sc-dot { background: #2EA043; box-shadow: 0 0 6px rgba(46,160,67,.55); }
-.sync-chip.err { color: #F85149; border-color: color-mix(in srgb, #F85149 45%, var(--border)); }
-.sync-chip.err .sc-dot { background: #F85149; box-shadow: 0 0 6px rgba(248,81,73,.55); animation: scBlink 1.2s ease-in-out infinite; }
+.sync-chip.on .sc-dot { background: var(--success); box-shadow: 0 0 6px color-mix(in srgb, var(--success) 55%, transparent); }
+.sync-chip.err { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+.sync-chip.err .sc-dot { background: var(--danger); box-shadow: 0 0 6px color-mix(in srgb, var(--danger) 55%, transparent); animation: scBlink 1.2s ease-in-out infinite; }
 .sync-chip .sync-gear { font-size: 11px; opacity: .55; padding: 0 2px; }
 .sync-chip .sync-gear:hover { opacity: 1; }
 
@@ -1190,6 +1196,14 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 /* R51-F10：上下联动——三件事在上占视觉焦点，项目调度在下 */
 /* R91：主攻速览条——与方向台 .mr-focus-bar 同款（≤40px 一行、全 tokens 变量），
    差异只在多出的停滞警示与待办数（本条要回答的是"今天推哪个"，不只是"有哪些主攻"） */
+/* R118（T1.1）方向镜通栏：周报胶囊 + 方向状态四指标 + 操作记录四格 + 🎯 主攻条合流为**单行**（≤40px）。
+   子块 DOM 一律不动，这里只做「外观合流」：去掉三重独立边框与下边距，共用外框一条发丝线。 */
+.dir-bar { display: flex; align-items: center; gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 4px; margin-bottom: 10px; overflow: hidden; }
+.dir-bar :deep(.metric-bar) { flex: 0 0 auto; min-width: 0; background: transparent; border: 0; border-radius: 0; margin-bottom: 0; }
+.dir-bar :deep(.mb-row) { padding: 5px 6px; }
+.dir-bar :deep(.mb-right) { margin-left: 0; }
+.dir-bar .ch-focus-strip { flex: 1 1 auto; min-width: 0; min-height: 0; max-height: none; padding: 0 10px; margin-bottom: 0; background: transparent; border: 0; border-left: 1px solid var(--border); border-radius: 0; }
+.dir-bar .wr-entry { flex-shrink: 0; margin-left: auto; }
 .ch-focus-strip { display: flex; align-items: center; gap: 8px; min-height: 34px; max-height: 40px; padding: 0 12px; margin-bottom: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
 .ch-focus-strip.empty { border-style: dashed; }
 .cf-label { flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--accent); }
@@ -1263,7 +1277,8 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 /* R94（B3）三件事全完成：**安静**完成态——整块轻微去饱和 + 一行中性小字。
    ⚠ 卡头（复制昨日 / 导出 / 日期导航）**不去饱和**——那是操作区，褪色会影响可用性。
    不用庆祝动画、不用红色、不用进度百分比。 */
-.card.focus.all-done .today-cards { filter: saturate(.5); }
+/* R118（T1.3）：去饱和由 .5 收到 .65——保留可辨识的品牌色，"安静"靠文案与克制的降饱和共同承担。 */
+.card.focus.all-done .today-cards { filter: saturate(.65); }
 .card.focus.all-done .tc-num { color: var(--text-3); }
 .td-done { margin-top: 8px; font-size: 11.5px; color: var(--text-3); text-align: center; letter-spacing: .3px; }
 /* R94（B2）：任务树折叠/展开按钮的箭头（纯文字，不引新图标） */
@@ -1318,7 +1333,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .csv-cell.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
 .csv-num { font-size: 16px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
 .csv-num.ok { color: var(--success); }
-.csv-num.warn { color: var(--warning, #e67e22); }
+.csv-num.warn { color: var(--warning); }
 .csv-lab { font-size: 9.5px; color: var(--text-3); margin-top: 1px; }
 /* R54-B1：分栏拖拽分隔条 */
 /* R55-E2：分隔条常显可见（细线）+ hover/拖动增强，命中区 8px */
@@ -1334,7 +1349,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cur-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 6px; text-align: center; }
 .cs-num { font-size: 22px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
 .cs-num.ok { color: var(--success); }
-.cs-num.warn { color: var(--warning, #e67e22); }
+.cs-num.warn { color: var(--warning); }
 .cs-lab { font-size: 10px; color: var(--text-3); margin-top: 2px; }
 /* R57-F2：指标组两两并列（两列网格）；新增指标/空态/输入行跨双列 */
 .cur-groups { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; align-items: start; }
@@ -1351,13 +1366,13 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cg-add:hover { border-color: var(--accent); color: var(--accent); }
 .cg-tools { display: none; gap: 4px; margin-left: auto; }
 .cg-head:hover .cg-tools, .cg-head:focus-within .cg-tools { display: inline-flex; }
-.cg-add.danger:hover { border-color: #d46a6a; color: #d46a6a; }
+.cg-add.danger:hover { border-color: var(--danger); color: var(--danger); }
 .cg-del { width: 20px; height: 20px; border: none; background: transparent; color: var(--text-3); font-size: 11px; cursor: pointer; border-radius: 5px; opacity: 0; flex-shrink: 0; line-height: 1; }
 /* R52-F2：去关联（⨯）+删除（🗑）两钮——首钮吃 auto margin 靠右成组 */
 .cg-task button:first-of-type { margin-left: auto; }
 .cg-task button + button { margin-left: 0; }
 .cg-task:hover .cg-del { opacity: 1; }
-.cg-del:hover { color: #d46a6a; background: rgba(212,106,106,.12); }
+.cg-del:hover { color: var(--danger); background: var(--tag-danger-bg); }
 .cur-add-metric { display: flex; gap: 8px; padding: 10px 12px; }
 .cam-input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 12.5px; outline: none; background: var(--surface); color: var(--text); font-family: inherit; }
 .cam-input:focus { border-color: var(--accent); }

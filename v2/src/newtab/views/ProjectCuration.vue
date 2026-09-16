@@ -551,23 +551,59 @@ function addTaskFromHeader() {
       <button class="mini-btn" @click="goBack">← 返回方向台</button>
       <div class="hint-chip">任务可拖拽排序 / 跨指标归属 · 点击任务开详情</div>
     </div>
-    <!-- 内嵌态（方向台一级）轻量小节头——只交代此处是什么，项目切换与项目目录都在左栏 -->
+    <!-- 内嵌态（方向台一级）轻量小节头——只交代此处是什么（R118：项目切换已上移为主航线下方的横向切换带） -->
     <div v-else class="pd-head">
       <span class="pd-title">📦 项目详情</span>
-      <span class="pd-sub">左栏「全部项目」切换项目 · 「项目目录」跳指标 / 任务 · 单击任务开详情</span>
+      <span class="pd-sub">切换项目用上方「📦 项目」切换带 · 单击任务开详情 · 目录树与栏宽高拖拽在独立项目详情页</span>
     </div>
 
     <!-- ===== 零项目兜底（R117：原「项目选择墙」退役——无 ?p 时一律默认落在第一个项目，
-         选择墙与左栏「📦 全部项目」功能重复；此处只保留真·零项目时的新建引导） ===== -->
+         选择墙与「📦 全部项目」列功能重复；此处只保留真·零项目时的新建引导） ===== -->
     <div v-if="!currentProject" class="empty-state">
       还没有项目——<span class="empty-act" @click="openCreateProject">新建 / 规划项目</span>：选择战略目标后开始
     </div>
 
-    <!-- ===== 单项目全屏展板 ===== -->
-    <div v-else class="board-layout">
-    <!-- R55-G1：左栏双列联动目录——第一列全部项目（单击切换），第二列当前项目目录树（拖任务跨指标/拖指标排序）
-         ｜ R67-F5：栏体宽/高可拖拽（右缘调宽、底缘调高），右侧展板自适应重排 -->
-    <aside class="proj-rail" :style="railStyle">
+    <template v-else>
+    <!-- R118（T2.1 拍板 C）：内嵌态（方向台一级）——竖向「📦 全部项目」侧栏退役，改为**横向项目切换带**
+         （落在主航线之下）。能力零丢失：置顶切换（📌）/ 组内拖拽排序 / 跨区拖拽自动切换 pinned /
+         ＋新建项目 四项由同一组函数原样承接（.pb-item 与 .pt-item 共用 onProjDrag* / togglePin / onProjDrop）。
+         独立路由 /compass/projects 仍保留完整左栏双列目录树（见下方 `!embedded` 分支）。 -->
+    <div v-if="embedded" class="pt-band">
+      <span class="pb-label">📦 项目</span>
+      <template v-if="pinnedGroup.length">
+        <div v-for="p in pinnedGroup" :key="p.id" class="pb-item"
+          :class="{ active: currentProject.id === p.id, archived: p.status === 'archived' }"
+          :draggable="editingProjId !== p.id"
+          :title="p.name + ' · 单击切换 · 拖动排序 / 拖到未置顶卡上自动取消置顶'"
+          @click="openProject(p)"
+          @dragstart="onProjDragStart($event, p)" @dragend="onProjDragEnd"
+          @dragover.prevent="onProjDragOver($event, p)" @dragleave="onProjDragLeave" @drop="onProjDrop($event, p)">
+          <span class="pb-pin on" title="取消置顶" @click.stop="togglePin(p)">📌</span>
+          <span class="pb-name">{{ p.name }}</span>
+          <span class="pb-pct">{{ projectProgress(p).pct }}%</span>
+        </div>
+        <span class="pb-sep" title="以下为未置顶项目" />
+      </template>
+      <div v-for="p in normalGroup" :key="p.id" class="pb-item"
+        :class="{ active: currentProject.id === p.id, archived: p.status === 'archived' }"
+        :draggable="editingProjId !== p.id"
+        :title="p.name + ' · 单击切换 · 拖动排序 / 拖到已置顶卡上自动置顶'"
+        @click="openProject(p)"
+        @dragstart="onProjDragStart($event, p)" @dragend="onProjDragEnd"
+        @dragover.prevent="onProjDragOver($event, p)" @dragleave="onProjDragLeave" @drop="onProjDrop($event, p)">
+        <span class="pb-pin" title="置顶" @click.stop="togglePin(p)">📌</span>
+        <span class="pb-name">{{ p.name }}</span>
+        <span class="pb-pct">{{ projectProgress(p).pct }}%</span>
+      </div>
+      <button class="pb-add" @click="openCreateProject">＋ 新建项目</button>
+    </div>
+
+    <!-- ===== 单项目展板 ===== -->
+    <div class="board-layout">
+    <!-- R55-G1：独立路由左栏双列联动目录——第一列全部项目（单击切换），第二列当前项目目录树（拖任务跨指标/拖指标排序）
+         ｜ R67-F5：栏体宽/高可拖拽（右缘调宽、底缘调高），右侧展板自适应重排
+         ｜ R118（T2.1）：内嵌态不渲染本栏，由上方横向项目切换带承接 -->
+    <aside v-if="!embedded" class="proj-rail" :style="railStyle">
       <div class="pr-col pr-projects">
         <!-- R117（04-61 C）承接「项目总览」退役的能力：置顶分组 + 组内拖拽排序 + 跨区拖拽自动切换 pinned
              （拖动中由 css `.dragging` / `.drag-over` 给反馈；编辑名中禁拖，见 editingProjId） -->
@@ -659,28 +695,26 @@ function addTaskFromHeader() {
         <button class="mini-btn" @click="headerMetricAdding=false">取消</button>
       </div>
 
-      <!-- 愿景 → 使命 → 战略目标 → 项目 归属链（D2：四段可点击，前三段跳完整方向树） -->
+      <!-- 愿景 → 使命 → 战略目标 → 项目 归属链（D2：四段可点击，前三段跳完整方向树）
+           R118（T2.2）：四段大色块药丸（.ch-ic 图标块 + .ch-body 文本块）降权为**单行轻量文本面包屑**——
+           只留「图标+层级名 → 值」与 `›` 分隔符，信息量与可点击性不变，纵向高度由 ~72px 收到一行。 -->
       <div class="chain-box">
         <div class="chain-line">
-          <div class="ch-node clickable" title="在完整方向树中查看" @click="goTreeLocated">
-            <div class="ch-ic">🔭</div>
-            <div class="ch-body"><div class="ch-lab">愿景 · Vision</div><div class="ch-txt">{{ visionText || '尚未设定愿景' }}</div></div>
-          </div>
-          <div class="ch-link" />
-          <div class="ch-node clickable" title="在完整方向树中查看" @click="goTreeLocated">
-            <div class="ch-ic">💡</div>
-            <div class="ch-body"><div class="ch-lab">使命 · Mission</div><div class="ch-txt">{{ missionText || '尚未设定使命' }}</div></div>
-          </div>
-          <div class="ch-link" />
-          <div class="ch-node clickable hi" title="在完整方向树中定位此战略目标" @click="goTreeLocated">
-            <div class="ch-ic">🎯</div>
-            <div class="ch-body"><div class="ch-lab">战略目标 · Direction</div><div class="ch-txt">{{ goalOf(currentProject)?.name }}（{{ goalOf(currentProject)?.term==='long'?'远期':goalOf(currentProject)?.term==='short'?'近期':'中期' }}）</div></div>
-          </div>
-          <div class="ch-link" />
-          <div class="ch-node current">
-            <div class="ch-ic">📦</div>
-            <div class="ch-body" style="padding-bottom:2px"><div class="ch-lab">攻坚项目 · Project</div><div class="ch-txt">{{ currentProject.name }}</div></div>
-          </div>
+          <span class="ch-node clickable" title="在完整方向树中查看" @click="goTreeLocated">
+            <span class="ch-lab">🔭 愿景</span><span class="ch-txt">{{ visionText || '尚未设定愿景' }}</span>
+          </span>
+          <span class="ch-sep">›</span>
+          <span class="ch-node clickable" title="在完整方向树中查看" @click="goTreeLocated">
+            <span class="ch-lab">💡 使命</span><span class="ch-txt">{{ missionText || '尚未设定使命' }}</span>
+          </span>
+          <span class="ch-sep">›</span>
+          <span class="ch-node clickable hi" title="在完整方向树中定位此战略目标" @click="goTreeLocated">
+            <span class="ch-lab">🎯 战略目标</span><span class="ch-txt">{{ goalOf(currentProject)?.name }}（{{ goalOf(currentProject)?.term==='long'?'远期':goalOf(currentProject)?.term==='short'?'近期':'中期' }}）</span>
+          </span>
+          <span class="ch-sep">›</span>
+          <span class="ch-node current">
+            <span class="ch-lab">📦 项目</span><span class="ch-txt">{{ currentProject.name }}</span>
+          </span>
         </div>
       </div>
 
@@ -773,6 +807,7 @@ function addTaskFromHeader() {
       <div class="board-foot-hint">💡 好奇心卡通过「转为任务 / 归档为资源」进入项目 · 本页与完整方向树实时双向同步 · 任务完成自动回流指标与战略目标进度</div>
     </div>
     </div>
+    </template>
 
     <!-- ===== 第十七轮：创建项目弹窗 ===== -->
     <Transition name="fade">
@@ -843,11 +878,9 @@ function addTaskFromHeader() {
    .ptop·.pname·.pin-btn·.chain·.mrows·.mrow·.pfoot）随模块退役整块删除——置顶/拖拽/新建能力已迁到
    左栏「全部项目」列（见下方 .pt-sec-label / .pt-pin / .pt-item.dragging|.drag-over）。 */
 
-/* R49-D2：归属链可点击 */
-.ch-node.clickable { cursor: pointer; border-radius: 8px; padding: 3px 6px; margin: -3px -6px; transition: background .12s; }
+/* R49-D2：归属链可点击（R118 T2.2：随面包屑化收敛为纯文本热区，不再用整块卡片底） */
+.ch-node.clickable { cursor: pointer; border-radius: 5px; padding: 2px 5px; margin: -2px -5px; transition: background .12s; }
 .ch-node.clickable:hover { background: var(--surface-2); }
-.ch-node.current .ch-ic { background: var(--accent); }
-.ch-node.current .ch-txt { color: var(--text); font-weight: 700; font-size: 14px; }
 /* R49-D4：任务附件区 */
 .asset-sec { margin-top: 12px; }
 .asset-row { cursor: pointer; }
@@ -891,6 +924,25 @@ body.rail-resizing.rail-h { cursor: row-resize; }
 /* R117（04-61 C）：目录栏底部「＋ 新建项目」——原项目总览头部入口的落点 */
 .pt-add { width: 100%; margin-top: 8px; padding: 7px 9px; border-radius: 8px; border: 1px dashed var(--border-strong); background: transparent; color: var(--text-3); font-family: inherit; font-size: 11.5px; cursor: pointer; transition: all .15s; }
 .pt-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+/* R118（T2.1 拍板 C）：内嵌态横向项目切换带——承接原「📦 全部项目」列的四项能力（置顶 / 拖拽排序 /
+   跨区拖拽自动切换 pinned / 新建）。窄屏横向滚动，不换行挤压。 */
+.pt-band { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; padding: 6px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow-x: auto; }
+.pb-label { flex-shrink: 0; font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .3px; padding-right: 2px; }
+.pb-item { display: flex; align-items: center; gap: 5px; flex-shrink: 0; max-width: 240px; padding: 4px 9px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface-2); cursor: pointer; transition: all .12s; }
+.pb-item:hover { border-color: var(--border-strong); }
+.pb-item.active { border-color: var(--accent); background: var(--accent-light); }
+.pb-item.active .pb-name { color: var(--accent); font-weight: 600; }
+.pb-item.dragging { opacity: .4; }
+.pb-item.drag-over { border-color: var(--accent); background: var(--accent-light); }
+.pb-item.archived .pb-name { text-decoration: line-through; color: var(--text-4); }
+.pb-pin { flex-shrink: 0; border: none; background: transparent; color: var(--text-4); font-size: 10px; line-height: 1; padding: 0; cursor: pointer; opacity: .3; transition: opacity .12s; }
+.pb-item:hover .pb-pin { opacity: .75; }
+.pb-pin.on { opacity: 1; }
+.pb-name { min-width: 0; font-size: 11.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb-pct { flex-shrink: 0; font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.pb-sep { flex-shrink: 0; width: 1px; align-self: stretch; margin: 2px 3px; background: var(--border); }
+.pb-add { flex-shrink: 0; padding: 4px 11px; border-radius: 99px; border: 1px dashed var(--border-strong); background: transparent; color: var(--text-3); font-family: inherit; font-size: 11px; cursor: pointer; transition: all .15s; }
+.pb-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 /* 第二列 · 项目目录树 */
 .prt-root { display: flex; align-items: center; gap: 6px; padding: 7px 9px; margin-bottom: 4px; background: var(--accent-light); border-radius: 8px; }
 .prt-root-name { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 700; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -926,17 +978,18 @@ body.rail-resizing.rail-h { cursor: row-resize; }
 .metric-add-row { display: flex; gap: 8px; margin: -6px 0 14px; }
 .metric-add-row input { flex: 1; border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; color: var(--text); outline: none; font-family: inherit; }
 .metric-add-row input:focus { border-color: var(--accent); }
-.chain-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 16px; }
-/* R55-G2：归属链横向化——愿景→使命→战略目标→项目 一行呈现，压缩纵向空间 */
-.chain-line { display: flex; flex-direction: row; align-items: stretch; gap: 10px; }
-.ch-node { display: flex; align-items: flex-start; gap: 10px; flex: 1; min-width: 0; }
-.ch-ic { width: 28px; height: 28px; border-radius: 8px; background: var(--surface-3); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
-.ch-node.hi .ch-ic { background: var(--accent-light); }
-.ch-body { flex: 1; min-width: 0; padding-bottom: 0; }
-.ch-lab { font-size: 9px; font-weight: 700; letter-spacing: 1px; color: var(--text-3); text-transform: uppercase; }
-.ch-txt { font-size: 12px; color: var(--text-2); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.ch-node.hi .ch-txt { color: var(--accent); font-weight: 600; font-size: 12.5px; }
-.ch-link { width: 18px; height: 2px; align-self: center; flex-shrink: 0; margin: 0; background: linear-gradient(to right, var(--accent), color-mix(in srgb, var(--accent) 25%, transparent)); border-radius: 2px; }
+/* R118（T2.2）：溯源面板降权——四段大色块药丸（.ch-ic 图标块 + .ch-body 文本块 + 18px 渐变连接线）
+   退役，改为**单行轻量文本面包屑**：去外框、去卡片底、`›` 分隔。 */
+.chain-box { display: flex; align-items: center; background: transparent; border: 0; border-bottom: 1px dashed var(--border); border-radius: 0; padding: 0 2px 10px; margin-bottom: 14px; }
+/* R55-G2：归属链横向化——愿景→使命→战略目标→项目 一行呈现，压缩纵向空间（R118 起为单行面包屑） */
+.chain-line { display: flex; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 7px; min-width: 0; }
+.ch-node { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; max-width: 100%; }
+.ch-lab { flex-shrink: 0; font-size: 10.5px; font-weight: 600; letter-spacing: .2px; color: var(--text-3); }
+.ch-txt { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+.ch-sep { flex-shrink: 0; font-size: 11px; color: var(--text-4); }
+.ch-node.hi .ch-lab { color: var(--accent); }
+.ch-node.hi .ch-txt { color: var(--accent); font-weight: 600; }
+.ch-node.current .ch-txt { color: var(--text); font-weight: 700; }
 .hero { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 16px; }
 .hero-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .hero-pname { font-size: 20px; font-weight: 700; letter-spacing: .2px; outline: none; border-radius: 6px; padding: 2px 6px; margin: -2px -6px; cursor: text; }

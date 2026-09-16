@@ -34,10 +34,18 @@
   /* 发丝线（共享） */
   --hairline: 1px;
 
-  /* 密度令牌（第卅三轮 REQ-026：卡片网格，一处修改全局生效；compact 覆盖见文件尾） */
-  --card-pad-vert: 14px;
-  --card-pad-horz: 16px;
-  --card-gap: 14px;
+  /* R118（T5）：固定深色浮层（Toast / tooltip）——**刻意不随主题变化**。
+     这类浮层浮在任意内容之上，若跟随主题则浅色主题下会与底层「白底白字」撞色；
+     统一用近黑底 + 白字，是跨主题可读性的下限保证。 */
+  --solid-bg: #1A1D23;
+  --solid-fg: #FFFFFF;
+
+  /* 密度令牌（第卅三轮 REQ-026：卡片网格，一处修改全局生效；compact 覆盖见文件尾）
+     R118（T3.1）：默认密度收一档（14/16/14 → 10/12/12）——卡片「空洞虚胖」的根因是内边距与
+     行距按卡片而非按内容给，收完基准高度由 120px 落到 ~100px，字段零丢失。 */
+  --card-pad-vert: 10px;
+  --card-pad-horz: 12px;
+  --card-gap: 12px;
   --card-min-w: 260px;
 }
 
@@ -77,6 +85,10 @@
   --curio-amber: #D9B45C;
   --curio-bg: rgba(217, 180, 92, 0.12);
   --violet: #A78BFA;
+  /* R118（T5）：星标金——星标/收藏态（.rc-action.on / .cz-star-corner.on / .gp-ri-act.on）。
+     原为三处各写裸 hex（#f5b942 / #d99a1e），浅色主题下几乎不可见。 */
+  --star: #F5B942;
+  --star-bg: rgba(245, 185, 66, 0.16);
 
   /* 状态标签 · 低透明度色块 */
   --tag-warn-bg: rgba(217, 160, 60, 0.14);
@@ -124,6 +136,8 @@
   --curio-amber: #A87B2A;
   --curio-bg: #F9F3E4;
   --violet: #7C3AED;
+  --star: #B8860B;
+  --star-bg: #FAF0DA;
   --tag-warn-bg: #FBF1DE;
   --tag-warn-text: #8A5A00;
   --tag-ok-bg: #E4F2E8;
@@ -167,6 +181,8 @@
   --curio-amber: #D9B45C;
   --curio-bg: rgba(217, 180, 92, 0.12);
   --violet: #A78BFA;
+  --star: #F5B942;
+  --star-bg: rgba(245, 185, 66, 0.16);
   --tag-warn-bg: rgba(217, 160, 60, 0.14);
   --tag-warn-text: #EFBE66;
   --tag-ok-bg: rgba(39, 166, 68, 0.15);
@@ -210,6 +226,8 @@
   --curio-amber: #9F7B2D;
   --curio-bg: #F6F0DF;
   --violet: #9065B0;
+  --star: #B8860B;
+  --star-bg: #F7EFDA;
   --tag-warn-bg: #F5E9D3;
   --tag-warn-text: #8A5F1E;
   --tag-ok-bg: #E4EFE7;
@@ -303,8 +321,8 @@ html, body { font-variant-numeric: tabular-nums; }
 
 /* ===== 紧凑密度（第卅三轮 REQ-026：UIPrefs.density 切换，html[data-density=compact] 生效） ===== */
 [data-density='compact'] {
-  --card-pad-vert: 9px;
-  --card-pad-horz: 12px;
-  --card-gap: 10px;
+  --card-pad-vert: 8px;
+  --card-pad-horz: 11px;
+  --card-gap: 9px;
   --card-min-w: 220px;
 }

@@ -184,7 +184,14 @@ async function main() {
   const delBtn = page.locator('.res-card[data-rid="e2e-res-1"] .rc-action.delete')
   if (await delBtn.count()) {
     await delBtn.click().catch(() => {})
-    await page.waitForTimeout(1800) // 300ms 防抖 + 落盘
+    // R118 修订：事件日志走 300ms 防抖 + 异步落盘，固定 1800ms sleep 在冷启动较慢时偶发假失败
+    //   （表现为「无日志」）⇒ 改为轮询等待，最多 ~6s。
+    for (let i = 0; i < 12; i++) {
+      const r = await page.evaluate(() => chrome.storage.local.get('zy_event_log'))
+      const arr = r && r['zy_event_log']
+      if (Array.isArray(arr) && arr.length > 0) break
+      await page.waitForTimeout(500)
+    }
   }
   const evRaw = await page.evaluate(() => chrome.storage.local.get('zy_event_log'))
   const ev = evRaw && evRaw['zy_event_log']
@@ -303,9 +310,15 @@ async function main() {
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   await page.evaluate(() => { location.hash = '#/workspace/zy-curation' })
-  await page.waitForTimeout(1800)
+  // R118 修订（门禁漂移第 5 例）：原查主视图分类头 `.ws-cat-head, .section-label` —— 但该头**只在
+  //   renderedGroups 非空时渲染**，而 E2E 数据下资源台自身分类/卡为空 ⇒ 恒不渲染；再叠加固定 sleep
+  //   落在骨架屏期（此时 .hero-btn 与 .section-label 皆不存在），两者双双假失败。
+  //   改为 ① 等工具条真实挂载（骨架屏期不存在，是最可靠的"已就绪"信号）；
+  //        ② 左树锚点改查 `.cat-item`（恒有「全部 / 待分类」两行，是"统一树已渲染"的稳定证据）。
+  await page.locator('.ws-toolbar').first().waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
+  await page.waitForTimeout(800)
   const hubHead = await page.locator('.hero-btn').first().isVisible().catch(() => false)
-  const hubTreeOn = await page.locator('.ws-cat-head, .section-label').first().isVisible().catch(() => false)
+  const hubTreeOn = await page.locator('.cat-item').first().isVisible().catch(() => false)
   // 启动归一化后：指向资源台的脏投射与镜像标记应双双清零
   const scrubbed = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const data = cur['zy_data_v2']

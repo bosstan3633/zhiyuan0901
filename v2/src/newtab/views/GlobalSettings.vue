@@ -605,7 +605,7 @@
               <span class="gs-sr-label">连接测试</span>
               <div class="gs-sr-control" style="display:flex;gap:10px;align-items:center">
                 <button class="gs-btn" :disabled="atBusy || !atPat || !atBaseId || !atTableId" @click="testAtConnection">{{ atBusy ? '测试中…' : '测试连接' }}</button>
-                <span v-if="atTableName" style="font-size:12px;color:var(--ok,var(--info-green,#3A6B4C))">✓ 已连上「{{ atTableName }}」</span>
+                <span v-if="atTableName" style="font-size:12px;color:var(--success)">✓ 已连上「{{ atTableName }}」</span>
               </div>
             </div>
           </div>
@@ -643,7 +643,7 @@
             </div>
             <div class="gs-setting-row" v-if="atErrorText">
               <span class="gs-sr-label">上次错误</span>
-              <div class="gs-sr-control" style="font-size:12px;color:var(--danger,#c0392b)">{{ atErrorText }}</div>
+              <div class="gs-sr-control" style="font-size:12px;color:var(--danger)">{{ atErrorText }}</div>
             </div>
           </div>
         </div>
@@ -2652,14 +2652,16 @@ const activeManualSec = ref('quick-1')
 .gs-ev-row.static.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
 .gs-ev-time { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .gs-ev-badge { font-size: 10.5px; border-radius: 5px; padding: 2px 8px; font-weight: 600; flex-shrink: 0; }
-.gs-ev-badge.create { color: #7fbf8a; background: rgba(127,191,138,.14); }
-.gs-ev-badge.delete { color: #e07a7a; background: rgba(224,122,122,.14); }
+/* R118（T5）：事件徽标由三枚裸 hex 改为语义令牌——新建/删除/彻底删除分别取
+   --success / --danger / --danger（更高浓度底），四主题下不再出现「浅色主题里冒暗色徽标」。 */
+.gs-ev-badge.create { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
+.gs-ev-badge.delete { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
 .gs-ev-badge.restore { color: var(--accent); background: var(--accent-light); }
 /* R117（04-61 C3）：好奇心探索状态变更事件 */
 .gs-ev-badge.status { color: var(--tag-warn-text); background: var(--tag-warn-bg); }
-.gs-ev-badge.purge { color: #d46a6a; background: rgba(212,106,106,.2); }
+.gs-ev-badge.purge { color: var(--danger); background: color-mix(in srgb, var(--danger) 28%, transparent); }
 /* R47-B2：任务明细行「项目 · 指标」归属徽标 */
-.gs-ev-owner { font-size: 11px; color: var(--text-2); background: var(--bg-3, rgba(127,127,127,.12)); border-radius: 4px; padding: 1px 6px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+.gs-ev-owner { font-size: 11px; color: var(--text-2); background: var(--surface-3); border-radius: 4px; padding: 1px 6px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
 .gs-ev-kind { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; }
 .gs-ev-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .gs-ev-go { font-size: 10px; color: var(--text-3); flex-shrink: 0; }

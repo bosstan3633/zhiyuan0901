@@ -97,8 +97,11 @@ async function main() {
   const errBoundary = await page.locator('.render-error').first().isVisible().catch(() => false)
   report('K4 调度台首页正常渲染（无渲染错误兜底）', recStrip && !errBoundary, `recStrip=${recStrip} error=${errBoundary}`)
 
-  // 验证 4：方向台「项目详情一级」左栏项目切换器可见 K 项目（R117：项目总览退役，切换器改 .pt-item）
-  await page.goto(base + '#/compass', { waitUntil: 'domcontentloaded' })
+  // 验证 4：项目详情「完整左栏目录树」可见 K 项目
+  //   R118（T2.1）修订：内嵌态（/compass）已删「📦 全部项目」左栏、改为主航线下方横向项目切换带
+  //   （.pb-item），故本项改走**独立路由** /compass/projects —— 这恰好验证拍板 ①C 的承诺
+  //   「独立路由仍保留完整左栏目录树」，锚点仍为 .pt-item（R117 起沿用）。
+  await page.goto(base + '#/compass/projects', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
   const dbg = {
     err: await page.locator('.render-error').first().isVisible().catch(() => false),
@@ -106,7 +109,7 @@ async function main() {
     ovText: (await page.locator('.pt-item').first().textContent().catch(() => '')).slice(0, 80)
   }
   console.log('[debug]', JSON.stringify(dbg))
-  report('K3 方向台项目详情左栏正常渲染旧数据项目', !dbg.err && dbg.ov >= 1 && dbg.ovText.includes('K 兼容项目'), dbg.ovText)
+  report('K3 项目详情完整左栏（独立路由）正常渲染旧数据项目', !dbg.err && dbg.ov >= 1 && dbg.ovText.includes('K 兼容项目'), dbg.ovText)
 
   await ctx.close()
   fs.unlinkSync(importPath)

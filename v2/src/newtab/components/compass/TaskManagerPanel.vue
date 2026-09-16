@@ -1019,7 +1019,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .tm-meta { display: flex; align-items: center; justify-content: space-between; margin-top: auto; font-size: 10.5px; color: var(--text-4); }
 .tm-del { width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: 11px; cursor: pointer; opacity: 0; transition: all .15s ease; }
 .tm-card:hover .tm-del { opacity: .6; }
-.tm-del:hover { opacity: 1 !important; background: var(--danger-light, rgba(231,76,60,.12)); }
+.tm-del:hover { opacity: 1 !important; background: var(--tag-danger-bg); }
 .tm-grid-empty { grid-column: 1 / -1; }
 
 /* ===== 列表 / 看板（自 CompassActions 原样迁入） ===== */
@@ -1073,7 +1073,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .k-del { position: absolute; top: 6px; right: 58px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: 11px; cursor: pointer; opacity: 0; transition: all .15s ease; z-index: 1; color: var(--text-3); display: flex; align-items: center; justify-content: center; }
 .kcard:hover .k-pin, .kcard:hover .k-star, .kcard:hover .k-del { opacity: .85; }
 .k-pin:hover, .k-star:hover { opacity: 1 !important; background: var(--surface-3); }
-.k-del:hover { opacity: 1 !important; background: var(--tag-danger-bg); color: var(--danger, #e74c3c); }
+.k-del:hover { opacity: 1 !important; background: var(--tag-danger-bg); color: var(--danger); }
 .k-pin.on, .k-star.on { opacity: 1; }
 .t-pin { width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: 0; transition: all .15s ease; flex-shrink: 0; }
 .t-star { width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: 0; transition: all .15s ease; flex-shrink: 0; }
@@ -1081,7 +1081,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .trow:hover .t-pin, .trow:hover .t-star, .trow:hover .t-del { opacity: .6; }
 .t-pin:hover, .t-star:hover { opacity: 1 !important; background: var(--surface-3); }
 .t-pin.on, .t-star.on { opacity: 1; }
-.t-del:hover { opacity: 1 !important; background: var(--danger-light, rgba(231,76,60,.12)); color: var(--danger, #e74c3c); }
+.t-del:hover { opacity: 1 !important; background: var(--tag-danger-bg); color: var(--danger); }
 
 /* 弹窗 */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 200; }
