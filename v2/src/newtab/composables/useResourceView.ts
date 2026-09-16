@@ -351,6 +351,36 @@ export function useResourceView(ctx: ResourceViewCtx) {
   }
   /** 「加载更多」按钮（滚动监听之外的显式入口，保证键盘/小程序场景可达） */
   function renderMore() { if (hasMoreToRender.value) renderLimit.value += RENDER_STEP }
+  /**
+   * R117（04-61 B）：**定位前置**——R112/R116 之后卡片/列表/看板都是增量渲染，
+   * 目标卡可能不在已渲染集里，`scrollIntoView` 找不到节点 ⇒ 定位**静默失败**。
+   * 本方法把渲染预算抬到足以容纳目标卡，并展开其所在分组；返回 false = 该卡不在当前视图
+   * （被筛选/不在当前台），调用方应给出提示而不是"看起来什么都没发生"。
+   */
+  function ensureCardRendered(id: string): boolean {
+    let hit = -1
+    let seen = 0
+    for (const g of resourceGroups.value) {
+      const i = g.items.findIndex(r => r.id === id)
+      if (i >= 0) { hit = seen + i + 1; break }
+      seen += g.items.length
+    }
+    if (hit < 0) return false
+    if (hit > renderLimit.value) renderLimit.value = Math.min(totalVisibleCount.value, hit + RENDER_STEP)
+    // 看板：抬升目标所在列的列内限额（与列体滚动追加同一入口）
+    for (const col of kanbanColumns.value) {
+      const i = col.items.findIndex(r => r.id === id)
+      if (i >= 0) {
+        if (i + 1 > kanbanLimitOf(col.key)) kanbanColLimit.value = { ...kanbanColLimit.value, [col.key]: i + 1 + KANBAN_COL_STEP }
+        break
+      }
+    }
+    // 目标所在分组被折叠时先展开（否则节点不在 DOM 里）
+    for (const g of resourceGroups.value) {
+      if (g.items.some(r => r.id === id) && collapsedGroups.value.has(g.key)) { toggleGroupCollapse(g.key); break }
+    }
+    return true
+  }
   // 换台 / 换视图 / 换分类 / 改检索词 / 改排序 → 渲染份额复位（否则会带着上个上下文的大份额）
   // R116：看板列限额一并复位
   watch([workspaceId, viewMode, activeCategory, debouncedQuery, sortBy, sortDir], () => { renderLimit.value = RENDER_STEP; kanbanColLimit.value = {} })
@@ -414,7 +444,7 @@ export function useResourceView(ctx: ResourceViewCtx) {
     applySort, applyGroupSort, sortedResources,
     collapsedGroups, toggleGroupCollapse, resourceGroups,
     RENDER_STEP, renderLimit, totalVisibleCount, renderedGroups, renderedCount, hasMoreToRender,
-    onContentScroll, renderMore, groupChildCount,
+    onContentScroll, renderMore, ensureCardRendered, groupChildCount,
     kanbanCategories, resourcesByCategory, kanbanColumns,
     KANBAN_COL_STEP, kanbanLimitOf, kanbanMore, onKanbanColScroll,
   }

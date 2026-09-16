@@ -6,7 +6,8 @@
  */
 import { ref, computed, type Ref, type ComputedRef } from 'vue'
 import { saveUIPrefs } from '@/shared/storage/repository'
-import { buildCatIndex, type CatIndex } from '@/shared/utils/catIndex'
+import type { CatIndex } from '@/shared/utils/catIndex'
+import { buildCatOptions } from '@/shared/utils/catTree'
 import type { ResourceCard, Category, UIPrefs } from '@/shared/models'
 import type { WsStore } from './useResourceView'
 
@@ -33,19 +34,10 @@ export function useCatSidebar(ctx: CatSidebarCtx) {
   const unpinnedRootCats = computed(() => rootCats.value.filter(c => !c.pinned))
 
   /** 分类选择器的层级化选项（下拉/弹窗共用）——R61-4：递归支持 4 级 */
+  // R117（04-61 A）：实现委托 shared/utils/catTree.buildCatOptions —— 统一口径（过滤软删 deletedAt
+  //  + 防环 + order 稳定排序）。原实现在此自建索引却**漏了 deletedAt**，与采集浮层/全局采集三处不一。
   function treeCatOptions(cats: Category[]): { id: string; label: string }[] {
-    // R71：本函数被多个 computed 调用（移动分类下拉等），改为一次建索引后查表
-    const idx = buildCatIndex(cats)
-    const out: { id: string; label: string }[] = []
-    const seenOpt = new Set<string>()  // R70：防环
-    const push = (c: Category, depth: number) => {
-      if (seenOpt.has(c.id)) return
-      seenOpt.add(c.id)
-      out.push({ id: c.id, label: '└'.repeat(depth) + (depth ? ' ' : '') + c.name })
-      for (const ch of idx.childrenOf.get(c.id) || []) push(ch, depth + 1)
-    }
-    for (const r0 of idx.roots) push(r0, 0)
-    return out
+    return buildCatOptions(cats)
   }
 
   // R48-V2：树状目录展开/折叠（默认全局展开；折叠状态仅会话内记忆）

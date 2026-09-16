@@ -153,15 +153,16 @@ function confirmAdd(dirId: string) {
   <ModuleCard icon-name="radio" title="主航线" en="MAIN ROUTE">
     <template #actions>
       <div class="mr-tools">
-        <!-- R86（D-A）：分工标签——主航线 = 看主线（读为主）；与下方项目总览的「管项目」对仗。
+        <!-- R86（D-A）：分工标签——主航线 = 看主线（读为主）。
              R86（M7）：原「👁 已完成项目」开关**已移除**，收敛到方向台页头一处（R86/M7）。
+             R117（04-61 C）：原文案指向的「项目总览」已退役 ⇒ 改写去向（下方项目详情 / 完整方向树）。
              ⚠「完整方向树 →」是导航入口不是开关，保留。 -->
-        <span class="mod-role" title="主航线 = 看主线（读为主）：一眼看清主线推进到哪；要新建/改名/删除项目，去下方「项目总览」">看主线</span>
+        <span class="mod-role" title="主航线 = 看主线（读为主）：一眼看清主线推进到哪；要新建项目，去下方项目详情的左栏目录；改名/删除项目在项目详情内；目标级管理在完整方向树">看主线</span>
         <span class="mr-tool accent" @click="openTree">完整方向树 →</span>
-        <!-- R99（M8）：状态筛选——与项目总览共用同一份 ovFilter（一处切换两处生效）；门控同 D-B（项目数 >12） -->
+        <!-- R99（M8）：状态筛选——R117 项目总览退役后为页内唯一筛选控件（门控：项目数 >12） -->
         <select v-if="toolsGate" class="mr-filter" :value="props.ovFilter || 'all'"
           @change="emit('update:ovFilter', ($event.target as HTMLSelectElement).value as 'all' | 'active' | 'stalled' | 'done')"
-          title="按状态筛选（口径同项目卡：停滞 = 有任务但近 14 天无推进）；与下方项目总览共用同一筛选">
+          title="按状态筛选项目（口径同项目卡：停滞 = 有任务但近 14 天无推进）">
           <option value="all">全部</option>
           <option value="active">进行中</option>
           <option value="stalled">停滞</option>
@@ -248,7 +249,10 @@ function confirmAdd(dirId: string) {
 
 <style scoped>
 .mr-tools { display: flex; align-items: center; gap: 10px; }
-/* R99（M8）：主航线状态筛选——观感对齐项目总览的 .ov-filter */
+/* R86（D-A）分工标签 —— R117（04-61 C）：原定义在 CompassShell 的 :deep(.mod-role)（一份覆盖两处：
+   主航线 + 项目总览）。项目总览退役后本组件是唯一消费者，样式随之内聚，避免跨文件隐式依赖。 */
+.mod-role { flex-shrink: 0; font-size: 10px; font-weight: 700; letter-spacing: .5px; color: var(--accent); background: var(--accent-light); padding: 2px 8px; border-radius: 99px; cursor: help; }
+/* R99（M8）：主航线状态筛选——观感沿用原项目总览 .ov-filter（R117 后为页内唯一状态筛选） */
 .mr-filter { font-family: inherit; font-size: 11.5px; padding: 3px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); outline: none; cursor: pointer; }
 .mr-filter:focus { border-color: var(--accent); }
 .mr-tool { font-size: 11.5px; color: var(--text-3); cursor: pointer; white-space: nowrap; transition: color .12s; }

@@ -8,7 +8,7 @@
  *   E2E-4  北极星「新增卡片/删除卡片」卡渲染（R45-1 三档周期联动改名）
  *   E2E-5  PDF 附件双击 file:// 打开（data 层种卡 + IndexedDB blob → 双击卡片 → 新标签 file://…pdf）
  *   E2E-6  事件日志 zy_event_log 独立 key 落盘（打开资源卡产生事件）
- *   E2E-7  好奇心专区 Tab：好奇心卡库默认 → 切任务卡库 → 卡片视图默认渲染 + 好奇面板隐藏（R45 迁移 + R46 BUG-1）
+ *   E2E-7  调度台底部双 tab（R117-C1）：任务调度（默认）+ 好奇心培育（懒挂载）；方向台不再持任务模块
  *   E2E-8  调度台三件事 + 项目调度面板（愿景/使命小卡 + 战略目标 + 四数值，R45 T-04 → R49 迁移）
  *   E2E-9  存量回填迁移：有 metricId 无 projectId 的任务启动后按指标反查补齐 + projBackfillFixed 记录（R46 BUG-2）
  *   E2E-10 策展统一树：遗留投射记录迁移物化 + 源卡实时 + 原生卡 + 清空引用回落零影响（R53）
@@ -223,21 +223,26 @@ async function main() {
   })
   await page.waitForTimeout(800)
 
-  // E2E-7 底部专区（R55-B2）：好奇心培育单区直呈（无 Tab 头）；任务调度模块在方向台
+  // E2E-7 调度台底部双 tab（R117-C1）：任务调度（默认）+ 好奇心培育同宿一节，好奇心懒挂载；方向台不再持任务模块
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  const tabsCount = await page.locator('.zone-tab').count()
-  // R111 修漂移：R55-B2 后调度台底部不再用 ModuleCard 组件（`<ModuleCard>` 已零引用），好奇心专区改为
-  //   自绘 `<section id="zy-mod-curiosity" class="module">`；R105（B4）起默认折叠为一行摘要 `.curio-teaser`
-  //   （点击展开完整面板）。锚点改用稳定 id（id 由 R67-F4 定为快捷键直达锚点，最不易漂移）。
-  const curioPanelOn = await page.locator('#zy-mod-curiosity').first().isVisible().catch(() => false)
+  const tabsCount = await page.locator('.bt-tab').count()
+  const taskTabActive = await page.locator('.bt-tab.on').first().textContent().then((t) => (t || '').includes('任务')).catch(() => false)
+  const taskPaneOn = await page.locator('.bottom-pane').first().isVisible().catch(() => false)
+  const tmCardCount = await page.locator('.tm-card').count()
+  // 懒挂载：未切到好奇 tab 前好奇心面板整棵不在 DOM（`.cz-batch-btn` 是面板内首个稳定锚点；
+  //   section#zy-mod-curiosity 常驻，故不能用它计数）
+  const curioBefore = await page.locator('.cz-batch-btn').count()
+  await page.locator('.bt-tab').nth(1).click().catch(() => {})
+  await page.waitForTimeout(1200)
+  const curioPanelOn = await page.locator('.cz-batch-btn').first().isVisible().catch(() => false)
+  // 方向台不再有任务调度模块（搬迁后宿主为调度台）
   await page.evaluate(() => { location.hash = '#/compass' })
   await page.waitForTimeout(1800)
-  const taskModuleOn = await page.locator('#task-mgmt-module').first().isVisible().catch(() => false)
-  const cardTabActive = await page.locator('.view-tab.active').first().textContent().then((t) => (t || '').includes('卡片')).catch(() => false)
-  const tmCardCount = await page.locator('.tm-card').count()
-  report('E2E-7 底部好奇心单区 + 方向台任务调度模块（R55-B1/B2）', tabsCount === 0 && curioPanelOn && taskModuleOn && cardTabActive && tmCardCount >= 1,
-    'tabs=' + tabsCount + ' curioOn=' + curioPanelOn + ' taskModule=' + taskModuleOn + ' cardActive=' + cardTabActive + ' tmCards=' + tmCardCount)
+  const dirTaskModule = await page.locator('#task-mgmt-module').count()
+  report('E2E-7 调度台底部双 tab：任务调度（默认）+ 好奇心培育（懒挂载）；方向台无任务模块（R117-C1）',
+    tabsCount === 2 && taskTabActive && taskPaneOn && curioBefore === 0 && curioPanelOn && dirTaskModule === 0,
+    'tabs=' + tabsCount + ' taskTab=' + taskTabActive + ' taskPane=' + taskPaneOn + ' tmCards=' + tmCardCount + ' curioBefore=' + curioBefore + ' curioOn=' + curioPanelOn + ' dirTaskModule=' + dirTaskModule)
 
   // E2E-8 调度台首页（R49 迁移）：三件事卡片 + 项目调度面板（愿景/使命小卡 + 战略目标 + 四数值）
   await page.goto(base, { waitUntil: 'domcontentloaded' })

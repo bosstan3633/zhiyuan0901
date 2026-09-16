@@ -43,8 +43,10 @@
             <div class="gs-ds-value">{{ taskLiveCount }}<span class="gs-ds-today" v-if="statTodayTask">+{{ statTodayTask }}</span></div>
           </div>
           <div class="gs-dash-stat" @click="openStatDrawer('curiosity')">
-            <div class="gs-ds-label">💡 好奇心卡</div>
-            <div class="gs-ds-value">{{ curioLiveCount }}<span class="gs-ds-today" v-if="statTodayCurio">+{{ statTodayCurio }}</span></div>
+            <!-- R117（04-61 C3）：好奇心卡指标改**累计口径**——采集 + 状态变更 + 删除（本版起算）。
+                 存量与今日增量降为副行信息（原来主数就是存量，看不出「探索了多少次」）。 -->
+            <div class="gs-ds-label">💡 好奇心卡 · 探索累计</div>
+            <div class="gs-ds-value">{{ curioCumulative }}<span class="gs-ds-sub" title="累计 = 采集 + 状态变更 + 删除（本版起算）· 在库为当前未删除张数">在库 {{ curioLiveCount }}<template v-if="statTodayCurio"> · 今日 +{{ statTodayCurio }}</template></span></div>
           </div>
           <div class="gs-dash-stat" @click="openStatDrawer('link')">
             <div class="gs-ds-label">🔗 链接卡片</div>
@@ -77,7 +79,7 @@
               </select>
               <span class="gs-ev-fl">动作</span>
               <select class="gs-select" v-model="evAction">
-                <option value="all">全部</option><option value="create">新增</option><option value="delete">删除</option><option value="restore">恢复</option><option value="purge">永久删除</option>
+                <option value="all">全部</option><option value="create">新增</option><option value="delete">删除</option><option value="restore">恢复</option><option value="purge">永久删除</option><option value="status">状态变更</option>
               </select>
               <span class="gs-ev-fl">时间</span>
               <input type="date" class="gs-select gs-ev-date" v-model="evFrom" />
@@ -164,7 +166,8 @@
           <div class="gs-page-desc">资源卡 / 任务卡 / 好奇心卡三类实体的活跃 · 冷却 · 归档全景 —— 点击数字下钻明细，明细行可直接归档 / 忽略 / 重新激活，点击条目跨台定位卡片</div>
         </div>
         <LifecyclePanel kind="all" :cards="lcCards"
-          @locate="onLcLocate" @archive="onLcArchive" @snooze="onLcSnooze" @reactivate="onLcReactivate" />
+          @locate="onLcLocate" @archive="onLcArchive" @snooze="onLcSnooze" @reactivate="onLcReactivate"
+          @set-days="onLcSetDays" />
       </div>
 
       <!-- ===== 资源台全景（第卌四轮 T-04 双栏 Master-Detail；R65-F5 只呈现资源台，策展台不再进全景） ===== -->
@@ -540,8 +543,8 @@
               <span class="gs-sr-label">应用内切台</span>
               <div class="gs-sr-control">
                 <select class="gs-select" v-model="wsMod" @change="saveWsMod">
-            <option value="alt">Alt + 数字键（1=方向台、2=资源台、3 起=各策展台）</option>
-            <option value="ctrl">Ctrl + 数字键（1=方向台、2=资源台、3 起=各策展台）</option>
+            <option value="alt">Alt + 数字键（1=调度台、2=方向台、3=资源台、4 起=各策展台）</option>
+            <option value="ctrl">Ctrl + 数字键（1=调度台、2=方向台、3=资源台、4 起=各策展台）</option>
                   <option value="ctrl-shift">Ctrl + Shift + 数字键</option>
                   <option value="alt-shift">Alt + Shift + 数字键</option>
                   <option value="none">纯数字键（无修饰键）</option>
@@ -556,18 +559,18 @@
         </div>
       </div>
 
-      <!-- ===== 策展台快捷键（R49-I2 引入；R69：键位改为 1=方向台、2=资源台、3 起=各策展台） ===== -->
+      <!-- ===== 策展台快捷键（R49-I2 引入；R117：键位改为 1=调度台、2=方向台、3=资源台、4 起=各策展台） ===== -->
       <div v-if="activePage === 'shortcuts'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">🎛 策展台快捷键</div>
-          <div class="gs-page-desc">应用内按「修饰键 + 数字」切台：1 = 方向台、2 = 资源台、3 起按台签顺序对应各策展台（拖拽改序后数字键跟随顺序）；调度台为首页刷新自动回，不占数字键；完整方向树等浏览器级命令在 chrome://extensions/shortcuts 自定义</div>
+          <div class="gs-page-desc">应用内按「修饰键 + 数字」切台：1 = 调度台、2 = 方向台、3 = 资源台、4 起按台签顺序对应各策展台（拖拽改序后数字键跟随顺序）；完整方向树等浏览器级命令在 chrome://extensions/shortcuts 自定义</div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">映射表（按顶部导航顺序）</span><span class="gs-card-desc">第 N 个策展台 = 修饰键 + (N+2)（最多到数字 9）</span></div>
+          <div class="gs-card-header"><span class="gs-card-title">映射表（按顶部导航顺序）</span><span class="gs-card-desc">第 N 个策展台 = 修饰键 + (N+3)（最多到数字 9）</span></div>
           <div class="gs-card-body">
             <div class="gs-setting-row" v-for="(w, i) in store.workspaces" :key="w.id">
               <span class="gs-sr-label">第 {{ i + 1 }} 个 · {{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</span>
-              <div class="gs-sr-control"><span class="gs-keycap">{{ i + 3 <= 9 ? modLabel() + ' + ' + (i + 3) : '—' }}</span></div>
+              <div class="gs-sr-control"><span class="gs-keycap">{{ i + 4 <= 9 ? modLabel() + ' + ' + (i + 4) : '—' }}</span></div>
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">修饰键</span>
@@ -857,7 +860,8 @@ import { isHubWs, boardCardsOf, isMirrorView } from '@/shared/storage/hub'
 import { CURATION_WS_ID } from '@/shared/models'
 // R113-N2：资源生命周期聚合页（入口从三宿主收敛至此；内嵌式面板 + 三类卡聚合 + 跨台定位）
 import LifecyclePanel, { type LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
-import { snoozeCard, reactivateCard } from '@/shared/utils/lifecycle'
+import { snoozeCard, reactivateCard, setCoolingDays } from '@/shared/utils/lifecycle'
+import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
 
 const router = useRouter()
 const route = useRoute()
@@ -1088,17 +1092,25 @@ function lcFind(id: string): LifecycleCard | undefined { return lcCards.value.fi
 function onLcArchive(id: string) { const c = lcFind(id); if (!c) return; c.lifecycleArchived = true; c.updatedAt = Date.now(); store.persist() }
 function onLcSnooze(id: string) { const c = lcFind(id); if (!c) return; snoozeCard(c); store.persist() }
 function onLcReactivate(id: string) { const c = lcFind(id); if (!c) return; reactivateCard(c); store.persist() }
-/** 跨台定位：资源卡 → 资源台 ?hl= 精确定位；任务/好奇心卡 → 调度台（CompassHome 暂不消费 ?hl=，先切台） */
+/**
+ * R117（04-61 E）：per-card 自定义冷却天数（null = 清除自定义）。
+ * 注意：**只写 coolingDays 字段**——不碰 updatedAt / lastCalledAt / snoozedUntil，
+ * 否则「改阈值」这个动作本身会改变卡片活跃度（口径污染）。
+ */
+function onLcSetDays(id: string, days: number | null) { const c = lcFind(id); if (!c) return; setCoolingDays(c, days); store.persist() }
+/** R117（04-61 B）：跨台定位统一走 locateTargetOf——资源卡带**所在分类**（定位到位置而非仅切台），
+ *  任务/好奇心卡带 `hk` 分派（调度台同页两个 hl 消费者按 kind 认领）。 */
 function onLcLocate(id: string, kind: LifecycleCard['kind']) {
-  if (kind === 'resource') void router.push(`/workspace/${CURATION_WS_ID}?hl=${id}`)
-  else void router.push('/')
+  const t = locateTargetOf(store.data!, kind, id)
+  if (!t) { showToast('⚠ 该卡片已不在库中'); return }
+  void router.push(t)
 }
 
 // ============================================================
 // 第卌四轮 T-03/T-06/T-07：知源仪表盘（核心指标 + 动态条 + 操作记录 + CSV）
 // ============================================================
 import Drawer from '@/shared/components/Drawer.vue'
-import { readEventLog, type CardEvent } from '@/shared/utils/eventLog'
+import { readEventLog, curioCumulativeSince, countCurioCumulative, type CardEvent } from '@/shared/utils/eventLog'
 import { readErrorLog } from '@/shared/utils/runtimeError'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { recordResourceOpen } from '../stores/compass'
@@ -1140,9 +1152,13 @@ const logEmpty = ref(true)
 const expandedEventId = ref('')
 const cumDelCount = ref(0)
 const evKind = ref<'all' | 'resource' | 'task' | 'curiosity'>('all')
-const evAction = ref<'all' | 'create' | 'delete' | 'restore' | 'purge'>('all')
+const evAction = ref<'all' | 'create' | 'delete' | 'restore' | 'purge' | 'status'>('all')
 const evFrom = ref('')
 const evTo = ref('')
+/** R117（04-61 C3）：好奇心「探索累计」——采集 + 状态变更 + 删除，**本版起算**（基线首次运行落盘） */
+const curioCumSince = ref(0)
+const curioCumulative = computed(() =>
+  curioCumSince.value ? countCurioCumulative(eventLog.value, curioCumSince.value) : 0)
 
 async function refreshEventLog() {
   const log = await readEventLog()
@@ -1151,6 +1167,8 @@ async function refreshEventLog() {
   cumDelCount.value = log.length
     ? log.filter(e => e.action === 'delete' || e.action === 'purge').length
     : gFlat.value.filter(x => x.deletedAt).length
+  // R117（04-61 C3）：累计口径的起算时刻只需读/落一次（模块内缓存）
+  curioCumSince.value = await curioCumulativeSince()
 }
 const derivedEvents = computed<CardEvent[]>(() => {
   const out: CardEvent[] = []
@@ -1172,7 +1190,7 @@ const filteredEvents = computed<CardEvent[]>(() => {
   })
 })
 function eventActionLabel(a: CardEvent['action']): string {
-  return a === 'create' ? '+ 新增' : a === 'delete' ? '− 删除' : a === 'restore' ? '↩ 恢复' : '✕ 永久删除'
+  return a === 'create' ? '+ 新增' : a === 'delete' ? '− 删除' : a === 'restore' ? '↩ 恢复' : a === 'status' ? '◐ 状态变更' : '✕ 永久删除'
 }
 function eventKindLabel(k: CardEvent['kind']): string {
   return k === 'resource' ? '资源' : k === 'task' ? '任务' : k === 'curiosity' ? '好奇' : '系统'
@@ -1281,16 +1299,18 @@ function taskOwnerOf(t: { metricId?: string; projectId?: string }): string {
 }
 function statKindIcon(kind: string) { return kind === 'task' ? '✅' : kind === 'curiosity' ? '💡' : '📇' }
 function statKindLabel(kind: string) { return kind === 'task' ? '任务' : kind === 'curiosity' ? '好奇' : '资源' }
+/**
+ * R117（04-61 B）：「全部卡片明细」点击 = 定位到卡片所在处并高亮（统一走 locateTargetOf）。
+ * 旧实现：任务卡跳 `/` 但消费者在方向台（不定位不高亮）、资源卡不带所在分类（
+ * 「只切台面、不定位位置」）。现由 locateTargetOf 一处计算路由目标。
+ */
 function openStatCard(x: { kind: string; id: string }) {
-  if (x.kind === 'resource') {
-    const r = gd.value.resources.find(v => v.id === x.id)
-    if (r) { router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: r.id } }); statDrawer.value = ''; return }
-  } else if (x.kind === 'task') {
-    router.push({ path: '/', query: { hl: x.id } }); statDrawer.value = ''; return
-  } else {
-    router.push({ path: '/', query: { hl: x.id } }); statDrawer.value = ''; return
-  }
-  showToast('⚠ 该卡片已不在库中')
+  const kind = asLocateKind(x.kind)
+  if (!kind) { showToast('⚠ 该卡片类型暂不支持定位'); return }
+  const t = locateTargetOf(gd.value, kind, x.id)
+  if (!t) { showToast('⚠ 该卡片已不在库中'); return }
+  statDrawer.value = ''
+  void router.push(t)
 }
 const statDrawerTitle = computed(() => ({
   all: `📊 全部卡片明细（${totalCards.value}）`,
@@ -2635,6 +2655,8 @@ const activeManualSec = ref('quick-1')
 .gs-ev-badge.create { color: #7fbf8a; background: rgba(127,191,138,.14); }
 .gs-ev-badge.delete { color: #e07a7a; background: rgba(224,122,122,.14); }
 .gs-ev-badge.restore { color: var(--accent); background: var(--accent-light); }
+/* R117（04-61 C3）：好奇心探索状态变更事件 */
+.gs-ev-badge.status { color: var(--tag-warn-text); background: var(--tag-warn-bg); }
 .gs-ev-badge.purge { color: #d46a6a; background: rgba(212,106,106,.2); }
 /* R47-B2：任务明细行「项目 · 指标」归属徽标 */
 .gs-ev-owner { font-size: 11px; color: var(--text-2); background: var(--bg-3, rgba(127,127,127,.12)); border-radius: 4px; padding: 1px 6px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }

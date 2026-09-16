@@ -173,10 +173,12 @@ chrome.commands.onCommand.addListener(async (command) => {
     }
     case 'goto-curiosity':
     case 'goto-tasks': {
-      // R68-F3：直达「任务调度」模块——路由从调度台项目调度改为方向台任务调度面板（CompassShell #task-mgmt-module，复用 anchor 机制）
+      // R68-F3：直达「任务调度」/「好奇心培育」模块
+      // R117（04-61 C1）：任务调度面板由方向台迁入**调度台底部 tab**（与好奇心培育并列），
+      // 两命令因此同落调度台（/），靠 anchor 切到对应 tab；不再指向 /compass。
       const anchor = command === 'goto-curiosity' ? 'curiosity' : 'task'
-      const route = command === 'goto-curiosity' ? '/' : '/compass'
-      const hash = command === 'goto-curiosity' ? '#/' : '#/compass'
+      const route = '/'
+      const hash = '#/'
       const base = chrome.runtime.getURL('src/newtab/index.html')
       const tabs = await chrome.tabs.query({ url: base + '*' })
       const existing = tabs.find(t => t.id != null && t.windowId === tab?.windowId) || tabs.find(t => t.id != null)

@@ -5,12 +5,13 @@ defineOptions({ name: 'CompassHomeView' })
 // - 今日记录条（入台/移出/调出/写入记录，点击开抽屉）
 // - 左右分栏：左=今日三件事（硬上限 3，自 CompassActions 整体迁入，交互逐项一致）｜右=项目调度面板（单击三件事联动）
 // - 底部专区：好奇心培育单区直呈（R55-B2：任务调度迁方向台）
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
 import { visibleFields } from '@/shared/utils/fields'
+import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
 import { readEventLog } from '@/shared/utils/eventLog'
 import { subscribeSaveError, getLastSaveOkAt, getBytesInUse, hasUnlimitedStorage, saveDataNow, saveUIPrefs } from '@/shared/storage/repository'
 import { pendingRows, runSync } from '@/shared/storage/airtable'
@@ -19,9 +20,13 @@ import type { TaskCard, Project, FocusSlot, Direction } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import Icon from '@/shared/components/Icon.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
+// R117（04-61 C3）：当日新增角标（自然日口径）——今日三件事卡沿用任务卡的同一枚
+import NewBadge from '@/shared/components/NewBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
+// R117（04-61 C1）：任务调度整体自方向台迁入调度台底部（与好奇心培育并列 tab）
+import TaskManagerPanel from '../components/compass/TaskManagerPanel.vue'
 import MetricBar from '../components/compass/MetricBar.vue'
 // R113-N3：周报浮层此前只在模板中被引用、从未 import（项目无全局注册也无自动导入插件），
 // 导致 Vue 按未解析组件渲染成空节点 → 点「📊 周报」无任何反应。
@@ -128,15 +133,13 @@ const kindIcon = (k?: string) => (k === 'resource' ? '🔗' : k === 'task' ? '�
 function locateRec(x: RecItem) {
   if (!x.clickable || !x.id) return
   recOpen.value = ''
-  if (x.kind === 'resource') {
-    const r = d.value.resources.find(v => v.id === x.id)
-    const wsId = r?.workspaceId || store.workspaces[0]?.id
-    if (wsId) router.push({ path: `/workspace/${wsId}`, query: { hl: x.id } })
-  } else {
-    // R55-B3：任务定位改指方向台任务调度模块（/compass?zone=task）；好奇定位仍在调度台
-    if (x.kind === 'task') router.push({ path: '/compass', query: { zone: 'task', hl: x.id } })
-    else router.push({ path: '/', query: { hl: x.id } })
-  }
+  // R117（04-61 B）：统一走 locateTargetOf —— 资源卡带所在分类、任务/好奇卡带 hk 分派，
+  // 不再各写一份（旧实现里任务卡指向方向台 /compass?zone=task，随本轮的模块搬迁失效）
+  const kind = asLocateKind(x.kind || '')
+  if (!kind) return
+  const t = locateTargetOf(d.value, kind, x.id)
+  if (!t) { showToast('⚠ 该卡片已不在库中'); return }
+  void router.push(t)
 }
 
 // ================= 今日三件事（自 CompassActions 迁入，交互 1:1） =================
@@ -148,6 +151,34 @@ const todayFocusList = computed<FocusSlot[]>(() => {
 })
 const FOCUS_LIMIT = 3
 const focusFull = computed(() => todayFocusList.value.length >= FOCUS_LIMIT)
+/**
+ * R117（04-61 C3）修复「只有 2 件事 · 第 3 件没入口」的黑洞格：
+ * 改前模板直接 `v-for` 原始切片 + `v-if="todayTaskForSlot(slot)"`——库里任务被删（或槽位来源不是任务）时
+ * 那一格判定为假 ⇒ **整格不渲染**，而 `focusFull` 只看数组长度仍为真 ⇒ 空位兜底 `v-if="!focusFull"` 也不渲染。
+ * 结果：3 件里坏 1 件就只剩 2 张卡、没有任何补位入口。
+ * 现在：**恒 3 格**（`task` 有值 = 有效任务；`slot` 有值但 `task` 空 = 失效槽；都没有 = 空位），
+ * 失效槽显式渲染「任务已失效 · 重新选取」并给入口。
+ * ⚠ 格子的 `idx` 一律取**原始槽位下标**：`selectTaskForSlot` 按 `list[idx] = slot` 原位替换，
+ *   若按过滤后的下标渲染，「重新选取」会写错槽、覆盖掉其他有效项。
+ */
+interface FocusCell { idx: number; slot?: FocusSlot; task?: TaskCard }
+const focusCells = computed<FocusCell[]>(() => {
+  const raw = (d.value.dailyFocus?.[dateStr(todayDate.value)] || []).slice(0, FOCUS_LIMIT)
+  const cells: FocusCell[] = raw.map((slot, idx) => {
+    const t = todayTaskForSlot(slot)
+    return t ? { idx, slot, task: t } : { idx, slot }
+  })
+  for (let i = cells.length; i < FOCUS_LIMIT; i++) cells.push({ idx: i })
+  return cells
+})
+/** R117（04-61 C3）：失效槽不算占位——点它的「重新选取」即便 3 件已满也放行（原位替换）。
+ *  满额且点的是正常格/空位时才沿用原拦截口径。 */
+function focusCellAt(slot: number): FocusCell | undefined {
+  return focusCells.value.find(c => c.idx === slot)
+}
+function openCellTask(c: FocusCell) {
+  if (c.task) drawerRef.value?.open(c.task)
+}
 /**
  * R94（B3）：三件事**全完成** —— 给一个**安静**的收束。
  * 改前勾完第三件与勾之前在视觉上毫无差别，"今天做完了"这件事页面一个字都没说。
@@ -178,7 +209,11 @@ const pickerSearch = ref('')
 // 取值：'' = 全部项目；'__none__' = 未关联项目；其余 = project.id
 const pickerProject = ref('')
 function openPicker(slot: number) {
-  if (focusFull.value) { showToast('⚖ 今日三件事已满（3/3）——先完成或移除一件'); return }
+  const c = focusCellAt(slot)
+  const isStale = !!c?.slot && !c?.task
+  // R117（04-61 C3）：失效槽不算占位——点它的「重新选取」即便 3 件已满也放行（原位替换）；
+  // 满额 + 点正常格/空位时才按原口径拦截（3 件有效任务不能再加第 4 件）。
+  if (focusFull.value && !isStale) { showToast('⚖ 今日三件事已满（3/3）——先完成或移除一件'); return }
   pickerSlot.value = Math.min(slot, FOCUS_LIMIT - 1)
   pickerSearch.value = ''
   pickerProject.value = '' // R113-N6：每次打开复位为「全部项目」
@@ -563,21 +598,42 @@ function onDrillEsc(e: KeyboardEvent) {
   e.preventDefault()
   curDrill.value = null
 }
-// R67-F4：浏览器快捷键模块直达（curiosity=好奇心培养 / project=项目调度）——滚动定位 + 高亮闪烁
-/** R105（B4）：好奇心培育降权——默认折叠为一行摘要（不持久化，同 R94-B2 口径） */
-const curioCollapsed = ref(true)
-const curioTeaser = computed(() => {
-  const list = (d.value.curiosities || []).filter(c => !c.deletedAt)
-  if (!list.length) return '还没有好奇心卡片 · Ctrl+Shift+I 随手记一条'
-  const todo = list.filter(c => c.status === 'todo').length
-  const doing = list.filter(c => c.status === 'doing').length
-  return `共 ${list.length} 条 · 待探索 ${todo} · 探索中 ${doing}`
-})
+// R67-F4：浏览器快捷键模块直达（curiosity=好奇心培养 / project=任务调度）——滚动定位 + 高亮闪烁
+/**
+ * R117（04-61 C1 拍板）：底部改为 **任务调度 / 好奇心培育** 双 tab，**默认任务调度**。
+ * - 取代 R105-B4 的「好奇心默认折叠为一行摘要」——本轮用户明确要求把任务调度整体搬进调度台
+ *   并与其并列，故按新拍板执行（旧降权策略退役）；
+ * - 好奇心面板**懒挂载**（首次切到该 tab 才挂载）——保住首屏冷启动成本；
+ * - `?hl=` 定位到好奇心卡时自动切 tab 并挂载（否则消费者不在 DOM 里，定位会落空）。
+ */
+const bottomTab = ref<'task' | 'curio'>('task')
+const curioMounted = ref(false)
+watch(bottomTab, (t) => { if (t === 'curio') curioMounted.value = true })
+/** 底部 tab 计数徽标：任务调度 = 未删除任务数 · 好奇心培育 = 未删除好奇心数 */
+const taskLiveCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt).length)
+const curioLiveCount = computed(() => (d.value.curiosities || []).filter(c => !c.deletedAt).length)
+// R117（04-61 B）：`?hl` 带 `?hk` 时把对应面板切到前台——任务卡与好奇卡消费者同页，靠 hk 分派
+watch(() => route.query.hl, (hl) => {
+  if (!hl) return
+  const hk = typeof route.query.hk === 'string' ? route.query.hk : ''
+  if (hk === 'curio') { bottomTab.value = 'curio'; curioMounted.value = true }
+  else if (hk === 'task') bottomTab.value = 'task'
+}, { immediate: true })
+// R117（04-61 C1）：`?bottom=task|curio` 直达底部 tab——原 `?zone=task`（方向台任务调度模块）随模块搬迁退役，
+// 新建任务后跳转（GlobalPopups）等场景改由本页底部 tab 承接。
+watch(() => route.query.bottom, (b) => {
+  if (b === 'curio') { bottomTab.value = 'curio'; curioMounted.value = true }
+  else if (b === 'task') bottomTab.value = 'task'
+}, { immediate: true })
 
 function gotoAnchor(name: string) {
-  const id = name === 'curiosity' ? 'zy-mod-curiosity' : name === 'project' ? 'zy-mod-tasks' : ''
+  // R117（04-61 C1）：底部改为「任务调度 / 好奇心培育」双 tab 同宿一节 ⇒ 'task' 为新增锚点
+  // （goto-tasks 浏览器命令随任务调度一并落到调度台）；节 id 沿用 zy-mod-curiosity，不改名以免破坏既有锚点契约。
+  const id = (name === 'curiosity' || name === 'task') ? 'zy-mod-curiosity' : name === 'project' ? 'zy-mod-tasks' : ''
   if (!id) return
-  if (name === 'curiosity') curioCollapsed.value = false // R105（B4）：直达 = 带意图，自动展开
+  // 直达锚点 = 先切到对应 tab 并确保已挂载（好奇心懒挂载，不切则消费者不在 DOM）
+  if (name === 'curiosity') { bottomTab.value = 'curio'; curioMounted.value = true }
+  else if (name === 'task') bottomTab.value = 'task'
   const el = document.getElementById(id)
   if (!el) return
   el.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -702,7 +758,8 @@ const wrOpen = ref(false)
 function onWrDrill(ev: { kind: string; cardId?: string; workspaceId?: string; dirId?: string }) {
   if (ev.kind === 'created') { openRec('in'); return }
   if (ev.kind === 'called') { openRec('called'); return }
-  if (ev.kind === 'done' || ev.kind === 'unarchived') { router.push({ path: '/compass', query: { zone: 'task' } }); return }
+  // R117（04-61 C1）：任务调度已在本页底部 tab ⇒ 同页直接收周报 + 切 tab 滚过去（不再跨台跳方向台）
+  if (ev.kind === 'done' || ev.kind === 'unarchived') { wrOpen.value = false; gotoAnchor('task'); return }
   if (ev.kind === 'direction') { router.push('/compass'); return }
   if (ev.kind === 'top-card' && ev.cardId && ev.workspaceId) {
     router.push({ path: '/workspace/' + ev.workspaceId, query: { hl: ev.cardId } })
@@ -786,25 +843,31 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
           <div class="today-body">
             <!-- R53-C1：「从库选取」按钮移除——空槽「＋ 从任务库选取」即入口；复制昨日/导出移至卡片头部 -->
             <div class="today-cards">
-              <template v-for="(slot, idx) in todayFocusList" :key="idx">
-                <div v-if="todayTaskForSlot(slot)" class="today-card" :class="{done: slot.done, sel: focusSelIdx===idx}"
-                  @click="onFocusCardClick(idx)" @dblclick="drawerRef?.open(todayTaskForSlot(slot)!)">
-                  <div class="tc-num">{{ String(idx+1).padStart(2,'0') }}</div>
+              <!-- R117（04-61 C3）：恒 3 格渲染（见 focusCells 注释）——失效槽不再静默消失 -->
+              <template v-for="c in focusCells" :key="c.idx">
+                <div v-if="c.task" class="today-card" :class="{done: c.slot?.done, sel: focusSelIdx===c.idx}"
+                  @click="onFocusCardClick(c.idx)" @dblclick="openCellTask(c)">
+                  <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
                   <div class="tc-row">
-                    <div class="tc-check" :class="{done: slot.done}" @click.stop="toggleTodayDone(slot)">{{ slot.done?'✓':'' }}</div>
-                    <div class="tc-title">{{ slot.text }}</div>
+                    <div class="tc-check" :class="{done: c.slot?.done}" @click.stop="c.slot && toggleTodayDone(c.slot)">{{ c.slot?.done?'✓':'' }}</div>
+                    <div class="tc-title"><NewBadge :at="c.task.createdAt" />{{ c.slot?.text }}</div>
                   </div>
                   <div class="tc-meta">
-                    <span class="tag accent">📦 {{ projectName(todayTaskForSlot(slot)?.projectId) }}</span>
-                    <span class="tag warn">🎯 {{ metricName(todayTaskForSlot(slot)?.metricId) }}</span>
-                    <AssetBadge v-if="taskAssetsOn && todayTaskForSlot(slot)?.assets?.length" :assets="todayTaskForSlot(slot)!.assets" />
+                    <span class="tag accent">📦 {{ projectName(c.task.projectId) }}</span>
+                    <span class="tag warn">🎯 {{ metricName(c.task.metricId) }}</span>
+                    <AssetBadge v-if="taskAssetsOn && c.task.assets?.length" :assets="c.task.assets" />
                   </div>
-                  <div class="tc-remove" @click.stop="removeTodaySlot(idx)" title="移除">×</div>
+                  <div class="tc-remove" @click.stop="removeTodaySlot(c.idx)" title="移除">×</div>
                 </div>
-              </template>
-              <template v-if="!focusFull">
-                <div v-for="n in (FOCUS_LIMIT - todayFocusList.length)" :key="'empty-'+n" class="today-card empty-card" @click="openPicker(todayFocusList.length)">
-                  <div class="tc-num">{{ String(todayFocusList.length + n).padStart(2,'0') }}</div>
+                <!-- 失效槽（原任务已删除/已不在库）：显式给格 + 原位重新选取入口 -->
+                <div v-else-if="c.slot" class="today-card stale-card" @click="openPicker(c.idx)" title="原任务已删除或归档 · 点击重新选取">
+                  <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
+                  <div class="tc-title empty-t">⚠ 任务已失效 · 重新选取</div>
+                  <div class="tc-meta"><span class="tag warn">原任务已删除</span></div>
+                  <div class="tc-remove" @click.stop="removeTodaySlot(c.idx)" title="移除">×</div>
+                </div>
+                <div v-else class="today-card empty-card" @click="openPicker(c.idx)">
+                  <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
                   <div class="tc-title empty-t">＋ 从任务库选取</div>
                 </div>
               </template>
@@ -901,18 +964,27 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
       </section>
     </div>
 
-    <!-- 底部 · 好奇心培育（R55-B2：任务调度已迁方向台）｜ R67-F4：id 供快捷键直达锚点
-         R105（B4）：好奇心培育降权——调度台首屏的主角是方向与今日行动，好奇心默认收为一行摘要，
-         点击展开完整面板。**不持久化**（默认折叠管的是"每次进门的第一眼"，同 R94-B2 口径）；
-         Ctrl+Shift+I 直达锚点时自动展开（用户带着意图来，别让 TA 再点一次）。 -->
+    <!-- 底部 · 任务调度 / 好奇心培育（R117 C1 拍板：任务调度整体自方向台迁入，与好奇心培育并列 tab，
+         默认任务调度；取代 R55-B2「任务调度在方向台」与 R105-B4「好奇心默认折叠摘要」两条旧策略）
+         R67-F4：id 供快捷键直达锚点 -->
     <section id="zy-mod-curiosity" class="module">
-      <div v-if="curioCollapsed" class="curio-teaser" @click="curioCollapsed = false">
-        <span class="ct-icon">💡</span>
-        <span class="ct-title">好奇心培育</span>
-        <span class="ct-summary">{{ curioTeaser }}</span>
-        <span class="ct-entry">展开 ›</span>
+      <div class="bottom-tabs">
+        <button class="bt-tab" :class="{ on: bottomTab === 'task' }" @click="bottomTab = 'task'">
+          <Icon name="clipboard" :size="14" />任务调度<span class="bt-cnt">{{ taskLiveCount }}</span>
+        </button>
+        <button class="bt-tab" :class="{ on: bottomTab === 'curio' }" @click="bottomTab = 'curio'">
+          <Icon name="bulb" :size="14" />好奇心培育<span class="bt-cnt">{{ curioLiveCount }}</span>
+        </button>
+        <span class="bt-hint">任务调度管全域任务 · 好奇心培育管待探索的问题</span>
       </div>
-      <CuriosityPanel v-else />
+      <!-- 任务调度：默认 tab，常驻挂载 -->
+      <div v-show="bottomTab === 'task'" class="bottom-pane">
+        <TaskManagerPanel />
+      </div>
+      <!-- 好奇心培育：懒挂载（首次切到该 tab 才挂载）——保住首屏冷启动成本 -->
+      <div v-show="bottomTab === 'curio'" class="bottom-pane">
+        <CuriosityPanel v-if="curioMounted" />
+      </div>
 
     <!-- R111：调度画像周报全屏浮层 -->
     <WeeklyReportOverlay :open="wrOpen" @close="wrOpen = false" @drill="onWrDrill" />
@@ -1139,12 +1211,15 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .right-col { min-width: 0; }
 
 /* R105（B4）：好奇心培育折叠摘要行——呼应 ModuleCard 的视觉语言（surface 底 + 发丝边） */
-.curio-teaser { display: flex; align-items: center; gap: 10px; padding: 12px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all .15s; }
-.curio-teaser:hover { border-color: var(--accent); }
-.curio-teaser .ct-icon { font-size: 14px; }
-.curio-teaser .ct-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
-.curio-teaser .ct-summary { flex: 1; font-size: 11.5px; color: var(--text-3); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.curio-teaser .ct-entry { font-size: 11.5px; color: var(--accent); flex-shrink: 0; }
+/* R117（04-61 C1）：底部「任务调度 / 好奇心培育」双 tab（旧「好奇心培育」折叠一行摘要的降权策略随本策略退役） */
+.bottom-tabs { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.bt-tab { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 13px; font-weight: 600; border-radius: 8px; padding: 7px 16px; cursor: pointer; font-family: inherit; transition: all .13s; }
+.bt-tab:hover { border-color: var(--accent); color: var(--accent); }
+.bt-tab.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+.bt-cnt { font-size: 11px; font-weight: 700; color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 0 7px; line-height: 17px; }
+.bt-tab.on .bt-cnt { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.bt-hint { margin-left: auto; font-size: 11px; color: var(--text-4); }
+.bottom-pane { min-height: 120px; }
 .module { margin-top: 0; }
 /* R67-F4：快捷键直达模块的高亮闪烁（滚动定位后 2.2s 渐隐） */
 .module.anchor-flash { animation: zyAnchorFlash 2.2s ease; }
@@ -1202,6 +1277,11 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .today-card.done .tc-title { text-decoration: line-through; color: var(--text-3); }
 .today-card.empty-card { opacity: .55; border-style: dashed; background: transparent; align-items: center; justify-content: center; }
 .today-card.empty-card:hover { opacity: .9; border-color: var(--accent); color: var(--accent); }
+/* R117（04-61 C3）：失效槽卡——虚线 + 警示色，与中性的「空位」区分开；
+   ⚠ 末行与上方 `.card.focus .today-card:not(.empty-card)` 同权重，靠**源码顺序在后**生效（不要前移本组）。 */
+.today-card.stale-card { border-style: dashed; background: transparent; border-color: color-mix(in srgb, var(--tag-warn-text) 45%, var(--border)); }
+.today-card.stale-card:hover { border-color: var(--tag-warn-text); background: var(--surface); }
+.card.focus .today-card.stale-card { border-color: color-mix(in srgb, var(--tag-warn-text) 45%, var(--border)); }
 .tc-num { position: absolute; top: 10px; right: 12px; font-size: 11px; color: var(--text-3); font-weight: 600; }
 .tc-row { display: flex; align-items: flex-start; gap: 8px; }
 .tc-check { width: 16px; height: 16px; border-radius: 5px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 10px; color: #fff; background: var(--surface); margin-top: 2px; }

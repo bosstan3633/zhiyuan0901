@@ -87,7 +87,9 @@ export function useWorkspaceBatch(ctx: WorkspaceBatchCtx) {
   const moveWsId = ref('')
   const moveCatId = ref('')
   const moveWorkspaces = computed(() => d.value.workspaces.filter(w => !w.archived))
-  const moveCatOptions = computed(() => treeCatOptions(d.value.categories.filter(c => c.workspaceId === moveWsId.value)))
+  // R117（04-61 A）：分类口径统一——过滤软删（原实现漏 deletedAt，软删分类会成为下拉里的「幽灵项」）；
+  // 与采集浮层 / 全局采集 / 资源台左树同源（buildCatOptions）
+  const moveCatOptions = computed(() => treeCatOptions(d.value.categories.filter(c => c.workspaceId === moveWsId.value && !c.deletedAt)))
   watch(moveWsId, () => { moveCatId.value = '' })
   function openBatchMove() {
     moveWsId.value = workspaceId.value

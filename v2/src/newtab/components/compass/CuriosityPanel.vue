@@ -11,6 +11,8 @@ import { showToast } from '@/shared/components/toast'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
+// R117（04-61 C3）：当日新增角标（自然日口径）——卡片 / 列表 / 看板三视图同一枚
+import NewBadge from '@/shared/components/NewBadge.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
@@ -36,14 +38,23 @@ const curioCols = useCardCols('curio', store.ui)
 const statusFilter = ref<CuriStatus | 'all'>('all')
 watch(() => route.query.hl, (hl) => {
   if (!hl || typeof hl !== 'string' || route.path !== '/') return
+  // R117（04-61 B）：按 `?hk=` 认领——调度台首页同页还有任务卡消费者（认领 'task'），
+  // 不认领时直接让路；只有真正滚到目标才清 query，避免把另一个消费者要用的 hl 清掉。
+  const hk = typeof route.query.hk === 'string' ? route.query.hk : ''
+  if (hk && hk !== 'curio') return
   highlightId.value = hl
   statusFilter.value = 'all'
   viewMode.value = 'card'
   setTimeout(() => {
-    document.querySelector(`[data-czid="${hl}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    setTimeout(() => { highlightId.value = null }, 2000)
+    const el = document.querySelector(`[data-czid="${hl}"]`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setTimeout(() => { highlightId.value = null }, 2000)
+      router.replace({ path: route.path })
+    } else if (hk === 'curio') {
+      router.replace({ path: route.path })
+    }
   }, 350)
-  router.replace({ path: route.path })
 }, { immediate: true })
 
 // 第卅六轮 REQ-039：搜索浮层单击 → 好奇心卡高亮
@@ -380,15 +391,26 @@ function fmtDate(ts?: number) {
   return `${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
 }
 
-// 第卌轮 REQ-051：好奇心卡正面补充字段流（按 fieldConfig.curiosity 显隐/排序；
-// question/status/createdAt 属卡片骨架不参与字段流）——字段设计一处开关即控卡片正面的标签/自定义/附件行
+// 第卌轮 REQ-051：好奇心卡正面补充字段流（按 fieldConfig.curiosity 显隐/排序）
+// R117（04-61 D）：只有 question/status/createdAt 三个骨架 key 不进扩展行——**其余全部参与**，
+// 且状态胶囊 / 创建时间 / 来源链接也改为受字段设置控制（此前硬编码渲染 + sourceUrl 从不渲染，
+// 用户报「设置无效」）。字段设计一处开关即控卡片正面。
+const CZ_SKELETON_KEYS = ['question', 'status', 'createdAt']
+/** 该字段是否可见（骨架字段的显隐判定） */
+function cShow(key: string): boolean { return visibleFields(d.value.fieldConfig, 'curiosity').some(f => f.key === key) }
 const curioExtFields = computed(() =>
-  visibleFields(d.value.fieldConfig, 'curiosity')
-    .filter(f => f.key === 'assets' || f.key === 'tags' || f.key.startsWith('custom_'))
+  visibleFields(d.value.fieldConfig, 'curiosity').filter(f => !CZ_SKELETON_KEYS.includes(f.key))
 )
 function curioExtVal(c: CuriosityCard, f: FieldDef): string {
   const v = c.customFields?.[f.key]
   return v == null ? '' : String(v)
+}
+/** R117（04-61 D）：来源链接短显示（域名 + 路径，超长截断） */
+function srcShort(url: string): string {
+  try {
+    const u = new URL(url)
+    return (u.hostname + u.pathname).replace(/^www\./, '').slice(0, 42)
+  } catch { return url.slice(0, 42) }
 }
 </script>
 
@@ -450,23 +472,28 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
             @dragover.prevent="markDrop($event, c.id, 'x')" @dragleave="clearDropMark" @drop="onCzDrop($event, c.id)"
             @contextmenu.prevent="openCurioCtx($event, c)">
             <span v-if="batchMode" class="cz-check" @click.stop="toggleSelect(c.id)">{{ selected.has(c.id) ? '☑' : '☐' }}</span>
-            <span class="cz-status" :class="STATUS_MAP[c.status].cls">{{ STATUS_MAP[c.status].icon }} {{ STATUS_MAP[c.status].label }}</span>
+            <!-- R117（04-61 D）：状态胶囊受「状态」字段显隐控制（批量态下仍让位给勾选框） -->
+            <span v-if="cShow('status')" class="cz-status" :class="STATUS_MAP[c.status].cls">{{ STATUS_MAP[c.status].icon }} {{ STATUS_MAP[c.status].label }}</span>
             <button class="cz-pin-corner" :class="{on: c.pinned}" @click.stop="togglePin(c.id)" title="置顶">📌</button>
             <button class="cz-star-corner" :class="{on: c.starred}" @click.stop="toggleStar(c.id)" title="星标">⭐</button>
-            <div class="cz-title">{{ c.question }}</div>
-            <!-- 第卌轮 REQ-051：附件徽章 + 标签/自定义字段（字段设计控制显隐排序） -->
+            <div class="cz-title"><NewBadge :at="c.createdAt" />{{ c.question }}</div>
+            <!-- 第卌轮 REQ-051：附件徽章 + 标签/自定义字段（字段设计控制显隐排序）
+                 R117（04-61 D）：补齐「来源链接」渲染——此前设置里开启也在卡片上不显示 -->
             <div v-if="curioExtFields.length" class="cz-ext">
               <template v-for="f in curioExtFields" :key="f.key">
                 <AssetBadge v-if="f.key === 'assets'" :assets="c.assets" />
                 <span v-else-if="f.key === 'tags' && c.tags?.length" class="cz-ext-tags">
                   <span v-for="t in c.tags" :key="t" class="cz-ext-tag">#{{ t }}</span>
                 </span>
+                <a v-else-if="f.key === 'sourceUrl' && c.sourceUrl" class="cz-ext-src" :href="c.sourceUrl"
+                  target="_blank" rel="noreferrer" :title="c.sourceUrl" @click.stop>🔗 {{ srcShort(c.sourceUrl) }}</a>
                 <span v-else-if="f.key.startsWith('custom_') && curioExtVal(c, f)" class="cz-ext-custom">
                   <span class="cz-ext-lbl">{{ f.label }}:</span>{{ curioExtVal(c, f) }}
                 </span>
               </template>
             </div>
-            <div class="cz-meta">📅 {{ fmtDate(c.createdAt) }}</div>
+            <!-- R117（04-61 D）：创建时间受字段设置控制（原为硬编码 unconditional 渲染） -->
+            <div v-if="cShow('createdAt')" class="cz-meta">📅 {{ fmtDate(c.createdAt) }}</div>
             <div class="cz-hover-bar">
               <button class="cz-hover-btn primary" @click.stop="openConvert(c, 'task')">转为任务</button>
               <button class="cz-hover-btn" @click.stop="openConvert(c, 'res')">归档资源</button>
@@ -494,10 +521,11 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
             <span v-if="batchMode" class="cz-check" @click.stop="toggleSelect(c.id)">{{ selected.has(c.id) ? '☑' : '☐' }}</span>
             <span v-else-if="c.pinned" class="cz-pin-flag">📌</span>
             <span v-else-if="c.starred" class="cz-star-flag">⭐</span>
-            <span class="cz-status" :class="STATUS_MAP[c.status].cls">{{ STATUS_MAP[c.status].icon }}</span>
-            <span class="cz-list-text">{{ c.question }}</span>
+            <span v-if="cShow('status')" class="cz-status" :class="STATUS_MAP[c.status].cls">{{ STATUS_MAP[c.status].icon }}</span>
+            <span class="cz-list-text"><NewBadge :at="c.createdAt" />{{ c.question }}</span>
             <AssetBadge v-if="curioExtFields.some(f => f.key === 'assets')" :assets="c.assets" class="cz-list-assets" />
-            <span class="cz-list-date">{{ fmtDate(c.createdAt) }}</span>
+            <!-- R117（04-61 D）：列表视图同步受字段设置控制 -->
+            <span v-if="cShow('createdAt')" class="cz-list-date">{{ fmtDate(c.createdAt) }}</span>
             <div class="cz-list-actions">
               <button class="mini-btn" :class="{pinon: c.pinned}" @click.stop="togglePin(c.id)" title="置顶">📌</button>
               <button class="mini-btn" :class="{pinon: c.starred}" @click.stop="toggleStar(c.id)" title="星标">⭐</button>
@@ -527,7 +555,7 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
               @dragover.prevent.stop="markDrop($event, c.id, 'y')" @dragleave="clearDropMark" @drop.stop="onCzDrop($event, c.id, col.status)">
               <button class="cz-pin-corner" :class="{on: c.pinned}" @click.stop="togglePin(c.id)" title="置顶">📌</button>
               <button class="cz-star-corner" :class="{on: c.starred}" @click.stop="toggleStar(c.id)" title="星标">⭐</button>
-              <div class="cz-kanban-text">{{ c.question }}</div>
+              <div class="cz-kanban-text"><NewBadge :at="c.createdAt" />{{ c.question }}</div>
               <div class="cz-kanban-meta">
                 <AssetBadge v-if="curioExtFields.some(f => f.key === 'assets')" :assets="c.assets" />
                 <span>{{ fmtDate(c.createdAt) }}</span>
@@ -782,5 +810,8 @@ function curioExtVal(c: CuriosityCard, f: FieldDef): string {
 .cz-ext-tag { font-size: 10px; line-height: 1; padding: 2px 7px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); }
 .cz-ext-custom { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--text-2); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cz-ext-lbl { color: var(--text-3); }
+/* R117（04-61 D）：来源链接（字段设置开启后才渲染）——走链接蓝，长 URL 截断 */
+.cz-ext-src { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--info-blue); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
+.cz-ext-src:hover { text-decoration: underline; }
 .cz-list-assets { margin: 0 2px; }
 </style>

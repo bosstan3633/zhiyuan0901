@@ -115,7 +115,9 @@ function locateRes(id: string) {
 }
 function locateTask(id: string) {
   emit('close')
-  router.push({ path: '/compass', query: { hl: id, zone: 'task' } })
+  // R117（04-61 C1）：任务调度面板已迁调度台底部 tab（与好奇心培育并列）⇒ 定位改为
+  // 「调度台 + 切任务 tab + 高亮目标任务」；原 /compass?zone=task 随模块搬迁失效。
+  router.push({ path: '/', query: { hl: id, hk: 'task' } })
 }
 </script>
 

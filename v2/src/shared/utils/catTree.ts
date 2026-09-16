@@ -86,6 +86,65 @@ export function catTreeFixNote(r: CatFixReport): string {
   return parts.join('、')
 }
 
+/* ============================================================================
+ * R117（04-61 · A 分类口径统一）：分类下拉选项的**唯一口径**
+ *
+ * 背景：采集浮层（content/overlay-impl.ts）、资源台批量移动（useWorkspaceBatch）、
+ * 全局采集（GlobalPopups）三处各自实现分类下拉，且**都漏了 `deletedAt` 过滤** ——
+ * 软删分类（幽灵项）与同名历史记录会照常出现在下拉里（用户截图：同一分类名重复 3 次），
+ * 而资源台侧（Workspace.vue 的 wsCats）口径是对的。用户诉求「采集当前资源台内的分类」。
+ *
+ * 本函数把口径固化为一处：过滤软删 → 建索引 → 带 visited 防环 DFS → label。
+ *   - 默认缩进式 label（`└` 前缀，与资源台 treeCatOptions 同视觉）
+ *   - 传 `sep` 则用路径式 label（「父 / 子」，与采集浮层 treeCatLabels 同视觉）
+ * ========================================================================== */
+
+export interface CatOptionLike extends CatLike {
+  name?: string
+  deletedAt?: number
+  order?: number
+}
+
+export interface CatOption {
+  id: string
+  label: string
+  /** 层级：根 = 0 */
+  depth: number
+}
+
+/** 分类下拉选项（唯一口径）——过滤软删 + 防环 + 稳定排序 */
+export function buildCatOptions(cats: readonly CatOptionLike[] | undefined, opts?: { sep?: string }): CatOption[] {
+  const sep = opts?.sep
+  const list = (cats || []).filter(c => c && !c.deletedAt)
+  const byId = new Map<string, CatOptionLike>(list.map(c => [c.id, c]))
+  const childrenOf = new Map<string, CatOptionLike[]>()
+  const roots: CatOptionLike[] = []
+  for (const c of list) {
+    // 孤儿（父不存在）与自引用提根——与 sanitizeCategoryTree / buildCatIndex 同口径
+    if (!c.parentId || c.parentId === c.id || !byId.has(c.parentId)) { roots.push(c); continue }
+    const arr = childrenOf.get(c.parentId)
+    if (arr) arr.push(c); else childrenOf.set(c.parentId, [c])
+  }
+  for (const arr of childrenOf.values()) arr.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  roots.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+
+  const out: CatOption[] = []
+  const seen = new Set<string>()
+  const push = (c: CatOptionLike, depth: number, path: string) => {
+    if (seen.has(c.id)) return
+    seen.add(c.id)
+    const name = c.name ?? ''
+    const label = sep
+      ? (path ? path + sep + name : name)
+      : ('└'.repeat(depth) + (depth ? ' ' : '') + name)
+    out.push({ id: c.id, label, depth })
+    const nextPath = sep ? (path ? path + sep + name : name) : ''
+    for (const ch of childrenOf.get(c.id) || []) push(ch, depth + 1, nextPath)
+  }
+  for (const r of roots) push(r, 0, '')
+  return out
+}
+
 /**
  * 带 visited 的安全 DFS：返回 rootId 的全部后代 id（不含自身）。
  * 视图层若自行写递归，务必照此模式带 visited —— 数据侧净化挡不住已存在的坏数据。

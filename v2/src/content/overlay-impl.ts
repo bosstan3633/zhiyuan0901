@@ -11,6 +11,7 @@
 
 import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { CURATION_WS_ID } from '@/shared/models'
+import { buildCatOptions } from '@/shared/utils/catTree'
 import { getSelCache, clearSelCache, getSelectionText, resolveSelection } from './selection'
 
 const ROOT_ID = '__zy_global_overlay__'
@@ -57,11 +58,13 @@ function isProjDone(p: any, d: any): boolean {
   const ts = (d.tasks || []).filter((t: any) => !t.deletedAt && t.projectId === p.id)
   return ts.length > 0 && ts.every((t: any) => t.status === 'done')
 }
-async function getData(): Promise<any> {
+async function getData(force = false): Promise<any> {
   // R106（F5）：TTL 1.5s → 300s——storage.onChanged 已实时兜底新鲜度（上方监听），
   // 过短的 TTL 只会让每次打开浮层都全量重读 + JSON.parse 整库（生产反馈：采集卡顿的正源之一）。
   // loadShowDonePref 同受此守卫（不再每次 getData 都读 zy_ui_v2）。
-  if (dataCache && Date.now() - dataCacheAt < 300000) return dataCache
+  // R117（04-61 A）：force = 采集浮层专用——分类会随时增删改，打开浮层必须用「当前分类」；
+  // 但保留 5s 短窗，连开两次不重复读整库。
+  if (dataCache && Date.now() - dataCacheAt < (force ? 5000 : 300000)) return dataCache
   const d = await loadData()
   dataCache = d
   dataCacheAt = Date.now()
@@ -1299,7 +1302,8 @@ let capUrlMap: Map<string, any> | null = null
 async function openCapture() {
   savedState = false
   if (savedTimer) { clearTimeout(savedTimer); savedTimer = null }
-  const d = await getData()
+  // R117（04-61 A）：force=true——分类随时增删改，打开采集浮层必须吃「当前分类」而非旧快照
+  const d = await getData(true)
   capUrlMap = new Map()
   for (const r of d?.resources || []) {
     if (r.deletedAt || r.linkType !== 'url' || !r.link) continue
@@ -1308,7 +1312,8 @@ async function openCapture() {
   }
   const workspaces = d?.workspaces?.filter((w: any) => !w.archived) || []
   const defaultWs = workspaces[0]
-  const categories = treeCatLabels(d?.categories?.filter((c: any) => c.workspaceId === defaultWs?.id) || [])
+  // R117（04-61 A）：分类口径统一——过滤软删（原实现漏了 deletedAt，软删分类会以「幽灵项」留存在下拉里）
+  const categories = buildCatOptions(d?.categories?.filter((c: any) => c.workspaceId === defaultWs?.id) || [], { sep: ' / ' })
   const selection = getSelectionText()
 
   openOverlay('corner', closeOverlay)
@@ -1393,8 +1398,9 @@ async function openCapture() {
   })
 
   wsSelect.addEventListener('change', async () => {
-    const d2 = await getData()
-    const cats = treeCatLabels(d2?.categories?.filter((c: any) => c.workspaceId === wsSelect.value) || [])
+    // R117（04-61 A）：切台面重算分类——同口径（过滤软删 + 防环 + 路径 label）
+    const d2 = await getData(true)
+    const cats = buildCatOptions(d2?.categories?.filter((c: any) => c.workspaceId === wsSelect.value) || [], { sep: ' / ' })
     const catSelect = document.getElementById('__zy_cap_cat__') as HTMLSelectElement
     catSelect.innerHTML = '<option value="">📥 待分类</option>' + cats.map((c: any) => `<option value="${c.id}">📂 ${escapeHtml(c.label)}</option>`).join('')
   })

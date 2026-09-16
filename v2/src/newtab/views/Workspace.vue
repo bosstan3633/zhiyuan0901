@@ -350,7 +350,7 @@
                 </div>
                 <div class="rc-fields">
                   <template v-for="f in fieldsOf(r)" :key="f.key">
-                    <div v-if="isTitleKey(f.key)" class="rc-title"><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ val(r, f.key) }}</div>
+                    <div v-if="isTitleKey(f.key)" class="rc-title"><NewBadge :at="r.createdAt" /><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ val(r, f.key) }}</div>
                     <div v-else-if="f.key==='link' && r.link" class="rc-link" :class="r.linkType">{{ linkIcon(r.linkType) }} {{ linkDisplay(r.link) }}</div>
                     <div v-else-if="f.key==='description' && r.description" class="rc-summary">{{ r.description }}</div>
                     <div v-else-if="f.key==='tags' && r.tags.length" class="rc-tags"><span v-for="t in r.tags" :key="t" class="rc-tag">#{{ t }}</span></div>
@@ -401,9 +401,10 @@
                 :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
                 @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragend="clearDragState" @dragleave="clearDropMark"
                 @contextmenu.prevent="openResCtx($event, r)">
-                <div v-if="batchMode" class="rc-batch-check" :class="{on: selectedIds.has(r.id)}" @click.stop="toggleSelect(r.id)">{{ selectedIds.has(r.id)?'✓':'' }}</div>
+                <!-- R117（04-61 F1）：列表行用行内勾选框 .rr-check（原复用卡片 absolute 定位的 .rc-batch-check 会逃逸重叠） -->
+                <div v-if="batchMode" class="rr-check" :class="{on: selectedIds.has(r.id)}" @click.stop="toggleSelect(r.id)">{{ selectedIds.has(r.id)?'✓':'' }}</div>
                 <span v-else class="rr-drag">⋮⋮</span>
-                <span class="rr-title"><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ val(r, titleKey) }}</span>
+                <span class="rr-title"><NewBadge :at="r.createdAt" /><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ val(r, titleKey) }}</span>
                 <AssetBadge v-if="hasField('assets') && r.assets?.length" :assets="r.assets" class="rr-assets" />
                 <!-- R87（R7-①）：列表视图同一枚徽标（三视图与卡片同源，见 R79 立的推平原则） -->
                 <span v-if="isBrokenPath(r)" class="rr-broken" title="仅存文件名，双击无法打开 —— 点击补全完整路径" @click.stop="fixLink(r)">⚠ 待补全</span>
@@ -924,6 +925,8 @@ import ContextMenu from '@/shared/components/ContextMenu.vue'
 import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
 import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
+// R117（04-61 C3）：当日新增角标（自然日口径）——资源卡卡片视图 / 列表视图同一枚
+import NewBadge from '@/shared/components/NewBadge.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
 import CurationDrillDrawer from '@/newtab/components/CurationDrillDrawer.vue'
 import type { DrillCatRow, DrillCardRow } from '@/newtab/components/CurationDrillDrawer.vue'
@@ -945,6 +948,8 @@ import { useResourceDragDrop } from '@/newtab/composables/useResourceDragDrop'
 import { usePyramid } from '@/newtab/composables/usePyramid'
 import { useWsMeta } from '@/newtab/composables/useWsMeta'
 import { useWsAssetHygiene } from '@/newtab/composables/useWsAssetHygiene'
+// R117（04-61 B）：资源台定位域（?hl= 卡片定位 / ?cat= 分类定位，含增量渲染前置）——宿主 ≤1500 行验收线
+import { useWsLocate } from '@/newtab/composables/useWsLocate'
 // R113-N2：LifecyclePanel / useLifecycle 移除——入口收敛到 设置→总览（GlobalSettings）
 // R115：视图/侧栏/打开/抽屉/拖拽/金字塔六域拆入 composables（04-59 技术债第三批）；实现原位迁出、零行为变更。
 
@@ -1138,7 +1143,8 @@ function fieldsOf(r: ResourceCard): FieldDef[] {
   return (r.isThesis && !isMirrorView(r)) ? thesisFields.value : rFields.value
 }
 const titleKey = computed(() => rFields.value.find(f => isTitleKey(f.key))?.key || 'title')
-const listFields = computed(() => rFields.value.filter(f => !isTitleKey(f.key) && f.key !== 'assets').slice(0, 3))
+/** R117（04-61 D）：取消原 slice(0, 3) 截断——「卡片与字段管理」里设为可见的字段必须都能在列表上看到 */
+const listFields = computed(() => rFields.value.filter(f => !isTitleKey(f.key) && f.key !== 'assets'))
 function hasField(key: string): boolean {
   return rFields.value.some(f => f.key === key)
 }
@@ -1238,7 +1244,7 @@ const {
   applySort, applyGroupSort, sortedResources,
   collapsedGroups, toggleGroupCollapse, resourceGroups,
   RENDER_STEP, renderLimit, totalVisibleCount, renderedGroups, renderedCount, hasMoreToRender,
-  onContentScroll, renderMore, groupChildCount,
+  onContentScroll, renderMore, ensureCardRendered, groupChildCount,
   kanbanCategories, resourcesByCategory, kanbanColumns,
   kanbanMore, onKanbanColScroll,
 } = useResourceView({
@@ -1419,53 +1425,17 @@ onUnmounted(() => { flushWsOpenPersist(); window.removeEventListener('dragend', 
 const highlightId = ref<string | null>(null)
 // ===== R115 拆分接线：附件卫生域（R110-BUG2 跨台判定/定位/清理）=====
 const { cardExistsGlobally, referencedAssetIds, onDrillLocateAsset, onDrillCleanupAsset, onDrillCleanupOrphans } = useWsAssetHygiene({
-  store, d, workspaceId, router, drillOpen, activeCategory, viewMode, highlightId,
+  store, d, workspaceId, router, drillOpen, activeCategory, viewMode, highlightId, ensureCardRendered,
 })
 // 第廿九轮：document click / window dragend 监听统一在上方 onMounted 注册
 
-watch(() => route.query.hl, (hl) => {
-  if (!hl || typeof hl !== 'string') return
-  highlightId.value = hl
-  activeCategory.value = 'all'
-  searchQuery.value = ''
-  debouncedQuery.value = ''
-  viewMode.value = 'card'
-  nextTick(() => {
-    setTimeout(() => {
-      document.querySelector(`[data-rid="${hl}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      setTimeout(() => { highlightId.value = null }, 2000)
-    }, 300)
-  })
-  router.replace({ path: route.path })
-}, { immediate: true })
-
-// ===== R49-G3：全局检索分类定位（/workspace/:id?cat=xx）=====
-// 有卡 → 选中分类 + 高亮该分类下第一张卡；无卡 → 展开 + 高亮分类行本身
-watch(() => route.query.cat, (cat) => {
-  if (!cat || typeof cat !== 'string' || typeof route.query.hl === 'string') return
-  const c = categories.value.find(x => x.id === cat)
-  if (!c) return
-  activeCategory.value = cat
-  // 展开全部祖先（折叠态下定位会落空）
-  let p = c.parentId ? categories.value.find(x => x.id === c.parentId) : null
-  while (p) { collapsedCats.value.delete(p.id); p = p.parentId ? categories.value.find(x => x.id === p!.parentId) : null }
-  const family = new Set(familyIds(cat))
-  const first = allResources.value.find(r => family.has(r.categoryId || ''))
-  nextTick(() => {
-    setTimeout(() => {
-      if (first) {
-        highlightId.value = first.id
-        document.querySelector(`[data-rid="${first.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        setTimeout(() => { highlightId.value = null }, 2000)
-      } else {
-        catFlashId.value = cat
-        document.querySelector(`[data-catid="${cat}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        setTimeout(() => { catFlashId.value = null }, 2000)
-      }
-    }, 300)
-  })
-  router.replace({ path: route.path })
-}, { immediate: true })
+// ===== R117 拆分接线：资源台定位域（?hl= 卡片定位 / ?cat= 分类定位，均含增量渲染前置）=====
+// 实现迁至 composables/useWsLocate.ts——两条链路共用「先切分类（展开祖先）再滚卡片」一套口径，
+// 并统一在做 querySelector 之前调 ensureCardRendered（R112/R116 增量渲染后目标卡可能未进渲染集）。
+useWsLocate({
+  route, router, categories, collapsedCats, activeCategory, viewMode,
+  highlightId, catFlashId, searchQuery, debouncedQuery, allResources, familyIds, ensureCardRendered,
+})
 
 // ===== R115 拆分接线：台元信息域（台名/图标/描述/重命名/导出/删除）=====
 const {

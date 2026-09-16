@@ -7,6 +7,7 @@ import { computed, nextTick, type ComputedRef, type Ref } from 'vue'
 import type { Router } from 'vue-router'
 import { showToast } from '@/shared/components/toast'
 import { deleteAsset, cleanupOrphanAssets } from '@/shared/storage/assets'
+import { locateTargetOf } from '@/shared/utils/locate'
 import type { AppData, AssetMeta } from '@/shared/models'
 
 export interface WsAssetHygieneCtx {
@@ -18,10 +19,12 @@ export interface WsAssetHygieneCtx {
   activeCategory: Ref<string>
   viewMode: Ref<'card'|'list'|'kanban'|'pyramid'>
   highlightId: Ref<string | null>
+  /** R117（04-61 B）：增量渲染前置——把目标卡纳入渲染集（否则 scrollIntoView 静默失败） */
+  ensureCardRendered: (id: string) => boolean
 }
 
 export function useWsAssetHygiene(ctx: WsAssetHygieneCtx) {
-  const { store, d, workspaceId, router, drillOpen, activeCategory, viewMode, highlightId } = ctx
+  const { store, d, workspaceId, router, drillOpen, activeCategory, viewMode, highlightId, ensureCardRendered } = ctx
 
   /** 跨台全量判定：附件来源卡是否仍存在（未软删；不限本台） */
   function cardExistsGlobally(id: string): boolean {
@@ -37,23 +40,28 @@ export function useWsAssetHygiene(ctx: WsAssetHygieneCtx) {
     collect(d.value.curiosities)
     return [...ids]
   })
-  /** 附件行点击 → 定位来源卡：本台就地高亮，跨台路由 ?hl 过去（复用既有 hl 链路） */
+  /** 附件行点击 → 定位来源卡：本台就地定位（含增量渲染前置 + 所在分类），跨台走统一 locateTargetOf */
   function onDrillLocateAsset(cardId: string) {
     drillOpen.value = false
     const r = d.value.resources.find(x => x.id === cardId)
     if (!r) { showToast('ℹ 来源卡已不存在——可点行尾 🗑 清理残留'); return }
     if (r.workspaceId === workspaceId.value) {
-      activeCategory.value = 'all'
-      viewMode.value = 'card'
+      // R117（04-61 B）：与 ?hl= 同口径——切到所在分类（不再一律回 'all'），并先确保目标卡在渲染集里
+      activeCategory.value = r.categoryId || 'all'
+      if (viewMode.value === 'pyramid') viewMode.value = 'card'
       highlightId.value = cardId
       nextTick(() => {
         setTimeout(() => {
-          document.querySelector(`[data-rid="${cardId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-          setTimeout(() => { highlightId.value = null }, 2000)
+          ensureCardRendered(cardId)
+          nextTick(() => {
+            document.querySelector(`[data-rid="${cardId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            setTimeout(() => { highlightId.value = null }, 2000)
+          })
         }, 120)
       })
     } else {
-      router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: cardId } })
+      const t = locateTargetOf(d.value, 'resource', cardId)
+      router.push(t || { path: `/workspace/${r.workspaceId}`, query: { hl: cardId } })
     }
     showToast(`↗ 已定位到「${(r.title || '').slice(0, 20)}」`)
   }

@@ -7,7 +7,11 @@ export type LifecycleCard = ResourceCard | TaskCard | CuriosityCard
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { lifecycleState, type LifecycleState } from '@/shared/utils/lifecycle'
+import {
+  lifecycleState, coolingDaysOf, hasCustomThreshold,
+  ARCHIVE_RATIO, DEFAULT_COOLING_DAYS, COOLING_DAYS_MIN, COOLING_DAYS_MAX,
+  type LifecycleState
+} from '@/shared/utils/lifecycle'
 import { showToast } from '@/shared/components/toast'
 
 const props = withDefaults(defineProps<{
@@ -22,6 +26,8 @@ const emit = defineEmits<{
   archive: [id: string]
   snooze: [id: string]
   reactivate: [id: string]
+  /** R117（04-61 E）：per-card 自定义冷却天数（null = 清除自定义，回落出厂 30/90）。宿主落库且**不得**动 updatedAt/lastCalledAt */
+  setDays: [id: string, days: number | null]
 }>()
 
 /** 顶部实体切换（拍板：资源卡 / 任务卡 / 好奇心卡 / 全部） */
@@ -89,13 +95,40 @@ function lastOf(card: LifecycleCard): number {
   return c.lastCalledAt || c.completedAt || card.updatedAt || card.createdAt || 0
 }
 function onArchive(e: Entry) { emit('archive', e.card.id); showToast(`📦 已归档「${titleOf(e.card).slice(0, 24)}」`) }
-function onSnooze(e: Entry) { emit('snooze', e.card.id); showToast('⏳ 已忽略 30 天（延后评估）') }
+function onSnooze(e: Entry) { emit('snooze', e.card.id); showToast(`⏳ 已忽略 ${daysOf(e.card)} 天（延后一个评估周期）`) }
 function onReactivate(e: Entry) { emit('reactivate', e.card.id); showToast(`🔥 「${titleOf(e.card).slice(0, 24)}」已重新激活`) }
 function onLocate(e: Entry) { emit('locate', e.card.id, e.card.kind) }
 function fmtIdle(d: number): string { return d > 0 ? `${d} 天` : '今天' }
 /** 任务/好奇心卡都有 status（资源卡无）——模板不能写 TS 断言，故收在这里 */
 function isDone(card: LifecycleCard): boolean {
   return (card as { status?: string }).status === 'done'
+}
+/**
+ * R117（04-61 E）：per-card 阈值内联编辑。
+ * 面板只发意图（emit setDays），写库由宿主落到真实卡对象 + persist；
+ * 用户只填「冷却天数」，归档阈值 = 冷却 × ARCHIVE_RATIO 自动推算。
+ */
+const editingDaysId = ref('')
+const daysDraft = ref('')
+function daysOf(card: LifecycleCard): number { return coolingDaysOf(card) }
+function archiveDaysOf(card: LifecycleCard): number { return coolingDaysOf(card) * ARCHIVE_RATIO }
+function hasCustom(card: LifecycleCard): boolean { return hasCustomThreshold(card) }
+function startEditDays(e: Entry) {
+  editingDaysId.value = e.card.id
+  daysDraft.value = String(daysOf(e.card))
+}
+function confirmDays(e: Entry) {
+  const n = Number(daysDraft.value)
+  if (!Number.isFinite(n) || n <= 0) { showToast(`请输入 1–${COOLING_DAYS_MAX} 之间的天数`); return }
+  const clamped = Math.min(COOLING_DAYS_MAX, Math.max(COOLING_DAYS_MIN, Math.round(n)))
+  emit('setDays', e.card.id, clamped)
+  editingDaysId.value = ''
+  showToast(`⏱ 冷却阈值 ${clamped} 天 · 归档 ${clamped * ARCHIVE_RATIO} 天（自动推算）`)
+}
+function clearDays(e: Entry) {
+  emit('setDays', e.card.id, null)
+  editingDaysId.value = ''
+  showToast(`⏱ 已恢复默认（冷却 ${DEFAULT_COOLING_DAYS} 天 · 归档 ${DEFAULT_COOLING_DAYS * ARCHIVE_RATIO} 天）`)
 }
 const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任务卡', curiosity: '好奇心卡' }
 </script>
@@ -128,7 +161,7 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
         </div>
       </div>
     </div>
-    <div class="lc-hint">阈值：30 天未活动 → 冷却 · 90 天未活动 → 归档候选 · 点击统计切换列表 · 点击条目定位卡片</div>
+    <div class="lc-hint">阈值：默认冷却 {{ DEFAULT_COOLING_DAYS }} 天 · 归档 {{ DEFAULT_COOLING_DAYS * ARCHIVE_RATIO }} 天（归档 = 冷却 × {{ ARCHIVE_RATIO }}）· 每张卡可用 ⏱ 自定义冷却天数（归档自动推算）· 点击统计切换列表 · 点击条目定位卡片</div>
 
     <!-- 列表（当前过滤态） -->
     <div class="lc-list">
@@ -138,12 +171,24 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
           <div class="lc-row-meta">
             <span class="lc-badge" :class="'lc-' + e.state">{{ e.state === 'active' ? '🔥 活跃' : e.state === 'cooling' ? '🧊 冷却' : '📦 归档' }} {{ fmtIdle(e.daysIdle) }}</span>
             <span v-if="activeKind === 'all'" class="lc-kind-badge">{{ KIND_BADGE[e.card.kind] }}</span>
+            <!-- R117（04-61 E）：自定义阈值标识（一眼看出这张卡不按默认 30/90 走） -->
+            <span v-if="hasCustom(e.card)" class="lc-custom-badge" :title="`自定义冷却 ${daysOf(e.card)} 天 · 归档 ${archiveDaysOf(e.card)} 天（自动推算）`">⏱ 自定义 {{ daysOf(e.card) }}d</span>
           </div>
         </div>
         <div class="lc-row-ops" @click.stop>
+          <!-- R117（04-61 E）：每张卡的自定义阈值入口——填一个冷却天数，归档由系统自动推算 -->
+          <template v-if="editingDaysId === e.card.id">
+            <input v-model="daysDraft" class="lc-days-input" type="number" :min="COOLING_DAYS_MIN" :max="COOLING_DAYS_MAX" placeholder="天数"
+              @keydown.enter.prevent="confirmDays(e)" @keydown.esc="editingDaysId = ''" />
+            <button class="lc-op primary" @click="confirmDays(e)">确定</button>
+            <button v-if="hasCustom(e.card)" class="lc-op" @click="clearDays(e)">恢复默认</button>
+          </template>
+          <button v-else class="lc-op" :class="{ custom: hasCustom(e.card) }"
+            :title="`自定义冷却阈值：冷却 ${daysOf(e.card)} 天 · 归档 ${archiveDaysOf(e.card)} 天（点此修改）`"
+            @click="startEditDays(e)">⏱ {{ daysOf(e.card) }}d<span v-if="hasCustom(e.card)">*</span></button>
           <template v-if="e.state === 'cooling'">
             <button class="lc-op" @click="onArchive(e)">📦 归档</button>
-            <button class="lc-op" @click="onSnooze(e)">忽略 30d</button>
+            <button class="lc-op" @click="onSnooze(e)">忽略 {{ daysOf(e.card) }}d</button>
           </template>
           <template v-else-if="e.state === 'archived'">
             <button class="lc-op primary" @click="onReactivate(e)">🔥 重新激活</button>
@@ -191,5 +236,10 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
 .lc-op:hover { border-color: var(--accent); color: var(--accent); }
 .lc-op.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
 .lc-op.primary:hover { background: var(--accent-hover); }
+/* R117（04-61 E）：per-card 阈值 —— 入口按钮（自定义态用强调色）+ 内联天数输入 + 行内「自定义」标识 */
+.lc-op.custom { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.lc-days-input { width: 68px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font-size: 11px; border-radius: 6px; padding: 3px 7px; font-family: inherit; }
+.lc-days-input:focus { outline: none; border-color: var(--accent); }
+.lc-custom-badge { font-size: 10px; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); background: var(--accent-light); border-radius: 4px; padding: 0 5px; }
 .lc-empty { padding: 28px 10px; text-align: center; color: var(--text-3); font-size: 12px; }
 </style>

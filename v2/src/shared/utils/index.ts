@@ -101,3 +101,15 @@ export function safeDecodeText(s: string): string {
     return s
   }
 }
+
+/**
+ * R117（04-61 C3）：是否「当日新增」——**自然日**口径（本地时区今天 00:00 起算，不是滚动 24h）。
+ * 拍板「6. 自然日」：跨零点即不再是新增，与「今日三件事」的日期键同一天界。
+ * 三卡（资源/任务/好奇心）共用；调用方一律传 `createdAt`。
+ */
+export function isTodayNew(at?: number): boolean {
+  if (!at) return false
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  return at >= start.getTime()
+}

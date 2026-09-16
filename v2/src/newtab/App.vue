@@ -222,8 +222,8 @@ function deleteWorkspace() {
 }
 
 // ===== 全局快捷键 =====
-// Esc 关闭弹窗；修饰键+数字 = 用户自建策展台（台签顺序计数，R49 引入、R68 改口径）
-// 调度台刷新自动回首页；R68-F3：方向台(Alt+1)/资源台(Alt+2)/策展台(Alt+3..) 按台签顺序应用内切台
+// Esc 关闭弹窗；修饰键+数字 = 应用内切台（R117 拍板：1 调度台 / 2 方向台 / 3 资源台 / 4+ 策展台）
+// 调度台刷新自动回首页。
 function isEditableTarget(e: KeyboardEvent): boolean {
   const t = e.target as HTMLElement | null
   if (!t) return false
@@ -232,11 +232,13 @@ function isEditableTarget(e: KeyboardEvent): boolean {
 }
 
 function switchToIndex(n: number) {
-  // R68-F3：n=1 方向台、n=2 资源台（固定页），n≥3 按台签顺序对应用户策展台（拖拽改序后数字键跟随顺序，不绑定具体台）
-  // R49 旧口径（1..N=用户策展台）废止；调度台为首页刷新自动回，不占数字键
-  if (n === 1) { openCompass(); return }
-  if (n === 2) { openResource(); return }
-  const ws = store.workspaces[n - 3]
+  // R117（04-61 C3）拍板改口径：**Alt+1 调度台（落地首页）/ Alt+2 方向台 / Alt+3 资源台 / Alt+4.. 用户策展台**
+  // （台签顺序计数，拖拽改序后数字键跟随顺序，不绑定具体台）。
+  // 旧口径 R68-F3（1=方向台、2=资源台、3+=策展台）废止——调度台是默认落地页，占 1 号位更好记。
+  if (n === 1) { navigate('/'); return }
+  if (n === 2) { openCompass(); return }
+  if (n === 3) { openResource(); return }
+  const ws = store.workspaces[n - 4]
   if (ws) navigate(`/workspace/${ws.id}`)
   else showToast(`没有第 ${n} 号台（当前共 ${store.workspaces.length} 个策展台）`)
 }

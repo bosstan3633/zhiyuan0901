@@ -12,10 +12,17 @@ import TaskAddDrawer from '../components/TaskAddDrawer.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 
+/**
+ * R117（04-61 C）双态：
+ * - `embedded` = 内嵌于方向台一级（/compass）：不渲染自身页头与「返回方向台」，页边距交给宿主，
+ *   `?p` 缺省/失效时**默认落在第一个项目**（不经项目选择墙）；
+ * - 默认 false = 聚焦态深链（/compass/projects，搜索/内容浮层直达）：页头 + 返回按钮照旧。
+ */
+const props = defineProps<{ embedded?: boolean }>()
 const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
-const { d, visionText, missionText, allProjects, projectProgress, toggleFocusProject, addProjectToDir } = useCompass()
+const { d, visionText, missionText, allProjects, projectProgress, toggleFocusProject, addProjectToDir, showDone, isProjectDone } = useCompass()
 
 /** R49-D6：任务详情 = 共享 TaskDetailDrawer（R48 重设计组件） */
 const detailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
@@ -27,14 +34,92 @@ const projects = computed(() => {
   list.forEach((p, i) => { if (p.order == null) p.order = i })
   return list
 })
+
+/* ================= R117（04-61 C）承接「项目总览」退役的能力 =================
+ * 原「模块三 · 项目总览」整块退役（拍板：整体项目情况由主航线体现），但它承担的三件**管理能力**
+ * 不能随之静默丢失，按零行为变更边界 1:1 迁到项目详情左栏「全部项目」列：
+ *   ① 置顶分组（📌 已置顶 / 📦 全部项目两组呈现）——`Project.pinned`（与 🎯 主攻 isFocused 独立）；
+ *   ② 组内拖拽排序——`order` 全量规整回写（与策展台 Tab 同模式）；
+ *   ③ 跨区拖拽自动切换 pinned（R99 D-E，替代更早的「跨区拦截 toast」）。
+ * 口径逐行沿用原 CompassShell 实现，仅宿主组件变更。 */
+function sortedCopy(list: Project[]): Project[] {
+  return [...list].sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+}
+/** 页头「已完成项目」开关口径（与主航线/完整方向树同一份 showDone） */
+const visibleList = computed<Project[]>(() => projects.value.filter(p => showDone.value || !isProjectDone(p)))
+const pinnedGroup = computed<Project[]>(() => sortedCopy(visibleList.value.filter(p => p.pinned)))
+const normalGroup = computed<Project[]>(() => sortedCopy(visibleList.value.filter(p => !p.pinned)))
+/** 原位改名（contenteditable blur 保存）进行中禁用该项拖拽，防「拖拽与编辑抢焦点」 */
+const editingProjId = ref<string | null>(null)
+/** 置顶切换（与 🎯 主攻独立） */
+function togglePin(p: Project) {
+  p.pinned = !p.pinned
+  store.persist()
+  showToast(p.pinned ? '📌 已置顶' : '已取消置顶')
+}
+/** 组内拖拽排序（order 全量规整回写，与策展台 Tab 同模式） */
+let dragProjId: string | null = null
+let dragFromPinned = false
+function onProjDragStart(e: DragEvent, p: Project) {
+  dragProjId = p.id
+  dragFromPinned = !!p.pinned
+  ;(e.currentTarget as HTMLElement).classList.add('dragging')
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+}
+function onProjDragEnd(e: DragEvent) {
+  ;(e.currentTarget as HTMLElement).classList.remove('dragging')
+  dragProjId = null
+}
+function onProjDragOver(e: DragEvent, p: Project) {
+  // R99（D-E）：只拦同卡——跨区目标也要给 drag-over 高亮并允许 drop（否则「自动切换」永远触发不了）
+  if (!dragProjId || dragProjId === p.id) return
+  e.preventDefault()
+  ;(e.currentTarget as HTMLElement).classList.add('drag-over')
+}
+function onProjDragLeave(e: DragEvent) {
+  ;(e.currentTarget as HTMLElement).classList.remove('drag-over')
+}
+function onProjDrop(e: DragEvent, target: Project) {
+  e.preventDefault()
+  ;(e.currentTarget as HTMLElement).classList.remove('drag-over')
+  if (!dragProjId || dragProjId === target.id) { dragProjId = null; return }
+  if (dragFromPinned !== !!target.pinned) {
+    // R99（D-E）：跨区拖入 = 自动切换 pinned（拖入置顶区即置顶，拖回全部区即取消置顶）——
+    // 原「toast 拦截」语义废弃；拖拽语义跟随目标区。先翻 pinned 再把拖拽卡插入目标区序列。
+    const proj = allProjects().find(v => v.id === dragProjId)
+    if (!proj) { dragProjId = null; return }
+    proj.pinned = !!target.pinned
+    const sectionIds = (target.pinned ? pinnedGroup.value : normalGroup.value).map(x => x.id)
+    const ti = sectionIds.indexOf(target.id)
+    if (ti < 0) { dragProjId = null; return }
+    sectionIds.splice(ti, 0, dragProjId)
+    sectionIds.forEach((id, i) => {
+      const x = allProjects().find(v => v.id === id)
+      if (x) x.order = i
+    })
+    store.persist()
+    dragProjId = null
+    showToast(proj.pinned ? '📌 已置顶（跨区拖入自动切换）' : '已取消置顶（跨区拖入自动切换）')
+    return
+  }
+  const sectionIds = (target.pinned ? pinnedGroup.value : normalGroup.value).map(x => x.id)
+  const fi = sectionIds.indexOf(dragProjId)
+  const ti = sectionIds.indexOf(target.id)
+  if (fi < 0 || ti < 0) { dragProjId = null; return }
+  sectionIds.splice(ti, 0, sectionIds.splice(fi, 1)[0]!)
+  sectionIds.forEach((id, i) => {
+    const x = allProjects().find(v => v.id === id)
+    if (x) x.order = i
+  })
+  store.persist()
+  dragProjId = null
+  showToast('✓ 已调整排序')
+}
 function goalOf(p: Project): Direction | null {
   for (const dir of d.value.compass.directions) {
     if (dir.projects.some(x => x.id === p.id)) return dir
   }
   return null
-}
-function projectTasksCount(p: Project): number {
-  return d.value.tasks.filter(t => !t.deletedAt && t.projectId === p.id).length
 }
 /** 14 天无任务更新视为停滞 */
 function isStalled(p: Project): boolean {
@@ -279,6 +364,8 @@ function goTreeLocated() {
 /** R54-A4：Esc = 返回上级（抽屉/弹层打开时让位其自关） */
 function onPageEsc(e: KeyboardEvent) {
   if (e.key !== 'Escape') return
+  // R117（04-61 C）：一级内嵌态没有「上级」可回——Esc 让位抽屉/弹层后不再跳转
+  if (props.embedded) return
   if (document.querySelector('.task-sidebar, .overlay, .modal-mask')) return
   e.preventDefault()
   goBack()
@@ -290,13 +377,53 @@ watch(() => route.query.p, (pid) => {
   const p = projects.value.find(x => x.id === pid)
   if (p) { currentProject.value = p; currentDir = goalOf(p) }
 }, { immediate: true })
+// R117（04-61 C）：无有效 `?p` 时一律默认落在第一个项目（拍板「项目详情直接提出为一级」）——
+// 内嵌态与聚焦态同口径：项目详情永远有项目，不再经「项目选择墙」（与左栏目录重复，已退役）。
+// ⚠ 只落内存、不写 URL：避免在 setup 期发起导航（组件由路由渲染时 replace 有竞态）；
+//   用户主动切换项目时仍由 openProject 写 `?p`，深链 / 前进后退口径不变。
+const pid0 = typeof route.query.p === 'string' ? route.query.p : ''
+if (!(pid0 && projects.value.some(x => x.id === pid0)) && projects.value.length) {
+  currentProject.value = projects.value[0]!
+  currentDir = goalOf(currentProject.value)
+}
 
 function renameProject(e: FocusEvent) {
+  editingProjId.value = null
   const v = (e.target as HTMLElement).textContent?.trim()
   if (v && currentProject.value) { currentProject.value.name = v; store.persist() }
   else if (currentProject.value) { (e.target as HTMLElement).textContent = currentProject.value.name }
 }
 function onNameEnter(e: KeyboardEvent) { (e.target as HTMLElement).blur() }
+
+/**
+ * R117（04-61 C）：项目级删除入口随「项目总览」退役一并迁到项目详情——口径 1:1 沿用原 CompassShell.removeProject：
+ * **摘除式**：其下任务转「未归档任务」（不删除、可重新关联），指标随项目移除，不进回收站（D1 拍板口径）。
+ */
+async function removeProject(p: Project) {
+  const taskCount = d.value.tasks.filter(t => !t.deletedAt && t.projectId === p.id).length
+  const ok = await useConfirm({
+    title: '删除项目',
+    message: taskCount ? `确定删除「${p.name}」？\n其下 ${taskCount} 个任务将转为「未归档任务」（不删除，可重新关联），${p.metrics.length} 个成功指标随项目移除。` : `确定删除「${p.name}」？`,
+    confirmText: '确认删除',
+    danger: true
+  })
+  if (!ok) return
+  const metricIds = new Set(p.metrics.map(m => m.id))
+  for (const t of d.value.tasks) {
+    if (t.projectId === p.id) { t.projectId = undefined; t.metricId = undefined; t.updatedAt = Date.now() }
+    else if (t.metricId && metricIds.has(t.metricId)) { t.metricId = undefined; t.updatedAt = Date.now() }
+  }
+  for (const dir of d.value.compass.directions) {
+    const idx = dir.projects.findIndex(x => x.id === p.id)
+    if (idx >= 0) { dir.projects.splice(idx, 1); break }
+  }
+  store.persist()
+  showToast(`已删除「${p.name}」` + (taskCount ? `，${taskCount} 个任务转为未归档` : ''))
+  // 删的若正是当前项目 → 顺落到下一个；没有别的项目则清空（内嵌态回选择墙 / 聚焦态回项目列表）
+  const next = projects.value.find(x => x.id !== p.id)
+  if (next) openProject(next)
+  else { currentProject.value = null; currentDir = null; router.replace({ path: route.path, query: {} }) }
+}
 
 /* ---- 指标/任务操作 ---- */
 /** 第卅三轮 REQ-016：添加任务双模式（新建 / 关联）→ 共享抽屉 TaskAddDrawer */
@@ -414,28 +541,26 @@ function addTaskFromHeader() {
 </script>
 
 <template>
-  <div class="page">
-    <div class="page-head">
+  <div class="page" :class="{ 'is-embedded': embedded }">
+    <!-- 聚焦态深链（/compass/projects）页头；R117 起本视图主要是方向台一级的内嵌体，
+         内嵌态由宿主页头（方向台 · 主航线与项目详情）代替，不再重复一层面包屑与返回按钮 -->
+    <div v-if="!embedded" class="page-head">
       <div class="crumb"><span class="crumb-up" title="返回方向台" @click="router.push('/compass')">方向台</span><span class="crumb-sep"> / </span><b>项目详情</b><span v-if="currentProject"> · {{ currentProject.name }}</span></div>
       <div class="spacer" />
       <!-- R59-T1：返回按钮恒为方向台（旧来源感知分支已退役） -->
       <button class="mini-btn" @click="goBack">← 返回方向台</button>
       <div class="hint-chip">任务可拖拽排序 / 跨指标归属 · 点击任务开详情</div>
     </div>
+    <!-- 内嵌态（方向台一级）轻量小节头——只交代此处是什么，项目切换与项目目录都在左栏 -->
+    <div v-else class="pd-head">
+      <span class="pd-title">📦 项目详情</span>
+      <span class="pd-sub">左栏「全部项目」切换项目 · 「项目目录」跳指标 / 任务 · 单击任务开详情</span>
+    </div>
 
-    <!-- ===== 项目选择（无 ?p 时的落地视图；全景墙管理已由方向台·项目总览承接） ===== -->
-    <div v-if="!currentProject">
-      <div class="sel-grid">
-        <div v-for="p in projects" :key="p.id" class="sel-item" @click="openProject(p)">
-          <div class="sel-name">{{ p.name }}<span v-if="p.isFocused" class="tag accent">🎯 主攻</span></div>
-          <div class="sel-goal">{{ goalOf(p)?.name || '—' }}</div>
-          <div class="sel-meta">🎯 {{ p.metrics.length }} · 📋 {{ projectTasksCount(p) }} · {{ projectProgress(p).pct }}%</div>
-        </div>
-        <div class="wall-add" @click="openCreateProject">
-          <span style="font-size:20px">＋</span><span>新建 / 规划项目</span>
-        </div>
-      </div>
-      <div v-if="!projects.length" class="empty-state">点击上方「新建 / 规划项目」，选择战略目标后开始</div>
+    <!-- ===== 零项目兜底（R117：原「项目选择墙」退役——无 ?p 时一律默认落在第一个项目，
+         选择墙与左栏「📦 全部项目」功能重复；此处只保留真·零项目时的新建引导） ===== -->
+    <div v-if="!currentProject" class="empty-state">
+      还没有项目——<span class="empty-act" @click="openCreateProject">新建 / 规划项目</span>：选择战略目标后开始
     </div>
 
     <!-- ===== 单项目全屏展板 ===== -->
@@ -444,12 +569,32 @@ function addTaskFromHeader() {
          ｜ R67-F5：栏体宽/高可拖拽（右缘调宽、底缘调高），右侧展板自适应重排 -->
     <aside class="proj-rail" :style="railStyle">
       <div class="pr-col pr-projects">
-        <div class="pt-title">📦 全部项目</div>
-        <div v-for="p in projects.slice().sort((a,b)=>(a.order||0)-(b.order||0))" :key="p.id"
-          class="pt-item" :class="{active: currentProject.id === p.id}" @click="openProject(p)">
+        <!-- R117（04-61 C）承接「项目总览」退役的能力：置顶分组 + 组内拖拽排序 + 跨区拖拽自动切换 pinned
+             （拖动中由 css `.dragging` / `.drag-over` 给反馈；编辑名中禁拖，见 editingProjId） -->
+        <template v-if="pinnedGroup.length">
+          <div class="pt-sec-label">📌 已置顶 <span>{{ pinnedGroup.length }}</span></div>
+          <div v-for="p in pinnedGroup" :key="p.id" class="pt-item"
+            :class="{ active: currentProject.id === p.id, archived: p.status === 'archived' }"
+            :draggable="editingProjId !== p.id" @click="openProject(p)"
+            @dragstart="onProjDragStart($event, p)" @dragend="onProjDragEnd"
+            @dragover.prevent="onProjDragOver($event, p)" @dragleave="onProjDragLeave" @drop="onProjDrop($event, p)">
+            <span class="pt-name">{{ p.name }}</span>
+            <span class="pt-pct">{{ projectProgress(p).pct }}%</span>
+            <button class="pt-pin on" title="取消置顶" @click.stop="togglePin(p)">📌</button>
+          </div>
+        </template>
+        <div class="pt-sec-label" :style="pinnedGroup.length ? '' : 'margin-top:0'">📦 全部项目 <span>{{ normalGroup.length }}</span></div>
+        <div v-for="p in normalGroup" :key="p.id" class="pt-item"
+          :class="{ active: currentProject.id === p.id, archived: p.status === 'archived' }"
+          :draggable="editingProjId !== p.id" @click="openProject(p)"
+          @dragstart="onProjDragStart($event, p)" @dragend="onProjDragEnd"
+          @dragover.prevent="onProjDragOver($event, p)" @dragleave="onProjDragLeave" @drop="onProjDrop($event, p)">
           <span class="pt-name">{{ p.name }}</span>
           <span class="pt-pct">{{ projectProgress(p).pct }}%</span>
+          <button class="pt-pin" title="置顶" @click.stop="togglePin(p)">📌</button>
         </div>
+        <!-- R117（04-61 C）：新建项目入口随「项目总览」退役一并迁到项目目录栏（原为总览头部「＋ 新建项目」） -->
+        <button class="pt-add" @click="openCreateProject">＋ 新建项目</button>
       </div>
       <div class="pr-col pr-tree">
         <div class="pt-title">📐 项目目录</div>
@@ -503,6 +648,8 @@ function addTaskFromHeader() {
         <button class="mini-btn" @click="startHeaderAddMetric">🎯 添加成功指标</button>
         <button class="mini-btn primary" @click="addTaskFromHeader">＋ 添加任务</button>
         <button class="mini-btn" @click="goTreeLocated">🌳 完整方向树</button>
+        <!-- R117（04-61 C）：项目级删除入口随「项目总览」退役一并迁到此处（摘除式，任务转未归档） -->
+        <button class="mini-btn danger" @click="removeProject(currentProject)">🗑 删除项目</button>
       </div>
       <!-- R52-F6：成功指标名输入行 -->
       <div v-if="headerMetricAdding" class="metric-add-row">
@@ -540,7 +687,7 @@ function addTaskFromHeader() {
       <!-- 项目 Hero -->
       <div class="hero">
         <div class="hero-top">
-          <div class="hero-pname" contenteditable="true" spellcheck="false" @blur="renameProject" @keydown.enter.prevent="onNameEnter">{{ currentProject.name }}</div>
+          <div class="hero-pname" contenteditable="true" spellcheck="false" @focus="editingProjId = currentProject?.id ?? null" @blur="renameProject" @keydown.enter.prevent="onNameEnter">{{ currentProject.name }}</div>
           <span v-if="currentProject.startDate || currentProject.endDate" class="tag info">⏱ {{ currentProject.startDate || '—' }} → {{ currentProject.endDate || '—' }}</span>
           <span class="tag" :class="isStalled(currentProject) ? 'warn' : 'ok'">{{ isStalled(currentProject) ? '⚠ 存在停滞' : '● 推进中' }}</span>
           <button class="pin-toggle" :class="{on: currentProject.isFocused}" @click="toggleFocus(currentProject)">🎯 {{ currentProject.isFocused ? '主攻中' : '设为主攻' }}</button>
@@ -675,6 +822,8 @@ function addTaskFromHeader() {
 
 <style scoped>
 .page { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
+/* R117（04-61 C）：内嵌于方向台一级时去掉自身页边距与宽度上限，避免与宿主 .page 双层缩进 */
+.page.is-embedded { max-width: none; margin: 0; padding: 0; }
 .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-left: 22px; }
 .page-head .crumb { font-size: 12.5px; color: var(--text-2); }
 .page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
@@ -685,39 +834,15 @@ function addTaskFromHeader() {
 .page-head .crumb .crumb-sep { color: var(--text-4); }
 .page-head .spacer { flex: 1; }
 .hint-chip { font-size: 10.5px; color: var(--text-3); background: var(--surface); border: 1px dashed var(--border-strong); padding: 3px 10px; border-radius: 99px; }
+/* R117（04-61 C）：内嵌态轻量小节头——项目切换与目录都在左栏，此处只交代「这是什么」 */
+.pd-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; padding-left: 22px; flex-wrap: wrap; }
+.pd-title { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: .2px; }
+.pd-sub { font-size: 11px; color: var(--text-3); }
 
-.section-label { font-size: 12px; font-weight: 600; color: var(--text-2); margin: 4px 0 12px; }
-.section-label .sl-count { font-size: 10px; color: var(--text-3); font-weight: 500; }
-.wall-section { margin-bottom: 8px; }
-.wall-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin-bottom: 16px; }
-.pcard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; gap: 10px; }
-.pcard:hover { border-color: var(--border-strong); background: var(--surface-2); }
-.pcard.dragging { opacity: .4; }
-.ptop { display: flex; align-items: center; gap: 8px; }
-.pname { font-size: 15px; font-weight: 700; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pin-btn { width: 26px; height: 26px; border: none; border-radius: 6px; background: transparent; cursor: pointer; font-size: 13px; color: var(--text-4); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s; }
-.pin-btn:hover { background: var(--surface-3); }
-.pin-btn.on { color: var(--accent); background: var(--accent-light); }
-.chain { font-size: 10.5px; color: var(--text-3); display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; }
-.chain b { color: var(--text-2); font-weight: 500; }
-.chain .sep { color: var(--text-4); }
-.mrows { display: flex; flex-direction: column; gap: 7px; }
-.mrow { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-2); }
-.mrow .mn { width: 118px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
-.mrow .bar { flex: 1; }
-.mrow .pct { width: 34px; text-align: right; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; }
-.pfoot { display: flex; align-items: center; gap: 8px; border-top: 1px dashed var(--border); padding-top: 10px; margin-top: 2px; font-size: 10.5px; color: var(--text-3); }
-.pfoot .enter { margin-left: auto; color: var(--accent); font-weight: 600; opacity: 0; transition: opacity .15s; }
-.pcard:hover .pfoot .enter { opacity: 1; }
-.wall-add { border: 1.5px dashed var(--border-strong); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; min-height: 130px; cursor: pointer; color: var(--text-3); font-size: 12.5px; transition: all .15s; flex-direction: column; gap: 6px; }
-.wall-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-/* R49-D：项目选择列表（无 ?p 落地视图） */
-.sel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
-.sel-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 7px; }
-.sel-item:hover { border-color: var(--border-strong); background: var(--surface-2); transform: translateY(-1px); }
-.sel-name { font-size: 14px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.sel-goal { font-size: 11px; color: var(--text-3); }
-.sel-meta { font-size: 11px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* R117（04-61 C）：原「项目总览」的选择墙 / 项目卡（.section-label·.wall-section·.wall-grid·.pcard·
+   .ptop·.pname·.pin-btn·.chain·.mrows·.mrow·.pfoot）随模块退役整块删除——置顶/拖拽/新建能力已迁到
+   左栏「全部项目」列（见下方 .pt-sec-label / .pt-pin / .pt-item.dragging|.drag-over）。 */
+
 /* R49-D2：归属链可点击 */
 .ch-node.clickable { cursor: pointer; border-radius: 8px; padding: 3px 6px; margin: -3px -6px; transition: background .12s; }
 .ch-node.clickable:hover { background: var(--surface-2); }
@@ -728,6 +853,8 @@ function addTaskFromHeader() {
 .asset-row { cursor: pointer; }
 .empty-asset { text-align: center; padding: 16px; font-size: 11.5px; color: var(--text-4); }
 .empty-state { text-align: center; padding: 48px 20px; color: var(--text-3); font-size: 13px; }
+/* R117（04-61 C）：零项目兜底里的可点动作 */
+.empty-act { color: var(--accent); cursor: pointer; text-decoration: underline; }
 
 /* 展板 */
 .board-layout { display: flex; gap: 16px; align-items: flex-start; }
@@ -750,8 +877,20 @@ body.rail-resizing.rail-h { cursor: row-resize; }
 .pt-item:hover { background: var(--surface-3); }
 .pt-item.active { background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
 .pt-item.active .pt-name { color: var(--accent); font-weight: 600; }
+/* R117（04-61 C）承接「项目总览」的置顶分组 / 拖拽（样式口径沿用原 .ov-section 标签 + .ov-card-item 拖拽态） */
+.pt-sec-label { display: flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .3px; padding: 2px 8px 6px; }
+.pt-sec-label span { font-weight: 500; color: var(--text-4); }
+.pt-item.dragging { opacity: .4; }
+.pt-item.drag-over { border-color: var(--accent); background: var(--accent-light); }
+.pt-item.archived .pt-name { text-decoration: line-through; color: var(--text-4); }
+.pt-pin { margin-left: auto; border: none; background: transparent; color: var(--text-4); font-size: 10px; line-height: 1; padding: 2px; cursor: pointer; opacity: .3; transition: opacity .12s; flex-shrink: 0; }
+.pt-item:hover .pt-pin { opacity: .75; }
+.pt-pin.on { opacity: 1; }
 .pt-name { flex: 1; min-width: 0; font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pt-pct { font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+/* R117（04-61 C）：目录栏底部「＋ 新建项目」——原项目总览头部入口的落点 */
+.pt-add { width: 100%; margin-top: 8px; padding: 7px 9px; border-radius: 8px; border: 1px dashed var(--border-strong); background: transparent; color: var(--text-3); font-family: inherit; font-size: 11.5px; cursor: pointer; transition: all .15s; }
+.pt-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 /* 第二列 · 项目目录树 */
 .prt-root { display: flex; align-items: center; gap: 6px; padding: 7px 9px; margin-bottom: 4px; background: var(--accent-light); border-radius: 8px; }
 .prt-root-name { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 700; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

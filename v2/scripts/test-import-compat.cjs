@@ -85,7 +85,7 @@ async function main() {
     `dirs=${merged?.compass?.directions?.length} ws=${merged?.workspaces?.length} tasks=${merged?.tasks?.length}`)
 
   // 验证 2：新字段缺省兼容（pinned/order 缺省不炸，渲染正常）
-  report('K2 新字段缺省兼容（pinned/order 缺省，项目总览正常渲染）',
+  report('K2 新字段缺省兼容（pinned/order 缺省，项目列表正常渲染）',
     !!proj && proj.pinned === undefined && proj.order === undefined,
     `pinned=${proj && proj.pinned} order=${proj && proj.order}`)
 
@@ -97,16 +97,16 @@ async function main() {
   const errBoundary = await page.locator('.render-error').first().isVisible().catch(() => false)
   report('K4 调度台首页正常渲染（无渲染错误兜底）', recStrip && !errBoundary, `recStrip=${recStrip} error=${errBoundary}`)
 
-  // 验证 4：方向台项目总览可见 K 项目（缺省字段渲染不炸）
+  // 验证 4：方向台「项目详情一级」左栏项目切换器可见 K 项目（R117：项目总览退役，切换器改 .pt-item）
   await page.goto(base + '#/compass', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
   const dbg = {
     err: await page.locator('.render-error').first().isVisible().catch(() => false),
-    ov: await page.locator('.ov-card-item').count(),
-    ovText: (await page.locator('.ov-card-item').first().textContent().catch(() => '')).slice(0, 80)
+    ov: await page.locator('.pt-item').count(),
+    ovText: (await page.locator('.pt-item').first().textContent().catch(() => '')).slice(0, 80)
   }
   console.log('[debug]', JSON.stringify(dbg))
-  report('K3 方向台项目总览正常渲染旧数据项目', dbg.ov >= 1 && dbg.ovText.includes('K 兼容项目'), dbg.ovText)
+  report('K3 方向台项目详情左栏正常渲染旧数据项目', !dbg.err && dbg.ov >= 1 && dbg.ovText.includes('K 兼容项目'), dbg.ovText)
 
   await ctx.close()
   fs.unlinkSync(importPath)

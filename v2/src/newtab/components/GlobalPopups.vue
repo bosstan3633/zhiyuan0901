@@ -90,7 +90,7 @@
           <div v-for="item in grp.items" :key="item.id"
             class="gp-result-item" :class="{selected: item.id===selectedId}"
             @click="selectItem(item)" @dblclick="selectItem(item)" @mouseenter="selectHover(item)"
-            :title="'单击 → 打开链接（无链接则定位） · Ctrl+Enter → 定位并打开详情'">
+            :title="'单击 → 定位到卡片所在处并高亮 · ↗ → 打开链接 · Ctrl+Enter → 定位并打开详情'">
             <div class="gp-ri-icon" :class="item.iconClass">{{ item.iconText }}</div>
             <div class="gp-ri-main">
               <div class="gp-ri-title" v-html="hlTitle(item.title)"></div>
@@ -108,12 +108,12 @@
             <template v-if="item.type==='res'">
               <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)">⭐</button>
               <button class="gp-ri-act del" title="删除" @click.stop="deleteItem(item)">🗑</button>
-              <button class="gp-ri-act go" title="打开链接" @click.stop="openItem(item)">↗</button>
+              <button class="gp-ri-act go" title="打开链接（外开浏览器）" @click.stop="openResLink(item)">↗</button>
             </template>
             <template v-else-if="item.type==='task'">
               <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)">⭐</button>
               <button class="gp-ri-act del" title="删除" @click.stop="deleteItem(item)">🗑</button>
-              <button class="gp-ri-act go" title="跳转任务中心" @click.stop="openItem(item)">↗</button>
+              <button class="gp-ri-act go" title="定位到任务卡片" @click.stop="openItem(item)">↗</button>
             </template>
             <template v-else-if="item.type==='curio'">
               <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)">⭐</button>
@@ -124,7 +124,7 @@
                   <div class="gp-convert-menu-item" @click="convertCurio(item, 'task')">✅ 转化为任务卡</div>
                 </div>
               </div>
-              <button class="gp-ri-act go" title="跳转方向台" @click.stop="openItem(item)">↗</button>
+              <button class="gp-ri-act go" title="定位到好奇心卡片" @click.stop="openItem(item)">↗</button>
             </template>
           </div>
           </div><!-- /gp-result-item -->
@@ -134,7 +134,7 @@
       </div>
       <div class="gp-panel-foot">
         <span><kbd>↑↓</kbd> 选择</span>
-        <span><kbd>⏎</kbd> 打开</span>
+        <span><kbd>⏎</kbd> 定位</span>
         <span><kbd>Tab</kbd> 过滤类型</span>
         <span><kbd>Esc</kbd> 关闭</span>
         <span class="gp-foot-brand">知源调度台 · 万千可调用，自有我方向</span>
@@ -189,7 +189,7 @@
               <label class="gp-field-label">分类</label>
               <select class="gp-status-select" v-model="capForm.categoryId">
                 <option value="">📥 待分类</option>
-                <option v-for="cat in capCategories" :key="cat.id" :value="cat.id">📂 {{ cat.name }}</option>
+                <option v-for="cat in capCategories" :key="cat.id" :value="cat.id">📂 {{ cat.label }}</option>
               </select>
             </div>
           </div>
@@ -354,6 +354,7 @@ import { emitOpenDrawer } from '@/shared/utils/bus'
 import Icon from '@/shared/components/Icon.vue'
 import type { ResourceCard, TaskCard, CuriosityCard, Workspace, Category, AnyCard } from '@/shared/models'
 import { markRank } from '@/shared/utils/marksort'
+import { buildCatOptions } from '@/shared/utils/catTree'
 
 const router = useRouter()
 const store = useAppStore()
@@ -646,19 +647,39 @@ function locateCat(wsId: string, cat: { id: string; name: string }) {
 }
 
 /**
- * R110-LC（T3）：检索命中判据（R58-B4 字段同构 + V2.21 拼音补跑）——默认结果集与归档提示计数共用同一实现。
- * 抽出的原因：归档卡被排除出默认结果集后，仍要能回答「另有 N 张归档卡也匹配」，两处必须同口径。
+ * R117（04-61 F6）：检索归一化 —— 字符级精确匹配不再是唯一判据。
+ * 归一化链：NFKC（全角→半角）+ 去零宽/BOM + 小写 + **去空白与常见分隔符**（空格 - _ / \ . · 、 |）。
+ * 收益：「db skill」≡「dbskill」≡「DB_Skill」≡「ｄｂｓｋｉｌｌ」等价命中——对应反馈
+ * 「关键词一样但中间有空格也要检索出来」。归一化只放宽**召回**，排序仍按命中强度分级。
+ */
+function normKey(s: string): string {
+  return String(s ?? '')
+    .normalize('NFKC')
+    .replace(/[\u200b-\u200d\ufeff]/g, '')
+    .toLowerCase()
+    .replace(/[\s\-_/\\.,·、|]+/g, '')
+}
+/** 命中字段拼接（R58-B4 两端同构：搜索面板与网页浮层一致；raw 为原始卡） */
+function blobOf(r: SearchResult): string {
+  const rawTags = Array.isArray((r.raw as { tags?: string[] })?.tags) ? ((r.raw as { tags?: string[] }).tags as string[]).join(' ') : ''
+  return r.title + ' ' + r.ws + ' ' + r.cat + ' ' + (r.summary || '') + ' ' + (r.link?.text || '') + ' ' + rawTags
+}
+/**
+ * R110-LC（T3）：检索命中判据——默认结果集与归档提示计数共用同一实现（两处必须同口径）。
+ * R117（04-61 F6）两层判据：
+ *   ① 整串归一命中（最强）：「db skill」→ nq="dbskill"，字段归一后含之即命中；
+ *   ② 分词 AND 命中（原语义）+ 每词归一兜底 + 拼音（V2.21 懒加载就绪后自动补跑）。
  */
 function hitResult(r: SearchResult, parts: string[]): boolean {
   if (!parts.length) return true
-  // R58-B4：命中字段两端同构——补标签（与网页浮层一致；raw 为原始卡）
-  const rawTags = Array.isArray((r.raw as { tags?: string[] })?.tags) ? ((r.raw as { tags?: string[] }).tags as string[]).join(' ') : ''
-  const blob = (r.title + ' ' + r.ws + ' ' + r.cat + ' ' + (r.summary||'') + ' ' + (r.link?.text||'') + ' ' + rawTags).toLowerCase()
-  // 第十九轮：支持拼音/首字母命中中文标题（如 sj → 设计…）
-  // V2.21：先读 pinyinReady 建立响应式依赖——字典未就绪时短路，纯文本匹配照常；
-  //        字典到位后 pinyinReady 翻转，本 computed 自动重算，拼音命中无缝补入。
+  const blob = blobOf(r).toLowerCase()
+  const nb = normKey(blob)
+  // ① 整串归一：允许用户输入的词间空格/分隔符与数据不一致
+  const nq = parts.join('')
+  if (nq && nb.includes(nq)) return true
+  // ② 分词 AND：每词「原文子串 或 归一子串」命中；中文标题另有拼音通道
   const pinyinOn = pinyinReady.value
-  return parts.every(p => blob.includes(p) || (pinyinOn && matchPinyin(r.title, p)))
+  return parts.every(p => blob.includes(p) || (!!normKey(p) && nb.includes(normKey(p))) || (pinyinOn && matchPinyin(r.title, p)))
 }
 const filteredResults = computed<SearchResult[]>(() => {
   // R110-LC（T3）：归档卡从默认检索结果消失（只在「另有 N 张」提示里报数）
@@ -667,14 +688,12 @@ const filteredResults = computed<SearchResult[]>(() => {
   const q = searchQuery.value.trim().toLowerCase()
   const parts = q ? q.split(/\s+/) : []
   if (q) list = list.filter(r => hitResult(r, parts))
-  // 第卅三轮 REQ-020：置顶 > 星标 ｜ R58-O1：同权重三级兜底——标题全词命中 > 调用热度 > 最近调出（召回排序与「三秒调度」心智对齐）
-  const lowTitle = (x: SearchResult) => x.title.toLowerCase()
-  const titleHit = (x: SearchResult) => parts.every(p => lowTitle(x).includes(p) || (pinyinReady.value && matchPinyin(x.title, p)))
+  // 第卅三轮 REQ-020：置顶 > 星标 ｜ R58-O1 + R117（F6）：命中强度分级 > 调用热度 > 最近调出
   list = [...list].sort((a, b) => {
     const mr = markRank(b.raw as AnyCard) - markRank(a.raw as AnyCard)
     if (mr) return mr
     if (parts.length) {
-      const th = (titleHit(b) ? 1 : 0) - (titleHit(a) ? 1 : 0)
+      const th = hitRank(b, parts) - hitRank(a, parts)
       if (th) return th
     }
     const dc = (((b.raw as AnyCard).callCount || 0) - ((a.raw as AnyCard).callCount || 0))
@@ -683,6 +702,20 @@ const filteredResults = computed<SearchResult[]>(() => {
   })
   return list
 })
+/**
+ * R117（04-61 F6）：命中强度分级（只影响排序，不决定是否命中）
+ * 2 = 标题整串归一命中（正是用户要找的）· 1 = 标题分词/拼音命中 · 0 = 仅字段/摘要命中
+ */
+function hitRank(x: SearchResult, parts: string[]): number {
+  if (!parts.length) return 0
+  const title = x.title.toLowerCase()
+  const nt = normKey(x.title)
+  const nq = parts.join('')
+  if (nq && nt.includes(nq)) return 2
+  const pinyinOn = pinyinReady.value
+  if (parts.every(p => title.includes(p) || (!!normKey(p) && nt.includes(normKey(p))) || (pinyinOn && matchPinyin(x.title, p)))) return 1
+  return 0
+}
 
 /**
  * R110-LC（T3）：归档卡命中数——归档卡已从默认结果集排除，这里用**同一命中判据**报「另有 N 张」。
@@ -793,19 +826,20 @@ function runFlatLocator(index: number) {
   const item = it.item
   if (item.type === 'res') {
     const r = item.raw as ResourceCard
-    router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: item.id } })
+    // R117（04-61 B）：hk 显式分派（定位/高亮的消费者按 kind 认领）
+    router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: item.id, hk: 'res' } })
     closeAll()
     emitOpenDrawer({ kind: 'res', id: item.id })
     return
   }
   if (item.type === 'task') {
-    router.push({ path: '/', query: { hl: item.id } })
+    router.push({ path: '/', query: { hl: item.id, hk: 'task' } })
     closeAll()
     emitOpenDrawer({ kind: 'task', id: item.id })
     return
   }
   if (item.type === 'curio') {
-    router.push({ path: '/', query: { hl: item.id } })
+    router.push({ path: '/', query: { hl: item.id, hk: 'curio' } })
     closeAll()
     emitOpenDrawer({ kind: 'curio', id: item.id })
     return
@@ -898,31 +932,39 @@ function openItem(item: SearchResult) {
   }
   if (item.type === 'res') {
     const r = item.raw as ResourceCard
-    // 第卅二轮 REQ-009 统一打开规则：有链接（URL/本地文件/Obsidian）→ 直接打开；无链接 → 定位到所在资源台并高亮
-    const url = toOpenableUrl(r.linkType, r.link)
-    if (url) {
-      recordResourceOpen(d.value, r)
-      store.persist()
-      openExternalLink(url)
-    } else if (r.link) {
-      // 有链接值但不可打开（本地文件仅文件名）→ 跳资源台定位，提示补全
-      showToast('⚠ 本地文件缺少完整路径，请到资源台补全')
-      router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: r.id } })
-    } else {
-      router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: r.id } })
-      showToast('↗ 已定位到卡片所在资源台')
-    }
+    // R117（04-61 B · 拍板反转）：单击 = **定位到该卡在资源台的位置并高亮**。
+    // 旧行为「有链接直接外开浏览器」与「先定位到卡片所在处」的诉求相反，已废——
+    // 外开降级为行内「↗ 打开链接」按钮（openResLink）与 Ctrl+Enter 定位后开详情。
+    const openable = !!toOpenableUrl(r.linkType, r.link)
+    router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: r.id, hk: 'res' } })
+    if (!openable && r.link) showToast('⚠ 本地文件缺少完整路径，已定位到卡片')
+    else showToast('↗ 已定位到卡片所在资源台')
   } else if (item.type === 'task') {
     recordCardOpen(d.value, d.value.tasks.find(t => t.id === item.id))
     store.persist()
-    router.push({ path: '/', query: { hl: item.id } })
-    showToast('↗ 已定位到调度台的任务')
+    // R117（04-61 B）：hk 显式分派——调度台同时挂着任务卡与好奇心卡两个 hl 消费者
+    router.push({ path: '/', query: { hl: item.id, hk: 'task' } })
+    showToast('↗ 已定位到任务卡片')
   } else {
     recordCardOpen(d.value, d.value.curiosities.find(c => c.id === item.id))
     store.persist()
-    router.push({ path: '/', query: { hl: item.id } })
-    showToast('↗ 已定位到调度台好奇心')
+    router.push({ path: '/', query: { hl: item.id, hk: 'curio' } })
+    showToast('↗ 已定位到好奇心卡片')
   }
+  closeAll()
+}
+
+/**
+ * R117（04-61 B）：搜索结果行内「↗ 打开链接」——把旧默认行为（外开）显式化为按钮。
+ * 无链接/链接不可打开时降级为定位（等价单击）。
+ */
+function openResLink(item: SearchResult) {
+  const r = item.raw as ResourceCard
+  const url = toOpenableUrl(r.linkType, r.link)
+  if (!url) { openItem(item); return }
+  recordResourceOpen(d.value, r)
+  store.persist()
+  openExternalLink(url)
   closeAll()
 }
 
@@ -992,9 +1034,10 @@ const SHORTCUT_GROUPS = [
     { keys: 'Ctrl+Shift+K', desc: '打开调度台' },
   ]},
   { title: '应用内', items: [
-    { keys: 'Alt+1', desc: '方向台（修饰键可自定义）' },
-    { keys: 'Alt+2', desc: '资源台' },
-    { keys: 'Alt+3…9', desc: '各策展台（按台签顺序）' },
+    { keys: 'Alt+1', desc: '调度台（修饰键可自定义）' },
+    { keys: 'Alt+2', desc: '方向台' },
+    { keys: 'Alt+3', desc: '资源台' },
+    { keys: 'Alt+4…9', desc: '各策展台（按台签顺序）' },
     { keys: '?', desc: '呼出本速查' },
   ]},
   { title: '编辑与导航', items: [
@@ -1024,7 +1067,9 @@ function defaultCaptureWsId(): string {
   const hub = d.value.workspaces.find(w => w.id === CURATION_WS_ID && !w.archived)
   return hub?.id || userWorkspaces.value[0]?.id || ''
 }
-const capCategories = computed(() => d.value.categories.filter(c => c.workspaceId === capForm.workspaceId))
+// R117（04-61 A）：分类口径统一——过滤软删（原实现漏 deletedAt，软删分类成为下拉「幽灵项」）
+// 且与资源台同视觉（buildCatOptions 层级缩进 label）
+const capCategories = computed(() => buildCatOptions(d.value.categories.filter(c => c.workspaceId === capForm.workspaceId)))
 
 // ===== R55-C：快速采集任务（四字段全非必填，直存全域任务；未挂项目=未归档） =====
 const tcForm = reactive({ title: '', description: '', projectId: '', metricId: '' })
@@ -1059,7 +1104,8 @@ function saveTaskCapture() {
 function tcOpenBoard() {
   resetTcForm()
   closeAll()
-  router.push({ path: '/compass', query: { zone: 'task' } })
+  // R117（04-61 C1）：任务调度面板已迁调度台底部 tab ⇒ 改走 ?bottom=task（原 /compass?zone=task 失效）
+  router.push({ path: '/', query: { bottom: 'task' } })
 }
 function resetTcForm() {
   tcForm.title = ''; tcForm.description = ''; tcForm.projectId = ''; tcForm.metricId = ''

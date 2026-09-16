@@ -274,12 +274,20 @@
 .res-row.selected { background: var(--accent-light); }
 .res-row.pinned { border-left: 3px solid var(--accent); }
 .rr-drag { color: var(--text-3); font-size: 12px; cursor: grab; flex-shrink: 0; }
+/* R117（04-61 F1）：列表行内勾选框。原实现复用卡片专用的 .rc-batch-check —— 那条规则是
+   `position:absolute`，参照物只有 .res-card 才有的 `position:relative`；列表行 .res-row 没有定位
+   上下文，勾选框逃逸到页级锚点、全部叠在首行标题上（批量态下 ⋮⋮ 占位又被 v-if 移除，标题顶到
+   16px 处，加重重叠）。改为行内 flex 项（与 .rr-drag 同位同宽），重叠根因消除。 */
+.rr-check { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-strong); background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 11px; color: #fff; flex-shrink: 0; cursor: pointer; transition: all .12s; }
+.rr-check.on { background: var(--accent); border-color: var(--accent); }
 .rr-title { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .res-row.pinned .rr-title { font-weight: 600; }
 .rr-f { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rr-assets { flex-shrink: 0; display: inline-flex; margin-left: 2px; }
-.rr-actions { display: flex; gap: 2px; flex-shrink: 0; opacity: 0; transition: opacity .15s; }
-.res-row:hover .rr-actions { opacity: 1; }
+/* R117（04-61 F2 拍板：列表行操作入口「常态常显」）：原 opacity:0 只在 hover 显现，
+   用户感知为「列表视图没有删除入口」；改为常态 60% 可见（兼顾极简视觉），hover / 批量选中态全亮。 */
+.rr-actions { display: flex; gap: 2px; flex-shrink: 0; opacity: .6; transition: opacity .15s; }
+.res-row:hover .rr-actions, .res-row.selected .rr-actions { opacity: 1; }
 .rr-action { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: 12px; color: var(--text-3); cursor: pointer; transition: all .1s; }
 .rr-action:hover { background: var(--surface-3); color: var(--text); }
 .rr-action.delete:hover { color: var(--danger); }

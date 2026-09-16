@@ -135,6 +135,9 @@ export interface CardBase {
   lifecycleArchived?: boolean
   /** R113-T9：「忽略 30d」独立字段（可选，零迁移）——到期前生命周期恒活跃；不碰 lastCalledAt/updatedAt，热度排序与 WRR 统计零污染 */
   snoozedUntil?: number
+  /** R117（04-61 E）：per-card 自定义「冷却天数」（可选，零迁移；留空 = 默认 30 天）。
+   *  用户只填这一个值，归档阈值由引擎按 ARCHIVE_RATIO 自动推算（默认 30:90）。三类卡共用。 */
+  coolingDays?: number
 }
 
 /** 资源卡（向源头求证） */

@@ -17,6 +17,8 @@ import { showToast } from '@/shared/components/toast'
 import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
+// R117（04-61 C3）：当日新增角标（自然日口径）——卡片 / 列表 / 看板三视图同一枚
+import NewBadge from '@/shared/components/NewBadge.vue'
 import ModuleCard from '@/shared/components/ModuleCard.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
 import { useCardCols } from '@/shared/utils/cardCols'
@@ -424,10 +426,16 @@ function onKanbanGroupDrop(e: DragEvent, status: 'todo' | 'doing' | 'done', proj
 
 // ---- 字段渲染 ----
 const tFields = computed(() => visibleFields(d.value.fieldConfig, 'task'))
-// R40 REQ-051：列表字段链排除 assets（正面改走 AssetBadge 徽章，不重复渲染文本摘要）
-const tListFields = computed(() =>
-  tFields.value.filter(f => !['title', 'description', 'assets'].includes(f.key)).slice(0, 4)
-)
+/**
+ * R117（04-61 D）：骨架字段可见性查询——「卡片与字段管理」的显隐设置必须真正落到卡片上。
+ * 此前状态/项目/指标/日期这些骨架字段直接硬编码渲染，设置里关掉也照样显示（用户报「设置无效」）。
+ */
+function tShow(key: string): boolean { return tFields.value.some(f => f.key === key) }
+/** 骨架区已渲染的 key（不再重复进扩展行） */
+const T_SKELETON_KEYS = ['title', 'projectId', 'metricId', 'status', 'assets', 'dueDate']
+// R40 REQ-051 保留（assets 走徽章、不重复渲染文本摘要）；
+// R117（04-61 D）取消原 slice(0, 4) 截断与 description 排除——设置里可见的字段必须都能显示
+const tListFields = computed(() => tFields.value.filter(f => !T_SKELETON_KEYS.includes(f.key)))
 // R40 REQ-051：assets 字段是否可见（驱动任务卡正面徽章显隐）
 const taskAssetsOn = computed(() => tFields.value.some(f => f.key === 'assets'))
 function tVal(t: TaskCard, key: string): string {
@@ -438,10 +446,13 @@ function tShort(t: TaskCard, f: FieldDef): string {
   if (f.key === 'priority') return t.priority === 'high' ? '🔴高' : t.priority === 'medium' ? '🟡中' : '🟢低'
   return v.length > 10 ? v.slice(0, 10) + '…' : v
 }
-/** 第卌五轮：卡片视图日期角标 */
-function fmtCardDate(ts?: number): string {
+/** 第卌五轮：卡片视图日期角标
+ *  R117（04-61 D）：入参放宽到 `number | string`——`dueDate` 是 ISO 日期串（非时间戳），
+ *  日期角标优先吃截止时间时必须能吃字符串；顺手挡掉无效日期（渲染出 NaN-NaN 更糟）。 */
+function fmtCardDate(ts?: number | string): string {
   if (!ts) return ''
   const dt = new Date(ts)
+  if (Number.isNaN(dt.getTime())) return ''
   return `${dt.getMonth()+1}-${String(dt.getDate()).padStart(2,'0')}`
 }
 
@@ -503,16 +514,26 @@ function syncMetricTaskIds(taskId: string, oldMetricId?: string, newMetricId?: s
   }
 }
 
-// ---- 高亮定位（B4：搜索任务结果跳转） ----
+// ---- 高亮定位（B4：搜索任务结果跳转）
+// R117（04-61 B）：调度台首页同时挂着任务卡与好奇心卡两个 `?hl=` 消费者，靠 `?hk=` **认领**——
+// hk 指向别的卡型时本组件直接让路；只有真正滚到目标才清 query（否则会把另一个消费者要用的 hl 清掉）。
 const highlightId = ref<string | null>(null)
 watch(() => route.query.hl, (hl) => {
   if (!hl || typeof hl !== 'string') return
+  const hk = typeof route.query.hk === 'string' ? route.query.hk : ''
+  if (hk && hk !== 'task') return
   highlightId.value = hl
   setTimeout(() => {
-    document.querySelector(`[data-tid="${hl}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    setTimeout(() => { highlightId.value = null }, 2000)
+    const el = document.querySelector(`[data-tid="${hl}"]`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setTimeout(() => { highlightId.value = null }, 2000)
+      router.replace({ path: route.path })
+    } else if (hk === 'task') {
+      // 目标确实是任务卡但当前没渲染（视图/筛选挡住）→ 依然清 query，避免残留
+      router.replace({ path: route.path })
+    }
   }, 350)
-  router.replace({ path: route.path })
 }, { immediate: true })
 // 第卅六轮 REQ-039：搜索浮层单击 → 任务卡高亮
 onMounted(() => {
@@ -648,20 +669,25 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.prevent.stop="onTaskDrop(task)"
               @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
               <span v-if="batchMode" class="batch-check" :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)">{{ selectedTaskIds.has(task.id)?'✓':'' }}</span>
-              <span v-else class="tm-status" :class="'st-'+task.status">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
+              <!-- R117（04-61 D）：状态胶囊受「状态」字段显隐控制（批量态仍让位给勾选框） -->
+              <span v-else-if="tShow('status')" class="tm-status" :class="'st-'+task.status">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
               <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
               <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
-              <div class="tm-title">{{ task.title }}</div>
-              <div class="tm-tags">
-                <span class="tag accent">📦 {{ projectName(task.projectId) }}</span>
-                <span v-if="task.metricId" class="tag warn">🎯 {{ metricName(task.metricId) }}</span>
+              <div class="tm-title"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
+              <!-- R117（04-61 D）：项目/指标/附件逐项受字段设置控制（原先无条件渲染） -->
+              <div v-if="tShow('projectId') || tShow('metricId') || (taskAssetsOn && task.assets?.length)" class="tm-tags">
+                <span v-if="tShow('projectId')" class="tag accent">📦 {{ projectName(task.projectId) }}</span>
+                <span v-if="tShow('metricId') && task.metricId" class="tag warn">🎯 {{ metricName(task.metricId) }}</span>
                 <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
               </div>
               <div v-if="tListFields.length" class="tm-ext">
-                <span v-for="f in tListFields" :key="f.key" class="tm-ext-item" :class="{['status-'+task.status]: f.key==='status'}">{{ tShort(task, f) }}</span>
+                <span v-for="f in tListFields" :key="f.key" class="tm-ext-item">{{ tShort(task, f) }}</span>
               </div>
+              <!-- R117（04-61 D）：日期角标优先吃「截止时间」字段（任务卡字段池里没有 createdAt）；
+                   截止时间不可见时回落创建时间（骨架兜底，避免卡片零日期信息） -->
               <div class="tm-meta">
-                <span>📅 {{ fmtCardDate(task.createdAt) }}</span>
+                <span v-if="tShow('dueDate') && task.dueDate">📅 {{ fmtCardDate(task.dueDate) }}</span>
+                <span v-else>📅 {{ fmtCardDate(task.createdAt) }}</span>
                 <button class="tm-del" @click.stop="deleteTask(task.id)" title="删除任务">🗑</button>
               </div>
             </div>
@@ -675,20 +701,25 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.prevent.stop="onTaskDrop(task)"
               @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
               <span v-if="batchMode" class="batch-check" :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)">{{ selectedTaskIds.has(task.id)?'✓':'' }}</span>
-              <span v-else class="tm-status" :class="'st-'+task.status">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
+              <!-- R117（04-61 D）：状态胶囊受「状态」字段显隐控制（批量态仍让位给勾选框） -->
+              <span v-else-if="tShow('status')" class="tm-status" :class="'st-'+task.status">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
               <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
               <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
-              <div class="tm-title">{{ task.title }}</div>
-              <div class="tm-tags">
-                <span class="tag accent">📦 {{ projectName(task.projectId) }}</span>
-                <span v-if="task.metricId" class="tag warn">🎯 {{ metricName(task.metricId) }}</span>
+              <div class="tm-title"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
+              <!-- R117（04-61 D）：项目/指标/附件逐项受字段设置控制（原先无条件渲染） -->
+              <div v-if="tShow('projectId') || tShow('metricId') || (taskAssetsOn && task.assets?.length)" class="tm-tags">
+                <span v-if="tShow('projectId')" class="tag accent">📦 {{ projectName(task.projectId) }}</span>
+                <span v-if="tShow('metricId') && task.metricId" class="tag warn">🎯 {{ metricName(task.metricId) }}</span>
                 <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
               </div>
               <div v-if="tListFields.length" class="tm-ext">
-                <span v-for="f in tListFields" :key="f.key" class="tm-ext-item" :class="{['status-'+task.status]: f.key==='status'}">{{ tShort(task, f) }}</span>
+                <span v-for="f in tListFields" :key="f.key" class="tm-ext-item">{{ tShort(task, f) }}</span>
               </div>
+              <!-- R117（04-61 D）：日期角标优先吃「截止时间」字段（任务卡字段池里没有 createdAt）；
+                   截止时间不可见时回落创建时间（骨架兜底，避免卡片零日期信息） -->
               <div class="tm-meta">
-                <span>📅 {{ fmtCardDate(task.createdAt) }}</span>
+                <span v-if="tShow('dueDate') && task.dueDate">📅 {{ fmtCardDate(task.dueDate) }}</span>
+                <span v-else>📅 {{ fmtCardDate(task.createdAt) }}</span>
                 <button class="tm-del" @click.stop="deleteTask(task.id)" title="删除任务">🗑</button>
               </div>
             </div>
@@ -705,7 +736,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <span v-else class="tm-status" :class="'st-'+task.status">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
             <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
             <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
-            <div class="tm-title">{{ task.title }}</div>
+            <div class="tm-title"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
             <div class="tm-tags">
               <span class="tag accent">📦 {{ projectName(task.projectId) }}</span>
               <span v-if="task.metricId" class="tag warn">🎯 {{ metricName(task.metricId) }}</span>
@@ -739,7 +770,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <div v-if="batchMode" class="batch-check" :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)">{{ selectedTaskIds.has(task.id)?'✓':'' }}</div>
             <span v-else class="t-drag">⋮⋮</span>
             <div class="check-sm" :class="{done: task.status==='done'}" @click.stop="cycleTaskStatus(task.id)">{{ task.status==='done'?'✓':task.status==='doing'?'◐':'' }}</div>
-            <span class="tname">{{ task.title }}</span>
+            <span class="tname"><NewBadge :at="task.createdAt" />{{ task.title }}</span>
             <div class="row-tags">
               <span v-for="f in tListFields" :key="f.key" class="tag" :class="{'accent': f.key==='projectId', [ 'status-'+task.status ]: f.key==='status'}">{{ tShort(task, f) }}</span>
               <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
@@ -762,7 +793,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <div v-if="batchMode" class="batch-check" :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)">{{ selectedTaskIds.has(task.id)?'✓':'' }}</div>
             <span v-else class="t-drag">⋮⋮</span>
             <div class="check-sm" :class="{done: task.status==='done'}" @click.stop="cycleTaskStatus(task.id)">{{ task.status==='done'?'✓':task.status==='doing'?'◐':'' }}</div>
-            <span class="tname">{{ task.title }}</span>
+            <span class="tname"><NewBadge :at="task.createdAt" />{{ task.title }}</span>
             <div class="row-tags">
               <span v-for="f in tListFields" :key="f.key" class="tag" :class="{'accent': f.key==='projectId', [ 'status-'+task.status ]: f.key==='status'}">{{ tShort(task, f) }}</span>
               <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
@@ -778,7 +809,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           <div v-if="batchMode" class="batch-check" :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)">{{ selectedTaskIds.has(task.id)?'✓':'' }}</div>
           <span v-else class="t-drag">⋮⋮</span>
           <div class="check-sm" :class="{done: task.status==='done'}" @click.stop="cycleTaskStatus(task.id)">{{ task.status==='done'?'✓':task.status==='doing'?'◐':'' }}</div>
-          <span class="tname">{{ task.title }}</span>
+          <span class="tname"><NewBadge :at="task.createdAt" />{{ task.title }}</span>
           <div class="row-tags">
             <span v-for="f in tListFields" :key="f.key" class="tag" :class="{'accent': f.key==='projectId', [ 'status-'+task.status ]: f.key==='status'}">{{ tShort(task, f) }}</span>
           </div>
@@ -807,7 +838,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               </div>
               <div v-for="task in grp.tasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
-                <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt">{{ task.title }}</div>
+                <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
@@ -817,7 +848,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           <template v-else>
             <div v-for="task in todoTasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
-              <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt">{{ task.title }}</div>
+              <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
             </div>
           </template>
@@ -836,7 +867,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               </div>
               <div v-for="task in grp.tasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
-                <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt">{{ task.title }}</div>
+                <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
@@ -846,7 +877,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           <template v-else>
             <div v-for="task in doingTasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
-              <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt">{{ task.title }}</div>
+              <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
             </div>
           </template>
@@ -865,7 +896,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               </div>
               <div v-for="task in grp.tasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
-                <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt">{{ task.title }}</div>
+                <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
@@ -875,7 +906,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           <template v-else>
             <div v-for="task in doneTasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
-              <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt">{{ task.title }}</div>
+              <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
             </div>
           </template>
