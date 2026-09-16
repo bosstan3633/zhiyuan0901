@@ -504,6 +504,8 @@ onUnmounted(() => {
       <div class="canvas" ref="canvasEl" @scroll="onCanvasScroll">
         <div class="canvas-inner">
 
+        <!-- R119：按原型 .tree-level-card 分卡承载——L1/L2 一卡、L3~L6 一卡（原为逐层裸排） -->
+        <div class="tree-level-card">
           <!-- 第1层：愿景 -->
           <div class="layer-header" id="layer-1">
             <div class="layer-num">1</div>
@@ -565,12 +567,15 @@ onUnmounted(() => {
           </div>
 
           <div class="tree-connector"><svg width="2" height="20"><line x1="1" y1="0" x2="1" y2="20" stroke="var(--border-strong)" stroke-width="1.5" stroke-dasharray="4,3" /></svg></div>
+        </div>
 
+        <div class="tree-level-card">
           <!-- 第3层：战略目标 -->
           <div class="layer-header" id="layer-3">
             <div class="layer-num">3</div>
             <div class="layer-name">战略目标</div>
-            <div class="layer-desc">· Directions，阶段方向</div>
+            <div class="layer-desc">· 4 攻坚项目 → 5 成功指标 → 6 任务</div>
+            <span class="tree-card-hint">主攻项目强化边框 · 缺任务指标实时警示</span>
             <button class="add-btn-inline" @click="addDirection"><span>＋</span>添加战略目标</button>
           </div>
 
@@ -630,6 +635,8 @@ onUnmounted(() => {
                         <span class="node-tag proj-tag">PROJECT</span>
                         <button class="focus-btn" :class="{on: proj.isFocused}" @click.stop="onToggleFocus(proj.id)"
                           :title="proj.isFocused ? '主攻项目（再次点击取消）——主攻项目在列表置前并以强调色区分' : '设为主攻项目——列表置前并以强调色区分'">🎯 主攻</button>
+                        <!-- R119：按原型 .tp-head 右侧「N% 推进 / 100% 达成」口径展示项目进度 -->
+                        <span class="tp-pct" :class="{ done: projectProgress(proj).pct >= 100, focus: proj.isFocused && projectProgress(proj).pct < 100 }">{{ projectProgress(proj).pct }}% {{ projectProgress(proj).pct >= 100 ? '达成' : '推进' }}</span>
                       </div>
                       <div class="node-title editable"
                         :class="{editing: editingField === 'proj-' + proj.id}"
@@ -660,11 +667,9 @@ onUnmounted(() => {
                           <div class="sub-layer-add" @click.stop="addMetric(proj.id)">＋ 添加</div>
                         </div>
 
-                        <div v-for="metric in proj.metrics" :key="metric.id">
-                          <div class="metric-item" :class="{expanded: expandedMetrics.has(metric.id)}" @click="toggleMetric(metric.id)">
-                            <div class="metric-status" :class="tasksForMetric(metric.id).every(t=>t.status==='done') && tasksForMetric(metric.id).length ? 'done' : tasksForMetric(metric.id).some(t=>t.status==='doing') ? 'doing' : 'todo'">
-                              {{ tasksForMetric(metric.id).every(t=>t.status==='done') && tasksForMetric(metric.id).length ? '✓' : tasksForMetric(metric.id).some(t=>t.status==='doing') ? '◐' : '○' }}
-                            </div>
+                        <div v-for="metric in proj.metrics" :key="metric.id" class="tree-metric-branch">
+                          <div class="metric-item tm-title-row" :class="{expanded: expandedMetrics.has(metric.id)}" @click="toggleMetric(metric.id)">
+                            <div class="metric-status" :class="tasksForMetric(metric.id).every(t=>t.status==='done') && tasksForMetric(metric.id).length ? 'done' : tasksForMetric(metric.id).some(t=>t.status==='doing') ? 'doing' : 'todo'">◈</div>
                             <div class="metric-name editable"
                               :class="{editing: editingField === 'metric-' + metric.id}"
                               :data-edit="'metric-' + metric.id"
@@ -673,15 +678,17 @@ onUnmounted(() => {
                               @blur="saveEdit('metric-' + metric.id, $event)"
                               @keydown.enter.prevent="saveEdit('metric-' + metric.id, $event)"
                               @keydown.esc="cancelEdit">{{ metric.title }}</div>
-                            <div class="metric-progress">{{ tasksForMetric(metric.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(metric.id).length }}</div>
-                            <div class="metric-task-count" :class="{ none: !tasksForMetric(metric.id).length }"
-                              :title="tasksForMetric(metric.id).length ? '该指标下的任务数' : '该成功指标暂无任务支撑——点右侧 ＋ 新建 / 关联任务'">{{ tasksForMetric(metric.id).length ? '📋 ' + tasksForMetric(metric.id).length + '任务' : '⚠ 暂无支撑任务' }}</div>
+                            <div class="metric-progress">({{ tasksForMetric(metric.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(metric.id).length }})</div>
                             <div class="metric-expand-icon">{{ expandedMetrics.has(metric.id) ? '▼' : '▶' }}</div>
                             <div class="metric-actions" @click.stop>
                               <div class="node-action" @click="openTaskAdd(metric.id, proj.id)" title="添加任务（新建 / 关联）">＋</div>
                               <div class="node-action danger" @click="deleteNode('metric', metric.id)" title="删除">🗑</div>
                             </div>
                           </div>
+                          <!-- R119：按原型 .tm-empty-alert——无任务支撑的成功指标独立一行警示（线索断开），
+                               原 .metric-task-count 徽标（内含重复口径）退役，计数口径由标题行 (done/total) 单点承载 -->
+                          <div v-if="!tasksForMetric(metric.id).length" class="tm-empty-alert"
+                            title="该成功指标暂无任务支撑——点标题行右侧 ＋ 新建 / 关联任务">⚠ 暂无支撑任务 (线索断开)</div>
 
                           <!-- 第6层：任务 -->
                           <Transition name="expand">
@@ -694,7 +701,7 @@ onUnmounted(() => {
                               </div>
                               <div v-for="task in tasksForMetric(metric.id)" :key="task.id" class="task-item" :class="{done: task.status==='done'}">
                                 <div class="task-check" :class="{done: task.status==='done'}" @click.stop="toggleTask(task.id)">
-                                  {{ task.status==='done' ? '✓' : '' }}
+                                  {{ task.status==='done' ? '✓' : '○' }}
                                 </div>
                                 <div class="task-text editable"
                                   :class="{editing: editingField === 'task-' + task.id}"
@@ -724,6 +731,7 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
+        </div>
 
           <!-- 底部说明 -->
           <div class="footer-hint">
@@ -806,7 +814,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.compass-layout { display: block; min-height: 100%; padding: 20px 24px 48px; max-width: 1440px; margin: 0 auto; }
+.compass-layout { display: block; min-height: 100%; padding: 16px 24px 40px; max-width: 1400px; margin: 0 auto; }
 .tree-layout { display: flex; gap: 20px; align-items: flex-start; }
 /* N1：愿景/使命关联卡片 */
 .node { position: relative; }
@@ -871,11 +879,16 @@ onUnmounted(() => {
 
 /* 画布（左侧为悬浮目录预留空间） */
 .canvas { flex: 1; min-width: 0; padding: 0 4px 20px; }
-.canvas-inner { max-width: 1000px; margin: 0 auto; min-width: 700px; }
+/* R119：按原型 .tree-main-canvas —— 白底分卡承载 + 16px 竖向节奏（原为逐层裸排的连续画布） */
+.canvas-inner { max-width: 1000px; margin: 0 auto; min-width: 700px; display: flex; flex-direction: column; gap: 16px; }
+/* R119：按原型 .tree-level-card —— surface 底 + 发丝线 + radius 12 + 14/18 内距 + 轻投影 */
+.tree-level-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; box-shadow: var(--shadow); }
+/* R119：原型卡头右侧提示语（11.5px text-3，把原型的静态说明做成能力提示） */
+.tree-card-hint { margin-left: auto; font-size: 11.5px; color: var(--text-3); }
 
 .tree-page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .tree-page-head .crumb { font-size: 12.5px; color: var(--text-2); }
-.tree-page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
+.tree-page-head .crumb b { color: var(--text); font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
 .tree-page-head .crumb .sep { color: var(--text-4); margin: 0 6px; }
 .tree-page-head .spacer { flex: 1; }
 /* R49-C7：顶部统计 + 展开收起/显隐工具 */
@@ -892,26 +905,27 @@ onUnmounted(() => {
 .node.goal-node.goal-flash { animation: treeGoalFlash 1.4s ease; }
 @keyframes treeGoalFlash { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); border-color: var(--accent); } }
 
-/* D8：六层目录 = 布局内左栏 + sticky 跟随（目录在左，内容在右，随滚动吸附） */
-.layer-toc { position: sticky; top: 16px; align-self: flex-start; width: 200px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 10px; display: flex; flex-direction: column; gap: 3px; box-shadow: var(--shadow); max-height: calc(100vh - 120px); overflow-y: auto; }
-.lt-title { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: .5px; padding: 0 8px 10px; }
-.lt-item { display: flex; align-items: center; gap: 8px; padding: 8px 9px; border-radius: 8px; cursor: pointer; transition: all .15s; border: 1px solid transparent; }
-.lt-item:hover { background: var(--surface-3); }
-.lt-item.active { background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
-.lt-item.active .lt-name { color: var(--accent); font-weight: 600; }
-.lt-num { width: 20px; height: 20px; border-radius: 6px; background: var(--surface-3); color: var(--text-2); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s; }
-.lt-item.active .lt-num { background: var(--accent); color: #fff; }
-.lt-name { font-size: 12.5px; color: var(--text-2); }
-.lt-hint { margin-top: auto; font-size: 10px; color: var(--text-4); text-align: center; padding-top: 12px; }
+/* D8：六层目录 = 布局内左栏 + sticky 跟随（目录在左，内容在右，随滚动吸附）
+   R119：按原型 .tree-sidebar-nav 还原——180px 宽 + top 64 吸附 + radius 8 + 8px 内距 + 2px 紧凑行距 */
+.layer-toc { position: sticky; top: 64px; align-self: flex-start; width: 180px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 2px; max-height: calc(100vh - 120px); overflow-y: auto; }
+.lt-title { font-size: 11px; font-weight: 700; color: var(--text-3); padding: 4px 8px; }
+.lt-item { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: var(--radius-xs); cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text-2); transition: background .15s, color .15s; }
+.lt-item:hover { background: var(--surface-2); }
+.lt-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.lt-num { flex-shrink: 0; font-size: 12px; font-weight: inherit; color: inherit; opacity: .7; }
+.lt-item.active .lt-num { opacity: 1; }
+.lt-name { font-size: 12px; color: inherit; }
+.lt-hint { margin-top: auto; font-size: 10.5px; color: var(--text-4); text-align: center; padding-top: 12px; }
 
-/* 层标题 */
-.layer-header { display: flex; align-items: center; gap: 9px; margin: 20px 0 10px; }
+/* 层标题 ｜ R119：按原型 .tl-badge —— accent 浅底徽标（11px/700 accent）+ 11px text-3 说明 */
+.layer-header { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
 .layer-header:first-child { margin-top: 0; }
-.layer-num { width: 24px; height: 24px; border-radius: 6px; background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.layer-name { font-size: 14px; font-weight: 600; color: var(--text); }
-.layer-desc { font-size: 11px; color: var(--text-3); margin-left: 3px; }
-.add-btn-inline { margin-left: auto; display: flex; align-items: center; gap: 4px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: #fff; transition: all .15s; font-family: inherit; }
-.add-btn-inline:hover { background: var(--accent-hover); }
+.layer-num { background: var(--accent-light); color: var(--accent); font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.layer-name { font-size: 11px; font-weight: 700; color: var(--accent); }
+.layer-desc { font-size: 11px; color: var(--text-3); }
+/* R119：添加钮降权为平静幽灵钮（原 accent 实心钮抢视觉，原型无此件——能力收纳口径） */
+.add-btn-inline { margin-left: 8px; display: flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: var(--radius-xs); font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all .15s; font-family: inherit; white-space: nowrap; }
+.add-btn-inline:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 
 /* 节点通用 */
 .node { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; cursor: pointer; transition: all .15s ease; position: relative; overflow: hidden; }
@@ -930,32 +944,42 @@ onUnmounted(() => {
 .node-action:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
 .node-action.danger:hover { color: var(--danger); }
 
-/* 愿景节点 */
-.vision-node { background: linear-gradient(135deg, var(--accent-light), color-mix(in srgb, var(--accent-light) 50%, var(--surface))); border-color: color-mix(in srgb, var(--accent) 18%, var(--border)); padding: 16px 20px; }
-.vision-node .node-title { font-size: 16px; font-weight: 600; color: var(--accent); line-height: 1.55; }
-.vision-node .layer-label { font-size: 9.5px; color: var(--accent); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
+/* 愿景节点 ｜ R119：按原型 L1 锚点（无卡壳、无渐变）——14px/700 正文色标题，layer-label 作 accent 徽标 */
+.vision-node { background: transparent; border: 0; border-radius: 0; padding: 0; }
+.vision-node:hover { background: transparent; }
+.vision-node .node-title { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.55; }
+.vision-node .layer-label { display: inline-block; background: var(--accent-light); color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none; padding: 2px 6px; border-radius: 4px; margin-bottom: 8px; }
 
-/* 使命节点 */
-.mission-node { background: var(--surface-2); border-left: 3px solid var(--accent); }
-.mission-tag { background: var(--accent-light); color: var(--accent); }
+/* 使命节点 ｜ R119：按原型 L2 锚点（13.5px/500 text-2，去灰底与竖色条） */
+.mission-node { background: transparent; border: 0; border-radius: 0; padding: 0; }
+.mission-node:hover { background: transparent; }
+.mission-node .node-title { font-size: 13.5px; font-weight: 500; color: var(--text-2); }
+.mission-tag { background: var(--surface-2); color: var(--text-2); }
 
 /* 连线 */
 .tree-connector { display: flex; justify-content: center; margin: 4px 0; }
 
-/* 战略目标 */
-.goals-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
-.goal-col { display: flex; flex-direction: column; }
-.goal-node { border-top: 3px solid var(--accent); }
-.goal-node.stagnant { border-top-color: var(--stagnant); }
+/* 战略目标 ｜ R119：按原型 .tree-columns-grid —— **固定 3 列**（原 auto-fit minmax(280) 列数随宽窄漂移） */
+.goals-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }
+/* R119：按原型 .tc-strategic-branch —— 微灰底 + 发丝线 + radius 8 + 12px 内距的「战略目标分支」容器 */
+.goal-col { display: flex; flex-direction: column; gap: 12px; background: color-mix(in srgb, var(--surface-2) 40%, var(--surface)); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; }
+/* R119：按原型 .tc-strategic-title —— 13px/700 + 底发丝线（原为整卡 accent 顶边） */
+.goal-node { background: transparent; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: 0 0 6px; }
+.goal-node:hover { background: transparent; }
+.goal-node .node-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.goal-node.stagnant { border-bottom-color: var(--stagnant); }
 .goal-node .expand-icon { margin-left: auto; margin-right: 52px; font-size: 10px; color: var(--text-3); transition: transform .2s; }
 /* Bug1：项目卡右上同样预留（🎯/📡 开关 vs ＋/🗑） */
 .project-node .node-top { padding-right: 58px; }
-.dir-tag { background: var(--accent-light); color: var(--accent); }
-.progress-bar { height: 4px; background: var(--surface-3); border-radius: 99px; margin-top: 7px; overflow: hidden; }
+.dir-tag { background: var(--surface-2); color: var(--text-2); }
+.progress-bar { height: 4px; background: var(--surface-3); border-radius: 99px; margin-top: 6px; overflow: hidden; }
 .progress-fill { height: 100%; background: var(--accent); border-radius: 99px; transition: width .3s; }
 .stagnant-tag { background: var(--tag-danger-bg); color: var(--danger); font-size: 9.5px; padding: 2px 7px; border-radius: 99px; font-weight: 500; }
 .status-active { color: var(--success); }
 .status-paused { color: var(--warning); }
+/* R119：窄窗降级（设计目标 1400px 固定 3 列；以下仅为窄屏兜底，不改变主体验） */
+@media (max-width: 1024px) { .goals-row { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 760px) { .goals-row { grid-template-columns: 1fr; } }
 
 /* 子树引导线 */
 .sub-tree { position: relative; margin-top: 0; }
@@ -973,65 +997,73 @@ onUnmounted(() => {
 .branch-h { position: absolute; left: 0; top: 24px; width: 24px; height: 2px; background: linear-gradient(to right, color-mix(in srgb, var(--accent) 40%, transparent), color-mix(in srgb, var(--accent) 20%, transparent)); }
 .branch-v { position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: linear-gradient(to bottom, color-mix(in srgb, var(--accent) 30%, transparent), color-mix(in srgb, var(--accent) 10%, transparent)); }
 
-/* 项目节点 */
-.project-node { margin-bottom: 0; }
-/* R59-T3：主攻项目强调色凸显｜R118（T2.4）：由「实底 + inset 3px 强调条 + 光晕」三重强调
-   降为**专属高亮微边框**（1px 强调色边 + 极淡底）——同一屏有多个主攻时不再互相抢视觉焦点，
-   「主攻」身份仍靠 .primary-badge 与 .focus-btn.on 明确标注。 */
-.project-node.primary { border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border)); background: color-mix(in srgb, var(--accent) 4%, var(--surface)); box-shadow: none; }
-.project-node.primary:hover { border-color: var(--accent); }
-.project-node.primary .node-title { color: var(--accent); }
+/* 项目节点 ｜ R119：按原型 .tree-project-branch —— 白底 + 发丝线 + radius 6 + 10/12 内距 */
+.project-node { margin-bottom: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 10px 12px; }
+.project-node:hover { background: var(--surface); border-color: var(--border-strong); }
+.project-node .node-top { margin-bottom: 8px; }
+/* R59-T3：主攻项目强调色凸显｜R119：按原型 .tree-project-branch.is-focused ——
+   `--accent-border` 描边 + `0 0 0 1px var(--accent)` 外环（原型唯一主攻信号；底色保持白，不叠淡紫底）。
+   同时退役 R118 自造的 color-mix(accent 55%, border) 强调边——`--accent-border` 四主题均有定义，不再偏色。 */
+.project-node.primary { border-color: var(--accent-border); box-shadow: 0 0 0 1px var(--accent); }
+.project-node.primary:hover { border-color: var(--accent-border); }
+.project-node.primary .node-title { color: var(--text); }
+/* R119：原型 .tp-head 右侧进度口径（「N% 推进 / 100% 达成」） */
+.tp-pct { flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--text-3); }
+.tp-pct.focus { color: var(--accent); }
+.tp-pct.done { color: var(--success); }
 .focus-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; color: var(--text-3); background: var(--surface-3); border: 1px solid var(--border); border-radius: 99px; padding: 2px 10px; cursor: pointer; font-family: inherit; transition: all .12s; flex-shrink: 0; }
 .focus-btn:hover { border-color: var(--accent); color: var(--accent); }
 .focus-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .primary-badge { background: var(--accent); color: #fff; font-size: 9.5px; padding: 2px 7px; border-radius: 99px; font-weight: 500; }
 .proj-tag { background: var(--surface-3); color: var(--text-2); }
 
-/* 指标 */
-/* R118（T2.3）：L5/L6 去「灰盒套娃」——原 .metric-item 自带 surface-2 圆角盒、.tasks-wrap 再套一层
-   描边盒，同屏三层灰块把横向空间吃光。现改为**发丝引导线 + 紧凑缩进**：层级由 1px 竖线 + 缩进表达。 */
-.metrics-wrap { margin-top: 6px; padding-left: 10px; border-left: 1px solid var(--border); }
-.metric-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: transparent; border-radius: 6px; margin-bottom: 1px; cursor: pointer; transition: background .15s; border: 0; position: relative; }
-.metric-item::before { content: ''; position: absolute; left: -11px; top: 50%; width: 8px; height: 1px; background: var(--border-strong); }
-.metric-item:hover { background: var(--surface-2); }
+/* 指标 ｜ R119：按原型 .tree-metric-branch —— 每个成功指标自成一条「左发丝缩进分支」
+   （margin-left 8 / padding-left 10 / border-left 1.5px）。承接 R118「去灰盒套娃」，并把发丝线
+   从「整个 L5 容器一根」下移到「每指标一根」，与原型层级表达一致；裸 hex（#fff 圆底）清零。 */
+.metrics-wrap { margin-top: 8px; padding-left: 0; border-left: 0; }
+.tree-metric-branch { margin-left: 8px; padding-left: 10px; border-left: 1.5px solid var(--border); margin-top: 8px; }
+/* R119：原型 .tm-title-row —— 12px/600 text-2 的「◈ 指标名 (done/total)」单行 */
+.metric-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; background: transparent; border-radius: var(--radius-xs); margin-bottom: 4px; cursor: pointer; transition: background .15s; border: 0; position: relative; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.metric-item:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
 .metric-item.expanded { background: color-mix(in srgb, var(--accent) 6%, transparent); }
-.metric-status { width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; }
-.metric-status.done { background: var(--success); }
-.metric-status.doing { background: var(--warning); }
-.metric-status.todo { background: var(--text-3); }
-.metric-name { font-size: 12.5px; color: var(--text); flex: 1; outline: none; border-radius: 4px; padding: 1px 4px; margin: -1px -4px; cursor: text; transition: background .15s; }
+/* R119：状态记号由「实心圆底 + 字形」改为原型纯字形 ◈（颜色仍按 done / doing / todo 分级） */
+.metric-status { flex-shrink: 0; font-size: 12px; line-height: 1; color: var(--text-3); }
+.metric-status.done { color: var(--success); }
+.metric-status.doing { color: var(--warning); }
+.metric-status.todo { color: var(--text-3); }
+.metric-name { font-size: 12px; font-weight: inherit; color: inherit; flex: 1; min-width: 0; outline: none; border-radius: 4px; padding: 1px 4px; margin: -1px -4px; cursor: text; transition: background .15s; }
 .metric-name:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
 .metric-name.editing { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
-.metric-progress { font-size: 10.5px; color: var(--text-3); font-weight: 500; }
-.metric-task-count { font-size: 10px; color: var(--accent); background: var(--accent-light); padding: 2px 7px; border-radius: 99px; font-weight: 500; flex-shrink: 0; }
-/* R118（T2.4）：空指标健康度检视——没有任何任务支撑的成功指标必须显式示警，
-   否则「树看着都在推进，实际一堆指标没人干」这类问题会一直藏着。 */
-.metric-task-count.none { color: var(--warning); background: color-mix(in srgb, var(--warning) 14%, transparent); }
+.metric-progress { font-size: 11px; color: var(--text-3); font-weight: 500; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+/* R119：原型 .tm-empty-alert —— 无任务支撑的成功指标独立一行橙字警示（原 .metric-task-count 徽标退役，
+   其口径与标题行 (done/total) 重复，属净删噪而非能力删减） */
+.tm-empty-alert { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--warning); background: var(--warning-light); padding: 3px 8px; border-radius: 4px; margin: 0 0 4px; }
 .metric-expand-icon { font-size: 10px; color: var(--text-3); transition: transform .2s; flex-shrink: 0; }
 .metric-item.expanded .metric-expand-icon { transform: rotate(90deg); }
 .metric-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
 .metric-item:hover .metric-actions { opacity: 1; }
 
-/* 任务 */
-/* R118（T2.3）：L6 任务层同样去盒——只保留左侧发丝引导线（与 .metrics-wrap 同构），不再套描边大灰盒。 */
-.tasks-wrap { background: transparent; border: 0; border-left: 1px solid var(--border); border-radius: 0; padding: 2px 0 4px 10px; margin: 0 0 4px 6px; position: relative; }
-.tasks-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; padding: 0 0 4px; border-bottom: 0; }
-.tasks-header .th-num { width: 16px; height: 16px; border-radius: 4px; background: var(--accent-light); color: var(--accent); font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-.tasks-header .th-name { font-size: 10.5px; font-weight: 600; color: var(--text-2); }
-.tasks-header .th-count { font-size: 10px; color: var(--text-3); margin-left: auto; }
+/* 任务 ｜ R119：按原型 .tm-task-checklist / .tm-task-leaf —— 纯符号 ○/✓ 叶子行（无勾选框方框），
+   缩进 4px + 4px 行距；发丝线由父级 .tree-metric-branch 提供，本层不再自画。 */
+.tasks-wrap { background: transparent; border: 0; border-left: 0; border-radius: 0; padding: 0; margin: 0 0 4px 4px; display: flex; flex-direction: column; gap: 4px; position: relative; }
+.tasks-header { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; padding: 0; border-bottom: 0; }
+.tasks-header .th-num { background: var(--accent-light); color: var(--accent); font-size: 10px; font-weight: 700; padding: 0 5px; border-radius: 4px; }
+.tasks-header .th-name { font-size: 10.5px; font-weight: 600; color: var(--text-3); }
+.tasks-header .th-count { font-size: 10px; color: var(--text-4); margin-left: auto; }
 .tasks-header .th-add { font-size: 10px; color: var(--text-3); cursor: pointer; padding: 1px 6px; border-radius: 4px; transition: all .15s; }
 .tasks-header .th-add:hover { color: var(--accent); background: var(--accent-light); }
-.task-item { display: flex; align-items: center; gap: 7px; padding: 4px 8px 4px 16px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: all .15s; border-radius: 5px; position: relative; }
-.task-item::after { content: ''; position: absolute; left: 6px; top: 50%; width: 6px; height: 1px; background: var(--border-strong); }
-.task-item:hover { background: var(--surface-2); color: var(--text); }
-.task-check { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; font-size: 9px; }
-.task-check:hover { border-color: var(--accent); }
-.task-check.done { background: var(--success); border-color: var(--success); color: #fff; }
-.task-item.done .task-text { text-decoration: line-through; color: var(--text-3); }
-.task-text { flex: 1; outline: none; border-radius: 4px; padding: 1px 4px; margin: -1px -4px; cursor: text; transition: background .15s; }
+.task-item { display: flex; align-items: flex-start; gap: 6px; padding: 2px 0; font-size: 11.5px; line-height: 1.35; color: var(--text); cursor: pointer; transition: color .15s; border-radius: var(--radius-xs); position: relative; }
+.task-item:hover { color: var(--accent); }
+/* R119：勾选记号由 14px 方框改为原型纯符号 ○ / ✓（点击切换的交互保留在 .task-check 上） */
+.task-check { flex-shrink: 0; font-size: 11.5px; line-height: 1.35; color: var(--text-3); cursor: pointer; position: relative; z-index: 1; transition: color .15s; }
+.task-check:hover { color: var(--accent); }
+.task-check.done { color: var(--success); }
+.task-item.done .task-text { text-decoration: line-through; color: var(--text-4); }
+.task-text { flex: 1; min-width: 0; outline: none; border-radius: 4px; padding: 1px 4px; margin: -1px -4px; cursor: text; transition: background .15s; }
 .task-text:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
 .task-text.editing { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
-.task-meta { font-size: 9.5px; color: var(--text-3); }
+/* R119：按原型 .tri-priority —— 11px text-3 + surface-3 底 + radius 4 的静默优先级文本 */
+.task-meta { font-size: 11px; color: var(--text-3); background: var(--surface-3); padding: 1px 6px; border-radius: 4px; flex-shrink: 0; }
 .task-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
 .task-item:hover .task-actions { opacity: 1; }
 .tasks-empty { text-align: center; padding: 12px; font-size: 11px; color: var(--text-3); }

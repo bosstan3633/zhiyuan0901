@@ -731,10 +731,10 @@ function addTaskFromHeader() {
           <span class="progress bar"><i :style="{width: projectProgress(currentProject).pct + '%'}" /></span>
         </div>
         <div class="hero-stats">
-          <div class="hstat"><div class="v">{{ currentProject.metrics.length }}</div><div class="l">成功指标</div></div>
-          <div class="hstat"><div class="v">{{ projectProgress(currentProject).total }}</div><div class="l">任务总数</div></div>
-          <div class="hstat"><div class="v">{{ projectProgress(currentProject).done }}</div><div class="l">已完成</div></div>
-          <div class="hstat"><div class="v">{{ projectProgress(currentProject).total - projectProgress(currentProject).done }}</div><div class="l">进行中</div></div>
+          <div class="hstat"><span class="l">成功指标：</span><strong class="v">{{ currentProject.metrics.length }}</strong></div>
+          <div class="hstat"><span class="l">任务总数：</span><strong class="v">{{ projectProgress(currentProject).total }}</strong></div>
+          <div class="hstat"><span class="l">已完成：</span><strong class="v">{{ projectProgress(currentProject).done }}</strong></div>
+          <div class="hstat"><span class="l">进行中：</span><strong class="v">{{ projectProgress(currentProject).total - projectProgress(currentProject).done }}</strong></div>
         </div>
         <div class="hero-tip">💡 项目名可编辑 · 任务可拖拽排序 / 跨指标拖拽归属 / 点击任务名打开详情抽屉 · 全部实时同步罗盘</div>
       </div>
@@ -856,12 +856,13 @@ function addTaskFromHeader() {
 </template>
 
 <style scoped>
-.page { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
+/* R119：原型 .main-container —— 1400 容器 + 16/24、页头标题 15px/700（原 19px 放大） */
+.page { max-width: 1400px; margin: 0 auto; padding: 16px 24px 40px; }
 /* R117（04-61 C）：内嵌于方向台一级时去掉自身页边距与宽度上限，避免与宿主 .page 双层缩进 */
 .page.is-embedded { max-width: none; margin: 0; padding: 0; }
-.page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-left: 22px; }
-.page-head .crumb { font-size: 12.5px; color: var(--text-2); }
-.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
+.page-head { display: flex; align-items: center; gap: 10px; height: 28px; margin-bottom: 16px; }
+.page-head .crumb { font-size: 12.5px; color: var(--text-3); }
+.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
 .page-head .crumb .sep { color: var(--text-4); margin: 0 6px; }
 /* R54-A1：面包屑上级可点 */
 .page-head .crumb .crumb-up { cursor: pointer; color: var(--text-3); }
@@ -870,7 +871,7 @@ function addTaskFromHeader() {
 .page-head .spacer { flex: 1; }
 .hint-chip { font-size: 10.5px; color: var(--text-3); background: var(--surface); border: 1px dashed var(--border-strong); padding: 3px 10px; border-radius: 99px; }
 /* R117（04-61 C）：内嵌态轻量小节头——项目切换与目录都在左栏，此处只交代「这是什么」 */
-.pd-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; padding-left: 22px; flex-wrap: wrap; }
+.pd-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 .pd-title { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: .2px; }
 .pd-sub { font-size: 11px; color: var(--text-3); }
 
@@ -973,18 +974,20 @@ body.rail-resizing.rail-h { cursor: row-resize; }
 .metric-sec .mname { outline: none; border-radius: 5px; padding: 2px 5px; margin: -2px -5px; cursor: text; }
 .metric-sec .mname:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .metric-sec .mname:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
-.back-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+/* R119：原型 .pb-head-context —— 头行底发丝线 + padding-bottom 12 + margin-bottom 14 */
+.back-row { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 14px; flex-wrap: wrap; }
 /* R52-F6：成功指标名输入行 */
 .metric-add-row { display: flex; gap: 8px; margin: -6px 0 14px; }
 .metric-add-row input { flex: 1; border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; color: var(--text); outline: none; font-family: inherit; }
 .metric-add-row input:focus { border-color: var(--accent); }
 /* R118（T2.2）：溯源面板降权——四段大色块药丸（.ch-ic 图标块 + .ch-body 文本块 + 18px 渐变连接线）
    退役，改为**单行轻量文本面包屑**：去外框、去卡片底、`›` 分隔。 */
-.chain-box { display: flex; align-items: center; background: transparent; border: 0; border-bottom: 1px dashed var(--border); border-radius: 0; padding: 0 2px 10px; margin-bottom: 14px; }
+/* R119：原型 .pb-breadcrumb —— 12px/text-3、gap 6；归入 .back-row 的底发丝线之下，自身不再画线 */
+.chain-box { display: flex; align-items: center; background: transparent; border: 0; border-radius: 0; padding: 0; margin-bottom: 14px; }
 /* R55-G2：归属链横向化——愿景→使命→战略目标→项目 一行呈现，压缩纵向空间（R118 起为单行面包屑） */
 .chain-line { display: flex; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 7px; min-width: 0; }
 .ch-node { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; max-width: 100%; }
-.ch-lab { flex-shrink: 0; font-size: 10.5px; font-weight: 600; letter-spacing: .2px; color: var(--text-3); }
+.ch-lab { flex-shrink: 0; font-size: 11px; font-weight: 600; letter-spacing: 0; color: var(--text-3); }
 .ch-txt { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
 .ch-sep { flex-shrink: 0; font-size: 11px; color: var(--text-4); }
 .ch-node.hi .ch-lab { color: var(--accent); }
@@ -992,7 +995,8 @@ body.rail-resizing.rail-h { cursor: row-resize; }
 .ch-node.current .ch-txt { color: var(--text); font-weight: 700; }
 .hero { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 16px; }
 .hero-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.hero-pname { font-size: 20px; font-weight: 700; letter-spacing: .2px; outline: none; border-radius: 6px; padding: 2px 6px; margin: -2px -6px; cursor: text; }
+/* R119：原型 .pb-title —— 18px/700 */
+.hero-pname { font-size: 18px; font-weight: 700; letter-spacing: .2px; outline: none; border-radius: 6px; padding: 2px 6px; margin: -2px -6px; cursor: text; }
 .hero-pname:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .hero-pname:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
 .pin-toggle { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-3); font-size: 11px; padding: 0 9px; height: 24px; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 4px; }
@@ -1001,36 +1005,43 @@ body.rail-resizing.rail-h { cursor: row-resize; }
 .hero-progress .big { font-size: 26px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: -.2px; }
 .hero-progress .bar { flex: 1; height: 8px; }
 .hero-progress .bar > i { height: 8px; }
-.hero-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
-.hstat { background: var(--surface-2); border-radius: var(--radius-xs); padding: 12px 8px; text-align: center; }
-.hstat .v { font-size: 18px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
-.hstat .l { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+/* R119：原型 .pb-stats-strip —— 单行 surface-2 统计条（label：value，值 14px 加粗） */
+.hero-stats { display: flex; align-items: center; gap: 20px; background: var(--surface-2); padding: 10px 16px; border-radius: var(--radius-sm); margin-top: 16px; font-size: 12px; flex-wrap: wrap; }
+.hstat { display: flex; align-items: baseline; gap: 4px; }
+.hstat .l { font-size: 12px; color: var(--text-3); }
+.hstat .v { font-size: 14px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
 .hero-tip { margin-top: 12px; font-size: 10.5px; color: var(--text-3); }
 .layer-header { display: flex; align-items: center; gap: 9px; margin: 6px 0 12px; }
 .layer-num { width: 24px; height: 24px; border-radius: 6px; background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .layer-name { font-size: 14px; font-weight: 600; }
 .layer-desc { font-size: 11px; color: var(--text-3); }
 
-.metric-sec { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px; transition: border-color .15s, box-shadow .15s; }
+/* R119：原型 .metric-group-block —— 发丝框 + radius-md(8)→radius-sm + 零内边距（头部/行各自带）+ 裁切 */
+.metric-sec { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0; margin-bottom: 12px; overflow: hidden; transition: border-color .15s, box-shadow .15s; }
 /* R55-G1：目录树定位闪烁 */
 .metric-sec.sec-flash { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
 .btask.task-flash { background: var(--accent-light); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
 .btask.task-flash .bt { color: var(--accent); }
 .metric-sec.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
-.metric-head2 { display: flex; align-items: center; gap: 10px; }
-.metric-head2 .mname { font-size: 13.5px; font-weight: 600; flex: 1; min-width: 0; }
+/* R119：原型 .mg-header —— 极浅底 + padding 9/14 + 底发丝线 + 12.5px/600 */
+.metric-head2 { display: flex; align-items: center; gap: 10px; background: color-mix(in srgb, var(--surface-2) 30%, var(--surface)); padding: 9px 14px; border-bottom: 1px solid var(--border); }
+.metric-head2 .mname { font-size: 12.5px; font-weight: 600; flex: 1; min-width: 0; }
 .metric-head2 .pct { font-size: 12px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 .icon-btn-sm { width: 24px; height: 24px; border: none; border-radius: 6px; background: transparent; color: var(--text-3); cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; font-family: inherit; flex-shrink: 0; }
 .icon-btn-sm:hover { background: var(--surface-3); color: var(--text); }
 .icon-btn-sm.del:hover { color: var(--danger); }
-.task-rows { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; min-height: 20px; }
-.btask { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 8px; transition: background .12s; }
+/* R119：原型 .task-rows-list —— 纯纵向列表，分隔线由行自身承担（去掉虚线顶边与内边距） */
+.task-rows { margin-top: 0; border-top: 0; padding-top: 0; display: flex; flex-direction: column; gap: 0; min-height: 20px; }
+/* R119：原型 .task-row-item —— padding 9/14 + 底发丝线 + 12.5px */
+.btask { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border); border-radius: 0; transition: background .12s; }
+.btask:last-child { border-bottom: none; }
 .btask:hover { background: var(--surface-2); }
 .btask.dragging { opacity: .35; }
 .btask .bdrag { color: var(--text-4); font-size: 11px; cursor: grab; flex-shrink: 0; }
-.bcheck { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; background: var(--surface); }
+/* R119：原型 .custom-check —— 15px / radius 4 / 1.5px 描边；勾选态 accent 紫底（与调度台三件事同口径） */
+.bcheck { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; background: var(--surface); }
 .bcheck:hover { border-color: var(--accent); }
-.bcheck.done { background: var(--success); border-color: var(--success); }
+.bcheck.done { background: var(--accent); border-color: var(--accent); }
 .btask .bt { flex: 1; font-size: 12.5px; cursor: pointer; min-width: 0; }
 .btask:hover .bt { color: var(--accent); }
 .btask.done .bt { text-decoration: line-through; color: var(--text-3); }
@@ -1041,7 +1052,7 @@ body.rail-resizing.rail-h { cursor: row-resize; }
 /* 抽屉 */
 .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 400; }
 
-.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; user-select: none; }
+.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: var(--radius-xs); font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; user-select: none; }
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
 .mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .mini-btn.primary:hover { background: var(--accent-hover); }
@@ -1052,7 +1063,8 @@ body.rail-resizing.rail-h { cursor: row-resize; }
 .tag.warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
 .tag.ok { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
 .tag.danger { background: var(--tag-danger-bg); color: var(--tag-danger-text); }
-.tag.info { background: var(--info-light); color: var(--info-blue); }
+/* R119 修正：原引用 `--info-light` 是**未定义幽灵令牌**（fallback 恒生效、真实值从未被消费）→ 改 --info-blue-light */
+.tag.info { background: var(--info-blue-light); color: var(--info-blue); }
 .progress { height: 5px; background: var(--surface-3); border-radius: 99px; overflow: hidden; display: inline-block; vertical-align: middle; }
 .progress > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
 .fade-enter-active, .fade-leave-active { transition: opacity .25s; }

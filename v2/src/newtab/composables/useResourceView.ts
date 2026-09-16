@@ -33,10 +33,12 @@ export interface ResourceViewCtx {
   childCatsOf: (pid: string) => Category[]
   familyIds: (catId: string) => string[]
   isUncat: (r: ResourceCard, validIds: { has(id: string): boolean }) => boolean
+  /** R119：本台是否资源台（hub）——列数键分流（res / curation）与指标条分流共用同一判据 */
+  isHub: ComputedRef<boolean>
 }
 
 export function useResourceView(ctx: ResourceViewCtx) {
-  const { store, d, workspaceId, allResources, thesisCard, categories, wsCats, catIdx, resBucket, rootCats, childCatsOf, familyIds, isUncat } = ctx
+  const { store, d, workspaceId, allResources, thesisCard, categories, wsCats, catIdx, resBucket, rootCats, childCatsOf, familyIds, isUncat, isHub } = ctx
 
   // ===== 视图状态 =====
   /**
@@ -59,9 +61,18 @@ export function useResourceView(ctx: ResourceViewCtx) {
   /** R98（W7）：金字塔层级折叠——`仅 L2 / 到 L3 / 全部`。**本地视图态，不进 UIPrefs**（视图态
    *  持久化会造成「每次打开都被折叠」，与 D-B 拍板同口径）；同一组件跨台复用，折叠态跟随会话。 */
   const pyFold = ref<'l2' | 'l3' | 'all'>('all')
-  // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.res；网格模板由 --grid-cols 驱动）
-  // 资源台（isHub）与策展台为同一组件同一网格 ⇒ 共用 'res' 键，列数在两台一致
+  // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols；网格模板由 --grid-cols 驱动）
+  // R119：资源台（isHub）与策展台拆成两个键——原型两台默认列数不同（资源台 6 / 策展台 4），
+  // 原共用 'res' 键时只能取其一。宿主按 isHub 选键消费，偏好各自记忆、互不串档。
   const resCols = useCardCols('res', store.ui)
+  const curationCols = useCardCols('curation', store.ui)
+  /** R119：本台生效的列数模型——资源台读 `res`（默认 6）、策展台读 `curation`（默认 4）。
+   *  工具条选择器、网格 `--grid-cols`、筛选徽标三处共用这一个口径，不再各自判断台身份。 */
+  const colsDefault = computed(() => (isHub.value ? CARD_COLS_DEFAULT.res : CARD_COLS_DEFAULT.curation))
+  const colsNow = computed<number>({
+    get: () => (isHub.value ? resCols.value : curationCols.value),
+    set: (v) => { if (isHub.value) resCols.value = v; else curationCols.value = v }
+  })
   /** R87（R5-①）：排序档位白名单——sortPrefs.res.by 是持久化字段，防止未来退役档位后读到死值卡住 UI */
   const SORT_BY_KEYS = ['manual', 'recent', 'visited', 'hot', 'title']
   /** R87（R5-②）：筛选档位白名单（4 类型 + 4 状态）；筛选是临时视图态，**不进 UIPrefs**——
@@ -185,7 +196,7 @@ export function useResourceView(ctx: ResourceViewCtx) {
     if (filterBy.value !== 'all') out.push(filterLabel.value)
     if (density.value !== 'cozy') out.push('紧凑')
     // 列数只在卡片视图出现，非卡片视图时不该算作"生效中"
-    if (viewMode.value === 'card' && resCols.value !== CARD_COLS_DEFAULT.res) out.push(resCols.value + ' 列')
+    if (viewMode.value === 'card' && colsNow.value !== colsDefault.value) out.push(colsNow.value + ' 列')
     return out
   })
   /** 徽标挤不下时的兜底：hover 给出全部生效值 */
@@ -197,7 +208,7 @@ export function useResourceView(ctx: ResourceViewCtx) {
     sortBy.value = 'manual'
     filterBy.value = 'all'
     density.value = 'cozy'
-    resCols.value = CARD_COLS_DEFAULT.res
+    colsNow.value = colsDefault.value
     resetFilters()
   }
   /** R87（R7）：链接三态的卡片级封装——三视图徽标、筛选、双击 toast 共用同一个判据 */
@@ -434,7 +445,7 @@ export function useResourceView(ctx: ResourceViewCtx) {
   }))
 
   return {
-    viewMode, applyWsView, setViewMode, pyFold, resCols,
+    viewMode, applyWsView, setViewMode, pyFold, resCols, curationCols, colsNow, colsDefault,
     SORT_BY_KEYS, SORT_LABELS, FILTER_KEYS, FILTER_LABELS,
     sortBy, sortDir, filterBy, searchQuery, debouncedQuery, activeCategory,
     toggleSortDir, density, activeCategoryLabel, mountedResIds,

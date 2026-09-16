@@ -1,5 +1,5 @@
 ﻿<template>
-  <div ref="wsPageRef" class="ws-page" :class="{ 'ws-fs-on': pyFs }" v-if="workspace" :style="{ '--grid-cols': String(resCols) }">
+  <div ref="wsPageRef" class="ws-page" :class="{ 'ws-fs-on': pyFs }" v-if="workspace" :style="{ '--grid-cols': String(colsNow) }">
     <!-- R84（W1）：台身份页头——图标 + 台名 + 台描述 + 右端结构摘要（一行 ≤40px）。
          改前：仅资源台有一段 R73-S5a 写死的 .ws-hub-head（无图标、非 workspace.name.replace(/^[^\s]+\s/, '')/description），
          而 **策展台的台名与台描述在页面内零出现**——用户置身于某个策展台，却不知道这是哪个台。
@@ -12,7 +12,10 @@
       <b class="wsh-name">{{ workspace.name.replace(/^[^\s]+\s/, '') }}</b>
       <!-- R90（R8-③）：台描述分两态——**用户自写的台描述仍内联**（R84 / W1 要的就是台身份可见）；
            资源台无描述时回落的定位语「资源卡唯一存储 · 镜像源头」**降为 ⓘ tooltip**（它是定位语，不是每屏必读） -->
+      <!-- R119：资源台无自写描述时，原型把定位语「资源卡唯一存储 · 镜像源头」**内联常显**（原为 ⓘ 悬停才见）；
+           非 hub 台保持 ⓘ 收敛——其页头右端已有「更新 X」信息位，不再叠加第二段说明。 -->
       <span v-if="wsHeadDescOwn" class="wsh-desc" :title="wsHeadDescOwn">· {{ wsHeadDescOwn }}</span>
+      <span v-else-if="wsHeadDescFallback && isHub" class="wsh-desc" title="资源台定位">{{ wsHeadDescFallback }}</span>
       <span v-else-if="wsHeadDescFallback" class="wsh-locator" :title="wsHeadDescFallback">ⓘ</span>
       <!-- R98（W8）：「🕐 最近更新」自指标条降为页头摘要，可点进流水下钻（入口不断，仅非 hub） -->
       <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="!isHub && metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template><span v-if="!isHub" class="wsh-upd" title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新 {{ lastUpdateText }}</span></span>
@@ -38,23 +41,22 @@
       </div>
     </Teleport>
 
-    <!-- R75（R18）：指标条按台身份分流——资源台 3 格 / 策展台 5 格（数据源同为 hub.curationMetrics） -->
+    <!-- R75（R18）：指标条按台身份分流——资源台 3 格 / 策展台 3 格（数据源同为 hub.curationMetrics） -->
     <!-- 资源台（hub）3 格：论点格与来源构成格对资源台无意义——单向挂载红线 ⇒ 无投射指向资源台，metrics.mirrored 恒 0 -->
+    <!-- R119：按原型 .metric-box —— **单行**「label 左 / value 右」（原为 label→value→hint 三行纵排），
+         原 hint 文案一字不丢、降为整格 title 提示；附件格补原型的三档构成「(N图 · NPDF · NHTML)」 -->
     <div v-if="isHub" class="ws-metrics hub3">
-      <div class="metric-card" @click="openDrill('total')">
-        <div class="mc-label">📊 卡片总数</div>
-        <div class="mc-value">{{ metrics.total }}</div>
-        <div class="mc-hint">{{ hubCountHint }}</div>
+      <div class="metric-card" @click="openDrill('total')" :title="hubCountHint + ' · 点击查看分类明细'">
+        <span class="mc-label">📊 卡片总数</span>
+        <span class="mc-value">{{ metrics.total }}</span>
       </div>
-      <div class="metric-card" @click="openDrill('assets')">
-        <div class="mc-label">📎 附件数量</div>
-        <div class="mc-value">{{ metrics.attachmentCount }}</div>
-        <div class="mc-hint">点击查看明细</div>
+      <div class="metric-card" @click="openDrill('assets')" :title="'点击查看附件明细' + (assetKindText ? ' · ' + assetKindText : '')">
+        <span class="mc-label">📎 附件数量</span>
+        <span class="mc-value">{{ metrics.attachmentCount }}<span v-if="assetKindText" class="mc-sub">{{ assetKindText }}</span></span>
       </div>
-      <div class="metric-card" @click="openDrill('recent')">
-        <div class="mc-label">🕐 最近更新</div>
-        <div class="mc-value small">{{ lastUpdateText }}</div>
-        <div class="mc-hint">点击查看流水</div>
+      <div class="metric-card" @click="openDrill('recent')" title="点击查看更新流水">
+        <span class="mc-label">🕐 最近更新</span>
+        <span class="mc-value small">{{ lastUpdateText }}</span>
       </div>
     </div>
     <!-- R62-1：策展台指标条——R98（W8）5 格 → 3 格：构成明细本就与总数格 hint 同源同文（并入即删格）；
@@ -201,7 +203,7 @@
           <!-- R72：卡片视图横向列数（4/5/6/7）——W3 要求列数选择器一并收进「筛选」气泡 -->
           <div v-if="viewMode==='card'" class="fp-row">
             <span class="fp-label">列数</span>
-            <ColsPicker v-model="resCols" label="列数" />
+            <ColsPicker v-model="colsNow" label="列数" />
           </div>
           <div class="fp-foot">
             <span class="fp-reset" @click="resetAllFilters">重置全部</span>
@@ -333,7 +335,7 @@
             </div>
             <div v-show="!collapsedGroups.has(g.key)" class="card-grid"
               @dragover="onAreaDragOver($event, g.key)" @drop="onAreaDrop($event, g.key)">
-              <div v-for="r in g.items" :key="r.id" class="res-card" :class="{mirror: isMirrorView(r), pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
+              <div v-for="r in g.items" :key="r.id" class="res-card" :class="{mirror: isMirrorView(r), pinned: r.pinned, 'warning-broken': isBrokenPath(r), flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
                 @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragend="clearDragState" @dragleave="clearDropMark"
                 @contextmenu.prevent="openResCtx($event, r)">
@@ -346,16 +348,12 @@
                   <!-- R89（W4）：镜像卡是策展台里的**只读引用**——此前景泰七动作无条件渲染，
                        其中四个点了只会弹「镜像卡为引用」的提示，🗑 更是名不副实（干的是"移出镜像"）。
                        现写动作只对真身卡出现，镜像卡改给三个**真能用**的：打开 / 定位源 / 移出镜像。 -->
+                  <!-- R119（对齐原型 .rc-hover-actions「hover 只 2 项」）：真身卡 hover 只留「📋 挂载 / ⭐ 星标」。
+                       置顶 / 移动分类 / 镜像到策展台 / 删除 四项能力**零删减**——全部由右键菜单 openResCtx 承接
+                       （置顶 / 移动分类 / 📡 镜像到策展台 / 删除 均在菜单内），主视觉不再被 7 个图标挤占。 -->
                   <template v-if="!isMirrorView(r)">
-                    <div class="rc-action pin" @click.stop="togglePin(r)" title="置顶">📌</div>
+                    <div class="rc-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务（右键可置顶 / 移动 / 镜像 / 删除）'">📋</div>
                     <div class="rc-action" :class="{on: r.starred}" :title="r.starred?'取消星标':'星标'" @click.stop="toggleStar(r)">⭐</div>
-                    <div class="rc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</div>
-                    <!-- R73-S3：镜像到策展台（仅资源台真身卡；镜像卡为引用，源头在资源台，故不提供） -->
-                    <div v-if="isHub" class="rc-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</div>
-                    <!-- R82（R4）：挂载到任务——写在 task.mountedResourceIds 上，不碰资源卡（单向挂载红线）。
-                         镜像卡不给入口：它是策展台里的只读引用，写动作一律回落资源台真身卡（R61/R79 口径）。 -->
-                    <div class="rc-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</div>
-                    <div class="rc-action delete" @click.stop="deleteResource(r)" title="删除">🗑</div>
                   </template>
                   <template v-else>
                     <div class="rc-action locate" title="定位到资源台源卡" @click.stop="locateMirrorSource(r)">🎯</div>
@@ -364,7 +362,7 @@
                 </div>
                 <div class="rc-fields">
                   <template v-for="f in fieldsOf(r)" :key="f.key">
-                    <div v-if="isTitleKey(f.key)" class="rc-title"><NewBadge :at="r.createdAt" /><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ val(r, f.key) }}</div>
+                    <div v-if="isTitleKey(f.key)" class="rc-title"><NewBadge :at="r.createdAt" /><span class="rc-type-icon" aria-hidden="true">{{ r.link ? linkIcon(r.linkType) : (r.assets?.length ? '📎' : '📄') }}</span><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ val(r, f.key) }}</div>
                     <div v-else-if="f.key==='link' && r.link" class="rc-link" :class="r.linkType">{{ linkIcon(r.linkType) }} {{ linkDisplay(r.link) }}</div>
                     <div v-else-if="f.key==='description' && r.description" class="rc-summary">{{ r.description }}</div>
                     <div v-else-if="f.key==='tags' && r.tags.length" class="rc-tags"><span v-for="t in r.tags" :key="t" class="rc-tag">#{{ t }}</span></div>
@@ -1150,6 +1148,24 @@ const lastUpdateText = computed(() => {
  *  curationMetrics 对 hub 台镜像计数恒 0 双重兜底，此处异常提示分支已退役，
  *  口径恒为「分类 N · 待分类 M」。 */
 const hubCountHint = computed(() => `分类 ${metrics.value.categoryCount} · 待分类 ${uncategorizedCount.value}`)
+/** R119：资源台指标条「附件数量」格的三档构成后缀（原型「(12图 · 4PDF · 2HTML)」）——
+ *  数据源就是 drill 抽屉在用的 metrics.attachmentItems（同源同口径，不新增计算）。
+ *  三档全为 0 时返回空串，模板侧 v-if 不渲染，避免出现「(0图 · 0PDF · 0HTML)」噪声。 */
+const assetKindText = computed(() => {
+  const it = metrics.value.attachmentItems
+  if (!it.length) return ''
+  let img = 0, pdf = 0, html = 0
+  for (const a of it) {
+    if (a.kind === 'image') img++
+    else if (a.kind === 'pdf') pdf++
+    else html++
+  }
+  const seg: string[] = []
+  if (img) seg.push(`${img}图`)
+  if (pdf) seg.push(`${pdf}PDF`)
+  if (html) seg.push(`${html}HTML`)
+  return seg.length ? `(${seg.join(' · ')})` : ''
+})
 
 // ===== 字段渲染（F1：全局设置的字段设计在此生效） =====
 const rFields = computed(() => visibleFields(d.value.fieldConfig, 'resource'))
@@ -1253,7 +1269,7 @@ function onDrillLocate(id: string) {
 
 // ===== R115 拆分接线：视图域（视图模式/排序/筛选/搜索/分组/增量渲染/看板）=====
 const {
-  viewMode, applyWsView, setViewMode, pyFold, resCols,
+  viewMode, applyWsView, setViewMode, pyFold, resCols, colsNow,
   SORT_BY_KEYS, SORT_LABELS, FILTER_KEYS, FILTER_LABELS,
   sortBy, sortDir, filterBy, searchQuery, debouncedQuery, activeCategory,
   toggleSortDir, density, activeCategoryLabel, mountedResIds,
@@ -1268,7 +1284,7 @@ const {
   kanbanMore, onKanbanColScroll,
 } = useResourceView({
   store, d, workspaceId, allResources, thesisCard, categories, wsCats, catIdx, resBucket,
-  rootCats, childCatsOf, familyIds, isUncat,
+  rootCats, childCatsOf, familyIds, isUncat, isHub,
 })
 // R65-F7：KeepAlive 缓存实例——切换不同策展台（:id 变化）时复位本台局部状态，防上一台残留
 watch(() => route.params.id, (nv, ov) => {

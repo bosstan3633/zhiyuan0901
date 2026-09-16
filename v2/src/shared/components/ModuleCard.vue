@@ -38,7 +38,7 @@ defineProps<{
   background: var(--surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  border: 1px solid rgba(0,0,0,.025);
+  border: 1px solid var(--border);
   transition: box-shadow .3s;
   display: flex;
   flex-direction: column;
@@ -46,26 +46,29 @@ defineProps<{
 .module-card.hover:hover {
   box-shadow: var(--shadow-hover);
 }
+/* R119：原型 .module-head-row / .spotlight-header —— 头部 16/20 顶部 + 12px 底距，标题 13.5px/700 */
 .module-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 18px 22px 10px;
+  padding: 16px 20px 0;
+  margin-bottom: 12px;
 }
 .module-title .icon {
-  font-size: 17px;
+  font-size: 16px;
   filter: drop-shadow(0 1px 1px rgba(0,0,0,.05));
 }
 .module-title .name {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 700;
   color: var(--text);
-  letter-spacing: .2px;
+  letter-spacing: .02em;
 }
 .module-title .en {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-3);
-  letter-spacing: 1.5px;
+  letter-spacing: .05em;
+  font-weight: 600;
   text-transform: uppercase;
   margin-left: 2px;
 }
@@ -82,7 +85,7 @@ defineProps<{
   gap: 8px;
 }
 .module-body {
-  padding: 0 20px 18px;
+  padding: 0 20px 16px;
   flex: 1;
 }
 </style>

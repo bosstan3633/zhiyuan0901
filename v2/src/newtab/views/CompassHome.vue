@@ -393,6 +393,12 @@ const projMetrics = computed(() => curProject.value?.metrics || [])
 const projTasks = computed(() => (curProject.value ? projectTasksOf(curProject.value.id) : []))
 const projDoneCount = computed(() => projTasks.value.filter(t => t.status === 'done').length)
 const projDoingCount = computed(() => projTasks.value.filter(t => t.status === 'doing').length)
+/** R119：原型 .proj-meta-bar 左段「周期 · 状态」——周期缺省显示「未设周期」，状态复用既有判定 */
+const curProjState = computed<string>(() => {
+  const p = curProject.value
+  if (!p) return ''
+  return isProjectDone(p) ? '已完成' : isProjectStalled(p) ? '停滞' : '推进中'
+})
 /** 按成功指标分组（+ 未归类），空指标组隐藏；R52-F2：默认全部展开，可手动折叠 */
 const metricGroups = computed(() => {
   const p = curProject.value
@@ -415,8 +421,10 @@ const metricGroups = computed(() => {
  *   同一会话内切换项目**不重置** —— 用户已经表达要看，切个项目不该收回去。
  */
 const curTreeOpen = ref(false)
-/** R54-B1：项目调度左右分栏拖拽（左列 30–75%，持久化 UIPrefs.curSplit） */
-const curSplit = ref(Math.min(75, Math.max(30, store.ui?.curSplit ?? 38)))
+/** R54-B1：项目调度左右分栏拖拽（左列 20–75%，持久化 UIPrefs.curSplit）
+ *  R119：默认比例 38% → 25%——原型 .spotlight-body 为「340px + 1fr」，在 1400px 容器（内容区 ~1352px）
+ *  下 25% ≈ 338px，与原型左摘要栏等宽；拖拽能力（能力收纳）保留。 */
+const curSplit = ref(Math.min(75, Math.max(20, store.ui?.curSplit ?? 25)))
 let splitDragging = false
 function startCurSplitDrag(e: MouseEvent) {
   e.preventDefault()
@@ -425,7 +433,7 @@ function startCurSplitDrag(e: MouseEvent) {
   if (!container) return
   const move = (ev: MouseEvent) => {
     const rect = container.getBoundingClientRect()
-    const pct = Math.min(75, Math.max(30, ((ev.clientX - rect.left) / rect.width) * 100))
+    const pct = Math.min(75, Math.max(20, ((ev.clientX - rect.left) / rect.width) * 100))
     curSplit.value = Math.round(pct)
   }
   const up = () => {
@@ -773,7 +781,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 <template>
   <div class="page">
     <div class="page-head">
-      <div class="crumb"><b>调度台</b> · 今天，从哪里出发</div>
+      <div class="crumb"><b>调度台</b><span class="sub">今天，从哪里出发</span></div>
       <div class="spacer" />
       <!-- R66-F3：操作记录四格移至方向状态指标条右端（右对齐），存储/同步 chip 留右上角右对齐 -->
       <button class="storage-chip" :class="{ err: !storageOk }" :title="storageOk ? '点击查看存储用量' : '点击重试写入'" @click="onStorageClick">
@@ -792,7 +800,28 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
          三个子块各自 DOM 与顺序原样保留（MetricBar 内部零改动，避免破坏其 10+ 条断言），
          仅由 .dir-bar 统一外观：去掉三重独立边框，共用一条发丝线，横向收为一行。 -->
     <div class="dir-bar">
-    <!-- R55-D1：方向状态（战略目标/WCE/WRR/未归档四格）迁至调度台最顶部 ｜ R66-F3：右端挂操作记录四格 -->
+    <!-- R119：顺序回归原型 `.dir-left` ——「🎯 主攻 → 分隔线 → 指标」在左，右侧「📊 周报 + 去方向台 ›」。 -->
+    <!-- R91：主攻速览——首页面包屑写着「今天，从哪里出发」，主攻就是这个问题的答案。 -->
+    <div class="ch-focus-strip" :class="{ empty: !focusedProjects.length }">
+      <template v-if="focusedProjects.length">
+        <span class="cf-label">🎯 主攻</span>
+        <span v-for="p in focusedProjects" :key="p.id" class="cf-item" :class="{ done: focusMeta.get(p.id)?.finished }"
+          :title="p.name + ' · 点击进入项目详情'" @click="openFocusProject(p)">
+          <span class="cf-name">{{ p.name }}</span>
+          <span class="cf-pct">{{ focusMeta.get(p.id)?.pct || 0 }}%</span>
+          <span v-if="focusMeta.get(p.id)?.stall" class="cf-stall" title="近 14 天无推进">⚠ 停滞</span>
+          <span v-if="focusMeta.get(p.id)?.open" class="cf-open">待办 {{ focusMeta.get(p.id)?.open }}</span>
+        </span>
+      </template>
+      <span v-else class="cf-hint" title="去方向台指定主攻项目" @click="router.push('/compass')">
+        🎯 尚无主攻项目 —— 去方向台指定（最多 2 个）
+      </span>
+    </div>
+
+    <div class="dir-divider" />
+
+    <!-- R55-D1：方向状态（战略目标/推进项目/WCE 探索/WRR 复用/未归档，原型 5 组）迁至调度台最顶部
+         ｜ R66-F3：右端挂操作记录四格（原型无此项，按「能力收纳」保留在指标条右端、不占主视觉） -->
     <MetricBar>
       <template #right>
         <div class="rec-mini in-bar">
@@ -804,28 +833,9 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
       </template>
     </MetricBar>
 
-    <!-- R91：主攻速览——首页面包屑写着「今天，从哪里出发」，主攻就是这个问题的答案。
-         手册承诺「🎯 主攻（最多 2 个）直通调度台速览」，而 focusedProjects 此前在调度台**零消费**
-         （唯一消费方在方向台 LighthousePanel）。R118（T1.1）：由独立条收编进上方向镜通栏。 -->
-    <div class="ch-focus-strip" :class="{ empty: !focusedProjects.length }">
-      <template v-if="focusedProjects.length">
-        <span class="cf-label">🎯 主攻</span>
-        <span v-for="p in focusedProjects" :key="p.id" class="cf-item" :class="{ done: focusMeta.get(p.id)?.finished }"
-          :title="p.name + ' · 点击进入项目详情'" @click="openFocusProject(p)">
-          <span class="cf-name">{{ p.name }}</span>
-          <span class="cf-pct">{{ focusMeta.get(p.id)?.pct || 0 }}%</span>
-          <span v-if="focusMeta.get(p.id)?.stall" class="cf-stall" title="近 14 天无推进">⚠ 停滞</span>
-          <span v-if="focusMeta.get(p.id)?.open" class="cf-open">待办 {{ focusMeta.get(p.id)?.open }}</span>
-        </span>
-        <span class="cf-go" title="去方向台管理主攻" @click="router.push('/compass')">去方向台 ›</span>
-      </template>
-      <span v-else class="cf-hint" title="去方向台指定主攻项目" @click="router.push('/compass')">
-        🎯 尚无主攻项目 —— 去方向台指定（最多 2 个）
-      </span>
-    </div>
-
-      <!-- R111：调度画像周报入口（R118 T1.1：由游离胶囊收编进通栏最右端） -->
+      <!-- R111：调度画像周报入口 ｜ R119：与「去方向台 ›」同处 .dir-right -->
       <button class="mini-btn wr-entry" title="调度画像周报" @click="wrOpen = true">📊 周报</button>
+      <span class="cf-go" title="去方向台管理主攻" @click="router.push('/compass')">去方向台 ›</span>
     </div>
 
     <!-- 上下分区：今日三件事 → 项目调度（R118 更正 R94 注释中「左右分栏」的旧措辞——.split 实为 column） -->
@@ -851,10 +861,10 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
               <template v-for="c in focusCells" :key="c.idx">
                 <div v-if="c.task" class="today-card" :class="{done: c.slot?.done, sel: focusSelIdx===c.idx}"
                   @click="onFocusCardClick(c.idx)" @dblclick="openCellTask(c)">
-                  <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
                   <div class="tc-row">
                     <div class="tc-check" :class="{done: c.slot?.done}" @click.stop="c.slot && toggleTodayDone(c.slot)">{{ c.slot?.done?'✓':'' }}</div>
                     <div class="tc-title"><NewBadge :at="c.task.createdAt" />{{ c.slot?.text }}</div>
+                    <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
                   </div>
                   <div class="tc-meta">
                     <span class="tag accent">📦 {{ projectName(c.task.projectId) }}</span>
@@ -865,14 +875,18 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
                 </div>
                 <!-- 失效槽（原任务已删除/已不在库）：显式给格 + 原位重新选取入口 -->
                 <div v-else-if="c.slot" class="today-card stale-card" @click="openPicker(c.idx)" title="原任务已删除或归档 · 点击重新选取">
-                  <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
-                  <div class="tc-title empty-t">⚠ 任务已失效 · 重新选取</div>
+                  <div class="tc-row">
+                    <div class="tc-title empty-t">⚠ 任务已失效 · 重新选取</div>
+                    <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
+                  </div>
                   <div class="tc-meta"><span class="tag warn">原任务已删除</span></div>
                   <div class="tc-remove" @click.stop="removeTodaySlot(c.idx)" title="移除">×</div>
                 </div>
                 <div v-else class="today-card empty-card" @click="openPicker(c.idx)">
-                  <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
-                  <div class="tc-title empty-t">＋ 从任务库选取</div>
+                  <div class="tc-row">
+                    <div class="tc-title empty-t">＋ 从任务库选取</div>
+                    <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
+                  </div>
                 </div>
               </template>
             </div>
@@ -900,16 +914,17 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
             <!-- R66-F2：删顶部项目名行与愿景/使命模块（数据保留在方向台）——项目名大字下移为模块主体首行，纵向压缩 -->
             <div class="cur-cols" :style="{ gridTemplateColumns: curColsStyle }">
               <div class="cur-col-l">
-                <!-- R67-F1：紫框主体重排——战略目标小字在上，项目名称大字在下（顶部独立项目名行删除） -->
+                <!-- R119：原型 .spotlight-summary-panel —— 中性摘要面板（战略目标 → 项目名 → 元信息条 → 进度条 → 2×2 指标） -->
                 <div class="cur-goal">
-                  <div class="cur-goal-lab">🎯 战略目标 · STRATEGIC DIRECTION</div>
+                  <div class="cur-goal-lab">战略目标 · STRATEGIC DIRECTION</div>
                   <div class="cur-goal-name">{{ goalOf(curProject)?.name || '—' }}</div>
                   <div class="cur-proj-name big">📦 {{ curProject.name }}</div>
                   <div class="cur-goal-meta">
-                    <span v-if="dirTermLabel(goalOf(curProject))" class="tag">{{ dirTermLabel(goalOf(curProject)) }}</span>
-                    <span class="cur-goal-pct">项目进度 {{ projectProgress(curProject).pct }}%</span>
+                    <span class="cur-goal-state">{{ dirTermLabel(goalOf(curProject)) || '未设周期' }} · {{ curProjState }}</span>
+                    <span class="cur-goal-pct">进度 {{ projectProgress(curProject).pct }}%</span>
                     <span class="cur-goal-link" @click="router.push({ path: '/compass/projects', query: { p: curProject.id } })">进入项目详情 ›</span>
                   </div>
+                  <div class="cur-progress"><div class="cur-progress-fill" :style="{ width: projectProgress(curProject).pct + '%' }" /></div>
                 </div>
                 <!-- R56-P1：恢复项目调度 4 指标卡（点击→弹窗下钻→任务点击开右侧抽屉） -->
                 <div class="cur-stats-v2">
@@ -1156,25 +1171,29 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 </template>
 
 <style scoped>
-.page { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
-.page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-left: 22px; }
-.page-head .crumb { font-size: 13px; color: var(--text-2); }
-.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
+/* R119：原型 .main-container —— max-width 1400、padding 16/24、纵向 gap 16（原 1440 + 20/24/48 块级间距） */
+.page { max-width: 1400px; margin: 0 auto; padding: 16px 24px 40px; display: flex; flex-direction: column; gap: 16px; }
+/* R119：原型 .page-header —— height 28px、无左缩进；标题 15px/600、副题为独立 13px --text-3（原为「 · 」拼接的 19px/700） */
+.page-head { display: flex; align-items: center; gap: 10px; height: 28px; margin-bottom: 14px; }
+.page-head .crumb { display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: var(--text-3); }
+.page-head .crumb .sub { font-size: 13px; color: var(--text-3); }
+.page-head .crumb b { color: var(--text); font-weight: 600; font-size: 15px; letter-spacing: -.01em; }
 .page-head .spacer { flex: 1; }
 .hint-chip { font-size: 10.5px; color: var(--text-3); background: var(--surface); border: 1px dashed var(--border-strong); padding: 3px 10px; border-radius: 99px; }
 
 /* R50-F2 数据存储状态栏 */
-.storage-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); padding: 4px 12px; border-radius: 99px; cursor: pointer; transition: border-color .15s; font-family: inherit; }
+/* R119：原型 .storage-status-chip —— padding 3/8、radius 20px、11.5px（原 4/12 + 99px + 光晕） */
+.storage-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-3); background: var(--surface); border: 1px solid var(--border); padding: 3px 8px; border-radius: 20px; cursor: pointer; transition: border-color .15s; font-family: inherit; }
 .storage-chip:hover { border-color: var(--border-strong); }
 /* R118（T5）：状态点由裸 hex 改为语义令牌——原 #2EA043 / #F85149 在浅色主题（极简白/纸墨白）下
    与色板脱节且对比过强；改消费 --success / --danger，光晕用 color-mix 由同一令牌派生。 */
-.storage-chip .sc-dot { width: 7px; height: 7px; border-radius: 99px; background: var(--success); box-shadow: 0 0 6px color-mix(in srgb, var(--success) 55%, transparent); flex-shrink: 0; }
+.storage-chip .sc-dot { width: 6px; height: 6px; border-radius: 99px; background: var(--success); flex-shrink: 0; }
 .storage-chip.err { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
 .storage-chip.err .sc-dot { background: var(--danger); box-shadow: 0 0 6px color-mix(in srgb, var(--danger) 55%, transparent); animation: scBlink 1.2s ease-in-out infinite; }
 @keyframes scBlink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
-/* R63-9：Airtable 同步状态卡（右上角常驻，量级对齐 storage-chip） */
-.sync-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); padding: 4px 12px; border-radius: 99px; cursor: pointer; transition: border-color .15s; font-family: inherit; }
+/* R63-9：Airtable 同步状态卡（右上角常驻，量级对齐 storage-chip）｜ R119：量级同步为 3/8 + 20px + 11.5px */
+.sync-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-3); background: var(--surface); border: 1px solid var(--border); padding: 3px 8px; border-radius: 20px; cursor: pointer; transition: border-color .15s; font-family: inherit; }
 .sync-chip:hover { border-color: var(--border-strong); }
 .sync-chip .sc-dot { width: 7px; height: 7px; border-radius: 99px; background: var(--text-3); flex-shrink: 0; }
 .sync-chip.on .sc-dot { background: var(--success); box-shadow: 0 0 6px color-mix(in srgb, var(--success) 55%, transparent); }
@@ -1189,8 +1208,9 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .rec-mini.in-bar { background: transparent; border: none; padding: 0; }
 .rec-mini .rm-cell { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-2); padding: 2px 7px; border-radius: 99px; cursor: pointer; font-variant-numeric: tabular-nums; transition: all .12s; white-space: nowrap; }
 .rec-mini .rm-cell:hover { background: var(--accent-light); color: var(--accent); }
-.wr-entry { font-size: 11px; padding: 4px 10px; border-radius: 99px; }
-.wr-entry:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+/* R119：原型 .report-btn —— 11.5px、padding 3/8、radius-sm(6)→radius-xs、surface-2 底 */
+.wr-entry { font-size: 11.5px; padding: 3px 8px; border-radius: var(--radius-xs); background: var(--surface-2); }
+.wr-entry:hover { background: var(--surface-3); color: var(--text); border-color: var(--border); }
 
 /* 左右分栏 */
 /* R51-F10：上下联动——三件事在上占视觉焦点，项目调度在下 */
@@ -1198,40 +1218,51 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
    差异只在多出的停滞警示与待办数（本条要回答的是"今天推哪个"，不只是"有哪些主攻"） */
 /* R118（T1.1）方向镜通栏：周报胶囊 + 方向状态四指标 + 操作记录四格 + 🎯 主攻条合流为**单行**（≤40px）。
    子块 DOM 一律不动，这里只做「外观合流」：去掉三重独立边框与下边距，共用外框一条发丝线。 */
-.dir-bar { display: flex; align-items: center; gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 4px; margin-bottom: 10px; overflow: hidden; }
+/* R119：原型 .unified-direction-bar —— height 40px + padding 0 14px + shadow-sm + radius 8
+   （顺序回归原型 .dir-left：主攻 → 分隔线 → 指标；右侧 .dir-right：周报 + 去方向台） */
+/* R119：原型卡片间距由 .page 的 gap 16px 承担，块级 margin 归零 */
+.dir-bar { display: flex; align-items: center; gap: 0; height: 40px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 14px; margin-bottom: 0; overflow: hidden; box-shadow: var(--shadow); }
 .dir-bar :deep(.metric-bar) { flex: 0 0 auto; min-width: 0; background: transparent; border: 0; border-radius: 0; margin-bottom: 0; }
-.dir-bar :deep(.mb-row) { padding: 5px 6px; }
+.dir-bar :deep(.mb-row) { padding: 5px 0 5px 10px; }
 .dir-bar :deep(.mb-right) { margin-left: 0; }
-.dir-bar .ch-focus-strip { flex: 1 1 auto; min-width: 0; min-height: 0; max-height: none; padding: 0 10px; margin-bottom: 0; background: transparent; border: 0; border-left: 1px solid var(--border); border-radius: 0; }
+/* R119：主攻条不再 grow——原型里主攻与指标同属 .dir-left 紧密相邻，右侧靠 margin-left:auto 顶到最右 */
+.dir-bar .ch-focus-strip { flex: 0 1 auto; min-width: 0; min-height: 0; max-height: none; padding: 0; margin-bottom: 0; background: transparent; border: 0; border-radius: 0; }
 .dir-bar .wr-entry { flex-shrink: 0; margin-left: auto; }
-.ch-focus-strip { display: flex; align-items: center; gap: 8px; min-height: 34px; max-height: 40px; padding: 0 12px; margin-bottom: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+/* R119：原型 .dir-divider —— 1px × 14px 竖线，分隔「主攻」与「方向指标」 */
+.dir-divider { flex-shrink: 0; width: 1px; height: 14px; background: var(--border); margin: 0 12px; }
+.ch-focus-strip { display: flex; align-items: center; gap: 10px; min-height: 34px; max-height: 40px; padding: 0 12px; margin-bottom: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
 .ch-focus-strip.empty { border-style: dashed; }
-.cf-label { flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--accent); }
-.cf-item { display: flex; align-items: center; gap: 6px; flex-shrink: 0; max-width: 280px; padding: 3px 10px; border-radius: 99px; background: var(--surface); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border)); color: var(--text); cursor: pointer; transition: all .12s; }
-.cf-item:hover { border-color: var(--accent); background: var(--accent-light); }
+/* R119：原型 .focus-badge —— accent-light 底 + accent 字 + 12px/600 + padding 3/8 + radius 6 */
+.cf-label { flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-light); padding: 3px 8px; border-radius: var(--radius-xs); }
+/* R119：原型 .focus-project-item —— 12px/500 纯文本 + hover 下划线（原为带边框胶囊） */
+.cf-item { display: flex; align-items: center; gap: 6px; flex-shrink: 0; max-width: 280px; color: var(--text); cursor: pointer; transition: all .12s; }
+.cf-item:hover .cf-name { text-decoration: underline; }
 /* 已完成的主攻仍要能看到（对齐 .fp-item.done 既有口径），只降透明度 */
 .cf-item.done { opacity: .55; }
-.cf-name { min-width: 0; font-size: 11.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cf-pct { flex-shrink: 0; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
-/* R91：手册承诺的「14 天无推进自动亮 ⚠ 停滞」在此兑现；--warning 令牌 R87 已确认存在 */
-.cf-stall { flex-shrink: 0; padding: 0 5px; border-radius: 99px; font-size: 10px; color: var(--warning); background: var(--surface-2); }
+.cf-name { min-width: 0; font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-pct { flex-shrink: 0; font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+/* R91：手册承诺的「14 天无推进自动亮 ⚠ 停滞」在此兑现 */
+.cf-stall { flex-shrink: 0; padding: 0 5px; border-radius: var(--radius-xs); font-size: 10px; color: var(--warning); background: var(--warning-light); }
 .cf-open { flex-shrink: 0; font-size: 10px; color: var(--text-3); }
-.cf-go { flex-shrink: 0; margin-left: auto; font-size: 11px; color: var(--text-3); cursor: pointer; }
+/* R119：原型 .link-to-compass —— 12px --text-3，紧随周报位于最右 */
+.cf-go { flex-shrink: 0; margin-left: 8px; font-size: 12px; color: var(--text-3); cursor: pointer; }
 .cf-go:hover { color: var(--accent); }
 .cf-hint { font-size: 11.5px; color: var(--text-3); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cf-hint:hover { color: var(--accent); }
-.split { display: flex; flex-direction: column; gap: 14px; margin-bottom: 4px; }
+/* R119：原型卡片间 gap 16px（.main-container flex gap）；块级 margin 已由 .page gap 承担 */
+.split { display: flex; flex-direction: column; gap: 16px; margin-bottom: 0; }
 .left-col { min-width: 0; }
 .right-col { min-width: 0; }
 
 /* R105（B4）：好奇心培育折叠摘要行——呼应 ModuleCard 的视觉语言（surface 底 + 发丝边） */
 /* R117（04-61 C1）：底部「任务调度 / 好奇心培育」双 tab（旧「好奇心培育」折叠一行摘要的降权策略随本策略退役） */
-.bottom-tabs { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
-.bt-tab { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 13px; font-weight: 600; border-radius: 8px; padding: 7px 16px; cursor: pointer; font-family: inherit; transition: all .13s; }
-.bt-tab:hover { border-color: var(--accent); color: var(--accent); }
-.bt-tab.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
-.bt-cnt { font-size: 11px; font-weight: 700; color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 0 7px; line-height: 17px; }
-.bt-tab.on .bt-cnt { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.bottom-tabs { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+/* R119：原型 .pill-tab —— 12.5px/600、padding 5/12、radius 20px；active = 中性 surface-3 底（原为 accent 紫胶囊） */
+.bt-tab { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 12.5px; font-weight: 600; border-radius: 20px; padding: 5px 12px; cursor: pointer; font-family: inherit; transition: all .13s; }
+.bt-tab:hover { border-color: var(--border-strong); color: var(--text); }
+.bt-tab.on { border-color: var(--border-strong); background: var(--surface-3); color: var(--text); }
+/* R119：原型 .pill-count —— 纯文本 11px/text-3（原为面片 pill + accent 高亮） */
+.bt-cnt { font-size: 11px; font-weight: 400; color: var(--text-3); background: transparent; border-radius: 0; padding: 0; line-height: inherit; }
 .bt-hint { margin-left: auto; font-size: 11px; color: var(--text-4); }
 .bottom-pane { min-height: 120px; }
 .module { margin-top: 0; }
@@ -1241,12 +1272,13 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
   0%, 55% { box-shadow: 0 0 0 2px var(--accent), 0 0 20px color-mix(in srgb, var(--accent) 32%, transparent); }
   100% { box-shadow: none; }
 }
-.page > .module { margin-top: 14px; }
+/* R119：模块间距统一交给 .page 的 gap 16px */
+.page > .module { margin-top: 0; }
 .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,.025); height: 100%; }
 .card-head { display: flex; align-items: center; gap: 8px; padding: 10px 20px 6px; flex-wrap: wrap; }
 .card-head .ic { font-size: 16px; color: var(--accent); display: flex; align-items: center; }
-.card-head .nm { font-size: 15px; font-weight: 600; letter-spacing: .3px; }
-.card-head .en { font-size: 9px; color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; }
+.card-head .nm { font-size: 13.5px; font-weight: 700; letter-spacing: .02em; }
+.card-head .en { font-size: 11px; color: var(--text-3); letter-spacing: .05em; text-transform: uppercase; font-weight: 600; }
 .card-head .ds { font-size: 11.5px; color: var(--text-3); margin-left: 6px; flex: 1; }
 .mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; user-select: none; }
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -1266,75 +1298,92 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .date-nav .dd { padding: 0 12px; font-size: 12px; font-weight: 500; border-left: 1px solid var(--border); border-right: 1px solid var(--border); min-width: 128px; text-align: center; }
 .today-body { padding: 0 20px 10px; }
 /* R53-C1：视觉强化——三件事模块为首页焦点 */
-.card.focus { border-color: color-mix(in srgb, var(--accent) 30%, transparent); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, var(--surface)), var(--surface) 70%); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent), var(--shadow); }
-.card.focus .card-head .nm { font-size: 17px; font-weight: 700; color: var(--text); }
+/* R119：原型 .focus-module-card —— 中性强调卡（border-strong 外框 + surface 白底 + padding 16/20/14）。
+   改前是「accent 渐变 + accent 描边」的紫色发光卡，与原型「主角靠留白与尺寸而非铺色」不符。 */
+.card.focus { border-color: var(--border-strong); background: var(--surface); padding: 16px 20px 14px; }
+/* 卡头与主体改为无内边距（原 10/20/6 与 0/20/10），由 .card.focus 统一承担 16/20/14 */
+.card.focus .card-head { padding: 0; margin-bottom: 12px; }
+.card.focus .today-body { padding: 0; }
 .card.focus .card-head .ic { color: var(--accent); }
-.card.focus .tc-title { font-size: 15px; font-weight: 650; }
-.card.focus .tc-num { color: var(--accent); font-weight: 700; }
-.card.focus .today-card { padding: 10px 13px 9px; }
-.card.focus .today-card:not(.empty-card) { border-color: color-mix(in srgb, var(--accent) 22%, var(--border)); }
-.card.focus .today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 26%, transparent); }
+/* R119：原型 .focus-module-card.all-completed —— 整卡转为极浅中性底（原型 #FAFBFB）+ 发丝线；
+   用 color-mix(surface-2 30%, surface) 由令牌派生，四主题下均得「比白底略灰」的安静完成态。 */
+.card.focus.all-done { background: color-mix(in srgb, var(--surface-2) 30%, var(--surface)); border-color: var(--border); }
+/* 选中态：原型以焦点环（1px accent + 外发光）表达，不用大面积 accent 填充 */
+.card.focus .today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: var(--shadow-focus); }
 /* R94（B3）三件事全完成：**安静**完成态——整块轻微去饱和 + 一行中性小字。
    ⚠ 卡头（复制昨日 / 导出 / 日期导航）**不去饱和**——那是操作区，褪色会影响可用性。
    不用庆祝动画、不用红色、不用进度百分比。 */
 /* R118（T1.3）：去饱和由 .5 收到 .65——保留可辨识的品牌色，"安静"靠文案与克制的降饱和共同承担。 */
 .card.focus.all-done .today-cards { filter: saturate(.65); }
 .card.focus.all-done .tc-num { color: var(--text-3); }
-.td-done { margin-top: 8px; font-size: 11.5px; color: var(--text-3); text-align: center; letter-spacing: .3px; }
+/* R119：原型 .quiet-completion-strip —— 12px / margin-top 10px / 居中 / letter-spacing .02em */
+.td-done { margin-top: 10px; font-size: 12px; color: var(--text-3); text-align: center; letter-spacing: .02em; }
 /* R94（B2）：任务树折叠/展开按钮的箭头（纯文字，不引新图标） */
 .cur-tree-caret { opacity: .7; }
-/* R52-F1：三件事横向并列——3 槽一行，压缩纵向空间 */
-.today-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.today-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 12px 6px; cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; }
-.today-card:hover { border-color: var(--border-strong); background: var(--surface); }
-.today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 22%, transparent); }
-.today-card.done { opacity: .6; animation: none; }
+/* R52-F1：三件事横向并列——3 槽一行（R119：gap 8→12，对齐原型 .focus-grid） */
+.today-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+/* R119：原型 .focus-card-slot —— 白底 + 发丝线 + min-height 84 + padding 12/14 + 上下两端对齐 */
+.today-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; min-height: 84px; cursor: pointer; transition: border-color .15s ease, transform .15s ease; position: relative; display: flex; flex-direction: column; justify-content: space-between; }
+.today-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+.today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: var(--shadow-focus); }
+.today-card.done { animation: none; }
 .today-card.done .tc-title { text-decoration: line-through; color: var(--text-3); }
-.today-card.empty-card { opacity: .55; border-style: dashed; background: transparent; align-items: center; justify-content: center; }
-.today-card.empty-card:hover { opacity: .9; border-color: var(--accent); color: var(--accent); }
+.today-card.empty-card { border-style: dashed; background: transparent; justify-content: center; align-items: center; }
+.today-card.empty-card:hover { border-color: var(--accent); color: var(--accent); transform: none; }
 /* R117（04-61 C3）：失效槽卡——虚线 + 警示色，与中性的「空位」区分开；
-   ⚠ 末行与上方 `.card.focus .today-card:not(.empty-card)` 同权重，靠**源码顺序在后**生效（不要前移本组）。 */
+   ⚠ 末行与上方 `.card.focus .today-card` 同权重，靠**源码顺序在后**生效（不要前移本组）。 */
 .today-card.stale-card { border-style: dashed; background: transparent; border-color: color-mix(in srgb, var(--tag-warn-text) 45%, var(--border)); }
-.today-card.stale-card:hover { border-color: var(--tag-warn-text); background: var(--surface); }
-.card.focus .today-card.stale-card { border-color: color-mix(in srgb, var(--tag-warn-text) 45%, var(--border)); }
-.tc-num { position: absolute; top: 10px; right: 12px; font-size: 11px; color: var(--text-3); font-weight: 600; }
+.today-card.stale-card:hover { border-color: var(--tag-warn-text); background: var(--surface); transform: none; }
+/* R119：原型 .slot-num —— 行内序号（12px/700/text-4），不再是右上角绝对定位的装饰 */
+.tc-num { flex-shrink: 0; font-size: 12px; font-weight: 700; color: var(--text-4); user-select: none; }
 .tc-row { display: flex; align-items: flex-start; gap: 8px; }
-.tc-check { width: 16px; height: 16px; border-radius: 5px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 10px; color: #fff; background: var(--surface); margin-top: 2px; }
-.tc-check.done { background: var(--success); border-color: var(--success); }
-.tc-title { font-size: 14px; font-weight: 600; line-height: 1.4; flex: 1; }
+/* R119：原型 .custom-checkbox —— 16px / radius 4 / 1.5px 描边，勾选态=accent 紫底（原为 success 绿底） */
+.tc-check { margin-top: 2px; width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; color: #fff; background: var(--surface); transition: all .15s; }
+.tc-check.done { background: var(--accent); border-color: var(--accent); }
+.tc-title { font-size: 13.5px; font-weight: 600; line-height: 1.4; flex-grow: 1; min-width: 0; }
 .tc-title.empty-t { color: var(--text-3); font-weight: 400; }
-.tc-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
-.tc-meta .tag { font-size: 11px; padding: 1px 7px; }
+.tc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.tc-meta .tag { font-size: 11px; padding: 1px 6px; border-radius: var(--radius-xs); }
 .tc-remove { position: absolute; top: 7px; right: 32px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 13px; color: var(--text-3); cursor: pointer; opacity: 0; transition: all .15s; }
 .today-card:hover .tc-remove { opacity: 1; }
 .tc-remove:hover { background: var(--danger); color: #fff; }
 
-/* 项目调度（R52-F2：左右两列——左=方向感，右=执行面） */
-.cur-body-v { padding: 0 20px 18px; display: flex; flex-direction: column; gap: 10px; }
-/* R54-B1：左右两列 + 可拖拽分隔条（行内 style 动态列宽，此处为基础回退值） */
+/* 项目调度（R52-F2：左右两列——左=方向感，右=执行面）
+   R119：原型 .spotlight-card —— padding 16/20、头部 margin-bottom 12、body「340px + 1fr / gap 18」 */
+.card.curation { border-color: var(--border); padding: 16px 20px; }
+.card.curation .card-head { padding: 0; margin-bottom: 12px; }
+.cur-body-v { padding: 0; display: flex; flex-direction: column; gap: 10px; }
+/* R54-B1：左右两列 + 可拖拽分隔条（行内 style 动态列宽，此处为基础回退值 25%） */
 /* R55-E（修复 R54-B1）：列宽绑定 ${curSplit.value}——此前 ${curSplit} 插值 ref 对象生成非法值被 CSSOM 静默拒绝 */
-.cur-cols { display: grid; grid-template-columns: minmax(0, 38%) 8px 1fr; gap: 0 10px; align-items: stretch; }
+.cur-cols { display: grid; grid-template-columns: minmax(0, 25%) 8px 1fr; gap: 0 5px; align-items: stretch; }
 .cur-col-l, .cur-col-r { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .cur-proj-name { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: .3px; }
-/* R67-F1：项目名大字移入紫框内（战略目标小字上 → 项目名大字下），顶部独立行删除 */
-.cur-proj-name.big { font-size: 21px; margin-top: 3px; }
-/* R66-F2：愿景/使命模块呈现移除（数据保留在方向台），样式一并退役 */
-.cur-goal { background: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius: var(--radius-sm); padding: 12px 14px; }
-.cur-goal-lab { font-size: 9.5px; font-weight: 700; color: var(--accent); letter-spacing: 1px; margin-bottom: 4px; }
-.cur-goal-name { font-size: 16px; font-weight: 700; color: var(--accent); line-height: 1.4; }
-.cur-goal-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
-.cur-goal-pct { font-size: 11px; color: var(--text-2); }
-.cur-goal-link { font-size: 11px; color: var(--accent); cursor: pointer; margin-left: auto; }
+/* R119：原型 .proj-name —— 15px/700，margin 4px 0 8px */
+.cur-proj-name.big { font-size: 15px; margin: 4px 0 8px; }
+/* R119：原型 .spotlight-summary-panel —— 中性浅底 + 发丝线 + radius-md + padding 14 */
+.cur-goal { background: color-mix(in srgb, var(--surface-2) 30%, var(--surface)); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; }
+/* R119：原型 .strategic-badge —— 11px/600/accent/uppercase */
+.cur-goal-lab { font-size: 11px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: .03em; }
+.cur-goal-name { font-size: 13px; font-weight: 600; color: var(--accent); line-height: 1.4; margin-top: 2px; }
+/* R119：原型 .proj-meta-bar —— 两端对齐 11.5px/text-3、margin-bottom 12 */
+.cur-goal-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 11.5px; color: var(--text-3); }
+.cur-goal-state { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cur-goal-pct { margin-left: auto; font-size: 11.5px; color: var(--text-3); white-space: nowrap; }
+.cur-goal-link { font-size: 11.5px; color: var(--accent); cursor: pointer; white-space: nowrap; }
 .cur-goal-link:hover { text-decoration: underline; }
-/* R56-P1：项目调度 4 指标卡 ｜ R57-F2：两两一行排成两行（省横向空间） */
+/* R119：原型 .progress-bar-bg/_fill —— 5px 高、surface-3 底、accent 填充 */
+.cur-progress { height: 5px; background: var(--surface-3); border-radius: 3px; overflow: hidden; margin-bottom: 12px; }
+.cur-progress-fill { height: 100%; background: var(--accent); transition: width .25s ease; }
+/* R56-P1：项目调度 4 指标卡 ｜ R57-F2：两两一行排成两行（省横向空间）
+   R119：原型 .stat-mini-box —— 白底 + 发丝线 + padding 6/10 + 左对齐 */
 .cur-stats-v2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
-.csv-cell { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 4px; text-align: center; }
+.csv-cell { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 6px 10px; text-align: left; }
 .csv-cell.clickable { cursor: pointer; transition: all .12s; }
 .csv-cell.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
-.csv-num { font-size: 16px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.csv-num { font-size: 14px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
 .csv-num.ok { color: var(--success); }
 .csv-num.warn { color: var(--warning); }
-.csv-lab { font-size: 9.5px; color: var(--text-3); margin-top: 1px; }
+.csv-lab { font-size: 11px; color: var(--text-3); margin-top: 1px; }
 /* R54-B1：分栏拖拽分隔条 */
 /* R55-E2：分隔条常显可见（细线）+ hover/拖动增强，命中区 8px */
 .cur-split { width: 8px; border-radius: 99px; cursor: col-resize; background: transparent; transition: background .15s; align-self: stretch; position: relative; }
@@ -1351,17 +1400,20 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cs-num.ok { color: var(--success); }
 .cs-num.warn { color: var(--warning); }
 .cs-lab { font-size: 10px; color: var(--text-3); margin-top: 2px; }
-/* R57-F2：指标组两两并列（两列网格）；新增指标/空态/输入行跨双列 */
-.cur-groups { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; align-items: start; }
+/* R57-F2：指标组两两并列（两列网格）；新增指标/空态/输入行跨双列
+   R119：原型 .spotlight-task-trees/.task-tree-column —— gap 12、白底 + 发丝线 + radius-md + padding 10/12 */
+.cur-groups { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-items: start; }
 .cur-groups > .cg-empty, .cur-groups > .cur-add-metric, .cur-groups > .cur-add-metric-link { grid-column: 1 / -1; }
-.cur-group { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
-.cg-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--surface-3); cursor: pointer; user-select: none; }
+.cur-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
+/* R119：原型 .tree-col-header —— 12px/600 + 底发丝线 + margin-bottom 8（原为 surface-3 满底色条） */
+.cg-head { display: flex; align-items: center; gap: 8px; padding: 0 0 6px; margin-bottom: 8px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
 /* R52-F2：指标组折叠 caret */
 .cg-caret { width: 12px; text-align: center; font-size: 10px; color: var(--text-3); transition: transform .15s; flex-shrink: 0; }
 .cg-caret.open { transform: rotate(90deg); }
-.cg-name { font-size: 12px; font-weight: 700; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cg-name { font-size: 12px; font-weight: 600; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cg-name.none { color: var(--text-3); }
-.cg-count { font-size: 10px; color: var(--text-3); background: var(--surface); padding: 1px 8px; border-radius: 99px; }
+/* R119：原型计数为纯文本 11px/text-3（原为面片 pill） */
+.cg-count { font-size: 11px; color: var(--text-3); background: transparent; padding: 0; }
 .cg-add { width: 20px; height: 20px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-2); font-size: 12px; cursor: pointer; line-height: 1; }
 .cg-add:hover { border-color: var(--accent); color: var(--accent); }
 .cg-tools { display: none; gap: 4px; margin-left: auto; }
@@ -1378,14 +1430,18 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cam-input:focus { border-color: var(--accent); }
 .cur-add-metric-link { margin: 2px 0 0; padding: 7px 10px; font-size: 12px; color: var(--text-3); border: 1px dashed var(--border); border-radius: 8px; cursor: pointer; text-align: center; transition: all .12s; }
 .cur-add-metric-link:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
-.cg-tasks { padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 4px; }
-.cg-task { display: flex; align-items: center; gap: 8px; padding: 6px 9px; border-radius: 7px; cursor: pointer; transition: background .12s; }
-.cg-task:hover { background: var(--surface); }
+.cg-tasks { padding: 0; display: flex; flex-direction: column; gap: 2px; }
+/* R119：原型 .tree-item-row —— 12px/text-2、padding 4px 0、gap 6 */
+.cg-task { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-radius: 5px; cursor: pointer; transition: background .12s; }
+.cg-task:hover { background: var(--surface-2); }
 .cg-task.is-done .cg-t { text-decoration: line-through; color: var(--text-3); }
-.cg-dot { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border-strong); color: var(--text-3); }
-.cg-dot.st-doing { color: var(--tag-warn-text); border-color: var(--tag-warn-text); }
-.cg-dot.st-done { background: var(--success); border-color: var(--success); color: #fff; }
-.cg-t { font-size: 12.5px; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* R119：原型 .task-state-ring —— 12px 环 / 1.5px text-4 描边；done = 实心 text-4；doing = accent 环 + 心点。
+   （原为 18px 圆内塞 ✓/◐/○ 字形；环形更贴原型且不必靠字形表意）字形以 font-size:0 隐去。 */
+.cg-dot { width: 12px; height: 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0; flex-shrink: 0; position: relative; background: transparent; border: 1.5px solid var(--text-4); }
+.cg-dot.st-doing { border-color: var(--accent); }
+.cg-dot.st-doing::after { content: ''; position: absolute; inset: 2.5px; border-radius: 50%; background: var(--accent); }
+.cg-dot.st-done { background: var(--text-4); border-color: var(--text-4); }
+.cg-t { font-size: 12px; color: var(--text-2); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cg-st { font-size: 10px; color: var(--text-4); flex-shrink: 0; }
 .cg-empty { font-size: 11px; color: var(--text-4); text-align: center; padding: 8px; }
 .cur-empty { padding: 34px 20px 38px; text-align: center; }

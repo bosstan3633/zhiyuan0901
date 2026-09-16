@@ -966,16 +966,19 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 
 .mgr-body { padding-bottom: 4px; }
 .mgr-body.batch .check-sm { display: none; }
-.mgr-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-.view-tabs { display: flex; background: var(--surface-2); border-radius: 8px; padding: 3px; gap: 2px; }
-.view-tab { padding: 6px 13px; border-radius: 6px; font-size: 12px; cursor: pointer; color: var(--text-2); transition: all .15s; }
-.view-tab.active { background: var(--surface); color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
-.sel { padding: 6px 11px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 12px; color: var(--text-2); cursor: pointer; outline: none; font-family: inherit; }
+/* R119：原型 .filter-toolbar —— margin-bottom 16、字号 12 */
+.mgr-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+/* R119：原型 .view-mode-group —— 外框分段的「卡片/列表/看板」（原为 surface-2 填充胶囊组） */
+.view-tabs { display: flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.view-tab { padding: 4px 10px; font-size: 11.5px; cursor: pointer; color: var(--text-2); background: var(--surface); transition: all .15s; }
+.view-tab.active { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.sel { padding: 4px 8px; border-radius: var(--radius-xs); border: 1px solid var(--border); background: var(--surface); font-size: 11.5px; color: var(--text-2); cursor: pointer; outline: none; font-family: inherit; }
 .sort-dir-btn { white-space: nowrap; font-size: 11.5px; }
 .sort-dir-btn:hover { border-color: var(--accent); color: var(--text-1); }
-.search-box { margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+/* R119：原型 .search-input-wrap —— padding 3/8、radius-sm(6)→radius-xs、input 宽 140 */
+.search-box { margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); }
 .search-box:focus-within { border-color: var(--accent); }
-.search-box input { border: none; outline: none; font-size: 12px; width: 150px; background: transparent; color: var(--text); font-family: inherit; }
+.search-box input { border: none; outline: none; font-size: 12px; width: 140px; background: transparent; color: var(--text); font-family: inherit; }
 .mgr-count { display: flex; align-items: center; gap: 2px; font-size: 12px; color: var(--text-3); white-space: nowrap; flex-shrink: 0; padding-right: 4px; }
 .mgr-count .cur { color: var(--text-2); font-weight: 600; }
 .mgr-count .total { cursor: default; }
@@ -990,9 +993,10 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .tm-grid { padding-bottom: 4px; }
 .tm-group-label { font-size: 11px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin: 2px 0 8px; }
 /* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 240px */
-.tm-grid-inner { display: grid; /* R106（F3）：精确 N 列（生产反馈：auto-fill+精确分数宽在 6/7 列因取整差一位永远少一） */ grid-template-columns: repeat(var(--grid-cols, 5), minmax(0, 1fr)); gap: 12px; }
-.tm-card { position: relative; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; cursor: pointer; transition: all .15s ease; display: flex; flex-direction: column; gap: 7px; min-width: 0; overflow: hidden; /* R107（F8） */ }
-.tm-card:hover { border-color: var(--border-strong); background: var(--surface); box-shadow: var(--shadow); }
+.tm-grid-inner { display: grid; /* R106（F3）：精确 N 列（生产反馈：auto-fill+精确分数宽在 6/7 列因取整差一位永远少一） */ grid-template-columns: repeat(var(--grid-cols, 5), minmax(0, 1fr)); gap: 10px; }
+/* R119：原型 .task-grid-card —— 白底 + 发丝线 + radius-md(8)→radius-sm + padding 10/12 + min-height 94 + 上下两端对齐 */
+.tm-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; min-height: 94px; cursor: pointer; transition: border-color .15s, box-shadow .15s; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; min-width: 0; overflow: hidden; /* R107（F8） */ }
+.tm-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow); }
 .tm-card.done { opacity: .62; }
 .tm-card.done .tm-title { text-decoration: line-through; color: var(--text-3); }
 .tm-card.selected { background: var(--accent-light); border-color: var(--accent); }
@@ -1010,13 +1014,15 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .tm-card:hover .tm-corner { opacity: .6; }
 .tm-corner:hover { opacity: 1 !important; background: var(--surface-3); }
 .tm-corner.on { opacity: 1; }
-.tm-title { font-size: 13.5px; font-weight: 600; line-height: 1.45; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* R119：原型 .tgc-title —— 12.5px/600 */
+.tm-title { font-size: 12.5px; font-weight: 600; line-height: 1.45; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .tm-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 .tm-ext { display: flex; flex-wrap: wrap; gap: 5px; }
 .tm-ext-item { font-size: 10.5px; color: var(--text-3); }
 .tm-ext-item.status-doing { color: var(--tag-warn-text); }
 .tm-ext-item.status-done { color: var(--tag-ok-text); }
-.tm-meta { display: flex; align-items: center; justify-content: space-between; margin-top: auto; font-size: 10.5px; color: var(--text-4); }
+/* R119：原型 .tgc-footer —— 11px/text-3 */
+.tm-meta { display: flex; align-items: center; justify-content: space-between; margin-top: auto; font-size: 11px; color: var(--text-3); }
 .tm-del { width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: 11px; cursor: pointer; opacity: 0; transition: all .15s ease; }
 .tm-card:hover .tm-del { opacity: .6; }
 .tm-del:hover { opacity: 1 !important; background: var(--tag-danger-bg); }

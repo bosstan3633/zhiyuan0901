@@ -251,7 +251,8 @@ function confirmAdd(dirId: string) {
 .mr-tools { display: flex; align-items: center; gap: 10px; }
 /* R86（D-A）分工标签 —— R117（04-61 C）：原定义在 CompassShell 的 :deep(.mod-role)（一份覆盖两处：
    主航线 + 项目总览）。项目总览退役后本组件是唯一消费者，样式随之内聚，避免跨文件隐式依赖。 */
-.mod-role { flex-shrink: 0; font-size: 10px; font-weight: 700; letter-spacing: .5px; color: var(--accent); background: var(--accent-light); padding: 2px 8px; border-radius: 99px; cursor: help; }
+/* R119：原型 .mh-title 内的「看主线」标记 —— 11px/600、radius 4、accent 底 */
+.mod-role { flex-shrink: 0; font-size: 11px; font-weight: 600; letter-spacing: 0; color: var(--accent); background: var(--accent-light); padding: 1px 6px; border-radius: var(--radius-xs); cursor: help; }
 /* R99（M8）：主航线状态筛选——观感沿用原项目总览 .ov-filter（R117 后为页内唯一状态筛选） */
 .mr-filter { font-family: inherit; font-size: 11.5px; padding: 3px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); outline: none; cursor: pointer; }
 .mr-filter:focus { border-color: var(--accent); }
@@ -261,36 +262,42 @@ function confirmAdd(dirId: string) {
 .mr-tool.accent:hover { text-decoration: underline; }
 .mr-tool.off { opacity: .6; }
 
-.mr-tier { font-size: 10px; font-weight: 700; letter-spacing: .5px; color: var(--text-3); background: var(--surface-3); padding: 2px 8px; border-radius: 99px; flex-shrink: 0; min-width: 38px; text-align: center; }
-.tier-vision { background: var(--accent-light); color: var(--accent); }
+/* R119：原型 .vm-tag —— 层级标签 11px/600、radius 4、surface-2 底（主攻态另覆 accent 底，同 .fs-badge） */
+.mr-tier { font-size: 11px; font-weight: 600; letter-spacing: 0; color: var(--text-2); background: var(--surface-2); padding: 1px 6px; border-radius: var(--radius-xs); flex-shrink: 0; min-width: 34px; text-align: center; }
+.tier-vision { background: var(--surface-2); color: var(--text-2); }
 .mr-chip { font-size: 9.5px; padding: 2px 7px; border-radius: 99px; font-weight: 500; flex-shrink: 0; white-space: nowrap; }
 .chip-project { background: var(--surface-3); color: var(--text-2); }
 .mr-meta { font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }
 .mr-empty { font-size: 11.5px; color: var(--text-4); padding: 6px 12px; cursor: pointer; }
 
-/* R57-F4 第一行 ｜ R59-T6 accent 凸显 ｜ R83（M1）：两张卡 → 一条 44px 锚点条（首屏让出约 40px 给目标网格） */
-.mr-vm-bar { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; margin-bottom: 10px; background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border)); border-radius: var(--radius-sm); cursor: pointer; transition: all .15s; }
-.mr-vm-bar:hover { border-color: var(--accent); box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 16%, transparent); }
-.mr-vm-text { flex: 1.2; min-width: 0; font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* R83（M1）：两张卡 → 一条锚点条 ｜ R119：按原型 .anchor-vm-bar 还原——中性 surface 底 + 发丝线 + radius-md +
+   min-height 40 + padding 0/16 + shadow-sm；hover 只变边框色（去掉发光，原型无装饰） */
+.mr-vm-bar { display: flex; align-items: center; gap: 16px; min-height: 40px; padding: 0 16px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); cursor: pointer; transition: border-color .15s; }
+.mr-vm-bar:hover { border-color: var(--accent-border); }
+/* R119：原型 .vm-text —— 12.5px/500 */
+.mr-vm-text { flex: 1.2; min-width: 0; font-size: 12.5px; font-weight: 500; color: var(--text); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mr-vm-text.empty { color: var(--text-4); font-weight: 400; }
-/* 使命段沿用原 1.2fr:1fr 的重心比例（愿景 1.2 / 使命 1 ⇒ 1 : 0.833） */
-.mr-vm-sep { flex: 0 0 1px; align-self: stretch; margin: 9px 2px; background: var(--border); }
+/* 使命段沿用原 1.2fr:1fr 的重心比例（愿景 1.2 / 使命 1 ⇒ 1 : 0.833）｜ R119：原型 .vm-divider = 1px×14 */
+.mr-vm-sep { flex: 0 0 1px; width: 1px; height: 14px; background: var(--border); }
 .mr-vm-sep ~ .mr-vm-text { flex: 1; }
-.mr-vm-go { flex-shrink: 0; font-size: 10.5px; color: var(--accent); opacity: .8; white-space: nowrap; }
-.mr-vm-bar:hover .mr-vm-go { opacity: 1; text-decoration: underline; }
+/* R119：原型 .vm-right-link —— 12px/text-3 */
+.mr-vm-go { flex-shrink: 0; font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.mr-vm-bar:hover .mr-vm-go { color: var(--accent); }
 
-/* R85（M4）：主攻聚焦条——锚点条之下，一行 ≤40px，横排全部主攻项目（跨目标一览 + 直达入口） */
-.mr-focus-bar { display: flex; align-items: center; gap: 8px; min-height: 34px; max-height: 40px; padding: 0 12px; margin-bottom: 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+/* R85（M4）：主攻聚焦条 ｜ R119：按原型 .focus-stream-bar 还原——height 38、padding 0/14、gap 12、surface 底 + shadow-sm */
+.mr-focus-bar { display: flex; align-items: center; gap: 12px; height: 38px; padding: 0 14px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); overflow: hidden; }
 .mr-focus-bar.empty { border-style: dashed; }
-.tier-focus { background: var(--accent-light); color: var(--accent); }
-.fp-item { display: flex; align-items: center; gap: 5px; flex-shrink: 0; max-width: 240px; padding: 3px 10px; border-radius: 99px; background: var(--surface); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border)); color: var(--text); cursor: pointer; transition: all .12s; }
-.fp-item:hover { border-color: var(--accent); background: var(--accent-light); }
+/* R119：原型 .fs-badge —— accent 底 11.5px/700 */
+.tier-focus { background: var(--accent-light); color: var(--accent); font-weight: 700; padding: 2px 7px; }
+/* R119：原型 .fs-proj-chip —— surface-2 底 + radius 4 + padding 3/8，hover 升 surface-3；选中态用边框 */
+.fp-item { display: flex; align-items: center; gap: 6px; flex-shrink: 0; max-width: 240px; padding: 3px 8px; border-radius: var(--radius-xs); background: var(--surface-2); color: var(--text); cursor: pointer; transition: background .15s; }
+.fp-item:hover { background: var(--surface-3); }
 /* 已完成的主攻仍要能看到（并可从聚焦条取消掉），只降透明度——对齐 .chip-proj.done 既有口径 */
 .fp-item.done { opacity: .55; }
 .fp-mark { flex-shrink: 0; font-size: 10px; }
-.fp-name { min-width: 0; font-size: 11.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fp-pct { flex-shrink: 0; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
-.fp-hint { font-size: 11.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-name { min-width: 0; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-pct { flex-shrink: 0; font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.fp-hint { font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* R85（M5-③）：目标卡 hover 的 ⋯——常态 display:none（零占位），hover 才出 */
 .mgc-more { display: none; flex-shrink: 0; padding: 0 4px; font-size: 14px; line-height: 1; color: var(--text-3); cursor: pointer; }
@@ -310,34 +317,48 @@ function confirmAdd(dirId: string) {
 
 /* R57-F4：第二行 战略目标模块网格 */
 /* R99（M6）：网格顶对齐——「更多 N」展开只长自己这张卡，不再把同排邻卡拉伸变形（撑破网格） */
-.mr-goals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; align-items: start; }
-.mr-goal-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px 11px; display: flex; flex-direction: column; gap: 9px; }
+/* R119：原型 .goals-3col-grid —— 固定 3 列 gap 14（原 auto-fill minmax(340)） */
+.mr-goals-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }
+/* R119：原型 .goal-card-box —— 发丝线 + 极浅底（#FAFAFA 由颜色混合派生）+ radius-md + padding 12/14 + gap 10 */
+.mr-goal-card { background: color-mix(in srgb, var(--surface-2) 30%, var(--surface)); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
 .mgc-head { display: flex; align-items: center; gap: 8px; }
 .tier-goal { background: var(--accent-light); color: var(--accent); }
-.mgc-name { font-size: 13px; font-weight: 650; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mgc-pct { font-size: 11px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; flex-shrink: 0; }
-.mgc-projects { display: flex; flex-wrap: wrap; gap: 6px; }
-/* R83（M3）：项目小模块 —— 一行光名字 → 两行小卡（主攻/停滞 + 迷你进度条 + pct% · done/total） */
-.chip-proj { display: flex; flex-direction: column; gap: 4px; width: 168px; min-width: 150px; max-width: 210px; padding: 6px 9px 7px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); color: var(--text-2); cursor: pointer; transition: all .12s; }
-.chip-proj:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-.chip-proj.accent { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); color: var(--accent); }
+/* R119：原型 .gc-name 13px/700 ｜ .gc-meta 11px/text-3 ｜ .gc-projects-list 纵向 gap 6 */
+.mgc-name { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mgc-pct { font-size: 11px; font-weight: 500; color: var(--text-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.mgc-projects { display: flex; flex-direction: column; gap: 6px; }
+/* R83（M3）｜ R119：原型 .proj-row-card —— 通栏行卡 + radius-sm(6)→radius-xs + padding 7/10 + hover 上浮 */
+.chip-proj { display: flex; flex-direction: column; gap: 4px; width: auto; min-width: 0; padding: 7px 10px; border-radius: var(--radius-xs); background: var(--surface); border: 1px solid var(--border); color: var(--text-2); cursor: pointer; transition: all .15s ease; }
+.chip-proj:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+/* R119：原型 .proj-row-card.active-selected —— 主攻项目用 accent 边框 + 1px 外环（不再靠整片紫底） */
+.chip-proj.accent { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--surface); color: var(--text); }
 /* 已完成降透明度——对齐 .archived 的既有口径（CompassShell.vue:337 的 opacity .55） */
 .chip-proj.done { opacity: .55; }
-.cp-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.cp-row { display: flex; align-items: center; gap: 5px; min-width: 0; }
 .cp-mark { flex-shrink: 0; font-size: 10px; }
-.cp-name { flex: 1; min-width: 0; font-size: 11.5px; font-weight: 500; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* R119：原型 .pr-title-wrap —— 12px/600 */
+.cp-name { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cp-flag { flex-shrink: 0; font-size: 9px; padding: 1px 4px; border-radius: 3px; background: var(--tag-warn-bg); color: var(--warning); white-space: nowrap; }
 .cp-foot { gap: 6px; }
-.cp-bar { flex: 1; min-width: 0; height: 3px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
-.cp-bar i { display: block; height: 100%; border-radius: 99px; background: var(--accent); }
-.cp-pct { flex-shrink: 0; font-size: 9.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+/* R119：原型 .mini-progress-bar —— 4px 高 / radius 2 */
+.cp-bar { flex: 1; min-width: 0; height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
+.cp-bar i { display: block; height: 100%; border-radius: 2px; background: var(--accent); }
+.cp-pct { flex-shrink: 0; font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .chip-more { font-size: 11px; padding: 4px 10px; border-radius: 8px; background: transparent; border: 1px dashed var(--border-strong); color: var(--text-3); cursor: pointer; }
 .chip-more:hover { color: var(--accent); border-color: var(--accent); }
 .mgc-empty { font-size: 11px; color: var(--text-4); }
 
 /* R51-F15：战略目标明细定位闪烁 */
 .mr-goal-card.goal-flash { animation: goalFlash 1.2s ease; }
-@keyframes goalFlash { 0%, 100% { background: var(--surface-2); box-shadow: none; } 30% { background: var(--accent-light); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); } }
+@keyframes goalFlash { 0%, 100% { background: color-mix(in srgb, var(--surface-2) 30%, var(--surface)); box-shadow: none; } 30% { background: var(--accent-light); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); } }
+
+/* R119：原型固定 3 列，窄窗口按 2 → 1 列降级（保持可用性，不改原型默认形态） */
+@media (max-width: 1280px) {
+  .mr-goals-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 860px) {
+  .mr-goals-grid { grid-template-columns: 1fr; }
+}
 
 @media (max-width: 1080px) {
   .mr-vm-row { grid-template-columns: 1fr; }
