@@ -616,3 +616,8 @@
 .cat-rail-btn:hover { background: var(--surface-2); color: var(--text); }
 .cat-rail-btn.active { background: var(--accent-light); }
 .cat-rail-sep { width: 18px; height: 1px; background: var(--border); margin: 4px 0; }
+
+/* R126：侧栏工具栏不折行（标题可省略；按钮收成单字图标） */
+.cat-toolbar { gap: 4px; }
+.cat-toolbar .ct-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-toolbar .ct-actions { flex-shrink: 0; }

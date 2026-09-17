@@ -165,9 +165,38 @@
           <div class="gs-page-title">⏳ 资源生命周期</div>
           <div class="gs-page-desc">资源卡 / 任务卡 / 好奇心卡三类实体的活跃 · 冷却 · 归档全景 —— 点击数字下钻明细，明细行可直接归档 / 忽略 / 重新激活，点击条目跨台定位卡片</div>
         </div>
+        <!-- R126（诉求 5）：阈值设置入口（全局默认 + 逐卡覆盖） -->
+        <button class="gs-btn" style="margin-bottom: 12px" @click="lcSetOpen = true">⚙ 阈值设置</button>
         <LifecyclePanel kind="all" :cards="lcCards"
           @locate="onLcLocate" @archive="onLcArchive" @snooze="onLcSnooze" @reactivate="onLcReactivate"
           @set-days="onLcSetDays" />
+        <Teleport to="body">
+          <div class="gs-modal-overlay" :class="{ open: lcSetOpen }" @click.self="lcSetOpen = false">
+            <div class="gs-modal" style="width: 640px">
+              <div class="gs-modal-header">⚙ 冷却阈值设置</div>
+              <div class="gs-modal-body">
+                <p>全局默认冷却 <b>{{ lcDefaultDraft || 30 }}</b> 天 · 归档 = 冷却 × 3 = <b>{{ (lcDefaultDraft || 30) * 3 }}</b> 天；每张卡可单独覆盖（清除后回落全局默认）。<br />修改阈值只影响状态判定，<b>不会改变卡片活跃度</b>。</p>
+                <div class="lc-set-global">
+                  <span>默认冷却天数</span>
+                  <input v-model.number="lcDefaultDraft" type="number" min="1" max="365" class="gs-confirm-input" style="width: 90px" />
+                  <button class="gs-btn" @click="saveLcDefault">保存</button>
+                </div>
+                <div class="lc-set-list">
+                  <div v-for="c in lcCards" :key="c.id" class="lc-set-row">
+                    <span class="lc-set-name" :title="(c as any).title">{{ (c as any).title || '未命名' }}</span>
+                    <input class="gs-confirm-input" style="width: 80px" type="number" min="1" max="365" placeholder="默认"
+                      :value="(c as any).coolingDays || ''"
+                      @change="onLcSetDays(c.id, Number(($event.target as HTMLInputElement).value) || null)" />
+                    <button class="gs-btn" @click="onLcSetDays(c.id, null)">清除</button>
+                  </div>
+                </div>
+              </div>
+              <div class="gs-modal-footer">
+                <button class="gs-btn" @click="lcSetOpen = false">关闭</button>
+              </div>
+            </div>
+          </div>
+        </Teleport>
       </div>
 
       <!-- ===== 资源台全景（第卌四轮 T-04 双栏 Master-Detail；R65-F5 只呈现资源台，策展台不再进全景） ===== -->
@@ -329,10 +358,10 @@
       <div v-if="activePage === 'tags'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">🏷 标签管理</div>
-          <div class="gs-page-desc">树状标签体系 · 三种卡片打标签的唯一来源 · 支持拖拽调整层级</div>
+                    <div class="gs-page-desc">两级标签体系 · 三种卡片打标签的唯一来源 · 拖拽根标签到另一根标签上即成子标签（卡片标签同步为「父/子」）</div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">标签树</span><span class="gs-card-desc">拖拽标签到另一标签上可挂载为子标签</span></div>
+                    <div class="gs-card-header"><span class="gs-card-title">标签树</span><span class="gs-card-desc">最多两级：拖拽根标签到另一根标签上挂载为子标签</span></div>
           <div class="gs-card-body">
             <div class="gs-tagtree">
               <!-- 新建根标签：行内输入 -->
@@ -374,9 +403,9 @@
                       @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
                     <template v-else>
                       <span class="gs-tt-name sub">#{{ child.name || '未命名标签' }}</span>
-                      <span class="gs-tt-count">{{ tagUsage(child.name) }} 卡</span>
+                                            <span class="gs-tt-count">{{ tagUsage(root.name + '/' + child.name) }} 卡</span>
                       <span class="gs-tt-actions">
-                        <span class="gs-tt-act" title="添加第三级标签" @click="ttAddChild(child.id)">＋</span>
+                                                <span class="gs-tt-act" title="提升为根标签" @click="ttUnnest(root.id, child.id)">⇪</span>
                         <span class="gs-tt-act" title="重命名" @click="ttRename(child.id)">✎</span>
                         <span class="gs-tt-act del" title="删除" @click="ttRemove(child.id)">🗑</span>
                       </span>
@@ -388,8 +417,9 @@
                 还没有标签 · 点击下方「＋ 新建根标签」开始搭建你的标签体系
               </div>
             </div>
-            <button class="gs-field-add" @click="ttAddRoot">＋ 新建根标签</button>
-            <div class="gs-field-hint">💡 重命名会同步更新所有已打标签的卡片；删除标签后，卡片上的同名标签将显示为未归类。打标签入口：资源卡/任务卡/好奇心卡的详情编辑处。</div>
+                        <button class="gs-field-add" @click="ttAddRoot">＋ 新建根标签</button>
+            <button class="gs-field-add" style="margin-left: 8px" @click="ttCollectFromCards">⤓ 从卡片收纳标签</button>
+                        <div class="gs-field-hint">💡 重命名 / 删除 / 挂载会<b>同步更新卡片上的标签值</b>（子标签以「父/子」路径保存）；删除标签时，卡片上的对应标签一并移除。打标签入口：资源卡/任务卡/好奇心卡的详情编辑处。</div>
           </div>
         </div>
       </div>
@@ -860,7 +890,10 @@ import { isHubWs, boardCardsOf, isMirrorView } from '@/shared/storage/hub'
 import { CURATION_WS_ID } from '@/shared/models'
 // R113-N2：资源生命周期聚合页（入口从三宿主收敛至此；内嵌式面板 + 三类卡聚合 + 跨台定位）
 import LifecyclePanel, { type LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
-import { snoozeCard, reactivateCard, setCoolingDays } from '@/shared/utils/lifecycle'
+import {
+  snoozeCard, reactivateCard, setCoolingDays,
+  setCoolingDefaultDays, coolingDefaultDaysOf
+} from '@/shared/utils/lifecycle'
 import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
 
 const router = useRouter()
@@ -1098,6 +1131,17 @@ function onLcReactivate(id: string) { const c = lcFind(id); if (!c) return; reac
  * 否则「改阈值」这个动作本身会改变卡片活跃度（口径污染）。
  */
 function onLcSetDays(id: string, days: number | null) { const c = lcFind(id); if (!c) return; setCoolingDays(c, days); store.persist() }
+/** R126（诉求 5）：阈值设置——全局默认（UIPrefs.coolingDaysDefault） */
+const lcSetOpen = ref(false)
+const lcDefaultDraft = ref<number>(coolingDefaultDaysOf() || 30)
+function saveLcDefault() {
+  const v = Math.min(365, Math.max(1, Math.round(Number(lcDefaultDraft.value) || 30)))
+  lcDefaultDraft.value = v
+  saveUIPrefs({ coolingDaysDefault: v })
+  setCoolingDefaultDays(v)
+  store.persist()
+  showToast(`⚙ 默认冷却天数已设为 ${v} 天（归档 ${v * 3} 天）`)
+}
 /** R117（04-61 B）：跨台定位统一走 locateTargetOf——资源卡带**所在分类**（定位到位置而非仅切台），
  *  任务/好奇心卡带 `hk` 分派（调度台同页两个 hl 消费者按 kind 认领）。 */
 function onLcLocate(id: string, kind: LifecycleCard['kind']) {
@@ -1538,7 +1582,6 @@ function movePanSelection() {
 }
 // 单击详情 / 双击打开（260ms 判定，与全产品统一）
 const panDetail = ref< ResourceCard | null >(null)
-let panClickTimer: ReturnType<typeof setTimeout> | null = null
 /** R63-1：全景详情抽屉——镜像卡的真身引用（非镜像为 null） */
 const panMirrorSrc = computed<ResourceCard | null>(() => {
   const det = panDetail.value
@@ -1557,22 +1600,9 @@ function panCardSub(r: ResourceCard): string {  const src = r.sourceType ? ({ of
   const host = r.linkType === 'url' ? (() => { try { return new URL(r.link).host } catch { return '' } })() : r.linkType === 'file' ? '本地文件' : 'Obsidian'
   return [host, src].filter(Boolean).join(' · ')
 }
-function onPanCardClick(r: ResourceCard) {
-  if (panClickTimer) { clearTimeout(panClickTimer); panClickTimer = null; return }
-  panClickTimer = setTimeout(() => { panClickTimer = null; panDetail.value = r }, 260)
-}
-function onPanCardDblClick(r: ResourceCard) {
-  if (panClickTimer) { clearTimeout(panClickTimer); panClickTimer = null }  recordResourceOpen(gd.value, r)
-  store.persist()
-  if (r.linkType === 'file' && /^zy-asset:\/\//i.test((r.link || '').trim())) {
-    const assetId = (r.link || '').trim().replace(/^zy-asset:\/\//i, '')
-    const meta = (r.assets || []).find(a => a.id === assetId)
-    if (meta && (meta.kind === 'html' || meta.kind === 'pdf')) { openHtmlAsset(meta); return }
-  }
-  const url = toOpenableUrl(r.linkType, r.link)
-  if (url) openExternalLink(url)
-  else showToast('⚠ 该卡片无可打开链接')
-}
+/** R126（诉求 6）：全景列表单击=选中（勾选态），双击=打开详情抽屉（原：单击详情 / 双击开链接） */
+function onPanCardClick(r: ResourceCard) { togglePanCard(r.id) }
+function onPanCardDblClick(r: ResourceCard) { recordResourceOpen(gd.value, r); store.persist(); panDetail.value = r }
 watch(activePage, (p) => {
   if (p === 'dashboard') refreshEventLog()
   if (p === 'panorama' && !panSelWs.value) {
@@ -2283,7 +2313,7 @@ function ttAddRoot() {
 }
 /** B16：行内新建子标签 */
 function ttAddChild(parentId: string) {
-  if (tagDepth(parentId) >= 2) { showToast('标签最多 3 级'); return }
+    if (tagDepth(parentId) >= 1) { showToast('最多两级标签，子标签下不能再新建'); return }
   ttEditing.value = { id: null, parentId, value: '' }
   ttCollapsed.value = new Set([...ttCollapsed.value].filter(x => x !== parentId))
 }
@@ -2306,9 +2336,17 @@ function ttConfirm() {
     const hit = findTagNode(ed.id)
     if (!hit) return
     const oldName = hit.node.name
+    const parentName = hit.parent?.name
+    const oldPath = parentName ? parentName + '/' + oldName : oldName
+    const newPath = parentName ? parentName + '/' + name : name
     hit.node.name = name
     const d = store.data!
-    const swap = (arr?: string[]) => (Array.isArray(arr) ? arr.map(t => (t === oldName ? name : t)) : [])
+    // R126：路径感知级联（自身 + 子路径前缀整体替换）
+    const swap = (arr?: string[]) => (Array.isArray(arr) ? arr.map(t => {
+      if (t === oldPath) return newPath
+      if (t.startsWith(oldPath + '/')) return newPath + t.slice(oldPath.length)
+      return t
+    }) : [])
     d.resources.forEach(r => r.tags = swap(r.tags))
     d.tasks.forEach(t => t.tags = swap(t.tags))
     d.curiosities.forEach(c => c.tags = swap(c.tags))
@@ -2339,27 +2377,96 @@ async function ttRemove(id: string) {
   const ids = tagSubtreeIds(id)
   const names = tagFlat().filter(t => ids.includes(t.id)).map(t => '#' + t.name)
   const subCount = ids.length - 1
-  if (!(await useConfirm({ title: '删除标签', message: `确定删除 ${names.join(' ')} ？${subCount > 0 ? `\n（含 ${subCount} 个子标签）` : ''}\n卡片上的同名标签会保留（显示为未归类）。`, confirmText: '确认删除' }))) return
+  if (!(await useConfirm({ title: '删除标签', message: `确定删除 ${names.join(' ')} ？${subCount > 0 ? `\n（含 ${subCount} 个子标签）` : ''}\n卡片上的对应标签会一并移除。`, confirmText: '确认删除' }))) return
+  // R126（诉求 7）：删除级联——同步移除卡片上的路径标签（含子路径）
+  const killPaths = new Set<string>()
+  const collectPaths = (node: { name: string; children?: unknown[] }, parentName?: string) => {
+    killPaths.add(parentName ? parentName + '/' + node.name : node.name)
+    for (const c of (node.children || []) as { name: string; children?: unknown[] }[]) collectPaths(c, parentName ? parentName + '/' + node.name : node.name)
+  }
+  collectPaths(hit.node as { name: string; children?: unknown[] }, hit.parent?.name)
   hit.list.splice(hit.index, 1)
+  const d = store.data!
+  const killList = [...killPaths]
+  const strip = (arr: string[] | undefined): string[] => (Array.isArray(arr) ? arr.filter(t => !killPaths.has(t) && !killList.some(p => t.startsWith(p + '/'))) : [])
+  d.resources.forEach(r => r.tags = strip(r.tags))
+  d.tasks.forEach(t => t.tags = strip(t.tags))
+  d.curiosities.forEach(c => c.tags = strip(c.tags))
   store.persist()
   showToast(`🗑 已删除 ${names.join(' ')}${subCount > 0 ? `（含 ${subCount} 个子标签）` : ''}`)
 }
 function ttDragStart(e: DragEvent, id: string) { ttDragId = id }
 function ttDragEnd() { ttDragId = null }
+/** R126（诉求 7）：拖拽挂载=根→根一级（最多两级）；卡片标签同步重写为「父/子」路径 */
 function ttDrop(e: DragEvent, targetId: string) {
   e.preventDefault()
   if (!ttDragId || ttDragId === targetId) return
   if (tagSubtreeIds(ttDragId).includes(targetId)) { showToast('不能挂载到自己的子标签下'); return }
-  if (tagDepth(targetId) >= 2) { showToast('标签最多 3 级，无法再挂载子级'); return }
+  if (tagDepth(targetId) >= 1) { showToast('最多两级：只能挂到根标签下'); return }
   const from = findTagNode(ttDragId)
   const to = findTagNode(targetId)
   if (!from || !to) return
+  if (from.parent) { showToast('子标签不能再挂载'); return }
+  if (safeChildren(from.node).length) { showToast('含子标签的标签不可再挂载（最多两级）'); return }
+  const oldPath = from.node.name
+  const newPath = to.node.name + '/' + from.node.name
   from.list.splice(from.index, 1)
   to.node.children = to.node.children || []
   to.node.children.push(from.node)
+  const d = store.data!
+  const swap = (arr?: string[]) => (Array.isArray(arr) ? arr.map(t => (t === oldPath ? newPath : t)) : [])
+  d.resources.forEach(r => r.tags = swap(r.tags))
+  d.tasks.forEach(t => t.tags = swap(t.tags))
+  d.curiosities.forEach(c => c.tags = swap(c.tags))
   store.persist()
   ttDragId = null
-  showToast(`✓ 「${from.node.name}」已挂载到「${to.node.name}」下`)
+  showToast(`✅ 「${from.node.name}」已成为「${to.node.name}」的子标签（卡片同步为 #${newPath}）`)
+}
+/** R126（诉求 7）：子标签提升为根（卡片路径回退为名称） */
+function ttUnnest(rootId: string, childId: string) {
+  const root = findTagNode(rootId)
+  const child = findTagNode(childId)
+  if (!root || !child || !root.node.children) return
+  const oldPath = root.node.name + '/' + child.node.name
+  const newName = child.node.name
+  root.node.children = root.node.children.filter(c => c.id !== childId)
+  store.data!.tagTree.push(child.node)
+  const d = store.data!
+  const swap = (arr?: string[]) => (Array.isArray(arr) ? arr.map(t => (t === oldPath ? newName : t)) : [])
+  d.resources.forEach(r => r.tags = swap(r.tags))
+  d.tasks.forEach(t => t.tags = swap(t.tags))
+  d.curiosities.forEach(c => c.tags = swap(c.tags))
+  store.persist()
+  showToast(`⇪ 「${newName}」已提升为根标签`)
+}
+/** R126（诉求 7）：从卡片收纳标签——三卡上未入树的标签批量注册为根/子标签 */
+function ttCollectFromCards() {
+  const d = store.data!
+  const roots = new Set((d.tagTree || []).map(n2 => n2.name))
+  const childPaths = new Set<string>()
+  for (const r0 of d.tagTree || []) for (const c0 of safeChildren(r0)) childPaths.add(r0.name + '/' + c0.name)
+  const seen = new Set<string>()
+  let added = 0
+  const all = [...(d.resources || []), ...(d.tasks || []), ...(d.curiosities || [])]
+  for (const card of all) {
+    for (const t of card.tags || []) {
+      if (!t || seen.has(t)) continue
+      seen.add(t)
+      if (t.includes('/')) {
+        const parts = t.split('/')
+        const rn = parts[0], cn = parts.slice(1).join('/')
+        if (!rn || !cn || childPaths.has(t)) continue
+        let root = (d.tagTree || []).find(x => x.name === rn)
+        if (!root) { root = { id: uid('tag'), name: rn }; d.tagTree.push(root); roots.add(rn); added++ }
+        root.children = root.children || []
+        root.children.push({ id: uid('tag'), name: cn })
+        childPaths.add(t); added++
+      } else if (!roots.has(t)) {
+        d.tagTree.push({ id: uid('tag'), name: t }); roots.add(t); added++
+      }
+    }
+  }
+  if (added) { store.persist(); showToast(`⤓ 已收纳 ${added} 个标签到标签树`) } else showToast('没有需要收纳的新标签')
 }
 
 const appShortcuts = [
@@ -2706,4 +2813,10 @@ const activeManualSec = ref('quick-1')
 .gs-pd-k { width: 40px; flex-shrink: 0; color: var(--text-4); }
 .gs-pd-v { flex: 1; min-width: 0; color: var(--text-2); word-break: break-all; line-height: 1.6; }
 .gs-pd-actions { display: flex; gap: 8px; margin-top: 14px; }
+
+/* R126（诉求 5）：阈值设置弹窗 */
+.lc-set-global { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; font-size: 12.5px; color: var(--text-2); }
+.lc-set-list { max-height: 260px; overflow-y: auto; margin-top: 8px; border-top: 1px solid var(--border); }
+.lc-set-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.lc-set-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-2); }
 </style>

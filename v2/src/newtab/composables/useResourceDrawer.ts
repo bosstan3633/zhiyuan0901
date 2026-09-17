@@ -75,7 +75,8 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
   let drawerOriginalWsId = '' // REQ-004：跨策展台迁移检测基准（打开/新建时记录）
 
   function emptyResource(): ResourceCard {
-    return { id: '', kind: 'resource', title: '', linkType: 'url', link: '', workspaceId: workspaceId.value, categoryId: '', description: '', tags: [], customFields: {}, pinned: false, callCount: 0, createdAt: 0, updatedAt: 0 }
+    // R126：必须显式带 isThesis:false——否则「确立中心论点」入口设置的标记会泄漏给后续新建卡（保存即覆盖 L1）
+    return { id: '', kind: 'resource', title: '', linkType: 'url', link: '', workspaceId: workspaceId.value, categoryId: '', description: '', tags: [], customFields: {}, pinned: false, isThesis: false, callCount: 0, createdAt: 0, updatedAt: 0 }
   }
 
   /**

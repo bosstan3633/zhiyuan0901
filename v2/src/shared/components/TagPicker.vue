@@ -49,6 +49,8 @@ function persist(next: string[]) {
   emit('update:modelValue', next)
   store.persist()
 }
+/** R126（诉求 7）：选中值——根=名称；子=「父/子」路径（与卡片存储口径一致） */
+function valOf(t: FlatTag) { return t.depth === 0 ? t.name : t.path.split(' / ').join('/') }
 function toggle(name: string) {
   const set = new Set(tags.value)
   set.has(name) ? set.delete(name) : set.add(name)
@@ -91,13 +93,13 @@ function goTagManage() {
           <div v-if="!flat.length" class="tp-guide">
             <div class="tp-guide-icon">🏷</div>
             <div class="tp-guide-title">标签体系还未创建</div>
-            <div class="tp-guide-desc">标签统一在「设置 → 标签管理」中搭建（支持 3 级树状），创建后会自动出现在这里供勾选。</div>
+            <div class="tp-guide-desc">标签统一在「设置 → 标签管理」中搭建（支持两级），创建后会自动出现在这里供勾选。</div>
             <button class="tp-guide-btn" @click="goTagManage">🏷 去标签管理创建</button>
             <div class="tp-new" @click="createNew">或输入「{{ q.trim() || '标签名' }}」快速新建根标签</div>
           </div>
           <template v-else>
-            <label v-for="t in visible" :key="t.id" class="tp-item" :style="{ paddingLeft: 10 + t.depth * 16 + 'px' }">
-              <input type="checkbox" :checked="tags.includes(t.name)" @change="toggle(t.name)">
+            <label v-for="t in visible" :key="t.id" class="tp-item" :style="{ paddingLeft: 10 + t.depth * 16 + 'px' }"
+              :class="{ on: tags.includes(valOf(t)) }" @click="toggle(valOf(t))">
               <span class="tp-name">{{ t.name }}</span>
               <span v-if="t.depth > 0" class="tp-pathtext">{{ t.path }}</span>
             </label>

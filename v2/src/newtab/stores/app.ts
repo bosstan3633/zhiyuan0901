@@ -4,6 +4,7 @@ import type { AppData, Workspace, UIPrefs } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 import { getData, saveData, loadUIPrefs, saveUIPrefs, subscribe, syncCache, mergeExternalData, isSelfWrite } from '@/shared/storage/repository'
 import { migrateCurationTree, migrateHubStructure, migrateHubMerge } from '@/shared/storage/curationMigration'
+import { normalizeCardTagPaths } from '@/shared/utils/tags'
 
 export const useAppStore = defineStore('app', () => {
   // ---- 数据 ----
@@ -46,7 +47,9 @@ export const useAppStore = defineStore('app', () => {
       const t2 = migrateHubStructure(data.value)
       // R64：旧工作台并入资源台（幂等 hubMergedAt；旧台实体删除、树挂同名根分类）
       const t3 = migrateHubMerge(data.value)
-      if (t1 || t2 || t3) saveData()
+      // R126（诉求 7）：标签「父/子」路径归一 + 最多两级（幂等）
+      const tz = normalizeCardTagPaths(data.value)
+      if (t1 || t2 || t3 || tz) saveData()
     }
 
     // R60：投射至灯塔功能取消——清除存量 vision/mission/project 上的 pinnedToLighthouse 残留字段（幂等，静默）

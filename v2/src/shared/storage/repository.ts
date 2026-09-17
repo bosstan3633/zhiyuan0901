@@ -4,6 +4,7 @@
  */
 import type { AppData, UIPrefs } from '@/shared/models'
 import { STORAGE_KEY, UI_KEY } from '@/shared/models'
+import { setCoolingDefaultDays } from '@/shared/utils/lifecycle'
 import { createDefaultData, defaultThesisFieldDefs } from './defaults'
 import { safeDecodeText } from '@/shared/utils'
 import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'
@@ -428,6 +429,8 @@ export async function loadUIPrefs(): Promise<UIPrefs> {
   if (uiCache.wsSwitchMod === 'ctrl') { uiCache.wsSwitchMod = 'alt'; saveUIPrefs({ wsSwitchMod: 'alt' }) }
   // 视觉重构（V2.3）：旧默认 green 迁移为 linear；R53-D：主题精简四套——已删除的 green/night 一并迁移（幂等）
   if (uiCache.theme === 'green' || uiCache.theme === 'night') { uiCache.theme = 'linear'; saveUIPrefs({ theme: 'linear' }) }
+  // R126（诉求 5）：应用全局默认冷却天数（缺省 30）
+  setCoolingDefaultDays(uiCache.coolingDaysDefault ?? 30)
   return uiCache
 }
 

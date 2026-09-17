@@ -46,10 +46,18 @@ export const COOLING_MS = DEFAULT_COOLING_DAYS * DAY_MS
 export const ARCHIVE_MS = COOLING_MS * ARCHIVE_RATIO
 export const NEW_GRACE_MS = 14 * DAY_MS
 
+/** R126（诉求 5）：全局默认冷却天数可配置（设置 → 资源生命周期；1~365；归档 = ×3）。缺省 30 天 */
+let coolingDefaultDays = DEFAULT_COOLING_DAYS
+export function setCoolingDefaultDays(n: number): void {
+  const v = Math.round(Number(n))
+  coolingDefaultDays = Number.isFinite(v) && v > 0 ? Math.min(COOLING_DAYS_MAX, Math.max(COOLING_DAYS_MIN, v)) : DEFAULT_COOLING_DAYS
+}
+export function coolingDefaultDaysOf(): number { return coolingDefaultDays }
+
 /** 该卡生效的冷却天数（非法值回落默认；夹在 1–365 天内） */
 export function coolingDaysOf(card: LifecycleInput): number {
   const d = Number(card.coolingDays)
-  if (!Number.isFinite(d) || d <= 0) return DEFAULT_COOLING_DAYS
+  if (!Number.isFinite(d) || d <= 0) return coolingDefaultDays
   return Math.min(COOLING_DAYS_MAX, Math.max(COOLING_DAYS_MIN, Math.round(d)))
 }
 /** 该卡生效的冷却阈值（毫秒） */

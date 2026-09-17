@@ -217,8 +217,20 @@ export function usePyramid(ctx: PyramidCtx) {
   // ===== R65-F3：节点关联资源卡（资源台全量卡选择器 → 镜像到节点）=====
   const linkCardsModal = ref<{ catId: string; catName: string; picked: Set<string> } | null>(null)
   const linkCardsQ = ref('')
+  /** R126（诉求 3）：资源台分类过滤（含子分类；__uncat__ = 未分类） */
+  const linkCardsCat = ref('')
+  const linkCatOptions = computed<{ id: string; label: string }[]>(() => {
+    const cats = (d.value.categories || []).filter(c => c.workspaceId === CURATION_WS_ID && !(c as { deletedAt?: number }).deletedAt)
+    const out: { id: string; label: string }[] = []
+    for (const root of cats.filter(c => !c.parentId)) {
+      out.push({ id: root.id, label: root.name })
+      for (const ch of cats.filter(c => c.parentId === root.id)) out.push({ id: ch.id, label: '　└ ' + ch.name })
+    }
+    return out
+  })
   function openLinkCards(cat: Category) {
     linkCardsQ.value = ''
+    linkCardsCat.value = ''
     linkCardsModal.value = { catId: cat.id, catName: cat.name, picked: new Set() }
   }
   function toggleLinkPick(id: string) {
@@ -233,8 +245,13 @@ export function usePyramid(ctx: PyramidCtx) {
     const q = linkCardsQ.value.trim().toLowerCase()
     const mirroredSet = new Set((d.value.curationProjections || [])
       .filter(p => p.kind === 'card' && p.targetWsId === workspaceId.value).map(p => p.cardId))
+    const catSel = linkCardsCat.value
+    const catIds = catSel && catSel !== '__uncat__'
+      ? new Set<string>([catSel, ...(d.value.categories || []).filter(c => c.parentId === catSel).map(c => c.id)])
+      : null
     return d.value.resources
       .filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
+      .filter(r => !catSel || (catSel === '__uncat__' ? !r.categoryId : catIds!.has(r.categoryId || '')))
       .filter(r => !q || (r.title + ' ' + (r.link || '')).toLowerCase().includes(q))
       .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt)
       .map(r => ({ r, mirrored: mirroredSet.has(r.id) }))
@@ -500,7 +517,7 @@ export function usePyramid(ctx: PyramidCtx) {
   return {
     pyramidImportOpen, confirmPyramidImport,
     pyramidLevels, pyLayout, moveCatSibling,
-    linkCardsModal, linkCardsQ, openLinkCards, toggleLinkPick, linkCandidates, confirmLinkCards,
+    linkCardsModal, linkCardsQ, linkCardsCat, linkCatOptions, openLinkCards, toggleLinkPick, linkCandidates, confirmLinkCards,
     pyWrapRef, pyFs, pyFsFallback, wsPageRef,
     enterPyFullscreen, exitPyFullscreen, togglePyFullscreen,
     pyLinkPaths, drawPyLinks, pyLinksThrottled,

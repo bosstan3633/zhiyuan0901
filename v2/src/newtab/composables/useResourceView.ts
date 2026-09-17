@@ -155,7 +155,11 @@ export function useResourceView(ctx: ResourceViewCtx) {
    */
   function matchCard(r: ResourceCard, p: { tags: string[]; kw: string }): boolean {
     const cardTags = (Array.isArray(r.tags) ? r.tags : []).map(t => t.toLowerCase())
-    for (const t of p.tags) if (!cardTags.includes(t)) return false
+    for (const t of p.tags) {
+      if (cardTags.includes(t)) continue
+      if (cardTags.some(c => c.split('/').pop() === t)) continue
+      return false
+    }
     if (!p.kw) return true
     if (r.title.toLowerCase().includes(p.kw)) return true
     if ((r.description || '').toLowerCase().includes(p.kw)) return true

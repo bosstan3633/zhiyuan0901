@@ -491,8 +491,9 @@ function addTaskFromHeader() {
       <!-- 标题行：项目名（可编辑）+ 主攻 badge + 大号进度 -->
       <div class="pb-title-row">
         <div class="pb-title">
+          <span class="pb-picon" title="项目">📦</span>
           <span class="hero-pname" contenteditable="true" spellcheck="false" @focus="editingProjId = currentProject?.id ?? null" @blur="renameProject" @keydown.enter.prevent="($event.target as HTMLElement).blur()">{{ currentProject.name }}</span>
-          <span v-if="currentProject.isFocused" class="tag accent">🎯 主攻</span>
+          <span v-if="currentProject.isFocused" class="tag accent">⚑ 主攻</span>
         </div>
         <span class="pb-pct">{{ projectProgress(currentProject).pct }}%</span>
       </div>
@@ -764,14 +765,8 @@ function addTaskFromHeader() {
 .btask:hover .tag.plain .tag-txt { display: inline; }
 .btask:hover .tag.plain { padding: 2px 6px; }
 /* ===== R124（提案）：展板上下文沉浸——聚焦项目展板顶部极低纯度紫调光带 + 内阴影提层 ===== */
-.page.is-embedded { background-image: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent 150px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04); }
+/* R126（诉求 1）：内嵌展板 = 模块框线（对齐 ModuleCard 视觉；内边距 22 与主航线标题左缘对齐） */
+.page.is-embedded { background-color: var(--surface); background-image: linear-gradient(180deg, color-mix(in srgb, var(--accent) 4%, transparent), transparent 150px); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 14px 22px 18px; }
 
-/* ===== R124（提案）：中性优先级退色——默认 4px 灰点，行 hover 才显标签；仅高优保留警示色 ===== */
-.tag.plain { background: transparent; color: var(--text-4); padding: 2px 2px; gap: 4px; }
-.tag.plain .tag-dot { display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--text-4); }
-.tag.plain .tag-txt { display: none; }
-.btask:hover .tag.plain .tag-dot { display: none; }
-.btask:hover .tag.plain .tag-txt { display: inline; }
-.btask:hover .tag.plain { padding: 2px 6px; }
-/* ===== R124（提案）：展板上下文沉浸——聚焦项目展板顶部极低纯度紫调光带 + 内阴影提层 ===== */
-.page.is-embedded { background-image: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent 150px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04); }
+/* R126（诉求 1）：展板项目图标（主攻与普通统一普通项目图标；⚑ 表示主攻，避免与成功指标 🎯 混淆） */
+.pb-title .pb-picon { font-size: 16px; flex-shrink: 0; }

@@ -8,13 +8,12 @@
       <div class="ws-content" @scroll.passive="onContentScroll">
       <!-- R109（F13）：顶部三模块移入滚动容器（与卡片同 padding/滚动域）——顶栏/指标条/工具条/网格右缘成一条直线 -->
     <div class="ws-id-head">
-      <span class="wsh-icon">{{ workspace.icon || (isHub ? '📦' : '🗂') }}</span>
+      <span v-if="!isHub" class="wsh-icon">{{ workspace.icon || '🗂' }}</span>
       <b class="wsh-name">{{ workspace.name.replace(/^[^\s]+\s/, '') }}</b>
       <!-- R122（原型）：资源台描述合并定位语与分类数（「资源卡唯一存储 · 镜像源头 · N 个分类」）；用户自写描述优先；策展台维持两态 + 摘要 + 更新流水入口 -->
       <template v-if="isHub">
         <span class="wsh-desc" :title="(wsHeadDescOwn || '资源卡唯一存储 · 镜像源头') + ' · ' + categories.length + ' 个分类'">· {{ wsHeadDescOwn || '资源卡唯一存储 · 镜像源头' }} · {{ categories.length }} 个分类</span>
-        <span class="wsh-spacer" />
-        <span class="wsh-tip" title="右键卡片可打开完整菜单（打开 / 挂载 / 移动 / 星标 / 删除）">提示：右键卡片或 Hover 可直接挂载到今日行动</span>
+        <span class="wsh-spacer" /><span class="wsh-tip" title="右键卡片可打开完整菜单（打开 / 挂载 / 移动 / 星标 / 删除）">提示：右键卡片或 Hover 可直接挂载到今日行动</span>
       </template>
       <template v-else>
         <span v-if="wsHeadDescOwn" class="wsh-desc" :title="wsHeadDescOwn">· {{ wsHeadDescOwn }}</span>
@@ -23,6 +22,17 @@
         <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template><span class="wsh-upd" title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新 {{ lastUpdateText }}</span></span>
       </template>
       <span v-if="isHub" class="wsh-help" :title="HUB_HELP_TEXT">?</span>
+    </div>
+    <!-- R126（原型还原）：中心论点横幅上移常驻——所有视图可见（原在卡片视图内、切视图即消失） -->
+    <div v-if="!isHub" class="thesis-banner" :class="{ empty: !thesisCard }">
+      <template v-if="thesisCard">
+        <span class="tb-badge">🏛 中心论点</span>
+        <span class="tb-title" :title="thesisCard.title" @click.stop="onCardClick(thesisCard)">{{ thesisCard.title }}</span>
+        <button class="tb-btn" @click="setViewMode('pyramid')">⬡ 查看金字塔结构论证 ›</button>
+      </template>
+      <template v-else>
+        <span class="tb-badge gray">🏛 中心论点</span><span class="tb-hint">＋ 点击确立本策展台的 L1 中心论点，让研究从判断出发</span><button class="tb-btn" @click="openThesisCreate">＋ 确立中心论点</button>
+      </template>
     </div>
     <!-- R64-F13：hero 大标题区删除——重命名/图标/描述编辑收进 ⚙ 菜单，导入/新建按钮上移工具条 -->
     <Teleport to="body">
@@ -128,7 +138,6 @@
       <!-- R90（R8-②）：主 CTA「＋新建」前置——从最右移到视图 Tab 之后、搜索之前。
            R88 只做了"分级"（一级收到 5 件），**位置仍在右端**；R8 要的是"主 CTA 不被挤到最右"。 -->
       <button class="hero-btn primary" @click="openNewResource">＋ 新建卡片</button>
-      <!-- R122（原型）：导入与批量提权到一级（原在 ⚙ 菜单） -->
       <button class="hero-btn ghost" :title="isHub ? '导入资源（HTML/书签/本地文件）' : '导入策展台数据包'" @click="openImport">{{ isHub ? '⬇ 导入资源' : '⬇ 导入数据包' }}</button>
       <button class="hero-btn ghost" :class="{ on: batchMode }" title="批量管理（选择卡片后整体移动 / 删除 / 打开）" @click="toggleBatchMode">{{ batchMode ? '✓ 完成批量' : '☑ 批量' }}</button>
       <!-- R113-N4：金字塔模板导入提到一级。原藏在 ⚙ 菜单第 4 项（用户反馈"埋太深、不方便"），
@@ -231,8 +240,8 @@
         <div class="cat-toolbar">
           <span class="ct-label">{{ isHub ? '策展目录' : '论证结构目录' }}</span>
           <span class="ct-actions">
-            <span class="ct-btn" title="一键收纳为策展台根部" @click="collapseAllCats">⊟ 收起</span>
-            <span class="ct-btn" title="全部展开" @click="expandAllCats">⊞ 展开</span>
+            <span class="ct-btn" title="全部收起（一键收纳为策展台根部）" @click="collapseAllCats">⊟</span>
+            <span class="ct-btn" title="全部展开" @click="expandAllCats">⊞</span>
           </span>
           <span class="ct-btn rail-toggle" :title="sideRail ? '展开目录' : '收起为图标轨'" @click="toggleSideRail">{{ sideRail ? '⊞' : '⊟' }}</span>
         </div>
@@ -287,8 +296,7 @@
         <div class="cat-merge" @click="mergeDupCats"><span>🛠</span><span>合并重复分类</span></div>
         </template><template v-else><div class="cat-rail">
             <div class="cat-rail-btn" :class="{active: activeCategory==='all'}" title="全部" @click="activeCategory='all'">📁</div><div class="cat-rail-btn" :class="{active: activeCategory==='uncat'}" title="待分类" @click="activeCategory='uncat'">📥</div><div class="cat-rail-sep"></div>
-            <div v-for="c in pinnedRootCats" :key="c.id" class="cat-rail-btn" :class="{active: activeCategory===c.id}" :title="c.name" @click="selectRailCat(c.id)">📌</div><div v-for="c in unpinnedRootCats" :key="c.id" class="cat-rail-btn" :class="{active: activeCategory===c.id}" :title="c.name" @click="selectRailCat(c.id)">{{ isMirrorCat(c) ? '📡' : '📁' }}</div>
-          </div></template>
+            <div v-for="c in pinnedRootCats" :key="c.id" class="cat-rail-btn" :class="{active: activeCategory===c.id}" :title="c.name" @click="selectRailCat(c.id)">📌</div><div v-for="c in unpinnedRootCats" :key="c.id" class="cat-rail-btn" :class="{active: activeCategory===c.id}" :title="c.name" @click="selectRailCat(c.id)">{{ isMirrorCat(c) ? '📡' : '📁' }}</div></div></template>
       </div>
       <!-- R113-N1：树宽拖拽手柄（160–420px；双击复位 200px；窄屏隐藏） -->
       <div class="ws-side-split" title="拖拽调整分类树宽度（双击复位）" @mousedown.prevent="startSideResize" @dblclick="resetSideWidth"></div>
@@ -309,17 +317,6 @@
         <div v-if="viewMode==='card'">
           <!-- R84（W2-①）：中心论点提到首屏——此前论点只出现在指标条第一格与金字塔 L1 根，
                卡片视图（默认视图）里完全看不到。已设立 → 标题 + 查看金字塔；未设立 → 一行轻引导。 -->
-          <!-- R123（C2/原型）：论点大气横幅——badge 实底 + 论点 14px/700 + 右侧「查看金字塔结构论证」按钮 -->
-          <div v-if="!isHub" class="thesis-banner" :class="{ empty: !thesisCard }">
-            <template v-if="thesisCard">
-              <span class="tb-badge">🏛 中心论点</span>
-              <span class="tb-title" :title="thesisCard.title" @click.stop="onCardClick(thesisCard)">{{ thesisCard.title }}</span>
-              <button class="tb-btn" @click="setViewMode('pyramid')">⬡ 查看金字塔结构论证 ›</button>
-            </template>
-            <template v-else>
-              <span class="tb-badge gray">🏛 中心论点</span><span class="tb-hint">＋ 点击确立本策展台的 L1 中心论点，让研究从判断出发</span><button class="tb-btn" @click="openThesisCreate">＋ 确立中心论点</button>
-            </template>
-          </div>
           <template v-for="(g, gi) in renderedGroups" :key="g.key">
             <div class="group-wrap" :class="{ 'group-box': viewMode === 'card' && !isHub && g.depth === 0 }" :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
             <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
@@ -746,6 +743,8 @@
             <span>🔍</span>
             <input v-model="linkCardsQ" placeholder="关键词过滤资源台资源卡（标题/链接）" />
           </div>
+          <!-- R126（诉求 3）：资源台分类过滤（含子分类） -->
+          <div class="lc-cat-row"><select v-model="linkCardsCat" class="lc-cat"><option value="">全部分类（资源台）</option><option v-for="o in linkCatOptions" :key="o.id" :value="o.id">{{ o.label }}</option><option value="__uncat__">未分类</option></select></div>
           <div class="lc-list">
             <label v-for="c in linkCandidates" :key="c.r.id" class="lc-item" :class="{ picked: linkCardsModal?.picked.has(c.r.id), mirrored: c.mirrored }">
               <input v-if="!c.mirrored" type="checkbox" :checked="linkCardsModal?.picked.has(c.r.id)" @change="toggleLinkPick(c.r.id)" />
@@ -1382,7 +1381,7 @@ const dragCatId = computed(() => dragState.cat)
 const {
   pyramidImportOpen, confirmPyramidImport,
   pyramidLevels, pyLayout, moveCatSibling,
-  linkCardsModal, linkCardsQ, openLinkCards, toggleLinkPick, linkCandidates, confirmLinkCards,
+  linkCardsModal, linkCardsQ, linkCardsCat, linkCatOptions, openLinkCards, toggleLinkPick, linkCandidates, confirmLinkCards,
   pyWrapRef, pyFs, pyFsFallback, wsPageRef,
   enterPyFullscreen, exitPyFullscreen, togglePyFullscreen,
   pyLinkPaths, drawPyLinks, pyLinksThrottled,

@@ -469,6 +469,8 @@ export interface UIPrefs {
   wsSideW?: number
   /** R125：工作台左栏收起为 36px 图标轨（记忆偏好） */
   wsSideRail?: boolean
+  /** R126（诉求 5）：全局默认冷却天数（1~365；缺省 30；归档 = ×3） */
+  coolingDaysDefault?: number
 }
 
 // ============ 常量 ============

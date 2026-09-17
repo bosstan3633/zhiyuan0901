@@ -601,7 +601,7 @@ const allResults = computed<SearchResult[]>(() => {
   allProjects().filter(p => showDoneProjects.value || !isProjectDone(p)).forEach(p => {
     const dir = d.value.compass.directions.find(dr => dr.projects.some(x => x.id === p.id))
     const badges: {type:string,text:string}[] = []
-    if (p.isFocused) badges.push({ type: 'prio-high', text: '🎯 主攻' })
+    if (p.isFocused) badges.push({ type: 'prio-high', text: '⚑ 主攻' })
     if (p.status === 'archived') badges.push({ type: 'curio-status', text: '已完成' })
     results.push({
       id: p.id, type: 'proj', iconClass: 'ws', iconText: '📦',
