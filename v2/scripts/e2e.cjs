@@ -226,6 +226,7 @@ async function main() {
   // E2E-7 调度台底部双 tab（R117-C1）：任务调度（默认）+ 好奇心培育同宿一节，好奇心懒挂载；方向台不再持任务模块
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
+  await page.waitForSelector('.bt-tab', { timeout: 8000 }).catch(() => {})
   const tabsCount = await page.locator('.bt-tab').count()
   const taskTabActive = await page.locator('.bt-tab.on').first().textContent().then((t) => (t || '').includes('任务')).catch(() => false)
   const taskPaneOn = await page.locator('.bottom-pane').first().isVisible().catch(() => false)
@@ -331,13 +332,15 @@ async function main() {
   await page.waitForTimeout(2500)
   await page.evaluate(() => { location.hash = '#/compass' })
   await page.waitForTimeout(2000)
-  const goalChip = await page.locator('.chip-proj').first().isVisible().catch(() => false)
+  // R121：项目 chip → 项目行卡（proj-row）；等待渲染防长序列时序抖动
+  await page.waitForSelector('.proj-row', { timeout: 8000 }).catch(() => {})
+  const goalChip = await page.locator('.proj-row').first().isVisible().catch(() => false)
   const offCourseGone = !(await page.getByText('偏航行动').first().isVisible().catch(() => false))
   report('E2E-11 主航线目标行 chip（未归档格迁调度台由 E2E-4 覆盖）', goalChip && offCourseGone,
     `chip=${goalChip} offCourseGone=${offCourseGone}`)
 
   // E2E-12 主航线全量呈现（R52-F4）：未投射项目也出现在战略目标行 chip（修订 R51-F18「仅已投射」）
-  const chipCount = await page.locator('.chip-proj').count()
+  const chipCount = await page.locator('.proj-row').count()
   const unPinnedChip = await page.getByText('E2E 回填项目').first().isVisible().catch(() => false)
   report('E2E-12 主航线全量呈现：未投射项目 chip 也出现（R52-F4）', chipCount >= 2 && unPinnedChip,
     `chips=${chipCount} unPinnedVisible=${unPinnedChip}`)
@@ -351,7 +354,8 @@ async function main() {
   const backToCompass = page.url().includes('/compass')
   await page.evaluate(() => { location.hash = '#/compass/projects?p=e2e-proj-1' })
   await page.waitForTimeout(1500)
-  const projHead = await page.getByText('成功指标 → 任务').first().isVisible().catch(() => false)
+  // R121：原「成功指标 → 任务」层头退役 → 展板统计条（pb-stats）
+  const projHead = await page.locator('.pb-stats').first().isVisible().catch(() => false)
   const addMetricBtn = await page.getByText('添加成功指标').first().isVisible().catch(() => false)
   const backListGone = !(await page.getByText('返回项目列表').first().isVisible().catch(() => false))
   report('E2E-13 方向树返回方向台 + 项目详情头部添加成功指标 + 返回项目列表移除（R52-F5/F6/F8）', backBtn && backToCompass && projHead && addMetricBtn && backListGone,
@@ -382,7 +386,10 @@ async function main() {
   await page.evaluate(() => { location.hash = '#/compass/projects?p=e2e-proj-1' })
   await page.waitForTimeout(1500)
   const crumbUp = await page.getByText('方向台', { exact: true }).first().isVisible().catch(() => false)
-  await page.getByText('🌳 完整方向树').first().click().catch(() => {})
+  // R121：树定位入口收进展板 ⋯ 菜单（原 back-row「🌳 完整方向树」按钮已随重排退役）
+  await page.locator('.pb-more-wrap .mini-btn.icon').first().click().catch(() => {})
+  await page.waitForTimeout(400)
+  await page.getByText('🌳 在完整方向树中定位').first().click().catch(() => {})
   await page.waitForTimeout(1500)
   const urlHasFrom = page.url().includes('from=proj') && page.url().includes('hl=')
   const backToProjBtn = await page.getByText('← 返回项目详情').first().isVisible().catch(() => false)
@@ -536,8 +543,9 @@ async function main() {
   await page.waitForTimeout(1800)
   // 合成拖拽：满指标下任务行 → 空指标的树节点（dragstart/dragover/drop 全链路）
   const dropResult = await page.evaluate(() => {
-    const src = [...document.querySelectorAll('.prt-task')].find(n => n.textContent.includes('E2E 待搬任务'))
-    const dst = [...document.querySelectorAll('.prt-metric')].find(n => n.textContent.includes('E2E 空指标'))
+    // R121：左栏目录退役 → 拖拽源/落点改展板内（任务行 btask → 指标块 metric-sec）
+    const src = [...document.querySelectorAll('.btask')].find(n => n.textContent.includes('E2E 待搬任务'))
+    const dst = [...document.querySelectorAll('.metric-sec')].find(n => n.textContent.includes('E2E 空指标'))
     if (!src || !dst) return 'missing:' + (src ? '' : 'src ') + (dst ? '' : 'dst')
     const dt = new DataTransfer()
     src.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))

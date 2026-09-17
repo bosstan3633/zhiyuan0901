@@ -31,7 +31,7 @@ function goBack() {
 function locateHlGoal() {
   const dirId = route.query.hl
   if (!dirId || typeof dirId !== 'string') return
-  expandedDirs.value.add(dirId)
+  // R121：目标列常显——定位无需先展开
   nextTick(() => {
     const el = document.querySelector(`[data-dir-id="${dirId}"]`) as HTMLElement | null
     if (!el) return
@@ -54,12 +54,12 @@ onUnmounted(() => document.removeEventListener('keydown', onPageEsc, true))
 watch(() => route.query.hl, () => locateHlGoal())
 
 // ---- 展开状态 ----
-const expandedDirs = ref<Set<string>>(new Set())
+
 const expandedMetrics = ref<Set<string>>(new Set())
 /** B26：默认全局展开——数据变化时补齐缺失的展开 id（手动收起的保持折叠） */
 function expandAllNodes() {
+  // R121：目标列常显（原型全展开）——展开只控指标层
   d.value.compass.directions.forEach(dir => {
-    expandedDirs.value.add(dir.id)
     dir.projects.forEach(proj => proj.metrics.forEach(m => expandedMetrics.value.add(m.id)))
   })
 }
@@ -67,7 +67,7 @@ watch(() => d.value?.compass.directions, () => expandAllNodes(), { deep: true, i
 
 /** R49-C7：一键展开/收起全部（展开=全层级展开；收起=全部战略目标与指标折叠） */
 function collapseAllNodes() {
-  expandedDirs.value.clear()
+  // R121：目标列常显——收起只控指标层
   expandedMetrics.value.clear()
 }
 
@@ -87,10 +87,6 @@ const treeStats = computed(() => ({
   tasks: d.value.tasks.filter(t => !t.deletedAt).length
 }))
 
-function toggleDir(id: string) {
-  if (expandedDirs.value.has(id)) expandedDirs.value.delete(id)
-  else expandedDirs.value.add(id)
-}
 function toggleMetric(id: string) {
   if (expandedMetrics.value.has(id)) expandedMetrics.value.delete(id)
   else expandedMetrics.value.add(id)
@@ -167,7 +163,6 @@ function addDirection() {
   }
   d.value.compass.directions.push(dir)
   store.persist()
-  expandedDirs.value.add(dir.id)
   showToast('✓ 战略目标已创建，点击标题编辑')
 }
 
@@ -504,229 +499,120 @@ onUnmounted(() => {
       <div class="canvas" ref="canvasEl" @scroll="onCanvasScroll">
         <div class="canvas-inner">
 
-          <!-- 第1层：愿景 -->
-          <div class="layer-header" id="layer-1">
-            <div class="layer-num">1</div>
-            <div class="layer-name">愿景</div>
-            <div class="layer-desc">· 终极方向，回答"我想到达哪里"</div>
-          </div>
-          <div class="node vision-node">
-            <div class="layer-label">VISION · 核心愿景</div>
-            <div class="node-title editable"
-              :class="{editing: editingField === 'vision'}"
-              :data-edit="'vision'"
-              :contenteditable="editingField === 'vision'"
-              @click="startEdit('vision', $event)"
-              @blur="saveEdit('vision', $event)"
-              @keydown.enter.ctrl.prevent="saveEdit('vision', $event)"
-              @keydown.esc="cancelEdit">{{ visionText || '点击设定你的核心愿景…' }}</div>
-            <div class="node-meta">
-              <span class="proj-toggle" @click.stop="toggleLinkPop('vision')">
-                🔗 关联卡片
-                <span class="link-count">{{ linkCount('vision') }}</span>
-              </span>
+          <!-- 第1-2层：愿景 / 使命 锚点卡（R121：两张 node 卡 → 单卡紧凑；编辑与关联卡片保留） -->
+          <div class="tree-level-card" id="layer-1">
+            <span class="tl-badge">1 愿景 · 终极方向</span>
+            <div class="tl-text">
+              <span class="node-title editable" :class="{editing: editingField === 'vision'}" :data-edit="'vision'" :contenteditable="editingField === 'vision'"
+                @click="startEdit('vision', $event)" @blur="saveEdit('vision', $event)" @keydown.enter.ctrl.prevent="saveEdit('vision', $event)" @keydown.esc="cancelEdit">{{ visionText || '点击设定你的核心愿景…' }}</span>
             </div>
-            <div v-if="linkCount('vision')" class="linked-chips" @click.stop>
-              <span v-for="rid in linkIds('vision', 'res')" :key="'vr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico">📄</span><span class="lc-text">{{ resTitle(rid) }}</span></span>
-              <span v-for="cid in linkIds('vision', 'curio')" :key="'vc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico">💡</span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
+            <div class="tl-links">
+              <span class="proj-toggle" @click.stop="toggleLinkPop('vision')">🔗 关联卡片 <span class="link-count">{{ linkCount('vision') }}</span></span>
+              <template v-if="linkCount('vision')">
+                <span v-for="rid in linkIds('vision', 'res')" :key="'vr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico">📄</span><span class="lc-text">{{ resTitle(rid) }}</span></span>
+                <span v-for="cid in linkIds('vision', 'curio')" :key="'vc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico">💡</span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
+              </template>
             </div>
-          </div>
-
-          <div class="tree-connector"><svg width="2" height="20"><line x1="1" y1="0" x2="1" y2="20" stroke="var(--border-strong)" stroke-width="1.5" stroke-dasharray="4,3" /></svg></div>
-
-          <!-- 第2层：使命 -->
-          <div class="layer-header" id="layer-2">
-            <div class="layer-num">2</div>
-            <div class="layer-name">使命</div>
-            <div class="layer-desc">· 行动准则，回答"我如何到达那里"</div>
-          </div>
-          <div class="node mission-node">
-            <div class="node-top">
-              <span class="node-tag mission-tag">MISSION</span>
+            <span class="tl-badge ghost" id="layer-2">2 使命 · 行动准则</span>
+            <div class="tl-text sub">
+              <span class="node-title editable" :class="{editing: editingField === 'mission'}" :data-edit="'mission'" :contenteditable="editingField === 'mission'"
+                @click="startEdit('mission', $event)" @blur="saveEdit('mission', $event)" @keydown.enter.ctrl.prevent="saveEdit('mission', $event)" @keydown.esc="cancelEdit">{{ missionText || '点击设定你的核心使命…' }}</span>
             </div>
-            <div class="node-title editable"
-              :class="{editing: editingField === 'mission'}"
-              :data-edit="'mission'"
-              :contenteditable="editingField === 'mission'"
-              @click="startEdit('mission', $event)"
-              @blur="saveEdit('mission', $event)"
-              @keydown.enter.ctrl.prevent="saveEdit('mission', $event)"
-              @keydown.esc="cancelEdit">{{ missionText || '点击设定你的核心使命…' }}</div>
-            <div class="node-meta">
-              <span class="proj-toggle" @click.stop="toggleLinkPop('mission')">
-                🔗 关联卡片
-                <span class="link-count">{{ linkCount('mission') }}</span>
-              </span>
-            </div>
-            <div v-if="linkCount('mission')" class="linked-chips" @click.stop>
-              <span v-for="rid in linkIds('mission', 'res')" :key="'mr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico">📄</span><span class="lc-text">{{ resTitle(rid) }}</span></span>
-              <span v-for="cid in linkIds('mission', 'curio')" :key="'mc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico">💡</span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
+            <div class="tl-links">
+              <span class="proj-toggle" @click.stop="toggleLinkPop('mission')">🔗 关联卡片 <span class="link-count">{{ linkCount('mission') }}</span></span>
+              <template v-if="linkCount('mission')">
+                <span v-for="rid in linkIds('mission', 'res')" :key="'mr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico">📄</span><span class="lc-text">{{ resTitle(rid) }}</span></span>
+                <span v-for="cid in linkIds('mission', 'curio')" :key="'mc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico">💡</span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
+              </template>
             </div>
           </div>
 
-          <div class="tree-connector"><svg width="2" height="20"><line x1="1" y1="0" x2="1" y2="20" stroke="var(--border-strong)" stroke-width="1.5" stroke-dasharray="4,3" /></svg></div>
+          <!-- 第3-6层：战略目标 → 攻坚项目 → 成功指标 → 任务（R121：三列分支网格 + 发丝缩进） -->
+          <div class="tree-level-card" id="layer-3">
+            <div class="tl-head-row">
+              <span class="tl-badge">3 战略目标 → 4 攻坚项目 → 5 成功指标 → 6 任务</span>
+              <span class="tl-hint">主攻项目强化边框 · 缺任务指标实时警示 · 点击指标展开任务</span>
+              <button class="add-btn-inline" @click="addDirection"><span>＋</span> 添加战略目标</button>
+            </div>
 
-          <!-- 第3层：战略目标 -->
-          <div class="layer-header" id="layer-3">
-            <div class="layer-num">3</div>
-            <div class="layer-name">战略目标</div>
-            <div class="layer-desc">· Directions，阶段方向</div>
-            <button class="add-btn-inline" @click="addDirection"><span>＋</span>添加战略目标</button>
-          </div>
+            <div v-if="!d.compass.directions.length" class="empty-state">
+              <div class="empty-icon">🎯</div>
+              <div>还没有战略目标，点击上方"添加战略目标"开始</div>
+            </div>
 
-          <div v-if="!d.compass.directions.length" class="empty-state">
-            <div class="empty-icon">🎯</div>
-            <div>还没有战略目标，点击上方"添加战略目标"开始</div>
-          </div>
-
-          <div class="goals-row">
-            <div v-for="dir in d.compass.directions" :key="dir.id" class="goal-col">
-              <div class="node goal-node" :class="{stagnant: isStagnant(dir)}" :data-dir-id="dir.id" @click="toggleDir(dir.id)">
-                <div class="node-top">
-                  <span v-if="isStagnant(dir)" class="stagnant-tag">⚠ 停滞</span>
-                  <span class="node-tag dir-tag">DIRECTION</span>
-                  <span class="expand-icon">{{ expandedDirs.has(dir.id) ? '▼' : '▶' }}</span>
+            <div class="tree-columns-grid" id="layer-4">
+              <div v-for="dir in d.compass.directions" :key="dir.id" class="tc-strategic-branch" :data-dir-id="dir.id">
+                <div class="tc-strategic-title">
+                  <div class="tct-name">
+                    <span class="node-title editable" :class="{editing: editingField === 'dir-' + dir.id}" :data-edit="'dir-' + dir.id" :contenteditable="editingField === 'dir-' + dir.id"
+                      @click="startEdit('dir-' + dir.id, $event)" @blur="saveEdit('dir-' + dir.id, $event)" @keydown.enter.prevent="saveEdit('dir-' + dir.id, $event)" @keydown.esc="cancelEdit">{{ dir.name }}</span>
+                    <span v-if="isStagnant(dir)" class="stagnant-tag" title="该目标下项目近 14 天无推进">⚠ 停滞</span>
+                  </div>
+                  <div class="tct-meta">
+                    <span>{{ visibleProjectsOf(dir).length }} 攻坚项目 · {{ dir.projects.reduce((s,p)=>s+p.metrics.length,0) }} 成功指标</span>
+                    <span class="tct-acts" @click.stop>
+                      <span class="node-action" @click="addProject(dir.id)" title="添加项目">＋</span>
+                      <span class="node-action" @click="openGoalImport(dir)" title="导入模板（Markdown 批量生成项目/指标/任务）">📋</span>
+                      <span class="node-action danger" @click="deleteNode('dir', dir.id)" title="删除目标">🗑</span>
+                    </span>
+                  </div>
                 </div>
-                <div class="node-title editable"
-                  :class="{editing: editingField === 'dir-' + dir.id}"
-                  :data-edit="'dir-' + dir.id"
-                  :contenteditable="editingField === 'dir-' + dir.id"
-                  @click="startEdit('dir-' + dir.id, $event)"
-                  @blur="saveEdit('dir-' + dir.id, $event)"
-                  @keydown.enter.prevent="saveEdit('dir-' + dir.id, $event)"
-                  @keydown.esc="cancelEdit">{{ dir.name }}</div>
-                <div class="progress-bar"><div class="progress-fill" :style="{width: (dir.projects.reduce((s,p)=>s+projectProgress(p).pct,0)/(dir.projects.length||1)) + '%'}" /></div>
-                <div class="node-meta">
-                  <span>{{ dir.projects.length }} 攻坚项目</span>
-                  <span>{{ dir.projects.reduce((s,p)=>s+p.metrics.length,0) }} 指标</span>
-                  <span>{{ d.tasks.filter(t=>!t.deletedAt && dir.projects.some(p=>p.id===t.projectId)).length }} 任务</span>
-                </div>
-                <div class="node-actions">
-                  <div class="node-action" @click.stop="addProject(dir.id)" title="添加项目">＋</div>
-                  <div class="node-action" @click.stop="openGoalImport(dir)" title="导入模板（Markdown 批量生成项目/指标/任务）">📋</div>
-                  <div class="node-action danger" @click.stop="deleteNode('dir', dir.id)" title="删除">🗑</div>
-                </div>
-              </div>
 
-              <!-- 视觉引导线 + 第4-6层 -->
-              <div v-if="expandedDirs.has(dir.id)" class="sub-tree">
-                <div class="guide-line" />
-                <div class="sub-layer">
-                  <!-- 第4层：攻坚项目 -->
-                  <div class="sub-layer-label" id="layer-4">
-                    <div class="sub-layer-num">4</div>
-                    <div class="sub-layer-name">攻坚项目</div>
-                    <div class="sub-layer-add" @click.stop="addProject(dir.id)">＋ 添加</div>
+                <div v-for="proj in visibleProjectsOf(dir)" :key="proj.id" class="tree-project-branch" :class="{ 'is-focused': proj.isFocused }">
+                  <div class="tp-head">
+                    <div class="tp-title">
+                      <span v-if="proj.isFocused" class="tp-mark" title="主攻项目">🎯</span>
+                      <span class="node-title editable" :class="{editing: editingField === 'proj-' + proj.id}" :data-edit="'proj-' + proj.id" :contenteditable="editingField === 'proj-' + proj.id"
+                        @click="startEdit('proj-' + proj.id, $event)" @blur="saveEdit('proj-' + proj.id, $event)" @keydown.enter.prevent="saveEdit('proj-' + proj.id, $event)" @keydown.esc="cancelEdit">{{ proj.name }}</span>
+                    </div>
+                    <span class="tp-pct" :class="{ ok: projectProgress(proj).pct === 100 }">{{ projectProgress(proj).pct }}% · {{ projectProgress(proj).done }}/{{ projectProgress(proj).total }}</span>
+                  </div>
+                  <div class="tp-meta">
+                    <span>📊 {{ proj.metrics.length }} 指标 · 📋 {{ d.tasks.filter(t=>!t.deletedAt && t.projectId===proj.id).length }} 任务</span>
+                    <span class="tp-acts" @click.stop>
+                      <span class="node-action" :class="{on: proj.isFocused}" @click="onToggleFocus(proj.id)" :title="proj.isFocused ? '取消主攻' : '设为主攻'">🎯</span>
+                      <span class="node-action" @click="openProjectDrawer(proj.id)" title="打开项目全景">🗂</span>
+                      <span class="node-action" @click="router.push({ path: '/compass/projects', query: { p: proj.id, from: 'tree' } })" title="进入项目详情页">📄</span>
+                      <span class="node-action" @click="addMetric(proj.id)" title="添加指标">＋</span>
+                      <span class="node-action danger" @click="deleteNode('proj', proj.id)" title="删除项目">🗑</span>
+                    </span>
                   </div>
 
-                  <div v-for="(proj, pIdx) in visibleProjectsOf(dir)" :key="proj.id" class="project-branch">
-                    <div class="branch-connector">
-                      <div class="branch-h" />
-                      <div class="branch-v" />
+                  <!-- 第5-6层：指标（发丝缩进）与任务叶 -->
+                  <div v-for="metric in proj.metrics" :key="metric.id" class="tree-metric-branch">
+                    <div class="tm-title-row" @click="toggleMetric(metric.id)">
+                      <span class="tm-dot" :class="{doing: tasksForMetric(metric.id).some(t=>t.status==='doing'), done: tasksForMetric(metric.id).length && tasksForMetric(metric.id).every(t=>t.status==='done')}">{{ tasksForMetric(metric.id).length && tasksForMetric(metric.id).every(t=>t.status==='done') ? '✓' : tasksForMetric(metric.id).some(t=>t.status==='doing') ? '◐' : '○' }}</span>
+                      <span class="node-title editable" :class="{editing: editingField === 'metric-' + metric.id}" :data-edit="'metric-' + metric.id" :contenteditable="editingField === 'metric-' + metric.id"
+                        @click.stop="startEdit('metric-' + metric.id, $event)" @blur="saveEdit('metric-' + metric.id, $event)" @keydown.enter.prevent="saveEdit('metric-' + metric.id, $event)" @keydown.esc="cancelEdit">{{ metric.title }}</span>
+                      <span class="tm-count">({{ tasksForMetric(metric.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(metric.id).length }})</span>
+                      <span class="tm-caret">{{ expandedMetrics.has(metric.id) ? '▾' : '▸' }}</span>
+                      <span class="tm-acts" @click.stop>
+                        <span class="node-action" @click="openTaskAdd(metric.id, proj.id)" title="添加任务（新建 / 关联）">＋</span>
+                        <span class="node-action danger" @click="deleteNode('metric', metric.id)" title="删除指标">🗑</span>
+                      </span>
                     </div>
-                    <div class="node project-node" :class="{primary: proj.isFocused}">
-                      <div class="node-top">
-                        <span v-if="proj.isFocused" class="primary-badge">主攻</span>
-                        <span class="node-tag proj-tag">PROJECT</span>
-                        <button class="focus-btn" :class="{on: proj.isFocused}" @click.stop="onToggleFocus(proj.id)"
-                          :title="proj.isFocused ? '主攻项目（再次点击取消）——主攻项目在列表置前并以强调色区分' : '设为主攻项目——列表置前并以强调色区分'">🎯 主攻</button>
-                      </div>
-                      <div class="node-title editable"
-                        :class="{editing: editingField === 'proj-' + proj.id}"
-                        :data-edit="'proj-' + proj.id"
-                        :contenteditable="editingField === 'proj-' + proj.id"
-                        @click="startEdit('proj-' + proj.id, $event)"
-                        @blur="saveEdit('proj-' + proj.id, $event)"
-                        @keydown.enter.prevent="saveEdit('proj-' + proj.id, $event)"
-                        @keydown.esc="cancelEdit">{{ proj.name }}</div>
-                      <div class="node-meta">
-                        <span>📊 {{ proj.metrics.length }} 指标</span>
-                        <span>📋 {{ d.tasks.filter(t=>!t.deletedAt && t.projectId===proj.id).length }} 任务</span>
-                        <span :class="proj.status==='active'?'status-active':'status-paused'">● {{ proj.status==='active'?'推进中':'规划中' }}</span>
-                      </div>
-                      <div class="node-actions">
-                        <div class="node-action" @click.stop="openProjectDrawer(proj.id)" title="打开项目全景">🗂</div>
-                        <!-- R54-A2：进入项目详情页（方向树 ↔ 项目详情闭环） -->
-                        <div class="node-action" @click.stop="router.push({ path: '/compass/projects', query: { p: proj.id, from: 'tree' } })" title="进入项目详情页">📄</div>
-                        <div class="node-action" @click.stop="addMetric(proj.id)" title="添加指标">＋</div>
-                        <div class="node-action danger" @click.stop="deleteNode('proj', proj.id)" title="删除">🗑</div>
-                      </div>
-
-                      <!-- 第5层：成功指标 -->
-                      <div class="sub-layer metrics-wrap" id="layer-5">
-                        <div class="sub-layer-label">
-                          <div class="sub-layer-num">5</div>
-                          <div class="sub-layer-name">成功指标</div>
-                          <div class="sub-layer-add" @click.stop="addMetric(proj.id)">＋ 添加</div>
-                        </div>
-
-                        <div v-for="metric in proj.metrics" :key="metric.id">
-                          <div class="metric-item" :class="{expanded: expandedMetrics.has(metric.id)}" @click="toggleMetric(metric.id)">
-                            <div class="metric-status" :class="tasksForMetric(metric.id).every(t=>t.status==='done') && tasksForMetric(metric.id).length ? 'done' : tasksForMetric(metric.id).some(t=>t.status==='doing') ? 'doing' : 'todo'">
-                              {{ tasksForMetric(metric.id).every(t=>t.status==='done') && tasksForMetric(metric.id).length ? '✓' : tasksForMetric(metric.id).some(t=>t.status==='doing') ? '◐' : '○' }}
-                            </div>
-                            <div class="metric-name editable"
-                              :class="{editing: editingField === 'metric-' + metric.id}"
-                              :data-edit="'metric-' + metric.id"
-                              :contenteditable="editingField === 'metric-' + metric.id"
-                              @click.stop="startEdit('metric-' + metric.id, $event)"
-                              @blur="saveEdit('metric-' + metric.id, $event)"
-                              @keydown.enter.prevent="saveEdit('metric-' + metric.id, $event)"
-                              @keydown.esc="cancelEdit">{{ metric.title }}</div>
-                            <div class="metric-progress">{{ tasksForMetric(metric.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(metric.id).length }}</div>
-                            <div class="metric-task-count">📋 {{ tasksForMetric(metric.id).length }}任务</div>
-                            <div class="metric-expand-icon">{{ expandedMetrics.has(metric.id) ? '▼' : '▶' }}</div>
-                            <div class="metric-actions" @click.stop>
-                              <div class="node-action" @click="openTaskAdd(metric.id, proj.id)" title="添加任务（新建 / 关联）">＋</div>
-                              <div class="node-action danger" @click="deleteNode('metric', metric.id)" title="删除">🗑</div>
-                            </div>
-                          </div>
-
-                          <!-- 第6层：任务 -->
-                          <Transition name="expand">
-                            <div v-if="expandedMetrics.has(metric.id)" class="tasks-wrap" id="layer-6">
-                              <div class="tasks-header">
-                                <div class="th-num">6</div>
-                                <div class="th-name">任务</div>
-                                <div class="th-count">{{ tasksForMetric(metric.id).length }}项</div>
-                                <div class="th-add" @click.stop="openTaskAdd(metric.id, proj.id)">＋ 添加</div>
-                              </div>
-                              <div v-for="task in tasksForMetric(metric.id)" :key="task.id" class="task-item" :class="{done: task.status==='done'}">
-                                <div class="task-check" :class="{done: task.status==='done'}" @click.stop="toggleTask(task.id)">
-                                  {{ task.status==='done' ? '✓' : '' }}
-                                </div>
-                                <div class="task-text editable"
-                                  :class="{editing: editingField === 'task-' + task.id}"
-                                  :data-edit="'task-' + task.id"
-                                  :contenteditable="editingField === 'task-' + task.id"
-                                  @click.stop="startEdit('task-' + task.id, $event)"
-                                  @blur="saveEdit('task-' + task.id, $event)"
-                                  @keydown.enter.prevent="saveEdit('task-' + task.id, $event)"
-                                  @keydown.esc="cancelEdit">{{ task.title }}</div>
-                                <span class="task-meta">{{ task.priority==='high'?'高优':task.priority==='medium'?'中优':'低优' }}</span>
-                                <div class="task-actions" @click.stop>
-                                  <div class="node-action danger" @click="deleteNode('task', task.id)" title="删除">🗑</div>
-                                </div>
-                              </div>
-                              <div v-if="!tasksForMetric(metric.id).length" class="tasks-empty">暂无任务，点击"＋ 添加"创建</div>
-                            </div>
-                          </Transition>
-                        </div>
-
-                        <div v-if="!proj.metrics.length" class="empty-sub">暂无成功指标</div>
+                    <div v-if="tasksForMetric(metric.id).length && expandedMetrics.has(metric.id)" class="tm-task-checklist">
+                      <div v-for="task in tasksForMetric(metric.id)" :key="task.id" class="tm-task-leaf" :class="{done: task.status==='done'}">
+                        <span class="tml-check" :class="{done: task.status==='done'}" @click.stop="toggleTask(task.id)">{{ task.status==='done' ? '✓' : task.status==='doing' ? '◐' : '○' }}</span>
+                        <span class="node-title editable" :class="{editing: editingField === 'task-' + task.id}" :data-edit="'task-' + task.id" :contenteditable="editingField === 'task-' + task.id"
+                          @click.stop="startEdit('task-' + task.id, $event)" @blur="saveEdit('task-' + task.id, $event)" @keydown.enter.prevent="saveEdit('task-' + task.id, $event)" @keydown.esc="cancelEdit">{{ task.title }}</span>
+                        <span class="tml-pri">{{ task.priority==='high'?'高优':task.priority==='medium'?'中优':'低优' }}</span>
+                        <span class="tml-del node-action danger" @click.stop="deleteNode('task', task.id)" title="删除任务">🗑</span>
                       </div>
                     </div>
+                    <div v-else-if="!tasksForMetric(metric.id).length" class="tm-empty-alert">⚠ 暂无支撑任务（线索断开）</div>
                   </div>
-
-                  <div v-if="!visibleProjectsOf(dir).length" class="empty-sub">暂无可见攻坚项目（已完成项目可能已隐藏），点击上方"＋ 添加"创建</div>
+                  <div v-if="!proj.metrics.length" class="empty-sub">暂无成功指标</div>
                 </div>
+
+                <div v-if="!visibleProjectsOf(dir).length" class="empty-sub">暂无可见攻坚项目（已完成项目可能已隐藏），点上方「＋」创建</div>
               </div>
             </div>
           </div>
 
           <!-- 底部说明 -->
           <div class="footer-hint">
-            💡 点击标题即可编辑 · Enter保存 / Esc取消 · 点击战略目标展开④⑤⑥层 · 点击指标展开任务
+            💡 点击标题即可编辑 · Enter 保存 / Esc 取消 · 点击指标展开/收起任务 · 空指标会亮 ⚠ 警示
           </div>
 
         </div>
@@ -888,7 +774,7 @@ onUnmounted(() => {
 .tree-page-head .crumb .crumb-up:hover { color: var(--accent); }
 .tree-page-head .crumb .crumb-sep { color: var(--text-4); }
 /* R54-A3：?hl 定位闪烁 */
-.node.goal-node.goal-flash { animation: treeGoalFlash 1.4s ease; }
+.tc-strategic-branch.goal-flash { animation: treeGoalFlash 1.4s ease; }
 @keyframes treeGoalFlash { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); border-color: var(--accent); } }
 
 /* D8：六层目录 = 布局内左栏 + sticky 跟随（目录在左，内容在右，随滚动吸附） */
@@ -1042,4 +928,57 @@ onUnmounted(() => {
 /* 动画 */
 .expand-enter-active, .expand-leave-active { transition: all .15s ease; overflow: hidden; }
 .expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; margin-top: 0; padding-top: 0; }
+
+/* ===== R121：方向树重构（对齐原型：锚点卡 + 三列分支 + 发丝缩进） ===== */
+.tree-level-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 18px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 6px; }
+.tl-badge { align-self: flex-start; font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-light); padding: 2px 6px; border-radius: 4px; }
+.tl-badge.ghost { background: var(--surface-2); color: var(--text-2); margin-top: 6px; }
+.tl-text { font-size: 14px; font-weight: 700; color: var(--text); }
+.tl-text.sub { font-size: 13px; font-weight: 500; color: var(--text-2); }
+.tl-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-3); }
+.tl-head-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.tl-hint { font-size: 11.5px; color: var(--text-3); }
+.tree-columns-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }
+.tc-strategic-branch { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.tc-strategic-title { padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.tct-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.tct-name .node-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.tct-meta { display: flex; align-items: center; gap: 8px; margin-top: 3px; font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.tct-acts { display: none; gap: 2px; margin-left: auto; }
+.tc-strategic-branch:hover .tct-acts { display: inline-flex; }
+.tree-project-branch { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.tree-project-branch.is-focused { border-color: color-mix(in srgb, var(--accent) 28%, var(--border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent); }
+.tp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tp-title { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.tp-title .node-title { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.tp-mark { flex-shrink: 0; color: var(--accent); font-size: 11px; }
+.tp-pct { flex-shrink: 0; font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.tp-pct.ok { color: var(--success); font-weight: 600; }
+.tp-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-3); }
+.tp-acts { display: none; gap: 2px; margin-left: auto; }
+.tree-project-branch:hover .tp-acts { display: inline-flex; }
+/* 第5-6层：发丝缩进（原型：border-left 引导线） */
+.tree-metric-branch { margin-left: 8px; padding-left: 10px; border-left: 1.5px solid var(--border); margin-top: 8px; }
+.tm-title-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); cursor: pointer; }
+.tm-dot { flex-shrink: 0; font-size: 10px; color: var(--text-4); }
+.tm-dot.doing { color: var(--tag-warn-text); }
+.tm-dot.done { color: var(--success); }
+.tm-title-row .node-title { font-weight: 600; min-width: 0; }
+.tm-count { flex-shrink: 0; font-size: 11px; color: var(--text-4); font-variant-numeric: tabular-nums; }
+.tm-caret { flex-shrink: 0; font-size: 10px; color: var(--text-4); }
+.tm-acts { display: none; gap: 2px; margin-left: auto; }
+.tree-metric-branch:hover .tm-acts { display: inline-flex; }
+.tm-task-checklist { margin-left: 4px; margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
+.tm-task-leaf { display: flex; align-items: flex-start; gap: 6px; padding: 2px 0; font-size: 11.5px; color: var(--text); line-height: 1.35; }
+.tm-task-leaf.done .node-title { text-decoration: line-through; color: var(--text-4); }
+.tml-check { flex-shrink: 0; font-size: 10px; color: var(--text-4); cursor: pointer; }
+.tml-check.done { color: var(--text-4); }
+.tml-pri { flex-shrink: 0; margin-left: auto; font-size: 10px; color: var(--text-4); }
+.tml-del { display: none; flex-shrink: 0; }
+.tm-task-leaf:hover .tml-del { display: inline-flex; }
+/* 空指标警示（原型：⚠ 暂无支撑任务） */
+.tm-empty-alert { margin-top: 4px; font-size: 11px; color: var(--warning); background: var(--warning-light); padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; }
+@media (max-width: 1180px) { .tree-columns-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 980px) { .tree-columns-grid { grid-template-columns: 1fr; } }
+
 </style>
