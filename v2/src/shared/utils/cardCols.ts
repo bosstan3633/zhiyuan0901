@@ -30,7 +30,7 @@ export type CardColsKey = 'curio' | 'task' | 'res'
  * - `task`（任务调度）改造前 `auto-fill minmax(240px, 1fr)`，在方向台 1440px 页宽下 ≈ 5 → 5
  * - `res`（资源台 / 策展台）改造前 `auto-fill minmax(260px, 1fr)` 同口径 ≈ 5 → 5
  */
-export const CARD_COLS_DEFAULT: Record<CardColsKey, number> = { curio: 4, task: 5, res: 5 }
+export const CARD_COLS_DEFAULT: Record<CardColsKey, number> = { curio: 4, task: 5, res: 6 }
 
 /** 归一：仅接受 4/5/6/7，其余（含 undefined / NaN / 越界）一律回落该模块默认列数 */
 function normalize(key: CardColsKey, v: unknown): number {

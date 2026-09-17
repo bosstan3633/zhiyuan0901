@@ -12,18 +12,21 @@ import { readWsView, writeWsView } from '@/shared/utils/wsView'
 import { linkStateOf } from '@/shared/utils/link'
 import { markRank } from '@/shared/utils/marksort'
 import { buildBucketIndex, type CatIndex } from '@/shared/utils/catIndex'
+import type { curationMetrics } from '@/shared/storage/hub'
 import type { AppData, ResourceCard, Category, UIPrefs } from '@/shared/models'
 
 /** R115：宿主 Pinia store 的结构子集（结构性兼容，避免索引签名不匹配） */
 export interface WsStore { ui: UIPrefs | null; persist(): void }
 
-export interface ResourceGroup { key: string; title: string; count: number; items: ResourceCard[]; depth: number }
+export interface ResourceGroup { key: string; title: string; count: number; /** R122：含全部子分类的合计（原型「直属 N · 含 M 个子分类共 K」） */ total: number; items: ResourceCard[]; depth: number }
 
 export interface ResourceViewCtx {
   store: WsStore
   d: ComputedRef<AppData>
   workspaceId: ComputedRef<string>
   allResources: ComputedRef<ResourceCard[]>
+  /** R122：指标条数据源（hub.curationMetrics）——由宿主传入，宿主与其他域共用同一实例 */
+  metrics: ComputedRef<ReturnType<typeof curationMetrics>>
   thesisCard: ComputedRef<ResourceCard | null>
   categories: ComputedRef<Category[]>
   wsCats: ComputedRef<Category[]>
@@ -36,7 +39,7 @@ export interface ResourceViewCtx {
 }
 
 export function useResourceView(ctx: ResourceViewCtx) {
-  const { store, d, workspaceId, allResources, thesisCard, categories, wsCats, catIdx, resBucket, rootCats, childCatsOf, familyIds, isUncat } = ctx
+  const { store, d, workspaceId, allResources, metrics, thesisCard, categories, wsCats, catIdx, resBucket, rootCats, childCatsOf, familyIds, isUncat } = ctx
 
   // ===== 视图状态 =====
   /**
@@ -68,7 +71,7 @@ export function useResourceView(ctx: ResourceViewCtx) {
    *  持久化会造成「下次打开发现卡少了」的困惑，与既有行为一致 */
   // R89（W5）：加 starred（⭐ 星标）——W5 的另两项 hot 排序与 hasAssets 筛选已在 R87 顺带交付
   // （R16 收敛后资源台与策展台同为同一工具条，R5 与 W5 是同一份实现）
-  const FILTER_KEYS = ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'starred', 'unmounted']
+  const FILTER_KEYS = ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'starred', 'unmounted', 'hot']
   const sortBy = ref('manual')
   // 第卅二轮 REQ-007：时间排序方向（默认倒序）+ 排序偏好本地记忆（UIPrefs.sortPrefs.res）
   const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.res?.dir === 'asc') ? 'asc' : 'desc')
@@ -125,7 +128,7 @@ export function useResourceView(ctx: ResourceViewCtx) {
   const hasActiveFilter = computed(() => filterBy.value !== 'all' || !!debouncedQuery.value.trim())
   const FILTER_LABELS: Record<string, string> = {
     all: '全部', url: 'URL链接', file: '本地文件', obsidian: 'Obsidian',
-    hasLink: '有链接', brokenPath: '⚠ 待补全路径', hasAssets: '有附件', starred: '⭐ 星标', unmounted: '未挂载任务'
+    hasLink: '有链接', brokenPath: '⚠ 待补全路径', hasAssets: '有附件', starred: '⭐ 星标', unmounted: '未挂载任务', hot: '高频调用 🔥'
   }
   const filterLabel = computed(() => FILTER_LABELS[filterBy.value] || '全部')
 
@@ -213,7 +216,9 @@ export function useResourceView(ctx: ResourceViewCtx) {
     brokenPath: (r) => isBrokenPath(r),
     hasAssets: (r) => (r.assets?.length || 0) > 0,
     starred: (r) => !!r.starred,
-    unmounted: (r) => !mountedResIds.value.has(r.id)
+    unmounted: (r) => !mountedResIds.value.has(r.id),
+    // R122：高频调用筛档（原型「高频调用 🔥」）——口径拍板 callCount ≥ 3
+    hot: (r) => (r.callCount || 0) >= 3
   }
 
   // 筛选（第八轮：点击父分类 = 聚合显示本级 + 全部子分类）
@@ -291,7 +296,7 @@ export function useResourceView(ctx: ResourceViewCtx) {
      *  此前每个节点都要对 filtered 全量 filter（O(节点数×卡数)），并对每个子节点再扫一遍判空 */
     const bucket = buildBucketIndex(filtered, (r) => r.categoryId || '')
     const uncat = applyGroupSort(filtered.filter(r => isUncat(r, validIds)))
-    if (uncat.length) groups.push({ key: 'uncat', title: '待分类', count: uncat.length, items: uncat, depth: 0 })
+    if (uncat.length) groups.push({ key: 'uncat', title: '待分类', count: uncat.length, total: uncat.length, items: uncat, depth: 0 })
     /** 子树内是否有卡（含直属）——查分桶，空分支不生成组 */
     const subtreeHasCards = (catId: string) => {
       for (const id of catIdx.value.family(catId)) if ((bucket.get(id) || []).length) return true
@@ -302,7 +307,9 @@ export function useResourceView(ctx: ResourceViewCtx) {
       if (seenGroup.has(catId)) return
       seenGroup.add(catId)
       const direct = applyGroupSort(bucket.get(catId) || [])
-      if (direct.length) groups.push({ key: catId, title: name, count: direct.length, items: direct, depth })
+      // R122：合计=家族内全部（直属 + 子分类），供「直属 N · 含 M 个子分类共 K」文案
+      const total = Array.from(catIdx.value.family(catId)).reduce((sum, id) => sum + (bucket.get(id) || []).length, 0)
+      if (direct.length) groups.push({ key: catId, title: name, count: direct.length, total, items: direct, depth })
       for (const sub of childCatsOf(catId)) {
         if (subtreeHasCards(sub.id)) walk(sub.id, sub.name, depth + 1)
       }
@@ -433,8 +440,30 @@ export function useResourceView(ctx: ResourceViewCtx) {
     return { key: c.key, name: c.name, items: shown, count: items.length, hiddenCount: items.length - shown.length }
   }))
 
+  // ===== R122（原型）：资源台指标条尾注 + 一级状态快捷筛选 =====
+  /** R122（原型）：最近更新时间（今天/昨天显示 HH:mm；更早不显示时间，仅日期由页头 lastUpdateText 承载） */
+  const lastUpdateTime = computed(() => {
+    const latest = metrics.value.lastUpdatedAt
+    if (!latest || Date.now() - latest >= 172800000) return ''
+    return new Date(latest).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+  })
+  /** R122（原型）：附件构成尾注「N图 · NPDF · NHTML」（与下钻抽屉同源 attachmentItems） */
+  const assetKindBreakdown = computed(() => {
+    const n: Record<string, number> = {}
+    for (const it of metrics.value.attachmentItems || []) n[it.kind] = (n[it.kind] || 0) + 1
+    return [['image', '图'], ['pdf', 'PDF'], ['html', 'HTML']]
+      .filter(([k]) => n[k]).map(([k, l]) => String(n[k]) + l).join(' · ')
+  })
+  /** R122（原型）：一级状态快捷筛选（与筛选气泡同源 filterBy；其余档位回落显示「全部状态」，
+   *  筛选按钮徽标仍如实呈现全部激活条件） */
+  const quickFilter = computed({
+    get: () => (['hasAssets', 'hot', 'brokenPath'].includes(filterBy.value) ? filterBy.value : 'all'),
+    set: (v: string) => { filterBy.value = v }
+  })
+
   return {
     viewMode, applyWsView, setViewMode, pyFold, resCols,
+    metrics, lastUpdateTime, assetKindBreakdown, quickFilter,
     SORT_BY_KEYS, SORT_LABELS, FILTER_KEYS, FILTER_LABELS,
     sortBy, sortDir, filterBy, searchQuery, debouncedQuery, activeCategory,
     toggleSortDir, density, activeCategoryLabel, mountedResIds,

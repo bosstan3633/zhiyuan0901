@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.89.0'";
+const VER_ANCHOR_LITERAL = "version: '2.90.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -1021,7 +1021,7 @@ console.log('【R62 组 策展台 V3：五指标卡 · 下钻抽屉 · thesis �
 check('R62-1 thesis 字段组四件套：FieldConfig.thesis 可选组 / defaults 默认字段 / catalog CardKind 扩 thesis / fields.ts FieldGroupKind', () => { const m = read('/shared/models/index.ts'); const dft = read('/shared/storage/defaults.ts'); const cat = read('/shared/models/catalog.ts'); const f = read('/shared/utils/fields.ts'); return m.includes('thesis?: FieldDef[]') && dft.includes("key: 'title', label: '论点'") && dft.includes('defaultThesisFieldDefs') && cat.includes("'resource' | 'task' | 'curiosity' | 'thesis'") && cat.includes("kinds: ['thesis']") && f.includes("export type FieldGroupKind = 'resource' | 'task' | 'curiosity' | 'thesis'"); });
 check('R62-2 thesis 老数据归一化：repository 缺组补默认（幂等）+ assets 注入循环含 thesis', () => { const r = read('/shared/storage/repository.ts'); return r.includes('defaultThesisFieldDefs') && r.includes("if (data.fieldConfig && !data.fieldConfig.thesis) data.fieldConfig.thesis = defaultThesisFieldDefs()") && r.includes("for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const)"); });
 check('R62-3 设计器第四页：设置导航「策展主题卡」+ thesis 面板 FieldEditor + 导入合并兼容 thesis 组', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes("key: 'thesis', icon: '🏛', label: '策展主题卡'") && g.includes("card-type=\"thesis\"") && g.includes("if (!cfg.thesis) cfg.thesis = defaultThesisFieldDefs()") && g.includes("for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const)"); });
-check('R62-4 视图分流：Workspace fieldsOf（isThesis 走 thesis 组）+ 卡片视图消费 fieldsOf(r)', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('function fieldsOf(r: ResourceCard): FieldDef[]') && w.includes("visibleFields(d.value.fieldConfig, 'thesis')") && w.includes('v-for="f in fieldsOf(r)"'); });
+check('R62-4 视图分流：Workspace fieldsOf（isThesis 走 thesis 组）+ 卡片视图消费 fieldsOf(r)', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('function fieldsOf(r: ResourceCard): FieldDef[]') && w.includes("visibleFields(d.value.fieldConfig, 'thesis')") && w.includes('v-for="f in extraFieldsOf(r)"'); });
 check('R62-5 指标条（R98 重指：W8 5→3 格 / R112 重指：metrics 复用 allResources）：ws-metrics 三卡（主题/总数/附件）+ 构成明细在总数格 hint（台内/镜像）+ curationMetrics 消费 + 资源台不显示（v-if !isHub）', () => { const w = read('/newtab/views/Workspace.vue'); const h = read('/shared/storage/hub.ts'); return w.includes('class="ws-metrics"') && w.includes('🏛 策展主题') && w.includes('📊 卡片总数') && w.includes('台内 {{ metrics.native }} · 镜像 {{ metrics.mirrored }}') && w.includes('📎 附件数量') && w.includes('curationMetrics(d.value, workspaceId.value, allResources.value)') && w.includes('v-if="!isHub"') && h.includes('attachmentItems'); });
 check('R62-6 下钻抽屉：CurationDrillDrawer 四模式（total/source/assets/recent）+ 附件打开（getAssetBlob 图片预览 / openHtmlAsset 文档）+ 镜像跳源', () => { const d = read('/newtab/components/CurationDrillDrawer.vue'); const w = read('/newtab/views/Workspace.vue'); return d.includes("mode: 'total' | 'source' | 'assets' | 'recent'") && d.includes('openDrillAsset') && d.includes('getAssetBlob') && d.includes('openHtmlAsset') && d.includes("emit('locate'") && w.includes('CurationDrillDrawer'); });
 check('R62-7 中心论点设立：hub.setThesis（每台唯一）+ 右键菜单「设为中心论点/取消」+ 镜像卡拦截', () => { const h = read('/shared/storage/hub.ts'); const w = read('/newtab/views/Workspace.vue'); return h.includes('export function setThesis') && h.includes('if (r.id !== cardId) r.isThesis = undefined') && w.includes('function setThesisCard') && w.includes('🏛 设为中心论点') && w.includes('取消中心论点') && w.includes('镜像卡不能作为本台中心论点'); });
@@ -1301,7 +1301,7 @@ check('R72-2 列数口径唯一来源：4/5/6/7 白名单 + 模块默认值 + �
   const s = read('/shared/utils/cardCols.ts');
   return s.includes('export const CARD_COL_OPTIONS = [4, 5, 6, 7]')
     && s.includes('export const CARD_COLS_DEFAULT')
-    && s.includes('curio: 4, task: 5, res: 5')
+    && s.includes('curio: 4, task: 5, res: 6')
     && s.includes('export function readCardCols') && s.includes('export function writeCardCols')
     && s.includes('export function useCardCols') && s.includes('saveUIPrefs({ cardCols: next })');
 });
@@ -1488,19 +1488,19 @@ console.log('');
 console.log('【第七十五轮 · V2.44.0：资源台（hub）指标条 3 格版（R18）】');
 check('R75-1 资源台（hub）指标条 3 格块：v-if="isHub" class="ws-metrics hub3"', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes('<div v-if="isHub" class="ws-metrics hub3">');
+  return w.includes('<div v-if="isHub" class="ws-metrics hub3 flat">');
 });
 check('R75-2 hub 三格 label 齐备：📊 卡片总数 / 📎 附件数量 / 🕐 最近更新', () => {
   const w = read('/newtab/views/Workspace.vue');
-  const s = w.indexOf('<div v-if="isHub" class="ws-metrics hub3">');
+  const s = w.indexOf('<div v-if="isHub" class="ws-metrics hub3 flat">');
   const e = w.indexOf('<div v-if="!isHub" class="ws-metrics">');
   if (s < 0 || e < 0 || e < s) return false;
   const blk = w.slice(s, e);
-  return blk.includes('📊 卡片总数') && blk.includes('📎 附件数量') && blk.includes('🕐 最近更新') && blk.includes('hubCountHint');
+  return blk.includes('📊 卡片总数') && blk.includes('📎 附件数量') && blk.includes('🕐 最近更新') && blk.includes('assetKindBreakdown') && blk.includes('lastUpdateTime');
 });
 check('R75-3 hub 块不含论点格与来源构成格（无 openThesisDetail / 无 source 模式调用 / 无策展主题字样）', () => {
   const w = read('/newtab/views/Workspace.vue');
-  const s = w.indexOf('<div v-if="isHub" class="ws-metrics hub3">');
+  const s = w.indexOf('<div v-if="isHub" class="ws-metrics hub3 flat">');
   const e = w.indexOf('<div v-if="!isHub" class="ws-metrics">');
   if (s < 0 || e < 0 || e < s) return false;
   const blk = w.slice(s, e);
@@ -1523,16 +1523,13 @@ check('R75-5 策展台指标格保留（R98 重指：W8 5→3 格）：v-if="!is
 });
 // R110-B1-3 承接：hub 卡片总数口径不再保留「⚠ 镜像 N 条待清理」异常分支——脏数据改由启动期
 // scrubHubMirrorMarkers 净化 + curationMetrics 对 hub 镜像恒 0 双重兜底（见 R110-B1-2/B1-3）。
-check('R75-6（R110 退役改写，承接方 R110-B1-3）hub 卡片总数补充口径：结构口径「分类 N · 待分类 M」；镜像异常分支退役', () => {
+check('R75-6（R122 重指）hub 卡片总数补充口径退役：分类数并入页头描述，指标格无「镜像异常」分支', () => {
   const w = read('/newtab/views/Workspace.vue');
-  const i = w.indexOf('const hubCountHint = computed(');
-  if (i < 0) return false;
-  const seg = w.slice(i, i + 300);
-  return !seg.includes('metrics.value.mirrored > 0') && !seg.includes('待清理') && seg.includes('metrics.value.categoryCount') && seg.includes('uncategorizedCount.value');
+  return !w.includes('hubCountHint') && w.includes('{{ categories.length }} 个分类');
 });
 check('R75-7 hub 三格复用既有下钻：total / assets / recent 三 mode，未新增 mode 与下钻组件', () => {
   const w = read('/newtab/views/Workspace.vue');
-  const s = w.indexOf('<div v-if="isHub" class="ws-metrics hub3">');
+  const s = w.indexOf('<div v-if="isHub" class="ws-metrics hub3 flat">');
   const e = w.indexOf('<div v-if="!isHub" class="ws-metrics">');
   if (s < 0 || e < 0 || e < s) return false;
   const blk = w.slice(s, e);
@@ -1571,9 +1568,9 @@ check('R76-4 看板列计数仍等于列内卡片数（count=全量 items.length
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('return { key: c.key, name: c.name, items: shown, count: items.length, hiddenCount: items.length - shown.length }') && w.includes('{{ cat.count }}');
 });
-check('R76-5 卡片/列表分组计数仍等于组内卡片数（direct.length，未被误改）', () => {
+check('R76-5（R122 重指）分组头三计数：直属（direct.length）· 含子分类（groupChildCount）· 共（g.total）', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes('count: direct.length, items: direct, depth') && w.includes('· {{ g.count }}');
+  return w.includes('count: direct.length, total, items: direct, depth') && w.includes('直属 {{ g.count }}') && w.includes('共 {{ g.total }}');
 });
 check('R76-6 左树「全部」与「待分类」均带口径 title，数值来源不变', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -1587,11 +1584,9 @@ check('R76-8 口径自洽前提：全部 / 各分类 / 待分类三者同源（a
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('{{ allResources.length }}') && w.includes('directCount: (resBucket.value.get(c.id) || []).length') && w.includes("const resBucket = computed(() => buildBucketIndex(allResources.value, (r) => r.categoryId || ''))") && w.includes('filter(r => isUncat(r, catIdx.value.byId)).length');
 });
-check('R76-9 R18 指标条 hint 仍消费 uncategorizedCount（口径随本轮自动统一）', () => {
+check('R76-9（R122 重指）uncategorizedCount 仍服务侧栏「待分类」入口（≥1 处），指标条 hint 退役', () => {
   const w = read('/newtab/views/Workspace.vue');
-  const i = w.indexOf('const hubCountHint = computed(');
-  if (i < 0) return false;
-  return w.slice(i, i + 300).includes('uncategorizedCount.value');
+  return !w.includes('hubCountHint') && w.includes('uncategorizedCount');
 });
 check('R76-10 卡面「所在分类」与分组归属判据同源 isUncat（五处共用同一实现）', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -1731,7 +1726,7 @@ const segOf = (src, head, next) => {
   const j = src.indexOf(next, i + head.length);
   return j < 0 ? src.slice(i) : src.slice(i, j);
 };
-const RES_CARD_ACTIONS = segOf(read('/newtab/views/Workspace.vue'), '<div class="res-card-actions">', '</div>\n                <div class="rc-fields">');
+const RES_CARD_ACTIONS = segOf(read('/newtab/views/Workspace.vue'), '<div class="res-card-actions">', '<div class="rc-head">');
 const RES_ROW_ACTIONS = segOf(read('/newtab/views/Workspace.vue'), '<span class="rr-actions">', '</span>\n              </div>');
 const KANBAN_ACTIONS = segOf(read('/newtab/views/Workspace.vue'), '<div class="kc-actions">', '</div>\n                <div class="kc-card-title">');
 /** 六动作在模板中的固定顺序（↗ 📌 ⭐ 📂 📡 🗑） */
@@ -1745,18 +1740,18 @@ const inOrder = (seg) => {
   }
   return true;
 };
-check('R79-1 卡片视图动作条补 ↗ 打开（R1 方案首项；无链接时点击提示补全，显性化"待补全"）', () => {
-  return RES_CARD_ACTIONS.includes('openResourceLink(r)') && RES_CARD_ACTIONS.includes('无链接则提示补全');
+check('R79-1（R122 重指）卡片一级 hover 收敛：打开移入右键菜单/双击，hover 只留置顶 + 镜像 + 断链补全', () => {
+  return !RES_CARD_ACTIONS.includes('openResourceLink(r)') && RES_CARD_ACTIONS.includes('togglePin(r)') && RES_CARD_ACTIONS.includes('openMirrorCard(r)') && RES_CARD_ACTIONS.includes('fixLink(r)');
 });
-check('R79-2 卡片视图六动作齐全且顺序固定（↗ 📌 ⭐ 📂 📡 🗑）', () => inOrder(RES_CARD_ACTIONS));
+check('R79-2（R122 重指）卡片 hover 顺序 📌→📡→✏；六动作仍在右键菜单且顺序固定（打开→移动→挂载→镜像→置顶→星标→删除）', () => { const seg = RES_CARD_ACTIONS; const a = seg.indexOf('togglePin(r)'), b = seg.indexOf('openMirrorCard(r)'), c = seg.indexOf('fixLink(r)'); const res = read('/newtab/composables/useResourceDrawer.ts'); const k1 = res.indexOf('resCtxItems.value = ['); const k2 = res.indexOf('resCtxItems.value = [', k1 + 1); const own = k2 >= 0 ? res.slice(k2, res.indexOf('resCtx.value = {', k2)) : ''; const iOpen = own.indexOf('打开链接'), iMove = own.indexOf('移动分类'), iMount = own.indexOf('挂载到任务'), iMir = own.indexOf('镜像到策展台'), iPin = own.indexOf('取消置顶'), iStar = own.indexOf('取消星标'), iDel = own.indexOf("label: '删除'"); return a >= 0 && b > a && c > b && iOpen >= 0 && iMove > iOpen && iMount > iMove && iMir > iMount && iPin > iMir && iStar > iPin && iDel > iStar; });
 check('R79-3 列表视图动作条补齐 ↗ / 📂 / 📡，与卡片视图同六动作同顺序', () => {
   return RES_ROW_ACTIONS.includes('openResourceLink(r)') && RES_ROW_ACTIONS.includes('openMoveOne(r)')
     && RES_ROW_ACTIONS.includes('openMirrorCard(r)') && inOrder(RES_ROW_ACTIONS);
 });
-check('R79-4 列表视图补 🔥 调用 N 次（rr-calls，与卡片视图同为 v-if="r.callCount"）', () => {
+check('R79-4（R122 重指）列表 🔥 rr-calls 与卡片 🔥 rc-heat 同口径（v-if="r.callCount"）', () => {
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('class="rr-calls"') && w.includes('<span v-if="r.callCount" class="rr-calls"')
-    && w.includes('<span v-if="r.callCount" class="rc-calls"');
+    && w.includes('class="rc-heat"') && w.includes('🔥 {{ r.callCount }}');
 });
 check('R79-5 看板视图新增完整动作条 .kc-actions（六动作同顺序），.kc-card 已 position: relative', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -1910,20 +1905,22 @@ const CTX_OWN = segOf(CTX_FN, '} else {', 'resCtx.value = {');
 const MOUNT_FN = segOf(read('/newtab/composables/useWorkspaceBatch.ts'), 'function toggleMountTask(', 'function closeMountOne');
 const MOUNT_PICKER = segOf(read('/newtab/composables/useWorkspaceBatch.ts'), 'const mountTaskOptions = computed<TaskCard[]>(', 'function mountProjectName');
 const RES_CARD_IFACE = segOf(read('/shared/models/index.ts'), 'export interface ResourceCard {', '\n}');
-check('R82-1（R89 重指：门控上移到包裹 template）R4 三视图动作条均有 📋 挂载，且镜像卡不给入口', () => {
+check('R82-1（R122 重指：卡片 hover 收敛为置顶/镜像/补全）列表与看板动作条仍有 📋 挂载、镜像卡零入口，挂载入口在右键菜单', () => {
   // R89（W4）：📋 自身的 `v-if="!isMirrorView(r)"` 上移到包裹 <template>，语义等价
   const G_WRAP = '<template v-if="!isMirrorView(r)">';
-  return RES_CARD_ACTIONS.includes(G_WRAP) && RES_CARD_ACTIONS.includes('class="rc-action mount"')
+  return RES_CARD_ACTIONS.includes(G_WRAP) && !RES_CARD_ACTIONS.includes('rc-action mount')
+    && read('/newtab/composables/useResourceDrawer.ts').includes('挂载到任务')
     && RES_ROW_ACTIONS.includes(G_WRAP) && RES_ROW_ACTIONS.includes('class="rr-action mount"')
     && KANBAN_ACTIONS.includes(G_WRAP) && KANBAN_ACTIONS.includes('class="kc-action mount"');
 });
-check('R82-2 R4 动作顺序：📋 在 📡 之后、🗑 之前（三视图一致）', () => {
+check('R82-2（R122 重指）卡片 hover 置顶在镜像/补全之前；列表/看板 📋 在 📡 之后、🗑 之前', () => {
   const at = (seg, s) => seg.indexOf(s);
   const ok = (seg) => {
     const m = at(seg, 'openMirrorCard(r)'), n = at(seg, 'openMountOne(r)'), d = at(seg, 'deleteResource(r)');
     return m >= 0 && n > m && d > n;
   };
-  return ok(RES_CARD_ACTIONS) && ok(RES_ROW_ACTIONS) && ok(KANBAN_ACTIONS);
+  const cardOk = RES_CARD_ACTIONS.indexOf('togglePin(r)') >= 0 && RES_CARD_ACTIONS.indexOf('openMirrorCard(r)') > RES_CARD_ACTIONS.indexOf('togglePin(r)') && RES_CARD_ACTIONS.includes('rc-action fix');
+  return cardOk && ok(RES_ROW_ACTIONS) && ok(KANBAN_ACTIONS);
 });
 check('R82-3 R4 右键菜单双入口：非镜像分支有挂载项，镜像分支没有（只读引用口径）', () => {
   const own = stripComments(CTX_OWN), mir = stripComments(CTX_MIRROR);
@@ -2019,7 +2016,7 @@ console.log('【第八十四轮 · V2.53.0：策展台身份与中心论点（W1
 const WS84 = read('/newtab/views/Workspace.vue');
 const WSVIEW = read('/shared/utils/wsView.ts');
 const HEAD_TPL = segOf(WS84, '<div class="ws-id-head">', '</div>');
-const BANNER_TPL = segOf(WS84, '<div class="thesis-banner"', '</div>');
+const BANNER_TPL = segOf(WS84, '<div v-if="!isHub" class="thesis-banner"', '</div>');
 check('R84-1 W1 页头四要素齐全：图标 + workspace.name + 台描述 + 右端结构摘要', () => {
   return HEAD_TPL.includes("class=\"wsh-icon\">{{ workspace.icon")
     && HEAD_TPL.includes("class=\"wsh-name\">{{ workspace.name.replace(/^[^\\s]+\\s/, '') }}")
@@ -2238,10 +2235,10 @@ check('R87-5 R7：zy-asset:// 附件卡判为 ok（不再被误报「待补全�
   return fn.includes("if (isZyAssetLink(t)) return 'ok'") && iZy > 0 && iFile > iZy
     && REF87.includes('const linkIncomplete = computed') && REF87.includes('linkStateOf(props.model.linkType');
 });
-check('R87-6 R7-①：⚠ 待补全徽标三视图齐备（.rc-broken / .rr-broken / .kc-broken），样式全走 tokens', () => {
+check('R87-6（R122 重指）断链三视图：卡片整卡警示 + 描述替换引导，列表/看板徽标沿用，样式全走 tokens', () => {
   return WS_TPL.includes('v-if="isBrokenPath(r)"')
-    && WS_TPL.includes('class="rc-broken"') && WS_TPL.includes('class="rr-broken"') && WS_TPL.includes('class="kc-broken"')
-    && WS_STY.includes('.rc-broken, .rr-broken, .kc-broken')
+    && WS_TPL.includes("'warning-broken': isBrokenPath(r)") && WS_TPL.includes('⚠ 本地路径断链 · 点击补全') && WS_TPL.includes('class="rr-broken"') && WS_TPL.includes('class="kc-broken"')
+    && WS_STY.includes('.rr-broken, .kc-broken') && WS_STY.includes('.warning-broken')
     && WS_STY.includes('var(--warning)') && WS_STY.includes('var(--surface-2)')
     && !WS_STY.includes('#D9A03C');
 });
@@ -2293,10 +2290,10 @@ check('R88-2 W3-①：工具条一级 = 视图 Tab ｜ 搜索 ｜ 筛选 ｜ ＋
     && TB1_88.includes('class="toolbar-filter"') && TB1_88.includes('＋ 新建')
     && TB1_88.includes('class="hero-btn settings"');
 });
-check('R88-3 ★ W3-①：排序 / 方向 / 类型筛选 / 密度 / 列数 五个控件**已离开一级**（收进气泡，否定断言）', () => {
+check('R88-3（R122 重指）排序 / 方向 / 密度 / 八档类型筛选仍收在气泡；列数方片与状态快捷筛选按原型提权到一级', () => {
   return !TB1_88.includes('v-model="sortBy"') && !TB1_88.includes('sort-dir-btn')
     && !TB1_88.includes('v-model="filterBy"') && !TB1_88.includes('v-model="density"')
-    && !TB1_88.includes('<ColsPicker');
+    && TB1_88.includes('<ColsPicker') && TB1_88.includes('chips') && TB1_88.includes('v-model="quickFilter"');
 });
 check('R88-4 W3-②：气泡内四行控件齐全（排序+方向 / 类型 / 密度 / 列数），列数仍仅卡片视图', () => {
   // ⚠ 方向按钮的 class 是 `"toolbar-select sort-dir-btn"`（两个类），只能判子串
@@ -2313,18 +2310,19 @@ check('R88-5 W3-③：生效值徽标——四项非默认才计入、最多 2 �
     && WS88_TPL.includes('filterSummary.slice(0, 2)') && WS88_TPL.includes('filterSummary.length - 2')
     && WS88_TPL.includes('class="tf-chip"') && WS88_TPL.includes(':class="{on: filterSummary.length}"');
 });
-check('R88-6 W3：批量模式激活时一级仍保留「✓ 完成批量」（.batch-bar 只在有选中时出现，退出通道不能断）', () => {
-  return WS88_TPL.includes('v-if="batchMode" class="toolbar-batch active"') && WS88_TPL.includes('✓ 完成批量');
+check('R88-6（R122 重指）批量开关常驻一级：批量中显「✓ 完成批量」（toggleBatchMode），退出通道不断', () => {
+  return WS88_TPL.includes("{{ batchMode ? '✓ 完成批量' : '☑ 批量' }}") && WS88_TPL.includes('toggleBatchMode');
 });
 check('R88-7 W6：导入收进 ⚙ 且**按台身份改名**消歧义（资源台=导入资源 / 策展台=导入数据包）', () => {
   return SM88.includes('@click="openImport"') && SM88.includes("isHub ? '⬇ 导入资源' : '⬇ 导入数据包'")
     && WS88.includes('function openImport(') && WS88.includes('importModalOpen.value = true')
     && !TB1_88.includes('importModalOpen = true');
 });
-check('R88-8 主色稀缺：一级只有「＋ 新建」一个 primary（导入的 primary 按钮已随 W6 移除）', () => {
+check('R88-8（R122 重指）主色稀缺：一级只有「＋ 新建卡片」一个 primary（导入/批量为 ghost 次级）', () => {
   return (TB1_88.match(/hero-btn primary/g) || []).length === 1
     && TB1_88.includes('hero-btn primary" @click="openNewResource"')
-    && !TB1_88.includes('hero-btn ghost');
+    && (TB1_88.match(/hero-btn ghost/g) || []).length === 2
+    && TB1_88.includes('⬇ 导入资源') && TB1_88.includes('☑ 批量');
 });
 check('R88-9 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');
@@ -2368,8 +2366,8 @@ check('R89-4 W5：starred 星标筛选**四处同步**（白名单 / 谓词 / �
 });
 check('R89-5 ★ W4：三视图写动作（📌⭐📂🗑）对镜像卡隐藏——门控在包裹 template 上', () => {
   const wrap = '<template v-if="!isMirrorView(r)">';
-  const segs = [RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS];
-  return segs.every(seg => seg.includes(wrap) && seg.includes('openMoveOne(r)') && seg.includes('deleteResource(r)'));
+  const rowOk = [RES_ROW_ACTIONS, KANBAN_ACTIONS].every(seg => seg.includes(wrap) && seg.includes('openMoveOne(r)') && seg.includes('deleteResource(r)'));
+  return RES_CARD_ACTIONS.includes(wrap) && !RES_CARD_ACTIONS.includes('openMoveOne(r)') && !RES_CARD_ACTIONS.includes('deleteResource(r)') && rowOk;
 });
 check('R89-6 W4：三视图镜像专属两动作 🎯 定位源 / ✕ 移出镜像 齐备，走既有 locateMirrorSource / removeMirror', () => {
   const segs = [
@@ -2673,7 +2671,7 @@ check('R95-1 ★ G7 往返闭环：导出侧 exportAll 并入 loadUIPrefs 整段
     && CC95_C.includes('export function sanitizeCardCols');
 });
 check('R95-2 G7 三模块键同源：sanitizeCardCols 的键集合取自 CARD_COLS_DEFAULT（新增模块键自动跟随，不会漏归一）', () => {
-  return CC95_C.includes('CARD_COLS_DEFAULT: Record<CardColsKey, number> = { curio: 4, task: 5, res: 5 }')
+  return CC95_C.includes('CARD_COLS_DEFAULT: Record<CardColsKey, number> = { curio: 4, task: 5, res: 6 }')
     && CC95_C.includes('for (const key of Object.keys(CARD_COLS_DEFAULT)')
     && !CC95_C.includes("['curio', 'task', 'res']");
 });
@@ -2687,7 +2685,7 @@ console.log('【第九十六轮 · V2.65.0：P2 首轮勘验对账与坏账清�
 const WS96 = read('/newtab/views/Workspace.vue');
 const RDD96 = read('/newtab/components/ResourceDetailDrawer.vue');
 check('R96-1 ★ P2 资源台组三项能力在位：starred 筛选（R89/W5）+ 抽屉 recordResourceOpen 统一入口（R70）+ 网格末尾 rc-add-card（第卅三轮）', () => {
-  return WS96.includes("const FILTER_KEYS = ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'starred', 'unmounted']")
+  return WS96.includes("const FILTER_KEYS = ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'starred', 'unmounted', 'hot']")
     && WS96.includes('starred: (r) => !!r.starred')
     && WS96.includes('class="rc-add-card"') && WS96.includes('@click="openNewResource"')
     && RDD96.includes("import { recordResourceOpen } from '@/shared/storage/stats'")
@@ -3088,7 +3086,7 @@ console.log('【第 110 轮 · V2.79.0：LC + BUG-1/BUG-2 + FS】');
 // ---- BUG-1：资源台镜像脏数据 ----
 check('R110-B1-1 ★ 镜像净化函数：scrubHubMirrorMarkers（幂等剥离 __mirrorProjId/__mirrorCat + 清除 targetWsId 指向资源台的投射记录）', () => { const h = read('/shared/storage/hub.ts'); return h.includes('export function scrubHubMirrorMarkers(d: AppData): number') && h.includes("'__mirrorProjId' in r") && h.includes("'__mirrorCat' in r") && h.includes('p.targetWsId !== CURATION_WS_ID'); });
 check('R110-B1-2 ★ 红线兜底：curationMetrics 对 hub 台镜像计数恒 0（不再依赖「数据一定干净」）', () => { const h = read('/shared/storage/hub.ts'); return h.includes('const isHub = isHubWs(d.workspaces.find(w => w.id === wsId))') && h.includes('if (isMirrorView(r) && !isHub) mirrored++') && h.includes('if (!isMirrorView(r) || isHub) native++'); });
-check('R110-B1-3 ★ 启动期接线 + 提示格回退结构口径（「⚠ 镜像 N 条待清理」分支退役）', () => { const r = read('/shared/storage/repository.ts'); const w = read('/newtab/views/Workspace.vue'); return r.includes("import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'") && r.includes('try { scrubHubMirrorMarkers(data) } catch { /* noop */ }') && w.includes('const hubCountHint = computed') && !w.includes('待清理'); });
+check('R110-B1-3（R122 重指）★ 启动期接线保留；hub 提示格退役（分类数转入页头描述，无「待清理」分支）', () => { const r = read('/shared/storage/repository.ts'); const w = read('/newtab/views/Workspace.vue'); return r.includes("import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'") && r.includes('try { scrubHubMirrorMarkers(data) } catch { /* noop */ }') && !w.includes('hubCountHint') && w.includes('{{ categories.length }} 个分类') && !w.includes('待清理'); });
 // ---- BUG-2：附件明细跳卡 / 孤儿清理 ----
 check('R110-B2-1 ★ 附件行三态：cardExists 判定 + 本体缺失（IndexedDB 只读索引）+ 孤儿本体清单', () => { const o = read('/newtab/components/CurationDrillDrawer.vue'); return o.includes('cardExists: (cardId: string) => boolean') && o.includes('referencedAssetIds: string[]') && o.includes('getAllAssetIds') && o.includes("type AssetRowState = 'ok' | 'missing' | 'orphan'") && o.includes('orphanAssetIds'); });
 check('R110-B2-2 ★ 点击行 = 定位来源卡：本台高亮 / 跨台 /workspace/<id>?hl=<cardId>', () => { const o = read('/newtab/components/CurationDrillDrawer.vue'); const w = read('/newtab/views/Workspace.vue'); return o.includes("emit('locate-asset', row.cardId)") && w.includes('function onDrillLocateAsset') && w.includes('query: { hl: cardId }'); });
@@ -3416,6 +3414,19 @@ check('R121-12 树内能力保留：编辑（node-title editable）+ 节点操�
 
 
 
+
+// ============== R122 · V2.90.0：资源台（hub）UI 迭代（对齐原型，只改 UI） ==============
+console.log('【R122 · V2.90.0：资源台 UI 迭代（页头/横排指标/工具条提权/紧凑卡/断链卡）】');
+check('R122-1 hub 页头：描述合并「N 个分类」（用户描述优先）+ 右端提示条 + ? 教学气泡保留', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes("wsHeadDescOwn || '资源卡唯一存储 · 镜像源头'") && w.includes('{{ categories.length }} 个分类') && w.includes('class="wsh-tip"') && w.includes('提示：右键卡片或 Hover 可直接挂载到今日行动') && w.includes('class="wsh-help"'); });
+check('R122-2 指标条横排盒：ws-metrics hub3 flat + 3 × metric-box（label/value）+ 附件构成/最近更新尾注 + 下钻不变', () => { const w = read('/newtab/views/Workspace.vue'); const i = w.indexOf('class="ws-metrics hub3 flat"'); const j = w.indexOf('<div v-if="!isHub" class="ws-metrics">', i); const blk = i >= 0 && j > i ? w.slice(i, j) : ''; return blk !== '' && (blk.match(/class="metric-box"/g) || []).length === 3 && blk.includes('mbox-label') && blk.includes('assetKindBreakdown') && blk.includes('lastUpdateTime') && blk.includes("openDrill('total')") && blk.includes("openDrill('assets')") && blk.includes("openDrill('recent')"); });
+check('R122-3 工具条提权：＋新建卡片 / ⬇导入 / ☑批量（三态文案）一级常驻', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('＋ 新建卡片</button>') && w.includes("isHub ? '⬇ 导入资源' : '⬇ 导入数据包'") && w.includes("batchMode ? '✓ 完成批量' : '☑ 批量'"); });
+check('R122-4 一级列数方片 + 状态快捷筛选：ColsPicker chips + quick-filter 4 档（含 hot，title 口径 ≥ 3）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('<ColsPicker v-if="viewMode===\'card\'" v-model="resCols" chips label="列数" />') && w.includes('class="toolbar-select quick-filter" v-model="quickFilter"') && w.includes('<option value="hot">高频调用 🔥</option>') && w.includes('打开次数 ≥ 3'); });
+check('R122-5 hot 筛档（Q6 口径）：FILTER_KEYS 含 hot + 谓词 callCount ≥ 3 + 标签四处同步', () => { const u = read('/newtab/composables/useResourceView.ts'); return u.includes("'unmounted', 'hot']") && u.includes('hot: (r) => (r.callCount || 0) >= 3') && u.includes("hot: '高频调用 🔥'"); });
+check('R122-6 分组头：直属/含子分类/共 三计数 + ResourceGroup.total + gi===0 排序入口（head-sort）', () => { const w = read('/newtab/views/Workspace.vue'); const u = read('/newtab/composables/useResourceView.ts'); return w.includes('直属 {{ g.count }}') && w.includes('个子分类共 {{ g.total }}') && w.includes('class="head-sort"') && w.includes('v-if="gi === 0"') && u.includes('total: number') && u.includes('count: direct.length, total, items: direct, depth'); });
+check('R122-7 紧凑卡骨架：rc-head/rc-type-icon/rc-title/rc-desc/rc-extra/rc-footer + 断链整卡警示与描述替换', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('class="rc-head"') && w.includes('class="rc-type-icon"') && w.includes('class="rc-title"') && w.includes('class="rc-desc"') && w.includes('class="rc-extra"') && w.includes('class="rc-footer"') && w.includes("'warning-broken': isBrokenPath(r)") && w.includes('⚠ 本地路径断链 · 点击补全'); });
+check('R122-8 hover 收敛（Q3）：一级只留置顶 / 镜像(hub) / 补全；镜像分支定位+移出；无 mount/star/open 残留', () => { const w = read('/newtab/views/Workspace.vue'); const seg = w.slice(w.indexOf('<div class="res-card-actions">'), w.indexOf('<div class="rc-head">')); return seg.includes('class="rc-action pin"') && seg.includes('class="rc-action fix"') && seg.includes('class="rc-action locate"') && seg.includes('class="rc-action delete"') && !seg.includes('rc-action mount') && !seg.includes('rc-action star') && !seg.includes('openResourceLink(r)'); });
+check('R122-9 hub 不渲染论点横幅（Q1）：v-if="!isHub" 门控，策展台两态保留', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('<div v-if="!isHub" class="thesis-banner"') && w.includes('尚未设立中心论点') && w.includes('class="tb-title"'); });
+check('R122-10 R122 样式就位：metric-box/quick-filter/head-sort/rc-footer/rc-tag-chip/warning-broken（tokens）', () => { const c = read('/newtab/views/workspace.css'); return c.includes('.metric-box') && c.includes('.quick-filter') && c.includes('.head-sort') && c.includes('.rc-footer') && c.includes('.rc-tag-chip') && c.includes('.res-card.warning-broken') && c.includes('.mbox-sub'); });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

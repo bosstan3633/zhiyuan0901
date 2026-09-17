@@ -181,9 +181,16 @@ async function main() {
   report('E2E-5 PDF 附件双击打开（file:// 落盘通道）', fileOk || (dlOk && pathsOk), pdfTab || `cardVisible=${cardVisible} headless落盘证据 downloads=${dlOk} zy_file_paths=${pathsOk}（file:// 导航 headless 不可捕获，真机复核）`)
 
   // E2E-6 事件日志落盘：右键软删种子卡 → delete 事件写入 zy_event_log（外部种卡按设计静默，不产事件）
-  const delBtn = page.locator('.res-card[data-rid="e2e-res-1"] .rc-action.delete')
-  if (await delBtn.count()) {
-    await delBtn.click().catch(() => {})
+  // R122 修漂移：卡片一级 hover 动作收敛（删除移入右键菜单，原 .rc-action.delete 已退役）→
+  //   改为在卡片上派发 contextmenu → 等 .cx-menu-box 弹出 → 点「删除」菜单项（soft-delete 语义不变）。
+  const box6 = await card.boundingBox().catch(() => null)
+  if (box6) {
+    await page.mouse.click(box6.x + box6.width / 2, box6.y + box6.height / 2, { button: 'right' }).catch(() => {})
+    await page.waitForTimeout(500)
+  }
+  const delItem = page.locator('.ctx-menu-box .cx-item', { hasText: '删除' }).first()
+  if (await delItem.count()) {
+    await delItem.click().catch(() => {})
     await page.waitForTimeout(1800) // 300ms 防抖 + 落盘
   }
   const evRaw = await page.evaluate(() => chrome.storage.local.get('zy_event_log'))

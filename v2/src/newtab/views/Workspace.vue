@@ -10,13 +10,18 @@
     <div class="ws-id-head">
       <span class="wsh-icon">{{ workspace.icon || (isHub ? '📦' : '🗂') }}</span>
       <b class="wsh-name">{{ workspace.name.replace(/^[^\s]+\s/, '') }}</b>
-      <!-- R90（R8-③）：台描述分两态——**用户自写的台描述仍内联**（R84 / W1 要的就是台身份可见）；
-           资源台无描述时回落的定位语「资源卡唯一存储 · 镜像源头」**降为 ⓘ tooltip**（它是定位语，不是每屏必读） -->
-      <span v-if="wsHeadDescOwn" class="wsh-desc" :title="wsHeadDescOwn">· {{ wsHeadDescOwn }}</span>
-      <span v-else-if="wsHeadDescFallback" class="wsh-locator" :title="wsHeadDescFallback">ⓘ</span>
-      <!-- R98（W8）：「🕐 最近更新」自指标条降为页头摘要，可点进流水下钻（入口不断，仅非 hub） -->
-      <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="!isHub && metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template><span v-if="!isHub" class="wsh-upd" title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新 {{ lastUpdateText }}</span></span>
-      <!-- R90（R8-①）：常驻教学文案改「?」气泡——原文案一字不丢（见 HUB_HELP_TEXT），只是不再每屏占位 -->
+      <!-- R122（原型）：资源台描述合并定位语与分类数（「资源卡唯一存储 · 镜像源头 · N 个分类」）；用户自写描述优先；策展台维持两态 + 摘要 + 更新流水入口 -->
+      <template v-if="isHub">
+        <span class="wsh-desc" :title="(wsHeadDescOwn || '资源卡唯一存储 · 镜像源头') + ' · ' + categories.length + ' 个分类'">· {{ wsHeadDescOwn || '资源卡唯一存储 · 镜像源头' }} · {{ categories.length }} 个分类</span>
+        <span class="wsh-spacer" />
+        <span class="wsh-tip" title="右键卡片可打开完整菜单（打开 / 挂载 / 移动 / 星标 / 删除）">提示：右键卡片或 Hover 可直接挂载到今日行动</span>
+      </template>
+      <template v-else>
+        <span v-if="wsHeadDescOwn" class="wsh-desc" :title="wsHeadDescOwn">· {{ wsHeadDescOwn }}</span>
+        <span v-else-if="wsHeadDescFallback" class="wsh-locator" :title="wsHeadDescFallback">ⓘ</span>
+        <span class="wsh-spacer" />
+        <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template><span class="wsh-upd" title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新 {{ lastUpdateText }}</span></span>
+      </template>
       <span v-if="isHub" class="wsh-help" :title="HUB_HELP_TEXT">?</span>
     </div>
     <!-- R64-F13：hero 大标题区删除——重命名/图标/描述编辑收进 ⚙ 菜单，导入/新建按钮上移工具条 -->
@@ -40,23 +45,21 @@
 
     <!-- R75（R18）：指标条按台身份分流——资源台 3 格 / 策展台 5 格（数据源同为 hub.curationMetrics） -->
     <!-- 资源台（hub）3 格：论点格与来源构成格对资源台无意义——单向挂载红线 ⇒ 无投射指向资源台，metrics.mirrored 恒 0 -->
-    <div v-if="isHub" class="ws-metrics hub3">
-      <div class="metric-card" @click="openDrill('total')">
-        <div class="mc-label">📊 卡片总数</div>
-        <div class="mc-value">{{ metrics.total }}</div>
-        <div class="mc-hint">{{ hubCountHint }}</div>
+    <div v-if="isHub" class="ws-metrics hub3 flat">
+      <div class="metric-box" title="点击查看全部卡片明细" @click="openDrill('total')">
+        <span class="mbox-label">📊 卡片总数</span>
+        <span class="mbox-value">{{ metrics.total }}</span>
       </div>
-      <div class="metric-card" @click="openDrill('assets')">
-        <div class="mc-label">📎 附件数量</div>
-        <div class="mc-value">{{ metrics.attachmentCount }}</div>
-        <div class="mc-hint">点击查看明细</div>
+      <div class="metric-box" title="点击查看附件明细" @click="openDrill('assets')">
+        <span class="mbox-label">📎 附件数量</span>
+        <span class="mbox-value">{{ metrics.attachmentCount }}<span v-if="assetKindBreakdown" class="mbox-sub">（{{ assetKindBreakdown }}）</span></span>
       </div>
-      <div class="metric-card" @click="openDrill('recent')">
-        <div class="mc-label">🕐 最近更新</div>
-        <div class="mc-value small">{{ lastUpdateText }}</div>
-        <div class="mc-hint">点击查看流水</div>
+      <div class="metric-box" title="点击查看最近更新流水" @click="openDrill('recent')">
+        <span class="mbox-label">🕐 最近更新</span>
+        <span class="mbox-value">{{ lastUpdateText }}<span v-if="lastUpdateTime" class="mbox-sub"> {{ lastUpdateTime }}</span></span>
       </div>
     </div>
+
     <!-- R62-1：策展台指标条——R98（W8）5 格 → 3 格：构成明细本就与总数格 hint 同源同文（并入即删格）；
          「🕐 最近更新」降为页头摘要「· 更新 X」（可点进流水下钻，入口不断） -->
     <div v-if="!isHub" class="ws-metrics">
@@ -127,15 +130,26 @@
       </div>
       <!-- R90（R8-②）：主 CTA「＋新建」前置——从最右移到视图 Tab 之后、搜索之前。
            R88 只做了"分级"（一级收到 5 件），**位置仍在右端**；R8 要的是"主 CTA 不被挤到最右"。 -->
-      <button class="hero-btn primary" @click="openNewResource">＋ 新建</button>
+      <button class="hero-btn primary" @click="openNewResource">＋ 新建卡片</button>
+      <!-- R122（原型）：导入与批量提权到一级（原在 ⚙ 菜单） -->
+      <button class="hero-btn ghost" :title="isHub ? '导入资源（HTML/书签/本地文件）' : '导入策展台数据包'" @click="openImport">{{ isHub ? '⬇ 导入资源' : '⬇ 导入数据包' }}</button>
+      <button class="hero-btn ghost" :class="{ on: batchMode }" title="批量管理（选择卡片后整体移动 / 删除 / 打开）" @click="toggleBatchMode">{{ batchMode ? '✓ 完成批量' : '☑ 批量' }}</button>
       <!-- R113-N4：金字塔模板导入提到一级。原藏在 ⚙ 菜单第 4 项（用户反馈"埋太深、不方便"），
            与「＋新建」同属"往本台生成内容"，紧邻放置；资源台（hub）无金字塔概念，不露出。 -->
       <button v-if="!isHub" class="hero-btn settings py-import-btn" title="导入金字塔 Markdown 模板（论点 + 分类节点 + 节点卡片一次生成）"
         @click="pyramidImportOpen = true">📋 导入模板</button>
       <div class="toolbar-spacer"></div>
+      <!-- R122（原型）：列数方片（4/5/6/7）+ 状态快捷筛选（与筛选气泡同源：sortBy / filterBy） -->
+      <ColsPicker v-if="viewMode==='card'" v-model="resCols" chips label="列数" />
+      <select class="toolbar-select quick-filter" v-model="quickFilter" title="状态快捷筛选（高频调用 = 打开次数 ≥ 3）">
+        <option value="all">全部状态</option>
+        <option value="hasAssets">有附件的卡片</option>
+        <option value="hot">高频调用 🔥</option>
+        <option value="brokenPath">⚠ 待补全路径</option>
+      </select>
       <div class="toolbar-search">
         <span class="s-icon">🔍</span>
-        <input type="text" v-model="searchQuery" placeholder="搜索策展台内资源..."
+        <input type="text" v-model="searchQuery" placeholder="搜索标题 / #标签..."
           title="匹配标题 / 描述 / 标签 / 自定义字段；输入 #标签 可按标签直筛（多个取交集，如 #前端 #待读）">
       </div>
       <!-- R88（W3）：工具条分级——一级只留「视图 Tab ｜ 搜索 ｜ 筛选 ｜ ＋新建 ｜ ⚙」。
@@ -205,8 +219,6 @@
       </div>
       <!-- R88（W3）：批量模式激活时**必须**在一级留退出按钮——.batch-bar 浮动栏的条件是
            batchMode && selectedIds.size，一张都没选时它不出现，此时这里是唯一退出通道 -->
-      <!-- 注：主 CTA「＋新建」已按 R8 前置到视图 Tab 之后（见上），此处不再重复 -->
-      <button v-if="batchMode" class="toolbar-batch active" @click="toggleBatchMode">✓ 完成批量</button>
       <!-- R110-LC：生命周期面板入口（活跃 / 冷却 / 归档三态；归档卡从默认视图隐藏，在此恢复） -->
       <button class="hero-btn settings" title="策展台设置" @click.stop="toggleSettingsMenu">⚙</button>
     </div>
@@ -299,7 +311,7 @@
         <div v-if="viewMode==='card'">
           <!-- R84（W2-①）：中心论点提到首屏——此前论点只出现在指标条第一格与金字塔 L1 根，
                卡片视图（默认视图）里完全看不到。已设立 → 标题 + 查看金字塔；未设立 → 一行轻引导。 -->
-          <div class="thesis-banner" :class="{ empty: !thesisCard }">
+          <div v-if="!isHub" class="thesis-banner" :class="{ empty: !thesisCard }">
             <template v-if="thesisCard">
               <span class="tb-mark">🏛</span>
               <span class="tb-label">中心论点</span>
@@ -314,58 +326,64 @@
           <template v-for="(g, gi) in renderedGroups" :key="g.key">
             <div :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
             <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
-              <span>{{ g.depth ? '↳' : '📁' }} {{ g.title }} · {{ g.count }}<template v-if="groupChildCount(g.key)"> · 含 {{ groupChildCount(g.key) }} 个子分类</template></span>
-              <span class="ws-cat-collapse">{{ collapsedGroups.has(g.key) ? '▸' : '▾' }}</span>
-            </div>
+              <span>{{ g.depth ? '↳' : '📁' }} {{ g.title }}<template v-if="groupChildCount(g.key)">（直属 {{ g.count }} · 含 {{ groupChildCount(g.key) }} 个子分类共 {{ g.total }}）</template><template v-else> · {{ g.total }}</template></span>
+              <span class="head-right">
+                <!-- R122（原型）：排序入口外移到分组头（与筛选气泡同源 v-model=sortBy） -->
+                <select v-if="gi === 0" class="head-sort" v-model="sortBy" title="排序方式">
+                  <option value="manual">手动拖拽</option>
+                  <option value="recent">最近添加</option>
+                  <option value="visited">最近访问</option>
+                  <option value="hot">调用最多</option>
+                  <option value="title">标题 A-Z</option>
+                </select>
+                <span class="ws-cat-collapse">{{ collapsedGroups.has(g.key) ? '▸' : '▾' }}</span>
+              </span>
+              </div>
             <div v-show="!collapsedGroups.has(g.key)" class="card-grid"
               @dragover="onAreaDragOver($event, g.key)" @drop="onAreaDrop($event, g.key)">
-              <div v-for="r in g.items" :key="r.id" class="res-card" :class="{pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
+              <div v-for="r in g.items" :key="r.id" class="res-card" :class="{pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b', 'warning-broken': isBrokenPath(r)}"
                 :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
                 @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragend="clearDragState" @dragleave="clearDropMark"
                 @contextmenu.prevent="openResCtx($event, r)">
                 <div v-if="batchMode" class="rc-batch-check" :class="{on: selectedIds.has(r.id)}" @click.stop="toggleSelect(r.id)">{{ selectedIds.has(r.id)?'✓':'' }}</div>
+                <!-- R122（原型 Q3）：一级 hover 只留「置顶 + 镜像（hub）+ 断链补全」；打开/挂载/移动/⭐/删除在右键菜单（双击可打开） -->
                 <div class="res-card-actions">
-                  <!-- R79（R1 收尾）：R1 方案列的第一个动作「↗ 打开」此前缺失——双击才能开链接，
-                       单手点到卡片右上角的动作条时没有开链入口。无链接时点击给「请先补全链接」提示，
-                       恰好把"待补全"显性化，比按钮消失更容易被发现 -->
-                  <div class="rc-action open" @click.stop="openResourceLink(r)" title="打开链接（无链接则提示补全）">↗</div>
-                  <!-- R89（W4）：镜像卡是策展台里的**只读引用**——此前景泰七动作无条件渲染，
-                       其中四个点了只会弹「镜像卡为引用」的提示，🗑 更是名不副实（干的是"移出镜像"）。
-                       现写动作只对真身卡出现，镜像卡改给三个**真能用**的：打开 / 定位源 / 移出镜像。 -->
                   <template v-if="!isMirrorView(r)">
-                    <div class="rc-action pin" @click.stop="togglePin(r)" title="置顶">📌</div>
-                    <div class="rc-action" :class="{on: r.starred}" :title="r.starred?'取消星标':'星标'" @click.stop="toggleStar(r)">⭐</div>
-                    <div class="rc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</div>
-                    <!-- R73-S3：镜像到策展台（仅资源台真身卡；镜像卡为引用，源头在资源台，故不提供） -->
+                    <div class="rc-action pin" :class="{on: r.pinned}" @click.stop="togglePin(r)" :title="r.pinned ? '取消置顶' : '置顶'">📌</div>
                     <div v-if="isHub" class="rc-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</div>
-                    <!-- R82（R4）：挂载到任务——写在 task.mountedResourceIds 上，不碰资源卡（单向挂载红线）。
-                         镜像卡不给入口：它是策展台里的只读引用，写动作一律回落资源台真身卡（R61/R79 口径）。 -->
-                    <div class="rc-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</div>
-                    <div class="rc-action delete" @click.stop="deleteResource(r)" title="删除">🗑</div>
+                    <div v-if="isBrokenPath(r)" class="rc-action fix" title="补全本地路径" @click.stop="fixLink(r)">✏</div>
                   </template>
                   <template v-else>
                     <div class="rc-action locate" title="定位到资源台源卡" @click.stop="locateMirrorSource(r)">🎯</div>
                     <div class="rc-action delete" title="移出镜像（源卡保留）" @click.stop="removeMirror(r)">✕</div>
                   </template>
                 </div>
-                <div class="rc-fields">
-                  <template v-for="f in fieldsOf(r)" :key="f.key">
-                    <div v-if="isTitleKey(f.key)" class="rc-title"><NewBadge :at="r.createdAt" /><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ val(r, f.key) }}</div>
-                    <div v-else-if="f.key==='link' && r.link" class="rc-link" :class="r.linkType">{{ linkIcon(r.linkType) }} {{ linkDisplay(r.link) }}</div>
-                    <div v-else-if="f.key==='description' && r.description" class="rc-summary">{{ r.description }}</div>
-                    <div v-else-if="f.key==='tags' && r.tags.length" class="rc-tags"><span v-for="t in r.tags" :key="t" class="rc-tag">#{{ t }}</span></div>
-                    <div v-else-if="f.key==='sourceType' && r.sourceType" class="rc-src">{{ srcLabel(r.sourceType) }}</div>
-                    <div v-else-if="f.key==='createdAt' && val(r,f.key)" class="rc-date">🕐 {{ val(r,f.key) }}</div>
-                    <div v-else-if="f.key==='assets' && r.assets?.length" class="rc-assets"><AssetBadge :assets="r.assets" /></div>
-                    <div v-else-if="f.key.startsWith('custom_') && val(r,f.key)" class="rc-custom"><span>{{ f.label }}:</span>{{ val(r,f.key) }}</div>
+                <!-- 骨架（原型）：类型图标 + 标题（2 行钳制） -->
+                <div class="rc-head">
+                  <span class="rc-type-icon">{{ linkIcon(r.linkType) }}</span>
+                  <span class="rc-title"><NewBadge :at="r.createdAt" /><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ r.title }}</span>
+                </div>
+                <!-- 描述：1 行省略；断链卡替换为补全引导（原型 P7） -->
+                <div v-if="isBrokenPath(r)" class="rc-desc broken" title="仅存文件名，双击无法打开 —— 点击补全完整路径" @click.stop="fixLink(r)">⚠ 本地路径断链 · 点击补全</div>
+                <div v-else-if="r.description" class="rc-desc">{{ r.description }}</div>
+                <!-- 启用字段（链接 / 日期 / 来源 / 自定义）渲染在描述与页脚之间（Q2：字段配置仍生效） -->
+                <div v-if="extraFieldsOf(r).length" class="rc-extra">
+                  <template v-for="f in extraFieldsOf(r)" :key="f.key">
+                    <div v-if="f.key==='link' && r.link" class="rc-x-link" :class="r.linkType">{{ linkIcon(r.linkType) }} {{ linkDisplay(r.link) }}</div>
+                    <div v-else-if="f.key==='sourceType' && r.sourceType" class="rc-x-src">🏷 {{ srcLabel(r.sourceType) }}</div>
+                    <div v-else-if="f.key==='createdAt' && val(r,f.key)" class="rc-x-date">🕐 {{ val(r,f.key) }}</div>
+                    <div v-else-if="f.key.startsWith('custom_') && val(r,f.key)" class="rc-x-custom"><span>{{ f.label }}:</span>{{ val(r,f.key) }}</div>
                   </template>
                 </div>
+                <!-- 页脚（原型）：分类 chip + 标签 chips ｜ 附件 / ⭐ / 热度 -->
                 <div class="rc-footer">
                   <span class="rc-cat" title="点击查看所在分类" @click.stop="activeCategory = r.categoryId || 'uncat'">{{ catIconOf(r) }} {{ catNameOfFamily(r) }}</span>
-                  <!-- R87（R7-①）：⚠ 待补全徽标（此前只有编辑抽屉里才有这条提示，卡片上看不见） -->
-                  <span v-if="isBrokenPath(r)" class="rc-broken" title="仅存文件名，双击无法打开 —— 点击补全完整路径" @click.stop="fixLink(r)">⚠ 待补全</span>
-                  <span v-if="r.callCount" class="rc-calls" title="被打开次数">🔥{{ r.callCount }}</span>
-                  <span class="rc-open-hint">双击打开链接</span>
+                  <span v-for="t in (r.tags || []).slice(0, 2)" :key="t" class="rc-tag-chip">#{{ t }}</span>
+                  <span class="rc-footer-right">
+                    <AssetBadge v-if="r.assets?.length" :assets="r.assets" />
+                    <span v-if="r.starred" class="rc-star" title="已星标">⭐</span>
+                    <span v-if="r.callCount" class="rc-heat" title="被打开次数">🔥 {{ r.callCount }}</span>
+                  </span>
                 </div>
               </div>
               <div v-if="gi === renderedGroups.length - 1 && !hasMoreToRender" class="rc-add-card" @click="openNewResource">
@@ -393,9 +411,19 @@
           <template v-for="(g, gi) in renderedGroups" :key="g.key">
             <div :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
             <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
-              <span>{{ g.depth ? '↳' : '📁' }} {{ g.title }} · {{ g.count }}<template v-if="groupChildCount(g.key)"> · 含 {{ groupChildCount(g.key) }} 个子分类</template></span>
-              <span class="ws-cat-collapse">{{ collapsedGroups.has(g.key) ? '▸' : '▾' }}</span>
-            </div>
+              <span>{{ g.depth ? '↳' : '📁' }} {{ g.title }}<template v-if="groupChildCount(g.key)">（直属 {{ g.count }} · 含 {{ groupChildCount(g.key) }} 个子分类共 {{ g.total }}）</template><template v-else> · {{ g.total }}</template></span>
+              <span class="head-right">
+                <!-- R122（原型）：排序入口外移到分组头（与筛选气泡同源 v-model=sortBy） -->
+                <select v-if="gi === 0" class="head-sort" v-model="sortBy" title="排序方式">
+                  <option value="manual">手动拖拽</option>
+                  <option value="recent">最近添加</option>
+                  <option value="visited">最近访问</option>
+                  <option value="hot">调用最多</option>
+                  <option value="title">标题 A-Z</option>
+                </select>
+                <span class="ws-cat-collapse">{{ collapsedGroups.has(g.key) ? '▸' : '▾' }}</span>
+              </span>
+              </div>
             <div v-show="!collapsedGroups.has(g.key)" class="res-list">
               <div v-for="r in g.items" :key="r.id" class="res-row" :class="{pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
@@ -1124,13 +1152,8 @@ const lastUpdateText = computed(() => {
   if (diff < 172800000) return '昨天'
   return new Date(latest).toLocaleDateString('zh-CN')
 })
-/** R75（R18）：资源台「卡片总数」格的补充口径。
- *  拍板原文是「台内 / 镜像」提示，但单向挂载红线 ⇒ 无投射指向资源台，metrics.mirrored 恒 0，
- *  照搬会常驻「镜像 0」噪声 ⇒ 改用结构口径（分类数 / 待分类数），数据源全部现成、无需新计算。
- *  R110-BUG1：脏数据（视图模型标记被误持久化）已由启动期 scrubHubMirrorMarkers 净化 +
- *  curationMetrics 对 hub 台镜像计数恒 0 双重兜底，此处异常提示分支已退役，
- *  口径恒为「分类 N · 待分类 M」。 */
-const hubCountHint = computed(() => `分类 ${metrics.value.categoryCount} · 待分类 ${uncategorizedCount.value}`)
+/** R122（Q2）：卡片「描述与页脚之间」的启用字段——标题/描述/标签/附件由骨架固定位承载 */
+const extraFieldsOf = (r: ResourceCard) => fieldsOf(r).filter(f => !isTitleKey(f.key) && f.key !== 'description' && f.key !== 'tags' && f.key !== 'assets')
 
 // ===== 字段渲染（F1：全局设置的字段设计在此生效） =====
 const rFields = computed(() => visibleFields(d.value.fieldConfig, 'resource'))
@@ -1246,9 +1269,9 @@ const {
   RENDER_STEP, renderLimit, totalVisibleCount, renderedGroups, renderedCount, hasMoreToRender,
   onContentScroll, renderMore, ensureCardRendered, groupChildCount,
   kanbanCategories, resourcesByCategory, kanbanColumns,
-  kanbanMore, onKanbanColScroll,
+  kanbanMore, onKanbanColScroll, lastUpdateTime, assetKindBreakdown, quickFilter,
 } = useResourceView({
-  store, d, workspaceId, allResources, thesisCard, categories, wsCats, catIdx, resBucket,
+  store, d, workspaceId, allResources, metrics, thesisCard, categories, wsCats, catIdx, resBucket,
   rootCats, childCatsOf, familyIds, isUncat,
 })
 // R65-F7：KeepAlive 缓存实例——切换不同策展台（:id 变化）时复位本台局部状态，防上一台残留

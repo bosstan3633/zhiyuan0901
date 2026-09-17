@@ -13,13 +13,15 @@ withDefaults(defineProps<{
   modelValue: number
   /** 前缀标签，用于 title 提示 */
   label?: string
+  /** R122：方片形态（资源台工具条一级，对齐原型 4/5/6/7 方片选择器） */
+  chips?: boolean
 }>(), { label: '列数' })
 
 const emit = defineEmits<{ (e: 'update:modelValue', v: number): void }>()
 </script>
 
 <template>
-  <div class="cp" :title="`${label}：${modelValue} 列（卡片宽度自适应）`">
+  <div class="cp" :class="{ chips }" :title="`${label}：${modelValue} 列（卡片宽度自适应）`">
     <span class="cp-label">{{ label }}</span>
     <div class="cp-seg">
       <button v-for="n in CARD_COL_OPTIONS" :key="n" class="cp-btn" :class="{ on: modelValue === n }"
@@ -39,4 +41,10 @@ const emit = defineEmits<{ (e: 'update:modelValue', v: number): void }>()
 }
 .cp-btn:hover { background: var(--surface-3); color: var(--text); }
 .cp-btn.on { background: var(--surface); color: var(--accent); font-weight: 700; box-shadow: var(--shadow); }
+/* R122：方片变体（原型：列数: 4/5/6/7 方片，选中 accent-light） */
+.cp.chips .cp-label { font-size: 11.5px; }
+.cp.chips .cp-seg { background: transparent; padding: 0; gap: 4px; }
+.cp.chips .cp-btn { width: 20px; min-width: 20px; height: 20px; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); font-weight: 600; color: var(--text-2); }
+.cp.chips .cp-btn:hover { border-color: var(--border-strong); color: var(--text); background: var(--surface-2); }
+.cp.chips .cp-btn.on { background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 28%, var(--border)); color: var(--accent); box-shadow: none; }
 </style>
