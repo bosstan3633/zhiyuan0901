@@ -767,7 +767,7 @@ function srcShort(url: string): string {
 .detail-meta { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; font-size: 11.5px; color: var(--text-3); }
 .detail-src { display: flex; align-items: center; gap: 6px; margin: 8px 0 6px; padding: 6px 9px; background: var(--surface-2); border: 1px dashed var(--border); border-radius: 8px; font-size: 11.5px; min-width: 0; }
 .detail-src .ds-ico { flex-shrink: 0; }
-.detail-src .ds-link { color: var(--info-blue); cursor: pointer; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.detail-src .ds-link { color: var(--accent); cursor: pointer; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .detail-src .ds-link:hover { text-decoration: underline; }
 .detail-src .ds-title { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .detail-link-add { display: flex; gap: 8px; margin-top: 12px; }
@@ -811,7 +811,7 @@ function srcShort(url: string): string {
 .cz-ext-custom { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--text-2); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cz-ext-lbl { color: var(--text-3); }
 /* R117（04-61 D）：来源链接（字段设置开启后才渲染）——走链接蓝，长 URL 截断 */
-.cz-ext-src { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--info-blue); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
+.cz-ext-src { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--accent); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
 .cz-ext-src:hover { text-decoration: underline; }
 .cz-list-assets { margin: 0 2px; }
 </style>

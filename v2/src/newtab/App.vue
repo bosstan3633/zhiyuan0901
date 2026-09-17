@@ -35,9 +35,9 @@ const globalPopups = ref<InstanceType<typeof GlobalPopups> | null>(null)
 // R53-D：主题精简为四套（删除 原野绿/暗夜红；存量 green/night 由 repository 启动迁移到深空薰衣草）
 const themes = [
   { id: 'linear', name: '深空薰衣草', dot: '#5E6AD2' },
-  { id: 'raycast', name: '光速黑', dot: '#FF6363' },
-  { id: 'apple', name: '极简白', dot: '#0071E3' },
-  { id: 'notion', name: '纸墨白', dot: '#2383E2' }
+  { id: 'raycast', name: '光速黑', dot: '#5E6AD2' },
+  { id: 'apple', name: '极简白', dot: '#5E6AD2' },
+  { id: 'notion', name: '纸墨白', dot: '#5E6AD2' }
 ]
 
 /** R106（F2）→ R108（F10）修订：资源台/策展台容器与调度台/方向台统一为 1440 居中后，
@@ -559,7 +559,7 @@ const backupReminderDot = computed(() => {
 /* R106（F2）：顶栏内容容器按路由对齐各页正文容器（左缘一致） */
 .topbar-inner { flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; }
 /* R123（Q1）：全局容器统一 1560 */
-.topbar-inner.align-page { max-width: 1560px; margin: 0 auto; padding: 0 24px; }
+.topbar-inner.align-page { max-width: 1440px; margin: 0 auto; padding: 0 36px; }
 .topbar-inner.align-settings { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
 .topbar-inner.align-manual { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }

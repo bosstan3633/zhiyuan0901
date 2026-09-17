@@ -80,8 +80,8 @@
   --warning: #D9A03C;
   --danger: #E5484D;
   --stagnant: #D4715D;
-  --info-blue: #5B8DEF;
-  --info-blue-light: rgba(91, 141, 239, 0.14);
+  --info-blue: #5E6AD2;
+  --info-blue-light: rgba(94, 106, 210, 0.14);
   --curio-amber: #D9B45C;
   --curio-bg: rgba(217, 180, 92, 0.12);
   --violet: #A78BFA;
@@ -130,8 +130,8 @@
   --warning: #D9A03C;
   --danger: #E5484D;
   --stagnant: #D4715D;
-  --info-blue: #5B8DEF;
-  --info-blue-light: rgba(91, 141, 239, 0.14);
+  --info-blue: #5E6AD2;
+  --info-blue-light: rgba(94, 106, 210, 0.14);
   --curio-amber: #D9B45C;
   --curio-bg: rgba(217, 180, 92, 0.12);
   --violet: #A78BFA;
@@ -190,7 +190,7 @@
   --tag-info-bg: #EEF0FC;
   --tag-info-text: #4C57BE;
   --overlay-bg: rgba(0, 0, 0, 0.32);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
   --shadow: 0 0 0 1px var(--border);
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 0 0 1px var(--border), 0 8px 24px rgba(0, 0, 0, 0.07);
@@ -234,7 +234,7 @@
   --tag-info-bg: #EEF0FC;
   --tag-info-text: #4C57BE;
   --overlay-bg: rgba(15, 15, 15, 0.35);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
   --shadow: 0 0 0 1px var(--border);
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(15, 15, 15, 0.04);
   --shadow-lg: 0 0 0 1px var(--border), 0 8px 24px rgba(15, 15, 15, 0.07);

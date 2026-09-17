@@ -467,6 +467,8 @@ export interface UIPrefs {
   projRailH?: number
   /** R113-N1：资源台/策展台左侧分类树宽度记忆（px，160–420，默认 200；双击分隔条复位） */
   wsSideW?: number
+  /** R125：工作台左栏收起为 36px 图标轨（记忆偏好） */
+  wsSideRail?: boolean
 }
 
 // ============ 常量 ============

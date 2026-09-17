@@ -227,15 +227,16 @@
 
     <!-- ③ 资源策展区 -->
       <div class="ws-columns">
-      <div class="ws-sidebar" :style="{ width: wsSideW + 'px' }">
+      <div class="ws-sidebar" :class="{ rail: sideRail }" :style="sideRail ? { width: '36px' } : { width: wsSideW + 'px' }">
         <div class="cat-toolbar">
           <span class="ct-label">{{ isHub ? '策展目录' : '论证结构目录' }}</span>
           <span class="ct-actions">
             <span class="ct-btn" title="一键收纳为策展台根部" @click="collapseAllCats">⊟ 收起</span>
             <span class="ct-btn" title="全部展开" @click="expandAllCats">⊞ 展开</span>
           </span>
+          <span class="ct-btn rail-toggle" :title="sideRail ? '展开目录' : '收起为图标轨'" @click="toggleSideRail">{{ sideRail ? '⊞' : '⊟' }}</span>
         </div>
-        <div class="cat-item" :class="{active: activeCategory==='all'}" @click="activeCategory='all'">
+        <template v-if="!sideRail"><div class="cat-item" :class="{active: activeCategory==='all'}" @click="activeCategory='all'">
           <span class="cat-icon">📁</span><span class="cat-name">全部</span>
           <span class="cat-count" title="本台全部可见卡（策展台含资源台镜像卡）">{{ allResources.length }}</span>
         </div>
@@ -281,13 +282,13 @@
           </div>
         </template>
         <div v-if="dragCatId" class="cat-root-drop" @dragover.prevent @drop="onCatRootDrop">⬆ 松手升为一级分类</div>
-        <div class="cat-add" @click="openCreateCat()">
-          <span>＋</span><span>新建分类</span>
-        </div>
+        <div class="cat-add" @click="openCreateCat()"><span>＋</span><span>新建分类</span></div>
         <!-- 第卅三轮 REQ-021：存量重复分类合并工具 -->
-        <div class="cat-merge" @click="mergeDupCats">
-          <span>🛠</span><span>合并重复分类</span>
-        </div>
+        <div class="cat-merge" @click="mergeDupCats"><span>🛠</span><span>合并重复分类</span></div>
+        </template><template v-else><div class="cat-rail">
+            <div class="cat-rail-btn" :class="{active: activeCategory==='all'}" title="全部" @click="activeCategory='all'">📁</div><div class="cat-rail-btn" :class="{active: activeCategory==='uncat'}" title="待分类" @click="activeCategory='uncat'">📥</div><div class="cat-rail-sep"></div>
+            <div v-for="c in pinnedRootCats" :key="c.id" class="cat-rail-btn" :class="{active: activeCategory===c.id}" :title="c.name" @click="selectRailCat(c.id)">📌</div><div v-for="c in unpinnedRootCats" :key="c.id" class="cat-rail-btn" :class="{active: activeCategory===c.id}" :title="c.name" @click="selectRailCat(c.id)">{{ isMirrorCat(c) ? '📡' : '📁' }}</div>
+          </div></template>
       </div>
       <!-- R113-N1：树宽拖拽手柄（160–420px；双击复位 200px；窄屏隐藏） -->
       <div class="ws-side-split" title="拖拽调整分类树宽度（双击复位）" @mousedown.prevent="startSideResize" @dblclick="resetSideWidth"></div>
@@ -1301,7 +1302,7 @@ const {
   pinnedRootCats, unpinnedRootCats, treeCatOptions,
   collapsedCats, toggleCatCollapse, collapseAllCats, expandAllCats, selectSidebarCat, sidebarCats,
   SIDE_W_DEF, wsSideW, startSideResize, resetSideWidth,
-} = useCatSidebar({
+  sideRail, toggleSideRail, selectRailCat } = useCatSidebar({
   store, wsCats, catIdx, resBucket, rootCats, activeCategory, childCatsOf, catAggCount,
 })
 

@@ -96,6 +96,10 @@ export function useCatSidebar(ctx: CatSidebarCtx) {
   const SIDE_W_MAX = 420
   const SIDE_W_DEF = 210
   const wsSideW = ref<number>(store.ui?.wsSideW || SIDE_W_DEF)
+  /** R125：左栏 36px 图标轨（记忆偏好 UIPrefs.wsSideRail） */
+  const sideRail = ref<boolean>(!!store.ui?.wsSideRail)
+  function toggleSideRail() { sideRail.value = !sideRail.value; saveUIPrefs({ wsSideRail: sideRail.value }) }
+  function selectRailCat(id: string) { activeCategory.value = id }
   let sideDrag: { startX: number; startW: number } | null = null
   function onSideResizeMove(e: MouseEvent) {
     if (!sideDrag) return
@@ -120,5 +124,6 @@ export function useCatSidebar(ctx: CatSidebarCtx) {
     pinnedRootCats, unpinnedRootCats, treeCatOptions,
     collapsedCats, toggleCatCollapse, collapseAllCats, expandAllCats, selectSidebarCat, sidebarCats,
     SIDE_W_DEF, wsSideW, startSideResize, resetSideWidth,
+    sideRail, toggleSideRail, selectRailCat,
   }
 }

@@ -1,5 +1,5 @@
 /* R108（F10）：资源台/策展台容器与调度台/方向台统一（1440 居中 + 24px 边距）——三页切换无左右跳动感 */
-.ws-page { min-height: 100vh; background: var(--bg); max-width: 1560px; margin: 0 auto; }
+.ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; }
 .ws-empty { display: flex; align-items: center; justify-content: center; height: 100vh; color: var(--text-3); }
 
 /* R73-S5a：资源台页头（R64-F13 删掉 hero 大标题后，hub 一直没有页面标题；
@@ -190,7 +190,7 @@
 .ws-modal-hint { margin-top: 8px; font-size: 11px; color: var(--text-3); }
 
 /* 内容区 */
-.ws-content { flex: 1; min-width: 0; padding: 14px 24px 90px; overflow-y: auto; }
+.ws-content { flex: 1; min-width: 0; padding: 20px 36px 90px; overflow-y: auto; }
 
 /* 分区标签（置顶区/非置顶区） */
 .section-label { font-size: 12px; font-weight: 600; color: var(--text-2); margin: 4px 0 10px; padding-left: 2px; }
@@ -224,7 +224,7 @@
 .rc-action:hover { background: var(--surface-2); color: var(--accent); }
 .rc-action.pin:hover { color: var(--accent); }
 /* R79（R1 收尾）：↗ 打开用链接蓝，与「开链接」语义呼应；六动作里只有 pin 用强调色，主色仍稀缺 */
-.rc-action.open:hover, .rr-action.open:hover, .kc-action.open:hover { color: var(--info-blue); }
+.rc-action.open:hover, .rr-action.open:hover, .kc-action.open:hover { color: var(--accent); }
 .rc-action.delete:hover { color: var(--danger); }
 .rc-fields { display: flex; flex-direction: column; gap: 5px; flex: 1; }
 .rc-title { font-size: 13.5px; font-weight: 600; color: var(--text); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-right: 20px; }
@@ -244,7 +244,7 @@
 .ws-cat-head.sub span { color: var(--text-3); font-weight: 500; }
 .rc-cat:hover { background: var(--accent); color: #fff; }
 .rc-link { font-size: 10.5px; color: var(--text-3); display: flex; align-items: center; gap: 3px; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rc-link.url { color: var(--info-blue); }
+.rc-link.url { color: var(--accent); }
 .rc-link.file { color: var(--curio-amber); }
 .rc-link.obsidian { color: var(--violet); }
 .rc-calls { font-size: 10px; color: var(--curio-amber); background: var(--curio-bg); padding: 1px 7px; border-radius: 99px; font-weight: 500; }
@@ -338,7 +338,7 @@
 .kc-card-assets { display: inline-flex; }
 .kc-card-tag { font-size: 9px; padding: 1px 5px; border-radius: 99px; background: var(--accent-light); color: var(--accent); }
 .kc-card-link { font-size: 10px; margin-left: auto; }
-.kc-card-link.url { color: var(--info-blue); }
+.kc-card-link.url { color: var(--accent); }
 .kc-card-link.file { color: var(--curio-amber); }
 .kc-card-link.obsidian { color: var(--violet); }
 
@@ -449,7 +449,7 @@
 /* R66-F5：结构连线层（横平竖直直角折线；画布尺寸由 drawPyLinks 按滚动区设定） */
 .pyramid { display: flex; flex-direction: column; gap: 14px; position: relative; overflow-x: auto; }
 /* R113-N5（T10）：真全屏宿主 = .ws-page——专注金字塔：隐藏标题/指标条/侧栏/归档提示，保留工具条（＋新建 / 📋 导入模板可用） */
-.ws-page:fullscreen { background: var(--bg); overflow-y: auto; padding: 16px 24px 90px; }
+.ws-page:fullscreen { background: var(--bg); overflow-y: auto; padding: 20px 36px 90px; }
 .ws-page:fullscreen .ws-id-head, .ws-page:fullscreen .ws-metrics, .ws-page:fullscreen .ws-sidebar,
 .ws-page:fullscreen .ws-side-split, .ws-page:fullscreen .ws-archived-hint { display: none; }
 /* R110-FS：金字塔全屏——路线 A 元素级真全屏（浏览器原生 ESC），路线 B fixed 覆盖层降级（自行监听 ESC） */
@@ -556,7 +556,7 @@
 .rc-desc.broken:hover { text-decoration: underline; }
 .rc-extra { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
 .rc-x-link { font-size: 10.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rc-x-link.url { color: var(--info-blue); }
+.rc-x-link.url { color: var(--accent); }
 .rc-x-link.file { color: var(--curio-amber); }
 .rc-x-link.obsidian { color: var(--violet); }
 .rc-x-src { font-size: 10.5px; color: var(--text-3); }
@@ -603,3 +603,16 @@
 .ces-l2 { border: 1.5px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 14px 12px; text-align: center; font-size: 12px; color: var(--text-3); letter-spacing: var(--tracking-sm); }
 .ces-hint { font-size: 12px; color: var(--text-3); margin-top: 6px; }
 .ces-actions { display: flex; gap: 10px; }
+
+/* ===== R125（提案）：卡面微阴影阶梯（发丝线 + 弥散微投影） ===== */
+.metric-box, .group-box { box-shadow: var(--shadow-sm); }
+/* ===== R125（Q5）：侧栏 36px 图标极简轨 ===== */
+.ws-sidebar.rail { padding: 6px 4px 10px; overflow: hidden; }
+.ws-sidebar.rail .cat-toolbar { justify-content: center; padding: 2px 0 6px; }
+.ws-sidebar.rail .ct-label, .ws-sidebar.rail .ct-actions { display: none; }
+.rail-toggle { flex-shrink: 0; }
+.cat-rail { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.cat-rail-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 13px; cursor: pointer; color: var(--text-2); transition: background .12s; }
+.cat-rail-btn:hover { background: var(--surface-2); color: var(--text); }
+.cat-rail-btn.active { background: var(--accent-light); }
+.cat-rail-sep { width: 18px; height: 1px; background: var(--border); margin: 4px 0; }

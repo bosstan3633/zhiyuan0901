@@ -81,7 +81,7 @@ function openTree() {
 </template>
 
 <style scoped>
-.page { max-width: 1560px; margin: 0 auto; padding: 14px 24px 48px; }
+.page { max-width: 1440px; margin: 0 auto; padding: 20px 36px 64px; }
 .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-left: 22px; }
 .page-head .crumb { font-size: 13px; color: var(--text-2); display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .page-head .crumb b { color: var(--text); font-weight: 700; font-size: 16px; letter-spacing: .2px; }

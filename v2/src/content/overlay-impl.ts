@@ -99,7 +99,7 @@ function injectStyles() {
       --zy-bg:#FFFFFF;--zy-bg-2:#F7F7F8;--zy-bg-3:#EFEFF1;
       --zy-border:#E3E4E8;--zy-border-strong:#D5D6DB;
       --zy-text:#17181C;--zy-text-2:#3C3F45;--zy-text-3:#8A8F98;--zy-text-4:#B4B8BF;
-      --zy-link:#3573B9;--zy-link-file:#A87B2A;--zy-link-obs:#7C3AED;
+      --zy-link:#5E6AD2;--zy-link-file:#A87B2A;--zy-link-obs:#7C3AED;
       --zy-accent:#5E6AD2;--zy-on-accent:#FFFFFF;
       /* R93（A6）：语义档令牌——取自 tokens.css 的 apple（明）/ linear（暗）两套，不臆造色值。
          状态徽标由改前的 8 种配色收敛为「中性 / 强调 / 警示」三档，这两条是后两档的落点。 */

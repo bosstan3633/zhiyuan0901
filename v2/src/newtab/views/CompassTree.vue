@@ -691,7 +691,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.compass-layout { display: block; min-height: 100%; padding: 14px 24px 48px; max-width: 1560px; margin: 0 auto; }
+.compass-layout { display: block; min-height: 100%; padding: 20px 36px 64px; max-width: 1440px; margin: 0 auto; }
 .tree-layout { display: flex; gap: 20px; align-items: flex-start; }
 /* N1：愿景/使命关联卡片 */
 .node { position: relative; }
@@ -727,7 +727,7 @@ onUnmounted(() => {
 .peek-label { width: 42px; flex-shrink: 0; font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding-top: 2px; }
 .peek-val { flex: 1; min-width: 0; font-size: 13px; color: var(--text); line-height: 1.6; word-break: break-all; }
 .peek-val.strong { font-weight: 700; font-size: 14.5px; }
-.peek-val.link { color: var(--info-blue); }
+.peek-val.link { color: var(--accent); }
 .peek-tag { display: inline-block; font-size: 10.5px; color: var(--accent); background: var(--accent-light); padding: 1px 8px; border-radius: 99px; margin: 0 4px 4px 0; }
 .peek-open { width: 100%; margin-top: 14px; padding: 10px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .peek-open:hover { background: var(--accent-hover); }

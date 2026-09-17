@@ -1748,7 +1748,7 @@ function handleBookmarkImport(e: Event) {
       if (!ws) {
         ws = {
           id: uid('ws'), name: '🔖 书签导入 ' + new Date().toLocaleDateString(), icon: '🔖',
-          color: 'var(--info-blue)', coverTheme: 'deep-sea', desc: '从浏览器书签导入', order: d.workspaces.length, archived: false
+          color: 'var(--accent)', coverTheme: 'deep-sea', desc: '从浏览器书签导入', order: d.workspaces.length, archived: false
         }
         d.workspaces.push(ws)
       }
@@ -2449,7 +2449,7 @@ const activeManualSec = ref('quick-1')
 .gs-pv-field-text { color: var(--text-2); }
 .gs-pv-field-tags { display: inline-flex; gap: 4px; }
 .gs-pv-tag { font-size: 9.5px; padding: 1px 6px; border-radius: 99px; background: var(--accent-light); color: var(--accent); }
-.gs-pv-field-link { font-size: 10.5px; color: var(--info-blue); }
+.gs-pv-field-link { font-size: 10.5px; color: var(--accent); }
 
 /* 导入导出 */
 .gs-import-option { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-xs); margin-bottom: 10px; cursor: pointer; transition: all .15s; background: var(--surface); }

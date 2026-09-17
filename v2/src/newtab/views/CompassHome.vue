@@ -1146,7 +1146,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 </template>
 
 <style scoped>
-.page { max-width: 1560px; margin: 0 auto; padding: 14px 24px 48px; }
+.page { max-width: 1440px; margin: 0 auto; padding: 20px 36px 64px; }
 .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-left: 22px; }
 .page-head .crumb { font-size: 13px; color: var(--text-2); }
 .page-head .crumb b { color: var(--text); font-weight: 700; font-size: 16px; letter-spacing: .2px; }
@@ -1218,7 +1218,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
   100% { box-shadow: none; }
 }
 .page > .module { margin-top: 14px; }
-.card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,.025); height: 100%; }
+.card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-sm); border: 1px solid var(--border); height: 100%; }
 .card-head { display: flex; align-items: center; gap: 8px; padding: 10px 20px 6px; flex-wrap: wrap; }
 .card-head .ic { font-size: 16px; color: var(--accent); display: flex; align-items: center; }
 .card-head .nm { font-size: 15px; font-weight: 600; letter-spacing: .3px; }
@@ -1248,11 +1248,11 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .card.focus .card-head .nm { font-size: 17px; font-weight: 700; color: var(--text); }
 .card.focus .card-head .ic { color: var(--accent); }
 .card.focus .tc-title { font-size: 13.5px; font-weight: 600; }
-.card.focus .tc-num { color: var(--text); opacity: .12; font-size: 26px; font-weight: 700; line-height: 1; letter-spacing: -.02em; }
+.card.focus .tc-num { color: var(--text-3); font-size: 12px; font-weight: 500; opacity: 1; }
 .card.focus .today-card { padding: 12px 14px; min-height: 84px; border-radius: var(--radius-md); }
 .card.focus .today-card:not(.empty-card):hover { transform: translateY(-1px); }
 .card.focus .today-card:not(.empty-card) { border-color: color-mix(in srgb, var(--accent) 22%, var(--border)); }
-.card.focus .today-card.sel { border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: var(--accent-light); animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent), inset 0 0 14px color-mix(in srgb, var(--accent) 8%, transparent); }
+.card.focus .today-card.sel { border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 4%, transparent); animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent), inset 0 0 14px color-mix(in srgb, var(--accent) 8%, transparent); }
 /* R94（B3）三件事全完成：**安静**完成态——整块轻微去饱和 + 一行中性小字。
    ⚠ 卡头（复制昨日 / 导出 / 日期导航）**不去饱和**——那是操作区，褪色会影响可用性。
    不用庆祝动画、不用红色、不用进度百分比。 */
@@ -1372,7 +1372,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cg-t { font-size: 12.5px; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cg-st { font-size: 10px; color: var(--text-4); flex-shrink: 0; }
 .cg-empty { font-size: 11px; color: var(--text-4); text-align: center; padding: 8px; }
-.cur-empty { padding: 34px 20px 38px; text-align: center; }
+.cur-empty { padding: 18px 16px 22px; text-align: center; }
 .ce-icon { font-size: 30px; opacity: .45; margin-bottom: 6px; }
 .ce-title { font-size: 14px; font-weight: 600; color: var(--text-2); margin-bottom: 4px; }
 .ce-desc { font-size: 11.5px; color: var(--text-3); margin-bottom: 12px; line-height: 1.7; }
@@ -1429,5 +1429,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
   .cur-cols { grid-template-columns: 1fr; }
   .cur-groups { grid-template-columns: 1fr; }
   .cur-split { display: none; }
+/* R125：卡面微阴影（三件事 + 项目聚焦看板） */
+.today-card, .cur-goal { box-shadow: var(--shadow-sm); }
 }
 </style>

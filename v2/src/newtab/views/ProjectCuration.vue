@@ -540,7 +540,7 @@ function addTaskFromHeader() {
       <!-- B27：未归类任务（指标已删除的孤儿任务） -->
       <div v-if="orphanTasks.length" class="metric-sec">
         <div class="metric-head2">
-          <span class="tag warn" style="flex-shrink:0">⚠ 未归类任务</span>
+          <span class="tag" style="flex-shrink:0">⚠ 未归类任务</span>
           <span class="mname">原指标已删除 · 可拖回任意指标或删除</span>
         </div>
         <div class="task-rows">
@@ -560,7 +560,7 @@ function addTaskFromHeader() {
       <!-- R49-D4：任务附件区（按任务聚合，复用 AssetBadge 打开逻辑；资源卡本体在资源台管理，此处不呈现） -->
       <div class="metric-sec asset-sec">
         <div class="metric-head2">
-          <span class="tag ok" style="flex-shrink:0">📎 任务附件</span>
+          <span class="tag" style="flex-shrink:0">📎 任务附件</span>
           <span class="mname">按任务聚合 · 🖼 图片弹窗预览 / 🌐 HTML / 📕 PDF 新标签打开</span>
         </div>
         <div class="task-rows">
@@ -624,7 +624,7 @@ function addTaskFromHeader() {
 </template>
 
 <style scoped>
-.page { max-width: 1560px; margin: 0 auto; padding: 14px 24px 48px; }
+.page { max-width: 1440px; margin: 0 auto; padding: 20px 36px 64px; }
 /* R117（04-61 C）：内嵌于方向台一级时去掉自身页边距与宽度上限，避免与宿主 .page 双层缩进 */
 .page.is-embedded { max-width: none; margin: 0; padding: 0; }
 .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-left: 22px; }
@@ -747,7 +747,7 @@ function addTaskFromHeader() {
 .tag.warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
 .tag.ok { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
 .tag.danger { background: var(--tag-danger-bg); color: var(--tag-danger-text); }
-.tag.info { background: var(--info-light); color: var(--info-blue); }
+.tag.info { background: var(--accent-light); color: var(--accent); }
 .progress { height: 5px; background: var(--surface-3); border-radius: 99px; overflow: hidden; display: inline-block; vertical-align: middle; }
 .progress > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
 .fade-enter-active, .fade-leave-active { transition: opacity .25s; }

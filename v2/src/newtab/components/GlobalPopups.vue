@@ -1338,7 +1338,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-ri-badge.status-done { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
 .gp-ri-badge.curio-status { background: var(--surface-3); color: var(--text-2); }
 .gp-ri-link { font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: 3px; white-space: nowrap; }
-.gp-ri-link.url { color: var(--info-blue); }
+.gp-ri-link.url { color: var(--accent); }
 .gp-ri-link.file { color: var(--curio-amber); }
 .gp-ri-link.obsidian { color: var(--violet); }
 .gp-ri-due { font-size: 10.5px; color: var(--text-3); }
