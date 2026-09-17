@@ -100,7 +100,7 @@ function injectStyles() {
       --zy-border:#E3E4E8;--zy-border-strong:#D5D6DB;
       --zy-text:#17181C;--zy-text-2:#3C3F45;--zy-text-3:#8A8F98;--zy-text-4:#B4B8BF;
       --zy-link:#3573B9;--zy-link-file:#A87B2A;--zy-link-obs:#7C3AED;
-      --zy-accent:#0071E3;--zy-on-accent:#FFFFFF;
+      --zy-accent:#5E6AD2;--zy-on-accent:#FFFFFF;
       /* R93（A6）：语义档令牌——取自 tokens.css 的 apple（明）/ linear（暗）两套，不臆造色值。
          状态徽标由改前的 8 种配色收敛为「中性 / 强调 / 警示」三档，这两条是后两档的落点。 */
       --zy-warn:#A66A00;--zy-ok:#1E7A34;
@@ -273,10 +273,11 @@ function injectStyles() {
  * `on` = 主按钮文字色：珊瑚红（raycast）配白字对比度仅 2.9:1，改用深字达 4.8:1。
  */
 const THEME_ACCENT: Record<string, { accent: string; on: string }> = {
+  /* R124：全局唯一强调色（深空薰衣草紫）——原 apple 蓝 / raycast 珊瑚红 / notion 蓝全部退役 */
   linear: { accent: '#5E6AD2', on: '#FFFFFF' },
-  apple: { accent: '#0071E3', on: '#FFFFFF' },
-  raycast: { accent: '#FF6363', on: '#17181C' },
-  notion: { accent: '#2383E2', on: '#FFFFFF' }
+  apple: { accent: '#5E6AD2', on: '#FFFFFF' },
+  raycast: { accent: '#5E6AD2', on: '#FFFFFF' },
+  notion: { accent: '#5E6AD2', on: '#FFFFFF' }
 }
 /** 读取知源当前主题并注入强调色；宿主环境不可读 storage 时回落默认主题 linear */
 async function applyThemeAccent() {

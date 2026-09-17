@@ -316,8 +316,7 @@
               <button class="tb-btn" @click="setViewMode('pyramid')">⬡ 查看金字塔结构论证 ›</button>
             </template>
             <template v-else>
-              <span class="tb-badge gray">🏛 中心论点</span>
-              <span class="tb-hint">尚未设立中心论点 —— 右键台内卡片可设立（设立后即成为金字塔 L1 根）</span>
+              <span class="tb-badge gray">🏛 中心论点</span><span class="tb-hint">＋ 点击确立本策展台的 L1 中心论点，让研究从判断出发</span><button class="tb-btn" @click="openThesisCreate">＋ 确立中心论点</button>
             </template>
           </div>
           <template v-for="(g, gi) in renderedGroups" :key="g.key">
@@ -395,11 +394,16 @@
 
           <!-- R87（R5 收尾）：有筛选/搜索却零结果时，空态要说明**原因**并给一键清除——
                否则用户只看到「暂无资源卡」，会以为卡丢了（与 D-B 项目总览同款口径） -->
-          <EmptyState v-if="!resourceGroups.length" icon="folder"
+          <EmptyState v-if="!resourceGroups.length && (isHub || hasActiveFilter)" icon="folder"
             :title="hasActiveFilter ? '当前筛选没有匹配的资源卡' : '暂无资源卡'"
             :desc="hasActiveFilter ? '已按「' + filterLabel + '」过滤' + (debouncedQuery.trim() ? '，且搜索「' + debouncedQuery.trim() + '」无命中' : '') : '双击卡片直达链接；单击查看详情。用 Ctrl+Shift+J 可从任意网页采集'"
             :action-label="hasActiveFilter ? '清除筛选' : '＋ 新建资源卡'"
             @action="hasActiveFilter ? resetFilters() : openNewResource()" />
+          <div v-else-if="!resourceGroups.length && !isHub" class="cur-empty-skeleton">
+            <div class="ces-l1"><span class="ces-badge">L1</span>中心论点占位 —— 确立后即成为金字塔根节点</div><div class="ces-line"></div>
+            <div class="ces-l2row"><div class="ces-l2">L2 论据分支 A</div><div class="ces-l2">L2 论据分支 B</div><div class="ces-l2">L2 论据分支 C</div></div>
+            <p class="ces-hint">从资源台拖入或新建镜像卡以支撑论点，把研究变成可表达的成果</p><div class="ces-actions"><button class="hero-btn primary" @click="openNewResource">＋ 新建卡片</button><button class="hero-btn ghost" @click="router.push('/workspace/' + CURATION_WS_ID)">去资源台挑选</button></div>
+          </div>
           <!-- R112 性能：增量渲染的显式入口（滚动到此处也会自动追加一屏） -->
           <div v-if="hasMoreToRender" class="render-more" @click="renderMore">
             ↓ 已显示 {{ renderedCount }} / {{ totalVisibleCount }} 张 —— 点此加载更多

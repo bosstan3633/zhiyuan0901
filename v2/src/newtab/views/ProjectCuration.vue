@@ -400,10 +400,10 @@ function onMetricDragLeave(e: DragEvent) {
 }
 
 function prLabel(pr: string) {
-  return pr === 'high' ? '🔴 高优先级' : pr === 'mid' || pr === 'medium' ? '🟡 中优先级' : '🟢 低优先级'
+  return pr === 'high' ? '高优' : pr === 'mid' || pr === 'medium' ? '中优' : '低优'
 }
 function prTag(pr: string) {
-  return pr === 'high' ? 'danger' : pr === 'mid' || pr === 'medium' ? 'warn' : 'ok'
+  return pr === 'high' ? 'danger' : 'plain'
 }
 
 /* ================= R49-D4：任务附件区（按任务聚合，AssetBadge 复用现有打开逻辑） ================= */
@@ -529,7 +529,7 @@ function addTaskFromHeader() {
             <span class="bdrag" title="拖拽排序 / 跨指标归属">⋮⋮</span>
             <span class="bcheck" :class="{done: task.status==='done'}" @click="toggleTaskDone(task)">{{ task.status==='done'?'✓':'' }}</span>
             <span class="bt" @click="openTaskDetail(task)" title="点击打开任务详情">{{ task.title }}</span>
-            <span class="tag" :class="prTag(task.priority)">{{ prLabel(task.priority) }}</span>
+            <span class="tag" :class="prTag(task.priority)"><i class="tag-dot" /><span class="tag-txt">{{ prLabel(task.priority) }}</span></span>
             <AssetBadge v-if="task.assets?.length" :assets="task.assets" />
             <button class="icon-btn-sm del" title="删除任务（进回收站）" @click="removeTask(task)">🗑</button>
           </div>
@@ -550,7 +550,7 @@ function addTaskFromHeader() {
             <span class="bdrag" title="拖拽到指标归属">⋮⋮</span>
             <span class="bcheck" :class="{done: t.status==='done'}" @click="toggleTaskDone(t)">{{ t.status==='done'?'✓':'' }}</span>
             <span class="bt" @click="openTaskDetail(t)" title="点击打开任务详情">{{ t.title }}</span>
-            <span class="tag" :class="prTag(t.priority)">{{ prLabel(t.priority) }}</span>
+            <span class="tag" :class="prTag(t.priority)"><i class="tag-dot" /><span class="tag-txt">{{ prLabel(t.priority) }}</span></span>
             <button class="icon-btn-sm del" title="删除任务（进回收站）" @click="removeTask(t)">🗑</button>
           </div>
         </div>
@@ -755,3 +755,23 @@ function addTaskFromHeader() {
 .slide-enter-active, .slide-leave-active { transition: transform .2s cubic-bezier(.16,1,.3,1); }
 .slide-enter-from, .slide-leave-to { transform: translateX(100%); }
 </style>
+
+/* ===== R124（提案）：中性优先级退色——默认 4px 灰点，行 hover 才显标签；仅高优保留警示色 ===== */
+.tag.plain { background: transparent; color: var(--text-4); padding: 2px 2px; gap: 4px; }
+.tag.plain .tag-dot { display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--text-4); }
+.tag.plain .tag-txt { display: none; }
+.btask:hover .tag.plain .tag-dot { display: none; }
+.btask:hover .tag.plain .tag-txt { display: inline; }
+.btask:hover .tag.plain { padding: 2px 6px; }
+/* ===== R124（提案）：展板上下文沉浸——聚焦项目展板顶部极低纯度紫调光带 + 内阴影提层 ===== */
+.page.is-embedded { background-image: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent 150px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04); }
+
+/* ===== R124（提案）：中性优先级退色——默认 4px 灰点，行 hover 才显标签；仅高优保留警示色 ===== */
+.tag.plain { background: transparent; color: var(--text-4); padding: 2px 2px; gap: 4px; }
+.tag.plain .tag-dot { display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--text-4); }
+.tag.plain .tag-txt { display: none; }
+.btask:hover .tag.plain .tag-dot { display: none; }
+.btask:hover .tag.plain .tag-txt { display: inline; }
+.btask:hover .tag.plain { padding: 2px 6px; }
+/* ===== R124（提案）：展板上下文沉浸——聚焦项目展板顶部极低纯度紫调光带 + 内阴影提层 ===== */
+.page.is-embedded { background-image: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent 150px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04); }

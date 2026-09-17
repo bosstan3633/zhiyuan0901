@@ -1,17 +1,21 @@
 ﻿/**
- * 知源调度台 · 设计令牌（V2.3 视觉重构 · Linear 体系）
+ * 知源调度台 · 设计令牌（R124 视觉升级 · 四主题统一结构语言）
  *
- * 结构语言（四主题共用，R53 精简）：
+ * 结构语言（四主题共用）：
  *   - 四级表面阶梯（bg → surface → surface-2 → surface-3）+ 发丝线边框承载层级，弱化阴影
- *   - 圆角体系：卡片/弹层 12 · 输入/按钮 8 · 徽标 6（Linear rounded scale）
- *   - 字体：Inter（拉丁）+ 系统中文回退；轻微负字距
- *   - 强调色克制：主操作/焦点环/链接强调，不做装饰性铺色
+ *   - R124：暗色 Elevation 色阶（画布 #0D0E11 / 卡面 #14161B / hover #1A1D24 / 浮层 #1C1F26）
+ *   - 发丝线：暗色 rgba(255,255,255,.08) / 浅色 rgba(0,0,0,.08)，取代实色硬线
+ *   - 文本四档透明度体系（暗 .92/.70/.50/.32 · 浅 .90/.62/.44/.28）
+ *   - 圆角体系：大容器 12 · 卡片/按钮 8 · 标签/小按钮 4（R124：99px 胶囊退役）
+ *   - 强调色纪律：**全局唯一强调色 = 深空薰衣草紫 #5E6AD2**（聚焦环/选中态/主 CTA），
+ *     中性状态（中优/低优/待开始）一律退后为灰白文本，不再铺色
+ *   - 小字号（11–12px）统一呼吸字距 0.04em；胶囊内距收紧至 2px 6px
  *
- * 主题（每套保留自己的色彩个性，共用 Linear 结构）：
- *   深空薰衣草 linear —— 近黑画布 #010102 + 薰衣草蓝 #5E6AD2（默认 · Linear 原版气质）
- *   极简白  apple  —— 浅色反相阶梯 + Apple 蓝
- *   光速黑  raycast —— 近黑画布 + 珊瑚红
- *   纸墨白  notion —— 暖白纸面 + Notion 蓝
+ * 主题（四套共用结构，仅底色气质不同）：
+ *   深空薰衣草 linear —— 中性近黑 #0D0E11（默认）
+ *   光速黑  raycast —— 同新 Elevation 规范（原珊瑚红 accent 退役）
+ *   极简白  apple  —— 冷灰白阶梯
+ *   纸墨白  notion —— 暖纸白阶梯
  */
 
 :root {
@@ -26,10 +30,13 @@
   --fs-sub: 12px;
   --fs-caption: 10.5px;
 
-  /* 圆角体系（Linear rounded scale，全主题共享） */
-  --radius: 12px;    /* 卡片 / 弹层 */
-  --radius-sm: 8px;  /* 按钮 / 输入 */
-  --radius-xs: 6px;  /* 徽标 / 行内元素 */
+  /* R124：小字号呼吸字距（11–12px 文本统一） */
+  --tracking-sm: 0.04em;
+
+  /* 圆角体系（R124：大容器 12 · 卡片/按钮 8 · 标签/小按钮 4） */
+  --radius: 12px;    /* 大容器 / 弹层 */
+  --radius-sm: 8px;  /* 卡片 / 按钮 / 输入 */
+  --radius-xs: 4px;  /* 标签 / 小按钮 / 行内元素 */
 
   /* 发丝线（共享） */
   --hairline: 1px;
@@ -42,33 +49,33 @@
   --card-min-w: 260px;
 }
 
-/* ===== 深空薰衣草 · Linear 原版气质（默认） ===== */
+/* ===== 深空薰衣草 · 新 Elevation 规范（默认） ===== */
 :root,
 [data-theme='linear'] {
-  /* 表面阶梯：近黑画布 #010102（带一丝蓝调，规范明确禁止纯黑 #000） */
-  --bg: #010102;
-  --surface: #0F1011;
-  --surface-2: #141516;
-  --surface-3: #191A1B;
+  /* Elevation 色阶（R124）：画布 → 卡面 → hover → 浮层 */
+  --bg: #0D0E11;
+  --surface: #14161B;
+  --surface-2: #1A1D24;
+  --surface-3: #1C1F26;
 
-  /* 发丝线 */
-  --border: #23252A;
-  --border-strong: #34343A;
+  /* 发丝线（柔和半透明，取代实色硬线） */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
 
-  /* 墨色文字梯度 */
-  --text: #F7F8F8;
-  --text-2: #D0D6E0;
-  --text-3: #8A8F98;
-  --text-4: #62666D;
+  /* 文本四档透明度体系 */
+  --text: rgba(255, 255, 255, 0.92);
+  --text-2: rgba(255, 255, 255, 0.70);
+  --text-3: rgba(255, 255, 255, 0.50);
+  --text-4: rgba(255, 255, 255, 0.32);
 
-  /* 薰衣草蓝 · 只用于主操作/焦点/链接强调 */
+  /* 全局唯一强调色 · 深空薰衣草紫 */
   --accent: #5E6AD2;
   --accent-2: #7A85E0;
   --accent-light: rgba(94, 106, 210, 0.16);
   --accent-hover: #828FFF;
-  --accent-glow: rgba(94, 106, 210, 0.32);
+  --accent-glow: rgba(109, 92, 232, 0.40);
 
-  /* 语义色（低饱和，深色底适配） */
+  /* 语义色（低饱和，深色底适配）——仅高优/阻断允许出现 */
   --success: #27A644;
   --warning: #D9A03C;
   --danger: #E5484D;
@@ -79,53 +86,96 @@
   --curio-bg: rgba(217, 180, 92, 0.12);
   --violet: #A78BFA;
 
-  /* 状态标签 · 低透明度色块 */
+  /* 状态标签 · 低透明度色块（R124：仅警示类使用；中性档在组件层退为纯文本） */
   --tag-warn-bg: rgba(217, 160, 60, 0.14);
   --tag-warn-text: #EFBE66;
   --tag-ok-bg: rgba(39, 166, 68, 0.15);
   --tag-ok-text: #6FCE8B;
   --tag-danger-bg: rgba(229, 72, 77, 0.15);
   --tag-danger-text: #FF9189;
-  --tag-neutral-bg: rgba(255, 255, 255, 0.07);
-  --tag-neutral-text: #A9ADB5;
+  --tag-neutral-bg: rgba(255, 255, 255, 0.06);
+  --tag-neutral-text: rgba(255, 255, 255, 0.50);
   --tag-info-bg: rgba(91, 141, 239, 0.15);
   --tag-info-text: #9CC0F5;
 
   /* 遮罩 · 纯黑 scrim（规范口径） */
   --overlay-bg: rgba(0, 0, 0, 0.6);
 
-  /* 阴影 · Linear 以表面阶梯与发丝线承载层级，阴影仅用于悬浮弹层 */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  /* 阴影 · 以表面阶梯与发丝线承载层级，阴影仅用于悬浮弹层 */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
-  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
+  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
 }
+
+/* ===== 光速黑 · 同新 Elevation 规范（原珊瑚红 accent 退役） ===== */
+[data-theme='raycast'] {
+  --bg: #0D0E11;
+  --surface: #14161B;
+  --surface-2: #1A1D24;
+  --surface-3: #1C1F26;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --text: rgba(255, 255, 255, 0.92);
+  --text-2: rgba(255, 255, 255, 0.70);
+  --text-3: rgba(255, 255, 255, 0.50);
+  --text-4: rgba(255, 255, 255, 0.32);
+  --accent: #5E6AD2;
+  --accent-2: #7A85E0;
+  --accent-light: rgba(94, 106, 210, 0.16);
+  --accent-hover: #828FFF;
+  --accent-glow: rgba(109, 92, 232, 0.40);
+  --success: #27A644;
+  --warning: #D9A03C;
+  --danger: #E5484D;
+  --stagnant: #D4715D;
+  --info-blue: #5B8DEF;
+  --info-blue-light: rgba(91, 141, 239, 0.14);
+  --curio-amber: #D9B45C;
+  --curio-bg: rgba(217, 180, 92, 0.12);
+  --violet: #A78BFA;
+  --tag-warn-bg: rgba(217, 160, 60, 0.14);
+  --tag-warn-text: #EFBE66;
+  --tag-ok-bg: rgba(39, 166, 68, 0.15);
+  --tag-ok-text: #6FCE8B;
+  --tag-danger-bg: rgba(229, 72, 77, 0.15);
+  --tag-danger-text: #FF9189;
+  --tag-neutral-bg: rgba(255, 255, 255, 0.06);
+  --tag-neutral-text: rgba(255, 255, 255, 0.50);
+  --tag-info-bg: rgba(91, 141, 239, 0.15);
+  --tag-info-text: #9CC0F5;
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* ===== 极简白 · 冷灰白阶梯（新 Elevation 结构） ===== */
 [data-theme='apple'] {
-  --bg: #F7F7F8;
+  --bg: #F4F5F7;
   --surface: #FFFFFF;
-  --surface-2: #F7F7F8;
-  --surface-3: #EFEFF1;
-  --border: #E3E4E8;
-  --border-strong: #D5D6DB;
-  --text: #17181C;
-  --text-2: #3C3F45;
-  --text-3: #8A8F98;
-  --text-4: #B4B8BF;
-  --accent: #0071E3;
-  --accent-2: #2B8DEF;
-  --accent-light: #E8F1FD;
-  --accent-hover: #005BB8;
-  --accent-glow: rgba(0, 113, 227, 0.2);
+  --surface-2: #F1F3F5;
+  --surface-3: #E9ECEF;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  --text: rgba(0, 0, 0, 0.90);
+  --text-2: rgba(0, 0, 0, 0.62);
+  --text-3: rgba(0, 0, 0, 0.44);
+  --text-4: rgba(0, 0, 0, 0.28);
+  --accent: #5E6AD2;
+  --accent-2: #7A85E0;
+  --accent-light: #EEF0FC;
+  --accent-hover: #4C57BE;
+  --accent-glow: rgba(94, 106, 210, 0.18);
   --success: #27A644;
   --warning: #A66A00;
   --danger: #D0342C;
   --stagnant: #D4715D;
-  --info-blue: #0071E3;
-  --info-blue-light: #E8F1FD;
+  --info-blue: #5E6AD2;
+  --info-blue-light: #EEF0FC;
   --curio-amber: #A87B2A;
   --curio-bg: #F9F3E4;
   --violet: #7C3AED;
@@ -135,91 +185,41 @@
   --tag-ok-text: #2E7D42;
   --tag-danger-bg: #FBEAEA;
   --tag-danger-text: #C03B3B;
-  --tag-neutral-bg: #EFEFF1;
-  --tag-neutral-text: #63636A;
-  --tag-info-bg: #E8F1FD;
-  --tag-info-text: #0064C8;
+  --tag-neutral-bg: #F1F3F5;
+  --tag-neutral-text: rgba(0, 0, 0, 0.44);
+  --tag-info-bg: #EEF0FC;
+  --tag-info-text: #4C57BE;
   --overlay-bg: rgba(0, 0, 0, 0.32);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow: 0 0 0 1px var(--border);
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 0 0 1px var(--border), 0 8px 24px rgba(0, 0, 0, 0.07);
-  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
+  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
-/* ===== 光速黑 · 近黑 + 珊瑚红 ===== */
-[data-theme='raycast'] {
-  --bg: #0A0A0C;
-  --surface: #111113;
-  --surface-2: #161619;
-  --surface-3: #1C1C20;
-  --border: #232327;
-  --border-strong: #34343A;
-  --text: #F7F7F8;
-  --text-2: #C8CBD2;
-  --text-3: #8A8F98;
-  --text-4: #62666D;
-  --accent: #FF6363;
-  --accent-2: #FF8585;
-  --accent-light: rgba(255, 99, 99, 0.15);
-  --accent-hover: #FF7575;
-  --accent-glow: rgba(255, 99, 99, 0.3);
-  --success: #27A644;
-  --warning: #D9A03C;
-  --danger: #E5484D;
-  --stagnant: #D4715D;
-  --info-blue: #5B8DEF;
-  --info-blue-light: rgba(91, 141, 239, 0.14);
-  --curio-amber: #D9B45C;
-  --curio-bg: rgba(217, 180, 92, 0.12);
-  --violet: #A78BFA;
-  --tag-warn-bg: rgba(217, 160, 60, 0.14);
-  --tag-warn-text: #EFBE66;
-  --tag-ok-bg: rgba(39, 166, 68, 0.15);
-  --tag-ok-text: #6FCE8B;
-  --tag-danger-bg: rgba(229, 72, 77, 0.15);
-  --tag-danger-text: #FF9189;
-  --tag-neutral-bg: rgba(255, 255, 255, 0.07);
-  --tag-neutral-text: #A9ADB5;
-  --tag-info-bg: rgba(91, 141, 239, 0.15);
-  --tag-info-text: #9CC0F5;
-  --overlay-bg: rgba(0, 0, 0, 0.6);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
-  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
-}
-
-/* ===== 纸墨白 · 暖白纸面 + Notion 蓝 ===== */
+/* ===== 纸墨白 · 暖纸白阶梯（新 Elevation 结构） ===== */
 [data-theme='notion'] {
-  --bg: #FFFFFF;
+  --bg: #F7F6F3;
   --surface: #FFFFFF;
-  --surface-2: #F7F6F3;
-  --surface-3: #EFEDE9;
-  --border: #E9E8E4;
-  --border-strong: #D9D7D1;
-  --text: #37352F;
-  --text-2: #73726E;
-  --text-3: #9B9A97;
-  --text-4: #C4C2BD;
-  --accent: #2383E2;
-  --accent-2: #3490EA;
-  --accent-light: #E7F1FB;
-  --accent-hover: #1B74CC;
-  --accent-glow: rgba(35, 131, 226, 0.16);
+  --surface-2: #F1EFEA;
+  --surface-3: #E9E6DF;
+  --border: rgba(15, 15, 15, 0.08);
+  --border-strong: rgba(15, 15, 15, 0.14);
+  --text: rgba(15, 15, 15, 0.90);
+  --text-2: rgba(15, 15, 15, 0.60);
+  --text-3: rgba(15, 15, 15, 0.42);
+  --text-4: rgba(15, 15, 15, 0.26);
+  --accent: #5E6AD2;
+  --accent-2: #7A85E0;
+  --accent-light: #EEF0FC;
+  --accent-hover: #4C57BE;
+  --accent-glow: rgba(94, 106, 210, 0.18);
   --success: #448361;
   --warning: #C08A2D;
   --danger: #E03E3E;
   --stagnant: #D4715D;
-  --info-blue: #2383E2;
-  --info-blue-light: #E7F1FB;
+  --info-blue: #5E6AD2;
+  --info-blue-light: #EEF0FC;
   --curio-amber: #9F7B2D;
   --curio-bg: #F6F0DF;
   --violet: #9065B0;
@@ -229,19 +229,16 @@
   --tag-ok-text: #3F7355;
   --tag-danger-bg: #FBE9E7;
   --tag-danger-text: #C03B3B;
-  --tag-neutral-bg: #EFEDE8;
-  --tag-neutral-text: #787670;
-  --tag-info-bg: #E7F1FB;
-  --tag-info-text: #2383E2;
+  --tag-neutral-bg: #F1EFEA;
+  --tag-neutral-text: rgba(15, 15, 15, 0.42);
+  --tag-info-bg: #EEF0FC;
+  --tag-info-text: #4C57BE;
   --overlay-bg: rgba(15, 15, 15, 0.35);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow: 0 0 0 1px var(--border);
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(15, 15, 15, 0.04);
   --shadow-lg: 0 0 0 1px var(--border), 0 8px 24px rgba(15, 15, 15, 0.07);
-  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
+  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 /* ===== 全局重置 ===== */
@@ -281,9 +278,9 @@ body .fds-value {
   font-variant-numeric: tabular-nums;
 }
 
-/* 焦点环 · 2px 强调色 50%（Linear 规范） */
+/* 焦点环 · 2px 强调色 40%（Linear 规范，R124 柔化） */
 :focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
   outline-offset: 1px;
 }
 
@@ -293,14 +290,15 @@ body .fds-value {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
 
-/* A3：徽章/标签统一形态（pill + caption + 低饱和） */
+/* A3（R124 更新）：徽章/标签统一形态——4px 圆角（99px 胶囊退役）+ 2px 6px 内距 + 呼吸字距 */
 body .tag, body .rc-tag, body .gp-ri-badge, body .zy-badge, body .badge,
 body .cz-status, body .kc-card-tag, body .rr-f {
-  border-radius: 999px;
-  padding: 1.5px 8px;
+  border-radius: 4px;
+  padding: 2px 6px;
   font-size: 10.5px;
   font-weight: 500;
   line-height: 1.5;
+  letter-spacing: var(--tracking-sm);
 }
 
 /* A10：数字全局等宽 */

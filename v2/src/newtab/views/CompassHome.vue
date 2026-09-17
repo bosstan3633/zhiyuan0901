@@ -879,7 +879,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
             <!-- R94（B2）：任务树**默认折叠**的切换入口，带任务数（折叠时也知道下面压着多少） -->
             <button v-if="curProject" class="mini-btn" :title="curTreeOpen ? '收起任务树' : '展开任务树'"
               @click="curTreeOpen = !curTreeOpen">
-              <Icon name="branch" :size="13" />任务树 {{ projTasks.length }} <span class="cur-tree-caret">{{ curTreeOpen ? '▴' : '▾' }}</span>
+              <Icon name="branch" :size="13" />{{ curTreeOpen ? '收起关联任务树' : '展开关联任务树' }} ({{ projTasks.length }}) <span class="cur-tree-caret">{{ curTreeOpen ? '▴' : '▾' }}</span>
             </button>
             <button class="mini-btn" title="进入完整方向树全景（查看/编辑方向结构）" @click="router.push('/compass/tree')"><Icon name="branch" :size="13" />方向树</button>
           </div>
@@ -1248,11 +1248,11 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .card.focus .card-head .nm { font-size: 17px; font-weight: 700; color: var(--text); }
 .card.focus .card-head .ic { color: var(--accent); }
 .card.focus .tc-title { font-size: 13.5px; font-weight: 600; }
-.card.focus .tc-num { color: var(--text-4); font-weight: 700; }
+.card.focus .tc-num { color: var(--text); opacity: .12; font-size: 26px; font-weight: 700; line-height: 1; letter-spacing: -.02em; }
 .card.focus .today-card { padding: 12px 14px; min-height: 84px; border-radius: var(--radius-md); }
 .card.focus .today-card:not(.empty-card):hover { transform: translateY(-1px); }
 .card.focus .today-card:not(.empty-card) { border-color: color-mix(in srgb, var(--accent) 22%, var(--border)); }
-.card.focus .today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 26%, transparent); }
+.card.focus .today-card.sel { border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: var(--accent-light); animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent), inset 0 0 14px color-mix(in srgb, var(--accent) 8%, transparent); }
 /* R94（B3）三件事全完成：**安静**完成态——整块轻微去饱和 + 一行中性小字。
    ⚠ 卡头（复制昨日 / 导出 / 日期导航）**不去饱和**——那是操作区，褪色会影响可用性。
    不用庆祝动画、不用红色、不用进度百分比。 */

@@ -80,7 +80,7 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
 
 <style scoped>
 /* R120-TB1：合流方向条——单行 ≤40px，全 tokens（四主题自适应） */
-.metric-bar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px; }
+.metric-bar { background: color-mix(in srgb, var(--surface) 72%, transparent); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px; box-shadow: var(--shadow-sm); }
 .mb-row { display: flex; align-items: center; gap: 10px; padding: 5px 14px; min-height: 34px; max-height: 40px; min-width: 0; }
 .mb-period { display: flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; flex-shrink: 0; }
 .mb-period span { padding: 2px 9px; font-size: 10.5px; color: var(--text-3); cursor: pointer; transition: all .12s; }
