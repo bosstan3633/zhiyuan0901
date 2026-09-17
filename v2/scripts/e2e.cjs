@@ -127,13 +127,13 @@ async function main() {
   await page.waitForTimeout(2500)
   const metricBarOn = await page.locator('.metric-bar').first().isVisible().catch(() => false)
   const cellCount = await page.locator('.mb-cell').count()
-  const offCourse = (await page.locator('.mb-cell .mb-k').nth(3).textContent().catch(() => '')) === '未归档'
+  const offCourse = (await page.locator('.mb-cell .mb-k').nth(4).textContent().catch(() => '')) === '未归档'
   const drillBtnGone = (await page.locator('.mb-drill').count()) === 0
-  await page.locator('.mb-cell').nth(3).click().catch(() => {})
+  await page.locator('.mb-cell').nth(4).click().catch(() => {})
   await page.waitForTimeout(900)
   const cellDrawer = await page.getByText('未归档任务 · 待归档清单').first().isVisible().catch(() => false)
   await page.keyboard.press('Escape').catch(() => {})
-  report('E2E-4 方向状态四格迁调度台顶部 + 四格自下钻（R55-D1→R57-F3）', metricBarOn && cellCount === 4 && offCourse && drillBtnGone && cellDrawer,
+  report('E2E-4（R120-TB1 修订）方向状态五格迁调度台顶部（合流条）+ 各格自下钻', metricBarOn && cellCount === 5 && offCourse && drillBtnGone && cellDrawer,
     'bar=' + metricBarOn + ' cells=' + cellCount + ' unarch=' + offCourse + ' drillBtnGone=' + drillBtnGone + ' cellDrawer=' + cellDrawer)
 
   // E2E-5 PDF 双击 file:// 打开
@@ -561,7 +561,8 @@ async function main() {
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
   const wrCountBefore = await page.locator('.wr-overlay').count()
-  await page.locator('.wr-entry').first().click()
+  // R120-TB1：周报入口由页头 .wr-entry 迁入合流方向条（.mb-act）
+  await page.locator('.mb-act').first().click()
   await page.waitForTimeout(900)
   const wrOv = page.locator('.wr-overlay').first()
   const wrVisible = await wrOv.isVisible().catch(() => false)

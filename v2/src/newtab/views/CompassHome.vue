@@ -788,11 +788,21 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
       </button>
     </div>
 
-      <!-- R111：调度画像周报入口 -->
-      <button class="mini-btn wr-entry" title="调度画像周报" @click="wrOpen = true">📊 周报</button>
-
-    <!-- R55-D1：方向状态（战略目标/WCE/WRR/未归档四格）迁至调度台最顶部 ｜ R66-F3：右端挂操作记录四格 -->
+    <!-- R120-TB1 合流方向条：左槽=主攻（今天推哪个）· 中段=档位+5 指标 · 右槽=今日记录四格 + 周报 + 去方向台 -->
     <MetricBar>
+      <template #left>
+        <span class="cf-label" title="当前战略重心（最多 2 个）">🎯 主攻</span>
+        <template v-if="focusedProjects.length">
+          <span v-for="p in focusedProjects" :key="p.id" class="cf-item" :class="{ done: focusMeta.get(p.id)?.finished }"
+            :title="p.name + ' · 点击进入项目详情'" @click="openFocusProject(p)">
+            <span class="cf-name">{{ p.name }}</span>
+            <span class="cf-pct">{{ focusMeta.get(p.id)?.pct || 0 }}%</span>
+            <span v-if="focusMeta.get(p.id)?.stall" class="cf-stall" title="近 14 天无推进">⚠ 停滞</span>
+            <span v-if="focusMeta.get(p.id)?.open" class="cf-open">待办 {{ focusMeta.get(p.id)?.open }}</span>
+          </span>
+        </template>
+        <span v-else class="cf-hint" title="去方向台指定主攻项目" @click="router.push('/compass')">尚无主攻 · 去方向台指定</span>
+      </template>
       <template #right>
         <div class="rec-mini in-bar">
           <span class="rm-cell" title="今日入台 · 点击看明细" @click="openRec('in')">⬇ {{ todayIn.length }}</span>
@@ -800,29 +810,10 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
           <span class="rm-cell" title="今日调出 · 点击看明细" @click="openRec('called')">↗ {{ todayCalled.length }}</span>
           <span class="rm-cell" title="写入记录 · 点击看明细" @click="openRec('log')">✎ {{ logCount }}</span>
         </div>
+        <button class="mb-act" title="调度画像周报" @click="wrOpen = true">📊 周报</button>
+        <span class="cf-go" title="去方向台管理主攻与目标" @click="router.push('/compass')">去方向台 ›</span>
       </template>
     </MetricBar>
-
-    <!-- R91：主攻速览条——首页面包屑写着「今天，从哪里出发」，主攻就是这个问题的答案。
-         手册承诺「🎯 主攻（最多 2 个）直通调度台速览」，而 focusedProjects 此前在调度台**零消费**
-         （唯一消费方在方向台 LighthousePanel）。与方向台那条的分工：那边在目标卡上下文里、是"管"
-         的视角；这条在"今天从哪出发"的语境里，故多了停滞警示与待办数。 -->
-    <div class="ch-focus-strip" :class="{ empty: !focusedProjects.length }">
-      <template v-if="focusedProjects.length">
-        <span class="cf-label">🎯 主攻</span>
-        <span v-for="p in focusedProjects" :key="p.id" class="cf-item" :class="{ done: focusMeta.get(p.id)?.finished }"
-          :title="p.name + ' · 点击进入项目详情'" @click="openFocusProject(p)">
-          <span class="cf-name">{{ p.name }}</span>
-          <span class="cf-pct">{{ focusMeta.get(p.id)?.pct || 0 }}%</span>
-          <span v-if="focusMeta.get(p.id)?.stall" class="cf-stall" title="近 14 天无推进">⚠ 停滞</span>
-          <span v-if="focusMeta.get(p.id)?.open" class="cf-open">待办 {{ focusMeta.get(p.id)?.open }}</span>
-        </span>
-        <span class="cf-go" title="去方向台管理主攻" @click="router.push('/compass')">去方向台 ›</span>
-      </template>
-      <span v-else class="cf-hint" title="去方向台指定主攻项目" @click="router.push('/compass')">
-        🎯 尚无主攻项目 —— 去方向台指定（最多 2 个）
-      </span>
-    </div>
 
     <!-- 左右分栏：今日三件事 ｜ 项目调度 -->
     <div id="dispatch-split" class="split">
@@ -874,7 +865,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
             </div>
             <!-- R94（B3）：全完成的**安静**收束——一行中性小字（整块去饱和由 .all-done 承担）。
                  不用庆祝动画、不用红色、不用进度百分比。 -->
-            <div v-if="focusAllDone" class="td-done">✓ 今日三件事 · 已完成</div>
+            <div v-if="focusAllDone" class="td-done">✓ 今日三件事已闭环 · 专注带来从容</div>
           </div>
         </div>
       </section>
@@ -905,6 +896,10 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
                     <span v-if="dirTermLabel(goalOf(curProject))" class="tag">{{ dirTermLabel(goalOf(curProject)) }}</span>
                     <span class="cur-goal-pct">项目进度 {{ projectProgress(curProject).pct }}%</span>
                     <span class="cur-goal-link" @click="router.push({ path: '/compass/projects', query: { p: curProject.id } })">进入项目详情 ›</span>
+                  </div>
+                  <!-- R120-TB3：进度条（对齐原型；数据沿用 projectProgress 既有口径） -->
+                  <div class="cur-progress" title="项目进度">
+                    <div class="cur-progress-fill" :style="{ width: projectProgress(curProject).pct + '%' }" />
                   </div>
                 </div>
                 <!-- R56-P1：恢复项目调度 4 指标卡（点击→弹窗下钻→任务点击开右侧抽屉） -->
@@ -975,7 +970,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
         <button class="bt-tab" :class="{ on: bottomTab === 'curio' }" @click="bottomTab = 'curio'">
           <Icon name="bulb" :size="14" />好奇心培育<span class="bt-cnt">{{ curioLiveCount }}</span>
         </button>
-        <span class="bt-hint">任务调度管全域任务 · 好奇心培育管待探索的问题</span>
       </div>
       <!-- 任务调度：默认 tab，常驻挂载 -->
       <div v-show="bottomTab === 'task'" class="bottom-pane">
@@ -1183,42 +1177,38 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .rec-mini.in-bar { background: transparent; border: none; padding: 0; }
 .rec-mini .rm-cell { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-2); padding: 2px 7px; border-radius: 99px; cursor: pointer; font-variant-numeric: tabular-nums; transition: all .12s; white-space: nowrap; }
 .rec-mini .rm-cell:hover { background: var(--accent-light); color: var(--accent); }
-.wr-entry { font-size: 11px; padding: 4px 10px; border-radius: 99px; }
-.wr-entry:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+/* R120-TB1：条内动作按钮（周报）——与今日记录四格同量级 */
+.mb-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 11px; padding: 3px 9px; border-radius: 99px; cursor: pointer; font-family: inherit; transition: all .12s; }
+.mb-act:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 
 /* 左右分栏 */
 /* R51-F10：上下联动——三件事在上占视觉焦点，项目调度在下 */
-/* R91：主攻速览条——与方向台 .mr-focus-bar 同款（≤40px 一行、全 tokens 变量），
-   差异只在多出的停滞警示与待办数（本条要回答的是"今天推哪个"，不只是"有哪些主攻"） */
-.ch-focus-strip { display: flex; align-items: center; gap: 8px; min-height: 34px; max-height: 40px; padding: 0 12px; margin-bottom: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
-.ch-focus-strip.empty { border-style: dashed; }
-.cf-label { flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--accent); }
-.cf-item { display: flex; align-items: center; gap: 6px; flex-shrink: 0; max-width: 280px; padding: 3px 10px; border-radius: 99px; background: var(--surface); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border)); color: var(--text); cursor: pointer; transition: all .12s; }
-.cf-item:hover { border-color: var(--accent); background: var(--accent-light); }
-/* 已完成的主攻仍要能看到（对齐 .fp-item.done 既有口径），只降透明度 */
+/* R120-TB1：合流方向条内元素（主攻 / 去方向台）——单行 ≤40px，全 tokens */
+.cf-label { flex-shrink: 0; font-size: 11.5px; font-weight: 600; color: var(--accent); }
+.cf-item { display: flex; align-items: center; gap: 5px; flex-shrink: 0; max-width: 260px; font-size: 12px; font-weight: 500; color: var(--text); cursor: pointer; }
+.cf-item:hover .cf-name { text-decoration: underline; }
 .cf-item.done { opacity: .55; }
-.cf-name { min-width: 0; font-size: 11.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cf-pct { flex-shrink: 0; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
-/* R91：手册承诺的「14 天无推进自动亮 ⚠ 停滞」在此兑现；--warning 令牌 R87 已确认存在 */
-.cf-stall { flex-shrink: 0; padding: 0 5px; border-radius: 99px; font-size: 10px; color: var(--warning); background: var(--surface-2); }
+.cf-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-pct { flex-shrink: 0; font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+/* R91 口径保留：14 天无推进亮 ⚠ 停滞；待办数为 10px 轻量标记 */
+.cf-stall { flex-shrink: 0; font-size: 10px; color: var(--warning); }
 .cf-open { flex-shrink: 0; font-size: 10px; color: var(--text-3); }
-.cf-go { flex-shrink: 0; margin-left: auto; font-size: 11px; color: var(--text-3); cursor: pointer; }
-.cf-go:hover { color: var(--accent); }
 .cf-hint { font-size: 11.5px; color: var(--text-3); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cf-hint:hover { color: var(--accent); }
+.cf-go { flex-shrink: 0; font-size: 11.5px; color: var(--text-3); cursor: pointer; }
+.cf-go:hover { color: var(--accent); }
 .split { display: flex; flex-direction: column; gap: 14px; margin-bottom: 4px; }
 .left-col { min-width: 0; }
 .right-col { min-width: 0; }
 
 /* R105（B4）：好奇心培育折叠摘要行——呼应 ModuleCard 的视觉语言（surface 底 + 发丝边） */
-/* R117（04-61 C1）：底部「任务调度 / 好奇心培育」双 tab（旧「好奇心培育」折叠一行摘要的降权策略随本策略退役） */
-.bottom-tabs { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
-.bt-tab { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 13px; font-weight: 600; border-radius: 8px; padding: 7px 16px; cursor: pointer; font-family: inherit; transition: all .13s; }
-.bt-tab:hover { border-color: var(--accent); color: var(--accent); }
-.bt-tab.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
-.bt-cnt { font-size: 11px; font-weight: 700; color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 0 7px; line-height: 17px; }
-.bt-tab.on .bt-cnt { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.bt-hint { margin-left: auto; font-size: 11px; color: var(--text-4); }
+/* R120-TB4：底部胶囊 Tab（对齐原型：pill 形态 + 中性选中态；计数为轻量 pill） */
+.bottom-tabs { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.bt-tab { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 12.5px; font-weight: 600; border-radius: 99px; padding: 5px 14px; cursor: pointer; font-family: inherit; transition: all .13s; }
+.bt-tab:hover { border-color: var(--border-strong); color: var(--text); }
+.bt-tab.on { border-color: var(--border-strong); background: var(--surface-3); color: var(--text); }
+.bt-cnt { font-size: 11px; font-weight: 700; color: var(--text-3); background: var(--surface-2); border-radius: 99px; padding: 0 7px; line-height: 17px; }
+.bt-tab.on .bt-cnt { color: var(--text-2); background: var(--surface); }
 .bottom-pane { min-height: 120px; }
 .module { margin-top: 0; }
 /* R67-F4：快捷键直达模块的高亮闪烁（滚动定位后 2.2s 渐隐） */
@@ -1251,13 +1241,16 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .date-nav .dn:hover { background: var(--surface-3); }
 .date-nav .dd { padding: 0 12px; font-size: 12px; font-weight: 500; border-left: 1px solid var(--border); border-right: 1px solid var(--border); min-width: 128px; text-align: center; }
 .today-body { padding: 0 20px 10px; }
-/* R53-C1：视觉强化——三件事模块为首页焦点 */
-.card.focus { border-color: color-mix(in srgb, var(--accent) 30%, transparent); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, var(--surface)), var(--surface) 70%); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent), var(--shadow); }
+/* R120-TB2：今日三件事——对齐原型（模块边框强调 + 方形勾选 + 编号右上 + 完成态安静收束），
+   ⚠ 功能不动：勾选/移除/复制昨日/导出/日期导航/双击开详情 全部保留 */
+.card.focus { border-color: var(--border-strong); background: var(--surface); box-shadow: var(--shadow-sm); }
+.card.focus:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent), var(--shadow-sm); }
 .card.focus .card-head .nm { font-size: 17px; font-weight: 700; color: var(--text); }
 .card.focus .card-head .ic { color: var(--accent); }
-.card.focus .tc-title { font-size: 15px; font-weight: 650; }
-.card.focus .tc-num { color: var(--accent); font-weight: 700; }
-.card.focus .today-card { padding: 10px 13px 9px; }
+.card.focus .tc-title { font-size: 13.5px; font-weight: 600; }
+.card.focus .tc-num { color: var(--text-4); font-weight: 700; }
+.card.focus .today-card { padding: 12px 14px; min-height: 84px; border-radius: var(--radius-md); }
+.card.focus .today-card:not(.empty-card):hover { transform: translateY(-1px); }
 .card.focus .today-card:not(.empty-card) { border-color: color-mix(in srgb, var(--accent) 22%, var(--border)); }
 .card.focus .today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 26%, transparent); }
 /* R94（B3）三件事全完成：**安静**完成态——整块轻微去饱和 + 一行中性小字。
@@ -1270,8 +1263,8 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cur-tree-caret { opacity: .7; }
 /* R52-F1：三件事横向并列——3 槽一行，压缩纵向空间 */
 .today-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.today-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 12px 6px; cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; }
-.today-card:hover { border-color: var(--border-strong); background: var(--surface); }
+.today-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; min-height: 84px; }
+.today-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
 .today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 22%, transparent); }
 .today-card.done { opacity: .6; animation: none; }
 .today-card.done .tc-title { text-decoration: line-through; color: var(--text-3); }
@@ -1282,10 +1275,11 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .today-card.stale-card { border-style: dashed; background: transparent; border-color: color-mix(in srgb, var(--tag-warn-text) 45%, var(--border)); }
 .today-card.stale-card:hover { border-color: var(--tag-warn-text); background: var(--surface); }
 .card.focus .today-card.stale-card { border-color: color-mix(in srgb, var(--tag-warn-text) 45%, var(--border)); }
-.tc-num { position: absolute; top: 10px; right: 12px; font-size: 11px; color: var(--text-3); font-weight: 600; }
+.tc-num { position: absolute; top: 12px; right: 14px; font-size: 12px; color: var(--text-4); font-weight: 700; font-variant-numeric: tabular-nums; }
 .tc-row { display: flex; align-items: flex-start; gap: 8px; }
-.tc-check { width: 16px; height: 16px; border-radius: 5px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 10px; color: #fff; background: var(--surface); margin-top: 2px; }
-.tc-check.done { background: var(--success); border-color: var(--success); }
+/* R120-TB2：方形勾选框（对齐原型：16px / 4px 圆角 / 1.5px 边框 / 选中随主题强调色） */
+.tc-check { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 10px; color: #fff; background: var(--surface); margin-top: 2px; transition: all .15s; }
+.tc-check.done { background: var(--accent); border-color: var(--accent); }
 .tc-title { font-size: 14px; font-weight: 600; line-height: 1.4; flex: 1; }
 .tc-title.empty-t { color: var(--text-3); font-weight: 400; }
 .tc-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
@@ -1302,24 +1296,28 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cur-col-l, .cur-col-r { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .cur-proj-name { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: .3px; }
 /* R67-F1：项目名大字移入紫框内（战略目标小字上 → 项目名大字下），顶部独立行删除 */
-.cur-proj-name.big { font-size: 21px; margin-top: 3px; }
+.cur-proj-name.big { font-size: 15px; font-weight: 700; margin-top: 4px; }
 /* R66-F2：愿景/使命模块呈现移除（数据保留在方向台），样式一并退役 */
-.cur-goal { background: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius: var(--radius-sm); padding: 12px 14px; }
-.cur-goal-lab { font-size: 9.5px; font-weight: 700; color: var(--accent); letter-spacing: 1px; margin-bottom: 4px; }
-.cur-goal-name { font-size: 16px; font-weight: 700; color: var(--accent); line-height: 1.4; }
-.cur-goal-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
-.cur-goal-pct { font-size: 11px; color: var(--text-2); }
-.cur-goal-link { font-size: 11px; color: var(--accent); cursor: pointer; margin-left: auto; }
+/* R120-TB3：项目概要面板——对齐原型（中性面板 + 战略目标 badge + 项目名 + 元信息 + 进度条 + 2×2 数值） */
+.cur-goal { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; }
+.cur-goal-lab { font-size: 11px; font-weight: 600; color: var(--accent); letter-spacing: .03em; margin-bottom: 2px; }
+.cur-goal-name { font-size: 13px; font-weight: 600; color: var(--accent); line-height: 1.45; }
+.cur-goal-meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.cur-goal-pct { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.cur-goal-link { font-size: 11.5px; color: var(--accent); cursor: pointer; margin-left: auto; }
 .cur-goal-link:hover { text-decoration: underline; }
-/* R56-P1：项目调度 4 指标卡 ｜ R57-F2：两两一行排成两行（省横向空间） */
+/* R120-TB3：进度条（5px，对齐原型；宽度=项目进度既有口径） */
+.cur-progress { height: 5px; margin-top: 10px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+.cur-progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .25s ease; }
+/* R56-P1：项目调度 4 指标卡 ｜ R57-F2：两两一行 ｜ R120-TB3：原型 mini box（左对齐 / 14px 数值 / 11px 标签） */
 .cur-stats-v2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
-.csv-cell { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 4px; text-align: center; }
+.csv-cell { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; text-align: left; }
 .csv-cell.clickable { cursor: pointer; transition: all .12s; }
 .csv-cell.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
-.csv-num { font-size: 16px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.csv-num { font-size: 14px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.25; }
 .csv-num.ok { color: var(--success); }
-.csv-num.warn { color: var(--warning, #e67e22); }
-.csv-lab { font-size: 9.5px; color: var(--text-3); margin-top: 1px; }
+.csv-num.warn { color: var(--warning); }
+.csv-lab { font-size: 11px; color: var(--text-3); margin-top: 1px; }
 /* R54-B1：分栏拖拽分隔条 */
 /* R55-E2：分隔条常显可见（细线）+ hover/拖动增强，命中区 8px */
 .cur-split { width: 8px; border-radius: 99px; cursor: col-resize; background: transparent; transition: background .15s; align-self: stretch; position: relative; }
@@ -1334,13 +1332,13 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cur-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 6px; text-align: center; }
 .cs-num { font-size: 22px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
 .cs-num.ok { color: var(--success); }
-.cs-num.warn { color: var(--warning, #e67e22); }
+.cs-num.warn { color: var(--warning); }
 .cs-lab { font-size: 10px; color: var(--text-3); margin-top: 2px; }
-/* R57-F2：指标组两两并列（两列网格）；新增指标/空态/输入行跨双列 */
-.cur-groups { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; align-items: start; }
+/* R120-TB3：任务树列——对齐原型（白底 + 发丝边 + 表头分隔线；两列排布沿用 R57-F2） */
+.cur-groups { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-items: start; }
 .cur-groups > .cg-empty, .cur-groups > .cur-add-metric, .cur-groups > .cur-add-metric-link { grid-column: 1 / -1; }
-.cur-group { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
-.cg-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--surface-3); cursor: pointer; user-select: none; }
+.cur-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.cg-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: transparent; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
 /* R52-F2：指标组折叠 caret */
 .cg-caret { width: 12px; text-align: center; font-size: 10px; color: var(--text-3); transition: transform .15s; flex-shrink: 0; }
 .cg-caret.open { transform: rotate(90deg); }
@@ -1363,13 +1361,14 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cam-input:focus { border-color: var(--accent); }
 .cur-add-metric-link { margin: 2px 0 0; padding: 7px 10px; font-size: 12px; color: var(--text-3); border: 1px dashed var(--border); border-radius: 8px; cursor: pointer; text-align: center; transition: all .12s; }
 .cur-add-metric-link:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
-.cg-tasks { padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 4px; }
-.cg-task { display: flex; align-items: center; gap: 8px; padding: 6px 9px; border-radius: 7px; cursor: pointer; transition: background .12s; }
-.cg-task:hover { background: var(--surface); }
+.cg-tasks { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 4px; }
+.cg-task { display: flex; align-items: center; gap: 8px; padding: 4px 4px; border-radius: 7px; cursor: pointer; transition: background .12s; }
+.cg-task:hover { background: var(--surface-2); }
 .cg-task.is-done .cg-t { text-decoration: line-through; color: var(--text-3); }
-.cg-dot { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border-strong); color: var(--text-3); }
-.cg-dot.st-doing { color: var(--tag-warn-text); border-color: var(--tag-warn-text); }
-.cg-dot.st-done { background: var(--success); border-color: var(--success); color: #fff; }
+/* R120-TB3：12px 状态环（对齐原型；doing/done 保留语义色与微标记以便辨识） */
+.cg-dot { width: 12px; height: 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; line-height: 1; flex-shrink: 0; background: transparent; border: 1.5px solid var(--text-4); color: var(--text-4); }
+.cg-dot.st-doing { border-color: var(--tag-warn-text); color: var(--tag-warn-text); }
+.cg-dot.st-done { background: var(--text-4); border-color: var(--text-4); color: var(--surface); }
 .cg-t { font-size: 12.5px; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cg-st { font-size: 10px; color: var(--text-4); flex-shrink: 0; }
 .cg-empty { font-size: 11px; color: var(--text-4); text-align: center; padding: 8px; }
