@@ -45,7 +45,7 @@ export const MANUAL: ManualPart[] = [
           <tr><td>1</td><td>快速采集</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> 任意网页</td><td>5 秒</td></tr>
           <tr><td>2</td><td>三秒搜索</td><td><kbd>Ctrl</kbd>+<kbd>K</kbd> 全场景（任意网页浮层 / newtab 内）</td><td>3 秒</td></tr>
           <tr><td>3</td><td>追想法念头</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd></td><td>10 秒</td></tr>
-          <tr><td>4</td><td>一键直跳</td><td>双击搜索结果（单击开详情 / 双击跳转链接）</td><td>0 思考</td></tr>
+          <tr><td>4</td><td>一键直跳</td><td>搜索结果：单击 / <kbd>Enter</kbd> 打开链接 · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> 定位到卡片所在处</td><td>0 思考</td></tr>
           <tr><td>5</td><td>方向管理</td><td>方向台（愿景 / 使命 / 战略目标 / 项目 / 指标 / 任务）</td><td>锚定主攻</td></tr>
           <tr><td>6</td><td>完整导出</td><td>设置 → 导出全部数据</td><td>一份 JSON</td></tr>
         </table>
@@ -146,6 +146,7 @@ export const MANUAL: ManualPart[] = [
           <li><kbd>Tab</kbd> 循环过滤类型，或输入「任务」「资源」「好奇」「策展台」「项目」+ Tab 直达。</li>
           <li><strong>策展台类型 = 分类树</strong>：展示每个策展台下的分类与卡片数；单击分类即定位——分类下有卡则高亮第一张，无卡则高亮分类行本身。</li>
           <li><strong>项目类型</strong>：列出全部项目（🎯 主攻/已完成标记），单击直达项目详情。</li>
+          <li><strong>结果键位（单击 / Enter / Ctrl+Enter 三键）</strong>：单击或 <kbd>Enter</kbd> = <b>打开卡片链接</b>（无链接或本地路径不完整时自动降级为定位到卡片所在处）；<kbd>Ctrl</kbd>+<kbd>Enter</kbd> = <b>仅定位到卡片所在处</b>（高亮，不打开详情）。网页浮层与新标签页内搜索<strong>键位一致</strong>。</li>
           <li>选中结果按 <kbd>Ctrl</kbd>+<kbd>C</kbd> 复制 Markdown 引用（标题+链接）。</li>
         </ul>
         <div class="mc-warn">⚠ chrome:// 等不可注入页面会自动改用独立小窗，体验一致。</div>
@@ -395,7 +396,7 @@ export const MANUAL: ManualPart[] = [
           <tr><th>场景</th><th>按键</th><th>作用</th></tr>
           <tr><td rowspan="6">全局（任意网页）</td><td><kbd>Ctrl+Shift+J</kbd></td><td>快速采集资源卡</td></tr>
           <tr><td><kbd>Ctrl+Shift+I</kbd></td><td>采集好奇心（选中文字附带来源）</td></tr>
-          <tr><td><kbd>Ctrl+K</kbd></td><td>全局搜索（空查询=快捷操作+最近打开）</td></tr>
+          <tr><td><kbd>Ctrl+K</kbd></td><td>全局搜索（空查询=快捷操作+最近打开；结果：单击/<kbd>Enter</kbd> 打开链接 · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> 定位）</td></tr>
           <tr><td><kbd>Ctrl+Shift+K</kbd></td><td>打开调度台</td></tr>
           <tr><td>（自定义）</td><td>打开方向台 / 打开资源台 / 打开完整方向树 / 打开设置——在 <code>chrome://extensions/shortcuts</code> 分配；<b>快速采集任务</b>（R66 对齐好奇心速记）——选中网页文字后按键：选中文本自动填入任务内容、网页标题填入任务名称、当前页链接填入链接字段（均可编辑可清除）；不选文字则为空表单；保存进全域任务；<b>同步到 Airtable</b>（R63）——任意位置一键触发单向同步（需先在设置完成连接配置）</td></tr>
           <tr><td></td><td></td></tr>

@@ -40,8 +40,8 @@
             <div class="gp-group-title">🔥 近期最常用 · 按调用次数</div>
             <div v-for="(r, j) in recentResources" :key="r.id"
               class="gp-result-item" :class="{selected: selIndex===QUICK_ACTIONS.length+j}"
-              @click="runFlat(QUICK_ACTIONS.length+j)" @dblclick="runFlat(QUICK_ACTIONS.length+j)" @mouseenter="selIndex=QUICK_ACTIONS.length+j"
-              :title="'单击 → 打开链接（无链接则定位） · Ctrl+Enter → 定位并打开详情'">
+              @click="runFlat(QUICK_ACTIONS.length+j)" @mouseenter="selIndex=QUICK_ACTIONS.length+j"
+              :title="'单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'">
               <div class="gp-ri-icon" :class="r.iconClass">{{ r.iconText }}</div>
               <div class="gp-ri-main"><div class="gp-ri-title">{{ r.title }}</div>
                 <div class="gp-ri-cat">{{ r.ws }}<template v-if="r.cat"> · {{ r.cat }}</template></div>
@@ -61,7 +61,7 @@
           <template v-for="wsn in wsTree" :key="wsn.id">
             <div class="gp-group-title">🗂 {{ wsNameOf(wsn.id) }} <span class="gp-group-cnt">{{ wsn.cards }} 张卡</span></div>
             <div v-for="cn in wsn.cats" :key="wsn.id + '-' + cn.id"
-              class="gp-result-item" @click="locateCat(wsn.id, cn)" @dblclick="locateCat(wsn.id, cn)"
+              class="gp-result-item" @click="locateCat(wsn.id, cn)"
               title="单击 → 定位到该分类（有卡高亮第一张，无卡高亮分类行）">
               <div class="gp-ri-icon ws">📁</div>
               <div class="gp-ri-main">
@@ -89,8 +89,8 @@
           <div class="gp-group-title">{{ grp.label }} <span class="gp-group-cnt">{{ grp.total }}</span></div>
           <div v-for="item in grp.items" :key="item.id"
             class="gp-result-item" :class="{selected: item.id===selectedId}"
-            @click="selectItem(item)" @dblclick="selectItem(item)" @mouseenter="selectHover(item)"
-            :title="'单击 → 定位到卡片所在处并高亮 · ↗ → 打开链接 · Ctrl+Enter → 定位并打开详情'">
+            @click="pickRow(item)" @mouseenter="selectHover(item)"
+            :title="'单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'">
             <div class="gp-ri-icon" :class="item.iconClass">{{ item.iconText }}</div>
             <div class="gp-ri-main">
               <div class="gp-ri-title" v-html="hlTitle(item.title)"></div>
@@ -134,7 +134,8 @@
       </div>
       <div class="gp-panel-foot">
         <span><kbd>↑↓</kbd> 选择</span>
-        <span><kbd>⏎</kbd> 定位</span>
+        <span><kbd>⏎</kbd> 打开链接</span>
+        <span><kbd>Ctrl+⏎</kbd> 定位卡片</span>
         <span><kbd>Tab</kbd> 过滤类型</span>
         <span><kbd>Esc</kbd> 关闭</span>
         <span class="gp-foot-brand">知源调度台 · 万千可调用，自有我方向</span>
@@ -350,7 +351,6 @@ import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/share
 import { recordResourceOpen, recordCardOpen, recordWorkspaceOpen } from '@/shared/storage/stats'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { useConfirm } from '@/shared/components/confirm'
-import { emitOpenDrawer } from '@/shared/utils/bus'
 import Icon from '@/shared/components/Icon.vue'
 import type { ResourceCard, TaskCard, CuriosityCard, Workspace, Category, AnyCard } from '@/shared/models'
 import { markRank } from '@/shared/utils/marksort'
@@ -811,46 +811,59 @@ function hlTitle(title: string): string {
     + escapeHtmlTitle(title.slice(i + q.length))
 }
 function runFlat(index: number) {
-  // 第卅六轮 REQ-039：双击 / Enter 键行为 —— 直开链接 / 跳路由（保留原 openItem 直开逻辑）
+  // R120 键位统一：单击 / Enter —— 打开卡片链接（无链接则定位到卡片所在处）
   const it = flatList.value[index]
   if (!it) return
   if (it.kind === 'qa') { it.qa.run(); return }
-  openItem(it.item)
+  openLinkOrLocate(it.item)
 }
 
 function runFlatLocator(index: number) {
-  // 第卅六轮 REQ-039：单击搜索结果 → 跳转到对应视图 + 携带 drawer 打开详情（与 content script 一致）
+  // R120 键位统一：Ctrl+Enter —— **仅定位到卡片所在处**（不再打开详情抽屉）
   const it = flatList.value[index]
   if (!it) return
   if (it.kind === 'qa') { it.qa.run(); return }
-  const item = it.item
+  locateOnly(it.item)
+}
+
+/** R120 键位统一：单击 / Enter —— 打开卡片链接优先；无链接/不可打开则定位到卡片所在处 */
+function openLinkOrLocate(item: SearchResult) {
   if (item.type === 'res') {
     const r = item.raw as ResourceCard
-    // R117（04-61 B）：hk 显式分派（定位/高亮的消费者按 kind 认领）
-    router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: item.id, hk: 'res' } })
+    if (toOpenableUrl(r.linkType, r.link)) { openResLink(item); return }
+    openItem(item)
+    return
+  }
+  // task / curio / proj / ws：无"外链"概念，走既有打开语义
+  // （ws 打开策展台、proj 打开项目详情、task/curio 定位到卡片所在处）
+  openItem(item)
+}
+
+/** R120 键位统一：Ctrl+Enter —— 仅定位到卡片所在处（资源卡带所在分类；不开详情抽屉） */
+function locateOnly(item: SearchResult) {
+  if (item.type === 'res') {
+    const r = item.raw as ResourceCard
+    const query: Record<string, string> = { hl: item.id, hk: 'res' }
+    if (r.categoryId) query.cat = r.categoryId
+    router.push({ path: `/workspace/${r.workspaceId}`, query })
     closeAll()
-    emitOpenDrawer({ kind: 'res', id: item.id })
+    showToast('🎯 已定位到卡片所在处')
     return
   }
   if (item.type === 'task') {
     router.push({ path: '/', query: { hl: item.id, hk: 'task' } })
     closeAll()
-    emitOpenDrawer({ kind: 'task', id: item.id })
+    showToast('🎯 已定位到任务卡片')
     return
   }
   if (item.type === 'curio') {
     router.push({ path: '/', query: { hl: item.id, hk: 'curio' } })
     closeAll()
-    emitOpenDrawer({ kind: 'curio', id: item.id })
+    showToast('🎯 已定位到好奇心卡片')
     return
   }
-  if (item.type === 'ws') {
-    router.push({ path: `/workspace/${item.id}` })
-    closeAll()
-    emitOpenDrawer({ kind: 'ws', id: item.id })
-    return
-  }
-  closeAll()
+  // ws / proj：打开目标页即视为"定位到所在处"
+  openItem(item)
 }
 
 function runSearch() { /* reactive, no-op */ }
@@ -863,7 +876,7 @@ function onSearchKeydown(e: KeyboardEvent) {
   else if (e.key === 'Enter') {
     e.preventDefault()
     if (selIndex.value < 0 || selIndex.value >= flatList.value.length) return
-    // 第卅七轮 REQ-045：Enter=开链接（无链接定位）；Ctrl+Enter=定位并打开详情抽屉
+    // R120 键位统一：Enter = 打开卡片链接（无链接则定位）；Ctrl+Enter = 仅定位到卡片所在处
     if (e.ctrlKey || e.metaKey) runFlatLocator(selIndex.value)
     else runFlat(selIndex.value)
   }
@@ -892,14 +905,15 @@ function scrollToSelected() {
 }
 
 /**
- * R60-1：点击 / 双击搜索结果 —— 直接以「结果对象」为准，彻底绕开下标。
+ * R60-1：点击搜索结果 —— 直接以「结果对象」为准，彻底绕开下标。
  * 原实现 `openItem(filteredResults.value[i])`，模板传入的 i = grp.offset+j，
  * 而 offset 是按类型分组累计的，与排序后的混合列表下标并不对应 → 点 A 开 B。
+ * R120 键位统一：单击 = 打开卡片链接（无链接则定位）；双击不单独定义（300ms 去重保证不双开）。
  */
-function selectItem(item: SearchResult) {
+function pickRow(item: SearchResult) {
   selectedId.value = item.id
   syncIndexFromId()
-  openItem(item)
+  openLinkOrLocate(item)
 }
 /** R60-1：hover 只改高亮不开卡，同样以 id 为准（保证 Enter 打开的与高亮的是同一条） */
 function selectHover(item: SearchResult) {
@@ -1044,7 +1058,8 @@ const SHORTCUT_GROUPS = [
     { keys: 'Ctrl+Enter', desc: '保存并关闭（所有弹窗/抽屉）' },
     { keys: 'Esc', desc: '逐层关闭（浮层→抽屉→展板）' },
     { keys: 'Tab', desc: '搜索内循环切换类型' },
-    { keys: '↑↓ / Enter', desc: '搜索结果选择与打开' },
+    { keys: '↑↓ / Enter', desc: '搜索结果选择 / 打开链接' },
+    { keys: 'Ctrl+Enter（搜索内）', desc: '定位到卡片所在处' },
     { keys: '双击', desc: '打开卡片链接（三卡一致）' },
     { keys: '右键', desc: '卡片上下文菜单' },
   ]},

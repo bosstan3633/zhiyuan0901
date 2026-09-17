@@ -86,7 +86,7 @@ check('B9 已保存态 Enter 监听', () => read('/content/search-overlay.ts').i
 console.log('【B组 修复】');
 check('B1/B2 任务抽屉级联+Ctrl+Enter 容器级', () => read('/newtab/components/compass/TaskDetailDrawer.vue').includes('onSelProjectChange') && read('/newtab/components/compass/TaskDetailDrawer.vue').includes('task-sidebar" :style="{ width: drawerW + \'px\' }" @keydown.ctrl.enter.prevent'));
 check('B3 单例询问链路（zy-where）', () => read('/background/index.ts').includes('zy-where'));
-check('B4 搜索定位（R117 重写：单击=定位到卡片所在处，外开降级为行内 ↗）：资源卡→所在台 hl+hk:res / 任务卡→调度台 hl+hk:task / 好奇卡→调度台 hl+hk:curio', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes("query: { hl: item.id, hk: 'res' }") && g.includes("query: { hl: item.id, hk: 'task' }") && g.includes("query: { hl: item.id, hk: 'curio' }") && g.includes('function openResLink'); });
+check('B4/R120 搜索两入口统一：单击/Enter=开链（openLinkOrLocate）· Ctrl+Enter=仅定位（locateOnly：hl+hk 三件套 + cat）· 行内 ↗ 保留', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes('function openLinkOrLocate') && g.includes('function locateOnly') && g.includes("hk: 'res'") && g.includes("hk: 'task'") && g.includes("hk: 'curio'") && g.includes('function openResLink'); });
 check('B10 open-dashboard 复用标签页', () => read('/background/index.ts').includes('B10：已有新标签页则聚焦回归'));
 check('B11/B29 搜索 Tab 循环切换类型', () => read('/content/search-overlay.ts').includes('cycle.indexOf') && read('/newtab/components/GlobalPopups.vue').includes('cycle.indexOf'));
 
@@ -440,7 +440,7 @@ check('R36-12 REQ-039-③ CuriosityPanel 接 kind=curio 抽屉总线', () => { c
 check('R36-13 REQ-039-③ CompassTree 接 kind=project 抽屉总线', () => { const src = read('/newtab/views/CompassTree.vue'); return src.includes('onOpenDrawer') && src.includes("if (p.kind === 'project')"); });
 check('R36-14 REQ-039-① App.vue zy-route 监听扩展 drawer 参数', () => { const src = read('/newtab/App.vue'); return src.includes("msg?.type === 'zy-route'") && src.includes('emitOpenDrawer(msg.drawer)') && src.includes('msg.drawer'); });
 check("R36-15 REQ-039-④ content script 单击/双击分离（openSearchLocator + 双击走原 openSearchResult）", () => { const src = read('/content/search-overlay.ts'); return src.includes('function openSearchLocator') && src.includes("addEventListener('dblclick'") && src.includes('title = '); });
-check('R36-16 REQ-039-⑤ GlobalPopups 单击开链接 + Ctrl+Enter 定位抽屉（R60：点击改对象直传 selectItem）', () => { const src = read('/newtab/components/GlobalPopups.vue'); return src.includes('runFlatLocator') && src.includes('@click="selectItem(item)"') && src.includes('@dblclick="selectItem(item)"'); });
+check('R36-16/R120 GlobalPopups 单击=开链（pickRow→openLinkOrLocate）+ Ctrl+Enter=仅定位（runFlatLocator→locateOnly）+ 结果行不再绑双击', () => { const src = read('/newtab/components/GlobalPopups.vue'); return src.includes('function runFlatLocator') && src.includes('@click="pickRow(item)"') && !src.includes('@dblclick="pickRow(item)"') && !src.includes('@dblclick="selectItem(item)"'); });
 check('R36-17 REQ-039 Enter 键走开链接（Ctrl+Enter 走定位+抽屉，R38 固化后）', () => { const src = read('/newtab/components/GlobalPopups.vue'); return src.includes("if (e.ctrlKey || e.metaKey) runFlatLocator(selIndex.value)") && src.includes('else runFlat(selIndex.value)'); });
 
 console.log('【第卅六轮 · V2.14.1 第三批：REQ-041 产品文案与对外呈现】');
@@ -481,9 +481,9 @@ check('R37-12 REQ-044 旧浅表述「17 个 AI 工具入口」已从 README 移�
 console.log('【第卅八轮 · V2.14.3 第一批：REQ-045 搜索交互固化（单击/Enter 开链接，Ctrl+Enter 定位+抽屉）】');
 check('R38-1 REQ-045 background zy-open-route 支持 drawer 透传（修复单击落空根因）', () => { const s = read('/background/index.ts'); return s.includes('const drawer') && s.includes('...(drawer ? { drawer } : {})'); });
 check('R38-2 REQ-045 content 单击 = 开链接（bindResultEvents click → openSearchResult）', () => { const s = read('/content/search-overlay.ts'); const m = s.match(/addEventListener\('click', \(\) => \{([\s\S]*?)openSearchResult/); return !!m; });
-check('R38-3 REQ-045 content Enter=开链接 / Ctrl+Enter=定位+抽屉（R60：id 锚定 selItem）', () => { const s = read('/content/search-overlay.ts'); return s.includes("if (e.ctrlKey || e.metaKey)") && s.includes('openSearchLocator(selItem)') && s.includes('openSearchResult(selItem)'); });
-check('R38-4 REQ-045 content 定位消息走 zy-open-route（不再用无分支的 zy-route）', () => { const s = read('/content/search-overlay.ts'); return s.includes("type: 'zy-open-route', route, drawer") && !s.includes("type: 'zy-route', route, drawer"); });
-check('R38-5 REQ-045 GlobalPopups 单击 = 开链接（R60：selectItem 对象直传，无 selectResultLocator）', () => { const s = read('/newtab/components/GlobalPopups.vue'); return s.includes('@click="selectItem(item)"') && !s.includes('selectResultLocator'); });
+check('R38-3/R120 content Enter=开链 / Ctrl+Enter=仅定位（openSearchLocator 不再透传 drawer，改带 hl+hk 路由）', () => { const s = read('/content/search-overlay.ts'); return s.includes('openSearchLocator(selItem)') && s.includes('openSearchResult(selItem)') && !s.includes("route, drawer }") && s.includes("/?hl="); });
+check('R38-4/R120 content 定位消息走 zy-open-route（不再用无分支的 zy-route；R120 起不再透传 drawer）', () => { const s = read('/content/search-overlay.ts'); return s.includes("type: 'zy-open-route', route") && !s.includes("route, drawer") && !s.includes("type: 'zy-route', route, drawer"); });
+check('R38-5/R120 GlobalPopups 单击 = 开链接（pickRow 对象直传 → openLinkOrLocate，无 selectResultLocator）', () => { const s = read('/newtab/components/GlobalPopups.vue'); return s.includes('@click="pickRow(item)"') && s.includes('function openLinkOrLocate') && !s.includes('selectResultLocator'); });
 check('R38-6 REQ-045 GlobalPopups Enter=runFlat / Ctrl+Enter=runFlatLocator', () => { const s = read('/newtab/components/GlobalPopups.vue'); return s.includes("if (e.ctrlKey || e.metaKey) runFlatLocator(selIndex.value)") && s.includes('else runFlat(selIndex.value)'); });
 check('R38-7 REQ-045 双击去重防双开（300ms 同项）', () => { const s1 = read('/content/search-overlay.ts'); const s2 = read('/newtab/components/GlobalPopups.vue'); return s1.includes('lastOpenId') && s1.includes('now - lastOpenTs < 300') && s2.includes('lastOpenId') && s2.includes('now - lastOpenTs < 300'); });
 console.log('【第卅八轮 · V2.14.3 第二批：REQ-046 交互响应速度优化（速度第一）】');
@@ -986,7 +986,7 @@ check('R59-11 版本五处同步', () => { const m = read('/manifest.ts'); const
 check('R59-12 E2E-20 注册（空指标接收任务拖拽）', () => { const e = fs.readFileSync(path.resolve(__dirname, 'e2e.cjs'), 'utf8'); return e.includes('E2E-20'); });
 
 console.log('【R60 组 检索 id 锚定 · 灯塔退役 · DHI 新口径】');
-check('R60-1 路径B id 锚定：selectedId 状态 + selectItem/selectHover（对象直传，模板不再按下标 selectResult）', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes('const selectedId = ref') && g.includes('function selectItem(item: SearchResult)') && g.includes('function selectHover(item: SearchResult)') && g.includes('@click="selectItem(item)"') && !g.includes('selectResult('); });
+check('R60-1/R120 路径B id 锚定：selectedId 状态 + pickRow/selectHover（对象直传，模板不再按下标 selectResult）', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes('const selectedId = ref') && g.includes('function pickRow(item: SearchResult)') && g.includes('function selectHover(item: SearchResult)') && g.includes('@click="pickRow(item)"') && !g.includes('selectResult('); });
 check('R60-2 路径B 补跑锚定：换词/类型重置锚点 + 结果集变化按 id 恢复（不再无条件弹回第一条）', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes("watch([searchQuery, currentType], () => { selectedId.value = '' })") && g.includes('x.item.id === selectedId.value') && /watch\(filteredResults[\s\S]{0,300}selIndex\.value = i; return/.test(g); });
 check('R60-3 路径A id 锚定：searchSelId 状态 + Enter 优先按 id 解析 + mouseenter 同步', () => { const o = read('/content/overlay-impl.ts'); return o.includes('let searchSelId') && o.includes("searchSelId = e.dataset.id || ''") && o.includes("searchResults.find((r: any) => String(r?.id || '') === searchSelId)") && o.includes('openSearchLocator(selItem)'); });
 check('R60-4 灯塔字段零引用：全部业务文件无 pinnedToLighthouse 字段读写（迁移清理字符串除外）', () => { const files = ['/shared/models/index.ts', '/newtab/stores/compass.ts', '/newtab/stores/app.ts', '/newtab/components/GlobalPopups.vue', '/content/overlay-impl.ts', '/newtab/views/ProjectCuration.vue', '/newtab/views/CompassShell.vue', '/newtab/views/GlobalSettings.vue', '/newtab/components/compass/LighthousePanel.vue', '/newtab/components/compass/MetricDrillDrawer.vue', '/shared/storage/defaults.ts', '/shared/storage/migration.ts']; return files.every(f => !/pinnedToLighthouse\??\s*[=:]/.test(read(f))); });
@@ -3385,6 +3385,15 @@ check('R116-4 列底入口样式就位（.kc-more 于 workspace.css，hover 下�
   return s.includes('.kc-more { text-align: center; padding: 8px 0 4px; font-size: 12px; color: var(--accent); cursor: pointer; user-select: none; }')
     && s.includes('.kc-more:hover { text-decoration: underline; }');
 });
+
+// ============== 第一百二十轮 · V2.88.0：搜索键位统一（两入口：单击/Enter=开链 · Ctrl+Enter=仅定位） ==============
+console.log('【R120 · V2.88.0：搜索键位统一（网页浮层 / 应用内搜索）】');
+check('R120-1 网页浮层 Ctrl+Enter=仅定位：openSearchLocator 不再透传 drawer，改 hl+hk(+cat) 路由 + 定位 toast', () => { const s = read('/content/overlay-impl.ts'); return s.includes('function openSearchLocator') && !s.includes('drawer: { kind') && s.includes('&hk=res') && s.includes('&hk=task') && s.includes('&hk=curio') && s.includes('已定位到卡片所在处'); });
+check('R120-2 网页浮层 单击/Enter=开链：openSearchResult 保留（无链接降级定位）+ 行 title 文案统一', () => { const s = read('/content/overlay-impl.ts'); return s.includes('function openSearchResult') && s.includes('单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'); });
+check('R120-3 应用内 单击/Enter=开链优先：openLinkOrLocate（资源卡有可打开链接→openResLink；否则 openItem）+ pickRow 绑定', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes('function openLinkOrLocate') && g.includes('toOpenableUrl(r.linkType, r.link)') && g.includes('openResLink(item)') && g.includes('@click="pickRow(item)"'); });
+check('R120-4 应用内 Ctrl+Enter=仅定位：locateOnly（hl+hk+cat，无 emitOpenDrawer）+ runFlatLocator 指向', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes('function locateOnly') && g.includes('locateOnly(it.item)') && !g.includes('emitOpenDrawer'); });
+check('R120-5 手册与键位提示同步：搜索章节三键说明 + 底部键位条 + 快捷键清单', () => { const m = read('/newtab/manual-data.ts'); const g = read('/newtab/components/GlobalPopups.vue'); return m.includes('结果键位（单击 / Enter / Ctrl+Enter 三键）') && m.includes('打开卡片链接') && g.includes('<kbd>Ctrl+⏎</kbd> 定位卡片') && g.includes("desc: '定位到卡片所在处'"); });
+
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

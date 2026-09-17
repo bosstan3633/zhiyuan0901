@@ -801,9 +801,9 @@ function bindResultEvents(el: HTMLElement) {
   }
   el.querySelectorAll('.zy-result-item').forEach(elm => {
     const e = elm as HTMLElement
-    // 第卅七轮 REQ-045：交互固化——单击/Enter=开链接（无链接则定位）；Ctrl+Enter=定位+详情抽屉；双击=开链接（去重防双开）
+    // R120 键位统一：单击 / Enter = 打开卡片链接（无链接则定位）；Ctrl+Enter = 仅定位到卡片所在处；双击不单独定义（去重）
     const focusElm = e.querySelector('.zy-ri-focus')
-    e.title = '单击 → 打开链接（无链接则定位） · Ctrl+Enter → 定位并打开详情' + (focusElm ? ' · → 加入今日三件事' : '')
+    e.title = '单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处' + (focusElm ? ' · → 加入今日三件事' : '')
     // R55-H2：🗑 直接删除（无二次确认，软删进回收站）——先于行点击，阻断打开链接
     const delBtn = e.querySelector('.zy-ri-del') as HTMLElement | null
     if (delBtn) {
@@ -1097,16 +1097,16 @@ function onSearchKeydown(e: KeyboardEvent) {
       searchResults[searchSelIndex]
     if (selItem) {
       if (e.ctrlKey || e.metaKey) {
-        // Ctrl+Enter：定位到卡片所在处并打开详情抽屉
+        // R120：Ctrl+Enter = 仅定位到卡片所在处（不打开详情抽屉）
         openSearchLocator(selItem)
       } else {
-        // Enter：直接打开链接（无链接则定位）
+        // R120：Enter = 打开链接（无链接则定位到卡片所在处）
         openSearchResult(selItem)
       }
     }
   } else if (e.key === 'ArrowRight') {
     // R78（A7-c）：→ 加入今日三件事（仅任务卡）。两处克制：
-    // ① 不动 Ctrl+Enter——它已是「定位并打开详情抽屉」；
+    // ① 不动 Ctrl+Enter——它已是「仅定位到卡片所在处」；
     // ② → 在搜索框里本就是「光标右移」，故仅当光标已在末尾（右移本就无意义）时才截获，不抢编辑键位。
     const inp = document.getElementById('__zy_si__') as HTMLInputElement | null
     const atEnd = !inp || (inp.selectionStart === inp.value.length && inp.selectionEnd === inp.value.length)
@@ -1155,33 +1155,41 @@ function onSearchKeydown(e: KeyboardEvent) {
 }
 
 function openSearchLocator(item: any) {
-  // 第卅七轮 REQ-045：Ctrl+Enter / 定位专用 —— 跳转到对应视图 + 打开详情抽屉
-  // 走 zy-open-route（background 有处理）+ 透传 drawer 参数（background 转发给宿主 newtab）
-  const send = (route: string, drawer: { kind: string; id: string }) => {
-    safeSend({ type: 'zy-open-route', route, drawer })
+  // R120 键位统一：Ctrl+Enter = **仅定位到卡片所在处**（不再打开详情抽屉）。
+  // 单击/Enter = 打开卡片链接（见 openSearchResult）；两入口（网页浮层 / 应用内搜索）语义一致。
+  // 走 zy-open-route（background 有处理），携带 hl + hk（+ 资源卡带 cat）供消费端认领高亮。
+  const openRoute = (route: string) => {
+    safeSend({ type: 'zy-open-route', route })
   }
   if (item.type === 'qa') {
-    safeSend({ type: 'zy-open-route', route: item.qa.route })
+    openRoute(item.qa.route)
     closeOverlay()
     return
   }
   if (item.type === 'ws') {
-    send('/workspace/' + item.id, { kind: 'ws', id: item.id })
+    // 策展台条目：打开该台（工作台 id 非卡片 id，不带 hl）
+    openRoute('/workspace/' + item.id)
+    showToast('🎯 已定位到策展台')
     closeOverlay()
     return
   }
   if (item.type === 'proj') {
-    send('/compass/projects?p=' + item.id, { kind: 'project', id: item.id })
+    openRoute('/compass/projects?p=' + item.id)
+    showToast('🎯 已定位到项目详情')
     closeOverlay()
     return
   }
   if (item.type === 'res') {
-    send('/workspace/' + item.raw.workspaceId, { kind: 'res', id: item.id })
+    const r = item.raw || {}
+    const cat = r.categoryId ? '&cat=' + encodeURIComponent(String(r.categoryId)) : ''
+    openRoute('/workspace/' + r.workspaceId + '?hl=' + item.id + '&hk=res' + cat)
+    showToast('🎯 已定位到卡片所在处')
   } else if (item.type === 'task') {
-    send('/', { kind: 'task', id: item.id })
+    openRoute('/?hl=' + item.id + '&hk=task')
+    showToast('🎯 已定位到任务卡片')
   } else {
-    // 好奇心/项目：跳调度台抽屉由 CuriosityPanel 处理；项目走 CompassTree
-    send('/', { kind: item.type === 'curio' ? 'curio' : 'project', id: item.id })
+    openRoute('/?hl=' + item.id + '&hk=curio')
+    showToast('🎯 已定位到好奇心卡片')
   }
   closeOverlay()
 }
@@ -1202,7 +1210,7 @@ function openSearchResult(item: any) {
   const now = Date.now()
   if (item?.id && item.id === lastOpenId && now - lastOpenTs < 300) return
   if (item?.id) { lastOpenId = item.id; lastOpenTs = now }
-  // 第卅七轮 REQ-045：单击/Enter/双击 —— 直接打开链接；无链接则定位到卡片所在处
+  // R120 键位统一：单击/Enter —— 打开卡片链接；无链接则定位到卡片所在处（Ctrl+Enter 走 openSearchLocator 仅定位）
   if (item.type === 'qa') {
     safeSend({ type: 'zy-open-route', route: item.qa.route })
     closeOverlay()
