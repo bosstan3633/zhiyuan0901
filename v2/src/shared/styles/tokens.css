@@ -26,31 +26,18 @@
   --fs-sub: 12px;
   --fs-caption: 10.5px;
 
-  /* 圆角体系（Linear rounded scale，全主题共享）
-     ⚠ R119 映射（原型命名 ↔ 实现命名**错位一格**，数值一一对应）：
-       原型 --radius-sm(6)  → 实现 --radius-xs
-       原型 --radius-md(8)  → 实现 --radius-sm
-       原型 --radius-lg(12) → 实现 --radius
-     还原原型样式时按上表换算，勿直接照抄原型变量名。 */
-  --radius: 12px;    /* 卡片 / 弹层（原型 lg） */
-  --radius-sm: 8px;  /* 按钮 / 输入（原型 md） */
-  --radius-xs: 6px;  /* 徽标 / 行内元素（原型 sm） */
+  /* 圆角体系（Linear rounded scale，全主题共享） */
+  --radius: 12px;    /* 卡片 / 弹层 */
+  --radius-sm: 8px;  /* 按钮 / 输入 */
+  --radius-xs: 6px;  /* 徽标 / 行内元素 */
 
   /* 发丝线（共享） */
   --hairline: 1px;
 
-  /* R118（T5）：固定深色浮层（Toast / tooltip）——**刻意不随主题变化**。
-     这类浮层浮在任意内容之上，若跟随主题则浅色主题下会与底层「白底白字」撞色；
-     统一用近黑底 + 白字，是跨主题可读性的下限保证。 */
-  --solid-bg: #1A1D23;
-  --solid-fg: #FFFFFF;
-
-  /* 密度令牌（第卅三轮 REQ-026：卡片网格，一处修改全局生效；compact 覆盖见文件尾）
-     R118（T3.1）：默认密度收一档（14/16/14 → 10/12/12）——卡片「空洞虚胖」的根因是内边距与
-     行距按卡片而非按内容给，收完基准高度由 120px 落到 ~100px，字段零丢失。 */
-  --card-pad-vert: 10px;
-  --card-pad-horz: 12px;
-  --card-gap: 12px;
+  /* 密度令牌（第卅三轮 REQ-026：卡片网格，一处修改全局生效；compact 覆盖见文件尾） */
+  --card-pad-vert: 14px;
+  --card-pad-horz: 16px;
+  --card-gap: 14px;
   --card-min-w: 260px;
 }
 
@@ -79,15 +66,10 @@
   --accent-light: rgba(94, 106, 210, 0.16);
   --accent-hover: #828FFF;
   --accent-glow: rgba(94, 106, 210, 0.32);
-  /* R119：补 `--accent-border`（原实现全库零定义，改用 color-mix(accent X%, border) 临时替代，
-     导致主攻框 / 选中卡 / 论点横幅边等「强调边框」色值各处不一）。原型定义 = rgba(accent, .28)。 */
-  --accent-border: rgba(94, 106, 210, 0.32);
 
   /* 语义色（低饱和，深色底适配） */
   --success: #27A644;
-  --success-light: rgba(39, 166, 68, 0.15);
   --warning: #D9A03C;
-  --warning-light: rgba(217, 160, 60, 0.14);
   --danger: #E5484D;
   --stagnant: #D4715D;
   --info-blue: #5B8DEF;
@@ -95,10 +77,6 @@
   --curio-amber: #D9B45C;
   --curio-bg: rgba(217, 180, 92, 0.12);
   --violet: #A78BFA;
-  /* R118（T5）：星标金——星标/收藏态（.rc-action.on / .cz-star-corner.on / .gp-ri-act.on）。
-     原为三处各写裸 hex（#f5b942 / #d99a1e），浅色主题下几乎不可见。 */
-  --star: #F5B942;
-  --star-bg: rgba(245, 185, 66, 0.16);
 
   /* 状态标签 · 低透明度色块 */
   --tag-warn-bg: rgba(217, 160, 60, 0.14);
@@ -137,11 +115,8 @@
   --accent-light: #E8F1FD;
   --accent-hover: #005BB8;
   --accent-glow: rgba(0, 113, 227, 0.2);
-  --accent-border: rgba(0, 113, 227, 0.28);
   --success: #27A644;
-  --success-light: #E4F2E8;
   --warning: #A66A00;
-  --warning-light: #FBF1DE;
   --danger: #D0342C;
   --stagnant: #D4715D;
   --info-blue: #0071E3;
@@ -149,8 +124,6 @@
   --curio-amber: #A87B2A;
   --curio-bg: #F9F3E4;
   --violet: #7C3AED;
-  --star: #B8860B;
-  --star-bg: #FAF0DA;
   --tag-warn-bg: #FBF1DE;
   --tag-warn-text: #8A5A00;
   --tag-ok-bg: #E4F2E8;
@@ -185,11 +158,8 @@
   --accent-light: rgba(255, 99, 99, 0.15);
   --accent-hover: #FF7575;
   --accent-glow: rgba(255, 99, 99, 0.3);
-  --accent-border: rgba(255, 99, 99, 0.32);
   --success: #27A644;
-  --success-light: rgba(39, 166, 68, 0.15);
   --warning: #D9A03C;
-  --warning-light: rgba(217, 160, 60, 0.14);
   --danger: #E5484D;
   --stagnant: #D4715D;
   --info-blue: #5B8DEF;
@@ -197,8 +167,6 @@
   --curio-amber: #D9B45C;
   --curio-bg: rgba(217, 180, 92, 0.12);
   --violet: #A78BFA;
-  --star: #F5B942;
-  --star-bg: rgba(245, 185, 66, 0.16);
   --tag-warn-bg: rgba(217, 160, 60, 0.14);
   --tag-warn-text: #EFBE66;
   --tag-ok-bg: rgba(39, 166, 68, 0.15);
@@ -216,60 +184,47 @@
   --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
-/* ===== 纸墨白 · R119 重建为「原型浅色基线」（浅底 + Linear 薰衣草蓝）=====
-   依据 4 份高保真原型（gemini-code-*.html）的 `:root` 令牌集逐项对齐。本主题同时是**默认主题**，
-   故产品「第一眼」即与原型一致；其余 3 主题按同一套语义比例映射（均补齐 accent-border /
-   success-light / warning-light，保证原型里用到这些令牌的样式在四主题下都成立）。
-   原型令牌：bg #F8F9FA · surface #FFF · surface-2 #F1F3F5 · surface-3 #E9ECEF
-             border #E5E7EB · border-strong #D1D5DB
-             text #191C1E · text-2 #495057 · text-3 #868E96 · text-4 #ADB5BD
-             accent #5E6AD2 · accent-light rgba(94,106,210,.08) · accent-border rgba(94,106,210,.28) */
+/* ===== 纸墨白 · 暖白纸面 + Notion 蓝 ===== */
 [data-theme='notion'] {
-  --bg: #F8F9FA;
+  --bg: #FFFFFF;
   --surface: #FFFFFF;
-  --surface-2: #F1F3F5;
-  --surface-3: #E9ECEF;
-  --border: #E5E7EB;
-  --border-strong: #D1D5DB;
-  --text: #191C1E;
-  --text-2: #495057;
-  --text-3: #868E96;
-  --text-4: #ADB5BD;
-  --accent: #5E6AD2;
-  --accent-2: #7A85E0;
-  --accent-light: rgba(94, 106, 210, 0.08);
-  --accent-border: rgba(94, 106, 210, 0.28);
-  --accent-hover: #4F5ABF;
-  --accent-glow: rgba(94, 106, 210, 0.2);
-  --success: #1E7A34;
-  --success-light: #E7F3EC;
-  --warning: #A66A00;
-  --warning-light: #FDF4E5;
-  --danger: #E5484D;
+  --surface-2: #F7F6F3;
+  --surface-3: #EFEDE9;
+  --border: #E9E8E4;
+  --border-strong: #D9D7D1;
+  --text: #37352F;
+  --text-2: #73726E;
+  --text-3: #9B9A97;
+  --text-4: #C4C2BD;
+  --accent: #2383E2;
+  --accent-2: #3490EA;
+  --accent-light: #E7F1FB;
+  --accent-hover: #1B74CC;
+  --accent-glow: rgba(35, 131, 226, 0.16);
+  --success: #448361;
+  --warning: #C08A2D;
+  --danger: #E03E3E;
   --stagnant: #D4715D;
-  --info-blue: #5B8DEF;
-  --info-blue-light: #EAF1FD;
-  --curio-amber: #A87B2A;
-  --curio-bg: #F9F3E4;
-  --violet: #7C3AED;
-  --star: #B8860B;
-  --star-bg: #FAF0DA;
-  --tag-warn-bg: #FBF1DE;
-  --tag-warn-text: #8A5A00;
-  --tag-ok-bg: #E4F2E8;
-  --tag-ok-text: #2E7D42;
-  --tag-danger-bg: #FBEAEA;
+  --info-blue: #2383E2;
+  --info-blue-light: #E7F1FB;
+  --curio-amber: #9F7B2D;
+  --curio-bg: #F6F0DF;
+  --violet: #9065B0;
+  --tag-warn-bg: #F5E9D3;
+  --tag-warn-text: #8A5F1E;
+  --tag-ok-bg: #E4EFE7;
+  --tag-ok-text: #3F7355;
+  --tag-danger-bg: #FBE9E7;
   --tag-danger-text: #C03B3B;
-  --tag-neutral-bg: #EFEFF1;
-  --tag-neutral-text: #63636A;
-  --tag-info-bg: #E8F1FD;
-  --tag-info-text: #0064C8;
-  --overlay-bg: rgba(0, 0, 0, 0.32);
-  /* 原型阴影刻度（浅底轻投影）· 保留 1px 环以兼容缺边框的弹层/抽屉 */
-  --shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-hover: 0 0 0 1px var(--border-strong), 0 4px 12px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.08);
-  --shadow-focus: 0 0 0 1px var(--accent), 0 4px 16px rgba(94, 106, 210, 0.12);
+  --tag-neutral-bg: #EFEDE8;
+  --tag-neutral-text: #787670;
+  --tag-info-bg: #E7F1FB;
+  --tag-info-text: #2383E2;
+  --overlay-bg: rgba(15, 15, 15, 0.35);
+  --shadow: 0 0 0 1px var(--border);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(15, 15, 15, 0.04);
+  --shadow-lg: 0 0 0 1px var(--border), 0 8px 24px rgba(15, 15, 15, 0.07);
+  --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 /* ===== 全局重置 ===== */
@@ -348,8 +303,8 @@ html, body { font-variant-numeric: tabular-nums; }
 
 /* ===== 紧凑密度（第卅三轮 REQ-026：UIPrefs.density 切换，html[data-density=compact] 生效） ===== */
 [data-density='compact'] {
-  --card-pad-vert: 8px;
-  --card-pad-horz: 11px;
-  --card-gap: 9px;
+  --card-pad-vert: 9px;
+  --card-pad-horz: 12px;
+  --card-gap: 10px;
   --card-min-w: 220px;
 }

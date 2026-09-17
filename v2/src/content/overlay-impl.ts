@@ -276,8 +276,7 @@ const THEME_ACCENT: Record<string, { accent: string; on: string }> = {
   linear: { accent: '#5E6AD2', on: '#FFFFFF' },
   apple: { accent: '#0071E3', on: '#FFFFFF' },
   raycast: { accent: '#FF6363', on: '#17181C' },
-  // R119：notion 重建为原型浅色基线，强调色 Notion 蓝 #2383E2 → Linear 薰衣草 #5E6AD2（与 tokens.css 同步）
-  notion: { accent: '#5E6AD2', on: '#FFFFFF' }
+  notion: { accent: '#2383E2', on: '#FFFFFF' }
 }
 /** 读取知源当前主题并注入强调色；宿主环境不可读 storage 时回落默认主题 linear */
 async function applyThemeAccent() {

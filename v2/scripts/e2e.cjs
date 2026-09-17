@@ -120,21 +120,20 @@ async function main() {
   const treeWs = await page.locator('.gs-pan-ws').count()
   report('E2E-3 资源台全景双栏+计数树', panVisible && treeWs >= 1, `panel=${panVisible} wsNodes=${treeWs}`)
 
-  // E2E-4 方向状态指标格（R55-D1 迁调度台顶部；R57-F3 详细指标按钮移除 → 改验证格子自下钻抽屉）
+  // E2E-4 方向状态四格（R55-D1 迁调度台顶部；R57-F3 详细指标按钮移除 → 改验证四格自下钻抽屉）
   // R110 修漂移：`.mb-cells` 已不存在（MetricBar 根为 .metric-bar + .mb-row）；「未归档任务」文案
   //   已在 R65-F8 单行压缩时简化为「未归档」（全称保留在 tooltip）——两处选择器/文案同步。
-  // R119：格子数 4 → 5（按原型 .dir-metrics 拆回「推进项目」独立格），未归档移至第 5 格（index 4）。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   const metricBarOn = await page.locator('.metric-bar').first().isVisible().catch(() => false)
   const cellCount = await page.locator('.mb-cell').count()
-  const offCourse = (await page.locator('.mb-cell .mb-k').nth(4).textContent().catch(() => '')) === '未归档'
+  const offCourse = (await page.locator('.mb-cell .mb-k').nth(3).textContent().catch(() => '')) === '未归档'
   const drillBtnGone = (await page.locator('.mb-drill').count()) === 0
-  await page.locator('.mb-cell').nth(4).click().catch(() => {})
+  await page.locator('.mb-cell').nth(3).click().catch(() => {})
   await page.waitForTimeout(900)
   const cellDrawer = await page.getByText('未归档任务 · 待归档清单').first().isVisible().catch(() => false)
   await page.keyboard.press('Escape').catch(() => {})
-  report('E2E-4 方向状态五格迁调度台顶部 + 格子自下钻（R55-D1→R57-F3，R119 五格）', metricBarOn && cellCount === 5 && offCourse && drillBtnGone && cellDrawer,
+  report('E2E-4 方向状态四格迁调度台顶部 + 四格自下钻（R55-D1→R57-F3）', metricBarOn && cellCount === 4 && offCourse && drillBtnGone && cellDrawer,
     'bar=' + metricBarOn + ' cells=' + cellCount + ' unarch=' + offCourse + ' drillBtnGone=' + drillBtnGone + ' cellDrawer=' + cellDrawer)
 
   // E2E-5 PDF 双击 file:// 打开
@@ -182,20 +181,10 @@ async function main() {
   report('E2E-5 PDF 附件双击打开（file:// 落盘通道）', fileOk || (dlOk && pathsOk), pdfTab || `cardVisible=${cardVisible} headless落盘证据 downloads=${dlOk} zy_file_paths=${pathsOk}（file:// 导航 headless 不可捕获，真机复核）`)
 
   // E2E-6 事件日志落盘：右键软删种子卡 → delete 事件写入 zy_event_log（外部种卡按设计静默，不产事件）
-  //   R119 修订：卡片动作条对齐原型后卡面 🗑 退役（删除收进右键菜单 openResCtx）⇒ 改走 contextmenu → .cx-item.danger（「删除」项）
-  const seedCard = page.locator('.res-card[data-rid="e2e-res-1"]')
-  if (await seedCard.count()) {
-    await seedCard.click({ button: 'right' }).catch(() => {})
-    const delItem = page.locator('.ctx-menu-box .cx-item.danger', { hasText: '删除' }).first()
-    await delItem.click({ timeout: 3000 }).catch(() => {})
-    // R118 修订：事件日志走 300ms 防抖 + 异步落盘，固定 1800ms sleep 在冷启动较慢时偶发假失败
-    //   （表现为「无日志」）⇒ 改为轮询等待，最多 ~6s。
-    for (let i = 0; i < 12; i++) {
-      const r = await page.evaluate(() => chrome.storage.local.get('zy_event_log'))
-      const arr = r && r['zy_event_log']
-      if (Array.isArray(arr) && arr.length > 0) break
-      await page.waitForTimeout(500)
-    }
+  const delBtn = page.locator('.res-card[data-rid="e2e-res-1"] .rc-action.delete')
+  if (await delBtn.count()) {
+    await delBtn.click().catch(() => {})
+    await page.waitForTimeout(1800) // 300ms 防抖 + 落盘
   }
   const evRaw = await page.evaluate(() => chrome.storage.local.get('zy_event_log'))
   const ev = evRaw && evRaw['zy_event_log']
@@ -314,15 +303,9 @@ async function main() {
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   await page.evaluate(() => { location.hash = '#/workspace/zy-curation' })
-  // R118 修订（门禁漂移第 5 例）：原查主视图分类头 `.ws-cat-head, .section-label` —— 但该头**只在
-  //   renderedGroups 非空时渲染**，而 E2E 数据下资源台自身分类/卡为空 ⇒ 恒不渲染；再叠加固定 sleep
-  //   落在骨架屏期（此时 .hero-btn 与 .section-label 皆不存在），两者双双假失败。
-  //   改为 ① 等工具条真实挂载（骨架屏期不存在，是最可靠的"已就绪"信号）；
-  //        ② 左树锚点改查 `.cat-item`（恒有「全部 / 待分类」两行，是"统一树已渲染"的稳定证据）。
-  await page.locator('.ws-toolbar').first().waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
-  await page.waitForTimeout(800)
+  await page.waitForTimeout(1800)
   const hubHead = await page.locator('.hero-btn').first().isVisible().catch(() => false)
-  const hubTreeOn = await page.locator('.cat-item').first().isVisible().catch(() => false)
+  const hubTreeOn = await page.locator('.ws-cat-head, .section-label').first().isVisible().catch(() => false)
   // 启动归一化后：指向资源台的脏投射与镜像标记应双双清零
   const scrubbed = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const data = cur['zy_data_v2']

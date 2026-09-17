@@ -37,9 +37,7 @@ const themes = [
   { id: 'linear', name: '深空薰衣草', dot: '#5E6AD2' },
   { id: 'raycast', name: '光速黑', dot: '#FF6363' },
   { id: 'apple', name: '极简白', dot: '#0071E3' },
-  // R119：notion（纸墨白）重建为原型浅色基线（accent 由 Notion 蓝 #2383E2 → Linear 薰衣草 #5E6AD2），
-  //      并设为默认主题，色点同步。
-  { id: 'notion', name: '纸墨白', dot: '#5E6AD2' }
+  { id: 'notion', name: '纸墨白', dot: '#2383E2' }
 ]
 
 /** R106（F2）→ R108（F10）修订：资源台/策展台容器与调度台/方向台统一为 1440 居中后，
@@ -556,8 +554,7 @@ const backupReminderDot = computed(() => {
 
 <style scoped>
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
-/* R119：顶栏 56 → 48px、改实底 --surface（原型 `.top-nav`：48px 实白底 + 1px 下边线，无毛玻璃） */
-.topbar { position: sticky; top: 0; z-index: 100; height: 48px; display: flex; background: var(--surface); border-bottom: 1px solid var(--border); }
+.topbar { position: sticky; top: 0; z-index: 100; height: 56px; display: flex; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
 /* R106（F2）：顶栏内容容器按路由对齐各页正文容器（左缘一致） */
 .topbar-inner { flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; }
 .topbar-inner.align-page { max-width: 1440px; margin: 0 auto; padding: 0 24px; }
@@ -565,10 +562,11 @@ const backupReminderDot = computed(() => {
 .topbar-inner.align-manual { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }
 .home-logo { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
-.tab { padding: 6px 12px; border-radius: var(--radius-xs); font-size: 13px; font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color .15s ease, background .15s ease; position: relative; white-space: nowrap; }
-.tab:hover { background: var(--surface-2); color: var(--text); }
-/* R119：原型 `.nav-tab.active` = accent 文字 + accent-light 底 + 600 字重（原实现为中性文字色 + 2px 下划线，与原型不符） */
-.tab.active { color: var(--accent); background: var(--accent-light); font-weight: 600; }
+.tab { padding: 7px 12px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color .15s ease, background .15s ease; position: relative; white-space: nowrap; }
+.tab:hover { background: var(--surface-3); color: var(--text); }
+.tab.active { color: var(--accent); font-weight: 600; }
+.tab.active { color: var(--text); }
+.tab.active::after { content: ''; position: absolute; bottom: -14px; left: 12px; right: 12px; height: 2px; background: var(--accent); border-radius: 2px; }
 /* R45-5：.badge 样式随角标移除一并清理（全应用已无渲染点） */
 .tab-divider { width: 1px; height: 20px; background: var(--border); margin: 0 6px; }
 /* R49：资源台占位（下轮交付）——弱化呈现 */
@@ -595,9 +593,8 @@ const backupReminderDot = computed(() => {
 
 .topbar-right { display: flex; align-items: center; gap: 8px; }
 .theme-select { position: relative; }
-/* R119：原型 `.theme-select-chip` = 无边框、--surface-2 底、padding 4/8、radius 6 */
-.theme-btn { border: none; display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: var(--radius-xs); font-size: 12px; color: var(--text-2); cursor: pointer; background: var(--surface-2); transition: all .15s; font-family: inherit; }
-.theme-btn:hover { background: var(--surface-3); }
+.theme-btn { border: 1px solid transparent; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--text-2); cursor: pointer; background: var(--surface); transition: all .15s; font-family: inherit; }
+.theme-btn:hover { border-color: var(--border-strong); }
 .theme-caret { font-size: 9px; opacity: .6; }
 .theme-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .theme-dropdown { position: absolute; top: calc(100% + 6px); right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; min-width: 130px; z-index: 200; }
@@ -607,9 +604,8 @@ const backupReminderDot = computed(() => {
 .theme-check { margin-left: auto; font-size: 11px; }
 .fade-enter-active, .fade-leave-active { transition: opacity .15s, transform .15s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-4px); }
-/* R119：原型 `.icon-btn` = 无边框无定尺、padding 4px、纯图标、--text-3 */
-.icon-btn { padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-xs); cursor: pointer; color: var(--text-3); transition: all .15s; font-size: 16px; line-height: 1; position: relative; }
-.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+.icon-btn { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; color: var(--text-2); transition: all .15s; font-size: 16px; position: relative; }
+.icon-btn:hover { background: var(--surface-3); color: var(--text); }
 /* 第卅六轮 REQ-038：备份提醒红点（顶栏设置按钮） */
 .icon-btn-bell.has-dot .bell-dot { display: block; }
 .bell-dot { display: none; position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--bg, #fff); }

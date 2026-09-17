@@ -9,4 +9,3 @@ Thumbs.db
 
 # R71 性能基准的本地产物（perf.cjs 可随时复现，不入库）
 .perf-*.json
-.prof-report.json

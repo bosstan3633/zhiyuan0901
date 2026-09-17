@@ -63,18 +63,18 @@
                   <div v-for="n2 in pyr.thesis.children" :key="n2.name" class="p-col">
                     <div class="p-node"><div class="t"><span class="nm">{{ n2.name }}</span><span class="lb">L2</span></div>
                       <div v-if="n2.desc" class="d">{{ n2.desc }}</div>
-                      <div class="ops"><span>＋ 关联佐证素材</span><span>＋ 新建卡片</span></div>
+                      <div class="ops"><span>🔗 关联资源卡</span><span>➕ 新建卡片</span></div>
                     </div>
                     <div class="p-sub" v-if="n2.children.length">
                       <div v-for="n3 in n2.children" :key="n3.name" class="p-node">
                         <div class="t"><span class="nm">{{ n3.name }}</span><span class="lb">L3</span></div>
                         <div v-if="n3.desc" class="d">{{ n3.desc }}</div>
-                        <div class="ops"><span>＋ 关联佐证素材</span><span>＋ 新建卡片</span></div>
+                        <div class="ops"><span>🔗 关联资源卡</span><span>➕ 新建卡片</span></div>
                         <div class="p-sub" v-if="n3.children.length">
                           <div v-for="n4 in n3.children" :key="n4.name" class="p-node">
                             <div class="t"><span class="nm">{{ n4.name }}</span><span class="lb">L4</span></div>
                             <div v-if="n4.desc" class="d">{{ n4.desc }}</div>
-                            <div class="ops"><span>＋ 关联佐证素材</span><span>＋ 新建卡片</span></div>
+                            <div class="ops"><span>🔗 关联资源卡</span><span>➕ 新建卡片</span></div>
                           </div>
                         </div>
                       </div>

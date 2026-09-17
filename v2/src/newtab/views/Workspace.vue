@@ -1,5 +1,5 @@
 ﻿<template>
-  <div ref="wsPageRef" class="ws-page" :class="{ 'ws-fs-on': pyFs }" v-if="workspace" :style="{ '--grid-cols': String(colsNow) }">
+  <div ref="wsPageRef" class="ws-page" :class="{ 'ws-fs-on': pyFs }" v-if="workspace" :style="{ '--grid-cols': String(resCols) }">
     <!-- R84（W1）：台身份页头——图标 + 台名 + 台描述 + 右端结构摘要（一行 ≤40px）。
          改前：仅资源台有一段 R73-S5a 写死的 .ws-hub-head（无图标、非 workspace.name.replace(/^[^\s]+\s/, '')/description），
          而 **策展台的台名与台描述在页面内零出现**——用户置身于某个策展台，却不知道这是哪个台。
@@ -12,10 +12,7 @@
       <b class="wsh-name">{{ workspace.name.replace(/^[^\s]+\s/, '') }}</b>
       <!-- R90（R8-③）：台描述分两态——**用户自写的台描述仍内联**（R84 / W1 要的就是台身份可见）；
            资源台无描述时回落的定位语「资源卡唯一存储 · 镜像源头」**降为 ⓘ tooltip**（它是定位语，不是每屏必读） -->
-      <!-- R119：资源台无自写描述时，原型把定位语「资源卡唯一存储 · 镜像源头」**内联常显**（原为 ⓘ 悬停才见）；
-           非 hub 台保持 ⓘ 收敛——其页头右端已有「更新 X」信息位，不再叠加第二段说明。 -->
       <span v-if="wsHeadDescOwn" class="wsh-desc" :title="wsHeadDescOwn">· {{ wsHeadDescOwn }}</span>
-      <span v-else-if="wsHeadDescFallback && isHub" class="wsh-desc" title="资源台定位">{{ wsHeadDescFallback }}</span>
       <span v-else-if="wsHeadDescFallback" class="wsh-locator" :title="wsHeadDescFallback">ⓘ</span>
       <!-- R98（W8）：「🕐 最近更新」自指标条降为页头摘要，可点进流水下钻（入口不断，仅非 hub） -->
       <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="!isHub && metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template><span v-if="!isHub" class="wsh-upd" title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新 {{ lastUpdateText }}</span></span>
@@ -41,22 +38,23 @@
       </div>
     </Teleport>
 
-    <!-- R75（R18）：指标条按台身份分流——资源台 3 格 / 策展台 3 格（数据源同为 hub.curationMetrics） -->
+    <!-- R75（R18）：指标条按台身份分流——资源台 3 格 / 策展台 5 格（数据源同为 hub.curationMetrics） -->
     <!-- 资源台（hub）3 格：论点格与来源构成格对资源台无意义——单向挂载红线 ⇒ 无投射指向资源台，metrics.mirrored 恒 0 -->
-    <!-- R119：按原型 .metric-box —— **单行**「label 左 / value 右」（原为 label→value→hint 三行纵排），
-         原 hint 文案一字不丢、降为整格 title 提示；附件格补原型的三档构成「(N图 · NPDF · NHTML)」 -->
     <div v-if="isHub" class="ws-metrics hub3">
-      <div class="metric-card" @click="openDrill('total')" :title="hubCountHint + ' · 点击查看分类明细'">
-        <span class="mc-label">📊 卡片总数</span>
-        <span class="mc-value">{{ metrics.total }}</span>
+      <div class="metric-card" @click="openDrill('total')">
+        <div class="mc-label">📊 卡片总数</div>
+        <div class="mc-value">{{ metrics.total }}</div>
+        <div class="mc-hint">{{ hubCountHint }}</div>
       </div>
-      <div class="metric-card" @click="openDrill('assets')" :title="'点击查看附件明细' + (assetKindText ? ' · ' + assetKindText : '')">
-        <span class="mc-label">📎 附件数量</span>
-        <span class="mc-value">{{ metrics.attachmentCount }}<span v-if="assetKindText" class="mc-sub">{{ assetKindText }}</span></span>
+      <div class="metric-card" @click="openDrill('assets')">
+        <div class="mc-label">📎 附件数量</div>
+        <div class="mc-value">{{ metrics.attachmentCount }}</div>
+        <div class="mc-hint">点击查看明细</div>
       </div>
-      <div class="metric-card" @click="openDrill('recent')" title="点击查看更新流水">
-        <span class="mc-label">🕐 最近更新</span>
-        <span class="mc-value small">{{ lastUpdateText }}</span>
+      <div class="metric-card" @click="openDrill('recent')">
+        <div class="mc-label">🕐 最近更新</div>
+        <div class="mc-value small">{{ lastUpdateText }}</div>
+        <div class="mc-hint">点击查看流水</div>
       </div>
     </div>
     <!-- R62-1：策展台指标条——R98（W8）5 格 → 3 格：构成明细本就与总数格 hint 同源同文（并入即删格）；
@@ -134,11 +132,6 @@
            与「＋新建」同属"往本台生成内容"，紧邻放置；资源台（hub）无金字塔概念，不露出。 -->
       <button v-if="!isHub" class="hero-btn settings py-import-btn" title="导入金字塔 Markdown 模板（论点 + 分类节点 + 节点卡片一次生成）"
         @click="pyramidImportOpen = true">📋 导入模板</button>
-      <!-- R118（T4.1）：待分类轻量警告——待分类是系统桶，不进金字塔（金字塔只铺真实业务分类），
-           但桶里有卡时必须让人看得见，否则这些卡在金字塔视图里彻底隐形。 -->
-      <button v-if="!isHub && uncategorizedCount" class="uncat-warn"
-        :title="`有 ${uncategorizedCount} 张卡尚未归入任何业务分类 —— 点击切回卡片视图并聚焦「待分类」`"
-        @click="setViewMode('card'); activeCategory = 'uncat'">⚠ 待分类 {{ uncategorizedCount }} 张</button>
       <div class="toolbar-spacer"></div>
       <div class="toolbar-search">
         <span class="s-icon">🔍</span>
@@ -203,7 +196,7 @@
           <!-- R72：卡片视图横向列数（4/5/6/7）——W3 要求列数选择器一并收进「筛选」气泡 -->
           <div v-if="viewMode==='card'" class="fp-row">
             <span class="fp-label">列数</span>
-            <ColsPicker v-model="colsNow" label="列数" />
+            <ColsPicker v-model="resCols" label="列数" />
           </div>
           <div class="fp-foot">
             <span class="fp-reset" @click="resetAllFilters">重置全部</span>
@@ -276,10 +269,6 @@
               <span class="cat-act more" title="更多操作（置顶 / 镜像 / 重命名 / 删除）" @click.stop="openCatMenu($event, sc)">⋯</span>
             </span>
             <span class="cat-count" :title="sc.hasChildren ? `仅本分类直属 ${sc.directCount} 张 · 含 ${sc.childCount} 个子分类（共 ${sc.aggCount} 张）` : `仅本分类直属 ${sc.directCount} 张`">{{ sc.directCount }}</span>
-            <!-- R118（T3.3）：直属 / 聚合口径与右侧分类头**逐字统一**——两处都呈现「N · 含 M 个子分类」，
-                 不再一处只给数字、另一处给「含 N 个子分类」，消除同屏两套算法的错觉。
-                 聚合总数只在 tooltip 里作补充说明，不冒充主值。 -->
-            <span v-if="sc.hasChildren" class="cat-sub" :title="`本分类下辖 ${sc.childCount} 个子分类（含子分类卡聚合共 ${sc.aggCount} 张）`">· 含 {{ sc.childCount }} 个子分类</span>
           </div>
         </template>
         <div v-if="dragCatId" class="cat-root-drop" @dragover.prevent @drop="onCatRootDrop">⬆ 松手升为一级分类</div>
@@ -309,11 +298,7 @@
         <!-- ===== 卡片视图：REQ-027 按分类分组分区；R64-F9 树状递归分组（depth 缩进呈现层级） ===== -->
         <div v-if="viewMode==='card'">
           <!-- R84（W2-①）：中心论点提到首屏——此前论点只出现在指标条第一格与金字塔 L1 根，
-               卡片视图（默认视图）里完全看不到。已设立 → 标题 + 查看金字塔；未设立 → 一行轻引导。
-               R118（T3.2）：资源台（isHub）**一律不渲染**本横幅——「中心论点 / 金字塔 L1」是策展台的概念，
-               资源台是资源卡的唯一存储、不是论证现场，此前在资源台渲染出的空态引导指向了台内并不存在的
-               设立入口（右键菜单里根本没有该项），属对用户的错误引导。 -->
-          <template v-if="!isHub">
+               卡片视图（默认视图）里完全看不到。已设立 → 标题 + 查看金字塔；未设立 → 一行轻引导。 -->
           <div class="thesis-banner" :class="{ empty: !thesisCard }">
             <template v-if="thesisCard">
               <span class="tb-mark">🏛</span>
@@ -326,7 +311,6 @@
               <span class="tb-hint">尚未设立中心论点 —— 右键台内卡片可设立（设立后即成为金字塔 L1 根）</span>
             </template>
           </div>
-          </template>
           <template v-for="(g, gi) in renderedGroups" :key="g.key">
             <div :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
             <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
@@ -335,7 +319,7 @@
             </div>
             <div v-show="!collapsedGroups.has(g.key)" class="card-grid"
               @dragover="onAreaDragOver($event, g.key)" @drop="onAreaDrop($event, g.key)">
-              <div v-for="r in g.items" :key="r.id" class="res-card" :class="{mirror: isMirrorView(r), pinned: r.pinned, 'warning-broken': isBrokenPath(r), flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
+              <div v-for="r in g.items" :key="r.id" class="res-card" :class="{pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
                 @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragend="clearDragState" @dragleave="clearDropMark"
                 @contextmenu.prevent="openResCtx($event, r)">
@@ -348,12 +332,16 @@
                   <!-- R89（W4）：镜像卡是策展台里的**只读引用**——此前景泰七动作无条件渲染，
                        其中四个点了只会弹「镜像卡为引用」的提示，🗑 更是名不副实（干的是"移出镜像"）。
                        现写动作只对真身卡出现，镜像卡改给三个**真能用**的：打开 / 定位源 / 移出镜像。 -->
-                  <!-- R119（对齐原型 .rc-hover-actions「hover 只 2 项」）：真身卡 hover 只留「📋 挂载 / ⭐ 星标」。
-                       置顶 / 移动分类 / 镜像到策展台 / 删除 四项能力**零删减**——全部由右键菜单 openResCtx 承接
-                       （置顶 / 移动分类 / 📡 镜像到策展台 / 删除 均在菜单内），主视觉不再被 7 个图标挤占。 -->
                   <template v-if="!isMirrorView(r)">
-                    <div class="rc-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务（右键可置顶 / 移动 / 镜像 / 删除）'">📋</div>
+                    <div class="rc-action pin" @click.stop="togglePin(r)" title="置顶">📌</div>
                     <div class="rc-action" :class="{on: r.starred}" :title="r.starred?'取消星标':'星标'" @click.stop="toggleStar(r)">⭐</div>
+                    <div class="rc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</div>
+                    <!-- R73-S3：镜像到策展台（仅资源台真身卡；镜像卡为引用，源头在资源台，故不提供） -->
+                    <div v-if="isHub" class="rc-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</div>
+                    <!-- R82（R4）：挂载到任务——写在 task.mountedResourceIds 上，不碰资源卡（单向挂载红线）。
+                         镜像卡不给入口：它是策展台里的只读引用，写动作一律回落资源台真身卡（R61/R79 口径）。 -->
+                    <div class="rc-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</div>
+                    <div class="rc-action delete" @click.stop="deleteResource(r)" title="删除">🗑</div>
                   </template>
                   <template v-else>
                     <div class="rc-action locate" title="定位到资源台源卡" @click.stop="locateMirrorSource(r)">🎯</div>
@@ -362,7 +350,7 @@
                 </div>
                 <div class="rc-fields">
                   <template v-for="f in fieldsOf(r)" :key="f.key">
-                    <div v-if="isTitleKey(f.key)" class="rc-title"><NewBadge :at="r.createdAt" /><span class="rc-type-icon" aria-hidden="true">{{ r.link ? linkIcon(r.linkType) : (r.assets?.length ? '📎' : '📄') }}</span><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ val(r, f.key) }}</div>
+                    <div v-if="isTitleKey(f.key)" class="rc-title"><NewBadge :at="r.createdAt" /><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ val(r, f.key) }}</div>
                     <div v-else-if="f.key==='link' && r.link" class="rc-link" :class="r.linkType">{{ linkIcon(r.linkType) }} {{ linkDisplay(r.link) }}</div>
                     <div v-else-if="f.key==='description' && r.description" class="rc-summary">{{ r.description }}</div>
                     <div v-else-if="f.key==='tags' && r.tags.length" class="rc-tags"><span v-for="t in r.tags" :key="t" class="rc-tag">#{{ t }}</span></div>
@@ -409,7 +397,7 @@
               <span class="ws-cat-collapse">{{ collapsedGroups.has(g.key) ? '▸' : '▾' }}</span>
             </div>
             <div v-show="!collapsedGroups.has(g.key)" class="res-list">
-              <div v-for="r in g.items" :key="r.id" class="res-row" :class="{mirror: isMirrorView(r), pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
+              <div v-for="r in g.items" :key="r.id" class="res-row" :class="{pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
                 @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragend="clearDragState" @dragleave="clearDropMark"
                 @contextmenu.prevent="openResCtx($event, r)">
@@ -462,7 +450,7 @@
             </div>
             <!-- R116 性能：列体增量渲染——滚动近底自动追加（与卡片/列表 R112 同构） -->
             <div class="kc-body" @scroll="onKanbanColScroll($event, cat.key)">
-              <div v-for="r in cat.items" :key="r.id" class="kc-card" :class="{mirror: isMirrorView(r), pinned: r.pinned, 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
+              <div v-for="r in cat.items" :key="r.id" class="kc-card" :class="{pinned: r.pinned, 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
                 :draggable="!batchMode" @dragstart="onDragStart($event,r)" @dragover.prevent.stop="markDrop($event, r.id, 'y')" @dragend="clearDragState" @dragleave="clearDropMark" @drop.stop="onKanbanCardDrop($event, r)" @click="onCardClick(r)" @dblclick="onCardDblClick(r)">
                 <!-- R79（R1-看）：看板此前只有 🗑 删除 + 只读星标，动作条与卡片/列表视图严重不齐 -->
                 <div class="kc-actions">
@@ -520,14 +508,12 @@
             <div v-else class="py-root-empty clickable" @click="openThesisCreate">🏛 点击设立中心论点 —— 填写卡片保存后自动落为 L1 根节点</div>
           </div>
           <!-- L2 起分类节点（R66-F5：居中树布局——叶子占列、父节点跨其子组全部列：父模块横向恒=子组横向、居中悬于子组上方，子组永不跨入其他父节点的横向空间；连线横平竖直直角折线） -->
-          <!-- R98（W7）：层级折叠——仅 L2 / 到 L3 / 全部（本地视图态）；金字塔只有一层时无折叠意义，不渲染
-               R118（T4.2）：形态对齐原型 [仅论据 L2 ｜ 全部展开]——三档保留（到 L3 是现有能力的真子集关系，
-               删档即能力丢失），仅收敛措辞：L2 在金字塔里就是「论据层」，全部 = 全部展开。 -->
+          <!-- R98（W7）：层级折叠——仅 L2 / 到 L3 / 全部（本地视图态）；金字塔只有一层时无折叠意义，不渲染 -->
           <div v-if="pyramidLevels.length >= 2" class="py-fold">
             <span class="py-fold-label">层级</span>
-            <button class="py-fold-btn" :class="{on: pyFold==='l2'}" @click="pyFold='l2'">仅论据 L2</button>
+            <button class="py-fold-btn" :class="{on: pyFold==='l2'}" @click="pyFold='l2'">仅 L2</button>
             <button class="py-fold-btn" :class="{on: pyFold==='l3'}" @click="pyFold='l3'">到 L3</button>
-            <button class="py-fold-btn" :class="{on: pyFold==='all'}" @click="pyFold='all'">全部展开</button>
+            <button class="py-fold-btn" :class="{on: pyFold==='all'}" @click="pyFold='all'">全部</button>
           </div>
           <div class="py-board" :style="{ gridTemplateColumns: `repeat(${pyLayout.cols}, minmax(170px, 250px))` }">
             <div v-for="cell in pyLayout.cells" :key="cell.cat.id" class="py-node"
@@ -553,13 +539,10 @@
                 </span>
                 <span v-if="!cell.cards.length" class="py-node-empty">拖入资源卡</span>
               </div>
-              <!-- R65-F3：节点双入口——关联资源卡（资源台选择器镜像）/ 新建卡片（台内卡，可挂附件）
-                   R118（T4.3）：由「常驻实心按钮」降为**底部虚线微文字触手**（去掉面底色，只留虚线边与
-                   次要文字色），措辞对齐原型：关联资源卡 → 「关联佐证素材」（金字塔语境下它就是论据素材；
-                   函数入口 openLinkCards 未变，title 里写明「从资源台选择资源卡镜像到该节点」保住可发现性）。 -->
+              <!-- R65-F3：节点双入口——关联资源卡（资源台选择器镜像）/ 新建卡片（台内卡，可挂附件） -->
               <div class="py-node-foot">
-                <span class="py-foot-btn" title="从资源台选择资源卡镜像到该节点（论据素材）" @click.stop="openLinkCards(cell.cat)">＋ 关联佐证素材</span>
-                <span class="py-foot-btn" title="新建台内卡（可挂附件，真身留在本台）" @click.stop="addResourceToCategory(cell.cat.id)">＋ 新建卡片</span>
+                <span class="py-foot-btn" title="从资源台选择资源卡镜像到该节点" @click.stop="openLinkCards(cell.cat)">🔗 关联资源卡</span>
+                <span class="py-foot-btn" title="新建台内卡（可挂附件，真身留在本台）" @click.stop="addResourceToCategory(cell.cat.id)">➕ 新建卡片</span>
               </div>
               <span v-if="pyDepthOf(cell.cat) < 3" class="py-node-add" title="新建子节点" @click.stop="openCreateCat(cell.cat.id)">＋</span>
             </div>
@@ -1148,24 +1131,6 @@ const lastUpdateText = computed(() => {
  *  curationMetrics 对 hub 台镜像计数恒 0 双重兜底，此处异常提示分支已退役，
  *  口径恒为「分类 N · 待分类 M」。 */
 const hubCountHint = computed(() => `分类 ${metrics.value.categoryCount} · 待分类 ${uncategorizedCount.value}`)
-/** R119：资源台指标条「附件数量」格的三档构成后缀（原型「(12图 · 4PDF · 2HTML)」）——
- *  数据源就是 drill 抽屉在用的 metrics.attachmentItems（同源同口径，不新增计算）。
- *  三档全为 0 时返回空串，模板侧 v-if 不渲染，避免出现「(0图 · 0PDF · 0HTML)」噪声。 */
-const assetKindText = computed(() => {
-  const it = metrics.value.attachmentItems
-  if (!it.length) return ''
-  let img = 0, pdf = 0, html = 0
-  for (const a of it) {
-    if (a.kind === 'image') img++
-    else if (a.kind === 'pdf') pdf++
-    else html++
-  }
-  const seg: string[] = []
-  if (img) seg.push(`${img}图`)
-  if (pdf) seg.push(`${pdf}PDF`)
-  if (html) seg.push(`${html}HTML`)
-  return seg.length ? `(${seg.join(' · ')})` : ''
-})
 
 // ===== 字段渲染（F1：全局设置的字段设计在此生效） =====
 const rFields = computed(() => visibleFields(d.value.fieldConfig, 'resource'))
@@ -1269,7 +1234,7 @@ function onDrillLocate(id: string) {
 
 // ===== R115 拆分接线：视图域（视图模式/排序/筛选/搜索/分组/增量渲染/看板）=====
 const {
-  viewMode, applyWsView, setViewMode, pyFold, resCols, colsNow,
+  viewMode, applyWsView, setViewMode, pyFold, resCols,
   SORT_BY_KEYS, SORT_LABELS, FILTER_KEYS, FILTER_LABELS,
   sortBy, sortDir, filterBy, searchQuery, debouncedQuery, activeCategory,
   toggleSortDir, density, activeCategoryLabel, mountedResIds,
@@ -1284,7 +1249,7 @@ const {
   kanbanMore, onKanbanColScroll,
 } = useResourceView({
   store, d, workspaceId, allResources, thesisCard, categories, wsCats, catIdx, resBucket,
-  rootCats, childCatsOf, familyIds, isUncat, isHub,
+  rootCats, childCatsOf, familyIds, isUncat,
 })
 // R65-F7：KeepAlive 缓存实例——切换不同策展台（:id 变化）时复位本台局部状态，防上一台残留
 watch(() => route.params.id, (nv, ov) => {

@@ -787,7 +787,7 @@ function srcShort(url: string): string {
 .cz-card:hover .cz-pin-corner, .cz-kanban-card:hover .cz-pin-corner, .cz-card:hover .cz-star-corner, .cz-kanban-card:hover .cz-star-corner { opacity: .8; }
 .cz-pin-corner:hover, .cz-star-corner:hover { opacity: 1 !important; background: var(--surface-3); }
 .cz-pin-corner.on { opacity: 1; background: var(--accent-light); }
-.cz-star-corner.on { opacity: 1; background: var(--star-bg); }
+.cz-star-corner.on { opacity: 1; background: color-mix(in srgb, #f5b942 18%, transparent); }
 .mini-btn.pinon { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
 .cz-group-label { grid-column: 1 / -1; font-size: 11px; font-weight: 600; color: var(--text-3); padding: 2px 2px 0; letter-spacing: .5px; }
 .cz-list .cz-group-label { padding: 6px 2px 2px; }

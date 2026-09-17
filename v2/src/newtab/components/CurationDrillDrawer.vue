@@ -276,7 +276,7 @@ async function onCleanupAll() {
 .dd-preview-name span { opacity: .6; font-size: 11px; }
 .dd-preview img { max-width: 92%; max-height: 84%; object-fit: contain; border-radius: 8px; }
 /* R110-BUG2：附件行操作按钮 + 异常行 + 孤儿批量条 */
-.dd-row-warn { color: var(--warning); }
+.dd-row-warn { color: var(--warn, #b8860b); }
 .dd-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 5px; padding: 2px 7px; font-size: 11px; line-height: 1.5; cursor: pointer; font-family: inherit; transition: all .12s; }
 .dd-act:hover { border-color: var(--accent); color: var(--accent); }
 .dd-orphan-bar { display: flex; align-items: center; gap: 8px; padding: 7px 8px; margin-bottom: 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-3); }

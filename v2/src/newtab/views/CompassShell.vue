@@ -56,7 +56,7 @@ function openTree() {
   <RouterView v-if="isChildActive" />
   <div v-else class="page">
     <div class="page-head">
-      <div class="crumb"><b>方向台</b><span class="sub">主航线与项目详情</span></div>
+      <div class="crumb"><b>方向台</b> · 主航线与项目详情</div>
       <!-- R99（D-D）：主线状态摘要——方向台一眼读数 -->
       <span class="mainline-summary">{{ d.compass.directions.length }} 目标 · {{ visibleProjects.length }} 项目 · {{ focusCount }} 主攻 · {{ stalledCount }} 停滞</span>
       <div class="spacer" />
@@ -81,12 +81,10 @@ function openTree() {
 </template>
 
 <style scoped>
-/* R119：原型 .main-container / .page-header —— 1400 容器 + 16/24、页头 28px、标题 15px/700 + 副题 12.5px */
-.page { max-width: 1400px; margin: 0 auto; padding: 16px 24px 40px; display: flex; flex-direction: column; gap: 16px; }
-.page-head { display: flex; align-items: center; gap: 10px; height: 28px; margin-bottom: 14px; }
-.page-head .crumb { display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: var(--text-3); }
-.page-head .crumb .sub { font-size: 12.5px; color: var(--text-3); }
-.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+.page { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
+.page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-left: 22px; }
+.page-head .crumb { font-size: 13px; color: var(--text-2); }
+.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
 /* R99（D-D）：主线状态摘要——tabular-nums 数字稳定不跳动 */
 .mainline-summary { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .page-head .spacer { flex: 1; }

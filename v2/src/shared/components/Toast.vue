@@ -18,9 +18,9 @@ import { toastState, runToastAction } from './toast'
   bottom: 28px;
   left: 50%;
   transform: translateX(-50%);
-  /* R118（T5）：固定深色底收敛为共享令牌 --solid-bg / --solid-fg（任何主题下都保证白字可读） */
-  background: var(--solid-bg);
-  color: var(--solid-fg);
+  /* 固定深色底：任何主题下都保证白字可读（修复深色主题白底白字问题） */
+  background: #1A1D23;
+  color: #fff;
   padding: 10px 20px;
   border-radius: 8px;
   font-size: 13px;

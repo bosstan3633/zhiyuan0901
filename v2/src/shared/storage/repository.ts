@@ -413,10 +413,7 @@ export async function loadUIPrefs(): Promise<UIPrefs> {
   if (uiCache) return uiCache
   const cs = chromeStore()
   const defaults: UIPrefs = {
-    // R119：默认主题 'linear'（深空薰衣草 · 近黑）→ 'notion'（纸墨白 · 原型浅色基线）。
-    // 依据：4 份高保真原型的令牌集为浅底（--bg #F8F9FA），且原型顶栏主题芯片标注即为「纸墨白」。
-    // 四主题全保留：深空薰衣草(linear) / 光速黑(raycast) 仍可在设置中切换。
-    theme: 'notion',
+    theme: 'linear',
     viewMode: 'card',
     tcSplitRatio: 50,
     wsSwitchMod: 'alt'

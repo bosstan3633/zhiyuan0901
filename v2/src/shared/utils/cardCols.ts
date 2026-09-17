@@ -21,20 +21,16 @@ import type { UIPrefs } from '@/shared/models'
 /** 可选列数（需求指定 4 / 5 / 6 / 7） */
 export const CARD_COL_OPTIONS = [4, 5, 6, 7] as const
 
-/** 模块键：与 `UIPrefs.sortPrefs` 的键口径保持一致（curio / task / res / curation）
- *  R119：`res` 拆成 `res`（资源台）+ `curation`（策展台）——原型两台列数不同（资源台 6 列 / 策展台 4 列），
- *  原共用一个键时只能取其一。UIPrefs.cardCols 是 Record 且清洗按 CARD_COLS_DEFAULT 的键遍历，
- *  新增键无需数据迁移（旧数据缺该键 → readCardCols 回落默认）。 */
-export type CardColsKey = 'curio' | 'task' | 'res' | 'curation'
+/** 模块键：与 `UIPrefs.sortPrefs` 的键口径保持一致（curio / task / res） */
+export type CardColsKey = 'curio' | 'task' | 'res'
 
 /**
- * 各模块默认列数：
- * - `curio`（好奇心培育）`repeat(4, 1fr)` → 4
- * - `task`（任务调度）`auto-fill minmax(240px, 1fr)`，方向台 1440px 页宽下 ≈ 5 → 5
- * - `res`（资源台）R119 按原型 `.resource-cards-grid` 默认 **6 列**（原 ≈5）
- * - `curation`（策展台）R119 按原型 `.cards-5col-grid` 默认 **4 列**
+ * 各模块默认列数 = **改造前的等效列数**，保证升级后视觉零变化：
+ * - `curio`（好奇心培育）改造前 `repeat(4, 1fr)` → 4
+ * - `task`（任务调度）改造前 `auto-fill minmax(240px, 1fr)`，在方向台 1440px 页宽下 ≈ 5 → 5
+ * - `res`（资源台 / 策展台）改造前 `auto-fill minmax(260px, 1fr)` 同口径 ≈ 5 → 5
  */
-export const CARD_COLS_DEFAULT: Record<CardColsKey, number> = { curio: 4, task: 5, res: 6, curation: 4 }
+export const CARD_COLS_DEFAULT: Record<CardColsKey, number> = { curio: 4, task: 5, res: 5 }
 
 /** 归一：仅接受 4/5/6/7，其余（含 undefined / NaN / 越界）一律回落该模块默认列数 */
 function normalize(key: CardColsKey, v: unknown): number {

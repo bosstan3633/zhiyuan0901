@@ -268,8 +268,8 @@ const tabMeta = computed(() => [
 .rb-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .15s; }
 .rb-btn:hover { border-color: var(--accent); color: var(--accent); }
 .rb-btn.sm { padding: 5px 10px; font-size: 11.5px; }
-.rb-btn.danger { border-color: color-mix(in srgb, var(--danger) 40%, transparent); color: var(--danger); }
-.rb-btn.danger:hover { background: var(--danger); color: #fff; }
+.rb-btn.danger { border-color: color-mix(in srgb, #e5484d 40%, transparent); color: #e5484d; }
+.rb-btn.danger:hover { background: #e5484d; color: #fff; }
 
 .rb-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
 .rb-tab { flex: 1; padding: 10px 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .15s; }

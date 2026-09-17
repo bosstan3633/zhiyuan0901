@@ -437,7 +437,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
 .ts-foot .mini-btn { justify-content: center; padding: 9px 16px; }
 .ts-del-ghost { display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; border: none; background: transparent; border-radius: 6px; font-size: 11.5px; cursor: pointer; color: var(--text-3); font-family: inherit; transition: all .15s; user-select: none; }
-.ts-del-ghost:hover { color: var(--danger); background: var(--tag-danger-bg); }
+.ts-del-ghost:hover { color: var(--danger); background: var(--danger-light, rgba(231,76,60,.1)); }
 .ts-foot-spacer { flex: 1; }
 .ts-kbd { font-size: 10px; background: rgba(255,255,255,.22); border-radius: 4px; padding: 1px 5px; font-weight: 400; margin-left: 2px; }
 

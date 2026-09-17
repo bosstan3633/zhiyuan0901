@@ -1341,7 +1341,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-ri-act.go:hover { background: var(--accent-hover); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 14%, transparent); }
 .gp-ri-act.del:hover { background: var(--tag-danger-bg); border-color: var(--tag-danger-bg); color: var(--tag-danger-text); }
 /* 第卅三轮 REQ-019/020：搜索结果星标高亮 */
-.gp-ri-act.on { background: var(--star-bg); border-color: color-mix(in srgb, var(--star) 40%, transparent); color: var(--star); }
+.gp-ri-act.on { background: color-mix(in srgb, #f5b942 16%, transparent); border-color: color-mix(in srgb, #f5b942 40%, transparent); color: #d99a1e; }
 .gp-convert-menu { position: absolute; bottom: calc(100% + 6px); right: 0; background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 8px 28px rgba(0,0,0,.12); padding: 5px;
   min-width: 150px; display: none; z-index: 10; }

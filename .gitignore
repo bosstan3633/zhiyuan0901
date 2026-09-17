@@ -3,8 +3,6 @@ node_modules/
 Thumbs.db
 *.log
 dist/
-dist_old_*/
-.theme-audit/
 .workbuddy/git-recovery/
 .workbuddy/memory/
 .workbuddy/
