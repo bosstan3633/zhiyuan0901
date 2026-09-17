@@ -1,18 +1,19 @@
 /* R108（F10）：资源台/策展台容器与调度台/方向台统一（1440 居中 + 24px 边距）——三页切换无左右跳动感 */
-.ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; }
+.ws-page { min-height: 100vh; background: var(--bg); max-width: 1560px; margin: 0 auto; }
 .ws-empty { display: flex; align-items: center; justify-content: center; height: 100vh; color: var(--text-3); }
 
 /* R73-S5a：资源台页头（R64-F13 删掉 hero 大标题后，hub 一直没有页面标题；
     R16 收敛后 CurationCenter 的 crumb 也不再出现 ⇒ 在此补回） */
 /* R84（W1）：台身份页头——图标 + 台名 + 台描述 + 右端结构摘要（一行 ≤40px，所有台都渲染）。
    改前只有资源台一段写死的 .ws-hub-head（padding 18/14 ⇒ 约 60px 高），策展台零页头。 */
-.ws-id-head { display: flex; align-items: center; gap: 8px; min-height: 34px; max-height: 40px; padding: 6px 0 8px; overflow: hidden; }
+/* R123（要求 #4）：页头更紧凑——16px 标题 / 30~36px 高 */
+.ws-id-head { display: flex; align-items: center; gap: 8px; min-height: 30px; max-height: 36px; padding: 4px 0 6px; overflow: hidden; }
 .wsh-icon { flex-shrink: 0; font-size: 16px; line-height: 1; }
 /* 19px 沿用 R51-F11「页头标题统一放大」的既有规范（三主页面 + 项目详情/方向树 crumb 同款），
    不另起字号；19px 行高 ≈23px + padding 14px = 37px，仍在 W1 的 ≤40px 之内 */
-.wsh-name { flex-shrink: 0; font-size: 19px; letter-spacing: .3px; font-weight: 700; color: var(--text); }
+.wsh-name { flex-shrink: 0; font-size: 16px; letter-spacing: .2px; font-weight: 700; color: var(--text); }
 .wsh-desc { flex: 1; min-width: 0; font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.wsh-summary { flex-shrink: 0; margin-left: auto; font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wsh-summary { flex-shrink: 0; margin-left: auto; font-size: 12px; color: var(--text-3); white-space: nowrap; }
 /* R98（W8）：页头「更新 X」摘要——自指标条降级而来，保留流水下钻入口 */
 .wsh-upd { cursor: pointer; }
 .wsh-upd:hover { color: var(--accent); }
@@ -27,16 +28,16 @@
 .wsh-locator { flex-shrink: 0; font-size: 11px; color: var(--text-3); cursor: help; }
 .wsh-help { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; margin-left: 6px; border: 1px solid var(--border); border-radius: 50%; font-size: 9.5px; line-height: 1; color: var(--text-3); background: var(--surface-2); cursor: help; }
 .wsh-help:hover { color: var(--accent); border-color: var(--accent); }
-/* R84（W2-①）：中心论点横幅（卡片视图顶部）——已设立 / 未设立两态 */
-.thesis-banner { display: flex; align-items: center; gap: 8px; height: 34px; margin-bottom: 10px; padding: 0 12px; background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); border-radius: var(--radius-sm); }
-.thesis-banner.empty { background: var(--surface-2); border-color: var(--border); }
-.tb-mark { flex-shrink: 0; font-size: 13px; }
-.tb-label { flex-shrink: 0; font-size: 10px; font-weight: 700; letter-spacing: .5px; color: var(--accent); background: var(--accent-light); padding: 2px 7px; border-radius: 99px; }
-.tb-title { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+/* R123（C2/原型）：论点大气横幅——badge 实底 + 14px 论点 + 右侧按钮（hover 反色） */
+.thesis-banner { display: flex; align-items: center; gap: 12px; padding: 12px 18px; margin-bottom: 12px; background: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--accent) 4%, var(--surface)) 100%); border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); border-radius: var(--radius-md); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 6%, transparent); }
+.thesis-banner.empty { background: var(--surface-2); border-color: var(--border); box-shadow: none; }
+.tb-badge { flex-shrink: 0; font-size: 11px; font-weight: 700; letter-spacing: .03em; color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 4px; }
+.tb-badge.gray { color: var(--text-3); background: var(--surface-3); }
+.tb-title { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; letter-spacing: -.01em; }
 .tb-title:hover { color: var(--accent); }
-.tb-go { flex-shrink: 0; font-size: 11px; color: var(--accent); cursor: pointer; white-space: nowrap; }
-.tb-go:hover { text-decoration: underline; }
-.tb-hint { flex: 1; min-width: 0; font-size: 11.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-btn { flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); padding: 4px 12px; border-radius: var(--radius-xs); cursor: pointer; transition: all .15s; font-family: inherit; }
+.tb-btn:hover { background: var(--accent); color: #fff; }
+.tb-hint { flex: 1; min-width: 0; font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Hero 已删（R64-F13：大标题区移除，编辑入口收进 ⚙ 菜单）——仅保留图标管理弹层样式 */
 .ws-icon-btn { cursor: pointer; border-radius: 8px; padding: 2px 7px; transition: background .15s; }
@@ -60,10 +61,10 @@
 .name-text { outline: none; border-radius: 4px; padding: 2px 4px; }
 .name-text:focus { background: rgba(255,255,255,.15); }
 /* hero-btn 保留（R64 上移工具条继续使用） */
-.hero-btn { padding: 6px 14px; border-radius: 8px; font-size: 12px; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 5px; font-weight: 500; border: none; }
+.hero-btn { padding: 5px 12px; border-radius: var(--radius-xs); font-size: 12px; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 5px; font-weight: 500; border: none; }
 .hero-btn.primary { background: var(--accent); color: #fff; }
 .hero-btn.primary:hover { background: var(--accent-hover); }
-.hero-btn.ghost { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
+.hero-btn.ghost { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
 .hero-btn.ghost:hover { background: var(--surface-3); color: var(--text); }
 .hero-btn.settings { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); padding: 6px 10px; }
 .hero-btn.settings:hover { background: var(--surface-3); color: var(--text); }
@@ -80,14 +81,16 @@
 .cover-swatch.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
 
 /* 工具条 */
-.ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; padding: 14px 0; border-bottom: 1px solid var(--border); background: var(--bg); }
+/* R123（B3）：工具条卡片化（Q6：保留 sticky 吸附） */
+.ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-sm); }
 /* R110-LC（T3）：归档卡降级提示条（可点开生命周期面板查看 / 恢复） */
 .ws-archived-hint { margin: 8px 0 0; padding: 7px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: 11.5px; color: var(--text-3); cursor: pointer; transition: all .15s; }
 .ws-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
-.view-tabs { display: flex; background: var(--surface-2); border-radius: 8px; padding: 3px; gap: 2px; }
-.view-tab { padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; color: var(--text-2); transition: all .15s; display: flex; align-items: center; gap: 4px; }
-.view-tab:hover { color: var(--text); }
-.view-tab.active { background: var(--surface); color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+/* R123（A5/原型）：分段控件 = 边框容器 + active 灰底 */
+.view-tabs { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.view-tab { padding: 4px 9px; font-size: 12px; cursor: pointer; color: var(--text-2); transition: all .15s; display: flex; align-items: center; gap: 4px; background: var(--surface); }
+.view-tab:hover { background: var(--surface-2); color: var(--text); }
+.view-tab.active { background: var(--surface-2); color: var(--text); font-weight: 600; box-shadow: none; }
 .toolbar-select { padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); font-size: 11.5px; color: var(--text-2); cursor: pointer; outline: none; transition: all .15s; }
 .sort-dir-btn { font-family: inherit; white-space: nowrap; }
 .sort-dir-btn:hover { border-color: var(--accent); color: var(--text-1); }
@@ -96,7 +99,7 @@
 .toolbar-spacer { flex: 1; }
 .toolbar-search { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); transition: all .15s; }
 .toolbar-search:focus-within { border-color: var(--accent); }
-.toolbar-search input { border: none; outline: none; font-size: 12px; width: 160px; background: transparent; color: var(--text); }
+.toolbar-search input { border: none; outline: none; font-size: 12px; width: 170px; background: transparent; color: var(--text); }
 .toolbar-search .s-icon { color: var(--text-3); font-size: 13px; }
 .toolbar-batch { padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; white-space: nowrap; }
 .toolbar-batch:hover { border-color: var(--accent); color: var(--accent); }
@@ -125,12 +128,13 @@
 .ws-columns { display: flex; align-items: flex-start; }
 
 /* 侧边栏（R48-V2：Linear 风格树——紧凑行高、缩进导轨、chevron 旋转、弱化计数） */
-.ws-sidebar { width: 200px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--surface); padding: 10px 10px 14px; overflow-y: auto; }
+/* R123（B4/原型）：侧栏卡片盒（210px、无右分割线） */
+.ws-sidebar { width: 210px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: 10px 10px 14px; box-shadow: var(--shadow-sm); overflow-y: auto; }
 /* R113-N1：分类树宽度拖拽分隔条（4px 热区，hover/拖拽中高亮） */
 .ws-side-split { width: 4px; flex-shrink: 0; margin-left: -2px; cursor: col-resize; border-radius: 2px; transition: background .12s; z-index: 5; }
 .ws-side-split:hover, .ws-side-split:active { background: var(--accent); opacity: .55; }
 .cat-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px 8px; }
-.cat-toolbar .ct-label { font-size: 10px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; }
+.cat-toolbar .ct-label { font-size: 11px; font-weight: 600; color: var(--text-3); letter-spacing: .2px; }
 .cat-toolbar .ct-actions { display: inline-flex; gap: 2px; }
 .cat-toolbar .ct-btn { font-size: 10.5px; color: var(--text-3); padding: 2px 6px; border-radius: 5px; cursor: pointer; transition: all .12s; }
 .cat-toolbar .ct-btn:hover { color: var(--accent); background: var(--accent-light); }
@@ -186,7 +190,7 @@
 .ws-modal-hint { margin-top: 8px; font-size: 11px; color: var(--text-3); }
 
 /* 内容区 */
-.ws-content { flex: 1; min-width: 0; padding: 20px 24px 90px; overflow-y: auto; }
+.ws-content { flex: 1; min-width: 0; padding: 14px 24px 90px; overflow-y: auto; }
 
 /* 分区标签（置顶区/非置顶区） */
 .section-label { font-size: 12px; font-weight: 600; color: var(--text-2); margin: 4px 0 10px; padding-left: 2px; }
@@ -200,19 +204,24 @@
 
 /* 卡片视图（第卅三轮 REQ-026：间距/内边距/最小宽引用 tokens 密度令牌，一处切换全局生效） */
 /* R72→R106（F3）：卡片视图列数由 --grid-cols 驱动（4/5/6/7），精确 N 列 + 卡片宽度自适应收缩（密度档经 --card-gap 保持） */
-.card-grid { display: grid; /* R106（F3）：精确 N 列（同 F3 口径，资源台/策展台共用） */ grid-template-columns: repeat(var(--grid-cols, 5), minmax(0, 1fr)); gap: var(--card-gap); }
+.card-grid { display: grid; /* R106（F3）：精确 N 列（同 F3 口径，资源台/策展台共用） */ grid-template-columns: repeat(var(--grid-cols, 5), minmax(0, 1fr)); gap: 10px; }
 .res-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .res-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.res-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: var(--card-pad-vert) var(--card-pad-horz); cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; min-height: 120px; min-width: 0; overflow: hidden; /* R107（F8）：内容自适应——防长标题/长链接撑破轨道致列宽不一 */ /* R55-F4：屏外卡片跳过渲染（切策展台 595ms 的渲染段优化） */ content-visibility: auto; contain-intrinsic-size: auto 132px; }
-.res-card:hover { border-color: var(--accent); background: var(--surface-2); }
+.res-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; box-shadow: var(--shadow-sm); cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; min-height: 86px; min-width: 0; overflow: hidden; /* R107（F8）：内容自适应——防长标题/长链接撑破轨道致列宽不一 */ /* R55-F4：屏外卡片跳过渲染（切策展台 595ms 的渲染段优化） */ content-visibility: auto; contain-intrinsic-size: auto 96px; }
+/* R123（C7/原型）：镜像卡 = 虚线发丝边框 + 浅底；hover 变 accent 实时 = 可操作 */
+.res-card.mirror-card { border-style: dashed; border-color: var(--border-strong); background: color-mix(in srgb, var(--text) 1.5%, var(--surface)); }
+.res-card.mirror-card:hover { border-color: var(--accent); border-style: solid; background: var(--surface); }
+/* R123（B6/原型）：hover = 描边加深 + 上浮 1px + 阴影（不再变灰底） */
+.res-card:hover { border-color: var(--border-strong); transform: translateY(-1px); box-shadow: var(--shadow-hover); }
 .res-card.selected { border-color: var(--accent); background: var(--accent-light); }
 .res-card.pinned { border-left: 3px solid var(--accent); }
 .rc-batch-check { position: absolute; top: 10px; left: 10px; width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-strong); background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 11px; color: #fff; z-index: 3; }
 .rc-batch-check.on { background: var(--accent); border-color: var(--accent); }
-.res-card-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 3px; opacity: 0; transition: opacity .15s; z-index: 2; }
+/* R123（B6/原型）：hover 动作 = 白底容器条（原裸图标） */
+.res-card-actions { position: absolute; top: 6px; right: 6px; display: flex; align-items: center; gap: 2px; padding: 2px 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; box-shadow: var(--shadow-sm); opacity: 0; transition: opacity .15s; z-index: 2; }
 .res-card:hover .res-card-actions { opacity: 1; }
-.rc-action { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: 12px; color: var(--text-3); cursor: pointer; transition: all .1s; background: var(--surface); }
-.rc-action:hover { background: var(--surface-3); color: var(--text); }
+.rc-action { min-width: 20px; height: 20px; padding: 0 4px; display: flex; align-items: center; justify-content: center; border-radius: 3px; font-size: 11px; line-height: 1; color: var(--text-2); cursor: pointer; transition: all .1s; background: transparent; }
+.rc-action:hover { background: var(--surface-2); color: var(--accent); }
 .rc-action.pin:hover { color: var(--accent); }
 /* R79（R1 收尾）：↗ 打开用链接蓝，与「开链接」语义呼应；六动作里只有 pin 用强调色，主色仍稀缺 */
 .rc-action.open:hover, .rr-action.open:hover, .kc-action.open:hover { color: var(--info-blue); }
@@ -414,7 +423,7 @@
 /* R64-F13：指标条压缩为紧凑单行（非重点信息，让位策展区） */
 /* R75（R18）：资源台 3 格版——论点格与来源构成格对 hub 无意义；只加修饰类，不改 5 格本体 */
 .ws-metrics.hub3 { grid-template-columns: repeat(3, 1fr); }
-.ws-metrics { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 8px; margin: 10px 0 0; }
+.ws-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0 0; }
 /* R109（F14）：指标卡纵向两行布局——label 上 / 数值中 / 提示下，hover 微抬升（生产反馈：纵向太窄） */
 .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; cursor: pointer; transition: all .15s; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 .metric-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: var(--shadow); }
@@ -566,3 +575,21 @@
 .res-card.warning-broken { border-color: color-mix(in srgb, var(--warning) 40%, var(--border)); background: color-mix(in srgb, var(--warning) 4%, var(--surface)); }
 .res-card.warning-broken:hover { border-color: var(--warning); }
 .rc-action.fix:hover { color: var(--warning); }
+
+/* ===== R123（Q6）：密度档位改作用于列表/看板（卡片已固定原型值） ===== */
+[data-density='compact'] .res-row { padding: 7px 16px; }
+[data-density='compact'] .kc-card { padding: 8px 10px; margin-bottom: 6px; }
+/* R123（B7 原型）：镜像卡 footer 类型徽标 */
+.rc-type-chip { font-size: 10.5px; color: var(--text-3); white-space: nowrap; }
+
+/* ===== R123（C3/原型）：策展台 3 格辅助条（8×12、数值 14px） ===== */
+.ws-metrics.cur3 .metric-box { padding: 8px 12px; }
+.ws-metrics.cur3 .mbox-value { font-size: 14px; }
+/* ===== R123（C6/原型）：策展台卡片视图分组白盒 ===== */
+.group-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
+.group-box .ws-cat-head { margin: 0 0 8px; }
+.group-box .card-grid + .section-label { margin-top: 0; }
+/* ===== R123（C8/原型）：金字塔成果态皮肤（分支盒浅底 + 节点内白卡 + 镜像虚线） ===== */
+.py-node { background: color-mix(in srgb, var(--surface-2) 55%, var(--surface)); }
+.py-card-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--surface); font-weight: 600; padding: 4px 8px; }
+.py-card-chip.py-chip-mirror { border-style: dashed; border-color: var(--border-strong); background: color-mix(in srgb, var(--text) 1.5%, var(--surface)); }

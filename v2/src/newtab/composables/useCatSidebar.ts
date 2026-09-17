@@ -94,7 +94,7 @@ export function useCatSidebar(ctx: CatSidebarCtx) {
   // 都支持拖拽，资源台是唯一例外。此处沿用 px 范式（同 TaskDetailDrawer）。
   const SIDE_W_MIN = 160
   const SIDE_W_MAX = 420
-  const SIDE_W_DEF = 200
+  const SIDE_W_DEF = 210
   const wsSideW = ref<number>(store.ui?.wsSideW || SIDE_W_DEF)
   let sideDrag: { startX: number; startW: number } | null = null
   function onSideResizeMove(e: MouseEvent) {

@@ -1146,10 +1146,10 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 </template>
 
 <style scoped>
-.page { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
+.page { max-width: 1560px; margin: 0 auto; padding: 14px 24px 48px; }
 .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-left: 22px; }
 .page-head .crumb { font-size: 13px; color: var(--text-2); }
-.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
+.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 16px; letter-spacing: .2px; }
 .page-head .spacer { flex: 1; }
 .hint-chip { font-size: 10.5px; color: var(--text-3); background: var(--surface); border: 1px dashed var(--border-strong); padding: 3px 10px; border-radius: 99px; }
 

@@ -81,10 +81,10 @@ function openTree() {
 </template>
 
 <style scoped>
-.page { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
+.page { max-width: 1560px; margin: 0 auto; padding: 14px 24px 48px; }
 .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-left: 22px; }
 .page-head .crumb { font-size: 13px; color: var(--text-2); display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
+.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 16px; letter-spacing: .2px; }
 /* R121：主线摘要并入副标题（原型：方向台 · 主航线与项目全景 · N 目标 · …） */
 .mainline-summary { font-size: 12.5px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .page-head .spacer { flex: 1; }

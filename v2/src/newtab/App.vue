@@ -554,19 +554,20 @@ const backupReminderDot = computed(() => {
 
 <style scoped>
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
-.topbar { position: sticky; top: 0; z-index: 100; height: 56px; display: flex; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+/* R123（原型）：顶栏 48px（原 56px），对齐原型 top-nav */
+.topbar { position: sticky; top: 0; z-index: 100; height: 48px; display: flex; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
 /* R106（F2）：顶栏内容容器按路由对齐各页正文容器（左缘一致） */
 .topbar-inner { flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; }
-.topbar-inner.align-page { max-width: 1440px; margin: 0 auto; padding: 0 24px; }
+/* R123（Q1）：全局容器统一 1560 */
+.topbar-inner.align-page { max-width: 1560px; margin: 0 auto; padding: 0 24px; }
 .topbar-inner.align-settings { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
 .topbar-inner.align-manual { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }
 .home-logo { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
-.tab { padding: 7px 12px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color .15s ease, background .15s ease; position: relative; white-space: nowrap; }
-.tab:hover { background: var(--surface-3); color: var(--text); }
-.tab.active { color: var(--accent); font-weight: 600; }
-.tab.active { color: var(--text); }
-.tab.active::after { content: ''; position: absolute; bottom: -14px; left: 12px; right: 12px; height: 2px; background: var(--accent); border-radius: 2px; }
+/* R123（原型）：tab 6×12、active = 浅紫填充块（accent-light + accent 600），下划线退役 */
+.tab { padding: 6px 12px; border-radius: var(--radius-xs); font-size: 13px; font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color .15s ease, background .15s ease; position: relative; white-space: nowrap; }
+.tab:hover { background: var(--surface-2); color: var(--text); }
+.tab.active { color: var(--accent); background: var(--accent-light); font-weight: 600; }
 /* R45-5：.badge 样式随角标移除一并清理（全应用已无渲染点） */
 .tab-divider { width: 1px; height: 20px; background: var(--border); margin: 0 6px; }
 /* R49：资源台占位（下轮交付）——弱化呈现 */

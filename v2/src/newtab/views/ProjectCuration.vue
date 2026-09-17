@@ -624,12 +624,12 @@ function addTaskFromHeader() {
 </template>
 
 <style scoped>
-.page { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
+.page { max-width: 1560px; margin: 0 auto; padding: 14px 24px 48px; }
 /* R117（04-61 C）：内嵌于方向台一级时去掉自身页边距与宽度上限，避免与宿主 .page 双层缩进 */
 .page.is-embedded { max-width: none; margin: 0; padding: 0; }
 .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-left: 22px; }
 .page-head .crumb { font-size: 12.5px; color: var(--text-2); }
-.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
+.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 16px; letter-spacing: .2px; }
 .page-head .crumb .sep { color: var(--text-4); margin: 0 6px; }
 /* R54-A1：面包屑上级可点 */
 .page-head .crumb .crumb-up { cursor: pointer; color: var(--text-3); }

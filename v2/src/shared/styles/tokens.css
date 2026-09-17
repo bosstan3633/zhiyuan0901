@@ -15,9 +15,9 @@
  */
 
 :root {
-  /* 字体栈 · Inter 优先（拉丁），系统中文回退 */
-  --font-sans: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC",
-    "HarmonyOS Sans SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  /* R123（原型）：字体栈按原型完全采纳——系统字体优先，Inter 作回退 */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
 
   /* 字号层级 */
   --fs-display: 22px;
@@ -35,9 +35,10 @@
   --hairline: 1px;
 
   /* 密度令牌（第卅三轮 REQ-026：卡片网格，一处修改全局生效；compact 覆盖见文件尾） */
-  --card-pad-vert: 14px;
-  --card-pad-horz: 16px;
-  --card-gap: 14px;
+  /* R123（原型）：卡片尺寸令牌默认值对齐原型（9×11 + 10px 间距） */
+  --card-pad-vert: 9px;
+  --card-pad-horz: 11px;
+  --card-gap: 10px;
   --card-min-w: 260px;
 }
 
@@ -94,6 +95,10 @@
   --overlay-bg: rgba(0, 0, 0, 0.6);
 
   /* 阴影 · Linear 以表面阶梯与发丝线承载层级，阴影仅用于悬浮弹层 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
@@ -135,6 +140,10 @@
   --tag-info-bg: #E8F1FD;
   --tag-info-text: #0064C8;
   --overlay-bg: rgba(0, 0, 0, 0.32);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow: 0 0 0 1px var(--border);
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 0 0 1px var(--border), 0 8px 24px rgba(0, 0, 0, 0.07);
@@ -178,6 +187,10 @@
   --tag-info-bg: rgba(91, 141, 239, 0.15);
   --tag-info-text: #9CC0F5;
   --overlay-bg: rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
@@ -221,6 +234,10 @@
   --tag-info-bg: #E7F1FB;
   --tag-info-text: #2383E2;
   --overlay-bg: rgba(15, 15, 15, 0.35);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow: 0 0 0 1px var(--border);
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(15, 15, 15, 0.04);
   --shadow-lg: 0 0 0 1px var(--border), 0 8px 24px rgba(15, 15, 15, 0.07);
@@ -236,7 +253,9 @@ html, body {
   color: var(--text);
   line-height: 1.6;
   font-size: var(--fs-body);
-  letter-spacing: -0.011em; /* Linear 式轻微负字距（拉丁生效，中文影响可忽略） */
+  /* R123（原型）：全局表格数字（等宽数字）——原型 * { font-feature-settings: "tnum" } 的等价落点 */
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }

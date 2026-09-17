@@ -691,7 +691,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.compass-layout { display: block; min-height: 100%; padding: 20px 24px 48px; max-width: 1440px; margin: 0 auto; }
+.compass-layout { display: block; min-height: 100%; padding: 14px 24px 48px; max-width: 1560px; margin: 0 auto; }
 .tree-layout { display: flex; gap: 20px; align-items: flex-start; }
 /* N1：愿景/使命关联卡片 */
 .node { position: relative; }
@@ -760,7 +760,7 @@ onUnmounted(() => {
 
 .tree-page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .tree-page-head .crumb { font-size: 12.5px; color: var(--text-2); }
-.tree-page-head .crumb b { color: var(--text); font-weight: 700; font-size: 19px; letter-spacing: .3px; }
+.tree-page-head .crumb b { color: var(--text); font-weight: 700; font-size: 16px; letter-spacing: .2px; }
 .tree-page-head .crumb .sep { color: var(--text-4); margin: 0 6px; }
 .tree-page-head .spacer { flex: 1; }
 /* R49-C7：顶部统计 + 展开收起/显隐工具 */

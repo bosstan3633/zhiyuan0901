@@ -62,22 +62,19 @@
 
     <!-- R62-1：策展台指标条——R98（W8）5 格 → 3 格：构成明细本就与总数格 hint 同源同文（并入即删格）；
          「🕐 最近更新」降为页头摘要「· 更新 X」（可点进流水下钻，入口不断） -->
-    <div v-if="!isHub" class="ws-metrics">
-      <!-- R67-F2：策展主题格高亮——主题色描边+微底色，与后续统计格拉开层级 -->
-      <div class="metric-card thesis-hl" @click="openThesisDetail">
-        <div class="mc-label">🏛 策展主题</div>
-        <div class="mc-value thesis" :title="thesisCard?.title">{{ thesisCard?.title || '未设立' }}</div>
-        <div class="mc-hint">{{ thesisCard ? '点击编辑论点卡' : '右键台内卡片可设立' }}</div>
+    <!-- R123（C3/原型）：策展台 3 格辅助条——论点已在大横幅，主题格退役；新增「金字塔论证深度」 -->
+    <div v-if="!isHub" class="ws-metrics cur3">
+      <div class="metric-box" title="点击查看全部卡片明细（台内 + 镜像）" @click="openDrill('total')">
+        <span class="mbox-label">📊 论据卡片总数</span>
+        <span class="mbox-value">{{ metrics.total }}<span v-if="metrics.mirrored" class="mbox-sub">（源卡镜像 📡 {{ metrics.mirrored }}）</span></span>
       </div>
-      <div class="metric-card" @click="openDrill('total')">
-        <div class="mc-label">📊 卡片总数</div>
-        <div class="mc-value">{{ metrics.total }}</div>
-        <div class="mc-hint">台内 {{ metrics.native }} · 镜像 {{ metrics.mirrored }}</div>
+      <div class="metric-box" title="点击查看附件明细" @click="openDrill('assets')">
+        <span class="mbox-label">📎 佐证附件数量</span>
+        <span class="mbox-value">{{ metrics.attachmentCount }}<span v-if="assetKindBreakdown" class="mbox-sub">（{{ assetKindBreakdown }}）</span></span>
       </div>
-      <div class="metric-card" @click="openDrill('assets')">
-        <div class="mc-label">📎 附件数量</div>
-        <div class="mc-value">{{ metrics.attachmentCount }}</div>
-        <div class="mc-hint">点击查看明细</div>
+      <div class="metric-box" title="论点 1 层 + 分类树实录层数；闭环 = 无空分类节点">
+        <span class="mbox-label">🏛 金字塔论证深度</span>
+        <span class="mbox-value">{{ pyramidDepthText }}</span>
       </div>
     </div>
 
@@ -126,7 +123,7 @@
         <div class="view-tab" :class="{active: viewMode==='list'}" @click="setViewMode('list')">☰ 列表</div>
         <div class="view-tab" :class="{active: viewMode==='kanban'}" @click="setViewMode('kanban')">▤ 看板</div>
         <!-- R62-5：金字塔结构视图 -->
-        <div class="view-tab" :class="{active: viewMode==='pyramid'}" @click="setViewMode('pyramid')">⬡ 金字塔</div>
+        <div class="view-tab" :class="{active: viewMode==='pyramid'}" @click="setViewMode('pyramid')">⬡ 金字塔{{ isHub ? '' : ' (成果态)' }}</div>
       </div>
       <!-- R90（R8-②）：主 CTA「＋新建」前置——从最右移到视图 Tab 之后、搜索之前。
            R88 只做了"分级"（一级收到 5 件），**位置仍在右端**；R8 要的是"主 CTA 不被挤到最右"。 -->
@@ -149,7 +146,7 @@
       </select>
       <div class="toolbar-search">
         <span class="s-icon">🔍</span>
-        <input type="text" v-model="searchQuery" placeholder="搜索标题 / #标签..."
+        <input type="text" v-model="searchQuery" :placeholder="isHub ? '搜索标题 / #标签...' : '检索本台素材...'"
           title="匹配标题 / 描述 / 标签 / 自定义字段；输入 #标签 可按标签直筛（多个取交集，如 #前端 #待读）">
       </div>
       <!-- R88（W3）：工具条分级——一级只留「视图 Tab ｜ 搜索 ｜ 筛选 ｜ ＋新建 ｜ ⚙」。
@@ -232,7 +229,7 @@
       <div class="ws-columns">
       <div class="ws-sidebar" :style="{ width: wsSideW + 'px' }">
         <div class="cat-toolbar">
-          <span class="ct-label">目录</span>
+          <span class="ct-label">{{ isHub ? '策展目录' : '论证结构目录' }}</span>
           <span class="ct-actions">
             <span class="ct-btn" title="一键收纳为策展台根部" @click="collapseAllCats">⊟ 收起</span>
             <span class="ct-btn" title="全部展开" @click="expandAllCats">⊞ 展开</span>
@@ -311,20 +308,20 @@
         <div v-if="viewMode==='card'">
           <!-- R84（W2-①）：中心论点提到首屏——此前论点只出现在指标条第一格与金字塔 L1 根，
                卡片视图（默认视图）里完全看不到。已设立 → 标题 + 查看金字塔；未设立 → 一行轻引导。 -->
+          <!-- R123（C2/原型）：论点大气横幅——badge 实底 + 论点 14px/700 + 右侧「查看金字塔结构论证」按钮 -->
           <div v-if="!isHub" class="thesis-banner" :class="{ empty: !thesisCard }">
             <template v-if="thesisCard">
-              <span class="tb-mark">🏛</span>
-              <span class="tb-label">中心论点</span>
+              <span class="tb-badge">🏛 中心论点</span>
               <span class="tb-title" :title="thesisCard.title" @click.stop="onCardClick(thesisCard)">{{ thesisCard.title }}</span>
-              <span class="tb-go" @click="setViewMode('pyramid')">查看金字塔 →</span>
+              <button class="tb-btn" @click="setViewMode('pyramid')">⬡ 查看金字塔结构论证 ›</button>
             </template>
             <template v-else>
-              <span class="tb-mark">🏛</span>
+              <span class="tb-badge gray">🏛 中心论点</span>
               <span class="tb-hint">尚未设立中心论点 —— 右键台内卡片可设立（设立后即成为金字塔 L1 根）</span>
             </template>
           </div>
           <template v-for="(g, gi) in renderedGroups" :key="g.key">
-            <div :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
+            <div class="group-wrap" :class="{ 'group-box': viewMode === 'card' && !isHub && g.depth === 0 }" :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
             <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
               <span>{{ g.depth ? '↳' : '📁' }} {{ g.title }}<template v-if="groupChildCount(g.key)">（直属 {{ g.count }} · 含 {{ groupChildCount(g.key) }} 个子分类共 {{ g.total }}）</template><template v-else> · {{ g.total }}</template></span>
               <span class="head-right">
@@ -341,19 +338,21 @@
               </div>
             <div v-show="!collapsedGroups.has(g.key)" class="card-grid"
               @dragover="onAreaDragOver($event, g.key)" @drop="onAreaDrop($event, g.key)">
-              <div v-for="r in g.items" :key="r.id" class="res-card" :class="{pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b', 'warning-broken': isBrokenPath(r)}"
+              <div v-for="r in g.items" :key="r.id" class="res-card" :class="{pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b', 'warning-broken': isBrokenPath(r), 'mirror-card': isMirrorView(r)}"
                 :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
                 @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragend="clearDragState" @dragleave="clearDropMark"
                 @contextmenu.prevent="openResCtx($event, r)">
                 <div v-if="batchMode" class="rc-batch-check" :class="{on: selectedIds.has(r.id)}" @click.stop="toggleSelect(r.id)">{{ selectedIds.has(r.id)?'✓':'' }}</div>
-                <!-- R122（原型 Q3）：一级 hover 只留「置顶 + 镜像（hub）+ 断链补全」；打开/挂载/移动/⭐/删除在右键菜单（双击可打开） -->
+                <!-- R123（要求 #3）：一级 hover = 置顶 / 移动 / 删除（+ 断链补全）；打开/挂载/⭐/镜像等收进右键菜单（双击可打开） -->
                 <div class="res-card-actions">
                   <template v-if="!isMirrorView(r)">
                     <div class="rc-action pin" :class="{on: r.pinned}" @click.stop="togglePin(r)" :title="r.pinned ? '取消置顶' : '置顶'">📌</div>
-                    <div v-if="isHub" class="rc-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</div>
+                    <div class="rc-action move" title="移动分类" @click.stop="openMoveOne(r)">📂</div>
+                    <div class="rc-action delete" title="删除" @click.stop="deleteResource(r)">🗑</div>
                     <div v-if="isBrokenPath(r)" class="rc-action fix" title="补全本地路径" @click.stop="fixLink(r)">✏</div>
                   </template>
                   <template v-else>
+                    <div class="rc-action open" title="打开链接" @click.stop="openResourceLink(r)">↗</div>
                     <div class="rc-action locate" title="定位到资源台源卡" @click.stop="locateMirrorSource(r)">🎯</div>
                     <div class="rc-action delete" title="移出镜像（源卡保留）" @click.stop="removeMirror(r)">✕</div>
                   </template>
@@ -380,6 +379,7 @@
                   <span class="rc-cat" title="点击查看所在分类" @click.stop="activeCategory = r.categoryId || 'uncat'">{{ catIconOf(r) }} {{ catNameOfFamily(r) }}</span>
                   <span v-for="t in (r.tags || []).slice(0, 2)" :key="t" class="rc-tag-chip">#{{ t }}</span>
                   <span class="rc-footer-right">
+                    <span v-if="isMirrorView(r)" class="rc-type-chip">{{ linkIcon(r.linkType) }} {{ linkLabel(r.linkType) }}</span>
                     <AssetBadge v-if="r.assets?.length" :assets="r.assets" />
                     <span v-if="r.starred" class="rc-star" title="已星标">⭐</span>
                     <span v-if="r.callCount" class="rc-heat" title="被打开次数">🔥 {{ r.callCount }}</span>
@@ -409,7 +409,7 @@
         <!-- ===== 列表视图：REQ-027 按分类分组分区（每分区标题行 + 其下条目）；R64-F9 树状缩进 ===== -->
         <div v-if="viewMode==='list'">
           <template v-for="(g, gi) in renderedGroups" :key="g.key">
-            <div :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
+            <div class="group-wrap" :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
             <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
               <span>{{ g.depth ? '↳' : '📁' }} {{ g.title }}<template v-if="groupChildCount(g.key)">（直属 {{ g.count }} · 含 {{ groupChildCount(g.key) }} 个子分类共 {{ g.total }}）</template><template v-else> · {{ g.total }}</template></span>
               <span class="head-right">
@@ -560,7 +560,7 @@
                 </span>
               </div>
               <div class="py-node-body">
-                <span v-for="r in cell.cards" :key="r.id" class="py-card-chip" :draggable="!batchMode" :data-rid="r.id"
+                <span v-for="r in cell.cards" :key="r.id" class="py-card-chip" :class="{ 'py-chip-mirror': isMirrorView(r) }" :draggable="!batchMode" :data-rid="r.id"
                   @dragstart="onDragStart($event, r)" @dragend="clearCardDropTarget"
                   @click.stop="onCardClick(r)" @dblclick.stop="onCardDblClick(r)" @contextmenu.prevent.stop="openResCtx($event, r)">
                   <span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ r.title }}
@@ -1154,6 +1154,13 @@ const lastUpdateText = computed(() => {
 })
 /** R122（Q2）：卡片「描述与页脚之间」的启用字段——标题/描述/标签/附件由骨架固定位承载 */
 const extraFieldsOf = (r: ResourceCard) => fieldsOf(r).filter(f => !isTitleKey(f.key) && f.key !== 'description' && f.key !== 'tags' && f.key !== 'assets')
+/** R123（C3/Q3）：金字塔论证深度 = 论点(1) + 分类树最大层级；闭环 = 无空分类节点 */
+const pyramidDepth = computed(() => {
+  let maxLevel = 0, empty = false
+  for (const c of wsCats.value) { maxLevel = Math.max(maxLevel, pyLevelOf(c)); if (!catAggCount(c.id)) empty = true }
+  return { layers: (thesisCard.value ? 1 : 0) + maxLevel, closed: !empty }
+})
+const pyramidDepthText = computed(() => { const dpt = pyramidDepth.value; return dpt.layers ? dpt.layers + ' 层 · ' + (dpt.closed ? '完整闭环' : '存在空分支') : '—' })
 
 // ===== 字段渲染（F1：全局设置的字段设计在此生效） =====
 const rFields = computed(() => visibleFields(d.value.fieldConfig, 'resource'))
@@ -1470,6 +1477,8 @@ const {
 
 // ===== 链接显示 =====
 function linkIcon(type: string) { return type==='url'?'🔗':type==='file'?'📁':'📝' }
+/** R123（原型）：镜像卡页脚类型徽标文案（🔗 网页 / 📁 文件 / 📝 笔记） */
+function linkLabel(type: string) { return type==='url' ? '网页' : type==='file' ? '文件' : type==='obsidian' ? '笔记' : '卡片' }
 function linkDisplay(link: string) {
   if (!link) return ''
   if (link.startsWith('http')) return link.replace(/^https?:\/\//,'').substring(0,30)
