@@ -9,3 +9,8 @@ Thumbs.db
 
 # R71 性能基准的本地产物（perf.cjs 可随时复现，不入库）
 .perf-*.json
+
+# 本地构建/采样产物（可随时重建，不入库）
+dist_old_*/
+.prof-report.json
+.theme-audit/
