@@ -203,7 +203,7 @@ function fmtTs(ts?: number): string {
     <!-- 附件折叠 -->
     <details class="ds-details" style="margin-top:12px">
       <summary>📎 附件 <span v-if="model.assets?.length" class="cnt">({{ model.assets.length }})</span><span class="right">图片弹窗预览 / HTML 新标签打开</span></summary>
-      <AssetManager v-model="model.assets" @update:model-value="onAssetsChange" @html-added="onHtmlAdded" />
+      <AssetManager v-model="model.assets" :owner-id="model.id" @update:model-value="onAssetsChange" @html-added="onHtmlAdded" />
     </details>
 
     <!-- 宿主差异内容（如 RDD 使用统计）：插在附件与挂载之间，保持原字段顺序 -->

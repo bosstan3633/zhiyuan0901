@@ -320,7 +320,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         <!-- R48：附属区折叠（附件 / 单向挂载） -->
         <details class="ds-details" style="margin-top:14px">
           <summary>📎 附件 <span v-if="selectedTask.assets?.length" class="cnt">({{ selectedTask.assets.length }})</span><AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" /><span class="right">图片 / HTML / PDF</span></summary>
-          <AssetManager v-model="selectedTask.assets" @update:model-value="onTaskAssetsChange" @html-added="onTaskHtmlAdded" />
+          <AssetManager v-model="selectedTask.assets" :owner-id="selectedTask.id" @update:model-value="onTaskAssetsChange" @html-added="onTaskHtmlAdded" />
         </details>
         <details class="ds-details" style="margin-top:12px">
           <summary>🔗 挂载资源卡 <span class="cnt">({{ selectedTask.mountedResourceIds.filter(id => resourceTitle(id)).length }})</span><span class="right">单向挂载 · 点条目取消</span></summary>

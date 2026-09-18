@@ -2,8 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AppData, Workspace, UIPrefs } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
-import { getData, saveData, loadUIPrefs, saveUIPrefs, subscribe, syncCache, mergeExternalData, isSelfWrite } from '@/shared/storage/repository'
-import { migrateCurationTree, migrateHubStructure, migrateHubMerge } from '@/shared/storage/curationMigration'
+import { getData, saveData, loadUIPrefs, saveUIPrefs, subscribe, syncCache } from '@/shared/storage/repository'
+import { migrateCurationTree, migrateHubStructure, migrateHubMerge, hubMergeWorkPending } from '@/shared/storage/curationMigration'
 import { normalizeCardTagPaths } from '@/shared/utils/tags'
 
 export const useAppStore = defineStore('app', () => {
@@ -40,7 +40,9 @@ export const useAppStore = defineStore('app', () => {
     // R53-A1：策展树统一迁移——遗留分类/工作台投射记录物化为带 curFrom 的真实策展分类（幂等）
     // R61：资源台结构迁移（幂等，hubMigratedAt 标记）——首次执行前自动备份下载（沿用 R47-A2 安全网约定）
     if (data.value) {
-      if (!data.value.hubMigratedAt || !data.value.hubMergedAt) {
+      // R128-A2：备份只在「真有一次不可逆合并要发生」时触发——原 `!hubMergedAt` 判据在资源台
+      // 被归档（合并不落戳、留待重试）时会每次启动下载一份备份。
+      if (!data.value.hubMigratedAt || hubMergeWorkPending(data.value)) {
         try { backupBeforeHubMigration(data.value) } catch { /* 备份失败不阻断迁移 */ }
       }
       const t1 = migrateCurationTree(data.value)
@@ -97,20 +99,9 @@ export const useAppStore = defineStore('app', () => {
     })
 
     // 监听 chrome.storage 变更（popup/content 写入后同步）
-    // REQ-031 P-031-6：本页自身写入（saveData/saveDataNow 前置 selfWrite 标记）跳过全树替换，
-    // 避免每次保存都触发 storage 读回 → syncCache + data 全树替换 → 全部 computed 失效重算。
-    // 本地 listener（subscribe）已同步新引用，无需重复替换；外部写入（popup/content）仍正常全量同步。
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.onChanged.addListener((changes, area) => {
-        if (area === 'local' && changes.zy_data_v2) {
-          const newData = changes.zy_data_v2.newValue as AppData
-          if (!newData) return
-          if (isSelfWrite(newData)) return  // R70：内容指纹比对（原为恒 false 的时间戳比较，守卫从未生效）
-          // R58-B2：本页有未落盘修改时做卡片级 LWW 合并（防跨标签页/浮层并发写静默丢改），否则整树替换
-          data.value = mergeExternalData(newData)
-        }
-      })
-    }
+    // R128-A1：该接线已下沉到 repository.attachStorageSync（loadData 内自动注册，全上下文共用一份），
+    // 本页只保留 subscribe——避免同一份外部写入被两处监听各合并一次（双 saveData 写环）。
+    // REQ-031 P-031-6 的语义不变：本页自身写入按内容指纹短路，不触发全树替换。
   }
 
   // ---- 主题 ----

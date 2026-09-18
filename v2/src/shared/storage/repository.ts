@@ -65,6 +65,10 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
   //   chrome.storage.local 往返（启动链路里 STORAGE_KEY 曾被串行读 3 次，medium 实测单次
   //   197~229ms）。预取只跳过 IO，**归一化一律照常执行**。
   let raw = prefetched ? (prefetched[STORAGE_KEY] as AppData | undefined) : undefined
+  // R128-A1：统一接线跨上下文同步——此前 onChanged→合并 只在新标签页 store 里手工接，
+  // popup / content 各自裸读写 storage（既无合并、也不产事件）。改为仓库自身挂一次全局监听，
+  // 凡走本模块的上下文自动获得合并保护。
+  attachStorageSync()
   if (raw === undefined) {
     const result = await cs.get([STORAGE_KEY])
     raw = result[STORAGE_KEY] as AppData | undefined
@@ -406,9 +410,61 @@ export function mergeExternalData(ext: AppData): AppData {
   return merged
 }
 
+// ============ R128-A1 · 跨上下文同步统一接线 ============
+/**
+ * 外部写入的唯一消费点。注册一次即覆盖 newtab / popup / content / options 全上下文：
+ *  - 数据键：非本页写入 → mergeExternalData（本页无未落盘改动时整树替换）→ 通知订阅者；
+ *  - UI 键：逐键合并（见 mergeExternalUIPrefs）。
+ * 此前该链路只在新标签页 store 内手工注册，其余上下文的「读—改—整树写」没有任何合并保护。
+ */
+let syncAttached = false
+export function attachStorageSync(): void {
+  if (syncAttached) return
+  if (typeof chrome === 'undefined' || !chrome.storage?.onChanged || !chromeStore()) return
+  syncAttached = true
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') return
+    const dch = changes[STORAGE_KEY]
+    if (dch) {
+      const ext = dch.newValue as AppData | undefined
+      // 键被删除（清库/重置）时 newValue 为 undefined：保持既有语义，不触发合并
+      if (ext && !isSelfWrite(ext)) {
+        try { mergeExternalData(ext) } catch { /* 合并失败保持本页树，下次写入仍按本页为准 */ }
+        if (cache) listeners.forEach((fn) => fn(cache!))
+      }
+    }
+    const uch = changes[UI_KEY]
+    if (uch) mergeExternalUIPrefs(uch.newValue as UIPrefs | undefined)
+  })
+}
+
 // ============ UI 偏好 ============
 
 let uiCache: UIPrefs | null = null
+/**
+ * R128-A1：本上下文对某键的最后一次写入值（JSON 串）。
+ * saveUIPrefs 是整对象覆盖写，多上下文各持一份 uiCache → A 改主题、B 改列数时，
+ * B 的整对象写会把 A 的主题回退成 B 内存里的旧值。策略：外部事件里**只接受本上下文没写过的键**，
+ * 我方写过的键在外部确认收到之前保持本地值；外部值一旦等于我方值即解除保护（回声落地），此后跟随外部。
+ */
+const uiSelfWritten = new Map<string, string>()
+
+function mergeExternalUIPrefs(ext: UIPrefs | undefined): void {
+  if (!uiCache || !ext || typeof ext !== 'object') return
+  const next = { ...uiCache } as Record<string, unknown>
+  const src = ext as unknown as Record<string, unknown>
+  let changed = false
+  for (const k of Object.keys(src)) {
+    const extJson = JSON.stringify(src[k])
+    const mine = uiSelfWritten.get(k)
+    if (mine !== undefined) {
+      if (mine === extJson) uiSelfWritten.delete(k)
+      continue
+    }
+    if (extJson !== JSON.stringify(next[k])) { next[k] = src[k]; changed = true }
+  }
+  if (changed) uiCache = next as unknown as UIPrefs
+}
 
 export async function loadUIPrefs(): Promise<UIPrefs> {
   if (uiCache) return uiCache
@@ -442,5 +498,9 @@ export function getUIPrefs(): UIPrefs {
 export function saveUIPrefs(patch: Partial<UIPrefs>): void {
   if (!uiCache) return
   uiCache = { ...uiCache, ...patch }
+  // R128-A1：记下我方写过的键与值，供 mergeExternalUIPrefs 判定「哪些键不许被外部旧值回退」
+  for (const k of Object.keys(patch)) {
+    try { uiSelfWritten.set(k, JSON.stringify((uiCache as unknown as Record<string, unknown>)[k])) } catch { /* 不可序列化值不保护 */ }
+  }
   chromeStore()?.set({ [UI_KEY]: uiCache })
 }

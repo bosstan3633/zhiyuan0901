@@ -30,9 +30,16 @@ const fs = require('fs')
 const { chromium } = require('playwright-core')
 
 // R56：跨平台 Chromium 路径（Windows = playwright 缓存 chrome-win64；macOS = 缓存内 Chrome for Testing）
-const CHROME = process.platform === 'darwin'
+const CHROME_PINNED = process.platform === 'darwin'
   ? path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright', 'chromium-1234', 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing')
   : path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1223', 'chrome-win64', 'chrome.exe')
+/** R128：pinned 缓存不存在时回落系统 Chrome（ZY_CHROME 可显式指定）——同一份断言不因本机缺浏览器而失守 */
+const CHROME = (() => {
+  if (fs.existsSync(CHROME_PINNED)) return CHROME_PINNED
+  if (process.env.ZY_CHROME) return process.env.ZY_CHROME
+  const sys = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+  return process.platform === 'darwin' && fs.existsSync(sys) ? sys : CHROME_PINNED
+})()
 const DIST = path.resolve(__dirname, '..', 'dist')
 const EXT_INDEX = 'src/newtab/index.html'
 

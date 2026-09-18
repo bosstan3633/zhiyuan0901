@@ -605,7 +605,7 @@ function srcShort(url: string): string {
         </div>
         <details class="ds-details" style="margin-top:14px">
           <summary>📎 附件 <span v-if="detailItem.assets?.length" class="cnt">({{ detailItem.assets.length }})</span><span class="right">图片弹窗预览 / HTML 新标签打开</span></summary>
-          <AssetManager v-model="detailItem.assets" @update:model-value="onCurioAssetsChange" @html-added="onCurioHtmlAdded" />
+          <AssetManager v-model="detailItem.assets" :owner-id="detailItem.id" @update:model-value="onCurioAssetsChange" @html-added="onCurioHtmlAdded" />
         </details>
       </template>
       <template #footer>

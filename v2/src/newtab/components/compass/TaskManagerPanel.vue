@@ -491,6 +491,9 @@ function fmtCardDate(ts?: number | string): string {
 function toOpenableLinkUrl(link?: string): string {
   const t = (link || '').trim()
   if (!t) return ''
+  // R128-A4：可执行伪协议拦截（对齐 shared/utils/link.toOpenableUrl 的 R70-14 黑名单）——
+  // 此前此处「其余协议原样放行」，录入/导入的 javascript: 链接双击即在扩展页上下文执行。
+  if (/^\s*(javascript|data|vbscript|blob):/i.test(t)) return ''
   if (/^file:\/\//i.test(t)) return t
   if (/^[a-zA-Z]:[\\/]/.test(t)) return 'file:///' + encodeURI(t.replace(/\\/g, '/')).replace(/#/g, '%23')
   return t

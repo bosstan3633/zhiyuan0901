@@ -925,6 +925,7 @@ import { LETTER_HTML, buildLetterStandaloneHtml } from '../letter-data'
 import { uid } from '@/shared/utils'
 import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
 import { getAssetStats, cleanupOrphanAssets, getAllAssets, putAssets } from '@/shared/storage/assets'
+import { purgeCardsCompletely, recycledCardsOf } from '@/shared/storage/purge'
 import { buildZip, readZip, type ZipEntry } from '@/shared/utils/zip'
 import { visibleFields, allFields } from '@/shared/utils/fields'
 import { sanitizeCardCols } from '@/shared/utils/cardCols'
@@ -2155,16 +2156,19 @@ function doReset() {
   showToast('✓ 已回滚至初始状态')
   setTimeout(() => router.push('/compass'), 800)
 }
-function emptyRecycleBin() {
+/** R128-A3：与回收站页共用同一硬删引擎（此前这里只 filter 数组——附件 Blob 全量泄漏成孤儿、
+ *  任务卡脱离 metric.taskIds、指向已删卡的镜像投射记录悬空） */
+async function emptyRecycleBin() {
   const d = store.data!
-  const rCount = d.resources.filter(r => r.deletedAt).length
-  const tCount = d.tasks.filter(t => (t as any).deletedAt).length
-  const cCount = d.curiosities.filter(c => (c as any).deletedAt).length
-  d.resources = d.resources.filter(r => !r.deletedAt)
-  d.tasks = d.tasks.filter(t => !(t as any).deletedAt)
-  d.curiosities = d.curiosities.filter(c => !(c as any).deletedAt)
+  const targets = recycledCardsOf(d)
+  const n = targets.resources.length + targets.tasks.length + targets.curiosities.length + targets.categories.length
+  if (!n) { showToast('回收站已是空的'); return }
+  const r = await purgeCardsCompletely(d, targets)
   store.persist()
-  showToast(`✓ 回收站已清空，永久删除 ${rCount + tCount + cCount} 张卡片`)
+  const parts = [`✓ 回收站已清空，永久删除 ${r.cards} 项`]
+  if (r.assetsPurged) parts.push(`清理 ${r.assetsPurged} 个附件本体`)
+  if (r.assetsShared) parts.push(`${r.assetsShared} 个共享附件保留`)
+  showToast(parts.join(' · ') + (r.assetsFailed ? ` ⚠ ${r.assetsFailed} 个附件删除失败（可清理孤儿）` : ''))
 }
 function clearCache() {
   showToast('✓ 缓存已清除')

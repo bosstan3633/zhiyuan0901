@@ -107,8 +107,11 @@ export function migrateHubStructure(d: AppData): boolean {
   for (const w of d.workspaces) if (w.id !== CURATION_WS_ID && !w.kind) w.kind = 'curation'
   // ③ 镜像分类 → 原生资源分类
   for (const c of d.categories) if (c.workspaceId === CURATION_WS_ID && c.curFrom) c.curFrom = undefined
-  // ④ 旧方向投射清空
-  d.curationProjections = []
+  // ④ R128-A2：旧方向投射清空——原实现无条件 `= []`，会把 R61 之后的**现役镜像**（资源台→策展台）
+  // 一起抹掉（先导旧备份再升级时，标记被重置 → 迁移重跑 → 用户镜像清单清零）。
+  // 收窄为「只清旧方向」：遗留的 category/workspace 型记录 + 目标指向资源台本身的投射
+  //（与启动期 scrubHubMirrorMarkers 同一口径），现役策展台投射一律保留。
+  d.curationProjections = (d.curationProjections || []).filter(p => p.kind === 'card' && p.targetWsId !== CURATION_WS_ID)
   d.hubMigratedAt = Date.now()
   return true
 }
@@ -121,6 +124,17 @@ function nextHubRootOrder(d: AppData): number {
 }
 
 /**
+ * R128-A2：合并是否真有活可干（供调用方决定「迁移前自动备份下载」是否要触发）。
+ * 资源台被归档时 migrateHubMerge 不落戳、留待重试——若无此判据，调用方会每次启动都下载一份备份。
+ */
+export function hubMergeWorkPending(d: AppData): boolean {
+  if (d.hubMergedAt) return false
+  const hub = d.workspaces.find(w => w.id === CURATION_WS_ID && !w.archived)
+  if (!hub) return false
+  return d.workspaces.some(w => w.id !== CURATION_WS_ID && w.kind === 'curation' && !w.archived)
+}
+
+/**
  * R64：旧工作台并入资源台（幂等，AppData.hubMergedAt 标记；调用方在首次执行前负责自动备份下载）
  * 拍板：资源台 = 旧版工作台数据的汇聚地——
  *  1. 每个 curation 台（≠资源台）的分类树整体平移进资源台：原根分类挂到资源台根下「同名根分类」防冲突
@@ -130,11 +144,13 @@ function nextHubRootOrder(d: AppData): number {
  */
 export function migrateHubMerge(d: AppData): boolean {
   if (d.hubMergedAt) return false
-  d.hubMergedAt = Date.now()
+  // R128-A2：此前 `d.hubMergedAt = Date.now()` 写在下面两个 guard **之前**——资源台缺失/被归档时
+  // 直接 return false，但标记已落，合并被永久跳过且无法重试（用户后来取消归档资源台也不会补合并）。
+  // 现改为：只在「确实无事可做」或「已完成合并」两种终态落戳。
   const hub = d.workspaces.find(w => w.id === CURATION_WS_ID && !w.archived)
   if (!hub) return false
   const boards = d.workspaces.filter(w => w.id !== CURATION_WS_ID && w.kind === 'curation' && !w.archived)
-  if (!boards.length) return false
+  if (!boards.length) { d.hubMergedAt = Date.now(); return false }
   let changed = false
   for (const b of boards) {
     // ① 资源台根下同名根分类（已有同名根则复用）
@@ -163,5 +179,7 @@ export function migrateHubMerge(d: AppData): boolean {
     d.workspaces = d.workspaces.filter(w => w.id !== b.id)
     changed = true
   }
+  // R128-A2：合并真正完成才落戳（changed=false 只可能是理论上的空循环，同样视为已完成）
+  d.hubMergedAt = Date.now()
   return changed
 }

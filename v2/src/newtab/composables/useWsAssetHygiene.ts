@@ -65,16 +65,23 @@ export function useWsAssetHygiene(ctx: WsAssetHygieneCtx) {
     }
     showToast(`↗ 已定位到「${(r.title || '').slice(0, 20)}」`)
   }
-  /** 单条清理：摘除卡片上的失效引用（若有）+ 删除 IndexedDB 本体 */
+  /** 单条清理：摘除卡片上的失效引用（若有）+ 删除 IndexedDB 本体
+   *  R128-A3：引用摘除必须覆盖三类卡——此前只扫 resources，任务/好奇卡上的同一本体引用
+   *  会残留成死链（转卡是引用拷贝，两张卡可共用一个 assetId） */
   async function onDrillCleanupAsset(row: { cardId: string; assetId: string }) {
     let detached = false
-    for (const card of d.value.resources) {
-      const list = card.assets
-      if (!list || !list.some(a => a.id === row.assetId)) continue
-      card.assets = list.filter(a => a.id !== row.assetId)
-      card.updatedAt = Date.now()
-      detached = true
+    const detachFrom = (cards: { assets?: AssetMeta[]; updatedAt?: number }[]) => {
+      for (const card of cards) {
+        const list = card.assets
+        if (!list || !list.some(a => a.id === row.assetId)) continue
+        card.assets = list.filter(a => a.id !== row.assetId)
+        card.updatedAt = Date.now()
+        detached = true
+      }
     }
+    detachFrom(d.value.resources)
+    detachFrom(d.value.tasks)
+    detachFrom(d.value.curiosities)
     try { await deleteAsset(row.assetId) } catch { /* IndexedDB 不可用：引用已摘除，本体留待全局清理 */ }
     store.persist()
     showToast(detached ? '🧹 已清理失效附件引用' : '🧹 已删除残留附件本体')

@@ -9,7 +9,8 @@
  */
 import { ref, computed } from 'vue'
 import type { AssetMeta } from '@/shared/models'
-import { putAsset, getAssetBlob, deleteAsset } from '@/shared/storage/assets'
+import { putAsset, getAssetBlob } from '@/shared/storage/assets'
+import { deleteAssetIfOrphan } from '@/shared/storage/purge'
 import { uid } from '@/shared/utils'
 import { showToast } from '@/shared/components/toast'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
@@ -21,9 +22,12 @@ const props = withDefaults(defineProps<{
   modelValue?: AssetMeta[] | null
   /** 单文件上限（MB，HTML 用；图片固定 10MB 上限） */
   maxSizeMB?: number
+  /** R128-A3：所在卡 id——附件本体可能被转卡后的孪生卡共享，删本体前按此排除自身判引用 */
+  ownerId?: string
 }>(), {
   modelValue: null,
-  maxSizeMB: 20
+  maxSizeMB: 20,
+  ownerId: ''
 })
 const emit = defineEmits<{
   (e: 'update:modelValue', v: AssetMeta[]): void
@@ -42,6 +46,12 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const busy = ref(false)
 
 function emitList(next: AssetMeta[]) { emit('update:modelValue', next) }
+
+/** R128-A3：删附件本体前先查全树引用——REQ-050 转卡是「引用拷贝」，同一 Blob 可能同时挂在
+ *  好奇源卡与转出的任务/资源卡上；从任一侧删附件不能把另一侧打成死链。 */
+async function dropBlob(id: string): Promise<boolean> {
+  return await deleteAssetIfOrphan(id, props.ownerId || undefined)
+}
 
 // ---- 类型判定（扩展名兜底 file.type 缺失） ----
 // R80（R13）：判定抽到共享工具，供本地文件导入复用——两处口径必须只有一份实现
@@ -93,7 +103,7 @@ async function onFilesChange(e: Event) {
       if (isDocKind(kind)) {
         const olds = list.value.filter(a => a.kind === kind)
         for (const old of olds) {
-          try { await deleteAsset(old.id) } catch (err) { console.error('[assets] replace old doc delete failed:', err) }
+          try { await dropBlob(old.id) } catch (err) { console.error('[assets] replace old doc delete failed:', err) }
           if (!replacedOld) replacedOld = old
         }
       }
@@ -118,15 +128,17 @@ async function onFilesChange(e: Event) {
 
 // ---- 删除单个 ----
 async function removeAsset(meta: AssetMeta) {
+  let purged = true
   try {
-    await deleteAsset(meta.id)
+    purged = await dropBlob(meta.id)
   } catch (err) {
     // 第卌一轮 REQ-057：业务吞错收敛——本体删除失败必须让用户知道（meta 已软删但 Blob 残留 = 孤儿）
     console.error('[assets] deleteAsset failed:', err)
     showToast('⚠ 附件本体删除失败，可到「设置 · 数据管理」清理孤儿')
   }
   emitList(list.value.filter(a => a.id !== meta.id))
-  showToast('🗑 附件已移除')
+  // R128-A3：本体仍被转卡孪生引用时不删 Blob，提示口径与「彻底移除」区分
+  showToast(purged ? '🗑 附件已移除' : '🗑 附件已从本卡移除（该本体仍被转出的卡片共用，已保留）')
 }
 
 // ---- 打开（图片弹窗多图预览 / HTML file:// 完整打开） ----

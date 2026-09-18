@@ -3,8 +3,8 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { showToast } from '@/shared/components/toast'
-import { deleteAsset } from '@/shared/storage/assets'
-import type { ResourceCard, TaskCard, CuriosityCard, AssetMeta, ID } from '@/shared/models'
+import { purgeCardsCompletely, type PurgeTargets } from '@/shared/storage/purge'
+import type { ResourceCard, TaskCard, CuriosityCard, ID } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 
 /** 第卅三轮 REQ-018：回收站页面（三类卡软删数据直接复用：models 的 deletedAt）
@@ -99,40 +99,18 @@ function restoreCurio(c: CuriosityCard) {
 }
 
 // ---- 永久删除 ----
-/** REQ-048：硬删前清理该卡附件本体（IndexedDB；软删保留，恢复后仍可打开）
- *  第卌一轮 REQ-057：业务吞错收敛——本体删除失败累计计数并提示（Blob 残留可去设置页清理孤儿） */
-async function purgeAssetsOf(metas: AssetMeta[] | null | undefined) {
-  const arr = metas || []
-  let failed = 0
-  for (const m of arr) {
-    try { await deleteAsset(m.id) } catch (err) { console.error('[recycle] delete asset failed:', err); failed++ }
-  }
-  if (failed > 0) show(`⚠ ${failed} 个附件本体删除失败（孤儿可到「设置 · 数据管理」清理）`)
-}
-async function purgeRes(r: ResourceCard) {
-  await purgeAssetsOf(r.assets)
-  d.value.resources = d.value.resources.filter(x => x.id !== r.id)
+/** R128-A3：硬删四类副作用（附件本体 / metric.taskIds / 数组移除 / 悬空投射）统一到
+ *  shared/storage/purge.purgeCardsCompletely——与设置页「清空回收站」共用一份口径。
+ *  附件本体不再无条件删除：仍被其他卡（含回收站待恢复卡）引用的共享本体保留（REQ-050 转卡引用拷贝）。 */
+async function purge(targets: PurgeTargets): Promise<number> {
+  const r = await purgeCardsCompletely(d.value, targets)
   store.persist()
-  show('🗑 已永久删除')
+  if (r.assetsFailed > 0) show(`⚠ ${r.assetsFailed} 个附件本体删除失败（孤儿可到「设置 · 数据管理」清理）`)
+  return r.cards
 }
-async function purgeTask(t: TaskCard) {
-  await purgeAssetsOf(t.assets)
-  // 从所有指标 taskIds 摘除引用，再移除实体
-  for (const dir of d.value.compass.directions) {
-    for (const proj of dir.projects) {
-      for (const m of proj.metrics) m.taskIds = m.taskIds.filter(id => id !== t.id)
-    }
-  }
-  d.value.tasks = d.value.tasks.filter(x => x.id !== t.id)
-  store.persist()
-  show('🗑 已永久删除')
-}
-async function purgeCurio(c: CuriosityCard) {
-  await purgeAssetsOf(c.assets)
-  d.value.curiosities = d.value.curiosities.filter(x => x.id !== c.id)
-  store.persist()
-  show('🗑 已永久删除')
-}
+async function purgeRes(r: ResourceCard) { await purge({ resources: [r] }); show('🗑 已永久删除') }
+async function purgeTask(t: TaskCard) { await purge({ tasks: [t] }); show('🗑 已永久删除') }
+async function purgeCurio(c: CuriosityCard) { await purge({ curiosities: [c] }); show('🗑 已永久删除') }
 
 // ---- 全部恢复 / 清空 ----
 function restoreAll() {
@@ -145,28 +123,13 @@ function restoreAll() {
 }
 async function purgeAll() {
   const cur = tab.value
-  if (cur === 'cat') { d.value.categories = d.value.categories.filter(c => !c.deletedAt); show('🗑 已永久删除'); store.persist(); return }
-  if (cur === 'res') {
-    for (const r of res.value) await purgeAssetsOf(r.assets)
-    d.value.resources = d.value.resources.filter(r => !r.deletedAt)
-    // R70：同步清理指向这些卡片的投射记录（硬删后它们永远悬空，会让 curationProjections 无界增长）
-    const aliveRes = new Set(d.value.resources.map(r => r.id))
-    d.value.curationProjections = (d.value.curationProjections || []).filter(p => p.kind !== 'card' || aliveRes.has(p.cardId || ''))
-  } else if (cur === 'task') {
-    for (const t of tasks.value) await purgeAssetsOf(t.assets)
-    for (const dir of d.value.compass.directions) {
-      for (const proj of dir.projects) {
-        for (const m of proj.metrics) m.taskIds = m.taskIds.filter(id => !d.value.tasks.some(t => t.id === id && t.deletedAt))
-      }
-    }
-    d.value.tasks = d.value.tasks.filter(t => !t.deletedAt)
-  }
-  else {
-    for (const c of curios.value) await purgeAssetsOf(c.assets)
-    d.value.curiosities = d.value.curiosities.filter(c => !c.deletedAt)
-  }
-  store.persist()
-  show('✓ 当前分区已清空')
+  const targets: PurgeTargets =
+    cur === 'cat' ? { categories: cats.value }
+    : cur === 'res' ? { resources: res.value }
+    : cur === 'task' ? { tasks: tasks.value }
+    : { curiosities: curios.value }
+  const n = await purge(targets)
+  show(n ? `✓ 当前分区已清空（${n} 项）` : '该分区已是空的')
 }
 const tabMeta = computed(() => [
   { k: 'res' as const, label: '📄 资源卡', list: res.value, n: res.value.length },

@@ -12,18 +12,28 @@
 import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { CURATION_WS_ID } from '@/shared/models'
 import { buildCatOptions } from '@/shared/utils/catTree'
+// R128-A4：打开链接走统一口径（含 javascript:/data:/vbscript:/blob: 伪协议黑名单）
+import { toOpenableUrl } from '@/shared/utils/link'
+// R128-A1：数据读写改走仓库（原先是裸 chrome.storage 整树读-改-写，无跨上下文合并、不产操作事件）
+import {
+  loadData as repoLoadData, getData as repoGetData, saveDataNow as repoSaveNow, subscribe as repoSubscribe
+} from '@/shared/storage/repository'
 import { getSelCache, clearSelCache, getSelectionText, resolveSelection } from './selection'
 
 const ROOT_ID = '__zy_global_overlay__'
-const DATA_KEY = 'zy_data_v2'
 
-// ============ 数据读写 ============
+// ============ 数据读写（R128-A1：统一走 repository） ============
+/** 仓库缓存即最新树（storage.onChanged 由仓库统一保活），不再自行 get/set 整树 */
 async function loadData(): Promise<any> {
-  const r = await chrome.storage.local.get(DATA_KEY)
-  return r[DATA_KEY] || null
+  try {
+    await repoLoadData()
+    return repoGetData()
+  } catch { return null }
 }
-async function saveData(d: any) {
-  await chrome.storage.local.set({ [DATA_KEY]: d })
+async function saveData(_d?: any) {
+  // 入参仍是同一份仓库树引用（历史上各处都是 loadData→改→saveData(d)），落盘以仓库缓存为准，
+  // 从而共享 flushCardEvents（WCE 口径）与 JSON 纯净清洗。
+  await repoSaveNow()
 }
 /**
  * R114-59：fire-and-forget 路由消息收敛点（替换 11 处空 catch——R114-59 清零护栏）。
@@ -58,13 +68,13 @@ function isProjDone(p: any, d: any): boolean {
   const ts = (d.tasks || []).filter((t: any) => !t.deletedAt && t.projectId === p.id)
   return ts.length > 0 && ts.every((t: any) => t.status === 'done')
 }
+/**
+ * R128-A1：读取入口签名不变，数据源换成仓库缓存——
+ * 原「300s TTL + 自挂 onChanged 刷新」退役：仓库 attachStorageSync 已把外部写入合并进同一份缓存，
+ * 本页不再有陈旧快照，也不再对整库重复 parse（采集卡顿的正源）。
+ * `force` 形参保留（历史语义：绕开 TTL 取最新分类树），现在等价于「确保已加载」。
+ */
 async function getData(force = false): Promise<any> {
-  // R106（F5）：TTL 1.5s → 300s——storage.onChanged 已实时兜底新鲜度（上方监听），
-  // 过短的 TTL 只会让每次打开浮层都全量重读 + JSON.parse 整库（生产反馈：采集卡顿的正源之一）。
-  // loadShowDonePref 同受此守卫（不再每次 getData 都读 zy_ui_v2）。
-  // R117（04-61 A）：force = 采集浮层专用——分类会随时增删改，打开浮层必须用「当前分类」；
-  // 但保留 5s 短窗，连开两次不重复读整库。
-  if (dataCache && Date.now() - dataCacheAt < (force ? 5000 : 300000)) return dataCache
   const d = await loadData()
   dataCache = d
   dataCacheAt = Date.now()
@@ -72,19 +82,19 @@ async function getData(force = false): Promise<any> {
   ;(window as any).__zyDataCache = d
   return d
 }
+// R68-F1：界面偏好变化（已完成项目显隐）实时生效；数据变化改由仓库统一合并后回调（见下方 repoSubscribe）
 if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes[DATA_KEY]) {
-      dataCache = changes[DATA_KEY].newValue
-      dataCacheAt = Date.now()
-      ;(window as any).__zyDataCache = dataCache
-      // REQ-031 P-031-3：数据变更后计数缓存失效，下次查询重算
-      invalidateCountCache()
-    }
-    // R68-F1：界面偏好变化（已完成项目显隐）实时生效
     if (area === 'local' && changes['zy_ui_v2']) void loadShowDonePref()
   })
 }
+// R128-A1：仓库每次落盘 / 外部合并后回调——重指向缓存并失效计数缓存（REQ-031 P-031-3 口径不变）
+repoSubscribe((d: any) => {
+  dataCache = d
+  dataCacheAt = Date.now()
+  ;(window as any).__zyDataCache = d
+  invalidateCountCache()
+})
 
 // ============ 样式注入 ============
 function injectStyles() {
@@ -974,7 +984,7 @@ function renderResults() {
     }).join('')
     const heatRowHtml = function (r: any, j: number, base: number) {
       return '<div class="zy-result-item' + (base + j === searchSelIndex ? ' sel' : '') + '" data-idx="' + (base + j) + '" data-id="' + escapeHtml(String(r.id || '')) + '">' +
-        '<div class="zy-ri-icon ' + r.iconClass + '">' + r.iconText + '</div>' +
+        '<div class="zy-ri-icon ' + escapeHtml(r.iconClass) + '">' + escapeHtml(r.iconText) + '</div>' +
         '<div class="zy-ri-main"><div class="zy-ri-title">' + escapeHtml(r.title) + '</div></div>' +
         '<span class="zy-ri-link url">🔥' + (r.raw.callCount || 0) + '</span></div>'
     }
@@ -1047,8 +1057,9 @@ function renderResults() {
     html += '<div class="zy-group-title">' + g.label + ' <span style="color:var(--zy-text-4);font-weight:400">' + items.length + '</span></div>'
     shown.forEach(function (item: any, j: number) {
       const i = offset + j
-      const badgesHtml = item.badges.map(function (b: any) { return '<span class="zy-badge ' + b.type + '">' + b.text + '</span>' }).join('')
-      const linkHtml = item.link ? '<span class="zy-ri-link ' + item.link.type + '">' + (item.link.type === 'url' ? '🔗' : item.link.type === 'file' ? '📁' : '📝') + ' ' + item.link.text + '</span>' : ''
+      const badgesHtml = item.badges.map(function (b: any) { return '<span class="zy-badge ' + escapeHtml(b.type) + '">' + escapeHtml(b.text) + '</span>' }).join('')
+      // R128-A4：link 文本 = 用户自填 URL（采集时来自任意网页）——不过转义即成 innerHTML 注入点
+      const linkHtml = item.link ? '<span class="zy-ri-link ' + escapeHtml(item.link.type) + '">' + (item.link.type === 'url' ? '🔗' : item.link.type === 'file' ? '📁' : '📝') + ' ' + escapeHtml(item.link.text) + '</span>' : ''
       const summaryHtml = item.summary ? '<div class="zy-ri-summary">' + hl(item.summary) + '</div>' : ''
       // R55-H2：三卡结果行提供直接删除（无二次确认，软删进回收站）
       const delHtml = (g.type === 'res' || g.type === 'task' || g.type === 'curio')
@@ -1061,7 +1072,7 @@ function renderResults() {
           (inFocus ? '已在今日三件事中（点击定位）' : '加入今日三件事（→）') + '">' + (inFocus ? '✓ 已入选' : '→ 三件事') + '</span>'
         : ''
       html += '<div class="zy-result-item' + (i === searchSelIndex ? ' sel' : '') + '" data-idx="' + i + '" data-id="' + escapeHtml(String(item.id || '')) + '">' +
-        '<div class="zy-ri-icon ' + item.iconClass + '">' + item.iconText + '</div>' +
+        '<div class="zy-ri-icon ' + escapeHtml(item.iconClass) + '">' + escapeHtml(item.iconText) + '</div>' +
         '<div class="zy-ri-main">' +
         '<div class="zy-ri-title">' + hl(item.title) + '</div>' +
         '<div class="zy-ri-meta"><span class="zy-badge ws">' + escapeHtml(item.ws) + '</span><span class="zy-badge cat">' + escapeHtml(item.cat) + '</span>' + badgesHtml + linkHtml + '</div>' +
@@ -1243,16 +1254,14 @@ function openSearchResult(item: any) {
           saveData(d2)
         }
       })
-      if (r.linkType === 'url') window.open(r.link, '_blank')
-      else if (r.linkType === 'obsidian') window.open(r.link, '_blank')
-      else {
-        const fileUrl = toFileUrl(r.link)
-        if (fileUrl) window.open(fileUrl, '_blank')
-        else {
-          showToast('⚠ 本地文件缺少完整路径，请到资源台补全')
-          safeSend({ type: 'zy-open-route', route: '/workspace/' + r.workspaceId + '?hl=' + r.id })
-        }
-      }
+      // R128-A4：打开链接统一走 toOpenableUrl——此前此处按 linkType 直接开裸 r.link，
+      // 绕过了 R70-14 的伪协议黑名单（录入/导入的 javascript:、data: 链接点击即在宿主页执行）。
+      const openable = toOpenableUrl(r.linkType, r.link)
+      if (openable) window.open(openable, '_blank')
+      else if (r.linkType === 'file') {
+        showToast('⚠ 本地文件缺少完整路径，请到资源台补全')
+        safeSend({ type: 'zy-open-route', route: '/workspace/' + r.workspaceId + '?hl=' + r.id })
+      } else showToast('⚠ 该链接协议不被允许打开')
     } else {
       safeSend({ type: 'zy-open-route', route: '/workspace/' + r.workspaceId + '?hl=' + r.id })
       showToast('↗ 已定位到卡片所在资源台')
@@ -1267,17 +1276,6 @@ function openSearchResult(item: any) {
     showToast('↗ 已定位到调度台好奇心')
   }
   closeOverlay()
-}
-
-/** 本地路径 → 可打开的 file:/// URL（支持 D:\... 与 file:/// 两种输入） */
-function toFileUrl(link: string): string {
-  if (!link) return ''
-  if (/^file:\/\//i.test(link)) return link
-  if (/^[a-zA-Z]:[\\/]/.test(link)) {
-    const normalized = link.replace(/\\/g, '/')
-    return 'file:///' + encodeURI(normalized).replace(/#/g, '%23')
-  }
-  return ''
 }
 
 // ============ 快速采集资源卡（右上角小窗） ============
@@ -1360,14 +1358,14 @@ async function openCapture() {
         <div class="zy-field">
           <label class="zy-field-label">存入台面</label>
           <select class="zy-field-select" id="__zy_cap_ws__">
-            ${workspaces.map((w: any) => `<option value="${w.id}">${escapeHtml(w.name)}</option>`).join('')}
+            ${workspaces.map((w: any) => `<option value="${escapeHtml(w.id)}">${escapeHtml(w.name)}</option>`).join('')}
           </select>
         </div>
         <div class="zy-field">
           <label class="zy-field-label">分类</label>
           <select class="zy-field-select" id="__zy_cap_cat__">
             <option value="">📥 待分类</option>
-            ${categories.map((c: any) => `<option value="${c.id}">📂 ${escapeHtml(c.label)}</option>`).join('')}
+            ${categories.map((c: any) => `<option value="${escapeHtml(c.id)}">📂 ${escapeHtml(c.label)}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -1411,7 +1409,7 @@ async function openCapture() {
     const d2 = await getData(true)
     const cats = buildCatOptions(d2?.categories?.filter((c: any) => c.workspaceId === wsSelect.value) || [], { sep: ' / ' })
     const catSelect = document.getElementById('__zy_cap_cat__') as HTMLSelectElement
-    catSelect.innerHTML = '<option value="">📥 待分类</option>' + cats.map((c: any) => `<option value="${c.id}">📂 ${escapeHtml(c.label)}</option>`).join('')
+    catSelect.innerHTML = '<option value="">📥 待分类</option>' + cats.map((c: any) => `<option value="${escapeHtml(c.id)}">📂 ${escapeHtml(c.label)}</option>`).join('')
   })
 
   const onCapEnter = (e: KeyboardEvent) => {
@@ -1575,7 +1573,7 @@ async function openTaskCapture() {
       <div class="zy-field-row">
         <div class="zy-field"><label class="zy-field-label">所属项目（可留空）</label>
           <select class="zy-field-select" id="__zy_tc_proj__"><option value="">未关联项目</option>
-          ${projects.map((p: any) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('')}</select></div>
+          ${projects.map((p: any) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join('')}</select></div>
         <div class="zy-field"><label class="zy-field-label">所属指标（可留空）</label>
           <select class="zy-field-select" id="__zy_tc_met__" disabled><option value="">暂不归属</option></select></div>
       </div>
@@ -1596,7 +1594,7 @@ async function openTaskCapture() {
   projSel.addEventListener('change', () => {
     const prj = projects.find(x => x.id === projSel.value)
     metSel.disabled = !prj
-    metSel.innerHTML = '<option value="">暂不归属</option>' + (prj ? prj.metrics.map((m: any) => `<option value="${m.id}">${escapeHtml(m.title)}</option>`).join('') : '')
+    metSel.innerHTML = '<option value="">暂不归属</option>' + (prj ? prj.metrics.map((m: any) => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.title)}</option>`).join('') : '')
   })
   document.getElementById('__zy_tc_close__')?.addEventListener('click', closeOverlay)
   document.getElementById('__zy_tc_cancel__')?.addEventListener('click', closeOverlay)
