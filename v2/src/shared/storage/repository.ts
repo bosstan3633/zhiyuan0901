@@ -28,25 +28,21 @@ const errorListeners = new Set<ErrorListener>()
 let lastSaveError: SaveError | null = null
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-// REQ-031 P-031-6 + R70：自身写入标记。
-// 原实现是时间戳比较：selfWriteAt 在写入**前**赋值，而 chrome.storage.onChanged 在写入**后**到达，
-// 于是 `at <= selfWriteAt` 恒为 false —— 守卫从未生效，每次保存都会走「storage 读回 → syncCache →
-// data 全树替换 → 全部 computed 失效重算」。R70 改为**内容指纹**：记下最近一次自身写入的载荷 JSON，
-// onChanged 的新值与它全等即视为本页写入（本地 subscribe 已同步引用，无需重复替换）。
-// 采用内容全等而非时间窗，是为了避免把「恰好落在时间窗内的外部写入」误判为自身写入而丢改动。
-let lastSelfWriteJson = ''
+// REQ-031 P-031-6 + R70 + R131-C1a：自身写入标记。
+// 原实现是时间戳比较（守卫从未生效），R70 改内容指纹（每次 onChanged 对整树 stringify 一次，千卡 40–100ms）。
+// R131-C1a：写入载荷带全局唯一 `__wid`（上下文随机前缀 + 自增序号），onChanged 只比一个字符串——
+// 判定退化为 O(1)。跨上下文序号独立不碰撞（前缀不同）；旧存量数据无 __wid → 判为外部写入（保守正确）。
+const SELF_CTX_ID = Math.random().toString(36).slice(2, 8) + '-' + Date.now().toString(36)
+let selfWriteSeq = 0
+let lastSelfWriteId = ''
 
 // R56-PERF-c：数据版本号——每次成功写入/外部同步自增（重计算 memo 的失效键）
 let dataVersion = 0
 export function getDataVersion(): number { return dataVersion }
-/** 判断一次 storage 变更是否由本上下文写入（内容指纹比对；非本页写入返回 false，走合并路径） */
+/** 判断一次 storage 变更是否由本上下文写入（writeId 比对，O(1)；非本页写入返回 false，走合并路径） */
 export function isSelfWrite(newValue: unknown): boolean {
-  if (!lastSelfWriteJson) return false
-  try {
-    const s = JSON.stringify(newValue)
-    // R71：先比长度再比内容——非本页写入几乎都会在此短路，省掉一次整串逐字符比对
-    return s.length === lastSelfWriteJson.length && s === lastSelfWriteJson
-  } catch { return false }
+  if (!lastSelfWriteId) return false
+  return (newValue as { __wid?: unknown } | null)?.__wid === lastSelfWriteId
 }
 
 function chromeStore(): chrome.storage.StorageArea | null {
@@ -183,8 +179,9 @@ export function saveData(): void {
       // 现在：一次 stringify 得到「存储实际内容」（同时充当自身写入指纹），再一次 parse 得到纯净 plain 树。
       // 语义完全等价（reactive Proxy → plain JSON 的净化仍然发生），成本减半。
       payloadJson = JSON.stringify(cache)
-      payload = { [STORAGE_KEY]: JSON.parse(payloadJson) }
-      lastSelfWriteJson = payloadJson  // R70：记下自身写入载荷，供 onChanged 内容指纹比对
+      const wid = SELF_CTX_ID + '-' + (++selfWriteSeq)
+      payload = { [STORAGE_KEY]: Object.assign(JSON.parse(payloadJson), { __wid: wid }) }
+      lastSelfWriteId = wid  // R131-C1a：onChanged 以 writeId 做 O(1) 自身写入判定
     } catch (e) { emitSaveError(e); return }
     const p = cs!.set(payload)
     if (p && typeof (p as Promise<void>).then === 'function') {
@@ -216,8 +213,9 @@ export async function saveDataNow(): Promise<void> {
     // V2.17.1 修复：同 saveData——JSON 纯净清洗防 reactive Proxy 泄漏入存储（数组降级类数组对象）
     // R71：同 saveData，去掉冗余的中间往返（1 次 stringify + 1 次 parse）
     const payloadJson = JSON.stringify(cache)
-    lastSelfWriteJson = payloadJson  // R70：同上
-    await cs.set({ [STORAGE_KEY]: JSON.parse(payloadJson) })
+    const wid = SELF_CTX_ID + '-' + (++selfWriteSeq)
+    lastSelfWriteId = wid  // R131-C1a：同上
+    await cs.set({ [STORAGE_KEY]: Object.assign(JSON.parse(payloadJson), { __wid: wid }) })
     dataVersion++
     lastPersistedJson = payloadJson
     markSaveOk()

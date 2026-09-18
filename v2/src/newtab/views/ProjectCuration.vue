@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
+import { saveUIPrefs } from '@/shared/storage/repository'
 import { uid } from '@/shared/utils'
 import { useConfirm } from '@/shared/components/confirm'
 import type { Project, Direction, TaskCard, Metric } from '@/shared/models'
@@ -56,6 +57,45 @@ function isStalled(p: Project): boolean {
   const recent = tasks.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0]
   return recent ? Date.now() - (recent.updatedAt || 0) > 14 * 86400_000 : tasks.length > 0
 }
+
+/* ================= R131-N2：项目详情页左侧「项目目录」（独立态呈现；宽度拖拽记忆 UIPrefs.projRailW） =================
+ * 目录 = 战略目标分组 → 项目条目，单击切换项目（走 openProject，深链 ?p 口径不变）；
+ * 拖拽右缘分隔条调宽（180–420px），双击复位——沿用资源台分类树（useCatSidebar）同款交互。 */
+const DIR_W_MIN = 180
+const DIR_W_MAX = 420
+const DIR_W_DEF = 220
+const projDirW = ref<number>(Math.min(DIR_W_MAX, Math.max(DIR_W_MIN, (store.ui?.projRailW as number | undefined) || DIR_W_DEF)))
+const projDirGroups = computed(() => d.value.compass.directions
+  .map(dir => ({ dir, projects: [...dir.projects].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) }))
+  .filter(g => g.projects.length))
+function dirTermLabel(dir: Direction): string {
+  return dir.term === 'long' ? '远期' : dir.term === 'short' ? '近期' : dir.term === 'mid' ? '中期' : ''
+}
+let dirDrag: { startX: number; startW: number } | null = null
+function onDirResizeMove(e: MouseEvent) {
+  if (!dirDrag) return
+  projDirW.value = Math.min(DIR_W_MAX, Math.max(DIR_W_MIN, dirDrag.startW + (e.clientX - dirDrag.startX)))
+}
+function onDirResizeUp() {
+  document.removeEventListener('mousemove', onDirResizeMove)
+  document.removeEventListener('mouseup', onDirResizeUp)
+  if (dirDrag) { saveUIPrefs({ projRailW: projDirW.value }); dirDrag = null }
+}
+function startDirResize(e: MouseEvent) {
+  dirDrag = { startX: e.clientX, startW: projDirW.value }
+  document.addEventListener('mousemove', onDirResizeMove)
+  document.addEventListener('mouseup', onDirResizeUp)
+}
+function resetDirWidth() {
+  projDirW.value = DIR_W_DEF
+  saveUIPrefs({ projRailW: DIR_W_DEF })
+}
+// R129-B6 同款兜底：拖拽中途组件卸载时摘除 document 监听
+onUnmounted(() => {
+  document.removeEventListener('mousemove', onDirResizeMove)
+  document.removeEventListener('mouseup', onDirResizeUp)
+  dirDrag = null
+})
 
 /** 指标下的任务（真实任务卡） */
 function tasksForMetric(metricId: string): TaskCard[] {
@@ -460,8 +500,21 @@ function addTaskFromHeader() {
       还没有项目——<span class="empty-act" @click="openCreateProject">新建 / 规划项目</span>：选择战略目标后开始
     </div>
 
-    <!-- ===== 单项目全屏展板（R121：左栏退役 → 单列满宽） ===== -->
-    <div v-else class="board-layout">
+    <!-- ===== 单项目展板（R131-N2：独立态恢复左侧项目目录，可拖拽调宽；内嵌态维持单列满宽） ===== -->
+    <div v-else class="board-layout" :class="{ 'with-dir': !embedded }">
+    <aside v-if="!embedded" class="pd-dir" :style="{ width: projDirW + 'px' }">
+      <div class="pd-dir-title">📁 项目目录</div>
+      <div v-for="g in projDirGroups" :key="g.dir.id" class="pd-group">
+        <div class="pd-goal" :title="g.dir.name">🎯 {{ g.dir.name }}<span v-if="dirTermLabel(g.dir)" class="pd-term">{{ dirTermLabel(g.dir) }}</span></div>
+        <div v-for="p in g.projects" :key="p.id" class="pd-item" :class="{ active: p.id === currentProject?.id }" :title="p.name" @click="openProject(p)">
+          <span class="pd-dot" :class="{ focus: p.isFocused }" />
+          <span class="pd-name">{{ p.name }}</span>
+          <span class="pd-pct">{{ projectProgress(p).pct }}%</span>
+        </div>
+      </div>
+      <div v-if="!projDirGroups.length" class="pd-empty">还没有项目</div>
+    </aside>
+    <span v-if="!embedded" class="pd-split" title="拖拽调整目录宽度 · 双击复位" @mousedown.prevent="startDirResize" @dblclick="resetDirWidth" />
     <div class="board">
       <!-- R121：单行面包屑 + 操作区（原型：面包屑 + 添加按钮；⋯ 收敛 主攻 / 树定位 / 删除项目） -->
       <div class="pb-head-row">
@@ -659,7 +712,25 @@ function addTaskFromHeader() {
 .empty-act { color: var(--accent); cursor: pointer; text-decoration: underline; }
 
 /* 展板 */
-.board-layout { display: block; } /* R121：左栏退役 → 展板单列满宽 */
+.board-layout { display: block; } /* 内嵌态维持单列满宽（R121 口径） */
+/* R131-N2：独立态 = 左目录 + 分隔条 + 右展板三列；展板 flex:1 撑满（防 R130-T7 收缩类 BUG） */
+.board-layout.with-dir { display: flex; align-items: flex-start; }
+.board-layout.with-dir .board { flex: 1; min-width: 0; }
+.pd-dir { flex-shrink: 0; position: sticky; top: 64px; max-height: calc(100vh - 96px); overflow-y: auto; padding: 2px 4px 8px 0; }
+.pd-dir-title { font-size: 12px; font-weight: 600; color: var(--text-3); padding: 6px 8px; letter-spacing: .3px; }
+.pd-group { margin-bottom: 10px; }
+.pd-goal { display: flex; align-items: baseline; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text-2); padding: 4px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pd-term { font-size: 10px; color: var(--text-3); font-weight: 400; flex-shrink: 0; }
+.pd-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px 14px; border-radius: 6px; cursor: pointer; font-size: 12.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; transition: background .12s; }
+.pd-item:hover { background: var(--surface-2); }
+.pd-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.pd-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--border-strong); flex-shrink: 0; }
+.pd-dot.focus { background: var(--accent); }
+.pd-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pd-pct { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.pd-empty { font-size: 12px; color: var(--text-3); padding: 6px 8px; }
+.pd-split { width: 4px; flex-shrink: 0; align-self: stretch; margin: 4px 0 4px 4px; cursor: col-resize; border-radius: 2px; transition: background .12s; z-index: 5; }
+.pd-split:hover { background: var(--accent-light); }
 .board { min-width: 0; }
 .metric-sec .mname { outline: none; border-radius: 5px; padding: 2px 5px; margin: -2px -5px; cursor: text; }
 .metric-sec .mname:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }

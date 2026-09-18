@@ -39,6 +39,9 @@ export const useAppStore = defineStore('app', () => {
 
     // R53-A1：策展树统一迁移——遗留分类/工作台投射记录物化为带 curFrom 的真实策展分类（幂等）
     // R61：资源台结构迁移（幂等，hubMigratedAt 标记）——首次执行前自动备份下载（沿用 R47-A2 安全网约定）
+    // R131-C6b：三段存量迁移/清理原各调一次 saveData（300ms 防抖虽会合并为一次写，但依赖时序巧合）
+    // → 统一累积 dirty 标记，链尾真改动才落 1 次盘；「无改动启动」依旧零写入。
+    let migrated = false
     if (data.value) {
       // R128-A2：备份只在「真有一次不可逆合并要发生」时触发——原 `!hubMergedAt` 判据在资源台
       // 被归档（合并不落戳、留待重试）时会每次启动下载一份备份。
@@ -51,23 +54,21 @@ export const useAppStore = defineStore('app', () => {
       const t3 = migrateHubMerge(data.value)
       // R126（诉求 7）：标签「父/子」路径归一 + 最多两级（幂等）
       const tz = normalizeCardTagPaths(data.value)
-      if (t1 || t2 || t3 || tz) saveData()
+      migrated = t1 || t2 || t3 || tz
     }
 
     // R60：投射至灯塔功能取消——清除存量 vision/mission/project 上的 pinnedToLighthouse 残留字段（幂等，静默）
     if (data.value) {
-      let cleaned = false
       const cp = data.value.compass
       if (cp) {
-        if (cp.vision && 'pinnedToLighthouse' in cp.vision) { delete (cp.vision as Record<string, unknown>).pinnedToLighthouse; cleaned = true }
-        if (cp.mission && 'pinnedToLighthouse' in cp.mission) { delete (cp.mission as Record<string, unknown>).pinnedToLighthouse; cleaned = true }
+        if (cp.vision && 'pinnedToLighthouse' in cp.vision) { delete (cp.vision as Record<string, unknown>).pinnedToLighthouse; migrated = true }
+        if (cp.mission && 'pinnedToLighthouse' in cp.mission) { delete (cp.mission as Record<string, unknown>).pinnedToLighthouse; migrated = true }
         for (const dir of cp.directions || []) {
           for (const p of dir.projects || []) {
-            if ('pinnedToLighthouse' in p) { delete (p as Record<string, unknown>).pinnedToLighthouse; cleaned = true }
+            if ('pinnedToLighthouse' in p) { delete (p as Record<string, unknown>).pinnedToLighthouse; migrated = true }
           }
         }
       }
-      if (cleaned) saveData()
     }
 
     // V2.20.1 BUG-2 存量回填（幂等，静默）：凡有 metricId 而 projectId 为空的任务，
@@ -89,9 +90,10 @@ export const useAppStore = defineStore('app', () => {
       }
       if (fixed > 0) {
         data.value.projBackfillFixed = fixed
-        saveData()
+        migrated = true
       }
     }
+    if (migrated) saveData()
 
     // 订阅数据变更（跨页面同步）—— 保持同一引用，不做深拷贝
     subscribe((d) => {

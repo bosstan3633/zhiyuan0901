@@ -209,7 +209,7 @@
           <!-- 左栏：全景计数树（默认全展开） -->
           <div class="gs-pan-tree">
             <div class="gs-pan-tree-head">全景 · 资源台 · {{ panTotalCats }} 分类 · {{ panTotalCards }} 卡</div>
-            <div v-for="wsNode in panTree" :key="wsNode.ws.id" class="gs-pan-ws">
+            <div v-for="(wsNode, wi) in panTree" :key="wsNode.ws.id" class="gs-pan-ws">
               <div class="gs-pan-row gs-pan-ws-row" :class="{ active: panSelWs === wsNode.ws.id && !panSelCat, drop: dropTarget === 'ws:' + wsNode.ws.id }"
                 draggable="false" @click="selectPanWs(wsNode.ws.id)"
                 @dragover.prevent="dropTarget = 'ws:' + wsNode.ws.id" @dragleave="dropTarget === 'ws:' + wsNode.ws.id && (dropTarget = '')" @drop.prevent="onPanDrop('ws:' + wsNode.ws.id, wsNode.ws.id, '')">
@@ -219,7 +219,7 @@
               </div>
               <template v-if="!panCollapsed.has('ws:' + wsNode.ws.id)">
                 <!-- R66-F6：递归 N 级扁平行渲染（原固定 2 级），深层子分类缩进呈现、折叠语义沿祖先链 -->
-                <template v-for="row in flattenPanCats(wsNode.cats, 0)" :key="row.node.cat.id">
+                <template v-for="row in panFlatCats[wi]" :key="row.node.cat.id">
                   <div class="gs-pan-row" :class="[row.depth === 0 ? 'gs-pan-cat-row' : 'gs-pan-sub-row', { active: panSelCat === row.node.cat.id, drop: dropTarget === 'cat:' + row.node.cat.id }]"
                     :style="row.depth ? { paddingLeft: (row.depth * 14) + 'px' } : undefined"
                     @click="selectPanCat(row.node.cat.id)"
@@ -240,8 +240,8 @@
               <span class="gs-pan-crumb">{{ panCrumb }}</span>
               <label class="gs-pan-allcheck"><input type="checkbox" :checked="panAllChecked" @change="togglePanAll" /> 全选本分类</label>
             </div>
-            <div class="gs-pan-list">
-              <div v-for="r in panCards" :key="r.id" class="gs-pan-card" :class="{ selected: panSelected.has(r.id) }" draggable="true"
+            <div class="gs-pan-list" @scroll.passive="onPanListScroll">
+              <div v-for="r in panVisibleCards" :key="r.id" class="gs-pan-card" :class="{ selected: panSelected.has(r.id) }" draggable="true"
                 @dragstart="onPanDragStart($event, r.id)" @dragend="dropTarget = ''"
                 @click="onPanCardClick(r)" @dblclick="onPanCardDblClick(r)">
                 <input type="checkbox" class="gs-pan-check" :checked="panSelected.has(r.id)" @click.stop @change="togglePanCard(r.id)" />
@@ -251,6 +251,7 @@
                 </div>
                 <span class="gs-pan-card-date">{{ fmtDay(r.createdAt) }}</span>
               </div>
+              <div v-if="panHasMore" class="gs-ev-empty">已显示 {{ panVisibleCards.length }} / {{ panCards.length }} 张 · 继续滚动加载</div>
               <div v-if="!panCards.length" class="gs-ev-empty">左侧选择策展台或分类查看卡片</div>
             </div>
             <div v-if="panSelected.size" class="gs-pan-batch">
@@ -911,7 +912,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, watchEffect, onMounted } from 'vue'
+import { ref, reactive, computed, watch, watchEffect, onMounted, shallowRef } from 'vue'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
@@ -1240,7 +1241,7 @@ const statTodayTask = computed(() => gFlat.value.filter(x => x.kind === 'task' &
 const statTodayCurio = computed(() => gFlat.value.filter(x => x.kind === 'curiosity' && !x.deletedAt && x.createdAt >= gStartOfToday).length)
 
 // ---- 操作记录：事件日志优先，老数据无日志回退卡片时间派生 ----
-const eventLog = ref<CardEvent[]>([])
+const eventLog = shallowRef<CardEvent[]>([]) // R131-C5：整组替换、只读消费 → shallowRef（5000 条不再逐个建 Proxy）
 const logEmpty = ref(true)
 const expandedEventId = ref('')
 const cumDelCount = ref(0)
@@ -1477,19 +1478,29 @@ interface PanWsNode { ws: { id: string; name: string; icon?: string }; count: nu
 /** R67-F3：按原始数据查台——app store 的 workspaces getter 显式排除资源台（id=CURATION_WS_ID），
  *  全景内一切 isHubWs 判定不得走该 getter，否则资源台被判为「不存在」→ 右栏串台到策展台 */
 function gWsById(wsId: string) { return (store.data?.workspaces || []).find(w => w.id === wsId) }
-/** R63-1：分类计数——资源台按原生卡，策展台按台内+镜像（镜像归到台内落点分类） */
-function panCountByCat(cat: { id: string; workspaceId: string }): number {
-  if (isHubWs(gWsById(cat.workspaceId))) {
-    return gResLive.value.filter(r => r.workspaceId === cat.workspaceId && r.categoryId === cat.id).length // R109（F12-a）：workspaceId 收紧
+/** R63-1：分类计数——资源台按原生卡，策展台按台内+镜像（镜像归到台内落点分类）
+ *  R131-C3：原实现每个分类节点全量扫一遍卡（panCountByCat × 分类数 = O(分类×卡)，且子分类递归再乘一遍）
+ *  → 改为两趟 bucket：台级计数一张 Map，分类计数对「可见卡」一次遍历成 Map，建树时 O(1) 查表。 */
+const panWsIdSet = computed(() => new Set(panHubWss.value.map(w => w.id)))
+const panCounts = computed(() => {
+  const catCount = new Map<string, number>()
+  const wsCount = new Map<string, number>()
+  // 键 = ws|cat：与旧实现「workspaceId + categoryId 双条件」口径一致（R109 F12-a 悬空分类不串计）
+  const bump = (wsId: string, catId: string) => {
+    wsCount.set(wsId, (wsCount.get(wsId) || 0) + 1)
+    const k = wsId + '|' + catId
+    catCount.set(k, (catCount.get(k) || 0) + 1)
   }
-  return boardCardsOf(store.data!, cat.workspaceId).filter(r => (r.categoryId || '') === cat.id).length
+  for (const r of gResLive.value) if (panWsIdSet.value.has(r.workspaceId)) bump(r.workspaceId, r.categoryId || '')
+  for (const w of panHubWss.value) if (!isHubWs(w)) for (const r of boardCardsOf(store.data!, w.id)) bump(w.id, r.categoryId || '')
+  return { catCount, wsCount }
+})
+function panCountByCat(cat: { id: string; workspaceId: string }): number {
+  return panCounts.value.catCount.get(cat.workspaceId + '|' + cat.id) || 0
 }
 /** R63-1：台卡片计数——资源台原生卡数；策展台含镜像（R65-F5 全景仅资源台，策展台分支保留兜底） */
 function panCountByWs(wsId: string): number {
-  if (isHubWs(gWsById(wsId))) {
-    return gResLive.value.filter(r => r.workspaceId === wsId).length
-  }
-  return boardCardsOf(store.data!, wsId).length
+  return panCounts.value.wsCount.get(wsId) || 0
 }
 /** R65-F5：全景树只呈现资源台（策展台不进全景）｜ R66-F6：子分类递归 N 级渲染
  *  ｜ R67-F3：数据源改原始 workspaces（getter 排除资源台 → panTree 恒空 bug 根因） */
@@ -1511,7 +1522,9 @@ const panTree = computed<PanWsNode[]>(() =>
 const panTotalCats = computed(() => gd.value.categories.filter(c => panHubWss.value.some(w => w.id === c.workspaceId) && !c.deletedAt).length)
 const panTotalCards = computed(() => panHubWss.value.reduce((s, w) => s + panCountByWs(w.id), 0))
 const panCollapsed = ref<Set<string>>(new Set()) // 默认全展开
-/** R66-F6：递归扁平行（折叠沿祖先链：父收起则整棵子树不渲染） */
+/** R66-F6：递归扁平行（折叠沿祖先链：父收起则整棵子树不渲染）
+ *  R131-C3：模板内直调改为 panFlatCats computed——原每次渲染对每个台各跑一遍递归建树，
+ *  折叠一次全树重算 N 次；现在 panTree/panCollapsed 不变时直接命中缓存。 */
 function flattenPanCats(cats: { cat: { id: string; name: string; workspaceId: string }; count: number; children: any[] }[], depth: number): { node: any; depth: number }[] {
   const out: { node: any; depth: number }[] = []
   for (const n of cats) {
@@ -1520,6 +1533,7 @@ function flattenPanCats(cats: { cat: { id: string; name: string; workspaceId: st
   }
   return out
 }
+const panFlatCats = computed(() => panTree.value.map(n => flattenPanCats(n.cats, 0)))
 function togglePanCollapse(key: string) {
   const next = new Set(panCollapsed.value)
   if (next.has(key)) next.delete(key); else next.add(key)
@@ -1547,6 +1561,18 @@ const panCards = computed<ResourceCard[]>(() => {
   if (panSelWs.value) return gResLive.value.filter(r => r.workspaceId === panSelWs.value)
   return []
 })
+/** R131-C3：右栏大列表增量渲染（与主界面 RENDER_STEP 同构）——原一次全选分类即挂载数百 DOM，
+ *  滚动到底部 400px 内追加一批；切台/切分类复位首屏 */
+const PAN_RENDER_STEP = 80
+const panRenderLimit = ref(PAN_RENDER_STEP)
+watch([panSelWs, panSelCat], () => { panRenderLimit.value = PAN_RENDER_STEP })
+const panVisibleCards = computed(() => panCards.value.length > panRenderLimit.value ? panCards.value.slice(0, panRenderLimit.value) : panCards.value)
+const panHasMore = computed(() => panCards.value.length > panRenderLimit.value)
+function onPanListScroll(e: Event) {
+  if (!panHasMore.value) return
+  const el = e.target as HTMLElement
+  if (el.scrollHeight - el.scrollTop - el.clientHeight < 400) panRenderLimit.value += PAN_RENDER_STEP
+}
 const panCrumb = computed(() => {
   if (panSelCat.value) {
     const cat = gd.value.categories.find(c => c.id === panSelCat.value)

@@ -7,7 +7,9 @@
 /* R84（W1）：台身份页头——图标 + 台名 + 台描述 + 右端结构摘要（一行 ≤40px，所有台都渲染）。
    改前只有资源台一段写死的 .ws-hub-head（padding 18/14 ⇒ 约 60px 高），策展台零页头。 */
 /* R123（要求 #4）：页头更紧凑——16px 标题 / 30~36px 高 */
-.ws-id-head { display: flex; align-items: center; gap: 8px; min-height: 30px; max-height: 36px; padding: 4px 0 6px; overflow: hidden; }
+/* R131-N1：页头缩进 22px 对齐三台 .page-head 的 padding-left:22px——主界面标题在 36+22=58px，
+   资源台此前贴 36px 渲染，标题比调度台/方向台偏左 22px（用户截图实证） */
+.ws-id-head { display: flex; align-items: center; gap: 8px; min-height: 30px; max-height: 36px; padding: 4px 0 6px 22px; overflow: hidden; }
 .wsh-icon { flex-shrink: 0; font-size: 16px; line-height: 1; }
 /* 19px 沿用 R51-F11「页头标题统一放大」的既有规范（三主页面 + 项目详情/方向树 crumb 同款），
    不另起字号；19px 行高 ≈23px + padding 14px = 37px，仍在 W1 的 ≤40px 之内 */

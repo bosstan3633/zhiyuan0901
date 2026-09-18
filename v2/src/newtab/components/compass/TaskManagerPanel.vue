@@ -302,19 +302,17 @@ function createNewTask() {
     if (el) { el.focus(); el.select() }
   })
 }
+// R131-C4：项目/指标名 O(1) 查表——改前每行渲染都调 projectName/metricName（内部 flatMap+find 全表扫），
+// 数百行任务 = 数百次全表遍历；两个 Map 只在库变更时重建一次。
+const projNameById = computed(() => { const m = new Map<string, string>(); for (const dir of d.value.compass.directions) for (const p of dir.projects) m.set(p.id, p.name); return m })
+const metricTitleById = computed(() => { const m = new Map<string, string>(); for (const dir of d.value.compass.directions) for (const p of dir.projects) for (const x of p.metrics) m.set(x.id, x.title); return m })
 function projectName(projId?: string): string {
   if (!projId) return '未关联'
-  return allProjects().find(x => x.id === projId)?.name || '未关联'
+  return projNameById.value.get(projId) || '未关联'
 }
 function metricName(metricId?: string): string {
   if (!metricId) return '未关联'
-  for (const dir of d.value.compass.directions) {
-    for (const proj of dir.projects) {
-      const m = proj.metrics.find(x => x.id === metricId)
-      if (m) return m.title
-    }
-  }
-  return '未关联'
+  return metricTitleById.value.get(metricId) || '未关联'
 }
 
 // ---- 拖拽：列表排序 / 看板跨列 ----
@@ -419,18 +417,22 @@ function onListGroupDrop(e: DragEvent, projectKey: string) {
   store.persist()
   showToast('✓ 已归属「' + projectName(projectKey) + '」')
 }
-function kanbanGroups(status: 'todo' | 'doing' | 'done') {
-  const src = status === 'todo' ? todoTasks.value : status === 'doing' ? doingTasks.value : doneTasks.value
-  const groups: { key: string; name: string; tasks: TaskCard[] }[] = []
-  const used = new Set<string>()
-  for (const p of allProjects()) {
-    const ts = src.filter(t => t.projectId === p.id)
-    if (ts.length) { groups.push({ key: p.id, name: p.name, tasks: ts }); ts.forEach(t => used.add(t.id)) }
+// R131-C4：看板分组改 computed（一次成型三列）——改前是普通函数，模板 6 处调用各重算一遍
+const kanbanMap = computed(() => {
+  const build = (src: TaskCard[]) => {
+    const groups: { key: string; name: string; tasks: TaskCard[] }[] = []
+    const used = new Set<string>()
+    for (const p of allProjects()) {
+      const ts = src.filter(t => t.projectId === p.id)
+      if (ts.length) { groups.push({ key: p.id, name: p.name, tasks: ts }); ts.forEach(t => used.add(t.id)) }
+    }
+    const orphan = src.filter(t => !used.has(t.id))
+    if (orphan.length) groups.push({ key: '__none__', name: '未关联项目', tasks: orphan })
+    return groups
   }
-  const orphan = src.filter(t => !used.has(t.id))
-  if (orphan.length) groups.push({ key: '__none__', name: '未关联项目', tasks: orphan })
-  return groups
-}
+  return { todo: build(todoTasks.value), doing: build(doingTasks.value), done: build(doneTasks.value) }
+})
+function kanbanGroups(status: 'todo' | 'doing' | 'done') { return kanbanMap.value[status] }
 /** 拖到项目小节 = 改项目归属（清空原指标），状态随所在列 */
 function onKanbanGroupDrop(e: DragEvent, status: 'todo' | 'doing' | 'done', projectKey: string) {
   e.preventDefault(); e.stopPropagation()

@@ -14,8 +14,6 @@ import Icon from '@/shared/components/Icon.vue'
 import logoUrl from '@/assets/logo.png'
 import { getBytesInUse, subscribeSaveError, clearLastSaveError } from '@/shared/storage/repository'
 import { emitOpenDrawer } from '@/shared/utils/bus'
-// V2.21：拼音字典按需动态加载；R68-F6 起启动 idle 预热（见 onMounted）
-import { ensurePinyin } from '@/shared/utils/pinyin'
 import { runSync } from '@/shared/storage/airtable'
 import ResourceDetailDrawer from './components/ResourceDetailDrawer.vue'
 
@@ -305,9 +303,9 @@ function onGlobalKeydown(e: KeyboardEvent) {
 }
 onMounted(async () => {
   window.addEventListener('keydown', onGlobalKeydown, true)
-  // R68-F6：拼音字典启动预热（idle 后台加载 ~300KB，首次 Ctrl+K 拼音/首字母搜索零等待）
-  const idle = (window as any).requestIdleCallback || ((cb: () => void) => setTimeout(cb, 1200))
-  idle(() => { void ensurePinyin() })
+  // R131-C6a：启动 idle 预热退役——每开一个新标签页都后台拉 ~312KB 拼音字典，与「按需加载」交付口径相悖；
+  // 字典改由搜索面板打开时 ensurePinyin（GlobalPopups）/ 网页浮层唤起时（overlay-impl）加载，
+  // pinyinReady 就绪后结果链自动补跑拼音命中（V2.21 既有机制），首屏与多标签页内存不再为该预热买单。
   // 第卅六轮 REQ-038：初始化时拉一次容量，给顶栏备份提醒红点用
   refreshBytes().catch(() => {})
   // 监听 storage onChanged，更新容量（兜底：首次安装或 import 后变化）

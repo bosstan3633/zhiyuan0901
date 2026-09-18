@@ -11,7 +11,7 @@
             <span>{{ filterLabel }}</span>
             <span class="gp-chip-x" @click="clearFilter">×</span>
           </span>
-          <input ref="searchInput" type="text" class="gp-search-input" v-model="searchQuery"
+          <input ref="searchInput" type="text" class="gp-search-input" v-model="searchQueryRaw"
             placeholder="搜索全部卡片…" autocomplete="off" spellcheck="false"
             @keydown="onSearchKeydown">
         </div>
@@ -378,7 +378,7 @@ function openPanel(p: PanelType) {
   // V2.21：字典按需加载——仅在搜索面板被打开时才拉取，不进新标签页首屏同步路径
   // R47-A4：每次唤起清空上次查询词，恢复浏览态（无输入=近期热度排序）
   // R60-2：selectedId 与 searchQuery 必须同时清空，否则下次唤起会锚定到上一次选中的卡
-  if (p === 'search') { currentType.value = 'all'; searchQuery.value = ''; selectedId.value = ''; void ensurePinyin() }
+  if (p === 'search') { currentType.value = 'all'; setSearchQuery(''); selectedId.value = ''; void ensurePinyin() }
   if (p === 'taskcapture') {
     // R55-C：快速采集任务——四字段全非必填，直存全域任务
     tcSaved.value = false
@@ -467,7 +467,25 @@ async function prefillCapture() {
 }
 
 // ===== 全局搜索 =====
+// R131-C2：查询词防抖 120ms——输入框 v-model 绑 searchQueryRaw（即时回显），
+// 整链 computed（counts/wsTree/filteredResults/archivedMatchCount/热度）只读防抖后的 searchQuery，
+// 连续快打不再每键重算全库管线（原实现每击一键全链重跑）。
+const searchQueryRaw = ref('')
 const searchQuery = ref('')
+let qDebounce: ReturnType<typeof setTimeout> | null = null
+watch(searchQueryRaw, v => {
+  if (qDebounce) clearTimeout(qDebounce)
+  qDebounce = setTimeout(() => { qDebounce = null; searchQuery.value = v }, 120)
+})
+/** 程序化设置查询词（打开复位 / Tab 关键词消费）：raw 与防抖值同步落定，取消在途防抖 */
+function setSearchQuery(v: string) {
+  if (qDebounce) { clearTimeout(qDebounce); qDebounce = null }
+  searchQueryRaw.value = v; searchQuery.value = v
+}
+onUnmounted(() => { if (qDebounce) clearTimeout(qDebounce) })
+// R131-C2：浮层关闭 = 检索管线整体停摆。gp-overlay 恒挂载（opacity 隐藏），
+// 模板绑定让整链在面板关闭时仍随全库每次变更重算；此守卫把关闭态的全部重计算压到 O(1)。
+const searchActive = computed(() => activePanel.value === 'search')
 /**
  * V2.21：拼音字典就绪状态（响应式）。
  * filteredResults 通过读取它建立依赖——字典异步加载完成后，
@@ -503,6 +521,7 @@ function typeLabel(t: 'all'|'res'|'task'|'curio'|'ws'|'proj'): string {
 const filterLabel = computed(() => typeLabel(currentType.value))
 
 const counts = computed(() => {
+  if (!searchActive.value) return { all: 0, res: 0, task: 0, curio: 0, ws: 0, proj: 0 }
   const all = d.value
   return {
     all: all.resources.filter(r=>!r.deletedAt).length + all.tasks.filter(t=>!t.deletedAt).length + all.curiosities.filter(c=>!c.deletedAt).length + all.workspaces.filter(w=>!w.archived && w.id !== CURATION_WS_ID).length,
@@ -534,13 +553,22 @@ interface SearchResult {
 }
 
 const allResults = computed<SearchResult[]>(() => {
+  if (!searchActive.value) return []
   const results: SearchResult[] = []
   const all = d.value
+  // R131-C2：查表索引一次成型——改前逐卡对全表 find（900 卡 × 200 台/类 ≈ 18 万次比较/轮）
+  const wsById = new Map(all.workspaces.map(w => [w.id, w]))
+  const catById = new Map(all.categories.map(c => [c.id, c]))
+  const projById = new Map<string, { id: string; name: string }>()
+  const projDirName = new Map<string, string>()
+  for (const dir of all.compass.directions) for (const p of dir.projects) { projById.set(p.id, p); projDirName.set(p.id, dir.name) }
+  const wsCardCount = new Map<string, number>()
+  for (const r of all.resources) if (!r.deletedAt) wsCardCount.set(r.workspaceId, (wsCardCount.get(r.workspaceId) || 0) + 1)
 
   // 资源卡
   all.resources.filter(r=>!r.deletedAt).forEach(r => {
-    const ws = all.workspaces.find(w=>w.id===r.workspaceId)
-    const cat = all.categories.find(c=>c.id===r.categoryId)
+    const ws = wsById.get(r.workspaceId)
+    const cat = catById.get(r.categoryId)
     const rlink = r.link
     results.push({
       id: r.id, type: 'res', iconClass: 'res', iconText: '📄',
@@ -555,7 +583,7 @@ const allResults = computed<SearchResult[]>(() => {
 
   // 任务卡
   all.tasks.filter(t=>!t.deletedAt).forEach(t => {
-    const proj = findProject(t.projectId || '')
+    const proj = projById.get(t.projectId || '')
     const statusIcon = t.status==='done'?'✓':t.status==='doing'?'◐':'○'
     const statusClass = t.status==='done'?'task-done':t.status==='doing'?'task-doing':'task-todo'
     const badges: {type:string,text:string}[] = []
@@ -588,7 +616,7 @@ const allResults = computed<SearchResult[]>(() => {
   // R70：补 CURATION_WS_ID 过滤——R68 修口径时计数（counts）与类型树（wsTree）都排除了资源台本体，
   // 唯独结果集漏了（此处直读 d.value.workspaces，绕过了 store 的 workspaces getter）。
   d.value.workspaces.filter(w => !w.archived && w.id !== CURATION_WS_ID).forEach(w => {
-    const cardCount = d.value.resources.filter(r => !r.deletedAt && r.workspaceId === w.id).length
+    const cardCount = wsCardCount.get(w.id) || 0
     results.push({
       id: w.id, type: 'ws', iconClass: 'ws', iconText: '🗂',
       title: w.name, ws: '策展台', cat: `${cardCount} 张资源卡`,
@@ -600,7 +628,7 @@ const allResults = computed<SearchResult[]>(() => {
 
   // R49-G：项目实体（点击直达项目详情 /compass/projects?p=；受已完成显隐开关约束）
   allProjects().filter(p => showDoneProjects.value || !isProjectDone(p)).forEach(p => {
-    const dir = d.value.compass.directions.find(dr => dr.projects.some(x => x.id === p.id))
+    const dir = { name: projDirName.get(p.id) || '—' }
     const badges: {type:string,text:string}[] = []
     if (p.isFocused) badges.push({ type: 'prio-high', text: '⚑ 主攻' })
     if (p.status === 'archived') badges.push({ type: 'curio-status', text: '已完成' })
@@ -621,18 +649,28 @@ const showDoneProjects = computed(() => (store.ui as any)?.showDoneProjects !== 
 
 /** R49-G2：策展台类型 → 策展台→分类树（含分类卡片数；关键字过滤策展台名/分类名） */
 const wsTree = computed(() => {
+  if (!searchActive.value) return []
   const q = searchQuery.value.trim().toLowerCase()
+  // R131-C2：计数 bucket 一次成型——改前每个分类都全表 filter 一遍资源/子分类（O(台×类×卡)）
+  const byWs = new Map<string, number>()
+  const byCat = new Map<string, number>()
+  const catWsOf = new Map(d.value.categories.map(c => [c.id, c.workspaceId]))
+  for (const r of d.value.resources) {
+    if (r.deletedAt) continue
+    byWs.set(r.workspaceId, (byWs.get(r.workspaceId) || 0) + 1)
+    // 与改前判据一致：卡须同时满足「属本台」且「分类在族内」（悬空/跨台脏数据不串计）
+    if (r.categoryId && catWsOf.get(r.categoryId) === r.workspaceId) byCat.set(r.categoryId, (byCat.get(r.categoryId) || 0) + 1)
+  }
+  const childIds = new Map<string, string[]>()
+  for (const c of d.value.categories) if (c.parentId) { const a = childIds.get(c.parentId) || []; a.push(c.id); childIds.set(c.parentId, a) }
   // R68-F1：口径对齐台签栏——排除资源台本体实体（固定 Tab，非台签策展台），历史遗留实体不再混入
   return d.value.workspaces.filter(w => !w.archived && w.id !== CURATION_WS_ID)
     .filter(w => !q || w.name.toLowerCase().includes(q))
     .map(w => {
       const cats = d.value.categories.filter(c => c.workspaceId === w.id)
         .filter(c => !q || c.name.toLowerCase().includes(q))
-        .map(c => {
-          const fam = new Set([c.id, ...d.value.categories.filter(x => x.parentId === c.id).map(x => x.id)])
-          return { id: c.id, name: c.name, count: d.value.resources.filter(r => !r.deletedAt && r.workspaceId === w.id && fam.has(r.categoryId || '')).length }
-        })
-      return { id: w.id, name: w.name, cards: d.value.resources.filter(r => !r.deletedAt && r.workspaceId === w.id).length, cats }
+        .map(c => ({ id: c.id, name: c.name, count: (byCat.get(c.id) || 0) + (childIds.get(c.id) || []).reduce((n, cid) => n + (byCat.get(cid) || 0), 0) }))
+      return { id: w.id, name: w.name, cards: byWs.get(w.id) || 0, cats }
     })
 })
 function wsNameOf(id: string): string {
@@ -690,18 +728,17 @@ const filteredResults = computed<SearchResult[]>(() => {
   const parts = q ? q.split(/\s+/) : []
   if (q) list = list.filter(r => hitResult(r, parts))
   // 第卅三轮 REQ-020：置顶 > 星标 ｜ R58-O1 + R117（F6）：命中强度分级 > 调用热度 > 最近调出
-  list = [...list].sort((a, b) => {
-    const mr = markRank(b.raw as AnyCard) - markRank(a.raw as AnyCard)
+  // R131-C2：hitRank 装饰-排序-去装饰——比较器内不再重复计算（改前 O(n log n) 次 × 每次归一化+拼音匹配）
+  const decorated = list.map(r => ({ r, mr: markRank(r.raw as AnyCard), hr: parts.length ? hitRank(r, parts) : 0 }))
+  decorated.sort((a, b) => {
+    const mr = b.mr - a.mr
     if (mr) return mr
-    if (parts.length) {
-      const th = hitRank(b, parts) - hitRank(a, parts)
-      if (th) return th
-    }
-    const dc = (((b.raw as AnyCard).callCount || 0) - ((a.raw as AnyCard).callCount || 0))
+    if (a.hr !== b.hr) return b.hr - a.hr
+    const dc = (((b.r.raw as AnyCard).callCount || 0) - ((a.r.raw as AnyCard).callCount || 0))
     if (dc) return dc
-    return (((b.raw as AnyCard).lastCalledAt || 0) - ((a.raw as AnyCard).lastCalledAt || 0))
+    return (((b.r.raw as AnyCard).lastCalledAt || 0) - ((a.r.raw as AnyCard).lastCalledAt || 0))
   })
-  return list
+  return decorated.map(x => x.r)
 })
 /**
  * R117（04-61 F6）：命中强度分级（只影响排序，不决定是否命中）
@@ -885,9 +922,9 @@ function onSearchKeydown(e: KeyboardEvent) {
     // B29：Tab 过滤类型——输入「任务/资源/好奇/全部」+ Tab 直达对应类型；否则四类循环切换。
     // 关键词被视为指令（消费掉），普通关键词保留；chip 与类型 Tab 行高亮同步更新
     e.preventDefault()
-    const q = searchQuery.value.trim()
+    const q = searchQueryRaw.value.trim()
     const kw = ([['任务', 'task'], ['资源', 'res'], ['好奇心', 'curio'], ['好奇', 'curio'], ['策展台', 'ws'], ['工作台', 'ws'], ['项目', 'proj'], ['全部', 'all']] as const).find(([k]) => k === q)
-    if (kw) { currentType.value = kw[1]; searchQuery.value = '' }
+    if (kw) { currentType.value = kw[1]; setSearchQuery('') }
     else {
       const cycle: Array<'all'|'res'|'task'|'curio'|'ws'|'proj'> = ['all', 'res', 'task', 'curio', 'ws', 'proj']
       currentType.value = cycle[(cycle.indexOf(currentType.value) + 1) % cycle.length]
@@ -1199,15 +1236,6 @@ function linkShort(link: string) {
   if (link.startsWith('obsidian')) return 'Obsidian笔记'
   const parts = link.split(/[\\/]/)
   return parts[parts.length-1].substring(0,25)
-}
-
-function findProject(projId: string) {
-  for (const dir of d.value.compass.directions) {
-    for (const p of dir.projects) {
-      if (p.id === projId) return p
-    }
-  }
-  return null
 }
 
 /** R49-G：跨方向扁平项目列表（复用 useCompass 口径，避免多处手写双循环漂移） */

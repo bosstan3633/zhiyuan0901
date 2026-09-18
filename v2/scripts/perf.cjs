@@ -19,6 +19,8 @@
  *   M3b 窗口二（M2c 回调度台 + M5 全局搜索）的主线程阻塞量（R114-59 新增，与 M3 分窗互不污染）
  *   M2c 回到调度台耗时（R114-59 新增——此前无度量）
  *   M5  全局搜索浮层：唤起 / 键入 6 字净耗时（R114-59 重写——旧 M6 在扩展页派发合成按键，无监听者，恒 ≈0ms 假指标）
+ *   M6  保存链路耗时（R131-C1 门禁）：整库 JSON 序列化 + 同载荷 storage.local.set 写盘
+ *       （写独立探针键，不碰 zy_data_v2——避免触发应用合并路径污染采样）
  */
 const path = require('path')
 const fs = require('fs')
@@ -518,6 +520,27 @@ async function main() {
   })
   push('M3b_窗口二长任务总计(ms)', lt2.total, { M3b_长任务次数: lt2.count, M3b_最大单任务ms: lt2.max })
   log(`  窗口二长任务（M2c+M5）：${lt2.count} 次 · 总计 ${lt2.total}ms · 最大 ${lt2.max}ms · Top5 ${JSON.stringify(lt2.top5)}`)
+
+  // ══════════ M6 保存链路耗时（R131-C1 门禁：保存路径此前无度量）══════════
+  // 复刻 saveData 计时区间的两段主线程成本：整库 JSON.stringify + 同载荷 storage.local.set。
+  // 写独立探针键（不碰 zy_data_v2）：直写现役键会被 isSelfWrite 判为外部写入 → 触发合并再写一轮，污染采样。
+  await page.goto(base + '#/workspace', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(800)
+  let m6 = null
+  try {
+    m6 = await page.evaluate(async () => {
+      const got = await new Promise(res => chrome.storage.local.get('zy_data_v2', r => res(r.zy_data_v2)))
+      if (!got) return null
+      const t1 = performance.now()
+      const s = JSON.stringify(got)
+      const t2 = performance.now()
+      await new Promise(res => chrome.storage.local.set({ zy_perf_probe: s }, res))
+      const t3 = performance.now()
+      await new Promise(res => chrome.storage.local.remove('zy_perf_probe', res))
+      return { json: Math.round(t2 - t1), set: Math.round(t3 - t2), kb: Math.round(s.length / 1024) }
+    })
+  } catch (e) { log('  ⚠ M6 保存采样失败：' + e.message) }
+  if (m6) push('M6a_整库JSON序列化(ms)', m6.json, { 'M6b_同载荷set写盘(ms)': m6.set, M6_载荷KB: m6.kb })
 
   await ctx.close()
 

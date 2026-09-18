@@ -1,4 +1,4 @@
-﻿import { computed, ref } from 'vue'
+﻿import { computed, ref, shallowRef } from 'vue'
 import { useAppStore } from './app'
 import { uid } from '@/shared/utils'
 import type { Direction, Project } from '@/shared/models'
@@ -24,8 +24,10 @@ import { readEventLog, curioCumulativeSince, countCurioCumulative, type CardEven
  * 六层链：Vision → Mission → Direction(战略目标) → Project(攻坚项目) → Metric(成功指标) → Task
  */
 export function useCompass() {
-  // ---- R127：WCE 事件流水缓存（zy_event_log 读取一次缓存；computed 同步消费；与仪表盘同源） ----
-  const wceEvents = ref<CardEvent[]>([])
+  // ---- R127：WCE 事件流水缓存（zy_event_log 读取一次缓存；computed 同步消费；与仪表盘同源）
+  // R131-C5：ref → shallowRef——流水为只读快照（整组替换、从不逐元素改写），深响应曾为最多 5000 条
+  // 事件各建一层 Proxy；shallowRef 赋值即触发，语义不变。 ----
+  const wceEvents = shallowRef<CardEvent[]>([])
   const wceBaseline = ref(0)
   async function refreshWce() {
     try {
