@@ -126,6 +126,9 @@
 /* Body */
 /* R109（F13）：单一滚动域——顶部模块移入 ws-content 后，行布局容器不再需要魔法高度 */
 .ws-columns { display: flex; align-items: flex-start; }
+/* R130-T7/T8：视图列原无 flex:1（宽度收缩到内容 max-content，列表标题不长时右缘留空白带）——
+   撑满剩余宽度使行右缘与容器对齐；margin-left 14px 为分类树与内容区之间的呼吸间距 */
+.ws-view, .kanban, .pyramid { flex: 1; min-width: 0; margin-left: 14px; }
 
 /* 侧边栏（R48-V2：Linear 风格树——紧凑行高、缩进导轨、chevron 旋转、弱化计数） */
 /* R123（B4/原型）：侧栏卡片盒（210px、无右分割线） */
@@ -474,7 +477,7 @@
 .py-root-empty.clickable:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 /* R66-F5：居中树 board——列宽自适应 minmax(170px,250px)，整体 fit-content 水平居中不占满；
    行距 34px 留出直角连线空间；父节点跨子组全部列（横向恒=子组、居中悬于其上） */
-.py-board { display: grid; gap: 34px 12px; width: 100%; margin: 6px 0 0; align-items: stretch; }
+.py-board { display: grid; gap: 34px 12px; width: 100%; max-width: 1120px; margin: 6px auto 0; align-items: stretch; }
 .py-node { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; min-width: 0; transition: border-color .15s, box-shadow .15s; }
 .py-node:hover { border-color: var(--border-strong); }
 .py-node.drop-child { border-color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }

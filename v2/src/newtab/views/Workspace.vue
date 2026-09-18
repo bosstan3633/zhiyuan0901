@@ -314,7 +314,7 @@
       <!-- 右侧展示区 -->
 
         <!-- ===== 卡片视图：REQ-027 按分类分组分区；R64-F9 树状递归分组（depth 缩进呈现层级） ===== -->
-        <div v-if="viewMode==='card'">
+        <div v-if="viewMode==='card'" class="ws-view">
           <!-- R84（W2-①）：中心论点提到首屏——此前论点只出现在指标条第一格与金字塔 L1 根，
                卡片视图（默认视图）里完全看不到。已设立 → 标题 + 查看金字塔；未设立 → 一行轻引导。 -->
           <template v-for="(g, gi) in renderedGroups" :key="g.key">
@@ -409,7 +409,7 @@
         </div>
 
         <!-- ===== 列表视图：REQ-027 按分类分组分区（每分区标题行 + 其下条目）；R64-F9 树状缩进 ===== -->
-        <div v-if="viewMode==='list'">
+        <div v-if="viewMode==='list'" class="ws-view">
           <template v-for="(g, gi) in renderedGroups" :key="g.key">
             <div class="group-wrap" :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
             <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">

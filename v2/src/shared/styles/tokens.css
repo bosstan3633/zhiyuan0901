@@ -35,6 +35,7 @@
 
   /* 圆角体系（R124：大容器 12 · 卡片/按钮 8 · 标签/小按钮 4） */
   --radius: 12px;    /* 大容器 / 弹层 */
+  --radius-md: 10px; /* R130-T5：全站 14 处引用（metric-box/today-card/tm-card/thesis-banner…）此前无定义 → 圆角静默失效渲染成直角，现补上 */
   --radius-sm: 8px;  /* 卡片 / 按钮 / 输入 */
   --radius-xs: 4px;  /* 标签 / 小按钮 / 行内元素 */
 

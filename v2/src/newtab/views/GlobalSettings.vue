@@ -289,20 +289,6 @@
             </div>
           </template>
         </Drawer>
-        <!-- R127：标签管理卡片详情（三卡统一） -->
-        <Drawer :open="!!ttDetail" title="🏷 卡片详情" @close="ttDetail = null">
-          <template v-if="ttDetail">
-            <div class="gs-pd-title">{{ ttDetail.title }}</div>
-            <div class="gs-pd-row" v-if="ttDetail.link"><span class="gs-pd-k">链接</span><span class="gs-pd-v">{{ ttDetail.link }}</span></div>
-            <div class="gs-pd-row" v-if="ttDetail.desc"><span class="gs-pd-k">描述</span><span class="gs-pd-v">{{ ttDetail.desc }}</span></div>
-            <div class="gs-pd-row"><span class="gs-pd-k">类型</span><span class="gs-pd-v">{{ ttDetail.kind === 'resource' ? '资源卡' : ttDetail.kind === 'task' ? '任务卡 · ' + (ttDetail.status === 'done' ? '已完成' : ttDetail.status === 'doing' ? '进行中' : '待开始') : '好奇心卡 · ' + (ttDetail.status || '') }}</span></div>
-            <div class="gs-pd-row" v-if="ttDetail.tags.length"><span class="gs-pd-k">标签</span><span class="gs-pd-v">#{{ ttDetail.tags.join(' #') }}</span></div>
-            <div class="gs-pd-actions">
-              <button v-if="ttDetail.kind === 'resource' && ttDetail.link" class="gs-btn gs-btn-primary" @click="openCardLink({ link: ttDetail.link })">↗ 打开链接</button>
-              <button class="gs-btn" @click="ttDetail = null">关闭</button>
-            </div>
-          </template>
-        </Drawer>
       </div>
 
       <!-- ===== 资源卡字段 ===== -->
@@ -387,9 +373,9 @@
                   @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
               </div>
               <template v-for="root in tagTree" :key="root.id">
-                <div class="gs-tt-row" :class="{editing: ttEditing?.id === root.id, flash: ttFlashId === root.id, active: ttActiveTag === root.name}" :data-depth="tagDepth(root.id)" :style="{ paddingLeft: 8 + tagDepth(root.id) * 18 + 'px' }" draggable="true"
+                <div class="gs-tt-row" :class="{editing: ttEditing?.id === root.id, flash: ttFlashId === root.id, active: ttActiveTag === root.name, drop: ttDropTarget === root.id}" :data-depth="tagDepth(root.id)" :style="{ paddingLeft: 8 + tagDepth(root.id) * 18 + 'px' }" draggable="true"
                   @dragstart="ttDragStart($event, root.id)" @dragend="ttDragEnd"
-                  @dragover.prevent @drop="ttDrop($event, root.id)" @click="selectTtTag(root.name)">
+                  @dragover.prevent="ttDropTarget = root.id" @dragleave="ttDropTarget === root.id && (ttDropTarget = '')" @drop="ttDrop($event, root.id)" @click="selectTtTag(root.name)">
                   <span class="gs-tt-toggle" :class="{leaf: !safeChildren(root).length}" @click="ttToggle(root.id)">{{ ttCollapsed.has(root.id) ? '▸' : '▾' }}</span>
                   <input v-if="ttEditing?.id === root.id" v-model="ttEditing.value" class="gs-tt-input" v-focus
                     @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
@@ -411,9 +397,9 @@
                     @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
                 </div>
                 <template v-if="!ttCollapsed.has(root.id)">
-                  <div v-for="child in safeChildren(root)" :key="child.id" class="gs-tt-row subrow" :class="{editing: ttEditing?.id === child.id, flash: ttFlashId === child.id, active: ttActiveTag === root.name + '/' + child.name}" :data-depth="tagDepth(child.id)" :style="{ paddingLeft: 8 + tagDepth(child.id) * 18 + 'px' }" draggable="true"
+                  <div v-for="child in safeChildren(root)" :key="child.id" class="gs-tt-row subrow" :class="{editing: ttEditing?.id === child.id, flash: ttFlashId === child.id, active: ttActiveTag === root.name + '/' + child.name, drop: ttDropTarget === child.id}" :data-depth="tagDepth(child.id)" :style="{ paddingLeft: 8 + tagDepth(child.id) * 18 + 'px' }" draggable="true"
                     @dragstart="ttDragStart($event, child.id)" @dragend="ttDragEnd"
-                    @dragover.prevent @drop="ttDrop($event, child.id)" @click="selectTtTag(root.name + '/' + child.name)">
+                    @dragover.prevent="ttDropTarget = child.id" @dragleave="ttDropTarget === child.id && (ttDropTarget = '')" @drop="ttDrop($event, child.id)" @click="selectTtTag(root.name + '/' + child.name)">
                     <input v-if="ttEditing?.id === child.id" v-model="ttEditing.value" class="gs-tt-input" v-focus
                       @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
                     <template v-else>
@@ -454,7 +440,7 @@
                   <span v-if="ttPicked.size" class="tt-picked">已选 {{ ttPicked.size }} 张 · 拖到左侧标签即可移动</span>
                 </div>
                 <div class="tt-list">
-                  <div v-for="row in ttRows" :key="row.id" class="gs-pan-card" :class="{ selected: ttPicked.has(row.id) }" draggable="true"
+                  <div v-for="row in ttRows" :key="row.id" class="gs-pan-card" :class="{ selected: ttPicked.has(row.id), dragging: ttCardDragging && ttPicked.has(row.id) }" draggable="true"
                     @click="onTtRowClick(row)" @dblclick="onTtRowDblClick(row)" @dragstart="onTtRowDragStart($event, row)" @dragend="onTtRowDragEnd">
                     <input type="checkbox" class="gs-pan-check" :checked="ttPicked.has(row.id)" @click.stop @change="ttTogglePick(row.id)" />
                     <div class="gs-pan-card-main">
@@ -468,6 +454,21 @@
             </div>
           </div>
         </div>
+        <!-- R130-T2：详情抽屉必须挂在标签管理面板内——R127 误放进「资源台全景」面板（v-if activePage==='panorama'），
+             在标签管理页该面板整体不渲染，双击 ttDetail 赋值后无人消费 → 抽屉永不出现 -->
+        <Drawer :open="!!ttDetail" title="🏷 卡片详情" @close="ttDetail = null">
+          <template v-if="ttDetail">
+            <div class="gs-pd-title">{{ ttDetail.title }}</div>
+            <div class="gs-pd-row" v-if="ttDetail.link"><span class="gs-pd-k">链接</span><span class="gs-pd-v">{{ ttDetail.link }}</span></div>
+            <div class="gs-pd-row" v-if="ttDetail.desc"><span class="gs-pd-k">描述</span><span class="gs-pd-v">{{ ttDetail.desc }}</span></div>
+            <div class="gs-pd-row"><span class="gs-pd-k">类型</span><span class="gs-pd-v">{{ ttDetail.kind === 'resource' ? '资源卡' : ttDetail.kind === 'task' ? '任务卡 · ' + (ttDetail.status === 'done' ? '已完成' : ttDetail.status === 'doing' ? '进行中' : '待开始') : '好奇心卡 · ' + (ttDetail.status || '') }}</span></div>
+            <div class="gs-pd-row" v-if="ttDetail.tags.length"><span class="gs-pd-k">标签</span><span class="gs-pd-v">#{{ ttDetail.tags.join(' #') }}</span></div>
+            <div class="gs-pd-actions">
+              <button v-if="ttDetail.kind === 'resource' && ttDetail.link" class="gs-btn gs-btn-primary" @click="openCardLink({ link: ttDetail.link })">↗ 打开链接</button>
+              <button class="gs-btn" @click="ttDetail = null">关闭</button>
+            </div>
+          </template>
+        </Drawer>
       </div>
 
       <!-- ===== 导入数据 ===== -->
@@ -2352,19 +2353,24 @@ function tagSubtreeIds(id: string): string[] {
   return out
 }
 /**
- * R129-B4：用量统计走「路径 + 叶子」双口径（与 R126 的选择器/搜索同口径）。
- * 卡上存的是 `父/子` 路径，而老数据/手工输入可能只存叶子名；标签名在树内全局唯一
- * （重命名有 `tagFlat().some(t => t.name === name)` 查重守卫），故按叶子匹配不会串号。
- * ⚠ 不含子树：R127 已拍板「父标签只统计精确挂在自身上的卡片」，右列筛选同样是这个口径。
+ * R130-T1：卡片-标签命中判据唯一口径（左树 tagUsage 与右列 ttRows 共用）——
+ * 「路径 + 叶子」双口径（R129-B4 定案）+ 排除回收站软删卡（用户拍板：树角标不含回收站卡）。
+ * 此前树计数含软删卡而右列排除，同一标签两处数字对不上。
  */
-function tagUsage(name: string): number {
+function cardHasTag(tags: string[] | undefined, name: string): boolean {
+  if (!Array.isArray(tags) || !tags.length) return false
   const leaf = name.split('/').pop() || name
-  const hit = (t: string) => t === name || t === leaf
+  return tags.some(t => t === name || t === leaf)
+}
+function tagUsage(name: string): number {
   const d = store.data!
   let n = 0
-  ;(d.resources || []).forEach(r => { if (Array.isArray(r.tags) && r.tags.some(hit)) n++ })
-  ;(d.tasks || []).forEach(t => { if (Array.isArray(t.tags) && t.tags.some(hit)) n++ })
-  ;(d.curiosities || []).forEach(c => { if (Array.isArray(c.tags) && c.tags.some(hit)) n++ })
+  const walk = (arr?: { deletedAt?: number; tags?: string[] }[]) => {
+    for (const x of arr || []) if (!x.deletedAt && cardHasTag(x.tags, name)) n++
+  }
+  walk(d.resources as unknown as { deletedAt?: number; tags?: string[] }[])
+  walk(d.tasks as unknown as { deletedAt?: number; tags?: string[] }[])
+  walk(d.curiosities as unknown as { deletedAt?: number; tags?: string[] }[])
   return n
 }
 function ttToggle(id: string) {
@@ -2387,6 +2393,9 @@ const ttActiveTag = ref('')
 const ttCardKind = ref<'all' | 'resource' | 'task' | 'curiosity'>('all')
 const ttCardQ = ref('')
 const ttPicked = ref<Set<string>>(new Set())
+// R130-T3：拖拽视觉反馈——目标标签行 dragover 高亮（对齐全景页 .drop 样式）+ 被拖卡片行降透明度
+const ttDropTarget = ref('')
+const ttCardDragging = ref(false)
 interface TtRow { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; sub: string; link?: string; desc?: string; status?: string; tags: string[] }
 const ttDetail = ref<TtRow | null>(null)
 let ttCardDragIds: string[] | null = null
@@ -2400,19 +2409,19 @@ const ttRows = computed<TtRow[]>(() => {
   const out: TtRow[] = []
   if (kind === 'all' || kind === 'resource') {
     for (const r of store.data!.resources || []) {
-      if (r.deletedAt || !(r.tags || []).includes(tag)) continue
+      if (r.deletedAt || !cardHasTag(r.tags, tag)) continue
       out.push({ kind: 'resource', id: r.id, title: r.title, sub: `${gWsName(r.workspaceId)} / ${gCatName(r.categoryId || '')}`, link: r.link, desc: r.description, tags: r.tags || [] })
     }
   }
   if (kind === 'all' || kind === 'task') {
     for (const t of store.data!.tasks || []) {
-      if (t.deletedAt || !(t.tags || []).includes(tag)) continue
+      if (t.deletedAt || !cardHasTag(t.tags, tag)) continue
       out.push({ kind: 'task', id: t.id, title: t.title, sub: t.status === 'done' ? '已完成' : t.status === 'doing' ? '进行中' : '待开始', status: t.status, tags: t.tags || [] })
     }
   }
   if (kind === 'all' || kind === 'curiosity') {
     for (const c of store.data!.curiosities || []) {
-      if (c.deletedAt || !(c.tags || []).includes(tag)) continue
+      if (c.deletedAt || !cardHasTag(c.tags, tag)) continue
       out.push({ kind: 'curiosity', id: c.id, title: c.question, sub: c.status === 'done' ? '已求证' : c.status === 'doing' ? '探索中' : c.status === 'shelf' ? '已搁置' : '待探索', status: c.status, tags: c.tags || [] })
     }
   }
@@ -2420,8 +2429,8 @@ const ttRows = computed<TtRow[]>(() => {
 })
 function onTtRowClick(row: TtRow) { ttTogglePick(row.id) }
 function onTtRowDblClick(row: TtRow) { ttDetail.value = row }
-function onTtRowDragStart(e: DragEvent, row: TtRow) { ttCardDragIds = ttPicked.value.has(row.id) ? [...ttPicked.value] : [row.id]; if (!ttPicked.value.has(row.id)) ttTogglePick(row.id) }
-function onTtRowDragEnd() { ttCardDragIds = null }
+function onTtRowDragStart(e: DragEvent, row: TtRow) { ttCardDragIds = ttPicked.value.has(row.id) ? [...ttPicked.value] : [row.id]; if (!ttPicked.value.has(row.id)) ttTogglePick(row.id); ttCardDragging.value = true }
+function onTtRowDragEnd() { ttCardDragIds = null; ttCardDragging.value = false; ttDropTarget.value = '' }
 /** R127：替换语义——从当前选中标签移到目标标签（移除源 + 添加目标；三类卡同步） */
 function ttMoveCards(targetPath: string) {
   const ids = new Set(ttCardDragIds || [])
@@ -2541,10 +2550,11 @@ async function ttRemove(id: string) {
   showToast(`🗑 已删除 ${names.join(' ')}${subCount > 0 ? `（含 ${subCount} 个子标签）` : ''}`)
 }
 function ttDragStart(e: DragEvent, id: string) { ttDragId = id }
-function ttDragEnd() { ttDragId = null }
+function ttDragEnd() { ttDragId = null; ttDropTarget.value = '' }
 /** R126（诉求 7）：拖拽挂载=根→根一级（最多两级）；卡片标签同步重写为「父/子」路径 */
 function ttDrop(e: DragEvent, targetId: string) {
   e.preventDefault()
+  ttDropTarget.value = ''
   // R127：卡片拖拽（右列 → 左树）优先：移动=替换语义
   if (ttCardDragIds && ttCardDragIds.length) {
     const hit0 = findTagNode(targetId)
@@ -2974,6 +2984,9 @@ const activeManualSec = ref('quick-1')
 /* R127：标签管理双栏（左树 + 右列卡片） */
 .tt-wrap { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
 .gs-tt-row.active { border-color: var(--accent); background: var(--accent-light); }
+/* R130-T3：拖拽落点高亮（比 active 多一圈实心内环，选中行被划过时也能分辨）+ 被拖卡片行降透明度 */
+.gs-tt-row.drop { border-color: var(--accent); background: var(--accent-light); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.gs-pan-card.dragging { opacity: .45; }
 .tt-tools { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .tt-picked { font-size: 11px; color: var(--accent); white-space: nowrap; }
 .tt-list { display: flex; flex-direction: column; gap: 6px; max-height: 560px; overflow-y: auto; }
