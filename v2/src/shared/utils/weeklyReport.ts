@@ -21,18 +21,18 @@ export interface WeekWindow {
   label: string
 }
 
-const DAY = 86400000
-
 /** 周窗口：offset 0 = 本周一 00:00 → 现在；offset -1 = 上周一 00:00 → 上周日 24:00 */
 export function weekWindow(offset: ReportPeriod, now = Date.now()): WeekWindow {
   const d = new Date(now)
   const dow = (d.getDay() + 6) % 7 // 周一=0
+  // R129-B10：上周起点同样走「日期分量」减法，不按毫秒减一周——跨夏令时/冬令时切换的那一周
+  // 一天是 23h/25h，按毫秒减会把上周窗口整体偏移一小时（周一 00:00 变成周日 23:00）。
+  const lastMon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - dow - 7).getTime()
   const thisMon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - dow).getTime()
   if (offset === 0) {
     return { start: thisMon, end: now, label: `本周（周一 ~ 今天）` }
   }
-  const start = thisMon - 7 * DAY
-  return { start, end: thisMon, label: `上周（周一 ~ 周日）` }
+  return { start: lastMon, end: thisMon, label: `上周（周一 ~ 周日）` }
 }
 
 function inWin(ts: number | undefined, w: WeekWindow): boolean {

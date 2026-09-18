@@ -8,6 +8,8 @@
  */
 import { ref, computed } from 'vue'
 import { useCompass } from '../../stores/compass'
+// R129-B10：本周口径统一走 weekUsageOf（周戳不是本周 = 0）
+import { weekUsageOf } from '@/shared/storage/stats'
 import MetricDrillDrawer from './MetricDrillDrawer.vue'
 
 const { d, northStarMetrics, unarchivedTaskCount, totalTaskCount } = useCompass()
@@ -25,7 +27,7 @@ const wrrMain = computed(() => {
     const sot = new Date(); sot.setHours(0, 0, 0, 0)
     return d.value.resources.filter(r => !r.deletedAt && (r.lastCalledAt || 0) >= sot.getTime()).length
   }
-  if (period.value === 'week') return s?.thisWeekUsage ?? 0
+  if (period.value === 'week') return weekUsageOf(d.value)
   return s?.totalCumulativeUsage ?? 0
 })
 

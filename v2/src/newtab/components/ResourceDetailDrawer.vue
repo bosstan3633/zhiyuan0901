@@ -7,6 +7,7 @@
  *   宿主保留：Drawer 容器 / 开关态 / 统计区(extra 插槽) / footer 动作(删除/复制/打开/保存)
  */
 import { computed, reactive, ref, onMounted, onUnmounted, watch } from 'vue'
+import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter } from 'vue-router'
 import Drawer from '@/shared/components/Drawer.vue'
 import ResourceEditForm from './ResourceEditForm.vue'
@@ -67,7 +68,7 @@ function save() {
   close()
   if (wsChanged) {
     const target = store.workspaces.find(w => w.id === editing.workspaceId)
-    showToast(`✓ 已保存并迁移至「${target?.name.replace(/^[^\s]+\s/, '') || '目标策展台'}」`)
+    showToast(`✓ 已保存并迁移至「${wsDisplayNameOf(target) || '目标策展台'}」`)
   } else {
     showToast('✓ 已保存')
   }

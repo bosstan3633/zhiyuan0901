@@ -8,6 +8,7 @@ import type { Router } from 'vue-router'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import { CURATION_WS_ID, type AppData, type Workspace } from '@/shared/models'
+import { wsDisplayNameOf, wsNameWithIcon } from '@/shared/utils/wsName'
 
 export interface WsMetaCtx {
   store: { persist(): void }
@@ -22,13 +23,13 @@ export interface WsMetaCtx {
 export function useWsMeta(ctx: WsMetaCtx) {
   const { store, d, workspaceId, workspace, router, settingsMenuOpen, openInputModal } = ctx
 
-  /** B32：名称展示统一剥离 icon 前缀（数据约定：name 首段为图标） */
-  const wsDisplayName = computed(() => (workspace.value?.name || '').replace(/^[^\s]+\s/, ''))
+  /** B32：名称展示统一剥离 icon 前缀（R129-B12：仅当确有 icon 且前缀匹配时才剥） */
+  const wsDisplayName = computed(() => wsDisplayNameOf(workspace.value))
   function onNameBlur(e: FocusEvent) {
     const name = (e.target as HTMLElement).textContent?.trim()
     if (name && workspace.value) {
       // 保持「图标前缀 + 名称」的数据约定，同步回写
-      workspace.value.name = (workspace.value.icon ? workspace.value.icon + ' ' : '') + name
+      workspace.value.name = wsNameWithIcon(workspace.value.icon, name)
       store.persist()
     }
   }
@@ -52,9 +53,9 @@ export function useWsMeta(ctx: WsMetaCtx) {
   function setWsIcon(icon: string) {
     if (!workspace.value) return
     if (icon && !/^\p{Extended_Pictographic}$/u.test(icon)) { showToast('请输入单个 emoji 图标'); return }
-    const raw = workspace.value.name.replace(/^[^\s]+\s/, '')
+    const raw = wsDisplayNameOf(workspace.value)
     workspace.value.icon = icon || ''
-    workspace.value.name = (icon ? icon + ' ' : '') + raw
+    workspace.value.name = wsNameWithIcon(icon, raw)
     store.persist()
     iconPickOpen.value = false
     iconCustom.value = ''
@@ -66,12 +67,11 @@ export function useWsMeta(ctx: WsMetaCtx) {
   }
   function onDescEnter(e: KeyboardEvent) { (e.target as HTMLElement).blur() }
   function renameWs() {
-    const raw = workspace.value?.name || ''
-    const current = raw.replace(/^[^\s]+\s/, '')
+    const current = wsDisplayNameOf(workspace.value)
     settingsMenuOpen.value = false
     openInputModal('✏️ 重命名策展台', current, (v) => {
       if (!workspace.value) return
-      workspace.value.name = (workspace.value.icon ? workspace.value.icon + ' ' : '') + v
+      workspace.value.name = wsNameWithIcon(workspace.value.icon, v)
       store.persist()
       showToast('✓ 已重命名')
     })
@@ -114,7 +114,7 @@ export function useWsMeta(ctx: WsMetaCtx) {
     // R58-B1：资源台是全局策展空间，不可从此入口删除
     if (workspaceId.value === CURATION_WS_ID) { showToast('ℹ 资源台为系统空间，不在此删除'); return }
     // R58-B1：红线修复——资源卡一律软删（deletedAt，回收站可恢复），不再物理移除
-    if (!(await useConfirm({ title: '删除策展台', message: `确定删除策展台「${workspace.value?.name.replace(/^[^\s]+\s/, '')}」？\n其中资源卡将全部移入回收站（可恢复），分类与策展台本身将删除且不可恢复。`, confirmText: '确认删除' }))) return
+    if (!(await useConfirm({ title: '删除策展台', message: `确定删除策展台「${wsDisplayNameOf(workspace.value)}」？\n其中资源卡将全部移入回收站（可恢复），分类与策展台本身将删除且不可恢复。`, confirmText: '确认删除' }))) return
     const idx = d.value.workspaces.findIndex(w => w.id === workspaceId.value)
     if (idx >= 0) d.value.workspaces.splice(idx, 1)
     const now = Date.now()

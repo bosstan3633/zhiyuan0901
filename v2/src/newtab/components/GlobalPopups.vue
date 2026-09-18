@@ -341,6 +341,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
 import { showToast } from '@/shared/components/toast'
@@ -635,7 +636,7 @@ const wsTree = computed(() => {
     })
 })
 function wsNameOf(id: string): string {
-  return (d.value.workspaces.find(w => w.id === id)?.name || '').replace(/^[^\s]+\s/, '')
+  return wsDisplayNameOf(d.value.workspaces.find(w => w.id === id))
 }
 /** R49-G3：点击分类 → 定位策展台该分类（有卡=高亮第一张；无卡=高亮分类行） */
 function locateCat(wsId: string, cat: { id: string; name: string }) {

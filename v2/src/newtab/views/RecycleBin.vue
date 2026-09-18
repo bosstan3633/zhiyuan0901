@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { showToast } from '@/shared/components/toast'
@@ -32,7 +33,7 @@ const curios = computed(() =>
   d.value.curiosities.filter(c => c.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
 
 function wsNameOf(id: string): string {
-  return d.value.workspaces.find(w => w.id === id)?.name.replace(/^[^\s]+\s/, '') || '未知策展台'
+  return wsDisplayNameOf(d.value.workspaces.find(w => w.id === id)) || '未知策展台'
 }
 function catNameOf(id: string): string {
   return d.value.categories.find(c => c.id === id)?.name || '待分类'
@@ -61,7 +62,7 @@ function rehomeIfOrphan(r: ResourceCard): string {
   let note = ''
   if (!d.value.workspaces.some(w => w.id === r.workspaceId)) {
     const fallback = d.value.workspaces.find(w => w.id !== CURATION_WS_ID) || d.value.workspaces[0]
-    if (fallback) { r.workspaceId = fallback.id; note = '（原策展台已删除，已移入「' + fallback.name.replace(/^[^\s]+\s/, '') + '」未分类）' }
+    if (fallback) { r.workspaceId = fallback.id; note = '（原策展台已删除，已移入「' + wsDisplayNameOf(fallback) + '」未分类）' }
   } else if (r.categoryId && !d.value.categories.some(c => c.id === r.categoryId)) {
     r.categoryId = ''
     note = '（原分类已删除，已移入未分类）'

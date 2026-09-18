@@ -249,9 +249,12 @@ export function usePyramid(ctx: PyramidCtx) {
     const catIds = catSel && catSel !== '__uncat__'
       ? new Set<string>([catSel, ...(d.value.categories || []).filter(c => c.parentId === catSel).map(c => c.id)])
       : null
+    // R129-B3：「未分类」与资源台待分类同判据——无分类 **或** 分类已删/失效（悬空卡不隐身）
+    const curCatIds = new Set((d.value.categories || [])
+      .filter(c => c.workspaceId === CURATION_WS_ID && !(c as { deletedAt?: number }).deletedAt).map(c => c.id))
     return d.value.resources
       .filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
-      .filter(r => !catSel || (catSel === '__uncat__' ? !r.categoryId : catIds!.has(r.categoryId || '')))
+      .filter(r => !catSel || (catSel === '__uncat__' ? (!r.categoryId || !curCatIds.has(r.categoryId)) : catIds!.has(r.categoryId || '')))
       .filter(r => !q || (r.title + ' ' + (r.link || '')).toLowerCase().includes(q))
       .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt)
       .map(r => ({ r, mirrored: mirroredSet.has(r.id) }))
@@ -280,12 +283,16 @@ export function usePyramid(ctx: PyramidCtx) {
   const pyFsFallback = ref(false)
   /** R113-N5：全屏宿主 = Workspace 根节点——工具条 / 弹窗 / 抽屉全部纳入全屏子树 */
   const wsPageRef = ref<HTMLElement | null>(null)
+  // R129-B6：卸载标记——enterPyFullscreen 在 await 之后若组件已销毁（切台/keep-alive 淘汰），
+  // 不能再把已脱离文档的宿主交给 setOverlayFsHost（残留引用 + 浮层渲染到死节点）
+  let pyDisposed = false
   async function enterPyFullscreen() {
     const el = wsPageRef.value
     if (!el) return
     if (typeof el.requestFullscreen === 'function') {
       try {
         await el.requestFullscreen()
+        if (pyDisposed) return
         pyFs.value = true
         pyFsFallback.value = false
         setOverlayFsHost(el)
@@ -319,8 +326,12 @@ export function usePyramid(ctx: PyramidCtx) {
     document.addEventListener('keydown', onPyFsKeydown)
   })
   onUnmounted(() => {
+    pyDisposed = true
     document.removeEventListener('fullscreenchange', onPyFsChange)
     document.removeEventListener('keydown', onPyFsKeydown)
+    // R129-B6：卸载时若 resize 节流的尾随计时器仍在排队，clear 掉——否则 150ms 后
+    // drawPyLinks 会对已销毁组件的 ref 全量重算
+    if (pyLinksTimer) { clearTimeout(pyLinksTimer); pyLinksTimer = null }
   })
   /** 全屏中切走金字塔视图 / 切台 → 退出全屏（否则全屏元素被 v-if 卸载，浏览器层会残留黑屏） */
   watch([viewMode, workspaceId], () => { if (pyFs.value) exitPyFullscreen() })

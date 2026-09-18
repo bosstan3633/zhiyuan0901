@@ -14,6 +14,8 @@ export const FOCUS_PROJECT_LIMIT = 2
 
 // B40：recordResourceOpen 已下沉至 shared/storage/stats（应用端与网页端共用同一实现）
 export { recordResourceOpen } from '@/shared/storage/stats'
+// R129-B10：本周 WRR 统一按周戳读取（跨周未打开过 = 0，不再停在上周数字）
+import { weekUsageOf } from '@/shared/storage/stats'
 import { getDataVersion, saveUIPrefs } from '@/shared/storage/repository'
 import { readEventLog, curioCumulativeSince, countCurioCumulative, type CardEvent } from '@/shared/utils/eventLog'
 
@@ -240,7 +242,7 @@ export function useCompass() {
     // R45-1 副标随周期：日=今日打开卡数(lastCalledAt) / 周=本周次数(stats.wrr.thisWeekUsage) / 累计=累计口径
     const totalCalls = d.value.resources.filter(r => !r.deletedAt)
       .reduce((sum, r) => sum + (r.callCount || 0), 0)
-    const thisWeekUsage = d.value.stats?.wrr?.thisWeekUsage ?? 0
+    const thisWeekUsage = weekUsageOf(d.value)
     const totalCumUsage = d.value.stats?.wrr?.totalCumulativeUsage ?? totalCalls
     const sot = new Date(); sot.setHours(0, 0, 0, 0)
     const todayOpened = d.value.resources.filter(r => !r.deletedAt && (r.lastCalledAt || 0) >= sot.getTime()).length

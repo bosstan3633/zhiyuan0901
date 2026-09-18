@@ -2,6 +2,10 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCuriosity, type CuriStatus } from '../../stores/curiosity'
+// R129-B12：台名剥图标走全站唯一口径（此处原为 /[^s]+s/ 漏写转义，图标一直在下拉里重复显示）
+import { wsDisplayNameOf } from '@/shared/utils/wsName'
+// R129-B5：链接协议白名单与打开通道全站唯一实现
+import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
 import { useAppStore } from '../../stores/app'
 import type { CuriosityCard, AssetMeta, FieldDef } from '@/shared/models'
 import ModuleCard from '@/shared/components/ModuleCard.vue'
@@ -221,24 +225,19 @@ function onCardClick(id: string) {
   clickTimer = setTimeout(() => { clickTimer = null; openDetail(id) }, 260)
 }
 function openSourceUrl(url: string) {
-  if (/^(https?|obsidian|file):/i.test(url)) window.open(url, '_blank')
+  // R129-B5：协议过滤与打开通道统一走 shared/utils/link（原此处自写一份白名单）
+  const t = toOpenableRawLink(url)
+  if (t) openExternalLink(t)
 }
 function onCardDblClick(c: CuriosityCard) {
   if (clickTimer) { clearTimeout(clickTimer); clickTimer = null }
   // 第十三轮：链接字段统一口径（sourceUrl 即好奇心的链接，支持 URL / 本地路径 / obsidian://）
-  const url = toOpenableCurioLink(c.sourceUrl)
-  if (url) window.open(url, '_blank')
+  const url = toOpenableRawLink(c.sourceUrl)
+  if (url) openExternalLink(url)
   else {
     openDetail(c.id)
     showToast('该好奇心还没有链接，可在详情中添加')
   }
-}
-function toOpenableCurioLink(link?: string): string {
-  const t = (link || '').trim()
-  if (!t) return ''
-  if (/^(https?|obsidian|file):/i.test(t)) return t
-  if (/^[a-zA-Z]:[\\/]/.test(t)) return 'file:///' + encodeURI(t.replace(/\\/g, '/')).replace(/#/g, '%23')
-  return ''
 }
 
 // ---- O6：卡片删除（删除入口在卡片上，不在详情页） ----
@@ -485,8 +484,10 @@ function srcShort(url: string): string {
                 <span v-else-if="f.key === 'tags' && c.tags?.length" class="cz-ext-tags">
                   <span v-for="t in c.tags" :key="t" class="cz-ext-tag">#{{ t }}</span>
                 </span>
-                <a v-else-if="f.key === 'sourceUrl' && c.sourceUrl" class="cz-ext-src" :href="c.sourceUrl"
-                  target="_blank" rel="noreferrer" :title="c.sourceUrl" @click.stop>🔗 {{ srcShort(c.sourceUrl) }}</a>
+                <a v-else-if="f.key === 'sourceUrl' && toOpenableRawLink(c.sourceUrl)" class="cz-ext-src" :href="toOpenableRawLink(c.sourceUrl)"
+                  target="_blank" rel="noreferrer" :title="c.sourceUrl" @click.stop>🔗 {{ srcShort(c.sourceUrl || '') }}</a>
+                <!-- R129-B5：协议不在白名单（含只有文件名的本地路径）→ 不再渲染可点链接，降级为纯文本 -->
+                <span v-else-if="f.key === 'sourceUrl' && c.sourceUrl" class="cz-ext-src" :title="c.sourceUrl" @click.stop>🔗 {{ srcShort(c.sourceUrl) }}</span>
                 <span v-else-if="f.key.startsWith('custom_') && curioExtVal(c, f)" class="cz-ext-custom">
                   <span class="cz-ext-lbl">{{ f.label }}:</span>{{ curioExtVal(c, f) }}
                 </span>
@@ -630,7 +631,7 @@ function srcShort(url: string): string {
             <template v-if="convertTarget === 'res'">
               <label class="cz-modal-label">存入策展台</label>
               <select v-model="convertWsId" class="cz-modal-select">
-                <option v-for="w in convWorkspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^s]+s/, '') }}</option>
+                <option v-for="w in convWorkspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}</option>
               </select>
               <label class="cz-modal-label">分类（默认待分类）</label>
               <select v-model="convertCatId" class="cz-modal-select">

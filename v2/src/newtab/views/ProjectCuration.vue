@@ -263,9 +263,15 @@ function onPageEsc(e: KeyboardEvent) {
   e.preventDefault()
   goBack()
 }
+// R129-B6：原为匿名函数且从不移除——视图实例销毁后闭包仍挂在 document 上，每次点击都往已卸载
+// 组件的 ref 里写值。改为具名 + onUnmounted 一并摘除。
+function onDocCloseProjMenu() { projMenuOpen.value = false }
 onMounted(() => document.addEventListener('keydown', onPageEsc, true))
-onMounted(() => document.addEventListener('click', () => { projMenuOpen.value = false }))
-onUnmounted(() => document.removeEventListener('keydown', onPageEsc, true))
+onMounted(() => document.addEventListener('click', onDocCloseProjMenu))
+onUnmounted(() => {
+  document.removeEventListener('keydown', onPageEsc, true)
+  document.removeEventListener('click', onDocCloseProjMenu)
+})
 watch(() => route.query.p, (pid) => {
   if (!pid || typeof pid !== 'string') { if (!route.query.p) currentProject.value = null; return }
   const p = projects.value.find(x => x.id === pid)

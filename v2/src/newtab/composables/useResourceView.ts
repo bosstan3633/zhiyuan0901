@@ -4,7 +4,7 @@
  * 实现自 views/Workspace.vue 原位迁出、零行为变更；标识符经解构保留原绑定——模板零改动。
  * 依赖经由 ctx 注入（与 useCategoryCrud / useWorkspaceBatch 同一接线范式）。
  */
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import type { ComputedRef } from 'vue'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { useCardCols, CARD_COLS_DEFAULT } from '@/shared/utils/cardCols'
@@ -84,6 +84,8 @@ export function useResourceView(ctx: ResourceViewCtx) {
     if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
     searchDebounceTimer = setTimeout(() => { debouncedQuery.value = v }, 150)
   })
+  // R129-B6：卸载时清掉排队中的防抖尾写（组件销毁后不再改 ref）
+  onUnmounted(() => { if (searchDebounceTimer) { clearTimeout(searchDebounceTimer); searchDebounceTimer = null } })
   const activeCategory = ref('all')
 
   if (store.ui?.sortPrefs?.res?.by && SORT_BY_KEYS.includes(store.ui.sortPrefs.res.by)) sortBy.value = store.ui.sortPrefs.res.by
@@ -229,7 +231,10 @@ export function useResourceView(ctx: ResourceViewCtx) {
   /** R110-LC（T3）：统一视图过滤管线（分类 → 筛选器 → 搜索），归档提示与默认列表复用同一口径 */
   function applyViewFilters(list: ResourceCard[]): ResourceCard[] {
     let out = list
-    if (activeCategory.value === 'uncat') out = out.filter(r => !r.categoryId)
+    // R129-B3：待分类判据与左树计数（uncategorizedCount）、分组（resourceGroups 的 uncat 桶）
+    // 合一流派——统一走 isUncat（无分类 **或** 分类已失效）。此前这里用严格 !r.categoryId，
+    // 悬空卡（categoryId 指向已删分类）被侧栏计入「待分类」却在点进去时消失。
+    if (activeCategory.value === 'uncat') out = out.filter(r => isUncat(r, catIdx.value.byId))
     else if (activeCategory.value !== 'all') {
       // R112 性能：`ids.includes()` 在 filter 内是 O(卡数 × 家族规模)，改为 Set.has 的 O(卡数)
       const ids = new Set(familyIds(activeCategory.value))

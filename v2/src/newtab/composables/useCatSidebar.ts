@@ -4,7 +4,7 @@
  * 实现自 views/Workspace.vue 原位迁出、零行为变更；标识符经解构保留原绑定——模板零改动。
  * 树工具（rootCats/childCatsOf/familyIds/catAggCount/pyDepthOf…）留在宿主——视图/拖拽/金字塔域共用。
  */
-import { ref, computed, type Ref, type ComputedRef } from 'vue'
+import { ref, computed, onUnmounted, type Ref, type ComputedRef } from 'vue'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import type { CatIndex } from '@/shared/utils/catIndex'
 import { buildCatOptions } from '@/shared/utils/catTree'
@@ -119,6 +119,13 @@ export function useCatSidebar(ctx: CatSidebarCtx) {
     wsSideW.value = SIDE_W_DEF
     saveUIPrefs({ wsSideW: SIDE_W_DEF })
   }
+  // R129-B6：拖拽中途若组件被卸载（切换工作台/离开资源台），mouseup 永远不会触发，
+  // document 上的 mousemove/mouseup 会残留并持有本作用域 → 卸载兜底移除
+  onUnmounted(() => {
+    document.removeEventListener('mousemove', onSideResizeMove)
+    document.removeEventListener('mouseup', onSideResizeUp)
+    sideDrag = null
+  })
 
   return {
     pinnedRootCats, unpinnedRootCats, treeCatOptions,

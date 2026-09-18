@@ -10,6 +10,7 @@
  */
 
 import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
+import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { CURATION_WS_ID } from '@/shared/models'
 import { buildCatOptions } from '@/shared/utils/catTree'
 // R128-A4：打开链接走统一口径（含 javascript:/data:/vbscript:/blob: 伪协议黑名单）
@@ -1007,7 +1008,7 @@ function renderResults() {
     for (const w of wss) {
       const cats = (d2?.categories || []).filter((c: any) => c.workspaceId === w.id && (!q || (c.name || '').toLowerCase().includes(q)))
       const wsCards = (d2?.resources || []).filter((r: any) => !r.deletedAt && r.workspaceId === w.id).length
-      treeHtml += '<div class="zy-group-title">🗂 ' + escapeHtml((w.name || '').replace(/^[^\s]+\s/, '')) + ' <span style="color:var(--zy-text-4);font-weight:400">' + wsCards + ' 张卡</span></div>'
+      treeHtml += '<div class="zy-group-title">🗂 ' + escapeHtml(wsDisplayNameOf(w)) + ' <span style="color:var(--zy-text-4);font-weight:400">' + wsCards + ' 张卡</span></div>'
       for (const c of cats) {
         const fam = new Set<string>([c.id, ...(d2?.categories || []).filter((x: any) => x.parentId === c.id).map((x: any) => x.id)])
         const cnt = (d2?.resources || []).filter((r: any) => !r.deletedAt && r.workspaceId === w.id && fam.has(r.categoryId || '')).length

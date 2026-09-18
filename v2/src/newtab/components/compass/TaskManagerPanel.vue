@@ -13,6 +13,8 @@ import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import type { TaskCard, FieldDef } from '@/shared/models'
 import { recordCardOpen } from '@/shared/storage/stats'
+// R129-B5：链接协议白名单与打开通道全站唯一实现
+import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
 import { showToast } from '@/shared/components/toast'
 import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
@@ -488,21 +490,12 @@ function fmtCardDate(ts?: number | string): string {
 }
 
 // ---- 三卡交互统一（单击详情 / 双击打开卡内链接） ----
-function toOpenableLinkUrl(link?: string): string {
-  const t = (link || '').trim()
-  if (!t) return ''
-  // R128-A4：可执行伪协议拦截（对齐 shared/utils/link.toOpenableUrl 的 R70-14 黑名单）——
-  // 此前此处「其余协议原样放行」，录入/导入的 javascript: 链接双击即在扩展页上下文执行。
-  if (/^\s*(javascript|data|vbscript|blob):/i.test(t)) return ''
-  if (/^file:\/\//i.test(t)) return t
-  if (/^[a-zA-Z]:[\\/]/.test(t)) return 'file:///' + encodeURI(t.replace(/\\/g, '/')).replace(/#/g, '%23')
-  return t
-}
 function openCardLink(link?: string) {
-  const url = toOpenableLinkUrl(link)
-  if (!url) { showToast('该卡片还没有链接，可在详情中添加'); return }
-  if (typeof chrome !== 'undefined' && chrome.tabs?.create) chrome.tabs.create({ url })
-  else window.open(url, '_blank')
+  // R129-B5：协议白名单 + 打开通道统一走 shared/utils/link（此处原为自建 toOpenableLinkUrl，
+  // 与 link.ts 两份实现并存——R128-A4 补的黑名单只是把它拉齐，没消灭分叉）
+  const url = toOpenableRawLink(link)
+  if (!url) { showToast('该卡片还没有可打开的链接，可在详情中添加'); return }
+  openExternalLink(url)
 }
 let taskClickTimer: ReturnType<typeof setTimeout> | null = null
 function onTaskRowClick(t: TaskCard) {
@@ -611,20 +604,25 @@ function onTaskNavKey(e: KeyboardEvent) {
   if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return
   if (el?.isContentEditable) return
   if (mountModalOpen.value) return
-  if (viewMode.value !== 'list' || !filteredTasks.value.length) return
+  if (viewMode.value !== 'list') return
+  // R129-B9：taskNavIndex 必须随 filteredTasks 收缩钳制——搜索/过滤把列表变短后，
+  // 旧索引会指向 undefined（Enter 传 undefined 给抽屉、空格取 .id 直接抛错）。
+  const list = filteredTasks.value
+  if (!list.length) { taskNavIndex.value = -1; return }
+  if (taskNavIndex.value > list.length - 1) taskNavIndex.value = list.length - 1
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     e.preventDefault()
-    const max = filteredTasks.value.length - 1
+    const max = list.length - 1
     taskNavIndex.value = e.key === 'ArrowDown'
       ? Math.min(taskNavIndex.value + 1, max)
       : Math.max(taskNavIndex.value - 1, 0)
     document.querySelector(`.trow[data-nav="${taskNavIndex.value}"]`)?.scrollIntoView({ block: 'nearest' })
   } else if (e.key === 'Enter' && taskNavIndex.value >= 0) {
     e.preventDefault()
-    drawerRef.value?.open(filteredTasks.value[taskNavIndex.value])
+    drawerRef.value?.open(list[taskNavIndex.value])
   } else if (e.code === 'Space' && taskNavIndex.value >= 0) {
     e.preventDefault()
-    toggleSelect(filteredTasks.value[taskNavIndex.value].id)
+    toggleSelect(list[taskNavIndex.value].id)
   }
 }
 onMounted(() => { document.addEventListener('keydown', onTaskNavKey, true) })

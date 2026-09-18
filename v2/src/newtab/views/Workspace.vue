@@ -1,7 +1,7 @@
 ﻿<template>
   <div ref="wsPageRef" class="ws-page" :class="{ 'ws-fs-on': pyFs }" v-if="workspace" :style="{ '--grid-cols': String(resCols) }">
     <!-- R84（W1）：台身份页头——图标 + 台名 + 台描述 + 右端结构摘要（一行 ≤40px）。
-         改前：仅资源台有一段 R73-S5a 写死的 .ws-hub-head（无图标、非 workspace.name.replace(/^[^\s]+\s/, '')/description），
+         改前：仅资源台有一段 R73-S5a 写死的 .ws-hub-head（无图标、非台名剥图标/description），
          而 **策展台的台名与台描述在页面内零出现**——用户置身于某个策展台，却不知道这是哪个台。
          现统一为这一条，所有台都渲染；hub 描述为空时回落 R73 原文案（零信息损失）。 -->
       <!-- 左侧分类导航（第八轮：树形 2 级 + 置顶分区 + 拖拽排序/挂子级；R48-V2：Linear 风格树 + 展开/折叠） -->
@@ -9,7 +9,7 @@
       <!-- R109（F13）：顶部三模块移入滚动容器（与卡片同 padding/滚动域）——顶栏/指标条/工具条/网格右缘成一条直线 -->
     <div class="ws-id-head">
       <span v-if="!isHub" class="wsh-icon">{{ workspace.icon || '🗂' }}</span>
-      <b class="wsh-name">{{ workspace.name.replace(/^[^\s]+\s/, '') }}</b>
+      <b class="wsh-name">{{ wsDisplayNameOf(workspace) }}</b>
       <!-- R122（原型）：资源台描述合并定位语与分类数（「资源卡唯一存储 · 镜像源头 · N 个分类」）；用户自写描述优先；策展台维持两态 + 摘要 + 更新流水入口 -->
       <template v-if="isHub">
         <span class="wsh-desc" :title="(wsHeadDescOwn || '资源卡唯一存储 · 镜像源头') + ' · ' + categories.length + ' 个分类'">· {{ wsHeadDescOwn || '资源卡唯一存储 · 镜像源头' }} · {{ categories.length }} 个分类</span>
@@ -711,7 +711,7 @@
             <div class="dr-label">目标策展台（含当前策展台，可只换分类）</div>
             <select class="dr-category-select" v-model="moveWsId">
               <option v-for="w in moveWorkspaces" :key="w.id" :value="w.id">
-                {{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}{{ w.id === workspaceId ? '（当前）' : '' }}
+                {{ w.icon }} {{ wsDisplayNameOf(w) }}{{ w.id === workspaceId ? '（当前）' : '' }}
               </option>
             </select>
           </div>
@@ -943,6 +943,7 @@
 // R65-F7：KeepAlive 缓存实例名（App.vue router-view include）
 defineOptions({ name: 'WorkspaceView' })
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
 import { useCompass } from '@/newtab/stores/compass'
@@ -1286,14 +1287,14 @@ const {
   rootCats, childCatsOf, familyIds, isUncat,
 })
 // R65-F7：KeepAlive 缓存实例——切换不同策展台（:id 变化）时复位本台局部状态，防上一台残留
-watch(() => route.params.id, (nv, ov) => {
-  if (nv && ov && nv !== ov) {
-    activeCategory.value = 'all'
-    searchQuery.value = ''
-    debouncedQuery.value = ''
-    selectedIds.value.clear()
-    collapsedGroups.value = new Set()
-  }
+// R129-B1：keep-alive 离开也让 nv=undefined，旧条件 nv&&ov&&nv!==ov 在 A→/compass→B 真换台时判假→空白页；改记上次所在台
+let lastResetWsId = route.params.id as string | undefined
+watch(() => route.params.id, (nv) => {
+  if (typeof nv !== 'string' || !nv) return
+  if (nv === lastResetWsId) return
+  lastResetWsId = nv
+  activeCategory.value = 'all'; searchQuery.value = ''; debouncedQuery.value = ''
+  selectedIds.value.clear(); collapsedGroups.value = new Set()
 })
 
 // ===== R115 拆分接线：分类侧栏 UI 域（树折叠/侧栏序列/树宽拖拽）=====
@@ -1370,8 +1371,8 @@ const {
   onUncatDragOver, onUncatDrop, clearCardDropTarget,
   onCatDragStart, onCatDragEnd, onCatDragOver, onCatDrop, onCatRootDrop,
 } = useResourceDragDrop({
-  store, d, wsCats, rootCats, categories, activeCategory, sortBy, isUncat,
-  familyIds, childCatsOf, childIds, pyDepthOf, pyHeightOf,
+  store, d, wsCats, rootCats, categories, sortBy, isUncat,
+  childCatsOf, childIds, pyDepthOf, pyHeightOf,
   moveMirrorTo, normalizeCatOrders,
 })
 /** 模板「升为一级」落点显隐消费 dragCatId（原宿主 let 变量的派生只读视图） */

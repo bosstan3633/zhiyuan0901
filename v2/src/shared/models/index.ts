@@ -337,6 +337,9 @@ export interface Stats {
     totalCumulativeUsage: number
     thisWeekUsage: number
     lastUpdatedAt: number
+    /** R129-B10：`thisWeekUsage` 归属的周起点（weekStartKey）。缺失或不是本周 → 本周值按 0 计，
+     *  避免「新的一周还没打开过，北极星仍显示上周次数」。 */
+    thisWeekStart?: string
   }
 }
 

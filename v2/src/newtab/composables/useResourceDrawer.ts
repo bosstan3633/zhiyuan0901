@@ -6,6 +6,7 @@
  * 初始化序：晚于 useResourceOpen / useWorkspaceBatch / useWorkspaceMirror（消费其返回值）。
  */
 import { ref, reactive, watch, onUnmounted, nextTick, type ComputedRef, type Ref } from 'vue'
+import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import type { Router } from 'vue-router'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
@@ -181,7 +182,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     drawerOpen.value = false
     if (wsChanged) {
       const target = d.value.workspaces.find(w => w.id === editingResource.workspaceId)
-      showToast(`✓ 已保存并迁移至「${target?.name.replace(/^[^\s]+\s/, '') || '目标策展台'}」`)
+      showToast(`✓ 已保存并迁移至「${wsDisplayNameOf(target) || '目标策展台'}」`)
     } else {
       showToast('✓ 已保存')
     }

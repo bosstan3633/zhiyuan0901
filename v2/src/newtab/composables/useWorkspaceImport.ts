@@ -89,7 +89,9 @@ export function useWorkspaceImport(ctx: WorkspaceImportCtx) {
 
   const bookmarkModalOpen = ref(false)
   const bkFolders = ref<BkFolder[]>([])
-  let bkBookmarks: BkNode[] = []
+  // R129-B11：原为普通 `let`——`bkTotalCount` computed 因无响应式依赖而**不会**随重新解析刷新
+  //（第二次导入时计数停在旧值）。改 ref，解析结果一律走 `.value`。
+  const bkBookmarks = ref<BkNode[]>([])
 
   /** 建一张资源台真身卡（分类由调用方给定；聚合视图下须传 newCardCatId() 的回落值） */
   function makeHubResource(title: string, linkType: ResourceCard['linkType'], link: string, categoryId: string, tags: string[] = []): ResourceCard {
@@ -132,10 +134,10 @@ export function useWorkspaceImport(ctx: WorkspaceImportCtx) {
     const reader = new FileReader()
     reader.onload = () => {
       try {
-        bkBookmarks = parseBookmarksHtml(reader.result as string)
-        if (!bkBookmarks.length) { showToast('未在文件中解析到书签，请确认是浏览器导出的书签 HTML'); return }
+        bkBookmarks.value = parseBookmarksHtml(reader.result as string)
+        if (!bkBookmarks.value.length) { showToast('未在文件中解析到书签，请确认是浏览器导出的书签 HTML'); return }
         const groups = new Map<string, BkNode[]>()
-        for (const b of bkBookmarks) {
+        for (const b of bkBookmarks.value) {
           const key = b.path.length ? b.path.join(' / ') : '未分组'
           if (!groups.has(key)) groups.set(key, [])
           groups.get(key)!.push(b)
@@ -152,7 +154,7 @@ export function useWorkspaceImport(ctx: WorkspaceImportCtx) {
   }
 
   const allBkChecked = computed(() => bkFolders.value.length > 0 && bkFolders.value.every(f => f.checked))
-  const bkTotalCount = computed(() => bkBookmarks.length)
+  const bkTotalCount = computed(() => bkBookmarks.value.length)
   function toggleAllBk() {
     const next = !allBkChecked.value
     bkFolders.value.forEach(f => { f.checked = next })
@@ -168,7 +170,9 @@ export function useWorkspaceImport(ctx: WorkspaceImportCtx) {
     for (const seg of segs.slice(0, 2)) {
       const name = seg.trim()
       if (!name) break
-      let cat = d.value.categories.find(c => c.workspaceId === CURATION_WS_ID && (c.parentId || undefined) === parentId && c.name === name)
+      // R129-B11：必须排除软删分类——此前同名分类在回收站时，导入的卡被挂进已删分类，
+      // 卡既不显示（分类被过滤）也不可恢复，与 usePyramid.ts 的 `!c.deletedAt` 口径不一致。
+      let cat = d.value.categories.find(c => !c.deletedAt && c.workspaceId === CURATION_WS_ID && (c.parentId || undefined) === parentId && c.name === name)
       if (!cat) {
         cat = { id: uid('cat'), workspaceId: CURATION_WS_ID, name, order: d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID && (c.parentId || undefined) === parentId).length }
         if (parentId) cat.parentId = parentId
@@ -183,7 +187,7 @@ export function useWorkspaceImport(ctx: WorkspaceImportCtx) {
   /** 按勾选文件夹导入：前 2 级建分类、第 3 级+ 并入标签（R30-4 / R30-5 口径） */
   function confirmBookmarkImport() {
     const checkedPaths = new Set(bkFolders.value.filter(f => f.checked).map(f => f.path))
-    const items = bkBookmarks.filter(b => checkedPaths.has(b.path.length ? b.path.join(' / ') : '未分组'))
+    const items = bkBookmarks.value.filter(b => checkedPaths.has(b.path.length ? b.path.join(' / ') : '未分组'))
     if (!items.length) { showToast('未选择任何文件夹'); return }
     for (const b of items) {
       const segs = b.path.filter(p => p && !BK_ROOT_NAMES.has(p))

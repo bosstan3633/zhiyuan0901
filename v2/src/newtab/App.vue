@@ -1,5 +1,6 @@
 ﻿<script setup lang="ts">
 import { computed, ref, onErrorCaptured, onMounted, onUnmounted } from 'vue'
+import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from './stores/app'
 import { useCompass } from './stores/compass'
@@ -167,7 +168,7 @@ function closeMenu() { menuWs.value = null }
 function startRename() {
   if (!menuWs.value) return
   renamingWs.value = menuWs.value.id
-  renameDraft.value = menuWs.value.name.replace(/^[^\s]+\s/, '')
+  renameDraft.value = wsDisplayNameOf(menuWs.value)
   closeMenu()
   setTimeout(() => {
     const input = document.getElementById('ws-rename-input') as HTMLInputElement
@@ -453,7 +454,7 @@ const backupReminderDot = computed(() => {
             />
           </template>
           <template v-else>
-            <span>{{ ws.icon || '📁' }}</span>{{ ws.name.replace(/^[^\s]+\s/, '') }}
+            <span>{{ ws.icon || '📁' }}</span>{{ wsDisplayNameOf(ws) }}
           </template>
         </div>
 

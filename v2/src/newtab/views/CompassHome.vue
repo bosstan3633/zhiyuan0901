@@ -51,9 +51,21 @@ function formatDate(dt: Date): string {
 function dateStr(dt: Date): string {
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`
 }
-// R58-B3：「今日」边界动态化——页面常开跨零点后口径自动前移（30s 粒度，复用既有 storage 定时器节拍另起一个轻计时器）
-const nowTick = ref(Date.now())
-const todayStart = computed(() => { const t = new Date(nowTick.value); t.setHours(0, 0, 0, 0); return t.getTime() })
+// R58-B3 → R129-B7：「今日」边界动态化——页面常开跨零点后口径自动前移。
+// 原实现每 30s 推进心跳 ref → todayStart 变脏 → 连带三个整库扫描 computed（todayIn/todayOut/todayCalled）
+// 每 30s 全量重算一遍（首屏持续空转）。此处改用一个「精确到次日零点」的定时器翻篇（setDate 归一，DST 安全），
+// 其余 30s 里 todayStart 值恒定不动，下游 computed 不再被无谓唤醒。
+function midnightOf(ts: number): number { const t = new Date(ts); t.setHours(0, 0, 0, 0); return t.getTime() }
+const todayStart = ref(midnightOf(Date.now()))
+let midnightTimer = 0
+function scheduleMidnightRollover() {
+  const now = new Date()
+  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0)
+  midnightTimer = window.setTimeout(() => {
+    todayStart.value = midnightOf(Date.now())
+    scheduleMidnightRollover()
+  }, Math.max(1000, nextMidnight.getTime() - now.getTime()))
+}
 
 // ================= 今日记录条（R49-B1） =================
 type RecItem = { id?: string; kind?: 'resource' | 'task' | 'curio'; title: string; ts: number; clickable: boolean }
@@ -653,8 +665,8 @@ onMounted(() => {
   lastOkTick.value = getLastSaveOkAt()
   storageTimer = window.setInterval(() => {
     lastOkTick.value = getLastSaveOkAt()
-    nowTick.value = Date.now()
   }, 30000)
+  scheduleMidnightRollover()
 })
 onUnmounted(() => {
   document.removeEventListener('keydown', onDateKey, true)
@@ -662,6 +674,7 @@ onUnmounted(() => {
   window.removeEventListener('zy-goto-anchor', onAnchorEvt)
   if (saveErrSub) saveErrSub()
   if (storageTimer) clearInterval(storageTimer)
+  if (midnightTimer) clearTimeout(midnightTimer)
 })
 
 // ================= 数据存储状态栏（R50-F2） =================

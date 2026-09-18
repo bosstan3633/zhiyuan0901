@@ -33,9 +33,15 @@ function sanitizeName(name: string): string {
   return base.length > 60 ? base.slice(-60) : base
 }
 
+/** R129-B5：附件 id 可能来自导入 JSON——含 `..` 或路径分隔符就能把落盘路径甩出「知源附件/」目录 */
+function safeAssetId(id: string): string {
+  if (/^[\w-]{1,64}$/.test(id || '')) return id
+  return (id || '').replace(/[^\w-]/g, '_').slice(0, 64) || 'asset'
+}
+
 /** 确定性落盘相对路径（下载目录/知源附件/…） */
 function targetPath(meta: AssetMeta): string {
-  return `知源附件/${meta.id}-${sanitizeName(meta.name)}`
+  return `知源附件/${safeAssetId(meta.id)}-${sanitizeName(meta.name)}`
 }
 
 async function loadPathMap(): Promise<HtmlPathMap> {

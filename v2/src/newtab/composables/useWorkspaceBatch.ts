@@ -105,14 +105,17 @@ export function useWorkspaceBatch(ctx: WorkspaceBatchCtx) {
     if (mirrors.length && !natives.length) { showToast('📡 所选均为镜像卡——移动请在资源台操作，或先移出镜像'); return }
     let catId = moveCatId.value
     if (!catId) {
-      let cat = d.value.categories.find(c => c.workspaceId === moveWsId.value && c.name === '待分类')
+      let cat = d.value.categories.find(c => !c.deletedAt && c.workspaceId === moveWsId.value && c.name === '待分类')
       if (!cat) {
         cat = { id: uid('cat'), workspaceId: moveWsId.value, name: '待分类', order: 0 }
         d.value.categories.push(cat)
       }
       catId = cat.id
     }
-    items.forEach(r => { r.workspaceId = moveWsId.value; r.categoryId = catId; r.updatedAt = Date.now() })
+    // R129-B8：原为 `items.forEach` —— 镜像卡是运行时浅拷贝（`{...src, categoryId, __mirrorProjId}`），
+    // 往它身上写 workspaceId/categoryId 既不落库也不影响源卡，等于「toast 说移动了 N 张、其实一张没动」。
+    // 镜像的移动只走拖拽（moveMirrorTo 改投射记录），跨台批量移动一律只作用于 natives。
+    natives.forEach(r => { r.workspaceId = moveWsId.value; r.categoryId = catId; r.updatedAt = Date.now() })
     persist()
     moveModalOpen.value = false
     const mirrorNote = mirrors.length ? `（${mirrors.length} 张镜像卡未移动）` : ''

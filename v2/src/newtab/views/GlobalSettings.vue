@@ -214,7 +214,7 @@
                 draggable="false" @click="selectPanWs(wsNode.ws.id)"
                 @dragover.prevent="dropTarget = 'ws:' + wsNode.ws.id" @dragleave="dropTarget === 'ws:' + wsNode.ws.id && (dropTarget = '')" @drop.prevent="onPanDrop('ws:' + wsNode.ws.id, wsNode.ws.id, '')">
                 <span class="gs-pan-toggle leaf" @click.stop="togglePanCollapse('ws:' + wsNode.ws.id)">{{ panCollapsed.has('ws:' + wsNode.ws.id) ? '▸' : '▾' }}</span>
-                <span class="gs-pan-name">{{ wsNode.ws.icon || '📁' }} {{ wsNode.ws.name.replace(/^[^\s]+\s/, '') }}<span class="gs-pan-kind">{{ isHubWs(gWsById(wsNode.ws.id)) ? '资源台' : '策展台' }}</span></span>
+                <span class="gs-pan-name">{{ wsNode.ws.icon || '📁' }} {{ wsDisplayNameOf(wsNode.ws) }}<span class="gs-pan-kind">{{ isHubWs(gWsById(wsNode.ws.id)) ? '资源台' : '策展台' }}</span></span>
                 <span class="gs-pan-count">{{ wsNode.count }}</span>
               </div>
               <template v-if="!panCollapsed.has('ws:' + wsNode.ws.id)">
@@ -257,7 +257,7 @@
               <span class="gs-pan-batch-n">已选 {{ panSelected.size }} 张</span>
               <select class="gs-select" v-model="panMoveWs" @change="panMoveCat = ''">
                 <option value="">目标策展台…</option>
-                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</option>
+                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}</option>
               </select>
               <select class="gs-select" v-model="panMoveCat" :disabled="!panMoveWs">
                 <option value="">目标分类（可选）</option>
@@ -499,7 +499,7 @@
               <div class="gs-sr-control">
                 <select class="gs-select" v-model="bookmarkTargetWs">
                   <option value="__new__">🆕 新建策展台「书签导入」</option>
-                  <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</option>
+                  <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}</option>
                 </select>
               </div>
             </div>
@@ -553,7 +553,7 @@
               <div class="gs-er-info"><div class="gs-er-name">按策展台导出CSV</div><div class="gs-er-desc">字段：系统字段全导 + 自定义字段按可见性，列名/顺序跟随「字段管理」；尾随 链接类型/分类/置顶/星标/更新时间，适配Airtable等多维表</div></div>
               <select class="gs-select" v-model="csvWsId">
                 <option value="">选择策展台…</option>
-                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</option>
+                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}</option>
               </select>
               <button class="gs-btn" @click="exportCsvForWorkspace" :disabled="!csvWsId">导出CSV</button>
             </div>
@@ -561,7 +561,7 @@
               <div class="gs-er-info"><div class="gs-er-name">导出指定策展台</div><div class="gs-er-desc">选择一个策展台导出为JSON</div></div>
               <select class="gs-select" v-model="exportWsId">
                 <option value="">选择策展台…</option>
-                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</option>
+                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}</option>
               </select>
               <button class="gs-btn" @click="exportWorkspace" :disabled="!exportWsId">导出</button>
             </div>
@@ -645,7 +645,7 @@
           <div class="gs-card-header"><span class="gs-card-title">映射表（按顶部导航顺序）</span><span class="gs-card-desc">第 N 个策展台 = 修饰键 + (N+3)（最多到数字 9）</span></div>
           <div class="gs-card-body">
             <div class="gs-setting-row" v-for="(w, i) in store.workspaces" :key="w.id">
-              <span class="gs-sr-label">第 {{ i + 1 }} 个 · {{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}</span>
+              <span class="gs-sr-label">第 {{ i + 1 }} 个 · {{ w.icon }} {{ wsDisplayNameOf(w) }}</span>
               <div class="gs-sr-control"><span class="gs-keycap">{{ i + 4 <= 9 ? modLabel() + ' + ' + (i + 4) : '—' }}</span></div>
             </div>
             <div class="gs-setting-row">
@@ -826,7 +826,7 @@
               <span class="gs-sr-label">默认存入台面</span>
               <div class="gs-sr-control">
                 <select class="gs-select" v-model="defaultCaptureWs" @change="persistCapturePref">
-                  <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name.replace(/^[^\s]+\s/, '') }}（待分类）</option>
+                  <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}（待分类）</option>
                 </select>
               </div>
             </div>
@@ -911,6 +911,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, watchEffect, onMounted } from 'vue'
+import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { saveUIPrefs, loadUIPrefs, getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage } from '@/shared/storage/repository'
@@ -922,7 +923,7 @@ import { createDefaultData, defaultThesisFieldDefs } from '@/shared/storage/defa
 // R63-4：Airtable 单向同步（连接测试 / 立即同步 / 配额提示）
 import { testConnection, runSync, quotaHint, catPathOf } from '@/shared/storage/airtable'
 import { LETTER_HTML, buildLetterStandaloneHtml } from '../letter-data'
-import { uid } from '@/shared/utils'
+import { uid, dateKey, weekStartKey } from '@/shared/utils'
 import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
 import { getAssetStats, cleanupOrphanAssets, getAllAssets, putAssets } from '@/shared/storage/assets'
 import { purgeCardsCompletely, recycledCardsOf } from '@/shared/storage/purge'
@@ -1932,7 +1933,13 @@ function mergeImport(imported: AppData): { cards: number; dirs: number; ws: numb
   if (imported.stats) {
     if (imported.stats.wrr && d.stats.wrr) {
       d.stats.wrr.totalCumulativeUsage = Math.max(d.stats.wrr.totalCumulativeUsage || 0, imported.stats.wrr.totalCumulativeUsage || 0)
-      d.stats.wrr.thisWeekUsage = Math.max(d.stats.wrr.thisWeekUsage || 0, imported.stats.wrr.thisWeekUsage || 0)
+      // R129-B10：本周档不再是裸取最大——先各自按周戳折算成「本周值」再取最大（老数据无戳按旧口径全留），
+      // 合并结果统一归属到本周，避免导入上周/上月数据把本周 WRR 顶高。
+      const wkNow = weekStartKey(dateKey(new Date()))
+      const weekVal = (w?: { thisWeekUsage?: number; thisWeekStart?: string }) =>
+        !w ? 0 : (!w.thisWeekStart || w.thisWeekStart === wkNow) ? (w.thisWeekUsage || 0) : 0
+      d.stats.wrr.thisWeekUsage = Math.max(weekVal(d.stats.wrr), weekVal(imported.stats.wrr))
+      d.stats.wrr.thisWeekStart = wkNow
       d.stats.wrr.lastUpdatedAt = Math.max(d.stats.wrr.lastUpdatedAt || 0, imported.stats.wrr.lastUpdatedAt || 0)
     }
     for (const key of ['lastReuse', 'lastVisits'] as const) {
@@ -2069,11 +2076,11 @@ function exportCsvForWorkspace() {
   )
   const headers = cols.map(c => c.label)
   const rows = cards.map(r => cols.map(c => csvEscape(c.get(r))))
-  downloadFile(`zhiyuan_${ws.name.replace(/^[^\s]+\s/, '')}_${dateStr()}.csv`,
+  downloadFile(`zhiyuan_${wsDisplayNameOf(ws)}_${dateStr()}.csv`,
     '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n'),
     'text/csv;charset=utf-8')
   markBackupNow()
-  showToast(`✓ 「${ws.name.replace(/^[^\s]+\s/, '')}」已导出 ${cards.length} 条资源卡 CSV`)
+  showToast(`✓ 「${wsDisplayNameOf(ws)}」已导出 ${cards.length} 条资源卡 CSV`)
 }
 
 function exportWorkspace() {
@@ -2344,12 +2351,20 @@ function tagSubtreeIds(id: string): string[] {
   if (hit) walk(hit.node)
   return out
 }
+/**
+ * R129-B4：用量统计走「路径 + 叶子」双口径（与 R126 的选择器/搜索同口径）。
+ * 卡上存的是 `父/子` 路径，而老数据/手工输入可能只存叶子名；标签名在树内全局唯一
+ * （重命名有 `tagFlat().some(t => t.name === name)` 查重守卫），故按叶子匹配不会串号。
+ * ⚠ 不含子树：R127 已拍板「父标签只统计精确挂在自身上的卡片」，右列筛选同样是这个口径。
+ */
 function tagUsage(name: string): number {
+  const leaf = name.split('/').pop() || name
+  const hit = (t: string) => t === name || t === leaf
   const d = store.data!
   let n = 0
-  ;(d.resources || []).forEach(r => { if (Array.isArray(r.tags) && r.tags.includes(name)) n++ })
-  ;(d.tasks || []).forEach(t => { if (Array.isArray(t.tags) && t.tags.includes(name)) n++ })
-  ;(d.curiosities || []).forEach(c => { if (Array.isArray(c.tags) && c.tags.includes(name)) n++ })
+  ;(d.resources || []).forEach(r => { if (Array.isArray(r.tags) && r.tags.some(hit)) n++ })
+  ;(d.tasks || []).forEach(t => { if (Array.isArray(t.tags) && t.tags.some(hit)) n++ })
+  ;(d.curiosities || []).forEach(c => { if (Array.isArray(c.tags) && c.tags.some(hit)) n++ })
   return n
 }
 function ttToggle(id: string) {
@@ -2464,16 +2479,24 @@ function ttConfirm() {
     hit.node.name = name
     const d = store.data!
     // R126：路径感知级联（自身 + 子路径前缀整体替换）
+    // R129-B4：同步数直接取本次实际改动的卡数——原先二次调 tagUsage(裸名) 统计，子标签因卡上存的是
+    // 「父/新名」路径恒得 0，toast 便谎报「同步 0 张卡片」。
     const swap = (arr?: string[]) => (Array.isArray(arr) ? arr.map(t => {
       if (t === oldPath) return newPath
       if (t.startsWith(oldPath + '/')) return newPath + t.slice(oldPath.length)
       return t
     }) : [])
-    d.resources.forEach(r => r.tags = swap(r.tags))
-    d.tasks.forEach(t => t.tags = swap(t.tags))
-    d.curiosities.forEach(c => c.tags = swap(c.tags))
+    let synced = 0
+    const applySwap = (card: { tags?: string[] }) => {
+      const before = (card.tags || []).join('\u0000')
+      card.tags = swap(card.tags)
+      if ((card.tags || []).join('\u0000') !== before) synced++
+    }
+    d.resources.forEach(applySwap)
+    d.tasks.forEach(applySwap)
+    d.curiosities.forEach(applySwap)
     store.persist()
-    showToast(`✓ 已重命名并同步 ${tagUsage(name)} 张卡片`)
+    showToast(synced ? `✓ 已重命名并同步 ${synced} 张卡片` : '✓ 已重命名（该标签当前无卡片挂载）')
   } else if (ed.parentId) {
     const parent = findTagNode(ed.parentId)
     if (!parent) return

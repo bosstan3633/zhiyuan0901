@@ -22,10 +22,8 @@ export interface ResourceDragDropCtx {
   wsCats: ComputedRef<Category[]>
   rootCats: ComputedRef<Category[]>
   categories: ComputedRef<Category[]>
-  activeCategory: Ref<string>
   sortBy: Ref<string>
   isUncat: (r: ResourceCard, validIds: { has(id: string): boolean }) => boolean
-  familyIds: (catId: string) => string[]
   childCatsOf: (pid: string) => Category[]
   childIds: (catId: string) => string[]
   pyDepthOf: (c: Category) => number
@@ -37,8 +35,8 @@ export interface ResourceDragDropCtx {
 }
 
 export function useResourceDragDrop(ctx: ResourceDragDropCtx) {
-  const { store, d, wsCats, rootCats, categories, activeCategory, sortBy, isUncat,
-    familyIds, childCatsOf, childIds, pyDepthOf, pyHeightOf, moveMirrorTo, normalizeCatOrders } = ctx
+  const { store, d, wsCats, rootCats, categories, sortBy, isUncat,
+    childCatsOf, childIds, pyDepthOf, pyHeightOf, moveMirrorTo, normalizeCatOrders } = ctx
 
   const dragState: DragState = { card: null, cat: null }
 
@@ -64,18 +62,14 @@ export function useResourceDragDrop(ctx: ResourceDragDropCtx) {
     e.dataTransfer?.setData('text/plain', r.id)
   }
   // REQ-028 F-028-3：卡片所属渲染分区（与 resourceGroups 分区 key 对齐）
+  // R129-B2：R64-F9 树状递归分组后 resourceGroups 已按**单分类**分区（组 key = 该分类自身 id，
+  // 子分类不再并入父组），而此处仍按 root 家族聚合（'all' 视图返家族根 id、父台直属返 'direct'）——
+  // 两套 key 错位使 onDropCard/onAreaDrop 的「落位分区全量重写 curOrder」扫到同家族所有兄弟子分类，
+  // 把它们的拖拽序一并打乱。分区归属只取决于卡自己的 categoryId：uncat 或所属分类 id。
   function groupKeyOf(r: ResourceCard): string {
     const validIds = new Set(wsCats.value.map(c => c.id))
     if (isUncat(r, validIds)) return 'uncat'
-    if (activeCategory.value === 'all') {
-      for (const root of rootCats.value) {
-        if (familyIds(root.id).includes(r.categoryId)) return root.id
-      }
-      return 'uncat'
-    }
-    if (activeCategory.value === 'uncat') return 'uncat'
-    if (childCatsOf(activeCategory.value).some(s => s.id === r.categoryId)) return r.categoryId
-    return 'direct'
+    return r.categoryId
   }
 
   function onDropCard(e: DragEvent, target: ResourceCard) {
