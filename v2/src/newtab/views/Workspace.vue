@@ -545,7 +545,7 @@
             <button class="py-fold-btn" :class="{on: pyFold==='l3'}" @click="pyFold='l3'">到 L3</button>
             <button class="py-fold-btn" :class="{on: pyFold==='all'}" @click="pyFold='all'">全部</button>
           </div>
-          <div class="py-board" :style="{ gridTemplateColumns: `repeat(${pyLayout.cols}, minmax(170px, 250px))` }">
+          <div class="py-board" :style="{ gridTemplateColumns: `repeat(${pyLayout.cols}, minmax(170px, 1fr))` }">
             <div v-for="cell in pyLayout.cells" :key="cell.cat.id" class="py-node"
               :class="{ 'drop-child': pyDropTarget===cell.cat.id && pyDropMode==='child', 'drop-sib': pyDropTarget===cell.cat.id && pyDropMode!=='child', flash: catFlashId===cell.cat.id }"
               :style="{ gridRow: cell.depth + 1, gridColumn: `${cell.colStart + 1} / span ${cell.colSpan}` }"

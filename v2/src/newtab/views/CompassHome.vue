@@ -37,7 +37,9 @@ const route = useRoute()
 const store = useAppStore()
 // R91：解构出主攻相关口径——手册「🎯 主攻（最多 2 个）直通调度台速览」此前在调度台**零消费**，
 // focusedProjects 的唯一消费方在方向台的 LighthousePanel。
-const { d, allProjects, projectProgress, projectTasksOf, focusedProjects, isProjectStalled, isProjectDone } = useCompass()
+const { d, allProjects, projectProgress, projectTasksOf, focusedProjects, isProjectStalled, isProjectDone, refreshWce } = useCompass()
+// R127：挂载即刷新 WCE 事件缓存（事件日志异步读取一次；computed 同步消费）
+onMounted(() => { refreshWce?.() })
 
 const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 

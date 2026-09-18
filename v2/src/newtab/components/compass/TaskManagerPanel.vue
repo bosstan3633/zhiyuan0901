@@ -34,10 +34,15 @@ const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 
 // ---- 视图与工具栏状态 ----
 // 第卌五轮：卡片视图默认（card | list | kanban）
-const viewMode = ref<'card' | 'list' | 'kanban'>('card')
+/** R127：默认列表视图（原卡片） */
+const viewMode = ref<'card' | 'list' | 'kanban'>('list')
 // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.task；网格模板由 --grid-cols 驱动）
 const taskCols = useCardCols('task', store.ui)
-const groupByProject = ref(false)
+/** R127：分组三档（默认按项目；列表视图用） */
+type TaskGroupMode = 'project' | 'status' | 'pin'
+const groupMode = ref<TaskGroupMode>((store.ui?.sortPrefs?.task as { group?: TaskGroupMode } | undefined)?.group || 'project')
+/** 看板沿用「按项目分组」开关语义（映射自 groupMode） */
+const groupByProject = computed(() => groupMode.value === 'project')
 const sortBy = ref('manual')
 // 第卅二轮 REQ-007：任务时间/优先级排序方向（默认倒序）+ 排序偏好本地记忆（UIPrefs.sortPrefs.task）
 const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.task?.dir === 'asc') ? 'asc' : 'desc')
@@ -46,8 +51,8 @@ if (store.ui?.sortPrefs?.task?.by) sortBy.value = store.ui.sortPrefs.task.by
 type TaskFilter = 'all' | 'todo' | 'doing' | 'done' | 'unarchived'
 const savedFilter = store.ui?.sortPrefs?.task?.filter
 const filterBy = ref<TaskFilter>(savedFilter === 'todo' || savedFilter === 'doing' || savedFilter === 'done' || savedFilter === 'unarchived' ? savedFilter : 'all')
-watch([sortBy, sortDir, filterBy], () => {
-  const sp = { ...(store.ui?.sortPrefs || {}), task: { by: sortBy.value, dir: sortDir.value, filter: filterBy.value } }
+watch([sortBy, sortDir, filterBy, groupMode], () => {
+  const sp = { ...(store.ui?.sortPrefs || {}), task: { by: sortBy.value, dir: sortDir.value, filter: filterBy.value, group: groupMode.value } }
   if (store.ui) store.ui.sortPrefs = sp
   saveUIPrefs({ sortPrefs: sp })
 })
@@ -91,7 +96,10 @@ const filteredTasks = computed(() => {
       ? (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER)
       : (b.createdAt || 0) - (a.createdAt || 0))
   }
-  return tasks
+  // R127：已完成任务自动沉底（任何排序/分组下均最后，保持组内相对顺序）
+  const nonDone = tasks.filter(t => t.status !== 'done')
+  const done = tasks.filter(t => t.status === 'done')
+  return [...nonDone, ...done]
 })
 // R43-2 任务总数双值展示：当前筛选 N 条 / 全部 M
 const totalTaskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt).length)
@@ -122,6 +130,29 @@ const doneTasks = computed(() => filteredTasks.value.filter(t => t.status === 'd
 // 第卅三轮 BUG-D 修复 + REQ-020：置顶独立分区（源数组顺序权威不变，仅渲染分流）
 const pinnedTasks = computed(() => filteredTasks.value.filter(t => t.pinned))
 const normalTasks = computed(() => filteredTasks.value.filter(t => !t.pinned))
+/** R127：列表视图三档分组（按项目 / 按任务状态 / 按置顶与否） */
+const listGroups = computed<{ key: string; name: string; icon: string; pct: number; tasks: TaskCard[] }[]>(() => {
+  const tasks = filteredTasks.value
+  if (groupMode.value === 'project') {
+    return groupedTasks.value.map(g => ({ key: g.key, name: g.name, icon: '📦', pct: g.pct, tasks: g.tasks }))
+  }
+  if (groupMode.value === 'status') {
+    const defs: Array<{ k: TaskCard['status']; name: string; icon: string }> = [
+      { k: 'todo', name: '待开始', icon: '○' },
+      { k: 'doing', name: '进行中', icon: '◐' },
+      { k: 'done', name: '已完成', icon: '✓' }
+    ]
+    return defs
+      .map(d => ({ key: d.k, name: d.name, icon: d.icon, pct: -1, tasks: tasks.filter(t => t.status === d.k) }))
+      .filter(g => g.tasks.length)
+  }
+  const pin = tasks.filter(t => t.pinned)
+  const rest = tasks.filter(t => !t.pinned)
+  return [
+    { key: 'pin', name: '置顶', icon: '📌', pct: -1, tasks: pin },
+    { key: 'rest', name: '其他', icon: '📄', pct: -1, tasks: rest }
+  ].filter(g => g.tasks.length)
+})
 
 const selectedTaskIds = ref<Set<string>>(new Set())
 function toggleSelect(taskId: string) {
@@ -626,7 +657,11 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           <option value="done">已完成</option>
           <option value="unarchived">⚠ 未归档</option>
         </select>
-        <button v-if="viewMode!=='card'" class="mini-btn" :class="{active: groupByProject}" @click="groupByProject = !groupByProject" title="按所属项目分组">📂 按项目分组</button>
+        <select v-if="viewMode==='list'" v-model="groupMode" class="sel" title="分组方式">
+          <option value="project">📂 按项目分组</option>
+          <option value="status">⏱ 按任务状态分组</option>
+          <option value="pin">📌 按置顶与否分组</option>
+        </select>
         <!-- R113-N2：⏳ 入口移除——生命周期收敛到 设置→总览 -->
         <div class="search-box"><span>🔍</span><input v-model="searchQuery" placeholder="搜索任务..."></div>
         <span class="mgr-count"><span class="cur">{{ filteredTasks.length }} 条</span><span class="total" :class="{act: filterBy !== 'all' || searchQuery.trim()}" @click="clearTaskFilter" :title="filterBy !== 'all' || searchQuery.trim() ? '点击查看全部任务' : '全部任务数'">/ 全部 {{ totalTaskCount }}</span></span>
@@ -753,14 +788,14 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
         </div>
       </div>
 
-      <!-- 列表视图 · 按项目分组（O14） -->
-      <div v-else-if="viewMode==='list' && groupByProject" class="task-list">
-        <div v-for="grp in groupedTasks" :key="grp.key" class="tgroup">
-          <div class="tg-head" :class="{'drag-over': tgDragOver === grp.key}"
-            @dragover.prevent.stop="tgDragOver = grp.key"
+      <!-- 列表视图（R127：默认视图 · 三档分组 + 已完成沉底） -->
+      <div v-else-if="viewMode==='list'" class="task-list">
+        <div v-for="grp in listGroups" :key="grp.key" class="tgroup">
+          <div class="tg-head" :class="{'drag-over': groupMode==='project' && tgDragOver === grp.key}"
+            @dragover.prevent.stop="groupMode==='project' && (tgDragOver = grp.key)"
             @dragleave="tgDragOver === grp.key && (tgDragOver = '')"
-            @drop.stop="onListGroupDrop($event, grp.key)">
-            <span class="tg-name" :class="{none: grp.key==='__none__'}">📦 {{ grp.name }}</span>
+            @drop.stop="groupMode==='project' && onListGroupDrop($event, grp.key)">
+            <span class="tg-name" :class="{none: grp.key==='__none__'}">{{ grp.icon }} {{ grp.name }}</span>
             <span v-if="grp.pct >= 0" class="tg-pct">{{ grp.pct }}%</span>
             <span class="tg-count">{{ grp.tasks.length }} 任务</span>
           </div>
@@ -783,8 +818,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
         <div v-if="!filteredTasks.length" class="list-empty">暂无任务</div>
       </div>
 
-      <!-- 列表视图（拖拽排序 + 置顶独立分区） -->
-      <div v-else-if="viewMode==='list'" class="task-list">
+      <!-- 列表视图（旧平铺分支已由 R127 统一分组取代） -->
+      <div v-else-if="false" class="task-list">
         <template v-if="pinnedTasks.length">
           <div class="section-label">📌 置顶 · {{ pinnedTasks.length }}</div>
           <div v-for="task in pinnedTasks" :key="task.id" class="trow pinned" :class="{done: task.status==='done', selected: selectedTaskIds.has(task.id), flash: highlightId===task.id}"

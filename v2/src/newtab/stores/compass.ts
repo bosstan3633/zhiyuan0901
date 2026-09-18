@@ -1,4 +1,4 @@
-﻿import { computed } from 'vue'
+﻿import { computed, ref } from 'vue'
 import { useAppStore } from './app'
 import { uid } from '@/shared/utils'
 import type { Direction, Project } from '@/shared/models'
@@ -15,12 +15,22 @@ export const FOCUS_PROJECT_LIMIT = 2
 // B40：recordResourceOpen 已下沉至 shared/storage/stats（应用端与网页端共用同一实现）
 export { recordResourceOpen } from '@/shared/storage/stats'
 import { getDataVersion, saveUIPrefs } from '@/shared/storage/repository'
+import { readEventLog, curioCumulativeSince, countCurioCumulative, type CardEvent } from '@/shared/utils/eventLog'
 
 /**
  * 方向台数据管理
  * 六层链：Vision → Mission → Direction(战略目标) → Project(攻坚项目) → Metric(成功指标) → Task
  */
 export function useCompass() {
+  // ---- R127：WCE 事件流水缓存（zy_event_log 读取一次缓存；computed 同步消费；与仪表盘同源） ----
+  const wceEvents = ref<CardEvent[]>([])
+  const wceBaseline = ref(0)
+  async function refreshWce() {
+    try {
+      wceEvents.value = await readEventLog()
+      wceBaseline.value = await curioCumulativeSince()
+    } catch { /* 无 storage 权限：保持空（WCE 显示 0） */ }
+  }
 
   // ---- R56-PERF-c：项目任务索引（单次遍历，供 isProjectDone/isProjectStalled/projectProgress 共享） ----
   let ptIndexVersion = -1
@@ -220,12 +230,10 @@ export function useCompass() {
       }
     }
 
-    // WCE 好奇探索：激活数=「探索中+已求证」的好奇心数；新增=周期内捕获数
+        // R127：WCE 口径变更——好奇卡「创建 + 状态变更 + 删除」事件数（与仪表盘「探索累计」同源；旧口径退役）
     const curiosities = d.value.curiosities.filter(c => !c.deletedAt)
-    // R59-T9：WCE 口径扩展——激活好奇项 + 「好奇 → 任务/资源」转化卡数（fromCuriosityId 标记，按卡计）
-    const wceCount = curiosities.filter(c => c.status === 'doing' || c.status === 'done').length
-    const convertedCount = [...d.value.tasks, ...d.value.resources]
-      .filter(x => !x.deletedAt && x.fromCuriosityId).length
+        const wceSince = period === 'all' ? wceBaseline.value : Math.max(wceBaseline.value, Date.now() - days * 86400_000)
+    const wceCount = countCurioCumulative(wceEvents.value, wceSince)
     const newInPeriod = curiosities.filter(c => isWithinDays(c.createdAt, days)).length
 
     // WRR 有效复用：资源卡被打开的累计次数（策展台点击/双击打开/搜索打开均计数）
@@ -250,7 +258,7 @@ export function useCompass() {
 
     return {
       dhi: { goals: goals.length, pushing, sub: `${goals.length} 战略目标 · ${pushing} 项目推进中` },
-      wce: { label: `${wceCount + convertedCount} 项激活+转化`, sub: `${pLabel}新增 ${newInPeriod}`, count: wceCount + convertedCount },
+      wce: { label: `${pLabel}探索 ${wceCount} 次`, sub: `${pLabel}新增 ${newInPeriod}`, count: wceCount },
       wrr: { label: `${wrrUnit}${wrrMain}次打开`, sub: wrrSub },
       categories: categoryCount,
       resources: resourceCount,
@@ -261,7 +269,7 @@ export function useCompass() {
   /** 北极星指标计算公式（用于下钻抽屉展示） */
   const formulas = {
     dhi: 'R64 口径：战略目标 = 使命下拆解的方向数（非归档 Direction）；推进中项目 = 全部项目中挂有非软删任务（任务数 ≠ 0）的项目数。不再计算 DHI 百分比。',
-    wce: 'WCE（R59 扩展口径）= 「探索中 + 已求证」好奇项数 + 好奇卡转化为任务/资源的卡数；副指标 = 本周期新捕获数（日/周/累计随上方周期切换）',
+        wce: 'WCE（R127 新口径）：好奇卡「创建 + 状态变更 + 删除」的事件数（与仪表盘「探索累计」同源）；副指标 = 本周期新捕获数（日/周/累计随上方周期切换）',
     wrr: 'WRR 主数字随周期联动：日=今日打开卡数 / 周=本周打开次数(stats.wrr.thisWeekUsage) / 累计=所有资源卡被打开次数之和；副指标给出参照口径（日/周档显示累计值，累计档显示今日值）',
     groups: '模块分组数 = 所有策展台下的文件夹（分组）总数',
     resources: '链接卡片总数 = 全部资源卡数量（不含回收站）',
@@ -269,6 +277,7 @@ export function useCompass() {
   }
 
   return {
+    refreshWce,
     d, visionText, missionText, directions, allProjects, projectById,
     showDone, toggleShowDone,
     focusedProjects, toggleFocusProject, addProjectToDir, projectProgress,

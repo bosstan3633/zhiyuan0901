@@ -755,7 +755,6 @@ function addTaskFromHeader() {
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 .slide-enter-active, .slide-leave-active { transition: transform .2s cubic-bezier(.16,1,.3,1); }
 .slide-enter-from, .slide-leave-to { transform: translateX(100%); }
-</style>
 
 /* ===== R124（提案）：中性优先级退色——默认 4px 灰点，行 hover 才显标签；仅高优保留警示色 ===== */
 .tag.plain { background: transparent; color: var(--text-4); padding: 2px 2px; gap: 4px; }
@@ -770,3 +769,4 @@ function addTaskFromHeader() {
 
 /* R126（诉求 1）：展板项目图标（主攻与普通统一普通项目图标；⚑ 表示主攻，避免与成功指标 🎯 混淆） */
 .pb-title .pb-picon { font-size: 16px; flex-shrink: 0; }
+</style>

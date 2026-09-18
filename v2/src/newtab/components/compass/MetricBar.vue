@@ -60,7 +60,7 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
       <div class="mb-cell clickable" title="推进项目 = 挂有任务（任务数≠0）的项目数 · 点击下钻各目标明细" @click="openCell('dhi')">
         <span class="mb-k">推进项目</span><span class="mb-v">{{ pushingMain }}</span>
       </div>
-      <div class="mb-cell clickable" title="WCE 好奇探索 = 探索中+已求证的好奇心数（{{ m.wce.sub }}）· 点击下钻激活好奇项清单" @click="openCell('wce')">
+      <div class="mb-cell clickable" title="WCE 好奇探索 = 好奇卡「创建 + 状态变更 + 删除」的事件数（{{ m.wce.label }}）· 点击下钻明细" @click="openCell('wce')">
         <span class="mb-k">WCE 探索</span><span class="mb-v">{{ m.wce.count ?? 0 }}</span>
       </div>
       <div class="mb-cell clickable" title="WRR 资源复用 = 资源卡被打开次数（{{ m.wrr.sub }}）· 点击下钻调出资源清单" @click="openCell('wrr')">

@@ -284,8 +284,22 @@
             <div class="gs-pd-row" v-if="panDetail.description"><span class="gs-pd-k">描述</span><span class="gs-pd-v">{{ panDetail.description }}</span></div>
             <div class="gs-pd-row" v-if="panDetail.tags && panDetail.tags.length"><span class="gs-pd-k">标签</span><span class="gs-pd-v">#{{ panDetail.tags.join(' #') }}</span></div>
             <div class="gs-pd-actions">
-              <button class="gs-btn gs-btn-primary" @click="onPanCardDblClick(panDetail)">↗ 打开链接</button>
+              <button class="gs-btn gs-btn-primary" @click="openCardLink(panDetail)">↗ 打开链接</button>
               <button class="gs-btn" @click="panDetail = null">关闭</button>
+            </div>
+          </template>
+        </Drawer>
+        <!-- R127：标签管理卡片详情（三卡统一） -->
+        <Drawer :open="!!ttDetail" title="🏷 卡片详情" @close="ttDetail = null">
+          <template v-if="ttDetail">
+            <div class="gs-pd-title">{{ ttDetail.title }}</div>
+            <div class="gs-pd-row" v-if="ttDetail.link"><span class="gs-pd-k">链接</span><span class="gs-pd-v">{{ ttDetail.link }}</span></div>
+            <div class="gs-pd-row" v-if="ttDetail.desc"><span class="gs-pd-k">描述</span><span class="gs-pd-v">{{ ttDetail.desc }}</span></div>
+            <div class="gs-pd-row"><span class="gs-pd-k">类型</span><span class="gs-pd-v">{{ ttDetail.kind === 'resource' ? '资源卡' : ttDetail.kind === 'task' ? '任务卡 · ' + (ttDetail.status === 'done' ? '已完成' : ttDetail.status === 'doing' ? '进行中' : '待开始') : '好奇心卡 · ' + (ttDetail.status || '') }}</span></div>
+            <div class="gs-pd-row" v-if="ttDetail.tags.length"><span class="gs-pd-k">标签</span><span class="gs-pd-v">#{{ ttDetail.tags.join(' #') }}</span></div>
+            <div class="gs-pd-actions">
+              <button v-if="ttDetail.kind === 'resource' && ttDetail.link" class="gs-btn gs-btn-primary" @click="openCardLink({ link: ttDetail.link })">↗ 打开链接</button>
+              <button class="gs-btn" @click="ttDetail = null">关闭</button>
             </div>
           </template>
         </Drawer>
@@ -360,6 +374,7 @@
           <div class="gs-page-title">🏷 标签管理</div>
                     <div class="gs-page-desc">两级标签体系 · 三种卡片打标签的唯一来源 · 拖拽根标签到另一根标签上即成子标签（卡片标签同步为「父/子」）</div>
         </div>
+        <div class="tt-wrap">
         <div class="gs-card">
                     <div class="gs-card-header"><span class="gs-card-title">标签树</span><span class="gs-card-desc">最多两级：拖拽根标签到另一根标签上挂载为子标签</span></div>
           <div class="gs-card-body">
@@ -372,9 +387,9 @@
                   @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
               </div>
               <template v-for="root in tagTree" :key="root.id">
-                <div class="gs-tt-row" :class="{editing: ttEditing?.id === root.id, flash: ttFlashId === root.id}" :data-depth="tagDepth(root.id)" :style="{ paddingLeft: 8 + tagDepth(root.id) * 18 + 'px' }" draggable="true"
+                <div class="gs-tt-row" :class="{editing: ttEditing?.id === root.id, flash: ttFlashId === root.id, active: ttActiveTag === root.name}" :data-depth="tagDepth(root.id)" :style="{ paddingLeft: 8 + tagDepth(root.id) * 18 + 'px' }" draggable="true"
                   @dragstart="ttDragStart($event, root.id)" @dragend="ttDragEnd"
-                  @dragover.prevent @drop="ttDrop($event, root.id)">
+                  @dragover.prevent @drop="ttDrop($event, root.id)" @click="selectTtTag(root.name)">
                   <span class="gs-tt-toggle" :class="{leaf: !safeChildren(root).length}" @click="ttToggle(root.id)">{{ ttCollapsed.has(root.id) ? '▸' : '▾' }}</span>
                   <input v-if="ttEditing?.id === root.id" v-model="ttEditing.value" class="gs-tt-input" v-focus
                     @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
@@ -396,9 +411,9 @@
                     @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
                 </div>
                 <template v-if="!ttCollapsed.has(root.id)">
-                  <div v-for="child in safeChildren(root)" :key="child.id" class="gs-tt-row subrow" :class="{editing: ttEditing?.id === child.id, flash: ttFlashId === child.id}" :data-depth="tagDepth(child.id)" :style="{ paddingLeft: 8 + tagDepth(child.id) * 18 + 'px' }" draggable="true"
+                  <div v-for="child in safeChildren(root)" :key="child.id" class="gs-tt-row subrow" :class="{editing: ttEditing?.id === child.id, flash: ttFlashId === child.id, active: ttActiveTag === root.name + '/' + child.name}" :data-depth="tagDepth(child.id)" :style="{ paddingLeft: 8 + tagDepth(child.id) * 18 + 'px' }" draggable="true"
                     @dragstart="ttDragStart($event, child.id)" @dragend="ttDragEnd"
-                    @dragover.prevent @drop="ttDrop($event, child.id)">
+                    @dragover.prevent @drop="ttDrop($event, child.id)" @click="selectTtTag(root.name + '/' + child.name)">
                     <input v-if="ttEditing?.id === child.id" v-model="ttEditing.value" class="gs-tt-input" v-focus
                       @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
                     <template v-else>
@@ -420,6 +435,37 @@
                         <button class="gs-field-add" @click="ttAddRoot">＋ 新建根标签</button>
             <button class="gs-field-add" style="margin-left: 8px" @click="ttCollectFromCards">⤓ 从卡片收纳标签</button>
                         <div class="gs-field-hint">💡 重命名 / 删除 / 挂载会<b>同步更新卡片上的标签值</b>（子标签以「父/子」路径保存）；删除标签时，卡片上的对应标签一并移除。打标签入口：资源卡/任务卡/好奇心卡的详情编辑处。</div>
+          </div>
+        </div>
+          <!-- R127：右列——当前标签下的卡片（三卡合一 / 类型过滤 / 搜索 / 多选拖拽移动） -->
+          <div class="gs-card">
+            <div class="gs-card-header"><span class="gs-card-title">#{{ ttActiveTag || '未选择标签' }}{{ ttActiveTag ? ' · ' + ttRows.length + ' 张' : '' }}</span><span class="gs-card-desc">单击选中 · 双击详情 · 多选后拖到左侧标签即移动（替换）</span></div>
+            <div class="gs-card-body">
+              <div v-if="!ttActiveTag" class="gs-tt-empty">点击左侧标签查看其下卡片</div>
+              <template v-else>
+                <div class="tt-tools">
+                  <select v-model="ttCardKind" class="gs-select">
+                    <option value="all">全部类型</option>
+                    <option value="resource">📦 资源卡</option>
+                    <option value="task">✅ 任务卡</option>
+                    <option value="curiosity">💡 好奇心卡</option>
+                  </select>
+                  <input v-model="ttCardQ" class="gs-tt-input" style="flex: 1" placeholder="搜索标题 / 链接 / 描述…" />
+                  <span v-if="ttPicked.size" class="tt-picked">已选 {{ ttPicked.size }} 张 · 拖到左侧标签即可移动</span>
+                </div>
+                <div class="tt-list">
+                  <div v-for="row in ttRows" :key="row.id" class="gs-pan-card" :class="{ selected: ttPicked.has(row.id) }" draggable="true"
+                    @click="onTtRowClick(row)" @dblclick="onTtRowDblClick(row)" @dragstart="onTtRowDragStart($event, row)" @dragend="onTtRowDragEnd">
+                    <input type="checkbox" class="gs-pan-check" :checked="ttPicked.has(row.id)" @click.stop @change="ttTogglePick(row.id)" />
+                    <div class="gs-pan-card-main">
+                      <div class="gs-pan-card-title">{{ row.kind === 'resource' ? '📦' : row.kind === 'task' ? '✅' : '💡' }} {{ row.title }}</div>
+                      <div class="gs-pan-card-sub">{{ row.sub }}</div>
+                    </div>
+                  </div>
+                  <div v-if="!ttRows.length" class="gs-ev-empty">该标签下暂无卡片</div>
+                </div>
+              </template>
+            </div>
           </div>
         </div>
       </div>
@@ -2317,6 +2363,78 @@ function ttAddChild(parentId: string) {
   ttEditing.value = { id: null, parentId, value: '' }
   ttCollapsed.value = new Set([...ttCollapsed.value].filter(x => x !== parentId))
 }
+// ---- R127：标签管理双栏——左树选中 + 右列卡片（三卡合一 / 类型过滤 / 搜索 / 多选拖拽移动=替换语义） ----
+const ttActiveTag = ref('')
+const ttCardKind = ref<'all' | 'resource' | 'task' | 'curiosity'>('all')
+const ttCardQ = ref('')
+const ttPicked = ref<Set<string>>(new Set())
+interface TtRow { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; sub: string; link?: string; desc?: string; status?: string; tags: string[] }
+const ttDetail = ref<TtRow | null>(null)
+let ttCardDragIds: string[] | null = null
+function selectTtTag(path: string) { ttActiveTag.value = path; ttPicked.value = new Set() }
+function ttTogglePick(id: string) { const s = new Set(ttPicked.value); if (s.has(id)) s.delete(id); else s.add(id); ttPicked.value = s }
+const ttRows = computed<TtRow[]>(() => {
+  const tag = ttActiveTag.value
+  if (!tag) return []
+  const q = ttCardQ.value.trim().toLowerCase()
+  const kind = ttCardKind.value
+  const out: TtRow[] = []
+  if (kind === 'all' || kind === 'resource') {
+    for (const r of store.data!.resources || []) {
+      if (r.deletedAt || !(r.tags || []).includes(tag)) continue
+      out.push({ kind: 'resource', id: r.id, title: r.title, sub: `${gWsName(r.workspaceId)} / ${gCatName(r.categoryId || '')}`, link: r.link, desc: r.description, tags: r.tags || [] })
+    }
+  }
+  if (kind === 'all' || kind === 'task') {
+    for (const t of store.data!.tasks || []) {
+      if (t.deletedAt || !(t.tags || []).includes(tag)) continue
+      out.push({ kind: 'task', id: t.id, title: t.title, sub: t.status === 'done' ? '已完成' : t.status === 'doing' ? '进行中' : '待开始', status: t.status, tags: t.tags || [] })
+    }
+  }
+  if (kind === 'all' || kind === 'curiosity') {
+    for (const c of store.data!.curiosities || []) {
+      if (c.deletedAt || !(c.tags || []).includes(tag)) continue
+      out.push({ kind: 'curiosity', id: c.id, title: c.question, sub: c.status === 'done' ? '已求证' : c.status === 'doing' ? '探索中' : c.status === 'shelf' ? '已搁置' : '待探索', status: c.status, tags: c.tags || [] })
+    }
+  }
+  return q ? out.filter(x => (x.title + ' ' + x.sub + ' ' + (x.link || '')).toLowerCase().includes(q)) : out
+})
+function onTtRowClick(row: TtRow) { ttTogglePick(row.id) }
+function onTtRowDblClick(row: TtRow) { ttDetail.value = row }
+function onTtRowDragStart(e: DragEvent, row: TtRow) { ttCardDragIds = ttPicked.value.has(row.id) ? [...ttPicked.value] : [row.id]; if (!ttPicked.value.has(row.id)) ttTogglePick(row.id) }
+function onTtRowDragEnd() { ttCardDragIds = null }
+/** R127：替换语义——从当前选中标签移到目标标签（移除源 + 添加目标；三类卡同步） */
+function ttMoveCards(targetPath: string) {
+  const ids = new Set(ttCardDragIds || [])
+  const from = ttActiveTag.value
+  if (!ids.size || !from) return
+  let moved = 0
+  const apply = (arr?: { id: string; tags?: string[] }[]) => {
+    for (const x of arr || []) {
+      if (!ids.has(x.id)) continue
+      const tags = Array.isArray(x.tags) ? x.tags : []
+      if (!tags.includes(from)) continue
+      x.tags = [...new Set(tags.filter(t => t !== from).concat(targetPath))]
+      moved++
+    }
+  }
+  apply(store.data!.resources as { id: string; tags?: string[] }[])
+  apply(store.data!.tasks as unknown as { id: string; tags?: string[] }[])
+  apply(store.data!.curiosities as unknown as { id: string; tags?: string[] }[])
+  store.persist()
+  ttPicked.value = new Set()
+  showToast(moved ? `已移动 ${moved} 张卡片 → #${targetPath}` : '没有可移动的卡片')
+}
+function openCardLink(r: { linkType?: string; link?: string; assets?: Array<{ id: string; kind: string }> }) {
+  if (r.linkType === 'file' && /^zy-asset:\/\//i.test((r.link || '').trim())) {
+    const assetId = (r.link || '').trim().replace(/^zy-asset:\/\//i, '')
+    const meta = (r.assets || []).find(a => a.id === assetId)
+    if (meta && (meta.kind === 'html' || meta.kind === 'pdf')) { openHtmlAsset(meta as never); return }
+  }
+  const url = toOpenableUrl(r.linkType as never, r.link || '')
+  if (url) openExternalLink(url)
+  else showToast('⛔ 该卡片无可打开链接')
+}
 /** B16：行内重命名 */
 function ttRename(id: string) {
   const hit = findTagNode(id)
@@ -2400,6 +2518,13 @@ function ttDragEnd() { ttDragId = null }
 /** R126（诉求 7）：拖拽挂载=根→根一级（最多两级）；卡片标签同步重写为「父/子」路径 */
 function ttDrop(e: DragEvent, targetId: string) {
   e.preventDefault()
+  // R127：卡片拖拽（右列 → 左树）优先：移动=替换语义
+  if (ttCardDragIds && ttCardDragIds.length) {
+    const hit0 = findTagNode(targetId)
+    if (hit0) ttMoveCards(hit0.parent ? hit0.parent.name + '/' + hit0.node.name : hit0.node.name)
+    ttCardDragIds = null
+    return
+  }
   if (!ttDragId || ttDragId === targetId) return
   if (tagSubtreeIds(ttDragId).includes(targetId)) { showToast('不能挂载到自己的子标签下'); return }
   if (tagDepth(targetId) >= 1) { showToast('最多两级：只能挂到根标签下'); return }
@@ -2819,4 +2944,11 @@ const activeManualSec = ref('quick-1')
 .lc-set-list { max-height: 260px; overflow-y: auto; margin-top: 8px; border-top: 1px solid var(--border); }
 .lc-set-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
 .lc-set-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-2); }
+/* R127：标签管理双栏（左树 + 右列卡片） */
+.tt-wrap { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
+.gs-tt-row.active { border-color: var(--accent); background: var(--accent-light); }
+.tt-tools { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.tt-picked { font-size: 11px; color: var(--accent); white-space: nowrap; }
+.tt-list { display: flex; flex-direction: column; gap: 6px; max-height: 560px; overflow-y: auto; }
+@media (max-width: 1100px) { .tt-wrap { grid-template-columns: 1fr; } }
 </style>

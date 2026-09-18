@@ -154,7 +154,7 @@ function locateTask(id: string) {
         </div>
         <div v-if="!wceRows.list.length" class="md-empty">暂无激活的好奇心——去调度台捕获</div>
       </div>
-      <div class="md-tip">WCE = 探索中 + 已求证的好奇心数。点击行跳转调度台并定位对应卡片。</div>
+      <div class="md-tip">R127 起 WCE = 好奇卡「创建 + 状态变更 + 删除」的事件数（主数字）；此清单为当前激活好奇项（探索中/已求证），点击行跳转定位。</div>
     </template>
 
     <!-- WRR：调出资源 -->

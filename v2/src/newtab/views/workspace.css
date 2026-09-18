@@ -447,7 +447,7 @@
 
 /* ===== R62-5：金字塔视图 ===== */
 /* R66-F5：结构连线层（横平竖直直角折线；画布尺寸由 drawPyLinks 按滚动区设定） */
-.pyramid { display: flex; flex-direction: column; gap: 14px; position: relative; overflow-x: auto; }
+.pyramid { display: flex; flex-direction: column; gap: 14px; position: relative; overflow-x: auto; width: 100%; }
 /* R113-N5（T10）：真全屏宿主 = .ws-page——专注金字塔：隐藏标题/指标条/侧栏/归档提示，保留工具条（＋新建 / 📋 导入模板可用） */
 .ws-page:fullscreen { background: var(--bg); overflow-y: auto; padding: 20px 36px 90px; }
 .ws-page:fullscreen .ws-id-head, .ws-page:fullscreen .ws-metrics, .ws-page:fullscreen .ws-sidebar,
@@ -474,7 +474,7 @@
 .py-root-empty.clickable:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 /* R66-F5：居中树 board——列宽自适应 minmax(170px,250px)，整体 fit-content 水平居中不占满；
    行距 34px 留出直角连线空间；父节点跨子组全部列（横向恒=子组、居中悬于其上） */
-.py-board { display: grid; gap: 34px 12px; width: fit-content; margin: 6px auto 0; align-items: stretch; min-width: 40%; }
+.py-board { display: grid; gap: 34px 12px; width: 100%; margin: 6px 0 0; align-items: stretch; }
 .py-node { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; min-width: 0; transition: border-color .15s, box-shadow .15s; }
 .py-node:hover { border-color: var(--border-strong); }
 .py-node.drop-child { border-color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
