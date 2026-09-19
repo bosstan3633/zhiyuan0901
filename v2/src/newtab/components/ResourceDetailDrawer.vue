@@ -6,7 +6,7 @@
  * - 第卅九轮 V2.15.0：编辑表单主体抽至共享 ResourceEditForm.vue（与 Workspace 内联抽屉合一）
  *   宿主保留：Drawer 容器 / 开关态 / 统计区(extra 插槽) / footer 动作(删除/复制/打开/保存)
  */
-import { computed, reactive, ref, onMounted, onUnmounted, watch } from 'vue'
+import { computed, defineAsyncComponent, reactive, ref, onMounted, onUnmounted, watch } from 'vue'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter } from 'vue-router'
 import Drawer from '@/shared/components/Drawer.vue'
@@ -17,6 +17,12 @@ import { onOpenDrawer, type DrawerPayload } from '@/shared/utils/bus'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import type { ResourceCard, TaskCard } from '@/shared/models'
+// R134-F（批次 F）：单卡 AI 补全。★本组件被 App.vue 静态挂载（全局抽屉宿主）——AI 依赖必须全懒：
+// 抽屉 defineAsyncComponent、shared/ai 模块点击时才 dynamic import，否则整条 AI 栈会被卷进启动 chunk（R134 首版踩坑已修）。
+// 建议进评审抽屉（内存态），采纳只回填本表单，用户核对后自行保存。
+const AiDrawer = defineAsyncComponent(() => import('./AiSuggestionDrawer.vue'))
+type AiJobLite = import('./AiSuggestionDrawer.vue').AiJob
+type AiRowLite = import('./AiSuggestionDrawer.vue').AiRow
 
 const router = useRouter()
 const store = useAppStore()
@@ -121,6 +127,47 @@ function onBus(p: DrawerPayload) {
   openFromId(p.id)
 }
 
+// ---- R134-F：单卡智能补全（AI 栈全懒：点击时才拉 shared/ai） ----
+const aiJob = ref<AiJobLite | null>(null)
+async function aiEnrich() {
+  const card = resource.value
+  const d = store.data
+  if (!card || !d) return
+  const [{ loadAiConfig, aiReady, aiConfig }, { projectCard, catPathOf }, { enrichSystem, sanitizeRefs }] = await Promise.all([
+    import('@/shared/ai/config'), import('@/shared/ai/project'), import('@/shared/ai/scenarios'),
+  ])
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  const cats = d.categories.filter(c => !c.deletedAt && c.workspaceId === card.workspaceId)
+  const catList = cats.slice(0, 60).map(c => `categoryId=${c.id}：${catPathOf(d, c.id)}`).join('\n')
+  aiJob.value = {
+    title: `AI 补全 · ${card.title.slice(0, 20) || '（无名卡）'}`,
+    hint: '建议会回填到下方编辑表单（描述仅在为空时填充），保存前你可再改。',
+    build: () => ({ messages: [
+      { role: 'system', content: enrichSystem(cats.length > 0) },
+      { role: 'user', content: projectCard(d, card, aiConfig.value.depth) + (catList ? `\n\n【分类候选】\n${catList}` : '') },
+    ] }),
+    parse: (raw) => {
+      const s = sanitizeRefs((raw || {}) as import('@/shared/ai/scenarios').EnrichSuggestion, d)
+      const rows: AiRowLite[] = []
+      const newTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !(card.tags || []).includes(t))
+      if (newTags.length) rows.push({ key: 'tags', badge: '标签', main: newTags.join('、'), data: { tags: newTags } })
+      if (s.description?.trim() && !card.description) rows.push({ key: 'desc', badge: '描述', main: s.description.trim(), data: { description: s.description.trim() } })
+      if (s.categoryId && s.categoryId !== card.categoryId) rows.push({ key: 'cat', badge: '分类', main: catPathOf(d, s.categoryId), data: { categoryId: s.categoryId } })
+      return rows
+    },
+    apply: (rows) => {
+      for (const r of rows) {
+        const s = r.data as import('@/shared/ai/scenarios').EnrichSuggestion
+        if (s.tags) editing.tags = [...new Set([...(editing.tags || []), ...s.tags])].slice(0, 10)
+        if (s.description) editing.description = s.description
+        if (s.categoryId) editing.categoryId = s.categoryId
+      }
+      return '✓ 建议已回填表单，核对后点「保存」'
+    },
+  }
+}
+
 let unsub: (() => void) | null = null
 onMounted(() => { unsub = onOpenDrawer(onBus) })
 onUnmounted(() => { unsub?.(); unsub = null })
@@ -157,9 +204,11 @@ watch(() => resource.value?.id, (n) => {
       <button class="red-btn danger" @click="remove">🗑 删除</button>
       <button class="red-btn" @click="copyLink">🔗 复制链接</button>
       <button class="red-btn" @click="openLink">↗ 打开</button>
+      <button class="red-btn" :disabled="!resource" title="AI 建议标签/描述/分类，回填表单后由你核对保存" @click="aiEnrich">🤖 补全</button>
       <button class="red-btn primary" @click="save">✓ 保存</button>
     </template>
   </Drawer>
+  <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
 </template>
 
 <style scoped>
@@ -170,9 +219,10 @@ watch(() => resource.value?.id, (n) => {
 .red-stat-chip { font-size: 11px; padding: 2px 8px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 99px; }
 
 .red-btn {
-  flex: 1; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px;
-  background: var(--surface-2); color: var(--text); cursor: pointer; font-size: 12.5px; transition: all var(--dur);
+  flex: 1; padding: 9px 7px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface-2); color: var(--text); cursor: pointer; font-size: 12px; transition: all var(--dur); white-space: nowrap;
 }
+.red-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .red-btn:hover { background: var(--surface-3); }
 .red-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .red-btn.primary:hover { opacity: .9; }

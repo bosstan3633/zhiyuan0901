@@ -428,7 +428,7 @@
         </div>
           <!-- R127：右列——当前标签下的卡片（三卡合一 / 类型过滤 / 搜索 / 多选拖拽移动） -->
           <div class="gs-card">
-            <div class="gs-card-header"><span class="gs-card-title">#{{ ttActiveTag || '未选择标签' }}{{ ttActiveTag ? ' · ' + ttRows.length + ' 张' : '' }}</span><label v-if="ttActiveTag" class="gs-pan-allcheck"><input type="checkbox" :checked="ttAllChecked" @change="toggleTtAll" /> 全选本标签</label><span class="gs-card-desc">单击选中 · 双击详情 · 多选后拖到左侧标签即移动（替换）</span></div>
+            <div class="gs-card-header"><span class="gs-card-title">#{{ ttActiveTag || '未选择标签' }}{{ ttActiveTag ? ' · ' + ttRows.length + ' 张' : '' }}</span><label v-if="ttActiveTag" class="gs-pan-allcheck"><input type="checkbox" :checked="ttAllChecked" @change="toggleTtAll" /> 全选本标签</label><button v-if="ttPicked.size" class="gs-btn ai-batch-btn" :disabled="!aiReady" title="对勾选卡片做 AI 批量补全（标签/描述/分类建议）" @click="aiTtEnrich">🤖 批量补全({{ ttPicked.size }})</button><span class="gs-card-desc">单击选中 · 双击详情 · 多选后拖到左侧标签即移动（替换）</span></div>
             <div class="gs-card-body">
               <div v-if="!ttActiveTag" class="gs-tt-empty">点击左侧标签查看其下卡片</div>
               <template v-else>
@@ -472,6 +472,64 @@
             </div>
           </template>
         </Drawer>
+      </div>
+
+      <!-- ===== R134-F · AI 助手 ===== -->
+      <div v-if="activePage === 'ai'" class="gs-panel">
+        <div class="gs-page-header">
+          <div class="gs-page-title">🤖 AI 助手 <span class="gs-dash-en">AI</span></div>
+          <div class="gs-page-desc">接 OpenAI 兼容大模型 API · 建议经你审阅勾选后才写入 · 密钥仅存本机（独立键，不随数据导出包外发）</div>
+        </div>
+
+        <div class="gs-card">
+          <div class="gs-card-header"><span class="gs-card-title">🔌 接入配置</span><span class="gs-card-desc">DeepSeek / Kimi / 通义 / OpenAI 等兼容协议均可；模型可手填</span></div>
+          <div class="gs-card-body ai-form">
+            <label class="ai-field"><span>API 地址（baseUrl）</span><input class="gs-input" :value="aiConfig.baseUrl" placeholder="如 https://api.deepseek.com/v1" @change="patchAiConfig({ baseUrl: ($event.target as HTMLInputElement).value })" /></label>
+            <label class="ai-field"><span>API Key</span><input class="gs-input" type="password" :value="aiConfig.apiKey" placeholder="sk-…（仅存本机 chrome.storage）" @change="patchAiConfig({ apiKey: ($event.target as HTMLInputElement).value })" /></label>
+            <label class="ai-field"><span>模型</span>
+              <input class="gs-input" list="ai-model-list" :value="aiConfig.model" placeholder="如 deepseek-chat" @change="patchAiConfig({ model: ($event.target as HTMLInputElement).value })" />
+              <datalist id="ai-model-list"><option v-for="m in aiModels" :key="m" :value="m" /></datalist>
+            </label>
+            <div class="ai-form-row">
+              <button class="gs-btn" :disabled="aiBusy !== '' || !aiConfig.baseUrl || !aiConfig.apiKey" @click="aiFetchModels">{{ aiBusy === 'models' ? '拉取中…' : '⬇ 拉取模型列表' }}</button>
+              <button class="gs-btn" :disabled="aiBusy !== '' || !aiReady" @click="aiTestConn">{{ aiBusy === 'test' ? '测试中…' : '⚡ 测试连接' }}</button>
+              <span v-if="aiMsg" class="ai-msg" :class="{ err: aiMsg.startsWith('⚠') }">{{ aiMsg }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="gs-card">
+          <div class="gs-card-header"><span class="gs-card-title">🙋 关于我（全局画像 · 注入所有 AI 场景）</span><span class="gs-card-desc">写你在做什么、偏好什么风格、忌讳什么，模型不必每个场景重新交代背景</span></div>
+          <div class="gs-card-body">
+            <textarea class="ai-textarea" rows="3" :value="aiConfig.aboutMe" placeholder="例：在读研究生，主线是毕业论文 + 个人知识体系；建议直接、给可执行动作，不要客套话与空泛鼓励" @change="patchAiConfig({ aboutMe: ($event.target as HTMLTextAreaElement).value })" />
+          </div>
+        </div>
+
+        <div class="gs-card">
+          <div class="gs-card-header"><span class="gs-card-title">🧠 深度诊断</span><span class="gs-card-desc">整库结构摘要投喂所选专家，逐员出「发现+建议」；产出只进评审抽屉、不自动写库</span></div>
+          <div class="gs-card-body">
+            <div class="ai-persona-row" v-for="p in BUILTIN_PERSONAS" :key="p.id">
+              <label class="ai-persona"><input type="checkbox" :checked="aiPersonaSel.includes(p.id)" @change="aiTogglePersona(p.id)" /> {{ p.icon }} {{ p.name }}</label>
+              <span class="ai-persona-brief">{{ p.brief }}</span>
+            </div>
+            <div class="ai-form-row">
+              <select class="gs-input ai-depth" :value="aiConfig.depth" @change="patchAiConfig({ depth: ($event.target as HTMLSelectElement).value as AiDepth })">
+                <option value="eco">经济档（最小投料）</option><option value="std">标准档</option><option value="deep">深度档（最大上下文）</option>
+              </select>
+              <button class="gs-btn gs-btn-primary" :disabled="!aiReady" @click="aiDiagnose">🧠 一键诊断</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="gs-card">
+          <div class="gs-card-header"><span class="gs-card-title">💤 沉睡资源扫描</span><span class="gs-card-desc">长期零打开的卡对照当前目标与任务判「唤醒 / 归档 / 保留」；置顶与星标卡自动豁免</span></div>
+          <div class="gs-card-body ai-form-row">
+            <label class="ai-field inline"><span>沉睡超过</span><input class="gs-input ai-days" type="number" min="14" max="365" v-model.number="aiDormantDays" /><span>天</span></label>
+            <button class="gs-btn" :disabled="!aiReady" @click="aiDormantScan">💤 开始扫描</button>
+          </div>
+        </div>
+
+        <p class="gs-field-hint">隐私与性能口径：仅投本场景相关实体文本（KB 级），附件本体与其它数据不出本机；全部手动触发、无常驻轮询；AI 建议不入库，勾选采纳才落。</p>
       </div>
 
       <!-- ===== 导入数据 ===== -->
@@ -892,6 +950,9 @@
       </div>
     </main>
 
+    <!-- R134-F：AI 建议评审抽屉（批量补全/沉睡唤醒/深度诊断共用消费面） -->
+    <AiSuggestionDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
+
     <!-- 回滚确认弹窗 -->
     <Teleport to="body">
       <div class="gs-modal-overlay" :class="{ open: showResetModal }" @click.self="closeResetModal">
@@ -947,6 +1008,13 @@ import {
   setCoolingDefaultDays, coolingDefaultDaysOf
 } from '@/shared/utils/lifecycle'
 import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
+// R134-F（批次 F）：AI 助手——地基三件套（config/llm/projector/scenarios）+ 建议评审抽屉。
+// 性能纪律：shared/ai 只被懒加载路由（设置页/详情抽屉）静态消费，不进启动链；密钥存独立键 zy_ai_v1 不随导出。
+import AiSuggestionDrawer, { type AiJob, type AiRow } from '@/newtab/components/AiSuggestionDrawer.vue'
+import { aiConfig, loadAiConfig, patchAiConfig, aiReady, type AiDepth } from '@/shared/ai/config'
+import { listModels, testConnection as aiTestConnection, chatStream, extractJson } from '@/shared/ai/llm'
+import { projectCards, projectDormant, projectLibrary, catPathOf as aiCatPathOf } from '@/shared/ai/project'
+import { batchEnrichSystem, dormantSystem, diagnosisSystem, BUILTIN_PERSONAS, personaOverrides, sanitizeRefs, type EnrichSuggestion, type DormantVerdict } from '@/shared/ai/scenarios'
 
 const router = useRouter()
 const route = useRoute()
@@ -1136,6 +1204,8 @@ const navGroups = [
     { key: 'thesis', icon: '🏛', label: '策展主题卡' },
     // 第卌四轮 Q-6：标签管理上移——它服务卡片呈现，与三卡同组
     { key: 'tags', icon: '🏷', label: '标签管理' },
+    // R134-F：AI 助手（接入配置 + 沉睡唤醒 + 一键诊断）
+    { key: 'ai', icon: '🤖', label: 'AI 助手' },
   ]},
   { title: '数据', items: [
     { key: 'import', icon: '⬇', label: '导入数据' },
@@ -2478,6 +2548,190 @@ function onTtRowClick(row: TtRow) { ttTogglePick(row.id) }
 // R132-T1：全选本标签——口径为当前类型过滤/搜索结果集（ttRows），与全景「全选本分类」一致
 const ttAllChecked = computed(() => ttRows.value.length > 0 && ttRows.value.every(r => ttPicked.value.has(r.id)))
 function toggleTtAll() { ttPicked.value = ttAllChecked.value ? new Set() : new Set(ttRows.value.map(r => r.id)) }
+
+// ============== R134-F（批次 F）· AI 助手：接入配置 + 批量补全 + 沉睡唤醒 + 深度诊断 v0 ==============
+// 纪律：建议只活在抽屉内存态；采纳才走既有字段写入 + persist 一次；全部手动触发、零常驻、零启动链。
+const aiJob = shallowRef<AiJob | null>(null)
+const aiModels = ref<string[]>([])
+const aiBusy = ref<'' | 'models' | 'test'>('')
+const aiMsg = ref('')
+const aiDormantDays = ref(90)
+const aiPersonaSel = ref<string[]>(BUILTIN_PERSONAS.map(p => p.id))
+watch(activePage, (p) => { if (p === 'ai') void loadAiConfig() })
+
+function aiErr(e: unknown): string { return (e as Error)?.message || String(e) }
+function aiGuard(): boolean {
+  if (!aiReady.value) { showToast('请先在「AI 助手」页填好 API 地址 / Key / 模型并测试连接'); activePage.value = 'ai'; return false }
+  return true
+}
+async function aiFetchModels() {
+  aiBusy.value = 'models'; aiMsg.value = ''
+  try { aiModels.value = await listModels(); aiMsg.value = `✓ 拉到 ${aiModels.value.length} 个模型，可直接选用` }
+  catch (e) { aiModels.value = []; aiMsg.value = `⚠ 列表拉取失败：${aiErr(e)}（模型名可手填）` }
+  aiBusy.value = ''
+}
+async function aiTestConn() {
+  aiBusy.value = 'test'; aiMsg.value = ''
+  try { aiMsg.value = `✓ 连接成功：${await aiTestConnection()}` }
+  catch (e) { aiMsg.value = `⚠ ${aiErr(e)}` }
+  aiBusy.value = ''
+}
+function aiTogglePersona(id: string) {
+  aiPersonaSel.value = aiPersonaSel.value.includes(id) ? aiPersonaSel.value.filter(x => x !== id) : [...aiPersonaSel.value, id]
+}
+/** 分类候选词表（限选中卡涉及的台；categoryId 供模型回填，sanitizeRefs 再校验） */
+function aiCatVocab(d: AppData, cards: ResourceCard[]): string {
+  const wsIds = new Set(cards.map(c => c.workspaceId))
+  const lines: string[] = []
+  for (const c of d.categories) {
+    if (c.deletedAt || !wsIds.has(c.workspaceId)) continue
+    lines.push(`categoryId=${c.id}：${aiCatPathOf(d, c.id)}`)
+    if (lines.length >= 60) break
+  }
+  return lines.join('\n')
+}
+
+/** A1-批量：标签管理右列选中卡 → 逐卡补标签/描述/分类建议 */
+function aiTtEnrich() {
+  if (!aiGuard()) return
+  const d = gd.value
+  const { text, cards } = projectCards(d, ttPicked.value, aiConfig.value.depth)
+  if (!cards.length) { showToast('勾选里没有资源卡（批量补全只处理资源卡）'); return }
+  const catList = aiCatVocab(d, cards)
+  aiJob.value = {
+    title: `批量补全（${cards.length} 张卡）`,
+    hint: '逐卡建议：标签（优先复用词表）/ 描述（只补空描述）/ 分类迁移。勾选采纳才写入。',
+    build: () => ({ messages: [
+      { role: 'system', content: batchEnrichSystem() },
+      { role: 'user', content: text + (catList ? `\n\n【分类候选】\n${catList}` : '') },
+    ] }),
+    parse: (raw) => {
+      const items = Array.isArray((raw as { items?: unknown })?.items) ? (raw as { items: EnrichSuggestion[] }).items : []
+      const rows: AiRow[] = []
+      for (const s0 of items) {
+        const s = sanitizeRefs(s0, d)
+        if (!s.cardId) continue
+        const card = cards.find(c => c.id === s.cardId)
+        if (!card) continue
+        const addTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !(card.tags || []).includes(t))
+        const parts: string[] = []
+        if (addTags.length) parts.push(`标签 +${addTags.join('、')}`)
+        if (s.description?.trim() && !card.description) parts.push(`描述：${s.description.trim()}`)
+        if (s.categoryId && s.categoryId !== card.categoryId) parts.push(`分类 → ${aiCatPathOf(d, s.categoryId)}`)
+        if (!parts.length) continue
+        rows.push({ key: s.cardId, main: `${card.title}`.slice(0, 40) || '（无名卡）', sub: parts.join('\n') + (s.reason ? `\n· ${s.reason}` : ''), data: { ...s, addTags } })
+      }
+      return rows
+    },
+    apply: (rows) => {
+      const dd = gd.value
+      let n = 0
+      for (const r of rows) {
+        const s = r.data as EnrichSuggestion & { addTags?: string[] }
+        const card = dd.resources.find(x => x.id === s.cardId && !x.deletedAt)
+        if (!card) continue
+        if (s.addTags?.length) card.tags = [...new Set([...(card.tags || []), ...s.addTags])].slice(0, 10)
+        if (s.description?.trim() && !card.description) card.description = s.description.trim()
+        if (s.categoryId && dd.categories.some(c => c.id === s.categoryId && !c.deletedAt)) card.categoryId = s.categoryId
+        card.updatedAt = Date.now()
+        n++
+      }
+      if (n) store.persist()
+      return `✓ 已补全 ${n} 张卡`
+    },
+  }
+}
+
+/** A2：沉睡资源唤醒——revive 置顶 / archive 送回收站 / keep 不动 */
+function aiDormantScan() {
+  if (!aiGuard()) return
+  const d = gd.value
+  const days = Math.min(Math.max(aiDormantDays.value || 90, 14), 365)
+  const { text, count, scanned } = projectDormant(d, days, aiConfig.value.depth)
+  if (!count) { showToast(`没有沉睡卡：${days} 天内全库 ${scanned} 张都在活跃窗口内`); return }
+  aiJob.value = {
+    title: `沉睡资源唤醒（${count} 张候选）`,
+    hint: `判定口径：${days} 天未打开且未置顶/星标。模型对照进行中任务与战略目标逐卡给结论；「唤醒」=置顶回到视野，「归档」=送回收站（可反悔）。`,
+    build: () => ({ messages: [{ role: 'system', content: dormantSystem() }, { role: 'user', content: text }] }),
+    parse: (raw) => {
+      const items = Array.isArray((raw as { items?: unknown })?.items) ? (raw as { items: DormantVerdict[] }).items : []
+      const rows: AiRow[] = []
+      for (const v0 of items) {
+        const v = sanitizeRefs({ cardId: v0.cardId } as { cardId?: string }, d)
+        if (!v.cardId || !['revive', 'archive', 'keep'].includes(v0.verdict)) continue
+        const card = d.resources.find(r => r.id === v.cardId)!
+        rows.push({
+          key: v.cardId,
+          badge: v0.verdict === 'revive' ? '唤醒' : v0.verdict === 'archive' ? '归档' : '保留',
+          badgeType: v0.verdict === 'revive' ? 'ok' : v0.verdict === 'archive' ? 'danger' : 'neutral',
+          main: card.title,
+          sub: [v0.reason, v0.actionHint && `➜ ${v0.actionHint}`].filter(Boolean).join('\n'),
+          data: v0,
+        })
+      }
+      return rows
+    },
+    apply: (rows) => {
+      const dd = gd.value
+      let pin = 0, rec = 0
+      for (const r of rows) {
+        const v = r.data as DormantVerdict
+        const card = dd.resources.find(x => x.id === v.cardId && !x.deletedAt)
+        if (!card || v.verdict === 'keep') continue
+        if (v.verdict === 'revive') { card.pinned = true; pin++ }
+        else { card.deletedAt = Date.now(); rec++ }
+      }
+      if (pin || rec) store.persist()
+      return `✓ 唤醒置顶 ${pin} 张 · 归档 ${rec} 张（回收站可反悔）`
+    },
+  }
+}
+
+/** 深度诊断 v0：所选专家逐一会诊（自定义 run 接管多轮调用与进度回显）；产出不自动写库 */
+function aiDiagnose() {
+  if (!aiGuard()) return
+  const d = gd.value
+  const ov = personaOverrides()
+  const sel = BUILTIN_PERSONAS.filter(p => aiPersonaSel.value.includes(p.id) && ov[p.id]?.enabled !== false)
+  if (!sel.length) { showToast('至少勾选一位专家'); return }
+  const digest = projectLibrary(d, aiConfig.value.depth)
+  aiJob.value = {
+    title: `深度诊断 · ${sel.length} 位专家会诊`,
+    hint: `整库摘要投料 ${digest.length} 字（${aiConfig.value.depth === 'eco' ? '经济' : aiConfig.value.depth === 'deep' ? '深度' : '标准'}档）。发现仅供决策参考，v0 不自动落库——按建议手动执行。`,
+    adoptable: false,
+    build: () => ({ messages: [{ role: 'user', content: digest }] }),
+    parse: () => [],
+    apply: () => '',
+    async run({ signal, onDelta }) {
+      let progress = ''
+      const rows: AiRow[] = []
+      for (const p of sel) {
+        if (signal.aborted) break
+        progress += `⏳ ${p.icon} ${p.name} 分析中…\n`
+        onDelta(progress)
+        const text = await chatStream({
+          messages: [{ role: 'system', content: diagnosisSystem(p, ov[p.id]?.style || '') }, { role: 'user', content: digest }],
+          signal,
+          onDelta: t => onDelta(progress + t.slice(-400)),
+        })
+        const parsed = extractJson<{ findings?: { severity: string; title: string; detail?: string; suggestion?: string }[] }>(text)
+        const found = Array.isArray(parsed?.findings) ? parsed.findings : []
+        found.forEach((f, i) => rows.push({
+          key: `${p.id}:${i}`,
+          badge: `${p.icon}${f.severity === 'high' ? '高' : f.severity === 'mid' ? '中' : '低'}`,
+          badgeType: f.severity === 'high' ? 'danger' : f.severity === 'mid' ? 'warn' : 'neutral',
+          main: f.title,
+          sub: [f.detail, f.suggestion && `➜ ${f.suggestion}`].filter(Boolean).join('\n'),
+          data: f,
+        }))
+        progress = progress.replace(`⏳ ${p.icon} ${p.name} 分析中…\n`, `✅ ${p.icon} ${p.name}：${found.length} 条发现\n`)
+        onDelta(progress)
+      }
+      if (!rows.length) throw new Error('各位专家都没有给出可成立的发现（数据太稀疏或模型过于保守，可换深度档重试）')
+      return rows
+    },
+  }
+}
 function onTtRowDblClick(row: TtRow) { ttDetail.value = row }
 function onTtRowDragStart(e: DragEvent, row: TtRow) { ttCardDragIds = ttPicked.value.has(row.id) ? [...ttPicked.value] : [row.id]; if (!ttPicked.value.has(row.id)) ttTogglePick(row.id); ttCardDragging.value = true; e.dataTransfer?.setData('text/plain', ttCardDragIds.join(',')) }
 function onTtRowDragEnd() { ttCardDragIds = null; ttCardDragging.value = false; ttDropTarget.value = '' }
@@ -3047,4 +3301,22 @@ const activeManualSec = ref('quick-1')
 .tt-picked { font-size: 11px; color: var(--accent); white-space: nowrap; }
 .tt-list { display: flex; flex-direction: column; gap: 6px; max-height: 560px; overflow-y: auto; }
 @media (max-width: 1100px) { .tt-wrap { grid-template-columns: 1fr; } }
+
+/* ===== R134-F · AI 助手页 ===== */
+.ai-form { display: flex; flex-direction: column; gap: 10px; }
+.ai-field { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--text-3); }
+.ai-field.inline { flex-direction: row; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); }
+.ai-field .gs-input { width: 100%; }
+.ai-form-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ai-days { width: 72px; }
+.ai-depth { width: auto; }
+.ai-msg { font-size: 11.5px; color: var(--success); max-width: 100%; word-break: break-all; }
+.ai-msg.err { color: var(--danger); }
+.ai-textarea { width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-size: 12.5px; font-family: inherit; line-height: 1.7; resize: vertical; }
+.ai-textarea:focus { outline: none; border-color: var(--accent); }
+.ai-persona-row { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; }
+.ai-persona { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text); cursor: pointer; white-space: nowrap; }
+.ai-persona-brief { font-size: 11.5px; color: var(--text-3); line-height: 1.6; }
+.gs-btn.ai-batch-btn { margin-left: 10px; padding: 3px 10px; font-size: 11.5px; }
+.gs-btn.ai-batch-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 </style>

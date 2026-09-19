@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.101.0'";
+const VER_ANCHOR_LITERAL = "version: '2.102.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -3223,7 +3223,8 @@ check('R113-2 ★ 孤儿组件全量护栏：src 下所有 .vue 模板中出现�
     const tags = new Set([...tpl.matchAll(/<([A-Z][A-Za-z0-9]*)[\s/>]/g)].map(m => m[1]));
     for (const tag of tags) {
       if (VUE_BUILTIN_TAGS.has(tag)) continue;
-      if (!new RegExp('import\\s+[^;]*\\b' + tag + '\\b[^;]*from').test(src)) bad.push(path.relative(base, f) + ' → ' + tag);
+      // R134 扩展：defineAsyncComponent 常量注册与 import 同罪同罚（懒加载组件不是孤儿）
+      if (!new RegExp('import\\s+[^;]*\\b' + tag + '\\b[^;]*from').test(src) && !new RegExp('const\\s+' + tag + '\\s*=\\s*defineAsyncComponent').test(src)) bad.push(path.relative(base, f) + ' → ' + tag);
     }
   }
   if (bad.length) console.log('      孤儿组件：' + bad.join(' | '));
@@ -3608,6 +3609,20 @@ check('R133-6 E3 选区色 + 禁用档：::selection 走 accent 18% color-mix；
 check('R133-7 E4 运动令牌定义：--dur-fast 120ms / --dur 150ms（主档=原 .15s 众数）/ --dur-slow 250ms + 统一减速曲线 --ease-out-soft', () => { const t = read('/shared/styles/tokens.css'); return t.includes('--dur-fast: 120ms;') && t.includes('--dur: 150ms;') && t.includes('--dur-slow: 250ms;') && t.includes('--ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);'); });
 check('R133-8 ★E4 字面时长退役：vue/css 全站 .12s/.15s/.25s 清零（219 处收敛至令牌；src/content 浮层为 .ts 注入样式自带 --zy 体系，天然豁免）', () => STYLE_ALL.every(s => !/(?<![\d.])\.(12|15|25)s\b/.test(s)));
 check('R133-9 E4 卡片入场递进：.card-grid > .res-card fadeIn var(--dur-slow)+--ease-out-soft、逐行 20ms 错峰第 8 行封顶；fill=backwards 防终帧钉死 hover 上浮（.res-card.flash 规则在后仍占优）', () => { const c = read('/newtab/views/workspace.css'); return c.includes('.card-grid > .res-card { animation: fadeIn var(--dur-slow) var(--ease-out-soft) backwards; }') && c.includes('.card-grid > .res-card:nth-child(2) { animation-delay: 20ms; }') && c.includes('.card-grid > .res-card:nth-child(n+9) { animation-delay: 140ms; }'); });
+
+// ============== R134 · V2.102.0：批次 F AI 接入（地基三件套 + 批量/单卡补全 + 沉睡唤醒 + 诊断 v0） ==============
+console.log('【R134 · V2.102.0：批次 F AI 接入】');
+check('R134-1 ★安全边界：AI 配置存独立键（不挂 AppData）——密钥/地址天然脱离整库导出、导入合并、自动备份与 __wid 同步环', () => { const c = read('/shared/ai/config.ts'); const r = read('/shared/storage/repository.ts'); return c.includes("export const AI_STORAGE_KEY = 'zy_ai_v1'") && !r.includes('zy_ai') && c.includes('chrome.storage.local.set'); });
+check('R134-2 ★性能纪律：启动链零 AI——main/App/background 不引 shared/ai；★RDD 被 App.vue 静态挂载，其 AI 依赖必须 defineAsyncComponent + 点击时 dynamic import（首版静态 import 把 248KB AI 栈卷进入口 chunk 的教训锁死）', () => { const m = read('/newtab/main.ts'); const a = read('/newtab/App.vue'); const b = read('/background/index.ts'); const r = read('/newtab/components/ResourceDetailDrawer.vue'); return !m.includes('/ai/') && !a.includes('/ai/') && !b.includes('/ai/') && !r.includes("import AiSuggestionDrawer") && r.includes("defineAsyncComponent(() => import('./AiSuggestionDrawer.vue'))") && r.includes("import('@/shared/ai/config')"); });
+check('R134-3 建议不落库：评审抽屉自身无 store/写盘调用——建议行只活内存态（shallowRef + data 载荷），采纳由宿主 apply 闭包执行；中止/关即弃', () => { const d = read('/newtab/components/AiSuggestionDrawer.vue'); return !d.includes('store.persist') && !d.includes('useAppStore') && d.includes('rows = shallowRef<AiRow[]>') && d.includes('job.apply(sel)'); });
+check('R134-4 LLM 客户端契约：OpenAI 兼容 fetch（host_permissions 已备）+ SSE 流式解析 + baseUrl 归一容错 + 401/404 人话映射 + 围栏 JSON 三态提取', () => { const l = read('/shared/ai/llm.ts'); return l.includes("b.replace(/\\/chat\\/completions$/i, '')") && l.includes("[DONE]") && l.includes('API Key 无效或过期') && l.includes('地址或模型名不存在') && l.includes('```(?:json)?') && l.includes('/models') && l.includes("response_format: { type: 'json_object' }"); });
+check('R134-5 投影器纪律：eco/std/deep 三档上限表 + 沉睡判定豁免置顶/星标 + 附件本体永不进投影（函数面不触 assets）', () => { const p = read('/shared/ai/project.ts'); return p.includes("eco:  { cards: 30") && p.includes("deep: { cards: 150") && p.includes('!r.pinned && !r.starred') && !p.includes('getAsset') && !p.includes('zy_assets'); });
+check('R134-6 防幻觉引用：模型回填的 cardId/categoryId 必须经 sanitizeRefs 对真实库校验，宿主 apply 再二次校验分类存在', () => { const s = read('/shared/ai/scenarios.ts'); const g = read('/newtab/views/GlobalSettings.vue'); return s.includes('!d.resources.some(r => r.id === next.cardId') && s.includes('!d.categories.some(c => c.id === next.categoryId') && g.includes('dd.categories.some(c => c.id === s.categoryId && !c.deletedAt)'); });
+check('R134-7 三个消费入口落位：设置页导航 AI 助手 + 标签管理批量补全按钮 + 详情抽屉补全钮；采纳语义=标签并入/描述仅补空/分类迁移，唤醒=置顶、归档=软删（回收站可反悔）', () => { const g = read('/newtab/views/GlobalSettings.vue'); const r = read('/newtab/components/ResourceDetailDrawer.vue'); return g.includes("key: 'ai', icon: '🤖', label: 'AI 助手'") && g.includes('aiTtEnrich') && g.includes('card.tags = [...new Set(') && g.includes('if (s.description?.trim() && !card.description)') && g.includes('card.pinned = true') && g.includes('card.deletedAt = Date.now()') && r.includes('aiEnrich') && r.includes('✓ 建议已回填表单，核对后点「保存」'); });
+check('R134-8 深度诊断 v0：内置两专家（目标管理+知识管理）+ job.run 接管多轮调用（逐员进度回显）+ adoptable=false 不自动写库', () => { const s = read('/shared/ai/scenarios.ts'); const g = read('/newtab/views/GlobalSettings.vue'); return s.includes("id: 'goal-expert'") && s.includes("id: 'knowledge-expert'") && g.includes('adoptable: false') && g.includes('async run({ signal, onDelta })') && g.includes('diagnosisSystem(p, ov[p.id]?.style'); });
+check('R134-9 「关于我」全局画像：withAboutMe 注入所有场景系统提示词（enrich/batch/dormant/diagnosis 四系全走）', () => { const s = read('/shared/ai/scenarios.ts'); return s.includes('【用户画像（长期偏好，建议须贴合）】') && (s.match(/withAboutMe\(/g) || []).length >= 5; });
+check('R134-10 注入面防护：抽屉渲染零 v-html（模型回显纯文本插值，提示词注入不可达 DOM）', () => { const d = read('/newtab/components/AiSuggestionDrawer.vue'); return !d.includes('v-html'); });
+check('R134-11 接入表单完备：baseUrl/Key(password)/模型(datalist 可手输) + 拉取列表 + 测试连接 + 深度档 select + aboutMe textarea；watch(activePage) 进页才 loadAiConfig', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes("type=\"password\"") && g.includes('list="ai-model-list"') && g.includes('aiFetchModels') && g.includes('aiTestConn') && g.includes("<select class=\"gs-input ai-depth\"") && g.includes("watch(activePage, (p) => { if (p === 'ai') void loadAiConfig() })"); });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);
