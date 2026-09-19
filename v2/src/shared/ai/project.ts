@@ -263,6 +263,52 @@ export function projectThesis(d: AppData, depth: AiDepth): string {
   return blocks.join('\n\n') || ''
 }
 
+/**
+ * R138-F2′：一周台账投影——本周完成/新增任务、本周打开过的卡、活跃目标进度、WRR 口径数字。
+ * 只取近 7 天窗口，行数走深度档。
+ */
+export function projectWeekDigest(d: AppData, depth: AiDepth): string {
+  const c = CAP[depth]
+  const weekAgo = Date.now() - 7 * 86400000
+  const done = (d.tasks || []).filter(t => !t.deletedAt && t.status === 'done' && (t.completedAt || t.updatedAt) >= weekAgo).slice(0, c.list)
+  const added = (d.tasks || []).filter(t => !t.deletedAt && t.createdAt >= weekAgo && t.status !== 'done').slice(0, c.list)
+  const opened = (d.resources || []).filter(r => !r.deletedAt && (r.lastCalledAt || 0) >= weekAgo).sort((a, b) => (b.callCount || 0) - (a.callCount || 0)).slice(0, c.titles)
+  const stalled = (d.tasks || []).filter(t => !t.deletedAt && t.status === 'doing' && t.updatedAt < weekAgo).slice(0, c.list)
+  const dirs = (d.compass.directions || []).filter(x => x.status === 'active').map(x => {
+    const projs = x.projects.map(p => {
+      const ms = p.metrics.map(m => {
+        const ts = m.taskIds.map(id => (d.tasks || []).find(t => t.id === id)).filter(Boolean) as { status: string }[]
+        return `${ts.filter(t => t.status === 'done').length}/${ts.length}`
+      })
+      return `「${cut(p.name, 24)}」${p.progress || 0}% 指标[${ms.join(',')}]`
+    })
+    return `- ${x.name}（${x.term || '未分期'}）：${projs.join('；') || '无项目'}`
+  })
+  const L: string[] = [
+    `【本周（近 7 天）完成的任务】\n${done.map(t => `- ${cut(t.title, 40)}`).join('\n') || '（无）'}`,
+    `【本周新增且在推进的任务】\n${added.map(t => `- ${cut(t.title, 40)}（${t.status === 'doing' ? '进行中' : '待开始'}${t.dueDate ? '，限 ' + t.dueDate : ''}）`).join('\n') || '（无）'}`,
+    stalled.length ? `【停滞中的任务（超 7 天未更新）】\n${stalled.map(t => `- ${cut(t.title, 40)}`).join('\n')}` : '',
+    `【本周打开过的资源卡】\n${opened.map(r => `- ${cut(r.title, 40)}（累计 ${r.callCount || 0} 次）`).join('\n') || '（无）'}`,
+    `【活跃目标现状】\n${dirs.join('\n') || '（无活跃目标）'}`,
+  ]
+  return L.filter(Boolean).join('\n\n')
+}
+
+/** R138-C1′：任务一句话录入的项目/指标候选清单（id 供模型回填，sanitize 在宿主 apply） */
+export function projectTaskTargets(d: AppData, depth: AiDepth): string {
+  const c = CAP[depth]
+  const lines: string[] = []
+  for (const dir of d.compass.directions || []) {
+    if (dir.status === 'archived') continue
+    for (const p of dir.projects) {
+      if (p.status === 'archived' || lines.length >= c.list) continue
+      lines.push(`- projectId=${p.id} 「${cut(p.name, 30)}」（目标:${dir.name}）`)
+      for (const m of p.metrics.slice(0, 4)) lines.push(`  - metricId=${m.id} ${cut(m.title, 30)}`)
+    }
+  }
+  return lines.join('\n') || '（暂无项目）'
+}
+
 /** 整库摘要（深度诊断投料）：罗盘六层链 + 各台计数与代表卡 + 全局数字体检料 */
 export function projectLibrary(d: AppData, depth: AiDepth): string {
   const c = CAP[depth]

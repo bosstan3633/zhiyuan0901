@@ -47,9 +47,9 @@ async function run(job: AiJob) {
     } else {
       const { messages, jsonMode } = await job.build()
       inputChars.value = messages.reduce((n, m) => n + m.content.length, 0)
-      const text = await chatStream({ messages, jsonMode: jsonMode !== false, signal: ctrl.signal, onDelta })
+      const text = await chatStream({ messages, jsonMode: job.rawText ? false : jsonMode !== false, signal: ctrl.signal, onDelta })
       if (!text.trim()) throw new Error('模型返回为空（可能超时或余额不足）')
-      out = job.parse(extractJson(text))
+      out = job.parse(job.rawText ? text : extractJson(text))
     }
     if (seq !== jobSeq) return
     rows.value = out

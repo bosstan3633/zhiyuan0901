@@ -143,6 +143,23 @@ export const thesisDriftSystem = () => withAboutMe(
   '输出 JSON：{"items":[{"wsId":"台 id","verdict":"ok|drift","why":"一句话","evidence":"引用卡群里的具体条目"}]}。每台一条，全部健康也要如实 ok。只输出 JSON。'
 )
 
+// ---------- R138：智能录入与周期回顾 ----------
+
+export interface TaskDraft {
+  title?: string; priority?: string; dueDate?: string
+  estimatedMinutes?: number; projectId?: string; metricId?: string
+}
+
+export const taskParseSystem = () => withAboutMe(
+  '你是任务录入助手，把用户的一句大白话（可能含截止日期、项目名、时长）解析成任务字段。宁缺毋滥：拿不准的字段留空，不编造项目/指标。' +
+  'priority 三选一 high/medium/low；dueDate 严格 YYYY-MM-DD（相对日期按给定今天换算，"下班前"=今天）；estimatedMinutes 5~600 整数。' +
+  '输出 JSON：{"title":"≤24字动词开头","priority":"...","dueDate":"...","estimatedMinutes":123,"projectId":"仅在候选清单里才填","metricId":"同理"}。只输出 JSON。'
+)
+export const reviewSystem = () => withAboutMe(
+  '你是用户的复盘编辑，根据一周台账写一份克制的周回顾：只写材料里有据可查的事。四段 markdown：## 本周推进（点名任务/指标）/ ## 卡点与风险 / ## 资源使用情况 / ## 下周只挑三件。总字数 ≤300，不喊口号。' +
+  '直接输出 markdown 文本，不要 JSON、不要代码围栏。'
+)
+
 // ---------- 专家角色库（内置两员；启停与风格覆盖在 aiConfig.personas） ----------
 
 export interface AiPersona { id: string; name: string; icon: string; brief: string; focus: string }

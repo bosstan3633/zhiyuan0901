@@ -534,6 +534,7 @@
             <button class="gs-btn" :disabled="!aiReady" @click="aiCrossDeck">🔁 跨台镜像发现</button>
             <button class="gs-btn" :disabled="!aiReady" @click="aiThesisDrift">🏛 主题漂移检测</button>
             <button class="gs-btn" :disabled="!aiReady" @click="aiTrashRescue">🗑 回收站捞回</button>
+            <button class="gs-btn" :disabled="!aiReady" title="近 7 天台账 → 周回顾草稿；采纳=存为一张周回顾卡" @click="aiWeeklyReview">🗓 本周回顾</button>
           </div>
         </div>
 
@@ -1033,6 +1034,7 @@ import { listModels, testConnection as aiTestConnection, chatStream, extractJson
 import { projectCards, projectDormant, projectLibrary, catPathOf as aiCatPathOf } from '@/shared/ai/project'
 import { batchEnrichSystem, dormantSystem, diagnosisSystem, allPersonas, personaOverrides, sanitizeRefs, type EnrichSuggestion, type DormantVerdict } from '@/shared/ai/scenarios'
 import { buildTagGovernJob, buildTrashRescueJob, buildCrossDeckJob, buildThesisJob } from '@/shared/ai/govern'
+import { buildReviewJob } from '@/shared/ai/select'
 
 const router = useRouter()
 const route = useRoute()
@@ -1971,19 +1973,24 @@ function handleBookmarkImport(e: Event) {
         cat = { id: uid('cat'), workspaceId: ws!.id, name: '待分类', order: d.categories.filter(c => c.workspaceId === ws!.id).length }
         d.categories.push(cat)
       }
+      const importedIds: string[] = []
       for (const b of items) {
         const tags = Array.from(new Set(b.path.filter(p => p && p !== '书签栏')))
         let linkType: ResourceCard['linkType'] = 'url'
         if (b.url.startsWith('file:')) linkType = 'file'
         else if (b.url.startsWith('obsidian:')) linkType = 'obsidian'
+        const rid = uid('rc')
+        importedIds.push(rid)
         d.resources.unshift({
-          id: uid('rc'), kind: 'resource', title: b.title.substring(0, 120), linkType, link: b.url,
+          id: rid, kind: 'resource', title: b.title.substring(0, 120), linkType, link: b.url,
           workspaceId: ws!.id, categoryId: cat.id, description: '', tags,
           customFields: {}, pinned: false, callCount: 0, createdAt: Date.now(), updatedAt: Date.now()
         })
       }
       store.persist()
       showToast('✓ 已导入 ' + items.length + ' 个书签到「' + ws.name + '」（文件夹已作为标签）')
+      // R138-H3：AI 已接入时导入完成即拉起批量归类评审（书签夹路径只是裸标签，交给体检式补全）
+      if (aiReady.value) aiEnrichIds(new Set(importedIds))
     } catch { showToast('✗ 书签文件解析失败') }
   }
   reader.readAsText(file)
@@ -2605,6 +2612,8 @@ async function aiTagGovern() { await loadAiConfig(); aiOpenJob(buildTagGovernJob
 function aiCrossDeck() { aiOpenJob(buildCrossDeckJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '资源台还没有卡，无法做跨台镜像发现') }
 function aiThesisDrift() { aiOpenJob(buildThesisJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '还没有带主题卡的策展台') }
 function aiTrashRescue() { aiOpenJob(buildTrashRescueJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '回收站是空的') }
+/** R138-F2′：本周回顾草稿（采纳=存为一张周回顾资源卡） */
+function aiWeeklyReview() { aiOpenJob(buildReviewJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '近 7 天没有台账数据（任务/打开记录都是空的）') }
 
 function aiErr(e: unknown): string { return (e as Error)?.message || String(e) }
 function aiGuard(): boolean {
@@ -2639,10 +2648,12 @@ function aiCatVocab(d: AppData, cards: ResourceCard[]): string {
 }
 
 /** A1-批量：标签管理右列选中卡 → 逐卡补标签/描述/分类建议 */
-function aiTtEnrich() {
+function aiTtEnrich() { aiEnrichIds(ttPicked.value) }
+/** R138-H3：泛型化——任意 id 集走批量补全评审（书签导入完成后复用同一条 job） */
+function aiEnrichIds(ids: Set<string>) {
   if (!aiGuard()) return
   const d = gd.value
-  const { text, cards } = projectCards(d, ttPicked.value, aiConfig.value.depth)
+  const { text, cards } = projectCards(d, ids, aiConfig.value.depth)
   if (!cards.length) { showToast('勾选里没有资源卡（批量补全只处理资源卡）'); return }
   const catList = aiCatVocab(d, cards)
   aiJob.value = {

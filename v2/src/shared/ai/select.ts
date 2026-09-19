@@ -3,12 +3,16 @@
  * 消费面纪律同 R134/R135：宿主点击时才 dynamic import 本文件；
  * 推荐采纳=挂载到任务 mountedResourceIds（既有通道）；重排=只读呈现，零写库。
  */
-import type { AppData, TaskCard } from '@/shared/models'
+import type { AppData, ResourceCard, TaskCard } from '@/shared/models'
+import { uid } from '@/shared/utils'
 import type { AiJob, AiRow } from './job'
 import type { AiDepth } from './config'
 import { chat, extractJson } from './llm'
-import { projectChain, cardDirectory } from './project'
-import { recommendSystem, rerankSystem, sanitizeRefs, type RecommendSuggestion, type RerankHit } from './scenarios'
+import { projectChain, cardDirectory, projectTaskTargets, projectWeekDigest } from './project'
+import {
+  recommendSystem, rerankSystem, sanitizeRefs, taskParseSystem, reviewSystem,
+  type RecommendSuggestion, type RerankHit, type TaskDraft,
+} from './scenarios'
 
 export interface SelectCtx { d: AppData; depth: AiDepth; persist: () => void }
 
@@ -74,5 +78,119 @@ export async function rerankSearch(query: string, items: RerankInput[]): Promise
       .map(h => ({ id: String(h?.id ?? ''), why: h?.why ? String(h.why).slice(0, 40) : undefined }))
       .filter(h => valid.has(h.id)).slice(0, 6),
     note: String(parsed?.note || '').slice(0, 40),
+  }
+}
+
+// ---------- R138：一句话智能录入 + 周期回顾 ----------
+
+/** H1′：采集保存后的单卡补全（与 RDD 单卡补全同契约；apply 直接落库——标签并入/描述只补空/分类迁移） */
+export function buildCardEnrichJob(card: ResourceCard, ctx: SelectCtx): AiJob {
+  return {
+    title: `AI 补全 · ${card.title.slice(0, 18)}`,
+    hint: '刚保存的卡顺手补元数据：勾选采纳才写库（标签并入、描述只补空、分类必是候选）。',
+    build: async () => {
+      const { projectCard, catPathOf } = await import('./project')
+      const { enrichSystem } = await import('./scenarios')
+      const cats = ctx.d.categories.filter(c => !c.deletedAt && c.workspaceId === card.workspaceId)
+      const catList = cats.slice(0, 60).map(c => `categoryId=${c.id}：${catPathOf(ctx.d, c.id)}`).join('\n')
+      return { messages: [
+        { role: 'system', content: enrichSystem(cats.length > 0) },
+        { role: 'user', content: projectCard(ctx.d, card, ctx.depth) + (catList ? `\n\n【分类候选】\n${catList}` : '') },
+      ] }
+    },
+    parse: (raw) => {
+      const s = sanitizeRefs((raw || {}) as TaskDraft & { tags?: string[]; description?: string; categoryId?: string }, ctx.d) as { tags?: string[]; description?: string; categoryId?: string }
+      const rows: AiRow[] = []
+      const newTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !(card.tags || []).includes(t))
+      if (newTags.length) rows.push({ key: 'tags', badge: '标签', main: newTags.join('、'), data: { tags: newTags } })
+      if (s.description?.trim() && !card.description) rows.push({ key: 'desc', badge: '描述', main: s.description.trim().slice(0, 120), data: { description: s.description.trim() } })
+      if (s.categoryId && s.categoryId !== card.categoryId) rows.push({ key: 'cat', badge: '分类', main: s.categoryId, data: { categoryId: s.categoryId } })
+      return rows
+    },
+    apply: (rows) => {
+      const live = ctx.d.resources.find(r => r.id === card.id && !r.deletedAt)
+      if (!live) return '⚠ 卡片已不存在，未写入'
+      let n = 0
+      for (const r of rows) {
+        const s = r.data as { tags?: string[]; description?: string; categoryId?: string }
+        if (s.tags) live.tags = [...new Set([...(live.tags || []), ...s.tags])].slice(0, 10)
+        if (s.description && !live.description) live.description = s.description
+        if (s.categoryId && ctx.d.categories.some(c => c.id === s.categoryId && !c.deletedAt)) live.categoryId = s.categoryId
+        n++
+      }
+      if (n) { live.updatedAt = Date.now(); ctx.persist() }
+      return `✓ 已补全「${card.title.slice(0, 12)}」`
+    },
+  }
+}
+
+/** C1′：一句大白话 → 任务字段草稿（apply 由宿主回填自己的表单态，不落库） */
+export function buildTaskParseJob(text: string, ctx: SelectCtx, onApply: (draft: TaskDraft) => string): AiJob | null {
+  const t = text.trim()
+  if (!t) return null
+  return {
+    title: 'AI 录入 · 任务字段草稿',
+    hint: '核对下面的字段建议，采纳即回填表单（不会直接建卡）；确认后照常「创建」。',
+    build: () => ({ messages: [
+      { role: 'system', content: taskParseSystem() },
+      { role: 'user', content: `今天 ${new Date().toLocaleDateString('en-CA')}。\n【用户原话】${t.slice(0, 200)}\n\n【项目/指标候选（id 只能取自这里）】\n${projectTaskTargets(ctx.d, ctx.depth)}` },
+    ] }),
+    parse: (raw) => {
+      const s = raw as TaskDraft
+      const rows: AiRow[] = []
+      const title = String(s.title || '').trim().slice(0, 40)
+      if (title) rows.push({ key: 'title', badge: '标题', main: title })
+      const facts: string[] = []
+      if (s.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(String(s.dueDate))) facts.push('截止 ' + s.dueDate)
+      const pr = String(s.priority || '')
+      if (pr === 'high' || pr === 'medium' || pr === 'low') facts.push({ high: '高优', medium: '中优', low: '低优' }[pr])
+      const em = Number(s.estimatedMinutes)
+      if (Number.isFinite(em) && em >= 5 && em <= 600) facts.push(`约${Math.round(em)}分钟`)
+      if (facts.length) rows.push({ key: 'fields', badge: '字段', main: facts.join(' · ') })
+      const proj = ctx.d.compass.directions.flatMap(x => x.projects).find(p => p.id === s.projectId)
+      if (proj) rows.push({ key: 'proj', badge: '归属', main: `项目「${proj.name}」` })
+      const met = s.metricId ? ctx.d.compass.directions.flatMap(x => x.projects).flatMap(p => p.metrics).find(m => m.id === s.metricId) : undefined
+      if (met) rows.push({ key: 'met', badge: '归属', main: `指标「${met.title}」` })
+      const draft: TaskDraft = {
+        title: title || undefined,
+        dueDate: facts.some(f => f.startsWith('截止')) ? s.dueDate : undefined,
+        priority: pr || undefined,
+        estimatedMinutes: facts.some(f => f.startsWith('约')) ? Math.round(em) : undefined,
+        projectId: proj?.id, metricId: met?.id,
+      }
+      for (const r of rows) r.data = draft
+      return rows
+    },
+    apply: (rows) => onApply((rows[0]?.data || {}) as TaskDraft),
+  }
+}
+
+/** F2′：周回顾草稿（apply=存为一张资源卡入 hub，未分类，用户可再归档） */
+export function buildReviewJob(ctx: SelectCtx): AiJob | null {
+  const digest = projectWeekDigest(ctx.d, ctx.depth)
+  if (!digest.includes('- ')) return null
+  return {
+    title: '🗓 本周回顾草稿',
+    hint: '只基于近 7 天台账成文；采纳=存为一张「每周回顾」资源卡（描述即正文），不改动任何现有数据。',
+    rawText: true,
+    build: () => ({ messages: [{ role: 'system', content: reviewSystem() }, { role: 'user', content: digest }], jsonMode: false }),
+    parse: (raw) => {
+      const text = String(raw || '').trim()
+      if (!text) return []
+      return [{ key: 'review', badge: '周记', main: `每周回顾 ${new Date().toLocaleDateString('zh-CN')}`, sub: text.slice(0, 400), data: { text } }]
+    },
+    apply: (rows) => {
+      const text = String((rows[0]?.data as { text?: string })?.text || '')
+      if (!text) return '无可存内容'
+      const hub = ctx.d.workspaces.find(w => w.kind === 'resource') || ctx.d.workspaces[0]
+      ctx.d.resources.unshift({
+        id: uid('res'), kind: 'resource', title: `🗓 每周回顾 ${new Date().toLocaleDateString('zh-CN')}`,
+        linkType: 'url', link: '', workspaceId: hub.id, categoryId: '',
+        description: text.slice(0, 1200), tags: ['周回顾'], pinned: false, callCount: 0,
+        createdAt: Date.now(), updatedAt: Date.now(), customFields: {},
+      } as ResourceCard)
+      ctx.persist()
+      return '✓ 周回顾已存为资源卡（资源台未分类区）'
+    },
   }
 }

@@ -19,6 +19,8 @@ export interface AiJob {
   title: string
   hint?: string
   build: () => { messages: ChatMsg[]; jsonMode?: boolean } | Promise<{ messages: ChatMsg[]; jsonMode?: boolean }>
+  /** true = 模型回叙事文本（周报等），跳过 JSON 提取、parse 收原文 string（R138） */
+  rawText?: boolean
   parse: (raw: unknown) => AiRow[]
   run?: (ctx: { signal: AbortSignal; onDelta: (accum: string) => void }) => Promise<AiRow[]>
   apply: (rows: AiRow[]) => Promise<string> | string

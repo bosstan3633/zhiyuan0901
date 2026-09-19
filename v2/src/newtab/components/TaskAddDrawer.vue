@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, shallowRef } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
 import Drawer from '@/shared/components/Drawer.vue'
 import { showToast } from '@/shared/components/toast'
 import type { TaskCard, Metric } from '@/shared/models'
+// R138-C1′：一句话智能录入（宿主全懒路由，可直连 AI 栈）
+import AiSuggestionDrawer from './AiSuggestionDrawer.vue'
+import type { AiJob } from '@/shared/ai/job'
+import { aiConfig, loadAiConfig, aiReady } from '@/shared/ai/config'
+import { buildTaskParseJob, type SelectCtx } from '@/shared/ai/select'
+import type { TaskDraft } from '@/shared/ai/scenarios'
 
 /** 第卅三轮 REQ-016：成功指标添加任务双模式（新建 / 关联）
  *  ① 新建：右侧创建抽屉 + Ctrl+Enter 保存（自动写入 metricId + metric.taskIds）
@@ -34,6 +40,25 @@ const prioList = [
   { v: 'low' as const, l: '🟢 低优' }
 ]
 
+// R138-C1′：一句话智能录入——AI 只回填表单态（含草稿扩展字段 due/时长/归属），建卡仍由用户确认
+const aiSay = ref('')
+const aiDraft = ref<Partial<TaskDraft>>({})
+const aiJob = shallowRef<AiJob | null>(null)
+async function aiParse() {
+  if (!aiSay.value.trim()) return
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  const ctx: SelectCtx = { d: d.value, depth: aiConfig.value.depth, persist: () => store.persist() }
+  const job = buildTaskParseJob(aiSay.value, ctx, (draft) => {
+    if (draft.title) newTitle.value = draft.title
+    if (draft.priority === 'high' || draft.priority === 'medium' || draft.priority === 'low') newPriority.value = draft.priority
+    aiDraft.value = { dueDate: draft.dueDate, estimatedMinutes: draft.estimatedMinutes, projectId: draft.projectId, metricId: draft.metricId }
+    const extra = [draft.dueDate && `截止 ${draft.dueDate}`, draft.estimatedMinutes && `约${draft.estimatedMinutes}分钟`].filter(Boolean).join(' · ')
+    return '✓ 已回填表单' + (extra ? `（${extra}）` : '') + '，核对后点「创建」'
+  })
+  if (job) aiJob.value = job
+}
+
 // ---- 关联模式 ----
 const linkQ = ref('')
 // R113-N6：按项目筛选（与调度台「从任务库选取」保持同款形态）
@@ -45,16 +70,18 @@ function reset() {
   tab.value = 'create'
   newTitle.value = ''
   newPriority.value = 'medium'
+  aiSay.value = ''; aiDraft.value = {}
   linkQ.value = ''
   linkProject.value = '' // R113-N6：打开时复位为「全部项目」
   selected.value = new Set()
 }
 watch(() => props.open, (v) => { if (v) reset() })
 
-function findMetric(): Metric | undefined {
+function findMetric(id?: string): Metric | undefined {
+  if (!id) return undefined
   for (const dir of d.value.compass.directions) {
     for (const proj of dir.projects) {
-      const m = proj.metrics.find(x => x.id === props.metricId)
+      const m = proj.metrics.find(x => x.id === id)
       if (m) return m
     }
   }
@@ -72,12 +99,14 @@ function createTask() {
   try {
     const task: TaskCard = {
       id: uid('tk'), kind: 'task', title, status: 'todo', priority: newPriority.value,
-      projectId: props.projectId, metricId: props.metricId,
+      // R138-C1′：AI 草稿扩展字段——dueDate/时长直接落卡；归属仅当抽屉未锁定时采纳（props 锁定时不动）
+      projectId: props.projectId || aiDraft.value.projectId, metricId: props.metricId || aiDraft.value.metricId,
+      dueDate: aiDraft.value.dueDate, estimatedMinutes: aiDraft.value.estimatedMinutes,
       mountedResourceIds: [], mountedCuriosityIds: [], customFields: {},
       createdAt: Date.now(), updatedAt: Date.now()
     }
     d.value.tasks.unshift(task)
-    const m = findMetric()
+    const m = findMetric(task.metricId)
     if (m && !m.taskIds.includes(task.id)) m.taskIds.push(task.id)
     store.persist()
     showToast('✓ 任务已创建并计入指标进度')
@@ -200,6 +229,13 @@ function linkTasks() {
 
     <!-- 新建模式 -->
     <div v-if="tab === 'create'" class="tad-body">
+      <!-- R138-C1′：一句话智能录入（AI 回填草稿 → 用户核对创建） -->
+      <label class="tad-label">🪄 一句话录入（可选）</label>
+      <div class="tad-ai-row">
+        <input v-model="aiSay" class="tad-input" placeholder="例：下周三前做完论文图表，挂毕业项目，大约两小时" @keydown.enter.prevent="aiParse" />
+        <button class="tad-btn" :disabled="!aiSay.trim()" @click="aiParse">✨ AI 填表</button>
+      </div>
+
       <label class="tad-label">任务标题</label>
       <input v-model="newTitle" class="tad-input" placeholder="输入任务标题，Ctrl+Enter 保存"
         @keydown.ctrl.enter.prevent="createTask" @keydown.meta.enter.prevent="createTask" />
@@ -245,7 +281,8 @@ function linkTasks() {
       </div>
     </div>
   </Drawer>
-  
+  <!-- R138-C1′：AI 草稿评审抽屉（采纳=回填本表单，不直接建卡） -->
+  <AiSuggestionDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
 </template>
 
 <style scoped>
@@ -265,6 +302,9 @@ function linkTasks() {
 .tad-proj:focus { border-color: var(--accent); color: var(--text); }
 
 .tad-prios { display: flex; gap: 6px; }
+/* R138-C1′：一句话录入行 */
+.tad-ai-row { display: flex; gap: 8px; align-items: center; }
+.tad-ai-row .tad-input { flex: 1; min-width: 0; }
 .tad-prio { flex: 1; padding: 8px 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; cursor: pointer; font-size: 12px; font-family: inherit; transition: all var(--dur); }
 .tad-prio.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent); font-weight: 600; }
 

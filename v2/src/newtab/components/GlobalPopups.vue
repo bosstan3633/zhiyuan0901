@@ -216,6 +216,7 @@
           </div>
         </div>
         <div class="gp-cap-foot">
+          <label class="gp-cap-enrich" title="保存成功后自动打开 AI 补全评审（勾选采纳才写库）"><input type="checkbox" v-model="capEnrichOn" @change="capEnrichSave" /> 🤖 保存后补全</label>
           <button class="gp-btn gp-btn-ghost" @click="closeAll">取消</button>
           <button class="gp-btn gp-btn-primary" @click="saveCapture">💾 保存（Ctrl+Enter）</button>
         </div>
@@ -230,6 +231,7 @@
           <div class="gp-saved-sub">按 <kbd>Esc</kbd> 关闭 · 5 秒后自动关闭</div>
           <div class="gp-saved-actions">
             <button class="gp-btn gp-btn-ghost" @click="closeAll">关闭</button>
+            <button v-if="capEnrichReady" class="gp-btn" @click="aiReopenEnrich">🤖 补全建议</button>
             <button class="gp-btn gp-btn-primary" @click="openSavedBoard">打开看板（Enter）</button>
           </div>
         </div>
@@ -357,10 +359,13 @@
   </div>
 
   <!-- 快捷键速查面板（? 呼出） -->
+
+  <!-- R138-H1′：采集后补全评审抽屉（懒组件，盖在所有 gp-overlay 之上） -->
+  <AiDrawerGP v-if="aiEnrichJob" :job="aiEnrichJob" @close="aiEnrichJob = null" />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, watch, nextTick, onMounted, onUnmounted, shallowRef } from 'vue'
+import { ref, computed, reactive, watch, nextTick, onMounted, onUnmounted, shallowRef, defineAsyncComponent } from 'vue'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
@@ -394,7 +399,11 @@ let lastFocused: HTMLElement | null = null
 function openPanel(p: PanelType) {
   lastFocused = document.activeElement as HTMLElement | null
   activePanel.value = p
-  if (p === 'capture') { capSaved.value = false }
+  if (p === 'capture') {
+    capSaved.value = false
+    // R138-H1′：入口宿主必须全懒——读 AI 配置仅同步勾选态展示，失败静默
+    void import('@/shared/ai/config').then(m => { m.loadAiConfig().then(() => { capEnrichOn.value = m.aiConfig.value.captureEnrich }) })
+  }
   // V2.21：字典按需加载——仅在搜索面板被打开时才拉取，不进新标签页首屏同步路径
   // R47-A4：每次唤起清空上次查询词，恢复浏览态（无输入=近期热度排序）
   // R60-2：selectedId 与 searchQuery 必须同时清空，否则下次唤起会锚定到上一次选中的卡
@@ -1260,6 +1269,31 @@ async function saveCapture() {
   capSaved.value = true
   if (savedTimer) clearTimeout(savedTimer)
   savedTimer = setTimeout(() => { resetCaptureForm(); closeAll() }, 5000)
+  // R138-H1′：勾选「保存后补全」→ 自动拉起 AI 评审抽屉（采纳才写库；不勾不拦保存主流程）
+  if (capEnrichOn.value) void runCardEnrich(r)
+}
+
+// R138-H1′：采集后补全——AiSuggestionDrawer/ai 栈全懒（GP 在启动 chunk，静态引会把 AI 卷进首屏）
+const AiDrawerGP = defineAsyncComponent(() => import('./AiSuggestionDrawer.vue'))
+const aiEnrichJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
+const capEnrichOn = ref(false)
+const capEnrichReady = ref(false)
+let lastEnrichCard: ResourceCard | null = null
+async function runCardEnrich(card: ResourceCard) {
+  lastEnrichCard = card
+  capEnrichReady.value = false
+  const [{ loadAiConfig, aiReady, aiConfig }, { buildCardEnrichJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('AI 尚未接入（设置 → AI 助手），卡已正常保存'); return }
+  aiEnrichJob.value = buildCardEnrichJob(card, { d: d.value, depth: aiConfig.value.depth, persist: () => store.persist() })
+  capEnrichReady.value = true
+}
+async function aiReopenEnrich() { if (lastEnrichCard) await runCardEnrich(lastEnrichCard) }
+async function capEnrichSave(e: Event) {
+  const on = (e.target as HTMLInputElement).checked
+  capEnrichOn.value = on
+  const m = await import('@/shared/ai/config')
+  m.patchAiConfig({ captureEnrich: on })
 }
 
 // ===== 采集好奇心 =====
@@ -1513,7 +1547,9 @@ textarea.gp-field-input { resize: vertical; min-height: 90px; font-size: 14px; l
 .gp-status-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--accent) 14%, transparent); }
 
 /* 底部按钮 */
-.gp-cap-foot { display: flex; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--border); background: var(--surface-2); }
+.gp-cap-foot { display: flex; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--border); background: var(--surface-2); align-items: center; }
+/* R138-H1′：保存后补全开关（左置，与保存钮拉开） */
+.gp-cap-enrich { margin-right: auto; display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-3); cursor: pointer; user-select: none; }
 .gp-btn { padding: 9px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
   transition: all var(--dur); border: 1px solid transparent; display: inline-flex; align-items: center; gap: 6px; }
 .gp-btn-ghost { background: var(--surface); border-color: var(--border); color: var(--text-2); }

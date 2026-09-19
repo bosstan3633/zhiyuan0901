@@ -28,10 +28,12 @@ export interface AiConfig {
   personas: AiPersonaCfg[]
   /** R137 自建专家列表 */
   customPersonas: AiCustomPersona[]
+  /** R138-H1′：采集保存后自动跑「补全建议」（评审抽屉勾选采纳才写库；默认关） */
+  captureEnrich: boolean
 }
 
 const DEFAULTS: AiConfig = {
-  baseUrl: '', apiKey: '', model: '', depth: 'std', aboutMe: '', personas: [], customPersonas: [],
+  baseUrl: '', apiKey: '', model: '', depth: 'std', aboutMe: '', personas: [], customPersonas: [], captureEnrich: false,
 }
 
 const raw = ref<AiConfig>({ ...DEFAULTS })
