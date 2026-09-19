@@ -102,6 +102,20 @@ export function chainSystem(level: ChainLevel): string {
 }
 export function chainSchema(level: ChainLevel): string { return CHAIN_DEF[level].schema }
 
+// ---------- R136：应用推荐（按任务选卡）与搜索重排 ----------
+
+export interface RecommendSuggestion { cardId?: string; why?: string }
+export interface RerankHit { id: string; why?: string }
+
+export const recommendSystem = () => withAboutMe(
+  '你是用户的资源调度参谋：给定一个任务（含其指标/项目/目标链）与全库资源卡目录，挑出「此刻真的用得上」的卡片。宁缺毋滥，最多 5 张，按贴合度降序；why 必须说清「支撑任务的哪一步」，禁止泛泛夸卡片有用。' +
+  '输出 JSON：{"note":"一句话总览(可选)","items":[{"cardId":"必须从给定目录中选","why":"≤30字"}]}。目录里没有的 id 不许编造。只输出 JSON。'
+)
+export const rerankSystem = () => withAboutMe(
+  '你是搜索意图理解器：用户关键词命中了一批卡片，其中不少是字面巧合。按「用户真正想找什么」重排，只保留真正相关的至多 6 条，并各给一句 ≤20 字的入选理由。' +
+  '输出 JSON：{"note":"对用户意图的一句话理解(可选，≤24字)","order":[{"id":"必须从给定命中列表中选","why":"..."}]}。宁可少选不硬凑；都不相关则 order 给空数组。只输出 JSON。'
+)
+
 // ---------- 专家角色库（内置两员；启停与风格覆盖在 aiConfig.personas） ----------
 
 export interface AiPersona { id: string; name: string; icon: string; brief: string; focus: string }

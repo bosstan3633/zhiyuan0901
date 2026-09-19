@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.103.0'";
+const VER_ANCHOR_LITERAL = "version: '2.104.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -3634,6 +3634,14 @@ check('R135-5 ★懒加载纪律推广：罗盘三宿主均 defineAsyncComponent
 check('R135-6 契约类型迁位 job.ts：AiRow/AiJob 单一真源在 shared/ai/job.ts，抽屉 re-export 保兼容，GS/RDD/chain 全从 job.ts 消费（.ts 侧不再 import .vue 类型）', () => { const j = read('/shared/ai/job.ts'); const d = read('/newtab/components/AiSuggestionDrawer.vue'); const g = read('/newtab/views/GlobalSettings.vue'); return j.includes('export interface AiJob') && d.includes("export type { AiRow, AiJob } from '@/shared/ai/job'") && g.includes("import type { AiJob, AiRow } from '@/shared/ai/job'"); });
 check('R135-7 拆解采纳语义：步骤任务继承原任务 projectId/metricId 并回写 metric.taskIds；行动方案行替换式写入描述（重复采纳不堆积）', () => { const c = read('/shared/ai/chain.ts'); return c.includes('const step = mkTask(s, t.projectId, t.metricId)') && c.includes('m.taskIds.push(step.id)') && c.includes("replace(/\\n*🤖 行动方案：[\\s\\S]*$/, '')"); });
 check('R135-8 创建走 store 既有通道优先：ctx.addProject 传入 compass.addProjectToDir（R85 四出口合一），缺省才本地同形创建；采纳回报含同名跳过计数', () => { const c = read('/shared/ai/chain.ts'); const t = read('/newtab/views/CompassTree.vue'); return c.includes('if (ctx.addProject) ctx.addProject(anchorId, s.name)') && c.includes('同名跳过') && t.includes('addProject: (id, name) => addProjectToDir(id, name)'); });
+
+// ============== R136 · V2.104.0：批次 F 第三刀 A3 按目标选卡 + 1d 搜索意图重排 ==============
+console.log('【R136 · V2.104.0：A3 应用推荐 + 1d 自然语言搜索重排】');
+check('R136-1 ★入口 chunk 守卫：GlobalPopups 被 App.vue 静态挂载，其 AI 依赖全懒（零静态 import @/shared/ai），aiRerankRun 函数段零写库（无 persist/无 mountedResourceIds 写入），改词即清重排态', () => { const g = read('/newtab/components/GlobalPopups.vue'); const seg = segOf(g, 'async function aiRerankRun', 'const aiTopRows'); return !g.includes("from '@/shared/ai/") && g.includes("import('@/shared/ai/select')") && !seg.includes('persist') && !seg.includes('mountedResourceIds') && g.includes('watch(searchQuery, () => { aiRank.value = null })'); });
+check('R136-2 A3 推荐任务书：参谋契约（≤5 张宁缺毋滥+why 须说支撑哪步+id 不许编造）；buildRecommendJob 排除已挂载、parse 经 sanitizeRefs、apply 二次校验卡存在且未删未重复才挂载并触任务 updatedAt', () => { const s = read('/shared/ai/scenarios.ts'); const j = read('/shared/ai/select.ts'); return s.includes('你是用户的资源调度参谋') && s.includes('目录里没有的 id 不许编造') && j.includes('new Set(task.mountedResourceIds || [])') && j.includes('sanitizeRefs(s0, ctx.d)') && j.includes('ctx.d.resources.some(x => x.id === id && !x.deletedAt)') && j.includes('t.mountedResourceIds.push(id)') && j.includes('t.updatedAt = Date.now()'); });
+check('R136-3 1d 重排契约与消毒：rerankSearch 只回读——id 必须属于给定命中集、≤6 条、why 截 40 字、note 截 40 字；命中<2 或空查询拒跑', () => { const j = read('/shared/ai/select.ts'); const g = read('/newtab/components/GlobalPopups.vue'); return j.includes('valid.has(h.id)') && j.includes('.slice(0, 6)') && j.includes('String(h.why).slice(0, 40)') && g.includes('items.length < 2'); });
+check('R136-4 两入口落位：任务抽屉「🤖 推荐卡」（动态 import select）+ 搜索面板「✨ AI 理解」钮（active 态=有重排，再点清除）与 AI 精选置顶组（原分组列表不动）', () => { const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const g = read('/newtab/components/GlobalPopups.vue'); return td.includes('🤖 推荐卡') && td.includes("import('@/shared/ai/select')") && g.includes('gp-ai-tab') && g.includes('aiRerankRun') && g.includes('🤖 AI 理解') && g.includes('v-if="aiTopRows.length && !isBrowseMode"'); });
+check('R136-5 卡目录投料纪律：cardDirectory 过滤软删、排除已挂载、上限=深度档 cards×2（eco60/std120/deep300 行封顶）', () => { const p = read('/shared/ai/project.ts'); return p.includes('export function cardDirectory') && p.includes('if (r.deletedAt || opts.excludeIds?.has(r.id)) continue') && p.includes('lines.length >= c.cards * 2'); });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

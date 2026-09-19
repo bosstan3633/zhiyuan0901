@@ -98,6 +98,18 @@ async function aiBreakdown() {
   if (!job) { showToast('⚠ 任务已不存在'); return }
   aiJob.value = job
 }
+// R136-A3：按任务推荐资源卡（全库目录挑选，采纳=挂载到本任务）
+async function aiRecommend() {
+  const t = selectedTask.value
+  if (!t) return
+  const [{ loadAiConfig, aiReady, aiConfig }, { buildRecommendJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  if (!d.value) return
+  const job = buildRecommendJob(t, { d: d.value, depth: aiConfig.value.depth, persist: () => store.persist() })
+  if (!job) { showToast('⚠ 库里还没有可推荐的资源卡'); return }
+  aiJob.value = job
+}
 async function deleteTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
   if (!t) return
@@ -379,6 +391,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         <!-- R48：删除按钮降级（ghost 弱化，hover 扣动扳机），主操作唯一 -->
         <button class="ts-del-ghost" @click="deleteTask(selectedTask.id)" title="删除任务（可在回收站撤销）">🗑 删除</button>
         <button class="mini-btn" @click="aiBreakdown" title="AI 把本任务拆成半天粒度步骤（同指标下查重后采纳才创建子任务）">🤖 拆解步骤</button>
+        <button class="mini-btn" @click="aiRecommend" title="AI 从全库挑此刻用得上的资源卡（采纳=挂载到本任务）">🤖 推荐卡</button>
         <span class="ts-foot-spacer"></span>
         <button class="mini-btn primary" @click="saveTaskTitleAndClose">✓ 完成并关闭 <span class="ts-kbd">Ctrl+↩</span></button>
       </div>

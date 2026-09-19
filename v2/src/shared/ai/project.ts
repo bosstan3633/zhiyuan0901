@@ -177,6 +177,21 @@ export function projectChain(
   return { text: L.filter(Boolean).join('\n'), missing: '' }
 }
 
+/**
+ * R136：全库资源卡目录（应用推荐投料）——一行一卡，上限走深度档；
+ * 排除回收站/已在任务挂载清单（避免重复推荐已挂载）。
+ */
+export function cardDirectory(d: AppData, opts: { excludeIds?: Set<string> }, depth: AiDepth): string {
+  const c = CAP[depth]
+  const lines: string[] = []
+  for (const r of d.resources || []) {
+    if (r.deletedAt || opts.excludeIds?.has(r.id)) continue
+    if (lines.length >= c.cards * 2) break
+    lines.push(`- cardId=${r.id} 「${cut(r.title, 50)}」${r.tags?.length ? ` 标签[${r.tags.join(',')}]` : ''} 分类:${catPathOf(d, r.categoryId) || '未分类'}${r.description ? ` ${cut(r.description, 50)}` : ''} 打开${r.callCount || 0}次`)
+  }
+  return lines.join('\n')
+}
+
 /** 整库摘要（深度诊断投料）：罗盘六层链 + 各台计数与代表卡 + 全局数字体检料 */
 export function projectLibrary(d: AppData, depth: AiDepth): string {
   const c = CAP[depth]

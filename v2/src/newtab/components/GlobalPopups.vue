@@ -25,8 +25,28 @@
         <!-- R49-G：策展台（分类树定位）/ 项目（直达项目详情）双类型 -->
         <div class="gp-type-tab" :class="{active: currentType==='ws'}" @click="setType('ws')">🗂 策展台 <span class="gp-tt-count">{{ counts.ws }}</span></div>
         <div class="gp-type-tab" :class="{active: currentType==='proj'}" @click="setType('proj')">📦 项目 <span class="gp-tt-count">{{ counts.proj }}</span></div>
+        <!-- R136-1d：搜索意图理解（只读重排；再点一次清除；键入路径零 AI） -->
+        <div class="gp-type-tab gp-ai-tab" :class="{active: !!aiRank}" @click="aiRerankRun" title="AI 按真实意图从命中的前 20 条里挑出≤6 条真正相关（再点清除）">{{ aiBusy ? '… 理解中' : '✨ AI 理解' }}</div>
       </div>
       <div class="gp-results" ref="resultsEl">
+        <!-- R136-1d：AI 精选组（置顶呈现；原分组列表不动） -->
+        <template v-if="aiTopRows.length && !isBrowseMode">
+          <div class="gp-group-title gp-ai-title">🤖 AI 理解<span v-if="aiRank && aiRank.note" class="gp-ai-note">{{ aiRank.note }}</span></div>
+          <div v-for="pair in aiTopRows" :key="'ai' + pair.hit.id" class="gp-result-item" :class="{selected: pair.item.id===selectedId}"
+            @click="pickRow(pair.item)" @mouseenter="selectHover(pair.item)"
+            :title="'单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'">
+            <div class="gp-ri-icon" :class="pair.item.iconClass">{{ pair.item.iconText }}</div>
+            <div class="gp-ri-main">
+              <div class="gp-ri-title">{{ pair.item.title }}</div>
+              <div class="gp-ri-meta">
+                <span class="gp-ri-badge ws">{{ pair.item.ws }}</span>
+                <span class="gp-ri-badge cat">{{ pair.item.cat }}</span>
+                <span v-if="pair.hit.why" class="gp-ai-why">{{ pair.hit.why }}</span>
+              </div>
+            </div>
+            <span class="gp-ri-link url">↵</span>
+          </div>
+        </template>
         <!-- B1：浏览模式（空查询）= 快捷操作 + 最近打开 -->
         <template v-if="isBrowseMode">
           <div class="gp-group-title">快捷操作</div>
@@ -340,7 +360,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, reactive, watch, nextTick, onMounted, onUnmounted, shallowRef } from 'vue'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
@@ -784,6 +804,36 @@ watch(filteredResults, () => {
 
 // ---- B1：命令面板升级（分组 / 高亮 / 快捷操作 / 最近打开） ----
 const isBrowseMode = computed(() => !searchQuery.value.trim() && currentType.value === 'all')
+
+// ============== R136-1d：✨ AI 理解（搜索意图重排，只读呈现） ==============
+// ★本组件被 App.vue 静态挂载（入口 chunk）：AI 依赖只在点击时 dynamic import，绝不静态引 '@/shared/ai/'。
+// 键入路径零参与：不发请求、不参与 filteredResults 计算；结果只活内存态，改词即清。
+const aiRank = shallowRef<{ order: { id: string; why?: string }[]; note: string } | null>(null)
+const aiBusy = ref(false)
+async function aiRerankRun() {
+  if (aiBusy.value) return
+  if (aiRank.value) { aiRank.value = null; return }
+  const q = searchQuery.value.trim()
+  const items = filteredResults.value
+  if (!q || items.length < 2) { showToast('先搜出多条命中，再让 AI 理解意图'); return }
+  aiBusy.value = true
+  try {
+    const [{ loadAiConfig, aiReady }, { rerankSearch }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
+    await loadAiConfig()
+    if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+    const out = await rerankSearch(q, items.map(r => ({ id: r.id, type: r.type, title: r.title, ws: r.ws, cat: r.cat, summary: (r as { summary?: string }).summary })))
+    aiRank.value = out.order.length ? out : null
+    if (!out.order.length) showToast('AI 认为这批命中里没有真正相关的——换个说法试试')
+  } catch (e) { aiRank.value = null; showToast('⚠ AI 理解失败：' + ((e as Error).message || String(e)).slice(0, 80)) }
+  finally { aiBusy.value = false }
+}
+const aiTopRows = computed(() => {
+  if (!aiRank.value) return [] as { hit: { id: string; why?: string }; item: SearchResult }[]
+  return aiRank.value.order
+    .map(hit => ({ hit, item: filteredResults.value.find(r => r.id === hit.id) }))
+    .filter((x): x is { hit: { id: string; why?: string }; item: SearchResult } => !!x.item)
+})
+watch(searchQuery, () => { aiRank.value = null })
 
 const QUICK_ACTIONS = [
   { label: '打开方向台', icon: 'compass', run: () => { closeAll(); router.push('/compass') } },
@@ -1308,6 +1358,13 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-search-input { flex: 1; border: none; outline: none; background: transparent; font-size: 17px; font-weight: 500;
   color: var(--text); font-family: inherit; min-width: 0; line-height: 1.4; }
 .gp-search-input::placeholder { color: var(--text-4); font-weight: 400; }
+/* R136-1d：AI 理解钮与精选组 */
+.gp-ai-tab { margin-left: auto; color: var(--text-2); }
+.gp-ai-tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.gp-ai-title { color: var(--accent); }
+.gp-ai-note { margin-left: 8px; font-weight: 400; color: var(--text-3); }
+.gp-ai-why { font-size: 11px; color: var(--accent); background: var(--accent-light); border-radius: var(--radius-xs); padding: 1px 6px; }
+.gp-ai-row { border-left: 2px solid var(--accent); }
 .gp-search-esc { font-size: 11px; color: var(--text-4); background: var(--surface-2); border: 1px solid var(--border);
   border-radius: 6px; padding: 3px 8px; flex-shrink: 0; cursor: pointer; transition: all var(--dur-fast); font-family: inherit; }
 .gp-search-esc:hover { color: var(--text-2); border-color: var(--border-strong); }
