@@ -21,8 +21,8 @@ import type { ResourceCard, TaskCard } from '@/shared/models'
 // 抽屉 defineAsyncComponent、shared/ai 模块点击时才 dynamic import，否则整条 AI 栈会被卷进启动 chunk（R134 首版踩坑已修）。
 // 建议进评审抽屉（内存态），采纳只回填本表单，用户核对后自行保存。
 const AiDrawer = defineAsyncComponent(() => import('./AiSuggestionDrawer.vue'))
-type AiJobLite = import('./AiSuggestionDrawer.vue').AiJob
-type AiRowLite = import('./AiSuggestionDrawer.vue').AiRow
+type AiJobLite = import('@/shared/ai/job').AiJob
+type AiRowLite = import('@/shared/ai/job').AiRow
 
 const router = useRouter()
 const store = useAppStore()

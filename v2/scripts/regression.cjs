@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.102.0'";
+const VER_ANCHOR_LITERAL = "version: '2.103.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -3623,6 +3623,17 @@ check('R134-8 深度诊断 v0：内置两专家（目标管理+知识管理）+ 
 check('R134-9 「关于我」全局画像：withAboutMe 注入所有场景系统提示词（enrich/batch/dormant/diagnosis 四系全走）', () => { const s = read('/shared/ai/scenarios.ts'); return s.includes('【用户画像（长期偏好，建议须贴合）】') && (s.match(/withAboutMe\(/g) || []).length >= 5; });
 check('R134-10 注入面防护：抽屉渲染零 v-html（模型回显纯文本插值，提示词注入不可达 DOM）', () => { const d = read('/newtab/components/AiSuggestionDrawer.vue'); return !d.includes('v-html'); });
 check('R134-11 接入表单完备：baseUrl/Key(password)/模型(datalist 可手输) + 拉取列表 + 测试连接 + 深度档 select + aboutMe textarea；watch(activePage) 进页才 loadAiConfig', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes("type=\"password\"") && g.includes('list="ai-model-list"') && g.includes('aiFetchModels') && g.includes('aiTestConn') && g.includes("<select class=\"gs-input ai-depth\"") && g.includes("watch(activePage, (p) => { if (p === 'ai') void loadAiConfig() })"); });
+
+// ============== R135 · V2.103.0：批次 F 第二刀 罗盘链式生成 + 任务拆解（生成类采纳链路） ==============
+console.log('【R135 · V2.103.0：B1 罗盘逐层生成 + C2′ 任务拆解】');
+check('R135-1 ★生成类采纳纪律：chain.ts 同层查重（directions/projects/metrics/tasks 四路 dup continue）+ 字段白名单清洗（term/priority 枚举、YYYY-MM-DD 校验、分钟 10~600 钳制、名称 40 字截断）+ 实体形状与既有创建通道同形', () => { const c = read('/shared/ai/chain.ts'); return c.includes('if (d.compass.directions.some(x => x.name === s.name)) { dup++; continue }') && c.includes('dir.projects.some(p => p.name === s.name)') && c.includes('proj.metrics.some(m => m.title === s.name)') && c.includes('existing.some(t => t!.title === s.name)') && c.includes("TERM_SET.has(String(s.term))") && c.includes('DATE_RE.test(String(s.dueDate))') && c.includes('m >= 10 && m <= 600'); });
+check('R135-2 五层任务书：CHAIN_DEF 齐 directions/projects/metrics/tasks/breakdown，每层 role+rules+JSON schema 三件套，全部走 chainSystem→withAboutMe 画像注入', () => { const s = read('/shared/ai/scenarios.ts'); return ['directions:', 'projects:', 'metrics:', 'tasks:', 'breakdown:'].every(k => s.includes(k)) && s.includes('export function chainSystem') && s.includes('return withAboutMe(`${def.role}\\n${def.rules}\\n${def.schema}`)'); });
+check('R135-3 链投影 projectChain：五层分支+上行链（愿景/使命恒投）+同层兄弟现状（供查重）+锚点失效返回 missing 由宿主拒开抽屉', () => { const p = read('/shared/ai/project.ts'); return p.includes('export function projectChain') && p.includes("missing: '战略目标已不存在'") && p.includes("missing: '项目已不存在'") && p.includes("missing: '指标已不存在'") && p.includes('【该指标下现有任务】') && p.includes('【现有成功指标】'); });
+check('R135-4 六个入口落位：方向树四层（建议目标/项目/指标/任务）+ 任务详情抽屉拆解 + 项目详情页建议指标；共用 buildChainJob 一个工厂', () => { const t = read('/newtab/views/CompassTree.vue'); const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return ["aiChain('directions', '')", "aiChain('projects', dir.id)", "aiChain('metrics', proj.id)", "aiChain('tasks', metric.id)"].every(x => t.includes(x)) && td.includes("buildChainJob('breakdown', t.id") && td.includes('🤖 拆解步骤') && pc.includes("buildChainJob('metrics', p.id") && pc.includes('🤖 建议指标'); });
+check('R135-5 ★懒加载纪律推广：罗盘三宿主均 defineAsyncComponent 挂 AiDrawer + 点击时才 import config/chain，无一例静态 import shared/ai（R134 入口 chunk 教训的横向锁）', () => { const files = ['/newtab/views/CompassTree.vue', '/newtab/components/compass/TaskDetailDrawer.vue', '/newtab/views/ProjectCuration.vue']; return files.every(f => { const s = read(f); return !s.includes("from '@/shared/ai/") && s.includes('defineAsyncComponent(() => import(') && s.includes("import('@/shared/ai/chain')") && s.includes("import('@/shared/ai/config')"); }); });
+check('R135-6 契约类型迁位 job.ts：AiRow/AiJob 单一真源在 shared/ai/job.ts，抽屉 re-export 保兼容，GS/RDD/chain 全从 job.ts 消费（.ts 侧不再 import .vue 类型）', () => { const j = read('/shared/ai/job.ts'); const d = read('/newtab/components/AiSuggestionDrawer.vue'); const g = read('/newtab/views/GlobalSettings.vue'); return j.includes('export interface AiJob') && d.includes("export type { AiRow, AiJob } from '@/shared/ai/job'") && g.includes("import type { AiJob, AiRow } from '@/shared/ai/job'"); });
+check('R135-7 拆解采纳语义：步骤任务继承原任务 projectId/metricId 并回写 metric.taskIds；行动方案行替换式写入描述（重复采纳不堆积）', () => { const c = read('/shared/ai/chain.ts'); return c.includes('const step = mkTask(s, t.projectId, t.metricId)') && c.includes('m.taskIds.push(step.id)') && c.includes("replace(/\\n*🤖 行动方案：[\\s\\S]*$/, '')"); });
+check('R135-8 创建走 store 既有通道优先：ctx.addProject 传入 compass.addProjectToDir（R85 四出口合一），缺省才本地同形创建；采纳回报含同名跳过计数', () => { const c = read('/shared/ai/chain.ts'); const t = read('/newtab/views/CompassTree.vue'); return c.includes('if (ctx.addProject) ctx.addProject(anchorId, s.name)') && c.includes('同名跳过') && t.includes('addProject: (id, name) => addProjectToDir(id, name)'); });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

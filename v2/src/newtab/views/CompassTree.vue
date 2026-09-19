@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch, defineAsyncComponent, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
@@ -20,6 +20,19 @@ const router = useRouter()
 const route = useRoute()
 const store = useAppStore()
 const { d, visionText, missionText, allProjects, projectProgress, toggleFocusProject, addProjectToDir, isProjectDone, showDone, toggleShowDone } = useCompass()
+
+// ---- R135：罗盘链式生成（directions/projects/metrics/tasks 四层入口共用一个评审抽屉） ----
+const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
+const aiJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
+async function aiChain(level: import('@/shared/ai/scenarios').ChainLevel, anchorId: string) {
+  const [{ loadAiConfig, aiReady, aiConfig }, { buildChainJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/chain')])
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  if (!d.value) return
+  const job = buildChainJob(level, anchorId, { d: d.value, depth: aiConfig.value.depth, persist: () => store.persist(), addProject: (id, name) => addProjectToDir(id, name) })
+  if (!job) { showToast('⚠ 锚点实体已不存在，请刷新后重试'); return }
+  aiJob.value = job
+}
 
 // ---- R54-A1：来源感知返回（?from=proj&p= → 项目详情；默认方向台）+ A3 定位 + A4 Esc ----
 const fromProjId = computed(() => route.query.from === 'proj' && typeof route.query.p === 'string' ? route.query.p : '')
@@ -533,6 +546,7 @@ onUnmounted(() => {
               <span class="tl-badge">3 战略目标 → 4 攻坚项目 → 5 成功指标 → 6 任务</span>
               <span class="tl-hint">主攻项目强化边框 · 缺任务指标实时警示 · 点击指标展开任务</span>
               <button class="add-btn-inline" @click="addDirection"><span>＋</span> 添加战略目标</button>
+              <span class="node-action ai-chain-act" title="AI 依愿景/使命建议本阶段战略目标（同层查重后采纳才创建）" @click="aiChain('directions', '')">🤖 建议目标</span>
             </div>
 
             <div v-if="!d.compass.directions.length" class="empty-state">
@@ -552,6 +566,7 @@ onUnmounted(() => {
                     <span>{{ visibleProjectsOf(dir).length }} 攻坚项目 · {{ dir.projects.reduce((s,p)=>s+p.metrics.length,0) }} 成功指标</span>
                     <span class="tct-acts" @click.stop>
                       <span class="node-action" @click="addProject(dir.id)" title="添加项目">＋</span>
+                      <span class="node-action" @click="aiChain('projects', dir.id)" title="AI 建议攻坚项目（补路径依赖，查重后采纳才创建）">🤖</span>
                       <span class="node-action" @click="openGoalImport(dir)" title="导入模板（Markdown 批量生成项目/指标/任务）">📋</span>
                       <span class="node-action danger" @click="deleteNode('dir', dir.id)" title="删除目标">🗑</span>
                     </span>
@@ -574,6 +589,7 @@ onUnmounted(() => {
                       <span class="node-action" @click="openProjectDrawer(proj.id)" title="打开项目全景">🗂</span>
                       <span class="node-action" @click="router.push({ path: '/compass/projects', query: { p: proj.id, from: 'tree' } })" title="进入项目详情页">📄</span>
                       <span class="node-action" @click="addMetric(proj.id)" title="添加指标">＋</span>
+                      <span class="node-action" @click="aiChain('metrics', proj.id)" title="AI 建议成功指标（可量化验收，查重后采纳才创建）">🤖</span>
                       <span class="node-action danger" @click="deleteNode('proj', proj.id)" title="删除项目">🗑</span>
                     </span>
                   </div>
@@ -588,6 +604,7 @@ onUnmounted(() => {
                       <span class="tm-caret">{{ expandedMetrics.has(metric.id) ? '▾' : '▸' }}</span>
                       <span class="tm-acts" @click.stop>
                         <span class="node-action" @click="openTaskAdd(metric.id, proj.id)" title="添加任务（新建 / 关联）">＋</span>
+                        <span class="node-action" @click="aiChain('tasks', metric.id)" title="AI 按指标缺口建议近两周任务（查重后采纳才创建）">🤖</span>
                         <span class="node-action danger" @click="deleteNode('metric', metric.id)" title="删除指标">🗑</span>
                       </span>
                     </div>
@@ -688,6 +705,8 @@ onUnmounted(() => {
     @close="goalImport.open = false"
     @confirm="confirmGoalImport"
   />
+  <!-- R135：罗盘链式生成评审抽屉（目标/项目/指标/任务四层建议共用） -->
+  <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
 </template>
 
 <style scoped>
@@ -812,6 +831,8 @@ onUnmounted(() => {
 .node:hover .node-actions { opacity: 1; }
 /* R68-F4：操作按钮主题感知——原硬编码不透明白底 + 浅灰图标，深色主题（近黑画布）下对比度崩坏看不到入口 */
 .node-action { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; color: var(--text-2); transition: all var(--dur); background: var(--surface-3); border: 1px solid var(--border); }
+/* R135：文字型 AI 入口（添加战略目标旁的「🤖 建议目标」） */
+.ai-chain-act { width: auto; padding: 0 8px; gap: 3px; font-size: 10.5px; white-space: nowrap; }
 .node-action:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
 .node-action.danger:hover { color: var(--danger); }
 

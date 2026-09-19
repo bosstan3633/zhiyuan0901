@@ -6,7 +6,7 @@
  *  - 每个投影都有深度档上限（eco/std/deep），产出目标 2~12KB；
  *  - 附件（zy-asset/IndexedDB 本体）永不进投影——只投影文字字段。
  */
-import type { AppData, ResourceCard } from '@/shared/models'
+import type { AppData, ResourceCard, Project, Metric, TaskCard } from '@/shared/models'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import type { AiDepth } from './config'
 
@@ -111,6 +111,70 @@ export function projectDormant(d: AppData, days: number, depth: AiDepth): { text
       dirs ? `\n【活跃战略目标】\n${dirs}` : '',
     ].filter(Boolean).join('\n'),
   }
+}
+
+/**
+ * R135：罗盘链式生成投料——给锚点（愿景层 / 目标 / 项目 / 指标 / 任务），
+ * 组「上行链 + 同层兄弟现状」紧凑画像：模型据此补缺口，且不提与现有兄弟重复的建议。
+ */
+export function projectChain(
+  d: AppData,
+  level: 'directions' | 'projects' | 'metrics' | 'tasks' | 'breakdown',
+  anchorId: string,
+  depth: AiDepth,
+): { text: string; missing: string } {
+  const c = CAP[depth]
+  const L: string[] = []
+  const taskState = (t?: { status: string }) => (t ? (t.status === 'done' ? '✓' : t.status === 'doing' ? '▶' : '·') : '·')
+  L.push(`【愿景】${cut(d.compass.vision?.content, c.desc) || '（未填——建议先与用户确认愿景再生成）'}`)
+  L.push(`【使命】${cut(d.compass.mission?.content, c.desc) || '（未填）'}`)
+  const dirLine = (x: typeof d.compass.directions[number], mark: string) =>
+    `${mark} 目标「${x.name}」${x.term || '未分期'}/${x.status}·项目${x.projects.length}个`
+  const findDir = (id: string) => d.compass.directions.find(x => x.id === id)
+  if (level === 'directions') {
+    const cur = d.compass.directions.map(x => dirLine(x, '·')).join('\n') || '（一个战略目标都还没有）'
+    L.push(`【现有战略目标】\n${cur}`)
+    L.push('【任务】依据愿景/使命，提出 2~4 个**现阶段（未来 3~12 个月）**该立的战略目标，避开与现有目标语义重复。')
+  } else if (level === 'projects') {
+    const dir = findDir(anchorId)
+    if (!dir) return { text: '', missing: '战略目标已不存在' }
+    L.push(dirLine(dir, '【本目标→】'))
+    const ps = dir.projects.map(p => `· 项目「${p.name}」${p.isFocused ? '[主攻]' : ''} 进度${p.progress || 0}% ${p.status}${p.endDate ? ' 截止' + p.endDate : ''} 指标${p.metrics.length}个`).join('\n')
+    L.push(`【该目标下现有项目】\n${ps || '（还没有项目）'}`)
+    L.push('【任务】为该目标提出 2~4 个补齐路径依赖的攻坚项目建议，与现有项目不重复。')
+  } else if (level === 'metrics') {
+    let host: { dir: typeof d.compass.directions[number] | undefined; proj: Project | undefined } = { dir: undefined, proj: undefined }
+    for (const x of d.compass.directions) { const p = x.projects.find(y => y.id === anchorId); if (p) { host = { dir: x, proj: p }; break } }
+    if (!host.proj) return { text: '', missing: '项目已不存在' }
+    if (host.dir) L.push(dirLine(host.dir, '【↑】'))
+    L.push(`【本项目→】「${host.proj.name}」${host.proj.isFocused ? '[主攻]' : ''} 进度${host.proj.progress || 0}% ${host.proj.status} 截止${host.proj.endDate || '?'}`)
+    const ms = host.proj.metrics.map(m => {
+      const ts = m.taskIds.map(id => (d.tasks || []).find(t => t.id === id)).filter(Boolean) as { status: string; title: string }[]
+      return `· 指标「${m.title}」目标:${cut(m.target, 40) || '未写'} 任务${ts.filter(t => t.status === 'done').length}/${ts.length}`
+    }).join('\n')
+    L.push(`【现有成功指标】\n${ms || '（一个指标都没有——这正是问题）'}`)
+    L.push('【任务】提出 2~3 个**可量化验收**的成功指标建议；若现有指标已足够则少提或说明。')
+  } else if (level === 'tasks') {
+    let met: Metric | undefined; let proj: Project | undefined; let dir: typeof d.compass.directions[number] | undefined
+    for (const x of d.compass.directions) for (const p of x.projects) { const m = p.metrics.find(y => y.id === anchorId); if (m) { met = m; proj = p; dir = x; break } }
+    if (!met || !proj) return { text: '', missing: '指标已不存在' }
+    L.push(`${dir ? dirLine(dir, '【↑↑】') : ''}\n· ${proj.name} → 指标「${met.title}」（目标:${cut(met.target, 60) || '未写'}）${met.acceptance ? ` 验收:${cut(met.acceptance, c.desc)}` : ''}`)
+    const ts = met.taskIds.map(id => (d.tasks || []).find(t => t.id === id)).filter(Boolean) as TaskCard[]
+    L.push(`【该指标下现有任务】\n${ts.map(t => `${taskState(t)} ${t.title}${t.dueDate ? '（' + t.dueDate + '）' : ''}`).join('\n') || '（还没有任务）'}`)
+    const gap = ts.length - ts.filter(t => t.status === 'done').length
+    L.push(`【任务】指标缺口=未完成 ${gap} 项。提出 3~6 个**未来两周可执行**的具体任务建议，覆盖「验收标准」但别与现有任务重复；每个任务应直接推进该指标。`)
+  } else {
+    const t = (d.tasks || []).find(x => x.id === anchorId)
+    if (!t) return { text: '', missing: '任务已不存在' }
+    let met: Metric | undefined; let proj: Project | undefined; let dir: typeof d.compass.directions[number] | undefined
+    for (const x of d.compass.directions) for (const p of x.projects) { const m = p.metrics.find(y => y.taskIds.includes(anchorId)); if (m) { met = m; proj = p; dir = x; break } }
+    L.push(`【待拆解任务】「${t.title}」${t.status} 优先级${t.priority}${t.dueDate ? ' 截止' + t.dueDate : ' 无截止日'}${t.estimatedMinutes ? ' 预估' + t.estimatedMinutes + '分钟' : ''}`)
+    if (t.description) L.push(`描述：${cut(t.description, c.desc * 2)}`)
+    L.push(`${dir ? dirLine(dir, '【↑】') : ''}`)
+    if (proj && met) L.push(`归属：${proj.name} → 指标「${met.title}」（验收:${cut(met.acceptance || met.target, c.desc) || '未写'}）`)
+    L.push('【任务】把该任务拆成 3~6 个**半天内可完成**的具体步骤（今天/明天就能动手的粒度），给出建议时间盒与先后顺序；步骤标题即子任务名。')
+  }
+  return { text: L.filter(Boolean).join('\n'), missing: '' }
 }
 
 /** 整库摘要（深度诊断投料）：罗盘六层链 + 各台计数与代表卡 + 全局数字体检料 */

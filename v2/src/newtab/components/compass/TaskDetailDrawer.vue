@@ -2,7 +2,7 @@
 // 第卌五轮 T-03：任务详情抽屉共享组件（自 CompassActions.vue 抽离）
 // 宿主：TaskManagerPanel（任务管理 Tab）+ CompassActions（今日三件事双击详情）
 // 用法：ref 后调用 open(task)；关闭/删除/保存逻辑全部内聚
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, defineAsyncComponent, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../../stores/app'
 import { useCompass } from '../../stores/compass'
@@ -83,6 +83,20 @@ function setTaskStatus(t: TaskCard, status: 'todo' | 'doing' | 'done') {
   if (t.status === status) return
   setTaskStatusOf(t, status)
   showToast('✓ 状态已切换为「' + (status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始') + '」')
+}
+// ---- R135-C2′：AI 拆解步骤（半天粒度子任务+行动方案写入描述；采纳走评审抽屉） ----
+const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
+const aiJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
+async function aiBreakdown() {
+  const t = selectedTask.value
+  if (!t) return
+  const [{ loadAiConfig, aiReady, aiConfig }, { buildChainJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/chain')])
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  if (!d.value) return
+  const job = buildChainJob('breakdown', t.id, { d: d.value, depth: aiConfig.value.depth, persist: () => store.persist() })
+  if (!job) { showToast('⚠ 任务已不存在'); return }
+  aiJob.value = job
 }
 async function deleteTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
@@ -364,11 +378,14 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
       <div class="ts-foot">
         <!-- R48：删除按钮降级（ghost 弱化，hover 扣动扳机），主操作唯一 -->
         <button class="ts-del-ghost" @click="deleteTask(selectedTask.id)" title="删除任务（可在回收站撤销）">🗑 删除</button>
+        <button class="mini-btn" @click="aiBreakdown" title="AI 把本任务拆成半天粒度步骤（同指标下查重后采纳才创建子任务）">🤖 拆解步骤</button>
         <span class="ts-foot-spacer"></span>
         <button class="mini-btn primary" @click="saveTaskTitleAndClose">✓ 完成并关闭 <span class="ts-kbd">Ctrl+↩</span></button>
       </div>
     </div>
   </Transition>
+  <!-- R135-C2′：拆解建议评审抽屉（步骤子任务+行动方案，勾选采纳才落库；置于 Transition 外保单子节点约束） -->
+  <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
 </template>
 
 <style scoped>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, defineAsyncComponent, shallowRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
@@ -230,6 +230,20 @@ const headerMetricAdding = ref(false)
 const headerMetricTitle = ref('')
 const vFocus = { mounted: (el: HTMLElement) => el.focus() }
 function startHeaderAddMetric() { headerMetricAdding.value = true; headerMetricTitle.value = '' }
+// R135：项目详情页页头「🤖 建议指标」——与方向树同一链式生成地基，锚点=当前项目
+const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
+const aiJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
+async function aiChainMetrics() {
+  const p = currentProject.value
+  if (!p) return
+  const [{ loadAiConfig, aiReady, aiConfig }, { buildChainJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/chain')])
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  if (!store.data) return
+  const job = buildChainJob('metrics', p.id, { d: store.data, depth: aiConfig.value.depth, persist: () => store.persist() })
+  if (!job) { showToast('⚠ 项目已不存在'); return }
+  aiJob.value = job
+}
 function confirmHeaderAddMetric() {
   const p = currentProject.value
   const title = headerMetricTitle.value.trim()
@@ -568,6 +582,7 @@ function addTaskFromHeader() {
         </div>
         <div class="pb-acts">
           <button class="mini-btn" @click="startHeaderAddMetric">＋ 添加成功指标</button>
+          <button class="mini-btn" @click="aiChainMetrics" title="AI 基于上游目标链建议可量化成功指标（查重后采纳才创建）">🤖 建议指标</button>
           <button class="mini-btn primary" @click="addTaskFromHeader">＋ 添加任务</button>
           <span class="pb-more-wrap">
             <button class="mini-btn icon" title="更多：主攻 / 方向树定位 / 删除项目" @click.stop="projMenuOpen = !projMenuOpen">⋯</button>
@@ -712,6 +727,8 @@ function addTaskFromHeader() {
 
     <!-- R49-D6：任务详情 = 共享 TaskDetailDrawer（R48 重设计组件，宿主于此页） -->
     <TaskDetailDrawer ref="detailRef" />
+    <!-- R135：页头「🤖 建议指标」评审抽屉 -->
+    <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
 
 
     <!-- 第卅三轮 REQ-016：指标添加任务双模式（新建 / 关联） -->

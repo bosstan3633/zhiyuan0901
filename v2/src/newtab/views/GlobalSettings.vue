@@ -1010,7 +1010,8 @@ import {
 import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
 // R134-F（批次 F）：AI 助手——地基三件套（config/llm/projector/scenarios）+ 建议评审抽屉。
 // 性能纪律：shared/ai 只被懒加载路由（设置页/详情抽屉）静态消费，不进启动链；密钥存独立键 zy_ai_v1 不随导出。
-import AiSuggestionDrawer, { type AiJob, type AiRow } from '@/newtab/components/AiSuggestionDrawer.vue'
+import AiSuggestionDrawer from '@/newtab/components/AiSuggestionDrawer.vue'
+import type { AiJob, AiRow } from '@/shared/ai/job'
 import { aiConfig, loadAiConfig, patchAiConfig, aiReady, type AiDepth } from '@/shared/ai/config'
 import { listModels, testConnection as aiTestConnection, chatStream, extractJson } from '@/shared/ai/llm'
 import { projectCards, projectDormant, projectLibrary, catPathOf as aiCatPathOf } from '@/shared/ai/project'

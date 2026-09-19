@@ -56,6 +56,52 @@ export function diagnosisSystem(persona: AiPersona, style: string): string {
   return withAboutMe(`你是「${persona.name}」，${persona.brief}。以该专家视角审视用户个人调度台的整库摘要，做结构性体检。\n${persona.focus}${style ? `\n【用户定制风格】${style}` : ''}\n${DIAGNOSIS_SCHEMA}`)
 }
 
+// ---------- R135：罗盘链式生成（五契约：目标/项目/指标/任务/拆解） ----------
+
+export type ChainLevel = 'directions' | 'projects' | 'metrics' | 'tasks' | 'breakdown'
+
+export interface ChainSuggestion {
+  name?: string; title?: string
+  term?: string; endDate?: string; dueDate?: string
+  target?: string; acceptance?: string
+  priority?: string; estimatedMinutes?: number
+  why?: string
+}
+
+const CHAIN_DEF: Record<ChainLevel, { role: string; rules: string; schema: string }> = {
+  directions: {
+    role: '你是目标管理教练，替用户从愿景/使命推导现阶段该立的战略目标。目标要可攻坚、可验收、互相不重叠。',
+    rules: 'term 只能是 long/mid/short；name ≤14 字、动词开头或名词短语，禁止口号词（如"赋能""卓越"）。',
+    schema: '输出 JSON：{"items":[{"name":"目标名","term":"long|mid|short","why":"为何现在是它"}]}。2~4 条。只输出 JSON。',
+  },
+  projects: {
+    role: '你是项目拆解教练，替某个战略目标补齐攻坚项目——项目是达成目标的路径依赖，不是待办清单。',
+    rules: 'name ≤16 字；endDate 用 YYYY-MM-DD（不逾越目标时限，不确定则省略）；与现有项目互补不重复。',
+    schema: '输出 JSON：{"items":[{"name":"项目名","endDate":"YYYY-MM-DD(可选)","why":"它如何支撑目标"}]}。2~4 条。只输出 JSON。',
+  },
+  metrics: {
+    role: '你是度量设计教练，为攻坚项目设计「成功指标」——好指标可量化、可验收、能证明项目做成。',
+    rules: 'title 含可测对象+量纲（如"实验章节完成 3 版"）；target 写目标值；acceptance 写怎么算达成。',
+    schema: '输出 JSON：{"items":[{"title":"指标名","target":"目标值/期限","acceptance":"验收口径","why":"为何测这个"}]}。2~3 条。只输出 JSON。',
+  },
+  tasks: {
+    role: '你是执行教练，把成功指标的缺口拆成近两周可落地的具体任务。任务=一次能做完的动作，不是目标复读。',
+    rules: 'title 动词开头 ≤24 字；dueDate=YYYY-MM-DD（从今天推算，只给相对日期时自行换算）；priority 三选一 high/medium/low；estimatedMinutes 为 30~480 的整数。',
+    schema: '输出 JSON：{"items":[{"title":"任务名","dueDate":"YYYY-MM-DD(可选)","priority":"high|medium|low","estimatedMinutes":数字(可选),"why":"推进指标的哪一步"}]}。3~6 条。只输出 JSON。',
+  },
+  breakdown: {
+    role: '你是执行教练，把一个任务拆成半天内可完成的步骤序列——拆到「打开电脑就能动手」的粒度。',
+    rules: 'steps 按先后顺序排列；title 动词开头 ≤20 字；dueDate 相对原任务截止日/今天推算；estimatedMinutes 每步 30~240。',
+    schema: '输出 JSON：{"plan":"两句话行动思路","steps":[{"title":"步骤名","dueDate":"YYYY-MM-DD(可选)","priority":"high|medium|low","estimatedMinutes":数字(可选),"why":"这步解锁什么"}]}。3~6 步。只输出 JSON。',
+  },
+}
+
+export function chainSystem(level: ChainLevel): string {
+  const def = CHAIN_DEF[level]
+  return withAboutMe(`${def.role}\n${def.rules}\n${def.schema}`)
+}
+export function chainSchema(level: ChainLevel): string { return CHAIN_DEF[level].schema }
+
 // ---------- 专家角色库（内置两员；启停与风格覆盖在 aiConfig.personas） ----------
 
 export interface AiPersona { id: string; name: string; icon: string; brief: string; focus: string }

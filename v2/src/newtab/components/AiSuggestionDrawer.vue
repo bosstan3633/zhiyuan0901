@@ -1,32 +1,6 @@
 <script lang="ts">
-/** 建议行与场景任务书契约（宿主组件 import type 消费；类型导出走普通 script 块，同 LifecyclePanel 手法） */
-import type { ChatMsg } from '@/shared/ai/llm'
-
-export interface AiRow {
-  key: string
-  main: string
-  sub?: string
-  /** 语义徽标：revive/high=warn 提醒、ok/done=ok、archive/danger=danger */
-  badge?: string
-  badgeType?: 'warn' | 'ok' | 'danger' | 'neutral'
-  /** 场景载荷（模型建议原文等），apply 闭包自取 */
-  data?: unknown
-}
-
-export interface AiJob {
-  title: string
-  /** 场景副标（展示投料规模） */
-  hint?: string
-  build: () => { messages: ChatMsg[]; jsonMode?: boolean } | Promise<{ messages: ChatMsg[]; jsonMode?: boolean }>
-  /** 模型 JSON → 可勾选行（解析失败抛错，抽屉显示错误态） */
-  parse: (raw: unknown) => AiRow[]
-  /** 多专家会诊等需要自持调用节奏的场景：给 run 则接管整个生成过程（parse 不再走） */
-  run?: (ctx: { signal: AbortSignal; onDelta: (accum: string) => void }) => Promise<AiRow[]>
-  /** 采纳勾选行 → 落库（调用方闭包持有 store），返回汇总文案 */
-  apply: (rows: AiRow[]) => Promise<string> | string
-  /** 是否允许部分采纳（诊断类可关掉，改为逐条复制） */
-  adoptable?: boolean
-}
+/** 契约类型已迁至 shared/ai/job.ts（R135：供 .ts 侧共用）；本块 re-export 保兼容 */
+export type { AiRow, AiJob } from '@/shared/ai/job'
 </script>
 
 <script setup lang="ts">
@@ -40,6 +14,7 @@ import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import { showToast } from '@/shared/components/toast'
 import { chatStream, extractJson } from '@/shared/ai/llm'
+import type { AiJob, AiRow } from '@/shared/ai/job'
 
 const props = defineProps<{ job: AiJob | null }>()
 const emit = defineEmits<{ close: [] }>()
