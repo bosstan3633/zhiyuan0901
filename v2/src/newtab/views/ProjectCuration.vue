@@ -277,9 +277,41 @@ let currentDir: Direction | null = null
 function openProject(p: Project) {
   currentProject.value = p
   currentDir = goalOf(p)
+  // R132-T5：全景选台后自动收起并回到目录顶部锚点
+  projPanOpen.value = false
+  tocActive.value = 'pd-sec-overview'
   // R49：保留 ?p 参数（刷新后仍定位到该项目详情）
   if (route.query.p !== p.id) router.replace({ path: route.path, query: { p: p.id } })
 }
+/* ================= R132-T4/T5：左栏两段式——「项目全景」可折叠块（切换项目）+ 本项目详情目录（锚点导航） =================
+ * 用户反馈：左栏主体应是当前项目的详情目录，而非整体项目目录；全景地图折叠在顶部、点开即切项目。 */
+const projPanOpen = ref(false)
+const tocActive = ref('pd-sec-overview')
+interface TocItem { id: string; icon: string; label: string; pct: number | null }
+const projToc = computed<TocItem[]>(() => {
+  const p = currentProject.value
+  if (!p) return []
+  const items: TocItem[] = [{ id: 'pd-sec-overview', icon: '📦', label: '项目概览', pct: projectProgress(p).pct }]
+  p.metrics.forEach((m, mi) => items.push({ id: 'metric-sec-' + m.id, icon: '🎯', label: `指标 ${mi + 1} · ${m.title}`, pct: metricPct(m.id) }))
+  if (orphanTasks.value.length) items.push({ id: 'pd-sec-orphan', icon: '⚠', label: '未归类任务', pct: null })
+  items.push({ id: 'pd-sec-assets', icon: '📎', label: '任务附件', pct: null })
+  return items
+})
+function scrollToSec(id: string) {
+  tocActive.value = id
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+function onTocScroll() {
+  if (props.embedded || !currentProject.value) return
+  let cur = projToc.value[0]?.id || 'pd-sec-overview'
+  for (const it of projToc.value) {
+    const el = document.getElementById(it.id)
+    if (el && el.getBoundingClientRect().top <= 140) cur = it.id
+  }
+  tocActive.value = cur
+}
+onMounted(() => window.addEventListener('scroll', onTocScroll, { passive: true }))
+onUnmounted(() => window.removeEventListener('scroll', onTocScroll))
 // R52-F5：「返回项目列表」按钮移除——右上角「← 返回方向台」为唯一返回路径；项目切换走左侧目录
 // R59-T1：返回按钮恒为「返回方向台」（完整方向树已有独立入口，见操作区「🌲 完整方向树」）
 const fromTree = computed(() => false)
@@ -503,21 +535,28 @@ function addTaskFromHeader() {
     <!-- ===== 单项目展板（R131-N2：独立态恢复左侧项目目录，可拖拽调宽；内嵌态维持单列满宽） ===== -->
     <div v-else class="board-layout" :class="{ 'with-dir': !embedded }">
     <aside v-if="!embedded" class="pd-dir" :style="{ width: projDirW + 'px' }">
-      <div class="pd-dir-title">📁 项目目录</div>
-      <div v-for="g in projDirGroups" :key="g.dir.id" class="pd-group">
-        <div class="pd-goal" :title="g.dir.name">🎯 {{ g.dir.name }}<span v-if="dirTermLabel(g.dir)" class="pd-term">{{ dirTermLabel(g.dir) }}</span></div>
-        <div v-for="p in g.projects" :key="p.id" class="pd-item" :class="{ active: p.id === currentProject?.id }" :title="p.name" @click="openProject(p)">
-          <span class="pd-dot" :class="{ focus: p.isFocused }" />
-          <span class="pd-name">{{ p.name }}</span>
-          <span class="pd-pct">{{ projectProgress(p).pct }}%</span>
+      <div class="pd-dir-title pd-pan-head" @click="projPanOpen = !projPanOpen">🗺 项目全景<span class="pd-caret">{{ projPanOpen ? '▾' : '▸' }}</span></div>
+      <div v-show="projPanOpen" class="pd-pan">
+        <div v-for="g in projDirGroups" :key="g.dir.id" class="pd-group">
+          <div class="pd-goal" :title="g.dir.name">🎯 {{ g.dir.name }}<span v-if="dirTermLabel(g.dir)" class="pd-term">{{ dirTermLabel(g.dir) }}</span></div>
+          <div v-for="p in g.projects" :key="p.id" class="pd-item" :class="{ active: p.id === currentProject?.id }" :title="p.name" @click="openProject(p)">
+            <span class="pd-dot" :class="{ focus: p.isFocused }" />
+            <span class="pd-name">{{ p.name }}</span>
+            <span class="pd-pct">{{ projectProgress(p).pct }}%</span>
+          </div>
         </div>
+        <div v-if="!projDirGroups.length" class="pd-empty">还没有项目</div>
       </div>
-      <div v-if="!projDirGroups.length" class="pd-empty">还没有项目</div>
+      <div class="pd-dir-title">📁 项目目录</div>
+      <div v-for="it in projToc" :key="it.id" class="pd-item toc-item" :class="{ active: tocActive === it.id }" :title="it.label" @click="scrollToSec(it.id)">
+        <span class="pd-name">{{ it.icon }} {{ it.label }}</span>
+        <span v-if="it.pct !== null" class="pd-pct">{{ it.pct }}%</span>
+      </div>
     </aside>
     <span v-if="!embedded" class="pd-split" title="拖拽调整目录宽度 · 双击复位" @mousedown.prevent="startDirResize" @dblclick="resetDirWidth" />
     <div class="board">
       <!-- R121：单行面包屑 + 操作区（原型：面包屑 + 添加按钮；⋯ 收敛 主攻 / 树定位 / 删除项目） -->
-      <div class="pb-head-row">
+      <div class="pb-head-row" id="pd-sec-overview">
         <div class="pb-crumb">
           <span class="pc-seg" title="在完整方向树中查看" @click="goTreeLocated">愿景</span>
           <span class="pc-sep">›</span>
@@ -598,7 +637,7 @@ function addTaskFromHeader() {
       </div>
       <div v-if="!currentProject.metrics.length" class="empty-state">该项目暂无成功指标——点击上方「🎯 添加成功指标」开始</div>
       <!-- B27：未归类任务（指标已删除的孤儿任务） -->
-      <div v-if="orphanTasks.length" class="metric-sec">
+      <div v-if="orphanTasks.length" class="metric-sec" id="pd-sec-orphan">
         <div class="metric-head2">
           <span class="tag" style="flex-shrink:0">⚠ 未归类任务</span>
           <span class="mname">原指标已删除 · 可拖回任意指标或删除</span>
@@ -618,7 +657,7 @@ function addTaskFromHeader() {
       <!-- R52-F6：添加成功指标入口上移至头部操作区（原底部通栏按钮移除） -->
 
       <!-- R49-D4：任务附件区（按任务聚合，复用 AssetBadge 打开逻辑；资源卡本体在资源台管理，此处不呈现） -->
-      <div class="metric-sec asset-sec">
+      <div class="metric-sec asset-sec" id="pd-sec-assets">
         <div class="metric-head2">
           <span class="tag" style="flex-shrink:0">📎 任务附件</span>
           <span class="mname">按任务聚合 · 🖼 图片弹窗预览 / 🌐 HTML / 📕 PDF 新标签打开</span>
@@ -731,6 +770,13 @@ function addTaskFromHeader() {
 .pd-empty { font-size: 12px; color: var(--text-3); padding: 6px 8px; }
 .pd-split { width: 4px; flex-shrink: 0; align-self: stretch; margin: 4px 0 4px 4px; cursor: col-resize; border-radius: 2px; transition: background .12s; z-index: 5; }
 .pd-split:hover { background: var(--accent-light); }
+/* R132-T4/T5：左栏两段式——全景折叠块头 + 目录锚点项；锚点滚动留出顶栏高度 */
+.pb-head-row, .metric-sec { scroll-margin-top: 72px; }
+.pd-pan-head { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.pd-pan-head:hover { color: var(--text-2); }
+.pd-caret { font-size: 10px; color: var(--text-4); }
+.pd-pan { margin-bottom: 6px; }
+.toc-item { padding-left: 8px; }
 .board { min-width: 0; }
 .metric-sec .mname { outline: none; border-radius: 5px; padding: 2px 5px; margin: -2px -5px; cursor: text; }
 .metric-sec .mname:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }

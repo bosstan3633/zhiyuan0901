@@ -203,7 +203,7 @@
       <div v-if="activePage === 'panorama'" class="gs-panel gs-pan-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">🗺 资源台全景</div>
-          <div class="gs-page-desc">左栏看全景（资源台 → 分类 → 子分类），右栏做整理 · 勾选卡片拖到左栏目标分类即可批量移动 · 单击详情 / 双击打开</div>
+          <div class="gs-page-desc">左栏看全景（资源台 → 分类 → 子分类），右栏做整理 · 勾选卡片拖到左栏目标分类即可批量移动 · 单击详情 / 双击打开 · 双击分类行直接改名</div>
         </div>
         <div class="gs-pan-wrap">
           <!-- 左栏：全景计数树（默认全展开） -->
@@ -222,11 +222,13 @@
                 <template v-for="row in panFlatCats[wi]" :key="row.node.cat.id">
                   <div class="gs-pan-row" :class="[row.depth === 0 ? 'gs-pan-cat-row' : 'gs-pan-sub-row', { active: panSelCat === row.node.cat.id, drop: dropTarget === 'cat:' + row.node.cat.id }]"
                     :style="row.depth ? { paddingLeft: (row.depth * 14) + 'px' } : undefined"
-                    @click="selectPanCat(row.node.cat.id)"
+                    @click="selectPanCat(row.node.cat.id)" @dblclick="panCatRename(row.node.cat.id)"
                     @dragover.prevent="dropTarget = 'cat:' + row.node.cat.id" @dragleave="dropTarget === 'cat:' + row.node.cat.id && (dropTarget = '')" @drop.prevent="onPanDrop('cat:' + row.node.cat.id, row.node.cat.workspaceId, row.node.cat.id)">
                     <span v-if="row.node.children.length" class="gs-pan-toggle" @click.stop="togglePanCollapse('cat:' + row.node.cat.id)">{{ panCollapsed.has('cat:' + row.node.cat.id) ? '▸' : '▾' }}</span>
                     <span v-else class="gs-pan-toggle leaf">·</span>
-                    <span class="gs-pan-name">{{ row.depth === 0 ? '📂 ' : '└ ' }}{{ row.node.cat.name }}</span>
+                    <input v-if="panEdit && panEdit.id === row.node.cat.id" v-model="panEdit.value" class="gs-tt-input gs-pan-rename-input" v-focus
+                      @click.stop @dblclick.stop @keydown.enter.prevent="panCatRenameConfirm" @keydown.esc="panEdit = null" @blur="panCatRenameConfirm" />
+                    <span v-else class="gs-pan-name">{{ row.depth === 0 ? '📂 ' : '└ ' }}{{ row.node.cat.name }}</span>
                     <span class="gs-pan-count">{{ row.node.count }}</span>
                   </div>
                 </template>
@@ -359,7 +361,7 @@
       <div v-if="activePage === 'tags'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">🏷 标签管理</div>
-                    <div class="gs-page-desc">两级标签体系 · 三种卡片打标签的唯一来源 · 拖拽根标签到另一根标签上即成子标签（卡片标签同步为「父/子」）</div>
+                    <div class="gs-page-desc">两级标签体系 · 三种卡片打标签的唯一来源 · 拖拽根标签到另一根标签上即成子标签（卡片标签同步为「父/子」）· 双击标签行直接改名</div>
         </div>
         <div class="tt-wrap">
         <div class="gs-card">
@@ -376,7 +378,7 @@
               <template v-for="root in tagTree" :key="root.id">
                 <div class="gs-tt-row" :class="{editing: ttEditing?.id === root.id, flash: ttFlashId === root.id, active: ttActiveTag === root.name, drop: ttDropTarget === root.id}" :data-depth="tagDepth(root.id)" :style="{ paddingLeft: 8 + tagDepth(root.id) * 18 + 'px' }" draggable="true"
                   @dragstart="ttDragStart($event, root.id)" @dragend="ttDragEnd"
-                  @dragover.prevent="ttDropTarget = root.id" @dragleave="ttDropTarget === root.id && (ttDropTarget = '')" @drop="ttDrop($event, root.id)" @click="selectTtTag(root.name)">
+                  @dragover.prevent="ttDropTarget = root.id" @dragleave="ttDropTarget === root.id && (ttDropTarget = '')" @drop.prevent="ttDrop($event, root.id)" @click="selectTtTag(root.name)" @dblclick="ttRename(root.id)">
                   <span class="gs-tt-toggle" :class="{leaf: !safeChildren(root).length}" @click="ttToggle(root.id)">{{ ttCollapsed.has(root.id) ? '▸' : '▾' }}</span>
                   <input v-if="ttEditing?.id === root.id" v-model="ttEditing.value" class="gs-tt-input" v-focus
                     @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
@@ -400,7 +402,7 @@
                 <template v-if="!ttCollapsed.has(root.id)">
                   <div v-for="child in safeChildren(root)" :key="child.id" class="gs-tt-row subrow" :class="{editing: ttEditing?.id === child.id, flash: ttFlashId === child.id, active: ttActiveTag === root.name + '/' + child.name, drop: ttDropTarget === child.id}" :data-depth="tagDepth(child.id)" :style="{ paddingLeft: 8 + tagDepth(child.id) * 18 + 'px' }" draggable="true"
                     @dragstart="ttDragStart($event, child.id)" @dragend="ttDragEnd"
-                    @dragover.prevent="ttDropTarget = child.id" @dragleave="ttDropTarget === child.id && (ttDropTarget = '')" @drop="ttDrop($event, child.id)" @click="selectTtTag(root.name + '/' + child.name)">
+                    @dragover.prevent="ttDropTarget = child.id" @dragleave="ttDropTarget === child.id && (ttDropTarget = '')" @drop.prevent="ttDrop($event, child.id)" @click="selectTtTag(root.name + '/' + child.name)" @dblclick="ttRename(child.id)">
                     <input v-if="ttEditing?.id === child.id" v-model="ttEditing.value" class="gs-tt-input" v-focus
                       @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
                     <template v-else>
@@ -426,7 +428,7 @@
         </div>
           <!-- R127：右列——当前标签下的卡片（三卡合一 / 类型过滤 / 搜索 / 多选拖拽移动） -->
           <div class="gs-card">
-            <div class="gs-card-header"><span class="gs-card-title">#{{ ttActiveTag || '未选择标签' }}{{ ttActiveTag ? ' · ' + ttRows.length + ' 张' : '' }}</span><span class="gs-card-desc">单击选中 · 双击详情 · 多选后拖到左侧标签即移动（替换）</span></div>
+            <div class="gs-card-header"><span class="gs-card-title">#{{ ttActiveTag || '未选择标签' }}{{ ttActiveTag ? ' · ' + ttRows.length + ' 张' : '' }}</span><label v-if="ttActiveTag" class="gs-pan-allcheck"><input type="checkbox" :checked="ttAllChecked" @change="toggleTtAll" /> 全选本标签</label><span class="gs-card-desc">单击选中 · 双击详情 · 多选后拖到左侧标签即移动（替换）</span></div>
             <div class="gs-card-body">
               <div v-if="!ttActiveTag" class="gs-tt-empty">点击左侧标签查看其下卡片</div>
               <template v-else>
@@ -1573,6 +1575,25 @@ function onPanListScroll(e: Event) {
   const el = e.target as HTMLElement
   if (el.scrollHeight - el.scrollTop - el.clientHeight < 400) panRenderLimit.value += PAN_RENDER_STEP
 }
+// R132-T3：全景树分类双击行内改名——分类按 id 被卡片引用，只改 name + persist，无卡片级联
+const panEdit = ref<{ id: string; value: string } | null>(null)
+function panCatRename(catId: string) {
+  const c = gd.value.categories.find(x => x.id === catId)
+  if (c) panEdit.value = { id: catId, value: c.name }
+}
+function panCatRenameConfirm() {
+  const ed = panEdit.value
+  panEdit.value = null
+  if (!ed) return
+  const name = ed.value.trim()
+  const cat = gd.value.categories.find(x => x.id === ed.id)
+  if (!cat || !name || cat.name === name) return
+  const dup = gd.value.categories.some(x => x.id !== cat.id && !x.deletedAt && x.workspaceId === cat.workspaceId && (x.parentId || '') === (cat.parentId || '') && x.name === name)
+  if (dup) { showToast('同一层级下已有同名分类'); return }
+  cat.name = name
+  store.persist()
+  showToast(`✓ 分类已重命名为「${name}」`)
+}
 const panCrumb = computed(() => {
   if (panSelCat.value) {
     const cat = gd.value.categories.find(c => c.id === panSelCat.value)
@@ -2454,21 +2475,29 @@ const ttRows = computed<TtRow[]>(() => {
   return q ? out.filter(x => (x.title + ' ' + x.sub + ' ' + (x.link || '')).toLowerCase().includes(q)) : out
 })
 function onTtRowClick(row: TtRow) { ttTogglePick(row.id) }
+// R132-T1：全选本标签——口径为当前类型过滤/搜索结果集（ttRows），与全景「全选本分类」一致
+const ttAllChecked = computed(() => ttRows.value.length > 0 && ttRows.value.every(r => ttPicked.value.has(r.id)))
+function toggleTtAll() { ttPicked.value = ttAllChecked.value ? new Set() : new Set(ttRows.value.map(r => r.id)) }
 function onTtRowDblClick(row: TtRow) { ttDetail.value = row }
-function onTtRowDragStart(e: DragEvent, row: TtRow) { ttCardDragIds = ttPicked.value.has(row.id) ? [...ttPicked.value] : [row.id]; if (!ttPicked.value.has(row.id)) ttTogglePick(row.id); ttCardDragging.value = true }
+function onTtRowDragStart(e: DragEvent, row: TtRow) { ttCardDragIds = ttPicked.value.has(row.id) ? [...ttPicked.value] : [row.id]; if (!ttPicked.value.has(row.id)) ttTogglePick(row.id); ttCardDragging.value = true; e.dataTransfer?.setData('text/plain', ttCardDragIds.join(',')) }
 function onTtRowDragEnd() { ttCardDragIds = null; ttCardDragging.value = false; ttDropTarget.value = '' }
 /** R127：替换语义——从当前选中标签移到目标标签（移除源 + 添加目标；三类卡同步） */
 function ttMoveCards(targetPath: string) {
   const ids = new Set(ttCardDragIds || [])
   const from = ttActiveTag.value
-  if (!ids.size || !from) return
+  if (!ids.size || !from || targetPath === from) return
   let moved = 0
+  // R132-T2 ★BUG 修复：移动判据与右列展示判据（cardHasTag 路径+叶子双口径）统一——
+  // 原 tags.includes(from) 精确匹配，卡上存裸叶子名而选中态是「父/子」路径（或反之）时
+  // 该行被静默 continue，表现为「拖过去 A 不减 B 不增」。
+  const fromLeaf = from.split('/').pop() || from
   const apply = (arr?: { id: string; tags?: string[] }[]) => {
     for (const x of arr || []) {
       if (!ids.has(x.id)) continue
       const tags = Array.isArray(x.tags) ? x.tags : []
-      if (!tags.includes(from)) continue
-      x.tags = [...new Set(tags.filter(t => t !== from).concat(targetPath))]
+      const kept = tags.filter(t => t !== from && t !== fromLeaf)
+      if (kept.length === tags.length) continue
+      x.tags = [...new Set(kept.concat(targetPath))]
       moved++
     }
   }
@@ -2977,6 +3006,7 @@ const activeManualSec = ref('quick-1')
 .gs-pan-toggle { width: 14px; flex-shrink: 0; font-size: 10px; color: var(--text-3); text-align: center; cursor: pointer; user-select: none; }
 .gs-pan-toggle.leaf { cursor: default; opacity: .4; }
 .gs-pan-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs-pan-rename-input { flex: 1; min-width: 0; border: 1px solid var(--accent); border-radius: 4px; background: var(--surface); }
 .gs-pan-kind { display: inline-block; margin-left: 6px; padding: 0 6px; font-size: 10px; line-height: 16px; border-radius: 99px; background: var(--accent-light); color: var(--accent); vertical-align: 1px; }
 .gs-pan-count { font-size: 10.5px; color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 1px 8px; flex-shrink: 0; }
 .gs-pan-row.active .gs-pan-count { color: var(--accent); background: var(--accent-light); }

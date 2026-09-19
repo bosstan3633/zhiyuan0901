@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.99.0'";
+const VER_ANCHOR_LITERAL = "version: '2.100.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -3548,6 +3548,19 @@ check('R131-8 C3 全景右栏增量渲染：PAN_RENDER_STEP=80 + 滚动到底 40
 check('R131-9 C5 事件流水 shallowRef：wceEvents（compass store）+ eventLog（设置页）整组替换不再逐元素建 Proxy', () => { const c = read('/newtab/stores/compass.ts'); const g = read('/newtab/views/GlobalSettings.vue'); return c.includes('const wceEvents = shallowRef<CardEvent[]>([])') && g.includes('const eventLog = shallowRef<CardEvent[]>([])'); });
 check('R131-10 C6b 启动迁移链尾单次落盘：migrated 累积标记 + if (migrated) saveData()（三段各自落盘退役）', () => { const a = read('/newtab/stores/app.ts'); return a.includes('let migrated = false') && (a.match(/saveData\(\)/g) || []).length === 2 && a.includes('if (migrated) saveData()'); });
 check('R131-11 C1 门禁：perf.cjs 新增 M6 保存链路探针（整库序列化 + 同载荷写盘，独立键采样不触发合并环）', () => { const p = fs.readFileSync(path.resolve(__dirname, 'perf.cjs'), 'utf8'); return p.includes("push('M6a_整库JSON序列化(ms)'") && p.includes("zy_perf_probe: s") && p.includes("chrome.storage.local.remove('zy_perf_probe'"); });
+
+// ============== R132 · V2.100.0：标签拖拽移动修复 + 全选 + 三树双击改名 + 项目详情左栏重构 ==============
+console.log('【R132 · V2.100.0：标签管理四修 + 项目详情左栏重构】');
+check('R132-1 ★T2 拖拽移动判据合一：ttMoveCards 与展示判据同走「路径+叶子」双口径（fromLeaf 过滤），原精确 includes 静默跳过致 A 不减 B 不增', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('const fromLeaf = from.split(\'/\').pop() || from') && g.includes('const kept = tags.filter(t => t !== from && t !== fromLeaf)') && g.includes('if (kept.length === tags.length) continue') && !g.includes('if (!tags.includes(from)) continue'); });
+check('R132-2 T2 拖拽健壮性：卡片行 dragstart 写 dataTransfer + 根/子标签行 @drop 补 .prevent + 同标签落点短路（targetPath===from 直接返回）', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes(`e.dataTransfer?.setData('text/plain', ttCardDragIds.join(','))`) && count('/newtab/views/GlobalSettings.vue', '@drop.prevent="ttDrop($event,') === 2 && g.includes('if (!ids.size || !from || targetPath === from) return'); });
+check('R132-3 T1 全选本标签：ttAllChecked/toggleTtAll 走当前筛选结果集（ttRows 口径，与全景「全选本分类」一致）', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('const ttAllChecked = computed(() => ttRows.value.length > 0 && ttRows.value.every(r => ttPicked.value.has(r.id)))') && g.includes('function toggleTtAll()') && g.includes('全选本标签'); });
+check('R132-4 T3 标签树双击改名：根/子行 @dblclick 直连既有 ttRename 行内编辑（卡片标签级联走 ttConfirm）', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('@dblclick="ttRename(root.id)"') && g.includes('@dblclick="ttRename(child.id)"'); });
+check('R132-5 T3 全景树分类双击行内改名：panEdit 态 + 同层查重 + 只改 name+persist（分类按 id 引用无卡片级联）', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('const panEdit = ref<{ id: string; value: string } | null>(null)') && g.includes('@dblclick="panCatRename(row.node.cat.id)"') && g.includes('同一层级下已有同名分类') && g.includes('cat.name = name'); });
+check('R132-6 T3 资源台分类树双击改名：行 @dblclick 直开既有重命名弹窗（净增 0 行，R115-1 1500 门禁由 R115-1 自身守住）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes(`@dblclick="openRenameCat(sc.cat)"`); });
+check('R132-7 ★T4 左栏主体=本项目详情目录：projToc 锚点项（概览+各指标+未归类+附件）+ scrollToSec 定位 + 三锚点 id 落位', () => { const p = read('/newtab/views/ProjectCuration.vue'); return p.includes('const projToc = computed<TocItem[]>') && p.includes("id: 'pd-sec-overview'") && p.includes('function scrollToSec(id: string)') && p.includes('id="pd-sec-overview"') && p.includes('id="pd-sec-orphan"') && p.includes('id="pd-sec-assets"') && p.includes('.pb-head-row, .metric-sec { scroll-margin-top: 72px; }'); });
+check('R132-8 T4 滚动高亮 + 泄漏兜底：window scroll passive 监听 onMounted 挂 / onUnmounted 摘', () => { const p = read('/newtab/views/ProjectCuration.vue'); return p.includes(`window.addEventListener('scroll', onTocScroll, { passive: true })`) && p.includes(`window.removeEventListener('scroll', onTocScroll)`); });
+check('R132-9 ★T5 项目全景=左栏顶部可折叠块（用户拍板）：projPanOpen 默认收起、点标题行翻转、选项目后自动收起并回概览锚点', () => { const p = read('/newtab/views/ProjectCuration.vue'); return p.includes('const projPanOpen = ref(false)') && p.includes('@click="projPanOpen = !projPanOpen"') && p.includes('v-show="projPanOpen"') && p.includes('projPanOpen.value = false') && p.includes("tocActive.value = 'pd-sec-overview'"); });
+check('R132-10 T4 拖拽调宽与自适应保留：pd-split 把手 + with-dir 展板 flex:1 min-width:0（R131-N2 口径不动）', () => { const p = read('/newtab/views/ProjectCuration.vue'); return p.includes('@mousedown.prevent="startDirResize"') && p.includes('.board-layout.with-dir .board { flex: 1; min-width: 0; }') && p.includes('saveUIPrefs({ projRailW: projDirW.value })'); });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

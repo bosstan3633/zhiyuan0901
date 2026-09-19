@@ -273,7 +273,7 @@
             :draggable="!batchMode"
             @click="selectSidebarCat(sc)"
             @dragstart="onCatDragStart($event, sc.cat)" @dragend="onCatDragEnd"
-            @dragover.prevent.stop="onCatDragOver($event, sc.cat)" @drop.stop="onCatDrop($event, sc.cat)">
+            @dragover.prevent.stop="onCatDragOver($event, sc.cat)" @drop.stop="onCatDrop($event, sc.cat)" @dblclick="openRenameCat(sc.cat)">
             <span v-if="sc.hasChildren" class="cat-caret" :class="{open: !collapsedCats.has(sc.cat.id)}" title="展开/折叠" @click.stop="toggleCatCollapse(sc.cat.id)">▸</span>
             <span v-else class="cat-caret placeholder"></span>
             <span class="cat-icon" :title="sc.hasChildren ? '展开/折叠' : ''" @click.stop="sc.hasChildren && toggleCatCollapse(sc.cat.id)">{{ sc.depth>0 && !sc.hasChildren ? '↳' : sc.cat.pinned ? '📌' : (sc.hasChildren ? (collapsedCats.has(sc.cat.id) ? '📁' : '📂') : '📁') }}<template v-if="isMirrorCat(sc.cat)">📡</template></span>
