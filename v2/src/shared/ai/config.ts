@@ -13,6 +13,9 @@ export type AiDepth = 'eco' | 'std' | 'deep'
 
 export interface AiPersonaCfg { id: string; enabled: boolean; style: string }
 
+/** R137：自建专家（角色库 v1）——名称+简介+关注面三元组，与内置专家同格会诊 */
+export interface AiCustomPersona { id: string; name: string; brief: string; focus: string; icon?: string }
+
 export interface AiConfig {
   /** OpenAI 兼容 base（如 https://api.deepseek.com/v1）；也可填完整 /chat/completions 地址，会自动归一 */
   baseUrl: string
@@ -23,10 +26,12 @@ export interface AiConfig {
   aboutMe: string
   /** 专家角色本地覆盖（启停 + 风格补充；内置角色的基础提示词不在此处） */
   personas: AiPersonaCfg[]
+  /** R137 自建专家列表 */
+  customPersonas: AiCustomPersona[]
 }
 
 const DEFAULTS: AiConfig = {
-  baseUrl: '', apiKey: '', model: '', depth: 'std', aboutMe: '', personas: [],
+  baseUrl: '', apiKey: '', model: '', depth: 'std', aboutMe: '', personas: [], customPersonas: [],
 }
 
 const raw = ref<AiConfig>({ ...DEFAULTS })

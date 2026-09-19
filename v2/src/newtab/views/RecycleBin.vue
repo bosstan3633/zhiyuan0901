@@ -7,6 +7,20 @@ import { showToast } from '@/shared/components/toast'
 import { purgeCardsCompletely, type PurgeTargets } from '@/shared/storage/purge'
 import type { ResourceCard, TaskCard, CuriosityCard, ID } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
+// R137-H2：AI 捞回清单（懒路由，可直接静态引 AI 栈；采纳=恢复 deletedAt 置空，与手工恢复同字段）
+import AiSuggestionDrawer from '@/newtab/components/AiSuggestionDrawer.vue'
+import type { AiJob } from '@/shared/ai/job'
+import { aiConfig, loadAiConfig, aiReady } from '@/shared/ai/config'
+import { buildTrashRescueJob } from '@/shared/ai/govern'
+
+const aiJob = ref<AiJob | null>(null)
+async function aiRescue() {
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  const job = buildTrashRescueJob({ d: store.data!, depth: aiConfig.value.depth, persist: () => store.persist() })
+  if (!job) { showToast('回收站里没有资源卡'); return }
+  aiJob.value = job
+}
 
 /** 第卅三轮 REQ-018：回收站页面（三类卡软删数据直接复用：models 的 deletedAt）
  *  列表 + 恢复 + 永久删除 + 清空；入口在全局设置危险操作区
@@ -147,10 +161,12 @@ const tabMeta = computed(() => [
       <div class="rb-title">🗑 回收站</div>
       <div class="rb-desc">删除的卡片软删除移入此处，可恢复；永久删除不可撤销</div>
       <div class="rb-actions">
+        <button class="rb-btn" @click="aiRescue" title="AI 对照现存卡与活跃目标，逐条判定值得恢复/建议清除">🤖 值得捞回</button>
         <button class="rb-btn" @click="restoreAll">♻ 恢复当前分区全部</button>
         <button class="rb-btn danger" @click="purgeAll">🗑 清空当前分区</button>
       </div>
     </div>
+    <AiSuggestionDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
 
     <div class="rb-tabs">
       <button v-for="m in tabMeta" :key="m.k" class="rb-tab" :class="{on: tab === m.k}" @click="tab = m.k">

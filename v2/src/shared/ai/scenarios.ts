@@ -116,6 +116,33 @@ export const rerankSystem = () => withAboutMe(
   '输出 JSON：{"note":"对用户意图的一句话理解(可选，≤24字)","order":[{"id":"必须从给定命中列表中选","why":"..."}]}。宁可少选不硬凑；都不相关则 order 给空数组。只输出 JSON。'
 )
 
+// ---------- R137：库内治理四契约（标签体检 / 回收站捞回 / 跨台镜像 / 主题漂移） ----------
+
+export interface TagMerge { from?: string; to?: string; why?: string }
+export interface TagRehome { tag?: string; toParent?: string; why?: string }
+export interface TrashVerdict { cardId?: string; verdict?: 'recover' | 'purge' | 'keep'; reason?: string }
+export interface DupPair { srcId?: string; dstId?: string; why?: string }
+export interface ThesisDrift { wsId?: string; verdict?: 'ok' | 'drift'; why?: string; evidence?: string }
+
+export const tagGovernSystem = () => withAboutMe(
+  '你是知识管理专家，为用户的标签体系做治理体检，只出两类动作：① 同义合并（from 并入 to，to 必须是更规范/用量更大的写法）；② 层级归位（把散落的裸标签挂到既有父标签下）。' +
+  '合并要保守：语义有歧义（工具≠工具箱）就不提；rehome 的 toParent 必须是标签树里真实存在的根或路径。' +
+  '输出 JSON：{"merges":[{"from":"真实在用的标签写法","to":"并入的目标","why":"≤24字"}],"rehome":[{"tag":"裸标签名","toParent":"父标签名","why":"..."}]}。各≤8 条，没有可治理的就给空数组。只输出 JSON。'
+)
+export const trashRescueSystem = () => withAboutMe(
+  '你是用户的回收站管理员：对照现存卡与活跃目标，逐条判定软删卡「值得恢复 recover / 建议清除 purge / 保留观察 keep」。恢复只在确有当下用途时给；与现存卡疑似重复的一律 purge 并在 reason 点名重复对象。' +
+  '输出 JSON：{"items":[{"cardId":"原样回填","verdict":"recover|purge|keep","reason":"≤30字"}]}。只输出 JSON。'
+)
+export const crossDeckDupSystem = () => withAboutMe(
+  '你是跨工作台策展人，发现「不同台里的重复/近重复卡」：同一资源被抄成多份、或资源台的好卡某个策展台明显需要却没挂。' +
+  '只提 srcId（必须来自资源台 zy-curation 的卡）镜像到 dstId 所在策展台的建议；真实互补而非相似的不要硬凑。' +
+  '输出 JSON：{"pairs":[{"srcId":"资源台卡 id","dstId":"目标台的相似卡 id","why":"≤24字"}]}。≤6 对，没有给空数组。只输出 JSON。'
+)
+export const thesisDriftSystem = () => withAboutMe(
+  '你是策展台主题策展人，检查每个台的卡群是否仍支撑其主题卡（中心论点）。drift 只在卡群主体明显偏离论点、或论点已被内容淘汰时给；证据要具体（点名几张卡）。' +
+  '输出 JSON：{"items":[{"wsId":"台 id","verdict":"ok|drift","why":"一句话","evidence":"引用卡群里的具体条目"}]}。每台一条，全部健康也要如实 ok。只输出 JSON。'
+)
+
 // ---------- 专家角色库（内置两员；启停与风格覆盖在 aiConfig.personas） ----------
 
 export interface AiPersona { id: string; name: string; icon: string; brief: string; focus: string }
@@ -137,6 +164,12 @@ export function personaOverrides(): Record<string, { enabled: boolean; style: st
   const out: Record<string, { enabled: boolean; style: string }> = {}
   for (const p of aiConfig.value.personas || []) out[p.id] = { enabled: p.enabled, style: p.style || '' }
   return out
+}
+
+/** R137 角色库 v1：内置 + 自建合成会诊名单 */
+export function allPersonas(): AiPersona[] {
+  const custom = (aiConfig.value.customPersonas || []).map(c => ({ id: c.id, name: c.name, icon: c.icon || '🧭', brief: c.brief, focus: c.focus }))
+  return [...BUILTIN_PERSONAS, ...custom]
 }
 
 /** 校验模型回填的 cardId/categoryId 真实存在（防幻觉引用），返回安全化后的对象 */

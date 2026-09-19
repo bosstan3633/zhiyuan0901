@@ -360,7 +360,7 @@
       <!-- ===== 标签管理（N4 · 行内编辑） ===== -->
       <div v-if="activePage === 'tags'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">🏷 标签管理</div>
+          <div class="gs-page-title">🏷 标签管理 <button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 体检标签体系：同义合并 + 裸标签归位（勾选采纳才级联改卡与树）" @click="aiTagGovern">🤖 标签体检</button></div>
                     <div class="gs-page-desc">两级标签体系 · 三种卡片打标签的唯一来源 · 拖拽根标签到另一根标签上即成子标签（卡片标签同步为「父/子」）· 双击标签行直接改名</div>
         </div>
         <div class="tt-wrap">
@@ -506,11 +506,18 @@
         </div>
 
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">🧠 深度诊断</span><span class="gs-card-desc">整库结构摘要投喂所选专家，逐员出「发现+建议」；产出只进评审抽屉、不自动写库</span></div>
+          <div class="gs-card-header"><span class="gs-card-title">🧠 深度诊断</span><span class="gs-card-desc">整库结构摘要投喂所选专家，逐员出「发现+建议」；勾选采纳=生成跟进任务卡</span></div>
           <div class="gs-card-body">
-            <div class="ai-persona-row" v-for="p in BUILTIN_PERSONAS" :key="p.id">
+            <div class="ai-persona-row" v-for="p in aiPersonas" :key="p.id">
               <label class="ai-persona"><input type="checkbox" :checked="aiPersonaSel.includes(p.id)" @change="aiTogglePersona(p.id)" /> {{ p.icon }} {{ p.name }}</label>
               <span class="ai-persona-brief">{{ p.brief }}</span>
+              <button v-if="p.id.startsWith('custom-')" class="ai-btn-mini danger" title="删除该自建专家" @click="aiRemovePersona(p.id)">✕</button>
+            </div>
+            <div class="ai-pnew">
+              <input class="gs-input" v-model="aiNewP.name" placeholder="专家名（如：财务顾问）" maxlength="12" />
+              <input class="gs-input" v-model="aiNewP.brief" placeholder="人设一句话（可选）" maxlength="40" />
+              <input class="gs-input" v-model="aiNewP.focus" placeholder="关注面（它体检时盯什么）" maxlength="120" />
+              <button class="gs-btn" @click="aiAddPersona">＋ 自建专家</button>
             </div>
             <div class="ai-form-row">
               <select class="gs-input ai-depth" :value="aiConfig.depth" @change="patchAiConfig({ depth: ($event.target as HTMLSelectElement).value as AiDepth })">
@@ -518,6 +525,15 @@
               </select>
               <button class="gs-btn gs-btn-primary" :disabled="!aiReady" @click="aiDiagnose">🧠 一键诊断</button>
             </div>
+          </div>
+        </div>
+
+        <div class="gs-card">
+          <div class="gs-card-header"><span class="gs-card-title">🧭 库内治理</span><span class="gs-card-desc">扫描型建议：跨台镜像 / 主题漂移 / 回收站捞回（标签体检入口在「标签管理」页）</span></div>
+          <div class="gs-card-body ai-form-row">
+            <button class="gs-btn" :disabled="!aiReady" @click="aiCrossDeck">🔁 跨台镜像发现</button>
+            <button class="gs-btn" :disabled="!aiReady" @click="aiThesisDrift">🏛 主题漂移检测</button>
+            <button class="gs-btn" :disabled="!aiReady" @click="aiTrashRescue">🗑 回收站捞回</button>
           </div>
         </div>
 
@@ -1015,7 +1031,8 @@ import type { AiJob, AiRow } from '@/shared/ai/job'
 import { aiConfig, loadAiConfig, patchAiConfig, aiReady, type AiDepth } from '@/shared/ai/config'
 import { listModels, testConnection as aiTestConnection, chatStream, extractJson } from '@/shared/ai/llm'
 import { projectCards, projectDormant, projectLibrary, catPathOf as aiCatPathOf } from '@/shared/ai/project'
-import { batchEnrichSystem, dormantSystem, diagnosisSystem, BUILTIN_PERSONAS, personaOverrides, sanitizeRefs, type EnrichSuggestion, type DormantVerdict } from '@/shared/ai/scenarios'
+import { batchEnrichSystem, dormantSystem, diagnosisSystem, allPersonas, personaOverrides, sanitizeRefs, type EnrichSuggestion, type DormantVerdict } from '@/shared/ai/scenarios'
+import { buildTagGovernJob, buildTrashRescueJob, buildCrossDeckJob, buildThesisJob } from '@/shared/ai/govern'
 
 const router = useRouter()
 const route = useRoute()
@@ -2557,8 +2574,37 @@ const aiModels = ref<string[]>([])
 const aiBusy = ref<'' | 'models' | 'test'>('')
 const aiMsg = ref('')
 const aiDormantDays = ref(90)
-const aiPersonaSel = ref<string[]>(BUILTIN_PERSONAS.map(p => p.id))
-watch(activePage, (p) => { if (p === 'ai') void loadAiConfig() })
+const aiPersonas = computed(() => allPersonas())
+const aiPersonaSel = ref<string[]>([])
+let aiPersonaSynced = false
+const aiNewP = reactive({ name: '', brief: '', focus: '' })
+watch(activePage, async (p) => { if (p === 'ai') { await loadAiConfig(); if (!aiPersonaSynced) { aiPersonaSel.value = aiPersonas.value.map(x => x.id); aiPersonaSynced = true } } })
+// GS 本身即懒路由：挂载时预载一次，标签管理等页的 AI 钮 disabled 态首帧即正确
+void loadAiConfig()
+
+function aiAddPersona() {
+  const name = aiNewP.name.trim(); const focus = aiNewP.focus.trim()
+  if (!name || !focus) { showToast('自建专家至少要有名称与关注面'); return }
+  const list = [...(aiConfig.value.customPersonas || []), { id: 'custom-' + Date.now(), name, brief: aiNewP.brief.trim() || '用户自定义专家', focus }]
+  patchAiConfig({ customPersonas: list })
+  aiPersonaSel.value = [...aiPersonaSel.value, list[list.length - 1].id]
+  aiNewP.name = ''; aiNewP.brief = ''; aiNewP.focus = ''
+  showToast(`✓ 已添加专家「${name}」`)
+}
+function aiRemovePersona(id: string) {
+  patchAiConfig({ customPersonas: (aiConfig.value.customPersonas || []).filter(x => x.id !== id) })
+  aiPersonaSel.value = aiPersonaSel.value.filter(x => x !== id)
+}
+/** R137 治理四钮（标签体检入口在标签管理页；其余三个在 AI 页） */
+function aiOpenJob(job: AiJob | null, emptyMsg: string) {
+  if (!aiGuard()) return
+  if (!job) { showToast(emptyMsg); return }
+  aiJob.value = job
+}
+async function aiTagGovern() { await loadAiConfig(); aiOpenJob(buildTagGovernJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '标签体系还是空的，先给卡片打几个标签') }
+function aiCrossDeck() { aiOpenJob(buildCrossDeckJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '资源台还没有卡，无法做跨台镜像发现') }
+function aiThesisDrift() { aiOpenJob(buildThesisJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '还没有带主题卡的策展台') }
+function aiTrashRescue() { aiOpenJob(buildTrashRescueJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '回收站是空的') }
 
 function aiErr(e: unknown): string { return (e as Error)?.message || String(e) }
 function aiGuard(): boolean {
@@ -2688,21 +2734,37 @@ function aiDormantScan() {
   }
 }
 
-/** 深度诊断 v0：所选专家逐一会诊（自定义 run 接管多轮调用与进度回显）；产出不自动写库 */
+/** 深度诊断 v1：所选专家逐一会诊（自定义 run 接管多轮调用与进度回显）；发现可勾选采纳=生成跟进任务卡 */
 function aiDiagnose() {
   if (!aiGuard()) return
   const d = gd.value
   const ov = personaOverrides()
-  const sel = BUILTIN_PERSONAS.filter(p => aiPersonaSel.value.includes(p.id) && ov[p.id]?.enabled !== false)
+  const sel = aiPersonas.value.filter(p => aiPersonaSel.value.includes(p.id) && ov[p.id]?.enabled !== false)
   if (!sel.length) { showToast('至少勾选一位专家'); return }
   const digest = projectLibrary(d, aiConfig.value.depth)
   aiJob.value = {
     title: `深度诊断 · ${sel.length} 位专家会诊`,
-    hint: `整库摘要投料 ${digest.length} 字（${aiConfig.value.depth === 'eco' ? '经济' : aiConfig.value.depth === 'deep' ? '深度' : '标准'}档）。发现仅供决策参考，v0 不自动落库——按建议手动执行。`,
-    adoptable: false,
+    hint: `整库摘要投料 ${digest.length} 字（${aiConfig.value.depth === 'eco' ? '经济' : aiConfig.value.depth === 'deep' ? '深度' : '标准'}档）。勾选发现采纳=各生成一张跟进任务卡（未归属，自行挂链）；不勾即纯参考。`,
     build: () => ({ messages: [{ role: 'user', content: digest }] }),
     parse: () => [],
-    apply: () => '',
+    apply: (rows) => {
+      const dd = gd.value
+      let n = 0
+      for (const r of rows) {
+        const f = r.data as { severity?: string; title?: string; detail?: string; suggestion?: string }
+        if (!f.title) continue
+        dd.tasks.unshift({
+          id: uid('tk'), kind: 'task', title: String(f.title).slice(0, 40), status: 'todo',
+          priority: f.severity === 'high' ? 'high' : f.severity === 'low' ? 'low' : 'medium',
+          description: ['🧠 诊断发现：', f.detail, f.suggestion && `➜ 建议：${f.suggestion}`].filter(Boolean).join('\n').slice(0, 600),
+          mountedResourceIds: [], mountedCuriosityIds: [], customFields: {},
+          createdAt: Date.now(), updatedAt: Date.now(),
+        } as import('@/shared/models').TaskCard)
+        n++
+      }
+      if (n) store.persist()
+      return `✓ 已生成 ${n} 张诊断跟进任务（在任务面板未归类区，可再挂链）`
+    },
     async run({ signal, onDelta }) {
       let progress = ''
       const rows: AiRow[] = []
@@ -3320,4 +3382,8 @@ const activeManualSec = ref('quick-1')
 .ai-persona-brief { font-size: 11.5px; color: var(--text-3); line-height: 1.6; }
 .gs-btn.ai-batch-btn { margin-left: 10px; padding: 3px 10px; font-size: 11.5px; }
 .gs-btn.ai-batch-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+.ai-pnew { display: flex; gap: 8px; align-items: center; margin: 8px 0 10px; flex-wrap: wrap; }
+.ai-pnew .gs-input { flex: 1; min-width: 130px; }
+.ai-btn-mini { width: 20px; height: 20px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: transparent; color: var(--text-3); font-size: 10px; cursor: pointer; line-height: 1; }
+.ai-btn-mini.danger:hover { color: var(--danger); border-color: var(--danger); }
 </style>

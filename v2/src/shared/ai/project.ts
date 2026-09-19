@@ -7,6 +7,7 @@
  *  - 附件（zy-asset/IndexedDB 本体）永不进投影——只投影文字字段。
  */
 import type { AppData, ResourceCard, Project, Metric, TaskCard } from '@/shared/models'
+import { CURATION_WS_ID } from '@/shared/models'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import type { AiDepth } from './config'
 
@@ -190,6 +191,76 @@ export function cardDirectory(d: AppData, opts: { excludeIds?: Set<string> }, de
     lines.push(`- cardId=${r.id} 「${cut(r.title, 50)}」${r.tags?.length ? ` 标签[${r.tags.join(',')}]` : ''} 分类:${catPathOf(d, r.categoryId) || '未分类'}${r.description ? ` ${cut(r.description, 50)}` : ''} 打开${r.callCount || 0}次`)
   }
   return lines.join('\n')
+}
+
+/**
+ * R137 · E1 标签体系体检投料：全部实际在用的标签值（含路径/裸叶子双口径）+ 各值用量，
+ * 附标签树现状路径清单——同义合并建议必须落在真实存在的标签上。
+ */
+export function projectTagSystem(d: AppData, depth: AiDepth): string {
+  const c = CAP[depth]
+  const usage = new Map<string, number>()
+  for (const arr of [d.resources, d.tasks, d.curiosities] as { id: string; tags?: string[]; deletedAt?: number }[][]) {
+    for (const x of arr || []) { if (x.deletedAt) continue; for (const t of x.tags || []) usage.set(t, (usage.get(t) || 0) + 1) }
+  }
+  const treePaths: string[] = []
+  const walk = (nodes: { name: string; children?: unknown[] }[], prefix: string) => {
+    for (const n of nodes) { const p = prefix ? `${prefix}/${n.name}` : n.name; treePaths.push(p); if (n.children?.length) walk(n.children as never, p) }
+  }
+  walk((d.tagTree || []) as never, '')
+  const used = [...usage.entries()].sort((a, b) => b[1] - a[1]).slice(0, c.list * 2)
+  return [
+    '【在用标签及用量（含卡片上的裸叶子名与父/子路径双口径）】',
+    used.map(([t, n]) => `- ${t}（${n} 次）`).join('\n'),
+    `【标签树现状路径】\n${treePaths.slice(0, c.list * 2).join('\n') || '（树为空，标签以裸名散存于卡片）'}`,
+    treePaths.length > c.list * 2 ? `… 另有 ${treePaths.length - c.list * 2} 条树路径` : '',
+  ].filter(Boolean).join('\n')
+}
+
+/** R137 · H2 回收站捞回投料：软删清单（含删除时间）+ 现存卡目录与活跃目标做"是否还需要"参照 */
+export function projectTrash(d: AppData, depth: AiDepth): string {
+  const c = CAP[depth]
+  const tr = (d.resources || []).filter(r => r.deletedAt).sort((a, b) => (b.deletedAt! - a.deletedAt!)).slice(0, c.cards)
+  const live = new Set((d.resources || []).filter(r => !r.deletedAt).map(r => r.title))
+  const dirs = (d.compass.directions || []).filter(x => x.status === 'active').map(x => `· ${x.name}（${x.term || '未分期'}）`).join('\n')
+  return [
+    `【回收站清单】共 ${tr.length} 张资源卡（删于 30 天内优先评估）`,
+    ...tr.map(r => {
+      const sim = [...live].find(t => t !== r.title && (t.includes(r.title.slice(0, 6)) || r.title.includes(t.slice(0, 6))))
+      return `- cardId=${r.id} 「${cut(r.title, 50)}」 删前分类:${catPathOf(d, r.categoryId) || '未分类'} 标签[${(r.tags || []).join(',')}] 删前打开${r.callCount || 0}次 删除于${new Date(r.deletedAt!).toLocaleDateString('zh-CN')}${sim ? ` ⚠与现存卡「${cut(sim, 30)}」疑似同物` : ''}`
+    }),
+    dirs ? `【当前活跃战略目标（相关性参照）】\n${dirs}` : '',
+  ].filter(Boolean).join('\n')
+}
+
+/** R137 · G2 跨台相似卡投料：全库卡目录（带台归属）+ 台清单 */
+export function projectCrossDeck(d: AppData, depth: AiDepth): { text: string; hubIds: Set<string> } {
+  const c = CAP[depth]
+  const wsName = new Map((d.workspaces || []).map(w => [w.id, wsDisplayNameOf(w)]))
+  const hubIds = new Set<string>((d.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID).map(r => r.id))
+  const lines: string[] = []
+  for (const r of d.resources || []) {
+    if (r.deletedAt) continue
+    if (lines.length >= c.cards * 2) break
+    lines.push(`- cardId=${r.id} 台[${wsName.get(r.workspaceId) || '?'}] 「${cut(r.title, 50)}」${r.tags?.length ? ` 标签[${r.tags.join(',')}]` : ''}${r.description ? ` ${cut(r.description, 40)}` : ''}`)
+  }
+  const boards = (d.workspaces || []).filter(w => !w.archived && w.kind !== 'resource').map(w => `· wsId=${w.id} ${wsDisplayNameOf(w)}`).join('\n')
+  return { text: `【全库卡目录】\n${lines.join('\n')}\n\n【策展台清单】\n${boards}`, hubIds }
+}
+
+/** R137 · G1 金字塔主题漂移投料：每台 主题卡 + 卡群样本 */
+export function projectThesis(d: AppData, depth: AiDepth): string {
+  const c = CAP[depth]
+  const blocks: string[] = []
+  for (const w of d.workspaces || []) {
+    if (w.archived) continue
+    const cards = (d.resources || []).filter(r => !r.deletedAt && r.workspaceId === w.id)
+    const th = cards.find(r => r.isThesis)
+    if (!th) continue
+    const sample = cards.filter(r => !r.isThesis).slice(0, c.titles).map(r => `· ${cut(r.title, 40)}${r.tags?.length ? ` [${r.tags.join(',')}]` : ''}`).join('\n')
+    blocks.push(`台 wsId=${w.id} 「${wsDisplayNameOf(w)}」主题卡:「${cut(th.title, 40)}」${th.description ? ` 论点:${cut(th.description, c.desc)}` : ''}\n卡群 ${cards.length - 1} 张：\n${sample || '（无其它卡）'}`)
+  }
+  return blocks.join('\n\n') || ''
 }
 
 /** 整库摘要（深度诊断投料）：罗盘六层链 + 各台计数与代表卡 + 全局数字体检料 */
