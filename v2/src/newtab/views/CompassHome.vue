@@ -1169,7 +1169,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .hint-chip { font-size: 10.5px; color: var(--text-3); background: var(--surface); border: 1px dashed var(--border-strong); padding: 3px 10px; border-radius: 99px; }
 
 /* R50-F2 数据存储状态栏 */
-.storage-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); padding: 4px 12px; border-radius: 99px; cursor: pointer; transition: border-color .15s; font-family: inherit; }
+.storage-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); padding: 4px 12px; border-radius: 99px; cursor: pointer; transition: border-color var(--dur); font-family: inherit; }
 .storage-chip:hover { border-color: var(--border-strong); }
 .storage-chip .sc-dot { width: 7px; height: 7px; border-radius: 99px; background: #2EA043; box-shadow: 0 0 6px rgba(46,160,67,.55); flex-shrink: 0; }
 .storage-chip.err { color: #F85149; border-color: color-mix(in srgb, #F85149 45%, var(--border)); }
@@ -1177,7 +1177,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 @keyframes scBlink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
 /* R63-9：Airtable 同步状态卡（右上角常驻，量级对齐 storage-chip） */
-.sync-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); padding: 4px 12px; border-radius: 99px; cursor: pointer; transition: border-color .15s; font-family: inherit; }
+.sync-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); padding: 4px 12px; border-radius: 99px; cursor: pointer; transition: border-color var(--dur); font-family: inherit; }
 .sync-chip:hover { border-color: var(--border-strong); }
 .sync-chip .sc-dot { width: 7px; height: 7px; border-radius: 99px; background: var(--text-3); flex-shrink: 0; }
 .sync-chip.on .sc-dot { background: #2EA043; box-shadow: 0 0 6px rgba(46,160,67,.55); }
@@ -1190,10 +1190,10 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .rec-mini { display: inline-flex; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 4px 8px; }
 /* R66-F3：指标条内嵌态——去边框，融入单行指标条右端 */
 .rec-mini.in-bar { background: transparent; border: none; padding: 0; }
-.rec-mini .rm-cell { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-2); padding: 2px 7px; border-radius: 99px; cursor: pointer; font-variant-numeric: tabular-nums; transition: all .12s; white-space: nowrap; }
+.rec-mini .rm-cell { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-2); padding: 2px 7px; border-radius: 99px; cursor: pointer; font-variant-numeric: tabular-nums; transition: all var(--dur-fast); white-space: nowrap; }
 .rec-mini .rm-cell:hover { background: var(--accent-light); color: var(--accent); }
 /* R120-TB1：条内动作按钮（周报）——与今日记录四格同量级 */
-.mb-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 11px; padding: 3px 9px; border-radius: 99px; cursor: pointer; font-family: inherit; transition: all .12s; }
+.mb-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 11px; padding: 3px 9px; border-radius: 99px; cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
 .mb-act:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 
 /* 左右分栏 */
@@ -1239,11 +1239,11 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .card-head .nm { font-size: 15px; font-weight: 600; letter-spacing: .3px; }
 .card-head .en { font-size: 9px; color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; }
 .card-head .ds { font-size: 11.5px; color: var(--text-3); margin-left: 6px; flex: 1; }
-.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; user-select: none; }
+.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); user-select: none; }
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
 .mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .mini-btn.primary:hover { background: var(--accent-hover); }
-.mini-btn:disabled { opacity: .45; cursor: not-allowed; }
+.mini-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .tag { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; padding: 2px 8px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 500; white-space: nowrap; }
 .tag.accent { background: var(--accent-light); color: var(--accent); }
 .tag.warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
@@ -1278,7 +1278,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cur-tree-caret { opacity: .7; }
 /* R52-F1：三件事横向并列——3 槽一行，压缩纵向空间 */
 .today-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.today-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; cursor: pointer; transition: all .15s ease; position: relative; display: flex; flex-direction: column; min-height: 84px; }
+.today-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; cursor: pointer; transition: all var(--dur) ease; position: relative; display: flex; flex-direction: column; min-height: 84px; }
 .today-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
 .today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 22%, transparent); }
 .today-card.done { opacity: .6; animation: none; }
@@ -1293,13 +1293,13 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .tc-num { position: absolute; top: 12px; right: 14px; font-size: 12px; color: var(--text-4); font-weight: 700; font-variant-numeric: tabular-nums; }
 .tc-row { display: flex; align-items: flex-start; gap: 8px; }
 /* R120-TB2：方形勾选框（对齐原型：16px / 4px 圆角 / 1.5px 边框 / 选中随主题强调色） */
-.tc-check { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 10px; color: #fff; background: var(--surface); margin-top: 2px; transition: all .15s; }
+.tc-check { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 10px; color: #fff; background: var(--surface); margin-top: 2px; transition: all var(--dur); }
 .tc-check.done { background: var(--accent); border-color: var(--accent); }
 .tc-title { font-size: 14px; font-weight: 600; line-height: 1.4; flex: 1; }
 .tc-title.empty-t { color: var(--text-3); font-weight: 400; }
 .tc-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
 .tc-meta .tag { font-size: 11px; padding: 1px 7px; }
-.tc-remove { position: absolute; top: 7px; right: 32px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 13px; color: var(--text-3); cursor: pointer; opacity: 0; transition: all .15s; }
+.tc-remove { position: absolute; top: 7px; right: 32px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 13px; color: var(--text-3); cursor: pointer; opacity: 0; transition: all var(--dur); }
 .today-card:hover .tc-remove { opacity: 1; }
 .tc-remove:hover { background: var(--danger); color: #fff; }
 
@@ -1323,11 +1323,11 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cur-goal-link:hover { text-decoration: underline; }
 /* R120-TB3：进度条（5px，对齐原型；宽度=项目进度既有口径） */
 .cur-progress { height: 5px; margin-top: 10px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
-.cur-progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .25s ease; }
+.cur-progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width var(--dur-slow) ease; }
 /* R56-P1：项目调度 4 指标卡 ｜ R57-F2：两两一行 ｜ R120-TB3：原型 mini box（左对齐 / 14px 数值 / 11px 标签） */
 .cur-stats-v2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
 .csv-cell { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; text-align: left; }
-.csv-cell.clickable { cursor: pointer; transition: all .12s; }
+.csv-cell.clickable { cursor: pointer; transition: all var(--dur-fast); }
 .csv-cell.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
 .csv-num { font-size: 14px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.25; }
 .csv-num.ok { color: var(--success); }
@@ -1335,12 +1335,12 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .csv-lab { font-size: 11px; color: var(--text-3); margin-top: 1px; }
 /* R54-B1：分栏拖拽分隔条 */
 /* R55-E2：分隔条常显可见（细线）+ hover/拖动增强，命中区 8px */
-.cur-split { width: 8px; border-radius: 99px; cursor: col-resize; background: transparent; transition: background .15s; align-self: stretch; position: relative; }
-.cur-split::after { content: ''; position: absolute; left: 3px; top: 6px; bottom: 6px; width: 2px; border-radius: 99px; background: var(--border-strong); opacity: .5; transition: all .15s; }
+.cur-split { width: 8px; border-radius: 99px; cursor: col-resize; background: transparent; transition: background var(--dur); align-self: stretch; position: relative; }
+.cur-split::after { content: ''; position: absolute; left: 3px; top: 6px; bottom: 6px; width: 2px; border-radius: 99px; background: var(--border-strong); opacity: .5; transition: all var(--dur); }
 .cur-split:hover, .cur-split:active { background: var(--accent-light); }
 .cur-split:hover::after, .cur-split:active::after { background: var(--accent); opacity: 1; top: 0; bottom: 0; }
 /* R54-B2：指标卡可点击 */
-.cur-stat.clickable { cursor: pointer; transition: border-color .15s, transform .12s; }
+.cur-stat.clickable { cursor: pointer; transition: border-color var(--dur), transform var(--dur-fast); }
 .cur-stat.clickable:hover { border-color: var(--accent); transform: translateY(-1px); }
 .cur-stat.clickable:hover .cs-lab { color: var(--accent); }
 /* R55-D2：4 指标降级为一行状态栏（card-head 右侧，点击下钻保留） */
@@ -1355,7 +1355,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cur-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
 .cg-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: transparent; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
 /* R52-F2：指标组折叠 caret */
-.cg-caret { width: 12px; text-align: center; font-size: 10px; color: var(--text-3); transition: transform .15s; flex-shrink: 0; }
+.cg-caret { width: 12px; text-align: center; font-size: 10px; color: var(--text-3); transition: transform var(--dur); flex-shrink: 0; }
 .cg-caret.open { transform: rotate(90deg); }
 .cg-name { font-size: 12px; font-weight: 700; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cg-name.none { color: var(--text-3); }
@@ -1374,10 +1374,10 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cur-add-metric { display: flex; gap: 8px; padding: 10px 12px; }
 .cam-input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 12.5px; outline: none; background: var(--surface); color: var(--text); font-family: inherit; }
 .cam-input:focus { border-color: var(--accent); }
-.cur-add-metric-link { margin: 2px 0 0; padding: 7px 10px; font-size: 12px; color: var(--text-3); border: 1px dashed var(--border); border-radius: 8px; cursor: pointer; text-align: center; transition: all .12s; }
+.cur-add-metric-link { margin: 2px 0 0; padding: 7px 10px; font-size: 12px; color: var(--text-3); border: 1px dashed var(--border); border-radius: 8px; cursor: pointer; text-align: center; transition: all var(--dur-fast); }
 .cur-add-metric-link:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
 .cg-tasks { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 4px; }
-.cg-task { display: flex; align-items: center; gap: 8px; padding: 4px 4px; border-radius: 7px; cursor: pointer; transition: background .12s; }
+.cg-task { display: flex; align-items: center; gap: 8px; padding: 4px 4px; border-radius: 7px; cursor: pointer; transition: background var(--dur-fast); }
 .cg-task:hover { background: var(--surface-2); }
 .cg-task.is-done .cg-t { text-decoration: line-through; color: var(--text-3); }
 /* R120-TB3：12px 状态环（对齐原型；doing/done 保留语义色与微标记以便辨识） */
@@ -1431,9 +1431,9 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .list-empty { text-align: center; padding: 30px; font-size: 13px; color: var(--text-3); }
 .ts-label-pm { font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin-bottom: 7px; }
 .ts-select-pm { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: 12.5px; color: var(--text); border: 1px solid transparent; outline: none; cursor: pointer; font-family: inherit; }
-.fade-enter-active, .fade-leave-active { transition: opacity .25s; }
+.fade-enter-active, .fade-leave-active { transition: opacity var(--dur-slow); }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-.modal-enter-active, .modal-leave-active { transition: all .15s ease; }
+.modal-enter-active, .modal-leave-active { transition: all var(--dur) ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; transform: translate(-50%, -50%) scale(.95); }
 /* R52-BUG-1：系统事件灰显（不计数，仅可见） */
 .picker-item.sys { opacity: .45; }

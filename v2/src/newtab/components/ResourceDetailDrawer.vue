@@ -171,11 +171,11 @@ watch(() => resource.value?.id, (n) => {
 
 .red-btn {
   flex: 1; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px;
-  background: var(--surface-2); color: var(--text); cursor: pointer; font-size: 12.5px; transition: all .15s;
+  background: var(--surface-2); color: var(--text); cursor: pointer; font-size: 12.5px; transition: all var(--dur);
 }
 .red-btn:hover { background: var(--surface-3); }
 .red-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .red-btn.primary:hover { opacity: .9; }
 .red-btn.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
-.red-btn.danger:hover { background: rgba(229,72,77,.1); }
+.red-btn.danger:hover { background: var(--danger-bg-soft); }
 </style>

@@ -760,7 +760,7 @@ function addTaskFromHeader() {
 .pd-group { margin-bottom: 10px; }
 .pd-goal { display: flex; align-items: baseline; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text-2); padding: 4px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pd-term { font-size: 10px; color: var(--text-3); font-weight: 400; flex-shrink: 0; }
-.pd-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px 14px; border-radius: 6px; cursor: pointer; font-size: 12.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; transition: background .12s; }
+.pd-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px 14px; border-radius: 6px; cursor: pointer; font-size: 12.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; transition: background var(--dur-fast); }
 .pd-item:hover { background: var(--surface-2); }
 .pd-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
 .pd-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--border-strong); flex-shrink: 0; }
@@ -768,7 +768,7 @@ function addTaskFromHeader() {
 .pd-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .pd-pct { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .pd-empty { font-size: 12px; color: var(--text-3); padding: 6px 8px; }
-.pd-split { width: 4px; flex-shrink: 0; align-self: stretch; margin: 4px 0 4px 4px; cursor: col-resize; border-radius: 2px; transition: background .12s; z-index: 5; }
+.pd-split { width: 4px; flex-shrink: 0; align-self: stretch; margin: 4px 0 4px 4px; cursor: col-resize; border-radius: 2px; transition: background var(--dur-fast); z-index: 5; }
 .pd-split:hover { background: var(--accent-light); }
 /* R132-T4/T5：左栏两段式——全景折叠块头 + 目录锚点项；锚点滚动留出顶栏高度 */
 .pb-head-row, .metric-sec { scroll-margin-top: 72px; }
@@ -787,7 +787,7 @@ function addTaskFromHeader() {
 .metric-add-row input { flex: 1; border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; color: var(--text); outline: none; font-family: inherit; }
 .metric-add-row input:focus { border-color: var(--accent); }
 
-.metric-sec { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px; transition: border-color .15s, box-shadow .15s; }
+.metric-sec { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px; transition: border-color var(--dur), box-shadow var(--dur); }
 /* R55-G1：目录树定位闪烁 */
 .metric-sec.sec-flash { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
 .btask.task-flash { background: var(--accent-light); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
@@ -800,7 +800,7 @@ function addTaskFromHeader() {
 .icon-btn-sm:hover { background: var(--surface-3); color: var(--text); }
 .icon-btn-sm.del:hover { color: var(--danger); }
 .task-rows { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; min-height: 20px; }
-.btask { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 8px; transition: background .12s; }
+.btask { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 8px; transition: background var(--dur-fast); }
 .btask:hover { background: var(--surface-2); }
 .btask.dragging { opacity: .35; }
 .btask .bdrag { color: var(--text-4); font-size: 11px; cursor: grab; flex-shrink: 0; }
@@ -860,7 +860,7 @@ function addTaskFromHeader() {
 /* 抽屉 */
 .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 400; }
 
-.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; user-select: none; }
+.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); user-select: none; }
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
 .mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .mini-btn.primary:hover { background: var(--accent-hover); }
@@ -874,7 +874,7 @@ function addTaskFromHeader() {
 .tag.info { background: var(--accent-light); color: var(--accent); }
 .progress { height: 5px; background: var(--surface-3); border-radius: 99px; overflow: hidden; display: inline-block; vertical-align: middle; }
 .progress > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
-.fade-enter-active, .fade-leave-active { transition: opacity .25s; }
+.fade-enter-active, .fade-leave-active { transition: opacity var(--dur-slow); }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 .slide-enter-active, .slide-leave-active { transition: transform .2s cubic-bezier(.16,1,.3,1); }
 .slide-enter-from, .slide-leave-to { transform: translateX(100%); }

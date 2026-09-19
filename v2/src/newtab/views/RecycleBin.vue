@@ -208,7 +208,7 @@ const tabMeta = computed(() => [
       <div v-for="c in cats" :key="c.id" class="rb-item">
         <div class="rb-item-main">
           <div class="rb-item-title">📁 {{ c.name }}</div>
-          <div class="rb-item-meta">🗂 {{ wsNameOf(c.workspaceId) }} · 🕓 删除于 {{ fmt(c.deletedAt) }}<span style="color:var(--text4)"> · 恢复后其下卡片不会自动归位（仍在待分类/回收站）</span></div>
+          <div class="rb-item-meta">🗂 {{ wsNameOf(c.workspaceId) }} · 🕓 删除于 {{ fmt(c.deletedAt) }}<span style="color:var(--text-4)"> · 恢复后其下卡片不会自动归位（仍在待分类/回收站）</span></div>
         </div>
         <div class="rb-item-ops">
           <button class="rb-btn sm" @click="restoreCat(c)">恢复</button>
@@ -224,24 +224,24 @@ const tabMeta = computed(() => [
 <style scoped>
 .rb-page { max-width: 860px; margin: 0 auto; padding: 28px 20px 60px; }
 .rb-head { margin-bottom: 20px; }
-.rb-back { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 6px 14px; font-size: 12px; cursor: pointer; font-family: inherit; margin-bottom: 14px; transition: all .15s; }
+.rb-back { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 6px 14px; font-size: 12px; cursor: pointer; font-family: inherit; margin-bottom: 14px; transition: all var(--dur); }
 .rb-back:hover { border-color: var(--accent); color: var(--accent); }
 .rb-title { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
 .rb-desc { font-size: 12.5px; color: var(--text-3); margin-bottom: 16px; }
 .rb-actions { display: flex; gap: 8px; }
-.rb-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .15s; }
+.rb-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all var(--dur); }
 .rb-btn:hover { border-color: var(--accent); color: var(--accent); }
 .rb-btn.sm { padding: 5px 10px; font-size: 11.5px; }
-.rb-btn.danger { border-color: color-mix(in srgb, #e5484d 40%, transparent); color: #e5484d; }
-.rb-btn.danger:hover { background: #e5484d; color: #fff; }
+.rb-btn.danger { border-color: var(--danger-border); color: var(--danger); }
+.rb-btn.danger:hover { background: var(--danger); color: #fff; }
 
 .rb-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-.rb-tab { flex: 1; padding: 10px 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .15s; }
+.rb-tab { flex: 1; padding: 10px 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all var(--dur); }
 .rb-tab.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
 .rb-count { display: inline-block; min-width: 22px; padding: 1px 7px; background: var(--surface-2); border-radius: 99px; font-size: 11px; margin-left: 4px; }
 
 .rb-list { display: flex; flex-direction: column; gap: 8px; }
-.rb-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; transition: all .15s; }
+.rb-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; transition: all var(--dur); }
 .rb-item:hover { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .rb-item-main { flex: 1; min-width: 0; }
 .rb-item-title { font-size: 13.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 3px; }

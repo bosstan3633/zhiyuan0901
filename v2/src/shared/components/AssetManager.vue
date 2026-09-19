@@ -239,7 +239,7 @@ async function openAsset(meta: AssetMeta) {
 .am-del:hover { color: var(--danger); }
 .am-add {
   padding: 6px 10px; border: 1px dashed var(--border-strong); border-radius: 6px; background: transparent;
-  color: var(--text-2); font-size: 11.5px; cursor: pointer; font-family: inherit; transition: all .15s;
+  color: var(--text-2); font-size: 11.5px; cursor: pointer; font-family: inherit; transition: all var(--dur);
 }
 .am-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .am-add.busy { opacity: .6; cursor: default; }

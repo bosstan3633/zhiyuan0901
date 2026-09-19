@@ -88,7 +88,7 @@ function openTree() {
 /* R121：主线摘要并入副标题（原型：方向台 · 主航线与项目全景 · N 目标 · …） */
 .mainline-summary { font-size: 12.5px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .page-head .spacer { flex: 1; }
-.done-toggle { font-size: 11.5px; color: var(--text-3); cursor: pointer; white-space: nowrap; padding: 3px 10px; border: 1px solid var(--border); border-radius: 99px; transition: all .15s; }
+.done-toggle { font-size: 11.5px; color: var(--text-3); cursor: pointer; white-space: nowrap; padding: 3px 10px; border: 1px solid var(--border); border-radius: 99px; transition: all var(--dur); }
 .done-toggle:hover { color: var(--accent); border-color: var(--accent); }
 .done-toggle.off { opacity: .6; }
 .tree-link { font-size: 12.5px; color: var(--accent); font-weight: 600; cursor: pointer; white-space: nowrap; }

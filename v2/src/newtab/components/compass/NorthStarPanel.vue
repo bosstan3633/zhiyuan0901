@@ -363,19 +363,19 @@ function changeTaskMetric(taskId: string, e: Event) {
 .ns-en { font-size: 9px; color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; margin-left: 2px; }
 
 .period-switch { display: flex; gap: 2px; background: var(--surface-3); border-radius: 8px; padding: 3px; }
-.period-btn { padding: 4px 12px; border-radius: 6px; border: none; background: transparent; font-size: 11.5px; color: var(--text-3); cursor: pointer; font-family: inherit; font-weight: 500; transition: all .15s; }
+.period-btn { padding: 4px 12px; border-radius: 6px; border: none; background: transparent; font-size: 11.5px; color: var(--text-3); cursor: pointer; font-family: inherit; font-weight: 500; transition: all var(--dur); }
 .period-btn:hover { color: var(--text-2); }
 .period-btn.active { background: var(--surface); color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
 
 .ns-body { flex: 1; display: flex; flex-direction: column; }
 /* 第卅五轮 REQ-033：2×3 指标网格撑满卡片高度，与左侧主航线下边缘对齐（去掉状态条后无冗余留白） */
 .ns-matrix { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-auto-rows: 1fr; gap: 10px; flex: 1; }
-.ns-card { border-radius: var(--radius-xs); padding: 12px 14px; cursor: pointer; transition: all .15s; border: 1px solid transparent; display: flex; flex-direction: column; justify-content: center; }
+.ns-card { border-radius: var(--radius-xs); padding: 12px 14px; cursor: pointer; transition: all var(--dur); border: 1px solid transparent; display: flex; flex-direction: column; justify-content: center; }
 .ns-card:hover { border-color: var(--accent); transform: translateY(-1px); }
 .ns-card.top { background: var(--accent-light); }
 .ns-card.bottom { background: var(--surface-3); }
 .ns-label { font-size: 11px; color: var(--text-2); margin-bottom: 4px; display: flex; align-items: center; }
-.ns-hint { margin-left: auto; font-size: 10px; opacity: 0; transition: opacity .15s; color: var(--accent); }
+.ns-hint { margin-left: auto; font-size: 10px; opacity: 0; transition: opacity var(--dur); color: var(--accent); }
 .ns-card:hover .ns-hint { opacity: 1; }
 .ns-value { font-size: 20px; font-weight: 600; color: var(--text); line-height: 1.2; letter-spacing: -.2px; font-variant-numeric: tabular-nums; }
 .ns-card.top .ns-value { color: var(--accent); }
@@ -420,7 +420,7 @@ function changeTaskMetric(taskId: string, e: Event) {
 .nd-task-links { display: flex; gap: 6px; margin-top: 8px; }
 .nd-select { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 11px; color: var(--text-2); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; }
 .nd-select:focus { border-color: var(--accent); }
-.nd-select:disabled { opacity: .5; cursor: not-allowed; }
+.nd-select:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
 /* 第卌四轮 T-02：模块分组/链接卡片下钻 UI 已撤卡（wsPopup/nd-ws/nd-flat/nw-* 死样式全清），全景下钻由设置页「策展台全景」承接 */
 

@@ -33,7 +33,19 @@
   /* R124：小字号呼吸字距（11–12px 文本统一） */
   --tracking-sm: 0.04em;
 
-  /* 圆角体系（R124：大容器 12 · 卡片/按钮 8 · 标签/小按钮 4） */
+  /* R133-E4（批次 E）：运动令牌——时长阶梯 + 统一减速曲线。
+     原 120/150/250 毫秒级内联字面量已全站收敛至此（src/content 浮层自带 --zy 体系豁免） */
+  --dur-fast: 120ms;
+  --dur: 150ms;
+  --dur-slow: 250ms;
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* R133-E3：禁用态统一判据（原 :disabled 处 .4/.45/.5 三档离散值收敛，取主档） */
+  --opacity-disabled: 0.5;
+
+  /* 圆角体系（R124：大容器 12 · 卡片/按钮 8 · 标签/小按钮 4；R130-T5 补 md；
+     R133-E2 补 lg=14px——CompassTree .tree-level-card 引用此前无定义，渲染成直角的又一例 R130-T5 类 BUG） */
+  --radius-lg: 14px;  /* 弹层 / 大卡片（R133-E2） */
   --radius: 12px;    /* 大容器 / 弹层 */
   --radius-md: 10px; /* R130-T5：全站 14 处引用（metric-box/today-card/tm-card/thesis-banner…）此前无定义 → 圆角静默失效渲染成直角，现补上 */
   --radius-sm: 8px;  /* 卡片 / 按钮 / 输入 */
@@ -99,6 +111,15 @@
   --tag-info-bg: rgba(91, 141, 239, 0.15);
   --tag-info-text: #9CC0F5;
 
+  /* R133-E1（批次 E）：语义色三档阶梯（soft 底 / border 环 / 文本走各自 --success 等主令牌）
+     —— 警示横幅、危险按钮 hover、dup 校验环等散点硬编码 rgba 的统一落点 */
+  --success-bg-soft: rgba(39, 166, 68, 0.10);
+  --success-border: rgba(39, 166, 68, 0.40);
+  --warning-bg-soft: rgba(217, 160, 60, 0.10);
+  --warning-border: rgba(217, 160, 60, 0.40);
+  --danger-bg-soft: rgba(229, 72, 77, 0.10);
+  --danger-border: rgba(229, 72, 77, 0.40);
+
   /* 遮罩 · 纯黑 scrim（规范口径） */
   --overlay-bg: rgba(0, 0, 0, 0.6);
 
@@ -146,6 +167,12 @@
   --tag-neutral-text: rgba(255, 255, 255, 0.50);
   --tag-info-bg: rgba(91, 141, 239, 0.15);
   --tag-info-text: #9CC0F5;
+  --success-bg-soft: rgba(39, 166, 68, 0.10);
+  --success-border: rgba(39, 166, 68, 0.40);
+  --warning-bg-soft: rgba(217, 160, 60, 0.10);
+  --warning-border: rgba(217, 160, 60, 0.40);
+  --danger-bg-soft: rgba(229, 72, 77, 0.10);
+  --danger-border: rgba(229, 72, 77, 0.40);
   --overlay-bg: rgba(0, 0, 0, 0.6);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -190,6 +217,12 @@
   --tag-neutral-text: rgba(0, 0, 0, 0.44);
   --tag-info-bg: #EEF0FC;
   --tag-info-text: #4C57BE;
+  --success-bg-soft: rgba(39, 166, 68, 0.08);
+  --success-border: rgba(39, 166, 68, 0.35);
+  --warning-bg-soft: rgba(166, 106, 0, 0.10);
+  --warning-border: rgba(166, 106, 0, 0.35);
+  --danger-bg-soft: rgba(208, 52, 44, 0.08);
+  --danger-border: rgba(208, 52, 44, 0.35);
   --overlay-bg: rgba(0, 0, 0, 0.32);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
   --shadow: 0 0 0 1px var(--border);
@@ -234,6 +267,12 @@
   --tag-neutral-text: rgba(15, 15, 15, 0.42);
   --tag-info-bg: #EEF0FC;
   --tag-info-text: #4C57BE;
+  --success-bg-soft: rgba(68, 131, 97, 0.10);
+  --success-border: rgba(68, 131, 97, 0.35);
+  --warning-bg-soft: rgba(192, 138, 45, 0.12);
+  --warning-border: rgba(192, 138, 45, 0.40);
+  --danger-bg-soft: rgba(224, 62, 62, 0.08);
+  --danger-border: rgba(224, 62, 62, 0.35);
   --overlay-bg: rgba(15, 15, 15, 0.35);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
   --shadow: 0 0 0 1px var(--border);
@@ -256,6 +295,12 @@ html, body {
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* R133-E3（批次 E）：选区色统一 —— 强调色 18% 软底取代浏览器默认实色蓝（四主题随 --accent 走） */
+::selection {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text);
 }
 
 /* Linear 规范：深色画布即留白，无氛围渐变、无聚光卡片 */

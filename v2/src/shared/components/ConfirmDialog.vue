@@ -41,7 +41,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 .cdf-title { font-size: 15.5px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
 .cdf-msg { font-size: 12.5px; color: var(--text-2); line-height: 1.7; white-space: pre-line; }
 .cdf-btns { display: flex; gap: 10px; margin-top: 20px; }
-.cdf-btn { flex: 1; padding: 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; color: var(--text-2); transition: all .15s; }
+.cdf-btn { flex: 1; padding: 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; color: var(--text-2); transition: all var(--dur); }
 .cdf-btn.cancel:hover { border-color: var(--border-strong); color: var(--text); }
 .cdf-btn.ok { background: var(--accent); color: #fff; border-color: var(--accent); }
 .cdf-btn.ok:hover { background: var(--accent-hover); }

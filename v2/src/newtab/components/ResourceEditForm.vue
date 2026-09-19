@@ -238,7 +238,7 @@ function fmtTs(ts?: number): string {
 }
 .ref-title:focus { outline: none; border-color: var(--accent); }
 .ref-title-row.highlight .ref-title { box-shadow: 0 0 0 2px var(--accent); }
-.ref-close { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 18px; transition: all .15s; flex-shrink: 0; }
+.ref-close { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 18px; transition: all var(--dur); flex-shrink: 0; }
 .ref-title-assets { margin-top: 10px; flex-shrink: 0; }
 .ref-close:hover { background: var(--surface-3); color: var(--text); }
 
@@ -248,7 +248,7 @@ function fmtTs(ts?: number): string {
 .ref-link-type-btn {
   flex: 1; padding: 7px 0; text-align: center; font-size: 12.5px; cursor: pointer;
   border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text-2);
-  transition: all .15s;
+  transition: all var(--dur);
 }
 .ref-link-type-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .ref-link-input {
@@ -256,7 +256,7 @@ function fmtTs(ts?: number): string {
   border-radius: 6px; background: var(--surface-2); color: var(--text); font-size: 13px; font-family: inherit;
 }
 .ref-link-input:focus { outline: none; border-color: var(--accent); }
-.ref-warn { margin-top: 8px; font-size: 12px; color: var(--danger); background: rgba(229,72,77,.08); padding: 6px 10px; border-radius: 6px; }
+.ref-warn { margin-top: 8px; font-size: 12px; color: var(--danger); background: var(--danger-bg-soft); padding: 6px 10px; border-radius: 6px; }
 
 .ref-select {
   width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--border);

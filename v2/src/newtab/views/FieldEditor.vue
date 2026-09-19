@@ -188,7 +188,7 @@ const vFocus = { mounted: (el: HTMLInputElement) => el.focus() }
 /* B18：迁入的字段行样式 */
 .gs-field-list { display: flex; flex-direction: column; gap: 8px; }
 /* D2R：模块化字段行（全宽卡片 + 右侧徽章操作簇） */
-.gs-field-row { display: flex; align-items: center; gap: 12px; padding: 13px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.02); cursor: default; transition: all .15s; }
+.gs-field-row { display: flex; align-items: center; gap: 12px; padding: 13px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.02); cursor: default; transition: all var(--dur); }
 .gs-field-row:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: 0 3px 12px color-mix(in srgb, var(--accent) 7%, transparent); transform: translateY(-1px); }
 .gs-field-row.dragging { opacity: .4; border-style: dashed; transform: none; }
 .gs-field-row.locked { background: var(--surface-2); }
@@ -201,7 +201,7 @@ const vFocus = { mounted: (el: HTMLInputElement) => el.focus() }
 .gs-fr-type.required { background: var(--tag-danger-bg); color: var(--tag-danger-text); }
 .gs-fr-type.system { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
 .gs-fr-type.auto { background: var(--tag-info-bg); color: var(--tag-info-text); }
-.gs-fr-visibility { width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all .15s; flex-shrink: 0; border: 1px solid transparent; }
+.gs-fr-visibility { width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all var(--dur); flex-shrink: 0; border: 1px solid transparent; }
 .gs-fr-visibility.shown { color: var(--accent); background: var(--accent-light); }
 .gs-fr-visibility.hidden { color: var(--text-4); background: var(--surface-3); }
 .gs-fr-visibility:hover { border-color: var(--accent); }
@@ -211,7 +211,7 @@ const vFocus = { mounted: (el: HTMLInputElement) => el.focus() }
 .gs-fr-action:hover { background: var(--surface-3); color: var(--text); border-color: var(--border); }
 .gs-fr-action.delete:hover { color: var(--danger); background: var(--tag-danger-bg); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
 .gs-fr-action.disabled { opacity: .25; cursor: not-allowed; pointer-events: none; }
-.gs-field-add { margin-top: 10px; padding: 14px; border: 1.5px dashed var(--border-strong); border-radius: 8px; text-align: center; cursor: pointer; font-size: 12.5px; color: var(--text-3); transition: all .15s; }
+.gs-field-add { margin-top: 10px; padding: 14px; border: 1.5px dashed var(--border-strong); border-radius: 8px; text-align: center; cursor: pointer; font-size: 12.5px; color: var(--text-3); transition: all var(--dur); }
 .gs-field-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .gs-field-hint { margin-top: 12px; padding: 10px 14px; background: var(--accent-light); border-radius: 8px; font-size: 11.5px; color: var(--accent); line-height: 1.7; }
 

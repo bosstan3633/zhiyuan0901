@@ -319,12 +319,12 @@ async function save() {
 .field { margin-bottom: 14px; }
 .field:last-child { margin-bottom: 0; }
 .field-label { display: block; font-size: 11.5px; font-weight: 600; color: var(--text-3); margin-bottom: 6px; }
-.field-input { width: 100%; border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; font-size: 13.5px; color: var(--text); background: var(--surface); outline: none; font-family: inherit; transition: all .15s; line-height: 1.5; box-sizing: border-box; }
+.field-input { width: 100%; border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; font-size: 13.5px; color: var(--text); background: var(--surface); outline: none; font-family: inherit; transition: all var(--dur); line-height: 1.5; box-sizing: border-box; }
 .field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3.5px var(--accent-glow); }
 textarea.field-input { resize: vertical; min-height: 60px; font-size: 14px; line-height: 1.65; }
 .field-hint { font-size: 10.5px; color: var(--text-3); margin-top: 5px; text-align: right; }
 .seg-control { display: flex; gap: 3px; background: var(--surface-2); border-radius: 10px; padding: 3px; margin-bottom: 8px; }
-.seg-btn { flex: 1; padding: 7px 8px; border-radius: 8px; border: none; background: transparent; font-size: 12px; color: var(--text-3); cursor: pointer; transition: all .15s; font-family: inherit; font-weight: 500; }
+.seg-btn { flex: 1; padding: 7px 8px; border-radius: 8px; border: none; background: transparent; font-size: 12px; color: var(--text-3); cursor: pointer; transition: all var(--dur); font-family: inherit; font-weight: 500; }
 .seg-btn:hover { color: var(--text-2); }
 .seg-btn.active { background: var(--surface); color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
 .field-row { display: flex; gap: 10px; }
@@ -332,9 +332,9 @@ textarea.field-input { resize: vertical; min-height: 60px; font-size: 14px; line
 .field-select { width: 100%; border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; font-size: 13px; color: var(--text); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; }
 .field-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3.5px var(--accent-glow); }
 .popup-foot { display: flex; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--border); background: var(--surface-2); }
-.btn-ghost { padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; }
+.btn-ghost { padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
 .btn-ghost:hover { border-color: var(--border-strong); color: var(--text); }
-.btn-primary { margin-left: auto; padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-family: inherit; transition: all .15s; box-shadow: 0 1px 2px rgba(14,122,78,.2), 0 4px 12px rgba(14,122,78,.15); }
+.btn-primary { margin-left: auto; padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-family: inherit; transition: all var(--dur); box-shadow: 0 1px 2px rgba(14,122,78,.2), 0 4px 12px rgba(14,122,78,.15); }
 .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
 
 /* 已保存状态 */

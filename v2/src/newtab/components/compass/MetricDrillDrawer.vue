@@ -205,7 +205,7 @@ function locateTask(id: string) {
 .md-head-count { font-size: 12px; color: var(--text-2); margin-bottom: 10px; }
 .md-list { display: flex; flex-direction: column; gap: 6px; }
 .md-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; }
-.md-row.clickable { cursor: pointer; transition: all .12s; }
+.md-row.clickable { cursor: pointer; transition: all var(--dur-fast); }
 .md-row.clickable:hover { border-color: var(--accent); background: var(--surface-3); }
 .md-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .md-title { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

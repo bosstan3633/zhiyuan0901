@@ -2703,7 +2703,7 @@ const activeManualSec = ref('quick-1')
 .gs-page { display: flex; max-width: 1200px; margin: 0 auto; }
 
 /* 返回按钮 */
-.gs-back-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; transition: all .15s; margin-bottom: 16px; text-decoration: none; width: fit-content; }
+.gs-back-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; transition: all var(--dur); margin-bottom: 16px; text-decoration: none; width: fit-content; }
 .gs-back-btn:hover { background: var(--surface-3); color: var(--text); }
 
 /* 左侧导航 */
@@ -2741,21 +2741,21 @@ const activeManualSec = ref('quick-1')
 .gs-toggle.on::after { transform: translateX(17px); }
 
 /* 输入框/下拉 */
-.gs-select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text); background: var(--surface); outline: none; transition: all .15s; font-family: inherit; }
+.gs-select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text); background: var(--surface); outline: none; transition: all var(--dur); font-family: inherit; }
 .gs-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
 
 /* 按钮 */
-.gs-btn { padding: 7px 16px; border-radius: 8px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all .15s; display: inline-flex; align-items: center; gap: 5px; font-family: inherit; }
+.gs-btn { padding: 7px 16px; border-radius: 8px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all var(--dur); display: inline-flex; align-items: center; gap: 5px; font-family: inherit; }
 .gs-btn:hover { border-color: var(--accent); color: var(--accent); }
 .gs-btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .gs-btn-primary:hover { background: var(--accent-hover); }
 .gs-btn-danger { color: var(--danger); border-color: rgba(196,68,68,.3); }
 .gs-btn-danger:hover { background: var(--tag-danger-bg); border-color: var(--danger); }
-.gs-btn:disabled { opacity: .5; cursor: not-allowed; }
+.gs-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
 /* 字段管理 */
 
-.gs-field-add { margin-top: 10px; padding: 14px; border: 1.5px dashed var(--border-strong); border-radius: 8px; text-align: center; cursor: pointer; font-size: 12.5px; color: var(--text-3); transition: all .15s; }
+.gs-field-add { margin-top: 10px; padding: 14px; border: 1.5px dashed var(--border-strong); border-radius: 8px; text-align: center; cursor: pointer; font-size: 12.5px; color: var(--text-3); transition: all var(--dur); }
 .gs-field-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .gs-field-hint { margin-top: 12px; padding: 10px 14px; background: var(--accent-light); border-radius: 8px; font-size: 11.5px; color: var(--accent); line-height: 1.7; }
 
@@ -2763,7 +2763,7 @@ const activeManualSec = ref('quick-1')
 .gs-preview-section { margin-top: 16px; }
 .gs-preview-title { font-size: 11.5px; font-weight: 600; color: var(--text-3); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
 .gs-preview-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
-.gs-preview-tab { padding: 4px 11px; border-radius: 6px; font-size: 11px; cursor: pointer; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); transition: all .15s; }
+.gs-preview-tab { padding: 4px 11px; border-radius: 6px; font-size: 11px; cursor: pointer; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); transition: all var(--dur); }
 .gs-preview-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .gs-preview-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 14px; min-height: 80px; }
 .gs-pv-field { margin-bottom: 6px; font-size: 11.5px; }
@@ -2776,7 +2776,7 @@ const activeManualSec = ref('quick-1')
 .gs-pv-field-link { font-size: 10.5px; color: var(--accent); }
 
 /* 导入导出 */
-.gs-import-option { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-xs); margin-bottom: 10px; cursor: pointer; transition: all .15s; background: var(--surface); }
+.gs-import-option { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-xs); margin-bottom: 10px; cursor: pointer; transition: all var(--dur); background: var(--surface); }
 .gs-import-option:hover { border-color: var(--accent); background: var(--accent-light); }
 .gs-io-icon { font-size: 22px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--surface-2); border-radius: 8px; flex-shrink: 0; }
 .gs-io-name { font-size: 13px; font-weight: 500; color: var(--text); }
@@ -2818,7 +2818,7 @@ const activeManualSec = ref('quick-1')
 
 /* 按键 */
 .gs-keycap { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); font-size: 12px; font-family: monospace; color: var(--text); min-width: 120px; justify-content: center; }
-.gs-keycap-link { text-decoration: none; cursor: pointer; transition: all .15s; }
+.gs-keycap-link { text-decoration: none; cursor: pointer; transition: all var(--dur); }
 .gs-keycap-link:hover { border-color: var(--accent); color: var(--accent); }
 .gs-shortcut-link { font-size: 12px; color: var(--accent); text-decoration: none; }
 .gs-shortcut-link:hover { text-decoration: underline; }
@@ -2852,14 +2852,14 @@ const activeManualSec = ref('quick-1')
 .gs-manual { display: flex; gap: 16px; align-items: flex-start; }
 .gs-manual-nav { width: 200px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 8px; position: sticky; top: 16px; }
 .gs-mn-part { font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding: 10px 10px 5px; }
-.gs-mn-item { font-size: 12.5px; color: var(--text-2); padding: 7px 10px; border-radius: 6px; cursor: pointer; transition: all .12s; }
+.gs-mn-item { font-size: 12.5px; color: var(--text-2); padding: 7px 10px; border-radius: 6px; cursor: pointer; transition: all var(--dur-fast); }
 .gs-mn-item:hover { background: var(--surface-3); color: var(--text); }
 .gs-mn-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
 .gs-manual-body { flex: 1; min-width: 0; }
 .gs-mc-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 34px 40px; margin-bottom: 20px; }
 .gs-mc-title { font-size: 14.5px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
 .gs-mc-content { font-size: 13px; color: var(--text-2); line-height: 1.9; }
-.gs-manual-open { padding: 10px 22px; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .15s; }
+.gs-manual-open { padding: 10px 22px; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all var(--dur); }
 .gs-manual-open:hover { background: var(--accent-hover); }
 
 /* 手册富文本（v-html 内容） */
@@ -2915,13 +2915,13 @@ const activeManualSec = ref('quick-1')
 .gs-tt-empty { padding: 26px; text-align: center; color: var(--text-3); font-size: 12.5px; border: 1.5px dashed var(--border-strong); border-radius: 8px; }
 
 .gs-tagtree { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
-.gs-tt-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: grab; transition: all .12s; }
+.gs-tt-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: grab; transition: all var(--dur-fast); }
 .gs-tt-row:hover { border-color: var(--accent); }
 .gs-tt-toggle { width: 16px; font-size: 10px; color: var(--text-3); cursor: pointer; flex-shrink: 0; }
 .gs-tt-name { font-size: 12.5px; font-weight: 600; color: var(--text); }
 .gs-tt-name.sub { font-weight: 500; color: var(--text-2); }
 .gs-tt-count { font-size: 10px; color: var(--text-3); background: var(--surface-3); padding: 1px 7px; border-radius: 99px; }
-.gs-tt-actions { margin-left: auto; display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
+.gs-tt-actions { margin-left: auto; display: flex; gap: 4px; opacity: 0; transition: opacity var(--dur); }
 .gs-tt-row:hover .gs-tt-actions { opacity: 1; }
 .gs-tt-act { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: 11px; color: var(--text-3); cursor: pointer; }
 .gs-tt-act:hover { background: var(--surface-3); color: var(--text); }
@@ -2930,14 +2930,14 @@ const activeManualSec = ref('quick-1')
 /* ===== 第卌四轮：知源仪表盘 ===== */
 .gs-dash-en { font-size: 10px; color: var(--text-3); letter-spacing: 2px; margin-left: 6px; }
 .gs-dash-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
-.gs-dash-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; cursor: pointer; transition: all .15s; }
+.gs-dash-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; cursor: pointer; transition: all var(--dur); }
 .gs-dash-stat:hover { border-color: var(--accent); background: var(--accent-light); }
 .gs-ds-label { font-size: 11.5px; color: var(--text-2); margin-bottom: 6px; }
 .gs-ds-value { font-size: 24px; font-weight: 700; color: var(--text); line-height: 1.1; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 8px; }
 .gs-ds-today { font-size: 10.5px; font-weight: 600; color: var(--accent); background: var(--accent-light); border-radius: 99px; padding: 1px 8px; }
 .gs-ds-sub { font-size: 10px; color: var(--text-3); margin-top: 3px; }
 .gs-dash-dynamic { display: flex; align-items: center; gap: 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 16px; margin-bottom: 14px; }
-.gs-dd-seg { font-size: 13px; color: var(--text-2); cursor: pointer; border-radius: 6px; padding: 2px 6px; transition: all .15s; }
+.gs-dd-seg { font-size: 13px; color: var(--text-2); cursor: pointer; border-radius: 6px; padding: 2px 6px; transition: all var(--dur); }
 .gs-dd-seg:hover { background: var(--accent-light); color: var(--accent); }
 .gs-dd-seg b.up { color: var(--accent); font-size: 15px; }
 .gs-dd-seg b.down { color: var(--danger); font-size: 15px; }
@@ -2951,9 +2951,9 @@ const activeManualSec = ref('quick-1')
 .gs-drawer-search .cnt { font-size: 11px; color: var(--text-3); white-space: nowrap; }
 .gs-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 2px 0; border-top: 1px solid var(--border); }
 .gs-pager span { font-size: 11px; color: var(--text-3); }
-.gs-pager button { padding: 5px 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); font-size: 11.5px; color: var(--text-2); cursor: pointer; font-family: inherit; transition: all .12s; }
+.gs-pager button { padding: 5px 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); font-size: 11.5px; color: var(--text-2); cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
 .gs-pager button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-.gs-pager button:disabled { opacity: .4; cursor: not-allowed; }
+.gs-pager button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .gs-dd-sep { color: var(--border); }
 .gs-dd-export { margin-left: auto; }
 .gs-ev-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -2967,7 +2967,7 @@ const activeManualSec = ref('quick-1')
 .gs-drawer-fill .gs-drawer-search { flex-shrink: 0; }
 .gs-drawer-fill .gs-ev-list { flex: 1; max-height: none; overflow-y: auto; min-height: 0; }
 .gs-drawer-fill .gs-pager { flex-shrink: 0; margin-top: 10px; }
-.gs-ev-row { display: flex; align-items: center; gap: 10px; padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); cursor: pointer; transition: all .12s; font-size: 12.5px; }
+.gs-ev-row { display: flex; align-items: center; gap: 10px; padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); cursor: pointer; transition: all var(--dur-fast); font-size: 12.5px; }
 .gs-ev-row:hover { border-color: var(--accent); background: var(--accent-light); }
 .gs-ev-row.static { cursor: default; }
 .gs-ev-row.static:hover { border-color: var(--border); background: var(--surface); }
@@ -2996,7 +2996,7 @@ const activeManualSec = ref('quick-1')
 .gs-pan-wrap { display: grid; grid-template-columns: 250px 1fr; gap: 12px; align-items: start; }
 .gs-pan-tree { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; max-height: 560px; overflow-y: auto; }
 .gs-pan-tree-head { font-size: 10.5px; color: var(--text-3); padding: 2px 6px 8px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
-.gs-pan-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 12.5px; color: var(--text-2); transition: all .12s; border: 1px dashed transparent; }
+.gs-pan-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 12.5px; color: var(--text-2); transition: all var(--dur-fast); border: 1px dashed transparent; }
 .gs-pan-row:hover { background: var(--surface-3); color: var(--text); }
 .gs-pan-row.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
 .gs-pan-row.drop { border-color: var(--accent); background: var(--accent-light); }
@@ -3015,7 +3015,7 @@ const activeManualSec = ref('quick-1')
 .gs-pan-crumb { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
 .gs-pan-allcheck { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-2); cursor: pointer; }
 .gs-pan-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 5px; }
-.gs-pan-card { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); cursor: pointer; transition: all .12s; }
+.gs-pan-card { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); cursor: pointer; transition: all var(--dur-fast); }
 .gs-pan-card:hover { border-color: var(--accent); background: var(--accent-light); }
 .gs-pan-card.selected { border-color: var(--accent); background: var(--accent-light); }
 .gs-pan-check { flex-shrink: 0; cursor: pointer; }

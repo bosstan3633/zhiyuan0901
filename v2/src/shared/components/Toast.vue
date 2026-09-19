@@ -40,7 +40,7 @@ import { toastState, runToastAction } from './toast'
 }
 .toast-action:hover { background: rgba(143,196,163,.15); }
 .toast-enter-active, .toast-leave-active {
-  transition: all .25s cubic-bezier(.16,1,.3,1);
+  transition: all var(--dur-slow) cubic-bezier(.16,1,.3,1);
 }
 .toast-enter-from, .toast-leave-to {
   opacity: 0;

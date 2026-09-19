@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.100.0'";
+const VER_ANCHOR_LITERAL = "version: '2.101.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -1119,10 +1119,10 @@ check('R67-9 手册口径跟进：项目调度 R67 重排 + 直达快捷键 + �
 console.log('【第六十八轮 · R68：搜索口径修复 + 深色可见性 + 快捷键改造 + 性能】');
 check('R68-1 搜索工作台分组口径对齐台签栏：两端均排除资源台本体实体（CURATION_WS_ID）+ 已归档', () => { const g = read('/newtab/components/GlobalPopups.vue'); const c = read('/content/overlay-impl.ts'); return g.includes('!w.archived && w.id !== CURATION_WS_ID') && g.includes('ws: all.workspaces.filter(w=>!w.archived && w.id !== CURATION_WS_ID).length') && c.includes("!w.archived && w.id !== CURATION_WS_ID") && c.includes("import { CURATION_WS_ID } from '@/shared/models'"); });
 check('R68-2 搜索项目分组尊重 showDoneProjects（浮层读 zy_ui_v2 + isProjDone 派生口径）', () => { const c = read('/content/overlay-impl.ts'); return c.includes('showDoneProjectsCache') && c.includes('loadShowDonePref') && c.includes('zy_ui_v2') && c.includes('function isProjDone') && c.includes('if (!showDoneProjectsCache && isProjDone(p, d)) return'); });
-check('R68-3 任务卡删除按钮 emoji → 主题色 trash 线性图标（深色主题可见）', () => { const t = read('/newtab/components/compass/TaskManagerPanel.vue'); return t.includes('import Icon from') && t.split('<Icon name="trash" :size="12" />').length >= 4 && t.includes('.k-del { position: absolute; top: 6px; right: 58px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: 11px; cursor: pointer; opacity: 0; transition: all .15s ease; z-index: 1; color: var(--text-3);') && t.includes('.kcard:hover .k-pin, .kcard:hover .k-star, .kcard:hover .k-del { opacity: .85; }'); });
+check('R68-3 任务卡删除按钮 emoji → 主题色 trash 线性图标（深色主题可见）', () => { const t = read('/newtab/components/compass/TaskManagerPanel.vue'); return t.includes('import Icon from') && t.split('<Icon name="trash" :size="12" />').length >= 4 && t.includes('.k-del { position: absolute; top: 6px; right: 58px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: 11px; cursor: pointer; opacity: 0; transition: all var(--dur) ease; z-index: 1; color: var(--text-3);') && t.includes('.kcard:hover .k-pin, .kcard:hover .k-star, .kcard:hover .k-del { opacity: .85; }'); });
 check('R68-4 快捷键体系改造（R117 修订）：open-compass/open-resource 退役 + 数字键 1=调度台 2=方向台 3=资源台 4..=策展台（goto-tasks/goto-curiosity 同落调度台并锚对应 tab）', () => { const m = read('/manifest.ts'); const b = read('/background/index.ts'); const a = read('/newtab/App.vue'); return !m.includes("'open-compass'") && !m.includes("'open-resource'") && b.includes('open-compass/open-resource 已从 manifest 下架') && b.includes("const anchor = command === 'goto-curiosity' ? 'curiosity' : 'task'") && a.includes("if (n === 1) { navigate('/'); return }") && a.includes('if (n === 2) { openCompass(); return }') && a.includes('const ws = store.workspaces[n - 4]'); });
 check('R68-5 任务调度直达落位（R117 重写：宿主由方向台迁调度台底部双 tab）：调度台承接 zy-goto-anchor（curiosity→好奇 tab 并挂载 / task→任务 tab），方向台不再持任务模块', () => { const h = read('/newtab/views/CompassHome.vue'); const sh = read('/newtab/views/CompassShell.vue'); return h.includes("addEventListener('zy-goto-anchor', onAnchorEvt)") && h.includes("if (name === 'curiosity') { bottomTab.value = 'curio'; curioMounted.value = true }") && h.includes("else if (name === 'task') bottomTab.value = 'task'") && !sh.includes('flashTaskModule') && !sh.includes('task-mgmt-module'); });
-check('R68-6 方向树操作按钮主题感知（去硬编码白底，深色主题可见）', () => { const t = read('/newtab/views/CompassTree.vue'); return t.includes('.node-action { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; color: var(--text-2); transition: all .15s; background: var(--surface-3); border: 1px solid var(--border); }') && !t.includes('rgba(255,255,255,.9)'); });
+check('R68-6 方向树操作按钮主题感知（去硬编码白底，深色主题可见）', () => { const t = read('/newtab/views/CompassTree.vue'); return t.includes('.node-action { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; color: var(--text-2); transition: all var(--dur); background: var(--surface-3); border: 1px solid var(--border); }') && !t.includes('rgba(255,255,255,.9)'); });
 check('R68-7 加载动画排版重整：分隔线对齐轴 + slogan 升字号提对比', () => { const h = read('/newtab/index.html'); return h.includes('zy-skl-divider') && h.includes('font-size: 15.5px; font-weight: 500; color: #C6CBD4; letter-spacing: 0.22em;') && h.includes('万千可调用，自有我方向</div>') && !h.includes('万千可调用，自有我方向。'); });
 check('R68-8（R73 修订；R131-C6a 预热退役）性能：KeepAlive 保留方向台 CompassShell + 拼音字典纯按需动态 import（启动不再预拉 ~312KB 字典 chunk，搜索面板打开才 ensurePinyin）', () => { const a = read('/newtab/App.vue'); const g = read('/newtab/components/GlobalPopups.vue'); const p = read('/shared/utils/pinyin.ts'); return a.includes('CompassHomeView,WorkspaceView,CompassShell') && !a.includes("from '@/shared/utils/pinyin'") && !a.includes('requestIdleCallback') && g.includes("if (p === 'search') { currentType.value = 'all'; setSearchQuery(''); selectedId.value = ''; void ensurePinyin() }") && p.includes("loading = import('pinyin-pro')"); });
 
@@ -3561,6 +3561,53 @@ check('R132-7 ★T4 左栏主体=本项目详情目录：projToc 锚点项（概
 check('R132-8 T4 滚动高亮 + 泄漏兜底：window scroll passive 监听 onMounted 挂 / onUnmounted 摘', () => { const p = read('/newtab/views/ProjectCuration.vue'); return p.includes(`window.addEventListener('scroll', onTocScroll, { passive: true })`) && p.includes(`window.removeEventListener('scroll', onTocScroll)`); });
 check('R132-9 ★T5 项目全景=左栏顶部可折叠块（用户拍板）：projPanOpen 默认收起、点标题行翻转、选项目后自动收起并回概览锚点', () => { const p = read('/newtab/views/ProjectCuration.vue'); return p.includes('const projPanOpen = ref(false)') && p.includes('@click="projPanOpen = !projPanOpen"') && p.includes('v-show="projPanOpen"') && p.includes('projPanOpen.value = false') && p.includes("tocActive.value = 'pd-sec-overview'"); });
 check('R132-10 T4 拖拽调宽与自适应保留：pd-split 把手 + with-dir 展板 flex:1 min-width:0（R131-N2 口径不动）', () => { const p = read('/newtab/views/ProjectCuration.vue'); return p.includes('@mousedown.prevent="startDirResize"') && p.includes('.board-layout.with-dir .board { flex: 1; min-width: 0; }') && p.includes('saveUIPrefs({ projRailW: projDirW.value })'); });
+
+// ============== R133 · V2.101.0：批次 E 视觉令牌体系升级（E1 语义阶梯 / E2 圆角完备 / E3 选区+禁用档 / E4 运动令牌） ==============
+console.log('【R133 · V2.101.0：批次 E 视觉令牌体系升级】');
+// R133 专用：src 下 vue/css 文件遍历（供悬空令牌/时长字面量全站扫描；content/*.ts 浮层自带 --zy 体系豁免）
+function walkStyleFiles(dir) {
+  const out = [];
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) { if (e.name !== 'node_modules') out.push(...walkStyleFiles(p)); }
+    else if (/\.(vue|css)$/.test(e.name)) out.push(fs.readFileSync(p, 'utf8'));
+  }
+  return out;
+}
+const STYLE_ALL = walkStyleFiles(path.resolve(__dirname, '..', 'src'));
+check('R133-1 ★E2 --radius-lg: 14px 补定义（CompassTree .tree-level-card 引用悬空 → 直角渲染，R130-T5 同族 BUG 再抓一例）', () => { const t = read('/shared/styles/tokens.css'); const c = read('/newtab/views/CompassTree.vue'); return t.includes('--radius-lg: 14px;') && c.includes('border-radius: var(--radius-lg)'); });
+check('R133-2 ★E2 圆角族完备性守卫：全站被引用的 var(--radius*) 必须在 tokens.css 有定义（杜绝 R130-T5/R133-1 类静默失效复发）', () => {
+  const t = read('/shared/styles/tokens.css');
+  const defined = new Set(t.match(/--[a-z-]*radius[a-z-]*(?=\s*:)/g) || []);
+  for (const src of STYLE_ALL) {
+    for (const m of src.matchAll(/var\((--radius[a-z-]*)[,)]/g)) {
+      if (!defined.has(m[1])) return false;
+    }
+  }
+  return defined.has('--radius') && defined.has('--radius-lg') && defined.has('--radius-md') && defined.has('--radius-sm') && defined.has('--radius-xs');
+});
+check('R133-3 E2 本轮清账：--text2/--text3/--text4/--rads/--warn)/--warning-light/--text-1 七族悬空令牌全站零引用（ImportTemplateModal 最重灾区 + RecycleBin/CompassTree/TaskManagerPanel/workspace.css 一并修正）', () => {
+  const danglers = ['var(--text2)', 'var(--text3)', 'var(--text4)', 'var(--rads)', 'var(--warn)', 'var(--warning-light)', 'var(--text-1)'];
+  return STYLE_ALL.every(s => danglers.every(d => !s.includes(d)));
+});
+check('R133-4 E1 语义色三档阶梯四主题齐挂：--success/--warning/--danger 各配 -bg-soft + -border，每令牌恰出现 4 次（linear/raycast/apple/notion 不缺席）', () => { const t = read('/shared/styles/tokens.css'); return ['--success-bg-soft', '--success-border', '--warning-bg-soft', '--warning-border', '--danger-bg-soft', '--danger-border'].every(n => (t.match(new RegExp(n + ':', 'g')) || []).length === 4); });
+check('R133-5 E1 消费点收敛：五个硬编码宿主文件不再出现 #e5484d/rgba(229,72,77/rgba(217,160,60（tokens.css 的 --danger 主定义除外），RecycleBin 危险钮与 dup 环走 --danger-border/--danger', () => {
+  const hosts = ['/newtab/views/RecycleBin.vue', '/newtab/views/workspace.css', '/newtab/components/ResourceDetailDrawer.vue', '/newtab/components/ImportTemplateModal.vue', '/newtab/components/ResourceEditForm.vue'];
+  const rb = read('/newtab/views/RecycleBin.vue'); const ws = read('/newtab/views/workspace.css');
+  return hosts.every(f => { const s = read(f); return !/#e5484d/i.test(s) && !/rgba\(229,72,77|rgba\(217,160,60/.test(s); })
+    && rb.includes('.rb-btn.danger { border-color: var(--danger-border); color: var(--danger); }')
+    && ws.includes('.ws-modal-input.dup { border-color: var(--danger); box-shadow: 0 0 0 2px var(--danger-bg-soft); }');
+});
+check('R133-6 E3 选区色 + 禁用档：::selection 走 accent 18% color-mix；--opacity-disabled: 0.5 定义且 :disabled 透明度字面量全站清零（≥10 处消费）', () => {
+  const t = read('/shared/styles/tokens.css');
+  const consumed = STYLE_ALL.reduce((n, s) => n + (s.match(/var\(--opacity-disabled\)/g) || []).length, 0);
+  return t.includes('::selection {') && t.includes('background: color-mix(in srgb, var(--accent) 18%, transparent);')
+    && t.includes('--opacity-disabled: 0.5;') && consumed >= 10
+    && STYLE_ALL.every(s => !/:disabled \{ opacity: \.\d/.test(s));
+});
+check('R133-7 E4 运动令牌定义：--dur-fast 120ms / --dur 150ms（主档=原 .15s 众数）/ --dur-slow 250ms + 统一减速曲线 --ease-out-soft', () => { const t = read('/shared/styles/tokens.css'); return t.includes('--dur-fast: 120ms;') && t.includes('--dur: 150ms;') && t.includes('--dur-slow: 250ms;') && t.includes('--ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);'); });
+check('R133-8 ★E4 字面时长退役：vue/css 全站 .12s/.15s/.25s 清零（219 处收敛至令牌；src/content 浮层为 .ts 注入样式自带 --zy 体系，天然豁免）', () => STYLE_ALL.every(s => !/(?<![\d.])\.(12|15|25)s\b/.test(s)));
+check('R133-9 E4 卡片入场递进：.card-grid > .res-card fadeIn var(--dur-slow)+--ease-out-soft、逐行 20ms 错峰第 8 行封顶；fill=backwards 防终帧钉死 hover 上浮（.res-card.flash 规则在后仍占优）', () => { const c = read('/newtab/views/workspace.css'); return c.includes('.card-grid > .res-card { animation: fadeIn var(--dur-slow) var(--ease-out-soft) backwards; }') && c.includes('.card-grid > .res-card:nth-child(2) { animation-delay: 20ms; }') && c.includes('.card-grid > .res-card:nth-child(n+9) { animation-delay: 140ms; }'); });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

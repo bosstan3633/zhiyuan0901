@@ -564,7 +564,7 @@ const backupReminderDot = computed(() => {
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }
 .home-logo { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
 /* R123（原型）：tab 6×12、active = 浅紫填充块（accent-light + accent 600），下划线退役 */
-.tab { padding: 6px 12px; border-radius: var(--radius-xs); font-size: 13px; font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color .15s ease, background .15s ease; position: relative; white-space: nowrap; }
+.tab { padding: 6px 12px; border-radius: var(--radius-xs); font-size: 13px; font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color var(--dur) ease, background var(--dur) ease; position: relative; white-space: nowrap; }
 .tab:hover { background: var(--surface-2); color: var(--text); }
 .tab.active { color: var(--accent); background: var(--accent-light); font-weight: 600; }
 /* R45-5：.badge 样式随角标移除一并清理（全应用已无渲染点） */
@@ -593,7 +593,7 @@ const backupReminderDot = computed(() => {
 
 .topbar-right { display: flex; align-items: center; gap: 8px; }
 .theme-select { position: relative; }
-.theme-btn { border: 1px solid transparent; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--text-2); cursor: pointer; background: var(--surface); transition: all .15s; font-family: inherit; }
+.theme-btn { border: 1px solid transparent; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--text-2); cursor: pointer; background: var(--surface); transition: all var(--dur); font-family: inherit; }
 .theme-btn:hover { border-color: var(--border-strong); }
 .theme-caret { font-size: 9px; opacity: .6; }
 .theme-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
@@ -602,9 +602,9 @@ const backupReminderDot = computed(() => {
 .theme-option:hover { background: var(--surface-3); color: var(--text); }
 .theme-option.active { color: var(--accent); font-weight: 600; }
 .theme-check { margin-left: auto; font-size: 11px; }
-.fade-enter-active, .fade-leave-active { transition: opacity .15s, transform .15s; }
+.fade-enter-active, .fade-leave-active { transition: opacity var(--dur), transform var(--dur); }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-4px); }
-.icon-btn { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; color: var(--text-2); transition: all .15s; font-size: 16px; position: relative; }
+.icon-btn { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; color: var(--text-2); transition: all var(--dur); font-size: 16px; position: relative; }
 .icon-btn:hover { background: var(--surface-3); color: var(--text); }
 /* 第卅六轮 REQ-038：备份提醒红点（顶栏设置按钮） */
 .icon-btn-bell.has-dot .bell-dot { display: block; }

@@ -261,7 +261,7 @@ async function onCleanupAll() {
 .dd-list { display: flex; flex-direction: column; }
 .dd-group-title { font-size: 11px; font-weight: 700; color: var(--text-3); letter-spacing: .4px; padding: 4px 0; }
 .dd-row { display: flex; align-items: center; gap: 8px; padding: 8px 8px; border-radius: 6px; font-size: 12px; color: var(--text-2); }
-.dd-row.clickable { cursor: pointer; transition: background .12s; }
+.dd-row.clickable { cursor: pointer; transition: background var(--dur-fast); }
 .dd-row.clickable:hover { background: var(--surface-3); color: var(--text); }
 .dd-ico { flex-shrink: 0; font-size: 12px; }
 .dd-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; flex-direction: column; gap: 1px; }
@@ -277,7 +277,7 @@ async function onCleanupAll() {
 .dd-preview img { max-width: 92%; max-height: 84%; object-fit: contain; border-radius: 8px; }
 /* R110-BUG2：附件行操作按钮 + 异常行 + 孤儿批量条 */
 .dd-row-warn { color: var(--warn, #b8860b); }
-.dd-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 5px; padding: 2px 7px; font-size: 11px; line-height: 1.5; cursor: pointer; font-family: inherit; transition: all .12s; }
+.dd-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 5px; padding: 2px 7px; font-size: 11px; line-height: 1.5; cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
 .dd-act:hover { border-color: var(--accent); color: var(--accent); }
 .dd-orphan-bar { display: flex; align-items: center; gap: 8px; padding: 7px 8px; margin-bottom: 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-3); }
 .dd-orphan-txt { flex: 1; min-width: 0; font-size: 11px; color: var(--text-2); }

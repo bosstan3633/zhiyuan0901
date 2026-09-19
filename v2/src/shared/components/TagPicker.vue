@@ -122,7 +122,7 @@ function goTagManage() {
 .tp-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; background: var(--accent-light); border-radius: 99px; font-size: 11px; color: var(--accent); }
 .tp-chip .tp-x { cursor: pointer; opacity: .6; font-size: 10px; }
 .tp-chip .tp-x:hover { opacity: 1; }
-.tp-add { font-size: 11px; color: var(--text-3); cursor: pointer; padding: 3px 9px; border: 1px dashed var(--border-strong); border-radius: 99px; transition: all .15s; }
+.tp-add { font-size: 11px; color: var(--text-3); cursor: pointer; padding: 3px 9px; border: 1px dashed var(--border-strong); border-radius: 99px; transition: all var(--dur); }
 .tp-add:hover { color: var(--accent); border-color: var(--accent); }
 .tp-mask { position: fixed; inset: 0; z-index: 900; }
 .tp-pop { position: fixed; z-index: 901; width: 300px; max-width: 92vw; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg); overflow: hidden; }

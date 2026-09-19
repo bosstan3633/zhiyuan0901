@@ -276,14 +276,14 @@ function confirmAdd(dirId: string) {
 .mod-role { flex-shrink: 0; font-size: 10px; font-weight: 700; letter-spacing: .5px; color: var(--accent); background: var(--accent-light); padding: 2px 8px; border-radius: 99px; cursor: help; }
 .mr-filter { font-family: inherit; font-size: 11.5px; padding: 3px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); outline: none; cursor: pointer; }
 .mr-filter:focus { border-color: var(--accent); }
-.mr-tool { font-size: 11.5px; color: var(--text-3); cursor: pointer; white-space: nowrap; transition: color .12s; }
+.mr-tool { font-size: 11.5px; color: var(--text-3); cursor: pointer; white-space: nowrap; transition: color var(--dur-fast); }
 .mr-tool:hover { color: var(--accent); }
 .mr-tool.accent { color: var(--accent); }
 .mr-tool.accent:hover { text-decoration: underline; }
 .mr-empty { font-size: 11.5px; color: var(--text-4); padding: 6px 12px; cursor: pointer; }
 
 /* ===== A2：愿景/使命锚点条（中性卡） ===== */
-.vm-bar { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 14px; margin-bottom: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); cursor: pointer; transition: border-color .15s; }
+.vm-bar { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 14px; margin-bottom: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); cursor: pointer; transition: border-color var(--dur); }
 .vm-bar:hover { border-color: color-mix(in srgb, var(--accent) 28%, var(--border)); }
 .vm-item { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1.2; }
 .vm-item + .vm-divider + .vm-item { flex: 1; }
@@ -298,7 +298,7 @@ function confirmAdd(dirId: string) {
 .focus-bar { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 0 14px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); overflow: hidden; }
 .focus-bar.empty { border-style: dashed; box-shadow: none; }
 .fs-badge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; background: var(--accent-light); color: var(--accent); font-size: 11.5px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
-.fs-chip { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; max-width: 280px; padding: 3px 9px; border-radius: 4px; background: var(--surface-2); cursor: pointer; transition: background .15s; }
+.fs-chip { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; max-width: 280px; padding: 3px 9px; border-radius: 4px; background: var(--surface-2); cursor: pointer; transition: background var(--dur); }
 .fs-chip:hover { background: var(--surface-3); }
 .fs-chip.selected { border: 1px solid var(--accent); background: var(--surface); padding: 2px 8px; }
 .fs-chip.done { opacity: .55; }
@@ -317,7 +317,7 @@ function confirmAdd(dirId: string) {
 .goal-card:hover .gc-more { display: block; }
 .gc-more:hover { color: var(--accent); }
 .gc-projects { display: flex; flex-direction: column; gap: 6px; }
-.proj-row { position: relative; display: flex; flex-direction: column; gap: 5px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all .15s ease; }
+.proj-row { position: relative; display: flex; flex-direction: column; gap: 5px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all var(--dur) ease; }
 .proj-row:hover { border-color: var(--border-strong); transform: translateY(-1px); }
 .proj-row.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .proj-row.done { opacity: .6; }

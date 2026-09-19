@@ -152,7 +152,7 @@ async function openAsset(meta: AssetMeta) {
 .ab-chip {
   display: inline-flex; align-items: center; gap: 2px; height: 18px; padding: 0 7px;
   border-radius: 99px; font-size: 10.5px; line-height: 1; white-space: nowrap;
-  background: var(--surface-3); color: var(--text-2); border: 1px solid var(--border); transition: all .15s;
+  background: var(--surface-3); color: var(--text-2); border: 1px solid var(--border); transition: all var(--dur);
 }
 .ab-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .ab-img { }
@@ -181,7 +181,7 @@ async function openAsset(meta: AssetMeta) {
 .ab-pop-body { padding: 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
 .ab-item {
   display: flex; align-items: center; gap: 8px; padding: 7px 10px; cursor: pointer;
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; font-size: 12px; transition: all .12s;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; font-size: 12px; transition: all var(--dur-fast);
 }
 .ab-item:hover { border-color: var(--accent); background: var(--accent-light); }
 .ab-ico { flex-shrink: 0; font-size: 13px; }

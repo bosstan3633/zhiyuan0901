@@ -1269,7 +1269,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-panel { position: relative; width: 680px; max-width: 92vw; background: var(--surface); border-radius: var(--radius);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-lg);
-  transform: translateY(-12px) scale(.98); opacity: 0; transition: all .15s cubic-bezier(.16,1,.3,1); overflow: hidden; }
+  transform: translateY(-12px) scale(.98); opacity: 0; transition: all var(--dur) cubic-bezier(.16,1,.3,1); overflow: hidden; }
 .gp-overlay.open .gp-panel { transform: translateY(0) scale(1); opacity: 1; }
 
 .gp-panel-narrow { width: 400px; max-height: 600px; overflow-y: auto; }
@@ -1302,20 +1302,20 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
   background: var(--accent-light); color: var(--accent); font-size: 12.5px; font-weight: 600; flex-shrink: 0;
   animation: gp-chipIn .2s ease; }
 .gp-chip-x { width: 15px; height: 15px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
-  cursor: pointer; opacity: .6; transition: all .12s; font-size: 11px; }
+  cursor: pointer; opacity: .6; transition: all var(--dur-fast); font-size: 11px; }
 .gp-chip-x:hover { opacity: 1; background: color-mix(in srgb, var(--accent) 15%, transparent); }
 @keyframes gp-chipIn { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
 .gp-search-input { flex: 1; border: none; outline: none; background: transparent; font-size: 17px; font-weight: 500;
   color: var(--text); font-family: inherit; min-width: 0; line-height: 1.4; }
 .gp-search-input::placeholder { color: var(--text-4); font-weight: 400; }
 .gp-search-esc { font-size: 11px; color: var(--text-4); background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: 6px; padding: 3px 8px; flex-shrink: 0; cursor: pointer; transition: all .12s; font-family: inherit; }
+  border-radius: 6px; padding: 3px 8px; flex-shrink: 0; cursor: pointer; transition: all var(--dur-fast); font-family: inherit; }
 .gp-search-esc:hover { color: var(--text-2); border-color: var(--border-strong); }
 
 /* 类型Tab */
 .gp-type-tabs { display: flex; gap: 2px; padding: 12px 22px 8px; }
 .gp-type-tab { padding: 5px 12px; border-radius: 8px; font-size: 12.5px; color: var(--text-3); cursor: pointer;
-  transition: all .12s; display: flex; align-items: center; gap: 5px; font-weight: 500; }
+  transition: all var(--dur-fast); display: flex; align-items: center; gap: 5px; font-weight: 500; }
 .gp-type-tab:hover { color: var(--text-2); background: var(--surface-2); }
 .gp-type-tab.active { color: var(--accent); background: var(--accent-light); font-weight: 600; }
 .gp-tt-count { font-size: 10.5px; color: var(--text-4); font-weight: 500; }
@@ -1333,7 +1333,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-results::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 .gp-result-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; cursor: pointer;
   border-left: 3px solid transparent; transition: background .1s, border-color .1s; position: relative; margin-bottom: 2px;
-  animation: gp-itemIn .25s cubic-bezier(.16,1,.3,1) backwards; }
+  animation: gp-itemIn var(--dur-slow) cubic-bezier(.16,1,.3,1) backwards; }
 .gp-result-item:nth-child(1) { animation-delay: .03s; }
 .gp-result-item:nth-child(2) { animation-delay: .06s; }
 .gp-result-item:nth-child(3) { animation-delay: .09s; }
@@ -1375,11 +1375,11 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-ri-summary { font-size: 11.5px; color: var(--text-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* 操作按钮 */
-.gp-ri-actions { display: flex; gap: 3px; flex-shrink: 0; opacity: 0; transition: opacity .15s; }
+.gp-ri-actions { display: flex; gap: 3px; flex-shrink: 0; opacity: 0; transition: opacity var(--dur); }
 .gp-result-item:hover .gp-ri-actions, .gp-result-item.selected .gp-ri-actions { opacity: 1; }
 .gp-ri-act { width: 28px; height: 28px; border-radius: 8px; border: 1px solid transparent; background: transparent;
   display: flex; align-items: center; justify-content: center; font-size: 13px; cursor: pointer; color: var(--text-3);
-  transition: all .12s; font-family: inherit; padding: 0; position: relative; }
+  transition: all var(--dur-fast); font-family: inherit; padding: 0; position: relative; }
 .gp-ri-act:hover { background: var(--surface); border-color: var(--border); color: var(--text); }
 .gp-ri-act.go { background: var(--accent); color: #fff; border-color: var(--accent); }
 .gp-ri-act.go:hover { background: var(--accent-hover); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 14%, transparent); }
@@ -1419,7 +1419,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-cap-title { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -.2px; }
 .gp-cap-sub { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
 .gp-cap-close { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
-  cursor: pointer; color: var(--text-3); font-size: 18px; transition: all .12s; flex-shrink: 0; background: transparent;
+  cursor: pointer; color: var(--text-3); font-size: 18px; transition: all var(--dur-fast); flex-shrink: 0; background: transparent;
   border: none; font-family: inherit; }
 .gp-cap-close:hover { background: var(--surface-3); color: var(--text); }
 
@@ -1428,7 +1428,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-field:last-child { margin-bottom: 0; }
 .gp-field-label { display: block; font-size: 11.5px; font-weight: 600; color: var(--text-3); margin-bottom: 6px; letter-spacing: .2px; }
 .gp-field-input { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 13px; font-size: 13.5px;
-  color: var(--text); background: var(--surface); outline: none; font-family: inherit; transition: all .15s; line-height: 1.5; }
+  color: var(--text); background: var(--surface); outline: none; font-family: inherit; transition: all var(--dur); line-height: 1.5; }
 .gp-field-input::placeholder { color: var(--text-4); }
 .gp-field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--accent) 14%, transparent); }
 textarea.gp-field-input { resize: vertical; min-height: 90px; font-size: 14px; line-height: 1.65; }
@@ -1438,7 +1438,7 @@ textarea.gp-field-input { resize: vertical; min-height: 90px; font-size: 14px; l
 /* 链接类型 segmented */
 .gp-seg-control { display: flex; gap: 3px; background: var(--surface-2); border-radius: var(--radius-sm); padding: 3px; margin-bottom: 8px; }
 .gp-seg-btn { flex: 1; padding: 7px 8px; border-radius: 8px; border: none; background: transparent; font-size: 12px;
-  color: var(--text-3); cursor: pointer; transition: all .15s; font-family: inherit; font-weight: 500;
+  color: var(--text-3); cursor: pointer; transition: all var(--dur); font-family: inherit; font-weight: 500;
   display: flex; align-items: center; justify-content: center; gap: 4px; }
 .gp-seg-btn:hover { color: var(--text-2); }
 .gp-seg-btn.active { background: var(--surface); color: var(--accent); font-weight: 600;
@@ -1450,7 +1450,7 @@ textarea.gp-field-input { resize: vertical; min-height: 90px; font-size: 14px; l
 
 /* 状态选择 */
 .gp-status-select { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 13px; font-size: 13px;
-  color: var(--text); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; transition: all .15s;
+  color: var(--text); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; transition: all var(--dur);
   appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239AA0A6' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 13px center; }
 .gp-status-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--accent) 14%, transparent); }
@@ -1458,7 +1458,7 @@ textarea.gp-field-input { resize: vertical; min-height: 90px; font-size: 14px; l
 /* 底部按钮 */
 .gp-cap-foot { display: flex; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--border); background: var(--surface-2); }
 .gp-btn { padding: 9px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
-  transition: all .15s; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 6px; }
+  transition: all var(--dur); border: 1px solid transparent; display: inline-flex; align-items: center; gap: 6px; }
 .gp-btn-ghost { background: var(--surface); border-color: var(--border); color: var(--text-2); }
 .gp-btn-ghost:hover { border-color: var(--border-strong); color: var(--text); }
 .gp-btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); margin-left: auto;

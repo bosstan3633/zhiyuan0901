@@ -250,7 +250,7 @@ function linkTasks() {
 
 <style scoped>
 .tad-tabs { display: flex; gap: 6px; background: var(--surface-2); padding: 4px; border-radius: 10px; margin-bottom: 16px; }
-.tad-tab { flex: 1; padding: 8px 0; border: none; background: transparent; color: var(--text-3); font-size: 13px; font-weight: 600; border-radius: 8px; cursor: pointer; font-family: inherit; transition: all .15s; }
+.tad-tab { flex: 1; padding: 8px 0; border: none; background: transparent; color: var(--text-3); font-size: 13px; font-weight: 600; border-radius: 8px; cursor: pointer; font-family: inherit; transition: all var(--dur); }
 .tad-tab.on { background: var(--surface); color: var(--accent); box-shadow: var(--shadow-sm); }
 
 .tad-body { display: flex; flex-direction: column; gap: 10px; }
@@ -265,11 +265,11 @@ function linkTasks() {
 .tad-proj:focus { border-color: var(--accent); color: var(--text); }
 
 .tad-prios { display: flex; gap: 6px; }
-.tad-prio { flex: 1; padding: 8px 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; cursor: pointer; font-size: 12px; font-family: inherit; transition: all .15s; }
+.tad-prio { flex: 1; padding: 8px 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; cursor: pointer; font-size: 12px; font-family: inherit; transition: all var(--dur); }
 .tad-prio.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent); font-weight: 600; }
 
 .tad-list { display: flex; flex-direction: column; gap: 6px; max-height: 380px; overflow-y: auto; margin-top: 4px; }
-.tad-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 12.5px; transition: all .15s; background: var(--surface); }
+.tad-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 12.5px; transition: all var(--dur); background: var(--surface); }
 .tad-item:hover { border-color: var(--accent); }
 .tad-item.on { border-color: var(--accent); background: var(--accent-light); }
 .tad-item input { accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
@@ -279,8 +279,8 @@ function linkTasks() {
 
 .tad-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
 .tad-hint { font-size: 11px; color: var(--text-3); }
-.tad-btn { border: none; border-radius: 8px; padding: 9px 16px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; background: var(--surface-2); color: var(--text-2); transition: all .15s; }
+.tad-btn { border: none; border-radius: 8px; padding: 9px 16px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; background: var(--surface-2); color: var(--text-2); transition: all var(--dur); }
 .tad-btn.primary { background: var(--accent); color: #fff; }
 .tad-btn.primary:hover { filter: brightness(1.08); }
-.tad-btn.primary:disabled { opacity: .45; cursor: not-allowed; }
+.tad-btn.primary:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 </style>

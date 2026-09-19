@@ -228,7 +228,7 @@ function removeTask(taskId: string) {
 .pd-task-name { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: 12px; color: var(--text); font-family: inherit; padding: 2px 4px; margin: -2px -4px; border-radius: 4px; }
 .pd-task-name:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .pd-task-empty { font-size: 10.5px; color: var(--text-3); padding: 4px 6px; }
-.pd-add-metric { width: 100%; padding: 8px; border: 1.5px dashed var(--border-strong); border-radius: 8px; background: transparent; color: var(--text-3); font-size: 12px; cursor: pointer; font-family: inherit; transition: all .15s; }
+.pd-add-metric { width: 100%; padding: 8px; border: 1.5px dashed var(--border-strong); border-radius: 8px; background: transparent; color: var(--text-3); font-size: 12px; cursor: pointer; font-family: inherit; transition: all var(--dur); }
 .pd-add-metric:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .pd-empty { font-size: 12px; color: var(--text-3); padding: 10px 0; }
 .pd-sync-hint { margin-top: 16px; font-size: 11px; color: var(--text-3); text-align: center; padding: 9px; background: var(--surface-2); border-radius: 8px; }

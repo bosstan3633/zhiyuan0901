@@ -668,13 +668,13 @@ function srcShort(url: string): string {
 </template>
 
 <style scoped>
-.cz-batch-btn { padding: 5px 12px; border-radius: 8px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; }
+.cz-batch-btn { padding: 5px 12px; border-radius: 8px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
 .cz-batch-btn:hover { border-color: var(--border-strong); }
 .cz-batch-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .cz-add-row { background: var(--surface-2); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 14px; box-shadow: 0 0 0 3px var(--accent-glow); }
 .cz-add-input { width: 100%; border: none; outline: none; background: transparent; font-size: 14px; font-family: inherit; line-height: 1.7; color: var(--text); resize: vertical; }
 .cz-add-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
-.mini-btn { padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; }
+.mini-btn { padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
 .mini-btn:hover { border-color: var(--border-strong); color: var(--text); }
 .mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .mini-btn.primary:hover { background: var(--accent-hover); }
@@ -685,26 +685,26 @@ function srcShort(url: string): string {
 .ds-status-wrap { margin-left: 8px; }
 .ds-status-chip2:active { transform: scale(.97); }
 .cz-filters { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
-.cz-filter { font-size: 12px; padding: 5px 12px; border-radius: 99px; background: var(--surface-3); color: var(--text-2); cursor: pointer; transition: all .15s; border: none; font-family: inherit; display: flex; align-items: center; gap: 4px; }
+.cz-filter { font-size: 12px; padding: 5px 12px; border-radius: 99px; background: var(--surface-3); color: var(--text-2); cursor: pointer; transition: all var(--dur); border: none; font-family: inherit; display: flex; align-items: center; gap: 4px; }
 .cz-filter:hover { background: var(--border); }
 .cz-filter.active { background: var(--accent); color: #fff; }
 .cz-count { font-size: 10px; opacity: .7; }
 .cz-views { display: flex; gap: 2px; margin-left: auto; }
-.cz-view-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 14px; transition: all .15s; border: none; background: transparent; }
+.cz-view-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 14px; transition: all var(--dur); border: none; background: transparent; }
 /* 第卅二轮 REQ-007：时间排序方向切换 */
 .cz-sort-dir { font-size: 13px; font-weight: 600; margin-right: 2px; border: 1px solid var(--border); background: var(--surface); font-family: inherit; }
 .cz-sort-dir:hover { border-color: var(--accent); color: var(--accent); }
 .cz-view-btn:hover { background: var(--surface-3); color: var(--text-2); }
 .cz-view-btn.active { background: var(--accent-light); color: var(--accent); }
 /* R110-LC（T3）：归档降级提示条 */
-.cz-archived-hint { margin: 6px 0 0; padding: 6px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: 11.5px; color: var(--text-3); cursor: pointer; transition: all .15s; }
+.cz-archived-hint { margin: 6px 0 0; padding: 6px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: 11.5px; color: var(--text-3); cursor: pointer; transition: all var(--dur); }
 .cz-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
 .cz-batch-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--accent-light); border-radius: var(--radius-sm); margin-bottom: 14px; font-size: 12px; color: var(--accent); font-weight: 500; }
 /* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 200px */
 .cz-grid { display: grid; /* R106（F3）：精确 N 列——选中 N 即渲染 N 列，卡片宽度自适应收缩（含看板外全部视图） */ grid-template-columns: repeat(var(--grid-cols, 4), minmax(0, 1fr)); gap: 12px; }
 .cz-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .cz-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.cz-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; cursor: pointer; transition: all .15s; position: relative; overflow: hidden; min-width: 0; /* R107（F8） */ }
+.cz-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; cursor: pointer; transition: all var(--dur); position: relative; overflow: hidden; min-width: 0; /* R107（F8） */ }
 .cz-card.flash { animation: cz-flash 2s ease-out; }
 @keyframes cz-flash { 0%,60% { background: var(--accent-light); box-shadow: 0 0 0 2px var(--accent); } 100% { background: var(--surface-2); box-shadow: none; } }
 .cz-card.dragging { opacity: .4; }
@@ -730,7 +730,7 @@ function srcShort(url: string): string {
 .cz-meta { font-size: 10px; color: var(--text-3); }
 .cz-hover-bar { position: absolute; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 8px 10px; display: flex; gap: 6px; transform: translateY(100%); transition: transform .2s; }
 .cz-card:hover .cz-hover-bar { transform: translateY(0); }
-.cz-hover-btn { font-size: 10px; padding: 4px 8px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all .15s; flex: 1; text-align: center; font-family: inherit; }
+.cz-hover-btn { font-size: 10px; padding: 4px 8px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all var(--dur); flex: 1; text-align: center; font-family: inherit; }
 .cz-hover-btn:hover { border-color: var(--accent); color: var(--accent); }
 .cz-hover-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .cz-empty { grid-column: 1/-1; text-align: center; padding: 48px 20px; color: var(--text-3); font-size: 13px; }
@@ -740,20 +740,20 @@ function srcShort(url: string): string {
 .cz-list-item:hover { background: var(--surface-2); }
 .cz-list-text { flex: 1; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cz-list-date { font-size: 11px; color: var(--text-3); }
-.cz-list-actions { display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
+.cz-list-actions { display: flex; gap: 4px; opacity: 0; transition: opacity var(--dur); }
 .cz-list-item:hover .cz-list-actions { opacity: 1; }
 .cz-kanban { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .cz-kanban-col { background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px; min-height: 200px; }
 .cz-kanban-head { font-size: 12px; font-weight: 600; color: var(--text-2); padding: 4px 6px 10px; display: flex; align-items: center; justify-content: space-between; }
 .cz-kanban-count { font-size: 10px; background: var(--surface-3); color: var(--text-3); padding: 1px 7px; border-radius: 99px; }
 .cz-kanban-body { display: flex; flex-direction: column; gap: 8px; }
-.cz-kanban-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 10px; cursor: pointer; transition: all .15s; }
+.cz-kanban-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 10px; cursor: pointer; transition: all var(--dur); }
 .cz-kanban-card:hover { border-color: var(--accent); box-shadow: var(--shadow); }
 .cz-kanban-text { font-size: 12.5px; color: var(--text); line-height: 1.5; margin-bottom: 6px; }
 .cz-kanban-meta { font-size: 10px; color: var(--text-3); }
 .cz-kanban-empty { text-align: center; padding: 20px; font-size: 11px; color: var(--text-4); border: 1px dashed var(--border); border-radius: var(--radius-xs); }
 .detail-sec-head { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
-.status-chip { padding: 5px 12px; border-radius: 99px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; }
+.status-chip { padding: 5px 12px; border-radius: 99px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
 .status-chip:hover { border-color: var(--border-strong); }
 .status-chip.active.pending { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
 .status-chip.active.exploring { background: var(--tag-warn-bg); color: var(--tag-warn-text); border-color: var(--tag-warn-text); }
@@ -774,7 +774,7 @@ function srcShort(url: string): string {
 .detail-link-add { display: flex; gap: 8px; margin-top: 12px; }
 .detail-link-input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 12px; font-family: inherit; outline: none; }
 .detail-link-input:focus { border-color: var(--accent); }
-.expand-enter-active, .expand-leave-active { transition: all .15s ease; overflow: hidden; }
+.expand-enter-active, .expand-leave-active { transition: all var(--dur) ease; overflow: hidden; }
 .expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; }
 
 /* 置顶与分组 */
@@ -782,9 +782,9 @@ function srcShort(url: string): string {
 .cz-pin-flag { position: absolute; top: 8px; right: 8px; font-size: 12px; }
 .cz-star-flag { position: absolute; top: 8px; right: 8px; font-size: 12px; }
 /* 第十七轮：置顶常驻右上角（默认半隐，hover 显现，置顶态常亮） */
-.cz-pin-corner { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: .3; transition: all .15s ease; z-index: 2; }
+.cz-pin-corner { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: .3; transition: all var(--dur) ease; z-index: 2; }
 /* 第卅三轮 REQ-020：星标角落按钮（与置顶并排左移） */
-.cz-star-corner { position: absolute; top: 8px; right: 36px; width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: .3; transition: all .15s ease; z-index: 2; }
+.cz-star-corner { position: absolute; top: 8px; right: 36px; width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: .3; transition: all var(--dur) ease; z-index: 2; }
 .cz-card:hover .cz-pin-corner, .cz-kanban-card:hover .cz-pin-corner, .cz-card:hover .cz-star-corner, .cz-kanban-card:hover .cz-star-corner { opacity: .8; }
 .cz-pin-corner:hover, .cz-star-corner:hover { opacity: 1 !important; background: var(--surface-3); }
 .cz-pin-corner.on { opacity: 1; background: var(--accent-light); }
@@ -803,7 +803,7 @@ function srcShort(url: string): string {
 .cz-modal-label { display: block; font-size: 11px; font-weight: 600; color: var(--text-3); margin: 10px 0 5px; }
 .cz-modal-select { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-size: 12.5px; color: var(--text); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; }
 .cz-modal-select:focus { border-color: var(--accent); }
-.cz-modal-select:disabled { opacity: .5; cursor: not-allowed; }
+.cz-modal-select:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .cz-modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 /* 第卌轮 REQ-051：卡片正面补充字段流（附件徽章 / 标签 / 自定义） */
 .cz-ext { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 7px; }

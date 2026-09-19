@@ -36,7 +36,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 
 <style scoped>
 .ctx-mask { position: fixed; inset: 0; z-index: 800; }
-.ctx-menu-box { position: fixed; z-index: 801; min-width: 168px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); padding: 5px; animation: cxin .12s ease; }
+.ctx-menu-box { position: fixed; z-index: 801; min-width: 168px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); padding: 5px; animation: cxin var(--dur-fast) ease; }
 @keyframes cxin { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
 .cx-item { width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: none; background: transparent; border-radius: 6px; font-size: 12.5px; color: var(--text-2); cursor: pointer; font-family: inherit; text-align: left; }
 .cx-item:hover { background: var(--surface-3); color: var(--text); }

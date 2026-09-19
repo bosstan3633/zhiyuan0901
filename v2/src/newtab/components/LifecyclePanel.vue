@@ -203,7 +203,7 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
 <style scoped>
 .lc-body { display: flex; flex-direction: column; gap: 12px; }
 .lc-kinds { display: flex; gap: 6px; }
-.lc-kind-tab { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 12px; border-radius: 7px; padding: 4px 12px; cursor: pointer; font-family: inherit; transition: all .12s; }
+.lc-kind-tab { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 12px; border-radius: 7px; padding: 4px 12px; cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
 .lc-kind-tab:hover { border-color: var(--accent); color: var(--accent); }
 .lc-kind-tab.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent); font-weight: 600; }
 .lc-top { display: flex; align-items: center; gap: 18px; }
@@ -212,7 +212,7 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
 .lc-dn.lc-dn-cooling { stroke: #E8A33D; }
 .lc-dn.lc-dn-archived { stroke: var(--text-4); }
 .lc-stats { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-.lc-stat { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 8px; border: 1px solid transparent; font-size: 12.5px; color: var(--text-2); transition: all .12s; }
+.lc-stat { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 8px; border: 1px solid transparent; font-size: 12.5px; color: var(--text-2); transition: all var(--dur-fast); }
 .lc-stat.clickable { cursor: pointer; }
 .lc-stat.clickable:hover { background: var(--surface-3); }
 .lc-stat.on { background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--accent); font-weight: 600; }
@@ -220,7 +220,7 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
 .lc-stat-lab { flex: 1; }
 .lc-hint { font-size: 10.5px; color: var(--text-3); }
 .lc-list { display: flex; flex-direction: column; gap: 4px; min-height: 200px; }
-.lc-row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--border); transition: all .12s; }
+.lc-row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--border); transition: all var(--dur-fast); }
 .lc-row.clickable { cursor: pointer; }
 .lc-row.clickable:hover { background: var(--surface-2); border-color: var(--border-strong); }
 .lc-row-main { flex: 1; min-width: 0; }
@@ -232,7 +232,7 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
 .lc-badge.lc-archived { color: var(--text-4); }
 .lc-kind-badge { font-size: 10px; color: var(--text-3); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }
 .lc-row-ops { display: flex; gap: 6px; flex-shrink: 0; }
-.lc-op { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 11px; border-radius: 6px; padding: 3px 9px; cursor: pointer; font-family: inherit; transition: all .12s; }
+.lc-op { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 11px; border-radius: 6px; padding: 3px 9px; cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
 .lc-op:hover { border-color: var(--accent); color: var(--accent); }
 .lc-op.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
 .lc-op.primary:hover { background: var(--accent-hover); }

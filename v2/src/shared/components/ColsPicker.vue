@@ -37,7 +37,7 @@ const emit = defineEmits<{ (e: 'update:modelValue', v: number): void }>()
 .cp-btn {
   min-width: 22px; padding: 3px 6px; border: none; border-radius: 6px; background: transparent;
   font-family: inherit; font-size: 11.5px; line-height: 1.2; color: var(--text-2);
-  cursor: pointer; transition: all .15s;
+  cursor: pointer; transition: all var(--dur);
 }
 .cp-btn:hover { background: var(--surface-3); color: var(--text); }
 .cp-btn.on { background: var(--surface); color: var(--accent); font-weight: 700; box-shadow: var(--shadow); }

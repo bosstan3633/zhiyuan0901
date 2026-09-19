@@ -70,13 +70,13 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
   display: flex; align-items: center; justify-content: center;
   border-radius: 8px; cursor: pointer; color: var(--text-3);
   font-size: 18px; border: none; background: transparent;
-  transition: all .15s; font-family: inherit;
+  transition: all var(--dur); font-family: inherit;
 }
 .drawer-close:hover { background: var(--surface-3); color: var(--text); }
 .drawer-body { flex: 1; overflow-y: auto; padding: 18px 20px; }
 .drawer-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
 
-.overlay-enter-active, .overlay-leave-active { transition: opacity .25s; }
+.overlay-enter-active, .overlay-leave-active { transition: opacity var(--dur-slow); }
 .overlay-enter-from, .overlay-leave-to { opacity: 0; }
 .drawer-enter-active, .drawer-leave-active { transition: transform .3s cubic-bezier(.4,0,.2,1); }
 .drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }

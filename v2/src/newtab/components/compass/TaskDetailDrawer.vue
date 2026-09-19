@@ -372,14 +372,14 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 </template>
 
 <style scoped>
-.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all .15s; user-select: none; }
+.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); user-select: none; }
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
 .mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .mini-btn.primary:hover { background: var(--accent-hover); }
 .mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
 .mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 
-.fade-enter-active, .fade-leave-active { transition: opacity .25s; }
+.fade-enter-active, .fade-leave-active { transition: opacity var(--dur-slow); }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 .slide-enter-active, .slide-leave-active { transition: transform .2s cubic-bezier(.16,1,.3,1); }
 .slide-enter-from, .slide-leave-to { transform: translateX(100%); }
@@ -402,7 +402,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ts-select { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: 12.5px; color: var(--text); border: 1px solid transparent; outline: none; cursor: pointer; font-family: inherit; }
 .ts-select:focus { border-color: var(--accent); }
-.ts-select:disabled { opacity: .5; cursor: not-allowed; }
+.ts-select:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .ts-goto { margin-top: 7px; font-size: 11px; color: var(--accent); cursor: pointer; }
 .ts-goto:hover { text-decoration: underline; }
 .ts-input { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: 12.5px; color: var(--text); border: 1px solid transparent; outline: none; font-family: inherit; }
@@ -414,11 +414,11 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ta-resize { position: absolute; right: 3px; bottom: 3px; width: 16px; height: 12px; cursor: ns-resize; z-index: 2; opacity: .45; border-right: 3px solid var(--text-3); border-bottom: 3px solid var(--text-3); border-bottom-right-radius: 3px; }
 .ta-resize:hover { opacity: .9; }
 /* B22：状态三选 chips */
-.ts-status-chip { flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); font-size: 11.5px; cursor: pointer; font-family: inherit; color: var(--text-2); transition: all .12s; white-space: nowrap; }
+.ts-status-chip { flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); font-size: 11.5px; cursor: pointer; font-family: inherit; color: var(--text-2); transition: all var(--dur-fast); white-space: nowrap; }
 .ts-status-chip:hover { border-color: var(--accent); color: var(--accent); }
 .ts-status-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
 .ts-time-text { font-size: 11px; color: var(--text-3); }
-.ts-field { padding: 10px 13px; background: var(--surface-2); border-radius: 8px; font-size: 13px; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 8px; border: 1px solid transparent; }
+.ts-field { padding: 10px 13px; background: var(--surface-2); border-radius: 8px; font-size: 13px; cursor: pointer; transition: all var(--dur); display: flex; align-items: center; gap: 8px; border: 1px solid transparent; }
 .ts-field:hover { border-color: var(--border); background: var(--surface); }
 .ts-field .fv { flex: 1; }
 .ts-field .fh { font-size: 10px; color: var(--text-4); }
@@ -436,7 +436,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-mount-cand.on { background: var(--accent-light); color: var(--accent); font-weight: 600; }
 .ts-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
 .ts-foot .mini-btn { justify-content: center; padding: 9px 16px; }
-.ts-del-ghost { display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; border: none; background: transparent; border-radius: 6px; font-size: 11.5px; cursor: pointer; color: var(--text-3); font-family: inherit; transition: all .15s; user-select: none; }
+.ts-del-ghost { display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; border: none; background: transparent; border-radius: 6px; font-size: 11.5px; cursor: pointer; color: var(--text-3); font-family: inherit; transition: all var(--dur); user-select: none; }
 .ts-del-ghost:hover { color: var(--danger); background: var(--danger-light, rgba(231,76,60,.1)); }
 .ts-foot-spacer { flex: 1; }
 .ts-kbd { font-size: 10px; background: rgba(255,255,255,.22); border-radius: 4px; padding: 1px 5px; font-weight: 400; margin-left: 2px; }

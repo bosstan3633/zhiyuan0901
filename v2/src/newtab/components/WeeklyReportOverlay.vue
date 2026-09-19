@@ -192,7 +192,7 @@ function drillFunnel(stage: string) {
 
 .wr-bignums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .wr-bn { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; text-align: left; }
-.wr-bn.clickable { cursor: pointer; transition: all .12s; }
+.wr-bn.clickable { cursor: pointer; transition: all var(--dur-fast); }
 .wr-bn.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
 .wr-bn .num { font-size: 22px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
 .wr-bn .num.warn { color: var(--tag-warn-text); }
@@ -203,7 +203,7 @@ function drillFunnel(stage: string) {
 
 .wr-bars { display: flex; flex-direction: column; gap: 6px; }
 .wr-bar-row { display: flex; align-items: center; gap: 10px; }
-.wr-bar-row.clickable { cursor: pointer; border-radius: 6px; padding: 2px 6px; transition: background .12s; }
+.wr-bar-row.clickable { cursor: pointer; border-radius: 6px; padding: 2px 6px; transition: background var(--dur-fast); }
 .wr-bar-row.clickable:hover { background: var(--surface-2); }
 .wr-bar-row .name { width: 180px; font-size: 11.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; text-align: right; }
 .bar-wrap { flex: 1; height: 14px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
@@ -211,7 +211,7 @@ function drillFunnel(stage: string) {
 
 .wr-top5 { display: flex; flex-direction: column; gap: 4px; }
 .wr-top-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; }
-.wr-top-item.clickable { cursor: pointer; transition: background .12s; }
+.wr-top-item.clickable { cursor: pointer; transition: background var(--dur-fast); }
 .wr-top-item.clickable:hover { background: var(--surface-2); }
 .wr-top-item .rank { font-size: 11px; font-weight: 700; color: var(--text-3); width: 14px; text-align: center; flex-shrink: 0; }
 .wr-top-item .title { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
@@ -223,7 +223,7 @@ function drillFunnel(stage: string) {
 .stage { border-radius: var(--radius-sm); padding: 10px 14px; text-align: center; background: var(--surface-2); border: 1px solid var(--border); min-width: 110px; }
 .stage .n { font-size: 18px; font-weight: 700; color: var(--text); }
 .stage .l { font-size: 10px; color: var(--text-3); margin-top: 1px; }
-.stage.clickable { cursor: pointer; transition: all .12s; }
+.stage.clickable { cursor: pointer; transition: all var(--dur-fast); }
 .stage.clickable:hover { border-color: var(--accent); }
 .funnel-arrow { font-size: 11px; color: var(--text-4); }
 
