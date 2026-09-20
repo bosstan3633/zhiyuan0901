@@ -13,6 +13,7 @@ import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/share
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { CURATION_WS_ID } from '@/shared/models'
 import { buildCatOptions } from '@/shared/utils/catTree'
+import { detachTaskFromMetrics } from '@/shared/utils/taskLinks'
 // R128-A4：打开链接走统一口径（含 javascript:/data:/vbscript:/blob: 伪协议黑名单）
 import { toOpenableUrl } from '@/shared/utils/link'
 // R128-A1：数据读写改走仓库（原先是裸 chrome.storage 整树读-改-写，无跨上下文合并、不产操作事件）
@@ -829,6 +830,8 @@ function bindResultEvents(el: HTMLElement) {
           (d2.curiosities || []).find((r: any) => r.id === id)
         if (!hit || hit.deletedAt) return
         hit.deletedAt = Date.now()
+        // R141：任务软删同口径摘净 metric.taskIds 引用（与回收站恢复/撤销回填闭环一致）
+        if ((d2.tasks || []).some((x: any) => x.id === id)) detachTaskFromMetrics(d2 as any, String(id))
         await saveData(d2)
         searchResults = searchResults.filter(r => String(r?.id || '') !== id)
         renderResults()

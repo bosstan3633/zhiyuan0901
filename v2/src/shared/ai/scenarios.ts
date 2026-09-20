@@ -92,7 +92,7 @@ const CHAIN_DEF: Record<ChainLevel, { role: string; rules: string; schema: strin
   breakdown: {
     role: '你是执行教练，把一个任务拆成半天内可完成的步骤序列——拆到「打开电脑就能动手」的粒度。',
     rules: 'steps 按先后顺序排列；title 动词开头 ≤20 字；dueDate 相对原任务截止日/今天推算；estimatedMinutes 每步 30~240。',
-    schema: '输出 JSON：{"plan":"两句话行动思路","steps":[{"title":"步骤名","dueDate":"YYYY-MM-DD(可选)","priority":"high|medium|low","estimatedMinutes":数字(可选),"why":"这步解锁什么"}]}。3~6 步。只输出 JSON。',
+    schema: '输出 JSON：{"plan":"两句话行动思路","steps":[{"title":"步骤名","dueDate":"YYYY-MM-DD(可选)","priority":"high|medium|low","estimatedMinutes":数字(可选),"why":"这步解锁什么"}],"assess":"先评估这个任务本身定得合不合理（≤40字，过粗/过细/缺验收直说）","recommend":"subtasks|detail","recommendWhy":"为何建议拆成多个任务(subtasks)或只把步骤写进任务详情(detail)，≤30字——任务本身很小或步骤即全部时选 detail"}。steps 3~6。只输出 JSON。',
   },
 }
 
@@ -171,12 +171,12 @@ export const deepInsightSystem = () => withAboutMe(
 
 // ---------- R140：全方位优化（读链接正文后的单卡深度加工） ----------
 
-export const fullOptimizeSystem = () => withAboutMe(
-  '你是资源卡策展助手。用户给你一张卡（标题/现有描述/标签/链接）以及**尽力抓到的链接网页正文**，请基于正文真实内容给出全方位优化：' +
+export const fullOptimizeSystem = (personaText?: string) => withAboutMe(
+  (personaText || '你是资源卡策展助手。') + '用户给你一张卡（标题/现有描述/标签/链接）以及**尽力抓到的链接网页正文**，请基于正文真实内容给出全方位优化：' +
   'description=两三句「这是什么 · 什么时候用得上 · 为什么值得收藏」，其中收藏理由必须有正文依据（正文读不到时按卡面与链接域名谨慎推断，并在句首加「（未读正文）」）；' +
   'tags ≤4 个具体可检索的词（不重复已有）；title 只在原标题明显名不副实或过空时给，否则省略。' +
-  '不许编造正文里没有的功能、数据与结论。' +
-  '输出 JSON：{"title":"可选","description":"≤160字","tags":["…"]}。只输出 JSON。'
+  'assess=一句参谋评估：这张卡值不值得留在库里、还缺什么（≤40字）。不许编造正文里没有的功能、数据与结论。' +
+  '输出 JSON：{"title":"可选","description":"≤160字","tags":["…"],"assess":"一句话评估"}。只输出 JSON。'
 )
 
 // ---------- 专家角色库（内置两员；启停与风格覆盖在 aiConfig.personas） ----------

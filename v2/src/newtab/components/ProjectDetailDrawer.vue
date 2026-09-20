@@ -10,6 +10,8 @@ import { uid } from '@/shared/utils'
 import type { Direction, Project, TaskCard } from '@/shared/models'
 import Drawer from '@/shared/components/Drawer.vue'
 import { useConfirm } from '@/shared/components/confirm'
+import { showToast } from '@/shared/components/toast'
+import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 import TaskAddDrawer from './TaskAddDrawer.vue'
 import TaskDetailDrawer from './compass/TaskDetailDrawer.vue'
 
@@ -121,18 +123,13 @@ function openTaskAdd(metricId: string) { taskAddMetricId.value = metricId }
 /** R51-B6：创建成功后直接打开详情抽屉 */
 const detailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 function onTaskCreated(t: TaskCard) { detailRef.value?.open(t) }
-function removeTask(taskId: string) {
+/** R141（反馈 #1）：指标下任务行只做解绑（✕ 回任务调度模块），删除本体收进任务详情 */
+function unbindTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
   if (!t) return
-  t.deletedAt = Date.now()
-  for (const dir2 of d.value.compass.directions) {
-    for (const p of dir2.projects) {
-      for (const m of p.metrics) {
-        m.taskIds = m.taskIds.filter(id => id !== taskId)
-      }
-    }
-  }
+  unbindTaskFromMetric(d.value, t)
   store.persist()
+  showToast(`✓ 已从本指标移除：「${t.title.slice(0, 16)}」回到任务调度模块`)
 }
 </script>
 
@@ -174,7 +171,7 @@ function removeTask(taskId: string) {
           <div v-for="t in tasksForMetric(m.id)" :key="t.id" class="pd-task" :class="{done: t.status==='done'}">
             <div class="pd-check" :class="{done: t.status==='done'}" @click="toggleTask(t.id)">{{ t.status==='done'?'✓':'' }}</div>
             <input class="pd-task-name" :value="t.title" @change="renameTask(t.id, $event)" />
-            <button class="pd-mini danger" @click="removeTask(t.id)" title="删除任务">×</button>
+            <button class="pd-mini" @click="unbindTask(t.id)" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）">✕</button>
           </div>
           <div v-if="!tasksForMetric(m.id).length" class="pd-task-empty">暂无任务，点击 ＋ 添加</div>
         </div>

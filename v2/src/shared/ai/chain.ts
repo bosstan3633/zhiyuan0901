@@ -54,13 +54,23 @@ const META: Record<ChainLevel, { title: string; badge: string; itemPath: 'items'
   breakdown: { title: '行动步骤', badge: '步骤', itemPath: 'steps' },
 }
 
+/** R141（反馈 #2/#3）：抽屉标头的处理对象——按层级找回实体名 */
+function anchorSubject(d: AppData, level: ChainLevel, anchorId: string): string {
+  if (level === 'breakdown') { const t = d.tasks.find(x => x.id === anchorId); return t ? `📌 任务「${t.title.slice(0, 24)}」` : '' }
+  if (level === 'tasks') { for (const x of d.compass.directions) for (const p of x.projects) { const m = p.metrics.find(y => y.id === anchorId); if (m) return `📌 指标「${m.title.slice(0, 24)}」` } }
+  if (level === 'metrics') { for (const x of d.compass.directions) { const p = x.projects.find(y => y.id === anchorId); if (p) return `📌 项目「${p.name.slice(0, 24)}」` } }
+  if (level === 'projects') { const x = d.compass.directions.find(y => y.id === anchorId); return x ? `📌 目标「${x.name.slice(0, 24)}」` : '' }
+  return ''
+}
+
 export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx): AiJob | null {
   const { text, missing } = projectChain(ctx.d, level, anchorId, ctx.depth)
   if (missing) return null
   const meta = META[level]
-  const personaText = level === 'breakdown' ? chainPersonaText(ctx.personaId || '') : ''
+  const personaText = chainPersonaText(ctx.personaId || '')
   const job: AiJob = {
     title: `AI 建议${meta.title}（${level === 'directions' ? '从愿景/使命' : '基于上游链'}推导）`,
+    subject: anchorSubject(ctx.d, level, anchorId),
     hint: '生成的建议与你现有同层实体查重后才可采纳；勾选才创建，创建走既有通道可回滚（项目/指标入方向树，任务可再删）。',
     build: () => ({
       messages: [
@@ -69,7 +79,7 @@ export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx
       ],
     }),
     parse: (raw) => {
-      const bag = raw as { items?: ChainSuggestion[]; steps?: ChainSuggestion[]; plan?: string }
+      const bag = raw as { items?: ChainSuggestion[]; steps?: ChainSuggestion[]; plan?: string; assess?: string; recommend?: string; recommendWhy?: string }
       const list = (level === 'breakdown' ? bag.steps : bag.items) || []
       const rows: AiRow[] = []
       list.forEach((s0, i) => {
@@ -87,22 +97,33 @@ export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx
       if (level === 'breakdown' && bag.plan?.trim()) {
         rows.unshift({ key: 'breakdown:plan', badge: '思路', main: bag.plan.trim().slice(0, 160), data: { __plan: bag.plan.trim() } })
       }
+      // R141（反馈 #2）：参谋建议行——任务合理性评估 + 拆子任务/写详情推荐（只读，不进勾选）
+      if (level === 'breakdown' && bag.assess?.trim()) {
+        const rec = bag.recommend === 'detail' ? '推荐：只把步骤写进任务详情' : bag.recommend === 'subtasks' ? '推荐：拆成多个子任务' : ''
+        rows.unshift({
+          key: 'breakdown:verdict', badge: '参谋', advisory: true,
+          main: bag.assess.trim().slice(0, 120),
+          sub: [rec, (bag.recommendWhy || '').trim().slice(0, 60)].filter(Boolean).join(' · '),
+          data: { __verdict: true, recommend: bag.recommend },
+        })
+      }
       return rows
     },
     apply: (rows) => applyChain(level, anchorId, ctx, rows),
+  }
+  // R141（反馈 #3）：角色切换推广到全部生成层——宿主传 onPersona 即挂下拉
+  if (ctx.onPersona) {
+    const ov = personaOverrides()
+    job.persona = {
+      options: [{ id: 'default', label: '🧑‍🏫 内置角色（默认）' }, ...allPersonas().filter(p => ov[p.id]?.enabled !== false).map(p => ({ id: p.id, label: `${p.icon} ${p.name}` }))],
+      current: ctx.personaId || 'default',
+      onPick: (id) => ctx.onPersona?.(id),
+    }
   }
   if (level === 'breakdown') {
     // R139 双通道：主采纳=建步骤子任务；次采纳=同批勾选步骤合并成清单写进本任务详情（小任务不配子任务时用它）
     job.hint = '勾选后二选一：「采纳」把步骤建成子任务（全库查重）；「步骤写入任务详情」只落清单进描述、不建卡。右上角可换执笔专家，换后自动重跑。'
     job.secondary = { label: '📝 步骤写入任务详情', apply: (rows) => writeStepsToTask(ctx.d, anchorId, rows, ctx.persist) }
-    if (ctx.onPersona) {
-      const ov = personaOverrides()
-      job.persona = {
-        options: [{ id: 'default', label: '🧑‍🏫 执行教练（默认）' }, ...allPersonas().filter(p => ov[p.id]?.enabled !== false).map(p => ({ id: p.id, label: `${p.icon} ${p.name}` }))],
-        current: ctx.personaId || 'default',
-        onPick: (id) => ctx.onPersona?.(id),
-      }
-    }
   }
   return job
 }

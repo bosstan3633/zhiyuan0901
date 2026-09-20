@@ -30,10 +30,12 @@ export interface AiConfig {
   customPersonas: AiCustomPersona[]
   /** R138-H1′：采集保存后自动跑「补全建议」（评审抽屉勾选采纳才写库；默认关） */
   captureEnrich: boolean
+  /** R141（反馈 #2）：拆解/生成/优化等场景的默认执笔专家 id（'' / 'default' = 场景内置角色） */
+  defaultPersona: string
 }
 
 const DEFAULTS: AiConfig = {
-  baseUrl: '', apiKey: '', model: '', depth: 'std', aboutMe: '', personas: [], customPersonas: [], captureEnrich: false,
+  baseUrl: '', apiKey: '', model: '', depth: 'std', aboutMe: '', personas: [], customPersonas: [], captureEnrich: false, defaultPersona: '',
 }
 
 const raw = ref<AiConfig>({ ...DEFAULTS })

@@ -6,6 +6,7 @@ import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
 import { matchPinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/utils/link'
+import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import Drawer from '@/shared/components/Drawer.vue'
 import type { Direction, Project, Metric, TaskCard, ID } from '@/shared/models'
@@ -24,12 +25,17 @@ const { d, visionText, missionText, allProjects, projectProgress, toggleFocusPro
 // ---- R135：罗盘链式生成（directions/projects/metrics/tasks 四层入口共用一个评审抽屉） ----
 const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
 const aiJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
+const aiPersonaId = ref('default')
+let aiChainLast: { level: import('@/shared/ai/scenarios').ChainLevel; anchorId: string } = { level: 'directions', anchorId: '' }
 async function aiChain(level: import('@/shared/ai/scenarios').ChainLevel, anchorId: string) {
   const [{ loadAiConfig, aiReady, aiConfig }, { buildChainJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/chain')])
   await loadAiConfig()
   if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
   if (!d.value) return
-  const job = buildChainJob(level, anchorId, { d: d.value, depth: aiConfig.value.depth, persist: () => store.persist(), addProject: (id, name) => addProjectToDir(id, name) })
+  // R141（反馈 #2）：默认执笔专家取自设置；抽屉内换人 → 记住选择并重建重跑
+  if (aiPersonaId.value === 'default' && aiConfig.value.defaultPersona) aiPersonaId.value = aiConfig.value.defaultPersona
+  aiChainLast = { level, anchorId }
+  const job = buildChainJob(level, anchorId, { d: d.value, depth: aiConfig.value.depth, persist: () => store.persist(), addProject: (id, name) => addProjectToDir(id, name), personaId: aiPersonaId.value, onPersona: (id) => { aiPersonaId.value = id; void aiChain(aiChainLast.level, aiChainLast.anchorId) } })
   if (!job) { showToast('⚠ 锚点实体已不存在，请刷新后重试'); return }
   aiJob.value = job
 }
@@ -296,15 +302,22 @@ function deleteNode(type: string, id: string) {
     for (const dir of d.value.compass.directions) {
       for (const proj of dir.projects) {
         const idx = proj.metrics.findIndex(x => x.id === id)
-        if (idx >= 0) { proj.metrics.splice(idx, 1); break }
+        if (idx >= 0) {
+          proj.metrics.splice(idx, 1)
+          // R141：删指标不悬挂——其下任务回落「未关联指标」（项目保留，与策展台 removeMetric 同口径）
+          for (const t of d.value.tasks) if (t.metricId === id) { t.metricId = undefined; t.updatedAt = Date.now() }
+        }
       }
     }
-  } else if (type === 'task') {
-    const t = d.value.tasks.find(x => x.id === id)
-    if (t) t.deletedAt = Date.now()
   }
   store.persist()
   showToast('已删除')
+}
+/** R141（反馈 #1）：指标下任务行的 ✕ = 解绑回任务调度模块，删除本体收进任务详情 */
+function unbindTask(task: TaskCard) {
+  unbindTaskFromMetric(d.value, task)
+  store.persist()
+  showToast(`✓ 已从本指标移除：「${task.title.slice(0, 16)}」回到任务调度模块`)
 }
 
 // ---- 任务数据 ----
@@ -614,7 +627,7 @@ onUnmounted(() => {
                         <span class="node-title editable" :class="{editing: editingField === 'task-' + task.id}" :data-edit="'task-' + task.id" :contenteditable="editingField === 'task-' + task.id"
                           @click.stop="startEdit('task-' + task.id, $event)" @blur="saveEdit('task-' + task.id, $event)" @keydown.enter.prevent="saveEdit('task-' + task.id, $event)" @keydown.esc="cancelEdit">{{ task.title }}</span>
                         <span class="tml-pri">{{ task.priority==='high'?'高优':task.priority==='medium'?'中优':'低优' }}</span>
-                        <span class="tml-del node-action danger" @click.stop="deleteNode('task', task.id)" title="删除任务">🗑</span>
+                        <span class="tml-del node-action" @click.stop="unbindTask(task)" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）">✕</span>
                       </div>
                     </div>
                     <div v-else-if="!tasksForMetric(metric.id).length" class="tm-empty-alert">⚠ 暂无支撑任务（线索断开）</div>

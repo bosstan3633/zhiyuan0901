@@ -150,7 +150,7 @@ export function projectChain(
     if (host.dir) L.push(dirLine(host.dir, '【↑】'))
     L.push(`【本项目→】「${host.proj.name}」${host.proj.isFocused ? '[主攻]' : ''} 进度${host.proj.progress || 0}% ${host.proj.status} 截止${host.proj.endDate || '?'}`)
     const ms = host.proj.metrics.map(m => {
-      const ts = m.taskIds.map(id => (d.tasks || []).find(t => t.id === id)).filter(Boolean) as { status: string; title: string }[]
+      const ts = m.taskIds.map(id => (d.tasks || []).find(t => t.id === id && !t.deletedAt)).filter(Boolean) as { status: string; title: string }[]
       return `· 指标「${m.title}」目标:${cut(m.target, 40) || '未写'} 任务${ts.filter(t => t.status === 'done').length}/${ts.length}`
     }).join('\n')
     L.push(`【现有成功指标】\n${ms || '（一个指标都没有——这正是问题）'}`)
@@ -160,7 +160,7 @@ export function projectChain(
     for (const x of d.compass.directions) for (const p of x.projects) { const m = p.metrics.find(y => y.id === anchorId); if (m) { met = m; proj = p; dir = x; break } }
     if (!met || !proj) return { text: '', missing: '指标已不存在' }
     L.push(`${dir ? dirLine(dir, '【↑↑】') : ''}\n· ${proj.name} → 指标「${met.title}」（目标:${cut(met.target, 60) || '未写'}）${met.acceptance ? ` 验收:${cut(met.acceptance, c.desc)}` : ''}`)
-    const ts = met.taskIds.map(id => (d.tasks || []).find(t => t.id === id)).filter(Boolean) as TaskCard[]
+    const ts = met.taskIds.map(id => (d.tasks || []).find(t => t.id === id && !t.deletedAt)).filter(Boolean) as TaskCard[]
     L.push(`【该指标下现有任务】\n${ts.map(t => `${taskState(t)} ${t.title}${t.dueDate ? '（' + t.dueDate + '）' : ''}`).join('\n') || '（还没有任务）'}`)
     const gap = ts.length - ts.filter(t => t.status === 'done').length
     L.push(`【任务】指标缺口=未完成 ${gap} 项。提出 3~6 个**未来两周可执行**的具体任务建议，覆盖「验收标准」但别与现有任务重复；每个任务应直接推进该指标。`)
@@ -277,7 +277,7 @@ export function projectWeekDigest(d: AppData, depth: AiDepth): string {
   const dirs = (d.compass.directions || []).filter(x => x.status === 'active').map(x => {
     const projs = x.projects.map(p => {
       const ms = p.metrics.map(m => {
-        const ts = m.taskIds.map(id => (d.tasks || []).find(t => t.id === id)).filter(Boolean) as { status: string }[]
+        const ts = m.taskIds.map(id => (d.tasks || []).find(t => t.id === id && !t.deletedAt)).filter(Boolean) as { status: string }[]
         return `${ts.filter(t => t.status === 'done').length}/${ts.length}`
       })
       return `「${cut(p.name, 24)}」${p.progress || 0}% 指标[${ms.join(',')}]`

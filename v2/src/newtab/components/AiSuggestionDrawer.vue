@@ -32,6 +32,9 @@ let jobSeq = 0
 const open = computed(() => !!props.job)
 const inputChars = ref(0)
 const canApply = computed(() => (props.job?.adoptable ?? true) && picked.value.size > 0)
+/** R141：参谋推荐——verdict 行带 recommend=detail 时，「写入详情」升为主按钮（AI 告诉你该按哪个） */
+const recDetail = computed(() => rows.value.some(r => (r.data as { recommend?: string } | undefined)?.recommend === 'detail'))
+const adoptableN = computed(() => rows.value.filter(r => !r.advisory).length)
 
 async function run(job: AiJob) {
   const seq = ++jobSeq
@@ -53,7 +56,7 @@ async function run(job: AiJob) {
     }
     if (seq !== jobSeq) return
     rows.value = out
-    picked.value = new Set(out.map(r => r.key))
+    picked.value = new Set(out.filter(r => !r.advisory).map(r => r.key))
     phase.value = 'done'
   } catch (e) {
     if (seq !== jobSeq) return
@@ -72,7 +75,8 @@ function toggle(key: string) {
   picked.value = next
 }
 function toggleAll() {
-  picked.value = picked.value.size === rows.value.length ? new Set() : new Set(rows.value.map(r => r.key))
+  const adoptableRows = rows.value.filter(r => !r.advisory)
+  picked.value = picked.value.size === adoptableRows.length ? new Set() : new Set(adoptableRows.map(r => r.key))
 }
 async function adopt() {
   const job = props.job
@@ -103,7 +107,15 @@ onUnmounted(() => { jobSeq++; ctrl?.abort() })
 
 <template>
   <Drawer :open="open" :title="'🤖 ' + (job?.title || 'AI 建议')" width="560px" @close="close">
+    <!-- R141（反馈 #2/#3）：专家下拉上移抽屉头部（跑的过程中也可见可换）；subject 标明正在处理哪张卡 -->
+    <template v-if="job?.persona" #title-extra>
+      <select class="ai-persona" :value="job.persona.current" title="换一个专家视角重新生成"
+        @change="job.persona!.onPick(($event.target as HTMLSelectElement).value)">
+        <option v-for="o in job.persona.options" :key="o.id" :value="o.id">{{ o.label }}</option>
+      </select>
+    </template>
     <div class="ai-body">
+      <div v-if="job?.subject" class="ai-subject">{{ job.subject }}</div>
       <div v-if="job?.hint" class="ai-hint">{{ job.hint }}</div>
 
       <div v-if="phase === 'running'" class="ai-status">
@@ -123,19 +135,16 @@ onUnmounted(() => { jobSeq++; ctrl?.abort() })
         <div v-if="!rows.length" class="ai-empty">模型没有给出可采纳的建议</div>
         <template v-else>
           <div class="ai-toolbar">
-            <label class="ai-all"><input type="checkbox" :checked="picked.size === rows.length && rows.length > 0" @change="toggleAll" /> 全选</label>
-            <select v-if="job?.persona" class="ai-persona" :value="job.persona.current"
-              title="换一个专家视角重新生成" @change="job.persona!.onPick(($event.target as HTMLSelectElement).value)">
-              <option v-for="o in job.persona.options" :key="o.id" :value="o.id">{{ o.label }}</option>
-            </select>
-            <span class="ai-count">已选 {{ picked.size }}/{{ rows.length }}</span>
+            <label class="ai-all"><input type="checkbox" :checked="picked.size === adoptableN && adoptableN > 0" @change="toggleAll" /> 全选</label>
+            <span class="ai-count">已选 {{ picked.size }}/{{ adoptableN }}</span>
             <span class="ai-usage">投料 {{ inputChars }} 字（~{{ Math.ceil(inputChars / 1.6) }} tok）· 产出 {{ streamText.length }} 字</span>
             <button class="ai-btn sm ghost" @click="showRaw = !showRaw">{{ showRaw ? '收起' : '原文' }}</button>
           </div>
           <pre v-if="showRaw" class="ai-stream">{{ streamText }}</pre>
           <div class="ai-rows">
-            <label v-for="r in rows" :key="r.key" class="ai-row" :class="{ on: picked.has(r.key) }">
-              <input type="checkbox" :checked="picked.has(r.key)" @change="toggle(r.key)" />
+            <label v-for="r in rows" :key="r.key" class="ai-row" :class="{ on: !r.advisory && picked.has(r.key), advisory: r.advisory }">
+              <input v-if="!r.advisory" type="checkbox" :checked="picked.has(r.key)" @change="toggle(r.key)" />
+              <span v-else class="ai-adv-mark" title="参谋建议（只读）">🧭</span>
               <span class="ai-row-txt">
                 <span class="ai-row-main">
                   <span v-if="r.badge" class="ai-badge" :class="'b-' + (r.badgeType || 'neutral')">{{ r.badge }}</span>
@@ -151,15 +160,16 @@ onUnmounted(() => { jobSeq++; ctrl?.abort() })
 
     <template #footer>
       <button class="ai-btn" @click="close">关闭</button>
-      <button v-if="job?.secondary && rows.length" class="ai-btn" :disabled="picked.size === 0"
+      <button v-if="job?.secondary && rows.length" class="ai-btn" :class="{ primary: recDetail }" :disabled="picked.size === 0"
         @click="adoptSecondary">{{ job.secondary.label }}（{{ picked.size }}）</button>
-      <button v-if="job?.adoptable !== false && rows.length" class="ai-btn primary" :disabled="!canApply" @click="adopt">✓ 采纳勾选项（{{ picked.size }}）</button>
+      <button v-if="job?.adoptable !== false && rows.length" class="ai-btn" :class="{ primary: !recDetail }" :disabled="!canApply" @click="adopt">✓ 采纳勾选项（{{ picked.size }}）</button>
     </template>
   </Drawer>
 </template>
 
 <style scoped>
 .ai-body { display: flex; flex-direction: column; gap: 10px; font-size: 12.5px; color: var(--text-2); }
+.ai-subject { padding: 7px 11px; background: var(--accent-light); border: 1px solid var(--accent); border-radius: var(--radius-sm); color: var(--accent); font-size: 12px; font-weight: 600; }
 .ai-hint { font-size: 11.5px; color: var(--text-3); line-height: 1.6; }
 .ai-status { padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); line-height: 1.7; }
 .ai-err { color: var(--danger); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -174,6 +184,8 @@ onUnmounted(() => { jobSeq++; ctrl?.abort() })
 .ai-rows { display: flex; flex-direction: column; gap: 6px; }
 .ai-row { display: flex; gap: 9px; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; transition: border-color var(--dur); }
 .ai-row.on { border-color: var(--accent); background: var(--accent-light); }
+.ai-row.advisory { cursor: default; border-style: dashed; background: var(--surface-2); border-color: var(--warning); }
+.ai-adv-mark { font-size: 12px; line-height: 1.5; }
 .ai-row-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .ai-row-main { color: var(--text); font-weight: 500; line-height: 1.5; }
 .ai-row-sub { color: var(--text-3); font-size: 11.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }

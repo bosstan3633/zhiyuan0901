@@ -15,6 +15,7 @@ import type { TaskCard, FieldDef } from '@/shared/models'
 import { recordCardOpen } from '@/shared/storage/stats'
 // R129-B5：链接协议白名单与打开通道全站唯一实现
 import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
+import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
 import { showToast } from '@/shared/components/toast'
 import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
@@ -169,7 +170,8 @@ function batchDelete() {
   const removed: TaskCard[] = []
   selectedTaskIds.value.forEach(id => {
     const t = d.value.tasks.find(x => x.id === id)
-    if (t) { t.deletedAt = Date.now(); removed.push(t) }
+    // R141：软删统一走 softDeleteTaskToTrash——同时摘净 metric.taskIds 引用（撤销回填）
+    if (t) { softDeleteTaskToTrash(d.value, t); removed.push(t) }
   })
   store.persist()
   showToast(`已删除 ${removed.length} 个任务`, { label: '撤销', cb: () => {
@@ -264,7 +266,7 @@ function cycleTaskStatus(taskId: string) {
 async function deleteTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
   if (!t) return
-  t.deletedAt = Date.now()
+  softDeleteTaskToTrash(d.value, t)
   store.persist()
   // REQ-030：撤销（含指标 taskIds 回填，按 id 定位当前树）
   showToast(`已删除「${t.title.slice(0, 20)}」`, { label: '撤销', cb: () => {

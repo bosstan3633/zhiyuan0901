@@ -11,12 +11,16 @@ export interface AiRow {
   /** 语义徽标 */
   badge?: string
   badgeType?: 'warn' | 'ok' | 'danger' | 'neutral'
+  /** R141：参谋建议行——只读展示，不进勾选/采纳（如「这任务该拆还是该写详情」） */
+  advisory?: boolean
   /** 场景载荷（模型建议原文等），apply 闭包自取 */
   data?: unknown
 }
 
 export interface AiJob {
   title: string
+  /** R141（反馈 #2/#3）：正在处理的对象标头（如「📌 任务「完成论文图表」」），抽屉常驻显示 */
+  subject?: string
   hint?: string
   build: () => { messages: ChatMsg[]; jsonMode?: boolean } | Promise<{ messages: ChatMsg[]; jsonMode?: boolean }>
   /** true = 模型回叙事文本（周报等），跳过 JSON 提取、parse 收原文 string（R138） */

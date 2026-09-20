@@ -8,6 +8,7 @@ import { useAppStore } from '../../stores/app'
 import { useCompass } from '../../stores/compass'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { useTaHeight } from '@/shared/utils/taHeight'
+import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
 import type { TaskCard, AssetMeta } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import TagPicker from '@/shared/components/TagPicker.vue'
@@ -95,6 +96,8 @@ async function aiBreakdown() {
   await loadAiConfig()
   if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
   if (!d.value) return
+  // R141（反馈 #2）：未手动换过人时，带入设置页的默认执笔专家
+  if (aiPersonaId.value === 'default' && aiConfig.value.defaultPersona) aiPersonaId.value = aiConfig.value.defaultPersona
   const job = buildChainJob('breakdown', t.id, {
     d: d.value, depth: aiConfig.value.depth, persist: () => store.persist(),
     personaId: aiPersonaId.value,
@@ -118,7 +121,8 @@ async function aiRecommend() {
 async function deleteTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
   if (!t) return
-  t.deletedAt = Date.now()
+  // R141：统一软删语义——置 deletedAt 同时摘净 metric.taskIds 引用（撤销时回填）
+  softDeleteTaskToTrash(d.value, t)
   store.persist()
   close()
   // REQ-030：撤销（含指标 taskIds 回填，按 id 定位当前树）

@@ -5,6 +5,7 @@ import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { uid } from '@/shared/utils'
+import { softDeleteTaskToTrash, unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 import { useConfirm } from '@/shared/components/confirm'
 import type { Project, Direction, TaskCard, Metric } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
@@ -233,6 +234,7 @@ function startHeaderAddMetric() { headerMetricAdding.value = true; headerMetricT
 // R135：项目详情页页头「🤖 建议指标」——与方向树同一链式生成地基，锚点=当前项目
 const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
 const aiJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
+const aiPersonaId = ref('default')
 async function aiChainMetrics() {
   const p = currentProject.value
   if (!p) return
@@ -240,7 +242,8 @@ async function aiChainMetrics() {
   await loadAiConfig()
   if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
   if (!store.data) return
-  const job = buildChainJob('metrics', p.id, { d: store.data, depth: aiConfig.value.depth, persist: () => store.persist() })
+  if (aiPersonaId.value === 'default' && aiConfig.value.defaultPersona) aiPersonaId.value = aiConfig.value.defaultPersona
+  const job = buildChainJob('metrics', p.id, { d: store.data, depth: aiConfig.value.depth, persist: () => store.persist(), personaId: aiPersonaId.value, onPersona: (id) => { aiPersonaId.value = id; void aiChainMetrics() } })
   if (!job) { showToast('⚠ 项目已不存在'); return }
   aiJob.value = job
 }
@@ -418,14 +421,15 @@ function openTaskAdd(m: Metric) { taskAddMetric.value = m }
 /** R51-B6：创建成功后直接打开 R48 详情抽屉（与调度台新建任务口径一致） */
 function onTaskCreated(t: TaskCard) { openTaskDetail(t) }
 function removeTask(task: TaskCard) {
-  task.deletedAt = Date.now()
-  for (const dir of d.value.compass.directions) {
-    for (const proj of dir.projects) {
-      for (const m of proj.metrics) m.taskIds = m.taskIds.filter(id => id !== task.id)
-    }
-  }
+  softDeleteTaskToTrash(d.value, task)
   store.persist()
-  showToast('已删除任务')
+  showToast('已删除任务（回收站可恢复）')
+}
+/** R141（反馈 #1）：指标下任务行只做解绑——✕ 回任务调度模块，删除本体收进任务详情 */
+function unbindTask(task: TaskCard) {
+  unbindTaskFromMetric(d.value, task)
+  store.persist()
+  showToast(`✓ 已从本指标移除：「${task.title.slice(0, 16)}」回到任务调度模块`)
 }
 function toggleTaskDone(task: TaskCard) {
   task.status = task.status === 'done' ? 'todo' : 'done'
@@ -645,7 +649,7 @@ function addTaskFromHeader() {
             <span class="bt" @click="openTaskDetail(task)" title="点击打开任务详情">{{ task.title }}</span>
             <span class="tag" :class="prTag(task.priority)"><i class="tag-dot" /><span class="tag-txt">{{ prLabel(task.priority) }}</span></span>
             <AssetBadge v-if="task.assets?.length" :assets="task.assets" />
-            <button class="icon-btn-sm del" title="删除任务（进回收站）" @click="removeTask(task)">🗑</button>
+            <button class="icon-btn-sm" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）" @click="unbindTask(task)">✕</button>
           </div>
           <div class="task-add" @click="openTaskAdd(m)">＋ 添加任务（新建 / 关联）</div>
         </div>

@@ -12,10 +12,16 @@ import { projectChain, cardDirectory, projectTaskTargets, projectWeekDigest, pro
 import { fetchLinkText, linkFetchable } from './linkFetch'
 import {
   recommendSystem, rerankSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem, fullOptimizeSystem,
+  chainPersonaText, allPersonas, personaOverrides,
   type RecommendSuggestion, type RerankHit, type TaskDraft,
 } from './scenarios'
 
-export interface SelectCtx { d: AppData; depth: AiDepth; persist: () => void }
+export interface SelectCtx {
+  d: AppData; depth: AiDepth; persist: () => void
+  /** R141：全方位优化可换执笔专家（同拆解机制） */
+  personaId?: string
+  onPersona?: (id: string) => void
+}
 
 /** A3：按任务选卡——任务上行链 + 全库卡目录（排除已挂载），采纳=挂载 */
 export function buildRecommendJob(task: TaskCard, ctx: SelectCtx): AiJob | null {
@@ -26,6 +32,7 @@ export function buildRecommendJob(task: TaskCard, ctx: SelectCtx): AiJob | null 
   if (!dir) return null
   return {
     title: `AI 推荐资源卡 · ${task.title.slice(0, 18)}`,
+    subject: `📌 任务「${task.title.slice(0, 24)}」`,
     hint: '从全库目录挑「此刻用得上」的卡（已挂载的不再推荐）；勾选采纳=挂载到该任务，可随时在任务详情里取消。',
     build: () => ({ messages: [
       { role: 'system', content: recommendSystem() },
@@ -131,6 +138,7 @@ export function buildTaskParseJob(text: string, ctx: SelectCtx, onApply: (draft:
   if (!t) return null
   return {
     title: 'AI 录入 · 任务字段草稿',
+    subject: `✍️ 「${t.slice(0, 24)}」`,
     hint: '核对下面的字段建议，采纳即回填表单（不会直接建卡）；确认后照常「创建」。',
     build: () => ({ messages: [
       { role: 'system', content: taskParseSystem() },
@@ -172,6 +180,7 @@ export function buildReviewJob(ctx: SelectCtx): AiJob | null {
   if (!digest.includes('- ')) return null
   return {
     title: '🗓 本周回顾草稿',
+    subject: '🗓 近 7 天台账',
     hint: '只基于近 7 天台账成文；采纳=存为一张「每周回顾」资源卡（描述即正文），不改动任何现有数据。',
     rawText: true,
     build: () => ({ messages: [{ role: 'system', content: reviewSystem() }, { role: 'user', content: digest }], jsonMode: false }),
@@ -202,6 +211,7 @@ export function buildInsightJob(ctx: SelectCtx): AiJob | null {
   if (!digest.includes('- ')) return null
   return {
     title: '本周深度洞察',
+    subject: '🗓 近 7 天台账 · 调度画像',
     hint: '不复述数字，只体检「投入和重心对不对」：重心偏离、停滞信号、资产与目标错位；采纳=存为一张资源卡，不改动任何既有数据。',
     rawText: true,
     build: () => ({ messages: [{ role: 'system', content: deepInsightSystem() }, { role: 'user', content: digest }], jsonMode: false }),
@@ -231,8 +241,10 @@ export function buildInsightJob(ctx: SelectCtx): AiJob | null {
  * 描述此处允许**改写**（与"补全只填空"不同：这是用户主动求优化）；采纳=勾选行才写库。
  */
 export function buildFullOptimizeJob(card: ResourceCard, ctx: SelectCtx): AiJob {
-  return {
+  const personaText = chainPersonaText(ctx.personaId || '')
+  const job: AiJob = {
     title: `AI 全方位优化 · ${card.title.slice(0, 14) || '（无名卡）'}`,
+    subject: `📌 资源卡「${card.title.slice(0, 24) || '无名卡'}」`,
     hint: '点击已触发抓取链接网页正文（仅 http(s)、抓不到会注明「未读正文」再按卡面谨慎推断）；勾选采纳才写库。',
     build: async () => {
       let linkBlock = ''
@@ -243,12 +255,12 @@ export function buildFullOptimizeJob(card: ResourceCard, ctx: SelectCtx): AiJob 
         linkBlock = `\n\n【链接】${card.link.slice(0, 120)}（非 http(s) 网页链接，不抓取正文）`
       }
       return { messages: [
-        { role: 'system', content: fullOptimizeSystem() },
+        { role: 'system', content: fullOptimizeSystem(personaText) },
         { role: 'user', content: projectCard(ctx.d, card, ctx.depth) + linkBlock },
       ] }
     },
     parse: (raw) => {
-      const s = (raw || {}) as { title?: string; description?: string; tags?: string[] }
+      const s = (raw || {}) as { title?: string; description?: string; tags?: string[]; assess?: string }
       const rows: AiRow[] = []
       const title = String(s.title || '').trim().slice(0, 60)
       if (title && title !== card.title) rows.push({ key: 'title', badge: '标题', main: title, sub: '原：' + card.title.slice(0, 40), data: { title } })
@@ -256,6 +268,7 @@ export function buildFullOptimizeJob(card: ResourceCard, ctx: SelectCtx): AiJob 
       if (desc && desc !== card.description) rows.push({ key: 'desc', badge: '描述', main: desc, sub: card.description ? '原：' + card.description.slice(0, 60) : '（原无描述）', data: { description: desc } })
       const newTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !(card.tags || []).includes(t)).slice(0, 4)
       if (newTags.length) rows.push({ key: 'tags', badge: '标签', main: newTags.join('、'), data: { tags: newTags } })
+      if (s.assess?.trim()) rows.push({ key: 'verdict', badge: '参谋', advisory: true, main: s.assess.trim().slice(0, 120), data: { __verdict: true } })
       return rows
     },
     apply: (rows) => {
@@ -263,7 +276,8 @@ export function buildFullOptimizeJob(card: ResourceCard, ctx: SelectCtx): AiJob 
       if (!live) return '⚠ 卡片已不存在，未写入'
       let n = 0
       for (const r of rows) {
-        const s = r.data as { title?: string; description?: string; tags?: string[] }
+        const s = r.data as { title?: string; description?: string; tags?: string[]; __verdict?: boolean }
+        if (s.__verdict) continue
         if (s.title) live.title = s.title
         if (s.description) live.description = s.description
         if (s.tags) live.tags = [...new Set([...(live.tags || []), ...s.tags])].slice(0, 10)
@@ -273,4 +287,13 @@ export function buildFullOptimizeJob(card: ResourceCard, ctx: SelectCtx): AiJob 
       return `✓ 已优化「${live.title.slice(0, 12)}」（${n} 项）`
     },
   }
+  if (ctx.onPersona) {
+    const ov = personaOverrides()
+    job.persona = {
+      options: [{ id: 'default', label: '🗂 策展助手（默认）' }, ...allPersonas().filter(p => ov[p.id]?.enabled !== false).map(p => ({ id: p.id, label: `${p.icon} ${p.name}` }))],
+      current: ctx.personaId || 'default',
+      onPick: (id) => ctx.onPersona?.(id),
+    }
+  }
+  return job
 }

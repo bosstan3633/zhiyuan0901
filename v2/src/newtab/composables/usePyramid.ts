@@ -47,7 +47,7 @@ export interface PyramidCtx {
   // useCategoryCrud
   normalizeCatOrders: (rootId: string) => void
   openCreateCat: (parentId: string) => void
-  openRenameCat: (c: Category) => void
+  startCatRename: (c: Category) => void
   deleteCategory: (c: Category) => Promise<void> | void
   // useWorkspaceBatch
   selectedCards: () => ResourceCard[]
@@ -59,7 +59,7 @@ export function usePyramid(ctx: PyramidCtx) {
     activeCategory, catFlashId, setViewMode, openInputModal,
     pyDepthOf, pyHeightOf, pyLevelOf, childIds,
     dragState, onCatDragEnd, clearCardDropTarget,
-    moveMirrorTo, mirrorCatModal, normalizeCatOrders, openCreateCat, openRenameCat, deleteCategory,
+    moveMirrorTo, mirrorCatModal, normalizeCatOrders, openCreateCat, startCatRename, deleteCategory,
     selectedCards, selectedIds } = ctx
 
   /** R108（T3）：金字塔 Markdown 模板导入写入链——
@@ -501,7 +501,7 @@ export function usePyramid(ctx: PyramidCtx) {
   }
   function nmRename() {
     const cat = nmCat(); nodeMenu.value.open = false
-    if (cat) openRenameCat(cat)
+    if (cat) startCatRename(cat)
   }
   async function nmDelete() {
     const cat = nmCat(); nodeMenu.value.open = false

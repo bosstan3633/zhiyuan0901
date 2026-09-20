@@ -273,13 +273,13 @@
             :draggable="!batchMode"
             @click="selectSidebarCat(sc)"
             @dragstart="onCatDragStart($event, sc.cat)" @dragend="onCatDragEnd"
-            @dragover.prevent.stop="onCatDragOver($event, sc.cat)" @drop.stop="onCatDrop($event, sc.cat)" @dblclick="openRenameCat(sc.cat)">
+            @dragover.prevent.stop="onCatDragOver($event, sc.cat)" @drop.stop="onCatDrop($event, sc.cat)" @dblclick="startCatRename(sc.cat)">
             <span v-if="sc.hasChildren" class="cat-caret" :class="{open: !collapsedCats.has(sc.cat.id)}" title="展开/折叠" @click.stop="toggleCatCollapse(sc.cat.id)">▸</span>
             <span v-else class="cat-caret placeholder"></span>
             <span class="cat-icon" :title="sc.hasChildren ? '展开/折叠' : ''" @click.stop="sc.hasChildren && toggleCatCollapse(sc.cat.id)">{{ sc.depth>0 && !sc.hasChildren ? '↳' : sc.cat.pinned ? '📌' : (sc.hasChildren ? (collapsedCats.has(sc.cat.id) ? '📁' : '📂') : '📁') }}<template v-if="isMirrorCat(sc.cat)">📡</template></span>
             <!-- R62-4：层级色点（L1-L4 一眼分层） -->
             <span class="cat-depth-dot" :data-lv="sc.depth"></span>
-            <span class="cat-name">{{ sc.cat.name }}</span>
+            <CatNodeName class="cat-name" :name="sc.cat.name" :editing="catRenId===sc.cat.id" @commit="v => commitCatRename(sc.cat, v)" @done="catRenId=''" />
             <!-- R113-N1：原 5 个图标平铺（且 hover 时把计数顶掉、把分类名挤没）→ 收敛为
                  「＋ 子分类」+「⋯ 更多」两项；置顶 / 镜像 / 重命名 / 删除 收进 ⋯ 菜单，
                  主次分明、破坏性操作进二级（误删风险下降）。计数恢复常驻。 -->
@@ -553,7 +553,7 @@
               @dragover.prevent.stop="onPyDragOver($event, cell.cat)" @dragleave.stop="pyDropTarget=''" @drop.stop.prevent="onPyDrop($event, cell.cat)">
               <div class="py-node-head" :draggable="!batchMode" @dragstart.stop="onCatDragStart($event, cell.cat)" @dragend="onCatDragEnd">
                 <span class="py-node-lv">L{{ cell.depth + 2 }}</span>
-                <span class="py-node-name" :title="cell.cat.name" @click="selectPyNode(cell.cat)">{{ cell.cat.name }}<template v-if="isMirrorCat(cell.cat)"> 📡</template></span>
+                <CatNodeName class="py-node-name" :name="cell.cat.name" :editing="catRenId===cell.cat.id" @commit="v => commitCatRename(cell.cat, v)" @done="catRenId=''" @click="selectPyNode(cell.cat)" /><span v-if="isMirrorCat(cell.cat)"> 📡</span>
                 <span class="py-node-count">{{ cell.cards.length }}</span>
                 <span class="py-node-ops">
                   <span class="py-op" title="前移" @click.stop="moveCatSibling(cell.cat, -1)">⟨</span>
@@ -813,25 +813,25 @@
       </div>
     </div>
 
-    <!-- 第八轮：分类新建/重命名弹窗 -->
+    <!-- 第八轮：分类新建弹窗（R141 反馈 #7：重命名改为行内就地编辑，弹窗只管新建） -->
     <div class="modal-overlay" :class="{open: catModal.open}" @click.self="catModal.open=false">
       <div class="modal" style="width:380px">
         <div class="modal-header">
-          <span style="font-size:16px">{{ catModal.mode==='create' ? '🗂' : '✎' }}</span>
-          <span class="mh-title">{{ catModal.mode==='create' ? (catModal.parentId ? '新建子分类' : '新建分类') : '重命名分类' }}</span>
+          <span style="font-size:16px">🗂</span>
+          <span class="mh-title">{{ catModal.parentId ? '新建子分类' : '新建分类' }}</span>
           <div class="modal-close" @click="catModal.open=false">×</div>
         </div>
         <div class="modal-body">
           <input type="text" class="ws-modal-input" :class="{dup: catNameDup}" v-model="catModal.name" placeholder="分类名称…"
             @keydown.enter.prevent="confirmCatModal" @keydown.esc="catModal.open=false" autofocus />
           <div v-if="catNameDup" class="ws-modal-error">⚠ 该策展台已存在同名分类，请更换名称</div>
-          <div v-if="catModal.mode==='create' && catModal.parentId" class="ws-modal-hint">
+          <div v-if="catModal.parentId" class="ws-modal-hint">
             将创建在「{{ wsCats.find(c=>c.id===catModal.parentId)?.name }}」之下
           </div>
         </div>
         <div class="modal-footer-row">
           <button class="dr-footer-btn" @click="catModal.open=false">取消</button>
-          <button class="dr-footer-btn primary" @click="confirmCatModal">{{ catModal.mode==='create' ? '✓ 创建' : '✓ 保存' }}</button>
+          <button class="dr-footer-btn primary" @click="confirmCatModal">✓ 创建</button>
         </div>
       </div>
     </div>
@@ -952,7 +952,7 @@ import { saveUIPrefs } from '@/shared/storage/repository'
 import { useOverlayTarget } from '@/shared/utils/overlayHost'
 import { showToast } from '@/shared/components/toast'
 import { deleteAsset, cleanupOrphanAssets } from '@/shared/storage/assets'
-import AssetPreview from '@/shared/components/AssetPreview.vue'; import CardAiEntry from '@/newtab/components/CardAiEntry.vue'
+import AssetPreview from '@/shared/components/AssetPreview.vue'; import CardAiEntry from '@/newtab/components/CardAiEntry.vue'; import CatNodeName from '@/newtab/components/CatNodeName.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
@@ -1318,7 +1318,7 @@ const {
 // ===== R104（纯拆分第五批·收缩版）：分类 CRUD 拆入 useCategoryCrud =====
 // 新建/重命名/删除（含镜像级联清理）/置顶/重复合并 实现随迁；拖拽与侧栏折叠/选择是视图接线，留宿主
 // （与金字塔深度工具、卡片拖拽状态双向咬合，硬拆需先立共享拖拽状态层——R115 已立 dragState）。
-const { normalizeCatOrders, catModal, openCreateCat, openRenameCat, catNameDup, confirmCatModal, deleteCategory, toggleCatPin, mergeDupCats } = useCategoryCrud({
+const { normalizeCatOrders, catModal, openCreateCat, catRenId, startCatRename, commitCatRename, catNameDup, confirmCatModal, deleteCategory, toggleCatPin, mergeDupCats } = useCategoryCrud({
   d, persist: () => store.persist(), workspaceId, wsCats, activeCategory, allResources,
   pyDepthOf, childCatsOf, catAggCount
 })
@@ -1395,7 +1395,7 @@ const {
   viewMode, pyFold, activeCategory, catFlashId, setViewMode, openInputModal,
   pyDepthOf, pyHeightOf, pyLevelOf, childIds,
   dragState, onCatDragEnd, clearCardDropTarget,
-  moveMirrorTo, mirrorCatModal, normalizeCatOrders, openCreateCat, openRenameCat, deleteCategory,
+  moveMirrorTo, mirrorCatModal, normalizeCatOrders, openCreateCat, startCatRename, deleteCategory,
   selectedCards, selectedIds,
 })
 
@@ -1424,7 +1424,7 @@ function runCatMenu(action: 'pin' | 'mirror' | 'rename' | 'delete') {
   if (!c) return
   if (action === 'pin') toggleCatPin(c)
   else if (action === 'mirror') openMirrorCat(c)
-  else if (action === 'rename') openRenameCat(c)
+  else if (action === 'rename') startCatRename(c)
   else if (action === 'delete') void deleteCategory(c)
 }
 

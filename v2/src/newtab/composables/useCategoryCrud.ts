@@ -40,44 +40,45 @@ export function useCategoryCrud(ctx: CategoryCrudCtx) {
       .forEach((c, i) => { c.order = i })
   }
 
-  // ===== 分类新建/重命名（第八轮：应用内弹窗，替代原生 prompt） =====
-  const catModal = ref<{ open: boolean; mode: 'create' | 'rename'; name: string; parentId: string; editId: string }>(
-    { open: false, mode: 'create', name: '', parentId: '', editId: '' })
+  // ===== 分类新建（第八轮弹窗）· 重命名（R141 反馈 #7：行内就地改名，弹窗只管新建） =====
+  const catModal = ref<{ open: boolean; name: string; parentId: string }>({ open: false, name: '', parentId: '' })
   function openCreateCat(parentId = '') {
-    catModal.value = { open: true, mode: 'create', name: '', parentId, editId: '' }
+    catModal.value = { open: true, name: '', parentId }
   }
-  function openRenameCat(cat: Category) {
-    catModal.value = { open: true, mode: 'rename', name: cat.name, parentId: '', editId: cat.id }
+  /** R141：双击分类名 / 菜单「重命名」→ 该节点进入行内编辑（宿主把 catRenId 传给 CatNodeName） */
+  const catRenId = ref('')
+  function startCatRename(cat: Category) { catRenId.value = cat.id }
+  function commitCatRename(cat: Category, raw: string) {
+    catRenId.value = ''
+    const name = raw.trim()
+    if (!name || name === cat.name) return
+    if (wsCats.value.some(c => c.name === name && c.id !== cat.id)) { showToast('已存在同名分类，请更换名称'); return }
+    cat.name = name
+    persist()
+    showToast('✓ 分类已重命名')
   }
-  /** 第卅三轮 REQ-021：同名即时校验（作用域=当前策展台全分类树，重命名排除自身） */
+  /** 第卅三轮 REQ-021：同名即时校验（作用域=当前策展台全分类树） */
   const catNameDup = computed(() => {
-    const m = catModal.value
-    const name = m.name.trim()
+    const name = catModal.value.name.trim()
     if (!name) return false
-    return wsCats.value.some(c => c.name === name && c.id !== m.editId)
+    return wsCats.value.some(c => c.name === name)
   })
   function confirmCatModal() {
     const m = catModal.value
     const name = m.name.trim()
     if (!name) { showToast('请输入分类名称'); return }
     if (catNameDup.value) { showToast('该策展台已存在同名分类，请更换名称'); return }
-    if (m.mode === 'create') {
-      // R61-4：4 级上限校验
-      if (m.parentId) {
-        const parent = wsCats.value.find(c => c.id === m.parentId)
-        // R70：改用 pyDepthOf（带 visited 防环）——内联的 while 上行走链在环数据下会死转
-        if (parent && pyDepthOf(parent) + 2 > MAX_CAT_LEVEL) { showToast(`ℹ 最多 ${MAX_CAT_LEVEL} 级——该分类已处于最深层`); return }
-      }
-      const siblings = wsCats.value.filter(c => (c.parentId || '') === m.parentId)
-      const cat: Category = { id: uid('cat'), workspaceId: workspaceId.value, name, order: siblings.length, parentId: m.parentId || undefined }
-      d.value.categories.push(cat)
-      activeCategory.value = cat.id
-      showToast('✓ 分类已创建')
-    } else {
-      const cat = wsCats.value.find(c => c.id === m.editId)
-      if (cat) cat.name = name
-      showToast('✓ 分类已重命名')
+    // R61-4：4 级上限校验
+    if (m.parentId) {
+      const parent = wsCats.value.find(c => c.id === m.parentId)
+      // R70：改用 pyDepthOf（带 visited 防环）——内联的 while 上行走链在环数据下会死转
+      if (parent && pyDepthOf(parent) + 2 > MAX_CAT_LEVEL) { showToast(`ℹ 最多 ${MAX_CAT_LEVEL} 级——该分类已处于最深层`); return }
     }
+    const siblings = wsCats.value.filter(c => (c.parentId || '') === m.parentId)
+    const cat: Category = { id: uid('cat'), workspaceId: workspaceId.value, name, order: siblings.length, parentId: m.parentId || undefined }
+    d.value.categories.push(cat)
+    activeCategory.value = cat.id
+    showToast('✓ 分类已创建')
     persist()
     catModal.value.open = false
   }
@@ -150,5 +151,5 @@ export function useCategoryCrud(ctx: CategoryCrudCtx) {
     showToast(`✓ 已合并 ${merged} 个重复分类`)
   }
 
-  return { normalizeCatOrders, catModal, openCreateCat, openRenameCat, catNameDup, confirmCatModal, deleteCategory, toggleCatPin, mergeDupCats }
+  return { normalizeCatOrders, catModal, openCreateCat, catRenId, startCatRename, commitCatRename, catNameDup, confirmCatModal, deleteCategory, toggleCatPin, mergeDupCats }
 }

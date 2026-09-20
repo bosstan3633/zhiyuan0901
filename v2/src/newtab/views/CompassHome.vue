@@ -13,6 +13,7 @@ import { uid } from '@/shared/utils'
 import { visibleFields } from '@/shared/utils/fields'
 import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
 import { readEventLog } from '@/shared/utils/eventLog'
+import { softDeleteTaskToTrash, unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 import { subscribeSaveError, getLastSaveOkAt, getBytesInUse, hasUnlimitedStorage, saveDataNow, saveUIPrefs } from '@/shared/storage/repository'
 import { pendingRows, runSync } from '@/shared/storage/airtable'
 import type { SaveError } from '@/shared/storage/repository'
@@ -477,13 +478,9 @@ function toggleGroup(key: string) {
   if (collapsedGroups.value.has(key)) collapsedGroups.value.delete(key)
   else collapsedGroups.value.add(key)
 }
-/** R52-F2：去掉关联——任务摘除项目/指标（转未归档），不删除任务 */
+/** R52-F2：去掉关联——任务摘除项目/指标（转未归档），不删除任务。R141：走统一解绑函数 */
 function unlinkTask(t: TaskCard) {
-  const oldMetric = t.metricId
-  t.projectId = undefined
-  t.metricId = undefined
-  syncMetricTaskIds(t.id, oldMetric, undefined)
-  t.updatedAt = Date.now()
+  unbindTaskFromMetric(d.value, t)
   store.persist()
   showToast(`✓ 已去掉关联：「${t.title.slice(0, 16)}」转为未归档任务`)
 }
@@ -588,13 +585,21 @@ function linkTaskToMetric(t: TaskCard, metricId?: string) {
   linkPickerOpen.value = false
   showToast('✓ 已关联到「' + p.name + '」' + (metricId ? ' · ' + metricName(metricId) : ''))
 }
-/** 任务删除（软删除进回收站，可撤销） */
+/** 任务删除（软删除进回收站，可撤销）——R141：走统一函数，顺手摘净 metric.taskIds 引用 */
 function removeTask(t: TaskCard) {
-  t.deletedAt = Date.now()
+  softDeleteTaskToTrash(d.value, t)
   store.persist()
   showToast('已删除「' + t.title.slice(0, 20) + '」', { label: '撤销', cb: () => {
     const cur = d.value.tasks.find(x => x.id === t.id)
-    if (cur && cur.deletedAt) { cur.deletedAt = undefined; store.persist() }
+    if (cur && cur.deletedAt) {
+      cur.deletedAt = undefined
+      // R141：删除时引用已摘，撤销按恢复同口径回填 taskIds（REQ-030）
+      if (cur.metricId) {
+        for (const dir of d.value.compass.directions) for (const proj of dir.projects) for (const m of proj.metrics)
+          if (m.id === cur.metricId && !m.taskIds.includes(cur.id)) m.taskIds.push(cur.id)
+      }
+    }
+    store.persist()
   } })
 }
 

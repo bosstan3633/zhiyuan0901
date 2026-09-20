@@ -4,7 +4,7 @@
  * Workspace 宿主压在 1500 行验收线上——按钮、评审抽屉、AI 懒栈全部收进本组件，
  * 宿主只原位补一个标签。AI 依赖零静态引用：点击时才 dynamic import。
  */
-import { defineAsyncComponent, shallowRef } from 'vue'
+import { defineAsyncComponent, ref, shallowRef } from 'vue'
 import type { ResourceCard } from '@/shared/models'
 import { useAppStore } from '@/newtab/stores/app'
 import { showToast } from '@/shared/components/toast'
@@ -13,6 +13,7 @@ const props = defineProps<{ card: ResourceCard }>()
 const store = useAppStore()
 const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
 const job = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
+const personaId = ref('default')
 
 async function run() {
   const d = store.data
@@ -20,7 +21,12 @@ async function run() {
   const [{ loadAiConfig, aiReady, aiConfig }, { buildFullOptimizeJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
   await loadAiConfig()
   if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
-  job.value = buildFullOptimizeJob(props.card, { d, depth: aiConfig.value.depth, persist: () => store.persist() })
+  if (personaId.value === 'default' && aiConfig.value.defaultPersona) personaId.value = aiConfig.value.defaultPersona
+  job.value = buildFullOptimizeJob(props.card, {
+    d, depth: aiConfig.value.depth, persist: () => store.persist(),
+    personaId: personaId.value,
+    onPersona: (id) => { personaId.value = id; void run() },
+  })
 }
 </script>
 

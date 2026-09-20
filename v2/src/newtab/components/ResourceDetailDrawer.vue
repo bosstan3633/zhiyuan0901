@@ -171,6 +171,7 @@ async function aiEnrich() {
 let unsub: (() => void) | null = null
 
 /** R140：全方位优化（先抓链接网页正文再一体建议，采纳=回填表单）；复用 select 工厂、改写 apply 为回填 */
+const aiOptPersona = ref('default')
 async function aiOptimize() {
   const card = resource.value
   const d = store.data
@@ -178,7 +179,8 @@ async function aiOptimize() {
   const [{ loadAiConfig, aiReady, aiConfig }, { buildFullOptimizeJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
   await loadAiConfig()
   if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
-  const job = buildFullOptimizeJob(card, { d, depth: aiConfig.value.depth, persist: () => store.persist() })
+  if (aiOptPersona.value === 'default' && aiConfig.value.defaultPersona) aiOptPersona.value = aiConfig.value.defaultPersona
+  const job = buildFullOptimizeJob(card, { d, depth: aiConfig.value.depth, persist: () => store.persist(), personaId: aiOptPersona.value, onPersona: (id) => { aiOptPersona.value = id; void aiOptimize() } })
   job.apply = (rows) => {
     for (const r of rows) {
       const s = r.data as { title?: string; description?: string; tags?: string[] }

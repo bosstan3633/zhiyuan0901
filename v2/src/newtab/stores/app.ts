@@ -5,6 +5,7 @@ import { CURATION_WS_ID } from '@/shared/models'
 import { getData, saveData, loadUIPrefs, saveUIPrefs, subscribe, syncCache } from '@/shared/storage/repository'
 import { migrateCurationTree, migrateHubStructure, migrateHubMerge, hubMergeWorkPending } from '@/shared/storage/curationMigration'
 import { normalizeCardTagPaths } from '@/shared/utils/tags'
+import { sanitizeMetricTaskIds } from '@/shared/utils/taskLinks'
 
 export const useAppStore = defineStore('app', () => {
   // ---- 数据 ----
@@ -54,7 +55,9 @@ export const useAppStore = defineStore('app', () => {
       const t3 = migrateHubMerge(data.value)
       // R126（诉求 7）：标签「父/子」路径归一 + 最多两级（幂等）
       const tz = normalizeCardTagPaths(data.value)
-      migrated = t1 || t2 || t3 || tz
+      // R141（反馈 #1）：metric.taskIds 引用消毒（历史软删残留一次清干净，幂等静默）
+      const tLinks = sanitizeMetricTaskIds(data.value)
+      migrated = t1 || t2 || t3 || tz || tLinks
     }
 
     // R60：投射至灯塔功能取消——清除存量 vision/mission/project 上的 pinnedToLighthouse 残留字段（幂等，静默）
