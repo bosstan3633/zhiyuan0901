@@ -169,6 +169,27 @@ async function aiEnrich() {
 }
 
 let unsub: (() => void) | null = null
+
+/** R140：全方位优化（先抓链接网页正文再一体建议，采纳=回填表单）；复用 select 工厂、改写 apply 为回填 */
+async function aiOptimize() {
+  const card = resource.value
+  const d = store.data
+  if (!card || !d) return
+  const [{ loadAiConfig, aiReady, aiConfig }, { buildFullOptimizeJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  const job = buildFullOptimizeJob(card, { d, depth: aiConfig.value.depth, persist: () => store.persist() })
+  job.apply = (rows) => {
+    for (const r of rows) {
+      const s = r.data as { title?: string; description?: string; tags?: string[] }
+      if (s.title) editing.title = s.title
+      if (s.description) editing.description = s.description
+      if (s.tags) editing.tags = [...new Set([...(editing.tags || []), ...s.tags])].slice(0, 10)
+    }
+    return '✓ 建议已回填表单，核对后点「保存」'
+  }
+  aiJob.value = job
+}
 onMounted(() => { unsub = onOpenDrawer(onBus) })
 onUnmounted(() => { unsub?.(); unsub = null })
 
@@ -205,6 +226,7 @@ watch(() => resource.value?.id, (n) => {
       <button class="red-btn" @click="copyLink">🔗 复制链接</button>
       <button class="red-btn" @click="openLink">↗ 打开</button>
       <button class="red-btn" :disabled="!resource" title="AI 建议标签/描述/分类，回填表单后由你核对保存" @click="aiEnrich">🤖 补全</button>
+      <button class="red-btn" :disabled="!resource" title="先抓取链接网页正文（仅 http(s)、点了才抓），再整体优化标题/描述/标签并回填表单" @click="aiOptimize">🤖 分析（读网页）</button>
       <button class="red-btn primary" @click="save">✓ 保存</button>
     </template>
   </Drawer>

@@ -8,9 +8,10 @@ import { uid } from '@/shared/utils'
 import type { AiJob, AiRow } from './job'
 import type { AiDepth } from './config'
 import { chat, extractJson } from './llm'
-import { projectChain, cardDirectory, projectTaskTargets, projectWeekDigest } from './project'
+import { projectChain, cardDirectory, projectTaskTargets, projectWeekDigest, projectCard } from './project'
+import { fetchLinkText, linkFetchable } from './linkFetch'
 import {
-  recommendSystem, rerankSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem,
+  recommendSystem, rerankSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem, fullOptimizeSystem,
   type RecommendSuggestion, type RerankHit, type TaskDraft,
 } from './scenarios'
 
@@ -221,6 +222,55 @@ export function buildInsightJob(ctx: SelectCtx): AiJob | null {
       } as ResourceCard)
       ctx.persist()
       return '✓ 深度洞察已存为资源卡（资源台未分类区）'
+    },
+  }
+}
+
+/**
+ * R140：全方位优化——先抓链接正文（点击才抓、仅 http(s)、失败降级）再给 标题/描述/标签 一体建议。
+ * 描述此处允许**改写**（与"补全只填空"不同：这是用户主动求优化）；采纳=勾选行才写库。
+ */
+export function buildFullOptimizeJob(card: ResourceCard, ctx: SelectCtx): AiJob {
+  return {
+    title: `AI 全方位优化 · ${card.title.slice(0, 14) || '（无名卡）'}`,
+    hint: '点击已触发抓取链接网页正文（仅 http(s)、抓不到会注明「未读正文」再按卡面谨慎推断）；勾选采纳才写库。',
+    build: async () => {
+      let linkBlock = ''
+      if (linkFetchable(card.link)) {
+        const r = await fetchLinkText(card.link!)
+        linkBlock = `\n\n【链接正文】${r.note ? '（' + r.note + '）' : ''}\n${r.text || '（无正文）'}`
+      } else if (card.link) {
+        linkBlock = `\n\n【链接】${card.link.slice(0, 120)}（非 http(s) 网页链接，不抓取正文）`
+      }
+      return { messages: [
+        { role: 'system', content: fullOptimizeSystem() },
+        { role: 'user', content: projectCard(ctx.d, card, ctx.depth) + linkBlock },
+      ] }
+    },
+    parse: (raw) => {
+      const s = (raw || {}) as { title?: string; description?: string; tags?: string[] }
+      const rows: AiRow[] = []
+      const title = String(s.title || '').trim().slice(0, 60)
+      if (title && title !== card.title) rows.push({ key: 'title', badge: '标题', main: title, sub: '原：' + card.title.slice(0, 40), data: { title } })
+      const desc = String(s.description || '').trim().slice(0, 300)
+      if (desc && desc !== card.description) rows.push({ key: 'desc', badge: '描述', main: desc, sub: card.description ? '原：' + card.description.slice(0, 60) : '（原无描述）', data: { description: desc } })
+      const newTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !(card.tags || []).includes(t)).slice(0, 4)
+      if (newTags.length) rows.push({ key: 'tags', badge: '标签', main: newTags.join('、'), data: { tags: newTags } })
+      return rows
+    },
+    apply: (rows) => {
+      const live = ctx.d.resources.find(r => r.id === card.id && !r.deletedAt)
+      if (!live) return '⚠ 卡片已不存在，未写入'
+      let n = 0
+      for (const r of rows) {
+        const s = r.data as { title?: string; description?: string; tags?: string[] }
+        if (s.title) live.title = s.title
+        if (s.description) live.description = s.description
+        if (s.tags) live.tags = [...new Set([...(live.tags || []), ...s.tags])].slice(0, 10)
+        n++
+      }
+      if (n) { live.updatedAt = Date.now(); ctx.persist() }
+      return `✓ 已优化「${live.title.slice(0, 12)}」（${n} 项）`
     },
   }
 }

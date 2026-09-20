@@ -169,6 +169,16 @@ export const deepInsightSystem = () => withAboutMe(
   '直接输出 markdown 文本，不要 JSON、不要代码围栏。'
 )
 
+// ---------- R140：全方位优化（读链接正文后的单卡深度加工） ----------
+
+export const fullOptimizeSystem = () => withAboutMe(
+  '你是资源卡策展助手。用户给你一张卡（标题/现有描述/标签/链接）以及**尽力抓到的链接网页正文**，请基于正文真实内容给出全方位优化：' +
+  'description=两三句「这是什么 · 什么时候用得上 · 为什么值得收藏」，其中收藏理由必须有正文依据（正文读不到时按卡面与链接域名谨慎推断，并在句首加「（未读正文）」）；' +
+  'tags ≤4 个具体可检索的词（不重复已有）；title 只在原标题明显名不副实或过空时给，否则省略。' +
+  '不许编造正文里没有的功能、数据与结论。' +
+  '输出 JSON：{"title":"可选","description":"≤160字","tags":["…"]}。只输出 JSON。'
+)
+
 // ---------- 专家角色库（内置两员；启停与风格覆盖在 aiConfig.personas） ----------
 
 export interface AiPersona { id: string; name: string; icon: string; brief: string; focus: string }
@@ -198,12 +208,14 @@ export function allPersonas(): AiPersona[] {
   return [...BUILTIN_PERSONAS, ...custom]
 }
 
-/** R139：把某个专家（含风格覆盖）改写成本场执笔人设；default/查无 = 空串回落内置角色 */
+/** R139：把某个专家（含风格覆盖）改写成本场执笔人设；default/查无/已停用 = 空串回落内置角色 */
 export function chainPersonaText(pid: string): string {
   if (!pid || pid === 'default') return ''
+  const ov = personaOverrides()
+  if (ov[pid]?.enabled === false) return ''
   const p = allPersonas().find(x => x.id === pid)
   if (!p) return ''
-  const style = (personaOverrides()[pid]?.style || '').trim()
+  const style = (ov[pid]?.style || '').trim()
   return `你是「${p.name}」，正在亲自为用户起草：${p.brief}\n${p.focus}${style ? `\n你的行文风格：${style}` : ''}\n仍以既定的粒度约束与输出契约为准，但视角、取舍与切入点由这位专家主导。`
 }
 

@@ -508,10 +508,25 @@
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">🧠 深度诊断</span><span class="gs-card-desc">整库结构摘要投喂所选专家，逐员出「发现+建议」；勾选采纳=生成跟进任务卡</span></div>
           <div class="gs-card-body">
-            <div class="ai-persona-row" v-for="p in aiPersonas" :key="p.id">
-              <label class="ai-persona"><input type="checkbox" :checked="aiPersonaSel.includes(p.id)" @change="aiTogglePersona(p.id)" /> {{ p.icon }} {{ p.name }}</label>
-              <span class="ai-persona-brief">{{ p.brief }}</span>
-              <button v-if="p.id.startsWith('custom-')" class="ai-btn-mini danger" title="删除该自建专家" @click="aiRemovePersona(p.id)">✕</button>
+            <div class="ai-guide">三步上手：① 上方接入配置完成（⚡ 测试连接通过）→ ② 勾选本轮出诊专家（⚙ 可调启停 / 行文风格 / 自建资料）→ ③ 一键诊断。发现勾选采纳=逐条生成跟进任务卡；不采纳即纯看。</div>
+            <div v-for="p in aiPersonas" :key="p.id" class="ai-pwrap">
+              <div class="ai-persona-row">
+                <label class="ai-persona"><input type="checkbox" :checked="aiPersonaSel.includes(p.id)" @change="aiTogglePersona(p.id)" /> {{ p.icon }} {{ p.name }}</label>
+                <span class="ai-persona-brief">{{ p.brief }}</span>
+                <button class="ai-btn-mini" :class="{ on: aiEditP === p.id }" title="调整该专家：出诊启停 / 行文风格" @click="aiEditP = aiEditP === p.id ? '' : p.id">⚙</button>
+                <button v-if="p.id.startsWith('custom-')" class="ai-btn-mini danger" title="删除该自建专家" @click="aiRemovePersona(p.id)">✕</button>
+              </div>
+              <div v-if="aiEditP === p.id" class="ai-pedit">
+                <label class="ai-persona"><input type="checkbox" :checked="aiPersonaCfg(p.id)?.enabled !== false" @change="aiPatchPersona(p.id, { enabled: ($event.target as HTMLInputElement).checked })" /> 参与会诊与执笔</label>
+                <input class="gs-input" placeholder="风格覆盖（可选，如：直说问题、只给三个动作、少用形容词）" :value="aiPersonaCfg(p.id)?.style || ''" maxlength="120" @change="aiPatchPersona(p.id, { style: ($event.target as HTMLInputElement).value })" />
+                <template v-if="p.id.startsWith('custom-')">
+                  <div class="ai-pedit-row">
+                    <input class="gs-input" :value="p.name" maxlength="12" placeholder="专家名" @change="aiCustomPatch(p.id, 'name', ($event.target as HTMLInputElement).value)" />
+                    <input class="gs-input" :value="p.brief" maxlength="40" placeholder="人设一句话" @change="aiCustomPatch(p.id, 'brief', ($event.target as HTMLInputElement).value)" />
+                  </div>
+                  <input class="gs-input" :value="p.focus" maxlength="120" placeholder="关注面（它体检/执笔时盯什么）" @change="aiCustomPatch(p.id, 'focus', ($event.target as HTMLInputElement).value)" />
+                </template>
+              </div>
             </div>
             <div class="ai-pnew">
               <input class="gs-input" v-model="aiNewP.name" placeholder="专家名（如：财务顾问）" maxlength="12" />
@@ -2602,6 +2617,22 @@ function aiRemovePersona(id: string) {
   patchAiConfig({ customPersonas: (aiConfig.value.customPersonas || []).filter(x => x.id !== id) })
   aiPersonaSel.value = aiPersonaSel.value.filter(x => x !== id)
 }
+// R140：专家编辑面——启停/风格覆盖持久化（personas[]），自建专家三元组可改
+const aiEditP = ref('')
+function aiPersonaCfg(id: string) { return (aiConfig.value.personas || []).find(x => x.id === id) }
+function aiPatchPersona(id: string, p: Partial<{ enabled: boolean; style: string }>) {
+  const list = [...(aiConfig.value.personas || [])]
+  const i = list.findIndex(x => x.id === id)
+  const next = { id, enabled: true, style: '', ...(i >= 0 ? list[i] : {}), ...p }
+  if (i >= 0) list[i] = next; else list.push(next)
+  patchAiConfig({ personas: list })
+  if (p.enabled === false) aiPersonaSel.value = aiPersonaSel.value.filter(x => x !== id)
+}
+function aiCustomPatch(id: string, k: 'name' | 'brief' | 'focus', v: string) {
+  const val = v.trim()
+  if (k === 'name' && !val) { showToast('专家名不能为空'); return }
+  patchAiConfig({ customPersonas: (aiConfig.value.customPersonas || []).map(x => x.id === id ? { ...x, [k]: val || x[k] } : x) })
+}
 /** R137 治理四钮（标签体检入口在标签管理页；其余三个在 AI 页） */
 function aiOpenJob(job: AiJob | null, emptyMsg: string) {
   if (!aiGuard()) return
@@ -3389,6 +3420,10 @@ const activeManualSec = ref('quick-1')
 .ai-textarea { width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-size: 12.5px; font-family: inherit; line-height: 1.7; resize: vertical; }
 .ai-textarea:focus { outline: none; border-color: var(--accent); }
 .ai-persona-row { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; }
+.ai-guide { font-size: 11.5px; line-height: 1.7; color: var(--text-3); background: var(--surface-2); border-left: 3px solid var(--accent); border-radius: 0 var(--radius-xs) var(--radius-xs) 0; padding: 7px 11px; margin-bottom: 9px; }
+.ai-pedit { display: flex; flex-direction: column; gap: 6px; margin: 0 0 8px 22px; padding: 9px 11px; border: 1px dashed var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.ai-pedit .gs-input { font-size: 11.5px; }
+.ai-pedit-row { display: flex; gap: 8px; }
 .ai-persona { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text); cursor: pointer; white-space: nowrap; }
 .ai-persona-brief { font-size: 11.5px; color: var(--text-3); line-height: 1.6; }
 .gs-btn.ai-batch-btn { margin-left: 10px; padding: 3px 10px; font-size: 11.5px; }
@@ -3396,5 +3431,6 @@ const activeManualSec = ref('quick-1')
 .ai-pnew { display: flex; gap: 8px; align-items: center; margin: 8px 0 10px; flex-wrap: wrap; }
 .ai-pnew .gs-input { flex: 1; min-width: 130px; }
 .ai-btn-mini { width: 20px; height: 20px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: transparent; color: var(--text-3); font-size: 10px; cursor: pointer; line-height: 1; }
+.ai-btn-mini.on { border-color: var(--accent); color: var(--accent); }
 .ai-btn-mini.danger:hover { color: var(--danger); border-color: var(--danger); }
 </style>

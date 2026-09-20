@@ -346,7 +346,7 @@
                     <div class="rc-action pin" :class="{on: r.pinned}" @click.stop="togglePin(r)" :title="r.pinned ? '取消置顶' : '置顶'">📌</div>
                     <div class="rc-action move" title="移动分类" @click.stop="openMoveOne(r)">📂</div>
                     <div class="rc-action delete" title="删除" @click.stop="deleteResource(r)">🗑</div>
-                    <div v-if="isBrokenPath(r)" class="rc-action fix" title="补全本地路径" @click.stop="fixLink(r)">✏</div>
+                    <div v-if="isBrokenPath(r)" class="rc-action fix" title="补全本地路径" @click.stop="fixLink(r)">✏</div><CardAiEntry :card="r" />
                   </template>
                   <template v-else>
                     <div class="rc-action open" title="打开链接" @click.stop="openResourceLink(r)">↗</div>
@@ -952,7 +952,7 @@ import { saveUIPrefs } from '@/shared/storage/repository'
 import { useOverlayTarget } from '@/shared/utils/overlayHost'
 import { showToast } from '@/shared/components/toast'
 import { deleteAsset, cleanupOrphanAssets } from '@/shared/storage/assets'
-import AssetPreview from '@/shared/components/AssetPreview.vue'
+import AssetPreview from '@/shared/components/AssetPreview.vue'; import CardAiEntry from '@/newtab/components/CardAiEntry.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'

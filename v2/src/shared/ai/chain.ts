@@ -11,7 +11,7 @@ import { uid } from '@/shared/utils'
 import type { AiJob, AiRow } from './job'
 import type { AiDepth } from './config'
 import { projectChain } from './project'
-import { chainSystem, chainPersonaText, allPersonas, type ChainLevel, type ChainSuggestion } from './scenarios'
+import { chainSystem, chainPersonaText, allPersonas, personaOverrides, type ChainLevel, type ChainSuggestion } from './scenarios'
 
 export interface ChainCtx {
   d: AppData
@@ -96,8 +96,9 @@ export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx
     job.hint = '勾选后二选一：「采纳」把步骤建成子任务（全库查重）；「步骤写入任务详情」只落清单进描述、不建卡。右上角可换执笔专家，换后自动重跑。'
     job.secondary = { label: '📝 步骤写入任务详情', apply: (rows) => writeStepsToTask(ctx.d, anchorId, rows, ctx.persist) }
     if (ctx.onPersona) {
+      const ov = personaOverrides()
       job.persona = {
-        options: [{ id: 'default', label: '🧑‍🏫 执行教练（默认）' }, ...allPersonas().map(p => ({ id: p.id, label: `${p.icon} ${p.name}` }))],
+        options: [{ id: 'default', label: '🧑‍🏫 执行教练（默认）' }, ...allPersonas().filter(p => ov[p.id]?.enabled !== false).map(p => ({ id: p.id, label: `${p.icon} ${p.name}` }))],
         current: ctx.personaId || 'default',
         onPick: (id) => ctx.onPersona?.(id),
       }

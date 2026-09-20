@@ -1,0 +1,30 @@
+<script setup lang="ts">
+/**
+ * R140：资源卡 hover 动作条的「🤖 全方位优化」入口（读链接网页正文）。
+ * Workspace 宿主压在 1500 行验收线上——按钮、评审抽屉、AI 懒栈全部收进本组件，
+ * 宿主只原位补一个标签。AI 依赖零静态引用：点击时才 dynamic import。
+ */
+import { defineAsyncComponent, shallowRef } from 'vue'
+import type { ResourceCard } from '@/shared/models'
+import { useAppStore } from '@/newtab/stores/app'
+import { showToast } from '@/shared/components/toast'
+
+const props = defineProps<{ card: ResourceCard }>()
+const store = useAppStore()
+const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
+const job = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
+
+async function run() {
+  const d = store.data
+  if (!d) return
+  const [{ loadAiConfig, aiReady, aiConfig }, { buildFullOptimizeJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  job.value = buildFullOptimizeJob(props.card, { d, depth: aiConfig.value.depth, persist: () => store.persist() })
+}
+</script>
+
+<template>
+  <div class="rc-action ai" :title="card.link ? 'AI 读取链接网页正文后优化标题/描述/标签（审阅勾选才写库）' : 'AI 按卡面信息优化（本卡没有链接）'" @click.stop="run">🤖</div>
+  <AiDrawer v-if="job" :job="job" @close="job = null" />
+</template>
