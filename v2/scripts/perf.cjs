@@ -26,9 +26,25 @@ const path = require('path')
 const fs = require('fs')
 const { chromium } = require('playwright-core')
 
-const CHROME = process.platform === 'darwin'
+const CHROME_PINNED = process.platform === 'darwin'
   ? path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright', 'chromium-1234', 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing')
   : path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1223', 'chrome-win64', 'chrome.exe')
+/** R145（承 e2e.cjs R128 同规则）：pinned 缓存不存在 → ZY_CHROME → 本机 ms-playwright 任一 Chromium → 系统 Chrome。
+ *  门禁不因本机缺某个版本的浏览器而失守（06-2 B-1：门禁不跑 = 没有门禁）。 */
+const CHROME = (() => {
+  if (fs.existsSync(CHROME_PINNED)) return CHROME_PINNED
+  if (process.env.ZY_CHROME) return process.env.ZY_CHROME
+  const cache = path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright')
+  try {
+    const hit = fs.readdirSync(cache).filter(x => /^chromium-\d+$/.test(x)).sort().pop()
+    if (hit) {
+      const p = path.join(cache, hit, 'chrome-mac', 'Chromium.app', 'Contents', 'MacOS', 'Chromium')
+      if (fs.existsSync(p)) return p
+    }
+  } catch { /* 无缓存目录 */ }
+  const sys = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+  return process.platform === 'darwin' && fs.existsSync(sys) ? sys : CHROME_PINNED
+})()
 const DIST = path.resolve(__dirname, '..', 'dist')
 const EXT_INDEX = 'src/newtab/index.html'
 
@@ -473,7 +489,7 @@ async function main() {
   }
 
   // ══════════ M2c 回调度台（R114-59：用户反馈「回到调度台慢」，此前无度量）══════════
-  const navBack = await page.evaluate(() => window.__navTo('调度台', '.wr-entry'))
+  const navBack = await page.evaluate(() => window.__navTo('调度台', '.mb-cell')) // R145 修漂移：.wr-entry（周报入口）早已改名，15s 超时被当成耗时
   if (navBack >= 0) push('M2c_回到调度台(ms)', navBack)
 
   // ══════════ M5 全局搜索浮层（content 脚本，http 宿主页；R114-59 重写假 M6）══════════

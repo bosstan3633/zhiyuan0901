@@ -107,6 +107,10 @@ async function main() {
     return wsId
   })
   await page.waitForTimeout(600)
+  // R145 修漂移：外部直写 zy_data_v2 后必须**整页重载**——SPA 内存态不会重读 storage，
+  //   且任何一次 persist 都会把种进去的卡盖掉（原实现只走 hash 导航，E2E-5/6 的种卡因此从未上屏）。
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
   await page.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   if (!page.url().includes('/workspace/')) { await page.evaluate((id) => { location.hash = '#/workspace/' + id }, seedWsId); await page.waitForTimeout(1500) }
@@ -513,6 +517,9 @@ async function main() {
       chrome.storage.local.set({ ['zy_data_v2']: d }).then(() => res(true))
     })
   }))
+  // R145 修漂移：种完必须整页重载（SPA 内存态不重读 storage，否则待删台根本不存在→菜单点了没反应）
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1800)
   await page.evaluate(() => { location.hash = '#/workspace/e2e-del-ws' })
   await page.waitForTimeout(1600)
   await page.evaluate(() => { const b = document.querySelector('.hero-btn.settings'); if (b) b.click() })
@@ -553,6 +560,8 @@ async function main() {
       chrome.storage.local.set({ ['zy_data_v2']: d }).then(() => res(true))
     })
   }))
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1800)
   await page.evaluate(() => { location.hash = '#/compass/projects?p=e2e-empty-proj' })
   await page.waitForTimeout(1800)
   // 合成拖拽：满指标下任务行 → 空指标的树节点（dragstart/dragover/drop 全链路）

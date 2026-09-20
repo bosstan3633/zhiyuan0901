@@ -8,10 +8,21 @@ const path = require('path')
 const fs = require('fs')
 const { chromium } = require('playwright-core')
 
-// R56：跨平台 Chromium 路径（与 e2e.cjs 同规则）
-const CHROME = process.platform === 'darwin'
+// R56 跨平台路径 + R145 回落（与 e2e.cjs/perf.cjs 同规则）：pinned → ZY_CHROME → 本机任一 Chromium → 系统 Chrome
+const CHROME_PINNED = process.platform === 'darwin'
   ? path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright', 'chromium-1234', 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing')
   : path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1223', 'chrome-win64', 'chrome.exe')
+const CHROME = (() => {
+  if (fs.existsSync(CHROME_PINNED)) return CHROME_PINNED
+  if (process.env.ZY_CHROME) return process.env.ZY_CHROME
+  const cache = path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright')
+  try {
+    const hit = fs.readdirSync(cache).filter(x => /^chromium-\d+$/.test(x)).sort().pop()
+    if (hit) { const p = path.join(cache, hit, 'chrome-mac', 'Chromium.app', 'Contents', 'MacOS', 'Chromium'); if (fs.existsSync(p)) return p }
+  } catch { /* 无缓存目录 */ }
+  const sys = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+  return process.platform === 'darwin' && fs.existsSync(sys) ? sys : CHROME_PINNED
+})()
 const DIST = path.resolve(__dirname, '..', 'dist')
 const results = []
 function report(name, ok, detail) {
@@ -97,16 +108,20 @@ async function main() {
   const errBoundary = await page.locator('.render-error').first().isVisible().catch(() => false)
   report('K4 调度台首页正常渲染（无渲染错误兜底）', recStrip && !errBoundary, `recStrip=${recStrip} error=${errBoundary}`)
 
-  // 验证 4：方向台「项目详情一级」左栏项目切换器可见 K 项目（R117：项目总览退役，切换器改 .pt-item）
-  await page.goto(base + '#/compass', { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(2200)
+  // 验证 4：旧数据项目在「项目详情」页正常渲染（R145 修漂移：R117 的左栏切换器 .pt-item 已于
+  //   R130-N4 退役为「本项目目录」锚点导航 → 改测项目页真渲染：面包屑点名项目 + 指标块在位 + 无渲染错误兜底）
+  await page.goto(base + '#/compass/projects?p=k-proj-1', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2400)
   const dbg = {
     err: await page.locator('.render-error').first().isVisible().catch(() => false),
-    ov: await page.locator('.pt-item').count(),
-    ovText: (await page.locator('.pt-item').first().textContent().catch(() => '')).slice(0, 80)
+    crumb: (await page.locator('.crumb').first().textContent().catch(() => '')).trim(),
+    metric: (await page.locator('.metric-sec').first().textContent().catch(() => '')).trim().slice(0, 40),
+    msec: await page.locator('.metric-sec').count(),
   }
   console.log('[debug]', JSON.stringify(dbg))
-  report('K3 方向台项目详情左栏正常渲染旧数据项目', !dbg.err && dbg.ov >= 1 && dbg.ovText.includes('K 兼容项目'), dbg.ovText)
+  report('K3 旧数据项目在「项目详情」页正常渲染（面包屑点名 + 指标块在位 + 无渲染错误）',
+    !dbg.err && dbg.crumb.includes('K 兼容项目') && dbg.msec >= 1 && dbg.metric.includes('K 兼容指标'),
+    `crumb=${dbg.crumb.slice(0, 30)} msec=${dbg.msec} metric=${dbg.metric.slice(0, 16)}`)
 
   await ctx.close()
   fs.unlinkSync(importPath)
