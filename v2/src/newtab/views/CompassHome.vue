@@ -21,6 +21,9 @@ import type { TaskCard, Project, FocusSlot, Direction } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import Icon from '@/shared/components/Icon.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
+import MaturityBadge from '@/shared/components/MaturityBadge.vue'
+import MountCountBadge from '../components/MountCountBadge.vue'
+import { taskMaturity } from '@/shared/utils/maturity'
 // R117（04-61 C3）：当日新增角标（自然日口径）——今日三件事卡沿用任务卡的同一枚
 import NewBadge from '@/shared/components/NewBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
@@ -867,6 +870,8 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
                     <span class="tag accent">📦 {{ projectName(c.task.projectId) }}</span>
                     <span class="tag warn">🎯 {{ metricName(c.task.metricId) }}</span>
                     <AssetBadge v-if="taskAssetsOn && c.task.assets?.length" :assets="c.task.assets" />
+                    <MaturityBadge :m="taskMaturity(c.task)" />
+                    <MountCountBadge :t="c.task" />
                   </div>
                   <div class="tc-remove" @click.stop="removeTodaySlot(c.idx)" title="移除">×</div>
                 </div>
@@ -952,6 +957,8 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
                         <span class="cg-dot" :class="'st-'+t.status">{{ t.status==='done'?'✓':t.status==='doing'?'◐':'○' }}</span>
                         <span class="cg-t">{{ t.title }}</span>
                         <span class="cg-st">{{ t.status==='done'?'已完成':t.status==='doing'?'进行中':'待开始' }}</span>
+                        <MaturityBadge :m="taskMaturity(t)" />
+                        <MountCountBadge :t="t" />
                         <button class="cg-del" title="去掉关联（转为未归档任务，不删除）" @click.stop="unlinkTask(t)">⨯</button>
                         <button class="cg-del" title="删除任务（进回收站，可撤销）" @click.stop="removeTask(t)">🗑</button>
                       </div>

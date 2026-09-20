@@ -12,6 +12,9 @@ import Drawer from '@/shared/components/Drawer.vue'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
 import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
+import MaturityBadge from '@/shared/components/MaturityBadge.vue'
+import MountCountBadge from './MountCountBadge.vue'
+import { taskMaturity, metricMaturity } from '@/shared/utils/maturity'
 import TaskAddDrawer from './TaskAddDrawer.vue'
 import TaskDetailDrawer from './compass/TaskDetailDrawer.vue'
 
@@ -164,6 +167,7 @@ function unbindTask(taskId: string) {
         <div class="pd-metric-head">
           <input class="pd-metric-name" :value="m.title" @change="renameMetric(m.id, $event)" />
           <span class="pd-metric-count">{{ tasksForMetric(m.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(m.id).length }}</span>
+          <MaturityBadge :m="metricMaturity(d, m)" />
           <button class="pd-mini" @click="openTaskAdd(m.id)" title="添加任务（新建 / 关联）">＋</button>
           <button class="pd-mini danger" @click="removeMetric(m.id)" title="删除指标">🗑</button>
         </div>
@@ -171,6 +175,8 @@ function unbindTask(taskId: string) {
           <div v-for="t in tasksForMetric(m.id)" :key="t.id" class="pd-task" :class="{done: t.status==='done'}">
             <div class="pd-check" :class="{done: t.status==='done'}" @click="toggleTask(t.id)">{{ t.status==='done'?'✓':'' }}</div>
             <input class="pd-task-name" :value="t.title" @change="renameTask(t.id, $event)" />
+            <MaturityBadge :m="taskMaturity(t)" />
+            <MountCountBadge :t="t" />
             <button class="pd-mini" @click="unbindTask(t.id)" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）">✕</button>
           </div>
           <div v-if="!tasksForMetric(m.id).length" class="pd-task-empty">暂无任务，点击 ＋ 添加</div>

@@ -519,6 +519,12 @@
               <div v-if="aiEditP === p.id" class="ai-pedit">
                 <label class="ai-persona"><input type="checkbox" :checked="aiPersonaCfg(p.id)?.enabled !== false" @change="aiPatchPersona(p.id, { enabled: ($event.target as HTMLInputElement).checked })" /> 参与会诊与执笔</label>
                 <input class="gs-input" placeholder="风格覆盖（可选，如：直说问题、只给三个动作、少用形容词）" :value="aiPersonaCfg(p.id)?.style || ''" maxlength="120" @change="aiPatchPersona(p.id, { style: ($event.target as HTMLInputElement).value })" />
+                <template v-if="!p.id.startsWith('custom-')">
+                  <!-- R142（反馈 #6）：内置两员开放人设/关注面覆盖编辑，留空=用内置默认 -->
+                  <textarea class="ai-textarea" rows="2" title="人设覆盖（留空=内置默认）" :value="p.brief" maxlength="120" @change="aiPatchPersona(p.id, { brief: ($event.target as HTMLTextAreaElement).value })" />
+                  <textarea class="ai-textarea" rows="2" title="关注面覆盖（留空=内置默认）" :value="p.focus" maxlength="200" @change="aiPatchPersona(p.id, { focus: ($event.target as HTMLTextAreaElement).value })" />
+                  <div><button class="ai-btn-mini" style="width:auto; padding:2px 8px;" title="清空覆盖，恢复内置默认人设与关注面" @click="aiPatchPersona(p.id, { brief: '', focus: '' })">↺ 恢复内置默认</button></div>
+                </template>
                 <template v-if="p.id.startsWith('custom-')">
                   <div class="ai-pedit-row">
                     <input class="gs-input" :value="p.name" maxlength="12" placeholder="专家名" @change="aiCustomPatch(p.id, 'name', ($event.target as HTMLInputElement).value)" />
@@ -2624,7 +2630,7 @@ function aiRemovePersona(id: string) {
 // R140：专家编辑面——启停/风格覆盖持久化（personas[]），自建专家三元组可改
 const aiEditP = ref('')
 function aiPersonaCfg(id: string) { return (aiConfig.value.personas || []).find(x => x.id === id) }
-function aiPatchPersona(id: string, p: Partial<{ enabled: boolean; style: string }>) {
+function aiPatchPersona(id: string, p: Partial<{ enabled: boolean; style: string; brief: string; focus: string }>) {
   const list = [...(aiConfig.value.personas || [])]
   const i = list.findIndex(x => x.id === id)
   const next = { id, enabled: true, style: '', ...(i >= 0 ? list[i] : {}), ...p }

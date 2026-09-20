@@ -14,6 +14,8 @@ import { showToast } from '@/shared/components/toast'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
+import MaturityBadge from '@/shared/components/MaturityBadge.vue'
+import { taskMaturity, curioResIds } from '@/shared/utils/maturity'
 
 const router = useRouter()
 const store = useAppStore()
@@ -208,6 +210,12 @@ function onSelProjectChange() {
   selectedTask.value.updatedAt = Date.now()
   store.persist()
 }
+/** R142（反馈 #4）：挂载的好奇心卡自带资源（直接关联∪其挂载任务并集）——一键加挂进本任务 */
+function curioResOf(cid: string): string[] {
+  const c = d.value.curiosities.find(x => x.id === cid)
+  if (!c) return []
+  return curioResIds(d.value, c).filter(id => resourceTitle(id))
+}
 function onSelMetricChange() {
   if (!selectedTask.value) return
   const oldMetric = selectedTask.value.metricId
@@ -301,6 +309,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           </div>
         </div>
         <AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" class="ts-title-assets" />
+        <!-- R142（反馈 #4）：成熟度大徽标——规则引擎即时分，hover 展开扣分构成 -->
+        <MaturityBadge lg :m="taskMaturity(selectedTask)" title="成熟度=可执行/可归属/弹药/新鲜度（规则引擎即时评）" />
         <div class="ts-close" @click="close">×</div>
       </div>
       <div class="ts-body">
@@ -381,6 +391,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           <div class="ts-mount-list">
             <div v-for="cid in selectedTask.mountedCuriosityIds.filter(id => curiosityTitle(id))" :key="cid" class="ts-mount-item" @click="toggleMountCuriosity(cid)" title="点击取消挂载">
               💡 {{ curiosityTitle(cid) }} <span class="remove">×</span>
+              <span v-for="rid in curioResOf(cid)" :key="rid" class="ts-mount-curio-res" title="点击挂到本任务" @click.stop="toggleMountResource(rid)">🔗 {{ resourceTitle(rid) }}</span>
             </div>
             <div v-if="!selectedTask.mountedCuriosityIds.filter(id => curiosityTitle(id)).length" class="ts-mount-empty">暂未挂载好奇心</div>
           </div>

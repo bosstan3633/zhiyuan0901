@@ -7,6 +7,9 @@ import { uid } from '@/shared/utils'
 import { matchPinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
+import MaturityBadge from '@/shared/components/MaturityBadge.vue'
+import MountCountBadge from '../components/MountCountBadge.vue'
+import { taskMaturity, metricMaturity, projectMaturity, directionMaturity } from '@/shared/utils/maturity'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import Drawer from '@/shared/components/Drawer.vue'
 import type { Direction, Project, Metric, TaskCard, ID } from '@/shared/models'
@@ -574,6 +577,7 @@ onUnmounted(() => {
                     <span class="node-title editable" :class="{editing: editingField === 'dir-' + dir.id}" :data-edit="'dir-' + dir.id" :contenteditable="editingField === 'dir-' + dir.id"
                       @click="startEdit('dir-' + dir.id, $event)" @blur="saveEdit('dir-' + dir.id, $event)" @keydown.enter.prevent="saveEdit('dir-' + dir.id, $event)" @keydown.esc="cancelEdit">{{ dir.name }}</span>
                     <span v-if="isStagnant(dir)" class="stagnant-tag" title="该目标下项目近 14 天无推进">⚠ 停滞</span>
+                    <MaturityBadge :m="directionMaturity(d, dir)" />
                   </div>
                   <div class="tct-meta">
                     <span>{{ visibleProjectsOf(dir).length }} 攻坚项目 · {{ dir.projects.reduce((s,p)=>s+p.metrics.length,0) }} 成功指标</span>
@@ -594,6 +598,7 @@ onUnmounted(() => {
                         @click="startEdit('proj-' + proj.id, $event)" @blur="saveEdit('proj-' + proj.id, $event)" @keydown.enter.prevent="saveEdit('proj-' + proj.id, $event)" @keydown.esc="cancelEdit">{{ proj.name }}</span>
                     </div>
                     <span class="tp-pct" :class="{ ok: projectProgress(proj).pct === 100 }">{{ projectProgress(proj).pct }}% · {{ projectProgress(proj).done }}/{{ projectProgress(proj).total }}</span>
+                    <MaturityBadge :m="projectMaturity(d, proj)" />
                   </div>
                   <div class="tp-meta">
                     <span>📊 {{ proj.metrics.length }} 指标 · 📋 {{ d.tasks.filter(t=>!t.deletedAt && t.projectId===proj.id).length }} 任务</span>
@@ -614,6 +619,7 @@ onUnmounted(() => {
                       <span class="node-title editable" :class="{editing: editingField === 'metric-' + metric.id}" :data-edit="'metric-' + metric.id" :contenteditable="editingField === 'metric-' + metric.id"
                         @click.stop="startEdit('metric-' + metric.id, $event)" @blur="saveEdit('metric-' + metric.id, $event)" @keydown.enter.prevent="saveEdit('metric-' + metric.id, $event)" @keydown.esc="cancelEdit">{{ metric.title }}</span>
                       <span class="tm-count">({{ tasksForMetric(metric.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(metric.id).length }})</span>
+                      <MaturityBadge :m="metricMaturity(d, metric)" />
                       <span class="tm-caret">{{ expandedMetrics.has(metric.id) ? '▾' : '▸' }}</span>
                       <span class="tm-acts" @click.stop>
                         <span class="node-action" @click="openTaskAdd(metric.id, proj.id)" title="添加任务（新建 / 关联）">＋</span>
@@ -627,6 +633,8 @@ onUnmounted(() => {
                         <span class="node-title editable" :class="{editing: editingField === 'task-' + task.id}" :data-edit="'task-' + task.id" :contenteditable="editingField === 'task-' + task.id"
                           @click.stop="startEdit('task-' + task.id, $event)" @blur="saveEdit('task-' + task.id, $event)" @keydown.enter.prevent="saveEdit('task-' + task.id, $event)" @keydown.esc="cancelEdit">{{ task.title }}</span>
                         <span class="tml-pri">{{ task.priority==='high'?'高优':task.priority==='medium'?'中优':'低优' }}</span>
+                        <MaturityBadge :m="taskMaturity(task)" />
+                        <MountCountBadge :t="task" />
                         <span class="tml-del node-action" @click.stop="unbindTask(task)" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）">✕</span>
                       </div>
                     </div>

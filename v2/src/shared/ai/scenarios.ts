@@ -196,16 +196,21 @@ export const BUILTIN_PERSONAS: AiPersona[] = [
   },
 ]
 
-export function personaOverrides(): Record<string, { enabled: boolean; style: string }> {
-  const out: Record<string, { enabled: boolean; style: string }> = {}
-  for (const p of aiConfig.value.personas || []) out[p.id] = { enabled: p.enabled, style: p.style || '' }
+export function personaOverrides(): Record<string, { enabled: boolean; style: string; brief?: string; focus?: string }> {
+  const out: Record<string, { enabled: boolean; style: string; brief?: string; focus?: string }> = {}
+  for (const p of aiConfig.value.personas || []) out[p.id] = { enabled: p.enabled, style: p.style || '', brief: p.brief, focus: p.focus }
   return out
 }
 
-/** R137 角色库 v1：内置 + 自建合成会诊名单 */
+/** R137 角色库 v1：内置 + 自建合成会诊名单（R142：内置两员的人设/关注面支持 personas[] 覆盖，恢复=清空覆盖字段） */
 export function allPersonas(): AiPersona[] {
+  const ov = personaOverrides()
+  const builtin = BUILTIN_PERSONAS.map(p => {
+    const o = ov[p.id]
+    return o?.brief?.trim() || o?.focus?.trim() ? { ...p, brief: o.brief?.trim() || p.brief, focus: o.focus?.trim() || p.focus } : p
+  })
   const custom = (aiConfig.value.customPersonas || []).map(c => ({ id: c.id, name: c.name, icon: c.icon || '🧭', brief: c.brief, focus: c.focus }))
-  return [...BUILTIN_PERSONAS, ...custom]
+  return [...builtin, ...custom]
 }
 
 /** R139：把某个专家（含风格覆盖）改写成本场执笔人设；default/查无/已停用 = 空串回落内置角色 */

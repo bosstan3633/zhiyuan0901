@@ -13,6 +13,9 @@ import { showToast } from '@/shared/components/toast'
 import TaskAddDrawer from '../components/TaskAddDrawer.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
+import MaturityBadge from '@/shared/components/MaturityBadge.vue'
+import MountCountBadge from '../components/MountCountBadge.vue'
+import { taskMaturity, metricMaturity } from '@/shared/utils/maturity'
 
 /**
  * R117（04-61 C）双态：
@@ -634,6 +637,7 @@ function addTaskFromHeader() {
           <span class="mname" contenteditable="true" spellcheck="false"
             @blur="renameMetric(m, $event)" @keydown.enter.prevent="($event.target as HTMLElement).blur()">{{ m.title }}</span>
           <span class="mh-meta">{{ metricPct(m.id) }}% · {{ tasksForMetric(m.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(m.id).length }} 任务</span>
+          <MaturityBadge :m="metricMaturity(d, m)" />
           <span class="mh-acts">
             <button class="icon-btn-sm" title="添加任务（新建 / 关联）" @click="openTaskAdd(m)">＋</button>
             <button class="icon-btn-sm del" title="删除指标" @click="removeMetric(m)">🗑</button>
@@ -649,6 +653,8 @@ function addTaskFromHeader() {
             <span class="bt" @click="openTaskDetail(task)" title="点击打开任务详情">{{ task.title }}</span>
             <span class="tag" :class="prTag(task.priority)"><i class="tag-dot" /><span class="tag-txt">{{ prLabel(task.priority) }}</span></span>
             <AssetBadge v-if="task.assets?.length" :assets="task.assets" />
+            <MaturityBadge :m="taskMaturity(task)" />
+            <MountCountBadge :t="task" />
             <button class="icon-btn-sm" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）" @click="unbindTask(task)">✕</button>
           </div>
           <div class="task-add" @click="openTaskAdd(m)">＋ 添加任务（新建 / 关联）</div>
@@ -669,6 +675,8 @@ function addTaskFromHeader() {
             <span class="bcheck" :class="{done: t.status==='done'}" @click="toggleTaskDone(t)">{{ t.status==='done'?'✓':'' }}</span>
             <span class="bt" @click="openTaskDetail(t)" title="点击打开任务详情">{{ t.title }}</span>
             <span class="tag" :class="prTag(t.priority)"><i class="tag-dot" /><span class="tag-txt">{{ prLabel(t.priority) }}</span></span>
+            <MaturityBadge :m="taskMaturity(t)" />
+            <MountCountBadge :t="t" />
             <button class="icon-btn-sm del" title="删除任务（进回收站）" @click="removeTask(t)">🗑</button>
           </div>
         </div>

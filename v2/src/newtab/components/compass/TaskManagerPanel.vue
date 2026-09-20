@@ -20,6 +20,9 @@ import { showToast } from '@/shared/components/toast'
 import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
+import MaturityBadge from '@/shared/components/MaturityBadge.vue'
+import MountCountBadge from '../MountCountBadge.vue'
+import { taskMaturity } from '@/shared/utils/maturity'
 // R117（04-61 C3）：当日新增角标（自然日口径）——卡片 / 列表 / 看板三视图同一枚
 import NewBadge from '@/shared/components/NewBadge.vue'
 import ModuleCard from '@/shared/components/ModuleCard.vue'
@@ -719,6 +722,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
                 <span v-if="tShow('projectId')" class="tag accent">📦 {{ projectName(task.projectId) }}</span>
                 <span v-if="tShow('metricId') && task.metricId" class="tag warn">🎯 {{ metricName(task.metricId) }}</span>
                 <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
+              <MountCountBadge :t="task" />
+              <MaturityBadge :m="taskMaturity(task)" />
               </div>
               <div v-if="tListFields.length" class="tm-ext">
                 <span v-for="f in tListFields" :key="f.key" class="tm-ext-item">{{ tShort(task, f) }}</span>
@@ -751,6 +756,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
                 <span v-if="tShow('projectId')" class="tag accent">📦 {{ projectName(task.projectId) }}</span>
                 <span v-if="tShow('metricId') && task.metricId" class="tag warn">🎯 {{ metricName(task.metricId) }}</span>
                 <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
+              <MountCountBadge :t="task" />
+              <MaturityBadge :m="taskMaturity(task)" />
               </div>
               <div v-if="tListFields.length" class="tm-ext">
                 <span v-for="f in tListFields" :key="f.key" class="tm-ext-item">{{ tShort(task, f) }}</span>
@@ -781,6 +788,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               <span class="tag accent">📦 {{ projectName(task.projectId) }}</span>
               <span v-if="task.metricId" class="tag warn">🎯 {{ metricName(task.metricId) }}</span>
               <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
+              <MountCountBadge :t="task" />
+              <MaturityBadge :m="taskMaturity(task)" />
             </div>
             <div v-if="tListFields.length" class="tm-ext">
               <span v-for="f in tListFields" :key="f.key" class="tm-ext-item" :class="{['status-'+task.status]: f.key==='status'}">{{ tShort(task, f) }}</span>
@@ -814,6 +823,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <div class="row-tags">
               <span v-for="f in tListFields" :key="f.key" class="tag" :class="{'accent': f.key==='projectId', [ 'status-'+task.status ]: f.key==='status'}">{{ tShort(task, f) }}</span>
               <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
+              <MountCountBadge :t="task" />
+              <MaturityBadge :m="taskMaturity(task)" />
             </div>
             <button class="t-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
             <button class="t-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
@@ -837,6 +848,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <div class="row-tags">
               <span v-for="f in tListFields" :key="f.key" class="tag" :class="{'accent': f.key==='projectId', [ 'status-'+task.status ]: f.key==='status'}">{{ tShort(task, f) }}</span>
               <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
+              <MountCountBadge :t="task" />
+              <MaturityBadge :m="taskMaturity(task)" />
             </div>
             <button class="t-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
             <button class="t-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
@@ -880,6 +893,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
                 <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
+              <MountCountBadge :t="task" />
+              <MaturityBadge :m="taskMaturity(task)" />
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
             </div>
@@ -890,6 +905,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
               <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
+              <MountCountBadge :t="task" />
+              <MaturityBadge :m="taskMaturity(task)" />
             </div>
           </template>
         </div>
@@ -909,6 +926,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
                 <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
+              <MountCountBadge :t="task" />
+              <MaturityBadge :m="taskMaturity(task)" />
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
             </div>
@@ -919,6 +938,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
               <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
+              <MountCountBadge :t="task" />
+              <MaturityBadge :m="taskMaturity(task)" />
             </div>
           </template>
         </div>
@@ -938,6 +959,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
                 <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
+              <MountCountBadge :t="task" />
+              <MaturityBadge :m="taskMaturity(task)" />
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
             </div>
@@ -948,6 +971,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
               <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
+              <MountCountBadge :t="task" />
+              <MaturityBadge :m="taskMaturity(task)" />
             </div>
           </template>
         </div>

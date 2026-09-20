@@ -81,6 +81,8 @@ export function useCuriosity() {
     // 会让指标进度/下钻口径统计不到它（视图层已同步加 @change 复位，此处是数据层双保险）。
     const safeMetricId = projectId ? metricId : undefined
     const task = convertCard(c, { kind: 'task', projectId, metricId: safeMetricId })
+  // R142（反馈 #4）：好奇卡的直接关联资源随迁为任务挂载（死字段激活的转化闭环）
+  task.mountedResourceIds = [...new Set((c.relatedResourceIds || []).filter(id => (d.value.resources || []).some(r => r.id === id && !r.deletedAt)))]
     d.value.tasks.unshift(task)
     // R70-b：补写 metric.taskIds——这是全项目唯一漏双写的路径（对比 TaskAddDrawer、
     // CompassHome.syncMetricTaskIds、TaskManagerPanel），不补会破坏

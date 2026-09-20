@@ -11,7 +11,7 @@ export const AI_STORAGE_KEY = 'zy_ai_v1'
 
 export type AiDepth = 'eco' | 'std' | 'deep'
 
-export interface AiPersonaCfg { id: string; enabled: boolean; style: string }
+export interface AiPersonaCfg { id: string; enabled: boolean; style: string; /** R142（反馈 #6）：内置专家人设/关注面覆盖（空=用内置默认） */ brief?: string; focus?: string }
 
 /** R137：自建专家（角色库 v1）——名称+简介+关注面三元组，与内置专家同格会诊 */
 export interface AiCustomPersona { id: string; name: string; brief: string; focus: string; icon?: string }
