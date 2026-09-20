@@ -17,21 +17,25 @@
         </div>
         <button class="gp-search-esc" @click="closeAll">Esc</button>
       </div>
+      <!-- R146-d：tab 去 emoji 图标（实测带图标在窄屏逐字换行成两行）+ nowrap 锁死 -->
       <div class="gp-type-tabs">
-        <div class="gp-type-tab" :class="{active: currentType==='all'}" @click="setType('all')">🔍 搜全部 <span class="gp-tt-count">{{ counts.all }}</span></div>
-        <div class="gp-type-tab" :class="{active: currentType==='res'}" @click="setType('res')">📄 资源卡 <span class="gp-tt-count">{{ counts.res }}</span></div>
-        <div class="gp-type-tab" :class="{active: currentType==='task'}" @click="setType('task')">✅ 任务卡 <span class="gp-tt-count">{{ counts.task }}</span></div>
-        <div class="gp-type-tab" :class="{active: currentType==='curio'}" @click="setType('curio')">💡 好奇心 <span class="gp-tt-count">{{ counts.curio }}</span></div>
+        <div class="gp-type-tab" :class="{active: currentType==='all'}" @click="setType('all')">搜全部 <span class="gp-tt-count">{{ counts.all }}</span></div>
+        <div class="gp-type-tab" :class="{active: currentType==='res'}" @click="setType('res')">资源卡 <span class="gp-tt-count">{{ counts.res }}</span></div>
+        <div class="gp-type-tab" :class="{active: currentType==='task'}" @click="setType('task')">任务卡 <span class="gp-tt-count">{{ counts.task }}</span></div>
+        <div class="gp-type-tab" :class="{active: currentType==='curio'}" @click="setType('curio')">好奇心 <span class="gp-tt-count">{{ counts.curio }}</span></div>
         <!-- R49-G：策展台（分类树定位）/ 项目（直达项目详情）双类型 -->
-        <div class="gp-type-tab" :class="{active: currentType==='ws'}" @click="setType('ws')">🗂 策展台 <span class="gp-tt-count">{{ counts.ws }}</span></div>
-        <div class="gp-type-tab" :class="{active: currentType==='proj'}" @click="setType('proj')">📦 项目 <span class="gp-tt-count">{{ counts.proj }}</span></div>
-        <!-- R136-1d：搜索意图理解（只读重排；再点一次清除；键入路径零 AI） -->
-        <div class="gp-type-tab gp-ai-tab" :class="{active: !!aiRank}" @click="aiRerankRun" title="AI 按真实意图从命中的前 20 条里挑出≤6 条真正相关（再点清除）">{{ aiBusy ? '… 理解中' : '✨ AI 理解' }}</div>
+        <div class="gp-type-tab" :class="{active: currentType==='ws'}" @click="setType('ws')">策展台 <span class="gp-tt-count">{{ counts.ws }}</span></div>
+        <div class="gp-type-tab" :class="{active: currentType==='proj'}" @click="setType('proj')">项目 <span class="gp-tt-count">{{ counts.proj }}</span></div>
+        <!-- R136-1d：搜索意图理解（只读重排；跑动中再点=取消；键入路径零 AI） -->
+        <div class="gp-type-tab gp-ai-tab" :class="{active: !!aiRank, busy: aiBusy}" @click="aiRerankRun"
+          :title="aiBusy ? '点击取消本次 AI 理解（不写任何数据）' : `AI 从命中的前 ${Math.min(filteredResults.length, 14)} 条里挑出≤6 条真正相关（出结果后再点清除）`">
+          <ZhiMark :size="13" :spin="aiBusy" /><span>{{ aiBusy ? `理解中 ${aiSecs}s${aiChars ? ' · 已回 ' + aiChars + ' 字' : ''}` : 'AI 理解' }}</span>
+        </div>
       </div>
       <div class="gp-results" ref="resultsEl">
         <!-- R136-1d：AI 精选组（置顶呈现；原分组列表不动） -->
         <template v-if="aiTopRows.length && !isBrowseMode">
-          <div class="gp-group-title gp-ai-title">🤖 AI 理解<span v-if="aiRank && aiRank.note" class="gp-ai-note">{{ aiRank.note }}</span></div>
+          <div class="gp-group-title gp-ai-title"><ZhiMark :size="12" /> AI 理解 <span class="gp-ai-fed">从 {{ aiFed }} 条命中里挑 {{ aiTopRows.length }} 条 · {{ aiDur(aiTook) }}</span><span v-if="aiRank && aiRank.note" class="gp-ai-note">{{ aiRank.note }}</span></div>
           <div v-for="pair in aiTopRows" :key="'ai' + pair.hit.id" class="gp-result-item" :class="{selected: pair.item.id===selectedId}"
             @click="pickRow(pair.item)" @mouseenter="selectHover(pair.item)"
             :title="'单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'">
@@ -216,7 +220,7 @@
           </div>
         </div>
         <div class="gp-cap-foot">
-          <label class="gp-cap-enrich" title="保存成功后自动打开 AI 补全评审（勾选采纳才写库）"><input type="checkbox" v-model="capEnrichOn" @change="capEnrichSave" /> 🤖 保存后补全</label>
+          <label class="gp-cap-enrich" title="保存成功后自动打开 AI 补全评审（勾选采纳才写库）"><input type="checkbox" v-model="capEnrichOn" @change="capEnrichSave" /> <ZhiMark :size="12" /> 保存后补全</label>
           <button class="gp-btn gp-btn-ghost" @click="closeAll">取消</button>
           <button class="gp-btn gp-btn-primary" @click="saveCapture">💾 保存（Ctrl+Enter）</button>
         </div>
@@ -231,7 +235,7 @@
           <div class="gp-saved-sub">按 <kbd>Esc</kbd> 关闭 · 5 秒后自动关闭</div>
           <div class="gp-saved-actions">
             <button class="gp-btn gp-btn-ghost" @click="closeAll">关闭</button>
-            <button v-if="capEnrichReady" class="gp-btn" @click="aiReopenEnrich">🤖 补全建议</button>
+            <button v-if="capEnrichReady" class="gp-btn" @click="aiReopenEnrich"><ZhiMark :size="13" /> 补全建议</button>
             <button class="gp-btn gp-btn-primary" @click="openSavedBoard">打开看板（Enter）</button>
           </div>
         </div>
@@ -378,7 +382,11 @@ import { recordResourceOpen, recordCardOpen, recordWorkspaceOpen } from '@/share
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { useConfirm } from '@/shared/components/confirm'
 import Icon from '@/shared/components/Icon.vue'
+// R146-b：AI 入口统一徽标「知」（纯 CSS 组件，零 AI 字面量，可进启动链）
+import ZhiMark from '@/shared/components/ZhiMark.vue'
 import type { ResourceCard, TaskCard, CuriosityCard, Workspace, Category, AnyCard } from '@/shared/models'
+// R146（回退契约）：检索浮层删任务改走软删真源（同时摘 metric.taskIds，守 R141 双向不变量）
+import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
 import { markRank } from '@/shared/utils/marksort'
 import { buildCatOptions } from '@/shared/utils/catTree'
 
@@ -814,27 +822,66 @@ watch(filteredResults, () => {
 // ---- B1：命令面板升级（分组 / 高亮 / 快捷操作 / 最近打开） ----
 const isBrowseMode = computed(() => !searchQuery.value.trim() && currentType.value === 'all')
 
-// ============== R136-1d：✨ AI 理解（搜索意图重排，只读呈现） ==============
+// ============== R136-1d：AI 理解（搜索意图重排，只读呈现）· R146-d：可取消 + 进度回显 + 同词缓存 ==============
 // ★本组件被 App.vue 静态挂载（入口 chunk）：AI 依赖只在点击时 dynamic import，绝不静态引 '@/shared/ai/'。
 // 键入路径零参与：不发请求、不参与 filteredResults 计算；结果只活内存态，改词即清。
 const aiRank = shallowRef<{ order: { id: string; why?: string }[]; note: string } | null>(null)
 const aiBusy = ref(false)
+const aiSecs = ref(0)
+const aiChars = ref(0)
+const aiFed = ref(0)
+const aiTook = ref(0)
+/** 回执里的耗时：亚秒说毫秒，不把 13ms 报成「1s」 */
+function aiDur(ms: number) { return ms < 1000 ? ms + 'ms' : (ms / 1000).toFixed(1) + 's' }
+let aiAbortCtl: AbortController | null = null
+let aiTick: ReturnType<typeof setInterval> | null = null
+/** 取消话术：undefined=没取消 · ''=静默取消（改词/关浮层，不打扰用户） · 非空=要点名提示 */
+let aiCancelMsg: string | undefined
+/** 同词 + 同批命中不重复外发（清除后再点秒回） */
+const aiCache = new Map<string, { order: { id: string; why?: string }[]; note: string }>()
+function aiStopTick() { if (aiTick) { clearInterval(aiTick); aiTick = null } }
+function aiAbort(msg: string | null) {
+  aiStopTick()
+  if (aiAbortCtl) { aiCancelMsg = msg ?? ''; aiAbortCtl.abort(); aiAbortCtl = null }
+}
+watch(activePanel, (p) => { if (p !== 'search') aiAbort(null) })
 async function aiRerankRun() {
-  if (aiBusy.value) return
+  if (aiBusy.value) { aiAbort('已取消 AI 理解（未采用任何结果）'); return }
   if (aiRank.value) { aiRank.value = null; return }
   const q = searchQuery.value.trim()
   const items = filteredResults.value
   if (!q || items.length < 2) { showToast('先搜出多条命中，再让 AI 理解意图'); return }
-  aiBusy.value = true
+  aiFed.value = Math.min(items.length, 14)
+  const key = `${q}|${items.slice(0, 14).map(r => r.id).join(',')}`
+  const cached = aiCache.get(key)
+  if (cached) {
+    aiRank.value = cached.order.length ? cached : null
+    showToast(cached.order.length ? `✓ 秒回（同词同批命中已问过）：AI 挑出 ${cached.order.length} 条` : 'AI 认为这批命中里没有真正相关的')
+    return
+  }
+  aiBusy.value = true; aiSecs.value = 0; aiChars.value = 0; aiCancelMsg = undefined
+  const ctl = new AbortController(); aiAbortCtl = ctl
+  aiTick = setInterval(() => { aiSecs.value++ }, 1000)
+  const t0 = Date.now()
   try {
     const [{ loadAiConfig, aiReady }, { rerankSearch }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
     await loadAiConfig()
     if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
-    const out = await rerankSearch(q, items.map(r => ({ id: r.id, type: r.type, title: r.title, ws: r.ws, cat: r.cat, summary: (r as { summary?: string }).summary })))
+    const out = await rerankSearch(
+      q,
+      items.map(r => ({ id: r.id, type: r.type, title: r.title, ws: r.ws, cat: r.cat, summary: (r as { summary?: string }).summary })),
+      { signal: ctl.signal, onDelta: (n) => { aiChars.value = n } },
+    )
+    aiTook.value = Date.now() - t0
+    if (aiCache.size >= 12) aiCache.delete(aiCache.keys().next().value as string)
+    aiCache.set(key, out)
     aiRank.value = out.order.length ? out : null
-    if (!out.order.length) showToast('AI 认为这批命中里没有真正相关的——换个说法试试')
-  } catch (e) { aiRank.value = null; showToast('⚠ AI 理解失败：' + ((e as Error).message || String(e)).slice(0, 80)) }
-  finally { aiBusy.value = false }
+    showToast(out.order.length ? `✓ AI 挑出 ${out.order.length} 条 · ${aiDur(aiTook.value)}` : 'AI 认为这批命中里没有真正相关的——换个说法试试')
+  } catch (e) {
+    if (aiCancelMsg !== undefined) { if (aiCancelMsg) showToast(aiCancelMsg); return }
+    aiRank.value = null
+    showToast('⚠ AI 理解失败：' + ((e as Error).message || String(e)).slice(0, 80))
+  } finally { aiStopTick(); if (aiAbortCtl === ctl) aiAbortCtl = null; aiBusy.value = false }
 }
 const aiTopRows = computed(() => {
   if (!aiRank.value) return [] as { hit: { id: string; why?: string }; item: SearchResult }[]
@@ -842,7 +889,7 @@ const aiTopRows = computed(() => {
     .map(hit => ({ hit, item: filteredResults.value.find(r => r.id === hit.id) }))
     .filter((x): x is { hit: { id: string; why?: string }; item: SearchResult } => !!x.item)
 })
-watch(searchQuery, () => { aiRank.value = null })
+watch(searchQuery, () => { aiRank.value = null; aiAbort('') })
 
 const QUICK_ACTIONS = [
   { label: '打开方向台', icon: 'compass', run: () => { closeAll(); router.push('/compass') } },
@@ -1096,12 +1143,26 @@ function toggleStar(item: SearchResult) {
 }
 
 async function deleteItem(item: SearchResult) {
-  // R55-H1：检索结果删除免二次确认——直接软删（allResults 过滤 !deletedAt，卡片即时从结果列表消失，可回收站恢复）
-  if (item.type === 'res') { (item.raw as ResourceCard).deletedAt = Date.now() }
-  else if (item.type === 'task') { (item.raw as TaskCard).deletedAt = Date.now() }
-  else { (item.raw as CuriosityCard).deletedAt = Date.now() }
+  // R55-H1：检索结果删除免二次确认（软删，可撤销 / 回收站恢复）
+  // R146（回退契约）：① 任务改走 softDeleteTaskToTrash——原裸赋值 deletedAt 不摘 metric.taskIds，
+  //   破坏 R141 的双向不变量；② 回执点名 + 给撤销（原只有一句"可在回收站恢复"，既不知删了哪张，
+  //   也没有回收站的路）。
+  const raw = item.raw as ResourceCard | TaskCard | CuriosityCard
+  const name = ('title' in raw ? (raw as ResourceCard).title : (raw as CuriosityCard).question) || '未命名'
+  if (item.type === 'task') softDeleteTaskToTrash(store.data!, raw as TaskCard)
+  else raw.deletedAt = Date.now()
   store.persist()
-  showToast('已删除，可在回收站恢复')
+  showToast(`已删除「${name.slice(0, 16)}」· 回收站可恢复`, { label: '撤销', cb: () => {
+    if (!raw.deletedAt) return
+    raw.deletedAt = undefined
+    if (item.type === 'task') {
+      const t = raw as TaskCard
+      if (t.metricId) for (const dir of store.data!.compass.directions) for (const p of dir.projects) for (const m of p.metrics)
+        if (m.id === t.metricId && !m.taskIds.includes(t.id)) m.taskIds.push(t.id)
+    }
+    store.persist()
+    showToast('✓ 已撤销删除')
+  } })
 }
 
 function toggleConvertMenu(id: string) {
@@ -1392,10 +1453,12 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-search-input { flex: 1; border: none; outline: none; background: transparent; font-size: 17px; font-weight: 500;
   color: var(--text); font-family: inherit; min-width: 0; line-height: 1.4; }
 .gp-search-input::placeholder { color: var(--text-4); font-weight: 400; }
-/* R136-1d：AI 理解钮与精选组 */
-.gp-ai-tab { margin-left: auto; color: var(--text-2); }
+/* R136-1d：AI 理解钮与精选组 · R146-d：跑动中点名可取消，秒数等宽不抖 */
+.gp-ai-tab { margin-left: auto; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .gp-ai-tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-.gp-ai-title { color: var(--accent); }
+.gp-ai-tab.busy { color: var(--accent); cursor: pointer; }
+.gp-ai-title { color: var(--accent); display: flex; align-items: center; gap: 6px; }
+.gp-ai-fed { font-weight: 400; font-size: 10.5px; color: var(--text-4); }
 .gp-ai-note { margin-left: 8px; font-weight: 400; color: var(--text-3); }
 .gp-ai-why { font-size: 11px; color: var(--accent); background: var(--accent-light); border-radius: var(--radius-xs); padding: 1px 6px; }
 .gp-ai-row { border-left: 2px solid var(--accent); }
@@ -1403,10 +1466,10 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
   border-radius: 6px; padding: 3px 8px; flex-shrink: 0; cursor: pointer; transition: all var(--dur-fast); font-family: inherit; }
 .gp-search-esc:hover { color: var(--text-2); border-color: var(--border-strong); }
 
-/* 类型Tab */
-.gp-type-tabs { display: flex; gap: 2px; padding: 12px 22px 8px; }
+/* 类型Tab · R146-d：去 emoji 图标 + tab 内锁 nowrap——窄窗宁可整枚换到第二行，也不把「搜全部」劈成两截 */
+.gp-type-tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 12px 22px 8px; }
 .gp-type-tab { padding: 5px 12px; border-radius: 8px; font-size: 12.5px; color: var(--text-3); cursor: pointer;
-  transition: all var(--dur-fast); display: flex; align-items: center; gap: 5px; font-weight: 500; }
+  transition: all var(--dur-fast); display: flex; align-items: center; gap: 5px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
 .gp-type-tab:hover { color: var(--text-2); background: var(--surface-2); }
 .gp-type-tab.active { color: var(--accent); background: var(--accent-light); font-weight: 600; }
 .gp-tt-count { font-size: 10.5px; color: var(--text-4); font-weight: 500; }

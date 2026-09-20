@@ -1,49 +1,39 @@
 <script setup lang="ts">
-/** REQ-030：Toast 收敛为全局单例——本组件仅负责渲染，状态/计时由 toast.ts 单例持有 */
+/**
+ * REQ-030：Toast 收敛为全局单例——本组件仅负责渲染，状态/计时由 toast.ts 单例持有。
+ * R146（回退契约）：改为**最多 3 条堆叠**（新在下、旧在上），每条自带撤销入口与计时；
+ * 同文案连发由 toast.ts 合并成「×N」。原单条互相覆盖会让批量动作的回执被截断。
+ * 底色/文字/动作色改走 --inverse-* 令牌（原写死 #1A1D23 + #8FC4A3，浅色主题下动作色对比仅 1.98:1）。
+ */
 import { toastState, runToastAction } from './toast'
 </script>
 
 <template>
-  <Transition name="toast">
-    <div v-if="toastState.visible.value" class="toast">
-      {{ toastState.message.value }}
-      <span v-if="toastState.action.value" class="toast-action" @click="runToastAction">{{ toastState.action.value.label }}</span>
+  <TransitionGroup name="toast" tag="div" class="toast-stack">
+    <div v-for="t in toastState.items" :key="t.id" class="toast" role="status">
+      <span class="toast-msg">{{ t.msg }}<b v-if="t.n > 1" class="toast-n"> ×{{ t.n }}</b></span>
+      <span v-if="t.action" class="toast-action" @click="runToastAction(t)">{{ t.action.label }}</span>
     </div>
-  </Transition>
+  </TransitionGroup>
 </template>
 
 <style scoped>
+.toast-stack { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 9999; pointer-events: none; }
 .toast {
-  position: fixed;
-  bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%);
-  /* 固定深色底：任何主题下都保证白字可读（修复深色主题白底白字问题） */
-  background: #1A1D23;
-  color: #fff;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 13px;
-  z-index: 9999;
-  box-shadow: 0 8px 28px rgba(0,0,0,.2);
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  pointer-events: auto;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--toast-bg); color: var(--toast-fg);
+  padding: 9px 16px; border-radius: var(--radius-sm); font-size: 13px; line-height: 1.5;
+  box-shadow: var(--shadow-lg); max-width: 72vw;
 }
+.toast-msg { white-space: pre-line; }
+.toast-n { font-weight: 700; opacity: .7; margin-left: 2px; }
 .toast-action {
-  color: #8FC4A3;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 2px 10px;
-  border: 1px solid rgba(143,196,163,.5);
-  border-radius: 6px;
+  color: var(--toast-action); font-weight: 600; cursor: pointer; white-space: nowrap;
+  padding: 2px 10px; border: 1px solid color-mix(in srgb, var(--toast-action) 50%, transparent); border-radius: var(--radius-xs);
 }
-.toast-action:hover { background: rgba(143,196,163,.15); }
-.toast-enter-active, .toast-leave-active {
-  transition: all var(--dur-slow) cubic-bezier(.16,1,.3,1);
-}
-.toast-enter-from, .toast-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) translateY(12px);
-}
+.toast-action:hover { background: color-mix(in srgb, var(--toast-action) 16%, transparent); }
+.toast-move, .toast-enter-active, .toast-leave-active { transition: all var(--dur) var(--ease-out-soft); }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(10px); }
+.toast-leave-active { position: absolute; }
 </style>

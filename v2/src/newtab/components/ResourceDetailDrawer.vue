@@ -17,6 +17,7 @@ import { onOpenDrawer, type DrawerPayload } from '@/shared/utils/bus'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import type { ResourceCard, TaskCard } from '@/shared/models'
+import ZhiMark from '@/shared/components/ZhiMark.vue'
 // R134-F（批次 F）：单卡 AI 补全。★本组件被 App.vue 静态挂载（全局抽屉宿主）——AI 依赖必须全懒：
 // 抽屉 defineAsyncComponent、shared/ai 模块点击时才 dynamic import，否则整条 AI 栈会被卷进启动 chunk（R134 首版踩坑已修）。
 // 建议进评审抽屉（内存态），采纳只回填本表单，用户核对后自行保存。
@@ -129,15 +130,19 @@ function onBus(p: DrawerPayload) {
 
 // ---- R134-F：单卡智能补全（AI 栈全懒：点击时才拉 shared/ai） ----
 const aiJob = ref<AiJobLite | null>(null)
+/** R146-b：补全/优化两枚入口共用一把互斥锁——动态 import + 读配置这段真空期徽标转起来，且不吃第二次点击 */
+const aiEntry = ref<'enrich' | 'optimize' | ''>('')
 async function aiEnrich() {
+  if (aiEntry.value) return
   const card = resource.value
   const d = store.data
   if (!card || !d) return
+  aiEntry.value = 'enrich'
   const [{ loadAiConfig, aiReady, aiConfig }, { projectCard, catPathOf }, { enrichSystem, sanitizeRefs }] = await Promise.all([
     import('@/shared/ai/config'), import('@/shared/ai/project'), import('@/shared/ai/scenarios'),
   ])
   await loadAiConfig()
-  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  if (!aiReady.value) { aiEntry.value = ''; showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
   const cats = d.categories.filter(c => !c.deletedAt && c.workspaceId === card.workspaceId)
   const catList = cats.slice(0, 60).map(c => `categoryId=${c.id}：${catPathOf(d, c.id)}`).join('\n')
   aiJob.value = {
@@ -166,6 +171,7 @@ async function aiEnrich() {
       return '✓ 建议已回填表单，核对后点「保存」'
     },
   }
+  aiEntry.value = ''
 }
 
 let unsub: (() => void) | null = null
@@ -173,12 +179,14 @@ let unsub: (() => void) | null = null
 /** R140：全方位优化（先抓链接网页正文再一体建议，采纳=回填表单）；复用 select 工厂、改写 apply 为回填 */
 const aiOptPersona = ref('default')
 async function aiOptimize() {
+  if (aiEntry.value) return
   const card = resource.value
   const d = store.data
   if (!card || !d) return
+  aiEntry.value = 'optimize'
   const [{ loadAiConfig, aiReady, aiConfig }, { buildFullOptimizeJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
   await loadAiConfig()
-  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  if (!aiReady.value) { aiEntry.value = ''; showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
   if (aiOptPersona.value === 'default' && aiConfig.value.defaultPersona) aiOptPersona.value = aiConfig.value.defaultPersona
   const job = buildFullOptimizeJob(card, { d, depth: aiConfig.value.depth, persist: () => store.persist(), personaId: aiOptPersona.value, onPersona: (id) => { aiOptPersona.value = id; void aiOptimize() } })
   job.apply = (rows) => {
@@ -191,6 +199,7 @@ async function aiOptimize() {
     return '✓ 建议已回填表单，核对后点「保存」'
   }
   aiJob.value = job
+  aiEntry.value = ''
 }
 onMounted(() => { unsub = onOpenDrawer(onBus) })
 onUnmounted(() => { unsub?.(); unsub = null })
@@ -227,8 +236,8 @@ watch(() => resource.value?.id, (n) => {
       <button class="red-btn danger" @click="remove">🗑 删除</button>
       <button class="red-btn" @click="copyLink">🔗 复制链接</button>
       <button class="red-btn" @click="openLink">↗ 打开</button>
-      <button class="red-btn" :disabled="!resource" title="AI 建议标签/描述/分类，回填表单后由你核对保存" @click="aiEnrich">🤖 补全</button>
-      <button class="red-btn" :disabled="!resource" title="先抓取链接网页正文（仅 http(s)、点了才抓），再整体优化标题/描述/标签并回填表单" @click="aiOptimize">🤖 分析（读网页）</button>
+      <button class="red-btn" :disabled="!resource || aiEntry !== ''" title="AI 建议标签/描述/分类，回填表单后由你核对保存" @click="aiEnrich"><ZhiMark :size="13" :spin="aiEntry === 'enrich'" /> 补全</button>
+      <button class="red-btn" :disabled="!resource || aiEntry !== ''" title="先抓取链接网页正文（仅 http(s)、点了才抓），再整体优化标题/描述/标签并回填表单" @click="aiOptimize"><ZhiMark :size="13" :spin="aiEntry === 'optimize'" /> 分析（读网页）</button>
       <button class="red-btn primary" @click="save">✓ 保存</button>
     </template>
   </Drawer>

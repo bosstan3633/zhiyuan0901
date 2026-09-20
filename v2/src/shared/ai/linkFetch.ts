@@ -11,6 +11,13 @@ const MAX_CHARS = 1500
 const FETCH_TIMEOUT_MS = 10000
 const cache = new Map<string, LinkText>()
 
+/** R146：会话正文缓存的清空入口（设置页「清除缓存」真的去清它，不再给假回执） */
+export function clearLinkCache(): number {
+  const n = cache.size
+  cache.clear()
+  return n
+}
+
 export function linkFetchable(url?: string): boolean {
   return !!url && /^https?:\/\//i.test(url)
 }

@@ -10,6 +10,9 @@ import Toast from '@/shared/components/Toast.vue'
 import { showToast } from '@/shared/components/toast'
 import GlobalPopups from './components/GlobalPopups.vue'
 import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
+import { useConfirm } from '@/shared/components/confirm'
+// R146（回退契约）：策展台「归档 / 删除」两语义真源
+import { archiveWorkspace, deckCardCount } from '@/shared/utils/compassCrud'
 import Icon from '@/shared/components/Icon.vue'
 import logoUrl from '@/assets/logo.png'
 import { getBytesInUse, subscribeSaveError, clearLastSaveError } from '@/shared/storage/repository'
@@ -184,40 +187,20 @@ function confirmRename() {
   }
   renamingWs.value = null
 }
-function deleteWorkspace() {
-  if (!menuWs.value) return
+/** R146（回退契约）：台签右键这项**不是删除而是归档**——原实现 archived=true + 卡搬走，
+ *  却与 ⚙ 菜单里"卡进回收站"的真删除共用「删除策展台」同名，两入口两种数据命运。
+ *  现改名并接真源 archiveWorkspace；原生 confirm 换应用内确认（四主题一致）。 */
+async function archiveDeck() {
   const ws = menuWs.value
-  if (!confirm(`确认删除策展台「${ws.name}」？其中的资源卡将移至待分类。`)) { closeMenu(); return }
-  ws.archived = true
-  // 资源卡移至第一个可用策展台的待分类
-  const otherWs = store.data!.workspaces.find(w => !w.archived && w.id !== ws.id)
-  if (otherWs) {
-    let cat = store.data!.categories.find(c => c.workspaceId === otherWs.id && c.name === '待分类')
-    if (!cat) {
-      cat = { id: uid('cat'), workspaceId: otherWs.id, name: '待分类', order: 0 }
-      store.data!.categories.push(cat)
-    }
-    store.data!.resources.filter(r => r.workspaceId === ws.id).forEach(r => {
-      r.workspaceId = otherWs.id
-      r.categoryId = cat!.id
-    })
-  }
-  // R61：删除策展台 = 级联移除其收到的全部镜像记录（引用随台走，资源台源卡零影响）
-  if (store.data!.curationProjections?.length) {
-    store.data!.curationProjections = store.data!.curationProjections.filter(p => !(p.kind === 'card' && p.targetWsId === ws.id))
-  }
-  // R53-A3：级联清理该策展台的策展镜像分类（停入卡回落未分类、投射卡回待分类、子分类提根）
-  const mirrorIds = new Set(store.data!.categories.filter(c => c.workspaceId === CURATION_WS_ID && c.curFrom?.wsId === ws.id).map(c => c.id))
-  if (mirrorIds.size) {
-    for (const r of store.data!.resources) if (r.workspaceId === CURATION_WS_ID && mirrorIds.has(r.categoryId || '')) r.categoryId = ''
-    for (const p of store.data!.curationProjections || []) if (p.kind === 'card' && p.targetCatId && mirrorIds.has(p.targetCatId)) p.targetCatId = undefined
-    for (const c of store.data!.categories) if (c.parentId && mirrorIds.has(c.parentId)) c.parentId = undefined
-    store.data!.categories = store.data!.categories.filter(c => !mirrorIds.has(c.id))
-  }
-  store.persist()
   closeMenu()
+  if (!ws || !store.data) return
+  if (ws.id === CURATION_WS_ID) { showToast('ℹ 资源台为系统空间，不在此归档'); return }
+  const n = deckCardCount(store.data, ws.id)
+  if (!(await useConfirm({ title: '归档策展台', message: `确定归档「${wsDisplayNameOf(ws)}」？\n其下 ${n} 张资源卡将搬到其它策展台的「待分类」（卡片不删），此台从标签栏收起，可在设置 · 重置与回滚附近找回。`, confirmText: '归档' }))) return
+  const r = archiveWorkspace(store.data, ws)
+  store.persist()
   if (activeWorkspaceId.value === ws.id) navigate('/')
-  showToast('策展台已删除')
+  showToast(`📦 已归档「${wsDisplayNameOf(ws).slice(0, 14)}」· ${r.moved} 张卡移至待分类`)
 }
 
 // ===== 全局快捷键 =====
@@ -540,7 +523,7 @@ const backupReminderDot = computed(() => {
     <Teleport to="body">
       <div v-if="menuWs" class="ctx-menu" :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }" @click.stop>
         <div class="ctx-item" @click="startRename">✏️ 重命名</div>
-        <div class="ctx-item danger" @click="deleteWorkspace">🗑 删除策展台</div>
+        <div class="ctx-item" @click="archiveDeck">📦 归档此台（卡移至待分类）</div>
       </div>
     </Teleport>
 

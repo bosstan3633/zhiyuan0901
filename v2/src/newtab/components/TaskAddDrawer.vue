@@ -8,6 +8,7 @@ import { showToast } from '@/shared/components/toast'
 import type { TaskCard, Metric } from '@/shared/models'
 // R138-C1′：一句话智能录入（宿主全懒路由，可直连 AI 栈）
 import AiSuggestionDrawer from './AiSuggestionDrawer.vue'
+import ZhiMark from '@/shared/components/ZhiMark.vue'
 import type { AiJob } from '@/shared/ai/job'
 import { aiConfig, loadAiConfig, aiReady } from '@/shared/ai/config'
 import { buildTaskParseJob, type SelectCtx } from '@/shared/ai/select'
@@ -44,19 +45,23 @@ const prioList = [
 const aiSay = ref('')
 const aiDraft = ref<Partial<TaskDraft>>({})
 const aiJob = shallowRef<AiJob | null>(null)
+const aiBusy = ref(false)
 async function aiParse() {
-  if (!aiSay.value.trim()) return
-  await loadAiConfig()
-  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
-  const ctx: SelectCtx = { d: d.value, depth: aiConfig.value.depth, persist: () => store.persist() }
-  const job = buildTaskParseJob(aiSay.value, ctx, (draft) => {
-    if (draft.title) newTitle.value = draft.title
-    if (draft.priority === 'high' || draft.priority === 'medium' || draft.priority === 'low') newPriority.value = draft.priority
-    aiDraft.value = { dueDate: draft.dueDate, estimatedMinutes: draft.estimatedMinutes, projectId: draft.projectId, metricId: draft.metricId }
-    const extra = [draft.dueDate && `截止 ${draft.dueDate}`, draft.estimatedMinutes && `约${draft.estimatedMinutes}分钟`].filter(Boolean).join(' · ')
-    return '✓ 已回填表单' + (extra ? `（${extra}）` : '') + '，核对后点「创建」'
-  })
-  if (job) aiJob.value = job
+  if (aiBusy.value || !aiSay.value.trim()) return
+  aiBusy.value = true
+  try {
+    await loadAiConfig()
+    if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+    const ctx: SelectCtx = { d: d.value, depth: aiConfig.value.depth, persist: () => store.persist() }
+    const job = buildTaskParseJob(aiSay.value, ctx, (draft) => {
+      if (draft.title) newTitle.value = draft.title
+      if (draft.priority === 'high' || draft.priority === 'medium' || draft.priority === 'low') newPriority.value = draft.priority
+      aiDraft.value = { dueDate: draft.dueDate, estimatedMinutes: draft.estimatedMinutes, projectId: draft.projectId, metricId: draft.metricId }
+      const extra = [draft.dueDate && `截止 ${draft.dueDate}`, draft.estimatedMinutes && `约${draft.estimatedMinutes}分钟`].filter(Boolean).join(' · ')
+      return '✓ 已回填表单' + (extra ? `（${extra}）` : '') + '，核对后点「创建」'
+    })
+    if (job) aiJob.value = job
+  } finally { aiBusy.value = false }
 }
 
 // ---- 关联模式 ----
@@ -233,7 +238,7 @@ function linkTasks() {
       <label class="tad-label">🪄 一句话录入（可选）</label>
       <div class="tad-ai-row">
         <input v-model="aiSay" class="tad-input" placeholder="例：下周三前做完论文图表，挂毕业项目，大约两小时" @keydown.enter.prevent="aiParse" />
-        <button class="tad-btn" :disabled="!aiSay.trim()" @click="aiParse">✨ AI 填表</button>
+        <button class="tad-btn" :disabled="!aiSay.trim() || aiBusy" @click="aiParse"><ZhiMark :size="13" :spin="aiBusy" /> AI 填表</button>
       </div>
 
       <label class="tad-label">任务标题</label>
@@ -319,7 +324,7 @@ function linkTasks() {
 
 .tad-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
 .tad-hint { font-size: 11px; color: var(--text-3); }
-.tad-btn { border: none; border-radius: 8px; padding: 9px 16px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; background: var(--surface-2); color: var(--text-2); transition: all var(--dur); }
+.tad-btn { display: inline-flex; align-items: center; gap: 5px; border: none; border-radius: 8px; padding: 9px 16px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; background: var(--surface-2); color: var(--text-2); transition: all var(--dur); }
 .tad-btn.primary { background: var(--accent); color: #fff; }
 .tad-btn.primary:hover { filter: brightness(1.08); }
 .tad-btn.primary:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }

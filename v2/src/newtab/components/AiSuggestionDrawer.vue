@@ -106,7 +106,7 @@ onUnmounted(() => { jobSeq++; ctrl?.abort() })
 </script>
 
 <template>
-  <Drawer :open="open" :title="'🤖 ' + (job?.title || 'AI 建议')" width="560px" @close="close">
+  <Drawer :open="open" :title="'知 · ' + (job?.title || 'AI 建议')" width="560px" @close="close">
     <!-- R141（反馈 #2/#3）：专家下拉上移抽屉头部（跑的过程中也可见可换）；subject 标明正在处理哪张卡 -->
     <template v-if="job?.persona" #title-extra>
       <select class="ai-persona" :value="job.persona.current" title="换一个专家视角重新生成"

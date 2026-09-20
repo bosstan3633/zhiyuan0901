@@ -7,7 +7,11 @@ import { uid } from '@/shared/utils'
 import { matchPinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { flattenTaskTree, unbindTaskFromMetric } from '@/shared/utils/taskLinks'
+// R146（回退契约）：罗盘节点删除走真源（确认报数 + 3 秒撤销），与策展台/项目抽屉同一口径
+import { compassNodeCounts, removeCompassNode, restoreCompassNode, type CompassNodeKind } from '@/shared/utils/compassCrud'
+import { useConfirm } from '@/shared/components/confirm'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
+import ZhiMark from '@/shared/components/ZhiMark.vue'
 import MountCountBadge from '../components/MountCountBadge.vue'
 import { taskMaturity, metricMaturity, projectMaturity, directionMaturity } from '@/shared/utils/maturity'
 import { recordResourceOpen } from '@/shared/storage/stats'
@@ -292,29 +296,34 @@ function toggleTask(taskId: string) {
   store.persist()
 }
 
-function deleteNode(type: string, id: string) {
-  if (type === 'dir') {
-    const idx = d.value.compass.directions.findIndex(x => x.id === id)
-    if (idx >= 0) d.value.compass.directions.splice(idx, 1)
-  } else if (type === 'proj') {
-    for (const dir of d.value.compass.directions) {
-      const idx = dir.projects.findIndex(x => x.id === id)
-      if (idx >= 0) { dir.projects.splice(idx, 1); break }
-    }
-  } else if (type === 'metric') {
-    for (const dir of d.value.compass.directions) {
-      for (const proj of dir.projects) {
-        const idx = proj.metrics.findIndex(x => x.id === id)
-        if (idx >= 0) {
-          proj.metrics.splice(idx, 1)
-          // R141：删指标不悬挂——其下任务回落「未关联指标」（项目保留，与策展台 removeMetric 同口径）
-          for (const t of d.value.tasks) if (t.metricId === id) { t.metricId = undefined; t.updatedAt = Date.now() }
-        }
-      }
+/** R146（回退契约）：删节点先报数确认、删后 3 秒可撤销（真源 compassCrud，四视图同一口径） */
+const NODE_KIND: Record<string, CompassNodeKind> = { dir: 'direction', proj: 'project', metric: 'metric' }
+function nodeNameOf(type: string, id: string): string {
+  for (const x of d.value.compass.directions) {
+    if (type === 'dir' && x.id === id) return x.name
+    for (const p of x.projects) {
+      if (type === 'proj' && p.id === id) return p.name
+      if (type === 'metric') { const m = p.metrics.find(y => y.id === id); if (m) return m.title }
     }
   }
+  return ''
+}
+async function deleteNode(type: string, id: string) {
+  const kind = NODE_KIND[type]
+  if (!kind) return
+  const name = nodeNameOf(type, id)
+  const c = compassNodeCounts(d.value, kind, id)
+  const tail = kind === 'direction' ? `\n其下 ${c.projects} 个项目 · ${c.metrics} 个指标 · ${c.tasks} 个任务将一并摘除`
+    : kind === 'project' ? `\n其下 ${c.metrics} 个指标 · ${c.tasks} 个任务将一并摘除`
+    : (c.tasks ? `\n其下 ${c.tasks} 个任务将回落「未关联指标」（任务本体不删）` : '\n该指标下还没有任务')
+  if (!(await useConfirm({ title: `删除${c.label}`, message: `确定删除${c.label}「${name}」？${tail}`, confirmText: '确认删除' }))) return
+  const snap = removeCompassNode(d.value, kind, id)
+  if (!snap) { showToast('⚠ 该节点已不存在'); return }
   store.persist()
-  showToast('已删除')
+  showToast(`已删除${c.label}「${name.slice(0, 14)}」`, { label: '撤销', cb: () => {
+    if (restoreCompassNode(d.value, snap)) { store.persist(); showToast(`✓ 已恢复${c.label}「${name.slice(0, 14)}」`) }
+    else showToast(`⚠ 上级节点已不在，无法单独恢复「${name.slice(0, 14)}」`)
+  } })
 }
 /** R141（反馈 #1）：指标下任务行的 ✕ = 解绑回任务调度模块，删除本体收进任务详情 */
 function unbindTask(task: TaskCard) {
@@ -573,7 +582,7 @@ onUnmounted(() => {
               <span class="tl-badge">3 战略目标 → 4 攻坚项目 → 5 成功指标 → 6 任务</span>
               <span class="tl-hint">主攻项目强化边框 · 缺任务指标实时警示 · 点击指标展开任务</span>
               <button class="add-btn-inline" @click="addDirection"><span>＋</span> 添加战略目标</button>
-              <span class="node-action ai-chain-act" title="AI 依愿景/使命建议本阶段战略目标（同层查重后采纳才创建）" @click="aiChain('directions', '')">🤖 建议目标</span>
+              <span class="node-action ai-chain-act" title="AI 依愿景/使命建议本阶段战略目标（同层查重后采纳才创建）" @click="aiChain('directions', '')"><ZhiMark :size="12" /> 建议目标</span>
             </div>
 
             <div v-if="!d.compass.directions.length" class="empty-state">
@@ -594,7 +603,7 @@ onUnmounted(() => {
                     <span>{{ visibleProjectsOf(dir).length }} 攻坚项目 · {{ dir.projects.reduce((s,p)=>s+p.metrics.length,0) }} 成功指标</span>
                     <span class="tct-acts" @click.stop>
                       <span class="node-action" @click="addProject(dir.id)" title="添加项目">＋</span>
-                      <span class="node-action" @click="aiChain('projects', dir.id)" title="AI 建议攻坚项目（补路径依赖，查重后采纳才创建）">🤖</span>
+                      <span class="node-action" @click="aiChain('projects', dir.id)" title="AI 建议攻坚项目（补路径依赖，查重后采纳才创建）"><ZhiMark :size="12" /></span>
                       <span class="node-action" @click="openGoalImport(dir)" title="导入模板（Markdown 批量生成项目/指标/任务）">📋</span>
                       <span class="node-action danger" @click="deleteNode('dir', dir.id)" title="删除目标">🗑</span>
                     </span>
@@ -618,7 +627,7 @@ onUnmounted(() => {
                       <span class="node-action" @click="openProjectDrawer(proj.id)" title="打开项目全景">📦</span>
                       <span class="node-action" @click="router.push({ path: '/compass/projects', query: { p: proj.id, from: 'tree' } })" title="进入项目详情页">📄</span>
                       <span class="node-action" @click="addMetric(proj.id)" title="添加指标">＋</span>
-                      <span class="node-action" @click="aiChain('metrics', proj.id)" title="AI 建议成功指标（可量化验收，查重后采纳才创建）">🤖</span>
+                      <span class="node-action" @click="aiChain('metrics', proj.id)" title="AI 建议成功指标（可量化验收，查重后采纳才创建）"><ZhiMark :size="12" /></span>
                       <span class="node-action danger" @click="deleteNode('proj', proj.id)" title="删除项目">🗑</span>
                     </span>
                   </div>
@@ -634,7 +643,7 @@ onUnmounted(() => {
                       <span class="tm-caret">{{ expandedMetrics.has(metric.id) ? '▾' : '▸' }}</span>
                       <span class="tm-acts" @click.stop>
                         <span class="node-action" @click="openTaskAdd(metric.id, proj.id)" title="添加任务（新建 / 关联）">＋</span>
-                        <span class="node-action" @click="aiChain('tasks', metric.id)" title="AI 按指标缺口建议近两周任务（查重后采纳才创建）">🤖</span>
+                        <span class="node-action" @click="aiChain('tasks', metric.id)" title="AI 按指标缺口建议近两周任务（查重后采纳才创建）"><ZhiMark :size="12" /></span>
                         <span class="node-action danger" @click="deleteNode('metric', metric.id)" title="删除指标">🗑</span>
                       </span>
                     </div>
@@ -864,7 +873,7 @@ onUnmounted(() => {
 .node:hover .node-actions { opacity: 1; }
 /* R68-F4：操作按钮主题感知——原硬编码不透明白底 + 浅灰图标，深色主题（近黑画布）下对比度崩坏看不到入口 */
 .node-action { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; color: var(--text-2); transition: all var(--dur); background: var(--surface-3); border: 1px solid var(--border); }
-/* R135：文字型 AI 入口（添加战略目标旁的「🤖 建议目标」） */
+/* R135：文字型 AI 入口（添加战略目标旁的「知 建议目标」） */
 .ai-chain-act { width: auto; padding: 0 8px; gap: 3px; font-size: 10.5px; white-space: nowrap; }
 .node-action:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
 .node-action.danger:hover { color: var(--danger); }

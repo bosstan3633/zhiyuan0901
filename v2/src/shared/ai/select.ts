@@ -7,7 +7,7 @@ import type { AppData, ResourceCard, TaskCard } from '@/shared/models'
 import { uid } from '@/shared/utils'
 import type { AiJob, AiRow } from './job'
 import type { AiDepth } from './config'
-import { chat, extractJson } from './llm'
+import { chatStream, extractJson } from './llm'
 import { projectChain, cardDirectory, projectTaskTargets, projectWeekDigest, projectCard } from './project'
 import { fetchLinkText, linkFetchable } from './linkFetch'
 import {
@@ -68,19 +68,57 @@ export function buildRecommendJob(task: TaskCard, ctx: SelectCtx): AiJob | null 
   }
 }
 
-/** 1d：搜索意图重排——只读。命中列表（≤20）+ 关键词 → 真相关 ≤6 条 + 一句意图理解 */
+/**
+ * 1d：搜索意图重排——只读。命中列表（≤14）→ 真相关 ≤6 条 + 一句意图理解。
+ * R146（实测：点了就一直"理解中"）三处提速：
+ *  ①非流式 900 token 改流式 420 token——JSON 一闭合立刻掐断连接，不等模型把尾巴说完；
+ *  ②30 秒硬超时 + 外部可中止（改词、关浮层、再点一次都真取消，不留下悬空请求）；
+ *  ③投料从 20 条压到 14 条、每行正文≤40 字——首字延迟直接取决于输入规模。
+ */
 export interface RerankInput { id: string; type: string; title: string; ws: string; cat: string; summary?: string }
-export async function rerankSearch(query: string, items: RerankInput[]): Promise<{ order: RerankHit[]; note: string }> {
-  const lines = items.slice(0, 20).map(i => `- id=${i.id} [${i.type}] ${i.title} | ${i.ws} / ${i.cat}${i.summary ? ' | ' + i.summary.replace(/\s+/g, ' ').slice(0, 60) : ''}`).join('\n')
-  const text = await chat({
-    messages: [
-      { role: 'system', content: rerankSystem() },
-      { role: 'user', content: `【搜索关键词】${query}\n【字面命中列表】\n${lines}` },
-    ],
-    maxTokens: 900,
-  })
-  const parsed = extractJson<{ order?: RerankHit[]; note?: string }>(text)
-  const valid = new Set(items.map(i => i.id))
+export interface RerankOpts { signal?: AbortSignal; onDelta?: (chars: number) => void }
+const RERANK_CAP = 14
+const RERANK_TIMEOUT_MS = 30000
+/** 流式早停判据：整段 JSON 已闭合且 order 是数组 → 再等下去只会更慢 */
+function rerankReady(t: string): boolean {
+  const s = t.indexOf('{')
+  const e = t.lastIndexOf('}')
+  if (s < 0 || e <= s) return false
+  try { return Array.isArray((JSON.parse(t.slice(s, e + 1)) as { order?: unknown }).order) } catch { return false }
+}
+export async function rerankSearch(query: string, items: RerankInput[], opts: RerankOpts = {}): Promise<{ order: RerankHit[]; note: string }> {
+  const cands = items.slice(0, RERANK_CAP)
+  const lines = cands.map(i =>
+    `- id=${i.id} [${i.type}] ${i.title.slice(0, 60)} | ${i.ws} / ${i.cat}${i.summary ? ' | ' + i.summary.replace(/\s+/g, ' ').slice(0, 40) : ''}`).join('\n')
+  const ac = new AbortController()
+  const relay = () => ac.abort()
+  opts.signal?.addEventListener('abort', relay)
+  let timedOut = false
+  let early = false
+  let accum = ''
+  const timer = setTimeout(() => { timedOut = true; ac.abort() }, RERANK_TIMEOUT_MS)
+  try {
+    await chatStream({
+      messages: [
+        { role: 'system', content: rerankSystem() },
+        { role: 'user', content: `【搜索关键词】${query}\n【字面命中列表】\n${lines}` },
+      ],
+      maxTokens: 420, temperature: 0.2, signal: ac.signal,
+      onDelta: (a) => { accum = a; opts.onDelta?.(a.length); if (!early && rerankReady(a)) { early = true; ac.abort() } },
+    })
+  } catch (e) {
+    if ((e as Error).name !== 'AbortError' || !early) {
+      if (timedOut) throw new Error(`${RERANK_TIMEOUT_MS / 1000} 秒无响应——换轻量模型，或稍后再试`)
+      if (opts.signal?.aborted) throw new Error('已取消')
+      throw e
+    }
+  } finally {
+    clearTimeout(timer)
+    opts.signal?.removeEventListener('abort', relay)
+  }
+  if (!accum.trim()) throw new Error('网关没有回内容（换「标准/深度」档或稍后再试）')
+  const parsed = extractJson<{ order?: RerankHit[]; note?: string }>(accum)
+  const valid = new Set(cands.map(i => i.id))
   return {
     order: (Array.isArray(parsed?.order) ? parsed.order : [])
       .map(h => ({ id: String(h?.id ?? ''), why: h?.why ? String(h.why).slice(0, 40) : undefined }))

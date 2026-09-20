@@ -4,6 +4,8 @@ import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { showToast } from '@/shared/components/toast'
+import { useConfirm } from '@/shared/components/confirm'
+import ZhiMark from '@/shared/components/ZhiMark.vue'
 import { purgeCardsCompletely, type PurgeTargets } from '@/shared/storage/purge'
 import type { ResourceCard, TaskCard, CuriosityCard, ID } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
@@ -113,7 +115,7 @@ function restoreCurio(c: CuriosityCard) {
   show(`✓ 已恢复「${c.question.slice(0, 20)}」`)
 }
 
-// ---- 永久删除 ----
+// ---- 永久删除（R146：全应用唯一真正不可逆的动作，必须逐次确认 + 回执点名）----
 /** R128-A3：硬删四类副作用（附件本体 / metric.taskIds / 数组移除 / 悬空投射）统一到
  *  shared/storage/purge.purgeCardsCompletely——与设置页「清空回收站」共用一份口径。
  *  附件本体不再无条件删除：仍被其他卡（含回收站待恢复卡）引用的共享本体保留（REQ-050 转卡引用拷贝）。 */
@@ -123,28 +125,41 @@ async function purge(targets: PurgeTargets): Promise<number> {
   if (r.assetsFailed > 0) show(`⚠ ${r.assetsFailed} 个附件本体删除失败（孤儿可到「设置 · 数据管理」清理）`)
   return r.cards
 }
-async function purgeRes(r: ResourceCard) { await purge({ resources: [r] }); show('🗑 已永久删除') }
-async function purgeTask(t: TaskCard) { await purge({ tasks: [t] }); show('🗑 已永久删除') }
-async function purgeCurio(c: CuriosityCard) { await purge({ curiosities: [c] }); show('🗑 已永久删除') }
+async function purgeWith(what: string, name: string, targets: PurgeTargets) {
+  if (!(await useConfirm({ title: '永久删除', message: `确定永久删除${what}「${name}」？\n此操作不可恢复：卡片本体、其附件（若无其它卡引用）与镜像投射记录一并清除。`, confirmText: '永久删除' }))) return
+  const n = await purge(targets)
+  show(n ? `🗑 已永久删除${what}「${name.slice(0, 16)}」· 不可恢复` : `⚠ ${what}「${name.slice(0, 16)}」已不在回收站`)
+}
+function purgeRes(r: ResourceCard) { void purgeWith('资源卡', r.title, { resources: [r] }) }
+function purgeTask(t: TaskCard) { void purgeWith('任务卡', t.title, { tasks: [t] }) }
+function purgeCurio(c: CuriosityCard) { void purgeWith('好奇心卡', c.question, { curiosities: [c] }) }
+/** R146：分类分区补上永久删除（原先只有恢复——四类对象两套口径） */
+function purgeCat(c: { id: ID; name: string }) { void purgeWith('分类', c.name, { categories: [c as never] }) }
 
 // ---- 全部恢复 / 清空 ----
+/** 恢复是安全动作：不弹确认，但一次动作只报一条账（原实现每条各弹一次 toast，互相顶掉） */
 function restoreAll() {
   const cur = tab.value
-  if (cur === 'res') res.value.forEach(r => restoreRes(r))
-  else if (cur === 'task') tasks.value.forEach(t => restoreTask(t))
-  else if (cur === 'cat') cats.value.forEach(c => restoreCat(c))
-  else curios.value.forEach(c => restoreCurio(c))
+  const list = cur === 'res' ? res.value : cur === 'task' ? tasks.value : cur === 'cat' ? cats.value : curios.value
+  if (!list.length) { show('该分区没有可恢复的条目'); return }
+  const now = Date.now()
+  for (const x of list as { deletedAt?: number; updatedAt?: number }[]) { x.deletedAt = undefined; if (x.updatedAt !== undefined) x.updatedAt = now }
   store.persist()
+  show(`♻ 已恢复 ${list.length} 项（${tabLabelOf(cur)}）· 归属需手动归位的见各条说明`)
 }
+function tabLabelOf(k: 'res' | 'task' | 'curio' | 'cat') { return k === 'res' ? '资源卡' : k === 'task' ? '任务卡' : k === 'cat' ? '分类' : '好奇心卡' }
 async function purgeAll() {
   const cur = tab.value
+  const list = cur === 'res' ? res.value : cur === 'task' ? tasks.value : cur === 'cat' ? cats.value : curios.value
+  if (!list.length) { show('该分区已是空的'); return }
+  if (!(await useConfirm({ title: '清空回收站分区', message: `确定永久删除本分区全部 ${list.length} 项（${tabLabelOf(cur)}）？\n不可恢复，且会一并清除仅被这些卡引用的附件本体。`, confirmText: `清空 ${list.length} 项` }))) return
   const targets: PurgeTargets =
-    cur === 'cat' ? { categories: cats.value }
-    : cur === 'res' ? { resources: res.value }
-    : cur === 'task' ? { tasks: tasks.value }
-    : { curiosities: curios.value }
+    cur === 'cat' ? { categories: list as never }
+    : cur === 'res' ? { resources: list as ResourceCard[] }
+    : cur === 'task' ? { tasks: list as TaskCard[] }
+    : { curiosities: list as CuriosityCard[] }
   const n = await purge(targets)
-  show(n ? `✓ 当前分区已清空（${n} 项）` : '该分区已是空的')
+  show(n ? `✓ 已永久删除 ${n} 项（${tabLabelOf(cur)}）· 不可恢复` : '该分区已是空的')
 }
 const tabMeta = computed(() => [
   { k: 'res' as const, label: '📄 资源卡', list: res.value, n: res.value.length },
@@ -161,7 +176,7 @@ const tabMeta = computed(() => [
       <div class="rb-title">🗑 回收站</div>
       <div class="rb-desc">删除的卡片软删除移入此处，可恢复；永久删除不可撤销</div>
       <div class="rb-actions">
-        <button class="rb-btn" @click="aiRescue" title="AI 对照现存卡与活跃目标，逐条判定值得恢复/建议清除">🤖 值得捞回</button>
+        <button class="rb-btn" @click="aiRescue" title="AI 对照现存卡与活跃目标，逐条判定值得恢复/建议清除"><ZhiMark :size="13" /> 值得捞回</button>
         <button class="rb-btn" @click="restoreAll">♻ 恢复当前分区全部</button>
         <button class="rb-btn danger" @click="purgeAll">🗑 清空当前分区</button>
       </div>
@@ -228,6 +243,7 @@ const tabMeta = computed(() => [
         </div>
         <div class="rb-item-ops">
           <button class="rb-btn sm" @click="restoreCat(c)">恢复</button>
+          <button class="rb-btn sm danger" @click="purgeCat(c)">永久删除</button>
         </div>
       </div>
       <div v-if="!cats.length" class="rb-empty">回收站空空如也 ✨</div>

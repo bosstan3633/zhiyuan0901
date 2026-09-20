@@ -10,6 +10,7 @@ import { useAppStore } from '../stores/app'
 import { readEventLog } from '@/shared/utils/eventLog'
 import { buildWeeklyReport, weekWindow, type ReportPeriod, type ReportDrillEvent, type WeeklyReport } from '@/shared/utils/weeklyReport'
 import { showToast } from '@/shared/components/toast'
+import ZhiMark from '@/shared/components/ZhiMark.vue'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{
@@ -95,7 +96,7 @@ async function aiInsight() {
           <div class="wr-head">
             <span class="wr-title">📊 调度画像</span>
             <span class="wr-period">{{ periodLabel }}</span>
-            <button class="wr-ai" title="AI 深度洞察：只体检投入与重心（近 7 天台账），采纳=存资源卡" @click="aiInsight">🤖 深度洞察</button>
+            <button class="wr-ai" title="AI 深度洞察：只体检投入与重心（近 7 天台账），采纳=存资源卡" @click="aiInsight"><ZhiMark :size="12" /> 深度洞察</button>
             <div class="wr-switch">
               <button class="wr-sw" :class="{ on: period === 0 }" @click="setPeriod(0)">本周</button>
               <button class="wr-sw" :class="{ on: period === -1 }" @click="setPeriod(-1)">上周</button>
@@ -175,7 +176,7 @@ async function aiInsight() {
           </div>
           <div v-else class="wr-loading">{{ loading ? '统计中…' : '' }}</div>
 
-          <div class="wr-foot">纯读取统计 · 数据不出本机（🤖 洞察需你手动触发才走你配置的网关）· Esc 关闭</div>
+          <div class="wr-foot">纯读取统计 · 数据不出本机（「知」洞察需你手动触发才走你配置的网关）· Esc 关闭</div>
         </div>
       </div>
     </Transition>

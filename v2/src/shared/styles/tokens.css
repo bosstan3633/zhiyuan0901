@@ -129,6 +129,8 @@
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
   --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+  /* R146：回执条配色（原 Toast 写死 #1A1D23/#fff/#8FC4A3，浅色主题下动作色仅 1.98:1） */
+  --toast-bg: #1A1D23; --toast-fg: #F2F3F5; --toast-action: #8FC4A3;
 }
 
 /* ===== 光速黑 · 同新 Elevation 规范（原珊瑚红 accent 退役） ===== */
@@ -179,6 +181,8 @@
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
   --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+  /* R146：回执条配色（深色主题同款） */
+  --toast-bg: #1A1D23; --toast-fg: #F2F3F5; --toast-action: #8FC4A3;
 }
 
 /* ===== 极简白 · 冷灰白阶梯（新 Elevation 结构） ===== */
@@ -229,6 +233,8 @@
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 0 0 1px var(--border), 0 8px 24px rgba(0, 0, 0, 0.07);
   --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+  /* R146：回执条配色（浅色主题：白底深字 + 达标绿动作色 6.4:1） */
+  --toast-bg: #FFFFFF; --toast-fg: #1D1D1F; --toast-action: #1E7A34;
 }
 
 /* ===== 纸墨白 · 暖纸白阶梯（新 Elevation 结构） ===== */
@@ -279,6 +285,8 @@
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(15, 15, 15, 0.04);
   --shadow-lg: 0 0 0 1px var(--border), 0 8px 24px rgba(15, 15, 15, 0.07);
   --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+  /* R146：回执条配色（纸墨白：暖白底 + 深墨字 + 达标绿动作色） */
+  --toast-bg: #FBFAF8; --toast-fg: #2B2A27; --toast-action: #3A6B4C;
 }
 
 /* ===== 全局重置 ===== */

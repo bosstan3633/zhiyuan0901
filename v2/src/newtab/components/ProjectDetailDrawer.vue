@@ -12,6 +12,7 @@ import Drawer from '@/shared/components/Drawer.vue'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
 import { flattenTaskTree, unbindTaskFromMetric } from '@/shared/utils/taskLinks'
+import { removeMetricWithConfirm } from '@/shared/utils/compassCrud'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import MountCountBadge from './MountCountBadge.vue'
 import { taskMaturity, metricMaturity } from '@/shared/utils/maturity'
@@ -112,12 +113,8 @@ async function removeMetric(metricId: string) {
   if (!project.value) return
   const m = project.value.metrics.find(x => x.id === metricId)
   if (!m) return
-  // B27 对齐：删指标不删任务，任务转为未归类（可拖回任意指标）
-  const taskCount = tasksForMetric(metricId).length
-  if (!(await useConfirm({ title: '删除成功指标', message: taskCount ? `确定删除「${m.title}」？\n其下 ${taskCount} 个任务将转为未归类任务（可拖回任意指标）。` : `确定删除「${m.title}」？`, confirmText: '确认删除' }))) return
-  tasksForMetric(metricId).forEach(t => { t.metricId = undefined; t.updatedAt = Date.now() })
-  project.value.metrics = project.value.metrics.filter(x => x.id !== metricId)
-  store.persist()
+  // R146：并到真源（确认报数 + 3 秒撤销），与策展台/调度台/方向树同一口径
+  void removeMetricWithConfirm(d.value, metricId, () => store.persist())
 }
 
 /** 第卅三轮 REQ-016：指标添加任务双模式（新建 / 关联）→ 共享抽屉 TaskAddDrawer */

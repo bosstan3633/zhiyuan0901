@@ -16,6 +16,7 @@ import AssetManager from '@/shared/components/AssetManager.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import { taskMaturity, curioResIds } from '@/shared/utils/maturity'
+import ZhiMark from '@/shared/components/ZhiMark.vue'
 
 const router = useRouter()
 const store = useAppStore()
@@ -432,8 +433,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
       <div class="ts-foot">
         <!-- R48：删除按钮降级（ghost 弱化，hover 扣动扳机），主操作唯一 -->
         <button class="ts-del-ghost" @click="deleteTask(selectedTask.id)" title="删除任务（可在回收站撤销）">🗑 删除</button>
-        <button class="mini-btn" @click="aiBreakdown" title="AI 拆解本任务：可建半天粒度步骤子任务，也可只把步骤清单写进详情；还能换专家执笔">🤖 拆解步骤</button>
-        <button class="mini-btn" @click="aiRecommend" title="AI 从全库挑此刻用得上的资源卡（采纳=挂载到本任务）">🤖 推荐卡</button>
+        <button class="mini-btn" @click="aiBreakdown" title="AI 拆解本任务：可建半天粒度步骤子任务，也可只把步骤清单写进详情；还能换专家执笔"><ZhiMark :size="13" /> 拆解步骤</button>
+        <button class="mini-btn" @click="aiRecommend" title="AI 从全库挑此刻用得上的资源卡（采纳=挂载到本任务）"><ZhiMark :size="13" /> 推荐卡</button>
         <span class="ts-foot-spacer"></span>
         <button class="mini-btn primary" @click="saveTaskTitleAndClose">✓ 完成并关闭 <span class="ts-kbd">Ctrl+↩</span></button>
       </div>

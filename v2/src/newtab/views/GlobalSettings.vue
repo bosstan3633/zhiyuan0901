@@ -9,9 +9,9 @@
           :key="item.key"
           class="gs-nav-item"
           :class="{ active: activePage === item.key }"
-          @click="activePage = item.key"
+          @click="onNavClick(item)"
         >
-          <span class="gs-nav-icon">{{ item.icon }}</span>{{ item.label }}
+          <ZhiMark v-if="item.mark" :size="14" class="gs-nav-icon" /><span v-else class="gs-nav-icon">{{ item.icon }}</span>{{ item.label }}
         </div>
       </div>
     </aside>
@@ -360,7 +360,7 @@
       <!-- ===== 标签管理（N4 · 行内编辑） ===== -->
       <div v-if="activePage === 'tags'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">🏷 标签管理 <button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 体检标签体系：同义合并 + 裸标签归位（勾选采纳才级联改卡与树）" @click="aiTagGovern">🤖 标签体检</button><button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 整体梳理：盘点全卡（含按需读链接正文）→ 重建金字塔标签树蓝图 → 全卡补全打标，两道评审门 + 自动快照可还原" @click="aiTagRevise">🧹 整体梳理</button><button v-if="aiReviseBak" class="gs-btn ai-batch-btn" title="回滚到上次整体梳理之前（标签树与卡片标签全还原）" @click="aiRestoreRevise">↺ 还原上次梳理</button></div>
+          <div class="gs-page-title">🏷 标签管理 <button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 体检标签体系：同义合并 + 裸标签归位（勾选采纳才级联改卡与树）" @click="aiTagGovern"><ZhiMark :size="13" /> 标签体检</button><button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 整体梳理：盘点全卡（含按需读链接正文）→ 重建金字塔标签树蓝图 → 全卡补全打标，两道评审门 + 自动快照可还原" @click="aiTagRevise">🧹 整体梳理</button><button v-if="aiReviseBak" class="gs-btn ai-batch-btn" title="回滚到上次整体梳理之前（标签树与卡片标签全还原）" @click="aiRestoreRevise">↺ 还原上次梳理</button></div>
                     <div class="gs-page-desc">两级标签体系 · 三种卡片打标签的唯一来源 · 拖拽根标签到另一根标签上即成子标签（卡片标签同步为「父/子」）· 双击标签行直接改名</div>
         </div>
         <div class="tt-wrap">
@@ -428,7 +428,7 @@
         </div>
           <!-- R127：右列——当前标签下的卡片（三卡合一 / 类型过滤 / 搜索 / 多选拖拽移动） -->
           <div class="gs-card">
-            <div class="gs-card-header"><span class="gs-card-title">#{{ ttActiveTag || '未选择标签' }}{{ ttActiveTag ? ' · ' + ttRows.length + ' 张' : '' }}</span><label v-if="ttActiveTag" class="gs-pan-allcheck"><input type="checkbox" :checked="ttAllChecked" @change="toggleTtAll" /> 全选本标签</label><button v-if="ttPicked.size" class="gs-btn ai-batch-btn" :disabled="!aiReady" title="对勾选卡片做 AI 批量补全（标签/描述/分类建议）" @click="aiTtEnrich">🤖 批量补全({{ ttPicked.size }})</button><span class="gs-card-desc">单击选中 · 双击详情 · 多选后拖到左侧标签即移动（替换）</span></div>
+            <div class="gs-card-header"><span class="gs-card-title">#{{ ttActiveTag || '未选择标签' }}{{ ttActiveTag ? ' · ' + ttRows.length + ' 张' : '' }}</span><label v-if="ttActiveTag" class="gs-pan-allcheck"><input type="checkbox" :checked="ttAllChecked" @change="toggleTtAll" /> 全选本标签</label><button v-if="ttPicked.size" class="gs-btn ai-batch-btn" :disabled="!aiReady" title="对勾选卡片做 AI 批量补全（标签/描述/分类建议）" @click="aiTtEnrich"><ZhiMark :size="13" /> 批量补全({{ ttPicked.size }})</button><span class="gs-card-desc">单击选中 · 双击详情 · 多选后拖到左侧标签即移动（替换）</span></div>
             <div class="gs-card-body">
               <div v-if="!ttActiveTag" class="gs-tt-empty">点击左侧标签查看其下卡片</div>
               <template v-else>
@@ -477,7 +477,7 @@
       <!-- ===== R134-F · AI 助手 ===== -->
       <div v-if="activePage === 'ai'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">🤖 AI 助手 <span class="gs-dash-en">AI</span></div>
+          <div class="gs-page-title"><ZhiMark :size="17" /> AI 助手 <span class="gs-dash-en">AI</span></div>
           <div class="gs-page-desc">接 OpenAI 兼容大模型 API · 建议经你审阅勾选后才写入 · 密钥仅存本机（独立键，不随数据导出包外发）</div>
         </div>
 
@@ -893,7 +893,7 @@
               <button class="gs-btn gs-btn-danger" @click="emptyRecycleBin">清空</button>
             </div>
             <div class="gs-danger-action">
-              <div class="gs-da-info"><div class="gs-da-name">清除缓存</div><div class="gs-da-desc">清除临时文件等，不影响卡片数据</div></div>
+              <div class="gs-da-info"><div class="gs-da-name">清除缓存</div><div class="gs-da-desc">清除 AI 抓过的网页正文与会话抽读缓存（内存态）；卡片数据与附件本体不动</div></div>
               <button class="gs-btn" @click="clearCache">清除</button>
             </div>
           </div>
@@ -1055,12 +1055,14 @@ import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
 // R134-F（批次 F）：AI 助手——地基三件套（config/llm/projector/scenarios）+ 建议评审抽屉。
 // 性能纪律：shared/ai 只被懒加载路由（设置页/详情抽屉）静态消费，不进启动链；密钥存独立键 zy_ai_v1 不随导出。
 import AiSuggestionDrawer from '@/newtab/components/AiSuggestionDrawer.vue'
+import ZhiMark from '@/shared/components/ZhiMark.vue'
 import type { AiJob, AiRow } from '@/shared/ai/job'
 import { aiConfig, loadAiConfig, patchAiConfig, aiReady, type AiDepth } from '@/shared/ai/config'
 import { listModels, testConnection as aiTestConnection, chatStream, extractJson } from '@/shared/ai/llm'
 import { projectCards, projectDormant, projectLibrary, catPathOf as aiCatPathOf } from '@/shared/ai/project'
 import { batchEnrichSystem, dormantSystem, diagnosisSystem, allPersonas, personaOverrides, sanitizeRefs, type EnrichSuggestion, type DormantVerdict } from '@/shared/ai/scenarios'
-import { buildTagGovernJob, buildTrashRescueJob, buildCrossDeckJob, buildThesisJob, buildTagBlueprintJob, buildTagAssignJob, consumeTagBlueprintAdopted, getTagReviseBackup, restoreTagReviseBackup } from '@/shared/ai/govern'
+import { buildTagGovernJob, buildTrashRescueJob, buildCrossDeckJob, buildThesisJob, buildTagBlueprintJob, buildTagAssignJob, consumeTagBlueprintAdopted, getTagReviseBackup, restoreTagReviseBackup , reviseSnips } from '@/shared/ai/govern'
+import { clearLinkCache } from '@/shared/ai/linkFetch'
 import { buildReviewJob } from '@/shared/ai/select'
 import { buildDeliverJob } from '@/shared/ai/batchG'
 
@@ -1088,13 +1090,19 @@ function openManualTab() {
 }
 
 // ---- 导航 ----
+/** R146（回退契约 ⑨）：导航项可挂路由出口——回收站是整页（列表+批量操作），设置页内不重复实现一份 */
+interface NavItem { key: string; icon?: string; label: string; route?: string; mark?: boolean }
+function onNavClick(item: NavItem) {
+  if (item.route) { router.push(item.route); return }
+  activePage.value = item.key
+}
 // 第卌四轮 T-03：设置默认首屏 = 知源仪表盘
 const activePage = ref('dashboard')
 /** 深链：/settings?page=tags 直达指定面板（TagPicker 空体系引导跳转用） */
 function pageFromQuery(): string | null {
   const p = route.query.page
   if (typeof p !== 'string') return null
-  return navGroups.some(g => g.items.some(i => i.key === p)) ? p : null
+  return navGroups.some(g => g.items.some(i => i.key === p && !i.route)) ? p : null
 }
 onMounted(() => {
   const p = pageFromQuery(); if (p) activePage.value = p
@@ -1236,7 +1244,7 @@ function formatBackupAgo(ts: number): string {
   return new Date(ts).toLocaleDateString('zh-CN')
 }
 watch(() => route.query.page, () => { const p = pageFromQuery(); if (p) activePage.value = p })
-const navGroups = [
+const navGroups: { title: string; items: NavItem[] }[] = [
   // R54-E1（修订第卌四轮五组拍板）：总览 = 知源仪表盘 + 策展台全景并列，「整理」组取消
   { title: '总览', items: [
     { key: 'dashboard', icon: '📊', label: '知源仪表盘' },
@@ -1252,12 +1260,14 @@ const navGroups = [
     { key: 'thesis', icon: '🏛', label: '策展主题卡' },
     // 第卌四轮 Q-6：标签管理上移——它服务卡片呈现，与三卡同组
     { key: 'tags', icon: '🏷', label: '标签管理' },
-    // R134-F：AI 助手（接入配置 + 沉睡唤醒 + 一键诊断）
-    { key: 'ai', icon: '🤖', label: 'AI 助手' },
+    // R134-F：AI 助手（接入配置 + 沉睡唤醒 + 一键诊断）· R146：入口徽标统一为「知」
+    { key: 'ai', mark: true, label: 'AI 助手' },
   ]},
   { title: '数据', items: [
     { key: 'import', icon: '⬇', label: '导入数据' },
     { key: 'export', icon: '⬆', label: '导出数据' },
+    // R146-⑨：删除有两条路（回收站可反悔 / 永久删除不可逆），入口必须常驻左栏而不是埋在危险区里
+    { key: 'recycle', icon: '🗑', label: '回收站', route: '/recycle' },
     { key: 'reset', icon: '🔄', label: '重置与回滚' },
   ]},
   { title: '系统', items: [
@@ -2335,12 +2345,15 @@ function doReset() {
   setTimeout(() => router.push('/compass'), 800)
 }
 /** R128-A3：与回收站页共用同一硬删引擎（此前这里只 filter 数组——附件 Blob 全量泄漏成孤儿、
- *  任务卡脱离 metric.taskIds、指向已删卡的镜像投射记录悬空） */
+ *  任务卡脱离 metric.taskIds、指向已删卡的镜像投射记录悬空）
+ *  R146（回退契约）：加确认闸——同页「一键回滚」要打字确认，而这个更常用的清空却单击即物理删除，
+ *  两个相邻按钮给出相反的风险信号。 */
 async function emptyRecycleBin() {
   const d = store.data!
   const targets = recycledCardsOf(d)
   const n = targets.resources.length + targets.tasks.length + targets.curiosities.length + targets.categories.length
   if (!n) { showToast('回收站已是空的'); return }
+  if (!(await useConfirm({ title: '清空回收站', message: `确定永久删除回收站里全部 ${n} 项？\n不可恢复，且仅被这些卡引用的附件本体会一并清除。`, confirmText: `永久删除 ${n} 项` }))) return
   const r = await purgeCardsCompletely(d, targets)
   store.persist()
   const parts = [`✓ 回收站已清空，永久删除 ${r.cards} 项`]
@@ -2348,8 +2361,15 @@ async function emptyRecycleBin() {
   if (r.assetsShared) parts.push(`${r.assetsShared} 个共享附件保留`)
   showToast(parts.join(' · ') + (r.assetsFailed ? ` ⚠ ${r.assetsFailed} 个附件删除失败（可清理孤儿）` : ''))
 }
+/** R146：这行按钮原先是**假回执**（函数体只有一句 showToast('✓ 缓存已清除')，什么都没做）——
+ *  它会污染用户对其它 ✓ 的信任。现在真做事：清 AI 抓过的网页正文会话缓存与整体梳理抽读缓存
+ *  （都是内存态，关掉页面本来也没了；此处提供"立刻重来一遍"的手动闸）。
+ *  孤儿附件本体不在此列——它在「数据管理」里有专属按钮（cleanupOrphanAssetsAction）。 */
 function clearCache() {
-  showToast('✓ 缓存已清除')
+  const links = clearLinkCache()
+  const snips = reviseSnips.size
+  reviseSnips.clear()
+  showToast(links || snips ? `✓ 缓存已清：${links} 篇网页正文 · ${snips} 篇梳理抽读正文（卡片数据未动）` : '✓ 没有需要清理的缓存（AI 会话正文是空的）')
 }
 
 // ---- 抓取偏好 ----

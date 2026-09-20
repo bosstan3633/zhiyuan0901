@@ -14,6 +14,7 @@ import { visibleFields } from '@/shared/utils/fields'
 import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
 import { readEventLog } from '@/shared/utils/eventLog'
 import { softDeleteTaskToTrash, unbindTaskFromMetric } from '@/shared/utils/taskLinks'
+import { removeMetricWithConfirm } from '@/shared/utils/compassCrud'
 import { subscribeSaveError, getLastSaveOkAt, getBytesInUse, hasUnlimitedStorage, saveDataNow, saveUIPrefs } from '@/shared/storage/repository'
 import { pendingRows, runSync } from '@/shared/storage/airtable'
 import type { SaveError } from '@/shared/storage/repository'
@@ -561,19 +562,10 @@ function confirmAddMetric() {
   showToast('✓ 成功指标「' + title + '」已新增')
   addingMetric.value = false
 }
-/** 成功指标删除 = 摘除关联：指标从项目移除，其下任务转「未关联指标」（不物理删任务） */
+/** 成功指标删除 = 摘除关联（R146 并到真源：确认报数 + 3 秒撤销，四视图同一口径） */
 function removeMetric(metricId: string) {
-  const p = curProject.value
-  if (!p) return
-  const m = p.metrics.find(x => x.id === metricId)
-  if (!m) return
-  const n = m.taskIds.length
-  p.metrics = p.metrics.filter(x => x.id !== metricId)
-  for (const t of d.value.tasks) {
-    if (t.metricId === metricId) { t.metricId = undefined; t.updatedAt = Date.now() }
-  }
-  store.persist()
-  showToast('✓ 指标「' + m.title + '」已删除' + (n ? '，' + n + ' 个任务转为未关联指标' : ''))
+  if (!curProject.value) return
+  void removeMetricWithConfirm(d.value, metricId, () => store.persist())
 }
 /** 关联任务到具体指标：跨项目先改归属，再设指标并双写 taskIds */
 function linkTaskToMetric(t: TaskCard, metricId?: string) {

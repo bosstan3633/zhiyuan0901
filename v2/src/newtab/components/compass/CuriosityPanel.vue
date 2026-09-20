@@ -31,6 +31,7 @@ import { useTaHeight } from '@/shared/utils/taHeight'
 import { onOpenDrawer } from '@/shared/utils/bus'
 import { visibleFields } from '@/shared/utils/fields'
 import { recordCardOpen } from '@/shared/storage/stats'
+import ZhiMark from '@/shared/components/ZhiMark.vue'
 
 const { curiosities, STATUS_MAP, update, setStatus, remove, convertToTask, convertToResource } = useCuriosity()
 const store = useAppStore()
@@ -456,7 +457,7 @@ function srcShort(url: string): string {
 <template>
   <ModuleCard icon-name="bulb" title="好奇心培育" en="CURIOSITY">
     <template #actions>
-      <button class="cz-batch-btn ai" title="AI 逐条研判待探索池：哪些值得转成任务、哪些继续养着、哪些可以放下（勾选采纳才写库）" @click="aiTriage">🤖 转化研判</button>
+      <button class="cz-batch-btn ai" title="AI 逐条研判待探索池：哪些值得转成任务、哪些继续养着、哪些可以放下（勾选采纳才写库）" @click="aiTriage"><ZhiMark :size="13" /> 转化研判</button>
       <button class="cz-batch-btn" :class="{active: batchMode}" @click="batchMode = !batchMode">
         {{ batchMode ? '完成' : '☑ 批量管理' }}
       </button>

@@ -14,6 +14,8 @@ import TaskAddDrawer from '../components/TaskAddDrawer.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
+import ZhiMark from '@/shared/components/ZhiMark.vue'
+import { removeMetricWithConfirm } from '@/shared/utils/compassCrud'
 import MountCountBadge from '../components/MountCountBadge.vue'
 import { taskMaturity, metricMaturity } from '@/shared/utils/maturity'
 
@@ -116,15 +118,10 @@ function metricPct(metricId: string): number {
   return ts.length ? Math.round(ts.filter(t => t.status === 'done').length / ts.length * 100) : 0
 }
 
-async function removeMetric(m: Metric) {
+/** R146：删指标并到真源（确认报数 + 3 秒撤销），与项目抽屉/调度台/方向树同一口径 */
+function removeMetric(m: Metric) {
   if (!currentProject.value) return
-  const taskCount = d.value.tasks.filter(t => !t.deletedAt && t.metricId === m.id).length
-  const okFlag = await useConfirm({ title: '删除成功指标', message: taskCount ? `确定删除「${m.title}」？\n其下 ${taskCount} 个任务将转为未归类任务（可拖回任意指标）。` : `确定删除「${m.title}」？`, confirmText: '确认删除' })
-  if (!okFlag) return
-  d.value.tasks.forEach(t => { if (!t.deletedAt && t.metricId === m.id) t.metricId = undefined })
-  currentProject.value.metrics = currentProject.value.metrics.filter(x => x.id !== m.id)
-  store.persist()
-  showToast('已删除指标' + (taskCount ? `，${taskCount} 个任务转为未归类` : ''))
+  void removeMetricWithConfirm(d.value, m.id, () => store.persist())
 }
 /** B27：孤儿任务——所属指标已删除的任务 */
 const orphanTasks = computed(() => {
@@ -234,7 +231,7 @@ const headerMetricAdding = ref(false)
 const headerMetricTitle = ref('')
 const vFocus = { mounted: (el: HTMLElement) => el.focus() }
 function startHeaderAddMetric() { headerMetricAdding.value = true; headerMetricTitle.value = '' }
-// R135：项目详情页页头「🤖 建议指标」——与方向树同一链式生成地基，锚点=当前项目
+// R135：项目详情页页头「知 建议指标」——与方向树同一链式生成地基，锚点=当前项目
 const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
 const aiJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
 const aiPersonaId = ref('default')
@@ -249,6 +246,43 @@ async function aiChainMetrics() {
   const job = buildChainJob('metrics', p.id, { d: store.data, depth: aiConfig.value.depth, persist: () => store.persist(), personaId: aiPersonaId.value, onPersona: (id) => { aiPersonaId.value = id; void aiChainMetrics() } })
   if (!job) { showToast('⚠ 项目已不存在'); return }
   aiJob.value = job
+}
+/** R146（用户反馈）：AI 入口下沉到行——每个指标一颗「按此指标拆任务」、每个任务一颗「本任务 AI 辅助」。
+ *  常态可见（不再 hover 才出现），且跑动时徽标自转补上 pending 反馈。 */
+async function aiChainAt(level: 'tasks' | 'breakdown', anchorId: string) {
+  if (!store.data) return
+  const [{ loadAiConfig, aiReady, aiConfig }, { buildChainJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/chain')])
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  if (aiPersonaId.value === 'default' && aiConfig.value.defaultPersona) aiPersonaId.value = aiConfig.value.defaultPersona
+  const job = buildChainJob(level, anchorId, { d: store.data, depth: aiConfig.value.depth, persist: () => store.persist(), personaId: aiPersonaId.value, onPersona: (id) => { aiPersonaId.value = id; void aiChainAt(level, anchorId) } })
+  if (!job) { showToast('⚠ 锚点已不存在（可能刚被删除）'); return }
+  aiJob.value = job
+}
+async function aiRecommendFor(taskId: string) {
+  if (!store.data) return
+  const t = store.data.tasks.find(x => x.id === taskId)
+  if (!t) return
+  const [{ loadAiConfig, aiReady, aiConfig }, sel] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  const job = sel.buildRecommendJob(t, { d: store.data, depth: aiConfig.value.depth, persist: () => store.persist() })
+  if (!job) { showToast('⚠ 库里还没有可推荐的资源卡'); return }
+  aiJob.value = job
+}
+/** 任务行的 AI 菜单（拆解 / 荐卡 / 开详情）——一个入口进三种辅助，避免每行堆三颗按钮 */
+const aiMenu = ref<{ id: string; x: number; y: number } | null>(null)
+function openAiMenu(e: MouseEvent, task: TaskCard) {
+  e.stopPropagation()
+  aiMenu.value = { id: task.id, x: Math.min(e.clientX, window.innerWidth - 210), y: Math.min(e.clientY, window.innerHeight - 150) }
+}
+function pickAiMenu(kind: 'breakdown' | 'recommend' | 'detail') {
+  const id = aiMenu.value?.id
+  aiMenu.value = null
+  if (!id) return
+  if (kind === 'detail') { const t = store.data?.tasks.find(x => x.id === id); if (t) openTaskDetail(t); return }
+  if (kind === 'recommend') { void aiRecommendFor(id); return }
+  void aiChainAt('breakdown', id)
 }
 function confirmHeaderAddMetric() {
   const p = currentProject.value
@@ -589,7 +623,7 @@ function addTaskFromHeader() {
         </div>
         <div class="pb-acts">
           <button class="mini-btn" @click="startHeaderAddMetric">＋ 添加成功指标</button>
-          <button class="mini-btn" @click="aiChainMetrics" title="AI 基于上游目标链建议可量化成功指标（查重后采纳才创建）">🤖 建议指标</button>
+          <button class="mini-btn" @click="aiChainMetrics" title="AI 基于上游目标链建议可量化成功指标（查重后采纳才创建）"><ZhiMark :size="13" /> 建议指标</button>
           <button class="mini-btn primary" @click="addTaskFromHeader">＋ 添加任务</button>
           <span class="pb-more-wrap">
             <button class="mini-btn icon" title="更多：主攻 / 方向树定位 / 删除项目" @click.stop="projMenuOpen = !projMenuOpen">⋯</button>
@@ -639,6 +673,7 @@ function addTaskFromHeader() {
           <span class="mh-meta">{{ metricPct(m.id) }}% · {{ tasksForMetric(m.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(m.id).length }} 任务</span>
           <MaturityBadge :m="metricMaturity(d, m)" />
           <span class="mh-acts">
+            <button class="icon-btn-sm ai" title="AI 按本指标缺口建议近两周任务（勾选采纳才创建，可换执笔专家）" @click="aiChainAt('tasks', m.id)"><ZhiMark :size="13" /></button>
             <button class="icon-btn-sm" title="添加任务（新建 / 关联）" @click="openTaskAdd(m)">＋</button>
             <button class="icon-btn-sm del" title="删除指标" @click="removeMetric(m)">🗑</button>
           </span>
@@ -655,6 +690,7 @@ function addTaskFromHeader() {
             <AssetBadge v-if="task.assets?.length" :assets="task.assets" />
             <MaturityBadge :m="taskMaturity(task)" />
             <MountCountBadge :t="task" />
+            <button class="icon-btn-sm ai" title="本任务的 AI 辅助：拆解成子任务 / 推荐资源卡 / 打开详情" @click="openAiMenu($event, task)"><ZhiMark :size="13" /></button>
             <button class="icon-btn-sm" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）" @click="unbindTask(task)">✕</button>
           </div>
           <div class="task-add" @click="openTaskAdd(m)">＋ 添加任务（新建 / 关联）</div>
@@ -677,6 +713,7 @@ function addTaskFromHeader() {
             <span class="tag" :class="prTag(t.priority)"><i class="tag-dot" /><span class="tag-txt">{{ prLabel(t.priority) }}</span></span>
             <MaturityBadge :m="taskMaturity(t)" />
             <MountCountBadge :t="t" />
+            <button class="icon-btn-sm ai" title="本任务的 AI 辅助：拆解成子任务 / 推荐资源卡 / 打开详情" @click="openAiMenu($event, t)"><ZhiMark :size="13" /></button>
             <button class="icon-btn-sm del" title="删除任务（进回收站）" @click="removeTask(t)">🗑</button>
           </div>
         </div>
@@ -739,8 +776,18 @@ function addTaskFromHeader() {
 
     <!-- R49-D6：任务详情 = 共享 TaskDetailDrawer（R48 重设计组件，宿主于此页） -->
     <TaskDetailDrawer ref="detailRef" />
-    <!-- R135：页头「🤖 建议指标」评审抽屉 -->
+    <!-- R135：页头「建议指标」评审抽屉 -->
     <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
+
+    <!-- R146：任务行 AI 辅助菜单（拆解 / 荐卡 / 详情）——一行一颗「知」，不堆三颗按钮 -->
+    <Teleport to="body">
+      <div v-if="aiMenu" class="ai-menu-mask" @click="aiMenu = null" />
+      <div v-if="aiMenu" class="ai-menu" :style="{ left: aiMenu.x + 'px', top: aiMenu.y + 'px' }" @click.stop>
+        <button class="ai-menu-item" @click="pickAiMenu('breakdown')"><ZhiMark :size="13" /> 拆解成子任务</button>
+        <button class="ai-menu-item" @click="pickAiMenu('recommend')"><ZhiMark :size="13" /> 推荐资源卡</button>
+        <button class="ai-menu-item" @click="pickAiMenu('detail')">📋 打开任务详情</button>
+      </div>
+    </Teleport>
 
 
     <!-- 第卅三轮 REQ-016：指标添加任务双模式（新建 / 关联） -->
@@ -828,6 +875,13 @@ function addTaskFromHeader() {
 .icon-btn-sm { width: 24px; height: 24px; border: none; border-radius: 6px; background: transparent; color: var(--text-3); cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; font-family: inherit; flex-shrink: 0; }
 .icon-btn-sm:hover { background: var(--surface-3); color: var(--text); }
 .icon-btn-sm.del:hover { color: var(--danger); }
+/* R146：行内 AI 入口常态可见（审计：hover 才现=触屏与键盘 100% 摸不到），强调色只给"AI 可点"这一层 */
+.icon-btn-sm.ai { color: var(--accent); opacity: .78; }
+.icon-btn-sm.ai:hover { color: var(--accent); opacity: 1; background: var(--accent-light); }
+.ai-menu-mask { position: fixed; inset: 0; z-index: 690; background: transparent; }
+.ai-menu { position: fixed; z-index: 691; min-width: 176px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; display: flex; flex-direction: column; gap: 2px; }
+.ai-menu-item { display: flex; align-items: center; gap: 8px; padding: 8px 11px; border: none; border-radius: 7px; background: transparent; color: var(--text-2); font-size: 12px; font-family: inherit; text-align: left; cursor: pointer; }
+.ai-menu-item:hover { background: var(--surface-3); color: var(--text); }
 .task-rows { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; min-height: 20px; }
 .btask { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 8px; transition: background var(--dur-fast); }
 .btask:hover { background: var(--surface-2); }

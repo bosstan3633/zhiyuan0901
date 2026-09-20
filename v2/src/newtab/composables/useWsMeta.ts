@@ -9,6 +9,8 @@ import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import { CURATION_WS_ID, type AppData, type Workspace } from '@/shared/models'
 import { wsDisplayNameOf, wsNameWithIcon } from '@/shared/utils/wsName'
+// R146（回退契约）：删除策展台走真源（卡与分类软删 + 3 秒整台撤销）
+import { deckCardCount, deleteDeck, restoreDeck } from '@/shared/utils/compassCrud'
 
 export interface WsMetaCtx {
   store: { persist(): void }
@@ -113,16 +115,18 @@ export function useWsMeta(ctx: WsMetaCtx) {
   async function deleteWorkspace() {
     // R58-B1：资源台是全局策展空间，不可从此入口删除
     if (workspaceId.value === CURATION_WS_ID) { showToast('ℹ 资源台为系统空间，不在此删除'); return }
-    // R58-B1：红线修复——资源卡一律软删（deletedAt，回收站可恢复），不再物理移除
-    if (!(await useConfirm({ title: '删除策展台', message: `确定删除策展台「${wsDisplayNameOf(workspace.value)}」？\n其中资源卡将全部移入回收站（可恢复），分类与策展台本身将删除且不可恢复。`, confirmText: '确认删除' }))) return
-    const idx = d.value.workspaces.findIndex(w => w.id === workspaceId.value)
-    if (idx >= 0) d.value.workspaces.splice(idx, 1)
-    const now = Date.now()
-    for (const r of d.value.resources) if (r.workspaceId === workspaceId.value && !r.deletedAt) r.deletedAt = now
-    for (const c of d.value.categories) if (c.workspaceId === workspaceId.value && !c.deletedAt) c.deletedAt = now // R109（F12-b）：分类随台软删（回收站可恢复）
+    // R146（回退契约）：接真源 deleteDeck——确认里报出会被带进回收站的卡数，删除后 3 秒可整台撤销
+    const n = deckCardCount(d.value, workspaceId.value)
+    if (!(await useConfirm({ title: '删除策展台', message: `确定删除策展台「${wsDisplayNameOf(workspace.value)}」？\n其中 ${n} 张资源卡与全部分类将移入回收站（可恢复）；台本身从标签栏移除，3 秒内可撤销，超时后需在回收站逐张恢复。`, confirmText: '确认删除' }))) return
+    const snap = deleteDeck(d.value, workspaceId.value)
+    if (!snap) { showToast('⚠ 该策展台已不存在'); return }
     store.persist()
-    showToast('策展台已删除（资源卡已移入回收站）')
     router.push('/compass')
+    showToast(`已删除策展台「${wsDisplayNameOf(snap.ws).slice(0, 14)}」· ${snap.cardIds.length} 张卡进回收站`, { label: '撤销', cb: () => {
+      restoreDeck(d.value, snap)
+      store.persist()
+      showToast(`✓ 已恢复策展台「${wsDisplayNameOf(snap.ws).slice(0, 14)}」及其 ${snap.cardIds.length} 张卡`)
+    } })
   }
 
   return {
