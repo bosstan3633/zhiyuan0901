@@ -231,9 +231,9 @@ export function buildThesisJob(ctx: GovernCtx): AiJob | null {
 
 // ============== R143 · 标签整体梳理（蓝图 → 全卡补全打标，两道评审门 + 快照还原） ==============
 
-/** 同会话正文抽样缓存（蓝图阶段按需抓的，归架阶段直接复用，零重抓） */
-const reviseSnips = new Map<string, string>()
-const SNIP_CAP: Record<AiDepth, number> = { eco: 30, std: 60, deep: 150 }
+/** 同会话正文抽样缓存（蓝图阶段按需抓的，归架阶段直接复用，零重抓；R144 批次 G 共用） */
+export const reviseSnips = new Map<string, string>()
+export const SNIP_CAP: Record<AiDepth, number> = { eco: 30, std: 60, deep: 150 }
 
 interface ReviseRoot { name: string; definition?: string; children: { name: string; definition?: string }[] }
 function sanitizeBlueprint(bag: { tree?: BlueprintRoot[]; mappings?: TagMapping[] }, usedTags: Set<string>): { roots: ReviseRoot[]; mappings: TagMapping[] } {

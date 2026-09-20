@@ -11,7 +11,7 @@ import type { Direction, Project, TaskCard } from '@/shared/models'
 import Drawer from '@/shared/components/Drawer.vue'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
-import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
+import { flattenTaskTree, unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import MountCountBadge from './MountCountBadge.vue'
 import { taskMaturity, metricMaturity } from '@/shared/utils/maturity'
@@ -134,6 +134,16 @@ function unbindTask(taskId: string) {
   store.persist()
   showToast(`✓ 已从本指标移除：「${t.title.slice(0, 16)}」回到任务调度模块`)
 }
+/** R144：子任务软层级——父在前子紧随缩进（真源 flattenTaskTree），⤴ 只摘父子关联 */
+function metricTaskRows(metricId: string) { return flattenTaskTree(tasksForMetric(metricId)) }
+function promoteTask(taskId: string) {
+  const t = d.value.tasks.find(x => x.id === taskId)
+  if (!t) return
+  t.parentId = undefined
+  t.updatedAt = Date.now()
+  store.persist()
+  showToast('⤴ 已升为顶层任务')
+}
 </script>
 
 <template>
@@ -172,12 +182,13 @@ function unbindTask(taskId: string) {
           <button class="pd-mini danger" @click="removeMetric(m.id)" title="删除指标">🗑</button>
         </div>
         <div class="pd-tasks">
-          <div v-for="t in tasksForMetric(m.id)" :key="t.id" class="pd-task" :class="{done: t.status==='done'}">
-            <div class="pd-check" :class="{done: t.status==='done'}" @click="toggleTask(t.id)">{{ t.status==='done'?'✓':'' }}</div>
-            <input class="pd-task-name" :value="t.title" @change="renameTask(t.id, $event)" />
-            <MaturityBadge :m="taskMaturity(t)" />
-            <MountCountBadge :t="t" />
-            <button class="pd-mini" @click="unbindTask(t.id)" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）">✕</button>
+          <div v-for="{ t: task, sub } in metricTaskRows(m.id)" :key="task.id" class="pd-task" :class="{done: task.status==='done', sub}">
+            <div class="pd-check" :class="{done: task.status==='done'}" @click="toggleTask(task.id)">{{ task.status==='done'?'✓':'' }}</div>
+            <input class="pd-task-name" :value="task.title" @change="renameTask(task.id, $event)" />
+            <MaturityBadge :m="taskMaturity(task)" />
+            <MountCountBadge :t="task" />
+            <button v-if="sub" class="pd-mini" @click="promoteTask(task.id)" title="⤴ 升为顶层任务（解父子关联，指标归属不变）">⤴</button>
+            <button class="pd-mini" @click="unbindTask(task.id)" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）">✕</button>
           </div>
           <div v-if="!tasksForMetric(m.id).length" class="pd-task-empty">暂无任务，点击 ＋ 添加</div>
         </div>
@@ -224,6 +235,7 @@ function unbindTask(taskId: string) {
 .pd-tasks { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
 .pd-task { display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 6px; }
 .pd-task:hover { background: var(--surface); }
+.pd-task.sub { margin-left: 18px; padding-left: 8px; border-left: 2px solid var(--border); }
 .pd-task.done .pd-task-name { text-decoration: line-through; color: var(--text-3); }
 .pd-check { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; }
 .pd-check:hover { border-color: var(--accent); }

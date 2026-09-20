@@ -554,12 +554,14 @@
         </div>
 
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">🧭 库内治理</span><span class="gs-card-desc">扫描型建议：跨台镜像 / 主题漂移 / 回收站捞回（标签体检入口在「标签管理」页）</span></div>
+          <div class="gs-card-header"><span class="gs-card-title">🧭 库内治理与成文</span><span class="gs-card-desc">扫描型建议：跨台镜像 / 主题漂移 / 回收站捞回 / 本周回顾 / 成果文稿（标签体检与整体梳理在「标签管理」页）</span></div>
           <div class="gs-card-body ai-form-row">
             <button class="gs-btn" :disabled="!aiReady" @click="aiCrossDeck">🔁 跨台镜像发现</button>
             <button class="gs-btn" :disabled="!aiReady" @click="aiThesisDrift">🏛 主题漂移检测</button>
             <button class="gs-btn" :disabled="!aiReady" @click="aiTrashRescue">🗑 回收站捞回</button>
             <button class="gs-btn" :disabled="!aiReady" title="近 7 天台账 → 周回顾草稿；采纳=存为一张周回顾卡" @click="aiWeeklyReview">🗓 本周回顾</button>
+            <label class="ai-field inline"><input class="gs-input ai-genre" type="text" v-model="aiGenre" placeholder="体裁（可留空）：公众号短文 / 分享稿 / 结项说明…" @keydown.enter.prevent="aiDeliver" /></label>
+            <button class="gs-btn" :disabled="!aiReady" title="论点卡 + 活跃目标 + 近 30 天完成 → 一篇可交付文稿；采纳=存为一张成果文稿卡，或下载 .md" @click="aiDeliver">📄 成果文稿</button>
           </div>
         </div>
 
@@ -1060,6 +1062,7 @@ import { projectCards, projectDormant, projectLibrary, catPathOf as aiCatPathOf 
 import { batchEnrichSystem, dormantSystem, diagnosisSystem, allPersonas, personaOverrides, sanitizeRefs, type EnrichSuggestion, type DormantVerdict } from '@/shared/ai/scenarios'
 import { buildTagGovernJob, buildTrashRescueJob, buildCrossDeckJob, buildThesisJob, buildTagBlueprintJob, buildTagAssignJob, consumeTagBlueprintAdopted, getTagReviseBackup, restoreTagReviseBackup } from '@/shared/ai/govern'
 import { buildReviewJob } from '@/shared/ai/select'
+import { buildDeliverJob } from '@/shared/ai/batchG'
 
 const router = useRouter()
 const route = useRoute()
@@ -2606,6 +2609,7 @@ const aiModels = ref<string[]>([])
 const aiBusy = ref<'' | 'models' | 'test'>('')
 const aiMsg = ref('')
 const aiDormantDays = ref(90)
+const aiGenre = ref('')
 const aiPersonas = computed(() => allPersonas())
 const aiPersonaSel = ref<string[]>([])
 let aiPersonaSynced = false
@@ -2678,6 +2682,10 @@ function aiThesisDrift() { aiOpenJob(buildThesisJob({ d: gd.value, depth: aiConf
 function aiTrashRescue() { aiOpenJob(buildTrashRescueJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '回收站是空的') }
 /** R138-F2′：本周回顾草稿（采纳=存为一张周回顾资源卡） */
 function aiWeeklyReview() { aiOpenJob(buildReviewJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '近 7 天没有台账数据（任务/打开记录都是空的）') }
+/** R144 · G4：成果文稿（论点+目标+近期完成 → 可交付文稿；采纳=存卡，次通道=下载 .md） */
+function aiDeliver() {
+  aiOpenJob(buildDeliverJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist(), genre: aiGenre.value.trim() }), '库里还没有论点卡或已完成任务——先立个论点或做完一件事再来成文')
+}
 
 function aiErr(e: unknown): string { return (e as Error)?.message || String(e) }
 function aiGuard(): boolean {
@@ -3447,6 +3455,7 @@ const activeManualSec = ref('quick-1')
 .ai-field .gs-input { width: 100%; }
 .ai-form-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .ai-days { width: 72px; }
+.ai-genre { width: 260px; font-size: 12px; }
 .ai-depth { width: auto; }
 .ai-msg { font-size: 11.5px; color: var(--success); max-width: 100%; word-break: break-all; }
 .ai-msg.err { color: var(--danger); }

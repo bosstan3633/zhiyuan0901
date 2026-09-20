@@ -28,10 +28,10 @@
       <template v-if="thesisCard">
         <span class="tb-badge">🏛 中心论点</span>
         <span class="tb-title" :title="thesisCard.title" @click.stop="onCardClick(thesisCard)">{{ thesisCard.title }}</span>
-        <button class="tb-btn" @click="setViewMode('pyramid')">⬡ 查看金字塔结构论证 ›</button>
+        <button class="tb-btn" @click="setViewMode('pyramid')">⬡ 查看金字塔结构论证 ›</button><ThesisAiBtn :ws-id="workspaceId" :ws-name="wsDisplayName" />
       </template>
       <template v-else>
-        <span class="tb-badge gray">🏛 中心论点</span><span class="tb-hint">＋ 点击确立本策展台的 L1 中心论点，让研究从判断出发</span><button class="tb-btn" @click="openThesisCreate">＋ 确立中心论点</button>
+        <span class="tb-badge gray">🏛 中心论点</span><span class="tb-hint">＋ 点击确立本策展台的 L1 中心论点，让研究从判断出发</span><button class="tb-btn" @click="openThesisCreate">＋ 确立中心论点</button><ThesisAiBtn :ws-id="workspaceId" :ws-name="wsDisplayName" />
       </template>
     </div>
     <!-- R64-F13：hero 大标题区删除——重命名/图标/描述编辑收进 ⚙ 菜单，导入/新建按钮上移工具条 -->
@@ -869,7 +869,7 @@
         <div class="nm-item" @click="nmCreateSibling">🌿 新建同级节点</div>
         <div class="nm-item" @click="nmMirrorCat">📤 从资源台镜像分类</div>
         <div class="nm-item" @click="nmPack">🗂 打包所选卡片入此节点</div>
-        <div class="nm-item" @click="nmRename">✎ 重命名</div>
+        <div class="nm-item" @click="nmRename">✎ 重命名</div><EvidenceMenuItem :ws-id="workspaceId" :cat-id="nodeMenu.catId" @close="nodeMenu.open=false" />
         <div class="nm-divider"></div>
         <div class="nm-item danger" @click="nmDelete">🗑 删除节点（卡片回待分类）</div>
       </div>
@@ -952,7 +952,7 @@ import { saveUIPrefs } from '@/shared/storage/repository'
 import { useOverlayTarget } from '@/shared/utils/overlayHost'
 import { showToast } from '@/shared/components/toast'
 import { deleteAsset, cleanupOrphanAssets } from '@/shared/storage/assets'
-import AssetPreview from '@/shared/components/AssetPreview.vue'; import CardAiEntry from '@/newtab/components/CardAiEntry.vue'; import CatNodeName from '@/newtab/components/CatNodeName.vue'
+import AssetPreview from '@/shared/components/AssetPreview.vue'; import CardAiEntry from '@/newtab/components/CardAiEntry.vue'; import CatNodeName from '@/newtab/components/CatNodeName.vue'; import ThesisAiBtn from '@/newtab/components/ThesisAiBtn.vue'; import EvidenceMenuItem from '@/newtab/components/EvidenceMenuItem.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'

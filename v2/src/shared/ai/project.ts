@@ -9,6 +9,7 @@
 import type { AppData, ResourceCard, Project, Metric, TaskCard } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
+import { curioRelated } from '@/shared/utils/maturity'
 import type { AiDepth } from './config'
 
 const CAP: Record<AiDepth, { cards: number; titles: number; list: number; desc: number }> = {
@@ -296,6 +297,94 @@ export function projectThesis(d: AppData, depth: AiDepth): string {
     blocks.push(`台 wsId=${w.id} 「${wsDisplayNameOf(w)}」主题卡:「${cut(th.title, 40)}」${th.description ? ` 论点:${cut(th.description, c.desc)}` : ''}\n卡群 ${cards.length - 1} 张：\n${sample || '（无其它卡）'}`)
   }
   return blocks.join('\n\n') || ''
+}
+
+/** R144 · G1 论点提炼投料：单台卡群全量台账（分类归属+用量）+ 愿景使命锚 + 已抽读正文 */
+export function projectDeckThesis(d: AppData, wsId: string, depth: AiDepth, snips: Map<string, string>): string {
+  const c = CAP[depth]
+  const ws = (d.workspaces || []).find(w => w.id === wsId)
+  if (!ws) return ''
+  const cards = (d.resources || []).filter(r => !r.deletedAt && r.workspaceId === wsId && !r.isThesis)
+  if (!cards.length) return ''
+  const L: string[] = []
+  const th = (d.resources || []).find(r => r.workspaceId === wsId && r.isThesis && !r.deletedAt)
+  L.push(`【本台】${wsDisplayNameOf(ws)}${th ? `\n【现有中心论点】「${cut(th.title, 40)}」${cut(th.description, c.desc)}` : '\n【现有中心论点】（还没有——请从卡群证据里立一个）'}`)
+  L.push(`【愿景】${cut(d.compass.vision?.content, 120) || '（未填）'}\n【使命】${cut(d.compass.mission?.content, 120) || '（未填）'}`)
+  const catName = new Map((d.categories || []).filter(x => !x.deletedAt).map(x => [x.id, x.name]))
+  const rows = cards.slice(0, c.cards).map(r =>
+    `- cardId=${r.id} 「${cut(r.title, 40)}」 分类:${catName.get(r.categoryId) || '未分'} 描述:${r.description?.trim() ? cut(r.description.trim(), 50) : '（空）'} 标签[${(r.tags || []).join('、') || '无'}] 打开${r.callCount || 0}次`)
+  L.push(`【卡群台账（共 ${cards.length} 张${cards.length > c.cards ? `，取前 ${c.cards}` : ''}）】\n${rows.join('\n')}`)
+  const mine = [...snips.entries()].filter(([id]) => cards.some(r => r.id === id))
+  L.push(mine.length
+    ? `【链接正文抽样（${mine.length} 篇）】\n${mine.map(([id, t]) => `· cardId=${id} 正文节选：${t.replace(/\n/g, ' ')}`).join('\n')}`
+    : '【链接正文抽样】（本轮未补读正文——只据卡面判断，别假装有读过）')
+  return L.join('\n\n')
+}
+
+/** R144 · G2 好奇研判投料：待探索池逐条（含挂载数/成熟度/动静）+ 愿景使命与活跃目标做「值不值得转」的参照 */
+export function projectCurioPool(d: AppData, ids: string[], depth: AiDepth, snips: Map<string, string>): string {
+  const c = CAP[depth]
+  const want = new Set(ids)
+  const pool = (d.curiosities || []).filter(x => want.has(x.id) && !x.deletedAt).slice(0, c.cards)
+  if (!pool.length) return ''
+  const L: string[] = []
+  L.push(`【愿景】${cut(d.compass.vision?.content, 120) || '（未填）'}\n【使命】${cut(d.compass.mission?.content, 120) || '（未填）'}`)
+  const dirs = (d.compass.directions || []).filter(x => x.status === 'active').slice(0, 6)
+    .map(x => `- ${x.name}（${x.term || '未分期'}）：${x.projects.map(p => cut(p.name, 16)).join('、') || '无项目'}`)
+  L.push(`【活跃战略目标】\n${dirs.join('\n') || '（暂无活跃目标）'}`)
+  const day = 86400000
+  const rows = pool.map(x => {
+    const rel = curioRelated(d, x)
+    let host = ''
+    try { host = new URL(x.sourceUrl || '').host } catch { /* 无来源链接留空 */ }
+    const age = Math.max(0, Math.round((Date.now() - (x.lastCalledAt || x.updatedAt || x.createdAt)) / day))
+    return `- curioId=${x.id} 「${cut(x.question, 60)}」 ${x.status === 'doing' ? '探索中' : '待探索'} 挂资源${rel.length}张${rel.length ? `(${cut(rel[0]!.title, 16)})` : ''}${host ? ` 来源:${host}` : ''} 打开${x.callCount || 0}次 ${age}天没动过`
+  })
+  L.push(`【待探索池（${pool.length} 条）】\n${rows.join('\n')}`)
+  const mine = [...snips.entries()].filter(([id]) => pool.some(x => x.id === id))
+  L.push(mine.length
+    ? `【来源正文抽样（${mine.length} 篇）】\n${mine.map(([id, t]) => `· curioId=${id} 正文节选：${t.replace(/\n/g, ' ')}`).join('\n')}`
+    : '【来源正文抽样】（未补读正文——只据卡面研判，别假装有读过）')
+  return L.join('\n\n')
+}
+
+/** R144 · G3 找佐证投料：目标分支（名称/定义/现有卡）+ 资源台全库目录（镜像机制只接受资源台源卡） */
+export function projectEvidenceFor(
+  d: AppData, depth: AiDepth, branch: { name: string; definition?: string; path: string },
+  existing: { id: string; title: string }[], board: ResourceCard[],
+): string {
+  const c = CAP[depth]
+  const L: string[] = []
+  L.push(`【金字塔分支】${branch.path}\n这一支论证：${cut(branch.definition, 60) || '（台里没写定义——按分支名与其上层论点自行推断）'}`)
+  L.push(`【该分支已有的卡（${existing.length} 张，不要重复推荐）】\n${existing.map(x => `· ${cut(x.title, 40)}`).join('\n') || '（一张都没有——这正是来找证据的原因）'}`)
+  const rows = board.slice(0, c.cards).map(r =>
+    `- cardId=${r.id} 「${cut(r.title, 44)}」${r.description ? ` ${cut(r.description.trim(), 60)}` : ''}${r.tags?.length ? ` 标签[${r.tags.join(',')}]` : ''} 打开${r.callCount || 0}次`)
+  L.push(`【资源台卡目录（${board.length} 张${board.length > c.cards ? `，取前 ${c.cards}` : ''}）】\n${rows.join('\n') || '（资源台是空的——无卡可佐证）'}`)
+  return L.join('\n\n')
+}
+
+/** R144 · G4 成果文稿投料：愿景使命 + 活跃目标进度 + 各台论点 + 近期完成 + 卡群样本（全部可指回出处） */
+export function projectDeliverMaterial(d: AppData, depth: AiDepth, genre: string): string {
+  const c = CAP[depth]
+  const L: string[] = []
+  L.push(`【体裁要求】${cut(genre, 60) || '一篇可直接转发的短文'}\n【愿景】${cut(d.compass.vision?.content, 120) || '（未填）'}\n【使命】${cut(d.compass.mission?.content, 120) || '（未填）'}`)
+  const dirs = (d.compass.directions || []).filter(x => x.status === 'active').slice(0, 6).map(x => {
+    const ps = x.projects.map(p => `· 项目「${cut(p.name, 20)}」${p.isFocused ? '[主攻] ' : ''}进度${p.progress || 0}% ${p.endDate ? '截止' + p.endDate : '未定期限'}`).join('\n')
+    return `- 目标「${cut(x.name, 24)}」（${x.term || '未分期'}）\n${ps || '  （无项目）'}`
+  })
+  L.push(`【活跃战略目标与推进】\n${dirs.join('\n') || '（暂无活跃目标）'}`)
+  const ths = (d.resources || []).filter(r => !r.deletedAt && r.isThesis).slice(0, 8).map(r =>
+    `- 「${cut(r.title, 40)}」${cut(r.description, c.desc)}`)
+  L.push(`【各策展台中心论点（用户已经立住的判断）】\n${ths.join('\n') || '（还没有中心论点——那就从证据直接写，别硬造立场）'}`)
+  const monthAgo = Date.now() - 30 * 86400000
+  const done = (d.tasks || []).filter(t => !t.deletedAt && t.status === 'done' && (t.completedAt || t.updatedAt) >= monthAgo)
+    .slice(0, c.list).map(t => `- ✅ ${cut(t.title, 40)}${t.completedAt ? `（${new Date(t.completedAt).toLocaleDateString('zh-CN')} 完成）` : ''}`)
+  L.push(`【近 30 天完成的任务（成果候选）】\n${done.join('\n') || '（近 30 天没有完成任务——那就写成「下一阶段计划」而非「成绩单」，别把没做的事写成做过）'}`)
+  const opened = (d.resources || []).filter(r => !r.deletedAt && !r.isThesis && (r.lastCalledAt || 0) >= monthAgo)
+    .sort((a, b) => (b.callCount || 0) - (a.callCount || 0)).slice(0, c.titles)
+    .map(r => `- 「${cut(r.title, 40)}」${cut(r.description, 40)} 打开${r.callCount || 0}次`)
+  L.push(`【近期用过的资源卡（素材出处）】\n${opened.join('\n') || '（近期没打开过任何卡）'}`)
+  return L.join('\n\n')
 }
 
 /**

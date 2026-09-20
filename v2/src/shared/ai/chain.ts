@@ -122,7 +122,7 @@ export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx
   }
   if (level === 'breakdown') {
     // R139 双通道：主采纳=建步骤子任务；次采纳=同批勾选步骤合并成清单写进本任务详情（小任务不配子任务时用它）
-    job.hint = '勾选后二选一：「采纳」把步骤建成子任务（全库查重）；「步骤写入任务详情」只落清单进描述、不建卡。右上角可换执笔专家，换后自动重跑。'
+    job.hint = '勾选后二选一：「采纳」把步骤建成子任务（挂在父下、全库查重）；「步骤写入任务详情」只落清单进描述、不建卡。右上角可换执笔专家，换后自动重跑。'
     job.secondary = { label: '📝 步骤写入任务详情', apply: (rows) => writeStepsToTask(ctx.d, anchorId, rows, ctx.persist) }
   }
   return job
@@ -146,11 +146,11 @@ export function applyChain(level: ChainLevel, anchorId: string, ctx: ChainCtx, r
   const d = ctx.d
   let made = 0, dup = 0
   const now = Date.now()
-  const mkTask = (s: ChainSuggestion, projectId?: string, metricId?: string) => ({
+  const mkTask = (s: ChainSuggestion, projectId?: string, metricId?: string, parentId?: string) => ({
     id: uid('tk'), kind: 'task' as const, title: s.name!, status: 'todo' as const,
     priority: (s.priority || 'medium') as 'high' | 'medium' | 'low',
     dueDate: s.dueDate, estimatedMinutes: s.estimatedMinutes,
-    projectId, metricId,
+    projectId, metricId, parentId,
     mountedResourceIds: [], mountedCuriosityIds: [], customFields: {},
     createdAt: now, updatedAt: now,
   })
@@ -214,7 +214,7 @@ export function applyChain(level: ChainLevel, anchorId: string, ctx: ChainCtx, r
       }
       if (!s.name) continue
       if (d.tasks.some(x => !x.deletedAt && x.title === s.name)) { dup++; continue }
-      const step = mkTask(s, t.projectId, t.metricId)
+      const step = mkTask(s, t.projectId, t.metricId, t.id)
       d.tasks.unshift(step)
       if (t.metricId) {
         for (const x of d.compass.directions) for (const p of x.projects) { const m = p.metrics.find(y => y.id === t.metricId); if (m) m.taskIds.push(step.id) }

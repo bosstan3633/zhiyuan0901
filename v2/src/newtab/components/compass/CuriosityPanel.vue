@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick, defineAsyncComponent, shallowRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCuriosity, type CuriStatus } from '../../stores/curiosity'
 // R129-B12：台名剥图标走全站唯一口径（此处原为 /[^s]+s/ 漏写转义，图标一直在下拉里重复显示）
@@ -382,6 +382,29 @@ function confirmConvert() {
   detailId.value = null
 }
 
+/* ===== R144 · G2：转化研判（当前筛选口径下的待探索池 → 转任务 / 继续养 / 可搁置） ===== */
+const AiDrawer = defineAsyncComponent(() => import('../AiSuggestionDrawer.vue'))
+const aiJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
+async function aiTriage() {
+  const d = store.data
+  if (!d) return
+  const pool = filtered.value.filter(c => c.status === 'todo' || c.status === 'doing')
+  if (pool.length < 3) { showToast('待探索池少于 3 条——先多攒几条好奇心再研判'); return }
+  const [{ loadAiConfig, aiReady, aiConfig }, { buildCurioTriageJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/batchG')])
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  aiJob.value = buildCurioTriageJob({
+    d, depth: aiConfig.value.depth, persist: () => store.persist(), pool,
+    onConvert: (c, title) => {
+      if (c.deletedAt) return false
+      const t = convertToTask(c)
+      t.title = title.slice(0, 40)
+      t.description = ((t.description ? t.description + '\n\n' : '') + '💡 源自好奇研判：' + c.question.slice(0, 80))
+      return true
+    },
+  })
+}
+
 const batchMode = ref(false)
 const selected = ref<Set<string>>(new Set())
 function toggleSelect(id: string) {
@@ -433,6 +456,7 @@ function srcShort(url: string): string {
 <template>
   <ModuleCard icon-name="bulb" title="好奇心培育" en="CURIOSITY">
     <template #actions>
+      <button class="cz-batch-btn ai" title="AI 逐条研判待探索池：哪些值得转成任务、哪些继续养着、哪些可以放下（勾选采纳才写库）" @click="aiTriage">🤖 转化研判</button>
       <button class="cz-batch-btn" :class="{active: batchMode}" @click="batchMode = !batchMode">
         {{ batchMode ? '完成' : '☑ 批量管理' }}
       </button>
@@ -696,6 +720,7 @@ function srcShort(url: string): string {
     </Teleport>
 
     <ContextMenu :state="ctx" :items="ctxItems" @close="ctx.open = false" />
+    <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
   </ModuleCard>
 </template>
 

@@ -319,6 +319,17 @@ function metricName(metricId?: string): string {
   if (!metricId) return '未关联'
   return metricTitleById.value.get(metricId) || '未关联'
 }
+/** R144：子任务就地标注——父标题（缩进在方向树/项目抽屉，面板只做记号） */
+const taskParentById = computed(() => {
+  const m = new Map<string, string>()
+  const byId = new Map(d.value.tasks.map(t => [t.id, t]))
+  for (const t of d.value.tasks) {
+    const p = t.parentId ? byId.get(t.parentId) : undefined
+    if (p && !p.deletedAt) m.set(t.id, p.title)
+  }
+  return m
+})
+function parentTitleOf(t: TaskCard): string { return taskParentById.value.get(t.id) || '' }
 
 // ---- 拖拽：列表排序 / 看板跨列 ----
 let draggedTask: TaskCard | null = null
@@ -716,7 +727,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               <span v-else-if="tShow('status')" class="tm-status" :class="'st-'+task.status">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
               <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
               <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
-              <div class="tm-title"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
+              <div class="tm-title"><NewBadge :at="task.createdAt" /><span v-if="parentTitleOf(task)" class="tm-sub" :title="'子任务 · 父：' + parentTitleOf(task)">↳</span>{{ task.title }}</div>
               <!-- R117（04-61 D）：项目/指标/附件逐项受字段设置控制（原先无条件渲染） -->
               <div v-if="tShow('projectId') || tShow('metricId') || (taskAssetsOn && task.assets?.length)" class="tm-tags">
                 <span v-if="tShow('projectId')" class="tag accent">📦 {{ projectName(task.projectId) }}</span>
@@ -750,7 +761,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               <span v-else-if="tShow('status')" class="tm-status" :class="'st-'+task.status">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
               <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
               <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
-              <div class="tm-title"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
+              <div class="tm-title"><NewBadge :at="task.createdAt" /><span v-if="parentTitleOf(task)" class="tm-sub" :title="'子任务 · 父：' + parentTitleOf(task)">↳</span>{{ task.title }}</div>
               <!-- R117（04-61 D）：项目/指标/附件逐项受字段设置控制（原先无条件渲染） -->
               <div v-if="tShow('projectId') || tShow('metricId') || (taskAssetsOn && task.assets?.length)" class="tm-tags">
                 <span v-if="tShow('projectId')" class="tag accent">📦 {{ projectName(task.projectId) }}</span>
@@ -783,7 +794,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <span v-else class="tm-status" :class="'st-'+task.status">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
             <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
             <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
-            <div class="tm-title"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
+            <div class="tm-title"><NewBadge :at="task.createdAt" /><span v-if="parentTitleOf(task)" class="tm-sub" :title="'子任务 · 父：' + parentTitleOf(task)">↳</span>{{ task.title }}</div>
             <div class="tm-tags">
               <span class="tag accent">📦 {{ projectName(task.projectId) }}</span>
               <span v-if="task.metricId" class="tag warn">🎯 {{ metricName(task.metricId) }}</span>
@@ -819,7 +830,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <div v-if="batchMode" class="batch-check" :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)">{{ selectedTaskIds.has(task.id)?'✓':'' }}</div>
             <span v-else class="t-drag">⋮⋮</span>
             <div class="check-sm" :class="{done: task.status==='done'}" @click.stop="cycleTaskStatus(task.id)">{{ task.status==='done'?'✓':task.status==='doing'?'◐':'' }}</div>
-            <span class="tname"><NewBadge :at="task.createdAt" />{{ task.title }}</span>
+            <span class="tname"><NewBadge :at="task.createdAt" /><span v-if="parentTitleOf(task)" class="tm-sub" :title="'子任务 · 父：' + parentTitleOf(task)">↳</span>{{ task.title }}</span>
             <div class="row-tags">
               <span v-for="f in tListFields" :key="f.key" class="tag" :class="{'accent': f.key==='projectId', [ 'status-'+task.status ]: f.key==='status'}">{{ tShort(task, f) }}</span>
               <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
@@ -844,7 +855,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <div v-if="batchMode" class="batch-check" :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)">{{ selectedTaskIds.has(task.id)?'✓':'' }}</div>
             <span v-else class="t-drag">⋮⋮</span>
             <div class="check-sm" :class="{done: task.status==='done'}" @click.stop="cycleTaskStatus(task.id)">{{ task.status==='done'?'✓':task.status==='doing'?'◐':'' }}</div>
-            <span class="tname"><NewBadge :at="task.createdAt" />{{ task.title }}</span>
+            <span class="tname"><NewBadge :at="task.createdAt" /><span v-if="parentTitleOf(task)" class="tm-sub" :title="'子任务 · 父：' + parentTitleOf(task)">↳</span>{{ task.title }}</span>
             <div class="row-tags">
               <span v-for="f in tListFields" :key="f.key" class="tag" :class="{'accent': f.key==='projectId', [ 'status-'+task.status ]: f.key==='status'}">{{ tShort(task, f) }}</span>
               <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
@@ -862,7 +873,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           <div v-if="batchMode" class="batch-check" :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)">{{ selectedTaskIds.has(task.id)?'✓':'' }}</div>
           <span v-else class="t-drag">⋮⋮</span>
           <div class="check-sm" :class="{done: task.status==='done'}" @click.stop="cycleTaskStatus(task.id)">{{ task.status==='done'?'✓':task.status==='doing'?'◐':'' }}</div>
-          <span class="tname"><NewBadge :at="task.createdAt" />{{ task.title }}</span>
+          <span class="tname"><NewBadge :at="task.createdAt" /><span v-if="parentTitleOf(task)" class="tm-sub" :title="'子任务 · 父：' + parentTitleOf(task)">↳</span>{{ task.title }}</span>
           <div class="row-tags">
             <span v-for="f in tListFields" :key="f.key" class="tag" :class="{'accent': f.key==='projectId', [ 'status-'+task.status ]: f.key==='status'}">{{ tShort(task, f) }}</span>
           </div>
@@ -1075,6 +1086,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .tm-card:hover .tm-corner { opacity: .6; }
 .tm-corner:hover { opacity: 1 !important; background: var(--surface-3); }
 .tm-corner.on { opacity: 1; }
+.tm-sub { color: var(--text-3); font-weight: 400; margin-right: 3px; cursor: default; }
 .tm-title { font-size: 12.5px; font-weight: 600; line-height: 1.45; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .tm-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 .tm-ext { display: flex; flex-wrap: wrap; gap: 5px; }

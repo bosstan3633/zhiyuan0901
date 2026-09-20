@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '2.111.0'";
+const VER_ANCHOR_LITERAL = "version: '2.112.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -3632,7 +3632,7 @@ check('R135-3 链投影 projectChain：五层分支+上行链（愿景/使命恒
 check('R135-4 六个入口落位：方向树四层（建议目标/项目/指标/任务）+ 任务详情抽屉拆解 + 项目详情页建议指标；共用 buildChainJob 一个工厂', () => { const t = read('/newtab/views/CompassTree.vue'); const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return ["aiChain('directions', '')", "aiChain('projects', dir.id)", "aiChain('metrics', proj.id)", "aiChain('tasks', metric.id)"].every(x => t.includes(x)) && td.includes("buildChainJob('breakdown', t.id") && td.includes('🤖 拆解步骤') && pc.includes("buildChainJob('metrics', p.id") && pc.includes('🤖 建议指标'); });
 check('R135-5 ★懒加载纪律推广：罗盘三宿主均 defineAsyncComponent 挂 AiDrawer + 点击时才 import config/chain，无一例静态 import shared/ai（R134 入口 chunk 教训的横向锁）', () => { const files = ['/newtab/views/CompassTree.vue', '/newtab/components/compass/TaskDetailDrawer.vue', '/newtab/views/ProjectCuration.vue']; return files.every(f => { const s = read(f); return !s.includes("from '@/shared/ai/") && s.includes('defineAsyncComponent(() => import(') && s.includes("import('@/shared/ai/chain')") && s.includes("import('@/shared/ai/config')"); }); });
 check('R135-6 契约类型迁位 job.ts：AiRow/AiJob 单一真源在 shared/ai/job.ts，抽屉 re-export 保兼容，GS/RDD/chain 全从 job.ts 消费（.ts 侧不再 import .vue 类型）', () => { const j = read('/shared/ai/job.ts'); const d = read('/newtab/components/AiSuggestionDrawer.vue'); const g = read('/newtab/views/GlobalSettings.vue'); return j.includes('export interface AiJob') && d.includes("export type { AiRow, AiJob } from '@/shared/ai/job'") && g.includes("import type { AiJob, AiRow } from '@/shared/ai/job'"); });
-check('R135-7 拆解采纳语义：步骤任务继承原任务 projectId/metricId 并回写 metric.taskIds；行动方案行替换式写入描述（重复采纳不堆积）', () => { const c = read('/shared/ai/chain.ts'); return c.includes('const step = mkTask(s, t.projectId, t.metricId)') && c.includes('m.taskIds.push(step.id)') && c.includes("replace(/\\n*🤖 行动方案：[\\s\\S]*$/, '')"); });
+check('R135-7 拆解采纳语义：步骤任务继承原任务 projectId/metricId 并回写 metric.taskIds；行动方案行替换式写入描述（重复采纳不堆积）', () => { const c = read('/shared/ai/chain.ts'); return c.includes('const step = mkTask(s, t.projectId, t.metricId, t.id)') && c.includes('m.taskIds.push(step.id)') && c.includes("replace(/\\n*🤖 行动方案：[\\s\\S]*$/, '')"); });
 check('R135-8 创建走 store 既有通道优先：ctx.addProject 传入 compass.addProjectToDir（R85 四出口合一），缺省才本地同形创建；采纳回报含同名跳过计数', () => { const c = read('/shared/ai/chain.ts'); const t = read('/newtab/views/CompassTree.vue'); return c.includes('if (ctx.addProject) ctx.addProject(anchorId, s.name)') && c.includes('同名跳过') && t.includes('addProject: (id, name) => addProjectToDir(id, name)'); });
 
 // ============== R136 · V2.104.0：批次 F 第三刀 A3 按目标选卡 + 1d 搜索意图重排 ==============
@@ -3706,6 +3706,50 @@ check('R143-3 蓝图采纳语义：勾选顶层才建树（未勾顶层其映射
 check('R143-4 ★归架门纪律：每批 30 卡自动续批带进度；path 必须逐字在新树（消毒丢弃）否则行不成；描述只填空缺与救敷衍（<10字），改写有正文/卡面依据；空 path=保持无架不强塞；采纳一次 persist', () => { const g = read('/shared/ai/govern.ts'); return g.includes('const BATCH = 30') && g.includes('if (!paths.has(path) && !canDesc) continue') && g.includes("(card.description || '').trim().length < 10") && g.includes('第 ${bi + 1}/${batches} 批归架中'); });
 check('R143-5 按需抽样读正文：候选=描述<10字且 http(s) 链接，封顶 eco30/std60/deep150；reviseSnips 会话缓存（阶段③归架直接复用零重抓）；台账全量不抽样、正文段无则如实注明', () => { const g = read('/shared/ai/govern.ts'); const p = read('/shared/ai/project.ts'); return g.includes('const SNIP_CAP: Record<AiDepth, number> = { eco: 30, std: 60, deep: 150 }') && g.includes("const need = alive.filter(r => (r.description || '').trim().length < 10 && linkFetchable(r.link))") && g.includes('const reviseSnips = new Map<string, string>()') && p.includes('【资源卡台账（全量 ${cards.length} 张）】') && p.includes('本轮无需补读或全部抓取失败'); });
 check('R143-6 入口与定位文案：标签管理页头三钮并列（🤖 标签体检=小修补 / 🧹 整体梳理=推倒重建 / ↺ 还原）；两阶段 job 均带 subject；<6 卡拒跑；手册 ai-1 入口地图收录', () => { const gs = read('/newtab/views/GlobalSettings.vue'); const g = read('/shared/ai/govern.ts'); const m = read('/newtab/manual-data.ts'); return gs.includes('🧹 整体梳理') && gs.includes('aiTagGovern') && g.includes('if (alive.length < 6) return null') && g.includes('标签整体梳理 ②·蓝图评审') && g.includes('标签整体梳理 ③·全卡归架') && m.includes('标签整体梳理'); });
+
+// ============== R144 · V2.112.0：批次 G 四场景（论点/研判/佐证/文稿）+ 子任务软层级 ==============
+console.log('【R144 · V2.112.0：批次 G 四场景 + 子任务软层级】');
+check('R144-1 ★子任务软层级不陪葬：detachChildren 真源且解绑/软删双双接入（各一次、不许多写）；flattenTaskTree 悬空父与环都有顶层兜底（绝不吞卡）；拆解主通道步骤带父指针', () => {
+  const l = read('/shared/utils/taskLinks.ts'); const c = read('/shared/ai/chain.ts'); const m = read('/shared/models/index.ts');
+  return (l.match(/detachChildren\(d, t\.id\)/g) || []).length === 2 && l.includes('export function detachChildren')
+    && l.includes('export function flattenTaskTree') && l.includes('if (depth >= 4) return') && l.includes("for (const t of tasks) if (!done.has(t.id)) out.push({ t, sub: false })")
+    && c.includes('const step = mkTask(s, t.projectId, t.metricId, t.id)') && m.includes('parentId?: ID');
+});
+check('R144-2 层级呈现四触点 + 完成状态永不联动：方向树与项目抽屉走 flattenTaskTree 缩进且各挂 ⤴ 升顶层；面板 ↳ 标父名；详情抽屉父子互标；三处 toggleTask/setTaskStatus 站点零 parentId 读写', () => {
+  const ct = read('/newtab/views/CompassTree.vue'); const pd = read('/newtab/components/ProjectDetailDrawer.vue');
+  const tp = read('/newtab/components/compass/TaskManagerPanel.vue'); const td = read('/newtab/components/compass/TaskDetailDrawer.vue');
+  const seg = (t, a) => { const i = t.indexOf(a); if (i < 0) return ''; const j = t.indexOf('\n}', i); return t.slice(i, j > i ? j : i + 400) };
+  return ct.includes('metricTaskRows(metric.id)') && ct.includes("class=\"tm-task-leaf\" :class=\"{done: task.status==='done', sub}\"") && ct.includes('function promoteTask') && pd.includes('metricTaskRows(m.id)') && pd.includes('.pd-task.sub {')
+    && (tp.match(/parentTitleOf\(task\)/g) || []).length === 12 && tp.includes('↳') && td.includes('const parentTask = computed') && td.includes('const childTasks = computed')
+    && !seg(ct, 'function toggleTask').includes('parentId') && !seg(td, 'function toggleTask').includes('parentId') && !seg(td, 'function setTaskStatusOf').includes('parentId');
+});
+check('R144-3 ★G1 论点契约与消毒：提示词要「一句可被反驳的判断」+ MECE 互斥穷尽；parse 消毒=论点≤40、支≤5 去重、cardIds 只认本台活卡且一卡只归一支；采纳只写主题卡 🤖 块（整段替换不堆积），建分类是显式次通道（顶层≤12 封顶）', () => {
+  const s = read('/shared/ai/scenarios.ts'); const g = read('/shared/ai/batchG.ts'); const p = read('/shared/ai/project.ts'); const w = read('/newtab/views/Workspace.vue');
+  return s.includes('一句可被反驳的判断') && s.includes('彼此互斥、合起来穷尽卡群主体（MECE）')
+    && g.includes('known.has(id) && !used.has(id)') && g.includes('(bag.parts || []).slice(0, 5)') && g.includes('THESIS_BLOCK') && g.includes('function ensureThesisCard')
+    && g.includes("label: '🗂 分论点建成分类并归架'") && g.includes('kids.length >= 12')
+    && p.includes('export function projectDeckThesis') && p.includes('别假装有读过') && w.includes('<ThesisAiBtn :ws-id="workspaceId"');
+});
+check('R144-4 ★G2 三判决与写入边界：verdict 白名单（第四种全丢）、convert 缺 taskTitle 即丢行、转化只走宿主 convertToTask 唯一通道、drop=置 shelf 不删卡、keep 零写入；投料吃 R142 的 curioRelated 并集', () => {
+  const g = read('/shared/ai/batchG.ts'); const cp = read('/newtab/components/compass/CuriosityPanel.vue'); const p = read('/shared/ai/project.ts');
+  return g.includes("['convert', 'keep', 'drop'].includes(v)") && g.includes("if (v === 'convert' && !title) return") && g.includes("c.status = 'shelf'")
+    && !g.includes('deletedAt = Date.now()') && g.includes('ctx.onConvert(c, title)')
+    && cp.includes('convertToTask(c)') && cp.includes('t.title = title.slice(0, 40)') && cp.includes('🤖 转化研判')
+    && p.includes('export function projectCurioPool') && p.includes('curioRelated(d, x)');
+});
+check('R144-5 G3/G4 语义：佐证 id 只认资源台目录且未挂本分支（≤6 张），采纳=projectCardToBoard 镜像零源改动；文稿 rawText 成文（剥代码围栏），采纳=存「成果文稿」卡、次通道下载 .md 不改库', () => {
+  const g = read('/shared/ai/batchG.ts'); const em = read('/newtab/components/EvidenceMenuItem.vue'); const gs = read('/newtab/views/GlobalSettings.vue'); const w = read('/newtab/views/Workspace.vue');
+  return g.includes('!taken.has(r.id)') && g.includes('(bag.items || []).slice(0, 6)') && g.includes('projectCardToBoard(d, id, ctx.wsId, ctx.catId)') && g.includes('function boardCardsInCat')
+    && g.includes("tags: ['成果文稿']") && g.includes('rawText: true') && g.includes("label: '📥 下载 .md'") && g.includes('replace(/^```(?:md|markdown)?')
+    && em.includes("import('@/shared/ai/batchG')") && gs.includes('📄 成果文稿') && w.includes('<EvidenceMenuItem :ws-id="workspaceId" :cat-id="nodeMenu.catId"');
+});
+check('R144-6 入口零净增与懒化：Workspace 物理行数仍 ≤1500（裸 fs 尺，与 R115-1/R140-3 同刀）；G1/G3 两组件 AI 依赖全懒 + 自带样式（scoped 宿主跨不到 fragment 根）；手册 ai-3 收录四场景与软层级三规矩', () => {
+  const ws = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
+  const ta = read('/newtab/components/ThesisAiBtn.vue'); const em = read('/newtab/components/EvidenceMenuItem.vue'); const m = read('/newtab/manual-data.ts');
+  return ws.split('\n').length <= 1500 && !ta.includes("from '@/shared/ai/") && !em.includes("from '@/shared/ai/")
+    && ta.includes("import('@/shared/ai/batchG')") && ta.includes('.th-ai-btn {') && em.includes('.ev-item {')
+    && m.includes("id: 'ai-3'") && m.includes('完成状态永不联动');
+});
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

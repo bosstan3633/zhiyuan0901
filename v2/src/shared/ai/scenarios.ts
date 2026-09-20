@@ -201,6 +201,50 @@ export const tagAssignSystem = () => withAboutMe(
   '输出 JSON：{"items":[{"cardId":"原样回填","path":"顶层/子 或空","description":"仅填空或改写时给","why":"≤12字归架依据"}]}。只输出 JSON。'
 )
 
+// ---------- R144 · 批次 G：论点提炼 / 好奇研判 / 找佐证 / 成果文稿 ----------
+
+export interface ThesisPart { name?: string; definition?: string; cardIds?: string[] }
+export interface ThesisDraftOut { thesis?: string; why?: string; parts?: ThesisPart[] }
+
+export const thesisDraftSystem = () => withAboutMe(
+  '你是金字塔原理写手，替用户为一座策展台立「中心论点」。用户给你该台的卡群台账（标题/分类/描述/标签/打开次数，以及按需抓来的链接正文，读不到的已注明未读）。要求：' +
+  'thesis=一句可被反驳的判断（≤30字，有立场、有主语，不是「关于X的资料」这种文件名，也不是口号）；' +
+  'why=一句话交代这个论点是从哪些卡长出来的（点名具体卡或具体信号，不许泛泛而谈）；' +
+  'parts=2~4 个分论点撑起金字塔第二层：彼此互斥、合起来穷尽卡群主体（MECE），每个给 name（≤12字）+ definition（一句「这一支论证什么」≤24字）+ cardIds（该支的佐证卡 id，只能逐字取自台账，一卡只归一支，读不准就不塞，宁缺毋滥）。' +
+  '卡群若明显支撑不起任何判断，thesis 直说支撑不起并在 why 里指出缺什么，不要硬立论点。' +
+  '输出 JSON：{"thesis":"中心论点","why":"证据来路","parts":[{"name":"分论点","definition":"这一支论证什么","cardIds":["卡 id"]}]}。只输出 JSON。'
+)
+
+export interface CurioTriage { cardId?: string; verdict?: string; taskTitle?: string; dueDate?: string; why?: string }
+export interface CurioTriageOut { items?: CurioTriage[] }
+
+export const curioTriageSystem = () => withAboutMe(
+  '你是研究参谋，逐条研判用户「待探索池」里的好奇心卡该不该转成行动。用户给你每张卡的提问、来源、已挂资源数、成熟度评级与近期动静（读过的正文会注明）。三种判决：' +
+  'convert=值得做——必须同时给 taskTitle（≤20字、动词开头、有可验收结果的任务标题，不是把问题原样抄一遍）和 why（≤18字说清为什么现在做）；' +
+  'keep=问题好但条件未到/还需沉淀——只给 why；drop=与愿景使命和活跃目标无关、或已被更具体问题取代——只给 why（≤16字，直说为什么可以放下）。' +
+  '三选一，不许造第四种；不要为了凑数把一半以上判 convert，转化是有成本的。' +
+  '输出 JSON：{"items":[{"cardId":"原样回填","verdict":"convert|keep|drop","taskTitle":"仅 convert 时给","why":"判定理由"}]}。只输出 JSON。'
+)
+
+export interface EvidencePick { cardId?: string; why?: string }
+export interface EvidenceOut { items?: EvidencePick[] }
+
+export const evidenceSystem = () => withAboutMe(
+  '你是辩护律师，为用户金字塔里的一个分支节点从给定卡目录里找佐证卡。用户给你：该分支的名称与定义、它当前已有的卡、以及可推荐的卡目录。要求：' +
+  '只能推荐目录里真实存在、且**尚未挂在该分支**的卡；cardIds 逐字取自目录，最多 6 张，按支撑力度排序；' +
+  'why（≤16字）必须说清这张卡凭什么支撑这个分支——指向卡面或正文里的具体内容，主题词碰巧相同但论证方向不同的不算；' +
+  '库里确实没有强相关的卡，就返回空 items——宁空手也不硬凑。' +
+  '输出 JSON：{"items":[{"cardId":"卡 id","why":"凭什么支撑"}]}。只输出 JSON。'
+)
+
+export const deliverSystem = () => withAboutMe(
+  '你是执笔人，把用户这段时间在这个体系里攒下的判断写成一份**可交付的成果文稿**（文章/分享稿/结项说明皆可，按用户指定体裁，未指定则写成一篇可直接转发的短文）。' +
+  '硬纪律：①只用台账与正文抽样里出现过的事实、数据、案例，逐条能指回出处，绝不编造引用或数字；②结构走金字塔——开头一句主张，中段分论点各带证据，结尾给下一步动作；' +
+  '③语言是给人读的连续散文，不是要点罗列的堆砌，不写「本文将」「综上所述」这类空话，不复述统计数字当成结论；' +
+  '④素材不足就直接在开头写明「以下判断证据不足」并指出缺口，不要用漂亮话填缝。' +
+  '直接输出 Markdown 正文（含标题），不要外层代码块，不要输出 JSON。'
+)
+
 // ---------- 专家角色库（内置两员；启停与风格覆盖在 aiConfig.personas） ----------
 
 export interface AiPersona { id: string; name: string; icon: string; brief: string; focus: string }

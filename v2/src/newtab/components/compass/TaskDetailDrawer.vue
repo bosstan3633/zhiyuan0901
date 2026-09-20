@@ -120,15 +120,34 @@ async function aiRecommend() {
   if (!job) { showToast('⚠ 库里还没有可推荐的资源卡'); return }
   aiJob.value = job
 }
+/** R144：子任务身份标注（父被解绑/删除时 parentId 已被摘净，故此处只需查活卡） */
+const parentTask = computed(() => {
+  const pid = selectedTask.value?.parentId
+  return pid ? d.value.tasks.find(x => x.id === pid && !x.deletedAt) : undefined
+})
+function promoteSubtask() {
+  const t = selectedTask.value
+  if (!t) return
+  t.parentId = undefined
+  t.updatedAt = Date.now()
+  store.persist()
+  showToast('⤴ 已升为顶层任务')
+}
+/** R144：本任务名下的活子任务（父视角计数） */
+const childTasks = computed(() => {
+  const id = selectedTask.value?.id
+  return id ? d.value.tasks.filter(x => !x.deletedAt && x.parentId === id) : []
+})
 async function deleteTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
   if (!t) return
   // R141：统一软删语义——置 deletedAt 同时摘净 metric.taskIds 引用（撤销时回填）
+  const kids = d.value.tasks.filter(x => !x.deletedAt && x.parentId === taskId).length
   softDeleteTaskToTrash(d.value, t)
   store.persist()
   close()
-  // REQ-030：撤销（含指标 taskIds 回填，按 id 定位当前树）
-  showToast(`已删除「${t.title.slice(0, 20)}」`, { label: '撤销', cb: () => {
+  // REQ-030：撤销（含指标 taskIds 回填，按 id 定位当前树）；R144：子任务已升顶层，撤销不回挂（子不陪葬）
+  showToast(`已删除「${t.title.slice(0, 20)}」${kids ? ` · ${kids} 个子任务已升为顶层` : ''}`, { label: '撤销', cb: () => {
     const cur = d.value.tasks.find(x => x.id === taskId)
     if (cur && cur.deletedAt) {
       cur.deletedAt = undefined
@@ -309,6 +328,9 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           </div>
         </div>
         <AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" class="ts-title-assets" />
+        <!-- R144：父子软层级就地可见（子标父名 + ⤴ 升顶层；父显子任务数） -->
+        <span v-if="parentTask" class="ts-rel-chip sub" :title="'父任务：' + parentTask.title">↳ {{ parentTask.title.slice(0, 12) }}<b class="ts-rel-up" @click.stop="promoteSubtask" title="⤴ 升为顶层任务（本体与指标归属不变）">⤴</b></span>
+        <span v-else-if="childTasks.length" class="ts-rel-chip" :title="'名下 ' + childTasks.length + ' 个子任务（完成状态不联动）'">{{ childTasks.length }} 子任务</span>
         <!-- R142（反馈 #4）：成熟度大徽标——规则引擎即时分，hover 展开扣分构成 -->
         <MaturityBadge lg :m="taskMaturity(selectedTask)" title="成熟度=可执行/可归属/弹药/新鲜度（规则引擎即时评）" />
         <div class="ts-close" @click="close">×</div>
@@ -444,6 +466,10 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .check-lg.done { background: var(--success); border-color: var(--success); }
 .ts-title { flex: 1; font-size: 16px; font-weight: 600; color: var(--text); border: none; outline: none; background: transparent; font-family: inherit; line-height: 1.5; resize: none; min-height: 44px; }
 .ts-title-assets { flex-shrink: 0; }
+/* R144：父子软层级徽标（子 ↳ 父名 + ⤴ 升顶层；父显子任务数） */
+.ts-rel-chip { flex-shrink: 0; align-self: center; display: inline-flex; align-items: center; gap: 4px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; color: var(--text-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
+.ts-rel-chip.sub { color: var(--text-2); border-style: dashed; }
+.ts-rel-up { cursor: pointer; font-weight: 700; color: var(--accent); margin-left: 2px; }
 .ts-close { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; color: var(--text-3); font-size: 18px; flex-shrink: 0; }
 .ts-close:hover { background: var(--surface-3); color: var(--text); }
 .ts-body { flex: 1; overflow-y: auto; padding: 18px 20px; }

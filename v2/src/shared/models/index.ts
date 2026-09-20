@@ -215,6 +215,8 @@ export interface TaskCard extends CardBase {
   sortOrder?: number
   /** R59-T9：由好奇心卡转化而来（convertCard 写源卡 id）——WCE 转化口径消费 */
   fromCuriosityId?: ID
+  /** R144：子任务软层级（唯一父指针；父删/父解绑时子摘除本字段回落指标层，完成状态永不联动；⤴ 升顶层=置空） */
+  parentId?: ID
 }
 
 /** 好奇心卡（从好奇出发） */
