@@ -284,11 +284,31 @@ export function projectWeekDigest(d: AppData, depth: AiDepth): string {
     })
     return `- ${x.name}（${x.term || '未分期'}）：${projs.join('；') || '无项目'}`
   })
+  // R139：调用分布（按台聚合）+ 主攻项目投入对照——深度洞察的"重心偏离"证据源
+  const wsName = new Map((d.workspaces || []).map(w => [w.id, w.name]))
+  const byWs = new Map<string, { n: number; calls: number }>()
+  for (const r of opened) {
+    const k = wsName.get(r.workspaceId) || '未知台'
+    const cur = byWs.get(k) || { n: 0, calls: 0 }
+    byWs.set(k, { n: cur.n + 1, calls: cur.calls + (r.callCount || 0) })
+  }
+  const dist = [...byWs.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 6)
+    .map(([k, v]) => `- ${k}：${v.n} 卡（这些卡累计 ${v.calls} 次调用）`)
+  const focused = (d.compass.directions || []).flatMap(x => x.projects.filter(p => p.isFocused).map(p => ({ dir: x.name, p }))).slice(0, 3)
+  const fLines = focused.map(({ dir, p }) => {
+    const ts = (d.tasks || []).filter(t => !t.deletedAt && t.projectId === p.id)
+    const tDone = ts.filter(t => t.status === 'done' && (t.completedAt || t.updatedAt) >= weekAgo).length
+    const tStall = ts.filter(t => t.status === 'doing' && t.updatedAt < weekAgo).length
+    const tOpen = ts.filter(t => t.status !== 'done').length
+    return `- 主攻「${cut(p.name, 24)}」（目标:${dir}）：进度 ${p.progress || 0}%，未完成任务 ${tOpen}，本周完成 ${tDone}，停滞 ${tStall}`
+  })
   const L: string[] = [
     `【本周（近 7 天）完成的任务】\n${done.map(t => `- ${cut(t.title, 40)}`).join('\n') || '（无）'}`,
     `【本周新增且在推进的任务】\n${added.map(t => `- ${cut(t.title, 40)}（${t.status === 'doing' ? '进行中' : '待开始'}${t.dueDate ? '，限 ' + t.dueDate : ''}）`).join('\n') || '（无）'}`,
     stalled.length ? `【停滞中的任务（超 7 天未更新）】\n${stalled.map(t => `- ${cut(t.title, 40)}`).join('\n')}` : '',
     `【本周打开过的资源卡】\n${opened.map(r => `- ${cut(r.title, 40)}（累计 ${r.callCount || 0} 次）`).join('\n') || '（无）'}`,
+    dist.length ? `【本周调用分布（按工作台）】\n${dist.join('\n')}` : '',
+    fLines.length ? `【主攻项目投入对照】\n${fLines.join('\n')}` : '',
     `【活跃目标现状】\n${dirs.join('\n') || '（无活跃目标）'}`,
   ]
   return L.filter(Boolean).join('\n\n')

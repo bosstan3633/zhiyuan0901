@@ -96,9 +96,9 @@ const CHAIN_DEF: Record<ChainLevel, { role: string; rules: string; schema: strin
   },
 }
 
-export function chainSystem(level: ChainLevel): string {
+export function chainSystem(level: ChainLevel, personaText?: string): string {
   const def = CHAIN_DEF[level]
-  return withAboutMe(`${def.role}\n${def.rules}\n${def.schema}`)
+  return withAboutMe(`${personaText || def.role}\n${def.rules}\n${def.schema}`)
 }
 export function chainSchema(level: ChainLevel): string { return CHAIN_DEF[level].schema }
 
@@ -159,6 +159,15 @@ export const reviewSystem = () => withAboutMe(
   '你是用户的复盘编辑，根据一周台账写一份克制的周回顾：只写材料里有据可查的事。四段 markdown：## 本周推进（点名任务/指标）/ ## 卡点与风险 / ## 资源使用情况 / ## 下周只挑三件。总字数 ≤300，不喊口号。' +
   '直接输出 markdown 文本，不要 JSON、不要代码围栏。'
 )
+export const deepInsightSystem = () => withAboutMe(
+  '你是用户的认知参谋，对着这周的完整台账做深度洞察——不复述数字，只回答「投入和重心对不对」。四段 markdown：' +
+  '## 重心体检（本周实际时间/调用流向了哪个目标与项目，和主攻对照后是否偏离，偏离就点名）/ ' +
+  '## 信号与异常（停滞任务、零调用目标、完成却未收口等，给证据）/ ' +
+  '## 资产与目标错位（被反复调用的卡在支撑什么；主攻项目有没有该用却没有被打开的资源）/ ' +
+  '## 下周一个动作（只给一个最值得改的，说清验收）。' +
+  '总字数 ≤400；一切结论必须能指回台账里的具体条目，材料不足就直说看不出。' +
+  '直接输出 markdown 文本，不要 JSON、不要代码围栏。'
+)
 
 // ---------- 专家角色库（内置两员；启停与风格覆盖在 aiConfig.personas） ----------
 
@@ -187,6 +196,15 @@ export function personaOverrides(): Record<string, { enabled: boolean; style: st
 export function allPersonas(): AiPersona[] {
   const custom = (aiConfig.value.customPersonas || []).map(c => ({ id: c.id, name: c.name, icon: c.icon || '🧭', brief: c.brief, focus: c.focus }))
   return [...BUILTIN_PERSONAS, ...custom]
+}
+
+/** R139：把某个专家（含风格覆盖）改写成本场执笔人设；default/查无 = 空串回落内置角色 */
+export function chainPersonaText(pid: string): string {
+  if (!pid || pid === 'default') return ''
+  const p = allPersonas().find(x => x.id === pid)
+  if (!p) return ''
+  const style = (personaOverrides()[pid]?.style || '').trim()
+  return `你是「${p.name}」，正在亲自为用户起草：${p.brief}\n${p.focus}${style ? `\n你的行文风格：${style}` : ''}\n仍以既定的粒度约束与输出契约为准，但视角、取舍与切入点由这位专家主导。`
 }
 
 /** 校验模型回填的 cardId/categoryId 真实存在（防幻觉引用），返回安全化后的对象 */

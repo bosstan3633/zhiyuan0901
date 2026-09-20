@@ -5,7 +5,7 @@
  * - 全部数字可下钻：emit('drill', ReportDrillEvent) 由宿主（调度台）执行定位/跳转
  * - 本周 / 上周切换；ESC 关闭；全屏浮层（fixed inset 0）
  */
-import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, watch, nextTick, onMounted, onUnmounted, defineAsyncComponent, shallowRef } from 'vue'
 import { useAppStore } from '../stores/app'
 import { readEventLog } from '@/shared/utils/eventLog'
 import { buildWeeklyReport, weekWindow, type ReportPeriod, type ReportDrillEvent, type WeeklyReport } from '@/shared/utils/weeklyReport'
@@ -73,6 +73,18 @@ function drillFunnel(stage: string) {
   emit('close')
   emit('drill', { kind: 'funnel', stage })
 }
+// ---- R139-#6：深度洞察（AI 懒栈：点击时才 dynamic import，评审抽屉采纳=存资源卡） ----
+const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
+const aiJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
+async function aiInsight() {
+  const [{ loadAiConfig, aiReady, aiConfig }, { buildInsightJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  if (!store.data) return
+  const job = buildInsightJob({ d: store.data, depth: aiConfig.value.depth, persist: () => store.persist() })
+  if (!job) { showToast('⚠ 近 7 天台账还是空的，先推进点实事再来洞察'); return }
+  aiJob.value = job
+}
 </script>
 
 <template>
@@ -83,6 +95,7 @@ function drillFunnel(stage: string) {
           <div class="wr-head">
             <span class="wr-title">📊 调度画像</span>
             <span class="wr-period">{{ periodLabel }}</span>
+            <button class="wr-ai" title="AI 深度洞察：只体检投入与重心（近 7 天台账），采纳=存资源卡" @click="aiInsight">🤖 深度洞察</button>
             <div class="wr-switch">
               <button class="wr-sw" :class="{ on: period === 0 }" @click="setPeriod(0)">本周</button>
               <button class="wr-sw" :class="{ on: period === -1 }" @click="setPeriod(-1)">上周</button>
@@ -162,20 +175,24 @@ function drillFunnel(stage: string) {
           </div>
           <div v-else class="wr-loading">{{ loading ? '统计中…' : '' }}</div>
 
-          <div class="wr-foot">纯读取统计 · 数据不出本机 · Esc 关闭</div>
+          <div class="wr-foot">纯读取统计 · 数据不出本机（🤖 洞察需你手动触发才走你配置的网关）· Esc 关闭</div>
         </div>
       </div>
     </Transition>
+    <!-- R139-#6：深度洞察评审抽屉（置于 Transition 外保单子节点约束；勾选采纳才落库） -->
+    <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
   </Teleport>
 </template>
 
 <style scoped>
-.wr-overlay { position: fixed; inset: 0; z-index: 320; background: rgba(0,0,0,.72); display: flex; align-items: center; justify-content: center; padding: 28px; outline: none; }
+.wr-overlay { position: fixed; inset: 0; z-index: 190; background: rgba(0,0,0,.72); display: flex; align-items: center; justify-content: center; padding: 28px; outline: none; } /* R139：190 让开抽屉层（201），深度洞察抽屉才浮在周报上 */
 .wr-shell { width: min(880px, 94vw); max-height: 92vh; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
 .wr-head { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--border); }
 .wr-title { font-size: 14px; font-weight: 700; color: var(--text); flex-shrink: 0; }
 .wr-period { font-size: 11px; color: var(--text-3); flex: 1; }
 .wr-switch { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.wr-ai { padding: 4px 12px; font-size: 11.5px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-2); cursor: pointer; font-family: inherit; flex-shrink: 0; transition: all var(--dur); }
+.wr-ai:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .wr-sw { padding: 4px 14px; font-size: 11.5px; color: var(--text-2); cursor: pointer; background: var(--surface); border: none; font-family: inherit; }
 .wr-sw + .wr-sw { border-left: 1px solid var(--border); }
 .wr-sw.on { background: var(--accent-light); color: var(--accent); font-weight: 600; }

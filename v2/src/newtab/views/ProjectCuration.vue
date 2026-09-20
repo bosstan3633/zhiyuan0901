@@ -39,7 +39,7 @@ const projects = computed(() => {
 /* ================= R117（04-61 C）承接「项目总览」退役的能力 =================
  * 原「模块三 · 项目总览」整块退役（拍板：整体项目情况由主航线体现），但它承担的三件**管理能力**
  * 不能随之静默丢失，按零行为变更边界 1:1 迁到项目详情左栏「全部项目」列：
- *   ① 置顶分组（📌 已置顶 / 📦 全部项目两组呈现）——`Project.pinned`（与 🎯 主攻 isFocused 独立）；
+ *   ① 置顶分组（📌 已置顶 / 📦 全部项目两组呈现）——`Project.pinned`（与 🚀 主攻 isFocused 独立）；
  *   ② 组内拖拽排序——`order` 全量规整回写（与策展台 Tab 同模式）；
  *   ③ 跨区拖拽自动切换 pinned（R99 D-E，替代更早的「跨区拦截 toast」）。
  * 口径逐行沿用原 CompassShell 实现，仅宿主组件变更。 */
@@ -223,7 +223,7 @@ function scrollToTask(id: string) {
 function toggleFocus(p: Project) {
   const res = toggleFocusProject(p.id)
   if (!res.ok) { showToast(res.msg); return }
-  showToast(p.isFocused ? '🎯 已设为主攻，同步今日行动' : '已取消主攻')
+  showToast(p.isFocused ? '🚀 已设为主攻，同步今日行动' : '已取消主攻')
 }
 /** R52-F6：头部级「＋添加成功指标」——与「＋添加任务」并置，输入名后创建（同步方向树） */
 const headerMetricAdding = ref(false)
@@ -254,7 +254,7 @@ function confirmHeaderAddMetric() {
   showToast('✓ 成功指标已创建，同步方向树')
   headerMetricAdding.value = false
 }
-/* R60：原「投射至灯塔」开关已取消，重心语义统一由「🎯 主攻 isFocused」承担 */
+/* R60：原「投射至灯塔」开关已取消，重心语义统一由「🚀 主攻 isFocused」承担 */
 
 /* ================= 第十七轮：创建项目弹窗（愿景→使命→战略目标 → 选目标创建） ================= */
 const createOpen = ref(false)
@@ -587,7 +587,7 @@ function addTaskFromHeader() {
           <span class="pb-more-wrap">
             <button class="mini-btn icon" title="更多：主攻 / 方向树定位 / 删除项目" @click.stop="projMenuOpen = !projMenuOpen">⋯</button>
             <div v-if="projMenuOpen" class="pb-menu" @click.stop>
-              <div class="pm-item" @click="toggleFocus(currentProject); projMenuOpen = false">🎯 {{ currentProject.isFocused ? '取消主攻' : '设为主攻' }}</div>
+              <div class="pm-item" @click="toggleFocus(currentProject); projMenuOpen = false">🚀 {{ currentProject.isFocused ? '取消主攻' : '设为主攻' }}</div>
               <div class="pm-item" @click="goTreeLocated(); projMenuOpen = false">🌳 在完整方向树中定位</div>
               <div class="pm-item danger" @click="removeProject(currentProject); projMenuOpen = false">🗑 删除项目</div>
             </div>
@@ -606,7 +606,7 @@ function addTaskFromHeader() {
         <div class="pb-title">
           <span class="pb-picon" title="项目">📦</span>
           <span class="hero-pname" contenteditable="true" spellcheck="false" @focus="editingProjId = currentProject?.id ?? null" @blur="renameProject" @keydown.enter.prevent="($event.target as HTMLElement).blur()">{{ currentProject.name }}</span>
-          <span v-if="currentProject.isFocused" class="tag accent">⚑ 主攻</span>
+          <span v-if="currentProject.isFocused" class="tag accent">🚀 主攻</span>
         </div>
         <span class="pb-pct">{{ projectProgress(currentProject).pct }}%</span>
       </div>
@@ -907,6 +907,6 @@ function addTaskFromHeader() {
 /* R126（诉求 1）：内嵌展板 = 模块框线（对齐 ModuleCard 视觉；内边距 22 与主航线标题左缘对齐） */
 .page.is-embedded { background-color: var(--surface); background-image: linear-gradient(180deg, color-mix(in srgb, var(--accent) 4%, transparent), transparent 150px); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 14px 22px 18px; }
 
-/* R126（诉求 1）：展板项目图标（主攻与普通统一普通项目图标；⚑ 表示主攻，避免与成功指标 🎯 混淆） */
+/* R126（诉求 1）：展板项目图标（主攻与普通统一普通项目图标；🚀 表示主攻（🎯 只留成功指标）） */
 .pb-title .pb-picon { font-size: 16px; flex-shrink: 0; }
 </style>

@@ -448,7 +448,7 @@ function linkCandidates(kind: 'res' | 'curio') {
   }
   return d.value.curiosities.filter(c => !c.deletedAt && hit(c.question)).map(c => ({ id: c.id, title: c.question }))
 }
-// R60：愿景/使命/项目的「灯塔投射」开关与数据字段均已移除；重心语义由「🎯 主攻 isFocused」承担
+// R60：愿景/使命/项目的「灯塔投射」开关与数据字段均已移除；重心语义由「🚀 主攻 isFocused」承担
 
 // 第卅二轮 REQ-003：项目卡"打开项目"→ 项目全景透视抽屉（可增删改指标与任务，实时同步方向树）
 const projDrawerOpen = ref(false)
@@ -576,7 +576,7 @@ onUnmounted(() => {
                 <div v-for="proj in visibleProjectsOf(dir)" :key="proj.id" class="tree-project-branch" :class="{ 'is-focused': proj.isFocused }">
                   <div class="tp-head">
                     <div class="tp-title">
-                      <span v-if="proj.isFocused" class="tp-mark" title="主攻项目">🎯</span>
+                      <span v-if="proj.isFocused" class="tp-mark" title="主攻项目">🚀</span>
                       <span class="node-title editable" :class="{editing: editingField === 'proj-' + proj.id}" :data-edit="'proj-' + proj.id" :contenteditable="editingField === 'proj-' + proj.id"
                         @click="startEdit('proj-' + proj.id, $event)" @blur="saveEdit('proj-' + proj.id, $event)" @keydown.enter.prevent="saveEdit('proj-' + proj.id, $event)" @keydown.esc="cancelEdit">{{ proj.name }}</span>
                     </div>
@@ -585,8 +585,8 @@ onUnmounted(() => {
                   <div class="tp-meta">
                     <span>📊 {{ proj.metrics.length }} 指标 · 📋 {{ d.tasks.filter(t=>!t.deletedAt && t.projectId===proj.id).length }} 任务</span>
                     <span class="tp-acts" @click.stop>
-                      <span class="node-action" :class="{on: proj.isFocused}" @click="onToggleFocus(proj.id)" :title="proj.isFocused ? '取消主攻' : '设为主攻'">🎯</span>
-                      <span class="node-action" @click="openProjectDrawer(proj.id)" title="打开项目全景">🗂</span>
+                      <span class="node-action" :class="{on: proj.isFocused}" @click="onToggleFocus(proj.id)" :title="proj.isFocused ? '取消主攻' : '设为主攻'">🚀</span>
+                      <span class="node-action" @click="openProjectDrawer(proj.id)" title="打开项目全景">📦</span>
                       <span class="node-action" @click="router.push({ path: '/compass/projects', query: { p: proj.id, from: 'tree' } })" title="进入项目详情页">📄</span>
                       <span class="node-action" @click="addMetric(proj.id)" title="添加指标">＋</span>
                       <span class="node-action" @click="aiChain('metrics', proj.id)" title="AI 建议成功指标（可量化验收，查重后采纳才创建）">🤖</span>

@@ -35,7 +35,7 @@ import WeeklyReportOverlay from '../components/WeeklyReportOverlay.vue'
 const router = useRouter()
 const route = useRoute()
 const store = useAppStore()
-// R91：解构出主攻相关口径——手册「🎯 主攻（最多 2 个）直通调度台速览」此前在调度台**零消费**，
+// R91：解构出主攻相关口径——手册「🚀 主攻（最多 2 个）直通调度台速览」此前在调度台**零消费**，
 // focusedProjects 的唯一消费方在方向台的 LighthousePanel。
 const { d, allProjects, projectProgress, projectTasksOf, focusedProjects, isProjectStalled, isProjectDone, refreshWce } = useCompass()
 // R127：挂载即刷新 WCE 事件缓存（事件日志异步读取一次；computed 同步消费）
@@ -806,7 +806,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
     <!-- R120-TB1 合流方向条：左槽=主攻（今天推哪个）· 中段=档位+5 指标 · 右槽=今日记录四格 + 周报 + 去方向台 -->
     <MetricBar>
       <template #left>
-        <span class="cf-label" title="当前战略重心（最多 2 个）">🎯 主攻</span>
+        <span class="cf-label" title="当前战略重心（最多 2 个）">🚀 主攻</span>
         <template v-if="focusedProjects.length">
           <span v-for="p in focusedProjects" :key="p.id" class="cf-item" :class="{ done: focusMeta.get(p.id)?.finished }"
             :title="p.name + ' · 点击进入项目详情'" @click="openFocusProject(p)">

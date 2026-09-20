@@ -84,9 +84,10 @@ function setTaskStatus(t: TaskCard, status: 'todo' | 'doing' | 'done') {
   setTaskStatusOf(t, status)
   showToast('✓ 状态已切换为「' + (status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始') + '」')
 }
-// ---- R135-C2′：AI 拆解步骤（半天粒度子任务+行动方案写入描述；采纳走评审抽屉） ----
+// ---- R135-C2′：AI 拆解步骤（R139 双通道+专家执笔：建子任务或写详情，角色可换） ----
 const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
 const aiJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
+const aiPersonaId = ref('default')
 async function aiBreakdown() {
   const t = selectedTask.value
   if (!t) return
@@ -94,7 +95,11 @@ async function aiBreakdown() {
   await loadAiConfig()
   if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
   if (!d.value) return
-  const job = buildChainJob('breakdown', t.id, { d: d.value, depth: aiConfig.value.depth, persist: () => store.persist() })
+  const job = buildChainJob('breakdown', t.id, {
+    d: d.value, depth: aiConfig.value.depth, persist: () => store.persist(),
+    personaId: aiPersonaId.value,
+    onPersona: (id) => { aiPersonaId.value = id; void aiBreakdown() },
+  })
   if (!job) { showToast('⚠ 任务已不存在'); return }
   aiJob.value = job
 }
@@ -390,7 +395,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
       <div class="ts-foot">
         <!-- R48：删除按钮降级（ghost 弱化，hover 扣动扳机），主操作唯一 -->
         <button class="ts-del-ghost" @click="deleteTask(selectedTask.id)" title="删除任务（可在回收站撤销）">🗑 删除</button>
-        <button class="mini-btn" @click="aiBreakdown" title="AI 把本任务拆成半天粒度步骤（同指标下查重后采纳才创建子任务）">🤖 拆解步骤</button>
+        <button class="mini-btn" @click="aiBreakdown" title="AI 拆解本任务：可建半天粒度步骤子任务，也可只把步骤清单写进详情；还能换专家执笔">🤖 拆解步骤</button>
         <button class="mini-btn" @click="aiRecommend" title="AI 从全库挑此刻用得上的资源卡（采纳=挂载到本任务）">🤖 推荐卡</button>
         <span class="ts-foot-spacer"></span>
         <button class="mini-btn primary" @click="saveTaskTitleAndClose">✓ 完成并关闭 <span class="ts-kbd">Ctrl+↩</span></button>

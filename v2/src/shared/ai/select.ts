@@ -10,7 +10,7 @@ import type { AiDepth } from './config'
 import { chat, extractJson } from './llm'
 import { projectChain, cardDirectory, projectTaskTargets, projectWeekDigest } from './project'
 import {
-  recommendSystem, rerankSystem, sanitizeRefs, taskParseSystem, reviewSystem,
+  recommendSystem, rerankSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem,
   type RecommendSuggestion, type RerankHit, type TaskDraft,
 } from './scenarios'
 
@@ -191,6 +191,36 @@ export function buildReviewJob(ctx: SelectCtx): AiJob | null {
       } as ResourceCard)
       ctx.persist()
       return '✓ 周回顾已存为资源卡（资源台未分类区）'
+    },
+  }
+}
+
+/** R139-#6：周报深度洞察——投料=周台账（含调用分布+主攻对照），采纳=存「深度洞察」资源卡 */
+export function buildInsightJob(ctx: SelectCtx): AiJob | null {
+  const digest = projectWeekDigest(ctx.d, ctx.depth)
+  if (!digest.includes('- ')) return null
+  return {
+    title: '本周深度洞察',
+    hint: '不复述数字，只体检「投入和重心对不对」：重心偏离、停滞信号、资产与目标错位；采纳=存为一张资源卡，不改动任何既有数据。',
+    rawText: true,
+    build: () => ({ messages: [{ role: 'system', content: deepInsightSystem() }, { role: 'user', content: digest }], jsonMode: false }),
+    parse: (raw) => {
+      const text = String(raw || '').trim()
+      if (!text) return []
+      return [{ key: 'insight', badge: '洞察', main: `深度洞察 ${new Date().toLocaleDateString('zh-CN')}`, sub: text.slice(0, 400), data: { text } }]
+    },
+    apply: (rows) => {
+      const text = String((rows[0]?.data as { text?: string })?.text || '')
+      if (!text) return '无可存内容'
+      const hub = ctx.d.workspaces.find(w => w.kind === 'resource') || ctx.d.workspaces[0]
+      ctx.d.resources.unshift({
+        id: uid('res'), kind: 'resource', title: `🤖 深度洞察 ${new Date().toLocaleDateString('zh-CN')}`,
+        linkType: 'url', link: '', workspaceId: hub.id, categoryId: '',
+        description: text.slice(0, 1600), tags: ['深度洞察'], pinned: false, callCount: 0,
+        createdAt: Date.now(), updatedAt: Date.now(), customFields: {},
+      } as ResourceCard)
+      ctx.persist()
+      return '✓ 深度洞察已存为资源卡（资源台未分类区）'
     },
   }
 }

@@ -24,5 +24,9 @@ export interface AiJob {
   parse: (raw: unknown) => AiRow[]
   run?: (ctx: { signal: AbortSignal; onDelta: (accum: string) => void }) => Promise<AiRow[]>
   apply: (rows: AiRow[]) => Promise<string> | string
+  /** R139：次采纳通道——同一批勾选行的另一种落法（如拆解步骤「写入任务详情」而非建子任务） */
+  secondary?: { label: string; apply: (rows: AiRow[]) => Promise<string> | string }
+  /** R139：人设选择器——拆解等场景可换专家（角色库任意专家含自建），onPick 由宿主重建 job 触发重跑 */
+  persona?: { options: { id: string; label: string }[]; current: string; onPick: (id: string) => void }
   adoptable?: boolean
 }

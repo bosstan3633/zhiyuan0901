@@ -49,7 +49,7 @@ function projectsOf(dirIdx: number): Project[] {
     return !st?.finished && !st?.stall // active
   })
 }
-/** 主航线呈现全部项目（🎯 主攻置前）；>6 折「更多 N」行内展开 */
+/** 主航线呈现全部项目（🚀 主攻置前）；>6 折「更多 N」行内展开 */
 const CHIP_LIMIT = 6
 const expandedGoals = ref<Set<string>>(new Set())
 function chipsOf(dirIdx: number): Project[] {
@@ -204,7 +204,7 @@ function confirmAdd(dirId: string) {
     <!-- A3：主攻聚焦条（≤40px；chip selected 态 = 下方展板当前项目） -->
     <div class="focus-bar" :class="{ empty: !focusedProjects.length }">
       <template v-if="focusedProjects.length">
-        <span class="fs-badge">⚑ 主攻</span>
+        <span class="fs-badge">🚀 主攻</span>
         <span v-for="p in focusedProjects" :key="p.id" class="fs-chip"
           :class="{ selected: p.id === props.selectedId, done: projMeta.get(p.id)?.finished }"
           :title="p.name + ' · 单击联动下方展板 · 双击进入项目详情'"
@@ -214,7 +214,7 @@ function confirmAdd(dirId: string) {
         </span>
         <span class="fs-hint">在项目卡上点击可直接在下方联动展板</span>
       </template>
-      <span v-else class="fp-hint">⚑ 尚无主攻项目 —— 在项目行卡右键即可指定（最多 {{ FOCUS_PROJECT_LIMIT }} 个）</span>
+      <span v-else class="fp-hint">🚀 尚无主攻项目 —— 在项目行卡右键即可指定（最多 {{ FOCUS_PROJECT_LIMIT }} 个）</span>
     </div>
 
     <!-- A4/A5：战略目标 3 列网格（>3 换行）｜ 项目行卡（迷你进度条 + selected 态） -->
@@ -235,7 +235,7 @@ function confirmAdd(dirId: string) {
             @click="selectProject(p)" @dblclick="openProject(p)" @contextmenu="openMenu($event, p, dir.id)">
             <div class="pr-top">
               <span class="pr-title">
-                <span v-if="p.isFocused" class="pr-mark" title="主攻项目">⚑</span>
+                <span v-if="p.isFocused" class="pr-mark" title="主攻项目">🚀</span>
                 <span class="pr-name">{{ p.name }}</span>
                 <span v-if="projMeta.get(p.id)?.stall" class="pr-flag" title="有任务但近 14 天无推进/完成活动">停滞</span>
               </span>
@@ -243,7 +243,7 @@ function confirmAdd(dirId: string) {
             </div>
             <div class="mini-bar"><i :style="{ width: (projMeta.get(p.id)?.pct || 0) + '%' }" /></div>
             <span class="pr-acts">
-              <span class="pr-act" :title="p.isFocused ? '取消主攻' : '设为主攻（最多 ' + FOCUS_PROJECT_LIMIT + ' 个）'" @click.stop="onToggleFocus(p)">⚑</span>
+              <span class="pr-act" :title="p.isFocused ? '取消主攻' : '设为主攻（最多 ' + FOCUS_PROJECT_LIMIT + ' 个）'" @click.stop="onToggleFocus(p)">🚀</span>
               <span class="pr-act" title="进入项目详情" @click.stop="openProject(p)">›</span>
             </span>
           </div>
@@ -264,7 +264,7 @@ function confirmAdd(dirId: string) {
         <div class="pm-item" @click="moveProject(menu.proj, menu.dirId, -1); closeMenu()">↑ 上移</div>
         <div class="pm-item" @click="moveProject(menu.proj, menu.dirId, 1); closeMenu()">↓ 下移</div>
         <div class="pm-sep" />
-        <div class="pm-item" @click="onToggleFocus(menu.proj); closeMenu()">⚑ {{ menu.proj.isFocused ? '取消主攻' : '设为主攻' }}</div>
+        <div class="pm-item" @click="onToggleFocus(menu.proj); closeMenu()">🚀 {{ menu.proj.isFocused ? '取消主攻' : '设为主攻' }}</div>
         <div class="pm-item" @click="openProject(menu.proj); closeMenu()">📄 进入项目详情</div>
       </div>
     </Teleport>

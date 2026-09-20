@@ -11,7 +11,7 @@ import { uid } from '@/shared/utils'
 import type { AiJob, AiRow } from './job'
 import type { AiDepth } from './config'
 import { projectChain } from './project'
-import { chainSystem, type ChainLevel, type ChainSuggestion } from './scenarios'
+import { chainSystem, chainPersonaText, allPersonas, type ChainLevel, type ChainSuggestion } from './scenarios'
 
 export interface ChainCtx {
   d: AppData
@@ -19,6 +19,10 @@ export interface ChainCtx {
   persist: () => void
   /** 项目创建走 compass store 既有通道（R85 四出口合一）；缺省时本地同形创建 */
   addProject?: (dirId: string, name: string) => Project | null
+  /** R139：拆解场景的执笔专家 id（'' / 'default' = 内置执行教练） */
+  personaId?: string
+  /** R139：宿主在评审抽屉里换专家时回调（重建 job → 自动重跑） */
+  onPersona?: (id: string) => void
 }
 
 const TERM_SET = new Set(['long', 'mid', 'short'])
@@ -54,12 +58,13 @@ export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx
   const { text, missing } = projectChain(ctx.d, level, anchorId, ctx.depth)
   if (missing) return null
   const meta = META[level]
-  return {
+  const personaText = level === 'breakdown' ? chainPersonaText(ctx.personaId || '') : ''
+  const job: AiJob = {
     title: `AI 建议${meta.title}（${level === 'directions' ? '从愿景/使命' : '基于上游链'}推导）`,
     hint: '生成的建议与你现有同层实体查重后才可采纳；勾选才创建，创建走既有通道可回滚（项目/指标入方向树，任务可再删）。',
     build: () => ({
       messages: [
-        { role: 'system', content: chainSystem(level) },
+        { role: 'system', content: chainSystem(level, personaText) },
         { role: 'user', content: `当前日期 ${new Date().toLocaleDateString('en-CA')}（换算 dueDate 用）。\n\n${text}` },
       ],
     }),
@@ -86,6 +91,32 @@ export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx
     },
     apply: (rows) => applyChain(level, anchorId, ctx, rows),
   }
+  if (level === 'breakdown') {
+    // R139 双通道：主采纳=建步骤子任务；次采纳=同批勾选步骤合并成清单写进本任务详情（小任务不配子任务时用它）
+    job.hint = '勾选后二选一：「采纳」把步骤建成子任务（全库查重）；「步骤写入任务详情」只落清单进描述、不建卡。右上角可换执笔专家，换后自动重跑。'
+    job.secondary = { label: '📝 步骤写入任务详情', apply: (rows) => writeStepsToTask(ctx.d, anchorId, rows, ctx.persist) }
+    if (ctx.onPersona) {
+      job.persona = {
+        options: [{ id: 'default', label: '🧑‍🏫 执行教练（默认）' }, ...allPersonas().map(p => ({ id: p.id, label: `${p.icon} ${p.name}` }))],
+        current: ctx.personaId || 'default',
+        onPick: (id) => ctx.onPersona?.(id),
+      }
+    }
+  }
+  return job
+}
+
+/** R139：替换式清单段——重复采纳不堆积，与「🤖 行动方案：」同纪律 */
+function writeStepsToTask(d: AppData, taskId: string, rows: AiRow[], persist: () => void): string {
+  const t = d.tasks.find(x => x.id === taskId)
+  if (!t) return '⚠ 原任务已不存在，未写入'
+  const steps = rows.map(r => r.data as ChainSuggestion).filter(s => s.name && !(s as { __plan?: string }).__plan)
+  if (!steps.length) return '⚠ 没有勾选任何步骤'
+  const lines = steps.map(s => `- ${s.name}${s.dueDate ? `（限 ${s.dueDate}）` : ''}${s.estimatedMinutes ? ` · 约${s.estimatedMinutes}分` : ''}`)
+  t.description = (t.description ? t.description.replace(/\n*🤖 步骤清单：[\s\S]*$/, '').trim() + '\n\n' : '') + '🤖 步骤清单：\n' + lines.join('\n')
+  t.updatedAt = Date.now()
+  persist()
+  return `✓ ${steps.length} 步已写入任务详情（未建子任务）`
 }
 
 /** 落库：与 CompassTree.addDirection / compass.addProjectToDir / metrics.push / TaskManagerPanel.createNewTask 同形 */

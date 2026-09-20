@@ -5,7 +5,7 @@ import type { Direction, Project } from '@/shared/models'
 
 /**
  * R85（T0-A）：主攻项目上限。
- * 同一口径的三处出处——models/index.ts:65「最多2个」、manual-data.ts:229「🎯 主攻（最多 2 个）」、
+ * 同一口径的三处出处——models/index.ts:65「最多2个」、manual-data.ts:229「🚀 主攻（最多 2 个）」、
  * 以及 ProjectCuration.vue 原先那句 toast。此前只有 ProjectCuration 一处校验，
  * 而本 store 的 toggleFocusProject（方向树在用）直接翻转、零校验 ⇒ 方向树能设出任意多个主攻。
  * 现把校验下沉到这里，三处出口共用。
@@ -124,7 +124,7 @@ export function useCompass() {
     }
     p.isFocused = !p.isFocused
     store.persist()
-    return { ok: true, msg: p.isFocused ? '🎯 已设为主攻' : '已取消主攻' }
+    return { ok: true, msg: p.isFocused ? '🚀 已设为主攻' : '已取消主攻' }
   }
 
   /**

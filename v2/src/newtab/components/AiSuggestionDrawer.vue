@@ -87,6 +87,17 @@ async function adopt() {
 }
 function stop() { ctrl?.abort(); ctrl = null }
 function close() { ctrl?.abort(); emit('close') }
+async function adoptSecondary() {
+  const job = props.job
+  if (!job?.secondary) return
+  const sel = rows.value.filter(r => picked.value.has(r.key))
+  if (!sel.length) return
+  try {
+    const summary = await job.secondary.apply(sel)
+    showToast(typeof summary === 'string' ? summary : '✓ 已处理')
+    emit('close')
+  } catch (e) { showToast('⚠ 处理失败：' + (e as Error).message) }
+}
 onUnmounted(() => { jobSeq++; ctrl?.abort() })
 </script>
 
@@ -113,6 +124,10 @@ onUnmounted(() => { jobSeq++; ctrl?.abort() })
         <template v-else>
           <div class="ai-toolbar">
             <label class="ai-all"><input type="checkbox" :checked="picked.size === rows.length && rows.length > 0" @change="toggleAll" /> 全选</label>
+            <select v-if="job?.persona" class="ai-persona" :value="job.persona.current"
+              title="换一个专家视角重新生成" @change="job.persona!.onPick(($event.target as HTMLSelectElement).value)">
+              <option v-for="o in job.persona.options" :key="o.id" :value="o.id">{{ o.label }}</option>
+            </select>
             <span class="ai-count">已选 {{ picked.size }}/{{ rows.length }}</span>
             <span class="ai-usage">投料 {{ inputChars }} 字（~{{ Math.ceil(inputChars / 1.6) }} tok）· 产出 {{ streamText.length }} 字</span>
             <button class="ai-btn sm ghost" @click="showRaw = !showRaw">{{ showRaw ? '收起' : '原文' }}</button>
@@ -136,6 +151,8 @@ onUnmounted(() => { jobSeq++; ctrl?.abort() })
 
     <template #footer>
       <button class="ai-btn" @click="close">关闭</button>
+      <button v-if="job?.secondary && rows.length" class="ai-btn" :disabled="picked.size === 0"
+        @click="adoptSecondary">{{ job.secondary.label }}（{{ picked.size }}）</button>
       <button v-if="job?.adoptable !== false && rows.length" class="ai-btn primary" :disabled="!canApply" @click="adopt">✓ 采纳勾选项（{{ picked.size }}）</button>
     </template>
   </Drawer>
@@ -152,6 +169,7 @@ onUnmounted(() => { jobSeq++; ctrl?.abort() })
 .ai-empty { padding: 24px; text-align: center; color: var(--text-3); }
 .ai-toolbar { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--text-3); }
 .ai-all { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.ai-persona { padding: 3px 6px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface-2); color: var(--text-2); font-size: 11px; cursor: pointer; font-family: inherit; max-width: 160px; }
 .ai-usage { margin-left: auto; }
 .ai-rows { display: flex; flex-direction: column; gap: 6px; }
 .ai-row { display: flex; gap: 9px; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; transition: border-color var(--dur); }
