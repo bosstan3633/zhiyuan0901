@@ -217,6 +217,41 @@ export function projectTagSystem(d: AppData, depth: AiDepth): string {
   ].filter(Boolean).join('\n')
 }
 
+/**
+ * R143 · 标签整体梳理蓝图投料：锚（愿景/使命/活跃目标）+ 现树与用量 + 全量资源卡台账 + 抽样正文。
+ * 台账不抽样（全卡盘点是需求本体）；正文段只收 linkFetch 抽样命中的卡（snips 由宿主传入）。
+ */
+export function projectTagBlueprint(d: AppData, depth: AiDepth, snips: Map<string, string>): string {
+  const c = CAP[depth]
+  const L: string[] = []
+  L.push(`【愿景】${cut(d.compass.vision?.content, 120) || '（未填）'}\n【使命】${cut(d.compass.mission?.content, 120) || '（未填）'}`)
+  const dirs = (d.compass.directions || []).filter(x => x.status === 'active').slice(0, 6)
+    .map(x => `- ${x.name}（${x.term || '未分期'}）：${x.projects.map(p => cut(p.name, 16)).join('、') || '无项目'}`)
+  L.push(`【活跃战略目标】\n${dirs.join('\n') || '（暂无）'}`)
+  const usage = new Map<string, number>()
+  for (const arr of [d.resources, d.tasks, d.curiosities] as { tags?: string[]; deletedAt?: number }[][]) {
+    for (const x of arr || []) { if (x.deletedAt) continue; for (const t of x.tags || []) usage.set(t, (usage.get(t) || 0) + 1) }
+  }
+  const treePaths: string[] = []
+  const walk = (nodes: { name: string; children?: unknown[] }[], prefix: string) => {
+    for (const n of nodes) { const p = prefix ? `${prefix}/${n.name}` : n.name; treePaths.push(p); if (n.children?.length) walk(n.children as never, p) }
+  }
+  walk((d.tagTree || []) as never, '')
+  L.push(`【现有标签树】\n${treePaths.join('\n') || '（空树——标签全以裸名散存）'}\n【在用标签及用量】\n${[...usage.entries()].sort((a, b) => b[1] - a[1]).slice(0, c.list * 3).map(([t, n]) => `- ${t}（${n} 次）`).join('\n') || '（一个标签都还没有）'}`)
+  const cards = (d.resources || []).filter(r => !r.deletedAt)
+  const rows = cards.map(r => {
+    let domain = ''
+    try { domain = new URL(r.link || '').host } catch { /* 非网页链接留空 */ }
+    return `- cardId=${r.id} 「${cut(r.title, 30)}」 描述:${r.description?.trim() ? cut(r.description.trim(), 40) : '（空）'} 标签[${(r.tags || []).join('、') || '无'}] 打开${r.callCount || 0}次${domain ? ' 域名:' + domain : ''}`
+  })
+  L.push(`【资源卡台账（全量 ${cards.length} 张）】\n${rows.join('\n')}`)
+  if (snips.size) {
+    const snipLines = [...snips.entries()].map(([id, t]) => `· cardId=${id} 正文节选：${t.replace(/\n/g, ' ')}`)
+    L.push(`【链接正文抽样（${snips.size} 篇，均为卡面信息不足时的补读）】\n${snipLines.join('\n')}`)
+  } else L.push('【链接正文抽样】（本轮无需补读或全部抓取失败——判不准的卡在定义里收窄些）')
+  return L.filter(Boolean).join('\n\n')
+}
+
 /** R137 · H2 回收站捞回投料：软删清单（含删除时间）+ 现存卡目录与活跃目标做"是否还需要"参照 */
 export function projectTrash(d: AppData, depth: AiDepth): string {
   const c = CAP[depth]

@@ -360,7 +360,7 @@
       <!-- ===== 标签管理（N4 · 行内编辑） ===== -->
       <div v-if="activePage === 'tags'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">🏷 标签管理 <button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 体检标签体系：同义合并 + 裸标签归位（勾选采纳才级联改卡与树）" @click="aiTagGovern">🤖 标签体检</button></div>
+          <div class="gs-page-title">🏷 标签管理 <button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 体检标签体系：同义合并 + 裸标签归位（勾选采纳才级联改卡与树）" @click="aiTagGovern">🤖 标签体检</button><button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 整体梳理：盘点全卡（含按需读链接正文）→ 重建金字塔标签树蓝图 → 全卡补全打标，两道评审门 + 自动快照可还原" @click="aiTagRevise">🧹 整体梳理</button><button v-if="aiReviseBak" class="gs-btn ai-batch-btn" title="回滚到上次整体梳理之前（标签树与卡片标签全还原）" @click="aiRestoreRevise">↺ 还原上次梳理</button></div>
                     <div class="gs-page-desc">两级标签体系 · 三种卡片打标签的唯一来源 · 拖拽根标签到另一根标签上即成子标签（卡片标签同步为「父/子」）· 双击标签行直接改名</div>
         </div>
         <div class="tt-wrap">
@@ -993,7 +993,7 @@
     </main>
 
     <!-- R134-F：AI 建议评审抽屉（批量补全/沉睡唤醒/深度诊断共用消费面） -->
-    <AiSuggestionDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
+    <AiSuggestionDrawer v-if="aiJob" :job="aiJob" @close="aiJobClosed" />
 
     <!-- 回滚确认弹窗 -->
     <Teleport to="body">
@@ -1058,7 +1058,7 @@ import { aiConfig, loadAiConfig, patchAiConfig, aiReady, type AiDepth } from '@/
 import { listModels, testConnection as aiTestConnection, chatStream, extractJson } from '@/shared/ai/llm'
 import { projectCards, projectDormant, projectLibrary, catPathOf as aiCatPathOf } from '@/shared/ai/project'
 import { batchEnrichSystem, dormantSystem, diagnosisSystem, allPersonas, personaOverrides, sanitizeRefs, type EnrichSuggestion, type DormantVerdict } from '@/shared/ai/scenarios'
-import { buildTagGovernJob, buildTrashRescueJob, buildCrossDeckJob, buildThesisJob } from '@/shared/ai/govern'
+import { buildTagGovernJob, buildTrashRescueJob, buildCrossDeckJob, buildThesisJob, buildTagBlueprintJob, buildTagAssignJob, consumeTagBlueprintAdopted, getTagReviseBackup, restoreTagReviseBackup } from '@/shared/ai/govern'
 import { buildReviewJob } from '@/shared/ai/select'
 
 const router = useRouter()
@@ -2610,7 +2610,7 @@ const aiPersonas = computed(() => allPersonas())
 const aiPersonaSel = ref<string[]>([])
 let aiPersonaSynced = false
 const aiNewP = reactive({ name: '', brief: '', focus: '' })
-watch(activePage, async (p) => { if (p === 'ai') { await loadAiConfig(); if (!aiPersonaSynced) { aiPersonaSel.value = aiPersonas.value.map(x => x.id); aiPersonaSynced = true } } })
+watch(activePage, async (p) => { if (p === 'ai') { await loadAiConfig(); if (!aiPersonaSynced) { aiPersonaSel.value = aiPersonas.value.map(x => x.id); aiPersonaSynced = true } } if (p === 'tags') void aiCheckReviseBak() })
 // GS 本身即懒路由：挂载时预载一次，标签管理等页的 AI 钮 disabled 态首帧即正确
 void loadAiConfig()
 
@@ -2650,6 +2650,29 @@ function aiOpenJob(job: AiJob | null, emptyMsg: string) {
   aiJob.value = job
 }
 async function aiTagGovern() { await loadAiConfig(); aiOpenJob(buildTagGovernJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '标签体系还是空的，先给卡片打几个标签') }
+// R143（反馈）：标签整体梳理——蓝图评审门 → 采纳自动接力全卡归架门；快照还原钮随备份存在而现
+const aiReviseBak = ref<{ at: number } | null>(null)
+async function aiTagRevise() {
+  if (!aiGuard()) return
+  await loadAiConfig()
+  const jb = buildTagBlueprintJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() })
+  if (!jb) { showToast('⚠ 资源卡还太少（不足 6 张），整体梳理等有库了再来'); return }
+  aiJob.value = jb
+}
+function aiJobClosed() {
+  if (consumeTagBlueprintAdopted()) {
+    aiReviseBak.value = { at: Date.now() }
+    const aj = buildTagAssignJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() })
+    if (aj) { aiJob.value = aj; showToast('✓ 蓝图已落地，接着全卡归架打标'); return }
+  }
+  aiJob.value = null
+}
+async function aiCheckReviseBak() { aiReviseBak.value = await getTagReviseBackup() }
+async function aiRestoreRevise() {
+  if (!(await useConfirm({ title: '还原上次整体梳理', message: '标签树与卡片标签将回滚到上次「整体梳理」之前（其余数据不动）。继续？', confirmText: '还原' }))) return
+  showToast(await restoreTagReviseBackup(gd.value, () => store.persist()))
+  aiReviseBak.value = null
+}
 function aiCrossDeck() { aiOpenJob(buildCrossDeckJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '资源台还没有卡，无法做跨台镜像发现') }
 function aiThesisDrift() { aiOpenJob(buildThesisJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '还没有带主题卡的策展台') }
 function aiTrashRescue() { aiOpenJob(buildTrashRescueJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '回收站是空的') }

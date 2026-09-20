@@ -179,6 +179,28 @@ export const fullOptimizeSystem = (personaText?: string) => withAboutMe(
   '输出 JSON：{"title":"可选","description":"≤160字","tags":["…"],"assess":"一句话评估"}。只输出 JSON。'
 )
 
+// ---------- R143：标签整体梳理（蓝图 → 全卡归类打标） ----------
+
+export interface BlueprintChild { name?: string; definition?: string }
+export interface BlueprintRoot { name?: string; definition?: string; children?: BlueprintChild[] }
+export interface TagMapping { from?: string; to?: string; why?: string }
+export interface TagBlueprintOut { tree?: BlueprintRoot[]; mappings?: TagMapping[] }
+export interface AssignVerdict { cardId?: string; path?: string; description?: string; why?: string }
+
+export const tagBlueprintSystem = () => withAboutMe(
+  '你是知识体系架构师。用户给你他的愿景/使命与战略目标、现有标签树、以及全部资源卡的盘点台账（含按需抓取的链接正文，抓不到的已注明未读正文）。请推倒重建一套标签体系：' +
+  '树=金字塔原理：顶层标签=直接支撑愿景与目标的互斥主题维度（用「行动域」式命名，禁「其他/杂项/工具库」式文件柜顶层），5~9 个；每顶层下 2~6 个子标签=真正落卡的收纳族；最多两级、全树合计 ≤40 个标签。' +
+  '每个标签都给一句「收什么样的卡」定义（≤20字，它将直接作为后续逐卡归架的判据）。' +
+  'mappings=旧标签→新路径的迁移表：from 必须是台账里真实存在的在用旧标签，to 必须是新树内的「顶层/子」路径；每个旧标签都要有归宿，不留悬空。判断拿不准时以正文证据为准，不许编造。' +
+  '输出 JSON：{"tree":[{"name":"顶层名","definition":"收卡定义","children":[{"name":"子名","definition":"收卡定义"}]}],"mappings":[{"from":"旧标签","to":"顶层/子名","why":"≤16字迁移理由"}]}。只输出 JSON。'
+)
+export const tagAssignSystem = () => withAboutMe(
+  '你是图书馆归架员。用户给你已定稿的标签树（含每个标签的收卡定义）和一批资源卡（标题/现描述/链接正文或「未读正文」标注）。逐卡判定：' +
+  'path=该卡唯一最佳归宿「顶层/子」，必须逐字取自给定树，禁止发明标签；确实无架可归时返回空字符串，不强塞。' +
+  'description=仅两种情况给出：该卡描述为空 → 写 ≤80 字「这是什么·什么时候用得上」（有正文必须依据正文）；现有描述敷衍（不足10字）→ 改写；其余一律留空。' +
+  '输出 JSON：{"items":[{"cardId":"原样回填","path":"顶层/子 或空","description":"仅填空或改写时给","why":"≤12字归架依据"}]}。只输出 JSON。'
+)
+
 // ---------- 专家角色库（内置两员；启停与风格覆盖在 aiConfig.personas） ----------
 
 export interface AiPersona { id: string; name: string; icon: string; brief: string; focus: string }
