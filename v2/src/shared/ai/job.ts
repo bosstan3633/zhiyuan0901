@@ -13,6 +13,12 @@ export interface AiRow {
   badgeType?: 'warn' | 'ok' | 'danger' | 'neutral'
   /** R141：参谋建议行——只读展示，不进勾选/采纳（如「这任务该拆还是该写详情」） */
   advisory?: boolean
+  /**
+   * R147-a：弱相关行——**默认不勾**，行上挂「低置信」。
+   * 只允许由客观信号判弱（模型没给理由 / 标签不在既有体系 / id 靠猜 / 无归属），
+   * 不许拿"感觉"当置信度。全选按钮仍可整批勾上，判定权在人不在模型。
+   */
+  weak?: boolean
   /** 场景载荷（模型建议原文等），apply 闭包自取 */
   data?: unknown
 }
@@ -26,6 +32,12 @@ export interface AiJob {
   /** true = 模型回叙事文本（周报等），跳过 JSON 提取、parse 收原文 string（R138） */
   rawText?: boolean
   parse: (raw: unknown) => AiRow[]
+  /**
+   * R147-c：消毒账点名——parse 静默丢掉多少行、为什么丢。零参是因为**计数由工厂闭包自己攒**
+   * （每次点击新建一个 job 实例，计数器天然按次隔离），自定义 run 的 job 也能报。
+   * 抽屉在工具条显示一行，且**空态用它说清真因**（不再是一句"没有可采纳的建议"）。
+   */
+  audit?: () => string | null
   run?: (ctx: { signal: AbortSignal; onDelta: (accum: string) => void }) => Promise<AiRow[]>
   apply: (rows: AiRow[]) => Promise<string> | string
   /** R139：次采纳通道——同一批勾选行的另一种落法（如拆解步骤「写入任务详情」而非建子任务） */

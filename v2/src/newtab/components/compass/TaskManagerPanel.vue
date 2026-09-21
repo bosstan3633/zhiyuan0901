@@ -29,6 +29,8 @@ import ModuleCard from '@/shared/components/ModuleCard.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
 import { useCardCols } from '@/shared/utils/cardCols'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
+// R147-d：任务行「知」AI 辅助菜单（与项目详情页同一组件）
+import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'
 // R113-N2：LifecyclePanel / useLifecycle 移除——生命周期入口收敛到 设置→总览
 
 const route = useRoute()
@@ -516,6 +518,8 @@ function openCardLink(link?: string) {
   openExternalLink(url)
 }
 let taskClickTimer: ReturnType<typeof setTimeout> | null = null
+/** R147-d：「知」菜单里的「打开任务详情」——与行单击同一个抽屉 */
+function openTaskFromAi(t: TaskCard) { drawerRef.value?.open(t) }
 function onTaskRowClick(t: TaskCard) {
   if (taskClickTimer) { clearTimeout(taskClickTimer); taskClickTimer = null; return }
   taskClickTimer = setTimeout(() => {
@@ -727,6 +731,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               <span v-else-if="tShow('status')" class="tm-status" :class="'st-'+task.status">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
               <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
               <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
+              <TaskAiMenu :task="task" @detail="openTaskFromAi" />
               <div class="tm-title"><NewBadge :at="task.createdAt" /><span v-if="parentTitleOf(task)" class="tm-sub" :title="'子任务 · 父：' + parentTitleOf(task)">↳</span>{{ task.title }}</div>
               <!-- R117（04-61 D）：项目/指标/附件逐项受字段设置控制（原先无条件渲染） -->
               <div v-if="tShow('projectId') || tShow('metricId') || (taskAssetsOn && task.assets?.length)" class="tm-tags">
@@ -761,6 +766,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               <span v-else-if="tShow('status')" class="tm-status" :class="'st-'+task.status">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
               <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
               <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
+              <TaskAiMenu :task="task" @detail="openTaskFromAi" />
               <div class="tm-title"><NewBadge :at="task.createdAt" /><span v-if="parentTitleOf(task)" class="tm-sub" :title="'子任务 · 父：' + parentTitleOf(task)">↳</span>{{ task.title }}</div>
               <!-- R117（04-61 D）：项目/指标/附件逐项受字段设置控制（原先无条件渲染） -->
               <div v-if="tShow('projectId') || tShow('metricId') || (taskAssetsOn && task.assets?.length)" class="tm-tags">
@@ -794,6 +800,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <span v-else class="tm-status" :class="'st-'+task.status">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
             <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
             <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
+            <TaskAiMenu :task="task" @detail="openTaskFromAi" />
             <div class="tm-title"><NewBadge :at="task.createdAt" /><span v-if="parentTitleOf(task)" class="tm-sub" :title="'子任务 · 父：' + parentTitleOf(task)">↳</span>{{ task.title }}</div>
             <div class="tm-tags">
               <span class="tag accent">📦 {{ projectName(task.projectId) }}</span>
@@ -839,6 +846,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             </div>
             <button class="t-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
             <button class="t-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
+            <TaskAiMenu :task="task" @detail="openTaskFromAi" />
             <button class="t-del" @click.stop="deleteTask(task.id)" title="删除任务">🗑</button>
           </div>
         </div>
@@ -864,6 +872,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             </div>
             <button class="t-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
             <button class="t-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
+            <TaskAiMenu :task="task" @detail="openTaskFromAi" />
             <button class="t-del" @click.stop="deleteTask(task.id)" title="删除任务">🗑</button>
           </div>
         </template>
@@ -879,6 +888,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           </div>
           <button class="t-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
           <button class="t-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
+          <TaskAiMenu :task="task" @detail="openTaskFromAi" />
           <button class="t-del" @click.stop="deleteTask(task.id)" title="删除任务">🗑</button>
         </div>
         <EmptyState v-if="!filteredTasks.length" icon="clipboard" title="暂无任务"

@@ -14,6 +14,35 @@ export function tagPathOf(parentName: string, childName: string): string {
   return parentName + TAG_SEP + childName
 }
 
+/**
+ * R147-a：「既有标签体系」的唯一口径——树上路径 ∪ 树上叶子名 ∪ 活卡在用标签（含叶子段）。
+ * AI 补全造的新词不在这里，就该判弱默认不勾：打标克制、宁缺毋滥是产品的既有纪律。
+ */
+export function knownTagSet(d: AppData): Set<string> {
+  const out = new Set<string>()
+  const walk = (nodes: TagNode[], prefix: string) => {
+    for (const n of nodes || []) {
+      const p = prefix ? `${prefix}/${n.name}` : n.name
+      out.add(p)
+      if (n.children?.length) walk(n.children, p)
+    }
+  }
+  walk(d.tagTree || [], '')
+  for (const c of [...(d.resources || []), ...(d.tasks || []), ...(d.curiosities || [])]) {
+    if ((c as { deletedAt?: number }).deletedAt) continue
+    for (const t of (c as { tags?: string[] }).tags || []) {
+      out.add(t)
+      const i = t.lastIndexOf(TAG_SEP)
+      if (i > 0) out.add(t.slice(i + 1))
+    }
+  }
+  return out
+}
+/** 挑出没在体系里的新词（叶子名也算命中，避免「笔记法」被当成新词） */
+export function freshTagsOf(tags: string[], known: Set<string>): string[] {
+  return tags.filter(t => !known.has(t) && !known.has(t.split(TAG_SEP).pop() || t))
+}
+
 /** 最多两级：把存量三级（及更深）节点提升到根（祖父）下；返回是否有变更 */
 export function flattenTagTree(tree: TagNode[]): boolean {
   let changed = false

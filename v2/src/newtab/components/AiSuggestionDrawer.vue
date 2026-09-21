@@ -13,7 +13,7 @@ export type { AiRow, AiJob } from '@/shared/ai/job'
 import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import { showToast } from '@/shared/components/toast'
-import { chatStream, extractJson } from '@/shared/ai/llm'
+import { chatStream, extractJson, setLlmFeedSink } from '@/shared/ai/llm'
 import type { AiJob, AiRow } from '@/shared/ai/job'
 
 const props = defineProps<{ job: AiJob | null }>()
@@ -30,15 +30,30 @@ let ctrl: AbortController | null = null
 let jobSeq = 0
 
 const open = computed(() => !!props.job)
-const inputChars = ref(0)
+/** R147-b：投料与耗时——投料由 llm 层在线路处回调累计（自定义 run 也算得着），耗时抽屉自己掐表 */
+const feed = ref({ chars: 0, calls: 0, pt: 0, ct: 0 })
+const secs = ref(0)
+let tick: ReturnType<typeof setInterval> | null = null
+function stopTick() { if (tick) { clearInterval(tick); tick = null } }
 const canApply = computed(() => (props.job?.adoptable ?? true) && picked.value.size > 0)
 /** R141：参谋推荐——verdict 行带 recommend=detail 时，「写入详情」升为主按钮（AI 告诉你该按哪个） */
 const recDetail = computed(() => rows.value.some(r => (r.data as { recommend?: string } | undefined)?.recommend === 'detail'))
 const adoptableN = computed(() => rows.value.filter(r => !r.advisory).length)
+/** R147-a：判弱的行默认不勾，但仍在列表里可见可勾（判定权在人） */
+const weakN = computed(() => rows.value.filter(r => r.weak && !r.advisory).length)
+/** R147-c：消毒账（工厂闭包自己攒的丢弃计数），空态与工具条共用 */
+const auditLine = ref('')
 
 async function run(job: AiJob) {
   const seq = ++jobSeq
   phase.value = 'running'; errMsg.value = ''; streamText.value = ''; rows.value = []; picked.value = new Set(); showRaw.value = false
+  feed.value = { chars: 0, calls: 0, pt: 0, ct: 0 }; secs.value = 0; auditLine.value = ''
+  stopTick(); tick = setInterval(() => { if (seq === jobSeq) secs.value++ }, 1000)
+  setLlmFeedSink((m) => {
+    if (seq !== jobSeq) return
+    const f = feed.value
+    f.chars += m.inChars; f.calls++; f.pt += m.promptTokens || 0; f.ct += m.completionTokens || 0
+  })
   ctrl?.abort()
   ctrl = new AbortController()
   const onDelta = (t: string) => { if (seq === jobSeq) streamText.value = t }
@@ -46,17 +61,16 @@ async function run(job: AiJob) {
     let out: AiRow[]
     if (job.run) {
       out = await job.run({ signal: ctrl.signal, onDelta })
-      inputChars.value = 0
     } else {
       const { messages, jsonMode } = await job.build()
-      inputChars.value = messages.reduce((n, m) => n + m.content.length, 0)
       const text = await chatStream({ messages, jsonMode: job.rawText ? false : jsonMode !== false, signal: ctrl.signal, onDelta })
       if (!text.trim()) throw new Error('模型返回为空（可能超时或余额不足）')
       out = job.parse(job.rawText ? text : extractJson(text))
     }
     if (seq !== jobSeq) return
     rows.value = out
-    picked.value = new Set(out.filter(r => !r.advisory).map(r => r.key))
+    picked.value = new Set(out.filter(r => !r.advisory && !r.weak).map(r => r.key))
+    auditLine.value = job.audit?.() || ''
     phase.value = 'done'
   } catch (e) {
     if (seq !== jobSeq) return
@@ -64,6 +78,9 @@ async function run(job: AiJob) {
     if ((e as Error).name === 'AbortError') { emit('close'); return }
     errMsg.value = msg
     phase.value = 'error'
+  } finally {
+    if (seq === jobSeq) stopTick()
+    setLlmFeedSink(null)
   }
 }
 
@@ -78,6 +95,9 @@ function toggleAll() {
   const adoptableRows = rows.value.filter(r => !r.advisory)
   picked.value = picked.value.size === adoptableRows.length ? new Set() : new Set(adoptableRows.map(r => r.key))
 }
+function pickStrongOnly() {
+  picked.value = new Set(rows.value.filter(r => !r.advisory && !r.weak).map(r => r.key))
+}
 async function adopt() {
   const job = props.job
   if (!job) return
@@ -90,7 +110,7 @@ async function adopt() {
   } catch (e) { showToast('⚠ 采纳失败：' + (e as Error).message) }
 }
 function stop() { ctrl?.abort(); ctrl = null }
-function close() { ctrl?.abort(); emit('close') }
+function close() { stopTick(); setLlmFeedSink(null); ctrl?.abort(); emit('close') }
 async function adoptSecondary() {
   const job = props.job
   if (!job?.secondary) return
@@ -102,7 +122,7 @@ async function adoptSecondary() {
     emit('close')
   } catch (e) { showToast('⚠ 处理失败：' + (e as Error).message) }
 }
-onUnmounted(() => { jobSeq++; ctrl?.abort() })
+onUnmounted(() => { jobSeq++; stopTick(); setLlmFeedSink(null); ctrl?.abort() })
 </script>
 
 <template>
@@ -120,7 +140,7 @@ onUnmounted(() => { jobSeq++; ctrl?.abort() })
 
       <div v-if="phase === 'running'" class="ai-status">
         <div class="ai-run-row">
-          <span class="ai-dot-pulse"></span> 专家思考/生成中…
+          <span class="ai-dot-pulse"></span> 专家思考/生成中… 已 {{ secs }}s<span v-if="feed.calls"> · 已发 {{ feed.calls }} 次请求 / 投料 {{ feed.chars }} 字</span>
           <button class="ai-btn sm" @click="stop">⏹ 中止</button>
         </div>
         <pre v-if="streamText" class="ai-stream">{{ streamText.slice(-600) }}</pre>
@@ -128,26 +148,36 @@ onUnmounted(() => { jobSeq++; ctrl?.abort() })
 
       <div v-else-if="phase === 'error'" class="ai-status ai-err">
         ⚠ {{ errMsg }}
+        <span v-if="feed.chars" class="ai-err-feed">（本次已投料 {{ feed.chars }} 字 / {{ secs }}s）</span>
         <button class="ai-btn sm" @click="job && run(job)">↻ 重试</button>
       </div>
 
       <template v-else-if="phase === 'done'">
-        <div v-if="!rows.length" class="ai-empty">模型没有给出可采纳的建议</div>
+        <div v-if="!rows.length" class="ai-empty">
+          模型没有给出可采纳的建议<span v-if="auditLine">——{{ auditLine }}</span>。
+          <div class="ai-empty-hint">换专家执笔、把卡片描述补一句，或换个更具体的关键词再问一次。</div>
+        </div>
         <template v-else>
           <div class="ai-toolbar">
             <label class="ai-all"><input type="checkbox" :checked="picked.size === adoptableN && adoptableN > 0" @change="toggleAll" /> 全选</label>
+            <button v-if="weakN" class="ai-btn sm ghost" @click="pickStrongOnly">只留高置信</button>
             <span class="ai-count">已选 {{ picked.size }}/{{ adoptableN }}</span>
-            <span class="ai-usage">投料 {{ inputChars }} 字（~{{ Math.ceil(inputChars / 1.6) }} tok）· 产出 {{ streamText.length }} 字</span>
+            <span class="ai-usage">投料 {{ feed.chars }} 字<span v-if="feed.calls > 1"> · {{ feed.calls }} 次请求</span>{{ feed.pt ? ' · token ' + feed.pt + '/' + feed.ct : '' }} · 产出 {{ streamText.length }} 字 · {{ secs }}s</span>
             <button class="ai-btn sm ghost" @click="showRaw = !showRaw">{{ showRaw ? '收起' : '原文' }}</button>
+          </div>
+          <div v-if="weakN || auditLine" class="ai-flags">
+            <span v-if="weakN" class="ai-flag warn">{{ weakN }} 条判为弱相关（缺理由/靠猜），已默认不勾——要采纳请自己勾上</span>
+            <span v-if="auditLine" class="ai-flag">消毒：{{ auditLine }}</span>
           </div>
           <pre v-if="showRaw" class="ai-stream">{{ streamText }}</pre>
           <div class="ai-rows">
-            <label v-for="r in rows" :key="r.key" class="ai-row" :class="{ on: !r.advisory && picked.has(r.key), advisory: r.advisory }">
+            <label v-for="r in rows" :key="r.key" class="ai-row" :class="{ on: !r.advisory && picked.has(r.key), advisory: r.advisory, weak: r.weak }">
               <input v-if="!r.advisory" type="checkbox" :checked="picked.has(r.key)" @change="toggle(r.key)" />
               <span v-else class="ai-adv-mark" title="参谋建议（只读）">🧭</span>
               <span class="ai-row-txt">
                 <span class="ai-row-main">
                   <span v-if="r.badge" class="ai-badge" :class="'b-' + (r.badgeType || 'neutral')">{{ r.badge }}</span>
+                  <span v-if="r.weak && !r.advisory" class="ai-badge b-warn" title="模型没给理由 / id 靠猜 / 不在既有体系——默认不勾，判定权在你">低置信</span>
                   {{ r.main }}
                 </span>
                 <span v-if="r.sub" class="ai-row-sub">{{ r.sub }}</span>
@@ -176,7 +206,12 @@ onUnmounted(() => { jobSeq++; ctrl?.abort() })
 .ai-run-row { display: flex; align-items: center; gap: 8px; }
 .ai-dot-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: breathe 1.2s ease-in-out infinite; }
 .ai-stream { margin-top: 8px; max-height: 180px; overflow: auto; padding: 8px 10px; background: var(--surface-3); border: 1px solid var(--border); border-radius: var(--radius-xs); font-size: 11px; line-height: 1.6; white-space: pre-wrap; word-break: break-all; color: var(--text-3); font-family: ui-monospace, Menlo, monospace; }
-.ai-empty { padding: 24px; text-align: center; color: var(--text-3); }
+.ai-empty { padding: 24px; text-align: center; color: var(--text-3); line-height: 1.7 }
+.ai-empty-hint { margin-top: 6px; font-size: 11.5px; color: var(--text-4) }
+.ai-err-feed { font-size: 11px; color: var(--text-4) }
+.ai-flags { display: flex; flex-direction: column; gap: 4px }
+.ai-flag { font-size: 11.5px; color: var(--text-4); line-height: 1.5 }
+.ai-flag.warn { color: var(--warning) }
 .ai-toolbar { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--text-3); }
 .ai-all { display: flex; align-items: center; gap: 5px; cursor: pointer; }
 .ai-persona { padding: 3px 6px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface-2); color: var(--text-2); font-size: 11px; cursor: pointer; font-family: inherit; max-width: 160px; }

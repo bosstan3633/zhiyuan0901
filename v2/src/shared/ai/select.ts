@@ -5,6 +5,7 @@
  */
 import type { AppData, ResourceCard, TaskCard } from '@/shared/models'
 import { uid } from '@/shared/utils'
+import { freshTagsOf, knownTagSet } from '@/shared/utils/tags'
 import type { AiJob, AiRow } from './job'
 import type { AiDepth } from './config'
 import { chatStream, extractJson } from './llm'
@@ -30,6 +31,8 @@ export function buildRecommendJob(task: TaskCard, ctx: SelectCtx): AiJob | null 
   const mounted = new Set(task.mountedResourceIds || [])
   const dir = cardDirectory(ctx.d, { excludeIds: mounted }, ctx.depth)
   if (!dir) return null
+  // R147-c：丢弃账（每次点击新建 job，计数器天然按次隔离）
+  const drop = { noId: 0, ghost: 0, noWhy: 0 }
   return {
     title: `AI 推荐资源卡 · ${task.title.slice(0, 18)}`,
     subject: `📌 任务「${task.title.slice(0, 24)}」`,
@@ -43,12 +46,18 @@ export function buildRecommendJob(task: TaskCard, ctx: SelectCtx): AiJob | null 
       const rows: AiRow[] = []
       ;(bag.items || []).forEach((s0, i) => {
         const s = sanitizeRefs(s0, ctx.d)
-        if (!s.cardId) return
+        if (!s.cardId) { drop.noId++; return }
         const card = ctx.d.resources.find(r => r.id === s.cardId && !r.deletedAt)
-        if (!card || mounted.has(card.id)) return
-        rows.push({ key: 'rec:' + i, badge: '推荐', main: card.title, sub: s.why ? s.why.slice(0, 60) : undefined, data: { cardId: card.id } })
+        if (!card || mounted.has(card.id)) { drop.ghost++; return }
+        if (!s.why?.trim()) drop.noWhy++
+        // R147-a：没给理由的推荐=模型在猜，默认不勾
+        rows.push({ key: 'rec:' + i, badge: '推荐', main: card.title, sub: s.why ? s.why.slice(0, 60) : '（模型没给理由）', weak: !s.why?.trim(), data: { cardId: card.id } })
       })
       return rows
+    },
+    audit: () => {
+      const bits = [drop.ghost ? `${drop.ghost} 行 cardId 不在库或已挂载` : '', drop.noId ? `${drop.noId} 行没给或编造 cardId（消毒后不认）` : '', drop.noWhy ? `${drop.noWhy} 行缺理由（已判弱）` : ''].filter(Boolean)
+      return bits.length ? bits.join('、') : null
     },
     apply: (rows) => {
       const t = ctx.d.tasks.find(x => x.id === task.id && !x.deletedAt)
@@ -131,6 +140,7 @@ export async function rerankSearch(query: string, items: RerankInput[], opts: Re
 
 /** H1′：采集保存后的单卡补全（与 RDD 单卡补全同契约；apply 直接落库——标签并入/描述只补空/分类迁移） */
 export function buildCardEnrichJob(card: ResourceCard, ctx: SelectCtx): AiJob {
+  const known = knownTagSet(ctx.d)
   return {
     title: `AI 补全 · ${card.title.slice(0, 18)}`,
     hint: '刚保存的卡顺手补元数据：勾选采纳才写库（标签并入、描述只补空、分类必是候选）。',
@@ -148,7 +158,11 @@ export function buildCardEnrichJob(card: ResourceCard, ctx: SelectCtx): AiJob {
       const s = sanitizeRefs((raw || {}) as TaskDraft & { tags?: string[]; description?: string; categoryId?: string }, ctx.d) as { tags?: string[]; description?: string; categoryId?: string }
       const rows: AiRow[] = []
       const newTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !(card.tags || []).includes(t))
-      if (newTags.length) rows.push({ key: 'tags', badge: '标签', main: newTags.join('、'), data: { tags: newTags } })
+      // R147-a：AI 造的新词单独成行且默认不勾——采纳它就等于往体系里塞词，得你点头
+      const fresh = freshTagsOf(newTags, known)
+      const inSys = newTags.filter(t => fresh.indexOf(t) < 0)
+      if (inSys.length) rows.push({ key: 'tags', badge: '标签', main: inSys.join('、'), data: { tags: inSys } })
+      if (fresh.length) rows.push({ key: 'tags:fresh', badge: '新词', badgeType: 'warn', weak: true, main: fresh.join('、'), sub: '不在既有标签体系里（AI 造词）· 勾了才进体系', data: { tags: fresh } })
       if (s.description?.trim() && !card.description) rows.push({ key: 'desc', badge: '描述', main: s.description.trim().slice(0, 120), data: { description: s.description.trim() } })
       if (s.categoryId && s.categoryId !== card.categoryId) rows.push({ key: 'cat', badge: '分类', main: s.categoryId, data: { categoryId: s.categoryId } })
       return rows

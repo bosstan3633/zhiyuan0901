@@ -10,6 +10,7 @@
 import type { AppData, Category, CuriosityCard, ResourceCard } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 import { uid } from '@/shared/utils'
+import { THESIS_MARK, THESIS_PARTS_MARK, THESIS_WHY_MARK } from '@/shared/models/aiMarks'
 import { projectCardToBoard } from '@/shared/storage/hub'
 import type { AiJob, AiRow } from './job'
 import type { AiDepth } from './config'
@@ -51,12 +52,12 @@ async function sampleSnips(items: { id: string; link?: string; description?: str
 }
 
 /** 论点卡的 🤖 块：整段替换（重复采纳不堆积，与 chain 的步骤清单同纪律） */
-const THESIS_BLOCK = /\n*🤖 中心论点：[\s\S]*$/
+const THESIS_BLOCK = new RegExp(`\n*${THESIS_MARK}[\s\S]*$`)
 function thesisBody(thesis: string, why: string, parts: ThesisPart[]): string {
-  const seg = [`🤖 中心论点：${thesis}`]
-  if (why) seg.push(`依据：${why}`)
+  const seg = [`${THESIS_MARK}${thesis}`]
+  if (why) seg.push(`${THESIS_WHY_MARK}${why}`)
   if (parts.length) {
-    seg.push('', '🤖 论点骨架（MECE）：')
+    seg.push('', THESIS_PARTS_MARK)
     parts.forEach((p, i) => seg.push(`${i + 1}. ${p.name}${p.definition ? ` —— ${p.definition}` : ''}${p.cardIds?.length ? `（佐证 ${p.cardIds.length} 张）` : ''}`))
   }
   return seg.join('\n')
@@ -84,6 +85,8 @@ export function buildThesisDraftJob(ctx: ThesisGenCtx): AiJob | null {
   const deck = (d.resources || []).filter(r => !r.deletedAt && r.workspaceId === ctx.wsId && !r.isThesis)
   if (deck.length < 3) return null
   const known = new Map(deck.map(r => [r.id, r.title]))
+  /** R147-c：消毒账——丢了什么、为什么丢，抽屉里点名（空态时这是唯一的解释） */
+  const drop = { noName: 0, dup: 0, ghostCard: 0, noCard: 0 }
   const parseRows = (bag: { thesis?: string; why?: string; parts?: ThesisPart[] }): AiRow[] => {
     const rows: AiRow[] = []
     const thesis = String(bag.thesis || '').replace(/\s+/g, ' ').trim().slice(0, 40)
@@ -94,17 +97,23 @@ export function buildThesisDraftJob(ctx: ThesisGenCtx): AiJob | null {
     const seen = new Set<string>()
     ;(bag.parts || []).slice(0, 5).forEach((p, i) => {
       const name = String(p?.name || '').replace(/\s+/g, ' ').trim().slice(0, 12)
-      if (!name || seen.has(name)) return
+      if (!name) { drop.noName++; return }
+      if (seen.has(name)) { drop.dup++; return }
       seen.add(name)
       const definition = String(p?.definition || '').replace(/\s+/g, ' ').trim().slice(0, 30)
       // 消毒：id 必须是本台活卡，且一卡只归一支（先到先得，模型重复点名不奖励）
-      const cardIds = [...new Set((p?.cardIds || []).map(String))].filter(id => known.has(id) && !used.has(id)).slice(0, 20)
+      const asked = [...new Set((p?.cardIds || []).map(String))]
+      drop.ghostCard += asked.filter(id => !known.has(id)).length
+      const cardIds = asked.filter(id => known.has(id) && !used.has(id)).slice(0, 20)
       cardIds.forEach(id => used.add(id))
+      if (!cardIds.length) drop.noCard++
       const draft: ThesisPart = { name, definition, cardIds }
       rows.push({
         key: `th:part:${i}:${name}`, badge: `第${i + 1}支`,
         main: `${name}${definition ? ` · ${definition}` : ''}`,
         sub: cardIds.length ? `佐证 ${cardIds.length} 张：${cardIds.slice(0, 4).map(id => known.get(id)).join('、')}${cardIds.length > 4 ? '…' : ''}` : '（没点到佐证卡）',
+        // R147-a：一支没有佐证卡的分论点=还没立住，默认不勾
+        weak: !cardIds.length,
         data: { __part: draft },
       })
     })
@@ -122,6 +131,10 @@ export function buildThesisDraftJob(ctx: ThesisGenCtx): AiJob | null {
     hint: '先按需补读链接正文，再立「一句可被反驳的判断」+ 2~4 支 MECE 分论点。采纳=只写中心论点卡（不动任何分类与卡片归属）；要落成骨架分支用底部「🗂 分论点建成分类」。',
     build: () => ({ messages: [{ role: 'system', content: sys() }, { role: 'user', content: user() }] }),
     parse: raw => parseRows((raw || {}) as { thesis?: string; why?: string; parts?: ThesisPart[] }),
+    audit: () => {
+      const bits = [drop.ghostCard ? `${drop.ghostCard} 个 cardId 不在本台活卡里` : '', drop.dup ? `${drop.dup} 支重名` : '', drop.noName ? `${drop.noName} 支没名字` : '', drop.noCard ? `${drop.noCard} 支点不到佐证卡（已判弱）` : ''].filter(Boolean)
+      return bits.length ? bits.join('、') : null
+    },
     async run({ signal, onDelta }) {
       await sampleSnips(deck, ctx.depth, signal, onDelta, '论点提炼')
       if (signal.aborted) return []
@@ -186,22 +199,27 @@ export function buildCurioTriageJob(ctx: CurioTriageCtx): AiJob | null {
   const pool = ctx.pool.filter(c => !c.deletedAt && (c.status === 'todo' || c.status === 'doing')).slice(0, SNIP_CAP[ctx.depth])
   if (pool.length < 3) return null
   const byId = new Map(pool.map(c => [c.id, c]))
+  const drop = { ghost: 0, badVerdict: 0, noTitle: 0, noWhy: 0 }
   const parseRows = (bag: { items?: CurioTriage[] }): AiRow[] => {
     const rows: AiRow[] = []
     const seen = new Set<string>()
     ;(bag.items || []).forEach((it, i) => {
       const c = byId.get(String(it?.cardId))
-      if (!c || seen.has(c.id)) return
+      if (!c || seen.has(c.id)) { drop.ghost++; return }
       const v = String(it.verdict || '')
-      if (!['convert', 'keep', 'drop'].includes(v)) return
+      if (!['convert', 'keep', 'drop'].includes(v)) { drop.badVerdict++; return }
       const title = v === 'convert' ? String(it.taskTitle || '').replace(/\s+/g, ' ').trim().slice(0, 30) : ''
-      if (v === 'convert' && !title) return // 没给可执行标题的「值得做」不予采纳
+      if (v === 'convert' && !title) { drop.noTitle++; return } // 没给可执行标题的「值得做」不予采纳
       seen.add(c.id)
+      const reason = String(it.why || '').trim()
+      if (!reason) drop.noWhy++
       rows.push({
         key: `ct:${c.id}:${i}`, badge: v === 'convert' ? '→ 转任务' : v === 'drop' ? '可搁置' : '继续养',
         badgeType: v === 'convert' ? 'ok' : v === 'drop' ? 'warn' : 'neutral',
         main: c.question.slice(0, 40),
-        sub: [v === 'convert' ? `建议任务：${title}` : '', String(it.why || '').slice(0, 60)].filter(Boolean).join(' · '),
+        sub: [v === 'convert' ? `建议任务：${title}` : '', reason.slice(0, 60) || '（模型没给判词）'].filter(Boolean).join(' · '),
+        // R147-a：没判词的「转任务/搁置」会真的动卡，默认不勾
+        weak: !reason,
         data: { __cardId: c.id, __verdict: v, __title: title },
       })
     })
@@ -214,6 +232,10 @@ export function buildCurioTriageJob(ctx: CurioTriageCtx): AiJob | null {
     hint: '逐条判「转任务 / 继续养 / 可搁置」，判据是对不对得上愿景与活跃目标。采纳：转=按建议标题走既有转化通道；搁置=置为「已搁置」（不删卡，随时可改回）；继续养=只看不写。',
     build: () => ({ messages: [{ role: 'system', content: curioTriageSystem() }, { role: 'user', content: user() }] }),
     parse: raw => parseRows((raw || {}) as { items?: CurioTriage[] }),
+    audit: () => {
+      const bits = [drop.ghost ? `${drop.ghost} 行 id 不在研判池或重复点名` : '', drop.badVerdict ? `${drop.badVerdict} 行判决不在白名单` : '', drop.noTitle ? `${drop.noTitle} 行说要转任务却没给标题` : '', drop.noWhy ? `${drop.noWhy} 行没判词（已判弱）` : ''].filter(Boolean)
+      return bits.length ? bits.join('、') : null
+    },
     async run({ signal, onDelta }) {
       await sampleSnips(pool.map(c => ({ id: c.id, link: c.sourceUrl, description: c.question })), ctx.depth, signal, onDelta, '转化研判')
       if (signal.aborted) return []
@@ -260,16 +282,19 @@ export function buildEvidenceJob(ctx: EvidenceCtx): AiJob | null {
   const candidates = board.filter(r => !taken.has(r.id))
   if (!candidates.length) return null
   const known = new Map(candidates.map(r => [r.id, r.title]))
+  const drop = { ghost: 0, noWhy: 0 }
   const parseRows = (bag: { items?: EvidencePick[] }): AiRow[] => {
     const rows: AiRow[] = []
     const seen = new Set<string>()
     ;(bag.items || []).slice(0, 6).forEach((it, i) => {
       const id = String(it?.cardId)
-      if (!known.has(id) || seen.has(id)) return // 消毒：只认目录里真实存在、且尚未挂在本分支的卡
+      if (!known.has(id) || seen.has(id)) { drop.ghost++; return } // 消毒：只认目录里真实存在、且尚未挂在本分支的卡
       seen.add(id)
+      const reason = String(it.why || '').trim()
+      if (!reason) drop.noWhy++
       rows.push({
         key: `ev:${id}:${i}`, badge: '🔗 佐证', main: String(known.get(id)).slice(0, 40),
-        sub: String(it.why || '').slice(0, 60), data: { __cardId: id },
+        sub: reason.slice(0, 60) || '（模型没给理由）', weak: !reason, data: { __cardId: id },
       })
     })
     if (!rows.length && (bag.items || []).length) return [{ key: 'ev:bad', badge: '空手', badgeType: 'warn', main: '模型点名的卡都不在资源台目录里（或已挂在本分支），无可镜像项', data: { __none: 1 } }]
@@ -282,6 +307,7 @@ export function buildEvidenceJob(ctx: EvidenceCtx): AiJob | null {
     hint: '从资源台目录里挑能支撑本分支的卡（本台其它分支的卡不抢——一张卡只能待在一个分类）。采纳=把选中的卡镜像进本分支（投影，不改动源卡归属）。',
     build: () => ({ messages: [{ role: 'system', content: evidenceSystem() }, { role: 'user', content: user() }] }),
     parse: raw => parseRows((raw || {}) as { items?: EvidencePick[] }),
+    audit: () => (drop.ghost || drop.noWhy ? [drop.ghost ? `${drop.ghost} 行点的卡不在资源台目录（或已在本分支）` : '', drop.noWhy ? `${drop.noWhy} 行没给理由（已判弱）` : ''].filter(Boolean).join('、') : null),
     apply: (rows) => {
       let n = 0
       for (const r of rows) {

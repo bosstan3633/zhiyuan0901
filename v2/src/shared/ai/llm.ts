@@ -38,6 +38,21 @@ export function estTokens(text: string): number {
   return Math.ceil(text.length / 1.6)
 }
 
+/**
+ * R147-b：投料计数改在**线路处**结算。
+ * 此前抽屉自己按 job.build() 的 messages 算字数，自定义 run（多批归架 / 按需抓正文 / 多专家会诊）
+ * 根本不走 build，于是显示「投料 0 字」——那是假账。现在由 chat/chatStream 在真正发出的那一刻
+ * 回调累计，网关回了 usage 就顺带取真 token。
+ * 单消费面纪律：同一时刻只有一个评审抽屉在跑（新 job 会 abort 旧 job），故用模块级单槽 sink。
+ */
+export interface LlmCallMeta { inChars: number; outChars: number; promptTokens?: number; completionTokens?: number }
+let feedSink: ((m: LlmCallMeta) => void) | null = null
+export function setLlmFeedSink(fn: ((m: LlmCallMeta) => void) | null): void { feedSink = fn }
+function reportFeed(messages: ChatMsg[], outChars: string, usage?: { prompt_tokens?: number; completion_tokens?: number }): void {
+  if (!feedSink) return
+  feedSink({ inChars: messages.reduce((n, m) => n + m.content.length, 0), outChars: outChars.length, promptTokens: usage?.prompt_tokens, completionTokens: usage?.completion_tokens })
+}
+
 async function apiError(res: Response): Promise<never> {
   let detail = ''
   try {
@@ -68,6 +83,7 @@ export async function chat(opts: ChatOpts): Promise<string> {
   if (!res.ok) await apiError(res)
   const j = await res.json()
   const content: string = j?.choices?.[0]?.message?.content ?? ''
+  reportFeed(opts.messages, content, j?.usage)
   opts.onDelta?.(content)
   return content
 }
@@ -102,6 +118,7 @@ export async function chatStream(opts: ChatOpts): Promise<string> {
   const dec = new TextDecoder()
   let buf = ''
   let accum = ''
+  let usage: { prompt_tokens?: number; completion_tokens?: number } | undefined
   try {
     for (;;) {
       const { done, value } = await reader.read()
@@ -115,8 +132,10 @@ export async function chatStream(opts: ChatOpts): Promise<string> {
         const data = line.slice(5).trim()
         if (data === '[DONE]') continue
         try {
-          const delta = JSON.parse(data)?.choices?.[0]?.delta?.content
+          const j = JSON.parse(data)
+          const delta = j?.choices?.[0]?.delta?.content
           if (typeof delta === 'string' && delta) { accum += delta; opts.onDelta?.(accum) }
+          if (j?.usage) usage = j.usage
         } catch { /* 心跳/分包残行忽略 */ }
       }
     }
@@ -126,6 +145,7 @@ export async function chatStream(opts: ChatOpts): Promise<string> {
     throw e
   }
   if (!accum) return chat(opts)
+  reportFeed(opts.messages, accum, usage)
   return accum
 }
 

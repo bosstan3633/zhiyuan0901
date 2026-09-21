@@ -1036,6 +1036,7 @@ import { uid, dateKey, weekStartKey } from '@/shared/utils'
 import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
 import { getAssetStats, cleanupOrphanAssets, getAllAssets, putAssets } from '@/shared/storage/assets'
 import { purgeCardsCompletely, recycledCardsOf } from '@/shared/storage/purge'
+import { freshTagsOf, knownTagSet } from '@/shared/utils/tags'
 import { buildZip, readZip, type ZipEntry } from '@/shared/utils/zip'
 import { visibleFields, allFields } from '@/shared/utils/fields'
 import { sanitizeCardCols } from '@/shared/utils/cardCols'
@@ -2748,6 +2749,8 @@ function aiEnrichIds(ids: Set<string>) {
   const { text, cards } = projectCards(d, ids, aiConfig.value.depth)
   if (!cards.length) { showToast('勾选里没有资源卡（批量补全只处理资源卡）'); return }
   const catList = aiCatVocab(d, cards)
+  const known = knownTagSet(d)
+  const drop = { ghost: 0, fresh: 0, empty: 0 }
   aiJob.value = {
     title: `批量补全（${cards.length} 张卡）`,
     hint: '逐卡建议：标签（优先复用词表）/ 描述（只补空描述）/ 分类迁移。勾选采纳才写入。',
@@ -2764,15 +2767,19 @@ function aiEnrichIds(ids: Set<string>) {
         const card = cards.find(c => c.id === s.cardId)
         if (!card) continue
         const addTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !(card.tags || []).includes(t))
+        const fresh = freshTagsOf(addTags, known)
+        if (fresh.length) drop.fresh++
         const parts: string[] = []
-        if (addTags.length) parts.push(`标签 +${addTags.join('、')}`)
+        if (addTags.length) parts.push(`标签 +${addTags.join('、')}${fresh.length ? `（其中 ${fresh.join('、')} 是体系外新词）` : ''}`)
         if (s.description?.trim() && !card.description) parts.push(`描述：${s.description.trim()}`)
         if (s.categoryId && s.categoryId !== card.categoryId) parts.push(`分类 → ${aiCatPathOf(d, s.categoryId)}`)
-        if (!parts.length) continue
-        rows.push({ key: s.cardId, main: `${card.title}`.slice(0, 40) || '（无名卡）', sub: parts.join('\n') + (s.reason ? `\n· ${s.reason}` : ''), data: { ...s, addTags } })
+        if (!parts.length) { drop.empty++; continue }
+        // R147-a：只往体系里塞新词、别无实料的行=默认不勾
+        rows.push({ key: s.cardId, main: `${card.title}`.slice(0, 40) || '（无名卡）', sub: parts.join('\n') + (s.reason ? `\n· ${s.reason}` : ''), weak: fresh.length > 0 && !s.description?.trim() && !s.categoryId, data: { ...s, addTags } })
       }
       return rows
     },
+    audit: () => [drop.ghost ? `${drop.ghost} 行 cardId 不在勾选里` : '', drop.fresh ? `${drop.fresh} 张卡被塞了体系外新词（已判弱）` : '', drop.empty ? `${drop.empty} 行没有可落项` : ''].filter(Boolean).join('、') || null,
     apply: (rows) => {
       const dd = gd.value
       let n = 0

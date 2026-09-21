@@ -18,6 +18,8 @@ import { recordResourceOpen } from '@/shared/storage/stats'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import type { ResourceCard, TaskCard } from '@/shared/models'
 import ZhiMark from '@/shared/components/ZhiMark.vue'
+import ThesisBlock from '@/newtab/components/ThesisBlock.vue'
+import { freshTagsOf, knownTagSet } from '@/shared/utils/tags'
 // R134-F（批次 F）：单卡 AI 补全。★本组件被 App.vue 静态挂载（全局抽屉宿主）——AI 依赖必须全懒：
 // 抽屉 defineAsyncComponent、shared/ai 模块点击时才 dynamic import，否则整条 AI 栈会被卷进启动 chunk（R134 首版踩坑已修）。
 // 建议进评审抽屉（内存态），采纳只回填本表单，用户核对后自行保存。
@@ -132,6 +134,15 @@ function onBus(p: DrawerPayload) {
 const aiJob = ref<AiJobLite | null>(null)
 /** R146-b：补全/优化两枚入口共用一把互斥锁——动态 import + 读配置这段真空期徽标转起来，且不吃第二次点击 */
 const aiEntry = ref<'enrich' | 'optimize' | ''>('')
+/** R147-a：既有标签体系口径共享 utils/tags（每次开抽屉算一次即可，卡片量级下 <1ms） */
+let knownCache: { key: number; set: Set<string> } | null = null
+function knownTags(): Set<string> {
+  const d = store.data
+  if (!d) return new Set()
+  const stamp = d.resources.length + d.tasks.length + d.curiosities.length + (d.tagTree?.length || 0)
+  if (!knownCache || knownCache.key !== stamp) knownCache = { key: stamp, set: knownTagSet(d) }
+  return knownCache.set
+}
 async function aiEnrich() {
   if (aiEntry.value) return
   const card = resource.value
@@ -156,7 +167,11 @@ async function aiEnrich() {
       const s = sanitizeRefs((raw || {}) as import('@/shared/ai/scenarios').EnrichSuggestion, d)
       const rows: AiRowLite[] = []
       const newTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !(card.tags || []).includes(t))
-      if (newTags.length) rows.push({ key: 'tags', badge: '标签', main: newTags.join('、'), data: { tags: newTags } })
+      // R147-a：体系外新词单独成行、默认不勾（与 buildCardEnrichJob 同口径）
+      const fresh = freshTagsOf(newTags, knownTags())
+      const inSys = newTags.filter(t => fresh.indexOf(t) < 0)
+      if (inSys.length) rows.push({ key: 'tags', badge: '标签', main: inSys.join('、'), data: { tags: inSys } })
+      if (fresh.length) rows.push({ key: 'tags:fresh', badge: '新词', badgeType: 'warn', weak: true, main: fresh.join('、'), sub: '不在既有标签体系里（AI 造词）· 勾了才进体系', data: { tags: fresh } })
       if (s.description?.trim() && !card.description) rows.push({ key: 'desc', badge: '描述', main: s.description.trim(), data: { description: s.description.trim() } })
       if (s.categoryId && s.categoryId !== card.categoryId) rows.push({ key: 'cat', badge: '分类', main: catPathOf(d, s.categoryId), data: { categoryId: s.categoryId } })
       return rows
@@ -220,6 +235,8 @@ watch(() => resource.value?.id, (n) => {
     >
       <!-- 使用统计（RDD 特有；Workspace 内联抽屉无统计，不注入） -->
       <template #extra>
+        <!-- R147-e：论点卡的结构化只读预览（解析不出就不渲染，原文照旧在描述里） -->
+        <ThesisBlock v-if="resource?.isThesis" :text="editing.description" :ws-id="editing.workspaceId" />
         <div class="red-section" v-if="resource">
           <div class="red-label">📊 使用统计</div>
           <div class="red-stats">

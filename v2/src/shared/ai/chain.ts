@@ -68,6 +68,8 @@ export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx
   if (missing) return null
   const meta = META[level]
   const personaText = chainPersonaText(ctx.personaId || '')
+  /** R147-c：消毒账（parse 里攒，audit 里报） */
+  const drop = { noName: 0, noWhy: 0 }
   const job: AiJob = {
     title: `AI 建议${meta.title}（${level === 'directions' ? '从愿景/使命' : '基于上游链'}推导）`,
     subject: anchorSubject(ctx.d, level, anchorId),
@@ -84,7 +86,8 @@ export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx
       const rows: AiRow[] = []
       list.forEach((s0, i) => {
         const s = cleanItem(s0)
-        if (!s.name) return
+        if (!s.name) { drop.noName++; return }
+        if (!s.why?.trim()) drop.noWhy++
         const facts: string[] = []
         if (s.term) facts.push({ long: '远期', mid: '中期', short: '近期' }[s.term]!)
         if (s.endDate) facts.push('止 ' + s.endDate)
@@ -92,10 +95,12 @@ export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx
         if (s.priority) facts.push({ high: '高优', medium: '中优', low: '低优' }[s.priority]!)
         if (s.estimatedMinutes) facts.push(`约${s.estimatedMinutes}分`)
         if (s.target) facts.push('目标：' + s.target)
-        rows.push({ key: level + ':' + i, badge: meta.badge, main: s.name, sub: [facts.join(' · '), s.why].filter(Boolean).join('\n'), data: s })
+        // R147-a：没给"为什么是这一步"的建议=模型在凑数，默认不勾
+        rows.push({ key: level + ':' + i, badge: meta.badge, main: s.name, sub: [facts.join(' · '), s.why].filter(Boolean).join('\n'), weak: !s.why?.trim(), data: s })
       })
       if (level === 'breakdown' && bag.plan?.trim()) {
-        rows.unshift({ key: 'breakdown:plan', badge: '思路', main: bag.plan.trim().slice(0, 160), data: { __plan: bag.plan.trim() } })
+        // R147-a：思路是给人看的上下文，不是采纳项——改判 advisory，免得勾了它却什么都不发生
+        rows.unshift({ key: 'breakdown:plan', badge: '思路', advisory: true, main: bag.plan.trim().slice(0, 160), data: { __plan: bag.plan.trim() } })
       }
       // R141（反馈 #2）：参谋建议行——任务合理性评估 + 拆子任务/写详情推荐（只读，不进勾选）
       if (level === 'breakdown' && bag.assess?.trim()) {
@@ -109,6 +114,7 @@ export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx
       }
       return rows
     },
+    audit: () => [drop.noName ? `${drop.noName} 行连名字都没给（丢弃）` : '', drop.noWhy ? `${drop.noWhy} 行没给理由（已判弱）` : ''].filter(Boolean).join('、') || null,
     apply: (rows) => applyChain(level, anchorId, ctx, rows),
   }
   // R141（反馈 #3）：角色切换推广到全部生成层——宿主传 onPersona 即挂下拉
