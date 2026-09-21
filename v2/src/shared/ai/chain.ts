@@ -71,6 +71,7 @@ export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx
   /** R147-c：消毒账（parse 里攒，audit 里报） */
   const drop = { noName: 0, noWhy: 0 }
   const job: AiJob = {
+    key: `chain:${level}:${anchorId}`,
     title: `AI 建议${meta.title}（${level === 'directions' ? '从愿景/使命' : '基于上游链'}推导）`,
     subject: anchorSubject(ctx.d, level, anchorId),
     hint: '生成的建议与你现有同层实体查重后才可采纳；勾选才创建，创建走既有通道可回滚（项目/指标入方向树，任务可再删）。',

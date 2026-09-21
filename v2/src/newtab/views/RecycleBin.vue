@@ -1,4 +1,7 @@
 <script setup lang="ts">
+// R148-P1a：显式实例名——纳入 KeepAlive（切模块免重挂载与免重算首屏）
+defineOptions({ name: 'RecycleBinView' })
+
 import { ref, computed } from 'vue'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter } from 'vue-router'

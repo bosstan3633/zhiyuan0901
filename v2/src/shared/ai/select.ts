@@ -34,6 +34,7 @@ export function buildRecommendJob(task: TaskCard, ctx: SelectCtx): AiJob | null 
   // R147-c：丢弃账（每次点击新建 job，计数器天然按次隔离）
   const drop = { noId: 0, ghost: 0, noWhy: 0 }
   return {
+    key: 'rec:' + task.id,
     title: `AI 推荐资源卡 · ${task.title.slice(0, 18)}`,
     subject: `📌 任务「${task.title.slice(0, 24)}」`,
     hint: '从全库目录挑「此刻用得上」的卡（已挂载的不再推荐）；勾选采纳=挂载到该任务，可随时在任务详情里取消。',
@@ -142,6 +143,7 @@ export async function rerankSearch(query: string, items: RerankInput[], opts: Re
 export function buildCardEnrichJob(card: ResourceCard, ctx: SelectCtx): AiJob {
   const known = knownTagSet(ctx.d)
   return {
+    key: 'enrich:' + card.id,
     title: `AI 补全 · ${card.title.slice(0, 18)}`,
     hint: '刚保存的卡顺手补元数据：勾选采纳才写库（标签并入、描述只补空、分类必是候选）。',
     build: async () => {
@@ -189,6 +191,7 @@ export function buildTaskParseJob(text: string, ctx: SelectCtx, onApply: (draft:
   const t = text.trim()
   if (!t) return null
   return {
+    key: 'parse:' + text.trim().slice(0, 24),
     title: 'AI 录入 · 任务字段草稿',
     subject: `✍️ 「${t.slice(0, 24)}」`,
     hint: '核对下面的字段建议，采纳即回填表单（不会直接建卡）；确认后照常「创建」。',
@@ -231,6 +234,7 @@ export function buildReviewJob(ctx: SelectCtx): AiJob | null {
   const digest = projectWeekDigest(ctx.d, ctx.depth)
   if (!digest.includes('- ')) return null
   return {
+    key: 'review',
     title: '🗓 本周回顾草稿',
     subject: '🗓 近 7 天台账',
     hint: '只基于近 7 天台账成文；采纳=存为一张「每周回顾」资源卡（描述即正文），不改动任何现有数据。',
@@ -262,6 +266,7 @@ export function buildInsightJob(ctx: SelectCtx): AiJob | null {
   const digest = projectWeekDigest(ctx.d, ctx.depth)
   if (!digest.includes('- ')) return null
   return {
+    key: 'insight',
     title: '本周深度洞察',
     subject: '🗓 近 7 天台账 · 调度画像',
     hint: '不复述数字，只体检「投入和重心对不对」：重心偏离、停滞信号、资产与目标错位；采纳=存为一张资源卡，不改动任何既有数据。',
@@ -295,6 +300,7 @@ export function buildInsightJob(ctx: SelectCtx): AiJob | null {
 export function buildFullOptimizeJob(card: ResourceCard, ctx: SelectCtx): AiJob {
   const personaText = chainPersonaText(ctx.personaId || '')
   const job: AiJob = {
+    key: 'opt:' + card.id,
     title: `AI 全方位优化 · ${card.title.slice(0, 14) || '（无名卡）'}`,
     subject: `📌 资源卡「${card.title.slice(0, 24) || '无名卡'}」`,
     hint: '点击已触发抓取链接网页正文（仅 http(s)、抓不到会注明「未读正文」再按卡面谨慎推断）；勾选采纳才写库。',

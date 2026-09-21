@@ -59,6 +59,7 @@ export function buildTagGovernJob(ctx: GovernCtx): AiJob | null {
   const text = projectTagSystem(ctx.d, ctx.depth)
   if (!/[（(]\d+ 次）/.test(text) && !text.includes('- ')) return null
   return {
+    key: 'tagGovern',
     title: '标签体系体检',
     hint: '同义合并（保守：语义有歧义不并）+ 裸标签归位到父标签。采纳会级联改三卡 tags 与标签树，逐条核对再勾。',
     build: () => ({ messages: [{ role: 'system', content: tagGovernSystem() }, { role: 'user', content: text }] }),
@@ -135,6 +136,7 @@ export function buildTrashRescueJob(ctx: GovernCtx): AiJob | null {
   const text = projectTrash(ctx.d, ctx.depth)
   if (!text.includes('cardId=')) return null
   return {
+    key: 'trashRescue',
     title: '回收站·值得捞回',
     hint: '对照现存卡与活跃目标逐条判定；勾选采纳=恢复回收站里的卡（purge 条只给建议，真清空请在回收站手动操作）。',
     build: () => ({ messages: [{ role: 'system', content: trashRescueSystem() }, { role: 'user', content: text }] }),
@@ -174,6 +176,7 @@ export function buildCrossDeckJob(ctx: GovernCtx): AiJob | null {
   const { text, hubIds } = projectCrossDeck(ctx.d, ctx.depth)
   if (!hubIds.size) return null
   return {
+    key: 'crossDeck',
     title: '跨台镜像发现',
     hint: '把资源台的好卡镜像进明显需要它的策展台（引用式，源卡零影响）。',
     build: () => ({ messages: [{ role: 'system', content: crossDeckDupSystem() }, { role: 'user', content: text }] }),
@@ -208,6 +211,7 @@ export function buildThesisJob(ctx: GovernCtx): AiJob | null {
   const text = projectThesis(ctx.d, ctx.depth)
   if (!text) return null
   return {
+    key: 'drift',
     title: '金字塔主题漂移检测',
     hint: '逐台核对卡群是否仍支撑主题卡；发现只读，调整动作（移卡/改论点）由你在资源台执行。',
     adoptable: false,
@@ -333,6 +337,7 @@ export function buildTagBlueprintJob(ctx: GovernCtx): AiJob | null {
     return rows
   }
   return {
+    key: 'tagBlueprint',
     title: '标签整体梳理 ②·蓝图评审',
     subject: `🏷 全量盘点 ${alive.length} 张资源卡`,
     hint: '勾选你要的顶层标签与迁移映射（未勾选的顶层，其映射一并作废）。采纳前自动存快照，标签管理页「↺ 还原上次梳理」一键回滚。',
@@ -394,6 +399,7 @@ export function buildTagAssignJob(ctx: GovernCtx): AiJob | null {
     return `- cardId=${r.id} 「${(r.title || '').slice(0, 40)}」 现描述:${r.description?.trim() ? '「' + r.description.trim().slice(0, 60) + '」' : '（空）'}\n  ${snip ? '正文节选：' + snip.replace(/\s*\n\s*/g, ' ').slice(0, 300) : (r.link || '无链接')}`
   }).join('\n')
   return {
+    key: 'tagAssign',
     title: '标签整体梳理 ③·全卡归架',
     subject: `🏷 ${alive.length} 张卡按新树打标 + 补全（每批 30 张）`,
     hint: '逐卡选唯一归宿（宁缺毋滥可空）；描述只填空缺与救敷衍（<10字且有正文依据）。采纳=勾选卡一次性写库。',

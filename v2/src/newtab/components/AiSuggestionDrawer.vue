@@ -14,9 +14,16 @@ import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import { showToast } from '@/shared/components/toast'
 import { chatStream, extractJson, setLlmFeedSink } from '@/shared/ai/llm'
+import { getJobState, openJob, rerunJob, retire, stop as stopJob, type JobState } from '@/shared/ai/runner'
 import type { AiJob, AiRow } from '@/shared/ai/job'
 
-const props = defineProps<{ job: AiJob | null }>()
+/**
+ * R148-T：两种绑法并存。
+ *  · 只给 `job`（旧）：抽屉即任务，关抽屉/换任务即中止——一次性小任务沿用。
+ *  · 再给 `jobKey`（新）：任务搬到 runner 里后台跑，**关抽屉不杀任务**；
+ *    同一 key 再点：在跑就 attach 看进度，跑完就看结果 +「↻ 重新运行」。
+ */
+const props = defineProps<{ job: AiJob | null; jobKey?: string }>()
 const emit = defineEmits<{ close: [] }>()
 
 type Phase = 'running' | 'done' | 'error' | 'idle'
@@ -29,20 +36,37 @@ const showRaw = ref(false)
 let ctrl: AbortController | null = null
 let jobSeq = 0
 
-const open = computed(() => !!props.job)
+const open = computed(() => !!props.job || (!!props.jobKey && !!bound.value))
 /** R147-b：投料与耗时——投料由 llm 层在线路处回调累计（自定义 run 也算得着），耗时抽屉自己掐表 */
 const feed = ref({ chars: 0, calls: 0, pt: 0, ct: 0 })
 const secs = ref(0)
 let tick: ReturnType<typeof setInterval> | null = null
 function stopTick() { if (tick) { clearInterval(tick); tick = null } }
-const canApply = computed(() => (props.job?.adoptable ?? true) && picked.value.size > 0)
+
+/** 后台模式下的任务状态（响应式：runner 每次 patch 都换新 Map） */
+const bound = computed<JobState | null>(() => (props.jobKey ? getJobState(props.jobKey) || null : null))
+/** 契约对象：后台模式一律用**正在跑的那份 job**，避免"显示的是新锚点、结果却是旧锚点" */
+const cur = computed<AiJob | null>(() => (bound.value ? bound.value.job : props.job))
+const vPhase = computed<'running' | 'done' | 'error' | 'idle'>(() => (bound.value ? (bound.value.phase === 'queued' ? 'running' : bound.value.phase) : phase.value))
+const vRows = computed<AiRow[]>(() => (bound.value ? bound.value.rows : rows.value))
+const vRaw = computed(() => (bound.value ? bound.value.raw : streamText.value))
+const vErr = computed(() => (bound.value ? bound.value.err : errMsg.value))
+const vFeed = computed(() => (bound.value ? bound.value.feed : feed.value))
+const vSecs = computed(() => (bound.value ? bound.value.secs : secs.value))
+const queued = computed(() => !!bound.value && bound.value.phase === 'queued')
+const adoptableN = computed(() => vRows.value.filter(r => !r.advisory).length)
+const canApply = computed(() => (cur.value?.adoptable ?? true) && picked.value.size > 0)
 /** R141：参谋推荐——verdict 行带 recommend=detail 时，「写入详情」升为主按钮（AI 告诉你该按哪个） */
-const recDetail = computed(() => rows.value.some(r => (r.data as { recommend?: string } | undefined)?.recommend === 'detail'))
-const adoptableN = computed(() => rows.value.filter(r => !r.advisory).length)
+const recDetail = computed(() => vRows.value.some(r => (r.data as { recommend?: string } | undefined)?.recommend === 'detail'))
 /** R147-a：判弱的行默认不勾，但仍在列表里可见可勾（判定权在人） */
-const weakN = computed(() => rows.value.filter(r => r.weak && !r.advisory).length)
+const weakN = computed(() => vRows.value.filter(r => r.weak && !r.advisory).length)
 /** R147-c：消毒账（工厂闭包自己攒的丢弃计数），空态与工具条共用 */
 const auditLine = ref('')
+
+function showState(s: JobState): void {
+  picked.value = new Set(s.rows.filter(r => !r.advisory && !r.weak).map(r => r.key))
+  auditLine.value = s.job.audit?.() || ''
+}
 
 async function run(job: AiJob) {
   const seq = ++jobSeq
@@ -84,7 +108,24 @@ async function run(job: AiJob) {
   }
 }
 
-watch(() => props.job, (j) => { if (j) run(j); }, { immediate: true })
+watch(() => [props.job, props.jobKey] as const, ([j, k]) => {
+  if (k) { if (j && !getJobState(k)) openJob(k, j.title, () => j); return }
+  if (j) run(j)
+}, { immediate: true })
+/** 后台任务状态一落地就把勾选态铺好（attach 时不能是空选） */
+watch(bound, (s) => { if (s && s.phase === 'done') showState(s) })
+
+function rerun(): void {
+  const k = props.jobKey
+  if (!k) return
+  const j = props.job
+  const s = rerunJob(k, j ? () => j : undefined)
+  if (s) showState(s)
+}
+function stopAll(): void {
+  if (props.jobKey) { stopJob(props.jobKey); return }
+  stop()
+}
 
 function toggle(key: string) {
   const next = new Set(picked.value)
@@ -92,68 +133,80 @@ function toggle(key: string) {
   picked.value = next
 }
 function toggleAll() {
-  const adoptableRows = rows.value.filter(r => !r.advisory)
+  const adoptableRows = vRows.value.filter(r => !r.advisory)
   picked.value = picked.value.size === adoptableRows.length ? new Set() : new Set(adoptableRows.map(r => r.key))
 }
 function pickStrongOnly() {
-  picked.value = new Set(rows.value.filter(r => !r.advisory && !r.weak).map(r => r.key))
+  picked.value = new Set(vRows.value.filter(r => !r.advisory && !r.weak).map(r => r.key))
+}
+/** 采纳完 = 这轮结束：后台任务从列表里收掉，避免"旧结果挂着" */
+function finishAfterApply(): void {
+  if (props.jobKey) retire(props.jobKey)
+  emit('close')
 }
 async function adopt() {
-  const job = props.job
+  const job = cur.value
   if (!job) return
-  const sel = rows.value.filter(r => picked.value.has(r.key))
+  const sel = vRows.value.filter(r => picked.value.has(r.key))
   if (!sel.length) return
   try {
     const summary = await job.apply(sel)
     showToast(typeof summary === 'string' ? summary : '✓ 已采纳')
-    emit('close')
+    finishAfterApply()
   } catch (e) { showToast('⚠ 采纳失败：' + (e as Error).message) }
 }
 function stop() { ctrl?.abort(); ctrl = null }
-function close() { stopTick(); setLlmFeedSink(null); ctrl?.abort(); emit('close') }
+function close() {
+  // 后台模式：关抽屉只是收起视图，任务继续跑（R148 用户点名）
+  if (props.jobKey) { emit('close'); return }
+  stopTick(); setLlmFeedSink(null); ctrl?.abort(); emit('close')
+}
 async function adoptSecondary() {
-  const job = props.job
+  const job = cur.value
   if (!job?.secondary) return
-  const sel = rows.value.filter(r => picked.value.has(r.key))
+  const sel = vRows.value.filter(r => picked.value.has(r.key))
   if (!sel.length) return
   try {
     const summary = await job.secondary.apply(sel)
     showToast(typeof summary === 'string' ? summary : '✓ 已处理')
-    emit('close')
+    finishAfterApply()
   } catch (e) { showToast('⚠ 处理失败：' + (e as Error).message) }
 }
-onUnmounted(() => { jobSeq++; stopTick(); setLlmFeedSink(null); ctrl?.abort() })
+onUnmounted(() => { jobSeq++; stopTick(); if (!props.jobKey) setLlmFeedSink(null); if (!props.jobKey) ctrl?.abort() })
 </script>
 
 <template>
-  <Drawer :open="open" :title="'知 · ' + (job?.title || 'AI 建议')" width="560px" @close="close">
+  <Drawer :open="open" :title="'知 · ' + (cur?.title || 'AI 建议')" width="560px" @close="close">
     <!-- R141（反馈 #2/#3）：专家下拉上移抽屉头部（跑的过程中也可见可换）；subject 标明正在处理哪张卡 -->
-    <template v-if="job?.persona" #title-extra>
-      <select class="ai-persona" :value="job.persona.current" title="换一个专家视角重新生成"
-        @change="job.persona!.onPick(($event.target as HTMLSelectElement).value)">
-        <option v-for="o in job.persona.options" :key="o.id" :value="o.id">{{ o.label }}</option>
+    <template v-if="cur?.persona" #title-extra>
+      <select class="ai-persona" :value="cur.persona.current" title="换一个专家视角重新生成"
+        @change="cur.persona!.onPick(($event.target as HTMLSelectElement).value)">
+        <option v-for="o in cur.persona.options" :key="o.id" :value="o.id">{{ o.label }}</option>
       </select>
     </template>
     <div class="ai-body">
-      <div v-if="job?.subject" class="ai-subject">{{ job.subject }}</div>
-      <div v-if="job?.hint" class="ai-hint">{{ job.hint }}</div>
+      <div v-if="cur?.subject" class="ai-subject">{{ cur.subject }}</div>
+      <div v-if="cur?.hint" class="ai-hint">{{ cur.hint }}</div>
 
-      <div v-if="phase === 'running'" class="ai-status">
+      <div v-if="vPhase === 'running'" class="ai-status">
         <div class="ai-run-row">
-          <span class="ai-dot-pulse"></span> 专家思考/生成中… 已 {{ secs }}s<span v-if="feed.calls"> · 已发 {{ feed.calls }} 次请求 / 投料 {{ feed.chars }} 字</span>
-          <button class="ai-btn sm" @click="stop">⏹ 中止</button>
+          <span class="ai-dot-pulse"></span>
+          <template v-if="queued">排队中（同时最多 2 个 AI 任务，前面的跑完自动开始）</template>
+          <template v-else>专家思考/生成中… 已 {{ vSecs }}s<span v-if="vFeed.calls"> · 已发 {{ vFeed.calls }} 次请求 / 投料 {{ vFeed.chars }} 字</span></template>
+          <button class="ai-btn sm" @click="stopAll">⏹ 停止</button>
         </div>
-        <pre v-if="streamText" class="ai-stream">{{ streamText.slice(-600) }}</pre>
+        <pre v-if="vRaw" class="ai-stream">{{ vRaw.slice(-600) }}</pre>
       </div>
 
-      <div v-else-if="phase === 'error'" class="ai-status ai-err">
-        ⚠ {{ errMsg }}
-        <span v-if="feed.chars" class="ai-err-feed">（本次已投料 {{ feed.chars }} 字 / {{ secs }}s）</span>
-        <button class="ai-btn sm" @click="job && run(job)">↻ 重试</button>
+      <div v-else-if="vPhase === 'error'" class="ai-status ai-err">
+        ⚠ {{ vErr }}
+        <span v-if="vFeed.chars" class="ai-err-feed">（本次已投料 {{ vFeed.chars }} 字 / {{ vSecs }}s）</span>
+        <button class="ai-btn sm" @click="jobKey ? rerun() : cur && run(cur)">↻ 重试</button>
       </div>
 
-      <template v-else-if="phase === 'done'">
-        <div v-if="!rows.length" class="ai-empty">
+      <template v-else-if="vPhase === 'done'">
+        <div v-if="bound && bound.savedNote" class="ai-saved">📥 {{ bound.savedNote }}</div>
+        <div v-if="!vRows.length" class="ai-empty">
           模型没有给出可采纳的建议<span v-if="auditLine">——{{ auditLine }}</span>。
           <div class="ai-empty-hint">换专家执笔、把卡片描述补一句，或换个更具体的关键词再问一次。</div>
         </div>
@@ -162,16 +215,16 @@ onUnmounted(() => { jobSeq++; stopTick(); setLlmFeedSink(null); ctrl?.abort() })
             <label class="ai-all"><input type="checkbox" :checked="picked.size === adoptableN && adoptableN > 0" @change="toggleAll" /> 全选</label>
             <button v-if="weakN" class="ai-btn sm ghost" @click="pickStrongOnly">只留高置信</button>
             <span class="ai-count">已选 {{ picked.size }}/{{ adoptableN }}</span>
-            <span class="ai-usage">投料 {{ feed.chars }} 字<span v-if="feed.calls > 1"> · {{ feed.calls }} 次请求</span>{{ feed.pt ? ' · token ' + feed.pt + '/' + feed.ct : '' }} · 产出 {{ streamText.length }} 字 · {{ secs }}s</span>
+            <span class="ai-usage">投料 {{ vFeed.chars }} 字<span v-if="vFeed.calls > 1"> · {{ vFeed.calls }} 次请求</span>{{ vFeed.pt ? ' · token ' + vFeed.pt + '/' + vFeed.ct : '' }} · 产出 {{ vRaw.length }} 字 · {{ vSecs }}s</span>
             <button class="ai-btn sm ghost" @click="showRaw = !showRaw">{{ showRaw ? '收起' : '原文' }}</button>
           </div>
           <div v-if="weakN || auditLine" class="ai-flags">
             <span v-if="weakN" class="ai-flag warn">{{ weakN }} 条判为弱相关（缺理由/靠猜），已默认不勾——要采纳请自己勾上</span>
             <span v-if="auditLine" class="ai-flag">消毒：{{ auditLine }}</span>
           </div>
-          <pre v-if="showRaw" class="ai-stream">{{ streamText }}</pre>
+          <pre v-if="showRaw" class="ai-stream">{{ vRaw }}</pre>
           <div class="ai-rows">
-            <label v-for="r in rows" :key="r.key" class="ai-row" :class="{ on: !r.advisory && picked.has(r.key), advisory: r.advisory, weak: r.weak }">
+            <label v-for="r in vRows" :key="r.key" class="ai-row" :class="{ on: !r.advisory && picked.has(r.key), advisory: r.advisory, weak: r.weak }">
               <input v-if="!r.advisory" type="checkbox" :checked="picked.has(r.key)" @change="toggle(r.key)" />
               <span v-else class="ai-adv-mark" title="参谋建议（只读）">🧭</span>
               <span class="ai-row-txt">
@@ -190,9 +243,10 @@ onUnmounted(() => { jobSeq++; stopTick(); setLlmFeedSink(null); ctrl?.abort() })
 
     <template #footer>
       <button class="ai-btn" @click="close">关闭</button>
-      <button v-if="job?.secondary && rows.length" class="ai-btn" :class="{ primary: recDetail }" :disabled="picked.size === 0"
-        @click="adoptSecondary">{{ job.secondary.label }}（{{ picked.size }}）</button>
-      <button v-if="job?.adoptable !== false && rows.length" class="ai-btn" :class="{ primary: !recDetail }" :disabled="!canApply" @click="adopt">✓ 采纳勾选项（{{ picked.size }}）</button>
+      <button v-if="jobKey && vPhase === 'done'" class="ai-btn" title="重新问一次（当前结果作废）" @click="rerun">↻ 重新运行</button>
+      <button v-if="cur?.secondary && vRows.length" class="ai-btn" :class="{ primary: recDetail }" :disabled="picked.size === 0"
+        @click="adoptSecondary">{{ cur.secondary.label }}（{{ picked.size }}）</button>
+      <button v-if="cur?.adoptable !== false && vRows.length" class="ai-btn" :class="{ primary: !recDetail }" :disabled="!canApply" @click="adopt">✓ 采纳勾选项（{{ picked.size }}）</button>
     </template>
   </Drawer>
 </template>
@@ -209,6 +263,7 @@ onUnmounted(() => { jobSeq++; stopTick(); setLlmFeedSink(null); ctrl?.abort() })
 .ai-empty { padding: 24px; text-align: center; color: var(--text-3); line-height: 1.7 }
 .ai-empty-hint { margin-top: 6px; font-size: 11.5px; color: var(--text-4) }
 .ai-err-feed { font-size: 11px; color: var(--text-4) }
+.ai-saved { padding: 7px 11px; border: 1px solid var(--success, var(--accent)); background: var(--success-bg-soft, var(--accent-light)); color: var(--success, var(--accent)); border-radius: var(--radius-sm); font-size: 11.5px; line-height: 1.6 }
 .ai-flags { display: flex; flex-direction: column; gap: 4px }
 .ai-flag { font-size: 11.5px; color: var(--text-4); line-height: 1.5 }
 .ai-flag.warn { color: var(--warning) }

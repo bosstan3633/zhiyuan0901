@@ -4,6 +4,8 @@
  */
 import type { AppData, UIPrefs } from '@/shared/models'
 import { STORAGE_KEY, UI_KEY } from '@/shared/models'
+// R148-P0b：热度统计独立键（口径见 hotStats.ts 顶部三条）
+import { HOT_KEY, applyHot, pickHot, writeHot } from './hotStats'
 import { setCoolingDefaultDays } from '@/shared/utils/lifecycle'
 import { createDefaultData, defaultThesisFieldDefs } from './defaults'
 import { safeDecodeText } from '@/shared/utils'
@@ -27,6 +29,14 @@ const listeners = new Set<Listener>()
 const errorListeners = new Set<ErrorListener>()
 let lastSaveError: SaveError | null = null
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+/**
+ * R148-P1b：内存脏计数——每次 persist 意图（saveData/saveDataNow/外部合并）同步 +1。
+ * 为什么不用 dataVersion：那个只在**写盘成功后**自增，防抖窗口内会读到旧值，
+ * 派生缓存拿它当失效依据会算出过期结果（现存隐患，本项顺手修掉）。
+ */
+let mutationSeq = 0
+export function getMutationSeq(): number { return mutationSeq }
+export function markDataDirty(): void { mutationSeq++ }
 
 // REQ-031 P-031-6 + R70 + R131-C1a：自身写入标记。
 // 原实现是时间戳比较（守卫从未生效），R70 改内容指纹（每次 onChanged 对整树 stringify 一次，千卡 40–100ms）。
@@ -61,13 +71,18 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
   //   chrome.storage.local 往返（启动链路里 STORAGE_KEY 曾被串行读 3 次，medium 实测单次
   //   197~229ms）。预取只跳过 IO，**归一化一律照常执行**。
   let raw = prefetched ? (prefetched[STORAGE_KEY] as AppData | undefined) : undefined
+  let hotRaw: Record<string, unknown> | undefined
   // R128-A1：统一接线跨上下文同步——此前 onChanged→合并 只在新标签页 store 里手工接，
   // popup / content 各自裸读写 storage（既无合并、也不产事件）。改为仓库自身挂一次全局监听，
   // 凡走本模块的上下文自动获得合并保护。
   attachStorageSync()
   if (raw === undefined) {
-    const result = await cs.get([STORAGE_KEY])
+    // R148-P0b：主键与热度键**同一次 get**取回——拆键不能变成多一次启动 IO
+    const result = await cs.get([STORAGE_KEY, HOT_KEY])
     raw = result[STORAGE_KEY] as AppData | undefined
+    hotRaw = result as Record<string, unknown>
+  } else if (prefetched) {
+    hotRaw = await cs.get([HOT_KEY]) as Record<string, unknown>
   }
   let data = raw
   if (!data) {
@@ -143,6 +158,11 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
   // R110-BUG1：资源台镜像标记净化——视图模型标记（__mirrorProjId/__mirrorCat）误持久化 + 指向资源台的投射
   // 记录，都是历史脏数据，启动期幂等剥离（资源台指标格不再出现「⚠ 镜像 N 条待清理」）。一次净化后下次 persist 固化。
   try { scrubHubMirrorMarkers(data) } catch { /* noop */ }
+  // R148-P0b：热度段以独立键为权威覆盖回主树（视图读法一字不改）；
+  //  老数据没有本键 → 首次以主树落一次并打戳，幂等（重启不会抽第二遍）。
+  const hot = pickHot(hotRaw)
+  if (hot) applyHot(data, hot)
+  else if (!data.hotStatsSplitAt) { data.hotStatsSplitAt = Date.now(); writeHot(data) }
   cache = data
   markStorageMirror(data)
   // 第卌四轮 T-05：初始化快照（静默，不产生历史事件）
@@ -159,6 +179,7 @@ export function getData(): AppData {
 
 /** 保存数据（防抖 300ms，自动持久化） */
 export function saveData(): void {
+  markDataDirty() // R148-P1b：先让派生缓存作废，再排防抖写盘
   if (!cache) return
   const cs = chromeStore()
   if (!cs) return
@@ -189,6 +210,7 @@ export function saveData(): void {
         .then(() => {
           dataVersion++
           lastPersistedJson = payloadJson
+          if (cache) writeHot(cache) // R148-P0b：整库写成功后同步热度键（两键永远同刻）
           markSaveOk()
           if (lastSaveError) { lastSaveError = null; listeners.forEach((fn) => fn(cache!)) }
           listeners.forEach((fn) => fn(cache!))
@@ -203,6 +225,7 @@ export function saveData(): void {
 
 /** 立即保存（用于关键操作） */
 export async function saveDataNow(): Promise<void> {
+  markDataDirty()
   if (!cache) return
   const cs = chromeStore()
   if (!cs) return
@@ -218,6 +241,7 @@ export async function saveDataNow(): Promise<void> {
     await cs.set({ [STORAGE_KEY]: Object.assign(JSON.parse(payloadJson), { __wid: wid }) })
     dataVersion++
     lastPersistedJson = payloadJson
+    writeHot(cache) // R148-P0b：同上（立即保存路径）
     markSaveOk()
     if (lastSaveError) { lastSaveError = null }
     listeners.forEach((fn) => fn(cache!))
@@ -303,6 +327,7 @@ export async function replaceData(newData: AppData): Promise<void> {
 /** 同步缓存引用（外部 storage 变更时调用，保持 cache 与最新数据一致） */
 export function syncCache(newData: AppData): void {
   cache = newData
+  markDataDirty() // R148-P1b：整份缓存被换掉（外部写入/合并/导入）= 派生缓存一律作废
   dataVersion++
   markStorageMirror(newData)
   // 第卌四轮 T-05：外部写入静默重建快照——事件由执行写入的上下文记录，避免双记

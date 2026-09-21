@@ -152,7 +152,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     drawerOpen.value = true
     // 单击打开详情 = 一次调用（WRR 口径）
     recordResourceOpen(d.value, r)
-    store.persist()
+    store.persistHot?.()
   }
   // R106（F4）：只读详情期 Ctrl+Enter = 定位源卡——document 捕获（焦点常在 body，元素级绑不住）；closeDrawer/watch 双路摘除
   function onRoCtrlEnter(e: KeyboardEvent) {

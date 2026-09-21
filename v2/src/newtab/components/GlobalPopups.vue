@@ -1099,13 +1099,13 @@ function openItem(item: SearchResult) {
     else showToast('↗ 已定位到卡片所在资源台')
   } else if (item.type === 'task') {
     recordCardOpen(d.value, d.value.tasks.find(t => t.id === item.id))
-    store.persist()
+    store.persistHot()
     // R117（04-61 B）：hk 显式分派——调度台同时挂着任务卡与好奇心卡两个 hl 消费者
     router.push({ path: '/', query: { hl: item.id, hk: 'task' } })
     showToast('↗ 已定位到任务卡片')
   } else {
     recordCardOpen(d.value, d.value.curiosities.find(c => c.id === item.id))
-    store.persist()
+    store.persistHot()
     router.push({ path: '/', query: { hl: item.id, hk: 'curio' } })
     showToast('↗ 已定位到好奇心卡片')
   }
@@ -1121,7 +1121,7 @@ function openResLink(item: SearchResult) {
   const url = toOpenableUrl(r.linkType, r.link)
   if (!url) { openItem(item); return }
   recordResourceOpen(d.value, r)
-  store.persist()
+  store.persistHot()
   openExternalLink(url)
   closeAll()
 }

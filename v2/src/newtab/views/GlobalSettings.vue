@@ -476,6 +476,19 @@
 
       <!-- ===== R134-F · AI 助手 ===== -->
       <div v-if="activePage === 'ai'" class="gs-panel">
+      <!-- R148-T：AI 任务托盘——关抽屉继续跑，跑完在这儿能回来展开；不再"手滑一下全丢" -->
+      <div v-if="aiTray.length" class="ai-tray">
+        <div class="ai-tray-head">
+          <b>AI 任务 {{ aiTray.length }}</b><span class="ai-tray-hint">关掉抽屉也在后台跑；同一功能再点=回到这份进度，跑完可「↻ 重新运行」</span>
+          <button class="gs-btn sm ghost" @click="aiTrayClear">收起已完成</button>
+        </div>
+        <div v-for="s in aiTray" :key="s.key" class="ai-tray-row">
+          <span class="ai-tray-dot" :class="s.phase"></span>
+          <span class="ai-tray-t">{{ s.title }}</span>
+          <span class="ai-tray-st">{{ s.phase === 'running' ? `跑动中 ${s.secs}s · 投料 ${s.feed.chars} 字 · ${s.feed.calls} 次请求` : s.phase === 'queued' ? '排队中（同时最多 2 个）' : s.phase === 'done' ? (s.savedNote || `完成 · ${s.rows.length} 条 · ${s.secs}s`) : '失败：' + s.err.slice(0, 46) }}</span>
+          <button class="gs-btn sm" @click="aiOpenState(s)">展开</button>
+        </div>
+      </div>
         <div class="gs-page-header">
           <div class="gs-page-title"><ZhiMark :size="17" /> AI 助手 <span class="gs-dash-en">AI</span></div>
           <div class="gs-page-desc">接 OpenAI 兼容大模型 API · 建议经你审阅勾选后才写入 · 密钥仅存本机（独立键，不随数据导出包外发）</div>
@@ -995,7 +1008,7 @@
     </main>
 
     <!-- R134-F：AI 建议评审抽屉（批量补全/沉睡唤醒/深度诊断共用消费面） -->
-    <AiSuggestionDrawer v-if="aiJob" :job="aiJob" @close="aiJobClosed" />
+    <AiSuggestionDrawer v-if="aiJob" :job="aiJob" :job-key="aiJobKey || undefined" @close="aiJobClosed" />
 
     <!-- 回滚确认弹窗 -->
     <Teleport to="body">
@@ -1019,6 +1032,9 @@
 </template>
 
 <script setup lang="ts">
+// R148-P1a：显式实例名——纳入 KeepAlive（切模块免重挂载与免重算首屏）
+defineOptions({ name: 'GlobalSettingsView' })
+
 import { ref, reactive, computed, watch, watchEffect, onMounted, shallowRef } from 'vue'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter, useRoute } from 'vue-router'
@@ -1036,6 +1052,8 @@ import { uid, dateKey, weekStartKey } from '@/shared/utils'
 import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
 import { getAssetStats, cleanupOrphanAssets, getAllAssets, putAssets } from '@/shared/storage/assets'
 import { purgeCardsCompletely, recycledCardsOf } from '@/shared/storage/purge'
+import { clearHot } from '@/shared/storage/hotStats'
+import { getMutationSeq } from '@/shared/storage/repository'
 import { freshTagsOf, knownTagSet } from '@/shared/utils/tags'
 import { buildZip, readZip, type ZipEntry } from '@/shared/utils/zip'
 import { visibleFields, allFields } from '@/shared/utils/fields'
@@ -1065,6 +1083,8 @@ import { batchEnrichSystem, dormantSystem, diagnosisSystem, allPersonas, persona
 import { buildTagGovernJob, buildTrashRescueJob, buildCrossDeckJob, buildThesisJob, buildTagBlueprintJob, buildTagAssignJob, consumeTagBlueprintAdopted, getTagReviseBackup, restoreTagReviseBackup , reviseSnips } from '@/shared/ai/govern'
 import { clearLinkCache } from '@/shared/ai/linkFetch'
 import { buildReviewJob } from '@/shared/ai/select'
+import { withReport } from '@/shared/ai/reports'
+import { listJobStates, clearFinished, type JobState } from '@/shared/ai/runner'
 import { buildDeliverJob } from '@/shared/ai/batchG'
 
 const router = useRouter()
@@ -1827,7 +1847,7 @@ function panCardSub(r: ResourceCard): string {  const src = r.sourceType ? ({ of
 }
 /** R126（诉求 6）：全景列表单击=选中（勾选态），双击=打开详情抽屉（原：单击详情 / 双击开链接） */
 function onPanCardClick(r: ResourceCard) { togglePanCard(r.id) }
-function onPanCardDblClick(r: ResourceCard) { recordResourceOpen(gd.value, r); store.persist(); panDetail.value = r }
+function onPanCardDblClick(r: ResourceCard) { recordResourceOpen(gd.value, r); store.persistHot(); panDetail.value = r }
 watch(activePage, (p) => {
   if (p === 'dashboard') refreshEventLog()
   if (p === 'panorama' && !panSelWs.value) {
@@ -2341,6 +2361,7 @@ function doReset() {
   store.data!.stats = fresh.stats
   store.data!.activityLogs = []
   store.persist()
+  clearHot() // R148-P0b：热度拆键后，回滚必须连热度键一起清，否则旧 stats 下次启动会覆盖回来
   closeResetModal()
   showToast('✓ 已回滚至初始状态')
   setTimeout(() => router.push('/compass'), 800)
@@ -2553,16 +2574,39 @@ function cardHasTag(tags: string[] | undefined, name: string): boolean {
   const leaf = name.split('/').pop() || name
   return tags.some(t => t === name || t === leaf)
 }
-function tagUsage(name: string): number {
+/**
+ * R148-P1b：标签用量改**一次遍历建表**（原来它是普通函数，模板按树上每个节点各调一次
+ * = O(标签节点数 × 全部卡)；100 标签 × 1300 卡 = 每次渲染 13 万次判等）。
+ * 失效依据 = repository 的内存脏计数（每次 persist 同步自增），不做"看起来变了"的猜测。
+ */
+let tagUseCache: { seq: number; size: number; map: Map<string, number> } | null = null
+function tagUsageMap(): Map<string, number> {
   const d = store.data!
-  let n = 0
+  const size = d.resources.length + d.tasks.length + d.curiosities.length
+  const seq = getMutationSeq()
+  if (tagUseCache && tagUseCache.seq === seq && tagUseCache.size === size) return tagUseCache.map
+  const map = new Map<string, number>()
+  const bump = (k: string) => map.set(k, (map.get(k) || 0) + 1)
   const walk = (arr?: { deletedAt?: number; tags?: string[] }[]) => {
-    for (const x of arr || []) if (!x.deletedAt && cardHasTag(x.tags, name)) n++
+    for (const x of arr || []) {
+      if (x.deletedAt || !Array.isArray(x.tags)) continue
+      const seen = new Set<string>()
+      for (const t of x.tags) {
+        if (typeof t !== 'string' || !t) continue
+        if (!seen.has(t)) { seen.add(t); bump(t) }
+        const leaf = t.split('/').pop() || t
+        if (leaf !== t && !seen.has(leaf)) { seen.add(leaf); bump(leaf) }
+      }
+    }
   }
   walk(d.resources as unknown as { deletedAt?: number; tags?: string[] }[])
   walk(d.tasks as unknown as { deletedAt?: number; tags?: string[] }[])
   walk(d.curiosities as unknown as { deletedAt?: number; tags?: string[] }[])
-  return n
+  tagUseCache = { seq, size, map }
+  return map
+}
+function tagUsage(name: string): number {
+  return tagUsageMap().get(name) || 0
 }
 function ttToggle(id: string) {
   const set = new Set(ttCollapsed.value)
@@ -2626,6 +2670,8 @@ function toggleTtAll() { ttPicked.value = ttAllChecked.value ? new Set() : new S
 // ============== R134-F（批次 F）· AI 助手：接入配置 + 批量补全 + 沉睡唤醒 + 深度诊断 v0 ==============
 // 纪律：建议只活在抽屉内存态；采纳才走既有字段写入 + persist 一次；全部手动触发、零常驻、零启动链。
 const aiJob = shallowRef<AiJob | null>(null)
+/** R148-T：绑 runner 的功能身份（空=旧绑法，抽屉即任务） */
+const aiJobKey = ref('')
 const aiModels = ref<string[]>([])
 const aiBusy = ref<'' | 'models' | 'test'>('')
 const aiMsg = ref('')
@@ -2672,8 +2718,13 @@ function aiCustomPatch(id: string, k: 'name' | 'brief' | 'focus', v: string) {
 function aiOpenJob(job: AiJob | null, emptyMsg: string) {
   if (!aiGuard()) return
   if (!job) { showToast(emptyMsg); return }
+  aiJobKey.value = job.key || ''
   aiJob.value = job
 }
+/** R148-T：任务托盘——后台在跑/跑完的 AI 任务一览，点「展开」回到那份结果（不重跑） */
+const aiTray = computed(() => listJobStates())
+function aiOpenState(s: JobState) { aiJobKey.value = s.key; aiJob.value = s.job }
+function aiTrayClear() { clearFinished() }
 async function aiTagGovern() { await loadAiConfig(); aiOpenJob(buildTagGovernJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '标签体系还是空的，先给卡片打几个标签') }
 // R143（反馈）：标签整体梳理——蓝图评审门 → 采纳自动接力全卡归架门；快照还原钮随备份存在而现
 const aiReviseBak = ref<{ at: number } | null>(null)
@@ -2691,6 +2742,7 @@ function aiJobClosed() {
     if (aj) { aiJob.value = aj; showToast('✓ 蓝图已落地，接着全卡归架打标'); return }
   }
   aiJob.value = null
+  aiJobKey.value = ''
 }
 async function aiCheckReviseBak() { aiReviseBak.value = await getTagReviseBackup() }
 async function aiRestoreRevise() {
@@ -2852,7 +2904,8 @@ function aiDiagnose() {
   const sel = aiPersonas.value.filter(p => aiPersonaSel.value.includes(p.id) && ov[p.id]?.enabled !== false)
   if (!sel.length) { showToast('至少勾选一位专家'); return }
   const digest = projectLibrary(d, aiConfig.value.depth)
-  aiJob.value = {
+  aiOpenJob(withReport({
+    key: 'diag',
     title: `深度诊断 · ${sel.length} 位专家会诊`,
     hint: `整库摘要投料 ${digest.length} 字（${aiConfig.value.depth === 'eco' ? '经济' : aiConfig.value.depth === 'deep' ? '深度' : '标准'}档）。勾选发现采纳=各生成一张跟进任务卡（未归属，自行挂链）；不勾即纯参考。`,
     build: () => ({ messages: [{ role: 'user', content: digest }] }),
@@ -2903,7 +2956,10 @@ function aiDiagnose() {
       if (!rows.length) throw new Error('各位专家都没有给出可成立的发现（数据太稀疏或模型过于保守，可换深度档重试）')
       return rows
     },
-  }
+  }, { d, persist: () => store.persist() },
+    () => `🧠 深度诊断 ${new Date().toLocaleDateString('zh-CN')}`,
+    (rows) => rows.map(r => `## ${r.badge || ''} ${r.main}\n${r.sub || ''}`).join('\n\n'),
+    ['深度诊断']), '各位专家没有给出可成立的发现')
 }
 function onTtRowDblClick(row: TtRow) { ttDetail.value = row }
 function onTtRowDragStart(e: DragEvent, row: TtRow) { ttCardDragIds = ttPicked.value.has(row.id) ? [...ttPicked.value] : [row.id]; if (!ttPicked.value.has(row.id)) ttTogglePick(row.id); ttCardDragging.value = true; e.dataTransfer?.setData('text/plain', ttCardDragIds.join(',')) }
@@ -3496,6 +3552,17 @@ const activeManualSec = ref('quick-1')
 .ai-persona { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text); cursor: pointer; white-space: nowrap; }
 .ai-persona-brief { font-size: 11.5px; color: var(--text-3); line-height: 1.6; }
 .gs-btn.ai-batch-btn { margin-left: 10px; padding: 3px 10px; font-size: 11.5px; }
+.ai-tray { margin: 0 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+.ai-tray-head { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text); }
+.ai-tray-hint { font-size: 11px; font-weight: 400; color: var(--text-4); flex: 1; }
+.ai-tray-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-2); }
+.ai-tray-t { font-weight: 600; color: var(--text); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-tray-st { flex: 1; color: var(--text-3); }
+.ai-tray-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-4); flex-shrink: 0; }
+.ai-tray-dot.running { background: var(--accent); animation: breathe 1.2s ease-in-out infinite; }
+.ai-tray-dot.done { background: var(--success); }
+.ai-tray-dot.error { background: var(--danger); }
+.ai-tray-dot.queued { background: var(--warning); }
 .gs-btn.ai-batch-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .ai-pnew { display: flex; gap: 8px; align-items: center; margin: 8px 0 10px; flex-wrap: wrap; }
 .ai-pnew .gs-input { flex: 1; min-width: 130px; }

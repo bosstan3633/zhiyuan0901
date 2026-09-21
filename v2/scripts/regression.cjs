@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.2.0'";
+const VER_ANCHOR_LITERAL = "version: '3.3.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -700,7 +700,7 @@ check('R49-32 E4 版本五处同步（manifest/package/ManualPage + regression �
 
 // ============== 第五十轮 · V2.24.0：Bug修复 + 首页布局 + 主航线/指标条 + 策展中心 + 快捷键/Splash ==============
 console.log('【第五十轮 · V2.24.0：方向树跳转修复 + 主航线紧凑化 + 策展中心 + 快捷键/Splash】');
-check('R50-1 B1/B2 CompassShell 嵌套 RouterView：子路由激活渲染二级页（完整方向树/项目详情可跳转）', () => { const s = read('/newtab/views/CompassShell.vue'); return s.includes('<RouterView v-if="isChildActive" />') && s.includes("route.matched.length > 1"); });
+check('R50-1 B1/B2 CompassShell 嵌套 RouterView：子路由激活渲染二级页（完整方向树/项目详情可跳转）· R148 备案：子路由套上 keep-alive，标签由大写 RouterView 改小写带 slot', () => { const s = read('/newtab/views/CompassShell.vue'); return s.includes('router-view v-if="isChildActive"') && s.includes('keep-alive include="ProjectCurationView,CompassTreeView"') && s.includes("route.matched.length > 1"); });
 check('R51-B5 刷新回调度台：isReady 后 replace，仅 /settings /manual 白名单（方向树/项目详情不再豁免）', () => { const m = read('/newtab/main.ts'); return m.includes('router.isReady()') && m.includes("startsWith('/settings')") && m.includes("startsWith('/manual')") && !m.includes("startsWith('/compass/projects')") && !m.includes("startsWith('/compass/tree')"); });
 check('R50-3 B4 页面标题左对齐：CompassHome/CompassShell/ProjectCuration page-head 内缩 22px', () => { const h = read('/newtab/views/CompassHome.vue'); const sh = read('/newtab/views/CompassShell.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return h.includes('padding-left: 22px') && sh.includes('padding-left: 22px') && pc.includes('.page { max-width: 1440px'); });
 check('R50-4 F1（R52 修订：三件事横向并列）三槽一行 + 项目调度右上角方向树入口', () => { const s = read('/newtab/views/CompassHome.vue'); return s.includes('grid-template-columns: repeat(3, 1fr)') && s.includes("router.push('/compass/tree')") && s.includes('方向树'); });
@@ -1088,7 +1088,8 @@ check('R65-11（R74 重写）KeepAlive 切台缓存：三主视图 include（+Co
   const a = read('/newtab/App.vue');
   const w = read('/newtab/views/Workspace.vue');
   const h = read('/newtab/views/CompassHome.vue');
-  return a.includes('keep-alive include="CompassHomeView,WorkspaceView,CompassShell"') && read('/newtab/views/CompassShell.vue').includes("defineOptions({ name: 'CompassShell' })") && w.includes("defineOptions({ name: 'WorkspaceView' })") && h.includes("defineOptions({ name: 'CompassHomeView' })") && w.includes('watch(() => route.params.id');
+  const inc = (a.match(/keep-alive include="([^"]+)"/) || [, ''])[1].split(',')
+  return inc.includes('CompassHomeView') && inc.includes('WorkspaceView') && inc.includes('CompassShell') && read('/newtab/views/CompassShell.vue').includes("defineOptions({ name: 'CompassShell' })") && w.includes("defineOptions({ name: 'WorkspaceView' })") && h.includes("defineOptions({ name: 'CompassHomeView' })") && w.includes('watch(() => route.params.id');
 });
 check('R65-12 方向状态单行指标条：副行收 tooltip（mb-v 13.5px 单行 + st-warn 保留）', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); return mb.includes('mb-row') && mb.includes('mb-k') && mb.includes('mb-v') && mb.includes('st-warn') && !mb.includes('mb-head'); });
 
@@ -1370,7 +1371,8 @@ check('R73-2 顶栏「资源台」Tab 高亮认 hub：activeTab 在 activeWorksp
 });
 check('R73-3 KeepAlive 不再缓存已收敛的 CurationCenterView（三主视图）', () => {
   const a = read('/newtab/App.vue');
-  return a.includes('keep-alive include="CompassHomeView,WorkspaceView,CompassShell"') && !a.includes('CompassHomeView,CurationCenterView,WorkspaceView');
+  const inc = (a.match(/keep-alive include="([^"]+)"/) || [, ''])[1].split(',')
+  return inc.includes('CompassHomeView') && inc.includes('WorkspaceView') && !inc.includes('CurationCenterView');
 });
 // R84 重指：页头由 R73 的 hub 专属 `.ws-hub-head`（写死「资源台」）升级为 W1 的全台通用 `.ws-id-head`
 // （台名取 workspace.name、描述取 workspace.desc）。**能力仍在且更强**——资源台标题可见，
@@ -1476,7 +1478,8 @@ check('R74-13 hub 离屏渲染抑制：content-visibility 2 处 + contain-intrin
 });
 check('R74-14 资源台两入口合一（顶栏 tab 高亮认 hub + KeepAlive 三视图）', () => {
   const a = read('/newtab/App.vue');
-  return a.includes("if (activeWorkspaceId.value === CURATION_WS_ID) return 'curation'") && a.includes('keep-alive include="CompassHomeView,WorkspaceView,CompassShell"');
+  const inc = (a.match(/keep-alive include="([^"]+)"/) || [, ''])[1].split(',')
+  return a.includes("if (activeWorkspaceId.value === CURATION_WS_ID) return 'curation'") && inc.includes('WorkspaceView') && inc.includes('CompassShell');
 });
 check('R74-15 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8');
@@ -3529,7 +3532,7 @@ check('R129-13 B12 铺开面：台名去图标消费点收编（GlobalSettings �
 
 // ============== R130 · V2.98.0：标签管理三修 + 资源台/金字塔版式（用户反馈批次） ==============
 console.log('【R130 · V2.98.0：标签管理三修 + 版式呼吸感】');
-check('R130-1 ★T1 标签计数口径合一：cardHasTag 唯一判据（路径+叶子双口径），树角标排除回收站软删卡，右列三过滤同函数（8 vs 6 错位退役）', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('function cardHasTag(tags: string[] | undefined, name: string)') && g.includes('if (!x.deletedAt && cardHasTag(x.tags, name)) n++') && count('/newtab/views/GlobalSettings.vue', '!cardHasTag(') >= 3 && !g.includes('.includes(tag)) continue'); });
+check('R130-1 ★T1 标签计数口径合一：路径+叶子双口径 + 树角标排除回收站软删卡，右列三过滤同函数 · R148 备案：树计数改 tagUsageMap 一次建表（原按节点各扫全库），双口径与 deletedAt 过滤逐字保留，等价性由 R148 冒烟运行时对账兜底', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('function cardHasTag(tags: string[] | undefined, name: string)') && g.includes('if (x.deletedAt || !Array.isArray(x.tags)) continue') && g.includes("const leaf = t.split('/').pop() || t") && count('/newtab/views/GlobalSettings.vue', '!cardHasTag(') >= 3 && !g.includes('.includes(tag)) continue'); });
 check('R130-2 ★T2 标签详情抽屉位置修复：从资源台全景面板（v-if panorama）迁入标签管理面板——原抽屉组件在标签页根本不渲染，双击永无反应', () => { const g = read('/newtab/views/GlobalSettings.vue'); const panSeg = g.slice(g.indexOf("activePage === 'panorama'"), g.indexOf("activePage === 'resource'")); const tagSeg = g.slice(g.indexOf("activePage === 'tags'"), g.indexOf("activePage === 'import'")); return !panSeg.includes('!!ttDetail') && tagSeg.includes(':open="!!ttDetail"') && tagSeg.includes('openCardLink({ link: ttDetail.link })'); });
 check('R130-3 T3 拖拽视觉反馈：标签树 dragover 落点高亮（根+子行 dropTarget 接线、drop/dragend 复位）+ 被拖卡片行降透明度', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('const ttDropTarget = ref(') && g.includes('@dragover.prevent="ttDropTarget = root.id"') && g.includes('@dragover.prevent="ttDropTarget = child.id"') && g.includes('drop: ttDropTarget === root.id') && g.includes('drop: ttDropTarget === child.id') && g.includes('ttCardDragging.value = true') && g.includes('.gs-tt-row.drop {') && g.includes('.gs-pan-card.dragging { opacity: .45; }'); });
 check('R130-4 ★T5 --radius-md 令牌补齐（全站 14 处引用此前无定义 → metric-box/today-card/tm-card 圆角静默失效渲染成直角）', () => { const tk = read('/shared/styles/tokens.css'); const c = read('/newtab/views/workspace.css'); return tk.includes('--radius-md: 10px;') && c.includes('.metric-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);'); });
@@ -3669,7 +3672,7 @@ check('R139-2 拆解双通道：AiJob.secondary=同批勾选行的另一种落�
 check('R139-3 拆解专家执笔：chainSystem 收 personaText（有则替换默认执行教练角色为执笔人设）；chainPersonaText 合成内置∪自建专家 brief+focus+风格覆盖（default/查无回落空串）；breakdown 挂 persona 下拉，宿主 onPersona 重建 job 自动重跑', () => { const s = read('/shared/ai/scenarios.ts'); const c = read('/shared/ai/chain.ts'); const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); return s.includes('export function chainSystem(level: ChainLevel, personaText?: string)') && s.includes('export function chainPersonaText') && s.includes('你的行文风格') && c.includes('chainSystem(level, personaText)') && c.includes('current: ctx.personaId') && td.includes('aiPersonaId') && td.includes('void aiBreakdown()'); });
 check('R139-4 ★周报深度洞察全懒接入：浮层头「🤖 深度洞察」钮只在点击时 dynamic import AI 栈（零静态 @/shared/ai），rawText 四段契约（重心体检/信号与异常/资产错位/下周一个动作），采纳=存「🤖 深度洞察」资源卡；浮层 z 降到 190 让开抽屉层', () => { const w = read('/newtab/components/WeeklyReportOverlay.vue'); const s = read('/shared/ai/select.ts'); const sc = read('/shared/ai/scenarios.ts'); return !w.includes("from '@/shared/ai/") && w.includes('深度洞察') && w.includes('ZhiMark') && w.includes("import('@/shared/ai/select')") && w.includes('defineAsyncComponent(() => import(') && w.includes('z-index: 190') && s.includes('export function buildInsightJob') && sc.includes('deepInsightSystem') && sc.includes('## 重心体检') && s.includes("tags: ['深度洞察']"); });
 check('R139-5 周台账投影扩容：projectWeekDigest 新增本周调用分布（按工作台聚合、top6）与 isFocused 主攻投入对照（≤3 个：进度/未完成/本周完成/停滞），作重心偏离证据段；主攻无卡可设时该段整体缺席', () => { const p = read('/shared/ai/project.ts'); return p.includes('【本周调用分布（按工作台）】') && p.includes('【主攻项目投入对照】') && p.includes('p.isFocused') && p.includes('slice(0, 3)') && p.includes('slice(0, 6)'); });
-check('R139-6 评审抽屉双控件：footer 次采纳按钮（label 由 job 给、勾选 0 禁用、走 adoptSecondary 复用 picked 集）+ persona 下拉（options/current/onPick 三段，宿主重建 job 即 watch 重跑；R141 已上移抽屉头部）', () => { const w = read('/newtab/components/AiSuggestionDrawer.vue'); return w.includes('async function adoptSecondary()') && w.includes('job.secondary.apply(sel)') && w.includes('v-if="job?.secondary && rows.length"') && w.includes('class="ai-persona"') && w.includes('job.persona!.onPick'); });
+check('R139-6 评审抽屉双控件：footer 次采纳按钮（label 由 job 给、勾选 0 禁用、走 adoptSecondary 复用 picked 集）+ persona 下拉（options/current/onPick 三段，宿主重建 job 即 watch 重跑；R141 已上移抽屉头部）· R148 备案：契约对象统一走 cur（后台模式下必须显示**正在跑的那份 job**，不能拿新锚点的表头配旧结果', () => { const w = read('/newtab/components/AiSuggestionDrawer.vue'); return w.includes('async function adoptSecondary()') && w.includes('job.secondary.apply(sel)') && w.includes('v-if="cur?.secondary && vRows.length"') && w.includes('class="ai-persona"') && w.includes('cur.persona!.onPick'); });
 
 // ============== R140 · V2.108.0：网页内容智能分析 + 诊断可用性与专家编辑 ==============
 console.log('【R140 · V2.108.0：网页内容智能分析 + 专家编辑面】');
@@ -3686,7 +3689,7 @@ check('R141-1 ★解绑/删除两语义统一真源 shared/utils/taskLinks.ts：
 check('R141-2 ★软删引用闭环：五路删除入口（详情抽屉/面板单删/批量/调度台/搜索浮层）全走 softDeleteTaskToTrash/detach 摘净 metric.taskIds；撤销与回收站恢复按 t.metricId 回填；启动期 sanitizeMetricTaskIds 一次性消毒历史脏引用（幂等并入 migrated 链）', () => { const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const tmp = read('/newtab/components/compass/TaskManagerPanel.vue'); const ch = read('/newtab/views/CompassHome.vue'); const ov = read('/content/overlay-impl.ts'); const app = read('/newtab/stores/app.ts'); return td.includes('softDeleteTaskToTrash(d.value, t)') && tmp.includes('softDeleteTaskToTrash(d.value, t)') && (tmp.match(/softDeleteTaskToTrash/g) || []).length >= 2 && ch.includes('softDeleteTaskToTrash(d.value, t)') && ov.includes('detachTaskFromMetrics(d2 as any, String(id))') && app.includes('sanitizeMetricTaskIds(data.value)'); });
 check('R141-3 统计口径防脏：AI 投影三处指标任务统计滤 deletedAt（罗盘链×2+周台账），删指标不再悬挂子任务（CompassTree deleteNode metric 分支清 metricId 回落未关联）', () => { const p = read('/shared/ai/project.ts'); const ct = read('/newtab/views/CompassTree.vue'); return (p.match(/t\.id === id && !t\.deletedAt/g) || []).length === 3 && ct.includes('removeCompassNode') && read('/shared/utils/compassCrud.ts').includes('if (!t.deletedAt && t.metricId === id)') && read('/shared/utils/compassCrud.ts').includes('t.metricId = undefined; t.updatedAt = Date.now()'); });
 check('R141-4 AI 抽屉上下文三件套：AiJob.subject 处理对象标头（拆解/推荐/录入/回顾/洞察/优化全带）；AiRow.advisory 参谋行不进勾选（picked 初始化与全选剔除、计数走 adoptableN）；verdict.recommend=detail 时「写入详情」自动升主按钮（recDetail 互换 primary）', () => { const j = read('/shared/ai/job.ts'); const w = read('/newtab/components/AiSuggestionDrawer.vue'); const c = read('/shared/ai/chain.ts'); const s = read('/shared/ai/select.ts'); return j.includes('subject?: string') && j.includes('advisory?: boolean') && w.includes("class=\"ai-subject\"") && w.includes('out.filter(r => !r.advisory && !r.weak)') && w.includes('adoptableN') && w.includes('{ primary: recDetail }') && c.includes("key: 'breakdown:verdict', badge: '参谋', advisory: true") && s.includes("key: 'verdict', badge: '参谋', advisory: true"); });
-check('R141-5 默认执笔专家贯通：config.defaultPersona（设置 AI 页下拉只列未停诊专家）；拆解/四层生成/全方位优化宿主进入时未换过人即带入；persona 下拉上移抽屉头部（title-extra，running 期间也可换人重跑）', () => { const cf = read('/shared/ai/config.ts'); const g = read('/newtab/views/GlobalSettings.vue'); const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const ca = read('/newtab/components/CardAiEntry.vue'); const w = read('/newtab/components/AiSuggestionDrawer.vue'); return cf.includes("defaultPersona: ''") && g.includes('patchAiConfig({ defaultPersona:') && td.includes('aiConfig.value.defaultPersona') && ca.includes('personaId: personaId.value') && w.includes('<template v-if="job?.persona" #title-extra>') && !w.includes('v-if="job?.persona" class="ai-persona"'); });
+check('R141-5 默认执笔专家贯通：config.defaultPersona（设置 AI 页下拉只列未停诊专家）；拆解/四层生成/全方位优化宿主进入时未换过人即带入；persona 下拉上移抽屉头部（title-extra，running 期间也可换人重跑）', () => { const cf = read('/shared/ai/config.ts'); const g = read('/newtab/views/GlobalSettings.vue'); const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const ca = read('/newtab/components/CardAiEntry.vue'); const w = read('/newtab/components/AiSuggestionDrawer.vue'); return cf.includes("defaultPersona: ''") && g.includes('patchAiConfig({ defaultPersona:') && td.includes('aiConfig.value.defaultPersona') && ca.includes('personaId: personaId.value') && w.includes('<template v-if="cur?.persona" #title-extra>') && !w.includes('v-if="job?.persona" class="ai-persona"'); });
 check('R141-6 ★分类就地改名组件 CatNodeName：双击/外部 editing 双路进行内 input，Enter/blur 提交、Esc 取消；同名查重与落库留 useCategoryCrud.commitCatRename（弹窗只剩新建）；金字塔节点名同组件（镜像徽标保留）', () => { const cn = read('/newtab/components/CatNodeName.vue'); const cc = read('/newtab/composables/useCategoryCrud.ts'); const py = read('/newtab/composables/usePyramid.ts'); return cn.includes('@keydown.enter.prevent="finish(true)"') && cn.includes("@keydown.esc.prevent=\"finish(false)\"") && cc.includes('function startCatRename(') && cc.includes('function commitCatRename(') && !cc.includes('openRenameCat') && py.includes('if (cat) startCatRename(cat)'); });
 
 // ============== R142 · V2.110.0：评估体系刀（成熟度规则分 + 上行评级 + 内置专家可编辑） ==============
@@ -3856,6 +3859,53 @@ check('R147-6 论点骨架结构化只读预览：aiMarks 写读同源真源（b
   return mk.includes("export const THESIS_MARK = '🤖 中心论点：'") && g.includes('new RegExp(`\\n*${THESIS_MARK}') && g.includes('seg.push(\'\', THESIS_PARTS_MARK)')
     && tb.includes('const i = t.indexOf(THESIS_MARK)') && tb.includes('if (!thesis) return null') && tb.includes('v-if="parsed"') && !tb.includes('store.persist') && !tb.includes('saveData')
     && tb.includes('shelved: catNames.has(name)') && rdd.includes('<ThesisBlock v-if="resource?.isThesis"')
+});
+
+// ============== R148 · V3.3.0：性能刀（实测驱动）+ AI 任务后台化 ==============
+const REPO148 = read('/shared/storage/repository.ts')
+const HOT148 = read('/shared/storage/hotStats.ts')
+check('R148-1 ★热度统计拆独立键（单击卡片不再重写整库）：zy_stats_v1 只装 callCount/lastCalledAt + stats 段；主树仍是唯一消费口径；整库写入必同步刷新热度键（杜绝"旧热度盖住新导入"）；回滚连热度键一起清', () => {
+  const st = read('/shared/storage/stats.ts'); const app = read('/newtab/stores/app.ts'); const gs = read('/newtab/views/GlobalSettings.vue')
+  return HOT148.includes("export const HOT_KEY = 'zy_stats_v1'") && HOT148.includes('export function applyHot') && HOT148.includes('export function clearHot')
+    && REPO148.includes('cs.get([STORAGE_KEY, HOT_KEY])') && REPO148.includes('if (hot) applyHot(data, hot)') && REPO148.includes('data.hotStatsSplitAt')
+    && (REPO148.match(/writeHot\(/g) || []).length >= 3 && app.includes('function persistHot()')
+    && (read('/newtab/composables/useResourceDrawer.ts').includes('persistHot') && read('/newtab/components/GlobalPopups.vue').includes('persistHot')) && gs.includes('clearHot()')
+    && !st.includes('TODO')
+});
+check('R148-2 内存脏计数取代"写盘成功才自增"的 dataVersion 作派生缓存依据（防抖窗口内读到旧索引这条隐患一并堵）', () => {
+  const m = read('/shared/utils/maturity.ts')
+  return REPO148.includes('export function getMutationSeq') && REPO148.includes('export function markDataDirty') && (REPO148.match(/markDataDirty\(\)/g) || []).length >= 3
+    && m.includes('import { getMutationSeq }') && m.includes('const taskMemo = new WeakMap') && m.includes('function bumpAggSeq') && m.includes('aggMemo.clear()')
+});
+check('R148-3 标签用量一次建表（原按树节点各扫全库 = O(标签数 × 全部卡)）：路径 + 叶子双口径与"排除回收站软删卡"逐字保留', () => {
+  const g = read('/newtab/views/GlobalSettings.vue')
+  return g.includes('function tagUsageMap()') && g.includes('if (x.deletedAt || !Array.isArray(x.tags)) continue') && g.includes("const leaf = t.split('/').pop() || t")
+    && g.includes('function tagUsage(name: string): number {') && !g.includes('tagUsageOld')
+});
+check('R148-4 KeepAlive 扩到设置页/回收站/项目详情/方向树（四页都是重计算首屏，此前每次进全量重挂）+ 显式实例名', () => {
+  const a = read('/newtab/App.vue'); const cs = read('/newtab/views/CompassShell.vue')
+  const inc = (a.match(/keep-alive include="([^"]+)"/) || [, ''])[1].split(',')
+  return inc.includes('GlobalSettingsView') && inc.includes('RecycleBinView') && cs.includes('keep-alive include="ProjectCurationView,CompassTreeView"')
+    && read('/newtab/views/GlobalSettings.vue').includes("defineOptions({ name: 'GlobalSettingsView' })") && read('/newtab/views/RecycleBin.vue').includes("defineOptions({ name: 'RecycleBinView' })")
+    && read('/newtab/views/ProjectCuration.vue').includes("defineOptions({ name: 'ProjectCurationView' })") && read('/newtab/views/CompassTree.vue').includes("defineOptions({ name: 'CompassTreeView' })")
+});
+check('R148-5 ★AI 任务与抽屉解绑：runner 按 jobKey 幂等（在跑 attach / 跑完看结果 + 重新运行）、关抽屉不杀任务、并发上限 2 超出排队、投料账随任务走', () => {
+  const r = read('/shared/ai/runner.ts'); const w = read('/newtab/components/AiSuggestionDrawer.vue'); const g = read('/newtab/views/GlobalSettings.vue')
+  return r.includes('const MAX_PARALLEL = 2') && r.includes('export function openJob') && r.includes('export function rerunJob') && r.includes("if ((e as Error).name === 'AbortError') { drop(key); return }")
+    && r.includes('function pump()') && r.includes('setLlmFeedSink(')
+    && w.includes('const props = defineProps<{ job: AiJob | null; jobKey?: string }>()') && w.includes("if (props.jobKey) { emit('close'); return }") && w.includes('↻ 重新运行') && w.includes('排队中')
+    && g.includes('const aiJobKey') && g.includes('const aiTray = computed') && g.includes('listJobStates') && g.includes('ai-tray-row')
+});
+check('R148-6 报告型自动落卡只新增不改既有：withReport 只 unshift 一张带「AI 报告·待审阅」的卡到资源台待分类；本轮仅深度诊断接入（其余报告型仍走勾选采纳，避免与"采纳=存卡"重复落两张）', () => {
+  const rp = read('/shared/ai/reports.ts'); const g = read('/newtab/views/GlobalSettings.vue'); const j = read('/shared/ai/job.ts')
+  return rp.includes("export const REPORT_TAG = 'AI 报告·待审阅'") && rp.includes('d.resources.unshift(card)') && rp.includes("categoryId: ''")
+    && !rp.includes('d.resources =') && !rp.includes('splice(') && j.includes('autoReport?: {')
+    && g.includes("withReport({") && g.includes("key: 'diag'") && g.includes("['深度诊断'])")
+});
+check('R148-7 ★本轮不做的要说出来：面板增量渲染经实测判停（M1 冷启动 433ms 已含 400 任务面板挂载、单次切台阻塞仅 70ms），改数据结构与渲染层的收益不再覆盖风险；jobKey 后台化本轮只接设置页（用户点名场景），其余入口沿用旧绑法', () => {
+  const perf = fs.readFileSync(path.resolve(__dirname, '..', 'scripts/perf.cjs'), 'utf8')
+  return perf.includes('window.__clickCost') && perf.includes('window.__hashTo') && perf.includes('M11_切到资源台_首帧(ms)') && perf.includes('M7_主键重写次数')
+    && !read('/newtab/components/compass/TaskManagerPanel.vue').includes('RENDER_STEP')
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

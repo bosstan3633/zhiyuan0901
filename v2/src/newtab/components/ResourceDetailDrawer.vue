@@ -105,7 +105,7 @@ function openLink() {
   const r = editing
   if (!store.data) return
   recordResourceOpen(store.data, r)
-  store.persist()
+  store.persistHot()
   const url = toOpenableUrl(r.linkType, r.link)
   if (!url) { showToast('⚠ 请先补全链接（本地文件需完整路径，如 D:\\docs\\file.pdf）'); return }
   openExternalLink(url)

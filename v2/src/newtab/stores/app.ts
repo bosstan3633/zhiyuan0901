@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { AppData, Workspace, UIPrefs } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 import { getData, saveData, loadUIPrefs, saveUIPrefs, subscribe, syncCache } from '@/shared/storage/repository'
+import { writeHot } from '@/shared/storage/hotStats'
 import { migrateCurationTree, migrateHubStructure, migrateHubMerge, hubMergeWorkPending } from '@/shared/storage/curationMigration'
 import { normalizeCardTagPaths } from '@/shared/utils/tags'
 import { sanitizeMetricTaskIds } from '@/shared/utils/taskLinks'
@@ -121,6 +122,14 @@ export const useAppStore = defineStore('app', () => {
   function persist() {
     if (data.value) saveData()
   }
+  /**
+   * R148-P0b：只落热度统计（打开次数 / 最近打开 / WRR 段），**不重写整库**。
+   * 用在"单击卡片看详情"这类最高频、又只改统计字段的动作上——
+   * 走 persist() 会把 medium 档 600KB 主 JSON 重新序列化并写盘一次。
+   */
+  function persistHot() {
+    if (data.value) writeHot(data.value)
+  }
 
-  return { data, ui, workspaces, theme, init, setTheme, persist }
+  return { data, ui, workspaces, theme, init, setTheme, persist, persistHot }
 })

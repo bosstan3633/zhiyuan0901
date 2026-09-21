@@ -25,6 +25,12 @@ export interface AiRow {
 
 export interface AiJob {
   title: string
+  /**
+   * R148-T：功能身份（同一功能恒同键，如 'diag' / 'tagAssign'）。
+   * runner 靠它做幂等：在跑→attach 看进度，跑完→看结果 + 重新运行；
+   * 不给 key 的沿用旧绑法（抽屉即任务）。
+   */
+  key?: string
   /** R141（反馈 #2/#3）：正在处理的对象标头（如「📌 任务「完成论文图表」」），抽屉常驻显示 */
   subject?: string
   hint?: string
@@ -38,6 +44,15 @@ export interface AiJob {
    * 抽屉在工具条显示一行，且**空态用它说清真因**（不再是一句"没有可采纳的建议"）。
    */
   audit?: () => string | null
+  /**
+   * R148-T：报告型自动落卡（**只新增一张卡、不改任何既有数据**的产出才配）。
+   * 跑完由 runner 直接落进资源台待分类，用户不必为了"看一眼诊断"再点一次采纳；
+   * 会改既有数据的动作（打标/归架/拆解/转化）不在此列，仍必须勾选采纳。
+   */
+  autoReport?: {
+    build: (rows: AiRow[]) => { title: string; description: string; tags?: string[] } | null
+    save: (p: { title: string; description: string; tags?: string[] }) => string
+  }
   run?: (ctx: { signal: AbortSignal; onDelta: (accum: string) => void }) => Promise<AiRow[]>
   apply: (rows: AiRow[]) => Promise<string> | string
   /** R139：次采纳通道——同一批勾选行的另一种落法（如拆解步骤「写入任务详情」而非建子任务） */

@@ -16,7 +16,7 @@ import type { curationMetrics } from '@/shared/storage/hub'
 import type { AppData, ResourceCard, Category, UIPrefs } from '@/shared/models'
 
 /** R115：宿主 Pinia store 的结构子集（结构性兼容，避免索引签名不匹配） */
-export interface WsStore { ui: UIPrefs | null; persist(): void }
+export interface WsStore { ui: UIPrefs | null; persist(): void; /** R148-P0b：只落热度统计（不重写整库） */ persistHot?(): void }
 
 export interface ResourceGroup { key: string; title: string; count: number; /** R122：含全部子分类的合计（原型「直属 N · 含 M 个子分类共 K」） */ total: number; items: ResourceCard[]; depth: number }
 

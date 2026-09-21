@@ -4,6 +4,27 @@
  * 四维口径——可执行 / 可归属 / 弹药 / 新鲜度；上行链聚合同源（指标←任务、项目←指标、目标←项目）。
  */
 import type { AppData, CuriosityCard, Direction, Metric, Project, ResourceCard, TaskCard } from '@/shared/models'
+import { getMutationSeq } from '@/shared/storage/repository'
+
+/**
+ * R148-P1b：派生结果记忆层。
+ * 病根：`taskMaturity(task)` 等直接写在模板上（任务面板 11 处行位 + 方向树 + 项目页 + 详情抽屉），
+ * 每次重渲染都新建一个 `{score,grade,label,reasons[]}`；`metricMaturity` 还要把其下任务全扫一遍
+ * 再各算一次——400 任务的面板滚一屏就是几千次重复计算。用户感知的"切模块卡"有一半在这里。
+ * 口径：新鲜度按**天**分桶（引擎本就是日粒度），数据脏计数（repository.getMutationSeq）一变即全废，
+ * 所以记忆只在"没人改过数据"时生效，不存在读到过期分。
+ */
+const dayBucket = (ms: number) => Math.floor(ms / DAY)
+const taskMemo = new WeakMap<object, { k: string; r: Maturity }>()
+const aggMemo = new Map<string, { k: string; r: Maturity }>()
+/** 脏计数一变，旧键再不会命中——直接清表，避免整库浏览时 Map 无界增长 */
+let aggSeq = -1
+function bumpAggSeq(): number {
+  const q = getMutationSeq()
+  if (q !== aggSeq) { aggSeq = q; aggMemo.clear() }
+  return q
+}
+const listMemo = new Map<string, { k: string; r: string[] }>()
 
 export type Grade = 'A' | 'B' | 'C' | 'D'
 export interface Maturity { score: number; grade: Grade; label: string; reasons: string[] }
@@ -19,6 +40,14 @@ const DAY = 86400000
 
 /** 任务成熟度：可执行 35 / 可归属 25 / 弹药 25 / 新鲜度 15 */
 export function taskMaturity(t: TaskCard, now = Date.now()): Maturity {
+  const k = `${dayBucket(now)}:${getMutationSeq()}:${t.updatedAt}:${t.status}:${t.dueDate || ''}:${t.estimatedMinutes || 0}:${(t.mountedResourceIds || []).length}:${(t.mountedCuriosityIds || []).length}:${(t.assets || []).length}:${(t.description || '').length}:${t.projectId || ''}:${t.metricId || ''}`
+  const hit = taskMemo.get(t)
+  if (hit && hit.k === k) return hit.r
+  const r = taskMaturityRaw(t, now)
+  taskMemo.set(t, { k, r })
+  return r
+}
+function taskMaturityRaw(t: TaskCard, now: number): Maturity {
   let s = 0
   const r: string[] = []
   if ((t.description || '').trim().length >= 10) s += 15; else r.push('缺说明（做什么没说清）')
@@ -54,6 +83,15 @@ export function curioMaturity(c: CuriosityCard, relatedCount = 0, now = Date.now
 
 /** R142（反馈 #4）：好奇卡的关联资源解析——直接 relatedResourceIds + 由它转化/挂载的任务带来的资源（展示口径并集） */
 export function curioResIds(d: AppData, c: CuriosityCard): string[] {
+  const mk = `cur:${c.id}:${getMutationSeq()}:${(c.relatedResourceIds || []).length}:${d.tasks.length}`
+  const hit = listMemo.get(mk)
+  if (hit) return hit.r
+  const r = curioResIdsRaw(d, c)
+  listMemo.set(mk, { k: mk, r })
+  if (listMemo.size > 4000) listMemo.clear()
+  return r
+}
+function curioResIdsRaw(d: AppData, c: CuriosityCard): string[] {
   const ids = [...(c.relatedResourceIds || [])]
   for (const t of d.tasks || []) {
     if (t.deletedAt || !(t.mountedCuriosityIds || []).includes(c.id)) continue
@@ -72,6 +110,14 @@ const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.le
 
 /** 指标成熟度：下属任务均分×0.5 + 任务覆盖 / 目标写法 / 完成推进 / 无停滞 */
 export function metricMaturity(d: AppData, m: Metric, now = Date.now()): Maturity {
+  const mk = `met:${m.id}:${dayBucket(now)}:${bumpAggSeq()}:${(m.target || '').length}:${(m.acceptance || '').length}:${d.tasks.length}`
+  const hit = aggMemo.get(mk)
+  if (hit) return hit.r
+  const r = metricMaturityRaw(d, m, now)
+  aggMemo.set(mk, { k: mk, r })
+  return r
+}
+function metricMaturityRaw(d: AppData, m: Metric, now: number): Maturity {
   const ts = tasksOfMetric(d, m)
   let s = 0
   const r: string[] = []
@@ -91,6 +137,14 @@ export function metricMaturity(d: AppData, m: Metric, now = Date.now()): Maturit
 
 /** 项目成熟度：指标均分×0.5 + 指标/任务结构 + 进度 + 停滞 */
 export function projectMaturity(d: AppData, p: Project, now = Date.now()): Maturity {
+  const mk = `prj:${p.id}:${dayBucket(now)}:${bumpAggSeq()}:${p.progress}:${(p.metrics || []).length}:${d.tasks.length}`
+  const hit = aggMemo.get(mk)
+  if (hit) return hit.r
+  const r = projectMaturityRaw(d, p, now)
+  aggMemo.set(mk, { k: mk, r })
+  return r
+}
+function projectMaturityRaw(d: AppData, p: Project, now: number): Maturity {
   const ms = p.metrics || []
   const ts = (d.tasks || []).filter(t => !t.deletedAt && t.projectId === p.id)
   let s = 0

@@ -48,7 +48,7 @@ export function useResourceOpen(ctx: ResourceOpenCtx) {
    *  「文档附件不存在或已失效」的误报；现图片走 AssetPreview 就地预览。 */
   function openResourceLink(r: ResourceCard) {
     recordResourceOpen(d.value, r)
-    store.persist()
+    store.persistHot?.()
     if (r.linkType === 'file' && /^zy-asset:\/\//i.test((r.link || '').trim())) {
       const assetId = (r.link || '').trim().replace(/^zy-asset:\/\//i, '')
       const meta = (r.assets || []).find(a => a.id === assetId)

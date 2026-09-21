@@ -129,7 +129,7 @@ const todayDelSub = computed(() => kindSub(todayDelList.value))
 // ---- 链接打开（WRR 抽屉复用；第卅二轮 REQ-010 统一打开通道） ----
 function openResLink(r: ResourceCard) {
   recordResourceOpen(d.value, r)
-  store.persist()
+  store.persistHot()
   const url = toOpenableUrl(r.linkType, r.link)
   if (url) openExternalLink(url)
 }

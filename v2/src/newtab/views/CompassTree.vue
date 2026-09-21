@@ -1,4 +1,7 @@
 <script setup lang="ts">
+// R148-P1a：显式实例名——纳入 KeepAlive（切模块免重挂载与免重算首屏）
+defineOptions({ name: 'CompassTreeView' })
+
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, defineAsyncComponent, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
@@ -446,7 +449,7 @@ function openChipLink(kind: 'res' | 'curio', id: string) {
     if (!r || !url) { showToast('该卡片没有可打开的链接'); return }
     // WRR 口径：关联卡片打开同样计入调用统计（与资源台/搜索/北极星一致）
     recordResourceOpen(d.value, r)
-    store.persist()
+    store.persistHot()
     openExternalLink(url)
   } else {
     const c = d.value.curiosities.find(x => x.id === id && !x.deletedAt)

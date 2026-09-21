@@ -526,14 +526,14 @@ function onTaskRowClick(t: TaskCard) {
     taskClickTimer = null
     // R47-B4：调起详情 = 一次「调用」，计入热度
     recordCardOpen(d.value, t)
-    store.persist()
+    store.persistHot()
     drawerRef.value?.open(t)
   }, 260)
 }
 function onTaskRowDblClick(t: TaskCard) {
   if (taskClickTimer) { clearTimeout(taskClickTimer); taskClickTimer = null }
   recordCardOpen(d.value, t)
-  store.persist()
+  store.persistHot()
   openCardLink(t.link)
 }
 /** 第十七轮：任务置顶切换 */

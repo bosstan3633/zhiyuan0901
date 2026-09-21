@@ -374,6 +374,8 @@ export interface AppData {
   /** R63：知源卡 id ↔ Airtable recordId 映射表（同步成功后写回；导入合并按 id 取并集） */
   airtableMap?: Record<string, AirtableMapEntry>
   /** R80（R1 遗留）：资源卡标签默认可见迁移完成时间戳（幂等标记——有值即跳过） */
+  /** R148-P0b：热度统计拆独立键（zy_stats_v1）的落戳——有戳=已拆分，启动期不再重复抽取 */
+  hotStatsSplitAt?: number
   tagsVisibleMigratedAt?: number
 }
 

@@ -78,6 +78,9 @@ try { new PerformanceObserver(l => { for (const e of l.getEntries()) window.__lt
 // 存储 IO 计时（定位「启动慢」到底慢在读盘、算数还是等定时器）
 try {
   const cs = chrome.storage.local
+  // R148：写盘探针——记下每次 set 写了哪些键（判断"点一下改一个字段，主 JSON 被重写几次"）
+  const __keysOf = (a) => { try { return a && typeof a === 'object' ? Object.keys(a).join(',') : '' } catch (e) { return '' } }
+  window.__keysOf = __keysOf
   const wrap = (name) => {
     const orig = cs[name].bind(cs)
     cs[name] = function (...args) {
@@ -85,12 +88,12 @@ try {
       const cbIdx = args.findIndex(a => typeof a === 'function')
       if (cbIdx >= 0) {
         const cb = args[cbIdx]
-        args[cbIdx] = (...r) => { window.__io.push({ op: name, ms: Math.round(performance.now() - t0), at: Math.round(t0) }); cb(...r) }
+        args[cbIdx] = (...r) => { window.__io.push({ op: name, ms: Math.round(performance.now() - t0), at: Math.round(t0), keys: __keysOf(args[0]) }); cb(...r) }
         return orig(...args)
       }
       const p = orig(...args)
       if (p && typeof p.then === 'function') {
-        return p.then(r => { window.__io.push({ op: name, ms: Math.round(performance.now() - t0), at: Math.round(t0) }); return r })
+        return p.then(r => { window.__io.push({ op: name, ms: Math.round(performance.now() - t0), at: Math.round(t0), keys: __keysOf(args[0]) }); return r })
       }
       return p
     }
@@ -221,6 +224,48 @@ window.__searchType = async function (sel, q, debounceMs) {
   }
   xs.sort((a, b) => a - b)
   return Math.round(xs[Math.floor(xs.length / 2)] * 10) / 10
+}
+/** R148：一次点击的"卡顿账单"——同步成本 + 之后 1.5s 内的长任务阻塞量 + 主数据键被重写几次 */
+window.__clickCost = async function (sel, waitMs) {
+  const el = document.querySelector(sel)
+  if (!el) return null
+  const lt0 = (window.__lt || []).length
+  const io0 = (window.__io || []).length
+  await window.__flush()
+  const t0 = performance.now()
+  el.click()
+  await window.__flush()
+  const sync = performance.now() - t0
+  await new Promise(r => setTimeout(r, waitMs == null ? 1500 : waitMs))
+  const lts = (window.__lt || []).slice(lt0).map(x => x.d)
+  const sets = (window.__io || []).slice(io0).filter(x => x.op === 'set')
+  return {
+    sync: Math.round(sync * 10) / 10,
+    block: lts.reduce((s, x) => s + x, 0),
+    maxlt: lts.length ? Math.max.apply(null, lts) : 0,
+    mainWrites: sets.filter(x => /zy_data_v2/.test(x.keys || '')).length,
+    allWrites: sets.length,
+  }
+}
+/** R148：多次取中位的点击账单 */
+window.__clickMedian = async function (sel, times) {
+  const n = times || 3
+  const xs = []
+  for (let i = 0; i < n; i++) { const v = await window.__clickCost(sel); if (!v) return null; xs.push(v); await new Promise(r => setTimeout(r, 250)) }
+  const pick = (k) => { const a = xs.map(x => x[k]).sort((p, q) => p - q); return a[Math.floor(a.length / 2)] }
+  return { sync: pick('sync'), block: pick('block'), maxlt: pick('maxlt'), mainWrites: pick('mainWrites'), allWrites: pick('allWrites') }
+}
+/** R148：hash 导航到某视图并等首屏就位（测"切模块"的端到端主观耗时，含 chunk 加载与重挂载） */
+window.__hashTo = async function (hash, sel, resetHash) {
+  if (resetHash) { location.hash = resetHash; await new Promise(r => setTimeout(r, 900)); await window.__flush() }
+  const lt0 = (window.__lt || []).length
+  const t0 = performance.now()
+  location.hash = hash
+  const w = await window.__waitFor(() => document.querySelector(sel), 12000)
+  await window.__flush()
+  const wall = performance.now() - t0
+  const lts = (window.__lt || []).slice(lt0).map(x => x.d)
+  return { wall: Math.round(wall), wait: w, block: lts.reduce((s, x) => s + x, 0), maxlt: lts.length ? Math.max.apply(null, lts) : 0 }
 }
 `
 
@@ -487,6 +532,87 @@ async function main() {
     for (const [k, v] of top) log(`    ${String(v).padStart(6)}  ${k}`)
     fs.writeFileSync(path.resolve(__dirname, '..', '.prof-report.json'), JSON.stringify(top.map(([k, v]) => ({ samples: v, fn: k })), null, 1))
   }
+
+  // ══════════ R148 窗口三：用户点名的四类交互（单击卡片 / 置顶 / 切底部 tab / 进设置页）══════════
+  // 单独开窗：M3（启动→切台）与 M3b（回调度台+全局搜索）的口径都不受影响。
+  await page.evaluate(() => { window.__ltMark3 = (window.__lt || []).length; window.__t3 = Math.round(performance.now()) })
+  await page.evaluate(() => window.__navTo('资源台', '.view-tab'))
+  await page.waitForTimeout(400)
+
+  const m7 = await page.evaluate(() => window.__clickMedian('.res-card'))
+  if (m7) { push('M7_单击卡片开详情_同步(ms)', m7.sync, { 'M7_阻塞总量ms': m7.block, 'M7_最大长任务ms': m7.maxlt, 'M7_主键重写次数': m7.mainWrites }); log(`  M7 明细：${JSON.stringify(m7)}`) }
+
+  const m8 = await page.evaluate(() => window.__clickMedian('.rc-action.pin'))
+  if (m8) { push('M8_点置顶_同步(ms)', m8.sync, { 'M8_阻塞总量ms': m8.block, 'M8_最大长任务ms': m8.maxlt, 'M8_主键重写次数': m8.mainWrites }); log(`  M8 明细：${JSON.stringify(m8)}`) }
+
+  // 切底部 tab（任务调度 ↔ 好奇心培育；隐藏视图是否跟着重算就体现在这里）
+  await page.evaluate(() => { location.hash = '#/' })
+  await page.waitForTimeout(900)
+  const m10 = await page.evaluate(() => window.__clickMedian('.bt-tab:last-child'))
+  if (m10) { push('M10_切底部tab_同步(ms)', m10.sync, { 'M10_阻塞总量ms': m10.block, 'M10_最大长任务ms': m10.maxlt }); log(`  M10 明细：${JSON.stringify(m10)}`) }
+
+  // 进设置页：冷挂载 vs 二次挂载（keep-alive 补齐后第二次应显著变快）
+  const m9cold = await page.evaluate(() => window.__hashTo('#/settings', '.gs-nav-item', '#/'))
+  const m9warm = await page.evaluate(() => window.__hashTo('#/settings', '.gs-nav-item', '#/'))
+  push('M9a_进设置页_冷挂(ms)', m9cold.wall, { 'M9a_阻塞ms': m9cold.block })
+  push('M9b_进设置页_二次(ms)', m9warm.wall, { 'M9b_阻塞ms': m9warm.block, 'M9_二次是否仍全量重挂': m9warm.block > m9cold.block * 0.5 ? 1 : 0 })
+  log(`  M9 冷 ${JSON.stringify(m9cold)} / 暖 ${JSON.stringify(m9warm)}`)
+
+  const lt3 = await page.evaluate(() => {
+    const all = window.__lt || []
+    const raw = all.slice(window.__ltMark3 || 0)
+    const arr = raw.map(x => x.d).sort((a, b) => b - a)
+    return { count: arr.length, total: arr.reduce((s, x) => s + x, 0), max: arr[0] || 0,
+      at: raw.map(x => ({ d: x.d, t: x.s - (window.__t3 || 0) })).sort((p, q) => q.d - p.d).slice(0, 8) }
+  })
+  log(`  窗口三长任务时间轴（ms，距窗口起点）：${JSON.stringify(lt3.at)}`)
+  push('M3c_窗口三长任务总计(ms)', lt3.total, { M3c_长任务次数: lt3.count, M3c_最大单任务ms: lt3.max })
+  log(`  窗口三长任务（M7/M8/M10/M9）：${lt3.count} 次 · 总计 ${lt3.total}ms · 最大 ${lt3.max}ms`)
+
+  // ══════════ R148 M11/M12：切台的"完整账单"（首帧就位 ≠ 渲染结束）══════════
+  // __navTo 只量到目标选择器出现，760 卡的排版/增量渲染在其后仍在跑长任务——用户感知的"切换卡"正是这段。
+  const switchBill = async (tabText, settleMs) => page.evaluate(async ([txt, settle]) => {
+    const pick = () => [...document.querySelectorAll('.tabs .tab')]
+      .filter(e => !/tab-add|tab-collapse|adding|tab-overflow/.test(e.className))
+      .find(e => ((e.getAttribute('title') || '') + (e.textContent || '')).includes(txt))
+    location.hash = '#/'; await new Promise(r => setTimeout(r, 1400)); await window.__flush()
+    const lt0 = (window.__lt || []).length
+    const t0 = performance.now()
+    const el = pick(); if (!el) return null
+    el.click()
+    const first = await window.__waitFor(() => document.querySelector('.view-tab, .res-card'), 12000)
+    const fms = Math.round(performance.now() - t0)
+    await new Promise(r => setTimeout(r, settle))
+    const lts = (window.__lt || []).slice(lt0).map(x => x.d)
+    return { first: fms, block: lts.reduce((s, x) => s + x, 0), n: lts.length, max: lts.length ? Math.max.apply(null, lts) : 0 }
+  }, [tabText, settleMs])
+
+  const m11 = await switchBill('资源台', 3000)
+  if (m11) { push('M11_切到资源台_首帧(ms)', m11.first, { 'M11_后3s阻塞ms': m11.block, 'M11_长任务次数': m11.n, 'M11_最大单任务ms': m11.max }); log(`  M11 明细：${JSON.stringify(m11)}`) }
+  const m12 = await switchBill('PERF0', 3000)
+  if (m12) { push('M12_切到策展台_首帧(ms)', m12.first, { 'M12_后3s阻塞ms': m12.block, 'M12_长任务次数': m12.n, 'M12_最大单任务ms': m12.max }); log(`  M12 明细：${JSON.stringify(m12)}`) }
+
+  // ══════════ R148 M13：来回切台 4 次（用户说的"模块之间切换"就是这个动作序列）══════════
+  const m13 = await page.evaluate(async () => {
+    const pick = (txt) => [...document.querySelectorAll('.tabs .tab')]
+      .filter(e => !/tab-add|tab-collapse|adding|tab-overflow/.test(e.className))
+      .find(e => ((e.getAttribute('title') || '') + (e.textContent || '')).includes(txt))
+    location.hash = '#/'; await new Promise(r => setTimeout(r, 1200))
+    const lt0 = (window.__lt || []).length
+    const t0 = performance.now()
+    const per = []
+    for (let k = 0; k < 4; k++) {
+      const a = performance.now()
+      pick('资源台')?.click(); await window.__waitFor(() => document.querySelector('.view-tab, .res-card'), 8000); await new Promise(r => setTimeout(r, 250))
+      const b = performance.now()
+      pick('调度台')?.click(); await window.__waitFor(() => document.querySelector('.mb-cell'), 8000); await new Promise(r => setTimeout(r, 250))
+      per.push([Math.round(b - a), Math.round(performance.now() - b)])
+    }
+    const lts = (window.__lt || []).slice(lt0).map(x => x.d)
+    return { wall: Math.round(performance.now() - t0), block: lts.reduce((s2, x) => s2 + x, 0), n: lts.length, max: lts.length ? Math.max.apply(null, lts) : 0, per }
+  })
+  push('M13_来回切台4次_墙钟(ms)', m13.wall, { 'M13_阻塞ms': m13.block, 'M13_长任务次数': m13.n, 'M13_最大单任务ms': m13.max })
+  log(`  M13 每轮 [去资源台, 回调度台] = ${JSON.stringify(m13.per)} · 阻塞 ${m13.block}ms/${m13.n} 次 · 最大 ${m13.max}ms`)
 
   // ══════════ M2c 回调度台（R114-59：用户反馈「回到调度台慢」，此前无度量）══════════
   const navBack = await page.evaluate(() => window.__navTo('调度台', '.mb-cell')) // R145 修漂移：.wr-entry（周报入口）早已改名，15s 超时被当成耗时

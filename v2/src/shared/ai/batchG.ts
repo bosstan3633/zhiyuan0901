@@ -126,6 +126,7 @@ export function buildThesisDraftJob(ctx: ThesisGenCtx): AiJob | null {
   }
   const user = () => projectDeckThesis(d, ctx.wsId, ctx.depth, reviseSnips)
   const job: AiJob = {
+    key: 'thesis:' + ctx.wsId,
     title: '🏛 提炼中心论点与骨架',
     subject: `🗂 ${ctx.wsName} · 卡群 ${deck.length} 张`,
     hint: '先按需补读链接正文，再立「一句可被反驳的判断」+ 2~4 支 MECE 分论点。采纳=只写中心论点卡（不动任何分类与卡片归属）；要落成骨架分支用底部「🗂 分论点建成分类」。',
@@ -227,6 +228,7 @@ export function buildCurioTriageJob(ctx: CurioTriageCtx): AiJob | null {
   }
   const user = () => projectCurioPool(ctx.d, pool.map(c => c.id), ctx.depth, reviseSnips)
   return {
+    key: 'triage',
     title: '💡 好奇心转化研判',
     subject: `💡 待探索池 ${pool.length} 条`,
     hint: '逐条判「转任务 / 继续养 / 可搁置」，判据是对不对得上愿景与活跃目标。采纳：转=按建议标题走既有转化通道；搁置=置为「已搁置」（不删卡，随时可改回）；继续养=只看不写。',
@@ -302,6 +304,7 @@ export function buildEvidenceJob(ctx: EvidenceCtx): AiJob | null {
   }
   const user = () => projectEvidenceFor(d, ctx.depth, { name: ctx.branchName, path: ctx.branchPath }, inBranch, candidates)
   return {
+    key: 'evidence:' + ctx.catId,
     title: '🔍 找佐证（全库推荐）',
     subject: `🏛 ${ctx.branchPath}`,
     hint: '从资源台目录里挑能支撑本分支的卡（本台其它分支的卡不抢——一张卡只能待在一个分类）。采纳=把选中的卡镜像进本分支（投影，不改动源卡归属）。',
@@ -349,6 +352,7 @@ export function buildDeliverJob(ctx: DeliverCtx): AiJob | null {
   }
   const today = () => new Date().toLocaleDateString('zh-CN')
   const job: AiJob = {
+    key: 'deliver',
     title: '📄 成果文稿',
     subject: `📄 ${(ctx.genre || '可直接转发的短文').slice(0, 18)}`,
     hint: '把这段时间攒下的判断与证据写成一份可交付文稿：只用台账里出现过的事实，逐条能指回出处。采纳=存为一张「成果文稿」资源卡；底部「📥 下载 .md」拿走文件不改库。',

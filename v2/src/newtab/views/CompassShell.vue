@@ -59,7 +59,10 @@ function openTree() {
 </script>
 
 <template>
-  <RouterView v-if="isChildActive" />
+  <!-- R148-P1a：子路由（项目详情 / 完整方向树）同样缓存——两页都是重计算首屏，此前每次进都重挂 -->
+  <router-view v-if="isChildActive" v-slot="{ Component }">
+    <keep-alive include="ProjectCurationView,CompassTreeView"><component :is="Component" /></keep-alive>
+  </router-view>
   <div v-else class="page">
     <div class="page-head">
       <div class="crumb"><b>方向台</b> · 主航线与项目全景<span class="mainline-summary">{{ d.compass.directions.length }} 目标 · {{ visibleProjects.length }} 项目 · {{ focusCount }} 主攻 · {{ stalledCount }} 停滞</span></div>

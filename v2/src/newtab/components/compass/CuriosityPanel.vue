@@ -163,7 +163,7 @@ function openDetail(id: string) {
     editDraft.value = c.question
     // R47-B4：调起详情 = 一次「调用」，计入热度
     recordCardOpen(d.value, c)
-    store.persist()
+    store.persistHot()
   }
 }
 function saveDetail() {
