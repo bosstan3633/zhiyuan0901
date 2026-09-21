@@ -12,9 +12,9 @@ import { chatStream, extractJson } from './llm'
 import { projectChain, cardDirectory, projectTaskTargets, projectWeekDigest, projectCard } from './project'
 import { fetchLinkText, linkFetchable } from './linkFetch'
 import {
-  recommendSystem, rerankSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem, fullOptimizeSystem,
+  recommendSystem, semanticSearchSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem, fullOptimizeSystem,
   chainPersonaText, allPersonas, personaOverrides,
-  type RecommendSuggestion, type RerankHit, type TaskDraft,
+  type RecommendSuggestion, type TaskDraft,
 } from './scenarios'
 
 export interface SelectCtx {
@@ -79,63 +79,190 @@ export function buildRecommendJob(task: TaskCard, ctx: SelectCtx): AiJob | null 
 }
 
 /**
- * 1d：搜索意图重排——只读。命中列表（≤14）→ 真相关 ≤6 条 + 一句意图理解。
- * R146（实测：点了就一直"理解中"）三处提速：
- *  ①非流式 900 token 改流式 420 token——JSON 一闭合立刻掐断连接，不等模型把尾巴说完；
- *  ②30 秒硬超时 + 外部可中止（改词、关浮层、再点一次都真取消，不留下悬空请求）；
- *  ③投料从 20 条压到 14 条、每行正文≤40 字——首字延迟直接取决于输入规模。
+ * R150：AI 检索——自然语言 → 库内**三类卡**（资源/任务/好奇）语义召回，只读零写库。
+ * 与旧「AI 理解」（1d 重排）的区别：旧的那枚只能重排**字面已经命中**的前 14 条，
+ * 用户换个说法、卡面没有那几个字就永远召不回来；这条直接把候选扩到全库再让模型判。
+ * 三条硬约束沿用 R146-d 实测过的骨架：①流式 + JSON 一闭合就掐连接；②30 秒硬超时；
+ * ③外部 signal 可中止（改词、关浮层、再点一次都真取消）。
+ * 覆盖与速度由用户拍板：**先本地粗筛再一次精排**（默认秒级），另给「全库分批扫」显式兜底。
  */
-export interface RerankInput { id: string; type: string; title: string; ws: string; cat: string; summary?: string }
-export interface RerankOpts { signal?: AbortSignal; onDelta?: (chars: number) => void }
-const RERANK_CAP = 14
-const RERANK_TIMEOUT_MS = 30000
-/** 流式早停判据：整段 JSON 已闭合且 order 是数组 → 再等下去只会更慢 */
-function rerankReady(t: string): boolean {
+export interface AiSearchCand {
+  id: string; type: string; title: string; ws: string; cat: string
+  summary?: string; tags?: string[]; callCount?: number; updatedAt?: number
+}
+export interface AiSearchHit { id: string; why: string; confidence: number; weak: boolean }
+export interface AiSearchOut {
+  hits: AiSearchHit[]; note: string
+  /** 本次真的投给模型看了多少张 */
+  scanned: number
+  /** 库内该类型可用卡数（粗筛前） */
+  total: number
+  /** 模型点名但不在候选集里的条数（消毒丢弃） */
+  dropped: number
+  batches: number
+}
+export interface AiSearchOpts {
+  signal?: AbortSignal
+  onDelta?: (chars: number) => void
+  onProgress?: (p: { scanned: number; total: number; found: number; batch: number }) => void
+}
+/** 单次调用的候选上限：只投标题+一行摘要，每行 ~50 字，180 行≈9k 字（std 档） */
+const SEARCH_CAP: Record<AiDepth, number> = { eco: 80, std: 180, deep: 320 }
+/** 全库分批扫的批大小（批越小越容易早停，但请求数线性上涨） */
+const SEARCH_BATCH: Record<AiDepth, number> = { eco: 80, std: 120, deep: 160 }
+const SEARCH_TIMEOUT_MS = 30000
+const HIT_CAP = 8
+/** 早停判据：整段 JSON 已闭合且 items 是数组——再等下去只会更慢 */
+function searchReady(t: string): boolean {
   const s = t.indexOf('{')
   const e = t.lastIndexOf('}')
   if (s < 0 || e <= s) return false
-  try { return Array.isArray((JSON.parse(t.slice(s, e + 1)) as { order?: unknown }).order) } catch { return false }
+  try { return Array.isArray((JSON.parse(t.slice(s, e + 1)) as { items?: unknown }).items) } catch { return false }
 }
-export async function rerankSearch(query: string, items: RerankInput[], opts: RerankOpts = {}): Promise<{ order: RerankHit[]; note: string }> {
-  const cands = items.slice(0, RERANK_CAP)
-  const lines = cands.map(i =>
-    `- id=${i.id} [${i.type}] ${i.title.slice(0, 60)} | ${i.ws} / ${i.cat}${i.summary ? ' | ' + i.summary.replace(/\s+/g, ' ').slice(0, 40) : ''}`).join('\n')
+/** 中文没有空格：整句 + 空格分词 + 连续中文串的 2-gram 一起当字面近似用 */
+function queryTokens(q: string): string[] {
+  const s = q.trim().toLowerCase()
+  if (!s) return []
+  const out = [s]
+  for (const w of s.split(/[\s,，。、;；:：]+/)) if (w.length >= 2 && w !== s) out.push(w)
+  for (const run of s.match(/[一-龥]{3,}/g) || []) {
+    for (let i = 0; i + 2 <= run.length && i < 10; i++) out.push(run.slice(i, i + 2))
+  }
+  return out.slice(0, 24)
+}
+/** 粗筛分：只用于"装不下时先看哪些"，最终判断交给模型——所以宁可让热门/新鲜卡多占名额 */
+function searchScore(parts: string[], c: AiSearchCand): number {
+  const t = c.title.toLowerCase()
+  const smry = (c.summary || '').toLowerCase()
+  const place = `${c.ws} ${c.cat}`.toLowerCase()
+  const tg = (c.tags || []).join(' ').toLowerCase()
+  let n = 0
+  for (const p of parts) {
+    if (t.includes(p)) n += 6
+    if (tg.includes(p)) n += 4
+    if (place.includes(p)) n += 3
+    if (smry.includes(p)) n += 2
+  }
+  n += Math.min(3, Math.log2((c.callCount || 0) + 1))
+  if (c.updatedAt && Date.now() - c.updatedAt < 7 * 864e5) n += 1.5
+  return n
+}
+const searchLines = (cs: AiSearchCand[]) => cs.map(c =>
+  `- id=${c.id} [${c.type}] 「${c.title.slice(0, 40)}」 | ${c.ws}/${c.cat}`
+  + `${c.tags?.length ? ` | 标签[${c.tags.join(',').slice(0, 30)}]` : ''}`
+  + `${c.summary ? ` | ${c.summary.replace(/\s+/g, ' ').slice(0, 36)}` : ''}`
+  + `${c.callCount ? ` | 打开${c.callCount}次` : ''}`).join('\n')
+
+/** 一批候选问一次；deadline 由调用方掐（分批全扫共用同一个钟），timedOut 用来把 AbortError 翻成人话 */
+interface AskCtl { timedOut: boolean }
+async function askOnce(query: string, cands: AiSearchCand[], opts: AiSearchOpts, ac: AbortController, ctl: AskCtl): Promise<{ items: AiSearchHit[]; note: string }> {
+  let early = false
+  let accum = ''
+  await chatStream({
+    messages: [
+      { role: 'system', content: semanticSearchSystem() },
+      { role: 'user', content: `【用户这句话】${query}\n【候选卡（id 只能取自这里）】\n${searchLines(cands)}` },
+    ],
+    maxTokens: 520, temperature: 0.2, signal: ac.signal,
+    onDelta: (a) => { accum = a; opts.onDelta?.(a.length); if (!early && searchReady(a)) { early = true; ac.abort() } },
+  }).catch((e: Error) => {
+    if ((e as Error).name === 'AbortError' && early) return
+    if ((e as Error).name === 'AbortError') throw new Error(ctl.timedOut ? `${SEARCH_TIMEOUT_MS / 1000} 秒无响应——换轻量模型，或稍后再试` : '已取消')
+    throw e
+  })
+  if (!accum.trim()) throw new Error('网关没有回内容（换轻量模型，或稍后再试）')
+  const parsed = extractJson<{ items?: { id?: unknown; why?: unknown; confidence?: unknown }[]; note?: unknown }>(accum)
+  const valid = new Set(cands.map(c => c.id))
+  const items: AiSearchHit[] = []
+  let dropped = 0
+  for (const h of Array.isArray(parsed?.items) ? parsed!.items : []) {
+    const id = String(h?.id ?? '')
+    if (!id || !valid.has(id)) { dropped++; continue }
+    const conf = Number(h?.confidence)
+    const ok = Number.isFinite(conf) ? Math.max(0, Math.min(1, conf)) : 0.7
+    const c0 = items.find(x => x.id === id)
+    const hit: AiSearchHit = {
+      id,
+      why: String(h?.why || '').replace(/\s+/g, ' ').slice(0, 40),
+      confidence: ok,
+      // 判弱只准用客观信号：模型自己给的分低、或干脆没给理由（等于在猜）
+      weak: ok < 0.55 || !String(h?.why || '').trim(),
+    }
+    if (c0) { if (hit.confidence > c0.confidence) Object.assign(c0, hit); continue }
+    items.push(hit)
+  }
+  if (dropped) searchDropCount += dropped
+  return { items, note: String(parsed?.note || '').replace(/\s+/g, ' ').slice(0, 40) }
+}
+/** 跨批累计的消毒账（每次入口调用前清零，随结果一并上报） */
+let searchDropCount = 0
+
+/** 默认路径：粗筛取前 N 张 → 一次精排 */
+export async function semanticSearch(query: string, cands: AiSearchCand[], depth: AiDepth, opts: AiSearchOpts = {}): Promise<AiSearchOut> {
+  const q = query.trim()
+  const total = cands.length
+  searchDropCount = 0
+  if (!q || total < 2) throw new Error('库里候选卡太少，先用关键词搜出多点再来')
+  const parts = queryTokens(q)
+  const ranked = cands.map(c => ({ c, s: searchScore(parts, c) }))
+    .sort((a, b) => b.s - a.s || (b.c.updatedAt || 0) - (a.c.updatedAt || 0))
+  const cap = Math.min(SEARCH_CAP[depth], total)
+  const picked = ranked.slice(0, cap).map(x => x.c)
   const ac = new AbortController()
   const relay = () => ac.abort()
   opts.signal?.addEventListener('abort', relay)
-  let timedOut = false
-  let early = false
-  let accum = ''
-  const timer = setTimeout(() => { timedOut = true; ac.abort() }, RERANK_TIMEOUT_MS)
+  const ctl: AskCtl = { timedOut: false }
+  const timer = setTimeout(() => { ctl.timedOut = true; ac.abort() }, SEARCH_TIMEOUT_MS)
   try {
-    await chatStream({
-      messages: [
-        { role: 'system', content: rerankSystem() },
-        { role: 'user', content: `【搜索关键词】${query}\n【字面命中列表】\n${lines}` },
-      ],
-      maxTokens: 420, temperature: 0.2, signal: ac.signal,
-      onDelta: (a) => { accum = a; opts.onDelta?.(a.length); if (!early && rerankReady(a)) { early = true; ac.abort() } },
-    })
-  } catch (e) {
-    if ((e as Error).name !== 'AbortError' || !early) {
-      if (timedOut) throw new Error(`${RERANK_TIMEOUT_MS / 1000} 秒无响应——换轻量模型，或稍后再试`)
+    const one = await askOnce(q, picked, opts, ac, ctl)
+    return finish(one, picked.length, total, 1)
+  } finally { clearTimeout(timer); opts.signal?.removeEventListener('abort', relay) }
+}
+
+/** 兜底路径：分批扫完全库（慢、按批数花钱），批间可取消、边跑边报进度 */
+export async function semanticSearchAll(query: string, cands: AiSearchCand[], depth: AiDepth, opts: AiSearchOpts = {}): Promise<AiSearchOut> {
+  const q = query.trim()
+  const total = cands.length
+  searchDropCount = 0
+  if (!q || total < 2) throw new Error('库里候选卡太少，先用关键词搜出多点再来')
+  const size = SEARCH_BATCH[depth]
+  const ctl: AskCtl = { timedOut: false }
+  const acc = new Map<string, AiSearchHit>()
+  let note = ''
+  let batches = 0
+  /** 每批各持一把中止器：批内的 JSON 闭合早停会 abort 自己的 ac，若共用一把，第二批一开局就拿到已 abort 的 signal → 整场失败 */
+  const aborters = new Set<AbortController>()
+  const relay = () => aborters.forEach(a => a.abort())
+  opts.signal?.addEventListener('abort', relay)
+  const timer = setTimeout(() => { ctl.timedOut = true; relay() }, SEARCH_TIMEOUT_MS * Math.max(1, Math.ceil(total / size)))
+  try {
+    for (let i = 0; i < total; i += size) {
       if (opts.signal?.aborted) throw new Error('已取消')
-      throw e
+      const slice = cands.slice(i, i + size)
+      const ac = new AbortController()
+      aborters.add(ac)
+      let one: { items: AiSearchHit[]; note: string }
+      try { one = await askOnce(q, slice, opts, ac, ctl) } finally { aborters.delete(ac) }
+      batches++
+      note = note || one.note
+      for (const h of one.items) {
+        const old = acc.get(h.id)
+        if (!old || h.confidence > old.confidence) acc.set(h.id, h)
+      }
+      opts.onProgress?.({ scanned: Math.min(i + size, total), total, found: acc.size, batch: batches })
+      if (acc.size >= HIT_CAP * 2) break // 够用了就别再把剩下的卡继续烧钱
     }
-  } finally {
-    clearTimeout(timer)
-    opts.signal?.removeEventListener('abort', relay)
-  }
-  if (!accum.trim()) throw new Error('网关没有回内容（换「标准/深度」档或稍后再试）')
-  const parsed = extractJson<{ order?: RerankHit[]; note?: string }>(accum)
-  const valid = new Set(cands.map(i => i.id))
+  } finally { clearTimeout(timer); opts.signal?.removeEventListener('abort', relay); aborters.clear() }
+  return finish({ items: [...acc.values()], note }, Math.min(total, size * batches), total, batches)
+}
+
+function finish(one: { items: AiSearchHit[]; note: string }, scanned: number, total: number, batches: number): AiSearchOut {
   return {
-    order: (Array.isArray(parsed?.order) ? parsed.order : [])
-      .map(h => ({ id: String(h?.id ?? ''), why: h?.why ? String(h.why).slice(0, 40) : undefined }))
-      .filter(h => valid.has(h.id)).slice(0, 6),
-    note: String(parsed?.note || '').slice(0, 40),
+    hits: one.items.sort((a, b) => b.confidence - a.confidence).slice(0, HIT_CAP),
+    note: one.note, scanned, total, dropped: searchDropCount, batches,
   }
 }
+
 
 // ---------- R138：一句话智能录入 + 周期回顾 ----------
 

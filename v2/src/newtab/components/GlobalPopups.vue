@@ -26,16 +26,23 @@
         <!-- R49-G：策展台（分类树定位）/ 项目（直达项目详情）双类型 -->
         <div class="gp-type-tab" :class="{active: currentType==='ws'}" @click="setType('ws')">策展台 <span class="gp-tt-count">{{ counts.ws }}</span></div>
         <div class="gp-type-tab" :class="{active: currentType==='proj'}" @click="setType('proj')">项目 <span class="gp-tt-count">{{ counts.proj }}</span></div>
-        <!-- R136-1d：搜索意图理解（只读重排；跑动中再点=取消；键入路径零 AI） -->
-        <div class="gp-type-tab gp-ai-tab" :class="{active: !!aiRank, busy: aiBusy}" @click="aiRerankRun"
-          :title="aiBusy ? '点击取消本次 AI 理解（不写任何数据）' : `AI 从命中的前 ${Math.min(filteredResults.length, 14)} 条里挑出≤6 条真正相关（出结果后再点清除）`">
-          <ZhiMark :size="13" :spin="aiBusy" /><span>{{ aiBusy ? `理解中 ${aiSecs}s${aiChars ? ' · 已回 ' + aiChars + ' 字' : ''}` : 'AI 理解' }}</span>
+        <!-- R150：AI 检索（自然语言 → 三类卡语义召回，只读；跑动中再点=取消；键入路径零 AI） -->
+        <div class="gp-type-tab gp-ai-tab" :class="{active: !!aiSearch, busy: aiBusy}" @click="aiSearchRun(false)"
+          :title="aiBusy ? '点击取消本次 AI 检索（不写任何数据）' : 'AI 读懂你这句话，从库内资源卡/任务/好奇卡里按相关度取一批投料，挑出真正贴合的（只读不改数据；结果出来后会写明扫了多少张/库内共多少张；再点=清除）'">
+          <ZhiMark :size="13" :spin="aiBusy" /><span>{{ aiBusy ? aiProgress : 'AI 检索' }}</span>
         </div>
       </div>
       <div class="gp-results" ref="resultsEl">
-        <!-- R136-1d：AI 精选组（置顶呈现；原分组列表不动） -->
+        <!-- R150：AI 检索组（置顶呈现；原分组列表不动；手势与主列表逐字一致） -->
         <template v-if="aiTopRows.length && !isBrowseMode">
-          <div class="gp-group-title gp-ai-title"><ZhiMark :size="12" /> AI 理解 <span class="gp-ai-fed">从 {{ aiFed }} 条命中里挑 {{ aiTopRows.length }} 条 · {{ aiDur(aiTook) }}</span><span v-if="aiRank && aiRank.note" class="gp-ai-note">{{ aiRank.note }}</span></div>
+          <div class="gp-group-title gp-ai-title">
+            <ZhiMark :size="12" /> AI 检索
+            <span class="gp-ai-fed">挑出 {{ aiTopRows.length }} 条 · 投料 {{ aiSearch?.scanned }}/{{ aiSearch?.total }} 张 · {{ aiDur(aiTook) }}<template v-if="aiSearch && aiSearch.batches > 1"> · {{ aiSearch.batches }} 批</template></span>
+            <span v-if="aiSearch && aiSearch.note" class="gp-ai-note">{{ aiSearch.note }}</span>
+            <span v-if="aiSearch && aiSearch.dropped" class="gp-ai-drop">消毒：{{ aiSearch.dropped }} 条 id 不在候选内</span>
+            <button v-if="aiSearch && aiSearch.scanned < aiSearch.total" class="gp-ai-more" :disabled="aiBusy"
+              :title="`本次只看了相关性最高的 ${aiSearch.scanned} 张；全库共 ${aiSearch.total} 张，分批扫约 ${aiMoreBatches} 次请求、会慢`" @click.stop="aiSearchRun(true)">全库分批扫</button>
+          </div>
           <div v-for="pair in aiTopRows" :key="'ai' + pair.hit.id" class="gp-result-item" :class="{selected: pair.item.id===selectedId}"
             @click="pickRow(pair.item)" @mouseenter="selectHover(pair.item)"
             :title="'单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'">
@@ -45,6 +52,7 @@
               <div class="gp-ri-meta">
                 <span class="gp-ri-badge ws">{{ pair.item.ws }}</span>
                 <span class="gp-ri-badge cat">{{ pair.item.cat }}</span>
+                <span v-if="pair.hit.weak" class="gp-ri-badge weak" title="模型给的分低或没给理由——它在猜，自己核一眼再用">低置信</span>
                 <span v-if="pair.hit.why" class="gp-ai-why">{{ pair.hit.why }}</span>
               </div>
             </div>
@@ -822,74 +830,127 @@ watch(filteredResults, () => {
 // ---- B1：命令面板升级（分组 / 高亮 / 快捷操作 / 最近打开） ----
 const isBrowseMode = computed(() => !searchQuery.value.trim() && currentType.value === 'all')
 
-// ============== R136-1d：AI 理解（搜索意图重排，只读呈现）· R146-d：可取消 + 进度回显 + 同词缓存 ==============
+// ============== R150：AI 检索（自然语言 → 三类卡语义召回，只读）· 沿用 R146-d 实测骨架：流式早停 + 30s 硬超时 + 可取消 + 同词缓存 ==============
 // ★本组件被 App.vue 静态挂载（入口 chunk）：AI 依赖只在点击时 dynamic import，绝不静态引 '@/shared/ai/'。
 // 键入路径零参与：不发请求、不参与 filteredResults 计算；结果只活内存态，改词即清。
-const aiRank = shallowRef<{ order: { id: string; why?: string }[]; note: string } | null>(null)
+const aiSearch = shallowRef<AiOut | null>(null)
 const aiBusy = ref(false)
 const aiSecs = ref(0)
 const aiChars = ref(0)
-const aiFed = ref(0)
 const aiTook = ref(0)
+const aiScanned = ref(0)
+const aiTotal = ref(0)
+const aiFound = ref(0)
 /** 回执里的耗时：亚秒说毫秒，不把 13ms 报成「1s」 */
 function aiDur(ms: number) { return ms < 1000 ? ms + 'ms' : (ms / 1000).toFixed(1) + 's' }
+/**
+ * 契约形状的真源在 shared/ai/select.ts（AiSearchCand / AiSearchHit / AiSearchOut）。
+ * 这里刻意不写任何指向 AI 目录的 import（连 import type 都不写）：R138-1 是按字面量钉入口
+ * chunk 的，类型导入同样会命中那条守卫——宁可留三行同形声明，也不给启动链开豁免。
+ */
+type AiCand = { id: string; type: string; title: string; ws: string; cat: string; summary?: string; tags?: string[]; callCount?: number; updatedAt?: number }
+type AiHit = { id: string; why: string; confidence: number; weak: boolean }
+type AiOut = { hits: AiHit[]; note: string; scanned: number; total: number; dropped: number; batches: number }
 let aiAbortCtl: AbortController | null = null
 let aiTick: ReturnType<typeof setInterval> | null = null
 /** 取消话术：undefined=没取消 · ''=静默取消（改词/关浮层，不打扰用户） · 非空=要点名提示 */
 let aiCancelMsg: string | undefined
-/** 同词 + 同批命中不重复外发（清除后再点秒回） */
-const aiCache = new Map<string, { order: { id: string; why?: string }[]; note: string }>()
+/** 同词同类型不重复外发（清除后再点秒回）；全库扫是显式慢路径，不进缓存 */
+const aiCache = new Map<string, AiOut>()
 function aiStopTick() { if (aiTick) { clearInterval(aiTick); aiTick = null } }
 function aiAbort(msg: string | null) {
   aiStopTick()
   if (aiAbortCtl) { aiCancelMsg = msg ?? ''; aiAbortCtl.abort(); aiAbortCtl = null }
 }
 watch(activePanel, (p) => { if (p !== 'search') aiAbort(null) })
-async function aiRerankRun() {
-  if (aiBusy.value) { aiAbort('已取消 AI 理解（未采用任何结果）'); return }
-  if (aiRank.value) { aiRank.value = null; return }
+/** 候选=库内三类卡（不受字面命中限制，这正是与旧「AI 理解」的分工差别）；跟着类型 tab 收窄，切到「任务卡」就只投任务。
+ *  ★只在点击时求值：模板里不引用它——那会让每次键入渲染都重扫一遍全库建候选数组（浮层是热路径）。 */
+const aiCands = computed<AiCand[]>(() => {
+  const want = currentType.value === 'all' ? null : currentType.value
+  if (want === 'ws' || want === 'proj') return [] // 台/项目不参与语义召回（它们不是"卡"）
+  const out: AiCand[] = []
+  for (const r of allResults.value) {
+    if (r.archived) continue
+    if (want && r.type !== want) continue
+    if (r.type !== 'res' && r.type !== 'task' && r.type !== 'curio') continue
+    const raw = r.raw as AnyCard
+    out.push({
+      id: r.id, type: r.type, title: r.title, ws: r.ws, cat: r.cat, summary: r.summary,
+      tags: (raw as { tags?: string[] }).tags, callCount: (raw as { callCount?: number }).callCount, updatedAt: raw.updatedAt,
+    })
+  }
+  return out
+})
+/** 跑动态一句话：批扫点名"已扫 a/b 张 + 已命中 k"；单次投料没有中间进度，就报库内张数与已回字数（不假装有进度） */
+const aiProgress = computed(() => {
+  if (!aiBusy.value) return 'AI 检索'
+  const mid = aiScanned.value > 0
+    ? `已扫 ${aiScanned.value}/${aiTotal.value} 张${aiFound.value ? ` · 已命中 ${aiFound.value}` : ''}`
+    : `库内 ${aiTotal.value} 张里挑`
+  return `检索中 ${aiSecs.value}s · ${mid}${aiChars.value ? ` · 已回 ${aiChars.value} 字` : ''}`
+})
+const aiMoreBatches = computed(() => {
+  const s = aiSearch.value
+  return s ? Math.max(1, Math.ceil(s.total / Math.max(60, s.scanned))) : 1
+})
+async function aiSearchRun(allScope: boolean) {
+  if (aiBusy.value) { aiAbort('已取消 AI 检索（未采用任何结果）'); return }
+  if (aiSearch.value && !allScope) { aiSearch.value = null; return }
   const q = searchQuery.value.trim()
-  const items = filteredResults.value
-  if (!q || items.length < 2) { showToast('先搜出多条命中，再让 AI 理解意图'); return }
-  aiFed.value = Math.min(items.length, 14)
-  const key = `${q}|${items.slice(0, 14).map(r => r.id).join(',')}`
-  const cached = aiCache.get(key)
-  if (cached) {
-    aiRank.value = cached.order.length ? cached : null
-    showToast(cached.order.length ? `✓ 秒回（同词同批命中已问过）：AI 挑出 ${cached.order.length} 条` : 'AI 认为这批命中里没有真正相关的')
-    return
+  const cands = aiCands.value
+  if (!q) { showToast('先写下你要找什么（一句话就行），再点 AI 检索'); return }
+  if (cands.length < 2) { showToast('库里还没有可检索的卡（资源/任务/好奇至少 2 条才谈得上挑）'); return }
+  const key = `${q}|${currentType.value}|${cands.length}`
+  if (!allScope) {
+    const cached = aiCache.get(key)
+    if (cached) {
+      aiSearch.value = cached.hits.length ? cached : null
+      showToast(cached.hits.length ? `✓ 秒回（这句刚问过）：AI 挑出 ${cached.hits.length} 条` : 'AI 认为库里没有贴合这句的——换个说法或全库扫')
+      return
+    }
   }
   aiBusy.value = true; aiSecs.value = 0; aiChars.value = 0; aiCancelMsg = undefined
+  aiScanned.value = 0; aiTotal.value = cands.length; aiFound.value = 0
   const ctl = new AbortController(); aiAbortCtl = ctl
   aiTick = setInterval(() => { aiSecs.value++ }, 1000)
   const t0 = Date.now()
   try {
-    const [{ loadAiConfig, aiReady }, { rerankSearch }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
+    const [{ loadAiConfig, aiReady, aiConfig }, { semanticSearch, semanticSearchAll }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
     await loadAiConfig()
     if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
-    const out = await rerankSearch(
-      q,
-      items.map(r => ({ id: r.id, type: r.type, title: r.title, ws: r.ws, cat: r.cat, summary: (r as { summary?: string }).summary })),
-      { signal: ctl.signal, onDelta: (n) => { aiChars.value = n } },
-    )
+    const depth = aiConfig.value.depth
+    const out = allScope
+      ? await semanticSearchAll(q, cands, depth, {
+        signal: ctl.signal,
+        onDelta: (n) => { aiChars.value = n },
+        onProgress: (p) => { aiScanned.value = p.scanned; aiTotal.value = p.total; aiFound.value = p.found },
+      })
+      : await semanticSearch(q, cands, depth, { signal: ctl.signal, onDelta: (n) => { aiChars.value = n } })
     aiTook.value = Date.now() - t0
-    if (aiCache.size >= 12) aiCache.delete(aiCache.keys().next().value as string)
-    aiCache.set(key, out)
-    aiRank.value = out.order.length ? out : null
-    showToast(out.order.length ? `✓ AI 挑出 ${out.order.length} 条 · ${aiDur(aiTook.value)}` : 'AI 认为这批命中里没有真正相关的——换个说法试试')
+    aiScanned.value = out.scanned; aiTotal.value = out.total
+    if (allScope) showToast(out.hits.length ? `✓ 全库扫完：${out.batches} 批 / ${out.scanned} 张 · 挑出 ${out.hits.length} 条 · ${aiDur(aiTook.value)}` : `✓ 全库 ${out.scanned} 张都看了，没有真正贴合这句的`)
+    else {
+      if (aiCache.size >= 12) aiCache.delete(aiCache.keys().next().value as string)
+      aiCache.set(key, out)
+      aiSearch.value = out.hits.length ? out : null
+      showToast(out.hits.length ? `✓ AI 挑出 ${out.hits.length} 条（看了 ${out.scanned}/${out.total} 张）· ${aiDur(aiTook.value)}` : 'AI 认为这批候选里没有贴合的——换个说法，或点「全库分批扫」')
+    }
+    if (allScope) aiSearch.value = out.hits.length ? out : null
   } catch (e) {
     if (aiCancelMsg !== undefined) { if (aiCancelMsg) showToast(aiCancelMsg); return }
-    aiRank.value = null
-    showToast('⚠ AI 理解失败：' + ((e as Error).message || String(e)).slice(0, 80))
+    aiSearch.value = null
+    showToast('⚠ AI 检索失败：' + ((e as Error).message || String(e)).slice(0, 80))
   } finally { aiStopTick(); if (aiAbortCtl === ctl) aiAbortCtl = null; aiBusy.value = false }
 }
 const aiTopRows = computed(() => {
-  if (!aiRank.value) return [] as { hit: { id: string; why?: string }; item: SearchResult }[]
-  return aiRank.value.order
-    .map(hit => ({ hit, item: filteredResults.value.find(r => r.id === hit.id) }))
-    .filter((x): x is { hit: { id: string; why?: string }; item: SearchResult } => !!x.item)
+  if (!aiSearch.value) return [] as { hit: AiHit; item: SearchResult }[]
+  return aiSearch.value.hits
+    .map(hit => ({ hit, item: allResults.value.find(r => r.id === hit.id) }))
+    .filter((x): x is { hit: AiHit; item: SearchResult } => !!x.item)
 })
-watch(searchQuery, () => { aiRank.value = null; aiAbort('') })
+watch(searchQuery, () => { aiSearch.value = null; aiAbort('') })
+/** 类型 tab 一换，候选集就换了——旧结果留着会指着不相干的卡 */
+watch(currentType, () => { aiSearch.value = null; aiAbort('') })
 
 const QUICK_ACTIONS = [
   { label: '打开方向台', icon: 'compass', run: () => { closeAll(); router.push('/compass') } },
@@ -916,6 +977,9 @@ const flatList = computed<FlatItem[]>(() => {
     // 原实现直接 map(filteredResults)，而模板按 res/task/curio/ws/proj 分组渲染，
     // 两者顺序不同 → selIndex 指向的条目与用户看到的条目不是同一条（键盘/Enter 错位）。
     const out: FlatItem[] = []
+    // R150：AI 检索组渲染在主列表之上，就必须排在 flatList 最前——否则方向键选中的行
+    // 与眼睛看到的行差着 AI 那几条（R60-1 同型错位，旧「AI 理解」组就是这么漏的）
+    for (const pair of aiTopRows.value) out.push({ kind: 'result' as const, item: pair.item })
     for (const g of groupedResults.value) for (const item of g.items) out.push({ kind: 'result' as const, item })
     return out
   }
@@ -1453,7 +1517,13 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-search-input { flex: 1; border: none; outline: none; background: transparent; font-size: 17px; font-weight: 500;
   color: var(--text); font-family: inherit; min-width: 0; line-height: 1.4; }
 .gp-search-input::placeholder { color: var(--text-4); font-weight: 400; }
-/* R136-1d：AI 理解钮与精选组 · R146-d：跑动中点名可取消，秒数等宽不抖 */
+/* R150：AI 检索的消毒账 / 全库兜底钮 / 低置信徽标 */
+.gp-ai-drop { font-size: 10.5px; color: var(--warning); }
+.gp-ai-more { padding: 1px 7px; font-size: 10.5px; font-family: inherit; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface-2); color: var(--text-2); cursor: pointer; }
+.gp-ai-more:hover { border-color: var(--accent); color: var(--accent); }
+.gp-ai-more:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+.gp-ri-badge.weak { background: var(--warning-bg-soft); color: var(--warning); }
+/* R136-1d 起、R150 改名：检索类 AI 钮与置顶组 · R146-d：跑动中点名可取消，秒数等宽不抖 */
 .gp-ai-tab { margin-left: auto; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .gp-ai-tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .gp-ai-tab.busy { color: var(--accent); cursor: pointer; }

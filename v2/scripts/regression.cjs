@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.4.0'";
+const VER_ANCHOR_LITERAL = "version: '3.5.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -3640,10 +3640,10 @@ check('R135-8 创建走 store 既有通道优先：ctx.addProject 传入 compass
 
 // ============== R136 · V2.104.0：批次 F 第三刀 A3 按目标选卡 + 1d 搜索意图重排 ==============
 console.log('【R136 · V2.104.0：A3 应用推荐 + 1d 自然语言搜索重排】');
-check('R136-1 ★入口 chunk 守卫：GlobalPopups 被 App.vue 静态挂载，其 AI 依赖全懒（零静态 import @/shared/ai），aiRerankRun 函数段零写库（无 persist/无 mountedResourceIds 写入），改词即清重排态', () => { const g = read('/newtab/components/GlobalPopups.vue'); const seg = segOf(g, 'async function aiRerankRun', 'const aiTopRows'); return !g.includes("from '@/shared/ai/") && g.includes("import('@/shared/ai/select')") && !seg.includes('persist') && !seg.includes('mountedResourceIds') && g.includes("watch(searchQuery, () => { aiRank.value = null; aiAbort('') })") && g.includes('aiAbortCtl.abort()'); });
+check('R136-1 ★入口 chunk 守卫：GlobalPopups 被 App.vue 静态挂载，其 AI 依赖全懒（零静态 import @/shared/ai，连 import type 都不写），检索函数段零写库（无 persist/无 mountedResourceIds 写入），改词与换类型 tab 即清态 · R150 备案：函数改名 aiSearchRun（「AI 理解」并入「AI 检索」），守卫逐条随迁', () => { const g = read('/newtab/components/GlobalPopups.vue'); const seg = segOf(g, 'async function aiSearchRun', 'const aiTopRows'); return !g.includes("from '@/shared/ai/") && g.includes("import('@/shared/ai/select')") && !seg.includes('persist') && !seg.includes('mountedResourceIds') && g.includes("watch(searchQuery, () => { aiSearch.value = null; aiAbort('') })") && g.includes("watch(currentType, () => { aiSearch.value = null; aiAbort('') })") && g.includes('aiAbortCtl.abort()'); });
 check('R136-2 A3 推荐任务书：参谋契约（≤5 张宁缺毋滥+why 须说支撑哪步+id 不许编造）；buildRecommendJob 排除已挂载、parse 经 sanitizeRefs、apply 二次校验卡存在且未删未重复才挂载并触任务 updatedAt', () => { const s = read('/shared/ai/scenarios.ts'); const j = read('/shared/ai/select.ts'); return s.includes('你是用户的资源调度参谋') && s.includes('目录里没有的 id 不许编造') && j.includes('new Set(task.mountedResourceIds || [])') && j.includes('sanitizeRefs(s0, ctx.d)') && j.includes('ctx.d.resources.some(x => x.id === id && !x.deletedAt)') && j.includes('t.mountedResourceIds.push(id)') && j.includes('t.updatedAt = Date.now()'); });
-check('R136-3 1d 重排契约与消毒：rerankSearch 只回读——id 必须属于给定命中集、≤6 条、why 截 40 字、note 截 40 字；命中<2 或空查询拒跑', () => { const j = read('/shared/ai/select.ts'); const g = read('/newtab/components/GlobalPopups.vue'); return j.includes('valid.has(h.id)') && j.includes('.slice(0, 6)') && j.includes('String(h.why).slice(0, 40)') && g.includes('items.length < 2'); });
-check('R136-4 两入口落位：任务抽屉「🤖 推荐卡」（动态 import select）+ 搜索面板「✨ AI 理解」钮（active 态=有重排，再点清除）与 AI 精选置顶组（原分组列表不动）', () => { const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const g = read('/newtab/components/GlobalPopups.vue'); return td.includes('推荐卡') && td.includes('ZhiMark') && td.includes("import('@/shared/ai/select')") && g.includes('gp-ai-tab') && g.includes('aiRerankRun') && g.includes('AI 理解') && g.includes(':spin="aiBusy"') && g.includes('v-if="aiTopRows.length && !isBrowseMode"'); });
+check('R136-3 检索契约与消毒（R150 起为 semanticSearch）：只回读——id 必须属于给定候选集、≤8 条、同 id 取高分不重复、why 截 40 字、note 截 40 字；候选<2 或空查询拒跑；丢弃条数计入消毒账', () => { const j = read('/shared/ai/select.ts'); const g = read('/newtab/components/GlobalPopups.vue'); return j.includes('!valid.has(id)') && j.includes('const HIT_CAP = 8') && j.includes(".slice(0, 40)") && j.includes('searchDropCount += dropped') && j.includes("if (c0) { if (hit.confidence > c0.confidence) Object.assign(c0, hit); continue }") && g.includes('cands.length < 2'); });
+check('R136-4 两入口落位：任务抽屉「推荐卡」（动态 import select）+ 搜索面板一枚「AI 检索」钮（active 态=有结果，再点清除）与 AI 置顶组（原分组列表不动） · R150 备案：第二枚钮从「AI 理解」改名，全站只留这一枚检索类 AI 入口', () => { const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const g = read('/newtab/components/GlobalPopups.vue'); return td.includes('推荐卡') && td.includes('ZhiMark') && td.includes("import('@/shared/ai/select')") && g.includes('gp-ai-tab') && g.includes('aiSearchRun') && g.includes("'AI 检索'") && g.includes(':spin="aiBusy"') && g.includes('v-if="aiTopRows.length && !isBrowseMode"'); });
 check('R136-5 卡目录投料纪律：cardDirectory 过滤软删、排除已挂载、上限=深度档 cards×2（eco60/std120/deep300 行封顶）', () => { const p = read('/shared/ai/project.ts'); return p.includes('export function cardDirectory') && p.includes('if (r.deletedAt || opts.excludeIds?.has(r.id)) continue') && p.includes('lines.length >= c.cards * 2'); });
 
 // ============== R137 · V2.105.0：批次 F 第四刀 库内治理扫描包（标签体检/捞回/镜像/漂移）+ 角色库 v1 ==============
@@ -3796,13 +3796,12 @@ check('R146-5 ★AI 入口徽标全站统一「知」（第二刀前置）：全
     && read('/newtab/components/CardAiEntry.vue').includes('if (busy.value) return') && read('/newtab/components/EvidenceMenuItem.vue').includes('if (busy.value) return')
     && read('/newtab/components/TaskAddDrawer.vue').includes('if (aiBusy.value || !aiSay.value.trim()) return')
 });
-check('R146-6 ★搜索意图理解提速（实测"点了就一直等"）：非流式 900token 改流式 420 + JSON 一闭合即掐连接 + 30 秒硬超时 + 外部可中止；浮层侧秒数/字数回显、再点取消、改词与关面板静默中止、同词同批命中走缓存；零写库不变', () => {
-  const sel = read('/shared/ai/select.ts'); const g = read('/newtab/components/GlobalPopups.vue'); const llm = read('/shared/ai/llm.ts')
-  return sel.includes('export async function rerankSearch') && sel.includes('await chatStream(') && sel.includes('maxTokens: 420') && sel.includes('const RERANK_TIMEOUT_MS = 30000')
-    && sel.includes('function rerankReady') && sel.includes('if (!early && rerankReady(a)) { early = true; ac.abort() }') && sel.includes('opts.signal?.addEventListener(\'abort\', relay)')
-    && !sel.includes('const text = await chat(') && llm.includes("if ((e as Error).name === 'AbortError') throw e")
-    && g.includes('aiSecs') && g.includes('aiChars') && g.includes('const aiCache = new Map') && g.includes("aiAbort('已取消 AI 理解（未采用任何结果）')") && g.includes('watch(activePanel, (p) => { if (p !== \'search\') aiAbort(null) })')
-    && !segOf(g, 'async function aiRerankRun', 'const aiTopRows').includes('persist')
+check('R146-6 ★检索类 AI 入口的提速骨架（实测"点了就一直等"后定）：流式 + JSON 一闭合即掐连接 + 30 秒硬超时 + 外部可中止；浮层侧秒数/字数回显、再点取消、改词与关面板静默中止、同词走缓存；零写库不变 · R150 备案：这套骨架原本钉在 rerankSearch 上，随「AI 理解」并入「AI 检索」已整体搬进 select.ts 的 askOnce/semanticSearch（maxTokens 420→520 因候选量变大），机制一字未松', () => {
+  const g = read('/newtab/components/GlobalPopups.vue'); const sel = read('/shared/ai/select.ts')
+  return sel.includes('export async function semanticSearch') && sel.includes('await chatStream(') && sel.includes('maxTokens: 520') && sel.includes('const SEARCH_TIMEOUT_MS = 30000')
+    && sel.includes('function searchReady') && sel.includes('if (!early && searchReady(a)) { early = true; ac.abort() }') && sel.includes("opts.signal?.addEventListener('abort', relay)")
+    && g.includes('点击取消本次 AI 检索') && g.includes('const aiCache = new Map<string, AiOut>()') && g.includes("watch(searchQuery, () => { aiSearch.value = null; aiAbort('') })") && g.includes('watch(activePanel, (p) => { if (p !== \'search\') aiAbort(null) })')
+    && g.includes('检索中 ') && g.includes('已回 ') && !sel.includes('export async function rerankSearch')
 });
 check('R146-7 检索浮层类型 tab 版式（实测 emoji 把「搜全部」劈成两行）：七枚 tab 零图标前缀 + 单枚 nowrap + 窄窗整枚换行（flex-wrap）', () => {
   const g = read('/newtab/components/GlobalPopups.vue'); const tabs = segOf(g, '<div class="gp-type-tabs">', '<div class="gp-results"')
@@ -3942,6 +3941,46 @@ check('R149-7 ⏹ 停止不留空白：AbortError 改记 stopped（旧版直接 
     && r.includes("if (!mine() || !live || live.phase !== 'running') return")
     && w.includes("v-else-if=\"vPhase === 'stopped'\"") && w.includes('本轮结果作废') && w.includes('.ai-stopped {')
     && g.includes("s.phase === 'stopped' ? '已停止（本轮结果作废，可重跑）'") && g.includes('.ai-tray-dot.stopped')
+});
+check('R150-1 ★检索类 AI 入口全站只留一枚：旧「AI 理解」通道整体退场（rerankSearch/rerankSystem/rerankReady/「AI 理解」字样在源码与断言锚点里都不该再存在），合并后的「AI 检索」把候选从"字面命中前 14 条"换成"库内三类卡"——用户换个说法也能召得回', () => {
+  const g = read('/newtab/components/GlobalPopups.vue'); const sel = read('/shared/ai/select.ts'); const sc = read('/shared/ai/scenarios.ts')
+  return !sel.includes('export async function rerankSearch') && !sc.includes('export const rerankSystem') && !sc.includes('搜索意图理解器') && !g.includes('aiRerankRun')
+    && g.includes("'AI 检索'") && !g.includes("'AI 理解'") && sel.includes('export async function semanticSearch') && sel.includes('export async function semanticSearchAll')
+    && g.includes('const aiCands = computed<AiCand[]>') && !g.includes('filteredResults.value.find')
+});
+check('R150-2 ★候选集口径说实话：res/task/curio 三类一视同仁、排除归档卡、跟着类型 tab 收窄，切到「策展台/项目」直接不给候选（它们不是卡）；投料上限按档位（eco80/std180/deep320）而非悄悄截断，结果里回报 scanned/total 让"只看了三成库"这件事可见', () => {
+  const g = read('/newtab/components/GlobalPopups.vue'); const sel = read('/shared/ai/select.ts')
+  return g.includes("if (r.archived) continue") && g.includes("if (want === 'ws' || want === 'proj') return []") && g.includes("r.type !== 'res' && r.type !== 'task' && r.type !== 'curio'")
+    && sel.includes("SEARCH_CAP: Record<AiDepth, number> = { eco: 80, std: 180, deep: 320 }") && sel.includes('scanned, total, dropped: searchDropCount')
+    && g.includes('投料 {{ aiSearch?.scanned }}/{{ aiSearch?.total }} 张')
+});
+check('R150-3 ★手势与主列表逐字一致且不写库：AI 行走同一个 pickRow + 同一句 title 文案（两处字面量一模一样）+ 同一个 hover 选中；键盘扁平列表把 AI 组排在主列表之前（渲染顺序=flatList 顺序，修掉旧「AI 理解」组的方向键错位）；AI 组之上零 persist', () => {
+  const g = read('/newtab/components/GlobalPopups.vue')
+  const a = g.indexOf('<template v-if="aiTopRows.length && !isBrowseMode">'); const b = g.indexOf('<template v-for="grp in groupedResults"')
+  const TIP = "'单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'"
+  return a >= 0 && b > a && g.includes('@click="pickRow(pair.item)" @mouseenter="selectHover(pair.item)')
+    && g.split(TIP).length - 1 >= 2
+    && g.includes("for (const pair of aiTopRows.value) out.push({ kind: 'result' as const, item: pair.item })")
+    && !g.slice(a - 3000, a).includes('persist')
+});
+
+check('R150-4 「全库分批扫」是显式慢路径不默认：仅在 scanned<total 时出现、按钮 title 点名要发几次请求；批间可取消、命中够 2×8 条即止损（别为已够用的结果继续烧钱）；不进同词缓存（慢路径的结果不该被"秒回"冒领）；超时钟按批数放大', () => {
+  const g = read('/newtab/components/GlobalPopups.vue'); const sel = read('/shared/ai/select.ts')
+  return g.includes('v-if="aiSearch && aiSearch.scanned < aiSearch.total"') && g.includes('次请求、会慢') && g.includes('if (!allScope) {')
+    && sel.includes('if (acc.size >= HIT_CAP * 2) break') && sel.includes("if (opts.signal?.aborted) throw new Error('已取消')")
+    && sel.includes('SEARCH_TIMEOUT_MS * Math.max(1, Math.ceil(total / size))') && sel.includes('onProgress')
+    && sel.includes('const aborters = new Set<AbortController>()') && sel.includes('finally { aborters.delete(ac) }') && sel.includes('const relay = () => aborters.forEach(a => a.abort())')
+});
+check('R150-5 中文查询要有能用的字面近似 + 判弱只用客观信号：粗筛分词含整句/空格词/连续中文 2-gram（只按空格切会让中文长句整条落空）；weak = 模型自报把握 <0.55 或干脆没给 why，行上挂「低置信」而非默认藏掉', () => {
+  const sel = read('/shared/ai/select.ts'); const g = read('/newtab/components/GlobalPopups.vue')
+  return sel.includes('function queryTokens') && sel.includes('/[一-龥]{3,}/g') && sel.includes("if (t.includes(p)) n += 6")
+    && sel.includes("weak: ok < 0.55 || !String(h?.why || '').trim()") && g.includes('class="gp-ri-badge weak"') && g.includes('低置信')
+});
+check('R150-6 跑动态那句话必须渲染成数字而不是对象：computed 里插值 ref 必须带 .value（首版写了 ${aiSecs} 直接露出 [object Object]），且单次投料没有中间进度时不许假装有进度（改说"库内 N 张里挑"）', () => {
+  const g = read('/newtab/components/GlobalPopups.vue')
+  const body = g.slice(g.indexOf('const aiProgress = computed'), g.indexOf('const aiMoreBatches'))
+  return body.includes('${aiSecs.value}s') && !body.includes('${aiSecs}s') && body.includes('const mid = aiScanned.value > 0')
+    && body.includes('库内 ${aiTotal.value} 张里挑') && body.includes('已扫 ${aiScanned.value}/${aiTotal.value} 张')
 });
 check('R148-6 报告型自动落卡只新增不改既有：withReport 只把带「AI 报告·待审阅」的卡放进资源台待分类 · R149 备案：本条原写"本轮仅深度诊断接入（其余报告型仍走勾选采纳）"，R149 用户拍板后周回顾/深度洞察/成果文稿一并接上并撤采纳按钮（见 R149-1），故此处只锁"报告标签 + 待分类 + 零 splice"这条下界', () => {
   const rp = read('/shared/ai/reports.ts'); const g = read('/newtab/views/GlobalSettings.vue'); const j = read('/shared/ai/job.ts')
