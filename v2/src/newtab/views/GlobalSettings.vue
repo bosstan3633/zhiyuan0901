@@ -485,7 +485,7 @@
         <div v-for="s in aiTray" :key="s.key" class="ai-tray-row">
           <span class="ai-tray-dot" :class="s.phase"></span>
           <span class="ai-tray-t">{{ s.title }}</span>
-          <span class="ai-tray-st">{{ s.phase === 'running' ? `跑动中 ${s.secs}s · 投料 ${s.feed.chars} 字 · ${s.feed.calls} 次请求` : s.phase === 'queued' ? '排队中（同时最多 2 个）' : s.phase === 'done' ? (s.savedNote || `完成 · ${s.rows.length} 条 · ${s.secs}s`) : '失败：' + s.err.slice(0, 46) }}</span>
+          <span class="ai-tray-st">{{ s.phase === 'running' ? `跑动中 ${s.secs}s · 投料 ${s.feed.chars} 字 · ${s.feed.calls} 次请求` : s.phase === 'queued' ? '排队中（同时最多 2 个）' : s.phase === 'done' ? (s.savedNote || `完成 · ${s.rows.length} 条 · ${s.secs}s`) : s.phase === 'stopped' ? '已停止（本轮结果作废，可重跑）' : '失败：' + s.err.slice(0, 46) }}</span>
           <button class="gs-btn sm" @click="aiOpenState(s)">展开</button>
         </div>
       </div>
@@ -572,9 +572,9 @@
             <button class="gs-btn" :disabled="!aiReady" @click="aiCrossDeck">🔁 跨台镜像发现</button>
             <button class="gs-btn" :disabled="!aiReady" @click="aiThesisDrift">🏛 主题漂移检测</button>
             <button class="gs-btn" :disabled="!aiReady" @click="aiTrashRescue">🗑 回收站捞回</button>
-            <button class="gs-btn" :disabled="!aiReady" title="近 7 天台账 → 周回顾草稿；采纳=存为一张周回顾卡" @click="aiWeeklyReview">🗓 本周回顾</button>
+            <button class="gs-btn" :disabled="!aiReady" title="近 7 天台账 → 周回顾草稿；跑完自动存为一张周回顾卡（同日重跑只刷新那张）" @click="aiWeeklyReview">🗓 本周回顾</button>
             <label class="ai-field inline"><input class="gs-input ai-genre" type="text" v-model="aiGenre" placeholder="体裁（可留空）：公众号短文 / 分享稿 / 结项说明…" @keydown.enter.prevent="aiDeliver" /></label>
-            <button class="gs-btn" :disabled="!aiReady" title="论点卡 + 活跃目标 + 近 30 天完成 → 一篇可交付文稿；采纳=存为一张成果文稿卡，或下载 .md" @click="aiDeliver">📄 成果文稿</button>
+            <button class="gs-btn" :disabled="!aiReady" title="论点卡 + 活跃目标 + 近 30 天完成 → 一篇可交付文稿；跑完自动存为一张成果文稿卡（同日重跑只刷新那张），也可下载 .md" @click="aiDeliver">📄 成果文稿</button>
           </div>
         </div>
 
@@ -2804,6 +2804,8 @@ function aiEnrichIds(ids: Set<string>) {
   const known = knownTagSet(d)
   const drop = { ghost: 0, fresh: 0, empty: 0 }
   aiJob.value = {
+    // R149：key 里带入选集——同一批卡再点=attach 看进度，换一批=新起任务（不会拿旧结果糊弄）
+    key: 'enrich:batch:' + [...ids].sort().join('|'),
     title: `批量补全（${cards.length} 张卡）`,
     hint: '逐卡建议：标签（优先复用词表）/ 描述（只补空描述）/ 分类迁移。勾选采纳才写入。',
     build: () => ({ messages: [
@@ -2859,6 +2861,7 @@ function aiDormantScan() {
   const { text, count, scanned } = projectDormant(d, days, aiConfig.value.depth)
   if (!count) { showToast(`没有沉睡卡：${days} 天内全库 ${scanned} 张都在活跃窗口内`); return }
   aiJob.value = {
+    key: 'dormant:' + days,
     title: `沉睡资源唤醒（${count} 张候选）`,
     hint: `判定口径：${days} 天未打开且未置顶/星标。模型对照进行中任务与战略目标逐卡给结论；「唤醒」=置顶回到视野，「归档」=送回收站（可反悔）。`,
     build: () => ({ messages: [{ role: 'system', content: dormantSystem() }, { role: 'user', content: text }] }),
@@ -3563,6 +3566,7 @@ const activeManualSec = ref('quick-1')
 .ai-tray-dot.done { background: var(--success); }
 .ai-tray-dot.error { background: var(--danger); }
 .ai-tray-dot.queued { background: var(--warning); }
+.ai-tray-dot.stopped { background: var(--text-3); }
 .gs-btn.ai-batch-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .ai-pnew { display: flex; gap: 8px; align-items: center; margin: 8px 0 10px; flex-wrap: wrap; }
 .ai-pnew .gs-input { flex: 1; min-width: 130px; }

@@ -7,16 +7,17 @@
  *
  * 口径：
  *  1. **按 jobKey 幂等**——同一功能再点：在跑就 attach（看进度），跑完就看结果 +「↻ 重新运行」；
- *  2. **关抽屉不杀任务**——只有「⏹ 停止」和 drop() 才中止；
+ *  2. **关抽屉不杀任务**——只有「⏹ 停止」和 drop() 才中止；停止后留下一条 stopped 记录（结果作废、可重跑），不把手上的任务抹没;
  *  3. **并发上限 2**，超了排队并如实显示「排队中」，不偷偷并行打满网关；
- *  4. **报告型自动落卡**（autoReport）——只新增一张卡、不改任何既有数据的产出，跑完自动进资源台待分类；
+ *  4. **报告型自动落卡**（autoReport）——只写"报告卡自己那一行"（新建或刷新同日那张）、
+ *     不改任何别的既有数据的产出，跑完自动进资源台待分类；
  *     会改既有数据的采纳动作**仍然必须勾选**，这条纪律不在本模块松动。
  */
 import { ref } from 'vue'
 import type { AiJob, AiRow } from './job'
 import { chatStream, extractJson, setLlmFeedSink } from './llm'
 
-export type JobPhase = 'queued' | 'running' | 'done' | 'error'
+export type JobPhase = 'queued' | 'running' | 'done' | 'error' | 'stopped'
 
 export interface JobState {
   key: string
@@ -40,7 +41,8 @@ const states = ref(new Map<string, JobState>())
 const controllers = new Map<string, AbortController>()
 const tickers = new Map<string, ReturnType<typeof setInterval>>()
 const factories = new Map<string, () => AiJob | null>()
-let seq = 0
+/** 每个 key 的"第几轮"——中止回来的只有当前轮才有资格动注册表（rerun 的旧请求晚到会误杀新一轮） */
+const attempts = new Map<string, number>()
 
 function activeCount(): number {
   let n = 0
@@ -82,7 +84,6 @@ async function execute(key: string): Promise<void> {
   if (activeCount() >= MAX_PARALLEL) { patch(key, { phase: 'queued' }); return }
   const job = st.job
   patch(key, { phase: 'running', startedAt: Date.now(), rows: [], raw: '', err: '', savedNote: '', feed: { chars: 0, calls: 0, pt: 0, ct: 0 }, secs: 0 })
-  const mySeq = ++seq
   stopTicker(key)
   tickers.set(key, setInterval(() => {
     const c = states.value.get(key)
@@ -90,8 +91,12 @@ async function execute(key: string): Promise<void> {
   }, 1000))
   const ac = new AbortController()
   controllers.set(key, ac)
+  const myAttempt = (attempts.get(key) || 0) + 1
+  attempts.set(key, myAttempt)
   // 投料账在线路处结算（R147-b 同一口径，只是宿主从抽屉搬到了任务）
+  const mine = () => attempts.get(key) === myAttempt
   setLlmFeedSink((m) => {
+    if (!mine()) return
     const c = states.value.get(key)
     if (!c || c.phase !== 'running') return
     c.feed.chars += m.inChars; c.feed.calls++; c.feed.pt += m.promptTokens || 0; c.feed.ct += m.completionTokens || 0
@@ -100,15 +105,16 @@ async function execute(key: string): Promise<void> {
     let rows: AiRow[]
     let raw = ''
     if (job.run) {
-      rows = await job.run({ signal: ac.signal, onDelta: (t) => { const c = states.value.get(key); if (c) c.raw = t } })
+      rows = await job.run({ signal: ac.signal, onDelta: (t) => { const c = states.value.get(key); if (c && mine()) c.raw = t } })
       raw = rows.length ? '' : ''
     } else {
       const { messages, jsonMode } = await job.build()
-      raw = await chatStream({ messages, jsonMode: job.rawText ? false : jsonMode !== false, signal: ac.signal, onDelta: (t) => patch(key, { raw: t }) })
+      raw = await chatStream({ messages, jsonMode: job.rawText ? false : jsonMode !== false, signal: ac.signal, onDelta: (t) => { if (mine()) patch(key, { raw: t }) } })
       if (!raw.trim()) throw new Error('模型返回为空（可能超时或余额不足）')
       rows = job.parse(job.rawText ? raw : extractJson(raw))
     }
-    if (mySeq !== seq && !states.value.has(key)) return
+    const live = states.value.get(key)
+    if (!mine() || !live || live.phase !== 'running') return
     patch(key, { phase: 'done', rows, raw, finishedAt: Date.now() })
     stopTicker(key)
     // 报告型自动落卡：只新增卡，不改既有数据（纪律边界见文件头第 4 条）
@@ -119,14 +125,13 @@ async function execute(key: string): Promise<void> {
       } catch (e) { patch(key, { savedNote: '⚠ 报告落卡失败：' + (e as Error).message }) }
     }
   } catch (e) {
+    if (!mine()) return
     const msg = (e as Error).message || String(e)
-    if ((e as Error).name === 'AbortError') { drop(key); return }
+    if ((e as Error).name === 'AbortError') { patch(key, { phase: 'stopped', finishedAt: Date.now() }); return }
     patch(key, { phase: 'error', err: msg, finishedAt: Date.now() })
   } finally {
     if (controllers.get(key) === ac) controllers.delete(key)
-    stopTicker(key)
-    setLlmFeedSink(null)
-    pump()
+    if (mine()) { stopTicker(key); setLlmFeedSink(null); pump() }
   }
 }
 
@@ -155,8 +160,7 @@ export function openJob(key: string, title: string, make: () => AiJob | null): J
 export function rerunJob(key: string, make?: () => AiJob | null): JobState | null {
   const f = make || factories.get(key)
   const old = states.value.get(key)
-  stop(key)
-  states.value.delete(key)
+  drop(key)
   if (!f || !old) return null
   return openJob(key, old.title, f)
 }
@@ -181,7 +185,7 @@ export function drop(key: string): void {
 export function clearFinished(): void {
   const next = new Map(states.value)
   let changed = false
-  next.forEach((s, k) => { if (s.phase === 'done' || s.phase === 'error') { next.delete(k); factories.delete(k); changed = true } })
+  next.forEach((s, k) => { if (s.phase === 'done' || s.phase === 'error' || s.phase === 'stopped') { next.delete(k); factories.delete(k); changed = true } })
   if (changed) states.value = next
 }
 

@@ -23,6 +23,7 @@ import {
   allPersonas, personaOverrides, chainPersonaText,
   type ThesisPart, type CurioTriage, type EvidencePick,
 } from './scenarios'
+import { withReport } from './reports'
 
 interface ThesisDraft { name: string; definition: string; cardIds: string[] }
 
@@ -355,27 +356,14 @@ export function buildDeliverJob(ctx: DeliverCtx): AiJob | null {
     key: 'deliver',
     title: '📄 成果文稿',
     subject: `📄 ${(ctx.genre || '可直接转发的短文').slice(0, 18)}`,
-    hint: '把这段时间攒下的判断与证据写成一份可交付文稿：只用台账里出现过的事实，逐条能指回出处。采纳=存为一张「成果文稿」资源卡；底部「📥 下载 .md」拿走文件不改库。',
+    hint: '把这段时间攒下的判断与证据写成一份可交付文稿：只用台账里出现过的事实，逐条能指回出处。跑完自动存为一张「成果文稿」资源卡放进资源台待分类（不改任何既有数据）；底部「📥 下载 .md」拿走文件不改库。',
     rawText: true,
+    adoptable: false,
     build: () => ({ messages: [{ role: 'system', content: sys() }, { role: 'user', content: text }], jsonMode: false }),
     parse: (raw) => {
       const body = String(raw || '').trim().replace(/^```(?:md|markdown)?\s*|\s*```$/g, '').trim()
       if (!body) return []
       return [{ key: 'dl:text', badge: '📄 文稿', badgeType: 'ok', main: body.split('\n')[0].replace(/^#+\s*/, '').slice(0, 40) || `成果文稿 ${today()}`, sub: body.slice(0, 400), data: { text: body } }]
-    },
-    apply: (rows) => {
-      const body = String((rows[0]?.data as { text?: string })?.text || '')
-      if (!body) return '无可存内容'
-      const hub = d.workspaces.find(w => w.kind === 'resource') || d.workspaces[0]
-      if (!hub) return '⚠ 库里没有资源台，无处存放'
-      d.resources.unshift({
-        id: uid('res'), kind: 'resource', title: `📄 成果文稿 ${today()}`,
-        linkType: 'url', link: '', workspaceId: hub.id, categoryId: '',
-        description: body.slice(0, 4000), tags: ['成果文稿'], pinned: false, callCount: 0,
-        createdAt: Date.now(), updatedAt: Date.now(), customFields: {},
-      } as ResourceCard)
-      ctx.persist()
-      return '✓ 成果文稿已存为资源卡（资源台未分类区，tags: 成果文稿）'
     },
     secondary: {
       label: '📥 下载 .md',
@@ -392,5 +380,5 @@ export function buildDeliverJob(ctx: DeliverCtx): AiJob | null {
     },
   }
   if (ctx.onPersona) job.persona = personaPicker(ctx.personaId || 'default', id => ctx.onPersona?.(id))
-  return job
+  return withReport(job, ctx, () => `📄 成果文稿 ${today()}`, (rows) => String((rows[0]?.data as { text?: string })?.text || ''), ['成果文稿'])
 }

@@ -157,6 +157,7 @@ async function aiEnrich() {
   const cats = d.categories.filter(c => !c.deletedAt && c.workspaceId === card.workspaceId)
   const catList = cats.slice(0, 60).map(c => `categoryId=${c.id}：${catPathOf(d, c.id)}`).join('\n')
   aiJob.value = {
+    key: 'enrich:' + card.id,
     title: `AI 补全 · ${card.title.slice(0, 20) || '（无名卡）'}`,
     hint: '建议会回填到下方编辑表单（描述仅在为空时填充），保存前你可再改。',
     build: () => ({ messages: [

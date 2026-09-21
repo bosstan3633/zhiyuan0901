@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.3.0'";
+const VER_ANCHOR_LITERAL = "version: '3.4.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -3670,7 +3670,7 @@ console.log('【R139 · V2.107.0：实测整改刀】');
 check('R139-1 ★主攻图标定稿（🚀=主攻、🎯 只留指标、📦=项目）：灯塔行徽/策展 toast/浮层 chip/方向树徽全 🚀，⚑ 全站绝迹且 >🎯 主攻 不再出现', () => { const lh = read('/newtab/components/compass/LighthousePanel.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); const gp = read('/newtab/components/GlobalPopups.vue'); const ct = read('/newtab/views/CompassTree.vue'); return lh.includes('pr-mark" title="主攻项目">🚀') && ct.includes('tp-mark" title="主攻项目">🚀') && pc.includes('🚀 已设为主攻') && gp.includes("text: '🚀 主攻'") && !lh.includes('⚑') && !pc.includes('⚑') && !ct.includes('⚑') && !gp.includes('⚑') && !pc.includes('>🎯 主攻') && !lh.includes('>🎯 主攻'); });
 check('R139-2 拆解双通道：AiJob.secondary=同批勾选行的另一种落法；breakdown 次采纳把勾选步骤合并成 🤖 步骤清单 写进任务描述（替换段重复采纳不堆积、plan 行不入清单、原任务被删拒写），主通道建子任务不动', () => { const j = read('/shared/ai/job.ts'); const c = read('/shared/ai/chain.ts'); return j.includes('secondary?: { label: string') && c.includes("job.secondary = { label: '📝 步骤写入任务详情'") && c.includes('function writeStepsToTask') && c.includes('🤖 步骤清单：') && c.includes('⚠ 原任务已不存在，未写入') && c.includes('__plan') && c.includes('applyChain(level, anchorId, ctx, rows)'); });
 check('R139-3 拆解专家执笔：chainSystem 收 personaText（有则替换默认执行教练角色为执笔人设）；chainPersonaText 合成内置∪自建专家 brief+focus+风格覆盖（default/查无回落空串）；breakdown 挂 persona 下拉，宿主 onPersona 重建 job 自动重跑', () => { const s = read('/shared/ai/scenarios.ts'); const c = read('/shared/ai/chain.ts'); const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); return s.includes('export function chainSystem(level: ChainLevel, personaText?: string)') && s.includes('export function chainPersonaText') && s.includes('你的行文风格') && c.includes('chainSystem(level, personaText)') && c.includes('current: ctx.personaId') && td.includes('aiPersonaId') && td.includes('void aiBreakdown()'); });
-check('R139-4 ★周报深度洞察全懒接入：浮层头「🤖 深度洞察」钮只在点击时 dynamic import AI 栈（零静态 @/shared/ai），rawText 四段契约（重心体检/信号与异常/资产错位/下周一个动作），采纳=存「🤖 深度洞察」资源卡；浮层 z 降到 190 让开抽屉层', () => { const w = read('/newtab/components/WeeklyReportOverlay.vue'); const s = read('/shared/ai/select.ts'); const sc = read('/shared/ai/scenarios.ts'); return !w.includes("from '@/shared/ai/") && w.includes('深度洞察') && w.includes('ZhiMark') && w.includes("import('@/shared/ai/select')") && w.includes('defineAsyncComponent(() => import(') && w.includes('z-index: 190') && s.includes('export function buildInsightJob') && sc.includes('deepInsightSystem') && sc.includes('## 重心体检') && s.includes("tags: ['深度洞察']"); });
+check('R139-4 ★周报深度洞察全懒接入：浮层头「🤖 深度洞察」钮只在点击时 dynamic import AI 栈（零静态 @/shared/ai），rawText 四段契约（重心体检/信号与异常/资产错位/下周一个动作）；浮层 z 降到 190 让开抽屉层 · R149 备案：「采纳=存卡」已作废——本场景改 withReport 自动落卡（adoptable:false 且无 apply）， tags 从 apply 里搬到 withReport 第三参，故断言锚改按新形态', () => { const w = read('/newtab/components/WeeklyReportOverlay.vue'); const s = read('/shared/ai/select.ts'); const sc = read('/shared/ai/scenarios.ts'); return !w.includes("from '@/shared/ai/") && w.includes('深度洞察') && w.includes('ZhiMark') && w.includes("import('@/shared/ai/select')") && w.includes('defineAsyncComponent(() => import(') && w.includes('z-index: 190') && s.includes('export function buildInsightJob') && sc.includes('deepInsightSystem') && sc.includes('## 重心体检') && /export function buildInsightJob[\s\S]*?adoptable: false[\s\S]*?\['深度洞察'\]/.test(s) && !/export function buildInsightJob[\s\S]{0,1400}?apply:/.test(s); });
 check('R139-5 周台账投影扩容：projectWeekDigest 新增本周调用分布（按工作台聚合、top6）与 isFocused 主攻投入对照（≤3 个：进度/未完成/本周完成/停滞），作重心偏离证据段；主攻无卡可设时该段整体缺席', () => { const p = read('/shared/ai/project.ts'); return p.includes('【本周调用分布（按工作台）】') && p.includes('【主攻项目投入对照】') && p.includes('p.isFocused') && p.includes('slice(0, 3)') && p.includes('slice(0, 6)'); });
 check('R139-6 评审抽屉双控件：footer 次采纳按钮（label 由 job 给、勾选 0 禁用、走 adoptSecondary 复用 picked 集）+ persona 下拉（options/current/onPick 三段，宿主重建 job 即 watch 重跑；R141 已上移抽屉头部）· R148 备案：契约对象统一走 cur（后台模式下必须显示**正在跑的那份 job**，不能拿新锚点的表头配旧结果', () => { const w = read('/newtab/components/AiSuggestionDrawer.vue'); return w.includes('async function adoptSecondary()') && w.includes('job.secondary.apply(sel)') && w.includes('v-if="cur?.secondary && vRows.length"') && w.includes('class="ai-persona"') && w.includes('cur.persona!.onPick'); });
 
@@ -3740,10 +3740,11 @@ check('R144-4 ★G2 三判决与写入边界：verdict 白名单（第四种全�
     && cp.includes('convertToTask(c)') && cp.includes('t.title = title.slice(0, 40)') && cp.includes('转化研判') && cp.includes('ZhiMark')
     && p.includes('export function projectCurioPool') && p.includes('curioRelated(d, x)');
 });
-check('R144-5 G3/G4 语义：佐证 id 只认资源台目录且未挂本分支（≤6 张），采纳=projectCardToBoard 镜像零源改动；文稿 rawText 成文（剥代码围栏），采纳=存「成果文稿」卡、次通道下载 .md 不改库', () => {
+check('R144-5 G3/G4 语义：佐证 id 只认资源台目录且未挂本分支（≤6 张），采纳=projectCardToBoard 镜像零源改动；文稿 rawText 成文（剥代码围栏），次通道下载 .md 不改库 · R149 备案：文稿主通道由「采纳=存卡」改成 withReport 自动落卡（无 apply / adoptable:false），下载 .md 保留为唯一按钮', () => {
   const g = read('/shared/ai/batchG.ts'); const em = read('/newtab/components/EvidenceMenuItem.vue'); const gs = read('/newtab/views/GlobalSettings.vue'); const w = read('/newtab/views/Workspace.vue');
   return g.includes('!taken.has(r.id)') && g.includes('(bag.items || []).slice(0, 6)') && g.includes('projectCardToBoard(d, id, ctx.wsId, ctx.catId)') && g.includes('function boardCardsInCat')
-    && g.includes("tags: ['成果文稿']") && g.includes('rawText: true') && g.includes("label: '📥 下载 .md'") && g.includes('replace(/^```(?:md|markdown)?')
+    && /export function buildDeliverJob[\s\S]*?adoptable: false[\s\S]*?return withReport\(job, ctx,[\s\S]*?\['成果文稿'\]/.test(g) && !/export function buildDeliverJob[\s\S]{0,900}?apply:/.test(g)
+    && g.includes('rawText: true') && g.includes("label: '📥 下载 .md'") && g.includes('replace(/^```(?:md|markdown)?')
     && em.includes("import('@/shared/ai/batchG')") && gs.includes('📄 成果文稿') && w.includes('<EvidenceMenuItem :ws-id="workspaceId" :cat-id="nodeMenu.catId"');
 });
 check('R144-6 入口零净增与懒化：Workspace 物理行数仍 ≤1500（裸 fs 尺，与 R115-1/R140-3 同刀）；G1/G3 两组件 AI 依赖全懒 + 自带样式（scoped 宿主跨不到 fragment 根）；手册 ai-3 收录四场景与软层级三规矩', () => {
@@ -3889,20 +3890,66 @@ check('R148-4 KeepAlive 扩到设置页/回收站/项目详情/方向树（四�
     && read('/newtab/views/GlobalSettings.vue').includes("defineOptions({ name: 'GlobalSettingsView' })") && read('/newtab/views/RecycleBin.vue').includes("defineOptions({ name: 'RecycleBinView' })")
     && read('/newtab/views/ProjectCuration.vue').includes("defineOptions({ name: 'ProjectCurationView' })") && read('/newtab/views/CompassTree.vue').includes("defineOptions({ name: 'CompassTreeView' })")
 });
-check('R148-5 ★AI 任务与抽屉解绑：runner 按 jobKey 幂等（在跑 attach / 跑完看结果 + 重新运行）、关抽屉不杀任务、并发上限 2 超出排队、投料账随任务走', () => {
+check('R148-5 ★AI 任务与抽屉解绑：runner 按 jobKey 幂等（在跑 attach / 跑完看结果 + 重新运行）、关抽屉不杀任务、并发上限 2 超出排队、投料账随任务走 · R149 备案两处：① 绑 key 的活从"宿主各传 job-key"改成抽屉自己认 job.key（见 R149-3），close 判据锚随之由 props.jobKey 换成 keyOf；② 中止后不再 drop 整条任务而是记 stopped（见 R149-7），AbortError 分支字面量随之改写', () => {
   const r = read('/shared/ai/runner.ts'); const w = read('/newtab/components/AiSuggestionDrawer.vue'); const g = read('/newtab/views/GlobalSettings.vue')
-  return r.includes('const MAX_PARALLEL = 2') && r.includes('export function openJob') && r.includes('export function rerunJob') && r.includes("if ((e as Error).name === 'AbortError') { drop(key); return }")
+  return r.includes('const MAX_PARALLEL = 2') && r.includes('export function openJob') && r.includes('export function rerunJob') && r.includes("if ((e as Error).name === 'AbortError') { patch(key, { phase: 'stopped', finishedAt: Date.now() }); return }")
     && r.includes('function pump()') && r.includes('setLlmFeedSink(')
-    && w.includes('const props = defineProps<{ job: AiJob | null; jobKey?: string }>()') && w.includes("if (props.jobKey) { emit('close'); return }") && w.includes('↻ 重新运行') && w.includes('排队中')
+    && w.includes('const props = defineProps<{ job: AiJob | null; jobKey?: string }>()') && w.includes("if (keyOf.value) { emit('close'); return }") && w.includes('↻ 重新运行') && w.includes('排队中')
     && g.includes('const aiJobKey') && g.includes('const aiTray = computed') && g.includes('listJobStates') && g.includes('ai-tray-row')
 });
-check('R148-6 报告型自动落卡只新增不改既有：withReport 只 unshift 一张带「AI 报告·待审阅」的卡到资源台待分类；本轮仅深度诊断接入（其余报告型仍走勾选采纳，避免与"采纳=存卡"重复落两张）', () => {
+check('R149-1 ★三处报告型统一「跑完自动落一张卡、采纳按钮撤掉」（用户拍板）：周回顾/深度洞察/成果文稿全部 withReport + adoptable:false 且不再自带 apply；旧文案里的「采纳=存卡」改写为「跑完自动存…不必再点采纳」，成果文稿保留 📥 下载 .md 作次通道', () => {
+  const s = read('/shared/ai/select.ts'); const g = read('/shared/ai/batchG.ts')
+  const fns = { review: /export function buildReviewJob[\s\S]*?\n}/.exec(s)?.[0] || '', insight: /export function buildInsightJob[\s\S]*?\n}/.exec(s)?.[0] || '', deliver: /export function buildDeliverJob[\s\S]*?\n}/.test(g) ? g.slice(g.indexOf('export function buildDeliverJob')) : '' }
+  return Object.values(fns).every(b => b.includes('withReport(') && b.includes('adoptable: false') && !/^ {4}apply: \(/m.test(b))
+    && fns.review.includes("['周回顾']") && fns.insight.includes("['深度洞察']") && fns.deliver.includes("['成果文稿']")
+    && !/采纳=存为|采纳=存「/.test(s + g) && s.includes('不必再点采纳') && fns.deliver.includes("label: '📥 下载 .md'")
+});
+check('R149-2 ★报告型撤采纳后"只一张卡"：saveReportCard 先按同名 + 报告标签查重，命中就刷新那张（description/tags/updatedAt）不再 unshift——同日重跑是刷新不是攒卡；新建路径仍只进资源台待分类', () => {
+  const rp = read('/shared/ai/reports.ts'); const w = read('/newtab/components/AiSuggestionDrawer.vue')
+  return rp.includes('const dup = (d.resources || []).find(') && rp.includes('r.title === title') && rp.includes('includes(REPORT_TAG)')
+    && rp.includes('报告已刷新') && rp.includes('d.resources.unshift(card)') && !rp.includes('d.resources =') && !rp.includes('splice(')
+    && w.includes('const hasAdopt = computed(() => !!cur.value?.apply')
+});
+check('R149-3 ★jobKey 收口在抽屉一处（keyOf = 显式 jobKey > job.key > 空=一次性）：13 个宿主零改动即获得后台化/attach/托盘，工厂加场景不必记着接线；据此每条 build*Job 都必须自带 key（缺 key 就退回"关抽屉=杀任务"，用正则当场点名）', () => {
+  const w = read('/newtab/components/AiSuggestionDrawer.vue'); const j = read('/shared/ai/job.ts')
+  const files = ['select.ts', 'batchG.ts', 'chain.ts', 'govern.ts'].map(f => '/shared/ai/' + f)
+  const noKey = files.flatMap(f => { const s = read(f); return (s.match(/export function build\w+Job[^\n]*\n/g) || []).map(hdr => { const i = s.indexOf(hdr); return /key: /.test(s.slice(i, i + 2200)) ? '' : f + hdr.slice(0, 40) }).filter(Boolean) })
+  return w.includes("const keyOf = computed(() => props.jobKey || props.job?.key || '')") && w.includes('const bound = computed<JobState | null>(() => (keyOf.value ? getJobState(keyOf.value) || null : null))')
+    && j.includes('key?: string') && noKey.length === 0 && read('/newtab/views/GlobalSettings.vue').includes("key: 'enrich:batch:'") && read('/newtab/components/ResourceDetailDrawer.vue').includes("key: 'enrich:' + card.id")
+});
+check('R149-4 ★runner 轮次所有权：每个 key 记第几轮（attempts），只有当前轮能落结果/清投料 sink/回收任务——rerun 与被停旧请求晚到的回调不再误杀新一轮；rerunJob 走 drop 而非裸 delete', () => {
+  const r = read('/shared/ai/runner.ts')
+  return r.includes('const attempts = new Map<string, number>()') && r.includes('const myAttempt = (attempts.get(key) || 0) + 1') && r.includes('const mine = () => attempts.get(key) === myAttempt')
+    && (r.match(/if \(!mine\(\)\)/g) || []).length >= 2 && r.includes('if (mine()) { stopTicker(key); setLlmFeedSink(null); pump() }')
+    && /export function rerunJob[\s\S]*?drop\(key\)/.test(r) && !/states\.value\.delete\(key\)/.test(r)
+});
+check('R149-5 换专家=新起一轮，同 key 再点=attach：抽屉 watch 只在 persona.current 变了才 rerunJob（换视角是用户点名重问），其余一律不重跑；报告型无 apply 时抽屉撤勾选框/全选/低置信按钮（没有要采纳的东西还让人勾是假动作），产出行仍整篇呈现', () => {
+  const w = read('/newtab/components/AiSuggestionDrawer.vue')
+  return w.includes('if (j && st.job.persona && j.persona && j.persona.current !== st.job.persona.current) rerunJob(k, () => j)')
+    && w.includes('const picksSomething = computed(() => hasAdopt.value || !!cur.value?.secondary)')
+    && w.includes('<label v-if="picksSomething" class="ai-all">') && w.includes('整篇成文，跑完自动落卡')
+    && w.includes(':class="{ on: picksSomething && !r.advisory && picked.has(r.key), advisory: r.advisory || !picksSomething')
+});
+check('R149-6 落卡兜底不脱钩：宿主漏绑 key 且 job 是报告型时，抽屉自己结算 autoReport（撤了采纳按钮就不能再依赖 runner 才落卡）；跑完中途被停/被换轮则不落（phase 必须是 running 才结算）', () => {
+  const w = read('/newtab/components/AiSuggestionDrawer.vue'); const r = read('/shared/ai/runner.ts')
+  return w.includes('if (job.autoReport && !keyOf.value) {') && w.includes('savedNote.value = job.autoReport.save(p)') && w.includes('const vSaved = computed(')
+    && r.includes('if (!mine() || !live || live.phase !== \'running\') return') && w.includes('v-if="vSaved" class="ai-saved"')
+});
+check('R149-7 ⏹ 停止不留空白：AbortError 改记 stopped（旧版直接 drop 整条任务，抽屉只剩一片什么都没有的空壳），托盘行同步标「已停止」，抽屉给「↻ 重新运行」出口；停止=本轮作废，autoReport 不得落半张卡', () => {
+  const r = read('/shared/ai/runner.ts'); const w = read('/newtab/components/AiSuggestionDrawer.vue'); const g = read('/newtab/views/GlobalSettings.vue')
+  return r.includes("export type JobPhase = 'queued' | 'running' | 'done' | 'error' | 'stopped'")
+    && r.includes("if ((e as Error).name === 'AbortError') { patch(key, { phase: 'stopped', finishedAt: Date.now() }); return }")
+    && r.includes("if (!mine() || !live || live.phase !== 'running') return")
+    && w.includes("v-else-if=\"vPhase === 'stopped'\"") && w.includes('本轮结果作废') && w.includes('.ai-stopped {')
+    && g.includes("s.phase === 'stopped' ? '已停止（本轮结果作废，可重跑）'") && g.includes('.ai-tray-dot.stopped')
+});
+check('R148-6 报告型自动落卡只新增不改既有：withReport 只把带「AI 报告·待审阅」的卡放进资源台待分类 · R149 备案：本条原写"本轮仅深度诊断接入（其余报告型仍走勾选采纳）"，R149 用户拍板后周回顾/深度洞察/成果文稿一并接上并撤采纳按钮（见 R149-1），故此处只锁"报告标签 + 待分类 + 零 splice"这条下界', () => {
   const rp = read('/shared/ai/reports.ts'); const g = read('/newtab/views/GlobalSettings.vue'); const j = read('/shared/ai/job.ts')
   return rp.includes("export const REPORT_TAG = 'AI 报告·待审阅'") && rp.includes('d.resources.unshift(card)') && rp.includes("categoryId: ''")
     && !rp.includes('d.resources =') && !rp.includes('splice(') && j.includes('autoReport?: {')
     && g.includes("withReport({") && g.includes("key: 'diag'") && g.includes("['深度诊断'])")
 });
-check('R148-7 ★本轮不做的要说出来：面板增量渲染经实测判停（M1 冷启动 433ms 已含 400 任务面板挂载、单次切台阻塞仅 70ms），改数据结构与渲染层的收益不再覆盖风险；jobKey 后台化本轮只接设置页（用户点名场景），其余入口沿用旧绑法', () => {
+check('R148-7 ★本轮不做的要说出来：面板增量渲染经实测判停（M1 冷启动 433ms 已含 400 任务面板挂载、单次切台阻塞仅 70ms），改数据结构与渲染层的收益不再覆盖风险 · R149 备案：本条原写"jobKey 后台化本轮只接设置页，其余入口沿用旧绑法"，R149 已把绑法收口进抽屉 keyOf（见 R149-3），全站入口一并后台化', () => {
   const perf = fs.readFileSync(path.resolve(__dirname, '..', 'scripts/perf.cjs'), 'utf8')
   return perf.includes('window.__clickCost') && perf.includes('window.__hashTo') && perf.includes('M11_切到资源台_首帧(ms)') && perf.includes('M7_主键重写次数')
     && !read('/newtab/components/compass/TaskManagerPanel.vue').includes('RENDER_STEP')

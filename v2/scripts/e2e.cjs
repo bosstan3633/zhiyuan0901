@@ -33,10 +33,20 @@ const { chromium } = require('playwright-core')
 const CHROME_PINNED = process.platform === 'darwin'
   ? path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright', 'chromium-1234', 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing')
   : path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1223', 'chrome-win64', 'chrome.exe')
-/** R128：pinned 缓存不存在时回落系统 Chrome（ZY_CHROME 可显式指定）——同一份断言不因本机缺浏览器而失守 */
+/** R128：pinned 缓存不存在时回落系统 Chrome（ZY_CHROME 可显指定）；R149 补齐中间一级：
+ *  本机任一 ms-playwright Chromium 优先于系统 Chrome——系统 Chrome 的旧 headless 起不了 MV3
+ *  service worker，E2E-1 直接超时，门禁不该靠"记不记得设环境变量"。与 perf.cjs 同口径。 */
 const CHROME = (() => {
   if (fs.existsSync(CHROME_PINNED)) return CHROME_PINNED
   if (process.env.ZY_CHROME) return process.env.ZY_CHROME
+  const cache = path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright')
+  try {
+    const hit = fs.readdirSync(cache).filter(x => /^chromium-\d+$/.test(x)).sort().pop()
+    if (hit) {
+      const p = path.join(cache, hit, 'chrome-mac', 'Chromium.app', 'Contents', 'MacOS', 'Chromium')
+      if (fs.existsSync(p)) return p
+    }
+  } catch { /* 无缓存目录 */ }
   const sys = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
   return process.platform === 'darwin' && fs.existsSync(sys) ? sys : CHROME_PINNED
 })()

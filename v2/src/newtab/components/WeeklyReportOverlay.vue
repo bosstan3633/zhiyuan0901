@@ -74,7 +74,7 @@ function drillFunnel(stage: string) {
   emit('close')
   emit('drill', { kind: 'funnel', stage })
 }
-// ---- R139-#6：深度洞察（AI 懒栈：点击时才 dynamic import，评审抽屉采纳=存资源卡） ----
+// ---- R139-#6：深度洞察（AI 懒栈：点击时才 dynamic import，评审抽屉：跑完自动落一张报告卡） ----
 const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
 const aiJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
 async function aiInsight() {
@@ -96,7 +96,7 @@ async function aiInsight() {
           <div class="wr-head">
             <span class="wr-title">📊 调度画像</span>
             <span class="wr-period">{{ periodLabel }}</span>
-            <button class="wr-ai" title="AI 深度洞察：只体检投入与重心（近 7 天台账），采纳=存资源卡" @click="aiInsight"><ZhiMark :size="12" /> 深度洞察</button>
+            <button class="wr-ai" title="AI 深度洞察：只体检投入与重心（近 7 天台账），跑完自动存一张报告卡" @click="aiInsight"><ZhiMark :size="12" /> 深度洞察</button>
             <div class="wr-switch">
               <button class="wr-sw" :class="{ on: period === 0 }" @click="setPeriod(0)">本周</button>
               <button class="wr-sw" :class="{ on: period === -1 }" @click="setPeriod(-1)">上周</button>
@@ -180,7 +180,7 @@ async function aiInsight() {
         </div>
       </div>
     </Transition>
-    <!-- R139-#6：深度洞察评审抽屉（置于 Transition 外保单子节点约束；勾选采纳才落库） -->
+    <!-- R139-#6：深度洞察评审抽屉（置于 Transition 外保单子节点约束；R149 起跑完自动落一张报告卡，无采纳按钮） -->
     <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
   </Teleport>
 </template>

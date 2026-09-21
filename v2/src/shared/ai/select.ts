@@ -4,8 +4,8 @@
  * 推荐采纳=挂载到任务 mountedResourceIds（既有通道）；重排=只读呈现，零写库。
  */
 import type { AppData, ResourceCard, TaskCard } from '@/shared/models'
-import { uid } from '@/shared/utils'
 import { freshTagsOf, knownTagSet } from '@/shared/utils/tags'
+import { withReport } from './reports'
 import type { AiJob, AiRow } from './job'
 import type { AiDepth } from './config'
 import { chatStream, extractJson } from './llm'
@@ -229,68 +229,47 @@ export function buildTaskParseJob(text: string, ctx: SelectCtx, onApply: (draft:
   }
 }
 
-/** F2′：周回顾草稿（apply=存为一张资源卡入 hub，未分类，用户可再归档） */
+/**
+ * F2′：周回顾——R149 起改「只新增自动落卡」（用户拍板：撤采纳按钮，保持一张卡）。
+ * 跑完直接进资源台待分类，不再需要第二下点击，也不可能落两张。
+ */
 export function buildReviewJob(ctx: SelectCtx): AiJob | null {
   const digest = projectWeekDigest(ctx.d, ctx.depth)
   if (!digest.includes('- ')) return null
-  return {
+  return withReport({
     key: 'review',
-    title: '🗓 本周回顾草稿',
+    title: '🗓 本周回顾',
     subject: '🗓 近 7 天台账',
-    hint: '只基于近 7 天台账成文；采纳=存为一张「每周回顾」资源卡（描述即正文），不改动任何现有数据。',
+    hint: '只基于近 7 天台账成文。跑完自动存为一张「每周回顾」资源卡（描述即正文）放进资源台待分类——它不改动任何现有数据，所以不必再点采纳。',
     rawText: true,
+    adoptable: false,
     build: () => ({ messages: [{ role: 'system', content: reviewSystem() }, { role: 'user', content: digest }], jsonMode: false }),
     parse: (raw) => {
       const text = String(raw || '').trim()
       if (!text) return []
       return [{ key: 'review', badge: '周记', main: `每周回顾 ${new Date().toLocaleDateString('zh-CN')}`, sub: text.slice(0, 400), data: { text } }]
     },
-    apply: (rows) => {
-      const text = String((rows[0]?.data as { text?: string })?.text || '')
-      if (!text) return '无可存内容'
-      const hub = ctx.d.workspaces.find(w => w.kind === 'resource') || ctx.d.workspaces[0]
-      ctx.d.resources.unshift({
-        id: uid('res'), kind: 'resource', title: `🗓 每周回顾 ${new Date().toLocaleDateString('zh-CN')}`,
-        linkType: 'url', link: '', workspaceId: hub.id, categoryId: '',
-        description: text.slice(0, 1200), tags: ['周回顾'], pinned: false, callCount: 0,
-        createdAt: Date.now(), updatedAt: Date.now(), customFields: {},
-      } as ResourceCard)
-      ctx.persist()
-      return '✓ 周回顾已存为资源卡（资源台未分类区）'
-    },
-  }
+  }, ctx, () => `🗓 每周回顾 ${new Date().toLocaleDateString('zh-CN')}`, (rows) => String((rows[0]?.data as { text?: string })?.text || ''), ['周回顾'])
 }
 
-/** R139-#6：周报深度洞察——投料=周台账（含调用分布+主攻对照），采纳=存「深度洞察」资源卡 */
+/** R139-#6 / R149：周报深度洞察——投料=周台账（含调用分布+主攻对照），跑完自动落一张卡 */
 export function buildInsightJob(ctx: SelectCtx): AiJob | null {
   const digest = projectWeekDigest(ctx.d, ctx.depth)
   if (!digest.includes('- ')) return null
-  return {
+  return withReport({
     key: 'insight',
     title: '本周深度洞察',
     subject: '🗓 近 7 天台账 · 调度画像',
-    hint: '不复述数字，只体检「投入和重心对不对」：重心偏离、停滞信号、资产与目标错位；采纳=存为一张资源卡，不改动任何既有数据。',
+    hint: '不复述数字，只体检「投入和重心对不对」：重心偏离、停滞信号、资产与目标错位。跑完自动存为一张「深度洞察」资源卡放进资源台待分类——它不改动任何现有数据，所以不必再点采纳。',
     rawText: true,
+    adoptable: false,
     build: () => ({ messages: [{ role: 'system', content: deepInsightSystem() }, { role: 'user', content: digest }], jsonMode: false }),
     parse: (raw) => {
       const text = String(raw || '').trim()
       if (!text) return []
       return [{ key: 'insight', badge: '洞察', main: `深度洞察 ${new Date().toLocaleDateString('zh-CN')}`, sub: text.slice(0, 400), data: { text } }]
     },
-    apply: (rows) => {
-      const text = String((rows[0]?.data as { text?: string })?.text || '')
-      if (!text) return '无可存内容'
-      const hub = ctx.d.workspaces.find(w => w.kind === 'resource') || ctx.d.workspaces[0]
-      ctx.d.resources.unshift({
-        id: uid('res'), kind: 'resource', title: `🤖 深度洞察 ${new Date().toLocaleDateString('zh-CN')}`,
-        linkType: 'url', link: '', workspaceId: hub.id, categoryId: '',
-        description: text.slice(0, 1600), tags: ['深度洞察'], pinned: false, callCount: 0,
-        createdAt: Date.now(), updatedAt: Date.now(), customFields: {},
-      } as ResourceCard)
-      ctx.persist()
-      return '✓ 深度洞察已存为资源卡（资源台未分类区）'
-    },
-  }
+  }, ctx, () => `🗓 深度洞察 ${new Date().toLocaleDateString('zh-CN')}`, (rows) => String((rows[0]?.data as { text?: string })?.text || ''), ['深度洞察'])
 }
 
 /**
