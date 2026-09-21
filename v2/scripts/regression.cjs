@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.7.0'";
+const VER_ANCHOR_LITERAL = "version: '3.8.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -3387,7 +3387,7 @@ check('R120-1 网页浮层 Ctrl+Enter=仅定位：openSearchLocator 不再透传
 check('R120-2 网页浮层 单击/Enter=开链：openSearchResult 保留（无链接降级定位）+ 行 title 文案统一', () => { const s = read('/content/overlay-impl.ts'); return s.includes('function openSearchResult') && s.includes('单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'); });
 check('R120-3 应用内 单击/Enter=开链优先：openLinkOrLocate（资源卡有可打开链接→openResLink；否则 openItem）+ pickRow 绑定', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes('function openLinkOrLocate') && g.includes('toOpenableUrl(r.linkType, r.link)') && g.includes('openResLink(item)') && g.includes('@click="pickRow(item, $event)"') /* R152：同上 */; });
 check('R120-4 应用内 Ctrl+Enter=仅定位：locateOnly（hl+hk+cat，无 emitOpenDrawer）+ runFlatLocator 指向', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes('function locateOnly') && g.includes('locateOnly(it.item)') && !g.includes('emitOpenDrawer'); });
-check('R120-5 手册与键位提示同步：搜索章节三键说明 + 底部键位条 + 快捷键清单', () => { const m = read('/newtab/manual-data.ts'); const g = read('/newtab/components/GlobalPopups.vue'); return m.includes('结果键位（单击 / Enter / Ctrl+Enter 三键）') && m.includes('打开卡片链接') && g.includes('<kbd>Ctrl+⏎</kbd> 定位卡片') && g.includes("desc: '定位到卡片所在处'"); });
+check('R120-5 手册与键位提示同步：搜索章节三键说明 + 底部键位条 + 快捷键清单', () => { const m = read('/newtab/manual-data.ts'); const g = read('/newtab/components/GlobalPopups.vue'); return m.includes('结果键位（单击 / Enter / Ctrl+Enter 三键）') && m.includes('打开卡片链接') && g.includes('<kbd>Ctrl+⏎ / 单击</kbd> 定位卡片') /* R153 备案：鼠标侧补了 Ctrl+单击=定位，脚注键位条同步写明，别再只写键盘一条路 */ && g.includes("desc: '定位到卡片所在处'"); });
 
 // ============== R120 · V2.88.0 批次B：调度台 UI 对齐原型（只改 UI，功能与交互不动） ==============
 console.log('【R120 · V2.88.0 批次B：调度台 UI 对齐原型】');
@@ -4019,6 +4019,28 @@ check('R152-4 ★"AI 优化过"要有凭据：ResourceCard.aiTouchedAt 由全方
     && w.includes('editingResource.aiTouchedAt ?') && c.includes("label ? 'dr-footer-btn ai' : 'rc-action ai'")
     && read('/newtab/views/workspace.css').includes('.dr-footer-btn.ai { flex: 0 0 auto')
     && lz.includes("defineAsyncComponent(() => import('./AiSuggestionDrawer.vue'))") && !c.includes('defineAsyncComponent')
+});
+
+/* ===== R153 · 真库体检刀（版式 + 自诊） ===== */
+check('R153-1 ★体检发现的"真溢出"要修，"按设计截断"不许顺手改：卡片页脚标签 chip 从 flex-shrink:0 改成可缩 + 省略号（真库量到页脚溢出 32~227px，标签断在半截连省略号都没有），页脚自身 min-width:0 + overflow:hidden 兜底；而 .rc-desc 摘要被截 85~91% 属**等高卡片网格的刻意取舍**（R124 锁 84~88px），改两行会破网格——本轮只记账不定案', () => {
+  const c = read('/newtab/views/workspace.css')
+  const foot = c.slice(c.indexOf('.rc-footer { margin-top: auto'), c.indexOf('.rc-heat'))
+  return foot.includes('min-width: 0; overflow: hidden') && foot.includes('flex-shrink: 1') && foot.includes('text-overflow: ellipsis')
+    && c.includes('.res-card { min-height: 86px; max-height: 88px; }') && c.includes('视觉取舍留给用户定')
+});
+check('R153-2 ★命中区只量真交互元素并抬到 26px：任务 AI 菜单钮 20×17 → min 26×26、排序下拉 15px 高 → min-height 26（体检脚本同时修了假阳性——原来把 pointer 继承来的 span 也算成点击目标，一堆误报）', () => {
+  const m = read('/newtab/components/TaskAiMenu.vue'); const c = read('/newtab/views/workspace.css')
+  return m.includes('min-width: 26px; min-height: 26px') && c.includes('.head-sort {') && c.includes('min-height: 26px')
+});
+check('R153-3 ★空态必须能自证：抽屉 0 行时给「看模型原文（N 字）」折叠 + 复制，判"模型没答"还是"答了被消毒丢掉"不必再猜；开关随每轮 run 收起（别拿上一轮原文糊弄这一轮）', () => {
+  const d = read('/newtab/components/AiSuggestionDrawer.vue')
+  return d.includes('看模型原文（') && d.includes('function copyRaw()') && d.includes('navigator.clipboard') && d.includes('showRaw.value = false')
+});
+
+check('R153-4 ★体检量到的"中性小字低于 AA"当场修，"强调色小字"留给令牌决策不硬改：cf-pct / cf-open / mb-denom 从 --text-3 抬到 --text-2（真库量到 3.14:1 @10~11px），列数钮 20→24px；accent 系小字（cf-label 3.93 / tg-pct 3.51 / cf-go 3.14）提亮会动全站主题令牌，只记账不定案；emoji 图标（📌 1.25）不算对比度对象', () => {
+  const ch = read('/newtab/views/CompassHome.vue'); const mb = read('/newtab/components/compass/MetricBar.vue'); const cp = read('/shared/components/ColsPicker.vue')
+  return ch.includes('.cf-pct { flex-shrink: 0; font-size: 11px; color: var(--text-2)') && ch.includes('.cf-open { flex-shrink: 0; font-size: 10px; color: var(--text-2)')
+    && mb.includes('.mb-denom { font-size: 10.5px; font-weight: 500; color: var(--text-2)') && cp.includes('width: 24px; min-width: 24px; height: 24px')
 });
 check('R150-1 ★检索类 AI 入口全站只留一枚：旧「AI 理解」通道整体退场（rerankSearch/rerankSystem/rerankReady/「AI 理解」字样在源码与断言锚点里都不该再存在），合并后的「AI 检索」把候选从"字面命中前 14 条"换成"库内三类卡"——用户换个说法也能召得回', () => {
   const g = read('/newtab/components/GlobalPopups.vue'); const sel = read('/shared/ai/select.ts'); const sc = read('/shared/ai/scenarios.ts')

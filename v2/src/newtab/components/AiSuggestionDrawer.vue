@@ -55,6 +55,7 @@ const cur = computed<AiJob | null>(() => (bound.value ? bound.value.job : props.
 const vPhase = computed<Phase>(() => (bound.value ? (bound.value.phase === 'queued' ? 'running' : bound.value.phase) : phase.value))
 const vRows = computed<AiRow[]>(() => (bound.value ? bound.value.rows : rows.value))
 const vRaw = computed(() => (bound.value ? bound.value.raw : streamText.value))
+function copyRaw() { navigator.clipboard?.writeText(vRaw.value).then(() => showToast('✓ 模型原文已复制'), () => showToast('⚠ 复制失败（浏览器拦了剪贴板）')) }
 const vErr = computed(() => (bound.value ? bound.value.err : errMsg.value))
 const vFeed = computed(() => (bound.value ? bound.value.feed : feed.value))
 const vSecs = computed(() => (bound.value ? bound.value.secs : secs.value))
@@ -235,6 +236,10 @@ onUnmounted(() => { jobSeq++; stopTick(); if (!keyOf.value) { setLlmFeedSink(nul
         <div v-if="!vRows.length" class="ai-empty">
           {{ hasAdopt || cur?.secondary ? '模型没有给出可采纳的建议' : '模型没有给出可存的正文' }}<span v-if="auditLine">——{{ auditLine }}</span>。
           <div class="ai-empty-hint">换专家执笔、把卡片描述补一句，或换个更具体的关键词再问一次。</div>
+          <!-- R153：空态要能自证——"模型到底答了什么"直接摊开，判"没答"还是"答了被消毒丢掉"不必再猜 -->
+          <button v-if="vRaw.trim()" class="ai-btn sm ghost ai-rawbtn" @click="showRaw = !showRaw">{{ showRaw ? '收起模型原文' : '看模型原文（' + vRaw.length + ' 字）' }}</button>
+          <pre v-if="showRaw && vRaw.trim()" class="ai-stream">{{ vRaw.length > 6000 ? vRaw.slice(0, 6000) + '\n…（截到 6000 字，完整原文请用下方复制）' : vRaw }}</pre>
+          <button v-if="showRaw && vRaw.trim()" class="ai-btn sm ghost" @click="copyRaw">复制原文</button>
         </div>
         <template v-else>
           <div class="ai-toolbar">

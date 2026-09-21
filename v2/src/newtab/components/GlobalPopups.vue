@@ -158,7 +158,7 @@
       <div class="gp-panel-foot">
         <span><kbd>↑↓</kbd> 选择</span>
         <span><kbd>⏎</kbd> 打开链接</span>
-        <span><kbd>Ctrl+⏎</kbd> 定位卡片</span>
+        <span><kbd>Ctrl+⏎ / 单击</kbd> 定位卡片</span>
         <span><kbd>Tab</kbd> 过滤类型</span>
         <span><kbd>Esc</kbd> 关闭</span>
         <span class="gp-foot-brand">知源调度台 · 万千可调用，自有我方向</span>
@@ -1636,7 +1636,11 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 
 /* 底部栏 */
 .gp-panel-foot { display: flex; align-items: center; gap: 16px; padding: 10px 22px; border-top: 1px solid var(--border);
-  background: var(--surface-2); font-size: 11px; color: var(--text-4); }
+  background: var(--surface-2); font-size: 11px; color: var(--text-4); flex-wrap: nowrap; overflow: hidden; }
+/* R153：一行排到底。原来五条提示加品牌语在 1440 宽下换行成三行，键位被断成两截最难看；
+   提示不许断行，空间不够时先挤掉右侧品牌语 */
+.gp-panel-foot > span { flex: 0 0 auto; white-space: nowrap; }
+.gp-panel-foot .gp-foot-brand { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .gp-panel-foot kbd { background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px;
   font-family: inherit; font-size: 10.5px; color: var(--text-2); margin: 0 2px; box-shadow: 0 1px 0 var(--border); }
 .gp-foot-brand { margin-left: auto; font-size: 10.5px; color: var(--text-4); opacity: .7; letter-spacing: .3px; }

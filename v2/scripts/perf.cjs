@@ -470,6 +470,29 @@ async function main() {
   log('  顶栏 Tab：' + JSON.stringify(await page.evaluate(() => [...document.querySelectorAll('.tabs .tab')].map(e => (e.textContent || '').trim().slice(0, 14)))))
   const navCC = await page.evaluate(() => window.__navTo('资源台', '.view-tab'))
   if (navCC >= 0) push('M2a_切到资源台(ms)', navCC)
+
+  // ══════════ R153 M14：资源台首屏"渲染量账单"══════════
+  // 现有指标全在量交互耗时，没人量"这一屏到底画了多少东西、掉了几帧"——
+  // R152 真库体检发现用户说的"卡"不在 JS（冷挂 626ms 里阻塞只有 106~173ms），
+  // 所以这里把节点数与逐帧间隔钉成指标，以后任何让首屏变重的改动都会被它抓住。
+  const m14 = await page.evaluate(async () => {
+    const gaps = []; let last = performance.now(); let raf = 0
+    const tick = () => { const n = performance.now(); gaps.push(n - last); last = n; raf = requestAnimationFrame(tick) }
+    raf = requestAnimationFrame(tick)
+    const t = [...document.querySelectorAll('.tab')].find(e => e.offsetParent && /资源台|PERF/.test(e.innerText || ''))
+    if (t) t.click()
+    while (!document.querySelector('.res-card, .res-row, .kc-card')) await new Promise(r => setTimeout(r, 40))
+    await new Promise(r => setTimeout(r, 500))
+    cancelAnimationFrame(raf)
+    const vis = e => e.offsetParent !== null
+    const cards = [...document.querySelectorAll('.res-card, .res-row, .kc-card')].filter(vis).length
+    const all = [...document.querySelectorAll('body *')].filter(vis).length
+    const g = gaps.slice(1).sort((x, y) => y - x)
+    return { cards, all, worst: Math.round(g[0] || 0), dropped: gaps.filter(x => x > 34).length, frames: gaps.length }
+  })
+  out.metrics['M14_资源台首屏可见节点'] = m14.all; out.metrics['M14_首屏卡片数'] = m14.cards
+  out.metrics['M14_最差帧ms'] = m14.worst; out.metrics['M14_掉帧数'] = m14.dropped
+  log(`  M14 账单：可见节点 ${m14.all}（卡 ${m14.cards} 张）· 最差帧 ${m14.worst}ms · 掉帧 ${m14.dropped}/${m14.frames}`)
   // R112 修脚本漂移：原用前缀 '策展台'，但顶栏策展台 Tab 文本已被剥成「📘PERF0」，
   // 唯一含「策展台」三字的可匹配项是溢出指示（见 __navTo 内注释）→ 打满 15000ms 超时。
   // R109/R111 记录的 15006/15019ms 即此超时值，非真实耗时。改用与下方一致的 PERF0 定位。

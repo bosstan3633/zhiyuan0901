@@ -1208,10 +1208,10 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cf-item:hover .cf-name { text-decoration: underline; }
 .cf-item.done { opacity: .55; }
 .cf-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cf-pct { flex-shrink: 0; font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.cf-pct { flex-shrink: 0; font-size: 11px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 /* R91 口径保留：14 天无推进亮 ⚠ 停滞；待办数为 10px 轻量标记 */
 .cf-stall { flex-shrink: 0; font-size: 10px; color: var(--warning); }
-.cf-open { flex-shrink: 0; font-size: 10px; color: var(--text-3); }
+.cf-open { flex-shrink: 0; font-size: 10px; color: var(--text-2); }
 .cf-hint { font-size: 11.5px; color: var(--text-3); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cf-hint:hover { color: var(--accent); }
 .cf-go { flex-shrink: 0; font-size: 11.5px; color: var(--text-3); cursor: pointer; }

@@ -564,7 +564,7 @@
 
 /* 分组头：右侧区（排序入口 + 折叠 caret） */
 .head-right { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.head-sort { font-family: inherit; font-size: 11px; color: var(--text-3); background: transparent; border: none; outline: none; cursor: pointer; padding: 0 2px; }
+.head-sort { font-family: inherit; font-size: 11px; color: var(--text-3); background: transparent; border: none; outline: none; cursor: pointer; padding: 4px 2px; min-height: 26px; }
 .head-sort:hover { color: var(--accent); }
 
 /* 紧凑真身卡（原型 86px 骨架）：图标+标题2行 → 描述1行 → 启用字段 → 页脚 */
@@ -573,6 +573,8 @@
 .rc-type-icon { flex-shrink: 0; font-size: 12px; line-height: 1.45; }
 .rc-title { font-size: 12.5px; font-weight: 600; color: var(--text); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; flex: 1; min-width: 0; padding-right: 14px; }
 .rc-desc { font-size: 11px; color: var(--text-3); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+/* R153 记为待拍板：摘要单行被截掉 85~91%（真库实测），改两行会破掉 R124 刻意做的等高卡片网格——
+   视觉取舍留给用户定，本轮不偷改（体检条目见交付说明 §体检） */
 .rc-desc.broken { color: var(--warning); cursor: pointer; }
 .rc-desc.broken:hover { text-decoration: underline; }
 .rc-extra { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
@@ -585,10 +587,11 @@
 .rc-x-custom { font-size: 11px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rc-x-custom span { color: var(--text-3); margin-right: 4px; }
 /* 页脚（原型）：分类 chip + 标签 chips ｜ 附件 / ⭐ / 热度，发丝线分隔 */
-.rc-footer { margin-top: auto; padding-top: 5px; border-top: 1px solid var(--hairline); display: flex; align-items: center; gap: 4px; }
+.rc-footer { margin-top: auto; padding-top: 5px; border-top: 1px solid var(--hairline); display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
 .rc-cat { font-size: 10.5px; color: var(--text-2); background: var(--surface-2); padding: 1px 5px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; cursor: pointer; flex-shrink: 0; }
 .rc-cat:hover { color: var(--accent); background: var(--accent-light); }
-.rc-tag-chip { font-size: 10.5px; color: var(--text-3); white-space: nowrap; flex-shrink: 0; }
+.rc-tag-chip { font-size: 10.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
+/* R153：页脚标签原来 flex-shrink:0 撑破卡片（体检量到真溢出 32~227px），改可缩 + 省略号——宁可少显示一个标签，也不要断在半截 */
 .rc-footer-right { margin-left: auto; display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
 .rc-heat { font-size: 10.5px; color: var(--warning); font-weight: 600; }
 .rc-star { font-size: 10px; line-height: 1; }

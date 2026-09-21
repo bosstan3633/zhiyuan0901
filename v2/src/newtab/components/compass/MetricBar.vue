@@ -95,7 +95,7 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
 .mb-cell.clickable:hover { background: var(--surface-2); }
 .mb-k { font-size: 11.5px; font-weight: 500; color: var(--text-2); flex-shrink: 0; }
 .mb-v { font-size: 12.5px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
-.mb-denom { font-size: 10.5px; font-weight: 500; color: var(--text-3); font-style: normal; }
+.mb-denom { font-size: 10.5px; font-weight: 500; color: var(--text-2); font-style: normal; }
 .mb-cell.st-warn .mb-v { color: var(--tag-warn-text); }
 /* 右端扩展位——今日记录四格 + 周报 + 去方向台（右对齐） */
 .mb-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
