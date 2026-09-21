@@ -60,6 +60,12 @@ export function useWsLocate(ctx: WsLocateCtx) {
   // ---- 卡片定位：?hl=[&cat=] ----
   watch(() => route.query.hl, (hl) => {
     if (!hl || typeof hl !== 'string') return
+    // R152（真机报的"Ctrl+Enter 定位没反应"）：资源台被 keep-alive 缓存后这条 watcher 一直活着，
+    // 从调度台定位**任务卡/好奇卡**时它也抢着处理那条 hl——把资源台重置成「全部」、弹「⚠ 该卡片不在当前视图」、
+    // 并把 query 抹掉，真正的消费者（任务面板/好奇面板）随后就滚不到目标。
+    // 按 TaskManagerPanel 立的同一条纪律办：hk 指明别的卡型就让路，别替别人消费。
+    const hkQ = typeof route.query.hk === 'string' ? route.query.hk : ''
+    if (hkQ && hkQ !== 'res') return
     highlightId.value = hl
     // R117（04-61 B）：带 ?cat= 时切到目标卡所在分类；无 cat 才回落「全部」
     const catQ = typeof route.query.cat === 'string' ? route.query.cat : ''

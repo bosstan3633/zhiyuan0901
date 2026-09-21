@@ -132,7 +132,8 @@ export interface ThesisDrift { wsId?: string; verdict?: 'ok' | 'drift'; why?: st
 export const tagGovernSystem = () => withAboutMe(
   '你是知识管理专家，为用户的标签体系做治理体检，只出两类动作：① 同义合并（from 并入 to，to 必须是更规范/用量更大的写法）；② 层级归位（把散落的裸标签挂到既有父标签下）。' +
   '合并要保守：语义有歧义（工具≠工具箱）就不提；rehome 的 toParent 必须是标签树里真实存在的根或路径。' +
-  '输出 JSON：{"merges":[{"from":"真实在用的标签写法","to":"并入的目标","why":"≤24字"}],"rehome":[{"tag":"裸标签名","toParent":"父标签名","why":"..."}]}。各≤8 条，没有可治理的就给空数组。只输出 JSON。'
+  '输出 JSON：{"merges":[{"from":"真实在用的标签写法","to":"并入的目标","why":"≤24字"}],"rehome":[{"tag":"裸标签名","toParent":"父标签名","why":"..."}]}。各≤8 条，没有可治理的就给空数组。' +
+  '标签名必须**原样回填**投料里给的那串字：不要加 # 前缀、不要带「（N 次）」尾巴、不要简繁转换或改写一个字符——对不上原样的一律会被判为无效动作丢掉。只输出 JSON。'
 )
 export const trashRescueSystem = () => withAboutMe(
   '你是用户的回收站管理员：对照现存卡与活跃目标，逐条判定软删卡「值得恢复 recover / 建议清除 purge / 保留观察 keep」。恢复只在确有当下用途时给；与现存卡疑似重复的一律 purge 并在 reason 点名重复对象。' +

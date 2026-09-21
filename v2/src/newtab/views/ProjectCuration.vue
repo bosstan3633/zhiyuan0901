@@ -18,7 +18,7 @@ import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import ZhiMark from '@/shared/components/ZhiMark.vue'
-// R147-d：任务级「知」菜单抽成共享组件（与任务面板/看板同一套动作）
+// R147-d：任务级 AI 菜单抽成共享组件（与任务面板/看板同一套动作）
 import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'
 import { removeMetricWithConfirm } from '@/shared/utils/compassCrud'
 import MountCountBadge from '../components/MountCountBadge.vue'

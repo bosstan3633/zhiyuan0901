@@ -1281,7 +1281,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
     { key: 'thesis', icon: '🏛', label: '策展主题卡' },
     // 第卌四轮 Q-6：标签管理上移——它服务卡片呈现，与三卡同组
     { key: 'tags', icon: '🏷', label: '标签管理' },
-    // R134-F：AI 助手（接入配置 + 沉睡唤醒 + 一键诊断）· R146：入口徽标统一为「知」
+    // R134-F：AI 助手（接入配置 + 沉睡唤醒 + 一键诊断）· R146/R152：入口徽标统一（真源 ZhiMark.vue）
     { key: 'ai', mark: true, label: 'AI 助手' },
   ]},
   { title: '数据', items: [

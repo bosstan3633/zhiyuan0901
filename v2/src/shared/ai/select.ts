@@ -307,7 +307,7 @@ export function buildCardEnrichJob(card: ResourceCard, ctx: SelectCtx): AiJob {
         if (s.categoryId && ctx.d.categories.some(c => c.id === s.categoryId && !c.deletedAt)) live.categoryId = s.categoryId
         n++
       }
-      if (n) { live.updatedAt = Date.now(); ctx.persist() }
+      if (n) { live.updatedAt = Date.now(); live.aiTouchedAt = Date.now(); ctx.persist() }
       return `✓ 已补全「${card.title.slice(0, 12)}」`
     },
   }
@@ -447,7 +447,7 @@ export function buildFullOptimizeJob(card: ResourceCard, ctx: SelectCtx): AiJob 
         if (s.tags) live.tags = [...new Set([...(live.tags || []), ...s.tags])].slice(0, 10)
         n++
       }
-      if (n) { live.updatedAt = Date.now(); ctx.persist() }
+      if (n) { live.updatedAt = Date.now(); live.aiTouchedAt = Date.now(); ctx.persist() }
       return `✓ 已优化「${live.title.slice(0, 12)}」（${n} 项）`
     },
   }

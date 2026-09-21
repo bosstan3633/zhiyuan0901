@@ -155,6 +155,8 @@ export interface ResourceCard extends CardBase {
   /** 调用次数（每次打开自增）*/
   callCount: number
   lastCalledAt?: number
+  /** R152：最近一次被 AI 补全/优化的时间——入口据此从「AI 优化」翻成「↻ 重新优化」，别让同一张卡看起来从没动过 */
+  aiTouchedAt?: number
   /** R50-F3：策展中心原生卡排序（仅 workspaceId=zy-curation 的卡使用；拖拽规整回写） */
   curOrder?: number
   /** R59-T9：由好奇心卡转化而来（convertCard 写源卡 id）——WCE 转化口径消费 */

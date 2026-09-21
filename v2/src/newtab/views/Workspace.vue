@@ -624,7 +624,7 @@
           <button class="dr-footer-btn primary" @click="locateMirrorSourceCard">📍 定位到资源台编辑</button>
         </template>
         <template v-else>
-          <CardAiEntry :card="editingResource" label="✦ AI 优化" />
+          <CardAiEntry :card="editingResource" :label="editingResource.aiTouchedAt ? '↻ 重新优化' : 'AI 优化'" />
           <button class="dr-footer-btn danger" @click="deleteCurrentResource">🗑 删除</button>
           <button class="dr-footer-btn" @click="copyLink">🔗 复制链接</button>
           <button class="dr-footer-btn" @click="openResourceLink(editingResource)">↗ 打开链接</button>

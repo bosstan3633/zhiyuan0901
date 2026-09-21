@@ -16,7 +16,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 const store = useAppStore()
 const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
 const job = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
-/** R146-b：入口统一「知」徽标，拉起抽屉期间转起来且不吃第二次点击 */
+/** R146-b：入口统一 AI 徽标（真源 ZhiMark.vue），拉起抽屉期间转起来且不吃第二次点击 */
 const busy = ref(false)
 
 /** 分支路径：台名 / 父分类 / 本分类（≤4 级，带 visited 防环） */

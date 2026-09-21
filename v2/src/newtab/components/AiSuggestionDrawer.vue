@@ -195,7 +195,7 @@ onUnmounted(() => { jobSeq++; stopTick(); if (!keyOf.value) { setLlmFeedSink(nul
 </script>
 
 <template>
-  <Drawer :open="open" :title="'知 · ' + (cur?.title || 'AI 建议')" width="560px" @close="close">
+  <Drawer :open="open" :title="cur?.title || 'AI 建议'" width="560px" @close="close">
     <!-- R141（反馈 #2/#3）：专家下拉上移抽屉头部（跑的过程中也可见可换）；subject 标明正在处理哪张卡 -->
     <template v-if="cur?.persona" #title-extra>
       <select class="ai-persona" :value="cur.persona.current" title="换一个专家视角重新生成"

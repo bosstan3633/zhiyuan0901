@@ -176,7 +176,7 @@ async function aiInsight() {
           </div>
           <div v-else class="wr-loading">{{ loading ? '统计中…' : '' }}</div>
 
-          <div class="wr-foot">纯读取统计 · 数据不出本机（「知」洞察需你手动触发才走你配置的网关）· Esc 关闭</div>
+          <div class="wr-foot">纯读取统计 · 数据不出本机（洞察需你手动触发才走你配置的网关）· Esc 关闭</div>
         </div>
       </div>
     </Transition>

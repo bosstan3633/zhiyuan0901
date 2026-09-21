@@ -52,36 +52,69 @@ function tagTreePaths(tree: TagNode[], prefix = ''): string[] {
   return out
 }
 
+/**
+ * R152：标签名归一。模型很爱把标签写成 `#项目运营`、带上「（8 次）」尾巴或用全角井号，
+ * 而判据原本是精确匹配 `usedTags.has(from)` → 一整批建议被**静默丢掉**，界面只剩"模型没有给出可采纳的建议"。
+ * 归一口径与 cardHasTag 同源（全名 / 叶子名双口径），比对成功后**一律用库里的真名落库**，不吃模型写法。
+ */
+function findTagIn(pool: Iterable<string>, want: unknown): string {
+  const raw = String(want ?? '').replace(/^[#＃]\s*/, '').replace(/[（(][\d,]+\s*次[）)]\s*$/, '').trim()
+  if (!raw) return ''
+  const w = raw.replace(/\s+/g, ' '), wl = leaf(w)
+  for (const p of pool) {
+    const np = p.replace(/\s+/g, ' ')
+    if (np === w || leaf(np) === w || np === wl) return p
+  }
+  return ''
+}
+
 /** E1 标签体系体检：merges + rehome 两类动作合成一份评审清单 */
 export function buildTagGovernJob(ctx: GovernCtx): AiJob | null {
   const text = projectTagSystem(ctx.d, ctx.depth)
   if (!/[（(]\d+ 次）/.test(text) && !text.includes('- ')) return null
+  // R152：消毒账（每次点新建 job，天然按次隔离）——空态必须说得出真因
+  const drop = { noContract: 0, notInUse: 0, notInTree: 0, self: 0 }
+  const bad: string[] = []
   return {
     key: 'tagGovern',
     title: '标签体系体检',
     hint: '同义合并（保守：语义有歧义不并）+ 裸标签归位到父标签。采纳会级联改三卡 tags 与标签树，逐条核对再勾。',
     build: () => ({ messages: [{ role: 'system', content: tagGovernSystem() }, { role: 'user', content: text }] }),
     parse: (raw) => {
-      const bag = raw as { merges?: TagMerge[]; rehome?: TagRehome[] }
+      const bag = (raw || {}) as { merges?: TagMerge[]; rehome?: TagRehome[] }
       const rows: AiRow[] = []
       const usedTags = new Set<string>()
       eachTagHolder(ctx.d, x => { if (!x.deletedAt) for (const t of x.tags || []) usedTags.add(t) })
       const treePaths = new Set(tagTreePaths(ctx.d.tagTree || []))
-      ;(bag.merges || []).forEach((m, i) => {
-        const from = String(m.from || '').trim(); const to = String(m.to || '').trim()
-        if (!from || !to || from === to) return
-        if (!usedTags.has(from) && !usedTags.has(leaf(from))) return
-        if (!usedTags.has(to) && !treePaths.has(to) && ![...treePaths].some(p => p === to || p.endsWith('/' + to))) return
+      const known = new Set([...usedTags, ...treePaths])
+      if (!Array.isArray(bag.merges) && !Array.isArray(bag.rehome)) drop.noContract++
+      ;(Array.isArray(bag.merges) ? bag.merges : []).forEach((m, i) => {
+        const from = findTagIn(usedTags, m?.from); const to = findTagIn(known, m?.to)
+        if (!from || !to) {
+          if (bad.length < 2) bad.push(`${String(m?.from ?? '').slice(0, 12) || '（空）'}→${String(m?.to ?? '').slice(0, 12) || '（空）'}`)
+          if (!from) drop.notInUse++; else drop.notInTree++
+          return
+        }
+        if (from === to) { drop.self++; return }
         rows.push({ key: 'mg:' + i, badge: '合并', badgeType: 'warn', main: `#${from} → #${to}`, sub: m.why ? String(m.why).slice(0, 40) : undefined, data: { from, to } })
       })
-      ;(bag.rehome || []).forEach((rh, i) => {
-        const tag = String(rh.tag || '').trim(); const toParent = String(rh.toParent || '').trim()
-        if (!tag || !toParent || tag.includes('/') || tag === toParent) return
-        if (!usedTags.has(tag) && !usedTags.has(leaf(tag))) return
-        if (!treePaths.has(toParent)) return
+      ;(Array.isArray(bag.rehome) ? bag.rehome : []).forEach((rh, i) => {
+        const tag = findTagIn(usedTags, rh?.tag); const toParent = findTagIn(treePaths, rh?.toParent)
+        if (tag.includes('/')) { drop.self++; return } // 归位只处理裸标签：带路径的说明它本来就在架上
+        if (!tag || !toParent || tag === toParent) { if (bad.length < 2) bad.push(`${String(rh?.tag ?? '').slice(0, 12) || '（空）'}→挂${String(rh?.toParent ?? '').slice(0, 12) || '（空）'}`); if (tag === toParent) drop.self++; else if (!tag) drop.notInUse++; else drop.notInTree++; return }
         rows.push({ key: 'rh:' + i, badge: '归位', main: `#${tag} 挂到 #${toParent} 下`, sub: rh.why ? String(rh.why).slice(0, 40) : undefined, data: { tag, toParent } })
       })
       return rows
+    },
+    audit: () => {
+      const bits = [
+        drop.noContract ? '模型没按契约给 merges/rehome（多半是键名或整段不是 JSON）' : '',
+        drop.notInUse ? `${drop.notInUse} 行动作里的标签在库里找不到（已剥 # 与次数尾巴后仍对不上）` : '',
+        drop.notInTree ? `${drop.notInTree} 行的目标不在标签树上` : '',
+        drop.self ? `${drop.self} 行是自己合自己/已带路径` : '',
+        bad.length ? `例：${bad.join('、')}` : '',
+      ].filter(Boolean)
+      return bits.length ? bits.join('；') : null
     },
     apply: (rows) => {
       const d = ctx.d
@@ -268,10 +301,9 @@ function sanitizeBlueprint(bag: { tree?: BlueprintRoot[]; mappings?: TagMapping[
   const mappings: TagMapping[] = []
   const mseen = new Set<string>()
   for (const m of (bag.mappings || [])) {
-    const from = String(m?.from || '').trim(); const to = String(m?.to || '').trim()
+    // R152：与体检同一套归一查表——模型写 `#旧标` 或只写子标签名，都按库里的真名/真路径认回来（判据更准，不是更松）
+    const from = findTagIn(usedTags, m?.from); const to = findTagIn(paths, m?.to)
     if (!from || !to || mseen.has(from)) continue
-    if (!usedTags.has(from) && !usedTags.has(leaf(from))) continue
-    if (!paths.has(to)) continue
     mseen.add(from)
     mappings.push({ from, to, why: String(m.why || '').trim().slice(0, 40) })
   }

@@ -43,21 +43,8 @@
             <button v-if="aiSearch && aiSearch.scanned < aiSearch.total" class="gp-ai-more" :disabled="aiBusy"
               :title="`本次只看了相关性最高的 ${aiSearch.scanned} 张；全库共 ${aiSearch.total} 张，分批扫约 ${aiMoreBatches} 次请求、会慢`" @click.stop="aiSearchRun(true)">全库分批扫</button>
           </div>
-          <div v-for="pair in aiTopRows" :key="'ai' + pair.hit.id" class="gp-result-item" :class="{selected: pair.item.id===selectedId}"
-            @click="pickRow(pair.item)" @mouseenter="selectHover(pair.item)"
-            :title="'单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'">
-            <div class="gp-ri-icon" :class="pair.item.iconClass">{{ pair.item.iconText }}</div>
-            <div class="gp-ri-main">
-              <div class="gp-ri-title">{{ pair.item.title }}</div>
-              <div class="gp-ri-meta">
-                <span class="gp-ri-badge ws">{{ pair.item.ws }}</span>
-                <span class="gp-ri-badge cat">{{ pair.item.cat }}</span>
-                <span v-if="pair.hit.weak" class="gp-ri-badge weak" title="模型给的分低或没给理由——它在猜，自己核一眼再用">低置信</span>
-                <span v-if="pair.hit.why" class="gp-ai-why">{{ pair.hit.why }}</span>
-              </div>
-            </div>
-            <span class="gp-ri-link url">↵</span>
-          </div>
+          <!-- R152：AI 命中不再单列一组——同一张卡在主列表只有一行，命中信息挂在行上（重复行会让
+               键盘扁平列表里同一个 id 出现两次，选中高亮与执行落到不同那行，看着就是"手势没按约定走"） -->
         </template>
         <!-- B1：浏览模式（空查询）= 快捷操作 + 最近打开 -->
         <template v-if="isBrowseMode">
@@ -121,8 +108,8 @@
           <div class="gp-group-title">{{ grp.label }} <span class="gp-group-cnt">{{ grp.total }}</span></div>
           <div v-for="item in grp.items" :key="item.id"
             class="gp-result-item" :class="{selected: item.id===selectedId}"
-            @click="pickRow(item)" @mouseenter="selectHover(item)"
-            :title="'单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'">
+            @click="pickRow(item, $event)" @mouseenter="selectHover(item)"
+            :title="'单击/Enter → 打开链接（无链接则定位） · Ctrl+单击 或 Ctrl+Enter → 定位到卡片所在处'">
             <div class="gp-ri-icon" :class="item.iconClass">{{ item.iconText }}</div>
             <div class="gp-ri-main">
               <div class="gp-ri-title" v-html="hlTitle(item.title)"></div>
@@ -130,10 +117,14 @@
               <span class="gp-ri-badge ws">{{ item.ws }}</span>
               <span class="gp-ri-badge cat">{{ item.cat }}</span>
               <span v-for="b in item.badges" :key="b.text" class="gp-ri-badge" :class="b.type">{{ b.text }}</span>
+              <!-- R152：AI 命中挂在主列表这一行上（弱相关仍标"低置信"，判弱只用客观信号不藏） -->
+              <!-- R152：命中信息并入主列表这一行；弱相关仍显式标「低置信」，不许因为并组就藏掉 -->
+              <span v-if="aiHitById[item.id]" class="gp-ri-badge ai" :class="{ weak: aiHitById[item.id].weak }" :title="aiHitById[item.id].weak ? '模型给的分低或没给理由——它在猜，自己核一眼再用' : 'AI 从库内挑出来时点名了这张卡'">{{ aiHitById[item.id].weak ? '🤖 低置信' : '🤖 命中' }}</span>
               <span v-if="item.link" class="gp-ri-link" :class="item.link.type">{{ item.link.icon }} {{ item.link.text }}</span>
               <span v-if="item.due" class="gp-ri-due" :class="{overdue: item.dueOverdue}">{{ item.dueOverdue ? '⏰' : '📅' }} {{ item.due }}</span>
             </div>
             <div v-if="item.summary" class="gp-ri-summary" v-html="hlTitle(item.summary)"></div>
+            <div v-if="aiHitById[item.id]?.why" class="gp-ai-why">{{ aiHitById[item.id].why }}</div>
           </div>
           <div v-if="grp.total > grp.items.length" class="gp-group-more">… 还有 {{ grp.total - grp.items.length }} 条，输入更精确的关键词</div>
           <div class="gp-ri-actions">
@@ -390,7 +381,7 @@ import { recordResourceOpen, recordCardOpen, recordWorkspaceOpen } from '@/share
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { useConfirm } from '@/shared/components/confirm'
 import Icon from '@/shared/components/Icon.vue'
-// R146-b：AI 入口统一徽标「知」（纯 CSS 组件，零 AI 字面量，可进启动链）
+// R146-b：AI 入口统一徽标（真源 ZhiMark.vue，零 AI 字面量，可进启动链）
 import ZhiMark from '@/shared/components/ZhiMark.vue'
 import type { ResourceCard, TaskCard, CuriosityCard, Workspace, Category, AnyCard } from '@/shared/models'
 // R146（回退契约）：检索浮层删任务改走软删真源（同时摘 metric.taskIds，守 R141 双向不变量）
@@ -942,6 +933,12 @@ async function aiSearchRun(allScope: boolean) {
     showToast('⚠ AI 检索失败：' + ((e as Error).message || String(e)).slice(0, 80))
   } finally { aiStopTick(); if (aiAbortCtl === ctl) aiAbortCtl = null; aiBusy.value = false }
 }
+/** R152：id → 命中信息（模板按行查表，不再另列一组） */
+const aiHitById = computed<Record<string, { why: string; weak: boolean }>>(() => {
+  const out: Record<string, { why: string; weak: boolean }> = {}
+  for (const h of aiSearch.value?.hits || []) out[h.id] = { why: h.why || '', weak: !!h.weak }
+  return out
+})
 const aiTopRows = computed(() => {
   if (!aiSearch.value) return [] as { hit: AiHit; item: SearchResult }[]
   return aiSearch.value.hits
@@ -977,9 +974,8 @@ const flatList = computed<FlatItem[]>(() => {
     // 原实现直接 map(filteredResults)，而模板按 res/task/curio/ws/proj 分组渲染，
     // 两者顺序不同 → selIndex 指向的条目与用户看到的条目不是同一条（键盘/Enter 错位）。
     const out: FlatItem[] = []
-    // R150：AI 检索组渲染在主列表之上，就必须排在 flatList 最前——否则方向键选中的行
-    // 与眼睛看到的行差着 AI 那几条（R60-1 同型错位，旧「AI 理解」组就是这么漏的）
-    for (const pair of aiTopRows.value) out.push({ kind: 'result' as const, item: pair.item })
+    // R152：AI 命中已并入主列表行（每张卡只有一行），扁平列表随之只按渲染顺序走——
+    // 旧的"AI 组前置"是为了对齐当时那组重复行，现在留着反而会让同一个 id 出现两次。
     for (const g of groupedResults.value) for (const item of g.items) out.push({ kind: 'result' as const, item })
     return out
   }
@@ -999,7 +995,15 @@ const groupedResults = computed(() => {
   const out: { label: string; items: SearchResult[]; offset: number; total: number }[] = []
   for (const d0 of defs) {
     const all = filteredResults.value.filter(r => r.type === d0.type)
-    if (all.length) { out.push({ label: d0.label, items: all.slice(0, MAX_PER_GROUP), offset, total: all.length }); offset += all.length }
+    // R152：AI 命中并入本组、顶到最前（每卡只有一行）。但**字面零命中的卡根本不在 filteredResults 里**——
+    // 只排序不补入就会把 AI 唯一捞回来的那几张丢掉，等于把"换个说法也召得回"这个功能本身删了。
+    const hits = aiSearch.value?.hits || []
+    const rank = new Map(hits.map((h, i) => [h.id, i]))
+    const seenIds = new Set(all.map(r => r.id))
+    const extra = (allResults.value || []).filter(r => r.type === d0.type && rank.has(r.id) && !seenIds.has(r.id))
+    const pool = extra.length ? [...all, ...extra] : all
+    const ordered = rank.size ? [...pool].sort((a, b) => (rank.has(a.id) ? rank.get(a.id)! : 1e9) - (rank.has(b.id) ? rank.get(b.id)! : 1e9)) : pool
+    if (ordered.length) { out.push({ label: d0.label, items: ordered.slice(0, MAX_PER_GROUP), offset, total: ordered.length }); offset += ordered.length }
   }
   return out
 })
@@ -1118,9 +1122,11 @@ function scrollToSelected() {
  * 而 offset 是按类型分组累计的，与排序后的混合列表下标并不对应 → 点 A 开 B。
  * R120 键位统一：单击 = 打开卡片链接（无链接则定位）；双击不单独定义（300ms 去重保证不双开）。
  */
-function pickRow(item: SearchResult) {
+function pickRow(item: SearchResult, ev?: MouseEvent) {
   selectedId.value = item.id
   syncIndexFromId()
+  // R152：把键盘约定平移到鼠标——Ctrl/⌘+单击 = 只定位（与 Ctrl+Enter 同义），单击/Enter 仍是打开
+  if (ev && (ev.ctrlKey || ev.metaKey)) { locateOnly(item); return }
   openLinkOrLocate(item)
 }
 /** R60-1：hover 只改高亮不开卡，同样以 id 为准（保证 Enter 打开的与高亮的是同一条） */
@@ -1523,6 +1529,8 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-ai-more:hover { border-color: var(--accent); color: var(--accent); }
 .gp-ai-more:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .gp-ri-badge.weak { background: var(--warning-bg-soft); color: var(--warning); }
+/* R152：AI 命中挂在主列表行上——徽标只说模型点名了这张卡，理由单独占一行 */
+.gp-ri-badge.ai { background: var(--accent-light); color: var(--accent); }
 /* R136-1d 起、R150 改名：检索类 AI 钮与置顶组 · R146-d：跑动中点名可取消，秒数等宽不抖 */
 .gp-ai-tab { margin-left: auto; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .gp-ai-tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }

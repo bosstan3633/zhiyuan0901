@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
- * R147-d：任务级「知」AI 辅助菜单（拆解成子任务 / 推荐资源卡 / 打开详情）。
+ * R147-d：任务级 AI 辅助菜单（拆解成子任务 / 推荐资源卡 / 打开详情）。
  * R146 先落在项目详情页，本轮抽成组件铺到任务面板与看板——同一套动作，不在两个视图各写一遍。
  * 自包含纪律（承 R144）：按钮、浮层菜单、评审抽屉、样式都在本组件内，
  * 宿主 workspace.css 是 scoped，fragment 根不继承父 scope；AI 依赖零静态引用，点击时才 dynamic import。
  */
-import { defineAsyncComponent, ref, shallowRef } from 'vue'
+import { ref, shallowRef } from 'vue'
 import type { TaskCard } from '@/shared/models'
 import { useAppStore } from '@/newtab/stores/app'
 import { showToast } from '@/shared/components/toast'
@@ -15,7 +15,7 @@ const props = defineProps<{ task: TaskCard; tip?: string }>()
 /** 打开详情走宿主通道（各视图的抽屉实现不同） */
 const emit = defineEmits<{ (e: 'detail', task: TaskCard): void }>()
 const store = useAppStore()
-const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
+import { AiDrawer } from './lazyAiDrawer'
 const job = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
 const shown = ref(false)
 const busy = ref(false)
