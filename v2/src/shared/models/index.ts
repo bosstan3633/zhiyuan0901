@@ -262,10 +262,12 @@ export interface Workspace {
   lastCalledAt?: number
 }
 
-/** N4：树状标签节点 */
+/** N4：树状标签节点。R151：definition = 这个标签收什么卡（整体梳理蓝图落盘的判据，旧数据无此字段=空） */
 export interface TagNode {
   id: ID
   name: string
+  /** R151：收卡定义（≤40 字），整体梳理的蓝图与逐卡归架共用 */
+  definition?: string
   children?: TagNode[]
 }
 
@@ -376,6 +378,9 @@ export interface AppData {
   /** R80（R1 遗留）：资源卡标签默认可见迁移完成时间戳（幂等标记——有值即跳过） */
   /** R148-P0b：热度统计拆独立键（zy_stats_v1）的落戳——有戳=已拆分，启动期不再重复抽取 */
   hotStatsSplitAt?: number
+  /** R151：标签树版本号——「整体梳理」整树替换时 +1。
+   *  跨上下文合并按 id 取并集对"替换"是错的（旧节点会被并回来），故谁号大听谁的。 */
+  tagTreeRevision?: number
   tagsVisibleMigratedAt?: number
 }
 

@@ -219,16 +219,24 @@ export function projectTagSystem(d: AppData, depth: AiDepth): string {
 }
 
 /**
- * R143 · 标签整体梳理蓝图投料：锚（愿景/使命/活跃目标）+ 现树与用量 + 全量资源卡台账 + 抽样正文。
- * 台账不抽样（全卡盘点是需求本体）；正文段只收 linkFetch 抽样命中的卡（snips 由宿主传入）。
+ * R151 · 标签整体梳理蓝图投料：锚（愿景/使命/活跃目标与项目画像）+ 现树与用量 + **三类卡全量台账**。
+ * 两条口径改动（用户拍板）：
+ *  ① 台账从"只有资源卡"扩到 资源卡 + 任务卡 + 好奇心卡——标签树是三卡共用的，梳理范围必须一致；
+ *  ② **不再投链接正文**——完全依据卡面现有字段判断（R143 的按需抽读整段退场）。
+ *     代价如实写在提示词里：卡面信息不足的卡，宁可留空归宿也不硬塞。
  */
-export function projectTagBlueprint(d: AppData, depth: AiDepth, snips: Map<string, string>): string {
+export function projectTagBlueprint(d: AppData, depth: AiDepth): string {
   const c = CAP[depth]
   const L: string[] = []
-  L.push(`【愿景】${cut(d.compass.vision?.content, 120) || '（未填）'}\n【使命】${cut(d.compass.mission?.content, 120) || '（未填）'}`)
-  const dirs = (d.compass.directions || []).filter(x => x.status === 'active').slice(0, 6)
-    .map(x => `- ${x.name}（${x.term || '未分期'}）：${x.projects.map(p => cut(p.name, 16)).join('、') || '无项目'}`)
-  L.push(`【活跃战略目标】\n${dirs.join('\n') || '（暂无）'}`)
+  L.push(`【愿景】${cut(d.compass.vision?.content, 160) || '（未填）'}\n【使命】${cut(d.compass.mission?.content, 160) || '（未填）'}`)
+  const dirs = (d.compass.directions || []).filter(x => x.status === 'active').slice(0, 6).map(x => {
+    const ps = (x.projects || []).slice(0, 8).map(p => {
+      const ms = (p.metrics || []).slice(0, 3).map(m => cut(m.title, 14)).join('、')
+      return `    · ${cut(p.name, 16)}（${p.status || 'active'}${p.progress != null ? ` · 进度 ${p.progress}%` : ''}${p.isFocused ? ' · 主攻' : ''}${ms ? `｜指标：${ms}` : ''}）`
+    })
+    return `- ${cut(x.name, 18)}（${x.term || '未分期'}）\n${ps.join('\n') || '    （无项目）'}`
+  })
+  L.push(`【用户核心关注：活跃战略目标与项目】\n${dirs.join('\n') || '（暂无活跃目标——按卡面自身脉络设计）'}`)
   const usage = new Map<string, number>()
   for (const arr of [d.resources, d.tasks, d.curiosities] as { tags?: string[]; deletedAt?: number }[][]) {
     for (const x of arr || []) { if (x.deletedAt) continue; for (const t of x.tags || []) usage.set(t, (usage.get(t) || 0) + 1) }
@@ -239,17 +247,22 @@ export function projectTagBlueprint(d: AppData, depth: AiDepth, snips: Map<strin
   }
   walk((d.tagTree || []) as never, '')
   L.push(`【现有标签树】\n${treePaths.join('\n') || '（空树——标签全以裸名散存）'}\n【在用标签及用量】\n${[...usage.entries()].sort((a, b) => b[1] - a[1]).slice(0, c.list * 3).map(([t, n]) => `- ${t}（${n} 次）`).join('\n') || '（一个标签都还没有）'}`)
-  const cards = (d.resources || []).filter(r => !r.deletedAt)
-  const rows = cards.map(r => {
-    let domain = ''
-    try { domain = new URL(r.link || '').host } catch { /* 非网页链接留空 */ }
-    return `- cardId=${r.id} 「${cut(r.title, 30)}」 描述:${r.description?.trim() ? cut(r.description.trim(), 40) : '（空）'} 标签[${(r.tags || []).join('、') || '无'}] 打开${r.callCount || 0}次${domain ? ' 域名:' + domain : ''}`
-  })
-  L.push(`【资源卡台账（全量 ${cards.length} 张）】\n${rows.join('\n')}`)
-  if (snips.size) {
-    const snipLines = [...snips.entries()].map(([id, t]) => `· cardId=${id} 正文节选：${t.replace(/\n/g, ' ')}`)
-    L.push(`【链接正文抽样（${snips.size} 篇，均为卡面信息不足时的补读）】\n${snipLines.join('\n')}`)
-  } else L.push('【链接正文抽样】（本轮无需补读或全部抓取失败——判不准的卡在定义里收窄些）')
+  // 三类卡台账：全量不抽样（"对全库卡片做梳理"是需求本体）；每行只带卡面字段
+  const res = (d.resources || []).filter(r => !r.deletedAt)
+  const tks = (d.tasks || []).filter(t => !t.deletedAt)
+  const cus = (d.curiosities || []).filter(x => !x.deletedAt)
+  const row = (kind: string, id: string, title: string, desc: string, tags: string[], extra: string) =>
+    `- [${kind}] cardId=${id} 「${cut(title, 30)}」 描述:${desc ? cut(desc, 40) : '（空）'} 标签[${tags.join('、') || '无'}]${extra}`
+  const lines = [
+    ...res.map(r => {
+      let domain = ''
+      try { domain = new URL(r.link || '').host } catch { /* 非网页链接留空 */ }
+      return row('res', r.id, r.title, r.description || '', r.tags || [], ` 打开${r.callCount || 0}次${domain ? ' 域名:' + domain : ''}`)
+    }),
+    ...tks.map(t => row('task', t.id, t.title, t.description || '', t.tags || [], ` 状态:${t.status || 'todo'} 优先级:${t.priority || '-'}${t.dueDate ? ` 截止:${t.dueDate}` : ''}`)),
+    ...cus.map(x => row('curio', x.id, x.question, x.description || '', x.tags || [], ` 状态:${x.status || 'todo'}`)),
+  ]
+  L.push(`【全库卡片台账（共 ${lines.length} 张：资源 ${res.length} · 任务 ${tks.length} · 好奇 ${cus.length}；只用卡面字段，不读链接正文）】\n${lines.join('\n')}`)
   return L.filter(Boolean).join('\n\n')
 }
 

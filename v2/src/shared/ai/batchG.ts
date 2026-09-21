@@ -193,13 +193,16 @@ export function buildThesisDraftJob(ctx: ThesisGenCtx): AiJob | null {
 
 export interface CurioTriageCtx extends GovernCtx {
   pool: CuriosityCard[]
+  /** R151：单卡入口为真——「3 条才够比较」是批量口径，套到单卡上会变成"点研判被拒"；单卡的 jobKey 必须带卡 id，否则换一张卡会 attach 到上一张的结果 */
+  single?: boolean
   /** 转化动作由宿主提供（走既有 convertToTask：字段随迁 + 落任务 + 源卡软删） */
   onConvert: (c: CuriosityCard, taskTitle: string) => boolean | string
 }
 
 export function buildCurioTriageJob(ctx: CurioTriageCtx): AiJob | null {
+  const single = !!ctx.single
   const pool = ctx.pool.filter(c => !c.deletedAt && (c.status === 'todo' || c.status === 'doing')).slice(0, SNIP_CAP[ctx.depth])
-  if (pool.length < 3) return null
+  if (pool.length < (single ? 1 : 3)) return null
   const byId = new Map(pool.map(c => [c.id, c]))
   const drop = { ghost: 0, badVerdict: 0, noTitle: 0, noWhy: 0 }
   const parseRows = (bag: { items?: CurioTriage[] }): AiRow[] => {
@@ -229,10 +232,12 @@ export function buildCurioTriageJob(ctx: CurioTriageCtx): AiJob | null {
   }
   const user = () => projectCurioPool(ctx.d, pool.map(c => c.id), ctx.depth, reviseSnips)
   return {
-    key: 'triage',
-    title: '💡 好奇心转化研判',
-    subject: `💡 待探索池 ${pool.length} 条`,
-    hint: '逐条判「转任务 / 继续养 / 可搁置」，判据是对不对得上愿景与活跃目标。采纳：转=按建议标题走既有转化通道；搁置=置为「已搁置」（不删卡，随时可改回）；继续养=只看不写。',
+    key: single ? 'triage:' + pool[0].id : 'triage',
+    title: single ? '💡 这条好奇要不要转任务' : '💡 好奇心转化研判',
+    subject: single ? `💡 单条研判「${pool[0].question.slice(0, 28)}」` : `💡 待探索池 ${pool.length} 条`,
+    hint: single
+      ? '只判这一条：转任务 / 继续养 / 可搁置，判据是对不对得上愿景与活跃目标。采纳：转=按建议标题走既有转化通道；搁置=置为「已搁置」（不删卡，随时可改回）；继续养=只看不写。'
+      : '逐条判「转任务 / 继续养 / 可搁置」，判据是对不对得上愿景与活跃目标。采纳：转=按建议标题走既有转化通道；搁置=置为「已搁置」（不删卡，随时可改回）；继续养=只看不写。',
     build: () => ({ messages: [{ role: 'system', content: curioTriageSystem() }, { role: 'user', content: user() }] }),
     parse: raw => parseRows((raw || {}) as { items?: CurioTriage[] }),
     audit: () => {

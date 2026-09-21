@@ -371,6 +371,15 @@ function mergeCardArr<T extends MergeCard>(localArr: T[], snapArr: T[], extArr: 
  *  外部新建的策展台/分类/投射会被静默丢弃（本页只改了一个字段，代价却是别人新建的整段消失）。
  *  规则：本页没动 → 取外部；本页动过外部也动过 → 取本地（无版本可比，保护正在输入的表单）；
  *  外部新增收编；外部已删且本页没动 → 尊重外部删除。 */
+/** R151：标签树合并——整树替换过的一侧胜出（靠 tagTreeRevision），同版本才按 id 并集（保留旧行为）。
+ *  没有这条，「整体梳理」换的新树会被另一个 popup 里的旧节点并回来，"完全替换"就是空话。 */
+function mergeTagTree(cur: AppData, snap: AppData, ext: AppData) {
+  const rc = cur.tagTreeRevision || 0, re = ext.tagTreeRevision || 0, rs = snap.tagTreeRevision || 0
+  if (rc > rs && rc >= re) return cur.tagTree || []
+  if (re > rs) return ext.tagTree || []
+  return mergeByIdArr(cur.tagTree || [], snap.tagTree || [], ext.tagTree || [])
+}
+
 function mergeByIdArr<T extends { id: string }>(localArr: T[], snapArr: T[], extArr: T[]): T[] {
   const snapById = new Map(snapArr.map(c => [c.id, c]))
   const extById = new Map(extArr.map(c => [c.id, c]))
@@ -417,7 +426,10 @@ export function mergeExternalData(ext: AppData): AppData {
     // 深度合并风险大于收益，保留原判据（单边改动时取改动侧）。
     workspaces: mergeByIdArr(cur.workspaces || [], snap.workspaces || [], ext.workspaces || []),
     categories: mergeByIdArr(cur.categories || [], snap.categories || [], ext.categories || []),
-    tagTree: mergeByIdArr(cur.tagTree || [], snap.tagTree || [], ext.tagTree || []),
+    // R151：标签树有两个写入面——逐节点增删改（可并集）与整体梳理的整树替换（不可并集）。
+    // 替换会给 tagTreeRevision +1，谁号大听谁的；同版本才退回按 id 并集。
+    tagTree: mergeTagTree(cur, snap, ext),
+    tagTreeRevision: Math.max(cur.tagTreeRevision || 0, ext.tagTreeRevision || 0),
     fieldConfig: jsonEq(cur.fieldConfig, snap.fieldConfig) ? ext.fieldConfig : cur.fieldConfig,
     stats: jsonEq(cur.stats, snap.stats) ? ext.stats : cur.stats,
     curationProjections: mergeByIdArr(cur.curationProjections || [], snap.curationProjections || [], ext.curationProjections || [])

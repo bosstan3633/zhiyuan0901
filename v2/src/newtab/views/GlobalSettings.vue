@@ -360,7 +360,7 @@
       <!-- ===== 标签管理（N4 · 行内编辑） ===== -->
       <div v-if="activePage === 'tags'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">🏷 标签管理 <button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 体检标签体系：同义合并 + 裸标签归位（勾选采纳才级联改卡与树）" @click="aiTagGovern"><ZhiMark :size="13" /> 标签体检</button><button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 整体梳理：盘点全卡（含按需读链接正文）→ 重建金字塔标签树蓝图 → 全卡补全打标，两道评审门 + 自动快照可还原" @click="aiTagRevise">🧹 整体梳理</button><button v-if="aiReviseBak" class="gs-btn ai-batch-btn" title="回滚到上次整体梳理之前（标签树与卡片标签全还原）" @click="aiRestoreRevise">↺ 还原上次梳理</button></div>
+          <div class="gs-page-title">🏷 标签管理 <button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 体检标签体系：同义合并 + 裸标签归位（勾选采纳才级联改卡与树）" @click="aiTagGovern"><ZhiMark :size="13" /> 标签体检</button><button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 整体梳理：盘点全库三类卡（只看卡面字段，不读链接正文）→ 结合愿景/目标重建标签树蓝图（每个标签标出预计收几张卡）→ 采纳即整树替换并同步改写卡标签 → 全卡补全打标，两道评审门 + 自动快照可还原" @click="aiTagRevise"><ZhiMark :size="13" /> 🧹 整体梳理</button><button v-if="aiReviseBak" class="gs-btn ai-batch-btn" title="回滚到上次整体梳理之前（标签树与卡片标签全还原）" @click="aiRestoreRevise">↺ 还原上次梳理</button></div>
                     <div class="gs-page-desc">两级标签体系 · 三种卡片打标签的唯一来源 · 拖拽根标签到另一根标签上即成子标签（卡片标签同步为「父/子」）· 双击标签行直接改名</div>
         </div>
         <div class="tt-wrap">
@@ -2565,44 +2565,60 @@ function tagSubtreeIds(id: string): string[] {
   return out
 }
 /**
- * R130-T1：卡片-标签命中判据唯一口径（左树 tagUsage 与右列 ttRows 共用）——
- * 「路径 + 叶子」双口径（R129-B4 定案）+ 排除回收站软删卡（用户拍板：树角标不含回收站卡）。
- * 此前树计数含软删卡而右列排除，同一标签两处数字对不上。
+ * R130-T1 → R151：卡片-标签命中判据唯一口径（左树角标与右列 ttRows 共用）。
+ * R151 用户拍板改口径：**根标签角标 = 含子树合计**（卡存「父/子」时也要计入「父」），
+ * 这样「整体梳理」蓝图里本地核算的预估张数与页头角标是同一个数——两处对不上，用户就没法信方案。
+ * 仍排除回收站软删卡；一张卡在同一节点的子树里出现多次只算一次。
  */
 function cardHasTag(tags: string[] | undefined, name: string): boolean {
   if (!Array.isArray(tags) || !tags.length) return false
   const leaf = name.split('/').pop() || name
-  return tags.some(t => t === name || t === leaf)
+  return tags.some(t => t === name || t === leaf || t.startsWith(name + '/'))
 }
 /**
- * R148-P1b：标签用量改**一次遍历建表**（原来它是普通函数，模板按树上每个节点各调一次
- * = O(标签节点数 × 全部卡)；100 标签 × 1300 卡 = 每次渲染 13 万次判等）。
- * 失效依据 = repository 的内存脏计数（每次 persist 同步自增），不做"看起来变了"的猜测。
+ * R148-P1b：一次遍历建表（原来按节点各调一次 = O(标签数 × 全部卡)）。
+ * R151：表键 = **树节点路径**（顶层名 / 「父/子」），命中子标签时同时给祖先计数；
+ * 树里没有的裸标签仍按原样入表（右列「未入树」分组要用），不至于悄悄丢数。
+ * 失效依据 = repository 的内存脏计数（每次 persist 同步自增）+ 树版本戳。
  */
-let tagUseCache: { seq: number; size: number; map: Map<string, number> } | null = null
+let tagUseCache: { seq: number; size: number; rev: number; map: Map<string, number> } | null = null
 function tagUsageMap(): Map<string, number> {
   const d = store.data!
   const size = d.resources.length + d.tasks.length + d.curiosities.length
   const seq = getMutationSeq()
-  if (tagUseCache && tagUseCache.seq === seq && tagUseCache.size === size) return tagUseCache.map
+  const rev = d.tagTreeRevision || 0
+  if (tagUseCache && tagUseCache.seq === seq && tagUseCache.size === size && tagUseCache.rev === rev) return tagUseCache.map
   const map = new Map<string, number>()
   const bump = (k: string) => map.set(k, (map.get(k) || 0) + 1)
+  // 叶子名 → 树路径（可能同名多父，全部算命中）
+  const leafIndex = new Map<string, string[]>()
+  const pathSet = new Set<string>()
+  for (const r of d.tagTree || []) {
+    pathSet.add(r.name)
+    for (const c of r.children || []) {
+      const p = r.name + '/' + c.name
+      pathSet.add(p)
+      leafIndex.set(c.name, [...(leafIndex.get(c.name) || []), p])
+    }
+  }
   const walk = (arr?: { deletedAt?: number; tags?: string[] }[]) => {
     for (const x of arr || []) {
       if (x.deletedAt || !Array.isArray(x.tags)) continue
-      const seen = new Set<string>()
+      const nodes = new Set<string>()
       for (const t of x.tags) {
         if (typeof t !== 'string' || !t) continue
-        if (!seen.has(t)) { seen.add(t); bump(t) }
-        const leaf = t.split('/').pop() || t
-        if (leaf !== t && !seen.has(leaf)) { seen.add(leaf); bump(leaf) }
+        const lf = t.split('/').pop() || t
+        if (pathSet.has(t)) nodes.add(t)
+        for (const p of leafIndex.get(lf) || []) nodes.add(p)
+        if (!pathSet.has(t) && !(leafIndex.get(lf) || []).length) nodes.add(t)   // 树外裸标签：原样计数
       }
+      for (const n of nodes) { bump(n); const i = n.indexOf('/'); if (i > 0) bump(n.slice(0, i)) }
     }
   }
   walk(d.resources as unknown as { deletedAt?: number; tags?: string[] }[])
   walk(d.tasks as unknown as { deletedAt?: number; tags?: string[] }[])
   walk(d.curiosities as unknown as { deletedAt?: number; tags?: string[] }[])
-  tagUseCache = { seq, size, map }
+  tagUseCache = { seq, size, rev, map }
   return map
 }
 function tagUsage(name: string): number {
@@ -2732,7 +2748,7 @@ async function aiTagRevise() {
   if (!aiGuard()) return
   await loadAiConfig()
   const jb = buildTagBlueprintJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() })
-  if (!jb) { showToast('⚠ 资源卡还太少（不足 6 张），整体梳理等有库了再来'); return }
+  if (!jb) { showToast('⚠ 全库卡还太少（三类合计不足 6 张），整体梳理等有库了再来'); return }
   aiJob.value = jb
 }
 function aiJobClosed() {

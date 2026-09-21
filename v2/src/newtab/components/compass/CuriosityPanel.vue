@@ -383,19 +383,20 @@ function confirmConvert() {
   detailId.value = null
 }
 
-/* ===== R144 · G2：转化研判（当前筛选口径下的待探索池 → 转任务 / 继续养 / 可搁置） ===== */
+/* ===== R144 · G2：转化研判（批量=当前筛选口径下的待探索池；R151 起同一通道支持单卡入口） ===== */
 const AiDrawer = defineAsyncComponent(() => import('../AiSuggestionDrawer.vue'))
 const aiJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
-async function aiTriage() {
+async function aiTriage(one?: CuriosityCard) {
   const d = store.data
   if (!d) return
-  const pool = filtered.value.filter(c => c.status === 'todo' || c.status === 'doing')
-  if (pool.length < 3) { showToast('待探索池少于 3 条——先多攒几条好奇心再研判'); return }
+  const pool = one ? [one] : filtered.value.filter(c => c.status === 'todo' || c.status === 'doing')
+  if (!one && pool.length < 3) { showToast('待探索池少于 3 条——先多攒几条好奇心再研判'); return }
+  if (one && one.status !== 'todo' && one.status !== 'doing') { showToast('这条已是「已转任务」或「已搁置」——先改回待探索再研判'); return }
   const [{ loadAiConfig, aiReady, aiConfig }, { buildCurioTriageJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/batchG')])
   await loadAiConfig()
   if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
   aiJob.value = buildCurioTriageJob({
-    d, depth: aiConfig.value.depth, persist: () => store.persist(), pool,
+    d, depth: aiConfig.value.depth, persist: () => store.persist(), pool, single: !!one,
     onConvert: (c, title) => {
       if (c.deletedAt) return false
       const t = convertToTask(c)
@@ -457,7 +458,7 @@ function srcShort(url: string): string {
 <template>
   <ModuleCard icon-name="bulb" title="好奇心培育" en="CURIOSITY">
     <template #actions>
-      <button class="cz-batch-btn ai" title="AI 逐条研判待探索池：哪些值得转成任务、哪些继续养着、哪些可以放下（勾选采纳才写库）" @click="aiTriage"><ZhiMark :size="13" /> 转化研判</button>
+      <button class="cz-batch-btn ai" title="AI 逐条研判待探索池：哪些值得转成任务、哪些继续养着、哪些可以放下（勾选采纳才写库）" @click="aiTriage()"><ZhiMark :size="13" /> 转化研判</button>
       <button class="cz-batch-btn" :class="{active: batchMode}" @click="batchMode = !batchMode">
         {{ batchMode ? '完成' : '☑ 批量管理' }}
       </button>
@@ -541,6 +542,7 @@ function srcShort(url: string): string {
             <div class="cz-hover-bar">
               <button class="cz-hover-btn primary" @click.stop="openConvert(c, 'task')">转为任务</button>
               <button class="cz-hover-btn" @click.stop="openConvert(c, 'res')">归档资源</button>
+              <button class="cz-hover-btn ai" @click.stop="aiTriage(c)" title="AI 研判这条好奇：值不值得转成任务（判据=对不对得上愿景与活跃目标）"><ZhiMark :size="13" /> 研判</button>
               <button class="cz-hover-btn danger" @click.stop="deleteCard(c)" title="删除">🗑</button>
             </div>
           </div>
@@ -576,6 +578,7 @@ function srcShort(url: string): string {
               <button class="mini-btn" :class="{pinon: c.starred}" @click.stop="toggleStar(c.id)" title="星标">⭐</button>
               <button class="mini-btn" @click.stop="openConvert(c, 'task')">转任务</button>
               <button class="mini-btn" @click.stop="openConvert(c, 'res')">归档</button>
+              <button class="mini-btn ai" @click.stop="aiTriage(c)" title="AI 研判这条好奇：值不值得转成任务"><ZhiMark :size="12" /></button>
               <button class="mini-btn danger" @click.stop="deleteCard(c)">🗑</button>
             </div>
           </div>
@@ -605,6 +608,7 @@ function srcShort(url: string): string {
               <div class="cz-kanban-meta">
                 <AssetBadge v-if="curioExtFields.some(f => f.key === 'assets')" :assets="c.assets" />
                 <span>{{ fmtDate(c.createdAt) }}</span>
+                <button class="cz-kb-ai" @click.stop="aiTriage(c)" title="AI 研判这条好奇：值不值得转成任务"><ZhiMark :size="12" /></button>
                 <button class="cz-kb-del" @click.stop="deleteCard(c)" title="删除">🗑</button>
               </div>
             </div>
@@ -670,6 +674,7 @@ function srcShort(url: string): string {
         <button class="mini-btn" :class="{pinon: detailItem?.pinned}" @click="detailItem && togglePin(detailItem.id)">{{ detailItem?.pinned ? '📌 已置顶' : '📌 置顶' }}</button>
         <button class="mini-btn" @click="detailItem && openConvert(detailItem, 'task')">转为任务</button>
         <button class="mini-btn" @click="detailItem && openConvert(detailItem, 'res')">归档为资源</button>
+        <button class="mini-btn" @click="detailItem && aiTriage(detailItem)"><ZhiMark :size="12" /> 研判</button>
         <button class="mini-btn primary" style="margin-left:auto" @click="saveDetail">保存 <span style="font-size:10px;opacity:.75;margin-left:2px">⏎</span></button>
       </template>
     </Drawer>
@@ -774,6 +779,7 @@ function srcShort(url: string): string {
 .cz-kanban-card.dragging { opacity: .4; }
 .cz-list-item.drop-line-t, .cz-kanban-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .cz-list-item.drop-line-b, .cz-kanban-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
+.cz-kb-ai { border: none; background: transparent; color: var(--text-4); cursor: pointer; font-size: 11px; padding: 0 2px; font-family: inherit; display: inline-flex; align-items: center; }
 .cz-kb-del { margin-left: auto; border: none; background: transparent; color: var(--text-4); cursor: pointer; font-size: 11px; padding: 0 2px; font-family: inherit; }
 .cz-kb-del:hover { color: var(--danger); }
 .cz-card:hover { border-color: var(--accent); background: var(--surface); transform: translateY(-1px); box-shadow: var(--shadow); }

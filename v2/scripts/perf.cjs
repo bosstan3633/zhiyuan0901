@@ -533,9 +533,27 @@ async function main() {
     fs.writeFileSync(path.resolve(__dirname, '..', '.prof-report.json'), JSON.stringify(top.map(([k, v]) => ({ samples: v, fn: k })), null, 1))
   }
 
+  // ══════════ R151 M3d · 静置对照（--idle-control 才跑）：什么都不点，纯等 20s ══════════
+  // 目的：M3c 那 6~9s 长任务到底是知源的 JS 还是测试环境本身？同样的库、同样的页面，
+  // 不做任何交互再采一次——若静置也出同等量级的周期性长任务，这个指标就不能当"用户卡顿"读。
+  if (argv.includes('--idle-control')) {
+    await page.evaluate(() => { window.__ltMarkIdle = (window.__lt || []).length })
+    await page.waitForTimeout(20000)
+    const ltIdle = await page.evaluate(() => {
+      const raw = (window.__lt || []).slice(window.__ltMarkIdle || 0)
+      const arr = raw.map(x => x.d).sort((a, b) => b - a)
+      return { count: arr.length, total: arr.reduce((s, x) => s + x, 0), max: arr[0] || 0 }
+    })
+    push('M3d_静置20s长任务总计(ms)', ltIdle.total, { M3d_长任务次数: ltIdle.count, M3d_最大单任务ms: ltIdle.max })
+    log(`  M3d 静置对照（零交互 20s）：${ltIdle.count} 次 · 总计 ${ltIdle.total}ms · 最大 ${ltIdle.max}ms`)
+  }
+
   // ══════════ R148 窗口三：用户点名的四类交互（单击卡片 / 置顶 / 切底部 tab / 进设置页）══════════
   // 单独开窗：M3（启动→切台）与 M3b（回调度台+全局搜索）的口径都不受影响。
   await page.evaluate(() => { window.__ltMark3 = (window.__lt || []).length; window.__t3 = Math.round(performance.now()) })
+  // R151：--profile 时窗口三单独再采一次 CPU 谱。M3c 那 6~9s 长任务与本轮改的链路无关（R148/R149/R150
+  // 三轮同量级），只靠长任务条数推不出是谁；采样间隔 1ms，只在归因跑里开（开采样本身会把数字抬高一点）。
+  if (PROFILE && cdp) { await cdp.send('Profiler.start') }
   await page.evaluate(() => window.__navTo('资源台', '.view-tab'))
   await page.waitForTimeout(400)
 
@@ -558,6 +576,22 @@ async function main() {
   push('M9b_进设置页_二次(ms)', m9warm.wall, { 'M9b_阻塞ms': m9warm.block, 'M9_二次是否仍全量重挂': m9warm.block > m9cold.block * 0.5 ? 1 : 0 })
   log(`  M9 冷 ${JSON.stringify(m9cold)} / 暖 ${JSON.stringify(m9warm)}`)
 
+  if (PROFILE && cdp) {
+    const { profile } = await cdp.send('Profiler.stop')
+    const nodes = new Map(profile.nodes.map(n => [n.id, n]))
+    const self = new Map()
+    for (const id of profile.samples || []) {
+      const n = nodes.get(id)
+      if (!n) continue
+      const cf = n.callFrame
+      const label = (cf.functionName || '(anonymous)') + ' @ ' + (cf.url || '').split('/').pop() + ':' + (cf.lineNumber + 1)
+      self.set(label, (self.get(label) || 0) + 1)
+    }
+    const top3 = [...self.entries()].sort((a, b) => b[1] - a[1]).slice(0, 18)
+    log(`  窗口三 CDP 采样 Top（1ms/样本 · 合计 ${profile.samples ? profile.samples.length : 0}ms 命中）：`)
+    for (const [k, v] of top3) log(`    ${String(v).padStart(6)}ms  ${k}`)
+    fs.writeFileSync(path.resolve(__dirname, '..', '.prof-window3.json'), JSON.stringify(top3.map(([k, v]) => ({ samples: v, fn: k })), null, 1))
+  }
   const lt3 = await page.evaluate(() => {
     const all = window.__lt || []
     const raw = all.slice(window.__ltMark3 || 0)

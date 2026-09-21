@@ -452,6 +452,7 @@
                     <span v-if="isHub" class="rr-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</span>
                     <span class="rr-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</span>
                     <span class="rr-action delete" @click.stop="deleteResource(r)" title="删除">🗑</span>
+                    <CardAiEntry :card="r" />
                   </template>
                   <template v-else>
                     <span class="rr-action locate" title="定位到资源台源卡" @click.stop="locateMirrorSource(r)">🎯</span>
@@ -493,6 +494,7 @@
                     <span v-if="isHub" class="kc-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</span>
                     <span class="kc-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</span>
                     <span class="kc-action delete" title="删除" @click.stop="deleteResource(r)">🗑</span>
+                    <CardAiEntry :card="r" />
                   </template>
                   <template v-else>
                     <span class="kc-action locate" title="定位到资源台源卡" @click.stop="locateMirrorSource(r)">🎯</span>
@@ -622,6 +624,7 @@
           <button class="dr-footer-btn primary" @click="locateMirrorSourceCard">📍 定位到资源台编辑</button>
         </template>
         <template v-else>
+          <CardAiEntry :card="editingResource" label="✦ AI 优化" />
           <button class="dr-footer-btn danger" @click="deleteCurrentResource">🗑 删除</button>
           <button class="dr-footer-btn" @click="copyLink">🔗 复制链接</button>
           <button class="dr-footer-btn" @click="openResourceLink(editingResource)">↗ 打开链接</button>
@@ -953,11 +956,7 @@ import { useOverlayTarget } from '@/shared/utils/overlayHost'
 import { showToast } from '@/shared/components/toast'
 import { deleteAsset, cleanupOrphanAssets } from '@/shared/storage/assets'
 import AssetPreview from '@/shared/components/AssetPreview.vue'; import CardAiEntry from '@/newtab/components/CardAiEntry.vue'; import CatNodeName from '@/newtab/components/CatNodeName.vue'; import ThesisAiBtn from '@/newtab/components/ThesisAiBtn.vue'; import EvidenceMenuItem from '@/newtab/components/EvidenceMenuItem.vue'
-import EmptyState from '@/shared/components/EmptyState.vue'
-import ContextMenu from '@/shared/components/ContextMenu.vue'
-import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
-import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'
-import AssetBadge from '@/shared/components/AssetBadge.vue'
+import EmptyState from '@/shared/components/EmptyState.vue'; import ContextMenu from '@/shared/components/ContextMenu.vue'; import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'; import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'; import AssetBadge from '@/shared/components/AssetBadge.vue'
 // R117（04-61 C3）：当日新增角标（自然日口径）——资源卡卡片视图 / 列表视图同一枚
 import NewBadge from '@/shared/components/NewBadge.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'

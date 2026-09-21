@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * R140：资源卡 hover 动作条的「知 · 全方位优化」入口（读链接网页正文）。
+ * R140：资源卡动作条的「✦ 全方位优化」入口（读链接网页正文）。R151：label 非空时改按详情抽屉页脚按钮的样式呈现（同一入口、两种容器）。
  * Workspace 宿主压在 1500 行验收线上——按钮、评审抽屉、AI 懒栈全部收进本组件，
  * 宿主只原位补一个标签。AI 依赖零静态引用：点击时才 dynamic import。
  */
@@ -10,7 +10,7 @@ import { useAppStore } from '@/newtab/stores/app'
 import { showToast } from '@/shared/components/toast'
 import ZhiMark from '@/shared/components/ZhiMark.vue'
 
-const props = defineProps<{ card: ResourceCard }>()
+const props = withDefaults(defineProps<{ card: ResourceCard; label?: string }>(), { label: '' })
 const store = useAppStore()
 const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
 const job = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
@@ -38,6 +38,6 @@ async function run() {
 </script>
 
 <template>
-  <div class="rc-action ai" :title="card.link ? 'AI 读取链接网页正文后优化标题/描述/标签（审阅勾选才写库）' : 'AI 按卡面信息优化（本卡没有链接）'" @click.stop="run"><ZhiMark :size="14" :spin="busy" /></div>
+  <div :class="label ? 'dr-footer-btn ai' : 'rc-action ai'" :title="card.link ? 'AI 读取链接网页正文后优化标题/描述/标签（审阅勾选才写库）' : 'AI 按卡面信息优化（本卡没有链接）'" @click.stop="run"><ZhiMark :size="label ? 13 : 14" :spin="busy" />{{ label }}</div>
   <AiDrawer v-if="job" :job="job" @close="job = null" />
 </template>

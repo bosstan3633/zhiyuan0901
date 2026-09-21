@@ -916,6 +916,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
               <MountCountBadge :t="task" />
               <MaturityBadge :m="taskMaturity(task)" />
+              <TaskAiMenu :task="task" @detail="openTaskFromAi" />
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
             </div>
@@ -928,6 +929,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
               <MountCountBadge :t="task" />
               <MaturityBadge :m="taskMaturity(task)" />
+              <TaskAiMenu :task="task" @detail="openTaskFromAi" />
             </div>
           </template>
         </div>
@@ -949,6 +951,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
               <MountCountBadge :t="task" />
               <MaturityBadge :m="taskMaturity(task)" />
+              <TaskAiMenu :task="task" @detail="openTaskFromAi" />
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
             </div>
@@ -961,6 +964,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
               <MountCountBadge :t="task" />
               <MaturityBadge :m="taskMaturity(task)" />
+              <TaskAiMenu :task="task" @detail="openTaskFromAi" />
             </div>
           </template>
         </div>
@@ -982,6 +986,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
               <MountCountBadge :t="task" />
               <MaturityBadge :m="taskMaturity(task)" />
+              <TaskAiMenu :task="task" @detail="openTaskFromAi" />
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
             </div>
@@ -994,6 +999,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
               <MountCountBadge :t="task" />
               <MaturityBadge :m="taskMaturity(task)" />
+              <TaskAiMenu :task="task" @detail="openTaskFromAi" />
             </div>
           </template>
         </div>
