@@ -519,18 +519,8 @@
 .py-node-foot { display: flex; gap: 6px; padding: 0 10px 9px; }
 .py-foot-btn { flex: 1; text-align: center; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); border: 1px dashed var(--border); border-radius: 6px; padding: 4px 6px; cursor: pointer; transition: all var(--dur-fast); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .py-foot-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
-/* R65-F3：关联资源卡选择器 */
-.lc-search { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); margin-bottom: 10px; }
-.lc-search input { border: none; outline: none; background: transparent; font-size: var(--fs-sub); flex: 1; color: var(--text); }
-.lc-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-.lc-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; transition: background .1s; }
-.lc-item:hover { background: var(--surface-2); }
-.lc-item.picked { background: var(--accent-light); }
-.lc-item.mirrored { opacity: .55; cursor: default; }
-.lc-badge { font-size: var(--fs-tiny); color: var(--text-3); background: var(--surface-3); padding: 1px 8px; border-radius: 99px; flex-shrink: 0; }
-.lc-title { flex: 1; min-width: 0; font-size: var(--fs-sub); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lc-link { font-size: var(--fs-tiny); color: var(--text-4); max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
-.lc-empty { text-align: center; padding: 24px; font-size: var(--fs-sub); color: var(--text-4); }
+/* R161-④：原「关联资源卡选择器」的 .lc-* 样式（含 AI 检索那一组）随弹窗抽到 components/LinkCardsModal.vue
+   —— 本文件是 Workspace.vue 的 scoped 样式，跨不到子组件内部，留着就是死代码 */
 .py-node-add { position: absolute; right: -8px; top: -8px; width: 20px; height: 20px; display: none; align-items: center; justify-content: center; border-radius: 6px; background: var(--accent); color: #fff; font-size: var(--fs-body); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
 .py-node:hover .py-node-add { display: flex; }
 .py-level-empty { font-size: var(--fs-caption); color: var(--text-4); padding: 4px 0; }

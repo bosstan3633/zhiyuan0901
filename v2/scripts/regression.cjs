@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.2.1'";
+const VER_ANCHOR_LITERAL = "version: '3.2.2'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -3471,7 +3471,7 @@ console.log('【R126 · V2.94.0：体验修复与还原】');
 check('R126-1 ★ isThesis 泄漏修复：emptyResource 显式 isThesis:false（杜绝「确立论点」标记泄漏覆盖 L1）', () => { const d = read('/newtab/composables/useResourceDrawer.ts'); return d.includes('pinned: false, isThesis: false, callCount: 0'); });
 check('R126-2 论点横幅常驻：页头之后 / 指标条之前（全文件仅一处横幅，卡片视图内不再重复）', () => { const w = read('/newtab/views/Workspace.vue'); const iHead = w.indexOf('class="ws-id-head"'); const iBanner = w.indexOf('<!-- R126（原型还原）：中心论点横幅上移常驻'); const iMetrics = w.indexOf('class="ws-metrics cur3"'); return iHead > 0 && iBanner > iHead && iMetrics > iBanner && (w.split('<div v-if="!isHub" class="thesis-banner"').length - 1) === 1 && !w.includes('<!-- R123（C2/原型）：论点大气横幅'); });
 check('R126-3 资源台页头去图标（标题左缘=内容左缘）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('<span v-if="!isHub" class="wsh-icon">'); });
-check('R126-4 关联资源卡弹窗：资源台分类过滤（含子分类 + 未分类）', () => { const p = read('/newtab/composables/usePyramid.ts'); const w = read('/newtab/views/Workspace.vue'); return p.includes('const linkCardsCat = ref') && p.includes('linkCatOptions') && p.includes("catSel === '__uncat__'") && w.includes('class="lc-cat"') && w.includes('全部分类（资源台）'); });
+check('R126-4 关联资源卡弹窗：资源台分类过滤（含子分类 + 未分类）· R161 备案：弹窗抽成 LinkCardsModal.vue，弹窗侧锚点随迁', () => { const p = read('/newtab/composables/usePyramid.ts'); const lm = read('/newtab/components/LinkCardsModal.vue'); return p.includes('const linkCardsCat = ref') && p.includes('linkCatOptions') && p.includes("catSel === '__uncat__'") && lm.includes('class="lc-cat"') && lm.includes('全部分类（资源台）'); });
 check('R126-5 展板模块框线 + 内边距 22 对齐主航线 + 📦 图标 + 🚀 主攻（R139 图标定稿：🚀=主攻、🎯 只留指标）', () => { const pc = read('/newtab/views/ProjectCuration.vue'); return pc.includes('padding: 14px 22px 18px;') && pc.includes('class="pb-picon" title="项目">📦') && pc.includes('class="tag accent">🚀 主攻') && !pc.includes('>🎯 主攻'); });
 check('R126-6 全景列表：单击=选中 / 双击=打开详情抽屉', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('function onPanCardClick(r: ResourceCard) { togglePanCard(r.id) }') && g.includes('panDetail.value = r }') && !g.includes('panClickTimer'); });
 check('R126-7 生命周期阈值设置：全局默认可配（UIPrefs.coolingDaysDefault + 启动注入）+ 弹窗入口', () => { const m = read('/shared/models/index.ts'); const lf = read('/shared/utils/lifecycle.ts'); const rp = read('/shared/storage/repository.ts'); const g = read('/newtab/views/GlobalSettings.vue'); return m.includes('coolingDaysDefault?: number') && lf.includes('export function setCoolingDefaultDays') && lf.includes('export function coolingDefaultDaysOf') && rp.includes('setCoolingDefaultDays(uiCache.coolingDaysDefault ?? 30)') && g.includes('lcSetOpen = ref(false)') && g.includes('saveLcDefault') && g.includes('lc-set-list'); });
@@ -3641,7 +3641,7 @@ check('R135-8 创建走 store 既有通道优先：ctx.addProject 传入 compass
 
 // ============== R136 · V2.104.0：批次 F 第三刀 A3 按目标选卡 + 1d 搜索意图重排 ==============
 console.log('【R136 · V2.104.0：A3 应用推荐 + 1d 自然语言搜索重排】');
-check('R136-1 ★入口 chunk 守卫：GlobalPopups 被 App.vue 静态挂载，其 AI 依赖全懒（零静态 import @/shared/ai，连 import type 都不写），检索函数段零写库（无 persist/无 mountedResourceIds 写入），改词与换类型 tab 即清态 · R150 备案：函数改名 aiSearchRun（「AI 理解」并入「AI 检索」），守卫逐条随迁', () => { const g = read('/newtab/components/GlobalPopups.vue'); const seg = segOf(g, 'async function aiSearchRun', 'const aiTopRows'); return !g.includes("from '@/shared/ai/") && g.includes("import('@/shared/ai/select')") && !seg.includes('persist') && !seg.includes('mountedResourceIds') && g.includes("watch(searchQuery, () => { aiSearch.value = null; aiAbort('') })") && g.includes("watch(currentType, () => { aiSearch.value = null; aiAbort('') })") && g.includes('aiAbortCtl.abort()'); });
+check('R136-1 ★入口 chunk 守卫：GlobalPopups 被 App.vue 静态挂载，其 AI 依赖全懒（零静态 import @/shared/ai，连 import type 都不写），检索函数段零写库（无 persist/无 mountedResourceIds 写入），改词与换类型 tab 即清态 · R150 备案：函数改名 aiSearchRun（「AI 理解」并入「AI 检索」），守卫逐条随迁', () => { const g = read('/newtab/components/GlobalPopups.vue'); const seg = segOf(g, 'async function aiSearchRun', 'const aiTopRows'); return !g.includes("from '@/shared/ai/") && g.includes("import('@/shared/ai/select')") && !seg.includes('persist') && !seg.includes('mountedResourceIds') && g.includes("watch(searchQuery, () => { aiSearch.value = null; aiAbort(''); recordedQ = '' })") && g.includes("watch(currentType, () => { aiSearch.value = null; aiAbort('') })") && g.includes('aiAbortCtl.abort()'); });
 check('R136-2 A3 推荐任务书：参谋契约（≤5 张宁缺毋滥+why 须说支撑哪步+id 不许编造）；buildRecommendJob 排除已挂载、parse 经 sanitizeRefs、apply 二次校验卡存在且未删未重复才挂载并触任务 updatedAt', () => { const s = read('/shared/ai/scenarios.ts'); const j = read('/shared/ai/select.ts'); return s.includes('你是用户的资源调度参谋') && s.includes('目录里没有的 id 不许编造') && j.includes('new Set(task.mountedResourceIds || [])') && j.includes('sanitizeRefs(s0, ctx.d)') && j.includes('ctx.d.resources.some(x => x.id === id && !x.deletedAt)') && j.includes('t.mountedResourceIds.push(id)') && j.includes('t.updatedAt = Date.now()'); });
 check('R136-3 检索契约与消毒（R150 起为 semanticSearch）：只回读——id 必须属于给定候选集、≤8 条、同 id 取高分不重复、why 截 40 字、note 截 40 字；候选<2 或空查询拒跑；丢弃条数计入消毒账', () => { const j = read('/shared/ai/select.ts'); const g = read('/newtab/components/GlobalPopups.vue'); return j.includes('!valid.has(id)') && j.includes('const HIT_CAP = 8') && j.includes(".slice(0, 40)") && j.includes('searchDropCount += dropped') && j.includes("if (c0) { if (hit.confidence > c0.confidence) Object.assign(c0, hit); continue }") && g.includes('cands.length < 2'); });
 check('R136-4（R155-⑤ 备案：入口组件化）两入口落位：任务抽屉「推荐卡」（动态 import select）+ 搜索面板一枚「AI 检索」钮（active 态=有结果，再点清除）与 AI 置顶组（原分组列表不动） · R150 备案：第二枚钮从「AI 理解」改名，全站只留这一枚检索类 AI 入口', () => { const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const g = read('/newtab/components/GlobalPopups.vue'); return td.includes('推荐卡') && td.includes('AiEntryButton') && td.includes("import('@/shared/ai/select')") && g.includes('gp-ai-tab') && g.includes('aiSearchRun') && g.includes("'AI 检索'") && g.includes(':spin="aiBusy"') && g.includes('v-if="aiTopRows.length && !isBrowseMode"'); });
@@ -3792,7 +3792,7 @@ check('R146-4 toast 队列（回退契约⑦）：最多叠 3 条、同文案+�
     && v.includes('toastState') && v.includes('TransitionGroup') && v.includes('var(--toast-bg)')
 });
 check('R146-5 ★AI 入口徽标全站统一（**R155 换骨：emoji → 单色线性 SVG**）：ZhiMark 除 AiEntryButton 外零引用、徽标尺寸只走令牌、以 currentColor 随主题着色；入口组件带 spin 态，五处原零反馈入口补互斥锁', () => {
-  const dirty = ALL_VUE146.filter(f => read(f).includes('🤖') && !f.endsWith('ZhiMark.vue') && !f.endsWith('GlobalPopups.vue')) /* R152 起口径：写进卡片的「AI 出品」数据前缀（aiMarks/chain）与检索命中徽标不算入口；R155 后入口徽标已无 emoji，余下 emoji 只活在数据与手册里 */
+  const dirty = ALL_VUE146.filter(f => read(f).includes('🤖') && !f.endsWith('ZhiMark.vue') && !f.endsWith('GlobalPopups.vue') && !f.endsWith('LinkCardsModal.vue')) /* R152 起口径：写进卡片的「AI 出品」数据前缀（aiMarks/chain）与检索命中徽标不算入口；R155 后入口徽标已无 emoji，余下 emoji 只活在数据与手册里。R161：镜像弹窗（LinkCardsModal.vue）的命中徽标与检索面板（GlobalPopups.vue）同款同义，按同一条口径豁免 */
   const zm = read('/shared/components/ZhiMark.vue')
   const ae = read('/shared/components/AiEntryButton.vue')
   /* R155-⑤：全站只许 AiEntryButton 引 ZhiMark（原 24 处/17 文件直挂已收敛） */
@@ -3810,7 +3810,7 @@ check('R146-6 ★检索类 AI 入口的提速骨架（实测"点了就一直等"
   const g = read('/newtab/components/GlobalPopups.vue'); const sel = read('/shared/ai/select.ts')
   return sel.includes('export async function semanticSearch') && sel.includes('await chatStream(') && sel.includes('maxTokens: 520') && sel.includes('const SEARCH_TIMEOUT_MS = 30000')
     && sel.includes('function searchReady') && sel.includes('if (!early && searchReady(a)) { early = true; ac.abort() }') && sel.includes("opts.signal?.addEventListener('abort', relay)")
-    && g.includes('点击取消本次 AI 检索') && g.includes('const aiCache = new Map<string, AiOut>()') && g.includes("watch(searchQuery, () => { aiSearch.value = null; aiAbort('') })") && g.includes('watch(activePanel, (p) => { if (p !== \'search\') aiAbort(null) })')
+    && g.includes('点击取消本次 AI 检索') && g.includes('const aiCache = new Map<string, AiOut>()') && g.includes("watch(searchQuery, () => { aiSearch.value = null; aiAbort(''); recordedQ = '' })") && g.includes('watch(activePanel, (p) => { if (p !== \'search\') aiAbort(null) })')
     && g.includes('检索中 ') && g.includes('已回 ') && !sel.includes('export async function rerankSearch')
 });
 check('R146-7 检索浮层类型 tab 版式（实测 emoji 把「搜全部」劈成两行）：七枚 tab 零图标前缀 + 单枚 nowrap + 窄窗整枚换行（flex-wrap）', () => {
@@ -4316,6 +4316,165 @@ check('R156-8 浅色双主题彻底分开：apple 冷灰白 #F5F5F7 + 纯黑文�
     && t.includes('--border: rgba(0, 0, 0, 0.09);') && t.includes('--border: rgba(40, 34, 24, 0.11);')
     && (t.split('--border: rgba(15, 15, 15, 0.08);').length - 1) === 0
 })
+
+// ============== R161 · V3.2.2：AI 评审中央弹窗 + 四项检索需求 ==============
+console.log('【R161 · V3.2.2：AI 中央弹窗、星标置顶、历史检索、全字段投料、镜像 AI】');
+check('R161-1 ★新建中央弹窗壳 Modal.vue：沿用 useOverlayTarget()（金字塔真全屏时浮层必须 Teleport 进全屏元素，落 body 会不可见）、尺寸走 CSS 变量（--md-w/--md-mh，内联 width 会压过窄屏媒体查询）', () => {
+  const m = read('/shared/components/Modal.vue')
+  return m.includes("from '@/shared/utils/overlayHost'") && m.includes('useOverlayTarget()')
+    && m.includes('<Teleport :to="overlayTarget">')
+    && m.includes("'--md-w': width") && m.includes("'--md-mh': maxHeight")
+    && m.includes('width: var(--md-w)') && m.includes('max-height: var(--md-mh)')
+});
+check('R161-2 ★中央弹窗三层 z 序与进出场：scrim 走 --z-modal、面板 calc(--z-modal + 1)；进出场 scale(0.975) 走 --ease-emphasis；窄屏 767px 全屏化', () => {
+  const m = read('/shared/components/Modal.vue')
+  return m.includes('z-index: var(--z-modal)') && m.includes('z-index: calc(var(--z-modal) + 1)')
+    && m.includes('--ease-emphasis') && m.includes('scale(0.975)')
+    && m.includes('@media (max-width: 767px)') && m.includes('prefers-reduced-motion');
+});
+check('R161-3 ★AI 评审从抽屉换壳为中央弹窗：不再 import Drawer.vue（它挂全站 30+ 抽屉宿主，本轮一字未动），模板根改 <Modal>，宽度按 dual 分档 1200/620', () => {
+  const a = read('/newtab/components/AiSuggestionDrawer.vue')
+  return !a.includes('shared/components/Drawer.vue')
+    && a.includes("import Modal from '@/shared/components/Modal.vue'")
+    && a.includes('<Modal :open="open"')
+    && a.includes("dual ? 'min(1200px, 92vw)' : '620px'")
+});
+check('R161-4 ★AI 评审模块化五段：徽标+场景名(#title) / 专家下拉(#title-extra) / 步骤+指令条(#sub，从 body 迁出后固定在头部) / body / 按钮行(#footer，不滚动区天然 sticky)', () => {
+  const a = read('/newtab/components/AiSuggestionDrawer.vue')
+  return a.includes('<template #title>') && a.includes('#title-extra') && a.includes('#sub>') && a.includes('<template #footer>')
+    && a.includes('class="ai-dir"') /* 一次性指令条已迁进 #sub */
+    && a.includes('<AiEntryButton variant="inline" large') /* 场景名与全站 AI 入口同徽标 */
+});
+check('R161-5 ★差异汇总行从右栏迁到跨栏公共区：ai-sum 承载 ai-chg（N 处差异）+ 只看差异/原文切换 + ai-usage（投料/耗时），左右对照两栏共享同一条汇总', () => {
+  const a = read('/newtab/components/AiSuggestionDrawer.vue')
+  return a.includes('class="ai-sum"') && a.includes('ai-sum-end') && a.includes('.ai-sum .ai-usage')
+    && a.includes('只看差异') && a.includes('原文');
+});
+check('R161-6 Cmd/Ctrl+Enter = 采纳选中：仅当可采纳（canApply）才生效，preventDefault + stopPropagation 防穿透，且 watch 必带 immediate（宿主 v-if 条件挂载时 open 出生即 true，缺它则监听从不注册）', () => {
+  const a = read('/newtab/components/AiSuggestionDrawer.vue')
+  return a.includes('function onDocKey') && a.includes("e.key !== 'Enter'") && a.includes('e.ctrlKey || e.metaKey')
+    && a.includes('e.preventDefault()') && a.includes('e.stopPropagation()')
+    && a.includes("addEventListener('keydown', onDocKey, true)")
+    && /watch\(open, \(v\) => \{[\s\S]*?\}, \{ immediate: true \}\)/.test(a);
+});
+check('R161-⑦ ★Esc 真能关掉中央弹窗：watch 必带 immediate —— 宿主是 `<AiSuggestionDrawer v-if="aiJob">` 而 open = computed(() => !!props.job)，弹窗**出生即 open=true**，缺 immediate 则 keydown 监听从不注册（现象：点遮罩能关、× 能关、按 Esc 毫无反应；本轮实测抓到，E2E-23 已补「真关掉」断言；同源缺陷也吞掉了 Cmd/Ctrl+Enter）', () => {
+  const m = read('/shared/components/Modal.vue')
+  return /watch\(\(\) => props\.open, async \(v\) => \{[\s\S]*?\}, \{ immediate: true \}\)/.test(m)
+    && m.includes("document.addEventListener('keydown', onKey, true)")
+    && m.includes('panelRef.value?.focus()')   /* 打开即聚焦面板（键盘用户不丢锚点） */
+    && m.includes('restoreTo.focus()')         /* 关闭归还焦点 */
+    && m.includes('onUnmounted(');             /* 卸载兜底：条件挂载的宿主销毁时不留野监听 */
+});
+check('R161-7 ★令牌三新增（四主题各一份，动 tokens.css 必跑 theme-contrast）：--radius-xl 外框圆角 / --scrim-modal 统一遮罩 / --shadow-modal 四份（中央弹窗的悬浮感不进 shadow-lg 复用）', () => {
+  const t = read('/shared/styles/tokens.css')
+  return t.includes('--radius-xl: 18px;') && t.includes('--scrim-modal:')
+    && count('/shared/styles/tokens.css', '--shadow-modal:') === 4;
+});
+check('R161-8 中央弹窗壳消费新令牌：外框 var(--radius-xl)、阴影 var(--shadow-modal)、遮罩 var(--scrim-modal)——零硬编码色值', () => {
+  const m = read('/shared/components/Modal.vue')
+  return m.includes('border-radius: var(--radius-xl)') && m.includes('box-shadow: var(--shadow-modal)')
+    && m.includes('background: var(--scrim-modal)') && !m.includes('border-radius: 18px');
+});
+check('R161-⑧ ★视觉证据链的三处工具修正 + 新建像素级对照工具：theme-audit 必须①进主题先 closeOverlays（遗留浮层会串场盖住后续 18 张台面图）②截图前 resetView（滚动 + 鼠标 hover 归零 —— 实测 hover 残留伪造出 8140px「差异」）③Esc 关不掉即非零退出；并常驻 img-diff.cjs（md5 会双向骗人：同包重采 md5 不同却逐像素 0 差异）', () => {
+  // ★ 门禁脚本自身不在 src/ 下，**不能用 read()**（它以 base=src 拼路径，read('/../v2/scripts/x') 会变成 v2/v2/scripts/x）。
+  //   R161 实测：首版这么写，regression 直接 ENOENT 红一条 —— 读脚本一律走 __dirname。
+  const norm = (s) => s.replace(/\r\n/g, '\n')
+  const t = norm(fs.readFileSync(path.join(__dirname, 'theme-audit.cjs'), 'utf8'))
+  const df = path.join(__dirname, 'img-diff.cjs')
+  const d = fs.existsSync(df) ? norm(fs.readFileSync(df, 'utf8')) : ''
+  return t.includes('async function closeOverlays')
+    && t.includes('async function resetView')
+    && t.includes('page.mouse.move(0, 0)')
+    && t.includes('window.scrollTo(0, 0)')
+    && t.includes('escLeak.push')
+    && t.includes('if (escLeak.length)')
+    && d.includes('getImageData')
+    && d.includes('diffPixels')
+    && d.includes('bbox');
+});
+check('R161-① 星标置顶（仅组内靠前）：AI 检索开启时排序以 markRank 优先、AI 命中度次之——否则 AI 次序会把星标卡挤出组首，与「置顶 > 星标 > 命中度」口径打架', () => {
+  const g = read('/newtab/components/GlobalPopups.vue')
+  return g.includes('markRank(b.raw as AnyCard) - markRank(a.raw as AnyCard)')
+    && g.includes("from '@/shared/utils/marksort'");
+});
+check('R161-② ★历史检索记录：本地记忆上限 20（SEARCH_HIST_MAX，不随数据同步），按次数降序只铺前 3 条，仅空检索态显示（gp-hist 挂在检索框下方 .gp-search-head 之后）', () => {
+  const g = read('/newtab/components/GlobalPopups.vue')
+  return g.includes('const SEARCH_HIST_MAX = 20') && g.includes('const topSearches = computed')
+    && g.includes('.slice(0, 3)') /* 只呈现 3 个常用记录 */
+    && g.includes('function recordSearch') && g.includes('function useHistory')
+    && g.includes("saveUIPrefs({ searchHistory: searchHistory.value })")
+    && g.includes('v-if="!searchQueryRaw && topSearches.length"') && g.includes('class="gp-hist"');
+});
+check('R161-② 历史记录写入点覆盖两条出口：打开/定位（openLinkOrLocate）与关闭面板（closeAll），且 2 字以下不记、同一轮 recordedQ 幂等防重复记账', () => {
+  const g = read('/newtab/components/GlobalPopups.vue')
+  return g.includes('recordSearch(searchQuery.value)') && g.includes('if (q.length < 2 || q === recordedQ) return')
+    && g.includes("recordedQ = ''") /* 换了词就允许再记 */
+    && (g.split('recordSearch(').length - 1) >= 3;
+});
+check('R161-③ ★全字段投料、只投地址不抓正文：AiSearchCand 补 fields（自定义字段折行）+ link（仅地址）；cardFieldText 单卡 120 字上限；系统提示写明「字段即全部依据、本功能不联网不抓正文」', () => {
+  const s = read('/shared/ai/select.ts')
+  const sc = read('/shared/ai/scenarios.ts')
+  const g = read('/newtab/components/GlobalPopups.vue')
+  return s.includes('fields?: string') && s.includes('link?: string') && s.includes('scope: string')
+    && g.includes('function cardFieldText')
+    && g.includes('fields: cardFieldText(raw)')
+    && sc.includes('不联网、不抓正文') && sc.includes('这些字段就是你的全部依据');
+});
+check('R161-③ ★定向收窄 scopeSearch：按输入指向（点名的类型 / 台名 / 分类名）收窄候选池，收窄后不足 2 张就放弃；带两条纪律——只认字面不猜意图、收窄结果经 finish 作为 scope 回传上屏', () => {
+  const s = read('/shared/ai/select.ts')
+  return s.includes('export function scopeSearch')
+    && s.includes('/资源卡|资源|链接卡|网站|工具卡/') && s.includes('/任务卡|任务|待办|要做|待到/') && s.includes('/好奇心|好奇卡|好奇|灵感|疑问|想法/')
+    && s.includes('if (out.length < 2) return { cands, scope: ') /* 收窄过头就退回全库 */
+    && s.includes('scopeSearch(query')
+    && s.includes('scope = ');
+});
+check('R161-③ 收窄只影响投料池不影响判断口径：semanticSearch 与 semanticSearchAll 均先 scopeSearch 再排序/分批，total 取收窄后池大小，scope 经 finish 回传', () => {
+  const s = read('/shared/ai/select.ts')
+  return (s.split('scopeSearch(').length - 1) >= 3
+    && s.includes('pool.slice') && s.includes("batches: number, scope = ''")
+});
+check('R161-④ ★策展台「关联卡片（镜像）」弹窗也接 AI 检索：linkBase 抽出（在册资源卡 + 分类过滤，**关键词不进底座**——否则"换个说法也能召回"失效），linkAiRun 懒引 AI 模块（启动零 AI 不变），命中贴标签、未字面命中的也能补入列表', () => {
+  const u = read('/newtab/composables/usePyramid.ts')
+  const w = read('/newtab/views/Workspace.vue')
+  const lm = read('/newtab/components/LinkCardsModal.vue')
+  return u.includes('const linkBase = computed')
+    && u.includes('if (!q) return linkBase.value')
+    && u.includes('async function linkAiRun')
+    && u.includes("import('@/shared/ai/select')")
+    && u.includes('const linkShowList = computed')
+    && u.includes('function linkAiHitOf')
+    && lm.includes('class="lc-ai-btn"') && lm.includes('v-for="c in list"')
+    && w.includes(':list="linkShowList"');
+});
+check('R161-④ 镜像弹窗 AI 的 UI 纪律：入口复用 AiEntryButton（大小与兄弟入口对齐）、投料/范围/耗时单行回执（lc-ai-fed）、命中两种档位标签（lc-ai-tag / .weak 低置信）', () => {
+  const lm = read('/newtab/components/LinkCardsModal.vue')
+  return lm.includes('.lc-ai-btn') && lm.includes('.lc-ai-fed') && lm.includes('.lc-ai-tag') && lm.includes('.lc-ai-tag.weak')
+    && lm.includes('<AiEntryButton variant="inline"') && lm.includes('aiFed.scanned');
+});
+check('R161-④ 弹窗抽组件并换 R161 新壳：宿主回到 ≤1500 行验收线（此前内联到 1515 行），新组件零自有状态（状态仍全在 usePyramid）、样式随组件迁（workspace.css 是宿主 scoped，跨不过组件边界）', () => {
+  const w = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8')
+  const lm = read('/newtab/components/LinkCardsModal.vue')
+  return w.split('\n').length <= 1500
+    && w.includes("import LinkCardsModal from '@/newtab/components/LinkCardsModal.vue'")
+    && lm.includes("import Modal from '@/shared/components/Modal.vue'") && lm.includes('<Modal :open="open"')
+    && lm.includes('<style scoped>') && lm.includes('.lc-item {')
+    && !read('/newtab/views/workspace.css').includes('.lc-item {')
+    && !lm.includes("from '@/shared/ai/")
+});
+check('R161-⑤ 检索历史进 UI 偏好：searchHistory 落在 UIPrefs（本地记忆，不随数据同步），字段形态 { q, n, at }', () => {
+  const m = read('/shared/models/index.ts')
+  return m.includes('searchHistory?: { q: string; n: number; at: number }[]');
+});
+check('R161-⑥ ★门禁补漏：全站 .vue 模板结构自检（SFC 解析零错误）—— 本轮实证 `vue-tsc --noEmit` 对「元素未闭合」**静默放行**（AiSuggestionDrawer.vue 少一个 </div>：vue-tsc EXIT=0，vite build 直接报 Element is missing end tag），模板结构错误必须在静态门禁就抓住 · 注意必须**裸 fs 读单文件**（read() 对 Workspace.vue 是聚合读取，把 composables/css 拼进来会假报错）', () => {
+  const { parse: sfcParse } = require('@vue/compiler-sfc')
+  const bad = []
+  for (const f of ALL_VUE146) {
+    const r = sfcParse(fs.readFileSync(base + f, 'utf8'), { filename: f })
+    if (r.errors.length) bad.push(f + ' :: ' + r.errors[0].message)
+  }
+  if (bad.length) console.log('     模板结构错误：' + bad.join(' ｜ '))
+  return bad.length === 0 && ALL_VUE146.length >= 53
+});
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

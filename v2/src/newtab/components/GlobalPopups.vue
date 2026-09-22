@@ -17,6 +17,12 @@
         </div>
         <button class="gp-search-esc" @click="closeAll">Esc</button>
       </div>
+      <!-- R161-②：常用检索词 —— 只在没在输入时露出（正在打字还铺一排"以前的词"只会碍事） -->
+      <div v-if="!searchQueryRaw && topSearches.length" class="gp-hist">
+        <span class="gp-hist-cap">常用检索</span>
+        <button v-for="h in topSearches" :key="h.q" type="button" class="gp-hist-chip"
+          :title="`用过 ${h.n} 次 · 点击放回检索框`" @click="useHistory(h.q)">{{ h.q }}</button>
+      </div>
       <!-- R146-d：tab 去 emoji 图标（实测带图标在窄屏逐字换行成两行）+ nowrap 锁死 -->
       <div class="gp-type-tabs">
         <div class="gp-type-tab" :class="{active: currentType==='all'}" @click="setType('all')">搜全部 <span class="gp-tt-count">{{ counts.all }}</span></div>
@@ -38,6 +44,8 @@
           <div class="gp-group-title gp-ai-title">
             <AiEntryButton variant="inline" label="AI 检索" />
             <span class="gp-ai-fed">挑出 {{ aiTopRows.length }} 条 · 投料 {{ aiSearch?.scanned }}/{{ aiSearch?.total }} 张 · {{ aiDur(aiTook) }}<template v-if="aiSearch && aiSearch.batches > 1"> · {{ aiSearch.batches }} 批</template></span>
+            <!-- R161-③：把"按你这句话收窄到了什么范围"说清楚——不然 total 变小会被误读成"库里就这么点卡" -->
+            <span v-if="aiSearch && aiSearch.scope" class="gp-ai-scope" title="按你这句话的指向性（点名的类型 / 台 / 分类）收窄了候选范围；识别不到指向就查全库">🎯 范围 {{ aiSearch.scope }}</span>
             <span v-if="aiSearch && aiSearch.note" class="gp-ai-note">{{ aiSearch.note }}</span>
             <span v-if="aiSearch && aiSearch.dropped" class="gp-ai-drop">消毒：{{ aiSearch.dropped }} 条 id 不在候选内</span>
             <button v-if="aiSearch && aiSearch.scanned < aiSearch.total" class="gp-ai-more" :disabled="aiBusy"
@@ -387,6 +395,7 @@ import type { ResourceCard, TaskCard, CuriosityCard, Workspace, Category, AnyCar
 // R146（回退契约）：检索浮层删任务改走软删真源（同时摘 metric.taskIds，守 R141 双向不变量）
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
 import { markRank } from '@/shared/utils/marksort'
+import { saveUIPrefs } from '@/shared/storage/repository'
 import { buildCatOptions } from '@/shared/utils/catTree'
 
 const router = useRouter()
@@ -452,6 +461,8 @@ function openPanel(p: PanelType) {
   })
 }
 function closeAll() {
+  // R161-②：这次检索真有结果也算"用过"——不是每个人都会点开某一行；同句只记一次（recordSearch 内幂等）
+  if (searchQuery.value.trim() && filteredResults.value.length) recordSearch(searchQuery.value)
   activePanel.value = null
   convertMenuId.value = null
   capSaved.value = false
@@ -519,6 +530,37 @@ function setSearchQuery(v: string) {
   searchQueryRaw.value = v; searchQuery.value = v
 }
 onUnmounted(() => { if (qDebounce) clearTimeout(qDebounce) })
+
+/* ===== R161-②：常用检索词 =====
+ * 记的是"这个词真的被用出去过"（打开/定位了某一行的那一刻），不是半截输入 ——
+ * 按 120ms 防抖记账会把 `d`/`db`/`dbs` 全记一遍，那叫输入历史，不叫检索历史。
+ * 存本地偏好（UIPrefs，不随数据同步）：换机器不该把别人的搜索习惯带过去。
+ */
+const SEARCH_HIST_MAX = 20
+const searchHistory = ref<{ q: string; n: number; at: number }[]>(
+  Array.isArray((store.ui as { searchHistory?: unknown } | null)?.searchHistory)
+    ? ((store.ui as { searchHistory: { q: string; n: number; at: number }[] }).searchHistory)
+    : []
+)
+/** 检索框下方只铺 3 条：按次数降序，同次按最近 */
+const topSearches = computed(() => searchHistory.value.slice()
+  .sort((a, b) => b.n - a.n || b.at - a.at).slice(0, 3))
+/** 同一句检索只记一次：点开某一行会走到 closeAll，"打开"与"关闭"不该被记成两次 */
+let recordedQ = ''
+function recordSearch(qRaw: string): void {
+  const q = qRaw.trim()
+  if (q.length < 2 || q === recordedQ) return
+  recordedQ = q
+  const old = searchHistory.value.find(h => h.q === q)
+  const list = [{ q, n: (old?.n || 0) + 1, at: Date.now() }, ...searchHistory.value.filter(h => h.q !== q)]
+  searchHistory.value = list.slice(0, SEARCH_HIST_MAX)
+  saveUIPrefs({ searchHistory: searchHistory.value })
+}
+/** 点历史词 = 把当时那句话放回检索框（走 setSearchQuery，raw 与防抖值同步落定） */
+function useHistory(q: string): void {
+  setSearchQuery(q)
+  searchInput.value?.focus()
+}
 // R131-C2：浮层关闭 = 检索管线整体停摆。gp-overlay 恒挂载（opacity 隐藏），
 // 模板绑定让整链在面板关闭时仍随全库每次变更重算；此守卫把关闭态的全部重计算压到 O(1)。
 const searchActive = computed(() => activePanel.value === 'search')
@@ -839,9 +881,9 @@ function aiDur(ms: number) { return ms < 1000 ? ms + 'ms' : (ms / 1000).toFixed(
  * 这里刻意不写任何指向 AI 目录的 import（连 import type 都不写）：R138-1 是按字面量钉入口
  * chunk 的，类型导入同样会命中那条守卫——宁可留三行同形声明，也不给启动链开豁免。
  */
-type AiCand = { id: string; type: string; title: string; ws: string; cat: string; summary?: string; tags?: string[]; callCount?: number; updatedAt?: number }
+type AiCand = { id: string; type: string; title: string; ws: string; cat: string; summary?: string; tags?: string[]; callCount?: number; updatedAt?: number; fields?: string; link?: string }
 type AiHit = { id: string; why: string; confidence: number; weak: boolean }
-type AiOut = { hits: AiHit[]; note: string; scanned: number; total: number; dropped: number; batches: number }
+type AiOut = { hits: AiHit[]; note: string; scanned: number; total: number; dropped: number; batches: number; scope: string }
 let aiAbortCtl: AbortController | null = null
 let aiTick: ReturnType<typeof setInterval> | null = null
 /** 取消话术：undefined=没取消 · ''=静默取消（改词/关浮层，不打扰用户） · 非空=要点名提示 */
@@ -856,6 +898,23 @@ function aiAbort(msg: string | null) {
 watch(activePanel, (p) => { if (p !== 'search') aiAbort(null) })
 /** 候选=库内三类卡（不受字面命中限制，这正是与旧「AI 理解」的分工差别）；跟着类型 tab 收窄，切到「任务卡」就只投任务。
  *  ★只在点击时求值：模板里不引用它——那会让每次键入渲染都重扫一遍全库建候选数组（浮层是热路径）。 */
+/**
+ * R161-③：把卡片的**全部自定义字段**折成一行文本投给模型。
+ * 只投有值的字段、单卡上限 120 字 —— 字段是用户自己填的语义，信息密度常高于描述本身。
+ * 注意边界：这里只取字段**内容**，不做任何联网动作（链接只投地址，不抓正文）。
+ */
+function cardFieldText(card: AnyCard): string {
+  const cf = card.customFields
+  if (!cf) return ''
+  const parts: string[] = []
+  for (const k of Object.keys(cf)) {
+    const v = cf[k]
+    if (v == null || v === '') continue
+    parts.push(`${k}:${String(v).replace(/\s+/g, ' ')}`)
+    if (parts.join(' ').length >= 120) break
+  }
+  return parts.join(' ').slice(0, 120)
+}
 const aiCands = computed<AiCand[]>(() => {
   const want = currentType.value === 'all' ? null : currentType.value
   if (want === 'ws' || want === 'proj') return [] // 台/项目不参与语义召回（它们不是"卡"）
@@ -868,6 +927,8 @@ const aiCands = computed<AiCand[]>(() => {
     out.push({
       id: r.id, type: r.type, title: r.title, ws: r.ws, cat: r.cat, summary: r.summary,
       tags: (raw as { tags?: string[] }).tags, callCount: (raw as { callCount?: number }).callCount, updatedAt: raw.updatedAt,
+      // R161-③：全字段投料——自定义字段 + 链接地址（只有地址，不抓网页内容）
+      fields: cardFieldText(raw), link: (raw as { link?: string }).link || undefined,
     })
   }
   return out
@@ -945,7 +1006,7 @@ const aiTopRows = computed(() => {
     .map(hit => ({ hit, item: allResults.value.find(r => r.id === hit.id) }))
     .filter((x): x is { hit: AiHit; item: SearchResult } => !!x.item)
 })
-watch(searchQuery, () => { aiSearch.value = null; aiAbort('') })
+watch(searchQuery, () => { aiSearch.value = null; aiAbort(''); recordedQ = '' })
 /** 类型 tab 一换，候选集就换了——旧结果留着会指着不相干的卡 */
 watch(currentType, () => { aiSearch.value = null; aiAbort('') })
 
@@ -1002,7 +1063,16 @@ const groupedResults = computed(() => {
     const seenIds = new Set(all.map(r => r.id))
     const extra = (allResults.value || []).filter(r => r.type === d0.type && rank.has(r.id) && !seenIds.has(r.id))
     const pool = extra.length ? [...all, ...extra] : all
-    const ordered = rank.size ? [...pool].sort((a, b) => (rank.has(a.id) ? rank.get(a.id)! : 1e9) - (rank.has(b.id) ? rank.get(b.id)! : 1e9)) : pool
+    // R161-①：**星标/置顶在同组内永远是第一顺位**，AI 命中次序只在标记之后才决定。
+    //   改前只按 AI 次序排，"星标卡会被 AI 结果挤到组尾"，与"置顶>星标>普通"的既有口径打架（真机反馈）。
+    //   同标记且同非命中时比较器返回 0，稳定排序保持 filteredResults 的既有次序（命中强度>热度>最近）。
+    const ordered = rank.size
+      ? [...pool].sort((a, b) => {
+        const mr = markRank(b.raw as AnyCard) - markRank(a.raw as AnyCard)
+        if (mr) return mr
+        return (rank.has(a.id) ? rank.get(a.id)! : 1e9) - (rank.has(b.id) ? rank.get(b.id)! : 1e9)
+      })
+      : pool
     if (ordered.length) { out.push({ label: d0.label, items: ordered.slice(0, MAX_PER_GROUP), offset, total: ordered.length }); offset += ordered.length }
   }
   return out
@@ -1040,6 +1110,7 @@ function runFlatLocator(index: number) {
 
 /** R120 键位统一：单击 / Enter —— 打开卡片链接优先；无链接/不可打开则定位到卡片所在处 */
 function openLinkOrLocate(item: SearchResult) {
+  recordSearch(searchQuery.value) // R161-②：这次检索被用出去了，记账
   if (item.type === 'res') {
     const r = item.raw as ResourceCard
     if (toOpenableUrl(r.linkType, r.link)) { openResLink(item); return }
@@ -1537,6 +1608,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-ai-tab.busy { color: var(--accent); cursor: pointer; }
 .gp-ai-title { color: var(--accent); display: flex; align-items: center; gap: 6px; }
 .gp-ai-fed { font-weight: 400; font-size: var(--fs-caption); color: var(--text-4); }
+.gp-ai-scope { margin-left: 8px; font-weight: 400; font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; }
 .gp-ai-note { margin-left: 8px; font-weight: 400; color: var(--text-3); }
 .gp-ai-why { font-size: var(--fs-caption); color: var(--accent); background: var(--accent-light); border-radius: var(--radius-xs); padding: 1px 6px; }
 .gp-ai-row { border-left: 2px solid var(--accent); }
@@ -1545,6 +1617,13 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-search-esc:hover { color: var(--text-2); border-color: var(--border-strong); }
 
 /* 类型Tab · R146-d：去 emoji 图标 + tab 内锁 nowrap——窄窗宁可整枚换到第二行，也不把「搜全部」劈成两截 */
+/* R161-②：常用检索词（检索框正下方一条，最多 3 枚 chip；不输入时才出现） */
+.gp-hist { display: flex; align-items: center; gap: 6px; padding: 10px 22px 0; flex-wrap: wrap; }
+.gp-hist-cap { font-size: var(--fs-caption); color: var(--text-4); letter-spacing: var(--tracking-sm); flex-shrink: 0; }
+.gp-hist-chip { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 3px 10px; border-radius: var(--radius-xs); border: 1px solid var(--border); background: var(--surface-2);
+  color: var(--text-2); font-size: var(--fs-caption); font-family: inherit; cursor: pointer; transition: all var(--dur); }
+.gp-hist-chip:hover { border-color: var(--border-strong); color: var(--text); background: var(--surface-3); }
 .gp-type-tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 12px 22px 8px; }
 .gp-type-tab { padding: 5px 12px; border-radius: 8px; font-size: var(--fs-body); color: var(--text-3); cursor: pointer;
   transition: all var(--dur-fast); display: flex; align-items: center; gap: 5px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }

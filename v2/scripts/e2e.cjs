@@ -649,11 +649,16 @@ async function main() {
   const dirStore = await page.evaluate(() => chrome.storage.local.get('zy_ai_directives_v1').then(r => r['zy_ai_directives_v1'] || null))
   const appRaw = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => JSON.stringify(r['zy_data_v2'] || '')))
   const reviewScope = dirStore && dirStore['review']
-  report('E2E-23 R154 双栏对照真渲染 + 指令落独立键不进 AppData：抽屉出左栏「投料原文」、指令框随入口出现，写的字进 zy_ai_directives_v1',
-    reviewFound > 0 && dualOn && leftRows >= 3 && dirOn && !!reviewScope && reviewScope.entry && reviewScope.entry.text === '每节不超过 40 字' && !appRaw.includes('zy_ai_directives') && !appRaw.includes('每节不超过 40 字'),
-    'btn=' + reviewFound + ' dual=' + dualOn + ' leftRows=' + leftRows + ' dir=' + dirOn + ' scope=' + JSON.stringify(reviewScope && reviewScope.entry && reviewScope.entry.text) + ' tier=' + (reviewScope && reviewScope.tier) + ' 泄漏进AppData=' + appRaw.includes('每节不超过 40 字'))
+  // R161：**Esc 必须真关掉**。此前这里只按下 Esc 却从不断言结果——本轮实测正因如此漏掉了真缺陷：
+  //   中央弹窗的 `watch(() => props.open)` 缺 `immediate`，而宿主是 `v-if="aiJob"`（open 出生即 true）
+  //   ⇒ Esc 监听从未注册，弹窗关不掉（点遮罩/× 能关，只有键盘不灵），E2E-23 却一直是绿的。
   await page.keyboard.press('Escape')
-  await page.waitForTimeout(500)
+  await page.waitForTimeout(700)
+  const mdClosed = !(await page.locator('.md-panel').first().isVisible().catch(() => false))
+  report('E2E-23 R154/R161 双栏对照真渲染 + 指令落独立键不进 AppData + Esc 真关中央弹窗：弹窗出左栏「投料原文」、指令框随入口出现，写的字进 zy_ai_directives_v1，Esc 一键关闭',
+    reviewFound > 0 && dualOn && leftRows >= 3 && dirOn && !!reviewScope && reviewScope.entry && reviewScope.entry.text === '每节不超过 40 字' && !appRaw.includes('zy_ai_directives') && !appRaw.includes('每节不超过 40 字') && mdClosed,
+    'btn=' + reviewFound + ' dual=' + dualOn + ' leftRows=' + leftRows + ' dir=' + dirOn + ' scope=' + JSON.stringify(reviewScope && reviewScope.entry && reviewScope.entry.text) + ' tier=' + (reviewScope && reviewScope.tier) + ' 泄漏进AppData=' + appRaw.includes('每节不超过 40 字') + ' Esc关闭=' + mdClosed)
+  await page.waitForTimeout(300)
   await page.evaluate(() => chrome.storage.local.remove(['zy_ai_directives_v1', 'zy_ai_v1']))
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1200)

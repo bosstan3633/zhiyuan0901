@@ -107,17 +107,23 @@ export function buildRecommendJob(task: TaskCard, ctx: SelectCtx): AiJob | null 
 export interface AiSearchCand {
   id: string; type: string; title: string; ws: string; cat: string
   summary?: string; tags?: string[]; callCount?: number; updatedAt?: number
+  /** R161-③：自定义字段折成的一行文本（用户自己填的语义，密度常高于描述） */
+  fields?: string
+  /** R161-③：链接**地址本身**（卡片字段之一）。只投地址，**不抓网页内容**——语义检索不联网取正文。 */
+  link?: string
 }
 export interface AiSearchHit { id: string; why: string; confidence: number; weak: boolean }
 export interface AiSearchOut {
   hits: AiSearchHit[]; note: string
   /** 本次真的投给模型看了多少张 */
   scanned: number
-  /** 库内该类型可用卡数（粗筛前） */
+  /** 收窄后的候选池大小（粗筛前）——R161-③ 起是「按用户输入定向收窄后」的范围，不是全库 */
   total: number
   /** 模型点名但不在候选集里的条数（消毒丢弃） */
   dropped: number
   batches: number
+  /** R161-③：本次按用户输入的指向性收窄到什么范围（空串 = 没识别到指向，用全库） */
+  scope: string
 }
 export interface AiSearchOpts {
   signal?: AbortSignal
@@ -148,27 +154,74 @@ function queryTokens(q: string): string[] {
   }
   return out.slice(0, 24)
 }
+/**
+ * R161-③：按用户这句话的**指向性**收窄候选范围。
+ *
+ * 为什么：用户说"资源卡里关于 X 的""某分类下有没有 Y"时，把全库都塞进投料既慢又噪声大；
+ * 收窄之后 total 变小，**一次投料能覆盖的比例反而更高**——这就是"按输入指向做范围内全盘检索、
+ * 同时保住响应速度"的落地方式（用户 2026-09-22 拍板）。
+ *
+ * 两条纪律：
+ *  ① **只认字面出现的词**，不做同义改写、不猜意图（宁松勿猜：识别不到就原样返回全库）；
+ *  ② 收窄后不足 2 张就**放弃收窄**——那已经不叫"挑"，叫"没得挑"。
+ */
+export function scopeSearch(query: string, cands: AiSearchCand[]): { cands: AiSearchCand[]; scope: string } {
+  const q = String(query || '').trim()
+  if (!q) return { cands, scope: '' }
+  // ① 类型指向：三类各有自己的说法；同时点了两三类就并列保留（"资源卡和任务"）
+  const types: string[] = []
+  if (/资源卡|资源|链接卡|网站|工具卡/.test(q)) types.push('res')
+  if (/任务卡|任务|待办|要做|待到/.test(q)) types.push('task')
+  if (/好奇心|好奇卡|好奇|灵感|疑问|想法/.test(q)) types.push('curio')
+  let out = (types.length && types.length < 3) ? cands.filter(c => types.includes(c.type)) : cands
+  // ② 台名 / 分类名指向：句子里点名了某个策展台或分类（≥2 字，避开单字噪声）
+  const names = [...new Set(out.map(c => c.cat).concat(out.map(c => c.ws)))].filter(n => n && n.length >= 2)
+  const hitNames = names.filter(n => q.includes(n))
+  if (hitNames.length) {
+    const narrowed = out.filter(c => hitNames.includes(c.cat) || hitNames.includes(c.ws))
+    if (narrowed.length >= 2) out = narrowed
+    else hitNames.length = 0
+  }
+  if (out.length < 2) return { cands, scope: '' }
+  if (out.length === cands.length) return { cands, scope: '' }
+  const bits: string[] = []
+  if (types.length && types.length < 3) {
+    bits.push(types.map(t => (t === 'res' ? '资源卡' : t === 'task' ? '任务卡' : '好奇心')).join('/'))
+  }
+  if (hitNames.length) bits.push('「' + hitNames.slice(0, 2).join('」「') + '」')
+  return { cands: out, scope: `${bits.join(' · ')} ${out.length}/${cands.length} 张` }
+}
+
 /** 粗筛分：只用于"装不下时先看哪些"，最终判断交给模型——所以宁可让热门/新鲜卡多占名额 */
 function searchScore(parts: string[], c: AiSearchCand): number {
   const t = c.title.toLowerCase()
   const smry = (c.summary || '').toLowerCase()
   const place = `${c.ws} ${c.cat}`.toLowerCase()
   const tg = (c.tags || []).join(' ').toLowerCase()
+  // R161-③：自定义字段与链接地址也参与粗筛（字段是用户自己填的，命中权重介于标签与摘要之间）
+  const fl = (c.fields || '').toLowerCase()
+  const lk = (c.link || '').toLowerCase()
   let n = 0
   for (const p of parts) {
     if (t.includes(p)) n += 6
     if (tg.includes(p)) n += 4
     if (place.includes(p)) n += 3
     if (smry.includes(p)) n += 2
+    if (fl.includes(p)) n += 3
+    if (lk.includes(p)) n += 2
   }
   n += Math.min(3, Math.log2((c.callCount || 0) + 1))
   if (c.updatedAt && Date.now() - c.updatedAt < 7 * 864e5) n += 1.5
   return n
 }
+/** R161-③：每行给全**卡片字段**（标题/台类/标签/摘要/自定义字段/链接地址）。
+ *  行里不给的东西模型一概不许假设——尤其**链接指向的网页内容**：本功能不联网抓正文。 */
 const searchLines = (cs: AiSearchCand[]) => cs.map(c =>
   `- id=${c.id} [${c.type}] 「${c.title.slice(0, 40)}」 | ${c.ws}/${c.cat}`
   + `${c.tags?.length ? ` | 标签[${c.tags.join(',').slice(0, 30)}]` : ''}`
   + `${c.summary ? ` | ${c.summary.replace(/\s+/g, ' ').slice(0, 36)}` : ''}`
+  + `${c.fields ? ` | 字段[${c.fields.replace(/\s+/g, ' ').slice(0, 60)}]` : ''}`
+  + `${c.link ? ` | 链接${c.link.replace(/\s+/g, '').slice(0, 36)}` : ''}`
   + `${c.callCount ? ` | 打开${c.callCount}次` : ''}`).join('\n')
 
 /** 一批候选问一次；deadline 由调用方掐（分批全扫共用同一个钟），timedOut 用来把 AbortError 翻成人话 */
@@ -218,11 +271,14 @@ let searchDropCount = 0
 /** 默认路径：粗筛取前 N 张 → 一次精排 */
 export async function semanticSearch(query: string, cands: AiSearchCand[], depth: AiDepth, opts: AiSearchOpts = {}): Promise<AiSearchOut> {
   const q = query.trim()
-  const total = cands.length
   searchDropCount = 0
-  if (!q || total < 2) throw new Error('库里候选卡太少，先用关键词搜出多点再来')
+  if (!q || cands.length < 2) throw new Error('库里候选卡太少，先用关键词搜出多点再来')
+  // R161-③：先按这句话的指向性收窄，再在**收窄后的范围**里排序取头部（收窄 → total 变小 → 覆盖比例更高）
+  const sc = scopeSearch(q, cands)
+  const pool = sc.cands
+  const total = pool.length
   const parts = queryTokens(q)
-  const ranked = cands.map(c => ({ c, s: searchScore(parts, c) }))
+  const ranked = pool.map(c => ({ c, s: searchScore(parts, c) }))
     .sort((a, b) => b.s - a.s || (b.c.updatedAt || 0) - (a.c.updatedAt || 0))
   const cap = Math.min(SEARCH_CAP[depth], total)
   const picked = ranked.slice(0, cap).map(x => x.c)
@@ -233,16 +289,19 @@ export async function semanticSearch(query: string, cands: AiSearchCand[], depth
   const timer = setTimeout(() => { ctl.timedOut = true; ac.abort() }, SEARCH_TIMEOUT_MS)
   try {
     const one = await askOnce(q, picked, opts, ac, ctl)
-    return finish(one, picked.length, total, 1)
+    return finish(one, picked.length, total, 1, sc.scope)
   } finally { clearTimeout(timer); opts.signal?.removeEventListener('abort', relay) }
 }
 
 /** 兜底路径：分批扫完全库（慢、按批数花钱），批间可取消、边跑边报进度 */
 export async function semanticSearchAll(query: string, cands: AiSearchCand[], depth: AiDepth, opts: AiSearchOpts = {}): Promise<AiSearchOut> {
   const q = query.trim()
-  const total = cands.length
   searchDropCount = 0
-  if (!q || total < 2) throw new Error('库里候选卡太少，先用关键词搜出多点再来')
+  if (!q || cands.length < 2) throw new Error('库里候选卡太少，先用关键词搜出多点再来')
+  // R161-③：慢路径同样先收窄——"全库分批扫"扫的是**用户指向的那个范围的全量**
+  const sc = scopeSearch(q, cands)
+  const pool = sc.cands
+  const total = pool.length
   const size = SEARCH_BATCH[depth]
   const ctl: AskCtl = { timedOut: false }
   const acc = new Map<string, AiSearchHit>()
@@ -256,7 +315,7 @@ export async function semanticSearchAll(query: string, cands: AiSearchCand[], de
   try {
     for (let i = 0; i < total; i += size) {
       if (opts.signal?.aborted) throw new Error('已取消')
-      const slice = cands.slice(i, i + size)
+      const slice = pool.slice(i, i + size)
       const ac = new AbortController()
       aborters.add(ac)
       let one: { items: AiSearchHit[]; note: string }
@@ -271,13 +330,13 @@ export async function semanticSearchAll(query: string, cands: AiSearchCand[], de
       if (acc.size >= HIT_CAP * 2) break // 够用了就别再把剩下的卡继续烧钱
     }
   } finally { clearTimeout(timer); opts.signal?.removeEventListener('abort', relay); aborters.clear() }
-  return finish({ items: [...acc.values()], note }, Math.min(total, size * batches), total, batches)
+  return finish({ items: [...acc.values()], note }, Math.min(total, size * batches), total, batches, sc.scope)
 }
 
-function finish(one: { items: AiSearchHit[]; note: string }, scanned: number, total: number, batches: number): AiSearchOut {
+function finish(one: { items: AiSearchHit[]; note: string }, scanned: number, total: number, batches: number, scope = ''): AiSearchOut {
   return {
     hits: one.items.sort((a, b) => b.confidence - a.confidence).slice(0, HIT_CAP),
-    note: one.note, scanned, total, dropped: searchDropCount, batches,
+    note: one.note, scanned, total, dropped: searchDropCount, batches, scope,
   }
 }
 

@@ -239,10 +239,11 @@ export function usePyramid(ctx: PyramidCtx) {
     if (m.picked.has(id)) m.picked.delete(id)
     else m.picked.add(id)
   }
-  /** 候选 = 资源台全部资源卡（关键词过滤）；已镜像到本台的标记「已在该台」不可重选 */
-  const linkCandidates = computed<{ r: ResourceCard; mirrored: boolean }[]>(() => {
+  /** 弹窗候选的**共同底座**：资源台在册卡 + 分类过滤。
+   *  关键词只影响**可见列表**，不进底座——与检索面板同一条纪律：AI 的候选不该被"字面没命中"提前砍掉，
+   *  否则"换个说法也能召回"这个功能本身就白做了。 */
+  const linkBase = computed<{ r: ResourceCard; mirrored: boolean }[]>(() => {
     if (!linkCardsModal.value) return []
-    const q = linkCardsQ.value.trim().toLowerCase()
     const mirroredSet = new Set((d.value.curationProjections || [])
       .filter(p => p.kind === 'card' && p.targetWsId === workspaceId.value).map(p => p.cardId))
     const catSel = linkCardsCat.value
@@ -255,9 +256,14 @@ export function usePyramid(ctx: PyramidCtx) {
     return d.value.resources
       .filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
       .filter(r => !catSel || (catSel === '__uncat__' ? (!r.categoryId || !curCatIds.has(r.categoryId)) : catIds!.has(r.categoryId || '')))
-      .filter(r => !q || (r.title + ' ' + (r.link || '')).toLowerCase().includes(q))
       .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt)
       .map(r => ({ r, mirrored: mirroredSet.has(r.id) }))
+  })
+  /** 候选 = 底座 + 关键词过滤（关键词为空时即底座全量） */
+  const linkCandidates = computed<{ r: ResourceCard; mirrored: boolean }[]>(() => {
+    const q = linkCardsQ.value.trim().toLowerCase()
+    if (!q) return linkBase.value
+    return linkBase.value.filter(c => (c.r.title + ' ' + (c.r.link || '')).toLowerCase().includes(q))
   })
   function confirmLinkCards() {
     const m = linkCardsModal.value
@@ -271,6 +277,94 @@ export function usePyramid(ctx: PyramidCtx) {
     store.persist()
     linkCardsModal.value = null
     showToast(ok ? `📡 已镜像 ${ok} 张资源卡到「${m.catName}」` : 'ℹ 所选卡片均已在该台镜像中')
+  }
+
+  // ===== R161-④：关联资源卡弹窗里的 AI 检索 =====
+  // 与检索面板（GlobalPopups）**同源**：同一个 semanticSearch、同一条「只读不写库」纪律、
+  // 同一套「全字段投料 + 只投链接地址不抓正文」口径（R161-③）；差别只在候选池固定为「资源台可镜像卡」。
+  const linkAiBusy = ref(false)
+  const linkAiHits = ref<Record<string, { why: string; weak: boolean }>>({})
+  const linkAiNote = ref('')
+  const linkAiScope = ref('')
+  const linkAiFed = ref({ scanned: 0, total: 0 })
+  const linkAiTook = ref(0)
+  let linkAiCtl: AbortController | null = null
+  const linkAiOn = computed(() => Object.keys(linkAiHits.value).length > 0)
+  function linkAiReset(): void {
+    linkAiHits.value = {}; linkAiNote.value = ''; linkAiScope.value = ''
+    linkAiFed.value = { scanned: 0, total: 0 }; linkAiTook.value = 0
+  }
+  /** R161-③ 同口径：卡片自定义字段折成一行文本（链接只投地址本身，不抓网页内容） */
+  function linkAiFieldText(card: ResourceCard): string {
+    const cf = card.customFields
+    if (!cf) return ''
+    const parts: string[] = []
+    for (const k of Object.keys(cf)) {
+      const v = cf[k]
+      if (v == null || v === '') continue
+      parts.push(`${k}:${String(v).replace(/\s+/g, ' ')}`)
+      if (parts.join(' ').length >= 120) break
+    }
+    return parts.join(' ').slice(0, 120)
+  }
+  /** 跑动态（供按钮文案用）：与检索面板一样不许假装有进度 */
+  const linkAiProgress = computed(() => (linkAiBusy.value ? '检索中…' : 'AI 检索'))
+  async function linkAiRun(): Promise<void> {
+    if (linkAiBusy.value) { linkAiCtl?.abort(); return }
+    const q = linkCardsQ.value.trim()
+    if (!q) { showToast('先在关键词框里写下你要找什么（一句话就行），再点 AI 检索'); return }
+    const pool = linkBase.value
+    if (pool.length < 2) { showToast('资源台可镜像的卡太少，换个大点的分类再来'); return }
+    const catName = (id?: string) => d.value.categories.find(c => c.id === id)?.name || ''
+    const cands = pool.map(c => ({
+      id: c.r.id, type: 'res', title: c.r.title, ws: '资源台', cat: catName(c.r.categoryId),
+      summary: c.r.description, tags: c.r.tags, callCount: c.r.callCount, updatedAt: c.r.updatedAt,
+      fields: linkAiFieldText(c.r), link: c.r.link || undefined,
+    }))
+    linkAiBusy.value = true
+    const ctl = new AbortController(); linkAiCtl = ctl
+    const t0 = Date.now()
+    try {
+      // AI 栈全程懒引（与检索面板一致：绝不静态 import '@/shared/ai/'）
+      const [{ loadAiConfig, aiReady, aiConfig }, { semanticSearch }] = await Promise.all([
+        import('@/shared/ai/config'), import('@/shared/ai/select'),
+      ])
+      await loadAiConfig()
+      if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+      const out = await semanticSearch(q, cands, aiConfig.value.depth, { signal: ctl.signal })
+      linkAiTook.value = Date.now() - t0
+      linkAiFed.value = { scanned: out.scanned, total: out.total }
+      linkAiNote.value = out.note || ''
+      linkAiScope.value = out.scope || ''
+      const map: Record<string, { why: string; weak: boolean }> = {}
+      for (const h of out.hits) map[h.id] = { why: h.why || '', weak: !!h.weak }
+      linkAiHits.value = map
+      showToast(out.hits.length ? `✓ AI 挑出 ${out.hits.length} 条（看了 ${out.scanned}/${out.total} 张）` : 'AI 认为这批候选里没有贴合的——换个说法再问')
+    } catch (e) {
+      linkAiReset()
+      if ((e as Error).name === 'AbortError') { showToast('已取消 AI 检索（未采用任何结果）'); return }
+      showToast('⚠ AI 检索失败：' + ((e as Error).message || String(e)).slice(0, 80))
+    } finally { if (linkAiCtl === ctl) linkAiCtl = null; linkAiBusy.value = false }
+  }
+  /** 关键词 / 分类 / 开关弹窗一换，AI 结果就指着不相干的卡了——与检索面板同一条纪律：立刻清 */
+  watch([linkCardsQ, linkCardsCat, linkCardsModal], () => { linkAiCtl?.abort(); linkAiReset() })
+  /** 展示列表：有 AI 结果 → 命中置顶；**字面没命中的命中卡也要补进来**（否则召回等于没做） */
+  const linkShowList = computed(() => {
+    const base = linkCandidates.value
+    if (!linkAiOn.value) return base
+    const rank = new Map(Object.keys(linkAiHits.value).map((id, i) => [id, i]))
+    const seen = new Set(base.map(c => c.r.id))
+    const extra = linkBase.value.filter(c => rank.has(c.r.id) && !seen.has(c.r.id))
+    return [...base, ...extra].sort((a, b) => {
+      const ra = rank.has(a.r.id) ? rank.get(a.r.id)! : 1e9
+      const rb = rank.has(b.r.id) ? rank.get(b.r.id)! : 1e9
+      if (ra !== rb) return ra - rb
+      return Number(b.r.pinned) - Number(a.r.pinned) || b.r.updatedAt - a.r.updatedAt
+    })
+  })
+  /** 命中的卡即使当前不可镜像（已在该台）也不该藏起来——用户有权知道"AI 认为该台需要这张" */
+  function linkAiHitOf(id: string): { why: string; weak: boolean } | null {
+    return linkAiHits.value[id] || null
   }
 
   // ===== R64-F11：金字塔 SVG 结构连线（根→L2、父节点→子节点，贝塞尔细线） =====
@@ -529,6 +623,7 @@ export function usePyramid(ctx: PyramidCtx) {
     pyramidImportOpen, confirmPyramidImport,
     pyramidLevels, pyLayout, moveCatSibling,
     linkCardsModal, linkCardsQ, linkCardsCat, linkCatOptions, openLinkCards, toggleLinkPick, linkCandidates, confirmLinkCards,
+    linkAiBusy, linkAiHits, linkAiNote, linkAiScope, linkAiFed, linkAiTook, linkAiOn, linkAiProgress, linkAiRun, linkShowList, linkAiHitOf,
     pyWrapRef, pyFs, pyFsFallback, wsPageRef,
     enterPyFullscreen, exitPyFullscreen, togglePyFullscreen,
     pyLinkPaths, drawPyLinks, pyLinksThrottled,

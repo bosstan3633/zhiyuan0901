@@ -485,6 +485,9 @@ export interface UIPrefs {
   wsSideRail?: boolean
   /** R126（诉求 5）：全局默认冷却天数（1~365；缺省 30；归档 = ×3） */
   coolingDaysDefault?: number
+  /** R161-②：常用检索词（本地记忆，不随数据同步）——按次数降序取前 3 条铺在检索框下方。
+   *  `n` = 用过几次，`at` = 最近一次时间戳；上限 20 条，超出丢最久未用的那条 */
+  searchHistory?: { q: string; n: number; at: number }[]
 }
 
 // ============ 常量 ============

@@ -14,7 +14,8 @@ export type { AiRow, AiJob } from '@/shared/ai/job'
  * ★双栏在本组件内部自排，`Drawer.vue` 一字不动（它挂着全站 30+ 抽屉宿主）。
  */
 import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
-import Drawer from '@/shared/components/Drawer.vue'
+import Modal from '@/shared/components/Modal.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { showToast } from '@/shared/components/toast'
 import { chatStream, extractJson, setLlmFeedSink } from '@/shared/ai/llm'
 import { getJobState, openJob, rerunJob, retire, stop as stopJob, type JobState } from '@/shared/ai/runner'
@@ -322,22 +323,80 @@ async function promote(): Promise<void> {
 }
 function pickDir(text: string): void { dirText.value = text; dirOpen.value = false }
 
-onUnmounted(() => { jobSeq++; stopTick(); if (!keyOf.value) { setLlmFeedSink(null); ctrl?.abort() } })
+/* ===== R161 任务 6：弹窗内键盘 —— Cmd/Ctrl+Enter = 采纳选中 =====
+ * Esc 由 `Modal.vue` 提供（捕获阶段 + stopPropagation），此处**不重复实现**，免得一次 Esc 关两层。
+ * 本监听同样走捕获阶段并 stopPropagation：弹窗压着 TaskAddDrawer 之类的宿主时，
+ * 宿主的 Ctrl+Enter（新建任务）不该被隔着弹窗点着。 */
+function onDocKey(e: KeyboardEvent) {
+  if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey)) return
+  if (!canApply.value) return
+  e.preventDefault(); e.stopPropagation()
+  void adopt()
+}
+// ★ `immediate: true` 不可省（R161 实测）：宿主写法是 `<AiSuggestionDrawer v-if="aiJob" …>`，
+//   而本组件的 `open = computed(() => !!props.job)` —— 出生那一刻 open 已是 true，watch 等不到
+//   变化 ⇒ Cmd/Ctrl+Enter 的 document 监听从不注册（与 Modal.vue 的 Esc 同一个坑，两处一并修）。
+watch(open, (v) => {
+  if (v) document.addEventListener('keydown', onDocKey, true)
+  else document.removeEventListener('keydown', onDocKey, true)
+}, { immediate: true })
+
+onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); jobSeq++; stopTick(); if (!keyOf.value) { setLlmFeedSink(null); ctrl?.abort() } })
 </script>
 
 <template>
-  <Drawer :open="open" :title="cur?.title || 'AI 建议'" :width="dual ? 'min(1120px, 94vw)' : '560px'" @close="close">
-    <!-- R141（反馈 #2/#3）：专家下拉上移抽屉头部（跑的过程中也可见可换）；subject 标明正在处理哪张卡 -->
+  <Modal :open="open" :title="cur?.title || 'AI 建议'" :width="dual ? 'min(1200px, 92vw)' : '620px'" @close="close">
+    <!-- ① 头部：AI 徽标 + 场景名（徽标走 R155 的统一入口容器，尺寸只有 --icon-* 一个来源） -->
+    <template #title>
+      <AiEntryButton variant="inline" large :spin="vPhase === 'running'" :label="cur?.title || 'AI 建议'" />
+    </template>
+    <!-- R141（反馈 #2/#3）：专家下拉上移弹窗头部（跑的过程中也可见可换）；subject 标明正在处理哪张卡 -->
     <template v-if="cur?.persona" #title-extra>
       <select class="ai-persona" :value="cur.persona.current" title="换一个专家视角重新生成"
         @change="cur.persona!.onPick(($event.target as HTMLSelectElement).value)">
         <option v-for="o in cur.persona.options" :key="o.id" :value="o.id">{{ o.label }}</option>
       </select>
     </template>
-    <div class="ai-body">
+    <!-- ② 固定行：阶段指示 + 一次性指令 —— 不随对照区滚动：滚到正文深处，这次的口径仍看得见 -->
+    <template v-if="cur?.steps?.length || cur?.promptScope" #sub>
       <div v-if="cur?.steps?.length" class="ai-steps">
         <span v-for="(s, i) in cur.steps" :key="i" class="ai-step" :class="s.state">{{ s.label }}</span>
       </div>
+      <!-- R154：一次性指令。角色=谁来写（可复用）、指令=这次要什么（优先级高于角色，但改不了输出结构） -->
+      <div v-if="cur?.promptScope" class="ai-dir">
+        <div class="ai-dir-head">
+          <b>🎯 本次指令</b><span class="ai-prio">优先级高于角色</span>
+          <span class="ai-scope">
+            <button v-if="cur.promptObject" :class="{ on: dirTier === 'object' }"
+              :title="'这条只跟' + (cur.promptObjectLabel || '这个对象') + '走'"
+              @click="switchTier('object')">这张卡{{ cur.promptObjectLabel ? ' · ' + cur.promptObjectLabel : '' }}</button>
+            <button :class="{ on: dirTier === 'entry' }" :disabled="!cur.promptObject"
+              :title="cur.promptObject ? '升档后本入口下所有对象共用这条指令（含以后新建的）' : '本入口没有更细的对象作用域'"
+              @click="switchTier('entry')">这类入口</button>
+          </span>
+          <span class="ai-dir-cap">剩 {{ dirCap }} 字 · {{ dirTier === 'object' && cur.promptObject ? '只记在这张卡上' : '本入口共用' }}</span>
+        </div>
+        <div class="ai-dir-row">
+          <textarea v-model="dirText" class="ai-dir-ta" rows="2"
+            placeholder="例：描述别写口号，只写这周能拿去报价的素材。指令只能改口径，改不了输出结构（那是场景骨架）。"
+            @blur="commitDir" />
+          <span class="ai-dir-btns">
+            <span v-if="dirPast.length" class="ai-hist">
+              <button class="ai-btn sm" @click.stop="dirOpen = !dirOpen">历史 ▾</button>
+              <span v-if="dirOpen" class="ai-hist-menu">
+                <button v-for="(h, i) in dirPast" :key="i" class="ai-hist-item" @click="pickDir(h.text)">
+                  <span class="ai-hist-t">{{ h.text }}</span>
+                  <span class="ai-hist-m">{{ new Date(h.at).toLocaleDateString('zh-CN') }} · {{ h.text.length }} 字</span>
+                </button>
+              </span>
+            </span>
+            <button class="ai-btn sm" title="把这条口径存成可复用角色，之后任何入口的角色下拉都能选它" @click="promote">↗ 存为角色</button>
+            <button class="ai-btn sm" title="带上这条指令重新生成" @click="applyDirAndRerun">应用并重跑 ↻</button>
+          </span>
+        </div>
+      </div>
+    </template>
+    <div class="ai-body">
       <div v-if="cur?.subject" class="ai-subject">{{ cur.subject }}</div>
       <div v-if="cur?.hint" class="ai-hint">{{ cur.hint }}</div>
       <!-- R154：影响面从"采纳后回执"提到"采纳前"，且随勾选重算（本地数出来的，不是模型报的） -->
@@ -367,16 +426,6 @@ onUnmounted(() => { jobSeq++; stopTick(); if (!keyOf.value) { setLlmFeedSink(nul
         <div class="ai-col ai-col-r">
           <div class="ai-col-head">
             <b>AI 补全后完整形态</b>
-            <span v-if="dual" class="ai-chg">
-              <i class="c-new">+{{ summary.new }} 新增</i>·<i class="c-edit">{{ summary.edit }} 改写</i>
-              <template v-if="summary.move">·<i class="c-move">{{ summary.move }} 移动</i></template>
-              ·<i class="c-same">{{ summary.same }} 未变</i>
-              <i v-if="dropped" class="c-drop">左栏 {{ dropped }} 行未被认领</i>
-            </span>
-            <span class="ai-col-end">
-              <button v-if="dual" class="ai-btn sm ghost" :class="{ on: onlyDiff }" @click="onlyDiff = !onlyDiff">只看差异 ▦</button>
-              <button class="ai-btn sm ghost" @click="showRaw = !showRaw">{{ showRaw ? '收起' : '原文' }}</button>
-            </span>
           </div>
 
           <div v-if="vPhase === 'running'" class="ai-status">
@@ -418,7 +467,6 @@ onUnmounted(() => { jobSeq++; stopTick(); if (!keyOf.value) { setLlmFeedSink(nul
                 <button v-if="weakN && picksSomething" class="ai-btn sm ghost" @click="pickStrongOnly">只留高置信</button>
                 <span v-if="picksSomething" class="ai-count">已选 {{ picked.size }}/{{ adoptableN }}</span>
                 <span v-else class="ai-count">整篇成文，跑完自动落卡</span>
-                <span class="ai-usage">投料 {{ vFeed.chars }} 字<span v-if="vFeed.calls > 1"> · {{ vFeed.calls }} 次请求</span>{{ vFeed.pt ? ' · token ' + vFeed.pt + '/' + vFeed.ct : '' }} · 产出 {{ vRaw.length }} 字 · {{ vSecs }}s</span>
               </div>
               <div v-if="weakN || auditLine" class="ai-flags">
                 <span v-if="weakN && picksSomething" class="ai-flag warn">{{ weakN }} 条判为弱相关（缺理由/靠猜），已默认不勾——要采纳请自己勾上</span>
@@ -456,38 +504,19 @@ onUnmounted(() => { jobSeq++; stopTick(); if (!keyOf.value) { setLlmFeedSink(nul
         </div>
       </div>
 
-      <!-- R154：一次性指令。角色=谁来写（可复用）、指令=这次要什么（优先级高于角色，但改不了输出结构） -->
-      <div v-if="cur?.promptScope" class="ai-dir">
-        <div class="ai-dir-head">
-          <b>🎯 本次指令</b><span class="ai-prio">优先级高于角色</span>
-          <span class="ai-scope">
-            <button v-if="cur.promptObject" :class="{ on: dirTier === 'object' }"
-              :title="'这条只跟' + (cur.promptObjectLabel || '这个对象') + '走'"
-              @click="switchTier('object')">这张卡{{ cur.promptObjectLabel ? ' · ' + cur.promptObjectLabel : '' }}</button>
-            <button :class="{ on: dirTier === 'entry' }" :disabled="!cur.promptObject"
-              :title="cur.promptObject ? '升档后本入口下所有对象共用这条指令（含以后新建的）' : '本入口没有更细的对象作用域'"
-              @click="switchTier('entry')">这类入口</button>
-          </span>
-          <span class="ai-dir-cap">剩 {{ dirCap }} 字 · {{ dirTier === 'object' && cur.promptObject ? '只记在这张卡上' : '本入口共用' }}</span>
-        </div>
-        <div class="ai-dir-row">
-          <textarea v-model="dirText" class="ai-dir-ta" rows="2"
-            placeholder="例：描述别写口号，只写这周能拿去报价的素材。指令只能改口径，改不了输出结构（那是场景骨架）。"
-            @blur="commitDir" />
-          <span class="ai-dir-btns">
-            <span v-if="dirPast.length" class="ai-hist">
-              <button class="ai-btn sm" @click.stop="dirOpen = !dirOpen">历史 ▾</button>
-              <span v-if="dirOpen" class="ai-hist-menu">
-                <button v-for="(h, i) in dirPast" :key="i" class="ai-hist-item" @click="pickDir(h.text)">
-                  <span class="ai-hist-t">{{ h.text }}</span>
-                  <span class="ai-hist-m">{{ new Date(h.at).toLocaleDateString('zh-CN') }} · {{ h.text.length }} 字</span>
-                </button>
-              </span>
-            </span>
-            <button class="ai-btn sm" title="把这条口径存成可复用角色，之后任何入口的角色下拉都能选它" @click="promote">↗ 存为角色</button>
-            <button class="ai-btn sm" title="带上这条指令重新生成" @click="applyDirAndRerun">应用并重跑 ↻</button>
-          </span>
-        </div>
+      <!-- ④ 差异汇总行：改动账 + 视图开关 + 投料/耗时 —— 原先三样都挤在右栏表头一行，窄窗被劈成三截 -->
+      <div v-if="vPhase === 'done' && vRows.length" class="ai-sum">
+        <span v-if="dual" class="ai-chg">
+          <i class="c-new">+{{ summary.new }} 新增</i>·<i class="c-edit">{{ summary.edit }} 改写</i>
+          <template v-if="summary.move">·<i class="c-move">{{ summary.move }} 移动</i></template>
+          ·<i class="c-same">{{ summary.same }} 未变</i>
+          <i v-if="dropped" class="c-drop">左栏 {{ dropped }} 行未被认领</i>
+        </span>
+        <span class="ai-sum-end">
+          <button v-if="dual" class="ai-btn sm ghost" :class="{ on: onlyDiff }" @click="onlyDiff = !onlyDiff">只看差异 ▦</button>
+          <button class="ai-btn sm ghost" @click="showRaw = !showRaw">{{ showRaw ? '收起原文' : '原文' }}</button>
+        </span>
+        <span class="ai-usage">投料 {{ vFeed.chars }} 字<span v-if="vFeed.calls > 1"> · {{ vFeed.calls }} 次请求</span>{{ vFeed.pt ? ' · token ' + vFeed.pt + '/' + vFeed.ct : '' }} · 产出 {{ vRaw.length }} 字 · {{ vSecs }}s</span>
       </div>
     </div>
 
@@ -503,11 +532,11 @@ onUnmounted(() => { jobSeq++; stopTick(); if (!keyOf.value) { setLlmFeedSink(nul
           @click="adopt">{{ adoptLabel }}</button>
       </div>
     </template>
-  </Drawer>
+  </Modal>
 </template>
 
 <style scoped>
-.ai-body { display: flex; flex-direction: column; gap: 10px; font-size: var(--fs-body); color: var(--text-2); }
+.ai-body { display: flex; flex-direction: column; gap: var(--sp-4); font-size: var(--fs-body); color: var(--text-2); }
 .ai-steps { display: flex; gap: 6px; flex-wrap: wrap; }
 .ai-step { font-size: var(--fs-caption); padding: 2px 9px; border-radius: var(--radius-xs); background: var(--surface-2); color: var(--text-4); letter-spacing: var(--tracking-sm); }
 .ai-step.done { color: var(--success); background: var(--success-bg-soft); }
@@ -529,6 +558,7 @@ onUnmounted(() => { jobSeq++; stopTick(); if (!keyOf.value) { setLlmFeedSink(nul
 .ai-flag { font-size: var(--fs-sub); color: var(--text-4); line-height: 1.5 }
 .ai-flag.warn { color: var(--warning) }
 .ai-toolbar { display: flex; align-items: center; gap: 10px; font-size: var(--fs-sub); color: var(--text-3); flex-wrap: wrap }
+.ai-sum .ai-usage { margin-left: auto }
 .ai-all { display: flex; align-items: center; gap: 5px; cursor: pointer; }
 .ai-persona { padding: 3px 6px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface-2); color: var(--text-2); font-size: var(--fs-caption); cursor: pointer; font-family: inherit; max-width: 160px; }
 .ai-usage { margin-left: auto; }
@@ -549,7 +579,8 @@ onUnmounted(() => { jobSeq++; stopTick(); if (!keyOf.value) { setLlmFeedSink(nul
 .ai-badge.b-danger { background: var(--danger-bg-soft); color: var(--danger); }
 .ai-badge.b-neutral { background: var(--tag-neutral-bg); color: var(--tag-neutral-text); }
 .ai-btn { padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-size: var(--fs-body); cursor: pointer; font-family: inherit; transition: all var(--dur); }
-.ai-btn:hover { border-color: var(--accent); color: var(--accent); }
+/* R161：强调色只给主行动（.primary / .ghost.on = 当前态）——次级按钮 hover 一律走中性，不再"满屏泛紫" */
+.ai-btn:hover { border-color: var(--border-strong); color: var(--text); }
 .ai-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .ai-btn.primary:hover { filter: brightness(1.08); color: #fff; }
 .ai-btn.primary:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; filter: none; }
@@ -591,7 +622,7 @@ onUnmounted(() => { jobSeq++; stopTick(); if (!keyOf.value) { setLlmFeedSink(nul
 .ai-edit { width: 100%; background: var(--surface-3); border: 1px solid var(--accent); border-radius: var(--radius-xs); color: var(--text); font-size: var(--fs-body); line-height: 1.6; padding: 5px 7px; font-family: inherit; resize: vertical; outline: none }
 .ai-edited-mark { margin-left: 5px; font-size: var(--fs-caption) }
 /* ===== R154 指令框 ===== */
-.ai-dir { border-top: 1px solid var(--border); background: var(--surface-2); padding: 8px 10px; border-radius: var(--radius-xs); display: flex; flex-direction: column; gap: 6px }
+.ai-dir { border: 1px solid var(--border); background: var(--surface-2); padding: 8px 10px; border-radius: var(--radius-xs); display: flex; flex-direction: column; gap: 6px }
 .ai-dir-head { display: flex; align-items: center; gap: 7px; font-size: var(--fs-caption); color: var(--text-3); flex-wrap: wrap }
 .ai-dir-head b { color: var(--text-2); font-size: var(--fs-caption) }
 .ai-prio { font-size: var(--fs-tiny); padding: 1px 6px; border-radius: var(--radius-xs); background: var(--curio-bg, var(--accent-light)); color: var(--curio-amber, var(--accent)); font-weight: 600 }
@@ -610,12 +641,20 @@ onUnmounted(() => { jobSeq++; stopTick(); if (!keyOf.value) { setLlmFeedSink(nul
 .ai-hist-item:hover { background: var(--surface-2) }
 .ai-hist-t { color: var(--text); line-height: 1.5 }
 .ai-hist-m { font-size: var(--fs-caption); color: var(--text-4); font-variant-numeric: tabular-nums }
-/* ===== 底部 ===== */
+/* ===== R161 模块分隔：1px 分隔线 + 24/32 间距节奏（不靠边框堆叠，靠留白分区） ===== */
+.ai-sum {
+  display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+  margin-top: var(--sp-2); padding-top: var(--sp-4);
+  border-top: 1px solid var(--border);
+}
+.ai-sum-end { display: flex; gap: 6px; align-items: center; }
+/* 底部 ===== */
 .ai-confirm { width: 100%; margin-bottom: 6px; padding: 6px 10px; border: 1px solid var(--danger); background: var(--danger-bg-soft); color: var(--danger); border-radius: var(--radius-xs); font-size: var(--fs-sub); line-height: 1.6 }
 .ai-foot-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; width: 100% }
-/* 窄窗退化：双栏撑不开时左栏降为顶部摘要条，不留两套模板 */
-@media (max-width: 900px) {
-  .ai-dual { flex-direction: column; gap: 8px }
+/* R161 响应式第二档（768~1199）：双栏降单栏 —— 复用同一套 DOM 与 `dual` 分支，
+   只改排版方向，不写第二套模板（任务书硬要求："复用现有 dual=false 路径"） */
+@media (max-width: 1199px) {
+  .ai-dual { flex-direction: column; gap: var(--sp-2) }
   .ai-col-l { width: auto; flex: 0 0 auto; border-right: none; padding-right: 0; border-bottom: 1px solid var(--border) }
   .ai-col-body { max-height: 26vh }
 }

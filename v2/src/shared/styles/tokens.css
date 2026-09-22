@@ -80,6 +80,8 @@
 
   /* 圆角体系（R124：大容器 12 · 卡片/按钮 8 · 标签/小按钮 4；R130-T5 补 md；
      R133-E2 补 lg=14px——CompassTree .tree-level-card 引用此前无定义，渲染成直角的又一例 R130-T5 类 BUG） */
+  /* R161：中央弹窗（AI 评审）专用阶——抽屉时代最大是 lg=14px，弹窗要更"厚"的壳 */
+  --radius-xl: 18px;  /* 中央弹窗外框（R161） */
   --radius-lg: 14px;  /* 弹层 / 大卡片（R133-E2） */
   --radius: 12px;    /* 大容器 / 弹层 */
   --radius-md: 10px; /* R130-T5：全站 14 处引用（metric-box/today-card/tm-card/thesis-banner…）此前无定义 → 圆角静默失效渲染成直角，现补上 */
@@ -124,6 +126,10 @@
   --z-media: 2900;      /* 附件徽标浮标 */
   --z-media-top: 3000;  /* 附件预览（全屏媒体） */
   --z-toast: 9999;      /* Toast 兜底最顶（必须高于一切媒体层） */
+
+  /* R161：中央弹窗遮罩——四主题共用一个值（暗底/亮底都够压住背景，不必维护四份）。
+     与 --overlay-bg 的分工：那是抽屉/浮层的浅遮罩（浅色主题仅 .32），弹窗要更强的主体分离。 */
+  --scrim-modal: rgba(0, 0, 0, 0.45);
 
   /* 密度令牌（第卅三轮 REQ-026：卡片网格，一处修改全局生效；compact 覆盖见文件尾）
      R155-U1：改引用间距阶——原字面量 9/11/10 三个"非阶值"归位到 8/12/12（视觉差 ±2px） */
@@ -199,6 +205,8 @@
   --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
+  /* R161：中央弹窗双层影——近场紧（贴壳）+ 远场散（离纸），与"靠边框堆叠"相反的路子 */
+  --shadow-modal: 0 2px 10px rgba(0, 0, 0, 0.35), 0 28px 72px rgba(0, 0, 0, 0.60);
   --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
   /* R146：回执条配色（原 Toast 写死 #1A1D23/#fff/#8FC4A3，浅色主题下动作色仅 1.98:1） */
   --toast-bg: #1A1D23; --toast-fg: #F2F3F5; --toast-action: #8FC4A3;
@@ -256,6 +264,8 @@
   --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.5);
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.7);
+  /* R161：中央弹窗双层影（纯黑主题背景最暗，影子要再重一档才分得出层次） */
+  --shadow-modal: 0 2px 10px rgba(0, 0, 0, 0.40), 0 28px 72px rgba(0, 0, 0, 0.70);
   --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
   /* R146：回执条配色（R156：纯黑底 + 冷蓝动作色，呼应本主题 accent） */
   --toast-bg: #0B0B0E; --toast-fg: #F2F3F5; --toast-action: #5AA9FF;
@@ -312,6 +322,8 @@
   --shadow: 0 0 0 1px var(--border);
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 0 0 1px var(--border), 0 8px 24px rgba(0, 0, 0, 0.07);
+  /* R161：中央弹窗双层影（冷灰白：影子必须极淡，重一点就"脏"） */
+  --shadow-modal: 0 2px 10px rgba(0, 0, 0, 0.06), 0 28px 72px rgba(0, 0, 0, 0.16);
   --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
   /* R146：回执条配色（浅色主题：白底深字 + 达标绿动作色 6.4:1） */
   --toast-bg: #FFFFFF; --toast-fg: #1D1D1F; --toast-action: #1E7A34;
@@ -368,6 +380,8 @@
   --shadow: 0 0 0 1px var(--border);
   --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(15, 15, 15, 0.04);
   --shadow-lg: 0 0 0 1px var(--border), 0 8px 24px rgba(15, 15, 15, 0.07);
+  /* R161：中央弹窗双层影（暖纸白：影子走暖黑，避免在纸色上泛灰） */
+  --shadow-modal: 0 2px 10px rgba(15, 15, 15, 0.06), 0 28px 72px rgba(15, 15, 15, 0.16);
   --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
   /* R146：回执条配色（纸墨白：暖白底 + 深墨字 + 达标绿动作色） */
   --toast-bg: #FBFAF8; --toast-fg: #2B2A27; --toast-action: #3A6B4C;

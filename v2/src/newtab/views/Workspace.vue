@@ -733,37 +733,17 @@
       </div>
     </div>
 
-    <!-- R65-F3：节点关联资源卡（资源台全量卡选择器：关键词过滤 + 多选 + 镜像到节点） -->
-    <div class="modal-overlay" :class="{open: !!linkCardsModal}" @click.self="linkCardsModal=null">
-      <div class="modal" style="width:480px">
-        <div class="modal-header">
-          <span style="font-size:16px">🔗</span>
-          <span class="mh-title">关联资源卡到「{{ linkCardsModal?.catName }}」</span>
-          <div class="modal-close" @click="linkCardsModal=null">×</div>
-        </div>
-        <div class="modal-body">
-          <div class="lc-search">
-            <span>🔍</span>
-            <input v-model="linkCardsQ" placeholder="关键词过滤资源台资源卡（标题/链接）" />
-          </div>
-          <!-- R126（诉求 3）：资源台分类过滤（含子分类） -->
-          <div class="lc-cat-row"><select v-model="linkCardsCat" class="lc-cat"><option value="">全部分类（资源台）</option><option v-for="o in linkCatOptions" :key="o.id" :value="o.id">{{ o.label }}</option><option value="__uncat__">未分类</option></select></div>
-          <div class="lc-list">
-            <label v-for="c in linkCandidates" :key="c.r.id" class="lc-item" :class="{ picked: linkCardsModal?.picked.has(c.r.id), mirrored: c.mirrored }">
-              <input v-if="!c.mirrored" type="checkbox" :checked="linkCardsModal?.picked.has(c.r.id)" @change="toggleLinkPick(c.r.id)" />
-              <span v-else class="lc-badge">已在该台</span>
-              <span class="lc-title">{{ c.r.pinned ? '📌 ' : '' }}{{ c.r.title }}</span>
-              <span class="lc-link">{{ c.r.link }}</span>
-            </label>
-            <div v-if="!linkCandidates.length" class="lc-empty">无匹配的资源台资源卡</div>
-          </div>
-        </div>
-        <div class="modal-footer-row">
-          <button class="dr-footer-btn" @click="linkCardsModal=null">取消</button>
-          <button class="dr-footer-btn primary" @click="confirmLinkCards">📡 镜像所选到该节点</button>
-        </div>
-      </div>
-    </div>
+    <!-- R65-F3：节点关联资源卡（资源台全量卡选择器：关键词过滤 + 多选 + 镜像到节点）
+         R161-④：① 加「AI 检索」——与全局检索面板同一个 semanticSearch，按语义把**可镜像的卡**顶到最前
+                    ② 弹窗本体抽成 LinkCardsModal.vue 并换到 R161 的新壳 Modal.vue
+                       （宿主回到 ≤1500 行验收线 + 少一套私有 modal 实现的消费方） -->
+    <LinkCardsModal
+      :open="!!linkCardsModal" :cat-name="linkCardsModal?.catName || ''" :picked="linkCardsModal?.picked"
+      :q="linkCardsQ" :cat="linkCardsCat" :cat-options="linkCatOptions" :list="linkShowList"
+      :ai-busy="linkAiBusy" :ai-on="linkAiOn" :ai-hits="linkAiHits" :ai-fed="linkAiFed" :ai-took="linkAiTook"
+      :ai-scope="linkAiScope" :ai-note="linkAiNote"
+      @update:q="linkCardsQ = $event" @update:cat="linkCardsCat = $event" @toggle-pick="toggleLinkPick"
+      @confirm="confirmLinkCards" @close="linkCardsModal = null" @ai-run="linkAiRun" />
 
     <!-- 第八轮：单卡移动分类弹窗 -->
     <div class="modal-overlay" :class="{open: moveOneOpen}" @click.self="moveOneOpen=false">
@@ -959,6 +939,8 @@ import AssetPreview from '@/shared/components/AssetPreview.vue'; import CardAiEn
 import EmptyState from '@/shared/components/EmptyState.vue'; import ContextMenu from '@/shared/components/ContextMenu.vue'; import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'; import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'; import AssetBadge from '@/shared/components/AssetBadge.vue'
 // R117（04-61 C3）：当日新增角标（自然日口径）——资源卡卡片视图 / 列表视图同一枚
 import NewBadge from '@/shared/components/NewBadge.vue'
+// R161-④：关联资源卡（镜像）弹窗整体抽出（宿主回到 ≤1500 行验收线 + 换 R161 新壳 Modal.vue）
+import LinkCardsModal from '@/newtab/components/LinkCardsModal.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
 import CurationDrillDrawer from '@/newtab/components/CurationDrillDrawer.vue'
 import type { DrillCatRow, DrillCardRow } from '@/newtab/components/CurationDrillDrawer.vue'
@@ -1379,7 +1361,8 @@ const dragCatId = computed(() => dragState.cat)
 const {
   pyramidImportOpen, confirmPyramidImport,
   pyramidLevels, pyLayout, moveCatSibling,
-  linkCardsModal, linkCardsQ, linkCardsCat, linkCatOptions, openLinkCards, toggleLinkPick, linkCandidates, confirmLinkCards,
+  linkCardsModal, linkCardsQ, linkCardsCat, linkCatOptions, openLinkCards, toggleLinkPick, confirmLinkCards,
+  linkAiBusy, linkAiHits, linkAiFed, linkAiTook, linkAiOn, linkAiScope, linkAiNote, linkAiRun, linkShowList, linkAiHitOf,
   pyWrapRef, pyFs, pyFsFallback, wsPageRef,
   enterPyFullscreen, exitPyFullscreen, togglePyFullscreen,
   pyLinkPaths, drawPyLinks, pyLinksThrottled,
