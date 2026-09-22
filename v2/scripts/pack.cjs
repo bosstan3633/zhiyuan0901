@@ -12,7 +12,7 @@
  *   node scripts/pack.cjs --no-zip        # 只出解压目录
  *
  * 体积预算（见 文档中心/06_测试与发布/06-2 发布验收清单 §G）：
- *   生产包 ≤ 2M · ZIP ≤ 600KB · 单文件 ≤ 400KB · **禁止把 *.map 打进发布包**
+ *   生产包 ≤ 2M · ZIP ≤ 660KB（R154 上调，原 600KB）· 单文件 ≤ 400KB · **禁止把 *.map 打进发布包**
  */
 const fs = require('fs')
 const path = require('path')
@@ -174,7 +174,7 @@ if (!noZip) {
 }
 console.log(`  已剥离 map  ${dropped} 个（约 ${fmt(all.reduce((s, f) => s + (f.endsWith('.map') ? fs.statSync(f).size : 0), 0))}）`)
 console.log('')
-console.log('  体积预算（06-2 §G）：生产包 ≤2M · ZIP ≤600KB · 单文件 ≤400KB')
+console.log('  体积预算（06-2 §G）：生产包 ≤2M · ZIP ≤660KB · 单文件 ≤400KB')
 
 // ---------- 预算校验（超限只告警不中断，避免挡住发版） ----------
 const biggest = kept.reduce((m, f) => Math.max(m, fs.statSync(f).size), 0)
