@@ -35,11 +35,14 @@ function reloadPage() { location.reload() }
 const globalPopups = ref<InstanceType<typeof GlobalPopups> | null>(null)
 
 // R53-D：主题精简为四套（删除 原野绿/暗夜红；存量 green/night 由 repository 启动迁移到深空薰衣草）
+// R156：① 新增「跟随系统」（ui.theme='auto'，落 data-theme 前经 resolveTheme 解析为 linear/apple）
+//       ② 四个主题的 dot 改为各自 accent（R124~R155 四者同为 #5E6AD2，解禁后须与新 accent 对齐）
 const themes = [
+  { id: 'auto', name: '跟随系统', dot: 'linear-gradient(135deg, #5E6AD2 0 50%, #F5F5F7 50% 100%)' },
   { id: 'linear', name: '深空薰衣草', dot: '#5E6AD2' },
-  { id: 'raycast', name: '光速黑', dot: '#5E6AD2' },
-  { id: 'apple', name: '极简白', dot: '#5E6AD2' },
-  { id: 'notion', name: '纸墨白', dot: '#5E6AD2' }
+  { id: 'raycast', name: '光速黑', dot: '#1E6FD9' },
+  { id: 'apple', name: '极简白', dot: '#8452E0' },
+  { id: 'notion', name: '纸墨白', dot: '#9E3FAF' }
 ]
 
 /** R106（F2）→ R108（F10）修订：资源台/策展台容器与调度台/方向台统一为 1440 居中后，

@@ -9,6 +9,8 @@ import { loadData, loadUIPrefs, replaceData } from '@/shared/storage/repository'
 import { migrateV1ToV2 } from '@/shared/storage/migration'
 import { STORAGE_KEY } from '@/shared/models'
 import { useAppStore } from './stores/app'
+// R156：主题「跟随系统」——ui.theme 可为 'auto'，落 data-theme 前统一经 resolveTheme 解析
+import { resolveTheme } from '@/shared/utils/theme'
 // R48-A1：错误留痕必须最先注册——TDZ 崩溃多发于模块初始化期，晚注册接不住
 import { installRuntimeErrorCapture } from '@/shared/utils/runtimeError'
 
@@ -47,7 +49,8 @@ async function bootstrap() {
 
   // B34：UI 偏好与数据并行加载（原为串行 3 次存储往返）
   const [ui] = await Promise.all([loadUIPrefs(), ensureBootData()])
-  document.documentElement.setAttribute('data-theme', ui.theme)
+  // R156：ui.theme 可为 'auto'（跟随系统）——落 data-theme 前先解析为四主题之一
+  document.documentElement.setAttribute('data-theme', resolveTheme(ui.theme))
   // 第卅三轮 REQ-026：密度档位初始化（compact 时挂 html 属性，tokens.css 变量覆盖）
   if (ui.density === 'compact') document.documentElement.setAttribute('data-density', 'compact')
 

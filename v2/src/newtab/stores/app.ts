@@ -7,6 +7,8 @@ import { writeHot } from '@/shared/storage/hotStats'
 import { migrateCurationTree, migrateHubStructure, migrateHubMerge, hubMergeWorkPending } from '@/shared/storage/curationMigration'
 import { normalizeCardTagPaths } from '@/shared/utils/tags'
 import { sanitizeMetricTaskIds } from '@/shared/utils/taskLinks'
+// R156：主题「跟随系统」——解析 + 系统配色监听
+import { resolveTheme, watchSystemTheme } from '@/shared/utils/theme'
 
 export const useAppStore = defineStore('app', () => {
   // ---- 数据 ----
@@ -20,7 +22,8 @@ export const useAppStore = defineStore('app', () => {
   const workspaces = computed<Workspace[]>(() =>
     data.value?.workspaces.filter((w) => !w.archived && w.id !== CURATION_WS_ID).sort((a, b) => a.order - b.order) || []
   )
-  const theme = computed(() => ui.value?.theme || 'green')
+  // R156：默认值由历史遗留 'green' 校正为 'linear'（green 早于 R53-D 退役，此处只是没跟上）
+  const theme = computed(() => ui.value?.theme || 'linear')
 
   /** R61：资源台结构迁移前的自动备份下载（一次性，防误迁移） */
   function backupBeforeHubMigration(d: AppData) {
@@ -108,13 +111,28 @@ export const useAppStore = defineStore('app', () => {
     // R128-A1：该接线已下沉到 repository.attachStorageSync（loadData 内自动注册，全上下文共用一份），
     // 本页只保留 subscribe——避免同一份外部写入被两处监听各合并一次（双 saveData 写环）。
     // REQ-031 P-031-6 的语义不变：本页自身写入按内容指纹短路，不触发全树替换。
+
+    // R156：按用户选择落 data-theme；'auto' 模式下**同时注册系统配色监听**——
+    // 否则「跟随系统」只在切换那一刻生效，刷新后系统改配色页面不会跟着变。
+    applyTheme(ui.value?.theme || 'linear')
   }
 
-  // ---- 主题 ----
+  // ---- 主题（R156：新增「跟随系统」auto）----
+  /** `auto` 只在系统配色变化时重解析；切到固定主题即解除监听，避免无谓回调 */
+  let unwatchSystem: (() => void) | null = null
+  function applyTheme(t: string) {
+    document.documentElement.setAttribute('data-theme', resolveTheme(t))
+    if (t === 'auto') {
+      if (!unwatchSystem) unwatchSystem = watchSystemTheme((r) => document.documentElement.setAttribute('data-theme', r))
+    } else if (unwatchSystem) {
+      unwatchSystem()
+      unwatchSystem = null
+    }
+  }
   function setTheme(t: string) {
     if (!ui.value) return
     ui.value.theme = t
-    document.documentElement.setAttribute('data-theme', t)
+    applyTheme(t)
     saveUIPrefs({ theme: t })
   }
 

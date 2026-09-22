@@ -282,14 +282,15 @@ function injectStyles() {
  * R77（A1）：四套主题的强调色——与 `shared/styles/tokens.css` 的 `[data-theme='*'] --accent` 一一对应。
  * 浮层运行在宿主文档，取不到新标签页的 tokens.css，故在此维护映射并由 JS 注入 CSS 变量。
  * ⚠ 回归断言 R77-3 锁定本表与 tokens.css 一致，改任一侧都必须同步另一侧。
- * `on` = 主按钮文字色：珊瑚红（raycast）配白字对比度仅 2.9:1，改用深字达 4.8:1。
+ * `on` = 主按钮文字色：全部取白字，四主题对比度均 ≥4.5:1（linear 4.70 / raycast 4.85 /
+ *   apple 4.92 / notion 5.55，由 `scripts/theme-contrast.cjs` 常驻校验）。
  */
 const THEME_ACCENT: Record<string, { accent: string; on: string }> = {
-  /* R124：全局唯一强调色（深空薰衣草紫）——原 apple 蓝 / raycast 珊瑚红 / notion 蓝全部退役 */
+  /* R156：accent 解禁——四主题各自独立（R124~R155 期间四者同为 #5E6AD2） */
   linear: { accent: '#5E6AD2', on: '#FFFFFF' },
-  apple: { accent: '#5E6AD2', on: '#FFFFFF' },
-  raycast: { accent: '#5E6AD2', on: '#FFFFFF' },
-  notion: { accent: '#5E6AD2', on: '#FFFFFF' }
+  raycast: { accent: '#1E6FD9', on: '#FFFFFF' },
+  apple: { accent: '#8452E0', on: '#FFFFFF' },
+  notion: { accent: '#9E3FAF', on: '#FFFFFF' }
 }
 /** 读取知源当前主题并注入强调色；宿主环境不可读 storage 时回落默认主题 linear */
 async function applyThemeAccent() {
@@ -298,7 +299,10 @@ async function applyThemeAccent() {
   let theme = 'linear'
   try {
     const r = await chrome.storage.local.get('zy_ui_v2')
-    const t = (r?.zy_ui_v2 as { theme?: string } | undefined)?.theme
+    let t = (r?.zy_ui_v2 as { theme?: string } | undefined)?.theme
+    // R156：'auto'（跟随系统）在浮层里按宿主环境 prefers-color-scheme 解析——浮层运行在宿主文档，
+    // 不共享新标签页的 data-theme，故此处独立判一次；映射与 shared/utils/theme.ts 保持一致（暗→linear / 浅→apple）
+    if (t === 'auto') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'linear' : 'apple'
     if (t && THEME_ACCENT[t]) theme = t
   } catch { /* 无 storage 权限或尚未初始化：回落默认主题 */ }
   const c = THEME_ACCENT[theme] || THEME_ACCENT.linear!

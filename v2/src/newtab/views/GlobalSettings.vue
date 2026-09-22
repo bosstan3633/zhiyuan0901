@@ -1366,6 +1366,8 @@ import Drawer from '@/shared/components/Drawer.vue'
 import { readEventLog, curioCumulativeSince, countCurioCumulative, type CardEvent } from '@/shared/utils/eventLog'
 import { readErrorLog } from '@/shared/utils/runtimeError'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
+// R156：主题「跟随系统」——导入界面偏好包时 ui.theme 可为 'auto'，落 data-theme 前统一解析
+import { resolveTheme } from '@/shared/utils/theme'
 import { recordResourceOpen } from '../stores/compass'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
 
@@ -1970,7 +1972,8 @@ function handleFileImport(e: Event) {
       const ui = (imported as unknown as Record<string, unknown>).uiPrefs as Record<string, unknown> | undefined
       if (ui && typeof ui === 'object') {
         if (typeof ui.theme === 'string' && ui.theme) {
-          document.documentElement.setAttribute('data-theme', ui.theme)
+          // R156：ui.theme 可为 'auto'（跟随系统），落 data-theme 前统一解析
+          document.documentElement.setAttribute('data-theme', resolveTheme(ui.theme))
           saveUIPrefs({ theme: ui.theme })
         }
         if (typeof ui.density === 'string' && ui.density) {

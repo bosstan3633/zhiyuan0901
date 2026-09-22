@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.2.0'";
+const VER_ANCHOR_LITERAL = "version: '3.2.1'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -1097,7 +1097,7 @@ check('R65-12 方向状态单行指标条：副行收 tooltip（mb-v 13.5px 单�
 console.log('【第六十六轮 · V2.36.0：任务采集选区预填 + 金字塔居中树布局 + 品牌口径升级】');
 check('R66-1 任务采集选区预填：openTaskCapture 接入选区链路（文本→内容/标题→名称/URL→链接字段，均可编辑）+ 保存写 link', () => { const c = read('/content/overlay-impl.ts'); return c.includes('R66-F1') && c.includes('resolveSelection()') && c.includes('clearSelCache()') && c.includes('__zy_tc_link__') && c.includes('（已填入选中文本，可编辑）') && c.includes('link: link || undefined'); });
 check('R66-2 金字塔直角连线：drawPyLinks 改横平竖直折线（父底中点↓横移↑子顶中点）+ SVG 画布按滚动区设定', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('M ${a.x} ${a.bottom} L ${a.x} ${mid} L ${b.x} ${mid} L ${b.x} ${b.top}') && w.includes('scrollWidth') && !w.includes('C ${a.x} ${mid}'); });
-check('R66-3 全量导出附 uiPrefs + 导入自动应用：exportAll 载入 UI 偏好并入包，导入侧落 data-theme/data-density', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('async function exportAll') && g.includes('loadUIPrefs') && g.includes('{ ...safeData, uiPrefs }') && g.includes("document.documentElement.setAttribute('data-theme', ui.theme)") && g.includes("saveUIPrefs({ density: ui.density as 'compact' | 'cozy' })") && g.includes('界面偏好已应用'); });
+check('R66-3（R156 解析改写）全量导出附 uiPrefs + 导入自动应用：exportAll 载入 UI 偏好并入包，导入侧落 data-theme（经 resolveTheme 解析 auto）/data-density', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('async function exportAll') && g.includes('loadUIPrefs') && g.includes('{ ...safeData, uiPrefs }') && g.includes("document.documentElement.setAttribute('data-theme', resolveTheme(ui.theme))") && g.includes("saveUIPrefs({ density: ui.density as 'compact' | 'cozy' })") && g.includes('界面偏好已应用'); });
 check('R66-4 资源台全景递归 N 级：panTree toNode 递归 + flattenPanCats 扁平渲染（折叠沿祖先链）', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('.map(toNode)') && g.includes('function flattenPanCats') && g.includes('row.depth * 14'); });
 check('R66-5 品牌刷新落点：启动动画/采集浮层页脚/搜索页脚/一封信全部换新 Slogan（旧「你不缺信息」清零）', () => { const h = read('/newtab/index.html'); const ov = read('/content/overlay-impl.ts'); const gp = read('/newtab/components/GlobalPopups.vue'); const lt = read('/newtab/letter-data.ts'); return h.includes('万千可调用，自有我方向') && ov.includes('知源调度台 · 万千可调用，自有我方向') && gp.includes('知源调度台 · 万千可调用，自有我方向') && lt.includes('万千可调用，自有我方向') && !lt.includes('你不缺信息') && lt.includes('lp-creed'); });
 check('R66-6 一封信按新叙事重写：新病根开场→三个看见工作流→信任承诺→新 Slogan 收束（旧「我也焦虑」开场退役）', () => { const lt = read('/newtab/letter-data.ts'); return lt.includes('外部可能性持续增加') && lt.includes('今天的行动有来处') && lt.includes('策展成可以讲给别人听的成果') && lt.includes('伊里奇') && lt.includes('万千可调用，自有我方向') && !lt.includes('我也焦虑') && lt.includes('R66'); });
@@ -1607,11 +1607,12 @@ check('R77-2 浮层 --zy-* 变量体系：明色为默认 + prefers-color-scheme
   return o.includes('--zy-bg:') && o.includes('--zy-text:') && o.includes('--zy-accent:')
     && o.includes('@media (prefers-color-scheme: dark)') && o.includes('--zy-on-accent');
 });
-check('R77-3 四主题强调色与 tokens.css 一一对应（防漂移：改任一侧回归必红）', () => {
+check('R77-3（R156 解禁改写）四主题强调色与 tokens.css 一一对应（防漂移：改任一侧回归必红）', () => {
   const o = read('/content/overlay-impl.ts');
   const t = read('/shared/styles/tokens.css');
   const keys = ['linear', 'apple', 'raycast', 'notion'];
-  const vals = ['#5E6AD2', '#5E6AD2', '#5E6AD2', '#5E6AD2'];
+  /* R156：accent 解禁，四主题各自独立（R124~R155 期间此处四项全为 #5E6AD2） */
+  const vals = ['#5E6AD2', '#8452E0', '#1E6FD9', '#9E3FAF'];
   return keys.every(function (k, i) {
     return o.includes(k + ': { accent: ') && o.includes(vals[i])
       && t.includes('--accent: ' + vals[i] + ';') && t.includes("data-theme='" + k + "'");
@@ -3443,9 +3444,9 @@ check('R123-10 金字塔成果态皮（节点浅底 + 镜像 chip 虚线）+ 页
 
 // ============== R124 · V2.92.0：暗色质感专项（Elevation / 色彩纪律 / 排印 / 四台精修） ==============
 console.log('【R124 · V2.92.0：四主题视觉升级（新 Elevation + 唯一紫 accent + 中性退色）】');
-check('R124-1 暗色新 Elevation：linear/raycast 共用色阶（画布 #0D0E11 / 卡面 #14161B / hover #1A1D24 / 浮层 #1C1F26）', () => { const t = read('/shared/styles/tokens.css'); const f = (v) => (t.split(v).length - 1); return f('--bg: #0D0E11;') === 2 && f('--surface: #14161B;') === 2 && f('--surface-2: #1A1D24;') === 2 && f('--surface-3: #1C1F26;') === 2; });
-check('R124-2 发丝线 + 文本四档透明度：暗 rgba(255,255,255,.08) / 浅 rgba(0,0,0,.08)；文本 .92/.70/.50/.32', () => { const t = read('/shared/styles/tokens.css'); return (t.split('--border: rgba(255, 255, 255, 0.08);').length - 1) === 2 && t.includes('--border: rgba(0, 0, 0, 0.08);') && t.includes('--text: rgba(255, 255, 255, 0.92);') && t.includes('--text-4: rgba(255, 255, 255, 0.32);') && t.includes('--text: rgba(0, 0, 0, 0.90);') && t.includes('--text: rgba(15, 15, 15, 0.90);'); });
-check('R124-3 全局唯一紫 accent：四主题 --accent 全 #5E6AD2 + overlay 映射同步（旧色零残留）', () => { const t = read('/shared/styles/tokens.css'); const o = read('/content/overlay-impl.ts'); return (t.split('--accent: #5E6AD2;').length - 1) === 4 && !t.includes('#FF6363') && !t.includes('#0071E3') && !t.includes('#2383E2') && (o.split("accent: '#5E6AD2'").length - 1) === 4; });
+check('R124-1（R156 差异化改写）暗色 Elevation 分层：linear 保持 #0D0E11/#14161B/#1A1D24/#1C1F26（各 1 处）；raycast 独立纯黑阶 #08080A/#101014/#16161B/#1B1B21', () => { const t = read('/shared/styles/tokens.css'); const f = (v) => (t.split(v).length - 1); return f('--bg: #0D0E11;') === 1 && f('--surface: #14161B;') === 1 && f('--surface-2: #1A1D24;') === 1 && f('--surface-3: #1C1F26;') === 1 && f('--bg: #08080A;') === 1 && f('--surface: #101014;') === 1 && f('--surface-2: #16161B;') === 1 && f('--surface-3: #1B1B21;') === 1; });
+check('R124-2（R156 差异化改写）发丝线 + 文本四档按主题分开：linear .08/.92（遗产）· raycast .12/.95（高对比）· apple 纯黑基色 + rgba(0,0,0,.09) · notion 暖褐黑基色 + rgba(40,34,24,.11)', () => { const t = read('/shared/styles/tokens.css'); return t.includes('--border: rgba(255, 255, 255, 0.08);') && t.includes('--border: rgba(255, 255, 255, 0.12);') && t.includes('--text: rgba(255, 255, 255, 0.92);') && t.includes('--text: rgba(255, 255, 255, 0.95);') && t.includes('--border: rgba(0, 0, 0, 0.09);') && t.includes('--text: rgba(0, 0, 0, 0.90);') && t.includes('--border: rgba(40, 34, 24, 0.11);') && t.includes('--text: rgba(35, 31, 25, 0.90);'); });
+check('R124-3（R156 解禁改写）accent 四主题各自独立：tokens.css 与 overlay 映射各 1 处且四值互不相同；已退役旧色（珊瑚红/旧蓝）零残留', () => { const t = read('/shared/styles/tokens.css'); const o = read('/content/overlay-impl.ts'); const vals = ['#5E6AD2', '#1E6FD9', '#8452E0', '#9E3FAF']; return new Set(vals).size === 4 && vals.every(function (v) { return (t.split('--accent: ' + v + ';').length - 1) === 1 && (o.split("accent: '" + v + "'").length - 1) === 1; }) && !t.includes('#FF6363') && !t.includes('#0071E3') && !t.includes('#2383E2'); });
 check('R124-4 圆角与排印参数：--radius-xs 4px + 全局标签 4px/2px6px/呼吸字距 + --tracking-sm', () => { const t = read('/shared/styles/tokens.css'); return t.includes('--radius-xs: 4px;') && t.includes('--tracking-sm: 0.04em;') && t.includes('border-radius: 4px;\n  padding: 2px 6px;') && t.includes('letter-spacing: var(--tracking-sm);'); });
 check('R124-5 焦点环柔化：:focus-visible 与 --shadow-focus 均 40%', () => { const t = read('/shared/styles/tokens.css'); return t.includes('outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent)') && (t.split('--shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);').length - 1) === 4; });
 check('R124-6（R125 修订 · R155 令牌化备案）调度台：Glass Bar（毛玻璃 + shadow-sm）+ 三件事编号中灰（text-3/--fs-sub）+ 选中态紫蓝光晕', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); const ch = read('/newtab/views/CompassHome.vue'); return mb.includes('backdrop-filter: blur(12px)') && ch.includes('.card.focus .tc-num { color: var(--text-3); font-size: var(--fs-sub); font-weight: 500; opacity: 1; }') && ch.includes('box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent)'); });
@@ -3457,7 +3458,7 @@ check('R124-10 策展台空态：论点占位文案 + 虚线金字塔骨架 + �
 // ============== R125 · V2.93.0：骨架留白（1440+36）/ 主色残遗清理 / 微阴影阶梯 / 四台校准 ==============
 console.log('【R125 · V2.93.0：视觉收尾（留白骨架 + 唯一紫 + 微阴影 + 侧栏图标轨）】');
 check('R125-1 骨架 1440+36：四页 .page(20 36 64) + compass-layout + ws-content(20 36 90) + fullscreen', () => { const c = read('/newtab/views/workspace.css'); const h = read('/newtab/views/CompassHome.vue'); const sh = read('/newtab/views/CompassShell.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); const ct = read('/newtab/views/CompassTree.vue'); return h.includes('padding: 20px 36px 64px;') && sh.includes('padding: 20px 36px 64px;') && pc.includes('padding: 20px 36px 64px;') && ct.includes('padding: 20px 36px 64px; max-width: 1440px;') && c.includes('.ws-content { flex: 1; min-width: 0; padding: 20px 36px 90px; overflow-y: auto; }') && c.includes('.ws-page:fullscreen { background: var(--bg); overflow-y: auto; padding: 20px 36px 90px; }'); });
-check('R125-2 主题色点四紫：App.vue 无 #FF6363 / #0071E3 / #2383E2 残留，dot 全 #5E6AD2', () => { const a = read('/newtab/App.vue'); return (a.split("dot: '#5E6AD2'").length - 1) === 4 && !a.includes('#FF6363') && !a.includes('#0071E3') && !a.includes('#2383E2'); });
+check('R125-2（R156 差异化改写）主题色点随各自 accent：App.vue 无 #FF6363 / #0071E3 / #2383E2 残留；五个选项（含 auto 渐变）色点与四主题 accent 一一对应（原「dot 全 #5E6AD2」已随解禁退役）', () => { const a = read('/newtab/App.vue'); return a.includes("dot: '#5E6AD2'") && a.includes("dot: '#1E6FD9'") && a.includes("dot: '#8452E0'") && a.includes("dot: '#9E3FAF'") && (a.split("id: 'auto'").length - 1) === 1 && !a.includes('#FF6363') && !a.includes('#0071E3') && !a.includes('#2383E2'); });
 check('R125-3 链接并入紫：--info-blue 全链路置紫 + 组件层零 var(--info-blue) 残留 + overlay --zy-link 紫', () => { const t = read('/shared/styles/tokens.css'); const o = read('/content/overlay-impl.ts'); const files = [read('/newtab/components/compass/CuriosityPanel.vue'), read('/newtab/components/GlobalPopups.vue'), read('/newtab/views/CompassTree.vue'), read('/newtab/views/GlobalSettings.vue'), read('/newtab/views/ProjectCuration.vue'), read('/newtab/views/workspace.css')]; const leftover = files.reduce((s, x) => s + (x.split('var(--info-blue)').length - 1), 0); return t.includes('--info-blue: #5E6AD2;') && o.includes('--zy-link:#5E6AD2;') && leftover === 0; });
 check('R125-4 微阴影阶梯：浅色 shadow-sm 二层 + .card/today-card/cur-goal/metric-box/group-box 全接入', () => { const t = read('/shared/styles/tokens.css'); const ch = read('/newtab/views/CompassHome.vue'); const c = read('/newtab/views/workspace.css'); return (t.split('--shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);').length - 1) === 2 && ch.includes('.card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-sm); border: 1px solid var(--border); height: 100%; }') && ch.includes('.today-card, .cur-goal { box-shadow: var(--shadow-sm); }') && c.includes('.metric-box, .group-box { box-shadow: var(--shadow-sm); }'); });
 check('R125-5 合流条锁 38px（原 34~40px）', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); return mb.includes('min-height: 38px; max-height: 38px;'); });
@@ -4258,6 +4259,63 @@ check('R155-12 ★同机 A/B 改为「零移动」+ 报告自证：perf.cjs 认 
     && p.includes('out.build = loadedVer') && p.includes('M14b_资源台svg元素数') && p.includes('M14c_资源台AI徽标数')
     && /fs\.unlinkSync\(reportPath\)/.test(p);
 });
+
+// ============== R156 · V3.2.1：四主题差异化（accent 解禁 + 跟随系统） ==============
+console.log('【R156 · V3.2.1：四主题差异化、accent 解禁、跟随系统】');
+check('R156-1 ★四主题不再是"伪选择"：linear 与 raycast 五项关键令牌逐项不同（R155 theme-audit 首跑实证两者四张截图字节完全相同 —— 19 个色值逐字相同）', () => {
+  const t = read('/shared/styles/tokens.css')
+  const pair = (a, b) => t.includes(a) && t.includes(b)
+  return pair('--bg: #0D0E11;', '--bg: #08080A;')
+    && pair('--surface: #14161B;', '--surface: #101014;')
+    && pair('--border: rgba(255, 255, 255, 0.08);', '--border: rgba(255, 255, 255, 0.12);')
+    && pair('--text: rgba(255, 255, 255, 0.92);', '--text: rgba(255, 255, 255, 0.95);')
+    && pair('--accent: #5E6AD2;', '--accent: #1E6FD9;')
+})
+check('R156-2 ★accent 三件套按主题独立产出（accent-light 随 accent 重算，不得沿用旧紫色）：暗主题 rgba(本主题 accent) · 浅主题独立实色；hover 四主题各自定义；旧全局紫浅底 #EEF0FC 已退役', () => {
+  const t = read('/shared/styles/tokens.css')
+  return t.includes('--accent-light: rgba(94, 106, 210, 0.16);') && t.includes('--accent-light: rgba(30, 111, 217, 0.16);')
+    && t.includes('--accent-light: #EFEBFB;') && t.includes('--accent-light: #F6EDF8;')
+    && t.includes('--accent-hover: #828FFF;') && t.includes('--accent-hover: #3E86E0;')
+    && t.includes('--accent-hover: #6C3FC8;') && t.includes('--accent-hover: #85349A;')
+    && (t.split('--accent-light: #EEF0FC;').length - 1) === 0
+})
+check('R156-3 ★主题对比度改由机器判定并常驻（scripts/theme-contrast.cjs）：解析 tokens.css 真源、10 项/主题（含 --text-3/--surface-3 最苛刻层与 toast 两项）+ 四主题 accent 唯一性，失败即非零退出', () => {
+  const p = fs.readFileSync(path.resolve(__dirname, 'theme-contrast.cjs'), 'utf8')
+  return p.includes("'src', 'shared', 'styles', 'tokens.css'") && p.includes('toast-action/toast-bg')
+    && p.includes("'text-3/surface-3'") && p.includes("'text-3/bg'") && p.includes('#fff/accent')
+    && p.includes('uniq.size !== THEMES.length') && p.includes('process.exit(fail === 0 ? 0 : 1)')
+})
+check('R156-4 ★主题「跟随系统」（auto）：shared/utils/theme.ts 提供 resolveTheme/watchSystemTheme（系统深→linear / 浅→apple）；App.vue 主题列表含 auto；三处落 data-theme 的入口（启动 / 切换 / 导入偏好包）统一经 resolveTheme；auto 模式下刷新后仍注册系统配色监听', () => {
+  const th = read('/shared/utils/theme.ts'); const a = read('/newtab/App.vue')
+  const m = read('/newtab/main.ts'); const s = read('/newtab/stores/app.ts'); const g = read('/newtab/views/GlobalSettings.vue')
+  return th.includes('export function resolveTheme') && th.includes('export function watchSystemTheme')
+    && th.includes("t === 'auto'") && th.includes('prefers-color-scheme: dark') && th.includes('? SYSTEM_DARK : SYSTEM_LIGHT')
+    && a.includes("id: 'auto'") && a.includes('跟随系统')
+    && m.includes("setAttribute('data-theme', resolveTheme(ui.theme))")
+    && s.includes('function applyTheme(t: string)') && s.includes('watchSystemTheme((r) =>')
+    && s.includes('applyTheme(ui.value?.theme') /* 启动即注册监听，否则刷新后 auto 不再跟随 */
+    && g.includes("setAttribute('data-theme', resolveTheme(ui.theme))")
+})
+check('R156-5 ★accent 落地纪律（解禁 ≠ 滥用）写进令牌头：每主题只许一个 accent、只用于主行动与当前态，且四主题色相成阶梯两两可辨', () => {
+  const t = read('/shared/styles/tokens.css')
+  return t.includes('每主题只许一个 accent') && t.includes('只用于主行动与当前态')
+    && t.includes('色相成阶梯') && t.includes('解禁的是') && t.includes('不是"克制"')
+})
+check('R156-6（R155 复核）★AI 徽标随主题 accent 自动变色：ZhiMark 走 currentColor（四主题 accent 解禁后零额外成本自动成立），且零硬编码 fill/stroke 色值', () => {
+  const z = read('/shared/components/ZhiMark.vue')
+  return z.includes('stroke="currentColor"') && z.includes('fill="none"') && !z.includes('fill="#') && !z.includes('stroke="#')
+})
+check('R156-7 raycast 独立配套：纯黑遮罩 .7 + 冷蓝动作色回执条（#5AA9FF）—— 不再与 linear 共用同一套 toast 配色', () => {
+  const t = read('/shared/styles/tokens.css')
+  return t.includes('--toast-bg: #0B0B0E; --toast-fg: #F2F3F5; --toast-action: #5AA9FF;') && t.includes('--overlay-bg: rgba(0, 0, 0, 0.7);')
+})
+check('R156-8 浅色双主题彻底分开：apple 冷灰白 #F5F5F7 + 纯黑文本基色 ／ notion 暖纸白 #F7F6F3 + 暖褐黑文本基色（border 与文本基色不再趋同；notion 旧冷黑基色已退役）', () => {
+  const t = read('/shared/styles/tokens.css')
+  return t.includes('--bg: #F5F5F7;') && t.includes('--bg: #F7F6F3;')
+    && t.includes('--text: rgba(0, 0, 0, 0.90);') && t.includes('--text: rgba(35, 31, 25, 0.90);')
+    && t.includes('--border: rgba(0, 0, 0, 0.09);') && t.includes('--border: rgba(40, 34, 24, 0.11);')
+    && (t.split('--border: rgba(15, 15, 15, 0.08);').length - 1) === 0
+})
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

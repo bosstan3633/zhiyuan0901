@@ -1,25 +1,29 @@
 ﻿/**
- * 知源调度台 · 设计令牌（R124 视觉升级 · 四主题统一结构语言）
+ * 知源调度台 · 设计令牌（R124 视觉升级 · 四主题统一结构语言 / R156 四主题差异化）
  *
  * 结构语言（四主题共用）：
  *   - 四级表面阶梯（bg → surface → surface-2 → surface-3）+ 发丝线边框承载层级，弱化阴影
- *   - R124：暗色 Elevation 色阶（画布 #0D0E11 / 卡面 #14161B / hover #1A1D24 / 浮层 #1C1F26）
- *   - 发丝线：暗色 rgba(255,255,255,.08) / 浅色 rgba(0,0,0,.08)，取代实色硬线
- *   - 文本四档透明度体系（暗 .92/.70/.50/.32 · 浅 .90/.62/.44/.28）
+ *   - R124：暗色 Elevation 色阶；R156：linear 保持 #0D0E11 系，**raycast 改为高对比纯黑系**
+ *   - 发丝线：暗色 rgba(255,255,255,.08~.12) / 浅色 rgba(0,0,0,.09) 与 rgba(40,34,24,.11)
+ *   - 文本四档透明度体系（暗 .92~.95 / .70~.72 / .50~.52 / .32~.34 · 浅 .90 / .62~.64 / .46~.52 / .28~.30）
  *   - 圆角体系：大容器 12 · 卡片/按钮 8 · 标签/小按钮 4（R124：99px 胶囊退役）
- *   - 强调色纪律（R124 定 · **R156 解禁**）：R124~R155 期间为**全局唯一强调色 = 深空薰衣草紫 #5E6AD2**
- *     （聚焦环/选中态/主 CTA），中性状态（中优/低优/待开始）一律退后为灰白文本，不再铺色；
- *     **R156 起改为「每主题各自独立 accent」（用户 2026-09-22 拍板解禁）**，纪律改述为：
- *     **每主题只许一个 accent，且只用于主行动与当前态**——解禁的是"唯一性"，不是"克制"。
+ *   - **强调色纪律（R124 定 · R156 解禁 → R156 重立）**：
+ *     R124~R155 为**全局唯一强调色 = 深空薰衣草紫 #5E6AD2**；
+ *     **R156 起改为「每主题各自独立 accent」（用户 2026-09-22 拍板解禁）**，纪律重述为：
+ *     **① 每主题只许一个 accent ② 只用于主行动与当前态 ③ 四主题 accent 色相成阶梯、两两可辨。
+ *     解禁的是"唯一性"，不是"克制"。**
  *   - R155：新增间距阶 `--sp-1..7`、z-index 层阶 `--z-*`、图标阶 `--icon-sm/md/lg`、
  *     行高 `--lh-*`、缓动 `--ease-emphasis`；字阶收敛为整数（10.5/13.5 → 11/13）
  *   - 小字号（11–12px）统一呼吸字距 0.04em；胶囊内距收紧至 2px 6px
  *
- * 主题（四套共用结构，仅底色气质不同）：
- *   深空薰衣草 linear —— 中性近黑 #0D0E11（默认）
- *   光速黑  raycast —— 同新 Elevation 规范（原珊瑚红 accent 退役）
- *   极简白  apple  —— 冷灰白阶梯
- *   纸墨白  notion —— 暖纸白阶梯
+ * 主题（四套共用结构，R156 起**四套气质与强调色各自独立**）：
+ *   深空薰衣草 linear —— 中性近黑 #0D0E11（默认）· accent 薰衣草紫 #5E6AD2
+ *   光速黑  raycast —— **高对比纯黑 #08080A / 卡面 #101014 / 发丝线 .12 / 文本 .95** · accent 冷蓝 #1E6FD9
+ *   极简白  apple  —— **冷灰白阶梯 #F5F5F7（iOS 系统灰）** · 冷黑文本基色 · accent 冷紫 #8452E0
+ *   纸墨白  notion —— **暖纸白阶梯 #F7F6F3（纸墨）** · 暖褐黑文本基色 · accent 暖紫 #9E3FAF
+ *
+ * 对比度基线（R156 · WCAG 2.1 · 由 `scripts/theme-contrast.cjs` 常驻校验）：
+ *   四主题 --text/--bg ≥ 4.5 · --text-3/--bg ≥ 3 · 白字/accent ≥ 4.5 · toast 前景与动作色 ≥ 4.5
  */
 
 :root {
@@ -129,7 +133,7 @@
   --card-min-w: 260px;
 }
 
-/* ===== 深空薰衣草 · 新 Elevation 规范（默认） ===== */
+/* ===== 深空薰衣草 · linear（默认 · 中性近黑 · accent 薰衣草紫） ===== */
 :root,
 [data-theme='linear'] {
   /* Elevation 色阶（R124）：画布 → 卡面 → hover → 浮层 */
@@ -148,7 +152,7 @@
   --text-3: rgba(255, 255, 255, 0.50);
   --text-4: rgba(255, 255, 255, 0.32);
 
-  /* 全局唯一强调色 · 深空薰衣草紫 */
+  /* 主题强调色 · 深空薰衣草紫（R156：linear 保留 R124 遗产色，色相 h234） */
   --accent: #5E6AD2;
   --accent-2: #7A85E0;
   --accent-light: rgba(94, 106, 210, 0.16);
@@ -200,29 +204,34 @@
   --toast-bg: #1A1D23; --toast-fg: #F2F3F5; --toast-action: #8FC4A3;
 }
 
-/* ===== 光速黑 · 同新 Elevation 规范（原珊瑚红 accent 退役） ===== */
+/* ===== 光速黑 · raycast（R156 高对比纯黑 · accent 冷蓝） =====
+   R156 差异化依据：R155 的 theme-audit 首跑实证 `linear` 与 `raycast` **四张截图字节完全相同**
+   （两套主题 19 个色值逐字相同）——那是"伪选择"。本轮按用户拍板把 raycast 做成**高对比纯黑**：
+   画布 #08080A（比 linear #0D0E11 更黑）· 卡面 #101014 · 发丝线 .12（linear .08）·
+   文本 .95（linear .92）· accent 冷蓝 h214（linear 薰衣草紫 h234）。 */
 [data-theme='raycast'] {
-  --bg: #0D0E11;
-  --surface: #14161B;
-  --surface-2: #1A1D24;
-  --surface-3: #1C1F26;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --text: rgba(255, 255, 255, 0.92);
-  --text-2: rgba(255, 255, 255, 0.70);
-  --text-3: rgba(255, 255, 255, 0.50);
-  --text-4: rgba(255, 255, 255, 0.32);
-  --accent: #5E6AD2;
-  --accent-2: #7A85E0;
-  --accent-light: rgba(94, 106, 210, 0.16);
-  --accent-hover: #828FFF;
-  --accent-glow: rgba(109, 92, 232, 0.40);
+  --bg: #08080A;
+  --surface: #101014;
+  --surface-2: #16161B;
+  --surface-3: #1B1B21;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --text: rgba(255, 255, 255, 0.95);
+  --text-2: rgba(255, 255, 255, 0.72);
+  --text-3: rgba(255, 255, 255, 0.52);
+  --text-4: rgba(255, 255, 255, 0.34);
+  /* 主题强调色 · 冷蓝（h214 s76 l48）—— 与 linear 紫拉开色相阶梯 */
+  --accent: #1E6FD9;
+  --accent-2: #3D8BEA;
+  --accent-light: rgba(30, 111, 217, 0.16);
+  --accent-hover: #3E86E0;
+  --accent-glow: rgba(30, 111, 217, 0.45);
   --success: #27A644;
   --warning: #D9A03C;
   --danger: #E5484D;
   --stagnant: #D4715D;
-  --info-blue: #5E6AD2;
-  --info-blue-light: rgba(94, 106, 210, 0.14);
+  --info-blue: #1E6FD9;
+  --info-blue-light: rgba(30, 111, 217, 0.14);
   --curio-amber: #D9B45C;
   --curio-bg: rgba(217, 180, 92, 0.12);
   --violet: #A78BFA;
@@ -232,8 +241,8 @@
   --tag-ok-text: #6FCE8B;
   --tag-danger-bg: rgba(229, 72, 77, 0.15);
   --tag-danger-text: #FF9189;
-  --tag-neutral-bg: rgba(255, 255, 255, 0.06);
-  --tag-neutral-text: rgba(255, 255, 255, 0.50);
+  --tag-neutral-bg: rgba(255, 255, 255, 0.08);
+  --tag-neutral-text: rgba(255, 255, 255, 0.52);
   --tag-info-bg: rgba(91, 141, 239, 0.15);
   --tag-info-text: #9CC0F5;
   --success-bg-soft: rgba(39, 166, 68, 0.10);
@@ -242,39 +251,43 @@
   --warning-border: rgba(217, 160, 60, 0.40);
   --danger-bg-soft: rgba(229, 72, 77, 0.10);
   --danger-border: rgba(229, 72, 77, 0.40);
-  --overlay-bg: rgba(0, 0, 0, 0.6);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.6);
+  --overlay-bg: rgba(0, 0, 0, 0.7);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 0 0 1px var(--border), 0 16px 48px rgba(0, 0, 0, 0.7);
   --shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
-  /* R146：回执条配色（深色主题同款） */
-  --toast-bg: #1A1D23; --toast-fg: #F2F3F5; --toast-action: #8FC4A3;
+  /* R146：回执条配色（R156：纯黑底 + 冷蓝动作色，呼应本主题 accent） */
+  --toast-bg: #0B0B0E; --toast-fg: #F2F3F5; --toast-action: #5AA9FF;
 }
 
-/* ===== 极简白 · 冷灰白阶梯（新 Elevation 结构） ===== */
+/* ===== 极简白 · apple（R156 冷灰白阶梯 · iOS 系统灰 · accent 冷紫） =====
+   R156 分工：apple = 冷灰白（纯黑文本基色 · 冷灰阶 #F5F5F7）／notion = 暖纸白（暖褐黑文本基色
+   · 纸墨阶 #F7F6F3）。两者此前仅底色基色差 3 阶、语义色高度趋同，本轮**文本基色与边框基色
+   一并分开**（apple 走纯黑 rgba(0,0,0,*) / notion 走暖褐黑 rgba(40,34,24,*)）。 */
 [data-theme='apple'] {
-  --bg: #F4F5F7;
+  --bg: #F5F5F7;
   --surface: #FFFFFF;
-  --surface-2: #F1F3F5;
-  --surface-3: #E9ECEF;
-  --border: rgba(0, 0, 0, 0.08);
-  --border-strong: rgba(0, 0, 0, 0.14);
+  --surface-2: #EFEFF2;
+  --surface-3: #EAEAEF;
+  --border: rgba(0, 0, 0, 0.09);
+  --border-strong: rgba(0, 0, 0, 0.15);
   --text: rgba(0, 0, 0, 0.90);
   --text-2: rgba(0, 0, 0, 0.62);
-  --text-3: rgba(0, 0, 0, 0.44);
+  --text-3: rgba(0, 0, 0, 0.46);
   --text-4: rgba(0, 0, 0, 0.28);
-  --accent: #5E6AD2;
-  --accent-2: #7A85E0;
-  --accent-light: #EEF0FC;
-  --accent-hover: #4C57BE;
-  --accent-glow: rgba(94, 106, 210, 0.18);
+  /* 主题强调色 · 冷紫（h261 s70 l60） */
+  --accent: #8452E0;
+  --accent-2: #9E8FEC;
+  --accent-light: #EFEBFB;
+  --accent-hover: #6C3FC8;
+  --accent-glow: rgba(132, 82, 224, 0.18);
   --success: #27A644;
   --warning: #A66A00;
   --danger: #D0342C;
   --stagnant: #D4715D;
-  --info-blue: #5E6AD2;
-  --info-blue-light: #EEF0FC;
+  --info-blue: #8452E0;
+  --info-blue-light: #EFEBFB;
   --curio-amber: #A87B2A;
   --curio-bg: #F9F3E4;
   --violet: #7C3AED;
@@ -284,10 +297,10 @@
   --tag-ok-text: #2E7D42;
   --tag-danger-bg: #FBEAEA;
   --tag-danger-text: #C03B3B;
-  --tag-neutral-bg: #F1F3F5;
-  --tag-neutral-text: rgba(0, 0, 0, 0.44);
-  --tag-info-bg: #EEF0FC;
-  --tag-info-text: #4C57BE;
+  --tag-neutral-bg: #EFEFF2;
+  --tag-neutral-text: rgba(0, 0, 0, 0.46);
+  --tag-info-bg: #EFEBFB;
+  --tag-info-text: #6C3FC8;
   --success-bg-soft: rgba(39, 166, 68, 0.08);
   --success-border: rgba(39, 166, 68, 0.35);
   --warning-bg-soft: rgba(166, 106, 0, 0.10);
@@ -304,29 +317,33 @@
   --toast-bg: #FFFFFF; --toast-fg: #1D1D1F; --toast-action: #1E7A34;
 }
 
-/* ===== 纸墨白 · 暖纸白阶梯（新 Elevation 结构） ===== */
+/* ===== 纸墨白 · notion（R156 暖纸白阶梯 · 纸墨 · accent 暖紫） =====
+   R156 分工：与 apple 彻底分开——底色 #F7F6F3（暖纸）对 apple #F5F5F7（冷灰）；
+   文本基色 rgba(35,31,25,*) 暖褐黑 对 apple rgba(0,0,0,*) 纯黑；
+   发丝线 rgba(40,34,24,.11) 暖褐 对 apple rgba(0,0,0,.09) 冷黑；accent 暖紫 h291 对 apple 冷紫 h261。 */
 [data-theme='notion'] {
   --bg: #F7F6F3;
   --surface: #FFFFFF;
-  --surface-2: #F1EFEA;
-  --surface-3: #E9E6DF;
-  --border: rgba(15, 15, 15, 0.08);
-  --border-strong: rgba(15, 15, 15, 0.14);
-  --text: rgba(15, 15, 15, 0.90);
-  --text-2: rgba(15, 15, 15, 0.60);
-  --text-3: rgba(15, 15, 15, 0.42);
-  --text-4: rgba(15, 15, 15, 0.26);
-  --accent: #5E6AD2;
-  --accent-2: #7A85E0;
-  --accent-light: #EEF0FC;
-  --accent-hover: #4C57BE;
-  --accent-glow: rgba(94, 106, 210, 0.18);
+  --surface-2: #F2F0EB;
+  --surface-3: #EEEAE3;
+  --border: rgba(40, 34, 24, 0.11);
+  --border-strong: rgba(40, 34, 24, 0.18);
+  --text: rgba(35, 31, 25, 0.90);
+  --text-2: rgba(35, 31, 25, 0.64);
+  --text-3: rgba(35, 31, 25, 0.52);
+  --text-4: rgba(35, 31, 25, 0.30);
+  /* 主题强调色 · 暖紫（h291 s47 l47） */
+  --accent: #9E3FAF;
+  --accent-2: #B76BC6;
+  --accent-light: #F6EDF8;
+  --accent-hover: #85349A;
+  --accent-glow: rgba(158, 63, 175, 0.18);
   --success: #448361;
   --warning: #C08A2D;
   --danger: #E03E3E;
   --stagnant: #D4715D;
-  --info-blue: #5E6AD2;
-  --info-blue-light: #EEF0FC;
+  --info-blue: #9E3FAF;
+  --info-blue-light: #F6EDF8;
   --curio-amber: #9F7B2D;
   --curio-bg: #F6F0DF;
   --violet: #9065B0;
@@ -336,10 +353,10 @@
   --tag-ok-text: #3F7355;
   --tag-danger-bg: #FBE9E7;
   --tag-danger-text: #C03B3B;
-  --tag-neutral-bg: #F1EFEA;
-  --tag-neutral-text: rgba(15, 15, 15, 0.42);
-  --tag-info-bg: #EEF0FC;
-  --tag-info-text: #4C57BE;
+  --tag-neutral-bg: #F2F0EB;
+  --tag-neutral-text: rgba(35, 31, 25, 0.52);
+  --tag-info-bg: #F6EDF8;
+  --tag-info-text: #85349A;
   --success-bg-soft: rgba(68, 131, 97, 0.10);
   --success-border: rgba(68, 131, 97, 0.35);
   --warning-bg-soft: rgba(192, 138, 45, 0.12);
