@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="linear">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>原型 · 标签一键整理（对照式评审）｜仅供评审 · R154 提案</title>
+<style>
+:root{
+  --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Inter","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --fs-body:13.5px;--fs-sub:12px;--tracking-sm:.04em;
+  --dur-fast:120ms;--dur:150ms;--dur-slow:250ms;--ease-out-soft:cubic-bezier(.2,.8,.2,1);
+  --opacity-disabled:.5;
+  --radius-lg:14px;--radius:12px;--radius-md:10px;--radius-sm:8px;--radius-xs:4px;
+}
+:root,[data-theme="linear"]{
+  --bg:#0D0E11;--surface:#14161B;--surface-2:#1A1D24;--surface-3:#1C1F26;
+  --border:rgba(255,255,255,.08);--border-strong:rgba(255,255,255,.14);
+  --text:rgba(255,255,255,.92);--text-2:rgba(255,255,255,.70);--text-3:rgba(255,255,255,.50);--text-4:rgba(255,255,255,.32);
+  --accent:#5E6AD2;--accent-2:#7A85E0;--accent-light:rgba(94,106,210,.16);--accent-hover:#828FFF;
+  --success:#27A644;--warning:#D9A03C;--danger:#E5484D;--curio-amber:#D9B45C;--curio-bg:rgba(217,180,92,.12);--violet:#A78BFA;
+  --tag-warn-bg:rgba(217,160,60,.14);--tag-warn-text:#EFBE66;--tag-ok-bg:rgba(39,166,68,.15);--tag-ok-text:#6FCE8B;
+  --tag-danger-bg:rgba(229,72,77,.15);--tag-danger-text:#FF9189;--tag-neutral-bg:rgba(255,255,255,.06);--tag-neutral-text:rgba(255,255,255,.50);
+  --danger-bg-soft:rgba(229,72,77,.10);--warning-bg-soft:rgba(217,160,60,.10);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.3);--shadow-lg:0 0 0 1px var(--border),0 16px 48px rgba(0,0,0,.6);
+  --shadow-focus:0 0 0 2px color-mix(in srgb,var(--accent) 40%,transparent);--scrim:rgba(0,0,0,.35);
+}
+[data-theme="apple"]{
+  --bg:#F4F5F7;--surface:#FFFFFF;--surface-2:#F1F3F5;--surface-3:#E9ECEF;
+  --border:rgba(0,0,0,.08);--border-strong:rgba(0,0,0,.14);
+  --text:rgba(0,0,0,.90);--text-2:rgba(0,0,0,.62);--text-3:rgba(0,0,0,.44);--text-4:rgba(0,0,0,.28);
+  --accent:#5E6AD2;--accent-2:#7A85E0;--accent-light:#EEF0FC;--accent-hover:#4C57BE;
+  --success:#27A644;--warning:#A66A00;--danger:#D0342C;--curio-amber:#A87B2A;--curio-bg:#F9F3E4;--violet:#7C3AED;
+  --tag-warn-bg:#FBF1DE;--tag-warn-text:#8A5A00;--tag-ok-bg:rgba(39,166,68,.12);--tag-ok-text:#1B7A31;
+  --tag-danger-bg:rgba(208,52,44,.10);--tag-danger-text:#B3251F;--tag-neutral-bg:rgba(0,0,0,.05);--tag-neutral-text:rgba(0,0,0,.55);
+  --danger-bg-soft:rgba(208,52,44,.08);--warning-bg-soft:rgba(166,106,0,.08);
+  --shadow-sm:0 1px 2px rgba(16,24,40,.06);--shadow-lg:0 0 0 1px var(--border),0 16px 40px rgba(16,24,40,.16);
+  --scrim:rgba(20,22,28,.28);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:var(--fs-body);line-height:1.6}
+button,input,textarea,select{font-family:inherit}
+.rev-badge{position:fixed;top:12px;right:16px;z-index:99;font-size:11px;color:var(--tag-warn-text);border:1px dashed var(--warning);border-radius:var(--radius-xs);padding:2px 8px;background:var(--tag-warn-bg)}
+.wrap{max-width:1360px;margin:0 auto;padding:24px 22px 80px}
+h1{font-size:19px;font-weight:700}.h1v{font-size:11px;font-weight:500;color:var(--text-3);margin-left:8px}
+.sub{font-size:12px;color:var(--text-3);margin:5px 0;letter-spacing:var(--tracking-sm)}.sub b{color:var(--text-2)}
+.tabs{display:flex;gap:6px;margin:16px 0 12px;flex-wrap:wrap}
+.tab{padding:7px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;font-size:12.5px}
+.tab.on{color:#fff;background:var(--accent);border-color:var(--accent);font-weight:600}
+.tgl{margin-left:auto;padding:6px 12px;border-radius:var(--radius-xs);border:1px solid var(--border);background:var(--surface-2);color:var(--text-3);font-size:11.5px;cursor:pointer}
+.pane{display:none}.pane.on{display:block}
+.note{font-size:11.5px;color:var(--text-3);background:var(--surface);border:1px solid var(--border);border-left:2px solid var(--accent);border-radius:var(--radius-xs);padding:8px 13px;margin-bottom:11px;line-height:1.75}
+.note b{color:var(--text-2)}.note code{font-size:11px;color:var(--curio-amber);background:var(--surface-2);padding:1px 5px;border-radius:3px}
+.stage{position:relative;height:660px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg)}
+.scrim{position:absolute;inset:0;background:var(--scrim);z-index:2}
+.drawer{position:absolute;top:0;right:0;bottom:0;width:min(1180px,96%);z-index:3;display:flex;flex-direction:column;background:var(--surface);box-shadow:var(--shadow-lg)}
+/* 头 */
+.dr-head{display:flex;align-items:center;gap:9px;padding:10px 15px;border-bottom:1px solid var(--border);flex-shrink:0}
+.dr-head .t{font-size:15px;font-weight:700}
+.ai-mark{font-size:15px;line-height:1;vertical-align:-2px}.ai-mark.spin{animation:turn 1.1s linear infinite}@keyframes turn{to{transform:rotate(360deg)}}
+.steps{display:flex;align-items:center;gap:6px;margin-left:14px}
+.st{font-size:11px;padding:2px 9px;border-radius:var(--radius-xs);background:var(--surface-2);color:var(--text-4);letter-spacing:var(--tracking-sm);white-space:nowrap}
+.st.done{color:var(--tag-ok-text);background:var(--tag-ok-bg)}
+.st.on{color:#fff;background:var(--accent);font-weight:600}
+.spacer{flex:1}
+.persona{padding:5px 8px;border-radius:var(--radius-xs);border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-2);font-size:11.5px;cursor:pointer}
+.dr-close{width:26px;height:26px;border-radius:var(--radius-xs);border:none;background:none;color:var(--text-3);font-size:17px;cursor:pointer}
+.dr-close:hover{background:var(--surface-2);color:var(--text)}
+.ctx{display:flex;align-items:center;gap:10px;padding:7px 15px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.subject{padding:3px 9px;background:var(--accent-light);border:1px solid var(--accent);border-radius:var(--radius-xs);color:var(--accent);font-size:11.5px;font-weight:600}
+[data-theme="apple"] .subject{color:var(--accent-hover);border-color:var(--accent-hover)}
+.hint{font-size:11.5px;color:var(--text-3);flex:1;min-width:280px;line-height:1.6}
+/* 影响条 */
+.impact{display:flex;align-items:center;gap:12px;padding:7px 15px;background:var(--danger-bg-soft);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;font-size:11.5px;color:var(--text-2)}
+.impact b{font-variant-numeric:tabular-nums}
+.impact .i{display:flex;align-items:center;gap:4px}
+.impact .lbl{color:var(--text-3)}
+.impact .big{font-size:13px;font-weight:700;color:var(--tag-danger-text)}
+.impact .ok{color:var(--tag-ok-text)}
+/* 双栏 */
+.dual{flex:1;display:flex;min-height:0}
+.col{display:flex;flex-direction:column;min-width:0}
+.col-l{width:430px;flex-shrink:0;border-right:1px solid var(--border)}
+.col-r{flex:1;min-width:0}
+.col-head{display:flex;align-items:center;gap:8px;padding:8px 13px;border-bottom:1px solid var(--border);background:var(--surface-2);flex-shrink:0}
+.col-head .lbl{font-size:11px;font-weight:700;color:var(--text-2);letter-spacing:.5px}
+.col-head .cnt{font-size:10.5px;color:var(--text-4)}
+.col-head .right{margin-left:auto;display:flex;gap:6px}
+.col-body{flex:1;overflow-y:auto;padding:9px 11px 16px}
+.blk{font-size:10.5px;font-weight:700;color:var(--text-3);letter-spacing:.6px;margin:12px 2px 6px}
+.blk:first-child{margin-top:2px}
+/* 树行 */
+.n{display:flex;gap:7px;align-items:flex-start;padding:6px 8px;border-radius:var(--radius-xs);border:1px solid transparent;margin-bottom:3px;transition:all var(--dur-fast)}
+.n:hover,.n.hot{background:var(--surface-2);border-color:var(--border)}
+.n.child{margin-left:19px}
+.n.void{opacity:.42;text-decoration:line-through;text-decoration-color:var(--text-4)}
+.n .pky{width:13px;height:13px;margin-top:3px;accent-color:var(--accent);flex-shrink:0;cursor:pointer}
+.n .ic{width:13px;flex-shrink:0;color:var(--text-4);font-size:11px;padding-top:2px}
+.n .nm{font-size:12.5px;color:var(--text);font-weight:600;flex-shrink:0}
+.n .df{font-size:11px;color:var(--text-3);flex:1;min-width:0;line-height:1.55}
+.n .df[contenteditable]:focus,.n .nm[contenteditable]:focus{outline:none;background:var(--bg);box-shadow:var(--shadow-focus);border-radius:3px;padding:0 4px}
+.n .nums{font-size:10.5px;color:var(--text-4);font-variant-numeric:tabular-nums;flex-shrink:0;padding-top:2px}
+.n select{font-size:11px;padding:1px 4px;border-radius:3px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text-2);max-width:190px}
+.b{flex-shrink:0;display:flex;gap:4px;align-items:center;padding-top:1px}
+.tag{font-size:10px;padding:2px 6px;border-radius:var(--radius-xs);letter-spacing:var(--tracking-sm);white-space:nowrap;font-weight:600}
+.tag.new{background:var(--tag-ok-bg);color:var(--tag-ok-text)}
+.tag.edit{background:var(--accent-light);color:var(--accent)}.tag.same{background:var(--tag-neutral-bg);color:var(--tag-neutral-text);font-weight:400}
+.tag.warn{background:var(--tag-warn-bg);color:var(--tag-warn-text)}
+.tag.danger{background:var(--tag-danger-bg);color:var(--tag-danger-text)}
+.tag.adv{background:var(--curio-bg);color:var(--curio-amber)}
+.chip{display:inline-block;font-size:10.5px;padding:1px 6px;border-radius:var(--radius-xs);background:var(--tag-neutral-bg);color:var(--tag-neutral-text);margin:1px 3px 0 0}
+.chip.cut{background:var(--tag-danger-bg);color:var(--tag-danger-text);text-decoration:line-through}
+.chip.go{background:var(--tag-ok-bg);color:var(--tag-ok-text)}
+.adv-row{background:var(--curio-bg);border-radius:var(--radius-xs);padding:7px 9px;margin:4px 0;font-size:11.5px;color:var(--text-2);line-height:1.65}
+.adv-row .s{display:block;font-size:11px;color:var(--text-3);margin-top:2px}
+/* 工具条 */
+.toolbar{display:flex;align-items:center;gap:9px;padding:6px 13px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.sum{font-size:11.5px;color:var(--text-2);letter-spacing:var(--tracking-sm)}.sum b{font-weight:700}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.usage{font-size:10.5px;color:var(--text-4);font-variant-numeric:tabular-nums}
+.mini{font-size:11px;padding:2px 8px;border-radius:var(--radius-xs);border:1px solid var(--border);background:var(--surface-2);color:var(--text-3);cursor:pointer}
+.mini:hover{color:var(--text)}.mini.on{color:var(--accent);border-color:var(--accent);background:var(--accent-light)}
+.mini.dirmark{color:var(--curio-amber);border-color:var(--curio-amber);background:var(--curio-bg)}
+/* 指令框 */
+.dir-box{border-top:1px solid var(--border);background:var(--surface-2);padding:8px 13px 9px;flex-shrink:0}
+.dir-head{display:flex;align-items:center;gap:7px;margin-bottom:5px;flex-wrap:wrap}
+.dir-head .lb{font-size:11px;font-weight:700;color:var(--text-2)}
+.dir-head .prio{font-size:10px;padding:1px 6px;border-radius:var(--radius-xs);background:var(--curio-bg);color:var(--curio-amber);font-weight:600}
+.scope{display:flex;border:1px solid var(--border-strong);border-radius:var(--radius-xs);overflow:hidden}
+.scope span{font-size:10.5px;padding:2px 8px;color:var(--text-3);cursor:pointer;background:var(--surface)}
+.scope span.on{background:var(--accent);color:#fff;font-weight:600}
+.scope span.dis{opacity:.42;cursor:not-allowed}
+.dir-head .cap{margin-left:auto;font-size:10.5px;color:var(--text-4)}
+.dir-row{display:flex;gap:7px;align-items:flex-start}
+.dir-ta{flex:1;height:38px;background:var(--bg);border:1px solid var(--border-strong);border-radius:var(--radius-xs);color:var(--text);font-size:12px;line-height:1.65;padding:5px 9px;resize:none;outline:none}
+.dir-ta:focus{border-color:var(--accent);box-shadow:var(--shadow-focus)}
+.dir-ta::placeholder{color:var(--text-4)}
+.hist{position:relative}
+.hist-menu{position:absolute;bottom:32px;right:0;width:430px;background:var(--surface-3);border:1px solid var(--border-strong);border-radius:var(--radius-sm);box-shadow:var(--shadow-lg);padding:6px;display:none;z-index:5}
+.hist-menu.on{display:block}
+.hi{padding:6px 8px;border-radius:var(--radius-xs);cursor:pointer;font-size:11.5px;color:var(--text-2);line-height:1.6}
+.hi:hover{background:var(--surface-2)}
+.hi .m{font-size:10.5px;color:var(--text-4);font-variant-numeric:tabular-nums}
+.hi .q{color:var(--text)}
+/* 底部 */
+.dr-foot{display:flex;align-items:center;gap:8px;padding:9px 14px;border-top:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.receipt{font-size:11.5px;color:var(--tag-ok-text)}
+.receipt.wr{color:var(--curio-amber)}
+.btns{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{padding:6px 13px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-2);font-size:12.5px;cursor:pointer;white-space:nowrap}
+.btn:hover:not(:disabled){border-color:var(--accent);color:var(--text)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.dangerz{background:var(--danger);border-color:var(--danger);color:#fff;font-weight:600}
+.btn:disabled{opacity:var(--opacity-disabled);cursor:not-allowed}
+.confirm{display:none;width:100%;font-size:11.5px;color:var(--tag-danger-text);background:var(--danger-bg-soft);border:1px solid var(--danger);border-radius:var(--radius-xs);padding:6px 10px;margin-bottom:6px}
+.confirm.on{display:block}
+/* 背后页面 */
+.app{position:absolute;inset:0;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;gap:14px;padding:0 20px;height:44px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.logo{width:20px;height:20px;border-radius:5px;background:linear-gradient(135deg,var(--accent),var(--violet))}
+.nav{display:flex;gap:4px;font-size:12.5px;color:var(--text-3)}
+.nav span.on{background:var(--accent-light);color:var(--accent);padding:4px 10px;border-radius:var(--radius-xs);font-weight:600}
+.ws{flex:1;padding:14px 20px;overflow:hidden}
+.ws h2{font-size:14px;display:flex;align-items:center;gap:8px}
+.ws .crumb{font-size:11.5px;color:var(--text-3);margin:2px 0 12px}
+.gs-btn{padding:4px 10px;border-radius:var(--radius-xs);border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-2);font-size:11.5px}
+.gs-btn.ai{border-color:var(--accent);color:var(--accent)}
+.two{display:flex;gap:12px}
+.two .l{width:230px;flex-shrink:0}.two .r{flex:1}
+.box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 11px;font-size:11.5px;color:var(--text-3);line-height:1.9}
+.box .on{color:var(--accent);font-weight:600}
+/* 规格 */
+.spec{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
+.spec h3{font-size:12.5px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:7px 14px;color:var(--text-3);font-size:11px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+td{padding:8px 14px;border-bottom:1px solid var(--border);color:var(--text-2);vertical-align:top;line-height:1.7}
+tr:last-child td{border-bottom:none}
+td.k{color:var(--text);font-weight:600;width:190px}
+.m{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--curio-amber)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.status{margin:10px 12px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--border);font-size:12px;color:var(--text-2);line-height:1.8}
+.status.err{background:var(--danger-bg-soft)}
+.status .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-right:7px;animation:pulse 1s infinite;vertical-align:1px}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+.spec h4{font-size:11.5px;padding:9px 12px 0;color:var(--text-2)}
+</style>
+</head>
+<body>
+<div class="rev-badge">仅供评审 · 未落地代码</div>
+<div class="wrap">
+  <h1>标签一键整理 · 对照式评审原型<span class="h1v">R154 提案 · 基于 V3.8.0（R153）govern.ts 真实两阶段</span></h1>
+  <div class="sub">入口：<b>设置 › 🏷 标签管理 › 🧹 整体梳理</b>（<code>GlobalSettings.vue:363</code> → <code>govern.ts:408 buildTagBlueprintJob</code> / <code>:494 buildTagAssignJob</code>）。这是全站<b>唯一会整树替换</b>的 AI 动作，所以原型把三件事做到明处：<b>影响面前置、逐顶层可否决、快照可回滚</b>。</div>
+  <div class="sub">左栏=当前形态（旧树+用量 / 卡片现归属）；右栏=梳理后完整形态（新树+迁移表 / 逐卡归宿），<b>节点名与收卡定义可就地改、迁移目标可改选</b>，改完再采纳。</div>
+
+  <div class="tabs">
+    <button class="tab on" data-p="p1">① 阶段② · 蓝图评审（整树替换）</button>
+    <button class="tab" data-p="p2">② 阶段 · 全卡归架</button>
+    <button class="tab" data-p="p3">③ 状态与边界</button>
+    <button class="tab" data-p="p4">④ 口径与规格</button>
+    <button class="tgl" id="theme">切换主题</button>
+  </div>
+
+  <!-- ================= P1 蓝图 ================= -->
+  <div class="pane on" id="p1">
+    <div class="note"><b>可玩</b>：取消勾选某个顶层 → 它的子节点与迁移映射<b>一并作废</b>，顶部影响条的「剪掉/清空」数字当场重算 · 点节点名或收卡定义<b>就地改</b>（改后迁移表目标路径跟随）· 迁移行的目标可下拉改选 · 「只看变化」· 改「附加指令」后重跑 · 采纳会先弹<b>二次确认</b>（写明剪掉多少个旧标签）。</div>
+    <div class="stage">
+      <div class="app">
+        <div class="topbar"><div class="logo"></div><div class="nav"><span>调度台</span><span>方向台</span><span>资源台</span><span>策展台</span><span style="margin-left:14px">⚙ 设置</span></div></div>
+        <div class="ws">
+          <h2>🏷 标签管理 <span class="gs-btn ai">🤖 标签体检</span><span class="gs-btn ai" style="border-color:var(--accent);background:var(--accent-light)">🤖 🧹 整体梳理</span><span class="gs-btn">↺ 还原上次梳理</span></h2>
+          <div class="crumb">标签树 46 个在用标签 · 三类卡 128 张带标签（资源 71 · 任务 44 · 好奇 13）· 最多两级 · 全树 ≤40 节点</div>
+          <div class="two">
+            <div class="l"><div class="box"><span class="on">全部 128</span><br>产品与销售 21<br>行业 21<br>政策 8<br>一体机 14<br>中优 33<br>待整理 11<br>工具库 7<br>…</div></div>
+            <div class="r"><div class="box" style="min-height:220px">左侧标签树选中 · 右侧三类卡合一列表<br>（当前选中：「一体机」14 张卡）</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="scrim"></div>
+
+      <aside class="drawer">
+        <div class="dr-head">
+          <span class="ai-mark" id="mk">🤖</span><span class="t">标签整体梳理 ②·蓝图评审</span>
+          <div class="steps"><span class="st done">① 盘点 128 卡</span><span class="st on">② 蓝图评审</span><span class="st" id="st3">③ 全卡归架</span></div>
+          <span class="spacer"></span>
+          <select class="persona" title="换一个专家视角重新生成"><option>🏛 知识体系架构师（默认）</option><option>📚 图书馆归架员</option><option>🎯 产品全生命周期专家</option><option>✍️ 我自己（自建）</option></select>
+          <button class="dr-close">×</button>
+        </div>
+        <div class="ctx">
+          <span class="subject">🏷 全量盘点 128 张卡（资源 71 · 任务 44 · 好奇 13）</span>
+          <span class="hint">只用卡面字段判断（<b>不读链接正文</b>）。未勾选的顶层，其子节点与迁移映射一并作废。采纳=<b>整树替换</b>，采纳前自动存快照，「↺ 还原上次梳理」一键回滚。</span>
+        </div>
+        <div class="impact" id="imp"></div>
+
+        <div class="dual">
+          <div class="col col-l">
+            <div class="col-head"><span class="lbl">当前形态 · 旧标签树</span><span class="cnt">46 个在用标签</span><span class="right"><span class="cnt">只读</span></span></div>
+            <div class="col-body" id="left"></div>
+          </div>
+          <div class="col col-r">
+            <div class="col-head">
+              <span class="lbl">AI 补全后完整形态 · 新标签树</span>
+              <span class="sum" id="treeSum"></span>
+              <span class="right"><button class="mini" id="diffBtn">只看变化 ▦</button><button class="mini" id="rawBtn">原文</button></span>
+            </div>
+            <div class="toolbar">
+              <label class="sum" style="display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" class="pky" id="allBtn" style="margin:0"> 全选顶层</label>
+              <span class="sum">已采纳 <b id="rootN">7</b>/7 顶层 · <b id="nodeN">22</b> 节点</span>
+              <span class="tb-right">
+                <span class="usage">投料 8,412 字 · 1 次请求 · token 6,204/1,880 · 产出 2,140 字 · 96s</span>
+                <span class="mini dirmark" id="dirMark">🎯 指令 31 字</span>
+              </span>
+            </div>
+            <div class="col-body" id="right"></div>
+            <pre class="status" id="rawBox" hidden style="font-family:ui-monospace,Menlo,monospace;font-size:11px;max-height:170px;overflow:auto">{ "tree":[ {"name":"产品与销售交付","definition":"讲清卖什么、怎么报价、拿什么成交",
+  "children":[{"name":"可行性验证","definition":"能证伪方案成立与否的测试与报告"}, … ]} ],
+  "mappings":[ {"from":"一体机","to":"产品与销售交付/可行性验证","why":"同一交付物的旧叫法"}, … ] }</pre>
+          </div>
+        </div>
+
+        <div class="dir-box">
+          <div class="dir-head">
+            <span class="lb">🎯 附加指令</span><span class="prio">优先级高于角色</span>
+            <div class="scope"><span class="on">本入口 · 蓝图评审</span><span class="dis" title="梳理没有「某张卡」的对象语义，不存在更宽的对象作用域；要跨模块复用请点「存为角色」">跨入口复用 → 请存为角色</span></div>
+            <span class="cap"><b id="dirC">31</b>/2000 字</span>
+          </div>
+          <div class="dir-row">
+            <textarea class="dir-ta" id="dirTa">顶层不许出现「工具库/其他/杂项」这类文件柜；每个顶层至少收 5 张卡，收不满就别立</textarea>
+            <div class="hist">
+              <button class="btn" id="histBtn" style="padding:6px 9px;font-size:11.5px">历史 ▾</button>
+              <div class="hist-menu" id="histMenu">
+                <div class="hi" data-t="顶层不许出现「工具库/其他/杂项」这类文件柜；每个顶层至少收 5 张卡，收不满就别立"><span class="q">当前这条</span><div class="m">31 字 · 本轮 96s · 7 顶层 · 采纳 6 个</div></div>
+                <div class="hi" data-t="按「对客户的动作」分维度，别按「资料类型」分"><span class="q">按「对客户的动作」分维度，别按「资料类型」分</span><div class="m">24 字 · 上轮 88s · 9 顶层（超 40 节点被裁） · 未采纳</div></div>
+                <div class="hi" data-t="把政策类合并进行业，只留一个情报顶层"><span class="q">把政策类合并进行业，只留一个情报顶层</span><div class="m">19 字 · 上上轮 71s · 5 顶层 · 采纳后你觉得太粗，已回滚</div></div>
+              </div>
+            </div>
+            <button class="btn" id="promoteT" style="padding:6px 9px;font-size:11.5px" title="把这条调好的口径存成可复用角色，之后任何入口的角色下拉都能选它">↗ 存为角色</button>
+            <button class="btn" id="dirRun">应用并重跑 ↻</button>
+          </div>
+        </div>
+
+        <div class="dr-foot">
+          <div class="confirm" id="cfm"></div>
+          <span class="receipt" id="rc"></span>
+          <div class="btns">
+            <button class="btn">关闭</button>
+            <button class="btn" id="rerun">↻ 重新生成</button>
+            <button class="btn dangerz" id="adopt">✓ 采纳整树替换（7 顶层 · 22 节点）</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ================= P2 归架 ================= -->
+  <div class="pane" id="p2">
+    <div class="note"><b>采纳蓝图后自动接力到这一步</b>（R143 两门串门）。左栏=每张卡的卡面现状（现标签 / 描述空不空 / 哪类卡），右栏=归架后的唯一归宿。<b>path 可下拉改</b>、"保持无架"是合法值（宁缺毋滥）；描述只允许填<b>完全为空</b>的卡（R151 起不读正文，不再"救敷衍描述"）。</div>
+    <div class="stage">
+      <div class="app"><div class="topbar"><div class="logo"></div><div class="nav"><span>调度台</span><span>方向台</span><span>资源台</span><span>策展台</span><span style="margin-left:14px">⚙ 设置 › 标签管理</span></div></div>
+        <div class="ws"><h2>🏷 标签管理</h2><div class="crumb">新树已立：7 顶层 · 22 节点 · 上一步 105 张卡有归宿、23 张被剪空待归架</div><div class="two"><div class="l"><div class="box"><span class="on">产品与销售交付 18</span><br>行业与政策情报 26<br>方法与工具 14<br>认知与假设 6<br>人脉与访谈 9<br>交付台账 12<br>个人节奏 4</div></div><div class="r"><div class="box" style="min-height:200px">三类卡合一列表 · 23 张当前无标签</div></div></div></div></div>
+      <div class="scrim"></div>
+      <aside class="drawer">
+        <div class="dr-head"><span class="ai-mark">🤖</span><span class="t">标签整体梳理 ③·全卡归架</span>
+          <div class="steps"><span class="st done">① 盘点</span><span class="st done">② 蓝图已采纳</span><span class="st on">③ 全卡归架</span></div>
+          <span class="spacer"></span>
+          <select class="persona"><option>📚 图书馆归架员（默认）</option><option>🏛 知识体系架构师</option></select>
+          <button class="dr-close">×</button></div>
+        <div class="ctx"><span class="subject">🏷 128 张卡（三类）按新树打标 · 4 批 × 30 张</span>
+          <span class="hint">逐卡选唯一归宿；path 必须逐字取自新树，模型发明过的 3 条已按「保持无架」处理。采纳=勾选卡一次性写库。</span></div>
+        <div class="impact" style="background:var(--warning-bg-soft)">
+          <span class="i"><span class="lbl">本批判定</span><b class="big" style="color:var(--tag-warn-text)">41</b><span class="lbl">张卡有归宿</span></span>
+          <span class="i"><span class="lbl">补空描述</span><b class="big" style="color:var(--tag-warn-text)">9</b></span>
+          <span class="i"><span class="lbl">保持无架</span><b style="font-size:13px;font-weight:700">12</b><span class="lbl">张（卡面依据不足，不硬塞）</span></span>
+          <span class="i ok">✓ 新树 22 节点已锁定（要改结构请回②）</span>
+        </div>
+        <div class="dual">
+          <div class="col col-l"><div class="col-head"><span class="lbl">当前形态 · 卡面</span><span class="right"><span class="cnt">只读</span></span></div>
+            <div class="col-body">
+              <div class="blk">资源卡 · 现标签</div>
+              <div class="n" data-pair="c1"><span class="ic">R</span><span class="nm" style="max-width:150px">软硬一体服务方案</span><span class="df"><span class="chip cut">一体机</span><span class="chip cut">中优</span><span class="chip">描述已有 82 字</span></span></div>
+              <div class="n" data-pair="c2"><span class="ic">R</span><span class="nm" style="max-width:150px">K12 学校数据库</span><span class="df"><span class="chip cut">数据</span><span class="chip">描述已有 41 字</span></span></div>
+              <div class="n" data-pair="c3"><span class="ic">R</span><span class="nm" style="max-width:150px">从业者访谈提纲</span><span class="df"><span class="chip">（无标签）</span><span class="chip go">描述为空</span></span></div>
+              <div class="n" data-pair="c4"><span class="ic">R</span><span class="nm" style="max-width:150px">武汉 K12 政策汇编</span><span class="df"><span class="chip cut">政策</span><span class="chip cut">待整理</span><span class="chip">描述已有 120 字</span></span></div>
+              <div class="blk">任务卡 · 现标签</div>
+              <div class="n" data-pair="c5"><span class="ic">T</span><span class="nm" style="max-width:150px">撰写行业分析报告 3 篇</span><span class="df"><span class="chip cut">行业</span><span class="chip">doing · 12 天未更新</span></span></div>
+              <div class="n" data-pair="c6"><span class="ic">T</span><span class="nm" style="max-width:150px">联系 1 位从业者访谈</span><span class="df"><span class="chip cut">行业</span><span class="chip cut">人脉</span></span></div>
+              <div class="blk">好奇心卡 · 现标签</div>
+              <div class="n" data-pair="c7"><span class="ic">C</span><span class="nm" style="max-width:150px">一体机是否真比纯软件好卖？</span><span class="df"><span class="chip">（无标签）</span><span class="chip go">描述为空</span></span></div>
+              <div class="n" data-pair="c8"><span class="ic">C</span><span class="nm" style="max-width:150px">家长为"服务"付费的心理价位</span><span class="df"><span class="chip cut">待整理</span></span></div>
+            </div>
+          </div>
+          <div class="col col-r">
+            <div class="col-head"><span class="lbl">AI 补全后完整形态 · 归架结果</span><span class="sum">按新树分组 · <b style="color:var(--curio-amber)">path 可改</b></span><span class="right"><button class="mini on">只看有变化 ▦</button><button class="mini">原文</button></span></div>
+            <div class="toolbar">
+              <label class="sum" style="display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" class="pky" checked style="margin:0"> 全选</label>
+              <span class="sum">已选 <b>38</b>/41 · 3 张判为无架（默认不勾）</span>
+              <span class="tb-right"><span class="usage">投料 4 批共 9,880 字 · token 7,102/2,440 · 产出 1,860 字 · 142s</span></span>
+            </div>
+            <div class="col-body">
+              <div class="blk">产品与销售交付 · 6 张</div>
+              <div class="n" data-pair="c1"><input type="checkbox" class="pky" checked><span class="nm" style="max-width:150px">软硬一体服务方案</span><select><option>产品与销售交付/可行性验证</option><option>产品与销售交付/报价与素材</option><option>（保持无架）</option></select><span class="df">旧标签「一体机」即此族</span><span class="b"><span class="tag edit">改架</span></span></div>
+              <div class="n" data-pair="c7"><input type="checkbox" class="pky" checked><span class="nm" style="max-width:150px">一体机是否真比纯软件好卖？</span><select><option>认知与假设/待验证假设</option><option>产品与销售交付/可行性验证</option><option>（保持无架）</option></select><span class="df">补描述：<b style="color:var(--text)">一体机相对纯软件的成交差异，待用客户访谈验证</b></span><span class="b"><span class="tag new">归架+补描述</span></span></div>
+              <div class="n" data-pair="c8"><input type="checkbox" class="pky" checked><span class="nm" style="max-width:150px">家长为"服务"付费的心理价位</span><select><option>认知与假设/待验证假设</option><option>（保持无架）</option></select><span class="df">旧「待整理」已被剪，按卡面重判</span><span class="b"><span class="tag edit">改架</span></span></div>
+              <div class="blk">行业与政策情报 · 3 张</div>
+              <div class="n" data-pair="c2"><input type="checkbox" class="pky" checked><span class="nm" style="max-width:150px">K12 学校数据库</span><select><option>行业与政策情报/学校与数据</option><option>（保持无架）</option></select><span class="df">旧「数据」并入情报族</span><span class="b"><span class="tag edit">改架</span></span></div>
+              <div class="n" data-pair="c4"><input type="checkbox" class="pky" checked><span class="nm" style="max-width:150px">武汉 K12 政策汇编</span><select><option>行业与政策情报/武汉教育政策</option><option>行业与政策情报/全国政策</option></select><span class="df">两个旧标签收敛为一个归宿</span><span class="b"><span class="tag edit">改架</span></span></div>
+              <div class="blk">人脉与访谈 · 2 张</div>
+              <div class="n" data-pair="c6"><input type="checkbox" class="pky" checked><span class="nm" style="max-width:150px">联系 1 位从业者访谈</span><select><option>人脉与访谈/从业者访谈</option><option>（保持无架）</option></select><span class="df">「人脉」是主族，「行业」是背景</span><span class="b"><span class="tag edit">改架</span></span></div>
+              <div class="n" data-pair="c3"><input type="checkbox" class="pky" checked><span class="nm" style="max-width:150px">从业者访谈提纲</span><select><option>人脉与访谈/访谈方法</option><option>方法与工具/访谈提纲</option></select><span class="df">补描述：<b style="color:var(--text)">15 分钟访谈的问题清单与追问顺序</b></span><span class="b"><span class="tag new">归架+补描述</span></span></div>
+              <div class="blk" style="color:var(--text-4)">保持无架 · 12 张（卡面读不出归属，不硬塞）</div>
+              <div class="n" style="opacity:.6"><span class="nm" style="max-width:150px">撰写行业分析报告 3 篇</span><select disabled><option>（保持无架）</option></select><span class="df">任务卡标题即动作，无主题信息量——建议补一句描述再梳理</span><span class="b"><span class="tag warn">依据不足</span></span></div>
+              <div class="adv-row">🧭 参谋：12 张「保持无架」里有 5 张是任务卡，标题全是「做某事」句式。<b>这类卡本来不该靠标签收纳，靠指标挂链更准</b>——别为了填满树而硬分。<span class="s">数字是本地数出来的，不是模型报的。</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="dir-box">
+          <div class="dir-head"><span class="lb">🎯 附加指令</span><span class="prio">优先级高于角色</span>
+            <div class="scope"><span class="on">本入口 · 逐卡归架</span><span class="dis" title="归架只作用于这张已定稿的新树；要跨模块复用请点「存为角色」">跨入口复用 → 请存为角色</span></div><span class="cap"><b>0</b>/2000 字</span></div>
+          <div class="dir-row"><textarea class="dir-ta" placeholder="例：任务卡一律不补描述；好奇卡只允许归到「认知与假设」下；拿不准就留空别硬塞。指令改不了「两级 / ≤40 节点」，那是场景骨架。"></textarea><button class="btn" style="padding:6px 9px;font-size:11.5px">历史 ▾</button><button class="btn" style="padding:6px 9px;font-size:11.5px">↗ 存为角色</button><button class="btn">应用并重跑 ↻</button></div>
+        </div>
+        <div class="dr-foot"><span class="receipt">📥 蓝图已写库（11:04）· 本步采纳=勾选卡一次性写库，仍可「↺ 还原上次梳理」整体回滚</span>
+          <div class="btns"><button class="btn">关闭</button><button class="btn">↻ 重新归架</button><button class="btn primary">✓ 采纳归架（38 张）</button></div></div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ================= P3 状态 ================= -->
+  <div class="pane" id="p3">
+    <div class="note">梳理是<b>长任务</b>（蓝图一次全库推理 1~2 分钟；归架 4 批串行）。双栏下左栏全程可读，右栏给分批进度与出口。高危动作的三道闸：<b>影响条 → 逐顶层否决 → 二次确认</b>。</div>
+    <div class="grid">
+      <div class="spec"><h4 style="padding:10px 12px">跑中 · 阶段②蓝图（一次全库推理）</h4>
+        <div class="status"><span class="dot"></span>⏳ 起草蓝图中…「认知与假设」（收：可证伪的判断与待验证问题）→ 子标签 2/3…
+          <div style="font-size:11px;color:var(--text-4);margin-top:6px">✅ 已盘点 128 张卡（三类）· 只用卡面字段 → ⏳ 架构师起草（1~2 分钟，别关页面）· <button class="btn" style="padding:2px 9px;font-size:11px">⏹ 停止</button></div>
+          <div style="font-size:11px;color:var(--text-4);margin-top:5px">停止=本轮作废，旧树一根不动。</div>
+        </div>
+      </div>
+      <div class="spec"><h4 style="padding:10px 12px">跑中 · 阶段③归架（分批可见）</h4>
+        <div class="status"><span class="dot"></span>⏳ 第 3/4 批归架中（30 张）… 已产出 31 条
+          <div style="font-size:11px;color:var(--text-4);margin-top:6px">每批 30 卡；批间可停，已产出的判定仍在右栏可见，停手不写库。</div>
+        </div>
+      </div>
+      <div class="spec"><h4 style="padding:10px 12px">无迁移映射警告（模型只给树不给表）</h4>
+        <div class="status err">⚠ 模型没给出可用的旧标签迁移——采纳后绝大多数卡的旧标签会被剪掉（快照可还原）
+          <div style="font-size:11px;margin-top:6px;color:var(--text-3)">影响条同步变红：<b>预计 96/128 张卡被清空</b>。此时主按钮文案自动升级为「✓ 采纳整树替换（将清空 96 张）」，逼你看清再点。</div>
+        </div>
+      </div>
+      <div class="spec"><h4 style="padding:10px 12px">采纳后 · 回滚入口常驻</h4>
+        <div class="status">✓ 新树已立（7 顶层 · 22 节点）· 105 张卡有归宿 · 23 张旧标签已剪空（跑③补）· 共 128 张带标签卡被核对
+          <div style="margin-top:7px"><button class="btn" style="padding:3px 10px;font-size:11.5px">↺ 还原上次梳理</button> <span style="font-size:11px;color:var(--text-4)">快照含旧树 + 三类活卡旧 tags 与描述，写 <code>zy_tagrevise_backup_v1</code>；还原推 <code>tagTreeRevision</code>，别的台的镜像视图会同步刷新。</span></div>
+        </div>
+      </div>
+      <div class="spec"><h4 style="padding:10px 12px">二次确认（整树替换专属，其他入口没有）</h4>
+        <div class="status" style="background:var(--danger-bg-soft)">第一下点「采纳整树替换」→ 底部展开红条：<b>确认剪掉 37 个旧标签、清空 23 张卡的标签？</b> 快照已就绪 · 可一键还原。<br>
+          <span style="font-size:11px;color:var(--text-3)">第二下才真写库。取消=什么都不改。</span></div>
+      </div>
+      <div class="spec"><h4 style="padding:10px 12px">同范式最小版 · 标签体检（不整树替换）</h4>
+        <div class="status">左栏=现有树+用量；右栏只有两类行：<span class="tag warn">合并</span>「#一体机 → #软硬一体方案」 <span class="tag edit">归位</span>「裸标签「报价」→ 挂到 产品与销售交付」。<br>
+          <span style="font-size:11px;color:var(--text-3)">采纳会级联改三卡 tags 与标签树，但<b>不剪没在用的标签</b>，所以不需要二次确认、也不需要快照。指令框保留（同作用域 <code>tagGovern</code>）。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= P4 规格 ================= -->
+  <div class="pane" id="p4">
+    <div class="spec"><h3>契约增量（在「对照式评审」通用契约之上，标签专属的只有 3 条）</h3>
+      <table>
+        <tr><th>字段</th><th>口径</th></tr>
+        <tr><td class="k"><span class="m">AiJob.before</span>（树形扩展）</td><td>标签入口的左栏不是平铺行，而是<b>树</b>：<span class="m">before:{kind:'tree',nodes:[{path,usage,fate,to}]}</span>；<span class="m">fate:'keep'|'rename'|'merge'|'cut'</span> 决定左栏 chip 颜色，与右栏新节点通过 <span class="m">pair</span> 对齐</td></tr>
+        <tr><td class="k"><span class="m">AiJob.impact?</span></td><td><b>影响条</b>（整树替换/级联改写类专属）：由工厂<b>本地核算</b>产出，不许用模型报的数。文案沿用现回执口径：涉及 N 张带标签卡 · 剪掉 M 个旧标签 · 清空 K 张 · 快照状态。数字随勾选<b>当场重算</b></td></tr>
+        <tr><td class="k"><span class="m">AiJob.confirm?</span></td><td><b>二次确认</b>：主按钮第一下只展开红条并写明"剪掉多少"，第二下才 <span class="m">apply</span>。只给"会批量删改既有数据"的入口配（当前仅蓝图门）</td></tr>
+        <tr><td class="k"><span class="m">AiJob.steps?</span></td><td>两阶段串门（②蓝图 → ③归架）在头部渲染步骤条；②采纳后自动接力开③（沿用 R143 的 <span class="m">consumeTagBlueprintAdopted()</span>），步骤条上②变绿且<b>可点回看</b>（结果仍在 runner 里，同 key attach）</td></tr>
+        <tr><td class="k">节点可编辑</td><td>顶层名 / 子名 / 收卡定义 <span class="m">contenteditable</span>（纯文本，零 <span class="m">v-html</span>）。<b>配对走「节点 id」不走名字</b>：模型输出的名字在 <span class="m">parse</span> 阶段就解析成 id 引用，迁移表与卡片归宿只存 id，显示名随时可改、落库时按 id 取当前名——否则用户改一个顶层名，十几条映射当场断链（本原型已按此实现，改名后迁移表自动跟随）</td></tr>
+        <tr><td class="k">逐顶层否决</td><td>沿用既有语义：未勾选顶层 → 其子节点与指向它的映射一并作废（<span class="m">apply</span> 里 <span class="m">rootNames</span> 过滤）。双栏把它画成"作废行降透+删除线"，并在影响条计入新增的剪掉数</td></tr>
+        <tr><td class="k">③ 的 path 编辑</td><td>下拉选项<b>只能来自已落盘的新树</b>（22 个路径 + 空值），杜绝用户手输一个不存在的架；描述输入框仅在"卡描述完全为空"时开放（R151 口径）</td></tr>
+        <tr><td class="k">指令作用域</td><td>全站统一两档：<b>左档=对象级（默认）</b>「这张卡 / 这个台 / 这个任务」，<b>右档=入口级</b>「这类入口共用」，<b>升档必须用户主动点</b>（已拍板）。标签三个入口（<span class="m">tagBlueprint / tagAssign / tagGovern</span>）没有"某张卡"的对象语义，所以<b>默认档就是「本入口」，右档置灰</b>并提示改走「↗ 存为角色」——存为角色是第三种出口（按钮，不是档位），把调好的口径升级成可复用专家，进 <span class="m">customPersonas</span>，任何入口下拉都能选。历史 5 条带每轮「顶层数/耗时/是否采纳」，因为梳理的效果要横向比才知道哪条指令真的管用</td></tr>
+        <tr><td class="k">结构红线不可被指令覆盖</td><td>一次性指令只能改口径，改不了骨架：<b>最多两级 · 全树 ≤40 节点 · 顶层 5~9 · 每顶层 2~6 子 · definition ≤20 字 · from 必须真实在用 · to 必须在新树内</b>。指令框 placeholder 直接写这句，免得用户以为"给我三级树"没生效</td></tr>
+      </table>
+    </div>
+    <div class="spec"><h3>改造会撞到的既有断言（须随迁，不许悄悄改绿）</h3>
+      <table>
+        <tr><th>断言</th><th>它锁死了什么 · 双栏改造怎么保</th></tr>
+        <tr><td class="k">R151-4 采纳=真·整树替换</td><td>钉住 <span class="m">definition</span> 落库、<span class="m">tagTreeRevision+1</span>、四坑逐条。改造后 <span class="m">apply</span> 仍走原通道，只是入参的行可能已被用户改过名 → <b>改名要在 parse 之后、apply 之前重写 mappings.to</b>，这条顺序要新增断言</td></tr>
+        <tr><td class="k">R143-2 快照与还原闭环</td><td>采纳前 <span class="m">saveTagReviseBackup</span> 写 <span class="m">zy_tagrevise_backup_v1</span>（旧树+三类活卡旧 tags 与描述）。二次确认只能放在<b>快照之后</b>写库之前，不能把快照挤到确认后面</td></tr>
+        <tr><td class="k">R137-1 / R137-2 治理采纳纪律</td><td>体检的 merges/rehome 必须对"真实在用标签 + 标签树路径"校验、合并走 <span class="m">findTagNode</span> splice。双栏只改呈现，校验与 splice 通道一字不动</td></tr>
+        <tr><td class="k">R132-4 / R130-3 标签树交互</td><td>双击改名直连 <span class="m">ttRename</span>、拖拽落点高亮。抽屉里改的名<b>只改本轮蓝图</b>，不碰左栏旧树 DOM 的改名链路——两套改名别互相劫持</td></tr>
+        <tr><td class="k">R151-7 入口字面量 15 项</td><td>新增 <span class="m">directive.ts</span>/<span class="m">pair.ts</span> 只允许活在懒 chunk；抽屉里静态引 <span class="m">@/shared/ai</span> 立即红。顺手订正 <span class="m">entry-literals.cjs</span> 注释「16 项」→ 15 项</td></tr>
+        <tr><td class="k">R148-5 / R149-5 抽屉模板字面量</td><td>props 整串、<span class="m">↻ 重新运行</span>、<span class="m">排队中</span>、<span class="m">ai-all</span>、<span class="m">整篇成文，跑完自动落卡</span> 被逐字钉住。双栏重排必须同步改写这几条，<b>不许为过绿而删断言</b></td></tr>
+        <tr><td class="k">R151-1 徽标单一真源</td><td>抽屉里出现 🤖 只能经 <span class="m">ZhiMark.vue</span>（除 ZhiMark/GlobalPopups 外零 🤖 字面量）。本原型用 emoji 是纸面示意，落地必须走组件</td></tr>
+      </table>
+    </div>
+    <div class="note" style="border-left-color:var(--warning)"><b>与旧版的关键差异（就三条，其余不变）</b>：① 右栏从"顶层行+迁移行混排"变成<b>树形 + 迁移表两区块</b>，能看清层级；② 影响面从<b>采纳后的回执文案</b>提到<b>采纳前的影响条</b>，且随勾选重算；③ 节点名/收卡定义/迁移目标<b>可就地改</b>——旧版不满意只能整批采纳或重跑，改一个字都要重跑 96 秒。</div>
+  </div>
+</div>
+
+<script>
+/* ===== 数据：旧树（46 标签抽样 14）与新树（7 顶层 · 22 节点抽样 19）· 数字本地核算 ===== */
+const NEW=[
+ {k:'r1',name:'产品与销售交付',ct:'merge',from:'一体机+报价模板+PPT模板',def:'讲清卖什么、怎么报价、拿什么成交',n:18,ch:[
+   {name:'可行性验证',ct:'new',def:'能证伪方案成立与否的测试与报告',n:6},
+   {name:'报价与素材',ct:'merge',def:'对外报价单、PPT、卖点清单',n:9},
+   {name:'客户案例',ct:'new',def:'可对外讲的落地案例与数据',n:3}]},
+ {k:'r2',name:'行业与政策情报',ct:'rename',from:'改名自「行业」',def:'外部世界的既有事实与规则',n:26,ch:[
+   {name:'教育+AI 研究',ct:'same',def:'赛道玩家、模式、术语',n:21},
+   {name:'武汉教育政策',ct:'same',def:'本地文件、升学规则',n:5},
+   {name:'学校与数据',ct:'new',def:'学校库、录取数据等可查表',n:4}]},
+ {k:'r3',name:'方法与工具',ct:'edit',from:'「工具库」重命名并收窄',def:'可复用的做法本身，不含具体业务',n:14,ch:[
+   {name:'复盘方法',ct:'new',def:'周期回顾、日报的写法',n:5},
+   {name:'访谈提纲',ct:'new',def:'提问顺序与追问套路',n:4},
+   {name:'效率工具',ct:'merge',def:'具体工具与用法',n:5}]},
+ {k:'r4',name:'认知与假设',ct:'new',from:'新增顶层（原无处安放）',def:'我自己的判断，可被推翻',n:6,ch:[
+   {name:'待验证假设',ct:'new',def:'还没数据支撑的猜测',n:4},
+   {name:'已推翻判断',ct:'new',def:'曾经信了后来发现错的',n:2}]},
+ {k:'r5',name:'人脉与访谈',ct:'new',from:'拆自「人脉」+「行业」',def:'具体的人与聊过什么',n:9,ch:[
+   {name:'从业者访谈',ct:'new',def:'聊过的人、结论、待聊',n:9}]},
+ {k:'r6',name:'交付台账',ct:'new',from:'新增顶层',def:'我做出来的东西的版本流水',n:12,ch:[
+   {name:'文档版本',ct:'new',def:'成版的方案书/报告',n:8},
+   {name:'上线记录',ct:'new',def:'部署、试点、验收',n:4}]},
+ {k:'r7',name:'个人节奏',ct:'edit',from:'改名自「生活」',def:'精力与时间的自我约束',n:4,ch:[
+   {name:'时间块',ct:'same',def:'一天怎么切的',n:4}]},
+];
+const OLD=[
+ {p:'一体机',n:14,fate:'merge',to:'r1/可行性验证'},{p:'报价模板',n:9,fate:'merge',to:'r1/报价与素材'},
+ {p:'PPT模板',n:6,fate:'merge',to:'r1/报价与素材'},{p:'销售工具',n:4,fate:'cut'},
+ {p:'行业',n:21,fate:'rename',to:'r2/教育+AI 研究'},{p:'政策',n:8,fate:'merge',to:'r2/武汉教育政策'},
+ {p:'数据',n:4,fate:'merge',to:'r2/学校与数据'},{p:'工具库',n:7,fate:'edit',to:'r3/效率工具'},
+ {p:'复盘',n:5,fate:'merge',to:'r3/复盘方法'},{p:'人脉',n:9,fate:'merge',to:'r5/从业者访谈'},
+ {p:'中优',n:33,fate:'cut',why:'优先级不是主题维度，该回到任务属性'},
+ {p:'待整理',n:11,fate:'cut',why:'文件柜兜底，架构师明令禁止'},
+ {p:'杂项',n:6,fate:'cut'},{p:'生活',n:4,fate:'rename',to:'r7/时间块'},
+];
+/* 每张旧标签若被剪，其独占卡数（本地核算口径，用于"清空"计数） */
+const CUT_CARDS={'中优':9,'待整理':7,'杂项':4,'销售工具':3};
+/* cards=该旧标签挂卡数 · only=其中「只有这一个标签」的卡数（该顶层作废时这些卡会被清空） */
+const MAPS=[
+ {from:'一体机',to:'r1/可行性验证',why:'同一交付物的旧叫法',cards:11,only:5},
+ {from:'报价模板',to:'r1/报价与素材',why:'就是报价素材',cards:9,only:4},
+ {from:'PPT模板',to:'r1/报价与素材',why:'销售工具包的一部分',cards:6,only:2},
+ {from:'行业',to:'r2/教育+AI 研究',why:'行业即本赛道',cards:19,only:8},
+ {from:'政策',to:'r2/武汉教育政策',why:'政策全在本地',cards:8,only:3},
+ {from:'数据',to:'r2/学校与数据',why:'数据=学校库',cards:4,only:2},
+ {from:'工具库',to:'r3/效率工具',why:'收窄后只剩工具',cards:7,only:3},
+ {from:'复盘',to:'r3/复盘方法',why:'方法不是资料',cards:5,only:2},
+ {from:'人脉',to:'r5/从业者访谈',why:'人脉=访谈对象',cards:9,only:4},
+ {from:'生活',to:'r7/时间块',why:'改名后唯一子',cards:4,only:2},
+];
+const CUT_ONLY={'中优':9,'待整理':7,'杂项':4,'销售工具':3};/* 只挂这些被剪标签的卡 */
+const TOTAL=128;
+/* 路径值用「节点 id + 子名」，名字只作显示 → 改名自动跟随，落库时按 id 取新名 */
+function pathList(){const out=[];NEW.forEach(r=>{out.push({v:r.k+'/'+r.name,label:r.name});r.ch.forEach(c=>out.push({v:r.k+'/'+c.name,label:r.name+'/'+c.name}));});return out;}
+const rootOf=p=>p.split('/')[0];
+const labelOf=v=>{const o=pathList().find(x=>x.v===v);return o?o.label:'（无归宿→剪掉）';};
+const left=document.getElementById('left'),right=document.getElementById('right');
+const off=new Set();
+let onlyDiff=false;
+
+function tagChip(ct){return {new:'<span class="tag new">新增</span>',edit:'<span class="tag edit">改名/收窄</span>',merge:'<span class="tag warn">合并</span>',same:'<span class="tag same">未变</span>'}[ct]||'';}
+function renderLeft(){
+  let h='<div class="blk">在用标签 46 个 · 原型抽样 14 · 右侧数字为挂卡数</div>';
+  OLD.forEach(o=>{
+    const cut=o.fate==='cut'||off.has(o.to?rootOf(o.to):'');
+    const fateCls=cut?'cut':'go';
+    const dest=o.to?labelOf(o.to):'（无归宿→剪掉）';
+    h+=`<div class="n" data-pair="${o.p}"><span class="ic">🏷</span><span class="nm" style="max-width:120px">${o.p}</span>
+      <span class="df"><span class="chip ${fateCls}">${cut?'剪掉':(o.fate==='rename'?'改名保留':'并入 '+dest)}</span>${o.why?'<span style="color:var(--text-4)">· '+o.why+'</span>':''}</span>
+      <span class="nums">${o.n} 卡</span></div>`;
+  });
+  h+='<div class="blk">其余 32 个标签：并入 / 剪掉，逐条同口径</div>';
+  left.innerHTML=h;
+}
+function renderRight(){
+  let h='<div class="blk">新标签树 · 最多两级 · 全树 ≤40 节点</div>';
+  NEW.forEach(r=>{
+    const isOff=off.has(r.k);
+    h+=`<div class="n ${isOff?'void':''}" data-pair="${r.k}" data-root="${r.k}">
+      <input type="checkbox" class="pky" data-root="${r.k}" ${isOff?'':'checked'}>
+      <span class="ic">🌲</span><span class="nm" contenteditable="true" data-nm="${r.k}">${r.name}</span>
+      <span class="df" contenteditable="true">收：${r.def}</span>
+      <span class="nums">预计 ${r.n} 张 · ${r.ch.length} 子</span>
+      <span class="b">${tagChip(r.ct)}${r.from?'<span class="tag same" title="'+r.from+'">'+r.from.slice(0,10)+'</span>':''}</span></div>`;
+    r.ch.forEach(c=>{
+      h+=`<div class="n child ${isOff?'void':''}" data-pair="${r.k}">
+        <span class="ic">·</span><span class="nm" contenteditable="true">${c.name}</span>
+        <span class="df" contenteditable="true">收：${c.def}</span><span class="nums">${c.n} 张</span>
+        <span class="b">${tagChip(c.ct)}</span></div>`;
+    });
+  });
+  h+='<div class="blk">迁移表 · 旧标签 → 新路径（未列出的旧标签会被剪掉）</div>';
+  const PL=pathList();
+  MAPS.forEach(m=>{
+    const isOff=off.has(rootOf(m.to));
+    const opts=PL.map(o=>`<option value="${o.v}" ${o.v===m.to?'selected':''}>${o.label}</option>`).join('');
+    h+=`<div class="n ${isOff?'void':''}" data-pair="${m.from}">
+      <span class="ic">↪</span><span class="nm" style="max-width:110px">「${m.from}」</span>
+      <select data-map="${m.from}" ${isOff?'disabled':''}>${opts}</select>
+      <span class="df">${m.why}</span><span class="nums">${m.cards} 卡</span>
+      <span class="b">${isOff?'<span class="tag danger">作废</span>':(m.moved?'<span class="tag edit">已改选</span>':'<span class="tag same">迁移</span>')}</span></div>`;
+  });
+  h+=`<div class="adv-row">🧭 参谋：按现有标签与迁移映射本地核算——<b>${covered()}/128</b> 张卡已有归宿，<b>${cleared()}</b> 张采纳后会被清空标签等逐卡归架。<span class="s">数字是本地数出来的，不是模型报的；预估为 0 的标签说明模型没给它配到卡，考虑删掉或补映射。</span></div>`;
+  right.innerHTML=h;
+  wireRight();
+}
+/* 本地核算：一张卡只要有 ≥1 个存活归宿就算"有归宿"，否则算"会被清空"。两个数恒等于 128 */
+function cleared(){let s=Object.values(CUT_ONLY).reduce((a,b)=>a+b,0);
+  MAPS.forEach(m=>{if(off.has(rootOf(m.to)))s+=m.only;});
+  return Math.min(TOTAL,s);}
+function covered(){return TOTAL-cleared();}
+function cutTags(){let s=OLD.filter(o=>o.fate==='cut').length;
+  MAPS.forEach(m=>{if(off.has(rootOf(m.to)))s++;});
+  return s;}
+function nodeCount(){let n=0;NEW.forEach(r=>{if(!off.has(r.k))n+=1+r.ch.length;});return n;}
+function renderImpact(){
+  const on=NEW.filter(r=>!off.has(r.k));
+  document.getElementById('imp').innerHTML=
+   `<span class="i"><span class="lbl">整树替换 · 涉及</span><b class="big">128</b><span class="lbl">张带标签卡</span></span>
+    <span class="i"><span class="lbl">新树</span><b>${on.length} 顶层 / ${nodeCount()} 节点</b><span class="lbl">（≤40 硬约束）</span></span>
+    <span class="i"><span class="lbl">旧标签被剪掉</span><b class="big" style="color:var(--tag-danger-text)">${cutTags()}</b><span class="lbl">/ 14 抽样 · 全库 46 同口径</span></span>
+    <span class="i"><span class="lbl">采纳后清空标签</span><b class="big" style="color:var(--tag-danger-text)">${cleared()}</b><span class="lbl">张（跑③补）</span></span>
+    <span class="i ok">✓ 快照就绪 · 可一键还原</span>`;
+  document.getElementById('rootN').textContent=on.length;
+  document.getElementById('nodeN').textContent=nodeCount();
+  document.getElementById('treeSum').innerHTML=`<b style="color:var(--tag-ok-text)">+${NEW.filter(r=>r.ct==='new').length} 新顶层</b> · <b style="color:var(--accent)">${NEW.filter(r=>r.ct!=='new').length} 调整</b> · 剪掉 <b style="color:var(--tag-danger-text)">${cutTags()}</b> 个旧标签`;
+  const b=document.getElementById('adopt');
+  b.textContent='✓ 采纳整树替换（'+on.length+' 顶层 · '+nodeCount()+' 节点）';
+  b.dataset.cleared=cleared();
+}
+function wireRight(){
+  right.querySelectorAll('input[data-root]').forEach(c=>c.onchange=()=>{c.checked?off.delete(c.dataset.root):off.add(c.dataset.root);renderLeft();renderRight();renderImpact();});
+  right.querySelectorAll('[data-map]').forEach(s=>s.onchange=()=>{
+    const m=MAPS.find(x=>x.from===s.dataset.map);m.to=s.value;m.moved=true;
+    renderLeft();renderRight();renderImpact();
+  });
+  /* 改名：路径值走节点 id，所以名字改了映射自动跟随，只需重渲染标签与影响条 */
+  right.querySelectorAll('[contenteditable][data-nm]').forEach(el=>{
+    el.onblur=()=>{const r=NEW.find(x=>x.k===el.dataset.nm);const t=el.textContent.trim();
+      if(t&&t!==r.name){r.name=t;r.ct='edit';r.renamed=true;renderLeft();renderRight();renderImpact();}};
+  });
+  right.querySelectorAll('[data-pair]').forEach(r=>{
+    r.onmouseenter=()=>document.querySelectorAll('[data-pair="'+r.dataset.pair+'"]').forEach(x=>x.classList.add('hot'));
+    r.onmouseleave=()=>document.querySelectorAll('.hot').forEach(x=>x.classList.remove('hot'));
+  });
+}
+renderLeft();renderRight();renderImpact();
+document.getElementById('dirC').textContent=document.getElementById('dirTa').value.trim().length;
+document.getElementById('dirMark').textContent='🎯 指令 '+document.getElementById('dirC').textContent+' 字';
+
+/* 只看变化 */
+document.getElementById('diffBtn').onclick=e=>{onlyDiff=!onlyDiff;e.target.classList.toggle('on',onlyDiff);
+  right.querySelectorAll('.n').forEach(n=>{const same=n.querySelector('.tag.same')&&!n.classList.contains('child')?true:!!n.querySelector('.tag.same');
+    if(n.classList.contains('child')&&n.querySelector('.tag.same'))n.style.display=onlyDiff?'none':'';
+    if(!n.classList.contains('child')&&n.querySelector('.tag.same')&&n.querySelector('[data-map]')===null&&same)n.style.display=onlyDiff?'none':'';});};
+document.getElementById('rawBtn').onclick=e=>{const b=document.getElementById('rawBox');b.hidden=!b.hidden;e.target.classList.toggle('on',!b.hidden);};
+document.getElementById('allBtn').onchange=e=>{off.clear();if(!e.target.checked)NEW.forEach(r=>off.add(r.k));renderLeft();renderRight();renderImpact();};
+
+/* 指令 */
+document.getElementById('dirTa').oninput=e=>document.getElementById('dirC').textContent=e.target.value.trim().length;
+document.getElementById('histBtn').onclick=e=>{e.stopPropagation();document.getElementById('histMenu').classList.toggle('on');};
+document.addEventListener('click',()=>document.getElementById('histMenu').classList.remove('on'));
+document.querySelectorAll('.hi').forEach(h=>h.onclick=()=>{document.getElementById('dirTa').value=h.dataset.t;document.getElementById('dirC').textContent=h.dataset.t.length;document.getElementById('histMenu').classList.remove('on');});
+document.querySelectorAll('.scope span').forEach(s=>s.onclick=()=>{
+  if(s.classList.contains('dis')){document.getElementById('rc').className='receipt wr';
+    document.getElementById('rc').textContent='⚠ 梳理没有更宽的对象作用域（它一次管全库）。要跨模块复用这条口径，点右侧「↗ 存为角色」';return;}
+  [...s.parentNode.children].forEach(x=>x.classList.remove('on'));s.classList.add('on');});
+document.getElementById('promoteT').onclick=()=>{const rc=document.getElementById('rc');
+  rc.className='receipt';rc.textContent='↗ 已存为自建专家「体系架构 · 反文件柜」· 设置 › AI 助手 › 角色库可改名与停用 · 此后任何入口的角色下拉都能选它';};
+function runFx(cb){const mk=document.getElementById('mk');mk.classList.add('spin');right.style.opacity='.4';right.style.pointerEvents='none';
+  setTimeout(()=>{mk.classList.remove('spin');right.style.opacity='';right.style.pointerEvents='';cb&&cb();},1400);}
+document.getElementById('dirRun').onclick=()=>runFx(()=>{document.getElementById('dirMark').textContent='🎯 指令 '+document.getElementById('dirTa').value.trim().length+' 字';
+  document.getElementById('rc').className='receipt wr';document.getElementById('rc').textContent='↻ 已按新指令重跑（上一轮蓝图作废，未写入任何数据）· 96s → 104s';});
+document.getElementById('rerun').onclick=()=>runFx(()=>{document.getElementById('rc').className='receipt wr';document.getElementById('rc').textContent='↻ 已重新生成（沿用当前指令，上一轮作废）';});
+
+/* 采纳：第一下弹二次确认，第二下才写库 */
+let armed=false;
+document.getElementById('adopt').onclick=()=>{
+  const c=document.getElementById('cfm'),b=document.getElementById('adopt');
+  if(!armed){c.innerHTML='⚠ 确认<b>整树替换</b>？将剪掉 <b>'+cutTags()+'</b> 个旧标签、清空 <b>'+b.dataset.cleared+'</b> 张卡的标签（快照已就绪，可「↺ 还原上次梳理」回滚）。　<button class="btn dangerz" style="padding:3px 12px;font-size:11.5px" id="yes">确认写库</button> <button class="btn" style="padding:3px 12px;font-size:11.5px" id="no">取消</button>';
+    c.classList.add('on');armed=true;
+    document.getElementById('yes').onclick=()=>{armed=false;c.classList.remove('on');doAdopt();};
+    document.getElementById('no').onclick=()=>{armed=false;c.classList.remove('on');};
+    return;}
+  doAdopt();
+};
+function doAdopt(){
+  const on=NEW.filter(r=>!off.has(r.k));
+  document.getElementById('rc').className='receipt';
+  document.getElementById('rc').textContent='✓ 新树已立（'+on.length+' 顶层 · '+nodeCount()+' 节点）· '+covered()+' 张卡有归宿 · '+cutTags()+' 个旧标签已剪 · 11:04 快照就绪';
+  document.getElementById('st3').className='st on';
+  document.getElementById('adopt').disabled=true;document.getElementById('adopt').textContent='✓ 已采纳 · 接力③归架';
+  document.getElementById('right').querySelectorAll('.pky').forEach(c=>{c.checked=false;c.disabled=true;});
+  setTimeout(()=>document.querySelector('.tab[data-p="p2"]').click(),900);
+}
+
+/* tabs / theme / 联动 */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));t.classList.add('on');
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id===t.dataset.p));});
+document.getElementById('theme').onclick=()=>{const c=document.documentElement.dataset.theme==='linear'?'apple':'linear';
+  document.documentElement.dataset.theme=c;document.getElementById('theme').textContent='切换主题 · '+(c==='linear'?'深空薰衣草':'极简白');};
+document.querySelectorAll('#p2 [data-pair]').forEach(r=>{
+  r.onmouseenter=()=>document.querySelectorAll('#p2 [data-pair="'+r.dataset.pair+'"]').forEach(x=>x.classList.add('hot'));
+  r.onmouseleave=()=>document.querySelectorAll('#p2 .hot').forEach(x=>x.classList.remove('hot'));});
+</script>
+</body>
+</html>

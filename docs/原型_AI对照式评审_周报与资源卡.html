@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="linear">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>原型 · AI 对照式评审（周报 × 资源卡）｜仅供评审 · R154 提案</title>
+<style>
+/* ============ 令牌：逐字取自 v2/src/shared/styles/tokens.css（R124/R133 口径） ============ */
+:root{
+  --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Inter","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --fs-display:22px;--fs-title:15px;--fs-body:13.5px;--fs-sub:12px;--fs-caption:10.5px;
+  --tracking-sm:.04em;
+  --dur-fast:120ms;--dur:150ms;--dur-slow:250ms;--ease-out-soft:cubic-bezier(.2,.8,.2,1);
+  --opacity-disabled:.5;
+  --radius-lg:14px;--radius:12px;--radius-md:10px;--radius-sm:8px;--radius-xs:4px;--hairline:1px;
+}
+:root,[data-theme="linear"]{
+  --bg:#0D0E11;--surface:#14161B;--surface-2:#1A1D24;--surface-3:#1C1F26;
+  --border:rgba(255,255,255,.08);--border-strong:rgba(255,255,255,.14);
+  --text:rgba(255,255,255,.92);--text-2:rgba(255,255,255,.70);--text-3:rgba(255,255,255,.50);--text-4:rgba(255,255,255,.32);
+  --accent:#5E6AD2;--accent-2:#7A85E0;--accent-light:rgba(94,106,210,.16);--accent-hover:#828FFF;--accent-glow:rgba(109,92,232,.40);
+  --success:#27A644;--warning:#D9A03C;--danger:#E5484D;--stagnant:#D4715D;--info-blue:#5E6AD2;--curio-amber:#D9B45C;--curio-bg:rgba(217,180,92,.12);--violet:#A78BFA;
+  --tag-warn-bg:rgba(217,160,60,.14);--tag-warn-text:#EFBE66;
+  --tag-ok-bg:rgba(39,166,68,.15);--tag-ok-text:#6FCE8B;
+  --tag-danger-bg:rgba(229,72,77,.15);--tag-danger-text:#FF9189;
+  --tag-neutral-bg:rgba(255,255,255,.06);--tag-neutral-text:rgba(255,255,255,.50);
+  --success-bg-soft:rgba(39,166,68,.10);--warning-bg-soft:rgba(217,160,60,.10);--danger-bg-soft:rgba(229,72,77,.10);
+  --overlay-bg:rgba(0,0,0,.6);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.3);--shadow:0 0 0 1px var(--border),0 4px 16px rgba(0,0,0,.4);
+  --shadow-lg:0 0 0 1px var(--border),0 16px 48px rgba(0,0,0,.6);
+  --shadow-focus:0 0 0 2px color-mix(in srgb,var(--accent) 40%,transparent);
+  --scrim:rgba(0,0,0,.35);
+}
+[data-theme="apple"]{
+  --bg:#F4F5F7;--surface:#FFFFFF;--surface-2:#F1F3F5;--surface-3:#E9ECEF;
+  --border:rgba(0,0,0,.08);--border-strong:rgba(0,0,0,.14);
+  --text:rgba(0,0,0,.90);--text-2:rgba(0,0,0,.62);--text-3:rgba(0,0,0,.44);--text-4:rgba(0,0,0,.28);
+  --accent:#5E6AD2;--accent-2:#7A85E0;--accent-light:#EEF0FC;--accent-hover:#4C57BE;--accent-glow:rgba(94,106,210,.18);
+  --success:#27A644;--warning:#A66A00;--danger:#D0342C;--stagnant:#D4715D;--info-blue:#5E6AD2;--curio-amber:#A87B2A;--curio-bg:#F9F3E4;--violet:#7C3AED;
+  --tag-warn-bg:#FBF1DE;--tag-warn-text:#8A5A00;
+  --tag-ok-bg:rgba(39,166,68,.12);--tag-ok-text:#1B7A31;
+  --tag-danger-bg:rgba(208,52,44,.10);--tag-danger-text:#B3251F;
+  --tag-neutral-bg:rgba(0,0,0,.05);--tag-neutral-text:rgba(0,0,0,.55);
+  --success-bg-soft:rgba(39,166,68,.08);--warning-bg-soft:rgba(166,106,0,.08);--danger-bg-soft:rgba(208,52,44,.08);
+  --shadow-sm:0 1px 2px rgba(16,24,40,.06);--shadow:0 0 0 1px var(--border),0 4px 14px rgba(16,24,40,.08);
+  --shadow-lg:0 0 0 1px var(--border),0 16px 40px rgba(16,24,40,.16);
+  --scrim:rgba(20,22,28,.28);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:var(--fs-body);line-height:1.6;min-height:100vh;transition:background var(--dur) var(--ease-out-soft)}
+button,input,textarea,select{font-family:inherit}
+.rev-badge{position:fixed;top:12px;right:16px;z-index:99;font-size:11px;letter-spacing:var(--tracking-sm);color:var(--tag-warn-text);border:1px dashed var(--warning);border-radius:var(--radius-xs);padding:2px 8px;background:var(--tag-warn-bg)}
+.wrap{max-width:1340px;margin:0 auto;padding:26px 24px 90px}
+h1{font-size:19px;font-weight:700;letter-spacing:-.01em}
+h1 .ver{font-size:11px;font-weight:500;color:var(--text-3);margin-left:8px;letter-spacing:var(--tracking-sm)}
+.sub{font-size:12px;color:var(--text-3);margin:6px 0 4px;letter-spacing:var(--tracking-sm)}
+.sub b{color:var(--text-2);font-weight:600}
+.tabs{display:flex;gap:6px;margin:18px 0 14px;flex-wrap:wrap}
+.tab{padding:7px 15px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;font-size:12.5px;transition:all var(--dur) var(--ease-out-soft)}
+.tab:hover{border-color:var(--border-strong);color:var(--text)}
+.tab.on{color:#fff;background:var(--accent);border-color:var(--accent);font-weight:600}
+.tab-tools{margin-left:auto;display:flex;gap:6px;align-items:center}
+.tgl{padding:6px 12px;border-radius:var(--radius-xs);border:1px solid var(--border);background:var(--surface-2);color:var(--text-3);font-size:11.5px;cursor:pointer}
+.tgl:hover{color:var(--text);border-color:var(--border-strong)}
+.pane{display:none}.pane.on{display:block}
+.note{font-size:11.5px;color:var(--text-3);background:var(--surface);border:1px solid var(--border);border-left:2px solid var(--accent);border-radius:var(--radius-xs);padding:9px 13px;margin-bottom:12px;line-height:1.75}
+.note b{color:var(--text-2)}.note code{font-size:11px;color:var(--curio-amber);background:var(--surface-2);padding:1px 5px;border-radius:3px}
+
+/* ============ 舞台：背后真实界面 + 遮罩 + 双栏抽屉 ============ */
+.stage{position:relative;height:648px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg);box-shadow:var(--shadow-sm)}
+.scrim{position:absolute;inset:0;background:var(--scrim);z-index:2;transition:opacity var(--dur-slow)}
+.drawer{position:absolute;top:0;right:0;bottom:0;width:min(1120px,94%);z-index:3;display:flex;flex-direction:column;background:var(--surface);box-shadow:var(--shadow-lg);animation:slide var(--dur-slow) var(--ease-out-soft)}
+@keyframes slide{from{transform:translateX(18px);opacity:.4}to{transform:none;opacity:1}}
+
+/* ---- 抽屉头 ---- */
+.dr-head{display:flex;align-items:center;gap:9px;padding:11px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.dr-head .t{font-size:var(--fs-title);font-weight:700;letter-spacing:-.01em}
+.ai-mark{display:inline-block;font-size:15px;line-height:1;vertical-align:-2px;flex-shrink:0}
+.ai-mark.spin{animation:turn 1.1s linear infinite}
+@keyframes turn{to{transform:rotate(360deg)}}
+.dr-head .spacer{flex:1}
+.persona{padding:5px 8px;border-radius:var(--radius-xs);border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-2);font-size:11.5px;cursor:pointer;letter-spacing:var(--tracking-sm)}
+.persona:hover{border-color:var(--accent);color:var(--text)}
+.dr-close{width:26px;height:26px;border-radius:var(--radius-xs);border:1px solid transparent;background:none;color:var(--text-3);font-size:17px;line-height:1;cursor:pointer}
+.dr-close:hover{background:var(--surface-2);color:var(--text)}
+/* ---- 上下文条 ---- */
+.ctx{display:flex;align-items:center;gap:10px;padding:7px 14px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.subject{padding:4px 10px;background:var(--accent-light);border:1px solid var(--accent);border-radius:var(--radius-xs);color:var(--accent);font-size:11.5px;font-weight:600;letter-spacing:var(--tracking-sm)}
+[data-theme="apple"] .subject{color:var(--accent-hover);border-color:var(--accent-hover)}
+.hint{font-size:11.5px;color:var(--text-3);line-height:1.6;flex:1;min-width:260px}
+/* ---- 双栏 ---- */
+.dual{flex:1;display:flex;min-height:0}
+.col{display:flex;flex-direction:column;min-width:0}
+.col-l{width:420px;flex-shrink:0;border-right:1px solid var(--border)}
+.col-r{flex:1;min-width:0}
+.col-head{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--surface-2);flex-shrink:0;position:sticky;top:0;z-index:1}
+.col-head .lbl{font-size:11px;font-weight:700;color:var(--text-2);letter-spacing:.5px}
+.col-head .cnt{font-size:10.5px;color:var(--text-4);letter-spacing:var(--tracking-sm)}
+.col-head .right{margin-left:auto;display:flex;gap:6px;align-items:center}
+.col-body{flex:1;overflow-y:auto;padding:10px 12px 16px}
+/* ---- 行 ---- */
+.row{display:flex;gap:8px;padding:8px 9px;border-radius:var(--radius-xs);border:1px solid transparent;margin-bottom:5px;transition:all var(--dur-fast)}
+.row:hover,.row.hot{background:var(--surface-2);border-color:var(--border)}
+.row.same{opacity:.62}
+.row.advisory{background:var(--curio-bg);border-color:transparent}
+.row.edited{border-color:var(--accent);box-shadow:inset 2px 0 0 var(--accent)}
+.k{width:34px;flex-shrink:0;font-size:10.5px;color:var(--text-4);letter-spacing:var(--tracking-sm);padding-top:2px;text-align:right}
+.v{flex:1;min-width:0;font-size:12.5px;color:var(--text);word-break:break-word}
+.v .was{display:block;font-size:11px;color:var(--text-4);margin-top:3px;text-decoration:line-through;text-decoration-color:var(--text-4)}
+.v .empty{color:var(--text-4);font-style:normal}
+.v .chip{display:inline-block;font-size:11px;padding:1px 6px;border-radius:var(--radius-xs);background:var(--tag-neutral-bg);color:var(--tag-neutral-text);margin:1px 3px 1px 0;letter-spacing:var(--tracking-sm)}
+.v .chip.add{background:var(--tag-ok-bg);color:var(--tag-ok-text);font-weight:600}
+.v textarea{width:100%;min-height:74px;background:var(--bg);border:1px solid var(--accent);border-radius:var(--radius-xs);color:var(--text);font-size:12.5px;line-height:1.7;padding:7px 9px;resize:vertical;outline:none;box-shadow:var(--shadow-focus)}
+.b{flex-shrink:0;display:flex;align-items:flex-start;gap:6px;padding-top:1px}
+.tag{font-size:10px;padding:2px 6px;border-radius:var(--radius-xs);letter-spacing:var(--tracking-sm);white-space:nowrap;font-weight:600}
+.tag.new{background:var(--tag-ok-bg);color:var(--tag-ok-text)}
+.tag.edit{background:var(--accent-light);color:var(--accent)}
+[data-theme="apple"] .tag.edit{color:var(--accent-hover)}
+.tag.same{background:var(--tag-neutral-bg);color:var(--tag-neutral-text);font-weight:500}
+.tag.warn{background:var(--tag-warn-bg);color:var(--tag-warn-text)}
+.tag.danger{background:var(--tag-danger-bg);color:var(--tag-danger-text)}
+.tag.adv{background:var(--curio-bg);color:var(--curio-amber)}
+.picky{width:14px;height:14px;margin-top:2px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+.picky:disabled{opacity:var(--opacity-disabled);cursor:default}
+/* ---- 工具条 / 汇总 ---- */
+.toolbar{display:flex;align-items:center;gap:9px;padding:7px 14px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;background:var(--surface)}
+.sum{font-size:11.5px;color:var(--text-2);letter-spacing:var(--tracking-sm)}
+.sum b{font-weight:700}.sum .p{color:var(--tag-ok-text)}.sum .q{color:var(--accent)}.sum .r{color:var(--text-4)}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.usage{font-size:10.5px;color:var(--text-4);font-variant-numeric:tabular-nums;letter-spacing:var(--tracking-sm)}
+.mini{font-size:11px;padding:2px 8px;border-radius:var(--radius-xs);border:1px solid var(--border);background:var(--surface-2);color:var(--text-3);cursor:pointer;letter-spacing:var(--tracking-sm)}
+.mini:hover{color:var(--text);border-color:var(--border-strong)}
+.mini.on{color:var(--accent);border-color:var(--accent);background:var(--accent-light)}
+.mini.dirmark{color:var(--curio-amber);border-color:var(--curio-amber);background:var(--curio-bg)}
+/* ---- 附加指令 ---- */
+.dir-box{border-top:1px solid var(--border);background:var(--surface-2);padding:9px 14px 11px;flex-shrink:0}
+.dir-head{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.dir-head .lb{font-size:11px;font-weight:700;color:var(--text-2);letter-spacing:.4px}
+.dir-head .prio{font-size:10px;padding:1px 6px;border-radius:var(--radius-xs);background:var(--curio-bg);color:var(--curio-amber);letter-spacing:var(--tracking-sm);font-weight:600}
+.dir-head .cap{margin-left:auto;font-size:10.5px;color:var(--text-4);font-variant-numeric:tabular-nums}
+.dir-head .cap i{font-style:normal;color:var(--curio-amber)}
+.scope{display:flex;border:1px solid var(--border-strong);border-radius:var(--radius-xs);overflow:hidden}
+.scope span{font-size:10.5px;padding:2px 8px;color:var(--text-3);cursor:pointer;background:var(--surface);white-space:nowrap}
+.scope span.on{background:var(--accent);color:#fff;font-weight:600}
+.scope span.dis{opacity:.42;cursor:not-allowed}
+.hist{position:relative}
+.hist-menu{position:absolute;bottom:31px;right:0;width:440px;background:var(--surface-3);border:1px solid var(--border-strong);border-radius:var(--radius-sm);box-shadow:var(--shadow-lg);padding:6px;display:none;z-index:6}
+.hist-menu.on{display:block}
+.hi{padding:6px 8px;border-radius:var(--radius-xs);cursor:pointer;font-size:11.5px;color:var(--text-2);line-height:1.6}
+.hi:hover{background:var(--surface-2)}
+.hi .q{color:var(--text)}
+.hi .m{font-size:10.5px;color:var(--text-4);font-variant-numeric:tabular-nums}
+.dir-row{display:flex;gap:8px;align-items:flex-start}
+.dir-ta{flex:1;min-width:0;height:40px;background:var(--bg);border:1px solid var(--border-strong);border-radius:var(--radius-xs);color:var(--text);font-size:12px;line-height:1.7;padding:6px 9px;resize:none;outline:none;transition:box-shadow var(--dur)}
+.dir-ta:focus{border-color:var(--accent);box-shadow:var(--shadow-focus)}
+.dir-ta::placeholder{color:var(--text-4)}
+/* ---- 底部 ---- */
+.dr-foot{display:flex;align-items:center;gap:8px;padding:9px 14px;border-top:1px solid var(--border);flex-shrink:0;background:var(--surface)}
+.dr-foot .receipt{font-size:11.5px;color:var(--tag-ok-text);letter-spacing:var(--tracking-sm)}
+.dr-foot .receipt.warnr{color:var(--curio-amber)}
+.btns{margin-left:auto;display:flex;gap:8px}
+.btn{padding:6px 14px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-2);font-size:12.5px;cursor:pointer;transition:all var(--dur) var(--ease-out-soft);white-space:nowrap}
+.btn:hover:not(:disabled){border-color:var(--accent);color:var(--text)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.primary:hover:not(:disabled){background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn:disabled{opacity:var(--opacity-disabled);cursor:not-allowed}
+.btn.ghost{border-color:transparent;background:none;color:var(--text-3)}
+/* ---- 状态区 ---- */
+.status{margin:12px;padding:11px 13px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--border);font-size:12px;color:var(--text-2);line-height:1.8}
+.status.err{background:var(--danger-bg-soft);border-color:var(--danger-border,var(--border-strong))}
+.status .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-right:7px;animation:pulse 1s ease-in-out infinite;vertical-align:1px}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+.skel{height:11px;border-radius:3px;background:linear-gradient(90deg,var(--surface-2) 25%,var(--surface-3) 37%,var(--surface-2) 63%);background-size:400% 100%;animation:shim 1.4s infinite linear;margin:9px 0}
+@keyframes shim{0%{background-position:100% 0}100%{background-position:-100% 0}}
+.raw{margin:8px 12px;padding:9px 11px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:1.7;color:var(--text-3);white-space:pre-wrap;word-break:break-word;max-height:190px;overflow:auto}
+
+/* ============ 背后：资源台 ============ */
+.app{position:absolute;inset:0;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;gap:14px;padding:0 20px;height:46px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.logo{width:20px;height:20px;border-radius:5px;background:linear-gradient(135deg,var(--accent),var(--violet))}
+.nav{display:flex;gap:4px}
+.nav span{padding:5px 11px;border-radius:var(--radius-xs);font-size:12.5px;color:var(--text-3);cursor:default}
+.nav span.on{background:var(--accent-light);color:var(--accent);font-weight:600}
+[data-theme="apple"] .nav span.on{color:var(--accent-hover)}
+.ws{flex:1;padding:16px 22px;overflow:hidden}
+.ws h2{font-size:14px;font-weight:700;margin-bottom:3px}
+.ws .crumb{font-size:11.5px;color:var(--text-3);margin-bottom:14px;letter-spacing:var(--tracking-sm)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.rc{height:86px;padding:9px 11px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:4px;position:relative}
+.rc.me{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),var(--shadow)}
+.rc .rt{font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc .rd{font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc .rf{display:flex;align-items:center;gap:5px;margin-top:auto;font-size:10.5px;color:var(--text-4)}
+.rc .rf .ai{margin-left:auto;font-size:11px;opacity:.85}
+.rc .rf .chip{font-size:10px;padding:1px 6px;border-radius:var(--radius-xs);background:var(--tag-neutral-bg);color:var(--tag-neutral-text)}
+/* ============ 背后：周报浮层 ============ */
+.ov{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column}
+.ov-head{display:flex;align-items:center;gap:12px;padding:14px 20px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+.ov-head .t{font-size:16px;font-weight:700}
+.ov-head .p{font-size:12px;color:var(--text-3)}
+.ov-head .sw{margin-left:auto;display:flex;gap:4px}
+.seg{padding:4px 13px;border-radius:var(--radius-xs);border:1px solid var(--border);background:var(--surface-2);color:var(--text-3);font-size:11.5px}
+.seg.on{color:#fff;background:var(--accent);border-color:var(--accent)}
+.ov-body{flex:1;overflow:auto;padding:14px 20px 20px}
+.sec{margin-bottom:15px}
+.sec-t{font-size:11.5px;font-weight:700;color:var(--text-2);margin-bottom:8px;letter-spacing:.4px}
+.sec-t .h{font-weight:400;color:var(--text-4);font-size:11px;margin-left:6px}
+.nums{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.bn{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;text-align:center;box-shadow:var(--shadow-sm)}
+.bn .n{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.bn .l{font-size:10.5px;color:var(--text-3);letter-spacing:var(--tracking-sm)}
+.bn .d{font-size:10.5px;color:var(--tag-ok-text)}
+.bar{display:flex;align-items:center;gap:9px;padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xs);margin-bottom:5px;font-size:11.5px;color:var(--text-2)}
+.bar .fill{height:5px;border-radius:3px;background:var(--accent);opacity:.7}
+.bar .nm{width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .val{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--text-3);font-size:11px}
+/* ============ 规格表 ============ */
+.spec{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.spec h3{font-size:12.5px;padding:11px 15px;border-bottom:1px solid var(--border);background:var(--surface-2);letter-spacing:.3px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:8px 15px;color:var(--text-3);font-weight:600;font-size:11px;letter-spacing:.4px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+td{padding:9px 15px;border-bottom:1px solid var(--border);color:var(--text-2);vertical-align:top;line-height:1.7}
+tr:last-child td{border-bottom:none}
+td.k{width:190px;color:var(--text);font-weight:600;width:200px}
+td .m{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--curio-amber)}
+.flow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.step{flex:1;min-width:210px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px}
+.step .i{font-size:10.5px;color:var(--accent);font-weight:700;letter-spacing:.5px}
+.step .h{font-size:12.5px;font-weight:600;margin:3px 0 4px}
+.step .p{font-size:11.5px;color:var(--text-3);line-height:1.7}
+</style>
+</head>
+<body>
+<div class="rev-badge">仅供评审 · 未落地代码</div>
+<div class="wrap">
+  <h1>AI 对照式评审范式 · 交互原型<span class="ver">R154 提案 · 基于 V3.8.0（R153）真令牌真字段</span></h1>
+  <div class="sub">左栏 = <b>该入口模块的当前形态</b>；右栏 = <b>AI 补全后的完整形态</b>，行级一一对应，看得见"补了哪里、补了什么"。</div>
+  <div class="sub">已定口径：<b>① 采纳=直接写库</b>（不再二次保存）· <b>② AI 检索豁免</b>（定性检索不属赋能）· <b>③ 报告型加「存为卡」</b>（编辑生效，仍只刷新同一张）。</div>
+
+  <div class="tabs">
+    <button class="tab on" data-p="p1">① 资源卡 · 全方位优化（字段补全型）</button>
+    <button class="tab" data-p="p2">② 每周回顾 · 深度洞察（报告型）</button>
+    <button class="tab" data-p="p3">③ 状态与边界</button>
+    <button class="tab" data-p="p4">④ 规格与口径</button>
+    <div class="tab-tools">
+      <button class="tgl" id="theme">切换主题（当前：深空薰衣草）</button>
+    </div>
+  </div>
+
+  <!-- ==================== P1 资源卡 ==================== -->
+  <div class="pane on" id="p1">
+    <div class="note">入口：<code>资源台 › 卡片页脚 🤖 全方位优化</code>（<code>CardAiEntry.vue:41</code> → <code>select.ts:406 buildFullOptimizeJob</code>）。<b>可玩</b>：悬停任一侧行→对侧联动高亮 · 点右栏值→就地编辑（编辑即自动勾选）· 勾选/取消看采纳计数 · 「只看差异」· 改「附加指令」后点「应用并重跑」· 点「采纳（直接写库）」→ <b>左栏立刻变成写库后的新现状</b>。</div>
+    <div class="stage">
+      <div class="app">
+        <div class="topbar"><div class="logo"></div><div class="nav"><span>调度台</span><span>方向台</span><span class="on">资源台</span><span style="margin-left:14px;color:var(--text-4)">12</span></div></div>
+        <div class="ws">
+          <h2>资源台 · 全景列表</h2>
+          <div class="crumb">产品与销售 · 12 张卡 · 本周调用 7 次</div>
+          <div class="cards">
+            <div class="rc me"><div class="rt">软硬一体服务系统解决方案</div><div class="rd">（无描述）</div><div class="rf"><span class="chip">一体机</span><span class="chip">中优</span><span style="margin-left:auto">3 次</span><span class="ai">🤖</span></div></div>
+            <div class="rc"><div class="rt">产品解决方案报价模板</div><div class="rd">高优 · 已挂 2 指标</div><div class="rf"><span class="chip">报价</span><span style="margin-left:auto">1 次</span><span class="ai" style="opacity:.3">🤖</span></div></div>
+            <div class="rc"><div class="rt">教育+AI 行业地图研究</div><div class="rd">访谈 1 位从业者 · 语表 20 词</div><div class="rf"><span class="chip">行业</span><span style="margin-left:auto">5 次</span><span class="ai" style="opacity:.3">🤖</span></div></div>
+            <div class="rc"><div class="rt">武汉地区教育政策研究</div><div class="rd">100% · 2/2 指标达成</div><div class="rf"><span class="chip">政策</span><span style="margin-left:auto">2 次</span><span class="ai" style="opacity:.3">🤖</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="scrim"></div>
+
+      <aside class="drawer">
+        <div class="dr-head">
+          <span class="ai-mark" id="m1">🤖</span>
+          <span class="t">AI 全方位优化 · 软硬一体服务系统解决方</span>
+          <span class="spacer"></span>
+          <select class="persona" id="per1" title="换一个专家视角重新生成">
+            <option>🗂 策展助手（默认）</option><option>🎯 产品全生命周期专家</option><option>🧭 生涯规划顾问</option><option>✍️ 我自己（自建）</option>
+          </select>
+          <button class="dr-close" title="关闭（Esc）">×</button>
+        </div>
+        <div class="ctx">
+          <span class="subject">📌 资源卡「软硬一体服务系统解决方案」</span>
+          <span class="hint">已抓取链接网页正文（4,182 字）。勾选=要写进这张卡的项；<b>采纳即直接写库</b>，写后左栏刷新为新现状。不勾即不动。</span>
+        </div>
+
+        <div class="dual">
+          <!-- 左栏 -->
+          <div class="col col-l">
+            <div class="col-head"><span class="lbl">当前形态</span><span class="cnt">写库后即刷新</span><span class="right"><span class="cnt">5 字段</span></span></div>
+            <div class="col-body" id="left1">
+              <div class="row" data-pair="title"><span class="k">标题</span><span class="v">软硬一体服务系统解决方案</span></div>
+              <div class="row" data-pair="desc"><span class="k">描述</span><span class="v"><span class="empty">（无描述）</span></span></div>
+              <div class="row" data-pair="tags"><span class="k">标签</span><span class="v"><span class="chip">一体机</span><span class="chip">中优</span></span></div>
+              <div class="row" data-pair="cat"><span class="k">分类</span><span class="v">资源台 › 产品与销售</span></div>
+              <div class="row" data-pair="link"><span class="k">链接</span><span class="v" style="font-size:11.5px">docs.qq.com/doc/DUWp…（正文已读）</span></div>
+              <div class="row" data-pair="meta" style="opacity:.5"><span class="k">台账</span><span class="v" style="font-size:11.5px">调用 3 次 · 最近 09-19 · 创建 08-31 · 未挂指标</span></div>
+            </div>
+          </div>
+          <!-- 右栏 -->
+          <div class="col col-r">
+            <div class="col-head">
+              <span class="lbl">AI 补全后完整形态</span>
+              <span class="sum" id="sum1"></span>
+              <span class="right">
+                <button class="mini" id="diff1">只看差异 ▦</button>
+                <button class="mini" id="raw1">原文</button>
+              </span>
+            </div>
+            <div class="toolbar">
+              <label class="sum" style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" class="picky" id="all1" style="width:13px;height:13px;margin:0"> 全选</label>
+              <span class="sum">已选 <b id="pk1">3</b>/<b id="ad1">3</b></span>
+              <span class="tb-right">
+                <span class="usage">投料 1,284 字 · 2 次请求 · token 903/412 · 产出 236 字 · 5s</span>
+                <span class="mini dirmark" id="dirmark1" title="附加指令已生效，优先级高于角色">🎯 指令 23 字</span>
+              </span>
+            </div>
+            <div class="col-body" id="right1">
+              <div class="row" data-pair="title" data-ct="edit" data-key="title">
+                <input type="checkbox" class="picky" checked>
+                <span class="k">标题</span>
+                <span class="v" data-edit="main">软硬一体服务系统解决方案 · 可行性与试点验证<span class="was">原：软硬一体服务系统解决方案</span></span>
+                <span class="b"><span class="tag edit">改写</span></span>
+              </div>
+              <div class="row" data-pair="desc" data-ct="new" data-key="desc">
+                <input type="checkbox" class="picky" checked>
+                <span class="k">描述</span>
+                <span class="v" data-edit="main">把硬件、软件、服务打包成一体的交付方案。谈客户时用它讲清「我们卖的不是设备，是闭环」。收藏理由：正文里的 3 个试点数据可直接复用到报价模板与 PPT。</span>
+                <span class="b"><span class="tag new">新增</span></span>
+              </div>
+              <div class="row" data-pair="tags" data-ct="edit" data-key="tags">
+                <input type="checkbox" class="picky" checked>
+                <span class="k">标签</span>
+                <span class="v" data-edit="tags"><span class="chip">一体机</span><span class="chip">中优</span><span class="chip add">可行性验证</span><span class="chip add">试点交付</span><span class="chip add">报价素材</span></span>
+                <span class="b"><span class="tag edit">改写 +3</span></span>
+              </div>
+              <div class="row same" data-pair="cat" data-ct="same">
+                <input type="checkbox" class="picky" disabled>
+                <span class="k">分类</span><span class="v">资源台 › 产品与销售</span>
+                <span class="b"><span class="tag same">未变</span></span>
+              </div>
+              <div class="row same" data-pair="link" data-ct="same">
+                <input type="checkbox" class="picky" disabled>
+                <span class="k">链接</span><span class="v" style="font-size:11.5px">docs.qq.com/doc/DUWp…（正文已读）</span>
+                <span class="b"><span class="tag same">未变</span></span>
+              </div>
+              <div class="row advisory" data-pair="meta">
+                <span class="k">参谋</span>
+                <span class="v">值得留。缺一份可行性验证结论——建议挂到「产品解决方案文档成 3 版」指标下。</span>
+                <span class="b"><span class="tag adv">🧭 只读</span></span>
+              </div>
+            </div>
+            <pre class="raw" id="rawbox1" hidden>{
+  "title": "软硬一体服务系统解决方案 · 可行性与试点验证",
+  "description": "把硬件、软件、服务打包成一体的交付方案。谈客户时用它讲清「我们卖的不是设备，是闭环」。收藏理由：正文里的 3 个试点数据可直接复用到报价模板与 PPT。",
+  "tags": ["可行性验证","试点交付","报价素材"],
+  "assess": "值得留。缺一份可行性验证结论——建议挂到「产品解决方案文档成 3 版」指标下。"
+}</pre>
+          </div>
+        </div>
+
+        <div class="dir-box">
+          <div class="dir-head">
+            <span class="lb">🎯 本次指令</span>
+            <span class="prio">优先级高于角色</span>
+            <div class="scope" id="scope1"><span class="on" data-s="card">这张卡</span><span data-s="mod">这类入口 · 全方位优化</span></div>
+            <span class="cap"><b id="dirc">23</b>/2000 字 · <i id="scopeNote1">只记在这张卡上</i></span>
+          </div>
+          <div class="dir-row">
+            <textarea class="dir-ta" id="dir1" placeholder="例：描述别写口号，只写这周能直接拿去报价的素材；标签不超过 3 个，必须是能搜到的词。指令只能改口径，改不了输出结构。">描述别写口号，只写这周能直接拿去报价的素材；标签不超过 3 个</textarea>
+            <div class="hist">
+              <button class="btn" id="histBtn1" style="padding:6px 9px;font-size:11.5px" title="本作用域最近 5 条，带每轮产出指标">历史 ▾</button>
+              <div class="hist-menu" id="histMenu1">
+                <div class="hi" data-t="描述别写口号，只写这周能直接拿去报价的素材；标签不超过 3 个"><span class="q">当前这条</span><div class="m">这张卡 · 23 字 · 本轮 5s · 产出 3 项 · 已采纳</div></div>
+                <div class="hi" data-t="按「客户能听懂的话」重写描述，别用行业黑话"><span class="q">按「客户能听懂的话」重写描述，别用行业黑话</span><div class="m">这张卡 · 22 字 · 上轮 6s · 产出 2 项 · 未采纳（觉得太口语）</div></div>
+                <div class="hi" data-t="标签只给能搜到的名词，别给形容词"><span class="q">标签只给能搜到的名词，别给形容词</span><div class="m">这类入口 · 16 字 · 3 张卡共用 · 平均 5s · 2 次采纳</div></div>
+              </div>
+            </div>
+            <button class="btn" id="promote1" title="把这条调好的口径存成可复用角色，之后任何入口的角色下拉都能选它">↗ 存为角色</button>
+            <button class="btn" id="dirrun1" title="带上这条指令重新生成（Ctrl+Enter）">应用并重跑 ↻</button>
+          </div>
+        </div>
+
+        <div class="dr-foot">
+          <span class="receipt" id="rc1"></span>
+          <div class="btns">
+            <button class="btn">关闭</button>
+            <button class="btn" id="rerun1">↻ 重新生成</button>
+            <button class="btn primary" id="adopt1">✓ 采纳（直接写库）(3)</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ==================== P2 周报 ==================== -->
+  <div class="pane" id="p2">
+    <div class="note">入口：<code>调度台 › 周报浮层 › 🤖 深度洞察</code>（<code>WeeklyReportOverlay.vue:99</code> → <code>select.ts:363 buildReviewJob / :383 buildInsightJob</code>）。<b>报告型新口径</b>：跑完仍<b>自动落一张卡</b>（R149 不变，不改动你任何既有数据）；但右栏正文<b>现在可编辑</b>，一旦编辑，底部「📥 存为卡」亮起，点它<b>刷新同一张卡</b>——不会越跑越多。右栏每节挂「依据」徽标，点击/悬停联动左栏台账行。</div>
+    <div class="stage">
+      <div class="ov">
+        <div class="ov-head"><span class="t">📊 调度画像</span><span class="p">本周（09-21 ~ 09-22）</span>
+          <div class="sw"><span class="seg on">本周</span><span class="seg">上周</span><span class="seg" style="border-color:var(--accent);color:var(--accent)">🤖 深度洞察</span><span class="seg">×</span></div>
+        </div>
+        <div class="ov-body">
+          <div class="sec"><div class="sec-t">① 调度总览 <span class="h">点击数字下钻</span></div>
+            <div class="nums"><div class="bn"><div class="n">1</div><div class="l">入台卡片</div><div class="d">↑ 1</div></div><div class="bn"><div class="n">6</div><div class="l">完成任务</div><div class="d">↑ 2</div></div><div class="bn"><div class="n">4</div><div class="l">新增未开始</div><div class="d">↑ 4</div></div><div class="bn"><div class="n">2</div><div class="l">停滞任务</div><div class="d" style="color:var(--danger)">需处理</div></div></div>
+          </div>
+          <div class="sec"><div class="sec-t">② 方向活跃度（本周任务完成）</div>
+            <div class="bar"><span class="nm">教育+AI 行业地图研究</span><span class="fill" style="width:120px"></span><span class="val">4 / 6</span></div>
+            <div class="bar"><span class="nm">软硬一体服务系统解决方案</span><span class="fill" style="width:18px"></span><span class="val">0 / 4</span></div>
+            <div class="bar"><span class="nm">武汉地区教育政策研究</span><span class="fill" style="width:60px"></span><span class="val">2 / 2</span></div>
+          </div>
+          <div class="sec"><div class="sec-t">③ 资源调用 TOP 5 <span class="h">点击卡片定位</span></div>
+            <div class="bar"><span class="nm">教育+AI 行业地图研究</span><span class="fill" style="width:90px"></span><span class="val">5 次</span></div>
+            <div class="bar"><span class="nm">武汉地区教育政策研究</span><span class="fill" style="width:40px"></span><span class="val">2 次</span></div>
+            <div class="bar"><span class="nm">软硬一体服务系统解决方案</span><span class="fill" style="width:14px"></span><span class="val">3 次</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="scrim"></div>
+
+      <aside class="drawer">
+        <div class="dr-head">
+          <span class="ai-mark" id="m2">🤖</span>
+          <span class="t">本周深度洞察</span>
+          <span class="spacer"></span>
+          <select class="persona" title="换一个专家视角重新生成"><option>🧑‍🏫 内置角色（默认）</option><option>🎯 产品全生命周期专家</option><option>📈 投入产出审计员（自建）</option></select>
+          <button class="dr-close">×</button>
+        </div>
+        <div class="ctx">
+          <span class="subject">🗓 近 7 天台账 · 调度画像</span>
+          <span class="hint">不复述数字，只体检「投入和重心对不对」。跑完自动存一张「深度洞察」卡进<b>资源台 › 待分类</b>；<b>你在右栏改过的字，点「存为卡」才生效</b>，且刷新的是同一张。</span>
+        </div>
+
+        <div class="dual">
+          <div class="col col-l">
+            <div class="col-head"><span class="lbl">近 7 天台账（投料原文）</span><span class="right"><span class="cnt">623 字 · 只读</span></span></div>
+            <div class="col-body">
+              <div class="sec-t" style="margin:4px 0 6px">完成任务（6）</div>
+              <div class="row" data-pair="t1"><span class="v" style="font-size:12px">· 联系 1 位从业者做 15 分钟访谈</span><span class="b"><span class="tag ok" style="background:var(--tag-ok-bg);color:var(--tag-ok-text)">done</span></span></div>
+              <div class="row" data-pair="t1"><span class="v" style="font-size:12px">· 构建行业术语表（20 个核心词）</span></div>
+              <div class="row" data-pair="t1"><span class="v" style="font-size:12px">· 汇总近一周行业新闻关键点</span></div>
+              <div class="row" data-pair="t1"><span class="v" style="font-size:12px">· 梳理主流商业模式分类</span></div>
+              <div class="row" data-pair="t1"><span class="v" style="font-size:12px">· 精读 2 篇行业报告并做摘要</span></div>
+              <div class="row" data-pair="t1"><span class="v" style="font-size:12px">· 整理教育+AI 头部公司清单</span></div>
+              <div class="sec-t" style="margin:12px 0 6px">停滞任务（2）</div>
+              <div class="row" data-pair="t2"><span class="v" style="font-size:12px">· 撰写行业分析报告 3 篇</span><span class="b"><span class="tag warn">doing · 12 天未更新</span></span></div>
+              <div class="row" data-pair="t2"><span class="v" style="font-size:12px">· 产品解决方案文档完成 3 版</span><span class="b"><span class="tag warn">doing · 9 天未更新</span></span></div>
+              <div class="sec-t" style="margin:12px 0 6px">主攻项目对照</div>
+              <div class="row" data-pair="t3"><span class="v" style="font-size:12px">「软硬一体服务系统解决方案」<b>0%</b> 指标[0/3,0/4] · 本周 0 任务完成 · 卡调用 3 次</span><span class="b"><span class="tag danger">零投入</span></span></div>
+              <div class="sec-t" style="margin:12px 0 6px">入台卡片（1）· 按台分布</div>
+              <div class="row" data-pair="t4"><span class="v" style="font-size:12px">· 教育+AI：3 卡（累计 12 次调用）· 政策研究：2 卡（5 次）· 产品与销售：1 卡（3 次）</span></div>
+            </div>
+          </div>
+
+          <div class="col col-r">
+            <div class="col-head">
+              <span class="lbl">AI 补全后完整形态 · 整篇正文</span>
+              <span class="sum">3 节 · <b style="color:var(--curio-amber)">点正文即可改</b></span>
+              <span class="right"><button class="mini" id="raw2">原文</button></span>
+            </div>
+            <div class="toolbar">
+              <span class="sum">整篇成文，跑完自动落卡 · <b id="dirty2" style="color:var(--text-4)">无编辑</b></span>
+              <span class="tb-right"><span class="usage">投料 623 字 · 1 次请求 · token 488/491 · 产出 491 字 · 5s</span></span>
+            </div>
+            <div class="col-body" id="right2">
+              <div class="row" data-pair="t1">
+                <span class="k">一</span>
+                <span class="v" data-edit="main">本周做成了什么
+六条全部落在「教育+AI 行业地图研究」一条线上：访谈、术语表、新闻汇总、商业模式分类、两篇报告精读、头部公司清单。这是一次成建制推进——从「听说」到「有一张能查的地图」，下周可以直接拿它写报告。<span class="tag adv" style="margin-left:6px">依据 6 条完成</span></span>
+              </div>
+              <div class="row" data-pair="t3" style="background:var(--danger-bg-soft)">
+                <span class="k">二</span>
+                <span class="v" data-edit="main">投入和重心对不对——不对
+主攻项目「软硬一体服务系统解决方案」本周 0% 推进、0 条任务完成，但它的卡被调用 3 次。这个组合最危险：<b>你在反复查看一个不动手的项目</b>，用阅读替代交付。同期 6 条完成全在另一条线上，说明执行力没问题，是分配问题。<span class="tag adv" style="margin-left:6px">依据 主攻对照</span></span>
+              </div>
+              <div class="row" data-pair="t2">
+                <span class="k">三</span>
+                <span class="v" data-edit="main">下周只做什么
+① 把「产品解决方案文档完成 3 版」拆成第 1 版=报价模板骨架（3 天可见物），别再停在 12 天不动的「3 篇报告」上；② 给软硬一体那条线设一个死线：本周内产出「可行性验证报告 1 版」，否则它不该再挂主攻。<span class="tag adv" style="margin-left:6px">依据 2 条停滞</span></span>
+              </div>
+            </div>
+            <pre class="raw" id="rawbox2" hidden>本周做成了什么
+六条全部落在「教育+AI 行业地图研究」一条线上：访谈、术语表、新闻汇总、商业模式分类、两篇报告精读、头部公司清单。这是一次成建制推进——从「听说」到「有一张能查的地图」，下周可以直接拿它写报告。
+
+投入和重心对不对——不对
+主攻项目「软硬一体服务系统解决方案」本周 0% 推进、0 条任务完成，但它的卡被调用 3 次。这个组合最危险：你在反复查看一个不动手的项目，用阅读替代交付。同期 6 条完成全在另一条线上，说明执行力没问题，是分配问题。
+
+下周只做什么
+① 把「产品解决方案文档完成 3 版」拆成第 1 版=报价模板骨架（3 天可见物），别再停在 12 天不动的「3 篇报告」上；② 给软硬一体那条线设一个死线：本周内产出「可行性验证报告 1 版」，否则它不该再挂主攻。</pre>
+          </div>
+        </div>
+
+        <div class="dir-box">
+          <div class="dir-head"><span class="lb">🎯 本次指令</span><span class="prio">优先级高于角色</span>
+            <div class="scope"><span class="on">本入口 · 深度洞察</span><span class="dis" title="报告型没有「某张卡」的对象语义，不存在更宽的对象作用域；要跨模块复用请点右侧「存为角色」">跨入口复用 → 请存为角色</span></div>
+            <span class="cap"><b>0</b>/2000 字</span>
+          </div>
+          <div class="dir-row">
+            <textarea class="dir-ta" placeholder="例：语气别安慰人，直接指出我在逃避哪件事；每节不超过 80 字。指令改不了「三节结构」，那是场景骨架。"></textarea>
+            <button class="btn" style="padding:6px 9px;font-size:11.5px" title="本入口最近 5 条指令">历史 ▾</button>
+            <button class="btn" title="把这条口径存成可复用角色">↗ 存为角色</button>
+            <button class="btn">应用并重跑 ↻</button>
+          </div>
+        </div>
+
+        <div class="dr-foot">
+          <span class="receipt" id="rc2">📥 已自动落卡：资源台 › 待分类 ·「🗓 深度洞察 2026/9/22」</span>
+          <div class="btns">
+            <button class="btn">关闭</button>
+            <button class="btn">↻ 重新生成</button>
+            <button class="btn primary" id="save2" disabled>📥 存为卡</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ==================== P3 状态 ==================== -->
+  <div class="pane" id="p3">
+    <div class="note">双栏下四种非完成态：<b>左栏始终可读</b>（等的时候正好读现状），右栏给骨架与出口。跑中不锁指令框，但改指令要等本轮结束才能重跑。</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="spec"><h3>跑中 · running（同 key 再点 = attach 看进度，不重发）</h3>
+        <div class="status"><span class="dot"></span>专家思考/生成中… 已 3s · 已发 1 次请求 / 投料 1,284 字 <button class="btn" style="padding:3px 10px;font-size:11px;margin-left:6px">⏹ 停止</button>
+          <div class="skel" style="width:88%"></div><div class="skel" style="width:64%"></div><div class="skel" style="width:76%"></div>
+          <div style="font-size:11px;color:var(--text-4);margin-top:8px">排队中（同时最多 2 个 AI 任务，前面的跑完自动开始）</div>
+        </div>
+      </div>
+      <div class="spec"><h3>已停止 · stopped（本轮作废，未写入任何数据）</h3>
+        <div class="status">⏹ 已停止，本轮结果作废（未写入任何数据）<span style="color:var(--text-4)">（本次已投料 1,284 字 / 5s）</span>
+          <div style="margin-top:8px"><button class="btn" style="padding:3px 10px;font-size:11px">↻ 重新运行</button></div>
+          <div style="font-size:11px;color:var(--text-4);margin-top:8px">左栏保持原样——停止从来不是"半采纳"。</div>
+        </div>
+      </div>
+      <div class="spec"><h3>出错 · error（说清是哪一段断了）</h3>
+        <div class="status err">⚠ 模型返回为空（可能超时或余额不足）<span style="color:var(--text-4)">（本次已投料 1,284 字 / 5s）</span>
+          <div style="margin-top:8px"><button class="btn" style="padding:3px 10px;font-size:11px">↻ 重试</button></div>
+          <div style="font-size:11px;color:var(--text-4);margin-top:8px">重试沿用同一份附加指令，不必重打。</div>
+        </div>
+      </div>
+      <div class="spec"><h3>空态 · 0 行（能自证：模型到底答了什么）</h3>
+        <div class="status">模型没有给出可采纳的建议——3 行连名字都没给（丢弃）。
+          <div style="font-size:11.5px;color:var(--text-3);margin:5px 0 8px">换专家执笔、把卡片描述补一句，或换个更具体的关键词再问一次。</div>
+          <button class="btn" style="padding:3px 10px;font-size:11px">看模型原文（1,208 字）</button> <button class="btn" style="padding:3px 10px;font-size:11px">复制原文</button>
+        </div>
+      </div>
+      <div class="spec"><h3>编辑冲突 · 重跑前</h3>
+        <div class="status" style="background:var(--warning-bg-soft)">你改了 2 行还没采纳。重新生成会<b>丢掉这些编辑</b>。<div style="margin-top:8px"><button class="btn" style="padding:3px 10px;font-size:11px">仍要重跑</button> <button class="btn primary" style="padding:3px 10px;font-size:11px">先采纳</button></div></div>
+      </div>
+      <div class="spec"><h3>只读会诊 · 主题漂移（无采纳按钮的出口）</h3>
+        <div class="status">右栏每条发现行尾给 <button class="btn" style="padding:2px 9px;font-size:11px">去资源台处理 →</button>，点它定位到那张卡并就地打开详情抽屉。
+          <div style="font-size:11px;color:var(--text-4);margin-top:8px">会诊不改数据，但必须有一条"改"的路——否则跑完只能看，等于没跑。</div>
+        </div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:14px;border-left-color:var(--warning)">豁免清单：<b>AI 检索</b>（<code>GlobalPopups.vue:887</code>）按你的拍板定性为「检索不属赋能」，继续就地内联、不进双栏、不加指令框；<b>一句话智能录入</b>采纳=回填表单（它本来就在录入流里），但同样接上左栏「你的原话」与附加指令。</div>
+  </div>
+
+  <!-- ==================== P4 规格 ==================== -->
+  <div class="pane" id="p4">
+    <div class="spec"><h3>落地口径（改造只动抽屉与 job 契约，不动 Drawer.vue / 30+ 宿主）</h3>
+      <table>
+        <tr><th>项</th><th>口径</th></tr>
+        <tr><td class="k">面板宽度</td><td>抽屉 <span class="m">min(1120px, 94vw)</span>（现 560px），左栏锁 <span class="m">420px</span>，右栏自适应；<b>双栏在 <span class="m">AiSuggestionDrawer</span> 内部自排</b>，<span class="m">Drawer.vue</span> 一字不改</td></tr>
+        <tr><td class="k">遮罩</td><td>保留 overlay 语义，透明度 <span class="m">rgba(0,0,0,.35)</span>（现 .25）——左栏已是当前内容，不必透过遮罩看背后</td></tr>
+        <tr><td class="k">行级对应</td><td><span class="m">AiJob.before?: AiPaneLine[]</span>（左栏快照，缺省=自动退回单栏，23 入口可分批接）+ <span class="m">AiRow.pair</span>（指向左栏行 key）+ <span class="m">changeType: new|edit|same|move</span>；配对由 <span class="m">shared/ai/pair.ts pairRows()</span> 统一算（先 id、再归一化标题），23 个工厂不各写一遍</td></tr>
+        <tr><td class="k">可编辑</td><td><span class="m">AiRow.edit?: {main?:boolean; sub?:boolean}</span> 声明粒度；编辑存抽屉内存 <span class="m">drafts: Map&lt;rowKey,val&gt;</span>，<b>编辑即自动勾选该行</b>；采纳前把 draft 合并进行再喂 <span class="m">apply(rows)</span> → 23 个工厂的 apply 签名不变</td></tr>
+        <tr><td class="k">采纳语义</td><td><b>直接写库</b>（<span class="m">apply → persist</span>），不再要求二次保存；按钮文案统一为 <span class="m">✓ 采纳（直接写库）(N)</span>；采纳后左栏刷新为新现状 + 底部回执</td></tr>
+        <tr><td class="k">附加指令</td><td>新文件 <span class="m">shared/ai/directive.ts</span>，抽屉在 <span class="m">run()/openJob()</span> 前单点包一层 <span class="m">withDirective(job)</span> → <b>14 个宿主零改造</b>；重跑时 <span class="m">execute()</span> 会重新调 <span class="m">build()</span>，天然读到最新指令</td></tr>
+        <tr><td class="k">权重裁决</td><td>装配顺序：① 场景骨架+JSON schema（<b>不可覆盖</b>，否则 parse 崩）→ ② 角色人设 → ③ 用户指令块，前置一句：<span class="m">「【用户附加指令 · 优先级最高】与上文人设冲突时以此为准；但输出结构与字段不得增删，违反即视为无效。」</span>上限 2000 字，生效时工具条挂 <span class="m">🎯 指令 N 字</span></td></tr>
+        <tr><td class="k">指令作用域与存储</td><td>两档控件：<b>左档=对象级「这张卡」（默认）</b> → <span class="m">promptScope='opt:card#&lt;cardId&gt;'</span>；<b>右档=入口级「这类入口」</b>，须用户主动点才升 → <span class="m">'opt:card'</span>。第三出口是按钮 <b>↗ 存为角色</b>：把调好的口径写进 <span class="m">customPersonas</span>，之后任何入口下拉都能选。存 <span class="m">zy_ai_v1</span> 同侧独立键、<b>不进 AppData</b>（与密钥同侧，导出/备份链不带它）；历史留最近 5 条并带每轮「耗时/产出/是否采纳」，供横向比哪条指令真管用</td></tr>
+        <tr><td class="k">报告型</td><td>跑完仍自动落卡（R149 不变）；右栏可编辑 → 变脏时「📥 存为卡」亮起，点击<b>刷新同一张</b>（<span class="m">saveReportCard</span> 同名复用），不新增第二张</td></tr>
+        <tr><td class="k">徽标</td><td>入口与抽屉一律 <span class="m">🤖</span>（R152 定稿，单一真源 <span class="m">ZhiMark.vue</span>；除 ZhiMark/GlobalPopups 外不许出现 🤖 字面量）</td></tr>
+        <tr><td class="k">渲染纪律</td><td>右栏编辑用 <span class="m">textarea</span>，回显仍纯文本插值——<b>零 <span class="m">v-html</span></b>（R134-10），提示词注入无 XSS 面</td></tr>
+        <tr><td class="k">断言随迁</td><td>逐字钉死抽屉模板的须同步改写：<span class="m">R148-5</span>（props 整串 / <span class="m">↻ 重新运行</span> / <span class="m">排队中</span>）、<span class="m">R149-5</span>（<span class="m">ai-all</span> 整串 / <span class="m">整篇成文，跑完自动落卡</span> / row class 整串）、<span class="m">R147-1/2/3</span>。新增 <span class="m">R154-1~7</span>：有 before 必有 pair / 优先级句必须存在 / 指令不进 AppData / same 行默认不勾 / 编辑即勾选 / 报告型存为卡只刷新同名 / 采纳文案统一</td></tr>
+        <tr><td class="k">红线</td><td><span class="m">entry-literals.cjs</span> 15 项双向为 0（新 <span class="m">directive.ts</span>/<span class="m">pair.ts</span> 只活在懒 chunk，静态引 <span class="m">@/shared/ai</span> 立即红）；顺手订正该文件注释「16 项」→ 15 项</td></tr>
+      </table>
+    </div>
+    <div class="flow">
+      <div class="step"><div class="i">R154 · 结构刀</div><div class="h">双栏 + 契约 + 指令</div><div class="p">试点接 A 族 4 个（本原型即资源台优化）+ 报告型 2 个（周报/洞察）。左栏现成、差异最直观。</div></div>
+      <div class="step"><div class="i">R155 · 铺开刀</div><div class="h">B/D 族 8 个</div><div class="p">标签体检·整体梳理·找佐证·捞回·跨台镜像（集合归架型，配快照还原）+ 选卡·研判·唤醒。角色选择器补齐 15 个。</div></div>
+      <div class="step"><div class="i">R156 · 收口刀</div><div class="h">口径矛盾清零</div><div class="p">C 族 3 个 + 导入归类自动弹 + 主题漂移出口 + 手册 331 行与代码对齐 + 批量替换型统一可还原。</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));t.classList.add('on');
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id===t.dataset.p));
+});
+/* ---------- theme ---------- */
+const th=document.getElementById('theme');
+th.onclick=()=>{const c=document.documentElement.dataset.theme==='linear'?'apple':'linear';document.documentElement.dataset.theme=c;th.textContent='切换主题（当前：'+(c==='linear'?'深空薰衣草':'极简白')+'）';};
+
+/* ---------- 行级联动（两个 pane 共用） ---------- */
+document.querySelectorAll('.stage').forEach(st=>{
+  st.querySelectorAll('[data-pair]').forEach(r=>{
+    r.onmouseenter=()=>st.querySelectorAll('[data-pair="'+r.dataset.pair+'"]').forEach(x=>x.classList.add('hot'));
+    r.onmouseleave=()=>st.querySelectorAll('.hot').forEach(x=>x.classList.remove('hot'));
+  });
+});
+
+/* ---------- P1 交互 ---------- */
+const R1=[{k:'title',ct:'edit',lab:'改写'},{k:'desc',ct:'new',lab:'新增'},{k:'tags',ct:'edit',lab:'改写 +3'}];
+const right1=document.getElementById('right1'),left1=document.getElementById('left1');
+const drafts={};
+function sum1(){
+  const rows=[...right1.querySelectorAll('[data-key]')];
+  const n=rows.filter(r=>r.dataset.ct==='new').length,e=rows.filter(r=>r.dataset.ct==='edit').length,s=right1.querySelectorAll('.row.same').length;
+  const ed=rows.filter(r=>r.classList.contains('edited')).length;
+  document.getElementById('sum1').innerHTML='<b class="p">+'+n+' 新增</b> · <b class="q">'+e+' 改写</b> · <b class="r">'+s+' 未变</b>'+(ed?' · <b style="color:var(--curio-amber)">'+ed+' 已编辑</b>':'');
+  const picked=rows.filter(r=>r.querySelector('.picky').checked).length;
+  document.getElementById('pk1').textContent=picked;document.getElementById('ad1').textContent=rows.length;
+  document.getElementById('all1').checked=picked===rows.length&&rows.length>0;
+  const b=document.getElementById('adopt1');b.disabled=picked===0;
+  b.textContent=b.dataset.done?'✓ 已写入（'+picked+' 项）':'✓ 采纳（直接写库）('+picked+')';
+}
+right1.querySelectorAll('.picky').forEach(c=>c.onchange=sum1);
+document.getElementById('all1').onchange=e=>{right1.querySelectorAll('[data-key] .picky').forEach(c=>c.checked=e.target.checked);sum1();};
+/* 只看差异 */
+document.getElementById('diff1').onclick=e=>{const on=!right1.classList.toggle('onlydiff');e.target.classList.toggle('on',on);
+  right1.querySelectorAll('.same').forEach(r=>r.style.display=on?'none':'');};
+/* 原文 */
+document.getElementById('raw1').onclick=e=>{const b=document.getElementById('rawbox1');b.hidden=!b.hidden;e.target.classList.toggle('on',!b.hidden);};
+/* 就地编辑：点值→textarea，改完标 ✏️ 并自动勾选 */
+right1.querySelectorAll('[data-edit]').forEach(v=>{
+  v.title='点击编辑（编辑即视为要采纳）';v.style.cursor='text';
+  v.onclick=()=>{
+    if(v.querySelector('textarea'))return;
+    const row=v.closest('.row'),k=row.dataset.key;
+    const cur=drafts[k]!==undefined?drafts[k]:(k==='tags'?'可行性验证、试点交付、报价素材':v.childNodes[0].textContent.trim());
+    v.dataset.orig=cur;
+    const paint=(k,t)=>{
+      if(k==='tags'){v.innerHTML=t.split(/[、,，]/).map(x=>x.trim()).filter(Boolean).map(x=>'<span class="chip add">'+x.replace(/</g,'&lt;')+'</span>').join('');}
+      else{v.textContent=t||'（留空=不写这一项）';}
+    };
+    v.innerHTML='<textarea>'+cur.replace(/</g,'&lt;')+'</textarea>';
+    const ta=v.querySelector('textarea');ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);
+    ta.onblur=()=>{
+      const t=ta.value.trim();drafts[k]=t;
+      if(t===v.dataset.orig){paint(k,cur);sum1();return;}
+      row.classList.add('edited');row.dataset.ct=t?'edit':'same';
+      const tg=row.querySelector('.b .tag');if(tg){tg.className='tag edit';tg.textContent='改写 ✏️';}
+      const cb=row.querySelector('.picky');if(cb){cb.disabled=false;cb.checked=true;}
+      paint(k,t);
+      sum1();
+    };
+    ta.onkeydown=e=>{if(e.key==='Escape')ta.blur();};
+  };
+});
+/* 重跑（含应用指令）：跑中态 → 完成 */
+function rerun(btn,mark){
+  const old=btn.textContent;btn.disabled=true;btn.textContent='生成中…';
+  document.getElementById('m1').classList.add('spin');
+  right1.style.opacity='.45';right1.style.pointerEvents='none';
+  setTimeout(()=>{
+    document.getElementById('m1').classList.remove('spin');
+    right1.style.opacity='';right1.style.pointerEvents='';
+    btn.disabled=false;btn.textContent=old;
+    if(mark){const d=document.getElementById('dirmark1');d.style.display='';d.textContent='🎯 指令 '+document.getElementById('dir1').value.trim().length+' 字';}
+    document.getElementById('rc1').textContent='↻ 已重新生成（上一轮结果作废，未写入任何数据）';
+    document.getElementById('rc1').className='receipt warnr';
+    sum1();
+  },1300);
+}
+document.getElementById('rerun1').onclick=e=>rerun(e.target,false);
+document.getElementById('dirrun1').onclick=e=>rerun(e.target,true);
+document.getElementById('dir1').oninput=e=>document.getElementById('dirc').textContent=e.target.value.trim().length;
+document.getElementById('dir1').onkeydown=e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')document.getElementById('dirrun1').click();};
+/* 作用域：默认「这张卡」（对象级），要用户主动才升到「这类入口」（模块级） */
+document.querySelectorAll('#scope1 span').forEach(s=>s.onclick=()=>{
+  if(s.classList.contains('on'))return;
+  document.querySelectorAll('#scope1 span').forEach(x=>x.classList.remove('on'));s.classList.add('on');
+  const card=s.dataset.s==='card',rc=document.getElementById('rc1');
+  document.getElementById('scopeNote1').textContent=card?'只记在这张卡上':'本入口下所有卡共用 · 影响面变大，慎改';
+  rc.className='receipt warnr';
+  rc.textContent=card?'↘ 已切回对象级：这条指令只跟这张卡走，换一张卡就是空的':'↗ 已升到入口级：此后每张卡的「全方位优化」都带这条指令（含以后新建的卡）';
+});
+document.getElementById('histBtn1').onclick=e=>{e.stopPropagation();document.getElementById('histMenu1').classList.toggle('on');};
+document.addEventListener('click',()=>document.getElementById('histMenu1').classList.remove('on'));
+document.querySelectorAll('#histMenu1 .hi').forEach(h=>h.onclick=()=>{
+  const t=h.dataset.t;document.getElementById('dir1').value=t;document.getElementById('dirc').textContent=t.trim().length;
+  document.getElementById('histMenu1').classList.remove('on');
+  document.getElementById('rc1').className='receipt warnr';document.getElementById('rc1').textContent='↩ 已取回历史指令，点「应用并重跑」才生效';
+});
+document.getElementById('promote1').onclick=()=>{
+  const rc=document.getElementById('rc1');rc.className='receipt';
+  rc.textContent='↗ 已存为自建专家「报价口径策展人」· 设置 › AI 助手 › 角色库可改名与停用 · 此后任何入口的角色下拉都能选它';
+};
+/* 采纳 = 直接写库：左栏刷成新现状 + 回执 */
+document.getElementById('adopt1').onclick=()=>{
+  const rows=[...right1.querySelectorAll('[data-key]')].filter(r=>r.querySelector('.picky').checked);
+  rows.forEach(r=>{
+    const k=r.dataset.key,lv=left1.querySelector('[data-pair="'+k+'"] .v');
+    const rv=r.querySelector('.v');
+    if(lv)lv.innerHTML=drafts[k]!==undefined?rv.innerHTML:rv.innerHTML;
+    if(lv&&k==='desc')lv.innerHTML=rv.textContent;
+    r.dataset.ct='same';r.classList.remove('edited');
+    const tg=r.querySelector('.b .tag');if(tg){tg.className='tag same';tg.textContent='已写入';}
+    const cb=r.querySelector('.picky');cb.checked=false;cb.disabled=true;
+    r.classList.add('same');
+  });
+  left1.querySelectorAll('[data-pair]').forEach(x=>x.classList.add('hot'));
+  document.getElementById('pk1').textContent='0';
+  document.getElementById('all1').checked=false;
+  document.getElementById('all1').indeterminate=false;
+  setTimeout(()=>left1.querySelectorAll('.hot').forEach(x=>x.classList.remove('hot')),900);
+  document.getElementById('rc1').className='receipt';
+  document.getElementById('rc1').textContent='✓ 已写库 '+rows.length+' 项 · 卡已更新（'+new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})+'）· 撤销需走回收站外的独立快照（R156 补）';
+  const b=document.getElementById('adopt1');b.dataset.done='1';b.textContent='✓ 已采纳';b.disabled=true;
+  document.getElementById('sum1').innerHTML='<b class="r">左栏已刷新为写库后现状</b>';
+};
+sum1();
+
+/* ---------- P2 交互：编辑→脏→存为卡 ---------- */
+const right2=document.getElementById('right2');
+document.getElementById('raw2').onclick=e=>{const b=document.getElementById('rawbox2');b.hidden=!b.hidden;e.target.classList.toggle('on',!b.hidden);};
+let dirty=0;
+right2.querySelectorAll('[data-edit]').forEach(v=>{
+  v.title='点击编辑正文（改完点右下「存为卡」）';v.style.cursor='text';
+  v.onclick=()=>{
+    if(v.querySelector('textarea'))return;
+    const txt=v.childNodes[0].textContent.trim();
+    v.dataset.orig=txt;
+    v.innerHTML='<textarea>'+txt.replace(/</g,'&lt;')+'</textarea>';
+    const ta=v.querySelector('textarea');ta.style.minHeight='130px';ta.focus();
+    ta.onblur=()=>{
+      const t=ta.value.trim();const changed=t!==v.dataset.orig;
+      v.innerHTML=t.replace(/</g,'&lt;').replace(/\n/g,'<br>')+(changed?' <span class="tag edit" style="margin-left:6px">已编辑</span>':'');
+      v.closest('.row').classList.toggle('edited',changed);
+      dirty=[...right2.querySelectorAll('.edited')].length;
+      const d=document.getElementById('dirty2');d.textContent=dirty?('已编辑 '+dirty+' 节 · 未存卡'):'无编辑';
+      d.style.color=dirty?'var(--curio-amber)':'var(--text-4)';
+      const sb=document.getElementById('save2');sb.disabled=!dirty;
+      sb.textContent=dirty?('📥 存为卡（已编辑 '+dirty+'）'):'📥 存为卡';
+      document.getElementById('rc2').className=dirty?'receipt warnr':'receipt';
+      document.getElementById('rc2').textContent=dirty?'⚠ 你的编辑还没落卡（跑完自动落的那张是 AI 原文）':'📥 已自动落卡：资源台 › 待分类 ·「🗓 深度洞察 2026/9/22」';
+    };
+  };
+});
+document.getElementById('save2').onclick=()=>{
+  dirty=0;
+  right2.querySelectorAll('.edited').forEach(r=>r.classList.remove('edited'));
+  const d=document.getElementById('dirty2');d.textContent='无编辑';d.style.color='var(--text-4)';
+  const sb=document.getElementById('save2');sb.disabled=true;sb.textContent='📥 存为卡';
+  document.getElementById('rc2').className='receipt';
+  document.getElementById('rc2').textContent='📥 已存为卡：刷新同一张「🗓 深度洞察 2026/9/22」（含你的 3 节编辑）· 未新增第二张';
+};
+</script>
+</body>
+</html>

@@ -4,6 +4,24 @@
  */
 import type { ChatMsg } from './llm'
 
+/** R154：右栏行相对左栏「当前形态」改了什么。没配对上的按 new 处理（新东西） */
+export type AiChange = 'new' | 'edit' | 'move' | 'same'
+
+/**
+ * R154：左栏「当前形态」的一行——该入口对象在 AI 动手之前长什么样。
+ * 与右栏 `AiRow.pair` 对齐，用户才看得出"补了哪里、补了什么"。
+ * `depth` 只给树形左栏（标签梳理）用：0=根、1=子。
+ */
+export interface AiPaneLine {
+  key: string
+  label?: string
+  main: string
+  sub?: string
+  badge?: string
+  badgeType?: 'warn' | 'ok' | 'danger' | 'neutral'
+  depth?: number
+}
+
 export interface AiRow {
   key: string
   main: string
@@ -19,6 +37,14 @@ export interface AiRow {
    * 不许拿"感觉"当置信度。全选按钮仍可整批勾上，判定权在人不在模型。
    */
   weak?: boolean
+  /** R154：指向左栏 `AiPaneLine.key`（由 pairRows 统一算，工厂不必逐条手写） */
+  pair?: string
+  /** R154：与左栏对照的变化类型；`same` 行默认不勾、勾选框禁用 */
+  changeType?: AiChange
+  /** R154：声明这一行哪些字段允许用户就地改。
+   *  ★改完要写回 `data` 才进得了 `apply`——而 data 形状只有工厂知道，所以 **声明 main/sub 就必须给 `toRow`**，
+   *  否则抽屉不给编辑（宁可不能改，也不能"看着改了、写库还是原值"）。 */
+  edit?: { main?: boolean; sub?: boolean; toRow?: (row: AiRow, texts: { main?: string; sub?: string }) => AiRow }
   /** 场景载荷（模型建议原文等），apply 闭包自取 */
   data?: unknown
 }
@@ -61,4 +87,39 @@ export interface AiJob {
   /** R139：人设选择器——拆解等场景可换专家（角色库任意专家含自建），onPick 由宿主重建 job 触发重跑 */
   persona?: { options: { id: string; label: string }[]; current: string; onPick: (id: string) => void }
   adoptable?: boolean
+  /**
+   * R154：左栏「当前形态」。缺省 = 抽屉退回旧单栏形态，23 个工厂因此可分批接、互不阻塞。
+   * 传函数则**在打开时**求值（拿到的是 AI 动手前的最新数据）。
+   */
+  before?: AiPaneLine[] | (() => AiPaneLine[])
+  /**
+   * R154：左栏与右栏的关系。
+   *  `'pair'`（缺省）= 逐行对照，右栏每行应认领一条左栏行，没被认领的要提示；
+   *  `'context'` = 左栏只是**投料上下文**（周台账、原文），右栏是整篇产出，不要求逐行配对。
+   */
+  paneMode?: 'pair' | 'context'
+  /**
+   * R154：影响面一行字（整树替换 / 批量级联改写类专属）。
+   * ★必须由工厂**本地核算**产出，不许把模型报的数当影响面。入参=当前勾选集，
+   * 所以取消一个顶层、影响条上的"剪掉多少"要能当场重算。
+   */
+  impact?: (rows: AiRow[]) => string
+  /** R154：返回确认文案 = 采纳前弹这条，第二下才真写库（只给"会批量删改既有数据"的入口配） */
+  confirm?: (rows: AiRow[]) => string
+  /** R154：多阶段串门（如标签 ②蓝图 → ③归架）的头部步骤条 */
+  steps?: { label: string; state: 'done' | 'on' | 'todo' }[]
+  /**
+   * R154：一次性指令的**入口作用域**（如 'opt:card' / 'tagBlueprint'）。
+   * 不给 = 不显示指令框（未接地基的入口不该出现一个没用的输入口）。
+   */
+  promptScope?: string
+  /** R154：对象级作用域的 id（如卡片 id）。给了才允许「这张卡 ⇄ 这类入口」两档切换 */
+  promptObject?: string
+  /** R154：对象的人类名字（指令框里"这张卡 · 软硬一体方案"这类回显，避免用户不知道自己在改谁的指令） */
+  promptObjectLabel?: string
+  /**
+   * R154：报告型「存为卡」——用户在右栏改过整篇正文后，用它把**编辑后的内容**再落一次。
+   * 实现必须复用同名卡刷新通道（`saveReportCard`），不得新增第二张。
+   */
+  resave?: (rows: AiRow[]) => string | Promise<string>
 }

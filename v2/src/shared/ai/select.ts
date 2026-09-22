@@ -6,10 +6,10 @@
 import type { AppData, ResourceCard, TaskCard } from '@/shared/models'
 import { freshTagsOf, knownTagSet } from '@/shared/utils/tags'
 import { withReport } from './reports'
-import type { AiJob, AiRow } from './job'
+import type { AiJob, AiPaneLine, AiRow } from './job'
 import type { AiDepth } from './config'
 import { chatStream, extractJson } from './llm'
-import { projectChain, cardDirectory, projectTaskTargets, projectWeekDigest, projectCard } from './project'
+import { projectChain, cardDirectory, projectTaskTargets, projectWeekDigest, projectCard, catPathOf } from './project'
 import { fetchLinkText, linkFetchable } from './linkFetch'
 import {
   recommendSystem, semanticSearchSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem, fullOptimizeSystem,
@@ -22,6 +22,24 @@ export interface SelectCtx {
   /** R141：全方位优化可换执笔专家（同拆解机制） */
   personaId?: string
   onPersona?: (id: string) => void
+}
+
+/**
+ * R154：右栏标签行显示的是**完整结果**（现有 + 建议），用户改完后要回算增量再交给 apply——
+ * 从结果里删掉的建议项就不写，用户自己补的词照写。apply 侧仍是并入语义，不必改。
+ */
+function tagDiff(fullText: string | undefined, have: string[]): string[] {
+  return [...new Set(String(fullText || '').split(/[、,，]/).map(s => s.trim()).filter(Boolean))].filter(t => !have.includes(t))
+}
+
+/**
+ * R154：报告型左栏=**投料原文**（近 7 天台账）。
+ * 直接切给定的 digest，不另算一套数——抽屉上写的"依据"必须与模型真看到的字同一口径，
+ * 否则左栏就成了第二套真相。
+ */
+function digestPane(digest: string): AiPaneLine[] {
+  return digest.split('\n').map(l => l.replace(/\s+$/, '')).filter(l => l.trim()).slice(0, 80)
+    .map((l, i) => ({ key: 'w' + i, depth: /^\s{2,}/.test(l) ? 1 : 0, main: l.replace(/^[\s-•·]+/, '') }))
 }
 
 /** A3：按任务选卡——任务上行链 + 全库卡目录（排除已挂载），采纳=挂载 */
@@ -266,15 +284,25 @@ function finish(one: { items: AiSearchHit[]; note: string }, scanned: number, to
 
 // ---------- R138：一句话智能录入 + 周期回顾 ----------
 
-/** H1′：采集保存后的单卡补全（与 RDD 单卡补全同契约；apply 直接落库——标签并入/描述只补空/分类迁移） */
+/** H1′：采集保存后的单卡补全（与 RDD 单卡补全同契约；apply 直接落库——标签并入/描述只补空/分类迁移）
+ *  R154：接左栏「当前形态」，右栏给**补全后的完整值**（含未变字段），标签与描述可就地改。 */
 export function buildCardEnrichJob(card: ResourceCard, ctx: SelectCtx): AiJob {
   const known = knownTagSet(ctx.d)
+  const catName = () => catPathOf(ctx.d, card.categoryId) || '（未分类）'
   return {
     key: 'enrich:' + card.id,
     title: `AI 补全 · ${card.title.slice(0, 18)}`,
-    hint: '刚保存的卡顺手补元数据：勾选采纳才写库（标签并入、描述只补空、分类必是候选）。',
+    subject: `📌 资源卡「${card.title.slice(0, 24) || '无名卡'}」`,
+    hint: '刚保存的卡顺手补元数据：勾选采纳即直接写库（标签并入、描述只补空、分类必是候选）。右栏是补全后的完整值，点字段可就地改。',
+    promptScope: 'enrich:card', promptObject: card.id, promptObjectLabel: card.title.slice(0, 14),
+    before: () => [
+      { key: 'title', label: '标题', main: card.title || '（无名卡）' },
+      { key: 'desc', label: '描述', main: card.description || '' },
+      { key: 'tags', label: '标签', main: (card.tags || []).join('、') },
+      { key: 'cat', label: '分类', main: catName() },
+    ],
     build: async () => {
-      const { projectCard, catPathOf } = await import('./project')
+      const { projectCard } = await import('./project')
       const { enrichSystem } = await import('./scenarios')
       const cats = ctx.d.categories.filter(c => !c.deletedAt && c.workspaceId === card.workspaceId)
       const catList = cats.slice(0, 60).map(c => `categoryId=${c.id}：${catPathOf(ctx.d, c.id)}`).join('\n')
@@ -285,15 +313,23 @@ export function buildCardEnrichJob(card: ResourceCard, ctx: SelectCtx): AiJob {
     },
     parse: (raw) => {
       const s = sanitizeRefs((raw || {}) as TaskDraft & { tags?: string[]; description?: string; categoryId?: string }, ctx.d) as { tags?: string[]; description?: string; categoryId?: string }
+      const have = card.tags || []
       const rows: AiRow[] = []
-      const newTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !(card.tags || []).includes(t))
+      const newTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !have.includes(t))
       // R147-a：AI 造的新词单独成行且默认不勾——采纳它就等于往体系里塞词，得你点头
       const fresh = freshTagsOf(newTags, known)
       const inSys = newTags.filter(t => fresh.indexOf(t) < 0)
-      if (inSys.length) rows.push({ key: 'tags', badge: '标签', main: inSys.join('、'), data: { tags: inSys } })
-      if (fresh.length) rows.push({ key: 'tags:fresh', badge: '新词', badgeType: 'warn', weak: true, main: fresh.join('、'), sub: '不在既有标签体系里（AI 造词）· 勾了才进体系', data: { tags: fresh } })
-      if (s.description?.trim() && !card.description) rows.push({ key: 'desc', badge: '描述', main: s.description.trim().slice(0, 120), data: { description: s.description.trim() } })
-      if (s.categoryId && s.categoryId !== card.categoryId) rows.push({ key: 'cat', badge: '分类', main: s.categoryId, data: { categoryId: s.categoryId } })
+      const desc = s.description?.trim() || ''
+      const catTo = s.categoryId && s.categoryId !== card.categoryId ? s.categoryId : ''
+      // 字段序固定：标题 → 描述 → 标签 → 新词 → 分类（未变的也出行，右栏才是"完整形态"）
+      rows.push({ key: 'title', badge: '标题', main: card.title || '（无名卡）', pair: 'title', changeType: 'same', data: {} })
+      if (desc && !card.description) rows.push({ key: 'desc', badge: '描述', main: desc.slice(0, 120), pair: 'desc', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { description: (t.main || '').trim() } }) }, data: { description: desc } })
+      else rows.push({ key: 'desc:same', badge: '描述', main: card.description || '（空，AI 没给）', pair: 'desc', changeType: 'same', data: {} })
+      if (inSys.length) rows.push({ key: 'tags', badge: '标签', main: [...have, ...inSys].join('、'), sub: `现有 ${have.length} 个 → 并入 ${inSys.join('、')}`, pair: 'tags', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { tags: tagDiff(t.main, have) } }) }, data: { tags: inSys } })
+      else rows.push({ key: 'tags:same', badge: '标签', main: have.join('、') || '（无标签）', pair: 'tags', changeType: 'same', data: {} })
+      if (fresh.length) rows.push({ key: 'tags:fresh', badge: '新词', badgeType: 'warn', weak: true, main: [...have, ...inSys, ...fresh].join('、'), sub: `新词 ${fresh.join('、')} 不在既有标签体系里（AI 造词）· 勾了才进体系`, pair: 'tags', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { tags: tagDiff(t.main, [...have, ...inSys]) } }) }, data: { tags: fresh } })
+      if (catTo) rows.push({ key: 'cat', badge: '分类', main: catPathOf(ctx.d, catTo) || catTo, sub: `现：${catName()}`, pair: 'cat', data: { categoryId: catTo } })
+      else rows.push({ key: 'cat:same', badge: '分类', main: catName(), pair: 'cat', changeType: 'same', data: {} })
       return rows
     },
     apply: (rows) => {
@@ -367,14 +403,17 @@ export function buildReviewJob(ctx: SelectCtx): AiJob | null {
     key: 'review',
     title: '🗓 本周回顾',
     subject: '🗓 近 7 天台账',
-    hint: '只基于近 7 天台账成文。跑完自动存为一张「每周回顾」资源卡（描述即正文）放进资源台待分类——它不改动任何现有数据，所以不必再点采纳。',
+    hint: '只基于近 7 天台账成文。跑完自动存为一张「每周回顾」资源卡（描述即正文）放进资源台待分类——它不改动任何现有数据，所以不必再点采纳。左栏就是这次投料的原文；右栏正文可改，改过才点亮「存为卡」。',
     rawText: true,
     adoptable: false,
+    before: () => digestPane(digest),
+    paneMode: 'context',
+    promptScope: 'review',
     build: () => ({ messages: [{ role: 'system', content: reviewSystem() }, { role: 'user', content: digest }], jsonMode: false }),
     parse: (raw) => {
       const text = String(raw || '').trim()
       if (!text) return []
-      return [{ key: 'review', badge: '周记', main: `每周回顾 ${new Date().toLocaleDateString('zh-CN')}`, sub: text.slice(0, 400), data: { text } }]
+      return [{ key: 'review', badge: '周记', main: text, changeType: 'new', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { text: (t.main || '').trim() } }) }, data: { text } }]
     },
   }, ctx, () => `🗓 每周回顾 ${new Date().toLocaleDateString('zh-CN')}`, (rows) => String((rows[0]?.data as { text?: string })?.text || ''), ['周回顾'])
 }
@@ -387,14 +426,17 @@ export function buildInsightJob(ctx: SelectCtx): AiJob | null {
     key: 'insight',
     title: '本周深度洞察',
     subject: '🗓 近 7 天台账 · 调度画像',
-    hint: '不复述数字，只体检「投入和重心对不对」：重心偏离、停滞信号、资产与目标错位。跑完自动存为一张「深度洞察」资源卡放进资源台待分类——它不改动任何现有数据，所以不必再点采纳。',
+    hint: '不复述数字，只体检「投入和重心对不对」：重心偏离、停滞信号、资产与目标错位。跑完自动存为一张「深度洞察」资源卡放进资源台待分类——它不改动任何现有数据，所以不必再点采纳。左栏是投料原文（含调用分布与主攻对照），右栏正文可改，改过才点亮「存为卡」。',
     rawText: true,
     adoptable: false,
+    before: () => digestPane(digest),
+    paneMode: 'context',
+    promptScope: 'insight',
     build: () => ({ messages: [{ role: 'system', content: deepInsightSystem() }, { role: 'user', content: digest }], jsonMode: false }),
     parse: (raw) => {
       const text = String(raw || '').trim()
       if (!text) return []
-      return [{ key: 'insight', badge: '洞察', main: `深度洞察 ${new Date().toLocaleDateString('zh-CN')}`, sub: text.slice(0, 400), data: { text } }]
+      return [{ key: 'insight', badge: '洞察', main: text, changeType: 'new', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { text: (t.main || '').trim() } }) }, data: { text } }]
     },
   }, ctx, () => `🗓 深度洞察 ${new Date().toLocaleDateString('zh-CN')}`, (rows) => String((rows[0]?.data as { text?: string })?.text || ''), ['深度洞察'])
 }
@@ -409,7 +451,14 @@ export function buildFullOptimizeJob(card: ResourceCard, ctx: SelectCtx): AiJob 
     key: 'opt:' + card.id,
     title: `AI 全方位优化 · ${card.title.slice(0, 14) || '（无名卡）'}`,
     subject: `📌 资源卡「${card.title.slice(0, 24) || '无名卡'}」`,
-    hint: '点击已触发抓取链接网页正文（仅 http(s)、抓不到会注明「未读正文」再按卡面谨慎推断）；勾选采纳才写库。',
+    hint: '点击已触发抓取链接网页正文（仅 http(s)、抓不到会注明「未读正文」再按卡面谨慎推断）；勾选采纳即直接写库。右栏是优化后的完整值，点字段可就地改（标签行只加不减）。',
+    promptScope: 'opt:card', promptObject: card.id, promptObjectLabel: card.title.slice(0, 14),
+    before: () => [
+      { key: 'title', label: '标题', main: card.title || '（无名卡）' },
+      { key: 'desc', label: '描述', main: card.description || '' },
+      { key: 'tags', label: '标签', main: (card.tags || []).join('、') },
+      { key: 'link', label: '链接', main: card.link ? card.link.slice(0, 60) : '（无链接）' },
+    ],
     build: async () => {
       let linkBlock = ''
       if (linkFetchable(card.link)) {
@@ -425,13 +474,18 @@ export function buildFullOptimizeJob(card: ResourceCard, ctx: SelectCtx): AiJob 
     },
     parse: (raw) => {
       const s = (raw || {}) as { title?: string; description?: string; tags?: string[]; assess?: string }
+      const have = card.tags || []
       const rows: AiRow[] = []
       const title = String(s.title || '').trim().slice(0, 60)
-      if (title && title !== card.title) rows.push({ key: 'title', badge: '标题', main: title, sub: '原：' + card.title.slice(0, 40), data: { title } })
+      if (title && title !== card.title) rows.push({ key: 'title', badge: '标题', main: title, sub: '原：' + card.title.slice(0, 40), pair: 'title', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { title: (t.main || '').trim().slice(0, 60) } }) }, data: { title } })
+      else rows.push({ key: 'title:same', badge: '标题', main: card.title || '（无名卡）', sub: 'AI 认为原标题不用改', pair: 'title', changeType: 'same', data: {} })
       const desc = String(s.description || '').trim().slice(0, 300)
-      if (desc && desc !== card.description) rows.push({ key: 'desc', badge: '描述', main: desc, sub: card.description ? '原：' + card.description.slice(0, 60) : '（原无描述）', data: { description: desc } })
-      const newTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !(card.tags || []).includes(t)).slice(0, 4)
-      if (newTags.length) rows.push({ key: 'tags', badge: '标签', main: newTags.join('、'), data: { tags: newTags } })
+      if (desc && desc !== card.description) rows.push({ key: 'desc', badge: '描述', main: desc, sub: card.description ? '原：' + card.description.slice(0, 60) : '（原无描述）', pair: 'desc', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { description: (t.main || '').trim() } }) }, data: { description: desc } })
+      else rows.push({ key: 'desc:same', badge: '描述', main: card.description || '（空）', pair: 'desc', changeType: 'same', data: {} })
+      const newTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !have.includes(t)).slice(0, 4)
+      if (newTags.length) rows.push({ key: 'tags', badge: '标签', main: [...have, ...newTags].join('、'), sub: `并入 ${newTags.join('、')}（标签只加不减，要删去标签管理）`, pair: 'tags', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { tags: tagDiff(t.main, have) } }) }, data: { tags: newTags } })
+      else rows.push({ key: 'tags:same', badge: '标签', main: have.join('、') || '（无标签）', pair: 'tags', changeType: 'same', data: {} })
+      rows.push({ key: 'link:same', badge: '链接', main: card.link ? card.link.slice(0, 60) : '（无链接）', pair: 'link', changeType: 'same', data: {} })
       if (s.assess?.trim()) rows.push({ key: 'verdict', badge: '参谋', advisory: true, main: s.assess.trim().slice(0, 120), data: { __verdict: true } })
       return rows
     },

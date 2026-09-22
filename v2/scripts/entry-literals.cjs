@@ -11,7 +11,9 @@ const path = require('path');
 const SRC = path.join(__dirname, '..', 'src');
 const ENTRY = path.join(SRC, 'newtab/main.ts');
 
-/** 16 项：AI 传输层、存储键、job 后台化内部件、场景系统提示词、抽屉行契约 */
+/** 15 项：AI 传输层、存储键、job 后台化内部件、场景系统提示词、抽屉行契约
+ *  （R151 曾把 flattenTaskTree 移出——它是 R144-a 的子任务展平工具，与 AI 无关却住在启动链路上。
+ *   R154 订正：注释原写「16 项」，数组实为 15 项，属清单坏账。） */
 const LITERALS = [
   'chat/completions', 'zy_ai_v1', 'autoReport', 'openJob', 'withReport',
   '检索参谋', 'semanticSearchSystem', 'rerank', 'batchG', 'thesisDraftSystem',

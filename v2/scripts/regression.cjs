@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.8.0'";
+const VER_ANCHOR_LITERAL = "version: '3.1.9'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -3621,7 +3621,7 @@ check('R134-3 建议不落库：评审抽屉自身无 store/写盘调用——�
 check('R134-4 LLM 客户端契约：OpenAI 兼容 fetch（host_permissions 已备）+ SSE 流式解析 + baseUrl 归一容错 + 401/404 人话映射 + 围栏 JSON 三态提取', () => { const l = read('/shared/ai/llm.ts'); return l.includes("b.replace(/\\/chat\\/completions$/i, '')") && l.includes("[DONE]") && l.includes('API Key 无效或过期') && l.includes('地址或模型名不存在') && l.includes('```(?:json)?') && l.includes('/models') && l.includes("response_format: { type: 'json_object' }"); });
 check('R134-5 投影器纪律：eco/std/deep 三档上限表 + 沉睡判定豁免置顶/星标 + 附件本体永不进投影（函数面不触 assets）', () => { const p = read('/shared/ai/project.ts'); return p.includes("eco:  { cards: 30") && p.includes("deep: { cards: 150") && p.includes('!r.pinned && !r.starred') && !p.includes('getAsset') && !p.includes('zy_assets'); });
 check('R134-6 防幻觉引用：模型回填的 cardId/categoryId 必须经 sanitizeRefs 对真实库校验，宿主 apply 再二次校验分类存在', () => { const s = read('/shared/ai/scenarios.ts'); const g = read('/newtab/views/GlobalSettings.vue'); return s.includes('!d.resources.some(r => r.id === next.cardId') && s.includes('!d.categories.some(c => c.id === next.categoryId') && g.includes('dd.categories.some(c => c.id === s.categoryId && !c.deletedAt)'); });
-check('R134-7 三个消费入口落位：设置页导航 AI 助手 + 标签管理批量补全按钮 + 详情抽屉补全钮；采纳语义=标签并入/描述仅补空/分类迁移，唤醒=置顶、归档=软删（回收站可反悔）', () => { const g = read('/newtab/views/GlobalSettings.vue'); const r = read('/newtab/components/ResourceDetailDrawer.vue'); return g.includes("{ key: 'ai', mark: true, label: 'AI 助手' }") && g.includes('ZhiMark') && g.includes('aiTtEnrich') && g.includes('card.tags = [...new Set(') && g.includes('if (s.description?.trim() && !card.description)') && g.includes('card.pinned = true') && g.includes('card.deletedAt = Date.now()') && r.includes('aiEnrich') && r.includes('✓ 建议已回填表单，核对后点「保存」'); });
+check('R134-7 三个消费入口落位（R154：RDD 采纳改直接写库）：设置页导航 AI 助手 + 标签管理批量补全按钮 + 详情抽屉补全钮；采纳语义=标签并入/描述仅补空/分类迁移，唤醒=置顶、归档=软删（回收站可反悔）', () => { const g = read('/newtab/views/GlobalSettings.vue'); const r = read('/newtab/components/ResourceDetailDrawer.vue'); return g.includes("{ key: 'ai', mark: true, label: 'AI 助手' }") && g.includes('ZhiMark') && g.includes('aiTtEnrich') && g.includes('card.tags = [...new Set(') && g.includes('if (s.description?.trim() && !card.description)') && g.includes('card.pinned = true') && g.includes('card.deletedAt = Date.now()') && r.includes('aiEnrich') && r.includes('const baseApply = job.apply!'); });
 check('R134-8（R137 改写）深度诊断：内置两专家 + job.run 接管多轮会诊；v0 只读 → v1 勾选采纳=生成跟进任务卡（adoptable 回归默认 true，验收锚改 apply 建任务语义）', () => { const s = read('/shared/ai/scenarios.ts'); const g = read('/newtab/views/GlobalSettings.vue'); return s.includes("id: 'goal-expert'") && s.includes("id: 'knowledge-expert'") && g.includes('async run({ signal, onDelta })') && g.includes('diagnosisSystem(p, ov[p.id]?.style') && g.includes('🧠 诊断发现：') && g.includes('诊断跟进任务'); });
 check('R134-9 「关于我」全局画像：withAboutMe 注入所有场景系统提示词（enrich/batch/dormant/diagnosis 四系全走）', () => { const s = read('/shared/ai/scenarios.ts'); return s.includes('【用户画像（长期偏好，建议须贴合）】') && (s.match(/withAboutMe\(/g) || []).length >= 5; });
 check('R134-10 注入面防护：抽屉渲染零 v-html（模型回显纯文本插值，提示词注入不可达 DOM）', () => { const d = read('/newtab/components/AiSuggestionDrawer.vue'); return !d.includes('v-html'); });
@@ -3662,7 +3662,7 @@ check('R138-1 ★入口 chunk 守卫再扩：GP 的采集后补全全懒（AiDra
 check('R138-2 C1′ 一句话录入：TaskAddDrawer 录入行 + buildTaskParseJob 回填表单（不落库），建卡仍由用户确认；草稿扩展字段 dueDate/estimatedMinutes/归属并入 createTask，props 锁定时归属不覆盖', () => { const t = read('/newtab/components/TaskAddDrawer.vue'); return t.includes('AI 填表') && t.includes('ZhiMark') && t.includes('aiBusy') && t.includes('buildTaskParseJob') && t.includes('核对后点「创建」') && t.includes('projectId: props.projectId || aiDraft.value.projectId') && t.includes('dueDate: aiDraft.value.dueDate') && t.includes('findMetric(task.metricId)'); });
 check('R138-3 H1′ 采集补全工厂：buildCardEnrichJob 与 RDD 单卡同契约同消毒（sanitizeRefs+分类存在校验），apply 直接落库（标签并入≤10/描述只补空/卡已删拒写）；开关状态持久化 captureEnrich', () => { const s = read('/shared/ai/select.ts'); const g = read('/newtab/components/GlobalPopups.vue'); return s.includes('export function buildCardEnrichJob') && s.includes('⚠ 卡片已不存在，未写入') && s.includes('ctx.d.categories.some(c => c.id === s.categoryId') && g.includes('m.patchAiConfig({ captureEnrich: on })') && g.includes('保存后补全') && g.includes('ZhiMark'); });
 check('R138-4 F2′ 周回顾：AiJob.rawText 叙事模式（抽屉跳 JSON 提取直传原文），reviewSystem 四段 markdown 契约，采纳=存为「🗓 每周回顾」资源卡（不动既有数据）；投影=近 7 天台账', () => { const j = read('/shared/ai/job.ts'); const w = read('/newtab/components/AiSuggestionDrawer.vue'); const s = read('/shared/ai/select.ts'); const p = read('/shared/ai/project.ts'); return j.includes('rawText?: boolean') && w.includes('job.rawText ? false : jsonMode !== false') && w.includes('job.rawText ? text : extractJson(text)') && s.includes('export function buildReviewJob') && s.includes('reviewSystem()') && p.includes('export function projectWeekDigest') && p.includes('7 * 86400000'); });
-check('R138-5 H3 书签导入自动归类：aiTtEnrich 泛型化为 aiEnrichIds(ids)，导入落卡后仅在 aiReady 时静默拉起（未接入零打扰）', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('function aiTtEnrich() { aiEnrichIds(ttPicked.value) }') && g.includes('function aiEnrichIds(ids: Set<string>)') && g.includes('if (aiReady.value) aiEnrichIds(new Set(importedIds))'); });
+check('R138-5 H3 书签导入归类：aiTtEnrich 泛型化为 aiEnrichIds(ids) · R154 备案（E3）：导入完不再自动弹评审抽屉（抢焦点、用户没点过它），改攒 pendingImportEnrich + 回执上显式入口', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('function aiTtEnrich() { aiEnrichIds(ttPicked.value) }') && g.includes('function aiEnrichIds(ids: Set<string>)') && g.includes('pendingImportEnrich.value = importedIds') && g.includes('function aiImportEnrichNow()'); });
 check('R138-6 治理工具箱四钮齐（跨台镜像/主题漂移/捞回/本周回顾）+ 任务候选清单投影 projectTaskTargets（metric 每项目≤4、archived 全排除）', () => { const g = read('/newtab/views/GlobalSettings.vue'); const p = read('/shared/ai/project.ts'); return g.includes('🗓 本周回顾') && g.includes('aiWeeklyReview') && p.includes('export function projectTaskTargets') && p.includes('p.metrics.slice(0, 4)') && p.includes("if (dir.status === 'archived') continue"); });
 
 // ============== R139 · V2.107.0：实测整改刀（图标定稿 + 拆解双通道/专家执笔 + 周报深度洞察） ==============
@@ -3679,7 +3679,7 @@ console.log('【R140 · V2.108.0：网页内容智能分析 + 专家编辑面】
 check('R140-1 ★linkFetch 纪律（用户拍板三则）：仅 http(s) 白名单、抓取只在点击进 job build 时发生、会话 Map 缓存去重；10s 超时+credentials omit、正文截 1500 字、失败/非文本全降级为 note（分析照常）', () => { const f = read('/shared/ai/linkFetch.ts'); return f.includes('export function linkFetchable') && f.includes('/^https?:\\/\\//i.test(url)') && f.includes('const cache = new Map<string, LinkText>()') && f.includes('credentials: \'omit\'') && f.includes('FETCH_TIMEOUT_MS = 10000') && f.includes('MAX_CHARS = 1500') && f.includes('script,style,noscript') && f.includes('main,article') && f.includes('暂不读取正文'); });
 check('R140-2 全方位优化契约与工厂：fullOptimizeSystem（这是什么·何时用·收藏理由须有正文据，读不到标（未读正文），不许编造）；buildFullOptimizeJob 在 build 时抓正文、出 标题/描述/标签 三类行（tags≤4 不与已有重复），apply 二次校验卡在且未删才写+一次 persist', () => { const s = read('/shared/ai/scenarios.ts'); const j = read('/shared/ai/select.ts'); return s.includes('不许编造正文里没有的功能') && s.includes('（未读正文）') && j.includes('export function buildFullOptimizeJob') && j.includes('await fetchLinkText(card.link!)') && j.includes('.slice(0, 4)') && j.includes('非 http(s) 网页链接，不抓取正文') && j.includes('⚠ 卡片已不存在，未写入'); });
 check('R140-3 ★Workspace hover 入口组件化零破线：宿主物理行数 ≤1500 仍成立（裸 fs 读，聚合 read 不含糊）+ <CardAiEntry> 原位挂非镜像动作条；组件 AI 依赖全懒（零静态 @/shared/ai、抽屉 defineAsyncComponent、点击时 import config/select）', () => { const ws = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'); const ca = read('/newtab/components/CardAiEntry.vue'); return ws.split('\n').length <= 1500 && ws.includes('<CardAiEntry :card="r" />') && !ca.includes("from '@/shared/ai/") && ca.includes("import { AiDrawer } from './lazyAiDrawer'") && fs.readFileSync(base + '/newtab/components/lazyAiDrawer.ts', 'utf8').includes("defineAsyncComponent(() => import('./AiSuggestionDrawer.vue'))") /* R152 备案：抽屉懒组件提到模块作用域单例——script setup 顶层=setup 函数体，原来每张卡都新建一份定义 */ && ca.includes("import('@/shared/ai/select')"); });
-check('R140-4 RDD「🤖 分析（读网页）」入口复用同工厂、apply 换回填表单（title/description/tags 进 editing，保存仍由用户确认），与 🤖 补全并排', () => { const r = read('/newtab/components/ResourceDetailDrawer.vue'); return r.includes('async function aiOptimize()') && r.includes('buildFullOptimizeJob(card,') && r.includes('job.apply = (rows) =>') && r.includes('✓ 建议已回填表单，核对后点「保存」') && r.includes('分析（读网页）') && r.includes("aiEntry.value = 'optimize'"); });
+check('R140-4 RDD 补全/优化两枚入口复用 select 工厂 · R154 备案（拍板①）：采纳=直接写库（apply 只包一层把表单同步成已落库值），旧「回填表单等二次保存」语义退役', () => { const r = read('/newtab/components/ResourceDetailDrawer.vue'); return r.includes('async function aiOptimize()') && r.includes('buildFullOptimizeJob(card,') && r.includes('job.apply = (rows) =>') && r.includes('const baseApply = job.apply!') && r.includes('分析（读网页）') && r.includes("aiEntry.value = 'optimize'"); });
 check('R140-5 专家编辑面：⚙ 行内展开（启停+风格覆盖 upsert 进 personas[]；停诊同步移出本轮勾选）+ 自建专家名称/人设/关注面可改（空名拒）；拆解下拉与执笔文本都尊重启停（disabled 回落内置角色）', () => { const g = read('/newtab/views/GlobalSettings.vue'); const c = read('/shared/ai/chain.ts'); const s = read('/shared/ai/scenarios.ts'); return g.includes('function aiPatchPersona(id: string') && g.includes('function aiCustomPatch(id: string') && g.includes('专家名不能为空') && g.includes('ai-guide') && c.includes('allPersonas().filter(p => ov[p.id]?.enabled !== false)') && s.includes('if (ov[pid]?.enabled === false) return'); });
 check('R140-6 手册 AI 章节（ai-1 入口地图+硬纪律+认知协作者定位）+ 周报口径边界更新（💡 洞察仍是规则引擎，AI 版需明示） · R151 备案：徽标由镂空「知」换 ✦ 四角星 · R152 备案：真机判可辨性不如表情，回退 🤖，两处锚点随之改（「知」仍留在品牌位）', () => { const m = read('/newtab/manual-data.ts'); return m.includes("id: 'ai-1'") && m.includes('认知协作者') && m.includes('密钥只存本机') && m.includes('入口地图') && m.includes('🤖 深度洞察') && m.includes('🤖 徽标') && m.includes('品牌位'); });
 
@@ -3688,7 +3688,7 @@ console.log('【R141 · V2.109.0：行为修正刀】');
 check('R141-1 ★解绑/删除两语义统一真源 shared/utils/taskLinks.ts：挂载行只有 unbindTaskFromMetric（摘 projectId/metricId+detach 引用不删本体），本体软删 softDeleteTaskToTrash（deletedAt+摘引用保留 t.metricId 作恢复锚）；CompassTree/项目详情抽屉/策展页三处指标行钮全部换 ✕ 解绑、方向树 deleteNode 不再有 task 分支', () => { const tl = read('/shared/utils/taskLinks.ts'); const ct = read('/newtab/views/CompassTree.vue'); const pdd = read('/newtab/components/ProjectDetailDrawer.vue'); return tl.includes('export function unbindTaskFromMetric') && tl.includes('export function softDeleteTaskToTrash') && ct.includes('@click.stop="unbindTask(task)"') && !ct.includes("deleteNode('task'") && pdd.includes('title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）">✕<'); });
 check('R141-2 ★软删引用闭环：五路删除入口（详情抽屉/面板单删/批量/调度台/搜索浮层）全走 softDeleteTaskToTrash/detach 摘净 metric.taskIds；撤销与回收站恢复按 t.metricId 回填；启动期 sanitizeMetricTaskIds 一次性消毒历史脏引用（幂等并入 migrated 链）', () => { const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const tmp = read('/newtab/components/compass/TaskManagerPanel.vue'); const ch = read('/newtab/views/CompassHome.vue'); const ov = read('/content/overlay-impl.ts'); const app = read('/newtab/stores/app.ts'); return td.includes('softDeleteTaskToTrash(d.value, t)') && tmp.includes('softDeleteTaskToTrash(d.value, t)') && (tmp.match(/softDeleteTaskToTrash/g) || []).length >= 2 && ch.includes('softDeleteTaskToTrash(d.value, t)') && ov.includes('detachTaskFromMetrics(d2 as any, String(id))') && app.includes('sanitizeMetricTaskIds(data.value)'); });
 check('R141-3 统计口径防脏：AI 投影三处指标任务统计滤 deletedAt（罗盘链×2+周台账），删指标不再悬挂子任务（CompassTree deleteNode metric 分支清 metricId 回落未关联）', () => { const p = read('/shared/ai/project.ts'); const ct = read('/newtab/views/CompassTree.vue'); return (p.match(/t\.id === id && !t\.deletedAt/g) || []).length === 3 && ct.includes('removeCompassNode') && read('/shared/utils/compassCrud.ts').includes('if (!t.deletedAt && t.metricId === id)') && read('/shared/utils/compassCrud.ts').includes('t.metricId = undefined; t.updatedAt = Date.now()'); });
-check('R141-4 AI 抽屉上下文三件套：AiJob.subject 处理对象标头（拆解/推荐/录入/回顾/洞察/优化全带）；AiRow.advisory 参谋行不进勾选（picked 初始化与全选剔除、计数走 adoptableN）；verdict.recommend=detail 时「写入详情」自动升主按钮（recDetail 互换 primary）', () => { const j = read('/shared/ai/job.ts'); const w = read('/newtab/components/AiSuggestionDrawer.vue'); const c = read('/shared/ai/chain.ts'); const s = read('/shared/ai/select.ts'); return j.includes('subject?: string') && j.includes('advisory?: boolean') && w.includes("class=\"ai-subject\"") && w.includes('out.filter(r => !r.advisory && !r.weak)') && w.includes('adoptableN') && w.includes('{ primary: recDetail }') && c.includes("key: 'breakdown:verdict', badge: '参谋', advisory: true") && s.includes("key: 'verdict', badge: '参谋', advisory: true"); });
+check('R141-4 AI 抽屉上下文三件套：AiJob.subject 处理对象标头（拆解/推荐/录入/回顾/洞察/优化全带）；AiRow.advisory 参谋行不进勾选（picked 初始化与全选剔除、计数走 adoptableN）；verdict.recommend=detail 时「写入详情」自动升主按钮（recDetail 互换 primary）', () => { const j = read('/shared/ai/job.ts'); const w = read('/newtab/components/AiSuggestionDrawer.vue'); const c = read('/shared/ai/chain.ts'); const s = read('/shared/ai/select.ts'); return j.includes('subject?: string') && j.includes('advisory?: boolean') && w.includes("class=\"ai-subject\"") && w.includes('out.filter(r => !r.advisory && !r.weak && r.changeType') && w.includes('adoptableN') && w.includes('{ primary: recDetail }') && c.includes("key: 'breakdown:verdict', badge: '参谋', advisory: true") && s.includes("key: 'verdict', badge: '参谋', advisory: true"); });
 check('R141-5 默认执笔专家贯通：config.defaultPersona（设置 AI 页下拉只列未停诊专家）；拆解/四层生成/全方位优化宿主进入时未换过人即带入；persona 下拉上移抽屉头部（title-extra，running 期间也可换人重跑）', () => { const cf = read('/shared/ai/config.ts'); const g = read('/newtab/views/GlobalSettings.vue'); const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const ca = read('/newtab/components/CardAiEntry.vue'); const w = read('/newtab/components/AiSuggestionDrawer.vue'); return cf.includes("defaultPersona: ''") && g.includes('patchAiConfig({ defaultPersona:') && td.includes('aiConfig.value.defaultPersona') && ca.includes('personaId: personaId.value') && w.includes('<template v-if="cur?.persona" #title-extra>') && !w.includes('v-if="job?.persona" class="ai-persona"'); });
 check('R141-6 ★分类就地改名组件 CatNodeName：双击/外部 editing 双路进行内 input，Enter/blur 提交、Esc 取消；同名查重与落库留 useCategoryCrud.commitCatRename（弹窗只剩新建）；金字塔节点名同组件（镜像徽标保留）', () => { const cn = read('/newtab/components/CatNodeName.vue'); const cc = read('/newtab/composables/useCategoryCrud.ts'); const py = read('/newtab/composables/usePyramid.ts'); return cn.includes('@keydown.enter.prevent="finish(true)"') && cn.includes("@keydown.esc.prevent=\"finish(false)\"") && cc.includes('function startCatRename(') && cc.includes('function commitCatRename(') && !cc.includes('openRenameCat') && py.includes('if (cat) startCatRename(cat)'); });
 
@@ -3825,7 +3825,7 @@ check('R146-9 项目页 AI 入口补位（用户点名需求）：每个指标�
 const DRAWER147 = read('/newtab/components/AiSuggestionDrawer.vue')
 check('R147-1 ★弱相关建议行默认不勾（不再用勾选率假装准确）：抽屉 picked 初始化剔除 weak、行上有「低置信」徽标与「只留高置信」，全选仍可整批勾上（判定权在人）；判弱只准用客观信号——缺理由 / 体系外新词 / 没点到佐证卡', () => {
   const j = read('/shared/ai/job.ts'); const sel = read('/shared/ai/select.ts'); const g = read('/shared/ai/batchG.ts'); const c = read('/shared/ai/chain.ts')
-  return j.includes('weak?: boolean') && DRAWER147.includes('out.filter(r => !r.advisory && !r.weak)') && DRAWER147.includes("function pickStrongOnly()")
+  return j.includes('weak?: boolean') && DRAWER147.includes('out.filter(r => !r.advisory && !r.weak && r.changeType') && DRAWER147.includes("function pickStrongOnly()")
     && DRAWER147.includes('低置信') && DRAWER147.includes('只留高置信') && DRAWER147.includes('picked.value.size === adoptableRows.length')
     && sel.includes('weak: !s.why?.trim()') && g.includes('weak: !cardIds.length') && g.includes('weak: !reason') && c.includes('weak: !s.why?.trim()')
 });
@@ -3844,7 +3844,7 @@ check('R147-3 消毒账与空态真因点名：AiJob.audit 契约（零参、计
 check('R147-4 ★打标克制落到行级：AI 造的体系外新词单独成行且默认不勾；knownTagSet/freshTagsOf 为唯一口径（树上路径∪叶子名活卡在用），三处消费（单卡补全/批量补全/详情抽屉）同判；RDD 仍零静态引 shared/ai（启动链红线不破）', () => {
   const tg = read('/shared/utils/tags.ts'); const sel = read('/shared/ai/select.ts'); const rdd = read('/newtab/components/ResourceDetailDrawer.vue'); const gs = read('/newtab/views/GlobalSettings.vue')
   return tg.includes('export function knownTagSet') && tg.includes('export function freshTagsOf') && tg.includes('if ((c as { deletedAt?: number }).deletedAt) continue')
-    && sel.includes("badge: '新词', badgeType: 'warn', weak: true") && rdd.includes("badge: '新词', badgeType: 'warn', weak: true") && gs.includes('const fresh = freshTagsOf(addTags, known)')
+    && sel.includes("badge: '新词', badgeType: 'warn', weak: true") && rdd.includes('buildCardEnrichJob(card,') && gs.includes('const fresh = freshTagsOf(addTags, known)')
     && !rdd.includes("from '@/shared/ai/llm'") && !rdd.includes("import { chat")
 });
 check('R147-5 ★任务级「知」菜单共享化并跨视图落位：TaskAiMenu.vue 自包含（按钮+浮层菜单+评审抽屉+样式+AI 懒栈），项目详情页两处行位与任务面板 12 处行位同组件 · R151 备案：本条原写"6 处（卡/列表/看板×2 形态）"，实为卡片与列表两视图共 6 处、看板 6 处一直缺位（写断言时按字面数了行数没核视图），R151 补齐后按 12 处钉；打开详情走宿主 @detail 通道', () => {
@@ -3915,7 +3915,7 @@ check('R149-3 ★jobKey 收口在抽屉一处（keyOf = 显式 jobKey > job.key 
   const files = ['select.ts', 'batchG.ts', 'chain.ts', 'govern.ts'].map(f => '/shared/ai/' + f)
   const noKey = files.flatMap(f => { const s = read(f); return (s.match(/export function build\w+Job[^\n]*\n/g) || []).map(hdr => { const i = s.indexOf(hdr); return /key: /.test(s.slice(i, i + 2200)) ? '' : f + hdr.slice(0, 40) }).filter(Boolean) })
   return w.includes("const keyOf = computed(() => props.jobKey || props.job?.key || '')") && w.includes('const bound = computed<JobState | null>(() => (keyOf.value ? getJobState(keyOf.value) || null : null))')
-    && j.includes('key?: string') && noKey.length === 0 && read('/newtab/views/GlobalSettings.vue').includes("key: 'enrich:batch:'") && read('/newtab/components/ResourceDetailDrawer.vue').includes("key: 'enrich:' + card.id")
+    && j.includes('key?: string') && noKey.length === 0 && read('/newtab/views/GlobalSettings.vue').includes("key: 'enrich:batch:'") && read('/newtab/components/ResourceDetailDrawer.vue').includes('buildCardEnrichJob(card,')
 });
 check('R149-4 ★runner 轮次所有权：每个 key 记第几轮（attempts），只有当前轮能落结果/清投料 sink/回收任务——rerun 与被停旧请求晚到的回调不再误杀新一轮；rerunJob 走 drop 而非裸 delete', () => {
   const r = read('/shared/ai/runner.ts')
@@ -3925,7 +3925,7 @@ check('R149-4 ★runner 轮次所有权：每个 key 记第几轮（attempts）�
 });
 check('R149-5 换专家=新起一轮，同 key 再点=attach：抽屉 watch 只在 persona.current 变了才 rerunJob（换视角是用户点名重问），其余一律不重跑；报告型无 apply 时抽屉撤勾选框/全选/低置信按钮（没有要采纳的东西还让人勾是假动作），产出行仍整篇呈现', () => {
   const w = read('/newtab/components/AiSuggestionDrawer.vue')
-  return w.includes('if (j && st.job.persona && j.persona && j.persona.current !== st.job.persona.current) rerunJob(k, () => j)')
+  return w.includes('if (j && st.job.persona && j.persona && j.persona.current !== st.job.persona.current) rerunJob(k, () => withDirective(j))')
     && w.includes('const picksSomething = computed(() => hasAdopt.value || !!cur.value?.secondary)')
     && w.includes('<label v-if="picksSomething" class="ai-all">') && w.includes('整篇成文，跑完自动落卡')
     && w.includes(':class="{ on: picksSomething && !r.advisory && picked.has(r.key), advisory: r.advisory || !picksSomething')
@@ -4098,6 +4098,58 @@ check('R148-7 ★本轮不做的要说出来：面板增量渲染经实测判停
   const perf = fs.readFileSync(path.resolve(__dirname, '..', 'scripts/perf.cjs'), 'utf8')
   return perf.includes('window.__clickCost') && perf.includes('window.__hashTo') && perf.includes('M11_切到资源台_首帧(ms)') && perf.includes('M7_主键重写次数')
     && !read('/newtab/components/compass/TaskManagerPanel.vue').includes('RENDER_STEP')
+});
+
+// ============== R154 · V3.1.9：AI 对照式评审范式（结构刀） ==============
+console.log('【R154 · V3.1.9：AI 对照式评审（双栏 + 一次性指令）】');
+check('R154-1 ★左栏是"当前形态"不是装饰：before/paneMode 全可选（缺省退单栏，23 入口因此可分批接），配对统一走 pair.ts（id 优先、归一化文本兜底），工厂不必各写一遍对齐', () => {
+  const j = read('/shared/ai/job.ts'); const pr = read('/shared/ai/pair.ts'); const w = read('/newtab/components/AiSuggestionDrawer.vue')
+  return j.includes('before?: AiPaneLine[] | (() => AiPaneLine[])') && j.includes("paneMode?: 'pair' | 'context'") && j.includes('export interface AiPaneLine')
+    && pr.includes('export function pairRows') && pr.includes('export function unpairedBefore') && pr.includes('export function changeSummary') && pr.includes('export function resolveBefore')
+    && w.includes('const dual = computed(() => pane.value.length > 0)') && w.includes('pairRows(pane.value, base)')
+});
+check('R154-2 ★可编辑必须声明写回（toRow），没写回就不给编辑——宁可不能改，也不能"看着改了、写库还是原值"', () => {
+  const j = read('/shared/ai/job.ts'); const w = read('/newtab/components/AiSuggestionDrawer.vue'); const s = read('/shared/ai/select.ts')
+  return j.includes('toRow?: (row: AiRow, texts: { main?: string; sub?: string }) => AiRow')
+    && w.includes('function canEdit(r: AiRow): boolean { return !!(r.edit?.main && r.edit.toRow) }')
+    && s.includes('edit: { main: true, toRow:') && s.includes("data: { description: (t.main || '').trim() }")
+});
+check('R154-3 ★编辑即自动勾选；Esc 取消与"一个字没改"都不算已编辑（原型实测抓出的瑕疵：取消也被标脏）', () => {
+  const w = read('/newtab/components/AiSuggestionDrawer.vue')
+  return w.includes('if (next === origin) return') && w.includes('if (next && !picked.value.has(r.key))') && w.includes('@keydown.esc.stop="editing = null"')
+});
+check('R154-4 ★未变行不许勾（计数剔除 same + 行内不渲染勾选框），只读参谋行照旧不进勾选', () => {
+  const w = read('/newtab/components/AiSuggestionDrawer.vue')
+  return w.includes("shown.value.filter(r => !r.advisory && r.changeType !== 'same').length")
+    && w.includes('v-if="!r.advisory && picksSomething && r.changeType !== \'same\'"')
+});
+check('R154-5 ★一次性指令：独立键 zy_ai_directives_v1（与密钥同侧、不进 AppData）+ 优先级裁决句 + 2000 字上限 + 历史 5 条；作用域默认对象级，升档须用户点', () => {
+  const d = read('/shared/ai/directive.ts'); const m = read('/shared/models/index.ts'); const w = read('/newtab/components/AiSuggestionDrawer.vue')
+  return d.includes("AI_DIRECTIVES_KEY = 'zy_ai_directives_v1'") && d.includes('DIRECTIVE_CAP = 2000') && d.includes('HISTORY_CAP = 5')
+    && d.includes('【用户附加指令 · 优先级最高】') && d.includes('但输出结构与字段不得增删')
+    && d.includes("tierOf(scope: string): DirTier { return store.value[scope]?.tier ?? 'object' }")
+    && !m.includes('irective') && w.includes("switchTier('entry')")
+});
+check('R154-6 ★指令零宿主改造的支点：runner 每轮重新调 job.build()（谁缓存 build 结果就静默失效），抽屉单点 withDirective 且幂等', () => {
+  const r = read('/shared/ai/runner.ts'); const d = read('/shared/ai/directive.ts'); const w = read('/newtab/components/AiSuggestionDrawer.vue')
+  return r.includes('await job.build()') && d.includes('const wrapped = new WeakSet<AiJob>()') && d.includes('if (!job.promptScope || wrapped.has(job)')
+    && w.includes('run(withDirective(j))') && w.includes('openJob(k, j.title, () => withDirective(j))')
+});
+check('R154-7 ★报告型「存为卡」（拍板③）：编辑过才点亮、走 saveReportCard 同名刷新不新增第二张，跑完自动落卡那条不变；左栏=投料原文（paneMode context，不假称逐行配对）', () => {
+  const rp = read('/shared/ai/reports.ts'); const w = read('/newtab/components/AiSuggestionDrawer.vue'); const s = read('/shared/ai/select.ts')
+  return rp.includes('job.resave = (rows) =>') && rp.includes('job.autoReport.save(p)')
+    && w.includes('const canResave = computed(() => !!cur.value?.resave && dirty.value)') && w.includes('存为卡（已编辑')
+    && s.includes("paneMode: 'context'") && s.includes('before: () => digestPane(digest)')
+});
+check('R154-8 ★采纳文案全站统一「✓ 采纳（直接写库）」（拍板①）；配了 confirm 才走二次确认，第一下只弹红条不写库', () => {
+  const w = read('/newtab/components/AiSuggestionDrawer.vue'); const j = read('/shared/ai/job.ts')
+  return w.includes("'✓ 采纳（直接写库）'") && !w.includes('采纳勾选项') && j.includes('confirm?: (rows: AiRow[]) => string')
+    && w.includes('if (cf && !confirmText.value) { confirmText.value = cf; return }')
+});
+check('R154-9 ★E3 导入归类不再自动弹 + RDD 采纳直接写库：两处旧语义退役且不留死代码（inline job 与 knownTags 缓存一并删）', () => {
+  const g = read('/newtab/views/GlobalSettings.vue'); const r = read('/newtab/components/ResourceDetailDrawer.vue')
+  return g.includes('pendingImportEnrich.value = importedIds') && !g.includes('aiEnrichIds(new Set(importedIds))')
+    && r.includes('const baseApply = job.apply!') && !r.includes('建议已回填表单') && !r.includes('function knownTags()') && !r.includes('AiRowLite')
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

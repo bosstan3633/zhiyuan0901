@@ -19,13 +19,11 @@ import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import type { ResourceCard, TaskCard } from '@/shared/models'
 import ZhiMark from '@/shared/components/ZhiMark.vue'
 import ThesisBlock from '@/newtab/components/ThesisBlock.vue'
-import { freshTagsOf, knownTagSet } from '@/shared/utils/tags'
 // R134-F（批次 F）：单卡 AI 补全。★本组件被 App.vue 静态挂载（全局抽屉宿主）——AI 依赖必须全懒：
 // 抽屉 defineAsyncComponent、shared/ai 模块点击时才 dynamic import，否则整条 AI 栈会被卷进启动 chunk（R134 首版踩坑已修）。
-// 建议进评审抽屉（内存态），采纳只回填本表单，用户核对后自行保存。
+// R154（拍板①）：补全/优化一律走 select 工厂，采纳=直接写库（写完把表单同步成已落库的值），不再"回填等二次保存"。
 const AiDrawer = defineAsyncComponent(() => import('./AiSuggestionDrawer.vue'))
 type AiJobLite = import('@/shared/ai/job').AiJob
-type AiRowLite = import('@/shared/ai/job').AiRow
 
 const router = useRouter()
 const store = useAppStore()
@@ -134,65 +132,40 @@ function onBus(p: DrawerPayload) {
 const aiJob = ref<AiJobLite | null>(null)
 /** R146-b：补全/优化两枚入口共用一把互斥锁——动态 import + 读配置这段真空期徽标转起来，且不吃第二次点击 */
 const aiEntry = ref<'enrich' | 'optimize' | ''>('')
-/** R147-a：既有标签体系口径共享 utils/tags（每次开抽屉算一次即可，卡片量级下 <1ms） */
-let knownCache: { key: number; set: Set<string> } | null = null
-function knownTags(): Set<string> {
-  const d = store.data
-  if (!d) return new Set()
-  const stamp = d.resources.length + d.tasks.length + d.curiosities.length + (d.tagTree?.length || 0)
-  if (!knownCache || knownCache.key !== stamp) knownCache = { key: stamp, set: knownTagSet(d) }
-  return knownCache.set
-}
 async function aiEnrich() {
   if (aiEntry.value) return
   const card = resource.value
   const d = store.data
   if (!card || !d) return
   aiEntry.value = 'enrich'
-  const [{ loadAiConfig, aiReady, aiConfig }, { projectCard, catPathOf }, { enrichSystem, sanitizeRefs }] = await Promise.all([
-    import('@/shared/ai/config'), import('@/shared/ai/project'), import('@/shared/ai/scenarios'),
+  /**
+   * R154（拍板①）：这里原本自带一份与 `buildCardEnrichJob` 平行的 inline job，
+   * 且把采纳做成"回填表单等你点保存"——同一件事在资源台卡面上直接落库、在详情抽屉里却要二次保存。
+   * 现在统一走工厂（左栏/配对/可编辑/指令作用域随工厂一并到位），采纳即写库，写完把表单同步成已落库的值。
+   */
+  const [{ loadAiConfig, aiReady, aiConfig }, { buildCardEnrichJob }] = await Promise.all([
+    import('@/shared/ai/config'), import('@/shared/ai/select'),
   ])
   await loadAiConfig()
   if (!aiReady.value) { aiEntry.value = ''; showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
-  const cats = d.categories.filter(c => !c.deletedAt && c.workspaceId === card.workspaceId)
-  const catList = cats.slice(0, 60).map(c => `categoryId=${c.id}：${catPathOf(d, c.id)}`).join('\n')
-  aiJob.value = {
-    key: 'enrich:' + card.id,
-    title: `AI 补全 · ${card.title.slice(0, 20) || '（无名卡）'}`,
-    hint: '建议会回填到下方编辑表单（描述仅在为空时填充），保存前你可再改。',
-    build: () => ({ messages: [
-      { role: 'system', content: enrichSystem(cats.length > 0) },
-      { role: 'user', content: projectCard(d, card, aiConfig.value.depth) + (catList ? `\n\n【分类候选】\n${catList}` : '') },
-    ] }),
-    parse: (raw) => {
-      const s = sanitizeRefs((raw || {}) as import('@/shared/ai/scenarios').EnrichSuggestion, d)
-      const rows: AiRowLite[] = []
-      const newTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !(card.tags || []).includes(t))
-      // R147-a：体系外新词单独成行、默认不勾（与 buildCardEnrichJob 同口径）
-      const fresh = freshTagsOf(newTags, knownTags())
-      const inSys = newTags.filter(t => fresh.indexOf(t) < 0)
-      if (inSys.length) rows.push({ key: 'tags', badge: '标签', main: inSys.join('、'), data: { tags: inSys } })
-      if (fresh.length) rows.push({ key: 'tags:fresh', badge: '新词', badgeType: 'warn', weak: true, main: fresh.join('、'), sub: '不在既有标签体系里（AI 造词）· 勾了才进体系', data: { tags: fresh } })
-      if (s.description?.trim() && !card.description) rows.push({ key: 'desc', badge: '描述', main: s.description.trim(), data: { description: s.description.trim() } })
-      if (s.categoryId && s.categoryId !== card.categoryId) rows.push({ key: 'cat', badge: '分类', main: catPathOf(d, s.categoryId), data: { categoryId: s.categoryId } })
-      return rows
-    },
-    apply: (rows) => {
-      for (const r of rows) {
-        const s = r.data as import('@/shared/ai/scenarios').EnrichSuggestion
-        if (s.tags) editing.tags = [...new Set([...(editing.tags || []), ...s.tags])].slice(0, 10)
-        if (s.description) editing.description = s.description
-        if (s.categoryId) editing.categoryId = s.categoryId
-      }
-      return '✓ 建议已回填表单，核对后点「保存」'
-    },
+  const job = buildCardEnrichJob(card, { d, depth: aiConfig.value.depth, persist: () => store.persist() })
+  const baseApply = job.apply!
+  job.apply = (rows) => {
+    const out = baseApply(rows)
+    const live = store.data?.resources.find(x => x.id === card.id && !x.deletedAt)
+    if (live) {
+      editing.title = live.title; editing.description = live.description
+      editing.tags = [...(live.tags || [])]; editing.categoryId = live.categoryId
+    }
+    return out
   }
+  aiJob.value = job
   aiEntry.value = ''
 }
 
 let unsub: (() => void) | null = null
 
-/** R140：全方位优化（先抓链接网页正文再一体建议，采纳=回填表单）；复用 select 工厂、改写 apply 为回填 */
+/** R140：全方位优化（先抓链接网页正文再一体建议）；R154 起采纳=直接写库，只包一层把表单同步成已落库值 */
 const aiOptPersona = ref('default')
 async function aiOptimize() {
   if (aiEntry.value) return
@@ -205,14 +178,20 @@ async function aiOptimize() {
   if (!aiReady.value) { aiEntry.value = ''; showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
   if (aiOptPersona.value === 'default' && aiConfig.value.defaultPersona) aiOptPersona.value = aiConfig.value.defaultPersona
   const job = buildFullOptimizeJob(card, { d, depth: aiConfig.value.depth, persist: () => store.persist(), personaId: aiOptPersona.value, onPersona: (id) => { aiOptPersona.value = id; void aiOptimize() } })
+  /**
+   * R154（用户拍板①）：采纳=直接写库，不再"回填表单等你点保存"——
+   * 同一个入口在资源台卡面上是直接落库、在这里却要二次保存，两套口径必然有人踩。
+   * 工厂的 apply 原样用，只在写完后把表单同步成已落库的值（避免抽屉还开着却显示旧字）。
+   */
+  const baseApply = job.apply!
   job.apply = (rows) => {
-    for (const r of rows) {
-      const s = r.data as { title?: string; description?: string; tags?: string[] }
-      if (s.title) editing.title = s.title
-      if (s.description) editing.description = s.description
-      if (s.tags) editing.tags = [...new Set([...(editing.tags || []), ...s.tags])].slice(0, 10)
+    const out = baseApply(rows)
+    const live = store.data?.resources.find(x => x.id === card.id && !x.deletedAt)
+    if (live) {
+      editing.title = live.title; editing.description = live.description
+      editing.tags = [...(live.tags || [])]; editing.categoryId = live.categoryId
     }
-    return '✓ 建议已回填表单，核对后点「保存」'
+    return out
   }
   aiJob.value = job
   aiEntry.value = ''
@@ -254,8 +233,8 @@ watch(() => resource.value?.id, (n) => {
       <button class="red-btn danger" @click="remove">🗑 删除</button>
       <button class="red-btn" @click="copyLink">🔗 复制链接</button>
       <button class="red-btn" @click="openLink">↗ 打开</button>
-      <button class="red-btn" :disabled="!resource || aiEntry !== ''" title="AI 建议标签/描述/分类，回填表单后由你核对保存" @click="aiEnrich"><ZhiMark :size="13" :spin="aiEntry === 'enrich'" /> 补全</button>
-      <button class="red-btn" :disabled="!resource || aiEntry !== ''" title="先抓取链接网页正文（仅 http(s)、点了才抓），再整体优化标题/描述/标签并回填表单" @click="aiOptimize"><ZhiMark :size="13" :spin="aiEntry === 'optimize'" /> 分析（读网页）</button>
+      <button class="red-btn" :disabled="!resource || aiEntry !== ''" title="AI 建议标签/描述/分类：左栏是这张卡的现状，勾选采纳即直接写库" @click="aiEnrich"><ZhiMark :size="13" :spin="aiEntry === 'enrich'" /> 补全</button>
+      <button class="red-btn" :disabled="!resource || aiEntry !== ''" title="先抓取链接网页正文（仅 http(s)、点了才抓），再整体优化标题/描述/标签；采纳即直接写库" @click="aiOptimize"><ZhiMark :size="13" :spin="aiEntry === 'optimize'" /> 分析（读网页）</button>
       <button class="red-btn primary" @click="save">✓ 保存</button>
     </template>
   </Drawer>

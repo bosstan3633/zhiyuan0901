@@ -613,6 +613,14 @@
               <div><div class="gs-io-name">导入书签文件</div><div class="gs-io-desc">选择浏览器导出的书签HTML，文件夹作为标签，链接+标题写入资源卡</div></div>
               <button class="gs-btn gs-io-btn">选择文件</button>
             </div>
+            <!-- R154（E3）：导入完不再自动弹评审抽屉——它抢焦点、也没人点过它。改成回执上的显式入口 -->
+            <div v-if="pendingImportEnrich && pendingImportEnrich.length" class="gs-setting-row" style="margin-top:6px">
+              <span class="gs-sr-label">刚导入 {{ pendingImportEnrich.length }} 张卡</span>
+              <div class="gs-sr-control">
+                <button class="gs-btn" :disabled="!aiReady" @click="aiImportEnrichNow">{{ aiReady ? '归类并补全这批' : '先在 AI 助手完成接入' }}</button>
+                <button class="gs-btn" @click="pendingImportEnrich = null">这次不用</button>
+              </div>
+            </div>
             <div class="gs-setting-row" style="margin-top:6px">
               <span class="gs-sr-label">书签导入到</span>
               <div class="gs-sr-control">
@@ -2048,8 +2056,9 @@ function handleBookmarkImport(e: Event) {
       }
       store.persist()
       showToast('✓ 已导入 ' + items.length + ' 个书签到「' + ws.name + '」（文件夹已作为标签）')
-      // R138-H3：AI 已接入时导入完成即拉起批量归类评审（书签夹路径只是裸标签，交给体检式补全）
-      if (aiReady.value) aiEnrichIds(new Set(importedIds))
+      // R138-H3 → R154（E3）：导入完成**不自动弹**评审抽屉（它抢焦点、用户也没点过它），
+      // 改成导入回执那一行的显式入口——范式是"点击 → 弹窗"，不是"导入 → 弹窗"
+      pendingImportEnrich.value = importedIds
     } catch { showToast('✗ 书签文件解析失败') }
   }
   reader.readAsText(file)
@@ -2808,6 +2817,14 @@ function aiCatVocab(d: AppData, cards: ResourceCard[]): string {
   return lines.join('\n')
 }
 
+/** R154（E3）：书签导入完攒下的卡 id——等用户点「归类并补全这批」才起评审，不再自动弹 */
+const pendingImportEnrich = ref<string[] | null>(null)
+function aiImportEnrichNow() {
+  const ids = pendingImportEnrich.value
+  if (!ids || !ids.length) return
+  pendingImportEnrich.value = null
+  aiEnrichIds(new Set(ids))
+}
 /** A1-批量：标签管理右列选中卡 → 逐卡补标签/描述/分类建议 */
 function aiTtEnrich() { aiEnrichIds(ttPicked.value) }
 /** R138-H3：泛型化——任意 id 集走批量补全评审（书签导入完成后复用同一条 job） */
@@ -2823,7 +2840,9 @@ function aiEnrichIds(ids: Set<string>) {
     // R149：key 里带入选集——同一批卡再点=attach 看进度，换一批=新起任务（不会拿旧结果糊弄）
     key: 'enrich:batch:' + [...ids].sort().join('|'),
     title: `批量补全（${cards.length} 张卡）`,
-    hint: '逐卡建议：标签（优先复用词表）/ 描述（只补空描述）/ 分类迁移。勾选采纳才写入。',
+    hint: '逐卡建议：标签（优先复用词表）/ 描述（只补空描述）/ 分类迁移。勾选采纳即直接写入。左栏是这批卡的现状，右栏是补全后的样子（按卡对齐）。',
+    promptScope: 'enrich:batch',
+    before: () => cards.map(c => ({ key: c.id, main: `${c.title}`.slice(0, 40) || '（无名卡）', sub: `标签 ${(c.tags || []).join('、') || '（无）'} · 描述 ${c.description ? c.description.slice(0, 30) : '（空）'}` })),
     build: () => ({ messages: [
       { role: 'system', content: batchEnrichSystem() },
       { role: 'user', content: text + (catList ? `\n\n【分类候选】\n${catList}` : '') },
@@ -2845,7 +2864,7 @@ function aiEnrichIds(ids: Set<string>) {
         if (s.categoryId && s.categoryId !== card.categoryId) parts.push(`分类 → ${aiCatPathOf(d, s.categoryId)}`)
         if (!parts.length) { drop.empty++; continue }
         // R147-a：只往体系里塞新词、别无实料的行=默认不勾
-        rows.push({ key: s.cardId, main: `${card.title}`.slice(0, 40) || '（无名卡）', sub: parts.join('\n') + (s.reason ? `\n· ${s.reason}` : ''), weak: fresh.length > 0 && !s.description?.trim() && !s.categoryId, data: { ...s, addTags } })
+        rows.push({ key: s.cardId, pair: card.id, changeType: 'edit', main: `${card.title}`.slice(0, 40) || '（无名卡）', sub: parts.join('\n') + (s.reason ? `\n· ${s.reason}` : ''), weak: fresh.length > 0 && !s.description?.trim() && !s.categoryId, data: { ...s, addTags } })
       }
       return rows
     },

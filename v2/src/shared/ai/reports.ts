@@ -56,5 +56,15 @@ export function withReport(job: AiJob, ctx: ReportCtx, title: () => string, body
     },
     save: (p) => saveReportCard(ctx, p),
   }
+  /**
+   * R154（用户拍板③）：报告型右栏正文改成可编辑后，"编辑要有地方去"——
+   * 给一条**再存一次**的通道，仍走 `saveReportCard` 的同名复用分支（同日同类只一张，
+   * 不会因为多点一次「存为卡」就多出一张卡）。跑完自动落卡那条行为不变。
+   */
+  job.resave = (rows) => {
+    const p = job.autoReport ? job.autoReport.build(rows) : null
+    if (!p) return '⚠ 正文是空的，没东西可存'
+    return job.autoReport ? job.autoReport.save(p) : '⚠ 落卡通道未就绪'
+  }
   return job
 }

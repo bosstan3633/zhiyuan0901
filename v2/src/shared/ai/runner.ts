@@ -16,6 +16,7 @@
 import { ref } from 'vue'
 import type { AiJob, AiRow } from './job'
 import { chatStream, extractJson, setLlmFeedSink } from './llm'
+import { noteRun } from './directive'
 
 export type JobPhase = 'queued' | 'running' | 'done' | 'error' | 'stopped'
 
@@ -116,6 +117,8 @@ async function execute(key: string): Promise<void> {
     const live = states.value.get(key)
     if (!mine() || !live || live.phase !== 'running') return
     patch(key, { phase: 'done', rows, raw, finishedAt: Date.now() })
+    // R154：跑完给这条指令记一笔账（secs/产出/行数），历史列表才知道"换指令到底值不值"
+    if (job.promptScope) noteRun(job, { at: Date.now(), secs: live.secs || Math.round((Date.now() - live.startedAt) / 1000), outChars: raw.length || rows.reduce((n, r) => n + r.main.length, 0), rows: rows.length, adopted: false })
     stopTicker(key)
     // 报告型自动落卡：只新增卡，不改既有数据（纪律边界见文件头第 4 条）
     if (job.autoReport) {

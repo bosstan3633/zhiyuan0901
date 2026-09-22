@@ -626,6 +626,38 @@ async function main() {
   report('E2E-21 周报浮层可见 + 可关闭（R113-N3 P0 修复）', wrCountBefore === 0 && wrVisible && wrClosed,
     'before=' + wrCountBefore + ' visible=' + wrVisible + ' closed=' + wrClosed + ' via=' + closeVia + ' head=' + JSON.stringify(wrTitle))
 
+  // E2E-23（R154 · 04-62）：AI 对照式评审**双栏真渲染** + 一次性指令**独立键**。
+  // 走「设置 › AI 助手 › 本周回顾」：它已接左栏（投料原文）与指令框，且不依赖真网关——
+  // baseUrl 指向不可达端口，抽屉照样开、左栏照样是当前形态，只有右栏会落到错误态。
+  await page.evaluate(() => chrome.storage.local.set({
+    zy_ai_v1: { baseUrl: 'http://127.0.0.1:9/v1', apiKey: 'e2e', model: 'e2e', depth: 'eco', personas: [], customPersonas: [] },
+  }))
+  await page.goto(base + '#/settings', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1800)
+  await page.locator('.gs-nav-item, .gs-nav button, button', { hasText: 'AI 助手' }).first().click().catch(() => {})
+  await page.waitForTimeout(900)
+  const reviewBtn = page.locator('.gs-btn', { hasText: '回顾' }).first()
+  const reviewFound = await reviewBtn.count()
+  await reviewBtn.click().catch(() => {})
+  await page.waitForTimeout(1500)
+  const dualOn = await page.locator('.ai-dual:not(.single)').first().isVisible().catch(() => false)
+  const leftRows = await page.locator('.ai-col-l .ai-prow').count()
+  const dirOn = await page.locator('.ai-dir').first().isVisible().catch(() => false)
+  await page.locator('.ai-dir-ta').first().fill('每节不超过 40 字').catch(() => {})
+  await page.locator('.ai-col-head b').first().click().catch(() => {})
+  await page.waitForTimeout(900)
+  const dirStore = await page.evaluate(() => chrome.storage.local.get('zy_ai_directives_v1').then(r => r['zy_ai_directives_v1'] || null))
+  const appRaw = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => JSON.stringify(r['zy_data_v2'] || '')))
+  const reviewScope = dirStore && dirStore['review']
+  report('E2E-23 R154 双栏对照真渲染 + 指令落独立键不进 AppData：抽屉出左栏「投料原文」、指令框随入口出现，写的字进 zy_ai_directives_v1',
+    reviewFound > 0 && dualOn && leftRows >= 3 && dirOn && !!reviewScope && reviewScope.entry && reviewScope.entry.text === '每节不超过 40 字' && !appRaw.includes('zy_ai_directives') && !appRaw.includes('每节不超过 40 字'),
+    'btn=' + reviewFound + ' dual=' + dualOn + ' leftRows=' + leftRows + ' dir=' + dirOn + ' scope=' + JSON.stringify(reviewScope && reviewScope.entry && reviewScope.entry.text) + ' tier=' + (reviewScope && reviewScope.tier) + ' 泄漏进AppData=' + appRaw.includes('每节不超过 40 字'))
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(500)
+  await page.evaluate(() => chrome.storage.local.remove(['zy_ai_directives_v1', 'zy_ai_v1']))
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1200)
+
   // E2E-22 金字塔真全屏（R113-N5）：宿主上移 .ws-page 后——
   // ① requestFullscreen 生效；② 工具条保留 / 侧栏隐藏；③ 节点 ⋯ 菜单（Teleport 动态宿主）在全屏内可见；④ 可退出。
   // ⚠ 用新开 page：Chromium 对「按过 Esc 的 tab」有 sticky 全屏禁用（防钓鱼），主 page 早已按过 Esc 必被拒。

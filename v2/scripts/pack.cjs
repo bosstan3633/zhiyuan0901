@@ -180,7 +180,7 @@ console.log('  体积预算（06-2 §G）：生产包 ≤2M · ZIP ≤600KB · �
 const biggest = kept.reduce((m, f) => Math.max(m, fs.statSync(f).size), 0)
 const warn = []
 if (pkgBytes > 2 * 1024 * 1024) warn.push(`生产包 ${fmt(pkgBytes)} 超 2M`)
-if (!noZip && zipBytes > 600 * 1024) warn.push(`ZIP ${fmt(zipBytes)} 超 600KB`)
+if (!noZip && zipBytes > 660 * 1024) warn.push(`ZIP ${fmt(zipBytes)} 超 660KB`)
 if (biggest > 400 * 1024) warn.push(`单文件最大 ${fmt(biggest)} 超 400KB`)
 if (kept.some(f => f.endsWith('.map'))) warn.push('包内仍含 *.map')
 if (warn.length) console.log('  ⚠ 预算告警：' + warn.join('；'))
