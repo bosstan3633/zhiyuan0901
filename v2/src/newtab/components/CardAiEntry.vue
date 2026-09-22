@@ -8,7 +8,7 @@ import { ref, shallowRef } from 'vue'
 import type { ResourceCard } from '@/shared/models'
 import { useAppStore } from '@/newtab/stores/app'
 import { showToast } from '@/shared/components/toast'
-import ZhiMark from '@/shared/components/ZhiMark.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 
 const props = withDefaults(defineProps<{ card: ResourceCard; label?: string }>(), { label: '' })
 const store = useAppStore()
@@ -38,6 +38,6 @@ async function run() {
 </script>
 
 <template>
-  <div :class="label ? 'dr-footer-btn ai' : 'rc-action ai'" :title="card.link ? 'AI 读取链接网页正文后优化标题/描述/标签（审阅勾选才写库）' : 'AI 按卡面信息优化（本卡没有链接）'" @click.stop="run"><ZhiMark :size="label ? 13 : 14" :spin="busy" />{{ label }}</div>
+  <div :class="label ? 'dr-footer-btn ai' : 'rc-action ai'" :title="card.link ? 'AI 读取链接网页正文后优化标题/描述/标签（审阅勾选才写库）' : 'AI 按卡面信息优化（本卡没有链接）'" @click.stop="run"><AiEntryButton :variant="label ? 'inline' : 'icon'" :label="label" :spin="busy" /></div>
   <AiDrawer v-if="job" :job="job" @close="job = null" />
 </template>

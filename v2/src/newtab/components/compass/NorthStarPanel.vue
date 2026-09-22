@@ -359,11 +359,11 @@ function changeTaskMetric(taskId: string, e: Event) {
   0%, 100% { opacity: .85; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.07); }
 }
-.ns-name { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: .3px; }
-.ns-en { font-size: 9px; color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; margin-left: 2px; }
+.ns-name { font-size: var(--fs-title); font-weight: 600; color: var(--text); letter-spacing: .3px; }
+.ns-en { font-size: var(--fs-micro); color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; margin-left: 2px; }
 
 .period-switch { display: flex; gap: 2px; background: var(--surface-3); border-radius: 8px; padding: 3px; }
-.period-btn { padding: 4px 12px; border-radius: 6px; border: none; background: transparent; font-size: 11.5px; color: var(--text-3); cursor: pointer; font-family: inherit; font-weight: 500; transition: all var(--dur); }
+.period-btn { padding: 4px 12px; border-radius: 6px; border: none; background: transparent; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; font-family: inherit; font-weight: 500; transition: all var(--dur); }
 .period-btn:hover { color: var(--text-2); }
 .period-btn.active { background: var(--surface); color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
 
@@ -374,59 +374,59 @@ function changeTaskMetric(taskId: string, e: Event) {
 .ns-card:hover { border-color: var(--accent); transform: translateY(-1px); }
 .ns-card.top { background: var(--accent-light); }
 .ns-card.bottom { background: var(--surface-3); }
-.ns-label { font-size: 11px; color: var(--text-2); margin-bottom: 4px; display: flex; align-items: center; }
-.ns-hint { margin-left: auto; font-size: 10px; opacity: 0; transition: opacity var(--dur); color: var(--accent); }
+.ns-label { font-size: var(--fs-caption); color: var(--text-2); margin-bottom: 4px; display: flex; align-items: center; }
+.ns-hint { margin-left: auto; font-size: var(--fs-tiny); opacity: 0; transition: opacity var(--dur); color: var(--accent); }
 .ns-card:hover .ns-hint { opacity: 1; }
 .ns-value { font-size: 20px; font-weight: 600; color: var(--text); line-height: 1.2; letter-spacing: -.2px; font-variant-numeric: tabular-nums; }
 .ns-card.top .ns-value { color: var(--accent); }
-.ns-sub { font-size: 10px; color: var(--text-3); margin-top: 3px; }
+.ns-sub { font-size: var(--fs-tiny); color: var(--text-3); margin-top: 3px; }
 
 /* 下钻抽屉 */
-.nd-formula { font-size: 11.5px; color: var(--accent); background: var(--accent-light); border-radius: 8px; padding: 9px 12px; line-height: 1.6; margin-bottom: 14px; }
+.nd-formula { font-size: var(--fs-sub); color: var(--accent); background: var(--accent-light); border-radius: 8px; padding: 9px 12px; line-height: 1.6; margin-bottom: 14px; }
 .dhi-list .nd-item { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-xs); margin-bottom: 8px; display: flex; align-items: center; gap: 10px; background: var(--surface); }
 .nd-item.clickable { cursor: pointer; }
 .nd-item.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
-.nd-name { font-size: 13px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nd-name { font-size: var(--fs-body); font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nd-name.text { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.nd-meta { font-size: 11px; color: var(--text-3); white-space: nowrap; }
-.nd-tag.warn { font-size: 10px; color: var(--tag-warn-text); background: var(--tag-warn-bg); padding: 2px 8px; border-radius: 99px; font-weight: 500; }
+.nd-meta { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; }
+.nd-tag.warn { font-size: var(--fs-tiny); color: var(--tag-warn-text); background: var(--tag-warn-bg); padding: 2px 8px; border-radius: 99px; font-weight: 500; }
 .nd-progress { width: 80px; height: 5px; background: var(--surface-3); border-radius: 99px; overflow: hidden; flex-shrink: 0; }
 .nd-bar { height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s; }
 .nd-item.stagnant { border-color: var(--danger); }
-.nd-edit-hint { font-size: 12px; color: var(--text-3); cursor: pointer; flex-shrink: 0; }
+.nd-edit-hint { font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; flex-shrink: 0; }
 .nd-edit-hint:hover { color: var(--accent); }
-.nd-empty { text-align: center; padding: 32px; color: var(--text-3); font-size: 13px; }
-.nd-tip { margin-top: 12px; font-size: 11px; color: var(--text-3); text-align: center; }
+.nd-empty { text-align: center; padding: 32px; color: var(--text-3); font-size: var(--fs-body); }
+.nd-tip { margin-top: 12px; font-size: var(--fs-caption); color: var(--text-3); text-align: center; }
 /* R48-B2：导入卡徽标（双口径可辨） */
-.ns-imp-badge { display: inline-block; margin-left: 6px; font-size: 9.5px; font-weight: 600; padding: 0 6px; border-radius: 99px; background: var(--accent-light); color: var(--accent); vertical-align: 1px; }
+.ns-imp-badge { display: inline-block; margin-left: 6px; font-size: var(--fs-micro); font-weight: 600; padding: 0 6px; border-radius: 99px; background: var(--accent-light); color: var(--accent); vertical-align: 1px; }
 
 .nd-stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
 .nd-stat { background: var(--surface-2); border-radius: var(--radius-xs); padding: 12px; text-align: center; }
 .nd-stat b { display: block; font-size: 18px; color: var(--accent); }
-.nd-stat span { font-size: 10.5px; color: var(--text-3); }
+.nd-stat span { font-size: var(--fs-caption); color: var(--text-3); }
 
 .nd-group { margin-bottom: 16px; }
-.nd-group-name { font-size: 12px; font-weight: 700; color: var(--text-2); margin-bottom: 6px; }
-.nd-drag { color: var(--text-4); font-size: 11px; cursor: grab; flex-shrink: 0; }
-.nd-input { flex: 1; min-width: 0; border: 1px solid transparent; background: transparent; outline: none; font-size: 12.5px; color: var(--text); font-family: inherit; border-radius: 5px; padding: 3px 6px; margin: -3px -6px; }
+.nd-group-name { font-size: var(--fs-sub); font-weight: 700; color: var(--text-2); margin-bottom: 6px; }
+.nd-drag { color: var(--text-4); font-size: var(--fs-caption); cursor: grab; flex-shrink: 0; }
+.nd-input { flex: 1; min-width: 0; border: 1px solid transparent; background: transparent; outline: none; font-size: var(--fs-body); color: var(--text); font-family: inherit; border-radius: 5px; padding: 3px 6px; margin: -3px -6px; }
 .nd-input:focus { border-color: var(--accent); background: var(--surface); }
 .nd-edit { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .nd-edit-actions { display: flex; gap: 6px; justify-content: flex-end; }
-.nd-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: 11px; cursor: pointer; font-family: inherit; }
+.nd-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: var(--fs-caption); cursor: pointer; font-family: inherit; }
 .nd-btn.ghost { background: var(--surface); border-color: var(--border); color: var(--text-2); }
 .nd-task-row { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-xs); margin-bottom: 8px; background: var(--surface); }
 .nd-task-head { display: flex; align-items: center; gap: 8px; }
 .nd-task-head .nd-name { flex: 1; }
 .nd-task-links { display: flex; gap: 6px; margin-top: 8px; }
-.nd-select { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 11px; color: var(--text-2); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; }
+.nd-select { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: var(--fs-caption); color: var(--text-2); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; }
 .nd-select:focus { border-color: var(--accent); }
 .nd-select:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
 /* 第卌四轮 T-02：模块分组/链接卡片下钻 UI 已撤卡（wsPopup/nd-ws/nd-flat/nw-* 死样式全清），全景下钻由设置页「策展台全景」承接 */
 
 /* 第卌一轮：卡片详情抽屉 */
-.nr-title { font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.5; margin-bottom: 14px; }
-.nr-row { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.nr-title { font-size: var(--fs-title); font-weight: 600; color: var(--text); line-height: 1.5; margin-bottom: 14px; }
+.nr-row { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); }
 .nr-k { width: 40px; flex-shrink: 0; color: var(--text-4); }
 .nr-v { flex: 1; min-width: 0; color: var(--text-2); word-break: break-all; line-height: 1.6; }
 .nr-v.link { color: var(--accent); }

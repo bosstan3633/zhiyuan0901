@@ -8,7 +8,7 @@ import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
-import ZhiMark from '@/shared/components/ZhiMark.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { purgeCardsCompletely, type PurgeTargets } from '@/shared/storage/purge'
 import type { ResourceCard, TaskCard, CuriosityCard, ID } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
@@ -179,7 +179,7 @@ const tabMeta = computed(() => [
       <div class="rb-title">🗑 回收站</div>
       <div class="rb-desc">删除的卡片软删除移入此处，可恢复；永久删除不可撤销</div>
       <div class="rb-actions">
-        <button class="rb-btn" @click="aiRescue" title="AI 对照现存卡与活跃目标，逐条判定值得恢复/建议清除"><ZhiMark :size="13" /> 值得捞回</button>
+        <button class="rb-btn" @click="aiRescue" title="AI 对照现存卡与活跃目标，逐条判定值得恢复/建议清除"><AiEntryButton variant="inline" label="值得捞回" /></button>
         <button class="rb-btn" @click="restoreAll">♻ 恢复当前分区全部</button>
         <button class="rb-btn danger" @click="purgeAll">🗑 清空当前分区</button>
       </div>
@@ -259,28 +259,28 @@ const tabMeta = computed(() => [
 <style scoped>
 .rb-page { max-width: 860px; margin: 0 auto; padding: 28px 20px 60px; }
 .rb-head { margin-bottom: 20px; }
-.rb-back { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 6px 14px; font-size: 12px; cursor: pointer; font-family: inherit; margin-bottom: 14px; transition: all var(--dur); }
+.rb-back { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 6px 14px; font-size: var(--fs-sub); cursor: pointer; font-family: inherit; margin-bottom: 14px; transition: all var(--dur); }
 .rb-back:hover { border-color: var(--accent); color: var(--accent); }
-.rb-title { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
-.rb-desc { font-size: 12.5px; color: var(--text-3); margin-bottom: 16px; }
+.rb-title { font-size: var(--fs-display); font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.rb-desc { font-size: var(--fs-body); color: var(--text-3); margin-bottom: 16px; }
 .rb-actions { display: flex; gap: 8px; }
-.rb-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all var(--dur); }
+.rb-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 8px 14px; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; transition: all var(--dur); }
 .rb-btn:hover { border-color: var(--accent); color: var(--accent); }
-.rb-btn.sm { padding: 5px 10px; font-size: 11.5px; }
+.rb-btn.sm { padding: 5px 10px; font-size: var(--fs-sub); }
 .rb-btn.danger { border-color: var(--danger-border); color: var(--danger); }
 .rb-btn.danger:hover { background: var(--danger); color: #fff; }
 
 .rb-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-.rb-tab { flex: 1; padding: 10px 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all var(--dur); }
+.rb-tab { flex: 1; padding: 10px 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 10px; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; transition: all var(--dur); }
 .rb-tab.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
-.rb-count { display: inline-block; min-width: 22px; padding: 1px 7px; background: var(--surface-2); border-radius: 99px; font-size: 11px; margin-left: 4px; }
+.rb-count { display: inline-block; min-width: 22px; padding: 1px 7px; background: var(--surface-2); border-radius: 99px; font-size: var(--fs-caption); margin-left: 4px; }
 
 .rb-list { display: flex; flex-direction: column; gap: 8px; }
 .rb-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; transition: all var(--dur); }
 .rb-item:hover { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .rb-item-main { flex: 1; min-width: 0; }
-.rb-item-title { font-size: 13.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 3px; }
-.rb-item-meta { font-size: 11.5px; color: var(--text-3); }
+.rb-item-title { font-size: var(--fs-body); font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 3px; }
+.rb-item-meta { font-size: var(--fs-sub); color: var(--text-3); }
 .rb-item-ops { display: flex; gap: 6px; flex-shrink: 0; }
-.rb-empty { text-align: center; color: var(--text-3); font-size: 13px; padding: 60px 0; }
+.rb-empty { text-align: center; color: var(--text-3); font-size: var(--fs-body); padding: 60px 0; }
 </style>

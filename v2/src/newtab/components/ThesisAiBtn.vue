@@ -7,7 +7,7 @@
 import { defineAsyncComponent, ref, shallowRef } from 'vue'
 import { useAppStore } from '@/newtab/stores/app'
 import { showToast } from '@/shared/components/toast'
-import ZhiMark from '@/shared/components/ZhiMark.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 
 const props = defineProps<{ wsId: string; wsName: string }>()
 const store = useAppStore()
@@ -37,13 +37,13 @@ async function run() {
 </script>
 
 <template>
-  <button class="th-ai-btn" :disabled="busy" :title="'AI 通读本台卡群（描述不足的按需抓链接正文），提炼一句可被反驳的中心论点 + MECE 分论点骨架；勾选采纳才写卡'" @click.stop="run"><ZhiMark :size="13" :spin="busy" />{{ busy ? '提炼中' : '提炼论点骨架' }}</button>
+  <button class="th-ai-btn" :disabled="busy" :title="'AI 通读本台卡群（描述不足的按需抓链接正文），提炼一句可被反驳的中心论点 + MECE 分论点骨架；勾选采纳才写卡'" @click.stop="run"><AiEntryButton variant="inline" :spin="busy" :label="busy ? '提炼中' : '提炼论点骨架'" /></button>
   <AiDrawer v-if="job" :job="job" @close="job = null" />
 </template>
 
 <style scoped>
 /* 自带样式：宿主 workspace.css 是 scoped，跨不到本组件（fragment 根不继承父 scope） */
-.th-ai-btn { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-light); border: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent); padding: 4px 12px; border-radius: var(--radius-xs); cursor: pointer; font-family: inherit; }
+.th-ai-btn { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; font-size: var(--fs-sub); font-weight: 600; color: var(--accent); background: var(--accent-light); border: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent); padding: 4px 12px; border-radius: var(--radius-xs); cursor: pointer; font-family: inherit; }
 .th-ai-btn:hover { background: var(--accent); color: #fff; }
 .th-ai-btn:disabled { opacity: var(--opacity-disabled); cursor: progress; }
 </style>

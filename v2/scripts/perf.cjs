@@ -45,7 +45,15 @@ const CHROME = (() => {
   const sys = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
   return process.platform === 'darwin' && fs.existsSync(sys) ? sys : CHROME_PINNED
 })()
-const DIST = path.resolve(__dirname, '..', 'dist')
+const argv = process.argv.slice(2)
+const DEFAULT_DIST = path.resolve(__dirname, '..', 'dist')
+/** R155：支持 `--dist=<目录>` 指定被测包。
+ *  为什么需要它：做同机 A/B（新版 vs 上一版）时，旧做法是 `mv` 换目录名——R155 实测踩到
+ *  `mv A B` 撞上已存在的同名目录会**把 A 嵌进 B/**，于是 dist 变成不完整的包，
+ *  扩展整体加载失败、采样抛错被重定向吞掉，最终读到上一轮残留报告，得出"两版完全一样"的
+ *  假结论。改成只读指定目录，全程零移动，A/B 不再有破坏性动作。 */
+const DIST_ARG = argv.find(a => a.startsWith('--dist='))
+const DIST = DIST_ARG ? path.resolve(DIST_ARG.slice(7)) : DEFAULT_DIST
 const EXT_INDEX = 'src/newtab/index.html'
 
 const SCALES = {
@@ -54,7 +62,6 @@ const SCALES = {
   large:  { hubCards: 900, hubCats: 200, boards: 8, boardCards: 80, boardCats: 25, tasks: 700, curiosities: 300 }
 }
 
-const argv = process.argv.slice(2)
 const SCALE_NAME = (argv.find(a => a.startsWith('--scale=')) || '--scale=large').split('=')[1]
 const JSON_ONLY = argv.includes('--json')
 const S = SCALES[SCALE_NAME] || SCALES.large
@@ -273,6 +280,13 @@ async function main() {
   if (!fs.existsSync(CHROME)) throw new Error('Chromium 不存在：' + CHROME)
   if (!fs.existsSync(path.join(DIST, 'manifest.json'))) throw new Error('dist 不存在，请先 npm run build')
 
+  // R155：先把上一轮的报告删掉。报告是"本次真的跑完了"的证据，不是"上次跑过"的缓存——
+  //   做 A/B 时调用方常把失败输出重定向掉（`>/dev/null 2>&1`），若本次中途抛错，
+  //   旧报告文件会原封不动留在盘上冒充新读数。R155 实测踩到：扩展加载失败 ⇒ 两轮数字
+  //   一字不差（连 0.1ms 都相同），据此一度误判"R155 零性能影响"。
+  const reportPath = path.resolve(__dirname, '..', '.perf-report.json')
+  try { fs.unlinkSync(reportPath) } catch { /* 本来就没有 */ }
+
   const ctx = await chromium.launchPersistentContext('', {
     headless: true,
     executablePath: CHROME,
@@ -284,6 +298,13 @@ async function main() {
   if (!worker) worker = await ctx.waitForEvent('serviceworker', { timeout: 15000 })
   const extId = new URL(worker.url()).host
   const base = `chrome-extension://${extId}/${EXT_INDEX}`
+
+  // R155：报告必须自证"测的是哪个构建"。做同机 A/B 时若两轮读数完全相同，第一件要排除的
+  // 就是"其实两次测的是同一个包"——从 service worker 里回读 manifest.version 是唯一硬证据
+  // （磁盘上的 dist/manifest.json 可能已被换走，不代表浏览器加载的就是它）。
+  const loadedVer = await worker.evaluate(() => chrome.runtime.getManifest().version)
+  out.build = loadedVer
+  console.log(`[perf] 实测构建：manifest.version = ${loadedVer}    (dist = ${DIST})`)
 
   // R114-59：全局搜索浮层的采样宿主页（content script 只注入 http/https，扩展页内测不到——
   // 旧 M6 在 newtab 上派发合成 Ctrl+K，无监听者，恒 ≈0ms，是假指标）
@@ -487,12 +508,18 @@ async function main() {
     const vis = e => e.offsetParent !== null
     const cards = [...document.querySelectorAll('.res-card, .res-row, .kc-card')].filter(vis).length
     const all = [...document.querySelectorAll('body *')].filter(vis).length
+    // R155：节点数是"总账"，不足以归因。徽标从 emoji（1 个 span）换成 SVG（svg + 6 个子元素）
+    // 后每张卡 +6 节点——这是**有意的结构代价**，不是渲染劣化。把它单列成计量，
+    // 以后谁看到 M14 上涨，先看这两行就能分清"图标换骨"与"真的画更多东西"。
+    const svgs = [...document.querySelectorAll('svg')].filter(vis).length
+    const marks = [...document.querySelectorAll('.ai-mark, .ai-entry')].filter(vis).length
     const g = gaps.slice(1).sort((x, y) => y - x)
-    return { cards, all, worst: Math.round(g[0] || 0), dropped: gaps.filter(x => x > 34).length, frames: gaps.length }
+    return { cards, all, svgs, marks, worst: Math.round(g[0] || 0), dropped: gaps.filter(x => x > 34).length, frames: gaps.length }
   })
   out.metrics['M14_资源台首屏可见节点'] = m14.all; out.metrics['M14_首屏卡片数'] = m14.cards
   out.metrics['M14_最差帧ms'] = m14.worst; out.metrics['M14_掉帧数'] = m14.dropped
-  log(`  M14 账单：可见节点 ${m14.all}（卡 ${m14.cards} 张）· 最差帧 ${m14.worst}ms · 掉帧 ${m14.dropped}/${m14.frames}`)
+  out.metrics['M14b_资源台svg元素数'] = m14.svgs; out.metrics['M14c_资源台AI徽标数'] = m14.marks
+  log(`  M14 账单：可见节点 ${m14.all}（卡 ${m14.cards} 张 · svg ${m14.svgs} · AI 徽标 ${m14.marks}）· 最差帧 ${m14.worst}ms · 掉帧 ${m14.dropped}/${m14.frames}`)
   // R112 修脚本漂移：原用前缀 '策展台'，但顶栏策展台 Tab 文本已被剥成「📘PERF0」，
   // 唯一含「策展台」三字的可匹配项是溢出指示（见 __navTo 内注释）→ 打满 15000ms 超时。
   // R109/R111 记录的 15006/15019ms 即此超时值，非真实耗时。改用与下方一致的 PERF0 定位。
@@ -746,6 +773,9 @@ async function main() {
   log('\n══════════ 汇总 ══════════')
   for (const [k, v] of Object.entries(out.metrics)) log(`  ${k}: ${v}`)
   const outFile = path.resolve(__dirname, '..', '.perf-report.json')
+  // R155：报告是"本次真的跑完了"的证据，不是"上一次跑过"的缓存。做 A/B 时脚本常把
+  //   失败输出重定向掉，旧报告会冒充新读数（R155 实测踩到：扩展加载失败 → 两轮数字一字不差）。
+  //   故开跑即清空 + 结束写 build 自证字段，读报告的人一定看得出新鲜度。
   fs.writeFileSync(outFile, JSON.stringify(out, null, 2))
   if (JSON_ONLY) console.log(JSON.stringify(out))
   log(`\n报告已写入 ${outFile}`)

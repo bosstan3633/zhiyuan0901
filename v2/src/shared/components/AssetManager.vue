@@ -226,23 +226,23 @@ async function openAsset(meta: AssetMeta) {
 .am-list { display: flex; flex-direction: column; gap: 5px; max-height: 168px; overflow-y: auto; }
 .am-item {
   display: flex; align-items: center; gap: 6px; padding: 5px 9px;
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; font-size: 12px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; font-size: var(--fs-sub);
 }
 .am-item:hover { border-color: var(--border-strong); }
-.am-ico { flex-shrink: 0; font-size: 12px; }
+.am-ico { flex-shrink: 0; font-size: var(--fs-sub); }
 .am-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); cursor: pointer; }
 .am-name:hover { color: var(--accent); text-decoration: underline; }
-.am-size { flex-shrink: 0; font-size: 10.5px; color: var(--text-3); }
-.am-open { flex-shrink: 0; cursor: pointer; font-size: 12px; opacity: .65; }
+.am-size { flex-shrink: 0; font-size: var(--fs-caption); color: var(--text-3); }
+.am-open { flex-shrink: 0; cursor: pointer; font-size: var(--fs-sub); opacity: .65; }
 .am-open:hover { opacity: 1; }
 .am-del { flex-shrink: 0; cursor: pointer; color: var(--text-3); font-size: 14px; line-height: 1; padding: 0 2px; }
 .am-del:hover { color: var(--danger); }
 .am-add {
   padding: 6px 10px; border: 1px dashed var(--border-strong); border-radius: 6px; background: transparent;
-  color: var(--text-2); font-size: 11.5px; cursor: pointer; font-family: inherit; transition: all var(--dur);
+  color: var(--text-2); font-size: var(--fs-sub); cursor: pointer; font-family: inherit; transition: all var(--dur);
 }
 .am-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .am-add.busy { opacity: .6; cursor: default; }
 .am-file { display: none; }
-.am-tip { font-size: 10.5px; color: var(--text-3); line-height: 1.5; }
+.am-tip { font-size: var(--fs-caption); color: var(--text-3); line-height: 1.5; }
 </style>

@@ -206,27 +206,27 @@ function promoteTask(taskId: string) {
 
 <style scoped>
 .pd-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
-.pd-focus-badge { background: var(--accent); color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 600; flex-shrink: 0; }
+.pd-focus-badge { background: var(--accent); color: #fff; font-size: var(--fs-tiny); padding: 2px 8px; border-radius: 99px; font-weight: 600; flex-shrink: 0; }
 .pd-name { font-size: 16px; font-weight: 700; color: var(--text); outline: none; border-radius: 4px; padding: 2px 4px; margin: -2px -4px; }
 .pd-name:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
 
 .pd-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
 .pd-stat { background: var(--surface-2); border-radius: var(--radius-xs); padding: 10px 6px; text-align: center; }
 .pd-stat .v { font-size: 18px; font-weight: 700; color: var(--accent); }
-.pd-stat .l { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+.pd-stat .l { font-size: var(--fs-tiny); color: var(--text-3); margin-top: 2px; }
 .pd-progress { height: 5px; background: var(--surface-3); border-radius: 99px; overflow: hidden; margin-bottom: 18px; }
 .pd-progress .bar { height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s; }
 
-.pd-label { font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin: 14px 0 7px; }
-.pd-select { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: 12.5px; color: var(--text); border: 1px solid transparent; outline: none; cursor: pointer; }
+.pd-label { font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin: 14px 0 7px; }
+.pd-select { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: var(--fs-body); color: var(--text); border: 1px solid transparent; outline: none; cursor: pointer; }
 .pd-select:focus { border-color: var(--accent); }
 
 .pd-metric { background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 8px; }
 .pd-metric-head { display: flex; align-items: center; gap: 7px; }
-.pd-metric-name { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: 13px; font-weight: 600; color: var(--text); font-family: inherit; padding: 3px 5px; margin: -3px -5px; border-radius: 5px; }
+.pd-metric-name { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: var(--fs-body); font-weight: 600; color: var(--text); font-family: inherit; padding: 3px 5px; margin: -3px -5px; border-radius: 5px; }
 .pd-metric-name:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
-.pd-metric-count { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; }
-.pd-mini { width: 22px; height: 22px; border: none; border-radius: 6px; background: transparent; color: var(--text-3); cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: inherit; }
+.pd-metric-count { font-size: var(--fs-caption); color: var(--text-3); flex-shrink: 0; }
+.pd-mini { width: 22px; height: 22px; border: none; border-radius: 6px; background: transparent; color: var(--text-3); cursor: pointer; font-size: var(--fs-sub); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: inherit; }
 .pd-mini:hover { background: var(--surface-3); color: var(--text); }
 .pd-mini.danger:hover { color: var(--danger); }
 .pd-tasks { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
@@ -234,14 +234,14 @@ function promoteTask(taskId: string) {
 .pd-task:hover { background: var(--surface); }
 .pd-task.sub { margin-left: 18px; padding-left: 8px; border-left: 2px solid var(--border); }
 .pd-task.done .pd-task-name { text-decoration: line-through; color: var(--text-3); }
-.pd-check { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; }
+.pd-check { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: var(--fs-micro); color: #fff; }
 .pd-check:hover { border-color: var(--accent); }
 .pd-check.done { background: var(--success); border-color: var(--success); }
-.pd-task-name { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: 12px; color: var(--text); font-family: inherit; padding: 2px 4px; margin: -2px -4px; border-radius: 4px; }
+.pd-task-name { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: var(--fs-sub); color: var(--text); font-family: inherit; padding: 2px 4px; margin: -2px -4px; border-radius: 4px; }
 .pd-task-name:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); }
-.pd-task-empty { font-size: 10.5px; color: var(--text-3); padding: 4px 6px; }
-.pd-add-metric { width: 100%; padding: 8px; border: 1.5px dashed var(--border-strong); border-radius: 8px; background: transparent; color: var(--text-3); font-size: 12px; cursor: pointer; font-family: inherit; transition: all var(--dur); }
+.pd-task-empty { font-size: var(--fs-caption); color: var(--text-3); padding: 4px 6px; }
+.pd-add-metric { width: 100%; padding: 8px; border: 1.5px dashed var(--border-strong); border-radius: 8px; background: transparent; color: var(--text-3); font-size: var(--fs-sub); cursor: pointer; font-family: inherit; transition: all var(--dur); }
 .pd-add-metric:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-.pd-empty { font-size: 12px; color: var(--text-3); padding: 10px 0; }
-.pd-sync-hint { margin-top: 16px; font-size: 11px; color: var(--text-3); text-align: center; padding: 9px; background: var(--surface-2); border-radius: 8px; }
+.pd-empty { font-size: var(--fs-sub); color: var(--text-3); padding: 10px 0; }
+.pd-sync-hint { margin-top: 16px; font-size: var(--fs-caption); color: var(--text-3); text-align: center; padding: 9px; background: var(--surface-2); border-radius: 8px; }
 </style>

@@ -17,7 +17,7 @@ import { onOpenDrawer, type DrawerPayload } from '@/shared/utils/bus'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import type { ResourceCard, TaskCard } from '@/shared/models'
-import ZhiMark from '@/shared/components/ZhiMark.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import ThesisBlock from '@/newtab/components/ThesisBlock.vue'
 // R134-F（批次 F）：单卡 AI 补全。★本组件被 App.vue 静态挂载（全局抽屉宿主）——AI 依赖必须全懒：
 // 抽屉 defineAsyncComponent、shared/ai 模块点击时才 dynamic import，否则整条 AI 栈会被卷进启动 chunk（R134 首版踩坑已修）。
@@ -233,8 +233,8 @@ watch(() => resource.value?.id, (n) => {
       <button class="red-btn danger" @click="remove">🗑 删除</button>
       <button class="red-btn" @click="copyLink">🔗 复制链接</button>
       <button class="red-btn" @click="openLink">↗ 打开</button>
-      <button class="red-btn" :disabled="!resource || aiEntry !== ''" title="AI 建议标签/描述/分类：左栏是这张卡的现状，勾选采纳即直接写库" @click="aiEnrich"><ZhiMark :size="13" :spin="aiEntry === 'enrich'" /> 补全</button>
-      <button class="red-btn" :disabled="!resource || aiEntry !== ''" title="先抓取链接网页正文（仅 http(s)、点了才抓），再整体优化标题/描述/标签；采纳即直接写库" @click="aiOptimize"><ZhiMark :size="13" :spin="aiEntry === 'optimize'" /> 分析（读网页）</button>
+      <button class="red-btn" :disabled="!resource || aiEntry !== ''" title="AI 建议标签/描述/分类：左栏是这张卡的现状，勾选采纳即直接写库" @click="aiEnrich"><AiEntryButton variant="inline" label="补全" :spin="aiEntry === 'enrich'" /></button>
+      <button class="red-btn" :disabled="!resource || aiEntry !== ''" title="先抓取链接网页正文（仅 http(s)、点了才抓），再整体优化标题/描述/标签；采纳即直接写库" @click="aiOptimize"><AiEntryButton variant="inline" label="分析（读网页）" :spin="aiEntry === 'optimize'" /></button>
       <button class="red-btn primary" @click="save">✓ 保存</button>
     </template>
   </Drawer>
@@ -244,13 +244,13 @@ watch(() => resource.value?.id, (n) => {
 <style scoped>
 /* 宿主残留样式：统计区 + footer 动作条（字段区样式已迁入 ResourceEditForm） */
 .red-section { margin-bottom: 16px; }
-.red-label { font-size: 11px; color: var(--text-3); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
-.red-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); }
-.red-stat-chip { font-size: 11px; padding: 2px 8px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 99px; }
+.red-label { font-size: var(--fs-caption); color: var(--text-3); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
+.red-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--fs-sub); color: var(--text-2); }
+.red-stat-chip { font-size: var(--fs-caption); padding: 2px 8px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 99px; }
 
 .red-btn {
   flex: 1; padding: 9px 7px; border: 1px solid var(--border); border-radius: 6px;
-  background: var(--surface-2); color: var(--text); cursor: pointer; font-size: 12px; transition: all var(--dur); white-space: nowrap;
+  background: var(--surface-2); color: var(--text); cursor: pointer; font-size: var(--fs-sub); transition: all var(--dur); white-space: nowrap;
 }
 .red-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .red-btn:hover { background: var(--surface-3); }

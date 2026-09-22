@@ -17,7 +17,7 @@ import TaskAddDrawer from '../components/TaskAddDrawer.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
-import ZhiMark from '@/shared/components/ZhiMark.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 // R147-d：任务级 AI 菜单抽成共享组件（与任务面板/看板同一套动作）
 import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'
 import { removeMetricWithConfirm } from '@/shared/utils/compassCrud'
@@ -603,7 +603,7 @@ function addTaskFromHeader() {
         </div>
         <div class="pb-acts">
           <button class="mini-btn" @click="startHeaderAddMetric">＋ 添加成功指标</button>
-          <button class="mini-btn" @click="aiChainMetrics" title="AI 基于上游目标链建议可量化成功指标（查重后采纳才创建）"><ZhiMark :size="13" /> 建议指标</button>
+          <button class="mini-btn" @click="aiChainMetrics" title="AI 基于上游目标链建议可量化成功指标（查重后采纳才创建）"><AiEntryButton variant="inline" label="建议指标" /></button>
           <button class="mini-btn primary" @click="addTaskFromHeader">＋ 添加任务</button>
           <span class="pb-more-wrap">
             <button class="mini-btn icon" title="更多：主攻 / 方向树定位 / 删除项目" @click.stop="projMenuOpen = !projMenuOpen">⋯</button>
@@ -653,7 +653,7 @@ function addTaskFromHeader() {
           <span class="mh-meta">{{ metricPct(m.id) }}% · {{ tasksForMetric(m.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(m.id).length }} 任务</span>
           <MaturityBadge :m="metricMaturity(d, m)" />
           <span class="mh-acts">
-            <button class="icon-btn-sm ai" title="AI 按本指标缺口建议近两周任务（勾选采纳才创建，可换执笔专家）" @click="aiChainAt('tasks', m.id)"><ZhiMark :size="13" /></button>
+            <button class="icon-btn-sm ai" title="AI 按本指标缺口建议近两周任务（勾选采纳才创建，可换执笔专家）" @click="aiChainAt('tasks', m.id)"><AiEntryButton /></button>
             <button class="icon-btn-sm" title="添加任务（新建 / 关联）" @click="openTaskAdd(m)">＋</button>
             <button class="icon-btn-sm del" title="删除指标" @click="removeMetric(m)">🗑</button>
           </span>
@@ -773,7 +773,7 @@ function addTaskFromHeader() {
 /* R117（04-61 C）：内嵌于方向台一级时去掉自身页边距与宽度上限，避免与宿主 .page 双层缩进 */
 .page.is-embedded { max-width: none; margin: 0; padding: 0; }
 .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-left: 22px; }
-.page-head .crumb { font-size: 12.5px; color: var(--text-2); }
+.page-head .crumb { font-size: var(--fs-body); color: var(--text-2); }
 .page-head .crumb b { color: var(--text); font-weight: 700; font-size: 16px; letter-spacing: .2px; }
 .page-head .crumb .sep { color: var(--text-4); margin: 0 6px; }
 /* R54-A1：面包屑上级可点 */
@@ -781,7 +781,7 @@ function addTaskFromHeader() {
 .page-head .crumb .crumb-up:hover { color: var(--accent); }
 .page-head .crumb .crumb-sep { color: var(--text-4); }
 .page-head .spacer { flex: 1; }
-.hint-chip { font-size: 10.5px; color: var(--text-3); background: var(--surface); border: 1px dashed var(--border-strong); padding: 3px 10px; border-radius: 99px; }
+.hint-chip { font-size: var(--fs-caption); color: var(--text-3); background: var(--surface); border: 1px dashed var(--border-strong); padding: 3px 10px; border-radius: 99px; }
 /* R117（04-61 C）：内嵌态轻量小节头——项目切换与目录都在左栏，此处只交代「这是什么」 */
 
 /* R117（04-61 C）：原「项目总览」的选择墙 / 项目卡（.section-label·.wall-section·.wall-grid·.pcard·
@@ -791,8 +791,8 @@ function addTaskFromHeader() {
 /* R49-D4：任务附件区 */
 .asset-sec { margin-top: 12px; }
 .asset-row { cursor: pointer; }
-.empty-asset { text-align: center; padding: 16px; font-size: 11.5px; color: var(--text-4); }
-.empty-state { text-align: center; padding: 48px 20px; color: var(--text-3); font-size: 13px; }
+.empty-asset { text-align: center; padding: 16px; font-size: var(--fs-sub); color: var(--text-4); }
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text-3); font-size: var(--fs-body); }
 /* R117（04-61 C）：零项目兜底里的可点动作 */
 .empty-act { color: var(--accent); cursor: pointer; text-decoration: underline; }
 
@@ -802,25 +802,25 @@ function addTaskFromHeader() {
 .board-layout.with-dir { display: flex; align-items: flex-start; }
 .board-layout.with-dir .board { flex: 1; min-width: 0; }
 .pd-dir { flex-shrink: 0; position: sticky; top: 64px; max-height: calc(100vh - 96px); overflow-y: auto; padding: 2px 4px 8px 0; }
-.pd-dir-title { font-size: 12px; font-weight: 600; color: var(--text-3); padding: 6px 8px; letter-spacing: .3px; }
+.pd-dir-title { font-size: var(--fs-sub); font-weight: 600; color: var(--text-3); padding: 6px 8px; letter-spacing: .3px; }
 .pd-group { margin-bottom: 10px; }
-.pd-goal { display: flex; align-items: baseline; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text-2); padding: 4px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pd-term { font-size: 10px; color: var(--text-3); font-weight: 400; flex-shrink: 0; }
-.pd-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px 14px; border-radius: 6px; cursor: pointer; font-size: 12.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; transition: background var(--dur-fast); }
+.pd-goal { display: flex; align-items: baseline; gap: 4px; font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); padding: 4px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pd-term { font-size: var(--fs-tiny); color: var(--text-3); font-weight: 400; flex-shrink: 0; }
+.pd-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px 14px; border-radius: 6px; cursor: pointer; font-size: var(--fs-body); color: var(--text-2); white-space: nowrap; overflow: hidden; transition: background var(--dur-fast); }
 .pd-item:hover { background: var(--surface-2); }
 .pd-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
 .pd-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--border-strong); flex-shrink: 0; }
 .pd-dot.focus { background: var(--accent); }
 .pd-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.pd-pct { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.pd-empty { font-size: 12px; color: var(--text-3); padding: 6px 8px; }
+.pd-pct { font-size: var(--fs-caption); color: var(--text-3); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.pd-empty { font-size: var(--fs-sub); color: var(--text-3); padding: 6px 8px; }
 .pd-split { width: 4px; flex-shrink: 0; align-self: stretch; margin: 4px 0 4px 4px; cursor: col-resize; border-radius: 2px; transition: background var(--dur-fast); z-index: 5; }
 .pd-split:hover { background: var(--accent-light); }
 /* R132-T4/T5：左栏两段式——全景折叠块头 + 目录锚点项；锚点滚动留出顶栏高度 */
 .pb-head-row, .metric-sec { scroll-margin-top: 72px; }
 .pd-pan-head { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
 .pd-pan-head:hover { color: var(--text-2); }
-.pd-caret { font-size: 10px; color: var(--text-4); }
+.pd-caret { font-size: var(--fs-tiny); color: var(--text-4); }
 .pd-pan { margin-bottom: 6px; }
 .toc-item { padding-left: 8px; }
 .board { min-width: 0; }
@@ -830,7 +830,7 @@ function addTaskFromHeader() {
 .back-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
 /* R52-F6：成功指标名输入行 */
 .metric-add-row { display: flex; gap: 8px; margin: -6px 0 14px; }
-.metric-add-row input { flex: 1; border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; color: var(--text); outline: none; font-family: inherit; }
+.metric-add-row input { flex: 1; border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 8px 12px; font-size: var(--fs-body); color: var(--text); outline: none; font-family: inherit; }
 .metric-add-row input:focus { border-color: var(--accent); }
 
 .metric-sec { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px; transition: border-color var(--dur), box-shadow var(--dur); }
@@ -840,9 +840,9 @@ function addTaskFromHeader() {
 .btask.task-flash .bt { color: var(--accent); }
 .metric-sec.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
 .metric-head2 { display: flex; align-items: center; gap: 10px; }
-.metric-head2 .mname { font-size: 13.5px; font-weight: 600; flex: 1; min-width: 0; }
-.metric-head2 .pct { font-size: 12px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
-.icon-btn-sm { width: 24px; height: 24px; border: none; border-radius: 6px; background: transparent; color: var(--text-3); cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; font-family: inherit; flex-shrink: 0; }
+.metric-head2 .mname { font-size: var(--fs-body); font-weight: 600; flex: 1; min-width: 0; }
+.metric-head2 .pct { font-size: var(--fs-sub); font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.icon-btn-sm { width: 24px; height: 24px; border: none; border-radius: 6px; background: transparent; color: var(--text-3); cursor: pointer; font-size: var(--fs-sub); display: flex; align-items: center; justify-content: center; font-family: inherit; flex-shrink: 0; }
 .icon-btn-sm:hover { background: var(--surface-3); color: var(--text); }
 .icon-btn-sm.del:hover { color: var(--danger); }
 /* R146：行内 AI 入口常态可见（审计：hover 才现=触屏与键盘 100% 摸不到），强调色只给"AI 可点"这一层 */
@@ -852,20 +852,20 @@ function addTaskFromHeader() {
 .btask { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 8px; transition: background var(--dur-fast); }
 .btask:hover { background: var(--surface-2); }
 .btask.dragging { opacity: .35; }
-.btask .bdrag { color: var(--text-4); font-size: 11px; cursor: grab; flex-shrink: 0; }
-.bcheck { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; background: var(--surface); }
+.btask .bdrag { color: var(--text-4); font-size: var(--fs-caption); cursor: grab; flex-shrink: 0; }
+.bcheck { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: var(--fs-tiny); color: #fff; background: var(--surface); }
 .bcheck:hover { border-color: var(--accent); }
 .bcheck.done { background: var(--success); border-color: var(--success); }
-.btask .bt { flex: 1; font-size: 12.5px; cursor: pointer; min-width: 0; }
+.btask .bt { flex: 1; font-size: var(--fs-body); cursor: pointer; min-width: 0; }
 .btask:hover .bt { color: var(--accent); }
 .btask.done .bt { text-decoration: line-through; color: var(--text-3); }
-.task-add { display: flex; align-items: center; gap: 8px; padding: 6px 8px; color: var(--text-3); font-size: 11.5px; cursor: pointer; border-radius: 8px; }
+.task-add { display: flex; align-items: center; gap: 8px; padding: 6px 8px; color: var(--text-3); font-size: var(--fs-sub); cursor: pointer; border-radius: 8px; }
 .task-add:hover { color: var(--accent); background: var(--accent-light); }
-.board-foot-hint { margin-top: 14px; font-size: 11px; color: var(--text-3); text-align: center; padding: 10px; background: var(--surface-2); border-radius: var(--radius-xs); }
+.board-foot-hint { margin-top: 14px; font-size: var(--fs-caption); color: var(--text-3); text-align: center; padding: 10px; background: var(--surface-2); border-radius: var(--radius-xs); }
 
 /* ===== R121：展板头部（面包屑 + 标题行 + 统计条） ===== */
 .pb-head-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 14px; flex-wrap: wrap; }
-.pb-crumb { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12px; color: var(--text-3); flex-wrap: wrap; }
+.pb-crumb { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--fs-sub); color: var(--text-3); flex-wrap: wrap; }
 .pc-seg { cursor: pointer; }
 .pc-seg:hover { color: var(--accent); text-decoration: underline; }
 .pc-sep { color: var(--text-4); }
@@ -874,7 +874,7 @@ function addTaskFromHeader() {
 .pb-more-wrap { position: relative; display: inline-flex; }
 .mini-btn.icon { padding: 5px 10px; }
 .pb-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 176px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-lg); padding: 4px; }
-.pb-menu .pm-item { padding: 7px 10px; border-radius: 6px; font-size: 12px; color: var(--text-2); cursor: pointer; white-space: nowrap; }
+.pb-menu .pm-item { padding: 7px 10px; border-radius: 6px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; white-space: nowrap; }
 .pb-menu .pm-item:hover { background: var(--accent-light); color: var(--accent); }
 .pb-menu .pm-item.danger:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
 .pb-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
@@ -883,21 +883,21 @@ function addTaskFromHeader() {
 .pb-title .hero-pname:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .pb-title .hero-pname:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
 .pb-pct { flex-shrink: 0; font-size: 18px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
-.pb-stats { display: flex; align-items: center; gap: 20px; background: var(--surface-2); padding: 10px 16px; border-radius: var(--radius-md); margin-bottom: 16px; font-size: 12px; color: var(--text-2); flex-wrap: wrap; }
+.pb-stats { display: flex; align-items: center; gap: 20px; background: var(--surface-2); padding: 10px 16px; border-radius: var(--radius-md); margin-bottom: 16px; font-size: var(--fs-sub); color: var(--text-2); flex-wrap: wrap; }
 .pb-stats .pbs b { font-size: 14px; color: var(--text); font-variant-numeric: tabular-nums; }
-.pb-tail { margin-left: auto; font-size: 11px; color: var(--text-3); }
+.pb-tail { margin-left: auto; font-size: var(--fs-caption); color: var(--text-3); }
 .pb-tail .ok { color: var(--success); }
 .pb-tail .warn { color: var(--warning); }
-.pb-hint { font-size: 11px; color: var(--text-3); margin-bottom: 12px; }
+.pb-hint { font-size: var(--fs-caption); color: var(--text-3); margin-bottom: 12px; }
 
 /* ===== R121：指标块与任务行（Linear 极简发丝线，对齐原型） ===== */
 .metric-sec { padding: 0; overflow: hidden; }
 .metric-head2 { background: var(--surface-2); padding: 9px 14px; border-bottom: 1px solid var(--border); }
-.mh-idx { flex-shrink: 0; font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-light); padding: 2px 7px; border-radius: 4px; }
-.mh-meta { flex-shrink: 0; font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.mh-idx { flex-shrink: 0; font-size: var(--fs-caption); font-weight: 700; color: var(--accent); background: var(--accent-light); padding: 2px 7px; border-radius: 4px; }
+.mh-meta { flex-shrink: 0; font-size: var(--fs-sub); color: var(--text-3); font-variant-numeric: tabular-nums; }
 .mh-acts { display: none; gap: 2px; margin-left: auto; }
 .metric-sec:hover .mh-acts { display: inline-flex; }
-.metric-head2 .mname { font-size: 12.5px; font-weight: 600; }
+.metric-head2 .mname { font-size: var(--fs-body); font-weight: 600; }
 .task-rows { margin-top: 0; border-top: none; padding-top: 0; gap: 0; }
 .btask { border-radius: 0; border-bottom: 1px solid var(--hairline); padding: 9px 14px; }
 .btask:last-of-type { border-bottom: none; }
@@ -907,15 +907,15 @@ function addTaskFromHeader() {
 .btask .bcheck.done { background: var(--text-3); border-color: var(--text-3); }
 
 /* 抽屉 */
-.drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 400; }
+.drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: var(--z-menu); }
 
-.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); user-select: none; }
+.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); user-select: none; }
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
 .mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .mini-btn.primary:hover { background: var(--accent-hover); }
 .mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
 .mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
-.tag { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; padding: 2px 8px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 500; white-space: nowrap; }
+.tag { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-tiny); padding: 2px 8px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 500; white-space: nowrap; }
 .tag.accent { background: var(--accent-light); color: var(--accent); }
 .tag.warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
 .tag.ok { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
@@ -925,7 +925,7 @@ function addTaskFromHeader() {
 .progress > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
 .fade-enter-active, .fade-leave-active { transition: opacity var(--dur-slow); }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-.slide-enter-active, .slide-leave-active { transition: transform .2s cubic-bezier(.16,1,.3,1); }
+.slide-enter-active, .slide-leave-active { transition: transform .2s var(--ease-emphasis); }
 .slide-enter-from, .slide-leave-to { transform: translateX(100%); }
 
 /* ===== R124（提案）：中性优先级退色——默认 4px 灰点，行 hover 才显标签；仅高优保留警示色 ===== */

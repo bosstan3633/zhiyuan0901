@@ -16,7 +16,7 @@ import AssetManager from '@/shared/components/AssetManager.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import { taskMaturity, curioResIds } from '@/shared/utils/maturity'
-import ZhiMark from '@/shared/components/ZhiMark.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 
 const router = useRouter()
 const store = useAppStore()
@@ -433,8 +433,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
       <div class="ts-foot">
         <!-- R48：删除按钮降级（ghost 弱化，hover 扣动扳机），主操作唯一 -->
         <button class="ts-del-ghost" @click="deleteTask(selectedTask.id)" title="删除任务（可在回收站撤销）">🗑 删除</button>
-        <button class="mini-btn" @click="aiBreakdown" title="AI 拆解本任务：可建半天粒度步骤子任务，也可只把步骤清单写进详情；还能换专家执笔"><ZhiMark :size="13" /> 拆解步骤</button>
-        <button class="mini-btn" @click="aiRecommend" title="AI 从全库挑此刻用得上的资源卡（采纳=挂载到本任务）"><ZhiMark :size="13" /> 推荐卡</button>
+        <button class="mini-btn" @click="aiBreakdown" title="AI 拆解本任务：可建半天粒度步骤子任务，也可只把步骤清单写进详情；还能换专家执笔"><AiEntryButton variant="inline" label="拆解步骤" /></button>
+        <button class="mini-btn" @click="aiRecommend" title="AI 从全库挑此刻用得上的资源卡（采纳=挂载到本任务）"><AiEntryButton variant="inline" label="推荐卡" /></button>
         <span class="ts-foot-spacer"></span>
         <button class="mini-btn primary" @click="saveTaskTitleAndClose">✓ 完成并关闭 <span class="ts-kbd">Ctrl+↩</span></button>
       </div>
@@ -445,7 +445,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 </template>
 
 <style scoped>
-.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); user-select: none; }
+.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); user-select: none; }
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
 .mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .mini-btn.primary:hover { background: var(--accent-hover); }
@@ -454,69 +454,69 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 
 .fade-enter-active, .fade-leave-active { transition: opacity var(--dur-slow); }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-.slide-enter-active, .slide-leave-active { transition: transform .2s cubic-bezier(.16,1,.3,1); }
+.slide-enter-active, .slide-leave-active { transition: transform .2s var(--ease-emphasis); }
 .slide-enter-from, .slide-leave-to { transform: translateX(100%); }
 
 /* 任务抽屉 */
-.task-sidebar { position: fixed; top: 0; right: 0; width: 440px; max-width: 94vw; height: 100%; background: var(--surface); border-left: 1px solid var(--border); z-index: 201; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 200; }
+.task-sidebar { position: fixed; top: 0; right: 0; width: 440px; max-width: 94vw; height: 100%; background: var(--surface); border-left: 1px solid var(--border); z-index: calc(var(--z-overlay) + 1); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: var(--z-overlay); }
 .ts-resize { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 3; }
 .ts-resize:hover { background: var(--accent); opacity: .4; }
 .ts-head { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; }
-.check-lg { width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: 13px; color: #fff; background: var(--surface); }
+.check-lg { width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: var(--fs-body); color: #fff; background: var(--surface); }
 .check-lg.done { background: var(--success); border-color: var(--success); }
 .ts-title { flex: 1; font-size: 16px; font-weight: 600; color: var(--text); border: none; outline: none; background: transparent; font-family: inherit; line-height: 1.5; resize: none; min-height: 44px; }
 .ts-title-assets { flex-shrink: 0; }
 /* R144：父子软层级徽标（子 ↳ 父名 + ⤴ 升顶层；父显子任务数） */
-.ts-rel-chip { flex-shrink: 0; align-self: center; display: inline-flex; align-items: center; gap: 4px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; color: var(--text-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
+.ts-rel-chip { flex-shrink: 0; align-self: center; display: inline-flex; align-items: center; gap: 4px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
 .ts-rel-chip.sub { color: var(--text-2); border-style: dashed; }
 .ts-rel-up { cursor: pointer; font-weight: 700; color: var(--accent); margin-left: 2px; }
 .ts-close { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; color: var(--text-3); font-size: 18px; flex-shrink: 0; }
 .ts-close:hover { background: var(--surface-3); color: var(--text); }
 .ts-body { flex: 1; overflow-y: auto; padding: 18px 20px; }
 .ts-section { margin-bottom: 16px; }
-.ts-label { font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin-bottom: 7px; }
+.ts-label { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin-bottom: 7px; }
 .ts-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.ts-select { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: 12.5px; color: var(--text); border: 1px solid transparent; outline: none; cursor: pointer; font-family: inherit; }
+.ts-select { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: var(--fs-body); color: var(--text); border: 1px solid transparent; outline: none; cursor: pointer; font-family: inherit; }
 .ts-select:focus { border-color: var(--accent); }
 .ts-select:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
-.ts-goto { margin-top: 7px; font-size: 11px; color: var(--accent); cursor: pointer; }
+.ts-goto { margin-top: 7px; font-size: var(--fs-caption); color: var(--accent); cursor: pointer; }
 .ts-goto:hover { text-decoration: underline; }
-.ts-input { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: 12.5px; color: var(--text); border: 1px solid transparent; outline: none; font-family: inherit; }
+.ts-input { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: var(--fs-body); color: var(--text); border: 1px solid transparent; outline: none; font-family: inherit; }
 .ts-input:focus { border-color: var(--accent); }
-.ts-note { width: 100%; min-height: 64px; max-height: 320px; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: 12.5px; color: var(--text); border: 1px solid transparent; outline: none; font-family: inherit; resize: vertical; line-height: 1.7; }
+.ts-note { width: 100%; min-height: 64px; max-height: 320px; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: var(--fs-body); color: var(--text); border: 1px solid transparent; outline: none; font-family: inherit; resize: vertical; line-height: 1.7; }
 .ts-note:focus { border-color: var(--accent); }
 /* 第卅三轮 REQ-024：文本框拖拽手柄（高度经 UIPrefs.taHeights 记忆） */
 .ta-wrap { position: relative; }
 .ta-resize { position: absolute; right: 3px; bottom: 3px; width: 16px; height: 12px; cursor: ns-resize; z-index: 2; opacity: .45; border-right: 3px solid var(--text-3); border-bottom: 3px solid var(--text-3); border-bottom-right-radius: 3px; }
 .ta-resize:hover { opacity: .9; }
 /* B22：状态三选 chips */
-.ts-status-chip { flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); font-size: 11.5px; cursor: pointer; font-family: inherit; color: var(--text-2); transition: all var(--dur-fast); white-space: nowrap; }
+.ts-status-chip { flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); font-size: var(--fs-sub); cursor: pointer; font-family: inherit; color: var(--text-2); transition: all var(--dur-fast); white-space: nowrap; }
 .ts-status-chip:hover { border-color: var(--accent); color: var(--accent); }
 .ts-status-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
-.ts-time-text { font-size: 11px; color: var(--text-3); }
-.ts-field { padding: 10px 13px; background: var(--surface-2); border-radius: 8px; font-size: 13px; cursor: pointer; transition: all var(--dur); display: flex; align-items: center; gap: 8px; border: 1px solid transparent; }
+.ts-time-text { font-size: var(--fs-caption); color: var(--text-3); }
+.ts-field { padding: 10px 13px; background: var(--surface-2); border-radius: 8px; font-size: var(--fs-body); cursor: pointer; transition: all var(--dur); display: flex; align-items: center; gap: 8px; border: 1px solid transparent; }
 .ts-field:hover { border-color: var(--border); background: var(--surface); }
 .ts-field .fv { flex: 1; }
-.ts-field .fh { font-size: 10px; color: var(--text-4); }
+.ts-field .fh { font-size: var(--fs-tiny); color: var(--text-4); }
 .ts-mount-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-.ts-mount-item { display: flex; align-items: center; gap: 5px; padding: 4px 10px; background: var(--accent-light); border-radius: 99px; font-size: 11.5px; color: var(--accent); cursor: pointer; max-width: 100%; }
+.ts-mount-item { display: flex; align-items: center; gap: 5px; padding: 4px 10px; background: var(--accent-light); border-radius: 99px; font-size: var(--fs-sub); color: var(--accent); cursor: pointer; max-width: 100%; }
 .ts-mount-item:hover { background: var(--danger); color: #fff; }
-.ts-mount-item .remove { font-size: 10px; opacity: .6; }
-.ts-mount-empty { font-size: 11px; color: var(--text-3); padding: 2px 0; }
-.ts-mount-search { width: 100%; margin-top: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 7px 11px; font-size: 12px; font-family: inherit; outline: none; background: var(--surface); color: var(--text); }
+.ts-mount-item .remove { font-size: var(--fs-tiny); opacity: .6; }
+.ts-mount-empty { font-size: var(--fs-caption); color: var(--text-3); padding: 2px 0; }
+.ts-mount-search { width: 100%; margin-top: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 7px 11px; font-size: var(--fs-sub); font-family: inherit; outline: none; background: var(--surface); color: var(--text); }
 .ts-mount-search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
 .ts-mount-wrap { position: relative; margin-top: 8px; }
 .ts-mount-pop { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-lg); max-height: 240px; overflow-y: auto; padding: 4px; }
-.ts-mount-cand { padding: 6px 10px; border-radius: 6px; font-size: 12px; color: var(--text-2); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ts-mount-cand { padding: 6px 10px; border-radius: 6px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ts-mount-cand:hover { background: var(--accent-light); color: var(--accent); }
 .ts-mount-cand.on { background: var(--accent-light); color: var(--accent); font-weight: 600; }
 .ts-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
 .ts-foot .mini-btn { justify-content: center; padding: 9px 16px; }
-.ts-del-ghost { display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; border: none; background: transparent; border-radius: 6px; font-size: 11.5px; cursor: pointer; color: var(--text-3); font-family: inherit; transition: all var(--dur); user-select: none; }
+.ts-del-ghost { display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; color: var(--text-3); font-family: inherit; transition: all var(--dur); user-select: none; }
 .ts-del-ghost:hover { color: var(--danger); background: var(--danger-light, rgba(231,76,60,.1)); }
 .ts-foot-spacer { flex: 1; }
-.ts-kbd { font-size: 10px; background: rgba(255,255,255,.22); border-radius: 4px; padding: 1px 5px; font-weight: 400; margin-left: 2px; }
+.ts-kbd { font-size: var(--fs-tiny); background: rgba(255,255,255,.22); border-radius: 4px; padding: 1px 5px; font-weight: 400; margin-left: 2px; }
 
 /* ===== R48 详情重设计 ===== */
 .ds-status-wrap { margin-left: auto; }

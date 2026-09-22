@@ -85,7 +85,7 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
 .metric-bar { background: color-mix(in srgb, var(--surface) 72%, transparent); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px; box-shadow: var(--shadow-sm); }
 .mb-row { display: flex; align-items: center; gap: 10px; padding: 5px 14px; min-height: 38px; max-height: 38px; min-width: 0; }
 .mb-period { display: flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; flex-shrink: 0; }
-.mb-period span { padding: 2px 9px; font-size: 10.5px; color: var(--text-3); cursor: pointer; transition: all var(--dur-fast); }
+.mb-period span { padding: 2px 9px; font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; transition: all var(--dur-fast); }
 .mb-period span + span { border-left: 1px solid var(--border); }
 .mb-period span:hover { background: var(--surface-3); color: var(--text-2); }
 .mb-period span.on { background: var(--accent-light); color: var(--accent); font-weight: 600; }
@@ -93,9 +93,9 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
 .mb-cell { display: flex; align-items: baseline; gap: 5px; min-width: 0; padding: 2px 7px; border-radius: 6px; }
 .mb-cell.clickable { cursor: pointer; transition: background var(--dur-fast); }
 .mb-cell.clickable:hover { background: var(--surface-2); }
-.mb-k { font-size: 11.5px; font-weight: 500; color: var(--text-2); flex-shrink: 0; }
-.mb-v { font-size: 12.5px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
-.mb-denom { font-size: 10.5px; font-weight: 500; color: var(--text-2); font-style: normal; }
+.mb-k { font-size: var(--fs-sub); font-weight: 500; color: var(--text-2); flex-shrink: 0; }
+.mb-v { font-size: var(--fs-body); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.mb-denom { font-size: var(--fs-caption); font-weight: 500; color: var(--text-2); font-style: normal; }
 .mb-cell.st-warn .mb-v { color: var(--tag-warn-text); }
 /* 右端扩展位——今日记录四格 + 周报 + 去方向台（右对齐） */
 .mb-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }

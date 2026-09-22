@@ -48,12 +48,12 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 .drawer-overlay {
   position: fixed; inset: 0;
   background: rgba(0,0,0,.25);
-  z-index: 200;
+  z-index: var(--z-overlay);
 }
 .drawer {
   position: fixed; top: 0; right: 0; bottom: 0;
   background: var(--surface);
-  z-index: 201;
+  z-index: calc(var(--z-overlay) + 1);
   box-shadow: var(--shadow-lg);
   display: flex; flex-direction: column;
   max-width: 92vw;
@@ -63,7 +63,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; gap: 10px;
 }
-.drawer-title { font-size: 15px; font-weight: 600; flex: 1; color: var(--text); }
+.drawer-title { font-size: var(--fs-title); font-weight: 600; flex: 1; color: var(--text); }
 .drawer-title-extra { flex-shrink: 0; display: flex; align-items: center; }
 .drawer-close {
   width: 30px; height: 30px;
@@ -78,6 +78,6 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 
 .overlay-enter-active, .overlay-leave-active { transition: opacity var(--dur-slow); }
 .overlay-enter-from, .overlay-leave-to { opacity: 0; }
-.drawer-enter-active, .drawer-leave-active { transition: transform .3s cubic-bezier(.4,0,.2,1); }
+.drawer-enter-active, .drawer-leave-active { transition: transform .3s var(--ease-emphasis); }
 .drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }
 </style>

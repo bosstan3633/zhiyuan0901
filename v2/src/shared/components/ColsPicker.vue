@@ -32,17 +32,17 @@ const emit = defineEmits<{ (e: 'update:modelValue', v: number): void }>()
 
 <style scoped>
 .cp { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.cp-label { font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.cp-label { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; }
 .cp-seg { display: flex; background: var(--surface-2); border-radius: 8px; padding: 3px; gap: 2px; }
 .cp-btn {
   min-width: 22px; padding: 3px 6px; border: none; border-radius: 6px; background: transparent;
-  font-family: inherit; font-size: 11.5px; line-height: 1.2; color: var(--text-2);
+  font-family: inherit; font-size: var(--fs-sub); line-height: 1.2; color: var(--text-2);
   cursor: pointer; transition: all var(--dur);
 }
 .cp-btn:hover { background: var(--surface-3); color: var(--text); }
 .cp-btn.on { background: var(--surface); color: var(--accent); font-weight: 700; box-shadow: var(--shadow); }
 /* R122：方片变体（原型：列数: 4/5/6/7 方片，选中 accent-light） */
-.cp.chips .cp-label { font-size: 11.5px; }
+.cp.chips .cp-label { font-size: var(--fs-sub); }
 .cp.chips .cp-seg { background: transparent; padding: 0; gap: 4px; }
 .cp.chips .cp-btn { width: 24px; min-width: 24px; height: 24px; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); font-weight: 600; color: var(--text-2); }
 .cp.chips .cp-btn:hover { border-color: var(--border-strong); color: var(--text); background: var(--surface-2); }

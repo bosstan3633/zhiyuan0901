@@ -10,7 +10,7 @@ import { useAppStore } from '../stores/app'
 import { readEventLog } from '@/shared/utils/eventLog'
 import { buildWeeklyReport, weekWindow, type ReportPeriod, type ReportDrillEvent, type WeeklyReport } from '@/shared/utils/weeklyReport'
 import { showToast } from '@/shared/components/toast'
-import ZhiMark from '@/shared/components/ZhiMark.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{
@@ -96,7 +96,7 @@ async function aiInsight() {
           <div class="wr-head">
             <span class="wr-title">📊 调度画像</span>
             <span class="wr-period">{{ periodLabel }}</span>
-            <button class="wr-ai" title="AI 深度洞察：只体检投入与重心（近 7 天台账），跑完自动存一张报告卡" @click="aiInsight"><ZhiMark :size="12" /> 深度洞察</button>
+            <button class="wr-ai" title="AI 深度洞察：只体检投入与重心（近 7 天台账），跑完自动存一张报告卡" @click="aiInsight"><AiEntryButton variant="inline" label="深度洞察" /></button>
             <div class="wr-switch">
               <button class="wr-sw" :class="{ on: period === 0 }" @click="setPeriod(0)">本周</button>
               <button class="wr-sw" :class="{ on: period === -1 }" @click="setPeriod(-1)">上周</button>
@@ -186,36 +186,36 @@ async function aiInsight() {
 </template>
 
 <style scoped>
-.wr-overlay { position: fixed; inset: 0; z-index: 190; background: rgba(0,0,0,.72); display: flex; align-items: center; justify-content: center; padding: 28px; outline: none; } /* R139：190 让开抽屉层（201），深度洞察抽屉才浮在周报上 */
+.wr-overlay { position: fixed; inset: 0; z-index: var(--z-cover); background: rgba(0,0,0,.72); display: flex; align-items: center; justify-content: center; padding: 28px; outline: none; } /* R139：190 让开抽屉层（201），深度洞察抽屉才浮在周报上 */
 .wr-shell { width: min(880px, 94vw); max-height: 92vh; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
 .wr-head { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--border); }
 .wr-title { font-size: 14px; font-weight: 700; color: var(--text); flex-shrink: 0; }
-.wr-period { font-size: 11px; color: var(--text-3); flex: 1; }
+.wr-period { font-size: var(--fs-caption); color: var(--text-3); flex: 1; }
 .wr-switch { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.wr-ai { padding: 4px 12px; font-size: 11.5px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-2); cursor: pointer; font-family: inherit; flex-shrink: 0; transition: all var(--dur); }
+.wr-ai { padding: 4px 12px; font-size: var(--fs-sub); border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-2); cursor: pointer; font-family: inherit; flex-shrink: 0; transition: all var(--dur); }
 .wr-ai:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-.wr-sw { padding: 4px 14px; font-size: 11.5px; color: var(--text-2); cursor: pointer; background: var(--surface); border: none; font-family: inherit; }
+.wr-sw { padding: 4px 14px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; background: var(--surface); border: none; font-family: inherit; }
 .wr-sw + .wr-sw { border-left: 1px solid var(--border); }
 .wr-sw.on { background: var(--accent-light); color: var(--accent); font-weight: 600; }
-.wr-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 17px; background: transparent; border: none; }
+.wr-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: var(--fs-headline); background: transparent; border: none; }
 .wr-close:hover { background: var(--surface-3); color: var(--text); }
 .wr-body { flex: 1; overflow-y: auto; padding: 14px 18px 18px; }
 .wr-loading { padding: 60px; text-align: center; color: var(--text-3); }
-.wr-foot { padding: 8px 18px; border-top: 1px solid var(--border); font-size: 10.5px; color: var(--text-4); }
+.wr-foot { padding: 8px 18px; border-top: 1px solid var(--border); font-size: var(--fs-caption); color: var(--text-4); }
 
 .wr-sec { margin-bottom: 16px; }
-.wr-sec-title { font-size: 11.5px; font-weight: 700; color: var(--text-2); margin-bottom: 8px; letter-spacing: .4px; }
+.wr-sec-title { font-size: var(--fs-sub); font-weight: 700; color: var(--text-2); margin-bottom: 8px; letter-spacing: .4px; }
 .wr-hint { font-weight: 400; color: var(--text-4); margin-left: 6px; }
-.wr-empty { font-size: 11.5px; color: var(--text-4); padding: 10px 4px; }
+.wr-empty { font-size: var(--fs-sub); color: var(--text-4); padding: 10px 4px; }
 
 .wr-bignums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .wr-bn { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; text-align: left; }
 .wr-bn.clickable { cursor: pointer; transition: all var(--dur-fast); }
 .wr-bn.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
-.wr-bn .num { font-size: 22px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.wr-bn .num { font-size: var(--fs-display); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
 .wr-bn .num.warn { color: var(--tag-warn-text); }
-.wr-bn .lbl { font-size: 10.5px; color: var(--text-3); margin-top: 1px; }
-.wr-bn .trend { font-size: 10px; margin-top: 3px; }
+.wr-bn .lbl { font-size: var(--fs-caption); color: var(--text-3); margin-top: 1px; }
+.wr-bn .trend { font-size: var(--fs-tiny); margin-top: 3px; }
 .wr-bn .trend.up { color: var(--success); }
 .wr-bn .trend.down { color: var(--tag-warn-text); }
 
@@ -223,29 +223,29 @@ async function aiInsight() {
 .wr-bar-row { display: flex; align-items: center; gap: 10px; }
 .wr-bar-row.clickable { cursor: pointer; border-radius: 6px; padding: 2px 6px; transition: background var(--dur-fast); }
 .wr-bar-row.clickable:hover { background: var(--surface-2); }
-.wr-bar-row .name { width: 180px; font-size: 11.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; text-align: right; }
+.wr-bar-row .name { width: 180px; font-size: var(--fs-sub); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; text-align: right; }
 .bar-wrap { flex: 1; height: 14px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
-.bar { height: 100%; background: var(--accent); border-radius: 4px; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: flex-end; padding-right: 5px; min-width: 14px; }
+.bar { height: 100%; background: var(--accent); border-radius: 4px; color: #fff; font-size: var(--fs-tiny); display: flex; align-items: center; justify-content: flex-end; padding-right: 5px; min-width: 14px; }
 
 .wr-top5 { display: flex; flex-direction: column; gap: 4px; }
 .wr-top-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; }
 .wr-top-item.clickable { cursor: pointer; transition: background var(--dur-fast); }
 .wr-top-item.clickable:hover { background: var(--surface-2); }
-.wr-top-item .rank { font-size: 11px; font-weight: 700; color: var(--text-3); width: 14px; text-align: center; flex-shrink: 0; }
-.wr-top-item .title { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
+.wr-top-item .rank { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); width: 14px; text-align: center; flex-shrink: 0; }
+.wr-top-item .title { font-size: var(--fs-sub); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
 .mini-bar { flex: 1; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
 .mini-bar i { display: block; height: 100%; background: var(--accent); opacity: .7; border-radius: 3px; }
-.wr-top-item .fire { font-size: 11px; color: var(--tag-warn-text); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.wr-top-item .fire { font-size: var(--fs-caption); color: var(--tag-warn-text); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 
 .wr-funnel { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .stage { border-radius: var(--radius-sm); padding: 10px 14px; text-align: center; background: var(--surface-2); border: 1px solid var(--border); min-width: 110px; }
 .stage .n { font-size: 18px; font-weight: 700; color: var(--text); }
-.stage .l { font-size: 10px; color: var(--text-3); margin-top: 1px; }
+.stage .l { font-size: var(--fs-tiny); color: var(--text-3); margin-top: 1px; }
 .stage.clickable { cursor: pointer; transition: all var(--dur-fast); }
 .stage.clickable:hover { border-color: var(--accent); }
-.funnel-arrow { font-size: 11px; color: var(--text-4); }
+.funnel-arrow { font-size: var(--fs-caption); color: var(--text-4); }
 
-.wr-insight { font-size: 12px; color: var(--text-2); background: var(--surface-2); border-left: 3px solid var(--accent); border-radius: 0 var(--radius-xs) var(--radius-xs) 0; padding: 8px 12px; margin-bottom: 6px; line-height: 1.6; }
+.wr-insight { font-size: var(--fs-sub); color: var(--text-2); background: var(--surface-2); border-left: 3px solid var(--accent); border-radius: 0 var(--radius-xs) var(--radius-xs) 0; padding: 8px 12px; margin-bottom: 6px; line-height: 1.6; }
 
 .wr-fade-enter-active, .wr-fade-leave-active { transition: opacity .18s; }
 .wr-fade-enter-from, .wr-fade-leave-to { opacity: 0; }

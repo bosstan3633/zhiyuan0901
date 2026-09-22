@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.1.9'";
+const VER_ANCHOR_LITERAL = "version: '3.2.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -887,7 +887,7 @@ check('R56-1 P1 项目调度 4 指标恢复左列一行四格（cur-stats-v2：�
 check('R56-2 P1 两级下钻链路：指标卡 openCurDrill → 弹窗 drillTasks 行点击 drawerRef?.open(t) → TaskDetailDrawer', () => { const h = read('/newtab/views/CompassHome.vue'); const m = h.indexOf('R54-B2：4 指标下钻弹窗'); const seg = h.slice(m); return h.includes('function openCurDrill') && seg.includes('v-for="t in drillTasks"') && seg.includes('drawerRef?.open(t)') && h.includes('<TaskDetailDrawer ref="drawerRef" />'); });
 check('R56-3/R66 今日记录 4 计数迁入方向状态指标条右端（rec-mini in-bar 右对齐；页头只留存储/同步 chip）', () => { const h = read('/newtab/views/CompassHome.vue'); const mb = read('/newtab/components/compass/MetricBar.vue'); const head = h.indexOf('class="page-head"'); const bar = h.indexOf('<MetricBar>'); const seg = h.slice(head, bar); return seg.includes('storage-chip') && seg.includes('sync-chip') && !seg.includes('rec-mini') && h.includes('rec-mini in-bar') && h.includes("openRec('in')") && h.includes("openRec('log')") && mb.includes('mb-right') && mb.includes('slot name="right"'); });
 check('R56-4 P2 明细收进下钻抽屉（openRec 四态 + 记录抽屉保留）', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes("recOpen = ref<'' | 'in' | 'out' | 'called' | 'log'>") && h.includes('<Drawer :open="!!recOpen"') && h.includes('recTitles'); });
-check('R56-5（R120-TB1 修订）MetricBar = 合流方向条（单行 ≤40px：mb-row 5px 14px + 主数字 12.5px + 左右插槽）', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); return mb.includes('.mb-row { display: flex') && mb.includes('padding: 5px 14px') && mb.includes('max-height: 38px') && mb.includes('.mb-v { font-size: 12.5px') && mb.includes('<slot name="left"') && mb.includes('<slot name="right"') && !mb.includes('mb-cells'); });
+check('R56-5（R120-TB1 修订 · R155 令牌化备案）MetricBar = 合流方向条（单行 ≤40px：mb-row 5px 14px + 主数字走 --fs-body 阶 + 左右插槽）', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); return mb.includes('.mb-row { display: flex') && mb.includes('padding: 5px 14px') && mb.includes('max-height: 38px') && mb.includes('.mb-v { font-size: var(--fs-body)') && mb.includes('<slot name="left"') && mb.includes('<slot name="right"') && !mb.includes('mb-cells'); });
 check('R56-6（R120-TB2 修订）三件事卡（today-card 12px 14px + card-head 10px 20px 6px + lock-bar 删除）', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('border-radius: var(--radius-md); padding: 12px 14px;') && h.includes('padding: 10px 20px 6px;') && !h.includes('lock-bar'); });
 check('R56-7 P3 模块间距 22→14px', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('.page > .module { margin-top: 14px; }'); });
 // R74 退役 R56-8：随 CurationCenter.vue 删除退役（锁 curFrom 死代码链，见 04-23 §六 A 组）
@@ -1120,10 +1120,10 @@ check('R67-9 手册口径跟进：项目调度 R67 重排 + 直达快捷键 + �
 console.log('【第六十八轮 · R68：搜索口径修复 + 深色可见性 + 快捷键改造 + 性能】');
 check('R68-1 搜索工作台分组口径对齐台签栏：两端均排除资源台本体实体（CURATION_WS_ID）+ 已归档', () => { const g = read('/newtab/components/GlobalPopups.vue'); const c = read('/content/overlay-impl.ts'); return g.includes('!w.archived && w.id !== CURATION_WS_ID') && g.includes('ws: all.workspaces.filter(w=>!w.archived && w.id !== CURATION_WS_ID).length') && c.includes("!w.archived && w.id !== CURATION_WS_ID") && c.includes("import { CURATION_WS_ID } from '@/shared/models'"); });
 check('R68-2 搜索项目分组尊重 showDoneProjects（浮层读 zy_ui_v2 + isProjDone 派生口径）', () => { const c = read('/content/overlay-impl.ts'); return c.includes('showDoneProjectsCache') && c.includes('loadShowDonePref') && c.includes('zy_ui_v2') && c.includes('function isProjDone') && c.includes('if (!showDoneProjectsCache && isProjDone(p, d)) return'); });
-check('R68-3 任务卡删除按钮 emoji → 主题色 trash 线性图标（深色主题可见）', () => { const t = read('/newtab/components/compass/TaskManagerPanel.vue'); return t.includes('import Icon from') && t.split('<Icon name="trash" :size="12" />').length >= 4 && t.includes('.k-del { position: absolute; top: 6px; right: 58px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: 11px; cursor: pointer; opacity: 0; transition: all var(--dur) ease; z-index: 1; color: var(--text-3);') && t.includes('.kcard:hover .k-pin, .kcard:hover .k-star, .kcard:hover .k-del { opacity: .85; }'); });
+check('R68-3（R155 令牌化备案）任务卡删除按钮 emoji → 主题色 trash 线性图标（深色主题可见）', () => { const t = read('/newtab/components/compass/TaskManagerPanel.vue'); return t.includes('import Icon from') && t.split('<Icon name="trash" :size="12" />').length >= 4 && t.includes('.k-del { position: absolute; top: 6px; right: 58px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-caption); cursor: pointer; opacity: 0; transition: all var(--dur) ease; z-index: 1; color: var(--text-3);') && t.includes('.kcard:hover .k-pin, .kcard:hover .k-star, .kcard:hover .k-del { opacity: .85; }'); });
 check('R68-4 快捷键体系改造（R117 修订）：open-compass/open-resource 退役 + 数字键 1=调度台 2=方向台 3=资源台 4..=策展台（goto-tasks/goto-curiosity 同落调度台并锚对应 tab）', () => { const m = read('/manifest.ts'); const b = read('/background/index.ts'); const a = read('/newtab/App.vue'); return !m.includes("'open-compass'") && !m.includes("'open-resource'") && b.includes('open-compass/open-resource 已从 manifest 下架') && b.includes("const anchor = command === 'goto-curiosity' ? 'curiosity' : 'task'") && a.includes("if (n === 1) { navigate('/'); return }") && a.includes('if (n === 2) { openCompass(); return }') && a.includes('const ws = store.workspaces[n - 4]'); });
 check('R68-5 任务调度直达落位（R117 重写：宿主由方向台迁调度台底部双 tab）：调度台承接 zy-goto-anchor（curiosity→好奇 tab 并挂载 / task→任务 tab），方向台不再持任务模块', () => { const h = read('/newtab/views/CompassHome.vue'); const sh = read('/newtab/views/CompassShell.vue'); return h.includes("addEventListener('zy-goto-anchor', onAnchorEvt)") && h.includes("if (name === 'curiosity') { bottomTab.value = 'curio'; curioMounted.value = true }") && h.includes("else if (name === 'task') bottomTab.value = 'task'") && !sh.includes('flashTaskModule') && !sh.includes('task-mgmt-module'); });
-check('R68-6 方向树操作按钮主题感知（去硬编码白底，深色主题可见）', () => { const t = read('/newtab/views/CompassTree.vue'); return t.includes('.node-action { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; color: var(--text-2); transition: all var(--dur); background: var(--surface-3); border: 1px solid var(--border); }') && !t.includes('rgba(255,255,255,.9)'); });
+check('R68-6（R155 令牌化备案）方向树操作按钮主题感知（去硬编码白底，深色主题可见）', () => { const t = read('/newtab/views/CompassTree.vue'); return t.includes('.node-action { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: var(--fs-caption); cursor: pointer; color: var(--text-2); transition: all var(--dur); background: var(--surface-3); border: 1px solid var(--border); }') && !t.includes('rgba(255,255,255,.9)'); });
 check('R68-7 加载动画排版重整：分隔线对齐轴 + slogan 升字号提对比', () => { const h = read('/newtab/index.html'); return h.includes('zy-skl-divider') && h.includes('font-size: 15.5px; font-weight: 500; color: #C6CBD4; letter-spacing: 0.22em;') && h.includes('万千可调用，自有我方向</div>') && !h.includes('万千可调用，自有我方向。'); });
 check('R68-8（R73 修订；R131-C6a 预热退役）性能：KeepAlive 保留方向台 CompassShell + 拼音字典纯按需动态 import（启动不再预拉 ~312KB 字典 chunk，搜索面板打开才 ensurePinyin）', () => { const a = read('/newtab/App.vue'); const g = read('/newtab/components/GlobalPopups.vue'); const p = read('/shared/utils/pinyin.ts'); return a.includes('CompassHomeView,WorkspaceView,CompassShell') && !a.includes("from '@/shared/utils/pinyin'") && !a.includes('requestIdleCallback') && g.includes("if (p === 'search') { currentType.value = 'all'; setSearchQuery(''); selectedId.value = ''; void ensurePinyin() }") && p.includes("loading = import('pinyin-pro')"); });
 
@@ -1964,7 +1964,7 @@ const TERM_FN = segOf(LH, 'function termText(', 'function focusedOf(');
 check('R83-1/R121 M1 愿景/使命一行锚点条：.vm-bar（≤40px）+ 单行省略 + 整条可点', () => {
   return LH_TPL.includes('class="vm-bar"') && LH_TPL.includes('@click="openTree">')
     && LH_STYLE.includes('.vm-bar { display: flex') && LH_STYLE.includes('min-height: 40px')
-    && LH_STYLE.includes('.vm-text {') && LH_STYLE.includes('font-size: 12.5px')
+    && LH_STYLE.includes('.vm-text {') && LH_STYLE.includes('font-size: var(--fs-body)')
     && LH_STYLE.includes('text-overflow: ellipsis');
 });
 check('R83-2/R121 M1 右端「进入方向树 ›」收敛为一个（不再每张卡各一个）', () => {
@@ -2769,8 +2769,8 @@ console.log('【第一百零七轮 · V2.76.0：卡片内容自适应修复 + �
 const WSP107 = read('/newtab/views/Workspace.vue');
 const TM107 = read('/newtab/components/compass/TaskManagerPanel.vue');
 const CZ107 = read('/newtab/components/compass/CuriosityPanel.vue');
-check('R107-1 ★ F8 卡片内容自适应：三套卡片根 min-width:0 + overflow:hidden（防长内容撑破轨道致列宽不一）', () => {
-  return WSP107.includes('min-height: 86px; min-width: 0; overflow: hidden;')
+check('R107-1 ★ F8 卡片内容自适应：三套卡片根 min-width:0 + overflow:hidden（防长内容撑破轨道致列宽不一）· R155-③：资源富卡 min-height 86 → 120', () => {
+  return WSP107.includes('min-height: 120px; min-width: 0; overflow: hidden;')
     && TM107.includes('gap: 6px; min-width: 0; overflow: hidden;')
     && CZ107.includes('position: relative; overflow: hidden; min-width: 0;');
 });
@@ -3375,9 +3375,9 @@ check('R116-3 看板列限额上下文复位 + 列表/卡片增量渲染机制�
     && u.includes('const RENDER_STEP = 80')
     && u.includes('renderLimit.value += RENDER_STEP');
 });
-check('R116-4 列底入口样式就位（.kc-more 于 workspace.css，hover 下划线）', () => {
+check('R116-4（R155 令牌化备案）列底入口样式就位（.kc-more 于 workspace.css，hover 下划线）', () => {
   const s = read('/newtab/views/workspace.css');
-  return s.includes('.kc-more { text-align: center; padding: 8px 0 4px; font-size: 12px; color: var(--accent); cursor: pointer; user-select: none; }')
+  return s.includes('.kc-more { text-align: center; padding: 8px 0 4px; font-size: var(--fs-sub); color: var(--accent); cursor: pointer; user-select: none; }')
     && s.includes('.kc-more:hover { text-decoration: underline; }');
 });
 
@@ -3431,10 +3431,10 @@ check('R122-10 R122 样式就位：metric-box/quick-filter/head-sort/rc-footer/r
 // ============== R123 · V2.91.0：四台 UI 精修（原型对齐） ==============
 console.log('【R123 · V2.91.0：设计系统对齐 + 资源台卡片精修 + 策展台成果化】');
 check('R123-1 字体栈按原型完全采纳（系统字体优先 + Hiragino）+ 全局 tnum', () => { const t = read('/shared/styles/tokens.css'); return t.includes('-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "PingFang SC",') && t.includes('"Hiragino Sans GB"') && t.includes('font-feature-settings: "tnum";') && !t.includes('letter-spacing: -0.011em'); });
-check('R123-2 顶栏 48px + tab active 填充块（accent-light + accent 600，下划线退役）', () => { const a = read('/newtab/App.vue'); return a.includes('.topbar { position: sticky; top: 0; z-index: 100; height: 48px;') && a.includes('.tab.active { color: var(--accent); background: var(--accent-light); font-weight: 600; }') && !a.includes('.tab.active::after'); });
+check('R123-2（R155 令牌化备案）顶栏 48px + tab active 填充块（accent-light + accent 600，下划线退役）', () => { const a = read('/newtab/App.vue'); return a.includes('.topbar { position: sticky; top: 0; z-index: var(--z-sticky); height: 48px;') && a.includes('.tab.active { color: var(--accent); background: var(--accent-light); font-weight: 600; }') && !a.includes('.tab.active::after'); });
 check('R123-3（R125 重指）容器 1440 + 36px：ws-page / align-page(0 36px) / 四页 .page(20 36 64)', () => { const c = read('/newtab/views/workspace.css'); const app = read('/newtab/App.vue'); const h = read('/newtab/views/CompassHome.vue'); const sh = read('/newtab/views/CompassShell.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return c.includes('.ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; }') && app.includes('.topbar-inner.align-page { max-width: 1440px; margin: 0 auto; padding: 0 36px; }') && h.includes('.page { max-width: 1440px; margin: 0 auto; padding: 20px 36px 64px; }') && sh.includes('.page { max-width: 1440px;') && pc.includes('.page { max-width: 1440px;'); });
 check('R123-4 资源台工具条卡片化（sticky 保留）+ 分段控件边框容器 active 灰底', () => { const c = read('/newtab/views/workspace.css'); return c.includes('.ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-sm); }') && c.includes('.view-tabs { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--surface); }') && c.includes('.view-tab.active { background: var(--surface-2); color: var(--text); font-weight: 600; box-shadow: none; }'); });
-check('R123-5 卡片原型尺寸：9×11 / 86px / 网格 10px / hover 上浮 / 动作条白底容器', () => { const c = read('/newtab/views/workspace.css'); return c.includes('padding: 9px 11px; box-shadow: var(--shadow-sm);') && c.includes('min-height: 86px; min-width: 0; overflow: hidden;') && c.includes('gap: 10px; }') && c.includes('transform: translateY(-1px); box-shadow: var(--shadow-hover);') && c.includes('.res-card-actions { position: absolute; top: 6px; right: 6px; display: flex; align-items: center; gap: 2px; padding: 2px 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; box-shadow: var(--shadow-sm);'); });
+check('R123-5（R155-③ 修订）卡片原型尺寸：9×11 / 富卡 min 120px / 网格 10px / hover 上浮 / 动作条白底容器', () => { const c = read('/newtab/views/workspace.css'); return c.includes('padding: 9px 11px; box-shadow: var(--shadow-sm);') && c.includes('min-height: 120px; min-width: 0; overflow: hidden;') && c.includes('gap: 10px; }') && c.includes('transform: translateY(-1px); box-shadow: var(--shadow-hover);') && c.includes('.res-card-actions { position: absolute; top: 6px; right: 6px; display: flex; align-items: center; gap: 2px; padding: 2px 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; box-shadow: var(--shadow-sm);'); });
 check('R123-6 hover 三动作（📌📂🗑 + ✏ 断链）+ 镜像卡三件套（↗🎯✕）+ 镜像虚线卡样式', () => { const w = read('/newtab/views/Workspace.vue'); const c = read('/newtab/views/workspace.css'); return w.includes('class="rc-action move" title="移动分类"') && w.includes('class="rc-action delete" title="删除"') && w.includes('class="rc-action open" title="打开链接"') && c.includes('.res-card.mirror-card { border-style: dashed; border-color: var(--border-strong);') && w.includes("'mirror-card': isMirrorView(r)"); });
 check('R123-7 侧栏卡片盒 210px（无右分割线）+ 默认宽 210', () => { const c = read('/newtab/views/workspace.css'); const u = read('/newtab/composables/useCatSidebar.ts'); return c.includes('.ws-sidebar { width: 210px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 8px;') && u.includes('const SIDE_W_DEF = 210'); });
 check('R123-8 策展台：论点大横幅（tb-badge/tb-btn）+ cur3 三格 + 论证深度计算', () => { const w = read('/newtab/views/Workspace.vue'); const c = read('/newtab/views/workspace.css'); return w.includes('class="tb-badge"') && w.includes('class="tb-btn" @click="setViewMode(\'pyramid\')"') && w.includes('const pyramidDepth = computed(') && w.includes('pyramidDepthText') && c.includes('.ws-metrics.cur3 .mbox-value { font-size: 14px; }'); });
@@ -3448,10 +3448,10 @@ check('R124-2 发丝线 + 文本四档透明度：暗 rgba(255,255,255,.08) / �
 check('R124-3 全局唯一紫 accent：四主题 --accent 全 #5E6AD2 + overlay 映射同步（旧色零残留）', () => { const t = read('/shared/styles/tokens.css'); const o = read('/content/overlay-impl.ts'); return (t.split('--accent: #5E6AD2;').length - 1) === 4 && !t.includes('#FF6363') && !t.includes('#0071E3') && !t.includes('#2383E2') && (o.split("accent: '#5E6AD2'").length - 1) === 4; });
 check('R124-4 圆角与排印参数：--radius-xs 4px + 全局标签 4px/2px6px/呼吸字距 + --tracking-sm', () => { const t = read('/shared/styles/tokens.css'); return t.includes('--radius-xs: 4px;') && t.includes('--tracking-sm: 0.04em;') && t.includes('border-radius: 4px;\n  padding: 2px 6px;') && t.includes('letter-spacing: var(--tracking-sm);'); });
 check('R124-5 焦点环柔化：:focus-visible 与 --shadow-focus 均 40%', () => { const t = read('/shared/styles/tokens.css'); return t.includes('outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent)') && (t.split('--shadow-focus: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);').length - 1) === 4; });
-check('R124-6（R125 修订）调度台：Glass Bar（毛玻璃 + shadow-sm）+ 三件事编号中灰（text-3/12px）+ 选中态紫蓝光晕', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); const ch = read('/newtab/views/CompassHome.vue'); return mb.includes('backdrop-filter: blur(12px)') && ch.includes('.card.focus .tc-num { color: var(--text-3); font-size: 12px; font-weight: 500; opacity: 1; }') && ch.includes('box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent)'); });
+check('R124-6（R125 修订 · R155 令牌化备案）调度台：Glass Bar（毛玻璃 + shadow-sm）+ 三件事编号中灰（text-3/--fs-sub）+ 选中态紫蓝光晕', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); const ch = read('/newtab/views/CompassHome.vue'); return mb.includes('backdrop-filter: blur(12px)') && ch.includes('.card.focus .tc-num { color: var(--text-3); font-size: var(--fs-sub); font-weight: 500; opacity: 1; }') && ch.includes('box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent)'); });
 check('R124-7 调度台：任务树按钮文案「展开关联任务树 (N)」（默认折叠门控保留）', () => { const ch = read('/newtab/views/CompassHome.vue'); return ch.includes("{{ curTreeOpen ? '收起关联任务树' : '展开关联任务树' }} ({{ projTasks.length }})") && ch.includes('const curTreeOpen = ref(false)') && ch.includes('<template v-if="curTreeOpen">'); });
 check('R124-8 方向台：中性退色（prTag plain / 短文案 / 灰点 hover 显 + 展板紫调光带）', () => { const pc = read('/newtab/views/ProjectCuration.vue'); return pc.includes("return pr === 'high' ? 'danger' : 'plain'") && pc.includes("'高优' : pr === 'mid' || pr === 'medium' ? '中优' : '低优'") && pc.includes('.tag.plain .tag-dot') && pc.includes('.btask:hover .tag.plain .tag-txt { display: inline; }') && pc.includes('.page.is-embedded { background-color: var(--surface);'); });
-check('R124-9 资源台：卡片锁高 84–88 + 标题单行截断', () => { const c = read('/newtab/views/workspace.css'); return c.includes('.res-card { min-height: 86px; max-height: 88px; }') && c.includes('-webkit-line-clamp: 1;'); });
+check('R124-9（R155-③ 改写）资源台：富卡锁高 120–160 + 标题/摘要各 2 行截断（原「锁高 84–88 + 标题单行」已随富卡形态退役）', () => { const c = read('/newtab/views/workspace.css'); return c.includes('.res-card { min-height: 120px; max-height: 160px; }') && c.includes('-webkit-line-clamp: 2;') && !c.includes('-webkit-line-clamp: 1;'); });
 check('R124-10 策展台空态：论点占位文案 + 虚线金字塔骨架 + 双 CTA（筛选/资源台空态保留通用 EmptyState）', () => { const w = read('/newtab/views/Workspace.vue'); const c = read('/newtab/views/workspace.css'); return w.includes('＋ 点击确立本策展台的 L1 中心论点，让研究从判断出发') && w.includes('cur-empty-skeleton') && w.includes('L2 论据分支 A') && w.includes('去资源台挑选') && w.includes('!resourceGroups.length && (isHub || hasActiveFilter)') && c.includes('.cur-empty-skeleton {') && c.includes('.ces-l2row {'); });
 
 // ============== R125 · V2.93.0：骨架留白（1440+36）/ 主色残遗清理 / 微阴影阶梯 / 四台校准 ==============
@@ -3461,7 +3461,7 @@ check('R125-2 主题色点四紫：App.vue 无 #FF6363 / #0071E3 / #2383E2 残�
 check('R125-3 链接并入紫：--info-blue 全链路置紫 + 组件层零 var(--info-blue) 残留 + overlay --zy-link 紫', () => { const t = read('/shared/styles/tokens.css'); const o = read('/content/overlay-impl.ts'); const files = [read('/newtab/components/compass/CuriosityPanel.vue'), read('/newtab/components/GlobalPopups.vue'), read('/newtab/views/CompassTree.vue'), read('/newtab/views/GlobalSettings.vue'), read('/newtab/views/ProjectCuration.vue'), read('/newtab/views/workspace.css')]; const leftover = files.reduce((s, x) => s + (x.split('var(--info-blue)').length - 1), 0); return t.includes('--info-blue: #5E6AD2;') && o.includes('--zy-link:#5E6AD2;') && leftover === 0; });
 check('R125-4 微阴影阶梯：浅色 shadow-sm 二层 + .card/today-card/cur-goal/metric-box/group-box 全接入', () => { const t = read('/shared/styles/tokens.css'); const ch = read('/newtab/views/CompassHome.vue'); const c = read('/newtab/views/workspace.css'); return (t.split('--shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);').length - 1) === 2 && ch.includes('.card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-sm); border: 1px solid var(--border); height: 100%; }') && ch.includes('.today-card, .cur-goal { box-shadow: var(--shadow-sm); }') && c.includes('.metric-box, .group-box { box-shadow: var(--shadow-sm); }'); });
 check('R125-5 合流条锁 38px（原 34~40px）', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); return mb.includes('min-height: 38px; max-height: 38px;'); });
-check('R125-6 编号中灰（text-3/12px/500）+ 选中底 4% 低纯度紫', () => { const ch = read('/newtab/views/CompassHome.vue'); return ch.includes('.card.focus .tc-num { color: var(--text-3); font-size: 12px; font-weight: 500; opacity: 1; }') && ch.includes('background: color-mix(in srgb, var(--accent) 4%, transparent);'); });
+check('R125-6（R155 令牌化备案）编号中灰（text-3/--fs-sub/500）+ 选中底 4% 低纯度紫', () => { const ch = read('/newtab/views/CompassHome.vue'); return ch.includes('.card.focus .tc-num { color: var(--text-3); font-size: var(--fs-sub); font-weight: 500; opacity: 1; }') && ch.includes('background: color-mix(in srgb, var(--accent) 4%, transparent);'); });
 check('R125-7 侧栏 36px 图标轨：UIPrefs.wsSideRail + sideRail/toggleSideRail/selectRailCat + rail 类与样式', () => { const m = read('/shared/models/index.ts'); const u = read('/newtab/composables/useCatSidebar.ts'); const w = read('/newtab/views/Workspace.vue'); const c = read('/newtab/views/workspace.css'); return m.includes('wsSideRail?: boolean') && u.includes('const sideRail = ref<boolean>(!!store.ui?.wsSideRail)') && u.includes('function toggleSideRail()') && u.includes('function selectRailCat(') && w.includes(":class=\"{ rail: sideRail }\"") && w.includes('class="cat-rail-btn"') && c.includes('.ws-sidebar.rail { padding: 6px 4px 10px; overflow: hidden; }') && c.includes('.cat-rail-btn.active { background: var(--accent-light); }'); });
 check('R125-8 警示纪律：方向台无 tag warn/ok 残留（仅高优 danger / 断链 warning / 停滞 stagnant）', () => { const pc = read('/newtab/views/ProjectCuration.vue'); return !pc.includes('class="tag warn"') && !pc.includes('class="tag ok"'); });
 
@@ -3632,7 +3632,7 @@ console.log('【R135 · V2.103.0：B1 罗盘逐层生成 + C2′ 任务拆解】
 check('R135-1 ★生成类采纳纪律：chain.ts 同层查重（directions/projects/metrics/tasks 四路 dup continue）+ 字段白名单清洗（term/priority 枚举、YYYY-MM-DD 校验、分钟 10~600 钳制、名称 40 字截断）+ 实体形状与既有创建通道同形', () => { const c = read('/shared/ai/chain.ts'); return c.includes('if (d.compass.directions.some(x => x.name === s.name)) { dup++; continue }') && c.includes('dir.projects.some(p => p.name === s.name)') && c.includes('proj.metrics.some(m => m.title === s.name)') && c.includes('existing.some(t => t!.title === s.name)') && c.includes("TERM_SET.has(String(s.term))") && c.includes('DATE_RE.test(String(s.dueDate))') && c.includes('m >= 10 && m <= 600'); });
 check('R135-2 五层任务书：CHAIN_DEF 齐 directions/projects/metrics/tasks/breakdown，每层 role+rules+JSON schema 三件套，全部走 chainSystem→withAboutMe 画像注入（R139 备案：role 位可被 personaText 专家执笔替换，无专家时回落内置角色）', () => { const s = read('/shared/ai/scenarios.ts'); return ['directions:', 'projects:', 'metrics:', 'tasks:', 'breakdown:'].every(k => s.includes(k)) && s.includes('export function chainSystem') && s.includes('return withAboutMe(`${personaText || def.role}\\n${def.rules}\\n${def.schema}`)'); });
 check('R135-3 链投影 projectChain：五层分支+上行链（愿景/使命恒投）+同层兄弟现状（供查重）+锚点失效返回 missing 由宿主拒开抽屉', () => { const p = read('/shared/ai/project.ts'); return p.includes('export function projectChain') && p.includes("missing: '战略目标已不存在'") && p.includes("missing: '项目已不存在'") && p.includes("missing: '指标已不存在'") && p.includes('【该指标下现有任务】') && p.includes('【现有成功指标】'); });
-check('R135-4 六个入口落位：方向树四层（建议目标/项目/指标/任务）+ 任务详情抽屉拆解 + 项目详情页建议指标；共用 buildChainJob 一个工厂', () => { const t = read('/newtab/views/CompassTree.vue'); const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return ["aiChain('directions', '')", "aiChain('projects', dir.id)", "aiChain('metrics', proj.id)", "aiChain('tasks', metric.id)"].every(x => t.includes(x)) && td.includes("buildChainJob('breakdown', t.id") && td.includes('拆解步骤') && td.includes('ZhiMark') && pc.includes("buildChainJob('metrics', p.id") && pc.includes('建议指标'); });
+check('R135-4（R155-⑤ 备案：入口组件化，锚点 ZhiMark → AiEntryButton）六个入口落位：方向树四层（建议目标/项目/指标/任务）+ 任务详情抽屉拆解 + 项目详情页建议指标；共用 buildChainJob 一个工厂', () => { const t = read('/newtab/views/CompassTree.vue'); const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return ["aiChain('directions', '')", "aiChain('projects', dir.id)", "aiChain('metrics', proj.id)", "aiChain('tasks', metric.id)"].every(x => t.includes(x)) && td.includes("buildChainJob('breakdown', t.id") && td.includes('拆解步骤') && td.includes('AiEntryButton') && pc.includes("buildChainJob('metrics', p.id") && pc.includes('建议指标'); });
 check('R135-5 ★懒加载纪律推广：罗盘三宿主均 defineAsyncComponent 挂 AiDrawer + 点击时才 import config/chain，无一例静态 import shared/ai（R134 入口 chunk 教训的横向锁）', () => { const files = ['/newtab/views/CompassTree.vue', '/newtab/components/compass/TaskDetailDrawer.vue', '/newtab/views/ProjectCuration.vue']; return files.every(f => { const s = read(f); return !s.includes("from '@/shared/ai/") && s.includes('defineAsyncComponent(() => import(') && s.includes("import('@/shared/ai/chain')") && s.includes("import('@/shared/ai/config')"); }); });
 check('R135-6 契约类型迁位 job.ts：AiRow/AiJob 单一真源在 shared/ai/job.ts，抽屉 re-export 保兼容，GS/RDD/chain 全从 job.ts 消费（.ts 侧不再 import .vue 类型）', () => { const j = read('/shared/ai/job.ts'); const d = read('/newtab/components/AiSuggestionDrawer.vue'); const g = read('/newtab/views/GlobalSettings.vue'); return j.includes('export interface AiJob') && d.includes("export type { AiRow, AiJob } from '@/shared/ai/job'") && g.includes("import type { AiJob, AiRow } from '@/shared/ai/job'"); });
 check('R135-7 拆解采纳语义：步骤任务继承原任务 projectId/metricId 并回写 metric.taskIds；行动方案行替换式写入描述（重复采纳不堆积）', () => { const c = read('/shared/ai/chain.ts'); return c.includes('const step = mkTask(s, t.projectId, t.metricId, t.id)') && c.includes('m.taskIds.push(step.id)') && c.includes("replace(/\\n*🤖 行动方案：[\\s\\S]*$/, '')"); });
@@ -3643,7 +3643,7 @@ console.log('【R136 · V2.104.0：A3 应用推荐 + 1d 自然语言搜索重排
 check('R136-1 ★入口 chunk 守卫：GlobalPopups 被 App.vue 静态挂载，其 AI 依赖全懒（零静态 import @/shared/ai，连 import type 都不写），检索函数段零写库（无 persist/无 mountedResourceIds 写入），改词与换类型 tab 即清态 · R150 备案：函数改名 aiSearchRun（「AI 理解」并入「AI 检索」），守卫逐条随迁', () => { const g = read('/newtab/components/GlobalPopups.vue'); const seg = segOf(g, 'async function aiSearchRun', 'const aiTopRows'); return !g.includes("from '@/shared/ai/") && g.includes("import('@/shared/ai/select')") && !seg.includes('persist') && !seg.includes('mountedResourceIds') && g.includes("watch(searchQuery, () => { aiSearch.value = null; aiAbort('') })") && g.includes("watch(currentType, () => { aiSearch.value = null; aiAbort('') })") && g.includes('aiAbortCtl.abort()'); });
 check('R136-2 A3 推荐任务书：参谋契约（≤5 张宁缺毋滥+why 须说支撑哪步+id 不许编造）；buildRecommendJob 排除已挂载、parse 经 sanitizeRefs、apply 二次校验卡存在且未删未重复才挂载并触任务 updatedAt', () => { const s = read('/shared/ai/scenarios.ts'); const j = read('/shared/ai/select.ts'); return s.includes('你是用户的资源调度参谋') && s.includes('目录里没有的 id 不许编造') && j.includes('new Set(task.mountedResourceIds || [])') && j.includes('sanitizeRefs(s0, ctx.d)') && j.includes('ctx.d.resources.some(x => x.id === id && !x.deletedAt)') && j.includes('t.mountedResourceIds.push(id)') && j.includes('t.updatedAt = Date.now()'); });
 check('R136-3 检索契约与消毒（R150 起为 semanticSearch）：只回读——id 必须属于给定候选集、≤8 条、同 id 取高分不重复、why 截 40 字、note 截 40 字；候选<2 或空查询拒跑；丢弃条数计入消毒账', () => { const j = read('/shared/ai/select.ts'); const g = read('/newtab/components/GlobalPopups.vue'); return j.includes('!valid.has(id)') && j.includes('const HIT_CAP = 8') && j.includes(".slice(0, 40)") && j.includes('searchDropCount += dropped') && j.includes("if (c0) { if (hit.confidence > c0.confidence) Object.assign(c0, hit); continue }") && g.includes('cands.length < 2'); });
-check('R136-4 两入口落位：任务抽屉「推荐卡」（动态 import select）+ 搜索面板一枚「AI 检索」钮（active 态=有结果，再点清除）与 AI 置顶组（原分组列表不动） · R150 备案：第二枚钮从「AI 理解」改名，全站只留这一枚检索类 AI 入口', () => { const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const g = read('/newtab/components/GlobalPopups.vue'); return td.includes('推荐卡') && td.includes('ZhiMark') && td.includes("import('@/shared/ai/select')") && g.includes('gp-ai-tab') && g.includes('aiSearchRun') && g.includes("'AI 检索'") && g.includes(':spin="aiBusy"') && g.includes('v-if="aiTopRows.length && !isBrowseMode"'); });
+check('R136-4（R155-⑤ 备案：入口组件化）两入口落位：任务抽屉「推荐卡」（动态 import select）+ 搜索面板一枚「AI 检索」钮（active 态=有结果，再点清除）与 AI 置顶组（原分组列表不动） · R150 备案：第二枚钮从「AI 理解」改名，全站只留这一枚检索类 AI 入口', () => { const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const g = read('/newtab/components/GlobalPopups.vue'); return td.includes('推荐卡') && td.includes('AiEntryButton') && td.includes("import('@/shared/ai/select')") && g.includes('gp-ai-tab') && g.includes('aiSearchRun') && g.includes("'AI 检索'") && g.includes(':spin="aiBusy"') && g.includes('v-if="aiTopRows.length && !isBrowseMode"'); });
 check('R136-5 卡目录投料纪律：cardDirectory 过滤软删、排除已挂载、上限=深度档 cards×2（eco60/std120/deep300 行封顶）', () => { const p = read('/shared/ai/project.ts'); return p.includes('export function cardDirectory') && p.includes('if (r.deletedAt || opts.excludeIds?.has(r.id)) continue') && p.includes('lines.length >= c.cards * 2'); });
 
 // ============== R137 · V2.105.0：批次 F 第四刀 库内治理扫描包（标签体检/捞回/镜像/漂移）+ 角色库 v1 ==============
@@ -3653,13 +3653,13 @@ check('R137-2 标签树真操作：合并=按路径 findTagNode 剪枝 splice；
 check('R137-3 捞回语义保守：recover=deletedAt 置空（与手工恢复同字段）；purge 只回报不动刀（真清空仍归回收站手动操作）', () => { const g = read('/shared/ai/govern.ts'); return g.includes('card.deletedAt = undefined') && g.includes('else if (v.verdict === \'purge\') pur++') && g.includes('建议清除') && !g.includes('purgeCards'); });
 check('R137-4 镜像采纳走 hub 单一通道：projectCardToBoard（src 必须在资源台、dst 取其所在台；重复镜像由 hub 内部幂等）+ 主题漂移 adoptable=false 纯只读', () => { const g = read('/shared/ai/govern.ts'); return g.includes('projectCardToBoard(d, srcId, toWs)') && g.includes("r.workspaceId === 'zy-curation'") && g.includes('adoptable: false') && g.includes('export function buildThesisJob'); });
 check('R137-5 角色库 v1：config.customPersonas 持久层 + allPersonas() 内置∪自建合成 + GS 增删表单（custom- id 前缀锚）+ 诊断采纳=建未归属任务卡', () => { const c = read('/shared/ai/config.ts'); const s = read('/shared/ai/scenarios.ts'); const g = read('/newtab/views/GlobalSettings.vue'); return c.includes('customPersonas: AiCustomPersona[]') && s.includes('export function allPersonas') && g.includes('aiAddPersona') && g.includes("id: 'custom-' + Date.now()") && g.includes('aiRemovePersona') && g.includes('已生成') && g.includes('dd.tasks.unshift('); });
-check('R137-6 治理四入口 + 契约：标签体检钮在标签管理页头、库内治理卡三钮（跨台镜像/主题漂移/回收站捞回）、RecycleBin 页头「🤖 值得捞回」+ 抽屉挂载；四系统提示词全走 withAboutMe', () => { const g = read('/newtab/views/GlobalSettings.vue'); const rb = read('/newtab/views/RecycleBin.vue'); const sc = read('/shared/ai/scenarios.ts'); return g.includes('标签体检') && g.includes('ZhiMark') && g.includes('aiCrossDeck') && g.includes('aiThesisDrift') && g.includes('aiTrashRescue') && rb.includes('值得捞回') && rb.includes('ZhiMark') && rb.includes('<AiSuggestionDrawer v-if="aiJob"') && sc.includes('知识管理专家，为用户的标签体系做治理体检') && sc.includes('回收站管理员') && sc.includes('跨工作台策展人') && sc.includes('主题策展人'); });
+check('R137-6（R155-⑤ 备案：入口组件化 + 「🤖 值得捞回」徽标已 SVG 化）治理四入口 + 契约：标签体检钮在标签管理页头、库内治理卡三钮（跨台镜像/主题漂移/回收站捞回）、RecycleBin 页头「值得捞回」+ 抽屉挂载；四系统提示词全走 withAboutMe', () => { const g = read('/newtab/views/GlobalSettings.vue'); const rb = read('/newtab/views/RecycleBin.vue'); const sc = read('/shared/ai/scenarios.ts'); return g.includes('标签体检') && g.includes('AiEntryButton') && g.includes('aiCrossDeck') && g.includes('aiThesisDrift') && g.includes('aiTrashRescue') && rb.includes('值得捞回') && rb.includes('AiEntryButton') && rb.includes('<AiSuggestionDrawer v-if="aiJob"') && sc.includes('知识管理专家，为用户的标签体系做治理体检') && sc.includes('回收站管理员') && sc.includes('跨工作台策展人') && sc.includes('主题策展人'); });
 check('R137-7 治理投影纪律：四投影均走 CAP 深度档上限（标签 top list*2 / 回收站 cards / 卡目录 cards*2 / 主题样本 titles），无 deletedAt 卡漏进正向清单、无附件字段', () => { const p = read('/shared/ai/project.ts'); const i1 = p.indexOf('projectTagSystem'); const seg = p.slice(i1, p.indexOf('整库摘要')); return seg.includes('slice(0, c.list * 2)') && seg.includes('filter(r => r.deletedAt)') && seg.includes('c.cards * 2') && seg.includes('cards.filter(r => !r.isThesis).slice(0, c.titles)') && !seg.includes('asset'); });
 
 // ============== R138 · V2.106.0：批次 F 收尾刀 提效包（C1′ 智能录入 / F2′ 周回顾 / H3 导入归类 / H1′ 采集后补全） ==============
 console.log('【R138 · V2.106.0：提效收尾包】');
 check('R138-1 ★入口 chunk 守卫再扩：GP 的采集后补全全懒（AiDrawerGP defineAsyncComponent + config/select 双 dynamic import），保存主流程零 AI 依赖、不勾不跑', () => { const g = read('/newtab/components/GlobalPopups.vue'); return !g.includes("from '@/shared/ai/") && g.includes("defineAsyncComponent(() => import('./AiSuggestionDrawer.vue'))") && g.includes("import('@/shared/ai/config')") && g.includes("import('@/shared/ai/select')") && g.includes('if (capEnrichOn.value) void runCardEnrich(r)'); });
-check('R138-2 C1′ 一句话录入：TaskAddDrawer 录入行 + buildTaskParseJob 回填表单（不落库），建卡仍由用户确认；草稿扩展字段 dueDate/estimatedMinutes/归属并入 createTask，props 锁定时归属不覆盖', () => { const t = read('/newtab/components/TaskAddDrawer.vue'); return t.includes('AI 填表') && t.includes('ZhiMark') && t.includes('aiBusy') && t.includes('buildTaskParseJob') && t.includes('核对后点「创建」') && t.includes('projectId: props.projectId || aiDraft.value.projectId') && t.includes('dueDate: aiDraft.value.dueDate') && t.includes('findMetric(task.metricId)'); });
+check('R138-2（R155-⑤ 备案：入口组件化）C1′ 一句话录入：TaskAddDrawer 录入行 + buildTaskParseJob 回填表单（不落库），建卡仍由用户确认；草稿扩展字段 dueDate/estimatedMinutes/归属并入 createTask，props 锁定时归属不覆盖', () => { const t = read('/newtab/components/TaskAddDrawer.vue'); return t.includes('AI 填表') && t.includes('AiEntryButton') && t.includes('aiBusy') && t.includes('buildTaskParseJob') && t.includes('核对后点「创建」') && t.includes('projectId: props.projectId || aiDraft.value.projectId') && t.includes('dueDate: aiDraft.value.dueDate') && t.includes('findMetric(task.metricId)'); });
 check('R138-3 H1′ 采集补全工厂：buildCardEnrichJob 与 RDD 单卡同契约同消毒（sanitizeRefs+分类存在校验），apply 直接落库（标签并入≤10/描述只补空/卡已删拒写）；开关状态持久化 captureEnrich', () => { const s = read('/shared/ai/select.ts'); const g = read('/newtab/components/GlobalPopups.vue'); return s.includes('export function buildCardEnrichJob') && s.includes('⚠ 卡片已不存在，未写入') && s.includes('ctx.d.categories.some(c => c.id === s.categoryId') && g.includes('m.patchAiConfig({ captureEnrich: on })') && g.includes('保存后补全') && g.includes('ZhiMark'); });
 check('R138-4 F2′ 周回顾：AiJob.rawText 叙事模式（抽屉跳 JSON 提取直传原文），reviewSystem 四段 markdown 契约，采纳=存为「🗓 每周回顾」资源卡（不动既有数据）；投影=近 7 天台账', () => { const j = read('/shared/ai/job.ts'); const w = read('/newtab/components/AiSuggestionDrawer.vue'); const s = read('/shared/ai/select.ts'); const p = read('/shared/ai/project.ts'); return j.includes('rawText?: boolean') && w.includes('job.rawText ? false : jsonMode !== false') && w.includes('job.rawText ? text : extractJson(text)') && s.includes('export function buildReviewJob') && s.includes('reviewSystem()') && p.includes('export function projectWeekDigest') && p.includes('7 * 86400000'); });
 check('R138-5 H3 书签导入归类：aiTtEnrich 泛型化为 aiEnrichIds(ids) · R154 备案（E3）：导入完不再自动弹评审抽屉（抢焦点、用户没点过它），改攒 pendingImportEnrich + 回执上显式入口', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('function aiTtEnrich() { aiEnrichIds(ttPicked.value) }') && g.includes('function aiEnrichIds(ids: Set<string>)') && g.includes('pendingImportEnrich.value = importedIds') && g.includes('function aiImportEnrichNow()'); });
@@ -3670,7 +3670,7 @@ console.log('【R139 · V2.107.0：实测整改刀】');
 check('R139-1 ★主攻图标定稿（🚀=主攻、🎯 只留指标、📦=项目）：灯塔行徽/策展 toast/浮层 chip/方向树徽全 🚀，⚑ 全站绝迹且 >🎯 主攻 不再出现', () => { const lh = read('/newtab/components/compass/LighthousePanel.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); const gp = read('/newtab/components/GlobalPopups.vue'); const ct = read('/newtab/views/CompassTree.vue'); return lh.includes('pr-mark" title="主攻项目">🚀') && ct.includes('tp-mark" title="主攻项目">🚀') && pc.includes('🚀 已设为主攻') && gp.includes("text: '🚀 主攻'") && !lh.includes('⚑') && !pc.includes('⚑') && !ct.includes('⚑') && !gp.includes('⚑') && !pc.includes('>🎯 主攻') && !lh.includes('>🎯 主攻'); });
 check('R139-2 拆解双通道：AiJob.secondary=同批勾选行的另一种落法；breakdown 次采纳把勾选步骤合并成 🤖 步骤清单 写进任务描述（替换段重复采纳不堆积、plan 行不入清单、原任务被删拒写），主通道建子任务不动', () => { const j = read('/shared/ai/job.ts'); const c = read('/shared/ai/chain.ts'); return j.includes('secondary?: { label: string') && c.includes("job.secondary = { label: '📝 步骤写入任务详情'") && c.includes('function writeStepsToTask') && c.includes('🤖 步骤清单：') && c.includes('⚠ 原任务已不存在，未写入') && c.includes('__plan') && c.includes('applyChain(level, anchorId, ctx, rows)'); });
 check('R139-3 拆解专家执笔：chainSystem 收 personaText（有则替换默认执行教练角色为执笔人设）；chainPersonaText 合成内置∪自建专家 brief+focus+风格覆盖（default/查无回落空串）；breakdown 挂 persona 下拉，宿主 onPersona 重建 job 自动重跑', () => { const s = read('/shared/ai/scenarios.ts'); const c = read('/shared/ai/chain.ts'); const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); return s.includes('export function chainSystem(level: ChainLevel, personaText?: string)') && s.includes('export function chainPersonaText') && s.includes('你的行文风格') && c.includes('chainSystem(level, personaText)') && c.includes('current: ctx.personaId') && td.includes('aiPersonaId') && td.includes('void aiBreakdown()'); });
-check('R139-4 ★周报深度洞察全懒接入：浮层头「🤖 深度洞察」钮只在点击时 dynamic import AI 栈（零静态 @/shared/ai），rawText 四段契约（重心体检/信号与异常/资产错位/下周一个动作）；浮层 z 降到 190 让开抽屉层 · R149 备案：「采纳=存卡」已作废——本场景改 withReport 自动落卡（adoptable:false 且无 apply）， tags 从 apply 里搬到 withReport 第三参，故断言锚改按新形态', () => { const w = read('/newtab/components/WeeklyReportOverlay.vue'); const s = read('/shared/ai/select.ts'); const sc = read('/shared/ai/scenarios.ts'); return !w.includes("from '@/shared/ai/") && w.includes('深度洞察') && w.includes('ZhiMark') && w.includes("import('@/shared/ai/select')") && w.includes('defineAsyncComponent(() => import(') && w.includes('z-index: 190') && s.includes('export function buildInsightJob') && sc.includes('deepInsightSystem') && sc.includes('## 重心体检') && /export function buildInsightJob[\s\S]*?adoptable: false[\s\S]*?\['深度洞察'\]/.test(s) && !/export function buildInsightJob[\s\S]{0,1400}?apply:/.test(s); });
+check('R139-4 ★周报深度洞察全懒接入：浮层头「深度洞察」钮只在点击时 dynamic import AI 栈（零静态 @/shared/ai），rawText 四段契约（重心体检/信号与异常/资产错位/下周一个动作）；浮层 z 降到 190 让开抽屉层 · R149 备案：「采纳=存卡」已作废——本场景改 withReport 自动落卡（adoptable:false 且无 apply）， tags 从 apply 里搬到 withReport 第三参，故断言锚改按新形态 · R155 备案：z-index 190 改走令牌 --z-cover；入口徽标锚 ZhiMark → AiEntryButton', () => { const w = read('/newtab/components/WeeklyReportOverlay.vue'); const s = read('/shared/ai/select.ts'); const sc = read('/shared/ai/scenarios.ts'); return !w.includes("from '@/shared/ai/") && w.includes('深度洞察') && w.includes('AiEntryButton') && w.includes("import('@/shared/ai/select')") && w.includes('defineAsyncComponent(() => import(') && w.includes('z-index: var(--z-cover)') && s.includes('export function buildInsightJob') && sc.includes('deepInsightSystem') && sc.includes('## 重心体检') && /export function buildInsightJob[\s\S]*?adoptable: false[\s\S]*?\['深度洞察'\]/.test(s) && !/export function buildInsightJob[\s\S]{0,1400}?apply:/.test(s); });
 check('R139-5 周台账投影扩容：projectWeekDigest 新增本周调用分布（按工作台聚合、top6）与 isFocused 主攻投入对照（≤3 个：进度/未完成/本周完成/停滞），作重心偏离证据段；主攻无卡可设时该段整体缺席', () => { const p = read('/shared/ai/project.ts'); return p.includes('【本周调用分布（按工作台）】') && p.includes('【主攻项目投入对照】') && p.includes('p.isFocused') && p.includes('slice(0, 3)') && p.includes('slice(0, 6)'); });
 check('R139-6 评审抽屉双控件：footer 次采纳按钮（label 由 job 给、勾选 0 禁用、走 adoptSecondary 复用 picked 集）+ persona 下拉（options/current/onPick 三段，宿主重建 job 即 watch 重跑；R141 已上移抽屉头部）· R148 备案：契约对象统一走 cur（后台模式下必须显示**正在跑的那份 job**，不能拿新锚点的表头配旧结果', () => { const w = read('/newtab/components/AiSuggestionDrawer.vue'); return w.includes('async function adoptSecondary()') && w.includes('job.secondary.apply(sel)') && w.includes('v-if="cur?.secondary && vRows.length"') && w.includes('class="ai-persona"') && w.includes('cur.persona!.onPick'); });
 
@@ -3737,7 +3737,7 @@ check('R144-4 ★G2 三判决与写入边界：verdict 白名单（第四种全�
   const g = read('/shared/ai/batchG.ts'); const cp = read('/newtab/components/compass/CuriosityPanel.vue'); const p = read('/shared/ai/project.ts');
   return g.includes("['convert', 'keep', 'drop'].includes(v)") && g.includes("if (v === 'convert' && !title) { drop.noTitle++; return }") && g.includes("c.status = 'shelf'")
     && !g.includes('deletedAt = Date.now()') && g.includes('ctx.onConvert(c, title)')
-    && cp.includes('convertToTask(c)') && cp.includes('t.title = title.slice(0, 40)') && cp.includes('转化研判') && cp.includes('ZhiMark')
+    && cp.includes('convertToTask(c)') && cp.includes('t.title = title.slice(0, 40)') && cp.includes('转化研判') && cp.includes('AiEntryButton')
     && p.includes('export function projectCurioPool') && p.includes('curioRelated(d, x)');
 });
 check('R144-5 G3/G4 语义：佐证 id 只认资源台目录且未挂本分支（≤6 张），采纳=projectCardToBoard 镜像零源改动；文稿 rawText 成文（剥代码围栏），次通道下载 .md 不改库 · R149 备案：文稿主通道由「采纳=存卡」改成 withReport 自动落卡（无 apply / adoptable:false），下载 .md 保留为唯一按钮', () => {
@@ -3758,6 +3758,9 @@ check('R144-6 入口零净增与懒化：Workspace 物理行数仍 ≤1500（裸
 // ============== R146 · V3.1.0：视觉/交互审计第一刀（回退契约 + 「知」徽标 + 检索浮层两刀） ==============
 const CRUD146 = read('/shared/utils/compassCrud.ts')
 const ALL_VUE146 = (() => { const out = []; const walk = (rel) => { for (const f of fs.readdirSync(base + rel)) { const abs = rel + '/' + f; if (fs.statSync(base + abs).isDirectory()) walk(abs); else if (f.endsWith('.vue')) out.push(abs) } }; walk(''); return out })()
+/* R155：视觉底座类断言需要**同时覆盖 .css**——ALL_VUE146 只收 .vue，会漏掉 workspace.css / tokens.css
+   这两个 z-index、字号、缓动散点最集中的地方（全站最大那片散点就在 workspace.css）。 */
+const ALL_STYLE155 = (() => { const out = []; const walk = (rel) => { for (const f of fs.readdirSync(base + rel)) { const abs = rel + '/' + f; if (fs.statSync(base + abs).isDirectory()) walk(abs); else if (f.endsWith('.vue') || f.endsWith('.css')) out.push(abs) } }; walk(''); return out })()
 check('R146-1 ★罗盘节点删除真源（回退契约①③）：确认先报数（项目/指标/任务）→ 快照摘除 → 3 秒撤销按原 index 插回；父已不在如实放弃不静默吞；四视图零就地 splice', () => {
   const ct = read('/newtab/views/CompassTree.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); const pd = read('/newtab/components/ProjectDetailDrawer.vue'); const ch = read('/newtab/views/CompassHome.vue')
   return CRUD146.includes('export function removeCompassNode') && CRUD146.includes('export function restoreCompassNode') && CRUD146.includes('list.splice(Math.min(snap.index, list.length), 0, snap.node)')
@@ -3787,11 +3790,17 @@ check('R146-4 toast 队列（回退契约⑦）：最多叠 3 条、同文案+�
     && t.includes('last.msg === msg') && t.includes('last.n++') && t.includes('export function runToastAction') && t.includes('export const toastState')
     && v.includes('toastState') && v.includes('TransitionGroup') && v.includes('var(--toast-bg)')
 });
-check('R146-5 ★AI 入口徽标全站统一（R151 定稿为 ✦ 四角星；原 R146 为镂空「知」）：全部 .vue 零 🤖 字面量（数据块前缀只活在 .ts 里），入口组件带 spin 态，五处原零反馈入口补互斥锁', () => {
-  const dirty = ALL_VUE146.filter(f => read(f).includes('🤖') && !f.endsWith('ZhiMark.vue') && !f.endsWith('GlobalPopups.vue')) /* R152：徽标回退成 🤖 后，"零 🤖 字面量"这条不再成立，改成"除真源与检索命中徽标外别处不许自己画" */
+check('R146-5 ★AI 入口徽标全站统一（**R155 换骨：emoji → 单色线性 SVG**）：ZhiMark 除 AiEntryButton 外零引用、徽标尺寸只走令牌、以 currentColor 随主题着色；入口组件带 spin 态，五处原零反馈入口补互斥锁', () => {
+  const dirty = ALL_VUE146.filter(f => read(f).includes('🤖') && !f.endsWith('ZhiMark.vue') && !f.endsWith('GlobalPopups.vue')) /* R152 起口径：写进卡片的「AI 出品」数据前缀（aiMarks/chain）与检索命中徽标不算入口；R155 后入口徽标已无 emoji，余下 emoji 只活在数据与手册里 */
   const zm = read('/shared/components/ZhiMark.vue')
-  const marked = ALL_VUE146.filter(f => read(f).includes('ZhiMark')).length
-  return dirty.length === 0 && marked >= 13 && zm.includes('>🤖<') && zm.includes('@keyframes ai-turn') && zm.includes('prefers-reduced-motion') && !zm.includes('text-stroke') && !zm.includes('viewBox') /* R152：R146 镂空知 → R151 ✦ 四角星 → 真机比后回退 🤖，三轮账写在组件注释里 */
+  const ae = read('/shared/components/AiEntryButton.vue')
+  /* R155-⑤：全站只许 AiEntryButton 引 ZhiMark（原 24 处/17 文件直挂已收敛） */
+  const zhiRefs = ALL_VUE146.filter(f => read(f).includes('@/shared/components/ZhiMark.vue') && !f.endsWith('AiEntryButton.vue') && !f.endsWith('ZhiMark.vue'))
+  const aeUsers = ALL_VUE146.filter(f => read(f).includes('AiEntryButton')).length
+  return dirty.length === 0 && zhiRefs.length === 0 && aeUsers >= 16
+    && zm.includes('viewBox') && zm.includes('currentColor') && zm.includes('stroke-width') && !zm.includes('>🤖<') && !zm.includes('fontSize')
+    && zm.includes('@keyframes ai-turn') && zm.includes('prefers-reduced-motion')
+    && ae.includes("from '@/shared/components/ZhiMark.vue'") && ae.includes('var(--icon-sm)') && ae.includes('var(--icon-lg)') && !ae.includes(':size=')
     && read('/newtab/components/ResourceDetailDrawer.vue').includes("const aiEntry = ref<'enrich' | 'optimize' | ''>('')")
     && read('/newtab/components/CardAiEntry.vue').includes('if (busy.value) return') && read('/newtab/components/EvidenceMenuItem.vue').includes('if (busy.value) return')
     && read('/newtab/components/TaskAddDrawer.vue').includes('if (aiBusy.value || !aiSay.value.trim()) return')
@@ -3814,11 +3823,11 @@ check('R146-8 设置页左栏与清缓存真回执（回退契约⑧⑨）：回
     && gs.includes("{ key: 'recycle', icon: '🗑', label: '回收站', route: '/recycle' }") && gs.includes('i.key === p && !i.route')
     && gs.includes('clearLinkCache()') && gs.includes('reviseSnips.size') && gs.includes('卡片数据与附件本体不动') && lf.includes('export function clearLinkCache')
 });
-check('R146-9 项目页 AI 入口补位（用户点名需求）：每个指标行有「按本指标建议近两周任务」、每个任务行（含未归类区）有 AI 辅助菜单（拆解/推荐卡/详情）· R147 备案：菜单搬进 TaskAiMenu 共享组件，页面只留引用', () => {
+check('R146-9（R155-⑤ 备案：入口组件化，末尾锚点 ZhiMark → AiEntryButton）项目页 AI 入口补位（用户点名需求）：每个指标行有「按本指标建议近两周任务」、每个任务行（含未归类区）有 AI 辅助菜单（拆解/推荐卡/详情）· R147 备案：菜单搬进 TaskAiMenu 共享组件，页面只留引用', () => {
   const pc = read('/newtab/views/ProjectCuration.vue')
   return pc.includes("async function aiChainAt(level: 'tasks', anchorId: string)") && pc.includes("aiChainAt('tasks', m.id)") && pc.includes("buildChainJob(level, anchorId,")
     && (pc.match(/<TaskAiMenu :task=/g) || []).length === 2 && pc.includes("import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'")
-    && !pc.includes('openAiMenu') && (pc.match(/<ZhiMark/g) || []).length >= 2
+    && !pc.includes('openAiMenu') && (pc.match(/<AiEntryButton/g) || []).length >= 2
 });
 
 // ============== R147 · V3.2.0：视觉/交互审计第二刀（AI 表达） ==============
@@ -4022,11 +4031,11 @@ check('R152-4 ★"AI 优化过"要有凭据：ResourceCard.aiTouchedAt 由全方
 });
 
 /* ===== R153 · 真库体检刀（版式 + 自诊） ===== */
-check('R153-1 ★体检发现的"真溢出"要修，"按设计截断"不许顺手改：卡片页脚标签 chip 从 flex-shrink:0 改成可缩 + 省略号（真库量到页脚溢出 32~227px，标签断在半截连省略号都没有），页脚自身 min-width:0 + overflow:hidden 兜底；而 .rc-desc 摘要被截 85~91% 属**等高卡片网格的刻意取舍**（R124 锁 84~88px），改两行会破网格——本轮只记账不定案', () => {
+check('R153-1（R155-③ 备案：摘要 2 行的取舍已由用户拍板）★体检发现的"真溢出"要修（页脚标签 chip 从 flex-shrink:0 改成可缩 + 省略号 + 页脚 min-width:0/overflow:hidden 兜底）；原「.rc-desc 摘要截断属刻意取舍、改两行会破网格」的待决状态随富卡形态解除——卡高已改 120~160，等高网格前提不再成立', () => {
   const c = read('/newtab/views/workspace.css')
   const foot = c.slice(c.indexOf('.rc-footer { margin-top: auto'), c.indexOf('.rc-heat'))
   return foot.includes('min-width: 0; overflow: hidden') && foot.includes('flex-shrink: 1') && foot.includes('text-overflow: ellipsis')
-    && c.includes('.res-card { min-height: 86px; max-height: 88px; }') && c.includes('视觉取舍留给用户定')
+    && c.includes('.res-card { min-height: 120px; max-height: 160px; }') && !c.includes('视觉取舍留给用户定')
 });
 check('R153-2 ★命中区只量真交互元素并抬到 26px：任务 AI 菜单钮 20×17 → min 26×26、排序下拉 15px 高 → min-height 26（体检脚本同时修了假阳性——原来把 pointer 继承来的 span 也算成点击目标，一堆误报）', () => {
   const m = read('/newtab/components/TaskAiMenu.vue'); const c = read('/newtab/views/workspace.css')
@@ -4037,10 +4046,10 @@ check('R153-3 ★空态必须能自证：抽屉 0 行时给「看模型原文（
   return d.includes('看模型原文（') && d.includes('function copyRaw()') && d.includes('navigator.clipboard') && d.includes('showRaw.value = false')
 });
 
-check('R153-4 ★体检量到的"中性小字低于 AA"当场修，"强调色小字"留给令牌决策不硬改：cf-pct / cf-open / mb-denom 从 --text-3 抬到 --text-2（真库量到 3.14:1 @10~11px），列数钮 20→24px；accent 系小字（cf-label 3.93 / tg-pct 3.51 / cf-go 3.14）提亮会动全站主题令牌，只记账不定案；emoji 图标（📌 1.25）不算对比度对象', () => {
+check('R153-4（R155 令牌化备案：字号改走 --fs-* 阶）★体检量到的"中性小字低于 AA"当场修，"强调色小字"留给令牌决策不硬改：cf-pct / cf-open / mb-denom 从 --text-3 抬到 --text-2（真库量到 3.14:1 @10~11px），列数钮 20→24px；accent 系小字（cf-label 3.93 / tg-pct 3.51 / cf-go 3.14）提亮会动全站主题令牌，只记账不定案；emoji 图标（📌 1.25）不算对比度对象', () => {
   const ch = read('/newtab/views/CompassHome.vue'); const mb = read('/newtab/components/compass/MetricBar.vue'); const cp = read('/shared/components/ColsPicker.vue')
-  return ch.includes('.cf-pct { flex-shrink: 0; font-size: 11px; color: var(--text-2)') && ch.includes('.cf-open { flex-shrink: 0; font-size: 10px; color: var(--text-2)')
-    && mb.includes('.mb-denom { font-size: 10.5px; font-weight: 500; color: var(--text-2)') && cp.includes('width: 24px; min-width: 24px; height: 24px')
+  return ch.includes('.cf-pct { flex-shrink: 0; font-size: var(--fs-caption); color: var(--text-2)') && ch.includes('.cf-open { flex-shrink: 0; font-size: var(--fs-tiny); color: var(--text-2)')
+    && mb.includes('.mb-denom { font-size: var(--fs-caption); font-weight: 500; color: var(--text-2)') && cp.includes('width: 24px; min-width: 24px; height: 24px')
 });
 check('R150-1 ★检索类 AI 入口全站只留一枚：旧「AI 理解」通道整体退场（rerankSearch/rerankSystem/rerankReady/「AI 理解」字样在源码与断言锚点里都不该再存在），合并后的「AI 检索」把候选从"字面命中前 14 条"换成"库内三类卡"——用户换个说法也能召得回', () => {
   const g = read('/newtab/components/GlobalPopups.vue'); const sel = read('/shared/ai/select.ts'); const sc = read('/shared/ai/scenarios.ts')
@@ -4082,11 +4091,14 @@ check('R150-6 跑动态那句话必须渲染成数字而不是对象：computed 
   return body.includes('${aiSecs.value}s') && !body.includes('${aiSecs}s') && body.includes('const mid = aiScanned.value > 0')
     && body.includes('库内 ${aiTotal.value} 张里挑') && body.includes('已扫 ${aiScanned.value}/${aiTotal.value} 张')
 });
-check('R151-1 ★AI 入口图标单一真源换形不换责：ZhiMark.vue 出一枚 inline SVG 四角星（currentColor 随主题、无外部图标/字体依赖、12px 可辨），spin 与 prefers-reduced-motion 两条行为一字未动；「知」只留在品牌位（启动 Splash 的 <i>知</i> 仍在 index.html），入口组件引用数不降；手册把"为什么换"与两处例外写清', () => {
+check('R151-1（R155-⑤ 换骨重写）★AI 入口图标单一真源换形不换责：ZhiMark.vue 出一枚 **inline 单色线性 SVG 机器人脸**（viewBox + currentColor 随主题、stroke-width 固定单位、无外部图标/字体依赖、12px 可辨），spin 与 prefers-reduced-motion 两条行为一字未动；「知」只留在品牌位（启动 Splash 的 <i>知</i> 仍在 index.html），入口组件引用数不降（R155 起锚点由 ZhiMark 直挂改为 AiEntryButton 收敛）；手册把"为什么换"与两处例外写清', () => {
   const zm = read('/shared/components/ZhiMark.vue'); const h = read('/newtab/index.html'); const m = read('/newtab/manual-data.ts')
-  return zm.includes('>🤖<') && zm.includes('.ai-mark.spin') && zm.includes('@keyframes ai-turn') && zm.includes('prefers-reduced-motion')
-    && !zm.includes('text-stroke') && !zm.includes('>知<') && h.includes('<i>知</i>') && !zm.includes('viewBox')
-    && ALL_VUE146.filter(f => read(f).includes('ZhiMark')).length >= 13 && m.includes('品牌位') && m.includes('换过三轮') && m.includes('可辨性优先') /* R152 备案：本条原钉"inline SVG 四角星"，用户真机判可辨性不如 🤖 → 换回表情图标，"单一真源/spin/降级动效/知留品牌位"四条职责一字未动 */
+  /* 先剥块注释再检：本文件顶部的"换骨理由"注释里引用了旧写法的 font-size 字样，直接 includes 会假命中 */
+  const zmCode = zm.replace(/\/\*[\s\S]*?\*\//g, '')
+  return zmCode.includes('viewBox="0 0 24 24"') && zmCode.includes('stroke="currentColor"') && zmCode.includes('stroke-width="2"') && zmCode.includes(':width="size"')
+    && zmCode.includes('.ai-mark.spin') && zmCode.includes('@keyframes ai-turn') && zmCode.includes('prefers-reduced-motion')
+    && !zmCode.includes('🤖') && !zmCode.includes('font-size') && !zmCode.includes('text-stroke') && !zmCode.includes('>知<') && h.includes('<i>知</i>')
+    && ALL_VUE146.filter(f => read(f).includes('AiEntryButton')).length >= 16 && m.includes('品牌位') && m.includes('换过三轮') && m.includes('可辨性优先') /* R152 备案：本条曾钉"inline SVG 四角星"，用户真机判可辨性不如 🤖 → 换回表情图标；R155-⑤ 用户拍板"入口图标统一（布局一致/大小一致）"，换骨为单色线性 SVG 并注回"脸"语义，四条职责（单一真源/spin/降级动效/知留品牌位）始终一字未动 */
 });
 check('R148-6 报告型自动落卡只新增不改既有：withReport 只把带「AI 报告·待审阅」的卡放进资源台待分类 · R149 备案：本条原写"本轮仅深度诊断接入（其余报告型仍走勾选采纳）"，R149 用户拍板后周回顾/深度洞察/成果文稿一并接上并撤采纳按钮（见 R149-1），故此处只锁"报告标签 + 待分类 + 零 splice"这条下界', () => {
   const rp = read('/shared/ai/reports.ts'); const g = read('/newtab/views/GlobalSettings.vue'); const j = read('/shared/ai/job.ts')
@@ -4150,6 +4162,101 @@ check('R154-9 ★E3 导入归类不再自动弹 + RDD 采纳直接写库：两�
   const g = read('/newtab/views/GlobalSettings.vue'); const r = read('/newtab/components/ResourceDetailDrawer.vue')
   return g.includes('pendingImportEnrich.value = importedIds') && !g.includes('aiEnrichIds(new Set(importedIds))')
     && r.includes('const baseApply = job.apply!') && !r.includes('建议已回填表单') && !r.includes('function knownTags()') && !r.includes('AiRowLite')
+});
+
+// ============== R155 · V3.2.0：视觉底座与形态分层（令牌 + 形态 + AI 入口统一） ==============
+console.log('【R155 · V3.2.0：视觉底座、富卡形态、AI 入口统一】');
+
+check('R155-1a ★间距令牌阶就位：--sp-1..7 定义完整，卡片密度令牌改为**引用阶**（原有 9/11/10 三个"非阶值"归位 8/12/12）', () => {
+  const t = read('/shared/styles/tokens.css')
+  return ['--sp-1', '--sp-2', '--sp-3', '--sp-4', '--sp-5', '--sp-6', '--sp-7'].every(v => t.includes(v + ':'))
+    && t.includes('--card-pad-vert: var(--sp-2)') && t.includes('--card-pad-horz: var(--sp-3)') && t.includes('--card-gap: var(--sp-3)')
+    && !t.includes('--card-pad-vert: 9px') && !t.includes('--card-pad-horz: 11px') && !t.includes('--card-gap: 10px')
+});
+
+check('R155-1c ★z-index 只许走令牌：跨组件层（值 ≥100）零裸数字；组件内相对微层（1~99）保留字面量；六档令牌齐备', () => {
+  const t = read('/shared/styles/tokens.css')
+  const need = ['--z-sticky', '--z-batch', '--z-cover', '--z-overlay', '--z-raised', '--z-modal', '--z-menu', '--z-confirm', '--z-mask-lg', '--z-popover', '--z-context', '--z-picker', '--z-global', '--z-media', '--z-media-top', '--z-toast']
+  if (!need.every(v => t.includes(v + ':'))) return false
+  const bad = []
+  for (const f of ALL_STYLE155) {
+    if (f.endsWith('/tokens.css')) continue /* 令牌定义处 */
+    const s = read(f)
+    const re = /z-index:\s*(\d+)/g
+    let m
+    while ((m = re.exec(s))) { if (Number(m[1]) >= 100) bad.push(f.replace(/^\//, '') + ':' + m[1]) }
+  }
+  return bad.length === 0
+});
+
+check('R155-U4 ★字号只走 --fs-* 阶：非阶值（9.5/10.5/11.5/12.5/13.5/14.5/15.5）零残留，阶内字面量已全量 token 化（引用 ≥900 处）', () => {
+  const t = read('/shared/styles/tokens.css')
+  const need = ['--fs-micro', '--fs-tiny', '--fs-caption', '--fs-sub', '--fs-body', '--fs-title', '--fs-headline', '--fs-display']
+  if (!need.every(v => t.includes(v + ':'))) return false
+  if (!['--lh-micro', '--lh-display'].every(v => t.includes(v + ':'))) return false
+  const bad = []
+  let refs = 0
+  for (const f of ALL_STYLE155) {
+    if (f.endsWith('/tokens.css')) continue
+    const s = read(f)
+    refs += (s.match(/font-size:\s*var\(--fs-/g) || []).length
+    const re = /font-size:\s*(9\.5|10\.5|11\.5|12\.5|13\.5|14\.5|15\.5)px/g
+    let m
+    while ((m = re.exec(s))) bad.push(f.replace(/^\//, '') + ':' + m[1])
+  }
+  return bad.length === 0 && refs >= 900
+});
+
+check('R155-U8 缓动收敛为 3 套令牌（勘误：实测原为 **4 套**而非 3 套）：tokens 外零 cubic-bezier 字面量，标准/弹层/回弹三档齐备', () => {
+  const t = read('/shared/styles/tokens.css')
+  const bad = ALL_STYLE155.filter(f => !f.endsWith('/tokens.css') && read(f).includes('cubic-bezier'))
+  return bad.length === 0 && t.includes('--ease-out-soft:') && t.includes('--ease-emphasis:') && t.includes('--ease-spring:')
+});
+
+check('R155-① ★容器宽度统一 1440：顶栏三档 + 设置页容器 + 手册容器全部 1440，且 padding 一致（只统一 max-width 会让左缘差 12px）', () => {
+  const app = read('/newtab/App.vue'); const gs = read('/newtab/views/GlobalSettings.vue'); const mn = read('/newtab/views/ManualPage.vue')
+  return app.includes('.topbar-inner.align-page { max-width: 1440px; margin: 0 auto; padding: 0 36px; }')
+    && app.includes('.topbar-inner.align-settings { max-width: 1440px; margin: 0 auto; padding: 0 36px; }')
+    && app.includes('.topbar-inner.align-manual { max-width: 1440px; margin: 0 auto; padding: 0 36px; }')
+    && !app.includes('max-width: 1200px') && !app.includes('max-width: 1120px')
+    && gs.includes('.gs-page { display: flex; max-width: 1440px;') && gs.includes('max-width: 1100px') /* 内容列限宽：容器放宽后防单行过长 */
+    && mn.includes('max-width: 1440px');
+});
+
+check('R155-③ ★富卡形态（用户拍板：120~160px / 无缩略图 / 摘要 2 行 / 启用字段 3 个）：卡高区间 + intrinsic 140 + 标题与摘要各 2 行 + 字段上限常量（下沉 shared/utils/fields）', () => {
+  const w = read('/newtab/views/workspace.css'); const ws = read('/newtab/views/Workspace.vue'); const fd = read('/shared/utils/fields.ts')
+  return w.includes('.res-card { min-height: 120px; max-height: 160px; }')
+    && w.includes('contain-intrinsic-size: auto 140px')
+    && /\.rc-title \{[^}]*-webkit-line-clamp: 2/.test(w)
+    && /\.rc-desc \{[^}]*-webkit-line-clamp: 2/.test(w)
+    && !/\.rc-desc \{[^}]*white-space: nowrap/.test(w) /* 摘要不再是单行省略 */
+    && fd.includes('export const CARD_EXTRA_FIELD_LIMIT = 3') && fd.includes('export function cardExtraFields(') && fd.includes('CARD_SLOT_KEYS')
+    && ws.includes('cardExtraFields(fieldsOf(r))') /* 宿主只留一行引用：为守住 1500 行验收线，实现下沉 shared/utils/fields */
+    && w.includes('contain-intrinsic-size: auto 44px') /* 列表行 44px 不动：形态分层靠卡片变高，不是把列表也改掉 */
+});
+
+check('R155-10d ★AI 入口调用纪律：业务 .vue 零直挂 ZhiMark、零给徽标写死尺寸；AiEntryButton 尺寸只认 --icon-sm/--icon-lg 且不引 font-size', () => {
+  const ae = read('/shared/components/AiEntryButton.vue')
+  const rawUse = ALL_VUE146.filter(f => !f.endsWith('AiEntryButton.vue') && !f.endsWith('ZhiMark.vue') && /<ZhiMark[\s/>]/.test(read(f)))
+  const numSize = ALL_VUE146.filter(f => /<AiEntryButton[^>]*:size=/.test(read(f)))
+  const aeUsers = ALL_VUE146.filter(f => read(f).includes('AiEntryButton')).length
+  return rawUse.length === 0 && numSize.length === 0 && aeUsers >= 16
+    && ae.includes('var(--icon-sm)') && ae.includes('var(--icon-lg)') && !ae.includes('font-size:') /* 尺寸只走 width/height 令牌，不靠字号间接控制 */
+    && ae.includes('gap: 5px'); /* 图标—文案点距全站唯一值 */
+});
+check('R155-11 ★06-2 §F 分发路径复测常驻化：scripts/probe-f.cjs 加载**真实交付包**（桌面解压目录，不是 v2/dist）复测三项 —— MV3 worker / 新标签页接管 / Alt+1·2·3；版本比对以**源码 manifest.ts 为唯一真源**（不写死版本号，否则每轮发版都得改这条断言）· R155 首跑即抓到 §F 的 Alt 键位文档漂移', () => {
+  const p = fs.readFileSync(path.resolve(__dirname, 'probe-f.cjs'), 'utf8')
+  return p.includes('launchPersistentContext') && p.includes('--load-extension') && p.includes('--disable-extensions-except')
+    && p.includes('chrome_url_overrides') && p.includes("'Digit1'") && p.includes("'Digit2'") && p.includes("'Digit3'")
+    && p.includes('function sourceVersion') && p.includes("'src', 'manifest.ts'")
+    && p.includes('ZY_CHROME') /* 与 e2e/perf 同一条浏览器回落链 */
+    && !/mf\.version === '\d+\.\d+\.\d+'/.test(p) /* 反例：写死版本号 */
+});
+check('R155-12 ★同机 A/B 改为「零移动」+ 报告自证：perf.cjs 认 `--dist=<目录>`（旧做法靠 `mv` 换目录名，撞同名目录会把包嵌套成不完整包 ⇒ 扩展加载不出 worker ⇒ 报错被重定向吞掉 ⇒ 读到上一轮残留报告，得出"两版读数一字不差"的假结论）；报告新增 `build` 字段（从 service worker 回读 manifest.version，磁盘上的 manifest 不代表浏览器加载的就是它）与 `M14b/M14c` 归因计量；**开跑即删旧报告**', () => {
+  const p = fs.readFileSync(path.resolve(__dirname, 'perf.cjs'), 'utf8')
+  return p.includes("a.startsWith('--dist=')") && p.includes('chrome.runtime.getManifest().version')
+    && p.includes('out.build = loadedVer') && p.includes('M14b_资源台svg元素数') && p.includes('M14c_资源台AI徽标数')
+    && /fs\.unlinkSync\(reportPath\)/.test(p);
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

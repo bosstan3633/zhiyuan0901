@@ -29,14 +29,14 @@
         <!-- R150：AI 检索（自然语言 → 三类卡语义召回，只读；跑动中再点=取消；键入路径零 AI） -->
         <div class="gp-type-tab gp-ai-tab" :class="{active: !!aiSearch, busy: aiBusy}" @click="aiSearchRun(false)"
           :title="aiBusy ? '点击取消本次 AI 检索（不写任何数据）' : 'AI 读懂你这句话，从库内资源卡/任务/好奇卡里按相关度取一批投料，挑出真正贴合的（只读不改数据；结果出来后会写明扫了多少张/库内共多少张；再点=清除）'">
-          <ZhiMark :size="13" :spin="aiBusy" /><span>{{ aiBusy ? aiProgress : 'AI 检索' }}</span>
+          <AiEntryButton variant="inline" :spin="aiBusy" :label="aiBusy ? aiProgress : 'AI 检索'" />
         </div>
       </div>
       <div class="gp-results" ref="resultsEl">
         <!-- R150：AI 检索组（置顶呈现；原分组列表不动；手势与主列表逐字一致） -->
         <template v-if="aiTopRows.length && !isBrowseMode">
           <div class="gp-group-title gp-ai-title">
-            <ZhiMark :size="12" /> AI 检索
+            <AiEntryButton variant="inline" label="AI 检索" />
             <span class="gp-ai-fed">挑出 {{ aiTopRows.length }} 条 · 投料 {{ aiSearch?.scanned }}/{{ aiSearch?.total }} 张 · {{ aiDur(aiTook) }}<template v-if="aiSearch && aiSearch.batches > 1"> · {{ aiSearch.batches }} 批</template></span>
             <span v-if="aiSearch && aiSearch.note" class="gp-ai-note">{{ aiSearch.note }}</span>
             <span v-if="aiSearch && aiSearch.dropped" class="gp-ai-drop">消毒：{{ aiSearch.dropped }} 条 id 不在候选内</span>
@@ -102,7 +102,7 @@
         </div>
         <div v-if="!filteredResults.length" class="gp-search-empty">
           <div class="gp-se-icon">🪹</div>
-          <div class="gp-se-text">没有匹配的卡片<br><span style="font-size:11px">试试更短的关键词</span></div>
+          <div class="gp-se-text">没有匹配的卡片<br><span style="font-size: var(--fs-caption)">试试更短的关键词</span></div>
         </div>
         <template v-for="grp in groupedResults" :key="grp.label">
           <div class="gp-group-title">{{ grp.label }} <span class="gp-group-cnt">{{ grp.total }}</span></div>
@@ -219,7 +219,7 @@
           </div>
         </div>
         <div class="gp-cap-foot">
-          <label class="gp-cap-enrich" title="保存成功后自动打开 AI 补全评审（勾选采纳才写库）"><input type="checkbox" v-model="capEnrichOn" @change="capEnrichSave" /> <ZhiMark :size="12" /> 保存后补全</label>
+          <label class="gp-cap-enrich" title="保存成功后自动打开 AI 补全评审（勾选采纳才写库）"><input type="checkbox" v-model="capEnrichOn" @change="capEnrichSave" /> <AiEntryButton variant="inline" label="保存后补全" /></label>
           <button class="gp-btn gp-btn-ghost" @click="closeAll">取消</button>
           <button class="gp-btn gp-btn-primary" @click="saveCapture">💾 保存（Ctrl+Enter）</button>
         </div>
@@ -234,7 +234,7 @@
           <div class="gp-saved-sub">按 <kbd>Esc</kbd> 关闭 · 5 秒后自动关闭</div>
           <div class="gp-saved-actions">
             <button class="gp-btn gp-btn-ghost" @click="closeAll">关闭</button>
-            <button v-if="capEnrichReady" class="gp-btn" @click="aiReopenEnrich"><ZhiMark :size="13" /> 补全建议</button>
+            <button v-if="capEnrichReady" class="gp-btn" @click="aiReopenEnrich"><AiEntryButton variant="inline" label="补全建议" /></button>
             <button class="gp-btn gp-btn-primary" @click="openSavedBoard">打开看板（Enter）</button>
           </div>
         </div>
@@ -382,7 +382,7 @@ import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { useConfirm } from '@/shared/components/confirm'
 import Icon from '@/shared/components/Icon.vue'
 // R146-b：AI 入口统一徽标（真源 ZhiMark.vue，零 AI 字面量，可进启动链）
-import ZhiMark from '@/shared/components/ZhiMark.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import type { ResourceCard, TaskCard, CuriosityCard, Workspace, Category, AnyCard } from '@/shared/models'
 // R146（回退契约）：检索浮层删任务改走软删真源（同时摘 metric.taskIds，守 R141 双向不变量）
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
@@ -1472,7 +1472,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 
 <style scoped>
 /* 遮罩 */
-.gp-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-start; justify-content: center;
+.gp-overlay { position: fixed; inset: 0; z-index: var(--z-global); display: flex; align-items: flex-start; justify-content: center;
   padding-top: 12vh; opacity: 0; pointer-events: none; transition: opacity .22s ease;
   background: var(--overlay-bg); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4); }
 .gp-overlay.open { opacity: 1; pointer-events: auto; }
@@ -1484,7 +1484,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-panel { position: relative; width: 680px; max-width: 92vw; background: var(--surface); border-radius: var(--radius);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-lg);
-  transform: translateY(-12px) scale(.98); opacity: 0; transition: all var(--dur) cubic-bezier(.16,1,.3,1); overflow: hidden; }
+  transform: translateY(-12px) scale(.98); opacity: 0; transition: all var(--dur) var(--ease-emphasis); overflow: hidden; }
 .gp-overlay.open .gp-panel { transform: translateY(0) scale(1); opacity: 1; }
 
 .gp-panel-narrow { width: 400px; max-height: 600px; overflow-y: auto; }
@@ -1493,20 +1493,20 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-sc-body { padding: 14px 24px 20px; max-height: 60vh; overflow-y: auto; }
 .gp-sc-group { margin-bottom: 16px; }
 .gp-sc-group:last-child { margin-bottom: 0; }
-.gp-sc-title { font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
-.gp-sc-row { display: flex; align-items: center; gap: 12px; padding: 5px 0; font-size: 12.5px; color: var(--text-2); }
+.gp-sc-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+.gp-sc-row { display: flex; align-items: center; gap: 12px; padding: 5px 0; font-size: var(--fs-body); color: var(--text-2); }
 .gp-sc-keys { min-width: 150px; display: flex; gap: 4px; flex-shrink: 0; }
-.gp-sc-keys kbd { background: var(--surface-3); border: 1px solid var(--border); border-radius: 5px; padding: 1px 7px; font-size: 11px; color: var(--text); font-family: inherit; box-shadow: 0 1px 0 var(--border); }
+.gp-sc-keys kbd { background: var(--surface-3); border: 1px solid var(--border); border-radius: 5px; padding: 1px 7px; font-size: var(--fs-caption); color: var(--text); font-family: inherit; box-shadow: 0 1px 0 var(--border); }
 .gp-cap-desc { min-height: 64px; }
 
 /* 已保存状态条 */
 .gp-saved { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 52px 24px 44px; text-align: center; }
-.gp-saved-icon { width: 52px; height: 52px; border-radius: 50%; background: var(--tag-ok-bg); color: var(--tag-ok-text); font-size: 24px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; animation: gp-pop .35s cubic-bezier(.34,1.56,.64,1); }
+.gp-saved-icon { width: 52px; height: 52px; border-radius: 50%; background: var(--tag-ok-bg); color: var(--tag-ok-text); font-size: 24px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; animation: gp-pop .35s var(--ease-spring); }
 @keyframes gp-pop { 0% { transform: scale(.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 .gp-saved-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
-.gp-saved-hint { font-size: 13px; color: var(--accent); font-weight: 600; }
-.gp-saved-hint kbd, .gp-saved-sub kbd { background: var(--surface-3); border: 1px solid var(--border); border-radius: 5px; padding: 1px 7px; font-family: inherit; font-size: 11px; color: var(--text-2); }
-.gp-saved-sub { font-size: 11.5px; color: var(--text-3); margin-top: 4px; }
+.gp-saved-hint { font-size: var(--fs-body); color: var(--accent); font-weight: 600; }
+.gp-saved-hint kbd, .gp-saved-sub kbd { background: var(--surface-3); border: 1px solid var(--border); border-radius: 5px; padding: 1px 7px; font-family: inherit; font-size: var(--fs-caption); color: var(--text-2); }
+.gp-saved-sub { font-size: var(--fs-sub); color: var(--text-3); margin-top: 4px; }
 .gp-saved-actions { display: flex; gap: 10px; margin-top: 20px; }
 
 /* 搜索头部 */
@@ -1514,18 +1514,18 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-search-icon { width: 22px; height: 22px; color: var(--text-3); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .gp-search-input-wrap { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .gp-search-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 8px;
-  background: var(--accent-light); color: var(--accent); font-size: 12.5px; font-weight: 600; flex-shrink: 0;
+  background: var(--accent-light); color: var(--accent); font-size: var(--fs-body); font-weight: 600; flex-shrink: 0;
   animation: gp-chipIn .2s ease; }
 .gp-chip-x { width: 15px; height: 15px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
-  cursor: pointer; opacity: .6; transition: all var(--dur-fast); font-size: 11px; }
+  cursor: pointer; opacity: .6; transition: all var(--dur-fast); font-size: var(--fs-caption); }
 .gp-chip-x:hover { opacity: 1; background: color-mix(in srgb, var(--accent) 15%, transparent); }
 @keyframes gp-chipIn { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
-.gp-search-input { flex: 1; border: none; outline: none; background: transparent; font-size: 17px; font-weight: 500;
+.gp-search-input { flex: 1; border: none; outline: none; background: transparent; font-size: var(--fs-headline); font-weight: 500;
   color: var(--text); font-family: inherit; min-width: 0; line-height: 1.4; }
 .gp-search-input::placeholder { color: var(--text-4); font-weight: 400; }
 /* R150：AI 检索的消毒账 / 全库兜底钮 / 低置信徽标 */
-.gp-ai-drop { font-size: 10.5px; color: var(--warning); }
-.gp-ai-more { padding: 1px 7px; font-size: 10.5px; font-family: inherit; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface-2); color: var(--text-2); cursor: pointer; }
+.gp-ai-drop { font-size: var(--fs-caption); color: var(--warning); }
+.gp-ai-more { padding: 1px 7px; font-size: var(--fs-caption); font-family: inherit; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface-2); color: var(--text-2); cursor: pointer; }
 .gp-ai-more:hover { border-color: var(--accent); color: var(--accent); }
 .gp-ai-more:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .gp-ri-badge.weak { background: var(--warning-bg-soft); color: var(--warning); }
@@ -1536,27 +1536,27 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-ai-tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .gp-ai-tab.busy { color: var(--accent); cursor: pointer; }
 .gp-ai-title { color: var(--accent); display: flex; align-items: center; gap: 6px; }
-.gp-ai-fed { font-weight: 400; font-size: 10.5px; color: var(--text-4); }
+.gp-ai-fed { font-weight: 400; font-size: var(--fs-caption); color: var(--text-4); }
 .gp-ai-note { margin-left: 8px; font-weight: 400; color: var(--text-3); }
-.gp-ai-why { font-size: 11px; color: var(--accent); background: var(--accent-light); border-radius: var(--radius-xs); padding: 1px 6px; }
+.gp-ai-why { font-size: var(--fs-caption); color: var(--accent); background: var(--accent-light); border-radius: var(--radius-xs); padding: 1px 6px; }
 .gp-ai-row { border-left: 2px solid var(--accent); }
-.gp-search-esc { font-size: 11px; color: var(--text-4); background: var(--surface-2); border: 1px solid var(--border);
+.gp-search-esc { font-size: var(--fs-caption); color: var(--text-4); background: var(--surface-2); border: 1px solid var(--border);
   border-radius: 6px; padding: 3px 8px; flex-shrink: 0; cursor: pointer; transition: all var(--dur-fast); font-family: inherit; }
 .gp-search-esc:hover { color: var(--text-2); border-color: var(--border-strong); }
 
 /* 类型Tab · R146-d：去 emoji 图标 + tab 内锁 nowrap——窄窗宁可整枚换到第二行，也不把「搜全部」劈成两截 */
 .gp-type-tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 12px 22px 8px; }
-.gp-type-tab { padding: 5px 12px; border-radius: 8px; font-size: 12.5px; color: var(--text-3); cursor: pointer;
+.gp-type-tab { padding: 5px 12px; border-radius: 8px; font-size: var(--fs-body); color: var(--text-3); cursor: pointer;
   transition: all var(--dur-fast); display: flex; align-items: center; gap: 5px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
 .gp-type-tab:hover { color: var(--text-2); background: var(--surface-2); }
 .gp-type-tab.active { color: var(--accent); background: var(--accent-light); font-weight: 600; }
-.gp-tt-count { font-size: 10.5px; color: var(--text-4); font-weight: 500; }
+.gp-tt-count { font-size: var(--fs-caption); color: var(--text-4); font-weight: 500; }
 .gp-type-tab.active .gp-tt-count { color: var(--accent); opacity: .7; }
 
 /* B1：分组标题与关键词高亮 */
-.gp-group-title { font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .08em; padding: 10px 12px 4px; display: flex; align-items: center; gap: 6px; }
+.gp-group-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .08em; padding: 10px 12px 4px; display: flex; align-items: center; gap: 6px; }
 .gp-group-cnt { font-weight: 500; color: var(--text-4); }
-.gp-group-more { font-size: 11px; color: var(--text-4); padding: 6px 12px; border-top: 1px dashed var(--border); }
+.gp-group-more { font-size: var(--fs-caption); color: var(--text-4); padding: 6px 12px; border-top: 1px dashed var(--border); }
 .gp-ri-title :deep(mark.gp-hl), .gp-ri-summary :deep(mark.gp-hl) { background: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--text); border-radius: 3px; padding: 0 1px; }
 
 /* 结果区 */
@@ -1565,7 +1565,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-results::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 .gp-result-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; cursor: pointer;
   border-left: 3px solid transparent; transition: background .1s, border-color .1s; position: relative; margin-bottom: 2px;
-  animation: gp-itemIn var(--dur-slow) cubic-bezier(.16,1,.3,1) backwards; }
+  animation: gp-itemIn var(--dur-slow) var(--ease-emphasis) backwards; }
 .gp-result-item:nth-child(1) { animation-delay: .03s; }
 .gp-result-item:nth-child(2) { animation-delay: .06s; }
 .gp-result-item:nth-child(3) { animation-delay: .09s; }
@@ -1575,7 +1575,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
   border-left-color: var(--accent); }
 .gp-result-item.selected { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent); }
 .gp-ri-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
-  font-size: 15px; flex-shrink: 0; }
+  font-size: var(--fs-title); flex-shrink: 0; }
 .gp-ri-icon.res { background: var(--tag-info-bg); }
 .gp-ri-icon.task-done { background: var(--tag-ok-bg); }
 .gp-ri-icon.task-doing { background: var(--tag-warn-bg); }
@@ -1585,11 +1585,11 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-ri-badge.ws-badge { background: var(--accent-light); color: var(--accent); }
 .gp-ri-main { flex: 1; min-width: 0; }
 /* R47-B4：浏览态热度条目的归属小字 */
-.gp-ri-cat { font-size: 11px; color: var(--text-3); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gp-ri-cat { font-size: var(--fs-caption); color: var(--text-3); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gp-ri-title { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; line-height: 1.4; }
 .gp-ri-meta { display: flex; gap: 5px; margin-top: 3px; flex-wrap: wrap; align-items: center; }
-.gp-ri-badge { font-size: 10.5px; padding: 1.5px 8px; border-radius: 99px; font-weight: 500; line-height: 1.5; }
+.gp-ri-badge { font-size: var(--fs-caption); padding: 1.5px 8px; border-radius: 99px; font-weight: 500; line-height: 1.5; }
 .gp-ri-badge.ws { background: var(--accent-light); color: var(--accent); }
 .gp-ri-badge.cat { background: var(--surface-3); color: var(--text-2); }
 .gp-ri-badge.prio-high { background: var(--tag-danger-bg); color: var(--tag-danger-text); }
@@ -1598,19 +1598,19 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-ri-badge.status-doing { background: var(--tag-warn-bg); color: var(--curio-amber); }
 .gp-ri-badge.status-done { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
 .gp-ri-badge.curio-status { background: var(--surface-3); color: var(--text-2); }
-.gp-ri-link { font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+.gp-ri-link { font-size: var(--fs-caption); color: var(--text-3); display: flex; align-items: center; gap: 3px; white-space: nowrap; }
 .gp-ri-link.url { color: var(--accent); }
 .gp-ri-link.file { color: var(--curio-amber); }
 .gp-ri-link.obsidian { color: var(--violet); }
-.gp-ri-due { font-size: 10.5px; color: var(--text-3); }
+.gp-ri-due { font-size: var(--fs-caption); color: var(--text-3); }
 .gp-ri-due.overdue { color: var(--tag-danger-text); font-weight: 600; }
-.gp-ri-summary { font-size: 11.5px; color: var(--text-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gp-ri-summary { font-size: var(--fs-sub); color: var(--text-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* 操作按钮 */
 .gp-ri-actions { display: flex; gap: 3px; flex-shrink: 0; opacity: 0; transition: opacity var(--dur); }
 .gp-result-item:hover .gp-ri-actions, .gp-result-item.selected .gp-ri-actions { opacity: 1; }
 .gp-ri-act { width: 28px; height: 28px; border-radius: 8px; border: 1px solid transparent; background: transparent;
-  display: flex; align-items: center; justify-content: center; font-size: 13px; cursor: pointer; color: var(--text-3);
+  display: flex; align-items: center; justify-content: center; font-size: var(--fs-body); cursor: pointer; color: var(--text-3);
   transition: all var(--dur-fast); font-family: inherit; padding: 0; position: relative; }
 .gp-ri-act:hover { background: var(--surface); border-color: var(--border); color: var(--text); }
 .gp-ri-act.go { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -1622,28 +1622,28 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
   border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 8px 28px rgba(0,0,0,.12); padding: 5px;
   min-width: 150px; display: none; z-index: 10; }
 .gp-convert-menu.open { display: block; }
-.gp-convert-menu-item { padding: 7px 10px; border-radius: 6px; font-size: 12px; color: var(--text-2); cursor: pointer;
+.gp-convert-menu-item { padding: 7px 10px; border-radius: 6px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer;
   display: flex; align-items: center; gap: 8px; white-space: nowrap; transition: all .1s; }
 .gp-convert-menu-item:hover { background: var(--accent-light); color: var(--accent); }
 
 /* 空状态 */
 .gp-search-empty { padding: 40px 20px; text-align: center; color: var(--text-3); }
 /* R110-LC（T3）：归档卡降级提示（搜索结果流顶部一行） */
-.gp-archived-hint { margin: 6px 0 2px; padding: 6px 10px; border: 1px dashed var(--border-strong); border-radius: 7px; font-size: 11px; color: var(--text-3); }
+.gp-archived-hint { margin: 6px 0 2px; padding: 6px 10px; border: 1px dashed var(--border-strong); border-radius: 7px; font-size: var(--fs-caption); color: var(--text-3); }
 .gp-se-icon { font-size: 32px; margin-bottom: 8px; opacity: .4; }
-.gp-se-text { font-size: 13px; line-height: 1.7; }
+.gp-se-text { font-size: var(--fs-body); line-height: 1.7; }
 .gp-se-text b { color: var(--text-2); font-weight: 600; }
 
 /* 底部栏 */
 .gp-panel-foot { display: flex; align-items: center; gap: 16px; padding: 10px 22px; border-top: 1px solid var(--border);
-  background: var(--surface-2); font-size: 11px; color: var(--text-4); flex-wrap: nowrap; overflow: hidden; }
+  background: var(--surface-2); font-size: var(--fs-caption); color: var(--text-4); flex-wrap: nowrap; overflow: hidden; }
 /* R153：一行排到底。原来五条提示加品牌语在 1440 宽下换行成三行，键位被断成两截最难看；
    提示不许断行，空间不够时先挤掉右侧品牌语 */
 .gp-panel-foot > span { flex: 0 0 auto; white-space: nowrap; }
 .gp-panel-foot .gp-foot-brand { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .gp-panel-foot kbd { background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px;
-  font-family: inherit; font-size: 10.5px; color: var(--text-2); margin: 0 2px; box-shadow: 0 1px 0 var(--border); }
-.gp-foot-brand { margin-left: auto; font-size: 10.5px; color: var(--text-4); opacity: .7; letter-spacing: .3px; }
+  font-family: inherit; font-size: var(--fs-caption); color: var(--text-2); margin: 0 2px; box-shadow: 0 1px 0 var(--border); }
+.gp-foot-brand { margin-left: auto; font-size: var(--fs-caption); color: var(--text-4); opacity: .7; letter-spacing: .3px; }
 
 /* 采集弹窗通用 */
 .gp-cap-head { padding: 22px 24px 0; display: flex; align-items: flex-start; gap: 12px; }
@@ -1653,7 +1653,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-cap-icon.curio { background: var(--curio-bg); }
 .gp-cap-titles { flex: 1; min-width: 0; }
 .gp-cap-title { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -.2px; }
-.gp-cap-sub { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+.gp-cap-sub { font-size: var(--fs-sub); color: var(--text-3); margin-top: 2px; }
 .gp-cap-close { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
   cursor: pointer; color: var(--text-3); font-size: 18px; transition: all var(--dur-fast); flex-shrink: 0; background: transparent;
   border: none; font-family: inherit; }
@@ -1662,18 +1662,18 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-cap-body { padding: 18px 24px 20px; }
 .gp-field { margin-bottom: 14px; }
 .gp-field:last-child { margin-bottom: 0; }
-.gp-field-label { display: block; font-size: 11.5px; font-weight: 600; color: var(--text-3); margin-bottom: 6px; letter-spacing: .2px; }
-.gp-field-input { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 13px; font-size: 13.5px;
+.gp-field-label { display: block; font-size: var(--fs-sub); font-weight: 600; color: var(--text-3); margin-bottom: 6px; letter-spacing: .2px; }
+.gp-field-input { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 13px; font-size: var(--fs-body);
   color: var(--text); background: var(--surface); outline: none; font-family: inherit; transition: all var(--dur); line-height: 1.5; }
 .gp-field-input::placeholder { color: var(--text-4); }
 .gp-field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--accent) 14%, transparent); }
 textarea.gp-field-input { resize: vertical; min-height: 90px; font-size: 14px; line-height: 1.65; }
 .gp-curio-text { min-height: 120px; }
-.gp-curio-src { margin-top: 6px; font-size: 11px; color: var(--text-3); background: var(--surface-2); border: 1px dashed var(--border); border-radius: 6px; padding: 5px 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gp-curio-src { margin-top: 6px; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); border: 1px dashed var(--border); border-radius: 6px; padding: 5px 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* 链接类型 segmented */
 .gp-seg-control { display: flex; gap: 3px; background: var(--surface-2); border-radius: var(--radius-sm); padding: 3px; margin-bottom: 8px; }
-.gp-seg-btn { flex: 1; padding: 7px 8px; border-radius: 8px; border: none; background: transparent; font-size: 12px;
+.gp-seg-btn { flex: 1; padding: 7px 8px; border-radius: 8px; border: none; background: transparent; font-size: var(--fs-sub);
   color: var(--text-3); cursor: pointer; transition: all var(--dur); font-family: inherit; font-weight: 500;
   display: flex; align-items: center; justify-content: center; gap: 4px; }
 .gp-seg-btn:hover { color: var(--text-2); }
@@ -1685,7 +1685,7 @@ textarea.gp-field-input { resize: vertical; min-height: 90px; font-size: 14px; l
 .gp-field-row .gp-field { flex: 1; }
 
 /* 状态选择 */
-.gp-status-select { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 13px; font-size: 13px;
+.gp-status-select { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 13px; font-size: var(--fs-body);
   color: var(--text); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; transition: all var(--dur);
   appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239AA0A6' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 13px center; }
@@ -1694,8 +1694,8 @@ textarea.gp-field-input { resize: vertical; min-height: 90px; font-size: 14px; l
 /* 底部按钮 */
 .gp-cap-foot { display: flex; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--border); background: var(--surface-2); align-items: center; }
 /* R138-H1′：保存后补全开关（左置，与保存钮拉开） */
-.gp-cap-enrich { margin-right: auto; display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-3); cursor: pointer; user-select: none; }
-.gp-btn { padding: 9px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+.gp-cap-enrich { margin-right: auto; display: flex; align-items: center; gap: 5px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; user-select: none; }
+.gp-btn { padding: 9px 18px; border-radius: var(--radius-sm); font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit;
   transition: all var(--dur); border: 1px solid transparent; display: inline-flex; align-items: center; gap: 6px; }
 .gp-btn-ghost { background: var(--surface); border-color: var(--border); color: var(--text-2); }
 .gp-btn-ghost:hover { border-color: var(--border-strong); color: var(--text); }

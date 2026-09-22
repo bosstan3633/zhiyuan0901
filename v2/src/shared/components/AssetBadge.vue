@@ -151,7 +151,7 @@ async function openAsset(meta: AssetMeta) {
 .ab { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; vertical-align: middle; flex-shrink: 0; }
 .ab-chip {
   display: inline-flex; align-items: center; gap: 2px; height: 18px; padding: 0 7px;
-  border-radius: 99px; font-size: 10.5px; line-height: 1; white-space: nowrap;
+  border-radius: 99px; font-size: var(--fs-caption); line-height: 1; white-space: nowrap;
   background: var(--surface-3); color: var(--text-2); border: 1px solid var(--border); transition: all var(--dur);
 }
 .ab-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
@@ -160,7 +160,7 @@ async function openAsset(meta: AssetMeta) {
 .ab-html { }
 
 .ab-pop {
-  position: fixed; inset: 0; z-index: 2900; background: rgba(0,0,0,.38);
+  position: fixed; inset: 0; z-index: var(--z-media); background: rgba(0,0,0,.38);
   display: flex; align-items: center; justify-content: center; padding: 24px;
 }
 .ab-pop-box {
@@ -172,7 +172,7 @@ async function openAsset(meta: AssetMeta) {
   display: flex; align-items: center; gap: 8px; padding: 10px 14px;
   background: var(--surface-2); border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
-.ab-pop-title { flex: 1; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.ab-pop-title { flex: 1; font-size: var(--fs-body); font-weight: 600; color: var(--text); }
 .ab-pop-close {
   border: none; background: transparent; color: var(--text-2); font-size: 19px; cursor: pointer; line-height: 1;
   padding: 1px 6px; border-radius: 4px;
@@ -181,12 +181,12 @@ async function openAsset(meta: AssetMeta) {
 .ab-pop-body { padding: 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
 .ab-item {
   display: flex; align-items: center; gap: 8px; padding: 7px 10px; cursor: pointer;
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; font-size: 12px; transition: all var(--dur-fast);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; font-size: var(--fs-sub); transition: all var(--dur-fast);
 }
 .ab-item:hover { border-color: var(--accent); background: var(--accent-light); }
-.ab-ico { flex-shrink: 0; font-size: 13px; }
+.ab-ico { flex-shrink: 0; font-size: var(--fs-body); }
 .ab-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
-.ab-size { flex-shrink: 0; font-size: 10.5px; color: var(--text-3); }
-.ab-go { flex-shrink: 0; font-size: 11px; opacity: .6; }
-.ab-empty { padding: 16px; text-align: center; color: var(--text-3); font-size: 12px; }
+.ab-size { flex-shrink: 0; font-size: var(--fs-caption); color: var(--text-3); }
+.ab-go { flex-shrink: 0; font-size: var(--fs-caption); opacity: .6; }
+.ab-empty { padding: 16px; text-align: center; color: var(--text-3); font-size: var(--fs-sub); }
 </style>

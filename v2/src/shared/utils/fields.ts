@@ -20,6 +20,22 @@ export function allFields(cfg: FieldConfig, type: FieldGroupKind): FieldDef[] {
   return [...(cfg[type] || [])].sort((a, b) => a.order - b.order)
 }
 
+/** R155-③：标题位字段（资源卡 title / 好奇卡 question）——卡面已有专属标题行 */
+export function isTitleKey(key: string): boolean {
+  return key === 'title' || key === 'question'
+}
+
+/** R155-③（用户拍板「启用字段保留 3 个」）：富卡卡面上额外铺开的字段上限。
+ *  排除 title/question（标题位）、description（摘要位 2 行）、tags（页脚标签）、assets（页脚附件）——
+ *  它们各有专属渲染位置，在卡面再重复一次只会挤掉摘要的行数。
+ *  真实库（380 卡）默认字段配置下只命中 `link` 一项；上限 3 是用户自行打开更多字段时的边界，
+ *  不是「每张卡都显示 3 个」。 */
+export const CARD_EXTRA_FIELD_LIMIT = 3
+const CARD_SLOT_KEYS = new Set(['title', 'question', 'description', 'tags', 'assets'])
+export function cardExtraFields(fields: FieldDef[], limit = CARD_EXTRA_FIELD_LIMIT): FieldDef[] {
+  return fields.filter(f => !CARD_SLOT_KEYS.has(f.key)).slice(0, limit)
+}
+
 /** 解析卡片任意字段的可展示文本值 */
 /**
  * R112 性能：日期格式化缓存。

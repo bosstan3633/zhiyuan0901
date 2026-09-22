@@ -14,5 +14,5 @@ const tip = () => '挂载 ' + resN() + ' 张资源卡' + (curN() ? ' · ' + curN
 </template>
 
 <style scoped>
-.mcb { flex-shrink: 0; font-size: 10px; color: var(--text-4); white-space: nowrap; cursor: default; }
+.mcb { flex-shrink: 0; font-size: var(--fs-tiny); color: var(--text-4); white-space: nowrap; cursor: default; }
 </style>

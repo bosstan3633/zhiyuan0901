@@ -234,7 +234,7 @@ function fmtTs(ts?: number): string {
 .ref-title {
   flex: 1; width: 100%; box-sizing: border-box; resize: none; border: 1px solid var(--border);
   border-radius: 8px; background: var(--surface-2); color: var(--text);
-  padding: 10px 12px; font-size: 15px; font-weight: 600; line-height: 1.5; font-family: inherit;
+  padding: 10px 12px; font-size: var(--fs-title); font-weight: 600; line-height: 1.5; font-family: inherit;
 }
 .ref-title:focus { outline: none; border-color: var(--accent); }
 .ref-title-row.highlight .ref-title { box-shadow: 0 0 0 2px var(--accent); }
@@ -242,25 +242,25 @@ function fmtTs(ts?: number): string {
 .ref-title-assets { margin-top: 10px; flex-shrink: 0; }
 .ref-close:hover { background: var(--surface-3); color: var(--text); }
 
-.ref-label { font-size: 11px; color: var(--text-3); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
+.ref-label { font-size: var(--fs-caption); color: var(--text-3); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
 .ref-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ref-link-type { display: flex; gap: 6px; margin-bottom: 8px; }
 .ref-link-type-btn {
-  flex: 1; padding: 7px 0; text-align: center; font-size: 12.5px; cursor: pointer;
+  flex: 1; padding: 7px 0; text-align: center; font-size: var(--fs-body); cursor: pointer;
   border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text-2);
   transition: all var(--dur);
 }
 .ref-link-type-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .ref-link-input {
   width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--border);
-  border-radius: 6px; background: var(--surface-2); color: var(--text); font-size: 13px; font-family: inherit;
+  border-radius: 6px; background: var(--surface-2); color: var(--text); font-size: var(--fs-body); font-family: inherit;
 }
 .ref-link-input:focus { outline: none; border-color: var(--accent); }
-.ref-warn { margin-top: 8px; font-size: 12px; color: var(--danger); background: var(--danger-bg-soft); padding: 6px 10px; border-radius: 6px; }
+.ref-warn { margin-top: 8px; font-size: var(--fs-sub); color: var(--danger); background: var(--danger-bg-soft); padding: 6px 10px; border-radius: 6px; }
 
 .ref-select {
   width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--border);
-  border-radius: 6px; background: var(--surface-2); color: var(--text); font-size: 13px; font-family: inherit;
+  border-radius: 6px; background: var(--surface-2); color: var(--text); font-size: var(--fs-body); font-family: inherit;
 }
 .ref-select:focus { outline: none; border-color: var(--accent); }
 
@@ -268,7 +268,7 @@ function fmtTs(ts?: number): string {
 .ref-note {
   width: 100%; box-sizing: border-box; resize: none; border: 1px solid var(--border);
   border-radius: 8px; background: var(--surface-2); color: var(--text);
-  padding: 10px 12px; font-size: 13px; line-height: 1.7; font-family: inherit;
+  padding: 10px 12px; font-size: var(--fs-body); line-height: 1.7; font-family: inherit;
 }
 .ref-note:focus { outline: none; border-color: var(--accent); }
 .ref-ta-resize {
@@ -277,9 +277,9 @@ function fmtTs(ts?: number): string {
 }
 
 .ref-mounted-list { display: flex; flex-direction: column; gap: 4px; }
-.ref-mounted-item { padding: 6px 10px; background: var(--surface-2); border-radius: 6px; font-size: 12px; color: var(--text); cursor: pointer; }
+.ref-mounted-item { padding: 6px 10px; background: var(--surface-2); border-radius: 6px; font-size: var(--fs-sub); color: var(--text); cursor: pointer; }
 .ref-mounted-item:hover { background: var(--surface-3); }
 .ref-mi-icon { margin-right: 4px; }
-.ref-empty { font-size: 12px; color: var(--text-3); padding: 4px 0; }
-.ref-time { font-size: 11px; color: var(--text-3); }
+.ref-empty { font-size: var(--fs-sub); color: var(--text-3); padding: 4px 0; }
+.ref-time { font-size: var(--fs-caption); color: var(--text-3); }
 </style>

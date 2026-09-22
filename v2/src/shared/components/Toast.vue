@@ -18,12 +18,12 @@ import { toastState, runToastAction } from './toast'
 </template>
 
 <style scoped>
-.toast-stack { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 9999; pointer-events: none; }
+.toast-stack { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: var(--z-toast); pointer-events: none; }
 .toast {
   pointer-events: auto;
   display: flex; align-items: center; gap: 10px;
   background: var(--toast-bg); color: var(--toast-fg);
-  padding: 9px 16px; border-radius: var(--radius-sm); font-size: 13px; line-height: 1.5;
+  padding: 9px 16px; border-radius: var(--radius-sm); font-size: var(--fs-body); line-height: 1.5;
   box-shadow: var(--shadow-lg); max-width: 72vw;
 }
 .toast-msg { white-space: pre-line; }

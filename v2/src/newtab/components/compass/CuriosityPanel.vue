@@ -31,7 +31,7 @@ import { useTaHeight } from '@/shared/utils/taHeight'
 import { onOpenDrawer } from '@/shared/utils/bus'
 import { visibleFields } from '@/shared/utils/fields'
 import { recordCardOpen } from '@/shared/storage/stats'
-import ZhiMark from '@/shared/components/ZhiMark.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 
 const { curiosities, STATUS_MAP, update, setStatus, remove, convertToTask, convertToResource } = useCuriosity()
 const store = useAppStore()
@@ -458,7 +458,7 @@ function srcShort(url: string): string {
 <template>
   <ModuleCard icon-name="bulb" title="好奇心培育" en="CURIOSITY">
     <template #actions>
-      <button class="cz-batch-btn ai" title="AI 逐条研判待探索池：哪些值得转成任务、哪些继续养着、哪些可以放下（勾选采纳才写库）" @click="aiTriage()"><ZhiMark :size="13" /> 转化研判</button>
+      <button class="cz-batch-btn ai" title="AI 逐条研判待探索池：哪些值得转成任务、哪些继续养着、哪些可以放下（勾选采纳才写库）" @click="aiTriage()"><AiEntryButton variant="inline" label="转化研判" /></button>
       <button class="cz-batch-btn" :class="{active: batchMode}" @click="batchMode = !batchMode">
         {{ batchMode ? '完成' : '☑ 批量管理' }}
       </button>
@@ -542,7 +542,7 @@ function srcShort(url: string): string {
             <div class="cz-hover-bar">
               <button class="cz-hover-btn primary" @click.stop="openConvert(c, 'task')">转为任务</button>
               <button class="cz-hover-btn" @click.stop="openConvert(c, 'res')">归档资源</button>
-              <button class="cz-hover-btn ai" @click.stop="aiTriage(c)" title="AI 研判这条好奇：值不值得转成任务（判据=对不对得上愿景与活跃目标）"><ZhiMark :size="13" /> 研判</button>
+              <button class="cz-hover-btn ai" @click.stop="aiTriage(c)" title="AI 研判这条好奇：值不值得转成任务（判据=对不对得上愿景与活跃目标）"><AiEntryButton variant="inline" label="研判" /></button>
               <button class="cz-hover-btn danger" @click.stop="deleteCard(c)" title="删除">🗑</button>
             </div>
           </div>
@@ -578,7 +578,7 @@ function srcShort(url: string): string {
               <button class="mini-btn" :class="{pinon: c.starred}" @click.stop="toggleStar(c.id)" title="星标">⭐</button>
               <button class="mini-btn" @click.stop="openConvert(c, 'task')">转任务</button>
               <button class="mini-btn" @click.stop="openConvert(c, 'res')">归档</button>
-              <button class="mini-btn ai" @click.stop="aiTriage(c)" title="AI 研判这条好奇：值不值得转成任务"><ZhiMark :size="12" /></button>
+              <button class="mini-btn ai" @click.stop="aiTriage(c)" title="AI 研判这条好奇：值不值得转成任务"><AiEntryButton /></button>
               <button class="mini-btn danger" @click.stop="deleteCard(c)">🗑</button>
             </div>
           </div>
@@ -608,7 +608,7 @@ function srcShort(url: string): string {
               <div class="cz-kanban-meta">
                 <AssetBadge v-if="curioExtFields.some(f => f.key === 'assets')" :assets="c.assets" />
                 <span>{{ fmtDate(c.createdAt) }}</span>
-                <button class="cz-kb-ai" @click.stop="aiTriage(c)" title="AI 研判这条好奇：值不值得转成任务"><ZhiMark :size="12" /></button>
+                <button class="cz-kb-ai" @click.stop="aiTriage(c)" title="AI 研判这条好奇：值不值得转成任务"><AiEntryButton /></button>
                 <button class="cz-kb-del" @click.stop="deleteCard(c)" title="删除">🗑</button>
               </div>
             </div>
@@ -674,8 +674,8 @@ function srcShort(url: string): string {
         <button class="mini-btn" :class="{pinon: detailItem?.pinned}" @click="detailItem && togglePin(detailItem.id)">{{ detailItem?.pinned ? '📌 已置顶' : '📌 置顶' }}</button>
         <button class="mini-btn" @click="detailItem && openConvert(detailItem, 'task')">转为任务</button>
         <button class="mini-btn" @click="detailItem && openConvert(detailItem, 'res')">归档为资源</button>
-        <button class="mini-btn" @click="detailItem && aiTriage(detailItem)"><ZhiMark :size="12" /> 研判</button>
-        <button class="mini-btn primary" style="margin-left:auto" @click="saveDetail">保存 <span style="font-size:10px;opacity:.75;margin-left:2px">⏎</span></button>
+        <button class="mini-btn" @click="detailItem && aiTriage(detailItem)"><AiEntryButton variant="inline" label="研判" /></button>
+        <button class="mini-btn primary" style="margin-left:auto" @click="saveDetail">保存 <span style="font-size: var(--fs-tiny);opacity:.75;margin-left:2px">⏎</span></button>
       </template>
     </Drawer>
 
@@ -731,13 +731,13 @@ function srcShort(url: string): string {
 </template>
 
 <style scoped>
-.cz-batch-btn { padding: 5px 12px; border-radius: 8px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
+.cz-batch-btn { padding: 5px 12px; border-radius: 8px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
 .cz-batch-btn:hover { border-color: var(--border-strong); }
 .cz-batch-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 .cz-add-row { background: var(--surface-2); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 14px; box-shadow: 0 0 0 3px var(--accent-glow); }
 .cz-add-input { width: 100%; border: none; outline: none; background: transparent; font-size: 14px; font-family: inherit; line-height: 1.7; color: var(--text); resize: vertical; }
 .cz-add-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
-.mini-btn { padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
+.mini-btn { padding: 5px 12px; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
 .mini-btn:hover { border-color: var(--border-strong); color: var(--text); }
 .mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .mini-btn.primary:hover { background: var(--accent-hover); }
@@ -748,21 +748,21 @@ function srcShort(url: string): string {
 .ds-status-wrap { margin-left: 8px; }
 .ds-status-chip2:active { transform: scale(.97); }
 .cz-filters { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
-.cz-filter { font-size: 12px; padding: 5px 12px; border-radius: 99px; background: var(--surface-3); color: var(--text-2); cursor: pointer; transition: all var(--dur); border: none; font-family: inherit; display: flex; align-items: center; gap: 4px; }
+.cz-filter { font-size: var(--fs-sub); padding: 5px 12px; border-radius: 99px; background: var(--surface-3); color: var(--text-2); cursor: pointer; transition: all var(--dur); border: none; font-family: inherit; display: flex; align-items: center; gap: 4px; }
 .cz-filter:hover { background: var(--border); }
 .cz-filter.active { background: var(--accent); color: #fff; }
-.cz-count { font-size: 10px; opacity: .7; }
+.cz-count { font-size: var(--fs-tiny); opacity: .7; }
 .cz-views { display: flex; gap: 2px; margin-left: auto; }
 .cz-view-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 14px; transition: all var(--dur); border: none; background: transparent; }
 /* 第卅二轮 REQ-007：时间排序方向切换 */
-.cz-sort-dir { font-size: 13px; font-weight: 600; margin-right: 2px; border: 1px solid var(--border); background: var(--surface); font-family: inherit; }
+.cz-sort-dir { font-size: var(--fs-body); font-weight: 600; margin-right: 2px; border: 1px solid var(--border); background: var(--surface); font-family: inherit; }
 .cz-sort-dir:hover { border-color: var(--accent); color: var(--accent); }
 .cz-view-btn:hover { background: var(--surface-3); color: var(--text-2); }
 .cz-view-btn.active { background: var(--accent-light); color: var(--accent); }
 /* R110-LC（T3）：归档降级提示条 */
-.cz-archived-hint { margin: 6px 0 0; padding: 6px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: 11.5px; color: var(--text-3); cursor: pointer; transition: all var(--dur); }
+.cz-archived-hint { margin: 6px 0 0; padding: 6px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all var(--dur); }
 .cz-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
-.cz-batch-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--accent-light); border-radius: var(--radius-sm); margin-bottom: 14px; font-size: 12px; color: var(--accent); font-weight: 500; }
+.cz-batch-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--accent-light); border-radius: var(--radius-sm); margin-bottom: 14px; font-size: var(--fs-sub); color: var(--accent); font-weight: 500; }
 /* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 200px */
 .cz-grid { display: grid; /* R106（F3）：精确 N 列——选中 N 即渲染 N 列，卡片宽度自适应收缩（含看板外全部视图） */ grid-template-columns: repeat(var(--grid-cols, 4), minmax(0, 1fr)); gap: 12px; }
 .cz-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
@@ -779,45 +779,45 @@ function srcShort(url: string): string {
 .cz-kanban-card.dragging { opacity: .4; }
 .cz-list-item.drop-line-t, .cz-kanban-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .cz-list-item.drop-line-b, .cz-kanban-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.cz-kb-ai { border: none; background: transparent; color: var(--text-4); cursor: pointer; font-size: 11px; padding: 0 2px; font-family: inherit; display: inline-flex; align-items: center; }
-.cz-kb-del { margin-left: auto; border: none; background: transparent; color: var(--text-4); cursor: pointer; font-size: 11px; padding: 0 2px; font-family: inherit; }
+.cz-kb-ai { border: none; background: transparent; color: var(--text-4); cursor: pointer; font-size: var(--fs-caption); padding: 0 2px; font-family: inherit; display: inline-flex; align-items: center; }
+.cz-kb-del { margin-left: auto; border: none; background: transparent; color: var(--text-4); cursor: pointer; font-size: var(--fs-caption); padding: 0 2px; font-family: inherit; }
 .cz-kb-del:hover { color: var(--danger); }
 .cz-card:hover { border-color: var(--accent); background: var(--surface); transform: translateY(-1px); box-shadow: var(--shadow); }
 .cz-card.selected { border-color: var(--accent); background: var(--accent-light); }
 .cz-check { position: absolute; top: 8px; right: 8px; font-size: 14px; z-index: 2; }
-.cz-status { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 99px; margin-bottom: 8px; font-weight: 500; }
+.cz-status { display: inline-block; font-size: var(--fs-tiny); padding: 2px 8px; border-radius: 99px; margin-bottom: 8px; font-weight: 500; }
 .cz-status.pending { background: var(--accent-light); color: var(--accent); }
 .cz-status.exploring { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
 .cz-status.verified { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
 .cz-status.shelved { background: var(--surface-3); color: var(--text-3); }
-.cz-title { font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.5; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.cz-meta { font-size: 10px; color: var(--text-3); }
+.cz-title { font-size: var(--fs-body); font-weight: 500; color: var(--text); line-height: 1.5; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.cz-meta { font-size: var(--fs-tiny); color: var(--text-3); }
 .cz-hover-bar { position: absolute; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 8px 10px; display: flex; gap: 6px; transform: translateY(100%); transition: transform .2s; }
 .cz-card:hover .cz-hover-bar { transform: translateY(0); }
-.cz-hover-btn { font-size: 10px; padding: 4px 8px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all var(--dur); flex: 1; text-align: center; font-family: inherit; }
+.cz-hover-btn { font-size: var(--fs-tiny); padding: 4px 8px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all var(--dur); flex: 1; text-align: center; font-family: inherit; }
 .cz-hover-btn:hover { border-color: var(--accent); color: var(--accent); }
 .cz-hover-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.cz-empty { grid-column: 1/-1; text-align: center; padding: 48px 20px; color: var(--text-3); font-size: 13px; }
+.cz-empty { grid-column: 1/-1; text-align: center; padding: 48px 20px; color: var(--text-3); font-size: var(--fs-body); }
 .cz-empty-icon { font-size: 36px; opacity: .4; margin-bottom: 8px; }
 .cz-list { display: flex; flex-direction: column; gap: 4px; }
 .cz-list-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-xs); cursor: pointer; transition: background .1s; }
 .cz-list-item:hover { background: var(--surface-2); }
-.cz-list-text { flex: 1; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cz-list-date { font-size: 11px; color: var(--text-3); }
+.cz-list-text { flex: 1; font-size: var(--fs-body); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cz-list-date { font-size: var(--fs-caption); color: var(--text-3); }
 .cz-list-actions { display: flex; gap: 4px; opacity: 0; transition: opacity var(--dur); }
 .cz-list-item:hover .cz-list-actions { opacity: 1; }
 .cz-kanban { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .cz-kanban-col { background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px; min-height: 200px; }
-.cz-kanban-head { font-size: 12px; font-weight: 600; color: var(--text-2); padding: 4px 6px 10px; display: flex; align-items: center; justify-content: space-between; }
-.cz-kanban-count { font-size: 10px; background: var(--surface-3); color: var(--text-3); padding: 1px 7px; border-radius: 99px; }
+.cz-kanban-head { font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); padding: 4px 6px 10px; display: flex; align-items: center; justify-content: space-between; }
+.cz-kanban-count { font-size: var(--fs-tiny); background: var(--surface-3); color: var(--text-3); padding: 1px 7px; border-radius: 99px; }
 .cz-kanban-body { display: flex; flex-direction: column; gap: 8px; }
 .cz-kanban-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 10px; cursor: pointer; transition: all var(--dur); }
 .cz-kanban-card:hover { border-color: var(--accent); box-shadow: var(--shadow); }
-.cz-kanban-text { font-size: 12.5px; color: var(--text); line-height: 1.5; margin-bottom: 6px; }
-.cz-kanban-meta { font-size: 10px; color: var(--text-3); }
-.cz-kanban-empty { text-align: center; padding: 20px; font-size: 11px; color: var(--text-4); border: 1px dashed var(--border); border-radius: var(--radius-xs); }
+.cz-kanban-text { font-size: var(--fs-body); color: var(--text); line-height: 1.5; margin-bottom: 6px; }
+.cz-kanban-meta { font-size: var(--fs-tiny); color: var(--text-3); }
+.cz-kanban-empty { text-align: center; padding: 20px; font-size: var(--fs-caption); color: var(--text-4); border: 1px dashed var(--border); border-radius: var(--radius-xs); }
 .detail-sec-head { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
-.status-chip { padding: 5px 12px; border-radius: 99px; font-size: 11.5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
+.status-chip { padding: 5px 12px; border-radius: 99px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
 .status-chip:hover { border-color: var(--border-strong); }
 .status-chip.active.pending { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
 .status-chip.active.exploring { background: var(--tag-warn-bg); color: var(--tag-warn-text); border-color: var(--tag-warn-text); }
@@ -829,24 +829,24 @@ function srcShort(url: string): string {
 .ta-wrap { position: relative; }
 .ta-resize { position: absolute; right: 3px; bottom: 3px; width: 16px; height: 12px; cursor: ns-resize; z-index: 2; opacity: .45; border-right: 3px solid var(--text-3); border-bottom: 3px solid var(--text-3); border-bottom-right-radius: 3px; }
 .ta-resize:hover { opacity: .9; }
-.detail-meta { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; font-size: 11.5px; color: var(--text-3); }
-.detail-src { display: flex; align-items: center; gap: 6px; margin: 8px 0 6px; padding: 6px 9px; background: var(--surface-2); border: 1px dashed var(--border); border-radius: 8px; font-size: 11.5px; min-width: 0; }
+.detail-meta { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; font-size: var(--fs-sub); color: var(--text-3); }
+.detail-src { display: flex; align-items: center; gap: 6px; margin: 8px 0 6px; padding: 6px 9px; background: var(--surface-2); border: 1px dashed var(--border); border-radius: 8px; font-size: var(--fs-sub); min-width: 0; }
 .detail-src .ds-ico { flex-shrink: 0; }
 .detail-src .ds-link { color: var(--accent); cursor: pointer; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .detail-src .ds-link:hover { text-decoration: underline; }
 .detail-src .ds-title { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .detail-link-add { display: flex; gap: 8px; margin-top: 12px; }
-.detail-link-input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 12px; font-family: inherit; outline: none; }
+.detail-link-input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: var(--fs-sub); font-family: inherit; outline: none; }
 /* R142（反馈 #4）：挂载资源区 + 成熟度徽标行 */
 .cz-matrow { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
-.cz-rel-n { font-size: 10.5px; color: var(--text-4); }
-.cz-rel-label { font-size: 11px; color: var(--text-3); margin-bottom: 6px; }
-.cz-rel-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 2px; font-size: 12px; }
+.cz-rel-n { font-size: var(--fs-caption); color: var(--text-4); }
+.cz-rel-label { font-size: var(--fs-caption); color: var(--text-3); margin-bottom: 6px; }
+.cz-rel-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 2px; font-size: var(--fs-sub); }
 .cz-rel-x { border: none; background: transparent; color: var(--text-4); cursor: pointer; font-family: inherit; }
 .cz-rel-x:hover { color: var(--danger); }
-.cz-rel-via { font-size: 10px; color: var(--text-4); }
-.cz-rel-empty { font-size: 11.5px; color: var(--text-4); padding: 2px 0 6px; }
-.cz-rel-cand { font-size: 12px; padding: 4px 6px; border-radius: 6px; cursor: pointer; color: var(--text-2); }
+.cz-rel-via { font-size: var(--fs-tiny); color: var(--text-4); }
+.cz-rel-empty { font-size: var(--fs-sub); color: var(--text-4); padding: 2px 0 6px; }
+.cz-rel-cand { font-size: var(--fs-sub); padding: 4px 6px; border-radius: 6px; cursor: pointer; color: var(--text-2); }
 .cz-rel-cand:hover { background: var(--surface-2); color: var(--accent); }
 .detail-link-input:focus { border-color: var(--accent); }
 .expand-enter-active, .expand-leave-active { transition: all var(--dur) ease; overflow: hidden; }
@@ -854,40 +854,40 @@ function srcShort(url: string): string {
 
 /* 置顶与分组 */
 .cz-card.pinned { border-left: 3px solid var(--accent); }
-.cz-pin-flag { position: absolute; top: 8px; right: 8px; font-size: 12px; }
-.cz-star-flag { position: absolute; top: 8px; right: 8px; font-size: 12px; }
+.cz-pin-flag { position: absolute; top: 8px; right: 8px; font-size: var(--fs-sub); }
+.cz-star-flag { position: absolute; top: 8px; right: 8px; font-size: var(--fs-sub); }
 /* 第十七轮：置顶常驻右上角（默认半隐，hover 显现，置顶态常亮） */
-.cz-pin-corner { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: .3; transition: all var(--dur) ease; z-index: 2; }
+.cz-pin-corner { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; opacity: .3; transition: all var(--dur) ease; z-index: 2; }
 /* 第卅三轮 REQ-020：星标角落按钮（与置顶并排左移） */
-.cz-star-corner { position: absolute; top: 8px; right: 36px; width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: .3; transition: all var(--dur) ease; z-index: 2; }
+.cz-star-corner { position: absolute; top: 8px; right: 36px; width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; opacity: .3; transition: all var(--dur) ease; z-index: 2; }
 .cz-card:hover .cz-pin-corner, .cz-kanban-card:hover .cz-pin-corner, .cz-card:hover .cz-star-corner, .cz-kanban-card:hover .cz-star-corner { opacity: .8; }
 .cz-pin-corner:hover, .cz-star-corner:hover { opacity: 1 !important; background: var(--surface-3); }
 .cz-pin-corner.on { opacity: 1; background: var(--accent-light); }
 .cz-star-corner.on { opacity: 1; background: color-mix(in srgb, #f5b942 18%, transparent); }
 .mini-btn.pinon { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
-.cz-group-label { grid-column: 1 / -1; font-size: 11px; font-weight: 600; color: var(--text-3); padding: 2px 2px 0; letter-spacing: .5px; }
+.cz-group-label { grid-column: 1 / -1; font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); padding: 2px 2px 0; letter-spacing: .5px; }
 .cz-list .cz-group-label { padding: 6px 2px 2px; }
 .mini-btn.pinon { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
 .cz-hover-btn.on { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 /* 转化弹窗 */
-.cz-modal-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,.28); display: flex; align-items: flex-start; justify-content: center; padding-top: 20vh; }
+.cz-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,.28); display: flex; align-items: flex-start; justify-content: center; padding-top: 20vh; }
 .cz-modal { width: 400px; max-width: 92vw; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 18px 20px; }
 .cz-modal-head { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-.cz-modal-sub { font-size: 12px; color: var(--text-3); line-height: 1.6; margin-bottom: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.cz-modal-label { display: block; font-size: 11px; font-weight: 600; color: var(--text-3); margin: 10px 0 5px; }
-.cz-modal-select { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-size: 12.5px; color: var(--text); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; }
+.cz-modal-sub { font-size: var(--fs-sub); color: var(--text-3); line-height: 1.6; margin-bottom: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cz-modal-label { display: block; font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); margin: 10px 0 5px; }
+.cz-modal-select { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-size: var(--fs-body); color: var(--text); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; }
 .cz-modal-select:focus { border-color: var(--accent); }
 .cz-modal-select:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .cz-modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 /* 第卌轮 REQ-051：卡片正面补充字段流（附件徽章 / 标签 / 自定义） */
 .cz-ext { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 7px; }
 .cz-ext-tags { display: inline-flex; flex-wrap: wrap; gap: 3px; }
-.cz-ext-tag { font-size: 10px; line-height: 1; padding: 2px 7px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); }
-.cz-ext-custom { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--text-2); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cz-ext-tag { font-size: var(--fs-tiny); line-height: 1; padding: 2px 7px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); }
+.cz-ext-custom { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-caption); color: var(--text-2); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cz-ext-lbl { color: var(--text-3); }
 /* R117（04-61 D）：来源链接（字段设置开启后才渲染）——走链接蓝，长 URL 截断 */
-.cz-ext-src { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--accent); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
+.cz-ext-src { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-caption); color: var(--accent); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
 .cz-ext-src:hover { text-decoration: underline; }
 .cz-list-assets { margin: 0 2px; }
 </style>

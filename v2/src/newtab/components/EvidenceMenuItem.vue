@@ -9,7 +9,7 @@ import type { Category } from '@/shared/models'
 import { useAppStore } from '@/newtab/stores/app'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { showToast } from '@/shared/components/toast'
-import ZhiMark from '@/shared/components/ZhiMark.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 
 const props = defineProps<{ wsId: string; catId: string }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -53,12 +53,12 @@ async function run() {
 </script>
 
 <template>
-  <div class="ev-item" :class="{ busy }" @click.stop="run"><ZhiMark :size="13" :spin="busy" /> 找佐证（全库推荐）</div>
+  <div class="ev-item" :class="{ busy }" @click.stop="run"><AiEntryButton variant="inline" label="找佐证（全库推荐）" :spin="busy" /></div>
   <AiDrawer v-if="job" :job="job" @close="job = null" />
 </template>
 
 <style scoped>
-.ev-item { display: flex; align-items: center; gap: 6px; padding: 8px 11px; border-radius: 7px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: all .1s; }
+.ev-item { display: flex; align-items: center; gap: 6px; padding: 8px 11px; border-radius: 7px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; transition: all .1s; }
 .ev-item:hover { background: var(--surface-3); color: var(--text); }
 .ev-item.busy { color: var(--accent); pointer-events: none; }
 </style>

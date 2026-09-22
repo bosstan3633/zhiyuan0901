@@ -7,8 +7,12 @@
  *   - 发丝线：暗色 rgba(255,255,255,.08) / 浅色 rgba(0,0,0,.08)，取代实色硬线
  *   - 文本四档透明度体系（暗 .92/.70/.50/.32 · 浅 .90/.62/.44/.28）
  *   - 圆角体系：大容器 12 · 卡片/按钮 8 · 标签/小按钮 4（R124：99px 胶囊退役）
- *   - 强调色纪律：**全局唯一强调色 = 深空薰衣草紫 #5E6AD2**（聚焦环/选中态/主 CTA），
- *     中性状态（中优/低优/待开始）一律退后为灰白文本，不再铺色
+ *   - 强调色纪律（R124 定 · **R156 解禁**）：R124~R155 期间为**全局唯一强调色 = 深空薰衣草紫 #5E6AD2**
+ *     （聚焦环/选中态/主 CTA），中性状态（中优/低优/待开始）一律退后为灰白文本，不再铺色；
+ *     **R156 起改为「每主题各自独立 accent」（用户 2026-09-22 拍板解禁）**，纪律改述为：
+ *     **每主题只许一个 accent，且只用于主行动与当前态**——解禁的是"唯一性"，不是"克制"。
+ *   - R155：新增间距阶 `--sp-1..7`、z-index 层阶 `--z-*`、图标阶 `--icon-sm/md/lg`、
+ *     行高 `--lh-*`、缓动 `--ease-emphasis`；字阶收敛为整数（10.5/13.5 → 11/13）
  *   - 小字号（11–12px）统一呼吸字距 0.04em；胶囊内距收紧至 2px 6px
  *
  * 主题（四套共用结构，仅底色气质不同）：
@@ -23,12 +27,30 @@
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
 
-  /* 字号层级 */
-  --fs-display: 22px;
-  --fs-title: 15px;
-  --fs-body: 13.5px;
-  --fs-sub: 12px;
-  --fs-caption: 10.5px;
+  /* 字号层级（R155-U4：**按全站真实分布重定阶**，不再是先验的 5 档）
+     背景：R155 实测 src 内 `font-size` 字面量共 **28 种取值 / 约 1200 处**，而 `var(--fs-*)`
+     引用只有 **2 处** —— 字阶 token 形同虚设，"改一处全站生效"从未成立。
+     重定阶后，阶的每一档都对应真实使用（9/10/11/12/13/15/17/22），非阶值（10.5 · 11.5 · 12.5 ·
+     13.5 · 9.5）**±0.5px 就近归位**，视觉几乎无感但消除 340+ 处散点。
+     图标字号（14 / 16）走 --icon-* 阶，不入文本阶；大标题特例（18~38）列 R155 顺延账。 */
+  --fs-micro: 9px;      /* 角标 / 勾选框内的极小字 */
+  --fs-tiny: 10px;      /* 密集区超小字（表格附注 / 元信息） */
+  --fs-caption: 11px;   /* 徽标 / 标签 / 辅助说明 */
+  --fs-sub: 12px;       /* 次要正文 / 表单 / 行内说明 */
+  --fs-body: 13px;      /* 正文（原 13.5 归位） */
+  --fs-title: 15px;     /* 卡片 / 区块标题 */
+  --fs-headline: 17px;  /* 台面主标题 */
+  --fs-display: 22px;   /* 首屏大数 / 品牌位 */
+
+  /* R155-U4：行高与字号成对声明（原行高散落在 40+ 处内联/组件私有值） */
+  --lh-micro: 1.4;
+  --lh-tiny: 1.45;
+  --lh-caption: 1.5;
+  --lh-sub: 1.5;
+  --lh-body: 1.55;
+  --lh-title: 1.35;
+  --lh-headline: 1.3;
+  --lh-display: 1.2;
 
   /* R124：小字号呼吸字距（11–12px 文本统一） */
   --tracking-sm: 0.04em;
@@ -39,6 +61,15 @@
   --dur: 150ms;
   --dur-slow: 250ms;
   --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* R155-U8：第二套缓动专供"弹层 / 菜单"（原 3 套离散曲线收敛为 2 套：
+     标准 = --ease-out-soft；强调 = --ease-emphasis。IP 菜单的 .16,1,.3,1 与
+     Drawer 的 .4,0,.2,1 同属"弹层"语义，前者更贴手，二者统一取 .16,1,.3,1） */
+  --ease-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
+  /* R155-U8 勘误：实测全站（src/content 浮层自带 --zy 体系，豁免）共有 **4 套**曲线而非 3 套：
+     `.2,.8,.2,1`(标准) / `.4,0,.2,1`(抽屉滑入 2 处) / `.16,1,.3,1`(弹层 8 处) / `.34,1.56,.64,1`(成功回弹 2 处)。
+     收敛为 3 套令牌：抽屉滑入并入"弹层强调"（.16,1,.3,1 手感更贴，且抽屉与菜单同属弹层语义）；
+     成功回弹的 overshoot 是刻意语义，单列 --ease-spring。 */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* R133-E3：禁用态统一判据（原 :disabled 处 .4/.45/.5 三档离散值收敛，取主档） */
   --opacity-disabled: 0.5;
@@ -54,11 +85,47 @@
   /* 发丝线（共享） */
   --hairline: 1px;
 
-  /* 密度令牌（第卅三轮 REQ-026：卡片网格，一处修改全局生效；compact 覆盖见文件尾） */
-  /* R123（原型）：卡片尺寸令牌默认值对齐原型（9×11 + 10px 间距） */
-  --card-pad-vert: 9px;
-  --card-pad-horz: 11px;
-  --card-gap: 10px;
+  /* ===== R155-U1：间距阶（4 基准）——原全站内联散点收敛至此 ===== */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  /* R155-⑤/U4：图标尺寸阶（与字阶成对；AI 入口徽标与兄弟按钮统一走这三档） */
+  --icon-sm: 12px;
+  --icon-md: 14px;
+  --icon-lg: 16px;
+
+  /* ===== R155-U1：z-index 层阶 =====
+     范围界定：本阶只覆盖**跨组件层**（值 ≥ 100）；组件内相对微层（1~99，如角标/拖拽柄/
+     局部 sticky 表头）保留字面量——它们不参与跨组件竞争，令牌化只会徒增维护面。
+     取值纪律：**按实测保序，不做数值归一**。"谁在谁上面"是既有行为，令牌化不得改变它；
+     故档位数量由真实层级决定（15 档），而非凑一个好看的整数。同层"面板压遮罩"用 +1 表达。 */
+  --z-sticky: 100;      /* 顶栏 / 工具栏 / 悬浮提示 */
+  --z-batch: 150;       /* 批量操作条（浮于内容之上、低于遮罩） */
+  --z-cover: 190;       /* 全屏覆盖层（周报）：R139 刻意低于抽屉遮罩 200 ⇒ 深度抽屉浮在周报之上 */
+  --z-overlay: 200;     /* 抽屉 / 面板遮罩（面板本体 = var(--z-overlay) + 1） */
+  --z-raised: 240;      /* 全屏回落层（金字塔 py-fs-fallback） */
+  --z-modal: 300;       /* 弹层 / 菜单（同级 +1） */
+  --z-menu: 400;        /* 项目级菜单 / 二级遮罩 */
+  --z-confirm: 600;     /* 确认对话框 */
+  --z-mask-lg: 640;     /* 大遮罩（关系图 lm-mask） */
+  --z-popover: 690;     /* 浮层菜单（同级 +1） */
+  --z-context: 800;     /* 右键菜单（同级 +1） */
+  --z-picker: 900;      /* 标签 / 图标选择器（同级 +1） */
+  --z-global: 1000;     /* 全局面板（搜索 / 采集浮层） */
+  --z-media: 2900;      /* 附件徽标浮标 */
+  --z-media-top: 3000;  /* 附件预览（全屏媒体） */
+  --z-toast: 9999;      /* Toast 兜底最顶（必须高于一切媒体层） */
+
+  /* 密度令牌（第卅三轮 REQ-026：卡片网格，一处修改全局生效；compact 覆盖见文件尾）
+     R155-U1：改引用间距阶——原字面量 9/11/10 三个"非阶值"归位到 8/12/12（视觉差 ±2px） */
+  --card-pad-vert: var(--sp-2);
+  --card-pad-horz: var(--sp-3);
+  --card-gap: var(--sp-3);
   --card-min-w: 260px;
 }
 
@@ -344,14 +411,15 @@ body .fds-value {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
 
-/* A3（R124 更新）：徽章/标签统一形态——4px 圆角（99px 胶囊退役）+ 2px 6px 内距 + 呼吸字距 */
+/* A3（R124 更新）：徽章/标签统一形态——4px 圆角（99px 胶囊退役）+ 2px 6px 内距 + 呼吸字距
+   R155-U4：内联 10.5px 归位到 --fs-caption（11px）——该值曾与字阶 token 并存，属"源头改了、散点没跟上" */
 body .tag, body .rc-tag, body .gp-ri-badge, body .zy-badge, body .badge,
 body .cz-status, body .kc-card-tag, body .rr-f {
   border-radius: 4px;
   padding: 2px 6px;
-  font-size: 10.5px;
+  font-size: var(--fs-caption);
   font-weight: 500;
-  line-height: 1.5;
+  line-height: var(--lh-caption);
   letter-spacing: var(--tracking-sm);
 }
 
@@ -372,10 +440,11 @@ html, body { font-variant-numeric: tabular-nums; }
   to { transform: translateX(0); }
 }
 
-/* ===== 紧凑密度（第卅三轮 REQ-026：UIPrefs.density 切换，html[data-density=compact] 生效） ===== */
+/* ===== 紧凑密度（第卅三轮 REQ-026：UIPrefs.density 切换，html[data-density=compact] 生效） =====
+   R155-U1：同样改引用间距阶（原 9/12/10 → 8/12/8） */
 [data-density='compact'] {
-  --card-pad-vert: 9px;
-  --card-pad-horz: 12px;
-  --card-gap: 10px;
+  --card-pad-vert: var(--sp-2);
+  --card-pad-horz: var(--sp-3);
+  --card-gap: var(--sp-2);
   --card-min-w: 220px;
 }

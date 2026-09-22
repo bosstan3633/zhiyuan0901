@@ -202,26 +202,26 @@ function locateTask(id: string) {
 </template>
 
 <style scoped>
-.md-head-count { font-size: 12px; color: var(--text-2); margin-bottom: 10px; }
+.md-head-count { font-size: var(--fs-sub); color: var(--text-2); margin-bottom: 10px; }
 .md-list { display: flex; flex-direction: column; gap: 6px; }
 .md-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; }
 .md-row.clickable { cursor: pointer; transition: all var(--dur-fast); }
 .md-row.clickable:hover { border-color: var(--accent); background: var(--surface-3); }
 .md-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.md-title { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.md-title { font-size: var(--fs-body); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .md-title.clickable:hover { color: var(--accent); }
-.md-sub { font-size: 11px; color: var(--text-3); }
+.md-sub { font-size: var(--fs-caption); color: var(--text-3); }
 .md-sub.warn { color: var(--tag-warn-text); }
 .md-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.md-pct { font-size: 15px; font-weight: 700; color: var(--success); font-variant-numeric: tabular-nums; }
+.md-pct { font-size: var(--fs-title); font-weight: 700; color: var(--success); font-variant-numeric: tabular-nums; }
 .md-pct.warn { color: var(--tag-warn-text); }
-.md-go { font-size: 11.5px; color: var(--text-3); flex-shrink: 0; }
+.md-go { font-size: var(--fs-sub); color: var(--text-3); flex-shrink: 0; }
 .md-row.clickable:hover .md-go { color: var(--accent); }
-.md-empty { text-align: center; padding: 30px 10px; font-size: 12.5px; color: var(--text-3); }
-.md-tip { margin-top: 14px; font-size: 11px; color: var(--text-3); line-height: 1.7; background: var(--surface-2); border-radius: 8px; padding: 10px 12px; }
+.md-empty { text-align: center; padding: 30px 10px; font-size: var(--fs-body); color: var(--text-3); }
+.md-tip { margin-top: 14px; font-size: var(--fs-caption); color: var(--text-3); line-height: 1.7; background: var(--surface-2); border-radius: 8px; padding: 10px 12px; }
 .md-task { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; }
 .md-task .md-row { padding: 0; background: transparent; border: none; }
 .md-task-links { display: flex; gap: 8px; }
-.md-select { flex: 1; min-width: 0; padding: 7px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--text); outline: none; cursor: pointer; font-family: inherit; }
+.md-select { flex: 1; min-width: 0; padding: 7px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: var(--fs-sub); color: var(--text); outline: none; cursor: pointer; font-family: inherit; }
 .md-select:focus { border-color: var(--accent); }
 </style>

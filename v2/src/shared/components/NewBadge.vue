@@ -18,5 +18,5 @@ const show = computed(() => isTodayNew(props.at))
 </template>
 
 <style scoped>
-.new-badge { display: inline-block; vertical-align: 1px; flex-shrink: 0; font-size: 9px; font-weight: 800; letter-spacing: .6px; line-height: 1.5; color: #fff; background: var(--accent); border-radius: 4px; padding: 0 5px; margin-right: 5px; user-select: none; }
+.new-badge { display: inline-block; vertical-align: 1px; flex-shrink: 0; font-size: var(--fs-micro); font-weight: 800; letter-spacing: .6px; line-height: 1.5; color: #fff; background: var(--accent); border-radius: 4px; padding: 0 5px; margin-right: 5px; user-select: none; }
 </style>

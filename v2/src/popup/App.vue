@@ -314,36 +314,36 @@ async function save() {
 .popup-head { padding: 22px 24px 0; display: flex; align-items: flex-start; gap: 12px; }
 .popup-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; background: var(--accent-light); }
 .popup-title { font-size: 16px; font-weight: 700; color: var(--text); }
-.popup-sub { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+.popup-sub { font-size: var(--fs-sub); color: var(--text-3); margin-top: 2px; }
 .popup-body { padding: 18px 24px 20px; }
 .field { margin-bottom: 14px; }
 .field:last-child { margin-bottom: 0; }
-.field-label { display: block; font-size: 11.5px; font-weight: 600; color: var(--text-3); margin-bottom: 6px; }
-.field-input { width: 100%; border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; font-size: 13.5px; color: var(--text); background: var(--surface); outline: none; font-family: inherit; transition: all var(--dur); line-height: 1.5; box-sizing: border-box; }
+.field-label { display: block; font-size: var(--fs-sub); font-weight: 600; color: var(--text-3); margin-bottom: 6px; }
+.field-input { width: 100%; border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; font-size: var(--fs-body); color: var(--text); background: var(--surface); outline: none; font-family: inherit; transition: all var(--dur); line-height: 1.5; box-sizing: border-box; }
 .field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3.5px var(--accent-glow); }
 textarea.field-input { resize: vertical; min-height: 60px; font-size: 14px; line-height: 1.65; }
-.field-hint { font-size: 10.5px; color: var(--text-3); margin-top: 5px; text-align: right; }
+.field-hint { font-size: var(--fs-caption); color: var(--text-3); margin-top: 5px; text-align: right; }
 .seg-control { display: flex; gap: 3px; background: var(--surface-2); border-radius: 10px; padding: 3px; margin-bottom: 8px; }
-.seg-btn { flex: 1; padding: 7px 8px; border-radius: 8px; border: none; background: transparent; font-size: 12px; color: var(--text-3); cursor: pointer; transition: all var(--dur); font-family: inherit; font-weight: 500; }
+.seg-btn { flex: 1; padding: 7px 8px; border-radius: 8px; border: none; background: transparent; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all var(--dur); font-family: inherit; font-weight: 500; }
 .seg-btn:hover { color: var(--text-2); }
 .seg-btn.active { background: var(--surface); color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
 .field-row { display: flex; gap: 10px; }
 .field-row .field { flex: 1; }
-.field-select { width: 100%; border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; font-size: 13px; color: var(--text); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; }
+.field-select { width: 100%; border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; font-size: var(--fs-body); color: var(--text); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; }
 .field-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3.5px var(--accent-glow); }
 .popup-foot { display: flex; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--border); background: var(--surface-2); }
-.btn-ghost { padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
+.btn-ghost { padding: 9px 18px; border-radius: 10px; font-size: var(--fs-body); font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
 .btn-ghost:hover { border-color: var(--border-strong); color: var(--text); }
-.btn-primary { margin-left: auto; padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-family: inherit; transition: all var(--dur); box-shadow: 0 1px 2px rgba(14,122,78,.2), 0 4px 12px rgba(14,122,78,.15); }
+.btn-primary { margin-left: auto; padding: 9px 18px; border-radius: 10px; font-size: var(--fs-body); font-weight: 600; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-family: inherit; transition: all var(--dur); box-shadow: 0 1px 2px rgba(14,122,78,.2), 0 4px 12px rgba(14,122,78,.15); }
 .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
 
 /* 已保存状态 */
 .save-state { position: absolute; inset: 0; background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; z-index: 10; border-radius: 16px; padding: 24px; text-align: center; }
-.save-icon { width: 52px; height: 52px; border-radius: 50%; background: var(--tag-ok-bg); color: var(--tag-ok-text); font-size: 24px; font-weight: 700; display: flex; align-items: center; justify-content: center; animation: pop .3s cubic-bezier(.34,1.56,.64,1); }
+.save-icon { width: 52px; height: 52px; border-radius: 50%; background: var(--tag-ok-bg); color: var(--tag-ok-text); font-size: 24px; font-weight: 700; display: flex; align-items: center; justify-content: center; animation: pop .3s var(--ease-spring); }
 .save-title { font-size: 16px; font-weight: 700; color: var(--text); }
-.save-hint { font-size: 13px; color: var(--accent); font-weight: 600; }
-.save-hint kbd, .save-sub kbd { background: var(--surface-3); border: 1px solid var(--border); border-radius: 5px; padding: 1px 7px; font-family: inherit; font-size: 11px; color: var(--text-2); }
-.save-sub { font-size: 11.5px; color: var(--text-3); }
+.save-hint { font-size: var(--fs-body); color: var(--accent); font-weight: 600; }
+.save-hint kbd, .save-sub kbd { background: var(--surface-3); border: 1px solid var(--border); border-radius: 5px; padding: 1px 7px; font-family: inherit; font-size: var(--fs-caption); color: var(--text-2); }
+.save-sub { font-size: var(--fs-sub); color: var(--text-3); }
 .save-actions { display: flex; gap: 10px; margin-top: 14px; }
 @keyframes pop { 0% { transform: scale(.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 </style>

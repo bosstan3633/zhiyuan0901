@@ -12,3 +12,10 @@ vite.config.ts.timestamp-*.mjs
 
 # perf --profile 生成的 CDP 采样报告（归因用，不入库）
 .prof-*.json
+
+# theme-audit.cjs 生成的视觉走查截图（每轮 16 张 ≈1.9M，7 轮就是 13M+；工具在库内、
+# 数据由真实备份注入 ⇒ 任何时候都能一条命令重放，属派生件，不入库）
+docs/视觉归档/
+
+# 上一版构建产物（同机 A/B 的参照包，`perf.cjs --dist=<目录>` 用；二进制派生件，不入库）
+v2/dist_*/

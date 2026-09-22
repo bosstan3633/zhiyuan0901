@@ -119,31 +119,31 @@ function goTagManage() {
 <style scoped>
 .tp { position: relative; }
 .tp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.tp-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; background: var(--accent-light); border-radius: 99px; font-size: 11px; color: var(--accent); }
-.tp-chip .tp-x { cursor: pointer; opacity: .6; font-size: 10px; }
+.tp-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; background: var(--accent-light); border-radius: 99px; font-size: var(--fs-caption); color: var(--accent); }
+.tp-chip .tp-x { cursor: pointer; opacity: .6; font-size: var(--fs-tiny); }
 .tp-chip .tp-x:hover { opacity: 1; }
-.tp-add { font-size: 11px; color: var(--text-3); cursor: pointer; padding: 3px 9px; border: 1px dashed var(--border-strong); border-radius: 99px; transition: all var(--dur); }
+.tp-add { font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; padding: 3px 9px; border: 1px dashed var(--border-strong); border-radius: 99px; transition: all var(--dur); }
 .tp-add:hover { color: var(--accent); border-color: var(--accent); }
-.tp-mask { position: fixed; inset: 0; z-index: 900; }
-.tp-pop { position: fixed; z-index: 901; width: 300px; max-width: 92vw; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg); overflow: hidden; }
-.tp-head { padding: 12px 14px 0; font-size: 12.5px; font-weight: 600; color: var(--text); }
-.tp-head .tp-sub { display: block; font-size: 10px; color: var(--text-3); font-weight: 400; margin-top: 2px; }
-.tp-search { width: calc(100% - 20px); margin: 10px 10px 6px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; outline: none; font-family: inherit; background: var(--surface); color: var(--text); }
+.tp-mask { position: fixed; inset: 0; z-index: var(--z-picker); }
+.tp-pop { position: fixed; z-index: calc(var(--z-picker) + 1); width: 300px; max-width: 92vw; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg); overflow: hidden; }
+.tp-head { padding: 12px 14px 0; font-size: var(--fs-body); font-weight: 600; color: var(--text); }
+.tp-head .tp-sub { display: block; font-size: var(--fs-tiny); color: var(--text-3); font-weight: 400; margin-top: 2px; }
+.tp-search { width: calc(100% - 20px); margin: 10px 10px 6px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: var(--fs-sub); outline: none; font-family: inherit; background: var(--surface); color: var(--text); }
 .tp-search:focus { border-color: var(--accent); }
 .tp-list { max-height: 260px; overflow-y: auto; padding: 4px 6px 8px; }
 .tp-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; transition: background .1s; }
 .tp-item:hover { background: var(--surface-2); }
-.tp-name { font-size: 12px; color: var(--text); flex-shrink: 0; }
-.tp-pathtext { font-size: 10px; color: var(--text-4); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tp-new { padding: 10px; text-align: center; font-size: 12px; color: var(--accent); cursor: pointer; border-top: 1px dashed var(--border); }
+.tp-name { font-size: var(--fs-sub); color: var(--text); flex-shrink: 0; }
+.tp-pathtext { font-size: var(--fs-tiny); color: var(--text-4); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-new { padding: 10px; text-align: center; font-size: var(--fs-sub); color: var(--accent); cursor: pointer; border-top: 1px dashed var(--border); }
 .tp-new:hover { background: var(--accent-light); }
 /* 标签体系为空的引导 */
 .tp-guide { padding: 18px 16px 12px; text-align: center; }
 .tp-guide-icon { font-size: 30px; opacity: .5; margin-bottom: 6px; }
-.tp-guide-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
-.tp-guide-desc { font-size: 11.5px; color: var(--text-3); line-height: 1.7; margin-bottom: 12px; }
-.tp-guide-btn { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.tp-guide-title { font-size: var(--fs-body); font-weight: 700; color: var(--text); margin-bottom: 5px; }
+.tp-guide-desc { font-size: var(--fs-sub); color: var(--text-3); line-height: 1.7; margin-bottom: 12px; }
+.tp-guide-btn { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: var(--fs-sub); font-weight: 600; cursor: pointer; font-family: inherit; }
 .tp-guide-btn:hover { background: var(--accent-hover); }
 .tp-foot { padding: 8px 10px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
-.tp-btn { padding: 5px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: 11.5px; cursor: pointer; font-family: inherit; }
+.tp-btn { padding: 5px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: var(--fs-sub); cursor: pointer; font-family: inherit; }
 </style>

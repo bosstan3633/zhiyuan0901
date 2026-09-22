@@ -24,13 +24,13 @@
 .ds-desc {
   width: 100%; box-sizing: border-box; resize: none; border: 1px solid transparent;
   border-radius: 8px; background: var(--surface-2); color: var(--text);
-  padding: 10px 12px; font-size: 13px; line-height: 1.7; font-family: inherit; outline: none;
+  padding: 10px 12px; font-size: var(--fs-body); line-height: 1.7; font-family: inherit; outline: none;
 }
 .ds-desc:focus { border-color: var(--accent); background: var(--surface); }
 
 /* ---- Hero 标签行（SOUL 区上方的小节标签） ---- */
 .ds-hero-label {
-  font-size: 10.5px; font-weight: 700; color: var(--text-3);
+  font-size: var(--fs-caption); font-weight: 700; color: var(--text-3);
   letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px;
   display: flex; align-items: baseline; gap: 8px;
 }
@@ -39,17 +39,17 @@
 /* ---- 属性双列（项目/指标、策展台/分类：四个纵向大块 → 一行两列） ---- */
 .ds-props2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .ds-props2 .ds-prop-field { min-width: 0; }
-.ds-prop-label { font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .04em; margin-bottom: 5px; display: block; }
+.ds-prop-label { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .04em; margin-bottom: 5px; display: block; }
 .ds-prop-select {
   width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 8px;
   border: 1px solid transparent; background: var(--surface-2); color: var(--text);
-  font-size: 12px; font-family: inherit; outline: none; cursor: pointer;
+  font-size: var(--fs-sub); font-family: inherit; outline: none; cursor: pointer;
 }
 .ds-prop-select:focus { border-color: var(--accent); background: var(--surface); }
 .ds-prop-select:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
 /* ---- 元数据行（捕获/更新时间等：一行小字灰） ---- */
-.ds-meta { display: flex; align-items: center; gap: 14px; font-size: 11px; color: var(--text-3); flex-wrap: wrap; }
+.ds-meta { display: flex; align-items: center; gap: 14px; font-size: var(--fs-caption); color: var(--text-3); flex-wrap: wrap; }
 .ds-meta .lnk { color: var(--text-3); cursor: pointer; border-bottom: 1px dashed var(--border-strong); }
 .ds-meta .lnk:hover { color: var(--accent); border-bottom-color: var(--accent); }
 .ds-meta a { color: inherit; }
@@ -58,27 +58,27 @@
 .ds-details { border-top: 1px solid var(--border); padding-top: 10px; }
 .ds-details > summary {
   list-style: none; cursor: pointer; user-select: none;
-  font-size: 11.5px; font-weight: 600; color: var(--text-2);
+  font-size: var(--fs-sub); font-weight: 600; color: var(--text-2);
   display: flex; align-items: center; gap: 7px; padding: 2px 0 10px;
 }
 .ds-details > summary::-webkit-details-marker { display: none; }
 .ds-details > summary::before {
-  content: '▸'; font-size: 10px; color: var(--text-3);
+  content: '▸'; font-size: var(--fs-tiny); color: var(--text-3);
   transition: transform var(--dur) ease; width: 12px;
 }
 .ds-details[open] > summary::before { transform: rotate(90deg); }
 .ds-details > summary .cnt { color: var(--text-3); font-weight: 400; }
-.ds-details > summary .right { margin-left: auto; font-size: 10.5px; color: var(--text-3); font-weight: 400; }
+.ds-details > summary .right { margin-left: auto; font-size: var(--fs-caption); color: var(--text-3); font-weight: 400; }
 .ds-details[open] > summary { color: var(--text); }
 
 /* ---- 头部状态 chip（点击弹层切换，替代四个大按钮/三枚大 chip） ---- */
 .ds-status-wrap { position: relative; display: inline-flex; }
 .ds-status-chip2 {
   display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px;
-  border-radius: 999px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+  border-radius: 999px; font-size: var(--fs-sub); font-weight: 600; cursor: pointer;
   border: none; font-family: inherit; transition: all var(--dur-fast); white-space: nowrap;
 }
-.ds-status-chip2::after { content: '▾'; font-size: 9px; opacity: .6; }
+.ds-status-chip2::after { content: '▾'; font-size: var(--fs-micro); opacity: .6; }
 .ds-status-menu {
   position: absolute; top: calc(100% + 6px); right: 0; z-index: 60;
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
@@ -86,7 +86,7 @@
 }
 .ds-status-menu .mi {
   display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 7px;
-  font-size: 12px; color: var(--text-2); cursor: pointer; white-space: nowrap;
+  font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; white-space: nowrap;
 }
 .ds-status-menu .mi:hover { background: var(--surface-3); color: var(--text); }
 .ds-status-menu .mi.on { color: var(--accent); font-weight: 600; background: var(--accent-light); }

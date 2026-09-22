@@ -539,17 +539,19 @@ const backupReminderDot = computed(() => {
 <style scoped>
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
 /* R123（原型）：顶栏 48px（原 56px），对齐原型 top-nav */
-.topbar { position: sticky; top: 0; z-index: 100; height: 48px; display: flex; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+.topbar { position: sticky; top: 0; z-index: var(--z-sticky); height: 48px; display: flex; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
 /* R106（F2）：顶栏内容容器按路由对齐各页正文容器（左缘一致） */
 .topbar-inner { flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; }
-/* R123（Q1）：全局容器统一 1560 */
+/* R155-①：全局容器统一 1440（原注释写 1560，但 align-page 实际早已是 1440 ⇒ 属注释漂移，非事实）。
+   设置页 1200 / 手册 1120 一并对齐到 1440，并把 padding 统一为 36px——
+   仅统一 max-width 而留不同 padding，左缘仍会差 12px，"跨台对齐"不成立。 */
 .topbar-inner.align-page { max-width: 1440px; margin: 0 auto; padding: 0 36px; }
-.topbar-inner.align-settings { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
-.topbar-inner.align-manual { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+.topbar-inner.align-settings { max-width: 1440px; margin: 0 auto; padding: 0 36px; }
+.topbar-inner.align-manual { max-width: 1440px; margin: 0 auto; padding: 0 36px; }
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }
 .home-logo { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
 /* R123（原型）：tab 6×12、active = 浅紫填充块（accent-light + accent 600），下划线退役 */
-.tab { padding: 6px 12px; border-radius: var(--radius-xs); font-size: 13px; font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color var(--dur) ease, background var(--dur) ease; position: relative; white-space: nowrap; }
+.tab { padding: 6px 12px; border-radius: var(--radius-xs); font-size: var(--fs-body); font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color var(--dur) ease, background var(--dur) ease; position: relative; white-space: nowrap; }
 .tab:hover { background: var(--surface-2); color: var(--text); }
 .tab.active { color: var(--accent); background: var(--accent-light); font-weight: 600; }
 /* R45-5：.badge 样式随角标移除一并清理（全应用已无渲染点） */
@@ -561,32 +563,32 @@ const backupReminderDot = computed(() => {
 .tab.drop-line-r { box-shadow: inset -2px 0 0 var(--accent); }
 .tab-add { padding: 8px 12px; color: var(--text-3); font-size: 16px; font-weight: 300; }
 .tab-add:hover { color: var(--accent); }
-.tab-collapse { padding: 8px 10px; color: var(--text-3); font-size: 13px; }
+.tab-collapse { padding: 8px 10px; color: var(--text-3); font-size: var(--fs-body); }
 /* R105（E2）：溢出指示页签——accent 提示可展开 */
 .tab-overflow { color: var(--accent); background: var(--accent-light); font-variant-numeric: tabular-nums; }
-.tab-rename-input { border: 1px solid var(--accent); border-radius: 6px; padding: 2px 8px; font-size: 13px; font-family: inherit; outline: none; width: 100px; background: var(--surface); color: var(--text); box-shadow: 0 0 0 3px var(--accent-glow); }
+.tab-rename-input { border: 1px solid var(--accent); border-radius: 6px; padding: 2px 8px; font-size: var(--fs-body); font-family: inherit; outline: none; width: 100px; background: var(--surface); color: var(--text); box-shadow: 0 0 0 3px var(--accent-glow); }
 .tab.adding { padding: 4px 10px; }
 /* B30a：错误边界卡片 */
 .render-error { margin: 60px auto; max-width: 520px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px 30px; text-align: center; box-shadow: var(--shadow); }
 .render-error .re-icon { font-size: 38px; margin-bottom: 10px; }
-.render-error .re-title { font-size: 14.5px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
-.render-error .re-msg { font-size: 12px; color: var(--tag-danger-text); background: var(--tag-danger-bg); border-radius: 8px; padding: 8px 12px; word-break: break-all; margin-bottom: 16px; }
+.render-error .re-title { font-size: var(--fs-title); font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.render-error .re-msg { font-size: var(--fs-sub); color: var(--tag-danger-text); background: var(--tag-danger-bg); border-radius: 8px; padding: 8px 12px; word-break: break-all; margin-bottom: 16px; }
 .render-error .re-actions { display: flex; gap: 10px; justify-content: center; margin-bottom: 12px; }
-.render-error .re-btn { padding: 8px 18px; border-radius: 9px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.render-error .re-btn { padding: 8px 18px; border-radius: 9px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; }
 .render-error .re-btn:hover { background: var(--accent-hover); }
-.render-error .re-hint { font-size: 11px; color: var(--text-3); }
+.render-error .re-hint { font-size: var(--fs-caption); color: var(--text-3); }
 
 .topbar-right { display: flex; align-items: center; gap: 8px; }
 .theme-select { position: relative; }
-.theme-btn { border: 1px solid transparent; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--text-2); cursor: pointer; background: var(--surface); transition: all var(--dur); font-family: inherit; }
+.theme-btn { border: 1px solid transparent; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; background: var(--surface); transition: all var(--dur); font-family: inherit; }
 .theme-btn:hover { border-color: var(--border-strong); }
-.theme-caret { font-size: 9px; opacity: .6; }
+.theme-caret { font-size: var(--fs-micro); opacity: .6; }
 .theme-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.theme-dropdown { position: absolute; top: calc(100% + 6px); right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; min-width: 130px; z-index: 200; }
-.theme-option { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 7px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: all .1s; }
+.theme-dropdown { position: absolute; top: calc(100% + 6px); right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; min-width: 130px; z-index: var(--z-overlay); }
+.theme-option { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 7px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; transition: all .1s; }
 .theme-option:hover { background: var(--surface-3); color: var(--text); }
 .theme-option.active { color: var(--accent); font-weight: 600; }
-.theme-check { margin-left: auto; font-size: 11px; }
+.theme-check { margin-left: auto; font-size: var(--fs-caption); }
 .fade-enter-active, .fade-leave-active { transition: opacity var(--dur), transform var(--dur); }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-4px); }
 .icon-btn { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; color: var(--text-2); transition: all var(--dur); font-size: 16px; position: relative; }
@@ -597,8 +599,8 @@ const backupReminderDot = computed(() => {
 .page-container { flex: 1; }
 
 
-.ctx-menu { position: fixed; z-index: 300; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; min-width: 140px; }
-.ctx-item { padding: 8px 12px; border-radius: 7px; font-size: 12.5px; color: var(--text-2); cursor: pointer; transition: all .1s; }
+.ctx-menu { position: fixed; z-index: var(--z-modal); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; min-width: 140px; }
+.ctx-item { padding: 8px 12px; border-radius: 7px; font-size: var(--fs-body); color: var(--text-2); cursor: pointer; transition: all .1s; }
 .ctx-item:hover { background: var(--surface-3); color: var(--text); }
 .ctx-item.danger:hover { background: color-mix(in srgb, var(--danger) 8%, transparent); color: var(--danger); }
 </style>

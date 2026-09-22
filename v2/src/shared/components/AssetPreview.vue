@@ -75,7 +75,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 
 <style scoped>
 .ap-viewer {
-  position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,.72);
+  position: fixed; inset: 0; z-index: var(--z-media-top); background: rgba(0,0,0,.72);
   display: flex; align-items: center; justify-content: center; padding: 32px;
 }
 .ap-viewer-box {
@@ -87,8 +87,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
   display: flex; align-items: center; gap: 8px; padding: 8px 14px;
   background: var(--surface-2); border-bottom: 1px solid var(--border);
 }
-.ap-viewer-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: var(--text); }
-.ap-viewer-pos { flex-shrink: 0; font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.ap-viewer-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-body); color: var(--text); }
+.ap-viewer-pos { flex-shrink: 0; font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; }
 .ap-viewer-close {
   border: none; background: transparent; color: var(--text-2); font-size: 20px; cursor: pointer; line-height: 1;
   padding: 2px 6px; border-radius: 4px;

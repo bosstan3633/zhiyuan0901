@@ -259,28 +259,28 @@ async function onCleanupAll() {
 
 <style scoped>
 .dd-list { display: flex; flex-direction: column; }
-.dd-group-title { font-size: 11px; font-weight: 700; color: var(--text-3); letter-spacing: .4px; padding: 4px 0; }
-.dd-row { display: flex; align-items: center; gap: 8px; padding: 8px 8px; border-radius: 6px; font-size: 12px; color: var(--text-2); }
+.dd-group-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .4px; padding: 4px 0; }
+.dd-row { display: flex; align-items: center; gap: 8px; padding: 8px 8px; border-radius: 6px; font-size: var(--fs-sub); color: var(--text-2); }
 .dd-row.clickable { cursor: pointer; transition: background var(--dur-fast); }
 .dd-row.clickable:hover { background: var(--surface-3); color: var(--text); }
-.dd-ico { flex-shrink: 0; font-size: 12px; }
+.dd-ico { flex-shrink: 0; font-size: var(--fs-sub); }
 .dd-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; flex-direction: column; gap: 1px; }
 .dd-asset-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dd-sub { font-size: 10px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dd-count { font-size: 10.5px; color: var(--accent); background: var(--accent-light); padding: 1px 8px; border-radius: 99px; font-weight: 600; flex-shrink: 0; }
-.dd-time { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.dd-hint { font-size: 10.5px; color: var(--accent); flex-shrink: 0; }
-.dd-empty { padding: 24px 8px; text-align: center; color: var(--text-3); font-size: 12px; }
-.dd-preview { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,.75); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; cursor: zoom-out; }
-.dd-preview-name { color: #fff; font-size: 13px; margin-bottom: 12px; }
-.dd-preview-name span { opacity: .6; font-size: 11px; }
+.dd-sub { font-size: var(--fs-tiny); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dd-count { font-size: var(--fs-caption); color: var(--accent); background: var(--accent-light); padding: 1px 8px; border-radius: 99px; font-weight: 600; flex-shrink: 0; }
+.dd-time { font-size: var(--fs-caption); color: var(--text-3); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.dd-hint { font-size: var(--fs-caption); color: var(--accent); flex-shrink: 0; }
+.dd-empty { padding: 24px 8px; text-align: center; color: var(--text-3); font-size: var(--fs-sub); }
+.dd-preview { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,.75); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; cursor: zoom-out; }
+.dd-preview-name { color: #fff; font-size: var(--fs-body); margin-bottom: 12px; }
+.dd-preview-name span { opacity: .6; font-size: var(--fs-caption); }
 .dd-preview img { max-width: 92%; max-height: 84%; object-fit: contain; border-radius: 8px; }
 /* R110-BUG2：附件行操作按钮 + 异常行 + 孤儿批量条 */
 .dd-row-warn { color: var(--warn, #b8860b); }
-.dd-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 5px; padding: 2px 7px; font-size: 11px; line-height: 1.5; cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
+.dd-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 5px; padding: 2px 7px; font-size: var(--fs-caption); line-height: 1.5; cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
 .dd-act:hover { border-color: var(--accent); color: var(--accent); }
 .dd-orphan-bar { display: flex; align-items: center; gap: 8px; padding: 7px 8px; margin-bottom: 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-3); }
-.dd-orphan-txt { flex: 1; min-width: 0; font-size: 11px; color: var(--text-2); }
-.dd-orphan-btn { flex-shrink: 0; border: 1px solid var(--accent); background: var(--accent-light); color: var(--accent); border-radius: 5px; padding: 3px 9px; font-size: 11px; cursor: pointer; font-family: inherit; }
+.dd-orphan-txt { flex: 1; min-width: 0; font-size: var(--fs-caption); color: var(--text-2); }
+.dd-orphan-btn { flex-shrink: 0; border: 1px solid var(--accent); background: var(--accent-light); color: var(--accent); border-radius: 5px; padding: 3px 9px; font-size: var(--fs-caption); cursor: pointer; font-family: inherit; }
 .dd-orphan-btn:hover { background: var(--accent); color: #fff; }
 </style>

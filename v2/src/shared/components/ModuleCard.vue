@@ -53,7 +53,7 @@ defineProps<{
   padding: 18px 22px 10px;
 }
 .module-title .icon {
-  font-size: 17px;
+  font-size: var(--fs-headline);
   filter: drop-shadow(0 1px 1px rgba(0,0,0,.05));
 }
 .module-title .name {
@@ -63,14 +63,14 @@ defineProps<{
   letter-spacing: .2px;
 }
 .module-title .en {
-  font-size: 9px;
+  font-size: var(--fs-micro);
   color: var(--text-3);
   letter-spacing: 1.5px;
   text-transform: uppercase;
   margin-left: 2px;
 }
 .module-title .desc {
-  font-size: 11.5px;
+  font-size: var(--fs-sub);
   color: var(--text-3);
   margin-left: 6px;
   flex: 1;

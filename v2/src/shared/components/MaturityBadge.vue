@@ -14,10 +14,10 @@ const title = () => props.m.reasons.length
 </template>
 
 <style scoped>
-.mbadge { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; font-size: 10.5px; font-weight: 700; cursor: help; line-height: 1; }
+.mbadge { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; font-size: var(--fs-caption); font-weight: 700; cursor: help; line-height: 1; }
 .mbadge.gA { background: var(--success-bg-soft); color: var(--success); }
 .mbadge.gB { background: var(--accent-light); color: var(--accent); }
 .mbadge.gC { background: var(--warning-bg-soft); color: var(--warning); }
 .mbadge.gD { background: var(--danger-bg-soft); color: var(--danger); }
-.mbadge.big { height: 22px; font-size: 11.5px; }
+.mbadge.big { height: 22px; font-size: var(--fs-sub); }
 </style>

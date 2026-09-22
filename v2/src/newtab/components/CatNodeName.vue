@@ -33,6 +33,6 @@ function finish(commit: boolean) {
 </template>
 
 <style scoped>
-.cn-input { width: 100%; min-width: 40px; box-sizing: border-box; font: inherit; font-size: 12px; padding: 1px 6px; border: 1px solid var(--accent); border-radius: var(--radius-xs); background: var(--surface); color: var(--text); outline: none; }
+.cn-input { width: 100%; min-width: 40px; box-sizing: border-box; font: inherit; font-size: var(--fs-sub); padding: 1px 6px; border: 1px solid var(--accent); border-radius: var(--radius-xs); background: var(--surface); color: var(--text); outline: none; }
 .cn-name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

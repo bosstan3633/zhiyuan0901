@@ -8,7 +8,7 @@
  */
 import { computed } from 'vue'
 import { useAppStore } from '@/newtab/stores/app'
-import ZhiMark from '@/shared/components/ZhiMark.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { THESIS_MARK, THESIS_WHY_MARK } from '@/shared/models/aiMarks'
 
 const props = defineProps<{ text?: string; wsId?: string }>()
@@ -45,7 +45,7 @@ const parsed = computed<{ thesis: string; why: string; parts: ThesisPartView[] }
 
 <template>
   <div v-if="parsed" class="tb">
-    <div class="tb-head"><ZhiMark :size="12" /> 中心论点<span class="tb-note">AI 提炼 · 只读预览，正文仍是卡片描述</span></div>
+    <div class="tb-head"><AiEntryButton variant="inline" label="中心论点" /><span class="tb-note">AI 提炼 · 只读预览，正文仍是卡片描述</span></div>
     <div class="tb-thesis">{{ parsed.thesis }}</div>
     <div v-if="parsed.why" class="tb-why">依据：{{ parsed.why }}</div>
     <ol v-if="parsed.parts.length" class="tb-parts">
@@ -61,13 +61,13 @@ const parsed = computed<{ thesis: string; why: string; parts: ThesisPartView[] }
 
 <style scoped>
 .tb { border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-light); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
-.tb-head { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--accent); }
-.tb-note { font-weight: 400; font-size: 10.5px; color: var(--text-4); }
-.tb-thesis { font-size: 13px; line-height: 1.6; color: var(--text); font-weight: 600; }
-.tb-why { font-size: 11.5px; line-height: 1.6; color: var(--text-3); }
-.tb-parts { margin: 2px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; line-height: 1.6; color: var(--text-2) }
+.tb-head { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sub); font-weight: 700; color: var(--accent); }
+.tb-note { font-weight: 400; font-size: var(--fs-caption); color: var(--text-4); }
+.tb-thesis { font-size: var(--fs-body); line-height: 1.6; color: var(--text); font-weight: 600; }
+.tb-why { font-size: var(--fs-sub); line-height: 1.6; color: var(--text-3); }
+.tb-parts { margin: 2px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sub); line-height: 1.6; color: var(--text-2) }
 .tb-def { color: var(--text-3); margin-left: 4px }
-.tb-tag { margin-left: 6px; font-size: 10.5px; color: var(--accent); }
+.tb-tag { margin-left: 6px; font-size: var(--fs-caption); color: var(--accent); }
 .tb-tag.dim { color: var(--text-4); }
-.tb-none { font-size: 11.5px; color: var(--text-4); }
+.tb-none { font-size: var(--fs-sub); color: var(--text-4); }
 </style>

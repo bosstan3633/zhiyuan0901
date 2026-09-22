@@ -86,15 +86,15 @@ function openTree() {
 <style scoped>
 .page { max-width: 1440px; margin: 0 auto; padding: 20px 36px 64px; }
 .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-left: 22px; }
-.page-head .crumb { font-size: 13px; color: var(--text-2); display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.page-head .crumb { font-size: var(--fs-body); color: var(--text-2); display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .page-head .crumb b { color: var(--text); font-weight: 700; font-size: 16px; letter-spacing: .2px; }
 /* R121：主线摘要并入副标题（原型：方向台 · 主航线与项目全景 · N 目标 · …） */
-.mainline-summary { font-size: 12.5px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mainline-summary { font-size: var(--fs-body); color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .page-head .spacer { flex: 1; }
-.done-toggle { font-size: 11.5px; color: var(--text-3); cursor: pointer; white-space: nowrap; padding: 3px 10px; border: 1px solid var(--border); border-radius: 99px; transition: all var(--dur); }
+.done-toggle { font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; white-space: nowrap; padding: 3px 10px; border: 1px solid var(--border); border-radius: 99px; transition: all var(--dur); }
 .done-toggle:hover { color: var(--accent); border-color: var(--accent); }
 .done-toggle.off { opacity: .6; }
-.tree-link { font-size: 12.5px; color: var(--accent); font-weight: 600; cursor: pointer; white-space: nowrap; }
+.tree-link { font-size: var(--fs-body); color: var(--accent); font-weight: 600; cursor: pointer; white-space: nowrap; }
 .tree-link:hover { text-decoration: underline; }
 
 .module { margin-top: 18px; }

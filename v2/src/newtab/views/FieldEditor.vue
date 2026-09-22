@@ -176,9 +176,9 @@ const vFocus = { mounted: (el: HTMLInputElement) => el.focus() }
 </template>
 
 <style scoped>
-.gs-fr-input { flex: 1; min-width: 0; border: 1px solid var(--accent); border-radius: 6px; padding: 5px 9px; font-size: 12.5px; font-family: inherit; outline: none; background: var(--surface); color: var(--text); box-shadow: 0 0 0 2px var(--accent-glow); }
-.gs-fr-select { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); font-size: 12px; color: var(--text-2); cursor: pointer; outline: none; font-family: inherit; flex-shrink: 0; }
-.gs-fr-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); font-size: 11.5px; cursor: pointer; font-family: inherit; color: var(--text-2); flex-shrink: 0; }
+.gs-fr-input { flex: 1; min-width: 0; border: 1px solid var(--accent); border-radius: 6px; padding: 5px 9px; font-size: var(--fs-body); font-family: inherit; outline: none; background: var(--surface); color: var(--text); box-shadow: 0 0 0 2px var(--accent-glow); }
+.gs-fr-select { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; outline: none; font-family: inherit; flex-shrink: 0; }
+.gs-fr-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); font-size: var(--fs-sub); cursor: pointer; font-family: inherit; color: var(--text-2); flex-shrink: 0; }
 .gs-fr-btn.confirm { background: var(--accent); color: #fff; border-color: var(--accent); }
 .gs-fr-btn.confirm:hover { background: var(--accent-hover); }
 .gs-fr-btn.cancel:hover { border-color: var(--border-strong); color: var(--text); }
@@ -192,12 +192,12 @@ const vFocus = { mounted: (el: HTMLInputElement) => el.focus() }
 .gs-field-row:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: 0 3px 12px color-mix(in srgb, var(--accent) 7%, transparent); transform: translateY(-1px); }
 .gs-field-row.dragging { opacity: .4; border-style: dashed; transform: none; }
 .gs-field-row.locked { background: var(--surface-2); }
-.gs-fr-drag { color: var(--text-4); cursor: grab; font-size: 13px; flex-shrink: 0; width: 16px; text-align: center; line-height: 1; }
+.gs-fr-drag { color: var(--text-4); cursor: grab; font-size: var(--fs-body); flex-shrink: 0; width: 16px; text-align: center; line-height: 1; }
 .gs-fr-drag.disabled { visibility: hidden; }
-.gs-fr-icon { font-size: 15px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background: var(--surface-3); border-radius: 6px; flex-shrink: 0; }
-.gs-fr-name { font-size: 13.5px; font-weight: 600; color: var(--text); flex: 1; min-width: 0; letter-spacing: .2px; }
+.gs-fr-icon { font-size: var(--fs-title); width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background: var(--surface-3); border-radius: 6px; flex-shrink: 0; }
+.gs-fr-name { font-size: var(--fs-body); font-weight: 600; color: var(--text); flex: 1; min-width: 0; letter-spacing: .2px; }
 .gs-fr-name.locked-title { color: var(--text); }
-.gs-fr-type { font-size: 10.5px; padding: 3px 10px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 500; flex-shrink: 0; white-space: nowrap; }
+.gs-fr-type { font-size: var(--fs-caption); padding: 3px 10px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 500; flex-shrink: 0; white-space: nowrap; }
 .gs-fr-type.required { background: var(--tag-danger-bg); color: var(--tag-danger-text); }
 .gs-fr-type.system { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
 .gs-fr-type.auto { background: var(--tag-info-bg); color: var(--tag-info-text); }
@@ -207,12 +207,12 @@ const vFocus = { mounted: (el: HTMLInputElement) => el.focus() }
 .gs-fr-visibility:hover { border-color: var(--accent); }
 .gs-fr-visibility.disabled { cursor: not-allowed; opacity: .35; }
 .gs-fr-actions { display: flex; gap: 3px; flex-shrink: 0; }
-.gs-fr-action { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; font-size: 12.5px; color: var(--text-3); transition: all .1s; border: 1px solid transparent; }
+.gs-fr-action { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; font-size: var(--fs-body); color: var(--text-3); transition: all .1s; border: 1px solid transparent; }
 .gs-fr-action:hover { background: var(--surface-3); color: var(--text); border-color: var(--border); }
 .gs-fr-action.delete:hover { color: var(--danger); background: var(--tag-danger-bg); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
 .gs-fr-action.disabled { opacity: .25; cursor: not-allowed; pointer-events: none; }
-.gs-field-add { margin-top: 10px; padding: 14px; border: 1.5px dashed var(--border-strong); border-radius: 8px; text-align: center; cursor: pointer; font-size: 12.5px; color: var(--text-3); transition: all var(--dur); }
+.gs-field-add { margin-top: 10px; padding: 14px; border: 1.5px dashed var(--border-strong); border-radius: 8px; text-align: center; cursor: pointer; font-size: var(--fs-body); color: var(--text-3); transition: all var(--dur); }
 .gs-field-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-.gs-field-hint { margin-top: 12px; padding: 10px 14px; background: var(--accent-light); border-radius: 8px; font-size: 11.5px; color: var(--accent); line-height: 1.7; }
+.gs-field-hint { margin-top: 12px; padding: 10px 14px; background: var(--accent-light); border-radius: 8px; font-size: var(--fs-sub); color: var(--accent); line-height: 1.7; }
 
 </style>

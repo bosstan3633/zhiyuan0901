@@ -9,7 +9,7 @@ import { ref, shallowRef } from 'vue'
 import type { TaskCard } from '@/shared/models'
 import { useAppStore } from '@/newtab/stores/app'
 import { showToast } from '@/shared/components/toast'
-import ZhiMark from '@/shared/components/ZhiMark.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 
 const props = defineProps<{ task: TaskCard; tip?: string }>()
 /** 打开详情走宿主通道（各视图的抽屉实现不同） */
@@ -68,12 +68,12 @@ async function pick(kind: 'breakdown' | 'recommend' | 'detail') {
 </script>
 
 <template>
-  <button class="tam-btn" :class="{ on: shown }" :title="tip || '本任务的 AI 辅助：拆解成子任务 / 推荐资源卡 / 打开详情（勾选采纳才写库，可换执笔专家）'" @click.stop="toggle"><ZhiMark :size="13" :spin="busy" /></button>
+  <button class="tam-btn" :class="{ on: shown }" :title="tip || '本任务的 AI 辅助：拆解成子任务 / 推荐资源卡 / 打开详情（勾选采纳才写库，可换执笔专家）'" @click.stop="toggle"><AiEntryButton :spin="busy" /></button>
   <Teleport to="body">
     <div v-if="shown" class="tam-mask" @click="shown = false" />
     <div v-if="shown" class="tam-menu" :style="{ left: pos.x + 'px', top: pos.y + 'px' }" @click.stop>
-      <button class="tam-item" @click="pick('breakdown')"><ZhiMark :size="13" /> 拆解成子任务</button>
-      <button class="tam-item" @click="pick('recommend')"><ZhiMark :size="13" /> 推荐资源卡</button>
+      <button class="tam-item" @click="pick('breakdown')"><AiEntryButton variant="inline" label="拆解成子任务" /></button>
+      <button class="tam-item" @click="pick('recommend')"><AiEntryButton variant="inline" label="推荐资源卡" /></button>
       <button class="tam-item" @click="pick('detail')">📋 打开任务详情</button>
     </div>
   </Teleport>
@@ -84,8 +84,8 @@ async function pick(kind: 'breakdown' | 'recommend' | 'detail') {
 .tam-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; min-height: 26px; border: none; background: transparent; color: var(--accent); opacity: .72; cursor: pointer; padding: 2px; border-radius: 6px; flex-shrink: 0; }
 .tam-btn:hover { opacity: 1; background: var(--accent-light); }
 .tam-btn.on { opacity: 1; background: var(--accent-light); }
-.tam-mask { position: fixed; inset: 0; z-index: 690; background: transparent; }
-.tam-menu { position: fixed; z-index: 691; min-width: 176px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; display: flex; flex-direction: column; gap: 2px; }
-.tam-item { display: flex; align-items: center; gap: 8px; padding: 8px 11px; border: none; border-radius: 7px; background: transparent; color: var(--text-2); font-size: 12px; font-family: inherit; text-align: left; cursor: pointer; }
+.tam-mask { position: fixed; inset: 0; z-index: var(--z-popover); background: transparent; }
+.tam-menu { position: fixed; z-index: calc(var(--z-popover) + 1); min-width: 176px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; display: flex; flex-direction: column; gap: 2px; }
+.tam-item { display: flex; align-items: center; gap: 8px; padding: 8px 11px; border: none; border-radius: 7px; background: transparent; color: var(--text-2); font-size: var(--fs-sub); font-family: inherit; text-align: left; cursor: pointer; }
 .tam-item:hover { background: var(--surface-3); color: var(--text); }
 </style>

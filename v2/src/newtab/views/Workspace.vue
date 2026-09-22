@@ -359,7 +359,7 @@
                   <span class="rc-type-icon">{{ linkIcon(r.linkType) }}</span>
                   <span class="rc-title"><NewBadge :at="r.createdAt" /><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源台">📡</span>{{ r.title }}</span>
                 </div>
-                <!-- 描述：1 行省略；断链卡替换为补全引导（原型 P7） -->
+                <!-- 摘要：2 行钳制（R155-③）；断链卡替换为补全引导（原型 P7） -->
                 <div v-if="isBrokenPath(r)" class="rc-desc broken" title="仅存文件名，双击无法打开 —— 点击补全完整路径" @click.stop="fixLink(r)">⚠ 本地路径断链 · 点击补全</div>
                 <div v-else-if="r.description" class="rc-desc">{{ r.description }}</div>
                 <!-- 启用字段（链接 / 日期 / 来源 / 自定义）渲染在描述与页脚之间（Q2：字段配置仍生效） -->
@@ -963,7 +963,7 @@ import ColsPicker from '@/shared/components/ColsPicker.vue'
 import CurationDrillDrawer from '@/newtab/components/CurationDrillDrawer.vue'
 import type { DrillCatRow, DrillCardRow } from '@/newtab/components/CurationDrillDrawer.vue'
 import { useConfirm } from '@/shared/components/confirm'
-import { visibleFields, fieldValue } from '@/shared/utils/fields'
+import { visibleFields, fieldValue, isTitleKey, cardExtraFields } from '@/shared/utils/fields'
 import { buildCatIndex, buildBucketIndex } from '@/shared/utils/catIndex'
 import { CURATION_WS_ID, type ResourceCard, type Category, type FieldDef, type AssetMeta } from '@/shared/models'
 import { boardCardsOf, isMirrorView, curationMetrics, setThesis, isHubWs } from '@/shared/storage/hub'
@@ -1157,7 +1157,8 @@ const lastUpdateText = computed(() => {
   return new Date(latest).toLocaleDateString('zh-CN')
 })
 /** R122（Q2）：卡片「描述与页脚之间」的启用字段——标题/描述/标签/附件由骨架固定位承载 */
-const extraFieldsOf = (r: ResourceCard) => fieldsOf(r).filter(f => !isTitleKey(f.key) && f.key !== 'description' && f.key !== 'tags' && f.key !== 'assets')
+/** R155-③：卡面「启用字段」上限 3 个（排除 title/description/tags/assets，见 shared/utils/fields） */
+const extraFieldsOf = (r: ResourceCard) => cardExtraFields(fieldsOf(r))
 /** R123（C3/Q3）：金字塔论证深度 = 论点(1) + 分类树最大层级；闭环 = 无空分类节点 */
 const pyramidDepth = computed(() => {
   let maxLevel = 0, empty = false
@@ -1198,9 +1199,6 @@ function val(r: ResourceCard, key: string): string {
     catName: (id) => catNameById.value.get(id) || '待分类',
     wsName: (id) => wsNameById.value.get(id) || ''
   })
-}
-function isTitleKey(key: string): boolean {
-  return key === 'title' || key === 'question'
 }
 function shortVal(r: ResourceCard, f: FieldDef): string {
   const v = val(r, f.key)

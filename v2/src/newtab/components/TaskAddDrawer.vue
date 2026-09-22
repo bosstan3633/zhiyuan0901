@@ -8,7 +8,7 @@ import { showToast } from '@/shared/components/toast'
 import type { TaskCard, Metric } from '@/shared/models'
 // R138-C1′：一句话智能录入（宿主全懒路由，可直连 AI 栈）
 import AiSuggestionDrawer from './AiSuggestionDrawer.vue'
-import ZhiMark from '@/shared/components/ZhiMark.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import type { AiJob } from '@/shared/ai/job'
 import { aiConfig, loadAiConfig, aiReady } from '@/shared/ai/config'
 import { buildTaskParseJob, type SelectCtx } from '@/shared/ai/select'
@@ -238,7 +238,7 @@ function linkTasks() {
       <label class="tad-label">🪄 一句话录入（可选）</label>
       <div class="tad-ai-row">
         <input v-model="aiSay" class="tad-input" placeholder="例：下周三前做完论文图表，挂毕业项目，大约两小时" @keydown.enter.prevent="aiParse" />
-        <button class="tad-btn" :disabled="!aiSay.trim() || aiBusy" @click="aiParse"><ZhiMark :size="13" :spin="aiBusy" /> AI 填表</button>
+        <button class="tad-btn" :disabled="!aiSay.trim() || aiBusy" @click="aiParse"><AiEntryButton variant="inline" label="AI 填表" :spin="aiBusy" /></button>
       </div>
 
       <label class="tad-label">任务标题</label>
@@ -292,17 +292,17 @@ function linkTasks() {
 
 <style scoped>
 .tad-tabs { display: flex; gap: 6px; background: var(--surface-2); padding: 4px; border-radius: 10px; margin-bottom: 16px; }
-.tad-tab { flex: 1; padding: 8px 0; border: none; background: transparent; color: var(--text-3); font-size: 13px; font-weight: 600; border-radius: 8px; cursor: pointer; font-family: inherit; transition: all var(--dur); }
+.tad-tab { flex: 1; padding: 8px 0; border: none; background: transparent; color: var(--text-3); font-size: var(--fs-body); font-weight: 600; border-radius: 8px; cursor: pointer; font-family: inherit; transition: all var(--dur); }
 .tad-tab.on { background: var(--surface); color: var(--accent); box-shadow: var(--shadow-sm); }
 
 .tad-body { display: flex; flex-direction: column; gap: 10px; }
-.tad-label { font-size: 11.5px; font-weight: 600; color: var(--text-3); letter-spacing: .4px; margin-top: 4px; }
-.tad-input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 13px; outline: none; font-family: inherit; background: var(--surface); color: var(--text); box-sizing: border-box; }
+.tad-label { font-size: var(--fs-sub); font-weight: 600; color: var(--text-3); letter-spacing: .4px; margin-top: 4px; }
+.tad-input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: var(--fs-body); outline: none; font-family: inherit; background: var(--surface); color: var(--text); box-sizing: border-box; }
 .tad-input:focus { border-color: var(--accent); }
 /* R113-N6：关联模式的筛选行（关键词 + 项目下拉） */
 .tad-filters { display: flex; gap: 8px; align-items: center; }
 .tad-filters .tad-input { flex: 1; min-width: 0; }
-.tad-proj { flex-shrink: 0; max-width: 180px; border: 1px solid var(--border); border-radius: 8px; padding: 9px 8px; font-size: 12px; outline: none; font-family: inherit; background: var(--surface); color: var(--text-2); cursor: pointer; }
+.tad-proj { flex-shrink: 0; max-width: 180px; border: 1px solid var(--border); border-radius: 8px; padding: 9px 8px; font-size: var(--fs-sub); outline: none; font-family: inherit; background: var(--surface); color: var(--text-2); cursor: pointer; }
 .tad-proj:hover { border-color: var(--accent); }
 .tad-proj:focus { border-color: var(--accent); color: var(--text); }
 
@@ -310,21 +310,21 @@ function linkTasks() {
 /* R138-C1′：一句话录入行 */
 .tad-ai-row { display: flex; gap: 8px; align-items: center; }
 .tad-ai-row .tad-input { flex: 1; min-width: 0; }
-.tad-prio { flex: 1; padding: 8px 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; cursor: pointer; font-size: 12px; font-family: inherit; transition: all var(--dur); }
+.tad-prio { flex: 1; padding: 8px 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; cursor: pointer; font-size: var(--fs-sub); font-family: inherit; transition: all var(--dur); }
 .tad-prio.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent); font-weight: 600; }
 
 .tad-list { display: flex; flex-direction: column; gap: 6px; max-height: 380px; overflow-y: auto; margin-top: 4px; }
-.tad-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 12.5px; transition: all var(--dur); background: var(--surface); }
+.tad-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: var(--fs-body); transition: all var(--dur); background: var(--surface); }
 .tad-item:hover { border-color: var(--accent); }
 .tad-item.on { border-color: var(--accent); background: var(--accent-light); }
 .tad-item input { accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
 .tad-item-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
-.tad-item-meta { font-size: 10.5px; color: var(--text-3); background: var(--surface-2); padding: 2px 8px; border-radius: 99px; flex-shrink: 0; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tad-empty { text-align: center; color: var(--text-3); font-size: 12px; padding: 26px 0; }
+.tad-item-meta { font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); padding: 2px 8px; border-radius: 99px; flex-shrink: 0; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tad-empty { text-align: center; color: var(--text-3); font-size: var(--fs-sub); padding: 26px 0; }
 
 .tad-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
-.tad-hint { font-size: 11px; color: var(--text-3); }
-.tad-btn { display: inline-flex; align-items: center; gap: 5px; border: none; border-radius: 8px; padding: 9px 16px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; background: var(--surface-2); color: var(--text-2); transition: all var(--dur); }
+.tad-hint { font-size: var(--fs-caption); color: var(--text-3); }
+.tad-btn { display: inline-flex; align-items: center; gap: 5px; border: none; border-radius: 8px; padding: 9px 16px; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; background: var(--surface-2); color: var(--text-2); transition: all var(--dur); }
 .tad-btn.primary { background: var(--accent); color: #fff; }
 .tad-btn.primary:hover { filter: brightness(1.08); }
 .tad-btn.primary:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
