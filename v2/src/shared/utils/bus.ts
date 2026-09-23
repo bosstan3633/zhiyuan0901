@@ -20,3 +20,8 @@ export function onOpenDrawer(fn: DrawerListener): () => void {
 export function emitOpenDrawer(p: DrawerPayload): void {
   listeners.forEach((fn) => { try { fn(p) } catch (e) { console.error('[bus] drawer handler error:', e) } })
 }
+
+/** R160（P1）：详情抽屉按需挂载——挂载前的首个事件暂存，抽屉就绪后自取自开（异步组件加载期间不丢事件） */
+let pendingDrawer: DrawerPayload | null = null
+export function setPendingDrawer(p: DrawerPayload): void { pendingDrawer = p }
+export function consumePendingDrawer(): DrawerPayload | null { const p = pendingDrawer; pendingDrawer = null; return p }

@@ -12,7 +12,7 @@
  *   node scripts/pack.cjs --no-zip        # 只出解压目录
  *
  * 体积预算（见 文档中心/06_测试与发布/06-2 发布验收清单 §G）：
- *   生产包 ≤ 2M · ZIP ≤ 660KB（R154 上调，原 600KB）· 单文件 ≤ 400KB · **禁止把 *.map 打进发布包**
+ *   生产包 ≤ 2M · ZIP ≤ 600KB（R154 曾上调 660KB；R160 压回——拼音字典退役后实测 576,655 B）· 单文件 ≤ 400KB · **禁止把 *.map 打进发布包**
  */
 const fs = require('fs')
 const path = require('path')
@@ -174,13 +174,13 @@ if (!noZip) {
 }
 console.log(`  已剥离 map  ${dropped} 个（约 ${fmt(all.reduce((s, f) => s + (f.endsWith('.map') ? fs.statSync(f).size : 0), 0))}）`)
 console.log('')
-console.log('  体积预算（06-2 §G）：生产包 ≤2M · ZIP ≤660KB · 单文件 ≤400KB')
+console.log('  体积预算（06-2 §G）：生产包 ≤2M · ZIP ≤600KB · 单文件 ≤400KB')
 
 // ---------- 预算校验（超限只告警不中断，避免挡住发版） ----------
 const biggest = kept.reduce((m, f) => Math.max(m, fs.statSync(f).size), 0)
 const warn = []
 if (pkgBytes > 2 * 1024 * 1024) warn.push(`生产包 ${fmt(pkgBytes)} 超 2M`)
-if (!noZip && zipBytes > 660 * 1024) warn.push(`ZIP ${fmt(zipBytes)} 超 660KB`)
+if (!noZip && zipBytes > 600 * 1024) warn.push(`ZIP ${fmt(zipBytes)} 超 600KB`)
 if (biggest > 400 * 1024) warn.push(`单文件最大 ${fmt(biggest)} 超 400KB`)
 if (kept.some(f => f.endsWith('.map'))) warn.push('包内仍含 *.map')
 if (warn.length) console.log('  ⚠ 预算告警：' + warn.join('；'))

@@ -44,36 +44,65 @@ type SnapshotEntry = { kind: CardKind; title: string; createdAt: number; deleted
 
 let snapshot = new Map<string, SnapshotEntry>()
 let writeQueue: Promise<void> = Promise.resolve()
+// R160（P5）：日志内存缓存——热路径纯内存追加，随下一次整库保存同一次 set 落盘（0.6MB 上限不回读）
+let logCache: CardEvent[] | null = null
+let dirty = false
+function trimLog(events: CardEvent[]): CardEvent[] {
+  return events.length > EVENT_LOG_CAP ? events.slice(events.length - EVENT_LOG_CAP) : events
+}
 
 function chromeStore(): chrome.storage.StorageArea | null {
   return typeof chrome !== 'undefined' && chrome.storage?.local ? chrome.storage.local : null
 }
 
-/** 读取全部事件（旧→新） */
+/** 读取全部事件（旧→新）——R160（P5）：内存缓存优先 */
 export async function readEventLog(): Promise<CardEvent[]> {
+  if (logCache) return [...logCache]
   try {
     const cs = chromeStore()
     if (!cs) return []
     const cur = (await cs.get([EVENT_LOG_KEY]))[EVENT_LOG_KEY]
-    return Array.isArray(cur) ? (cur as CardEvent[]) : []
+    const arr = Array.isArray(cur) ? (cur as CardEvent[]) : []
+    logCache = arr
+    return [...arr]
   } catch { return [] }
 }
 
-async function writeEvents(events: CardEvent[]): Promise<void> {
+/** 冷路径自愈落盘（本上下文尚未预热缓存时用；失败留待下次整库保存带上） */
+async function flushEventLogNow(): Promise<void> {
   const cs = chromeStore()
-  if (!cs) return
-  // 滚动淘汰：保留最新 CAP 条
-  const trimmed = events.length > EVENT_LOG_CAP ? events.slice(events.length - EVENT_LOG_CAP) : events
-  await cs.set({ [EVENT_LOG_KEY]: trimmed })
+  if (!cs || !logCache || !dirty) return
+  const payload = logCache
+  dirty = false
+  try { await cs.set({ [EVENT_LOG_KEY]: payload }) } catch { dirty = true }
 }
 
-/** 事件入队（串行化读改写，防并发覆盖） */
+/** R160（P5）：把待写日志并入调用方的整库 set（同一次 IPC） */
+export function takeEventLogPatch(): Record<string, unknown> | null {
+  if (!logCache || !dirty) return null
+  dirty = false
+  return { [EVENT_LOG_KEY]: logCache }
+}
+
+/** R160（P5）：外部写入（onChanged）刷新缓存——本地有待写事件时不覆盖 */
+export function initEventLog(raw: unknown): void {
+  if (!dirty && Array.isArray(raw)) logCache = raw as CardEvent[]
+}
+
+/** 事件入队：热路径纯内存追加（随下次整库 set）；冷路径串行读改写后立即落盘并建缓存 */
 function enqueue(events: CardEvent[]): void {
   if (!events.length) return
+  if (logCache) {
+    logCache = trimLog([...logCache, ...events])
+    dirty = true
+    return
+  }
   writeQueue = writeQueue
     .then(async () => {
       const cur = await readEventLog()
-      await writeEvents([...cur, ...events])
+      logCache = trimLog([...cur, ...events])
+      dirty = true
+      await flushEventLogNow()
     })
     .catch(() => { /* 日志失败不影响主数据保存 */ })
 }

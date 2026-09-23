@@ -1,31 +1,29 @@
 ﻿<script setup lang="ts">
-import { computed, ref, onErrorCaptured, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onErrorCaptured, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import { K } from '@/shared/storage/keys'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from './stores/app'
-import { useCompass } from './stores/compass'
 import { uid } from '@/shared/utils'
 import { CURATION_WS_ID, type Workspace } from '@/shared/models'
 import Toast from '@/shared/components/Toast.vue'
 import { showToast } from '@/shared/components/toast'
-import GlobalPopups from './components/GlobalPopups.vue'
+// R160（P1）：GlobalPopups（99KB 源，入口最大应用模块）改按需挂载——首屏不加载，首次呼出（热键/顶栏/消息）时拉起
+const GlobalPopups = defineAsyncComponent(() => import('./components/GlobalPopups.vue'))
 import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
 import { useConfirm } from '@/shared/components/confirm'
 // R146（回退契约）：策展台「归档 / 删除」两语义真源
-import { archiveWorkspace, deckCardCount } from '@/shared/utils/compassCrud'
 import Icon from '@/shared/components/Icon.vue'
 import logoUrl from '@/assets/logo.png'
 import { getBytesInUse, subscribeSaveError, clearLastSaveError, subscribeSaveState, cleanupLegacyKeys, type SaveState } from '@/shared/storage/repository'
 import { installGlobalUndo } from '@/shared/utils/undo'
-import { emitOpenDrawer } from '@/shared/utils/bus'
-import { runSync } from '@/shared/storage/airtable'
-import ResourceDetailDrawer from './components/ResourceDetailDrawer.vue'
+import { emitOpenDrawer, onOpenDrawer, setPendingDrawer } from '@/shared/utils/bus'
+// R160（P1）：详情抽屉（10KB 源）同走按需挂载——首个打开事件到达时挂载，事件经 bus 暂存回放
+const ResourceDetailDrawer = defineAsyncComponent(() => import('./components/ResourceDetailDrawer.vue'))
 
 const router = useRouter()
 const route = useRoute()
 const store = useAppStore()
-const compassData = useCompass().d
 // B30a：全局渲染错误边界——捕获后保持导航可用，内容区显示错误卡片，杜绝整页不可用
 const renderError = ref<string | null>(null)
 /** R159（T3）：落盘状态点（saving 脉冲 / saved 闪一下 / error 红点） */
@@ -40,7 +38,24 @@ onErrorCaptured((err) => {
   return false
 })
 function reloadPage() { location.reload() }
-const globalPopups = ref<InstanceType<typeof GlobalPopups> | null>(null)
+interface GpHandle { openPanel: (name: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts') => void; closeAll: () => void }
+const globalPopups = ref<GpHandle | null>(null)
+const gpMounted = ref(false)
+let pendingPanel: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts' | null = null
+/** R160（P1）：首次呼出才挂载 GP（异步 chunk 加载完成后自动开面板，调用方零感知） */
+function gpOpen(panel: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts'): void {
+  if (globalPopups.value) { globalPopups.value.openPanel(panel); return }
+  gpMounted.value = true
+  pendingPanel = panel
+}
+watch(globalPopups, (v) => { if (v && pendingPanel) { const p = pendingPanel; pendingPanel = null; v.openPanel(p) } })
+const detailDrawerMounted = ref(false)
+// R160（P1）：抽屉未挂载时首个 bus 事件先挂载 + 暂存（抽屉挂载后自取自开）
+onOpenDrawer((p) => {
+  if (detailDrawerMounted.value) return
+  detailDrawerMounted.value = true
+  setPendingDrawer(p)
+})
 
 // R53-D：主题精简为四套（删除 原野绿/暗夜红；存量 green/night 由 repository 启动迁移到深空薰衣草）
 // R156：① 新增「跟随系统」（ui.theme='auto'，落 data-theme 前经 resolveTheme 解析为 linear/apple）
@@ -206,6 +221,8 @@ async function archiveDeck() {
   closeMenu()
   if (!ws || !store.data) return
   if (ws.id === CURATION_WS_ID) { showToast('ℹ 资源台为系统空间，不在此归档'); return }
+  // R160（P1）：策展台 CRUD（9.1KB 源）改动态加载——仅归档动作时入内存
+  const { deckCardCount, archiveWorkspace } = await import('@/shared/utils/compassCrud')
   const n = deckCardCount(store.data, ws.id)
   if (!(await useConfirm({ title: '归档策展台', message: `确定归档「${wsDisplayNameOf(ws)}」？\n其下 ${n} 张资源卡将搬到其它策展台的「待分类」（卡片不删），此台从标签栏收起，可在设置 · 重置与回滚附近找回。`, confirmText: '归档' }))) return
   const r = archiveWorkspace(store.data, ws)
@@ -289,7 +306,7 @@ function onGlobalKeydown(e: KeyboardEvent) {
   else if (mod === 'alt-shift') modPressed = e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey
   else modPressed = !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey
   // B3：? 呼出快捷键速查
-  if (e.key === '?' && !isEditableTarget(e)) { e.preventDefault(); globalPopups.value?.openPanel('shortcuts'); return }
+  if (e.key === '?' && !isEditableTarget(e)) { e.preventDefault(); gpOpen('shortcuts'); return }
   if (modPressed && /^Digit[1-9]$/.test(e.code) && !isEditableTarget(e)) {
     e.preventDefault()
     switchToIndex(Number(e.code.slice(5)))
@@ -330,10 +347,10 @@ onMounted(async () => {
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg?.type === 'zy-ping') { sendResponse({ ok: true }); return true }
     if (msg?.type === 'zy-where') { sendResponse({ path: route.path }); return true }
-    if (msg?.type === 'zy-open-search') globalPopups.value?.openPanel('search')
-    else if (msg?.type === 'zy-open-capture') globalPopups.value?.openPanel('capture')
-    else if (msg?.type === 'zy-open-curiosity') globalPopups.value?.openPanel('curio')
-    else if (msg?.type === 'zy-open-task-capture') globalPopups.value?.openPanel('taskcapture')
+    if (msg?.type === 'zy-open-search') gpOpen('search')
+    else if (msg?.type === 'zy-open-capture') gpOpen('capture')
+    else if (msg?.type === 'zy-open-curiosity') gpOpen('curio')
+    else if (msg?.type === 'zy-open-task-capture') gpOpen('taskcapture')
     // 策展台单例定位（G）：跳转到目标策展台并高亮资源卡
     else if (msg?.type === 'zy-locate') {
       const wsId: string = msg.wsId || ''
@@ -384,6 +401,8 @@ async function runAirtableSync(withToast: boolean): Promise<void> {
   }
   atSyncBusy = true
   try {
+    // R160（P1）：Airtable 同步器（17.6KB 源）改动态加载——仅真正同步时入内存
+    const { runSync } = await import('@/shared/storage/airtable')
     const r = await runSync(store.data!)
     store.persist()
     if (withToast) showToast(`✓ Airtable 同步完成：推送 ${r.pushed} 条 · 调用 ${r.calls} 次`)
@@ -506,7 +525,7 @@ const backupReminderDot = computed(() => {
             </div>
           </Transition>
         </div>
-        <div class="icon-btn" title="全局搜索 (Ctrl+K)" @click="globalPopups?.openPanel('search')"><Icon name="search" :size="16" /></div>
+        <div class="icon-btn" title="全局搜索 (Ctrl+K)" @click="gpOpen('search')"><Icon name="search" :size="16" /></div>
         <div class="icon-btn icon-btn-bell" :class="{ 'has-dot': backupReminderDot }" title="设置" @click="navigate('/settings')">
           <Icon name="settings" :size="16" />
           <span v-if="backupReminderDot" class="bell-dot" title="建议导出备份" />
@@ -550,8 +569,8 @@ const backupReminderDot = computed(() => {
       </div>
     </Teleport>
 
-    <GlobalPopups ref="globalPopups" />
-    <ResourceDetailDrawer />
+    <GlobalPopups v-if="gpMounted" ref="globalPopups" />
+    <ResourceDetailDrawer v-if="detailDrawerMounted" />
     <Toast />
     <ConfirmDialog />
   </div>

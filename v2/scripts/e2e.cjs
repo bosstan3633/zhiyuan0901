@@ -431,8 +431,15 @@ async function main() {
   // E2E-16 快速采集任务（R55-C）：应用内面板四字段非必填 → 保存进全域任务
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  await page.evaluate(() => chrome.runtime.sendMessage({ type: 'zy-open-task-capture' }))
-  await page.waitForTimeout(800)
+  // R160（P1）修正：GP 改按需挂载后暴露此前的「伪通过」——页面内 runtime.sendMessage 同帧不收自身消息，
+  //   旧版只是靠 GP 静态挂载时面板 DOM 恒在（关闭态非 display:none）蒙混过关。改走真实生产路径：
+  //   SW → tabs.sendMessage(tabId) → App 收 → gpOpen 冷挂载 GP → 面板打开（同时覆盖懒挂载首启链路）。
+  await worker.evaluate(async () => {
+    const tabs = await chrome.tabs.query({ url: chrome.runtime.getURL('src/newtab/index.html') + '*' })
+    if (tabs[0] && tabs[0].id) await chrome.tabs.sendMessage(tabs[0].id, { type: 'zy-open-task-capture' })
+  })
+  await page.getByText('快速采集任务').first().waitFor({ state: 'visible', timeout: 6000 }).catch(() => {})
+  await page.waitForTimeout(400)
   const pageErrs = []
   page.on('pageerror', e => pageErrs.push(String(e).slice(0, 150)))
   const tcPanelOn = await page.getByText('快速采集任务').first().isVisible().catch(() => false)

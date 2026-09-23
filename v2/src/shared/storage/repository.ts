@@ -5,14 +5,14 @@
 import type { AppData, UIPrefs } from '@/shared/models'
 import { STORAGE_KEY, UI_KEY } from '@/shared/models'
 // R148-P0b：热度统计独立键（口径见 hotStats.ts 顶部三条）
-import { HOT_KEY, applyHot, pickHot, writeHot } from './hotStats'
+import { HOT_KEY, applyHot, pickHot, writeHot, extractHot } from './hotStats'
 import { setCoolingDefaultDays } from '@/shared/utils/lifecycle'
 import { K } from './keys'
 import { createDefaultData, defaultThesisFieldDefs } from './defaults'
 import { safeDecodeText } from '@/shared/utils'
 import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'
 // 第卌四轮 T-05：卡片操作事件日志——保存链路快照 diff 自动产出 create/delete/restore/purge
-import { rebuildEventSnapshot, flushCardEvents } from '@/shared/utils/eventLog'
+import { rebuildEventSnapshot, flushCardEvents, takeEventLogPatch, initEventLog, EVENT_LOG_KEY } from '@/shared/utils/eventLog'
 
 type Listener = (data: AppData) => void
 type ErrorListener = (err: SaveError) => void
@@ -91,7 +91,8 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
     raw = result[STORAGE_KEY] as AppData | undefined
     hotRaw = result as Record<string, unknown>
   } else if (prefetched) {
-    hotRaw = await cs.get([HOT_KEY]) as Record<string, unknown>
+    // R160（P6）：boot 批量读已带热度键则直接复用（原每次补一次 IO）
+    hotRaw = (prefetched[HOT_KEY] !== undefined ? prefetched : await cs.get([HOT_KEY])) as Record<string, unknown>
   }
   let data = raw
   if (!data) {
@@ -211,7 +212,8 @@ export function saveData(): void {
       // 语义完全等价（reactive Proxy → plain JSON 的净化仍然发生），成本减半。
       payloadJson = JSON.stringify(cache)
       const wid = SELF_CTX_ID + '-' + (++selfWriteSeq)
-      payload = { [STORAGE_KEY]: Object.assign(JSON.parse(payloadJson), { __wid: wid }) }
+      // R160（P5）：热度键 + 待写事件日志并入同一次 set——一次用户动作 = 1 次 IPC（原 3 次）
+      payload = { [STORAGE_KEY]: Object.assign(JSON.parse(payloadJson), { __wid: wid }), [HOT_KEY]: extractHot(cache!), ...(takeEventLogPatch() || {}) }
       lastSelfWriteId = wid  // R131-C1a：onChanged 以 writeId 做 O(1) 自身写入判定
     } catch (e) { emitSaveError(e); return }
     const p = cs!.set(payload)
@@ -220,7 +222,6 @@ export function saveData(): void {
         .then(() => {
           dataVersion++
           lastPersistedJson = payloadJson
-          if (cache) writeHot(cache) // R148-P0b：整库写成功后同步热度键（两键永远同刻）
           markSaveOk()
           if (lastSaveError) { lastSaveError = null; listeners.forEach((fn) => fn(cache!)) }
           listeners.forEach((fn) => fn(cache!))
@@ -249,10 +250,10 @@ export async function saveDataNow(): Promise<void> {
     const payloadJson = JSON.stringify(cache)
     const wid = SELF_CTX_ID + '-' + (++selfWriteSeq)
     lastSelfWriteId = wid  // R131-C1a：同上
-    await cs.set({ [STORAGE_KEY]: Object.assign(JSON.parse(payloadJson), { __wid: wid }) })
+    // R160（P5）：同上——热度键与待写日志并入同一次 set
+    await cs.set({ [STORAGE_KEY]: Object.assign(JSON.parse(payloadJson), { __wid: wid }), [HOT_KEY]: extractHot(cache), ...(takeEventLogPatch() || {}) })
     dataVersion++
     lastPersistedJson = payloadJson
-    writeHot(cache) // R148-P0b：同上（立即保存路径）
     markSaveOk()
     if (lastSaveError) { lastSaveError = null }
     emitSaveState('saved')
@@ -488,6 +489,9 @@ export function attachStorageSync(): void {
     }
     const uch = changes[UI_KEY]
     if (uch) mergeExternalUIPrefs(uch.newValue as UIPrefs | undefined)
+    // R160（P5）：外部上下文写入事件日志时刷新内存缓存（本地有待写事件则不覆盖）
+    const ech = changes[EVENT_LOG_KEY]
+    if (ech) initEventLog(ech.newValue)
   })
 }
 
@@ -519,7 +523,7 @@ function mergeExternalUIPrefs(ext: UIPrefs | undefined): void {
   if (changed) uiCache = next as unknown as UIPrefs
 }
 
-export async function loadUIPrefs(): Promise<UIPrefs> {
+export async function loadUIPrefs(prefetchedUI?: unknown): Promise<UIPrefs> {
   if (uiCache) return uiCache
   const cs = chromeStore()
   const defaults: UIPrefs = {
@@ -532,8 +536,9 @@ export async function loadUIPrefs(): Promise<UIPrefs> {
     uiCache = defaults
     return uiCache
   }
-  const result = await cs.get([UI_KEY])
-  uiCache = { ...defaults, ...(result[UI_KEY] as UIPrefs | undefined) }
+  // R160（P6）：允许调用方传入已取回的 UI 偏好（boot 批量读），省一次往返
+  const uiRaw = prefetchedUI !== undefined ? prefetchedUI : (await cs.get([UI_KEY]))[UI_KEY]
+  uiCache = { ...defaults, ...(uiRaw as UIPrefs | undefined) }
   // O18：旧默认 ctrl 迁移为 alt
   if (uiCache.wsSwitchMod === 'ctrl') { uiCache.wsSwitchMod = 'alt'; saveUIPrefs({ wsSwitchMod: 'alt' }) }
   // 视觉重构（V2.3）：旧默认 green 迁移为 linear；R53-D：主题精简四套——已删除的 green/night 一并迁移（幂等）

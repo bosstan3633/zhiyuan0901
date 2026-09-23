@@ -13,7 +13,7 @@ import Drawer from '@/shared/components/Drawer.vue'
 import ResourceEditForm from './ResourceEditForm.vue'
 import { showToast } from '@/shared/components/toast'
 import { useAppStore } from '../stores/app'
-import { onOpenDrawer, type DrawerPayload } from '@/shared/utils/bus'
+import { onOpenDrawer, consumePendingDrawer, type DrawerPayload } from '@/shared/utils/bus'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import type { ResourceCard, TaskCard } from '@/shared/models'
@@ -196,7 +196,7 @@ async function aiOptimize() {
   aiJob.value = job
   aiEntry.value = ''
 }
-onMounted(() => { unsub = onOpenDrawer(onBus) })
+onMounted(() => { unsub = onOpenDrawer(onBus); const p = consumePendingDrawer(); if (p) onBus(p) })
 onUnmounted(() => { unsub?.(); unsub = null })
 
 watch(() => resource.value?.id, (n) => {

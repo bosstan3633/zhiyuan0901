@@ -7,8 +7,8 @@ import 'virtual:uno.css'
 import '@/shared/styles/tokens.css'
 import '@/shared/styles/detail-sheet.css'
 import { loadData, loadUIPrefs, replaceData } from '@/shared/storage/repository'
-import { migrateV1ToV2 } from '@/shared/storage/migration'
-import { STORAGE_KEY } from '@/shared/models'
+import { STORAGE_KEY, UI_KEY } from '@/shared/models'
+import { HOT_KEY } from '@/shared/storage/hotStats'
 import { useAppStore } from './stores/app'
 // R156：主题「跟随系统」——ui.theme 可为 'auto'，落 data-theme 前统一经 resolveTheme 解析
 import { resolveTheme } from '@/shared/utils/theme'
@@ -24,22 +24,26 @@ installRuntimeErrorCapture()
  *   ② **复用首次读取**——把已经拿到的 raw 快照交给 loadData 复用，
  *      避免它对同一个 STORAGE_KEY 再读一次（实测 197ms）。归一化逻辑在 loadData 内照常执行。 */
 let bootDataDone = false
-async function ensureBootData(): Promise<void> {
-  if (bootDataDone) return
+async function ensureBootData(): Promise<{ ui?: unknown }> {
+  if (bootDataDone) return {}
   const cs = typeof chrome !== 'undefined' ? chrome.storage?.local : null
-  if (!cs) { await loadData(); bootDataDone = true; return }
-  const r = await cs.get([STORAGE_KEY, K.LEGACY[0]])
+  if (!cs) { await loadData(); bootDataDone = true; return {} }
+  // R160（P6）：启动一次批量读齐四键（主数据 + V1 迁移键 + 热度键 + UI 偏好）——后续链路不再补读
+  const r = await cs.get([STORAGE_KEY, K.LEGACY[0], HOT_KEY, UI_KEY])
   const v1 = r[K.LEGACY[0]] as { links?: unknown } | undefined
   if (!r[STORAGE_KEY] && v1 && Array.isArray(v1.links)) {
     console.log('[知源V2] 检测到V1数据，开始迁移...')
+    // R160（P1）：V1 迁移器（10.9KB 源）仅老数据首启需要——动态加载，正常启动零成本
+    const { migrateV1ToV2 } = await import('@/shared/storage/migration')
     const migrated = await migrateV1ToV2()
     await replaceData(migrated)
     console.log('[知源V2] V1数据迁移完成')
     bootDataDone = true
-    return
+    return { ui: r[UI_KEY] }
   }
   await loadData(r)
   bootDataDone = true
+  return { ui: r[UI_KEY] }
 }
 
 async function bootstrap() {
@@ -48,8 +52,9 @@ async function bootstrap() {
   app.use(createPinia())
   app.use(router)
 
-  // B34：UI 偏好与数据并行加载（原为串行 3 次存储往返）
-  const [ui] = await Promise.all([loadUIPrefs(), ensureBootData()])
+  // R160（P6）：boot 单次批量读——UI 偏好随主数据同批取回（原 Promise.all 各读各键 = 2 次往返）
+  const boot = await ensureBootData()
+  const ui = await loadUIPrefs(boot.ui)
   // R156：ui.theme 可为 'auto'（跟随系统）——落 data-theme 前先解析为四主题之一
   document.documentElement.setAttribute('data-theme', resolveTheme(ui.theme))
   // 第卅三轮 REQ-026：密度档位初始化（compact 时挂 html 属性，tokens.css 变量覆盖）
