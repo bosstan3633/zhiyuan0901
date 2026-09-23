@@ -6,8 +6,9 @@
  * 本模块由消费方动态 import（设置页 AI 面板 / AI 抽屉），不进新标签页启动链。
  */
 import { computed, ref } from 'vue'
+import { K } from '@/shared/storage/keys'
 
-export const AI_STORAGE_KEY = 'zy_ai_v1'
+export const AI_STORAGE_KEY = K.AI_CONFIG
 
 export type AiDepth = 'eco' | 'std' | 'deep'
 

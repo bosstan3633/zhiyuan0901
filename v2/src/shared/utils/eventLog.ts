@@ -14,6 +14,7 @@
  *  - 日志为空时（老数据）UI 回退纯派生（createdAt/deletedAt），新旧无缝
  */
 import type { AppData } from '@/shared/models'
+import { K } from '@/shared/storage/keys'
 
 export type CardKind = 'resource' | 'task' | 'curiosity'
 /**
@@ -33,7 +34,7 @@ export interface CardEvent {
   cardId: string
 }
 
-export const EVENT_LOG_KEY = 'zy_event_log'
+export const EVENT_LOG_KEY = K.EVENT_LOG
 /** 第卌四轮拍板 Q-1：5000 条滚动淘汰 */
 export const EVENT_LOG_CAP = 5000
 /** 单次 diff 超过该数量的同向变动视为批量操作（导入/回滚），合并摘要 */
@@ -175,7 +176,7 @@ export function flushCardEvents(d: AppData): void {
  * 拍板「5. 接受 / 本版起算」——**不回填历史** create/delete 事件，
  * 否则一升级就会冒出一个来路不明的历史大数（那时也还没有 status 事件，口径本就不齐）。
  */
-export const CURIO_CUM_SINCE_KEY = 'zy_curio_cum_since'
+export const CURIO_CUM_SINCE_KEY = K.CURIO_SINCE
 let cumSinceCache: number | null = null
 
 export async function curioCumulativeSince(): Promise<number> {

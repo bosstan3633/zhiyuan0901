@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { K } from '@/shared/storage/keys'
 import { uid } from '@/shared/utils'
 import { loadData, saveDataNow } from '@/shared/storage/repository'
 import type { AppData } from '@/shared/models'
@@ -27,7 +28,7 @@ let savedTimer: ReturnType<typeof setTimeout> | null = null
 
 onMounted(async () => {
   if (typeof chrome !== 'undefined' && chrome.storage?.session) {
-    const prefill = await chrome.storage.session.get('zy_qc_prefill')
+    const prefill = await chrome.storage.session.get(K.QC_PREFILL)
     const p = prefill.zy_qc_prefill as { title?: string; url?: string; mode?: string } | undefined
     if (p) {
       title.value = p.title || ''
@@ -41,7 +42,7 @@ onMounted(async () => {
     }
   }
   if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-    const data = await chrome.storage.local.get('zy_data_v2')
+    const data = await chrome.storage.local.get(K.DATA)
     const d = data.zy_data_v2 as AppData | undefined
     if (d?.workspaces) {
       workspaces.value = d.workspaces.filter(w => !w.archived)

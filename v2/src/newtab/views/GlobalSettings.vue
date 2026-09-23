@@ -1040,6 +1040,7 @@ import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { saveUIPrefs, loadUIPrefs, getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage } from '@/shared/storage/repository'
+import { K } from '@/shared/storage/keys'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
 import FieldEditor from './FieldEditor.vue'
@@ -1204,7 +1205,7 @@ async function exportAssetPack() {
     const all = await getAllAssets()
     if (!all.length) { showToast('暂无附件可导出'); return }
     const manifest = JSON.stringify({
-      type: 'zy_asset_pack', version: 1, exportedAt: new Date().toISOString(), count: all.length,
+      type: K.ASSET_PACK, version: 1, exportedAt: new Date().toISOString(), count: all.length,
       items: all.map(a => ({ id: a.id, size: a.blob.size, mime: a.blob.type || '' }))
     }, null, 2)
     const entries: ZipEntry[] = [
@@ -2410,7 +2411,7 @@ function persistCapturePref() {
   }
 }
 if (typeof chrome !== 'undefined' && chrome.storage) {
-  chrome.storage.local.get('zy_capture_pref').then(r => {
+  chrome.storage.local.get(K.CAPTURE_PREF).then(r => {
     if (r.zy_capture_pref) Object.assign(capturePref, r.zy_capture_pref)
   })
 }

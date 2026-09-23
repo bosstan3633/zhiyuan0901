@@ -9,6 +9,7 @@
  * 注意：本文件被 main.ts 顶部最先 import——TDZ 崩溃多发于模块初始化期，
  * 监听器必须早于一切业务模块注册才接得住。
  */
+import { K } from '@/shared/storage/keys'
 
 export interface RuntimeErrorEntry {
   ts: number
@@ -18,7 +19,7 @@ export interface RuntimeErrorEntry {
   route: string
 }
 
-export const ERROR_LOG_KEY = 'zy_error_log'
+export const ERROR_LOG_KEY = K.ERROR_LOG
 const ERROR_LOG_CAP = 50
 
 function chromeStore(): chrome.storage.StorageArea | null {

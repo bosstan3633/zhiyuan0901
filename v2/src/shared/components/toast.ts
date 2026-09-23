@@ -10,9 +10,11 @@
  * 同文案连发合并成一条并计数（×N），各条独立计时、独立撤销。
  */
 import { ref } from 'vue'
+import { pushUndo, UNDO_WINDOW_MS } from '../utils/undo'
 
 export interface ToastAction { label: string; cb: () => void }
-export interface ToastItem { id: number; msg: string; action: ToastAction | null; n: number }
+export interface ToastItem { id: number; msg: string; action: ToastAction | null; n: number; sticky?: boolean }
+export interface ToastOpts { duration?: number; sticky?: boolean }
 
 /** REQ-030：统一 3 秒（原三套实现 5s/2.5s/2s 不一致） */
 const TOAST_DURATION = 3000
@@ -29,24 +31,33 @@ function drop(id: number) {
   timers.delete(id)
   if (items.value.some(x => x.id === id)) items.value = items.value.filter(x => x.id !== id)
 }
-function arm(it: ToastItem) {
+function arm(it: ToastItem, duration = TOAST_DURATION) {
   const prev = timers.get(it.id)
   if (prev) clearTimeout(prev)
-  timers.set(it.id, setTimeout(() => drop(it.id), TOAST_DURATION))
+  if (duration <= 0) { timers.delete(it.id); return } // R159：sticky（批量回执）不自动消失
+  timers.set(it.id, setTimeout(() => drop(it.id), duration))
 }
 
-export function showToast(msg: string, act?: ToastAction) {
+/** R159：批量回执判定（删除≥2 / 整台 / 复数文案 → 固定不自动消失） */
+function isBatchMsg(msg: string): boolean {
+  return /已删除\s*\d+|已删\s*\d+|张资源卡|个任务|张卡|策展台/.test(msg)
+}
+export function showToast(msg: string, act?: ToastAction, opts?: ToastOpts) {
+  // R159（T1）：带撤销动作 → 自动登记进全局撤销栈（Ctrl/Cmd+Z 可再触发，窗口 9s）
+  if (act) pushUndo(msg, act.cb)
+  const sticky = opts?.sticky ?? (!!act && isBatchMsg(msg))
+  const duration = sticky ? 0 : (opts?.duration ?? (act ? UNDO_WINDOW_MS : TOAST_DURATION))
   const last = items.value[items.value.length - 1]
   // 同文案且同动作语义 → 合并计数并重置该条计时（批量循环里不再刷屏）
   if (last && last.msg === msg && !!last.action === !!act && (last.action?.label || '') === (act?.label || '')) {
     last.n++
-    arm(last)
+    arm(last, duration)
     return
   }
-  const it: ToastItem = { id: ++seq, msg, action: act || null, n: 1 }
+  const it: ToastItem = { id: ++seq, msg, action: act || null, n: 1, sticky }
   items.value = [...items.value, it]
   while (items.value.length > TOAST_STACK) drop(items.value[0]!.id)
-  arm(it)
+  arm(it, duration)
 }
 
 export function runToastAction(it: ToastItem) {

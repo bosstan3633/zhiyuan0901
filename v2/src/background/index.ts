@@ -6,8 +6,9 @@
  *  2. 确保 content script 已注入，发消息唤起页内浮层
  *  3. 无法注入的页面（chrome:// 等）降级为独立弹窗窗口
  */
+import { K } from '@/shared/storage/keys'
 
-const SESSION_KEY = 'zy_qc_prefill'
+const SESSION_KEY = K.QC_PREFILL
 
 /** 获取 content script 文件路径（从 manifest 动态读取，兼容构建 hash） */
 function getContentScriptFiles(): string[] {
@@ -270,8 +271,8 @@ async function triggerAirtableSync(silent: boolean): Promise<void> {
 const AT_POLL_ALARM = 'airtable-poll'
 async function alignAirtableAlarm(): Promise<void> {
   try {
-    const data = await chrome.storage.local.get('zy_data_v2')
-    const enabled = !!(data['zy_data_v2'] as { airtableSync?: { pollEnabled?: boolean; pat?: string; baseId?: string; tableId?: string } } | undefined)?.airtableSync?.pollEnabled
+    const data = await chrome.storage.local.get(K.DATA)
+    const enabled = !!(data[K.DATA] as { airtableSync?: { pollEnabled?: boolean; pat?: string; baseId?: string; tableId?: string } } | undefined)?.airtableSync?.pollEnabled
     const alarm = await chrome.alarms.get(AT_POLL_ALARM)
     if (enabled && !alarm) {
       chrome.alarms.create(AT_POLL_ALARM, { periodInMinutes: 180 })
@@ -297,7 +298,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 })
 // 开关变化即时对齐 alarm（设置页 toggle 后无需等 SW 唤醒）
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && (changes as Record<string, chrome.storage.StorageChange>)['zy_data_v2']) {
+  if (area === 'local' && (changes as Record<string, chrome.storage.StorageChange>)[K.DATA]) {
     alignAirtableAlarm()
   }
 })

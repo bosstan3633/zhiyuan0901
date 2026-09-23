@@ -7,6 +7,7 @@ import { STORAGE_KEY, UI_KEY } from '@/shared/models'
 // R148-P0b：热度统计独立键（口径见 hotStats.ts 顶部三条）
 import { HOT_KEY, applyHot, pickHot, writeHot } from './hotStats'
 import { setCoolingDefaultDays } from '@/shared/utils/lifecycle'
+import { K } from './keys'
 import { createDefaultData, defaultThesisFieldDefs } from './defaults'
 import { safeDecodeText } from '@/shared/utils'
 import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'
@@ -28,6 +29,14 @@ let cache: AppData | null = null
 const listeners = new Set<Listener>()
 const errorListeners = new Set<ErrorListener>()
 let lastSaveError: SaveError | null = null
+/** R159（T3）：落盘状态（顶栏极轻量状态点消费）——idle/saving/saved/error */
+export type SaveState = 'idle' | 'saving' | 'saved' | 'error'
+const stateListeners = new Set<(s: SaveState) => void>()
+function emitSaveState(s: SaveState): void { stateListeners.forEach((fn) => fn(s)) }
+export function subscribeSaveState(fn: (s: SaveState) => void): () => void {
+  stateListeners.add(fn)
+  return () => stateListeners.delete(fn)
+}
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 /**
  * R148-P1b：内存脏计数——每次 persist 意图（saveData/saveDataNow/外部合并）同步 +1。
@@ -179,6 +188,7 @@ export function getData(): AppData {
 
 /** 保存数据（防抖 300ms，自动持久化） */
 export function saveData(): void {
+  emitSaveState('saving')
   markDataDirty() // R148-P1b：先让派生缓存作废，再排防抖写盘
   if (!cache) return
   const cs = chromeStore()
@@ -225,6 +235,7 @@ export function saveData(): void {
 
 /** 立即保存（用于关键操作） */
 export async function saveDataNow(): Promise<void> {
+  emitSaveState('saving')
   markDataDirty()
   if (!cache) return
   const cs = chromeStore()
@@ -244,9 +255,11 @@ export async function saveDataNow(): Promise<void> {
     writeHot(cache) // R148-P0b：同上（立即保存路径）
     markSaveOk()
     if (lastSaveError) { lastSaveError = null }
+    emitSaveState('saved')
     listeners.forEach((fn) => fn(cache!))
   } catch (e) {
     emitSaveError(e)
+    emitSaveState('error')
     throw e
   }
 }
@@ -286,6 +299,11 @@ function markSaveOk(): void { lastSaveOkAt = Date.now() }
 
 /** 清除最近一次保存失败标记（恢复后调用） */
 export function clearLastSaveError(): void { lastSaveError = null }
+
+/** R159（T5）：启动期清理遗留键（V1 时代 lm_data_v5*，迁移完成后一次性移除；幂等） */
+export function cleanupLegacyKeys(): void {
+  try { chromeStore()?.remove([...K.LEGACY]) } catch { /* 无 storage 权限：忽略 */ }
+}
 
 /** 第卅六轮 REQ-038：当前 chrome.storage.local 已用字节（同步回调包装成 Promise） */
 export function getBytesInUse(): Promise<number> {

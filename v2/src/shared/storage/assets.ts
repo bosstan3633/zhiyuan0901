@@ -7,7 +7,8 @@
  *
  * 库结构：zy_assets / objectStore 'assets'（keyPath 缺省，key = assetId，value = Blob）
  */
-const DB_NAME = 'zy_assets'
+import { K } from './keys'
+const DB_NAME = K.ASSETS_DB
 const STORE = 'assets'
 
 let dbPromise: Promise<IDBDatabase> | null = null

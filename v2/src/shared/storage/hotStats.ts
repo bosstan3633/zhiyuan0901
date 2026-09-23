@@ -14,8 +14,9 @@
  * 迁移：老数据没有本键时，首次启动以主树落一次（幂等，落 `hotStatsSplitAt` 戳）。
  */
 import type { AppData } from '@/shared/models'
+import { K } from '@/shared/storage/keys'
 
-export const HOT_KEY = 'zy_stats_v1'
+export const HOT_KEY = K.STATS
 
 /** 卡片级热度：id → [callCount, lastCalledAt]（数组而非对象，1300 张卡省约一半字节） */
 export interface HotStats {

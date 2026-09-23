@@ -1,5 +1,6 @@
 ﻿<script setup lang="ts">
 import { computed, ref, onErrorCaptured, onMounted, onUnmounted } from 'vue'
+import { K } from '@/shared/storage/keys'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from './stores/app'
@@ -15,7 +16,8 @@ import { useConfirm } from '@/shared/components/confirm'
 import { archiveWorkspace, deckCardCount } from '@/shared/utils/compassCrud'
 import Icon from '@/shared/components/Icon.vue'
 import logoUrl from '@/assets/logo.png'
-import { getBytesInUse, subscribeSaveError, clearLastSaveError } from '@/shared/storage/repository'
+import { getBytesInUse, subscribeSaveError, clearLastSaveError, subscribeSaveState, cleanupLegacyKeys, type SaveState } from '@/shared/storage/repository'
+import { installGlobalUndo } from '@/shared/utils/undo'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import { runSync } from '@/shared/storage/airtable'
 import ResourceDetailDrawer from './components/ResourceDetailDrawer.vue'
@@ -26,6 +28,12 @@ const store = useAppStore()
 const compassData = useCompass().d
 // B30a：全局渲染错误边界——捕获后保持导航可用，内容区显示错误卡片，杜绝整页不可用
 const renderError = ref<string | null>(null)
+/** R159（T3）：落盘状态点（saving 脉冲 / saved 闪一下 / error 红点） */
+const saveState = ref<SaveState>('idle')
+const saveDotTip = computed(() => saveState.value === 'saving' ? '保存中…' : saveState.value === 'error' ? '保存异常（点击查看）' : '已保存到本地')
+function onSaveDotClick(): void {
+  if (saveState.value === 'error') navigate('/settings?page=about')
+}
 onErrorCaptured((err) => {
   console.error('[知源] 渲染错误已拦截：', err)
   renderError.value = (err instanceof Error ? err.message : String(err)) || '未知渲染错误'
@@ -297,18 +305,26 @@ onMounted(async () => {
   // 监听 storage onChanged，更新容量（兜底：首次安装或 import 后变化）
   try {
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === 'local' && (changes as Record<string, chrome.storage.StorageChange>)['zy_data_v2']) {
+      if (area === 'local' && (changes as Record<string, chrome.storage.StorageChange>)[K.DATA]) {
         refreshBytes().catch(() => {})
       }
     })
   } catch (e) { console.warn('[zy] storage.onChanged 监听注册失败（扩展上下文失效），容量红点将不会实时更新', e) }
   // 第卅六轮 REQ-038：保存失败（quota/serial）→ Toast 告警
+  // R159（T1）：全局撤销（Ctrl/Cmd+Z）——最近一次可撤销操作（窗口 9 秒）
+  installGlobalUndo((m) => showToast(m))
+  // R159（T5）：启动期清理遗留键（V1 时代 lm_data_v5*，一次性、幂等）
+  cleanupLegacyKeys()
+  // R159（T3）：落盘状态（顶栏极轻量状态点；saved 2 秒后回落 idle）
+  subscribeSaveState((s) => { saveState.value = s; if (s === 'saved') setTimeout(() => { if (saveState.value === 'saved') saveState.value = 'idle' }, 2000) })
+  // 第卅六轮 REQ-038：保存失败（quota/serial）→ Toast 告警（R159：错误态带「下一步动作」）
   subscribeSaveError((e) => {
     const tag = e.kind === 'quota' ? '配额超限' : e.kind === 'serial' ? '序列化失败' : '写入异常'
-    const sz = e.bytesInUse != null ? `（已用 ${Math.round(e.bytesInUse / 1024)} KB）` : ''
-    showToast(`⚠ 数据保存失败：${tag}${sz}，请清理或导出后重试`, {
-      label: '查看', cb: () => { clearLastSaveError(); navigate('/settings?page=about') }
-    })
+    const sz = e.bytesInUse != null ? `（已达 ${Math.round(e.bytesInUse / 1024)} KB）` : ''
+    const act = e.kind === 'quota'
+      ? { label: '清理回收站', cb: () => { clearLastSaveError(); navigate('/recycle') } }
+      : { label: '查看', cb: () => { clearLastSaveError(); navigate('/settings?page=about') } }
+    showToast(`⛔ 数据保存失败（${tag}${sz}，请清理或导出后重试`, act)
   })
   // 监听 background 发来的消息（扩展快捷键触发）
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -472,6 +488,8 @@ const backupReminderDot = computed(() => {
       </nav>
 
       <div class="topbar-right">
+        <!-- R159（T3）：落盘状态点（极轻量；error 可点击查看） -->
+        <span class="save-dot" :class="saveState" :title="saveDotTip" @click="onSaveDotClick" />
         <div class="theme-select">
           <button class="theme-btn" @click="toggleTheme">
             <span class="theme-dot" :style="{ background: themes.find(t => t.id === store.theme)?.dot }"></span>
@@ -582,6 +600,12 @@ const backupReminderDot = computed(() => {
 .render-error .re-hint { font-size: var(--fs-caption); color: var(--text-3); }
 
 .topbar-right { display: flex; align-items: center; gap: 8px; }
+/* R159（T3）：落盘状态点 */
+.save-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--text-4); opacity: .6; transition: background .2s, opacity .2s; cursor: default; }
+.save-dot.saving { background: var(--accent); opacity: .9; animation: savePulse .9s ease-in-out infinite; }
+.save-dot.saved { background: var(--success); opacity: .9; }
+.save-dot.error { background: var(--danger); opacity: 1; cursor: pointer; }
+@keyframes savePulse { 0%, 100% { transform: scale(.85); } 50% { transform: scale(1.15); } }
 .theme-select { position: relative; }
 .theme-btn { border: 1px solid transparent; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; background: var(--surface); transition: all var(--dur); font-family: inherit; }
 .theme-btn:hover { border-color: var(--border-strong); }

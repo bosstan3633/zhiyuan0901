@@ -492,9 +492,10 @@ export interface UIPrefs {
 
 // ============ 常量 ============
 
-export const STORAGE_KEY = 'zy_data_v2'
-export const UI_KEY = 'zy_ui_v2'
-export const LEGACY_KEY = 'lm_data_v5'
+export { K } from '../storage/keys'
+export const STORAGE_KEY = K.DATA
+export const UI_KEY = K.UI
+export const LEGACY_KEY = K.LEGACY[0]
 /** R50-F3：策展中心系统空间 ID。R61 起转正为「资源台」——唯一 kind='resource' 的真实 Workspace 实体
  *  （id 保持不变 ⇒ 存量 categories/resources 归属零迁移），是资源卡镜像的源头 */
 export const CURATION_WS_ID = 'zy-curation'
@@ -506,3 +507,4 @@ export const TASKBAR_IDS = {
   tasks: '__tasks__',
   settings: '__settings__'
 } as const
+import { K } from '../storage/keys'

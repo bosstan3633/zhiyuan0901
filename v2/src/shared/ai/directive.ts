@@ -16,11 +16,12 @@
  * 自带 `run` 的工厂（多批归架 / 多专家会诊）不走 `build`，需要时自己调 `activeDirective(job)`。
  */
 import { ref } from 'vue'
+import { K } from '@/shared/storage/keys'
 import type { AiJob } from './job'
 import type { ChatMsg } from './llm'
 import { aiConfig, loadAiConfig, patchAiConfig } from './config'
 
-export const AI_DIRECTIVES_KEY = 'zy_ai_directives_v1'
+export const AI_DIRECTIVES_KEY = K.AI_DIRECTIVES
 /** 上限与提示：超了截断，别默默吃掉用户写的字 */
 export const DIRECTIVE_CAP = 2000
 /** 每个作用域留最近 5 条旧指令——"改了再测"必须能横向比、能一键切回 */

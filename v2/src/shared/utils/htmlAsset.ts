@@ -15,11 +15,12 @@
  *  - 路径记忆存独立存储键 zy_file_paths（第卌四轮由 zy_html_paths 泛化更名；不进主 JSON，不碰卡片模型）
  */
 import type { AssetMeta } from '@/shared/models'
+import { K } from '@/shared/storage/keys'
 import { getAssetBlob } from '@/shared/storage/assets'
 import { openExternalLink } from '@/shared/utils/link'
 import { showToast } from '@/shared/components/toast'
 
-const PATHS_KEY = 'zy_file_paths'
+const PATHS_KEY = K.FILE_PATHS
 
 type HtmlPathMap = Record<string, string>
 

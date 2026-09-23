@@ -13,6 +13,7 @@ import { toastState, runToastAction } from './toast'
     <div v-for="t in toastState.items" :key="t.id" class="toast" role="status">
       <span class="toast-msg">{{ t.msg }}<b v-if="t.n > 1" class="toast-n"> ×{{ t.n }}</b></span>
       <span v-if="t.action" class="toast-action" @click="runToastAction(t)">{{ t.action.label }}</span>
+      <span v-if="t.sticky" class="toast-x" title="关闭" @click="toastState.dismiss(t.id)">✕</span>
     </div>
   </TransitionGroup>
 </template>
@@ -33,6 +34,8 @@ import { toastState, runToastAction } from './toast'
   padding: 2px 10px; border: 1px solid color-mix(in srgb, var(--toast-action) 50%, transparent); border-radius: var(--radius-xs);
 }
 .toast-action:hover { background: color-mix(in srgb, var(--toast-action) 16%, transparent); }
+.toast-x { opacity: .55; cursor: pointer; font-size: 11px; padding: 0 2px; }
+.toast-x:hover { opacity: 1; }
 .toast-move, .toast-enter-active, .toast-leave-active { transition: all var(--dur) var(--ease-out-soft); }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(10px); }
 .toast-leave-active { position: absolute; }

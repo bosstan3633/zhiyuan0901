@@ -4,6 +4,7 @@
  * 捞回=deletedAt 置空；镜像=hub.ts projectCardToBoard（零源数据影响）；主题漂移=只读。
  */
 import type { AppData, ResourceCard, TagNode } from '@/shared/models'
+import { K } from '@/shared/storage/keys'
 import { uid } from '@/shared/utils'
 import { projectCardToBoard } from '@/shared/storage/hub'
 import type { AiJob, AiRow } from './job'
@@ -21,7 +22,7 @@ import {
 export interface GovernCtx { d: AppData; depth: AiDepth; persist: () => void }
 
 /** R143：整体梳理的后悔药快照键（zy_ 前缀独立键，不挂 AppData、不进导出数据链） */
-export const TAG_REVISE_BACKUP_KEY = 'zy_tagrevise_backup_v1'
+export const TAG_REVISE_BACKUP_KEY = K.TAGREVISE_BACKUP
 /** 蓝图刚被采纳的接力旗（宿主在抽屉关闭时消费一次，自动续开阶段③） */
 let blueprintAdoptedFlag = false
 export function consumeTagBlueprintAdopted(): boolean { const v = blueprintAdoptedFlag; blueprintAdoptedFlag = false; return v }

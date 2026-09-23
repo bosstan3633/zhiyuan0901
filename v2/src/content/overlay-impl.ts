@@ -10,6 +10,7 @@
  */
 
 import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
+import { K } from '@/shared/storage/keys'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { CURATION_WS_ID } from '@/shared/models'
 import { buildCatOptions } from '@/shared/utils/catTree'
@@ -60,8 +61,8 @@ let dataCacheAt = 0
 let showDoneProjectsCache = true
 async function loadShowDonePref() {
   try {
-    const r = await chrome.storage.local.get('zy_ui_v2')
-    showDoneProjectsCache = (r['zy_ui_v2'] as any)?.showDoneProjects !== false
+    const r = await chrome.storage.local.get(K.UI)
+    showDoneProjectsCache = (r[K.UI] as any)?.showDoneProjects !== false
   } catch { showDoneProjectsCache = true }
 }
 /** R68-F1：项目完成口径（对齐 newtab isProjectDone：手动 done/archived 或全部任务完成派生） */
@@ -87,7 +88,7 @@ async function getData(force = false): Promise<any> {
 // R68-F1：界面偏好变化（已完成项目显隐）实时生效；数据变化改由仓库统一合并后回调（见下方 repoSubscribe）
 if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes['zy_ui_v2']) void loadShowDonePref()
+    if (area === 'local' && changes[K.UI]) void loadShowDonePref()
   })
 }
 // R128-A1：仓库每次落盘 / 外部合并后回调——重指向缓存并失效计数缓存（REQ-031 P-031-3 口径不变）
@@ -298,7 +299,7 @@ async function applyThemeAccent() {
   if (!root) return
   let theme = 'linear'
   try {
-    const r = await chrome.storage.local.get('zy_ui_v2')
+    const r = await chrome.storage.local.get(K.UI)
     let t = (r?.zy_ui_v2 as { theme?: string } | undefined)?.theme
     // R156：'auto'（跟随系统）在浮层里按宿主环境 prefers-color-scheme 解析——浮层运行在宿主文档，
     // 不共享新标签页的 data-theme，故此处独立判一次；映射与 shared/utils/theme.ts 保持一致（暗→linear / 浅→apple）

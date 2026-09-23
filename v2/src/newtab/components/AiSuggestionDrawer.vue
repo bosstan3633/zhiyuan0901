@@ -17,6 +17,8 @@ import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
 import Modal from '@/shared/components/Modal.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { showToast } from '@/shared/components/toast'
+import { pushUndo } from '@/shared/utils/undo'
+import { useAppStore } from '@/newtab/stores/app'
 import { chatStream, extractJson, setLlmFeedSink } from '@/shared/ai/llm'
 import { getJobState, openJob, rerunJob, retire, stop as stopJob, type JobState } from '@/shared/ai/runner'
 import type { AiJob, AiRow } from '@/shared/ai/job'
@@ -35,6 +37,7 @@ import {
  *    跑完就看结果 +「↻ 重新运行」。
  */
 const props = defineProps<{ job: AiJob | null; jobKey?: string }>()
+const store = useAppStore()
 const emit = defineEmits<{ close: [] }>()
 
 type Phase = 'running' | 'done' | 'error' | 'stopped' | 'idle'
@@ -254,9 +257,12 @@ async function adopt() {
   const cf = job.confirm?.(sel)
   if (cf && !confirmText.value) { confirmText.value = cf; return }
   confirmText.value = ''
+  // R159（T2）：AI 采纳是直接写库（风险最高）——采纳前压整库快照，Ctrl/Cmd+Z 可整笔回退
+  const snap = JSON.stringify(store.data)
   try {
     const summary = await job.apply(sel)
-    showToast(typeof summary === 'string' ? summary : '✓ 已采纳')
+    pushUndo(`AI 采纳（${sel.length} 项）`, () => { store.data = JSON.parse(snap); store.persist() })
+    showToast(typeof summary === 'string' ? summary : '✓ 已采纳', { label: '撤销', cb: () => { store.data = JSON.parse(snap); store.persist() } })
     if (job.promptScope) markRunAdopted(job)
     finishAfterApply()
   } catch (e) { showToast('⚠ 采纳失败：' + (e as Error).message) }

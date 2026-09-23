@@ -14,6 +14,7 @@ import type {
   Compass, Direction, Project, Metric, Workspace, Category,
   FieldConfig, Stats
 } from '@/shared/models'
+import { K } from './keys'
 import { createDefaultData } from './defaults'
 import { uid, dateKey } from '@/shared/utils'
 
@@ -129,14 +130,14 @@ function toTs(v: unknown): number {
 /** 检测是否存在 V1 数据 */
 export async function hasV1Data(): Promise<boolean> {
   if (typeof chrome === 'undefined' || !chrome.storage?.local) return false
-  const result = await chrome.storage.local.get(['lm_data_v5'])
-  return !!(result.lm_data_v5 && Array.isArray(result.lm_data_v5.links))
+  const result = await chrome.storage.local.get([K.LEGACY[0]])
+  return !!(result[K.LEGACY[0]] && Array.isArray(result[K.LEGACY[0]].links))
 }
 
 /** 执行 V1 → V2 迁移 */
 export async function migrateV1ToV2(): Promise<AppData> {
-  const result = await chrome.storage.local.get(['lm_data_v5'])
-  const v1 = (result.lm_data_v5 || {}) as V1Data
+  const result = await chrome.storage.local.get([K.LEGACY[0]])
+  const v1 = (result[K.LEGACY[0]] || {}) as V1Data
   const defaults = createDefaultData()
 
   // ---- 1. 迁移策展台 ----
@@ -229,7 +230,7 @@ export async function migrateV1ToV2(): Promise<AppData> {
 
   // 备份 V1 数据（安全网）
   try {
-    await chrome.storage.local.set({ lm_data_v5_backup: v1 })
+    await chrome.storage.local.set({ [K.LEGACY[1]]: v1 })
   } catch (e) {
     console.warn('[V2迁移] V1备份失败', e)
   }

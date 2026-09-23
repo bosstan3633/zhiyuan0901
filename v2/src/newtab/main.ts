@@ -1,4 +1,5 @@
 import { createApp } from 'vue'
+import { K } from '@/shared/storage/keys'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
@@ -27,8 +28,8 @@ async function ensureBootData(): Promise<void> {
   if (bootDataDone) return
   const cs = typeof chrome !== 'undefined' ? chrome.storage?.local : null
   if (!cs) { await loadData(); bootDataDone = true; return }
-  const r = await cs.get([STORAGE_KEY, 'lm_data_v5'])
-  const v1 = r['lm_data_v5'] as { links?: unknown } | undefined
+  const r = await cs.get([STORAGE_KEY, K.LEGACY[0]])
+  const v1 = r[K.LEGACY[0]] as { links?: unknown } | undefined
   if (!r[STORAGE_KEY] && v1 && Array.isArray(v1.links)) {
     console.log('[知源V2] 检测到V1数据，开始迁移...')
     const migrated = await migrateV1ToV2()
