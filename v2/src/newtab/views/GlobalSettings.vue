@@ -567,22 +567,14 @@
         </div>
 
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">🧭 库内治理与成文</span><span class="gs-card-desc">扫描型建议：跨台镜像 / 主题漂移 / 回收站捞回 / 本周回顾 / 成果文稿（标签体检与整体梳理在「标签管理」页）</span></div>
+          <!-- R158：被动型 AI 入口（跨台镜像/主题漂移/沉睡唤醒）迁 AI 建议面板（命令面板 Ctrl+K → AI 建议）；
+               本页只留主动型（回收站捞回 / 本周回顾 / 成果文稿）与轻量指引 -->
+          <div class="gs-card-header"><span class="gs-card-title">🧭 库内治理与成文</span><span class="gs-card-desc">主动型：回收站捞回 / 本周回顾 / 成果文稿（标签体检与整体梳理在「标签管理」页；被动建议在命令面板 Ctrl+K → AI 建议）</span></div>
           <div class="gs-card-body ai-form-row">
-            <button class="gs-btn" :disabled="!aiReady" @click="aiCrossDeck">🔁 跨台镜像发现</button>
-            <button class="gs-btn" :disabled="!aiReady" @click="aiThesisDrift">🏛 主题漂移检测</button>
             <button class="gs-btn" :disabled="!aiReady" @click="aiTrashRescue">🗑 回收站捞回</button>
             <button class="gs-btn" :disabled="!aiReady" title="近 7 天台账 → 周回顾草稿；跑完自动存为一张周回顾卡（同日重跑只刷新那张）" @click="aiWeeklyReview">🗓 本周回顾</button>
             <label class="ai-field inline"><input class="gs-input ai-genre" type="text" v-model="aiGenre" placeholder="体裁（可留空）：公众号短文 / 分享稿 / 结项说明…" @keydown.enter.prevent="aiDeliver" /></label>
             <button class="gs-btn" :disabled="!aiReady" title="论点卡 + 活跃目标 + 近 30 天完成 → 一篇可交付文稿；跑完自动存为一张成果文稿卡（同日重跑只刷新那张），也可下载 .md" @click="aiDeliver">📄 成果文稿</button>
-          </div>
-        </div>
-
-        <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">💤 沉睡资源扫描</span><span class="gs-card-desc">长期零打开的卡对照当前目标与任务判「唤醒 / 归档 / 保留」；置顶与星标卡自动豁免</span></div>
-          <div class="gs-card-body ai-form-row">
-            <label class="ai-field inline"><span>沉睡超过</span><input class="gs-input ai-days" type="number" min="14" max="365" v-model.number="aiDormantDays" /><span>天</span></label>
-            <button class="gs-btn" :disabled="!aiReady" @click="aiDormantScan">💤 开始扫描</button>
           </div>
         </div>
 
@@ -1086,9 +1078,9 @@ import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import type { AiJob, AiRow } from '@/shared/ai/job'
 import { aiConfig, loadAiConfig, patchAiConfig, aiReady, type AiDepth } from '@/shared/ai/config'
 import { listModels, testConnection as aiTestConnection, chatStream, extractJson } from '@/shared/ai/llm'
-import { projectCards, projectDormant, projectLibrary, catPathOf as aiCatPathOf } from '@/shared/ai/project'
-import { batchEnrichSystem, dormantSystem, diagnosisSystem, allPersonas, personaOverrides, sanitizeRefs, type EnrichSuggestion, type DormantVerdict } from '@/shared/ai/scenarios'
-import { buildTagGovernJob, buildTrashRescueJob, buildCrossDeckJob, buildThesisJob, buildTagBlueprintJob, buildTagAssignJob, consumeTagBlueprintAdopted, getTagReviseBackup, restoreTagReviseBackup , reviseSnips } from '@/shared/ai/govern'
+import { projectCards, projectLibrary, catPathOf as aiCatPathOf } from '@/shared/ai/project'
+import { batchEnrichSystem, diagnosisSystem, allPersonas, personaOverrides, sanitizeRefs, type EnrichSuggestion } from '@/shared/ai/scenarios'
+import { buildTagGovernJob, buildTrashRescueJob, buildTagBlueprintJob, buildTagAssignJob, consumeTagBlueprintAdopted, getTagReviseBackup, restoreTagReviseBackup , reviseSnips } from '@/shared/ai/govern'
 import { clearLinkCache } from '@/shared/ai/linkFetch'
 import { buildReviewJob } from '@/shared/ai/select'
 import { withReport } from '@/shared/ai/reports'
@@ -2703,7 +2695,7 @@ const aiJobKey = ref('')
 const aiModels = ref<string[]>([])
 const aiBusy = ref<'' | 'models' | 'test'>('')
 const aiMsg = ref('')
-const aiDormantDays = ref(90)
+// R158：沉睡天数参数随沉睡扫描入口迁往 GlobalPopups「AI 建议」面板
 const aiGenre = ref('')
 const aiPersonas = computed(() => allPersonas())
 const aiPersonaSel = ref<string[]>([])
@@ -2778,8 +2770,8 @@ async function aiRestoreRevise() {
   showToast(await restoreTagReviseBackup(gd.value, () => store.persist()))
   aiReviseBak.value = null
 }
-function aiCrossDeck() { aiOpenJob(buildCrossDeckJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '资源台还没有卡，无法做跨台镜像发现') }
-function aiThesisDrift() { aiOpenJob(buildThesisJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '还没有带主题卡的策展台') }
+// R158：aiCrossDeck / aiThesisDrift / aiDormantScan 三函数随被动入口迁往 GlobalPopups「AI 建议」面板退役
+// （job 构造逻辑逐项原样搬迁，见 GlobalPopups.vue aiAdviceRun；本页不再持有被动型入口）
 function aiTrashRescue() { aiOpenJob(buildTrashRescueJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '回收站是空的') }
 /** R138-F2′：本周回顾草稿（采纳=存为一张周回顾资源卡） */
 function aiWeeklyReview() { aiOpenJob(buildReviewJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() }), '近 7 天没有台账数据（任务/打开记录都是空的）') }
@@ -2891,51 +2883,7 @@ function aiEnrichIds(ids: Set<string>) {
   }
 }
 
-/** A2：沉睡资源唤醒——revive 置顶 / archive 送回收站 / keep 不动 */
-function aiDormantScan() {
-  if (!aiGuard()) return
-  const d = gd.value
-  const days = Math.min(Math.max(aiDormantDays.value || 90, 14), 365)
-  const { text, count, scanned } = projectDormant(d, days, aiConfig.value.depth)
-  if (!count) { showToast(`没有沉睡卡：${days} 天内全库 ${scanned} 张都在活跃窗口内`); return }
-  aiJob.value = {
-    key: 'dormant:' + days,
-    title: `沉睡资源唤醒（${count} 张候选）`,
-    hint: `判定口径：${days} 天未打开且未置顶/星标。模型对照进行中任务与战略目标逐卡给结论；「唤醒」=置顶回到视野，「归档」=送回收站（可反悔）。`,
-    build: () => ({ messages: [{ role: 'system', content: dormantSystem() }, { role: 'user', content: text }] }),
-    parse: (raw) => {
-      const items = Array.isArray((raw as { items?: unknown })?.items) ? (raw as { items: DormantVerdict[] }).items : []
-      const rows: AiRow[] = []
-      for (const v0 of items) {
-        const v = sanitizeRefs({ cardId: v0.cardId } as { cardId?: string }, d)
-        if (!v.cardId || !['revive', 'archive', 'keep'].includes(v0.verdict)) continue
-        const card = d.resources.find(r => r.id === v.cardId)!
-        rows.push({
-          key: v.cardId,
-          badge: v0.verdict === 'revive' ? '唤醒' : v0.verdict === 'archive' ? '归档' : '保留',
-          badgeType: v0.verdict === 'revive' ? 'ok' : v0.verdict === 'archive' ? 'danger' : 'neutral',
-          main: card.title,
-          sub: [v0.reason, v0.actionHint && `➜ ${v0.actionHint}`].filter(Boolean).join('\n'),
-          data: v0,
-        })
-      }
-      return rows
-    },
-    apply: (rows) => {
-      const dd = gd.value
-      let pin = 0, rec = 0
-      for (const r of rows) {
-        const v = r.data as DormantVerdict
-        const card = dd.resources.find(x => x.id === v.cardId && !x.deletedAt)
-        if (!card || v.verdict === 'keep') continue
-        if (v.verdict === 'revive') { card.pinned = true; pin++ }
-        else { card.deletedAt = Date.now(); rec++ }
-      }
-      if (pin || rec) store.persist()
-      return `✓ 唤醒置顶 ${pin} 张 · 归档 ${rec} 张（回收站可反悔）`
-    },
-  }
-}
+// R158：aiDormantScan（沉睡资源唤醒 job 构造）随入口迁往 GlobalPopups「AI 建议」面板，此处退役。
 
 /** 深度诊断 v1：所选专家逐一会诊（自定义 run 接管多轮调用与进度回显）；发现可勾选采纳=生成跟进任务卡 */
 function aiDiagnose() {

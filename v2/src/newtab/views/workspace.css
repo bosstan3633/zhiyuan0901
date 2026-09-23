@@ -238,6 +238,8 @@
 .res-card:hover .res-card-actions { opacity: 1; }
 .rc-action { min-width: 20px; height: 20px; padding: 0 4px; display: flex; align-items: center; justify-content: center; border-radius: 3px; font-size: var(--fs-caption); line-height: 1; color: var(--text-2); cursor: pointer; transition: all .1s; background: transparent; }
 .rc-action:hover { background: var(--surface-2); color: var(--accent); }
+/* R158：卡面常驻 ⋯ 出口（展开右键同款完整清单）——字面 ⋯ 稍大于 emoji 动作，压一档行高对齐 */
+.rc-action.more { font-size: var(--fs-body); line-height: 0; padding: 0 5px; }
 .rc-action.pin:hover { color: var(--accent); }
 /* R79（R1 收尾）：↗ 打开用链接蓝，与「开链接」语义呼应；六动作里只有 pin 用强调色，主色仍稀缺 */
 .rc-action.open:hover, .rr-action.open:hover, .kc-action.open:hover { color: var(--accent); }

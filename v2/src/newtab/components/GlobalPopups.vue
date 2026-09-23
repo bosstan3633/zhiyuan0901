@@ -54,11 +54,33 @@
           <!-- R152：AI 命中不再单列一组——同一张卡在主列表只有一行，命中信息挂在行上（重复行会让
                键盘扁平列表里同一个 id 出现两次，选中高亮与执行落到不同那行，看着就是"手势没按约定走"） -->
         </template>
-        <!-- B1：浏览模式（空查询）= 快捷操作 + 最近打开 -->
+        <!-- B1：浏览模式（空查询）= AI 动作/AI 建议 + 快捷操作 + 最近打开（R158：AI 分组数据源=注册表纯声明） -->
         <template v-if="isBrowseMode">
+          <template v-if="aiPanelRows.proactive.length">
+            <div class="gp-group-title">AI 动作 <span class="gp-group-cnt">主动 · 到台面使用</span></div>
+            <div v-for="(ai, i) in aiPanelRows.proactive" :key="'aip' + ai.id"
+              class="gp-result-item" :class="{selected: selIndex===i}" @click="runFlat(i)" @mouseenter="selIndex=i"
+              :title="ai.panel.hint ? `${ai.title} —— ${ai.panel.hint}` : ai.title">
+              <div class="gp-ri-icon res"><Icon :name="ai.panel.icon" :size="15" /></div>
+              <div class="gp-ri-main"><div class="gp-ri-title">{{ ai.title }}</div>
+                <div class="gp-ri-cat">{{ ai.panel.hint }}</div></div>
+              <span class="gp-ri-link url">↗</span>
+            </div>
+          </template>
+          <template v-if="aiPanelRows.passive.length">
+            <div class="gp-group-title">AI 建议 <span class="gp-group-cnt">被动 · AI 建议我看</span></div>
+            <div v-for="(ai, j) in aiPanelRows.passive" :key="'aiv' + ai.id"
+              class="gp-result-item" :class="{selected: selIndex===aiProLen+j}" @click="runFlat(aiProLen+j)" @mouseenter="selIndex=aiProLen+j"
+              :title="ai.panel.hint ? `${ai.title} —— ${ai.panel.hint}` : ai.title">
+              <div class="gp-ri-icon res"><Icon :name="ai.panel.icon" :size="15" /></div>
+              <div class="gp-ri-main"><div class="gp-ri-title">{{ ai.title }}</div>
+                <div class="gp-ri-cat">{{ ai.panel.hint }}</div></div>
+              <span class="gp-ri-link url">↗</span>
+            </div>
+          </template>
           <div class="gp-group-title">快捷操作</div>
           <div v-for="(qa, i) in QUICK_ACTIONS" :key="'qa' + i"
-            class="gp-result-item" :class="{selected: selIndex===i}" @click="runFlat(i)" @mouseenter="selIndex=i">
+            class="gp-result-item" :class="{selected: selIndex===aiRowLen+i}" @click="runFlat(aiRowLen+i)" @mouseenter="selIndex=aiRowLen+i">
             <div class="gp-ri-icon res"><Icon :name="qa.icon" :size="15" /></div>
             <div class="gp-ri-main"><div class="gp-ri-title">{{ qa.label }}</div></div>
             <span class="gp-ri-link url">↵</span>
@@ -66,8 +88,8 @@
           <template v-if="recentResources.length">
             <div class="gp-group-title">🔥 近期最常用 · 按调用次数</div>
             <div v-for="(r, j) in recentResources" :key="r.id"
-              class="gp-result-item" :class="{selected: selIndex===QUICK_ACTIONS.length+j}"
-              @click="runFlat(QUICK_ACTIONS.length+j)" @mouseenter="selIndex=QUICK_ACTIONS.length+j"
+              class="gp-result-item" :class="{selected: selIndex===aiRowLen+QUICK_ACTIONS.length+j}"
+              @click="runFlat(aiRowLen+QUICK_ACTIONS.length+j)" @mouseenter="selIndex=aiRowLen+QUICK_ACTIONS.length+j"
               :title="'单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'">
               <div class="gp-ri-icon" :class="r.iconClass">{{ r.iconText }}</div>
               <div class="gp-ri-main"><div class="gp-ri-title">{{ r.title }}</div>
@@ -369,10 +391,54 @@
     </div>
   </div>
 
-  <!-- 快捷键速查面板（? 呼出） -->
+  <!-- R158：AI 建议面板（被动型入口统一建议流；命令面板 AI 建议组 / openPanel('ai-advice') 呼出） -->
+  <div class="gp-overlay" :class="{open: activePanel==='ai-advice'}" @click.self="closeAll">
+    <div class="gp-panel gp-panel-advice">
+      <div class="gp-cap-head">
+        <div class="gp-cap-icon res"><Icon name="bulb" :size="18" /></div>
+        <div class="gp-cap-titles">
+          <div class="gp-cap-title">AI 建议</div>
+          <div class="gp-cap-sub">AI 建议我看 · 扫描型入口统一收在这里 · 只读分析，勾选采纳才落库</div>
+        </div>
+        <button class="gp-cap-close" @click="closeAll">×</button>
+      </div>
+      <div class="gp-adv-body">
+        <div class="gp-adv-card">
+          <div class="gp-adv-icon"><Icon name="share" :size="17" /></div>
+          <div class="gp-adv-main">
+            <div class="gp-adv-name">跨台镜像发现</div>
+            <div class="gp-adv-desc">扫描各台卡片，建议哪些值得镜像到策展台——在册资源卡与策展台已有内容不重复推荐</div>
+          </div>
+          <button class="gp-btn gp-btn-primary" :disabled="aiAdviceBusy" @click="aiAdviceRun('cross-deck')">扫描</button>
+        </div>
+        <div class="gp-adv-card">
+          <div class="gp-adv-icon"><Icon name="radio" :size="17" /></div>
+          <div class="gp-adv-main">
+            <div class="gp-adv-name">主题漂移检测</div>
+            <div class="gp-adv-desc">对照各策展台主题卡检查近期卡片是否跑题，给出漂移提醒</div>
+          </div>
+          <button class="gp-btn gp-btn-primary" :disabled="aiAdviceBusy" @click="aiAdviceRun('thesis-drift')">检测</button>
+        </div>
+        <div class="gp-adv-card">
+          <div class="gp-adv-icon"><Icon name="bulb" :size="17" /></div>
+          <div class="gp-adv-main">
+            <div class="gp-adv-name">沉睡资源唤醒</div>
+            <div class="gp-adv-desc">长期零打开的卡对照当前目标与任务判「唤醒 / 归档 / 保留」；置顶与星标卡自动豁免</div>
+            <div class="gp-adv-days">
+              <span>沉睡超过</span>
+              <input class="gp-adv-days-input" type="number" min="14" max="365" v-model.number="aiAdviceDormantDays" />
+              <span>天</span>
+            </div>
+          </div>
+          <button class="gp-btn gp-btn-primary" :disabled="aiAdviceBusy" @click="aiAdviceRun('dormant-scan')">扫描</button>
+        </div>
+        <div class="gp-adv-foot">任务建议在任务详情抽屉内（与当前任务强相关，不在此列）；以上全部手动触发、无常驻轮询。</div>
+      </div>
+    </div>
+  </div>
 
-  <!-- R138-H1′：采集后补全评审抽屉（懒组件，盖在所有 gp-overlay 之上） -->
-  <AiDrawerGP v-if="aiEnrichJob" :job="aiEnrichJob" @close="aiEnrichJob = null" />
+  <!-- R158：AI 评审抽屉（采集补全 + AI 建议面板共用同一懒组件实例） -->
+  <AiDrawerGP v-if="gpAiJob" :job="gpAiJob" @close="gpAiJobClose" />
 </template>
 
 <script setup lang="ts">
@@ -397,13 +463,16 @@ import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
 import { markRank } from '@/shared/utils/marksort'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { buildCatOptions } from '@/shared/utils/catTree'
+// R158：命令面板 AI 分组数据源——只引注册表**纯声明**（零 import 红线：registry.ts 不拉任何工厂，
+// 入口 chunk 触达的只是静态常量，启动零 AI 不变；真正的 AI 栈仍由各宿主懒加载）
+import { AI_ENTRIES } from '@/shared/ai/jobs/registry'
 
 const router = useRouter()
 const store = useAppStore()
 const d = computed(() => store.data!)
 
 // 弹窗状态
-type PanelType = 'search' | 'capture' | 'curio' | 'shortcuts' | 'taskcapture' | null
+type PanelType = 'search' | 'capture' | 'curio' | 'shortcuts' | 'taskcapture' | 'ai-advice' | null
 const activePanel = ref<PanelType>(null)
 const searchInput = ref<HTMLInputElement | null>(null)
 const capTitleInput = ref<HTMLInputElement | null>(null)
@@ -581,15 +650,15 @@ const selIndex = ref(0)
  * 导致「点 A 开 B」。改为 id 锚定后：点击、hover、Enter 三者永不脱钩。
  */
 const selectedId = ref('')
-/** 由下标反推 id（键盘上下键后调用） */
+/** 由下标反推 id（键盘上下键后调用）；ai/qa 行无卡片 id，置空 */
 function syncIdFromIndex() {
   const it = flatList.value[selIndex.value]
-  selectedId.value = it && it.kind !== 'qa' ? it.item.id : ''
+  selectedId.value = it && (it.kind === 'res' || it.kind === 'result') ? it.item.id : ''
 }
 /** 由 id 反推下标（点击 / hover 后调用，保证 Enter 打开的与高亮的是同一条） */
 function syncIndexFromId() {
   selectedId.value = selectedId.value || ''
-  selIndex.value = flatList.value.findIndex(x => x.kind !== 'qa' && x.item.id === selectedId.value)
+  selIndex.value = flatList.value.findIndex(x => (x.kind === 'res' || x.kind === 'result') && x.item.id === selectedId.value)
 }
 const convertMenuId = ref<string | null>(null)
 
@@ -852,7 +921,7 @@ watch([searchQuery, currentType], () => { selectedId.value = '' })
 // 原实现无条件 `selIndex = 0`，补跑一发生就把用户当前选中弹回第一条，且顺序已变 → 点 A 开 B。
 watch(filteredResults, () => {
   if (selectedId.value) {
-    const i = flatList.value.findIndex(x => x.kind !== 'qa' && x.item.id === selectedId.value)
+    const i = flatList.value.findIndex(x => (x.kind === 'res' || x.kind === 'result') && x.item.id === selectedId.value)
     if (i >= 0) { selIndex.value = i; return }
   }
   // 无锚点或锚点已消失 → 默认选中第一条（需求：默认选中检索结果到第一个）
@@ -1014,10 +1083,29 @@ const QUICK_ACTIONS = [
   { label: '打开方向台', icon: 'compass', run: () => { closeAll(); router.push('/compass') } },
   { label: '打开项目详情', icon: 'layout', run: () => { closeAll(); router.push('/compass/projects') } },
   { label: '打开方向树', icon: 'branch', run: () => { closeAll(); router.push('/compass/tree') } },
+  { label: '打开资源台', icon: 'folder', run: () => { closeAll(); router.push('/workspace/zy-curation') } },
+  { label: '打开回收站', icon: 'trash', run: () => { closeAll(); router.push('/recycle') } },
+  { label: '打开使用手册', icon: 'arrowright', run: () => { closeAll(); router.push('/manual') } },
   { label: '打开设置', icon: 'settings', run: () => { closeAll(); router.push('/settings') } },
   { label: '采集资源卡（Ctrl+Shift+J）', icon: 'download', run: () => openPanel('capture') },
   { label: '采集好奇心（Ctrl+Shift+I）', icon: 'bulb', run: () => openPanel('curio') },
 ]
+// R158：命令面板 AI 分组——注册表 panel 声明的两个视图（proactive=AI 动作 / passive=AI 建议）。
+// hidden（global-search=面板本体、mirror-search=弹窗内入口）不进列表；条目顺序即注册表声明序。
+type AiPanelEntry = typeof AI_ENTRIES[number] & { panel: NonNullable<typeof AI_ENTRIES[number]['panel']> }
+const aiPanelRows = computed(() => ({
+  proactive: AI_ENTRIES.filter(e => e.family === 'proactive' && e.panel && e.panel.mode !== 'hidden') as AiPanelEntry[],
+  passive: AI_ENTRIES.filter(e => e.family === 'passive' && e.panel && e.panel.mode !== 'hidden') as AiPanelEntry[],
+}))
+const aiProLen = computed(() => aiPanelRows.value.proactive.length)
+const aiRowLen = computed(() => aiProLen.value + aiPanelRows.value.passive.length)
+/** R158：AI 分组行执行——nav=跳台面（hint 告诉用户到哪用）；popup=打开全局弹窗（AI 建议面板） */
+function runAiEntry(e: AiPanelEntry) {
+  closeAll()
+  const p = e.panel
+  if (p.mode === 'nav' && p.route) { router.push(p.route); showToast(p.hint ? `→ ${p.hint}` : `→ ${e.title}`) }
+  else if (p.mode === 'popup' && p.popup) { openPanel(p.popup as PanelType) }
+}
 // R47-B4：浏览模式热度列表——全类型（资源/任务/好奇/策展台）按调用次数降序，次数并列按最近打开时间
 const recentResources = computed<SearchResult[]>(() => {
   const heat = allResults.value.filter(x => !x.archived && (x.raw as AnyCard | Workspace).callCount)
@@ -1027,8 +1115,8 @@ const recentResources = computed<SearchResult[]>(() => {
   })
   return heat.slice(0, 8)
 })
-/** 浏览模式的扁平列表（快捷操作 + 最近打开） */
-type FlatItem = { kind: 'qa'; qa: typeof QUICK_ACTIONS[number] } | { kind: 'res'; item: SearchResult } | { kind: 'result'; item: SearchResult }
+/** 浏览模式的扁平列表（AI 动作/AI 建议 + 快捷操作 + 最近打开）——顺序必须与模板渲染序逐项一致（R60-1 教训） */
+type FlatItem = { kind: 'ai'; entry: AiPanelEntry } | { kind: 'qa'; qa: typeof QUICK_ACTIONS[number] } | { kind: 'res'; item: SearchResult } | { kind: 'result'; item: SearchResult }
 const flatList = computed<FlatItem[]>(() => {
   if (!isBrowseMode.value) {
     // R60-1：搜索模式下的展开顺序必须与模板「按类型分组渲染」的顺序完全一致。
@@ -1041,6 +1129,8 @@ const flatList = computed<FlatItem[]>(() => {
     return out
   }
   const out: FlatItem[] = []
+  aiPanelRows.value.proactive.forEach(e => out.push({ kind: 'ai', entry: e }))
+  aiPanelRows.value.passive.forEach(e => out.push({ kind: 'ai', entry: e }))
   QUICK_ACTIONS.forEach(qa => out.push({ kind: 'qa', qa }))
   recentResources.value.forEach(item => out.push({ kind: 'res', item }))
   return out
@@ -1096,6 +1186,7 @@ function runFlat(index: number) {
   // R120 键位统一：单击 / Enter —— 打开卡片链接（无链接则定位到卡片所在处）
   const it = flatList.value[index]
   if (!it) return
+  if (it.kind === 'ai') { runAiEntry(it.entry); return }
   if (it.kind === 'qa') { it.qa.run(); return }
   openLinkOrLocate(it.item)
 }
@@ -1104,6 +1195,7 @@ function runFlatLocator(index: number) {
   // R120 键位统一：Ctrl+Enter —— **仅定位到卡片所在处**（不再打开详情抽屉）
   const it = flatList.value[index]
   if (!it) return
+  if (it.kind === 'ai') { runAiEntry(it.entry); return }
   if (it.kind === 'qa') { it.qa.run(); return }
   locateOnly(it.item)
 }
@@ -1478,6 +1570,10 @@ async function saveCapture() {
 // R138-H1′：采集后补全——AiSuggestionDrawer/ai 栈全懒（GP 在启动 chunk，静态引会把 AI 卷进首屏）
 const AiDrawerGP = defineAsyncComponent(() => import('./AiSuggestionDrawer.vue'))
 const aiEnrichJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
+// R158：AI 建议面板的评审 job 与采集补全共用同一懒抽屉实例（同一时刻只会有一份在跑）
+const aiAdviceJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
+const gpAiJob = computed(() => aiEnrichJob.value || aiAdviceJob.value)
+function gpAiJobClose() { aiEnrichJob.value = null; aiAdviceJob.value = null }
 const capEnrichOn = ref(false)
 const capEnrichReady = ref(false)
 let lastEnrichCard: ResourceCard | null = null
@@ -1496,6 +1592,81 @@ async function capEnrichSave(e: Event) {
   capEnrichOn.value = on
   const m = await import('@/shared/ai/config')
   m.patchAiConfig({ captureEnrich: on })
+}
+
+// ===== R158：AI 建议面板（被动 3 入口：cross-deck / thesis-drift / dormant-scan） =====
+// 照 runCardEnrich 先例：AI 工厂全懒 import，面板本体只含字面量文案，启动零 AI 不变。
+// job 构造参数与设置页原实现逐项一致（GlobalSettings 原三函数随入口迁移退役）。
+const aiAdviceBusy = ref(false)
+const aiAdviceDormantDays = ref(90)
+/** 沉睡卡逐行结论（revive=唤醒置顶 / archive=送回收站 / keep=不动） */
+type DormantVerdictGP = { cardId?: string; verdict: string; reason?: string; actionHint?: string }
+async function aiAdviceRun(entryId: 'cross-deck' | 'thesis-drift' | 'dormant-scan') {
+  if (aiAdviceBusy.value) return
+  const [{ loadAiConfig, aiReady, aiConfig }, { sanitizeRefs, dormantSystem }, gov, proj] = await Promise.all([
+    import('@/shared/ai/config'),
+    import('@/shared/ai/scenarios'),
+    import('@/shared/ai/govern'),
+    import('@/shared/ai/project'),
+  ]) as [typeof import('@/shared/ai/config'), typeof import('@/shared/ai/scenarios'), typeof import('@/shared/ai/govern'), typeof import('@/shared/ai/project')];
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('AI 尚未接入（设置 → AI 助手）'); return }
+  const dd = d.value
+  const depth = aiConfig.value.depth
+  const persist = () => store.persist()
+  const jobOf = (j: import('@/shared/ai/job').AiJob | null, emptyMsg: string) => {
+    if (!j) { showToast(emptyMsg); return }
+    aiAdviceJob.value = j
+  }
+  aiAdviceBusy.value = true
+  try {
+    if (entryId === 'cross-deck') {
+      jobOf(gov.buildCrossDeckJob({ d: dd, depth, persist }), '资源台还没有卡，无法做跨台镜像发现')
+    } else if (entryId === 'thesis-drift') {
+      jobOf(gov.buildThesisJob({ d: dd, depth, persist }), '还没有带主题卡的策展台')
+    } else {
+      const days = Math.min(Math.max(aiAdviceDormantDays.value || 90, 14), 365)
+      const { text, count, scanned } = proj.projectDormant(dd, days, depth)
+      if (!count) { showToast(`没有沉睡卡：${days} 天内全库 ${scanned} 张都在活跃窗口内`); return }
+      aiAdviceJob.value = {
+        key: 'dormant:' + days,
+        title: `沉睡资源唤醒（${count} 张候选）`,
+        hint: `判定口径：${days} 天未打开且未置顶/星标。模型对照进行中任务与战略目标逐卡给结论；「唤醒」=置顶回到视野，「归档」=送回收站（可反悔）。`,
+        build: () => ({ messages: [{ role: 'system', content: dormantSystem() }, { role: 'user', content: text }] }),
+        parse: (raw: unknown) => {
+          const items = Array.isArray((raw as { items?: unknown })?.items) ? (raw as { items: DormantVerdictGP[] }).items : []
+          const rows: import('@/shared/ai/job').AiRow[] = []
+          for (const v0 of items) {
+            const v = sanitizeRefs({ cardId: v0.cardId } as { cardId?: string }, dd)
+            if (!v.cardId || !['revive', 'archive', 'keep'].includes(v0.verdict)) continue
+            const card = dd.resources.find(r => r.id === v.cardId)!
+            rows.push({
+              key: v.cardId,
+              badge: v0.verdict === 'revive' ? '唤醒' : v0.verdict === 'archive' ? '归档' : '保留',
+              badgeType: v0.verdict === 'revive' ? 'ok' : v0.verdict === 'archive' ? 'danger' : 'neutral',
+              main: card.title,
+              sub: [v0.reason, v0.actionHint && `➜ ${v0.actionHint}`].filter(Boolean).join('\n'),
+              data: v0,
+            })
+          }
+          return rows
+        },
+        apply: (rows: import('@/shared/ai/job').AiRow[]) => {
+          const dd2 = d.value
+          let pin = 0, rec = 0
+          for (const r of rows) {
+            const v = r.data as DormantVerdictGP
+            const card = dd2.resources.find(x => x.id === v.cardId && !x.deletedAt)
+            if (!card || v.verdict === 'keep') continue
+            if (v.verdict === 'revive') { card.pinned = true; pin++ }
+            else { card.deletedAt = Date.now(); rec++ }
+          }
+          if (pin || rec) store.persist()
+          return `✓ 唤醒置顶 ${pin} 张 · 归档 ${rec} 张（回收站可反悔）`
+        },
+      }
+    }
+  } finally { aiAdviceBusy.value = false }
 }
 
 // ===== 采集好奇心 =====
@@ -1561,6 +1732,18 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-panel-narrow { width: 400px; max-height: 600px; overflow-y: auto; }
 .gp-panel-curio { width: 640px; }
 .gp-panel-shortcuts { width: 560px; }
+/* R158：AI 建议面板（被动型入口统一建议流） */
+.gp-panel-advice { width: 560px; }
+.gp-adv-body { padding: 14px 24px 20px; max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.gp-adv-card { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg, 12px); }
+.gp-adv-icon { flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px; background: var(--surface-3); color: var(--text-2); display: flex; align-items: center; justify-content: center; }
+.gp-adv-main { flex: 1; min-width: 0; }
+.gp-adv-name { font-size: var(--fs-body); font-weight: 600; color: var(--text); }
+.gp-adv-desc { font-size: var(--fs-caption); color: var(--text-3); margin-top: 2px; line-height: 1.5; }
+.gp-adv-days { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: var(--fs-caption); color: var(--text-3); }
+.gp-adv-days-input { width: 64px; background: var(--surface-3); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; color: var(--text); font-size: var(--fs-caption); }
+.gp-adv-card .gp-btn { flex-shrink: 0; align-self: center; }
+.gp-adv-foot { font-size: var(--fs-caption); color: var(--text-3); padding-top: 2px; }
 .gp-sc-body { padding: 14px 24px 20px; max-height: 60vh; overflow-y: auto; }
 .gp-sc-group { margin-bottom: 16px; }
 .gp-sc-group:last-child { margin-bottom: 0; }

@@ -94,7 +94,7 @@ function entryRegion(e) {
     const host = e.hosts[0];
     const r = inlineRegion(host, e.anchor);
     if (r === null) bad(`[${e.id}] 内联函数 ${e.anchor}() 在 ${host} 里找不到`);
-    else if (!/aiJob\.value\s*=\s*\{|aiOpenJob\(/.test(r)) bad(`[${e.id}] ${e.anchor}() 区间里没有 aiJob.value = { / aiOpenJob( —— 它真的是 AI 入口吗`);
+    else if (!/aiJob\.value\s*=\s*\{|aiAdviceJob\.value\s*=\s*|aiOpenJob\(/.test(r)) bad(`[${e.id}] ${e.anchor}() 区间里没有 aiJob/aiAdviceJob 赋值或 aiOpenJob( —— 它真的是 AI 入口吗`);
     return r;
   }
   /* search 型：只验证锚点函数确实被宿主引用 */

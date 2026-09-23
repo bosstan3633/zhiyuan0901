@@ -340,13 +340,16 @@
                 @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragend="clearDragState" @dragleave="clearDropMark"
                 @contextmenu.prevent="openResCtx($event, r)">
                 <div v-if="batchMode" class="rc-batch-check" :class="{on: selectedIds.has(r.id)}" @click.stop="toggleSelect(r.id)">{{ selectedIds.has(r.id)?'✓':'' }}</div>
-                <!-- R123（要求 #3）：一级 hover = 置顶 / 移动 / 删除（+ 断链补全）；打开/挂载/⭐/镜像等收进右键菜单（双击可打开） -->
+                <!-- R158（拍板②）：一级 hover = AI 徽标 / 移动 / 删除（+ 断链补全条件）+ 常驻 ⋯ 出口——
+                     ⋯ 复用右键菜单数据源 openResCtx（完整清单：打开/复制/编辑/置顶/星标/挂载/镜像/论点/删除）；
+                     置顶从一级条降级进右键（高频在卡面、长尾在右键的归属口径） -->
                 <div class="res-card-actions">
                   <template v-if="!isMirrorView(r)">
-                    <div class="rc-action pin" :class="{on: r.pinned}" @click.stop="togglePin(r)" :title="r.pinned ? '取消置顶' : '置顶'">📌</div>
+                    <CardAiEntry :card="r" />
                     <div class="rc-action move" title="移动分类" @click.stop="openMoveOne(r)">📂</div>
                     <div class="rc-action delete" title="删除" @click.stop="deleteResource(r)">🗑</div>
-                    <div v-if="isBrokenPath(r)" class="rc-action fix" title="补全本地路径" @click.stop="fixLink(r)">✏</div><CardAiEntry :card="r" />
+                    <div v-if="isBrokenPath(r)" class="rc-action fix" title="补全本地路径" @click.stop="fixLink(r)">✏</div>
+                    <div class="rc-action more" title="更多操作（置顶 / 星标 / 挂载 / 镜像…）" @click.stop="openResCtx($event, r)">⋯</div>
                   </template>
                   <template v-else>
                     <div class="rc-action open" title="打开链接" @click.stop="openResourceLink(r)">↗</div>

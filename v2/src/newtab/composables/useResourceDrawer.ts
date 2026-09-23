@@ -258,20 +258,22 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
         { label: '✕ 移出镜像', icon: 'trash', danger: true, cb: () => removeMirror(r) }
       ]
     } else {
+      // R158（拍板④/任务书⑤）：右键重排——「高频在卡面、长尾在右键」。置顶/星标从卡面一级条降级后在此前置；
+      // 链接类相邻（打开/复制）；危险项（删除）恒居底。卡面一级 = AI徽标/移动/删除/⋯（⋯ 复用本菜单）。
       resCtxItems.value = [
         { label: '打开链接', icon: 'arrowright', cb: () => openResourceLink(r) },
         { label: '复制链接', icon: 'copy', cb: () => { if (r.link) { navigator.clipboard.writeText(r.link); showToast('✓ 链接已复制') } } },
         // R90（R10）：编辑——右键直达抽屉。此前右键菜单只有"打开链接"，要**改**内容必须先单击卡进详情
         { label: '✏️ 编辑详情', icon: 'edit', cb: () => openResource(r) },
+        { label: r.pinned ? '取消置顶' : '置顶', icon: 'pin', cb: () => togglePin(r) },
+        // R90（R10）：星标——toggleStar 能力早就在、hover 动作条早早就有 ⭐，右键此前一直缺
+        { label: r.starred ? '☆ 取消星标' : '⭐ 星标', icon: 'star', cb: () => toggleStar(r) },
         { label: '移动分类', icon: 'folder', cb: () => openMoveOne(r) },
         // R82（R4）：挂载到任务——与动作条同一入口的两条路径之一。镜像分支不提供（只读引用）。
         { label: mountedTaskCount(r) ? `挂载到任务（已挂 ${mountedTaskCount(r)}）` : '挂载到任务…', icon: 'clipboard', cb: () => openMountOne(r) },
         // R90（R10）：镜像到策展台——**仅资源台真身卡**有语义（策展台的卡源头就是资源台，再推给别的台无意义）。
         // openMirrorCard 内部已对「还没有策展台」给提示，此处不重复兜底。
         ...(isHub.value ? [{ label: '📡 镜像到策展台', icon: 'share', cb: () => openMirrorCard(r) }] : []),
-        { label: r.pinned ? '取消置顶' : '置顶', icon: 'pin', cb: () => togglePin(r) },
-        // R90（R10）：星标——toggleStar 能力早就在、hover 动作条早早就有 ⭐，右键此前一直缺
-        { label: r.starred ? '☆ 取消星标' : '⭐ 星标', icon: 'star', cb: () => toggleStar(r) },
         // R62-3：中心论点（每台一张；设即替换旧论点）
         r.isThesis
           ? { label: '取消中心论点', icon: 'target', cb: () => unsetThesis() }
