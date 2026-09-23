@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.2.2'";
+const VER_ANCHOR_LITERAL = "version: '3.2.3'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -4474,6 +4474,58 @@ check('R161-⑥ ★门禁补漏：全站 .vue 模板结构自检（SFC 解析零
   }
   if (bad.length) console.log('     模板结构错误：' + bad.join(' ｜ '))
   return bad.length === 0 && ALL_VUE146.length >= 53
+});
+
+/* ─────────────── R157 · 入口注册表与能力矩阵（V3.2.3）─────────────── */
+const REG_TXT = read('/shared/ai/jobs/registry.ts').replace(/\r\n/g, '\n')
+
+check('R157-1 ★注册表是纯声明表：零 import（连 import type 都不引）——注册表一旦被入口 chunk 触达就会把 17 个工厂一起拉进首屏，直接破「启动零 AI」；双导出 AI_ENTRIES / AI_CAP_KEYS，文件头写明唯一真源', () =>
+  !/(^|\n)\s*import[\s(]/.test(REG_TXT)
+  && REG_TXT.includes('export const AI_ENTRIES')
+  && REG_TXT.includes('export const AI_CAP_KEYS')
+  && REG_TXT.includes('唯一真源'));
+
+check('R157-2 声明结构完备：kind 三值 job×17 / inline×3 / search×2、family 两值（proactive/passive —— R158 二分的字段）、入口共 22 条且 id 唯一（数量锚：增删入口必须连文档一起改）', () => {
+  const ids = REG_TXT.match(/\n    id: '/g) || [];
+  return ids.length === 22
+    && (REG_TXT.match(/kind: 'job'/g) || []).length === 17
+    && (REG_TXT.match(/kind: 'inline'/g) || []).length === 3
+    && (REG_TXT.match(/kind: 'search'/g) || []).length === 2
+    && REG_TXT.includes("family: 'proactive'") && REG_TXT.includes("family: 'passive'");
+});
+
+check('R157-3 17 个工厂全部登记（漏一个 = R154 手写「17 个入口」病根复发）+ 4 个 AI 文件全被 factoryFile 指到', () =>
+  ['buildThesisDraftJob','buildCurioTriageJob','buildEvidenceJob','buildDeliverJob','buildChainJob',
+   'buildTagGovernJob','buildTrashRescueJob','buildCrossDeckJob','buildThesisJob','buildTagBlueprintJob',
+   'buildTagAssignJob','buildRecommendJob','buildCardEnrichJob','buildTaskParseJob','buildReviewJob',
+   'buildInsightJob','buildFullOptimizeJob'].every(f => REG_TXT.includes(`factory: '${f}'`))
+  && ['batchG.ts','chain.ts','govern.ts','select.ts'].every(f => REG_TXT.includes(`factoryFile: 'shared/ai/${f}'`)));
+
+check('R157-4 search 型豁免口径钉住（R154 拍板②「检索不属赋能」）：全局 AI 检索 + R161 镜像弹窗检索两条、caps 为空、宿主指对', () => {
+  const gs = REG_TXT.slice(REG_TXT.indexOf("id: 'global-search'"), REG_TXT.indexOf("id: 'mirror-search'"));
+  const ms = REG_TXT.slice(REG_TXT.indexOf("id: 'mirror-search'"));
+  return gs.includes('caps: {}') && ms.includes('caps: {}')
+    && gs.includes("hosts: ['newtab/components/GlobalPopups.vue']")
+    && ms.includes("hosts: ['newtab/composables/usePyramid.ts']");
+});
+
+check('R157-5 矩阵门禁脚本具备双向对账与负向自检（影子删条目/抹声明必须各自变红，防断言恒真）；错误汇必须走当次 sink（首版推模块级数组，负向自检拿到空壳恒不红——实踩）', () => {
+  const m = fs.readFileSync(path.join(__dirname, 'entry-matrix.cjs'), 'utf8').replace(/\r\n/g, '\n');
+  return m.includes('function accounting') && m.includes('function scanCallSites')
+    && m.includes('负向自检') && m.includes('恒真') && m.includes('let sink = []');
+});
+
+check('R157-6 ★实跑矩阵门禁：node scripts/entry-matrix.cjs 必须零退出——未登记入口（反向）/ 幽灵工厂（正向）/ 能力声明与源码漂移（双向）/ 负向自检失败，任一红即整体红', () => {
+  const r = require('child_process').spawnSync(process.execPath, [path.join(__dirname, 'entry-matrix.cjs')], { encoding: 'utf8' });
+  if (r.status !== 0 && process.env.VERBOSE) console.log('\n' + (r.stdout || '') + (r.stderr || ''));
+  return r.status === 0;
+});
+
+check('R157-7 ★Drawer.vue 补 immediate：Esc 监听注册不再依赖「宿主常驻挂载」——现网 14 个宿主全是响应式 :open 所以正常，但任何未来 v-if 条件挂载的宿主（组件出生即 open=true）会让 Esc 静默失效，与 R161 在 Modal.vue 实踩的坑同源（勘验修正：R161 曾记 Drawer「同款缺陷」，实为理论陷阱非活缺陷）', () => {
+  const d = read('/shared/components/Drawer.vue').replace(/\r\n/g, '\n');
+  return /\}, \{ immediate: true \}\)/.test(d) && d.includes('R157')
+    && d.includes("document.addEventListener('keydown', onKey, true)")
+    && d.includes("document.removeEventListener('keydown', onKey, true)");
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

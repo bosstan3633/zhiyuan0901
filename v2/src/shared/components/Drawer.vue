@@ -13,10 +13,13 @@ const emit = defineEmits<{ close: [] }>()
 function onKey(e: KeyboardEvent) {
   if (e.key === 'Escape') { e.stopPropagation(); emit('close') }
 }
+// R157：补 `immediate: true`。现网 14 个宿主都是常驻挂载（`:open` 响应式），不补也能工作；
+// 但只要未来出现 `v-if` 条件挂载的宿主（组件出生时 open 已为 true），watch 等不到那次变化，
+// Esc 监听就永不注册——与 R161 在 Modal.vue 实踩的坑同源（交付说明 §8.6）。1 行拆掉这个理论陷阱。
 watch(() => props.open, (v) => {
   if (v) document.addEventListener('keydown', onKey, true)
   else document.removeEventListener('keydown', onKey, true)
-})
+}, { immediate: true })
 onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 </script>
 
