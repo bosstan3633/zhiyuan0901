@@ -59,16 +59,8 @@ async function bootstrap() {
   const store = useAppStore()
   store.init()
 
-  // 每次打开新标签页/刷新，固定回到首页（调度台）；仅保留功能入口页深链（设置/手册，第廿五轮）
-  // R50-B3：必须等 router ready（初始 hash 解析完成）再判断——ready 前 currentRoute 恒为 '/'，判断永不生效
-  // R51-B5：/compass/tree、/compass/projects 移出白名单——刷新一律回调度台（含方向树/项目详情）；
-  //         快捷键驱动的跳转（open-tree 等）发生在启动重定向之后，不受影响
-  router.isReady().then(() => {
-    const p = router.currentRoute.value.path
-    if (p !== '/' && !p.startsWith('/settings') && !p.startsWith('/manual')) {
-      router.replace('/')
-    }
-  })
+  // R160（A7）深链保全：新标签页是最高频落点——刷新/重开一律保留当前路由
+  // （/compass、/workspace、/recycle 等与 settings/manual 同等对待）；R51-B5 白名单重定向退役。
 
   // R49-H：刷新动画节奏——原总时长硬约束 300–600ms（快加载补足 360ms + 220ms 淡出 = 580ms 地板）
   // R115（T2）：**就绪即过渡**——快加载不再为品牌节奏补足等待：数据就绪即切完成态；

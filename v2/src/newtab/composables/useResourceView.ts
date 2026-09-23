@@ -342,7 +342,7 @@ export function useResourceView(ctx: ResourceViewCtx) {
    * 故：数据与分组保持全量不变，仅「已渲染份额」按需递增——滚动到接近底部再追加一屏。
    * （等轻量虚拟滚动收益，但不破坏拖拽/分组/选中的既有结构。）
    */
-  const RENDER_STEP = 80
+  const RENDER_STEP = 32
   const renderLimit = ref(RENDER_STEP)
   const totalVisibleCount = computed(() => resourceGroups.value.reduce((s, g) => s + g.items.length, 0))
   const renderedGroups = computed<ResourceGroup[]>(() => {

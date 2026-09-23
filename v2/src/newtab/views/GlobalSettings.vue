@@ -1717,7 +1717,7 @@ const panCards = computed<ResourceCard[]>(() => {
 })
 /** R131-C3：右栏大列表增量渲染（与主界面 RENDER_STEP 同构）——原一次全选分类即挂载数百 DOM，
  *  滚动到底部 400px 内追加一批；切台/切分类复位首屏 */
-const PAN_RENDER_STEP = 80
+const PAN_RENDER_STEP = 32
 const panRenderLimit = ref(PAN_RENDER_STEP)
 watch([panSelWs, panSelCat], () => { panRenderLimit.value = PAN_RENDER_STEP })
 const panVisibleCards = computed(() => panCards.value.length > panRenderLimit.value ? panCards.value.slice(0, panRenderLimit.value) : panCards.value)
