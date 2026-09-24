@@ -3,7 +3,7 @@
  *
  * 设计原则：
  * 1. 三卡分立：ResourceCard / TaskCard / CuriosityCard 各自独立，不再混存
- * 2. 单向挂载：只有 Task 持有 mountedResourceIds / mountedCuriosityIds，反向不持有
+ * 2. 单向挂载：只有 Task 持有 mountedCuriosityIds，反向不持有（R162：任务↔资源挂载关系已退役）
  * 3. 六层树：Vision → Mission → Direction → Goal → Project → Metric → Task
  * 4. 软删除：所有卡片 deletedAt 标记，回收站恢复
  */
@@ -206,8 +206,7 @@ export interface TaskCard extends CardBase {
   estimatedMinutes?: number
   /** V2.2：链接（URL / 本地路径 / obsidian://），卡片双击直达 */
   link?: string
-  mountedResourceIds: ID[]
-  /** 单向挂载：任务 → 好奇心 */
+  /** 单向挂载：任务 → 好奇心（R162：任务↔资源挂载关系已退役，mountedResourceIds 字段删除） */
   mountedCuriosityIds: ID[]
   completedAt?: number
   /** R47-B4：被打开（调起详情/直达）次数与最近打开时间——全局检索无输入时按近期热度排序 */

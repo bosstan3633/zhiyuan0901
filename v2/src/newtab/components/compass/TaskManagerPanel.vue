@@ -293,7 +293,6 @@ function createNewTask() {
     title: '新任务',
     status: 'todo',
     priority: 'medium',
-    mountedResourceIds: [],
     mountedCuriosityIds: [],
     customFields: {},
     createdAt: Date.now(),

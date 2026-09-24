@@ -1616,7 +1616,7 @@ async function openTaskCapture() {
       id: uid('tk'), kind: 'task', title: titleInput.value.trim() || '快速任务',
       description: desc, link: link || undefined, status: 'todo', priority: 'medium',
       projectId: projSel.value || undefined, metricId: metSel.value || undefined,
-      mountedResourceIds: [], mountedCuriosityIds: [], customFields: {}, tags: [], pinned: false,
+      mountedCuriosityIds: [], customFields: {}, tags: [], pinned: false,
       createdAt: Date.now(), updatedAt: Date.now()
     }
     d2.tasks?.unshift(task)

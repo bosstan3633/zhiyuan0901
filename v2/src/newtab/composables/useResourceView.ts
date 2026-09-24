@@ -71,7 +71,7 @@ export function useResourceView(ctx: ResourceViewCtx) {
    *  持久化会造成「下次打开发现卡少了」的困惑，与既有行为一致 */
   // R89（W5）：加 starred（⭐ 星标）——W5 的另两项 hot 排序与 hasAssets 筛选已在 R87 顺带交付
   // （R16 收敛后资源台与策展台同为同一工具条，R5 与 W5 是同一份实现）
-  const FILTER_KEYS = ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'starred', 'unmounted', 'hot']
+  const FILTER_KEYS = ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'starred', 'hot']
   const sortBy = ref('manual')
   // 第卅二轮 REQ-007：时间排序方向（默认倒序）+ 排序偏好本地记忆（UIPrefs.sortPrefs.res）
   const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.res?.dir === 'asc') ? 'asc' : 'desc')
@@ -113,24 +113,11 @@ export function useResourceView(ctx: ResourceViewCtx) {
     return categories.value.find(c => c.id === activeCategory.value)?.name || '分组'
   })
 
-  /**
-   * R87（R5-②）：反查索引 —— 被未软删任务挂载的资源 id 集合。
-   * ★ 单向挂载红线：资源卡不得新增反向字段，要知道「有没有被挂载」只能反查 d.tasks；
-   *   但不能在筛选里逐卡 mountedTaskCount（O(卡数×任务数)，触 R83 性能红线），故一次遍历建 Set。
-   */
-  const mountedResIds = computed<Set<string>>(() => {
-    const s = new Set<string>()
-    for (const t of d.value.tasks) {
-      if (t.deletedAt) continue
-      for (const id of t.mountedResourceIds || []) s.add(id)
-    }
-    return s
-  })
   /** R87（R5 收尾）：当前是否有生效的过滤（类型/状态筛选 或 搜索词）——空态据此换文案与动作 */
   const hasActiveFilter = computed(() => filterBy.value !== 'all' || !!debouncedQuery.value.trim())
   const FILTER_LABELS: Record<string, string> = {
     all: '全部', url: 'URL链接', file: '本地文件', obsidian: 'Obsidian',
-    hasLink: '有链接', brokenPath: '⚠ 待补全路径', hasAssets: '有附件', starred: '⭐ 星标', unmounted: '未挂载任务', hot: '高频调用 🔥'
+    hasLink: '有链接', brokenPath: '⚠ 待补全路径', hasAssets: '有附件', starred: '⭐ 星标', hot: '高频调用 🔥'
   }
   const filterLabel = computed(() => FILTER_LABELS[filterBy.value] || '全部')
 
@@ -222,7 +209,6 @@ export function useResourceView(ctx: ResourceViewCtx) {
     brokenPath: (r) => isBrokenPath(r),
     hasAssets: (r) => (r.assets?.length || 0) > 0,
     starred: (r) => !!r.starred,
-    unmounted: (r) => !mountedResIds.value.has(r.id),
     // R122：高频调用筛档（原型「高频调用 🔥」）——口径拍板 callCount ≥ 3
     hot: (r) => (r.callCount || 0) >= 3
   }
@@ -475,7 +461,7 @@ export function useResourceView(ctx: ResourceViewCtx) {
     metrics, lastUpdateTime, assetKindBreakdown, quickFilter,
     SORT_BY_KEYS, SORT_LABELS, FILTER_KEYS, FILTER_LABELS,
     sortBy, sortDir, filterBy, searchQuery, debouncedQuery, activeCategory,
-    toggleSortDir, density, activeCategoryLabel, mountedResIds,
+    toggleSortDir, density, activeCategoryLabel,
     hasActiveFilter, filterLabel, parseQuery, matchCard, resetFilters,
     filterSummary, filterPopTitle, resetAllFilters, isBrokenPath, FILTER_PREDICATES,
     applyViewFilters, filteredResources, archivedHintCount,

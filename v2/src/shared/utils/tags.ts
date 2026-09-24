@@ -43,6 +43,43 @@ export function freshTagsOf(tags: string[], known: Set<string>): string[] {
   return tags.filter(t => !known.has(t) && !known.has(t.split(TAG_SEP).pop() || t))
 }
 
+/**
+ * R162：把 AI 给的标签**归一回既有标签体系**——优先返回库里的真名（与 govern.findTagIn 同源三口径：
+ * 全名 / 路径 / 叶子名，剥 # 与空白归一），查不到才原样保留（= 真新词，仍走 freshTagsOf 判弱默认不勾）。
+ * 需求（用户拍板）：AI 补全标签必须**优先从标签管理里选**，体系里确无贴切者才允许新建。
+ */
+export function canonicalTagOf(d: AppData, tag: string): string {
+  const raw = String(tag ?? '').replace(/^[#＃]\s*/, '').replace(/\s+/g, ' ').trim()
+  if (!raw) return ''
+  const wl = raw.split(TAG_SEP).pop() || raw
+  // ① 树上路径优先（模型写裸子名 → 升级成「父/子」路径落库）
+  const treeHit = findPathInTree(d.tagTree || [], '', raw, wl)
+  if (treeHit) return treeHit
+  // ② 卡面在用标签（保真名，含叶子段口径）
+  for (const p of knownTagSet(d)) {
+    const np = p.replace(/\s+/g, ' ')
+    if (np === raw || (np.split(TAG_SEP).pop() || np) === raw || np === wl) return p
+  }
+  return raw
+}
+function findPathInTree(nodes: TagNode[], prefix: string, w: string, wl: string): string {
+  for (const n of nodes || []) {
+    const p = prefix ? prefix + TAG_SEP + n.name : n.name
+    if (p === w || n.name === w || n.name === wl) return p
+    if (n.children?.length) { const hit = findPathInTree(n.children, p, w, wl); if (hit) return hit }
+  }
+  return ''
+}
+/** 批量归一 + 保序去重 */
+export function canonicalTagsOf(d: AppData, tags: string[]): string[] {
+  const out: string[] = []
+  for (const t of tags || []) {
+    const c = canonicalTagOf(d, t)
+    if (c && !out.includes(c)) out.push(c)
+  }
+  return out
+}
+
 /** 最多两级：把存量三级（及更深）节点提升到根（祖父）下；返回是否有变更 */
 export function flattenTagTree(tree: TagNode[]): boolean {
   let changed = false

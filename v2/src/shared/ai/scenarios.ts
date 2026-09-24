@@ -37,7 +37,7 @@ export interface DiagnosisFinding {
 }
 
 const ENRICH_SCHEMA = `输出 JSON：{"tags":["至多5个，优先复用给定标签词表中的写法，确无近义才可新增"],"description":"2~3句：这是什么/适合什么场景用/注意点","categoryId":"只能从给定分类清单中选，不确定则留空字符串"}。只输出 JSON。`
-const BATCH_SCHEMA = `输出 JSON：{"items":[{"cardId":"原样回填","tags":[...],"description":"...","reason":"一句话：为何这么补"}]}。信息不足以判断的字段给空数组/空串，不要编造。只输出 JSON。`
+const BATCH_SCHEMA = `输出 JSON：{"items":[{"cardId":"原样回填","tags":["至多5个，优先复用给定标签词表中的写法（含「父/子」路径），确无近义才可新增"],"description":"...","reason":"一句话：为何这么补"}]}。信息不足以判断的字段给空数组/空串，不要编造。只输出 JSON。`
 const DORMANT_SCHEMA = `输出 JSON：{"items":[{"cardId":"原样回填","verdict":"revive|archive|keep","reason":"对照进行中任务与战略目标解释相关性","actionHint":"revive 时给具体用法（如：挂到某任务/置顶并说明何时用）"}]}。revive=仍有用建议唤醒，archive=建议归档，keep=保留观察。宁可 keep 不可瞎判。只输出 JSON。`
 const DIAGNOSIS_SCHEMA = `输出 JSON：{"findings":[{"severity":"high|mid|low","title":"≤20字断语","detail":"证据：引用材料中具体条目/数字","suggestion":"下一步动作（可执行、具体到对象）"}]}。3~8条，按严重度降序；只说有证据的话，每条必须能在材料里找到出处。只输出 JSON。`
 
@@ -102,15 +102,10 @@ export function chainSystem(level: ChainLevel, personaText?: string): string {
 }
 export function chainSchema(level: ChainLevel): string { return CHAIN_DEF[level].schema }
 
-// ---------- R136：应用推荐（按任务选卡）与搜索重排 ----------
+// ---------- R136：搜索重排（R162：应用推荐/推荐挂载随任务↔资源挂载关系退役） ----------
 
-export interface RecommendSuggestion { cardId?: string; why?: string }
 export interface RerankHit { id: string; why?: string }
 
-export const recommendSystem = () => withAboutMe(
-  '你是用户的资源调度参谋：给定一个任务（含其指标/项目/目标链）与全库资源卡目录，挑出「此刻真的用得上」的卡片。宁缺毋滥，最多 5 张，按贴合度降序；why 必须说清「支撑任务的哪一步」，禁止泛泛夸卡片有用。' +
-  '输出 JSON：{"note":"一句话总览(可选)","items":[{"cardId":"必须从给定目录中选","why":"≤30字"}]}。目录里没有的 id 不许编造。只输出 JSON。'
-)
 export interface AiSearchItem { id?: unknown; why?: unknown; confidence?: unknown }
 /** R150：AI 检索（自然语言 → 三类卡语义召回）。旧 rerankSystem（只重排字面命中前 14 条）随入口合并退场。
  *  R161-③：投料补齐**全部卡片字段**（自定义字段 + 链接地址），并写明"字段即全部依据、不抓链接内容"。 */
@@ -183,7 +178,7 @@ export const deepInsightSystem = () => withAboutMe(
 export const fullOptimizeSystem = (personaText?: string) => withAboutMe(
   (personaText || '你是资源卡策展助手。') + '用户给你一张卡（标题/现有描述/标签/链接）以及**尽力抓到的链接网页正文**，请基于正文真实内容给出全方位优化：' +
   'description=两三句「这是什么 · 什么时候用得上 · 为什么值得收藏」，其中收藏理由必须有正文依据（正文读不到时按卡面与链接域名谨慎推断，并在句首加「（未读正文）」）；' +
-  'tags ≤4 个具体可检索的词（不重复已有）；title 只在原标题明显名不副实或过空时给，否则省略。' +
+  'tags ≤4 个：**优先从材料里的【现有标签词表】选**（含「父/子」路径写法），确无贴切者才可新增（新词至多 1 个）；title 只在原标题明显名不副实或过空时给，否则省略。' +
   'assess=一句参谋评估：这张卡值不值得留在库里、还缺什么（≤40字）。不许编造正文里没有的功能、数据与结论。' +
   '输出 JSON：{"title":"可选","description":"≤160字","tags":["…"],"assess":"一句话评估"}。只输出 JSON。'
 )

@@ -14,7 +14,7 @@ import { uid } from '@/shared/utils'
 import { isMirrorView, removeProjection } from '@/shared/storage/hub'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
-import type { AppData, ResourceCard, TaskCard, Category, AssetMeta } from '@/shared/models'
+import type { AppData, ResourceCard, Category, AssetMeta } from '@/shared/models'
 import type { WsStore } from './useResourceView'
 
 export interface ResourceDrawerCtx {
@@ -35,8 +35,6 @@ export interface ResourceDrawerCtx {
   batchMode: Ref<boolean>
   toggleSelect: (id: string) => void
   openMoveOne: (r: ResourceCard) => void
-  openMountOne: (r: ResourceCard) => void
-  mountedTaskCount: (r: ResourceCard) => number
   // useWorkspaceMirror
   openMirrorCard: (r: ResourceCard) => void
   removeMirror: (r: ResourceCard) => void
@@ -46,7 +44,7 @@ export interface ResourceDrawerCtx {
 export function useResourceDrawer(ctx: ResourceDrawerCtx) {
   const { store, d, workspaceId, router, isHub, categories, activeCategory, thesisCard,
     openResourceLink, openImageAsset, setThesisCard, unsetThesis,
-    batchMode, toggleSelect, openMoveOne, openMountOne, mountedTaskCount,
+    batchMode, toggleSelect, openMoveOne,
     openMirrorCard, removeMirror, locateMirrorSource } = ctx
 
   // 单击（详情）与双击（打开链接）区分
@@ -77,7 +75,17 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
 
   function emptyResource(): ResourceCard {
     // R126：必须显式带 isThesis:false——否则「确立中心论点」入口设置的标记会泄漏给后续新建卡（保存即覆盖 L1）
-    return { id: '', kind: 'resource', title: '', linkType: 'url', link: '', workspaceId: workspaceId.value, categoryId: '', description: '', tags: [], customFields: {}, pinned: false, isThesis: false, callCount: 0, createdAt: 0, updatedAt: 0 }
+    return { id: '', kind: 'resource', title: '', linkType: 'url', link: '', workspaceId: workspaceId.value, categoryId: '', description: '', tags: [], customFields: {}, pinned: false, isThesis: false, callCount: 0, createdAt: 0, updatedAt: 0, assets: [] }
+  }
+
+  /**
+   * R162（严重 bug 修复）：单例 reactive 复用必须**先清键再灌入**。
+   * 病根：Object.assign 不清除"本次源对象没有的键"——上一张卡的 assets / sourceType / linkType 等
+   * 可选字段会残留给下一张卡（实测：给 A 卡上传 HTML 后，所有卡详情都显示该附件；在 B 卡保存还会写进 B）。
+   */
+  function resetEditing(target: ResourceCard, src: ResourceCard): void {
+    for (const k of Object.keys(target)) delete (target as unknown as Record<string, unknown>)[k]
+    Object.assign(target, JSON.parse(JSON.stringify(src)))
   }
 
   /**
@@ -92,7 +100,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
   }
 
   function openNewResource() {
-    Object.assign(editingResource, emptyResource())
+    resetEditing(editingResource, emptyResource())
     editingResource.id = uid('res')
     editingResource.createdAt = Date.now()
     drawerOriginalWsId = editingResource.workspaceId
@@ -102,7 +110,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     drawerOpen.value = true
   }
   function addResourceToCategory(catId: string) {
-    Object.assign(editingResource, emptyResource())
+    resetEditing(editingResource, emptyResource())
     editingResource.id = uid('res')
     editingResource.createdAt = Date.now()
     editingResource.categoryId = catId
@@ -114,7 +122,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
    *  镜像 id 即源卡 id（boardCardsOf 浅拷贝），定位走 /curation?hl=<id>（redirect 透传 query）。 */
   const drawerReadonly = ref(false)
   function openMirrorDetail(r: ResourceCard) {
-    Object.assign(editingResource, JSON.parse(JSON.stringify(r)))
+    resetEditing(editingResource, r)
     drawerOriginalWsId = editingResource.workspaceId
     isNewResource.value = false
     drawerReadonly.value = true
@@ -146,7 +154,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
   }
   function openResource(r: ResourceCard) {
     drawerReadonly.value = false
-    Object.assign(editingResource, JSON.parse(JSON.stringify(r)))
+    resetEditing(editingResource, r)
     drawerOriginalWsId = editingResource.workspaceId
     isNewResource.value = false
     drawerOpen.value = true
@@ -228,12 +236,6 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     if (!editingResource.link) { showToast('无链接'); return }
     navigator.clipboard.writeText(editingResource.link).then(() => showToast('✓ 链接已复制'))
   }
-  // 挂载任务点击（共享表单 emit goto-task）→ 跳任务中心
-  function goToTask(t: TaskCard) {
-    router.push('/')
-    showToast(`已跳转任务中心：${t.title}`)
-  }
-
   /**
    * R87（R7-②）：「⚠ 待补全」徽标的一键补全 —— 打开详情抽屉并把光标送进链接输入框。
    * 镜像卡是策展台里的只读引用（与 📌⭐🗑 同款拦截），补全得上资源台真身卡。
@@ -269,8 +271,6 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
         // R90（R10）：星标——toggleStar 能力早就在、hover 动作条早早就有 ⭐，右键此前一直缺
         { label: r.starred ? '☆ 取消星标' : '⭐ 星标', icon: 'star', cb: () => toggleStar(r) },
         { label: '移动分类', icon: 'folder', cb: () => openMoveOne(r) },
-        // R82（R4）：挂载到任务——与动作条同一入口的两条路径之一。镜像分支不提供（只读引用）。
-        { label: mountedTaskCount(r) ? `挂载到任务（已挂 ${mountedTaskCount(r)}）` : '挂载到任务…', icon: 'clipboard', cb: () => openMountOne(r) },
         // R90（R10）：镜像到策展台——**仅资源台真身卡**有语义（策展台的卡源头就是资源台，再推给别的台无意义）。
         // openMirrorCard 内部已对「还没有策展台」给提示，此处不重复兜底。
         ...(isHub.value ? [{ label: '📡 镜像到策展台', icon: 'share', cb: () => openMirrorCard(r) }] : []),
@@ -289,7 +289,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     drawerOpen, editingResource, isNewResource, drawerReadonly,
     newCardCatId, openNewResource, addResourceToCategory, openMirrorDetail,
     cleanAllMirrors, locateMirrorSourceCard, openResource, closeDrawer,
-    saveResource, deleteCurrentResource, deleteResource, togglePin, toggleStar, copyLink, goToTask,
+    saveResource, deleteCurrentResource, deleteResource, togglePin, toggleStar, copyLink,
     resFormRef, fixLink, resCtx, resCtxItems, openResCtx,
   }
 }

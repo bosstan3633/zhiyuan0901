@@ -114,6 +114,11 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
   fixTags(data.resources as { tags?: unknown }[])
   fixTags(data.tasks as { tags?: unknown }[])
   fixTags(data.curiosities as { tags?: unknown }[])
+  // R162：任务↔资源挂载关系退役——清存量字段（幂等；旧库/导入包里可能残留）
+  const dropMountedField = (tasks: { mountedResourceIds?: unknown }[] | undefined) => (tasks || []).forEach(t => {
+    if (t && 'mountedResourceIds' in t) delete (t as { mountedResourceIds?: unknown }).mountedResourceIds
+  })
+  dropMountedField(data.tasks as { mountedResourceIds?: unknown }[])
   // 第廿九轮：分类名/标签名 URL 编码归一化——导入场景曾把 percent-encoding 的名称直接存库
   // （表现为界面上出现「%E5%AE%8B...」乱码分类）。此处一次性解码并在下次 persist 固化。
   const fixEncoded = (name: string): string => safeDecodeText(name);

@@ -84,7 +84,14 @@ function showImageAt(i: number) {
   viewerName.value = list.value.filter(a => a.kind === 'image')[i]?.name || ''
 }
 
+/** R162：单击/双击去抖（双击会先触发两次 click，不判别会重复打开） */
+let lastOpenId = ''
+let lastOpenAt = 0
 async function openAsset(meta: AssetMeta) {
+  const now = Date.now()
+  if (meta.id === lastOpenId && now - lastOpenAt < 400) return
+  lastOpenId = meta.id
+  lastOpenAt = now
   closeList()
   if (meta.kind === 'image') {
     // 多图模式：一次性加载全部图片 blob，支持左右切换
@@ -128,7 +135,7 @@ async function openAsset(meta: AssetMeta) {
             <button class="ab-pop-close" @click="closeList">×</button>
           </div>
           <div class="ab-pop-body">
-            <div v-for="a in list" :key="a.id" class="ab-item" :title="`${a.name}（${fmtSize(a.size)}）`" @click="openAsset(a)">
+            <div v-for="a in list" :key="a.id" class="ab-item" :title="`${a.name}（${fmtSize(a.size)}）`" @click="openAsset(a)" @dblclick="openAsset(a)">
               <span class="ab-ico">{{ a.kind === 'image' ? '🖼' : a.kind === 'pdf' ? '📕' : '🧾' }}</span>
               <span class="ab-name">{{ a.name }}</span>
               <span class="ab-size">{{ fmtSize(a.size) }}</span>

@@ -38,9 +38,9 @@ const wrap = (score: number, reasons: string[]): Maturity => {
 
 const DAY = 86400000
 
-/** 任务成熟度：可执行 35 / 可归属 25 / 弹药 25 / 新鲜度 15 */
+/** 任务成熟度：可执行 35 / 可归属 25 / 弹药 10（附件 5 + 好奇心挂载 5；R162 起资源挂载计分退役） / 新鲜度 15 */
 export function taskMaturity(t: TaskCard, now = Date.now()): Maturity {
-  const k = `${dayBucket(now)}:${getMutationSeq()}:${t.updatedAt}:${t.status}:${t.dueDate || ''}:${t.estimatedMinutes || 0}:${(t.mountedResourceIds || []).length}:${(t.mountedCuriosityIds || []).length}:${(t.assets || []).length}:${(t.description || '').length}:${t.projectId || ''}:${t.metricId || ''}`
+  const k = `${dayBucket(now)}:${getMutationSeq()}:${t.updatedAt}:${t.status}:${t.dueDate || ''}:${t.estimatedMinutes || 0}:${(t.mountedCuriosityIds || []).length}:${(t.assets || []).length}:${(t.description || '').length}:${t.projectId || ''}:${t.metricId || ''}`
   const hit = taskMemo.get(t)
   if (hit && hit.k === k) return hit.r
   const r = taskMaturityRaw(t, now)
@@ -56,8 +56,6 @@ function taskMaturityRaw(t: TaskCard, now: number): Maturity {
   if (t.dueDate) s += 10; else r.push('无截止日')
   if (t.projectId) s += 8; else r.push('未挂项目')
   if (t.metricId) s += 7; else r.push('未挂指标')
-  const mounts = (t.mountedResourceIds || []).length
-  if (mounts > 0) s += Math.min(15, 8 + mounts * 4); else r.push('无挂载资源（弹药不足）')
   if ((t.assets || []).length) s += 5
   if ((t.mountedCuriosityIds || []).length) s += 5
   const days = (now - (t.status === 'done' ? t.completedAt || t.updatedAt : t.updatedAt)) / DAY
@@ -81,9 +79,9 @@ export function curioMaturity(c: CuriosityCard, relatedCount = 0, now = Date.now
   return wrap(s, r)
 }
 
-/** R142（反馈 #4）：好奇卡的关联资源解析——直接 relatedResourceIds + 由它转化/挂载的任务带来的资源（展示口径并集） */
+/** R142（反馈 #4）：好奇卡的关联资源解析——直接 relatedResourceIds（R162：经任务挂载的并集口径随挂载关系退役） */
 export function curioResIds(d: AppData, c: CuriosityCard): string[] {
-  const mk = `cur:${c.id}:${getMutationSeq()}:${(c.relatedResourceIds || []).length}:${d.tasks.length}`
+  const mk = `cur:${c.id}:${getMutationSeq()}:${(c.relatedResourceIds || []).length}`
   const hit = listMemo.get(mk)
   if (hit) return hit.r
   const r = curioResIdsRaw(d, c)
@@ -91,13 +89,8 @@ export function curioResIds(d: AppData, c: CuriosityCard): string[] {
   if (listMemo.size > 4000) listMemo.clear()
   return r
 }
-function curioResIdsRaw(d: AppData, c: CuriosityCard): string[] {
-  const ids = [...(c.relatedResourceIds || [])]
-  for (const t of d.tasks || []) {
-    if (t.deletedAt || !(t.mountedCuriosityIds || []).includes(c.id)) continue
-    for (const r of t.mountedResourceIds || []) if (!ids.includes(r)) ids.push(r)
-  }
-  return ids
+function curioResIdsRaw(_d: AppData, c: CuriosityCard): string[] {
+  return [...(c.relatedResourceIds || [])]
 }
 export function curioRelated(d: AppData, c: CuriosityCard): ResourceCard[] {
   return curioResIds(d, c).map(id => (d.resources || []).find(r => r.id === id && !r.deletedAt)).filter(Boolean) as ResourceCard[]

@@ -333,7 +333,6 @@ function migrateTask(link: V1Link): TaskCard {
     status,
     priority,
     dueDate: link.dueDate || undefined,
-    mountedResourceIds: link.mountedResourceIds || [],
     mountedCuriosityIds: link.mountedCuriosityIds || [],
     customFields: link.customFields || {},
     createdAt: toTs(link.createdAt),

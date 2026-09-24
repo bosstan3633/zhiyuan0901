@@ -184,14 +184,6 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   },
   // ── job 型 · select.ts ───────────────────────────────────────────────
   {
-    id: 'task-recommend', title: '任务建议', family: 'passive', kind: 'job',
-    factory: 'buildRecommendJob', factoryFile: 'shared/ai/select.ts',
-    hosts: ['newtab/components/compass/TaskDetailDrawer.vue', 'newtab/components/TaskAiMenu.vue'],
-    caps: { apply: true },
-    panel: { icon: 'check', mode: 'nav', route: '/compass', hint: '在任务详情抽屉内发起（上下文归属）' },
-    note: 'R158 定稿被动；宿主为任务上下文强相关，按「三处唯一归属」保留在抽屉、不迁建议面板',
-  },
-  {
     id: 'card-enrich', title: '单卡补全', family: 'proactive', kind: 'job',
     factory: 'buildCardEnrichJob', factoryFile: 'shared/ai/select.ts',
     hosts: ['newtab/components/GlobalPopups.vue', 'newtab/components/ResourceDetailDrawer.vue'],

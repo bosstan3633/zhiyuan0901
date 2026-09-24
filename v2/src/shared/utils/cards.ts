@@ -53,7 +53,6 @@ export function convertCard(c: CuriosityCard, target: ConvertTarget): ConvertedC
       priority: 'medium',
       projectId: target.projectId,
       metricId: target.metricId,
-      mountedResourceIds: [],
       mountedCuriosityIds: [c.id],
       fromCuriosityId: c.id,
       ...common

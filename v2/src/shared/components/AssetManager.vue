@@ -141,7 +141,17 @@ async function removeAsset(meta: AssetMeta) {
   showToast(purged ? '🗑 附件已移除' : '🗑 附件已从本卡移除（该本体仍被转出的卡片共用，已保留）')
 }
 
-// ---- 打开（图片弹窗多图预览 / HTML file:// 完整打开） ----
+// ---- 打开（图片弹窗多图预览 / HTML·PDF 下载副本后打开） ----
+/** R162：单击/双击同动作去抖——双击会先触发两次 click，不判别会重复打开（HTML/PDF 会重复下载） */
+let lastOpenId = ''
+let lastOpenAt = 0
+function openAssetOnce(meta: AssetMeta) {
+  const now = Date.now()
+  if (meta.id === lastOpenId && now - lastOpenAt < 400) return
+  lastOpenId = meta.id
+  lastOpenAt = now
+  void openAsset(meta)
+}
 const viewerOpen = ref(false)
 const viewerUrl = ref('')
 const viewerName = ref('')
@@ -201,9 +211,9 @@ async function openAsset(meta: AssetMeta) {
     <div v-if="list.length" class="am-list">
       <div v-for="a in list" :key="a.id" class="am-item" :title="`${a.name}（${fmtSize(a.size)}）`">
         <span class="am-ico">{{ a.kind === 'image' ? '🖼' : a.kind === 'pdf' ? '📕' : '🧾' }}</span>
-        <span class="am-name" @click="openAsset(a)">{{ a.name }}</span>
+        <span class="am-name" @click="openAssetOnce(a)" @dblclick="openAssetOnce(a)">{{ a.name }}</span>
         <span class="am-size">{{ fmtSize(a.size) }}</span>
-        <span class="am-open" @click="openAsset(a)" :title="a.kind === 'image' ? '弹窗预览' : '新标签页打开'">{{ a.kind === 'image' ? '👁' : '↗' }}</span>
+        <span class="am-open" @click="openAssetOnce(a)" @dblclick="openAssetOnce(a)" :title="a.kind === 'image' ? '弹窗预览' : '双击在浏览器中打开（先下载本地副本）'">{{ a.kind === 'image' ? '👁' : '↗' }}</span>
         <span class="am-del" @click="removeAsset(a)" title="移除附件">×</span>
       </div>
     </div>
@@ -211,7 +221,7 @@ async function openAsset(meta: AssetMeta) {
       {{ busy ? '⏳ 上传中…' : '📎 添加附件（图片 / HTML / PDF）' }}
     </button>
     <input ref="fileInput" type="file" class="am-file" multiple accept="image/*,.html,.htm,.pdf" @change="onFilesChange" />
-    <div class="am-tip">图片 ≤9 张（单张 ≤10MB）弹窗预览可左右切换；HTML 单卡 1 个（≤20MB，重复上传=替换）；PDF 单卡 1 份（≤100MB，重复上传=替换），新标签页打开</div>
+    <div class="am-tip">图片 ≤9 张（单张 ≤10MB）弹窗预览可左右切换；HTML 单卡 1 个（≤20MB，重复上传=替换）；PDF 单卡 1 份（≤100MB，重复上传=替换）；双击文件名在浏览器中打开（先下载本地副本，HTML 交互完整）</div>
 
     <!-- 第卌一轮 REQ-056：图片预览弹窗抽公共组件 AssetPreview；第卌二轮 REQ-061 多图左右切换 -->
     <AssetPreview :open="viewerOpen" :url="viewerUrl" :name="viewerName"

@@ -77,7 +77,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 }
 .drawer-close:hover { background: var(--surface-3); color: var(--text); }
 .drawer-body { flex: 1; overflow-y: auto; padding: 18px 20px; }
-.drawer-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+.drawer-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 8px; }
 
 .overlay-enter-active, .overlay-leave-active { transition: opacity var(--dur-slow); }
 .overlay-enter-from, .overlay-leave-to { opacity: 0; }

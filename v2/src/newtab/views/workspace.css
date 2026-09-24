@@ -386,10 +386,11 @@
 .dr-body.dr-readonly .ref-form { pointer-events: none; }
 .dr-body.dr-readonly .ref-form .ref-close { pointer-events: auto; } /* 关闭按钮保留 */
 .dr-body.dr-readonly { user-select: none; }
+/* R162：底部动作条不再挤压——按钮禁折行 + 最小宽度；空间不足时整钮换行（次级动作一行、保存独立一行） */
 .dr-footer { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 8px; }
 /* R152：AI 入口钮按内容占宽（原来跟着 flex:1 均分，五钮时「打开链接」被压成两行） */
-.dr-footer-btn.ai { flex: 0 0 auto; padding: 8px 13px; }
-.dr-footer-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px; border-radius: 8px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all var(--dur); font-family: inherit; }
+.dr-footer-btn.ai { flex: 0 0 auto; padding: 8px 13px; white-space: nowrap; }
+.dr-footer-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px; border-radius: 8px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all var(--dur); font-family: inherit; white-space: nowrap; min-width: 84px; }
 .dr-footer-btn:hover { border-color: var(--accent); color: var(--accent); }
 .dr-footer-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
 .dr-footer-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }

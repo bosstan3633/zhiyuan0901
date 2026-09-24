@@ -15,7 +15,7 @@ import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
-import { taskMaturity, curioResIds } from '@/shared/utils/maturity'
+import { taskMaturity } from '@/shared/utils/maturity'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 
 const router = useRouter()
@@ -50,7 +50,6 @@ const taskTitleDraft = ref('')
 const { taH: taskNoteH, startTaResize: startTaskNoteResize } = useTaHeight('task-note', store.ui)
 const selProjectId = ref('')
 const selMetricId = ref('')
-const mountSearchR = ref('')
 const mountSearchC = ref('')
 
 function open(task: TaskCard) {
@@ -59,7 +58,6 @@ function open(task: TaskCard) {
   taskTitleDraft.value = selectedTask.value.title
   selProjectId.value = selectedTask.value.projectId || ''
   selMetricId.value = selectedTask.value.metricId || ''
-  mountSearchR.value = ''
   mountSearchC.value = ''
   sidebarOpen.value = true
 }
@@ -107,18 +105,6 @@ async function aiBreakdown() {
     onPersona: (id) => { aiPersonaId.value = id; void aiBreakdown() },
   })
   if (!job) { showToast('⚠ 任务已不存在'); return }
-  aiJob.value = job
-}
-// R136-A3：按任务推荐资源卡（全库目录挑选，采纳=挂载到本任务）
-async function aiRecommend() {
-  const t = selectedTask.value
-  if (!t) return
-  const [{ loadAiConfig, aiReady, aiConfig }, { buildRecommendJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
-  await loadAiConfig()
-  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
-  if (!d.value) return
-  const job = buildRecommendJob(t, { d: d.value, depth: aiConfig.value.depth, persist: () => store.persist() })
-  if (!job) { showToast('⚠ 库里还没有可推荐的资源卡'); return }
   aiJob.value = job
 }
 /** R144：子任务身份标注（父被解绑/删除时 parentId 已被摘净，故此处只需查活卡） */
@@ -230,12 +216,6 @@ function onSelProjectChange() {
   selectedTask.value.updatedAt = Date.now()
   store.persist()
 }
-/** R142（反馈 #4）：挂载的好奇心卡自带资源（直接关联∪其挂载任务并集）——一键加挂进本任务 */
-function curioResOf(cid: string): string[] {
-  const c = d.value.curiosities.find(x => x.id === cid)
-  if (!c) return []
-  return curioResIds(d.value, c).filter(id => resourceTitle(id))
-}
 function onSelMetricChange() {
   if (!selectedTask.value) return
   const oldMetric = selectedTask.value.metricId
@@ -263,19 +243,9 @@ function setPriority(p: 'low' | 'medium' | 'high') {
   store.persist()
 }
 
-// ---- 单向挂载：任务 → 资源 / 好奇心 ----
-function resourceTitle(id: string): string {
-  return d.value.resources.find(r => r.id === id && !r.deletedAt)?.title || ''
-}
+// ---- 单向挂载：任务 → 好奇心（R162：任务↔资源挂载关系已退役） ----
 function curiosityTitle(id: string): string {
   return d.value.curiosities.find(c => c.id === id && !c.deletedAt)?.question || ''
-}
-function toggleMountResource(rid: string) {
-  if (!selectedTask.value) return
-  const arr = selectedTask.value.mountedResourceIds || []
-  selectedTask.value.mountedResourceIds = arr.includes(rid) ? arr.filter(x => x !== rid) : [...arr, rid]
-  selectedTask.value.updatedAt = Date.now()
-  store.persist()
 }
 function toggleMountCuriosity(cid: string) {
   if (!selectedTask.value) return
@@ -284,13 +254,6 @@ function toggleMountCuriosity(cid: string) {
   selectedTask.value.updatedAt = Date.now()
   store.persist()
 }
-const mountResourceCandidates = computed(() => {
-  const q = mountSearchR.value.trim().toLowerCase()
-  return d.value.resources
-    .filter(r => !r.deletedAt)
-    .filter(r => !q || r.title.toLowerCase().includes(q))
-    .slice(0, 8)
-})
 const mountCuriosityCandidates = computed(() => {
   const q = mountSearchC.value.trim().toLowerCase()
   return d.value.curiosities
@@ -391,30 +354,10 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           <AssetManager v-model="selectedTask.assets" :owner-id="selectedTask.id" @update:model-value="onTaskAssetsChange" @html-added="onTaskHtmlAdded" />
         </details>
         <details class="ds-details" style="margin-top:12px">
-          <summary>🔗 挂载资源卡 <span class="cnt">({{ selectedTask.mountedResourceIds.filter(id => resourceTitle(id)).length }})</span><span class="right">单向挂载 · 点条目取消</span></summary>
-          <div class="ts-mount-list">
-            <div v-for="rid in selectedTask.mountedResourceIds.filter(id => resourceTitle(id))" :key="rid" class="ts-mount-item" @click="toggleMountResource(rid)" title="点击取消挂载">
-              📄 {{ resourceTitle(rid) }} <span class="remove">×</span>
-            </div>
-            <div v-if="!selectedTask.mountedResourceIds.filter(id => resourceTitle(id)).length" class="ts-mount-empty">暂未挂载资源</div>
-          </div>
-          <div class="ts-mount-wrap">
-            <input v-model="mountSearchR" class="ts-mount-search" placeholder="🔍 输入关键词搜索并挂载资源卡…">
-            <div v-if="mountSearchR.trim()" class="ts-mount-pop">
-              <div v-for="r in mountResourceCandidates" :key="r.id" class="ts-mount-cand"
-                :class="{on: selectedTask.mountedResourceIds.includes(r.id)}" @click="toggleMountResource(r.id)">
-                {{ selectedTask.mountedResourceIds.includes(r.id) ? '✓' : '＋' }} {{ r.title }}
-              </div>
-              <div v-if="!mountResourceCandidates.length" class="ts-mount-empty" style="padding:10px">无匹配资源</div>
-            </div>
-          </div>
-        </details>
-        <details class="ds-details" style="margin-top:12px">
           <summary>💡 挂载好奇心卡 <span class="cnt">({{ selectedTask.mountedCuriosityIds.filter(id => curiosityTitle(id)).length }})</span><span class="right">单向挂载 · 点条目取消</span></summary>
           <div class="ts-mount-list">
             <div v-for="cid in selectedTask.mountedCuriosityIds.filter(id => curiosityTitle(id))" :key="cid" class="ts-mount-item" @click="toggleMountCuriosity(cid)" title="点击取消挂载">
               💡 {{ curiosityTitle(cid) }} <span class="remove">×</span>
-              <span v-for="rid in curioResOf(cid)" :key="rid" class="ts-mount-curio-res" title="点击挂到本任务" @click.stop="toggleMountResource(rid)">🔗 {{ resourceTitle(rid) }}</span>
             </div>
             <div v-if="!selectedTask.mountedCuriosityIds.filter(id => curiosityTitle(id)).length" class="ts-mount-empty">暂未挂载好奇心</div>
           </div>
@@ -434,7 +377,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         <!-- R48：删除按钮降级（ghost 弱化，hover 扣动扳机），主操作唯一 -->
         <button class="ts-del-ghost" @click="deleteTask(selectedTask.id)" title="删除任务（可在回收站撤销）">🗑 删除</button>
         <button class="mini-btn" @click="aiBreakdown" title="AI 拆解本任务：可建半天粒度步骤子任务，也可只把步骤清单写进详情；还能换专家执笔"><AiEntryButton variant="inline" label="拆解步骤" /></button>
-        <button class="mini-btn" @click="aiRecommend" title="AI 从全库挑此刻用得上的资源卡（采纳=挂载到本任务）"><AiEntryButton variant="inline" label="推荐卡" /></button>
         <span class="ts-foot-spacer"></span>
         <button class="mini-btn primary" @click="saveTaskTitleAndClose">✓ 完成并关闭 <span class="ts-kbd">Ctrl+↩</span></button>
       </div>

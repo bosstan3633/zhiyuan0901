@@ -201,7 +201,6 @@
                 <option value="hasAssets">有附件</option>
                 <!-- R89（W5）：星标筛选——`starred` 字段早就在模型里、三视图 ⭐ 也早就能切换，缺的只是筛出口 -->
                 <option value="starred">⭐ 星标</option>
-                <option value="unmounted">未挂载任务</option>
               </optgroup>
             </select>
           </div>
@@ -453,7 +452,6 @@
                     <span class="rr-action" :class="{on: r.starred}" @click.stop="toggleStar(r)" :title="r.starred?'取消星标':'星标'">⭐</span>
                     <span class="rr-action" @click.stop="openMoveOne(r)" title="移动分类">📂</span>
                     <span v-if="isHub" class="rr-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</span>
-                    <span class="rr-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</span>
                     <span class="rr-action delete" @click.stop="deleteResource(r)" title="删除">🗑</span>
                     <CardAiEntry :card="r" />
                   </template>
@@ -495,7 +493,6 @@
                     <span class="kc-action" :class="{on: r.starred}" @click.stop="toggleStar(r)" :title="r.starred?'取消星标':'星标'">⭐</span>
                     <span class="kc-action" @click.stop="openMoveOne(r)" title="移动分类">📂</span>
                     <span v-if="isHub" class="kc-action" title="镜像到策展台" @click.stop="openMirrorCard(r)">📡</span>
-                    <span class="kc-action mount" :class="{on: mountedTaskCount(r) > 0}" @click.stop="openMountOne(r)" :title="mountedTaskCount(r) ? `已挂载 ${mountedTaskCount(r)} 个任务 · 点击管理` : '挂载到任务'">📋</span>
                     <span class="kc-action delete" title="删除" @click.stop="deleteResource(r)">🗑</span>
                     <CardAiEntry :card="r" />
                   </template>
@@ -617,7 +614,6 @@
           height-key="ws-note"
           :show-close="true"
           @save="saveResource"
-          @goto-task="goToTask"
           @close="closeDrawer"
         />
       </div>
@@ -768,33 +764,6 @@
         <div class="modal-footer-row">
           <button class="dr-footer-btn" @click="moveOneOpen=false">取消</button>
           <button class="dr-footer-btn primary" @click="confirmMoveOne">✓ 确认移动</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- R82（R4）：挂载到任务弹窗——搜索 + 最近任务，点一下即挂载/取消（多选切换即生效） -->
-    <div class="modal-overlay" :class="{open: mountOneOpen}" @click.self="closeMountOne">
-      <div class="modal" style="width:420px">
-        <div class="modal-header">
-          <span style="font-size:16px">📋</span>
-          <span class="mh-title">挂载「{{ mountTarget?.title.slice(0, 16) }}…」到任务</span>
-          <div class="modal-close" @click="closeMountOne">×</div>
-        </div>
-        <div class="modal-body">
-          <input type="text" class="ws-modal-input" v-model="mountSearch" placeholder="🔍 搜索任务…" @keydown.enter.prevent />
-          <div class="mt-list">
-            <div v-for="t in mountTaskOptions" :key="t.id" class="mt-item" :class="{on: isMountedOn(t)}"
-              @click="toggleMountTask(t)" :title="isMountedOn(t) ? '点击取消挂载' : '点击挂载'">
-              <span class="mt-mark">{{ isMountedOn(t) ? '✓' : '＋' }}</span>
-              <span class="mt-title">{{ t.title }}</span>
-              <span v-if="mountProjectName(t)" class="mt-proj">{{ mountProjectName(t) }}</span>
-            </div>
-            <div v-if="!mountTaskOptions.length" class="mt-empty">没有匹配的任务</div>
-          </div>
-        </div>
-        <div class="modal-footer-row">
-          <span class="mt-hint">单向挂载 · 点条目即生效</span>
-          <button class="dr-footer-btn primary" @click="closeMountOne">✓ 完成</button>
         </div>
       </div>
     </div>
@@ -1254,7 +1223,7 @@ const {
   viewMode, applyWsView, setViewMode, pyFold, resCols,
   SORT_BY_KEYS, SORT_LABELS, FILTER_KEYS, FILTER_LABELS,
   sortBy, sortDir, filterBy, searchQuery, debouncedQuery, activeCategory,
-  toggleSortDir, density, activeCategoryLabel, mountedResIds,
+  toggleSortDir, density, activeCategoryLabel,
   hasActiveFilter, filterLabel, parseQuery, matchCard, resetFilters,
   filterSummary, filterPopTitle, resetAllFilters, isBrokenPath, FILTER_PREDICATES,
   applyViewFilters, filteredResources, archivedHintCount,
@@ -1308,16 +1277,15 @@ const { normalizeCatOrders, catModal, openCreateCat, catRenId, startCatRename, c
 // ===== R115 拆分接线：资源打开域（预览/双击打开统一通道）=====
 const { previewOpen, previewUrl, previewName, closePreview, openImageAsset, openResourceLink } = useResourceOpen({ store, d })
 
-// ===== R102（纯拆分第三批）：卡片整理动作域（批量选择/批量移动/单卡移动/挂载）拆入 useWorkspaceBatch =====
-// 实现原位迁出、零行为变更；标识符经解构保留原绑定——三视图模板（勾选框/batch-bar/移动与挂载弹窗）零改动。
-// ★ 单向挂载红线随迁：挂载只写 task.mountedResourceIds，资源卡零新增反向字段，被谁挂着一律反查 d.tasks。
+// ===== R102（纯拆分第三批）：卡片整理动作域（批量选择/批量移动/单卡移动）拆入 useWorkspaceBatch =====
+// 实现原位迁出、零行为变更；标识符经解构保留原绑定——三视图模板（勾选框/batch-bar/移动弹窗）零改动。
+// R162：挂载域随任务↔资源挂载关系退役。
 const {
   batchMode, selectedIds, toggleBatchMode, toggleSelect, selectAllVisible, selectedCards, batchOpen, batchDelete,
   moveModalOpen, moveWsId, moveCatId, moveWorkspaces, moveCatOptions, openBatchMove, confirmBatchMove,
   moveOneOpen, moveOneCatId, moveOneOptions, openMoveOne, confirmMoveOne,
-  mountOneOpen, mountSearch, mountedTaskCount, isMountedOn, mountTaskOptions, mountProjectName, openMountOne, toggleMountTask, closeMountOne,
-  moveOneTarget, mountTarget,
-} = useWorkspaceBatch({ d, persist: () => store.persist(), workspaceId, wsCats, allResources, allProjects, sortedResources, openResourceLink, treeCatOptions })
+  moveOneTarget,
+} = useWorkspaceBatch({ d, persist: () => store.persist(), workspaceId, wsCats, allResources, sortedResources, openResourceLink, treeCatOptions })
 
 // ===== R115 拆分接线：编辑抽屉域（单击/双击分流/CRUD/右键菜单）=====
 const {
@@ -1325,12 +1293,12 @@ const {
   drawerOpen, editingResource, isNewResource, drawerReadonly,
   newCardCatId, openNewResource, addResourceToCategory, openMirrorDetail,
   cleanAllMirrors, locateMirrorSourceCard, openResource, closeDrawer,
-  saveResource, deleteCurrentResource, deleteResource, togglePin, toggleStar, copyLink, goToTask,
+  saveResource, deleteCurrentResource, deleteResource, togglePin, toggleStar, copyLink,
   resFormRef, fixLink, resCtx, resCtxItems, openResCtx,
 } = useResourceDrawer({
   store, d, workspaceId, router, isHub, categories, activeCategory, thesisCard,
   openResourceLink, openImageAsset, setThesisCard, unsetThesis,
-  batchMode, toggleSelect, openMoveOne, openMountOne, mountedTaskCount,
+  batchMode, toggleSelect, openMoveOne,
   openMirrorCard, removeMirror, locateMirrorSource,
 })
 

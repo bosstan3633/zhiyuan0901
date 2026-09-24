@@ -1,16 +1,13 @@
 <script setup lang="ts">
-/** R142（反馈 #4）：任务「弹药」计数徽标——挂载资源卡🔗 / 挂载好奇心💡，跨视图统一呈现「这条任务带着什么」。 */
+/** R142（反馈 #4）：任务「弹药」计数徽标——挂载好奇心 💡（R162：任务↔资源挂载关系退役，🔗 资源计数随之下线）。 */
 import type { TaskCard } from '@/shared/models'
 const props = defineProps<{ t: TaskCard }>()
-const resN = () => (props.t.mountedResourceIds || []).length
 const curN = () => (props.t.mountedCuriosityIds || []).length
-const tip = () => '挂载 ' + resN() + ' 张资源卡' + (curN() ? ' · ' + curN() + ' 条好奇心' : '') + '（点任务详情可管理）'
+const tip = () => '挂载 ' + curN() + ' 条好奇心（点任务详情可管理）'
 </script>
 
 <template>
-  <span v-if="resN() || curN()" class="mcb" :title="tip()">
-    <template v-if="resN()">🔗{{ resN() }}</template><template v-if="curN()"> 💡{{ curN() }}</template>
-  </span>
+  <span v-if="curN()" class="mcb" :title="tip()">💡{{ curN() }}</span>
 </template>
 
 <style scoped>

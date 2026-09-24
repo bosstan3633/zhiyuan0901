@@ -45,35 +45,21 @@ async function breakdown() {
   job.value = j
 }
 
-async function recommend() {
-  const d = store.data
-  if (!d) return
-  const t = d.tasks.find(x => x.id === props.task.id && !x.deletedAt)
-  if (!t) { showToast('⚠ 任务已不存在'); return }
-  const [{ loadAiConfig, aiReady, aiConfig }, sel] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
-  await loadAiConfig()
-  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
-  const j = sel.buildRecommendJob(t, { d, depth: aiConfig.value.depth, persist: () => store.persist() })
-  if (!j) { showToast('⚠ 库里还没有可推荐的资源卡'); return }
-  job.value = j
-}
-
-async function pick(kind: 'breakdown' | 'recommend' | 'detail') {
+async function pick(kind: 'breakdown' | 'detail') {
   shown.value = false
   if (kind === 'detail') { emit('detail', props.task); return }
   if (busy.value) return
   busy.value = true
-  try { await (kind === 'recommend' ? recommend() : breakdown()) } finally { busy.value = false }
+  try { await breakdown() } finally { busy.value = false }
 }
 </script>
 
 <template>
-  <button class="tam-btn" :class="{ on: shown }" :title="tip || '本任务的 AI 辅助：拆解成子任务 / 推荐资源卡 / 打开详情（勾选采纳才写库，可换执笔专家）'" @click.stop="toggle"><AiEntryButton :spin="busy" /></button>
+  <button class="tam-btn" :class="{ on: shown }" :title="tip || '本任务的 AI 辅助：拆解成子任务 / 打开详情（勾选采纳才写库，可换执笔专家）'" @click.stop="toggle"><AiEntryButton :spin="busy" /></button>
   <Teleport to="body">
     <div v-if="shown" class="tam-mask" @click="shown = false" />
     <div v-if="shown" class="tam-menu" :style="{ left: pos.x + 'px', top: pos.y + 'px' }" @click.stop>
       <button class="tam-item" @click="pick('breakdown')"><AiEntryButton variant="inline" label="拆解成子任务" /></button>
-      <button class="tam-item" @click="pick('recommend')"><AiEntryButton variant="inline" label="推荐资源卡" /></button>
       <button class="tam-item" @click="pick('detail')">📋 打开任务详情</button>
     </div>
   </Teleport>

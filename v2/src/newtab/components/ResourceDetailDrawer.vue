@@ -16,7 +16,7 @@ import { useAppStore } from '../stores/app'
 import { onOpenDrawer, consumePendingDrawer, type DrawerPayload } from '@/shared/utils/bus'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
-import type { ResourceCard, TaskCard } from '@/shared/models'
+import type { ResourceCard } from '@/shared/models'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import ThesisBlock from '@/newtab/components/ThesisBlock.vue'
 // R134-F（批次 F）：单卡 AI 补全。★本组件被 App.vue 静态挂载（全局抽屉宿主）——AI 依赖必须全懒：
@@ -38,7 +38,13 @@ let deleting = false
 const editing = reactive<ResourceCard>(emptyResource())
 
 function emptyResource(): ResourceCard {
-  return { id: '', kind: 'resource', title: '', linkType: 'url', link: '', workspaceId: '', categoryId: '', description: '', tags: [], customFields: {}, pinned: false, callCount: 0, createdAt: 0, updatedAt: 0 }
+  return { id: '', kind: 'resource', title: '', linkType: 'url', link: '', workspaceId: '', categoryId: '', description: '', tags: [], customFields: {}, pinned: false, callCount: 0, createdAt: 0, updatedAt: 0, assets: [] }
+}
+
+/** R162（同 useResourceDrawer）：单例 reactive 复用先清键——否则上一张卡的 assets 会残留给下一张卡 */
+function resetEditing(src: ResourceCard): void {
+  for (const k of Object.keys(editing)) delete (editing as unknown as Record<string, unknown>)[k]
+  Object.assign(editing, JSON.parse(JSON.stringify(src)))
 }
 
 const resource = computed(() => {
@@ -50,7 +56,7 @@ function openFromId(id: string) {
   const r = store.data?.resources.find(x => x.id === id)
   if (!r) return
   resId.value = id
-  Object.assign(editing, JSON.parse(JSON.stringify(r)))
+  resetEditing(r)
   drawerOriginalWsId = editing.workspaceId
   isNewResource.value = false
   open.value = true
@@ -112,11 +118,6 @@ function openLink() {
 function copyLink() {
   if (!editing.link) { showToast('链接为空'); return }
   navigator.clipboard?.writeText(editing.link).then(() => showToast('✓ 链接已复制')).catch(() => {})
-}
-
-function goToTask(t: TaskCard) {
-  router.push('/')
-  showToast(`已跳转任务中心：${t.title}`)
 }
 
 function fmtTs(ts?: number): string {
@@ -211,7 +212,6 @@ watch(() => resource.value?.id, (n) => {
       height-key="res-drawer-note"
       :highlight="highlight"
       @save="save"
-      @goto-task="goToTask"
     >
       <!-- 使用统计（RDD 特有；Workspace 内联抽屉无统计，不注入） -->
       <template #extra>
@@ -251,6 +251,7 @@ watch(() => resource.value?.id, (n) => {
 .red-btn {
   flex: 1; padding: 9px 7px; border: 1px solid var(--border); border-radius: 6px;
   background: var(--surface-2); color: var(--text); cursor: pointer; font-size: var(--fs-sub); transition: all var(--dur); white-space: nowrap;
+  min-width: 84px;
 }
 .red-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .red-btn:hover { background: var(--surface-3); }

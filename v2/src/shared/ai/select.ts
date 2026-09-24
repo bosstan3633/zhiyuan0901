@@ -1,20 +1,20 @@
 /**
  * R136：应用推荐与搜索重排的任务书工厂（批次 F 第三刀）。
  * 消费面纪律同 R134/R135：宿主点击时才 dynamic import 本文件；
- * 推荐采纳=挂载到任务 mountedResourceIds（既有通道）；重排=只读呈现，零写库。
+ * 重排=只读呈现，零写库。（R162：推荐挂载任务书随任务↔资源挂载关系退役）
  */
-import type { AppData, ResourceCard, TaskCard } from '@/shared/models'
-import { freshTagsOf, knownTagSet } from '@/shared/utils/tags'
+import type { AppData, ResourceCard } from '@/shared/models'
+import { freshTagsOf, knownTagSet, canonicalTagsOf } from '@/shared/utils/tags'
 import { withReport } from './reports'
 import type { AiJob, AiPaneLine, AiRow } from './job'
 import type { AiDepth } from './config'
 import { chatStream, extractJson } from './llm'
-import { projectChain, cardDirectory, projectTaskTargets, projectWeekDigest, projectCard, catPathOf } from './project'
+import { projectTaskTargets, projectWeekDigest, projectCard, catPathOf } from './project'
 import { fetchLinkText, linkFetchable } from './linkFetch'
 import {
-  recommendSystem, semanticSearchSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem, fullOptimizeSystem,
+  semanticSearchSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem, fullOptimizeSystem,
   chainPersonaText, allPersonas, personaOverrides,
-  type RecommendSuggestion, type TaskDraft,
+  type TaskDraft,
 } from './scenarios'
 
 export interface SelectCtx {
@@ -40,60 +40,6 @@ function tagDiff(fullText: string | undefined, have: string[]): string[] {
 function digestPane(digest: string): AiPaneLine[] {
   return digest.split('\n').map(l => l.replace(/\s+$/, '')).filter(l => l.trim()).slice(0, 80)
     .map((l, i) => ({ key: 'w' + i, depth: /^\s{2,}/.test(l) ? 1 : 0, main: l.replace(/^[\s-•·]+/, '') }))
-}
-
-/** A3：按任务选卡——任务上行链 + 全库卡目录（排除已挂载），采纳=挂载 */
-export function buildRecommendJob(task: TaskCard, ctx: SelectCtx): AiJob | null {
-  const { text, missing } = projectChain(ctx.d, 'breakdown', task.id, ctx.depth)
-  if (missing) return null
-  const mounted = new Set(task.mountedResourceIds || [])
-  const dir = cardDirectory(ctx.d, { excludeIds: mounted }, ctx.depth)
-  if (!dir) return null
-  // R147-c：丢弃账（每次点击新建 job，计数器天然按次隔离）
-  const drop = { noId: 0, ghost: 0, noWhy: 0 }
-  return {
-    key: 'rec:' + task.id,
-    title: `AI 推荐资源卡 · ${task.title.slice(0, 18)}`,
-    subject: `📌 任务「${task.title.slice(0, 24)}」`,
-    hint: '从全库目录挑「此刻用得上」的卡（已挂载的不再推荐）；勾选采纳=挂载到该任务，可随时在任务详情里取消。',
-    build: () => ({ messages: [
-      { role: 'system', content: recommendSystem() },
-      { role: 'user', content: `${text}\n\n【资源卡目录（cardId 只能取自这里）】\n${dir}` },
-    ] }),
-    parse: (raw) => {
-      const bag = raw as { items?: RecommendSuggestion[]; note?: string }
-      const rows: AiRow[] = []
-      ;(bag.items || []).forEach((s0, i) => {
-        const s = sanitizeRefs(s0, ctx.d)
-        if (!s.cardId) { drop.noId++; return }
-        const card = ctx.d.resources.find(r => r.id === s.cardId && !r.deletedAt)
-        if (!card || mounted.has(card.id)) { drop.ghost++; return }
-        if (!s.why?.trim()) drop.noWhy++
-        // R147-a：没给理由的推荐=模型在猜，默认不勾
-        rows.push({ key: 'rec:' + i, badge: '推荐', main: card.title, sub: s.why ? s.why.slice(0, 60) : '（模型没给理由）', weak: !s.why?.trim(), data: { cardId: card.id } })
-      })
-      return rows
-    },
-    audit: () => {
-      const bits = [drop.ghost ? `${drop.ghost} 行 cardId 不在库或已挂载` : '', drop.noId ? `${drop.noId} 行没给或编造 cardId（消毒后不认）` : '', drop.noWhy ? `${drop.noWhy} 行缺理由（已判弱）` : ''].filter(Boolean)
-      return bits.length ? bits.join('、') : null
-    },
-    apply: (rows) => {
-      const t = ctx.d.tasks.find(x => x.id === task.id && !x.deletedAt)
-      if (!t) return '⚠ 任务已不存在，未挂载任何卡'
-      let n = 0
-      for (const r of rows) {
-        const id = (r.data as { cardId?: string }).cardId
-        if (!id) continue
-        if (!ctx.d.resources.some(x => x.id === id && !x.deletedAt)) continue
-        if (t.mountedResourceIds.includes(id)) continue
-        t.mountedResourceIds.push(id)
-        n++
-      }
-      if (n) { t.updatedAt = Date.now(); ctx.persist() }
-      return `✓ 已挂载 ${n} 张资源卡到任务`
-    },
-  }
 }
 
 /**
@@ -374,7 +320,8 @@ export function buildCardEnrichJob(card: ResourceCard, ctx: SelectCtx): AiJob {
       const s = sanitizeRefs((raw || {}) as TaskDraft & { tags?: string[]; description?: string; categoryId?: string }, ctx.d) as { tags?: string[]; description?: string; categoryId?: string }
       const have = card.tags || []
       const rows: AiRow[] = []
-      const newTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !have.includes(t))
+      // R162：AI 给的标签先归一回体系（全名/叶子名/路径三口径；查不到才保留=真新词）
+      const newTags = canonicalTagsOf(ctx.d, (s.tags || []).filter(t => typeof t === 'string' && t.trim())).filter(t => !have.includes(t))
       // R147-a：AI 造的新词单独成行且默认不勾——采纳它就等于往体系里塞词，得你点头
       const fresh = freshTagsOf(newTags, known)
       const inSys = newTags.filter(t => fresh.indexOf(t) < 0)
@@ -397,7 +344,7 @@ export function buildCardEnrichJob(card: ResourceCard, ctx: SelectCtx): AiJob {
       let n = 0
       for (const r of rows) {
         const s = r.data as { tags?: string[]; description?: string; categoryId?: string }
-        if (s.tags) live.tags = [...new Set([...(live.tags || []), ...s.tags])].slice(0, 10)
+        if (s.tags) live.tags = [...new Set([...(live.tags || []), ...canonicalTagsOf(ctx.d, s.tags)])].slice(0, 10)
         if (s.description && !live.description) live.description = s.description
         if (s.categoryId && ctx.d.categories.some(c => c.id === s.categoryId && !c.deletedAt)) live.categoryId = s.categoryId
         n++
@@ -541,7 +488,8 @@ export function buildFullOptimizeJob(card: ResourceCard, ctx: SelectCtx): AiJob 
       const desc = String(s.description || '').trim().slice(0, 300)
       if (desc && desc !== card.description) rows.push({ key: 'desc', badge: '描述', main: desc, sub: card.description ? '原：' + card.description.slice(0, 60) : '（原无描述）', pair: 'desc', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { description: (t.main || '').trim() } }) }, data: { description: desc } })
       else rows.push({ key: 'desc:same', badge: '描述', main: card.description || '（空）', pair: 'desc', changeType: 'same', data: {} })
-      const newTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !have.includes(t)).slice(0, 4)
+      // R162：同单卡补全——先归一回体系，再截断
+      const newTags = canonicalTagsOf(ctx.d, (s.tags || []).filter(t => typeof t === 'string' && t.trim())).filter(t => !have.includes(t)).slice(0, 4)
       if (newTags.length) rows.push({ key: 'tags', badge: '标签', main: [...have, ...newTags].join('、'), sub: `并入 ${newTags.join('、')}（标签只加不减，要删去标签管理）`, pair: 'tags', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { tags: tagDiff(t.main, have) } }) }, data: { tags: newTags } })
       else rows.push({ key: 'tags:same', badge: '标签', main: have.join('、') || '（无标签）', pair: 'tags', changeType: 'same', data: {} })
       rows.push({ key: 'link:same', badge: '链接', main: card.link ? card.link.slice(0, 60) : '（无链接）', pair: 'link', changeType: 'same', data: {} })
@@ -557,7 +505,7 @@ export function buildFullOptimizeJob(card: ResourceCard, ctx: SelectCtx): AiJob 
         if (s.__verdict) continue
         if (s.title) live.title = s.title
         if (s.description) live.description = s.description
-        if (s.tags) live.tags = [...new Set([...(live.tags || []), ...s.tags])].slice(0, 10)
+        if (s.tags) live.tags = [...new Set([...(live.tags || []), ...canonicalTagsOf(ctx.d, s.tags)])].slice(0, 10)
         n++
       }
       if (n) { live.updatedAt = Date.now(); live.aiTouchedAt = Date.now(); ctx.persist() }

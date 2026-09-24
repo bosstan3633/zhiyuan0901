@@ -512,7 +512,6 @@ function createProjectTask(metricId?: string) {
     priority: 'medium',
     projectId: p.id,
     metricId,
-    mountedResourceIds: [],
     mountedCuriosityIds: [],
     customFields: {},
     createdAt: Date.now(),

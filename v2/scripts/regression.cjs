@@ -57,14 +57,14 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.3.0'";
+const VER_ANCHOR_LITERAL = "version: '3.4.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
 const CUR_VTAG = 'V' + CUR_VER;
 
 console.log('【红线检查】');
-check('单向挂载：Task 持有 mounted 字段', () => count('/shared/models/index.ts', 'mountedResourceIds: ID[]') === 1 && count('/shared/models/index.ts', 'mountedCuriosityIds: ID[]') === 1);
+check('单向挂载：Task 仅持好奇心挂载（R162：任务↔资源挂载关系退役）', () => count('/shared/models/index.ts', 'mountedResourceIds: ID[]') === 0 && count('/shared/models/index.ts', 'mountedCuriosityIds: ID[]') === 1);
 check('单向挂载：Curiosity 无 taskId', () => !/taskId\??\s*:/.test(read('/shared/models/index.ts').split('interface CuriosityCard')[1].split('}')[0]));
 check('单向挂载：Resource 无 taskId', () => !/taskId\??\s*:/.test(read('/shared/models/index.ts').split('interface ResourceCard')[1].split('}')[0]));
 check('数据 100% 本地：无 http 数据上传', () => !/fetch\(|XMLHttpRequest/.test(read('/newtab/App.vue')));
@@ -505,7 +505,7 @@ check('R39-9 REQ-048 任务卡接入（任务侧边栏，R45 迁至 TaskDetailDr
 check('R39-10 REQ-048 好奇心卡接入（详情抽屉）', () => { const s = read('/newtab/components/compass/CuriosityPanel.vue'); return s.includes('AssetManager') && s.includes('function onCurioAssetsChange') && s.includes('update(detailId.value, { assets: v })'); });
 check('R39-11 REQ-048 回收站硬删先清附件（R128-A3 升级：统一走 purgeCardsCompletely，附件清理在引擎内）', () => { const s = read('/newtab/views/RecycleBin.vue'); return s.includes("import { purgeCardsCompletely, type PurgeTargets } from '@/shared/storage/purge'") && s.includes('await purgeCardsCompletely(d.value, targets)') && s.includes("purgeWith('资源卡', r.title, { resources: [r] })") && s.includes("purgeWith('任务卡', t.title, { tasks: [t] })") && s.includes("purgeWith('好奇心卡', c.question, { curiosities: [c] })") && s.includes("purgeWith('分类', c.name, { categories: [c as never] })") && !s.includes('purgeAssetsOf'); });
 check('R39-12 REQ-048 设置导出页附件存储统计 + 孤儿清理入口', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes('getAssetStats') && s.includes('cleanupOrphanAssets') && s.includes('assetCount') && s.includes('assetBytes') && s.includes('📎 附件存储'); });
-check('R39-13 #61 共享资源编辑表单 ResourceEditForm 抽取（双份合一：Workspace 内联 + RDD 搜索抽屉）', () => { const shared = read('/newtab/components/ResourceEditForm.vue'); const d1 = read('/newtab/components/ResourceDetailDrawer.vue'); const d2 = read('/newtab/views/Workspace.vue'); return shared.includes('defineProps') && shared.includes('heightKey') && shared.includes("'save'") && shared.includes("'goto-task'") && shared.includes("<slot name=\"extra\"") && d1.includes('<ResourceEditForm') && d1.includes('@save="save"') && d1.includes('#extra') && d2.includes('<ResourceEditForm') && d2.includes('@save="saveResource"') && d2.includes(':show-close="true"'); });
+check('R39-13（R162 重指）共享资源编辑表单 ResourceEditForm 抽取（双份合一：Workspace 内联 + RDD 搜索抽屉；goto-task 随挂载退役）', () => { const shared = read('/newtab/components/ResourceEditForm.vue'); const d1 = read('/newtab/components/ResourceDetailDrawer.vue'); const d2 = read('/newtab/views/Workspace.vue'); return shared.includes('defineProps') && shared.includes('heightKey') && shared.includes("'save'") && !shared.includes("'goto-task'") && shared.includes("<slot name=\"extra\"") && d1.includes('<ResourceEditForm') && d1.includes('@save="save"') && d1.includes('#extra') && d2.includes('<ResourceEditForm') && d2.includes('@save="saveResource"') && d2.includes(':show-close="true"'); });
 
 // ============== 第卌轮 · V2.16.0 统一卡片模型（REQ-049~REQ-052，第卅九轮拍板） ==============
 console.log('【第卌轮 · V2.16.0 第一批：REQ-049 字段目录 + CardBase 公共基底】');
@@ -1746,7 +1746,7 @@ const inOrder = (seg) => {
   return true;
 };
 check('R79-1（R158 重指）卡片一级 hover = AI徽标/移动/删除/⋯（+断链补全）；置顶降级进右键；打开走双击 / 右键菜单', () => { const seg = RES_CARD_ACTIONS; return seg.includes('<CardAiEntry :card="r" />') && seg.includes('openMoveOne(r)') && seg.includes('deleteResource(r)') && seg.includes('fixLink(r)') && seg.includes('openResCtx($event, r)') && !seg.includes('togglePin(r)') && !seg.includes('toggleStar(r)'); });
-check('R79-2（R158 重指）卡片 hover 顺序 AI徽标→📂→🗑（→✏→⋯）；右键菜单新序固定：打开→复制→编辑→置顶→星标→移动→挂载→镜像→论点→删除', () => { const seg = RES_CARD_ACTIONS; const a = seg.indexOf('<CardAiEntry'), b = seg.indexOf('openMoveOne(r)'), c = seg.indexOf('deleteResource(r)'), x = seg.indexOf('fixLink(r)'), m = seg.indexOf('openResCtx($event, r)'); const res = read('/newtab/composables/useResourceDrawer.ts'); const k1 = res.indexOf('resCtxItems.value = ['); const k2 = res.indexOf('resCtxItems.value = [', k1 + 1); const own = k2 >= 0 ? res.slice(k2, res.indexOf('resCtx.value = {', k2)) : ''; const iOpen = own.indexOf('打开链接'), iEdit = own.indexOf('编辑详情'), iPin = own.indexOf('取消置顶'), iStar = own.indexOf('取消星标'), iMove = own.indexOf('移动分类'), iMount = own.indexOf('挂载到任务'), iMir = own.indexOf('镜像到策展台'), iDel = own.indexOf("label: '删除'"); return a >= 0 && b > a && c > b && x > c && m > x && iOpen >= 0 && iEdit > iOpen && iPin > iEdit && iStar > iPin && iMove > iStar && iMount > iMove && iMir > iMount && iDel > iMir; });
+check('R79-2（R162 重指）卡片 hover 顺序 AI徽标→📂→🗑（→✏→⋯）；右键菜单新序固定：打开→复制→编辑→置顶→星标→移动→镜像→论点→删除（挂载位随挂载关系退役）', () => { const seg = RES_CARD_ACTIONS; const a = seg.indexOf('<CardAiEntry'), b = seg.indexOf('openMoveOne(r)'), c = seg.indexOf('deleteResource(r)'), x = seg.indexOf('fixLink(r)'), m = seg.indexOf('openResCtx($event, r)'); const res = read('/newtab/composables/useResourceDrawer.ts'); const k1 = res.indexOf('resCtxItems.value = ['); const k2 = res.indexOf('resCtxItems.value = [', k1 + 1); const own = k2 >= 0 ? res.slice(k2, res.indexOf('resCtx.value = {', k2)) : ''; const iOpen = own.indexOf('打开链接'), iEdit = own.indexOf('编辑详情'), iPin = own.indexOf('取消置顶'), iStar = own.indexOf('取消星标'), iMove = own.indexOf('移动分类'), iMir = own.indexOf('镜像到策展台'), iDel = own.indexOf("label: '删除'"); return a >= 0 && b > a && c > b && x > c && m > x && iOpen >= 0 && iEdit > iOpen && iPin > iEdit && iStar > iPin && iMove > iStar && iMir > iMove && iDel > iMir && !own.includes('挂载到任务'); });
 check('R79-3 列表视图动作条补齐 ↗ / 📂 / 📡，与卡片视图同六动作同顺序', () => {
   return RES_ROW_ACTIONS.includes('openResourceLink(r)') && RES_ROW_ACTIONS.includes('openMoveOne(r)')
     && RES_ROW_ACTIONS.includes('openMirrorCard(r)') && inOrder(RES_ROW_ACTIONS);
@@ -1903,49 +1903,39 @@ const CTX_OWN = segOf(CTX_FN, '} else {', 'resCtx.value = {');
 const MOUNT_FN = segOf(read('/newtab/composables/useWorkspaceBatch.ts'), 'function toggleMountTask(', 'function closeMountOne');
 const MOUNT_PICKER = segOf(read('/newtab/composables/useWorkspaceBatch.ts'), 'const mountTaskOptions = computed<TaskCard[]>(', 'function mountProjectName');
 const RES_CARD_IFACE = segOf(read('/shared/models/index.ts'), 'export interface ResourceCard {', '\n}');
-check('R82-1（R122 重指：卡片 hover 收敛为置顶/镜像/补全）列表与看板动作条仍有 📋 挂载、镜像卡零入口，挂载入口在右键菜单', () => {
-  // R89（W4）：📋 自身的 `v-if="!isMirrorView(r)"` 上移到包裹 <template>，语义等价
+check('R82-1（R162 重指：挂载到任务整体退役）三视图动作条零挂载入口 + 右键菜单零挂载项 + 卡片 hover 仍收敛', () => {
   const G_WRAP = '<template v-if="!isMirrorView(r)">';
   return RES_CARD_ACTIONS.includes(G_WRAP) && !RES_CARD_ACTIONS.includes('rc-action mount')
-    && read('/newtab/composables/useResourceDrawer.ts').includes('挂载到任务')
-    && RES_ROW_ACTIONS.includes(G_WRAP) && RES_ROW_ACTIONS.includes('class="rr-action mount"')
-    && KANBAN_ACTIONS.includes(G_WRAP) && KANBAN_ACTIONS.includes('class="kc-action mount"');
+    && !read('/newtab/composables/useResourceDrawer.ts').includes('挂载到任务')
+    && RES_ROW_ACTIONS.includes(G_WRAP) && !RES_ROW_ACTIONS.includes('-action mount')
+    && KANBAN_ACTIONS.includes(G_WRAP) && !KANBAN_ACTIONS.includes('-action mount');
 });
-check('R82-2（R158 重指）卡片 hover 移动→删除（断链再补全，AI徽标居首）；列表/看板 📋 在 📡 之后、🗑 之前', () => {
+check('R82-2（R162 重指）卡片 hover 移动→删除（断链再补全，AI徽标居首）；列表/看板 📡 后直接 🗑（挂载位退役）', () => {
   const at = (seg, s) => seg.indexOf(s);
-  const ok = (seg) => {
-    const m = at(seg, 'openMirrorCard(r)'), n = at(seg, 'openMountOne(r)'), d = at(seg, 'deleteResource(r)');
-    return m >= 0 && n > m && d > n;
-  };
+  const ok = (seg) => { const m = at(seg, 'openMirrorCard(r)'), d = at(seg, 'deleteResource(r)'); return m >= 0 && d > m && !seg.includes('openMountOne'); };
   const cardOk = at(RES_CARD_ACTIONS, 'deleteResource(r)') > at(RES_CARD_ACTIONS, 'openMoveOne(r)') && at(RES_CARD_ACTIONS, 'openResCtx($event, r)') > at(RES_CARD_ACTIONS, 'deleteResource(r)');
   return cardOk && ok(RES_ROW_ACTIONS) && ok(KANBAN_ACTIONS);
 });
-check('R82-3 R4 右键菜单双入口：非镜像分支有挂载项，镜像分支没有（只读引用口径）', () => {
+check('R82-3（R162 重指）右键菜单两分支零挂载入口（镜像只读口径不变）', () => {
   const own = stripComments(CTX_OWN), mir = stripComments(CTX_MIRROR);
-  return own.includes('cb: () => openMountOne(r)') && own.includes("icon: 'clipboard'")
-    && !mir.includes('openMountOne');
+  return !own.includes('openMountOne') && !own.includes('挂载到任务') && !mir.includes('openMountOne');
 });
-check('R82-4 R4 单向挂载红线（R102 重指：mountTarget 以 ref 持有，表达式随之 .value）：写入函数只改 task，资源卡零赋值', () => {
-  const s = stripComments(MOUNT_FN);
-  return s.includes('const rid = mountTarget.value?.id')
-    && !/mountTarget\??\.\w+\s*=/.test(s)
-    && !s.includes('.categoryId =') && !s.includes('.pinned =') && !s.includes('.starred =');
+check('R82-4（R162 重指）挂载域实现从 useWorkspaceBatch 整体退役（零 toggleMountTask / 零 mountedResourceIds）', () => {
+  const b = stripComments(read('/newtab/composables/useWorkspaceBatch.ts'));
+  return !b.includes('toggleMountTask') && !b.includes('mountedResourceIds') && !b.includes('openMountOne');
 });
-check('R82-5 R4 单向挂载红线：ResourceCard 模型零新增挂载类反向字段', () => {
+check('R82-5（R162 重指）ResourceCard 模型零挂载类反向字段 + WorkspaceBatch 零 mountedTaskCount', () => {
   const rc = stripComments(RES_CARD_IFACE);
   return !rc.includes('mountedTaskIds') && !rc.includes('mountedTask') && !rc.includes('taskIds')
-    && read('/newtab/composables/useWorkspaceBatch.ts').includes('function mountedTaskCount(r: ResourceCard): number');
+    && !read('/newtab/composables/useWorkspaceBatch.ts').includes('mountedTaskCount');
 });
-check('R82-6 R4 选择器多选切换即生效（R102 重指：持久化经 ctx.persist 注入）：已挂载 filter 移出、未挂载展开加入（整体替换，非 push）', () => {
-  const s = stripComments(MOUNT_FN);
-  return s.includes('t.mountedResourceIds = arr.includes(rid) ? arr.filter(x => x !== rid) : [...arr, rid]')
-    && !s.includes('.push(')
-    && s.includes('t.updatedAt = Date.now()') && s.includes('persist()');
+check('R82-6（R162 重指）挂载切换实现已退役（无 mountedResourceIds 整体替换/持久化路径）', () => {
+  const b = stripComments(read('/newtab/composables/useWorkspaceBatch.ts'));
+  return !b.includes('mountedResourceIds') && !b.includes('mountTarget');
 });
-check('R82-7 R4 选择器：软删过滤 + 已挂载优先排序 + computed 内先 slice 再 sort + 上限 50', () => {
-  const p = stripComments(MOUNT_PICKER);
-  return p.includes('.filter(t => !t.deletedAt)') && p.includes('.slice()') && p.includes('.sort(')
-    && p.includes('.slice(0, 50)') && p.includes("mountedResourceIds || []).includes(rid) ? 0 : 1");
+check('R82-7（R162 重指）挂载选择器已退役（mountTaskOptions/mountProjectName/mountOneOpen 零命中）', () => {
+  const b = stripComments(read('/newtab/composables/useWorkspaceBatch.ts'));
+  return !b.includes('mountTaskOptions') && !b.includes('mountProjectName') && !b.includes('mountOneOpen');
 });
 check('R82-8 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');
@@ -2212,19 +2202,16 @@ check('R87-2 R5-①：排序五档齐备，hot 按 callCount 降序 + lastCalled
     && fn.includes("sortBy.value === 'hot'") && fn.includes('b.callCount||0') && fn.includes('b.lastCalledAt||0')
     && WS87.includes('const SORT_BY_KEYS') && WS87.includes('SORT_BY_KEYS.includes(store.ui.sortPrefs.res.by)');
 });
-check('R87-3 R5-②：筛选由 4 档扩到 8 档（optgroup 分「按链接类型 / 按状态」两组；旧四档值不变）', () => {
+check('R87-3（R162 重指）筛选 7 档（optgroup 两组；旧四档值不变，unmounted 随挂载退役）', () => {
   const sel = segOf(WS_TPL, '<select class="toolbar-select" v-model="filterBy">', '</select>');
   return sel.includes('optgroup label="按链接类型"') && sel.includes('optgroup label="按状态"')
-    && ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'unmounted'].every(k => sel.includes('value="' + k + '"'))
+    && ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets'].every(k => sel.includes('value="' + k + '"'))
+    && !sel.includes('unmounted')
     && WS87.includes('const FILTER_KEYS') && WS87.includes('const FILTER_PREDICATES');
 });
-check('R87-4 ★ R5-②：unmounted 走 mountedResIds 反查索引（筛选里不逐卡 filter tasks；单向挂载红线）', () => {
-  const idx = stripComments(segOf(WS87, 'const mountedResIds = computed', 'function isBrokenPath'));
+check('R87-4（R162 重指）unmounted 筛档与 mountedResIds 反查索引随挂载退役（谓词表零 unmounted）', () => {
   const pred = stripComments(segOf(WS87, 'const FILTER_PREDICATES', '// 筛选（第八轮'));
-  return idx.includes('d.value.tasks') && idx.includes('new Set<string>') && idx.includes('mountedResourceIds')
-    && pred.includes('unmounted: (r) => !mountedResIds.value.has(r.id)')
-    && !pred.includes('d.value.tasks.filter')
-    && !MOD87.includes('mountedTaskIds');
+  return !WS87.includes('mountedResIds') && !pred.includes('unmounted') && !MOD87.includes('mountedTaskIds');
 });
 check('R87-5 R7：zy-asset:// 附件卡判为 ok（不再被误报「待补全」）——三态判据先 zy 后 file', () => {
   const fn = stripComments(segOf(LINK87, 'export function linkStateOf(', '/** 统一打开通道'));
@@ -2683,7 +2670,7 @@ console.log('【第九十六轮 · V2.65.0：P2 首轮勘验对账与坏账清�
 const WS96 = read('/newtab/views/Workspace.vue');
 const RDD96 = read('/newtab/components/ResourceDetailDrawer.vue');
 check('R96-1 ★ P2 资源台组三项能力在位：starred 筛选（R89/W5）+ 抽屉 recordResourceOpen 统一入口（R70）+ 网格末尾 rc-add-card（第卅三轮）', () => {
-  return WS96.includes("const FILTER_KEYS = ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'starred', 'unmounted', 'hot']")
+  return WS96.includes("const FILTER_KEYS = ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'starred', 'hot']")
     && WS96.includes('starred: (r) => !!r.starred')
     && WS96.includes('class="rc-add-card"') && WS96.includes('@click="openNewResource"')
     && RDD96.includes("import { recordResourceOpen } from '@/shared/storage/stats'")
@@ -2897,13 +2884,13 @@ console.log('【第一百零二轮 · V2.71.0：Workspace 纯拆分第三批（�
  *  本断言守拆分不变量。 */
 const BAT102 = read('/newtab/composables/useWorkspaceBatch.ts');
 const WSP102 = read('/newtab/views/Workspace.vue');
-check('R102-1 ★ 整理动作域拆分不变量：四子域实现在 composable + 宿主解构绑定（含模板消费的 29 标识符）+ 宿主零重复实现', () => {
+check('R102-1（R162 重指）整理动作域拆分不变量：四子域实现在 composable + 宿主解构绑定 + 宿主零重复实现（挂载域随挂载退役）', () => {
   return BAT102.includes('export function useWorkspaceBatch(')
     && BAT102.includes('function toggleBatchMode()') && BAT102.includes('async function batchDelete()')
     && BAT102.includes('function confirmBatchMove()') && BAT102.includes('function confirmMoveOne()')
-    && BAT102.includes('function toggleMountTask(t: TaskCard)')
-    && WSP102.includes('} = useWorkspaceBatch({ d, persist: () => store.persist(), workspaceId, wsCats, allResources, allProjects, sortedResources, openResourceLink, treeCatOptions })')
-    && WSP102.includes('moveOneTarget, mountTarget,')
+    && !BAT102.includes('toggleMountTask') && !BAT102.includes('mountedResourceIds')
+    && WSP102.includes('} = useWorkspaceBatch({ d, persist: () => store.persist(), workspaceId, wsCats, allResources, sortedResources, openResourceLink, treeCatOptions })')
+    && WSP102.includes('moveOneTarget,')
     && !WSP102.includes('function toggleBatchMode()') && !WSP102.includes('async function batchDelete()')
     && !WSP102.includes('function confirmBatchMove()');
 });
@@ -3122,11 +3109,9 @@ check('R112-2 ★ 模板接线：两处分组循环改走 renderedGroups + 滚�
     && w.includes('.render-more { margin: 16px 0 4px;')
     && !w.includes('v-for="(g, gi) in resourceGroups"');
 });
-check('R112-3 ★ 挂载计数反查表：mountedTaskCount 由 O(任务数) 全表扫描改为 O(1) 查表（卡面模板每卡调用 2 次）', () => {
+check('R112-3（R162 重指）挂载计数反查表随挂载退役：mountedCountByResId/mountedTaskCount 零命中', () => {
   const b = read('/newtab/composables/useWorkspaceBatch.ts');
-  return b.includes('const mountedCountByResId = computed<Map<string, number>>(() =>')
-    && b.includes('return mountedCountByResId.value.get(r.id) || 0')
-    && !b.includes("return d.value.tasks.filter(t => !t.deletedAt && (t.mountedResourceIds || []).includes(r.id)).length");
+  return !b.includes('mountedCountByResId') && !b.includes('mountedTaskCount');
 });
 check('R112-4 ★ boardCardsOf 去重：curationMetrics 复用宿主 allResources（此前 metrics 与 allResources 各算一遍全量遍历）', () => {
   const h = read('/shared/storage/hub.ts');
@@ -3422,7 +3407,7 @@ check('R122-1 hub 页头：描述合并「N 个分类」（用户描述优先）
 check('R122-2 指标条横排盒：ws-metrics hub3 flat + 3 × metric-box（label/value）+ 附件构成/最近更新尾注 + 下钻不变', () => { const w = read('/newtab/views/Workspace.vue'); const i = w.indexOf('class="ws-metrics hub3 flat"'); const j = w.indexOf('<div v-if="!isHub" class="ws-metrics cur3">', i); const blk = i >= 0 && j > i ? w.slice(i, j) : ''; return blk !== '' && (blk.match(/class="metric-box"/g) || []).length === 3 && blk.includes('mbox-label') && blk.includes('assetKindBreakdown') && blk.includes('lastUpdateTime') && blk.includes("openDrill('total')") && blk.includes("openDrill('assets')") && blk.includes("openDrill('recent')"); });
 check('R122-3 工具条提权：＋新建卡片 / ⬇导入 / ☑批量（三态文案）一级常驻', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('＋ 新建卡片</button>') && w.includes("isHub ? '⬇ 导入资源' : '⬇ 导入数据包'") && w.includes("batchMode ? '✓ 完成批量' : '☑ 批量'"); });
 check('R122-4 一级列数方片 + 状态快捷筛选：ColsPicker chips + quick-filter 4 档（含 hot，title 口径 ≥ 3）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('<ColsPicker v-if="viewMode===\'card\'" v-model="resCols" chips label="列数" />') && w.includes('class="toolbar-select quick-filter" v-model="quickFilter"') && w.includes('<option value="hot">高频调用 🔥</option>') && w.includes('打开次数 ≥ 3'); });
-check('R122-5 hot 筛档（Q6 口径）：FILTER_KEYS 含 hot + 谓词 callCount ≥ 3 + 标签四处同步', () => { const u = read('/newtab/composables/useResourceView.ts'); return u.includes("'unmounted', 'hot']") && u.includes('hot: (r) => (r.callCount || 0) >= 3') && u.includes("hot: '高频调用 🔥'"); });
+check('R122-5 hot 筛档（Q6 口径）：FILTER_KEYS 含 hot + 谓词 callCount ≥ 3 + 标签四处同步', () => { const u = read('/newtab/composables/useResourceView.ts'); return u.includes("'starred', 'hot']") && u.includes('hot: (r) => (r.callCount || 0) >= 3') && u.includes("hot: '高频调用 🔥'"); });
 check('R122-6 分组头：直属/含子分类/共 三计数 + ResourceGroup.total + gi===0 排序入口（head-sort）', () => { const w = read('/newtab/views/Workspace.vue'); const u = read('/newtab/composables/useResourceView.ts'); return w.includes('直属 {{ g.count }}') && w.includes('个子分类共 {{ g.total }}') && w.includes('class="head-sort"') && w.includes('v-if="gi === 0"') && u.includes('total: number') && u.includes('count: direct.length, total, items: direct, depth'); });
 check('R122-7 紧凑卡骨架：rc-head/rc-type-icon/rc-title/rc-desc/rc-extra/rc-footer + 断链整卡警示与描述替换', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('class="rc-head"') && w.includes('class="rc-type-icon"') && w.includes('class="rc-title"') && w.includes('class="rc-desc"') && w.includes('class="rc-extra"') && w.includes('class="rc-footer"') && w.includes("'warning-broken': isBrokenPath(r)") && w.includes('⚠ 本地路径断链 · 点击补全'); });
 check('R122-8（R158 重指）hover 收敛：一级 = AI徽标/移动/删除/⋯（+断链补全）+ 常驻⋯复用 openResCtx；置顶降级进右键；镜像卡 = ↗/🎯/✕；无 mount/star/卡面镜像残留', () => { const w = read('/newtab/views/Workspace.vue'); const seg = w.slice(w.indexOf('<div class="res-card-actions">'), w.indexOf('<div class="rc-head">')); return seg.includes('<CardAiEntry :card="r" />') && seg.includes('class="rc-action move"') && seg.includes('class="rc-action delete"') && seg.includes('class="rc-action fix"') && seg.includes('class="rc-action more"') && seg.includes('openResCtx($event, r)') && seg.includes('class="rc-action open"') && seg.includes('class="rc-action locate"') && !seg.includes('class="rc-action pin"') && !seg.includes('togglePin(r)') && !seg.includes('openMirrorCard(r)') && !seg.includes('rc-action mount') && !seg.includes('rc-action star'); });
@@ -3642,9 +3627,9 @@ check('R135-8 创建走 store 既有通道优先：ctx.addProject 传入 compass
 // ============== R136 · V2.104.0：批次 F 第三刀 A3 按目标选卡 + 1d 搜索意图重排 ==============
 console.log('【R136 · V2.104.0：A3 应用推荐 + 1d 自然语言搜索重排】');
 check('R136-1 ★入口 chunk 守卫：GlobalPopups 按需挂载（R160-P1 起 defineAsyncComponent + 首次呼出才挂载），其 AI 依赖全懒（零静态 import @/shared/ai 运行时，R158 起豁免 registry 纯声明——零依赖静态常量可进入口 chunk），检索函数段零写库（无 persist/无 mountedResourceIds 写入），改词与换类型 tab 即清态 · R150 备案：函数改名 aiSearchRun（「AI 理解」并入「AI 检索」），守卫逐条随迁', () => { const g = read('/newtab/components/GlobalPopups.vue'); const seg = segOf(g, 'async function aiSearchRun', 'const aiTopRows'); const gNoReg = g.replace(/from '@\/shared\/ai\/jobs\/registry'/g, ''); return !gNoReg.includes("from '@/shared/ai/") && g.includes("import('@/shared/ai/select')") && !seg.includes('persist') && !seg.includes('mountedResourceIds') && g.includes("watch(searchQuery, () => { aiSearch.value = null; aiAbort(''); recordedQ = '' })") && g.includes("watch(currentType, () => { aiSearch.value = null; aiAbort('') })") && g.includes('aiAbortCtl.abort()'); });
-check('R136-2 A3 推荐任务书：参谋契约（≤5 张宁缺毋滥+why 须说支撑哪步+id 不许编造）；buildRecommendJob 排除已挂载、parse 经 sanitizeRefs、apply 二次校验卡存在且未删未重复才挂载并触任务 updatedAt', () => { const s = read('/shared/ai/scenarios.ts'); const j = read('/shared/ai/select.ts'); return s.includes('你是用户的资源调度参谋') && s.includes('目录里没有的 id 不许编造') && j.includes('new Set(task.mountedResourceIds || [])') && j.includes('sanitizeRefs(s0, ctx.d)') && j.includes('ctx.d.resources.some(x => x.id === id && !x.deletedAt)') && j.includes('t.mountedResourceIds.push(id)') && j.includes('t.updatedAt = Date.now()'); });
+check('R136-2（R162 重指：推荐挂载任务书随任务↔资源挂载退役）buildRecommendJob/recommendSystem 全仓零命中；检索任务书契约仍在（HIT_CAP=8 + 消毒账）', () => { const s = read('/shared/ai/scenarios.ts'); const j = read('/shared/ai/select.ts'); return !s.includes('你是用户的资源调度参谋') && !s.includes('export const recommendSystem') && !j.includes('buildRecommendJob') && j.includes('const HIT_CAP = 8') && j.includes('searchDropCount += dropped'); });
 check('R136-3 检索契约与消毒（R150 起为 semanticSearch）：只回读——id 必须属于给定候选集、≤8 条、同 id 取高分不重复、why 截 40 字、note 截 40 字；候选<2 或空查询拒跑；丢弃条数计入消毒账', () => { const j = read('/shared/ai/select.ts'); const g = read('/newtab/components/GlobalPopups.vue'); return j.includes('!valid.has(id)') && j.includes('const HIT_CAP = 8') && j.includes(".slice(0, 40)") && j.includes('searchDropCount += dropped') && j.includes("if (c0) { if (hit.confidence > c0.confidence) Object.assign(c0, hit); continue }") && g.includes('cands.length < 2'); });
-check('R136-4（R155-⑤ 备案：入口组件化）两入口落位：任务抽屉「推荐卡」（动态 import select）+ 搜索面板一枚「AI 检索」钮（active 态=有结果，再点清除）与 AI 置顶组（原分组列表不动） · R150 备案：第二枚钮从「AI 理解」改名，全站只留这一枚检索类 AI 入口', () => { const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const g = read('/newtab/components/GlobalPopups.vue'); return td.includes('推荐卡') && td.includes('AiEntryButton') && td.includes("import('@/shared/ai/select')") && g.includes('gp-ai-tab') && g.includes('aiSearchRun') && g.includes("'AI 检索'") && g.includes(':spin="aiBusy"') && g.includes('v-if="aiTopRows.length && !isBrowseMode"'); });
+check('R136-4（R162 重指）任务抽屉 AI 入口（拆解；推荐卡随挂载退役）+ 搜索面板「AI 检索」钮与 AI 置顶组', () => { const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); const g = read('/newtab/components/GlobalPopups.vue'); return td.includes('aiBreakdown') && td.includes('AiEntryButton') && !td.includes('推荐卡') && g.includes('gp-ai-tab') && g.includes('aiSearchRun') && g.includes("'AI 检索'") && g.includes(':spin="aiBusy"') && g.includes('v-if="aiTopRows.length && !isBrowseMode"'); });
 check('R136-5 卡目录投料纪律：cardDirectory 过滤软删、排除已挂载、上限=深度档 cards×2（eco60/std120/deep300 行封顶）', () => { const p = read('/shared/ai/project.ts'); return p.includes('export function cardDirectory') && p.includes('if (r.deletedAt || opts.excludeIds?.has(r.id)) continue') && p.includes('lines.length >= c.cards * 2'); });
 
 // ============== R137 · V2.105.0：批次 F 第四刀 库内治理扫描包（标签体检/捞回/镜像/漂移）+ 角色库 v1 ==============
@@ -3697,8 +3682,8 @@ check('R141-6 ★分类就地改名组件 CatNodeName：双击/外部 editing �
 console.log('【R142 · V2.110.0：评估体系刀】');
 check('R142-1 ★maturity.ts 规则引擎真源：taskMaturity 四维（可执行/可归属/弹药/新鲜度）→ A≥75/B≥55/C≥35/D 分级 + reasons 扣分清单；上行聚合 metricMaturity←任务均分、projectMaturity←指标、directionMaturity←项目；全链滤 deletedAt、零 fetch/零 storage（纯本地即时评）', () => { const m = read('/shared/utils/maturity.ts'); return m.includes('export function taskMaturity') && m.includes("s >= 75 ? 'A' : s >= 55 ? 'B' : s >= 35 ? 'C' : 'D'") && m.includes('export function metricMaturity') && m.includes('export function projectMaturity') && m.includes('export function directionMaturity') && m.includes('!t.deletedAt') && !m.includes('fetch(') && !m.includes('chrome.storage'); });
 check('R142-2 成熟度徽标全视图落位：MaturityBadge（hover 扣分构成、lg 详情档）——方向树四层行（目标/项目/指标/任务）、任务面板 卡+列表+看板 全行、调度台三件事与任务树、策展页指标头与任务行、项目抽屉、任务详情大徽标', () => { const t = read('/shared/components/MaturityBadge.vue'); const ct = fs.readFileSync(base + '/newtab/views/CompassTree.vue', 'utf8'); const tmp = read('/newtab/components/compass/TaskManagerPanel.vue'); const ch = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); const td = read('/newtab/components/compass/TaskDetailDrawer.vue'); return t.includes('m.reasons.join') && ["directionMaturity(d, dir)", "projectMaturity(d, proj)", "metricMaturity(d, metric)", "taskMaturity(task)"].every(x => ct.includes(x)) && (tmp.match(/MaturityBadge :m/g) || []).length >= 10 && (ch.match(/MaturityBadge :m/g) || []).length >= 2 && pc.includes('metricMaturity(d, m)') && td.includes('<MaturityBadge lg') && td.includes('taskMaturity(selectedTask)'); });
-check('R142-3 MountCountBadge 弹药计数：🔗资源数(+💡好奇数) 仅在有挂载时出现，方向树叶/面板行/调度台/策展页同款；与附件 AssetBadge 互补，任务「带着什么」跨视图一致可见', () => { const mc = read('/newtab/components/MountCountBadge.vue'); const ct = read('/newtab/views/CompassTree.vue'); const tmp = read('/newtab/components/compass/TaskManagerPanel.vue'); return mc.includes('v-if="resN() || curN()"') && mc.includes('mountedResourceIds') && ct.includes('<MountCountBadge :t="task" />') && (tmp.match(/MountCountBadge :t="task"/g) || []).length >= 10; });
-check('R142-4 好奇心「挂载资源」死字段激活：详情区搜索挂载写回 relatedResourceIds（✕ 只撤直接关联，经任务挂载只读标注）；展示口径=直接∪任务并集（curioResIds）；卡/列表/看板 🔗n + 成熟度徽标；convertToTask 随迁为任务 mountedResourceIds（含存活校验）', () => { const cp = read('/newtab/components/compass/CuriosityPanel.vue'); const m = read('/shared/utils/maturity.ts'); const cs = read('/newtab/stores/curiosity.ts'); return cp.includes('function toggleCurioRel') && cp.includes('relCandidates') && cp.includes('cz-rel-label') && m.includes('export function curioResIds') && m.includes('mountedCuriosityIds') && cs.includes('task.mountedResourceIds = [...new Set((c.relatedResourceIds || [])'); });
+check('R142-3（R162 重指）MountCountBadge 弹药计数仅剩好奇心（💡；🔗 资源计数随挂载退役），方向树叶/面板行/调度台/策展页同款', () => { const mc = read('/newtab/components/MountCountBadge.vue'); const ct = read('/newtab/views/CompassTree.vue'); const tmp = read('/newtab/components/compass/TaskManagerPanel.vue'); return mc.includes('v-if="curN()"') && mc.includes('mountedCuriosityIds') && !mc.includes('mountedResourceIds') && ct.includes('<MountCountBadge :t="task" />') && (tmp.match(/MountCountBadge :t="task"/g) || []).length >= 10; });
+check('R142-4（R162 重指）好奇心「挂载资源」直接关联：详情区搜索挂载写回 relatedResourceIds（✕ 只撤直接关联）；展示口径=直接关联（经任务挂载并集随挂载退役）；convertToTask 零 mountedResourceIds 写入', () => { const cp = read('/newtab/components/compass/CuriosityPanel.vue'); const m = read('/shared/utils/maturity.ts'); const cs = read('/newtab/stores/curiosity.ts'); return cp.includes('function toggleCurioRel') && cp.includes('relCandidates') && cp.includes('cz-rel-label') && m.includes('export function curioResIds') && m.includes('mountedCuriosityIds') && !cs.includes('mountedResourceIds'); });
 check('R142-5 内置两员可编辑（反馈 #6）：AiPersonaCfg.brief/focus 覆盖字段 + personaOverrides 透传 + allPersonas 合并（空=回落内置默认）；GS ⚙ 面板 textarea 就地改 + 「↺ 恢复内置默认」；会诊/执笔/下拉全消费合并后名单（诊断与 chainPersonaText 同源自动生效）', () => { const cf = read('/shared/ai/config.ts'); const s = read('/shared/ai/scenarios.ts'); const g = read('/newtab/views/GlobalSettings.vue'); return cf.includes('brief?: string; focus?: string') && s.includes('brief: o.brief?.trim() || p.brief') && g.includes('恢复内置默认') && g.includes('aiPatchPersona(p.id, { brief:') && g.includes('aiPatchPersona(p.id, { focus:'); });
 check('R142-6 手册 ai-2「成熟度徽标」节（A/B/C/D 语义 + 上行评级 + 规则分与 AI 深看分工）', () => { const m = read('/newtab/manual-data.ts'); return m.includes("id: 'ai-2'") && m.includes('A 就绪') && m.includes('D 空壳') && m.includes('上行评级') && m.includes('AI 深看'); });
 
@@ -3837,7 +3822,7 @@ check('R147-1 ★弱相关建议行默认不勾（不再用勾选率假装准确
   const j = read('/shared/ai/job.ts'); const sel = read('/shared/ai/select.ts'); const g = read('/shared/ai/batchG.ts'); const c = read('/shared/ai/chain.ts')
   return j.includes('weak?: boolean') && DRAWER147.includes('out.filter(r => !r.advisory && !r.weak && r.changeType') && DRAWER147.includes("function pickStrongOnly()")
     && DRAWER147.includes('低置信') && DRAWER147.includes('只留高置信') && DRAWER147.includes('picked.value.size === adoptableRows.length')
-    && sel.includes('weak: !s.why?.trim()') && g.includes('weak: !cardIds.length') && g.includes('weak: !reason') && c.includes('weak: !s.why?.trim()')
+    && g.includes('weak: !cardIds.length') && g.includes('weak: !reason') && c.includes('weak: !s.why?.trim()')
 });
 check('R147-2 ★投料计数改在线路处结算：chat/chatStream 真正发出那一刻回调上报（含网关 usage 真 token），自定义 run（多批归架/多专家会诊/按需抓正文）不再是「投料 0 字」；抽屉累计并显示次数与耗时', () => {
   const l = read('/shared/ai/llm.ts'); const gv = read('/shared/ai/govern.ts')
@@ -3848,7 +3833,7 @@ check('R147-2 ★投料计数改在线路处结算：chat/chatStream 真正发�
 check('R147-3 消毒账与空态真因点名：AiJob.audit 契约（零参、计数由工厂闭包按次攒）；五处工厂记丢弃原因，抽屉工具条显示一行、空态直接说清"投料多少/丢了几行为什么"；拆解的「思路」行改 advisory（勾了什么都不发生的行不再算采纳项）', () => {
   const j = read('/shared/ai/job.ts'); const sel = read('/shared/ai/select.ts'); const g = read('/shared/ai/batchG.ts'); const c = read('/shared/ai/chain.ts'); const gs = read('/newtab/views/GlobalSettings.vue')
   return j.includes('audit?: () => string | null') && DRAWER147.includes("auditLine.value = job.audit?.() || ''") && DRAWER147.includes('模型没有给出可采纳的建议')
-    && (sel.match(/audit: \(\) =>/g) || []).length === 1 && (g.match(/audit: \(\) =>/g) || []).length === 3 && gs.includes('audit: () =>')
+    && (sel.match(/audit: \(\) =>/g) || []).length === 0 && sel.includes('searchDropCount') && (g.match(/audit: \(\) =>/g) || []).length === 3 && gs.includes('audit: () =>')
     && c.includes("key: 'breakdown:plan', badge: '思路', advisory: true") && g.includes('drop.badVerdict++') && g.includes('drop.ghost++')
 });
 check('R147-4 ★打标克制落到行级：AI 造的体系外新词单独成行且默认不勾；knownTagSet/freshTagsOf 为唯一口径（树上路径∪叶子名活卡在用），三处消费（单卡补全/批量补全/详情抽屉）同判；RDD 仍零静态引 shared/ai（启动链红线不破）', () => {
@@ -3859,8 +3844,8 @@ check('R147-4 ★打标克制落到行级：AI 造的体系外新词单独成行
 });
 check('R147-5 ★任务级「知」菜单共享化并跨视图落位：TaskAiMenu.vue 自包含（按钮+浮层菜单+评审抽屉+样式+AI 懒栈），项目详情页两处行位与任务面板 12 处行位同组件 · R151 备案：本条原写"6 处（卡/列表/看板×2 形态）"，实为卡片与列表两视图共 6 处、看板 6 处一直缺位（写断言时按字面数了行数没核视图），R151 补齐后按 12 处钉；打开详情走宿主 @detail 通道', () => {
   const m = read('/newtab/components/TaskAiMenu.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); const tp = read('/newtab/components/compass/TaskManagerPanel.vue')
-  return !m.includes("from '@/shared/ai/") && m.includes("import('@/shared/ai/chain')") && m.includes("import('@/shared/ai/select')") && m.includes("import { AiDrawer } from './lazyAiDrawer'") /* R152：并入全站单例 */
-    && m.includes('.tam-menu {') && m.includes('拆解成子任务') && m.includes('推荐资源卡') && m.includes("emit('detail'") && m.includes('if (busy.value) return')
+  return !m.includes("from '@/shared/ai/") && m.includes("import('@/shared/ai/chain')") && !m.includes("import('@/shared/ai/select')") && m.includes("import { AiDrawer } from './lazyAiDrawer'") /* R152：并入全站单例 */
+    && m.includes('.tam-menu {') && m.includes('拆解成子任务') && m.includes("emit('detail'") && m.includes('if (busy.value) return')
     && (pc.match(/<TaskAiMenu :task=/g) || []).length === 2 && (tp.match(/<TaskAiMenu :task=/g) || []).length === 12 && tp.includes('function openTaskFromAi')
     && !pc.includes('ai-menu-item') && fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8').split('\n').length <= 1500
 });
@@ -4485,19 +4470,19 @@ check('R157-1 ★注册表是纯声明表：零 import（连 import type 都不�
   && REG_TXT.includes('export const AI_CAP_KEYS')
   && REG_TXT.includes('唯一真源'));
 
-check('R157-2 声明结构完备：kind 三值 job×17 / inline×3 / search×2、family 两值（proactive/passive —— R158 二分的字段）、入口共 22 条且 id 唯一（数量锚：增删入口必须连文档一起改）', () => {
+check('R157-2 声明结构完备：kind 三值 job×16 / inline×3 / search×2、family 两值（proactive/passive —— R158 二分的字段）、入口共 21 条且 id 唯一（数量锚：增删入口必须连文档一起改；R162 推荐挂载退役 -1）', () => {
   const ids = REG_TXT.match(/\n    id: '/g) || [];
-  return ids.length === 22
-    && (REG_TXT.match(/kind: 'job'/g) || []).length === 17
+  return ids.length === 21
+    && (REG_TXT.match(/kind: 'job'/g) || []).length === 16
     && (REG_TXT.match(/kind: 'inline'/g) || []).length === 3
     && (REG_TXT.match(/kind: 'search'/g) || []).length === 2
     && REG_TXT.includes("family: 'proactive'") && REG_TXT.includes("family: 'passive'");
 });
 
-check('R157-3 17 个工厂全部登记（漏一个 = R154 手写「17 个入口」病根复发）+ 4 个 AI 文件全被 factoryFile 指到', () =>
+check('R157-3（R162 重指）16 个工厂全部登记（漏一个 = R154 手写「17 个入口」病根复发）+ 4 个 AI 文件全被 factoryFile 指到', () =>
   ['buildThesisDraftJob','buildCurioTriageJob','buildEvidenceJob','buildDeliverJob','buildChainJob',
    'buildTagGovernJob','buildTrashRescueJob','buildCrossDeckJob','buildThesisJob','buildTagBlueprintJob',
-   'buildTagAssignJob','buildRecommendJob','buildCardEnrichJob','buildTaskParseJob','buildReviewJob',
+   'buildTagAssignJob','buildCardEnrichJob','buildTaskParseJob','buildReviewJob',
    'buildInsightJob','buildFullOptimizeJob'].every(f => REG_TXT.includes(`factory: '${f}'`))
   && ['batchG.ts','chain.ts','govern.ts','select.ts'].every(f => REG_TXT.includes(`factoryFile: 'shared/ai/${f}'`)));
 
@@ -4537,7 +4522,7 @@ const SETTINGS_FILE = read('/newtab/views/GlobalSettings.vue');
 check('R158-1 注册表 panel 声明完备：panel.mode 三值（nav/popup/hidden）；20 条显式 panel + search 型 2 条缺省 hidden；popup 只认 ai-advice；nav 必带 route+hint', () => {
   const modes = (REGISTRY_FILE.match(/mode: '(nav|popup|hidden)',/g) || []).length;
   return REGISTRY_FILE.includes('export interface AiPanelDecl')
-    && modes === 20
+    && modes === 19
     && (REGISTRY_FILE.match(/popup: 'ai-advice'/g) || []).length === 3
     && REGISTRY_FILE.includes('route?: string')
     && REGISTRY_FILE.includes('hint?: string')
@@ -4581,9 +4566,9 @@ check('R158-6 右键重排（高频在卡面、长尾在右键）：置顶/星�
   const iEdit = u.indexOf("'✏️ 编辑详情'"), iPin = u.indexOf("r.pinned ? '取消置顶' : '置顶'"), iStar = u.indexOf("r.starred ? '☆ 取消星标' : '⭐ 星标'"), iMove = u.indexOf("{ label: '移动分类'"), iThesis = u.indexOf("'🏛 设为中心论点'"), iDel = u.indexOf("{ label: '删除', icon: 'trash', danger: true");
   return iEdit > 0 && iEdit < iPin && iPin < iStar && iStar < iMove && iMove < iThesis && iThesis < iDel;
 });
-check('R158-7 ★入口数量锚只减不增：注册表仍 22 条（R157 口径）；命令面板补导航 3 条（资源台/回收站/手册）不改 ai-advice 语义', () => {
+check('R158-7 ★入口数量锚只减不增：注册表仍 21 条（R157 口径；R162 推荐挂载退役 -1）；命令面板补导航 3 条（资源台/回收站/手册）不改 ai-advice 语义', () => {
   const ids = (REGISTRY_FILE.match(/\n    id: '/g) || []).length;
-  return ids === 22
+  return ids === 21
     && GP_FILE.includes("label: '打开资源台'") && GP_FILE.includes("label: '打开回收站'") && GP_FILE.includes("label: '打开使用手册'");
 });
 check('R158-8 矩阵门禁常驻复核：R158 后 entry-matrix 仍零退出（宿主迁移漂移已被对账抓过一次——dormant-scan 锚 aiDormantScan→aiAdviceRun、cross-deck/thesis-drift 宿主随迁 GlobalPopups）', () => {
@@ -4612,6 +4597,35 @@ check('R160-6 ★P1 懒挂载：详情抽屉 defineAsyncComponent + 首个 bus �
 check('R160-7 ★P1 懒挂载：Airtable 同步器动态 import（仅真正同步时加载，入口零静态引用）', () => { const a = read('/newtab/App.vue'); return !a.includes("import { runSync } from '@/shared/storage/airtable'") && a.includes("const { runSync } = await import('@/shared/storage/airtable')") });
 check('R160-8 ★P6 boot 四键同批读：main 一次 get（主数据+V1+热度+UI）· loadData 复用热度键不再补读 · loadUIPrefs(prefetchedUI) 省一次往返', () => { const m = read('/newtab/main.ts'); const r = read('/shared/storage/repository.ts'); return m.includes('cs.get([STORAGE_KEY, K.LEGACY[0], HOT_KEY, UI_KEY])') && m.includes('loadUIPrefs(boot.ui)') && r.includes('prefetched[HOT_KEY] !== undefined ? prefetched : await cs.get([HOT_KEY])') && r.includes('loadUIPrefs(prefetchedUI?: unknown)') });
 check('R160-9 ★P5 写盘合并：整库 set 同批带热度键与待写事件日志（1 次 IPC）· 日志内存缓存 + 冷路径自愈落盘 + 外部写入刷缓存', () => { const r = read('/shared/storage/repository.ts'); const e = read('/shared/utils/eventLog.ts'); return (r.match(/\[HOT_KEY\]: extractHot\(cache!?\)/g) || []).length === 2 && r.includes('...(takeEventLogPatch() || {})') && !r.includes('writeHot(cache)') && e.includes('export function takeEventLogPatch') && e.includes('let logCache: CardEvent[] | null = null') && e.includes('export function initEventLog') && e.includes('flushEventLogNow') });
+
+// ============== R162 · 挂载关系退役 / 附件链路修复 / AI 标签优先复用 ==============
+console.log('【R162 · 挂载退役 · 附件修复 · AI 标签复用】');
+check('R162-1 ★任务↔资源挂载关系整体退役：模型零字段 + 全仓零业务引用（仅 models 注释/迁移读型/存储清理器允许）+ 详情两处区块退役', () => {
+  const fs2 = require('fs'); const path2 = require('path'); const root = path2.resolve(__dirname, '..', 'src'); const hits = [];
+  const allow = ['shared/models/index.ts', 'shared/storage/migration.ts', 'shared/storage/repository.ts'];
+  const walk = (d) => { for (const f of fs2.readdirSync(d)) { const p = path2.join(d, f); const st = fs2.statSync(p); if (st.isDirectory()) walk(p); else if (/\.(ts|vue)$/.test(f)) { const s = fs2.readFileSync(p, 'utf8'); if (s.includes('mountedResourceIds') && !allow.some(a => p.replace(/\\/g, '/').endsWith(a))) hits.push(p); } } };
+  walk(root);
+  const m = read('/shared/models/index.ts');
+  const ref = read('/newtab/components/ResourceEditForm.vue');
+  const td = read('/newtab/components/compass/TaskDetailDrawer.vue');
+  return hits.length === 0 && !m.includes('mountedResourceIds: ID[]') && !ref.includes('mountedTasks') && !td.includes('挂载资源卡') && !td.includes('toggleMountResource');
+});
+check('R162-2 ★附件串卡修复：两处宿主单例清键（resetEditing）+ emptyResource 带 assets', () => {
+  const a = read('/newtab/composables/useResourceDrawer.ts'); const b = read('/newtab/components/ResourceDetailDrawer.vue');
+  return a.includes('function resetEditing(target: ResourceCard, src: ResourceCard)') && (a.match(/resetEditing\(editingResource/g) || []).length === 4 && a.includes('updatedAt: 0, assets: [] }') && b.includes('function resetEditing(src: ResourceCard)') && b.includes('updatedAt: 0, assets: [] }');
+});
+check('R162-3 ★附件双击打开：行级 dblclick + 去抖；打开通道按文件权限分流（isAllowedFileSchemeAccess → file:// / downloads.open → 系统程序）', () => {
+  const am = read('/shared/components/AssetManager.vue'); const ab = read('/shared/components/AssetBadge.vue'); const h = read('/shared/utils/htmlAsset.ts');
+  return am.includes('function openAssetOnce(meta: AssetMeta)') && am.includes('@dblclick="openAssetOnce(a)"') && ab.includes('@dblclick="openAsset(a)"') && h.includes('function isFileAccessAllowed()') && h.includes('function openDownloaded(id: number)') && h.includes('isAllowedFileSchemeAccess') && h.includes('dl.open(id)');
+});
+check('R162-4 ★AI 标签优先复用：词表带父/子路径 + 批量/优化提示词硬指令 + canonicalTagsOf 三处 parse 归一 + 双 apply 归一', () => {
+  const p = read('/shared/ai/project.ts'); const s = read('/shared/ai/scenarios.ts'); const sel = read('/shared/ai/select.ts'); const gs = read('/newtab/views/GlobalSettings.vue'); const tg = read('/shared/utils/tags.ts');
+  return tg.includes('export function canonicalTagOf(') && tg.includes('export function canonicalTagsOf(') && p.includes("prefix + '/' + n.name") && s.includes('优先复用给定标签词表中的写法（含「父/子」路径）') && s.includes('**优先从材料里的【现有标签词表】选**') && (sel.match(/canonicalTagsOf\(ctx\.d/g) || []).length === 4 && gs.includes('canonicalTagsOf(d,') && gs.includes('canonicalTagsOf(dd,');
+});
+check('R162-5 详情底部不再挤压：动作条按钮禁折行 + 最小宽度（两宿主）', () => {
+  const css = read('/newtab/views/workspace.css'); const d = read('/shared/components/Drawer.vue'); const rdd = read('/newtab/components/ResourceDetailDrawer.vue');
+  return css.includes('white-space: nowrap; min-width: 84px;') && css.includes('.dr-footer-btn.ai { flex: 0 0 auto; padding: 8px 13px; white-space: nowrap; }') && d.includes('flex-wrap: wrap') && rdd.includes('min-width: 84px;');
+});
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

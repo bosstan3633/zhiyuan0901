@@ -121,7 +121,6 @@ async function save() {
         priority: 'medium' as const,
         projectId: taskProjectId.value || undefined,
         metricId: taskMetricId.value || undefined,
-        mountedResourceIds: [] as string[],
         mountedCuriosityIds: [] as string[],
         customFields: {},
         tags: [] as string[],

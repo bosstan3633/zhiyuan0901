@@ -1055,7 +1055,7 @@ import { getAssetStats, cleanupOrphanAssets, getAllAssets, putAssets } from '@/s
 import { purgeCardsCompletely, recycledCardsOf } from '@/shared/storage/purge'
 import { clearHot } from '@/shared/storage/hotStats'
 import { getMutationSeq } from '@/shared/storage/repository'
-import { freshTagsOf, knownTagSet } from '@/shared/utils/tags'
+import { freshTagsOf, knownTagSet, canonicalTagsOf } from '@/shared/utils/tags'
 import { buildZip, readZip, type ZipEntry } from '@/shared/utils/zip'
 import { visibleFields, allFields } from '@/shared/utils/fields'
 import { sanitizeCardCols } from '@/shared/utils/cardCols'
@@ -2302,7 +2302,7 @@ function exportWorkspace() {
   const subset: AppData = {
     ...(rootForExport as unknown as AppData), workspaces: [ws], categories: cats,
     resources: d.resources.filter(r => r.workspaceId === ws.id),
-    tasks: d.tasks.filter(t => t.mountedResourceIds?.some(rid => d.resources.find(r => r.id === rid)?.workspaceId === ws.id)),
+    tasks: d.tasks,
     curiosities: d.curiosities.filter(c => c.relatedResourceIds?.some(rid => d.resources.find(r => r.id === rid)?.workspaceId === ws.id)),
     // R63-2：只带本台的镜像引用（projection 指向资源台真身，导入合并按 id 并集恢复）
     curationProjections: (d.curationProjections || []).filter(p => p.targetWsId === ws.id)
@@ -2851,7 +2851,8 @@ function aiEnrichIds(ids: Set<string>) {
         if (!s.cardId) continue
         const card = cards.find(c => c.id === s.cardId)
         if (!card) continue
-        const addTags = (s.tags || []).filter(t => typeof t === 'string' && t.trim() && !(card.tags || []).includes(t))
+        // R162：先归一回既有标签体系，查不到才保留为真新词
+        const addTags = canonicalTagsOf(d, (s.tags || []).filter(t => typeof t === 'string' && t.trim())).filter(t => !(card.tags || []).includes(t))
         const fresh = freshTagsOf(addTags, known)
         if (fresh.length) drop.fresh++
         const parts: string[] = []
@@ -2872,7 +2873,7 @@ function aiEnrichIds(ids: Set<string>) {
         const s = r.data as EnrichSuggestion & { addTags?: string[] }
         const card = dd.resources.find(x => x.id === s.cardId && !x.deletedAt)
         if (!card) continue
-        if (s.addTags?.length) card.tags = [...new Set([...(card.tags || []), ...s.addTags])].slice(0, 10)
+        if (s.addTags?.length) card.tags = [...new Set([...(card.tags || []), ...canonicalTagsOf(dd, s.addTags)])].slice(0, 10)
         if (s.description?.trim() && !card.description) card.description = s.description.trim()
         if (s.categoryId && dd.categories.some(c => c.id === s.categoryId && !c.deletedAt)) card.categoryId = s.categoryId
         card.updatedAt = Date.now()
@@ -2910,7 +2911,7 @@ function aiDiagnose() {
           id: uid('tk'), kind: 'task', title: String(f.title).slice(0, 40), status: 'todo',
           priority: f.severity === 'high' ? 'high' : f.severity === 'low' ? 'low' : 'medium',
           description: ['🧠 诊断发现：', f.detail, f.suggestion && `➜ 建议：${f.suggestion}`].filter(Boolean).join('\n').slice(0, 600),
-          mountedResourceIds: [], mountedCuriosityIds: [], customFields: {},
+          mountedCuriosityIds: [], customFields: {},
           createdAt: Date.now(), updatedAt: Date.now(),
         } as import('@/shared/models').TaskCard)
         n++

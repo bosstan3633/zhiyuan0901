@@ -47,16 +47,22 @@ function cardLine(d: AppData, r: ResourceCard, c: typeof CAP.std): string {
   return bits.join(' | ')
 }
 
-/** 标签词表（打标建议必须落在既有标签或明确新标签） */
+/** 标签词表（打标建议必须落在既有标签或明确新标签）
+ *  R162：改喂「父/子」路径——旧实现只给节点裸名，模型看不到层级，体系里的子标签（如「生活/宜居城市」）
+ *  容易被写成裸名新词；与落库口径（tagPathOf）对齐后，模型能直接选中既有子标签。 */
 function tagVocab(d: AppData, cap: number): string {
   const seen = new Set<string>()
-  for (const n of d.tagTree || []) { collectTagNames(n, seen) }
+  const walk = (nodes: { name: string; children?: unknown[] }[], prefix: string) => {
+    for (const n of nodes || []) {
+      const p = prefix ? prefix + '/' + n.name : n.name
+      seen.add(p)
+      const kids = n.children as { name: string; children?: unknown[] }[] | undefined
+      if (kids?.length) walk(kids, p)
+    }
+  }
+  walk(d.tagTree || [], '')
   for (const r of d.resources || []) for (const t of r.tags || []) seen.add(t)
   return [...seen].slice(0, cap).join('、')
-}
-function collectTagNames(node: { name: string; children?: unknown[] }, seen: Set<string>) {
-  seen.add(node.name)
-  for (const c of node.children || []) collectTagNames(c as never, seen)
 }
 
 /** 单卡画像：卡本体 + 同分类邻居目录（供"这张卡是干嘛的、和谁同类"判断） */

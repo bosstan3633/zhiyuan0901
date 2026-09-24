@@ -239,7 +239,7 @@ function confirmGoalImport(payload: { goal?: GoalParseResult }) {
           status: 'todo', priority: 'medium',
           description: t.detail || undefined,
           tags: [], customFields: {}, pinned: false,
-          mountedResourceIds: [], mountedCuriosityIds: [],
+          mountedCuriosityIds: [],
           createdAt: Date.now(), updatedAt: Date.now()
         }
         d.value.tasks.unshift(task)

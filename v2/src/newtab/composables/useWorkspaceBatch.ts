@@ -3,16 +3,15 @@
  * 自 Workspace.vue 原位迁出（零行为变更）。
  *
  * 边界约定（04-51 任务书）：
- * - 三视图模板（勾选框 / batch-bar / 移动与挂载弹窗）留在宿主，本 composable 只持有
+ * - 三视图模板（勾选框 / batch-bar / 移动弹窗）留在宿主，本 composable 只持有
  *   状态与动作实现，经解构保持宿主原标识符（R100 模式）；
- * - **单向挂载红线随迁**：挂载只写 `task.mountedResourceIds`，资源卡零新增反向字段；
- *   "被谁挂着"一律反查 d.tasks（不落缓存副本）；
- * - ctx 注入：d / persist / workspaceId / wsCats / allProjects / sortedResources /
+ *   （R162：挂载到任务域随任务↔资源挂载关系退役）
+ * - ctx 注入：d / persist / workspaceId / wsCats / sortedResources /
  *   openResourceLink / treeCatOptions；showToast / useConfirm / uid / isMirrorView /
  *   removeProjection 直接 import 共享实现。
  */
 import { ref, computed, watch, type ComputedRef } from 'vue'
-import type { AppData, Category, Project, ResourceCard, TaskCard } from '@/shared/models'
+import type { AppData, Category, Project, ResourceCard } from '@/shared/models'
 import { uid } from '@/shared/utils'
 import { isMirrorView, removeProjection, type MirrorView } from '@/shared/storage/hub'
 import { showToast } from '@/shared/components/toast'
@@ -25,7 +24,6 @@ export interface WorkspaceBatchCtx {
   wsCats: ComputedRef<Category[]>
   /** 台内原生卡 + 镜像卡视图模型（boardCardsOf），批量选择的数据源 */
   allResources: ComputedRef<ResourceCard[]>
-  allProjects: () => Project[]
   /** 当前排序后的可见卡（全选的数据源） */
   sortedResources: ComputedRef<ResourceCard[]>
   openResourceLink: (r: ResourceCard) => void
@@ -33,7 +31,7 @@ export interface WorkspaceBatchCtx {
 }
 
 export function useWorkspaceBatch(ctx: WorkspaceBatchCtx) {
-  const { d, persist, workspaceId, wsCats, allResources, allProjects, sortedResources, openResourceLink, treeCatOptions } = ctx
+  const { d, persist, workspaceId, wsCats, allResources, sortedResources, openResourceLink, treeCatOptions } = ctx
 
   // ===== 批量选择核心 =====
   const batchMode = ref(false)
@@ -143,92 +141,10 @@ export function useWorkspaceBatch(ctx: WorkspaceBatchCtx) {
     showToast('✓ 已移动分类')
   }
 
-  // ===== R82（R4）：挂载到任务（资源卡侧发起端） =====
-  /**
-   * ★ 单向挂载红线：只写 `task.mountedResourceIds`，**资源卡零新增反向字段**。
-   * 资源卡侧要知道"被哪些任务挂着"一律**反查** d.tasks（与 ResourceEditForm.vue:52 同款），
-   * 不落任何缓存副本——反查同一份数据 ⇒ 任务侧与资源卡侧计数天然同步。
-   */
-  const mountOneOpen = ref(false)
-  const mountSearch = ref('')
-  // R102：模板弹窗标题读 mountTarget?.title——以 ref 持有并返回（可观察行为等价：开弹窗同一 tick 内渲染）
-  const mountTarget = ref<ResourceCard | null>(null)
-  /**
-   * R112 性能：挂载计数反查表（O(任务数) 一次建表 → 此后 O(1)）。
-   * 与宿主 `mountedResIds` 同款思路——该处注释已写明「不能在筛选里逐卡 mountedTaskCount，
-   * O(卡数×任务数)，触 R83 性能红线」，但**卡面模板仍在逐卡调用它两次**（`:class` 与 `:title`，
-   * 卡片/列表/看板三视图均如此）：400 卡 × 400 任务 × 2 ≈ 32 万次比较，且每次重渲染都跑。
-   * 本表只是派生索引，不写任何反向字段（单向挂载红线不变）。
-   */
-  const mountedCountByResId = computed<Map<string, number>>(() => {
-    const m = new Map<string, number>()
-    for (const t of d.value.tasks) {
-      if (t.deletedAt) continue
-      const ids = t.mountedResourceIds
-      if (!ids || !ids.length) continue
-      // 同一任务内重复 id 只计一次（与原 filter + includes 的布尔语义一致）
-      for (const rid of ids.length === 1 ? ids : [...new Set(ids)]) m.set(rid, (m.get(rid) || 0) + 1)
-    }
-    return m
-  })
-  /** 反查：该资源被多少个未软删任务挂载（走反查表，O(1)） */
-  function mountedTaskCount(r: ResourceCard): number {
-    return mountedCountByResId.value.get(r.id) || 0
-  }
-  function isMountedOn(t: TaskCard): boolean {
-    const rid = mountTarget.value?.id
-    return !!rid && (t.mountedResourceIds || []).includes(rid)
-  }
-  /** 选择器数据源：未软删 → 关键词过滤 → 已挂载优先 → 最近更新在前 → 上限 50 */
-  const mountTaskOptions = computed<TaskCard[]>(() => {
-    const kw = mountSearch.value.trim().toLowerCase()
-    const rid = mountTarget.value?.id || ''
-    return d.value.tasks
-      .filter(t => !t.deletedAt)
-      .filter(t => !kw || (t.title || '').toLowerCase().includes(kw))
-      .slice()                                   // computed 禁就地 sort：先复制
-      .sort((a, b) => {
-        const ma = (a.mountedResourceIds || []).includes(rid) ? 0 : 1
-        const mb = (b.mountedResourceIds || []).includes(rid) ? 0 : 1
-        if (ma !== mb) return ma - mb
-        return (b.updatedAt || 0) - (a.updatedAt || 0)
-      })
-      .slice(0, 50)
-  })
-  function mountProjectName(t: TaskCard): string {
-    // 项目挂在 compass.directions[].projects 下（无扁平表），走 useCompass 的 allProjects——
-    // 与方向台共用同一份扁平化口径，不在此处另写一遍 flatMap
-    const p = allProjects().find(x => x.id === t.projectId)
-    return p ? `项目·${p.name}` : ''
-  }
-  function openMountOne(r: ResourceCard) {
-    if (isMirrorView(r)) { showToast('📡 镜像卡为引用——挂载请在资源台操作'); return }
-    mountTarget.value = r
-    mountSearch.value = ''
-    mountOneOpen.value = true
-  }
-  /** 多选切换即生效：点一下挂载、再点一下取消（与任务侧 TaskDetailDrawer 挂载 UI 对称） */
-  function toggleMountTask(t: TaskCard) {
-    const rid = mountTarget.value?.id
-    if (!rid) return
-    const arr = t.mountedResourceIds || []
-    // 整体替换而非 push —— 直接改数组元素的部分路径不触发响应式
-    t.mountedResourceIds = arr.includes(rid) ? arr.filter(x => x !== rid) : [...arr, rid]
-    t.updatedAt = Date.now()
-    persist()
-  }
-  function closeMountOne() {
-    const n = mountTarget.value ? mountedTaskCount(mountTarget.value) : 0
-    mountOneOpen.value = false
-    mountTarget.value = null
-    if (n) showToast(`✓ 已挂载 ${n} 个任务`)
-  }
-
   return {
-    moveOneTarget, mountTarget,
+    moveOneTarget,
     batchMode, selectedIds, toggleBatchMode, toggleSelect, selectAllVisible, selectedCards, batchOpen, batchDelete,
     moveModalOpen, moveWsId, moveCatId, moveWorkspaces, moveCatOptions, openBatchMove, confirmBatchMove,
-    moveOneOpen, moveOneCatId, moveOneOptions, openMoveOne, confirmMoveOne,
-    mountOneOpen, mountSearch, mountedTaskCount, isMountedOn, mountTaskOptions, mountProjectName, openMountOne, toggleMountTask, closeMountOne
+    moveOneOpen, moveOneCatId, moveOneOptions, openMoveOne, confirmMoveOne
   }
 }

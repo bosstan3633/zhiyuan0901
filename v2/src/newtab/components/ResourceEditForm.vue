@@ -3,12 +3,12 @@
  * 第卅九轮 V2.15.0（技术债，第卅七轮 REQ-042 拍板）：资源卡编辑表单（共享单份）
  * - 合一对象：Workspace 内联抽屉（原 dr-* 字段区/标题/footer）与 ResourceDetailDrawer（原 red-* 全套）
  * - 范围：标题 / 链接(类型·输入·file 告警) / 策展台 / 分类(随台联动) / TagPicker / 描述(拖拽记忆) /
- *         附件(REQ-048) / extra 插槽(宿主差异内容，如使用统计) / 被任务挂载 / 创建更新时刻 / footer 动作条
+ *         附件(REQ-048) / extra 插槽(宿主差异内容，如使用统计) / 创建更新时刻 / footer 动作条
+ *         （R162：被任务挂载区块随任务↔资源挂载关系退役）
  * - 行为约定（与两宿主原实现完全一致）：
  *   ① 标题/链接/描述 Ctrl+Enter 保存（emit save）
  *   ② 切换策展台 → 清空分类（REQ-005）
  *   ③ 附件变更即时持久化：已入库卡(idx>=0)写回 + persist；新建未入库仅暂挂 model（宿主保存时统一入库）
- *   ④ 挂载任务点击 → 跳任务中心（emit goto-task）
  *   ⑤ footer：删除/复制链接/打开链接/保存 → 宿主各自 handler（新建/编辑差异、deleting 锁差异在宿主）
  * - 宿主保留：容器与开关态（Drawer.vue 或自绘 overlay/drawer）、save/delete/open/copy handler、highlight 触发
  */
@@ -22,7 +22,7 @@ import { useTaHeight } from '@/shared/utils/taHeight'
 // R87（R7）：链接三态判据收敛到 shared/utils/link（此前 isFullPath 是本组件私有函数，卡片视图用不到）
 import { linkStateOf } from '@/shared/utils/link'
 import { CURATION_WS_ID } from '@/shared/models'
-import type { ResourceCard, TaskCard, Category, AssetMeta } from '@/shared/models'
+import type { ResourceCard, Category, AssetMeta } from '@/shared/models'
 
 const props = defineProps<{
   /** 编辑中的资源卡（宿主 reactive 对象，字段直接 v-model 生效） */
@@ -37,8 +37,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   /** Ctrl+Enter 快捷保存（宿主执行保存+关闭） */
   (e: 'save'): void
-  /** 挂载任务点击 → 宿主跳任务中心 */
-  (e: 'goto-task', t: TaskCard): void
   /** 自绘容器（无 header ×）点关闭 */
   (e: 'close'): void
 }>()
@@ -66,8 +64,6 @@ const wsOptions = computed(() => {
 })
 /** 分类随所选策展台联动（REQ-005） */
 const catOptions = computed(() => treeCatOptions((d.value.categories || []).filter(c => c.workspaceId === props.model.workspaceId)))
-/** 被任务挂载（只读，点击跳任务中心） */
-const mountedTasks = computed(() => d.value.tasks.filter(t => !t.deletedAt && (t.mountedResourceIds || []).includes(props.model.id)))
 const linkPlaceholder = computed(() => {
   if (props.model.linkType === 'url') return 'https://...'
   if (props.model.linkType === 'file') return 'D:\\path\\to\\file.pdf'
@@ -137,8 +133,6 @@ function onHtmlAdded(meta: AssetMeta, replacedOld: AssetMeta | null) {
   onAssetsChange(props.model.assets)
 }
 
-function goOpenTask(t: TaskCard) { emit('goto-task', t) }
-
 function fmtTs(ts?: number): string {
   return ts ? new Date(ts).toLocaleString('zh-CN', { hour12: false }) : '—'
 }
@@ -202,22 +196,12 @@ function fmtTs(ts?: number): string {
 
     <!-- 附件折叠 -->
     <details class="ds-details" style="margin-top:12px">
-      <summary>📎 附件 <span v-if="model.assets?.length" class="cnt">({{ model.assets.length }})</span><span class="right">图片弹窗预览 / HTML 新标签打开</span></summary>
+      <summary>📎 附件 <span v-if="model.assets?.length" class="cnt">({{ model.assets.length }})</span><span class="right">图片弹窗预览 / HTML·PDF 双击打开</span></summary>
       <AssetManager v-model="model.assets" :owner-id="model.id" @update:model-value="onAssetsChange" @html-added="onHtmlAdded" />
     </details>
 
     <!-- 宿主差异内容（如 RDD 使用统计）：插在附件与挂载之间，保持原字段顺序 -->
     <slot name="extra" />
-
-    <details class="ds-details" style="margin-top:12px">
-      <summary>📋 被任务挂载 <span v-if="mountedTasks.length" class="cnt">({{ mountedTasks.length }})</span></summary>
-      <div v-if="mountedTasks.length" class="ref-mounted-list">
-        <div v-for="t in mountedTasks" :key="t.id" class="ref-mounted-item" @click="goOpenTask(t)">
-          <span class="ref-mi-icon">📋</span> {{ t.title }}
-        </div>
-      </div>
-      <div v-else class="ref-empty">暂无任务挂载此资源</div>
-    </details>
 
     <div v-if="model.createdAt" class="ds-meta" style="margin-top:6px">
       <span>创建 {{ fmtTs(model.createdAt) }}</span>
@@ -276,10 +260,5 @@ function fmtTs(ts?: number): string {
   opacity: .5; background: linear-gradient(135deg, transparent 50%, var(--text-3) 50%);
 }
 
-.ref-mounted-list { display: flex; flex-direction: column; gap: 4px; }
-.ref-mounted-item { padding: 6px 10px; background: var(--surface-2); border-radius: 6px; font-size: var(--fs-sub); color: var(--text); cursor: pointer; }
-.ref-mounted-item:hover { background: var(--surface-3); }
-.ref-mi-icon { margin-right: 4px; }
-.ref-empty { font-size: var(--fs-sub); color: var(--text-3); padding: 4px 0; }
 .ref-time { font-size: var(--fs-caption); color: var(--text-3); }
 </style>
