@@ -71,6 +71,32 @@ const MODAL_VIEWS = [
 
 const VIEWPORT = { width: 1440, height: 900 }
 
+/**
+ * R165-A 补漏：本轮主交付面是**三张卡的详情抽屉**，而本脚本此前只抓四个台面默认态 + AI 评审弹窗
+ * ——等于"走查过了，但没走过真正改动的那一面"。补 4 主题 × 3 卡详情 = 12 张。
+ * 每张现场核三条判据：抽屉真开 / AI 主上下文动作在**标题行** / 页脚**恰好两钮**。
+ * **任一不过即非零退出**——只出图不核判据的走查是自我安慰：首轮实跑就抓到"以为打开了其实打开的是空页面"。
+ *
+ * 选择器注意（都踩过）：
+ *  · 任务行在卡片/列表/看板三形态类名各异（.tm-card / .trow / …），共有的是 `[data-tid]`；
+ *  · 资源卡链接的 ↗/ 复用 `.dr-footer-btn` 类但住在正文里，页脚计数必须按 `.dr-footer` 容器取，不能按类名全站数；
+ *  · 三张卡详情各在哪个台面：资源卡在资源台，任务/好奇在**调度台首页底部 Tab**（CompassHome 挂 '/'）。
+ */
+const DRAWER_VIEWS = [
+  {
+    id: 'drawer-resource', name: '资源卡详情', hash: '#/workspace/zy-curation',
+    card: '.res-card', open: '.ref-form', ai: '.ref-title-row .dr-footer-btn.ai', foot: '.dr-footer button',
+  },
+  {
+    id: 'drawer-task', name: '任务卡详情', hash: '#/', tab: '任务调度',
+    card: '[data-tid]', open: '.task-sidebar', ai: '.task-sidebar .ts-ai-btn', foot: '.ts-foot button',
+  },
+  {
+    id: 'drawer-curio', name: '好奇心详情', hash: '#/', tab: '好奇心培育',
+    card: '.cz-card', open: '.drawer .ds-quote', ai: '.drawer-header .cz-ai-btn', foot: '.drawer-footer button',
+  },
+]
+
 /** 浮层是否还挂着（两代壳都认：R161 起的中央弹窗 `.md-panel` + V3.2.1 及以前的右侧抽屉 `.drawer`）。 */
 async function overlayOpen(page) {
   return await page.locator('.md-panel, .drawer').first().isVisible().catch(() => false)
@@ -173,6 +199,7 @@ async function main() {
   /** R161：Esc 若关不掉弹窗，遗留浮层会串场到下一主题的四个台面图（同文档内切 hash 不重载），
    *  24 张图里有 18 张就被一条弹窗盖住了 —— 这正是本轮实测抓到的 Modal.vue 缺陷，故列为硬告警。 */
   const escLeak = []
+  const drawerFail = []
   for (const theme of themes) {
     // 上一主题遗留的浮层先清掉（best-effort）：不掩盖问题——下面每张弹窗图收尾都会判一次 Esc
     if (await overlayOpen(page)) {
@@ -230,6 +257,38 @@ async function main() {
       }
       await closeOverlays(page) /* 兜底清场（旧包的 .drawer 在此清掉，不把遗留带进下一主题） */
     }
+    // R165-A 补漏：三张卡的详情抽屉（本轮主交付面）——判据不过即记账，收尾统一非零退出
+    for (const v of DRAWER_VIEWS) {
+      await page.setViewportSize(VIEWPORT)
+      await page.goto(base + v.hash, { waitUntil: 'domcontentloaded' })
+      await page.waitForTimeout(1800)
+      if (v.tab) {
+        await page.locator('.bt-tab', { hasText: v.tab }).first().click().catch(() => {})
+        await page.waitForTimeout(1200)
+      }
+      const n = await page.locator(v.card).count().catch(() => 0)
+      if (!n) {
+        drawerFail.push(`${theme}/${v.id}：台面上没有卡片可点（${v.card} 命中 0）——数据没种上或视图没渲染`)
+        console.log(`  ✗ ${theme.padEnd(8)} ${v.name} — ${v.card} 命中 0，这张图不作数`)
+        continue
+      }
+      await page.locator(v.card).first().click().catch(() => {})
+      await page.waitForTimeout(900) /* 抽屉有进场动效，等它落位再截 */
+      await resetView(page)
+      const opened = await page.locator(v.open).first().isVisible().catch(() => false)
+      const aiInHead = await page.locator(v.ai).first().isVisible().catch(() => false)
+      const footCount = await page.locator(v.foot).count().catch(() => -1)
+      const file = path.join(outDir, `${theme}-${v.id}.png`)
+      await page.screenshot({ path: file })
+      const kb = Math.round(fs.statSync(file).size / 1024)
+      shots.push(file)
+      const ok = opened && aiInHead && footCount === 2
+      console.log(`  ${ok ? '✓' : '✗'} ${theme.padEnd(8)} ${v.name.padEnd(6)} 开=${opened ? '是' : '否'} AI在标题行=${aiInHead ? '是' : '否'} 页脚钮=${footCount}   → ${path.basename(file)} (${kb}KB)`)
+      if (!ok) drawerFail.push(`${theme}/${v.id}：开=${opened} AI在标题行=${aiInHead} 页脚钮数=${footCount}（应为 2）`)
+      await page.keyboard.press('Escape').catch(() => {})
+      await page.waitForTimeout(400)
+      await closeOverlays(page)
+    }
     await page.setViewportSize(VIEWPORT)
     console.log(`  主题 ${theme} 落盘（data-theme=${okTheme}）`)
   }
@@ -237,10 +296,14 @@ async function main() {
   await page.evaluate(async () => { await chrome.storage.local.remove(['zy_ai_v1']) }).catch(() => {})
   await ctx.close()
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
-  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length)
-  if (shots.length !== want) process.exit(1)
+  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length)
+  if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情)）`); process.exit(1) }
   if (escLeak.length) {
     console.log(`❌ Esc 未能关闭中央弹窗：${escLeak.join(' / ')}（台面图已受影响，请查 Modal.vue 的 watch immediate）`)
+    process.exit(1)
+  }
+  if (drawerFail.length) {
+    console.log(`❌ 卡详情抽屉判据未过 ${drawerFail.length} 项：\n  ` + drawerFail.join('\n  '))
     process.exit(1)
   }
 }

@@ -453,6 +453,7 @@ export function buildInsightJob(ctx: SelectCtx): AiJob | null {
  */
 export function buildFullOptimizeJob(card: ResourceCard, ctx: SelectCtx): AiJob {
   const personaText = chainPersonaText(ctx.personaId || '')
+  const known = knownTagSet(ctx.d)
   const job: AiJob = {
     key: 'opt:' + card.id,
     title: `AI 全方位优化 · ${card.title.slice(0, 14) || '（无名卡）'}`,
@@ -490,8 +491,14 @@ export function buildFullOptimizeJob(card: ResourceCard, ctx: SelectCtx): AiJob 
       else rows.push({ key: 'desc:same', badge: '描述', main: card.description || '（空）', pair: 'desc', changeType: 'same', data: {} })
       // R162：同单卡补全——先归一回体系，再截断
       const newTags = canonicalTagsOf(ctx.d, (s.tags || []).filter(t => typeof t === 'string' && t.trim())).filter(t => !have.includes(t)).slice(0, 4)
-      if (newTags.length) rows.push({ key: 'tags', badge: '标签', main: [...have, ...newTags].join('、'), sub: `并入 ${newTags.join('、')}（标签只加不减，要删去标签管理）`, pair: 'tags', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { tags: tagDiff(t.main, have) } }) }, data: { tags: newTags } })
+      /* R165-A 补漏：R147-a 的「体系外新词单独成行、默认不勾」原先只装在 buildCardEnrichJob 一处，
+         这条工厂没有——而 R165-A 把详情抽屉的两枚入口并成一枚后，**留下的恰好是没装那道闸的这条**，
+         等于把红线绕过去。两条工厂必须同口径（断言 R147-4 已升级为"点名两个单卡工厂各自都在切新词"）。 */
+      const fresh = freshTagsOf(newTags, known)
+      const inSys = newTags.filter(t => fresh.indexOf(t) < 0)
+      if (inSys.length) rows.push({ key: 'tags', badge: '标签', main: [...have, ...inSys].join('、'), sub: `并入 ${inSys.join('、')}（标签只加不减，要删去标签管理）`, pair: 'tags', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { tags: tagDiff(t.main, have) } }) }, data: { tags: inSys } })
       else rows.push({ key: 'tags:same', badge: '标签', main: have.join('、') || '（无标签）', pair: 'tags', changeType: 'same', data: {} })
+      if (fresh.length) rows.push({ key: 'tags:fresh', badge: '新词', badgeType: 'warn', weak: true, main: [...have, ...inSys, ...fresh].join('、'), sub: `新词 ${fresh.join('、')} 不在既有标签体系里（AI 造词）· 勾了才进体系`, pair: 'tags', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { tags: tagDiff(t.main, [...have, ...inSys]) } }) }, data: { tags: fresh } })
       rows.push({ key: 'link:same', badge: '链接', main: card.link ? card.link.slice(0, 60) : '（无链接）', pair: 'link', changeType: 'same', data: {} })
       if (s.assess?.trim()) rows.push({ key: 'verdict', badge: '参谋', advisory: true, main: s.assess.trim().slice(0, 120), data: { __verdict: true } })
       return rows

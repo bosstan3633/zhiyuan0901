@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.4.2'";
+const VER_ANCHOR_LITERAL = "version: '3.4.3'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -3839,6 +3839,11 @@ check('R147-4 ★打标克制落到行级：AI 造的体系外新词单独成行
   const tg = read('/shared/utils/tags.ts'); const sel = read('/shared/ai/select.ts'); const rdd = read('/newtab/components/ResourceDetailDrawer.vue'); const gs = read('/newtab/views/GlobalSettings.vue')
   return tg.includes('export function knownTagSet') && tg.includes('export function freshTagsOf') && tg.includes('if ((c as { deletedAt?: number }).deletedAt) continue')
     && sel.includes("badge: '新词', badgeType: 'warn', weak: true") && rdd.includes('buildCardEnrichJob(card,') && gs.includes('const fresh = freshTagsOf(addTags, known)')
+    /* R165-A 补漏：这道闸原先只有 enrich 装了、full-optimize 没装（两条单卡工厂口径不一致）。
+       判据从"文件里有这串字"升级为"**两个单卡工厂各自都要有**"——否则合并入口后会绕过红线。 */
+    && (sel.match(/badge: '新词', badgeType: 'warn', weak: true/g) || []).length === 2
+    && segOf(sel, 'export function buildCardEnrichJob', 'export function buildTaskParseJob').includes('freshTagsOf(newTags, known)')
+    && segOf(sel, 'export function buildFullOptimizeJob', '\n}').includes('freshTagsOf(newTags, known)')
     && !rdd.includes("from '@/shared/ai/llm'") && !rdd.includes("import { chat")
 });
 check('R147-5 ★任务级「知」菜单共享化并跨视图落位：TaskAiMenu.vue 自包含（按钮+浮层菜单+评审抽屉+样式+AI 懒栈），项目详情页两处行位与任务面板 12 处行位同组件 · R151 备案：本条原写"6 处（卡/列表/看板×2 形态）"，实为卡片与列表两视图共 6 处、看板 6 处一直缺位（写断言时按字面数了行数没核视图），R151 补齐后按 12 处钉；打开详情走宿主 @detail 通道', () => {
@@ -4700,6 +4705,34 @@ check('R165-A7 任务详情优先级 3 段 segment（单击直达，语义色 ti
   const t = read('/newtab/components/compass/TaskDetailDrawer.vue');
   return t.includes('ts-prio') && t.includes('data-p="high"') && t.includes('color-mix(in srgb, var(--warning) 16%') && !t.includes('selectedTask.priority" @change')
     && t.includes('onSelProjectChange') && t.includes('onSelMetricChange');
+});
+
+// ============== R165-A 补漏（V3.4.3 · 门禁诚实性三项） ==============
+console.log('【R165-A 补漏 · 门禁自己得真的跑、真的判】');
+check('R165-A8 ★实跑入口字面量门禁：node scripts/entry-literals.cjs 必须零退出。此前 R151-7 只验"脚本存在且写着这些字"、从不跑它 ⇒ R159 键边界引入的红潜伏了一整轮（R164/R165-A 都没跑），全绿通过验收。从本轮起它与 entry-matrix / theme-contrast 同级常驻实跑', () => {
+  const r = require('child_process').spawnSync(process.execPath, [path.join(__dirname, 'entry-literals.cjs')], { encoding: 'utf8' });
+  if (r.status !== 0 && process.env.VERBOSE) console.log('\n' + (r.stdout || '') + (r.stderr || ''));
+  return r.status === 0;
+});
+check('R165-A9 ★键字典豁免面钉死：只认「两个 AI 键名 × 只在 keys.ts」。R165-A 原写法是"keys.ts 里任何字面量都免"——真 AI 逻辑（batchG/semanticSearchSystem）若落进 keys.ts 会被宽豁免放过去。豁免清单变长 / 不再要求文件等于键字典 / aiEdges 托底判据被删，任一即红', () => {
+  const g = read('/../scripts/entry-literals.cjs')
+  const only = (g.match(/const KEY_NAME_ONLY = \[[^\]]*\]/) || [''])[0]
+  return (only.match(/'zy_/g) || []).length === 2 && only.includes("'zy_ai_v1'") && only.includes("'zy_ai_directives_v1'")
+    && g.includes('KEY_NAME_ONLY.includes(l)') && g.includes('const KEY_REGISTRY = path.join(SRC') && g.includes('const exempt = (l, f) =>')
+    /* 豁免比较必须走绝对路径：R165-A 那版用 path.relative 的字符串比，Windows 反斜杠下静默失效（见脚本内备案） */
+    && !/path\.relative\([^)]*\)\s*===\s*['"]src\//.test(g)
+    && g.includes('aiEdges.length') && /process\.exit\(fail \? 1 : 0\)/.test(g)
+});
+check('R165-A10 ★视觉走查覆盖到"本轮真正改的那一面"：theme-audit 必须含三张卡详情场景，且判据不是空转——DRAWER_VIEWS 三条各自带 开/AI在标题行/页脚钮数 三条现场判据，任一不过要能进 drawerFail 并参与退出码，图数下限也要把这三条算进去（否则"少抓一面"会静默通过）', () => {
+  const g = read('/../scripts/theme-audit.cjs')
+  return (g.match(/id: 'drawer-(resource|task|curio)'/g) || []).length === 3
+    && g.includes('const drawerFail = []') && g.includes('drawerFail.push') && g.includes('if (drawerFail.length)')
+    && g.includes('DRAWER_VIEWS.length') && g.includes("footCount === 2") && g.includes("'[data-tid]'")
+});
+check('R165-A11 ★手册宣传面与功能现状对账：已退役能力不得留在使用手册里（「🤖 推荐卡」R162 已整体退役、代码全仓零命中，手册却仍挂着这句假承诺四轮）；AI 入口位置措辞须随 R165-A 版式（标题行）', () => {
+  const m = read('/newtab/manual-data.ts')
+  return !m.includes('推荐卡') && !m.includes('按任务挂资源')
+    && m.includes('标题行右侧') && !m.includes('详情抽屉页脚') && !m.includes('任务详情底部')
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

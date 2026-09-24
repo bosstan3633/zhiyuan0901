@@ -57,11 +57,23 @@ const files = [...seen].sort();
 const codeOf = f => fs.readFileSync(f, 'utf8').split('\n').filter(ln => !STRIP.test(ln)).join('\n');
 /* ASCII 字面量按词边界匹配（AiRowLite 这类本地类型别名不该冒领 AiRow）；中文/带斜杠的按子串 */
 const matchIn = (txt, l) => /^[A-Za-z]/.test(l) ? new RegExp('\\b' + l.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&') + '\\b').test(txt) : txt.includes(l)
+/**
+ * R159 键字典豁免 · R165-A 补漏（收紧豁免面）。
+ * keys.ts 是全站存储键字面量的唯一真源（R159-6 要求其余文件零裸键名），AI 键名 `zy_ai_v1` 作为
+ * **元数据字符串**必然住在这里——它不是 AI 运行时依赖，键名本身也不含任何凭证。
+ * 但 R165-A 的原写法是「keys.ts 里**任何**字面量都免」：哪天 `batchG` / `semanticSearchSystem` 这类
+ * **真 AI 逻辑**字面量落进 keys.ts，会被这条宽豁免一起放过去。故收窄为**只认这两个 AI 键名 × 只认这一个文件**；
+ * 其余字面量、其余文件一律照旧零容忍，`aiEdges`（对 src/shared/ai/** 的静态运行时依赖）也不受影响。
+ * ★ **比较用绝对路径，不用 path.relative 的字符串**：Windows 下 `path.relative` 返回反斜杠
+ *   （`src\shared\storage\keys.ts`），与 `'src/shared/storage/keys.ts'` 永不相等 ⇒ R165-A 那版豁免在
+ *   **Windows 上是个静默失效的空操作**（Mac 正常、Windows 恒红），而这条门禁在 Windows 从没被实跑过，
+ *   所以没人发现。R165-A8 把它接进回归实跑后，第一次跑就当场报出。
+ */
+const KEY_REGISTRY = path.join(SRC, 'shared', 'storage', 'keys.ts');
+const KEY_NAME_ONLY = ['zy_ai_v1', 'zy_ai_directives_v1'];
+const exempt = (l, f) => KEY_NAME_ONLY.includes(l) && f === KEY_REGISTRY;
 const hits = LITERALS.map(l => {
-  /* R165-A 口径修正（R159 键字典豁免）：shared/storage/keys.ts 是全站存储键字面量的唯一真源（R159-6 门禁
-   * 要求其余文件零裸键名），AI 键名 zy_ai_v1 作为**元数据字符串**必然住在这里——它不是 AI 运行时依赖，
-   * 键名本身也不含任何凭证。豁免只认这一个文件、且 aiEdges（对 src/shared/ai/** 的静态依赖）照旧零容忍。 */
-  const where = files.filter(f => matchIn(codeOf(f), l) && path.relative(path.join(__dirname, '..'), f) !== 'src/shared/storage/keys.ts')
+  const where = files.filter(f => matchIn(codeOf(f), l) && !exempt(l, f))
     .map(f => path.relative(path.join(__dirname, '..'), f));
   return { l, where };
 });
