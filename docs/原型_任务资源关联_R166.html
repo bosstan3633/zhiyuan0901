@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="linear">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>任务×资源支持关联 + 子任务分组 · 高保真原型（R166 提案 · 供确认）</title>
+<style>
+/* ===== 令牌：逐字取自 v2/src/shared/styles/tokens.css [data-theme='linear']（与 R164 系列原型同款） ===== */
+:root{
+  --bg:#0D0E11; --surface:#14161B; --surface-2:#1A1D24; --surface-3:#1C1F26;
+  --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.14);
+  --text:rgba(255,255,255,.92); --text-2:rgba(255,255,255,.70); --text-3:rgba(255,255,255,.50); --text-4:rgba(255,255,255,.32);
+  --accent:#5E6AD2; --accent-2:#7A85E0; --accent-light:rgba(94,106,210,.16); --accent-hover:#828FFF; --accent-glow:rgba(109,92,232,.40);
+  --success:#27A644; --warning:#D9A03C; --danger:#E5484D;
+  --shadow-lg:0 0 0 1px var(--border),16px 0 48px rgba(0,0,0,.55);
+  --dur:.16s;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+button{font-family:inherit}
+
+.proto-bar{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;gap:14px;padding:8px 16px;
+  background:#0B0B0E;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-2)}
+.proto-bar b{color:var(--text)}
+.seg{display:flex;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;flex-shrink:0}
+.seg button{padding:4px 12px;background:transparent;border:0;color:var(--text-2);cursor:pointer;font-size:12px;white-space:nowrap}
+.seg button.on{background:var(--accent);color:#fff}
+.proto-note{color:var(--text-3)}
+details.spec{margin-left:auto;flex-shrink:0}
+details.spec summary{cursor:pointer;color:var(--accent-2)}
+details.spec .body{position:absolute;right:16px;top:calc(var(--barh,46px) + 4px);width:560px;max-width:92vw;max-height:72vh;overflow:auto;background:var(--surface);
+  border:1px solid var(--border-strong);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow-lg);font-size:12.5px;color:var(--text-2)}
+details.spec h4{margin:10px 0 4px;color:var(--text);font-size:13px}
+details.spec li{margin:3px 0}
+details.spec code{color:var(--accent-2)}
+
+.app{padding:24px;margin-top:var(--barh,46px);filter:saturate(.9)}
+.app.dim{filter:blur(1px) brightness(.55);pointer-events:none}
+.topbar{display:flex;gap:18px;align-items:center;color:var(--text-2);font-size:13px;padding:6px 4px 14px}
+.topbar .on{color:var(--accent-2);background:var(--accent-light);padding:3px 10px;border-radius:8px}
+
+.scrim{position:fixed;left:0;right:0;bottom:0;top:var(--barh,46px);background:rgba(0,0,0,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity var(--dur)}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:var(--barh,46px);right:0;bottom:0;width:560px;max-width:94vw;z-index:50;background:var(--surface);
+  border-left:1px solid var(--border);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;
+  transform:translateX(102%);transition:transform .22s cubic-bezier(.2,.8,.2,1)}
+.drawer.on{transform:none}
+.dr-head{padding:14px 18px 10px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.dr-title{flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px}
+.dr-title .ttl{flex:1;font-size:16px;font-weight:600;line-height:1.45;padding:6px 8px}
+.head-side{display:flex;align-items:flex-start;gap:8px;flex-shrink:0}
+.dr-x{width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--text-3);font-size:17px;cursor:pointer;flex-shrink:0}
+.dr-x:hover{background:var(--surface-3);color:var(--text)}
+.head-row2{width:100%;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.check-lg{width:24px;height:24px;border-radius:6px;border:2px solid var(--border-strong);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:6px;font-size:13px;color:#fff;background:var(--surface)}
+.stchip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);font-size:11.5px;white-space:nowrap}
+.stchip.st-doing{color:var(--warning);border-color:color-mix(in srgb,var(--warning) 40%,var(--border))}
+.mat{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--text-3);border:1px solid var(--border);border-radius:99px;padding:2px 9px;cursor:help}
+.mat b{color:var(--warning);font-size:11px}
+.ai-btn{display:inline-flex;align-items:center;gap:7px;flex-shrink:0;margin-top:4px;padding:7px 13px;border-radius:9px;cursor:pointer;font-size:12.5px;font-weight:600;
+  border:1px solid var(--accent);color:var(--accent-2);background:var(--accent-light);transition:all var(--dur)}
+.ai-btn:hover{background:var(--accent);color:#fff;box-shadow:0 0 0 3px var(--accent-glow)}
+.ai-btn .bot{font-size:14px;line-height:1}
+.ai-btn.running{opacity:.75;cursor:progress}
+.ai-btn .spin{width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:turn 1s linear infinite}
+@keyframes turn{to{transform:rotate(360deg)}}
+.ai-chip{font-size:10.5px;color:var(--text-3);border:1px solid var(--border);border-radius:99px;padding:1px 8px;display:inline-block}
+.ai-chip[hidden]{display:none}
+
+.dr-body{flex:1;overflow:auto;padding:14px 18px 8px}
+.sec-label{font-size:11px;color:var(--text-3);letter-spacing:.04em;margin:0 0 7px;display:flex;align-items:center;gap:6px}
+.sec-label .hint{color:var(--text-4);letter-spacing:0}
+.sec-act{margin-left:auto;display:flex;gap:6px}
+.mini{padding:3px 9px;font-size:11px;border-radius:7px;border:1px solid var(--border-strong);background:transparent;color:var(--text-2);cursor:pointer;transition:all var(--dur);white-space:nowrap}
+.mini:hover{color:var(--accent-2);border-color:var(--accent)}
+
+/* 资源支持区（本提案核心） */
+.sup{border:1px solid var(--border);border-radius:10px;background:var(--surface-2);overflow:hidden}
+.sup-row{display:flex;align-items:center;gap:8px;padding:8px 11px;border-bottom:1px solid var(--border);cursor:pointer;transition:background var(--dur)}
+.sup-row:last-child{border-bottom:0}
+.sup-row:hover{background:var(--surface-3)}
+.sup-row .ico{flex-shrink:0;font-size:13px}
+.sup-row .nm{flex:1;min-width:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sup-row .why{font-size:10.5px;color:var(--text-4);flex-shrink:0;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sup-row .open{color:var(--accent-2);font-size:12px;flex-shrink:0}
+.sup-row .x{color:var(--text-4);font-size:12px;flex-shrink:0;padding:0 2px;cursor:pointer}
+.sup-row .x:hover{color:var(--danger)}
+.sup-add{display:flex;gap:6px;padding:8px 11px;border-top:1px dashed var(--border)}
+.sup-search{flex:1;min-width:0;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:12px}
+.sup-search:focus{outline:none;border-color:var(--accent)}
+
+/* 子任务分组 */
+.subs{border:1px solid var(--border);border-radius:10px;background:var(--surface-2);overflow:hidden}
+.subs-head{display:flex;align-items:center;gap:8px;padding:8px 11px;cursor:pointer;font-size:12.5px;color:var(--text-2)}
+.subs-head:hover{background:var(--surface-3)}
+.subs-head .cnt{color:var(--accent-2)}
+.subs-head .tw{margin-left:auto;font-size:10px;color:var(--text-4)}
+.sub-row{display:flex;align-items:center;gap:8px;padding:7px 11px 7px 26px;border-top:1px solid var(--border);font-size:12.5px;position:relative}
+.sub-row::before{content:"└";position:absolute;left:11px;color:var(--text-4);font-size:12px}
+.sub-row .sdot{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--border-strong);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;cursor:pointer}
+.sub-row .sdot.done{background:var(--success);border-color:var(--success)}
+.sub-row .supn{margin-left:auto;font-size:10px;color:var(--text-3);border:1px solid var(--border);border-radius:99px;padding:0 7px;white-space:nowrap;cursor:pointer}
+.sub-row .supn:hover{color:var(--accent-2);border-color:var(--accent)}
+.subs-folded .sub-row{display:none}
+
+/* AI 评审抽屉（嵌套浮层） */
+.rev{position:fixed;top:calc(var(--barh,46px) + 24px);right:24px;bottom:24px;width:480px;max-width:90vw;z-index:55;background:var(--surface);
+  border:1px solid var(--border-strong);border-radius:14px;box-shadow:var(--shadow-lg);display:none;flex-direction:column;overflow:hidden}
+.rev.on{display:flex}
+.rev-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.rev-head .rt{font-size:14px;font-weight:600}
+.rev-head .rh{font-size:11px;color:var(--text-3)}
+.rev-body{flex:1;overflow:auto;padding:10px 12px}
+.rev-row{display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--surface-2);align-items:flex-start}
+.rev-row .cb{width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+.rev-row .rr-t{font-size:12.5px;font-weight:600}
+.rev-row .rr-s{font-size:11px;color:var(--text-3);margin-top:2px;line-height:1.5}
+.rev-badge{font-size:10px;border-radius:4px;padding:1px 6px;flex-shrink:0;margin-top:1px}
+.rb-ok{color:var(--success);background:color-mix(in srgb,var(--success) 14%,transparent)}
+.rb-warn{color:var(--warning);background:color-mix(in srgb,var(--warning) 14%,transparent)}
+.rev-foot{padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center}
+.rev-foot .note{font-size:10.5px;color:var(--text-4);flex:1}
+.btn{padding:8px 16px;border-radius:9px;border:1px solid var(--border-strong);background:transparent;color:var(--text-2);cursor:pointer;font-size:12.5px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-hover)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+.dr-foot{padding:12px 18px 14px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;background:var(--surface)}
+.btn-del{padding:9px 14px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--text-3);cursor:pointer;font-size:12.5px;transition:all var(--dur);white-space:nowrap}
+.btn-del:hover{color:var(--danger);border-color:var(--danger)}
+.btn-del.armed{color:#fff;background:var(--danger);border-color:var(--danger)}
+.btn-save{flex:1;padding:10px 0;border-radius:9px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+.kbd{color:rgba(255,255,255,.65);font-size:10.5px;font-weight:400;margin-left:6px}
+
+/* 卡面清单视图（父子分组 + 🧭角标） */
+.tl{max-width:900px}
+.tl-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface);margin-bottom:6px;font-size:13px}
+.tl-row.child{margin-left:26px;background:var(--surface-2);font-size:12.5px}
+.tl-row.child::before{content:"└";color:var(--text-4)}
+.tl-dot{width:16px;height:16px;border-radius:5px;border:1.5px solid var(--border-strong);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff}
+.tl-dot.done{background:var(--success);border-color:var(--success)}
+.tl-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-nm.strike{color:var(--text-4);text-decoration:line-through}
+.pill{font-size:10.5px;color:var(--text-3);border:1px solid var(--border);border-radius:99px;padding:1px 8px;white-space:nowrap;cursor:pointer}
+.pill:hover{color:var(--accent-2);border-color:var(--accent)}
+.pill.sup{color:var(--accent-2);border-color:color-mix(in srgb,var(--accent) 45%,var(--border))}
+.pill.prio-m{color:var(--warning);border-color:color-mix(in srgb,var(--warning) 45%,var(--border))}
+
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);z-index:70;background:#0B0B0E;color:#F2F3F5;
+  border:1px solid var(--border-strong);border-radius:10px;padding:9px 16px;font-size:12.5px;opacity:0;pointer-events:none;transition:all .2s}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.reopen{position:fixed;right:24px;bottom:24px;z-index:65;padding:10px 16px;border-radius:10px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;font-size:13px;display:none}
+</style>
+</head>
+<body data-view="task">
+
+<div class="proto-bar">
+  <b>任务×资源支持关联 · 原型</b>
+  <span class="proto-note">R166 提案 · 方案 A 同标准 · 全部可点</span>
+  <span class="seg" id="viewSeg">
+    <button class="on" data-v="task">任务详情（父）</button>
+    <button data-v="res">资源详情（反向）</button>
+    <button data-v="list">清单视图（分组）</button>
+  </span>
+  <details class="spec">
+    <summary>设计说明（为什么这么做）</summary>
+    <div class="body">
+      <h4>0. 需求与红线怎么兼容</h4>
+      <ul>
+        <li>R165-B 红线「卡间零挂载」= <b>卡对象互不持有对方 id</b>。本提案不恢复 R162 退役的 <code>TaskCard.mountedResourceIds</code> 字段，改用<b>独立关联表</b> <code>SupportLink { id, taskId, resourceId, from: ai|manual, why, createdAt }</code>。</li>
+        <li>先例同构：策展台镜像 <code>CurationProjection[]</code>（记录型实体，<code>mergeByIdArr</code> 按 id 并集合并，红线明文豁免）。关联表走同一模式，红线一字不改。</li>
+        <li>双向显示=反查索引（一次建表，catIndex 同法）：任务侧列资源、资源侧列任务；<b>两端卡都零新增字段</b>。</li>
+        <li>好奇卡按拍板零关联：<code>fromCuriosityId</code> 一并删除（转化溯源由 link=sourceUrl + 描述文字承担）。</li>
+      </ul>
+      <h4>1. 拆解双通道（已有，R139）</h4>
+      <ul><li>「拆解步骤」评审抽屉里两枚去向钮：<b>采纳=建子任务</b>（primary）/「📝 步骤写入任务详情」（secondary）。本原型不重复发明，只展示两通道并存。</li></ul>
+      <h4>2. 子任务 = 第 7 层？</h4>
+      <ul>
+        <li>数据层已支持（R144-a <code>parentId</code> 软层级，无新层实体、零迁移）；完成状态不联动、删父升顶层、⤴ 手动升级——语义都已在线上。</li>
+        <li>缺的只是<b>呈现</b>：现状子任务在列表/看板平铺散着，仅一枚「↳」记号。本原型给出「详情内嵌分组（可折叠）+ 清单视图缩进归组」两处的目标态。</li>
+      </ul>
+      <h4>3. 找资源支持（新）</h4>
+      <ul>
+        <li>入口=任务详情标题行主上下文动作（AI 三态同方案 A）；子任务同款入口（任务同构）。评审抽屉勾选采纳 → 写关联表；<b>AI 不自动关联</b>（决策边界不变）。</li>
+        <li>投料：任务标题+说明+标签 本地预筛资源候选（top ~40，排除已关联），LLM 只排序+给一句判词（找佐证 buildEvidenceJob 同法）。</li>
+        <li>任务侧点关联资源行=<b>直接打开资源链接</b>（recordResourceOpen 计热度）；行尾 ⧉ 语义另需看详情时走资源详情抽屉。</li>
+        <li>解绑=删关联记录，<b>绝不动资源卡本体</b>（软删红线不碰）。</li>
+        <li>删除卫生：任一端进回收站 → 显示过滤；物理删除 → purge 记录（metric.taskIds 同法）。撤销窗口内随卡恢复。</li>
+      </ul>
+      <h4>4. 难度与批次建议（详见聊天盘点）</h4>
+      <ul><li>关联表+AI job+两向 UI ≈ 20 文件触点，一轮可做；风险=M14 渲染量（关联区计数徽标默认折叠）与合并语义回归用例。</li></ul>
+    </div>
+  </details>
+</div>
+
+<div class="app" id="app">
+  <!-- 清单视图（分组呈现） -->
+  <div class="tl" id="vwList" style="display:none">
+    <div class="topbar"><span>调度台</span><span class="on">方向台 · 任务</span><span>资源台</span><span>📦 产品体验治理 ›</span></div>
+    <div class="tl-row"><span class="tl-dot"></span><span class="tl-nm">把资源卡详情页重设计落码（含四主题走查）</span><span class="pill prio-m">🟡 中</span><span class="pill sup" data-jump="task">🧭 2 资源</span><span class="pill">2 子任务 ▾</span></div>
+    <div class="tl-row child"><span class="tl-dot done">✓</span><span class="tl-nm strike">盘点三抽屉全部触点与断言锚点</span><span class="pill sup" data-jump="task">🧭 1</span></div>
+    <div class="tl-row child"><span class="tl-dot"></span><span class="tl-nm">落码 ResourceEditForm + 两宿主页脚</span><span class="pill sup" data-jump="task">🧭 3</span></div>
+    <div class="tl-row"><span class="tl-dot"></span><span class="tl-nm">度量与刹车（perf --real 真实路径）</span><span class="pill prio-m">🟡 中</span><span class="pill" style="color:var(--text-4)">🧭 0 · 可找支持</span></div>
+    <div class="tl-row"><span class="tl-dot"></span><span class="tl-nm">标签体检空态补真因</span><span class="pill sup">🧭 1</span></div>
+  </div>
+</div>
+
+<div class="scrim on" id="scrim"></div>
+
+<!-- ================= 任务详情（父） ================= -->
+<aside class="drawer on" id="dwTask" aria-label="任务详情">
+  <div class="dr-head">
+    <div class="dr-title">
+      <div class="check-lg"></div>
+      <div class="ttl">把资源卡详情页重设计落码（含四主题走查）</div>
+    </div>
+    <div class="head-side">
+      <button class="ai-btn" id="supBtn" title="AI 围绕本任务内容盘点资源卡，推荐可支持它的资源（勾选采纳才关联）"><span class="bot">🤖</span><span id="supLabel">找资源支持</span></button>
+      <button class="dr-x" data-close title="关闭（Esc）">×</button>
+    </div>
+    <div class="head-row2">
+      <span class="stchip st-doing">◐ 进行中</span>
+      <span class="mat" title="成熟度=可执行/可归属/弹药/新鲜度">成熟度 <b>72</b></span>
+      <span class="ai-chip" id="supChip" hidden>🤖 已找过支持 · 09-24 11:40</span>
+    </div>
+  </div>
+
+  <div class="dr-body">
+    <div class="sec-label">说明 <span class="hint">— 补充上下文 · 验收标准</span></div>
+    <div style="font-size:12.5px;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:9px 11px">验收：四主题截图走查通过 + 回归断言随迁 + 真机复核抽屉手势。参考 R164 原型与开发任务清单。</div>
+
+    <div style="height:16px"></div>
+    <!-- ★ 资源支持区（本提案核心） -->
+    <div class="sec-label">🧭 资源支持 <span class="hint">— 关联的是资源卡；点行打开链接</span>
+      <span class="sec-act"><button class="mini" id="supAgain">↻ 再找一次</button></span>
+    </div>
+    <div class="sup" id="supList">
+      <div class="sup-row" data-open>
+        <span class="ico">📄</span><span class="nm">Fitts's Law — NN/g 交互热区准则</span>
+        <span class="why">热区尺寸判据</span><span class="open">↗</span><span class="x" title="解除关联（不动资源卡本体）">×</span>
+      </div>
+      <div class="sup-row" data-open>
+        <span class="ico">📄</span><span class="nm">资源卡详情页重设计 · 方案 A 原型（本地 HTML）</span>
+        <span class="why">版式基准</span><span class="open">↗</span><span class="x" title="解除关联（不动资源卡本体）">×</span>
+      </div>
+    </div>
+    <div class="sup" style="margin-top:6px;border-style:dashed">
+      <div class="sup-add" style="border-top:0">
+        <input class="sup-search" id="supSearch" placeholder="🔍 也可手动搜索资源卡关联（回车=关联第一条）…">
+      </div>
+    </div>
+
+    <div style="height:16px"></div>
+    <!-- ★ 子任务分组（R144-a 数据层已有；呈现升级） -->
+    <div class="sec-label">↳ 子任务 <span class="hint">— 拆解采纳而得 · 完成状态不联动 · 删父升顶层</span>
+      <span class="sec-act"><button class="mini" id="subsFold">折叠</button><button class="mini" data-demo="chain">🤖 拆解步骤</button></span>
+    </div>
+    <div class="subs" id="subsBox">
+      <div class="subs-head" id="subsHead"><span>共 <span class="cnt">2</span> 个 · 已完成 <span class="cnt">1</span></span><span class="tw">▾</span></div>
+      <div class="sub-row"><span class="sdot done">✓</span><span style="text-decoration:line-through;color:var(--text-4)">盘点三抽屉全部触点与断言锚点</span><span class="supn" title="查看该子任务的资源支持">🧭 1</span></div>
+      <div class="sub-row"><span class="sdot"></span><span>落码 ResourceEditForm + 两宿主页脚</span><span class="supn" title="查看该子任务的资源支持">🧭 3</span></div>
+    </div>
+
+    <div style="height:14px"></div>
+    <details class="sup" style="border-radius:10px">
+      <summary style="padding:8px 12px;font-size:12.5px;color:var(--text-2);cursor:pointer;list-style:none">📎 附件 <span style="color:var(--accent-2)">(1)</span></summary>
+      <div style="padding:4px 12px 10px;font-size:12px;color:var(--text-3);border-top:1px solid var(--border)">drawer-footer-before.png · 412KB</div>
+    </details>
+    <div style="color:var(--text-4);font-size:10.5px;display:flex;gap:14px;padding:8px 2px 2px"><span>创建 2026-09-23 20:41</span><span>更新 2026-09-24 11:40</span><span style="color:var(--accent-2);cursor:pointer">🧭 去方向树创建项目/指标 ›</span></div>
+  </div>
+
+  <div class="dr-foot">
+    <button class="btn-del" data-del>🗑 删除</button>
+    <button class="btn-save" data-save>✓ 完成并关闭<span class="kbd">Ctrl+↩</span></button>
+  </div>
+</aside>
+
+<!-- ================= 资源详情（反向显示） ================= -->
+<aside class="drawer" id="dwRes" aria-label="资源详情">
+  <div class="dr-head">
+    <div class="dr-title"><div class="ttl">Fitts's Law — NN/g 交互热区准则</div></div>
+    <div class="head-side"><button class="dr-x" data-close>×</button></div>
+    <div class="head-row2"><span class="ai-chip" style="visibility:hidden">占位</span></div>
+  </div>
+  <div class="dr-body">
+    <div class="sec-label">链接 <span class="hint">— 真身只在资源台</span></div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <div style="flex:1;min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:12.5px;font-family:ui-monospace,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">https://www.nngroup.com/articles/fitts-law/</div>
+      <button class="btn-del" style="width:32px;height:32px;padding:0" title="打开">↗</button>
+      <button class="btn-del" style="width:32px;height:32px;padding:0" title="复制">⧉</button>
+    </div>
+    <div style="height:16px"></div>
+    <div class="sec-label">🏷 标签</div>
+    <div style="display:flex;gap:6px"><span style="font-size:11.5px;color:var(--accent-2);background:var(--accent-light);border-radius:99px;padding:3px 10px">#AI工具与知识库/交互准则</span></div>
+    <div style="height:16px"></div>
+    <!-- ★ 反向显示：支持哪些任务（反查，资源卡零字段） -->
+    <div class="sec-label">🧭 支持的任务 <span class="hint">— 反查关联表 · 本卡不持有任务 id</span></div>
+    <div class="sup">
+      <div class="sup-row" data-jump="task"><span class="ico">✅</span><span class="nm">把资源卡详情页重设计落码（含四主题走查）</span><span class="why">◐ 进行中</span><span class="open">→</span></div>
+      <div class="sup-row" data-jump="task"><span class="ico">✅</span><span class="nm" style="color:var(--text-2)">└ 落码 ResourceEditForm + 两宿主页脚</span><span class="why">子任务</span><span class="open">→</span></div>
+    </div>
+    <div style="color:var(--text-4);font-size:10.5px;padding:8px 2px 2px">解绑请到任务侧「资源支持」区操作——资源卡是供给方，不承载关系入口。</div>
+    <div style="color:var(--text-4);font-size:10.5px;display:flex;gap:14px;padding:8px 2px 2px"><span>创建 2026-09-21 21:53</span><span>更新 2026-09-24 09:12</span><span>打开 4 次</span></div>
+  </div>
+  <div class="dr-foot">
+    <button class="btn-del" data-del>🗑 删除</button>
+    <button class="btn-save" data-save>✓ 保存<span class="kbd">Ctrl+↩</span></button>
+  </div>
+</aside>
+
+<!-- ================= AI 评审抽屉（找资源支持） ================= -->
+<section class="rev" id="rev" aria-label="AI 资源推荐评审">
+  <div class="rev-head">
+    <span class="rt">🤖 找资源支持</span>
+    <span class="rh">围绕「把资源卡详情页重设计落码…」盘点 380 张资源卡 → 候选 24 → 推荐 4</span>
+    <button class="dr-x" id="revX">×</button>
+  </div>
+  <div class="rev-body" id="revBody">
+    <label class="rev-row"><input type="checkbox" class="cb" checked data-t="方案 A 原型（本地 HTML）" data-w="版式基准">
+      <span class="rev-badge rb-ok">高</span><span style="flex:1;min-width:0"><span class="rr-t">📄 资源卡详情页重设计 · 方案 A 原型</span><span class="rr-s">抽屉版式与交互基准，正被本任务引用</span></span></label>
+    <label class="rev-row"><input type="checkbox" class="cb" checked data-t="Fitts's Law — NN/g" data-w="热区判据">
+      <span class="rev-badge rb-ok">高</span><span style="flex:1;min-width:0"><span class="rr-t">📄 Fitts's Law — NN/g 交互热区准则</span><span class="rr-s">页脚两钮/热区尺寸的验收判据来源</span></span></label>
+    <label class="rev-row"><input type="checkbox" class="cb" data-t="R162 挂载退役先例笔记" data-w="剥离先例">
+      <span class="rev-badge rb-warn">中</span><span style="flex:1;min-width:0"><span class="rr-t">📄 R162 挂载退役先例笔记</span><span class="rr-s">repository 剥离写法可参考；与当前关联表方向相反，弱相关默认不勾</span></span></label>
+    <label class="rev-row"><input type="checkbox" class="cb" data-t="四主题走查截图归档法" data-w="走查方法">
+      <span class="rev-badge rb-warn">中</span><span style="flex:1;min-width:0"><span class="rr-t">📄 四主题走查截图归档法</span><span class="rr-s">theme-audit 归档目录约定，验收步骤用</span></span></label>
+  </div>
+  <div class="rev-foot">
+    <span class="note">采纳=写入关联表（SupportLink），资源卡与任务卡本体零改动；解绑随时可撤</span>
+    <button class="btn" id="revCancel">取消</button>
+    <button class="btn primary" id="revAdopt">✓ 采纳关联（<span id="revN">2</span>）</button>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+<button class="reopen" id="reopen">重新打开详情（原型）</button>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2400); };
+const bar = $('.proto-bar');
+const fitBar = () => document.documentElement.style.setProperty('--barh', bar.offsetHeight + 'px');
+fitBar(); addEventListener('resize', fitBar); new ResizeObserver(fitBar).observe(bar);
+
+/* 视图切换 */
+$('#viewSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  $$('#viewSeg button').forEach(x => x.classList.toggle('on', x === b));
+  const v = b.dataset.v;
+  $('#dwTask').classList.toggle('on', v === 'task');
+  $('#dwRes').classList.toggle('on', v === 'res');
+  $('#vwList').style.display = v === 'list' ? '' : 'none';
+  $('#app').classList.toggle('dim', v !== 'list');
+  $('#scrim').classList.toggle('on', v !== 'list');
+  $('#reopen').style.display = 'none';
+});
+
+/* AI 找资源支持：三态 + 评审抽屉 */
+let supState = 'idle';
+function runSup() {
+  if (supState === 'running') return;
+  supState = 'running';
+  const btn = $('#supBtn'), label = $('#supLabel');
+  btn.classList.add('running'); label.textContent = '盘点资源中…';
+  btn.querySelector('.bot').outerHTML = '<span class="bot spin"></span>';
+  setTimeout(() => {
+    btn.classList.remove('running');
+    btn.querySelector('.bot').outerHTML = '<span class="bot">🤖</span>';
+    label.textContent = '↻ 再找支持';
+    $('#supChip').hidden = false;
+    supState = 'done';
+    $('#rev').classList.add('on');
+  }, 1200);
+}
+$('#supBtn').addEventListener('click', runSup);
+$('#supAgain').addEventListener('click', () => { $('#rev').classList.add('on'); });
+$$('[data-demo="chain"]').forEach(b => b.addEventListener('click', () => toast('🤖 拆解步骤：评审抽屉里「采纳=建子任务」/「📝 步骤写入详情」双通道（R139 已上线，本原型不重画）')));
+
+/* 评审抽屉：勾选计数 → 采纳 → 行飞入资源支持区 */
+const revBody = $('#revBody');
+const cnt = () => { const n = $$('#revBody .cb:checked').length; $('#revN').textContent = n; $('#revAdopt').disabled = !n; };
+revBody.addEventListener('change', cnt); cnt();
+$('#revX').addEventListener('click', () => $('#rev').classList.remove('on'));
+$('#revCancel').addEventListener('click', () => $('#rev').classList.remove('on'));
+$('#revAdopt').addEventListener('click', () => {
+  const picked = $$('#revBody .cb:checked');
+  picked.forEach(cb => {
+    const row = document.createElement('div');
+    row.className = 'sup-row'; row.setAttribute('data-open', '');
+    row.innerHTML = `<span class="ico">📄</span><span class="nm">${cb.dataset.t}</span><span class="why">${cb.dataset.w}</span><span class="open">↗</span><span class="x" title="解除关联（不动资源卡本体）">×</span>`;
+    $('#supList').appendChild(row);
+    cb.closest('.rev-row').remove();
+  });
+  $('#rev').classList.remove('on');
+  toast(`✓ 已关联 ${picked.length} 张资源卡（写 SupportLink 表；两卡本体零改动）`);
+});
+
+/* 资源支持区：点行=打开链接；×=解绑；搜索=手动关联 */
+document.addEventListener('click', e => {
+  const x = e.target.closest('.sup-row .x');
+  if (x) { const row = x.closest('.sup-row'); row.remove(); toast('已解除关联（仅删关联记录，资源卡本体未动）'); return; }
+  const op = e.target.closest('[data-open]');
+  if (op) { toast('↗ 打开资源链接（并计一次热度 recordResourceOpen）：' + op.querySelector('.nm').textContent.slice(0, 24) + '…'); return; }
+  const j = e.target.closest('[data-jump="task"]');
+  if (j) { $$('#viewSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === 'task')); $('#dwRes').classList.remove('on'); $('#dwTask').classList.add('on'); $('#app').classList.remove('dim'); $('#scrim').classList.add('on'); toast('→ 跳到任务详情（总线 zy-open-drawer kind=task）'); return; }
+  const pn = e.target.closest('.pill.sup, .supn');
+  if (pn) { $$('#viewSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === 'task')); $('#vwList').style.display = 'none'; $('#dwTask').classList.add('on'); $('#app').classList.add('dim'); $('#scrim').classList.add('on'); toast('🧭 打开该任务的详情并滚到「资源支持」区'); }
+});
+$('#supSearch').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.value.trim()) {
+    const row = document.createElement('div'); row.className = 'sup-row'; row.setAttribute('data-open', '');
+    row.innerHTML = `<span class="ico">📄</span><span class="nm">${e.target.value.trim()}</span><span class="why">手动</span><span class="open">↗</span><span class="x" title="解除关联（不动资源卡本体）">×</span>`;
+    $('#supList').appendChild(row); e.target.value = '';
+    toast('＋ 已手动关联（from=manual；AI 推荐下次不重复推已关联的）');
+  }
+});
+
+/* 子任务折叠 */
+$('#subsFold').addEventListener('click', () => {
+  const f = $('#subsBox').classList.toggle('subs-folded');
+  $('#subsFold').textContent = f ? '展开' : '折叠';
+});
+
+/* 删除二次确认 / 保存 / 关闭 */
+$$('[data-del]').forEach(b => {
+  let armed = false, t = 0;
+  b.addEventListener('click', () => {
+    if (!armed) { armed = true; b.classList.add('armed'); b.textContent = '确认删除？（进回收站）'; clearTimeout(t); t = setTimeout(() => { armed = false; b.classList.remove('armed'); b.textContent = '🗑 删除'; }, 3000); return; }
+    armed = false; b.classList.remove('armed'); b.textContent = '🗑 删除';
+    toast('🗑 已软删进回收站 · 其关联记录同步隐藏（恢复即回挂）'); closeDrawer();
+  });
+});
+$$('[data-save]').forEach(b => b.addEventListener('click', () => { toast('✓ 已保存（原型）'); closeDrawer(); }));
+function closeDrawer() { $$('.drawer').forEach(d => d.classList.remove('on')); $('#scrim').classList.remove('on'); $('#app').classList.remove('dim'); $('#rev').classList.remove('on'); $('#reopen').style.display = 'block'; }
+$$('[data-close]').forEach(b => b.addEventListener('click', closeDrawer));
+$('#scrim').addEventListener('click', closeDrawer);
+$('#reopen').addEventListener('click', () => { $('#scrim').classList.add('on'); $('#app').classList.add('dim'); $('#reopen').style.display = 'none'; $$('.drawer').forEach(d => d.classList.remove('on')); $('#dwTask').classList.add('on'); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if ($('#rev').classList.contains('on')) { $('#rev').classList.remove('on'); return; } closeDrawer(); }
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); toast('✓ 已保存（Ctrl+↩）'); }
+});
+$('#app').classList.add('dim');
+</script>
+</body>
+</html>

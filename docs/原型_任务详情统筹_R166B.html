@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="linear">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>任务详情统筹版（内嵌子任务 × AI 三入口 × 资源支持）· R166B 提案 · 供审核</title>
+<style>
+/* ===== 令牌：逐字取自 v2/src/shared/styles/tokens.css [data-theme='linear'] ===== */
+:root{
+  --bg:#0D0E11; --surface:#14161B; --surface-2:#1A1D24; --surface-3:#1C1F26;
+  --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.14);
+  --text:rgba(255,255,255,.92); --text-2:rgba(255,255,255,.70); --text-3:rgba(255,255,255,.50); --text-4:rgba(255,255,255,.32);
+  --accent:#5E6AD2; --accent-2:#7A85E0; --accent-light:rgba(94,106,210,.16); --accent-hover:#828FFF; --accent-glow:rgba(109,92,232,.40);
+  --success:#27A644; --warning:#D9A03C; --danger:#E5484D;
+  --shadow-lg:0 0 0 1px var(--border),16px 0 48px rgba(0,0,0,.55);
+  --dur:.16s;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+button{font-family:inherit}
+input,textarea{font-family:inherit}
+
+.proto-bar{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;gap:14px;padding:8px 16px;background:#0B0B0E;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-2)}
+.proto-bar b{color:var(--text)}
+.seg{display:flex;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;flex-shrink:0}
+.seg button{padding:4px 12px;background:transparent;border:0;color:var(--text-2);cursor:pointer;font-size:12px;white-space:nowrap}
+.seg button.on{background:var(--accent);color:#fff}
+.proto-note{color:var(--text-3)}
+details.spec{margin-left:auto;flex-shrink:0}
+details.spec summary{cursor:pointer;color:var(--accent-2)}
+details.spec .body{position:absolute;right:16px;top:calc(var(--barh,46px) + 4px);width:580px;max-width:92vw;max-height:74vh;overflow:auto;background:var(--surface);border:1px solid var(--border-strong);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow-lg);font-size:12.5px;color:var(--text-2)}
+details.spec h4{margin:10px 0 4px;color:var(--text);font-size:13px}
+details.spec li{margin:3px 0}
+details.spec code{color:var(--accent-2)}
+
+.app{padding:24px;margin-top:var(--barh,46px)}
+.app.dim{filter:blur(1px) brightness(.55);pointer-events:none}
+.topbar{display:flex;gap:18px;align-items:center;color:var(--text-2);font-size:13px;padding:6px 4px 14px}
+.topbar .on{color:var(--accent-2);background:var(--accent-light);padding:3px 10px;border-radius:8px}
+
+.scrim{position:fixed;left:0;right:0;bottom:0;top:var(--barh,46px);background:rgba(0,0,0,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity var(--dur)}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:var(--barh,46px);right:0;bottom:0;width:580px;max-width:94vw;z-index:50;background:var(--surface);border-left:1px solid var(--border);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;transform:translateX(102%);transition:transform .22s cubic-bezier(.2,.8,.2,1)}
+.drawer.on{transform:none}
+.dr-head{padding:14px 18px 10px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.dr-title{flex:1;min-width:180px;display:flex;align-items:flex-start;gap:10px}
+.dr-title .ttl{flex:1;font-size:16px;font-weight:600;line-height:1.45;padding:6px 8px;border-radius:8px;border:1px solid transparent;outline:none;resize:none;background:transparent;color:var(--text);font-family:inherit;overflow:hidden}
+.dr-title .ttl:hover{border-color:var(--border)}
+.dr-title .ttl:focus{border-color:var(--accent);background:var(--surface-2)}
+.head-side{display:flex;align-items:flex-start;gap:8px;flex-shrink:0}
+.dr-x{width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--text-3);font-size:17px;cursor:pointer}
+.dr-x:hover{background:var(--surface-3);color:var(--text)}
+.head-row2{width:100%;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.check-lg{width:24px;height:24px;border-radius:6px;border:2px solid var(--border-strong);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:8px;font-size:13px;color:#fff;background:var(--surface)}
+.check-lg.done{background:var(--success);border-color:var(--success)}
+.stchip{display:inline-flex;padding:4px 10px;border-radius:99px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);font-size:11.5px;white-space:nowrap}
+.stchip.st-doing{color:var(--warning);border-color:color-mix(in srgb,var(--warning) 40%,var(--border))}
+.mat{font-size:10.5px;color:var(--text-3);border:1px solid var(--border);border-radius:99px;padding:2px 9px;cursor:help}
+.mat b{color:var(--warning)}
+.prog{font-size:10.5px;color:var(--accent-2);border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border));border-radius:99px;padding:2px 9px;cursor:pointer}
+.ai-chip{font-size:10.5px;color:var(--text-3);border:1px solid var(--border);border-radius:99px;padding:1px 8px;display:inline-block}
+.ai-chip[hidden]{display:none}
+
+/* ★ AI 三入口工具组（补全 / 拆解 / 找资源）——连体 segment，各自三态 */
+.ai3{display:inline-flex;border:1px solid var(--accent);border-radius:9px;overflow:hidden;margin-top:6px;flex-shrink:0}
+.ai3 button{display:inline-flex;align-items:center;gap:5px;padding:7px 11px;font-size:12px;font-weight:600;border:0;background:var(--accent-light);color:var(--accent-2);cursor:pointer;transition:all var(--dur);white-space:nowrap}
+.ai3 button + button{border-left:1px solid color-mix(in srgb,var(--accent) 40%,var(--border))}
+.ai3 button:hover{background:var(--accent);color:#fff}
+.ai3 button.running{opacity:.6;cursor:progress}
+.ai3 .bot{font-size:13px;line-height:1}
+.ai3 .spin{width:11px;height:11px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:turn 1s linear infinite}
+@keyframes turn{to{transform:rotate(360deg)}}
+
+.dr-body{flex:1;overflow:auto;padding:14px 18px 8px}
+.sec-label{font-size:11px;color:var(--text-3);letter-spacing:.04em;margin:0 0 7px;display:flex;align-items:center;gap:6px}
+.sec-label .hint{color:var(--text-4);letter-spacing:0}
+.sec-act{margin-left:auto;display:flex;gap:6px}
+.mini{padding:3px 9px;font-size:11px;border-radius:7px;border:1px solid var(--border-strong);background:transparent;color:var(--text-2);cursor:pointer;white-space:nowrap}
+.mini:hover{color:var(--accent-2);border-color:var(--accent)}
+.ta{width:100%;min-height:88px;resize:vertical;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 11px;font-size:12.5px;line-height:1.65}
+.ta:focus{outline:none;border-color:var(--accent)}
+
+/* ★ 子任务清单（内嵌内容，非独立卡） */
+.st{border:1px solid var(--border);border-radius:10px;background:var(--surface-2);overflow:hidden}
+.st-row{display:flex;align-items:center;gap:9px;padding:7px 11px;border-bottom:1px solid var(--border);font-size:12.5px}
+.st-row:last-of-type{border-bottom:0}
+.st-dot{width:16px;height:16px;border-radius:5px;border:1.5px solid var(--border-strong);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;cursor:pointer}
+.st-dot.done{background:var(--success);border-color:var(--success)}
+.st-t{flex:1;min-width:0;outline:none;border-radius:5px;padding:1px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-t:focus{background:var(--surface-3)}
+.st-t.done{color:var(--text-4);text-decoration:line-through}
+.st-sup{font-size:10px;color:var(--text-3);border:1px solid var(--border);border-radius:99px;padding:0 7px;cursor:pointer;white-space:nowrap}
+.st-sup:hover{color:var(--accent-2);border-color:var(--accent)}
+.st-x{color:var(--text-4);cursor:pointer;font-size:12px;padding:0 2px}
+.st-x:hover{color:var(--danger)}
+.st-add{display:flex;align-items:center;gap:9px;padding:7px 11px;border-top:1px dashed var(--border);color:var(--text-4);font-size:12px;cursor:text}
+.st-add input{flex:1;background:transparent;border:0;outline:none;color:var(--text);font-size:12.5px}
+.st-empty{padding:9px 12px;font-size:12px;color:var(--text-4);border-top:1px dashed var(--border)}
+
+/* 资源支持区 */
+.sup{border:1px solid var(--border);border-radius:10px;background:var(--surface-2);overflow:hidden}
+.sup-row{display:flex;align-items:center;gap:8px;padding:8px 11px;border-bottom:1px solid var(--border);cursor:pointer;transition:background var(--dur)}
+.sup-row:last-child{border-bottom:0}
+.sup-row:hover{background:var(--surface-3)}
+.sup-row .nm{flex:1;min-width:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sup-row .why{font-size:10.5px;color:var(--text-4);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sup-row .open{color:var(--accent-2);font-size:12px}
+.sup-row .x{color:var(--text-4);padding:0 2px;cursor:pointer}
+.sup-row .x:hover{color:var(--danger)}
+.sup-search{width:100%;background:transparent;border:0;outline:none;color:var(--text);padding:8px 11px;font-size:12px}
+
+.props2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sel{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:12.5px;appearance:none}
+.prio{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.prio button{padding:6px 14px;font-size:11.5px;background:var(--surface-2);border:0;color:var(--text-3);cursor:pointer}
+.prio button + button{border-left:1px solid var(--border)}
+.prio button.on{font-weight:600}
+.prio button.on[data-p="high"]{color:var(--danger);background:color-mix(in srgb,var(--danger) 16%,var(--surface-2))}
+.prio button.on[data-p="medium"]{color:var(--warning);background:color-mix(in srgb,var(--warning) 16%,var(--surface-2))}
+.prio button.on[data-p="low"]{color:var(--success);background:color-mix(in srgb,var(--success) 16%,var(--surface-2))}
+.link-row{display:flex;gap:6px;align-items:center}
+.link-input{flex:1;min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:12.5px;font-family:ui-monospace,Menlo,monospace}
+.icon-btn{width:32px;height:32px;flex-shrink:0;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text-2);cursor:pointer;font-size:13px}
+.icon-btn:hover{color:var(--accent-2);border-color:var(--accent);background:var(--accent-light)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:11.5px;color:var(--accent-2);background:var(--accent-light);border-radius:99px;padding:3px 10px}
+.meta{color:var(--text-4);font-size:10.5px;display:flex;gap:14px;padding:8px 2px 2px;flex-wrap:wrap}
+
+.dr-foot{padding:12px 18px 14px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;background:var(--surface)}
+.btn-del{padding:9px 14px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--text-3);cursor:pointer;font-size:12.5px;white-space:nowrap}
+.btn-del:hover{color:var(--danger);border-color:var(--danger)}
+.btn-del.armed{color:#fff;background:var(--danger);border-color:var(--danger)}
+.btn-save{flex:1;padding:10px 0;border-radius:9px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.kbd{color:rgba(255,255,255,.65);font-size:10.5px;font-weight:400;margin-left:6px}
+
+/* AI 评审抽屉（嵌套浮层） */
+.rev{position:fixed;top:calc(var(--barh,46px) + 24px);right:24px;bottom:24px;width:500px;max-width:90vw;z-index:55;background:var(--surface);border:1px solid var(--border-strong);border-radius:14px;box-shadow:var(--shadow-lg);display:none;flex-direction:column;overflow:hidden}
+.rev.on{display:flex}
+.rev-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.rev-head .rt{font-size:14px;font-weight:600;flex-shrink:0}
+.rev-head .rh{font-size:11px;color:var(--text-3);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rev-body{flex:1;overflow:auto;padding:10px 12px}
+.rev-row{display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--surface-2);align-items:flex-start}
+.rev-row .cb{width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+.rev-row .rr-t{font-size:12.5px;font-weight:600}
+.rev-row .rr-s{font-size:11px;color:var(--text-3);margin-top:2px;line-height:1.5}
+.rev-badge{font-size:10px;border-radius:4px;padding:1px 6px;flex-shrink:0;margin-top:1px;white-space:nowrap}
+.rb-ok{color:var(--success);background:color-mix(in srgb,var(--success) 14%,transparent)}
+.rb-warn{color:var(--warning);background:color-mix(in srgb,var(--warning) 14%,transparent)}
+.rb-f{color:var(--accent-2);background:var(--accent-light)}
+.rev-foot{padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center}
+.rev-foot .note{font-size:10.5px;color:var(--text-4);flex:1;line-height:1.4}
+.btn{padding:8px 14px;border-radius:9px;border:1px solid var(--border-strong);background:transparent;color:var(--text-2);cursor:pointer;font-size:12.5px;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-hover)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* 清单视图：父卡内嵌展开 */
+.tl{max-width:920px}
+.tl-card{border:1px solid var(--border);border-radius:10px;background:var(--surface);margin-bottom:10px;overflow:hidden}
+.tl-head{display:flex;align-items:center;gap:10px;padding:11px 13px;font-size:13px;cursor:pointer}
+.tl-head:hover{background:var(--surface-2)}
+.tl-dot{width:17px;height:17px;border-radius:5px;border:1.5px solid var(--border-strong);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff}
+.tl-dot.done{background:var(--success);border-color:var(--success)}
+.tl-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill{font-size:10.5px;color:var(--text-3);border:1px solid var(--border);border-radius:99px;padding:1px 8px;white-space:nowrap;cursor:pointer}
+.pill:hover{color:var(--accent-2);border-color:var(--accent)}
+.pill.sup{color:var(--accent-2);border-color:color-mix(in srgb,var(--accent) 45%,var(--border))}
+.pill.prio-m{color:var(--warning);border-color:color-mix(in srgb,var(--warning) 45%,var(--border))}
+.tl-sub{border-top:1px dashed var(--border);background:var(--surface-2);padding:6px 13px 9px 40px;display:none}
+.tl-card.open .tl-sub{display:block}
+.tl-srow{display:flex;align-items:center;gap:9px;padding:4px 0;font-size:12.5px;color:var(--text-2)}
+.tl-srow .sd{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--border-strong);display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;cursor:pointer}
+.tl-srow .sd.done{background:var(--success);border-color:var(--success)}
+.tl-srow .st-done{color:var(--text-4);text-decoration:line-through}
+.tl-tw{font-size:10px;color:var(--text-4);transition:transform var(--dur)}
+.tl-card.open .tl-tw{transform:rotate(180deg)}
+
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);z-index:70;background:#0B0B0E;color:#F2F3F5;border:1px solid var(--border-strong);border-radius:10px;padding:9px 16px;font-size:12.5px;opacity:0;pointer-events:none;transition:all .2s}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.reopen{position:fixed;right:24px;bottom:24px;z-index:65;padding:10px 16px;border-radius:10px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;font-size:13px;display:none}
+</style>
+</head>
+<body>
+
+<div class="proto-bar">
+  <b>任务详情统筹版 · R166B</b>
+  <span class="proto-note">内嵌子任务（非独立卡）× AI 三入口 × 资源支持关联 · 全部可点</span>
+  <span class="seg" id="viewSeg">
+    <button class="on" data-v="task">任务详情</button>
+    <button data-v="res">资源详情（反向）</button>
+    <button data-v="list">任务调度（列表）</button>
+  </span>
+  <details class="spec">
+    <summary>设计说明（模型与边界）</summary>
+    <div class="body">
+      <h4>1. 子任务模型（按你的倾向定稿）：内嵌内容，非独立卡</h4>
+      <ul>
+        <li><code>TaskCard.subtasks: [{ id, title, done, note? }]</code>——子任务是<b>这张卡自己的字段</b>（像说明/标签一样），不是 TaskCard 实体：<b>不进任务池、不占指标 taskIds、不参与看板拖拽/周报计数/回收站</b>，天然不违反「卡间零挂载」（零引用，非关系记录）。</li>
+        <li>与现状差异：R144-a 的 <code>parentId</code> 软层级把子任务做成独立卡（平铺+↳ 记号）。本方案把「拆解采纳」的去向从<b>建卡</b>改为<b>写入本卡子任务清单</b>；任务调度模块（列表/看板/分组）不再出现游离子卡，父卡自带「1/2」进度角标 + 就地展开清单。</li>
+        <li>⚠ 存量迁移（待拍板 D5）：现库中 parentId 子卡 → 建议启动期幂等折叠进父卡 subtasks（title+done 平移，原子卡软删进回收站并带说明，可撤销）；无父可折的升为普通任务。</li>
+        <li>连带退役：详情头「↳ 父名/⤴ 升顶层」徽标、删父升顶层、子不陪葬等语义随独立卡模型一并简化——子任务生命周期完全跟随父卡。</li>
+      </ul>
+      <h4>2. AI 三入口（任务详情标题行工具组，各自三态）</h4>
+      <ul>
+        <li><b>补全</b>（新）：按标题+现状补齐缺项——验收标准写入说明、建议标签、建议归属项目/指标、估时；勾选采纳才写库。</li>
+        <li><b>拆解</b>（改造）：评审抽屉双通道去向——「✓ 采纳为子任务清单」=写 <code>subtasks</code>；「📝 步骤写进详情」=纯文本进说明（R139 secondary 原样）。</li>
+        <li><b>找资源</b>（新）：盘点资源卡→推荐→勾选采纳=写 <code>SupportLink { taskId, subId?, resourceId }</code>；子任务行可挂自己的 🧭 支持（subId 定位）。</li>
+        <li>三态共用一枚 chip：「🤖 最近：补全 · MM-DD HH:mm」；跑中仅该钮转圈+互斥。</li>
+      </ul>
+      <h4>3. 资源支持（关联表，红线不动）</h4>
+      <ul>
+        <li>双向显示=反查：任务详情「资源支持」区（点行=打开资源链接+计热度）；资源详情「支持的任务」区（只读，解绑入口留任务侧）。</li>
+        <li>解绑只删记录，绝不动卡本体；任一端软删→显示过滤，物删→purge；撤销窗口随卡回挂。</li>
+      </ul>
+      <h4>4. 待拍板</h4>
+      <ul>
+        <li>D5 存量 parentId 子卡折叠迁移（推荐：折叠+回收站可撤）。</li>
+        <li>D6 子任务完成是否影响成熟度/周报（推荐：本轮都不接，子任务纯执行工具；要接单独拍）。</li>
+        <li>D7 好奇卡 fromCuriosityId：已拍板删除（好奇零关联，转化即出路）。</li>
+      </ul>
+    </div>
+  </details>
+</div>
+
+<div class="app dim" id="app">
+  <div class="tl" id="vwList" style="display:none">
+    <div class="topbar"><span>调度台</span><span class="on">方向台 · 任务调度</span><span>资源台</span><span>📦 产品体验治理 › 本周</span></div>
+    <div class="tl-card open" id="tlCard">
+      <div class="tl-head">
+        <span class="tl-dot"></span>
+        <span class="tl-nm">把资源卡详情页重设计落码（含四主题走查）</span>
+        <span class="pill prio-m">🟡 中</span>
+        <span class="pill sup" data-jump="task">🧭 2</span>
+        <span class="pill" id="tlProg">子任务 1/2 ▾</span>
+      </div>
+      <div class="tl-sub">
+        <div class="tl-srow"><span class="sd done">✓</span><span class="st-done">盘点三抽屉触点与断言锚点</span><span class="pill" style="font-size:9.5px">🧭 1</span></div>
+        <div class="tl-srow"><span class="sd"></span><span>落码 ResourceEditForm + 两宿主页脚</span><span class="pill" style="font-size:9.5px">🧭 3</span></div>
+        <div class="tl-srow" style="color:var(--text-4);font-size:11.5px">＋ 子任务就地可加（清单底部，与详情同源）</div>
+      </div>
+    </div>
+    <div class="tl-card"><div class="tl-head"><span class="tl-dot"></span><span class="tl-nm">度量与刹车（perf --real 真实路径）</span><span class="pill prio-m">🟡 中</span><span class="pill">🧭 0 · 可找支持</span><span class="tl-tw">▾</span></div></div>
+    <div class="tl-card"><div class="tl-head"><span class="tl-dot done">✓</span><span class="tl-nm" style="color:var(--text-4);text-decoration:line-through">标签体检空态补真因</span><span class="pill sup">🧭 1</span><span class="tl-tw">▾</span></div></div>
+    <div class="tl-card"><div class="tl-head"><span class="tl-dot"></span><span class="tl-nm">R166 · 任务×资源支持关联落码</span><span class="pill" style="color:var(--danger);border-color:color-mix(in srgb,var(--danger) 45%,var(--border))">🔴 高</span><span class="pill">🧭 0 · 可找支持</span><span class="tl-tw">▾</span></div></div>
+  </div>
+</div>
+
+<div class="scrim on" id="scrim"></div>
+
+<!-- ================= 任务详情 ================= -->
+<aside class="drawer on" id="dwTask" aria-label="任务详情">
+  <div class="dr-head">
+    <div class="dr-title">
+      <div class="check-lg" id="tCheck"></div>
+      <textarea class="ttl" id="tTitle" rows="2">把资源卡详情页重设计落码（含四主题走查）</textarea>
+    </div>
+    <div class="head-side">
+      <span class="ai3" id="ai3">
+        <button data-ai="enrich" title="AI 按标题与现状补齐缺项（验收标准/标签/归属/估时），勾选采纳才写库"><span class="bot">🤖</span><span>补全</span></button>
+        <button data-ai="chain" title="AI 拆解本任务：采纳为子任务清单，或步骤写进详情（双通道）"><span>拆解</span></button>
+        <button data-ai="support" title="AI 围绕本任务盘点资源卡，推荐可支持它的资源（勾选采纳才关联）"><span>找资源</span></button>
+      </span>
+      <button class="dr-x" data-close title="关闭（Esc）">×</button>
+    </div>
+    <div class="head-row2">
+      <span class="stchip st-doing">◐ 进行中</span>
+      <span class="mat" title="成熟度=可执行/可归属/新鲜度">成熟度 <b>72</b></span>
+      <span class="prog" id="hProg">子任务 1/2</span>
+      <span class="ai-chip" id="aiChip" hidden>🤖 最近：— · —</span>
+    </div>
+  </div>
+
+  <div class="dr-body">
+    <div class="sec-label">说明 <span class="hint">— 上下文 · 验收标准</span></div>
+    <textarea class="ta" id="tDesc">验收：四主题截图走查通过 + 回归断言随迁 + 真机复核抽屉手势。</textarea>
+
+    <div style="height:16px"></div>
+    <!-- ★ 子任务清单 -->
+    <div class="sec-label">↳ 子任务清单 <span class="hint">— 本卡内容 · 不是独立任务卡 · 不进看板/指标/周报</span></div>
+    <div class="st" id="stBox">
+      <div class="st-row"><span class="st-dot done" data-tg>✓</span><span class="st-t done" contenteditable spellcheck="false">盘点三抽屉触点与断言锚点</span><span class="st-sup" title="这条子任务的资源支持">🧭 1</span><span class="st-x" title="删除子任务">×</span></div>
+      <div class="st-row"><span class="st-dot" data-tg></span><span class="st-t" contenteditable spellcheck="false">落码 ResourceEditForm + 两宿主页脚</span><span class="st-sup">🧭 3</span><span class="st-x" title="删除子任务">×</span></div>
+      <div class="st-add"><span style="width:16px;text-align:center">＋</span><input id="stAdd" placeholder="加一条子任务，回车确认（也可让 AI 拆解批量写入）"></div>
+    </div>
+
+    <div style="height:16px"></div>
+    <!-- ★ 资源支持 -->
+    <div class="sec-label">🧭 资源支持 <span class="hint">— 点行打开资源链接 · 解绑不动卡</span></div>
+    <div class="sup" id="supList">
+      <div class="sup-row" data-open><span class="nm">📄 Fitts's Law — NN/g 交互热区准则</span><span class="why">热区判据</span><span class="open">↗</span><span class="st-x x" title="解除关联">×</span></div>
+      <div class="sup-row" data-open><span class="nm">📄 方案 A 原型（本地 HTML）</span><span class="why">版式基准</span><span class="open">↗</span><span class="st-x x" title="解除关联">×</span></div>
+      <input class="sup-search" id="supSearch" placeholder="🔍 手动搜索资源卡关联（回车=关联输入内容）…">
+    </div>
+
+    <div style="height:16px"></div>
+    <div class="sec-label">📦 归属 <span class="hint">— 项目 → 指标 级联（补全会给建议）</span></div>
+    <div class="props2">
+      <select class="sel"><option>产品体验治理（方向：知源调度台）</option><option>未关联项目</option></select>
+      <select class="sel"><option>详情页操作步长 ≤3</option><option>暂不归属</option></select>
+    </div>
+    <div style="height:14px"></div>
+    <div class="sec-label">⚡ 优先级</div>
+    <div class="prio" id="tPrio"><button data-p="high">🔴 高</button><button data-p="medium" class="on">🟡 中</button><button data-p="low">🟢 低</button></div>
+    <div style="height:14px"></div>
+    <div class="sec-label">🔗 链接 <span class="hint">— 双击卡片直达</span></div>
+    <div class="link-row">
+      <input class="link-input" value="https://github.com/bosstan3633/zhiyuan0901" spellcheck="false">
+      <button class="icon-btn" data-act="open" title="打开">↗</button>
+      <button class="icon-btn" data-act="copy" title="复制">⧉</button>
+    </div>
+    <div style="height:14px"></div>
+    <div class="sec-label">🏷 标签</div>
+    <div class="tags" id="tTags"><span class="tag">#效率与生活/办公协作</span></div>
+    <div style="height:10px"></div>
+    <details class="sup"><summary style="padding:8px 11px;font-size:12.5px;color:var(--text-2);cursor:pointer">📎 附件 (1)</summary><div style="padding:4px 11px 9px;font-size:12px;color:var(--text-3);border-top:1px solid var(--border)">drawer-footer-before.png · 412KB</div></details>
+    <div class="meta"><span>创建 2026-09-23 20:41</span><span>更新 2026-09-24 17:30</span><span style="color:var(--accent-2);cursor:pointer">🧭 去方向树创建项目/指标 ›</span></div>
+  </div>
+
+  <div class="dr-foot">
+    <button class="btn-del" data-del>🗑 删除</button>
+    <button class="btn-save" data-save>✓ 完成并关闭<span class="kbd">Ctrl+↩</span></button>
+  </div>
+</aside>
+
+<!-- ================= 资源详情（反向） ================= -->
+<aside class="drawer" id="dwRes" aria-label="资源详情">
+  <div class="dr-head">
+    <div class="dr-title"><div class="ttl">Fitts's Law — NN/g 交互热区准则</div></div>
+    <div class="head-side"><button class="dr-x" data-close>×</button></div>
+  </div>
+  <div class="dr-body">
+    <div class="sec-label">链接 <span class="hint">— 真身只在资源台</span></div>
+    <div class="link-row">
+      <input class="link-input" value="https://www.nngroup.com/articles/fitts-law/" spellcheck="false">
+      <button class="icon-btn" data-act="open">↗</button><button class="icon-btn" data-act="copy">⧉</button>
+    </div>
+    <div style="height:16px"></div>
+    <div class="sec-label">🧭 支持的任务 <span class="hint">— 反查关联表 · 本卡不持有任务 id · 解绑去任务侧</span></div>
+    <div class="sup">
+      <div class="sup-row" data-jump="task"><span class="nm">✅ 把资源卡详情页重设计落码（含四主题走查）</span><span class="why">◐ 进行中</span><span class="open">→</span></div>
+      <div class="sup-row" data-jump="task"><span class="nm" style="color:var(--text-2)">↳ 盘点三抽屉触点与断言锚点（子任务）</span><span class="why">✓ 完成</span><span class="open">→</span></div>
+    </div>
+    <div class="meta"><span>创建 2026-09-21 21:53</span><span>打开 4 次</span></div>
+  </div>
+  <div class="dr-foot">
+    <button class="btn-del" data-del>🗑 删除</button>
+    <button class="btn-save" data-save>✓ 保存<span class="kbd">Ctrl+↩</span></button>
+  </div>
+</aside>
+
+<!-- ================= AI 评审抽屉（三态共用容器） ================= -->
+<section class="rev" id="rev" aria-label="AI 评审">
+  <div class="rev-head"><span class="rt" id="revTitle"></span><span class="rh" id="revSub"></span><button class="dr-x" id="revX">×</button></div>
+  <div class="rev-body" id="revBody"></div>
+  <div class="rev-foot">
+    <span class="note" id="revNote"></span>
+    <button class="btn" id="revCancel">取消</button>
+    <button class="btn" id="revSecond" style="display:none"></button>
+    <button class="btn primary" id="revAdopt"></button>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+<button class="reopen" id="reopen">重新打开详情（原型）</button>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2400); };
+const bar = $('.proto-bar');
+const fitBar = () => document.documentElement.style.setProperty('--barh', bar.offsetHeight + 'px');
+fitBar(); addEventListener('resize', fitBar); new ResizeObserver(fitBar).observe(bar);
+
+/* 标题自增高 */
+const ttl = $('#tTitle'); const fitT = () => { ttl.style.height = 'auto'; ttl.style.height = ttl.scrollHeight + 'px'; };
+ttl.addEventListener('input', fitT); fitT();
+
+/* 视图切换 */
+$('#viewSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  $$('#viewSeg button').forEach(x => x.classList.toggle('on', x === b));
+  const v = b.dataset.v;
+  $('#dwTask').classList.toggle('on', v === 'task');
+  $('#dwRes').classList.toggle('on', v === 'res');
+  $('#vwList').style.display = v === 'list' ? '' : 'none';
+  $('#app').classList.toggle('dim', v !== 'list');
+  $('#scrim').classList.toggle('on', v !== 'list');
+  $('#rev').classList.remove('on');
+  $('#reopen').style.display = 'none';
+});
+
+/* 子任务清单：勾选/删除/新增 → 进度联动 */
+function prog() {
+  const rows = $$('#stBox .st-row'); const done = rows.filter(r => r.querySelector('.st-dot').classList.contains('done')).length;
+  $('#hProg').textContent = `子任务 ${done}/${rows.length}`;
+  $('#tlProg') && ($('#tlProg').textContent = `子任务 ${done}/${rows.length} ▾`);
+}
+$('#stBox').addEventListener('click', e => {
+  const dot = e.target.closest('[data-tg]');
+  if (dot) { dot.classList.toggle('done'); dot.textContent = dot.classList.contains('done') ? '✓' : ''; dot.nextElementSibling.classList.toggle('done'); prog(); return; }
+  const x = e.target.closest('.st-x');
+  if (x) { x.closest('.st-row').remove(); prog(); toast('子任务已删除（本卡内容，无回收站——它是清单行不是卡）'); return; }
+  const sp = e.target.closest('.st-sup');
+  if (sp) { toast('🧭 该子任务的资源支持（SupportLink 带 subId）：3 张 · 点行打开链接'); }
+});
+$('#stAdd').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || !e.target.value.trim()) return;
+  const row = document.createElement('div'); row.className = 'st-row';
+  row.innerHTML = `<span class="st-dot" data-tg></span><span class="st-t" contenteditable spellcheck="false"></span><span class="st-sup">🧭 0</span><span class="st-x" title="删除子任务">×</span>`;
+  row.querySelector('.st-t').textContent = e.target.value.trim();
+  $('#stBox').insertBefore(row, $('#stBox').querySelector('.st-add'));
+  e.target.value = ''; prog(); toast('＋ 已加子任务（写本卡 subtasks）');
+});
+prog();
+
+/* ===== AI 三入口：互斥 + 各自三态 + 共用 chip ===== */
+const AI = {
+  enrich: { label: '补全', title: '🤖 AI 补全', sub: '对照标题/说明找缺项：验收标准 · 标签 · 归属 · 估时（勾选采纳才写库）', note: '采纳后直接写入本卡字段；已填项不覆盖',
+    rows: [
+      { b: '验收', bt: 'rb-f', t: '说明 · 追加验收标准', s: '「四主题截图走查 0 返工 + 回归断言全绿 + 真机复核手势」——现状说明缺可判卷的验收项', checked: true, act: 'desc' },
+      { b: '标签', bt: 'rb-ok', t: '标签 · #效率与生活/办公协作 → 追加 #AI工具与知识库/研发流程', s: '与同项目其余 4 张任务卡同标签，便于筛选', checked: true, act: 'tag' },
+      { b: '归属', bt: 'rb-warn', t: '指标 · 建议改挂「详情页操作步长 ≤3」', s: '标题含「详情页重设计」，现挂指标语义偏泛；弱相关默认不勾', checked: false, act: 'noop' },
+      { b: '估时', bt: 'rb-warn', t: '估时 · 建议 240 分钟', s: '同粒度任务历史均值；仅提示不写字段', checked: false, act: 'noop' },
+    ],
+    adopt(kind, rows) {
+      rows.forEach(r => {
+        if (r.act === 'desc') $('#tDesc').value += '\n🤖 验收：四主题截图走查 0 返工 + 回归断言全绿 + 真机复核手势。';
+        if (r.act === 'tag') { const t = document.createElement('span'); t.className = 'tag'; t.textContent = '#AI工具与知识库/研发流程'; $('#tTags').appendChild(t); }
+      });
+      return `✓ 已补全 ${rows.length} 项进本卡（说明/标签直接写入，未勾项忽略）`;
+    } },
+  chain: { label: '拆解', title: '🤖 拆解任务', sub: '半天粒度步骤 · 可换执笔专家 · 两种去向（下方两钮）', note: '采纳=写入本卡子任务清单（不建独立任务卡）；或降级为详情文本',
+    rows: [
+      { b: '步骤', bt: 'rb-ok', t: '改 RDD/Workspace 两宿主：插槽注入 + 页脚两钮', s: '约 120 分钟 · 高', checked: true },
+      { b: '步骤', bt: 'rb-ok', t: '断言随迁：R152-A2 / R48 锚点逐条重指', s: '约 60 分钟 · 高', checked: true },
+      { b: '步骤', bt: 'rb-warn', t: '四主题走查 + 真机复核', s: '约 40 分钟 · 中（依赖你复核）', checked: true },
+      { b: '步骤', bt: 'rb-warn', t: 'perf 同机 A/B 基线补跑', s: '约 30 分钟 · 弱相关默认不勾', checked: false },
+    ],
+    second: { label: '📝 步骤写进详情（' , act: 'desc' } },
+  support: { label: '找资源', title: '🤖 找资源支持', sub: '围绕本任务盘点 380 张资源卡 → 候选 24 → 推荐 4', note: '采纳=写 SupportLink（任务/子任务↔资源），两卡本体零改动；解绑随时可撤',
+    rows: [
+      { b: '高', bt: 'rb-ok', t: '📄 开发任务清单 R164（本地 HTML 副本）', s: '触点表就是施工单', sup: '任务清单 R164', why: '施工单', checked: true },
+      { b: '高', bt: 'rb-ok', t: '📄 R162 挂载剥离先例笔记', s: 'repository 剥离/合并语义参考', sup: 'R162 剥离先例', why: '剥离先例', checked: true },
+      { b: '中', bt: 'rb-warn', t: '📄 theme-audit 跨机回落改造备忘', s: '门禁脚本同类问题；弱相关默认不勾', sup: 'theme-audit 备忘', why: '门禁备忘', unchecked: true },
+      { b: '中', bt: 'rb-warn', t: '📄 知源 V3.4.2 安装包（桌面）', s: '真机复核入口', sup: 'V3.4.2 包', why: '复核包', unchecked: true },
+    ] },
+};
+let running = '';
+function setChip(name) {
+  const d = new Date(); const p = n => String(n).padStart(2, '0');
+  const c = $('#aiChip'); c.hidden = false; c.textContent = `🤖 最近：${name} · ${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+$('#ai3').addEventListener('click', e => {
+  const btn = e.target.closest('button'); if (!btn || running) return;
+  const key = btn.dataset.ai; const cfg = AI[key];
+  running = key; btn.classList.add('running');
+  const had = btn.querySelector('.bot');
+  (had || btn.insertAdjacentHTML('afterbegin', '<span class="bot"></span>'), btn.querySelector('.bot'))
+    .outerHTML = '<span class="bot spin"></span>';
+  setTimeout(() => {
+    btn.classList.remove('running');
+    const spin = btn.querySelector('.bot');
+    if (key === 'enrich') spin.outerHTML = '<span class="bot">🤖</span>'; else spin.remove();
+    running = ''; setChip(cfg.label);
+    openRev(key, cfg);
+  }, 1100);
+});
+/* 评审抽屉容器 */
+let revKey = '';
+function openRev(key, cfg) {
+  revKey = key;
+  $('#revTitle').textContent = cfg.title; $('#revSub').textContent = cfg.sub; $('#revNote').textContent = cfg.note;
+  const body = $('#revBody'); body.innerHTML = '';
+  cfg.rows.forEach((r, i) => {
+    const lab = document.createElement('label'); lab.className = 'rev-row';
+    lab.innerHTML = `<input type="checkbox" class="cb" ${r.checked ? 'checked' : ''} data-i="${i}"><span class="rev-badge ${r.bt}">${r.b}</span><span style="flex:1;min-width:0"><span class="rr-t">${r.t}</span><span class="rr-s">${r.s}</span></span>`;
+    body.appendChild(lab);
+  });
+  $('#revSecond').style.display = cfg.second ? '' : 'none';
+  if (cfg.second) $('#revSecond').textContent = cfg.second.label + '0）';
+  cnt(); $('#rev').classList.add('on');
+}
+function picked() { return $$('#revBody .cb:checked').map(cb => AI[revKey].rows[+cb.dataset.i]); }
+function cnt() {
+  const n = $$('#revBody .cb:checked').length;
+  $('#revAdopt').textContent = revKey === 'support' ? `✓ 采纳关联（${n}）` : revKey === 'chain' ? `✓ 采纳为子任务（${n}）` : `✓ 采纳补全（${n}）`;
+  $('#revAdopt').disabled = !n;
+  const sec = $('#revSecond'); if (sec.style.display !== 'none') sec.textContent = `📝 步骤写进详情（${n}）`;
+}
+$('#revBody').addEventListener('change', cnt);
+$('#revX').addEventListener('click', () => $('#rev').classList.remove('on'));
+$('#revCancel').addEventListener('click', () => $('#rev').classList.remove('on'));
+$('#revAdopt').addEventListener('click', () => {
+  const rows = picked();
+  if (revKey === 'enrich') { toast(AI.enrich.adopt(null, rows)); }
+  if (revKey === 'chain') {
+    rows.forEach(r => {
+      const row = document.createElement('div'); row.className = 'st-row';
+      row.innerHTML = `<span class="st-dot" data-tg></span><span class="st-t" contenteditable spellcheck="false"></span><span class="st-sup">🧭 0</span><span class="st-x">×</span>`;
+      row.querySelector('.st-t').textContent = r.t;
+      $('#stBox').insertBefore(row, $('#stBox').querySelector('.st-add'));
+    });
+    prog(); toast(`✓ ${rows.length} 步已写入子任务清单（本卡 subtasks，未建独立任务卡）`);
+  }
+  if (revKey === 'support') {
+    rows.forEach(r => {
+      const row = document.createElement('div'); row.className = 'sup-row'; row.setAttribute('data-open', '');
+      row.innerHTML = `<span class="nm">📄 ${r.sup}</span><span class="why">${r.why}</span><span class="open">↗</span><span class="st-x x">×</span>`;
+      $('#supList').insertBefore(row, $('#supSearch'));
+    });
+    toast(`✓ 已关联 ${rows.length} 张资源卡（写 SupportLink；两卡本体零改动）`);
+  }
+  $('#rev').classList.remove('on');
+});
+$('#revSecond').addEventListener('click', () => {
+  const rows = picked();
+  $('#tDesc').value += '\n🤖 步骤清单：\n' + rows.map(r => `- ${r.t}${r.s.includes('分钟') ? '（' + r.s.split(' · ')[0] + '）' : ''}`).join('\n');
+  $('#rev').classList.remove('on');
+  toast(`✓ ${rows.length} 步已写进详情说明（纯文本，不建子任务）`);
+});
+
+/* 资源支持区：打开/解绑/手动搜索 */
+document.addEventListener('click', e => {
+  const x = e.target.closest('.sup-row .x');
+  if (x) { x.closest('.sup-row').remove(); toast('已解除关联（仅删 SupportLink 记录，资源卡本体未动）'); return; }
+  const op = e.target.closest('[data-open]');
+  if (op && op.closest('.sup')) { toast('↗ 打开资源链接（计热度 recordResourceOpen）：' + op.querySelector('.nm').textContent.slice(0, 26) + '…'); return; }
+  const j = e.target.closest('[data-jump="task"]');
+  if (j) { $$('#viewSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === 'task')); $('#dwRes').classList.remove('on'); $('#dwTask').classList.add('on'); $('#vwList').style.display = 'none'; $('#app').classList.add('dim'); $('#scrim').classList.add('on'); toast('→ 跳到任务详情并滚到「资源支持」区'); return; }
+  const ib = e.target.closest('.icon-btn');
+  if (ib) { toast(ib.dataset.act === 'copy' ? '⧉ 已复制' : '↗ 打开（原型不真开）'); return; }
+  const th = e.target.closest('.tl-head');
+  if (th) { th.closest('.tl-card').classList.toggle('open'); }
+});
+$('#supSearch').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.value.trim()) {
+    const row = document.createElement('div'); row.className = 'sup-row'; row.setAttribute('data-open', '');
+    row.innerHTML = `<span class="nm">📄 ${e.target.value.trim()}</span><span class="why">手动</span><span class="open">↗</span><span class="st-x x">×</span>`;
+    $('#supList').insertBefore(row, $('#supSearch')); e.target.value = '';
+    toast('＋ 已手动关联（from=manual）');
+  }
+});
+
+/* 优先级 segment / 完成勾选 */
+$('#tPrio').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; $$('#tPrio button').forEach(x => x.classList.toggle('on', x === b)); toast('优先级 → ' + b.textContent.trim()); });
+$('#tCheck').addEventListener('click', () => { const d = $('#tCheck').classList.toggle('done'); $('#tCheck').textContent = d ? '✓' : ''; toast(d ? '✓ 任务已完成' : '状态 → 待开始'); });
+
+/* 删除二次确认 / 保存 / 关闭 */
+$$('[data-del]').forEach(b => {
+  let armed = false, t = 0;
+  b.addEventListener('click', () => {
+    if (!armed) { armed = true; b.classList.add('armed'); b.textContent = '确认删除？（进回收站）'; clearTimeout(t); t = setTimeout(() => { armed = false; b.classList.remove('armed'); b.textContent = '🗑 删除'; }, 3000); return; }
+    armed = false; b.classList.remove('armed'); b.textContent = '🗑 删除';
+    toast('🗑 已软删进回收站 · 子任务清单随卡走 · 关联记录同步隐藏（可撤销）'); closeDrawer();
+  });
+});
+$$('[data-save]').forEach(b => b.addEventListener('click', () => { toast('✓ 已保存（原型）'); closeDrawer(); }));
+function closeDrawer() { $$('.drawer').forEach(d => d.classList.remove('on')); $('#scrim').classList.remove('on'); $('#rev').classList.remove('on'); $('#reopen').style.display = 'block'; }
+$$('[data-close]').forEach(b => b.addEventListener('click', closeDrawer));
+$('#scrim').addEventListener('click', closeDrawer);
+$('#reopen').addEventListener('click', () => { $('#scrim').classList.add('on'); $('#app').classList.add('dim'); $('#reopen').style.display = 'none'; $('#dwTask').classList.add('on'); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if ($('#rev').classList.contains('on')) { $('#rev').classList.remove('on'); return; } closeDrawer(); }
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); toast('✓ 已保存（Ctrl+↩）'); }
+});
+</script>
+</body>
+</html>
