@@ -1040,7 +1040,7 @@ import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { saveUIPrefs, loadUIPrefs, getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage } from '@/shared/storage/repository'
-import { K } from '@/shared/storage/keys'
+import { K, EXPORT_MARKERS } from '@/shared/storage/keys'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
 import FieldEditor from './FieldEditor.vue'
@@ -1205,7 +1205,7 @@ async function exportAssetPack() {
     const all = await getAllAssets()
     if (!all.length) { showToast('暂无附件可导出'); return }
     const manifest = JSON.stringify({
-      type: K.ASSET_PACK, version: 1, exportedAt: new Date().toISOString(), count: all.length,
+      type: EXPORT_MARKERS.ASSET_PACK, version: 1, exportedAt: new Date().toISOString(), count: all.length,
       items: all.map(a => ({ id: a.id, size: a.blob.size, mime: a.blob.type || '' }))
     }, null, 2)
     const entries: ZipEntry[] = [

@@ -326,8 +326,9 @@ const scriptNotes = {
 }
 const scriptFiles = fs.readdirSync(path.join(V2_ROOT, 'scripts')).filter((f) => f.endsWith('.cjs')).sort()
 for (const f of scriptFiles) {
-  const st = fs.statSync(path.join(V2_ROOT, 'scripts', f))
-  const kb = (st.size / 1024).toFixed(0)
+  // R164：体积按 LF 归一化计算——Windows checkout（CRLF）会把每个脚本撑大 ~1 字节/行，
+  // 与 Mac（LF）生成值必然不一致（索引漂移误报的第二处来源）。
+  const kb = (Buffer.byteLength(fs.readFileSync(path.join(V2_ROOT, 'scripts', f), 'utf8').replace(/\r\n/g, '\n')) / 1024).toFixed(0)
   out.push(`| \`${f}\` (${kb}KB) | ${scriptNotes[f] || '—'} |`)
 }
 out.push('')
@@ -348,7 +349,9 @@ if (process.argv.includes('--check')) {
   }
   let disk = ''
   try {
-    disk = fs.readFileSync(OUT, 'utf8')
+    // R164：读取时 CRLF 归一化——Windows checkout（autocrlf）会把索引 .md 转成 CRLF，
+    // 逐行比对会把 171 项全部误判为「漂移」（Mac/LF 正常）。生成侧恒 LF，比对侧必须同口径。
+    disk = fs.readFileSync(OUT, 'utf8').replace(/\r\n/g, '\n')
   } catch (e) {
     console.error('❌ 索引文件不存在：' + OUT + '（跑 node v2/scripts/gen-code-index.cjs 生成）')
     process.exit(1)

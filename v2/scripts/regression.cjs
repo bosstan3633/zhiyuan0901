@@ -57,7 +57,7 @@ function exists(p) { return fs.existsSync(base + p); }
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.4.0'";
+const VER_ANCHOR_LITERAL = "version: '3.4.1'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -494,7 +494,7 @@ check('R38-10 REQ-046 content 输入防抖 90→60ms', () => { const s = read('/
 // ============== 第卅九轮 · V2.15.0 卡片附件功能（REQ-048，第卅八轮拍板） ==============
 console.log('【第卅九轮 · V2.15.0：REQ-048 卡片附件（三类卡全支持 · IndexedDB 存储 · 单文件 20MB）】');
 check('R39-1 REQ-048 模型 AssetMeta 接口 + assets 字段（CardBase 一份 + 三卡 extends）', () => { const s = read('/shared/models/index.ts'); return s.includes('export interface AssetMeta') && s.split('extends CardBase').length - 1 === 3 && s.split('assets?: AssetMeta[]').length - 1 >= 1; });
-check('R39-2 REQ-048 IndexedDB 附件库 zy_assets 完整封装', () => { const s = read('/shared/storage/assets.ts'); return s.includes('DB_NAME = K.ASSETS_DB') && s.includes('export async function putAsset') && s.includes('export async function getAssetBlob') && s.includes('export async function deleteAsset') && s.includes('export async function getAssetStats') && s.includes('export async function cleanupOrphanAssets') && s.includes('export function assetIdsOf'); });
+check('R39-2 REQ-048 IndexedDB 附件库 zy_assets 完整封装', () => { const s = read('/shared/storage/assets.ts'); return s.includes('DB_NAME = IDB_NAMES.ASSETS') && s.includes('export async function putAsset') && s.includes('export async function getAssetBlob') && s.includes('export async function deleteAsset') && s.includes('export async function getAssetStats') && s.includes('export async function cleanupOrphanAssets') && s.includes('export function assetIdsOf'); });
 check('R39-3 REQ-048 性能红线：附件仅存元数据引用（AssetMeta 无二进制承载字段）', () => { const s = read('/shared/models/index.ts'); return s.includes('export interface AssetMeta') && s.includes("kind: 'image' | 'html'") && s.includes('mime: string') && s.includes('createdAt: number') && !s.includes('ArrayBuffer') && !s.includes('Uint8Array'); });
 check('R39-4 REQ-048 共享组件 AssetManager 单文件上限（第卌四轮升级：accept 扩 .pdf + kind 三分支 limitMB）', () => { const s = read('/shared/components/AssetManager.vue'); return s.includes('maxSizeMB: 20') && s.includes('accept="image/*,.html,.htm,.pdf"') && s.includes("const limitMB = kind === 'image' ? IMG_MAX_MB : kind === 'pdf' ? PDF_MAX_MB : props.maxSizeMB") && s.includes('f.size > limitMB * 1024 * 1024'); });
 check('R39-5 REQ-048 AssetManager 上传即写 IndexedDB（putAsset + uid）', () => { const s = read('/shared/components/AssetManager.vue'); return s.includes('putAsset(') && s.includes("uid('at')") && s.includes('emitList'); });
@@ -4638,6 +4638,18 @@ check('R163-1 ★代码索引是生成物，不许漂：调 gen-code-index.cjs -
     throw new Error(detail.slice(0, 300))
   }
 });
+
+// ============== R164 · 度量与刹车（CRLF 门禁修复 / 增长门禁 / 键边界 / 依赖纪律 / 生成物二期 / A1 触发） ==============
+console.log('【R164 · 度量与刹车】');
+check('R164-1 ★代码索引门禁 CRLF 双修：索引读取归一化 + 脚本体积按 LF 计算（Windows checkout 不再 171 项全量误报）', () => { const g = read('/../scripts/gen-code-index.cjs'); return g.includes('R164') && g.includes('Buffer.byteLength') && (g.match(/CRLF/g) || []).length >= 1 && (g.match(/replace\(\/\\r\\n\/g/g) || []).length >= 2; });
+check('R164-2 ★增长门禁：GlobalSettings ≤3,565 行 + regression.cjs ≤5,500 行（超限即红并提示分片评估）', () => { const gs = read('/newtab/views/GlobalSettings.vue').split('\n').length; const reg = fs.readFileSync(__filename, 'utf8').split('\n').length; if (reg > 5500) console.error('   ⚠ regression.cjs 破 5,500 行 → 启动分片评估（04-65 §〇 拍板 4）'); return gs <= 3565 && reg <= 5500; });
+check('R164-3 配额文案括号配对：App.vue 保存失败 toast 补齐右括号 + 破文案（无右括号版）零残留', () => { const a = read('/newtab/App.vue'); return a.includes('），请清理或导出后重试') && !a.includes('${sz}，请清理或导出后重试'); });
+check('R164-4 ★键边界（A3）：K 只装 storage 键；IDB_NAMES / EXPORT_MARKERS 另立（非存储命名空间）', () => { const k = read('/shared/storage/keys.ts'); const a = read('/shared/storage/assets.ts'); const g = read('/newtab/views/GlobalSettings.vue'); const kBody = k.slice(k.indexOf('export const K'), k.indexOf('export const IDB_NAMES')); return k.includes('export const IDB_NAMES') && k.includes('export const EXPORT_MARKERS') && k.includes("ASSETS: 'zy_assets'") && k.includes("ASSET_PACK: 'zy_asset_pack'") && !kBody.includes('ASSETS_DB') && !kBody.includes('ASSET_PACK') && a.includes('IDB_NAMES.ASSETS') && !a.includes('K.ASSETS_DB') && g.includes('EXPORT_MARKERS.ASSET_PACK') && !g.includes('K.ASSET_PACK'); });
+check('R164-5 ★依赖纪律：pinyin-pro 不进 dependencies（生成器专用 devDependency）+ 生成器仍可复现', () => { const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8')); const g = read('/../scripts/gen-pinyin-table.cjs'); return !(pkg.dependencies && pkg.dependencies['pinyin-pro']) && !!(pkg.devDependencies && pkg.devDependencies['pinyin-pro']) && g.includes("require('pinyin-pro')"); });
+check('R164-6 ★生成物防腐化二期：pinyinTable.ts 漂移即红（--check 与代码索引同法，含 CRLF 归一化）', () => { const g = read('/../scripts/gen-pinyin-table.cjs'); if (!(g.includes('--check') && g.includes('已漂移'))) return false; const r = require('child_process').spawnSync(process.execPath, [path.resolve(__dirname, '..', 'scripts', 'gen-pinyin-table.cjs'), '--check'], { encoding: 'utf8' }); return r.status === 0; });
+check('R164-7 A1 触发门禁（记录型）：写盘 >50ms 或主数据 >2MB → perf 提示「启动分域评估」（ADR-02 复审条件量化）', () => { const p = read('/../scripts/perf.cjs'); return p.includes('分域评估') && p.includes('a1M6b > 50') && p.includes('a1Kb > 2048') && p.includes("A1_分域评估触发"); });
+check('R164-8 M3 改名「合成压力测试」：不再冒充用户体感口径（真实路径走 --real）', () => { const p = read('/../scripts/perf.cjs'); return p.includes('M3_合成压力测试_交互期长任务总计(ms)') && p.includes('用户体感口径 = M14 + 掉帧'); });
+check('R164-9 ★perf --real 真实路径模式在位：R1~R7 指标（冷启动/冷挂/单击/视图/滚动/真库 M14/搜索）+ 报告 scale=real', () => { const p = read('/../scripts/perf.cjs'); return p.includes('--real=') && p.includes('R1_冷启动_首页可交互(ms)') && p.includes('R2_冷挂资源台_墙钟(ms)') && p.includes('R3_单击开详情_同步ms') && p.includes('R5_滚动掉帧数') && p.includes('R6_真库首屏可见节点') && p.includes('R7_全局搜索键入6字净耗时(ms)') && p.includes("out.scale = 'real'"); });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

@@ -341,7 +341,7 @@ onMounted(async () => {
     const act = e.kind === 'quota'
       ? { label: '清理回收站', cb: () => { clearLastSaveError(); navigate('/recycle') } }
       : { label: '查看', cb: () => { clearLastSaveError(); navigate('/settings?page=about') } }
-    showToast(`⛔ 数据保存失败（${tag}${sz}，请清理或导出后重试`, act)
+    showToast(`⛔ 数据保存失败（${tag}${sz}），请清理或导出后重试`, act)
   })
   // 监听 background 发来的消息（扩展快捷键触发）
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {

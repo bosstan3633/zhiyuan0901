@@ -3,6 +3,7 @@
  */
 const fs = require('fs');
 const { pinyin } = require('pinyin-pro');
+const OUT = 'src/shared/utils/pinyinTable.ts'
 
 const START = 0x4e00, END = 0x9fff, COMMON_CAP = 0x6800;
 let initials = '';
@@ -30,6 +31,17 @@ export const PINYIN_RANGE_START = 0x4e00
 export const INITIALS = '${initials}'
 export const FULLS = '${fullStr}'
 `;
-fs.writeFileSync('src/shared/utils/pinyinTable.ts', out);
 const kb = (x) => (x.length / 1024).toFixed(1) + 'KB';
+
+/* R164（E2 二期）：--check 只比不写——生成物"改了不重生成"必须当场红（与代码索引同法）。
+   读取归一化 CRLF：Windows checkout 会把 .ts 转成 CRLF，逐字比对会误报。 */
+if (process.argv.includes('--check')) {
+  let disk = ''
+  try { disk = fs.readFileSync(OUT, 'utf8').replace(/\r\n/g, '\n') } catch { console.error('❌ 生成物不存在：' + OUT + '（跑 node v2/scripts/gen-pinyin-table.cjs）'); process.exit(1) }
+  if (disk === out) { console.log('✓ pinyinTable.ts 与生成器一致（' + kb(out) + '）'); process.exit(0) }
+  console.error('❌ pinyinTable.ts 已漂移（改了不重生成）：重跑 node v2/scripts/gen-pinyin-table.cjs')
+  process.exit(1)
+}
+
+fs.writeFileSync(OUT, out);
 console.log('✅ 生成完成：首字母表 ' + kb(initials) + ' · 全拼表 ' + kb(fullStr) + ' · 全拼字 ' + fulls.length + ' · 总 ' + kb(out));
