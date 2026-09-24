@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="linear">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>任务卡 / 好奇心卡 详情页 · 重设计原型（R164 提案 · 方案 A 标准 · 供确认）</title>
+<style>
+/* ===== 令牌：逐字取自 v2/src/shared/styles/tokens.css [data-theme='linear']（与资源卡原型同款） ===== */
+:root{
+  --bg:#0D0E11; --surface:#14161B; --surface-2:#1A1D24; --surface-3:#1C1F26;
+  --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.14);
+  --text:rgba(255,255,255,.92); --text-2:rgba(255,255,255,.70); --text-3:rgba(255,255,255,.50); --text-4:rgba(255,255,255,.32);
+  --accent:#5E6AD2; --accent-2:#7A85E0; --accent-light:rgba(94,106,210,.16); --accent-hover:#828FFF; --accent-glow:rgba(109,92,232,.40);
+  --success:#27A644; --warning:#D9A03C; --danger:#E5484D;
+  --shadow-lg:0 0 0 1px var(--border),16px 0 48px rgba(0,0,0,.55);
+  --dur:.16s; --fs-body:13px; --fs-caption:11px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+button{font-family:inherit}
+
+/* ===== 原型控制条（不属于产品 UI） ===== */
+.proto-bar{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;gap:14px;padding:8px 16px;
+  background:#0B0B0E;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-2)}
+.proto-bar b{color:var(--text)}
+.seg{display:flex;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;flex-shrink:0}
+.seg button{padding:4px 12px;background:transparent;border:0;color:var(--text-2);cursor:pointer;font-size:12px;white-space:nowrap}
+.seg button.on{background:var(--accent);color:#fff}
+.proto-note{color:var(--text-3)}
+details.spec{margin-left:auto;flex-shrink:0}
+details.spec summary{cursor:pointer;color:var(--accent-2)}
+details.spec .body{position:absolute;right:16px;top:calc(var(--barh,46px) + 4px);width:540px;max-width:92vw;max-height:70vh;overflow:auto;background:var(--surface);
+  border:1px solid var(--border-strong);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow-lg);font-size:12.5px;color:var(--text-2)}
+details.spec h4{margin:10px 0 4px;color:var(--text);font-size:13px}
+details.spec li{margin:3px 0}
+details.spec code{color:var(--accent-2)}
+
+/* ===== 背景：简化的方向台（给抽屉提供上下文） ===== */
+.app{padding:24px;margin-top:var(--barh,46px);filter:saturate(.9)}
+.app.dim{filter:blur(1px) brightness(.55);pointer-events:none}
+.topbar{display:flex;gap:18px;align-items:center;color:var(--text-2);font-size:13px;padding:6px 4px 14px}
+.topbar .on{color:var(--accent-2);background:var(--accent-light);padding:3px 10px;border-radius:8px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:1200px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-height:88px}
+.card .t{font-weight:600;font-size:13px;margin-bottom:6px}
+.card .u{color:var(--text-3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .f{margin-top:10px;display:flex;gap:6px}
+.chip{font-size:10.5px;color:var(--text-2);background:var(--surface-2);border-radius:4px;padding:1px 6px}
+
+/* ===== 抽屉 ===== */
+.scrim{position:fixed;left:0;right:0;bottom:0;top:var(--barh,46px);background:rgba(0,0,0,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity var(--dur)}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:var(--barh,46px);right:0;bottom:0;width:560px;max-width:94vw;z-index:50;background:var(--surface);
+  border-left:1px solid var(--border);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;
+  transform:translateX(102%);transition:transform .22s cubic-bezier(.2,.8,.2,1)}
+.drawer.on{transform:none}
+.dr-head{padding:14px 18px 10px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.dr-title{flex:1;min-width:200px;display:flex;align-items:flex-start;gap:10px}
+.dr-title textarea{flex:1;resize:none;border:1px solid transparent;background:transparent;color:var(--text);
+  font-size:16px;font-weight:600;line-height:1.45;font-family:inherit;padding:6px 8px;border-radius:8px;overflow:hidden}
+.dr-title textarea:hover{border-color:var(--border)}
+.dr-title textarea:focus{outline:none;border-color:var(--accent);background:var(--surface-2)}
+.head-side{display:flex;align-items:flex-start;gap:8px;flex-shrink:0}
+.dr-x{width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--text-3);font-size:17px;cursor:pointer;flex-shrink:0}
+.dr-x:hover{background:var(--surface-3);color:var(--text)}
+.head-row2{width:100%;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* 完成勾选（任务卡） */
+.check-lg{width:24px;height:24px;border-radius:6px;border:2px solid var(--border-strong);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:6px;font-size:13px;color:#fff;background:var(--surface);transition:all var(--dur)}
+.check-lg:hover{border-color:var(--success)}
+.check-lg.done{background:var(--success);border-color:var(--success)}
+
+/* 状态 / 优先级 chips */
+.stchip{position:relative;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;border:1px solid var(--border);
+  background:var(--surface-2);color:var(--text-2);font-size:11.5px;cursor:pointer;transition:all var(--dur)}
+.stchip:hover{border-color:var(--border-strong)}
+.stchip.st-todo{color:var(--text-2)}
+.stchip.st-doing{color:var(--warning);border-color:color-mix(in srgb,var(--warning) 40%,var(--border))}
+.stchip.st-done{color:var(--success);border-color:color-mix(in srgb,var(--success) 40%,var(--border))}
+.stchip.st-shelf{color:var(--text-3);border-style:dashed}
+.stmenu{position:absolute;top:30px;left:0;min-width:120px;z-index:6;background:var(--surface-2);border:1px solid var(--border-strong);
+  border-radius:9px;padding:4px;box-shadow:var(--shadow-lg)}
+.stmenu .mi{padding:6px 10px;border-radius:6px;font-size:12px;color:var(--text-2);cursor:pointer;white-space:nowrap}
+.stmenu .mi:hover{background:var(--surface-3);color:var(--text)}
+.stmenu .mi.on{color:var(--accent-2);background:var(--accent-light)}
+.prio{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.prio button{padding:4px 10px;font-size:11.5px;background:var(--surface-2);border:0;color:var(--text-3);cursor:pointer;transition:all var(--dur)}
+.prio button+button{border-left:1px solid var(--border)}
+.prio button.on{font-weight:600}
+.prio button.on[data-p="high"]{color:var(--danger);background:color-mix(in srgb,var(--danger) 16%,var(--surface-2));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--danger) 55%,transparent)}
+.prio button.on[data-p="medium"]{color:var(--warning);background:color-mix(in srgb,var(--warning) 16%,var(--surface-2));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--warning) 55%,transparent)}
+.prio button.on[data-p="low"]{color:var(--success);background:color-mix(in srgb,var(--success) 16%,var(--surface-2));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--success) 55%,transparent)}
+
+/* 成熟度 / 关系徽标 */
+.mat{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--text-3);border:1px solid var(--border);border-radius:99px;padding:2px 9px;cursor:help}
+.mat b{color:var(--warning);font-size:11px}
+.relchip{display:inline-flex;align-items:center;gap:4px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:10.5px;color:var(--text-2);background:var(--surface-2);border:1px dashed var(--border-strong);border-radius:999px;padding:2px 9px}
+.relchip .up{cursor:pointer;font-weight:700;color:var(--accent)}
+
+/* —— AI 主上下文动作（方案 A 标准：标题行右侧） —— */
+.ai-btn{display:inline-flex;align-items:center;gap:7px;flex-shrink:0;margin-top:4px;
+  padding:7px 13px;border-radius:9px;cursor:pointer;font-size:12.5px;font-weight:600;
+  border:1px solid var(--accent);color:var(--accent-2);background:var(--accent-light);transition:all var(--dur)}
+.ai-btn:hover{background:var(--accent);color:#fff;box-shadow:0 0 0 3px var(--accent-glow)}
+.ai-btn .bot{font-size:14px;line-height:1}
+.ai-btn.running{opacity:.75;cursor:progress}
+.ai-btn .spin{width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:turn 1s linear infinite}
+@keyframes turn{to{transform:rotate(360deg)}}
+.ai-chip{font-size:10.5px;color:var(--text-3);border:1px solid var(--border);border-radius:99px;padding:1px 8px;display:inline-block}
+.ai-chip[hidden]{display:none}
+.pinbtn{width:28px;height:28px;margin-top:4px;border:1px solid var(--border);border-radius:7px;background:transparent;color:var(--text-3);cursor:pointer;font-size:13px;transition:all var(--dur)}
+.pinbtn:hover{color:var(--text);border-color:var(--border-strong)}
+.pinbtn.on{color:var(--warning);border-color:color-mix(in srgb,var(--warning) 45%,var(--border));background:color-mix(in srgb,var(--warning) 12%,transparent)}
+
+.dr-body{flex:1;overflow:auto;padding:14px 18px 8px}
+.sec-label{font-size:var(--fs-caption);color:var(--text-3);letter-spacing:.04em;margin:0 0 7px;display:flex;align-items:center;gap:6px}
+.sec-label .hint{color:var(--text-4);letter-spacing:0}
+.help{width:14px;height:14px;border-radius:50%;border:1px solid var(--border-strong);color:var(--text-3);
+  font-size:9.5px;display:inline-flex;align-items:center;justify-content:center;cursor:help;position:relative}
+.help:hover .tip{display:block}
+.tip{display:none;position:absolute;left:-8px;top:18px;width:250px;z-index:5;background:#0B0B0E;color:var(--text-2);
+  border:1px solid var(--border-strong);border-radius:8px;padding:7px 9px;font-size:11px;line-height:1.5;text-align:left}
+
+/* 链接 / 来源行：动作跟着对象走 */
+.link-row{display:flex;gap:6px;align-items:center}
+.link-input{flex:1;min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);
+  padding:8px 10px;font-size:12.5px;font-family:ui-monospace,Menlo,monospace}
+.link-input:focus{outline:none;border-color:var(--accent)}
+.icon-btn{width:32px;height:32px;flex-shrink:0;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);
+  color:var(--text-2);cursor:pointer;font-size:13px;transition:all var(--dur)}
+.icon-btn:hover{color:var(--accent-2);border-color:var(--accent);background:var(--accent-light)}
+
+/* 双列属性（项目/指标级联） */
+.props2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sel{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);
+  padding:8px 10px;font-size:12.5px;appearance:none}
+.sel:focus{outline:none;border-color:var(--accent)}
+.sel:disabled{opacity:.45;cursor:not-allowed}
+
+/* 标签 */
+.tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--accent-2);background:var(--accent-light);border-radius:99px;padding:3px 10px}
+.tag i{font-style:normal;cursor:pointer;color:var(--text-3)}
+.tag i:hover{color:var(--danger)}
+.tag-add{font-size:11.5px;color:var(--text-3);border:1px dashed var(--border-strong);border-radius:99px;padding:3px 10px;cursor:pointer}
+.tag-add:hover{color:var(--accent-2);border-color:var(--accent)}
+
+/* 文本区 */
+.ta{width:100%;min-height:96px;resize:vertical;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);padding:9px 11px;font-size:12.5px;line-height:1.65;font-family:inherit}
+.ta:focus{outline:none;border-color:var(--accent)}
+.ta.quote{border-left:3px solid var(--accent);min-height:110px;line-height:1.8}
+
+/* 挂载列表 */
+.mount{border:1px solid var(--border);border-radius:9px;background:var(--surface-2);padding:8px 10px}
+.mount-item{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-2);padding:5px 6px;border-radius:6px;cursor:pointer}
+.mount-item:hover{background:var(--surface-3);color:var(--text)}
+.mount-item .x{margin-left:auto;color:var(--text-4);font-size:12px}
+.mount-item:hover .x{color:var(--danger)}
+.mount-item .via{margin-left:auto;font-size:10px;color:var(--text-4);border:1px solid var(--border);border-radius:4px;padding:0 5px}
+.mount-empty{font-size:11.5px;color:var(--text-4);padding:4px 6px}
+.mount-search{width:100%;margin-top:7px;background:transparent;border:1px dashed var(--border-strong);border-radius:8px;
+  color:var(--text);padding:6px 10px;font-size:12px}
+.mount-search:focus{outline:none;border-color:var(--accent);border-style:solid}
+
+/* 流转（好奇心卡生命周期动作） */
+.flow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.flow button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:10px 12px;border-radius:10px;cursor:pointer;
+  border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);font-size:12.5px;font-weight:600;text-align:left;transition:all var(--dur)}
+.flow button:hover{border-color:var(--accent);background:var(--accent-light);color:var(--accent-2)}
+.flow button small{font-weight:400;font-size:10.5px;color:var(--text-3)}
+
+/* 附件折叠 */
+details.att{border:1px solid var(--border);border-radius:9px;background:var(--surface-2)}
+details.att summary{list-style:none;cursor:pointer;padding:8px 12px;font-size:12.5px;color:var(--text-2);display:flex;gap:8px;align-items:center}
+details.att summary::-webkit-details-marker{display:none}
+details.att .cnt{color:var(--accent-2)}
+details.att .inner{padding:4px 12px 12px;border-top:1px solid var(--border);color:var(--text-3);font-size:12px}
+.add-att{margin-top:8px;width:100%;padding:8px;border:1px dashed var(--border-strong);border-radius:8px;background:transparent;color:var(--text-3);cursor:pointer;font-size:12px}
+.add-att:hover{color:var(--accent-2);border-color:var(--accent)}
+
+.meta{color:var(--text-4);font-size:10.5px;display:flex;gap:14px;padding:8px 2px 2px;flex-wrap:wrap}
+.meta a{color:var(--accent-2);cursor:pointer;text-decoration:none}
+.meta a:hover{text-decoration:underline}
+
+/* 页脚：两钮收敛（方案 A 标准） */
+.dr-foot{padding:12px 18px 14px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;background:var(--surface)}
+.btn-del{padding:9px 14px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--text-3);cursor:pointer;font-size:12.5px;transition:all var(--dur)}
+.btn-del:hover{color:var(--danger);border-color:var(--danger)}
+.btn-del.armed{color:#fff;background:var(--danger);border-color:var(--danger)}
+.btn-save{flex:1;padding:10px 0;border-radius:9px;border:1px solid var(--accent);background:var(--accent);color:#fff;
+  font-size:13px;font-weight:600;cursor:pointer;transition:all var(--dur)}
+.btn-save:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.kbd{color:var(--text-4);font-size:10.5px;font-weight:400;margin-left:6px}
+.btn-save .kbd{color:rgba(255,255,255,.65)}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);z-index:70;background:#0B0B0E;color:#F2F3F5;
+  border:1px solid var(--border-strong);border-radius:10px;padding:9px 16px;font-size:12.5px;opacity:0;pointer-events:none;transition:all .2s}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.reopen{position:fixed;right:24px;bottom:24px;z-index:65;padding:10px 16px;border-radius:10px;border:1px solid var(--accent);
+  background:var(--accent);color:#fff;cursor:pointer;font-size:13px;display:none}
+</style>
+</head>
+<body data-card="task">
+
+<div class="proto-bar">
+  <b>任务卡 / 好奇心卡 · 详情页重设计原型</b>
+  <span class="proto-note">R164 提案 · 沿用资源卡方案 A 标准 · 全部可点</span>
+  <span class="seg" id="cardSeg">
+    <button class="on" data-c="task">任务卡详情</button>
+    <button data-c="curio">好奇心卡详情</button>
+  </span>
+  <details class="spec">
+    <summary>设计说明（为什么这么改）</summary>
+    <div class="body">
+      <h4>0. 沿用已确认的方案 A 标准</h4>
+      <ul>
+        <li>AI = 标题行右侧主上下文动作（outline-accent），三态：未跑 / 跑中 / 已跑（chip 时间戳 + 文案翻「↻ 重新…」）。</li>
+        <li>动作跟着对象走：链接的「↗ 打开 / ⧉ 复制」贴在链接输入框右侧。</li>
+        <li>页脚收敛两钮：左 ghost 删除（二次确认）+ 右 primary 提交。</li>
+        <li>降噪：附件说明收进 <code>?</code> tooltip；时间戳降为 10.5px 一行。</li>
+      </ul>
+      <h4>0.5 卡间挂载全退役（2026-09-24 拍板 · 本原型已按新边界出图）</h4>
+      <ul>
+        <li>三卡不再互相挂载：任务→好奇（<code>TaskCard.mountedCuriosityIds</code>）与好奇→资源（<code>CuriosityCard.relatedResourceIds</code>）一并删除（任务↔资源已于 R162 退役）。任务→项目/指标的六层归属<b>保留</b>，不属卡间挂载。</li>
+        <li>因此本原型：任务详情<b>无「挂载好奇心」区</b>；好奇详情<b>无「挂载资源卡」区</b>；成熟度「弹药」维度、周报经挂载的转化数、转卡回指、批量/单卡挂载 UI 全部随迁（见开发任务清单）。</li>
+      </ul>
+      <h4>1. 任务卡（对照 TaskDetailDrawer.vue 现状）</h4>
+      <ul>
+        <li>AI「拆解步骤」从<b>页脚</b>移到<b>标题行</b>（它改的是说明/子任务，离页脚最远）；跑完翻「↻ 重新拆解」+ chip。</li>
+        <li>页脚原 4 控件（删除/拆解/spacer/完成并关闭）→ 2 钮；删除补<b>二次确认</b>（现状单击即删，仅靠回收站兜底）。</li>
+        <li>优先级从 select 改 <b>3 段 segment</b>（仅 3 值，单击直达，省一次开合）。</li>
+        <li>项目/指标保留双列级联（真级联，非零信息控件）；链接升整行 + 动作贴边。</li>
+        <li>头部保留：完成勾选 / 状态 chip / 成熟度徽标 / 父子软层级 chip（↳ 父名 ⤴ / N 子任务）。</li>
+        <li>附件保持折叠（低频）；「挂载好奇心」区整块删除（卡间挂载退役，见 §0.5）。</li>
+      </ul>
+      <h4>2. 好奇心卡（对照 CuriosityPanel.vue 详情现状）</h4>
+      <ul>
+        <li>AI「研判」从页脚移到标题行；跑完 chip「已研判 · 时间」+「↻ 重新研判」。</li>
+        <li>「转为任务 / 归档为资源」是<b>卡级生命周期动作</b>，无处可"贴对象"——从页脚移到正文末尾「流转」区，带一句话后果说明（转任务=拆步骤进方向台；归档=进资源台长期调用），页脚因此仍能收敛两钮。</li>
+        <li>「📌 置顶」从页脚移到头部图标钮（看板卡角上已有同款，页脚那份是重复入口）。</li>
+        <li>详情补「🗑 删除」ghost + 二次确认（现状详情不能删，只能回看板点卡角）。</li>
+        <li>Hero 文本框实绑 <code>question</code>（现状标签写「摘录」名实不符）→ 正名「问题原文」。</li>
+        <li>来源链接升整行 + ↗/ 贴边；状态四态 chip（待探索/探索中/已求证/已搁置）保留头部下拉。</li>
+        <li>「挂载资源卡」区整块删除（卡间挂载退役，见 §0.5）；卡面「🔗N 关联」角标与「经任务挂载」并集口径同退。</li>
+      </ul>
+      <h4>验收口径（若采纳）</h4>
+      <ul><li>四主题走查（theme-audit）· 小字对比度过 4.5 · AI 入口仍走 <code>CardAiEntry</code> 真源 · 转化仍走 <code>convertToTask/convertToResource</code> 弹窗 · 回归断言随迁 R152-A2 / R48。</li></ul>
+    </div>
+  </details>
+</div>
+
+<div class="app" id="app">
+  <div class="topbar"><span>调度台</span><span class="on">方向台</span><span>资源台</span><span id="bgHint">📦 3 项目 · 🎯 7 指标 · ✅ 12 任务 · 💡 9 好奇</span></div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="scrim on" id="scrim"></div>
+
+<!-- ================= 任务卡详情 ================= -->
+<aside class="drawer on" id="dwTask" aria-label="任务详情">
+  <div class="dr-head">
+    <div class="dr-title">
+      <div class="check-lg" id="tCheck" title="切换完成状态"></div>
+      <textarea rows="1" id="tTitle">把资源卡详情页重设计落码（含四主题走查）</textarea>
+    </div>
+    <div class="head-side">
+      <button class="ai-btn" id="tAi" title="AI 拆解本任务：可建半天粒度步骤子任务，也可只把步骤清单写进详情；勾选才写库">
+        <span class="bot">🤖</span><span id="tAiLabel">拆解步骤</span>
+      </button>
+      <button class="dr-x" data-close title="关闭（Esc）">×</button>
+    </div>
+    <div class="head-row2">
+      <span class="stchip st-doing" id="tStatus">◐ 进行中</span>
+      <span class="mat" title="成熟度=可执行/可归属/弹药/新鲜度（规则引擎即时评）">成熟度 <b>72</b></span>
+      <span class="relchip" title="名下 2 个子任务（完成状态不联动）">2 子任务</span>
+      <span class="ai-chip" id="tAiChip" hidden>🤖 已拆解 · 09-24 10:25</span>
+    </div>
+  </div>
+
+  <div class="dr-body">
+    <div class="sec-label">说明 <span class="hint">— 补充上下文 · 验收标准</span></div>
+    <textarea class="ta" id="tDesc" placeholder="补充说明、上下文、验收标准…">验收：四主题截图走查通过 + 回归断言随迁 + 真机复核抽屉手势。</textarea>
+
+    <div style="height:16px"></div>
+    <div class="sec-label">📦 归属 <span class="hint">— 项目 → 指标 级联</span></div>
+    <div class="props2">
+      <select class="sel" id="tProj">
+        <option value="">未关联项目</option>
+        <option selected>产品体验治理（方向：知源调度台）</option>
+        <option>AI 能力边界重定义（方向：知源调度台）</option>
+      </select>
+      <select class="sel" id="tMetric">
+        <option value="">暂不归属</option>
+        <option selected>详情页操作步长 ≤3</option>
+        <option>四主题走查 0 返工</option>
+      </select>
+    </div>
+
+    <div style="height:16px"></div>
+    <div class="sec-label">⚡ 优先级 <span class="hint">— 单击直达（原为下拉）</span></div>
+    <div class="prio" id="tPrio">
+      <button data-p="high">🔴 高</button>
+      <button data-p="medium" class="on">🟡 中</button>
+      <button data-p="low">🟢 低</button>
+    </div>
+
+    <div style="height:16px"></div>
+    <div class="sec-label">🔗 链接 <span class="hint">— 双击卡片直达</span></div>
+    <div class="link-row">
+      <input class="link-input" id="tLink" value="https://github.com/beantan/zcc/pull/164" spellcheck="false">
+      <button class="icon-btn" data-act="open" title="打开链接">↗</button>
+      <button class="icon-btn" data-act="copy" title="复制链接">⧉</button>
+    </div>
+
+    <div style="height:16px"></div>
+    <div class="sec-label">🏷 标签</div>
+    <div class="tags" data-tags>
+      <span class="tag">#效率与生活/办公协作 <i title="移除">×</i></span>
+      <span class="tag-add">＋ 标签</span>
+    </div>
+
+    <div style="height:14px"></div>
+    <details class="att">
+      <summary>📎 附件 <span class="cnt">(1)</span>
+        <span class="help">?<span class="tip">图片 ≤9 张（单张 ≤10MB）弹窗预览可左右切换；HTML 单卡 1 个（≤20MB，重复上传=替换）；PDF 单卡 1 份（≤100MB）。</span></span>
+      </summary>
+      <div class="inner">
+         drawer-footer-before.png <span style="color:var(--text-4)">· 412KB · 09-23 21:14</span>
+        <button class="add-att">📎 添加附件（图片 / HTML / PDF）</button>
+      </div>
+    </details>
+
+    <div class="meta"><span>创建 2026-09-23 20:41</span><span>更新 2026-09-24 10:25</span><a>🧭 没有合适的项目/指标？去方向树创建 ›</a></div>
+  </div>
+
+  <div class="dr-foot">
+    <button class="btn-del" data-del>🗑 删除</button>
+    <button class="btn-save" data-save>✓ 完成并关闭<span class="kbd">Ctrl+↩</span></button>
+  </div>
+</aside>
+
+<!-- ================= 好奇心卡详情 ================= -->
+<aside class="drawer" id="dwCurio" aria-label="好奇心详情">
+  <div class="dr-head">
+    <div class="dr-title">
+      <textarea rows="1" id="cTitle" style="font-size:15px">详情页的 AI 入口放哪才符合操作习惯？</textarea>
+    </div>
+    <div class="head-side">
+      <button class="ai-btn" id="cAi" title="AI 研判这条好奇：值不值得转成任务 / 归档为资源（审阅后才落库）">
+        <span class="bot">🤖</span><span id="cAiLabel">研判</span>
+      </button>
+      <button class="pinbtn" id="cPin" title="置顶">📌</button>
+      <button class="dr-x" data-close title="关闭（Esc）">×</button>
+    </div>
+    <div class="head-row2">
+      <span class="stchip st-doing" id="cStatus">🔭 探索中</span>
+      <span class="mat" title="成熟度=来源/佐证/新鲜度（规则引擎即时评）">成熟度 <b>58</b></span>
+      <span class="ai-chip" id="cAiChip" hidden>🤖 已研判 · 09-24 10:25</span>
+    </div>
+  </div>
+
+  <div class="dr-body">
+    <div class="sec-label">问题原文 <span class="hint">— 点击即编辑 · Ctrl+↩ 保存并关闭（现状标签「摘录」名实不符，实绑 question）</span></div>
+    <textarea class="ta quote" id="cQuote">详情页的 AI 入口放哪才符合操作习惯？——页脚五钮均分时它权重最低，且离它要改的内容最远。</textarea>
+
+    <div style="height:16px"></div>
+    <div class="sec-label">🔗 来源 <span class="hint">— 网页 / 本地路径 / obsidian://</span></div>
+    <div class="link-row">
+      <input class="link-input" id="cLink" value="https://www.nngroup.com/articles/fitts-law/" spellcheck="false">
+      <button class="icon-btn" data-act="open" title="打开来源">↗</button>
+      <button class="icon-btn" data-act="copy" title="复制来源">⧉</button>
+    </div>
+
+    <div style="height:16px"></div>
+    <div class="sec-label">🏷 标签</div>
+    <div class="tags" data-tags>
+      <span class="tag">#AI工具与知识库/AI模型与对话 <i title="移除">×</i></span>
+      <span class="tag-add">＋ 标签</span>
+    </div>
+
+    <div style="height:14px"></div>
+    <details class="att">
+      <summary>📎 附件 <span class="cnt">(0)</span>
+        <span class="help">?<span class="tip">图片弹窗预览可左右切换；HTML 新标签打开。附件随卡转化（转任务/归档）一并迁移。</span></span>
+      </summary>
+      <div class="inner"><button class="add-att">📎 添加附件（图片 / HTML）</button></div>
+    </details>
+
+    <div style="height:16px"></div>
+    <div class="sec-label">流转 <span class="hint">— 这条好奇的下一步（卡级生命周期动作）</span></div>
+    <div class="flow">
+      <button data-flow="task">→ 转为任务<small>拆成可执行步骤 · 进方向台 · 来源链接随卡带走</small></button>
+      <button data-flow="res">📄 归档为资源<small>存入资源台长期调用 · 选策展台与分类</small></button>
+    </div>
+
+    <div class="meta"><span>捕获 2026-09-21</span><span>更新 2026-09-24 10:25</span><span>打开 3 次</span></div>
+  </div>
+
+  <div class="dr-foot">
+    <button class="btn-del" data-del>🗑 删除</button>
+    <button class="btn-save" data-save>✓ 保存<span class="kbd">⏎</span></button>
+  </div>
+</aside>
+
+<div class="toast" id="toast"></div>
+<button class="reopen" id="reopen">重新打开详情（原型）</button>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+const toast = (msg) => { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2200); };
+
+/* 控制条高度 → 抽屉/遮罩让位（控制条不属于产品 UI） */
+const bar = $('.proto-bar');
+const fitBar = () => document.documentElement.style.setProperty('--barh', bar.offsetHeight + 'px');
+fitBar(); addEventListener('resize', fitBar);
+new ResizeObserver(fitBar).observe(bar);
+
+/* 背景假卡片（方向台口径） */
+const bg = {
+  task: ['把资源卡详情页重设计落码','标签体检空态补真因','AI 检索手势矩阵收口','M3 长任务归因复核','perf 真实路径模式','GlobalSettings 增长门禁'],
+  curio: ['详情页 AI 入口放哪才符合操作习惯？','策展台字段对资源卡是否是零信息？','虚拟滚动在 2000+ 卡还成立吗？','门禁脚本 666KB 的维护边界？','单根 JSON 何时该分域？']
+};
+function paintBg(kind) {
+  $('#bgHint').textContent = kind === 'task' ? '📦 3 项目 · 🎯 7 指标 · ✅ 12 任务 · 💡 9 好奇' : '💡 9 好奇 · 4 态看板';
+  $('#grid').innerHTML = bg[kind].map((t, i) => `<div class="card"><div class="t">${kind === 'task' ? (i % 3 === 1 ? '✓ ' : '') + t : '💡 ' + t}</div><div class="u">${kind === 'task' ? '📦 产品体验治理 · 🟡 中' : '🔭 探索中 · 捕获 09-21'}</div><div class="f"><span class="chip">${kind === 'task' ? '◐ 进行中' : '2 资源'}</span><span class="chip">成熟度 ${60 + i * 3}</span></div></div>`).join('');
+}
+paintBg('task');
+
+/* 卡型切换 */
+$('#cardSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.body.dataset.card = b.dataset.c;
+  $$('#cardSeg button').forEach(x => x.classList.toggle('on', x === b));
+  $('#dwTask').classList.toggle('on', b.dataset.c === 'task');
+  $('#dwCurio').classList.toggle('on', b.dataset.c === 'curio');
+  openAll(); paintBg(b.dataset.c);
+  toast('已切到' + (b.dataset.c === 'task' ? '任务卡' : '好奇心卡') + '详情（同一套方案 A 标准）');
+});
+
+/* 标题自适应高度 */
+$$('.dr-title textarea').forEach(ta => {
+  const fit = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
+  ta.addEventListener('input', fit); fit();
+});
+
+/* 状态菜单（任务 3 态 / 好奇 4 态） */
+const STATUS = {
+  tStatus: [['todo', '○ 待开始', 'st-todo'], ['doing', '◐ 进行中', 'st-doing'], ['done', '✓ 已完成', 'st-done']],
+  cStatus: [['todo', '🌱 待探索', 'st-todo'], ['doing', '🔭 探索中', 'st-doing'], ['done', '✅ 已求证', 'st-done'], ['shelf', '🧊 已搁置', 'st-shelf']]
+};
+Object.keys(STATUS).forEach(id => {
+  const el = $('#' + id);
+  el.addEventListener('click', e => {
+    e.stopPropagation();
+    const old = el.querySelector('.stmenu'); if (old) { old.remove(); return; }
+    const cur = STATUS[id].find(s => el.className.includes(s[2]));
+    const m = document.createElement('div'); m.className = 'stmenu';
+    m.innerHTML = STATUS[id].map(s => `<div class="mi ${s[2] === (cur && cur[2]) ? 'on' : ''}" data-k="${s[0]}">${s[1]}</div>`).join('');
+    m.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const pick = STATUS[id].find(s => s[0] === ev.target.dataset.k);
+      el.className = 'stchip ' + pick[2]; el.textContent = pick[1]; m.remove();
+      if (id === 'tStatus') syncCheck(pick[0]);
+      toast('状态 → ' + pick[1]);
+    });
+    el.appendChild(m);
+  });
+});
+document.addEventListener('click', () => $$('.stmenu').forEach(m => m.remove()));
+function syncCheck(st) { const c = $('#tCheck'); c.classList.toggle('done', st === 'done'); c.textContent = st === 'done' ? '✓' : ''; }
+$('#tCheck').addEventListener('click', () => {
+  const done = !$('#tCheck').classList.contains('done');
+  syncCheck(done ? 'done' : 'todo');
+  const el = $('#tStatus'); const pick = STATUS.tStatus.find(s => s[0] === (done ? 'done' : 'todo'));
+  el.className = 'stchip ' + pick[2]; el.textContent = pick[1];
+  toast(done ? '✓ 任务已完成' : '状态 → 待开始');
+});
+
+/* 优先级 segment */
+$('#tPrio').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  $$('#tPrio button').forEach(x => x.classList.toggle('on', x === b));
+  toast('优先级 → ' + b.textContent.trim());
+});
+
+/* AI 三态（方案 A 标准） */
+function runAI(btn, labelId, chipId, doneLabel, toastMsg) {
+  if (btn.classList.contains('running')) return;
+  btn.classList.add('running');
+  const label = $('#' + labelId); const chip = $('#' + chipId);
+  label.textContent = labelId === 'tAiLabel' ? '拆解中…' : '研判中…';
+  btn.querySelector('.bot').outerHTML = '<span class="bot spin"></span>';
+  setTimeout(() => {
+    btn.classList.remove('running');
+    btn.querySelector('.bot').outerHTML = '<span class="bot">🤖</span>';
+    label.textContent = doneLabel;
+    chip.hidden = false;
+    const now = new Date(); const p = n => String(n).padStart(2, '0');
+    chip.textContent = `🤖 ${labelId === 'tAiLabel' ? '已拆解' : '已研判'} · ${p(now.getMonth() + 1)}-${p(now.getDate())} ${p(now.getHours())}:${p(now.getMinutes())}`;
+    toast(toastMsg);
+  }, 1200);
+}
+$('#tAi').addEventListener('click', () => runAI($('#tAi'), 'tAiLabel', 'tAiChip', '↻ 重新拆解', '✓ AI 给出 4 步拆解（2 步建议建子任务），在评审抽屉勾选才写库'));
+$('#cAi').addEventListener('click', () => runAI($('#cAi'), 'cAiLabel', 'cAiChip', '↻ 重新研判', '✓ AI 研判：值得转任务（置信 高）· 理由见评审抽屉'));
+
+/* 链接动作贴边 */
+$$('.icon-btn').forEach(b => b.addEventListener('click', () => {
+  const input = b.closest('.link-row').querySelector('.link-input');
+  if (b.dataset.act === 'copy') { try { navigator.clipboard.writeText(input.value); } catch (e) {} toast('⧉ 已复制：' + input.value.slice(0, 32) + '…'); }
+  else toast('↗ 打开（原型不真开）：' + input.value.slice(0, 32) + '…');
+}));
+
+/* 标签增删 */
+$$('[data-tags]').forEach(wrap => wrap.addEventListener('click', e => {
+  if (e.target.tagName === 'I') { e.target.closest('.tag').remove(); toast('标签已移除（原型）'); }
+  if (e.target.classList.contains('tag-add')) {
+    const s = document.createElement('span'); s.className = 'tag'; s.innerHTML = '#内容生产与运营/图文设计 <i title="移除">×</i>';
+    wrap.insertBefore(s, e.target); toast('标签已加（原型）');
+  }
+}));
+
+/* 挂载条目取消 */
+$$('.mount-item .x').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); x.closest('.mount-item').remove(); toast('已取消挂载（原型）'); }));
+$$('.mount-search').forEach(inp => inp.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && inp.value.trim()) { toast('＋ 已挂载「' + inp.value.trim() + '」（原型）'); inp.value = ''; }
+}));
+
+/* 置顶 */
+$('#cPin').addEventListener('click', () => {
+  const on = $('#cPin').classList.toggle('on');
+  toast(on ? '📌 已置顶（看板列首）' : '已取消置顶');
+});
+
+/* 流转（转化弹窗在真机仍走 convertToTask/convertToResource 原弹窗） */
+$$('[data-flow]').forEach(b => b.addEventListener('click', () => {
+  toast(b.dataset.flow === 'task' ? '→ 转为任务：弹出归属选择（项目/指标可选）· 原型不真转' : '📄 归档为资源：弹出策展台/分类选择 · 原型不真转');
+}));
+
+/* 删除二次确认 */
+$$('[data-del]').forEach(b => {
+  let armed = false, t = 0;
+  b.addEventListener('click', () => {
+    if (!armed) { armed = true; b.classList.add('armed'); b.textContent = '确认删除？（进回收站）'; clearTimeout(t); t = setTimeout(() => { armed = false; b.classList.remove('armed'); b.textContent = '🗑 删除'; }, 3000); return; }
+    armed = false; b.classList.remove('armed'); b.textContent = '🗑 删除';
+    toast('🗑 已软删进回收站（可还原）'); closeDrawer();
+  });
+});
+
+/* 保存 / 关闭 */
+$$('[data-save]').forEach(b => b.addEventListener('click', () => { toast('✓ 已保存（原型）'); closeDrawer(); }));
+function closeDrawer() { $$('.drawer').forEach(d => d.classList.remove('on')); $('#scrim').classList.remove('on'); $('#app').classList.remove('dim'); $('#reopen').style.display = 'block'; }
+function openAll() { $('#scrim').classList.add('on'); $('#app').classList.add('dim'); $('#reopen').style.display = 'none'; }
+$$('[data-close]').forEach(b => b.addEventListener('click', closeDrawer));
+$('#scrim').addEventListener('click', closeDrawer);
+$('#reopen').addEventListener('click', () => { openAll(); $('#' + (document.body.dataset.card === 'task' ? 'dwTask' : 'dwCurio')).classList.add('on'); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeDrawer();
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); toast('✓ 已保存（Ctrl+↩）'); closeDrawer(); }
+});
+openAll();
+if (location.hash === '#curio') $('#cardSeg button[data-c="curio"]').click();
+</script>
+</body>
+</html>

@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="linear">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>资源卡详情页 · 重设计原型（R164 提案 · 供确认）</title>
+<style>
+/* ===== 令牌：逐字取自 v2/src/shared/styles/tokens.css [data-theme='linear']（截图同款主题） ===== */
+:root{
+  --bg:#0D0E11; --surface:#14161B; --surface-2:#1A1D24; --surface-3:#1C1F26;
+  --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.14);
+  --text:rgba(255,255,255,.92); --text-2:rgba(255,255,255,.70); --text-3:rgba(255,255,255,.50); --text-4:rgba(255,255,255,.32);
+  --accent:#5E6AD2; --accent-2:#7A85E0; --accent-light:rgba(94,106,210,.16); --accent-hover:#828FFF; --accent-glow:rgba(109,92,232,.40);
+  --success:#27A644; --warning:#D9A03C; --danger:#E5484D;
+  --shadow-lg:0 0 0 1px var(--border),16px 0 48px rgba(0,0,0,.55);
+  --dur:.16s; --fs-body:13px; --fs-caption:11px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+button{font-family:inherit}
+
+/* ===== 原型控制条（不属于产品 UI） ===== */
+.proto-bar{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;gap:14px;padding:8px 16px;
+  background:#0B0B0E;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-2)}
+.proto-bar b{color:var(--text)}
+.seg{display:flex;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden}
+.seg button{padding:4px 12px;background:transparent;border:0;color:var(--text-2);cursor:pointer;font-size:12px}
+.seg button.on{background:var(--accent);color:#fff}
+.proto-note{color:var(--text-3)}
+details.spec{margin-left:auto}
+details.spec summary{cursor:pointer;color:var(--accent-2)}
+details.spec .body{position:absolute;right:16px;top:calc(var(--barh,46px) + 4px);width:520px;max-width:92vw;max-height:70vh;overflow:auto;background:var(--surface);
+  border:1px solid var(--border-strong);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow-lg);font-size:12.5px;color:var(--text-2)}
+details.spec h4{margin:10px 0 4px;color:var(--text);font-size:13px}
+details.spec li{margin:3px 0}
+details.spec code{color:var(--accent-2)}
+
+/* ===== 背景：简化的资源台（给抽屉提供上下文） ===== */
+.app{padding:24px;margin-top:var(--barh,46px);filter:saturate(.9)}
+.app.dim{filter:blur(1px) brightness(.55);pointer-events:none}
+.topbar{display:flex;gap:18px;align-items:center;color:var(--text-2);font-size:13px;padding:6px 4px 14px}
+.topbar .on{color:var(--accent-2);background:var(--accent-light);padding:3px 10px;border-radius:8px}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;max-width:1200px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-height:96px}
+.card .t{font-weight:600;font-size:13px;margin-bottom:6px}
+.card .u{color:var(--accent-2);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .f{margin-top:10px;display:flex;gap:6px}
+.chip{font-size:10.5px;color:var(--text-2);background:var(--surface-2);border-radius:4px;padding:1px 6px}
+
+/* ===== 抽屉 ===== */
+.scrim{position:fixed;left:0;right:0;bottom:0;top:var(--barh,46px);background:rgba(0,0,0,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity var(--dur)}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:var(--barh,46px);right:0;bottom:0;width:560px;max-width:94vw;z-index:50;background:var(--surface);
+  border-left:1px solid var(--border);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;
+  transform:translateX(102%);transition:transform .22s cubic-bezier(.2,.8,.2,1)}
+.drawer.on{transform:none}
+.dr-head{padding:14px 18px 10px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px}
+.dr-title{flex:1}
+.dr-title textarea{width:100%;resize:none;border:1px solid transparent;background:transparent;color:var(--text);
+  font-size:16px;font-weight:600;line-height:1.45;font-family:inherit;padding:6px 8px;border-radius:8px}
+.dr-title textarea:hover{border-color:var(--border)}
+.dr-title textarea:focus{outline:none;border-color:var(--accent);background:var(--surface-2)}
+.dr-x{width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--text-3);font-size:17px;cursor:pointer;flex-shrink:0}
+.dr-x:hover{background:var(--surface-3);color:var(--text)}
+
+/* —— AI 主上下文动作（方案 A：标题行右侧） —— */
+.ai-btn{display:inline-flex;align-items:center;gap:7px;flex-shrink:0;margin-top:4px;
+  padding:7px 13px;border-radius:9px;cursor:pointer;font-size:12.5px;font-weight:600;
+  border:1px solid var(--accent);color:var(--accent-2);background:var(--accent-light);transition:all var(--dur)}
+.ai-btn:hover{background:var(--accent);color:#fff;box-shadow:0 0 0 3px var(--accent-glow)}
+.ai-btn .bot{font-size:14px;line-height:1}
+.ai-btn.running{opacity:.75;cursor:progress}
+.ai-btn .spin{width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:turn 1s linear infinite}
+@keyframes turn{to{transform:rotate(360deg)}}
+.ai-chip{font-size:10.5px;color:var(--text-3);border:1px solid var(--border);border-radius:99px;padding:1px 8px;margin-top:8px;display:inline-block}
+.ai-chip[hidden]{display:none}
+/* 方案 B：链接区下方独立条 */
+.ai-strip{display:none;margin:0 18px;padding:9px 12px;border:1px dashed var(--border-strong);border-radius:10px;
+  align-items:center;gap:10px;background:var(--surface-2)}
+body[data-variant="B"] .ai-btn{display:none}
+body[data-variant="B"] .ai-strip{display:flex}
+.ai-strip .why{font-size:11.5px;color:var(--text-3)}
+
+.dr-body{flex:1;overflow:auto;padding:14px 18px 8px}
+.sec-label{font-size:var(--fs-caption);color:var(--text-3);letter-spacing:.04em;margin:0 0 7px;display:flex;align-items:center;gap:6px}
+.sec-label .hint{color:var(--text-4);letter-spacing:0}
+.help{width:14px;height:14px;border-radius:50%;border:1px solid var(--border-strong);color:var(--text-3);
+  font-size:9.5px;display:inline-flex;align-items:center;justify-content:center;cursor:help;position:relative}
+.help:hover .tip{display:block}
+.tip{display:none;position:absolute;left:-8px;top:18px;width:250px;z-index:5;background:#0B0B0E;color:var(--text-2);
+  border:1px solid var(--border-strong);border-radius:8px;padding:7px 9px;font-size:11px;line-height:1.5;text-align:left}
+
+/* 链接 Hero */
+.link-row{display:flex;gap:6px;align-items:center}
+.ltype{display:flex;gap:5px}
+.ltype button{padding:6px 12px;font-size:12px;border:1px solid var(--border);border-radius:7px;background:var(--surface-2);color:var(--text-2);cursor:pointer;transition:all var(--dur)}
+.ltype button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.link-input{flex:1;min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);
+  padding:8px 10px;font-size:12.5px;font-family:ui-monospace,Menlo,monospace}
+.link-input:focus{outline:none;border-color:var(--accent)}
+.icon-btn{width:32px;height:32px;flex-shrink:0;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);
+  color:var(--text-2);cursor:pointer;font-size:13px;transition:all var(--dur)}
+.icon-btn:hover{color:var(--accent-2);border-color:var(--accent);background:var(--accent-light)}
+
+/* 分类（单列全宽，取代策展台双列） */
+.sel{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);
+  padding:8px 10px;font-size:12.5px;appearance:none}
+.sel:focus{outline:none;border-color:var(--accent)}
+
+/* 标签 */
+.tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--accent-2);background:var(--accent-light);
+  border-radius:99px;padding:3px 10px}
+.tag i{font-style:normal;cursor:pointer;color:var(--text-3)}
+.tag i:hover{color:var(--danger)}
+.tag-add{font-size:11.5px;color:var(--text-3);border:1px dashed var(--border-strong);border-radius:99px;padding:3px 10px;cursor:pointer}
+.tag-add:hover{color:var(--accent-2);border-color:var(--accent)}
+
+/* 注解 */
+.ta{width:100%;min-height:110px;resize:vertical;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);padding:9px 11px;font-size:12.5px;line-height:1.65;font-family:inherit}
+.ta:focus{outline:none;border-color:var(--accent)}
+
+/* 附件折叠 */
+details.att{border:1px solid var(--border);border-radius:9px;background:var(--surface-2)}
+details.att summary{list-style:none;cursor:pointer;padding:8px 12px;font-size:12.5px;color:var(--text-2);display:flex;gap:8px;align-items:center}
+details.att summary::-webkit-details-marker{display:none}
+details.att .cnt{color:var(--accent-2)}
+details.att .inner{padding:4px 12px 12px;border-top:1px solid var(--border);color:var(--text-3);font-size:12px}
+.add-att{margin-top:8px;width:100%;padding:8px;border:1px dashed var(--border-strong);border-radius:8px;background:transparent;color:var(--text-3);cursor:pointer;font-size:12px}
+.add-att:hover{color:var(--accent-2);border-color:var(--accent)}
+
+.meta{color:var(--text-4);font-size:10.5px;display:flex;gap:14px;padding:8px 2px 2px}
+
+/* 页脚：两钮收敛 */
+.dr-foot{padding:12px 18px 14px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;background:var(--surface)}
+.btn-del{padding:9px 14px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--text-3);cursor:pointer;font-size:12.5px;transition:all var(--dur)}
+.btn-del:hover{color:var(--danger);border-color:var(--danger)}
+.btn-del.armed{color:#fff;background:var(--danger);border-color:var(--danger)}
+.btn-save{flex:1;padding:10px 0;border-radius:9px;border:1px solid var(--accent);background:var(--accent);color:#fff;
+  font-size:13px;font-weight:600;cursor:pointer;transition:all var(--dur)}
+.btn-save:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.kbd{color:var(--text-4);font-size:10.5px;font-weight:400;margin-left:6px}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);z-index:70;background:#0B0B0E;color:#F2F3F5;
+  border:1px solid var(--border-strong);border-radius:10px;padding:9px 16px;font-size:12.5px;opacity:0;pointer-events:none;transition:all .2s}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.reopen{position:fixed;right:24px;bottom:24px;z-index:65;padding:10px 16px;border-radius:10px;border:1px solid var(--accent);
+  background:var(--accent);color:#fff;cursor:pointer;font-size:13px;display:none}
+</style>
+</head>
+<body data-variant="A">
+
+<div class="proto-bar">
+  <b>资源卡详情页 · 重设计原型</b>
+  <span class="proto-note">R164 提案 · 令牌取自 tokens.css linear 主题 · 全部可点</span>
+  <span class="seg" id="variant">
+    <button class="on" data-v="A">方案 A · AI 在标题行（推荐）</button>
+    <button data-v="B">方案 B · AI 独立条</button>
+  </span>
+  <details class="spec">
+    <summary>设计说明（为什么这么改）</summary>
+    <div class="body">
+      <h4>1. 删掉「策展台」下拉</h4>
+      <ul>
+        <li>资源台打开时它<b>恒为「资源台（真身）」</b>——零信息控件，占一整列。</li>
+        <li>它唯一能做的是把真身静默迁去策展台，与 ADR-08（资源台唯一存储源、策展台只镜像）矛盾；<code>ResourceEditForm.vue:52-55</code> 的注释自证它造成过「真身静默迁移」BUG。</li>
+        <li>分类升为<b>单列全宽</b>：它才是这张卡真正的归属问题。</li>
+      </ul>
+      <h4>2. AI 优化 = 主上下文动作，不再与删除平权</h4>
+      <ul>
+        <li>现状：页脚五钮均分，AI 优化权重最低，且离它要改的内容（标题/注解/标签）最远。</li>
+        <li>方案 A：放<b>标题行右侧</b>（它改的就是标题/注解/标签），outline-accent 样式与「保存」（提交）分层；带状态：未优化 / 优化中 / <b>已优化 09-24 10:25 → 文案翻「↻ 重新优化」</b>（凭据 <code>aiTouchedAt</code>，R152 已落字段）。</li>
+        <li>方案 B：链接区下方独立虚线条，理由文案常驻。供比稿。</li>
+      </ul>
+      <h4>3. 动作跟着对象走</h4>
+      <ul><li>「↗ 打开 / ⧉ 复制」是<b>链接的动作</b>，移到链接输入框右侧（现状在 400px 外的页脚）。</li></ul>
+      <h4>4. 页脚收敛为两钮</h4>
+      <ul>
+        <li>左「🗑 删除」ghost danger + <b>二次确认</b>（点一下变「确认删除？」）；右「✓ 保存」primary 占满剩余宽度。</li>
+        <li>误触面从 5 个均分钮降到 2 个分层钮。</li>
+      </ul>
+      <h4>5. 降噪</h4>
+      <ul><li>附件三行说明收进 <code>?</code> tooltip；创建/更新时间降为底部 10.5px 细字一行。</li></ul>
+      <h4>验收口径（若采纳）</h4>
+      <ul><li>四主题走查（theme-audit）· 对比度小字过 4.5 · 抽屉内 AI 入口仍走 <code>CardAiEntry</code> 真源（不新建第二套）· 回归断言随迁 R152-A2。</li></ul>
+    </div>
+  </details>
+</div>
+
+<div class="app" id="app">
+  <div class="topbar"><span>调度台</span><span>方向台</span><span class="on">资源台</span><span>📁 12</span></div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="scrim on" id="scrim"></div>
+
+<aside class="drawer on" id="drawer" aria-label="资源卡详情">
+  <div class="dr-head">
+    <div class="dr-title">
+      <textarea rows="1" id="title">问小白 - 更专业的AI搜索</textarea>
+      <span class="ai-chip" id="aiChip" hidden>🤖 已优化 · 09-24 10:25</span>
+    </div>
+    <button class="ai-btn" id="aiBtn" title="AI 读取链接正文后优化标题/注解/标签（审阅勾选才写库）">
+      <span class="bot">🤖</span><span id="aiLabel">AI 优化</span>
+    </button>
+    <button class="dr-x" id="close" title="关闭（Esc）">×</button>
+  </div>
+
+  <div class="ai-strip">
+    <button class="ai-btn" style="display:inline-flex" id="aiBtnB"><span class="bot">🤖</span><span id="aiLabelB">AI 优化</span></button>
+    <span class="why">读链接正文 → 优化标题 / 注解 / 标签，勾选才写库</span>
+  </div>
+
+  <div class="dr-body">
+    <div class="sec-label">链接 <span class="hint">— 双击卡片即可打开 · Ctrl+↩ 保存</span></div>
+    <div class="link-row">
+      <div class="ltype" id="ltype">
+        <button class="on" data-t="url">URL</button>
+        <button data-t="file">📁 本地</button>
+        <button data-t="obsidian">📝 Obsidian</button>
+      </div>
+      <input class="link-input" id="link" value="https://www.wenxiaobai.com/chat/200006" spellcheck="false">
+      <button class="icon-btn" id="open" title="打开链接">↗</button>
+      <button class="icon-btn" id="copy" title="复制链接">⧉</button>
+    </div>
+
+    <div style="height:16px"></div>
+    <div class="sec-label">📁 分类 <span class="hint">— 这张卡归哪类（策展台字段已移除：真身只在资源台）</span></div>
+    <select class="sel" id="cat">
+      <option>📥 待分类</option>
+      <option selected>📂 信息采集</option>
+      <option>📂 工具库 / 常用工具箱</option>
+      <option>📂 内容生产与运营 / 图文设计</option>
+    </select>
+
+    <div style="height:16px"></div>
+    <div class="sec-label">🏷 标签</div>
+    <div class="tags" id="tags">
+      <span class="tag">#AI工具与知识库/AI模型与对话 <i title="移除">×</i></span>
+      <span class="tag-add" id="tagAdd">＋ 标签</span>
+    </div>
+
+    <div style="height:16px"></div>
+    <div class="sec-label">我的注解 <span class="hint">— 为什么收藏它</span></div>
+    <textarea class="ta" id="note" placeholder="对这个资源的注解、思考、摘录...">一个由LLM驱动的知识管理系统，可以研究某个主题并生成结构化结论。</textarea>
+
+    <div style="height:14px"></div>
+    <details class="att">
+      <summary> 附件 <span class="cnt">(1)</span>
+        <span class="help">?<span class="tip">图片 ≤9 张（单张 ≤10MB）弹窗预览可左右切换；HTML 单卡 1 个（≤20MB，重复上传=替换）；PDF 单卡 1 份（≤100MB）；双击文件名在浏览器中打开。</span></span>
+      </summary>
+      <div class="inner">
+        📄 capture_200006.html <span style="color:var(--text-4)">· 182KB · 09-24 10:25</span>
+        <button class="add-att">📎 添加附件（图片 / HTML / PDF）</button>
+      </div>
+    </details>
+
+    <div class="meta"><span>创建 2026-09-21 21:53</span><span>更新 2026-09-24 10:25</span><span>打开 4 次</span></div>
+  </div>
+
+  <div class="dr-foot">
+    <button class="btn-del" id="del">🗑 删除</button>
+    <button class="btn-save" id="save">✓ 保存<span class="kbd">Ctrl+↩</span></button>
+  </div>
+</aside>
+
+<div class="toast" id="toast"></div>
+<button class="reopen" id="reopen">重新打开详情（原型）</button>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const toast = (msg) => { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2200); };
+
+/* 控制条高度 → 抽屉/遮罩让位（控制条不属于产品 UI，仅原型演示用） */
+const bar = $('.proto-bar');
+const fitBar = () => document.documentElement.style.setProperty('--barh', bar.offsetHeight + 'px');
+fitBar(); addEventListener('resize', fitBar);
+new ResizeObserver(fitBar).observe(bar);
+
+/* 背景假卡片 */
+const titles = ['GitHub - joeseesun/qiaomu-anything-t…','X榜单 · X 中文区数据门户','perplexity','atypica.AI - 为「主观世界」建模','秘塔AI搜索','造物矩阵 | GitHub 精选','社媒助手开源版','GitHub - stanford-oval/storm'];
+$('#grid').innerHTML = titles.map((t,i)=>`<div class="card"><div class="t">${t}</div><div class="u">https://example.com/${i}</div><div class="f"><span class="chip">📂 内容工…</span>${i%3?'<span class="chip">#AI工具与知…</span>':''}</div></div>`).join('');
+
+/* 标题自适应高度（原型：单行起，换行自动长高） */
+const titleTa = $('#title');
+const fitTitle = () => { titleTa.style.height = 'auto'; titleTa.style.height = titleTa.scrollHeight + 'px'; };
+titleTa.addEventListener('input', fitTitle); fitTitle();
+
+/* 方案切换 */
+$('#variant').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.body.dataset.variant = b.dataset.v;
+  [...$('#variant').children].forEach(x => x.classList.toggle('on', x === b));
+  toast('已切到方案 ' + b.dataset.v + '（同一份字段，只换 AI 入口位置）');
+});
+
+/* 链接类型 */
+$('#ltype').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  [...$('#ltype').children].forEach(x => x.classList.toggle('on', x === b));
+  $('#link').placeholder = b.dataset.t === 'url' ? 'https://…' : b.dataset.t === 'file' ? 'D:\\docs\\file.pdf' : 'obsidian://vault/note';
+  toast('链接类型 → ' + b.textContent.trim());
+});
+
+/* AI 三态演示 */
+let aiState = 'idle';
+function runAI(btn, label, chip) {
+  if (aiState === 'running') return;
+  aiState = 'running';
+  btn.classList.add('running');
+  const old = label.textContent; label.textContent = '优化中…';
+  btn.querySelector('.bot').outerHTML = '<span class="bot spin"></span>';
+  setTimeout(() => {
+    aiState = 'done';
+    btn.classList.remove('running');
+    btn.querySelector('.bot').outerHTML = '<span class="bot">🤖</span>';
+    label.textContent = '↻ 重新优化';
+    if (label.id === 'aiLabel') $('#aiLabelB').textContent = '↻ 重新优化'; else $('#aiLabel').textContent = '↻ 重新优化';
+    chip.hidden = false;
+    const now = new Date(); const p = n => String(n).padStart(2,'0');
+    chip.textContent = `🤖 已优化 · ${p(now.getMonth()+1)}-${p(now.getDate())} ${p(now.getHours())}:${p(now.getMinutes())}`;
+    toast('✓ AI 已给出 3 条建议（标题 1 · 注解 1 · 标签 1），在评审抽屉里勾选才写库');
+  }, 1200);
+}
+$('#aiBtn').addEventListener('click', () => runAI($('#aiBtn'), $('#aiLabel'), $('#aiChip')));
+$('#aiBtnB').addEventListener('click', () => runAI($('#aiBtnB'), $('#aiLabelB'), $('#aiChip')));
+
+/* 链接动作 */
+$('#open').addEventListener('click', () => toast('↗ 打开链接（原型不真开）'));
+$('#copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('#link').value); } catch(e){} toast('⧉ 链接已复制'); });
+
+/* 标签 */
+$('#tags').addEventListener('click', e => {
+  if (e.target.tagName === 'I') { e.target.closest('.tag').remove(); toast('标签已移除（原型）'); }
+  if (e.target.id === 'tagAdd') {
+    const s = document.createElement('span'); s.className = 'tag'; s.innerHTML = '#效率与生活/办公协作 <i title="移除">×</i>';
+    $('#tags').insertBefore(s, $('#tagAdd')); toast('标签已加（原型）');
+  }
+});
+
+/* 删除二次确认 */
+let armed = false, armT = 0;
+$('#del').addEventListener('click', () => {
+  const b = $('#del');
+  if (!armed) { armed = true; b.classList.add('armed'); b.textContent = '确认删除？（进回收站）'; clearTimeout(armT); armT = setTimeout(() => { armed = false; b.classList.remove('armed'); b.textContent = '🗑 删除'; }, 3000); return; }
+  armed = false; b.classList.remove('armed'); b.textContent = '🗑 删除';
+  toast('🗑 已软删进回收站（可还原）'); closeDrawer();
+});
+
+/* 保存 / 关闭 */
+$('#save').addEventListener('click', () => toast('✓ 已保存（原型）'));
+function closeDrawer(){ $('#drawer').classList.remove('on'); $('#scrim').classList.remove('on'); $('#app').classList.remove('dim'); $('#reopen').style.display = 'block'; }
+$('#close').addEventListener('click', closeDrawer);
+$('#scrim').addEventListener('click', closeDrawer);
+$('#reopen').addEventListener('click', () => { $('#drawer').classList.add('on'); $('#scrim').classList.add('on'); $('#app').classList.add('dim'); $('#reopen').style.display = 'none'; });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeDrawer();
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); toast('✓ 已保存（Ctrl+↩）'); }
+});
+$('#app').classList.add('dim');
+</script>
+</body>
+</html>
