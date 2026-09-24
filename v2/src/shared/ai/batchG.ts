@@ -261,6 +261,8 @@ export function buildCurioTriageJob(ctx: CurioTriageCtx): AiJob | null {
         const { __cardId: id, __verdict: v, __title: title } = r.data as { __cardId: string; __verdict: string; __title: string }
         const c = byId.get(id)
         if (!c) continue
+        // R165-A（方案 A 三态凭据）：研判判决被采纳（转/搁置）即视为 AI 动过本卡；「继续养」不写卡也不落戳
+        if (v === 'convert' || v === 'drop') c.aiTouchedAt = Date.now()
         if (v === 'convert') { const ok = ctx.onConvert(c, title); if (ok) conv++; else fail++ }
         else if (v === 'drop') { c.status = 'shelf'; c.updatedAt = Date.now(); shelf++ }
         else keep++

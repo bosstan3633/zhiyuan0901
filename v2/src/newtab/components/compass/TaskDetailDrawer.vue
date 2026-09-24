@@ -2,19 +2,22 @@
 // 第卌五轮 T-03：任务详情抽屉共享组件（自 CompassActions.vue 抽离）
 // 宿主：TaskManagerPanel（任务管理 Tab）+ CompassActions（今日三件事双击详情）
 // 用法：ref 后调用 open(task)；关闭/删除/保存逻辑全部内聚
-import { ref, computed, nextTick, onMounted, onUnmounted, defineAsyncComponent, shallowRef } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../../stores/app'
 import { useCompass } from '../../stores/compass'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { useTaHeight } from '@/shared/utils/taHeight'
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
+import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
 import type { TaskCard, AssetMeta } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
+import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
+import AiTouchedChip from '@/shared/components/AiTouchedChip.vue'
 import { taskMaturity } from '@/shared/utils/maturity'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 
@@ -85,25 +88,43 @@ function setTaskStatus(t: TaskCard, status: 'todo' | 'doing' | 'done') {
   showToast('✓ 状态已切换为「' + (status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始') + '」')
 }
 // ---- R135-C2′：AI 拆解步骤（R139 双通道+专家执笔：建子任务或写详情，角色可换） ----
+// R165-A（方案 A 标准）：入口从页脚升标题行；三态——未拆 / 拆解中（busy 转圈）/ 已拆（「↻ 重新拆解」+ chip，凭 aiTouchedAt，chain 采纳时落戳）
 const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
 const aiJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
 const aiPersonaId = ref('default')
+const aiBusy = ref(false)
 async function aiBreakdown() {
   const t = selectedTask.value
+  if (!t || aiBusy.value) return
+  aiBusy.value = true
+  try {
+    const [{ loadAiConfig, aiReady, aiConfig }, { buildChainJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/chain')])
+    await loadAiConfig()
+    if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+    if (!d.value) return
+    // R141（反馈 #2）：未手动换过人时，带入设置页的默认执笔专家
+    if (aiPersonaId.value === 'default' && aiConfig.value.defaultPersona) aiPersonaId.value = aiConfig.value.defaultPersona
+    const job = buildChainJob('breakdown', t.id, {
+      d: d.value, depth: aiConfig.value.depth, persist: () => store.persist(),
+      personaId: aiPersonaId.value,
+      onPersona: (id) => { aiPersonaId.value = id; void aiBreakdown() },
+    })
+    if (!job) { showToast('⚠ 任务已不存在'); return }
+    aiJob.value = job
+  } finally { aiBusy.value = false }
+}
+/** R165-A：链接动作贴对象（打开走全站统一协议白名单；复制进剪贴板） */
+function openTaskLink() {
+  const t = selectedTask.value
   if (!t) return
-  const [{ loadAiConfig, aiReady, aiConfig }, { buildChainJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/chain')])
-  await loadAiConfig()
-  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
-  if (!d.value) return
-  // R141（反馈 #2）：未手动换过人时，带入设置页的默认执笔专家
-  if (aiPersonaId.value === 'default' && aiConfig.value.defaultPersona) aiPersonaId.value = aiConfig.value.defaultPersona
-  const job = buildChainJob('breakdown', t.id, {
-    d: d.value, depth: aiConfig.value.depth, persist: () => store.persist(),
-    personaId: aiPersonaId.value,
-    onPersona: (id) => { aiPersonaId.value = id; void aiBreakdown() },
-  })
-  if (!job) { showToast('⚠ 任务已不存在'); return }
-  aiJob.value = job
+  const url = toOpenableRawLink(t.link || '')
+  if (!url) { showToast('⚠ 链接为空或协议不支持直达'); return }
+  openExternalLink(url)
+}
+function copyTaskLink() {
+  const t = selectedTask.value
+  if (!t || !t.link) { showToast('链接为空'); return }
+  navigator.clipboard?.writeText(t.link).then(() => showToast('✓ 链接已复制')).catch(() => {})
 }
 /** R144：子任务身份标注（父被解绑/删除时 parentId 已被摘净，故此处只需查活卡） */
 const parentTask = computed(() => {
@@ -260,23 +281,32 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
     <div v-if="sidebarOpen && selectedTask" class="task-sidebar" :style="{ width: drawerW + 'px' }" @keydown.ctrl.enter.prevent="saveTaskTitleAndClose" @keydown.meta.enter.prevent="saveTaskTitleAndClose">
       <div class="ts-resize" @mousedown="startDrawerResize" />
       <div class="ts-head">
-        <div class="check-lg" :class="{done: selectedTask.status==='done'}" @click="toggleTask(selectedTask.id)">{{ selectedTask.status==='done'?'✓':'' }}</div>
-        <textarea v-model="taskTitleDraft" class="ts-title" rows="2" placeholder="任务标题..."
-          @blur="saveTaskTitle" />
-        <!-- R48 详情重设计：状态下拉 chip 收进头部（色彩只做语义信号） -->
-        <div class="ds-status-wrap" @click.stop>
-          <button class="ds-status-chip2" :class="STATUS_UI[selectedTask.status].cls" @click.stop="statusMenuOpen = !statusMenuOpen">{{ STATUS_UI[selectedTask.status].label }}</button>
-          <div v-if="statusMenuOpen" class="ds-status-menu">
-            <div v-for="(ui, key) in STATUS_UI" :key="key" class="mi" :class="{on: selectedTask.status === key}" @click.stop="pickStatus(key as 'todo'|'doing'|'done')">{{ ui.label }}</div>
-          </div>
+        <!-- R165-A（方案 A 标准）：两行头部——第一行 勾选+标题+AI 拆解+关闭；第二行 状态/成熟度/父子/chip 语义信号 -->
+        <div class="ts-head-row">
+          <div class="check-lg" :class="{done: selectedTask.status==='done'}" @click="toggleTask(selectedTask.id)">{{ selectedTask.status==='done'?'✓':'' }}</div>
+          <textarea v-model="taskTitleDraft" class="ts-title" rows="2" placeholder="任务标题..."
+            @blur="saveTaskTitle" />
+          <button class="ts-ai-btn" :disabled="aiBusy" title="AI 拆解本任务：可建半天粒度步骤子任务，也可只把步骤清单写进详情；还能换专家执笔（勾选采纳才落库）" @click="aiBreakdown">
+            <AiEntryButton variant="inline" :label="selectedTask.aiTouchedAt ? '↻ 重新拆解' : '拆解步骤'" :spin="aiBusy" />
+          </button>
+          <div class="ts-close" @click="close">×</div>
         </div>
-        <AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" class="ts-title-assets" />
-        <!-- R144：父子软层级就地可见（子标父名 + ⤴ 升顶层；父显子任务数） -->
-        <span v-if="parentTask" class="ts-rel-chip sub" :title="'父任务：' + parentTask.title">↳ {{ parentTask.title.slice(0, 12) }}<b class="ts-rel-up" @click.stop="promoteSubtask" title="⤴ 升为顶层任务（本体与指标归属不变）">⤴</b></span>
-        <span v-else-if="childTasks.length" class="ts-rel-chip" :title="'名下 ' + childTasks.length + ' 个子任务（完成状态不联动）'">{{ childTasks.length }} 子任务</span>
-        <!-- R142（反馈 #4）：成熟度大徽标——规则引擎即时分，hover 展开扣分构成 -->
-        <MaturityBadge lg :m="taskMaturity(selectedTask)" title="成熟度=可执行/可归属/弹药/新鲜度（规则引擎即时评）" />
-        <div class="ts-close" @click="close">×</div>
+        <div class="ts-head-row2">
+          <!-- R48 详情重设计：状态下拉 chip（色彩只做语义信号） -->
+          <div class="ds-status-wrap" @click.stop>
+            <button class="ds-status-chip2" :class="STATUS_UI[selectedTask.status].cls" @click.stop="statusMenuOpen = !statusMenuOpen">{{ STATUS_UI[selectedTask.status].label }}</button>
+            <div v-if="statusMenuOpen" class="ds-status-menu">
+              <div v-for="(ui, key) in STATUS_UI" :key="key" class="mi" :class="{on: selectedTask.status === key}" @click.stop="pickStatus(key as 'todo'|'doing'|'done')">{{ ui.label }}</div>
+            </div>
+          </div>
+          <AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" />
+          <!-- R144：父子软层级就地可见（子标父名 + ⤴ 升顶层；父显子任务数） -->
+          <span v-if="parentTask" class="ts-rel-chip sub" :title="'父任务：' + parentTask.title">↳ {{ parentTask.title.slice(0, 12) }}<b class="ts-rel-up" @click.stop="promoteSubtask" title="⤴ 升为顶层任务（本体与指标归属不变）">⤴</b></span>
+          <span v-else-if="childTasks.length" class="ts-rel-chip" :title="'名下 ' + childTasks.length + ' 个子任务（完成状态不联动）'">{{ childTasks.length }} 子任务</span>
+          <!-- R142（反馈 #4）：成熟度大徽标——规则引擎即时分，hover 展开扣分构成 -->
+          <MaturityBadge lg :m="taskMaturity(selectedTask)" title="成熟度=可执行/可归属/弹药/新鲜度（规则引擎即时评）" />
+          <AiTouchedChip :ts="selectedTask.aiTouchedAt" verb="拆解" />
+        </div>
       </div>
       <div class="ts-body">
         <!-- R48：说明区上移为 Hero（此前被四个大下拉挤到最底部） -->
@@ -304,18 +334,20 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
             </select>
           </div>
         </div>
-        <div class="ts-section ds-props2">
-          <div class="ds-prop-field">
-            <label class="ds-prop-label">⚡ 优先级</label>
-            <select class="ds-prop-select" :value="selectedTask.priority" @change="setPriority(($event.target as HTMLSelectElement).value as 'low'|'medium'|'high')">
-              <option value="high">🔴 高</option>
-              <option value="medium">🟡 中</option>
-              <option value="low">🟢 低</option>
-            </select>
+        <!-- R165-A：优先级 3 段 segment（单击直达，语义色 tint）；链接升整行 + 动作贴边 -->
+        <div class="ts-section">
+          <div class="ds-prop-label">⚡ 优先级</div>
+          <div class="ts-prio">
+            <button v-for="p in (['high','medium','low'] as const)" :key="p" :data-p="p" :class="{ on: selectedTask.priority === p }"
+              @click="setPriority(p)">{{ p === 'high' ? '🔴 高' : p === 'medium' ? '🟡 中' : '🟢 低' }}</button>
           </div>
-          <div class="ds-prop-field">
-            <label class="ds-prop-label">🔗 链接</label>
-            <input v-model="selectedTask.link" class="ds-prop-select" style="cursor:text" placeholder="https://… / D:\path\file.pdf" @blur="touchTask" @keydown.enter.prevent="($event.target as HTMLElement).blur()">
+        </div>
+        <div class="ts-section">
+          <div class="ds-prop-label">🔗 链接 <span class="hint" style="font-weight:400">— 双击卡片直达</span></div>
+          <div class="ts-link-row">
+            <input v-model="selectedTask.link" class="ts-link-input" placeholder="https://… / D:\path\file.pdf / obsidian://…" @blur="touchTask" @keydown.enter.prevent="($event.target as HTMLElement).blur()">
+            <button class="ts-link-btn" title="打开链接" @click="openTaskLink">↗</button>
+            <button class="ts-link-btn" title="复制链接" @click="copyTaskLink">⧉</button>
           </div>
         </div>
         <!-- R48：标签一行 -->
@@ -333,11 +365,9 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           <AssetManager v-model="selectedTask.assets" :owner-id="selectedTask.id" @update:model-value="onTaskAssetsChange" @html-added="onTaskHtmlAdded" />
         </details>
       </div>
+      <!-- R165-A：页脚收敛两钮——删除（二次确认）+ 完成并关闭；AI 拆解已升标题行 -->
       <div class="ts-foot">
-        <!-- R48：删除按钮降级（ghost 弱化，hover 扣动扳机），主操作唯一 -->
-        <button class="ts-del-ghost" @click="deleteTask(selectedTask.id)" title="删除任务（可在回收站撤销）">🗑 删除</button>
-        <button class="mini-btn" @click="aiBreakdown" title="AI 拆解本任务：可建半天粒度步骤子任务，也可只把步骤清单写进详情；还能换专家执笔"><AiEntryButton variant="inline" label="拆解步骤" /></button>
-        <span class="ts-foot-spacer"></span>
+        <ArmDeleteButton @confirm="deleteTask(selectedTask.id)" />
         <button class="mini-btn primary" @click="saveTaskTitleAndClose">✓ 完成并关闭 <span class="ts-kbd">Ctrl+↩</span></button>
       </div>
     </div>
@@ -364,11 +394,20 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: var(--z-overlay); }
 .ts-resize { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 3; }
 .ts-resize:hover { background: var(--accent); opacity: .4; }
-.ts-head { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; }
+.ts-head { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+/* R165-A（方案 A 标准）：两行头部 */
+.ts-head-row { display: flex; align-items: flex-start; gap: 10px; }
+.ts-head-row2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ts-ai-btn {
+  display: inline-flex; align-items: center; padding: 7px 13px; border-radius: 9px; cursor: pointer; flex-shrink: 0; margin-top: 2px;
+  font-size: var(--fs-sub); font-weight: 600; border: 1px solid var(--accent); color: var(--accent); background: var(--accent-light);
+  font-family: inherit; transition: all var(--dur); white-space: nowrap;
+}
+.ts-ai-btn:hover { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px var(--accent-glow); }
+.ts-ai-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; box-shadow: none; }
 .check-lg { width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: var(--fs-body); color: #fff; background: var(--surface); }
 .check-lg.done { background: var(--success); border-color: var(--success); }
 .ts-title { flex: 1; font-size: 16px; font-weight: 600; color: var(--text); border: none; outline: none; background: transparent; font-family: inherit; line-height: 1.5; resize: none; min-height: 44px; }
-.ts-title-assets { flex-shrink: 0; }
 /* R144：父子软层级徽标（子 ↳ 父名 + ⤴ 升顶层；父显子任务数） */
 .ts-rel-chip { flex-shrink: 0; align-self: center; display: inline-flex; align-items: center; gap: 4px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
 .ts-rel-chip.sub { color: var(--text-2); border-style: dashed; }
@@ -401,27 +440,26 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-field:hover { border-color: var(--border); background: var(--surface); }
 .ts-field .fv { flex: 1; }
 .ts-field .fh { font-size: var(--fs-tiny); color: var(--text-4); }
-.ts-mount-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-.ts-mount-item { display: flex; align-items: center; gap: 5px; padding: 4px 10px; background: var(--accent-light); border-radius: 99px; font-size: var(--fs-sub); color: var(--accent); cursor: pointer; max-width: 100%; }
-.ts-mount-item:hover { background: var(--danger); color: #fff; }
-.ts-mount-item .remove { font-size: var(--fs-tiny); opacity: .6; }
-.ts-mount-empty { font-size: var(--fs-caption); color: var(--text-3); padding: 2px 0; }
-.ts-mount-search { width: 100%; margin-top: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 7px 11px; font-size: var(--fs-sub); font-family: inherit; outline: none; background: var(--surface); color: var(--text); }
-.ts-mount-search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-.ts-mount-wrap { position: relative; margin-top: 8px; }
-.ts-mount-pop { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-lg); max-height: 240px; overflow-y: auto; padding: 4px; }
-.ts-mount-cand { padding: 6px 10px; border-radius: 6px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ts-mount-cand:hover { background: var(--accent-light); color: var(--accent); }
-.ts-mount-cand.on { background: var(--accent-light); color: var(--accent); font-weight: 600; }
-.ts-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
-.ts-foot .mini-btn { justify-content: center; padding: 9px 16px; }
-.ts-del-ghost { display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; color: var(--text-3); font-family: inherit; transition: all var(--dur); user-select: none; }
-.ts-del-ghost:hover { color: var(--danger); background: var(--danger-light, rgba(231,76,60,.1)); }
-.ts-foot-spacer { flex: 1; }
+/* R165-A：优先级 3 段 segment（语义色 tint，对比度过 4.5） */
+.ts-prio { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 4px; }
+.ts-prio button { padding: 7px 16px; font-size: var(--fs-sub); background: var(--surface-2); border: 0; color: var(--text-3); cursor: pointer; transition: all var(--dur); font-family: inherit; }
+.ts-prio button + button { border-left: 1px solid var(--border); }
+.ts-prio button.on { font-weight: 600; }
+.ts-prio button.on[data-p="high"] { color: var(--danger); background: color-mix(in srgb, var(--danger) 16%, var(--surface-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 55%, transparent); }
+.ts-prio button.on[data-p="medium"] { color: var(--warning); background: color-mix(in srgb, var(--warning) 16%, var(--surface-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning) 55%, transparent); }
+.ts-prio button.on[data-p="low"] { color: var(--success); background: color-mix(in srgb, var(--success) 16%, var(--surface-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--success) 55%, transparent); }
+/* R165-A：链接整行 + 动作贴边 */
+.ts-link-row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+.ts-link-input { flex: 1; min-width: 0; padding: 8px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; font-size: var(--fs-body); color: var(--text); font-family: inherit; outline: none; }
+.ts-link-input:focus { border-color: var(--accent); }
+.ts-link-btn { width: 32px; height: 32px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-2); cursor: pointer; font-size: var(--fs-body); transition: all var(--dur); }
+.ts-link-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+.ts-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
+.ts-foot .mini-btn { justify-content: center; padding: 9px 16px; flex: 1; }
+.ts-foot .mini-btn.primary { flex: 2; }
 .ts-kbd { font-size: var(--fs-tiny); background: rgba(255,255,255,.22); border-radius: 4px; padding: 1px 5px; font-weight: 400; margin-left: 2px; }
 
 /* ===== R48 详情重设计 ===== */
-.ds-status-wrap { margin-left: auto; }
 .ds-status-chip2.st-todo { background: var(--tag-neutral-bg, var(--surface-3)); color: var(--text-2); }
 .ds-status-chip2.st-doing { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
 .ds-status-chip2.st-done { background: var(--tag-ok-bg); color: var(--tag-ok-text); }

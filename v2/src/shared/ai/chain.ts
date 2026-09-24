@@ -144,6 +144,8 @@ function writeStepsToTask(d: AppData, taskId: string, rows: AiRow[], persist: ()
   const lines = steps.map(s => `- ${s.name}${s.dueDate ? `（限 ${s.dueDate}）` : ''}${s.estimatedMinutes ? ` · 约${s.estimatedMinutes}分` : ''}`)
   t.description = (t.description ? t.description.replace(/\n*🤖 步骤清单：[\s\S]*$/, '').trim() + '\n\n' : '') + '🤖 步骤清单：\n' + lines.join('\n')
   t.updatedAt = Date.now()
+  // R165-A（方案 A 三态凭据）：AI 动过本卡 → 落 aiTouchedAt，详情标题行翻「↻ 重新拆解」
+  t.aiTouchedAt = Date.now()
   persist()
   return `✓ ${steps.length} 步已写入任务详情（未建子任务）`
 }
@@ -210,6 +212,8 @@ export function applyChain(level: ChainLevel, anchorId: string, ctx: ChainCtx, r
   } else { // breakdown
     const t = d.tasks.find(x => x.id === anchorId)
     if (!t) return '⚠ 原任务已不存在，未创建任何步骤'
+    // R165-A（方案 A 三态凭据）：采纳拆解建议即视为 AI 动过本卡
+    t.aiTouchedAt = now
     for (const r of rows) {
       const s = r.data as ChainSuggestion
       if ((s as { __plan?: string }).__plan) {

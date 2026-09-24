@@ -58,7 +58,11 @@ const codeOf = f => fs.readFileSync(f, 'utf8').split('\n').filter(ln => !STRIP.t
 /* ASCII 字面量按词边界匹配（AiRowLite 这类本地类型别名不该冒领 AiRow）；中文/带斜杠的按子串 */
 const matchIn = (txt, l) => /^[A-Za-z]/.test(l) ? new RegExp('\\b' + l.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&') + '\\b').test(txt) : txt.includes(l)
 const hits = LITERALS.map(l => {
-  const where = files.filter(f => matchIn(codeOf(f), l)).map(f => path.relative(path.join(__dirname, '..'), f));
+  /* R165-A 口径修正（R159 键字典豁免）：shared/storage/keys.ts 是全站存储键字面量的唯一真源（R159-6 门禁
+   * 要求其余文件零裸键名），AI 键名 zy_ai_v1 作为**元数据字符串**必然住在这里——它不是 AI 运行时依赖，
+   * 键名本身也不含任何凭证。豁免只认这一个文件、且 aiEdges（对 src/shared/ai/** 的静态依赖）照旧零容忍。 */
+  const where = files.filter(f => matchIn(codeOf(f), l) && path.relative(path.join(__dirname, '..'), f) !== 'src/shared/storage/keys.ts')
+    .map(f => path.relative(path.join(__dirname, '..'), f));
   return { l, where };
 });
 const bad = hits.filter(h => h.where.length);

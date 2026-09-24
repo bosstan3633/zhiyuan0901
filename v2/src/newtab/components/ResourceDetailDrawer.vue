@@ -7,10 +7,11 @@
  *   宿主保留：Drawer 容器 / 开关态 / 统计区(extra 插槽) / footer 动作(删除/复制/打开/保存)
  */
 import { computed, defineAsyncComponent, reactive, ref, onMounted, onUnmounted, watch } from 'vue'
-import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter } from 'vue-router'
 import Drawer from '@/shared/components/Drawer.vue'
 import ResourceEditForm from './ResourceEditForm.vue'
+import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
+import AiTouchedChip from '@/shared/components/AiTouchedChip.vue'
 import { showToast } from '@/shared/components/toast'
 import { useAppStore } from '../stores/app'
 import { onOpenDrawer, consumePendingDrawer, type DrawerPayload } from '@/shared/utils/bus'
@@ -32,7 +33,6 @@ const open = ref(false)
 const resId = ref<string | null>(null)
 const highlight = ref(false)
 const isNewResource = ref(false)
-let drawerOriginalWsId = ''
 let deleting = false
 
 const editing = reactive<ResourceCard>(emptyResource())
@@ -57,7 +57,6 @@ function openFromId(id: string) {
   if (!r) return
   resId.value = id
   resetEditing(r)
-  drawerOriginalWsId = editing.workspaceId
   isNewResource.value = false
   open.value = true
   highlight.value = true
@@ -72,19 +71,13 @@ function close() {
 
 function save() {
   if (!editing.title.trim()) { showToast('请输入标题'); return }
-  const wsChanged = !!drawerOriginalWsId && editing.workspaceId !== drawerOriginalWsId
   editing.updatedAt = Date.now()
   if (!store.data) return
   const idx = store.data.resources.findIndex(r => r.id === editing.id)
   if (idx >= 0) store.data.resources[idx] = { ...editing }
   store.persist()
   close()
-  if (wsChanged) {
-    const target = store.workspaces.find(w => w.id === editing.workspaceId)
-    showToast(`✓ 已保存并迁移至「${wsDisplayNameOf(target) || '目标策展台'}」`)
-  } else {
-    showToast('✓ 已保存')
-  }
+  showToast('✓ 已保存')
 }
 
 function remove() {
@@ -213,6 +206,17 @@ watch(() => resource.value?.id, (n) => {
       :highlight="highlight"
       @save="save"
     >
+      <!-- R165-A（方案 A 标准）：AI 主上下文动作进标题行——补全（不抓网页，快）+ 优化（读链接正文）；已动过翻「↻ 重新优化」+ chip -->
+      <template #title-extra>
+        <button class="red-ai-btn" :disabled="!resource || aiEntry !== ''" title="AI 建议标签/描述/分类：左栏是这张卡的现状，勾选采纳即直接写库" @click="aiEnrich"><AiEntryButton variant="inline" label="补全" :spin="aiEntry === 'enrich'" /></button>
+        <button class="red-ai-btn primary" :disabled="!resource || aiEntry !== ''" title="先抓取链接网页正文（仅 http(s)、点了才抓），再整体优化标题/描述/标签；采纳即直接写库" @click="aiOptimize"><AiEntryButton variant="inline" :label="resource?.aiTouchedAt ? '↻ 重新优化' : 'AI 优化'" :spin="aiEntry === 'optimize'" /></button>
+        <AiTouchedChip :ts="resource?.aiTouchedAt" />
+      </template>
+      <!-- 链接动作贴对象：打开/复制不再放页脚 -->
+      <template #link-actions>
+        <button class="red-icon-btn" title="打开链接" @click="openLink">↗</button>
+        <button class="red-icon-btn" title="复制链接" @click="copyLink">⧉</button>
+      </template>
       <!-- 使用统计（RDD 特有；Workspace 内联抽屉无统计，不注入） -->
       <template #extra>
         <!-- R147-e：论点卡的结构化只读预览（解析不出就不渲染，原文照旧在描述里） -->
@@ -229,34 +233,40 @@ watch(() => resource.value?.id, (n) => {
       </template>
     </ResourceEditForm>
 
+    <!-- R165-A：页脚收敛两钮——删除（二次确认）+ 保存（Ctrl+↩）；其余动作已贴对象/进标题行 -->
     <template #footer>
-      <button class="red-btn danger" @click="remove">🗑 删除</button>
-      <button class="red-btn" @click="copyLink">🔗 复制链接</button>
-      <button class="red-btn" @click="openLink">↗ 打开</button>
-      <button class="red-btn" :disabled="!resource || aiEntry !== ''" title="AI 建议标签/描述/分类：左栏是这张卡的现状，勾选采纳即直接写库" @click="aiEnrich"><AiEntryButton variant="inline" label="补全" :spin="aiEntry === 'enrich'" /></button>
-      <button class="red-btn" :disabled="!resource || aiEntry !== ''" title="先抓取链接网页正文（仅 http(s)、点了才抓），再整体优化标题/描述/标签；采纳即直接写库" @click="aiOptimize"><AiEntryButton variant="inline" label="分析（读网页）" :spin="aiEntry === 'optimize'" /></button>
-      <button class="red-btn primary" @click="save">✓ 保存</button>
+      <ArmDeleteButton @confirm="remove" />
+      <button class="red-save" @click="save">✓ 保存<span class="red-kbd">Ctrl+↩</span></button>
     </template>
   </Drawer>
   <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
 </template>
 
 <style scoped>
-/* 宿主残留样式：统计区 + footer 动作条（字段区样式已迁入 ResourceEditForm） */
+/* 宿主残留样式：统计区 + 标题行 AI 钮 + 链接动作钮 + 页脚保存钮（字段区样式在 ResourceEditForm） */
 .red-section { margin-bottom: 16px; }
 .red-label { font-size: var(--fs-caption); color: var(--text-3); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
 .red-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--fs-sub); color: var(--text-2); }
 .red-stat-chip { font-size: var(--fs-caption); padding: 2px 8px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 99px; }
 
-.red-btn {
-  flex: 1; padding: 9px 7px; border: 1px solid var(--border); border-radius: 6px;
-  background: var(--surface-2); color: var(--text); cursor: pointer; font-size: var(--fs-sub); transition: all var(--dur); white-space: nowrap;
-  min-width: 84px;
+.red-ai-btn {
+  display: inline-flex; align-items: center; padding: 7px 11px; border-radius: 9px; cursor: pointer;
+  font-size: var(--fs-sub); font-weight: 600; border: 1px solid var(--border-strong); background: var(--surface-2);
+  color: var(--text-2); font-family: inherit; transition: all var(--dur); flex-shrink: 0; margin-top: 4px; white-space: nowrap;
 }
-.red-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
-.red-btn:hover { background: var(--surface-3); }
-.red-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.red-btn.primary:hover { opacity: .9; }
-.red-btn.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
-.red-btn.danger:hover { background: var(--danger-bg-soft); }
+.red-ai-btn:hover { border-color: var(--accent); color: var(--accent); }
+.red-ai-btn.primary { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.red-ai-btn.primary:hover { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px var(--accent-glow); }
+.red-ai-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; box-shadow: none; }
+.red-icon-btn {
+  width: 32px; height: 32px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2);
+  color: var(--text-2); cursor: pointer; font-size: var(--fs-body); transition: all var(--dur);
+}
+.red-icon-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+.red-save {
+  flex: 1; padding: 10px 0; border-radius: 9px; border: 1px solid var(--accent); background: var(--accent); color: #fff;
+  font-size: var(--fs-body); font-weight: 600; cursor: pointer; transition: all var(--dur); white-space: nowrap;
+}
+.red-save:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.red-kbd { font-size: var(--fs-tiny); opacity: .7; margin-left: 6px; font-weight: 400; }
 </style>

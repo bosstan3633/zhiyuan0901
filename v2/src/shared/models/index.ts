@@ -139,6 +139,9 @@ export interface CardBase {
   /** R117（04-61 E）：per-card 自定义「冷却天数」（可选，零迁移；留空 = 默认 30 天）。
    *  用户只填这一个值，归档阈值由引擎按 ARCHIVE_RATIO 自动推算（默认 30:90）。三类卡共用。 */
   coolingDays?: number
+  /** R152 起资源卡私有；R165-A 上移基类（三类卡共用，可选零迁移）：最近一次被 AI 采纳写库的时间——
+   *  详情标题行的 AI 主上下文入口据此翻「↻ 重新优化/重新拆解/重新研判」并挂 chip，别让同一张卡看起来从没动过。 */
+  aiTouchedAt?: number
 }
 
 /** 资源卡（向源头求证） */
@@ -156,8 +159,6 @@ export interface ResourceCard extends CardBase {
   /** 调用次数（每次打开自增）*/
   callCount: number
   lastCalledAt?: number
-  /** R152：最近一次被 AI 补全/优化的时间——入口据此从「AI 优化」翻成「↻ 重新优化」，别让同一张卡看起来从没动过 */
-  aiTouchedAt?: number
   /** R50-F3：策展中心原生卡排序（仅 workspaceId=zy-curation 的卡使用；拖拽规整回写） */
   curOrder?: number
   /** R59-T9：由好奇心卡转化而来（convertCard 写源卡 id）——WCE 转化口径消费 */

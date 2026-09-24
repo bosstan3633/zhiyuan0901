@@ -32,6 +32,8 @@ import { onOpenDrawer } from '@/shared/utils/bus'
 import { visibleFields } from '@/shared/utils/fields'
 import { recordCardOpen } from '@/shared/storage/stats'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
+import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
+import AiTouchedChip from '@/shared/components/AiTouchedChip.vue'
 
 const { curiosities, STATUS_MAP, update, setStatus, remove, convertToTask, convertToResource } = useCuriosity()
 const store = useAppStore()
@@ -373,25 +375,35 @@ function confirmConvert() {
 /* ===== R144 · G2：转化研判（批量=当前筛选口径下的待探索池；R151 起同一通道支持单卡入口） ===== */
 const AiDrawer = defineAsyncComponent(() => import('../AiSuggestionDrawer.vue'))
 const aiJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
+// R165-A（方案 A 标准）：单卡研判入口从页脚升头部标题行右侧；busy 防重复起任务，三态凭 aiTouchedAt（batchG 采纳时落戳）
+const aiBusy = ref(false)
 async function aiTriage(one?: CuriosityCard) {
   const d = store.data
-  if (!d) return
+  if (!d || aiBusy.value) return
   const pool = one ? [one] : filtered.value.filter(c => c.status === 'todo' || c.status === 'doing')
   if (!one && pool.length < 3) { showToast('待探索池少于 3 条——先多攒几条好奇心再研判'); return }
   if (one && one.status !== 'todo' && one.status !== 'doing') { showToast('这条已是「已转任务」或「已搁置」——先改回待探索再研判'); return }
-  const [{ loadAiConfig, aiReady, aiConfig }, { buildCurioTriageJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/batchG')])
-  await loadAiConfig()
-  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
-  aiJob.value = buildCurioTriageJob({
-    d, depth: aiConfig.value.depth, persist: () => store.persist(), pool, single: !!one,
-    onConvert: (c, title) => {
-      if (c.deletedAt) return false
-      const t = convertToTask(c)
-      t.title = title.slice(0, 40)
-      t.description = ((t.description ? t.description + '\n\n' : '') + '💡 源自好奇研判：' + c.question.slice(0, 80))
-      return true
-    },
-  })
+  aiBusy.value = true
+  try {
+    const [{ loadAiConfig, aiReady, aiConfig }, { buildCurioTriageJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/batchG')])
+    await loadAiConfig()
+    if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+    aiJob.value = buildCurioTriageJob({
+      d, depth: aiConfig.value.depth, persist: () => store.persist(), pool, single: !!one,
+      onConvert: (c, title) => {
+        if (c.deletedAt) return false
+        const t = convertToTask(c)
+        t.title = title.slice(0, 40)
+        t.description = ((t.description ? t.description + '\n\n' : '') + '💡 源自好奇研判：' + c.question.slice(0, 80))
+        return true
+      },
+    })
+  } finally { aiBusy.value = false }
+}
+/** R165-A：来源链接动作贴对象 */
+function copySourceUrl(c: CuriosityCard) {
+  if (!c.sourceUrl) { showToast('来源为空'); return }
+  navigator.clipboard?.writeText(c.sourceUrl).then(() => showToast('✓ 来源已复制')).catch(() => {})
 }
 
 const batchMode = ref(false)
@@ -607,7 +619,7 @@ function srcShort(url: string): string {
 
     <!-- R113-N2：生命周期面板移除——入口收敛到 设置→总览 -->
 
-    <!-- R48 详情重设计：状态收进头部下拉 chip；摘录升为 Hero 引用体；元数据一行小字；附件折叠 -->
+    <!-- R165-A（方案 A 标准）：AI 研判升头部；置顶移头部图标钮；流转区收正文末尾；页脚两钮 -->
     <Drawer :open="!!detailItem" :title="detailItem ? '好奇心详情' : ''" @close="detailId = null; curioStatusMenuOpen = false">
       <template #title-extra>
         <div v-if="detailItem" class="ds-status-wrap" @click.stop>
@@ -619,24 +631,32 @@ function srcShort(url: string): string {
         </div>
         <AssetBadge v-if="detailItem?.assets?.length" :assets="detailItem.assets" />
         <MaturityBadge v-if="detailItem" lg :m="curioMaturity(detailItem)" />
+        <AiTouchedChip v-if="detailItem" :ts="detailItem.aiTouchedAt" verb="研判" />
+        <button v-if="detailItem" class="cz-pin-btn" :class="{ on: detailItem.pinned }" :title="detailItem.pinned ? '取消置顶' : '置顶（看板列首）'" @click="togglePin(detailItem.id)">📌</button>
+        <button v-if="detailItem" class="cz-ai-btn" :disabled="aiBusy" title="AI 研判这条好奇：值不值得转成任务（判据对得上愿景与活跃目标；勾选采纳才落库）" @click="aiTriage(detailItem)">
+          <AiEntryButton variant="inline" :label="detailItem.aiTouchedAt ? '↻ 重新研判' : '研判'" :spin="aiBusy" />
+        </button>
       </template>
       <template v-if="detailItem">
-        <!-- Hero：摘录即主角（第卅三轮 REQ-015 Ctrl+Enter 保存；REQ-024 高度拖拽记忆） -->
-        <div class="ds-hero-label">摘录 <span class="hint">— 点击即编辑 · Ctrl+↩ 保存并关闭</span></div>
+        <!-- Hero：问题原文即主角（R165-A 正名：现状标签「摘录」实绑 question；REQ-015 Ctrl+Enter 保存；REQ-024 高度拖拽记忆） -->
+        <div class="ds-hero-label">问题原文 <span class="hint">— 点击即编辑 · Ctrl+↩ 保存并关闭</span></div>
         <div class="ta-wrap ds-quote-wrap">
           <textarea v-model="editDraft" rows="4" class="ds-quote" :style="{ height: detailH + 'px' }"
             @keydown.ctrl.enter.prevent="saveDetail" @keydown.meta.enter.prevent="saveDetail" />
           <div class="ta-resize" @mousedown="startDetailResize" title="拖拽调节高度（记忆保存）"></div>
         </div>
-        <!-- 元数据一行小字（O24 来源链接可点） -->
+        <!-- 元数据一行小字（来源升整行后此处只留时间） -->
         <div class="ds-meta" style="margin-top:12px">
           <span>捕获 {{ new Date(detailItem.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span>
           <span v-if="detailItem.updatedAt" title="最近一次修改时间">更新 {{ new Date(detailItem.updatedAt).toLocaleString('zh-CN', { hour12: false }) }}</span>
-          <a v-if="detailItem.sourceUrl" class="lnk ds-src-link" :title="detailItem.sourceUrl" @click.prevent="openSourceUrl(detailItem.sourceUrl!)">{{ detailItem.sourceTitle || detailItem.sourceUrl }}</a>
+          <span v-if="detailItem.callCount">打开 {{ detailItem.callCount }} 次</span>
         </div>
-        <div class="detail-link-add" style="margin-top:10px">
+        <div class="detail-link-add cz-src-row" style="margin-top:10px">
+          <span class="cz-src-label">🔗 来源</span>
           <input v-model="detailItem.sourceUrl" placeholder="来源链接（网页 / 本地路径 / obsidian://，失焦即保存）…" class="detail-link-input"
             @change="update(detailItem.id, { sourceUrl: detailItem.sourceUrl })" />
+          <button class="cz-src-btn" title="打开来源" @click="detailItem.sourceUrl && openSourceUrl(detailItem.sourceUrl)">↗</button>
+          <button class="cz-src-btn" title="复制来源" @click="copySourceUrl(detailItem)">⧉</button>
         </div>
         <div style="margin-top:12px">
           <TagPicker v-model="detailItem.tags" @update:model-value="update(detailItem.id, { tags: $event })" />
@@ -645,13 +665,21 @@ function srcShort(url: string): string {
           <summary>📎 附件 <span v-if="detailItem.assets?.length" class="cnt">({{ detailItem.assets.length }})</span><span class="right">图片弹窗预览 / HTML 新标签打开</span></summary>
           <AssetManager v-model="detailItem.assets" :owner-id="detailItem.id" @update:model-value="onCurioAssetsChange" @html-added="onCurioHtmlAdded" />
         </details>
+        <!-- R165-A：流转区——卡级生命周期动作从页脚移来，各带一句后果说明 -->
+        <div class="ds-hero-label" style="margin-top:16px">流转 <span class="hint">— 这条好奇的下一步</span></div>
+        <div class="cz-flow-row">
+          <button class="cz-flow-btn" @click="openConvert(detailItem, 'task')">
+            <b>→ 转为任务</b><small>拆成可执行步骤 · 进方向台 · 来源链接随卡带走</small>
+          </button>
+          <button class="cz-flow-btn" @click="openConvert(detailItem, 'res')">
+            <b>📄 归档为资源</b><small>存入资源台长期调用 · 选策展台与分类</small>
+          </button>
+        </div>
       </template>
+      <!-- R165-A：页脚收敛两钮——删除（二次确认，详情原先不能删）+ 保存 -->
       <template #footer>
-        <button class="mini-btn" :class="{pinon: detailItem?.pinned}" @click="detailItem && togglePin(detailItem.id)">{{ detailItem?.pinned ? '📌 已置顶' : '📌 置顶' }}</button>
-        <button class="mini-btn" @click="detailItem && openConvert(detailItem, 'task')">转为任务</button>
-        <button class="mini-btn" @click="detailItem && openConvert(detailItem, 'res')">归档为资源</button>
-        <button class="mini-btn" @click="detailItem && aiTriage(detailItem)"><AiEntryButton variant="inline" label="研判" /></button>
-        <button class="mini-btn primary" style="margin-left:auto" @click="saveDetail">保存 <span style="font-size: var(--fs-tiny);opacity:.75;margin-left:2px">⏎</span></button>
+        <ArmDeleteButton @confirm="detailItem && deleteCard(detailItem)" />
+        <button class="mini-btn primary cz-save" @click="saveDetail">✓ 保存 <span style="font-size: var(--fs-tiny);opacity:.75;margin-left:2px">⏎</span></button>
       </template>
     </Drawer>
 
@@ -816,6 +844,29 @@ function srcShort(url: string): string {
 /* R142（反馈 #4）：挂载资源区 + 成熟度徽标行 */
 .cz-matrow { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
 .detail-link-input:focus { border-color: var(--accent); }
+/* ===== R165-A（方案 A 标准）：头部 AI 研判 / 置顶钮、来源行贴边动作、流转区、页脚保存 ===== */
+.cz-ai-btn {
+  display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 9px; cursor: pointer; flex-shrink: 0;
+  font-size: var(--fs-sub); font-weight: 600; border: 1px solid var(--accent); color: var(--accent); background: var(--accent-light);
+  font-family: inherit; transition: all var(--dur); white-space: nowrap;
+}
+.cz-ai-btn:hover { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px var(--accent-glow); }
+.cz-ai-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; box-shadow: none; }
+.cz-pin-btn { width: 28px; height: 28px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 7px; background: transparent; color: var(--text-3); cursor: pointer; font-size: 13px; transition: all var(--dur); }
+.cz-pin-btn:hover { color: var(--text); border-color: var(--border-strong); }
+.cz-pin-btn.on { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); background: color-mix(in srgb, var(--warning) 12%, transparent); }
+.cz-src-row { align-items: center; }
+.cz-src-label { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; flex-shrink: 0; }
+.cz-src-btn { width: 32px; height: 32px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-2); cursor: pointer; font-size: var(--fs-body); transition: all var(--dur); }
+.cz-src-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+.cz-flow-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cz-flow-btn {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 10px 12px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text); font-size: var(--fs-sub); font-family: inherit; text-align: left; transition: all var(--dur);
+}
+.cz-flow-btn:hover { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+.cz-flow-btn small { font-weight: 400; font-size: var(--fs-caption); color: var(--text-3); }
+.cz-save { flex: 1; justify-content: center; }
 .expand-enter-active, .expand-leave-active { transition: all var(--dur) ease; overflow: hidden; }
 .expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; }
 

@@ -615,19 +615,28 @@
           :show-close="true"
           @save="saveResource"
           @close="closeDrawer"
-        />
+        >
+          <!-- R165-A（方案 A 标准）：AI 主上下文动作进标题行（镜像只读卡不给入口）；已动过翻「↻ 重新优化」+ chip -->
+          <template v-if="!drawerReadonly" #title-extra>
+            <CardAiEntry :card="editingResource" :label="editingResource.aiTouchedAt ? '↻ 重新优化' : 'AI 优化'" />
+            <AiTouchedChip :ts="editingResource.aiTouchedAt" />
+          </template>
+          <!-- 链接动作贴对象：打开/复制不再放页脚 -->
+          <template v-if="!drawerReadonly" #link-actions>
+            <button class="dr-footer-btn icon" title="打开链接" @click="openResourceLink(editingResource)">↗</button>
+            <button class="dr-footer-btn icon" title="复制链接" @click="copyLink">⧉</button>
+          </template>
+        </ResourceEditForm>
       </div>
       <div class="dr-footer">
         <template v-if="drawerReadonly">
           <button class="dr-footer-btn" @click="openResourceLink(editingResource)">↗ 打开链接</button>
           <button class="dr-footer-btn primary" @click="locateMirrorSourceCard">📍 定位到资源台编辑</button>
         </template>
+        <!-- R165-A：页脚收敛两钮——删除（二次确认）+ 保存（Ctrl+↩） -->
         <template v-else>
-          <CardAiEntry :card="editingResource" :label="editingResource.aiTouchedAt ? '↻ 重新优化' : 'AI 优化'" />
-          <button class="dr-footer-btn danger" @click="deleteCurrentResource">🗑 删除</button>
-          <button class="dr-footer-btn" @click="copyLink">🔗 复制链接</button>
-          <button class="dr-footer-btn" @click="openResourceLink(editingResource)">↗ 打开链接</button>
-          <button class="dr-footer-btn primary" @click="saveResource">✓ 保存</button>
+          <ArmDeleteButton @confirm="deleteCurrentResource" />
+          <button class="dr-footer-btn primary" @click="saveResource">✓ 保存<span class="dr-kbd">Ctrl+↩</span></button>
         </template>
       </div>
     </div>
@@ -907,7 +916,7 @@ import { saveUIPrefs } from '@/shared/storage/repository'
 import { useOverlayTarget } from '@/shared/utils/overlayHost'
 import { showToast } from '@/shared/components/toast'
 import { deleteAsset, cleanupOrphanAssets } from '@/shared/storage/assets'
-import AssetPreview from '@/shared/components/AssetPreview.vue'; import CardAiEntry from '@/newtab/components/CardAiEntry.vue'; import CatNodeName from '@/newtab/components/CatNodeName.vue'; import ThesisAiBtn from '@/newtab/components/ThesisAiBtn.vue'; import EvidenceMenuItem from '@/newtab/components/EvidenceMenuItem.vue'
+import AssetPreview from '@/shared/components/AssetPreview.vue'; import CardAiEntry from '@/newtab/components/CardAiEntry.vue'; import CatNodeName from '@/newtab/components/CatNodeName.vue'; import ThesisAiBtn from '@/newtab/components/ThesisAiBtn.vue'; import EvidenceMenuItem from '@/newtab/components/EvidenceMenuItem.vue'; import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'; import AiTouchedChip from '@/shared/components/AiTouchedChip.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'; import ContextMenu from '@/shared/components/ContextMenu.vue'; import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'; import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'; import AssetBadge from '@/shared/components/AssetBadge.vue'
 // R117（04-61 C3）：当日新增角标（自然日口径）——资源卡卡片视图 / 列表视图同一枚
 import NewBadge from '@/shared/components/NewBadge.vue'

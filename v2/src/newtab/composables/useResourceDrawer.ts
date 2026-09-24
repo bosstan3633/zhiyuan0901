@@ -6,7 +6,6 @@
  * 初始化序：晚于 useResourceOpen / useWorkspaceBatch / useWorkspaceMirror（消费其返回值）。
  */
 import { ref, reactive, watch, onUnmounted, nextTick, type ComputedRef, type Ref } from 'vue'
-import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import type { Router } from 'vue-router'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
@@ -71,7 +70,6 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
   const isNewResource = ref(false)
 
   // 表单主体已抽至共享 ResourceEditForm（REQ-042/#61）；此处仅保留宿主动作：打开/保存/删除/复制/跳转
-  let drawerOriginalWsId = '' // REQ-004：跨策展台迁移检测基准（打开/新建时记录）
 
   function emptyResource(): ResourceCard {
     // R126：必须显式带 isThesis:false——否则「确立中心论点」入口设置的标记会泄漏给后续新建卡（保存即覆盖 L1）
@@ -103,7 +101,6 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     resetEditing(editingResource, emptyResource())
     editingResource.id = uid('res')
     editingResource.createdAt = Date.now()
-    drawerOriginalWsId = editingResource.workspaceId
     // R73-S4a：聚合/待分类视图下回落未分类（与导入、空白区落卡同口径）
     editingResource.categoryId = newCardCatId()
     isNewResource.value = true
@@ -114,7 +111,6 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     editingResource.id = uid('res')
     editingResource.createdAt = Date.now()
     editingResource.categoryId = catId
-    drawerOriginalWsId = editingResource.workspaceId
     isNewResource.value = true
     drawerOpen.value = true
   }
@@ -123,7 +119,6 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
   const drawerReadonly = ref(false)
   function openMirrorDetail(r: ResourceCard) {
     resetEditing(editingResource, r)
-    drawerOriginalWsId = editingResource.workspaceId
     isNewResource.value = false
     drawerReadonly.value = true
     drawerOpen.value = true
@@ -155,7 +150,6 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
   function openResource(r: ResourceCard) {
     drawerReadonly.value = false
     resetEditing(editingResource, r)
-    drawerOriginalWsId = editingResource.workspaceId
     isNewResource.value = false
     drawerOpen.value = true
     // 单击打开详情 = 一次调用（WRR 口径）
@@ -178,8 +172,6 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
   function saveResource() {
     if (drawerReadonly.value) { showToast('📡 镜像卡为引用——请到资源台编辑'); return } // R106（F4）：只读守卫（防 Tab 聚焦写穿）
     if (!editingResource.title.trim()) { showToast('请输入标题'); return }
-    // REQ-004：检测是否跨策展台迁移，保存后给出迁移反馈
-    const wsChanged = editingResource.workspaceId !== drawerOriginalWsId
     if (isNewResource.value) {
       d.value.resources.unshift({ ...editingResource })
     } else {
@@ -188,12 +180,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     }
     store.persist()
     drawerOpen.value = false
-    if (wsChanged) {
-      const target = d.value.workspaces.find(w => w.id === editingResource.workspaceId)
-      showToast(`✓ 已保存并迁移至「${wsDisplayNameOf(target) || '目标策展台'}」`)
-    } else {
-      showToast('✓ 已保存')
-    }
+    showToast('✓ 已保存')
   }
   async function deleteCurrentResource() {
     const idx = d.value.resources.findIndex(r => r.id === editingResource.id)
