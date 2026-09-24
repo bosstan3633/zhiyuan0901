@@ -4627,5 +4627,17 @@ check('R162-5 详情底部不再挤压：动作条按钮禁折行 + 最小宽度
   return css.includes('white-space: nowrap; min-width: 84px;') && css.includes('.dr-footer-btn.ai { flex: 0 0 auto; padding: 8px 13px; white-space: nowrap; }') && d.includes('flex-wrap: wrap') && rdd.includes('min-width: 84px;');
 });
 
+/* ===== R163 · 生成物防腐化 ===== */
+check('R163-1 ★代码索引是生成物，不许漂：调 gen-code-index.cjs --check 与 src/ 实际结构逐项比对（缺项 / 死引用 / 行数·职责·导出符号变了都算漂），漂移即红并点名要重跑的命令 · 立这条的当天就自证了价值：首次运行抓到 31 项过期（R160/R162 改完代码没重跑生成器，索引里全是错行号，外部评审模型照着下判断必然错判）', () => {
+  const { execFileSync } = require('child_process')
+  try {
+    execFileSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'gen-code-index.cjs'), '--check'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+    return true
+  } catch (e) {
+    const detail = String((e && (e.stderr || e.stdout)) || e.message || e).split('\n').filter(Boolean).slice(0, 3).join(' ⏐ ')
+    throw new Error(detail.slice(0, 300))
+  }
+});
+
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

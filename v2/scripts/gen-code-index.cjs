@@ -10,6 +10,7 @@
  * 用法：
  *   node scripts/gen-code-index.cjs                  # 输出到 仓库根/评审交接包/02_代码索引.md
  *   node scripts/gen-code-index.cjs <输出路径>
+ *   node scripts/gen-code-index.cjs --check          # 只比对不写；漂移即退出码 1（回归断言 R163-1 就调它）
  *
  * 输出：按目录分组的 markdown 表（文件 | 行数 | 职责 | 导出符号）
  */
@@ -19,7 +20,8 @@ const path = require('node:path')
 const V2_ROOT = path.resolve(__dirname, '..')
 const REPO_ROOT = path.resolve(V2_ROOT, '..')
 const SRC = path.join(V2_ROOT, 'src')
-const OUT = process.argv[2] || path.join(REPO_ROOT, '评审交接包', '02_代码索引.md')
+// 位置参数才是输出路径；--xxx 一律当开关（否则 `--check` 会被当成文件名）
+const OUT = process.argv.slice(2).find((x) => !x.startsWith('--')) || path.join(REPO_ROOT, '评审交接包', '02_代码索引.md')
 
 /** 递归收集源文件 */
 function walk(dir, acc = []) {
@@ -330,7 +332,44 @@ for (const f of scriptFiles) {
 }
 out.push('')
 
+const md = out.join('\n')
+
+/* ── --check：只比不写。索引是生成物，一旦与源码漂移，评审模型会照着错行号下判断——
+      所以"改代码不改索引"必须当场红，而不是靠人记得重跑。 ── */
+if (process.argv.includes('--check')) {
+  // 行内容按「文件路径」建表比对（整体逐行 diff 会被插入行的位移污染，看不出真差异）
+  const toMap = (text) => {
+    const m = new Map()
+    for (const line of text.split('\n')) {
+      const mm = /^\| `([^`]+)`/.exec(line)
+      if (mm) m.set(mm[1], line)
+    }
+    return m
+  }
+  let disk = ''
+  try {
+    disk = fs.readFileSync(OUT, 'utf8')
+  } catch (e) {
+    console.error('❌ 索引文件不存在：' + OUT + '（跑 node v2/scripts/gen-code-index.cjs 生成）')
+    process.exit(1)
+  }
+  const a = toMap(disk)
+  const b = toMap(md)
+  const missing = [...b.keys()].filter((k) => !a.has(k))
+  const stale = [...a.keys()].filter((k) => !b.has(k))
+  const changed = [...b.keys()].filter((k) => a.has(k) && a.get(k) !== b.get(k))
+  if (!missing.length && !stale.length && !changed.length) {
+    console.log('✓ 代码索引与源码一致（' + b.size + ' 行索引项）')
+    process.exit(0)
+  }
+  console.error('❌ 代码索引已漂移，必须重跑：node v2/scripts/gen-code-index.cjs')
+  if (missing.length) console.error('   索引缺这些项：' + missing.slice(0, 8).join(', ') + (missing.length > 8 ? ' …共 ' + missing.length + ' 项' : ''))
+  if (stale.length) console.error('   索引里是死引用（源码已无此项）：' + stale.slice(0, 8).join(', ') + (stale.length > 8 ? ' …共 ' + stale.length + ' 项' : ''))
+  if (changed.length) console.error('   行数/职责/导出符号变了：' + changed.slice(0, 8).join(', ') + (changed.length > 8 ? ' …共 ' + changed.length + ' 项' : ''))
+  process.exit(1)
+}
+
 fs.mkdirSync(path.dirname(OUT), { recursive: true })
-fs.writeFileSync(OUT, out.join('\n'))
+fs.writeFileSync(OUT, md)
 console.log(`✓ 代码索引已生成：${OUT}`)
 console.log(`  ${rows.length} 文件 / ${totalLines.toLocaleString('en-US')} 行 · 债务候选 ${bigFiles.length} 个`)
