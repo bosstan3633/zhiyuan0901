@@ -9,7 +9,6 @@
 import type { AppData, ResourceCard, Project, Metric, TaskCard } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
-import { curioRelated } from '@/shared/utils/maturity'
 import type { AiDepth } from './config'
 
 const CAP: Record<AiDepth, { cards: number; titles: number; list: number; desc: number }> = {
@@ -187,7 +186,7 @@ export function projectChain(
 
 /**
  * R136：全库资源卡目录（应用推荐投料）——一行一卡，上限走深度档；
- * 排除回收站/已在任务挂载清单（避免重复推荐已挂载）。
+ * 排除回收站与调用方给的排除集（R165：挂载清单随卡间挂载退役，排除集语义收窄为通用去重）。
  */
 export function cardDirectory(d: AppData, opts: { excludeIds?: Set<string> }, depth: AiDepth): string {
   const c = CAP[depth]
@@ -340,7 +339,7 @@ export function projectDeckThesis(d: AppData, wsId: string, depth: AiDepth, snip
   return L.join('\n\n')
 }
 
-/** R144 · G2 好奇研判投料：待探索池逐条（含挂载数/成熟度/动静）+ 愿景使命与活跃目标做「值不值得转」的参照 */
+/** R144 · G2 好奇研判投料：待探索池逐条（含动静/来源）+ 愿景使命与活跃目标做「值不值得转」的参照（R165：挂资源数随卡间挂载退役） */
 export function projectCurioPool(d: AppData, ids: string[], depth: AiDepth, snips: Map<string, string>): string {
   const c = CAP[depth]
   const want = new Set(ids)
@@ -353,11 +352,10 @@ export function projectCurioPool(d: AppData, ids: string[], depth: AiDepth, snip
   L.push(`【活跃战略目标】\n${dirs.join('\n') || '（暂无活跃目标）'}`)
   const day = 86400000
   const rows = pool.map(x => {
-    const rel = curioRelated(d, x)
     let host = ''
     try { host = new URL(x.sourceUrl || '').host } catch { /* 无来源链接留空 */ }
     const age = Math.max(0, Math.round((Date.now() - (x.lastCalledAt || x.updatedAt || x.createdAt)) / day))
-    return `- curioId=${x.id} 「${cut(x.question, 60)}」 ${x.status === 'doing' ? '探索中' : '待探索'} 挂资源${rel.length}张${rel.length ? `(${cut(rel[0]!.title, 16)})` : ''}${host ? ` 来源:${host}` : ''} 打开${x.callCount || 0}次 ${age}天没动过`
+    return `- curioId=${x.id} 「${cut(x.question, 60)}」 ${x.status === 'doing' ? '探索中' : '待探索'}${host ? ` 来源:${host}` : ''} 打开${x.callCount || 0}次 ${age}天没动过`
   })
   L.push(`【待探索池（${pool.length} 条）】\n${rows.join('\n')}`)
   const mine = [...snips.entries()].filter(([id]) => pool.some(x => x.id === id))

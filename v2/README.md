@@ -58,7 +58,7 @@ updated: 2026-09-13 09:10:00
 | # | 规则 | 说明 |
 |---|------|------|
 | 1 | 版本号唯一来源 = `src/manifest.ts` | 改版本必须同步 `package.json`、设置页关于（动态）、手册页、`regression.cjs` 版本锚、本文件版本行共 **6 处**（R96 起本文件纳入门禁） |
-| 2 | 单向挂载红线 | 仅 TaskCard 持有 `mountedCuriosityIds`；Resource/Curiosity/TagNode Schema **禁止出现 taskId**（R162：任务↔资源挂载关系已退役） |
+| 2 | 卡间零挂载红线 | 三卡（Resource/Task/Curiosity）**互不持有对方 id**；六层归属（projectId/metricId）与策展台镜像不受限（R165：卡间挂载全量退役；fromCuriosityId 为卡→好奇溯源引用，允许） |
 | 3 | 删除一律软删 | 任何删除只写 `deletedAt`，可进回收站恢复；`stats.lastVisits` 只经 `recordResourceOpen` 更新 |
 | 4 | 排序 computed 禁止 `.sort()` | 支持拖拽排序的列表，其渲染 computed 不得原地 sort，否则拖拽错乱 |
 | 5 | 样式只用 tokens.css 令牌 | 禁止硬编码色值；新增 UI 须在六主题下逐一走查 |
@@ -251,7 +251,7 @@ node scripts/regression.cjs   # 静态回归：必须全绿（当前 1399 项，
 - **AppData**：compass（vision/mission + directions→projects→metrics）/ workspaces（含资源台真身 hub，对外 getter 排除）/ categories（parentId ≤4 级树）/ resources / tasks / curiosities / **curationProjections**（策展台镜像记录）/ dailyFocus / tagTree（3 级）/ fieldConfig / stats / activityLogs / **airtableSync**（单向同步配置，导出/备份时剥离）
 - **UIPrefs**：主题、密度（compact/cozy）、sortPrefs（三视图排序）、**cardCols**（R72 列数偏好）、**wsViewMode**（R84 台视图记忆）、快捷键自定义、抽屉宽度/文本框高度记忆等，存 `zy_ui_v2`
 - **双标记体系**：`pinned`（置顶）+ `starred`（星标），排序统一走 `utils/marksort.ts`，权重 置顶 > 星标 > 命中度
-- **单向挂载红线**：只有 TaskCard 持有 `mountedCuriosityIds`；Resource/Curiosity/TagNode Schema **禁止出现 taskId**；愿景/使命 `linked*` 为持有方引用（R162：任务↔资源挂载关系已退役）
+- **卡间零挂载红线**（R165）：三卡互不持有对方 id（R162 退任务↔资源、R165 退任务↔好奇与好奇↔资源）；愿景/使命 `linked*` 为持有方引用、任务父子软层级与策展台镜像不受限；`fromCuriosityId` 为卡→好奇溯源引用（允许）
 - **软删除体系**：删除一律 `deletedAt`，回收站单条恢复，可清空
 - **数据自愈**：loadData 对非数组 tags 等脏数据统一归一化；渲染层过滤残缺节点 + 全局错误边界双防线
 

@@ -158,7 +158,7 @@ export function applyChain(level: ChainLevel, anchorId: string, ctx: ChainCtx, r
     priority: (s.priority || 'medium') as 'high' | 'medium' | 'low',
     dueDate: s.dueDate, estimatedMinutes: s.estimatedMinutes,
     projectId, metricId, parentId,
-    mountedCuriosityIds: [], customFields: {},
+    customFields: {},
     createdAt: now, updatedAt: now,
   })
   if (level === 'directions') {

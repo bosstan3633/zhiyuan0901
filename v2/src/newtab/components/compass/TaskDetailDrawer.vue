@@ -50,7 +50,6 @@ const taskTitleDraft = ref('')
 const { taH: taskNoteH, startTaResize: startTaskNoteResize } = useTaHeight('task-note', store.ui)
 const selProjectId = ref('')
 const selMetricId = ref('')
-const mountSearchC = ref('')
 
 function open(task: TaskCard) {
   // R43-0 BUG-1 修复：selectedTask 必须指向 store 内的 reactive Proxy 元素
@@ -58,7 +57,6 @@ function open(task: TaskCard) {
   taskTitleDraft.value = selectedTask.value.title
   selProjectId.value = selectedTask.value.projectId || ''
   selMetricId.value = selectedTask.value.metricId || ''
-  mountSearchC.value = ''
   sidebarOpen.value = true
 }
 function close() { sidebarOpen.value = false; selectedTask.value = null; emit('closed') }
@@ -243,25 +241,6 @@ function setPriority(p: 'low' | 'medium' | 'high') {
   store.persist()
 }
 
-// ---- 单向挂载：任务 → 好奇心（R162：任务↔资源挂载关系已退役） ----
-function curiosityTitle(id: string): string {
-  return d.value.curiosities.find(c => c.id === id && !c.deletedAt)?.question || ''
-}
-function toggleMountCuriosity(cid: string) {
-  if (!selectedTask.value) return
-  const arr = selectedTask.value.mountedCuriosityIds || []
-  selectedTask.value.mountedCuriosityIds = arr.includes(cid) ? arr.filter(x => x !== cid) : [...arr, cid]
-  selectedTask.value.updatedAt = Date.now()
-  store.persist()
-}
-const mountCuriosityCandidates = computed(() => {
-  const q = mountSearchC.value.trim().toLowerCase()
-  return d.value.curiosities
-    .filter(c => !c.deletedAt)
-    .filter(c => !q || c.question.toLowerCase().includes(q))
-    .slice(0, 8)
-})
-
 // B23：抽屉快捷键挂文档级（焦点在 TagPicker 浮层等 Teleport 内容内也能生效）
 function onSidebarDocKey(e: KeyboardEvent) {
   if (!sidebarOpen.value) return
@@ -348,29 +327,10 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           <span>更新 {{ fmtTaskTs(selectedTask.updatedAt) }}</span>
           <span class="ts-goto ds-goto-inline" @click="router.push('/compass/tree')">🧭 没有合适的项目/指标？去方向树创建 ›</span>
         </div>
-        <!-- R48：附属区折叠（附件 / 单向挂载） -->
+        <!-- R48：附属区折叠（附件）；R165：挂载区随卡间挂载退役 -->
         <details class="ds-details" style="margin-top:14px">
           <summary>📎 附件 <span v-if="selectedTask.assets?.length" class="cnt">({{ selectedTask.assets.length }})</span><AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" /><span class="right">图片 / HTML / PDF</span></summary>
           <AssetManager v-model="selectedTask.assets" :owner-id="selectedTask.id" @update:model-value="onTaskAssetsChange" @html-added="onTaskHtmlAdded" />
-        </details>
-        <details class="ds-details" style="margin-top:12px">
-          <summary>💡 挂载好奇心卡 <span class="cnt">({{ selectedTask.mountedCuriosityIds.filter(id => curiosityTitle(id)).length }})</span><span class="right">单向挂载 · 点条目取消</span></summary>
-          <div class="ts-mount-list">
-            <div v-for="cid in selectedTask.mountedCuriosityIds.filter(id => curiosityTitle(id))" :key="cid" class="ts-mount-item" @click="toggleMountCuriosity(cid)" title="点击取消挂载">
-              💡 {{ curiosityTitle(cid) }} <span class="remove">×</span>
-            </div>
-            <div v-if="!selectedTask.mountedCuriosityIds.filter(id => curiosityTitle(id)).length" class="ts-mount-empty">暂未挂载好奇心</div>
-          </div>
-          <div class="ts-mount-wrap">
-            <input v-model="mountSearchC" class="ts-mount-search" placeholder="🔍 输入关键词搜索并挂载好奇心…">
-            <div v-if="mountSearchC.trim()" class="ts-mount-pop">
-              <div v-for="c in mountCuriosityCandidates" :key="c.id" class="ts-mount-cand"
-                :class="{on: selectedTask.mountedCuriosityIds.includes(c.id)}" @click="toggleMountCuriosity(c.id)">
-                {{ selectedTask.mountedCuriosityIds.includes(c.id) ? '✓' : '＋' }} {{ c.question }}
-              </div>
-              <div v-if="!mountCuriosityCandidates.length" class="ts-mount-empty" style="padding:10px">无匹配好奇心</div>
-            </div>
-          </div>
         </details>
       </div>
       <div class="ts-foot">

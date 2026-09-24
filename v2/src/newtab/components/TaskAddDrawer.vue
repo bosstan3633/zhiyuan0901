@@ -107,7 +107,7 @@ function createTask() {
       // R138-C1′：AI 草稿扩展字段——dueDate/时长直接落卡；归属仅当抽屉未锁定时采纳（props 锁定时不动）
       projectId: props.projectId || aiDraft.value.projectId, metricId: props.metricId || aiDraft.value.metricId,
       dueDate: aiDraft.value.dueDate, estimatedMinutes: aiDraft.value.estimatedMinutes,
-      mountedCuriosityIds: [], customFields: {},
+      customFields: {},
       createdAt: Date.now(), updatedAt: Date.now()
     }
     d.value.tasks.unshift(task)

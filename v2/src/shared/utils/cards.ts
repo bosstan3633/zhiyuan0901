@@ -9,7 +9,7 @@
  *    / customFields(整对象搬移，键跨型唯一因此 label 有效) / createdAt(保留捕获时间)；
  * 2. 状态显式映射：好奇四态 → 任务三态（shelf 已搁置 → todo 待开始，由宿主 Toast 提示）；
  * 3. 资源卡无 status 概念，不做状态映射；link 回填 c.sourceUrl，sourceType 无对应不搬；
- * 4. 目标卡回指源卡：任务卡 mountedCuriosityIds=[源卡 id]（单向挂载红线不变）；
+ * 4. 溯源：任务卡 fromCuriosityId=[源卡 id] + link 回填 sourceUrl（R165：卡间挂载退役，不做互持引用）；
  * 5. 源卡软删（deletedAt）由调用方执行；本模块保持纯函数（不触碰 store / storage）。
  */
 import type { CuriosityCard, ResourceCard, TaskCard, ID } from '@/shared/models'
@@ -53,7 +53,6 @@ export function convertCard(c: CuriosityCard, target: ConvertTarget): ConvertedC
       priority: 'medium',
       projectId: target.projectId,
       metricId: target.metricId,
-      mountedCuriosityIds: [c.id],
       fromCuriosityId: c.id,
       ...common
     }

@@ -14,7 +14,6 @@ import { showToast } from '@/shared/components/toast'
 import { flattenTaskTree, unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 import { removeMetricWithConfirm } from '@/shared/utils/compassCrud'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
-import MountCountBadge from './MountCountBadge.vue'
 import { taskMaturity, metricMaturity } from '@/shared/utils/maturity'
 import TaskAddDrawer from './TaskAddDrawer.vue'
 import TaskDetailDrawer from './compass/TaskDetailDrawer.vue'
@@ -183,7 +182,6 @@ function promoteTask(taskId: string) {
             <div class="pd-check" :class="{done: task.status==='done'}" @click="toggleTask(task.id)">{{ task.status==='done'?'✓':'' }}</div>
             <input class="pd-task-name" :value="task.title" @change="renameTask(task.id, $event)" />
             <MaturityBadge :m="taskMaturity(task)" />
-            <MountCountBadge :t="task" />
             <button v-if="sub" class="pd-mini" @click="promoteTask(task.id)" title="⤴ 升为顶层任务（解父子关联，指标归属不变）">⤴</button>
             <button class="pd-mini" @click="unbindTask(task.id)" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）">✕</button>
           </div>

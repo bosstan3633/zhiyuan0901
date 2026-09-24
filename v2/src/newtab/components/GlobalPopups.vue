@@ -1419,7 +1419,7 @@ function convertCurio(item: SearchResult, target: 'res'|'task') {
   } else {
     const t: TaskCard = {
       id: uid('tk'), kind: 'task', title: c.question, status: 'todo', priority: 'medium',
-      projectId: '', metricId: '', description: '', mountedCuriosityIds: [],
+      projectId: '', metricId: '', description: '',
       customFields: {}, createdAt: Date.now(), updatedAt: Date.now()
     }
     d.value.tasks.unshift(t)
@@ -1493,7 +1493,6 @@ function saveTaskCapture() {
     status: 'todo' as const, priority: 'medium' as const,
     projectId: tcForm.projectId || undefined,
     metricId: tcForm.metricId || undefined,
-    mountedCuriosityIds: [] as string[],
     customFields: {}, tags: [] as string[], pinned: false,
     createdAt: now, updatedAt: now
   }
@@ -1677,7 +1676,7 @@ function saveCurio() {
   const c: CuriosityCard = {
     id: uid('cur'), kind: 'curiosity', question: curioForm.text.trim(),
     sourceUrl: curioForm.sourceUrl || undefined, sourceTitle: curioForm.sourceTitle || undefined,
-    status: 'todo', pinned: false, relatedResourceIds: [], customFields: {},
+    status: 'todo', pinned: false, customFields: {},
     createdAt: Date.now(), updatedAt: Date.now()
   }
   d.value.curiosities.unshift(c)

@@ -9,7 +9,7 @@
  * ⑤ 💡 洞察：规则引擎自动生成（非 AI）
  *
  * 数据源：zy_event_log（create 事件）+ d.tasks/completedAt + d.resources/lastCalledAt
- * + d.curiosities + Task.mountedCuriosityIds —— 不写任何存储。
+ * + d.curiosities —— 不写任何存储。（R165：转化数随卡间挂载退役，D2 删该统计项）
  */
 import type { AppData, ResourceCard } from '../models'
 
@@ -48,7 +48,7 @@ export interface OverviewNum {
 }
 export interface DirectionBar { dirId: string; name: string; done: number }
 export interface TopCalled { id: string; title: string; workspaceId: string; callCount: number }
-export interface FunnelStage { key: 'total' | 'todo' | 'doing' | 'converted'; num: number }
+export interface FunnelStage { key: 'total' | 'todo' | 'doing'; num: number }
 export interface Insight { text: string }
 
 export interface WeeklyReport {
@@ -57,7 +57,6 @@ export interface WeeklyReport {
   directionBars: DirectionBar[]
   topCalled: TopCalled[]
   funnel: FunnelStage[]
-  conversionRate: number
   insights: Insight[]
 }
 
@@ -118,20 +117,13 @@ export function buildWeeklyReport(d: AppData, events: { ts: number; action: stri
     .slice(0, 5)
     .map(r => ({ id: r.id, title: r.title, workspaceId: r.workspaceId, callCount: r.callCount || 0 }))
 
-  // ④ 好奇心转化漏斗
+  // ④ 好奇心状态漏斗（R165：转化数统计项随卡间挂载退役——无可靠源，D2 删）
   const curiosities = (d.curiosities || []).filter(c => !c.deletedAt)
-  const convertedIds = new Set<string>()
-  for (const t of d.tasks || []) {
-    if (t.deletedAt) continue
-    for (const cid of t.mountedCuriosityIds || []) convertedIds.add(cid)
-  }
   const funnel: FunnelStage[] = [
     { key: 'total', num: curiosities.length },
     { key: 'todo', num: curiosities.filter(c => c.status === 'todo').length },
-    { key: 'doing', num: curiosities.filter(c => c.status === 'doing').length },
-    { key: 'converted', num: curiosities.filter(c => convertedIds.has(c.id) || c.status === 'done').length }
+    { key: 'doing', num: curiosities.filter(c => c.status === 'doing').length }
   ]
-  const conversionRate = funnel[0].num ? Math.round((funnel[3].num / funnel[0].num) * 100) : 0
 
   // ⑤ 洞察规则引擎（非 AI；5 条规则按优先级命中至多 3 条）
   const insights: Insight[] = []
@@ -143,5 +135,5 @@ export function buildWeeklyReport(d: AppData, events: { ts: number; action: stri
   if (overview[0].delta > 0) insights.push({ text: `入台比上周多 ${overview[0].delta} 张——收得进，也要看得见：周末花 30 分钟策展本周卡片。` })
   if (!insights.length) insights.push({ text: '本周调度平稳——打开方向树看看，有没有值得新启动的方向。' })
 
-  return { window: w, overview, directionBars, topCalled, funnel, conversionRate, insights: insights.slice(0, 3) }
+  return { window: w, overview, directionBars, topCalled, funnel, insights: insights.slice(0, 3) }
 }

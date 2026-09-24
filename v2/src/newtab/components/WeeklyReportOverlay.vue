@@ -155,15 +155,13 @@ async function aiInsight() {
 
             <!-- ④ 好奇心转化漏斗 -->
             <div class="wr-sec">
-              <div class="wr-sec-title">④ 好奇心转化漏斗 <span class="wr-hint">点击阶段查看</span></div>
+              <div class="wr-sec-title">④ 好奇心状态漏斗 <span class="wr-hint">点击阶段查看</span></div>
               <div class="wr-funnel">
                 <template v-for="(st, i) in report.funnel" :key="st.key">
                   <div class="stage clickable" :class="st.key" :title="'查看' + st" @click="drillFunnel(st.key)">
-                    <div class="n">{{ st.num }}</div><div class="l">{{ ['好奇心总量', '待探索', '探索中', '已转为任务'][i] }}</div>
+                    <div class="n">{{ st.num }}</div><div class="l">{{ ['好奇心总量', '待探索', '探索中'][i] }}</div>
                   </div>
-                  <div v-if="i < report.funnel.length - 1" class="funnel-arrow">
-                    ↓ <template v-if="i === report.funnel.length - 2">转化率 {{ report.conversionRate }}%</template>
-                  </div>
+                  <div v-if="i < report.funnel.length - 1" class="funnel-arrow">↓</div>
                 </template>
               </div>
             </div>

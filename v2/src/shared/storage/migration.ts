@@ -36,8 +36,6 @@ interface V1Link {
   dueDate?: string
   goalId?: string
   metricId?: string
-  mountedResourceIds?: string[]
-  mountedCuriosityIds?: string[]
   callCount?: number
   lastCalledAt?: number | string
   lastVisitedAt?: number | string
@@ -333,7 +331,6 @@ function migrateTask(link: V1Link): TaskCard {
     status,
     priority,
     dueDate: link.dueDate || undefined,
-    mountedCuriosityIds: link.mountedCuriosityIds || [],
     customFields: link.customFields || {},
     createdAt: toTs(link.createdAt),
     updatedAt: toTs(link.updatedAt || link.createdAt),
@@ -356,7 +353,6 @@ function migrateCuriosity(link: V1Link): CuriosityCard {
     sourceUrl: link.url || undefined,  // V1 有URL则保留，V2采集时不再自动记录
     status,
     pinned: !!link.pinned,
-    relatedResourceIds: [],
     customFields: link.customFields || {},
     createdAt: toTs(link.createdAt),
     updatedAt: toTs(link.updatedAt || link.createdAt),

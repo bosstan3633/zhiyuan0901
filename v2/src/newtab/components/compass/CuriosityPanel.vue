@@ -16,7 +16,7 @@ import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
-import { curioMaturity, curioRelated } from '@/shared/utils/maturity'
+import { curioMaturity } from '@/shared/utils/maturity'
 import type { ResourceCard } from '@/shared/models'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 // R117（04-61 C3）：当日新增角标（自然日口径）——卡片 / 列表 / 看板三视图同一枚
@@ -142,19 +142,6 @@ const curioStatusMenuOpen = ref(false)
 /** 第卅三轮 REQ-024：详情文本框高度（默认 180px，拖拽记忆） */
 const { taH: detailH, startTaResize: startDetailResize } = useTaHeight('curio-detail', store.ui)
 const detailItem = computed(() => curiosities.value.find(c => c.id === detailId.value) || null)
-// R142（反馈 #4）：挂载资源区——直接关联 relatedResourceIds 可编辑；其挂载任务的资源并入展示（并集只读）
-const relSearch = ref('')
-function curioRelUnion(c: CuriosityCard): ResourceCard[] { return curioRelated(d.value, c) }
-function relCandidates(c: CuriosityCard): ResourceCard[] {
-  const q = relSearch.value.trim().toLowerCase()
-  if (!q) return []
-  const have = new Set(c.relatedResourceIds || [])
-  return (d.value.resources || []).filter(r => !r.deletedAt && !have.has(r.id) && r.title.toLowerCase().includes(q)).slice(0, 8)
-}
-function toggleCurioRel(c: CuriosityCard, rid: string) {
-  const arr = c.relatedResourceIds || []
-  update(c.id, { relatedResourceIds: arr.includes(rid) ? arr.filter(x => x !== rid) : [...arr, rid] })
-}
 const editDraft = ref('')
 function openDetail(id: string) {
   detailId.value = id
@@ -519,7 +506,7 @@ function srcShort(url: string): string {
             <button class="cz-pin-corner" :class="{on: c.pinned}" @click.stop="togglePin(c.id)" title="置顶">📌</button>
             <button class="cz-star-corner" :class="{on: c.starred}" @click.stop="toggleStar(c.id)" title="星标">⭐</button>
             <div class="cz-title"><NewBadge :at="c.createdAt" />{{ c.question }}</div>
-            <div class="cz-matrow"><MaturityBadge :m="curioMaturity(c, curioRelUnion(c).length)" /><span v-if="curioRelUnion(c).length" class="cz-rel-n" :title="'关联资源 ' + curioRelUnion(c).length + ' 张（含其挂载任务）'">🔗{{ curioRelUnion(c).length }}</span></div>
+            <div class="cz-matrow"><MaturityBadge :m="curioMaturity(c)" /></div>
             <!-- 第卌轮 REQ-051：附件徽章 + 标签/自定义字段（字段设计控制显隐排序）
                  R117（04-61 D）：补齐「来源链接」渲染——此前设置里开启也在卡片上不显示 -->
             <div v-if="curioExtFields.length" class="cz-ext">
@@ -569,7 +556,7 @@ function srcShort(url: string): string {
             <span v-else-if="c.starred" class="cz-star-flag">⭐</span>
             <span v-if="cShow('status')" class="cz-status" :class="STATUS_MAP[c.status].cls">{{ STATUS_MAP[c.status].icon }}</span>
             <span class="cz-list-text"><NewBadge :at="c.createdAt" />{{ c.question }}</span>
-            <MaturityBadge :m="curioMaturity(c, curioRelUnion(c).length)" />
+            <MaturityBadge :m="curioMaturity(c)" />
             <AssetBadge v-if="curioExtFields.some(f => f.key === 'assets')" :assets="c.assets" class="cz-list-assets" />
             <!-- R117（04-61 D）：列表视图同步受字段设置控制 -->
             <span v-if="cShow('createdAt')" class="cz-list-date">{{ fmtDate(c.createdAt) }}</span>
@@ -604,7 +591,7 @@ function srcShort(url: string): string {
               <button class="cz-pin-corner" :class="{on: c.pinned}" @click.stop="togglePin(c.id)" title="置顶">📌</button>
               <button class="cz-star-corner" :class="{on: c.starred}" @click.stop="toggleStar(c.id)" title="星标">⭐</button>
               <div class="cz-kanban-text"><NewBadge :at="c.createdAt" />{{ c.question }}</div>
-              <MaturityBadge :m="curioMaturity(c, curioRelUnion(c).length)" />
+              <MaturityBadge :m="curioMaturity(c)" />
               <div class="cz-kanban-meta">
                 <AssetBadge v-if="curioExtFields.some(f => f.key === 'assets')" :assets="c.assets" />
                 <span>{{ fmtDate(c.createdAt) }}</span>
@@ -631,7 +618,7 @@ function srcShort(url: string): string {
           </div>
         </div>
         <AssetBadge v-if="detailItem?.assets?.length" :assets="detailItem.assets" />
-        <MaturityBadge v-if="detailItem" lg :m="curioMaturity(detailItem, curioRelUnion(detailItem).length)" />
+        <MaturityBadge v-if="detailItem" lg :m="curioMaturity(detailItem)" />
       </template>
       <template v-if="detailItem">
         <!-- Hero：摘录即主角（第卅三轮 REQ-015 Ctrl+Enter 保存；REQ-024 高度拖拽记忆） -->
@@ -653,17 +640,6 @@ function srcShort(url: string): string {
         </div>
         <div style="margin-top:12px">
           <TagPicker v-model="detailItem.tags" @update:model-value="update(detailItem.id, { tags: $event })" />
-        </div>
-        <div style="margin-top:12px">
-          <div class="cz-rel-label">🔗 挂载资源卡 <span class="hint">— 查证材料 · 转任务时随迁（任务自带的资源也在此并集展示）</span></div>
-          <div v-for="r in curioRelUnion(detailItem)" :key="r.id" class="cz-rel-row">
-            <a class="lnk" :title="r.title" @click.prevent="emitOpenDrawer({ kind: 'res', id: r.id })">📄 {{ r.title }}</a>
-            <button v-if="(detailItem.relatedResourceIds || []).includes(r.id)" class="cz-rel-x" title="取消直接关联" @click="toggleCurioRel(detailItem, r.id)">✕</button>
-            <span v-else class="cz-rel-via" title="来自挂载该好奇心的任务">经任务挂载</span>
-          </div>
-          <div v-if="!curioRelUnion(detailItem).length" class="cz-rel-empty">暂无关联资源 · 下方搜索挂载</div>
-          <input v-model="relSearch" class="detail-link-input" placeholder="🔍 搜索资源卡标题并挂载…" />
-          <div v-for="r in relCandidates(detailItem)" :key="r.id" class="cz-rel-cand" @click="toggleCurioRel(detailItem, r.id)">＋ {{ r.title }}</div>
         </div>
         <details class="ds-details" style="margin-top:14px">
           <summary>📎 附件 <span v-if="detailItem.assets?.length" class="cnt">({{ detailItem.assets.length }})</span><span class="right">图片弹窗预览 / HTML 新标签打开</span></summary>
@@ -839,15 +815,6 @@ function srcShort(url: string): string {
 .detail-link-input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: var(--fs-sub); font-family: inherit; outline: none; }
 /* R142（反馈 #4）：挂载资源区 + 成熟度徽标行 */
 .cz-matrow { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
-.cz-rel-n { font-size: var(--fs-caption); color: var(--text-4); }
-.cz-rel-label { font-size: var(--fs-caption); color: var(--text-3); margin-bottom: 6px; }
-.cz-rel-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 2px; font-size: var(--fs-sub); }
-.cz-rel-x { border: none; background: transparent; color: var(--text-4); cursor: pointer; font-family: inherit; }
-.cz-rel-x:hover { color: var(--danger); }
-.cz-rel-via { font-size: var(--fs-tiny); color: var(--text-4); }
-.cz-rel-empty { font-size: var(--fs-sub); color: var(--text-4); padding: 2px 0 6px; }
-.cz-rel-cand { font-size: var(--fs-sub); padding: 4px 6px; border-radius: 6px; cursor: pointer; color: var(--text-2); }
-.cz-rel-cand:hover { background: var(--surface-2); color: var(--accent); }
 .detail-link-input:focus { border-color: var(--accent); }
 .expand-enter-active, .expand-leave-active { transition: all var(--dur) ease; overflow: hidden; }
 .expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; }

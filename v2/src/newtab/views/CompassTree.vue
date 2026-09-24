@@ -15,7 +15,6 @@ import { compassNodeCounts, removeCompassNode, restoreCompassNode, type CompassN
 import { useConfirm } from '@/shared/components/confirm'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
-import MountCountBadge from '../components/MountCountBadge.vue'
 import { taskMaturity, metricMaturity, projectMaturity, directionMaturity } from '@/shared/utils/maturity'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import Drawer from '@/shared/components/Drawer.vue'
@@ -239,7 +238,6 @@ function confirmGoalImport(payload: { goal?: GoalParseResult }) {
           status: 'todo', priority: 'medium',
           description: t.detail || undefined,
           tags: [], customFields: {}, pinned: false,
-          mountedCuriosityIds: [],
           createdAt: Date.now(), updatedAt: Date.now()
         }
         d.value.tasks.unshift(task)
@@ -657,7 +655,6 @@ onUnmounted(() => {
                           @click.stop="startEdit('task-' + task.id, $event)" @blur="saveEdit('task-' + task.id, $event)" @keydown.enter.prevent="saveEdit('task-' + task.id, $event)" @keydown.esc="cancelEdit">{{ task.title }}</span>
                         <span class="tml-pri">{{ task.priority==='high'?'高优':task.priority==='medium'?'中优':'低优' }}</span>
                         <MaturityBadge :m="taskMaturity(task)" />
-                        <MountCountBadge :t="task" />
                         <span v-if="sub" class="tml-up node-action" @click.stop="promoteTask(task)" title="⤴ 升为顶层任务（解父子关联，指标归属不变）">⤴</span>
                         <span class="tml-del node-action" @click.stop="unbindTask(task)" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）">✕</span>
                       </div>

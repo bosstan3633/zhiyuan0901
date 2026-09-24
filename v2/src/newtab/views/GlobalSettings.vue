@@ -2303,7 +2303,7 @@ function exportWorkspace() {
     ...(rootForExport as unknown as AppData), workspaces: [ws], categories: cats,
     resources: d.resources.filter(r => r.workspaceId === ws.id),
     tasks: d.tasks,
-    curiosities: d.curiosities.filter(c => c.relatedResourceIds?.some(rid => d.resources.find(r => r.id === rid)?.workspaceId === ws.id)),
+    curiosities: d.curiosities,
     // R63-2：只带本台的镜像引用（projection 指向资源台真身，导入合并按 id 并集恢复）
     curationProjections: (d.curationProjections || []).filter(p => p.targetWsId === ws.id)
   }
@@ -2911,7 +2911,7 @@ function aiDiagnose() {
           id: uid('tk'), kind: 'task', title: String(f.title).slice(0, 40), status: 'todo',
           priority: f.severity === 'high' ? 'high' : f.severity === 'low' ? 'low' : 'medium',
           description: ['🧠 诊断发现：', f.detail, f.suggestion && `➜ 建议：${f.suggestion}`].filter(Boolean).join('\n').slice(0, 600),
-          mountedCuriosityIds: [], customFields: {},
+          customFields: {},
           createdAt: Date.now(), updatedAt: Date.now(),
         } as import('@/shared/models').TaskCard)
         n++

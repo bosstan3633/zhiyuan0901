@@ -21,7 +21,6 @@ import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 // R147-d：任务级 AI 菜单抽成共享组件（与任务面板/看板同一套动作）
 import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'
 import { removeMetricWithConfirm } from '@/shared/utils/compassCrud'
-import MountCountBadge from '../components/MountCountBadge.vue'
 import { taskMaturity, metricMaturity } from '@/shared/utils/maturity'
 
 /**
@@ -669,7 +668,6 @@ function addTaskFromHeader() {
             <span class="tag" :class="prTag(task.priority)"><i class="tag-dot" /><span class="tag-txt">{{ prLabel(task.priority) }}</span></span>
             <AssetBadge v-if="task.assets?.length" :assets="task.assets" />
             <MaturityBadge :m="taskMaturity(task)" />
-            <MountCountBadge :t="task" />
             <TaskAiMenu :task="task" @detail="openTaskDetail" />
             <button class="icon-btn-sm" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）" @click="unbindTask(task)">✕</button>
           </div>
@@ -692,7 +690,6 @@ function addTaskFromHeader() {
             <span class="bt" @click="openTaskDetail(t)" title="点击打开任务详情">{{ t.title }}</span>
             <span class="tag" :class="prTag(t.priority)"><i class="tag-dot" /><span class="tag-txt">{{ prLabel(t.priority) }}</span></span>
             <MaturityBadge :m="taskMaturity(t)" />
-            <MountCountBadge :t="t" />
             <TaskAiMenu :task="t" @detail="openTaskDetail" />
             <button class="icon-btn-sm del" title="删除任务（进回收站）" @click="removeTask(t)">🗑</button>
           </div>

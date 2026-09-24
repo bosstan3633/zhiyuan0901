@@ -1378,9 +1378,9 @@ async function openCapture() {
           </select>
         </div>
       </div>
-      <!-- R97（D4）：资源采集不设「关联项目」——ResourceCard 模型无 projectId（单向挂载红线：
-           资源由台面/分类组织，任务才是持挂载方）。按提案「或明确边界并说明」分支，把边界写在表单里。 -->
-      <div class="zy-cap-boundary">资源卡不挂项目——需要与行动同行时，先入台，再到任务详情里「挂载到任务」</div>
+      <!-- R97（D4）：资源采集不设「关联项目」——ResourceCard 模型无 projectId（卡间零挂载红线：
+           资源由台面/分类组织，任务才是行动归属）。按提案「或明确边界并说明」分支，把边界写在表单里。 -->
+      <div class="zy-cap-boundary">资源卡不挂项目——资源由台面与分类组织，任务才是行动归属</div>
     </div>
     <div class="zy-cap-foot">
       <button class="zy-btn zy-btn-ghost" id="__zy_cap_cancel__">取消</button>
@@ -1616,7 +1616,7 @@ async function openTaskCapture() {
       id: uid('tk'), kind: 'task', title: titleInput.value.trim() || '快速任务',
       description: desc, link: link || undefined, status: 'todo', priority: 'medium',
       projectId: projSel.value || undefined, metricId: metSel.value || undefined,
-      mountedCuriosityIds: [], customFields: {}, tags: [], pinned: false,
+      customFields: {}, tags: [], pinned: false,
       createdAt: Date.now(), updatedAt: Date.now()
     }
     d2.tasks?.unshift(task)
@@ -1709,7 +1709,7 @@ async function openCuriosity() {
       id: uid('cz'), kind: 'curiosity', question: text,
       sourceUrl: srcUrlInput || undefined, sourceTitle: srcTitleInput || undefined,
       status: 'todo', pinned: false,
-      relatedResourceIds: [], customFields: {},
+      customFields: {},
       createdAt: Date.now(), updatedAt: Date.now()
     })
     await saveData(d)

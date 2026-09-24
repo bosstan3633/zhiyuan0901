@@ -3,7 +3,8 @@
  *
  * 设计原则：
  * 1. 三卡分立：ResourceCard / TaskCard / CuriosityCard 各自独立，不再混存
- * 2. 单向挂载：只有 Task 持有 mountedCuriosityIds，反向不持有（R162：任务↔资源挂载关系已退役）
+ * 2. 卡间零挂载：三卡（Resource/Task/Curiosity）互不持有对方 id（R162 退任务↔资源；R165 退任务↔好奇、
+ *    好奇↔资源；fromCuriosityId 为卡→好奇溯源引用，允许）；六层归属（projectId/metricId）与策展台镜像不受限
  * 3. 六层树：Vision → Mission → Direction → Goal → Project → Metric → Task
  * 4. 软删除：所有卡片 deletedAt 标记，回收站恢复
  */
@@ -206,8 +207,6 @@ export interface TaskCard extends CardBase {
   estimatedMinutes?: number
   /** V2.2：链接（URL / 本地路径 / obsidian://），卡片双击直达 */
   link?: string
-  /** 单向挂载：任务 → 好奇心（R162：任务↔资源挂载关系已退役，mountedResourceIds 字段删除） */
-  mountedCuriosityIds: ID[]
   completedAt?: number
   /** R47-B4：被打开（调起详情/直达）次数与最近打开时间——全局检索无输入时按近期热度排序 */
   callCount?: number
@@ -233,8 +232,6 @@ export interface CuriosityCard extends CardBase {
   pinned: boolean
   /** 第卅五轮 REQ-035：手动拖拽排序权重（markRank 组内 sortOrder 优先、未拖拽回退 createdAt；拖拽后全量重写） */
   sortOrder?: number
-  /** 弱关联资源（查证过程中收集） */
-  relatedResourceIds: ID[]
   /** R47-B4：被打开（调起详情）次数与最近打开时间——热度排序 */
   callCount?: number
   lastCalledAt?: number

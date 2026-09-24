@@ -24,7 +24,6 @@ function bumpAggSeq(): number {
   if (q !== aggSeq) { aggSeq = q; aggMemo.clear() }
   return q
 }
-const listMemo = new Map<string, { k: string; r: string[] }>()
 
 export type Grade = 'A' | 'B' | 'C' | 'D'
 export interface Maturity { score: number; grade: Grade; label: string; reasons: string[] }
@@ -38,9 +37,9 @@ const wrap = (score: number, reasons: string[]): Maturity => {
 
 const DAY = 86400000
 
-/** 任务成熟度：可执行 35 / 可归属 25 / 弹药 10（附件 5 + 好奇心挂载 5；R162 起资源挂载计分退役） / 新鲜度 15 */
+/** 任务成熟度：可执行 45 / 可归属 15 / 附件 5 / 新鲜度 15（R165：挂载计分全量退役，D1 直接删不补分） */
 export function taskMaturity(t: TaskCard, now = Date.now()): Maturity {
-  const k = `${dayBucket(now)}:${getMutationSeq()}:${t.updatedAt}:${t.status}:${t.dueDate || ''}:${t.estimatedMinutes || 0}:${(t.mountedCuriosityIds || []).length}:${(t.assets || []).length}:${(t.description || '').length}:${t.projectId || ''}:${t.metricId || ''}`
+  const k = `${dayBucket(now)}:${getMutationSeq()}:${t.updatedAt}:${t.status}:${t.dueDate || ''}:${t.estimatedMinutes || 0}:${(t.assets || []).length}:${(t.description || '').length}:${t.projectId || ''}:${t.metricId || ''}`
   const hit = taskMemo.get(t)
   if (hit && hit.k === k) return hit.r
   const r = taskMaturityRaw(t, now)
@@ -57,7 +56,6 @@ function taskMaturityRaw(t: TaskCard, now: number): Maturity {
   if (t.projectId) s += 8; else r.push('未挂项目')
   if (t.metricId) s += 7; else r.push('未挂指标')
   if ((t.assets || []).length) s += 5
-  if ((t.mountedCuriosityIds || []).length) s += 5
   const days = (now - (t.status === 'done' ? t.completedAt || t.updatedAt : t.updatedAt)) / DAY
   if (t.status === 'done') s += 15
   else if (days <= 7) s += 15
@@ -66,35 +64,17 @@ function taskMaturityRaw(t: TaskCard, now: number): Maturity {
   return wrap(s, r)
 }
 
-/** 好奇心成熟度：来源 / 资源 / 记录 / 活性 各占一块（relatedCount 由视图传并集口径 curioResIds().length） */
-export function curioMaturity(c: CuriosityCard, relatedCount = 0, now = Date.now()): Maturity {
+/** 好奇心成熟度：来源 / 记录 / 活性 三块（R165：关联资源维度随卡间挂载退役，D1 直接删不补分） */
+export function curioMaturity(c: CuriosityCard, now = Date.now()): Maturity {
   let s = 0
   const r: string[] = []
   if (c.sourceUrl) s += 30; else r.push('没有来源链接')
-  if (relatedCount) s += 25
-  else r.push('还没关联资源')
   if ((c as { description?: string }).description || c.question.trim().length > 20) s += 25; else r.push('问题太短、缺上下文')
   const days = (now - c.updatedAt) / DAY
   if (days <= 30) s += 20; else r.push(`${Math.floor(days)} 天没动静`)
   return wrap(s, r)
 }
 
-/** R142（反馈 #4）：好奇卡的关联资源解析——直接 relatedResourceIds（R162：经任务挂载的并集口径随挂载关系退役） */
-export function curioResIds(d: AppData, c: CuriosityCard): string[] {
-  const mk = `cur:${c.id}:${getMutationSeq()}:${(c.relatedResourceIds || []).length}`
-  const hit = listMemo.get(mk)
-  if (hit) return hit.r
-  const r = curioResIdsRaw(d, c)
-  listMemo.set(mk, { k: mk, r })
-  if (listMemo.size > 4000) listMemo.clear()
-  return r
-}
-function curioResIdsRaw(_d: AppData, c: CuriosityCard): string[] {
-  return [...(c.relatedResourceIds || [])]
-}
-export function curioRelated(d: AppData, c: CuriosityCard): ResourceCard[] {
-  return curioResIds(d, c).map(id => (d.resources || []).find(r => r.id === id && !r.deletedAt)).filter(Boolean) as ResourceCard[]
-}
 
 function tasksOfMetric(d: AppData, m: Metric): TaskCard[] {
   return (d.tasks || []).filter(t => !t.deletedAt && t.metricId === m.id)

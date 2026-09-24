@@ -121,7 +121,6 @@ async function save() {
         priority: 'medium' as const,
         projectId: taskProjectId.value || undefined,
         metricId: taskMetricId.value || undefined,
-        mountedCuriosityIds: [] as string[],
         customFields: {},
         tags: [] as string[],
         pinned: false,
@@ -152,7 +151,6 @@ async function save() {
         sourceTitle: curioSource.value.title || undefined,
         status: 'todo',
         pinned: false,
-        relatedResourceIds: [],
         customFields: {},
         createdAt: Date.now(),
         updatedAt: Date.now()

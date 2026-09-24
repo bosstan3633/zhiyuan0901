@@ -36,7 +36,6 @@ export function useCuriosity() {
       sourceUrl: sourceUrl || undefined,
       status: 'todo',
       pinned: false,
-      relatedResourceIds: [],
       customFields: {},
       createdAt: Date.now(),
       updatedAt: Date.now()
