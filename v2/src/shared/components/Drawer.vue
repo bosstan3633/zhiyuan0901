@@ -31,7 +31,10 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
     <Transition name="drawer">
       <aside v-if="open" class="drawer" :style="{ width: width || '440px' }">
         <header class="drawer-header">
-          <div class="drawer-title">{{ title }}</div>
+          <!-- R167：可选 title 插槽——把"就地可编辑主标题 + kicker"放进头部，
+               正文里就不再重复一份标题（现状是头部一份只读、正文一份 textarea，同屏两处且头部那份长标题被截断）。
+               不给插槽的宿主照旧渲染 {{ title }}，19 个既有抽屉零影响。 -->
+          <div class="drawer-title"><slot name="title">{{ title }}</slot></div>
           <!-- 第卌一轮 REQ-054：标题右侧扩展区（附件徽章等） -->
           <div v-if="$slots['title-extra']" class="drawer-title-extra"><slot name="title-extra" /></div>
           <button class="drawer-close" @click="emit('close')">×</button>

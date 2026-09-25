@@ -113,6 +113,9 @@ function restoreTask(t: TaskCard) {
 }
 function restoreCurio(c: CuriosityCard) {
   c.deletedAt = undefined
+  /** R167：恢复即撤销这次转化——清掉转化戳，否则池里多一条卡、头部「已转化」却还记着它（两头都对不上） */
+  c.convertedAt = undefined
+  c.convertedTo = undefined
   c.updatedAt = Date.now()
   store.persist()
   show(`✓ 已恢复「${c.question.slice(0, 20)}」`)
@@ -146,7 +149,13 @@ function restoreAll() {
   const list = cur === 'res' ? res.value : cur === 'task' ? tasks.value : cur === 'cat' ? cats.value : curios.value
   if (!list.length) { show('该分区没有可恢复的条目'); return }
   const now = Date.now()
-  for (const x of list as { deletedAt?: number; updatedAt?: number }[]) { x.deletedAt = undefined; if (x.updatedAt !== undefined) x.updatedAt = now }
+  for (const x of list as { deletedAt?: number; updatedAt?: number; convertedAt?: number; convertedTo?: 'task' | 'res' }[]) {
+    x.deletedAt = undefined
+    if (x.updatedAt !== undefined) x.updatedAt = now
+    /** R167：批量恢复同样撤销转化戳（只对好奇卡存在这两个字段，其余恒为 undefined，无副作用） */
+    x.convertedAt = undefined
+    x.convertedTo = undefined
+  }
   store.persist()
   show(`♻ 已恢复 ${list.length} 项（${tabLabelOf(cur)}）· 归属需手动归位的见各条说明`)
 }
@@ -227,7 +236,10 @@ const tabMeta = computed(() => [
       <div v-for="c in curios" :key="c.id" class="rb-item">
         <div class="rb-item-main">
           <div class="rb-item-title">{{ c.question }}</div>
-          <div class="rb-item-meta">🕓 删除于 {{ fmt(c.deletedAt) }}</div>
+          <div class="rb-item-meta">
+            <span v-if="c.convertedTo" class="rb-conv">{{ c.convertedTo === 'task' ? '→ 已转为任务' : '→ 已归档为资源' }}（{{ fmt(c.convertedAt) }}）· 恢复 = 撤销这次转化</span>
+            <span v-else>🕓 删除于 {{ fmt(c.deletedAt) }}</span>
+          </div>
         </div>
         <div class="rb-item-ops">
           <button class="rb-btn sm" @click="restoreCurio(c)">恢复</button>
@@ -281,6 +293,8 @@ const tabMeta = computed(() => [
 .rb-item-main { flex: 1; min-width: 0; }
 .rb-item-title { font-size: var(--fs-body); font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 3px; }
 .rb-item-meta { font-size: var(--fs-sub); color: var(--text-3); }
+/* R167：转化出场的卡要读得出"它不是被删掉的，是转出去的"——恢复=撤销这次转化 */
+.rb-conv { color: var(--accent); font-weight: 600; }
 .rb-item-ops { display: flex; gap: 6px; flex-shrink: 0; }
 .rb-empty { text-align: center; color: var(--text-3); font-size: var(--fs-body); padding: 60px 0; }
 </style>

@@ -225,7 +225,7 @@ export function buildCurioTriageJob(ctx: CurioTriageCtx): AiJob | null {
         sub: [v === 'convert' ? `建议任务：${title}` : '', reason.slice(0, 60) || '（模型没给判词）'].filter(Boolean).join(' · '),
         // R147-a：没判词的「转任务/搁置」会真的动卡，默认不勾
         weak: !reason,
-        data: { __cardId: c.id, __verdict: v, __title: title },
+        data: { __cardId: c.id, __verdict: v, __title: title, __why: reason, __card: c },
       })
     })
     return rows
@@ -233,6 +233,8 @@ export function buildCurioTriageJob(ctx: CurioTriageCtx): AiJob | null {
   const user = () => projectCurioPool(ctx.d, pool.map(c => c.id), ctx.depth, reviseSnips)
   return {
     key: single ? 'triage:' + pool[0].id : 'triage',
+    /** R167：单条研判走「判决卡」版式（一条建议摊成左右对照会空半屏）；批量仍是逐条勾选的对照表 */
+    ...(single ? { layout: 'verdict' as const } : {}),
     title: single ? '💡 这条好奇要不要转任务' : '💡 好奇心转化研判',
     subject: single ? `💡 单条研判「${pool[0].question.slice(0, 28)}」` : `💡 待探索池 ${pool.length} 条`,
     hint: single
@@ -269,6 +271,29 @@ export function buildCurioTriageJob(ctx: CurioTriageCtx): AiJob | null {
       }
       if (shelf) ctx.persist()
       return `✓ 转化 ${conv} 条为任务 · 搁置 ${shelf} 条${keep ? ` · ${keep} 条继续养着（未改动）` : ''}${fail ? ` · ${fail} 条转化失败（已转或目标变更）` : ''}`
+    },
+    /**
+     * R167：次级动作「判词写进详情」——只把判词追加进正文，**不改状态、不建卡**。
+     * 立它的理由：研判最有用的往往是那句判词本身（"先养一周看是否真天天用"），
+     * 但用户未必想现在就转/搁置；没有这一条，判词跑完就散了。
+     */
+    secondary: {
+      label: '📝 判词写进详情',
+      apply: (rows) => {
+        let n = 0
+        for (const r of rows) {
+          const c = byId.get((r.data as { __cardId: string }).__cardId)
+          const why = (r.sub || '').replace(/^（模型没给判词）$/, '').trim()
+          if (!c || !why) continue
+          if ((c.question || '').includes(why.slice(0, 12))) continue
+          c.question = `${c.question}\n\n 研判判词：${why}`
+          c.updatedAt = Date.now()
+          n++
+        }
+        if (!n) return '⚠ 没有可写入的判词（模型没给理由，或正文里已有）'
+        ctx.persist()
+        return `✓ 判词已写进 ${n} 条好奇的正文末段（状态未改）`
+      },
     },
   }
 }

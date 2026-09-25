@@ -156,6 +156,21 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     recordResourceOpen(d.value, r)
     store.persistHot?.()
   }
+  /**
+   * R167：AI 采纳后把抽屉里的表单同步成**已落库**的值。
+   * 采纳是直接写库（R154 拍板①），而本抽屉编辑的是 `editingResource` 副本——不同步就会
+   * "AI 明明写了、抽屉还显示旧字"，用户再点保存反而把 AI 的结果覆盖回去。
+   */
+  function syncEditingFromStore(): void {
+    const live = d.value.resources.find(x => x.id === editingResource.id && !x.deletedAt)
+    if (!live) return
+    editingResource.title = live.title
+    editingResource.description = live.description
+    editingResource.tags = [...(live.tags || [])]
+    editingResource.categoryId = live.categoryId
+    editingResource.aiTouchedAt = live.aiTouchedAt
+  }
+
   // R106（F4）：只读详情期 Ctrl+Enter = 定位源卡——document 捕获（焦点常在 body，元素级绑不住）；closeDrawer/watch 双路摘除
   function onRoCtrlEnter(e: KeyboardEvent) {
     if (!drawerOpen.value || !drawerReadonly.value) return
@@ -275,7 +290,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     onCardClick, onCardDblClick,
     drawerOpen, editingResource, isNewResource, drawerReadonly,
     newCardCatId, openNewResource, addResourceToCategory, openMirrorDetail,
-    cleanAllMirrors, locateMirrorSourceCard, openResource, closeDrawer,
+    cleanAllMirrors, locateMirrorSourceCard, openResource, closeDrawer, syncEditingFromStore,
     saveResource, deleteCurrentResource, deleteResource, togglePin, toggleStar, copyLink,
     resFormRef, fixLink, resCtx, resCtxItems, openResCtx,
   }

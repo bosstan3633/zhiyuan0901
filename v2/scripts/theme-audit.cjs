@@ -74,18 +74,25 @@ const VIEWPORT = { width: 1440, height: 900 }
 /**
  * R165-A 补漏：本轮主交付面是**三张卡的详情抽屉**，而本脚本此前只抓四个台面默认态 + AI 评审弹窗
  * ——等于"走查过了，但没走过真正改动的那一面"。补 4 主题 × 3 卡详情 = 12 张。
- * 每张现场核三条判据：抽屉真开 / AI 主上下文动作在**标题行** / 页脚**恰好两钮**。
+ * 每张现场核：抽屉真开 / AI 入口**独立成行且格数对** / 页脚**恰好两钮**（资源卡另核「标题只有一处」）。
  * **任一不过即非零退出**——只出图不核判据的走查是自我安慰：首轮实跑就抓到"以为打开了其实打开的是空页面"。
+ *
+ * R167 随迁：AI 入口从标题行搬到正文首行 `.ds-ai-cell`（资源 2 格 / 好奇 1 格 / 任务 3 格），
+ * 主标题搬进抽屉头 `.ds-h1`——所以资源卡这里多核一条"全抽屉只有一处主标题"，
+ * 它正是本轮删掉的正向残留（正文里那份 `.ref-title` 若被哪个宿主加回来，这里就红）。
  *
  * 选择器注意（都踩过）：
  *  · 任务行在卡片/列表/看板三形态类名各异（.tm-card / .trow / …），共有的是 `[data-tid]`；
- *  · 资源卡链接的 ↗/ 复用 `.dr-footer-btn` 类但住在正文里，页脚计数必须按 `.dr-footer` 容器取，不能按类名全站数；
- *  · 三张卡详情各在哪个台面：资源卡在资源台，任务/好奇在**调度台首页底部 Tab**（CompassHome 挂 '/'）。
+ *  · 页脚计数必须按**容器**取且两代容器都认（内联抽屉 `.dr-footer` / 共享 Drawer `.drawer-footer`）——
+ *    按 `.dr-footer-btn` 类名全站数会把链接行的动作钮算进来；
+ *  · 三张卡详情各在哪个台面：资源卡在资源台（内联抽屉；App 级抽屉由总线打开，同一套件），
+ *    任务/好奇在**调度台首页底部 Tab**（CompassHome 挂 '/'）。
  */
 const DRAWER_VIEWS = [
   {
     id: 'drawer-resource', name: '资源卡详情', hash: '#/workspace/zy-curation',
-    card: '.res-card', open: '.ref-form', ai: '.ref-title-row .dr-footer-btn.ai', foot: '.dr-footer button',
+    card: '.res-card', open: '.ref-form', ai: '.ds-ai-cell', aiCount: 2, h1: '.ds-h1',
+    foot: '.dr-footer button, .drawer-footer button',
   },
   {
     id: 'drawer-task', name: '任务卡详情', hash: '#/', tab: '任务调度',
@@ -93,7 +100,7 @@ const DRAWER_VIEWS = [
   },
   {
     id: 'drawer-curio', name: '好奇心详情', hash: '#/', tab: '好奇心培育',
-    card: '.cz-card', open: '.drawer .ds-quote', ai: '.drawer-header .cz-ai-btn', foot: '.drawer-footer button',
+    card: '.cz-card', open: '.drawer .ds-hero-note', ai: '.ds-ai-cell', aiCount: 1, foot: '.drawer-footer button',
   },
 ]
 
@@ -200,6 +207,8 @@ async function main() {
    *  24 张图里有 18 张就被一条弹窗盖住了 —— 这正是本轮实测抓到的 Modal.vue 缺陷，故列为硬告警。 */
   const escLeak = []
   const drawerFail = []
+  /** R167：AI 评审弹窗的三条新结构（对照区 / 一次性指令条 / 分栏把手）缺一即记账 */
+  const modalFail = []
   for (const theme of themes) {
     // 上一主题遗留的浮层先清掉（best-effort）：不掩盖问题——下面每张弹窗图收尾都会判一次 Esc
     if (await overlayOpen(page)) {
@@ -240,12 +249,21 @@ async function main() {
       await resetView(page) /* 弹窗内部滚动容器与鼠标位置同样归零：两档图的差异必须只来自宽度 */
       const shell = await page.locator('.md-panel').first().isVisible().catch(() => false)
       const dual = await page.locator('.ai-dual').first().isVisible().catch(() => false)
+      /* R167：上半部压缩后的两条新结构——一次性指令条（三栏）与可拖分栏把手。
+         它们在弹窗里都是"占住下半部"的前提，缺一个就说明上半部又胖回去了。 */
+      const dir = await page.locator('.ai-dir').first().isVisible().catch(() => false)
+      /* 分栏把手按宽度判：≥1200 双栏必须有把手，≤1199 已降单栏 ⇒ 把手**不该在**
+         （单栏还挂一根拖宽把手，是"能拖一个不存在的分界"那种假控件） */
+      const wantDrag = m.width >= 1200
+      const drag = await page.locator('.ai-drag').first().isVisible().catch(() => false)
       const file = path.join(outDir, `${theme}-${m.id}.png`)
       await page.screenshot({ path: file })
       const kb = Math.round(fs.statSync(file).size / 1024)
       shots.push(file)
-      console.log(`  ✓ ${theme.padEnd(8)} ${m.name.padEnd(6)} 壳=${shell ? 'md-panel' : '未开'} 对照区=${dual ? '有' : '无'}   → ${path.basename(file)} (${kb}KB)`)
+      const modalOk = shell && dual && dir && drag === wantDrag
+      console.log(`  ${modalOk ? '✓' : '✗'} ${theme.padEnd(8)} ${m.name.padEnd(6)} 壳=${shell ? 'md-panel' : '未开'} 对照区=${dual ? '有' : '无'} 指令条=${dir ? '有' : '无'} 分栏把手=${drag ? '有' : '无'}(应${wantDrag ? '有' : '无'})   → ${path.basename(file)} (${kb}KB)`)
       if (!shell) console.log(`    ⚠ ${theme}/${m.id} 没抓到 .md-panel —— 弹窗未打开，这张图不作数`)
+      if (shell && !modalOk) modalFail.push(`${theme}/${m.id}：对照区=${dual} 指令条=${dir} 分栏把手=${drag}（宽 ${m.width} 应为 ${wantDrag}）`)
       await page.keyboard.press('Escape').catch(() => {})
       await page.waitForTimeout(400)
       // R161：Esc 必须**真**关掉 —— 本轮实测 Modal.vue 的 `watch(() => open)` 缺 `immediate`，
@@ -276,18 +294,20 @@ async function main() {
       await page.waitForTimeout(900) /* 抽屉有进场动效，等它落位再截 */
       await resetView(page)
       const opened = await page.locator(v.open).first().isVisible().catch(() => false)
-      /* R166 定案 6：任务详情是**三格等宽独立行** ⇒ 声明 aiCount 时要求"恰好 N 格"，
-         少一格（比如合并回单枚钮）或多一格都算不过；未声明的仍按"至少一枚可见"判。 */
+      /* R166 定案 6 / R167：AI 入口一律**独立成行**，格数按卡种固定（任务 3 / 资源 2 / 好奇 1）
+         ⇒ 声明 aiCount 时要求"恰好 N 格"，少一格（合并回单枚钮）或多一格都算不过；未声明的按"≥1 枚"判。 */
       const aiCount = await page.locator(v.ai).count().catch(() => 0)
-      const aiInHead = v.aiCount ? aiCount === v.aiCount : aiCount > 0
+      const aiInRow = v.aiCount ? aiCount === v.aiCount : aiCount > 0
+      /* R167 红线：主标题只准出现在抽屉头一处（正文里那份 .ref-title 已退役，加回来即红） */
+      const h1Count = v.h1 ? await page.locator(v.h1).count().catch(() => -1) : 1
       const footCount = await page.locator(v.foot).count().catch(() => -1)
       const file = path.join(outDir, `${theme}-${v.id}.png`)
       await page.screenshot({ path: file })
       const kb = Math.round(fs.statSync(file).size / 1024)
       shots.push(file)
-      const ok = opened && aiInHead && footCount === 2
-      console.log(`  ${ok ? '✓' : '✗'} ${theme.padEnd(8)} ${v.name.padEnd(6)} 开=${opened ? '是' : '否'} AI在标题行=${aiInHead ? '是' : '否'}(${aiCount}${v.aiCount ? '/' + v.aiCount : ''}) 页脚钮=${footCount}   → ${path.basename(file)} (${kb}KB)`)
-      if (!ok) drawerFail.push(`${theme}/${v.id}：开=${opened} AI在标题行=${aiInHead}(计${aiCount}，应${v.aiCount || '≥1'}) 页脚钮数=${footCount}（应为 2）`)
+      const ok = opened && aiInRow && footCount === 2 && h1Count === 1
+      console.log(`  ${ok ? '✓' : '✗'} ${theme.padEnd(8)} ${v.name.padEnd(6)} 开=${opened ? '是' : '否'} AI入口行=${aiInRow ? '是' : '否'}(${aiCount}${v.aiCount ? '/' + v.aiCount : ''}) 主标题=${h1Count === 1 ? '一处' : h1Count + ' 处'} 页脚钮=${footCount}   → ${path.basename(file)} (${kb}KB)`)
+      if (!ok) drawerFail.push(`${theme}/${v.id}：开=${opened} AI入口行=${aiInRow}(计${aiCount}，应${v.aiCount || '≥1'}) 主标题处数=${h1Count}（应为 1） 页脚钮数=${footCount}（应为 2）`)
       await page.keyboard.press('Escape').catch(() => {})
       await page.waitForTimeout(400)
       await closeOverlays(page)
@@ -303,6 +323,10 @@ async function main() {
   if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情)）`); process.exit(1) }
   if (escLeak.length) {
     console.log(`❌ Esc 未能关闭中央弹窗：${escLeak.join(' / ')}（台面图已受影响，请查 Modal.vue 的 watch immediate）`)
+    process.exit(1)
+  }
+  if (modalFail.length) {
+    console.log(`❌ AI 评审弹窗判据未过 ${modalFail.length} 项：\n  ` + modalFail.join('\n  '))
     process.exit(1)
   }
   if (drawerFail.length) {

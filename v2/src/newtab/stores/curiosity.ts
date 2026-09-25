@@ -89,6 +89,9 @@ export function useCuriosity() {
         if (m.id === task.metricId && !m.taskIds.includes(task.id)) m.taskIds.push(task.id)
     }
     c.deletedAt = Date.now()
+    /** R167：转化即离场——同一刻记转化戳，池头部「已转化」按它计数；回收站恢复会清掉它 */
+    c.convertedAt = Date.now()
+    c.convertedTo = 'task'
     ensureCustomDefs(c, 'task')
     store.persist()
     return task
@@ -99,6 +102,9 @@ export function useCuriosity() {
     const resource = convertCard(c, { kind: 'resource', workspaceId, categoryId })
     d.value.resources.unshift(resource)
     c.deletedAt = Date.now()
+    /** R167：同上——归档为资源也算一次转化出路 */
+    c.convertedAt = Date.now()
+    c.convertedTo = 'res'
     ensureCustomDefs(c, 'resource')
     store.persist()
     return resource

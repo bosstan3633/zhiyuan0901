@@ -601,34 +601,38 @@
     <!-- 资源卡详情抽屉（单击打开） -->
     <div class="overlay" :class="{open: drawerOpen}" @click="closeDrawer"></div>
     <div class="drawer" :class="{open: drawerOpen}">
-      <!-- 第卅九轮 #61：资源字段表单已抽至共享 ResourceEditForm（搜索抽屉 / 内联抽屉同源单份） -->
-      <!-- R106（F4）：镜像卡只读详情——表单禁交互（pointer-events），footer 换「定位回资源台编辑」；
-           Ctrl+Enter 语义随只读态切换为定位（用户拍板三键：单击详情 / 双击开链接 / Ctrl+Enter 定位） -->
+      <!-- R167（OPPO 质感 · 与 App 级资源抽屉同一套件）：
+           ① 主标题进抽屉头（kicker 说归属 + 就地可编辑，回车=保存／镜像只读卡=定位源卡），
+              正文不再重复一份标题框；② AI 入口从标题行降到正文首行「一行两格」，
+              与 R166 任务卡三入口同语言（镜像卡不给入口）。
+           字段区已抽至共享 ResourceEditForm（第卅九轮 #61），两宿主同源单份。 -->
+      <div class="dr-head">
+        <DetailTitle :model-value="editingResource.title" :kicker="isHub ? '资源卡 · 资源台' : '资源卡 · 策展台镜像'"
+          :readonly="drawerReadonly" placeholder="资源卡标题..."
+          @update:model-value="editingResource.title = $event"
+          @enter="drawerReadonly ? locateMirrorSourceCard() : saveResource()" />
+        <div class="dr-close" title="关闭（Esc）" @click="closeDrawer">×</div>
+      </div>
+      <!-- 第卅九轮 #61 / R106（F4）：镜像卡只读——表单禁交互（pointer-events），footer 换「定位回资源台编辑」 -->
       <div class="dr-body" :class="{ 'dr-readonly': drawerReadonly }">
         <div v-if="drawerReadonly" class="dr-readonly-banner">
           📡 镜像卡为引用（只读）——编辑请到资源台；<span class="dr-ro-link" @click="locateMirrorSourceCard">定位到源卡 ›</span>
         </div>
+        <ResourceAiStrip v-if="!drawerReadonly" :card="editingResource" :on-adopted="syncEditingFromStore" />
         <ResourceEditForm
           ref="resFormRef"
           :model="editingResource"
           height-key="ws-note"
-          :show-close="true"
           @save="saveResource"
-          @close="closeDrawer"
         >
           <!-- R166 T7：资源侧「支持的任务」只读反查（与 RDD 同一组件，两宿主同源） -->
           <template #extra>
             <SupportTasksPanel v-if="d && editingResource.id" :d="d" :resource="editingResource" @open-task="gotoTaskOwner" />
           </template>
-          <!-- R165-A（方案 A 标准）：AI 主上下文动作进标题行（镜像只读卡不给入口）；已动过翻「↻ 重新优化」+ chip -->
-          <template v-if="!drawerReadonly" #title-extra>
-            <CardAiEntry :card="editingResource" :label="editingResource.aiTouchedAt ? '↻ 重新优化' : 'AI 优化'" />
-            <AiTouchedChip :ts="editingResource.aiTouchedAt" />
-          </template>
           <!-- 链接动作贴对象：打开/复制不再放页脚 -->
           <template v-if="!drawerReadonly" #link-actions>
-            <button class="dr-footer-btn icon" title="打开链接" @click="openResourceLink(editingResource)">↗</button>
-            <button class="dr-footer-btn icon" title="复制链接" @click="copyLink">⧉</button>
+            <button class="ds-ib" title="打开链接" @click="openResourceLink(editingResource)">↗</button>
+            <button class="ds-ib" title="复制链接" @click="copyLink">⧉</button>
           </template>
         </ResourceEditForm>
       </div>
@@ -920,7 +924,7 @@ import { saveUIPrefs } from '@/shared/storage/repository'
 import { useOverlayTarget } from '@/shared/utils/overlayHost'
 import { showToast } from '@/shared/components/toast'
 import { deleteAsset, cleanupOrphanAssets } from '@/shared/storage/assets'
-import AssetPreview from '@/shared/components/AssetPreview.vue'; import CardAiEntry from '@/newtab/components/CardAiEntry.vue'; import CatNodeName from '@/newtab/components/CatNodeName.vue'; import ThesisAiBtn from '@/newtab/components/ThesisAiBtn.vue'; import EvidenceMenuItem from '@/newtab/components/EvidenceMenuItem.vue'; import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'; import AiTouchedChip from '@/shared/components/AiTouchedChip.vue'
+import AssetPreview from '@/shared/components/AssetPreview.vue'; import CardAiEntry from '@/newtab/components/CardAiEntry.vue'; import CatNodeName from '@/newtab/components/CatNodeName.vue'; import ThesisAiBtn from '@/newtab/components/ThesisAiBtn.vue'; import EvidenceMenuItem from '@/newtab/components/EvidenceMenuItem.vue'; import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'; import DetailTitle from '@/newtab/components/DetailTitle.vue'; import ResourceAiStrip from '@/newtab/components/ResourceAiStrip.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'; import ContextMenu from '@/shared/components/ContextMenu.vue'; import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'; import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'; import AssetBadge from '@/shared/components/AssetBadge.vue'; import SupportTasksPanel from '@/shared/components/SupportTasksPanel.vue'
 // R117（04-61 C3）：当日新增角标（自然日口径）——资源卡卡片视图 / 列表视图同一枚
 import NewBadge from '@/shared/components/NewBadge.vue'
@@ -1307,7 +1311,7 @@ const {
   onCardClick, onCardDblClick,
   drawerOpen, editingResource, isNewResource, drawerReadonly,
   newCardCatId, openNewResource, addResourceToCategory, openMirrorDetail,
-  cleanAllMirrors, locateMirrorSourceCard, openResource, closeDrawer,
+  cleanAllMirrors, locateMirrorSourceCard, openResource, closeDrawer, syncEditingFromStore,
   saveResource, deleteCurrentResource, deleteResource, togglePin, toggleStar, copyLink,
   resFormRef, fixLink, resCtx, resCtxItems, openResCtx,
 } = useResourceDrawer({

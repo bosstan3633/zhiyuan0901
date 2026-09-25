@@ -19,6 +19,9 @@ import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { showToast } from '@/shared/components/toast'
 import { pushUndo } from '@/shared/utils/undo'
 import { useAppStore } from '@/newtab/stores/app'
+// R167：判决卡版式的"依据"要本地可核事实（成熟度），引的是纯领域 util（无 AI 依赖、无启动面影响）
+import { curioMaturity } from '@/shared/utils/maturity'
+import type { CuriosityCard } from '@/shared/models'
 import { chatStream, extractJson, setLlmFeedSink } from '@/shared/ai/llm'
 import { getJobState, openJob, rerunJob, retire, stop as stopJob, type JobState } from '@/shared/ai/runner'
 import type { AiJob, AiRow } from '@/shared/ai/job'
@@ -113,6 +116,8 @@ const canApply = computed(() => hasAdopt.value && picked.value.size > 0)
 const recDetail = computed(() => shown.value.some(r => (r.data as { recommend?: string } | undefined)?.recommend === 'detail'))
 /** R147-a：判弱的行默认不勾，但仍在列表里可见可勾（判定权在人） */
 const weakN = computed(() => shown.value.filter(r => r.weak && !r.advisory).length)
+/** R167：optIn 行＝建议覆盖用户已填的字段，默认不勾（理由与"不可信"不同，所以另记一笔账） */
+const optInN = computed(() => shown.value.filter(r => r.optIn && !r.advisory).length)
 /** R147-c：消毒账（工厂闭包自己攒的丢弃计数），空态与工具条共用 */
 const auditLine = ref('')
 const impactLine = computed(() => cur.value?.impact?.(pickedRows.value) || '')
@@ -122,13 +127,78 @@ const canResave = computed(() => !!cur.value?.resave && dirty.value)
 /* R166 定案 8：job 自己声明了主采纳文案就用它（拆解=「✓ 采纳为子任务」）——
    按钮该说出"点了会改什么"；没声明才回落通用的「采纳（直接写库）」。计数后缀两种都保留。 */
 const adoptLabel = computed(() => {
+  if (isVerdict.value) return VERDICT_LABEL[verdictPick.value] || '✓ 采纳判决'
   const base = cur.value?.adoptLabel || (confirmText.value ? '✓ 确认写库' : '✓ 采纳（直接写库）')
   return `${base}（${picked.value.size}）`
 })
 const hotPair = ref('')
 
+/**
+ * R167：左右分栏可拖（22%~70%），点分隔条复位 40%。
+ * ★ 拖拽期只锁 user-select，不给弹窗加 `pointer-events:none`——那样分隔条自己的 click 会落到 body 上（原型实测：点复位没反应）。
+ */
+const split = ref(40)
+const dragging = ref(false)
+function startDrag(e: MouseEvent): void {
+  const host = (e.target as HTMLElement).closest('.ai-dual') as HTMLElement | null
+  if (!host) return
+  dragging.value = true
+  const rect = host.getBoundingClientRect()
+  const move = (ev: MouseEvent) => { split.value = Math.min(70, Math.max(22, ((ev.clientX - rect.left) / rect.width) * 100)) }
+  const up = () => {
+    dragging.value = false
+    document.removeEventListener('mousemove', move)
+    document.removeEventListener('mouseup', up)
+  }
+  document.addEventListener('mousemove', move)
+  document.addEventListener('mouseup', up)
+  e.preventDefault()
+}
+/** 跑完后步骤不再单独占一行：折进「采纳前须知」的次行（跑动中仍显示在头部） */
+const stepsLine = computed(() => (vPhase.value === 'done' && cur.value?.steps?.length
+  ? cur.value.steps.map(s => '✓ ' + s.label).join(' · ') : ''))
+/** R167：单条研判走「判决卡」版式（一条建议摊成左右对照会空半屏） */
+const isVerdict = computed(() => cur.value?.layout === 'verdict' && vPhase.value === 'done' && shown.value.length > 0)
+const curioMaturityOf = curioMaturity
+const verdictRow = computed(() => shown.value[0])
+/** R167：判决卡——三态恒定列出（模型只给推荐），选中的那一条才是采纳时写回的数据 */
+const VERDICTS = [
+  { v: 'convert', label: '→ 转成任务', hint: '建 1 张任务卡 · 本条从池中离场（回收站可撤）· 已转化 +1' },
+  { v: 'keep', label: '继续养着', hint: '什么都不改（判词可另存进正文）' },
+  { v: 'drop', label: '置为搁置', hint: '状态改「已搁置」，不删卡、随时可改回' },
+] as const
+const verdictModelPick = computed(() => (verdictRow.value?.data as { __verdict?: string } | undefined)?.__verdict || '')
+/** 判词只在"用户选的就是模型那条判决"时才是模型说的话——换了选项还显示原判词，等于替模型编新理由 */
+const verdictWhy = computed(() => {
+  const d = verdictRow.value?.data as { __verdict?: string; __why?: string } | undefined
+  if (!d) return ''
+  return d.__verdict === verdictPick.value ? (d.__why || '（模型没给判词）') : '（这条是你自己选的，模型原判是「' + (VERDICTS.find(x => x.v === d.__verdict)?.label || d.__verdict) + '」）'
+})
+const verdictTitle0 = computed(() => (verdictRow.value?.data as { __title?: string } | undefined)?.__title || '')
+const verdictPick = ref('')
+/** R167：判决卡——采纳钮必须说出"点下去会发生什么"（转=建卡+本条离场，搁置=只改状态，养=什么都不写） */
+const VERDICT_LABEL: Record<string, string> = {
+  convert: '✓ 转成任务（本条从池中离场）', keep: '✓ 继续养着（什么都不改）', drop: '✓ 置为已搁置（不删卡）',
+}
+const verdictTitle = ref('')
+/** 依据一律本地数出来的（模型只给判词），否则"依据"就成了第二份可编造的话 */
+const verdictFacts = computed(() => {
+  const c = (verdictRow.value?.data as { __card?: CuriosityCard } | undefined)?.__card
+  if (!c) return []
+  const m = curioMaturityOf(c)
+  const days = Math.max(0, Math.round((Date.now() - (c.createdAt || Date.now())) / 86400000))
+  return [
+    `成熟度 ${m.grade} · 就绪 ${m.score}`,
+    `捕获至今 ${days} 天，打开 ${c.callCount || 0} 次`,
+    c.sourceUrl ? '带来源链接（转任务时随卡带走）' : '无来源链接',
+    c.tags?.length ? `已打 ${c.tags.length} 个标签` : '未打标签',
+  ]
+})
+watch(shown, (v) => { if (v.length && !verdictPick.value) verdictPick.value = (v[0].data as { __verdict?: string }).__verdict || '' })
+watch(verdictTitle0, (v) => { if (v && !verdictTitle.value) verdictTitle.value = v }, { immediate: true })
+
 function defaultPicks(out: AiRow[]): Set<string> {
-  return new Set(out.filter(r => !r.advisory && !r.weak && r.changeType !== 'same').map(r => r.key))
+  return new Set(out.filter(r => !r.advisory && !r.weak && !r.optIn && r.changeType !== 'same').map(r => r.key))
 }
 function showState(s: JobState): void {
   const base = s.rows.map(r => ({ ...r }))
@@ -256,7 +326,11 @@ function finishAfterApply(): void {
 async function adopt() {
   const job = cur.value
   if (!job?.apply) return
-  const sel = pickedRows.value
+  // R167：判决卡——三态由**用户点选**（模型的判决只是推荐），采纳时把所选态写回行的 data 再交给 apply。
+  // 不做这一步就等于"模型判什么就是什么"，正违反 AI 不替决策。
+  const sel = isVerdict.value && verdictRow.value
+    ? [{ ...verdictRow.value, data: { ...(verdictRow.value.data as object), __verdict: verdictPick.value, __title: verdictTitle.value } }]
+    : pickedRows.value
   if (!sel.length) return
   // R154：整树替换类先弹确认，第二下才真写库
   const cf = job.confirm?.(sel)
@@ -358,10 +432,16 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
 </script>
 
 <template>
-  <Modal :open="open" :title="cur?.title || 'AI 建议'" :width="dual ? 'min(1200px, 92vw)' : '620px'" @close="close">
+  <!-- R167：对照弹窗定高（左右两栏各自滚，上半部不再吃掉一半屏）；非对照的窄弹窗照旧按内容高 -->
+  <Modal :open="open" :title="cur?.title || 'AI 建议'" class="ai-modal"
+    :width="dual ? 'min(1200px, 92vw)' : '620px'" :height="dual ? 'min(760px, 88vh)' : ''" @close="close">
     <!-- ① 头部：AI 徽标 + 场景名（徽标走 R155 的统一入口容器，尺寸只有 --icon-* 一个来源） -->
     <template #title>
       <AiEntryButton variant="inline" large :spin="vPhase === 'running'" :label="cur?.title || 'AI 建议'" />
+      <span v-if="cur?.subject" class="ai-subject">{{ cur.subject }}</span>
+      <span v-if="vPhase === 'running' && cur?.steps?.length" class="ai-steps">
+        <span v-for="(s, i) in cur.steps" :key="i" class="ai-step" :class="s.state">{{ s.label }}</span>
+      </span>
     </template>
     <!-- R141（反馈 #2/#3）：专家下拉上移弹窗头部（跑的过程中也可见可换）；subject 标明正在处理哪张卡 -->
     <template v-if="cur?.persona" #title-extra>
@@ -373,52 +453,47 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
       <button class="ai-btn sm ai-persona-manage" title="到 设置 → AI 助手 管理专家（启停与自建角色都只在那一处）"
         @click="gotoPersonaAdmin">⚙ 管理专家</button>
     </template>
-    <!-- ② 固定行：阶段指示 + 一次性指令 —— 不随对照区滚动：滚到正文深处，这次的口径仍看得见 -->
-    <template v-if="cur?.steps?.length || cur?.promptScope" #sub>
-      <div v-if="cur?.steps?.length" class="ai-steps">
-        <span v-for="(s, i) in cur.steps" :key="i" class="ai-step" :class="s.state">{{ s.label }}</span>
-      </div>
-      <!-- R154：一次性指令。角色=谁来写（可复用）、指令=这次要什么（优先级高于角色，但改不了输出结构） -->
-      <div v-if="cur?.promptScope" class="ai-dir">
-        <div class="ai-dir-head">
-          <b>🎯 本次指令</b><span class="ai-prio">优先级高于角色</span>
-          <span class="ai-scope">
-            <button v-if="cur.promptObject" :class="{ on: dirTier === 'object' }"
+    <!-- ② 固定行：一次性指令（R167 压成三列一条：标签列 | 输入框 | 动作列）。
+         角色=谁来写（可复用）、指令=这次要什么（优先级高于角色，但改不了输出结构）。
+         ★ 不做"聚焦即长高"——整条带子会跳一下，右侧按钮会跑到鼠标底下（原型实测踩过）；要更大空间往下拖。 -->
+    <template v-if="cur?.promptScope" #sub>
+      <div class="ai-dir">
+        <div class="ai-dir-l">
+          <b>🎯 本次指令</b>
+          <span class="ai-dir-tiers">
+            <button v-if="cur.promptObject" class="tier" :class="{ on: dirTier === 'object' }"
               :title="'这条只跟' + (cur.promptObjectLabel || '这个对象') + '走'"
-              @click="switchTier('object')">这张卡{{ cur.promptObjectLabel ? ' · ' + cur.promptObjectLabel : '' }}</button>
-            <button :class="{ on: dirTier === 'entry' }" :disabled="!cur.promptObject"
+              @click="switchTier('object')">这张卡</button>
+            <button class="tier" :class="{ on: dirTier === 'entry' }" :disabled="!cur.promptObject"
               :title="cur.promptObject ? '升档后本入口下所有对象共用这条指令（含以后新建的）' : '本入口没有更细的对象作用域'"
               @click="switchTier('entry')">这类入口</button>
           </span>
-          <span class="ai-dir-cap">剩 {{ dirCap }} 字 · {{ dirTier === 'object' && cur.promptObject ? '只记在这张卡上' : '本入口共用' }}</span>
         </div>
-        <div class="ai-dir-row">
+        <div class="ai-dir-m">
           <textarea v-model="dirText" class="ai-dir-ta" rows="2"
             placeholder="例：描述别写口号，只写这周能拿去报价的素材。指令只能改口径，改不了输出结构（那是场景骨架）。"
             @blur="commitDir" />
-          <span class="ai-dir-btns">
-            <span v-if="dirPast.length" class="ai-hist">
-              <button class="ai-btn sm" @click.stop="dirOpen = !dirOpen">历史 ▾</button>
-              <span v-if="dirOpen" class="ai-hist-menu">
-                <button v-for="(h, i) in dirPast" :key="i" class="ai-hist-item" @click="pickDir(h.text)">
-                  <span class="ai-hist-t">{{ h.text }}</span>
-                  <span class="ai-hist-m">{{ new Date(h.at).toLocaleDateString('zh-CN') }} · {{ h.text.length }} 字</span>
-                </button>
-              </span>
+          <div class="ai-dir-cap">剩 {{ dirCap }} 字 · {{ dirTier === 'object' && cur.promptObject ? '只记在这张卡上' : '本入口共用' }} · 关窗即清，要长期复用请「存为角色」</div>
+        </div>
+        <div class="ai-dir-btns">
+          <span v-if="dirPast.length" class="ai-hist">
+            <button class="ai-btn sm" @click.stop="dirOpen = !dirOpen">历史 ▾</button>
+            <span v-if="dirOpen" class="ai-hist-menu">
+              <button v-for="(h, i) in dirPast" :key="i" class="ai-hist-item" @click="pickDir(h.text)">
+                <span class="ai-hist-t">{{ h.text }}</span>
+                <span class="ai-hist-m">{{ new Date(h.at).toLocaleDateString('zh-CN') }} · {{ h.text.length }} 字</span>
+              </button>
             </span>
-            <button class="ai-btn sm" title="把这条口径存成可复用角色，之后任何入口的角色下拉都能选它" @click="promote">↗ 存为角色</button>
-            <button class="ai-btn sm" title="带上这条指令重新生成" @click="applyDirAndRerun">应用并重跑 ↻</button>
           </span>
+          <button class="ai-btn sm" title="把这条口径存成可复用角色，之后任何入口的角色下拉都能选它" @click="promote">↗ 存为角色</button>
+          <button class="ai-btn sm" title="带上这条指令重新生成" @click="applyDirAndRerun">应用并重跑 ↻</button>
         </div>
       </div>
     </template>
     <div class="ai-body">
-      <div v-if="cur?.subject" class="ai-subject">{{ cur.subject }}</div>
       <div v-if="cur?.hint" class="ai-hint">{{ cur.hint }}</div>
-      <!-- R154：影响面从"采纳后回执"提到"采纳前"，且随勾选重算（本地数出来的，不是模型报的） -->
-      <div v-if="impactLine" class="ai-impact">{{ impactLine }}</div>
 
-      <div class="ai-dual" :class="{ single: !dual }">
+      <div class="ai-dual" :class="{ single: !dual }" :style="{ '--split': split + '%' }">
         <!-- 左栏：当前形态（只读；跑的时候正好读它） -->
         <div v-if="dual" class="ai-col ai-col-l">
           <div class="ai-col-head">
@@ -437,7 +512,10 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
             </div>
           </div>
         </div>
-
+        <!-- R167：可拖分栏（22%~70%，点把手复位）。★ 拖拽期只禁 user-select，
+             绝不能给弹窗加 pointer-events:none —— 那会让分隔条自身的点击落到 body（原型实测踩过） -->
+        <div v-if="dual" class="ai-drag" :class="{ act: dragging }" title="拖动调宽 · 点一下复位"
+          @mousedown="startDrag"><i></i></div>
         <!-- 右栏：AI 补全后完整形态 -->
         <div class="ai-col ai-col-r">
           <div class="ai-col-head">
@@ -477,6 +555,30 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
               <pre v-if="showRaw && vRaw.trim()" class="ai-stream">{{ vRaw.length > 6000 ? vRaw.slice(0, 6000) + '\n…（截到 6000 字，完整原文请用下方复制）' : vRaw }}</pre>
               <button v-if="showRaw && vRaw.trim()" class="ai-btn sm ghost" @click="copyRaw">复制原文</button>
             </div>
+            <!-- R167：单条研判走「判决卡」——三态由用户点选（模型只给推荐），
+                 判词与本地依据分列，采纳钮写明点下去会发生什么 -->
+            <template v-else-if="isVerdict">
+              <div class="ai-vd">
+                <div class="ai-vd-q">{{ verdictRow?.main }}</div>
+                <div class="ai-vd-3">
+                  <button v-for="o in VERDICTS" :key="o.v" type="button" class="ai-vd-opt"
+                    :class="{ on: verdictPick === o.v, rec: verdictModelPick === o.v }" @click="verdictPick = o.v">
+                    <b>{{ o.label }}</b><small>{{ o.hint }}</small>
+                    <em v-if="verdictModelPick === o.v">模型推荐</em>
+                  </button>
+                </div>
+                <template v-if="verdictPick === 'convert'">
+                  <div class="ai-vd-lb">建议任务标题（可改，采纳即按这个建卡）</div>
+                  <textarea v-model="verdictTitle" rows="2" class="ai-vd-tt" />
+                </template>
+                <div class="ai-vd-why"><b>判词</b>｜{{ verdictWhy }}</div>
+                <div class="ai-vd-facts">
+                  <b>本地依据（数出来的，不是模型报的）</b>
+                  <ul><li v-for="f in verdictFacts" :key="f">{{ f }}</li></ul>
+                </div>
+                <div v-if="auditLine" class="ai-vd-audit">消毒：{{ auditLine }}</div>
+              </div>
+            </template>
             <template v-else>
               <div class="ai-toolbar">
                 <label v-if="picksSomething" class="ai-all"><input type="checkbox" :checked="picked.size === adoptableN && adoptableN > 0" @change="toggleAll" /> 全选</label>
@@ -484,21 +586,37 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
                 <span v-if="picksSomething" class="ai-count">已选 {{ picked.size }}/{{ adoptableN }}</span>
                 <span v-else class="ai-count">整篇成文，跑完自动落卡</span>
               </div>
-              <div v-if="weakN || auditLine" class="ai-flags">
-                <span v-if="weakN && picksSomething" class="ai-flag warn">{{ weakN }} 条判为弱相关（缺理由/靠猜），已默认不勾——要采纳请自己勾上</span>
-                <span v-if="auditLine" class="ai-flag">消毒：{{ auditLine }}</span>
+              <!-- R167：采纳前须知合成一条（影响面 + 弱相关/覆盖账 + 消毒 + 跑完的步骤），
+                   原先是"黄条 impact + 橙字 flags + 灰字消毒"三堆并排，读起来像三段报错 -->
+              <div v-if="impactLine || weakN || optInN || auditLine || stepsLine" class="ai-note">
+                <span class="ai-note-dot"></span>
+                <span class="ai-note-tx">
+                  <b>{{ impactLine || '采纳前须知' }}</b>
+                  <span v-if="weakN || optInN || auditLine || stepsLine" class="ai-note-sub">
+                    {{ [stepsLine, weakN && picksSomething ? `${weakN} 条判为弱相关已默认不勾` : '', optInN && picksSomething ? `${optInN} 条要覆盖你已写的内容、同样默认不勾` : '', auditLine ? `消毒：${auditLine}` : ''].filter(Boolean).join(' · ') }}
+                  </span>
+                </span>
               </div>
               <pre v-if="showRaw" class="ai-stream">{{ vRaw }}</pre>
+              <!-- R167：建议行改"卡片解剖"——左 3px 色条=变更类型；首行=字段名 + 右端置信/变更；
+                   次行=建议正文；判词用 hairline 隔开单独成行；未变行不给勾选框（原先挂着一个点不动的空框） -->
               <div class="ai-rows">
-                <label v-for="r in shown" :key="r.key" class="ai-row"
-                  :class="{ on: picksSomething && !r.advisory && picked.has(r.key), advisory: r.advisory || !picksSomething, weak: picksSomething && r.weak, same: r.changeType === 'same', edited: drafts.has(r.key), dim: onlyDiff && r.changeType === 'same' }"
+                <label v-for="r in shown" :key="r.key" class="ai-card"
+                  :class="{ on: picksSomething && !r.advisory && picked.has(r.key), advisory: r.advisory || !picksSomething, weak: picksSomething && r.weak, same: r.changeType === 'same', edited: drafts.has(r.key), dim: onlyDiff && r.changeType === 'same', hot: hotPair === r.key, ['ct-' + (r.changeType || 'new')]: true }"
                   @mouseenter="hover(r)" @mouseleave="unhover">
                   <input v-if="!r.advisory && picksSomething && r.changeType !== 'same'" type="checkbox" :checked="picked.has(r.key)" @change="toggle(r.key)" />
                   <span v-else-if="r.advisory" class="ai-adv-mark" title="参谋建议（只读）">🧭</span>
-                  <span class="ai-row-txt">
+                  <span v-else class="ai-cb-ph"></span>
+                  <span class="ai-card-bd">
+                    <span class="ai-card-hd">
+                      <b v-if="r.badge" class="ai-card-f">{{ r.badge }}</b>
+                      <span class="ai-card-sp"></span>
+                      <span v-if="r.weak && !r.advisory && picksSomething" class="ai-conf warn" title="模型没给理由 / id 靠猜 / 不在既有体系——默认不勾，判定权在你">低置信</span>
+                      <span v-else-if="r.optIn && !r.advisory && picksSomething" class="ai-conf" title="这条要覆盖你已经写过的内容——默认不勾，勾上才替换（AI 不替你改主意）">覆盖需勾</span>
+                      <span v-if="dual && r.changeType" class="ai-chg-tag" :class="'t-' + r.changeType">{{
+                        { new: '新增', edit: '改写', move: '移动', same: '未变' }[r.changeType] }}</span>
+                    </span>
                     <span class="ai-row-main">
-                      <span v-if="r.badge" class="ai-badge" :class="'b-' + (r.badgeType || 'neutral')">{{ r.badge }}</span>
-                      <span v-if="r.weak && !r.advisory && picksSomething" class="ai-badge b-warn" title="模型没给理由 / id 靠猜 / 不在既有体系——默认不勾，判定权在你">低置信</span>
                       <textarea v-if="editing === r.key" class="ai-edit" rows="3"
                         :value="drafts.get(r.key)?.main ?? r.main"
                         @click.stop @blur="commitEdit(r, ($event.target as HTMLTextAreaElement).value)"
@@ -511,8 +629,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
                     </span>
                     <span v-if="r.sub" class="ai-row-sub">{{ r.sub }}</span>
                   </span>
-                  <span v-if="dual && r.changeType" class="ai-chg-tag" :class="'t-' + r.changeType">{{
-                    { new: '新增', edit: '改写', move: '移动', same: '未变' }[r.changeType] }}</span>
                 </label>
               </div>
             </template>
@@ -552,14 +668,19 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
 </template>
 
 <style scoped>
-.ai-body { display: flex; flex-direction: column; gap: var(--sp-4); font-size: var(--fs-body); color: var(--text-2); }
+.ai-body { display: flex; flex-direction: column; gap: var(--sp-4); font-size: var(--fs-body); color: var(--text-2); flex: 1; min-height: 0 }
 .ai-steps { display: flex; gap: 6px; flex-wrap: wrap; }
 .ai-step { font-size: var(--fs-caption); padding: 2px 9px; border-radius: var(--radius-xs); background: var(--surface-2); color: var(--text-4); letter-spacing: var(--tracking-sm); }
 .ai-step.done { color: var(--success); background: var(--success-bg-soft); }
 .ai-step.on { color: #fff; background: var(--accent); font-weight: 600; }
-.ai-subject { padding: 7px 11px; background: var(--accent-light); border: 1px solid var(--accent); border-radius: var(--radius-sm); color: var(--accent); font-size: var(--fs-sub); font-weight: 600; }
-.ai-hint { font-size: var(--fs-sub); color: var(--text-3); line-height: 1.6; }
-.ai-impact { padding: 7px 11px; border: 1px solid var(--border); border-left: 2px solid var(--warning); background: var(--warning-bg-soft); border-radius: var(--radius-xs); color: var(--text-2); font-size: var(--fs-sub); line-height: 1.6; }
+.ai-subject { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 9px; background: var(--surface-2); border-radius: var(--radius-xs); color: var(--text-3); font-size: var(--fs-caption); font-weight: 400; }
+.ai-hint { font-size: var(--fs-sub); color: var(--text-3); line-height: 1.6; flex-shrink: 0 }
+/* R167：影响面 + 弱相关/覆盖账 + 消毒 + 跑完的步骤，合成一条「采纳前须知」（原先三堆并排像三段报错） */
+.ai-note { display: flex; gap: 9px; align-items: flex-start; padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); margin-bottom: 4px; flex-shrink: 0 }
+.ai-note-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warning); margin-top: 6px; flex-shrink: 0 }
+.ai-note-tx { min-width: 0; font-size: var(--fs-caption); line-height: 1.65; color: var(--text-2) }
+.ai-note-tx b { color: var(--text); font-weight: 600 }
+.ai-note-sub { display: block; color: var(--text-3); margin-top: 2px }
 .ai-status { padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); line-height: 1.7; }
 .ai-err { color: var(--danger); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .ai-stopped { color: var(--text-2); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-style: dashed; }
@@ -570,9 +691,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
 .ai-empty-hint { margin-top: 6px; font-size: var(--fs-sub); color: var(--text-4) }
 .ai-err-feed { font-size: var(--fs-caption); color: var(--text-4) }
 .ai-saved { padding: 7px 11px; border: 1px solid var(--success, var(--accent)); background: var(--success-bg-soft, var(--accent-light)); color: var(--success, var(--accent)); border-radius: var(--radius-sm); font-size: var(--fs-sub); line-height: 1.6 }
-.ai-flags { display: flex; flex-direction: column; gap: 4px }
-.ai-flag { font-size: var(--fs-sub); color: var(--text-4); line-height: 1.5 }
-.ai-flag.warn { color: var(--warning) }
 .ai-toolbar { display: flex; align-items: center; gap: 10px; font-size: var(--fs-sub); color: var(--text-3); flex-wrap: wrap }
 .ai-sum .ai-usage { margin-left: auto }
 .ai-all { display: flex; align-items: center; gap: 5px; cursor: pointer; }
@@ -580,16 +698,29 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
 .ai-persona { padding: 3px 6px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface-2); color: var(--text-2); font-size: var(--fs-caption); cursor: pointer; font-family: inherit; max-width: 160px; }
 .ai-usage { margin-left: auto; }
 .ai-rows { display: flex; flex-direction: column; gap: 6px; }
-.ai-row { display: flex; gap: 9px; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; transition: border-color var(--dur); }
-.ai-row.on { border-color: var(--accent); background: var(--accent-light); }
-.ai-row.advisory { cursor: default; border-style: dashed; background: var(--surface-2); border-color: var(--warning); }
-.ai-row.same { opacity: .6 }
-.ai-row.dim { display: none }
-.ai-row.edited { border-color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
-.ai-adv-mark { font-size: var(--fs-sub); line-height: 1.5; }
-.ai-row-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
-.ai-row-main { color: var(--text); font-weight: 500; line-height: 1.5; }
-.ai-row-sub { color: var(--text-3); font-size: var(--fs-sub); line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+/* R167：建议行＝卡片解剖。左 3px 竖条=变更类型（绿 新增 / 主题色 改写 / 橙 移动 / 灰 未变），
+   首行 字段名 + 右端置信与变更，次行 建议正文，判词用 hairline 隔开单独成行。 */
+.ai-card { position: relative; display: flex; gap: 10px; padding: 10px 12px 10px 15px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; transition: border-color var(--dur), box-shadow var(--dur) }
+.ai-card::before { content: ''; position: absolute; left: -1px; top: -1px; bottom: -1px; width: 3px; border-radius: var(--radius-sm) 0 0 var(--radius-sm); background: var(--border-strong) }
+.ai-card.ct-new::before { background: var(--success) }
+.ai-card.ct-edit::before { background: var(--accent) }
+.ai-card.ct-move::before { background: var(--warning) }
+.ai-card.on { border-color: var(--accent) }
+.ai-card:hover { border-color: var(--border-strong) }
+.ai-card.hot { border-color: var(--accent-2, var(--accent)); box-shadow: 0 0 0 3px var(--accent-glow) }
+.ai-card.advisory { cursor: default; border-style: dashed; background: var(--surface-2) }
+.ai-card.same { opacity: .6 }
+.ai-card.dim { display: none }
+.ai-card.edited { border-color: var(--accent) }
+.ai-cb-ph { width: 16px; flex-shrink: 0 }
+.ai-card-bd { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 }
+.ai-card-hd { display: flex; align-items: center; gap: 8px }
+.ai-card-f { font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); letter-spacing: var(--tracking-sm) }
+.ai-card-sp { margin-left: auto }
+.ai-conf { font-size: var(--fs-caption); padding: 1px 7px; border-radius: var(--radius-xs); background: var(--tag-neutral-bg); color: var(--tag-neutral-text) }
+.ai-conf.warn { background: var(--warning-bg-soft); color: var(--warning) }
+.ai-row-main { color: var(--text); font-weight: 500; line-height: 1.55; word-break: break-word }
+.ai-row-sub { color: var(--text-3); font-size: var(--fs-caption); line-height: 1.65; margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--border); white-space: pre-wrap; word-break: break-word }
 .ai-badge { display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: var(--radius-xs); font-size: var(--fs-caption); font-weight: 600; vertical-align: 1px; }
 .ai-badge.b-warn { background: var(--warning-bg-soft); color: var(--warning); }
 .ai-badge.b-ok { background: var(--success-bg-soft); color: var(--success); }
@@ -607,15 +738,22 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
 .ai-btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .ai-btn.danger:hover { filter: brightness(1.06); color: #fff; }
 /* ===== R154 双栏 ===== */
-.ai-dual { display: flex; gap: 12px; min-height: 0; align-items: stretch; }
-.ai-dual.single { display: block; }
-.ai-col { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.ai-col-l { width: 420px; flex: 0 0 420px; border-right: 1px solid var(--border); padding-right: 12px; }
-.ai-col-head { display: flex; align-items: center; gap: 8px; padding: 6px 2px; font-size: var(--fs-sub); color: var(--text-3); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+/* R167：对照区吃满剩余高度，两栏各自滚（原先整页滚，滚到下面看不见栏头也看不见这次的指令） */
+.ai-dual { display: grid; grid-template-columns: var(--split, 40%) 7px 1fr; gap: 12px; flex: 1; min-height: 0 }
+.ai-dual.single { display: block }
+.ai-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; scrollbar-width: thin }
+.ai-col-l { border-right: 1px solid var(--border) }
+.ai-col-head { display: flex; align-items: center; gap: 8px; padding: 6px 2px; font-size: var(--fs-sub); color: var(--text-3); border-bottom: 1px solid var(--border); flex-wrap: wrap; flex-shrink: 0; position: sticky; top: 0; background: var(--surface); z-index: 1 }
+.ai-adv-mark { font-size: var(--fs-sub); line-height: 1.5; }
+/* 可拖分栏：7px 缝 + 中央把手；hover/拖动时把手变主题色并拉长 */
+.ai-drag { position: relative; cursor: col-resize; display: flex; align-items: center; justify-content: center; background: var(--border); border-radius: 2px }
+.ai-drag i { width: 3px; height: 26px; border-radius: 2px; background: var(--border-strong); transition: all var(--dur) }
+.ai-drag:hover i, .ai-drag.act i { background: var(--accent); height: 44px }
+.ai-drag::after { content: ''; position: absolute; inset: 0 -4px }
 .ai-col-head b { color: var(--text-2); font-size: var(--fs-caption); letter-spacing: .4px; }
 .ai-col-sub { color: var(--text-4); font-size: var(--fs-caption); }
 .ai-col-end { margin-left: auto; display: flex; gap: 6px; align-items: center; }
-.ai-col-body { overflow-y: auto; max-height: 52vh; padding: 6px 0 }
+.ai-col-body { flex: 1; min-height: 0; padding: 6px 0 }
 .ai-chg { font-size: var(--fs-caption); color: var(--text-4); display: flex; gap: 4px; align-items: center; flex-wrap: wrap }
 .ai-chg i { font-style: normal }
 .ai-chg .c-new { color: var(--success) }
@@ -639,19 +777,22 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
 .ai-edit { width: 100%; background: var(--surface-3); border: 1px solid var(--accent); border-radius: var(--radius-xs); color: var(--text); font-size: var(--fs-body); line-height: 1.6; padding: 5px 7px; font-family: inherit; resize: vertical; outline: none }
 .ai-edited-mark { margin-left: 5px; font-size: var(--fs-caption) }
 /* ===== R154 指令框 ===== */
-.ai-dir { border: 1px solid var(--border); background: var(--surface-2); padding: 8px 10px; border-radius: var(--radius-xs); display: flex; flex-direction: column; gap: 6px }
-.ai-dir-head { display: flex; align-items: center; gap: 7px; font-size: var(--fs-caption); color: var(--text-3); flex-wrap: wrap }
-.ai-dir-head b { color: var(--text-2); font-size: var(--fs-caption) }
-.ai-prio { font-size: var(--fs-tiny); padding: 1px 6px; border-radius: var(--radius-xs); background: var(--curio-bg, var(--accent-light)); color: var(--curio-amber, var(--accent)); font-weight: 600 }
-.ai-scope { display: flex; border: 1px solid var(--border-strong); border-radius: var(--radius-xs); overflow: hidden }
-.ai-scope button { font-size: var(--fs-caption); padding: 2px 8px; border: none; background: var(--surface); color: var(--text-3); cursor: pointer; font-family: inherit; white-space: nowrap }
-.ai-scope button.on { background: var(--accent); color: #fff; font-weight: 600 }
-.ai-scope button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed }
-.ai-dir-cap { margin-left: auto; font-size: var(--fs-caption); color: var(--text-4); font-variant-numeric: tabular-nums }
-.ai-dir-row { display: flex; gap: 7px; align-items: flex-start }
-.ai-dir-ta { flex: 1; min-width: 0; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-xs); color: var(--text); font-size: var(--fs-sub); line-height: 1.6; padding: 5px 8px; font-family: inherit; resize: vertical; outline: none }
+/* R167：指令条压成"标签列 | 输入框 | 动作列"一行（原先三段竖排，光这一块就 ~160px）。
+   ★ 不做聚焦即长高：整条带子会跳、右侧按钮会跑到鼠标底下（原型实测），要更大空间往下拖。 */
+.ai-dir { display: grid; grid-template-columns: 112px 1fr auto; gap: var(--sp-3); align-items: start; border: 1px solid var(--border); background: var(--surface-2); padding: 8px 10px; border-radius: var(--radius-sm) }
+.ai-dir-l { display: flex; flex-direction: column; gap: 5px; font-size: var(--fs-caption); color: var(--text-4); line-height: 1.4 }
+.ai-dir-l b { color: var(--text-2); font-size: var(--fs-sub) }
+.ai-dir-tiers { display: flex; gap: 4px }
+.ai-dir-tiers .tier { font-size: var(--fs-caption); padding: 1px 7px; border: 1px solid var(--border-strong); border-radius: var(--radius-xs); background: var(--surface); color: var(--text-3); cursor: pointer; font-family: inherit; white-space: nowrap }
+.ai-dir-tiers .tier.on { border-color: var(--accent); color: var(--accent); background: var(--accent-light); font-weight: 600 }
+.ai-dir-tiers .tier:disabled { opacity: var(--opacity-disabled); cursor: not-allowed }
+.ai-dir-m { min-width: 0 }
+.ai-dir-cap { margin-top: 3px; font-size: var(--fs-caption); color: var(--text-4); font-variant-numeric: tabular-nums }
+.ai-dir-ta { display: block; width: 100%; min-width: 0; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-xs); color: var(--text); font-size: var(--fs-sub); line-height: 1.6; padding: 5px 8px; font-family: inherit; resize: vertical; outline: none }
 .ai-dir-ta:focus { border-color: var(--accent); box-shadow: var(--shadow-focus, none) }
-.ai-dir-btns { display: flex; gap: 6px; align-items: center; flex-shrink: 0 }
+.ai-dir-btns { display: flex; flex-direction: column; gap: 5px; align-items: stretch; flex-shrink: 0 }
+.ai-dir-btns .ai-btn { white-space: nowrap }
+.ai-hist { position: relative }
 .ai-hist { position: relative; display: inline-block }
 .ai-hist-menu { position: absolute; bottom: 26px; right: 0; width: 380px; background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); box-shadow: var(--shadow); padding: 5px; display: flex; flex-direction: column; gap: 2px; z-index: 5 }
 .ai-hist-item { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 6px 7px; border: none; border-radius: var(--radius-xs); background: transparent; color: var(--text-2); font-size: var(--fs-sub); cursor: pointer; font-family: inherit }
@@ -671,8 +812,33 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
 /* R161 响应式第二档（768~1199）：双栏降单栏 —— 复用同一套 DOM 与 `dual` 分支，
    只改排版方向，不写第二套模板（任务书硬要求："复用现有 dual=false 路径"） */
 @media (max-width: 1199px) {
-  .ai-dual { flex-direction: column; gap: var(--sp-2) }
-  .ai-col-l { width: auto; flex: 0 0 auto; border-right: none; padding-right: 0; border-bottom: 1px solid var(--border) }
+  .ai-dual { grid-template-columns: 1fr; gap: var(--sp-2) }
+  .ai-col-l { border-right: none; border-bottom: 1px solid var(--border) }
+  .ai-drag { display: none }
   .ai-col-body { max-height: 26vh }
 }
+
+/* ===== R167：对照弹窗定高 + 单条判决卡 ===== */
+/* 只有本组件（挂了 .ai-modal 类）走"正文不滚、两栏各自滚"；Modal 壳的其它宿主一字不变 */
+.ai-modal :deep(.md-body) { overflow: hidden; display: flex; flex-direction: column }
+.ai-modal :deep(.md-head) { padding: var(--sp-3) var(--sp-5) }
+.ai-modal :deep(.md-sub) { padding-top: var(--sp-2) }
+.ai-vd { display: flex; flex-direction: column; gap: var(--sp-3); padding-top: var(--sp-2) }
+.ai-vd-q { font-size: var(--fs-title); line-height: 1.75; color: var(--text); border-left: 2px solid var(--accent); padding-left: var(--sp-3) }
+.ai-vd-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2) }
+.ai-vd-opt { position: relative; text-align: left; padding: 10px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-family: inherit; cursor: pointer; transition: all var(--dur) }
+.ai-vd-opt b { display: block; font-size: var(--fs-sub); margin-bottom: 3px; color: var(--text-2) }
+.ai-vd-opt small { display: block; font-size: var(--fs-caption); line-height: 1.5; color: var(--text-4) }
+.ai-vd-opt em { display: inline-block; margin-top: 6px; font-size: var(--fs-micro); font-style: normal; padding: 1px 6px; border-radius: var(--radius-xs); background: var(--tag-neutral-bg); color: var(--tag-neutral-text) }
+.ai-vd-opt:hover { border-color: var(--border-strong) }
+.ai-vd-opt.on { border-color: var(--accent); background: var(--accent-light) }
+.ai-vd-opt.on b { color: var(--accent) }
+.ai-vd-lb { font-size: var(--fs-caption); color: var(--text-4); letter-spacing: var(--tracking-sm) }
+.ai-vd-tt { width: 100%; box-sizing: border-box; margin-top: 4px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--fs-body); line-height: 1.6; padding: 7px 10px; font-family: inherit; resize: vertical; outline: none }
+.ai-vd-tt:focus { border-color: var(--accent); box-shadow: var(--shadow-focus, none) }
+.ai-vd-why, .ai-vd-facts { padding: var(--sp-3) var(--sp-4); background: var(--surface-2); border-radius: var(--radius-sm); font-size: var(--fs-sub); line-height: 1.8; color: var(--text-2) }
+.ai-vd-why b, .ai-vd-facts b { color: var(--text) }
+.ai-vd-facts ul { margin: 4px 0 0; padding-left: 18px }
+.ai-vd-facts li { margin: 2px 0 }
+.ai-vd-audit { font-size: var(--fs-caption); color: var(--text-4) }
 </style>

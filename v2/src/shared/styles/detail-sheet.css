@@ -71,6 +71,85 @@
 .ds-details > summary .right { margin-left: auto; font-size: var(--fs-caption); color: var(--text-3); font-weight: 400; }
 .ds-details[open] > summary { color: var(--text); }
 
+/* ============================================================
+   R167：详情抽屉「分组面板」体系（OPPO 观感：厚壳薄线 + 先给内容再给控件 + 强调色只给一处）
+   适用：ResourceEditForm / ResourceDetailDrawer / CuriosityPanel 详情
+   规则：① 面板=浅底 surface-2 + radius-lg + 组头 + hairline 行分隔，不再"每字段一个灰框"
+        ② AI 入口一行并列（它是"能做的事"，不是"要点的按钮"），accent 实心全站只留给主行动
+        ③ 值即文本：hover 才显底，focus 才描边
+   ============================================================ */
+.ds-kicker { font-size: var(--fs-caption); color: var(--text-4); letter-spacing: var(--tracking-sm); margin-bottom: 1px; }
+/* 就地可编辑主标题：默认无框（读起来是标题不是输入框），hover/focus 才成控件 */
+.ds-h1 {
+  width: 100%; box-sizing: border-box; border: 1px solid transparent; background: transparent; color: var(--text);
+  font-family: inherit; font-size: var(--fs-headline); font-weight: 600; line-height: var(--lh-headline);
+  padding: 3px 8px; margin-left: -8px; border-radius: var(--radius-sm); resize: none; overflow: hidden; outline: none;
+}
+.ds-h1:hover { border-color: var(--border); }
+.ds-h1:focus { border-color: var(--accent); background: var(--surface-2); box-shadow: 0 0 0 2px var(--accent-glow); }
+
+.ds-pnl { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 0 var(--sp-3) 4px; margin-bottom: var(--sp-3); }
+/* 焦点面板（描述 / 问题原文）：整块撑高，读起来是"内容区"而不是又一个输入框 */
+.ds-pnl.hero { display: flex; flex-direction: column; min-height: 34vh; margin-bottom: var(--sp-3); }
+.ds-pnl-h { display: flex; align-items: baseline; gap: var(--sp-2); padding: 9px 2px 8px; border-bottom: 1px solid var(--border); }
+.ds-pnl-h > b { font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); letter-spacing: var(--tracking-sm); white-space: nowrap; }
+.ds-pnl-h > i { font-style: normal; font-size: var(--fs-caption); color: var(--text-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-pnl-h > .r { margin-left: auto; font-size: var(--fs-caption); color: var(--text-4); white-space: nowrap; }
+
+.ds-kv { display: flex; align-items: center; gap: var(--sp-2); min-height: 34px; font-size: var(--fs-sub); border-bottom: 1px solid var(--border); }
+.ds-kv:last-child { border-bottom: none; }
+.ds-kv > .k { flex-shrink: 0; width: 34px; font-size: var(--fs-caption); color: var(--text-4); letter-spacing: var(--tracking-sm); }
+.ds-kv > .v { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ds-kv > .v .go { margin-left: auto; color: var(--text-4); }
+.ds-kv.clk { cursor: pointer; }
+.ds-kv.clk:hover > .v { color: var(--accent-2); }
+
+/* AI 入口一行并列（与 R166 任务卡三入口同语言：独立成行，不挤标题行） */
+.ds-ai-strip { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--sp-2); align-items: stretch; margin-bottom: var(--sp-3); }
+.ds-ai-strip.one { grid-template-columns: 1fr auto; }
+.ds-ai-cell {
+  display: flex; align-items: center; gap: 9px; min-width: 0; text-align: left; padding: 9px 11px;
+  border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2);
+  color: var(--text-2); font-family: inherit; font-size: var(--fs-sub); transition: border-color var(--dur), box-shadow var(--dur);
+}
+.ds-ai-cell .ico { width: 24px; height: 24px; flex-shrink: 0; border-radius: var(--radius-sm); background: var(--accent-light); color: var(--accent-2); display: flex; align-items: center; justify-content: center; font-size: var(--fs-caption); }
+.ds-ai-cell .ico svg { width: 13px; height: 13px; }
+.ds-ai-cell .tx { flex: 1; min-width: 0; }
+.ds-ai-cell .tx b { display: block; font-size: var(--fs-sub); font-weight: 600; color: var(--text); line-height: 1.35; }
+.ds-ai-cell .tx small { display: block; margin-top: 1px; font-size: var(--fs-caption); font-weight: 400; color: var(--text-3); line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-ai-cell:hover:not(:disabled) { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.ds-ai-cell:hover:not(:disabled) .tx b { color: var(--accent-2); }
+.ds-ai-cell:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+.ds-ai-when { display: flex; align-items: center; padding: 0 10px; font-size: var(--fs-caption); color: var(--text-4); white-space: nowrap; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+
+/* 值即文本的输入控件 */
+.ds-in { flex: 1; min-width: 0; box-sizing: border-box; border: 1px solid transparent; background: transparent; color: var(--text-2);
+  font-family: inherit; font-size: var(--fs-sub); padding: 3px 6px; margin-left: -6px; border-radius: var(--radius-xs); outline: none; }
+.ds-in:hover { border-color: var(--border); }
+.ds-in:focus { border-color: var(--accent); background: var(--surface); color: var(--text); }
+.ds-seg { display: flex; flex-shrink: 0; border: 1px solid var(--border); border-radius: var(--radius-xs); overflow: hidden; background: var(--surface); }
+.ds-seg span { padding: 3px 7px; font-size: var(--fs-caption); color: var(--text-3); border-right: 1px solid var(--border); cursor: pointer; }
+.ds-seg span:last-child { border-right: none; }
+.ds-seg span.on { background: var(--accent-light); color: var(--accent-2); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+.ds-ib { width: 22px; height: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); color: var(--text-3);
+  font-size: var(--fs-caption); font-family: inherit; cursor: pointer; transition: all var(--dur); }
+.ds-ib:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.ds-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: var(--radius-xs);
+  background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-size: var(--fs-caption); white-space: nowrap; }
+.ds-tag .x { opacity: .45; cursor: pointer; font-style: normal; }
+.ds-tag .x:hover { opacity: 1; color: var(--danger); }
+.ds-tag-add { padding: 2px 7px; border: 1px dashed var(--border-strong); border-radius: var(--radius-xs); background: transparent; color: var(--text-3); font-size: var(--fs-caption); cursor: pointer; }
+
+/* 描述/问题原文＝焦点：占面板内最大一块，安静到底 */
+.ds-hero-note {
+  flex: 1; width: 100%; box-sizing: border-box; min-height: 170px; border: 1px solid transparent; background: transparent;
+  color: var(--text); font-family: inherit; font-size: var(--fs-title); line-height: 1.9;
+  padding: var(--sp-2) 10px; margin: 2px -10px var(--sp-2); border-radius: var(--radius-sm); resize: vertical; outline: none;
+}
+.ds-hero-note:hover { background: var(--surface); }
+.ds-hero-note:focus { background: var(--surface); border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+
 /* ---- 头部状态 chip（点击弹层切换，替代四个大按钮/三枚大 chip） ---- */
 .ds-status-wrap { position: relative; display: inline-flex; }
 .ds-status-chip2 {

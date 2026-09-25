@@ -33,7 +33,6 @@ import { visibleFields } from '@/shared/utils/fields'
 import { recordCardOpen } from '@/shared/storage/stats'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
-import AiTouchedChip from '@/shared/components/AiTouchedChip.vue'
 
 const { curiosities, STATUS_MAP, update, setStatus, remove, convertToTask, convertToResource } = useCuriosity()
 const store = useAppStore()
@@ -120,6 +119,12 @@ const statusCounts = computed(() => {
   for (const c of curiosities.value) counts[c.status] = (counts[c.status] || 0) + 1
   return counts
 })
+/**
+ * R167：「已转化」计数——转化即出路的卡当场软删离场，池里（含四个状态 chip）再也数不到它，
+ * 探索有没有产出必须换个地方记账。口径：**转任务与归档资源都算一条**；
+ * 回收站里点"恢复"= 撤销这次转化（戳记同时清除，本计数随之回落）。
+ */
+const convertedCount = computed(() => (d.value.curiosities || []).filter(c => c.convertedAt).length)
 
 const kanbanCols = computed(() => {
   const statuses: CuriStatus[] = ['todo', 'doing', 'done', 'shelf']
@@ -473,6 +478,8 @@ function srcShort(url: string): string {
           @click="statusFilter = key as CuriStatus">
           {{ s.icon }} {{ s.label }} <span class="cz-count">{{ statusCounts[key] || 0 }}</span>
         </button>
+        <!-- R167：转化即出路的账——离场的卡只能在这里被看见 -->
+        <span class="cz-converted" :title="convertedCount ? `已转出 ${convertedCount} 条（转任务 / 归档资源都算）· 在回收站点「恢复」即撤销这次转化` : '还没有好奇心被转出'">→ 已转化 <b>{{ convertedCount }}</b></span>
         <div class="cz-views">
           <!-- R72：卡片视图横向列数（4/5/6/7，仅卡片视图出现） -->
           <ColsPicker v-if="viewMode === 'card'" v-model="curioCols" label="列数" />
@@ -619,8 +626,18 @@ function srcShort(url: string): string {
 
     <!-- R113-N2：生命周期面板移除——入口收敛到 设置→总览 -->
 
-    <!-- R165-A（方案 A 标准）：AI 研判升头部；置顶移头部图标钮；流转区收正文末尾；页脚两钮 -->
-    <Drawer :open="!!detailItem" :title="detailItem ? '好奇心详情' : ''" @close="detailId = null; curioStatusMenuOpen = false">
+    <!-- R167（OPPO 质感 · 模块化重排）：
+         ① 头部只留两样（状态 chip + 成熟度）——原状六样挤在一行（状态/附件徽标/成熟度/AI chip/📌/研判钮），
+            460px 下必然换行挤爆；📌 置顶不在这里重复（卡面悬停钮与右键菜单都有）。
+         ② AI 入口降到正文首行「一行两格」，与 R166 任务卡三入口 / R167 资源卡同语言。
+         ③ 三块分组面板：来源与标签 / 问题原文（焦点，整块撑高）/ 流转与凭证。
+         ④ ★转化即离场：转任务或归档资源后本条软删出池（回收站可撤），池头部新增「已转化」计数——
+            卡一走池里就数不到它，"探索有没有产出"必须换个地方记账。 -->
+    <Drawer :open="!!detailItem" width="520px" @close="detailId = null; curioStatusMenuOpen = false">
+      <template #title>
+        <div class="ds-kicker">好奇心卡</div>
+        <div class="cz-h1q">{{ detailItem ? detailItem.question.split('\n')[0].slice(0, 28) + (detailItem.question.split('\n')[0].length > 28 ? '…' : '') : '' }}</div>
+      </template>
       <template #title-extra>
         <div v-if="detailItem" class="ds-status-wrap" @click.stop>
           <button class="ds-status-chip2" :class="STATUS_MAP[detailItem.status].cls" @click.stop="curioStatusMenuOpen = !curioStatusMenuOpen">{{ STATUS_MAP[detailItem.status].icon }} {{ STATUS_MAP[detailItem.status].label }}</button>
@@ -629,52 +646,55 @@ function srcShort(url: string): string {
               @click.stop="setStatus(detailItem.id, key as CuriStatus); curioStatusMenuOpen = false">{{ s.icon }} {{ s.label }}</div>
           </div>
         </div>
-        <AssetBadge v-if="detailItem?.assets?.length" :assets="detailItem.assets" />
         <MaturityBadge v-if="detailItem" lg :m="curioMaturity(detailItem)" />
-        <AiTouchedChip v-if="detailItem" :ts="detailItem.aiTouchedAt" verb="研判" />
-        <button v-if="detailItem" class="cz-pin-btn" :class="{ on: detailItem.pinned }" :title="detailItem.pinned ? '取消置顶' : '置顶（看板列首）'" @click="togglePin(detailItem.id)">📌</button>
-        <button v-if="detailItem" class="cz-ai-btn" :disabled="aiBusy" title="AI 研判这条好奇：值不值得转成任务（判据对得上愿景与活跃目标；勾选采纳才落库）" @click="aiTriage(detailItem)">
-          <AiEntryButton variant="inline" :label="detailItem.aiTouchedAt ? '↻ 重新研判' : '研判'" :spin="aiBusy" />
-        </button>
       </template>
       <template v-if="detailItem">
-        <!-- Hero：问题原文即主角（R165-A 正名：现状标签「摘录」实绑 question；REQ-015 Ctrl+Enter 保存；REQ-024 高度拖拽记忆） -->
-        <div class="ds-hero-label">问题原文 <span class="hint">— 点击即编辑 · Ctrl+↩ 保存并关闭</span></div>
-        <div class="ta-wrap ds-quote-wrap">
-          <textarea v-model="editDraft" rows="4" class="ds-quote" :style="{ height: detailH + 'px' }"
-            @keydown.ctrl.enter.prevent="saveDetail" @keydown.meta.enter.prevent="saveDetail" />
-          <div class="ta-resize" @mousedown="startDetailResize" title="拖拽调节高度（记忆保存）"></div>
-        </div>
-        <!-- 元数据一行小字（来源升整行后此处只留时间） -->
-        <div class="ds-meta" style="margin-top:12px">
-          <span>捕获 {{ new Date(detailItem.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span>
-          <span v-if="detailItem.updatedAt" title="最近一次修改时间">更新 {{ new Date(detailItem.updatedAt).toLocaleString('zh-CN', { hour12: false }) }}</span>
-          <span v-if="detailItem.callCount">打开 {{ detailItem.callCount }} 次</span>
-        </div>
-        <div class="detail-link-add cz-src-row" style="margin-top:10px">
-          <span class="cz-src-label">🔗 来源</span>
-          <input v-model="detailItem.sourceUrl" placeholder="来源链接（网页 / 本地路径 / obsidian://，失焦即保存）…" class="detail-link-input"
-            @change="update(detailItem.id, { sourceUrl: detailItem.sourceUrl })" />
-          <button class="cz-src-btn" title="打开来源" @click="detailItem.sourceUrl && openSourceUrl(detailItem.sourceUrl)">↗</button>
-          <button class="cz-src-btn" title="复制来源" @click="copySourceUrl(detailItem)">⧉</button>
-        </div>
-        <div style="margin-top:12px">
-          <TagPicker v-model="detailItem.tags" @update:model-value="update(detailItem.id, { tags: $event })" />
-        </div>
-        <details class="ds-details" style="margin-top:14px">
-          <summary>📎 附件 <span v-if="detailItem.assets?.length" class="cnt">({{ detailItem.assets.length }})</span><span class="right">图片弹窗预览 / HTML 新标签打开</span></summary>
-          <AssetManager v-model="detailItem.assets" :owner-id="detailItem.id" @update:model-value="onCurioAssetsChange" @html-added="onCurioHtmlAdded" />
-        </details>
-        <!-- R165-A：流转区——卡级生命周期动作从页脚移来，各带一句后果说明 -->
-        <div class="ds-hero-label" style="margin-top:16px">流转 <span class="hint">— 这条好奇的下一步</span></div>
-        <div class="cz-flow-row">
-          <button class="cz-flow-btn" @click="openConvert(detailItem, 'task')">
-            <b>→ 转为任务</b><small>拆成可执行步骤 · 进方向台 · 来源链接随卡带走</small>
+        <!-- AI 入口：一枚（研判）。判词写进详情是**弹窗内的次级动作**（job.secondary），
+             不在这里并列——它只在"刚跑完一次研判"的上下文里才有意义。 -->
+        <div class="ds-ai-strip one">
+          <button class="ds-ai-cell" :disabled="aiBusy" title="AI 研判这条好奇：值不值得转成任务（判据对得上愿景与活跃目标；勾选采纳才落库）。判词可另存进正文，不动状态。" @click="aiTriage(detailItem)">
+            <span class="ico"><AiEntryButton variant="icon" :spin="aiBusy" /></span>
+            <span class="tx"><b>{{ detailItem.aiTouchedAt ? '↻ 重新研判' : '研判要不要转' }}</b><small>比对愿景与活跃目标 · 勾选才动卡</small></span>
           </button>
-          <button class="cz-flow-btn" @click="openConvert(detailItem, 'res')">
-            <b>📄 归档为资源</b><small>存入资源台长期调用 · 选策展台与分类</small>
-          </button>
+          <span v-if="detailItem.aiTouchedAt" class="ds-ai-when">最近 · {{ new Date(detailItem.aiTouchedAt).toLocaleString('zh-CN', { hour12: false, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) }}</span>
         </div>
+
+        <section class="ds-pnl">
+          <div class="ds-pnl-h"><b>来源与标签</b><i>转任务时来源随卡带走</i><span class="r" v-if="detailItem.callCount">打开 {{ detailItem.callCount }} 次</span></div>
+          <div class="ds-kv"><span class="k">来源</span><span class="v">
+            <input v-model="detailItem.sourceUrl" placeholder="来源链接（网页 / 本地路径 / obsidian://，失焦即保存）…" class="ds-in"
+              @change="update(detailItem.id, { sourceUrl: detailItem.sourceUrl })" />
+            <button class="ds-ib" title="打开来源" @click="detailItem.sourceUrl && openSourceUrl(detailItem.sourceUrl)">↗</button>
+            <button class="ds-ib" title="复制来源" @click="copySourceUrl(detailItem)">⧉</button>
+          </span></div>
+          <div class="ds-kv"><span class="k">标签</span><span class="v">
+            <TagPicker v-model="detailItem.tags" @update:model-value="update(detailItem.id, { tags: $event })" />
+          </span></div>
+        </section>
+
+        <!-- 焦点：问题原文整块撑高（R165-A 正名：现状标签「摘录」实绑 question；REQ-015 Ctrl+Enter 保存；REQ-024 高度拖拽记忆） -->
+        <section class="ds-pnl hero">
+          <div class="ds-pnl-h"><b>问题原文</b><i>点进去即编辑 · Ctrl+↩ 保存并关闭</i><span class="r">{{ editDraft.length }} 字</span></div>
+          <div class="ta-wrap ds-quote-wrap">
+            <textarea v-model="editDraft" rows="4" class="ds-hero-note" :style="{ height: detailH + 'px' }"
+              @keydown.ctrl.enter.prevent="saveDetail" @keydown.meta.enter.prevent="saveDetail" />
+            <div class="ta-resize" @mousedown="startDetailResize" title="拖拽调节高度（记忆保存）"></div>
+          </div>
+        </section>
+
+        <section class="ds-pnl">
+          <div class="ds-pnl-h"><b>流转与凭证</b><i>都有后果，不静默</i></div>
+          <div class="ds-kv clk" @click="openConvert(detailItem, 'task')"><span class="k">转任务</span><span class="v">建 1 张任务卡 · 本条<b style="color:var(--text)">从池中离场</b>（回收站可撤）· 已转化 +1<span class="go">›</span></span></div>
+          <div class="ds-kv clk" @click="openConvert(detailItem, 'res')"><span class="k">归档资源</span><span class="v">建 1 张资源卡 · 本条<b style="color:var(--text)">从池中离场</b>（回收站可撤）· 已转化 +1<span class="go">›</span></span></div>
+          <details class="ds-details">
+            <summary>附件 · 时间 <span v-if="detailItem.assets?.length" class="cnt">({{ detailItem.assets.length }})</span><span class="right">捕获 {{ new Date(detailItem.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span></summary>
+            <AssetManager v-model="detailItem.assets" :owner-id="detailItem.id" @update:model-value="onCurioAssetsChange" @html-added="onCurioHtmlAdded" />
+            <div class="ds-meta" style="padding:8px 0 4px">
+              <span v-if="detailItem.updatedAt">更新 {{ new Date(detailItem.updatedAt).toLocaleString('zh-CN', { hour12: false }) }}</span>
+              <AssetBadge v-if="detailItem.assets?.length" :assets="detailItem.assets" />
+            </div>
+          </details>
+        </section>
       </template>
       <!-- R165-A：页脚收敛两钮——删除（二次确认，详情原先不能删）+ 保存 -->
       <template #footer>
@@ -756,6 +776,9 @@ function srcShort(url: string): string {
 .cz-filter:hover { background: var(--border); }
 .cz-filter.active { background: var(--accent); color: #fff; }
 .cz-count { font-size: var(--fs-tiny); opacity: .7; }
+/* R167：「已转化」是计数不是筛选器——非交互、弱化，但带边框与池内 chip 同形（同形不同色，读得出"这是另一本账"） */
+.cz-converted { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-caption); letter-spacing: var(--tracking-sm); color: var(--text-3); padding: 3px 9px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface-2); cursor: default; }
+.cz-converted b { color: var(--text-2); font-weight: 600; }
 .cz-views { display: flex; gap: 2px; margin-left: auto; }
 .cz-view-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 14px; transition: all var(--dur); border: none; background: transparent; }
 /* 第卅二轮 REQ-007：时间排序方向切换 */
@@ -839,33 +862,12 @@ function srcShort(url: string): string {
 .detail-src .ds-link { color: var(--accent); cursor: pointer; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .detail-src .ds-link:hover { text-decoration: underline; }
 .detail-src .ds-title { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.detail-link-add { display: flex; gap: 8px; margin-top: 12px; }
-.detail-link-input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: var(--fs-sub); font-family: inherit; outline: none; }
-/* R142（反馈 #4）：挂载资源区 + 成熟度徽标行 */
+/* R142（反馈 #4）：成熟度徽标行（卡面用） */
 .cz-matrow { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
-.detail-link-input:focus { border-color: var(--accent); }
-/* ===== R165-A（方案 A 标准）：头部 AI 研判 / 置顶钮、来源行贴边动作、流转区、页脚保存 ===== */
-.cz-ai-btn {
-  display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 9px; cursor: pointer; flex-shrink: 0;
-  font-size: var(--fs-sub); font-weight: 600; border: 1px solid var(--accent); color: var(--accent); background: var(--accent-light);
-  font-family: inherit; transition: all var(--dur); white-space: nowrap;
-}
-.cz-ai-btn:hover { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px var(--accent-glow); }
-.cz-ai-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; box-shadow: none; }
-.cz-pin-btn { width: 28px; height: 28px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 7px; background: transparent; color: var(--text-3); cursor: pointer; font-size: 13px; transition: all var(--dur); }
-.cz-pin-btn:hover { color: var(--text); border-color: var(--border-strong); }
-.cz-pin-btn.on { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); background: color-mix(in srgb, var(--warning) 12%, transparent); }
-.cz-src-row { align-items: center; }
-.cz-src-label { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; flex-shrink: 0; }
-.cz-src-btn { width: 32px; height: 32px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-2); cursor: pointer; font-size: var(--fs-body); transition: all var(--dur); }
-.cz-src-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
-.cz-flow-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.cz-flow-btn {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 10px 12px; border-radius: 10px; cursor: pointer;
-  border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text); font-size: var(--fs-sub); font-family: inherit; text-align: left; transition: all var(--dur);
-}
-.cz-flow-btn:hover { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
-.cz-flow-btn small { font-weight: 400; font-size: var(--fs-caption); color: var(--text-3); }
+/* ===== R167（OPPO 质感 · 模块化）：详情抽屉的控件语言全部搬到 detail-sheet.css 的 ds-* 分组面板体系；
+   R165-A 那批头部钮（.cz-ai-btn / .cz-pin-btn / .cz-src-* / .cz-flow-*）随"AI 降正文一行 + 流转收进面板"退役。 ===== */
+.cz-h1q { font-size: var(--fs-title); font-weight: 600; line-height: var(--lh-title); color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cz-save { flex: 1; justify-content: center; }
 .expand-enter-active, .expand-leave-active { transition: all var(--dur) ease; overflow: hidden; }
 .expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; }

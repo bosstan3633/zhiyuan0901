@@ -25,7 +25,12 @@ const props = withDefaults(defineProps<{
   width?: string
   /** 最大高度（默认 88vh；<768 全屏时由媒体查询接管） */
   maxHeight?: string
-}>(), { title: '', width: 'min(1200px, 92vw)', maxHeight: '88vh' })
+  /**
+   * R167：通栏高度（默认只按内容；弹窗正文要"吃满剩余高度"时传 `100%`）。
+   * 只加 `max-height` 不加 `height` ⇒ 不传这个 prop 的宿主（周报/回收站等）渲染结果一字不变。
+   */
+  height?: string
+}>(), { title: '', width: 'min(1200px, 92vw)', maxHeight: '88vh', height: '' })
 const emit = defineEmits<{ close: [] }>()
 
 const overlayTarget = useOverlayTarget()
@@ -67,7 +72,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
     </Transition>
     <Transition name="md-pop">
       <section v-if="open" ref="panelRef" class="md-panel" tabindex="-1" role="dialog" aria-modal="true"
-        :aria-label="title || undefined" :style="{ '--md-w': width, '--md-mh': maxHeight }">
+        :aria-label="title || undefined" :style="{ '--md-w': width, '--md-mh': maxHeight, '--md-h': height }">
         <header class="md-head">
           <div class="md-title"><slot name="title">{{ title }}</slot></div>
           <div v-if="$slots['title-extra']" class="md-title-extra"><slot name="title-extra" /></div>
@@ -91,7 +96,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 }
 .md-panel {
   position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: var(--md-w); max-width: 96vw; max-height: var(--md-mh);
+  width: var(--md-w); max-width: 96vw; max-height: var(--md-mh); height: var(--md-h, auto);
   z-index: calc(var(--z-modal) + 1);
   display: flex; flex-direction: column;
   background: var(--surface); color: var(--text);

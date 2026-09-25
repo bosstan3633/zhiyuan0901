@@ -266,6 +266,13 @@ export interface CuriosityCard extends CardBase {
   /** R47-B4：被打开（调起详情）次数与最近打开时间——热度排序 */
   callCount?: number
   lastCalledAt?: number
+  /**
+   * R167：「转化即出路」的记账戳。转任务 / 归档资源时置位（同一刻卡被软删离场），
+   * 回收站恢复（= 撤销这次转化）时清除。池里数不到离场卡，「已转化」指标只能靠它计数。
+   * ★ 只记"转成了哪一类"，不记目标卡 id——卡间零挂载红线不因溯源而让步。
+   */
+  convertedAt?: number
+  convertedTo?: 'task' | 'res'
 }
 
 export type AnyCard = ResourceCard | TaskCard | CuriosityCard

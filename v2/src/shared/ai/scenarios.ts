@@ -42,10 +42,8 @@ const DORMANT_SCHEMA = `输出 JSON：{"items":[{"cardId":"原样回填","verdic
 const DIAGNOSIS_SCHEMA = `输出 JSON：{"findings":[{"severity":"high|mid|low","title":"≤20字断语","detail":"证据：引用材料中具体条目/数字","suggestion":"下一步动作（可执行、具体到对象）"}]}。3~8条，按严重度降序；只说有证据的话，每条必须能在材料里找到出处。只输出 JSON。`
 
 // ---------- 场景任务书 ----------
-
-export const enrichSystem = (hasCats: boolean) => withAboutMe(
-  `你是中文互联网资源的知识管理助手，为用户的个人资源调度台补全卡片元数据。${hasCats ? '候选分类会在材料中给出；' : ''}打标克制：贴切宁缺毋滥。${ENRICH_SCHEMA}`
-)
+// ★ R167：`enrichSystem` 已并入 `fullOptimizeSystem`（资源卡两枚入口并成一枚，见该处注释）——
+//   单卡补全与全方位优化共用一份骨架，避免"两条工厂口径漂移"（R165-A 补漏的根因）。
 export const batchEnrichSystem = () => withAboutMe(
   '你是资源调度台的批量元数据助手，对用户选中的多张卡片逐张补标签与一句话描述。' + BATCH_SCHEMA
 )
@@ -174,13 +172,17 @@ export const deepInsightSystem = () => withAboutMe(
 )
 
 // ---------- R140：全方位优化（读链接正文后的单卡深度加工） ----------
-
-export const fullOptimizeSystem = (personaText?: string) => withAboutMe(
-  (personaText || '你是资源卡策展助手。') + '用户给你一张卡（标题/现有描述/标签/链接）以及**尽力抓到的链接网页正文**，请基于正文真实内容给出全方位优化：' +
-  'description=两三句「这是什么 · 什么时候用得上 · 为什么值得收藏」，其中收藏理由必须有正文依据（正文读不到时按卡面与链接域名谨慎推断，并在句首加「（未读正文）」）；' +
-  'tags ≤4 个：**优先从材料里的【现有标签词表】选**（含「父/子」路径写法），确无贴切者才可新增（新词至多 1 个）；title 只在原标题明显名不副实或过空时给，否则省略。' +
+// ★ R167：与 enrichSystem 合并成下面这一个——两枚入口并成一枚后，"抓取正文"与"分类候选"必须同时在场，
+//   少一个就是 R165-A 补漏踩过的那类洞（合并入口把红线绕过去）。断言 R140-2 / R147-4 按新口径钉。
+export const fullOptimizeSystem = (opts: { personaText?: string; hasCats: boolean }) => withAboutMe(
+  ((opts.personaText || '你是资源卡策展助手。')) + '用户给你一张卡（标题/现有描述/标签/链接/所在台的分类候选）以及**尽力抓到的链接网页正文**，请给出一体补全：' +
+  'description=两三句「这是什么 · 什么时候用得上 · 为什么值得收藏」，收藏理由必须有正文依据（正文读不到时按卡面与链接域名谨慎推断，并在句首加「（未读正文）」）；' +
+  'tags ≤4 个：**优先从材料里的【现有标签词表】选**（含「父/子」路径写法），确无贴切者才可新增（新词至多 1 个）；' +
+  `categoryId 只在现分类明显不对时给，**必须逐字取自【分类候选】里的 categoryId**${opts.hasCats ? '' : '（本卡所在台暂无候选，就不要给 categoryId）'}；` +
+  'title 只在原标题明显名不副实或过空时给，否则省略。' +
   'assess=一句参谋评估：这张卡值不值得留在库里、还缺什么（≤40字）。不许编造正文里没有的功能、数据与结论。' +
-  '输出 JSON：{"title":"可选","description":"≤160字","tags":["…"],"assess":"一句话评估"}。只输出 JSON。'
+  '★ 用户已填过的内容你只能"建议改成什么"，不许当既成事实——空着的地方才是你直接补全的位置。' +
+  '输出 JSON：{"title":"可选","description":"≤160字","tags":["…"],"categoryId":"可选","assess":"一句话评估"}。只输出 JSON。'
 )
 
 // ---------- R143：标签整体梳理（蓝图 → 全卡归类打标） ----------
@@ -262,6 +264,20 @@ export const taskSupportSystem = () => withAboutMe(
   '主题词碰巧相同但用不上的不算——**库里没有强相关的就返回空 items，宁空手也不硬凑**。' +
   'confidence 取 high|mid：只有当你能一句话说清用途时才算 high。' +
   '输出 JSON：{"items":[{"cardId":"卡 id","why":"凭什么用得上","confidence":"high|mid"}]}。只输出 JSON。'
+)
+
+/**
+ * R167：资源卡侧「关联任务」——`taskSupportSystem` 的**反向**（同一条 SupportLink，两个发起方向）。
+ * 单独立一条而不复用：投料主体反了（这里给的是资源，要挑的是任务），
+ * 判词要回答的问题也不同——"这条资源在哪件任务里被用上"，而不是"这张卡能帮这个任务什么"。
+ */
+export const resourceLinkTaskSystem = () => withAboutMe(
+  '你是任务调度台的管家，为用户的一张资源卡从给定任务清单里找出**它真正支撑着的那些任务**。' +
+  '只能选清单里真实存在、且尚未挂过这张卡的任务；taskId 逐字取自清单，至多 6 条，按相关强度排序。' +
+  'why（≤16字）必须说清这张卡在该任务里的具体用途（查资料/当模板/抄做法/作对照/交付物素材），' +
+  '只凭主题词碰巧相同的不算——**没有强相关的就返回空 items，宁空手也不硬凑**。' +
+  'confidence 取 high|mid：只有当你能一句话说清用途时才算 high。' +
+  '输出 JSON：{"items":[{"taskId":"任务 id","why":"这张卡用在哪","confidence":"high|mid"}]}。只输出 JSON。'
 )
 
 export const evidenceSystem = () => withAboutMe(

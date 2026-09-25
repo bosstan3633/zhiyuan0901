@@ -103,9 +103,9 @@ export const AI_ENTRIES: AiEntryDecl[] = [
     id: 'curio-triage', title: '好奇研判', family: 'proactive', kind: 'job',
     factory: 'buildCurioTriageJob', factoryFile: 'shared/ai/batchG.ts',
     hosts: ['newtab/components/compass/CuriosityPanel.vue'],
-    caps: { apply: true },
+    caps: { apply: true, secondary: true },
     panel: { icon: 'bulb', mode: 'nav', route: '/', hint: '在调度台好奇心培育区选中卡后使用' },
-    note: 'R154 记账：采纳内含 status=shelf 副作用（原 R157 口径矛盾项，归 R159）',
+    note: 'R154 记账：采纳内含 status=shelf 副作用（原 R157 口径矛盾项，归 R159）；R167 起单条走「判决卡」版式（layout=verdict，三态由用户点选、模型只给推荐）+ 次级动作「判词写进详情」',
   },
   {
     id: 'evidence', title: '找证据', family: 'proactive', kind: 'job',
@@ -184,12 +184,12 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   },
   // ── job 型 · select.ts ───────────────────────────────────────────────
   {
-    id: 'card-enrich', title: '单卡补全', family: 'proactive', kind: 'job',
-    factory: 'buildCardEnrichJob', factoryFile: 'shared/ai/select.ts',
-    hosts: ['newtab/components/GlobalPopups.vue', 'newtab/components/ResourceDetailDrawer.vue'],
-    caps: { apply: true, before: true, promptScope: 'enrich:card' },
-    panel: { icon: 'copy', mode: 'nav', route: '/workspace/zy-curation', hint: '选中卡后从卡面/详情抽屉发起' },
-    note: 'GlobalPopups 侧=采集后补全（captureEnrich 开关下自动触发，被动面）；R158 需按宿主判定 family',
+    id: 'card-enrich', title: 'AI 补全（资源卡）', family: 'proactive', kind: 'job',
+    factory: 'buildResourceEnrichJob', factoryFile: 'shared/ai/select.ts',
+    hosts: ['newtab/components/GlobalPopups.vue', 'newtab/components/ResourceAiStrip.vue', 'newtab/components/CardAiEntry.vue'],
+    caps: { apply: true, before: true, promptScope: 'enrich:card', persona: true },
+    panel: { icon: 'copy', mode: 'nav', route: '/workspace/zy-curation', hint: '选中卡后从卡面 AI 徽标 / 详情抽屉 AI 行 / 采集浮层发起' },
+    note: '★ R167：原「单卡补全」与「全方位优化」并成一枚工厂——http(s) 链接点了才抓正文；空字段直接补，已填字段只给 optIn 建议（默认不勾）；R147-a 新词闸与分类消毒同装（合并入口不得再留下"没装闸的那条"）',
   },
   {
     id: 'task-enrich', title: 'AI 补全任务', family: 'proactive', kind: 'job',
@@ -206,6 +206,14 @@ export const AI_ENTRIES: AiEntryDecl[] = [
     caps: { apply: true, before: true, promptScope: 'support:task' },
     panel: { icon: 'compass', mode: 'nav', route: '/compass', hint: '任务详情三入口之一；子任务行 🧭 也可发起' },
     note: '本地预筛（词面+标签 top N、排除已关联）→ 模型只排序+一句判词；采纳写独立表 supportLinks，两张卡本体零改动（卡间零挂载红线下的记录型关联）',
+  },
+  {
+    id: 'resource-link-task', title: '关联任务（资源侧）', family: 'proactive', kind: 'job',
+    factory: 'buildResourceLinkTaskJob', factoryFile: 'shared/ai/resourceLinkTask.ts',
+    hosts: ['newtab/components/ResourceAiStrip.vue'],
+    caps: { apply: true, before: true, promptScope: 'linktask:card', persona: true },
+    panel: { icon: 'compass', mode: 'nav', route: '/workspace/zy-curation', hint: '资源详情 AI 行第二枚（两宿主同一组件：内联抽屉与 App 级抽屉）' },
+    note: 'R167：「找资源支持」的反向入口（同一条 SupportLink、同一张表）——扫全量任务卡本地预筛 → 模型只排序+一句判词 → 采纳只写关联记录，两端卡本体零改动；解绑仍只在任务侧（定案 10 的边界不越）',
   },
   {
     id: 'task-parse', title: 'AI 建任务', family: 'proactive', kind: 'job',
@@ -229,13 +237,8 @@ export const AI_ENTRIES: AiEntryDecl[] = [
     caps: { before: true, paneMode: 'context', promptScope: 'insight', rawText: true, autoReport: true, resave: true },
     panel: { icon: 'flame', mode: 'nav', route: '/', hint: '周报浮层内发起' },
   },
-  {
-    id: 'card-optimize', title: '全方位优化', family: 'proactive', kind: 'job',
-    factory: 'buildFullOptimizeJob', factoryFile: 'shared/ai/select.ts',
-    hosts: ['newtab/components/CardAiEntry.vue', 'newtab/components/ResourceDetailDrawer.vue'],
-    caps: { apply: true, before: true, promptScope: 'opt:card', persona: true },
-    panel: { icon: 'target', mode: 'nav', route: '/workspace/zy-curation', hint: '选中卡后从卡面 AI 徽标发起' },
-  },
+  // ★ R167：原 'card-optimize'（全方位优化）已并入上面的 'card-enrich' —— 两枚入口并成一枚，
+  //   注册表 23 → 22；「抓正文」能力随工厂合并迁入，不再存在"两条口径不一的单卡工厂"。
   // ── inline 型（宿主内联 job）──────────────────────────────────────────
   {
     id: 'batch-enrich', title: '批量补全', family: 'proactive', kind: 'inline',

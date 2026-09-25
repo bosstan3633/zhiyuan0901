@@ -349,6 +349,76 @@ async function main() {
   report('E2E-10 资源台统一树 + 单向挂载红线（R111 承接 R110-B1）', hubHead && hubTreeOn && scrubbed.ok && srcKept,
     `hubHead=${hubHead} hubTree=${hubTreeOn} scrubbed=${scrubbed.ok}(脏投射残留${scrubbed.dirtyLeft}/镜像标记残留${scrubbed.markerLeft}) srcKept=${srcKept}`)
 
+  // E2E-24（R167）：**镜像只读详情**的边界，与资源台真身详情同判据反向对照。
+  // 为什么现在补：R167 把主标题搬进抽屉头、AI 行降到正文首行，两宿主共用一套件之后，
+  // "只读卡还能不能改标题"就不再由 `.ref-form` 的 pointer-events 单独挡住了——标题住在头部。
+  // 若头部那份漏了只读，在镜像上敲标题会直接写进真身卡（R73 那类"静默迁移"旧坑的新变体）。
+  /* 注意：不能拿 seedWsId 当镜像目标台——它是 workspaces[0]，而资源台（hub）正是 order=-1 排第一的那个。
+     投射指向 hub 会被启动期 scrubHubMirrorMarkers 当脏记录抹掉（单向挂载红线兜底），于是"镜像卡"变成台内原生卡，
+     这条测的就不是只读边界了。测试库里只有一张 hub，故现造一张策展台（结束时一并拆掉）。 */
+  const roBoardId = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const data = cur['zy_data_v2']
+    const boardId = 'e2e-ro-board'
+    if (!data.workspaces.some(w => w.id === boardId)) {
+      data.workspaces.push({ id: boardId, name: 'E2E 镜像只读台', icon: '🧪', color: '#3A6B4C', coverTheme: 'deep-sea', order: 99, archived: false, kind: 'curation' })
+    }
+    if (!data.resources.some(r => r.id === 'e2e-ro-1')) {
+      data.resources.push({ id: 'e2e-ro-1', kind: 'resource', title: 'E2E 只读镜像源卡', linkType: 'url', link: 'https://example.com/e2e-ro', workspaceId: 'zy-curation', categoryId: '', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now() })
+    }
+    data.curationProjections = (data.curationProjections || []).filter(p => p.cardId !== 'e2e-ro-1')
+    data.curationProjections.push({ id: 'e2e-ro-proj', kind: 'card', wsId: 'zy-curation', cardId: 'e2e-ro-1', catId: '', targetWsId: boardId, targetCatId: '', addedAt: Date.now() })
+    return chrome.storage.local.set({ zy_data_v2: data }).then(() => boardId)
+  }))  /* 直种存储后必须整页重载：app 运行中 store 不会回读 chrome.storage，
+     而且随后的 persist 会把内存态盖回磁盘（E2E-10 同一手法） */
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+  await page.goto(base + '#/workspace/' + roBoardId, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2200)
+  if (!page.url().includes('/workspace/' + roBoardId)) { await page.evaluate((id) => { location.hash = '#/workspace/' + id }, roBoardId); await page.waitForTimeout(1800) }
+  const mirCard = page.locator(`.res-card[data-rid="e2e-ro-1"]`).first()
+  const mirFound = await mirCard.count()
+  await mirCard.click().catch(() => {})
+  await page.waitForTimeout(1300) /* 单击有 260ms 双击判别延时 + 抽屉进场动效 */
+  const mirTitleEl = page.locator('.drawer.open .dr-head textarea').first()
+  const mirHeadVisible = await mirTitleEl.isVisible().catch(() => false)
+  const mirTitleReadonly = (await mirTitleEl.getAttribute('readonly').catch(() => null)) !== null
+  const mirBanner = await page.locator('.dr-readonly-banner').first().isVisible().catch(() => false)
+  const mirAiCells = await page.locator('.drawer.open .ds-ai-cell').count()
+  const mirFootBtns = await page.locator('.drawer.open .dr-footer button').count()
+  const mirFootText = (await page.locator('.drawer.open .dr-footer').first().innerText().catch(() => '')).replace(/\s+/g, ' ')
+  /* 诊断：投射是否还活着 / 渲染出来的那张卡有没有镜像标记 */
+  const mirDiag = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const d = cur['zy_data_v2']
+    const p = (d.curationProjections || []).find(x => x.cardId === 'e2e-ro-1')
+    const src = d.resources.find(r => r.id === 'e2e-ro-1')
+    return { proj: p ? (p.targetWsId || '?') : 'none', srcWs: src ? src.workspaceId : 'none' }
+  }))
+  await page.locator('.drawer.open .dr-close').first().click().catch(() => {})
+  await page.waitForTimeout(700)
+  // 对照面：同一张卡在资源台是**真身**——AI 行两格必须在、标题必须可写
+  await page.goto(base + '#/workspace/zy-curation', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2000)
+  await page.locator('.res-card[data-rid="e2e-ro-1"]').first().click().catch(() => {})
+  await page.waitForTimeout(1300)
+  const hubAiCells = await page.locator('.drawer.open .ds-ai-cell').count()
+  const hubTitleEl = page.locator('.drawer.open .dr-head textarea').first()
+  const hubTitleEditable = (await hubTitleEl.getAttribute('readonly').catch(() => 'x')) === null
+  const hubTitleValue = await hubTitleEl.inputValue().catch(() => '')
+  await page.locator('.drawer.open .dr-close').first().click().catch(() => {})
+  await page.waitForTimeout(500)
+  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const data = cur['zy_data_v2']
+    data.resources = data.resources.filter(r => r.id !== 'e2e-ro-1')
+    data.workspaces = data.workspaces.filter(w => w.id !== 'e2e-ro-board')
+    data.curationProjections = (data.curationProjections || []).filter(p => p.cardId !== 'e2e-ro-1')
+    return chrome.storage.local.set({ zy_data_v2: data })
+  }))
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2000)
+  report('E2E-24 R167 镜像只读详情边界（标题 readonly / AI 行不给入口 / 页脚两钮是定位）+ 真身侧反向对照（AI 行两格 + 标题可写）',
+    mirFound > 0 && mirHeadVisible && mirTitleReadonly && mirBanner && mirAiCells === 0 && mirFootBtns === 2 && mirFootText.includes('定位到资源台编辑') && hubAiCells === 2 && hubTitleEditable && hubTitleValue === 'E2E 只读镜像源卡',
+    `镜像在位=${mirFound} 头=${mirHeadVisible} 标题只读=${mirTitleReadonly} banner=${mirBanner} AI格=${mirAiCells} 页脚钮=${mirFootBtns}(${mirFootText.slice(0, 24)}) 投射=${mirDiag.proj}/目标台=${roBoardId || '无'} | 真身 AI格=${hubAiCells} 可写=${hubTitleEditable} 值="${hubTitleValue}"`)
+
   // E2E-11 主航线（R55-D1 后）：目标行 chip；未归档格随 MetricBar 迁调度台（E2E-4 已覆盖）
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const data = cur['zy_data_v2']

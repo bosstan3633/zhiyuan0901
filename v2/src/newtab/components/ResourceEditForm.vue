@@ -11,12 +11,11 @@
  * - 行为约定：
  *   ① 标题/链接/描述 Ctrl+Enter 保存（emit save）
  *   ③ 附件变更即时持久化：已入库卡(idx>=0)写回 + persist；新建未入库仅暂挂 model（宿主保存时统一入库）
- * - 宿主保留：容器与开关态（Drawer.vue 或自绘 overlay/drawer）、save/delete/open/copy handler、highlight 触发
+ * - 宿主保留：容器与开关态（Drawer.vue 或自绘 overlay/drawer）、主标题（DetailTitle）、AI 入口条、save/delete/open/copy handler
  */
 import { computed, nextTick, ref } from 'vue'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
-import AssetBadge from '@/shared/components/AssetBadge.vue'
 import { showToast } from '@/shared/components/toast'
 import { useAppStore } from '../stores/app'
 import { useTaHeight } from '@/shared/utils/taHeight'
@@ -29,16 +28,10 @@ const props = defineProps<{
   model: ResourceCard
   /** 描述框高度记忆键（如 'ws-note' / 'res-drawer-note'，保留两处既有拖拽记忆） */
   heightKey: string
-  /** 标题右侧是否显示关闭按钮（自绘容器用；Drawer.vue 宿主传 false 由容器 × 关闭） */
-  showClose?: boolean
-  /** 标题高亮（RDD 搜索定位使用） */
-  highlight?: boolean
 }>()
 const emit = defineEmits<{
   /** Ctrl+Enter 快捷保存（宿主执行保存+关闭） */
   (e: 'save'): void
-  /** 自绘容器（无 header ×）点关闭 */
-  (e: 'close'): void
 }>()
 
 const store = useAppStore()
@@ -122,133 +115,77 @@ function fmtTs(ts?: number): string {
 </script>
 
 <template>
-  <!-- R165-A（方案 A 标准）：AI 主上下文动作进标题行（title-extra 插槽）；链接动作贴链接行（link-actions 插槽）；
-       策展台字段退役、分类升整行；附件说明收进 ? tooltip -->
+  <!-- R167：三块分组面板（链接与归档 / 我的注解=焦点 / 关联与凭证）。
+       ★主标题不在这里：它属于抽屉头（DetailTitle），两宿主各有一份头 ⇒ 表单只管内容分区，
+         标题若在表单里再留一份，就会出现"头部一份可编辑 + 正文一份可编辑"同屏两处。 -->
   <div class="ref-form">
-    <div class="ref-title-row" :class="{ highlight }">
-      <textarea class="ref-title" v-model="model.title" rows="2" placeholder="资源卡标题..."
-        @keydown.ctrl.enter.prevent="emit('save')" @keydown.meta.enter.prevent="emit('save')"></textarea>
-      <slot name="title-extra" />
-      <AssetBadge v-if="model.assets?.length" :assets="model.assets" class="ref-title-assets" />
-      <div v-if="showClose" class="ref-close" @click="emit('close')">×</div>
-    </div>
-
-    <!-- Hero：链接（资源卡的存在意义就是快速回到它）——类型/输入/动作一行 -->
-    <div class="ref-section">
-      <div class="ds-hero-label">链接 <span class="hint">— 双击卡片即可打开 · Ctrl+↩ 保存</span></div>
-      <div class="ref-link-row">
-        <div class="ref-link-type">
-          <div class="ref-link-type-btn" :class="{ active: model.linkType === 'url' }" @click="model.linkType = 'url'">URL</div>
-          <div class="ref-link-type-btn" :class="{ active: model.linkType === 'file' }" @click="model.linkType = 'file'">📁 本地</div>
-          <div class="ref-link-type-btn" :class="{ active: model.linkType === 'obsidian' }" @click="model.linkType = 'obsidian'">📝 Obsidian</div>
+    <section class="ds-pnl">
+      <div class="ds-pnl-h"><b>链接与归档</b><i>双击卡片即打开 · Ctrl+↩ 保存</i></div>
+      <div class="ds-kv"><span class="k">链接</span><span class="v">
+        <div class="ds-seg">
+          <span :class="{ on: model.linkType === 'url' }" @click="model.linkType = 'url'">URL</span>
+          <span :class="{ on: model.linkType === 'file' }" @click="model.linkType = 'file'">本地</span>
+          <span :class="{ on: model.linkType === 'obsidian' }" @click="model.linkType = 'obsidian'">Obsidian</span>
         </div>
-        <input ref="linkInputRef" type="text" class="ref-link-input" v-model="model.link" :placeholder="linkPlaceholder"
+        <input ref="linkInputRef" type="text" class="ds-in" v-model="model.link" :placeholder="linkPlaceholder"
           @keydown.ctrl.enter.prevent="emit('save')" @keydown.meta.enter.prevent="emit('save')">
         <slot name="link-actions" />
-      </div>
+      </span></div>
       <div v-if="linkIncomplete" class="ref-warn">
         ⚠ 当前仅存文件名，双击打开前请补全完整路径（如 D:\docs\file.pdf）
       </div>
-    </div>
+      <div class="ds-kv"><span class="k">分类</span><span class="v">
+        <select class="ds-in" style="max-width:240px" v-model="model.categoryId" :title="'真身只在资源台，策展台以镜像呈现'">
+          <option value="">待分类</option>
+          <option v-for="opt in catOptions" :key="opt.id" :value="opt.id">{{ opt.label }}</option>
+        </select>
+      </span></div>
+      <div class="ds-kv"><span class="k">标签</span><span class="v"><TagPicker v-model="model.tags" /></span></div>
+    </section>
 
-    <!-- 分类整行（R165-A：策展台下拉退役） -->
-    <div class="ds-prop-field">
-      <label class="ds-prop-label">📁 分类 <span class="hint" style="font-weight:400">— 真身只在资源台，策展台以镜像呈现</span></label>
-      <select class="ds-prop-select" style="width:100%" v-model="model.categoryId">
-        <option value="">📥 待分类</option>
-        <option v-for="opt in catOptions" :key="opt.id" :value="opt.id">📂 {{ opt.label }}</option>
-      </select>
-    </div>
-
-    <div class="ref-section" style="margin-top:12px">
-      <TagPicker v-model="model.tags" />
-    </div>
-
-    <!-- 注解上移：紧跟属性，定位「为什么收藏它」 -->
-    <div class="ref-section" style="margin-top:12px">
-      <div class="ds-hero-label">我的注解 <span class="hint">— 为什么收藏它 · 拖右下角调高</span></div>
+    <section class="ds-pnl hero">
+      <div class="ds-pnl-h"><b>我的注解</b><i>为什么收藏它 · 点进去即编辑</i><span class="r">{{ (model.description || '').length }} 字</span></div>
       <div class="ref-ta-wrap">
-        <textarea class="ds-desc" v-model="model.description" :style="{ height: noteH + 'px' }" placeholder="对这个资源的注解、思考、摘录..."
+        <textarea class="ds-hero-note" v-model="model.description" :style="{ height: noteH + 'px' }" placeholder="对这个资源的注解、思考、摘录..."
           @keydown.ctrl.enter.prevent="emit('save')" @keydown.meta.enter.prevent="emit('save')"></textarea>
         <div class="ref-ta-resize" @mousedown="startNoteResize" title="拖拽调节高度（记忆保存）"></div>
       </div>
-    </div>
+    </section>
 
-    <!-- 附件折叠（R165-A：说明收进 ? tooltip，不再占行宽） -->
-    <details class="ds-details" style="margin-top:12px">
-      <summary>📎 附件 <span v-if="model.assets?.length" class="cnt">({{ model.assets.length }})</span>
-        <span class="ref-help">?<span class="ref-tip">图片 ≤9 张（单张 ≤10MB）弹窗预览可左右切换；HTML 单卡 1 个（≤20MB，重复上传=替换）；PDF 单卡 1 份（≤100MB）；双击文件名在浏览器中打开。</span></span>
-      </summary>
-      <AssetManager v-model="model.assets" :owner-id="model.id" @update:model-value="onAssetsChange" @html-added="onHtmlAdded" />
-    </details>
-
-    <!-- 宿主差异内容（如 RDD 使用统计）：插在附件与挂载之间，保持原字段顺序 -->
-    <slot name="extra" />
-
-    <div v-if="model.createdAt" class="ds-meta" style="margin-top:6px">
-      <span>创建 {{ fmtTs(model.createdAt) }}</span>
-      <span>更新 {{ fmtTs(model.updatedAt) }}</span>
-    </div>
+    <section class="ds-pnl">
+      <div class="ds-pnl-h"><b>关联与凭证</b><i>附件、使用记录与时间</i></div>
+      <!-- 宿主差异内容（RDD：使用统计 + 支持的任务只读反查） -->
+      <slot name="extra" />
+      <details class="ds-details">
+        <summary>附件 <span v-if="model.assets?.length" class="cnt">({{ model.assets.length }})</span>
+          <span class="right">图片弹窗预览 / HTML 新标签打开</span>
+        </summary>
+        <AssetManager v-model="model.assets" :owner-id="model.id" @update:model-value="onAssetsChange" @html-added="onHtmlAdded" />
+        <!-- R167：附件上限从「? tooltip」搬进展开区（说明该在看得见的地方，不该藏在一次悬停里） -->
+        <div class="ref-limits">图片 ≤9 张（单张 ≤10MB）· HTML 单卡 1 个（≤20MB，重复上传=替换）· PDF 单卡 1 份（≤100MB）· 双击文件名在浏览器中打开</div>
+      </details>
+      <div v-if="model.createdAt" class="ds-meta" style="padding:8px 0 4px">
+        <span>创建 {{ fmtTs(model.createdAt) }}</span>
+        <span>更新 {{ fmtTs(model.updatedAt) }}</span>
+      </div>
+    </section>
   </div>
 </template>
 
 <style scoped>
-.ref-form { display: flex; flex-direction: column; gap: 16px; }
-.ref-section { margin: 0; }
+/* R167：面板自带 margin-bottom，容器不再叠 gap（两处都给 ⇒ 面板间 32px，读起来是三段不是一块） */
+.ref-form { display: flex; flex-direction: column; }
 
-.ref-title-row { display: flex; align-items: flex-start; gap: 8px; }
-.ref-title {
-  flex: 1; width: 100%; box-sizing: border-box; resize: none; border: 1px solid var(--border);
-  border-radius: 8px; background: var(--surface-2); color: var(--text);
-  padding: 10px 12px; font-size: var(--fs-title); font-weight: 600; line-height: 1.5; font-family: inherit;
-}
-.ref-title:focus { outline: none; border-color: var(--accent); }
-.ref-title-row.highlight .ref-title { box-shadow: 0 0 0 2px var(--accent); }
-.ref-close { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 18px; transition: all var(--dur); flex-shrink: 0; }
-.ref-title-assets { margin-top: 10px; flex-shrink: 0; }
-.ref-close:hover { background: var(--surface-3); color: var(--text); }
+/* R167：标题行退役（`.ref-title*` / `.ref-close` / `.ref-title-assets`）——主标题进抽屉头（DetailTitle），
+   附件凭证进「关联与凭证」面板的展开区计数，关闭钮归容器 ×。留着只会让人以为表单还管标题。 */
 
-.ref-label { font-size: var(--fs-caption); color: var(--text-3); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
-.ref-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-/* R165-A：类型/输入/动作一行（动作跟着对象走） */
-.ref-link-row { display: flex; gap: 6px; align-items: center; }
-.ref-link-type { display: flex; gap: 5px; flex-shrink: 0; }
-.ref-link-type-btn {
-  padding: 7px 12px; text-align: center; font-size: var(--fs-sub); cursor: pointer; white-space: nowrap;
-  border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text-2);
-  transition: all var(--dur);
-}
-.ref-link-type-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-.ref-link-input {
-  flex: 1; min-width: 0; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--border);
-  border-radius: 6px; background: var(--surface-2); color: var(--text); font-size: var(--fs-body); font-family: inherit;
-}
-.ref-link-input:focus { outline: none; border-color: var(--accent); }
-.ref-warn { margin-top: 8px; font-size: var(--fs-sub); color: var(--danger); background: var(--danger-bg-soft); padding: 6px 10px; border-radius: 6px; }
-/* R165-A：? tooltip（附件说明降噪） */
-.ref-help { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--border-strong); color: var(--text-3);
-  font-size: var(--fs-micro); display: inline-flex; align-items: center; justify-content: center; cursor: help; position: relative; flex-shrink: 0; }
-.ref-help:hover .ref-tip { display: block; }
-.ref-tip { display: none; position: absolute; left: -8px; top: 18px; width: 250px; z-index: 30; background: var(--surface-3); color: var(--text-2);
-  border: 1px solid var(--border-strong); border-radius: 8px; padding: 7px 9px; font-size: var(--fs-caption); line-height: 1.5; text-align: left; font-weight: 400; }
-
-.ref-select {
-  width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--border);
-  border-radius: 6px; background: var(--surface-2); color: var(--text); font-size: var(--fs-body); font-family: inherit;
-}
-.ref-select:focus { outline: none; border-color: var(--accent); }
-
-.ref-ta-wrap { position: relative; }
-.ref-note {
-  width: 100%; box-sizing: border-box; resize: none; border: 1px solid var(--border);
-  border-radius: 8px; background: var(--surface-2); color: var(--text);
-  padding: 10px 12px; font-size: var(--fs-body); line-height: 1.7; font-family: inherit;
-}
-.ref-note:focus { outline: none; border-color: var(--accent); }
+/* R167：链接行/分类/标签的控件语言统一搬到 detail-sheet.css 的 ds-* 分组面板体系；
+   这里只留本表单独有的告警条与附件上限说明。 */
+.ref-warn { margin: 6px 0; font-size: var(--fs-sub); color: var(--danger); background: var(--danger-bg-soft); padding: 6px 10px; border-radius: 6px; }
+.ref-limits { padding: 6px 0 8px; font-size: var(--fs-caption); color: var(--text-4); line-height: 1.6; }
+.ref-ta-wrap { position: relative; display: flex; flex: 1; min-height: 0; }
 .ref-ta-resize {
   position: absolute; right: 4px; bottom: 2px; width: 14px; height: 14px; cursor: ns-resize;
   opacity: .5; background: linear-gradient(135deg, transparent 50%, var(--text-3) 50%);
 }
-
-.ref-time { font-size: var(--fs-caption); color: var(--text-3); }
 </style>

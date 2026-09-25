@@ -1579,10 +1579,10 @@ let lastEnrichCard: ResourceCard | null = null
 async function runCardEnrich(card: ResourceCard) {
   lastEnrichCard = card
   capEnrichReady.value = false
-  const [{ loadAiConfig, aiReady, aiConfig }, { buildCardEnrichJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
+  const [{ loadAiConfig, aiReady, aiConfig }, { buildResourceEnrichJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/select')])
   await loadAiConfig()
   if (!aiReady.value) { showToast('AI 尚未接入（设置 → AI 助手），卡已正常保存'); return }
-  aiEnrichJob.value = buildCardEnrichJob(card, { d: d.value, depth: aiConfig.value.depth, persist: () => store.persist() })
+  aiEnrichJob.value = buildResourceEnrichJob(card, { d: d.value, depth: aiConfig.value.depth, persist: () => store.persist() })
   capEnrichReady.value = true
 }
 async function aiReopenEnrich() { if (lastEnrichCard) await runCardEnrich(lastEnrichCard) }

@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="apple">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>资源卡 × 好奇卡详情 · OPPO 质感改造 R2（描述为焦点 × 单枚补全 × 关联任务 × 可拖分栏 × 转化即离场）· 供审核</title>
+<style>
+/* ============================================================
+   令牌：逐字取自 v2/src/shared/styles/tokens.css（四主题真值）
+   字号只走 --fs-* 阶（9/10/11/12/13/15/17/22），圆角只走 --radius-* 阶
+   R2 变更：① 上半部压成两行元信息，描述升为视觉焦点 ② 资源卡 AI 收成
+   一枚「补全（自动抓链接）」+ 新增一枚「关联任务」③ 弹窗指令区升全宽大框
+   ④ 弹窗左右可拖拽分栏 ⑤ 好奇卡转化即离场 + 池新增「已转化」指标
+   ============================================================ */
+:root{
+  --fs-micro:9px; --fs-tiny:10px; --fs-caption:11px; --fs-sub:12px; --fs-body:13px;
+  --fs-title:15px; --fs-headline:17px; --fs-display:22px;
+  --lh-sub:1.5; --lh-body:1.55; --lh-title:1.35; --lh-headline:1.3;
+  --tracking-sm:.04em;
+  --radius-xl:18px; --radius-lg:14px; --radius:12px; --radius-md:10px; --radius-sm:8px; --radius-xs:4px;
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px;
+  --dur-fast:120ms; --dur:150ms; --dur-slow:250ms;
+  --ease-out-soft:cubic-bezier(.2,.8,.2,1); --ease-emphasis:cubic-bezier(.16,1,.3,1);
+  --scrim-modal:rgba(0,0,0,.45);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+}
+[data-theme='linear']{
+  --bg:#0D0E11; --surface:#14161B; --surface-2:#1A1D24; --surface-3:#1C1F26;
+  --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.14);
+  --text:rgba(255,255,255,.92); --text-2:rgba(255,255,255,.70); --text-3:rgba(255,255,255,.50); --text-4:rgba(255,255,255,.32);
+  --accent:#5E6AD2; --accent-2:#7A85E0; --accent-light:rgba(94,106,210,.16); --accent-hover:#828FFF; --accent-glow:rgba(109,92,232,.40);
+  --success:#27A644; --warning:#D9A03C; --danger:#E5484D;
+  --tag-neutral-bg:rgba(255,255,255,.06); --tag-neutral-text:rgba(255,255,255,.50);
+  --tag-ok-bg:rgba(39,166,68,.15); --tag-ok-text:#6FCE8B; --tag-warn-bg:rgba(217,160,60,.14); --tag-warn-text:#EFBE66;
+  --tag-info-bg:rgba(91,141,239,.15); --tag-info-text:#9CC0F5;
+  --success-bg-soft:rgba(39,166,68,.10); --warning-bg-soft:rgba(217,160,60,.10); --danger-bg-soft:rgba(229,72,77,.10);
+  --danger-border:rgba(229,72,77,.40);
+  --shadow-modal:0 2px 10px rgba(0,0,0,.35),0 28px 72px rgba(0,0,0,.60);
+  --shadow-drawer:0 0 0 1px var(--border),-16px 0 48px rgba(0,0,0,.55);
+}
+[data-theme='raycast']{
+  --bg:#08080A; --surface:#101014; --surface-2:#16161B; --surface-3:#1B1B21;
+  --border:rgba(255,255,255,.12); --border-strong:rgba(255,255,255,.18);
+  --text:rgba(255,255,255,.95); --text-2:rgba(255,255,255,.72); --text-3:rgba(255,255,255,.52); --text-4:rgba(255,255,255,.34);
+  --accent:#1E6FD9; --accent-2:#3D8BEA; --accent-light:rgba(30,111,217,.16); --accent-hover:#3E86E0; --accent-glow:rgba(30,111,217,.45);
+  --success:#27A644; --warning:#D9A03C; --danger:#E5484D;
+  --tag-neutral-bg:rgba(255,255,255,.08); --tag-neutral-text:rgba(255,255,255,.52);
+  --tag-ok-bg:rgba(39,166,68,.15); --tag-ok-text:#6FCE8B; --tag-warn-bg:rgba(217,160,60,.14); --tag-warn-text:#EFBE66;
+  --tag-info-bg:rgba(91,141,239,.15); --tag-info-text:#9CC0F5;
+  --success-bg-soft:rgba(39,166,68,.10); --warning-bg-soft:rgba(217,160,60,.10); --danger-bg-soft:rgba(229,72,77,.10);
+  --danger-border:rgba(229,72,77,.40);
+  --shadow-modal:0 2px 10px rgba(0,0,0,.40),0 28px 72px rgba(0,0,0,.70);
+  --shadow-drawer:0 0 0 1px var(--border),-16px 0 48px rgba(0,0,0,.70);
+}
+[data-theme='apple']{
+  --bg:#F5F5F7; --surface:#FFFFFF; --surface-2:#EFEFF2; --surface-3:#EAEAEF;
+  --border:rgba(0,0,0,.09); --border-strong:rgba(0,0,0,.15);
+  --text:rgba(0,0,0,.90); --text-2:rgba(0,0,0,.62); --text-3:rgba(0,0,0,.46); --text-4:rgba(0,0,0,.28);
+  --accent:#8452E0; --accent-2:#6C3FC8; --accent-light:#EFEBFB; --accent-hover:#6C3FC8; --accent-glow:rgba(132,82,224,.18);
+  --success:#27A644; --warning:#A66A00; --danger:#D0342C;
+  --tag-neutral-bg:#EFEFF2; --tag-neutral-text:rgba(0,0,0,.46);
+  --tag-ok-bg:#E4F2E8; --tag-ok-text:#2E7D42; --tag-warn-bg:#FBF1DE; --tag-warn-text:#8A5A00;
+  --tag-info-bg:#EFEBFB; --tag-info-text:#6C3FC8;
+  --success-bg-soft:rgba(39,166,68,.08); --warning-bg-soft:rgba(166,106,0,.10); --danger-bg-soft:rgba(208,52,44,.08);
+  --danger-border:rgba(208,52,44,.35);
+  --shadow-modal:0 2px 10px rgba(0,0,0,.06),0 28px 72px rgba(0,0,0,.16);
+  --shadow-drawer:0 0 0 1px var(--border),-12px 0 40px rgba(0,0,0,.10);
+}
+[data-theme='notion']{
+  --bg:#F7F6F3; --surface:#FFFFFF; --surface-2:#F2F0EB; --surface-3:#EEEAE3;
+  --border:rgba(40,34,24,.11); --border-strong:rgba(40,34,24,.18);
+  --text:rgba(35,31,25,.90); --text-2:rgba(35,31,25,.64); --text-3:rgba(35,31,25,.52); --text-4:rgba(35,31,25,.30);
+  --accent:#9E3FAF; --accent-2:#85349A; --accent-light:#F6EDF8; --accent-hover:#85349A; --accent-glow:rgba(158,63,175,.18);
+  --success:#448361; --warning:#C08A2D; --danger:#E03E3E;
+  --tag-neutral-bg:#F2F0EB; --tag-neutral-text:rgba(35,31,25,.52);
+  --tag-ok-bg:#E4F0E9; --tag-ok-text:#3B7355; --tag-warn-bg:#F9F0DC; --tag-warn-text:#8A6218;
+  --tag-info-bg:#F6EDF8; --tag-info-text:#85349A;
+  --success-bg-soft:rgba(68,131,97,.10); --warning-bg-soft:rgba(192,138,45,.12); --danger-bg-soft:rgba(224,62,62,.08);
+  --danger-border:rgba(224,62,62,.35);
+  --shadow-modal:0 2px 10px rgba(15,15,15,.06),0 28px 72px rgba(15,15,15,.16);
+  --shadow-drawer:0 0 0 1px var(--border),-12px 0 40px rgba(15,15,15,.08);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:var(--fs-body)/var(--lh-body) var(--font)}
+button,input,textarea,select{font-family:inherit;color:inherit}
+button{cursor:pointer}
+::selection{background:var(--accent-glow)}
+
+/* ===== 原型工具条 ===== */
+.bar{position:fixed;top:0;left:0;right:0;z-index:90;display:flex;align-items:center;gap:var(--sp-3);
+  padding:9px var(--sp-4);background:var(--surface);border-bottom:1px solid var(--border);font-size:var(--fs-sub);flex-wrap:wrap}
+.bar .lab{color:var(--text-3);font-size:var(--fs-caption);letter-spacing:var(--tracking-sm)}
+.seg{display:flex;border:1px solid var(--border-strong);border-radius:var(--radius-sm);overflow:hidden}
+.seg button{padding:5px 11px;background:transparent;border:0;border-right:1px solid var(--border);color:var(--text-2);font-size:var(--fs-sub);white-space:nowrap}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent);color:#fff;font-weight:600}
+.bar .ver{color:var(--text-3);margin-left:auto;font-size:var(--fs-caption)}
+details.spec{position:relative}
+details.spec summary{list-style:none;cursor:pointer;padding:5px 11px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);color:var(--accent-2);font-size:var(--fs-sub)}
+details.spec summary::-webkit-details-marker{display:none}
+.spec-body{position:fixed;right:var(--sp-4);top:52px;width:660px;max-width:94vw;max-height:84vh;overflow:auto;
+  background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius);box-shadow:var(--shadow-modal);
+  padding:var(--sp-4) var(--sp-5);font-size:var(--fs-sub);line-height:1.75;color:var(--text-2);z-index:95}
+.spec-body h4{margin:var(--sp-4) 0 var(--sp-1);color:var(--text);font-size:var(--fs-title)}
+.spec-body h4:first-child{margin-top:0}
+.spec-body ul{margin:var(--sp-1) 0;padding-left:18px}
+.spec-body li{margin:4px 0}
+.spec-body code{color:var(--accent-2);background:var(--accent-light);padding:1px 5px;border-radius:var(--radius-xs);font-size:var(--fs-caption)}
+.spec-body .q{color:var(--text);font-weight:600}
+.spec-body .no{color:var(--danger)}
+
+/* ===== 台面 ===== */
+.stage{padding-top:52px;min-height:100vh}
+.desk{padding:var(--sp-5) var(--sp-6);max-width:960px}
+.desk h1{font-size:var(--fs-display);font-weight:600;margin:0 0 var(--sp-1);letter-spacing:-.01em}
+.desk .sub{margin:0 0 var(--sp-5);color:var(--text-3);font-size:var(--fs-sub)}
+.desk .pool{display:flex;gap:var(--sp-2);margin-bottom:var(--sp-4);font-size:var(--fs-caption);color:var(--text-3);flex-wrap:wrap}
+.desk .pool b{color:var(--text);font-weight:600}
+.pill{padding:3px 9px;border-radius:var(--radius-xs);background:var(--surface-2);border:1px solid var(--border)}
+.pill.new{border-color:var(--accent);color:var(--accent-2);background:var(--accent-light)}
+.desk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:var(--sp-3)}
+.mini{padding:var(--sp-3) var(--sp-4);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-2);font-size:var(--fs-sub);line-height:1.6}
+.mini b{display:block;color:var(--text);font-size:var(--fs-body);font-weight:600;margin-bottom:3px}
+.mini.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.mini.gone{opacity:.35;border-style:dashed}
+.scrim{position:fixed;inset:52px 0 0;background:rgba(0,0,0,.32);z-index:40;opacity:0;pointer-events:none;transition:opacity var(--dur)}
+.scrim.on{opacity:1;pointer-events:auto}
+
+/* ===== 抽屉壳 ===== */
+.dr{position:fixed;top:52px;right:0;bottom:0;z-index:50;background:var(--surface);display:flex;flex-direction:column;
+  max-width:96vw;transform:translateX(103%);transition:transform .24s var(--ease-emphasis);overflow:hidden}
+.dr.on{transform:none}
+.dr.old{width:460px;border-left:1px solid var(--border);box-shadow:var(--shadow-drawer)}
+.dr.new{width:var(--dw,520px);border-left:1px solid var(--border);border-radius:var(--radius-xl) 0 0 var(--radius-xl);
+  box-shadow:var(--shadow-modal),var(--shadow-drawer)}
+.dr-head{display:flex;align-items:flex-start;gap:var(--sp-2);padding:var(--sp-3) var(--sp-5) var(--sp-2);flex-shrink:0}
+.dr.old .dr-head{padding:18px 20px;align-items:center;border-bottom:1px solid var(--border)}
+.dr-head .ht{flex:1;min-width:0}
+.dr.old .dr-head .ht{font-size:var(--fs-title);font-weight:600}
+.dr-side{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.x{width:26px;height:26px;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text-3);font-size:var(--fs-body);display:flex;align-items:center;justify-content:center;transition:all var(--dur)}
+.x:hover{background:var(--surface-3);color:var(--text)}
+.dr-body{flex:1;overflow-y:auto;padding:0 var(--sp-5) var(--sp-4);scrollbar-width:thin;display:flex;flex-direction:column;min-height:0}
+.dr.old .dr-body{padding:18px 20px;display:block}
+.dr-foot{display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-3) var(--sp-5);border-top:1px solid var(--border);flex-shrink:0}
+
+/* ===== 现行复刻（V3.5.0 真值，只作对照） ===== */
+.o-title-row{display:flex;align-items:flex-start;gap:var(--sp-2)}
+.o-title{flex:1;width:100%;resize:none;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);
+  padding:10px 12px;font-size:var(--fs-title);font-weight:600;line-height:1.5}
+.o-ai{display:inline-flex;align-items:center;gap:5px;padding:7px 11px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);
+  background:var(--surface-2);color:var(--text-2);font-size:var(--fs-sub);font-weight:600;margin-top:4px;white-space:nowrap}
+.o-ai.primary{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
+.o-lab{font-size:var(--fs-caption);color:var(--text-3);letter-spacing:var(--tracking-sm);margin:var(--sp-4) 0 var(--sp-2)}
+.o-lab .h{color:var(--text-4);font-weight:400}
+.o-link{display:flex;gap:6px;align-items:center}
+.o-seg{display:flex;gap:5px}
+.o-seg span{padding:7px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:var(--text-2);font-size:var(--fs-sub);white-space:nowrap}
+.o-seg span.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.o-in{flex:1;min-width:0;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);font-size:var(--fs-body)}
+.o-ib{width:32px;height:32px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);color:var(--text-2);font-size:var(--fs-body)}
+.o-sel{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);font-size:var(--fs-body)}
+.o-tag{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;background:var(--accent-light);color:var(--accent-2);font-size:var(--fs-caption);margin:0 6px 6px 0}
+.o-add{padding:4px 10px;border:1px dashed var(--border-strong);border-radius:99px;background:transparent;color:var(--text-3);font-size:var(--fs-caption)}
+.o-ta{width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);padding:10px 12px;font-size:var(--fs-body);line-height:1.7;resize:vertical}
+.o-det{margin-top:var(--sp-3);border-top:1px solid var(--border);padding-top:var(--sp-3);font-size:var(--fs-sub);color:var(--text-2)}
+.o-det summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px}
+.o-det summary::-webkit-details-marker{display:none}
+.o-meta{margin-top:var(--sp-3);display:flex;gap:var(--sp-4);font-size:var(--fs-caption);color:var(--text-3)}
+.o-stat{margin-top:var(--sp-4);font-size:var(--fs-sub);color:var(--text-2);display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center}
+.o-chip{padding:2px 8px;border:1px solid var(--border);border-radius:99px;background:var(--surface-2);font-size:var(--fs-caption)}
+.o-del{padding:10px 14px;border:1px solid var(--border-strong);border-radius:9px;background:transparent;color:var(--text-3);font-size:var(--fs-body)}
+.o-save{flex:1;padding:10px 0;border:1px solid var(--accent);border-radius:9px;background:var(--accent);color:#fff;font-size:var(--fs-body);font-weight:600}
+.o-flow{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2)}
+.o-flow button{text-align:left;padding:12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-2)}
+.o-flow b{display:block;font-size:var(--fs-body);margin-bottom:4px}
+.o-flow small{color:var(--text-3);font-size:var(--fs-caption);line-height:1.5;display:block}
+.o-quote{width:100%;border:0;border-left:3px solid var(--accent);background:var(--surface-2);padding:12px 14px;font-size:var(--fs-title);line-height:1.75}
+
+/* ===== 改造后 ===== */
+.n-kicker{font-size:var(--fs-caption);color:var(--text-4);letter-spacing:var(--tracking-sm);margin-bottom:1px}
+.n-h1{font-size:var(--fs-title);font-weight:600;line-height:var(--lh-title);border:1px solid transparent;background:transparent;
+  width:100%;padding:2px 6px;margin-left:-6px;border-radius:var(--radius-sm);resize:none;overflow:hidden;font-family:inherit;max-height:3.4em}
+.n-h1:hover{border-color:var(--border)}
+.n-h1:focus{outline:none;border-color:var(--accent);background:var(--surface-2);box-shadow:0 0 0 2px var(--accent-glow)}
+/* ★ R3：上半部模块化——分组面板（AI 帮忙 / 链接与归档 / 关联与凭证），描述独立浮在面板之外 */
+.pnl{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:0 var(--sp-3) 4px;margin-bottom:var(--sp-3);flex-shrink:0}
+.pnl-h{display:flex;align-items:baseline;gap:var(--sp-2);padding:9px 2px 8px;border-bottom:1px solid var(--border)}
+.pnl-h b{font-size:var(--fs-caption);color:var(--text-3);letter-spacing:var(--tracking-sm);font-weight:600;white-space:nowrap}
+.pnl-h i{font-style:normal;font-size:var(--fs-caption);color:var(--text-4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pnl-h .r{margin-left:auto;font-size:var(--fs-caption);color:var(--text-4);white-space:nowrap}
+.ai-item{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--border);cursor:pointer}
+.ai-item:last-child{border-bottom:0}
+.ai-item .ico{width:26px;height:26px;flex-shrink:0;border-radius:var(--radius-sm);background:var(--accent-light);color:var(--accent-2);
+  display:flex;align-items:center;justify-content:center;transition:box-shadow var(--dur)}
+.ai-item .ico svg{width:14px;height:14px}
+.ai-item:hover .ico{box-shadow:0 0 0 3px var(--accent-glow)}
+.ai-item .tx{flex:1;min-width:0}
+.ai-item .tx b{display:block;font-size:var(--fs-sub);font-weight:600;color:var(--text);line-height:1.45}
+.ai-item .tx small{display:block;font-size:var(--fs-caption);color:var(--text-3);line-height:1.5;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-item:hover .tx b{color:var(--accent-2)}
+.ai-item .go{color:var(--text-4);font-size:var(--fs-sub);flex-shrink:0}
+.ai-item.running .ico svg{animation:turn 1.1s linear infinite}
+@keyframes turn{to{transform:rotate(360deg)}}
+.ai-item:disabled{opacity:.5;cursor:not-allowed}
+/* ★ R4：AI 入口并成一行两格（两个功能入口本就是并列关系，不必各占一行） */
+.ai-strip{display:grid;grid-template-columns:1fr 1fr auto;gap:var(--sp-2);align-items:stretch;margin-bottom:var(--sp-3);flex-shrink:0}
+.ai-cell{display:flex;align-items:center;gap:9px;padding:9px 11px;min-width:0;text-align:left;cursor:pointer;
+  border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface-2);transition:border-color var(--dur),box-shadow var(--dur)}
+.ai-cell .ico{width:24px;height:24px;flex-shrink:0;border-radius:var(--radius-sm);background:var(--accent-light);color:var(--accent-2);
+  display:flex;align-items:center;justify-content:center;font-size:var(--fs-caption)}
+.ai-cell .ico svg{width:13px;height:13px}
+.ai-cell .tx{flex:1;min-width:0}
+.ai-cell .tx b{display:block;font-size:var(--fs-sub);font-weight:600;color:var(--text);line-height:1.35}
+.ai-cell .tx small{display:block;font-size:var(--fs-caption);color:var(--text-3);line-height:1.45;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-cell:hover{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.ai-cell:hover .tx b{color:var(--accent-2)}
+.ai-cell:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+.ai-cell.running .ico svg{animation:turn 1.1s linear infinite}
+.ai-when{display:flex;align-items:center;padding:0 10px;font-size:var(--fs-caption);color:var(--text-4);white-space:nowrap;
+  border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface)}
+.n-chip{font-size:var(--fs-caption);color:var(--text-3);white-space:nowrap;padding:2px 7px;border-radius:var(--radius-xs);background:var(--surface-3)}
+/* 面板内键值行：左固定标签 + 右内容，统一 38px 行高与 hairline 分隔 */
+.kv{display:flex;align-items:center;gap:var(--sp-2);min-height:34px;font-size:var(--fs-sub);border-bottom:1px solid var(--border)}
+.kv:last-child{border-bottom:0}
+.kv .kk{color:var(--text-4);font-size:var(--fs-caption);letter-spacing:var(--tracking-sm);width:34px;flex-shrink:0}
+.kv .vv{flex:1;min-width:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.n-seg{display:flex;border:1px solid var(--border);border-radius:var(--radius-xs);overflow:hidden;flex-shrink:0;background:var(--surface-2)}
+.n-seg span{padding:3px 7px;font-size:var(--fs-caption);color:var(--text-3);border-right:1px solid var(--border)}
+.n-seg span:last-child{border-right:0}
+.n-seg span.on{background:var(--accent-light);color:var(--accent-2);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
+.n-in{flex:1;min-width:0;border:1px solid transparent;background:transparent;padding:3px 6px;margin-left:-6px;border-radius:var(--radius-xs);font-size:var(--fs-sub);color:var(--text-2);text-overflow:ellipsis}
+.n-in:hover{border-color:var(--border)}
+.n-in:focus{outline:none;border-color:var(--accent);background:var(--surface-2);color:var(--text)}
+.n-ib{width:22px;height:22px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--surface);color:var(--text-3);
+  font-size:var(--fs-caption);display:flex;align-items:center;justify-content:center;transition:all var(--dur);flex-shrink:0}
+.n-ib:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
+.n-mval{font-size:var(--fs-sub);color:var(--text-2)}
+.n-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:var(--radius-xs);background:var(--tag-neutral-bg);
+  color:var(--tag-neutral-text);font-size:var(--fs-caption);margin-right:5px;white-space:nowrap}
+.n-tag i{font-style:normal;opacity:.45;cursor:pointer}
+.n-tag i:hover{opacity:1;color:var(--danger)}
+.n-add{padding:2px 7px;border:1px dashed var(--border-strong);border-radius:var(--radius-xs);background:transparent;color:var(--text-3);font-size:var(--fs-caption)}
+/* ★ 描述＝视觉焦点：自己占一组面板里最大的一块，安静到底 */
+.n-note{flex:1;width:100%;min-height:170px;border:1px solid transparent;background:transparent;padding:var(--sp-2) 10px;margin:2px -10px var(--sp-2);
+  border-radius:var(--radius-sm);font-size:var(--fs-title);line-height:1.9;resize:none;color:var(--text)}
+.n-note::placeholder{color:var(--text-4)}
+.n-note:hover{background:var(--surface-2)}
+.n-note:focus{outline:none;background:var(--surface-2);border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-glow)}
+/* 底部低重量信息条（支持的任务 / 附件 / 时间） */
+.n-sub{padding:2px 2px 8px;font-size:var(--fs-caption);color:var(--text-3);line-height:1.8}
+.n-sub .r{display:flex;gap:var(--sp-2);padding:4px 0;border-bottom:1px solid var(--border)}
+.n-sub .r:last-child{border-bottom:0}
+.n-sub .r b{color:var(--text-2);font-weight:500;flex:1;min-width:0}
+.n-st{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:var(--radius-xs);border:1px solid var(--border);
+  background:var(--surface-2);color:var(--text-2);font-size:var(--fs-caption);letter-spacing:var(--tracking-sm)}
+.n-st:hover{border-color:var(--accent);color:var(--accent)}
+.n-menu{position:absolute;right:var(--sp-5);top:64px;z-index:60;background:var(--surface);border:1px solid var(--border-strong);
+  border-radius:var(--radius);box-shadow:var(--shadow-modal);padding:4px;min-width:126px}
+.n-menu div{padding:6px 10px;border-radius:var(--radius-sm);font-size:var(--fs-sub);color:var(--text-2)}
+.n-menu div:hover{background:var(--surface-2);color:var(--text)}
+.n-menu div.on{color:var(--accent-2);background:var(--accent-light)}
+.n-pill{padding:2px 8px;border-radius:var(--radius-xs);font-size:var(--fs-caption);letter-spacing:var(--tracking-sm)}
+.n-pill.info{background:var(--tag-info-bg);color:var(--tag-info-text)}
+.n-pill.st{background:var(--surface-2);color:var(--text-3);border:1px solid var(--border)}
+.n-ghost{padding:8px 11px;border:1px solid transparent;border-radius:var(--radius-sm);background:transparent;color:var(--text-3);font-size:var(--fs-sub)}
+.n-ghost:hover{color:var(--danger);border-color:var(--danger-border);background:var(--danger-bg-soft)}
+.n-ghost.armed{color:#fff;background:var(--danger);border-color:var(--danger);font-weight:600}
+.n-dirty{font-size:var(--fs-caption);color:var(--text-4)}
+.n-save{margin-left:auto;padding:8px 20px;border:1px solid var(--accent);border-radius:var(--radius-sm);background:var(--accent);color:#fff;
+  font-size:var(--fs-body);font-weight:600;transition:all var(--dur) var(--ease-out-soft);display:inline-flex;align-items:center;gap:6px}
+.n-save:hover{background:var(--accent-hover);border-color:var(--accent-hover);box-shadow:0 4px 14px var(--accent-glow)}
+.n-save kbd{font-size:var(--fs-tiny);opacity:.72;font-weight:400}
+
+/* ===== 中央弹窗（R161 壳 + 本轮：可拖分栏 / 指令大框 / 单条判决卡） ===== */
+.mscrim{position:fixed;inset:0;background:var(--scrim-modal);z-index:70;opacity:0;pointer-events:none;transition:opacity var(--dur-slow)}
+.mscrim.on{opacity:1;pointer-events:auto}
+.modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.97);opacity:0;pointer-events:none;z-index:71;
+  --split:40%;width:min(1180px,94vw);height:min(760px,88vh);background:var(--surface);border:1px solid var(--border-strong);
+  border-radius:var(--radius-xl);box-shadow:var(--shadow-modal);display:flex;flex-direction:column;
+  transition:opacity var(--dur-slow),transform var(--dur-slow) var(--ease-emphasis)}
+.modal.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+.modal.dragging{user-select:none}   /* ★ 不能写 pointer-events:none——那会让分隔条自己的 click 事件落到 body（复位点不动） */
+.m-head{display:flex;align-items:center;gap:10px;padding:9px var(--sp-5);border-bottom:1px solid var(--border);flex-shrink:0}
+.m-head .ico2{width:30px;height:30px;flex-shrink:0;border-radius:var(--radius-sm);background:var(--accent-light);color:var(--accent-2);
+  display:flex;align-items:center;justify-content:center}
+.m-head .ico2 svg{width:15px;height:15px}
+.m-head .ht2{flex:1;min-width:0;display:flex;align-items:baseline;gap:10px}
+.m-head .mt{font-size:var(--fs-title);font-weight:600;line-height:1.35;white-space:nowrap}
+.m-head .ms2{font-size:var(--fs-caption);color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.m-head .sp{margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.m-pers{padding:5px 8px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface-2);font-size:var(--fs-sub);max-width:180px}
+.m-b{padding:6px 11px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--text-2);font-size:var(--fs-sub);transition:all var(--dur)}
+.m-b:hover{border-color:var(--accent);color:var(--accent)}
+.m-b.sm{padding:4px 9px;font-size:var(--fs-caption)}
+.m-b.on{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
+.m-step{font-size:var(--fs-caption);padding:1px 7px;border-radius:var(--radius-xs);background:var(--surface-2);color:var(--text-4);letter-spacing:var(--tracking-sm);white-space:nowrap}
+.m-step.done{color:var(--success);background:var(--success-bg-soft)}
+.m-step.on{color:#fff;background:var(--accent);font-weight:600}
+.m-step.live{color:var(--accent-2);background:var(--accent-light)}
+/* ★ R4：上半部压扁——步骤并进头部第二行；指令改成三列一条（标签 | 框 | 动作），默认两行高、可拖高 */
+.m-dir{display:grid;grid-template-columns:112px 1fr auto;gap:var(--sp-3);align-items:start;
+  padding:8px var(--sp-5);border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface-2)}
+.m-dir-h{display:flex;flex-direction:column;gap:4px;font-size:var(--fs-caption);color:var(--text-4);line-height:1.4}
+.m-dir-h b{color:var(--text-2);font-size:var(--fs-sub);letter-spacing:var(--tracking-sm)}
+.m-dir-h .tiers{display:flex;gap:4px}
+.m-dir-h .tier{padding:1px 6px;border:1px solid var(--border-strong);border-radius:var(--radius-xs);cursor:pointer;white-space:nowrap}
+.m-dir-h .tier.on{border-color:var(--accent);color:var(--accent-2);background:var(--accent-light)}
+.m-dir textarea{width:100%;min-height:46px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface);
+  padding:6px 10px;font-size:var(--fs-sub);line-height:1.6;resize:vertical}
+/* 不做"聚焦即长高"：整条带子会跳一下，右侧按钮会跑到鼠标底下（实测踩过）——要更大空间请往下拖 */
+.m-dir textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-glow)}
+.m-dir-f{font-size:var(--fs-caption);color:var(--text-4);margin-top:3px;line-height:1.45}
+.m-dir-act{display:flex;gap:6px;align-items:center;align-self:start;padding-top:9px}
+.m-body{flex:1;min-height:0;display:grid;grid-template-columns:var(--split) 7px 1fr}
+.m-body.single{grid-template-columns:1fr}
+.m-div{cursor:col-resize;background:var(--border);position:relative;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.m-div i{width:3px;height:26px;border-radius:2px;background:var(--border-strong);transition:all var(--dur)}
+.m-div:hover i,.m-div.act i{background:var(--accent);height:40px}
+.m-div::after{content:'';position:absolute;inset:0 -4px;}
+.m-div:hover,.m-div.act{background:transparent}
+.m-col{padding:var(--sp-4) var(--sp-5);min-width:0;overflow:auto}
+.m-col.l{background:var(--surface-2)}
+.m-col-h{position:sticky;top:0;z-index:2;background:var(--surface);display:flex;align-items:baseline;gap:var(--sp-2);
+  padding:12px 0 9px;margin:-16px 0 12px;border-bottom:1px solid var(--border)}
+.m-col.l .m-col-h{background:var(--surface-2)}
+.m-col-h b{font-size:var(--fs-sub);font-weight:600;letter-spacing:var(--tracking-sm);white-space:nowrap}
+.m-col-h i{font-style:normal;font-size:var(--fs-caption);color:var(--text-4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.m-col-h .r{margin-left:auto;font-size:var(--fs-caption);color:var(--text-4);white-space:nowrap}
+.m-prow{display:flex;gap:var(--sp-2);padding:7px 0;border-bottom:1px solid var(--border);font-size:var(--fs-sub);line-height:1.65}
+.m-prow:last-child{border-bottom:0}
+.m-prow.hot{background:var(--accent-light);box-shadow:-8px 0 0 var(--accent-light),8px 0 0 var(--accent-light)}
+.m-prow .k{width:40px;flex-shrink:0;color:var(--text-4);font-size:var(--fs-caption);letter-spacing:var(--tracking-sm);padding-top:1px}
+.m-prow .v{flex:1;min-width:0;color:var(--text-2);word-break:break-word}
+.m-prow .e{color:var(--text-4)}
+.card{position:relative;display:flex;gap:10px;padding:10px 12px 10px 15px;border:1px solid var(--border);border-radius:var(--radius);
+  margin-bottom:9px;background:var(--surface);transition:border-color var(--dur),box-shadow var(--dur)}
+.card::before{content:'';position:absolute;left:-1px;top:-1px;bottom:-1px;width:3px;border-radius:var(--radius) 0 0 var(--radius);background:var(--border-strong)}
+.card.t-new::before{background:var(--success)}
+.card.t-edit::before{background:var(--accent)}
+.card.t-move::before{background:var(--warning)}
+.card.t-same::before{background:var(--border-strong)}
+.card.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.card.weak{border-style:dashed}
+.card .cb{width:16px;height:16px;margin-top:1px;flex-shrink:0;accent-color:var(--accent)}
+.card .bd{flex:1;min-width:0}
+.card .hd{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.card .hd .f{font-size:var(--fs-caption);color:var(--text-4);letter-spacing:var(--tracking-sm)}
+.card .hd .sp{margin-left:auto}
+.card .mn{font-size:var(--fs-body);line-height:1.65;color:var(--text);word-break:break-word}
+.card .why{font-size:var(--fs-caption);color:var(--text-3);line-height:1.65;margin-top:5px;padding-top:5px;border-top:1px solid var(--border)}
+.card .why b{color:var(--text-2);font-weight:600}
+.card textarea{width:100%;border:1px solid var(--accent);border-radius:var(--radius-sm);background:var(--surface-2);padding:7px 9px;font-size:var(--fs-sub);line-height:1.6}
+.conf{font-size:var(--fs-caption);padding:1px 7px;border-radius:var(--radius-xs);letter-spacing:var(--tracking-sm)}
+.conf.ok{background:var(--tag-ok-bg);color:var(--tag-ok-text)}
+.conf.warn{background:var(--tag-warn-bg);color:var(--tag-warn-text)}
+.conf.st{background:var(--surface-2);color:var(--text-3);border:1px solid var(--border)}
+.chg{font-size:var(--fs-caption);color:var(--text-4)}
+.m-note{display:flex;gap:9px;align-items:flex-start;padding:9px 11px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--surface-2);font-size:var(--fs-caption);line-height:1.7;color:var(--text-2);margin-bottom:var(--sp-3)}
+.m-note .dot{width:6px;height:6px;border-radius:50%;background:var(--warning);margin-top:6px;flex-shrink:0}
+.m-note .dt{display:block;color:var(--text-3);margin-top:3px}
+.m-tools{display:flex;gap:6px;justify-content:flex-end;margin-bottom:var(--sp-3)}
+.m-run{padding:var(--sp-5);font-size:var(--fs-sub);color:var(--text-2);display:flex;flex-direction:column;gap:var(--sp-3)}
+.m-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block;animation:breathe 1.2s ease-in-out infinite}
+@keyframes breathe{50%{opacity:.35;transform:scale(.8)}}
+.m-stream{max-height:170px;overflow:auto;padding:9px 11px;background:var(--surface-3);border:1px solid var(--border);border-radius:var(--radius-sm);
+  font-size:var(--fs-caption);line-height:1.7;white-space:pre-wrap;color:var(--text-3);font-family:ui-monospace,Menlo,monospace}
+.m-foot{display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-3) var(--sp-5);border-top:1px solid var(--border);flex-shrink:0}
+.m-foot .usage{font-size:var(--fs-caption);color:var(--text-4);margin-right:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.m-primary{padding:9px 22px;border:1px solid var(--accent);border-radius:var(--radius-sm);background:var(--accent);color:#fff;font-weight:600;
+  font-size:var(--fs-body);transition:all var(--dur) var(--ease-out-soft);white-space:nowrap}
+.m-primary:hover{background:var(--accent-hover);box-shadow:0 4px 14px var(--accent-glow)}
+.m-primary:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+.m-verdict{padding:var(--sp-4) 0;display:flex;flex-direction:column;gap:var(--sp-4)}
+.m-vd-q{font-size:var(--fs-title);line-height:1.75;color:var(--text);border-left:2px solid var(--accent);padding-left:var(--sp-3)}
+.m-vd-3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-2)}
+.m-vd-3 button{text-align:left;padding:10px 11px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);transition:all var(--dur)}
+.m-vd-3 button b{display:block;font-size:var(--fs-sub);margin-bottom:3px;color:var(--text-2)}
+.m-vd-3 button small{font-size:var(--fs-caption);color:var(--text-4);line-height:1.5;display:block}
+.m-vd-3 button.on{border-color:var(--accent);background:var(--accent-light)}
+.m-vd-3 button.on b{color:var(--accent-2)}
+.m-vd-why{padding:var(--sp-3) var(--sp-4);background:var(--surface-2);border-radius:var(--radius);font-size:var(--fs-sub);line-height:1.8;color:var(--text-2)}
+.m-vd-why b{color:var(--text)}
+.toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%) translateY(12px);z-index:99;background:var(--surface-3);color:var(--text);
+  border:1px solid var(--border-strong);border-radius:var(--radius);padding:10px 16px;font-size:var(--fs-sub);box-shadow:var(--shadow-modal);
+  opacity:0;pointer-events:none;transition:all var(--dur-slow) var(--ease-emphasis);display:flex;gap:10px;align-items:center;max-width:80vw}
+.toast.on{opacity:1;transform:translateX(-50%)}
+.toast button{border:1px solid var(--accent);background:transparent;color:var(--accent-2);border-radius:var(--radius-xs);padding:2px 8px;font-size:var(--fs-caption)}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;animation-duration:4s!important}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <span class="lab">卡</span>
+  <div class="seg" id="segCard"><button data-v="res" class="on">资源卡</button><button data-v="curio">好奇卡</button></div>
+  <span class="lab">版式</span>
+  <div class="seg" id="segView"><button data-v="old">现行 V3.5.0</button><button data-v="new" class="on">改造后</button></div>
+  <span class="lab">主题</span>
+  <div class="seg" id="segTheme"><button data-v="linear">linear</button><button data-v="raycast">raycast</button><button data-v="apple" class="on">apple</button><button data-v="notion">notion</button></div>
+  <span class="lab">抽屉宽</span>
+  <div class="seg" id="segW"><button data-v="460">460</button><button data-v="520" class="on">520</button></div>
+  <details class="spec"><summary>本轮 5 条改动 · 依据 · 待拍板</summary><div class="spec-body" id="specBody"></div></details>
+  <span class="ver">R167-R4 提案 · 真令牌 · 未落码</span>
+</div>
+
+<div class="stage"><div class="desk" id="desk"></div></div>
+<div class="scrim" id="scrim"></div>
+<aside class="dr" id="dr"></aside>
+<div class="mscrim" id="mscrim"></div>
+<div class="modal" id="modal"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================ 数据（两张真卡 + 一池任务卡） ============================ */
+const CARDS = {
+  res: {
+    kind:'res', kicker:'资源卡 · 工具库', title:'LobeHub Icons｜1605+ AI 品牌与模型图标，SVG/PNG/WebP 直取',
+    linkType:'url', link:'https://lobehub.com/icons', cat:'工具库',
+    tags:['内容生产工程/图文设计制作','AI工具与知识库/AI模型与对话'],
+    desc:'收录 1605+ 款主流 AI/LLM 品牌与模型图标，一个页面里可批量下载 SVG/PNG/WebP，并提供 npm 包 @lobehub/icons 直接 import。做图文封面、PPT 品牌页、Agent 界面时省掉逐个搜官方 logo 的时间；商用前仍需自查各家授权。',
+    callCount:12, lastCalled:'2026/9/20 08:41', pinned:true, starred:true,
+    assets:[{t:'image',n:'预览 · 图标墙.png',s:'486 KB'},{t:'html',n:'lobehub-icons-离线版.html',s:'2.1 MB'}],
+    supports:[{t:'做一期「AI 图标全家桶」图文',p:'内容生产工程',from:'ai'}],
+    created:'2026/8/31 09:04', updated:'2026/9/20 13:56', aiTouchedAt:null
+  },
+  curio: {
+    kind:'curio', kicker:'好奇心卡 · 待探索', status:'待探索', grade:'A · 就绪 75',
+    question:'大家每天上班的时候，真正消耗时间的根本不是写方案，而是找文件、回消息、对数据、同步进度、翻记录找某个需求。我花时间把 WorkBuddy 修炼清单上的 15 个场景都扒出来了，不用谢，直接拿走开干\n\n01｜个人专属工作台\n5 分钟内完成 WorkBuddy 配置，晨间启动效率直接拉满。',
+    source:'https://x.com/i/history', tags:[], assets:[],
+    callCount:5, created:'2026/8/31', updated:'2026/9/14 23:06', aiTouchedAt:null
+  }
+};
+/* 任务调度里的全量任务卡（「关联任务」要扫的就是这张池） */
+const TASKPOOL = [
+  {id:'t1', title:'做一期「AI 图标全家桶」图文', p:'内容生产工程', st:'进行中', tags:['图文设计制作','AI工具'], desc:'找齐 20 家模型官方 logo，出一张对照长图', linked:true},
+  {id:'t2', title:'把图标库接进 Agent 提示词模板', p:'Agent 工作流', st:'待开始', tags:['Agent','提示词'], desc:'让 Agent 出图时自动带官方 logo，不再手贴', linked:false},
+  {id:'t3', title:'重做方案 PPT 的品牌页模板', p:'内容生产工程', st:'待开始', tags:['PPT','品牌'], desc:'统一客户方案里的模型标识与配色', linked:false},
+  {id:'t4', title:'整理 9 月交付素材库', p:'经营', st:'进行中', tags:['素材','归档'], desc:'把散在微信里的图归到一处', linked:false},
+  {id:'t5', title:'面谈流程 SOP：三算一遍', p:'获客', st:'待开始', tags:['面谈','SOP'], desc:'当场算给客户看', linked:false},
+  {id:'t6', title:'周报模板改版', p:'经营', st:'已完成', tags:['周报'], desc:'——', linked:false},
+  {id:'t7', title:'搭一版个人专属工作台（WorkBuddy 15 场景）', p:'效率基建', st:'待开始', tags:['工作台','自动化'], desc:'晨间启动 5 分钟拉满', linked:false},
+  {id:'t8', title:'给家庭客户做一版可视化对比表', p:'获客', st:'进行中', tags:['表格','对比'], desc:'——', linked:false}
+];
+const STATUSES = ['待探索','在推进','已搁置'];
+const CATS = ['工具库','内容生产工程','AI工具与知识库','待分类'];
+const POOL = { todo:4, converted:1, shelved:0 };
+
+/* ============================ AI 数据集 ============================ */
+const JOBS = {
+  /* ★ 改动 2：补全与优化并成一枚——「AI 补全」自己判：链接是 http(s) 就顺手把正文抓回来 */
+  enrich: {
+    key:'enrich', card:'res', title:'AI 补全', subject:'自动抓链接正文 → 一体补全标题 / 描述 / 标签 / 分类（已填的不覆盖）',
+    hint:'点了才抓。链接是 http(s) 就先抓正文再补；本地文件 / Obsidian 链接不抓，只按卡上信息与库内既有体系补。',
+    steps:['判链接可抓','抓取正文','比对既有体系','消毒校验'],
+    feed:[['抓取','lobehub.com/icons 正文 12,400 字 → 归一化后投料 3,214 字'],
+          ['体系','库内既有标签 148 条 · 分类 31 个（只准选这些，现造的判低置信）'],
+          ['边界','已填内容不重写；链接与附件一字不动；勾选才落库']],
+    impact:'采纳后写这张卡：描述改写、标签 +1、分类改挂 1 处；链接与附件一字不动。',
+    audit:'消毒：1 行建议的分类不在既有体系内，已判弱',
+    personas:{ '默认':{ rows:[
+        {k:'标题',main:'LobeHub Icons｜1605+ AI 品牌与模型图标，SVG/PNG/WebP 直取',ct:'same',sub:'上一轮已采纳，未再改'},
+        {k:'描述',badge:'改写',bt:'info',main:'收录 1605+ 款主流 AI/LLM 品牌与模型图标，一个页面里可批量下载 SVG/PNG/WebP，并提供 npm 包 @lobehub/icons 直接 import。做图文封面、PPT 品牌页、Agent 界面时省掉逐个搜官方 logo 的时间；商用前仍需自查各家授权（本条是自用结论，非官方承诺）。',ct:'edit',sub:'补了「授权是自用结论」这句限定，避免读成官方承诺'},
+        {k:'标签',badge:'新增',bt:'ok',main:'#AI工具与知识库/图标与素材',ct:'new',sub:'体系内已有 12 张同类卡用这条，本卡缺'},
+        {k:'分类',badge:'低置信',bt:'warn',weak:true,main:'工具库 › 图标与素材',ct:'move',sub:'库里无此二级分类，模型现造——要采纳请先建分类'}
+      ]},
+      '严谨事实核查人设':{ rows:[
+        {k:'标题',main:'LobeHub Icons｜1605+ AI 品牌与模型图标，SVG/PNG/WebP 直取',ct:'same'},
+        {k:'描述',badge:'改写',bt:'info',main:'逐句标了出处：数量、格式、npm 包名三条来自正文原文；「省去逐个搜官方 logo 的时间」是你的判断，建议保留但注明是自用结论。',ct:'edit',sub:'把"事实"与"结论"分开写'},
+        {k:'标签',badge:'新增',bt:'ok',main:'#AI工具与知识库/图标与素材',ct:'new',sub:'体系内已有 12 张同类卡用这条'},
+        {k:'凭据',badge:'低置信',bt:'warn',weak:true,main:'建议补一条「最近核对日期」',ct:'new',sub:'卡上无此字段，只能写进描述——默认不勾'}
+      ]}}
+    },
+  /* ★ 改动 3：新增「关联任务」——全量读任务卡，本地预筛 + 模型排序写判词，采纳只写 SupportLink 记录 */
+  linkTask: {
+    key:'linkTask', card:'res', title:'关联任务', subject:'扫任务调度全量任务卡 → 找出这条资源支撑着哪些任务',
+    hint:'本地先按词面/标签把 8 张任务卡预筛成候选，再让模型排序并各写一句"为什么相关"。采纳只写关联记录，任务卡本体一字不改。',
+    steps:['扫全量任务卡','本地预筛','模型排序判词','消毒校验'],
+    impact:'采纳后：任务侧「资源支持」区出现这条资源（SupportLink 记录）。任务卡与资源卡本体零改动，解绑只在任务侧做。',
+    audit:'消毒：2 行点名的任务卡不在池内或已删除，已丢弃',
+    personas:{ '默认':{ rows:[
+        {k:'任务',badge:'高相关',bt:'ok',main:'把图标库接进 Agent 提示词模板',ct:'new',sub:'这条卡的存在理由就是"出图带官方 logo"，与本资源唯一用途重合 · 归属 Agent 工作流'},
+        {k:'任务',badge:'高相关',bt:'ok',main:'重做方案 PPT 的品牌页模板',ct:'new',sub:'品牌页要放模型标识，本资源是它的取料口 · 归属 内容生产工程'},
+        {k:'任务',badge:'继续养',bt:'st',main:'做一期「AI 图标全家桶」图文',ct:'same',sub:'已关联（左栏第一条），不重复挂'},
+        {k:'任务',badge:'低置信',bt:'warn',weak:true,main:'整理 9 月交付素材库',ct:'new',sub:'模型没给理由——只凭"素材"两字撞上的，默认不勾'}
+      ]},
+      '产品经理 · 拆执行人设':{ rows:[
+        {k:'任务',badge:'高相关',bt:'ok',main:'把图标库接进 Agent 提示词模板',ct:'new',sub:'本资源就是这条任务的前置物料 · Agent 工作流'},
+        {k:'任务',badge:'高相关',bt:'ok',main:'做一期「AI 图标全家桶」图文',ct:'new',sub:'图文素材直接来自本资源，且已关联，建议保留 · 内容生产工程'},
+        {k:'任务',badge:'低置信',bt:'warn',weak:true,main:'搭一版个人专属工作台（WorkBuddy 15 场景）',ct:'new',sub:'理由只提到"效率工具"，与图标库关系绕了一层——默认不勾'}
+      ]}}
+    },
+  triage: {
+    key:'triage', card:'curio', title:'这条好奇要不要转任务', subject:'单条研判：判据是对不对得上愿景与活跃目标',
+    hint:'只判这一条。转=按建议标题走既有转化通道；搁置=置为「已搁置」（不删卡）；继续养=只看不写。',
+    steps:['读这条好奇','扫活跃目标与愿景','消毒校验'],
+    impact:'★ 采纳「转任务」= 新建 1 张任务卡（问题原文进描述、来源随卡带走）＋ <b>本条好奇卡从池里离场</b>（软删进回收站，可撤）＋ 池指标「已转化」+1。',
+    audit:'消毒：0 行被丢弃',
+    verdicts:['convert','keep','drop'],
+    personas:{ '默认':{ verdict:'convert', taskTitle:'搭一版个人专属工作台（WorkBuddy 15 场景）',
+        why:'这条已经有明确产物形态（15 个场景清单），拆得开、这周就能验收；对得上活跃目标「本周产出 2 篇实操图文」——工作台本身就是素材池。',
+        basis:['愿景：把重复劳动变成可复制的产物','活跃目标：本周产出 2 篇实操图文','池内 4 条里唯一带可数清单的一条'],
+        alt:{ keep:'场景清单还没落到自己机器上验证，先养一周看是否真的天天用。', drop:'与「Agent 工作流」项目下的既有任务重复，建议并过去。' }
+      },
+      '产品经理 · 拆执行人设':{ verdict:'convert', taskTitle:'个人专属工作台：先做 01/03/07 三个场景（其余 12 个待验证）',
+        why:'15 个场景一次做完必然烂尾。首版只取三个高频的（晨间启动 / 找文件 / 同步进度），三天内可验收，跑通再扩。',
+        basis:['你近 7 天打开本卡 5 次——需求是真的','但 15 场景 = 15 个子任务，超出单周容量','来源是别人的清单，未经自己机器验证'],
+        alt:{ keep:'先手动用三天，记下哪几个场景真被触发，再决定拆哪几个。', drop:'暂不转：等 WorkBuddy 版本稳定后再说。' }
+      }}
+  }
+};
+
+/* ============================ 状态 ============================ */
+const S = {
+  card:'res', view:'new', theme:'apple', dw:520,
+  drawer:true, statusMenu:false, moreOpen:false, supOpen:false,
+  dirty:new Set(),
+  modal:null, mphase:'idle', persona:'默认',
+  picks:new Set(), edits:{}, onlyDiff:false, showRaw:false, hotPair:'',
+  dir:'', dirTier:'card', dirEcho:'', verdict:'convert',
+  secs:0, feed:{chars:0}, split:40, dragging:false, dragged:false, armDel:0
+};
+const $ = s => document.querySelector(s);
+const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const raw = t => String(t)                       /* 只给内部构造好的富文本片段用 */
+const card = () => CARDS[S.card];
+const job = () => S.modal ? JOBS[S.modal] : null;
+const rows = () => { const j=job(); if(!j||j.verdicts) return []; const p=j.personas[S.persona]||j.personas[Object.keys(j.personas)[0]]; return p.rows||[] };
+const MARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="2.7" r="1"/><path d="M12 3.7v1.7"/><rect x="3.4" y="5.4" width="17.2" height="12.6" rx="3.8"/><circle cx="9.1" cy="11.4" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.9" cy="11.4" r="1.2" fill="currentColor" stroke="none"/><path d="M9.6 14.9h4.8"/></svg>';
+const LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
+
+function toast(msg, act){
+  const t=$('#toast'); t.innerHTML = esc(msg) + (act?`<button>${esc(act)}</button>`:'');
+  t.classList.add('on'); clearTimeout(toast._h); toast._h=setTimeout(()=>t.classList.remove('on'), 3200);
+}
+/* ★ 打字时绝不整块重渲染（会丢光标）：脏数只就地改那行小字 */
+function paintDirty(){ const el=$('#dr .n-dirty'); if(el) el.textContent = S.dirty.size?`未保存 · ${S.dirty.size} 处`:'已保存' }
+function markDirty(k){ S.dirty.add(k); paintDirty() }
+function nowHM(){ const d=new Date(); return `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${d.toTimeString().slice(0,5)}` }
+
+/* ============================ 台面 ============================ */
+function renderDesk(){
+  const res = [['LobeHub Icons｜1605+ AI 品牌与模型图标','收录 1605+ 款主流 AI/LLM 品牌与模型图标…',S.card==='res'?1:0],
+    ['Obsidian + Claude 的本地资料库搭法','把 3 年笔记变成可检索的上下文…',0],
+    ['即梦 / 可灵 提示词对照表','同一句提示词在两家上的出图差异…',0]];
+  const gone = CARDS.curio.inPool===false;
+  const cur = [[gone?'（已离场 · 回收站可撤）':'大家每天上班真正消耗时间的不是写方案…',
+      gone ? (CARDS.curio.leftTo==='task'?'→ 已转为任务「搭一版个人专属工作台」':'→ 已归档为资源') : 'WorkBuddy 15 个场景，直接拿走开干',
+      S.card==='curio'&&!gone?1:0],
+    ['为什么家庭客户更信"手算一遍"？','面谈时当场算给他看，成交率差 3 倍',0],
+    ['小红书图文的第一张图到底放什么','待验证：3 种封面结构',0]];
+  const list = S.card==='res'?res:cur;
+  const poolLine = S.card==='res'
+    ? `<span class="pill">资源台 148 张</span><span class="pill">工具库 31</span><span class="pill">待分类 6</span>`
+    : `<span class="pill">待探索 <b>${POOL.todo}</b></span><span class="pill">在推进 1</span>
+       <span class="pill ${POOL.converted?'new':''}">已转化 <b>${POOL.converted}</b>　<span style="color:var(--text-4)">★ 本轮新增指标</span></span>
+       <span class="pill">已搁置 ${POOL.shelved}</span>`;
+  $('#desk').innerHTML = `<h1>${S.card==='res'?'资源台':'好奇心池'}</h1>
+    <p class="sub">原型上下文——点任一卡片可重开抽屉。本页只演示详情与 AI 交互，台面本身不改。</p>
+    <div class="pool">${poolLine}</div>
+    <div class="desk-grid">${list.map((x,i)=>`<div class="mini ${x[2]?'on':''} ${S.card==='curio'&&i===0&&gone?'gone':''}" data-act="desk" data-i="${i}"><b>${esc(x[0])}</b>${esc(x[1])}</div>`).join('')}</div>`;
+}
+
+/* ============================ 抽屉 ============================ */
+function renderDrawer(){
+  const dr=$('#dr'), c=card();
+  dr.className = 'dr ' + (S.view==='old'?'old':'new') + (S.drawer?' on':'');
+  dr.style.setProperty('--dw', S.dw+'px');
+  dr.innerHTML = S.view==='old' ? (c.kind==='res'?oldRes():oldCurio()) : (c.kind==='res'?newRes():newCurio());
+  $('#scrim').classList.toggle('on', S.drawer);
+  dr.querySelectorAll('textarea[data-auto]').forEach(t=>{ t.style.height='auto'; t.style.height=(t.scrollHeight+2)+'px' })
+}
+function oldHead(c){
+  return `<div class="dr-head"><div class="ht">${c.kind==='res'?esc(c.title):'好奇心详情'}</div>
+    <div class="dr-side">${c.kind==='curio'?`<span class="o-chip">💡 ${c.status}</span><span class="o-chip">${c.grade}</span><span class="o-chip">📌</span>
+      <button class="o-ai primary" data-act="ai" data-k="triage">${MARK} ${c.aiTouchedAt?'↻ 重新研判':'研判'}</button>`:''}
+      <button class="x" data-act="close">×</button></div></div>`;
+}
+function oldRes(){
+  const c=card();
+  return oldHead(c)+`
+  <div class="dr-body">
+    <div class="o-title-row">
+      <textarea class="o-title" rows="2">${esc(c.title)}</textarea>
+      <button class="o-ai" data-act="ai" data-k="enrich">${MARK} 补全</button>
+      <button class="o-ai primary" data-act="ai" data-k="enrich">${MARK} ${c.aiTouchedAt?'↻ 重新优化':'AI 优化'}</button>
+    </div>
+    <div class="o-lab">链接 <span class="h">— 双击卡片即可打开 · Ctrl+↩ 保存</span></div>
+    <div class="o-link"><div class="o-seg"><span class="on">URL</span><span>📁 本地</span><span>📝 Obsidian</span></div>
+      <input class="o-in" value="${esc(c.link)}"><button class="o-ib">↗</button><button class="o-ib">⧉</button></div>
+    <div class="o-lab">📁 分类 <span class="h">— 真身只在资源台，策展台以镜像呈现</span></div>
+    <select class="o-sel"><option>${c.cat}</option></select>
+    <div style="margin-top:14px">${c.tags.map(t=>`<span class="o-tag">#${esc(t)} ×</span>`).join('')}<span class="o-add">+ 标签</span></div>
+    <div class="o-lab">我的注解 <span class="h">— 为什么收藏它 · 拖右下角调高</span></div>
+    <textarea class="o-ta" rows="7">${esc(c.desc)}</textarea>
+    <details class="o-det"><summary>▸ 📎 附件 <span style="color:var(--text-3)">?</span></summary>
+      <div style="padding:8px 0 0;color:var(--text-3);font-size:var(--fs-caption)">图片 ≤9 张 / HTML 1 个 / PDF 1 份</div></details>
+    <div class="o-stat"><span>📊 使用统计</span><span>打开 <b>${c.callCount}</b> 次</span><span>· 最近 ${c.lastCalled}</span>
+      <span class="o-chip">📌 置顶</span><span class="o-chip">⭐ 星标</span></div>
+    <div class="o-lab" style="margin-top:18px">支持的任务 <span class="h">— 被哪些任务当依据（只读）</span></div>
+    ${c.supports.map(s=>`<div style="display:flex;gap:8px;font-size:var(--fs-sub);padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="flex:1">${esc(s.t)}</span><span style="color:var(--text-3)">${esc(s.p)}</span></div>`).join('')}
+    <div class="o-meta"><span>创建 ${c.created}</span><span>更新 ${c.updated}</span></div>
+  </div>
+  <div class="dr-foot"><button class="o-del">🗑 删除</button><button class="o-save">✓ 保存 <span style="font-size:var(--fs-tiny);opacity:.7">Ctrl+↩</span></button></div>`;
+}
+function oldCurio(){
+  const c=card();
+  return oldHead(c)+`
+  <div class="dr-body">
+    <div class="o-lab">问题原文 <span class="h">— 点击即编辑 · Ctrl+↩ 保存并关闭</span></div>
+    <textarea class="o-quote" rows="9">${esc(c.question)}</textarea>
+    <div class="o-meta"><span>捕获 ${c.created}</span><span>更新 ${c.updated}</span><span>打开 ${c.callCount} 次</span></div>
+    <div class="o-lab">🔗 来源</div>
+    <div class="o-link"><input class="o-in" value="${esc(c.source)}"><button class="o-ib">↗</button><button class="o-ib">⧉</button></div>
+    <div style="margin-top:14px"><span class="o-add">+ 标签</span></div>
+    <details class="o-det"><summary>▸ 📎 附件 <span style="margin-left:auto;color:var(--text-4);font-size:var(--caption)">图片弹窗预览 / HTML 新标签打开</span></summary></details>
+    <div class="o-lab">流转 <span class="h">— 这条好奇的下一步</span></div>
+    <div class="o-flow">
+      <button data-act="flow" data-t="task"><b>→ 转为任务</b><small>拆成可执行步骤 · 进方向台 · 来源链接随卡带走</small></button>
+      <button data-act="flow" data-t="res"><b>📄 归档为资源</b><small>存入资源台长期调用 · 选策展台与分类</small></button>
+    </div>
+  </div>
+  <div class="dr-foot"><button class="o-del">🗑 删除</button><button class="o-save">✓ 保存 <span style="font-size:var(--fs-tiny);opacity:.7">⏎</span></button></div>`;
+}
+/* ★ 改动 1：上半部压成「标题一行 + AI 一行 + 元信息两行」，剩下全给描述 */
+function newRes(){
+  const c=card();
+  return `<div class="dr-head"><div class="ht">
+      <div class="n-kicker">${esc(c.kicker)}</div>
+      <textarea class="n-h1" rows="1" data-auto data-k="title" oninput="markDirty('title');autoGrow(this)">${esc(c.title)}</textarea>
+    </div>
+    <div class="dr-side"><span class="n-pill st">置顶 · 星标</span><button class="x" data-act="close">×</button></div></div>
+  <div class="dr-body">
+    <div class="ai-strip">
+      <button class="ai-cell" data-act="ai" data-k="enrich" ${S.modal?'disabled':''}>
+        <span class="ico">${MARK}</span>
+        <span class="tx"><b>AI 补全</b><small>自动抓链接正文 · 一体补四项</small></span></button>
+      <button class="ai-cell" data-act="ai" data-k="linkTask" ${S.modal?'disabled':''}>
+        <span class="ico">${LINK}</span>
+        <span class="tx"><b>关联任务</b><small>扫全量任务卡 · 找这条在支撑谁</small></span></button>
+      ${c.aiTouchedAt?`<span class="ai-when">最近 · ${c.aiTouchedAt}</span>`:''}
+    </div>
+    <section class="pnl">
+      <div class="pnl-h"><b>链接与归档</b><i>双击卡片即打开</i><span class="r">开 ${c.callCount} 次 · 最近 ${c.lastCalled}</span></div>
+      <div class="kv"><span class="kk">链接</span><span class="vv">
+        <div class="n-seg">${['URL','本地','Obsidian'].map((x,i)=>`<span class="${i===0?'on':''}" data-act="linkType" data-i="${i}">${x}</span>`).join('')}</div>
+        <input class="n-in" value="${esc(c.link)}" data-k="link" oninput="markDirty('link')">
+        <button class="n-ib" data-act="open" title="打开并计一次">↗</button><button class="n-ib" data-act="copy">⧉</button></span></div>
+      <div class="kv"><span class="kk">分类</span><span class="vv"><span class="n-mval" data-act="editCat" style="cursor:pointer">${esc(c.cat)}</span><span class="go" style="margin-left:auto;color:var(--text-4)">›</span></span></div>
+      <div class="kv"><span class="kk">标签</span><span class="vv">
+        ${c.tags.map(t=>`<span class="n-tag">#${esc(t.split('/').pop())}<i data-act="untag" data-t="${esc(t)}">×</i></span>`).join('')}
+        <button class="n-add" data-act="addtag">+ 标签</button></span></div>
+    </section>
+    <section class="pnl" style="display:flex;flex-direction:column;min-height:34vh">
+      <div class="pnl-h"><b>我的注解</b><i>为什么收藏它 · 点进去即编辑</i><span class="r">${c.desc.length} 字</span></div>
+      <textarea class="n-note" data-k="desc" oninput="markDirty('desc')">${esc(c.desc)}</textarea>
+    </section>
+    <section class="pnl">
+      <div class="pnl-h"><b>关联与凭证</b><i>解绑只在任务侧（定案 10：资源侧只读）</i></div>
+      <div class="kv" data-act="supOpen"><span class="kk">任务</span><span class="vv"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.supports.map(s=>s.t).join(' · ')}</span><span class="go">${S.supOpen?'▾':'›'}</span></span></div>
+      ${S.supOpen?`<div class="n-sub">${c.supports.map(s=>`<div class="r"><b>${esc(s.t)}</b><span>${esc(s.p)} · ${s.from==='ai'?'AI 关联':'手动'}</span></div>`).join('')}</div>`:''}
+      <div class="kv" data-act="moreOpen"><span class="kk">附件</span><span class="vv"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${S.moreOpen?'收起':c.assets.length+' 个 · 创建 '+c.created}</span><span class="go">${S.moreOpen?'▾':'›'}</span></span></div>
+      ${S.moreOpen?`<div class="n-sub">${c.assets.map(a=>`<div class="r"><b>${a.t==='image'?'图':'页'} · ${esc(a.n)}</b><span>${a.s}</span></div>`).join('')}
+        <div class="r"><b>更新</b><span>${c.updated}</span></div></div>`:''}
+    </section>
+  </div>
+  <div class="dr-foot">
+    <button class="n-ghost ${S.armDel?'armed':''}" data-act="del">${S.armDel?'再点一次确认':'删除'}</button>
+    <span class="n-dirty">${S.dirty.size?`未保存 · ${S.dirty.size} 处`:'已保存'}</span>
+    <button class="n-save" data-act="save">✓ 保存 <kbd>Ctrl+↩</kbd></button>
+  </div>`;
+}
+function newCurio(){
+  const c=card();
+  return `<div class="dr-head"><div class="ht">
+      <div class="n-kicker">${esc(c.kicker)} · 打开 ${c.callCount} 次</div>
+      <textarea class="n-h1" rows="2" data-auto data-k="qtitle" oninput="markDirty('qtitle');autoGrow(this)">${esc(c.question.split('\n')[0])}</textarea>
+    </div>
+    <div class="dr-side"><button class="n-st" data-act="statusMenu">${c.status} ▾</button><span class="n-pill info">${c.grade}</span>
+      <button class="x" data-act="close">×</button></div></div>
+  <div class="dr-body">
+    <div class="ai-strip">
+      <button class="ai-cell" data-act="ai" data-k="triage" ${S.modal?'disabled':''}>
+        <span class="ico">${MARK}</span>
+        <span class="tx"><b>${c.aiTouchedAt?'↻ 重新研判':'研判要不要转'}</b><small>比对愿景与活跃目标 · 勾选才动卡</small></span></button>
+      <button class="ai-cell" data-act="judgeNote">
+        <span class="ico">📝</span>
+        <span class="tx"><b>判词写进详情</b><small>只追加一段字 · 不动状态不建卡</small></span></button>
+      ${c.aiTouchedAt?`<span class="ai-when">最近 · ${c.aiTouchedAt}</span>`:''}
+    </div>
+    <section class="pnl">
+      <div class="pnl-h"><b>来源与标签</b><i>转任务时来源随卡带走</i><span class="r">打开 ${c.callCount} 次</span></div>
+      <div class="kv"><span class="kk">来源</span><span class="vv"><input class="n-in" value="${esc(c.source)}" data-k="source" oninput="markDirty('source')">
+        <button class="n-ib" data-act="open">↗</button><button class="n-ib" data-act="copy">⧉</button></span></div>
+      <div class="kv"><span class="kk">标签</span><span class="vv">${c.tags.length?c.tags.map(t=>`<span class="n-tag">#${esc(t)}<i data-act="untag" data-t="${esc(t)}">×</i></span>`).join(''):'<span style="color:var(--text-4)">（空）</span>'}
+        <button class="n-add" data-act="addtag">+ 标签</button></span></div>
+    </section>
+    <section class="pnl" style="display:flex;flex-direction:column;min-height:34vh">
+      <div class="pnl-h"><b>问题原文</b><i>点进去即编辑</i><span class="r">${c.question.length} 字</span></div>
+      <textarea class="n-note" data-k="question" oninput="markDirty('question')">${esc(c.question)}</textarea>
+    </section>
+    <!-- ★ 改动 5：转化即离场——动作写清后果，转完这条就从池里消失 -->
+    <section class="pnl">
+      <div class="pnl-h"><b>流转</b><i>都有后果，不静默</i></div>
+      <button class="ai-item" data-act="flow" data-t="task" style="width:100%;text-align:left;border:0;background:transparent;font-family:inherit">
+        <span class="ico">→</span>
+        <span class="tx"><b>转为任务</b><small>建 1 张任务卡 · 本条从池中离场（回收站可撤）· 已转化 +1</small></span>
+        <span class="go">›</span></button>
+      <button class="ai-item" data-act="flow" data-t="res" style="width:100%;text-align:left;border:0;background:transparent;font-family:inherit">
+        <span class="ico">→</span>
+        <span class="tx"><b>归档为资源</b><small>建 1 张资源卡 · 本条从池中离场（回收站可撤）· 已转化 +1</small></span>
+        <span class="go">›</span></button>
+      <div class="kv" data-act="moreOpen"><span class="kk">时间</span><span class="vv"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${S.moreOpen?'收起':'捕获 '+c.created+' · 更新 '+c.updated+' · 附件 0'}</span><span class="go">${S.moreOpen?'▾':'›'}</span></span></div>
+      ${S.moreOpen?`<div class="n-sub"><div class="r"><b>捕获</b><span>${c.created}</span></div><div class="r"><b>更新</b><span>${c.updated}</span></div><div class="r"><b>附件</b><span>0</span></div></div>`:''}
+    </section>
+  </div>
+  <div class="dr-foot">
+    <button class="n-ghost ${S.armDel?'armed':''}" data-act="del">${S.armDel?'再点一次确认':'删除'}</button>
+    <span class="n-dirty">${S.dirty.size?`未保存 · ${S.dirty.size} 处`:'已保存'}</span>
+    <button class="n-save" data-act="save">✓ 保存 <kbd>Ctrl+↩</kbd></button>
+  </div>
+  ${S.statusMenu?`<div class="n-menu">${STATUSES.map(s=>`<div class="${s===c.status?'on':''}" data-act="setStatus" data-s="${s}">${s}</div>`).join('')}</div>`:''}`;
+}
+function autoGrow(t){ t.style.height='auto'; t.style.height=(t.scrollHeight+2)+'px' }
+
+/* ============================ 弹窗 ============================ */
+function openAI(k){
+  if(S.modal && k===S.modal) rerun()   /* 同一个 job 再点一次 = 重新跑，不是"没反应" */
+  if(S.modal) return
+  startRun(k)
+}
+function startRun(k){
+  S.modal=k; S.mphase='running'; S.picks=new Set(); S.edits={}; S.dirEcho=''; S.hotPair=''; S.verdict='convert'; S.showRaw=false;
+  render();
+  const j=JOBS[k]; S.secs=0;
+  const t=setInterval(()=>{ S.secs=Math.round(S.secs*10+10)/10; if(!S.modal){clearInterval(t);return} renderModal(); },1000);
+  setTimeout(()=>{ clearInterval(t); if(!S.modal) return;
+    S.mphase='done'; S.secs=(k==='triage'?2.6:(k==='linkTask'?3.4:4.2));
+    S.feed={chars:k==='linkTask'?2860:(k==='enrich'?3214:1642)};
+    S.picks=new Set(rows().filter(x=>!x.weak&&x.ct&&x.ct!=='same').map(rowId));
+    render(); }, 1800);
+}
+function rerun(){ const k=S.modal; S.mphase='running'; S.picks=new Set(); render();
+  const t=setInterval(()=>{ S.secs=Math.round(S.secs*10+10)/10; if(S.mphase!=='running'){clearInterval(t);return} renderModal() },1000);
+  setTimeout(()=>{ clearInterval(t); if(S.modal!==k||S.mphase!=='running') return;
+    S.mphase='done'; S.picks=new Set(rows().filter(x=>!x.weak&&x.ct!=='same').map(rowId)); render() },1200) }
+const rowId = x => x.k+':'+x.main.slice(0,10);
+function closeAI(){ S.modal=null; S.mphase='idle'; render() }
+function personaPick(p){
+  if(p===S.persona) return;
+  S.persona=p;
+  if(S.mphase==='done'){ S.mphase='running'; render();
+    setTimeout(()=>{ S.mphase='done'; S.picks=new Set(rows().filter(x=>!x.weak&&x.ct!=='same').map(rowId)); render() },1200) }
+  else render();
+}
+function renderModal(){
+  const m=$('#modal'), sc=$('#mscrim'), j=job();
+  if(!j){ m.classList.remove('on'); sc.classList.remove('on'); m.innerHTML=''; return }
+  sc.classList.add('on'); m.classList.add('on');
+  m.style.setProperty('--split', S.split+'%');
+  const vd = !!j.verdicts;
+  /* ★ R4：头部压成一行（标题 + 副标题 + 跑动时才出现的进度），步骤跑完后并入「采纳前须知」 */
+  const prog = S.mphase==='running'
+    ? `<span class="m-step live"><span class="m-dot"></span> ${esc(j.steps[0])}中… ${S.secs}s</span><button class="m-b sm" data-act="stop">⏹ 停止</button>` : ''
+  const doneLine = j.steps.map(s=>'✓ '+s).join(' · ')
+  const head = `<div class="m-head"><div class="ico2">${j.key==='linkTask'?LINK:MARK}</div>
+      <div class="ht2"><span class="mt">${esc(j.title)}</span><span class="ms2">${esc(j.subject)}</span></div>
+      ${prog ? `<div class="sp" style="margin-left:12px">${prog}</div>`:''}
+      <div class="sp" style="${prog?'':'margin-left:auto'}"><select class="m-pers" data-act="persona" title="换一个专家视角重新生成">
+          ${Object.keys(j.personas).map(p=>`<option ${p===S.persona?'selected':''}>${p}</option>`).join('')}
+        </select>
+        <button class="m-b sm" data-act="personaAdmin">⚙ 管理专家</button>
+        <button class="x" data-act="mclose">×</button></div></div>`;
+  const dir = `<div class="m-dir">
+      <div class="m-dir-h"><b>🎯 本次指令</b>
+        <span class="tiers"><span class="tier ${S.dirTier==='card'?'on':''}" data-act="tier" data-t="card">这张卡</span>
+        <span class="tier ${S.dirTier==='entry'?'on':''}" data-act="tier" data-t="entry">这类入口</span></span></div>
+      <div><textarea rows="1" data-act="dirInput" placeholder="例：描述别写口号，只写这周能拿去报价的素材；标签只准从既有体系里选，不要现造。">${esc(S.dir)}</textarea>
+        <div class="m-dir-f">${S.dirEcho?('已带这条重跑：「'+S.dirEcho.slice(0,20)+'」'):'高于角色 · 只改口径 · 关窗即清不写库 · 剩 '+(200-(S.dir||'').length)+' 字（要长期复用请「存为角色」）'}</div></div>
+      <div class="m-dir-act"><button class="m-b sm" data-act="dirRun">应用并重跑 ↻</button>
+        <button class="m-b sm" data-act="dirPromote">↗ 存为角色</button>
+        <button class="m-b sm" data-act="dirHist">历史 ▾</button></div></div>`;
+  let body;
+  if(S.mphase==='running'){
+    body = `<div class="m-body single"><div class="m-run"><div><span class="m-dot"></span> 专家思考/生成中… 已 ${S.secs}s · 本次投料 ${S.feed.chars.toLocaleString()} 字</div>
+      <pre class="m-stream">${esc(j.hint)}\n\n⏳ ${j.key==='linkTask'?'扫 8 张任务卡 → 词面/标签预筛出 4 张候选 → 逐张写判词':(j.key==='triage'?'比对愿景 / 活跃目标 / 池内其余 3 条':'抓取 lobehub.com/icons 正文 → 归一化 → 与卡上信息一起投料')}</pre></div></div>`;
+  } else if(vd){
+    const p=j.personas[S.persona];
+    body = `<div class="m-body">
+      <div class="m-col l"><div class="m-col-h"><b>当前形态</b><i>采纳后即刷新</i></div>
+        <div class="m-prow"><span class="k">状态</span><span class="v">${esc(card().status)}</span></div>
+        <div class="m-prow"><span class="k">成熟度</span><span class="v">${esc(card().grade)}</span></div>
+        <div class="m-prow"><span class="k">原文</span><span class="v">${esc(card().question.slice(0,58))}…</span></div>
+        <div class="m-prow"><span class="k">来源</span><span class="v">${esc(card().source)}</span></div>
+        <div class="m-prow"><span class="k">标签</span><span class="v e">（空）</span></div>
+        <div class="m-prow"><span class="k">池</span><span class="v">待探索 ${POOL.todo} · 已转化 ${POOL.converted}</span></div>
+      </div><div class="m-div" data-act="resetSplit" title="拖动调宽 · 点一下复位"><i></i></div>
+      <div class="m-col"><div class="m-col-h"><b>判决</b><i>三态选一，采纳钮文案随它变</i></div>
+        <div class="m-verdict">
+          <div class="m-vd-q">${esc(card().question.split('\n')[0])}</div>
+          <div class="m-vd-3">
+            <button class="${S.verdict==='convert'?'on':''}" data-act="verdict" data-v="convert"><b>→ 转任务</b><small>建任务卡 · 本条离场 · 已转化 +1</small></button>
+            <button class="${S.verdict==='keep'?'on':''}" data-act="verdict" data-v="keep"><b>继续养</b><small>什么都不改</small></button>
+            <button class="${S.verdict==='drop'?'on':''}" data-act="verdict" data-v="drop"><b>可搁置</b><small>置为「已搁置」，不删卡</small></button>
+          </div>
+          ${S.verdict==='convert'?`<div><div class="n-kicker" style="margin-bottom:6px">建议任务标题（可改）</div>
+            <textarea class="m-vd-why" rows="2" data-act="taskTitle">${esc(S.edits.tt||p.taskTitle)}</textarea></div>`:''}
+          <div class="m-vd-why"><b>判词</b>｜${esc(S.verdict==='convert'?p.why:(p.alt[S.verdict]||'—'))}
+            <div style="margin-top:8px;color:var(--text-3)"><b style="color:var(--text-2)">依据（投料里数出来的，不是模型报的）</b>
+              <ul style="margin:4px 0 0;padding-left:18px">${p.basis.map(b=>`<li>${esc(b)}</li>`).join('')}</ul></div></div>
+          <div class="m-note"><span class="dot"></span><span>这条判决会动卡<span class="dt">消毒：${esc(j.audit)}</span></span></div>
+        </div></div></div>`;
+  } else {
+    const r=rows();
+    const left = j.key==='linkTask'
+      ? `<div class="m-col l"><div class="m-col-h"><b>本卡现状</b><i>已关联的不再重复挂</i></div>
+          <div class="m-prow"><span class="k">标题</span><span class="v">${esc(card().title)}</span></div>
+          <div class="m-prow"><span class="k">描述</span><span class="v">${esc(card().desc.slice(0,52))}…</span></div>
+          <div class="m-prow"><span class="k">标签</span><span class="v">${esc(card().tags.join(' · '))}</span></div>
+          <div class="m-prow"><span class="k">已关联</span><span class="v">${card().supports.map(s=>s.t).join(' · ')||'（无）'}</span></div>
+          <div class="m-prow"><span class="k">投料</span><span class="v">任务卡 8 张（全量）→ 预筛候选 4 张</span></div>
+        </div>`
+      : `<div class="m-col l"><div class="m-col-h"><b>当前形态</b><i>跑的时候正好读它</i><span class="r">${new Set(r.map(x=>x.k)).size} 项</span></div>
+          ${[...new Map(r.map(x=>[x.k,x])).values()].map(x=>`<div class="m-prow ${S.hotPair===x.k?'hot':''}" data-hot="${x.k}"><span class="k">${esc(x.k)}</span><span class="v">${esc(curVal(x.k))}</span></div>`).join('')}
+          ${(j.feed||[]).map(f=>`<div class="m-prow"><span class="k">${esc(f[0])}</span><span class="v" style="color:var(--text-3)">${esc(f[1])}</span></div>`).join('')}
+        </div>`;
+    const weakN = r.filter(x=>x.weak).length;
+    body = `<div class="m-body">${left}<div class="m-div" data-act="resetSplit" title="拖动调宽 · 点一下复位"><i></i></div>
+      <div class="m-col"><div class="m-col-h"><b>${j.key==='linkTask'?'建议关联的任务':'AI 补全后完整形态'}</b>
+        <i>点正文可就地改（改即视为要采纳）</i><span class="r">已选 ${S.picks.size}/${r.filter(x=>x.ct!=='same').length}</span></div>
+        <div class="m-note"><span class="dot"></span><span>${raw(j.impact)}
+          <span class="dt">${doneLine}${weakN?' · '+weakN+' 条判为弱相关（缺理由/靠猜）已默认不勾':''} · 消毒：${esc(j.audit)}</span></span></div>
+        <div class="m-tools">
+          <button class="m-b sm" data-act="strongOnly">只留高置信</button>
+          <button class="m-b sm ${S.onlyDiff?'on':''}" data-act="onlyDiff">只看差异 ▦</button>
+          <button class="m-b sm" data-act="showRaw">${S.showRaw?'收起原文':'原文'}</button>
+        </div>
+        ${S.showRaw?`<pre class="m-stream" style="margin-bottom:12px">${esc(JSON.stringify(r.map(x=>({项:x.k,建议:x.main.slice(0,40)})),null,1))}</pre>`:''}
+        ${r.filter(x=>!S.onlyDiff||x.ct!=='same').map(x=>{
+          const id=rowId(x), on=S.picks.has(id), ed=S.edits[id], pickable=x.ct&&x.ct!=='same';
+          const conf = x.weak?`<span class="conf warn">低置信</span>`:(j.key==='linkTask'?`<span class="conf ok">高相关</span>`:'');
+          return `<div class="card t-${x.ct||'same'} ${on?'on':''} ${x.weak?'weak':''}" data-hot="${x.k}">
+            ${pickable?`<input type="checkbox" class="cb" ${on?'checked':''} data-act="pick" data-id="${esc(id)}">`:'<span style="width:16px;flex-shrink:0"></span>'}
+            <div class="bd">
+              <div class="hd"><span class="f">${esc(x.k)}</span><span class="sp"></span>${conf}<span class="chg">${{new:'新增',edit:'改写',move:'移动',same:'未变'}[x.ct]||''}</span></div>
+              ${ed!==undefined?`<textarea data-act="edit" data-id="${esc(id)}">${esc(ed)}</textarea>`:`<div class="mn">${esc(x.main)}</div>`}
+              ${x.sub?`<div class="why"><b>${x.weak?'为什么判低':(j.key==='linkTask'?'判词':'依据')}</b>｜${esc(x.sub)}</div>`:''}
+            </div></div>`}).join('')}
+      </div></div>`;
+  }
+  const foot = `<div class="m-foot"><span class="usage">投料 ${(S.feed.chars||0).toLocaleString()} 字 · ${S.mphase==='done'?(vd?'判决 1 条 · 186 字':(j.key==='linkTask'?'候选 4 条 · 312 字':'产出 486 字')):'…'} · ${S.secs}s</span>
+      <button class="m-b" data-act="mclose">关闭</button>
+      ${S.mphase==='done'?`<button class="m-b" data-act="rerun">↻ 重新运行</button>`:''}
+      ${S.mphase==='done'&&vd?`<button class="m-b" data-act="judgeToNote">📝 判词写进详情</button>`:''}
+      ${S.mphase==='done'?`<button class="m-primary" data-act="adopt">${esc(adoptLabel(vd))}</button>`:''}
+    </div>`;
+  m.innerHTML = head+dir+body+foot;
+}
+function curVal(k){
+  const c=card();
+  return k==='标题'?c.title:k==='描述'?(c.desc||'').slice(0,64)+'…':k==='标签'?(c.tags.join(' · ')||'（空）'):k==='分类'?c.cat:'（无）';
+}
+function adoptLabel(vd){
+  if(!vd) return S.modal==='linkTask' ? `✓ 关联为支持（写记录 ${S.picks.size}）` : `✓ 采纳补全（写本卡 ${S.picks.size}）`;
+  return {convert:'✓ 转成任务（本条离场）', keep:'✓ 只留着，什么都不改', drop:'✓ 置为已搁置（不删卡）'}[S.verdict];
+}
+
+/* ============================ 分栏拖拽（改动 4） ============================ */
+document.addEventListener('mousedown', e=>{
+  const d=e.target.closest('.m-div'); if(!d) return;
+  S.dragging=true; S.dragged=false; d.classList.add('act'); $('#modal').classList.add('dragging');
+  const rect=$('#modal').getBoundingClientRect();
+  const move = ev => { S.dragged=true; S.split = Math.min(70, Math.max(22, ((ev.clientX-rect.left)/rect.width)*100)); $('#modal').style.setProperty('--split', S.split+'%') };
+  const up = () => { S.dragging=false; d.classList.remove('act'); $('#modal').classList.remove('dragging');
+    document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',up) };
+  document.addEventListener('mousemove',move); document.addEventListener('mouseup',up);
+  e.preventDefault();
+});
+document.addEventListener('dblclick', e=>{ if(e.target.closest('.m-div')){ S.split=40; $('#modal').style.setProperty('--split','40%') } });
+
+/* ============================ 交互 ============================ */
+document.addEventListener('click', e=>{
+  const t=e.target.closest('[data-act]'); if(!t) { if(S.statusMenu){S.statusMenu=false;render()} return }
+  const a=t.dataset.act;
+  switch(a){
+    case 'desk': S.drawer=true; render(); break;
+    case 'close': S.drawer=false; S.dirty.clear(); render(); break;
+    case 'ai': openAI(t.dataset.k); break;
+    case 'mclose': closeAI(); break;
+    case 'div': break;
+    case 'resetSplit': if(!S.dragged){ S.split=40; $('#modal').style.setProperty('--split','40%') } S.dragged=false; break;
+    case 'open': toast('↗ 新标签打开 '+(card().link||card().source)); break;
+    case 'copy': toast('✓ 链接已复制'); break;
+    case 'editCat': toast('› 换分类：就地出下拉（原型里点底部「附件 · 时间」旁的行可看展开态）'); break;
+    case 'supOpen': S.supOpen=!S.supOpen; render(); break;
+    case 'moreOpen': S.moreOpen=!S.moreOpen; render(); break;
+    case 'addtag': toast('输入即建：Enter 落标签，Esc 取消'); break;
+    case 'untag': toast('× 已移除标签（保存后生效）'); break;
+    case 'save': S.dirty.clear(); toast('✓ 已保存'); break;
+    case 'del': if(S.armDel){S.armDel=0;S.drawer=false;toast('已删除，进回收站',{t:'撤销'});}else{S.armDel=1;toast('再点一次确认删除（3 秒后自动回落）');}
+      clearTimeout(window._arm); window._arm=setTimeout(()=>{S.armDel=0;render()},3000); render(); break;
+    case 'statusMenu': S.statusMenu=!S.statusMenu; render(); break;
+    case 'setStatus': card().status=t.dataset.s; S.statusMenu=false; toast('✓ 状态已改为「'+t.dataset.s+'」'); render(); break;
+    case 'flow': doConvert(t.dataset.t); break;
+    case 'linkType': t.parentElement.querySelectorAll('span').forEach(x=>x.classList.remove('on')); t.classList.add('on'); break;
+    case 'pick': { const id=t.dataset.id; S.picks.has(id)?S.picks.delete(id):S.picks.add(id); renderModal(); break }
+    case 'strongOnly': S.picks=new Set(rows().filter(x=>!x.weak&&x.ct!=='same').map(rowId)); renderModal(); break;
+    case 'onlyDiff': S.onlyDiff=!S.onlyDiff; renderModal(); break;
+    case 'showRaw': S.showRaw=!S.showRaw; renderModal(); break;
+    case 'persona': break;
+    case 'personaAdmin': toast('› 跳 设置 → AI 助手（弹窗内不建第二套专家编辑器）'); break;
+    case 'rerun': openAI(S.modal); break;
+    case 'stop': S.modal=null; S.mphase='idle'; toast('⏹ 已停止，本轮结果作废（未写入任何数据）'); render(); break;
+    case 'tier': S.dirTier=t.dataset.t; renderModal(); break;
+    case 'dirHist': toast('历史：3 条（按作用域分组，可点回）'); break;
+    case 'dirPromote': toast('↗ 已存为可复用角色，之后任何入口的角色下拉都能选它'); break;
+    case 'dirRun': { const d=(S.dir||'').trim(); if(!d){toast('先写一句口径再重跑');break} openAI(S.modal); S.dirEcho=d; renderModal(); break }
+    case 'verdict': S.verdict=t.dataset.v; renderModal(); break;
+    case 'adopt': doAdopt(); break;
+    case 'judgeToNote': case 'judgeNote': toast('📝 判词已追加到详情末段（次级动作，不动状态）'); break;
+  }
+});
+document.addEventListener('input', e=>{
+  const t=e.target.closest('[data-act]'); if(!t) return;
+  if(t.dataset.act==='dirInput'){ S.dir=t.value; const c=t.parentElement.querySelector('.m-dir-h span[style]'); if(c) c.textContent=(200-t.value.length)+' 字可用 · '+(S.dirTier==='card'?'只记在这张卡上':'本入口共用') }
+  if(t.dataset.act==='edit'){ S.picks.add(t.dataset.id); S.edits[t.dataset.id]=t.value }
+  if(t.dataset.act==='taskTitle'){ S.edits.tt=t.value }
+});
+document.addEventListener('change', e=>{
+  const t=e.target.closest('[data-act="persona"]'); if(t) personaPick(t.value);
+});
+function setHot(k){ document.querySelectorAll('#modal [data-hot]').forEach(el=>el.classList.toggle('hot', !!k && el.dataset.hot===k)) }
+document.addEventListener('mouseover', e=>{ const p=e.target.closest('[data-hot]'); if(p&&S.hotPair!==p.dataset.hot){S.hotPair=p.dataset.hot;setHot(S.hotPair)} });
+document.addEventListener('mouseout', e=>{ const p=e.target.closest('[data-hot]'); if(p){S.hotPair='';setHot('')} });
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){
+    if(S.modal){ e.stopPropagation(); closeAI(); return }        /* 分层：弹窗在场，键盘归它 */
+    if(S.statusMenu){ S.statusMenu=false; render(); return }
+    if(S.drawer){ S.drawer=false; render() }
+  }
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){ if(S.drawer&&!S.modal){S.dirty.clear();toast('✓ 已保存')} }
+});
+function doAdopt(){
+  const j=job(), vd=!!j.verdicts;
+  if(vd){
+    if(S.verdict==='keep'){ card().aiTouchedAt=nowHM(); toast('✓ 未写任何数据，只留判词'); closeAI(); return }
+    if(S.verdict==='drop'){ card().status='已搁置'; card().aiTouchedAt=nowHM(); POOL.shelved++; toast('✓ 已置为搁置（不删卡，随时改回）'); closeAI(); render(); return }
+    doConvert('task', S.edits.tt||j.personas[S.persona].taskTitle); card().aiTouchedAt=nowHM(); closeAI(); return
+  }
+  const now=nowHM(); const r=rows().filter(x=>S.picks.has(rowId(x)));
+  if(!r.length){ toast('一条都没勾——无可采纳内容'); return }
+  card().aiTouchedAt=now;
+  if(j.key==='linkTask'){ r.forEach(x=>card().supports.push({t:x.main.replace(/^.*?·\s*/,''),p:'AI 关联',from:'ai'}));
+    toast(`✓ 已关联 ${r.length} 条为支持（只写记录，任务卡本体一字未动）`); }
+  else { r.forEach(x=>{ if(x.k==='标题')card().title=x.main; if(x.k==='描述')card().desc=x.main;
+      if(x.k==='标签')card().tags.push(x.main.replace(/^#/,'').replace(/^.*?\//,'')) });
+    toast('✓ 已写库：'+r.map(x=>x.k).join('、')+'（表单已同步成落库值）'); }
+  closeAI();
+}
+/* ★ 改动 5：转化即离场 */
+function doConvert(to, title){
+  if(CARDS.curio.inPool===false){ toast('这条已经离场了（去回收站可撤）'); return }
+  CARDS.curio.inPool=false; CARDS.curio.leftTo=to;
+  POOL.todo=Math.max(0,POOL.todo-1); POOL.converted++;
+  S.drawer=false; S.dirty.clear();
+  renderDesk(); render();
+  toast(to==='task'
+    ? `✓ 已转为任务「${(title||'搭一版个人专属工作台').slice(0,18)}」· 本条好奇已离场（回收站可撤）· 已转化 ${POOL.converted}`
+    : '✓ 已归档为资源 · 本条好奇已离场（回收站可撤）· 已转化 '+POOL.converted, '撤销');
+}
+
+/* ============================ 工具条 ============================ */
+function seg(id, fn){
+  $(id).addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
+    [...$(id).children].forEach(x=>x.classList.remove('on')); b.classList.add('on'); fn(b.dataset.v) })
+}
+seg('#segCard', v=>{ S.card=v; S.drawer=true; S.moreOpen=false; S.supOpen=false; S.statusMenu=false; S.dirty.clear(); renderAll() });
+seg('#segView', v=>{ S.view=v; S.drawer=true; renderAll() });
+seg('#segTheme', v=>{ S.theme=v; document.documentElement.dataset.theme=v });
+seg('#segW', v=>{ S.dw=+v; renderDrawer() });
+
+/* ============================ 说明面板 ============================ */
+$('#specBody').innerHTML = `
+<h4>R4 追加：再压两刀（你批"上半部还能压 / AI 两个入口并一行"）</h4>
+<ul>
+<li><b>AI 入口并成一行两格</b>：两个功能本就是并列关系，各占一行是浪费。现在一行两格（图标 + 名称 + 一句说明），右侧第三格放「最近 · 」时间戳。实测单格高 46px，比原来两行省掉 ~52px。</li>
+<li><b>弹窗上半部：230px → 136px（−41%）</b>。做法：① 头部压成一行（图标 + 标题 + 副标题 + 角色/管理/×）；② <b>步骤条不再单独占一行</b>——跑动时才在头部出现一枚实时进度 chip，跑完后作为一行小字并入「采纳前须知」；③ 指令从"标题行 + 大框 + 按钮行"三段并成<b>三列一条</b>（标签列 | 输入框 | 动作列），框默认两行高、可往下拖。</li>
+<li><b>结果</b>：左右对照区吃掉弹窗 <b>70% 以上高度</b>，首屏完整可见建议卡 <b>≥3 张</b>（实测判据已进回归脚本）。</li>
+<li>⚠ <b>一条踩过的坑，别再改回去</b>：指令框原本做成"聚焦即长高"，实测整条带子会跳一下，<b>右侧按钮正好跑到鼠标底下</b>，点「应用并重跑」会点空。已改成默认两行 + <code>resize:vertical</code> 手动拖高，不随焦点跳版。</li>
+</ul>
+<h4>R3 追加：把两处都"模块化"了（你批"太乱"的那两处）</h4>
+<ul>
+<li><b>抽屉＝四组面板堆叠</b>：<code>AI 帮忙</code> → <code>链接与归档</code> → <code>我的注解</code>（最高的一块）→ <code>关联与凭证</code>。
+  每组的规则完全一致：浅底 <code>--surface-2</code> + <code>--radius-lg</code> + 12px 组距；组头一行（11px 灰标签 + 一句提示 + 右对齐元信息）；
+  组内一律 <b>左固定标签 34px / 右内容 / 34px 行高 / hairline 分隔</b>。<span class="no">不再有"按钮 + 分段控件 + 输入框 + chip"混在一行抢对齐线</span>。</li>
+<li><b>AI 入口从"两枚大按钮"改成"列表项"</b>：左 26px 图标块（accent-light 底）+ 中「名称 / 一句说明」+ 右 ›。
+  这样 AI 与字段不再同层竞争——它是一组"能做的事"，不是一个"要点的按钮"。整组只在 hover 时图标亮一圈，accent 仍只留给页脚「保存」。</li>
+<li><b>弹窗建议行改成卡片解剖</b>：左侧 3px 竖色条=变更类型（绿=新增 / 主题色=改写 / 橙=移动 / 灰=未变）；
+  第一行=字段名 + 右端置信 pill（高相关 / 低置信）+ 变更字样；第二行=建议正文；第三行用 hairline 隔开，标「判词｜…」。<b>判词不再和正文挤在一行</b>，未变行不给勾选框。</li>
+<li><b>弹窗"采纳前须知"合成一条</b>：原先黄条 impact + 橙字弱相关 + 灰字消毒三堆并排 ⇒ 现在一条浅底提示（一句主后果 + 次行细节）。</li>
+<li><b>栏头 sticky</b>：两栏各自带吸顶标题行（含"已选 N/M"），滚到深处仍看得见这一栏是什么。</li>
+</ul>
+<h4>本轮 5 条改动（对应你批的 5 条）</h4>
+<ul>
+<li><b>① 上半部收紧，描述成焦点</b>：标题一行（可就地编辑）+ AI 一行 + <b>元信息两行</b>（链接 / 归档各压成一行，类型钮降到 22px 小分段），剩下的<b>纵向空间整块给「我的注解」</b>——字号升到 <code>--fs-title</code>(15px)、行高 1.9、<code>flex:1</code> 撑满剩余高度，focus 才显框。附件与时间收进底部一行「附件 · 时间 ›」。</li>
+<li><b>② 两枚 AI 并成一枚「AI 补全」</b>：它自己判——链接是 http(s) 就<b>顺手把正文抓回来</b>一起补；本地 / Obsidian 不抓，只按卡上信息与库内既有体系补。弹窗里<b>指令区升成全宽大框</b>（≥74px、可拖高），作用域「这张卡 / 这类入口」与「存为角色 / 应用并重跑」都在框下沿。</li>
+<li><b>③ 新增「关联任务」</b>（资源卡第二枚）：扫<b>任务调度全量任务卡</b> → 本地按词面/标签预筛候选 → 模型只做排序 + 各写一句"为什么相关" → 逐条给你勾。采纳<b>只写 SupportLink 记录</b>（<code>taskId + resourceId + from:'ai' + why</code>），任务卡与资源卡本体一字不动；<b>解绑仍只在任务侧</b>（沿用定案 10）。这与 R166 的「找资源支持」是同一件事的反向，<b>同法同构</b>，不新造机制。</li>
+<li><b>④ 弹窗左右可拖分栏</b>：中缝 7px 分隔条，拖动即时改 <code>--split</code>（限 22%~70%），<b>双击复位 40%</b>；两栏内容自适应（窄栏时文字换行、表头省略号）。跑动中/单条判决时自动收成单栏。</li>
+<li><b>⑤ 好奇卡转化即离场</b>：转任务 / 归档资源后，这条<b>从好奇心池消失</b>（软删进回收站，可撤），产物按任务卡 / 资源卡规范活在各自主场；<b>池指标新增「已转化 N」</b>（原型里切到好奇卡可见：转一次，待探索 −1、已转化 +1）。之所以要补这个指标——<b>卡一走，池里就再也数不到它</b>，"探索有没有产出"必须换个地方记账。</li>
+</ul>
+<h4>OPPO 观感沿用 R161 口径（未变）</h4>
+<ul>
+<li>借：厚壳薄线（外壳 <code>--radius-xl</code> + 双层柔影，内部靠 1px 分隔线与 24/32 节奏分区）· 先给内容再给控件 · 强调色一屏只给一处 · 动效短促带减速。</li>
+<li>不借：品牌色、毛玻璃弥散光（会击穿四级表面阶梯，contrast 必红）、99px 大胶囊（R124 已退役）。</li>
+</ul>
+<h4>落码代价（诚实账）</h4>
+<ul>
+<li>「关联任务」= 新 job <code>buildResourceLinkTaskJob</code>，registry <b>23 → 24</b>、矩阵双向对账随之 +1；投料是全量任务卡，<b>必须走 <code>--dist</code> 那套懒加载</b>，入口闭包零 AI 红线不动。</li>
+<li>「补全=自动抓链接」= 把 <code>buildCardEnrichJob</code> 与 <code>buildFullOptimizeJob</code> 并成一个入口。<span class="no">注意：这两个工厂现在装的东西不一样</span>（优化那份才有抓取；R147-4 新词闸两份都装过），并之前要先定"合并后保留哪套骨架"，否则会把抓取或新词闸弄丢一个——这正是 R165-A 补漏踩过的那类洞。</li>
+<li>「转化即离场」<b>动的是生命周期，不是版式</b>：现在 <code>convertToTask</code> 是把好奇卡状态改成「已转任务」<b>留在池里</b>；改成离场要连带——池筛选口径、看板列、回收站撤销语义（撤销后回到哪一列）、成熟度是否还计这条、周报「已转化」取数。断言至少牵动 R97-3 / R111-1 / R142-3 / R144-4 一族（R165-B 那轮刚删过 conversionRate，这次是<b>以"流水记录"的形态补回来</b>，不是回滚）。</li>
+<li>弹窗分栏拖拽 = 新交互件，需补 <code>theme-audit</code> 判据（拖后两栏都还在、无溢出）。</li>
+</ul>
+<h4>待拍板（3 问）</h4>
+<ul>
+<li class="q">Q1 转化后这条好奇卡：<b>软删进回收站</b>（本原型做法，可撤、池里彻底不见），还是<b>保留卡但默认过滤</b>（"已转化"列还在，能回看）？前者干净，后者可追溯——两者对"撤销"的语义不同。</li>
+<li class="q">Q2 「已转化」指标口径：只数<b>转任务</b>，还是<b>转任务 + 归档资源</b>都算？搁置后再转要不要重复计数？</li>
+<li class="q">Q3 抽屉宽 460 → <b>520</b>（本原型默认，切"抽屉宽"可对比）：上半部收紧后 460 也放得下了，<b>但描述区会矮一截</b>。要宽度还是留台面空间？</li>
+</ul>
+<p style="color:var(--text-3)">本文件是原型（<code>docs/原型_资源与好奇详情_OPPO质感_R167.html</code>），未动一行产品代码。令牌值逐字取自 <code>v2/src/shared/styles/tokens.css</code>，字段与文案取自你截图里的两张真卡；任务池 8 张是编的，用于演示「关联任务」。</p>`;
+
+function renderAll(){ renderDesk(); renderDrawer(); renderModal() }
+function render(){ renderDrawer(); renderModal() }
+document.documentElement.dataset.theme = S.theme;
+renderAll();
+</script>
+</body>
+</html>
