@@ -65,10 +65,17 @@ async function main() {
     },
     workspaces: [{ id: 'k-ws-1', name: '💼 K 兼容工作台', icon: '💼', color: '#3A6B4C', coverTheme: 'deep-sea', order: 0, archived: false }],
     categories: [{ id: 'k-cat-1', workspaceId: 'k-ws-1', name: '待分类', order: 0 }],
-    resources: [],
+    resources: [{
+      /* R166 定案 4：旧包（≤V3.4.x）资源卡带 fromCuriosityId 溯源字段——导入后必须静默剥离，
+         既不报错也不留字段（卡间零挂载收口）。 */
+      id: 'k-res-1', kind: 'resource', title: 'K 兼容资源卡', linkType: 'url', link: 'https://example.com',
+      workspaceId: 'k-ws-1', categoryId: 'k-cat-1', tags: [], pinned: false, callCount: 0, customFields: {},
+      fromCuriosityId: 'k-cur-gone', createdAt: now, updatedAt: now
+    }],
     tasks: [{
       id: 'k-task-1', kind: 'task', title: 'K 兼容任务卡', projectId: 'k-proj-1', metricId: 'k-met-1',
-      status: 'doing', priority: 'medium', mountedResourceIds: [], mountedCuriosityIds: [], customFields: {}, tags: [], pinned: false, starred: false,
+      status: 'doing', priority: 'medium', mountedResourceIds: [], mountedCuriosityIds: [], customFields: {}, tags: [], pinned: false,
+      fromCuriosityId: 'k-cur-gone', starred: false,
       createdAt: now, updatedAt: now
     }],
     curiosities: [],
@@ -107,6 +114,25 @@ async function main() {
   const recStrip = await page.locator('.rec-mini').first().isVisible().catch(() => false)
   const errBoundary = await page.locator('.render-error').first().isVisible().catch(() => false)
   report('K4 调度台首页正常渲染（无渲染错误兜底）', recStrip && !errBoundary, `recStrip=${recStrip} error=${errBoundary}`)
+
+  /* R166 定案 4/5 两用例。K5 分两条路各测一次——
+     `merged` = 导入当场（测 mergeImport 的 stripRetiredCardKeys，这是 R166 新补的那道），
+     `after`  = 整页 reload 之后（测 loadData 的 stripRetiredCardKeys）。
+     只测后者会漏掉真缺陷：mergeById 用 {...existing, ...incoming} 覆盖，导入又发生在载入之后。 */
+  const after = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => r['zy_data_v2']))
+  const retiredIn = (obj) => [...(obj?.tasks || []), ...(obj?.resources || []), ...(obj?.curiosities || [])]
+    .filter(c => ['mountedResourceIds', 'mountedCuriosityIds', 'relatedResourceIds', 'fromCuriosityId'].some(k => k in c)).length
+  const mergedCards = (merged?.tasks || []).length + (merged?.resources || []).length + (merged?.curiosities || []).length
+  report('K5a 导入当场剥离退役字段（mergeImport 这条路，R166 补的缺口）',
+    mergedCards > 0 && retiredIn(merged) === 0,
+    `cards=${mergedCards} 残留=${retiredIn(merged)}`)
+  report('K5b 旧包 fromCuriosityId / 挂载字段零携带（reload 后载入路径再剥一次）',
+    !!after && retiredIn(after) === 0,
+    `残留=${retiredIn(after)}`)
+  /* 可选段零迁移：旧包没有 supportLinks 时**保持缺省**就是设计——不补空数组、不报错、渲染正常 */
+  report('K6 旧包无 supportLinks 段兼容（可选段零迁移：缺省即合法）',
+    !!after && (after.supportLinks === undefined || Array.isArray(after.supportLinks)) && !errBoundary,
+    `supportLinks=${JSON.stringify(after?.supportLinks)} recStrip=${recStrip}`)
 
   // 验证 4：旧数据项目在「项目详情」页正常渲染（R145 修漂移：R117 的左栏切换器 .pt-item 已于
   //   R130-N4 退役为「本项目目录」锚点导航 → 改测项目页真渲染：面包屑点名项目 + 指标块在位 + 无渲染错误兜底）

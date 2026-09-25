@@ -616,6 +616,10 @@
           @save="saveResource"
           @close="closeDrawer"
         >
+          <!-- R166 T7：资源侧「支持的任务」只读反查（与 RDD 同一组件，两宿主同源） -->
+          <template #extra>
+            <SupportTasksPanel v-if="d && editingResource.id" :d="d" :resource="editingResource" @open-task="gotoTaskOwner" />
+          </template>
           <!-- R165-A（方案 A 标准）：AI 主上下文动作进标题行（镜像只读卡不给入口）；已动过翻「↻ 重新优化」+ chip -->
           <template v-if="!drawerReadonly" #title-extra>
             <CardAiEntry :card="editingResource" :label="editingResource.aiTouchedAt ? '↻ 重新优化' : 'AI 优化'" />
@@ -917,7 +921,7 @@ import { useOverlayTarget } from '@/shared/utils/overlayHost'
 import { showToast } from '@/shared/components/toast'
 import { deleteAsset, cleanupOrphanAssets } from '@/shared/storage/assets'
 import AssetPreview from '@/shared/components/AssetPreview.vue'; import CardAiEntry from '@/newtab/components/CardAiEntry.vue'; import CatNodeName from '@/newtab/components/CatNodeName.vue'; import ThesisAiBtn from '@/newtab/components/ThesisAiBtn.vue'; import EvidenceMenuItem from '@/newtab/components/EvidenceMenuItem.vue'; import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'; import AiTouchedChip from '@/shared/components/AiTouchedChip.vue'
-import EmptyState from '@/shared/components/EmptyState.vue'; import ContextMenu from '@/shared/components/ContextMenu.vue'; import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'; import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'; import AssetBadge from '@/shared/components/AssetBadge.vue'
+import EmptyState from '@/shared/components/EmptyState.vue'; import ContextMenu from '@/shared/components/ContextMenu.vue'; import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'; import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'; import AssetBadge from '@/shared/components/AssetBadge.vue'; import SupportTasksPanel from '@/shared/components/SupportTasksPanel.vue'
 // R117（04-61 C3）：当日新增角标（自然日口径）——资源卡卡片视图 / 列表视图同一枚
 import NewBadge from '@/shared/components/NewBadge.vue'
 // R161-④：关联资源卡（镜像）弹窗整体抽出（宿主回到 ≤1500 行验收线 + 换 R161 新壳 Modal.vue）
@@ -952,6 +956,8 @@ const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
 const d = computed(() => store.data!)
+/** R166 T7：资源侧反查行点击=去那个任务的归属项目页（只读跳转，不改任何数据；解绑只在任务侧） */
+function gotoTaskOwner(t: { projectId?: string }): void { closeDrawer(); router.push(t.projectId ? `/compass/projects?p=${t.projectId}` : '/compass') }
 /** R113-N5：浮层动态宿主——真全屏时 Teleport 目标指向全屏元素（否则挂 body 的浮层不可见） */
 const overlayTarget = useOverlayTarget()
 /** R82（R4）：取项目扁平表（任务的项目名展示）——与方向台共用 useCompass 的口径 */

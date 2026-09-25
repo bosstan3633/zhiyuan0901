@@ -89,7 +89,7 @@ const DRAWER_VIEWS = [
   },
   {
     id: 'drawer-task', name: '任务卡详情', hash: '#/', tab: '任务调度',
-    card: '[data-tid]', open: '.task-sidebar', ai: '.task-sidebar .ts-ai-btn', foot: '.ts-foot button',
+    card: '[data-tid]', open: '.task-sidebar', ai: '.task-sidebar .ts-ai-cell', aiCount: 3, foot: '.ts-foot button',
   },
   {
     id: 'drawer-curio', name: '好奇心详情', hash: '#/', tab: '好奇心培育',
@@ -276,15 +276,18 @@ async function main() {
       await page.waitForTimeout(900) /* 抽屉有进场动效，等它落位再截 */
       await resetView(page)
       const opened = await page.locator(v.open).first().isVisible().catch(() => false)
-      const aiInHead = await page.locator(v.ai).first().isVisible().catch(() => false)
+      /* R166 定案 6：任务详情是**三格等宽独立行** ⇒ 声明 aiCount 时要求"恰好 N 格"，
+         少一格（比如合并回单枚钮）或多一格都算不过；未声明的仍按"至少一枚可见"判。 */
+      const aiCount = await page.locator(v.ai).count().catch(() => 0)
+      const aiInHead = v.aiCount ? aiCount === v.aiCount : aiCount > 0
       const footCount = await page.locator(v.foot).count().catch(() => -1)
       const file = path.join(outDir, `${theme}-${v.id}.png`)
       await page.screenshot({ path: file })
       const kb = Math.round(fs.statSync(file).size / 1024)
       shots.push(file)
       const ok = opened && aiInHead && footCount === 2
-      console.log(`  ${ok ? '✓' : '✗'} ${theme.padEnd(8)} ${v.name.padEnd(6)} 开=${opened ? '是' : '否'} AI在标题行=${aiInHead ? '是' : '否'} 页脚钮=${footCount}   → ${path.basename(file)} (${kb}KB)`)
-      if (!ok) drawerFail.push(`${theme}/${v.id}：开=${opened} AI在标题行=${aiInHead} 页脚钮数=${footCount}（应为 2）`)
+      console.log(`  ${ok ? '✓' : '✗'} ${theme.padEnd(8)} ${v.name.padEnd(6)} 开=${opened ? '是' : '否'} AI在标题行=${aiInHead ? '是' : '否'}(${aiCount}${v.aiCount ? '/' + v.aiCount : ''}) 页脚钮=${footCount}   → ${path.basename(file)} (${kb}KB)`)
+      if (!ok) drawerFail.push(`${theme}/${v.id}：开=${opened} AI在标题行=${aiInHead}(计${aiCount}，应${v.aiCount || '≥1'}) 页脚钮数=${footCount}（应为 2）`)
       await page.keyboard.press('Escape').catch(() => {})
       await page.waitForTimeout(400)
       await closeOverlays(page)

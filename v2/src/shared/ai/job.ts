@@ -82,8 +82,11 @@ export interface AiJob {
   run?: (ctx: { signal: AbortSignal; onDelta: (accum: string) => void }) => Promise<AiRow[]>
   /** 缺省 = 只读报告型（产出自动落卡或纯参考），抽屉不出「采纳」按钮 */
   apply?: (rows: AiRow[]) => Promise<string> | string
-  /** R139：次采纳通道——同一批勾选行的另一种落法（如拆解步骤「写入任务详情」而非建子任务） */
+  /** R139：次采纳通道——同一批勾选行的另一种落法（如拆解步骤「写进详情」而非写子任务清单） */
   secondary?: { label: string; apply: (rows: AiRow[]) => Promise<string> | string }
+  /** R166 定案 8：主采纳按钮**写明去向**。采纳会改什么，按钮就该说什么——
+   *  拆解的采纳是"写本卡子任务清单"，再叫「采纳（直接写库）」就把后果藏起来了。缺省沿用通用文案。 */
+  adoptLabel?: string
   /** R139：人设选择器——拆解等场景可换专家（角色库任意专家含自建），onPick 由宿主重建 job 触发重跑 */
   persona?: { options: { id: string; label: string }[]; current: string; onPick: (id: string) => void }
   adoptable?: boolean

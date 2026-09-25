@@ -3,8 +3,11 @@
  *
  * 设计原则：
  * 1. 三卡分立：ResourceCard / TaskCard / CuriosityCard 各自独立，不再混存
- * 2. 卡间零挂载：三卡（Resource/Task/Curiosity）互不持有对方 id（R162 退任务↔资源；R165 退任务↔好奇、
- *    好奇↔资源；fromCuriosityId 为卡→好奇溯源引用，允许）；六层归属（projectId/metricId）与策展台镜像不受限
+ * 2. 卡间零挂载：三卡（Resource/Task/Curiosity）互不持有对方 id（R162 退任务↔资源；R165-B 退任务↔好奇、
+ *    好奇↔资源；R166 退 fromCuriosityId 溯源引用——转化即出路，溯源由 link=sourceUrl 与描述文字承担）。
+ *    **明文豁免记录型关联**：`CurationProjection`（资源台→策展台镜像）与 `SupportLink`（任务→资源「支持」记录）
+ *    是独立表里的记录，卡对象本身互不持有 id，不属"卡间挂载"，红线一字不改（R166 定案 5）。
+ *    六层归属（projectId/metricId）同理不受限。
  * 3. 六层树：Vision → Mission → Direction → Goal → Project → Metric → Task
  * 4. 软删除：所有卡片 deletedAt 标记，回收站恢复
  */
@@ -161,8 +164,6 @@ export interface ResourceCard extends CardBase {
   lastCalledAt?: number
   /** R50-F3：策展中心原生卡排序（仅 workspaceId=zy-curation 的卡使用；拖拽规整回写） */
   curOrder?: number
-  /** R59-T9：由好奇心卡转化而来（convertCard 写源卡 id）——WCE 转化口径消费 */
-  fromCuriosityId?: ID
   /** R52-F7：策展中心内原生卡的策展归属覆盖（仅策展中心消费）。R53-A1 迁移后不再使用
    *  （镜像分类已物化为真实分类，归属统一写 categoryId）；存量值由迁移归一并清空 */
   curCatId?: string
@@ -214,10 +215,39 @@ export interface TaskCard extends CardBase {
   lastCalledAt?: number
   /** R56-V1：手动拖拽排序权重（任务管理面板 manual 态：拖拽后全量重写；未拖拽回退 createdAt 最新在前） */
   sortOrder?: number
-  /** R59-T9：由好奇心卡转化而来（convertCard 写源卡 id）——WCE 转化口径消费 */
-  fromCuriosityId?: ID
-  /** R144：子任务软层级（唯一父指针；父删/父解绑时子摘除本字段回落指标层，完成状态永不联动；⤴ 升顶层=置空） */
-  parentId?: ID
+  /** R166 定案 1：卡内嵌子任务清单（**不是独立卡**——像说明/标签一样是本卡的一个字段）。
+   *  不进任务池 / 指标 taskIds / 看板拖拽 / 周报 / 回收站，生命周期完全跟随本卡；
+   *  完成态**不进**成熟度与周报计分（定案 3：纯执行工具）。
+   *  R166 定案 2：存量 `parentId` 子卡由启动期幂等迁移折叠进此字段（原卡软删进回收站，可撤销）。 */
+  subtasks?: Subtask[]
+}
+
+/**
+ * R166 定案 1：任务卡内嵌子任务（**不是独立卡**）。
+ * 它只是 `TaskCard.subtasks` 数组里的一项，随父卡一起读写/合并/删除：
+ * 不进任务池、不进指标 `taskIds`、不参与看板拖拽、不进周报、不进回收站，完成态也不进任何计分（定案 3）。
+ */
+export interface Subtask {
+  id: ID
+  title: string
+  done: boolean
+  note?: string
+}
+
+/**
+ * R166 定案 5：任务/子任务 ↔ 资源卡的「支持」关联记录。
+ * 存**独立关联表** `AppData.supportLinks`，卡对象互不持有对方 id ⇒ 「卡间零挂载」红线一字不改；
+ * 与 `CurationProjection` 同构（红线明文豁免的是"记录型关联"，不是给挂载开口子）。
+ * `subId` 有值 = 关联挂在某个子任务上；`from` 区分 AI 推荐与手动关联；`why` 是 AI 的一句判词。
+ */
+export interface SupportLink {
+  id: ID
+  taskId: ID
+  subId?: ID
+  resourceId: ID
+  from: 'ai' | 'manual'
+  why?: string
+  createdAt: number
 }
 
 /** 好奇心卡（从好奇出发） */
@@ -366,6 +396,10 @@ export interface AppData {
   projBackfillFixed?: number
   /** R50-F3：策展中心投射清单（引用式镜像；导入合并按 id 取并集）。R61 起方向反转：资源台 → 策展台（targetWsId 标记） */
   curationProjections?: CurationProjection[]
+  /** R166 定案 5：任务/子任务 ↔ 资源的「支持」关联记录（独立表，卡对象互不持有 id；导入合并同 `curationProjections` 走 mergeByIdArr） */
+  supportLinks?: SupportLink[]
+  /** R166 定案 2：存量 `parentId` 子卡折叠进父卡 `subtasks` 的幂等标记（有值即跳过迁移） */
+  subtasksFoldedAt?: number
   /** R61：资源台结构迁移完成时间戳（幂等标记——有值即跳过迁移；迁移前自动备份下载由调用方执行） */
   hubMigratedAt?: number
   /** R64：旧工作台并入资源台完成时间戳（幂等标记；迁移前自动备份下载由调用方执行） */

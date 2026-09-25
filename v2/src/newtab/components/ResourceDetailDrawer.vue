@@ -17,9 +17,10 @@ import { useAppStore } from '../stores/app'
 import { onOpenDrawer, consumePendingDrawer, type DrawerPayload } from '@/shared/utils/bus'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
-import type { ResourceCard } from '@/shared/models'
+import type { ResourceCard, TaskCard } from '@/shared/models'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import ThesisBlock from '@/newtab/components/ThesisBlock.vue'
+import SupportTasksPanel from '@/shared/components/SupportTasksPanel.vue'
 // R134-F（批次 F）：单卡 AI 补全。★本组件被 App.vue 静态挂载（全局抽屉宿主）——AI 依赖必须全懒：
 // 抽屉 defineAsyncComponent、shared/ai 模块点击时才 dynamic import，否则整条 AI 栈会被卷进启动 chunk（R134 首版踩坑已修）。
 // R154（拍板①）：补全/优化一律走 select 工厂，采纳=直接写库（写完把表单同步成已落库的值），不再"回填等二次保存"。
@@ -111,6 +112,15 @@ function openLink() {
 function copyLink() {
   if (!editing.link) { showToast('链接为空'); return }
   navigator.clipboard?.writeText(editing.link).then(() => showToast('✓ 链接已复制')).catch(() => {})
+}
+
+/**
+ * R166 T7：反查行点击=去那个任务的归属项目页看它（有项目直达二级页，没有回方向台）。
+ * 这是**读操作**：不改任务、不改关联，所以资源侧只读边界没有被破。
+ */
+function gotoTaskOwner(t: TaskCard): void {
+  close()
+  router.push(t.projectId ? `/compass/projects?p=${t.projectId}` : '/compass')
 }
 
 function fmtTs(ts?: number): string {
@@ -230,6 +240,8 @@ watch(() => resource.value?.id, (n) => {
             <span class="red-stat-chip" v-if="resource.starred">⭐ 星标</span>
           </div>
         </div>
+        <!-- R166 T7：资源侧「支持的任务」只读反查（解绑只在任务侧，定案 10） -->
+        <SupportTasksPanel v-if="resource && store.data" :d="store.data" :resource="resource" @open-task="gotoTaskOwner" />
       </template>
     </ResourceEditForm>
 

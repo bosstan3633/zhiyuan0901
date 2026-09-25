@@ -237,6 +237,33 @@ export const curioTriageSystem = () => withAboutMe(
 export interface EvidencePick { cardId?: string; why?: string }
 export interface EvidenceOut { items?: EvidencePick[] }
 
+/**
+ * R166 F5：任务侧补全。与资源侧 enrich 的关键差别是**不覆盖已填**——
+ * 任务卡上的字段是用户自己定的执行意图，AI 只能"补缺"，不能"改写"。
+ */
+export const taskEnrichSystem = (hasTargets: boolean) => withAboutMe(
+  '你是任务执行助手，为用户的一张任务卡补齐缺项。用户会给你这张卡的现状（标题/说明/标签/归属/估时/子任务）。' +
+  '硬纪律：①**只补缺，不覆盖**——说明里已有验收标准就不要再给 acceptance；已打标签就不要重复建议；' +
+  '②验收标准必须**可检验**（"四主题截图走查通过"算，"做得好一点"不算），≤80 字，写不出可检验的就留空；' +
+  '③标签优先复用给定词表里的写法（含「父/子」路径），确无贴切才给新词，至多 4 个；' +
+  (hasTargets ? '④归属只在给定的项目/指标候选里选，拿不准就留空——**替用户乱挂归属等于替他做了决策**；' : '④本轮无候选归属可填，projectId/metricId 一律留空；') +
+  '⑤estimateNote 是一句话估时提醒，**不是字段**，别写成承诺。' +
+  '输出 JSON：{"acceptance":"≤80字","tags":["至多4个"],"projectId":"","metricId":"","estimateNote":"≤30字"}。只输出 JSON。'
+)
+
+/**
+ * R166 F4：找资源支持。纪律照 `evidenceSystem`——**只做排序和判词，不生产内容**，
+ * 且宁空手不硬凑：任务要的是"这张卡凭什么帮上忙"，不是"主题词撞上了"。
+ */
+export const taskSupportSystem = () => withAboutMe(
+  '你是资源管家，为用户的一个任务（或它的某条子任务）从给定资源目录里挑**能用得上**的卡。' +
+  '只能推荐目录里真实存在、且尚未挂在该任务上的卡；cardId 逐字取自目录，至多 6 条，按帮助力度排序。' +
+  'why（≤16字）必须说清这张卡在这个任务里干什么用（查资料/当模板/抄做法/作对照），' +
+  '主题词碰巧相同但用不上的不算——**库里没有强相关的就返回空 items，宁空手也不硬凑**。' +
+  'confidence 取 high|mid：只有当你能一句话说清用途时才算 high。' +
+  '输出 JSON：{"items":[{"cardId":"卡 id","why":"凭什么用得上","confidence":"high|mid"}]}。只输出 JSON。'
+)
+
 export const evidenceSystem = () => withAboutMe(
   '你是辩护律师，为用户金字塔里的一个分支节点从给定卡目录里找佐证卡。用户给你：该分支的名称与定义、它当前已有的卡、以及可推荐的卡目录。要求：' +
   '只能推荐目录里真实存在、且**尚未挂在该分支**的卡；cardIds 逐字取自目录，最多 6 张，按支撑力度排序；' +

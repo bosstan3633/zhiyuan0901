@@ -68,6 +68,67 @@ function chromeStore(): chrome.storage.StorageArea | null {
   return typeof chrome !== 'undefined' && chrome.storage?.local ? chrome.storage.local : null
 }
 
+/**
+ * R162/R165/R166：已退役的卡间关系字段——**载入与导入两条路都要过一遍**。
+ *
+ * 为什么两处：`loadData` 只净化"启动时库里已有的数据"；而设置页导入是 `mergeById`
+ * 用 `{...existing, ...incoming}` 覆盖，**导入发生在载入之后** ⇒ 旧导出包里的退役字段会
+ * 从导入这条路重新钻进内存并立刻写回存储，loadData 那道剥离完全拦不住（R166 实测 K5 抓到）。
+ * 清单是"只增不减"的历史账：每退役一个字段就往里加一项。
+ */
+export const RETIRED_CARD_KEYS = ['mountedResourceIds', 'mountedCuriosityIds', 'relatedResourceIds', 'fromCuriosityId'] as const
+export function stripRetiredCardKeys<T>(arr: unknown): T[] {
+  const list = Array.isArray(arr) ? arr : []
+  for (const o of list) {
+    if (o && typeof o === 'object') for (const k of RETIRED_CARD_KEYS) { if (k in (o as object)) delete (o as Record<string, unknown>)[k] }
+  }
+  return list as T[]
+}
+
+/**
+ * R166 定案 2（D5）：存量 `parentId` 子卡 → 折叠进父卡的 `subtasks` 清单。
+ *
+ * 为什么要迁：子任务从「独立卡 + 父指针」改成「卡内嵌字段」（定案 1）——它像说明/标签一样属于本卡，
+ * 不进任务池 / 指标 taskIds / 看板拖拽 / 周报 / 回收站，完成也不计分（定案 3）。
+ * 原卡**软删进回收站**（可撤销，不硬删用户数据）。
+ *
+ * 三条边界：
+ *  · **已软删的子卡不折叠**——否则回收站里的东西会复活成清单上的一行；只把它的 parentId 摘掉。
+ *  · **无父可折升为普通任务**（父不存在 / 父已软删 / 自环脏数据）。
+ *  · **多层用摊平收敛**：模型只有一层，D→C→P 的孙子最终落在 P 的清单里；
+ *    所以按"折完一轮再看还有没有 parentId"最多跑 3 轮，而不是假设数据只有一层深。
+ * 幂等：`subtasksFoldedAt` 有值即整体跳过（同 `hubMigratedAt` 一族）。
+ */
+function foldParentIdSubtasks(data: AppData): void {
+  if (data.subtasksFoldedAt) return
+  const tasks = Array.isArray(data.tasks) ? data.tasks : []
+  const byId = new Map(tasks.map(t => [t.id, t] as const))
+  const detachMetric = (taskId: string) => {
+    for (const dir of data.compass?.directions || []) for (const p of dir.projects || []) for (const m of p.metrics || [])
+      if (Array.isArray(m.taskIds) && m.taskIds.includes(taskId)) m.taskIds = m.taskIds.filter(x => x !== taskId)
+  }
+  type Legacy = { parentId?: string; subtasks?: { id: string; title: string; done: boolean; note?: string }[] }
+  for (let pass = 0; pass < 3 && tasks.some(t => (t as Legacy).parentId); pass++) {
+    for (const t of tasks) {
+      const legacy = t as Legacy
+      const pid = legacy.parentId
+      if (!pid) continue
+      const parent = byId.get(pid)
+      if (!parent || parent.deletedAt || parent.id === t.id || t.deletedAt) { legacy.parentId = undefined; continue }
+      const pLeg = parent as Legacy
+      pLeg.subtasks = pLeg.subtasks || []
+      if (!pLeg.subtasks.some(s => s.id === t.id))
+        pLeg.subtasks.push({ id: t.id, title: t.title, done: t.status === 'done', note: (t.description || '').trim() || undefined })
+      for (const k of legacy.subtasks || []) if (!pLeg.subtasks.some(s => s.id === k.id)) pLeg.subtasks.push({ ...k })
+      legacy.parentId = undefined
+      legacy.subtasks = undefined
+      t.deletedAt = Date.now()
+      detachMetric(t.id)
+    }
+  }
+  data.subtasksFoldedAt = Date.now()
+}
+
 /** 加载数据（含首次初始化） */
 export async function loadData(prefetched?: Record<string, unknown>): Promise<AppData> {
   if (cache) return cache
@@ -115,11 +176,16 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
   fixTags(data.tasks as { tags?: unknown }[])
   fixTags(data.curiosities as { tags?: unknown }[])
   // R162/R165：卡间挂载全量退役——清存量字段（幂等；旧库/旧导出包里可能残留，D4 静默剥离不弹迁移提示）
-  const stripKeys = (arr: unknown, keys: string[]) => (Array.isArray(arr) ? arr : []).forEach(o => {
-    if (o && typeof o === 'object') for (const k of keys) { if (k in (o as object)) delete (o as Record<string, unknown>)[k] }
-  })
-  stripKeys(data.tasks, ['mountedResourceIds', 'mountedCuriosityIds'])
-  stripKeys(data.curiosities, ['relatedResourceIds'])
+  // R166：清单与"导入那条路"共用 RETIRED_CARD_KEYS 单一真源（见文件头 stripRetiredCardKeys 备案）
+  stripRetiredCardKeys(data.tasks)
+  stripRetiredCardKeys(data.curiosities)
+  stripRetiredCardKeys(data.resources)
+  /* R166 定案 2（D5）：存量 `parentId` 子卡折叠进父卡的 `subtasks` 清单——子任务从"独立卡 + 父指针"
+     改为"卡内嵌字段"（不进池/指标/看板/周报/回收站，完成不计分）。
+     ⚠ 折叠必须发生在 stripKeys 之后、且**读 parentId 走 cast**：模型里该字段已删，
+        但存量数据仍带着它——这正是"字段退役了、数据还在"的窗口，迁移函数是唯一读它的地方。
+     幂等：`subtasksFoldedAt` 有值即跳过（同 `hubMigratedAt` 一族）。 */
+  foldParentIdSubtasks(data)
   // 第廿九轮：分类名/标签名 URL 编码归一化——导入场景曾把 percent-encoding 的名称直接存库
   // （表现为界面上出现「%E5%AE%8B...」乱码分类）。此处一次性解码并在下次 persist 固化。
   const fixEncoded = (name: string): string => safeDecodeText(name);
@@ -457,7 +523,10 @@ export function mergeExternalData(ext: AppData): AppData {
     tagTreeRevision: Math.max(cur.tagTreeRevision || 0, ext.tagTreeRevision || 0),
     fieldConfig: jsonEq(cur.fieldConfig, snap.fieldConfig) ? ext.fieldConfig : cur.fieldConfig,
     stats: jsonEq(cur.stats, snap.stats) ? ext.stats : cur.stats,
-    curationProjections: mergeByIdArr(cur.curationProjections || [], snap.curationProjections || [], ext.curationProjections || [])
+    curationProjections: mergeByIdArr(cur.curationProjections || [], snap.curationProjections || [], ext.curationProjections || []),
+    /* R166 定案 5：SupportLink 是"无 updatedAt 的实体段"，与 curationProjections 同法按 id 取并集。
+       不能走卡片那条 LWW 骨架——它没有 updatedAt 可比，按时间戳合并会把另一端的关联整段冲掉。 */
+    supportLinks: mergeByIdArr(cur.supportLinks || [], snap.supportLinks || [], ext.supportLinks || [])
   }
   // 合并结果与外部全等 = 本页没有需要保全的改动（例如自有写入的回声）→ 只同步不回写，杜绝写环
   if (jsonEq(merged, ext)) { syncCache(ext); return ext }

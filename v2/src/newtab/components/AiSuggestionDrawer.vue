@@ -119,7 +119,12 @@ const impactLine = computed(() => cur.value?.impact?.(pickedRows.value) || '')
 /** R154（拍板③）：报告型编辑过才点亮「存为卡」 */
 const dirty = computed(() => [...drafts.value.entries()].some(([k, v]) => JSON.stringify(savedDrafts.value.get(k)) !== JSON.stringify(v)))
 const canResave = computed(() => !!cur.value?.resave && dirty.value)
-const adoptLabel = computed(() => (confirmText.value ? '✓ 确认写库' : '✓ 采纳（直接写库）') + `（${picked.value.size}）`)
+/* R166 定案 8：job 自己声明了主采纳文案就用它（拆解=「✓ 采纳为子任务」）——
+   按钮该说出"点了会改什么"；没声明才回落通用的「采纳（直接写库）」。计数后缀两种都保留。 */
+const adoptLabel = computed(() => {
+  const base = cur.value?.adoptLabel || (confirmText.value ? '✓ 确认写库' : '✓ 采纳（直接写库）')
+  return `${base}（${picked.value.size}）`
+})
 const hotPair = ref('')
 
 function defaultPicks(out: AiRow[]): Set<string> {
@@ -328,6 +333,8 @@ async function promote(): Promise<void> {
   } catch (e) { showToast('⚠ ' + (e as Error).message) }
 }
 function pickDir(text: string): void { dirText.value = text; dirOpen.value = false }
+/** R166 D9：弹窗内不建第二套专家编辑器——只跳 设置 → AI 助手（hash 走 router 同款口径，不引新依赖） */
+function gotoPersonaAdmin(): void { window.location.hash = '#/settings?page=ai' }
 
 /* ===== R161 任务 6：弹窗内键盘 —— Cmd/Ctrl+Enter = 采纳选中 =====
  * Esc 由 `Modal.vue` 提供（捕获阶段 + stopPropagation），此处**不重复实现**，免得一次 Esc 关两层。
@@ -358,10 +365,13 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
     </template>
     <!-- R141（反馈 #2/#3）：专家下拉上移弹窗头部（跑的过程中也可见可换）；subject 标明正在处理哪张卡 -->
     <template v-if="cur?.persona" #title-extra>
+      <!-- R166 D9：弹窗内**不建第二套专家编辑器**——只给跳转。自建角色的启停/编辑恒在 设置→AI 助手 -->
       <select class="ai-persona" :value="cur.persona.current" title="换一个专家视角重新生成"
         @change="cur.persona!.onPick(($event.target as HTMLSelectElement).value)">
         <option v-for="o in cur.persona.options" :key="o.id" :value="o.id">{{ o.label }}</option>
       </select>
+      <button class="ai-btn sm ai-persona-manage" title="到 设置 → AI 助手 管理专家（启停与自建角色都只在那一处）"
+        @click="gotoPersonaAdmin">⚙ 管理专家</button>
     </template>
     <!-- ② 固定行：阶段指示 + 一次性指令 —— 不随对照区滚动：滚到正文深处，这次的口径仍看得见 -->
     <template v-if="cur?.steps?.length || cur?.promptScope" #sub>
@@ -566,6 +576,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
 .ai-toolbar { display: flex; align-items: center; gap: 10px; font-size: var(--fs-sub); color: var(--text-3); flex-wrap: wrap }
 .ai-sum .ai-usage { margin-left: auto }
 .ai-all { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.ai-persona-manage { margin-left: 6px; }
 .ai-persona { padding: 3px 6px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface-2); color: var(--text-2); font-size: var(--fs-caption); cursor: pointer; font-family: inherit; max-width: 160px; }
 .ai-usage { margin-left: auto; }
 .ai-rows { display: flex; flex-direction: column; gap: 6px; }

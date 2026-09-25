@@ -19,53 +19,25 @@ export function detachTaskFromMetrics(d: AppData, taskId: string): number {
   return n
 }
 
-/** R144：把挂在某父下的子任务升为普通任务（摘 parentId 回落指标层，子任务绝不陪葬） */
-export function detachChildren(d: AppData, parentId: string): number {
-  let n = 0
-  for (const t of d.tasks || []) if (t.parentId === parentId) { t.parentId = undefined; t.updatedAt = Date.now(); n++ }
-  return n
-}
+/**
+ * R166 定案 1/2：`detachChildren` 与 `flattenTaskTree` 随「parentId 父子软层级」整体退役——
+ * 子任务改成卡内嵌 `subtasks` 字段（不是独立卡），因此不再需要"父指针"这一概念，
+ * 也就不需要解绑时摘子、也不需要把树展平成显示行。存量 parentId 由 repository 的
+ * `foldParentIdSubtasks` 启动期一次性折叠进父卡清单。
+ */
 
-/** R144：子任务软层级展平成显示行——父在前、其子紧随并标 sub（仅一层缩进语义，多层递归带上限保护）。
- *  父不在传入集合内（已解绑/删除/换指标）时子按顶层出，任何卡都不会被吞。 */
-export function flattenTaskTree(tasks: TaskCard[]): { t: TaskCard; sub: boolean }[] {
-  const kidsOf = new Map<string, TaskCard[]>()
-  const live = new Set(tasks.map(t => t.id))
-  const tops: TaskCard[] = []
-  for (const t of tasks) {
-    if (t.parentId && live.has(t.parentId)) {
-      const arr = kidsOf.get(t.parentId)
-      if (arr) arr.push(t); else kidsOf.set(t.parentId, [t])
-    } else tops.push(t)
-  }
-  const out: { t: TaskCard; sub: boolean }[] = []
-  const done = new Set<string>()
-  const walk = (t: TaskCard, sub: boolean, depth: number) => {
-    if (done.has(t.id)) return
-    done.add(t.id)
-    out.push({ t, sub })
-    if (depth >= 4) return // 异常数据下不再深走，剩下的由下方兜底按顶层补出
-    for (const k of kidsOf.get(t.id) || []) walk(k, true, depth + 1)
-  }
-  for (const t of tops) walk(t, false, 0)
-  for (const t of tasks) if (!done.has(t.id)) out.push({ t, sub: false })
-  return out
-}
-
-/** 解绑：摘除项目/指标归属（任务回任务调度模块未归属区），不删本体；子任务摘父指针 */
+/** 解绑：摘除项目/指标归属（任务回任务调度模块未归属区），不删本体 */
 export function unbindTaskFromMetric(d: AppData, t: TaskCard) {
   t.projectId = undefined
   t.metricId = undefined
   detachTaskFromMetrics(d, t.id)
-  detachChildren(d, t.id)
   t.updatedAt = Date.now()
 }
 
-/** 软删进回收站：置 deletedAt + 摘净指标引用（t.metricId 保留，恢复时回填 taskIds 的锚）；子任务摘父指针 */
+/** 软删进回收站：置 deletedAt + 摘净指标引用（t.metricId 保留，恢复时回填 taskIds 的锚） */
 export function softDeleteTaskToTrash(d: AppData, t: TaskCard) {
   t.deletedAt = Date.now()
   detachTaskFromMetrics(d, t.id)
-  detachChildren(d, t.id)
   t.updatedAt = Date.now()
 }
 

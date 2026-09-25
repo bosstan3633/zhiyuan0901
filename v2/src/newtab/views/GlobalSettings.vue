@@ -1039,7 +1039,7 @@ import { ref, reactive, computed, watch, watchEffect, onMounted, shallowRef } fr
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
-import { saveUIPrefs, loadUIPrefs, getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage } from '@/shared/storage/repository'
+import { saveUIPrefs, loadUIPrefs, getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage, stripRetiredCardKeys } from '@/shared/storage/repository'
 import { K, EXPORT_MARKERS } from '@/shared/storage/keys'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
@@ -1061,7 +1061,7 @@ import { visibleFields, allFields } from '@/shared/utils/fields'
 import { sanitizeCardCols } from '@/shared/utils/cardCols'
 import { sanitizeWsView } from '@/shared/utils/wsView'
 import { assetSummary } from '@/shared/utils/assetKind'
-import type { FieldDef, AppData, ResourceCard, Workspace, Category, TagNode, AssetMeta, ID } from '@/shared/models'
+import type { FieldDef, AppData, ResourceCard, TaskCard, CuriosityCard, Workspace, Category, TagNode, AssetMeta, ID } from '@/shared/models'
 // R63-1/63-2：全景两级（资源台/策展台）与导出镜像卡适配
 import { isHubWs, boardCardsOf, isMirrorView } from '@/shared/storage/hub'
 import { CURATION_WS_ID } from '@/shared/models'
@@ -2083,12 +2083,12 @@ function mergeImport(imported: AppData): { cards: number; dirs: number; ws: numb
 
   // ---- 方向台：策展台 / 分类 / 三卡 ----
   // R48-B2：导入卡片统一打 importedAt 戳（双口径统计「新建 X · 导入 Y」的依据；合并进既有卡也重打——它确实在本次被导入）
-  const importedNow = Date.now()
+  const importedNow = Date.now() // R166（实测 K5a）：mergeById 覆盖式合并且导入晚于载入 ⇒ 退役字段在下面三行各剥一次（真源 repository.RETIRED_CARD_KEYS）
   d.workspaces = mergeById(d.workspaces, imported.workspaces || [])
   d.categories = mergeById(d.categories, safeCats)
-  d.resources = mergeById(d.resources, (imported.resources || []).map(r => ({ ...r, importedAt: importedNow })))
-  d.tasks = mergeById(d.tasks, (imported.tasks || []).map(t => ({ ...t, importedAt: importedNow })))
-  d.curiosities = mergeById(d.curiosities, (imported.curiosities || []).map(c => ({ ...c, importedAt: importedNow })))
+  d.resources = mergeById(d.resources, stripRetiredCardKeys<ResourceCard>(imported.resources).map(r => ({ ...r, importedAt: importedNow })))
+  d.tasks = mergeById(d.tasks, stripRetiredCardKeys<TaskCard>(imported.tasks).map(t => ({ ...t, importedAt: importedNow })))
+  d.curiosities = mergeById(d.curiosities, stripRetiredCardKeys<CuriosityCard>(imported.curiosities).map(c => ({ ...c, importedAt: importedNow })))
   const cardsAdded = (imported.resources?.length || 0) + (imported.tasks?.length || 0) + (imported.curiosities?.length || 0)
 
   // ---- 调度台：愿景/使命（内容取较新，关联取并集）----

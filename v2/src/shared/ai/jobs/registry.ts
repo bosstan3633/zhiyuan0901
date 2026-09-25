@@ -192,6 +192,22 @@ export const AI_ENTRIES: AiEntryDecl[] = [
     note: 'GlobalPopups 侧=采集后补全（captureEnrich 开关下自动触发，被动面）；R158 需按宿主判定 family',
   },
   {
+    id: 'task-enrich', title: 'AI 补全任务', family: 'proactive', kind: 'job',
+    factory: 'buildTaskEnrichJob', factoryFile: 'shared/ai/taskEnrich.ts',
+    hosts: ['newtab/components/compass/TaskDetailDrawer.vue'],
+    caps: { apply: true, before: true, promptScope: 'enrich:task' },
+    panel: { icon: 'copy', mode: 'nav', route: '/compass', hint: '任务详情标题下三入口之一' },
+    note: '只补缺不覆盖：说明已有验收标准就不再建议；归属建议判弱默认不勾（定案：AI 不替决策）',
+  },
+  {
+    id: 'task-support', title: '找资源支持', family: 'proactive', kind: 'job',
+    factory: 'buildTaskSupportJob', factoryFile: 'shared/ai/taskSupport.ts',
+    hosts: ['newtab/components/compass/TaskDetailDrawer.vue'],
+    caps: { apply: true, before: true, promptScope: 'support:task' },
+    panel: { icon: 'compass', mode: 'nav', route: '/compass', hint: '任务详情三入口之一；子任务行 🧭 也可发起' },
+    note: '本地预筛（词面+标签 top N、排除已关联）→ 模型只排序+一句判词；采纳写独立表 supportLinks，两张卡本体零改动（卡间零挂载红线下的记录型关联）',
+  },
+  {
     id: 'task-parse', title: 'AI 建任务', family: 'proactive', kind: 'job',
     factory: 'buildTaskParseJob', factoryFile: 'shared/ai/select.ts',
     hosts: ['newtab/components/TaskAddDrawer.vue'],

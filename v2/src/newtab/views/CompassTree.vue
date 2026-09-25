@@ -9,7 +9,7 @@ import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
 import { matchPinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/utils/link'
-import { flattenTaskTree, unbindTaskFromMetric } from '@/shared/utils/taskLinks'
+import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 // R146（回退契约）：罗盘节点删除走真源（确认报数 + 3 秒撤销），与策展台/项目抽屉同一口径
 import { compassNodeCounts, removeCompassNode, restoreCompassNode, type CompassNodeKind } from '@/shared/utils/compassCrud'
 import { useConfirm } from '@/shared/components/confirm'
@@ -332,13 +332,6 @@ function unbindTask(task: TaskCard) {
   store.persist()
   showToast(`✓ 已从本指标移除：「${task.title.slice(0, 16)}」回到任务调度模块`)
 }
-/** R144：子任务 ⤴ 升顶层——只摘父子关联，指标归属与本体不动 */
-function promoteTask(task: TaskCard) {
-  task.parentId = undefined
-  task.updatedAt = Date.now()
-  store.persist()
-  showToast('⤴ 已升为顶层任务')
-}
 
 // ---- 任务数据 ----
 function tasksForMetric(metricId: string): TaskCard[] {
@@ -349,10 +342,8 @@ function tasksForMetric(metricId: string): TaskCard[] {
     .filter(t => { if (seen.has(t.id)) return false; seen.add(t.id); return true })
     .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
 }
-/** R144：子任务软层级展平（真源 flattenTaskTree）——父在前子紧随缩进；父不在本指标活列表时子按顶层出 */
-function metricTaskRows(metricId: string) {
-  return flattenTaskTree(tasksForMetric(metricId))
-}
+/* R166 定案 1：子任务改成卡内嵌 subtasks，不再是独立卡 ⇒ R144 的 flattenTaskTree 展平与 ⤴ 升顶层退役 */
+function metricTaskRows(metricId: string) { return tasksForMetric(metricId) }
 
 // ---- 停滞检测 ----
 function isStagnant(dir: Direction): boolean {
@@ -649,13 +640,12 @@ onUnmounted(() => {
                       </span>
                     </div>
                     <div v-if="tasksForMetric(metric.id).length && expandedMetrics.has(metric.id)" class="tm-task-checklist">
-                      <div v-for="{ t: task, sub } in metricTaskRows(metric.id)" :key="task.id" class="tm-task-leaf" :class="{done: task.status==='done', sub}">
+                      <div v-for="task in metricTaskRows(metric.id)" :key="task.id" class="tm-task-leaf" :class="{done: task.status==='done'}">
                         <span class="tml-check" :class="{done: task.status==='done'}" @click.stop="toggleTask(task.id)">{{ task.status==='done' ? '✓' : task.status==='doing' ? '◐' : '○' }}</span>
                         <span class="node-title editable" :class="{editing: editingField === 'task-' + task.id}" :data-edit="'task-' + task.id" :contenteditable="editingField === 'task-' + task.id"
                           @click.stop="startEdit('task-' + task.id, $event)" @blur="saveEdit('task-' + task.id, $event)" @keydown.enter.prevent="saveEdit('task-' + task.id, $event)" @keydown.esc="cancelEdit">{{ task.title }}</span>
                         <span class="tml-pri">{{ task.priority==='high'?'高优':task.priority==='medium'?'中优':'低优' }}</span>
                         <MaturityBadge :m="taskMaturity(task)" />
-                        <span v-if="sub" class="tml-up node-action" @click.stop="promoteTask(task)" title="⤴ 升为顶层任务（解父子关联，指标归属不变）">⤴</span>
                         <span class="tml-del node-action" @click.stop="unbindTask(task)" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）">✕</span>
                       </div>
                     </div>
@@ -1040,7 +1030,6 @@ onUnmounted(() => {
 .tml-del { display: none; flex-shrink: 0; }
 .tm-task-leaf:hover .tml-del { display: inline-flex; }
 /* R144：子任务软层级——缩进挂父下（仅展示层级，完成状态永不联动） */
-.tm-task-leaf.sub { margin-left: 16px; padding-left: 8px; border-left: 2px solid var(--border); }
 .tml-up { display: none; flex-shrink: 0; }
 .tm-task-leaf:hover .tml-up { display: inline-flex; }
 /* 空指标警示（原型：⚠ 暂无支撑任务） */

@@ -128,9 +128,10 @@ export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx
     }
   }
   if (level === 'breakdown') {
-    // R139 双通道：主采纳=建步骤子任务；次采纳=同批勾选步骤合并成清单写进本任务详情（小任务不配子任务时用它）
-    job.hint = '勾选后二选一：「采纳」把步骤建成子任务（挂在父下、全库查重）；「步骤写入任务详情」只落清单进描述、不建卡。右上角可换执笔专家，换后自动重跑。'
-    job.secondary = { label: '📝 步骤写入任务详情', apply: (rows) => writeStepsToTask(ctx.d, anchorId, rows, ctx.persist) }
+    // R139 双通道 · R166 定案 8 改去向：主采纳=写本卡内嵌子任务清单；次采纳=同批步骤合并成清单写进详情
+    job.hint = '勾选后二选一：「✓ 采纳为子任务」写进本卡的子任务清单（**不是新建任务卡**，不进任务池/指标/看板/周报，完成也不计分）；「📝 步骤写进详情」只把清单落进说明。右上角可换执笔专家，换后自动重跑。'
+    job.adoptLabel = '✓ 采纳为子任务'
+    job.secondary = { label: '📝 步骤写进详情', apply: (rows) => writeStepsToTask(ctx.d, anchorId, rows, ctx.persist) }
   }
   return job
 }
@@ -155,11 +156,11 @@ export function applyChain(level: ChainLevel, anchorId: string, ctx: ChainCtx, r
   const d = ctx.d
   let made = 0, dup = 0
   const now = Date.now()
-  const mkTask = (s: ChainSuggestion, projectId?: string, metricId?: string, parentId?: string) => ({
+  const mkTask = (s: ChainSuggestion, projectId?: string, metricId?: string) => ({
     id: uid('tk'), kind: 'task' as const, title: s.name!, status: 'todo' as const,
     priority: (s.priority || 'medium') as 'high' | 'medium' | 'low',
     dueDate: s.dueDate, estimatedMinutes: s.estimatedMinutes,
-    projectId, metricId, parentId,
+    projectId, metricId,
     customFields: {},
     createdAt: now, updatedAt: now,
   })
@@ -211,7 +212,7 @@ export function applyChain(level: ChainLevel, anchorId: string, ctx: ChainCtx, r
     }
   } else { // breakdown
     const t = d.tasks.find(x => x.id === anchorId)
-    if (!t) return '⚠ 原任务已不存在，未创建任何步骤'
+    if (!t) return '⚠ 原任务已不存在，未写入任何步骤'
     // R165-A（方案 A 三态凭据）：采纳拆解建议即视为 AI 动过本卡
     t.aiTouchedAt = now
     for (const r of rows) {
@@ -224,15 +225,18 @@ export function applyChain(level: ChainLevel, anchorId: string, ctx: ChainCtx, r
         continue
       }
       if (!s.name) continue
-      if (d.tasks.some(x => !x.deletedAt && x.title === s.name)) { dup++; continue }
-      const step = mkTask(s, t.projectId, t.metricId, t.id)
-      d.tasks.unshift(step)
-      if (t.metricId) {
-        for (const x of d.compass.directions) for (const p of x.projects) { const m = p.metrics.find(y => y.id === t.metricId); if (m) m.taskIds.push(step.id) }
-      }
+      /* R166 定案 1/8：拆解去向从"建子任务卡"改成"写本卡内嵌清单"——
+         步骤不再是任务池里的一张卡（不进池/指标 taskIds/看板/周报/回收站），
+         查重也从"全库同名"收窄成"本卡清单内同名"：跨任务重名是正常事，同一张卡里才叫重复。 */
+      t.subtasks = t.subtasks || []
+      if (t.subtasks.some(x => x.title === s.name)) { dup++; continue }
+      t.subtasks.push({ id: uid('st'), title: s.name, done: false })
       made++
     }
+    t.updatedAt = Date.now()
   }
   ctx.persist()
-  return `✓ 已创建 ${made} 项${dup ? ` · 同名跳过 ${dup}` : ''}`
+  return level === 'breakdown'
+    ? `✓ 已写入 ${made} 项${dup ? ` · 本卡同名跳过 ${dup}` : ''}`
+    : `✓ 已创建 ${made} 项${dup ? ` · 同名跳过 ${dup}` : ''}`
 }
