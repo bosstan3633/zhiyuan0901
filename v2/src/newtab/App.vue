@@ -14,6 +14,8 @@ import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
 import { useConfirm } from '@/shared/components/confirm'
 // R146（回退契约）：策展台「归档 / 删除」两语义真源
 import Icon from '@/shared/components/Icon.vue'
+// R168：AI 徽标图形只挂一份（各入口走 <use>）——组件本体零依赖零状态，挂在根上即全站可用
+import ZhiMarkSymbol from '@/shared/components/ZhiMarkSymbol.vue'
 import logoUrl from '@/assets/logo.png'
 import { getBytesInUse, subscribeSaveError, clearLastSaveError, subscribeSaveState, cleanupLegacyKeys, type SaveState } from '@/shared/storage/repository'
 import { installGlobalUndo } from '@/shared/utils/undo'
@@ -435,6 +437,9 @@ const backupReminderDot = computed(() => {
 
 <template>
   <div class="app-shell" @click="menuWs && closeMenu(); themeOpen && (themeOpen = false)">
+    <!-- R168：AI 徽标的图形定义，全站只挂这一份（各入口走 `<use href="#zy-ai-mark">`）——
+         见 ZhiMarkSymbol.vue：一屏 32 枚徽标原样是 224 个 DOM 节点，现降到 64 个 -->
+    <ZhiMarkSymbol />
     <header class="topbar">
       <div class="topbar-inner" :class="topbarAlign">
       <nav class="tabs" @mouseleave="wsOverflowOpen = false">

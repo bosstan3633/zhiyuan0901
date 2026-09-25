@@ -376,8 +376,13 @@
 /* 抽屉 */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: var(--z-overlay); opacity: 0; pointer-events: none; transition: opacity var(--dur-slow); }
 .overlay.open { opacity: 1; pointer-events: auto; }
-.drawer { position: fixed; top: 0; right: 0; width: 520px; max-width: 92vw; height: 100%; background: var(--surface); z-index: calc(var(--z-overlay) + 1); transform: translateX(100%); transition: transform .3s var(--ease-emphasis); box-shadow: 0 10px 36px rgba(0,0,0,.08); display: flex; flex-direction: column; }
-.drawer.open { transform: translateX(0); }
+/* R168：抽屉改「点开才挂」（v-if + <Transition name="dr">）——旧写法是常驻 DOM 靠 transform 移出视口，
+   真库实测每次进台面白摊 168 个节点（含 88 个 option）。进出场现在走 dr-* 过渡类，
+   `.open` 这个类已不再参与抽屉位移（遮罩 `.overlay.open` 照旧用它）。 */
+.drawer { position: fixed; top: 0; right: 0; width: 520px; max-width: 92vw; height: 100%; background: var(--surface); z-index: calc(var(--z-overlay) + 1); display: flex; flex-direction: column; box-shadow: 0 10px 36px rgba(0,0,0,.08); }
+.dr-enter-active, .dr-leave-active { transition: transform .3s var(--ease-emphasis); }
+.dr-enter-from, .dr-leave-to { transform: translateX(100%); }
+@media (prefers-reduced-motion: reduce) { .dr-enter-active, .dr-leave-active { transition: none; } }
 /* R167：抽屉头（kicker + 就地可编辑主标题 + 关闭）——与共享 Drawer.vue 的 .drawer-header 同排版，
    两宿主看起来是同一个容器，只差一个真的 Teleport 壳。 */
 .dr-head { display: flex; align-items: flex-start; gap: var(--sp-2); padding: 14px 18px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }

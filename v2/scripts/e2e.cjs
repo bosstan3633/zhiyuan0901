@@ -379,13 +379,13 @@ async function main() {
   const mirFound = await mirCard.count()
   await mirCard.click().catch(() => {})
   await page.waitForTimeout(1300) /* 单击有 260ms 双击判别延时 + 抽屉进场动效 */
-  const mirTitleEl = page.locator('.drawer.open .dr-head textarea').first()
+  const mirTitleEl = page.locator('.ws-page > .drawer .dr-head textarea').first()
   const mirHeadVisible = await mirTitleEl.isVisible().catch(() => false)
   const mirTitleReadonly = (await mirTitleEl.getAttribute('readonly').catch(() => null)) !== null
   const mirBanner = await page.locator('.dr-readonly-banner').first().isVisible().catch(() => false)
-  const mirAiCells = await page.locator('.drawer.open .ds-ai-cell').count()
-  const mirFootBtns = await page.locator('.drawer.open .dr-footer button').count()
-  const mirFootText = (await page.locator('.drawer.open .dr-footer').first().innerText().catch(() => '')).replace(/\s+/g, ' ')
+  const mirAiCells = await page.locator('.ws-page > .drawer .ds-ai-cell').count()
+  const mirFootBtns = await page.locator('.ws-page > .drawer .dr-footer button').count()
+  const mirFootText = (await page.locator('.ws-page > .drawer .dr-footer').first().innerText().catch(() => '')).replace(/\s+/g, ' ')
   /* 诊断：投射是否还活着 / 渲染出来的那张卡有没有镜像标记 */
   const mirDiag = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const d = cur['zy_data_v2']
@@ -393,18 +393,18 @@ async function main() {
     const src = d.resources.find(r => r.id === 'e2e-ro-1')
     return { proj: p ? (p.targetWsId || '?') : 'none', srcWs: src ? src.workspaceId : 'none' }
   }))
-  await page.locator('.drawer.open .dr-close').first().click().catch(() => {})
+  await page.locator('.ws-page > .drawer .dr-close').first().click().catch(() => {})
   await page.waitForTimeout(700)
   // 对照面：同一张卡在资源台是**真身**——AI 行两格必须在、标题必须可写
   await page.goto(base + '#/workspace/zy-curation', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2000)
   await page.locator('.res-card[data-rid="e2e-ro-1"]').first().click().catch(() => {})
   await page.waitForTimeout(1300)
-  const hubAiCells = await page.locator('.drawer.open .ds-ai-cell').count()
-  const hubTitleEl = page.locator('.drawer.open .dr-head textarea').first()
+  const hubAiCells = await page.locator('.ws-page > .drawer .ds-ai-cell').count()
+  const hubTitleEl = page.locator('.ws-page > .drawer .dr-head textarea').first()
   const hubTitleEditable = (await hubTitleEl.getAttribute('readonly').catch(() => 'x')) === null
   const hubTitleValue = await hubTitleEl.inputValue().catch(() => '')
-  await page.locator('.drawer.open .dr-close').first().click().catch(() => {})
+  await page.locator('.ws-page > .drawer .dr-close').first().click().catch(() => {})
   await page.waitForTimeout(500)
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const data = cur['zy_data_v2']

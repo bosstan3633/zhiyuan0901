@@ -72,7 +72,7 @@ function codeOnly(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.6.0'";
+const VER_ANCHOR_LITERAL = "version: '3.6.1'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -3354,9 +3354,10 @@ check('R115-4 ★ 骨架屏「就绪即过渡」：快加载废止 360ms 补足�
 });
 
 // ===== R116（看板渲染增量优化）=====
-check('R116-1 ★ 看板列增量渲染：KANBAN_COL_STEP=20 + 每列切片（items: shown）+ count 恒为全量长度（hiddenCount 为差值）', () => {
+check('R116-1 ★ 看板列增量渲染：KANBAN_COL_STEP + 每列切片（items: shown）+ count 恒为全量长度（hiddenCount 为差值）· R168 备案：档位 20 → **6**——真库实测 20 × 33 列 ≥ 全量 380 卡，等于"增量渲染"名存实亡（切看板 +3520 节点 / 阻塞 488ms，全站最慢一次交互）。判据改为**从源码读那个常量并断言 ≤8**，写死等值只会让下次调档又红一条', () => {
   const w = read('/newtab/composables/useResourceView.ts');
-  return w.includes('const KANBAN_COL_STEP = 20')
+  const step = Number((w.match(/const KANBAN_COL_STEP = (\d+)/) || [])[1] || 999);
+  return step > 0 && step <= 8
     && w.includes('const shown = items.slice(0, kanbanLimitOf(c.key))')
     && w.includes('return { key: c.key, name: c.name, items: shown, count: items.length, hiddenCount: items.length - shown.length }')
     && w.includes('function kanbanLimitOf(key: string) { return kanbanColLimit.value[key] || KANBAN_COL_STEP }');
@@ -4917,6 +4918,36 @@ check('R167-9 ★抽屉宽度与视觉走查判据同频：两代资源详情与
     && g.includes("h1: '.ds-h1'") && g.includes('aiCount: 2') && g.includes('aiCount: 1') && g.includes('aiCount: 3')
     && g.includes("class=\"ai-dir\"") === false && g.includes('.ai-dir') && g.includes('.ai-drag') && g.includes('if (modalFail.length)')
     && g.includes('const wantDrag = m.width >= 1200') /* 窄屏已降单栏 ⇒ 把手"不该在"也是判据（单栏挂一根拖宽把手=能拖一个不存在的分界） */
+});
+
+console.log('【R168 · 性能盘点轮（工作台切换 / 看板 / 常驻浮层 / 徽标节点）】');
+check('R168-1 ★AI 徽标图形只挂一份：形状本体在 ZhiMarkSymbol（全站只挂 App 根一次），ZhiMark 退化为 <use> ⇒ 一枚徽标 7 节点降到 2（真库资源台一屏 32 枚 ⇒ 少插 160 节点）；入口仍只许 AiEntryButton 引 ZhiMark', () => {
+  const zm = read('/shared/components/ZhiMark.vue'); const sym = read('/shared/components/ZhiMarkSymbol.vue'); const app = read('/newtab/App.vue')
+  return !/<path|<circle|<rect/.test(zm) && zm.includes('<use href="#zy-ai-mark"') && zm.includes('viewBox="0 0 24 24"') && zm.includes('stroke="currentColor"')
+    && (sym.match(/<path|<circle|<rect/g) || []).length === 6 && sym.includes('symbol id="zy-ai-mark"')
+    && (app.match(/<ZhiMarkSymbol/g) || []).length === 1 && app.includes("import ZhiMarkSymbol from '@/shared/components/ZhiMarkSymbol.vue'")
+    && read('/shared/components/AiEntryButton.vue').includes("from '@/shared/components/ZhiMark.vue'")
+});
+check('R168-2 ★台面零"常驻浮层"：Workspace 的九副浮层（内联抽屉 + 8 个 modal）一律 v-if——真库实测抽屉开着与否都在 DOM 里（168 节点含 88 个 option），而它是每次进台面都摊的固定成本；抽屉进出场改走 <Transition name="dr">，不得再用 transform 移出视口冒充"关掉"', () => {
+  const w = read('/newtab/views/Workspace.vue'); const css = read('/newtab/views/workspace.css')
+  const openConds = ['importModalOpen', 'bookmarkModalOpen', 'moveModalOpen', 'moveOneOpen', 'catModal.open', 'inputModal.open', 'mirrorCatModal.open', 'mirrorPushModal']
+  const stillMounted = openConds.filter(k => w.includes(`class="modal-overlay" :class="{open: ${k}`))
+  return stillMounted.length === 0 && (w.match(/class="modal-overlay open"/g) || []).length === 8
+    && w.includes('<div v-if="drawerOpen" class="drawer">') && !w.includes('class="drawer" :class="{open: drawerOpen}"')
+    && w.includes('<Transition name="dr">') && css.includes('.dr-enter-from, .dr-leave-to { transform: translateX(100%); }')
+    && !css.includes('.drawer.open { transform: translateX(0); }') && css.includes('prefers-reduced-motion')
+});
+check('R168-3 ★三视图首屏都有渲染上限（"增量渲染"不许在某一个视图名存实亡）：卡片/列表 RENDER_STEP 与看板 KANBAN_COL_STEP 都在，且都有"还有 N 张"的显式续载入口 + 滚动续载通道', () => {
+  const w = read('/newtab/composables/useResourceView.ts'); const t = read('/newtab/views/Workspace.vue')
+  const step = Number((w.match(/const RENDER_STEP = (\d+)/) || [])[1] || 0)
+  const kstep = Number((w.match(/const KANBAN_COL_STEP = (\d+)/) || [])[1] || 0)
+  return step > 0 && step <= 32 && kstep > 0 && kstep <= 8 && w.includes('hiddenCount: items.length - shown.length')
+    && t.includes('kanbanMore(cat.key)') && t.includes('onKanbanColScroll') && t.includes('renderMore()')
+});
+check('R168-4 ★盘点用的两个口径必须留在 perf 里（体感靠数字不靠印象）：--real 真实路径 R1~R7 与 DOM 账单 M14/R6 计数（可见节点/卡/svg/徽标）——散布 >2 倍时唯一可信的就是结构量', () => {
+  const p = fs.readFileSync(path.resolve(__dirname, 'perf.cjs'), 'utf8').replace(/\r\n/g, '\n')
+  return p.includes('M14 账单：可见节点') && p.includes('svg') && p.includes('AI 徽标')
+    && p.includes("R7_全局搜索唤起(ms)") && p.includes('R2_冷挂资源台') && p.includes('--real=')
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

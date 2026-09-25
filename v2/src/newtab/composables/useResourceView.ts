@@ -415,9 +415,13 @@ export function useResourceView(ctx: ResourceViewCtx) {
   /** R71：看板列（名字 + 计数 + 卡列表）一次算好——模板此前每列把 resourcesByCategory 调两次
    *  （一次计数、一次渲染），等于每列对全量卡 filter+sort 两遍 */
   // R116 性能：看板列**增量渲染**（与 R112 卡片/列表 RENDER_STEP 同构）——large 档看板切换 786ms
-  // 的主体是 N 列 × 全量卡一次性挂载。每列初始 20 张，列体滚动近底自动追加 + 列底显式入口；
+  // 的主体是 N 列 × 全量卡一次性挂载。列体滚动近底自动追加 + 列底显式入口；
   // count 恒为全量长度（数据口径不变），切片只影响渲染集 items。
-  const KANBAN_COL_STEP = 20
+  /** R168：档位 **20 → 6**。原注释只写"每列初始 20 张"，但真实库（资源台 380 卡 / 33 个分类列）下
+   *  20 × 33 = 660 ≥ 全量 ⇒ **整台卡一次挂满**：真库实测切到看板 DOM +3520 节点、主线程阻塞 488ms
+   *  （长任务 146/82/198/62），是全站最慢的一次交互。降到 6 后首屏约 198 张（真库过半），
+   *  其余靠列内滚动或点「显示更多 N 张」续一屏——`onKanbanColScroll` / `kanbanMore` 一字未改，不新增代码路径。 */
+  const KANBAN_COL_STEP = 6
   const kanbanColLimit = ref<Record<string, number>>({})
   function kanbanLimitOf(key: string) { return kanbanColLimit.value[key] || KANBAN_COL_STEP }
   function kanbanMore(key: string) {

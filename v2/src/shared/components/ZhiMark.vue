@@ -17,6 +17,11 @@
  *
  * 契约：`size` = 边长（px，**不再走 font-size**）；`spin` 语义不变（prefers-reduced-motion 降速）。
  * 调用纪律：本组件只许被 `AiEntryButton.vue` 引用（断言 R155-10d 钉住），业务侧一律走 AiEntryButton。
+ *
+ * R168（性能）：形状本体已搬到 `ZhiMarkSymbol.vue`（全站只挂一次的 `<symbol id="zy-ai-mark">`），
+ * 这里只留 `<use>` —— 一枚徽标从 **7 个 DOM 节点降到 2 个**（真库资源台一屏 32 枚 ⇒ 少插 160 个节点）。
+ * 呈现属性（viewBox / 描边 / currentColor）仍由下面这个外层 svg 提供：形状自己不写 fill/stroke，
+ * 于是继承照常生效，主题着色与粗细观感一字不变。
  */
 withDefaults(defineProps<{ size?: number; spin?: boolean }>(), { size: 12, spin: false })
 </script>
@@ -35,12 +40,7 @@ withDefaults(defineProps<{ size?: number; spin?: boolean }>(), { size: 12, spin:
     stroke-linejoin="round"
     aria-hidden="true"
   >
-    <circle cx="12" cy="2.7" r="1" />
-    <path d="M12 3.7v1.7" />
-    <rect x="3.4" y="5.4" width="17.2" height="12.6" rx="3.8" />
-    <circle cx="9.1" cy="11.4" r="1.2" fill="currentColor" stroke="none" />
-    <circle cx="14.9" cy="11.4" r="1.2" fill="currentColor" stroke="none" />
-    <path d="M9.6 14.9h4.8" />
+    <use href="#zy-ai-mark" />
   </svg>
 </template>
 

@@ -598,9 +598,14 @@
       </div>
     </Transition>
 
-    <!-- 资源卡详情抽屉（单击打开） -->
+    <!-- 资源卡详情抽屉（单击打开）
+         R168：改 `v-if` + `<Transition>` —— 真库实测这副抽屉**开着与否都常驻**（168 节点，含分类下拉
+         那 88 个 `<option>`），而它是资源台/策展台**每一次进台面**都要摊的固定成本（该次挂载共 774 节点）。
+         旧实现靠 `transform: translateX(100%)` 移出视口 ⇒ 节点在、布局也在。改成"点开才挂、关掉即卸"，
+         进出场动画由 Transition 类承担（不再靠 `.open` 的 transform 过渡，避免与 `.drawer.open` 抢特异性）。 -->
     <div class="overlay" :class="{open: drawerOpen}" @click="closeDrawer"></div>
-    <div class="drawer" :class="{open: drawerOpen}">
+    <Transition name="dr">
+      <div v-if="drawerOpen" class="drawer">
       <!-- R167（OPPO 质感 · 与 App 级资源抽屉同一套件）：
            ① 主标题进抽屉头（kicker 说归属 + 就地可编辑，回车=保存／镜像只读卡=定位源卡），
               正文不再重复一份标题框；② AI 入口从标题行降到正文首行「一行两格」，
@@ -648,11 +653,12 @@
         </template>
       </div>
     </div>
+    </Transition>
 
     <!-- R73-S2（R16 收敛）：导入弹窗改为 **mode-aware**
          · hub（资源台）→ 书签 HTML 导入 + 本地文件导入（自 CurationCenter 迁入）
          · 策展台 → 只收策展数据包 JSON -->
-    <div class="modal-overlay" :class="{open: importModalOpen}" @click.self="importModalOpen=false">
+    <div v-if="importModalOpen" class="modal-overlay open" @click.self="importModalOpen=false">
       <div class="modal">
         <div class="modal-header">
           <span style="font-size:16px">⬇</span>
@@ -692,7 +698,7 @@
     <input ref="fileImportInput" type="file" multiple accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.avif,.ico,.html,.htm,.pdf,application/pdf,text/html" style="display:none" @change="handleFileImport" />
 
     <!-- R73-S2：书签导入文件夹选择（自 CurationCenter 迁入） -->
-    <div class="modal-overlay" :class="{open: bookmarkModalOpen}" @click.self="bookmarkModalOpen=false">
+    <div v-if="bookmarkModalOpen" class="modal-overlay open" @click.self="bookmarkModalOpen=false">
       <div class="modal">
         <div class="modal-header">
           <span style="font-size:16px">🔖</span>
@@ -718,7 +724,7 @@
     </div>
 
     <!-- 批量移动弹窗（第八轮：策展台→分类级联，含当前策展台） -->
-    <div class="modal-overlay" :class="{open: moveModalOpen}" @click.self="moveModalOpen=false">
+    <div v-if="moveModalOpen" class="modal-overlay open" @click.self="moveModalOpen=false">
       <div class="modal" style="width:420px">
         <div class="modal-header">
           <span style="font-size:16px">📦</span>
@@ -762,7 +768,7 @@
       @confirm="confirmLinkCards" @close="linkCardsModal = null" @ai-run="linkAiRun" />
 
     <!-- 第八轮：单卡移动分类弹窗 -->
-    <div class="modal-overlay" :class="{open: moveOneOpen}" @click.self="moveOneOpen=false">
+    <div v-if="moveOneOpen" class="modal-overlay open" @click.self="moveOneOpen=false">
       <div class="modal" style="width:380px">
         <div class="modal-header">
           <span style="font-size:16px">📂</span>
@@ -786,7 +792,7 @@
     </div>
 
     <!-- 第八轮：分类新建弹窗（R141 反馈 #7：重命名改为行内就地编辑，弹窗只管新建） -->
-    <div class="modal-overlay" :class="{open: catModal.open}" @click.self="catModal.open=false">
+    <div v-if="catModal.open" class="modal-overlay open" @click.self="catModal.open=false">
       <div class="modal" style="width:380px">
         <div class="modal-header">
           <span style="font-size:16px">🗂</span>
@@ -809,7 +815,7 @@
     </div>
 
     <!-- 第八轮：通用输入弹窗（策展台重命名/描述） -->
-    <div class="modal-overlay" :class="{open: inputModal.open}" @click.self="inputModal.open=false">
+    <div v-if="inputModal.open" class="modal-overlay open" @click.self="inputModal.open=false">
       <div class="modal" style="width:380px">
         <div class="modal-header">
           <span style="font-size:16px">✏️</span>
@@ -848,7 +854,7 @@
     </Teleport>
 
     <!-- R62-6：从资源台镜像分类弹窗 -->
-    <div class="modal-overlay" :class="{open: mirrorCatModal.open}" @click.self="mirrorCatModal.open=false">
+    <div v-if="mirrorCatModal.open" class="modal-overlay open" @click.self="mirrorCatModal.open=false">
       <div class="modal" style="width:420px">
         <div class="modal-header">
           <span style="font-size:16px">📤</span>
@@ -872,7 +878,7 @@
     </div>
 
     <!-- R73-S3：镜像到策展台（资源台 → 策展台；单卡 📡 / 分类 📤） -->
-    <div class="modal-overlay" :class="{open: !!mirrorPushModal}" @click.self="mirrorPushModal=null">
+    <div v-if="mirrorPushModal" class="modal-overlay open" @click.self="mirrorPushModal=null">
       <div class="modal" style="width:440px">
         <div class="modal-header">
           <span style="font-size:16px">{{ mirrorPushModal?.kind === 'card' ? '📡' : '📤' }}</span>
