@@ -16,11 +16,14 @@
 import { computed, nextTick, ref } from 'vue'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
+// R169-老账①：分类改自绘选择器（点开才展开）——原生 select 的 <option> 无法懒渲染，
+// 真库 88+ 分类每次开抽屉都是一整列常驻节点（R168 交付说明 §七遗留）
+import CatPicker from '@/shared/components/CatPicker.vue'
 import { showToast } from '@/shared/components/toast'
 import { useAppStore } from '../stores/app'
 import { useTaHeight } from '@/shared/utils/taHeight'
 // R87（R7）：链接三态判据收敛到 shared/utils/link（此前 isFullPath 是本组件私有函数，卡片视图用不到）
-import { linkStateOf } from '@/shared/utils/link'
+import { linkStateOf, LINK_SLOT_TABS, linkPlaceholderFor, slotFillOf, switchLinkSlot, setLinkSlot } from '@/shared/utils/link'
 import type { ResourceCard, Category, AssetMeta } from '@/shared/models'
 
 const props = defineProps<{
@@ -45,11 +48,12 @@ const { taH: noteH, startTaResize: startNoteResize } = useTaHeight(props.heightK
  * 字段本身仍随卡持久化（归属不变），只是不再有 UI 改它；分类候选按卡当前所在台过滤。
  */
 const catOptions = computed(() => treeCatOptions((d.value.categories || []).filter(c => c.workspaceId === props.model.workspaceId)))
-const linkPlaceholder = computed(() => {
-  if (props.model.linkType === 'url') return 'https://...'
-  if (props.model.linkType === 'file') return 'D:\\path\\to\\file.pdf'
-  return 'obsidian://open?vault=...'
-})
+// R169-T2：三槽的文案与占位符取自 LINK_SLOT_TABS（唯一真源），不再在本组件里按 linkType 分支写死
+const linkPlaceholder = computed(() => linkPlaceholderFor(props.model.linkType))
+/** 三槽填写状态（●=有值 / ○=空），点 tab 时一眼看出另外两条挂没挂 */
+const slotFill = computed(() => slotFillOf(props.model))
+/** 当前槽空着：这不是"断链"，别拿断链文案吓人（旧缺陷正是切到空槽立刻报"仅存文件名"） */
+const slotEmpty = computed(() => !(props.model.link || '').trim())
 
 function treeCatOptions(cats: Category[]): { id: string; label: string }[] {
   const roots = cats.filter(c => !c.parentId || !cats.some(p => p.id === c.parentId)).sort((a, b) => a.order - b.order)
@@ -101,8 +105,9 @@ function onHtmlAdded(meta: AssetMeta, replacedOld: AssetMeta | null) {
   } else {
     showToast(`已替换原 ${meta.kind === 'pdf' ? 'PDF' : 'HTML'}；标题保留手打内容，可自行编辑`)
   }
-  props.model.linkType = 'file'
-  props.model.link = `zy-asset://${meta.id}`
+  // R169-T2：挂载附件是"换槽写值"，不是"连写两个字段"——原先直写 linkType + link，
+  // 卡上原本那条 URL 会被就地冲掉（切回 URL 槽发现空了）。
+  setLinkSlot(props.model, 'file', `zy-asset://${meta.id}`)
   showToast(meta.kind === 'pdf'
     ? '✓ 已挂载 PDF：双击卡片即可在新标签页打开（Chrome 内置 viewer）'
     : '✓ 已挂载 HTML：双击卡片即可在新标签页完整打开')
@@ -123,22 +128,24 @@ function fmtTs(ts?: number): string {
       <div class="ds-pnl-h"><b>链接与归档</b><i>双击卡片即打开 · Ctrl+↩ 保存</i></div>
       <div class="ds-kv"><span class="k">链接</span><span class="v">
         <div class="ds-seg">
-          <span :class="{ on: model.linkType === 'url' }" @click="model.linkType = 'url'">URL</span>
-          <span :class="{ on: model.linkType === 'file' }" @click="model.linkType = 'file'">本地</span>
-          <span :class="{ on: model.linkType === 'obsidian' }" @click="model.linkType = 'obsidian'">Obsidian</span>
+          <span v-for="tb in LINK_SLOT_TABS" :key="tb.t" :class="{ on: model.linkType === tb.t }"
+            :title="tb.label + ' 槽：' + (slotFill[tb.t] || '空')" @click="switchLinkSlot(model, tb.t)">
+            {{ tb.label }}<i class="ds-seg-dot">{{ slotFill[tb.t] ? '●' : '○' }}</i>
+          </span>
         </div>
         <input ref="linkInputRef" type="text" class="ds-in" v-model="model.link" :placeholder="linkPlaceholder"
           @keydown.ctrl.enter.prevent="emit('save')" @keydown.meta.enter.prevent="emit('save')">
         <slot name="link-actions" />
       </span></div>
+      <div v-if="slotEmpty" class="ds-slot-empty">
+        这一槽是空的 —— 三条链接各自独立（URL / 本地 / Obsidian），切过去没有就说明还没填，双击不会去打另一条。
+      </div>
       <div v-if="linkIncomplete" class="ref-warn">
         ⚠ 当前仅存文件名，双击打开前请补全完整路径（如 D:\docs\file.pdf）
       </div>
       <div class="ds-kv"><span class="k">分类</span><span class="v">
-        <select class="ds-in" style="max-width:240px" v-model="model.categoryId" :title="'真身只在资源台，策展台以镜像呈现'">
-          <option value="">待分类</option>
-          <option v-for="opt in catOptions" :key="opt.id" :value="opt.id">{{ opt.label }}</option>
-        </select>
+        <!-- R169-老账①：原生 select（88+ option 常驻）→ CatPicker 自绘（点开才挂，可搜索/Esc/↑↓/Enter） -->
+        <CatPicker v-model="model.categoryId" :options="catOptions" :title="'真身只在资源台，策展台以镜像呈现'" />
       </span></div>
       <div class="ds-kv"><span class="k">标签</span><span class="v"><TagPicker v-model="model.tags" /></span></div>
     </section>
@@ -182,6 +189,8 @@ function fmtTs(ts?: number): string {
 /* R167：链接行/分类/标签的控件语言统一搬到 detail-sheet.css 的 ds-* 分组面板体系；
    这里只留本表单独有的告警条与附件上限说明。 */
 .ref-warn { margin: 6px 0; font-size: var(--fs-sub); color: var(--danger); background: var(--danger-bg-soft); padding: 6px 10px; border-radius: 6px; }
+/* R169-T2：空槽是"还没填"，不是"坏了"——与 .ref-warn 分两档，别用告警色吓人 */
+.ds-slot-empty { margin: 6px 0; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); border: 1px dashed var(--border); padding: 6px 10px; border-radius: 6px; line-height: 1.6; }
 .ref-limits { padding: 6px 0 8px; font-size: var(--fs-caption); color: var(--text-4); line-height: 1.6; }
 .ref-ta-wrap { position: relative; display: flex; flex: 1; min-height: 0; }
 .ref-ta-resize {

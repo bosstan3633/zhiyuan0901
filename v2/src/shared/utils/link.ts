@@ -1,7 +1,10 @@
 /**
  * B40（第卅二轮）：三卡链接打开统一口径
  *
- * 数据模型为单链接字段（linkType + link），一卡一链：
+ * 数据模型：**当前槽**仍是单链接字段（linkType + link），一卡一"活动链"；
+ *  R169-T2 起另两槽的值挂在可选 `linkSlots`（详见 models 的字段注释）——本文件同时是三槽的
+ *  唯一读写口径（LINK_SLOT_TABS / slotLinkOf / switchLinkSlot / setLinkSlot），
+ *  打开/筛选/导出等消费点一律只看 linkType + link，不需要知道有几条备选。
  *  - url / obsidian → 原样打开
  *  - file → 盘符路径转 file:///；仅文件名（无完整路径）= 不可打开
  * 打开通道：chrome.tabs.create 优先（扩展页），降级 window.open（网页端浮层）。
@@ -75,4 +78,64 @@ export function openExternalLink(url: string): boolean {
   if (typeof chrome !== 'undefined' && chrome.tabs?.create) chrome.tabs.create({ url })
   else window.open(url, '_blank')
   return true
+}
+
+// ===== R169-T2：链接三槽（URL / 本地 / Obsidian 各一条） =====
+/** 三槽的固定顺序与文案（**唯一真源**：详情表单与两处采集表单共用，别各写一份 label） */
+export const LINK_SLOT_TABS: ReadonlyArray<{ t: LinkType; label: string; ph: string }> = [
+  { t: 'url', label: 'URL', ph: 'https://…' },
+  { t: 'file', label: '本地', ph: 'D:\\folder\\file.pdf' },
+  { t: 'obsidian', label: 'Obsidian', ph: 'obsidian://open?vault=…' }
+]
+
+/** 某一槽的输入占位符（三处表单共用：详情抽屉 / 采集浮层 / 采集 popup —— 各写一份就会漂成三种提示） */
+export function linkPlaceholderFor(t: LinkType): string {
+  return LINK_SLOT_TABS.find(x => x.t === t)?.ph || ''
+}
+
+export interface LinkSlotHost {
+  linkType: LinkType
+  link: string
+  linkSlots?: Partial<Record<LinkType, string>>
+}
+
+/** 某一槽的值：当前槽读 `link`，其余读 `linkSlots`（没有就是空，不猜、不回落） */
+export function slotLinkOf(m: LinkSlotHost, t: LinkType): string {
+  return t === m.linkType ? (m.link || '') : (m.linkSlots?.[t] || '')
+}
+
+/** 三槽填写状态（表单的三点指示器用） */
+export function slotFillOf(m: LinkSlotHost): Record<LinkType, string> {
+  return { url: slotLinkOf(m, 'url'), file: slotLinkOf(m, 'file'), obsidian: slotLinkOf(m, 'obsidian') }
+}
+
+/**
+ * 切槽：当前值先存回它所属的槽，再把目标槽的值取进 `link`。
+ * 目标槽为空 ⇒ `link` 置空 —— 这正是本轮要修的旧缺陷：原先切 tab 只改指针不改值，
+ * 一条 `https://x` 点一下「本地」还挂在那儿，且立刻被按 file 判据误报"仅存文件名"。
+ */
+export function switchLinkSlot(m: LinkSlotHost, next: LinkType): void {
+  const cur = m.linkType
+  if (cur === next) return
+  const v = (m.link || '').trim()
+  if (!m.linkSlots) m.linkSlots = {}
+  if (v) m.linkSlots[cur] = m.link
+  else delete m.linkSlots[cur]
+  m.linkType = next
+  m.link = m.linkSlots[next] || ''
+}
+
+/**
+ * 直接落到某一槽（挂载附件、批量改写等"不是用户手输"的路径）。
+ * 与 switchLinkSlot 同一纪律：**换槽前必须先把当前值存回原槽**，否则切过去就把它冲掉了
+ * —— ResourceEditForm 的 PDF/HTML 挂载原先正是直接连写 linkType + link，丢过这条链。
+ */
+export function setLinkSlot(m: LinkSlotHost, t: LinkType, value: string): void {
+  if (t === m.linkType) { m.link = value; return }
+  const cur = m.linkType
+  const v = (m.link || '').trim()
+  if (!m.linkSlots) m.linkSlots = {}
+  if (v) m.linkSlots[cur] = m.link
+  m.linkType = t
+  m.link = value
 }

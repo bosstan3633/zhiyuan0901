@@ -338,6 +338,9 @@
 /* R116：看板列增量渲染——列底显式「显示更多」入口（与卡片/列表 R112 同构） */
 .kc-more { text-align: center; padding: 8px 0 4px; font-size: var(--fs-sub); color: var(--accent); cursor: pointer; user-select: none; }
 .kc-more:hover { text-decoration: underline; }
+/* R169-老账②：列窗口续载入口（列数 > 60 时出现在列尾，与 .kc-more 同语言） */
+.kc-col-more { flex: 0 0 220px; align-self: stretch; display: flex; align-items: center; justify-content: center; padding: 12px; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); font-size: var(--fs-sub); color: var(--accent); cursor: pointer; user-select: none; }
+.kc-col-more:hover { border-color: var(--accent); background: var(--surface-2); }
 .kc-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .kc-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
 /* R79（R1-看）：position: relative 为 hover 动作条的绝对定位提供参照（插入线走 box-shadow: inset，不受影响） */
@@ -374,27 +377,17 @@
 .batch-enter-from, .batch-leave-to { opacity: 0; transform: translateX(-50%) translateY(12px); }
 
 /* 抽屉 */
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: var(--z-overlay); opacity: 0; pointer-events: none; transition: opacity var(--dur-slow); }
-.overlay.open { opacity: 1; pointer-events: auto; }
-/* R168：抽屉改「点开才挂」（v-if + <Transition name="dr">）——旧写法是常驻 DOM 靠 transform 移出视口，
-   真库实测每次进台面白摊 168 个节点（含 88 个 option）。进出场现在走 dr-* 过渡类，
-   `.open` 这个类已不再参与抽屉位移（遮罩 `.overlay.open` 照旧用它）。 */
-.drawer { position: fixed; top: 0; right: 0; width: 520px; max-width: 92vw; height: 100%; background: var(--surface); z-index: calc(var(--z-overlay) + 1); display: flex; flex-direction: column; box-shadow: 0 10px 36px rgba(0,0,0,.08); }
-.dr-enter-active, .dr-leave-active { transition: transform .3s var(--ease-emphasis); }
-.dr-enter-from, .dr-leave-to { transform: translateX(100%); }
-@media (prefers-reduced-motion: reduce) { .dr-enter-active, .dr-leave-active { transition: none; } }
-/* R167：抽屉头（kicker + 就地可编辑主标题 + 关闭）——与共享 Drawer.vue 的 .drawer-header 同排版，
-   两宿主看起来是同一个容器，只差一个真的 Teleport 壳。 */
-.dr-head { display: flex; align-items: flex-start; gap: var(--sp-2); padding: 14px 18px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.dr-close { width: 26px; height: 26px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); cursor: pointer; color: var(--text-3); font-size: 18px; transition: all var(--dur); }
-.dr-close:hover { background: var(--surface-3); color: var(--text); }
-.dr-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
+/* R169-老账③：自绘 .drawer 容器与 dr-head/dr-close/dr-body/dr-* 过渡退役——资源详情抽屉改走共享
+   Drawer.vue 壳（宽 520px 经 props 传入，Teleport/Esc/遮罩/进出场/reduced-motion 全部单源）。
+   .dr-footer / .dr-footer-btn / .dr-kbd 保留：Workspace 各弹窗仍复用（完整退役待 4 套 modal 私有
+   实现收敛老账，见 R161 起挂账）。 */
+/* R167：镜像只读态挂壳的 .drawer-body 上（Drawer bodyClass prop）——选择器从 .dr-body.dr-readonly 收窄为 .dr-readonly */
+.dr-readonly .ref-form { pointer-events: none; }
+.dr-readonly { user-select: none; }
 /* R106（F4）：镜像卡只读详情——banner 提示 + 表单禁交互（关闭钮在头部，不受此约束） */
 .dr-readonly-banner { margin: 0 0 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); font-size: var(--fs-sub); color: var(--text-2); }
 .dr-readonly-banner .dr-ro-link { color: var(--accent); cursor: pointer; }
 .dr-readonly-banner .dr-ro-link:hover { text-decoration: underline; }
-.dr-body.dr-readonly .ref-form { pointer-events: none; }
-.dr-body.dr-readonly { user-select: none; }
 /* R162：底部动作条不再挤压——按钮禁折行 + 最小宽度；空间不足时整钮换行（次级动作一行、保存独立一行） */
 .dr-footer { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 8px; }
 /* R167：`.dr-footer-btn.ai` / `.dr-footer-btn.icon` 随"AI 进标题行 / 页脚放打开复制"一并退役——

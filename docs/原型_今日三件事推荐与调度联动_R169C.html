@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="linear">
+<head>
+<meta charset="utf-8">
+<title>R169-C 原型 · 今日三件事（自动写入）× 项目调度（扁平归属 + 指标下钻 + 页面跳转）</title>
+<style>
+/* ===== 真令牌（抄自 v2/src/shared/styles/tokens.css） ===== */
+:root {
+  --fs-micro: 9px; --fs-caption: 10px; --fs-macro: 11px; --fs-sub: 12px; --fs-body: 13px; --fs-title: 15px; --fs-headline: 17px;
+  --radius-xs: 4px; --radius-sm: 8px; --radius-md: 10px; --radius-lg: 14px; --radius-xl: 18px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+  --dur: .16s; --dur-slow: .26s; --ease-emphasis: cubic-bezier(.2,.8,.2,1);
+}
+[data-theme="linear"] { --surface:#fff; --surface-2:#F7F8FA; --surface-3:#EEF0F4; --text:#16181D; --text-2:#5A616E; --text-3:#8B92A0; --text-4:#AEB5C0;
+  --border:#E6E8EC; --border-strong:#D2D6DE; --accent:#5B5BD6; --accent-2:#5B5BD6; --accent-light:#EEEEFB; --accent-glow:rgba(91,91,214,.18);
+  --tag-neutral-bg:#F1F2F5; --tag-neutral-text:#5A616E; --success:#2E9E5B; --warning:#B87504; --danger:#C2434A; --scrim:rgba(20,22,28,.34); }
+[data-theme="notion"] { --surface:#fff; --surface-2:#F8F7F5; --surface-3:#F1EFEA; --text:#191714; --text-2:#5D5B57; --text-3:#8E8B85; --text-4:#B3B0A9;
+  --border:#EAE7E1; --border-strong:#D9D5CC; --accent:#4A5C86; --accent-2:#3B5079; --accent-light:#EEF1F6; --accent-glow:rgba(74,92,134,.16);
+  --tag-neutral-bg:#F1EEE9; --tag-neutral-text:#5D5B57; --success:#2F7D4F; --warning:#9B6A1F; --danger:#B4453C; --scrim:rgba(25,23,20,.3); }
+[data-theme="apple"] { --surface:#fff; --surface-2:#F5F5F7; --surface-3:#EAEAEF; --text:#1D1D1F; --text-2:#54545A; --text-3:#86868B; --text-4:#ADAEB5;
+  --border:#E4E4E9; --border-strong:#D0D0D7; --accent:#0A72C8; --accent-2:#0A72C8; --accent-light:#E9F3FB; --accent-glow:rgba(10,114,200,.16);
+  --tag-neutral-bg:#EFEFF3; --tag-neutral-text:#54545A; --success:#1E8A4C; --warning:#9A6700; --danger:#C0392B; --scrim:rgba(29,29,31,.3); }
+* { box-sizing: border-box; }
+body { margin:0; background:#0e1014; font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; color:var(--text); }
+.wrap { display:flex; gap:var(--sp-4); padding:var(--sp-4); align-items:flex-start; }
+.stage { flex:1; min-width:0; background:var(--surface); border-radius:var(--radius-xl); overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.42); }
+.bar { display:flex; align-items:center; gap:var(--sp-2); padding:10px var(--sp-5); background:var(--surface-2); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+.bar .lbl { font-size:var(--fs-caption); color:var(--text-3); letter-spacing:.04em; }
+.sw { padding:5px 11px; font-size:var(--fs-sub); font-family:inherit; border:1px solid var(--border-strong); background:var(--surface); color:var(--text-2); border-radius:999px; cursor:pointer; }
+.sw.on { border-color:var(--accent); background:var(--accent); color:#fff; }
+.pad { padding:var(--sp-5); display:flex; flex-direction:column; gap:var(--sp-4); }
+.chip { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:var(--fs-caption); font-weight:600; background:var(--tag-neutral-bg); color:var(--tag-neutral-text); white-space:nowrap; }
+.chip.a { background:var(--accent-light); color:var(--accent-2); }
+.chip.w { background:color-mix(in srgb, var(--warning) 12%, transparent); color:var(--warning); }
+.chip.rec { background:var(--accent-light); color:var(--accent-2); border:1px dashed color-mix(in srgb, var(--accent) 45%, transparent); }
+.hint { font-size:var(--fs-caption); color:var(--text-4); }
+
+/* ===== 面板壳 ===== */
+.pnl { position:relative; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-lg); padding:0 var(--sp-3) var(--sp-2); }
+.pnl-h { display:flex; align-items:center; gap:var(--sp-2); padding:10px 2px 8px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+.pnl-h b { font-size:var(--fs-caption); font-weight:700; letter-spacing:.06em; color:var(--text-3); text-transform:uppercase; }
+.pnl-h i { font-style:normal; font-size:var(--fs-caption); color:var(--text-4); }
+.pnl-h .r { margin-left:auto; display:flex; gap:6px; align-items:center; }
+.mini { padding:4px 9px; font-size:var(--fs-caption); font-family:inherit; border-radius:var(--radius-xs); border:1px solid var(--border-strong); background:var(--surface); color:var(--text-2); cursor:pointer; }
+.mini.p { border-color:var(--accent); background:var(--accent-light); color:var(--accent-2); font-weight:600; }
+
+/* ===== 模块一：今日三件事（只有三格，下面不留任何条带） ===== */
+.slots { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--sp-2); padding-top:var(--sp-2); }
+.slot { position:relative; display:flex; flex-direction:column; gap:6px; padding:11px 30px 11px 12px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); cursor:pointer; min-height:92px; transition:border-color var(--dur), box-shadow var(--dur); }
+.slot:hover { border-color:var(--border-strong); }
+.slot.on { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+.slot .no { position:absolute; right:11px; top:9px; font-size:var(--fs-micro); color:var(--text-4); letter-spacing:.08em; }
+.slot .kill { position:absolute; right:9px; bottom:8px; width:18px; height:18px; display:none; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:var(--radius-xs); background:var(--surface); color:var(--text-3); font-size:var(--fs-micro); cursor:pointer; }
+.slot:hover .kill { display:flex; }
+.slot .kill:hover { border-color:var(--danger); color:var(--danger); }
+.slot .t { display:flex; align-items:flex-start; gap:8px; }
+.box { width:16px; height:16px; flex-shrink:0; border:1.5px solid var(--border-strong); border-radius:var(--radius-xs); background:var(--surface); display:flex; align-items:center; justify-content:center; font-size:var(--fs-macro); color:#fff; cursor:pointer; }
+.box.done { background:var(--success); border-color:var(--success); }
+.slot .name { font-size:var(--fs-body); font-weight:600; line-height:1.45; }
+.slot .name.done { text-decoration:line-through; color:var(--text-3); }
+.slot .meta { display:flex; flex-wrap:wrap; gap:4px; }
+.slot.empty { border-style:dashed; background:transparent; color:var(--text-4); justify-content:center; align-items:flex-start; }
+.slot.empty .plus { font-size:var(--fs-sub); }
+/* 右上角"为什么是这三件"小图标 */
+.why-ico { position:relative; width:24px; height:24px; display:flex; align-items:center; justify-content:center; border:1px solid var(--border-strong); border-radius:var(--radius-sm); background:var(--surface); color:var(--accent-2); font-size:var(--fs-macro); cursor:pointer; }
+.why-ico:hover { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+.why-ico .bdg { position:absolute; top:-3px; right:-3px; width:7px; height:7px; border-radius:999px; background:var(--accent); border:1.5px solid var(--surface); }
+.why-ico.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+.why { position:absolute; right:var(--sp-3); top:46px; width:436px; background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--radius-lg); box-shadow:0 18px 44px rgba(0,0,0,.18); padding:var(--sp-3); z-index:6; display:none; }
+.why.show { display:block; }
+.why-h { display:flex; align-items:center; gap:var(--sp-2); font-size:var(--fs-sub); font-weight:600; padding-bottom:8px; border-bottom:1px solid var(--border); }
+.why-h .r { margin-left:auto; display:flex; gap:5px; }
+.why-row { display:flex; gap:9px; padding:9px 0; border-bottom:1px dashed var(--border); }
+.why-row:last-of-type { border-bottom:none; }
+.why-row .n { flex-shrink:0; width:16px; font-size:var(--fs-micro); color:var(--text-4); padding-top:2px; }
+.why-row .nm { font-size:var(--fs-sub); font-weight:600; }
+.why-row .w { font-size:var(--fs-caption); color:var(--text-3); line-height:1.7; margin-top:2px; }
+.why-row .w em { font-style:normal; color:var(--accent-2); font-weight:600; }
+.why-f { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); font-size:var(--fs-caption); color:var(--text-4); line-height:1.7; }
+.why-f b { color:var(--text-2); }
+.days { display:inline-flex; gap:3px; align-items:flex-end; vertical-align:-1px; margin-right:6px; }
+.day { width:9px; border-radius:var(--radius-xs); background:var(--surface-3); }
+.day.f { background:var(--accent); }
+/* 空槽的"从任务库选"浮层 */
+.pick { position:absolute; left:50%; transform:translateX(-50%); top:calc(100% + 6px); width:430px; background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--radius-lg); box-shadow:0 18px 44px rgba(0,0,0,.18); padding:var(--sp-2); z-index:7; display:none; }
+.pick.show { display:block; }
+.pick-h { font-size:var(--fs-caption); color:var(--text-3); padding:2px 6px 8px; }
+.pick-row { display:flex; align-items:center; gap:var(--sp-2); padding:8px; border-radius:var(--radius-sm); cursor:pointer; }
+.pick-row:hover { background:var(--accent-light); }
+.pick-row .nm { font-size:var(--fs-sub); font-weight:600; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* ===== 模块二（原模块三/四/五）：项目调度 ===== */
+.ps-top { display:flex; align-items:center; gap:var(--sp-3); padding:9px 2px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+/* 扁平一行：不再三个小卡片，只留一行文字 + 分隔符 */
+.crumb { display:flex; align-items:center; gap:7px; min-width:0; flex-wrap:nowrap; overflow:hidden; }
+.crumb .it { display:inline-flex; align-items:baseline; gap:5px; min-width:0; cursor:pointer; padding:2px 6px; margin-left:-6px; border-radius:var(--radius-xs); white-space:nowrap; }
+.crumb .it:hover { background:var(--surface-3); }
+.crumb .it .k { font-size:var(--fs-micro); letter-spacing:.06em; color:var(--text-4); text-transform:uppercase; flex-shrink:0; }
+/* 行首图标也必须显式取档位：不写就继承 body 的 16px（令牌纪律 T1 会红） */
+.crumb .it > span:first-child { font-size:var(--fs-macro); }
+.crumb .it .v { font-size:var(--fs-sub); font-weight:600; overflow:hidden; text-overflow:ellipsis; }
+.crumb .it.cur .v { color:var(--accent-2); }
+.crumb .sep { color:var(--text-4); font-size:var(--fs-macro); flex-shrink:0; }
+.jump { display:inline-flex; align-items:center; gap:4px; padding:4px 9px; font-size:var(--fs-caption); font-family:inherit; font-weight:600; border:1px solid var(--border-strong); border-radius:999px; background:var(--surface); color:var(--text-2); cursor:pointer; white-space:nowrap; }
+.jump:hover { border-color:var(--accent); color:var(--accent-2); background:var(--accent-light); }
+/* 四个指标：全部可点下钻 */
+.stats { display:flex; gap:2px; margin-left:auto; }
+.st { display:flex; flex-direction:column; align-items:center; gap:2px; min-width:54px; padding:4px 8px; border:1px solid transparent; border-radius:var(--radius-sm); background:transparent; font-family:inherit; cursor:pointer; transition:all var(--dur); }
+.st:hover { border-color:var(--border-strong); background:var(--surface); }
+.st.on { border-color:var(--accent); background:var(--accent-light); box-shadow:0 0 0 3px var(--accent-glow); }
+.st b { font-size:var(--fs-title); font-weight:700; line-height:1; color:var(--text); }
+.st span { font-size:var(--fs-micro); color:var(--text-4); white-space:nowrap; }
+.dual { display:grid; grid-template-columns:var(--split,42%) 7px 1fr; align-items:stretch; height:340px; padding-top:var(--sp-3); }
+.col { display:flex; flex-direction:column; min-width:0; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden; }
+.col-h { display:flex; align-items:center; gap:var(--sp-2); padding:9px 11px; border-bottom:1px solid var(--border); background:var(--surface-2); flex-shrink:0; }
+.col-h b { font-size:var(--fs-caption); font-weight:700; letter-spacing:.05em; color:var(--text-3); text-transform:uppercase; }
+.col-h i { font-style:normal; font-size:var(--fs-caption); color:var(--text-4); }
+.col-h .r { margin-left:auto; font-size:var(--fs-caption); color:var(--text-4); white-space:nowrap; }
+.col-b { flex:1; min-height:0; overflow-y:auto; padding:11px 12px; }
+.desc { font-size:var(--fs-body); line-height:1.85; color:var(--text-2); white-space:pre-wrap; }
+.acc { margin-top:var(--sp-3); padding:9px 11px; background:var(--surface-2); border-left:3px solid var(--accent); border-radius:0 var(--radius-sm) var(--radius-sm) 0; }
+.acc .k { font-size:var(--fs-micro); letter-spacing:.06em; color:var(--text-4); text-transform:uppercase; }
+.acc .v { font-size:var(--fs-sub); line-height:1.7; margin-top:3px; }
+.sub-row { display:flex; align-items:center; gap:9px; padding:8px 2px; border-bottom:1px solid var(--border); font-size:var(--fs-sub); }
+.sub-row:last-child { border-bottom:none; }
+.sub-row .nm { flex:1; min-width:0; }
+.sub-row.done .nm { text-decoration:line-through; color:var(--text-3); }
+.sub-row .x { color:var(--text-4); font-size:var(--fs-macro); cursor:pointer; }
+.sub-add { display:flex; align-items:center; gap:8px; padding:9px 2px 2px; font-size:var(--fs-sub); color:var(--text-4); border-top:1px dashed var(--border); margin-top:6px; }
+.drag { position:relative; cursor:col-resize; display:flex; align-items:center; justify-content:center; }
+.drag i { width:3px; height:26px; border-radius:2px; background:var(--border-strong); transition:all var(--dur); }
+.drag:hover i, .drag.act i { background:var(--accent); height:44px; }
+.drag::after { content:''; position:absolute; inset:0 -4px; }
+.ps-empty { padding:var(--sp-6); text-align:center; color:var(--text-4); font-size:var(--fs-sub); line-height:1.9; }
+
+/* ===== 下钻弹窗（模块四） ===== */
+.mask { position:fixed; inset:0; background:var(--scrim); z-index:20; display:none; align-items:center; justify-content:center; }
+.mask.show { display:flex; }
+.dz { width:min(720px,92vw); max-height:82vh; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-xl); box-shadow:0 24px 60px rgba(0,0,0,.28); display:flex; flex-direction:column; overflow:hidden; }
+.dz-h { display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-3) var(--sp-4); border-bottom:1px solid var(--border); flex-shrink:0; }
+.dz-h .t { font-size:var(--fs-title); font-weight:600; }
+.dz-h .c { font-size:var(--fs-sub); color:var(--text-3); }
+.dz-h .x { margin-left:auto; width:26px; height:26px; display:flex; align-items:center; justify-content:center; border:none; border-radius:var(--radius-sm); background:transparent; color:var(--text-3); font-size:var(--fs-title); cursor:pointer; }
+.dz-h .x:hover { background:var(--surface-3); color:var(--text); }
+.dz-b { flex:1; min-height:0; overflow-y:auto; padding:var(--sp-2) var(--sp-4); }
+.dz-row { display:flex; align-items:center; gap:var(--sp-3); padding:10px 0; border-bottom:1px solid var(--border); font-size:var(--fs-sub); cursor:pointer; }
+.dz-row:last-child { border-bottom:none; }
+.dz-row:hover .nm { color:var(--accent-2); }
+.dz-row .nm { flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dz-row .go { color:var(--text-4); }
+.dz-f { padding:var(--sp-3) var(--sp-4); border-top:1px solid var(--border); font-size:var(--fs-caption); color:var(--text-4); flex-shrink:0; }
+
+/* ===== 右侧说明板 ===== */
+.spec { width:372px; flex-shrink:0; background:#15181e; border:1px solid #262b34; border-radius:var(--radius-xl); color:#C9CED8; padding:var(--sp-4); font-size:var(--fs-sub); line-height:1.75; max-height:92vh; overflow:auto; }
+.spec h2 { font-size:var(--fs-title); color:#fff; margin:0 0 var(--sp-2); }
+.spec h3 { font-size:var(--fs-body); color:#E8EBF0; margin:var(--sp-4) 0 6px; }
+.spec code { background:#22262e; padding:1px 5px; border-radius:4px; font-size:var(--fs-caption); color:#9DC8FF; }
+.spec ul { margin:0 0 0 var(--sp-4); padding:0; } .spec li { margin:4px 0; }
+.spec .q { background:#1d222a; border-left:3px solid #5B5BD6; padding:8px 10px; margin:8px 0; border-radius:0 6px 6px 0; }
+.spec .ev { color:#7E8797; font-size:var(--fs-caption); }
+.toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); background:#16181D; color:#fff; padding:9px 16px; border-radius:999px; font-size:var(--fs-sub); opacity:0; transition:opacity var(--dur-slow); pointer-events:none; z-index:30; }
+.toast.on { opacity:1; }
+@media (max-width: 1199px) {
+  .dual { grid-template-columns: 1fr; gap: var(--sp-2); height:auto; }
+  .col { max-height: 300px; }
+  .drag { display: none; }
+  .slots { grid-template-columns: 1fr; }
+  .why, .pick { width:auto; left:var(--sp-3); right:var(--sp-3); transform:none; }
+  .stats { margin-left:0; }
+}
+@media (prefers-reduced-motion: reduce) { .slot, .st, .drag i { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stage">
+    <div class="bar">
+      <span class="lbl">状态</span>
+      <button class="sw on" data-view="auto" onclick="setView('auto')">① 打开即已写入推荐</button>
+      <button class="sw" data-view="manual" onclick="setView('manual')">② 我改过了</button>
+      <button class="sw" data-view="empty" onclick="setView('empty')">③ 今天清空了</button>
+      <span class="lbl" style="margin-left:14px">主题</span>
+      <button class="sw on" data-theme-btn="linear" onclick="setTheme('linear')">Linear</button>
+      <button class="sw" data-theme-btn="notion" onclick="setTheme('notion')">Notion</button>
+      <button class="sw" data-theme-btn="apple" onclick="setTheme('apple')">Apple</button>
+    </div>
+
+    <div class="pad">
+      <!-- ===== 模块一：只有三格，下面不留条带 ===== -->
+      <section class="pnl" data-testid="focus-pnl">
+        <div class="pnl-h">
+          <b>今日三件事 · TODAY'S FOCUS</b>
+          <i>3 格 · 勾选即写回任务卡</i>
+          <span class="r">
+            <button class="why-ico" id="whyIco" data-testid="why-ico" title="为什么推荐这三件" aria-label="为什么推荐这三件" onclick="toggleWhy(event)">✦<span class="bdg" id="whyBdg"></span></button>
+            <span class="hint">2026-09-26 周六</span>
+            <button class="mini" onclick="toast('‹ 前一日（现行 Ctrl+←）')">‹</button>
+            <button class="mini" onclick="toast('› 后一日')">›</button>
+            <button class="mini" onclick="copyYesterday()">复制昨日</button>
+            <button class="mini" onclick="toast('导出 CSV：现行能力')">导出</button>
+          </span>
+        </div>
+        <div class="slots" id="slots"></div>
+        <div class="why" id="why" data-testid="why-pop">
+          <div class="why-h">为什么是这三件<span class="r">
+            <button class="mini" onclick="reshuffle()">换一批</button>
+            <button class="mini" onclick="muteToday()">今天别自动推荐</button>
+            <button class="mini" onclick="toggleWhy(event)">收起</button></span></div>
+          <div id="whyRows"></div>
+          <div class="why-f" id="whyFoot"></div>
+        </div>
+        <div class="pick" id="pick" data-testid="pick-pop"></div>
+      </section>
+
+      <!-- ===== 模块二：项目调度 ===== -->
+      <section class="pnl" data-testid="spotlight">
+        <div class="pnl-h">
+          <b>项目调度 · PROJECT SPOTLIGHT</b>
+          <i>上：一行归属 + 页面跳转 ｜ 下：左=任务描述 · 右=子任务（中缝可拖）</i>
+        </div>
+        <div id="psBody"></div>
+      </section>
+    </div>
+  </div>
+
+  <aside class="spec">
+    <h2>R169-C 改了什么（按你标的 1~5）</h2>
+    <ul>
+      <li><b>①三格</b>：不动，推荐直接写在这里。</li>
+      <li><b>②整条带删除</b>：「推荐今日三件事 / 从任务库选取 / 依据 / 过去 7 天完成」这一整块都不要了。<br>⇒ 手工改法改成<b>点空槽弹选择器</b> + <b>格子悬停出 × 取消</b>；「过去 7 天完成 12/21」和依据折进右上角 ✦ 浮层里一行带过，不再单独占高。</li>
+      <li><b>③去掉"分栏复位"</b>：那个位置换成两个跳转 —— <b>「项目详情 ↗」</b>跳 <code>/compass/projects?p=…</code>、<b>「方向树 ↗」</b>跳 <code>/compass</code>（现行路由）。复位改为<b>双击把手</b>（不占 UI，title 里写着）。</li>
+      <li><b>④四个指标全部可下钻</b>：成功指标 / 任务总数 / 已完成 / 进行中，点了都弹对应清单（现行只有两个能下钻，另两个是死数字）。</li>
+      <li><b>⑤归属压扁成一行</b>：从三个小卡片（每卡两行）改成一行文字 <code>战略目标 › 项目 · 33% › 成功指标</code>，当前级用强调色标出，点某一级仍可切视角。</li>
+    </ul>
+    <h3>落码触点（已核到行号）</h3>
+    <ul>
+      <li>下钻现成机制：<code>CompassHome.vue:467-478</code> <code>drillTasks/openCurDrill</code> —— 本轮把四格全接上，弹窗复用现行壳。</li>
+      <li>跳转：<code>router.ts</code> 的 <code>/compass/projects?p=</code> 与 <code>/compass</code>（方向树在 <code>CompassTree.vue</code>）。</li>
+      <li>三格下方那条带在 <code>CompassHome.vue:834-884</code> 内 ⇒ 删带不删能力：候选池与历史聚合迁进 ✦ 浮层与"点空槽弹层"。</li>
+    </ul>
+    <h3>还剩三个问题</h3>
+    <div class="q"><b>Q1</b> 推荐用纯本地规则（零 Key、可解释）？还是要接 AI 排序（+1 天）。</div>
+    <div class="q"><b>Q3</b> 验收标准提成独立字段 <code>acceptance</code>？还是继续留在描述文本里（现在靠 <code>🤖 验收标准：</code> 前缀认）。</div>
+    <div class="q"><b>Q4</b> 右栏子任务：只读 + 可勾选、编辑回抽屉（原型这样）？还是要带 AI 找资源入口。</div>
+    <h3>实测</h3>
+    <div class="ev">探针 44 条断言全绿才交；预览 6 张在 <code>docs/原型预览_R169C/</code>。</div>
+  </aside>
+</div>
+
+<div class="mask" id="mask" data-testid="drill-mask" onclick="if(event.target===this)closeDrill()">
+  <div class="dz" data-testid="drill">
+    <div class="dz-h"><span class="t" id="dzT">—</span><span class="c" id="dzC"></span><button class="x" aria-label="关闭" onclick="closeDrill()">×</button></div>
+    <div class="dz-b" id="dzB"></div>
+    <div class="dz-f">点任意一行 = 打开该任务详情（现行通道）· Esc / 点遮罩关闭</div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= 数据（截图真内容） ================= */
+var TASKS = {
+  t1: { id:'t1', name:'AI Agent概念梳理，构建认知基础', proj:'workbuddy培训项目', metric:'教程文章20篇', mat:'B·可派 55', status:'待开始',
+    desc:'围绕每个概念撰写笔记，可视化图片16:9的，形成自己的课件，方便以后复用。',
+    acc:'四主题笔记+4张16:9图片整合为课件初稿，截图走查通过',
+    subs:[ {t:'列出AI Agent核心概念清单', d:false}, {t:'撰写概念笔记：Agent定义与架构', d:false}, {t:'撰写概念笔记：规划与记忆机制', d:false},
+      {t:'撰写概念笔记：工具使用与多智能体', d:false}, {t:'撰写概念笔记：记忆与上下文窗口', d:false}, {t:'制作16:9可视化图片（每概念1张）', d:false},
+      {t:'图片统一四主题配色并导出', d:false}, {t:'整合笔记与图片，形成课件初稿', d:false}, {t:'截图走查：四主题各一遍', d:false} ] },
+  t2: { id:'t2', name:'教育+AI 行业地图：细分赛道盘点', proj:'教育+AI行业地图研究', metric:'地图 v2 定稿', mat:'C·待核 38', status:'进行中',
+    desc:'按 6 个细分赛道各找 3 家代表公司，标注融资阶段与内容形态，产出可对外讲的一页地图。',
+    acc:'一页地图 + 每赛道 3 家来源可点，无空位',
+    subs:[ {t:'赛道口径定稿（6 类）', d:true}, {t:'每赛道候选公司收集', d:false}, {t:'来源链接与融资阶段核对', d:false}, {t:'一页地图排版输出', d:false} ] },
+  t3: { id:'t3', name:'把 12 篇存量教程文章挂上来源链接', proj:'知源产品打造与销售', metric:'内容资产化 30 篇', mat:'D·待办 21', status:'待开始',
+    desc:'存量教程文章缺来源的补齐，形成"可核查"的内容资产；顺手把断链标出来。', acc:'12 篇全部有来源或标注"无来源"，断链清零',
+    subs:[ {t:'盘点缺来源清单', d:false}, {t:'补来源并复核', d:false} ] },
+  t4: { id:'t4', name:'WCE 探索：本周可复用素材归档', proj:'知源产品打造与销售', metric:'WCE 复用 12 条', mat:'B·可派 61', status:'待开始',
+    desc:'把本周散落的截图、话术、案例归进素材库，标上来源与可用场景。', acc:'新增 ≥4 条，每条有来源与场景标签',
+    subs:[ {t:'收集本周截图', d:false}, {t:'话术归档并标场景', d:false} ] },
+  t5: { id:'t5', name:'课程大纲 v2：把"概念篇"拆成 4 讲', proj:'workbuddy培训项目', metric:'教程文章20篇', mat:'C·待核 34', status:'待开始',
+    desc:'概念篇现在一整块太重，按学员反馈拆成 4 讲，每讲一个概念一张图。', acc:'大纲 v2 落库，4 讲各有标题与产出物',
+    subs:[ {t:'整理学员反馈', d:false}, {t:'拆讲次并定产出', d:false}, {t:'更新大纲文档', d:false} ] },
+  t6: { id:'t6', name:'项目页视频介绍：脚本 + 拍摄', proj:'知源产品打造与销售', metric:'对外介绍片 1 支', mat:'A·可交付 78', status:'已完成',
+    desc:'一条 90 秒讲清"这是什么、给谁用"的片子，脚本先过一遍再拍。', acc:'脚本定稿 + 成片上传，可在官网嵌入',
+    subs:[ {t:'脚本初稿', d:true}, {t:'录制与剪辑', d:true} ] },
+  t7: { id:'t7', name:'教程文章 #17：知识库分层怎么讲', proj:'workbuddy培训项目', metric:'教程文章20篇', mat:'B·可派 52', status:'已完成',
+    desc:'用"三层"讲知识库分层，配一张对比图。', acc:'文章发布 + 配图 1 张', subs:[ {t:'成稿', d:true} ] }
+}
+var REC_POOL = [
+  { tid:'t1', why:'主攻战略目标下 <em>workbuddy培训项目</em> 进度 33%，这件事是它当前唯一「待开始」的直接产出项' },
+  { tid:'t2', why:'昨日排了没做（<em>顺延 1 次</em>）· 子任务已完成 1/4，接着做成本最低' },
+  { tid:'t3', why:'距指标 <em>内容资产化 30 篇</em> 还差 18 篇 · 该任务子任务 0 启动，先拆一步' },
+  { tid:'t5', why:'与第 1 件同属 <em>教程文章20篇</em> 指标 · 是它的前置（不拆讲次没法按讲产出）' },
+  { tid:'t4', why:'本周 <em>WCE 复用 12 条</em> 指标还差 8 条 · 素材归档过期即失效，宜早不宜晚' }
+]
+var HIST = [ {d:'09-20',n:3},{d:'09-21',n:2},{d:'09-22',n:3},{d:'09-23',n:1},{d:'09-24',n:1},{d:'09-25',n:2},{d:'09-26',n:0} ]
+var BASIS = '主攻战略目标「AI知识管理+内容生产专家」· 任务调度 待开始 9 / 进行中 1'
+var ALL = ['t1','t2','t3','t4','t5','t6','t7']
+
+var state = { view:'auto', theme:'linear', slots:[], sel:0, whyOpen:false, muted:false, pickFor:-1, split:42, dragging:false, drill:'' }
+function fillAuto() { state.slots = [ {tid:'t1',rec:true}, {tid:'t2',rec:true}, {tid:'t3',rec:true} ]; state.sel = 0 }
+function setView(v) {
+  state.view = v; state.whyOpen = false; state.pickFor = -1; state.drill = ''
+  if (v === 'auto') fillAuto()
+  if (v === 'manual') { fillAuto(); state.slots[2] = { tid:'t4', rec:false } }
+  if (v === 'empty') { state.slots = [null,null,null]; state.sel = -1 }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-view]'), function (b) { b.classList.toggle('on', b.dataset.view === v) })
+  render()
+}
+function setTheme(t) {
+  state.theme = t
+  document.documentElement.setAttribute('data-theme', t)
+  Array.prototype.forEach.call(document.querySelectorAll('[data-theme-btn]'), function (b) { b.classList.toggle('on', b.dataset.themeBtn === t) })
+}
+function toggleWhy(e) { if (e) e.stopPropagation(); state.whyOpen = !state.whyOpen; state.pickFor = -1; render() }
+function reshuffle() {
+  var cur = state.slots.map(function (s) { return s && s.tid })
+  var next = REC_POOL.filter(function (r) { return cur.indexOf(r.tid) < 0 }).slice(0, 3)
+  state.slots = next.map(function (r) { return { tid:r.tid, rec:true } })
+  state.sel = 0
+  toast('已换一批（本地候选池内取，不写任务卡）')
+  render()
+}
+function muteToday() { state.muted = true; state.whyOpen = false; toast('今天不再自动推荐 · 明天照常'); render() }
+function copyYesterday() {
+  Object.keys(TASKS).forEach(function (k) { TASKS[k]._done = false })
+  state.slots = [ {tid:'t1',rec:false}, {tid:'t2',rec:false}, {tid:'t3',rec:false} ]; state.sel = 0
+  toast('✓ 已复制昨日 3 件（done 清空，与现行一致）'); render()
+}
+function clearAll() { state.slots = [null,null,null]; state.sel = -1; render() }
+/* 点空槽 → 弹选择器（替代原来那条"从任务库选取"按钮带） */
+function openPick(i, e) { if (e) e.stopPropagation(); state.pickFor = (state.pickFor === i ? -1 : i); state.whyOpen = false; render() }
+function pickTask(tid) {
+  if (state.pickFor < 0) return
+  for (var i = 0; i < 3; i++) { if (state.slots[i] && state.slots[i].tid === tid && i !== state.pickFor) { toast('这件事已在第 ' + (i + 1) + ' 格'); return } }
+  state.slots[state.pickFor] = { tid: tid, rec: false }
+  state.sel = state.pickFor; state.pickFor = -1
+  toast('✓ 第 ' + (state.sel + 1) + ' 格已手工选定')
+  render()
+}
+function killSlot(i, ev) { if (ev) ev.stopPropagation(); state.slots[i] = null; if (state.sel === i) state.sel = -1; toast('已取消这一格（任务卡不受影响）'); render() }
+function selectSlot(i) { state.sel = i; state.pickFor = -1; render() }
+function toggleDone(i, ev) {
+  if (ev) ev.stopPropagation()
+  var s = state.slots[i]
+  if (!s) return
+  var t = TASKS[s.tid]
+  t._done = !t._done
+  toast(t._done ? '✓ 勾选：槽位 done + 任务卡 status=done 双写' : '↺ 取消：任务卡回到「进行中」')
+  render()
+}
+function toggleSub(j) {
+  var t = curTask()
+  if (!t || !t.subs[j]) return
+  t.subs[j].d = !t.subs[j].d
+  render()
+}
+function curTask() { var s = state.slots[state.sel]; return s ? TASKS[s.tid] : null }
+/* ---- 分栏：拖动 + 双击复位（不再有"分栏复位"那颗钮） ---- */
+function startDrag(e) {
+  var host = e.target.closest('.dual')
+  if (!host) return
+  state.dragging = true
+  var rect = host.getBoundingClientRect()
+  var move = function (ev) {
+    var pct = (ev.clientX - rect.left) / rect.width * 100
+    state.split = Math.min(70, Math.max(25, pct))
+    applySplit()
+  }
+  var up = function () {
+    state.dragging = false
+    document.removeEventListener('mousemove', move)
+    document.removeEventListener('mouseup', up)
+  }
+  document.addEventListener('mousemove', move)
+  document.addEventListener('mouseup', up)
+  e.preventDefault()
+}
+function resetSplit() { state.split = 42; applySplit(); toast('分栏已复位（双击把手）') }
+function applySplit() {
+  var d = document.querySelector('.dual')
+  if (!d) return
+  d.style.setProperty('--split', state.split.toFixed(1) + '%')
+  var g = document.querySelector('.drag')
+  if (g) g.classList.toggle('act', state.dragging)
+}
+/* ---- 指标下钻 ---- */
+function drillSet(k) {
+  var t = curTask()
+  if (!t) return []
+  if (k === 'metrics') return [ {nm:'教程文章20篇', sub:'2/6 任务已完成', chip:'🎯 指标'}, {nm:'课件初稿 1 份', sub:'子任务 0/9', chip:'🎯 指标'} ]
+  if (k === 'total') return ALL.map(function (id) { return { nm:TASKS[id].name, sub:TASKS[id].proj + ' · ' + TASKS[id].metric, chip:TASKS[id].status } })
+  if (k === 'done') return ALL.filter(function (id) { return TASKS[id].status === '已完成' }).map(function (id) { return { nm:TASKS[id].name, sub:TASKS[id].proj, chip:'已完成' } })
+  return ALL.filter(function (id) { return TASKS[id].status === '进行中' }).map(function (id) { return { nm:TASKS[id].name, sub:TASKS[id].proj, chip:'进行中' } })
+}
+var DRILL_TITLE = { metrics:'本项目的成功指标', total:'任务总数', done:'已完成任务', doing:'进行中任务' }
+function openDrill(k) {
+  state.drill = k
+  var rows = drillSet(k)
+  document.getElementById('dzT').textContent = DRILL_TITLE[k]
+  document.getElementById('dzC').textContent = '· ' + rows.length + ' 条'
+  document.getElementById('dzB').innerHTML = rows.length ? rows.map(function (r) {
+    return '<div class="dz-row" data-testid="dz-row"><span class="nm">' + esc(r.nm) + '</span><span class="hint">' + esc(r.sub) + '</span><span class="chip">' + esc(r.chip) + '</span><span class="go">›</span></div>'
+  }).join('') : '<div class="hint" style="padding:24px 0;text-align:center">这一格当前没有对应任务（数字为 0 时不该有行）</div>'
+  document.getElementById('mask').classList.add('show')
+  render()
+}
+function closeDrill() { state.drill = ''; document.getElementById('mask').classList.remove('show'); render() }
+function goto(which) {
+  var t = curTask()
+  if (which === 'proj') toast('→ 跳转 /compass/projects?p=… （' + (t ? t.proj : '未选中') + '）')
+  else toast('→ 跳转 /compass 方向树（CompassTree）')
+}
+/* ---- 渲染 ---- */
+function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c] }) }
+function renderSlots() {
+  var h = ''
+  for (var i = 0; i < 3; i++) {
+    var s = state.slots[i], t = s ? TASKS[s.tid] : null
+    if (!t) {
+      h += '<div class="slot empty' + (state.sel === i ? ' on' : '') + '" data-testid="slot-empty-' + i + '" onclick="openPick(' + i + ', event)">' +
+        '<span class="no">0' + (i + 1) + '</span><span class="plus">＋ 空槽 · 点这里从任务库选</span></div>'
+      continue
+    }
+    h += '<div class="slot' + (state.sel === i ? ' on' : '') + '" data-testid="slot-' + i + '" onclick="selectSlot(' + i + ')">' +
+      '<span class="no">0' + (i + 1) + '</span>' +
+      '<div class="t"><span class="box' + (t._done ? ' done' : '') + '" onclick="toggleDone(' + i + ', event)">' + (t._done ? '✓' : '') + '</span>' +
+      '<span class="name' + (t._done ? ' done' : '') + '">' + esc(t.name) + '</span></div>' +
+      '<div class="meta"><span class="chip">📦 ' + esc(t.proj) + '</span><span class="chip">🎯 ' + esc(t.metric) + '</span>' +
+      '<span class="chip ' + (t.status === '进行中' ? 'w' : 'a') + '">' + t.status + '</span><span class="chip">' + t.mat + '</span>' +
+      (s.rec ? '<span class="chip rec" data-testid="recmark-' + i + '">✦ 荐</span>' : '') + '</div>' +
+      '<span class="kill" title="取消这一格" onclick="killSlot(' + i + ', event)">×</span></div>'
+  }
+  document.getElementById('slots').innerHTML = h
+}
+function renderWhy() {
+  var ico = document.getElementById('whyIco')
+  ico.classList.toggle('on', state.whyOpen)
+  document.getElementById('whyBdg').style.display = (state.muted || !state.slots.some(function (s) { return s && s.rec })) ? 'none' : 'block'
+  var pop = document.getElementById('why')
+  pop.classList.toggle('show', state.whyOpen)
+  if (!state.whyOpen) return
+  var rows = ''
+  for (var i = 0; i < 3; i++) {
+    var s = state.slots[i]
+    if (!s) { rows += '<div class="why-row"><span class="n">0' + (i + 1) + '</span><div><div class="nm" style="color:var(--text-3)">空着</div><div class="w">点第 ' + (i + 1) + ' 格可从任务库选，或点「换一批」让我再推荐。</div></div></div>'; continue }
+    var hit = null
+    for (var k = 0; k < REC_POOL.length; k++) { if (REC_POOL[k].tid === s.tid) { hit = REC_POOL[k]; break } }
+    rows += '<div class="why-row" data-testid="why-row-' + i + '"><span class="n">0' + (i + 1) + '</span><div>' +
+      '<div class="nm">' + esc(TASKS[s.tid].name) + (s.rec ? '' : ' <span class="hint">（你手工选的，系统不评价）</span>') + '</div>' +
+      (hit && s.rec ? '<div class="w">' + hit.why + '</div>' : (s.rec ? '' : '<div class="w">这一格是你自己定的，没有推荐理由。</div>')) + '</div></div>'
+  }
+  var done = 0
+  var bars = HIST.map(function (x) { done += x.n; return '<span class="day' + (x.n ? ' f' : '') + '" style="height:' + (4 + x.n * 3) + 'px" title="' + x.d + '：完成 ' + x.n + '/3"></span>' }).join('')
+  document.getElementById('whyRows').innerHTML = rows
+  document.getElementById('whyFoot').innerHTML = '<span class="days">' + bars + '</span>过去 7 天完成 <b>' + done + '/21</b>（今日 0）· 顺延未清 2 件<br>依据：<b>' + BASIS + '</b><br>推荐只写「今日三件事」这一天的计划位，<b>不改任务卡、不改状态、不改归属</b>；你动过的格子系统不再插手。' + (state.muted ? '<br><b style="color:var(--warning)">今天已关自动推荐</b>（明天照常）' : '')
+}
+function renderPick() {
+  var el = document.getElementById('pick')
+  if (state.pickFor < 0) { el.classList.remove('show'); el.innerHTML = ''; return }
+  var used = state.slots.filter(function (s) { return s }).map(function (s) { return s.tid })
+  var rows = ALL.filter(function (id) { return used.indexOf(id) < 0 }).slice(0, 5).map(function (id) {
+    var t = TASKS[id]
+    return '<div class="pick-row" data-testid="pick-row" onclick="pickTask(\'' + id + '\')"><span class="nm">' + esc(t.name) + '</span>' +
+      '<span class="chip">' + esc(t.metric) + '</span><span class="chip ' + (t.status === '进行中' ? 'w' : 'a') + '">' + t.status + '</span></div>'
+  }).join('')
+  el.innerHTML = '<div class="pick-h">第 ' + (state.pickFor + 1) + ' 格 · 从任务库选（候选按主攻项目优先，本地排序）</div>' + rows
+  el.classList.add('show')
+}
+function renderPs() {
+  var body = document.getElementById('psBody')
+  var t = curTask()
+  if (!t) {
+    body.innerHTML = '<div class="ps-empty" data-testid="ps-empty">上面还没有选中要做的事 —— 点一格，或点空槽从任务库选。<br><span class="hint">现行空态只写"点击上方任务卡联动"，没有下一步动作</span></div>'
+    return
+  }
+  var dn = t.subs.filter(function (s) { return s.d }).length
+  body.innerHTML =
+    '<div class="ps-top" data-testid="ps-top">' +
+      '<div class="crumb" data-testid="crumb">' +
+        '<span class="it" data-testid="lv-goal" title="点某一级 = 只切视角，不改数据"><span>🎯</span><span class="k">战略目标</span><span class="v">AI知识管理+内容生产专家</span></span>' +
+        '<span class="sep">›</span>' +
+        '<span class="it" data-testid="lv-proj" onclick="goto(\'proj\')" title="点击跳到项目详情页"><span>📦</span><span class="k">项目</span><span class="v">' + esc(t.proj) + ' · 33%</span></span>' +
+        '<span class="sep">›</span>' +
+        '<span class="it cur" data-testid="lv-metric"><span>🎯</span><span class="k">成功指标</span><span class="v">' + esc(t.metric) + '</span></span>' +
+      '</div>' +
+      '<span style="display:flex;gap:5px;margin-left:8px">' +
+        '<button class="jump" data-testid="jump-proj" onclick="goto(\'proj\')">项目详情 ↗</button>' +
+        '<button class="jump" data-testid="jump-tree" onclick="goto(\'tree\')">方向树 ↗</button>' +
+      '</span>' +
+      '<div class="stats" data-testid="stats">' +
+        '<button class="st' + (state.drill === 'metrics' ? ' on' : '') + '" data-testid="st-metrics" onclick="openDrill(\'metrics\')"><b>2</b><span>成功指标</span></button>' +
+        '<button class="st' + (state.drill === 'total' ? ' on' : '') + '" data-testid="st-total" onclick="openDrill(\'total\')"><b>6</b><span>任务总数</span></button>' +
+        '<button class="st' + (state.drill === 'done' ? ' on' : '') + '" data-testid="st-done" onclick="openDrill(\'done\')"><b>2</b><span>已完成</span></button>' +
+        '<button class="st' + (state.drill === 'doing' ? ' on' : '') + '" data-testid="st-doing" onclick="openDrill(\'doing\')"><b>1</b><span>进行中</span></button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="dual" data-testid="ps-dual" style="--split:' + state.split.toFixed(1) + '%">' +
+      '<div class="col"><div class="col-h"><b>任务描述</b><i>只读 · 编辑回任务详情</i><span class="r">' + t.status + '</span></div>' +
+        '<div class="col-b"><div class="desc">' + esc(t.desc) + '</div>' +
+        '<div class="acc" data-testid="ps-acc"><div class="k">验收标准</div><div class="v">' + esc(t.acc) + '</div></div></div></div>' +
+      '<div class="drag" data-testid="ps-drag" onmousedown="startDrag(event)" ondblclick="resetSplit()" title="拖动调宽 · 双击复位"><i></i></div>' +
+      '<div class="col"><div class="col-h"><b>子任务清单</b><i>本卡内容 · 完成不计分</i><span class="r" data-testid="ps-sub-n">' + dn + '/' + t.subs.length + '</span></div>' +
+        '<div class="col-b" data-testid="ps-sub-body">' + t.subs.map(function (s, j) {
+          return '<div class="sub-row' + (s.d ? ' done' : '') + '" data-testid="sub-' + j + '"><span class="box' + (s.d ? ' done' : '') + '" onclick="toggleSub(' + j + ')">' + (s.d ? '✓' : '') + '</span>' +
+            '<span class="nm">' + esc(s.t) + '</span><span class="x" title="删除（清单行不是卡，无回收站）">×</span></div>'
+        }).join('') +
+        '<div class="sub-add">＋ 加一条子任务，回车确认<span style="margin-left:auto">' + dn + '/' + t.subs.length + '</span></div></div></div>' +
+    '</div>'
+  applySplit()
+}
+function render() { renderSlots(); renderWhy(); renderPick(); renderPs() }
+document.addEventListener('click', function (e) {
+  var hitSomething = false
+  if (state.whyOpen && !e.target.closest('#why') && !e.target.closest('#whyIco')) { state.whyOpen = false; hitSomething = true }
+  if (state.pickFor >= 0 && !e.target.closest('#pick') && !e.target.closest('[data-testid^="slot-empty"]')) { state.pickFor = -1; hitSomething = true }
+  if (hitSomething) render()
+})
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && state.drill) closeDrill() })
+var tTimer = null
+function toast(m) {
+  var el = document.getElementById('toast')
+  el.textContent = m
+  el.classList.add('on')
+  clearTimeout(tTimer)
+  tTimer = setTimeout(function () { el.classList.remove('on') }, 2400)
+}
+fillAuto()
+render()
+</script>
+</body>
+</html>

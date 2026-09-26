@@ -21,8 +21,22 @@ export type CardKind = 'resource' | 'task' | 'curiosity'
  * R117（04-61 C3）：新增 `status` —— 好奇心卡**探索状态变更**（待探索/探索中/已求证/已搁置）。
  * 动机：用户要求「好奇心探索指标把采集 / 状态变更 / 删除都计入并取累计值」，
  * 而快照 diff 原先只认 createdAt / deletedAt，状态变化没有任何痕迹 ⇒ 累计值永远缺一半。
+ *
+ * R169-T1：`status` 一并覆盖**任务卡**（todo/doing/done）。原先 `flushCardEvents` 里那道
+ * `kind === 'curiosity'` 硬门槛让"勾选完成一件事"这个**全站最高频的动作**在流水里零痕迹——
+ * 用户的主诉正是"今日操作没进流水"。计数侧不受影响：`countCurioCumulative` 自己按 kind 过滤。
  */
 export type EventAction = 'create' | 'delete' | 'restore' | 'purge' | 'status'
+/** 会记 status 事件的卡种（资源卡无 status 语义，不在此列） */
+const STATUS_TRACKED_KINDS: ReadonlySet<CardKind> = new Set(['curiosity', 'task'])
+
+/**
+ * R169-T1：事件动词的中文**单一真源** —— 调度台「写入记录」与策展台「最近更新流水」两处都要把
+ * action 说成人话，各写一份必然漂移（前者原先就没有 status 这一档，落到界面上直接吐出英文原词）。
+ */
+export const EVENT_ACT_LABEL: Record<EventAction, string> = {
+  create: '新增', delete: '删除', restore: '恢复', purge: '清理', status: '改状态'
+}
 
 export interface CardEvent {
   id: string
@@ -40,7 +54,7 @@ export const EVENT_LOG_CAP = 5000
 /** 单次 diff 超过该数量的同向变动视为批量操作（导入/回滚），合并摘要 */
 const BULK_THRESHOLD = 200
 
-type SnapshotEntry = { kind: CardKind; title: string; createdAt: number; deletedAt?: number; status?: string }
+type SnapshotEntry = { kind: CardKind; title: string; createdAt: number; deletedAt?: number; status?: string; updatedAt: number }
 
 let snapshot = new Map<string, SnapshotEntry>()
 let writeQueue: Promise<void> = Promise.resolve()
@@ -112,10 +126,10 @@ function titleOf(kind: CardKind, c: { title?: string; question?: string }): stri
   return (kind === 'curiosity' ? c.question : c.title) || '（无标题）'
 }
 
-function collectCards(d: AppData): { id: string; kind: CardKind; title: string; createdAt: number; deletedAt?: number; status?: string }[] {
-  const out: { id: string; kind: CardKind; title: string; createdAt: number; deletedAt?: number; status?: string }[] = []
-  const push = (kind: CardKind, arr: { id?: string; title?: string; question?: string; createdAt?: number; deletedAt?: number; status?: string }[] | undefined) =>
-    (arr || []).forEach(c => { if (c && c.id) out.push({ id: c.id, kind, title: titleOf(kind, c), createdAt: c.createdAt || 0, deletedAt: c.deletedAt, status: c.status }) })
+function collectCards(d: AppData): { id: string; kind: CardKind; title: string; createdAt: number; deletedAt?: number; status?: string; updatedAt: number }[] {
+  const out: { id: string; kind: CardKind; title: string; createdAt: number; deletedAt?: number; status?: string; updatedAt: number }[] = []
+  const push = (kind: CardKind, arr: { id?: string; title?: string; question?: string; createdAt?: number; deletedAt?: number; status?: string; updatedAt?: number }[] | undefined) =>
+    (arr || []).forEach(c => { if (c && c.id) out.push({ id: c.id, kind, title: titleOf(kind, c), createdAt: c.createdAt || 0, deletedAt: c.deletedAt, status: c.status, updatedAt: c.updatedAt || 0 }) })
   push('resource', d.resources)
   push('task', d.tasks)
   push('curiosity', d.curiosities)
@@ -126,7 +140,7 @@ function collectCards(d: AppData): { id: string; kind: CardKind; title: string; 
 export function rebuildEventSnapshot(d: AppData): void {
   snapshot = new Map()
   for (const c of collectCards(d)) {
-    snapshot.set(c.id, { kind: c.kind, title: c.title, createdAt: c.createdAt, deletedAt: c.deletedAt, status: c.status })
+    snapshot.set(c.id, { kind: c.kind, title: c.title, createdAt: c.createdAt, deletedAt: c.deletedAt, status: c.status, updatedAt: c.updatedAt })
   }
 }
 
@@ -138,14 +152,21 @@ export function flushCardEvents(d: AppData): void {
   const now = Date.now()
   const events: CardEvent[] = []
   let eid = 0
-  const mk = (action: EventAction, kind: CardKind | 'system', title: string, cardId: string): CardEvent =>
-    ({ id: `${now}-${++eid}`, ts: now, action, kind, title, cardId })
+  /**
+   * R169-T1：事件时间戳取**卡自己的 `updatedAt`**，不再整批共用一个 `now`。
+   * 病根：批量导入/重挂给每张卡盖同一个 `now`，diff 又给每条事件盖同一个 `now`
+   * ⇒ 流水屏 20~30 行挤成同一分钟，用户读不出"今天到底做了什么"。
+   * 卡时间是这张卡真正被改动的时刻（保存链路就紧跟在编辑之后），拿它当事件时间是准的；
+   * 缺 `updatedAt` 的老数据才回落 `now`。批量摘要事件（system）本身没有单卡时间，仍用 `now`。
+   */
+  const mk = (action: EventAction, kind: CardKind | 'system', title: string, cardId: string, ts = now): CardEvent =>
+    ({ id: `${ts}-${++eid}`, ts, action, kind, title, cardId })
 
   const creates: CardEvent[] = []
   const deletes: CardEvent[] = []
   const restores: CardEvent[] = []
   const purges: CardEvent[] = []
-  /** R117（04-61 C3）：好奇探索状态变更（不入批量合并——状态变更本就是逐条的用户动作） */
+  /** R117（04-61 C3）：探索状态变更（不入批量合并——状态变更本就是逐条的用户动作）· R169-T1 起同样覆盖任务卡 */
   const statusChanges: CardEvent[] = []
 
   // R71 性能治理：原实现先 collectCards 出整张中间数组（每张卡一个对象）再遍历——
@@ -154,21 +175,22 @@ export function flushCardEvents(d: AppData): void {
   const prevSnap = snapshot
   const nextSnap = new Map<string, SnapshotEntry>()
   const seen = new Set<string>()
-  const scan = (kind: CardKind, arr: { id?: string; title?: string; question?: string; createdAt?: number; deletedAt?: number; status?: string }[] | undefined) => {
+  const scan = (kind: CardKind, arr: { id?: string; title?: string; question?: string; createdAt?: number; deletedAt?: number; status?: string; updatedAt?: number }[] | undefined) => {
     for (const c of arr || []) {
       if (!c || !c.id) continue
       seen.add(c.id)
-      nextSnap.set(c.id, { kind, title: titleOf(kind, c), createdAt: c.createdAt || 0, deletedAt: c.deletedAt, status: c.status })
+      const at = c.updatedAt || now
+      nextSnap.set(c.id, { kind, title: titleOf(kind, c), createdAt: c.createdAt || 0, deletedAt: c.deletedAt, status: c.status, updatedAt: c.updatedAt || 0 })
       const prev = prevSnap.get(c.id)
       if (!prev) {
-        creates.push(mk('create', kind, titleOf(kind, c), c.id))
+        creates.push(mk('create', kind, titleOf(kind, c), c.id, at))
       } else if (!prev.deletedAt && c.deletedAt) {
-        deletes.push(mk('delete', kind, titleOf(kind, c), c.id))
+        deletes.push(mk('delete', kind, titleOf(kind, c), c.id, at))
       } else if (prev.deletedAt && !c.deletedAt) {
-        restores.push(mk('restore', kind, titleOf(kind, c), c.id))
-      } else if (kind === 'curiosity' && c.status && prev.status && prev.status !== c.status) {
+        restores.push(mk('restore', kind, titleOf(kind, c), c.id, at))
+      } else if (STATUS_TRACKED_KINDS.has(kind) && c.status && prev.status && prev.status !== c.status) {
         // 仅在「未删未恢复」的稳定态比对状态，避免与 delete/restore 事件同帧刷双条
-        statusChanges.push(mk('status', kind, titleOf(kind, c), c.id))
+        statusChanges.push(mk('status', kind, titleOf(kind, c), c.id, at))
       }
     }
   }
@@ -176,7 +198,7 @@ export function flushCardEvents(d: AppData): void {
   scan('task', d.tasks)
   scan('curiosity', d.curiosities)
   for (const [id, prev] of prevSnap) {
-    if (!seen.has(id)) purges.push(mk('purge', prev.kind, prev.title, id))
+    if (!seen.has(id)) purges.push(mk('purge', prev.kind, prev.title, id, prev.updatedAt || now))
   }
 
   // 批量合并：导入/回滚等场景防日志洪泛

@@ -59,6 +59,20 @@ export function useWorkspaceImport(ctx: WorkspaceImportCtx) {
           for (const item of incoming) map.set(item.id, { ...map.get(item.id), ...item })
           return [...map.values()]
         }
+        /**
+         * R169-T1：合并**不许让旧包时间戳盖掉今日改动**。
+         * `mergeById` 是覆盖式合并（`{...现值, ...来值}`），且导入晚于载入 ⇒ 拿一份上周的包导进来，
+         * 「最近更新」会整体退回上周，用户读到的是"我今天做的事不见了"。
+         * 只钳时间、不钳内容（内容以来值为准是"导入"的既有语义，动它会伤别的场景）。
+         */
+        const clampUpdatedAt = <T extends { id: string; updatedAt?: number }>(existing: T[], incoming: T[]): T[] => {
+          const byId = new Map(existing.map(x => [x.id, x]))
+          return incoming.map(i => {
+            const cur = byId.get(i.id)
+            return cur && typeof cur.updatedAt === 'number' && typeof i.updatedAt === 'number' && cur.updatedAt > i.updatedAt
+              ? { ...i, updatedAt: cur.updatedAt } : i
+          })
+        }
         // 只并本台段：策展台/分类/台内卡 + 投射清单中指向本台的记录（全局段不在此入口搬运，走设置页「导入数据」）
         const wsId = workspaceId.value
         const incCats = san.cats.filter(c => c.workspaceId === wsId)
@@ -67,7 +81,7 @@ export function useWorkspaceImport(ctx: WorkspaceImportCtx) {
         const cardsBefore = d.value.resources.length
         d.value.workspaces = mergeById(d.value.workspaces, ext.workspaces?.filter(w => w.id === wsId) || [])
         d.value.categories = mergeById(d.value.categories, incCats)
-        d.value.resources = mergeById(d.value.resources, incRes as ResourceCard[])
+        d.value.resources = mergeById(d.value.resources, clampUpdatedAt(d.value.resources, incRes) as ResourceCard[])
         if (incProj.length) d.value.curationProjections = mergeById(d.value.curationProjections || [], incProj)
         persist()
         importModalOpen.value = false

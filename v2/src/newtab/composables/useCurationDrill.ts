@@ -9,10 +9,11 @@
  *   是视图状态的接线，不是本域的实现）；
  * - 依赖以 ctx 注入（allResources / resBucket / catIdx / isUncat），isMirrorView 直接 import 共享实现。
  */
-import { ref, computed, type ComputedRef } from 'vue'
+import { ref, computed, watch, type ComputedRef } from 'vue'
 import type { Category, ResourceCard } from '@/shared/models'
 import type { CatIndex } from '@/shared/utils/catIndex'
 import { isMirrorView } from '@/shared/storage/hub'
+import { readEventLog, EVENT_ACT_LABEL, type CardEvent } from '@/shared/utils/eventLog'
 import type { DrillCatRow, DrillCardRow } from '@/newtab/components/CurationDrillDrawer.vue'
 
 export interface CurationDrillCtx {
@@ -55,7 +56,32 @@ export function useCurationDrill(ctx: CurationDrillCtx) {
   const toDrillRow = (r: ResourceCard): DrillCardRow => ({ id: r.id, title: r.title, updatedAt: r.updatedAt || r.createdAt })
   const drillNative = computed<DrillCardRow[]>(() => drillOpen.value ? allResources.value.filter(r => !isMirrorView(r)).map(toDrillRow) : [])
   const drillMirror = computed<DrillCardRow[]>(() => drillOpen.value ? allResources.value.filter(isMirrorView).map(toDrillRow) : [])
-  const drillRecent = computed<DrillCardRow[]>(() => drillOpen.value ? allResources.value.map(toDrillRow) : [])
+
+  /**
+   * R169-T1：「最近更新流水」改**事件流 + 卡时间归并**（原先只读卡 `updatedAt` 的 Top 30，
+   * 名与实不符：新建/删除/恢复这类动作在流水里说不清是谁干的，批量导入又把整屏盖成同一分钟）。
+   * 口径：一卡一行，取「卡最后被改的时刻」与「该卡最后一个事件」中较晚的那个，动词跟着胜出的那侧走。
+   * 范围只到**本台可见卡**——事件日志不记工作台，硬扩出去会把别台的删除算到本台头上；
+   * 已删除/回收站的动作另有调度台「写入记录」与回收站两处真源，这里在抽屉页脚明说去哪看。
+   */
+  const recentEvents = ref<CardEvent[]>([])
+  watch(drillOpen, (v) => { if (v) void readEventLog().then(e => { recentEvents.value = e }).catch(() => { /* 日志读失败：退化为纯卡时间，不阻塞抽屉 */ }) })
+  const drillRecent = computed<DrillCardRow[]>(() => {
+    if (!drillOpen.value) return []
+    const last = new Map<string, CardEvent>()
+    for (const e of recentEvents.value) {
+      if (!e.cardId || e.kind !== 'resource') continue
+      const prev = last.get(e.cardId)
+      if (!prev || e.ts > prev.ts) last.set(e.cardId, e)
+    }
+    return allResources.value.map(r => {
+      const upd = r.updatedAt || r.createdAt
+      const e = last.get(r.id)
+      return e && e.ts >= upd
+        ? { id: r.id, title: r.title, updatedAt: e.ts, verb: EVENT_ACT_LABEL[e.action] || '更新' }
+        : { id: r.id, title: r.title, updatedAt: upd, verb: '更新' }
+    })
+  })
 
   return { drillOpen, drillMode, openDrill, drillCatRows, drillNative, drillMirror, drillRecent }
 }

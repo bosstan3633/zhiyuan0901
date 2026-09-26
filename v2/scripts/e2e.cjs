@@ -216,7 +216,7 @@ async function main() {
   }
   const evRaw = await page.evaluate(() => chrome.storage.local.get('zy_event_log'))
   const ev = evRaw && evRaw['zy_event_log']
-  report('E2E-6 事件日志 zy_event_log 落盘（软删产生 delete 事件）', Array.isArray(ev) && ev.length > 0, ev ? `${ev.length} 条，最新=${ev[ev.length - 1] && (ev[ev.length - 1].type + '/' + ev[ev.length - 1].action)}` : '无日志')
+  report('E2E-6 事件日志 zy_event_log 落盘（软删产生 delete 事件）', Array.isArray(ev) && ev.length > 0, ev ? `${ev.length} 条，最新=${ev[ev.length - 1] && (ev[ev.length - 1].kind + '/' + ev[ev.length - 1].action)}` : '无日志')
 
   // ---- 第卌五轮 R45：罗盘种子数据（战略目标→项目→成功指标→任务→今日三件事） ----
   await page.evaluate(() => {
@@ -279,14 +279,19 @@ async function main() {
   const todayCard = await page.locator('.today-card').first().isVisible().catch(() => false)
   const curationOn = await page.locator('.cur-body-v').first().isVisible().catch(() => false)
   // R111 修漂移：R66-F2 主动删除调度台顶部的「愿景/使命」小卡（源码注释原文「删顶部项目名行与愿景/使命
-  //   模块（数据保留在方向台）」），属产品决策而非缺失 → 该两项断言退役，不再设。项目调度面板的当前
-  //   等值锚点 = `.cur-goal-lab`（战略目标标签）+ `.cur-goal-name`（战略目标名，R67-F1 重排后小字在上）。
-  const goalCard = await page.locator('.cur-goal-lab').first().isVisible().catch(() => false)
+  //   模块（数据保留在方向台）」），属产品决策而非缺失 → 该两项断言退役，不再设。
+  // R169-T4 再重指：`.cur-goal-lab`/`.cur-goal-name` 两代锚点随"四行卡片压成一行归属"一起退役，
+  //   当代等值锚点 = `.cur-crumb`（整行归属，点它即进方向树）+ 行内 `.cc-it` 三级；
+  //   并补核本轮真正新增的两件事：下半部两栏在位、且**零编辑控件**（右栏只读 + 可勾选的定案）。
+  const goalCard = await page.locator('[data-testid="cur-crumb"]').first().isVisible().catch(() => false)
+  const crumbLevels = await page.locator('.cur-crumb .cc-it').count()
   const goalOn = await page.getByText('E2E 战略目标').first().isVisible().catch(() => false)
   // R56-P1：4 指标恢复左列（cur-stats-v2 一行四格），头部状态栏已移除
   const statCount = await page.locator('.cur-stats-v2 .csv-cell').count()
-  report('E2E-8 调度台三件事 + 项目调度面板（战略目标小卡+左列四指标 R56-P1）', todayCard && curationOn && goalCard && goalOn && statCount === 4,
-    `todayCard=${todayCard} curation=${curationOn} goalCard=${goalCard} stats=${statCount} goal=${goalOn} (vision/mission 小卡 R66-F2 已主动删除)`)
+  const spotDualOn = await page.locator('[data-testid="spot-dual"]').first().isVisible().catch(() => false)
+  const spotEditors = await page.locator('[data-testid="spot-dual"] input, [data-testid="spot-dual"] textarea, [data-testid="spot-dual"] [contenteditable]').count()
+  report('E2E-8 调度台三件事 + 项目调度（一行归属可进树 + 四指标 + 下半部两栏只读，R56-P1 → R169-T4）', todayCard && curationOn && goalCard && goalOn && statCount === 4 && crumbLevels === 3 && spotDualOn && spotEditors === 0,
+    `todayCard=${todayCard} curation=${curationOn} 归属行=${goalCard}(级=${crumbLevels}) stats=${statCount} goal=${goalOn} 下半部=${spotDualOn} 编辑控件=${spotEditors}`)
 
   // E2E-9 存量回填迁移（R46 BUG-2）：重新加载页面触发 init 回填 → task-2 补齐 projectId + projBackfillFixed 记录
   await page.goto(base, { waitUntil: 'domcontentloaded' })
@@ -379,13 +384,15 @@ async function main() {
   const mirFound = await mirCard.count()
   await mirCard.click().catch(() => {})
   await page.waitForTimeout(1300) /* 单击有 260ms 双击判别延时 + 抽屉进场动效 */
-  const mirTitleEl = page.locator('.ws-page > .drawer .dr-head textarea').first()
+  /* R169-老账③ 随迁：资源详情抽屉改走共享 Drawer.vue 壳——Teleport 到全局浮层宿主（不再是 .ws-page 子元素），
+     头部类 .dr-head→.drawer-header、关闭 .dr-close→.drawer-close、页脚 .dr-footer→.drawer-footer（按钮仍 .dr-footer-btn）。 */
+  const mirTitleEl = page.locator('.drawer .drawer-header textarea').first()
   const mirHeadVisible = await mirTitleEl.isVisible().catch(() => false)
   const mirTitleReadonly = (await mirTitleEl.getAttribute('readonly').catch(() => null)) !== null
   const mirBanner = await page.locator('.dr-readonly-banner').first().isVisible().catch(() => false)
-  const mirAiCells = await page.locator('.ws-page > .drawer .ds-ai-cell').count()
-  const mirFootBtns = await page.locator('.ws-page > .drawer .dr-footer button').count()
-  const mirFootText = (await page.locator('.ws-page > .drawer .dr-footer').first().innerText().catch(() => '')).replace(/\s+/g, ' ')
+  const mirAiCells = await page.locator('.drawer .ds-ai-cell').count()
+  const mirFootBtns = await page.locator('.drawer .drawer-footer button').count()
+  const mirFootText = (await page.locator('.drawer .drawer-footer').first().innerText().catch(() => '')).replace(/\s+/g, ' ')
   /* 诊断：投射是否还活着 / 渲染出来的那张卡有没有镜像标记 */
   const mirDiag = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const d = cur['zy_data_v2']
@@ -393,18 +400,18 @@ async function main() {
     const src = d.resources.find(r => r.id === 'e2e-ro-1')
     return { proj: p ? (p.targetWsId || '?') : 'none', srcWs: src ? src.workspaceId : 'none' }
   }))
-  await page.locator('.ws-page > .drawer .dr-close').first().click().catch(() => {})
+  await page.locator('.drawer .drawer-close').first().click().catch(() => {})
   await page.waitForTimeout(700)
   // 对照面：同一张卡在资源台是**真身**——AI 行两格必须在、标题必须可写
   await page.goto(base + '#/workspace/zy-curation', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2000)
   await page.locator('.res-card[data-rid="e2e-ro-1"]').first().click().catch(() => {})
   await page.waitForTimeout(1300)
-  const hubAiCells = await page.locator('.ws-page > .drawer .ds-ai-cell').count()
-  const hubTitleEl = page.locator('.ws-page > .drawer .dr-head textarea').first()
+  const hubAiCells = await page.locator('.drawer .ds-ai-cell').count()
+  const hubTitleEl = page.locator('.drawer .drawer-header textarea').first()
   const hubTitleEditable = (await hubTitleEl.getAttribute('readonly').catch(() => 'x')) === null
   const hubTitleValue = await hubTitleEl.inputValue().catch(() => '')
-  await page.locator('.ws-page > .drawer .dr-close').first().click().catch(() => {})
+  await page.locator('.drawer .drawer-close').first().click().catch(() => {})
   await page.waitForTimeout(500)
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const data = cur['zy_data_v2']

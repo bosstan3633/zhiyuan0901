@@ -472,7 +472,8 @@
         </div>
 
         <!-- 看板视图 -->
-        <div v-if="viewMode==='kanban'" class="kanban">
+        <!-- R169-老账②：列窗口化——列数 > 60 时只渲染窗口内列；横向滚近右缘自动扩窗 + 列尾显式入口 -->
+        <div v-if="viewMode==='kanban'" class="kanban" @scroll="onKanbanWinScroll">
           <div v-for="cat in kanbanColumns" :key="cat.key" class="kanban-col"
             @dragover.prevent @drop="onDropToCategory($event,cat.key)">
             <div class="kc-header">
@@ -516,6 +517,10 @@
               <!-- R116 性能：增量渲染的显式入口（看板列同口径，保证键盘/触屏场景可达） -->
               <div v-if="cat.hiddenCount > 0" class="kc-more" @click="kanbanMore(cat.key)">显示更多 {{ cat.hiddenCount }} 张</div>
             </div>
+          </div>
+          <!-- R169-老账②：列窗口续载显式入口（与列内「显示更多」同语言，键盘/触屏可达） -->
+          <div v-if="kanbanWinMore" class="kc-col-more" @click="kanbanMoreCols">
+            📂 显示更多分类（还有 {{ kanbanCategories.length - kanbanColWin }} 列未渲染）
           </div>
         </div>
 
@@ -599,49 +604,45 @@
     </Transition>
 
     <!-- 资源卡详情抽屉（单击打开）
-         R168：改 `v-if` + `<Transition>` —— 真库实测这副抽屉**开着与否都常驻**（168 节点，含分类下拉
-         那 88 个 `<option>`），而它是资源台/策展台**每一次进台面**都要摊的固定成本（该次挂载共 774 节点）。
-         旧实现靠 `transform: translateX(100%)` 移出视口 ⇒ 节点在、布局也在。改成"点开才挂、关掉即卸"，
-         进出场动画由 Transition 类承担（不再靠 `.open` 的 transform 过渡，避免与 `.drawer.open` 抢特异性）。 -->
-    <div class="overlay" :class="{open: drawerOpen}" @click="closeDrawer"></div>
-    <Transition name="dr">
-      <div v-if="drawerOpen" class="drawer">
+         R168：改 `v-if` 点开才挂——常驻 168 节点（含分类下拉 88 个 `<option>`）是每次进台面的固定成本。
+         R169-老账①：分类下拉换 CatPicker 自绘（option 不再常驻）。
+         R169-老账③：自绘 `.drawer` 容器退役，改走共享 Drawer.vue 壳（Teleport + Esc + 遮罩 + 进出场
+         + reduced-motion 全部单源），两代抽屉容器合并为一代；width=520px 与 bodyClass（镜像只读态）
+         经壳的 props 传入。页脚按钮类 .dr-footer-btn 因 Workspace 各弹窗仍在复用而保留（见交付说明）。 -->
+    <Drawer :open="drawerOpen" width="520px" :body-class="drawerReadonly ? 'dr-readonly' : undefined" @close="closeDrawer">
       <!-- R167（OPPO 质感 · 与 App 级资源抽屉同一套件）：
            ① 主标题进抽屉头（kicker 说归属 + 就地可编辑，回车=保存／镜像只读卡=定位源卡），
               正文不再重复一份标题框；② AI 入口从标题行降到正文首行「一行两格」，
               与 R166 任务卡三入口同语言（镜像卡不给入口）。
            字段区已抽至共享 ResourceEditForm（第卅九轮 #61），两宿主同源单份。 -->
-      <div class="dr-head">
+      <template #title>
         <DetailTitle :model-value="editingResource.title" :kicker="isHub ? '资源卡 · 资源台' : '资源卡 · 策展台镜像'"
           :readonly="drawerReadonly" placeholder="资源卡标题..."
           @update:model-value="editingResource.title = $event"
           @enter="drawerReadonly ? locateMirrorSourceCard() : saveResource()" />
-        <div class="dr-close" title="关闭（Esc）" @click="closeDrawer">×</div>
-      </div>
+      </template>
       <!-- 第卅九轮 #61 / R106（F4）：镜像卡只读——表单禁交互（pointer-events），footer 换「定位回资源台编辑」 -->
-      <div class="dr-body" :class="{ 'dr-readonly': drawerReadonly }">
-        <div v-if="drawerReadonly" class="dr-readonly-banner">
-          📡 镜像卡为引用（只读）——编辑请到资源台；<span class="dr-ro-link" @click="locateMirrorSourceCard">定位到源卡 ›</span>
-        </div>
-        <ResourceAiStrip v-if="!drawerReadonly" :card="editingResource" :on-adopted="syncEditingFromStore" />
-        <ResourceEditForm
-          ref="resFormRef"
-          :model="editingResource"
-          height-key="ws-note"
-          @save="saveResource"
-        >
-          <!-- R166 T7：资源侧「支持的任务」只读反查（与 RDD 同一组件，两宿主同源） -->
-          <template #extra>
-            <SupportTasksPanel v-if="d && editingResource.id" :d="d" :resource="editingResource" @open-task="gotoTaskOwner" />
-          </template>
-          <!-- 链接动作贴对象：打开/复制不再放页脚 -->
-          <template v-if="!drawerReadonly" #link-actions>
-            <button class="ds-ib" title="打开链接" @click="openResourceLink(editingResource)">↗</button>
-            <button class="ds-ib" title="复制链接" @click="copyLink">⧉</button>
-          </template>
-        </ResourceEditForm>
+      <div v-if="drawerReadonly" class="dr-readonly-banner">
+        📡 镜像卡为引用（只读）——编辑请到资源台；<span class="dr-ro-link" @click="locateMirrorSourceCard">定位到源卡 ›</span>
       </div>
-      <div class="dr-footer">
+      <ResourceAiStrip v-if="!drawerReadonly" :card="editingResource" :on-adopted="syncEditingFromStore" />
+      <ResourceEditForm
+        ref="resFormRef"
+        :model="editingResource"
+        height-key="ws-note"
+        @save="saveResource"
+      >
+        <!-- R166 T7：资源侧「支持的任务」只读反查（与 RDD 同一组件，两宿主同源） -->
+        <template #extra>
+          <SupportTasksPanel v-if="d && editingResource.id" :d="d" :resource="editingResource" @open-task="gotoTaskOwner" />
+        </template>
+        <!-- 链接动作贴对象：打开/复制不再放页脚 -->
+        <template v-if="!drawerReadonly" #link-actions>
+          <button class="ds-ib" title="打开链接" @click="openResourceLink(editingResource)">↗</button>
+          <button class="ds-ib" title="复制链接" @click="copyLink">⧉</button>
+        </template>
+      </ResourceEditForm>
+      <template #footer>
         <template v-if="drawerReadonly">
           <button class="dr-footer-btn" @click="openResourceLink(editingResource)">↗ 打开链接</button>
           <button class="dr-footer-btn primary" @click="locateMirrorSourceCard">📍 定位到资源台编辑</button>
@@ -651,9 +652,8 @@
           <ArmDeleteButton @confirm="deleteCurrentResource" />
           <button class="dr-footer-btn primary" @click="saveResource">✓ 保存<span class="dr-kbd">Ctrl+↩</span></button>
         </template>
-      </div>
-    </div>
-    </Transition>
+      </template>
+    </Drawer>
 
     <!-- R73-S2（R16 收敛）：导入弹窗改为 **mode-aware**
          · hub（资源台）→ 书签 HTML 导入 + 本地文件导入（自 CurationCenter 迁入）
@@ -939,6 +939,8 @@ import LinkCardsModal from '@/newtab/components/LinkCardsModal.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
 import CurationDrillDrawer from '@/newtab/components/CurationDrillDrawer.vue'
 import type { DrillCatRow, DrillCardRow } from '@/newtab/components/CurationDrillDrawer.vue'
+// R169-老账③：两代抽屉容器合并——资源详情抽屉改走共享壳（Esc/遮罩/Teleport/进出场单源）
+import Drawer from '@/shared/components/Drawer.vue'
 import { useConfirm } from '@/shared/components/confirm'
 import { visibleFields, fieldValue, isTitleKey, cardExtraFields } from '@/shared/utils/fields'
 import { buildCatIndex, buildBucketIndex } from '@/shared/utils/catIndex'
@@ -1258,6 +1260,7 @@ const {
   onContentScroll, renderMore, ensureCardRendered, groupChildCount,
   kanbanCategories, resourcesByCategory, kanbanColumns,
   kanbanMore, onKanbanColScroll, lastUpdateTime, assetKindBreakdown, quickFilter,
+  kanbanWinMore, kanbanMoreCols, onKanbanWinScroll, kanbanColWin,
 } = useResourceView({
   store, d, workspaceId, allResources, metrics, thesisCard, categories, wsCats, catIdx, resBucket,
   rootCats, childCatsOf, familyIds, isUncat,

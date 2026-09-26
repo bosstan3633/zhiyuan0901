@@ -528,7 +528,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
   font-size: var(--fs-sub); font-weight: 600; border: 1px solid var(--accent); color: var(--accent); background: var(--accent-light);
   font-family: inherit; transition: all var(--dur); white-space: nowrap; overflow: hidden;
 }
-.ts-ai-cell:hover { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px var(--accent-glow); }
+.ts-ai-cell:hover { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px var(--accent-glow); --ai-mark-fill: #fff; --ai-mark-eye: var(--accent); }
 .ts-ai-cell:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; box-shadow: none; }
 /* R166 F4：资源支持区（点行打开、× 解绑只删记录） */
 .ts-sup { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); overflow: hidden; }

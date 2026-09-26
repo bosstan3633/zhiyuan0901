@@ -131,6 +131,8 @@
 .ds-seg span { padding: 3px 7px; font-size: var(--fs-caption); color: var(--text-3); border-right: 1px solid var(--border); cursor: pointer; }
 .ds-seg span:last-child { border-right: none; }
 .ds-seg span.on { background: var(--accent-light); color: var(--accent-2); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+/* R169-T2：三槽填写指示点（● 有值 / ○ 空）——切槽之前就该看见另外两条挂没挂，而不是切过去才发现 */
+.ds-seg-dot { font-style: normal; margin-left: 4px; font-size: var(--fs-micro); opacity: .7; }
 .ds-ib { width: 22px; height: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
   border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); color: var(--text-3);
   font-size: var(--fs-caption); font-family: inherit; cursor: pointer; transition: all var(--dur); }

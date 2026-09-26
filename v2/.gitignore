@@ -14,3 +14,6 @@ Thumbs.db
 dist_old_*/
 .prof-report.json
 .theme-audit/
+
+# R169：regression 实跑门禁的 EBUSY 回退缓存（regression-eb.cjs 可随时重写，机器本地产物）
+.gate-cache.json

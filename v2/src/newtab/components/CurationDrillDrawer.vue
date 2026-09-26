@@ -1,7 +1,8 @@
 <script lang="ts">
 /** 下钻行类型（宿主 Workspace.vue 消费；script setup 不允许 export，独立普通块承载） */
 export interface DrillCatRow { id: string; name: string; count: number; depth: number }
-export interface DrillCardRow { id: string; title: string; updatedAt: number }
+/** R169-T1：`verb` = 这一行的动作（新增/删除/恢复/清理/改状态/更新），由事件的卡时间归并派生 */
+export interface DrillCardRow { id: string; title: string; updatedAt: number; verb?: string }
 export interface DrillAssetRow { cardId: string; cardTitle: string; assetId: string; name: string; kind: string; size: number; createdAt: number }
 </script>
 
@@ -56,14 +57,22 @@ const TITLE: Record<string, string> = {
 }
 
 const sortedAssets = computed(() => [...props.assetRows].sort((a, b) => b.createdAt - a.createdAt))
-const sortedRecent = computed(() => [...props.recentRows].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 30))
+/** R169-T1：流水翻页（原先硬砍 Top 30，第 31 条之后的今日操作"凭空消失"，正对用户主诉） */
+const RECENT_PAGE = 30
+const recentPage = ref(1)
+const recentSorted = computed(() => [...props.recentRows].sort((a, b) => b.updatedAt - a.updatedAt))
+const recentShown = computed(() => recentSorted.value.slice(0, recentPage.value * RECENT_PAGE))
+watch(() => [props.open, props.mode] as const, ([o, m]) => { if (o && m === 'recent') recentPage.value = 1 })
 /** 镜像卡 id 集（最近更新流水的图标与跳转分流） */
 const mirrorIds = computed(() => new Set(props.mirrorCards.map(c => c.id)))
 
 function fmtTs(ts?: number): string {
   if (!ts) return '—'
   const d = new Date(ts)
-  return `${d.getMonth() + 1}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  const md = `${d.getMonth() + 1}-${String(d.getDate()).padStart(2, '0')}`
+  // R169-T1：跨年只写「3-5 14:20」读不出是哪一年（流水是拿来回看历史的），非本年补年份
+  return d.getFullYear() === new Date().getFullYear() ? `${md} ${hm}` : `${d.getFullYear()}-${md} ${hm}`
 }
 function fmtSize(n: number): string {
   if (!n) return '—'
@@ -239,14 +248,19 @@ async function onCleanupAll() {
       </template>
     </div>
 
-    <!-- 最近更新流水 -->
+    <!-- 最近更新流水（R169-T1：事件 + 卡时间归并，一卡一行带动词，翻页不硬砍 Top 30） -->
     <div v-else class="dd-list">
-      <div v-for="c in sortedRecent" :key="c.id" class="dd-row clickable" @click="rowClick(c.id, mirrorIds.has(c.id))">
+      <div class="dd-scope">本台可见资源卡 · 按最后一次动作排序（已删除的卡请到回收站或调度台「写入记录」看）</div>
+      <div v-for="c in recentShown" :key="c.id" class="dd-row clickable" @click="rowClick(c.id, mirrorIds.has(c.id))">
         <span class="dd-ico">{{ mirrorIds.has(c.id) ? '📡' : '🖥' }}</span>
+        <span class="dd-verb">{{ c.verb || '更新' }}</span>
         <span class="dd-name">{{ c.title }}</span>
         <span class="dd-time">{{ fmtTs(c.updatedAt) }}</span>
       </div>
-      <div v-if="!sortedRecent.length" class="dd-empty">暂无更新记录</div>
+      <div v-if="!recentShown.length" class="dd-empty">本台还没有资源卡</div>
+      <button v-if="recentShown.length < recentSorted.length" class="dd-more" @click="recentPage++">
+        加载更多（还有 {{ recentSorted.length - recentShown.length }} 条）
+      </button>
     </div>
 
     <!-- 图片预览覆盖层 -->
@@ -283,4 +297,9 @@ async function onCleanupAll() {
 .dd-orphan-txt { flex: 1; min-width: 0; font-size: var(--fs-caption); color: var(--text-2); }
 .dd-orphan-btn { flex-shrink: 0; border: 1px solid var(--accent); background: var(--accent-light); color: var(--accent); border-radius: 5px; padding: 3px 9px; font-size: var(--fs-caption); cursor: pointer; font-family: inherit; }
 .dd-orphan-btn:hover { background: var(--accent); color: #fff; }
+/* R169-T1：流水行动词 + 口径说明 + 翻页 */
+.dd-scope { font-size: var(--fs-caption); color: var(--text-3); padding: 0 8px 6px; line-height: 1.5; }
+.dd-verb { flex-shrink: 0; font-size: var(--fs-micro); font-weight: 600; color: var(--accent); background: var(--accent-light); padding: 1px 6px; border-radius: 99px; }
+.dd-more { margin: 8px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-2); font-size: var(--fs-caption); font-family: inherit; cursor: pointer; }
+.dd-more:hover { border-color: var(--accent); color: var(--accent); }
 </style>

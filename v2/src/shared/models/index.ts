@@ -153,6 +153,18 @@ export interface ResourceCard extends CardBase {
   title: string
   linkType: LinkType
   link: string
+  /**
+   * R169-T2（可选，零迁移）：**另外两条槽的值**——URL / 本地 / Obsidian 三槽各自存一条链接。
+   *
+   * 语义（关键，别改）：`linkType` 仍是"当前用哪一槽"，`link` 仍是"**当前槽的值**"。
+   * 本字段只装**非当前槽**，所以全站约 30 处消费点（双击打开 / 筛选 / 卡片徽标 / AI 抓正文 /
+   * CSV·Airtable·MD 导出）一字不改照常工作 —— 若把它做成"三槽各自为真、读时选一条"，
+   * 那 30 处全要跟着改判据，一处漏改就是一张卡两个答案。
+   *
+   * 切槽 = `switchLinkSlot()`：先把当前 `link` 存回它所属的槽，再把目标槽的值取进 `link`
+   * （目标槽空 ⇒ `link` 置空，用户要的"切过去没有就该为空"）。老数据无本字段 ⇒ 首次切槽时才建。
+   */
+  linkSlots?: Partial<Record<LinkType, string>>
   workspaceId: ID
   categoryId: ID
   /** 来源类型（官�?学术/媒体等），不在采集弹窗中设置，后期编�*/
@@ -332,6 +344,12 @@ export interface FocusSlot {
   text: string
   done: boolean
   doneAt?: number
+  /**
+   * R169-T3（可选，零迁移）：这一格是**系统自动写入的推荐**，不是用户自己挑的。
+   * 只用来显示「✦ 荐」标与"用户动过就不再插手"的判据 —— 用户手工选/改/勾过的格子把它清掉，
+   * 之后 AI 重排不许再覆盖该格（推荐是便利，不是替决策）。
+   */
+  auto?: boolean
 }
 
 /** { 'YYYY-MM-DD': FocusSlot[] }，每天最多3个 */
@@ -394,6 +412,14 @@ export interface AppData {
   tasks: TaskCard[]
   curiosities: CuriosityCard[]
   dailyFocus: DailyFocus
+  /**
+   * R169-T3（可选，零迁移）：今日三件事**自动推荐已写过**的日期（'YYYY-MM-DD'）。
+   * 每天只在第一次打开调度台时写一次；同一天再开不重算——否则用户上午手工调过，
+   * 下午刷新一下就被系统盖回去，这是"自动"最容易做坏的地方。
+   */
+  focusAutoDate?: string
+  /** R169-T3（可选，零迁移）：用户点了「今天别自动推荐」的日期——当天不再写，次日照常 */
+  focusMutedDate?: string
   /** N4：标签管理体系（唯一入口：设置 → 标签管理） */
   tagTree: TagNode[]
   fieldConfig: FieldConfig
@@ -488,6 +514,10 @@ export interface UIPrefs {
   tcSplitRatio: number
   /** R54-B1：调度台项目调度左右分栏比例（左列 %，30–75） */
   curSplit?: number
+  /** R169-T4：项目调度**下半部**（左=描述原文 / 右=子任务）中缝比例（左列 %，25–70）。
+   *  与 curSplit 分开存：那是"摘要 vs 任务树"的宽度，这是"描述 vs 子任务"的宽度，
+   *  合成一个键会让拖其中一条把另一条也拽走。 */
+  spotSplit?: number
   dateStr?: string
   /** 应用内切台快捷键修饰键（O18：五种可选，默认 Alt） */
   wsSwitchMod?: 'ctrl' | 'alt' | 'ctrl-shift' | 'alt-shift' | 'none'

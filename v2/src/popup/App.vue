@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { K } from '@/shared/storage/keys'
 import { uid } from '@/shared/utils'
+import { linkPlaceholderFor } from '@/shared/utils/link'
 import { loadData, saveDataNow } from '@/shared/storage/repository'
 import type { AppData } from '@/shared/models'
 
@@ -266,7 +267,7 @@ async function save() {
                 {{ t === 'url' ? '🔗 URL' : t === 'file' ? '📁 本地文件' : '📝 Obsidian' }}
               </button>
             </div>
-            <input v-model="link" class="field-input" :placeholder="linkType === 'url' ? 'https://…' : linkType === 'file' ? 'D:\\folder\\file.pdf' : 'obsidian://open?vault=…'"
+            <input v-model="link" class="field-input" :placeholder="linkPlaceholderFor(linkType)"
               @keydown.enter.prevent="save" @keydown.ctrl.enter.prevent="save" @keydown.meta.enter.prevent="save" />
           </div>
           <div class="field">

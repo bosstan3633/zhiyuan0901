@@ -7,6 +7,9 @@ const props = defineProps<{
   open: boolean
   title?: string
   width?: string
+  /** R169-老账③：body 附加类——宿主态样式（如镜像只读 .dr-readonly）挂到 .drawer-body 上，
+   *  让 Workspace 自绘 .drawer 退役、两代抽屉容器合并为一代（Drawer.vue 唯一壳） */
+  bodyClass?: string
 }>()
 const emit = defineEmits<{ close: [] }>()
 // 第卅一轮修复：Esc 关闭抽屉（open 期间 document 级捕获监听，任何焦点下生效——此前抽屉不响应 Esc）
@@ -39,7 +42,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
           <div v-if="$slots['title-extra']" class="drawer-title-extra"><slot name="title-extra" /></div>
           <button class="drawer-close" @click="emit('close')">×</button>
         </header>
-        <div class="drawer-body">
+        <div class="drawer-body" :class="bodyClass">
           <slot />
         </div>
         <footer v-if="$slots.footer" class="drawer-footer">
@@ -86,4 +89,6 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 .overlay-enter-from, .overlay-leave-to { opacity: 0; }
 .drawer-enter-active, .drawer-leave-active { transition: transform .3s var(--ease-emphasis); }
 .drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }
+/* R169-老账③：reduced-motion 随合并统一到壳上（原 Workspace 自绘 dr-* 过渡在 workspace.css 有同款守卫） */
+@media (prefers-reduced-motion: reduce) { .drawer-enter-active, .drawer-leave-active { transition: none; } }
 </style>

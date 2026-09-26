@@ -97,6 +97,7 @@ const DRAWER_VIEWS = [
   {
     id: 'drawer-task', name: '任务卡详情', hash: '#/', tab: '任务调度',
     card: '[data-tid]', open: '.task-sidebar', ai: '.task-sidebar .ts-ai-cell', aiCount: 3, foot: '.ts-foot button',
+    invert: '.task-sidebar .ts-ai-cell',
   },
   {
     id: 'drawer-curio', name: '好奇心详情', hash: '#/', tab: '好奇心培育',
@@ -209,6 +210,8 @@ async function main() {
   const drawerFail = []
   /** R167：AI 评审弹窗的三条新结构（对照区 / 一次性指令条 / 分栏把手）缺一即记账 */
   const modalFail = []
+  /** R169-T4：项目调度（归属一行 + 下半部定高两栏）判据 */
+  const spotFail = []
   for (const theme of themes) {
     // 上一主题遗留的浮层先清掉（best-effort）：不掩盖问题——下面每张弹窗图收尾都会判一次 Esc
     if (await overlayOpen(page)) {
@@ -301,17 +304,82 @@ async function main() {
       /* R167 红线：主标题只准出现在抽屉头一处（正文里那份 .ref-title 已退役，加回来即红） */
       const h1Count = v.h1 ? await page.locator(v.h1).count().catch(() => -1) : 1
       const footCount = await page.locator(v.foot).count().catch(() => -1)
+      /* R169-T5b：徽标反相只在"真 hover + 真 accent 底"上才暴露，静态读源码判不了 ——
+         在真 DOM 上悬停后读宿主上的 --ai-mark-fill：声明成 #fff 才算"白头 accent 眼"生效。
+         （渐变填在 accent 底上会糊成一片，这是本轮最贵的视觉陷阱。） */
+      let invertOk = true, invertInfo = ''
+      if (v.invert) {
+        await page.locator(v.invert).first().hover().catch(() => {})
+        await page.waitForTimeout(280)
+        const got = await page.evaluate((sel) => {
+          const el = document.querySelector(sel)
+          if (!el) return null
+          const cs = getComputedStyle(el)
+          return { fill: cs.getPropertyValue('--ai-mark-fill').trim(), bg: cs.backgroundColor }
+        }, v.invert)
+        invertOk = !!got && got.fill === '#fff' && !!got.bg && got.bg !== 'rgba(0, 0, 0, 0)'
+        invertInfo = ` 反相=${invertOk ? '是' : '否'}(${got ? (got.fill || '未声明') : '无元素'})`
+        if (!invertOk) drawerFail.push(`${theme}/${v.id}：hover accent 底未反相（--ai-mark-fill=${got ? got.fill || '未声明' : '无元素'}）⇒ 徽标会糊进底色`)
+      }
       const file = path.join(outDir, `${theme}-${v.id}.png`)
       await page.screenshot({ path: file })
       const kb = Math.round(fs.statSync(file).size / 1024)
       shots.push(file)
-      const ok = opened && aiInRow && footCount === 2 && h1Count === 1
-      console.log(`  ${ok ? '✓' : '✗'} ${theme.padEnd(8)} ${v.name.padEnd(6)} 开=${opened ? '是' : '否'} AI入口行=${aiInRow ? '是' : '否'}(${aiCount}${v.aiCount ? '/' + v.aiCount : ''}) 主标题=${h1Count === 1 ? '一处' : h1Count + ' 处'} 页脚钮=${footCount}   → ${path.basename(file)} (${kb}KB)`)
-      if (!ok) drawerFail.push(`${theme}/${v.id}：开=${opened} AI入口行=${aiInRow}(计${aiCount}，应${v.aiCount || '≥1'}) 主标题处数=${h1Count}（应为 1） 页脚钮数=${footCount}（应为 2）`)
+      const ok = opened && aiInRow && footCount === 2 && h1Count === 1 && invertOk
+      console.log(`  ${ok ? '✓' : '✗'} ${theme.padEnd(8)} ${v.name.padEnd(6)} 开=${opened ? '是' : '否'} AI入口行=${aiInRow ? '是' : '否'}(${aiCount}${v.aiCount ? '/' + v.aiCount : ''}) 主标题=${h1Count === 1 ? '一处' : h1Count + ' 处'} 页脚钮=${footCount}${invertInfo}   → ${path.basename(file)} (${kb}KB)`)
+      if (!ok && (footCount !== 2 || h1Count !== 1 || !opened || !aiInRow)) drawerFail.push(`${theme}/${v.id}：开=${opened} AI入口行=${aiInRow}(计${aiCount}，应${v.aiCount || '≥1'}) 主标题处数=${h1Count}（应为 1） 页脚钮数=${footCount}（应为 2）`)
       await page.keyboard.press('Escape').catch(() => {})
       await page.waitForTimeout(400)
       await closeOverlays(page)
     }
+    // R169-T4：项目调度重排是本轮主交付面之一（归属一行 + 下半部定高两栏），必须现场核而不是只看台面图
+    await page.setViewportSize(VIEWPORT)
+    await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(2000)
+    await page.locator('.today-cards .today-card').first().click().catch(() => {})
+    await page.waitForTimeout(700)
+    await resetView(page)
+    const spot = await page.evaluate(() => {
+      const crumb = document.querySelector('[data-testid="cur-crumb"]')
+      const cells = Array.from(document.querySelectorAll('.cur-stats-v2 .csv-cell'))
+      const dual = document.querySelector('[data-testid="spot-dual"]')
+      if (!crumb || !dual) return null
+      const tops = Array.from(crumb.querySelectorAll('.cc-it')).map(e => Math.round(e.getBoundingClientRect().top))
+      const cRect = crumb.getBoundingClientRect(), dRect = dual.getBoundingClientRect()
+      const cols = Array.from(dual.querySelectorAll('.sp-col')).map(c => Math.round(c.getBoundingClientRect().height))
+      const body = document.querySelector('[data-testid="sp-sub-body"]')
+      const rows = body ? body.querySelectorAll('.sp-sub').length : 0
+      const visible = body ? Array.from(body.querySelectorAll('.sp-sub')).filter(r => r.getBoundingClientRect().bottom <= body.getBoundingClientRect().bottom + 1).length : 0
+      /* 定高到底是不是"4 行"：量**滚动体**而不是量外壳——外壳高要加栏头与内边距，
+         历史上正是那笔加法差 4px 把第 4 行削掉一截（本轮 audit 抓到）。
+         不靠数据碰运气：fixture 里的任务未必有子任务，若只数可见行，零子任务时这条判据等于没判。 */
+      const dcs = getComputedStyle(dual)
+      const rowsN = parseInt(dcs.getPropertyValue('--sp-rows'), 10)
+      const subHN = parseFloat(dcs.getPropertyValue('--sp-sub-h'))
+      const bodyEls = Array.from(dual.querySelectorAll('.sp-b'))
+      const bodyHs = bodyEls.map(e => Math.round(e.getBoundingClientRect().height))
+      const wantH = rowsN * subHN
+      return {
+        oneLine: new Set(tops).size === 1, cellN: cells.length,
+        rowsN, subHN, wantH, bodyHs,
+        sameRow: cells.length > 0 && Math.abs(cells[0].getBoundingClientRect().top - cRect.top) < 40,
+        go: !!crumb.querySelector('.cc-go'),
+        dualH: Math.round(dRect.height), colsEqual: cols.length === 2 && cols[0] === cols[1],
+        rows, visible, scrollable: body ? getComputedStyle(body).overflowY === 'auto' : false,
+        editors: dual.querySelectorAll('input,textarea,[contenteditable]').length,
+        insidePanel: dRect.bottom <= document.querySelector('[data-testid="spot-dual"]').closest('.card').getBoundingClientRect().bottom + 1,
+      }
+    })
+    const spotFile = path.join(outDir, `${theme}-spotlight.png`)
+    await page.screenshot({ path: spotFile })
+    shots.push(spotFile)
+    const spotOk = !!spot && spot.oneLine && spot.cellN === 4 && spot.sameRow && spot.go
+      && spot.colsEqual && spot.rowsN === 4 && spot.bodyHs.length === 2
+      && spot.bodyHs.every(h => h === spot.wantH) && spot.editors === 0 && spot.insidePanel
+      && (!spot.scrollable || spot.visible <= spot.rowsN + 1)
+    console.log(`  ${spotOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'项目调度'.padEnd(4)} 归属一行=${spot && spot.oneLine ? '是' : '否'} 四格同排=${spot ? spot.cellN : 0}/4 进树入口=${spot && spot.go ? '有' : '无'} 两栏同高=${spot && spot.colsEqual ? '是' : '否'} 滚动体=${spot ? spot.bodyHs.join('/') : '?'}px(应=${spot ? spot.wantH : '?'}=${spot ? spot.rowsN : '?'}×${spot ? spot.subHN : '?'}px) 子任务${spot ? spot.visible : 0}/${spot ? spot.rows : 0}可见 编辑控件=${spot ? spot.editors : '?'}   → ${path.basename(spotFile)} (${Math.round(fs.statSync(spotFile).size / 1024)}KB)`)
+    if (!spotOk) spotFail.push(`${theme}/spotlight：${JSON.stringify(spot)}（应：归属一行 + 四格同排 + 两栏滚动体高=${spot ? spot.wantH : '?'}px + 零编辑控件 + 收在面板内）`)
+    await closeOverlays(page)
     await page.setViewportSize(VIEWPORT)
     console.log(`  主题 ${theme} 落盘（data-theme=${okTheme}）`)
   }
@@ -319,8 +387,8 @@ async function main() {
   await page.evaluate(async () => { await chrome.storage.local.remove(['zy_ai_v1']) }).catch(() => {})
   await ctx.close()
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
-  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length)
-  if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情)）`); process.exit(1) }
+  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length + 1 /* R169-T4：项目调度 spotlight */)
+  if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情 + 1 项目调度)）`); process.exit(1) }
   if (escLeak.length) {
     console.log(`❌ Esc 未能关闭中央弹窗：${escLeak.join(' / ')}（台面图已受影响，请查 Modal.vue 的 watch immediate）`)
     process.exit(1)
@@ -331,6 +399,10 @@ async function main() {
   }
   if (drawerFail.length) {
     console.log(`❌ 卡详情抽屉判据未过 ${drawerFail.length} 项：\n  ` + drawerFail.join('\n  '))
+    process.exit(1)
+  }
+  if (spotFail.length) {
+    console.log(`❌ 项目调度判据未过 ${spotFail.length} 项：\n  ` + spotFail.join('\n  '))
     process.exit(1)
   }
 }

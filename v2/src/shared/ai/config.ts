@@ -42,15 +42,24 @@ const DEFAULTS: AiConfig = {
 const raw = ref<AiConfig>({ ...DEFAULTS })
 const loaded = ref(false)
 
-/** 惰性加载一次（多处并发调用只读一回盘）；不挂 App.vue 启动链 */
+/**
+ * 惰性加载一次（多处并发调用只读一回盘）；不挂 App.vue 启动链。
+ *
+ * ★只有**真读到配置**才算加载过：读盘失败或键不存在时不置 `loaded`，下次调用还要再读。
+ * 原实现无条件置位，于是"谁先读谁定调"——R169-T3 的自动推荐让调度台成为全站第一个碰
+ * AI 配置的地方，若那一刻存储里还没有 `zy_ai_v1`（首启、或外部注入配置的时序），
+ * 整份配置就被冻结成默认空值，本会话**所有** AI 入口都变成"未接入"（theme-audit 实跑抓到）。
+ */
 export async function loadAiConfig(): Promise<AiConfig> {
   if (loaded.value) return raw.value
   try {
     const res = await chrome.storage.local.get(AI_STORAGE_KEY)
     const s = res?.[AI_STORAGE_KEY]
-    if (s && typeof s === 'object') raw.value = { ...DEFAULTS, ...s }
-  } catch { /* 读不到按默认值（本机工具，静默回落） */ }
-  loaded.value = true
+    if (s && typeof s === 'object') {
+      raw.value = { ...DEFAULTS, ...s }
+      loaded.value = true
+    }
+  } catch { /* 读不到按默认值（本机工具，静默回落），且下次仍会重试 */ }
   return raw.value
 }
 

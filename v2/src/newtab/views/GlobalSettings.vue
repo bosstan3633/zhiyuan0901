@@ -592,17 +592,17 @@
           <div class="gs-card-body">
             <div class="gs-import-option" @click="triggerFileImport">
               <div class="gs-io-icon">📦</div>
-              <div><div class="gs-io-name">导入知源调度台数据</div><div class="gs-io-desc">选择JSON文件，与现有数据取并集（同ID更新，不同ID新增）；全量包附带界面偏好（主题/密度）时自动应用</div></div>
+              <div><div class="gs-io-name">导入知源调度台数据</div><div class="gs-io-desc">选择 JSON 文件，与现有数据取并集（同 ID 更新，不同 ID 新增）；全量包附带界面偏好（主题/密度）时自动应用。<b>导入前会先自动下载一份当前数据备份</b>（防误合并，不含 Airtable 凭证）</div></div>
               <button class="gs-btn gs-btn-primary gs-io-btn">选择文件</button>
             </div>
             <div class="gs-import-option" @click="assetPackInput?.click()">
               <div class="gs-io-icon">🗂</div>
-              <div><div class="gs-io-name">导入附件包（第卌二轮）</div><div class="gs-io-desc">选择「导出附件包」生成的 zip，附件本体按 assetId 写回（同 ID 覆盖）；先导 JSON 再导附件包 = 完整迁移</div></div>
+              <div><div class="gs-io-name">导入附件包</div><div class="gs-io-desc">选择「导出附件包」生成的 zip，附件本体按 assetId 写回（同 ID 覆盖）；先导 JSON 再导附件包 = 完整迁移</div></div>
               <button class="gs-btn gs-io-btn">选择文件</button>
             </div>
             <div class="gs-import-option" @click="bookmarkInput?.click()">
               <div class="gs-io-icon">🔖</div>
-              <div><div class="gs-io-name">导入书签文件</div><div class="gs-io-desc">选择浏览器导出的书签HTML，文件夹作为标签，链接+标题写入资源卡</div></div>
+              <div><div class="gs-io-name">导入书签文件</div><div class="gs-io-desc">选择浏览器导出的书签 HTML：<b>本页只把文件夹层级写成标签</b>，链接 + 标题进资源卡。（资源台的「导入资源」是另一套：前 2 级文件夹建成分类）</div></div>
               <button class="gs-btn gs-io-btn">选择文件</button>
             </div>
             <!-- R154（E3）：导入完不再自动弹评审抽屉——它抢焦点、也没人点过它。改成回执上的显式入口 -->
@@ -617,7 +617,7 @@
               <span class="gs-sr-label">书签导入到</span>
               <div class="gs-sr-control">
                 <select class="gs-select" v-model="bookmarkTargetWs">
-                  <option value="__new__">🆕 新建策展台「书签导入」</option>
+                  <option value="__new__">🆕 新建「🔖 书签导入 <今天日期>」策展台</option>
                   <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}</option>
                 </select>
               </div>
@@ -633,10 +633,10 @@
       <div v-if="activePage === 'export'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">⬆ 导出数据</div>
-          <div class="gs-page-desc">导出策展台数据用于备份或跨设备迁移</div>
+          <div class="gs-page-desc">导出数据用于备份或跨设备迁移（全量 JSON + 附件包两步才算完整迁移）</div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">备份提醒（第卅六轮）</span></div>
+          <div class="gs-card-header"><span class="gs-card-title">备份提醒</span></div>
           <div class="gs-card-body">
             <!-- V2.20.1 BUG-2：存量归属修复记录（静默回填，仅修复时显示） -->
             <div v-if="gd.projBackfillFixed" class="gs-export-row">
@@ -669,7 +669,7 @@
               <button class="gs-btn gs-btn-primary" @click="exportAll">导出</button>
             </div>
             <div class="gs-export-row">
-              <div class="gs-er-info"><div class="gs-er-name">按策展台导出CSV</div><div class="gs-er-desc">字段：系统字段全导 + 自定义字段按可见性，列名/顺序跟随「字段管理」；尾随 链接类型/分类/置顶/星标/更新时间，适配Airtable等多维表</div></div>
+              <div class="gs-er-info"><div class="gs-er-name">按策展台导出 CSV</div><div class="gs-er-desc">字段：系统字段全导 + 自定义字段按可见性，列名/顺序跟随「字段管理」；尾随 链接类型/分类/置顶/星标/更新时间，适配 Airtable 等多维表</div></div>
               <select class="gs-select" v-model="csvWsId">
                 <option value="">选择策展台…</option>
                 <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}</option>
@@ -677,7 +677,7 @@
               <button class="gs-btn" @click="exportCsvForWorkspace" :disabled="!csvWsId">导出CSV</button>
             </div>
             <div class="gs-export-row">
-              <div class="gs-er-info"><div class="gs-er-name">导出指定策展台</div><div class="gs-er-desc">选择一个策展台导出为JSON</div></div>
+              <div class="gs-er-info"><div class="gs-er-name">导出指定策展台</div><div class="gs-er-desc">选择一个策展台导出为 JSON（只含该台的分类与卡，用于跨设备搬台）</div></div>
               <select class="gs-select" v-model="exportWsId">
                 <option value="">选择策展台…</option>
                 <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}</option>
@@ -691,7 +691,7 @@
           </div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">📎 附件存储（第卅九轮）</span><span class="gs-card-desc">图片/HTML 本体在 IndexedDB，不占主数据</span></div>
+          <div class="gs-card-header"><span class="gs-card-title">📎 附件存储</span><span class="gs-card-desc">图片/HTML 本体在 IndexedDB，不占主数据</span></div>
           <div class="gs-card-body">
             <div class="gs-export-row">
               <div class="gs-er-info">
@@ -701,7 +701,7 @@
               <button class="gs-btn" @click="refreshAssetStats">刷新</button>
             </div>
             <div class="gs-export-row">
-              <div class="gs-er-info"><div class="gs-er-name">导出附件包（第卌二轮）</div><div class="gs-er-desc">全部附件本体打包为 zip；与「导出全部数据 JSON」配合 = 完整可迁移备份</div></div>
+              <div class="gs-er-info"><div class="gs-er-name">导出附件包</div><div class="gs-er-desc">全部附件本体打包为 zip；与「导出全部数据 JSON」配合 = 完整可迁移备份</div></div>
               <button class="gs-btn gs-btn-primary" @click="exportAssetPack">导出附件包</button>
             </div>
             <div class="gs-export-row">
@@ -898,7 +898,7 @@
               <button class="gs-btn gs-btn-danger" @click="showResetModal = true">回滚</button>
             </div>
             <div class="gs-danger-action">
-              <div class="gs-da-info"><div class="gs-da-name">回收站</div><div class="gs-da-desc">浏览 / 恢复已删除的卡片，或永久删除（第卅三轮 REQ-018）</div></div>
+              <div class="gs-da-info"><div class="gs-da-name">回收站</div><div class="gs-da-desc">浏览 / 恢复已删除的卡片，或永久删除</div></div>
               <button class="gs-btn" @click="router.push('/recycle')">进入</button>
             </div>
             <div class="gs-danger-action">

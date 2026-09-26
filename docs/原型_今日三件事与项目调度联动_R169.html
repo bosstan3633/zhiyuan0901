@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="linear">
+<head>
+<meta charset="utf-8">
+<title>R169 原型 · 今日三件事 × 项目调度联动（含链接三槽）</title>
+<style>
+/* ===== 真令牌（抄自 v2/src/shared/styles/tokens.css，禁自造字号/圆角） ===== */
+:root {
+  --fs-micro: 9px; --fs-caption: 10px; --fs-macro: 11px; --fs-sub: 12px; --fs-body: 13px; --fs-title: 15px; --fs-headline: 17px;
+  --radius-xs: 4px; --radius-sm: 8px; --radius-md: 10px; --radius-lg: 14px; --radius-xl: 18px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+  --dur: .16s; --dur-slow: .26s; --ease-emphasis: cubic-bezier(.2,.8,.2,1);
+  --opacity-disabled: .45;
+}
+[data-theme="linear"] { --surface:#fff; --surface-2:#F7F8FA; --surface-3:#EEF0F4; --text:#16181D; --text-2:#5A616E; --text-3:#8B92A0; --text-4:#AEB5C0;
+  --border:#E6E8EC; --border-strong:#D2D6DE; --accent:#5B5BD6; --accent-2:#5B5BD6; --accent-light:#EEEEFB; --accent-glow:rgba(91,91,214,.18);
+  --tag-neutral-bg:#F1F2F5; --tag-neutral-text:#5A616E; --success:#2E9E5B; --warning:#B87504; --danger:#C2434A; --scrim:rgba(20,22,28,.34); }
+[data-theme="notion"] { --surface:#fff; --surface-2:#F8F7F5; --surface-3:#F1EFEA; --text:#191714; --text-2:#5D5B57; --text-3:#8E8B85; --text-4:#B3B0A9;
+  --border:#EAE7E1; --border-strong:#D9D5CC; --accent:#4A5C86; --accent-2:#3B5079; --accent-light:#EEF1F6; --accent-glow:rgba(74,92,134,.16);
+  --tag-neutral-bg:#F1EEE9; --tag-neutral-text:#5D5B57; --success:#2F7D4F; --warning:#9B6A1F; --danger:#B4453C; --scrim:rgba(25,23,20,.3); }
+[data-theme="apple"] { --surface:#fff; --surface-2:#F5F5F7; --surface-3:#EAEAEF; --text:#1D1D1F; --text-2:#54545A; --text-3:#86868B; --text-4:#ADAEB5;
+  --border:#E4E4E9; --border-strong:#D0D0D7; --accent:#0A72C8; --accent-2:#0A72C8; --accent-light:#E9F3FB; --accent-glow:rgba(10,114,200,.16);
+  --tag-neutral-bg:#EFEFF3; --tag-neutral-text:#54545A; --success:#1E8A4C; --warning:#9A6700; --danger:#C0392B; --scrim:rgba(29,29,31,.3); }
+* { box-sizing: border-box; }
+body { margin:0; background:#0e1014; font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; color:var(--text); }
+.wrap { display:flex; gap:var(--sp-4); padding:var(--sp-4); align-items:flex-start; }
+.stage { flex:1; min-width:0; background:var(--surface); border-radius:var(--radius-xl); overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.42); }
+.bar { display:flex; align-items:center; gap:var(--sp-2); padding:10px var(--sp-5); background:var(--surface-2); border-bottom:1px solid var(--border); }
+.bar .lbl { font-size:var(--fs-caption); color:var(--text-3); letter-spacing:.04em; }
+.sw { padding:5px 11px; font-size:var(--fs-sub); font-family:inherit; border:1px solid var(--border-strong); background:var(--surface); color:var(--text-2); border-radius:999px; cursor:pointer; }
+.sw.on { border-color:var(--accent); background:var(--accent); color:#fff; }
+.pad { padding:var(--sp-5); display:flex; flex-direction:column; gap:var(--sp-4); }
+.h1 { font-size:var(--fs-headline); font-weight:600; }
+.sub { font-size:var(--fs-sub); color:var(--text-3); }
+.chip { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:var(--fs-caption); font-weight:600; background:var(--tag-neutral-bg); color:var(--tag-neutral-text); white-space:nowrap; }
+.chip.a { background:var(--accent-light); color:var(--accent-2); }
+.chip.w { background:color-mix(in srgb, var(--warning) 12%, transparent); color:var(--warning); }
+.chip.s { background:color-mix(in srgb, var(--success) 12%, transparent); color:var(--success); }
+
+/* ===== 模块 A：今日三件事 ===== */
+.pnl { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-lg); padding:0 var(--sp-3) var(--sp-2); }
+.pnl-h { display:flex; align-items:baseline; gap:var(--sp-2); padding:10px 2px 8px; border-bottom:1px solid var(--border); }
+.pnl-h b { font-size:var(--fs-caption); font-weight:700; letter-spacing:.06em; color:var(--text-3); text-transform:uppercase; }
+.pnl-h i { font-style:normal; font-size:var(--fs-caption); color:var(--text-4); }
+.pnl-h .r { margin-left:auto; display:flex; gap:6px; align-items:center; }
+.slots { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--sp-2); padding-top:var(--sp-2); }
+.slot { position:relative; display:flex; flex-direction:column; gap:6px; padding:11px 12px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); cursor:pointer; transition:border-color var(--dur), box-shadow var(--dur); }
+.slot:hover { border-color:var(--border-strong); }
+.slot.on { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+.slot .no { position:absolute; right:10px; top:9px; font-size:var(--fs-micro); color:var(--text-4); letter-spacing:.08em; }
+.slot .t { display:flex; align-items:flex-start; gap:8px; }
+.box { width:16px; height:16px; flex-shrink:0; border:1.5px solid var(--border-strong); border-radius:var(--radius-xs); background:var(--surface); display:flex; align-items:center; justify-content:center; font-size:11px; color:#fff; cursor:pointer; }
+.box.done { background:var(--success); border-color:var(--success); }
+.slot .name { font-size:var(--fs-body); font-weight:600; line-height:1.45; }
+.slot .name.done { text-decoration:line-through; color:var(--text-3); }
+.slot .meta { display:flex; flex-wrap:wrap; gap:4px; }
+.slot.empty { border-style:dashed; background:transparent; color:var(--text-4); align-items:flex-start; min-height:86px; }
+.slot.empty .plus { font-size:var(--fs-sub); }
+.focus-foot { display:flex; align-items:center; gap:var(--sp-2); padding-top:10px; flex-wrap:wrap; }
+.btn { display:inline-flex; align-items:center; gap:5px; padding:7px 12px; font-size:var(--fs-sub); font-family:inherit; font-weight:600; border-radius:var(--radius-sm); border:1px solid var(--border-strong); background:var(--surface); color:var(--text-2); cursor:pointer; }
+.btn:hover { border-color:var(--accent); color:var(--accent-2); }
+.btn.pri { background:var(--accent); border-color:var(--accent); color:#fff; }
+.btn.ghost { border-color:transparent; background:transparent; color:var(--text-3); font-weight:400; }
+.reason { display:flex; align-items:center; gap:6px; font-size:var(--fs-caption); color:var(--text-3); }
+.hist { display:flex; align-items:center; gap:var(--sp-2); padding:8px 10px; margin-top:var(--sp-2); background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:var(--fs-sub); color:var(--text-2); }
+.days { display:flex; gap:3px; align-items:flex-end; }
+.day { width:12px; border-radius:var(--radius-xs); background:var(--surface-3); }
+.day.f { background:var(--accent); }
+/* 推荐抽屉 */
+.rec { margin-top:var(--sp-2); background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--radius-md); padding:var(--sp-2) var(--sp-3); display:none; }
+.rec.show { display:block; }
+.rec-h { display:flex; align-items:center; gap:var(--sp-2); font-size:var(--fs-caption); color:var(--text-3); padding-bottom:6px; border-bottom:1px dashed var(--border); }
+.rec-row { display:flex; align-items:flex-start; gap:var(--sp-2); padding:9px 0; border-bottom:1px solid var(--border); }
+.rec-row:last-child { border-bottom:none; }
+.rec-row .m { flex:1; min-width:0; }
+.rec-row .nm { font-size:var(--fs-body); font-weight:600; }
+.rec-row .why { font-size:var(--fs-caption); color:var(--text-3); margin-top:2px; line-height:1.6; }
+.rec-row .why em { font-style:normal; color:var(--accent-2); font-weight:600; }
+.rec-row .ops { display:flex; gap:5px; flex-shrink:0; }
+.mini { padding:4px 9px; font-size:var(--fs-caption); font-family:inherit; border-radius:var(--radius-xs); border:1px solid var(--border-strong); background:var(--surface); color:var(--text-2); cursor:pointer; }
+.mini.p { border-color:var(--accent); background:var(--accent-light); color:var(--accent-2); font-weight:600; }
+
+/* ===== 模块 B：项目调度（上：三级归属 / 下：可拖两栏） ===== */
+.ps { display:flex; flex-direction:column; }
+.ps-top { display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-2) 2px var(--sp-3); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+.crumb { display:flex; align-items:stretch; gap:6px; flex-wrap:wrap; min-width:0; }
+.lv { display:flex; flex-direction:column; gap:2px; padding:7px 10px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); cursor:pointer; min-width:0; transition:border-color var(--dur), box-shadow var(--dur); }
+.lv:hover { border-color:var(--border-strong); }
+.lv.on { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+.lv .k { font-size:var(--fs-micro); color:var(--text-4); letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; }
+.lv .v { font-size:var(--fs-sub); font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:230px; }
+.sep { align-self:center; color:var(--text-4); font-size:var(--fs-macro); }
+.stats { display:flex; gap:var(--sp-3); margin-left:auto; }
+.st { display:flex; flex-direction:column; align-items:flex-end; }
+.st b { font-size:var(--fs-title); font-weight:700; line-height:1; }
+.st span { font-size:var(--fs-micro); color:var(--text-4); margin-top:2px; }
+.dual { display:grid; grid-template-columns:var(--split,42%) 7px 1fr; align-items:stretch; height:340px; padding-top:var(--sp-3); }
+.col { display:flex; flex-direction:column; min-width:0; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden; }
+.col-h { display:flex; align-items:center; gap:var(--sp-2); padding:9px 11px; border-bottom:1px solid var(--border); background:var(--surface-2); flex-shrink:0; }
+.col-h b { font-size:var(--fs-caption); font-weight:700; letter-spacing:.05em; color:var(--text-3); text-transform:uppercase; }
+.col-h i { font-style:normal; font-size:var(--fs-caption); color:var(--text-4); }
+.col-h .r { margin-left:auto; font-size:var(--fs-caption); color:var(--text-4); white-space:nowrap; }
+.col-b { flex:1; min-height:0; overflow-y:auto; padding:11px 12px; }
+.desc { font-size:var(--fs-body); line-height:1.85; color:var(--text-2); white-space:pre-wrap; }
+.acc { margin-top:var(--sp-3); padding:9px 11px; background:var(--surface-2); border-left:3px solid var(--accent); border-radius:0 var(--radius-sm) var(--radius-sm) 0; }
+.acc .k { font-size:var(--fs-micro); letter-spacing:.06em; color:var(--text-4); text-transform:uppercase; }
+.acc .v { font-size:var(--fs-sub); line-height:1.7; color:var(--text); margin-top:3px; }
+.sub-row { display:flex; align-items:center; gap:9px; padding:8px 2px; border-bottom:1px solid var(--border); font-size:var(--fs-sub); }
+.sub-row:last-child { border-bottom:none; }
+.sub-row .nm { flex:1; min-width:0; }
+.sub-row.done .nm { text-decoration:line-through; color:var(--text-3); }
+.sub-row .x { color:var(--text-4); font-size:var(--fs-macro); cursor:pointer; }
+.sub-add { display:flex; align-items:center; gap:8px; padding:9px 2px 2px; font-size:var(--fs-sub); color:var(--text-4); border-top:1px dashed var(--border); margin-top:6px; }
+.drag { position:relative; cursor:col-resize; display:flex; align-items:center; justify-content:center; }
+.drag i { width:3px; height:26px; border-radius:2px; background:var(--border-strong); transition:all var(--dur); }
+.drag:hover i, .drag.act i { background:var(--accent); height:44px; }
+.drag::after { content:''; position:absolute; inset:0 -4px; }
+.ps-empty { padding:var(--sp-5); text-align:center; color:var(--text-4); font-size:var(--fs-sub); }
+
+/* ===== 附：链接三槽 ===== */
+.seg { display:inline-flex; border:1px solid var(--border-strong); border-radius:var(--radius-xs); overflow:hidden; background:var(--surface); flex-shrink:0; }
+.seg span { padding:4px 9px; font-size:var(--fs-caption); color:var(--text-3); border-right:1px solid var(--border); cursor:pointer; }
+.seg span:last-child { border-right:none; }
+.seg span.on { background:var(--accent-light); color:var(--accent-2); font-weight:600; box-shadow:inset 0 -2px 0 var(--accent); }
+.kv { display:flex; align-items:center; gap:var(--sp-2); min-height:34px; font-size:var(--fs-sub); border-bottom:1px solid var(--border); }
+.kv:last-child { border-bottom:none; }
+.kv > .k { flex-shrink:0; width:38px; font-size:var(--fs-caption); color:var(--text-4); letter-spacing:.04em; }
+.kv > .v { flex:1; min-width:0; display:flex; align-items:center; gap:6px; }
+.in { flex:1; min-width:0; border:1px solid transparent; background:transparent; color:var(--text-2); font-family:inherit; font-size:var(--fs-sub); padding:3px 6px; border-radius:var(--radius-xs); outline:none; }
+.in:hover { border-color:var(--border); }
+.in:focus { border-color:var(--accent); background:var(--surface); color:var(--text); }
+.in.ph { color:var(--text-4); }
+.ib { width:22px; height:22px; flex-shrink:0; display:flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:var(--radius-xs); background:var(--surface); color:var(--text-3); font-size:var(--fs-caption); cursor:pointer; }
+.ib:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-light); }
+.dots { display:flex; gap:4px; align-items:center; font-size:var(--fs-caption); color:var(--text-4); }
+.dot { width:6px; height:6px; border-radius:999px; background:var(--border-strong); }
+.dot.has { background:var(--success); }
+.warn { margin-top:6px; font-size:var(--fs-sub); color:var(--danger); background:color-mix(in srgb, var(--danger) 8%, transparent); padding:6px 10px; border-radius:var(--radius-sm); }
+.hint { font-size:var(--fs-caption); color:var(--text-4); }
+
+/* ===== 右侧说明板 ===== */
+.spec { width:392px; flex-shrink:0; background:#15181e; border:1px solid #262b34; border-radius:var(--radius-xl); color:#C9CED8; padding:var(--sp-4); font-size:var(--fs-sub); line-height:1.75; max-height:92vh; overflow:auto; }
+.spec h2 { font-size:var(--fs-title); color:#fff; margin:0 0 var(--sp-2); }
+.spec h3 { font-size:var(--fs-body); color:#E8EBF0; margin:var(--sp-4) 0 6px; letter-spacing:.02em; }
+.spec code { background:#22262e; padding:1px 5px; border-radius:4px; font-size:var(--fs-caption); color:#9DC8FF; }
+.spec ul { margin:0 0 0 var(--sp-4); padding:0; }
+.spec li { margin:4px 0; }
+.spec .q { background:#1d222a; border-left:3px solid #5B5BD6; padding:8px 10px; margin:8px 0; border-radius:0 6px 6px 0; }
+.spec .ev { color:#7E8797; font-size:var(--fs-caption); }
+.toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); background:#16181D; color:#fff; padding:9px 16px; border-radius:999px; font-size:var(--fs-sub); opacity:0; transition:opacity var(--dur-slow); pointer-events:none; z-index:9; }
+.toast.on { opacity:1; }
+/* 响应式第二档（与 R167 弹窗同一口径）：<1200 退单栏、隐藏把手、两栏各自限高——复用同一套 DOM，不写第二套模板 */
+@media (max-width: 1199px) {
+  .dual { grid-template-columns: 1fr; gap: var(--sp-2); height:auto; }
+  .col { max-height: 300px; }
+  .drag { display: none; }
+  .slots { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .slot, .lv, .drag i { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stage">
+    <div class="bar">
+      <span class="lbl">状态</span>
+      <button class="sw on" data-view="rec" onclick="setView('rec')">① 打开即有推荐</button>
+      <button class="sw" data-view="empty" onclick="setView('empty')">② 今天还没安排</button>
+      <button class="sw" data-view="sel" onclick="setView('sel')">③ 已采纳并联动</button>
+      <span class="lbl" style="margin-left:16px">主题</span>
+      <button class="sw on" data-theme-btn="linear" onclick="setTheme('linear')">Linear</button>
+      <button class="sw" data-theme-btn="notion" onclick="setTheme('notion')">Notion</button>
+      <button class="sw" data-theme-btn="apple" onclick="setTheme('apple')">Apple</button>
+      <span class="lbl" style="margin-left:16px">视图</span>
+      <button class="sw on" data-pane="focus" onclick="setPane('focus')">今日三件事 + 项目调度</button>
+      <button class="sw" data-pane="link" onclick="setPane('link')">附：链接与归档三槽</button>
+    </div>
+
+    <div class="pad" id="pane-focus">
+      <!-- ================= 模块 A ================= -->
+      <section class="pnl" data-testid="focus-pnl">
+        <div class="pnl-h">
+          <b>今日三件事 · TODAY'S FOCUS</b>
+          <i>槽位固定 3 格 · 勾选即写回任务卡</i>
+          <span class="r">
+            <span class="sub" id="dateLbl">2026-09-26 周六</span>
+            <button class="mini" onclick="toast('‹ 前一日（现行 Ctrl+← 已支持）')">‹</button>
+            <button class="mini" onclick="toast('› 后一日')">›</button>
+            <button class="mini" onclick="copyYesterday()">复制昨日</button>
+            <button class="mini" onclick="toast('导出 CSV：现行能力，含 项目 / 项目→指标 / 状态 / 安排时间')">导出</button>
+          </span>
+        </div>
+        <div class="slots" id="slots"></div>
+
+        <!-- 推荐条（新增） -->
+        <div class="focus-foot">
+          <button class="btn pri" id="btnRec" onclick="toggleRec()">✦ 推荐今日三件事</button>
+          <button class="btn" onclick="toast('打开任务库选取（现行能力，候选集不变）')">＋ 从任务库选取</button>
+          <span class="reason" id="recBasis"></span>
+        </div>
+        <div class="hist" id="hist"></div>
+        <div class="rec" id="rec"></div>
+      </section>
+
+      <!-- ================= 模块 B ================= -->
+      <section class="pnl ps" data-testid="spotlight">
+        <div class="pnl-h">
+          <b>项目调度 · PROJECT SPOTLIGHT</b>
+          <i>上：这件事的三级归属 ｜ 下：左=说明与验收 · 右=子任务（中缝可拖）</i>
+          <span class="r"><span class="hint" id="splitLbl">42% / 58%</span><button class="mini" onclick="resetSplit()">分栏复位</button></span>
+        </div>
+        <div id="psBody"></div>
+      </section>
+    </div>
+
+    <!-- ================= 附：链接三槽 ================= -->
+    <div class="pad" id="pane-link" style="display:none">
+      <section class="pnl" data-testid="link-3slot">
+        <div class="pnl-h">
+          <b>链接与归档</b>
+          <i>三个类型 = 三条独立链接 · 切类型只切"看哪一条"，不改任何值</i>
+          <span class="r"><span class="dots" id="slotDots"></span></span>
+        </div>
+        <div style="padding-top:var(--sp-2)">
+          <div class="kv">
+            <span class="k">链接</span>
+            <span class="v">
+              <span class="seg" id="seg">
+                <span data-t="url" onclick="setSlot('url')">URL</span>
+                <span data-t="file" onclick="setSlot('file')">本地</span>
+                <span data-t="obsidian" onclick="setSlot('obsidian')">Obsidian</span>
+              </span>
+              <input class="in" id="slotIn" readonly>
+              <button class="ib" title="打开这一条">↗</button>
+              <button class="ib" title="复制这一条">⧉</button>
+            </span>
+          </div>
+          <div class="kv"><span class="k">双击</span><span class="v"><span class="hint">按「当前类型」那条打开；当前那条为空则提示补全，不会偷偷去打开别的类型</span></span></div>
+          <div class="kv"><span class="k">AI 补全</span><span class="v"><span class="hint">只在 URL 槽是 http(s) 时抓正文；本地 / Obsidian 一律不抓（现行判据不变）</span></span></div>
+          <div class="kv"><span class="k">断链告警</span><span class="v"><span class="hint">按「当前槽」判：本地槽只存了文件名才告警，不再因为切了类型就误报</span></span></div>
+          <div id="slotWarn"></div>
+        </div>
+        <div style="padding:10px 2px 4px" class="hint" data-testid="slot-note">
+          旧数据只有一条 <code>link</code> + <code>linkType</code> ⇒ 读时派生进对应槽，另两槽显示为空；<b>首次编辑某条并保存</b>才写 <code>linkSlots</code>，不做启动期迁移。
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ================= 说明板 ================= -->
+  <aside class="spec">
+    <h2>R169 原型 · 待你拍板</h2>
+    <div class="ev">原型只演示交互与版式，数据是截图里的真内容；落码以现行字段为准。</div>
+
+    <h3>1. 今日三件事：从"纯手选"变"规则推荐 + 你调整"</h3>
+    <ul>
+      <li>依据三条，全部本地算，<b>不发 AI 请求</b>：① 主攻战略目标下的项目（现行 <code>goalOf</code> 反查）；② 过去 7 天三件事完成 <code>12/21</code> 与顺延；③ 任务调度里的状态分布（待开始 / 进行中 / 距截止 / 子任务未启动）。</li>
+      <li>每条推荐<b>必须写出理由</b>，且带「采纳 / 忽略」——推荐不自动占槽，采纳才写 <code>dailyFocus</code>。</li>
+      <li>三格上限 <code>FOCUS_LIMIT=3</code> 不变；勾选完成仍是<b>双写</b>（槽 + 任务卡）。</li>
+      <li class="ev">现状：零推荐逻辑，候选只按 <code>pinned</code> 排序取 30 条；<code>dailyFocus</code> 按日键永久留存但<b>无任何聚合层</b>（要统计"过去一周"必须新增一层只读派生）。</li>
+    </ul>
+
+    <h3>2. 项目调度：上归属 / 下两栏可拖</h3>
+    <ul>
+      <li>上部分：<code>战略目标 › 项目 › 成果指标</code> 三级一条，点任一级只切"看哪个"，<b>不改数据</b>；右侧四个数字下钻保持现行。</li>
+      <li>下部分：模块<b>定高 340px</b>，左=说明 + 验收标准，右=子任务清单，各自内滚；中缝拖拽 25%~70%、点把手复位。</li>
+      <li>复用 R167 已验证的做法：<code>mousedown</code> 里 <code>preventDefault()</code> 防选区，<b>不给容器加 <code>pointer-events:none</code></b>（否则把手自身点击复位失效）；窄屏退单栏并隐藏把手。</li>
+      <li class="ev">现状：两模块同在 <code>CompassHome.vue</code>（834-973 行），联动是纯 computed 链 <code>focusSelIdx → selTask → curProject</code>，无事件；抽屉里已有 <code>.ds-desc</code> / <code>SubtaskList</code> 可直接搬。</li>
+    </ul>
+
+    <h3>3. 待你回答的四个问题</h3>
+    <div class="q"><b>Q1 推荐要不要接 AI？</b> 我按<b>纯本地规则</b>做（快、可解释、零 Key 依赖）。若要 AI 排序，须另立 job 并接评审弹窗，工作量 +1 天。</div>
+    <div class="q"><b>Q2 推荐出现时机？</b> 默认「打开调度台自动算一次并显示，不自动占槽」。备选：只在三件事为空时显示。</div>
+    <div class="q"><b>Q3 验收标准放哪？</b> 现在它是 description 里的自由文本（AI 写时带 <code>🤖 验收标准：</code> 前缀）。原型里我把它单独提成一块——<b>要不要给它一个真字段</b> <code>acceptance</code>？（提字段=数据模型变更，需走导入/载入两条路兼容）</div>
+    <div class="q"><b>Q4 子任务栏里的 AI 入口？</b> 现抽屉子任务行有 🧭 找资源。搬到项目调度后：A 保留（要带 AI 通道）／ B 只读，改动回抽屉。<b>建议 B</b>（模块只承担"看与勾"，编辑回抽屉）。</div>
+
+    <h3>4. 另外三件事的口径（原型未画，见任务清单）</h3>
+    <ul>
+      <li><b>流水</b>：现在这屏根本不是操作流水，是<b>当前台资源卡 <code>updatedAt</code> 的 Top 30</b>——所以任务勾选、编辑保存、AI 采纳按构造就不会出现；批量导入还会把 20+ 张卡打成同一分钟占满 30 格。修法见清单 T1。</li>
+      <li><b>链接三槽</b>：已画（右上切"附：链接与归档"）。读时派生、不迁移；断链告警改按当前槽判。</li>
+      <li><b>导入导出文案</b>：删掉用户可见的轮次号（"第卌二轮"等 4 处）；"文件夹作为标签"是<b>半真半假</b>——设置页只当标签、资源台是前 2 级建分类；手册承诺"导入 JSON 一切如初"对有附件的卡是假承诺（附件包要单独导）。</li>
+    </ul>
+  </aside>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= 数据（截图真内容） ================= */
+var TASKS = {
+  t1: { id:'t1', name:'AI Agent概念梳理，构建认知基础', proj:'workbuddy培训项目', metric:'教程文章20篇', mat:'B·可派 55', status:'待开始',
+    desc:'围绕每个概念撰写笔记，可视化图片16:9的，形成自己的课件，方便以后复用。',
+    acc:'四主题笔记+4张16:9图片整合为课件初稿，截图走查通过',
+    subs:[ {t:'列出AI Agent核心概念清单', d:false}, {t:'撰写概念笔记：Agent定义与架构', d:false}, {t:'撰写概念笔记：规划与记忆机制', d:false}, {t:'撰写概念笔记：工具使用与多智能体', d:false}, {t:'制作16:9可视化图片（每概念1张）', d:false}, {t:'整合笔记与图片，形成课件初稿', d:false} ] },
+  t2: { id:'t2', name:'教育+AI 行业地图：细分赛道盘点', proj:'教育+AI行业地图研究', metric:'地图 v2 定稿', mat:'C·待核 38', status:'进行中',
+    desc:'按 6 个细分赛道各找 3 家代表公司，标注融资阶段与内容形态，产出可对外讲的一页地图。',
+    acc:'一页地图 + 每赛道 3 家来源可点，无空位',
+    subs:[ {t:'赛道口径定稿（6 类）', d:true}, {t:'每赛道候选公司收集', d:false}, {t:'来源链接与融资阶段核对', d:false}, {t:'一页地图排版输出', d:false} ] },
+  t3: { id:'t3', name:'把 12 篇存量教程文章挂上来源链接', proj:'知源产品打造与销售', metric:'内容资产化 30 篇', mat:'D·待办 21', status:'待开始',
+    desc:'存量教程文章缺来源的补齐，形成"可核查"的内容资产；顺手把断链标出来。',
+    acc:'12 篇全部有来源或标注"无来源"，断链清零',
+    subs:[ {t:'盘点缺来源清单', d:false}, {t:'补来源并复核', d:false} ] }
+}
+var REC = [
+  { tid:'t1', why:'主攻战略目标下 <em>workbuddy培训项目</em> 进度 33%，这件事是它当前唯一「待开始」的直接产出项' },
+  { tid:'t2', why:'昨日排了没做（<em>顺延 1 次</em>）· 子任务已完成 1/4，接着做成本最低' },
+  { tid:'t3', why:'距指标 <em>内容资产化 30 篇</em> 还差 18 篇 · 该任务 0 子任务启动，先拆一步' }
+]
+var HIST = [ {d:'09-20',n:3},{d:'09-21',n:2},{d:'09-22',n:3},{d:'09-23',n:1},{d:'09-24',n:1},{d:'09-25',n:2},{d:'09-26',n:0} ]
+
+/* 三件事槽位（内存态）：null = 空槽 */
+var state = { view:'rec', pane:'focus', theme:'linear', slots:[null,null,null], recOpen:false, recIgnored:{}, sel:0, split:42, dragging:false, slot:'url' }
+var LINK = { url:'https://github.com/larashero3-dotcom/lieflat-cards', file:'', obsidian:'' }
+var LEGACY = { linkType:'url' }
+
+function setView(v) {
+  state.view = v
+  if (v === 'empty') { state.slots = [null,null,null]; state.recOpen = false; state.sel = -1 }
+  if (v === 'sel') { state.slots = ['t1','t2',null]; state.recOpen = false; state.sel = 0 }
+  if (v === 'rec') { state.slots = [null,null,null]; state.recOpen = true; state.recIgnored = {}; state.sel = -1 }
+  document.querySelectorAll('[data-view]').forEach(function (b) { b.classList.toggle('on', b.dataset.view === v) })
+  render()
+}
+function setTheme(t) {
+  state.theme = t
+  document.documentElement.setAttribute('data-theme', t)
+  document.querySelectorAll('[data-theme-btn]').forEach(function (b) { b.classList.toggle('on', b.dataset.themeBtn === t) })
+}
+function setPane(p) {
+  state.pane = p
+  document.getElementById('pane-focus').style.display = p === 'focus' ? '' : 'none'
+  document.getElementById('pane-link').style.display = p === 'link' ? '' : 'none'
+  document.querySelectorAll('[data-pane]').forEach(function (b) { b.classList.toggle('on', b.dataset.pane === p) })
+}
+function toggleRec() { state.recOpen = !state.recOpen; render() }
+function acceptRec(i) {
+  var r = REC[i], free = state.slots.indexOf(null)
+  if (free < 0) { toast('三格已满 · 先取消一格（AI 不替你决策，也不替你挤掉已排的）'); return }
+  state.slots[free] = r.tid
+  state.recIgnored[i] = true
+  if (state.sel < 0) state.sel = free
+  toast('✓ 已采纳进第 ' + (free + 1) + ' 格（写 dailyFocus[' + free + '].sourceId）')
+  render()
+}
+function ignoreRec(i) { state.recIgnored[i] = true; toast('已忽略 · 今天不再推荐这条'); render() }
+function copyYesterday() {
+  var y = ['t1','t2','t3']
+  Object.keys(TASKS).forEach(function (k) { TASKS[k]._done = false })
+  state.slots = [y[0], y[1], y[2]]
+  toast('✓ 已复制昨日 3 件（done 清空，现行行为一致）')
+  render()
+}
+function selectSlot(i) { state.sel = i; render() }
+function toggleDone(i, ev) {
+  if (ev) ev.stopPropagation()
+  var t = TASKS[state.slots[i]]
+  if (!t) return
+  t._done = !t._done
+  toast(t._done ? '✓ 勾选：槽位 done + 任务卡 status=done 双写' : '↺ 取消：任务卡回到「进行中」')
+  render()
+}
+function toggleSub(j) {
+  var t = TASKS[state.slots[state.sel] || 't1']
+  if (!t || !t.subs[j]) return
+  t.subs[j].d = !t.subs[j].d
+  render()
+}
+/* ---- 分栏拖拽：mousedown 里 preventDefault，不给容器加 pointer-events ---- */
+function startDrag(e) {
+  var host = e.target.closest('.dual')
+  if (!host) return
+  state.dragging = true
+  var rect = host.getBoundingClientRect()
+  var move = function (ev) {
+    var pct = (ev.clientX - rect.left) / rect.width * 100
+    state.split = Math.min(70, Math.max(25, pct))
+    applySplit()
+  }
+  var up = function () {
+    state.dragging = false
+    document.removeEventListener('mousemove', move)
+    document.removeEventListener('mouseup', up)
+  }
+  document.addEventListener('mousemove', move)
+  document.addEventListener('mouseup', up)
+  e.preventDefault()
+}
+function resetSplit() { state.split = 42; applySplit(); toast('分栏已复位 42% / 58%') }
+function applySplit() {
+  var d = document.querySelector('.dual')
+  if (!d) return
+  d.style.setProperty('--split', state.split.toFixed(1) + '%')
+  d.querySelector('.drag').classList.toggle('act', state.dragging)
+  var l = document.getElementById('splitLbl')
+  if (l) l.textContent = Math.round(state.split) + '% / ' + Math.round(100 - state.split) + '%'
+}
+/* ---- 链接三槽 ---- */
+function setSlot(t) { state.slot = t; renderLink() }
+function renderLink() {
+  var v = LINK[state.slot] || ''
+  var inEl = document.getElementById('slotIn')
+  inEl.value = v
+  inEl.placeholder = state.slot === 'url' ? 'https://…' : (state.slot === 'file' ? 'D:\\path\\to\\file.pdf' : 'obsidian://open?vault=…')
+  inEl.classList.toggle('ph', !v)
+  document.querySelectorAll('#seg span').forEach(function (s) { s.classList.toggle('on', s.dataset.t === state.slot) })
+  var dots = ['url','file','obsidian'].map(function (k) {
+    return '<span class="dot ' + (LINK[k] ? 'has' : '') + '" title="' + k + '：' + (LINK[k] ? '已填' : '空') + '"></span>'
+  }).join('')
+  document.getElementById('slotDots').innerHTML = dots + '<span style="margin-left:4px">三槽填写情况</span>'
+  var warn = ''
+  if (state.slot === 'file' && v && !/^[a-zA-Z]:\\|^\\\\/.test(v)) warn = '<div class="warn">⚠ 本地槽只存了文件名，双击打不开 —— 请补全完整路径</div>'
+  if (!v) warn = '<div class="hint" style="padding:8px 2px 0">这一槽是空的。旧数据只有一条链接 ⇒ 它落在「' + LEGACY.linkType + '」槽，其余两槽显示为空；<b>首次编辑并保存这一条</b>才写 <code>linkSlots.' + state.slot + '</code>。</div>'
+  document.getElementById('slotWarn').innerHTML = warn
+}
+/* ---- 渲染 ---- */
+function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c] }) }
+function renderSlots() {
+  var h = ''
+  for (var i = 0; i < 3; i++) {
+    var id = state.slots[i], t = id ? TASKS[id] : null
+    if (!t) {
+      h += '<div class="slot empty" data-testid="slot-empty-' + i + '" onclick="selectSlot(' + i + ')">' +
+           '<span class="no">0' + (i + 1) + '</span><span class="plus">＋ 空槽 · 从任务库选取或采纳推荐</span></div>'
+      continue
+    }
+    h += '<div class="slot' + (state.sel === i ? ' on' : '') + '" data-testid="slot-' + i + '" onclick="selectSlot(' + i + ')">' +
+         '<span class="no">0' + (i + 1) + '</span>' +
+         '<div class="t"><span class="box' + (t._done ? ' done' : '') + '" onclick="toggleDone(' + i + ', event)">' + (t._done ? '✓' : '') + '</span>' +
+         '<span class="name' + (t._done ? ' done' : '') + '">' + esc(t.name) + '</span></div>' +
+         '<div class="meta"><span class="chip">📦 ' + esc(t.proj) + '</span><span class="chip">🎯 ' + esc(t.metric) + '</span>' +
+         '<span class="chip ' + (t.status === '进行中' ? 'w' : 'a') + '">' + t.status + '</span><span class="chip">' + t.mat + '</span></div></div>'
+  }
+  document.getElementById('slots').innerHTML = h
+}
+function renderHist() {
+  var done = 0, h = HIST.map(function (x) { done += x.n; return '<span class="day' + (x.n ? ' f' : '') + '" style="height:' + (6 + x.n * 7) + 'px" title="' + x.d + '：完成 ' + x.n + '/3"></span>' }).join('')
+  document.getElementById('hist').innerHTML =
+    '<span class="days">' + h + '</span><span>过去 7 天完成 <b>' + done + '/21</b>（今日 0）</span>' +
+    '<span style="margin-left:auto" class="hint">顺延未清 2 件 · 这是推荐的输入之一</span>'
+}
+function renderRec() {
+  var basis = document.getElementById('recBasis')
+  basis.innerHTML = state.recOpen ? '依据：主攻战略目标「AI知识管理+内容生产专家」· 7 日完成 12/21 · 任务调度 待开始 9 / 进行中 1' : '推荐未展开 · 不会自动占槽'
+  var box = document.getElementById('rec')
+  box.classList.toggle('show', state.recOpen)
+  if (!state.recOpen) { box.innerHTML = ''; return }
+  var rows = REC.map(function (r, i) {
+    if (state.recIgnored[i]) return ''
+    var t = TASKS[r.tid]
+    return '<div class="rec-row" data-testid="rec-' + i + '"><span class="box"></span><div class="m">' +
+      '<div class="nm">' + esc(t.name) + '</div><div class="why">' + r.why + '</div>' +
+      '<div class="meta" style="display:flex;gap:4px;margin-top:4px"><span class="chip">📦 ' + esc(t.proj) + '</span><span class="chip">' + t.status + '</span><span class="chip">' + t.mat + '</span></div></div>' +
+      '<div class="ops"><button class="mini p" onclick="acceptRec(' + i + ')">采纳</button><button class="mini" onclick="ignoreRec(' + i + ')">忽略</button></div></div>'
+  }).join('')
+  box.innerHTML = '<div class="rec-h">✦ 推荐 3 件 · 本地规则算出，<b>不自动占槽</b>；采纳才写库，忽略今天不再提</div>' +
+    (rows || '<div class="rec-row"><div class="m"><div class="nm">全部已处理</div><div class="why">没有待采纳的推荐了</div></div></div>')
+}
+function renderPs() {
+  var body = document.getElementById('psBody')
+  var id = state.slots[state.sel]
+  if (!id) {
+    body.innerHTML = '<div class="ps-empty" data-testid="ps-empty">上方还没有选中今天要做的事 —— 采纳一条推荐，或点一个空槽从任务库选。<br><span class="hint">（现行空态只有一句"点击上方任务卡联动"，没有下一步动作）</span></div>'
+    return
+  }
+  var t = TASKS[id]
+  var dn = t.subs.filter(function (s) { return s.d }).length
+  body.innerHTML =
+    '<div class="ps-top" data-testid="ps-top">' +
+      '<div class="crumb">' +
+        '<div class="lv" data-testid="lv-goal"><span class="k">🎯 战略目标</span><span class="v">AI知识管理+内容生产专家</span></div>' +
+        '<span class="sep">›</span>' +
+        '<div class="lv" data-testid="lv-proj"><span class="k">📦 项目</span><span class="v">' + esc(t.proj) + ' · 33%</span></div>' +
+        '<span class="sep">›</span>' +
+        '<div class="lv on" data-testid="lv-metric"><span class="k">🎯 成果指标</span><span class="v">' + esc(t.metric) + '</span></div>' +
+      '</div>' +
+      '<div class="stats">' +
+        '<div class="st"><b>2</b><span>成功指标</span></div>' +
+        '<div class="st"><b>6</b><span>任务总数</span></div>' +
+        '<div class="st"><b>2</b><span>已完成</span></div>' +
+        '<div class="st"><b>1</b><span>进行中</span></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="dual" data-testid="ps-dual" style="--split:' + state.split.toFixed(1) + '%">' +
+      '<div class="col"><div class="col-h"><b>说明与验收标准</b><i>只读 · 编辑回任务详情</i><span class="r">' + t.status + '</span></div>' +
+        '<div class="col-b"><div class="desc">' + esc(t.desc) + '</div>' +
+        '<div class="acc" data-testid="ps-acc"><div class="k">验收标准</div><div class="v">' + esc(t.acc) + '</div></div></div></div>' +
+      '<div class="drag" data-testid="ps-drag" onmousedown="startDrag(event)" onclick="resetSplit()" title="拖动调宽 · 点一下复位"><i></i></div>' +
+      '<div class="col"><div class="col-h"><b>子任务清单</b><i>本卡内容 · 完成不计分</i><span class="r" data-testid="ps-sub-n">' + dn + '/' + t.subs.length + '</span></div>' +
+        '<div class="col-b">' + t.subs.map(function (s, j) {
+          return '<div class="sub-row' + (s.d ? ' done' : '') + '" data-testid="sub-' + j + '"><span class="box' + (s.d ? ' done' : '') + '" onclick="toggleSub(' + j + ')">' + (s.d ? '✓' : '') + '</span>' +
+            '<span class="nm">' + esc(s.t) + '</span><span class="x" title="删除（清单行不是卡，无回收站）">×</span></div>'
+        }).join('') +
+        '<div class="sub-add">＋ 加一条子任务，回车确认（也可让 AI 拆解批量写入）<span style="margin-left:auto">' + dn + '/' + t.subs.length + '</span></div>' +
+        '</div></div>' +
+    '</div>'
+  applySplit()
+}
+function render() { renderSlots(); renderHist(); renderRec(); renderPs(); renderLink() }
+var tTimer = null
+function toast(m) {
+  var el = document.getElementById('toast')
+  el.textContent = m
+  el.classList.add('on')
+  clearTimeout(tTimer)
+  tTimer = setTimeout(function () { el.classList.remove('on') }, 2200)
+}
+setView('rec')
+render()
+</script>
+</body>
+</html>

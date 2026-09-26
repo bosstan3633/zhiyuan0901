@@ -452,7 +452,7 @@ import { CURATION_WS_ID } from '@/shared/models'
 // V2.21：拼音字典改为按需加载（约 296KB），未就绪时降级为纯文本匹配
 import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { recordResourceOpen, recordCardOpen, recordWorkspaceOpen } from '@/shared/storage/stats'
-import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
+import { toOpenableUrl, openExternalLink, linkPlaceholderFor } from '@/shared/utils/link'
 import { useConfirm } from '@/shared/components/confirm'
 import Icon from '@/shared/components/Icon.vue'
 // R146-b：AI 入口统一徽标（真源 ZhiMark.vue，零 AI 字面量，可进启动链）
@@ -1518,11 +1518,8 @@ function resetTcForm() {
   tcSaved.value = false
 }
 
-const capLinkPlaceholder = computed(() => {
-  if (capForm.linkType === 'url') return 'https://…'
-  if (capForm.linkType === 'file') return 'D:\\path\\to\\file.pdf'
-  return 'obsidian://open?vault=…'
-})
+// R169-T2：占位符与详情抽屉同源（LINK_SLOT_TABS），不再各写一份分支
+const capLinkPlaceholder = computed(() => linkPlaceholderFor(capForm.linkType))
 
 watch(() => capForm.workspaceId, () => { capForm.categoryId = '' })
 

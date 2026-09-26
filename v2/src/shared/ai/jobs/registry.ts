@@ -279,6 +279,14 @@ export const AI_ENTRIES: AiEntryDecl[] = [
     caps: {},
     note: 'R161-④ 新增：策展台关联资源卡弹窗，与全局检索同一 semanticSearch 同源纪律',
   },
+  {
+    id: 'focus-rank', title: '今日三件事排序', family: 'proactive', kind: 'job',
+    factory: 'buildFocusSuggestJob', factoryFile: 'shared/ai/focusSuggest.ts',
+    hosts: ['newtab/views/CompassHome.vue'],
+    caps: { apply: true, before: true, paneMode: 'context', promptScope: 'focus:rank' },
+    panel: { icon: 'flame', mode: 'nav', route: '/compass', hint: '调度台「今日三件事」右上角 ✦ 浮层内发起（每日首次打开先本地写入，AI 只复核顺序）' },
+    note: 'R169-T3：本地先按主攻项目/状态/顺延/到期出候选与事实句，模型只在候选里挑三件+一句判词（无判词或非 high 即不占格）；采纳只改 dailyFocus[这一天] 的计划位，任务卡本体与用户手工选的格子都不动。同文件的 rankFocus 是无界面复核通道，失败一律静默回落本地顺序',
+  },
 ]
 
 /** 能力矩阵的列（entry-matrix.cjs 的输出顺序与此一致；新增能力键两处同步） */

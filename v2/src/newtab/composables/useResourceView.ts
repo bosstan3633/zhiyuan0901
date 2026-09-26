@@ -433,11 +433,29 @@ export function useResourceView(ctx: ResourceViewCtx) {
     const el = e.target as HTMLElement
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 60) kanbanMore(key)
   }
-  const kanbanColumns = computed(() => kanbanCategories.value.map(c => {
-    const items = resourcesByCategory(c.key)
-    const shown = items.slice(0, kanbanLimitOf(c.key))
-    return { key: c.key, name: c.name, items: shown, count: items.length, hiddenCount: items.length - shown.length }
-  }))
+  const kanbanColumns = computed(() => {
+    // R169-老账②：列窗口化——列数 > 60 时只渲染窗口内的列（R168 交付说明 §七遗留：
+    // 看板首屏 6 张/列是按真库 33 列定的，列数继续涨（>60）时下一刀是只渲染可见列）。
+    // 真库 33 列 ⇒ 窗口不生效（行为零变化）；护栏针对"书签导入后分类爆炸"的未来态。
+    const win = kanbanCategories.value.slice(0, kanbanColWin.value)
+    return win.map(c => {
+      const items = resourcesByCategory(c.key)
+      const shown = items.slice(0, kanbanLimitOf(c.key))
+      return { key: c.key, name: c.name, items: shown, count: items.length, hiddenCount: items.length - shown.length }
+    })
+  })
+  /** R169-老账②：列窗口档位与续载——横向滚近右缘 480px 内自动扩窗 + 列尾显式入口（kanbanMoreCols） */
+  const KANBAN_COL_WINDOW = 60
+  const KANBAN_COL_WIN_STEP = 30
+  const kanbanColWin = ref(KANBAN_COL_WINDOW)
+  const kanbanWinMore = computed(() => kanbanColWin.value < kanbanCategories.value.length)
+  function kanbanMoreCols() {
+    if (kanbanColWin.value < kanbanCategories.value.length) kanbanColWin.value += KANBAN_COL_WIN_STEP
+  }
+  function onKanbanWinScroll(e: Event) {
+    const el = e.target as HTMLElement
+    if (el.scrollWidth - el.scrollLeft - el.clientWidth < 480) kanbanMoreCols()
+  }
 
   // ===== R122（原型）：资源台指标条尾注 + 一级状态快捷筛选 =====
   /** R122（原型）：最近更新时间（今天/昨天显示 HH:mm；更早不显示时间，仅日期由页头 lastUpdateText 承载） */
@@ -475,6 +493,7 @@ export function useResourceView(ctx: ResourceViewCtx) {
     onContentScroll, renderMore, ensureCardRendered, groupChildCount,
     kanbanCategories, resourcesByCategory, kanbanColumns,
     KANBAN_COL_STEP, kanbanLimitOf, kanbanMore, onKanbanColScroll,
+    KANBAN_COL_WINDOW, kanbanColWin, kanbanWinMore, kanbanMoreCols, onKanbanWinScroll,
   }
 }
 

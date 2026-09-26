@@ -20,8 +20,12 @@
  *
  * R168（性能）：形状本体已搬到 `ZhiMarkSymbol.vue`（全站只挂一次的 `<symbol id="zy-ai-mark">`），
  * 这里只留 `<use>` —— 一枚徽标从 **7 个 DOM 节点降到 2 个**（真库资源台一屏 32 枚 ⇒ 少插 160 个节点）。
- * 呈现属性（viewBox / 描边 / currentColor）仍由下面这个外层 svg 提供：形状自己不写 fill/stroke，
- * 于是继承照常生效，主题着色与粗细观感一字不变。
+ *
+ * R169-T5b（用户拍板 ② 渐变实心脸）：**外层这些呈现属性保留但已不再决定观感**——形状本体自己写了
+ * `fill/stroke`（CSS 规则，优先级高于这里的呈现属性），于是"实心头 + 白洞眼 + accent→accent-2 渐变"成立；
+ * 下面这组 `fill="none" stroke="currentColor"` 只在极端情况下（CSS 未加载）兜底成原来的线性脸。
+ * ★凸显靠形态与配色，不靠把徽标放大：尺寸仍只有一个来源（`AiEntryButton` 的令牌档），
+ *   一放大就重新撞回 R155 立约时要消掉的"AI 图标比兄弟大一圈"。
  */
 withDefaults(defineProps<{ size?: number; spin?: boolean }>(), { size: 12, spin: false })
 </script>
