@@ -95,7 +95,7 @@ function codeOnly(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.6.2'";
+const VER_ANCHOR_LITERAL = "version: '3.6.3'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -5156,6 +5156,32 @@ check('R169-26 老账④ 脚本归档白名单：scripts/ 根目录只允许 17 
 check('R169-27 老账④ 文档冻结：docs/ 300+ 份交付说明标记为只读归档（README 冻结声明在位；现状唯一活清单 = 文档中心/06-2，R164 提案 E3）', () => {
   const rm = fs.readFileSync(path.resolve(__dirname, '..', '..', 'docs', 'README.md'), 'utf8');
   return rm.includes('只读归档') && rm.includes('06-2');
+});
+
+check('R170-1 项目详情入口：ProjectCuration 标题行补「📄 详情」按钮（用户红框反馈）——本页挂 ProjectDetailDrawer（此前只挂在方向树/北极星，两宿主同源单份不重建）', () => {
+  const pc = read('/newtab/views/ProjectCuration.vue');
+  return pc.includes("import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'")
+    && pc.includes('<ProjectDetailDrawer :open="projDetailOpen && !!currentProject" :project-id="currentProject?.id || \'\'" @close="projDetailOpen = false" />')
+    && pc.includes('function openProjectDetail') && pc.includes('@click="openProjectDetail"')
+    && pc.includes('pb-title .pd-open');
+});
+
+check('R170-2 详情抽屉全局统一拖宽：共享 Drawer.vue 壳左缘 .drawer-resize 把手（420~min(85vw,960) 夹住 + 双击复位默认宽）+ 记忆口径 = 全局单键 UIPrefs.drawerWs.shared（拍板：全局统一，不按抽屉分键；TaskDetailDrawer 自有 drawerWs.task 先于本机制存在、保持不动）；拖拽期 .dragging 禁选区禁过渡', () => {
+  const d = read('/shared/components/Drawer.vue');
+  return d.includes('drawer-resize') && d.includes('function startResize') && d.includes('clampW')
+    && d.includes('drawerWs?.shared') && d.includes('shared: w.value') && d.includes('saveUIPrefs({ drawerWs: store.ui?.drawerWs || { shared: w.value } })')
+    && d.includes('@dblclick="resetWidth"') && d.includes('user-select: none') && d.includes('W_MIN = 420');
+});
+
+check('R170-3 导入页「选择文件」按钮防挤压：.gs-io-btn 加 flex-shrink:0 + nowrap + align-self:center（描述文字一长按钮被压到换行，用户截图反馈）', () => {
+  const gs = read('/newtab/views/GlobalSettings.vue');
+  return gs.includes('.gs-io-btn { margin-left: auto; flex-shrink: 0; white-space: nowrap; align-self: center; }')
+    && (gs.match(/class="gs-btn[^"]*gs-io-btn"/g) || []).length === 3;
+});
+
+check('R170-4 ★视觉走查工具注入时序修复：theme-audit 注入 zy_data/zy_ui 后必须整页重载一次——后注入的 uiPrefs 到不了运行中的 store.ui（mergeExternalUIPrefs 替换 uiCache 对象而 store.ui 持旧引用），真库有脏 isThesis 卡时资源台回落默认金字塔 ⇒ 资源卡详情镜头 .res-card 恒命中 0（v3.6.1 基线同现，纯工具盲区）；reload 丢 hash 坑以「记下→重载→写回」闭环', () => {
+  const t = fs.readFileSync(path.resolve(__dirname, 'theme-audit.cjs'), 'utf8');
+  return t.includes('keepHash') && t.includes('page.reload(') && t.includes('location.hash = h') && t.includes('R170 备案');
 });
 
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');

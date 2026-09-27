@@ -203,6 +203,20 @@ async function main() {
   })
   await page.waitForTimeout(300)
 
+  /* R170 备案：后注入的 zy_ui_v2 到不了**运行中**的 store.ui（R128-A1 的 mergeExternalUIPrefs
+     会替换 uiCache 对象，而 store.ui 持有旧引用）⇒ boot 后注入的 wsViewMode 永远读不到，
+     真库一旦存在脏 isThesis 卡（curationMetrics 取第一张），资源台就回落「默认金字塔」，
+     资源卡详情镜头 .res-card 恒命中 0（v3.6.1 基线同样复现 ⇒ 工具盲区，非产品回退）。
+     注入完成后强制整页重载一次，让 boot 重新 loadUIPrefs 读全量偏好；
+     R161「reload 丢 hash」的坑用「记下 → 重载 → 写回」闭环（此处 hash 恒为空，防御性保留）。 */
+  {
+    const keepHash = await page.evaluate(() => location.hash)
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(2500)
+    await page.evaluate((h) => { if (location.hash !== h) location.hash = h }, keepHash)
+    await page.waitForTimeout(600)
+  }
+
   const shots = []
   /** R161：Esc 若关不掉弹窗，遗留浮层会串场到下一主题的四个台面图（同文档内切 hash 不重载），
    *  24 张图里有 18 张就被一条弹窗盖住了 —— 这正是本轮实测抓到的 Modal.vue 缺陷，故列为硬告警。 */
@@ -287,7 +301,10 @@ async function main() {
         await page.locator('.bt-tab', { hasText: v.tab }).first().click().catch(() => {})
         await page.waitForTimeout(1200)
       }
-      const n = await page.locator(v.card).count().catch(() => 0)
+      const n0 = await page.locator(v.card).count().catch(() => 0)
+      /* R170 备案：慢机日（冷挂墙钟 ~2.7s）1800ms 等不够懒 chunk+挂载落位 ⇒ 补等重数一次，等够再判死（不放宽判据） */
+      let n = n0
+      if (!n) { await page.waitForTimeout(2200); n = await page.locator(v.card).count().catch(() => 0) }
       if (!n) {
         drawerFail.push(`${theme}/${v.id}：台面上没有卡片可点（${v.card} 命中 0）——数据没种上或视图没渲染`)
         console.log(`  ✗ ${theme.padEnd(8)} ${v.name} — ${v.card} 命中 0，这张图不作数`)

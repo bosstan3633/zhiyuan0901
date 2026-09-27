@@ -3255,7 +3255,7 @@ const activeManualSec = ref('quick-1')
 .gs-io-icon { font-size: var(--fs-display); width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--surface-2); border-radius: 8px; flex-shrink: 0; }
 .gs-io-name { font-size: var(--fs-body); font-weight: 500; color: var(--text); }
 .gs-io-desc { font-size: var(--fs-caption); color: var(--text-3); margin-top: 2px; }
-.gs-io-btn { margin-left: auto; }
+.gs-io-btn { margin-left: auto; flex-shrink: 0; white-space: nowrap; align-self: center; }
 .gs-export-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
 .gs-export-row:last-child { border-bottom: none; }
 .gs-er-info { flex: 1; }

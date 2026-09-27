@@ -15,6 +15,7 @@ import { showToast } from '@/shared/components/toast'
 // R121：左栏退役（原型：消除冗余侧栏）——原左栏宽/高偏好读写一并移除
 import TaskAddDrawer from '../components/TaskAddDrawer.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
+import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
@@ -300,6 +301,9 @@ function confirmCreateProject() {
 /* ================= 单项目展板 ================= */
 /** R121：展板 ⋯ 菜单（主攻 / 方向树定位 / 删除项目） */
 const projMenuOpen = ref(false)
+// R170-①：项目详情抽屉入口（本页此前只挂 TaskDetailDrawer——ProjectDetailDrawer 只在方向树/北极星有宿主，红框反馈补齐）
+const projDetailOpen = ref(false)
+function openProjectDetail() { projDetailOpen.value = true }
 /** R121：面包屑里的战略目标期限标签 */
 const goalTerm = computed(() => {
   const t = goalOf(currentProject.value!)?.term
@@ -621,12 +625,13 @@ function addTaskFromHeader() {
         <button class="mini-btn primary" @click="confirmHeaderAddMetric">确定</button>
         <button class="mini-btn" @click="headerMetricAdding=false">取消</button>
       </div>
-      <!-- 标题行：项目名（可编辑）+ 主攻 badge + 大号进度 -->
+      <!-- 标题行：项目名（可编辑）+ 主攻 badge + 大号进度 ｜ R170-①：标题旁补「详情」入口（滑出项目详情抽屉） -->
       <div class="pb-title-row">
         <div class="pb-title">
           <span class="pb-picon" title="项目">📦</span>
           <span class="hero-pname" contenteditable="true" spellcheck="false" @focus="editingProjId = currentProject?.id ?? null" @blur="renameProject" @keydown.enter.prevent="($event.target as HTMLElement).blur()">{{ currentProject.name }}</span>
           <span v-if="currentProject.isFocused" class="tag accent">🚀 主攻</span>
+          <button class="mini-btn pd-open" title="项目详情：愿景 / 使命 / 日期 / 描述（滑出抽屉）" @click="openProjectDetail">📄 详情</button>
         </div>
         <span class="pb-pct">{{ projectProgress(currentProject).pct }}%</span>
       </div>
@@ -753,6 +758,8 @@ function addTaskFromHeader() {
 
     <!-- R49-D6：任务详情 = 共享 TaskDetailDrawer（R48 重设计组件，宿主于此页） -->
     <TaskDetailDrawer ref="detailRef" />
+    <!-- R170-①：项目详情抽屉（红框反馈：标题行旁补入口；壳与方向树/北极星同源单份） -->
+    <ProjectDetailDrawer :open="projDetailOpen && !!currentProject" :project-id="currentProject?.id || ''" @close="projDetailOpen = false" />
     <!-- R135：页头「建议指标」评审抽屉 -->
     <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
 
@@ -876,6 +883,9 @@ function addTaskFromHeader() {
 .pb-menu .pm-item.danger:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
 .pb-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .pb-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* R170-①：标题旁「详情」入口——与 mini-btn 同款，颜色收敛不抢主标题 */
+.pb-title .pd-open { flex-shrink: 0; color: var(--text-2); border-color: var(--border); background: var(--surface); }
+.pb-title .pd-open:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
 .pb-title .hero-pname { font-size: 18px; font-weight: 700; letter-spacing: .2px; outline: none; border-radius: 6px; padding: 2px 6px; margin: -2px -6px; cursor: text; }
 .pb-title .hero-pname:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .pb-title .hero-pname:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
