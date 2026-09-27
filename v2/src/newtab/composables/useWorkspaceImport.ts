@@ -18,6 +18,7 @@ import { uid, safeDecodeText } from '@/shared/utils'
 import { guessAssetKind, assetMimeOf, stripExt, ASSET_KIND_MB } from '@/shared/utils/assetKind'
 import { putAsset } from '@/shared/storage/assets'
 import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
+import { sanitizeThesisDuplicates } from '@/shared/storage/hub'
 import { showToast } from '@/shared/components/toast'
 
 export interface WorkspaceImportCtx {
@@ -83,11 +84,15 @@ export function useWorkspaceImport(ctx: WorkspaceImportCtx) {
         d.value.categories = mergeById(d.value.categories, incCats)
         d.value.resources = mergeById(d.value.resources, clampUpdatedAt(d.value.resources, incRes) as ResourceCard[])
         if (incProj.length) d.value.curationProjections = mergeById(d.value.curationProjections || [], incProj)
+        // R171-A1：覆盖式合并可能让同台中心论点多张并存（导入包里的 isThesis 卡与现库各立一张）
+        // ——导入即净化，metrics 取首张的口径才不被幽灵论点污染
+        const tsan = sanitizeThesisDuplicates(d.value)
         persist()
         importModalOpen.value = false
         const added = d.value.resources.length - cardsBefore
         const fixNote = catTreeFixedAny(san.fixed) ? `（已自动修复：${catTreeFixNote(san.fixed)}）` : ''
-        showToast(`✓ 已导入：分类 ${incCats.length} · 卡片 ${incRes.length}（新增 ${added}，其余按 ID 覆盖合并）${fixNote}`)
+        const thesisNote = tsan.cleared ? `（中心论点重复已净化：清 ${tsan.cleared} 张多余标记）` : ''
+        showToast(`✓ 已导入：分类 ${incCats.length} · 卡片 ${incRes.length}（新增 ${added}，其余按 ID 覆盖合并）${fixNote}${thesisNote}`)
       } catch { showToast('✗ JSON 解析失败，请确认是「导出策展台数据」生成的文件') }
     }
     reader.readAsText(file)

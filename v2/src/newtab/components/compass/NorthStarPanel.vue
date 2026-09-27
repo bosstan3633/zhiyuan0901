@@ -382,7 +382,7 @@ function changeTaskMetric(taskId: string, e: Event) {
 .ns-sub { font-size: var(--fs-tiny); color: var(--text-3); margin-top: 3px; }
 
 /* 下钻抽屉 */
-.nd-formula { font-size: var(--fs-sub); color: var(--accent); background: var(--accent-light); border-radius: 8px; padding: 9px 12px; line-height: 1.6; margin-bottom: 14px; }
+.nd-formula { font-size: var(--fs-sub); color: var(--accent-ink); background: var(--accent-light); border-radius: 8px; padding: 9px 12px; line-height: 1.6; margin-bottom: 14px; }
 .dhi-list .nd-item { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-xs); margin-bottom: 8px; display: flex; align-items: center; gap: 10px; background: var(--surface); }
 .nd-item.clickable { cursor: pointer; }
 .nd-item.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
@@ -398,7 +398,7 @@ function changeTaskMetric(taskId: string, e: Event) {
 .nd-empty { text-align: center; padding: 32px; color: var(--text-3); font-size: var(--fs-body); }
 .nd-tip { margin-top: 12px; font-size: var(--fs-caption); color: var(--text-3); text-align: center; }
 /* R48-B2：导入卡徽标（双口径可辨） */
-.ns-imp-badge { display: inline-block; margin-left: 6px; font-size: var(--fs-micro); font-weight: 600; padding: 0 6px; border-radius: 99px; background: var(--accent-light); color: var(--accent); vertical-align: 1px; }
+.ns-imp-badge { display: inline-block; margin-left: 6px; font-size: var(--fs-micro); font-weight: 600; padding: 0 6px; border-radius: 99px; background: var(--accent-light); color: var(--accent-ink); vertical-align: 1px; }
 
 .nd-stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
 .nd-stat { background: var(--surface-2); border-radius: var(--radius-xs); padding: 12px; text-align: center; }

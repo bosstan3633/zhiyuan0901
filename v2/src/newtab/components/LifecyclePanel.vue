@@ -205,7 +205,7 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
 .lc-kinds { display: flex; gap: 6px; }
 .lc-kind-tab { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); border-radius: 7px; padding: 4px 12px; cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
 .lc-kind-tab:hover { border-color: var(--accent); color: var(--accent); }
-.lc-kind-tab.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.lc-kind-tab.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
 .lc-top { display: flex; align-items: center; gap: 18px; }
 .lc-dn-num { font-size: var(--fs-title); font-weight: 700; fill: var(--text); }
 .lc-dn.lc-dn-active { stroke: var(--success); }
@@ -215,7 +215,7 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
 .lc-stat { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 8px; border: 1px solid transparent; font-size: var(--fs-body); color: var(--text-2); transition: all var(--dur-fast); }
 .lc-stat.clickable { cursor: pointer; }
 .lc-stat.clickable:hover { background: var(--surface-3); }
-.lc-stat.on { background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--accent); font-weight: 600; }
+.lc-stat.on { background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--accent-ink); font-weight: 600; }
 .lc-stat-num { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 44px; }
 .lc-stat-lab { flex: 1; }
 .lc-hint { font-size: var(--fs-caption); color: var(--text-3); }
@@ -237,9 +237,9 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
 .lc-op.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
 .lc-op.primary:hover { background: var(--accent-hover); }
 /* R117（04-61 E）：per-card 阈值 —— 入口按钮（自定义态用强调色）+ 内联天数输入 + 行内「自定义」标识 */
-.lc-op.custom { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.lc-op.custom { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .lc-days-input { width: 68px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font-size: var(--fs-caption); border-radius: 6px; padding: 3px 7px; font-family: inherit; }
 .lc-days-input:focus { outline: none; border-color: var(--accent); }
-.lc-custom-badge { font-size: var(--fs-tiny); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); background: var(--accent-light); border-radius: 4px; padding: 0 5px; }
+.lc-custom-badge { font-size: var(--fs-tiny); color: var(--accent-ink); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); background: var(--accent-light); border-radius: 4px; padding: 0 5px; }
 .lc-empty { padding: 28px 10px; text-align: center; color: var(--text-3); font-size: var(--fs-sub); }
 </style>

@@ -163,6 +163,7 @@
   --accent-2: #7A85E0;
   --accent-light: rgba(94, 106, 210, 0.16);
   --accent-hover: #828FFF;
+  --accent-ink: #828FFF; /* R171-C4：压在 --accent-light 淡底上的文字色——暗主题取提亮档（5.37:1，accent 本档仅 3.28） */
   --accent-glow: rgba(109, 92, 232, 0.40);
 
   /* 语义色（低饱和，深色底适配）——仅高优/阻断允许出现 */
@@ -233,6 +234,7 @@
   --accent-2: #3D8BEA;
   --accent-light: rgba(30, 111, 217, 0.16);
   --accent-hover: #3E86E0;
+  --accent-ink: #3D8BEA; /* R171-C4：accent 本档压淡底仅 3.40，取 accent-2 档 4.78:1（hover 档 4.47 不达标故不用） */
   --accent-glow: rgba(30, 111, 217, 0.45);
   --success: #27A644;
   --warning: #D9A03C;
@@ -291,6 +293,7 @@
   --accent-2: #9E8FEC;
   --accent-light: #EFEBFB;
   --accent-hover: #6C3FC8;
+  --accent-ink: #6C3FC8; /* R171-C4：亮主题淡底更浅，accent 本档 4.21 不达 4.5，取 hover 深档 */
   --accent-glow: rgba(132, 82, 224, 0.18);
   --success: #27A644;
   --warning: #A66A00;
@@ -349,6 +352,7 @@
   --accent-2: #B76BC6;
   --accent-light: #F6EDF8;
   --accent-hover: #85349A;
+  --accent-ink: #85349A; /* R171-C4：accent 本档 4.86 已达标，仍取 hover 深档留余量并与 apple 口径一致 */
   --accent-glow: rgba(158, 63, 175, 0.18);
   --success: #448361;
   --warning: #C08A2D;

@@ -161,7 +161,7 @@ async function openAsset(meta: AssetMeta) {
   border-radius: 99px; font-size: var(--fs-caption); line-height: 1; white-space: nowrap;
   background: var(--surface-3); color: var(--text-2); border: 1px solid var(--border); transition: all var(--dur);
 }
-.ab-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.ab-chip:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .ab-img { }
 .ab-pdf { }
 .ab-html { }

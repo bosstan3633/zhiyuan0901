@@ -311,7 +311,7 @@ function linkTasks() {
 .tad-ai-row { display: flex; gap: 8px; align-items: center; }
 .tad-ai-row .tad-input { flex: 1; min-width: 0; }
 .tad-prio { flex: 1; padding: 8px 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; cursor: pointer; font-size: var(--fs-sub); font-family: inherit; transition: all var(--dur); }
-.tad-prio.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.tad-prio.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
 
 .tad-list { display: flex; flex-direction: column; gap: 6px; max-height: 380px; overflow-y: auto; margin-top: 4px; }
 .tad-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: var(--fs-body); transition: all var(--dur); background: var(--surface); }

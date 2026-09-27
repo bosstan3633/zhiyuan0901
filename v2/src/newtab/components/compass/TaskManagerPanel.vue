@@ -1057,11 +1057,11 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
 .mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .mini-btn.primary:hover { background: var(--accent-hover); }
-.mini-btn.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+.mini-btn.active { background: var(--accent-light); color: var(--accent-ink); border-color: var(--accent); }
 .mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
 .mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 .tag { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-tiny); padding: 2px 8px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 500; white-space: nowrap; }
-.tag.accent { background: var(--accent-light); color: var(--accent); }
+.tag.accent { background: var(--accent-light); color: var(--accent-ink); }
 .tag.warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
 .tag.status-doing { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
 .tag.status-done { background: var(--tag-ok-bg); color: var(--tag-ok-text); }

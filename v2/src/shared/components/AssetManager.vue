@@ -251,7 +251,7 @@ async function openAsset(meta: AssetMeta) {
   padding: 6px 10px; border: 1px dashed var(--border-strong); border-radius: 6px; background: transparent;
   color: var(--text-2); font-size: var(--fs-sub); cursor: pointer; font-family: inherit; transition: all var(--dur);
 }
-.am-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.am-add:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .am-add.busy { opacity: .6; cursor: default; }
 .am-file { display: none; }
 .am-tip { font-size: var(--fs-caption); color: var(--text-3); line-height: 1.5; }

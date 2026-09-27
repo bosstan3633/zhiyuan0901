@@ -85,11 +85,22 @@
             <div class="gp-ri-main"><div class="gp-ri-title">{{ qa.label }}</div></div>
             <span class="gp-ri-link url">↵</span>
           </div>
+          <!-- R171-C1：快速开关（04-63 任务书「全部开关收进去」的收口）——行内明示当前态，点了立即生效 -->
+          <template v-if="PALETTE_TOGGLES.length">
+            <div class="gp-group-title">快速开关</div>
+            <div v-for="(tg, i) in PALETTE_TOGGLES" :key="'tg' + i"
+              class="gp-result-item" :class="{selected: selIndex===aiRowLen+QUICK_ACTIONS.length+i}" @click="runFlat(aiRowLen+QUICK_ACTIONS.length+i)" @mouseenter="selIndex=aiRowLen+QUICK_ACTIONS.length+i"
+              :title="tg.hint">
+              <div class="gp-ri-icon res"><Icon :name="tg.icon" :size="15" /></div>
+              <div class="gp-ri-main"><div class="gp-ri-title">{{ tg.label }}</div></div>
+              <span class="gp-ri-link" :class="tg.on ? 'url' : ''">{{ tg.on ? '● 开' : '○ 关' }}</span>
+            </div>
+          </template>
           <template v-if="recentResources.length">
             <div class="gp-group-title">🔥 近期最常用 · 按调用次数</div>
             <div v-for="(r, j) in recentResources" :key="r.id"
-              class="gp-result-item" :class="{selected: selIndex===aiRowLen+QUICK_ACTIONS.length+j}"
-              @click="runFlat(aiRowLen+QUICK_ACTIONS.length+j)" @mouseenter="selIndex=aiRowLen+QUICK_ACTIONS.length+j"
+              class="gp-result-item" :class="{selected: selIndex===aiRowLen+QUICK_ACTIONS.length+PALETTE_TOGGLES.length+j}"
+              @click="runFlat(aiRowLen+QUICK_ACTIONS.length+PALETTE_TOGGLES.length+j)" @mouseenter="selIndex=aiRowLen+QUICK_ACTIONS.length+PALETTE_TOGGLES.length+j"
               :title="'单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'">
               <div class="gp-ri-icon" :class="r.iconClass">{{ r.iconText }}</div>
               <div class="gp-ri-main"><div class="gp-ri-title">{{ r.title }}</div>
@@ -455,7 +466,7 @@ import { recordResourceOpen, recordCardOpen, recordWorkspaceOpen } from '@/share
 import { toOpenableUrl, openExternalLink, linkPlaceholderFor } from '@/shared/utils/link'
 import { useConfirm } from '@/shared/components/confirm'
 import Icon from '@/shared/components/Icon.vue'
-// R146-b：AI 入口统一徽标（真源 ZhiMark.vue，零 AI 字面量，可进启动链）
+// R146-b：AI 入口统一徽标（真源 AiMark.vue，零 AI 字面量，可进启动链）
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import type { ResourceCard, TaskCard, CuriosityCard, Workspace, Category, AnyCard } from '@/shared/models'
 // R146（回退契约）：检索浮层删任务改走软删真源（同时摘 metric.taskIds，守 R141 双向不变量）
@@ -1090,6 +1101,54 @@ const QUICK_ACTIONS = [
   { label: '采集资源卡（Ctrl+Shift+J）', icon: 'download', run: () => openPanel('capture') },
   { label: '采集好奇心（Ctrl+Shift+I）', icon: 'bulb', run: () => openPanel('curio') },
 ]
+// R171-C1：快速开关组——04-63 任务书「全部开关收进命令面板」的收口（R158 拍板留设置页，本轮兑现）。
+// 只收「点了立即生效、无需确认」的轻开关，写盘类重设置仍留设置页；computed 而非常量：行内要明示当前态。
+// ⚠ store.ui 必须同步手改（repository 的 uiCache 与 store.ui 是两份引用，R170 工具盲区同源教训）。
+interface PaletteToggle { label: string; icon: string; on: boolean; hint: string; run: () => void }
+const PALETTE_TOGGLES = computed<PaletteToggle[]>(() => {
+  const ui = store.ui as Record<string, unknown> | null
+  const resolvedDark = document.documentElement.getAttribute('data-theme') === 'dark'
+  return [
+    {
+      label: '暗色主题', icon: 'bulb',
+      on: ui?.theme === 'dark' || (ui?.theme === 'auto' && resolvedDark),
+      hint: '亮色/暗色一键切换（「跟随系统」的细粒度选择在设置页；auto 下点击会落为固定主题）',
+      run: () => { store.setTheme(resolvedDark ? 'linear' : 'dark') }
+    },
+    {
+      label: '紧凑密度', icon: 'layout',
+      on: ui?.density === 'compact',
+      hint: '卡片列表紧凑/舒适密度切换',
+      run: () => {
+        const next = (ui?.density === 'compact' ? 'cozy' : 'compact') as 'compact' | 'cozy'
+        if (store.ui) (store.ui as { density?: string }).density = next
+        saveUIPrefs({ density: next })
+        if (next === 'compact') document.documentElement.setAttribute('data-density', 'compact')
+        else document.documentElement.removeAttribute('data-density')
+      }
+    },
+    {
+      label: '已完成项目', icon: 'check',
+      on: ui?.showDoneProjects !== false,
+      hint: '项目列表是否显示「已完成」的项目',
+      run: () => {
+        const next = ui?.showDoneProjects === false
+        if (store.ui) (store.ui as { showDoneProjects?: boolean }).showDoneProjects = next
+        saveUIPrefs({ showDoneProjects: next })
+      }
+    },
+    {
+      label: '备份提醒', icon: 'settings',
+      on: ui?.backupReminderEnabled !== false,
+      hint: '30 天未导出备份/存储超限时右上角红点提醒',
+      run: () => {
+        const next = ui?.backupReminderEnabled === false
+        if (store.ui) (store.ui as { backupReminderEnabled?: boolean }).backupReminderEnabled = next
+        saveUIPrefs({ backupReminderEnabled: next })
+      }
+    },
+  ]
+})
 // R158：命令面板 AI 分组——注册表 panel 声明的两个视图（proactive=AI 动作 / passive=AI 建议）。
 // hidden（global-search=面板本体、mirror-search=弹窗内入口）不进列表；条目顺序即注册表声明序。
 type AiPanelEntry = typeof AI_ENTRIES[number] & { panel: NonNullable<typeof AI_ENTRIES[number]['panel']> }
@@ -1115,8 +1174,8 @@ const recentResources = computed<SearchResult[]>(() => {
   })
   return heat.slice(0, 8)
 })
-/** 浏览模式的扁平列表（AI 动作/AI 建议 + 快捷操作 + 最近打开）——顺序必须与模板渲染序逐项一致（R60-1 教训） */
-type FlatItem = { kind: 'ai'; entry: AiPanelEntry } | { kind: 'qa'; qa: typeof QUICK_ACTIONS[number] } | { kind: 'res'; item: SearchResult } | { kind: 'result'; item: SearchResult }
+/** 浏览模式的扁平列表（AI 动作/AI 建议 + 快捷操作 + 快速开关 + 最近打开）——顺序必须与模板渲染序逐项一致（R60-1 教训） */
+type FlatItem = { kind: 'ai'; entry: AiPanelEntry } | { kind: 'qa'; qa: typeof QUICK_ACTIONS[number] } | { kind: 'tgl'; tg: PaletteToggle } | { kind: 'res'; item: SearchResult } | { kind: 'result'; item: SearchResult }
 const flatList = computed<FlatItem[]>(() => {
   if (!isBrowseMode.value) {
     // R60-1：搜索模式下的展开顺序必须与模板「按类型分组渲染」的顺序完全一致。
@@ -1132,6 +1191,7 @@ const flatList = computed<FlatItem[]>(() => {
   aiPanelRows.value.proactive.forEach(e => out.push({ kind: 'ai', entry: e }))
   aiPanelRows.value.passive.forEach(e => out.push({ kind: 'ai', entry: e }))
   QUICK_ACTIONS.forEach(qa => out.push({ kind: 'qa', qa }))
+  PALETTE_TOGGLES.value.forEach(tg => out.push({ kind: 'tgl', tg }))
   recentResources.value.forEach(item => out.push({ kind: 'res', item }))
   return out
 })
@@ -1188,6 +1248,7 @@ function runFlat(index: number) {
   if (!it) return
   if (it.kind === 'ai') { runAiEntry(it.entry); return }
   if (it.kind === 'qa') { it.qa.run(); return }
+  if (it.kind === 'tgl') { it.tg.run(); return }
   openLinkOrLocate(it.item)
 }
 
@@ -1197,6 +1258,7 @@ function runFlatLocator(index: number) {
   if (!it) return
   if (it.kind === 'ai') { runAiEntry(it.entry); return }
   if (it.kind === 'qa') { it.qa.run(); return }
+  if (it.kind === 'tgl') { it.tg.run(); return }
   locateOnly(it.item)
 }
 
@@ -1764,7 +1826,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-search-icon { width: 22px; height: 22px; color: var(--text-3); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .gp-search-input-wrap { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .gp-search-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 8px;
-  background: var(--accent-light); color: var(--accent); font-size: var(--fs-body); font-weight: 600; flex-shrink: 0;
+  background: var(--accent-light); color: var(--accent-ink); font-size: var(--fs-body); font-weight: 600; flex-shrink: 0;
   animation: gp-chipIn .2s ease; }
 .gp-chip-x { width: 15px; height: 15px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
   cursor: pointer; opacity: .6; transition: all var(--dur-fast); font-size: var(--fs-caption); }
@@ -1780,16 +1842,16 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-ai-more:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .gp-ri-badge.weak { background: var(--warning-bg-soft); color: var(--warning); }
 /* R152：AI 命中挂在主列表行上——徽标只说模型点名了这张卡，理由单独占一行 */
-.gp-ri-badge.ai { background: var(--accent-light); color: var(--accent); }
+.gp-ri-badge.ai { background: var(--accent-light); color: var(--accent-ink); }
 /* R136-1d 起、R150 改名：检索类 AI 钮与置顶组 · R146-d：跑动中点名可取消，秒数等宽不抖 */
 .gp-ai-tab { margin-left: auto; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.gp-ai-tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.gp-ai-tab.active { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .gp-ai-tab.busy { color: var(--accent); cursor: pointer; }
 .gp-ai-title { color: var(--accent); display: flex; align-items: center; gap: 6px; }
 .gp-ai-fed { font-weight: 400; font-size: var(--fs-caption); color: var(--text-4); }
 .gp-ai-scope { margin-left: 8px; font-weight: 400; font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; }
 .gp-ai-note { margin-left: 8px; font-weight: 400; color: var(--text-3); }
-.gp-ai-why { font-size: var(--fs-caption); color: var(--accent); background: var(--accent-light); border-radius: var(--radius-xs); padding: 1px 6px; }
+.gp-ai-why { font-size: var(--fs-caption); color: var(--accent-ink); background: var(--accent-light); border-radius: var(--radius-xs); padding: 1px 6px; }
 .gp-ai-row { border-left: 2px solid var(--accent); }
 .gp-search-esc { font-size: var(--fs-caption); color: var(--text-4); background: var(--surface-2); border: 1px solid var(--border);
   border-radius: 6px; padding: 3px 8px; flex-shrink: 0; cursor: pointer; transition: all var(--dur-fast); font-family: inherit; }
@@ -1807,7 +1869,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-type-tab { padding: 5px 12px; border-radius: 8px; font-size: var(--fs-body); color: var(--text-3); cursor: pointer;
   transition: all var(--dur-fast); display: flex; align-items: center; gap: 5px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
 .gp-type-tab:hover { color: var(--text-2); background: var(--surface-2); }
-.gp-type-tab.active { color: var(--accent); background: var(--accent-light); font-weight: 600; }
+.gp-type-tab.active { color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }
 .gp-tt-count { font-size: var(--fs-caption); color: var(--text-4); font-weight: 500; }
 .gp-type-tab.active .gp-tt-count { color: var(--accent); opacity: .7; }
 
@@ -1840,7 +1902,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-ri-icon.task-todo { background: var(--tag-neutral-bg); }
 .gp-ri-icon.curio { background: var(--curio-bg); }
 .gp-ri-icon.ws { background: var(--accent-light); }
-.gp-ri-badge.ws-badge { background: var(--accent-light); color: var(--accent); }
+.gp-ri-badge.ws-badge { background: var(--accent-light); color: var(--accent-ink); }
 .gp-ri-main { flex: 1; min-width: 0; }
 /* R47-B4：浏览态热度条目的归属小字 */
 .gp-ri-cat { font-size: var(--fs-caption); color: var(--text-3); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1848,7 +1910,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
   text-overflow: ellipsis; line-height: 1.4; }
 .gp-ri-meta { display: flex; gap: 5px; margin-top: 3px; flex-wrap: wrap; align-items: center; }
 .gp-ri-badge { font-size: var(--fs-caption); padding: 1.5px 8px; border-radius: 99px; font-weight: 500; line-height: 1.5; }
-.gp-ri-badge.ws { background: var(--accent-light); color: var(--accent); }
+.gp-ri-badge.ws { background: var(--accent-light); color: var(--accent-ink); }
 .gp-ri-badge.cat { background: var(--surface-3); color: var(--text-2); }
 .gp-ri-badge.prio-high { background: var(--tag-danger-bg); color: var(--tag-danger-text); }
 .gp-ri-badge.prio-mid { background: var(--tag-warn-bg); color: var(--curio-amber); }
@@ -1882,7 +1944,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-convert-menu.open { display: block; }
 .gp-convert-menu-item { padding: 7px 10px; border-radius: 6px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer;
   display: flex; align-items: center; gap: 8px; white-space: nowrap; transition: all .1s; }
-.gp-convert-menu-item:hover { background: var(--accent-light); color: var(--accent); }
+.gp-convert-menu-item:hover { background: var(--accent-light); color: var(--accent-ink); }
 
 /* 空状态 */
 .gp-search-empty { padding: 40px 20px; text-align: center; color: var(--text-3); }

@@ -46,5 +46,5 @@ const emit = defineEmits<{ (e: 'update:modelValue', v: number): void }>()
 .cp.chips .cp-seg { background: transparent; padding: 0; gap: 4px; }
 .cp.chips .cp-btn { width: 24px; min-width: 24px; height: 24px; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); font-weight: 600; color: var(--text-2); }
 .cp.chips .cp-btn:hover { border-color: var(--border-strong); color: var(--text); background: var(--surface-2); }
-.cp.chips .cp-btn.on { background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 28%, var(--border)); color: var(--accent); box-shadow: none; }
+.cp.chips .cp-btn.on { background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 28%, var(--border)); color: var(--accent-ink); box-shadow: none; }
 </style>

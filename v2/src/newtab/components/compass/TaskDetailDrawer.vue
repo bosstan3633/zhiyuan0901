@@ -525,7 +525,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-ai-cell {
   flex: 1; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   padding: 7px 8px; border-radius: 9px; cursor: pointer;
-  font-size: var(--fs-sub); font-weight: 600; border: 1px solid var(--accent); color: var(--accent); background: var(--accent-light);
+  font-size: var(--fs-sub); font-weight: 600; border: 1px solid var(--accent); color: var(--accent-ink); background: var(--accent-light);
   font-family: inherit; transition: all var(--dur); white-space: nowrap; overflow: hidden;
 }
 .ts-ai-cell:hover { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px var(--accent-glow); --ai-mark-fill: #fff; --ai-mark-eye: var(--accent); }
@@ -595,7 +595,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-link-input { flex: 1; min-width: 0; padding: 8px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; font-size: var(--fs-body); color: var(--text); font-family: inherit; outline: none; }
 .ts-link-input:focus { border-color: var(--accent); }
 .ts-link-btn { width: 32px; height: 32px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-2); cursor: pointer; font-size: var(--fs-body); transition: all var(--dur); }
-.ts-link-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+.ts-link-btn:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
 .ts-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
 .ts-foot .mini-btn { justify-content: center; padding: 9px 16px; flex: 1; }
 .ts-foot .mini-btn.primary { flex: 2; }

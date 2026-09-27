@@ -273,7 +273,7 @@ function confirmAdd(dirId: string) {
 
 <style scoped>
 .mr-tools { display: flex; align-items: center; gap: 10px; }
-.mod-role { flex-shrink: 0; font-size: var(--fs-tiny); font-weight: 700; letter-spacing: .5px; color: var(--accent); background: var(--accent-light); padding: 2px 8px; border-radius: 99px; cursor: help; }
+.mod-role { flex-shrink: 0; font-size: var(--fs-tiny); font-weight: 700; letter-spacing: .5px; color: var(--accent-ink); background: var(--accent-light); padding: 2px 8px; border-radius: 99px; cursor: help; }
 .mr-filter { font-family: inherit; font-size: var(--fs-sub); padding: 3px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); outline: none; cursor: pointer; }
 .mr-filter:focus { border-color: var(--accent); }
 .mr-tool { font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; white-space: nowrap; transition: color var(--dur-fast); }
@@ -297,7 +297,7 @@ function confirmAdd(dirId: string) {
 /* ===== A3：主攻聚焦条（chip selected 态） ===== */
 .focus-bar { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 0 14px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); overflow: hidden; }
 .focus-bar.empty { border-style: dashed; box-shadow: none; }
-.fs-badge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; background: var(--accent-light); color: var(--accent); font-size: var(--fs-sub); font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+.fs-badge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; background: var(--accent-light); color: var(--accent-ink); font-size: var(--fs-sub); font-weight: 700; padding: 2px 7px; border-radius: 4px; }
 .fs-chip { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; max-width: 280px; padding: 3px 9px; border-radius: 4px; background: var(--surface-2); cursor: pointer; transition: background var(--dur); }
 .fs-chip:hover { background: var(--surface-3); }
 .fs-chip.selected { border: 1px solid var(--accent); background: var(--surface); padding: 2px 8px; }
@@ -336,7 +336,7 @@ function confirmAdd(dirId: string) {
 .proj-row:hover .pr-acts { display: inline-flex; }
 .proj-row:hover .pr-meta { visibility: hidden; }
 .pr-act { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: var(--fs-tiny); color: var(--text-3); background: var(--surface-2); }
-.pr-act:hover { color: var(--accent); background: var(--accent-light); }
+.pr-act:hover { color: var(--accent-ink); background: var(--accent-light); }
 .chip-more { font-size: var(--fs-caption); padding: 4px 10px; border-radius: 8px; background: transparent; border: 1px dashed var(--border-strong); color: var(--text-3); cursor: pointer; align-self: flex-start; }
 .chip-more:hover { color: var(--accent); border-color: var(--accent); }
 .chip-add { font-size: var(--fs-caption); padding: 4px 10px; border-radius: 8px; background: transparent; border: 1px dashed var(--border-strong); color: var(--text-3); cursor: pointer; white-space: nowrap; align-self: flex-start; }
@@ -351,7 +351,7 @@ function confirmAdd(dirId: string) {
 /* R121：项目行卡右键菜单 */
 .proj-menu { position: fixed; z-index: var(--z-menu); min-width: 148px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-lg); padding: 4px; font-size: var(--fs-sub); }
 .pm-item { padding: 6px 10px; border-radius: 6px; cursor: pointer; color: var(--text-2); white-space: nowrap; }
-.pm-item:hover { background: var(--accent-light); color: var(--accent); }
+.pm-item:hover { background: var(--accent-light); color: var(--accent-ink); }
 .pm-sep { height: 1px; background: var(--border); margin: 4px 6px; }
 
 @media (max-width: 1180px) {

@@ -1445,10 +1445,10 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 /* R66-F3：指标条内嵌态——去边框，融入单行指标条右端 */
 .rec-mini.in-bar { background: transparent; border: none; padding: 0; }
 .rec-mini .rm-cell { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-caption); color: var(--text-2); padding: 2px 7px; border-radius: 99px; cursor: pointer; font-variant-numeric: tabular-nums; transition: all var(--dur-fast); white-space: nowrap; }
-.rec-mini .rm-cell:hover { background: var(--accent-light); color: var(--accent); }
+.rec-mini .rm-cell:hover { background: var(--accent-light); color: var(--accent-ink); }
 /* R120-TB1：条内动作按钮（周报）——与今日记录四格同量级 */
 .mb-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-caption); padding: 3px 9px; border-radius: 99px; cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
-.mb-act:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.mb-act:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 
 /* 左右分栏 */
 /* R51-F10：上下联动——三件事在上占视觉焦点，项目调度在下 */
@@ -1499,7 +1499,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .mini-btn.primary:hover { background: var(--accent-hover); }
 .mini-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .tag { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-tiny); padding: 2px 8px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 500; white-space: nowrap; }
-.tag.accent { background: var(--accent-light); color: var(--accent); }
+.tag.accent { background: var(--accent-light); color: var(--accent-ink); }
 .tag.warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
 .tag.ok { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
 .kc-assets { margin-left: 2px; }
@@ -1679,7 +1679,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cam-input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: var(--fs-body); outline: none; background: var(--surface); color: var(--text); font-family: inherit; }
 .cam-input:focus { border-color: var(--accent); }
 .cur-add-metric-link { margin: 2px 0 0; padding: 7px 10px; font-size: var(--fs-sub); color: var(--text-3); border: 1px dashed var(--border); border-radius: 8px; cursor: pointer; text-align: center; transition: all var(--dur-fast); }
-.cur-add-metric-link:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+.cur-add-metric-link:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
 .cg-tasks { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 4px; }
 .cg-task { display: flex; align-items: center; gap: 8px; padding: 4px 4px; border-radius: 7px; cursor: pointer; transition: background var(--dur-fast); }
 .cg-task:hover { background: var(--surface-2); }

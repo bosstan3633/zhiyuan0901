@@ -18,7 +18,7 @@
  * 契约：`size` = 边长（px，**不再走 font-size**）；`spin` 语义不变（prefers-reduced-motion 降速）。
  * 调用纪律：本组件只许被 `AiEntryButton.vue` 引用（断言 R155-10d 钉住），业务侧一律走 AiEntryButton。
  *
- * R168（性能）：形状本体已搬到 `ZhiMarkSymbol.vue`（全站只挂一次的 `<symbol id="zy-ai-mark">`），
+ * R168（性能）：形状本体已搬到 `AiMarkSymbol.vue`（全站只挂一次的 `<symbol id="zy-ai-mark">`），
  * 这里只留 `<use>` —— 一枚徽标从 **7 个 DOM 节点降到 2 个**（真库资源台一屏 32 枚 ⇒ 少插 160 个节点）。
  *
  * R169-T5b（用户拍板 ② 渐变实心脸）：**外层这些呈现属性保留但已不再决定观感**——形状本体自己写了
@@ -26,6 +26,9 @@
  * 下面这组 `fill="none" stroke="currentColor"` 只在极端情况下（CSS 未加载）兜底成原来的线性脸。
  * ★凸显靠形态与配色，不靠把徽标放大：尺寸仍只有一个来源（`AiEntryButton` 的令牌档），
  *   一放大就重新撞回 R155 立约时要消掉的"AI 图标比兄弟大一圈"。
+ *
+ * R171-C3（备案）：`ZhiMark.vue` → `AiMark.vue` 改名（含 ZhiMarkSymbol→AiMarkSymbol）——
+ * 语义对齐（这是 AI 徽标不是"知"徽标），`<symbol id="zy-ai-mark">` 与 class `ai-mark` 本就是 ai 命名，不动。
  */
 withDefaults(defineProps<{ size?: number; spin?: boolean }>(), { size: 12, spin: false })
 </script>

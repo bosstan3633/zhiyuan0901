@@ -88,7 +88,7 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
 .mb-period span { padding: 2px 9px; font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; transition: all var(--dur-fast); }
 .mb-period span + span { border-left: 1px solid var(--border); }
 .mb-period span:hover { background: var(--surface-3); color: var(--text-2); }
-.mb-period span.on { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.mb-period span.on { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
 .mb-divider { width: 1px; height: 14px; background: var(--border); flex-shrink: 0; }
 .mb-cell { display: flex; align-items: baseline; gap: 5px; min-width: 0; padding: 2px 7px; border-radius: 6px; }
 .mb-cell.clickable { cursor: pointer; transition: background var(--dur-fast); }

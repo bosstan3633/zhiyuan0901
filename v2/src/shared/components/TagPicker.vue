@@ -119,7 +119,7 @@ function goTagManage() {
 <style scoped>
 .tp { position: relative; }
 .tp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.tp-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; background: var(--accent-light); border-radius: 99px; font-size: var(--fs-caption); color: var(--accent); }
+.tp-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; background: var(--accent-light); border-radius: 99px; font-size: var(--fs-caption); color: var(--accent-ink); }
 .tp-chip .tp-x { cursor: pointer; opacity: .6; font-size: var(--fs-tiny); }
 .tp-chip .tp-x:hover { opacity: 1; }
 .tp-add { font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; padding: 3px 9px; border: 1px dashed var(--border-strong); border-radius: 99px; transition: all var(--dur); }

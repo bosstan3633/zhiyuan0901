@@ -184,7 +184,7 @@ const vFocus = { mounted: (el: HTMLInputElement) => el.focus() }
 .gs-fr-btn.cancel:hover { border-color: var(--border-strong); color: var(--text); }
 .gs-field-row.editing { border-color: var(--accent); }
 .gs-field-row.adding { border-color: var(--accent); background: var(--accent-light); }
-.gs-fr-type.optional, .gs-fr-type.custom { background: var(--accent-light); color: var(--accent); }
+.gs-fr-type.optional, .gs-fr-type.custom { background: var(--accent-light); color: var(--accent-ink); }
 /* B18：迁入的字段行样式 */
 .gs-field-list { display: flex; flex-direction: column; gap: 8px; }
 /* D2R：模块化字段行（全宽卡片 + 右侧徽章操作簇） */
@@ -202,7 +202,7 @@ const vFocus = { mounted: (el: HTMLInputElement) => el.focus() }
 .gs-fr-type.system { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
 .gs-fr-type.auto { background: var(--tag-info-bg); color: var(--tag-info-text); }
 .gs-fr-visibility { width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all var(--dur); flex-shrink: 0; border: 1px solid transparent; }
-.gs-fr-visibility.shown { color: var(--accent); background: var(--accent-light); }
+.gs-fr-visibility.shown { color: var(--accent-ink); background: var(--accent-light); }
 .gs-fr-visibility.hidden { color: var(--text-4); background: var(--surface-3); }
 .gs-fr-visibility:hover { border-color: var(--accent); }
 .gs-fr-visibility.disabled { cursor: not-allowed; opacity: .35; }
@@ -212,7 +212,7 @@ const vFocus = { mounted: (el: HTMLInputElement) => el.focus() }
 .gs-fr-action.delete:hover { color: var(--danger); background: var(--tag-danger-bg); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
 .gs-fr-action.disabled { opacity: .25; cursor: not-allowed; pointer-events: none; }
 .gs-field-add { margin-top: 10px; padding: 14px; border: 1.5px dashed var(--border-strong); border-radius: 8px; text-align: center; cursor: pointer; font-size: var(--fs-body); color: var(--text-3); transition: all var(--dur); }
-.gs-field-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-.gs-field-hint { margin-top: 12px; padding: 10px 14px; background: var(--accent-light); border-radius: 8px; font-size: var(--fs-sub); color: var(--accent); line-height: 1.7; }
+.gs-field-add:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
+.gs-field-hint { margin-top: 12px; padding: 10px 14px; background: var(--accent-light); border-radius: 8px; font-size: var(--fs-sub); color: var(--accent-ink); line-height: 1.7; }
 
 </style>

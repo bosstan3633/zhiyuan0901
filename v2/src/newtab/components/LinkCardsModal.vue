@@ -115,7 +115,7 @@ const emit = defineEmits<{
   border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2);
   font-size: var(--fs-caption); font-family: inherit; cursor: pointer; transition: all var(--dur); }
 .lc-ai-btn:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-3); }
-.lc-ai-btn.on { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+.lc-ai-btn.on { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
 .lc-ai-btn.busy { opacity: var(--opacity-disabled); }
 .lc-ai-fed { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin: -2px 0 8px;
   padding: 5px 9px; border-radius: var(--radius-xs); background: var(--surface-2); border: 1px solid var(--border);
@@ -123,7 +123,7 @@ const emit = defineEmits<{
 .lc-ai-scope { color: var(--text-3); }
 .lc-ai-note { color: var(--text-3); }
 .lc-ai-tag { flex-shrink: 0; font-size: var(--fs-tiny); padding: 1px 6px; border-radius: var(--radius-xs);
-  background: var(--accent-light); color: var(--accent); font-weight: 600; white-space: nowrap; }
+  background: var(--accent-light); color: var(--accent-ink); font-weight: 600; white-space: nowrap; }
 .lc-ai-tag.weak { background: var(--warning-bg-soft); color: var(--warning); }
 /* 底栏：Modal 壳的 footer 插槽是纵向容器，这里自己排成一行（与原 .dr-footer-btn 视觉一致） */
 .lc-foot { display: flex; gap: var(--sp-2); }

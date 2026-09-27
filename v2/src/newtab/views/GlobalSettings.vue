@@ -710,6 +710,7 @@
             </div>
           </div>
         </div>
+        <DataCheckupCard v-if="activePage === 'export'" /><!-- R171-A2/A3 数据体检卡：独立组件（R164-2 增长门禁） -->
       </div>
 
       <!-- ===== 快捷键设置 ===== -->
@@ -1063,7 +1064,8 @@ import { sanitizeWsView } from '@/shared/utils/wsView'
 import { assetSummary } from '@/shared/utils/assetKind'
 import type { FieldDef, AppData, ResourceCard, TaskCard, CuriosityCard, Workspace, Category, TagNode, AssetMeta, ID } from '@/shared/models'
 // R63-1/63-2：全景两级（资源台/策展台）与导出镜像卡适配
-import { isHubWs, boardCardsOf, isMirrorView } from '@/shared/storage/hub'
+import { isHubWs, boardCardsOf, isMirrorView, sanitizeThesisDuplicates } from '@/shared/storage/hub'
+import DataCheckupCard from '../components/DataCheckupCard.vue'
 import { CURATION_WS_ID } from '@/shared/models'
 // R113-N2：资源生命周期聚合页（入口从三宿主收敛至此；内嵌式面板 + 三类卡聚合 + 跨台定位）
 import LifecyclePanel, { type LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
@@ -1197,7 +1199,6 @@ async function cleanupOrphanAssetsAction() {
   }
 }
 watch(activePage, (p) => { if (p === 'export') refreshAssetStats() })
-
 // ---- 第卌二轮 REQ-059：附件包导出/导入（zip STORE 模式，零依赖） ----
 /** 导出附件包：全部附件本体 → 附件包 zip（manifest + assets/<id> 原件）。与主数据 JSON 备份配合 = 完整可迁移备份 */
 async function exportAssetPack() {
@@ -1282,7 +1283,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
     { key: 'thesis', icon: '🏛', label: '策展主题卡' },
     // 第卌四轮 Q-6：标签管理上移——它服务卡片呈现，与三卡同组
     { key: 'tags', icon: '🏷', label: '标签管理' },
-    // R134-F：AI 助手（接入配置 + 沉睡唤醒 + 一键诊断）· R146/R152：入口徽标统一（真源 ZhiMark.vue）
+    // R134-F：AI 助手（接入配置 + 沉睡唤醒 + 一键诊断）· R146/R152：入口徽标统一（真源 AiMark.vue）
     { key: 'ai', mark: true, label: 'AI 助手' },
   ]},
   { title: '数据', items: [
@@ -1981,7 +1982,7 @@ function handleFileImport(e: Event) {
         const wv = sanitizeWsView(ui.wsViewMode)
         if (Object.keys(wv).length) saveUIPrefs({ wsViewMode: wv })
       }
-      showToast(`✓ 导入完成（并集）：卡片 ${n.cards}、罗盘方向 ${n.dirs}、策展台 ${n.ws}${ui ? '；界面偏好已应用' : ''}${n.catFix ? `；分类树已自动修复（${n.catFix}）` : ''}；已自动下载导入前备份`)
+      showToast(`✓ 导入完成（并集）：卡片 ${n.cards}、罗盘方向 ${n.dirs}、策展台 ${n.ws}${ui ? '；界面偏好已应用' : ''}${n.catFix ? `；分类树已自动修复（${n.catFix}）` : ''}${n.thesisClear ? `；中心论点重复已净化（清 ${n.thesisClear} 张多余标记）` : ''}；已自动下载导入前备份`)
     } catch { showToast('✗ 文件格式错误，请选择有效的JSON文件') }
   }
   reader.readAsText(file)
@@ -2064,7 +2065,7 @@ function handleBookmarkImport(e: Event) {
 /** R47-A2：全量并集合并——罗盘（愿景/使命/方向→项目→指标）+ 引擎数据 + 全部关系字段
  *  原则：卡片/指标按 id 去重合并；「关系列表」（taskIds/linkedResourceIds 等）一律取并集；
  *        计数类（stats.wrr）取最大值；标量以导入方覆盖（无 updatedAt 的层级按导入值合并）。 */
-function mergeImport(imported: AppData): { cards: number; dirs: number; ws: number; catFix: string } {
+function mergeImport(imported: AppData): { cards: number; dirs: number; ws: number; catFix: string; thesisClear: number } {
   const d = store.data!
   // R70：分类树结构净化（唯一的导入防线）——此前只认 version。含环的 categories 经下面的
   // mergeById（{ ...existing, ...incoming } 会覆盖 parentId）进库后，分类树渲染/计数递归会无限
@@ -2190,8 +2191,10 @@ function mergeImport(imported: AppData): { cards: number; dirs: number; ws: numb
       }
     }
   }
+  // R171-A1：覆盖式合并可能让同台多张 isThesis 并存，导入即归一（口径=保留首张）
+  const thesisFix = sanitizeThesisDuplicates(d)
   store.persist()
-  return { cards: cardsAdded, dirs: imported.compass?.directions?.length || 0, ws: d.workspaces.length - wsBefore + (imported.workspaces?.length || 0), catFix }
+  return { cards: cardsAdded, dirs: imported.compass?.directions?.length || 0, ws: d.workspaces.length - wsBefore + (imported.workspaces?.length || 0), catFix, thesisClear: thesisFix.cleared }
 }
 
 
@@ -3186,7 +3189,7 @@ const activeManualSec = ref('quick-1')
 .gs-nav-group-title { font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; padding: 0 10px; margin-bottom: 5px; }
 .gs-nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; font-size: var(--fs-body); color: var(--text-2); cursor: pointer; transition: all .1s; margin-bottom: 1px; }
 .gs-nav-item:hover { background: var(--surface-3); color: var(--text); }
-.gs-nav-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.gs-nav-item.active { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
 .gs-nav-icon { font-size: 14px; width: 18px; text-align: center; }
 
 /* 右侧内容 */
@@ -3230,8 +3233,8 @@ const activeManualSec = ref('quick-1')
 /* 字段管理 */
 
 .gs-field-add { margin-top: 10px; padding: 14px; border: 1.5px dashed var(--border-strong); border-radius: 8px; text-align: center; cursor: pointer; font-size: var(--fs-body); color: var(--text-3); transition: all var(--dur); }
-.gs-field-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-.gs-field-hint { margin-top: 12px; padding: 10px 14px; background: var(--accent-light); border-radius: 8px; font-size: var(--fs-sub); color: var(--accent); line-height: 1.7; }
+.gs-field-add:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
+.gs-field-hint { margin-top: 12px; padding: 10px 14px; background: var(--accent-light); border-radius: 8px; font-size: var(--fs-sub); color: var(--accent-ink); line-height: 1.7; }
 
 /* 预览 */
 .gs-preview-section { margin-top: 16px; }
@@ -3246,7 +3249,7 @@ const activeManualSec = ref('quick-1')
 .gs-pv-field-label { color: var(--text-3); font-size: var(--fs-tiny); margin-right: 4px; }
 .gs-pv-field-text { color: var(--text-2); }
 .gs-pv-field-tags { display: inline-flex; gap: 4px; }
-.gs-pv-tag { font-size: var(--fs-micro); padding: 1px 6px; border-radius: 99px; background: var(--accent-light); color: var(--accent); }
+.gs-pv-tag { font-size: var(--fs-micro); padding: 1px 6px; border-radius: 99px; background: var(--accent-light); color: var(--accent-ink); }
 .gs-pv-field-link { font-size: var(--fs-caption); color: var(--accent); }
 
 /* 导入导出 */
@@ -3328,7 +3331,7 @@ const activeManualSec = ref('quick-1')
 .gs-mn-part { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding: 10px 10px 5px; }
 .gs-mn-item { font-size: var(--fs-body); color: var(--text-2); padding: 7px 10px; border-radius: 6px; cursor: pointer; transition: all var(--dur-fast); }
 .gs-mn-item:hover { background: var(--surface-3); color: var(--text); }
-.gs-mn-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.gs-mn-item.active { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
 .gs-manual-body { flex: 1; min-width: 0; }
 .gs-mc-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 34px 40px; margin-bottom: 20px; }
 .gs-mc-title { font-size: var(--fs-title); font-weight: 700; color: var(--text); margin-bottom: 10px; }
@@ -3408,11 +3411,11 @@ const activeManualSec = ref('quick-1')
 .gs-dash-stat:hover { border-color: var(--accent); background: var(--accent-light); }
 .gs-ds-label { font-size: var(--fs-sub); color: var(--text-2); margin-bottom: 6px; }
 .gs-ds-value { font-size: 24px; font-weight: 700; color: var(--text); line-height: 1.1; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 8px; }
-.gs-ds-today { font-size: var(--fs-caption); font-weight: 600; color: var(--accent); background: var(--accent-light); border-radius: 99px; padding: 1px 8px; }
+.gs-ds-today { font-size: var(--fs-caption); font-weight: 600; color: var(--accent-ink); background: var(--accent-light); border-radius: 99px; padding: 1px 8px; }
 .gs-ds-sub { font-size: var(--fs-tiny); color: var(--text-3); margin-top: 3px; }
 .gs-dash-dynamic { display: flex; align-items: center; gap: 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 16px; margin-bottom: 14px; }
 .gs-dd-seg { font-size: var(--fs-body); color: var(--text-2); cursor: pointer; border-radius: 6px; padding: 2px 6px; transition: all var(--dur); }
-.gs-dd-seg:hover { background: var(--accent-light); color: var(--accent); }
+.gs-dd-seg:hover { background: var(--accent-light); color: var(--accent-ink); }
 .gs-dd-seg b.up { color: var(--accent); font-size: var(--fs-title); }
 .gs-dd-seg b.down { color: var(--danger); font-size: var(--fs-title); }
 .gs-dd-imp { font-size: var(--fs-caption) !important; color: var(--text-3) !important; margin-left: 4px; font-weight: 600 !important; }
@@ -3452,7 +3455,7 @@ const activeManualSec = ref('quick-1')
 .gs-ev-badge { font-size: var(--fs-caption); border-radius: 5px; padding: 2px 8px; font-weight: 600; flex-shrink: 0; }
 .gs-ev-badge.create { color: #7fbf8a; background: rgba(127,191,138,.14); }
 .gs-ev-badge.delete { color: #e07a7a; background: rgba(224,122,122,.14); }
-.gs-ev-badge.restore { color: var(--accent); background: var(--accent-light); }
+.gs-ev-badge.restore { color: var(--accent-ink); background: var(--accent-light); }
 /* R117（04-61 C3）：好奇心探索状态变更事件 */
 .gs-ev-badge.status { color: var(--tag-warn-text); background: var(--tag-warn-bg); }
 .gs-ev-badge.purge { color: #d46a6a; background: rgba(212,106,106,.2); }
@@ -3472,7 +3475,7 @@ const activeManualSec = ref('quick-1')
 .gs-pan-tree-head { font-size: var(--fs-caption); color: var(--text-3); padding: 2px 6px 8px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
 .gs-pan-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: var(--fs-body); color: var(--text-2); transition: all var(--dur-fast); border: 1px dashed transparent; }
 .gs-pan-row:hover { background: var(--surface-3); color: var(--text); }
-.gs-pan-row.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.gs-pan-row.active { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
 .gs-pan-row.drop { border-color: var(--accent); background: var(--accent-light); }
 .gs-pan-ws-row { font-weight: 600; color: var(--text); }
 .gs-pan-cat-row { padding-left: 18px; }
@@ -3481,9 +3484,9 @@ const activeManualSec = ref('quick-1')
 .gs-pan-toggle.leaf { cursor: default; opacity: .4; }
 .gs-pan-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gs-pan-rename-input { flex: 1; min-width: 0; border: 1px solid var(--accent); border-radius: 4px; background: var(--surface); }
-.gs-pan-kind { display: inline-block; margin-left: 6px; padding: 0 6px; font-size: var(--fs-tiny); line-height: 16px; border-radius: 99px; background: var(--accent-light); color: var(--accent); vertical-align: 1px; }
+.gs-pan-kind { display: inline-block; margin-left: 6px; padding: 0 6px; font-size: var(--fs-tiny); line-height: 16px; border-radius: 99px; background: var(--accent-light); color: var(--accent-ink); vertical-align: 1px; }
 .gs-pan-count { font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 1px 8px; flex-shrink: 0; }
-.gs-pan-row.active .gs-pan-count { color: var(--accent); background: var(--accent-light); }
+.gs-pan-row.active .gs-pan-count { color: var(--accent-ink); background: var(--accent-light); }
 .gs-pan-list-wrap { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; max-height: 560px; }
 .gs-pan-list-head { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
 .gs-pan-crumb { font-size: var(--fs-body); font-weight: 600; color: var(--text); flex: 1; }

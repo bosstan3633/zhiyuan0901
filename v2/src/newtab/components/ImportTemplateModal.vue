@@ -183,7 +183,7 @@ watch(() => props.open, (v) => { if (v) src.value = '' })
 .itm-close { margin-left: auto; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: var(--fs-headline); }
 .itm-close:hover { background: var(--surface-3); color: var(--text); }
 .itm-head-ops { display: flex; gap: 8px; padding: 10px 18px 0; }
-.itm-rule-btn { font-size: var(--fs-sub); color: var(--accent); background: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 99px; padding: 3px 12px; cursor: pointer; font-family: inherit; }
+.itm-rule-btn { font-size: var(--fs-sub); color: var(--accent-ink); background: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 99px; padding: 3px 12px; cursor: pointer; font-family: inherit; }
 .itm-rule-btn:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
 .itm-rule-panel { margin: 10px 18px 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-2); font-size: var(--fs-sub); line-height: 1.7; white-space: pre-wrap; max-height: 220px; overflow: auto; }
 .itm-rule { margin: 10px 18px 0; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-2); background: var(--surface-2); }
@@ -207,7 +207,7 @@ watch(() => props.open, (v) => { if (v) src.value = '' })
 /* 场景A 结构树 */
 .g-proj { border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px; background: var(--surface-2); }
 .g-proj-h { padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: var(--fs-body); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.g-tagp { font-size: var(--fs-micro); color: var(--accent); background: var(--accent-light); padding: 1px 8px; border-radius: 99px; }
+.g-tagp { font-size: var(--fs-micro); color: var(--accent-ink); background: var(--accent-light); padding: 1px 8px; border-radius: 99px; }
 .g-cnt { margin-left: auto; font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; }
 .g-met { padding: 6px 12px 2px 26px; font-size: var(--fs-sub); color: var(--text-2); font-weight: 600; }
 .g-met::before { content: "◎ "; color: var(--accent); }

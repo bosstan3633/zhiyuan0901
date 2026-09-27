@@ -734,7 +734,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
 .ai-btn.primary:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; filter: none; }
 .ai-btn.sm { padding: 3px 9px; font-size: var(--fs-caption); }
 .ai-btn.ghost { background: transparent; }
-.ai-btn.ghost.on { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+.ai-btn.ghost.on { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
 .ai-btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .ai-btn.danger:hover { filter: brightness(1.06); color: #fff; }
 /* ===== R154 双栏 ===== */
@@ -770,7 +770,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
 .ai-pempty { color: var(--text-4) }
 .ai-chg-tag { font-size: var(--fs-tiny); padding: 2px 6px; border-radius: var(--radius-xs); align-self: flex-start; letter-spacing: var(--tracking-sm); white-space: nowrap; font-weight: 600 }
 .ai-chg-tag.t-new { background: var(--success-bg-soft); color: var(--success) }
-.ai-chg-tag.t-edit { background: var(--accent-light); color: var(--accent) }
+.ai-chg-tag.t-edit { background: var(--accent-light); color: var(--accent-ink) }
 .ai-chg-tag.t-move { background: var(--warning-bg-soft); color: var(--warning) }
 .ai-chg-tag.t-same { background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 400 }
 .ai-clickable { cursor: text; border-bottom: 1px dashed var(--border-strong) }
@@ -784,7 +784,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
 .ai-dir-l b { color: var(--text-2); font-size: var(--fs-sub) }
 .ai-dir-tiers { display: flex; gap: 4px }
 .ai-dir-tiers .tier { font-size: var(--fs-caption); padding: 1px 7px; border: 1px solid var(--border-strong); border-radius: var(--radius-xs); background: var(--surface); color: var(--text-3); cursor: pointer; font-family: inherit; white-space: nowrap }
-.ai-dir-tiers .tier.on { border-color: var(--accent); color: var(--accent); background: var(--accent-light); font-weight: 600 }
+.ai-dir-tiers .tier.on { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); font-weight: 600 }
 .ai-dir-tiers .tier:disabled { opacity: var(--opacity-disabled); cursor: not-allowed }
 .ai-dir-m { min-width: 0 }
 .ai-dir-cap { margin-top: 3px; font-size: var(--fs-caption); color: var(--text-4); font-variant-numeric: tabular-nums }

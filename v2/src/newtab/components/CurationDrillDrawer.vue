@@ -281,7 +281,7 @@ async function onCleanupAll() {
 .dd-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; flex-direction: column; gap: 1px; }
 .dd-asset-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dd-sub { font-size: var(--fs-tiny); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dd-count { font-size: var(--fs-caption); color: var(--accent); background: var(--accent-light); padding: 1px 8px; border-radius: 99px; font-weight: 600; flex-shrink: 0; }
+.dd-count { font-size: var(--fs-caption); color: var(--accent-ink); background: var(--accent-light); padding: 1px 8px; border-radius: 99px; font-weight: 600; flex-shrink: 0; }
 .dd-time { font-size: var(--fs-caption); color: var(--text-3); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .dd-hint { font-size: var(--fs-caption); color: var(--accent); flex-shrink: 0; }
 .dd-empty { padding: 24px 8px; text-align: center; color: var(--text-3); font-size: var(--fs-sub); }
@@ -295,11 +295,11 @@ async function onCleanupAll() {
 .dd-act:hover { border-color: var(--accent); color: var(--accent); }
 .dd-orphan-bar { display: flex; align-items: center; gap: 8px; padding: 7px 8px; margin-bottom: 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-3); }
 .dd-orphan-txt { flex: 1; min-width: 0; font-size: var(--fs-caption); color: var(--text-2); }
-.dd-orphan-btn { flex-shrink: 0; border: 1px solid var(--accent); background: var(--accent-light); color: var(--accent); border-radius: 5px; padding: 3px 9px; font-size: var(--fs-caption); cursor: pointer; font-family: inherit; }
+.dd-orphan-btn { flex-shrink: 0; border: 1px solid var(--accent); background: var(--accent-light); color: var(--accent-ink); border-radius: 5px; padding: 3px 9px; font-size: var(--fs-caption); cursor: pointer; font-family: inherit; }
 .dd-orphan-btn:hover { background: var(--accent); color: #fff; }
 /* R169-T1：流水行动词 + 口径说明 + 翻页 */
 .dd-scope { font-size: var(--fs-caption); color: var(--text-3); padding: 0 8px 6px; line-height: 1.5; }
-.dd-verb { flex-shrink: 0; font-size: var(--fs-micro); font-weight: 600; color: var(--accent); background: var(--accent-light); padding: 1px 6px; border-radius: 99px; }
+.dd-verb { flex-shrink: 0; font-size: var(--fs-micro); font-weight: 600; color: var(--accent-ink); background: var(--accent-light); padding: 1px 6px; border-radius: 99px; }
 .dd-more { margin: 8px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-2); font-size: var(--fs-caption); font-family: inherit; cursor: pointer; }
 .dd-more:hover { border-color: var(--accent); color: var(--accent); }
 </style>

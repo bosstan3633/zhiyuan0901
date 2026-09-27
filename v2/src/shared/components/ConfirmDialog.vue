@@ -37,7 +37,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 .cdf-box { width: 360px; max-width: 92vw; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 24px 24px 20px; text-align: center; animation: cdfin .2s var(--ease-emphasis); }
 @keyframes cdfin { from { opacity: 0; transform: translateY(-10px) scale(.96); } to { opacity: 1; transform: none; } }
 .cdf-icon { width: 52px; height: 52px; margin: 0 auto 12px; border-radius: 50%; background: var(--tag-danger-bg); color: var(--tag-danger-text); font-size: var(--fs-display); display: flex; align-items: center; justify-content: center; }
-.cdf-icon:not(.danger) { background: var(--accent-light); color: var(--accent); }
+.cdf-icon:not(.danger) { background: var(--accent-light); color: var(--accent-ink); }
 .cdf-title { font-size: var(--fs-title); font-weight: 700; color: var(--text); margin-bottom: 8px; }
 .cdf-msg { font-size: var(--fs-body); color: var(--text-2); line-height: 1.7; white-space: pre-line; }
 .cdf-btns { display: flex; gap: 10px; margin-top: 20px; }

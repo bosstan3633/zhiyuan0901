@@ -244,6 +244,56 @@ export function setThesis(d: AppData, wsId: ID, cardId: ID | null): boolean {
   return true
 }
 
+// ===== R171-A1：中心论点重复（不变量「每台最多一张 isThesis」的盘点与修复） =====
+
+/**
+ * 纯盘点（不改任何数据）：统计各台**未软删**的 isThesis 卡，找出同台多张的违规。
+ * 口径与 boardCardsOf/curationMetrics 同源——软删卡不计入（回收站恢复后语义不变）。
+ * @returns { wsCount } 出现重复的台数；{ cleared } 若修复将被清除标记的卡数
+ */
+export function countThesisDuplicates(d: AppData): { wsCount: number; cleared: number } {
+  const byWs = new Map<ID, ResourceCard[]>()
+  for (const r of d.resources) {
+    if (r.deletedAt || !r.isThesis || !r.workspaceId) continue
+    let list = byWs.get(r.workspaceId)
+    if (!list) byWs.set(r.workspaceId, (list = []))
+    list.push(r)
+  }
+  let wsCount = 0
+  let cleared = 0
+  for (const list of byWs.values()) {
+    if (list.length < 2) continue
+    wsCount++
+    cleared += list.length - 1
+  }
+  return { wsCount, cleared }
+}
+
+/**
+ * 落地修复（幂等，会改数据）：每台保留数组序第一张 isThesis（metrics 取首张的既有口径），
+ * 其余置 undefined + 重打 updatedAt。软删卡上的标记不动。
+ * 老版本/导入合并可能让同台多张并存——幽灵论点既不进金字塔根也读不到，只污染「确立中心论点」入口的判定。
+ * @returns 与 countThesisDuplicates 同构（修复前盘点值）
+ */
+export function sanitizeThesisDuplicates(d: AppData): { wsCount: number; cleared: number } {
+  const report = countThesisDuplicates(d)
+  if (!report.wsCount) return report
+  const byWs = new Map<ID, ResourceCard[]>()
+  for (const r of d.resources) {
+    if (r.deletedAt || !r.isThesis || !r.workspaceId) continue
+    let list = byWs.get(r.workspaceId)
+    if (!list) byWs.set(r.workspaceId, (list = []))
+    list.push(r)
+  }
+  for (const list of byWs.values()) {
+    for (const r of list.slice(1)) {
+      r.isThesis = undefined
+      r.updatedAt = Date.now()
+    }
+  }
+  return report
+}
+
 /**
  * R70：悬空投射清理（幂等）。
  * 源卡被**硬删**（回收站清空）后，指向它的 curationProjections 记录会永久留存、数组无界增长；

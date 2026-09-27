@@ -284,7 +284,7 @@ const tabMeta = computed(() => [
 
 .rb-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
 .rb-tab { flex: 1; padding: 10px 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 10px; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; transition: all var(--dur); }
-.rb-tab.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+.rb-tab.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
 .rb-count { display: inline-block; min-width: 22px; padding: 1px 7px; background: var(--surface-2); border-radius: 99px; font-size: var(--fs-caption); margin-left: 4px; }
 
 .rb-list { display: flex; flex-direction: column; gap: 8px; }

@@ -152,7 +152,7 @@ const MANUAL_NOTES = {
   'shared/components/Drawer.vue': '通用右侧抽屉壳（**全站 30+ 宿主，改动需全量回归**）',
   'shared/components/Modal.vue': '通用中央弹窗壳（R161 新建；Esc / 焦点管理 / 真全屏宿主）',
   'shared/components/toast.ts': '全局 Toast 单例（队列合并 ×N + 撤销入口自动入栈）',
-  'shared/components/ZhiMark.vue': '全站 AI 徽标**真源**（R155 起 emoji → 单色 SVG，随主题 accent）',
+  'shared/components/AiMark.vue': '全站 AI 徽标**真源**（R155 起 emoji → 单色 SVG，随主题 accent）',
   'shared/components/MaturityBadge.vue': '成熟度徽标',
   'shared/components/AiEntryButton.vue': '统一 AI 入口按钮（icon / inline / footer 三态）',
   // ---- 存储层 ----

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * R144 · G1：策展台头部的「提炼论点骨架」AI 入口（徽标真源见 ZhiMark.vue）。
+ * R144 · G1：策展台头部的「提炼论点骨架」AI 入口（徽标真源见 AiMark.vue）。
  * Workspace 压在 1500 行验收线上——按钮、评审抽屉、AI 懒栈全收进本组件，宿主原位补一个标签。
  * AI 依赖零静态引用：点击时才 dynamic import。
  */
@@ -43,7 +43,7 @@ async function run() {
 
 <style scoped>
 /* 自带样式：宿主 workspace.css 是 scoped，跨不到本组件（fragment 根不继承父 scope） */
-.th-ai-btn { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; font-size: var(--fs-sub); font-weight: 600; color: var(--accent); background: var(--accent-light); border: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent); padding: 4px 12px; border-radius: var(--radius-xs); cursor: pointer; font-family: inherit; }
+.th-ai-btn { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; font-size: var(--fs-sub); font-weight: 600; color: var(--accent-ink); background: var(--accent-light); border: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent); padding: 4px 12px; border-radius: var(--radius-xs); cursor: pointer; font-family: inherit; }
 /* hover 翻成 accent 底 + 白字 ⇒ 徽标必须跟着反相（白头 + accent 眼），否则"accent 糊在 accent 上"（R169-T5b） */
 .th-ai-btn:hover { background: var(--accent); color: #fff; --ai-mark-fill: #fff; --ai-mark-eye: var(--accent); }
 .th-ai-btn:disabled { opacity: var(--opacity-disabled); cursor: progress; }

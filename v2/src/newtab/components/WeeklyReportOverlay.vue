@@ -191,10 +191,10 @@ async function aiInsight() {
 .wr-period { font-size: var(--fs-caption); color: var(--text-3); flex: 1; }
 .wr-switch { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .wr-ai { padding: 4px 12px; font-size: var(--fs-sub); border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-2); cursor: pointer; font-family: inherit; flex-shrink: 0; transition: all var(--dur); }
-.wr-ai:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.wr-ai:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .wr-sw { padding: 4px 14px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; background: var(--surface); border: none; font-family: inherit; }
 .wr-sw + .wr-sw { border-left: 1px solid var(--border); }
-.wr-sw.on { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.wr-sw.on { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
 .wr-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: var(--fs-headline); background: transparent; border: none; }
 .wr-close:hover { background: var(--surface-3); color: var(--text); }
 .wr-body { flex: 1; overflow-y: auto; padding: 14px 18px 18px; }

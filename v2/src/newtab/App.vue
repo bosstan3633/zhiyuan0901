@@ -15,7 +15,7 @@ import { useConfirm } from '@/shared/components/confirm'
 // R146（回退契约）：策展台「归档 / 删除」两语义真源
 import Icon from '@/shared/components/Icon.vue'
 // R168：AI 徽标图形只挂一份（各入口走 <use>）——组件本体零依赖零状态，挂在根上即全站可用
-import ZhiMarkSymbol from '@/shared/components/ZhiMarkSymbol.vue'
+import AiMarkSymbol from '@/shared/components/AiMarkSymbol.vue'
 import logoUrl from '@/assets/logo.png'
 import { getBytesInUse, subscribeSaveError, clearLastSaveError, subscribeSaveState, cleanupLegacyKeys, type SaveState } from '@/shared/storage/repository'
 import { installGlobalUndo } from '@/shared/utils/undo'
@@ -438,8 +438,8 @@ const backupReminderDot = computed(() => {
 <template>
   <div class="app-shell" @click="menuWs && closeMenu(); themeOpen && (themeOpen = false)">
     <!-- R168：AI 徽标的图形定义，全站只挂这一份（各入口走 `<use href="#zy-ai-mark">`）——
-         见 ZhiMarkSymbol.vue：一屏 32 枚徽标原样是 224 个 DOM 节点，现降到 64 个 -->
-    <ZhiMarkSymbol />
+         见 AiMarkSymbol.vue：一屏 32 枚徽标原样是 224 个 DOM 节点，现降到 64 个 -->
+    <AiMarkSymbol />
     <header class="topbar">
       <div class="topbar-inner" :class="topbarAlign">
       <nav class="tabs" @mouseleave="wsOverflowOpen = false">
@@ -598,7 +598,7 @@ const backupReminderDot = computed(() => {
 /* R123（原型）：tab 6×12、active = 浅紫填充块（accent-light + accent 600），下划线退役 */
 .tab { padding: 6px 12px; border-radius: var(--radius-xs); font-size: var(--fs-body); font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color var(--dur) ease, background var(--dur) ease; position: relative; white-space: nowrap; }
 .tab:hover { background: var(--surface-2); color: var(--text); }
-.tab.active { color: var(--accent); background: var(--accent-light); font-weight: 600; }
+.tab.active { color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }
 /* R45-5：.badge 样式随角标移除一并清理（全应用已无渲染点） */
 .tab-divider { width: 1px; height: 20px; background: var(--border); margin: 0 6px; }
 /* R49：资源台占位（下轮交付）——弱化呈现 */
@@ -610,7 +610,7 @@ const backupReminderDot = computed(() => {
 .tab-add:hover { color: var(--accent); }
 .tab-collapse { padding: 8px 10px; color: var(--text-3); font-size: var(--fs-body); }
 /* R105（E2）：溢出指示页签——accent 提示可展开 */
-.tab-overflow { color: var(--accent); background: var(--accent-light); font-variant-numeric: tabular-nums; }
+.tab-overflow { color: var(--accent-ink); background: var(--accent-light); font-variant-numeric: tabular-nums; }
 .tab-rename-input { border: 1px solid var(--accent); border-radius: 6px; padding: 2px 8px; font-size: var(--fs-body); font-family: inherit; outline: none; width: 100px; background: var(--surface); color: var(--text); box-shadow: 0 0 0 3px var(--accent-glow); }
 .tab.adding { padding: 4px 10px; }
 /* B30a：错误边界卡片 */

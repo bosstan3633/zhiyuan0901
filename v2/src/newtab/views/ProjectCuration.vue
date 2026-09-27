@@ -812,7 +812,7 @@ function addTaskFromHeader() {
 .pd-term { font-size: var(--fs-tiny); color: var(--text-3); font-weight: 400; flex-shrink: 0; }
 .pd-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px 14px; border-radius: 6px; cursor: pointer; font-size: var(--fs-body); color: var(--text-2); white-space: nowrap; overflow: hidden; transition: background var(--dur-fast); }
 .pd-item:hover { background: var(--surface-2); }
-.pd-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.pd-item.active { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
 .pd-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--border-strong); flex-shrink: 0; }
 .pd-dot.focus { background: var(--accent); }
 .pd-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -851,7 +851,7 @@ function addTaskFromHeader() {
 .icon-btn-sm.del:hover { color: var(--danger); }
 /* R146：行内 AI 入口常态可见（审计：hover 才现=触屏与键盘 100% 摸不到），强调色只给"AI 可点"这一层 */
 .icon-btn-sm.ai { color: var(--accent); opacity: .78; }
-.icon-btn-sm.ai:hover { color: var(--accent); opacity: 1; background: var(--accent-light); }
+.icon-btn-sm.ai:hover { color: var(--accent-ink); opacity: 1; background: var(--accent-light); }
 .task-rows { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; min-height: 20px; }
 .btask { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 8px; transition: background var(--dur-fast); }
 .btask:hover { background: var(--surface-2); }
@@ -864,7 +864,7 @@ function addTaskFromHeader() {
 .btask:hover .bt { color: var(--accent); }
 .btask.done .bt { text-decoration: line-through; color: var(--text-3); }
 .task-add { display: flex; align-items: center; gap: 8px; padding: 6px 8px; color: var(--text-3); font-size: var(--fs-sub); cursor: pointer; border-radius: 8px; }
-.task-add:hover { color: var(--accent); background: var(--accent-light); }
+.task-add:hover { color: var(--accent-ink); background: var(--accent-light); }
 .board-foot-hint { margin-top: 14px; font-size: var(--fs-caption); color: var(--text-3); text-align: center; padding: 10px; background: var(--surface-2); border-radius: var(--radius-xs); }
 
 /* ===== R121：展板头部（面包屑 + 标题行 + 统计条） ===== */
@@ -879,13 +879,13 @@ function addTaskFromHeader() {
 .mini-btn.icon { padding: 5px 10px; }
 .pb-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 176px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-lg); padding: 4px; }
 .pb-menu .pm-item { padding: 7px 10px; border-radius: 6px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; white-space: nowrap; }
-.pb-menu .pm-item:hover { background: var(--accent-light); color: var(--accent); }
+.pb-menu .pm-item:hover { background: var(--accent-light); color: var(--accent-ink); }
 .pb-menu .pm-item.danger:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
 .pb-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .pb-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
 /* R170-①：标题旁「详情」入口——与 mini-btn 同款，颜色收敛不抢主标题 */
 .pb-title .pd-open { flex-shrink: 0; color: var(--text-2); border-color: var(--border); background: var(--surface); }
-.pb-title .pd-open:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+.pb-title .pd-open:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
 .pb-title .hero-pname { font-size: 18px; font-weight: 700; letter-spacing: .2px; outline: none; border-radius: 6px; padding: 2px 6px; margin: -2px -6px; cursor: text; }
 .pb-title .hero-pname:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .pb-title .hero-pname:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
@@ -900,7 +900,7 @@ function addTaskFromHeader() {
 /* ===== R121：指标块与任务行（Linear 极简发丝线，对齐原型） ===== */
 .metric-sec { padding: 0; overflow: hidden; }
 .metric-head2 { background: var(--surface-2); padding: 9px 14px; border-bottom: 1px solid var(--border); }
-.mh-idx { flex-shrink: 0; font-size: var(--fs-caption); font-weight: 700; color: var(--accent); background: var(--accent-light); padding: 2px 7px; border-radius: 4px; }
+.mh-idx { flex-shrink: 0; font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink); background: var(--accent-light); padding: 2px 7px; border-radius: 4px; }
 .mh-meta { flex-shrink: 0; font-size: var(--fs-sub); color: var(--text-3); font-variant-numeric: tabular-nums; }
 .mh-acts { display: none; gap: 2px; margin-left: auto; }
 .metric-sec:hover .mh-acts { display: inline-flex; }
@@ -923,11 +923,11 @@ function addTaskFromHeader() {
 .mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
 .mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 .tag { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-tiny); padding: 2px 8px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 500; white-space: nowrap; }
-.tag.accent { background: var(--accent-light); color: var(--accent); }
+.tag.accent { background: var(--accent-light); color: var(--accent-ink); }
 .tag.warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
 .tag.ok { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
 .tag.danger { background: var(--tag-danger-bg); color: var(--tag-danger-text); }
-.tag.info { background: var(--accent-light); color: var(--accent); }
+.tag.info { background: var(--accent-light); color: var(--accent-ink); }
 .progress { height: 5px; background: var(--surface-3); border-radius: 99px; overflow: hidden; display: inline-block; vertical-align: middle; }
 .progress > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
 .fade-enter-active, .fade-leave-active { transition: opacity var(--dur-slow); }

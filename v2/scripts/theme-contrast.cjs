@@ -12,6 +12,8 @@
  *   - --text-3 / --bg ≥ 3 · --text-3 / --surface-3 ≥ 3（最苛刻的深层底）
  *   - #fff / --accent ≥ 4.5（主按钮：全站 `background: var(--accent); color: #fff` 十余处）
  *   - --accent / --bg ≥ 3 · --accent-hover / --bg ≥ 3（当前态文字/焦点环）
+ *   - --accent-ink / --accent-light ≥ 4.5（R171-C4：淡底深字组合——选中 tab/徽标/确认弹窗图标等
+ *     「彩字压彩底」场景统一走 --accent-ink；此前 accent 本档在暗主题仅 3.28/3.40，属信息项裸奔）
  *   - --toast-fg / --toast-bg ≥ 4.5 · --toast-action / --toast-bg ≥ 4.5（R146 曾踩 1.98:1）
  *   - 四主题 --accent 互不相同（R156 解禁的硬底线：不许再"伪选择"）
  * 另打印**信息项**（不作判据）：accent/accent-light（同色系淡底深字固有上限 ~3.3:1）、
@@ -80,6 +82,7 @@ for (const t of THEMES) {
   const text = P(V['--text'], bg), t2 = P(V['--text-2'], bg), t3 = P(V['--text-3'], bg)
   const acc = P(V['--accent']), ah = P(V['--accent-hover'])
   const al = P(V['--accent-light'], s1)
+  const ink = P(V['--accent-ink'], s1)
   const tBg = P(V['--toast-bg']), tFg = P(V['--toast-fg']), tAc = P(V['--toast-action'])
   console.log(`\n-- ${t} --`)
   chk(t, 'text/bg', ratio(text, bg), 4.5)
@@ -90,6 +93,7 @@ for (const t of THEMES) {
   chk(t, '#fff/accent', ratio([255, 255, 255], acc), 4.5)
   chk(t, 'accent/bg', ratio(acc, bg), 3)
   chk(t, 'accent-hover/bg', ratio(ah, bg), 3)
+  chk(t, 'accent-ink/accent-light', ratio(ink, al), 4.5)
   chk(t, 'toast-fg/toast-bg', ratio(tFg, tBg), 4.5)
   chk(t, 'toast-action/toast-bg', ratio(tAc, tBg), 4.5)
   accents[t] = V['--accent']
@@ -108,5 +112,5 @@ console.log('\n-- accent 色相角差矩阵（信息项；"两两可辨"的最�
 for (let i = 0; i < hue.length; i++) for (let j = i + 1; j < hue.length; j++)
   console.log(`  ·  ${hue[i][0].padEnd(8)} vs ${hue[j][0].padEnd(8)} Δh=${dHue(hue[i][1], hue[j][1]).toFixed(1)}°`)
 
-console.log(`\n${fail === 0 ? '✓ theme-contrast 全绿（4 主题 · 10 项/主题 + 唯一性）' : `✗ theme-contrast 失败 ${fail} 项`}`)
+console.log(`\n${fail === 0 ? '✓ theme-contrast 全绿（4 主题 · 11 项/主题 + 唯一性）' : `✗ theme-contrast 失败 ${fail} 项`}`)
 process.exit(fail === 0 ? 0 : 1)

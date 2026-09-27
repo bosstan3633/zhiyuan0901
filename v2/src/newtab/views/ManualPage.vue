@@ -35,7 +35,7 @@ onMounted(() => { document.title = '使用手册 · 知源调度台' })
   <div class="mn-page">
     <header class="mn-head">
       <button class="mn-back" @click="router.push('/settings')"><Icon name="arrowright" :size="13" style="transform: rotate(180deg)" />返回设置</button>
-      <div class="mn-brand">📖 知源调度台 · 使用手册 <span class="mn-ver">V3.6.3</span></div>
+      <div class="mn-brand">📖 知源调度台 · 使用手册 <span class="mn-ver">V3.6.4</span></div>
       <div class="mn-spacer" />
       <button class="mn-dl" @click="downloadShare">⬇ 下载分享版</button>
     </header>
@@ -77,7 +77,7 @@ onMounted(() => { document.title = '使用手册 · 知源调度台' })
 .mn-part { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .08em; padding: 14px 10px 6px; }
 .mn-item { padding: 7px 10px; border-radius: var(--radius-xs); font-size: var(--fs-body); color: var(--text-2); cursor: pointer; transition: all var(--dur-fast); border-left: 2px solid transparent; }
 .mn-item:hover { background: var(--surface-3); color: var(--text); }
-.mn-item.active { color: var(--accent); background: var(--accent-light); border-left-color: var(--accent); font-weight: 600; }
+.mn-item.active { color: var(--accent-ink); background: var(--accent-light); border-left-color: var(--accent); font-weight: 600; }
 .mn-main { flex: 1; min-width: 0; max-width: 880px; }
 .mn-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 36px 44px; margin-bottom: 24px; scroll-margin-top: 76px; }
 .mn-sec-part { font-size: var(--fs-caption); font-weight: 700; color: var(--accent); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
