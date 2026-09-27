@@ -997,7 +997,7 @@
 // R148-P1a：显式实例名——纳入 KeepAlive（切模块免重挂载与免重算首屏）
 defineOptions({ name: 'GlobalSettingsView' })
 
-import { ref, reactive, computed, watch, watchEffect, onMounted, shallowRef } from 'vue'
+import { ref, reactive, computed, watch, watchEffect, onMounted, onUnmounted, shallowRef } from 'vue'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
@@ -1329,7 +1329,7 @@ import type { DirLike, TaskLike } from '@/shared/utils/reviewReport'
 // R172-T11：报告出口（落卡 / 导出 / 生成任务 / 跳转）整体抽进 composable，宿主只挂一行
 import { useDashboardReport } from '@/newtab/composables/useDashboardReport'
 import { readEventLog, curioCumulativeSince, countCurioCumulative, EVENT_LOG_CAP, type CardEvent } from '@/shared/utils/eventLog'
-import { readErrorLog } from '@/shared/utils/runtimeError'
+import { readErrorLog, subscribeErrorLog } from '@/shared/utils/runtimeError'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 // R156：主题「跟随系统」——导入界面偏好包时 ui.theme 可为 'auto'，落 data-theme 前统一解析
 import { resolveTheme } from '@/shared/utils/theme'
@@ -1822,7 +1822,8 @@ function panCardSub(r: ResourceCard): string {  const src = r.sourceType ? ({ of
 function onPanCardClick(r: ResourceCard) { togglePanCard(r.id) }
 function onPanCardDblClick(r: ResourceCard) { recordResourceOpen(gd.value, r); store.persistHot(); panDetail.value = r }
 watch(activePage, (p) => {
-  if (p === 'dashboard') refreshEventLog()
+  /** R173-1：进仪表盘重读一次错误日志 —— 原来只在 setup 读一次，会话里新崩的看不见 */
+  if (p === 'dashboard') { refreshEventLog(); refreshErrorCount() }
   if (p === 'panorama' && !panSelWs.value) {
     // R67-F3：默认选中资源台本体（原 workspaces[0] 是第一个策展台，右栏因此串台）
     const hubWs = panHubWss.value[0]
@@ -1835,6 +1836,9 @@ refreshEventLog()
 // ---- R48-A1：运行错误留痕（zy_error_log，TDZ 排查弹药） ----
 const errorLogCount = ref(0)
 async function refreshErrorCount() { errorLogCount.value = (await readErrorLog()).length }
+/** R173-1b：徽章跟落盘实时走 —— 同文档 hash 切换不触发 watch，只在换页重读会漏掉本会话新崩的错误 */
+const offErrLog = subscribeErrorLog((n) => { errorLogCount.value = n })
+onUnmounted(offErrLog)
 async function exportErrorLog() {
   const logs = await readErrorLog()
   if (!logs.length) { showToast('没有运行错误记录'); return }

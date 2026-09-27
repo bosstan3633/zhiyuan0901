@@ -17,6 +17,9 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import Modal from '@/shared/components/Modal.vue'
 import type { ReviewReport, ReviewSug } from '@/shared/ai/review'
 
+/** 默认执笔 = 目标管理专家（复盘这件事的视角）；换人只改行文视角，不改数字与结论 */
+const DEFAULT_PERSONA = 'goal-expert'
+
 const props = defineProps<{ open: boolean; report: ReviewReport | null }>()
 const emit = defineEmits<{
   close: []
@@ -31,6 +34,18 @@ const narrate = ref<'idle' | 'run' | 'done' | 'off'>('idle')
 const live = ref<{ insights: string[]; sugs: ReviewSug[] } | null>(null)
 let aborted = false
 
+/* ---------- R173-2：执笔角色 + 一次性提示词（沿用评审抽屉那套控件语义） ---------- */
+const personas = ref<{ id: string; name: string }[]>([])
+const personaId = ref(DEFAULT_PERSONA)
+const dirText = ref('')
+const personaName = computed(() => personas.value.find(p => p.id === personaId.value)?.name || '目标管理专家')
+
+async function loadPersonas(): Promise<void> {
+  if (personas.value.length) return
+  const sc = await import('@/shared/ai/scenarios')
+  personas.value = sc.allPersonas().map(p => ({ id: p.id, name: p.name }))
+}
+
 const insights = computed<string[]>(() => live.value?.insights || props.report?.insights || [])
 const sugs = computed<ReviewSug[]>(() => live.value?.sugs || props.report?.sugs || [])
 const isAi = computed(() => !!live.value)
@@ -42,12 +57,13 @@ async function runNarrate(): Promise<void> {
   live.value = null
   narrate.value = 'run'
   try {
+    await loadPersonas()
     const cfgMod = await import('@/shared/ai/config')
     await cfgMod.loadAiConfig()
     /** 就绪判据只认 `aiReady`（三字段齐才算已接入）——自己复制一遍口径必然与设置页漂移 */
     if (!cfgMod.aiReady.value) { narrate.value = 'off'; return }
     const { narrateReview } = await import('@/shared/ai/review')
-    const out = await narrateReview(rep, cfgMod.aiConfig.value)
+    const out = await narrateReview(rep, cfgMod.aiConfig.value, { personaId: personaId.value, directive: dirText.value })
     if (aborted) return
     if (!out) { narrate.value = 'idle'; return }
     live.value = out
@@ -68,14 +84,21 @@ onUnmounted(() => { aborted = true })
 
 <template>
   <Modal :open="open" title="AI 复盘 · 文本报告" width="min(760px, 94vw)" height="86vh" @close="emit('close')">
-    <template #title-extra>
-      <button class="dz-btn sm" title="按当前范围重新生成" @click="runNarrate">↻ 重新生成</button>
-    </template>
     <template #sub>
-      <span v-if="report">{{ report.meta }} · 执笔：<b>{{ report.personaName }}</b></span>
+      <span v-if="report">{{ report.meta }} · 执笔：<b>{{ personaName }}</b></span>
     </template>
 
     <div v-if="report" class="dz-rpt" :data-narrate="narrate" data-testid="review-report">
+      <div class="dz-rpt-ctl">
+        <label class="who">执笔角色
+          <select v-model="personaId" @change="runNarrate">
+            <option v-for="p in personas" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+        </label>
+        <input v-model="dirText" class="dir" placeholder="本轮想让它怎么写？（一次性指令：可改语气与角度，不改数字与结论）" @keydown.enter.prevent="runNarrate" />
+        <button class="dz-btn sm pri" :disabled="narrate === 'run'" title="按当前角色与提示词重新生成" @click="runNarrate">↻ 重新生成</button>
+      </div>
+
       <div class="dz-rpt-method">
         方法：<b>金字塔原理</b> —— 结论先行 → 以上统下 → 归类分组（MECE）→ 逻辑递进。
         <b>规则给事实，专家给判断</b>，不替你决策。
@@ -115,7 +138,7 @@ onUnmounted(() => { aborted = true })
           <button class="dz-btn sm ghost" @click="emit('task', s)">生成任务</button>
         </div>
       </div>
-      <div v-if="isAi" class="dz-rpt-tag">洞察与建议由「{{ report.personaName }}」执笔，结论与论据仍来自本地规则计算</div>
+      <div v-if="isAi" class="dz-rpt-tag">洞察与建议由「{{ personaName }}」执笔，结论与论据仍来自本地规则计算</div>
     </div>
     <div v-else class="dz-rpt-empty">本期还没有可复盘的数据。</div>
 

@@ -27,7 +27,9 @@ export const CLAIM = {
   steady: '方向没有被跑偏',
   output: '有实物产出',
   open: '开了口没闭合',
-  untouched: '主攻完全没被触碰'
+  untouched: '主攻完全没被触碰',
+  /** 零态：整期没有任何动作。不能套用「有在推进」——那是真机截图里 0 动作却写"有在推进"的根因 */
+  zero: '本期没有任何动作记录'
 } as const
 
 export interface ReviewArg { rel: string; title: string; ev: string }
@@ -119,6 +121,32 @@ export function buildReviewReport(ctx: ReportCtx): ReviewReport {
   const main = mainDirOf(obj.rows)
   const skew = obj.total > 0 && obj.rows.some(r => r.share > 0.45)
   const pg = main ? mainProgress(ctx.tasks, ctx.directions, main.id, rev.win) : { done: 0, doing: 0 }
+  /**
+   * 零态先分流（R173-3）：`acts === 0` 时"偏斜 / 停滞 / 有实物产出"这些判断全都不成立 ——
+   * 原来会写出「0 个活跃日…整体在使命射程内、有在推进」这种自相矛盾的句子。
+   * 闭环仍要成立：唯一主张 `CLAIM.zero` 同时出现在结论与论据的 `rel` 里。
+   */
+  if (!a.acts) {
+    return {
+      win: rev.win,
+      personaName: ctx.personaName || '目标管理专家',
+      claims: [CLAIM.zero],
+      lead: `本期 <b>${rev.win.s}</b> → <b>${rev.win.e}</b>（${rev.win.days} 天）里采集 <b>0</b>、调出 <b>0</b>、状态变更 <b>0</b>、推进 <b>0</b> —— <b>${CLAIM.zero}</b>。` +
+        `这<b>不是停滞，也不是偏斜</b>：没有任何动作可供判断，谈注意力分配为时过早。`,
+      args: [{
+        rel: `支撑「${CLAIM.zero}」`, title: '四类动作全部为零',
+        ev: `加权 <b>${a.W}</b> 分 · 活跃日 <b>${a.act}/${a.days}</b> · 入台 <b>${a.add}</b> 张 · 移出 <b>${a.del}</b> 张` +
+          `（若你这段时间确实在用别的工具做事，那是记录没进这里，不是你什么都没做）`
+      }],
+      insights: [
+        '这个区间的图是空的，它只说明一件事：<b>这段时间没有留下记录</b> —— 不能推出"你没做事"，也不能推出"你做得不好"。',
+        '热力图与概览带都从事件日志派生，<b>不补记就是空的</b>；要它有意义，先让日常动作进来。'
+      ],
+      sugs: [{ id: 'zero', title: '先收一张卡进来', detail: '把今天手边最该被记录的一件事采进来（资源 / 好奇 / 任务任一），下一期就有可比的第一格。' }],
+      facts: [0, rev.win.days, a.W, a.days, a.add, a.del],
+      meta: `本期范围 ${rev.win.s} → ${rev.win.e}（${rev.win.days} 天）· 本期无动作 · 偏离规则命中 0/8`
+    }
+  }
   const mainName = main?.name || '（还没有战略目标）'
   const pc = progressClaim(pg.done, pg.doing)
   const claim2 = skew ? CLAIM.skew : CLAIM.steady
@@ -192,11 +220,21 @@ function numbersOutside(text: string, facts: number[]): boolean {
   return false
 }
 
-/** AI 执笔：只重写洞察与建议；任何一环不成 ⇒ 返回 null，调用方留本地版 */
-export async function narrateReview(rep: ReviewReport, cfg: AiConfig): Promise<{ insights: string[]; sugs: ReviewSug[] } | null> {
+/**
+ * AI 执笔：只重写洞察与建议；任何一环不成 ⇒ 返回 null，调用方留本地版。
+ *
+ * R173-2：`personaId` 决定执笔视角（默认目标管理专家），`directive` 是用户本轮的一次性指令 ——
+ * 两者都**只影响行文与取舍**，不许碰数字与主张词（prompt 里明写，落地后仍走 `numbersOutside` 回查）。
+ */
+export interface NarrateOpts { personaId?: string; directive?: string }
+
+export async function narrateReview(rep: ReviewReport, cfg: AiConfig, opts: NarrateOpts = {}): Promise<{ insights: string[]; sugs: ReviewSug[] } | null> {
   if (!cfg.baseUrl.trim() || !cfg.apiKey.trim() || !cfg.model.trim()) return null
+  const pid = opts.personaId || 'goal-expert'
+  const persona = chainPersonaText(pid)
+  const dir = (opts.directive || '').trim()
   const msg: ChatMsg[] = [
-    { role: 'system', content: reviewNarrateSystem() + (chainPersonaText('goal-expert') ? `\n\n【执笔视角】${chainPersonaText('goal-expert')}` : '') },
+    { role: 'system', content: reviewNarrateSystem() + (persona ? `\n\n【执笔视角】${persona}` : '') },
     {
       role: 'user',
       content: [
@@ -204,6 +242,7 @@ export async function narrateReview(rep: ReviewReport, cfg: AiConfig): Promise<{
         `【结论（已定稿，不要改写）】${rep.lead.replace(/<[^>]+>/g, '')}`,
         `【论据（已定稿）】\n${rep.args.map((x, i) => `${i + 1}. ${x.title} —— ${x.rel}：${x.ev.replace(/<[^>]+>/g, '')}`).join('\n')}`,
         `【可用数字（只能用这些，不许新增或改动）】${Array.from(new Set(rep.facts)).join(' / ')}`,
+        ...(dir ? [`【用户本轮指令】${dir}\n（它可以改变语气、角度与条数，但不得改动数字、主张词或结论判断）`] : []),
         '请输出 JSON：{"insights":["…","…","…"],"suggestions":[{"id":"…","title":"…","detail":"…"}]}，各 3 条以内。'
       ].join('\n')
     }

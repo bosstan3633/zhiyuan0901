@@ -95,7 +95,7 @@ function codeOnly(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.6.5'";
+const VER_ANCHOR_LITERAL = "version: '3.6.6'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -696,8 +696,8 @@ check('R46-10/R49 手册同步：好奇心培育/任务调度命名 + 下钻明�
 // ============== 第四十八轮 · V2.21.3：R48 修复+详情页重设计（A-1 错误留痕 / A-2 检索竞态 / B-1 明细翻页 / B-2 双口径 / 树折叠 / 删除入口 / DetailSheet 重构） ==============
 console.log('【第四十八轮 R48：Bug 修复 + 详情页重设计 + 树美化】');
 check('R48-1 A-2 检索竞态修复：拼音补跑 mergeAppend 冻结顺序仅追加 + 点击按 data-id 解析（resolveResult）', () => { const s = read('/content/overlay-impl.ts'); return s.includes('mergeAppend') && s.includes('resolveResult') && s.includes('const hit = searchResults.find(r => String(r?.id || \'\') === id)') && s.includes('data-id='); });
-check('R48-2 A-1 运行错误留痕：runtimeError.ts（zy_error_log 滚动 50 条 + 去重）+ main.ts 最先 installRuntimeErrorCapture', () => { const s = read('/shared/utils/runtimeError.ts'); const m = read('/newtab/main.ts'); return s.includes('ERROR_LOG_KEY = K.ERROR_LOG') && s.includes('ERROR_LOG_CAP = 50') && s.includes('installRuntimeErrorCapture') && m.indexOf('installRuntimeErrorCapture') < m.indexOf('bootstrap()'); });
-check('R48-3 A-1 设置页错误弹药出口：⚠ 运行错误计数段 + exportErrorLog 导出含完整堆栈 txt', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes('exportErrorLog') && s.includes('readErrorLog') && s.includes('运行错误'); });
+check('R48-2 A-1 运行错误留痕：runtimeError.ts（zy_error_log 滚动 50 条 + 去重）+ main.ts 最先 installRuntimeErrorCapture', () => { const s = read('/shared/utils/runtimeError.ts'); const m = read('/newtab/main.ts'); return s.includes('ERROR_LOG_KEY = K.ERROR_LOG') && s.includes('ERROR_LOG_CAP = 50') && s.includes('installRuntimeErrorCapture') && m.indexOf('installRuntimeErrorCapture') < m.indexOf('bootstrap()') /* R173-1 重指带备案：原只核「装没装监听」。实测 Vue 边界 return false 后 window.error **不触发** ⇒ 渲染崩溃一条都不进日志、徽章恒 0；判据补「边界必须显式落盘」 */ && s.includes("source: 'error' | 'unhandledrejection' | 'render'") && s.includes('export function recordRuntimeError') && read('/newtab/App.vue').includes('recordRuntimeError(') && s.includes('export function subscribeErrorLog') /* R173-1b 带备案：同文档 hash 切换不触发 watch，只在换页重读会漏掉本会话新崩的错误（探针 A3 实测 1 条不入徽章）⇒ 必须订阅落盘变化 */ && read('/newtab/views/GlobalSettings.vue').includes('const offErrLog = subscribeErrorLog('); });
+check('R48-3 A-1 设置页错误弹药出口：⚠ 运行错误计数段 + exportErrorLog 导出含完整堆栈 txt', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes('exportErrorLog') && s.includes('readErrorLog') && s.includes('运行错误') /* R173-1 追加：常驻的「运行错误 0」会被读成"这里有报错" ⇒ 必须条件渲染；计数不能只在 setup 读一次 */ && s.includes("if (p === 'dashboard') { refreshEventLog(); refreshErrorCount() }") && read('/newtab/components/dashboard/DashboardOverview.vue').includes('v-if="errorCount > 0"'); });
 check('R48-4 B-1 明细抽屉翻页 20 条 + 搜索过滤（statPage/statSearch/statShown/gs-pager + dynPage/dynSearch/dynShown）', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes('const STAT_PAGE = 20') && s.includes('statShown') && s.includes('statGo') && s.includes('dynShown') && s.includes('dynGo') && s.includes('gs-pager') && s.includes('gs-drawer-search') && !s.includes('onStatScroll') && !s.includes('gs-ev-more'); });
 check('R48-5 B-2 双口径：CardBase.importedAt + mergeImport 导入打戳 + 今日/本周「导 N」徽标 + 明细 ⇪ 导入徽标（卡片字段派生同源）', () => { const m = read('/shared/models/index.ts'); const g = read('/newtab/views/GlobalSettings.vue'); return m.includes('importedAt?: number') && g.includes('importedAt: importedNow') && g.includes('todayImportCount') && g.includes('weekImportCount') && g.includes("e.action === 'import' ? '⇪ 导入'"); });
 check('R48-6 B-2 北极星双口径：FlatCard.importedAt + todayAddSub「含导入N」+ 明细行 ⇪ 导入徽标', () => { const s = read('/newtab/components/compass/NorthStarPanel.vue'); return s.includes('importedAt') && s.includes('含导入') && s.includes('ns-imp-badge'); });
@@ -5334,15 +5334,15 @@ check('R172-4 ★T4 复盘计算引擎（04-67 §6/§7.6）：四范围窗口 + 
 check('R172-5 ★T5 概览带（04-66 §4.2 可读性三层 / 04-67 F1~F6）：5 张存量 chip + 时间绑定（Q11：selDay 非空 ⇒ 截至那天的库容 + 当日增减 + bind 高亮）+ 人话总结（主数字=有效动作件数，加权分降副行）+ 参照系行（等长窗口环比 近30vs前30 / 近7vs前7 + P 分位 + 年度移出）+ 分数口径表 12 行', () => {
   const o = read('/newtab/components/dashboard/DashboardOverview.vue');
   const gs = read('/newtab/views/GlobalSettings.vue');
-  const ud = read('/newtab/components/dashboard/useDashboardStats.ts');
-  return o.includes('stockBoundTo(')                    // ★ 时间绑定走前缀和（不重扫全库）
+  const ud = read('/newtab/components/dashboard/useDashboardStats.ts'), css = read('/newtab/components/dashboard/dashboard.css');
+  return o.includes('dz-ov-info') && o.includes('dz-ov-tip') /* R173-5：说明改 hover，不再占整行 */ && css.includes(':focus-within .dz-ov-tip') /* hover-only 会把信息锁在鼠标后面，键盘 Tab 也要能看到 */ && css.includes('.dz-sec.dz-tip-open { overflow: visible; }') /* R173-5：悬停期间放开圆角裁切（`.dz-sec` 默认 overflow:hidden，浮层向下展开会被切掉） */ && /\.dz-ov-meta \{[^}]*flex: 1 1 100%/.test(css) && /\.dz-ov-meta \{[^}]*position: relative/.test(css) && !/\.dz-ov-info \{[^}]*position: relative/.test(css) /* R173-5 真机截图：指标行不再独占整行后 5 张 chip 被挤成 100px 竖列；浮层锚在**整行**上（锚药丸在窄屏会把 460px 浮层顶出左边界 388px） */ && o.includes('stockBoundTo(')                    // ★ 时间绑定走前缀和（不重扫全库）
     && o.includes('aggregateRange(')                    // 环比用区间聚合
     && o.includes('addDays(ref, -29)') && o.includes('addDays(ref, -59)')  // 等长窗口：近30 vs 前30
     && o.includes('addDays(ref, -6)') && o.includes('addDays(ref, -13)')
     && o.includes('W_ROWS')                             // 分数口径表 12 行（单一真源）
     && o.includes('dz-chip') && o.includes("'📇 资源卡'") && o.includes("'🔗 链接卡'")
     && o.includes('dz-ov-say') && o.includes('次有效动作')  // 人话总结
-    && o.includes('（内部量，见「⚖ 分数口径」）')            // 加权分降为副行
+    && o.includes('加权分是内部量') /* R173-5：括注挪进 title，屏上不占字 */            // 加权分降为副行
     && o.includes('bind: !!selDay')                      // 绑定态高亮
     // 数据桥（R164-2 增长门禁：聚合与选中态抽 useDashboardStats，不占视图行数）
     && ud.includes('buildDailyStats(data(), events())') && ud.includes('const selDay = ref<string | null>(null)')
@@ -5454,13 +5454,13 @@ check('R172-15 ★F30 论据③三态由证据决定（完成>0 → 有实物产
   const body = rv.slice(i, rv.indexOf('export function buildReviewReport', i));
   const doneBranch = body.slice(body.indexOf('if (done > 0)'), body.indexOf('if (doing > 0)'));
   return body.includes('if (done > 0)') && body.includes('if (doing > 0)') && doneBranch.includes('CLAIM.output')
-    && !/偏弱|没闭合|没被触碰/.test(doneBranch) && body.includes('claim: CLAIM.open') && body.includes('claim: CLAIM.untouched');
+    && !/偏弱|没闭合|没被触碰/.test(doneBranch) && body.includes('claim: CLAIM.open') && body.includes('claim: CLAIM.untouched') /* R173-3 零态（真机截图：0 动作却写"有在推进"）：整期无动作必须先分流，主张词换成「本期没有任何动作记录」 */ && rv.includes('if (!a.acts)') && rv.includes("zero: '本期没有任何动作记录'") && rv.includes('claims: [CLAIM.zero]');
 });
 check('R172-16 ★F28 四段文本 + 无金字塔图形：弹框按 结论→支撑论据→洞察→建议 出 4 个 h3（顺序即断言），运行态文案含「金字塔原理」，报告链两文件零 polygon / clip-path / 梯形 / 带宽 残留', () => {
   const m = RVM();
   const order = ['<h3>结论</h3>', '<h3>支撑论据</h3>', '<h3>洞察</h3>', '<h3>建议（按优先级）</h3>'].map(s => m.indexOf(s));
   return order.every(v => v >= 0) && order.every((v, k) => k === 0 || v > order[k - 1])
-    && has(m, ['组织本期内容：先核对结论与论据', '金字塔原理', 'class="lead"', 'class="rel"'])
+    && has(m, ['组织本期内容：先核对结论与论据', '金字塔原理', 'class="lead"', 'class="rel"', 'dz-rpt-ctl', 'personaId', 'directive: dirText.value']) /* R173-2：角色与一次性提示词必须真的进 build 消息 */
     && !/polygon|clip-path|梯形|带宽|pyramid/i.test(m) && !/polygon|clip-path|梯形|pyramid/i.test(RV());
 });
 check('R172-17 ★AI 只续写「洞察 / 建议」且数字回查：prompt 明令不许改动数字、投料给「可用数字」白名单与"已定稿"标注，输出越界即整段弃用留本地版（结论与论据不由模型改写）', () => {
@@ -5494,6 +5494,6 @@ check('R172-20 ★F31/F32 采纳出口是真的：落卡登记进全局撤销栈
     && pop.includes("tcForm.title = prefill?.title || ''") && pop.includes('tcSaved.value = false');
 });
 
-check('R172-21 ★F39 导出三件套：ExportMenu 三项（CSV / Markdown / PNG）且 v-if 不开即零节点、菜单右锚定不越视口右缘；复盘段与热力图段两处都挂上；PNG 走 canvas 自绘并现取当前主题令牌（不引 html2canvas：体积 + foreignObject 不吃外部样式表必然丢色）；CSV 出口全站并轨（抽屉那份不再自己 createObjectURL / 手写 BOM）', () => { const ex = codeOnly(read('/newtab/components/dashboard/ExportMenu.vue')); const css = read('/newtab/components/dashboard/dashboard.css'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hm = read('/newtab/components/dashboard/Heatmap.vue'); const dl = codeOnly(read('/newtab/components/dashboard/DashboardLogDrawer.vue')); const ev = codeOnly(read('/shared/utils/exportView.ts')); return has(ex, ["pick('csv')", "pick('md')", "pick('png')", 'v-if="open"']) && css.includes('.dz-exp {') && css.includes('right: 0') && has(rp, ['<ExportMenu @pick="onExport" />', 'tablesToCsv', 'sectionsToMd', 'pngBlobFromSpec']) && has(hm, ['<ExportMenu @pick="onExport" />', 'pngBlobFromSpec', 'tablesToCsv']) && dl.includes('tablesToCsv') && !dl.includes('URL.createObjectURL') && has(ev, ['getComputedStyle(document.documentElement)', "'--heat-5'", 'toBlob']); });
+check('R172-21 ★F39 导出三件套：ExportMenu 三项（CSV / Markdown / PNG）且 v-if 不开即零节点、菜单右锚定不越视口右缘；复盘段与热力图段两处都挂上；PNG 走 canvas 自绘并现取当前主题令牌（不引 html2canvas：体积 + foreignObject 不吃外部样式表必然丢色）；CSV 出口全站并轨（抽屉那份不再自己 createObjectURL / 手写 BOM）', () => { const ex = codeOnly(read('/newtab/components/dashboard/ExportMenu.vue')); const css = read('/newtab/components/dashboard/dashboard.css'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hm = read('/newtab/components/dashboard/Heatmap.vue'); const dl = codeOnly(read('/newtab/components/dashboard/DashboardLogDrawer.vue')); const ev = codeOnly(read('/shared/utils/exportView.ts')); return has(ex, ["pick('csv')", "pick('md')", "pick('png')", 'v-if="open"']) && css.includes('.dz-exp {') && css.includes('right: 0') && css.includes('repeat(12, minmax(0, 1fr))') /* R173-4：一行 12 月块 */ && css.includes('@media (max-width: 1279px) { .dz-wk { display: none; } }') /* R173-4b 带备案：星期行 7×9px 汉字 + 6×2px 缝 = 75px，月块窄于 75px 时每块横向溢出（1100 档实测 +15px）；1280 档月块 75.5px 是实测最小装得下的档 ⇒ 以下隐去（该档格子只剩 8px，日期仍在 tooltip 里） */ && has(rp, ['<ExportMenu @pick="onExport" />', 'tablesToCsv', 'sectionsToMd', 'pngBlobFromSpec']) && has(hm, ['<ExportMenu @pick="onExport" />', 'pngBlobFromSpec', 'tablesToCsv']) && dl.includes('tablesToCsv') && !dl.includes('URL.createObjectURL') && has(ev, ['getComputedStyle(document.documentElement)', "'--heat-5'", 'toBlob']); });
 console.log('回归结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

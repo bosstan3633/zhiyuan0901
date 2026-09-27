@@ -37,7 +37,7 @@
 .dz-ov-say { flex: none; width: 100%; border-top: 1px dashed var(--border); margin-top: var(--sp-2); padding-top: var(--sp-2); font-size: var(--fs-sub); color: var(--text-2); line-height: 1.8; }
 .dz-ov-say b { color: var(--text); font-weight: 700; }
 .dz-ov-say .hl { color: var(--heat-ink); font-weight: 700; }
-.dz-ov-meta { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; margin-top: var(--sp-2); font-size: var(--fs-caption); color: var(--text-3); }
+.dz-ov-meta { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; flex: 1 1 100%; position: relative; margin-top: var(--sp-2); font-size: var(--fs-caption); color: var(--text-3); }
 .dz-ov-meta .pill { border: 1px solid var(--border); border-radius: 99px; padding: 2px 9px; }
 .dz-ov-meta .pill .up { color: var(--success); font-weight: 700; }
 .dz-ov-meta .pill .dn { color: var(--danger); font-weight: 700; }
@@ -58,15 +58,20 @@
 .dz-sum .v small { font-size: var(--fs-sub); font-weight: 500; color: var(--text-3); margin-left: 4px; }
 .dz-sum .d { font-size: var(--fs-caption); color: var(--text-3); margin-top: 3px; line-height: 1.6; }
 .dz-sum .d b { color: var(--heat-ink); }
-.dz-months { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: var(--sp-4) var(--sp-3); }
+.dz-months { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--sp-3) 6px; }
 .dz-mb-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
-.dz-mb-h .m { font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); }
+.dz-mb-h .m { font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); }
 .dz-mb-h .s { font-size: var(--fs-micro); color: var(--text-4); }
-.dz-wk { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 3px; }
+.dz-wk { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 2px; }
+.dz-wk span:nth-child(2), .dz-wk span:nth-child(3), .dz-wk span:nth-child(5) { visibility: hidden; } /* 一行 12 块后星期位太挤：只留 一/四/日 定位，格序不变 */
 .dz-wk span { font-size: var(--fs-micro); color: var(--text-4); text-align: center; }
-.dz-g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+/* R173-4：星期行需要「7×9px 汉字 + 6×2px 缝」= 75px，月块窄于 75px 时每块横向溢出（1100 档实测热区 +15px）。
+   实测 1280 档月块 75.5px 是能装下的最小档 ⇒ 以下整行隐去：这一档格子本身只剩 8px、字母已不可读，
+   日期信息仍完整保留在每格的 tooltip 与「点格子看那一天」里。 */
+@media (max-width: 1279px) { .dz-wk { display: none; } }
+.dz-g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
 .dz-cell { aspect-ratio: 1; border-radius: 2px; background: var(--heat-0); cursor: pointer; transition: transform var(--dur-fast); border: 0; padding: 0; }
-.dz-cell:hover { transform: scale(1.22); }
+.dz-cell:hover { transform: scale(1.6); z-index: 2; position: relative; }
 /* R172-T13：月首偏移改由 `grid-column-start` 承担 ⇒ 不再渲染 .void 占位格（少 38 个"看着能点其实不能点"的假控件与 38 个节点） */
 .dz-cell.future { background: transparent; border: 1px dashed var(--border); cursor: default; }
 .dz-cell.future:hover { transform: none; }
@@ -286,3 +291,25 @@
 .dz-exp button { display: flex; align-items: center; gap: var(--sp-2); text-align: left; border: 0; background: transparent; color: var(--text); font-family: inherit; font-size: var(--fs-sub); padding: 7px 9px; border-radius: var(--radius-xs); cursor: pointer; }
 .dz-exp button:hover { background: var(--surface-2); color: var(--accent-ink); }
 .dz-exp button .hint { margin-left: auto; font-size: var(--fs-caption); color: var(--text-4); }
+
+/* ============ R173-5：概览带「说明」改悬停浮层（不折叠、不占行） ============
+   节点常驻 DOM（visibility 切换），因此视觉走查与断言仍能读到文案；
+   :focus-within 让键盘用户 Tab 进去也能看到 —— hover-only 会把信息锁在鼠标后面。 */
+/* 悬停期间放开裁切：`.dz-sec` 为圆角默认 overflow:hidden，浮层向下展开会被切掉（绑定日文案更长时必然越界） */
+.dz-sec.dz-tip-open { overflow: visible; }
+/* 浮层锚在**整行**（不是药丸）上：药丸在窄屏会落到行首，锚药丸会把 460px 浮层顶出左边界 */
+.dz-ov-info { font-size: var(--fs-caption); color: var(--text-3); cursor: help; border: 1px dashed var(--border-strong); border-radius: 99px; padding: 2px 9px; }
+.dz-ov-info:hover, .dz-ov-info:focus-within { color: var(--accent-ink); border-color: var(--accent); }
+.dz-ov-tip { position: absolute; top: calc(100% + 6px); right: 0; /* 相对 .dz-ov-meta（整行）*/ z-index: 24; width: min(460px, 78vw); padding: var(--sp-3) var(--sp-4); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow); opacity: 0; visibility: hidden; transition: opacity var(--dur-fast), visibility var(--dur-fast); text-align: left; font-weight: 400; }
+.dz-ov-info:hover .dz-ov-tip, .dz-ov-info:focus-within .dz-ov-tip { opacity: 1; visibility: visible; }
+.dz-ov-tip .dz-ov-say { font-size: var(--fs-sub); color: var(--text-2); line-height: 1.85; }
+.dz-ov-tip .dz-ov-say b { color: var(--text); font-weight: 700; }
+.dz-ov-tip .dz-ov-say .hl { color: var(--heat-ink); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .dz-ov-tip { transition: none; } }
+
+/* R173-2：AI 复盘弹框的「角色 + 一次性提示词」控制条 */
+.dz-rpt-ctl { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; padding-bottom: var(--sp-3); margin-bottom: var(--sp-3); border-bottom: 1px solid var(--border); }
+.dz-rpt-ctl .who { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-caption); color: var(--text-3); }
+.dz-rpt-ctl select, .dz-rpt-ctl .dir { font-family: inherit; font-size: var(--fs-sub); color: var(--text); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 4px 8px; }
+.dz-rpt-ctl .dir { flex: 1; min-width: 180px; }
+.dz-rpt-ctl select:focus, .dz-rpt-ctl .dir:focus { outline: none; border-color: var(--accent); box-shadow: var(--shadow-focus); }

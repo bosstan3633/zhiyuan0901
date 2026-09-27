@@ -36,6 +36,8 @@ const emit = defineEmits<{
 }>()
 
 const calibOn = ref(false)
+/** 说明浮层悬停才显（R173-5）；`.dz-sec` 为圆角裁切默认 `overflow:hidden` —— 不临时放开会把浮层裁掉半截 */
+const tipOn = ref(false)
 
 /* ---------- 窗口工具（本地，避免为一个 addDays 让引擎多导一个内部函数） ---------- */
 const pad2 = (n: number): string => String(n).padStart(2, '0')
@@ -100,7 +102,7 @@ const fmtPct = (p: number | null): string => (p === null ? '—' : `${p >= 0 ? '
 </script>
 
 <template>
-  <section class="dz-sec">
+  <section class="dz-sec" :class="{ 'dz-tip-open': tipOn }">
     <div class="dz-sec-h">
       <span class="dz-n">1</span><span class="dz-t">概览带</span><span class="dz-en">OVERVIEW</span>
       <span class="dz-sp"></span>
@@ -125,28 +127,32 @@ const fmtPct = (p: number | null): string => (p === null ? '—' : `${p >= 0 ? '
           </button>
         </div>
 
-        <div class="dz-ov-say">
-          <template v-if="say">
-            今年你在 <b>{{ say.act }} / {{ say.days }}</b> 天有动作（<b>{{ say.rate }}%</b>）。
-            最猛的一天是 <b>{{ say.peakLabel }}</b> —— 那天 <span class="hl">{{ say.peakLv }}</span>，
-            加权 {{ say.peakW }} 分。平均每个活跃日 ≈ <b>{{ say.perActive }} 次有效动作</b>，
-            {{ say.steady ? '节奏稳定。' : '存在明显断档。' }}
-            <template v-if="selDay">
-              <br><span style="color:var(--heat-ink)">▸ 已绑定到 <b>{{ selDay }}</b>：上方存量卡显示的是「截至那天」的库容，不再只是"此刻"。</span>
-            </template>
-          </template>
-          <template v-else>本年还没有可统计的动作 —— 去采集第一张卡，热力图就会亮起来。</template>
-        </div>
-
         <div class="dz-ov-meta">
-          <span class="pill">有效动作 <b>{{ meta.acts.toLocaleString() }}</b> 件 <span style="color:var(--text-4)">＝ 采集+调出+状态变更+推进</span></span>
-          <span class="pill">加权 <b>{{ meta.W }}</b> 分 <span style="color:var(--text-4)">（内部量，见「⚖ 分数口径」）</span></span>
+          <span class="pill" title="口径：采集 + 调出 + 状态变更 + 推进的条数">有效动作 <b>{{ meta.acts.toLocaleString() }}</b> 件</span>
+          <span class="pill" title="加权分是内部量，换算表见「⚖ 分数口径」">加权 <b>{{ meta.W }}</b> 分</span>
           <span class="pill" title="等长窗口：近 30 天 vs 前 30 天">近 30 天 vs 前 30 天 <span :class="(meta.p30 ?? 0) >= 0 ? 'up' : 'dn'">{{ fmtPct(meta.p30) }}</span></span>
           <span class="pill" title="等长窗口：近 7 天 vs 前 7 天">近 7 天 vs 前 7 天 <span :class="(meta.p7 ?? 0) >= 0 ? 'up' : 'dn'">{{ fmtPct(meta.p7) }}</span></span>
           <span class="pill">峰值日处于今年 <b>P{{ meta.peakPill }}</b></span>
           <button class="pill" title="查看今年移出明细" @click="emit('open-dyn', 'cum-del')">今年移出 <b>{{ meta.delTotal }}</b> 张</button>
+          <span class="dz-ov-info" tabindex="0" title="悬停看本期说明"
+            @mouseenter="tipOn = true" @mouseleave="tipOn = false"
+            @focusin="tipOn = true" @focusout="tipOn = false">ⓘ 说明
+            <span class="dz-ov-tip">
+              <span class="dz-ov-say">
+                <template v-if="say">
+                  今年你在 <b>{{ say.act }} / {{ say.days }}</b> 天有动作（<b>{{ say.rate }}%</b>）。
+                  最猛的一天是 <b>{{ say.peakLabel }}</b> —— 那天 <span class="hl">{{ say.peakLv }}</span>，
+                  加权 {{ say.peakW }} 分。平均每个活跃日 ≈ <b>{{ say.perActive }} 次有效动作</b>，
+                  {{ say.steady ? '节奏稳定。' : '存在明显断档。' }}
+                  <template v-if="selDay"><br><b>已绑定到 {{ selDay }}</b>：上方存量卡显示的是「截至那天」的库容，不再只是"此刻"。</template>
+                </template>
+                <template v-else>本年还没有可统计的动作 —— 去采集第一张卡，热力图就会亮起来。</template>
+              </span>
+            </span>
+          </span>
           <span class="dz-sp"></span>
-          <button class="pill dz-ov-err" title="导出运行错误堆栈（含 TDZ 类崩溃），供定位根因" @click="emit('export-error')">⚠ 运行错误 {{ errorCount }}</button>
+          <!-- 0 就不出现：常驻的「运行错误 0」会被读成"这里有报错"（R173-1 真机反馈） -->
+          <button v-if="errorCount > 0" class="pill dz-ov-err" title="导出运行错误堆栈（含 TDZ 类崩溃），供定位根因" @click="emit('export-error')">⚠ 运行错误 {{ errorCount }}</button>
         </div>
       </div>
 

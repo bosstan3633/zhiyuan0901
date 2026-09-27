@@ -115,14 +115,40 @@ const DRAWER_VIEWS = [
 const DASH_SCENES = [
   {
     id: 'dz-overview', name: '概览带',
-    judge: async (page) => page.evaluate(() => {
-      const sec = document.querySelector('.dz-ov')
-      const chips = document.querySelectorAll('.dz-ov .dz-chip').length
-      const say = !!document.querySelector('.dz-ov-say')
-      const meta = !!document.querySelector('.dz-ov-meta')
-      const calib = document.querySelectorAll('.dz-calib .cb .r').length
-      return { ok: !!sec && chips === 5 && say && meta && calib >= 10, txt: `chip=${chips}/5 人话=${say ? '有' : '无'} 参照系=${meta ? '有' : '无'} 口径表=${calib}行 段在=${!!sec}` }
-    })
+    /* R173-5：说明默认「藏」、悬停才「现」——判据两侧都实测（只查节点会放过"又摊开了"） */
+    judge: async (page) => {
+      const base = await page.evaluate(() => {
+        const sec = document.querySelector('.dz-ov')
+        const chips = document.querySelectorAll('.dz-ov .dz-chip').length
+        const tip = document.querySelector('.dz-ov-tip')
+        const vis = tip ? getComputedStyle(tip).visibility : 'missing'
+        const calib = document.querySelectorAll('.dz-calib .cb .r').length
+        const errPill = !!document.querySelector('.dz-ov-err')
+        /* R173-5：5 张存量卡必须同排（删掉人话块后 meta 行会抢整行，把 chip 挤成 1 列竖排） */
+        const chipRows = new Set([...document.querySelectorAll('.dz-ov .dz-chip')].map(c => Math.round(c.getBoundingClientRect().top))).size
+        return { sec: !!sec, chips, vis, calib, errPill, chipRows }
+      })
+      await page.locator('.dz-ov-info').first().hover().catch(() => {})
+      await page.waitForTimeout(260)
+      const shown = await page.evaluate(() => {
+        const tip = document.querySelector('.dz-ov-tip')
+        if (!tip || getComputedStyle(tip).visibility !== 'visible' || Number(getComputedStyle(tip).opacity) <= 0.5) return false
+        /* 裁剪检测：自 tip 向上找所有 overflow 非 visible 的祖先，浮层必须完整落在其内（`.dz-sec` 就是 overflow:hidden） */
+        const r = tip.getBoundingClientRect()
+        let clip = false
+        for (let n = tip.parentElement; n && n !== document.documentElement; n = n.parentElement) {
+          const cs = getComputedStyle(n)
+          if (cs.overflow === 'visible' && cs.overflowX === 'visible' && cs.overflowY === 'visible') continue
+          const b = n.getBoundingClientRect()
+          if (r.top < b.top - 1 || r.bottom > b.bottom + 1 || r.left < b.left - 1 || r.right > b.right + 1) { clip = true; break }
+        }
+        const inView = r.top >= 0 && r.left >= 0 && r.bottom <= window.innerHeight && r.right <= window.innerWidth
+        return !clip && inView
+      })
+      await page.mouse.move(4, 4)
+      await page.waitForTimeout(320) /* 等浮层落回静息态再截图，否则归档图停在半悬停态 */
+      return { ok: base.sec && base.chips === 5 && base.calib >= 10 && base.vis === 'hidden' && shown && !base.errPill && base.chipRows === 1, txt: `chip=${base.chips}/5 同排=${base.chipRows === 1 ? '是' : base.chipRows + '行'} 口径表=${base.calib}行 默认藏=${base.vis === 'hidden'} hover现且不被裁=${shown} 错误徽章0不现=${!base.errPill}` }
+    }
   },
   {
     id: 'dz-heatmap', name: '年度热力图',
@@ -131,7 +157,10 @@ const DASH_SCENES = [
       const legend = [...document.querySelectorAll('.dz-legend .lv')].map(x => x.textContent.trim())
       const bad = /\bL[0-5]\b/.test(document.querySelector('.dz-legend')?.textContent || '')
       const sum = document.querySelectorAll('.dz-sum .c').length
-      return { ok: cells >= 360 && legend.length === 6 && !bad && sum === 4, txt: `格=${cells}(应≥360) 图例=${legend.join('/')} 裸代号=${bad ? '有(红)' : '无'} 摘要卡=${sum}/4` }
+            const tops = [...document.querySelectorAll('.dz-mb-h')].map(h => Math.round(h.getBoundingClientRect().top))
+      const oneRow = tops.length === 12 && new Set(tops).size === 1
+      const overflow = Math.round(document.documentElement.scrollWidth - window.innerWidth)
+      return { ok: cells >= 360 && legend.length === 6 && !bad && sum === 4 && oneRow && overflow <= 1, txt: `格=${cells}(应≥360) 图例=${legend.join('/')} 裸代号=${bad ? '有(红)' : '无'} 摘要卡=${sum}/4 月块同行=${oneRow} 溢出=${overflow}px` }
     })
   },
   {

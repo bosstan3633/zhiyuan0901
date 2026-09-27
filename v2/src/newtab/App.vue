@@ -19,6 +19,7 @@ import AiMarkSymbol from '@/shared/components/AiMarkSymbol.vue'
 import logoUrl from '@/assets/logo.png'
 import { getBytesInUse, subscribeSaveError, clearLastSaveError, subscribeSaveState, cleanupLegacyKeys, type SaveState } from '@/shared/storage/repository'
 import { installGlobalUndo } from '@/shared/utils/undo'
+import { recordRuntimeError } from '@/shared/utils/runtimeError'
 import { emitOpenDrawer, onOpenDrawer, setPendingDrawer, onOpenPanel } from '@/shared/utils/bus'
 // R160（P1）：详情抽屉（10KB 源）同走按需挂载——首个打开事件到达时挂载，事件经 bus 暂存回放
 const ResourceDetailDrawer = defineAsyncComponent(() => import('./components/ResourceDetailDrawer.vue'))
@@ -36,6 +37,10 @@ function onSaveDotClick(): void {
 }
 onErrorCaptured((err) => {
   console.error('[知源] 渲染错误已拦截：', err)
+  /** ★必须显式落盘：`return false` 终止冒泡后 window.error 不会触发，
+   *  否则 TDZ / "x is not iterable" 这类渲染崩溃一条都进不了 zy_error_log，
+   *  仪表盘那枚「运行错误 N」徽章就永远显示 0（R173-1 实测断链）。 */
+  recordRuntimeError(err instanceof Error ? err.message : String(err), err instanceof Error ? err.stack || '' : '')
   renderError.value = (err instanceof Error ? err.message : String(err)) || '未知渲染错误'
   return false
 })

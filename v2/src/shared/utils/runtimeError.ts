@@ -15,7 +15,12 @@ export interface RuntimeErrorEntry {
   ts: number
   message: string
   stack: string
-  source: 'error' | 'unhandledrejection'
+  /**
+   * `render` = Vue 错误边界接住的渲染崩溃。**它不会触发 window.error**
+   * （`onErrorCaptured` 里 `return false` 已终止冒泡，Vue 只 console.error），
+   * 所以边界必须显式调 `recordRuntimeError` —— 否则 TDZ 那类崩溃恰好一条都不落盘（R173-1 修的就是这个断链）。
+   */
+  source: 'error' | 'unhandledrejection' | 'render'
   route: string
 }
 
@@ -37,6 +42,23 @@ export async function readErrorLog(): Promise<RuntimeErrorEntry[]> {
 
 export async function clearErrorLog(): Promise<void> {
   try { await chromeStore()?.set({ [ERROR_LOG_KEY]: [] }) } catch { /* 忽略 */ }
+}
+
+/**
+ * R173-1b：订阅错误日志条数变化（仪表盘「运行错误 N」徽章实时刷新用）。
+ * 原来徽章只在 setup 与「切进仪表盘面板」时各读一次 —— 同文档内的 hash 切换不触发 watch，
+ * 本会话新崩的错误要等到下一次换页才看得见（探针实测漏刷新）。返回取消订阅函数。
+ */
+export function subscribeErrorLog(fn: (count: number) => void): () => void {
+  const cs = chromeStore()
+  if (!cs?.onChanged) return () => { /* 无扩展存储的环境（单测/预览）静默降级 */ }
+  const handler = (ch: Record<string, chrome.storage.StorageChange>): void => {
+    const change = ch[ERROR_LOG_KEY]
+    if (!change) return
+    fn(Array.isArray(change.newValue) ? (change.newValue as RuntimeErrorEntry[]).length : 0)
+  }
+  cs.onChanged.addListener(handler)
+  return () => cs.onChanged.removeListener(handler)
 }
 
 let lastMessage = ''
@@ -62,6 +84,11 @@ function record(source: RuntimeErrorEntry['source'], message: string, stack: str
   let route = ''
   try { route = location.hash || location.href } catch { /* 忽略 */ }
   void pushEntry({ ts: now, message: String(message || '').slice(0, 500), stack: String(stack || '').slice(0, 4000), source, route })
+}
+
+/** 给 Vue 错误边界用：`onErrorCaptured` 里调这一条，渲染崩溃才会进 `zy_error_log` */
+export function recordRuntimeError(message: string, stack: string): void {
+  record('render', message, stack)
 }
 
 /** 尽早注册全局错误监听（main.ts 顶部调用） */
