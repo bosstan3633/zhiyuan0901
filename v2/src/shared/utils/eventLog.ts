@@ -25,8 +25,13 @@ export type CardKind = 'resource' | 'task' | 'curiosity'
  * R169-T1：`status` 一并覆盖**任务卡**（todo/doing/done）。原先 `flushCardEvents` 里那道
  * `kind === 'curiosity'` 硬门槛让"勾选完成一件事"这个**全站最高频的动作**在流水里零痕迹——
  * 用户的主诉正是"今日操作没进流水"。计数侧不受影响：`countCurioCumulative` 自己按 kind 过滤。
+ *
+ * R172-T1（04-67 §7.1）：新增 `call` —— **卡片被打开**（调出）。动机：此前"调出"只是
+ * `lastCalledAt >= 今日零点` **现算**的读数（CompassHome/MetricBar），**今天看得到、历史看不到**，
+ * 于是热力图/复盘的"调出维度"永远只有今天这一格。`call` 是**纯增量事件**（时间戳字段 diff 比不出
+ * "被打开"这件事），故不经 `flushCardEvents` 的快照 diff，由 `recordCallEvent` 在打开链上直记。
  */
-export type EventAction = 'create' | 'delete' | 'restore' | 'purge' | 'status'
+export type EventAction = 'create' | 'delete' | 'restore' | 'purge' | 'status' | 'call'
 /** 会记 status 事件的卡种（资源卡无 status 语义，不在此列） */
 const STATUS_TRACKED_KINDS: ReadonlySet<CardKind> = new Set(['curiosity', 'task'])
 
@@ -35,7 +40,7 @@ const STATUS_TRACKED_KINDS: ReadonlySet<CardKind> = new Set(['curiosity', 'task'
  * action 说成人话，各写一份必然漂移（前者原先就没有 status 这一档，落到界面上直接吐出英文原词）。
  */
 export const EVENT_ACT_LABEL: Record<EventAction, string> = {
-  create: '新增', delete: '删除', restore: '恢复', purge: '清理', status: '改状态'
+  create: '新增', delete: '删除', restore: '恢复', purge: '清理', status: '改状态', call: '调出'
 }
 
 export interface CardEvent {
@@ -46,6 +51,12 @@ export interface CardEvent {
   kind: CardKind | 'system'
   title: string
   cardId: string
+  /**
+   * R172-T2（04-67 §7.4）：状态变更的**目标态**（`todo/doing/done/shelf`）。
+   * 只有 `action === 'status'` 有值。动机：加权表里"好奇→已求证 2.5 / →已搁置 0.5 / 任务→已完成 3.0"
+   * 是按目标态分档的，而事件原先只记"改过状态"，权重只能取平均 ⇒ 分值失真。
+   */
+  to?: string
 }
 
 export const EVENT_LOG_KEY = K.EVENT_LOG
@@ -159,8 +170,8 @@ export function flushCardEvents(d: AppData): void {
    * 卡时间是这张卡真正被改动的时刻（保存链路就紧跟在编辑之后），拿它当事件时间是准的；
    * 缺 `updatedAt` 的老数据才回落 `now`。批量摘要事件（system）本身没有单卡时间，仍用 `now`。
    */
-  const mk = (action: EventAction, kind: CardKind | 'system', title: string, cardId: string, ts = now): CardEvent =>
-    ({ id: `${ts}-${++eid}`, ts, action, kind, title, cardId })
+  const mk = (action: EventAction, kind: CardKind | 'system', title: string, cardId: string, ts = now, to?: string): CardEvent =>
+    ({ id: `${ts}-${++eid}`, ts, action, kind, title, cardId, ...(to ? { to } : {}) })
 
   const creates: CardEvent[] = []
   const deletes: CardEvent[] = []
@@ -190,7 +201,8 @@ export function flushCardEvents(d: AppData): void {
         restores.push(mk('restore', kind, titleOf(kind, c), c.id, at))
       } else if (STATUS_TRACKED_KINDS.has(kind) && c.status && prev.status && prev.status !== c.status) {
         // 仅在「未删未恢复」的稳定态比对状态，避免与 delete/restore 事件同帧刷双条
-        statusChanges.push(mk('status', kind, titleOf(kind, c), c.id, at))
+        // R172-T2：带上目标态 `to`（加权按目标态分档，见 §7.2）
+        statusChanges.push(mk('status', kind, titleOf(kind, c), c.id, at, c.status))
       }
     }
   }
@@ -218,6 +230,21 @@ export function flushCardEvents(d: AppData): void {
   // 更新快照（已在扫描时同步建好）
   snapshot = nextSnap
   enqueue(events)
+}
+
+/* ================= R172-T1：调出（call）事件 —— 打开链单一记账 ================= */
+
+/**
+ * 记录一次「调出」——卡片被打开（详情 / 直达链接 / 搜索结果打开 / 关联打开）。
+ * 与 `stats.ts` 的 `recordResourceOpen` / `recordCardOpen` 成对调用（后者已内联调用本函数），
+ * 是热力图与复盘「调出维度」的唯一数据源。
+ *
+ * 不入快照 diff：`lastCalledAt` 是时间戳，diff 只能看出"卡变了"，看不出"被打开了一次"；
+ * 且同一张卡一天可被打开多次，diff 天然无法表达次数。
+ */
+let callSeq = 0
+export function recordCallEvent(kind: CardKind, title: string, cardId: string, ts = Date.now()): void {
+  enqueue([{ id: `${ts}-call-${++callSeq}`, ts, action: 'call', kind, title: title || '（无标题）', cardId }])
 }
 
 /* ================= R117（04-61 C3）：好奇心「探索累计」口径 ================= */

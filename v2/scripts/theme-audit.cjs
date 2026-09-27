@@ -105,6 +105,90 @@ const DRAWER_VIEWS = [
   },
 ]
 
+/**
+ * R172-T13（04-67 §8.2）：知源仪表盘七场景 —— 本轮主交付面就是这三段，
+ * 而 40 图里**一张仪表盘场景都没有**（只拍到 `#/settings` 外壳）。补 4 主题 × 7 = 28 张 ⇒ 68 图。
+ * 每张都在页内核**结构判据**（不是只看图）：概览带五 chip + 口径表、热力图格子数与语义图例、
+ * 日详情四列、共用下钻列表、复盘两栏的**实测列数**、AI 文本报告的四段顺序与「以上统下」闭环、
+ * 调度台新「📈 复盘」方向条。任一不过即非零退出。
+ */
+const DASH_SCENES = [
+  {
+    id: 'dz-overview', name: '概览带',
+    judge: async (page) => page.evaluate(() => {
+      const sec = document.querySelector('.dz-ov')
+      const chips = document.querySelectorAll('.dz-ov .dz-chip').length
+      const say = !!document.querySelector('.dz-ov-say')
+      const meta = !!document.querySelector('.dz-ov-meta')
+      const calib = document.querySelectorAll('.dz-calib .cb .r').length
+      return { ok: !!sec && chips === 5 && say && meta && calib >= 10, txt: `chip=${chips}/5 人话=${say ? '有' : '无'} 参照系=${meta ? '有' : '无'} 口径表=${calib}行 段在=${!!sec}` }
+    })
+  },
+  {
+    id: 'dz-heatmap', name: '年度热力图',
+    judge: async (page) => page.evaluate(() => {
+      const cells = document.querySelectorAll('.dz-cell').length
+      const legend = [...document.querySelectorAll('.dz-legend .lv')].map(x => x.textContent.trim())
+      const bad = /\bL[0-5]\b/.test(document.querySelector('.dz-legend')?.textContent || '')
+      const sum = document.querySelectorAll('.dz-sum .c').length
+      return { ok: cells >= 360 && legend.length === 6 && !bad && sum === 4, txt: `格=${cells}(应≥360) 图例=${legend.join('/')} 裸代号=${bad ? '有(红)' : '无'} 摘要卡=${sum}/4` }
+    })
+  },
+  {
+    id: 'dz-day', name: '日详情',
+    /* R170 备案的"补等重数一次"口径：慢机日首击可能还没回流到父级 selDay ⇒ 补点另一格，等够再判死（判据不放宽） */
+    act: async (page) => { await page.locator('.dz-cell:not([disabled])').first().click().catch(() => {}); await page.waitForTimeout(900); if (!(await page.locator('.dz-day').first().isVisible().catch(() => false))) { await page.locator('.dz-cell:not([disabled])').nth(3).click().catch(() => {}); await page.waitForTimeout(1500) } },
+    judge: async (page) => page.evaluate(() => {
+      const d = document.querySelector('.dz-day')
+      const cols = document.querySelectorAll('.dz-day .dz-mcols > .dz-mcol').length
+      const stock = !!document.querySelector('.dz-day') && /库容/.test(d ? d.textContent : '')
+      return { ok: !!d && cols >= 4 && stock, txt: `日详情=${!!d} 指标列=${cols}(应≥4) 库容条=${stock ? '有' : '无'}` }
+    })
+  },
+  {
+    id: 'dz-drill', name: '下钻卡片列表',
+    act: async (page) => { await page.locator('.dz-kpi').first().click().catch(() => {}); await page.waitForTimeout(700) },
+    judge: async (page) => page.evaluate(() => {
+      const h = document.querySelector('.dz-drill-h')
+      const rows = document.querySelectorAll('.dz-drill .dz-row').length
+      const empty = !!document.querySelector('.dz-drill-empty')
+      const txt = h ? h.textContent.replace(/\s+/g, '') : ''
+      return { ok: !!h && (/类卡片/.test(txt) || /共.*条记录/.test(txt) || empty), txt: `表头=${txt.slice(0, 26) || '无'} 行=${rows} 空态=${empty ? '有' : '无'}` }
+    })
+  },
+  {
+    id: 'dz-review', name: '复盘两栏',
+    judge: async (page) => page.evaluate(() => {
+      const g = document.querySelector('.dz-rev-grid')
+      const cols = g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0
+      const kpi = document.querySelectorAll('.dz-kpi').length
+      const rules = document.querySelectorAll('.dz-rule, .dz-rule.ok').length
+      const tabs = document.querySelectorAll('.dz-tabs button').length
+      return { ok: cols === 2 && kpi >= 6 && rules >= 1 && tabs === 4, txt: `实测列=${cols}(应2) KPI=${kpi} 规则=${rules} 范围=${tabs}/4` }
+    })
+  },
+  {
+    id: 'dz-report', name: 'AI文本报告',
+    act: async (page) => { await page.locator('button:has-text("AI 复盘")').first().click().catch(() => {}); await page.waitForTimeout(1500) },
+    judge: async (page) => page.evaluate(() => {
+      const r = document.querySelector('.dz-rpt')
+      const h3 = [...document.querySelectorAll('.dz-rpt h3')].map(x => x.textContent.trim())
+      const lead = document.querySelector('.dz-rpt .lead')?.textContent.replace(/\s+/g, '') || ''
+      const rels = [...document.querySelectorAll('.dz-rpt .arg .rel')].map(x => (x.textContent.match(/「([^」]+)」/) || [])[1]).filter(Boolean)
+      const miss = rels.filter(c => !lead.includes(c))
+      const shape = /polygon|clip-path/.test(r ? r.innerHTML : '')
+      return { ok: !!r && JSON.stringify(h3) === JSON.stringify(['结论', '支撑论据', '洞察', '建议（按优先级）']) && rels.length === 3 && miss.length === 0 && !shape, txt: `四段=${h3.join('/') || '无'} 主张=${rels.join('/')} 断链=${miss.join('/') || '0'} 图形=${shape ? '有(红)' : '无'}` }
+    })
+  },
+  {
+    id: 'dz-entry', name: '调度台复盘入口', hash: '#/',
+    judge: async (page) => page.evaluate(() => {
+      const b = [...document.querySelectorAll('button')].find(x => /复盘/.test(x.textContent))
+      return { ok: !!b && !document.querySelector('.dz-rpt'), txt: `入口=${b ? b.textContent.trim().replace(/\s+/g, '') : '无'} 报告未开=${!document.querySelector('.dz-rpt') ? '是' : '否'}` }
+    })
+  }
+]
+
 /** 浮层是否还挂着（两代壳都认：R161 起的中央弹窗 `.md-panel` + V3.2.1 及以前的右侧抽屉 `.drawer`）。 */
 async function overlayOpen(page) {
   return await page.locator('.md-panel, .drawer').first().isVisible().catch(() => false)
@@ -226,6 +310,7 @@ async function main() {
   const modalFail = []
   /** R169-T4：项目调度（归属一行 + 下半部定高两栏）判据 */
   const spotFail = []
+  const dashFail = [] /* R172-T13：仪表盘七场景 */
   for (const theme of themes) {
     // 上一主题遗留的浮层先清掉（best-effort）：不掩盖问题——下面每张弹窗图收尾都会判一次 Esc
     if (await overlayOpen(page)) {
@@ -398,13 +483,27 @@ async function main() {
     if (!spotOk) spotFail.push(`${theme}/spotlight：${JSON.stringify(spot)}（应：归属一行 + 四格同排 + 两栏滚动体高=${spot ? spot.wantH : '?'}px + 零编辑控件 + 收在面板内）`)
     await closeOverlays(page)
     await page.setViewportSize(VIEWPORT)
+    for (const sc of DASH_SCENES) {
+      await page.setViewportSize(VIEWPORT)
+      await page.goto(base + (sc.hash || '#/settings?page=dashboard'), { waitUntil: 'domcontentloaded' })
+      await page.waitForTimeout(2400)
+      if (sc.act) await sc.act(page)
+      await resetView(page)
+      const info = await sc.judge(page)
+      const f = path.join(outDir, `${theme}-${sc.id}.png`)
+      await page.screenshot({ path: f })
+      shots.push(f)
+      console.log(`  ${info.ok ? '✓' : '✗'} ${theme.padEnd(8)} ${sc.name.padEnd(6)} ${info.txt}   → ${path.basename(f)} (${Math.round(fs.statSync(f).size / 1024)}KB)`)
+      if (!info.ok) dashFail.push(`${theme}/${sc.id}：${info.txt}`)
+      await closeOverlays(page)
+    }
     console.log(`  主题 ${theme} 落盘（data-theme=${okTheme}）`)
   }
 
   await page.evaluate(async () => { await chrome.storage.local.remove(['zy_ai_v1']) }).catch(() => {})
   await ctx.close()
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
-  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length + 1 /* R169-T4：项目调度 spotlight */)
+  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length + 1 /* R169-T4：项目调度 spotlight */ + DASH_SCENES.length /* R172-T13：仪表盘七场景 ⇒ 40→68 */)
   if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情 + 1 项目调度)）`); process.exit(1) }
   if (escLeak.length) {
     console.log(`❌ Esc 未能关闭中央弹窗：${escLeak.join(' / ')}（台面图已受影响，请查 Modal.vue 的 watch immediate）`)
@@ -416,6 +515,10 @@ async function main() {
   }
   if (drawerFail.length) {
     console.log(`❌ 卡详情抽屉判据未过 ${drawerFail.length} 项：\n  ` + drawerFail.join('\n  '))
+    process.exit(1)
+  }
+  if (dashFail.length) {
+    console.log(`❌ 仪表盘场景判据未过 ${dashFail.length} 项：\n  ` + dashFail.join('\n  '))
     process.exit(1)
   }
   if (spotFail.length) {

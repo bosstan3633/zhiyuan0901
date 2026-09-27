@@ -1,0 +1,288 @@
+/**
+ * R172-T5/T6（04-66 §5 / §6.3）：知源仪表盘三段（概览带 · 热力图 + 日详情 · 复盘）样式。
+ *
+ * 纪律：只用 tokens.css 令牌，不硬编码色值；类名一律 `dz-` 前缀，避免与视图全局类冲突。
+ * 六档色阶走 `--heat-0..5`，文字压淡底走 `--heat-ink`（四主题 · theme-contrast 硬判据 ≥4.5）。
+ */
+
+/* ================= ① 概览带 ================= */
+.dz-sec { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: var(--sp-4); overflow: hidden; }
+.dz-sec-h { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.dz-sec-h .dz-n { width: 18px; height: 18px; flex: none; border-radius: var(--radius-xs); display: grid; place-items: center; background: var(--accent-light); color: var(--accent-ink); font-size: var(--fs-micro); font-weight: 700; }
+.dz-sec-h .dz-t { font-size: var(--fs-title); font-weight: 700; }
+.dz-sec-h .dz-en { font-size: var(--fs-micro); color: var(--text-4); letter-spacing: var(--tracking-sm); }
+.dz-sp { flex: 1; }
+.dz-sec-b { padding: var(--sp-4); }
+
+.dz-badge { font-size: var(--fs-caption); padding: 2px 8px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); }
+.dz-btn { border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); padding: 5px 11px; border-radius: var(--radius-sm); transition: all var(--dur-fast); }
+.dz-btn:hover { border-color: var(--accent); color: var(--accent); }
+.dz-btn.pri { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.dz-btn.pri:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
+.dz-btn.sm { padding: 3px 9px; font-size: var(--fs-caption); }
+.dz-btn.ghost { background: transparent; }
+.dz-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+
+.dz-ov { display: flex; gap: var(--sp-4); align-items: stretch; flex-wrap: wrap; }
+.dz-ov-stock { display: flex; gap: var(--sp-1); flex-wrap: wrap; flex: 1; min-width: 0; }
+.dz-chip { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 6px 10px; background: var(--surface-2); min-width: 96px; text-align: left; cursor: pointer; transition: border-color var(--dur-fast); }
+.dz-chip:hover { border-color: var(--accent); }
+.dz-chip .k { font-size: var(--fs-micro); color: var(--text-3); white-space: nowrap; }
+.dz-chip .v { font-size: var(--fs-headline); font-weight: 700; line-height: 1.15; margin-top: 1px; }
+.dz-chip .v small { font-size: var(--fs-caption); font-weight: 500; color: var(--text-3); margin-left: 3px; }
+.dz-chip .dl { font-size: var(--fs-micro); margin-top: 1px; color: var(--text-3); }
+.dz-chip .dl .up { color: var(--success); font-weight: 700; }
+.dz-chip .dl .dn { color: var(--danger); font-weight: 700; }
+.dz-chip.bind { border-color: var(--heat-ring); box-shadow: 0 0 0 1px var(--heat-ring) inset; }
+.dz-ov-say { flex: none; width: 100%; border-top: 1px dashed var(--border); margin-top: var(--sp-2); padding-top: var(--sp-2); font-size: var(--fs-sub); color: var(--text-2); line-height: 1.8; }
+.dz-ov-say b { color: var(--text); font-weight: 700; }
+.dz-ov-say .hl { color: var(--heat-ink); font-weight: 700; }
+.dz-ov-meta { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; margin-top: var(--sp-2); font-size: var(--fs-caption); color: var(--text-3); }
+.dz-ov-meta .pill { border: 1px solid var(--border); border-radius: 99px; padding: 2px 9px; }
+.dz-ov-meta .pill .up { color: var(--success); font-weight: 700; }
+.dz-ov-meta .pill .dn { color: var(--danger); font-weight: 700; }
+.dz-ov-err { color: var(--warning); border-color: var(--warning-border); cursor: pointer; }
+.dz-calib { margin-top: var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); display: none; }
+.dz-calib.on { display: block; }
+.dz-calib .ch { padding: var(--sp-2) var(--sp-3); font-size: var(--fs-caption); color: var(--text-3); border-bottom: 1px solid var(--border); }
+.dz-calib .cb { padding: var(--sp-3); display: grid; grid-template-columns: repeat(auto-fill, minmax(216px, 1fr)); gap: var(--sp-2) var(--sp-4); }
+.dz-calib .r { display: flex; align-items: baseline; gap: var(--sp-2); font-size: var(--fs-caption); }
+.dz-calib .r .w { margin-left: auto; font-weight: 700; color: var(--heat-ink); font-variant-numeric: tabular-nums; }
+.dz-calib .cf { padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--border); font-size: var(--fs-caption); color: var(--text-4); }
+
+/* ================= ② 热力图 ================= */
+.dz-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.dz-sum .c { border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--sp-3); background: var(--surface-2); }
+.dz-sum .k { font-size: var(--fs-caption); color: var(--text-3); }
+.dz-sum .v { font-size: var(--fs-display); font-weight: 700; line-height: 1.15; margin-top: 2px; }
+.dz-sum .v small { font-size: var(--fs-sub); font-weight: 500; color: var(--text-3); margin-left: 4px; }
+.dz-sum .d { font-size: var(--fs-caption); color: var(--text-3); margin-top: 3px; line-height: 1.6; }
+.dz-sum .d b { color: var(--heat-ink); }
+.dz-months { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: var(--sp-4) var(--sp-3); }
+.dz-mb-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+.dz-mb-h .m { font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); }
+.dz-mb-h .s { font-size: var(--fs-micro); color: var(--text-4); }
+.dz-wk { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 3px; }
+.dz-wk span { font-size: var(--fs-micro); color: var(--text-4); text-align: center; }
+.dz-g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.dz-cell { aspect-ratio: 1; border-radius: 2px; background: var(--heat-0); cursor: pointer; transition: transform var(--dur-fast); border: 0; padding: 0; }
+.dz-cell:hover { transform: scale(1.22); }
+/* R172-T13：月首偏移改由 `grid-column-start` 承担 ⇒ 不再渲染 .void 占位格（少 38 个"看着能点其实不能点"的假控件与 38 个节点） */
+.dz-cell.future { background: transparent; border: 1px dashed var(--border); cursor: default; }
+.dz-cell.future:hover { transform: none; }
+.dz-cell.l1 { background: var(--heat-1); }
+.dz-cell.l2 { background: var(--heat-2); }
+.dz-cell.l3 { background: var(--heat-3); }
+.dz-cell.l4 { background: var(--heat-4); }
+.dz-cell.l5 { background: var(--heat-5); }
+.dz-cell.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+.dz-cell.today { outline: 1.5px solid var(--text-2); outline-offset: 1px; }
+.dz-legend { display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-4); flex-wrap: wrap; font-size: var(--fs-caption); color: var(--text-3); }
+.dz-legend .lvs { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; }
+.dz-legend .lv { display: flex; align-items: center; gap: 4px; cursor: help; }
+.dz-legend .sw { width: 13px; height: 13px; border-radius: 3px; display: inline-block; flex: none; }
+.dz-legend .note { margin-left: auto; text-align: right; line-height: 1.6; }
+.dz-legend .note b { color: var(--heat-ink); }
+.dz-empty { padding: var(--sp-5); text-align: center; color: var(--text-4); font-size: var(--fs-sub); }
+
+/* ================= 日详情 ================= */
+.dz-day { margin: var(--sp-4) 0 0; border: 1px solid var(--border-strong); border-radius: var(--radius-lg); overflow: hidden; }
+.dz-day-head { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); background: var(--surface-2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.dz-day-head .d { font-size: var(--fs-title); font-weight: 700; }
+.dz-day-head .w { font-size: var(--fs-caption); color: var(--text-3); }
+.dz-badge.hi { background: var(--tag-info-bg); color: var(--tag-info-text); font-weight: 600; }
+.dz-hintline { padding: var(--sp-2) var(--sp-4); font-size: var(--fs-caption); color: var(--text-3); background: var(--heat-0); border-bottom: 1px solid var(--border); }
+.dz-hintline b { color: var(--heat-ink); }
+.dz-mcols { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-3); padding: var(--sp-4); }
+.dz-mcol { border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--sp-3); background: var(--surface); text-align: left; transition: all var(--dur-fast); display: flex; flex-direction: column; gap: 3px; cursor: pointer; }
+.dz-mcol:hover { border-color: var(--accent); }
+.dz-mcol.on { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 1px var(--accent) inset; }
+.dz-mcol .h { display: flex; align-items: center; gap: 5px; font-size: var(--fs-caption); color: var(--text-3); }
+.dz-mcol .h .dot { width: 6px; height: 6px; border-radius: 99px; background: var(--heat-4); flex: none; }
+.dz-mcol .h .go { margin-left: auto; color: var(--accent-ink); font-weight: 600; }
+.dz-mcol .n { font-size: var(--fs-display); font-weight: 700; line-height: 1.1; }
+.dz-mcol .n small { font-size: var(--fs-sub); font-weight: 500; color: var(--text-3); margin-left: 3px; }
+.dz-mcol .sc { font-size: var(--fs-caption); color: var(--heat-ink); font-weight: 600; }
+.dz-mcol .bd { font-size: var(--fs-caption); color: var(--text-4); line-height: 1.55; }
+.dz-dstock { margin: 0 var(--sp-4) var(--sp-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); padding: var(--sp-3); }
+.dz-dstock .t { font-size: var(--fs-caption); color: var(--text-3); margin-bottom: var(--sp-2); }
+.dz-dstock .t b { color: var(--text); }
+.dz-dstock .row { display: flex; gap: var(--sp-4); flex-wrap: wrap; font-size: var(--fs-caption); }
+.dz-dstock .it { display: flex; align-items: baseline; gap: 5px; }
+.dz-dstock .it .k { color: var(--text-3); }
+.dz-dstock .it .v { font-weight: 700; }
+.dz-dstock .it .up { color: var(--success); }
+.dz-dstock .it .dn { color: var(--danger); }
+.dz-tl { padding: 0 var(--sp-4) var(--sp-4); }
+.dz-tl .th { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-caption); color: var(--text-3); margin-bottom: var(--sp-2); letter-spacing: var(--tracking-sm); }
+.dz-tl .row { display: flex; align-items: center; gap: var(--sp-3); padding: 5px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); }
+.dz-tl .row:last-child { border-bottom: 0; }
+.dz-tl .tm { font-size: var(--fs-caption); color: var(--text-4); width: 38px; flex: none; font-variant-numeric: tabular-nums; }
+.dz-tl .ac { font-size: var(--fs-caption); color: var(--heat-ink); width: 88px; flex: none; }
+.dz-tl .ti { flex: 1; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dz-tl .pt { font-size: var(--fs-caption); color: var(--text-3); flex: none; font-variant-numeric: tabular-nums; }
+
+/* ================= 下钻卡片列表（共用） ================= */
+.dz-drill { margin: 0 var(--sp-4) var(--sp-4); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.dz-drill.plain { margin: 0; border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0; }
+.dz-drill-h { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: var(--fs-caption); color: var(--text-3); flex-wrap: wrap; }
+.dz-drill-h b { color: var(--text); font-size: var(--fs-sub); font-weight: 600; }
+.dz-drill-hint { color: var(--text-4); }
+.dz-drill-empty { padding: var(--sp-4); color: var(--text-3); font-size: var(--fs-sub); }
+.dz-row { display: flex; align-items: center; gap: var(--sp-3); padding: 8px var(--sp-3); border-bottom: 1px solid var(--border); cursor: pointer; }
+.dz-row:last-child { border-bottom: 0; }
+.dz-row:hover { background: var(--surface-2); }
+.dz-row-i { width: 20px; height: 20px; flex: none; border-radius: var(--radius-xs); display: grid; place-items: center; font-size: var(--fs-micro); background: var(--surface-3); border: 1px solid var(--border); }
+.dz-row-t { flex: 1; min-width: 0; font-size: var(--fs-sub); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dz-row-n { font-size: var(--fs-tiny); font-weight: 700; color: var(--heat-ink); background: var(--heat-0); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 0 5px; flex: none; }
+.dz-row-m { font-size: var(--fs-tiny); color: var(--text-4); flex: none; font-variant-numeric: tabular-nums; }
+.dz-row-p { font-size: var(--fs-caption); color: var(--heat-ink); font-weight: 600; flex: none; text-align: right; }
+.dz-row-g { color: var(--text-4); font-size: var(--fs-caption); flex: none; }
+
+/* ================= ③ 复盘段（R172-T7 · 紧凑两栏） ================= */
+.dz-tabs { display: flex; gap: var(--sp-1); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px; width: fit-content; }
+.dz-tabs button { border: 0; background: transparent; color: var(--text-2); font-size: var(--fs-sub); padding: 4px 11px; border-radius: var(--radius-xs); cursor: pointer; font-family: inherit; }
+.dz-tabs button.on { background: var(--accent); color: #fff; font-weight: 600; }
+.dz-ctl { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-3); font-size: var(--fs-caption); color: var(--text-3); }
+.dz-ctl select, .dz-ctl input[type=date] { border: 1px solid var(--border-strong); background: var(--surface); border-radius: var(--radius-xs); padding: 3px 7px; font-size: var(--fs-caption); color: var(--text); font-family: inherit; }
+.dz-ctl .pn { display: flex; align-items: center; border: 1px solid var(--border-strong); border-radius: var(--radius-xs); overflow: hidden; }
+.dz-ctl .pn button { width: 24px; height: 24px; border: 0; background: transparent; color: var(--text-2); cursor: pointer; }
+.dz-ctl .pn button:hover { background: var(--surface-2); color: var(--accent); }
+.dz-ctl .pn .v { padding: 0 var(--sp-2); font-weight: 600; color: var(--text); }
+.dz-ctl .hint { color: var(--text-4); }
+.dz-rev-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); margin-top: var(--sp-3); }
+@media (max-width: 1100px) { .dz-rev-grid { grid-template-columns: 1fr; } }
+.dz-rev-col { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.dz-blk { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--surface); }
+.dz-blk .bh { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); background: var(--surface-2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.dz-blk .bh .n { width: 16px; height: 16px; flex: none; border-radius: var(--radius-xs); display: grid; place-items: center; background: var(--accent-light); color: var(--accent-ink); font-size: var(--fs-micro); font-weight: 700; }
+.dz-blk .bh .t { font-size: var(--fs-sub); font-weight: 600; }
+.dz-blk .bh .sp { flex: 1; }
+.dz-blk .bh .meta { font-size: var(--fs-micro); color: var(--text-4); }
+.dz-blk .bb { padding: var(--sp-3); }
+.dz-badge.rl { background: var(--tag-info-bg); color: var(--tag-info-text); }
+.dz-badge.ok { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
+
+/* 可下钻 KPI 瓦片 */
+.dz-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); }
+.dz-kpi { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); background: var(--surface-2); text-align: left; transition: all var(--dur-fast); cursor: pointer; font-family: inherit; }
+.dz-kpi:hover { border-color: var(--accent); }
+.dz-kpi.on { border-color: var(--accent); background: var(--accent-light); }
+.dz-kpi .k { font-size: var(--fs-micro); color: var(--text-3); display: flex; align-items: center; gap: 4px; }
+.dz-kpi .k .go { margin-left: auto; color: var(--accent-ink); font-weight: 700; }
+.dz-kpi .v { font-size: var(--fs-headline); font-weight: 700; line-height: 1.15; margin-top: 1px; }
+.dz-kpi .v small { font-size: var(--fs-micro); font-weight: 500; color: var(--text-3); margin-left: 2px; }
+.dz-kpi .c { font-size: var(--fs-micro); color: var(--text-4); margin-top: 1px; }
+.dz-kpi .c .up { color: var(--success); font-weight: 700; }
+.dz-kpi .c .dn { color: var(--danger); font-weight: 700; }
+
+/* 节奏曲线 */
+.dz-trend .cap { display: flex; align-items: baseline; gap: var(--sp-2); font-size: var(--fs-caption); color: var(--text-3); margin-bottom: var(--sp-2); flex-wrap: wrap; }
+.dz-trend .cap .sp { flex: 1; }
+.dz-trend .cap b { color: var(--heat-ink); }
+
+/* 目标对账 */
+.dz-obj { display: flex; flex-direction: column; gap: var(--sp-2); }
+.dz-obj .o { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-caption); cursor: pointer; padding: 2px 4px; border-radius: var(--radius-xs); border: 0; background: transparent; text-align: left; font-family: inherit; width: 100%; }
+.dz-obj .o:hover { background: var(--surface-2); }
+.dz-obj .o.on { background: var(--accent-light); }
+.dz-obj .nm { width: 118px; flex: none; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dz-obj .nm .f { font-size: var(--fs-micro); color: var(--accent-ink); font-weight: 700; margin-right: 3px; }
+.dz-obj .bar { flex: 1; height: 8px; border-radius: 4px; background: var(--heat-0); overflow: hidden; }
+.dz-obj .bar i { display: block; height: 100%; background: var(--heat-4); border-radius: 4px; }
+.dz-obj .n { width: 82px; flex: none; text-align: right; color: var(--text-3); }
+.dz-obj .n b { color: var(--text); }
+.dz-obj .foot { margin-top: var(--sp-2); font-size: var(--fs-caption); color: var(--text-3); line-height: 1.7; }
+.dz-obj .foot b { color: var(--text); }
+.dz-obj .foot .warn { color: var(--warning); }
+
+/* 偏离预警 */
+.dz-rules { display: flex; flex-direction: column; gap: var(--sp-2); }
+.dz-rule { display: flex; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); cursor: pointer; transition: all var(--dur-fast); text-align: left; font-family: inherit; width: 100%; }
+.dz-rule:hover { border-color: var(--accent); }
+.dz-rule.on { border-color: var(--accent); background: var(--accent-light); }
+.dz-rule .rid { width: 24px; flex: none; font-size: var(--fs-caption); font-weight: 700; color: var(--heat-ink); }
+.dz-rule .rb { flex: 1; min-width: 0; }
+.dz-rule .rt { font-size: var(--fs-sub); font-weight: 600; }
+.dz-rule .rd { font-size: var(--fs-caption); color: var(--text-3); margin-top: 1px; line-height: 1.6; }
+.dz-rule.ok .rid { color: var(--success); }
+.dz-rule .go { color: var(--text-4); font-size: var(--fs-caption); flex: none; }
+.dz-rule-w { margin-top: var(--sp-2); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); padding: var(--sp-2) var(--sp-3); font-size: var(--fs-caption); color: var(--text-2); line-height: 1.8; }
+.dz-rule-w .k { color: var(--text-3); }
+.dz-rule-w b { color: var(--text); }
+.dz-proj { margin-top: var(--sp-2); border-top: 1px dashed var(--border); padding-top: var(--sp-2); }
+.dz-proj .kpis { grid-template-columns: repeat(2, 1fr); }
+
+/* ================= 全部记录抽屉（R172-T8） ================= */
+.dz-log { display: flex; flex-direction: column; gap: var(--sp-2); height: 100%; min-height: 0; }
+.dz-log-note { border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius-xs); background: var(--surface-2); padding: 6px 10px; font-size: var(--fs-caption); color: var(--text-2); }
+.dz-log-filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: var(--fs-caption); color: var(--text-3); }
+.dz-log-filters .fl { color: var(--text-3); }
+.dz-log-filters .sel { border: 1px solid var(--border-strong); background: var(--surface); border-radius: var(--radius-xs); padding: 4px 8px; font-size: var(--fs-caption); color: var(--text); font-family: inherit; }
+.dz-log-filters .tilde { color: var(--text-3); }
+.dz-log-count { font-size: var(--fs-caption); color: var(--text-3); }
+.dz-log-count b { color: var(--text); }
+.dz-log-count .ok { color: var(--success); margin-left: var(--sp-2); font-weight: 600; }
+.dz-log-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.dz-log-row { display: flex; align-items: center; gap: 10px; padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); cursor: pointer; }
+.dz-log-row:hover { border-color: var(--accent); background: var(--accent-light); }
+.dz-log-row .tm { font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; flex: none; }
+.dz-log-row .bd { font-size: var(--fs-caption); border-radius: 5px; padding: 2px 8px; font-weight: 600; flex: none; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); }
+.dz-log-row .bd.call { color: var(--tag-info-text); background: var(--tag-info-bg); }
+.dz-log-row .bd.status { color: var(--tag-warn-text); background: var(--tag-warn-bg); }
+.dz-log-row .kd { font-size: var(--fs-caption); color: var(--text-3); flex: none; }
+.dz-log-row .ti { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.dz-log-row .go { font-size: var(--fs-tiny); color: var(--text-3); flex: none; }
+.dz-log-detail { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 9px 13px; margin-top: -2px; font-size: var(--fs-sub); color: var(--text-2); line-height: 1.7; word-break: break-all; }
+.dz-log-empty { text-align: center; padding: 22px; color: var(--text-3); font-size: var(--fs-sub); }
+.dz-log-foot { border-top: 1px solid var(--border); padding-top: var(--sp-2); font-size: var(--fs-caption); color: var(--text-4); line-height: 1.7; }
+.dz-log-foot b { color: var(--text-2); }
+
+/* 仪表盘内的记录四入口（T9 承接 CompassHome 的四格） */
+.dz-recentry { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; font-size: var(--fs-caption); color: var(--text-3); }
+.dz-recentry .it { border: 1px solid var(--border); border-radius: 99px; padding: 3px 10px; background: var(--surface-2); color: var(--text-2); cursor: pointer; font-family: inherit; font-size: var(--fs-caption); transition: all var(--dur-fast); }
+.dz-recentry .it:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
+.dz-recentry .it b { color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* ============ R172-T11：AI 复盘文本报告（04-67 F27~F32） ============
+   四段纯文本层级：结论 → 支撑论据 → 洞察 → 建议。
+   ★ 这里没有任何"金字塔图形"（梯形 / 带宽 / 层块）—— 金字塔原理是行文结构，不是图（R2 的误解已在 F28 纠正）。 */
+.dz-rpt { padding: var(--sp-4) var(--sp-5) var(--sp-5); }
+.dz-rpt-method { font-size: var(--fs-sub); color: var(--text-3); line-height: 1.8; padding-bottom: var(--sp-3); border-bottom: 1px solid var(--border); }
+.dz-rpt-method b { color: var(--text-2); font-weight: 600; }
+.dz-rpt h3 { margin: var(--sp-4) 0 var(--sp-2); font-size: var(--fs-body); font-weight: 700; color: var(--text); letter-spacing: .01em; }
+.dz-rpt h3:first-of-type { margin-top: var(--sp-3); }
+.dz-rpt .lead { font-size: var(--fs-body); color: var(--text); background: var(--heat-0); border-left: 2px solid var(--heat-4); padding: var(--sp-3) var(--sp-4); line-height: 1.9; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.dz-rpt .lead b { font-weight: 700; }
+.dz-rpt .arg { display: flex; gap: var(--sp-3); margin-bottom: var(--sp-3) }
+.dz-rpt .arg .idx { width: 20px; height: 20px; flex: none; border-radius: 99px; background: var(--accent-light); color: var(--accent-2); font-size: var(--fs-caption); font-weight: 700; display: grid; place-items: center; }
+.dz-rpt .arg .bd { flex: 1; min-width: 0; }
+.dz-rpt .arg .ah { font-size: var(--fs-body); font-weight: 600; color: var(--text); }
+.dz-rpt .arg .ah .rel { font-size: var(--fs-caption); color: var(--text-4); font-weight: 400; margin-left: var(--sp-2); }
+.dz-rpt .arg .ev { margin-top: 3px; font-size: var(--fs-sub); color: var(--text-3); line-height: 1.85; }
+.dz-rpt .arg .ev b { color: var(--text); font-weight: 700; }
+.dz-rpt .ins { margin: 0; padding-left: var(--sp-5); }
+.dz-rpt .ins li { font-size: var(--fs-sub); color: var(--text-2); line-height: 1.9; margin-bottom: var(--sp-2); }
+.dz-rpt .ins li b { color: var(--text); font-weight: 700; }
+.dz-rpt .sug { display: flex; gap: var(--sp-3); align-items: flex-start; padding: var(--sp-3) 0; border-top: 1px dashed var(--border); }
+.dz-rpt .sug .sn { width: 20px; height: 20px; flex: none; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-size: var(--fs-caption); font-weight: 700; display: grid; place-items: center; }
+.dz-rpt .sug .sb { flex: 1; min-width: 0; }
+.dz-rpt .sug .st { font-size: var(--fs-body); font-weight: 600; color: var(--text); }
+.dz-rpt .sug .sd { font-size: var(--fs-sub); color: var(--text-3); line-height: 1.8; margin-top: 2px; }
+.dz-rpt .sug .sa { display: flex; flex-direction: column; gap: var(--sp-1); flex: none; }
+.dz-rpt-run { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-sub); color: var(--text-3); padding: var(--sp-3); background: var(--surface-2); border-radius: var(--radius-sm); }
+.dz-rpt-run .spin { width: 14px; height: 14px; flex: none; border: 2px solid var(--border-strong); border-top-color: var(--accent); border-radius: 99px; animation: dz-spin .9s linear infinite; }
+.dz-rpt-run b { color: var(--text-2); font-weight: 700; }
+.dz-rpt-note, .dz-rpt-tag { font-size: var(--fs-caption); color: var(--text-4); line-height: 1.8; margin-top: var(--sp-2); }
+.dz-rpt-empty { padding: var(--sp-6); text-align: center; font-size: var(--fs-sub); color: var(--text-4); }
+.dz-rpt-hint { font-size: var(--fs-caption); color: var(--text-4); }
+.dz-rpt-hint kbd { font-size: var(--fs-caption); padding: 1px 5px; border: 1px solid var(--border-strong); border-radius: var(--radius-xs); background: var(--surface-2); color: var(--text-2); }
+@media (prefers-reduced-motion: reduce) { .dz-rpt-run .spin { animation: none; } }
+@keyframes dz-spin { to { transform: rotate(360deg); } }
+
+/* R172-T12：导出三件套菜单（右锚定，1440/1280/1100 三档均不溢出视口右缘） */
+.dz-exp-wrap { position: relative; display: inline-flex; }
+.dz-exp { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; display: flex; flex-direction: column; gap: 2px; min-width: 208px; padding: 6px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); box-shadow: var(--shadow); }
+.dz-exp button { display: flex; align-items: center; gap: var(--sp-2); text-align: left; border: 0; background: transparent; color: var(--text); font-family: inherit; font-size: var(--fs-sub); padding: 7px 9px; border-radius: var(--radius-xs); cursor: pointer; }
+.dz-exp button:hover { background: var(--surface-2); color: var(--accent-ink); }
+.dz-exp button .hint { margin-left: auto; font-size: var(--fs-caption); color: var(--text-4); }

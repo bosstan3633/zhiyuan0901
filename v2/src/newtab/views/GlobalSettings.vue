@@ -25,87 +25,48 @@
       <div v-if="activePage === 'dashboard'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">📊 知源仪表盘 <span class="gs-dash-en">DASHBOARD</span></div>
-          <div class="gs-page-desc">数据总览 · 操作有痕 · 一键导出核对（本页为设置默认首屏）</div>
+          <div class="gs-page-desc">数据总览 · 行为有痕 · 复盘有据 —— 这一年我是怎么走的（概览带 · 年度热力图 · 复盘）</div>
         </div>
 
-        <!-- ① 核心指标 5 卡 -->
-        <div class="gs-dash-stats">
-          <div class="gs-dash-stat" @click="openStatDrawer('all')">
-            <div class="gs-ds-label">总卡片</div>
-            <div class="gs-ds-value">{{ totalCards }}<span class="gs-ds-today" v-if="statTodayAdd">今日 +{{ statTodayAdd }}</span></div>
-          </div>
-          <div class="gs-dash-stat" @click="openStatDrawer('resource')">
-            <div class="gs-ds-label">📇 资源卡</div>
-            <div class="gs-ds-value">{{ resLiveCount }}<span class="gs-ds-today" v-if="statTodayRes">+{{ statTodayRes }}</span></div>
-          </div>
-          <div class="gs-dash-stat" @click="openStatDrawer('task')">
-            <div class="gs-ds-label">✅ 任务卡</div>
-            <div class="gs-ds-value">{{ taskLiveCount }}<span class="gs-ds-today" v-if="statTodayTask">+{{ statTodayTask }}</span></div>
-          </div>
-          <div class="gs-dash-stat" @click="openStatDrawer('curiosity')">
-            <!-- R117（04-61 C3）：好奇心卡指标改**累计口径**——采集 + 状态变更 + 删除（本版起算）。
-                 存量与今日增量降为副行信息（原来主数就是存量，看不出「探索了多少次」）。 -->
-            <div class="gs-ds-label">💡 好奇心卡 · 探索累计</div>
-            <div class="gs-ds-value">{{ curioCumulative }}<span class="gs-ds-sub" title="累计 = 采集 + 状态变更 + 删除（本版起算）· 在库为当前未删除张数">在库 {{ curioLiveCount }}<template v-if="statTodayCurio"> · 今日 +{{ statTodayCurio }}</template></span></div>
-          </div>
-          <div class="gs-dash-stat" @click="openStatDrawer('link')">
-            <div class="gs-ds-label">🔗 链接卡片</div>
-            <div class="gs-ds-value">{{ linkCardCount }}</div>
-            <div class="gs-ds-sub">跨全部台面</div>
-          </div>
-        </div>
+        <!-- R172-T5：① 概览带（存量快照 + ★时间绑定 + 人话总结 + 参照系行 + 分数口径表）
+             取代原「5 张核心指标卡 + 动态条」—— 存量（库里有什么）与流量（我做了什么）合成一条带，
+             可读性三层（人话主数字 / 语义档位 / 参照系）见 04-66 §4.2 -->
+        <DashboardOverview
+          :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"
+          :live-link="linkCardCount" :error-count="errorLogCount"
+          @clear-day="dashSelDay = null"
+          @open-cards="onDashOpenCards" @open-dyn="onDashOpenDyn" @export-error="exportErrorLog" />
 
-        <!-- ② 动态条（可点击 → 抽屉明细，交互对齐北极星） -->
-        <div class="gs-dash-dynamic">
-          <div class="gs-dd-seg" @click="openDynDrawer('today-add')">今日 <b class="up">+{{ todayAddCount }}</b><b v-if="todayImportCount" class="up gs-dd-imp" :title="`其中 ${todayImportCount} 张来自导入（继承原创建时间）`">导{{ todayImportCount }}</b> / <b class="down">−{{ todayDelCount }}</b></div>
-          <div class="gs-dd-sep">│</div>
-          <div class="gs-dd-seg" @click="openDynDrawer('week-add')">本周 <b class="up">+{{ weekAddCount }}</b><b v-if="weekImportCount" class="up gs-dd-imp" :title="`其中 ${weekImportCount} 张来自导入（继承原创建时间）`">导{{ weekImportCount }}</b> / <b class="down">−{{ weekDelCount }}</b></div>
-          <div class="gs-dd-sep">│</div>
-          <div class="gs-dd-seg" @click="openDynDrawer('cum-del')">累计删除 <b>{{ cumDelCount }}</b></div>
-          <div class="gs-dd-sep" v-if="errorLogCount">│</div>
-          <!-- R48-A1：运行错误留痕入口（TDZ 排查弹药，一键导出堆栈） -->
-          <div v-if="errorLogCount" class="gs-dd-seg gs-dd-err" title="点击导出运行错误堆栈（含 TDZ 类崩溃），供定位根因" @click="exportErrorLog">⚠ 运行错误 <b class="down">{{ errorLogCount }}</b></div>
-          <button class="gs-btn gs-btn-primary gs-dd-export" @click="exportEventsCsv">⬇ 导出 CSV（按筛选）</button>
-        </div>
+        <!-- R172-T6：② 年度热力图 + 日详情（点格 → 那天做了什么 / 库变成了什么样 / 原始流水） -->
+        <Heatmap
+          :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"
+          :events="timelineEvents" :live-link="linkCardCount"
+          @update:year="dashYear = $event" @update:sel-day="dashSelDay = $event" @open-log="onDashOpenLog" />
 
-        <!-- ③ 操作记录时间线 -->
+        <!-- R172-T7：③ 复盘段（紧凑两栏：左＝画像摘要 + 节奏曲线｜右＝目标对账 + 偏离预警；三类可下钻） -->
+        <ReviewPanel
+          :stats="dashStats" :events="timelineEvents" :data="gd"
+          :directions="dashDirections" :tasks="dashTasks"
+          @save-report="onReportSave" @report-task="onReportTask" @report-goto="onReportGoto" @report-export="onReportExport" />
+
+        <!-- R172-T8/T9：记录能力新居所 —— 四类记录入口（承接调度台旧四格 + 今日记录抽屉）+ 全量抽屉 -->
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">🕘 操作记录</span><span class="gs-card-desc">类型 × 动作 × 时间 三维筛选 · 点击行展开详情 · CSV 按当前筛选导出</span></div>
+          <div class="gs-card-header"><span class="gs-card-title">🕘 操作记录</span><span class="gs-card-desc">四类记录入口 · 抽屉内三维筛选（类型 × 动作 × 时间）+ CSV 导出 + 容量提示</span></div>
           <div class="gs-card-body">
-            <div class="gs-ev-filters">
-              <span class="gs-ev-fl">类型</span>
-              <select class="gs-select" v-model="evKind">
-                <option value="all">全部</option><option value="resource">资源</option><option value="task">任务</option><option value="curiosity">好奇</option>
-              </select>
-              <span class="gs-ev-fl">动作</span>
-              <select class="gs-select" v-model="evAction">
-                <option value="all">全部</option><option value="create">新增</option><option value="delete">删除</option><option value="restore">恢复</option><option value="purge">永久删除</option><option value="status">状态变更</option>
-              </select>
-              <span class="gs-ev-fl">时间</span>
-              <input type="date" class="gs-select gs-ev-date" v-model="evFrom" />
-              <span class="gs-ev-tilde">~</span>
-              <input type="date" class="gs-select gs-ev-date" v-model="evTo" />
-              <span class="gs-ev-count">{{ filteredEvents.length }} 条</span>
+            <div class="dz-recentry">
+              <button class="it" title="今日入台明细" @click="openLog('in')">⬇ 今日入台 <b>{{ todayAddCount }}</b></button>
+              <button class="it" title="今日移出明细" @click="openLog('out')">⬆ 今日移出 <b>{{ todayDelCount }}</b></button>
+              <button class="it" title="今日调出明细" @click="openLog('called')">↗ 今日调出 <b>{{ todayCalledCount }}</b></button>
+              <button class="it" title="写入记录（全量）" @click="openLog('log')">✎ 写入记录 <b>{{ eventLog.length }}</b></button>
+              <span class="dz-sp" />
+              <button class="dz-btn sm pri" @click="openLog('log')">打开全部记录 ›</button>
             </div>
-            <div class="gs-ev-list">
-              <template v-for="e in filteredEvents.slice(0, 200)" :key="e.id">
-                <div class="gs-ev-row" @click="expandedEventId = expandedEventId === e.id ? '' : e.id">
-                  <span class="gs-ev-time">{{ fmtEventTime(e.ts) }}</span>
-                  <span class="gs-ev-badge" :class="e.action">{{ eventActionLabel(e.action) }}</span>
-                  <span class="gs-ev-kind">{{ eventKindLabel(e.kind) }}</span>
-                  <span class="gs-ev-title">{{ e.title }}</span>
-                  <span class="gs-ev-go">{{ expandedEventId === e.id ? '▾' : '▸' }}</span>
-                </div>
-                <div v-if="expandedEventId === e.id" class="gs-ev-detail">
-                  <div v-for="line in eventDetailLines(e)" :key="line" class="gs-ev-dl">{{ line }}</div>
-                </div>
-              </template>
-              <div v-if="!filteredEvents.length" class="gs-ev-empty">当前筛选下没有操作记录</div>
-              <div v-if="filteredEvents.length > 200" class="gs-ev-empty">仅显示最近 200 条 · 导出 CSV 可获得完整筛选结果</div>
-            </div>
-            <div class="gs-field-hint">💡 日志容量 {{ eventLog.length }} / 5000 条滚动保留（含恢复与永久删除）；老数据无日志时自动回退为卡片时间派生。导出为 UTF-8+BOM CSV，可直接导入 Airtable。</div>
+            <div class="gs-field-hint">💡 日详情点某天 →「查看全部记录 ›」会按该日预筛此抽屉；日志容量上限 {{ EVENT_LOG_CAP }} 条滚动保留（含恢复与永久删除），老数据无日志时自动回退为卡片时间派生。</div>
           </div>
         </div>
+
+        <!-- R172-T8：全量记录抽屉（记录能力的新居所；数据由宿主以 prop 传入，组件不碰 store） -->
+        <DashboardLogDrawer :open="logOpen" :events="timelineEvents" :data="gd" :preset="logPreset" @close="logOpen = false" />
 
         <!-- 核心指标下钻抽屉（R48-B1：搜索 + 翻页 20 条；R51-B7 列表撑满抽屉消除下方空白） -->
         <Drawer :open="!!statDrawer" :title="statDrawerTitle" width="460px" @close="statDrawer = ''">
@@ -1357,7 +1318,17 @@ function onLcLocate(id: string, kind: LifecycleCard['kind']) {
 // 第卌四轮 T-03/T-06/T-07：知源仪表盘（核心指标 + 动态条 + 操作记录 + CSV）
 // ============================================================
 import Drawer from '@/shared/components/Drawer.vue'
-import { readEventLog, curioCumulativeSince, countCurioCumulative, type CardEvent } from '@/shared/utils/eventLog'
+// R172-T5/T6：仪表盘三段（① 概览带 · ② 年度热力图 + 日详情）—— 数据桥 useDashboardStats 收口聚合与选中态
+import DashboardOverview from '@/newtab/components/dashboard/DashboardOverview.vue'
+import Heatmap from '@/newtab/components/dashboard/Heatmap.vue'
+import ReviewPanel from '@/newtab/components/dashboard/ReviewPanel.vue'
+// R172-T8：全量记录抽屉（承接今日记录四格 + 日详情「查看全部记录 ›」）
+import DashboardLogDrawer, { type LogPreset } from '@/newtab/components/dashboard/DashboardLogDrawer.vue'
+import { useDashboardStats } from '@/newtab/components/dashboard/useDashboardStats'
+import type { DirLike, TaskLike } from '@/shared/utils/reviewReport'
+// R172-T11：报告出口（落卡 / 导出 / 生成任务 / 跳转）整体抽进 composable，宿主只挂一行
+import { useDashboardReport } from '@/newtab/composables/useDashboardReport'
+import { readEventLog, curioCumulativeSince, countCurioCumulative, EVENT_LOG_CAP, type CardEvent } from '@/shared/utils/eventLog'
 import { readErrorLog } from '@/shared/utils/runtimeError'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 // R156：主题「跟随系统」——导入界面偏好包时 ui.theme 可为 'auto'，落 data-theme 前统一解析
@@ -1398,12 +1369,10 @@ const statTodayCurio = computed(() => gFlat.value.filter(x => x.kind === 'curios
 // ---- 操作记录：事件日志优先，老数据无日志回退卡片时间派生 ----
 const eventLog = shallowRef<CardEvent[]>([]) // R131-C5：整组替换、只读消费 → shallowRef（5000 条不再逐个建 Proxy）
 const logEmpty = ref(true)
-const expandedEventId = ref('')
 const cumDelCount = ref(0)
-const evKind = ref<'all' | 'resource' | 'task' | 'curiosity'>('all')
-const evAction = ref<'all' | 'create' | 'delete' | 'restore' | 'purge' | 'status'>('all')
-const evFrom = ref('')
-const evTo = ref('')
+/** R172-T8：全量记录抽屉（四类记录入口 / 日详情预筛共用同一条打开链） */
+const logOpen = ref(false)
+const logPreset = ref<LogPreset>({ kind: 'all', action: 'all', from: '', to: '' })
 /** R117（04-61 C3）：好奇心「探索累计」——采集 + 状态变更 + 删除，**本版起算**（基线首次运行落盘） */
 const curioCumSince = ref(0)
 const curioCumulative = computed(() =>
@@ -1428,18 +1397,62 @@ const derivedEvents = computed<CardEvent[]>(() => {
   return out.sort((a, b) => b.ts - a.ts)
 })
 const timelineEvents = computed<CardEvent[]>(() => (logEmpty.value ? derivedEvents.value : eventLog.value))
-const filteredEvents = computed<CardEvent[]>(() => {
-  const from = evFrom.value ? new Date(evFrom.value + 'T00:00:00').getTime() : 0
-  const to = evTo.value ? new Date(evTo.value + 'T23:59:59').getTime() : Infinity
-  return timelineEvents.value.filter(e => {
-    if (evKind.value !== 'all' && e.kind !== evKind.value && e.kind !== 'system') return false
-    if (evAction.value !== 'all' && e.action !== evAction.value) return false
-    if (e.ts < from || e.ts > to) return false
-    return true
-  })
-})
+/** R172-T9：今日调出（旧调度台 ↗ 四格之一）—— 在仪表盘内以 `call` 事件计数，历史口径与 T1 记账一致 */
+const todayCalledCount = computed(() => timelineEvents.value.filter(e => e.action === 'call' && e.ts >= gStartOfToday).length)
 function eventActionLabel(a: CardEvent['action']): string {
-  return a === 'create' ? '+ 新增' : a === 'delete' ? '− 删除' : a === 'restore' ? '↩ 恢复' : a === 'status' ? '◐ 状态变更' : '✕ 永久删除'
+  return a === 'create' ? '+ 新增' : a === 'call' ? '↗ 调出' : a === 'delete' ? '− 删除' : a === 'restore' ? '↩ 恢复' : a === 'status' ? '◐ 状态变更' : '✕ 永久删除'
+}
+
+/* ---------- R172-T5/T6：知源仪表盘三段（① 概览带 + ② 年度热力图 + 日详情） ---------- */
+const dash = useDashboardStats(
+  () => gd.value,
+  () => timelineEvents.value,
+  () => ({ res: gResLive.value.length, task: gTaskLive.value.length, curio: gCurioLive.value.length })
+)
+const dashYear = dash.year
+const dashSelDay = dash.selDay
+const dashStats = dash.stats
+/**
+ * R172-T7：复盘段只吃 props（不碰 store）。方向对账需要「方向树 × 任务归属」两个只读切片：
+ *  · `focused` 取**该方向下任一项目是主攻**（模型里主攻挂在 `Project.isFocused`，方向自身无该字段）
+ *  · 任务只带对账所需字段（projectId / createdAt / completedAt / deletedAt / status），不搬全量对象
+ */
+const dashDirections = computed<DirLike[]>(() => (gd.value.compass?.directions || []).map(d => ({
+  id: d.id, name: d.name,
+  focused: (d.projects || []).some(p => p.isFocused),
+  projects: (d.projects || []).map(p => ({ id: p.id, name: p.name }))
+})))
+const dashTasks = computed<TaskLike[]>(() => (gd.value.tasks || []).map(t => ({
+  id: t.id, title: t.title, projectId: t.projectId,
+  createdAt: t.createdAt, completedAt: t.completedAt, deletedAt: t.deletedAt, status: t.status
+})))
+function onDashOpenCards(kind: 'all' | 'resource' | 'task' | 'curiosity' | 'link') { openStatDrawer(kind) }
+function onDashOpenDyn(t: 'today-add' | 'week-add' | 'cum-del') { openDynDrawer(t) }
+/** 日详情「查看全部记录 ›」：打开全量抽屉并按该日预筛（R172-T8 起不再改视图内时间线） */
+function onDashOpenLog(day: string) {
+  logPreset.value = { kind: 'all', action: 'all', from: day, to: day, note: `来源：日详情「查看全部记录」—— 已按 ${day} 预筛，可自由改条件。` }
+  logOpen.value = true
+}
+/** R172-T9：调度台旧「今日四格」的等价入口 —— 四类记录在仪表盘内全部可用（F36） */
+function openLog(k: 'in' | 'out' | 'called' | 'log') {
+  const today = fmtDayKey(Date.now())
+  const preset: LogPreset =
+    k === 'in' ? { kind: 'all', action: 'create', from: today, to: today, note: '今日入台 = 今日新增（含导入）的卡片。' }
+      : k === 'out' ? { kind: 'all', action: 'delete', from: today, to: today, note: '今日移出 = 今日软删的卡片（可恢复）。' }
+        : k === 'called' ? { kind: 'all', action: 'call', from: today, to: today, note: '今日调出 = 今日被打开的卡片（R172-T1 起才有历史事件）。' }
+          : { kind: 'all', action: 'all', from: '', to: '', note: '写入记录 = 全量时间线（类型 × 动作 × 时间三维可筛）。' }
+  logPreset.value = preset
+  logOpen.value = true
+}
+/**
+ * R172-T11（04-67 F31/F32）：复盘报告的出口收在 `useDashboardReport`（增长门禁 + 单一实现）——
+ * 宿主只提供三样依赖：可写的主数据、persist、router。
+ */
+const { onReportSave, onReportExport, onReportTask, onReportGoto } = useDashboardReport({ gd, persist: () => store.persist(), router })
+function fmtDayKey(ts: number): string {
+  const dt = new Date(ts)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`
 }
 function eventKindLabel(k: CardEvent['kind']): string {
   return k === 'resource' ? '资源' : k === 'task' ? '任务' : k === 'curiosity' ? '好奇' : '系统'
@@ -1456,50 +1469,6 @@ function fmtDay(ts?: number): string {
 }
 function gWsName(id: string): string { return gd.value.workspaces.find(w => w.id === id)?.name || '' }
 function gCatName(id: string): string { return gd.value.categories.find(c => c.id === id)?.name || '' }
-function eventDetailLines(e: CardEvent): string[] {
-  const lines: string[] = [`卡片 ID：${e.cardId || '—'}`]
-  const findCard = () => gd.value.resources.find(x => x.id === e.cardId) || gd.value.tasks.find(x => x.id === e.cardId) || gd.value.curiosities.find(x => x.id === e.cardId)
-  if (e.kind === 'resource') {
-    const r = gd.value.resources.find(x => x.id === e.cardId)
-    if (r) { lines.push(`归属：${gWsName(r.workspaceId) || '—'} / ${gCatName(r.categoryId) || '待分类'}`); if (r.link) lines.push(`链接：${r.link}`) }
-  } else if (e.kind === 'task') {
-    const t = gd.value.tasks.find(x => x.id === e.cardId)
-    if (t) lines.push(`状态：${t.status === 'done' ? '已完成' : t.status === 'doing' ? '进行中' : '待办'}`)
-  } else if (e.kind === 'curiosity') {
-    const c = gd.value.curiosities.find(x => x.id === e.cardId)
-    if (c) lines.push(`探索状态：${c.status === 'done' ? '已求证' : c.status === 'doing' ? '探索中' : c.status === 'shelf' ? '已搁置' : '待探索'}`)
-  }
-  if (!findCard() && e.kind !== 'system') lines.push('（卡片已不在库中：可能已永久删除）')
-  return lines
-}
-
-// ---- CSV 导出（导出对象 = 操作记录时间线的当前筛选结果；Airtable 兼容 UTF-8+BOM） ----
-function csvCell(v: string): string {
-  const s = (v ?? '').toString()
-  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
-}
-function exportEventsCsv() {
-  const rows: string[] = [['时间', '动作', '卡片类型', '标题', '归属', '卡片ID'].join(',')]
-  for (const e of filteredEvents.value) {
-    let owner = ''
-    if (e.kind === 'resource') {
-      const r = gd.value.resources.find(x => x.id === e.cardId)
-      if (r) owner = `${gWsName(r.workspaceId)} / ${gCatName(r.categoryId) || '待分类'}`
-    }
-    rows.push([fmtEventTime(e.ts), eventActionLabel(e.action), eventKindLabel(e.kind), csvCell(e.title), csvCell(owner), e.cardId].join(','))
-  }
-  // UTF-8 BOM：Excel/Airtable 打开不乱码
-  const blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  const dt = new Date()
-  const p = (n: number) => String(n).padStart(2, '0')
-  a.href = url
-  a.download = `zhiyuan_操作记录_${dt.getFullYear()}${p(dt.getMonth() + 1)}${p(dt.getDate())}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
-  showToast(`✓ 已导出 ${filteredEvents.value.length} 条操作记录（按当前筛选）`)
-}
 
 // ---- 核心指标下钻抽屉 ----
 type StatDrawerType = '' | 'all' | 'resource' | 'task' | 'curiosity' | 'link'
@@ -3433,11 +3402,7 @@ const activeManualSec = ref('quick-1')
 .gs-pager button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .gs-dd-sep { color: var(--border); }
 .gs-dd-export { margin-left: auto; }
-.gs-ev-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-.gs-ev-fl { font-size: var(--fs-sub); color: var(--text-3); }
-.gs-ev-date { width: auto; padding: 4px 8px; }
-.gs-ev-tilde { color: var(--text-3); }
-.gs-ev-count { margin-left: auto; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 2px 9px; }
+/* R172-T8：记录条自身的筛选行/明细行样式随内联卡退役 —— 三维筛选与明细已在 DashboardLogDrawer.vue */
 .gs-ev-list { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; }
 /* R51-B7：抽屉内列表撑满高度——搜索固定、列表 flex 撑满、翻页贴底，消除下方大片空白 */
 .gs-drawer-fill { display: flex; flex-direction: column; height: 100%; min-height: 0; }
@@ -3456,6 +3421,7 @@ const activeManualSec = ref('quick-1')
 .gs-ev-badge.create { color: #7fbf8a; background: rgba(127,191,138,.14); }
 .gs-ev-badge.delete { color: #e07a7a; background: rgba(224,122,122,.14); }
 .gs-ev-badge.restore { color: var(--accent-ink); background: var(--accent-light); }
+.gs-ev-badge.call { color: var(--tag-info-text); background: var(--tag-info-bg); }
 /* R117（04-61 C3）：好奇心探索状态变更事件 */
 .gs-ev-badge.status { color: var(--tag-warn-text); background: var(--tag-warn-bg); }
 .gs-ev-badge.purge { color: #d46a6a; background: rgba(212,106,106,.2); }
@@ -3463,9 +3429,6 @@ const activeManualSec = ref('quick-1')
 .gs-ev-owner { font-size: var(--fs-caption); color: var(--text-2); background: var(--bg-3, rgba(127,127,127,.12)); border-radius: 4px; padding: 1px 6px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
 .gs-ev-kind { font-size: var(--fs-caption); color: var(--text-3); flex-shrink: 0; }
 .gs-ev-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
-.gs-ev-go { font-size: var(--fs-tiny); color: var(--text-3); flex-shrink: 0; }
-.gs-ev-detail { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 9px 13px; margin-top: -2px; }
-.gs-ev-dl { font-size: var(--fs-sub); color: var(--text-2); line-height: 1.7; word-break: break-all; }
 .gs-ev-empty { text-align: center; padding: 22px; color: var(--text-3); font-size: var(--fs-body); }
 
 /* ===== 第卌四轮：策展台全景（双栏 Master-Detail） ===== */

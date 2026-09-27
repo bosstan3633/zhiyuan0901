@@ -243,6 +243,12 @@ export interface Subtask {
   id: ID
   title: string
   done: boolean
+  /**
+   * R172-T2（04-67 §7.4）：**完成时刻**（零迁移可选字段）。
+   * 动机：热力图/复盘的「推进」维度要按**日**归集"子任务完成"，而原模型只有布尔 `done`——
+   * 补齐后新勾选可归日；历史已完成项无此字段，归集时跳过（不伪造时刻）。
+   */
+  doneAt?: number
   note?: string
 }
 

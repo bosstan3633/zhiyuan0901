@@ -12,7 +12,6 @@ import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
 import { visibleFields } from '@/shared/utils/fields'
 import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
-import { readEventLog, EVENT_ACT_LABEL } from '@/shared/utils/eventLog'
 import { focusRecentDays, focusWindowTotals } from '@/shared/utils/focusHistory'
 import type { AiJob, AiRow } from '@/shared/ai/job'
 import { AiDrawer } from '@/newtab/components/lazyAiDrawer'
@@ -31,14 +30,13 @@ import { taskMaturity } from '@/shared/utils/maturity'
 // R117（04-61 C3）：当日新增角标（自然日口径）——今日三件事卡沿用任务卡的同一枚
 import NewBadge from '@/shared/components/NewBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
-import Drawer from '@/shared/components/Drawer.vue'
 import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
 // R117（04-61 C1）：任务调度整体自方向台迁入调度台底部（与好奇心培育并列 tab）
 import TaskManagerPanel from '../components/compass/TaskManagerPanel.vue'
 import MetricBar from '../components/compass/MetricBar.vue'
-// R113-N3：周报浮层此前只在模板中被引用、从未 import（项目无全局注册也无自动导入插件），
-// 导致 Vue 按未解析组件渲染成空节点 → 点「📊 周报」无任何反应。
-import WeeklyReportOverlay from '../components/WeeklyReportOverlay.vue'
+// R172-T9（04-67 Q7）：调度画像周报浮层**已退役**（组件已物理删除，全仓零引用）——
+// 四段式能力并入知源仪表盘的「复盘段」（ReviewPanel.vue），入口由本页右上角 `📈 复盘` 承担。
+// 历史包袱顺带清掉：R113-N3 曾因"模板引用但从未 import"导致点按钮无任何反应，该类问题随组件退役消失。
 
 const router = useRouter()
 const route = useRoute()
@@ -76,94 +74,10 @@ function scheduleMidnightRollover() {
   }, Math.max(1000, nextMidnight.getTime() - now.getTime()))
 }
 
-// ================= 今日记录条（R49-B1） =================
-type RecItem = { id?: string; kind?: 'resource' | 'task' | 'curio'; title: string; ts: number; clickable: boolean }
-const todayIn = computed<RecItem[]>(() => {
-  const list: RecItem[] = []
-  for (const r of d.value.resources) if (!r.deletedAt && r.createdAt >= todayStart.value) list.push({ id: r.id, kind: 'resource', title: r.title, ts: r.createdAt, clickable: true })
-  for (const t of d.value.tasks) if (!t.deletedAt && t.createdAt >= todayStart.value) list.push({ id: t.id, kind: 'task', title: t.title, ts: t.createdAt, clickable: true })
-  for (const c of d.value.curiosities) if (!c.deletedAt && c.createdAt >= todayStart.value) list.push({ id: c.id, kind: 'curio', title: c.question || '（无标题）', ts: c.createdAt, clickable: true })
-  return list.sort((a, b) => b.ts - a.ts)
-})
-const todayOut = computed<RecItem[]>(() => {
-  const list: RecItem[] = []
-  for (const r of d.value.resources) if (r.deletedAt && r.deletedAt >= todayStart.value) list.push({ id: r.id, kind: 'resource', title: r.title, ts: r.deletedAt, clickable: true })
-  for (const t of d.value.tasks) if (t.deletedAt && t.deletedAt >= todayStart.value) list.push({ id: t.id, kind: 'task', title: t.title, ts: t.deletedAt, clickable: true })
-  for (const c of d.value.curiosities) if (c.deletedAt && c.deletedAt >= todayStart.value) list.push({ id: c.id, kind: 'curio', title: c.question || '（无标题）', ts: c.deletedAt, clickable: true })
-  return list.sort((a, b) => b.ts - a.ts)
-})
-const todayCalled = computed<RecItem[]>(() => {
-  const list: RecItem[] = []
-  for (const r of d.value.resources) if (!r.deletedAt && (r.lastCalledAt || 0) >= todayStart.value) list.push({ id: r.id, kind: 'resource', title: r.title, ts: r.lastCalledAt || 0, clickable: true })
-  for (const t of d.value.tasks) if (!t.deletedAt && (t.lastCalledAt || 0) >= todayStart.value) list.push({ id: t.id, kind: 'task', title: t.title, ts: t.lastCalledAt || 0, clickable: true })
-  for (const c of d.value.curiosities) if (!c.deletedAt && (c.lastCalledAt || 0) >= todayStart.value) list.push({ id: c.id, kind: 'curio', title: c.question || '（无标题）', ts: c.lastCalledAt || 0, clickable: true })
-  return list.sort((a, b) => b.ts - a.ts)
-})
-
-/** R50-F7：今日记录条副行拆解（任务/好奇/资源 分类型计数） */
-const kindLabel = { task: '任务', curio: '好奇', resource: '资源' } as const
-/** R52-BUG-1：写入记录口径 = 当日三卡事件（新增/删除/恢复/清理）+ 三卡调出，主计数 = 副行之和；
- *  非三卡事件（愿景/使命等系统写入）不计数，抽屉中灰显可见 */
-const CARD_KINDS = new Set(['task', 'curiosity', 'resource'])
-const logCount = computed(() =>
-  logRaw.value.filter(e => CARD_KINDS.has(e.kind)).length + todayCalled.value.length)
-const logItems = ref<RecItem[]>([])
-const logRaw = ref<{ action: string; kind: string; title: string; ts: number }[]>([])
-const ACT_LABEL = EVENT_ACT_LABEL
-async function loadEventLog() {
-  try {
-    const all = await readEventLog()
-    const todays = all.filter(e => e.ts >= todayStart.value)
-    logRaw.value = todays
-    // R52-BUG-1：写入记录明细 = 三卡事件 + 当日调出 + 系统事件（灰显不计数），按时间降序
-    logItems.value = ([
-      ...todays.filter(e => CARD_KINDS.has(e.kind)).map(e => ({
-        kind: (e.kind === 'curiosity' ? 'curio' : e.kind === 'task' ? 'task' : 'resource') as RecItem['kind'],
-        title: `${ACT_LABEL[e.action] || e.action} · ${e.title}`, ts: e.ts, clickable: false
-      })),
-      ...todayCalled.value.map(it => ({ id: it.id, kind: it.kind, title: `调出 · ${it.title}`, ts: it.ts, clickable: true })),
-      ...todays.filter(e => !CARD_KINDS.has(e.kind)).map(e => ({
-        kind: undefined, title: `系统 · ${ACT_LABEL[e.action] || e.action} · ${e.title}`, ts: e.ts, clickable: false
-      }))
-    ] as RecItem[]).sort((a, b) => b.ts - a.ts)
-  } catch { logRaw.value = [] }
-}
-
-// 记录抽屉（R49-B2：搜索 + 每页 20 条翻页 + 点击定位）
-const recOpen = ref<'' | 'in' | 'out' | 'called' | 'log'>('')
-const recSearch = ref('')
-const recPage = ref(1)
-const REC_PAGE_SIZE = 20
-const recTitles = { in: '今日入台', out: '今日移出', called: '今日调出', log: '写入记录' } as const
-function openRec(k: 'in' | 'out' | 'called' | 'log') {
-  recOpen.value = k; recSearch.value = ''; recPage.value = 1
-  if (k === 'log') loadEventLog()
-}
-const recSource = computed<RecItem[]>(() => {
-  if (recOpen.value === 'in') return todayIn.value
-  if (recOpen.value === 'out') return todayOut.value
-  if (recOpen.value === 'called') return todayCalled.value
-  if (recOpen.value === 'log') return logItems.value
-  return []
-})
-const recFiltered = computed(() => {
-  const q = recSearch.value.trim().toLowerCase()
-  return q ? recSource.value.filter(x => x.title.toLowerCase().includes(q)) : recSource.value
-})
-const recPageCount = computed(() => Math.max(1, Math.ceil(recFiltered.value.length / REC_PAGE_SIZE)))
-const recSlice = computed(() => recFiltered.value.slice((recPage.value - 1) * REC_PAGE_SIZE, recPage.value * REC_PAGE_SIZE))
-const kindIcon = (k?: string) => (k === 'resource' ? '🔗' : k === 'task' ? '📋' : k === 'curio' ? '💡' : '·')
-function locateRec(x: RecItem) {
-  if (!x.clickable || !x.id) return
-  recOpen.value = ''
-  // R117（04-61 B）：统一走 locateTargetOf —— 资源卡带所在分类、任务/好奇卡带 hk 分派，
-  // 不再各写一份（旧实现里任务卡指向方向台 /compass?zone=task，随本轮的模块搬迁失效）
-  const kind = asLocateKind(x.kind || '')
-  if (!kind) return
-  const t = locateTargetOf(d.value, kind, x.id)
-  if (!t) { showToast('⚠ 该卡片已不在库中'); return }
-  void router.push(t)
-}
+// ================= 今日记录条（R49-B1） → R172-T9 整体退役 =================
+// 四格（今日入台 / 移出 / 调出 / 写入记录）与「今日记录抽屉」全部下线：记录能力等价迁入
+// 「知源仪表盘」（日详情按日过滤 + 全量记录抽屉三维筛选 + CSV），入口由本页右上角 `📈 复盘` 承担。
+// 保留说明（不删的账）：`todayStart` 仍服务于今日三件事与跨零点翻篇，故心跳逻辑不动。
 
 // ================= 今日三件事（自 CompassActions 迁入，交互 1:1） =================
 const todayDate = ref(new Date())
@@ -640,11 +554,12 @@ const selMetricTitle = computed(() => {
 })
 const selSubs = computed<Subtask[]>(() => selTask.value?.subtasks || [])
 const selSubsDone = computed(() => selSubs.value.filter(s => s.done).length)
-/** 勾选子任务：只改本行 done（定案 3：完成不计分），随卡 persist——与任务详情抽屉同一口径 */
+/** 勾选子任务：只改本行 done（定案 3：完成不计分），随卡 persist——与任务详情抽屉同一口径
+ *  R172-T2：同时落 `doneAt`（热力图/复盘「推进」维度按日归集依据） */
 function toggleSelSub(subId: string) {
   const t = selTask.value
   if (!t) return
-  t.subtasks = (t.subtasks || []).map(s => (s.id === subId ? { ...s, done: !s.done } : s))
+  t.subtasks = (t.subtasks || []).map(s => (s.id === subId ? { ...s, done: !s.done, doneAt: !s.done ? Date.now() : undefined } : s))
   t.updatedAt = Date.now()
   store.persist()
 }
@@ -851,7 +766,7 @@ onMounted(() => {
   document.addEventListener('keydown', onDrillEsc, true)
   document.addEventListener('click', onDocClickCloseWhy, true)
   window.addEventListener('zy-goto-anchor', onAnchorEvt)
-  loadEventLog()
+  // R172-T9：`loadEventLog()` 随记录族退役 —— 本页不再需要事件日志（仪表盘自取）
   saveErrSub = subscribeSaveError(e => { saveErr.value = e })
   lastOkTick.value = getLastSaveOkAt()
   storageTimer = window.setInterval(() => {
@@ -960,20 +875,9 @@ function openFocusProject(p: Project) {
 }
 
 // ================= 底部专区（R55-B2：任务调度已迁方向台，好奇心培育单区直呈） =================
-// ===== R111：调度画像周报 =====
-const wrOpen = ref(false)
-function onWrDrill(ev: { kind: string; cardId?: string; workspaceId?: string; dirId?: string }) {
-  if (ev.kind === 'created') { openRec('in'); return }
-  if (ev.kind === 'called') { openRec('called'); return }
-  // R117（04-61 C1）：任务调度已在本页底部 tab ⇒ 同页直接收周报 + 切 tab 滚过去（不再跨台跳方向台）
-  if (ev.kind === 'done' || ev.kind === 'unarchived') { wrOpen.value = false; gotoAnchor('task'); return }
-  if (ev.kind === 'direction') { router.push('/compass'); return }
-  if (ev.kind === 'top-card' && ev.cardId && ev.workspaceId) {
-    router.push({ path: '/workspace/' + ev.workspaceId, query: { hl: ev.cardId } })
-    return
-  }
-  showToast('💡 在下方好奇心培育里管理你的好奇心')
-}
+// ===== R172-T9：调度画像周报浮层退役，入口改为「📈 复盘」直达知源仪表盘 =====
+/** 04-67 F34：点击执行 `router.push('/settings?page=dashboard')`（文案精确为 `📈 复盘`） */
+function openReview(): void { void router.push('/settings?page=dashboard') }
 const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.deletedAt).length)
 </script>
 
@@ -1011,13 +915,10 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
         <span v-else class="cf-hint" title="去方向台指定主攻项目" @click="router.push('/compass')">尚无主攻 · 去方向台指定</span>
       </template>
       <template #right>
-        <div class="rec-mini in-bar">
-          <span class="rm-cell" title="今日入台 · 点击看明细" @click="openRec('in')">⬇ {{ todayIn.length }}</span>
-          <span class="rm-cell" title="今日移出 · 点击看明细" @click="openRec('out')">⬆ {{ todayOut.length }}</span>
-          <span class="rm-cell" title="今日调出 · 点击看明细" @click="openRec('called')">↗ {{ todayCalled.length }}</span>
-          <span class="rm-cell" title="写入记录 · 点击看明细" @click="openRec('log')">✎ {{ logCount }}</span>
-        </div>
-        <button class="mb-act" title="调度画像周报" @click="wrOpen = true">📊 周报</button>
+        <!-- R172-T9（04-67 F33/F34）：旧「四格记录条 + 周报按钮」整体下线 ——
+             改为单一入口「📈 复盘」直达知源仪表盘；被删的四类记录能力在仪表盘内完整可用
+             （日详情按日过滤 + 全量记录抽屉三维筛选 + CSV）。 -->
+        <button class="mb-act cta" title="复盘 · 年度热力图与四范围复盘 · 直达知源仪表盘" @click="openReview">📈 复盘</button>
         <span class="cf-go" title="去方向台管理主攻与目标" @click="router.push('/compass')">去方向台 ›</span>
       </template>
     </MetricBar>
@@ -1246,9 +1147,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
       <div v-show="bottomTab === 'curio'" class="bottom-pane">
         <CuriosityPanel v-if="curioMounted" />
       </div>
-
-    <!-- R111：调度画像周报全屏浮层 -->
-    <WeeklyReportOverlay :open="wrOpen" @close="wrOpen = false" @drill="onWrDrill" />
     </section>
 
     <!-- ===== 任务选取弹窗 ===== -->
@@ -1346,28 +1244,8 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
       </div>
     </Transition>
 
-    <!-- ===== 今日记录抽屉（R51-F16：右侧滑出） ===== -->
-    <Drawer :open="!!recOpen" :title="recOpen ? `${recTitles[recOpen]} · 共 ${recOpen === 'log' ? logCount : recFiltered.length} 条` : ''" width="460px" @close="recOpen = ''">
-      <div class="rec-fill">
-        <div class="search-box" style="margin:0 0 12px"><span>🔍</span><input v-model="recSearch" placeholder="按标题过滤..." @input="recPage=1"></div>
-        <div class="rec-list-scroll">
-          <div v-for="(x, i) in recSlice" :key="i" class="picker-item" :class="{disabled: !x.clickable, sys: !x.kind}" @click="locateRec(x)">
-            <div class="pi-check pi-ghost">{{ kindIcon(x.kind) }}</div>
-            <div class="pi-info">
-              <div class="pi-title">{{ x.title }}</div>
-              <div class="pi-meta"><span class="tag">{{ new Date(x.ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</span></div>
-            </div>
-            <span v-if="x.clickable" class="rec-go">定位 ↗</span>
-          </div>
-          <div v-if="!recFiltered.length" class="list-empty">今天暂无记录</div>
-        </div>
-        <div v-if="recPageCount > 1" class="pager">
-          <button class="mini-btn" :disabled="recPage<=1" @click="recPage--">‹</button>
-          <span class="pg-num">{{ recPage }} / {{ recPageCount }}</span>
-          <button class="mini-btn" :disabled="recPage>=recPageCount" @click="recPage++">›</button>
-        </div>
-      </div>
-    </Drawer>
+    <!-- R172-T9：今日记录抽屉已下线 —— 记录能力迁入知源仪表盘
+         （日详情按日过滤 + `DashboardLogDrawer` 全量三维筛选 + CSV；见本页右上角 `📈 复盘`）。 -->
 
     <!-- ===== R54-B2：指标下钻弹窗 ===== -->
     <Transition name="fade">
@@ -1440,15 +1318,11 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .sync-chip .sync-gear { font-size: var(--fs-caption); opacity: .55; padding: 0 2px; }
 .sync-chip .sync-gear:hover { opacity: 1; }
 
-/* R56-P2：今日记录 4 计数页头迷你条（右对齐、同存储 chip 量级） */
-.rec-mini { display: inline-flex; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 4px 8px; }
-/* R66-F3：指标条内嵌态——去边框，融入单行指标条右端 */
-.rec-mini.in-bar { background: transparent; border: none; padding: 0; }
-.rec-mini .rm-cell { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-caption); color: var(--text-2); padding: 2px 7px; border-radius: 99px; cursor: pointer; font-variant-numeric: tabular-nums; transition: all var(--dur-fast); white-space: nowrap; }
-.rec-mini .rm-cell:hover { background: var(--accent-light); color: var(--accent-ink); }
-/* R120-TB1：条内动作按钮（周报）——与今日记录四格同量级 */
+/* R172-T9：今日记录 4 计数迷你条随入口整合退役 —— 记录能力迁入知源仪表盘 */
+/* R120-TB1：条内动作按钮 —— 现承载「📈 复盘」单一入口（`.cta` = 强调态，对齐原型 revEntry） */
 .mb-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-caption); padding: 3px 9px; border-radius: 99px; cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
 .mb-act:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
+.mb-act.cta { border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 
 /* 左右分栏 */
 /* R51-F10：上下联动——三件事在上占视觉焦点，项目调度在下 */
@@ -1701,10 +1575,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 /* 弹窗 */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: var(--z-overlay); }
 .picker-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 480px; max-width: 92vw; max-height: 70vh; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); z-index: calc(var(--z-overlay) + 1); display: flex; flex-direction: column; overflow: hidden; }
-/* R51-F16：记录抽屉右侧滑出——列表撑满、翻页贴底 */
-.rec-fill { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.rec-list-scroll { flex: 1; min-height: 0; overflow-y: auto; }
-.rec-fill .pager { flex-shrink: 0; margin-top: 10px; }
+/* R172-T9：记录抽屉（`.rec-fill` / `.rec-list-scroll`）随入口整合退役 */
 .pm-head { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; font-size: 14px; font-weight: 600; }
 .pm-head span:first-child { flex: 1; }
 .pm-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: var(--fs-headline); }
@@ -1719,7 +1590,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .pi-info { flex: 1; min-width: 0; }
 .pi-title { font-size: var(--fs-body); font-weight: 500; margin-bottom: 3px; }
 .pi-meta { display: flex; gap: 5px; flex-wrap: wrap; }
-.rec-go { font-size: var(--fs-caption); color: var(--accent); flex-shrink: 0; }
 .pager { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 0 2px; }
 .pg-num { font-size: var(--fs-sub); color: var(--text-2); font-variant-numeric: tabular-nums; }
 .search-box { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }

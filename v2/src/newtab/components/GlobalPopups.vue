@@ -492,7 +492,7 @@ const tcTitleInput = ref<HTMLInputElement | null>(null)
 const resultsEl = ref<HTMLDivElement | null>(null)
 
 let lastFocused: HTMLElement | null = null
-function openPanel(p: PanelType) {
+function openPanel(p: PanelType, prefill?: { title?: string; description?: string }) {
   lastFocused = document.activeElement as HTMLElement | null
   activePanel.value = p
   if (p === 'capture') {
@@ -506,9 +506,10 @@ function openPanel(p: PanelType) {
   if (p === 'search') { currentType.value = 'all'; setSearchQuery(''); selectedId.value = ''; void ensurePinyin() }
   if (p === 'taskcapture') {
     // R55-C：快速采集任务——四字段全非必填，直存全域任务
+    // R172-T11：复盘报告的「生成任务」把建议预填进来——**仍要用户点保存才入库**（AI 不替决策）
     tcSaved.value = false
-    tcForm.title = ''
-    tcForm.description = ''
+    tcForm.title = prefill?.title || ''
+    tcForm.description = prefill?.description || ''
     tcForm.projectId = ''
     tcForm.metricId = ''
   }

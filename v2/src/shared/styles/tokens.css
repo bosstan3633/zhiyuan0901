@@ -165,6 +165,11 @@
   --accent-hover: #828FFF;
   --accent-ink: #828FFF; /* R171-C4：压在 --accent-light 淡底上的文字色——暗主题取提亮档（5.37:1，accent 本档仅 3.28） */
   --accent-glow: rgba(109, 92, 232, 0.40);
+  /* R172-T3：年度热力图六档色阶 + 淡底文字 + 选中环（04-67 附 B 终值；顶档 --heat-5 四主题互不相同） */
+  --heat-0: rgba(255, 255, 255, 0.04); --heat-1: #1A2B42; --heat-2: #223B5C; --heat-3: #2B4E79;
+  --heat-4: #356397; --heat-5: #437CB8;
+  --heat-ink: #7FA8D6;   /* 热力段文字专用（压热力底 ≥4.5，theme-contrast 硬判据） */
+  --heat-ring: rgba(67, 124, 184, 0.55);
 
   /* 语义色（低饱和，深色底适配）——仅高优/阻断允许出现 */
   --success: #27A644;
@@ -236,6 +241,11 @@
   --accent-hover: #3E86E0;
   --accent-ink: #3D8BEA; /* R171-C4：accent 本档压淡底仅 3.40，取 accent-2 档 4.78:1（hover 档 4.47 不达标故不用） */
   --accent-glow: rgba(30, 111, 217, 0.45);
+  /* R172-T3：年度热力图六档色阶（同 linear 家族，顶档 #4A85C9 与其余主题互不相同） */
+  --heat-0: rgba(255, 255, 255, 0.05); --heat-1: #1C3050; --heat-2: #254069; --heat-3: #2F5489;
+  --heat-4: #3A6AA9; --heat-5: #4A85C9;
+  --heat-ink: #84AFDD;
+  --heat-ring: rgba(74, 133, 201, 0.6);
   --success: #27A644;
   --warning: #D9A03C;
   --danger: #E5484D;
@@ -295,6 +305,11 @@
   --accent-hover: #6C3FC8;
   --accent-ink: #6C3FC8; /* R171-C4：亮主题淡底更浅，accent 本档 4.21 不达 4.5，取 hover 深档 */
   --accent-glow: rgba(132, 82, 224, 0.18);
+  /* R172-T3：年度热力图六档色阶（亮主题：浅底 → 深顶档） */
+  --heat-0: #EFF2F6; --heat-1: #E3EBF5; --heat-2: #C2D5EA; --heat-3: #98B7D9;
+  --heat-4: #6C93C2; --heat-5: #3A6FA8;
+  --heat-ink: #2F5E92;
+  --heat-ring: rgba(58, 111, 168, 0.45);
   --success: #27A644;
   --warning: #A66A00;
   --danger: #D0342C;
@@ -354,6 +369,11 @@
   --accent-hover: #85349A;
   --accent-ink: #85349A; /* R171-C4：accent 本档 4.86 已达标，仍取 hover 深档留余量并与 apple 口径一致 */
   --accent-glow: rgba(158, 63, 175, 0.18);
+  /* R172-T3：年度热力图六档色阶（notion 暖调家族） */
+  --heat-0: #F0F1F4; --heat-1: #E4E9F2; --heat-2: #C4D2E6; --heat-3: #9BB2D4;
+  --heat-4: #6E8DBC; --heat-5: #47699E;
+  --heat-ink: #3B6398;
+  --heat-ring: rgba(71, 105, 158, 0.45);
   --success: #448361;
   --warning: #C08A2D;
   --danger: #E03E3E;

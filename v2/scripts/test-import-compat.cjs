@@ -110,10 +110,10 @@ async function main() {
   // 验证 3：调度台首页正常打开（今日记录条/三件事区域不因旧数据报错）——先整页 reload（模拟重开新标签页）
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
-  // R56-P2：今日记录缩至页头 rec-mini
-  const recStrip = await page.locator('.rec-mini').first().isVisible().catch(() => false)
+  // R172-T9：旧判据 `.rec-mini`（今日记录四格）随入口整合退役 —— 改用「📈 复盘」入口可见性
+  const revEntry = await page.locator('.mb-act.cta').first().isVisible().catch(() => false)
   const errBoundary = await page.locator('.render-error').first().isVisible().catch(() => false)
-  report('K4 调度台首页正常渲染（无渲染错误兜底）', recStrip && !errBoundary, `recStrip=${recStrip} error=${errBoundary}`)
+  report('K4 调度台首页正常渲染（无渲染错误兜底）', revEntry && !errBoundary, `revEntry=${revEntry} error=${errBoundary}`)
 
   /* R166 定案 4/5 两用例。K5 分两条路各测一次——
      `merged` = 导入当场（测 mergeImport 的 stripRetiredCardKeys，这是 R166 新补的那道），
@@ -132,7 +132,7 @@ async function main() {
   /* 可选段零迁移：旧包没有 supportLinks 时**保持缺省**就是设计——不补空数组、不报错、渲染正常 */
   report('K6 旧包无 supportLinks 段兼容（可选段零迁移：缺省即合法）',
     !!after && (after.supportLinks === undefined || Array.isArray(after.supportLinks)) && !errBoundary,
-    `supportLinks=${JSON.stringify(after?.supportLinks)} recStrip=${recStrip}`)
+    `supportLinks=${JSON.stringify(after?.supportLinks)} revEntry=${revEntry}`)
 
   // 验证 4：旧数据项目在「项目详情」页正常渲染（R145 修漂移：R117 的左栏切换器 .pt-item 已于
   //   R130-N4 退役为「本项目目录」锚点导航 → 改测项目页真渲染：面包屑点名项目 + 指标块在位 + 无渲染错误兜底）

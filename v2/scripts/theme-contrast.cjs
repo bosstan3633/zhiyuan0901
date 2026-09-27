@@ -15,7 +15,10 @@
  *   - --accent-ink / --accent-light ≥ 4.5（R171-C4：淡底深字组合——选中 tab/徽标/确认弹窗图标等
  *     「彩字压彩底」场景统一走 --accent-ink；此前 accent 本档在暗主题仅 3.28/3.40，属信息项裸奔）
  *   - --toast-fg / --toast-bg ≥ 4.5 · --toast-action / --toast-bg ≥ 4.5（R146 曾踩 1.98:1）
+ *   - --heat-ink / --surface ≥ 4.5 · --heat-ink / --surface-2 ≥ 4.5（R172-T3：热力段专用文字色；
+ *     图例注释 / 概览带人话句高亮 / 代码片都压在 surface 家族上）+ 热力令牌 8/8 齐全
  *   - 四主题 --accent 互不相同（R156 解禁的硬底线：不许再"伪选择"）
+ *   - 四主题 --heat-5 互不相同（R172-T3：顶档色是四主题可辨性的最后一道）
  * 另打印**信息项**（不作判据）：accent/accent-light（同色系淡底深字固有上限 ~3.3:1）、
  *   四主题 accent 色相角矩阵（"两两可辨"的最终判据是 theme-audit 截图，此处只给数值参考）。
  *
@@ -76,6 +79,8 @@ const chk = (t, label, v, min) => {
 
 console.log('== 主题对比度门禁 · theme-contrast（WCAG 2.1）==')
 const accents = {}
+const heat5 = {}
+const HEAT_TOKENS = ['--heat-0', '--heat-1', '--heat-2', '--heat-3', '--heat-4', '--heat-5', '--heat-ink', '--heat-ring']
 for (const t of THEMES) {
   const V = blocks[t]
   const bg = P(V['--bg']), s1 = P(V['--surface']), s3 = P(V['--surface-3'])
@@ -84,6 +89,8 @@ for (const t of THEMES) {
   const al = P(V['--accent-light'], s1)
   const ink = P(V['--accent-ink'], s1)
   const tBg = P(V['--toast-bg']), tFg = P(V['--toast-fg']), tAc = P(V['--toast-action'])
+  const s2 = P(V['--surface-2'])
+  const hink = P(V['--heat-ink'], s1)
   console.log(`\n-- ${t} --`)
   chk(t, 'text/bg', ratio(text, bg), 4.5)
   chk(t, 'text/surface', ratio(text, s1), 4.5)
@@ -94,9 +101,18 @@ for (const t of THEMES) {
   chk(t, 'accent/bg', ratio(acc, bg), 3)
   chk(t, 'accent-hover/bg', ratio(ah, bg), 3)
   chk(t, 'accent-ink/accent-light', ratio(ink, al), 4.5)
+  // R172-T3：热力段专用文字色（04-67 §8.2「--heat-ink 文字对比度 ≥ 4.5」）——
+  // 它压在 --surface / --surface-2 上（图例注释、概览带人话句高亮、代码片），两处都要达标
+  chk(t, 'heat-ink/surface', ratio(hink, s1), 4.5)
+  chk(t, 'heat-ink/surface-2', ratio(hink, s2), 4.5)
   chk(t, 'toast-fg/toast-bg', ratio(tFg, tBg), 4.5)
   chk(t, 'toast-action/toast-bg', ratio(tAc, tBg), 4.5)
   accents[t] = V['--accent']
+  heat5[t] = V['--heat-5']
+  // R172-T3：热力令牌组完整性（8 个缺一即红）
+  const missing = HEAT_TOKENS.filter((k) => !V[k])
+  if (missing.length) { fail++; console.log(`  ✗ 热力令牌缺失：${missing.join(', ')}`) }
+  else console.log(`  ✓ 热力令牌 8/8（${HEAT_TOKENS.join(' ')}）`)
   const [h, s, l] = hsl(acc)
   console.log(`  ·  ${t.padEnd(8)} 信息 accent/accent-light=${ratio(acc, al).toFixed(2)}（同色系淡底固有上限）  accent=HSL(${h.toFixed(0)},${s.toFixed(0)}%,${l.toFixed(0)}%)`)
 }
@@ -107,10 +123,16 @@ console.log('\n-- 四主题 accent 唯一性 --')
 if (uniq.size !== THEMES.length) { fail++; console.log(`  ✗ accent 存在重复：${JSON.stringify(accents)}`) }
 else console.log(`  ✓ 四主题 accent 互不相同：${THEMES.map((t) => `${t}=${accents[t]}`).join(' · ')}`)
 
+// R172-T3：四主题 --heat-5（顶档）必须互不相同——否则「一屏看四主题」时分不出彼此
+const huniq = new Set(Object.values(heat5))
+console.log('\n-- 四主题 --heat-5 唯一性（R172-T3）--')
+if (huniq.size !== THEMES.length) { fail++; console.log(`  ✗ --heat-5 存在重复：${JSON.stringify(heat5)}`) }
+else console.log(`  ✓ 四主题 --heat-5 互不相同：${THEMES.map((t) => `${t}=${heat5[t]}`).join(' · ')}`)
+
 const hue = THEMES.map((t) => [t, hsl(P(accents[t]))[0]])
 console.log('\n-- accent 色相角差矩阵（信息项；"两两可辨"的最终判据是 theme-audit 截图）--')
 for (let i = 0; i < hue.length; i++) for (let j = i + 1; j < hue.length; j++)
   console.log(`  ·  ${hue[i][0].padEnd(8)} vs ${hue[j][0].padEnd(8)} Δh=${dHue(hue[i][1], hue[j][1]).toFixed(1)}°`)
 
-console.log(`\n${fail === 0 ? '✓ theme-contrast 全绿（4 主题 · 11 项/主题 + 唯一性）' : `✗ theme-contrast 失败 ${fail} 项`}`)
+console.log(`\n${fail === 0 ? '✓ theme-contrast 全绿（4 主题 · 14 项/主题 + accent/heat-5 唯一性）' : `✗ theme-contrast 失败 ${fail} 项`}`)
 process.exit(fail === 0 ? 0 : 1)

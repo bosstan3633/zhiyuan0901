@@ -681,34 +681,22 @@ async function main() {
     'drag=' + dropResult + ' metricId=' + moved.metricId + ' taskIds双写=' + moved.inTaskIds)
 
 
-  // E2E-21 周报浮层（R113-N3 P0）：根因=模板引用了 <WeeklyReportOverlay> 但从未 import，
-  // 被 Vue 当未解析组件渲染成空注释节点 → 点「📊 周报」毫无反应。修复后必须真出浮层且可关闭。
+  // E2E-21 调度台入口整合（R172-T9 · 取代原周报浮层用例）：
+  // 原用例（R113-N3 P0）测的是"模板引用了组件却从未 import ⇒ 点按钮毫无反应"这个病根；
+  // 组件退役后病根消失，但**入口必须依然真能到达** —— 判据改为：点「📈 复盘」→ 路由落到
+  // /settings?page=dashboard 且仪表盘真渲染（`.dz-sec` 概览带 + `.dz-chip` 存量卡可见，非空白）。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
-  const wrCountBefore = await page.locator('.wr-overlay').count()
-  // R120-TB1：周报入口由页头 .wr-entry 迁入合流方向条（.mb-act）
-  await page.locator('.mb-act').first().click()
-  await page.waitForTimeout(900)
-  const wrOv = page.locator('.wr-overlay').first()
-  const wrVisible = await wrOv.isVisible().catch(() => false)
-  const wrTitle = wrVisible ? ((await wrOv.innerText().catch(() => '')) || '').replace(/\s+/g, ' ').slice(0, 60) : ''
-  await page.keyboard.press('Escape')
-  await page.waitForTimeout(700)
-  let wrClosed = (await page.locator('.wr-overlay').count()) === 0 || !(await page.locator('.wr-overlay').first().isVisible().catch(() => false))
-  // R113 实测：长序列前段用例残留的 document 级 keydown 监听可能吞键——Esc 未关则验证 × 按钮通道（两条关闭路径对用户都必须真实可用）
-  let closeVia = 'esc'
-  if (!wrClosed) {
-    closeVia = 'btn'
-    // R114：坐标点击在长序列后可能被残留浮层盖住（force 只跳过 actionability，事件仍落点到顶层元素）——
-    // 改 DOM 直调 click()，等价于按钮 @click 处理器被触发；再轮询等关闭（Transition 离场动画最长 ~500ms）
-    await page.locator('.wr-close').first().evaluate(el => el.click()).catch(() => {})
-    for (let i = 0; i < 8 && !wrClosed; i++) {
-      await page.waitForTimeout(250)
-      wrClosed = (await page.locator('.wr-overlay').count()) === 0 || !(await page.locator('.wr-overlay').first().isVisible().catch(() => false))
-    }
-  }
-  report('E2E-21 周报浮层可见 + 可关闭（R113-N3 P0 修复）', wrCountBefore === 0 && wrVisible && wrClosed,
-    'before=' + wrCountBefore + ' visible=' + wrVisible + ' closed=' + wrClosed + ' via=' + closeVia + ' head=' + JSON.stringify(wrTitle))
+  const revBtn = page.locator('.mb-act.cta').first()
+  const revBtnText = ((await revBtn.innerText().catch(() => '')) || '').replace(/\s+/g, '')
+  await revBtn.click()
+  await page.waitForTimeout(1400)
+  const revUrl = page.url()
+  const revAtSettings = /\/settings/.test(revUrl)
+  const revOverview = await page.locator('.dz-sec').first().isVisible().catch(() => false)
+  const revChips = await page.locator('.dz-chip').first().isVisible().catch(() => false)
+  report('E2E-21 调度台「📈 复盘」直达知源仪表盘（R172-T9）', revBtnText.includes('复盘') && revAtSettings && revOverview && revChips,
+    'btn=' + JSON.stringify(revBtnText) + ' url=' + revUrl + ' overview=' + revOverview + ' chips=' + revChips)
 
   // E2E-23（R154 · 04-62）：AI 对照式评审**双栏真渲染** + 一次性指令**独立键**。
   // 走「设置 › AI 助手 › 本周回顾」：它已接左栏（投料原文）与指令框，且不依赖真网关——

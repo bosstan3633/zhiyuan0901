@@ -5,6 +5,7 @@
  */
 import type { AppData, ResourceCard } from '@/shared/models'
 import { uid } from '@/shared/utils'
+import { pushUndo } from '@/shared/utils/undo'
 import type { AiJob, AiRow } from './job'
 
 export interface ReportCtx { d: AppData; persist: () => void }
@@ -39,7 +40,15 @@ export function saveReportCard(ctx: ReportCtx, p: ReportPayload): string {
   } as ResourceCard
   d.resources.unshift(card)
   ctx.persist()
-  return `✓ 报告已存入 资源台 › 待分类「${card.title.slice(0, 18)}」（未改动任何既有卡片）`
+  /** R172-T11（04-67 F32）：报告卡也要能撤 —— 撤销=软删进回收站（不越「删除一律软删」红线），
+   *  登记在全局撤销栈里，Ctrl/Cmd+Z 与 9 秒窗口都认（R159 同一套机制）。 */
+  pushUndo(`撤销报告卡「${card.title.slice(0, 12)}」`, () => {
+    const i = d.resources.findIndex(x => x.id === card.id)
+    if (i < 0) return
+    d.resources[i] = { ...card, deletedAt: Date.now() }
+    ctx.persist()
+  })
+  return `✓ 报告已存入 资源台 › 待分类「${card.title.slice(0, 18)}」（未改动任何既有卡片 · Ctrl/Cmd+Z 可撤销）`
 }
 
 /**

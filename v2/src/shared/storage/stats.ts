@@ -7,6 +7,27 @@
  */
 import type { AppData, ResourceCard } from '@/shared/models'
 import { dateKey, weekStartKey } from '@/shared/utils'
+import { recordCallEvent, type CardKind } from '@/shared/utils/eventLog'
+
+/**
+ * R172-T1：可记「调出」事件的卡形状 —— 三个打开入口传进来的卡字段名不统一
+ * （资源/任务用 `title`、好奇用 `question`），此处收一次口，避免每个调用点各写一份兜底。
+ */
+type OpenableCard = {
+  id?: string
+  kind?: string
+  title?: string
+  question?: string
+  callCount?: number
+  lastCalledAt?: number
+}
+const KIND_SET: ReadonlySet<string> = new Set(['resource', 'task', 'curiosity'])
+function emitCall(card: OpenableCard | null | undefined, fallbackKind?: CardKind): void {
+  if (!card || !card.id) return
+  const k = (card.kind && KIND_SET.has(card.kind) ? card.kind : fallbackKind) as CardKind | undefined
+  if (!k) return
+  recordCallEvent(k, card.title || card.question || '（无标题）', card.id)
+}
 
 /**
  * 记录一次资源卡打开（资源台单击/双击/搜索打开/关联卡片/北极星下钻统一入口）
@@ -17,6 +38,9 @@ export function recordResourceOpen(data: AppData, resource: ResourceCard): void 
   const now = Date.now()
   resource.callCount = (resource.callCount || 0) + 1
   resource.lastCalledAt = now
+  // R172-T1：资源卡打开同时记一条 `call` 事件（热力图 / 复盘「调出维度」的数据源；
+  // 此前只有 lastCalledAt 现算，历史日永远查不到）
+  emitCall(resource as OpenableCard, 'resource')
 
   if (data?.stats) {
     const wk = weekStartKey(dateKey(new Date()))
@@ -52,11 +76,13 @@ export function weekUsageOf(data: AppData | null | undefined): number {
 /**
  * R47-B4：任务/好奇心卡打开计数（调起详情抽屉等「调用」动作统一入口）
  * 不进 WRR 口径（WRR 仅统计资源卡复用），只维护卡片自身的热度字段。
+ * R172-T1：同时记一条 `call` 事件——卡种优先取卡自身的 `kind`，缺省回落调用方给的 `fallbackKind`。
  */
-export function recordCardOpen(data: AppData | null, card: { callCount?: number; lastCalledAt?: number } | null | undefined): void {
+export function recordCardOpen(data: AppData | null, card: OpenableCard | null | undefined, fallbackKind?: CardKind): void {
   if (!card) return
   card.callCount = (card.callCount || 0) + 1
   card.lastCalledAt = Date.now()
+  emitCall(card, fallbackKind)
 }
 
 /** R47-B4：策展台打开计数（切换/进入策展台统一入口） */

@@ -19,7 +19,7 @@ import AiMarkSymbol from '@/shared/components/AiMarkSymbol.vue'
 import logoUrl from '@/assets/logo.png'
 import { getBytesInUse, subscribeSaveError, clearLastSaveError, subscribeSaveState, cleanupLegacyKeys, type SaveState } from '@/shared/storage/repository'
 import { installGlobalUndo } from '@/shared/utils/undo'
-import { emitOpenDrawer, onOpenDrawer, setPendingDrawer } from '@/shared/utils/bus'
+import { emitOpenDrawer, onOpenDrawer, setPendingDrawer, onOpenPanel } from '@/shared/utils/bus'
 // R160（P1）：详情抽屉（10KB 源）同走按需挂载——首个打开事件到达时挂载，事件经 bus 暂存回放
 const ResourceDetailDrawer = defineAsyncComponent(() => import('./components/ResourceDetailDrawer.vue'))
 
@@ -40,17 +40,19 @@ onErrorCaptured((err) => {
   return false
 })
 function reloadPage() { location.reload() }
-interface GpHandle { openPanel: (name: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts') => void; closeAll: () => void }
+interface GpHandle { openPanel: (name: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts', prefill?: { title?: string; description?: string }) => void; closeAll: () => void }
 const globalPopups = ref<GpHandle | null>(null)
 const gpMounted = ref(false)
-let pendingPanel: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts' | null = null
+let pendingPanel: { name: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts'; prefill?: { title?: string; description?: string } } | null = null
 /** R160（P1）：首次呼出才挂载 GP（异步 chunk 加载完成后自动开面板，调用方零感知） */
-function gpOpen(panel: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts'): void {
-  if (globalPopups.value) { globalPopups.value.openPanel(panel); return }
+function gpOpen(panel: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts', prefill?: { title?: string; description?: string }): void {
+  if (globalPopups.value) { globalPopups.value.openPanel(panel, prefill); return }
   gpMounted.value = true
-  pendingPanel = panel
+  pendingPanel = { name: panel, ...(prefill ? { prefill } : {}) }
 }
-watch(globalPopups, (v) => { if (v && pendingPanel) { const p = pendingPanel; pendingPanel = null; v.openPanel(p) } })
+watch(globalPopups, (v) => { if (v && pendingPanel) { const p = pendingPanel; pendingPanel = null; v.openPanel(p.name, p.prefill) } })
+/** R172-T11：页面内呼出（仪表盘「生成任务」）与扩展快捷键走同一个 gpOpen，两条路不各写一份 */
+onOpenPanel((p) => gpOpen(p.name, p.prefill))
 const detailDrawerMounted = ref(false)
 // R160（P1）：抽屉未挂载时首个 bus 事件先挂载 + 暂存（抽屉挂载后自取自开）
 onOpenDrawer((p) => {

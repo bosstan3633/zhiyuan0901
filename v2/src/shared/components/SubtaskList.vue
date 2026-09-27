@@ -25,7 +25,8 @@ const emit = defineEmits<{
 
 const draft = ref('')
 const write = (fn: (list: Subtask[]) => Subtask[]) => emit('update', fn(props.subtasks || []))
-function toggle(s: Subtask) { write(list => list.map(x => (x.id === s.id ? { ...x, done: !x.done } : x))) }
+// R172-T2：勾选同时落 `doneAt`（热力图/复盘「推进」维度按日归集的唯一依据）
+function toggle(s: Subtask) { write(list => list.map(x => (x.id === s.id ? { ...x, done: !x.done, doneAt: !x.done ? Date.now() : undefined } : x))) }
 function rename(s: Subtask, ev: Event) {
   const v = (ev.target as HTMLInputElement).value.trim()
   if (!v || v === s.title) return

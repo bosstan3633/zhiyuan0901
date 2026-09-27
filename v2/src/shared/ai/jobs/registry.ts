@@ -227,15 +227,16 @@ export const AI_ENTRIES: AiEntryDecl[] = [
     factory: 'buildReviewJob', factoryFile: 'shared/ai/select.ts',
     hosts: ['newtab/views/GlobalSettings.vue'],
     caps: { before: true, paneMode: 'context', promptScope: 'review', rawText: true, autoReport: true, resave: true },
-    panel: { icon: 'calendar', mode: 'nav', route: '/', hint: '调度台周报浮层入口' },
+    panel: { icon: 'calendar', mode: 'nav', route: '/', hint: '仪表盘复盘段内发起' },
     note: '纯报告型（withReport 且无 apply）：跑完自动落卡 + dirty 时「存为卡」同名复用，抽屉不出采纳按钮',
   },
   {
     id: 'insight', title: '深度洞察', family: 'proactive', kind: 'job',
     factory: 'buildInsightJob', factoryFile: 'shared/ai/select.ts',
-    hosts: ['newtab/components/WeeklyReportOverlay.vue'],
+    // R172-T9：宿主随调度画像周报浮层退役改指仪表盘复盘段（同一件事的新居所）
+    hosts: ['newtab/components/dashboard/ReviewPanel.vue'],
     caps: { before: true, paneMode: 'context', promptScope: 'insight', rawText: true, autoReport: true, resave: true },
-    panel: { icon: 'flame', mode: 'nav', route: '/', hint: '周报浮层内发起' },
+    panel: { icon: 'flame', mode: 'nav', route: '/', hint: '仪表盘复盘段内发起' },
   },
   // ★ R167：原 'card-optimize'（全方位优化）已并入上面的 'card-enrich' —— 两枚入口并成一枚，
   //   注册表 23 → 22；「抓正文」能力随工厂合并迁入，不再存在"两条口径不一的单卡工厂"。

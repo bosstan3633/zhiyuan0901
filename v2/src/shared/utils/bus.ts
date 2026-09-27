@@ -25,3 +25,26 @@ export function emitOpenDrawer(p: DrawerPayload): void {
 let pendingDrawer: DrawerPayload | null = null
 export function setPendingDrawer(p: DrawerPayload): void { pendingDrawer = p }
 export function consumePendingDrawer(): DrawerPayload | null { const p = pendingDrawer; pendingDrawer = null; return p }
+
+/**
+ * R172-T11（04-67 F31/F32）：页面内呼出全局浮层面板。
+ * 为什么单开一条通道：扩展快捷键那套走 `chrome.runtime.sendMessage`，而**同文档自发的消息不会回到自己**
+ * （MV3 语义），仪表盘里的「生成任务」需要的是同一件事的本地触发。
+ */
+export interface PanelPayload {
+  name: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts'
+  /** 预填快速采集任务（用户仍可改后再存 ⇒ 采纳权在用户，AI 不替决策） */
+  prefill?: { title?: string; description?: string }
+}
+
+type PanelListener = (p: PanelPayload) => void
+const panelListeners = new Set<PanelListener>()
+
+export function onOpenPanel(fn: PanelListener): () => void {
+  panelListeners.add(fn)
+  return () => panelListeners.delete(fn)
+}
+
+export function emitOpenPanel(p: PanelPayload): void {
+  panelListeners.forEach((fn) => { try { fn(p) } catch (e) { console.error('[bus] panel handler error:', e) } })
+}
