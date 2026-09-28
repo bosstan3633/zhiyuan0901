@@ -310,7 +310,7 @@ out.push('')
 out.push('| 脚本 | 用途 |')
 out.push('|---|---|')
 const scriptNotes = {
-  'regression.cjs': '静态回归断言（唯一真源，只增不减）',
+  'regression.cjs': '静态回归断言（R174-1 分片编排入口；断言体在 scripts/regression/，基建在 regression/helpers.cjs）',
   'e2e.cjs': '端到端（Playwright）',
   'perf.cjs': '性能基准（medium/large 档，支持 --dist= 同机 A/B）',
   'pack.cjs': '出包（剥 map / 校验体积预算）',
