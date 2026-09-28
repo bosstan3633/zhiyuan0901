@@ -334,9 +334,9 @@ check('R153-3 ★空态必须能自证：抽屉 0 行时给「看模型原文（
   return d.includes('看模型原文（') && d.includes('function copyRaw()') && d.includes('navigator.clipboard') && d.includes('showRaw.value = false')
 });
 
-check('R153-4（R155 令牌化备案：字号改走 --fs-* 阶）★体检量到的"中性小字低于 AA"当场修，"强调色小字"留给令牌决策不硬改：cf-pct / cf-open / mb-denom 从 --text-3 抬到 --text-2（真库量到 3.14:1 @10~11px），列数钮 20→24px；accent 系小字（cf-label 3.93 / tg-pct 3.51 / cf-go 3.14）提亮会动全站主题令牌，只记账不定案；emoji 图标（📌 1.25）不算对比度对象', () => {
+check('R153-4（R155 令牌化备案 · R176 重指带备案：cf-open「待办 N」随原型主攻项精简整体退役，cf-pct/mb-denom 判据保留）★体检量到的"中性小字低于 AA"当场修，"强调色小字"留给令牌决策不硬改：cf-pct / mb-denom 从 --text-3 抬到 --text-2（真库量到 3.14:1 @10~11px），列数钮 20→24px；accent 系小字（cf-label 3.93 / tg-pct 3.51 / cf-go 3.14）提亮会动全站主题令牌，只记账不定案；emoji 图标（📌 1.25）不算对比度对象', () => {
   const ch = read('/newtab/views/CompassHome.vue'); const mb = read('/newtab/components/compass/MetricBar.vue'); const cp = read('/shared/components/ColsPicker.vue')
-  return ch.includes('.cf-pct { flex-shrink: 0; font-size: var(--fs-caption); color: var(--text-2)') && ch.includes('.cf-open { flex-shrink: 0; font-size: var(--fs-tiny); color: var(--text-2)')
+  return ch.includes('.cf-pct { flex-shrink: 0; font-size: var(--fs-caption); color: var(--text-2)')
     && mb.includes('.mb-denom { font-size: var(--fs-caption); font-weight: 500; color: var(--text-2)') && cp.includes('width: 24px; min-width: 24px; height: 24px')
 });
 check('R150-1 ★检索类 AI 入口全站只留一枚：旧「AI 理解」通道整体退场（rerankSearch/rerankSystem/rerankReady/「AI 理解」字样在源码与断言锚点里都不该再存在），合并后的「AI 检索」把候选从"字面命中前 14 条"换成"库内三类卡"——用户换个说法也能召得回', () => {

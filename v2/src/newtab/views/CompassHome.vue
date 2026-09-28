@@ -794,11 +794,11 @@ const ERR_LABEL: Record<string, string> = { quota: '存储空间已满', serial:
 const storageText = computed(() => saveErr.value
   ? `存储异常 · ${ERR_LABEL[saveErr.value.kind] || '写入失败'}`
   : lastOkTick.value
-    ? `数据存储正常 · ${timeAgo(lastOkTick.value)}`
-    : '数据存储正常')
+    ? `本机存储正常 · ${timeAgo(lastOkTick.value)}`
+    : '本机存储正常')
 function timeAgo(ts: number): string {
   const diff = Date.now() - ts
-  if (diff < 60_000) return '刚刚写入'
+  if (diff < 60_000) return '刚写入'
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前写入`
   return `${Math.floor(diff / 3_600_000)} 小时前写入`
 }
@@ -895,7 +895,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
             <span class="cf-name">{{ p.name }}</span>
             <span class="cf-pct">{{ focusMeta.get(p.id)?.pct || 0 }}%</span>
             <span v-if="focusMeta.get(p.id)?.stall" class="cf-stall" title="近 14 天无推进">⚠ 停滞</span>
-            <span v-if="focusMeta.get(p.id)?.open" class="cf-open">待办 {{ focusMeta.get(p.id)?.open }}</span>
           </span>
         </template>
         <span v-else class="cf-hint" title="去方向台指定主攻项目" @click="router.push('/compass')">尚无主攻 · 去方向台指定</span>
@@ -1012,16 +1011,8 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
     <!-- 下 · 项目调度（选中任务联动）｜ R67-F4：id 供快捷键直达锚点 -->
     <section id="zy-mod-tasks" class="module right-col">
         <div class="card curation">
-          <div class="card-head">
-            <span class="ic"><Icon name="target" :size="17" /></span><span class="nm">项目调度</span><span class="en">PROJECT SPOTLIGHT</span>            <span class="ds">选中任务所属项目 · 单击上方任务卡联动</span>
-            <!-- R56-P1：头部迷你计数条移除——4 指标已恢复至左列 -->
-            <!-- R94（B2）：任务树**默认折叠**的切换入口，带任务数（折叠时也知道下面压着多少） -->
-            <button v-if="curProject" class="mini-btn" :title="curTreeOpen ? '收起任务树' : '展开任务树'"
-              @click="curTreeOpen = !curTreeOpen">
-              <Icon name="branch" :size="13" />{{ curTreeOpen ? '收起关联任务树' : '展开关联任务树' }} ({{ projTasks.length }}) <span class="cur-tree-caret">{{ curTreeOpen ? '▴' : '▾' }}</span>
-            </button>
-            <!-- R169-T4：原「方向树」钮撤掉——整行归属本身就是入口（见 .cur-crumb），两枚钮做同一件事是噪音 -->
-          </div>
+          <!-- R176（原型 task-detail-card）：卡头标题行退役——原型直接以「行动来处」行开篇；
+               「展开关联任务树」是全站唯一指标结构管理面入口（R169-16 备案不删），移至归属行右端。 -->
           <div v-if="curProject" class="cur-body-v">
             <!-- R66-F2：删顶部项目名行与愿景/使命模块（数据保留在方向台）——项目名大字下移为模块主体首行，纵向压缩 -->
             <div class="cur-cols" :style="{ gridTemplateColumns: curColsStyle }">
@@ -1043,13 +1034,18 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
                     <span class="cc-it cur" data-testid="cur-crumb-metric"><span class="v">{{ selMetricTitle }}</span></span>
                     <span class="cc-go">方向树 ›</span>
                   </div>
-                  <!-- R56-P1：4 指标卡（R169-T4：一行四格与归属同排；R175：格子内改「标签+数值」同行 chip 形态，四格都可下钻的判据不变） -->
+                  <!-- R56-P1：4 指标卡（一行四格与归属同排；R176：标签对齐原型——关联任务/已推进完成/正在进行中，四格下钻判据不变） -->
                   <div class="cur-stats-v2">
                     <div class="csv-cell clickable" title="成功指标 · 点击下钻" @click="openCurDrill('metrics')"><span class="csv-lab">成功指标</span><span class="csv-num">{{ projMetrics.length }}</span></div>
-                    <div class="csv-cell clickable" title="任务总数 · 点击下钻" @click="openCurDrill('total')"><span class="csv-lab">任务总数</span><span class="csv-num">{{ projTasks.length }}</span></div>
-                    <div class="csv-cell clickable" title="已完成 · 点击下钻" @click="openCurDrill('done')"><span class="csv-lab">已完成</span><span class="csv-num ok">{{ projDoneCount }}</span></div>
-                    <div class="csv-cell clickable" title="进行中 · 点击下钻" @click="openCurDrill('doing')"><span class="csv-lab">进行中</span><span class="csv-num warn">{{ projDoingCount }}</span></div>
+                    <div class="csv-cell clickable" title="关联任务 · 点击下钻" @click="openCurDrill('total')"><span class="csv-lab">关联任务</span><span class="csv-num">{{ projTasks.length }}</span></div>
+                    <div class="csv-cell clickable" title="已推进完成 · 点击下钻" @click="openCurDrill('done')"><span class="csv-lab">已推进完成</span><span class="csv-num ok">{{ projDoneCount }}</span></div>
+                    <div class="csv-cell clickable" title="正在进行中 · 点击下钻" @click="openCurDrill('doing')"><span class="csv-lab">正在进行中</span><span class="csv-num warn">{{ projDoingCount }}</span></div>
                   </div>
+                  <!-- R176：任务树切换钮自退役卡头移入归属行右端（R169-16 口径不变：默认折叠，首屏即原型形态） -->
+                  <button class="mini-btn tree-toggle" :title="curTreeOpen ? '收起任务树' : '展开任务树'"
+                    @click="curTreeOpen = !curTreeOpen">
+                    <Icon name="branch" :size="13" />{{ curTreeOpen ? '收起关联任务树' : '展开关联任务树' }} ({{ projTasks.length }}) <span class="cur-tree-caret">{{ curTreeOpen ? '▴' : '▾' }}</span>
+                  </button>
                 </div>
                 <!-- R120-TB3：进度条（对齐原型；数据沿用 projectProgress 既有口径） -->
                 <div class="cur-progress" title="项目进度">
@@ -1099,13 +1095,13 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
             <!-- ===== R169-T4：下半部两块（左=描述原文 · 右=子任务），中缝可拖、纵向定高 ===== -->
             <div class="spot-dual" data-testid="spot-dual" :style="{ gridTemplateColumns: `minmax(0, ${spotSplit}%) 8px 1fr` }">
               <div class="sp-col">
-                <div class="sp-h"><b>描述</b><i>卡片描述字段原文 · 只读，编辑回任务详情</i><span class="r">{{ selTask?.status === 'done' ? '已完成' : selTask?.status === 'doing' ? '进行中' : '待开始' }}</span></div>
+                <div class="sp-h"><b>任务描述 (DESCRIPTION)</b></div>
                 <div class="sp-b"><div class="sp-desc">{{ selTask?.description || '（这张卡还没有描述 —— 到任务详情里写一句"做完算成"的标准，比标题更能提醒明天的自己）' }}</div></div>
               </div>
               <div class="sp-split" data-testid="sp-split" title="拖动调节两栏宽度（25%–70%）· 双击复位"
                 @mousedown="startSpotSplitDrag" @dblclick="resetSpotSplit"><i /></div>
               <div class="sp-col">
-                <div class="sp-h"><b>子任务清单</b><i>本卡内容 · 完成不计分</i><span class="r" data-testid="sp-sub-n">{{ selSubsDone }}/{{ selSubs.length }}</span></div>
+                <div class="sp-h"><b>子任务清单 (SUBTASKS)</b><span class="r" data-testid="sp-sub-n">{{ selSubsDone }} / {{ selSubs.length }} 项已完成</span></div>
                 <div class="sp-b" data-testid="sp-sub-body">
                   <div v-for="s in selSubs" :key="s.id" class="sp-sub" :class="{ done: s.done }"
                     :title="s.done ? '点方框取消完成' : '点方框标记完成 · 改文案请进任务详情'" @click="openSelTask">
@@ -1336,7 +1332,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cf-pct { flex-shrink: 0; font-size: var(--fs-caption); color: var(--text-2); font-variant-numeric: tabular-nums; }
 /* R91 口径保留：14 天无推进亮 ⚠ 停滞；待办数为 10px 轻量标记 */
 .cf-stall { flex-shrink: 0; font-size: var(--fs-tiny); color: var(--warning); }
-.cf-open { flex-shrink: 0; font-size: var(--fs-tiny); color: var(--text-2); }
 .cf-hint { font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cf-hint:hover { color: var(--accent); }
 .cf-go { flex-shrink: 0; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; }
@@ -1418,7 +1413,8 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .card.focus .today-card { padding: 12px 14px; min-height: 84px; border-radius: var(--radius-md); }
 .card.focus .today-card:not(.empty-card):hover { transform: translateY(-1px); }
 .card.focus .today-card:not(.empty-card) { border-color: var(--border); }
-.card.focus .today-card.sel { border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 4%, transparent); animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent), inset 0 0 14px color-mix(in srgb, var(--accent) 8%, transparent); }
+/* R176（原型 selected）：accent 描边 + 白底 + 细环（1px ring + 柔和投影，替代旧 3px 光晕+淡底） */
+.card.focus .today-card.sel { border-color: var(--accent); background: var(--surface); animation: none; box-shadow: 0 0 0 1px var(--accent), 0 4px 12px color-mix(in srgb, var(--accent) 8%, transparent); }
 /* R94（B3）三件事全完成：**安静**完成态——整块轻微去饱和（R175：.5→.65 对齐原型，仍低饱和）+ 一行中性小字。
    ⚠ 卡头（复制昨日 / 导出 / 日期导航）**不去饱和**——那是操作区，褪色会影响可用性。
    不用庆祝动画、不用红色、不用进度百分比。 */
@@ -1432,7 +1428,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .today-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .today-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; cursor: pointer; transition: all var(--dur) ease; position: relative; display: flex; flex-direction: column; min-height: 84px; }
 .today-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
-.today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 22%, transparent); }
+.today-card.sel { border-color: var(--accent); background: var(--surface); animation: none; box-shadow: 0 0 0 1px var(--accent), 0 4px 12px color-mix(in srgb, var(--accent) 8%, transparent); }
 .today-card.done { opacity: .6; animation: none; }
 .today-card.done .tc-title { text-decoration: line-through; color: var(--text-3); }
 .today-card.empty-card { opacity: .55; border-style: dashed; background: transparent; align-items: center; justify-content: center; }
@@ -1451,12 +1447,16 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .tc-title.empty-t { color: var(--text-3); font-weight: 400; }
 .tc-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
 .tc-meta .tag { font-size: var(--fs-caption); padding: 1px 7px; }
+/* R176（原型 slot-tag）：三件事槽位标签统一中性灰（项目/指标不分色，tag 语义色别处不受影响） */
+.card.focus .tc-meta .tag.accent, .card.focus .tc-meta .tag.warn { background: var(--surface-3); color: var(--text-2); }
 .tc-remove { position: absolute; top: 7px; right: 32px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: var(--fs-body); color: var(--text-3); cursor: pointer; opacity: 0; transition: all var(--dur); }
 .today-card:hover .tc-remove { opacity: 1; }
 .tc-remove:hover { background: var(--danger); color: #fff; }
 
-/* 项目调度（R52-F2：左右两列——左=方向感，右=执行面） */
-.cur-body-v { padding: 0 20px 18px; display: flex; flex-direction: column; gap: 10px; }
+/* 项目调度（R52-F2：左右两列——左=方向感，右=执行面）｜ R176：卡头退役 ⇒ 卡体自带顶部内距（原型 16px 20px） */
+.cur-body-v { padding: 14px 20px 18px; display: flex; flex-direction: column; gap: 10px; }
+/* R176：任务树切换钮（自退役卡头移入归属行右端） */
+.tree-toggle { align-self: center; flex-shrink: 0; }
 /* R54-B1：左右两列 + 可拖拽分隔条（行内 style 动态列宽，此处为基础回退值） */
 /* R55-E（修复 R54-B1）：列宽绑定 ${curSplit.value}——此前 ${curSplit} 插值 ref 对象生成非法值被 CSSOM 静默拒绝 */
 .cur-cols { display: grid; grid-template-columns: minmax(0, 38%) 8px 1fr; gap: 0 10px; align-items: stretch; }
@@ -1489,7 +1489,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .sp-h i { font-style: normal; font-size: var(--fs-caption); color: var(--text-4); }
 .sp-h .r { margin-left: auto; font-size: var(--fs-caption); color: var(--text-4); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sp-b { flex: none; overflow-y: auto; padding: 11px 12px; height: calc(var(--sp-rows) * var(--sp-sub-h)); }
-.sp-desc { font-size: var(--fs-body); line-height: 1.85; color: var(--text-2); white-space: pre-wrap; }
+.sp-desc { font-size: var(--fs-body); line-height: 1.55; color: var(--text-2); white-space: pre-wrap; }
 .sp-split { position: relative; cursor: col-resize; display: flex; align-items: center; justify-content: center; }
 .sp-split i { width: 3px; height: 26px; border-radius: 2px; background: var(--border-strong); transition: all var(--dur); }
 .sp-split:hover i { background: var(--accent); height: 100%; }

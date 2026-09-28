@@ -450,10 +450,14 @@ const backupReminderDot = computed(() => {
     <header class="topbar">
       <div class="topbar-inner" :class="topbarAlign">
       <nav class="tabs" @mouseleave="wsOverflowOpen = false">
-        <!-- 固定页：调度台 / 方向台 / 资源台（R49 三大系统页） -->
-        <div class="tab" :class="{active: activeTab === 'home'}" @click="navigate('/')">
-          <img :src="logoUrl" class="home-logo" alt="知源调度台">调度台
+        <!-- R176（原型 nav-brand-chip）：品牌位 = logo + 知源调度台 + Ownway（点击回调度台）；随后才是台面页签 -->
+        <div class="brand-chip" title="知源调度台 Ownway" @click="navigate('/')">
+          <img :src="logoUrl" class="brand-logo" alt="知源调度台" />
+          <span class="brand-name">知源调度台</span>
+          <span class="brand-en">Ownway</span>
         </div>
+        <!-- 固定页：调度台 / 方向台 / 资源台（R49 三大系统页） -->
+        <div class="tab" :class="{active: activeTab === 'home'}" @click="navigate('/')">调度台</div>
         <div class="tab" :class="{active: activeTab === 'compass'}" @click="openCompass">
           <Icon name="compass" :size="15" />方向台
         </div>
@@ -519,6 +523,8 @@ const backupReminderDot = computed(() => {
       </nav>
 
       <div class="topbar-right">
+        <!-- R176（原型 nav-shortcut-tip）：⌘K 快捷键提示 chip（点击即呼出全局搜索） -->
+        <button class="nav-shortcut-tip" title="全局搜索" @click="gpOpen('search')">调出快捷键 ⌘K</button>
         <!-- R159（T3）：落盘状态点（极轻量；error 可点击查看） -->
         <span class="save-dot" :class="saveState" :title="saveDotTip" @click="onSaveDotClick" />
         <div class="theme-select">
@@ -602,6 +608,14 @@ const backupReminderDot = computed(() => {
 .topbar-inner.align-manual { max-width: 1440px; margin: 0 auto; padding: 0 36px; }
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }
 .home-logo { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
+/* R176（原型 nav-brand-chip）：品牌位（logo 16px + 知源调度台 13px/700 + Ownway 11px 次要字） */
+.brand-chip { display: flex; align-items: center; gap: 6px; margin-right: 14px; cursor: pointer; flex-shrink: 0; }
+.brand-chip .brand-logo { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
+.brand-chip .brand-name { font-size: var(--fs-body); font-weight: 700; letter-spacing: -.01em; color: var(--text); white-space: nowrap; }
+.brand-chip .brand-en { font-size: var(--fs-caption); font-weight: 500; color: var(--text-3); letter-spacing: .02em; white-space: nowrap; }
+/* R176（原型 nav-shortcut-tip）：⌘K 提示 chip（surface-2 底 + hairline 边，点击呼出全局搜索） */
+.nav-shortcut-tip { font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); padding: 3px 8px; border-radius: var(--radius-xs); border: 1px solid var(--border); cursor: pointer; font-family: inherit; white-space: nowrap; transition: all var(--dur); }
+.nav-shortcut-tip:hover { color: var(--text); border-color: var(--border-strong); }
 /* R123（原型）：tab 6×12、active = 浅紫填充块（accent-light + accent 600），下划线退役
    R175（原型 nav-tab-item）：padding 6×12→5×11、圆角 xs→sm，其余口径不变 */
 .tab { padding: 5px 11px; border-radius: var(--radius-sm); font-size: var(--fs-body); font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color var(--dur) ease, background var(--dur) ease; position: relative; white-space: nowrap; }

@@ -42,8 +42,8 @@ const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 
 // ---- 视图与工具栏状态 ----
 // 第卌五轮：卡片视图默认（card | list | kanban）
-/** R127：默认列表视图（原卡片） */
-const viewMode = ref<'card' | 'list' | 'kanban'>('list')
+/** R176：默认卡片视图（原型 seg/m-seg 口径；R127 的默认列表由用户 2026-09-28 拍板「与原型完全一致」取代） */
+const viewMode = ref<'card' | 'list' | 'kanban'>('card')
 // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.task；网格模板由 --grid-cols 驱动）
 const taskCols = useCardCols('task', store.ui)
 /** R127：分组三档（默认按项目；列表视图用） */
@@ -662,18 +662,16 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 </script>
 
 <template>
-  <ModuleCard icon-name="clipboard" title="任务调度" en="TASK MANAGER" desc="所有任务的多维管理">
-    <template #actions>
-      <button class="mini-btn" :class="{active: batchMode}" @click="toggleBatchMode">{{ batchMode ? '✓ 完成' : '☑ 批量管理' }}</button>
-      <button class="mini-btn primary" @click="createNewTask"><span>＋</span>新建任务</button>
-    </template>
+  <!-- R176（原型 1:1）：模块标题行退役（原型工作台面板直接以工具条开篇）；批量管理/新建任务移入工具条右端 -->
+  <ModuleCard title="">
 
     <div class="mgr-body" :class="{batch: batchMode}">
       <div class="mgr-toolbar">
         <div class="view-tabs">
-          <div class="view-tab" :class="{active: viewMode==='card'}" @click="viewMode='card'">▦ 卡片</div>
-          <div class="view-tab" :class="{active: viewMode==='list'}" @click="viewMode='list'">☰ 列表</div>
-          <div class="view-tab" :class="{active: viewMode==='kanban'}" @click="viewMode='kanban'">▥ 看板</div>
+          <!-- R176（原型 m-seg-item）：纯文字分段（▦/☰/▥ 图标退役） -->
+          <div class="view-tab" :class="{active: viewMode==='card'}" @click="viewMode='card'">卡片</div>
+          <div class="view-tab" :class="{active: viewMode==='list'}" @click="viewMode='list'">列表</div>
+          <div class="view-tab" :class="{active: viewMode==='kanban'}" @click="viewMode='kanban'">看板</div>
         </div>
         <!-- R72：卡片视图横向列数（4/5/6/7，仅卡片视图出现） -->
         <ColsPicker v-if="viewMode==='card'" v-model="taskCols" label="列数" />
@@ -696,8 +694,13 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           <option value="pin">📌 按置顶与否分组</option>
         </select>
         <!-- R113-N2：⏳ 入口移除——生命周期收敛到 设置→总览 -->
-        <div class="search-box"><span>🔍</span><input v-model="searchQuery" placeholder="搜索任务..."></div>
+        <div class="search-box"><span>🔍</span><input v-model="searchQuery" placeholder="快速过滤..."></div>
         <span class="mgr-count"><span class="cur">{{ filteredTasks.length }} 条</span><span class="total" :class="{act: filterBy !== 'all' || searchQuery.trim()}" @click="clearTaskFilter" :title="filterBy !== 'all' || searchQuery.trim() ? '点击查看全部任务' : '全部任务数'">/ 全部 {{ totalTaskCount }}</span></span>
+        <!-- R176（原型 primary-cta-btn）：批量管理/新建任务自模块标题行移入工具条右端 -->
+        <div class="mgr-actions">
+          <button class="mini-btn" :class="{active: batchMode}" @click="toggleBatchMode">{{ batchMode ? '✓ 完成' : '☑ 批量管理' }}</button>
+          <button class="mini-btn primary" @click="createNewTask"><span>＋</span>新建任务</button>
+        </div>
       </div>
 
       <!-- R110-LC（T3）：归档卡已从默认视图隐藏——降级提示（R113-N2 起点击跳 设置→总览·资源生命周期） -->
@@ -1069,7 +1072,9 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 
 .mgr-body { padding-bottom: 4px; }
 .mgr-body.batch .check-sm { display: none; }
-.mgr-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+/* R176（原型 panel-toolbar）：模块标题行退役 ⇒ 工具条自带顶部内距；批量/新建动作组贴右 */
+.mgr-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; padding-top: 16px; }
+.mgr-actions { display: flex; align-items: center; gap: 8px; }
 /* R175（原型 macos-segmented）：视图三态改连体分段（subtle 底 + 选中浮起白片），类名与交互一字未动 */
 .view-tabs { display: flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px; gap: 2px; }
 .view-tab { padding: 5px 12px; border-radius: var(--radius-xs); font-size: var(--fs-sub); cursor: pointer; color: var(--text-2); transition: all var(--dur); border: none; background: transparent; font-family: inherit; }
@@ -1095,7 +1100,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .tm-group-label { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin: 2px 0 8px; }
 /* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 240px */
 .tm-grid-inner { display: grid; /* R106（F3）：精确 N 列（生产反馈：auto-fill+精确分数宽在 6/7 列因取整差一位永远少一） */ grid-template-columns: repeat(var(--grid-cols, 5), minmax(0, 1fr)); gap: 12px; }
-.tm-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; min-height: 94px; cursor: pointer; transition: all var(--dur) ease; display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow: hidden; }
+.tm-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; min-height: 94px; cursor: pointer; transition: all var(--dur) ease; display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow: hidden; }
 .tm-card:hover { border-color: var(--border-strong); background: var(--surface); box-shadow: var(--shadow-sm); }
 .tm-card.done { opacity: .62; }
 .tm-card.done .tm-title { text-decoration: line-through; color: var(--text-3); }
@@ -1117,6 +1122,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .tm-sub { color: var(--text-3); font-weight: 400; margin-right: 3px; cursor: default; }
 .tm-title { font-size: var(--fs-body); font-weight: 600; line-height: 1.45; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .tm-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+/* R176（原型 task-item-card footer）：卡片标签统一中性灰（项目/指标不分色；字段显隐体系不动） */
+.tm-tags .tag.accent, .tm-tags .tag.warn { background: var(--surface-3); color: var(--text-2); }
 .tm-ext { display: flex; flex-wrap: wrap; gap: 5px; }
 .tm-ext-item { font-size: var(--fs-caption); color: var(--text-3); }
 .tm-ext-item.status-doing { color: var(--tag-warn-text); }
