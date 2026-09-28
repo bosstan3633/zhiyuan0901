@@ -26,11 +26,22 @@ export function saveReportCard(ctx: ReportCtx, p: ReportPayload): string {
   // R149（用户拍板"保持一张卡"）：同一天的同一类报告只有一张——重跑是刷新那张，不是再攒一张
   const dup = (d.resources || []).find(r => !r.deletedAt && r.title === title && (r.tags || []).includes(REPORT_TAG))
   if (dup) {
+    // R174-6（04-69）：刷新分支同样进撤销栈——04-68 §5 挂账「文案承诺可撤销而此分支不进」收口。
+    // 撤销语义 = 恢复刷新前的正文/标签/更新时间（不是软删：卡还在，被改掉的是内容）。
+    const prevDesc = dup.description
+    const prevTags = dup.tags
+    const prevAt = dup.updatedAt
     dup.description = p.description.slice(0, 4000)
     dup.tags = [...new Set([...(dup.tags || []), ...tags])].slice(0, 6)
     dup.updatedAt = Date.now()
     ctx.persist()
-    return `✓ 报告已刷新 资源台 › 待分类「${dup.title.slice(0, 18)}」（同日重跑不另起新卡，未改动其他卡片）`
+    pushUndo(`撤销报告卡刷新「${dup.title.slice(0, 12)}」`, () => {
+      const i = d.resources.findIndex(x => x.id === dup.id)
+      if (i < 0) return
+      d.resources[i] = { ...dup, description: prevDesc, tags: prevTags, updatedAt: prevAt }
+      ctx.persist()
+    })
+    return `✓ 报告已刷新 资源台 › 待分类「${dup.title.slice(0, 18)}」（同日重跑不另起新卡 · Ctrl/Cmd+Z 可撤销）`
   }
   const card: ResourceCard = {
     id: uid('res'), kind: 'resource', title, linkType: 'url', link: '',

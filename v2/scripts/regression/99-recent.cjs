@@ -330,6 +330,11 @@ check('R174-5 热力图焦点化（04-69 拍板 B）：摘要四卡压单行指�
     && lightPairs.every(([l0, l1, l2]) => dL(l0, l1) >= 5 && dL(l1, l2) >= 4)
     && lv.includes("w <= 8 ? 1 : w <= 18 ? 2 : w <= 32 ? 3 : w <= 52 ? 4 : 5") && lv.includes("['静默', '轻触', '常规', '高负荷', '冲刺', '满格']");
 });
+check('R174-6 saveReportCard 刷新分支进撤销栈（04-69；04-68 §5 挂账「文案承诺可撤销而刷新分支不进」收口）：dup 分支捕获刷新前 description/tags/updatedAt 并 pushUndo 恢复型撤销（非软删——卡还在，被改的是内容），回执文案补 Ctrl/Cmd+Z 可撤销承诺——文案与行为一致', () => {
+  const rp = read('/shared/ai/reports.ts');
+  return rp.includes('const prevDesc = dup.description') && rp.includes('撤销报告卡刷新') && rp.includes('{ ...dup, description: prevDesc, tags: prevTags, updatedAt: prevAt }')
+    && rp.includes('（同日重跑不另起新卡 · Ctrl/Cmd+Z 可撤销）');
+});
 check('R169-27 老账④ 文档冻结：docs/ 300+ 份交付说明标记为只读归档（README 冻结声明在位；现状唯一活清单 = 文档中心/06-2，R164 提案 E3）', () => {
   const rm = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', '..', 'docs', 'README.md'), 'utf8');
   return rm.includes('只读归档') && rm.includes('06-2');
