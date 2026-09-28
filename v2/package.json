@@ -1,6 +1,6 @@
 {
   "name": "zhiyuan-workbench-v2",
-  "version": "3.6.6",
+  "version": "3.6.7",
   "description": "知源调度台 · AI 时代的个人资源调度层与认知增强系统 · Chrome MV3 · 本地优先",
   "type": "module",
   "scripts": {
