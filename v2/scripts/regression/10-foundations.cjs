@@ -75,7 +75,7 @@ check('B27 孤儿任务小节', () => read('/newtab/views/ProjectCuration.vue').
 check('B28 全局确认弹窗组件', () => fs.existsSync(base + '/shared/components/ConfirmDialog.vue') && fs.existsSync(base + '/shared/components/confirm.ts'));
 check('B28 原生 confirm 全清除', () => { let n = 0; ['newtab/views/Workspace.vue','newtab/views/ProjectCuration.vue','newtab/components/compass/CuriosityPanel.vue','newtab/components/GlobalPopups.vue','newtab/views/GlobalSettings.vue','newtab/views/FieldEditor.vue','newtab/views/CompassHome.vue'].forEach(f => { n += count('/' + f, 'confirm('); }); return n === 0; });
 check('O22 使用手册完整内容（外置数据）', () => read('/newtab/manual-data.ts').includes('quick-1') && read('/newtab/manual-data.ts').includes('ref-2') && !read('/newtab/views/GlobalSettings.vue').includes('占位内容'));
-check('产品 logo 替换（首页+关于页+扩展图标）', () => read('/newtab/App.vue').includes('logoUrl') && read('/newtab/views/GlobalSettings.vue').includes('logoUrl') && fs.existsSync(base + '/assets/logo.png'));
+check('产品 logo 替换（首页+关于页+扩展图标）★R174-2 备案：logo 单源化——src/assets/logo.png 与 public/icons/icon128.png 逐字节同物双份（18,631B×2），宿主改走公共路径 /icons/icon128.png，仓库不再保留第二份', () => read('/newtab/App.vue').includes('logoUrl') && read('/newtab/App.vue').includes("const logoUrl = '/icons/icon128.png'") && read('/newtab/views/GlobalSettings.vue').includes("const logoUrl = '/icons/icon128.png'") && fs.existsSync(path.join(base, '..', 'public', 'icons', 'icon128.png')) && !fs.existsSync(base + '/assets/logo.png'));
 
 check('manifest 版本唯一来源', () => read('/manifest.ts').includes(VER_ANCHOR_LITERAL));
 check('关于页版本动态（读取 manifest.version，无历史版本硬编码残留）', () => {

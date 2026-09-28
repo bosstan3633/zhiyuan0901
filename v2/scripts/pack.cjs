@@ -55,7 +55,9 @@ function walk(dir, base = dir, acc = []) {
   return acc
 }
 const all = walk(DIST)
-const kept = all.filter(f => !f.endsWith('.map'))
+// R174-2 减重：.vite/ 构建元数据（29KB manifest.json）运行时零引用，随 map 一并剥出发布包
+const viteDir = path.sep + '.vite' + path.sep
+const kept = all.filter(f => !f.endsWith('.map') && !f.includes(viteDir))
 const dropped = all.length - kept.length
 
 // ---------- 输出解压目录 ----------

@@ -1006,7 +1006,7 @@ import { K, EXPORT_MARKERS } from '@/shared/storage/keys'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
 import FieldEditor from './FieldEditor.vue'
-import logoUrl from '@/assets/logo.png'
+const logoUrl = '/icons/icon128.png' // R174-2 减重：与 public/icons/icon128.png 逐字节同源，走公共路径不再重复入库
 import { createDefaultData, defaultThesisFieldDefs } from '@/shared/storage/defaults'
 // R63-4：Airtable 单向同步（连接测试 / 立即同步 / 配额提示）
 import { testConnection, runSync, quotaHint, catPathOf } from '@/shared/storage/airtable'

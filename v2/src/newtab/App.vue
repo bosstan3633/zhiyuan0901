@@ -16,7 +16,7 @@ import { useConfirm } from '@/shared/components/confirm'
 import Icon from '@/shared/components/Icon.vue'
 // R168：AI 徽标图形只挂一份（各入口走 <use>）——组件本体零依赖零状态，挂在根上即全站可用
 import AiMarkSymbol from '@/shared/components/AiMarkSymbol.vue'
-import logoUrl from '@/assets/logo.png'
+const logoUrl = '/icons/icon128.png' // R174-2 减重：与 public/icons/icon128.png 逐字节同源，走公共路径不再重复入库
 import { getBytesInUse, subscribeSaveError, clearLastSaveError, subscribeSaveState, cleanupLegacyKeys, type SaveState } from '@/shared/storage/repository'
 import { installGlobalUndo } from '@/shared/utils/undo'
 import { recordRuntimeError } from '@/shared/utils/runtimeError'
