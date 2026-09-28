@@ -270,7 +270,61 @@ export function deltaOf(stats: DailyStats, day: string): KindCount & { add: numb
   }
 }
 
-/* ================= 区间聚合（复盘 / 概览带共用） ================= */
+/* ================= R174-3：落盘合并（快照补淘汰老日子，04-69 T1） ================= */
+
+/**
+ * 事件段字段分 = w 里来自「推进三维」的部分（focus/link 按权重；subtask 权重恒 0）。
+ * 用途：从快照 DayRec 的 w 里剥离出事件分——日志淘汰只会饿到**事件段**，
+ * 字段段（focus/supportLinks/subtask 的 doneAt 时间戳）不在日志里、重算永远权威。
+ */
+export function eventFieldW(r: DayRec): number {
+  return round1(W.focus * r.focus + W.link * r.link)
+}
+
+/**
+ * 事件日志的**边界日** E = 日志里最早一条非 system 事件的日期。
+ * 滚动淘汰按条数掐头 ⇒ E 之前的日子事件全被淘汰、E 当天可能只剩后半天的幸存事件。
+ */
+export function boundaryDayOf(events: CardEvent[]): string {
+  let min = ''
+  for (const e of events) {
+    if (e.kind === 'system') continue
+    const d = dayOf(e.ts)
+    if (!min || d < min) min = d
+  }
+  return min
+}
+
+/**
+ * 快照合并：重建（含全部幸存事件 + 全部字段）为权威，快照只补 `≤ 边界日` 的**事件段**。
+ *
+ * 规则（逐日，boundary = boundaryDayOf(events)）：
+ *  - k > boundary：日志完整覆盖 ⇒ 重建原样（快照对这段日子只会更旧，忽略）；
+ *  - k ≤ boundary 且重建无此日：整日取快照（字段部分两处应等值：doneAt 类字段不进日志、不会被淘汰）；
+ *  - k ≤ boundary 且重建有此日：**事件段换快照、字段段留重建**（c/del/s/u/x 取快照——
+ *    边界日的幸存事件 ⊆ 快照事件，整段替换防双计；d/sub/focus/link 留重建——字段不被淘汰，
+ *    重算更权威，连带支持链接解除/三件事反勾这类字段回退也能即时反映）；
+ *    w = 快照事件分（sr.w − 字段分） + 重建字段分。
+ *
+ * base 原样透传重建值——消费方 useDashboardStats 一律按真实在库数反推校准，快照 base 不参与。
+ */
+export function mergeDailyStats(snap: DailyStats | null | undefined, rebuild: DailyStats, boundary: string): DailyStats {
+  if (!snap || !snap.days || typeof snap.days !== 'object') return rebuild
+  const days: Record<string, DayRec> = { ...rebuild.days }
+  for (const k of Object.keys(snap.days)) {
+    if (k > boundary) continue
+    const sr = snap.days[k]
+    if (!sr) continue
+    const mr = days[k]
+    if (!mr) { days[k] = sr; continue }
+    const evW = round1(sr.w - eventFieldW(sr))
+    days[k] = { ...mr, c: sr.c, del: sr.del, s: sr.s, u: sr.u, x: sr.x, w: round1(evW + eventFieldW(mr)) }
+  }
+  const keys = Object.keys(days).sort()
+  return { v: 1, days, fullSince: keys[0] || rebuild.fullSince, base: rebuild.base }
+}
+
+
 
 export interface RangeAgg {
   days: number; act: number; W: number; acts: number

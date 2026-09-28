@@ -293,6 +293,18 @@ check('R174-2 ZIP 减重（04-69 T0-b）：pack.cjs 发布包剥离 .vite/ 构�
   const p = read('/../scripts/pack.cjs');
   return p.includes("path.sep + '.vite' + path.sep") && p.includes("!f.includes(viteDir)") && !fs.existsSync(base + '/assets/logo.png');
 });
+check('R174-3 ★zy_daily_stats 落盘（04-69 T1）：热力图不褪色的数据地基——① 独立存储通道 dailyStatsStore.ts（时间闸 45s + 页隐藏/卸载 flushDailyStatsNow 跳闸补写 + 内容未变跳写 + base 恒存 0 由消费方反推）；② repository saveData/saveDataNow 两处保存链都挂 scheduleDailyStatsWrite（不进整库 set 包）；③ 纯合并 mergeDailyStats：边界日规则——k>boundary 重建权威 / k≤boundary 且重建无此日整日取快照 / 重建有此日则**事件段换快照（c/del/s/u/x）+ 字段段留重建（d/sub/focus/link）**，w = 快照事件分+重建字段分（防边界日幸存事件双计）；④ 数据桥 useDashboardStats 启动装载 readDailySnapshot + snapRef 触发重算（首帧不等快照）', () => {
+  const st = read('/shared/storage/dailyStatsStore.ts');
+  const rp = read('/shared/storage/repository.ts');
+  const ds = read('/shared/utils/dailyStats.ts');
+  const ub = read('/newtab/components/dashboard/useDashboardStats.ts');
+  return st.includes('DAILY_STATS_WRITE_GATE_MS = 45_000') && st.includes("document.addEventListener('visibilitychange'") && st.includes("window.addEventListener('pagehide'")
+    && st.includes('flushDailyStatsNow') && st.includes("base: { res: 0, task: 0, curio: 0, link: 0 }") && st.includes('json === lastWrittenJson')
+    && (rp.match(/scheduleDailyStatsWrite\(cache\)/g) || []).length === 2 && !rp.includes('DAILY_STATS_STORE_KEY')
+    && ds.includes('export function mergeDailyStats(') && ds.includes('export function boundaryDayOf(') && ds.includes('export function eventFieldW(')
+    && ds.includes('c: sr.c, del: sr.del, s: sr.s, u: sr.u, x: sr.x') && ds.includes('if (k > boundary) continue')
+    && ub.includes('readDailySnapshot') && ub.includes('mergeDailyStats(snapRef.value, rebuilt, boundaryDayOf(ev))') && ub.includes('snapRef.value = s');
+});
 check('R169-27 老账④ 文档冻结：docs/ 300+ 份交付说明标记为只读归档（README 冻结声明在位；现状唯一活清单 = 文档中心/06-2，R164 提案 E3）', () => {
   const rm = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', '..', 'docs', 'README.md'), 'utf8');
   return rm.includes('只读归档') && rm.includes('06-2');
@@ -467,8 +479,8 @@ check('R172-5 ★T5 概览带（04-66 §4.2 可读性三层 / 04-67 F1~F6）：5
     && o.includes('dz-ov-say') && o.includes('次有效动作')  // 人话总结
     && o.includes('加权分是内部量') /* R173-5：括注挪进 title，屏上不占字 */            // 加权分降为副行
     && o.includes('bind: !!selDay')                      // 绑定态高亮
-    // 数据桥（R164-2 增长门禁：聚合与选中态抽 useDashboardStats，不占视图行数）
-    && ud.includes('buildDailyStats(data(), events())') && ud.includes('const selDay = ref<string | null>(null)')
+    // 数据桥（R164-2 增长门禁：聚合与选中态抽 useDashboardStats，不占视图行数；R174-3 重指带备案：重建行改名 `ev` 且后接快照合并）
+    && ud.includes('buildDailyStats(data(), ev)') && ud.includes('mergeDailyStats(snapRef.value, rebuilt, boundaryDayOf(ev))') && ud.includes('const selDay = ref<string | null>(null)')
     && gs.includes("from '@/newtab/components/dashboard/useDashboardStats'")
     && gs.includes('const dashStats = dash.stats');
 });

@@ -23,7 +23,8 @@
  *   E2E-19 删除策展台软删（deletedAt）+ 回收站可见可恢复（R58-B1）
  *   E2E-20 项目详情左树：空指标节点接收任务拖拽（R59-T5）
  *   E2E-21 周报浮层可见 + 可关闭（R113-N3 P0：模板引用但未 import 的静默失效修复）
- *   E2E-22 金字塔真全屏交互（R113-N5：requestFullscreen + 动态浮层宿主）
+ *   E2E-24 R167 镜像只读详情边界（标题 readonly / AI 行不给入口 / 页脚两钮是定位）
+ *   E2E-25 R174-3 按日快照落盘（读合并：老日子不褪色 / 写链路：保存→pagehide→days 出现今天）
  */
 const path = require('path')
 const fs = require('fs')
@@ -425,6 +426,63 @@ async function main() {
   report('E2E-24 R167 镜像只读详情边界（标题 readonly / AI 行不给入口 / 页脚两钮是定位）+ 真身侧反向对照（AI 行两格 + 标题可写）',
     mirFound > 0 && mirHeadVisible && mirTitleReadonly && mirBanner && mirAiCells === 0 && mirFootBtns === 2 && mirFootText.includes('定位到资源台编辑') && hubAiCells === 2 && hubTitleEditable && hubTitleValue === 'E2E 只读镜像源卡',
     `镜像在位=${mirFound} 头=${mirHeadVisible} 标题只读=${mirTitleReadonly} banner=${mirBanner} AI格=${mirAiCells} 页脚钮=${mirFootBtns}(${mirFootText.slice(0, 24)}) 投射=${mirDiag.proj}/目标台=${roBoardId || '无'} | 真身 AI格=${hubAiCells} 可写=${hubTitleEditable} 值="${hubTitleValue}"`)
+
+  // E2E-25（R174-3）：zy_daily_stats 落盘——读合并 + 写链路两端到端。
+  // 读：种一份快照（老日子 2026-08-15 · 常规档 w=9）+ 今日 create 事件 → 打开仪表盘，
+  //     8 月块必须出现 l2 格（纯重建会因日志无老事件而缺格=热力图褪色）+ fullSince 徽章含老日子。
+  // 写：详情抽屉改标题保存（saveData → flushCardEvents → scheduleDailyStatsWrite 时间闸排程）
+  //     → 派发 pagehide（flushDailyStatsNow 跳闸立即写，R173-T2 同款）→ zy_daily_stats.days 必须出现今天。
+  const dsOldDay = '2026-08-15'
+  const dsNow = new Date()
+  const dsToday = dsNow.getFullYear() + '-' + String(dsNow.getMonth() + 1).padStart(2, '0') + '-' + String(dsNow.getDate()).padStart(2, '0')
+  await page.evaluate(([oldDay]) => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const data = cur['zy_data_v2']
+    if (data && !data.resources.some(r => r.id === 'e2e-ds-1')) {
+      data.resources.push({ id: 'e2e-ds-1', kind: 'resource', title: 'E2E 落盘卡', linkType: 'url', link: 'https://example.com/e2e-ds', workspaceId: 'zy-curation', categoryId: '', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now() })
+    }
+    return chrome.storage.local.set({
+      zy_data_v2: data,
+      zy_daily_stats: { v: 1, days: { [oldDay]: { c: { res: 9, curio: 0, task: 0 }, del: { res: 0, curio: 0, task: 0 }, s: { curio: 0, task: 0 }, u: 0, d: 0, sub: 0, focus: 0, link: 0, x: { add: 9, del: 0 }, w: 9 } }, fullSince: oldDay, base: { res: 0, task: 0, curio: 0, link: 0 } },
+      zy_event_log: [{ id: 'e2e-ds-create', ts: Date.now() - 60000, action: 'create', kind: 'resource', title: 'E2E 落盘卡', cardId: 'e2e-ds-1' }]
+    })
+  }), [dsOldDay])
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+  // 读合并断言：显式导航到仪表盘（上个用例把 hash 留在了资源台）；8 月块（第 8 个 .mb）出现 l2 格 + fullSince 徽章含老日子
+  await page.evaluate(() => { location.hash = '#/settings?page=dashboard' })
+  await page.waitForTimeout(2200)
+  const dsAugL2 = await page.locator('.dz-months .mb').nth(7).locator('.dz-cell.l2').count()
+  const dsBadge = (await page.locator('.dz-sec-h', { hasText: '年度热力图' }).locator('.dz-badge').first().innerText().catch(() => ''))
+  // 写链路：进资源台 → 单击开抽屉 → 改标题 → 保存 → pagehide → 读回
+  await page.goto(base + '#/workspace/zy-curation', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2200)
+  const dsCard = await page.locator('.res-card[data-rid="e2e-ds-1"]').count()
+  await page.locator('.res-card[data-rid="e2e-ds-1"]').first().click({ timeout: 5000 }).catch(() => {})
+  await page.waitForTimeout(1300)
+  const dsTitle = page.locator('.drawer .drawer-header textarea').first()
+  const dsDrawer = await dsTitle.isVisible().catch(() => false)
+  await dsTitle.fill('E2E 落盘卡·改').catch(() => {})
+  const dsSaveBtn = await page.locator('.drawer .dr-footer-btn.primary').count()
+  await page.locator('.drawer .dr-footer-btn.primary').first().click({ timeout: 5000 }).catch(() => {})
+  await page.waitForTimeout(900) /* saveData 300ms 防抖 + flushCardEvents + schedule 排程 */
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')))
+  await page.waitForTimeout(1500)
+  const dsWritten = await page.evaluate((t) => chrome.storage.local.get('zy_daily_stats').then((cur) => {
+    const st = cur['zy_daily_stats']
+    const rec = st && st.days ? st.days[t] : null
+    return rec ? { has: true, add: rec.x ? rec.x.add : 0, w: rec.w } : { has: false }
+  }), dsToday)
+  // 清场：拔卡 + 撤快照/事件种子（防污染后续真机数据语义）
+  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const data = cur['zy_data_v2']
+    if (data) data.resources = data.resources.filter(r => r.id !== 'e2e-ds-1')
+    return chrome.storage.local.set({ zy_data_v2: data }).then(() => chrome.storage.local.remove(['zy_daily_stats', 'zy_event_log']))
+  }))
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2000)
+  report('E2E-25 R174-3 按日快照落盘（读合并：老日子不褪色 8月l2格+fullSince；写链路：保存→pagehide→days 出现今天）',
+    dsAugL2 >= 1 && dsBadge.includes('2026-08-15') && dsWritten.has && dsWritten.add >= 1,
+    `8月l2格=${dsAugL2} 徽章="${dsBadge}" 卡=${dsCard} 抽屉=${dsDrawer} 保存钮=${dsSaveBtn} 今日落盘=${JSON.stringify(dsWritten)}`)
 
   // E2E-11 主航线（R55-D1 后）：目标行 chip；未归档格随 MetricBar 迁调度台（E2E-4 已覆盖）
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {

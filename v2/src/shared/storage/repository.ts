@@ -13,6 +13,8 @@ import { safeDecodeText } from '@/shared/utils'
 import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'
 // 第卌四轮 T-05：卡片操作事件日志——保存链路快照 diff 自动产出 create/delete/restore/purge
 import { rebuildEventSnapshot, flushCardEvents, takeEventLogPatch, initEventLog, EVENT_LOG_KEY } from '@/shared/utils/eventLog'
+// R174-3：按日聚合快照落盘（热力图不褪色的数据地基，时间闸小载荷，见 dailyStatsStore.ts）
+import { scheduleDailyStatsWrite } from './dailyStatsStore'
 
 type Listener = (data: AppData) => void
 type ErrorListener = (err: SaveError) => void
@@ -271,6 +273,8 @@ export function saveData(): void {
     saveTimer = null
     // 第卌四轮 T-05：保存前快照 diff 产出操作事件（fire-and-forget，失败不影响主数据）
     if (cache) { try { flushCardEvents(cache) } catch { /* noop */ } }
+    // R174-3：按日聚合快照走独立时间闸（45s 小载荷，页隐藏由模块内监听补写），不进本包 set
+    if (cache) { try { scheduleDailyStatsWrite(cache) } catch { /* noop */ } }
     // V2.17.1 修复：JSON 纯净清洗后再入存储——reactive 树中可能残留 Vue Proxy（如编辑表单展开出的
     // assets Proxy 数组），chrome.storage 序列化 Proxy 时会把数组降级为类数组对象 {"0":…}，
     // 读回后 .length 为 undefined → 卡片正面附件徽章永不渲染。JSON round-trip 保证入存储永远是 plain 结构。
@@ -316,6 +320,8 @@ export async function saveDataNow(): Promise<void> {
   if (saveTimer) clearTimeout(saveTimer)
   // 第卌四轮 T-05：同 saveData——保存前 diff 产出操作事件
   try { flushCardEvents(cache) } catch { /* noop */ }
+  // R174-3：同 saveData——按日聚合快照独立时间闸
+  try { scheduleDailyStatsWrite(cache) } catch { /* noop */ }
   try {
     // V2.17.1 修复：同 saveData——JSON 纯净清洗防 reactive Proxy 泄漏入存储（数组降级类数组对象）
     // R71：同 saveData，去掉冗余的中间往返（1 次 stringify + 1 次 parse）
