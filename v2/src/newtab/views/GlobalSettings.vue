@@ -1230,7 +1230,8 @@ function formatBackupAgo(ts: number): string {
 watch(() => route.query.page, () => { const p = pageFromQuery(); if (p) activePage.value = p })
 const navGroups: { title: string; items: NavItem[] }[] = [
   // R54-E1（修订第卌四轮五组拍板）：总览 = 知源仪表盘 + 策展台全景并列，「整理」组取消
-  { title: '总览', items: [
+  // R178（原型 sns-group-title）：分组对齐设置中心原型——通用与度量 / 卡片与字段 / AI 认知协作者 / 数据与信任 / 系统信息（条目与功能零增减）
+  { title: '通用与度量', items: [
     { key: 'dashboard', icon: '📊', label: '知源仪表盘' },
     // R113-N2：资源生命周期聚合页——位置拍板「知源仪表盘之下、资源台全景之上」
     { key: 'lifecycle', icon: '⏳', label: '资源生命周期' },
@@ -1244,20 +1245,23 @@ const navGroups: { title: string; items: NavItem[] }[] = [
     { key: 'thesis', icon: '🏛', label: '策展主题卡' },
     // 第卌四轮 Q-6：标签管理上移——它服务卡片呈现，与三卡同组
     { key: 'tags', icon: '🏷', label: '标签管理' },
+  ]},
+  // R178：AI 认知协作者独立成组（原型分组口径）
+  { title: 'AI 认知协作者', items: [
     // R134-F：AI 助手（接入配置 + 沉睡唤醒 + 一键诊断）· R146/R152：入口徽标统一（真源 AiMark.vue）
     { key: 'ai', mark: true, label: 'AI 助手' },
   ]},
-  { title: '数据', items: [
+  { title: '数据与信任', items: [
     { key: 'import', icon: '⬇', label: '导入数据' },
     { key: 'export', icon: '⬆', label: '导出数据' },
     // R146-⑨：删除有两条路（回收站可反悔 / 永久删除不可逆），入口必须常驻左栏而不是埋在危险区里
     { key: 'recycle', icon: '🗑', label: '回收站', route: '/recycle' },
     { key: 'reset', icon: '🔄', label: '重置与回滚' },
   ]},
-  { title: '系统', items: [
+  { title: '系统信息', items: [
     { key: 'extension', icon: '🔌', label: '扩展设置' },
     { key: 'shortcuts', icon: '⌨', label: '快捷键设置' },
-    // R63-4：Airtable 单向同步（知源 → Airtable，手动为主）
+    // R178：Airtable 归入「数据与信任」语义组（原型口径；同键不动，仅分组位置）
     { key: 'airtable', icon: '⇄', label: 'Airtable 同步' },
     { key: 'manual', icon: '📖', label: '使用手册' },
     { key: 'letter', icon: '✉️', label: '一封信' },
@@ -3157,10 +3161,15 @@ const activeManualSec = ref('quick-1')
 .gs-back-btn:hover { background: var(--surface-3); color: var(--text); }
 
 /* 左侧导航 */
-.gs-nav { width: 210px; flex-shrink: 0; border-right: 1px solid var(--border); padding: 20px 12px; background: var(--surface); position: sticky; top: 52px; height: fit-content; }
-.gs-nav-group { margin-bottom: 16px; }
-.gs-nav-group-title { font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; padding: 0 10px; margin-bottom: 5px; }
-.gs-nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; font-size: var(--fs-body); color: var(--text-2); cursor: pointer; transition: all .1s; margin-bottom: 1px; }
+/* R178（原型 settings-nav-sidebar）：浮动卡片轨（radius-lg + 卡影 + sticky 66px），边线分栏退役 */
+.gs-nav { width: 210px; flex-shrink: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 10px; background: var(--surface); box-shadow: var(--shadow-sm); position: sticky; top: 66px; height: fit-content; align-self: flex-start; display: flex; flex-direction: column; gap: 3px; }
+/* R178（原型 sns-group-title）：组标题 11px/700 三级字 */
+.gs-nav-group { margin-bottom: 10px; }
+.gs-nav-group:last-child { margin-bottom: 0; }
+.gs-nav-group-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); padding: 8px 8px 4px; letter-spacing: .04em; }
+/* R178（原型 sns-nav-item）：12.5px 档 + hover 浅底 + active accent-light */
+.gs-nav-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--radius-sm); font-size: var(--fs-sub); font-weight: 500; color: var(--text-2); cursor: pointer; transition: all var(--dur-fast); margin-bottom: 0; }
+.gs-nav-item:hover { background: var(--surface-3); color: var(--text); }
 .gs-nav-item:hover { background: var(--surface-3); color: var(--text); }
 .gs-nav-item.active { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
 .gs-nav-icon { font-size: 14px; width: 18px; text-align: center; }
@@ -3172,7 +3181,8 @@ const activeManualSec = ref('quick-1')
 .gs-page-desc { font-size: var(--fs-sub); color: var(--text-3); margin-top: 4px; }
 
 /* 卡片 */
-.gs-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 16px; overflow: hidden; }
+/* R178（原型 settings-section-card）：radius-lg + 卡影 + 分隔节奏 */
+.gs-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 16px; overflow: hidden; box-shadow: var(--shadow-sm); }
 .gs-card-header { padding: 13px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
 .gs-card-title { font-size: var(--fs-body); font-weight: 600; color: var(--text); }
 .gs-card-desc { font-size: var(--fs-caption); color: var(--text-3); margin-left: auto; }

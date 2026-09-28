@@ -24,12 +24,14 @@
 .dz-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
 .dz-ov { display: flex; gap: var(--sp-3); align-items: stretch; flex-wrap: wrap; }
-.dz-ov-stock { display: flex; gap: var(--sp-1); flex-wrap: wrap; flex: 1; min-width: 0; }
+.dz-ov-stock { display: flex; gap: 10px; flex-wrap: wrap; flex: 1; min-width: 0; }
 /* R174-4：chip 压成单行矮条（label + 数字 + 增减同行）——概览带总高 ≤ 改前 50%，首屏让位热力图（04-69 拍板 A） */
-.dz-chip { display: flex; align-items: baseline; gap: 5px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 3px 10px; background: var(--surface-2); min-width: 0; text-align: left; cursor: pointer; transition: border-color var(--dur-fast); }
+.dz-chip { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all var(--dur-fast); }
+/* R178（设置中心原型 ov-metric-card）：堆叠指标卡——数字 20px/700 在上（tabular-nums），标签 11.5px 在下；增减随行 */
 .dz-chip:hover { border-color: var(--accent); }
-.dz-chip .k { font-size: var(--fs-micro); color: var(--text-3); white-space: nowrap; }
-.dz-chip .v { font-size: var(--fs-headline); font-weight: 700; line-height: 1.15; }
+.dz-chip .k { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; }
+/* R178（设置中心原型 ov-metric-card）：数字 20px/700 + tabular-nums 等宽排印，置顶堆叠 */
+.dz-chip .v { order: -1; font-size: 20px; font-weight: 700; line-height: 1.1; color: var(--text); font-variant-numeric: tabular-nums; }
 .dz-chip .v small { font-size: var(--fs-caption); font-weight: 500; color: var(--text-3); margin-left: 3px; }
 .dz-chip .dl { font-size: var(--fs-micro); color: var(--text-3); }
 .dz-chip .dl .up { color: var(--success); font-weight: 700; }

@@ -133,7 +133,8 @@ async function main() {
   const dashVisible = await page.getByText('知源仪表盘').first().isVisible().catch(() => false)
   const groupCount = await page.locator('.gs-nav-group').count()
   const timelineVisible = await page.locator('.gs-ev-head, .gs-ev-empty, .gs-dash-dyn').first().isVisible().catch(() => false)
-  report('E2E-2 设置默认首屏=知源仪表盘（导航四组 R54 + 动态/时间线区）', dashVisible && groupCount === 4, `groups=${groupCount} timeline=${timelineVisible}`)
+  // R178 备案：分组重组 4→5（AI 认知协作者独立成组，原型分组口径；条目零增减）
+  report('E2E-2 设置默认首屏=知源仪表盘（导航五组 R54→R178 + 动态/时间线区）', dashVisible && groupCount === 5, `groups=${groupCount} timeline=${timelineVisible}`)
 
   // E2E-3 资源台全景
   await page.getByText('资源台全景').first().click().catch(() => {})

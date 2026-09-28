@@ -305,11 +305,11 @@ check('R174-3 ★zy_daily_stats 落盘（04-69 T1）：热力图不褪色的数�
     && ds.includes('c: sr.c, del: sr.del, s: sr.s, u: sr.u, x: sr.x') && ds.includes('if (k > boundary) continue')
     && ub.includes('readDailySnapshot') && ub.includes('mergeDailyStats(snapRef.value, rebuilt, boundaryDayOf(ev))') && ub.includes('snapRef.value = s');
 });
-check('R174-4 概览带压缩为单行紧凑条（04-69 拍板 A）：chip 单行矮条（label+数字+增减同行 flex baseline）+ 概览带专段 dz-sec-ov 页头/正文内边距降档——信息一项不删（R173-5 悬停说明机制、绑定态、口径表全保留）；判据：DashboardOverview 挂 dz-sec-ov + chip 内联三件 + css flex 化 + 专段三压（页头 3px/正文 4·8/行距 4px/药丸去边框）（探针量化记账：1280 档 188px → 94px = 恰 50%，摘要条 91→29px）', () => {
+check('R174-4 概览带 ★R178 重指带备案：用户 2026-09-28 设置中心原型把概览带改回堆叠指标卡（ov-metric-card：数字 20px/700 + tabular-nums 置顶、标签 11px 在下，卡距 10px），R174-4 的单行压缩完成历史使命——信息一项不删（R173-5 悬停说明、绑定态、口径表全保留），dz-sec-ov 专段内边距判据保留；判据：DashboardOverview 挂 dz-sec-ov + chip 内联三件 + css 纵向堆叠 + 专段三压（页头 3px/正文 4·8/行距 4px/药丸去边框）（探针量化记账存档：1280 档 188px → 94px，R174 版式）', () => {
   const o = read('/newtab/components/dashboard/DashboardOverview.vue');
   const css = read('/newtab/components/dashboard/dashboard.css');
   return o.includes('class="dz-sec dz-sec-ov"') && o.includes('<span class="k">{{ c.k }}</span><b class="v">')
-    && css.includes('.dz-chip { display: flex; align-items: baseline;') && css.includes('.dz-sec-ov .dz-sec-h { padding: 3px var(--sp-4); }')
+    && css.includes('.dz-chip { display: flex; flex-direction: column;') && css.includes('.dz-sec-ov .dz-sec-h { padding: 3px var(--sp-4); }')
     && css.includes('.dz-sec-ov .dz-sec-b { padding: var(--sp-1) var(--sp-4) var(--sp-2); }');
 });
 check('R174-5 热力图焦点化（04-69 拍板 B）：摘要四卡压单行指标条（说明收 title tooltip，.d 保 DOM）+ 四主题六档色阶低两档拉距（亮主题 l0↔l1 原本 ΔL*≈3.3 肉眼不可辨——实测病根 #EFF2F6 vs #E3EBF5）；判据：① Heatmap 摘要条带 title + .d 仍在 DOM ② tokens.css 四主题新值在位 ③ 亮主题 ΔL*(l0,l1) ≥ 5 且 ΔL*(l1,l2) ≥ 4（Lab L* 实算，防"改了但仍不可辨"）④ 档位阈值/语义名不动（跨年可比红线）', () => {
