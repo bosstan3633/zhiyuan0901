@@ -883,23 +883,9 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 
 <template>
   <div class="page">
-    <div class="page-head">
-      <div class="crumb"><b>调度台</b> · 今天，从哪里出发</div>
-      <div class="spacer" />
-      <!-- R66-F3：操作记录四格移至方向状态指标条右端（右对齐），存储/同步 chip 留右上角右对齐 -->
-      <button class="storage-chip" :class="{ err: !storageOk }" :title="storageOk ? '点击查看存储用量' : '点击重试写入'" @click="onStorageClick">
-        <span class="sc-dot" />
-        <span>{{ storageText }}</span>
-      </button>
-      <!-- R63-9：Airtable 同步状态卡（右上角常驻；点击=立即同步，⚙ 进设置） -->
-      <button class="sync-chip" :class="{ on: atConfigured, err: !!atSyncErr }" :title="atChipTitle" @click="onSyncChipClick">
-        <span class="sc-dot" />
-        <span>{{ atChipText }}</span>
-        <span class="sync-gear" title="Airtable 同步设置" @click.stop="router.push('/settings?page=airtable')">⚙</span>
-      </button>
-    </div>
-
-    <!-- R120-TB1 合流方向条：左槽=主攻（今天推哪个）· 中段=档位+5 指标 · 右槽=今日记录四格 + 周报 + 去方向台 -->
+    <!-- R175（原型 1:1）：独立页头行并入合流状态条 —— 原型首行即 ≤38px 通栏条，无 crumb 行。
+         存储指示（R50-F2）与 Airtable 同步（R63-9）两 chip 原位移入 MetricBar 右槽，
+         点击语义（查看用量/重试写入/立即同步/⚙ 进设置）一字未动。 -->
     <MetricBar>
       <template #left>
         <span class="cf-label" title="当前战略重心（最多 2 个）">🚀 主攻</span>
@@ -917,7 +903,17 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
       <template #right>
         <!-- R172-T9（04-67 F33/F34）：旧「四格记录条 + 周报按钮」整体下线 ——
              改为单一入口「📈 复盘」直达知源仪表盘；被删的四类记录能力在仪表盘内完整可用
-             （日详情按日过滤 + 全量记录抽屉三维筛选 + CSV）。 -->
+             （日详情按日过滤 + 全量记录抽屉三维筛选 + CSV）。
+             R175：存储/同步两 chip 自页头移入本槽（原型：状态指示与动作同排右对齐）。 -->
+        <button class="storage-chip" :class="{ err: !storageOk }" :title="storageOk ? '点击查看存储用量' : '点击重试写入'" @click="onStorageClick">
+          <span class="sc-dot" />
+          <span>{{ storageText }}</span>
+        </button>
+        <button class="sync-chip" :class="{ on: atConfigured, err: !!atSyncErr }" :title="atChipTitle" @click="onSyncChipClick">
+          <span class="sc-dot" />
+          <span>{{ atChipText }}</span>
+          <span class="sync-gear" title="Airtable 同步设置" @click.stop="router.push('/settings?page=airtable')">⚙</span>
+        </button>
         <button class="mb-act cta" title="复盘 · 年度热力图与四范围复盘 · 直达知源仪表盘" @click="openReview">📈 复盘</button>
         <span class="cf-go" title="去方向台管理主攻与目标" @click="router.push('/compass')">去方向台 ›</span>
       </template>
@@ -1034,21 +1030,25 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
                      与四格数值同排（用户标注⑤：更扁平、同一行显示）。
                      ★整行 = 进方向树的唯一入口（三枚入口做同一件事是噪音），行内每一级都不再有独立点击语义。 -->
                 <div class="cur-l-row">
+                  <!-- R175（原型 1:1）：归属行改「行动来处」标签 + 链路胶囊（goal › 项目 › 指标）；
+                       ★R169-T4 口径不变：整行 = 进方向树唯一入口（行内每一级无独立点击语义），
+                       项目一级保留 pct 内联（R67-2 判据串原样保留），方向树 › 为行内视觉出口。 -->
                   <div class="cur-crumb" role="button" tabindex="0" data-testid="cur-crumb"
                     title="点这一行任一级 → 进入方向树全景（查看/编辑方向结构）" @click="gotoTree" @keydown.enter="gotoTree">
-                    <span class="cc-it"><span class="k">🎯 战略目标</span><span class="v">{{ goalOf(curProject)?.name || '—' }}</span></span>
+                    <span class="cc-k">行动来处</span>
+                    <span class="cc-it"><span class="v">{{ goalOf(curProject)?.name || '—' }}</span></span>
                     <span class="cc-sep">›</span>
-                    <span class="cc-it"><span class="k">📦 项目</span><span class="v">{{ curProject.name }} · {{ projectProgress(curProject).pct }}%</span></span>
+                    <span class="cc-it"><span class="v">{{ curProject.name }} · {{ projectProgress(curProject).pct }}%</span></span>
                     <span class="cc-sep">›</span>
-                    <span class="cc-it cur" data-testid="cur-crumb-metric"><span class="k">🎯 成功指标</span><span class="v">{{ selMetricTitle }}</span></span>
-                    <span class="cc-go">方向树 ↗</span>
+                    <span class="cc-it cur" data-testid="cur-crumb-metric"><span class="v">{{ selMetricTitle }}</span></span>
+                    <span class="cc-go">方向树 ›</span>
                   </div>
-                  <!-- R56-P1：4 指标卡（R169-T4：由 2×2 改一行四格，与归属同排；四格都可下钻的判据不变） -->
+                  <!-- R56-P1：4 指标卡（R169-T4：一行四格与归属同排；R175：格子内改「标签+数值」同行 chip 形态，四格都可下钻的判据不变） -->
                   <div class="cur-stats-v2">
-                    <div class="csv-cell clickable" title="成功指标 · 点击下钻" @click="openCurDrill('metrics')"><div class="csv-num">{{ projMetrics.length }}</div><div class="csv-lab">成功指标</div></div>
-                    <div class="csv-cell clickable" title="任务总数 · 点击下钻" @click="openCurDrill('total')"><div class="csv-num">{{ projTasks.length }}</div><div class="csv-lab">任务总数</div></div>
-                    <div class="csv-cell clickable" title="已完成 · 点击下钻" @click="openCurDrill('done')"><div class="csv-num ok">{{ projDoneCount }}</div><div class="csv-lab">已完成</div></div>
-                    <div class="csv-cell clickable" title="进行中 · 点击下钻" @click="openCurDrill('doing')"><div class="csv-num warn">{{ projDoingCount }}</div><div class="csv-lab">进行中</div></div>
+                    <div class="csv-cell clickable" title="成功指标 · 点击下钻" @click="openCurDrill('metrics')"><span class="csv-lab">成功指标</span><span class="csv-num">{{ projMetrics.length }}</span></div>
+                    <div class="csv-cell clickable" title="任务总数 · 点击下钻" @click="openCurDrill('total')"><span class="csv-lab">任务总数</span><span class="csv-num">{{ projTasks.length }}</span></div>
+                    <div class="csv-cell clickable" title="已完成 · 点击下钻" @click="openCurDrill('done')"><span class="csv-lab">已完成</span><span class="csv-num ok">{{ projDoneCount }}</span></div>
+                    <div class="csv-cell clickable" title="进行中 · 点击下钻" @click="openCurDrill('doing')"><span class="csv-lab">进行中</span><span class="csv-num warn">{{ projDoingCount }}</span></div>
                   </div>
                 </div>
                 <!-- R120-TB3：进度条（对齐原型；数据沿用 projectProgress 既有口径） -->
@@ -1293,41 +1293,42 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 </template>
 
 <style scoped>
-.page { max-width: 1440px; margin: 0 auto; padding: 20px 36px 64px; }
-.page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-left: 22px; }
-.page-head .crumb { font-size: var(--fs-body); color: var(--text-2); }
-.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 16px; letter-spacing: .2px; }
-.page-head .spacer { flex: 1; }
-.hint-chip { font-size: var(--fs-caption); color: var(--text-3); background: var(--surface); border: 1px dashed var(--border-strong); padding: 3px 10px; border-radius: 99px; }
+/* R175（原型 1:1）：主视域 1440 + 18px 顶距 + 72px 收尾（原型 padding: 18px 36px 0 + body 72px 的等价落法）；
+   左右 36px 与顶栏 align-page 同一条垂直基准线不变。⚠ 其余三页仍 20px 顶距，R21-3/R123-3/R125-1 已随本值重指带备案。 */
+.page { max-width: 1440px; margin: 0 auto; padding: 18px 36px 72px; }
+/* R175：page-head 行随「页头并入合流状态条」退役——存储/同步 chip 移入 MetricBar 右槽，页面身份由顶栏活动页签承担 */
 
-/* R50-F2 数据存储状态栏 */
-.storage-chip { display: inline-flex; align-items: center; gap: 7px; font-size: var(--fs-caption); color: var(--text-2); background: var(--surface); border: 1px solid var(--border); padding: 4px 12px; border-radius: 99px; cursor: pointer; transition: border-color var(--dur); font-family: inherit; }
-.storage-chip:hover { border-color: var(--border-strong); }
-.storage-chip .sc-dot { width: 7px; height: 7px; border-radius: 99px; background: #2EA043; box-shadow: 0 0 6px rgba(46,160,67,.55); flex-shrink: 0; }
-.storage-chip.err { color: #F85149; border-color: color-mix(in srgb, #F85149 45%, var(--border)); }
-.storage-chip.err .sc-dot { background: #F85149; box-shadow: 0 0 6px rgba(248,81,73,.55); animation: scBlink 1.2s ease-in-out infinite; }
+/* R50-F2 数据存储状态栏 ｜ R175（原型）：默认态改无框轻量指示（绿点+文本），异常态保留红点闪烁与点击重试；
+   原硬编码 #2EA043/#F85149 一并归位 var(--success)/var(--danger)（红线 3：零硬编码色值） */
+.storage-chip { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-caption); color: var(--text-3); background: transparent; border: 1px solid transparent; padding: 3px 4px; border-radius: var(--radius-xs); cursor: pointer; transition: border-color var(--dur), background var(--dur); font-family: inherit; }
+.storage-chip:hover { background: var(--surface-2); }
+.storage-chip .sc-dot { width: 6px; height: 6px; border-radius: 99px; background: var(--success); box-shadow: 0 0 6px color-mix(in srgb, var(--success) 55%, transparent); flex-shrink: 0; }
+.storage-chip.err { color: var(--danger); }
+.storage-chip.err .sc-dot { background: var(--danger); box-shadow: 0 0 6px color-mix(in srgb, var(--danger) 55%, transparent); animation: scBlink 1.2s ease-in-out infinite; }
 @keyframes scBlink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
-/* R63-9：Airtable 同步状态卡（右上角常驻，量级对齐 storage-chip） */
-.sync-chip { display: inline-flex; align-items: center; gap: 7px; font-size: var(--fs-caption); color: var(--text-2); background: var(--surface); border: 1px solid var(--border); padding: 4px 12px; border-radius: 99px; cursor: pointer; transition: border-color var(--dur); font-family: inherit; }
-.sync-chip:hover { border-color: var(--border-strong); }
-.sync-chip .sc-dot { width: 7px; height: 7px; border-radius: 99px; background: var(--text-3); flex-shrink: 0; }
-.sync-chip.on .sc-dot { background: #2EA043; box-shadow: 0 0 6px rgba(46,160,67,.55); }
-.sync-chip.err { color: #F85149; border-color: color-mix(in srgb, #F85149 45%, var(--border)); }
-.sync-chip.err .sc-dot { background: #F85149; box-shadow: 0 0 6px rgba(248,81,73,.55); animation: scBlink 1.2s ease-in-out infinite; }
+/* R63-9：Airtable 同步状态卡 ｜ R175（原型）：改次级行内 chip 形态（sub-action-btn 同款），三态与 ⚙ 语义不变 */
+.sync-chip { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-caption); color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); padding: 3px 8px; border-radius: var(--radius-xs); cursor: pointer; transition: border-color var(--dur), background var(--dur); font-family: inherit; }
+.sync-chip:hover { border-color: var(--border-strong); background: var(--surface-3); }
+.sync-chip .sc-dot { width: 6px; height: 6px; border-radius: 99px; background: var(--text-4); flex-shrink: 0; }
+.sync-chip.on .sc-dot { background: var(--success); box-shadow: 0 0 6px color-mix(in srgb, var(--success) 55%, transparent); }
+.sync-chip.err { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+.sync-chip.err .sc-dot { background: var(--danger); box-shadow: 0 0 6px color-mix(in srgb, var(--danger) 55%, transparent); animation: scBlink 1.2s ease-in-out infinite; }
 .sync-chip .sync-gear { font-size: var(--fs-caption); opacity: .55; padding: 0 2px; }
 .sync-chip .sync-gear:hover { opacity: 1; }
 
 /* R172-T9：今日记录 4 计数迷你条随入口整合退役 —— 记录能力迁入知源仪表盘 */
-/* R120-TB1：条内动作按钮 —— 现承载「📈 复盘」单一入口（`.cta` = 强调态，对齐原型 revEntry） */
-.mb-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-caption); padding: 3px 9px; border-radius: 99px; cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
-.mb-act:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
-.mb-act.cta { border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+/* R120-TB1：条内动作按钮 ｜ R175（原型）：改次级 chip 形态（11px + hairline + xs 圆角）；
+   「📈 复盘」保留强调态（全站单一复盘入口的视觉锚点，原型以中性 chip 表达周报、语义不同） */
+.mb-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); font-size: var(--fs-caption); padding: 3px 9px; border-radius: var(--radius-xs); cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
+.mb-act:hover { border-color: var(--border-strong); background: var(--surface-3); color: var(--text); }
+.mb-act.cta { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }
 
 /* 左右分栏 */
 /* R51-F10：上下联动——三件事在上占视觉焦点，项目调度在下 */
 /* R120-TB1：合流方向条内元素（主攻 / 去方向台）——单行 ≤40px，全 tokens */
-.cf-label { flex-shrink: 0; font-size: var(--fs-sub); font-weight: 600; color: var(--accent); }
+/* R175（原型）：主攻标签改强调胶囊（accent-light 底 + xs 圆角） */
+.cf-label { flex-shrink: 0; font-size: var(--fs-caption); font-weight: 600; color: var(--accent-ink); background: var(--accent-light); padding: 2.5px 8px; border-radius: var(--radius-xs); }
 .cf-item { display: flex; align-items: center; gap: 5px; flex-shrink: 0; max-width: 260px; font-size: var(--fs-sub); font-weight: 500; color: var(--text); cursor: pointer; }
 .cf-item:hover .cf-name { text-decoration: underline; }
 .cf-item.done { opacity: .55; }
@@ -1349,9 +1350,10 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .bottom-tabs { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .bt-tab { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-body); font-weight: 600; border-radius: 99px; padding: 5px 14px; cursor: pointer; font-family: inherit; transition: all .13s; }
 .bt-tab:hover { border-color: var(--border-strong); color: var(--text); }
-.bt-tab.on { border-color: var(--border-strong); background: var(--surface-3); color: var(--text); }
+/* R175（原型 seg-pill）：选中态改深色实心胶囊（text 前景反转 bg，六主题自适应；R120-9 判据随迁） */
+.bt-tab.on { border-color: var(--text); background: var(--text); color: var(--bg); }
 .bt-cnt { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); background: var(--surface-2); border-radius: 99px; padding: 0 7px; line-height: 17px; }
-.bt-tab.on .bt-cnt { color: var(--text-2); background: var(--surface); }
+.bt-tab.on .bt-cnt { color: var(--bg); background: transparent; opacity: .75; }
 .bottom-pane { min-height: 120px; }
 .module { margin-top: 0; }
 /* R67-F4：快捷键直达模块的高亮闪烁（滚动定位后 2.2s 渐隐） */
@@ -1406,6 +1408,8 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 /* R120-TB2：今日三件事——对齐原型（模块边框强调 + 方形勾选 + 编号右上 + 完成态安静收束），
    ⚠ 功能不动：勾选/移除/复制昨日/导出/日期导航/双击开详情 全部保留 */
 .card.focus { border-color: var(--border-strong); background: var(--surface); box-shadow: var(--shadow-sm); }
+/* R175（原型 all-completed 浅底）：原型的近白完成态底色以令牌化等价落地——surface-2 向 surface 调 60%，六主题自适应 */
+.card.focus.all-done { background: color-mix(in srgb, var(--surface-2) 60%, var(--surface)); }
 .card.focus:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent), var(--shadow-sm); }
 .card.focus .card-head .nm { font-size: var(--fs-headline); font-weight: 700; color: var(--text); }
 .card.focus .card-head .ic { color: var(--accent); }
@@ -1413,19 +1417,20 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .card.focus .tc-num { color: var(--text-3); font-size: var(--fs-sub); font-weight: 500; opacity: 1; }
 .card.focus .today-card { padding: 12px 14px; min-height: 84px; border-radius: var(--radius-md); }
 .card.focus .today-card:not(.empty-card):hover { transform: translateY(-1px); }
-.card.focus .today-card:not(.empty-card) { border-color: color-mix(in srgb, var(--accent) 22%, var(--border)); }
+.card.focus .today-card:not(.empty-card) { border-color: var(--border); }
 .card.focus .today-card.sel { border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 4%, transparent); animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent), inset 0 0 14px color-mix(in srgb, var(--accent) 8%, transparent); }
-/* R94（B3）三件事全完成：**安静**完成态——整块轻微去饱和 + 一行中性小字。
+/* R94（B3）三件事全完成：**安静**完成态——整块轻微去饱和（R175：.5→.65 对齐原型，仍低饱和）+ 一行中性小字。
    ⚠ 卡头（复制昨日 / 导出 / 日期导航）**不去饱和**——那是操作区，褪色会影响可用性。
    不用庆祝动画、不用红色、不用进度百分比。 */
-.card.focus.all-done .today-cards { filter: saturate(.5); }
+.card.focus.all-done .today-cards { filter: saturate(.65); }
 .card.focus.all-done .tc-num { color: var(--text-3); }
-.td-done { margin-top: 8px; font-size: var(--fs-sub); color: var(--text-3); text-align: center; letter-spacing: .3px; }
+/* R175（原型 quiet-done-banner）：沉静收束行带上分隔虚线，居中 12px 中性字 */
+.td-done { margin-top: 12px; padding-top: 8px; border-top: 1px dashed var(--border); font-size: var(--fs-sub); color: var(--text-3); text-align: center; letter-spacing: .3px; }
 /* R94（B2）：任务树折叠/展开按钮的箭头（纯文字，不引新图标） */
 .cur-tree-caret { opacity: .7; }
-/* R52-F1：三件事横向并列——3 槽一行，压缩纵向空间 */
-.today-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.today-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; cursor: pointer; transition: all var(--dur) ease; position: relative; display: flex; flex-direction: column; min-height: 84px; }
+/* R52-F1：三件事横向并列——3 槽一行，压缩纵向空间（R175：槽距 8→12px 对齐原型 hero-grid） */
+.today-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.today-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; cursor: pointer; transition: all var(--dur) ease; position: relative; display: flex; flex-direction: column; min-height: 84px; }
 .today-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
 .today-card.sel { border-color: var(--accent); background: var(--accent-light); animation: none; box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 22%, transparent); }
 .today-card.done { opacity: .6; animation: none; }
@@ -1461,21 +1466,25 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
    ★整行就是"进方向树"的按钮：行内每一级都不再有自己的点击语义——三枚入口做同一件事是噪音。
    一行四格数值同排（用户标注⑤"更扁平化、同一行显示"），窄一点时整行换行而不是挤掉字。 */
 .cur-l-row { display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap; }
-.cur-crumb { flex: 1 1 340px; min-width: 0; display: flex; align-items: baseline; gap: 7px; flex-wrap: nowrap; overflow: hidden; cursor: pointer; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; transition: border-color var(--dur); }
+/* R175（原型 chain-flow）：归属行 = 「行动来处」标签 + 链路胶囊（值为主、分隔符弱化）+ 行内「方向树 ›」强调出口；
+   整行仍是进方向树唯一入口（R169-T4 口径），R67-2 判据串（项目一级 pct 内联）原样保留 */
+.cur-crumb { flex: 1 1 340px; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; overflow: hidden; cursor: pointer; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; transition: border-color var(--dur); }
 .cur-crumb:hover { border-color: var(--accent); }
+.cur-crumb .cc-k { flex-shrink: 0; font-size: var(--fs-caption); font-weight: 600; color: var(--text-4); letter-spacing: .04em; }
 .cur-crumb .cc-it { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; }
-.cur-crumb .cc-it .k { font-size: var(--fs-macro); color: var(--text-4); white-space: nowrap; }
-.cur-crumb .cc-it .v { font-size: var(--fs-sub); font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cur-crumb .cc-it .v { font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .cur-crumb .cc-it.cur .v { color: var(--accent-2); }
-.cur-crumb .cc-sep { color: var(--text-4); font-size: var(--fs-macro); flex-shrink: 0; }
-.cur-crumb .cc-go { margin-left: auto; flex-shrink: 0; font-size: var(--fs-caption); font-weight: 600; color: var(--accent-2); }
+.cur-crumb .cc-sep { color: var(--text-4); font-size: var(--fs-caption); flex-shrink: 0; }
+.cur-crumb .cc-go { margin-left: auto; flex-shrink: 0; font-size: var(--fs-caption); font-weight: 600; color: var(--accent-ink); background: var(--accent-light); padding: 2px 8px; border-radius: var(--radius-xs); white-space: nowrap; }
 /* R169-T4 下半部：左=卡片描述原文 · 右=子任务（只读 + 可勾选）。
-   ★纵向定高 = 右栏**恰 4 行**子任务。高度**加在滚动体上、不加在外壳上**：
-   外壳写死一个总高（曾按 33+22+4×33 算）看着是"4 行"，其实栏头实测多 4px，
-   第 4 行会被悄悄削掉一截——所以让行高变量直接决定滚动体，外壳跟着内容走。 */
-.spot-dual { --sp-sub-h: 33px; --sp-rows: 4; display: grid; grid-template-columns: minmax(0, 42%) 8px 1fr; gap: 0 10px; align-items: stretch; margin-top: 12px; }
+   ★纵向定高走变量不走像素（R169-14 哲学）：R175 对齐原型「固定 152px」——
+   152 = 栏头 24px + 4 行 × 32px（--sp-sub-h 33→32、--sp-rows: 4 不变，总高仍由变量算出）。
+   高度**加在滚动体上、不加在外壳上**：外壳写死总高曾让第 4 行被悄悄削掉一截，让行高变量直接决定滚动体。 */
+.spot-dual { --sp-sub-h: 32px; --sp-rows: 4; display: grid; grid-template-columns: minmax(0, 42%) 8px 1fr; gap: 0 10px; align-items: stretch; margin-top: 12px; }
 .sp-col { display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
-.sp-h { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border-bottom: 1px solid var(--border); background: var(--surface-2); flex-shrink: 0; }
+/* R175（原型）：左栏描述面板整块 subtle 底，与右栏白底子任务清单形成分区 */
+.spot-dual .sp-col:first-child { background: var(--surface-2); }
+.sp-h { box-sizing: border-box; display: flex; align-items: center; gap: 8px; height: 24px; padding: 0 11px; border-bottom: 1px solid var(--border); background: var(--surface-2); flex-shrink: 0; }
 .sp-h b { font-size: var(--fs-caption); font-weight: 700; letter-spacing: .05em; color: var(--text-3); text-transform: uppercase; }
 .sp-h i { font-style: normal; font-size: var(--fs-caption); color: var(--text-4); }
 .sp-h .r { margin-left: auto; font-size: var(--fs-caption); color: var(--text-4); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -1483,7 +1492,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .sp-desc { font-size: var(--fs-body); line-height: 1.85; color: var(--text-2); white-space: pre-wrap; }
 .sp-split { position: relative; cursor: col-resize; display: flex; align-items: center; justify-content: center; }
 .sp-split i { width: 3px; height: 26px; border-radius: 2px; background: var(--border-strong); transition: all var(--dur); }
-.sp-split:hover i { background: var(--accent); height: 44px; }
+.sp-split:hover i { background: var(--accent); height: 100%; }
 .sp-split::after { content: ''; position: absolute; inset: 0 -4px; }
 .sp-sub { box-sizing: border-box; display: flex; align-items: center; gap: 9px; height: var(--sp-sub-h); padding: 8px 2px; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); cursor: pointer; }
 .sp-sub .b { flex-shrink: 0; width: 15px; height: 15px; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid var(--border-strong); border-radius: 4px; font-size: var(--fs-micro); color: var(--accent); background: var(--surface); }
@@ -1504,13 +1513,14 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 /* R56-P1：项目调度 4 指标卡 ｜ R57-F2：两两一行 ｜ R120-TB3：原型 mini box（左对齐 / 14px 数值 / 11px 标签） */
 /* R169-T4：2×2 → 一行四格，与归属同排（下钻判据与四格语义一字未改） */
 .cur-stats-v2 { display: grid; grid-template-columns: repeat(4, minmax(58px, auto)); gap: 6px; align-self: center; }
-.csv-cell { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; text-align: left; }
+/* R175（原型 td-metric-chip）：格子内改「标签+数值」同行 chip 形态（背景保持 var(--surface)，R120-8 判据在守；四格下钻不变） */
+.csv-cell { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 9px; text-align: left; display: flex; align-items: baseline; gap: 5px; white-space: nowrap; }
 .csv-cell.clickable { cursor: pointer; transition: all var(--dur-fast); }
 .csv-cell.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
-.csv-num { font-size: 14px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.25; }
+.csv-num { font-size: var(--fs-sub); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.25; }
 .csv-num.ok { color: var(--success); }
 .csv-num.warn { color: var(--warning); }
-.csv-lab { font-size: var(--fs-caption); color: var(--text-3); margin-top: 1px; }
+.csv-lab { font-size: var(--fs-caption); color: var(--text-3); }
 /* R54-B1：分栏拖拽分隔条 */
 /* R55-E2：分隔条常显可见（细线）+ hover/拖动增强，命中区 8px */
 .cur-split { width: 8px; border-radius: 99px; cursor: col-resize; background: transparent; transition: background var(--dur); align-self: stretch; position: relative; }

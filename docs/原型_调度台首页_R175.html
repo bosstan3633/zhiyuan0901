@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>知源调度台 Ownway · 生产环境 1:1 交付级高保真原型</title>
+  <style>
+    /* ==========================================================================
+       1. 生产环境令牌系统 (Tokens - 纸墨白底 + 深空薰衣草主色 #5E6AD2)
+       ========================================================================== */
+    :root {
+      --bg: #F5F5F7;
+      --surface: #FFFFFF;
+      --surface-subtle: #FBFBFD;
+      --surface-hover: #F0F0F2;
+      --surface-active: #E8E8ED;
+
+      --border-hairline: rgba(0, 0, 0, 0.08);
+      --border-strong: rgba(0, 0, 0, 0.14);
+      --divider: rgba(0, 0, 0, 0.06);
+
+      --text-primary: #1D1D1F;
+      --text-secondary: #515154;
+      --text-tertiary: #86868B;
+      --text-quaternary: #AEAEB2;
+
+      /* 核心主色 (主色稀缺律 - 薰衣草紫蓝) */
+      --accent: #5E6AD2;
+      --accent-hover: #4B56B8;
+      --accent-light: rgba(94, 106, 210, 0.08);
+      --accent-border: rgba(94, 106, 210, 0.28);
+
+      /* 语义色 (克制收敛) */
+      --semantic-green: #34C759;
+      --semantic-green-light: rgba(52, 199, 89, 0.12);
+      --semantic-amber: #FF9F0A;
+      --semantic-amber-light: rgba(255, 159, 10, 0.12);
+      --semantic-blue: #007AFF;
+      --semantic-blue-light: rgba(0, 122, 255, 0.1);
+
+      --radius-xs: 4px;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+
+      --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.03);
+      --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+      --shadow-floating: 0 12px 32px rgba(0, 0, 0, 0.08);
+      --shadow-drawer: -12px 0 36px rgba(0, 0, 0, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", sans-serif;
+      font-feature-settings: "tnum";
+      font-variant-numeric: tabular-nums;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      line-height: 1.45;
+      padding-bottom: 72px;
+    }
+
+    /* ==========================================================================
+       2. 顶栏导航 (严格对齐 F2 规范：左侧所有台面入口左对齐)
+       ========================================================================== */
+    .app-navbar {
+      height: 48px;
+      background: rgba(255, 255, 255, 0.84);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-bottom: 1px solid var(--border-hairline);
+      position: sticky;
+      top: 0;
+      z-index: 200;
+    }
+
+    .navbar-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 0 36px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* 左对齐核心导航群：调度台 / 方向台 / 资源台 / 策展台 ×N */
+    .nav-left-cluster {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .nav-brand-chip {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-right: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-brand-en {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      letter-spacing: 0.02em;
+    }
+
+    .nav-tab-item {
+      padding: 5px 11px;
+      border-radius: var(--radius-sm);
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+    }
+
+    .nav-tab-item:hover {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+
+    .nav-tab-item.active {
+      background: var(--accent-light);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .nav-tab-item.ws-tab {
+      color: var(--text-secondary);
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .nav-add-ws-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-xs);
+      border: none;
+      background: transparent;
+      color: var(--text-tertiary);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .nav-add-ws-btn:hover {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+
+    .nav-right-cluster {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-shortcut-tip {
+      font-size: 11.5px;
+      color: var(--text-tertiary);
+      background: var(--surface-hover);
+      padding: 3px 8px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--border-hairline);
+    }
+
+    /* ==========================================================================
+       3. 页面主容器 (1440px 居中安全视域)
+       ========================================================================== */
+    .viewport-container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 18px 36px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* 顶部合流状态条 (≤38px 紧凑单行流) */
+    .unified-status-bar {
+      height: 38px;
+      background: var(--surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+    }
+
+    .usb-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .focus-capsule {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--accent-light);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2.5px 8px;
+      border-radius: 4px;
+    }
+
+    .compact-metrics {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .compact-metrics b {
+      color: var(--text-primary);
+    }
+
+    .usb-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+    }
+
+    .storage-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11.5px;
+      color: var(--text-tertiary);
+    }
+
+    .green-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--semantic-green);
+    }
+
+    .sub-action-btn {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--surface-hover);
+      border: 1px solid var(--border-hairline);
+      padding: 3px 8px;
+      border-radius: var(--radius-xs);
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .sub-action-btn:hover {
+      background: var(--surface-active);
+      color: var(--text-primary);
+    }
+
+    /* ==========================================================================
+       4. 今日三件事 (TODAY'S FOCUS - 绝对焦点卡片)
+       ========================================================================== */
+    .focus-hero-card {
+      background: var(--surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .focus-hero-card.all-completed {
+      background: #FAFAFC;
+    }
+
+    .hero-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .hh-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hh-main-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hh-tagline {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .hh-date {
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      transition: filter 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .focus-hero-card.all-completed .hero-grid {
+      filter: saturate(0.65);
+    }
+
+    .hero-task-slot {
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      min-height: 86px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s ease;
+    }
+
+    .hero-task-slot:hover {
+      border-color: var(--border-strong);
+      transform: translateY(-1px);
+    }
+
+    .hero-task-slot.selected {
+      border-color: var(--accent);
+      background: var(--surface);
+      box-shadow: 0 0 0 1px var(--accent), 0 4px 12px rgba(94, 106, 210, 0.08);
+    }
+
+    .slot-top-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .apple-checkbox {
+      width: 16px;
+      height: 16px;
+      border-radius: 4.5px;
+      border: 1.5px solid var(--border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+      flex-shrink: 0;
+      background: var(--surface);
+    }
+
+    .apple-checkbox.checked {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #FFF;
+      font-size: 11px;
+    }
+
+    .slot-title {
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.4;
+      flex-grow: 1;
+      color: var(--text-primary);
+    }
+
+    .hero-task-slot.is-done .slot-title {
+      text-decoration: line-through;
+      color: var(--text-tertiary);
+    }
+
+    .slot-index {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-tertiary);
+      user-select: none;
+    }
+
+    .slot-footer {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .slot-tag {
+      font-size: 10.5px;
+      padding: 1.5px 6px;
+      border-radius: 4px;
+      background: var(--surface-hover);
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      max-width: 150px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .quiet-done-banner {
+      display: none;
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--divider);
+      text-align: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+    }
+
+    .focus-hero-card.all-completed .quiet-done-banner {
+      display: block;
+    }
+
+    /* ==========================================================================
+       5. 任务详情模块 (TASK DETAIL - 上下结构 + 左右自由拖拽 + 4行固定高度)
+       ========================================================================== */
+    .task-detail-card {
+      background: var(--surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* 上部分：战略目标 - 项目 - 成果指标 ｜ 方向树 ｜ 4个指标数据 */
+    .td-upper-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--divider);
+      flex-wrap: wrap;
+    }
+
+    .td-chain-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      flex-grow: 1;
+      min-width: 320px;
+    }
+
+    .chain-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-tertiary);
+      letter-spacing: 0.04em;
+    }
+
+    .chain-flow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-hairline);
+      padding: 3px 10px;
+      border-radius: var(--radius-sm);
+    }
+
+    .chain-flow b {
+      color: var(--text-primary);
+    }
+
+    .chain-arrow {
+      color: var(--text-quaternary);
+      font-size: 11px;
+    }
+
+    .btn-tree-link {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--accent);
+      background: var(--accent-light);
+      border: 1px solid transparent;
+      padding: 3px 8px;
+      border-radius: var(--radius-xs);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .btn-tree-link:hover {
+      background: rgba(94, 106, 210, 0.14);
+    }
+
+    .td-metrics-cluster {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .td-metric-chip {
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-sm);
+      padding: 3px 9px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11.5px;
+      color: var(--text-secondary);
+    }
+
+    .td-metric-val {
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    /* 下部分：左右分栏，可自由拖拽，纵向高度锁死 4 个子任务空间 (152px) */
+    .td-lower-splitter-container {
+      display: flex;
+      width: 100%;
+      height: 152px;
+      position: relative;
+    }
+
+    .td-left-description-pane {
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .pane-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .pane-desc-content {
+      font-size: 12.5px;
+      color: var(--text-primary);
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+      user-select: text;
+    }
+
+    .td-split-handle {
+      width: 10px;
+      cursor: col-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .td-split-handle::after {
+      content: "";
+      width: 2px;
+      height: 36px;
+      border-radius: 1px;
+      background: var(--border-strong);
+      transition: all 0.15s ease;
+    }
+
+    .td-split-handle:hover::after,
+    .td-split-handle.dragging::after {
+      background: var(--accent);
+      height: 100%;
+      width: 3px;
+    }
+
+    .td-right-subtasks-pane {
+      background: var(--surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 8px 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .subtask-item-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 4px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--divider);
+      height: 32px;
+      flex-shrink: 0;
+    }
+
+    .subtask-item-row:last-child {
+      border-bottom: none;
+    }
+
+    .subtask-item-row:hover {
+      background: var(--surface-subtle);
+    }
+
+    .subtask-box {
+      width: 14px;
+      height: 14px;
+      border-radius: 3.5px;
+      border: 1.2px solid var(--border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .subtask-box.checked {
+      background: var(--text-tertiary);
+      border-color: var(--text-tertiary);
+      color: #FFF;
+      font-size: 9px;
+    }
+
+    .subtask-text {
+      flex-grow: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .subtask-item-row.is-done .subtask-text {
+      text-decoration: line-through;
+      color: var(--text-tertiary);
+    }
+
+    /* ==========================================================================
+       6. 下半区核心呈现：任务调度 / 好奇心培育 (完整双模块与交互)
+       ========================================================================== */
+    .sub-workbench-section {
+      margin-top: 2px;
+    }
+
+    /* 顶部主切换 Tab */
+    .segmented-control-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .seg-pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border-hairline);
+      background: var(--surface);
+      color: var(--text-secondary);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .seg-pill-btn.active {
+      background: var(--text-primary);
+      color: #FFF;
+      border-color: var(--text-primary);
+    }
+
+    .seg-count {
+      font-size: 11px;
+      opacity: 0.8;
+    }
+
+    .workbench-card-panel {
+      background: var(--surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      box-shadow: var(--shadow-card);
+    }
+
+    /* 工具条：视图模式 + 列数选择器 G1-G6 + 筛选 + 搜索 + 新建 */
+    .panel-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .pt-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .macos-segmented {
+      display: flex;
+      background: var(--surface-hover);
+      padding: 2px;
+      border-radius: var(--radius-sm);
+    }
+
+    .m-seg-item {
+      border: none;
+      background: transparent;
+      padding: 3px 10px;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      border-radius: var(--radius-xs);
+      cursor: pointer;
+    }
+
+    .m-seg-item.active {
+      background: var(--surface);
+      color: var(--text-primary);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+      font-weight: 600;
+    }
+
+    /* G1-G6 列数选择器 ColsPicker [4][5][6][7] */
+    .cols-picker-group {
+      display: flex;
+      align-items: center;
+      background: var(--surface-hover);
+      padding: 2px;
+      border-radius: var(--radius-sm);
+    }
+
+    .cp-label {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-right: 4px;
+      margin-left: 4px;
+    }
+
+    .cp-btn {
+      border: none;
+      background: transparent;
+      width: 22px;
+      height: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      border-radius: var(--radius-xs);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cp-btn.active {
+      background: var(--surface);
+      color: var(--accent);
+      font-weight: 700;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .pt-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-select {
+      border: 1px solid var(--border-hairline);
+      background: var(--surface-subtle);
+      border-radius: var(--radius-sm);
+      padding: 4px 8px;
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .search-box {
+      border: 1px solid var(--border-hairline);
+      background: var(--surface-subtle);
+      border-radius: var(--radius-sm);
+      padding: 4px 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .search-box input {
+      border: none;
+      outline: none;
+      background: transparent;
+      font-size: 12px;
+      width: 150px;
+      color: var(--text-primary);
+    }
+
+    .primary-cta-btn {
+      background: var(--accent);
+      color: #FFF;
+      border: none;
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .primary-cta-btn:hover {
+      background: var(--accent-hover);
+    }
+
+    /* 动态栅格容器：支持 4/5/6/7 列响应切换 */
+    .dynamic-cards-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .dynamic-cards-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+    .dynamic-cards-grid.cols-5 { grid-template-columns: repeat(5, 1fr); }
+    .dynamic-cards-grid.cols-6 { grid-template-columns: repeat(6, 1fr); }
+    .dynamic-cards-grid.cols-7 { grid-template-columns: repeat(7, 1fr); }
+
+    /* 任务卡片样式 (Task Card) */
+    .task-item-card {
+      background: var(--surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      min-height: 94px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+
+    .task-item-card:hover {
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow-card);
+      transform: translateY(-1px);
+    }
+
+    .tic-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .tic-title {
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.4;
+      color: var(--text-primary);
+      flex-grow: 1;
+    }
+
+    .tic-pin {
+      font-size: 11px;
+      color: var(--accent);
+    }
+
+    .tic-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 10px;
+    }
+
+    /* 好奇心卡片样式 (Curiosity Card - 状态四色阶与一键转化) */
+    .curiosity-item-card {
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      min-height: 98px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+
+    .curiosity-item-card:hover {
+      border-color: var(--border-strong);
+      background: var(--surface);
+      box-shadow: var(--shadow-card);
+      transform: translateY(-1px);
+    }
+
+    .cic-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .curio-state-badge {
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 1.5px 6px;
+      border-radius: 4px;
+    }
+
+    .state-exploring { background: var(--semantic-blue-light); color: var(--semantic-blue); }
+    .state-pending { background: var(--semantic-amber-light); color: var(--semantic-amber); }
+    .state-verified { background: var(--semantic-green-light); color: var(--semantic-green); }
+
+    .cic-question {
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.45;
+      color: var(--text-primary);
+      flex-grow: 1;
+    }
+
+    .cic-source-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--divider);
+    }
+
+    .cic-convert-btn {
+      font-size: 10.5px;
+      color: var(--accent);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .cic-convert-btn:hover {
+      text-decoration: underline;
+    }
+
+    /* 底部操作验证 Dock */
+    .prototype-dock {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(29, 29, 31, 0.9);
+      backdrop-filter: blur(16px);
+      color: #FFF;
+      padding: 6px 16px;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 12px;
+      box-shadow: var(--shadow-floating);
+      z-index: 500;
+    }
+
+    .dock-pill {
+      background: var(--accent);
+      color: #FFF;
+      border: none;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .dock-pill:hover {
+      background: var(--accent-hover);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 全局顶部磨砂导航 (严格对齐 F2 规范：调度台/方向台/资源台/策展台 左对齐) -->
+  <nav class="app-navbar">
+    <div class="navbar-inner">
+      <div class="nav-left-cluster">
+        <div class="nav-brand-chip">
+          <span style="color: var(--accent); font-size: 16px;">🧭</span>
+          <span>知源调度台</span>
+          <span class="nav-brand-en">Ownway</span>
+        </div>
+        <div class="nav-tab-item active">调度台</div>
+        <div class="nav-tab-item" onclick="alert('进入方向台 (/compass)')">方向台</div>
+        <div class="nav-tab-item" onclick="alert('进入资源台 (/workspace/zy-curation)')">资源台</div>
+        <div class="nav-tab-item ws-tab" onclick="alert('进入自建策展台')">🎯 武汉升学政策研究</div>
+        <button class="nav-add-ws-btn" title="新建策展台" onclick="alert('新建策展台')">＋</button>
+      </div>
+
+      <div class="nav-right-cluster">
+        <span class="nav-shortcut-tip">调出快捷键 ⌘K</span>
+        <div style="font-size: 11.5px; color: var(--text-tertiary);">纸墨白 ▾</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 视域主容器 (1440px 居中安全约束) -->
+  <main class="viewport-container">
+
+    <!-- 1. 顶部合流状态条 (≤38px) -->
+    <section class="unified-status-bar">
+      <div class="usb-left">
+        <span class="focus-capsule">🎯 主攻</span>
+        <span style="font-size: 12.5px; font-weight: 600; cursor: pointer;" onclick="alert('进入软硬一体服务系统解决方案')">软硬一体服务系统解决方案</span>
+        <span style="font-size: 11.5px; color: var(--text-tertiary);">0%</span>
+        <div style="width: 1px; height: 14px; background: var(--divider); margin: 0 4px;"></div>
+        <div class="compact-metrics">
+          <span>战略目标 <b>3</b></span>
+          <span>推进项目 <b>5</b></span>
+          <span>WCE探索 <b>0</b></span>
+          <span>WRR复用 <b>11</b></span>
+          <span>未归档 <b style="color: var(--semantic-amber);">0/17</b></span>
+        </div>
+      </div>
+      <div class="usb-right">
+        <div class="storage-indicator">
+          <span class="green-dot"></span>
+          <span>本机存储正常 · 刚写入</span>
+        </div>
+        <button class="sub-action-btn" onclick="alert('呼出调度画像周报')">📊 周报</button>
+        <a href="javascript:void(0)" class="sub-action-btn" style="border: none; background: transparent; color: var(--accent);" onclick="alert('去方向台')">去方向台 ›</a>
+      </div>
+    </section>
+
+    <!-- 2. 今日三件事 (TODAY'S FOCUS) -->
+    <section class="focus-hero-card" id="focusHeroCard">
+      <div class="hero-header">
+        <div class="hh-title-group">
+          <span style="color: var(--accent); font-size: 15px;">★</span>
+          <span class="hh-main-title">今日三件事</span>
+          <span class="hh-tagline">TODAY'S FOCUS</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="sub-action-btn" onclick="alert('已复制昨日三件事')">复制昨日</button>
+          <span class="hh-date">2026-09-28 周一</span>
+        </div>
+      </div>
+
+      <div class="hero-grid">
+        <!-- 槽位 1 -->
+        <div class="hero-task-slot selected" id="slot-1" onclick="selectSlot(1, event)">
+          <div class="slot-top-row">
+            <div class="apple-checkbox" id="check-1" onclick="toggleTaskDone(1, event)"></div>
+            <div class="slot-title">AI Agent概念梳理，构建认知基础</div>
+            <div class="slot-index">01</div>
+          </div>
+          <div class="slot-footer">
+            <span class="slot-tag">📦 workbuddy培训项目</span>
+            <span class="slot-tag">🎯 教程文章20篇</span>
+          </div>
+        </div>
+
+        <!-- 槽位 2 -->
+        <div class="hero-task-slot" id="slot-2" onclick="selectSlot(2, event)">
+          <div class="slot-top-row">
+            <div class="apple-checkbox" id="check-2" onclick="toggleTaskDone(2, event)"></div>
+            <div class="slot-title">用workbuddy解决职场办公的100个方案</div>
+            <div class="slot-index">02</div>
+          </div>
+          <div class="slot-footer">
+            <span class="slot-tag">📦 workbuddy培训项目</span>
+            <span class="slot-tag">🎯 教程文章20篇</span>
+          </div>
+        </div>
+
+        <!-- 槽位 3 -->
+        <div class="hero-task-slot" id="slot-3" onclick="selectSlot(3, event)">
+          <div class="slot-top-row">
+            <div class="apple-checkbox" id="check-3" onclick="toggleTaskDone(3, event)"></div>
+            <div class="slot-title">搭建课程产品V1.0并完成首轮内测</div>
+            <div class="slot-index">03</div>
+          </div>
+          <div class="slot-footer">
+            <span class="slot-tag">📦 知识产品打造与销售</span>
+            <span class="slot-tag">🎯 课程研发</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="quiet-done-banner" id="quietDoneBanner">
+        ✓ 今日三件事已闭环 · 专注带来从容
+      </div>
+    </section>
+
+    <!-- 3. 任务详情模块 (TASK DETAIL) -->
+    <section class="task-detail-card">
+      <!-- 上部分：战略目标 - 项目 - 成果指标 ｜ 方向树 ｜ 4个指标数据 -->
+      <div class="td-upper-bar">
+        <div class="td-chain-group">
+          <span class="chain-label">行动来处</span>
+          <div class="chain-flow">
+            <span id="chainGoal">AI知识管理 + 个人中台专家</span>
+            <span class="chain-arrow">›</span>
+            <b id="chainProject">workbuddy培训项目</b>
+            <span class="chain-arrow">›</span>
+            <b id="chainMetric" style="color: var(--accent);">教程文章20篇</b>
+          </div>
+          <button class="btn-tree-link" onclick="alert('进入完整方向树 /compass/tree')">
+            <span>方向树</span>
+            <span>›</span>
+          </button>
+        </div>
+
+        <!-- 项目 4 个核心事实指标数据 -->
+        <div class="td-metrics-cluster">
+          <div class="td-metric-chip" title="成功指标数">
+            <span>成功指标</span>
+            <span class="td-metric-val" id="metricSuccess">2</span>
+          </div>
+          <div class="td-metric-chip" title="关联任务总数">
+            <span>关联任务</span>
+            <span class="td-metric-val" id="metricTotal">7</span>
+          </div>
+          <div class="td-metric-chip" title="已推进完成任务数">
+            <span>已推进完成</span>
+            <span class="td-metric-val" id="metricDone" style="color: var(--semantic-green);">2</span>
+          </div>
+          <div class="td-metric-chip" title="正在进行中任务数">
+            <span>正在进行中</span>
+            <span class="td-metric-val" id="metricDoing" style="color: var(--accent);">1</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 下部分：左右分栏，可自由拖拽，纵向固定 4 个子任务高度 (152px) -->
+      <div class="td-lower-splitter-container" id="splitterContainer">
+        <!-- 左侧：任务描述字段 -->
+        <div class="td-left-description-pane" id="leftPane" style="width: 48%;">
+          <div class="pane-title">任务描述 (DESCRIPTION)</div>
+          <div class="pane-desc-content" id="taskDescContent">
+梳理主流 Agent 的核心交互逻辑与运行架构（感知环境、规划推理、记忆机制与行动工具）。
+重点针对职场重度研究者提炼使用心智，形成 2000 字理论支撑并画出系统调度图，为后续课程研发提供标准底层输入。
+          </div>
+        </div>
+
+        <!-- 中间可拖拽把手 (Split Handle) -->
+        <div class="td-split-handle" id="splitHandle" title="按住左右拖拽调整宽度"></div>
+
+        <!-- 右侧：子任务清单 (超过4个可平滑滑动展示) -->
+        <div class="td-right-subtasks-pane" id="rightPane" style="width: 52%;">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 4px; border-bottom: 1px solid var(--divider); margin-bottom: 4px;">
+            <span class="pane-title">子任务清单 (SUBTASKS)</span>
+            <span style="font-size: 11px; color: var(--text-tertiary);" id="subtaskCounter">1 / 5 项已完成</span>
+          </div>
+          
+          <div class="subtasks-scroll-list" id="subtasksScrollList">
+            <!-- 动态渲染，支持滚动 -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 下半区核心呈现：任务调度 / 好奇心培育 (完整双模块与交互) -->
+    <section class="sub-workbench-section">
+      <!-- 胶囊级 Segmented Control 切换 -->
+      <div class="segmented-control-bar">
+        <button class="seg-pill-btn active" id="tabBtnTask" onclick="switchWorkbenchTab('task')">
+          <span>任务调度</span>
+          <span class="seg-count" id="badgeTaskCount">17</span>
+        </button>
+        <button class="seg-pill-btn" id="tabBtnCurio" onclick="switchWorkbenchTab('curio')">
+          <span>好奇心培育</span>
+          <span class="seg-count" id="badgeCurioCount">3</span>
+        </button>
+      </div>
+
+      <div class="workbench-card-panel">
+        <!-- 工作台工具栏 -->
+        <div class="panel-toolbar">
+          <div class="pt-left">
+            <!-- 视图三态切换 -->
+            <div class="macos-segmented">
+              <button class="m-seg-item active" id="viewModeCard" onclick="switchViewMode('card')">卡片</button>
+              <button class="m-seg-item" id="viewModeList" onclick="switchViewMode('list')">列表</button>
+              <button class="m-seg-item" id="viewModeKanban" onclick="switchViewMode('kanban')">看板</button>
+            </div>
+
+            <!-- G1-G6 列数选择器 ColsPicker [4][5][6][7] -->
+            <div class="cols-picker-group" id="colsPickerBox">
+              <span class="cp-label">列数:</span>
+              <button class="cp-btn" onclick="setCardCols(4)">4</button>
+              <button class="cp-btn active" onclick="setCardCols(5)">5</button>
+              <button class="cp-btn" onclick="setCardCols(6)">6</button>
+              <button class="cp-btn" onclick="setCardCols(7)">7</button>
+            </div>
+          </div>
+
+          <div class="pt-right">
+            <!-- 状态过滤 -->
+            <select class="filter-select" onchange="alert('执行状态筛选: ' + this.value)">
+              <option value="all">全部状态</option>
+              <option value="doing">进行中</option>
+              <option value="done">已完成</option>
+              <option value="todo">待开始</option>
+            </select>
+
+            <!-- 搜索框 -->
+            <div class="search-box">
+              <span style="color: var(--text-tertiary); font-size: 11px;">🔍</span>
+              <input type="text" placeholder="快速过滤..." />
+            </div>
+
+            <!-- 主新建按钮 -->
+            <button class="primary-cta-btn" id="workbenchNewBtn" onclick="handleWorkbenchNew()">
+              + 新建任务
+            </button>
+          </div>
+        </div>
+
+        <!-- 视图容器：卡片网格 (支持 4/5/6/7 列响应) -->
+        <div class="dynamic-cards-grid cols-5" id="workbenchGridContainer">
+          <!-- 动态注入任务卡或好奇心卡 -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 底部交互演示 Dock -->
+  <div class="prototype-dock">
+    <span>🍎 生产级 1:1 原型实测验证</span>
+    <button class="dock-pill" onclick="simulateAllCompleted()">一键完成三件事</button>
+    <button class="dock-pill" style="background: #3A3A3C;" onclick="downloadPrototypeFile()">下载此原型 HTML</button>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. 数据模型与数据池 (Data Store)
+    // =========================================================================
+    const taskStates = { 1: false, 2: false, 3: false };
+
+    const taskDetailData = {
+      1: {
+        goal: 'AI知识管理 + 个人中台专家',
+        project: 'workbuddy培训项目',
+        metric: '教程文章20篇',
+        metrics: { success: 2, total: 7, done: 2, doing: 1 },
+        desc: `梳理主流 Agent 的核心交互逻辑与运行架构（感知环境、规划推理、记忆机制与行动工具）。
+重点针对职场重度研究者提炼使用心智，形成 2000 字理论支撑并画出系统调度图，为后续课程研发提供标准底层输入。`,
+        subtasks: [
+          { text: '调研主流 Agent 框架（ReAct、Plan-and-Solve、Memory 流）', done: true },
+          { text: '提炼 workbuddy 核心调度流与交互心智', done: false },
+          { text: '输出 2000 字教程提纲并挂载结构示意图', done: false },
+          { text: '在社群发起首轮概念答疑，收集 3 条用户疑惑', done: false },
+          { text: '完成概念篇终稿排版并同步至知识库', done: false },
+          { text: '关联至第四章产品研发实操指引', done: false }
+        ]
+      },
+      2: {
+        goal: 'AI知识管理 + 个人中台专家',
+        project: 'workbuddy培训项目',
+        metric: '教程文章20篇',
+        metrics: { success: 2, total: 7, done: 2, doing: 1 },
+        desc: `收集并整理职场办公高频 100 个场景，按“文档对比、周报汇总、会议纪要提取、邮件批处理”四大类目提炼实操 Prompt 与调用模板。`,
+        subtasks: [
+          { text: '整理文档对比场景 10 个标准用例', done: false },
+          { text: '提炼会议纪要提取与分发脚本', done: true },
+          { text: '录制 3 分钟极简实操屏幕演示', done: false },
+          { text: '输出 Markdown 格式一键复制模板', done: false }
+        ]
+      },
+      3: {
+        goal: '产品生命周期管理专家',
+        project: '知识产品打造与销售',
+        metric: '课程产品研发',
+        metrics: { success: 1, total: 6, done: 3, doing: 2 },
+        desc: `完成知源课程产品 V1.0 的全流程大纲封版。搭建内测交付群并验证飞书交付表单链路，收集 5 位种子学员打分。`,
+        subtasks: [
+          { text: '内测群与学员档案表单打通', done: true },
+          { text: '录制第一模块 3 节样课视频', done: true },
+          { text: '收集第一轮 5 位种子学员打分反馈', done: false },
+          { text: '根据反馈微调作业批改与讨论动线', done: false }
+        ]
+      }
+    };
+
+    // 下半区：真实任务调度列表 (17 项样本)
+    const taskManagerPool = [
+      { id: 101, title: 'AI Agent概念梳理，构建认知基础', tag: '培训', date: '9-03', pinned: true },
+      { id: 102, title: '用workbuddy解决职场办公的100个方案', tag: '培训', date: '9-15', pinned: true },
+      { id: 103, title: '搭建课程产品V1.0并完成首轮内测', tag: '研发', date: '9-08', pinned: false },
+      { id: 104, title: 'obsidian工作流深度接入规范', tag: '工程', date: '9-03', pinned: false },
+      { id: 105, title: '知源核心调度台视频介绍策划', tag: '销售', date: '8-31', pinned: false },
+      { id: 106, title: '收集并核对种子学员画像数据', tag: '运营', date: '8-29', pinned: false },
+      { id: 107, title: '拆解全网 5 个顶级知识库商业化路径', tag: '研究', date: '8-20', pinned: false },
+      { id: 108, title: '编写一页纸核心销售话术清单', tag: '销售', date: '8-18', pinned: false },
+      { id: 109, title: '重构周报复盘文本报告生成 Prompt', tag: 'AI工程', date: '8-15', pinned: false },
+      { id: 110, title: '设计金字塔成果视图折叠动画', tag: 'UI交互', date: '8-10', pinned: false }
+    ];
+
+    // 下半区：好奇心卡片列表 (3 项真实样本)
+    const curiosityPool = [
+      { id: 201, question: '本地大模型在浏览器沙箱内做语义向量召回的显存极限是多少？', state: 'exploring', stateText: '探索中', source: 'arxiv.org/abs/2408...' },
+      { id: 202, question: '知识工作者为什么往往抗拒结构化标签，而偏爱全文拼音搜索？', state: 'pending', stateText: '待探索', source: '即刻思考念头' },
+      { id: 203, question: 'Chrome MV3 扩展下 IndexedDB 的持久化配额是否会在系统盘紧缺时被静默清除？', state: 'verified', stateText: '已求证', source: 'developer.chrome.com' }
+    ];
+
+    let currentWorkbenchTab = 'task'; // 'task' | 'curio'
+    let currentCols = 5;
+
+    // =========================================================================
+    // 2. 槽位选中与任务详情联动逻辑
+    // =========================================================================
+    function selectSlot(id, event) {
+      if (event && event.target.classList.contains('apple-checkbox')) return;
+      document.querySelectorAll('.hero-task-slot').forEach(el => el.classList.remove('selected'));
+      const activeSlot = document.getElementById(`slot-${id}`);
+      if (activeSlot) activeSlot.classList.add('selected');
+
+      const data = taskDetailData[id];
+      if (!data) return;
+
+      document.getElementById('chainGoal').textContent = data.goal;
+      document.getElementById('chainProject').textContent = data.project;
+      document.getElementById('chainMetric').textContent = data.metric;
+
+      document.getElementById('metricSuccess').textContent = data.metrics.success;
+      document.getElementById('metricTotal').textContent = data.metrics.total;
+      document.getElementById('metricDone').textContent = data.metrics.done;
+      document.getElementById('metricDoing').textContent = data.metrics.doing;
+
+      document.getElementById('taskDescContent').textContent = data.desc;
+      renderSubtasks(data.subtasks);
+    }
+
+    function renderSubtasks(subtasks) {
+      const container = document.getElementById('subtasksScrollList');
+      container.innerHTML = '';
+      let doneCount = 0;
+
+      subtasks.forEach((st, index) => {
+        if (st.done) doneCount++;
+        const row = document.createElement('div');
+        row.className = 'subtask-item-row' + (st.done ? ' is-done' : '');
+        row.innerHTML = `
+          <div class="subtask-box ${st.done ? 'checked' : ''}" onclick="toggleSubtaskItem(this, ${index})">${st.done ? '✓' : ''}</div>
+          <span class="subtask-text" title="${st.text}">${st.text}</span>
+        `;
+        container.appendChild(row);
+      });
+
+      document.getElementById('subtaskCounter').textContent = `${doneCount} / ${subtasks.length} 项已完成`;
+    }
+
+    function toggleSubtaskItem(box, index) {
+      const row = box.closest('.subtask-item-row');
+      const isDone = row.classList.toggle('is-done');
+      box.classList.toggle('checked');
+      box.textContent = isDone ? '✓' : '';
+    }
+
+    function toggleTaskDone(id, event) {
+      if (event) event.stopPropagation();
+      taskStates[id] = !taskStates[id];
+      const slot = document.getElementById(`slot-${id}`);
+      const box = document.getElementById(`check-${id}`);
+
+      if (taskStates[id]) {
+        slot.classList.add('is-done');
+        box.classList.add('checked');
+        box.textContent = '✓';
+      } else {
+        slot.classList.remove('is-done');
+        box.classList.remove('checked');
+        box.textContent = '';
+      }
+      evaluateQuietDone();
+    }
+
+    function evaluateQuietDone() {
+      const allDone = taskStates[1] && taskStates[2] && taskStates[3];
+      const hero = document.getElementById('focusHeroCard');
+      if (allDone) {
+        hero.classList.add('all-completed');
+      } else {
+        hero.classList.remove('all-completed');
+      }
+    }
+
+    function simulateAllCompleted() {
+      for (let i = 1; i <= 3; i++) {
+        taskStates[i] = true;
+        const slot = document.getElementById(`slot-${i}`);
+        const box = document.getElementById(`check-${i}`);
+        slot.classList.add('is-done');
+        box.classList.add('checked');
+        box.textContent = '✓';
+      }
+      evaluateQuietDone();
+    }
+
+    // =========================================================================
+    // 3. 自由拖拽分隔把手 (Split Pane Engine)
+    // =========================================================================
+    const container = document.getElementById('splitterContainer');
+    const leftPane = document.getElementById('leftPane');
+    const rightPane = document.getElementById('rightPane');
+    const splitHandle = document.getElementById('splitHandle');
+    let isDragging = false;
+
+    splitHandle.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      splitHandle.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const rect = container.getBoundingClientRect();
+      const offsetX = e.clientX - rect.left;
+      const containerWidth = rect.width;
+
+      let percentage = (offsetX / containerWidth) * 100;
+      if (percentage < 25) percentage = 25;
+      if (percentage > 75) percentage = 75;
+
+      leftPane.style.width = `calc(${percentage}% - 5px)`;
+      rightPane.style.width = `calc(${100 - percentage}% - 5px)`;
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        splitHandle.classList.remove('dragging');
+        document.body.style.cursor = 'default';
+      }
+    });
+
+    // =========================================================================
+    // 4. 下半区切换与卡片网格渲染 (Workbench Engine)
+    // =========================================================================
+    function switchWorkbenchTab(tab) {
+      currentWorkbenchTab = tab;
+      const btnTask = document.getElementById('tabBtnTask');
+      const btnCurio = document.getElementById('tabBtnCurio');
+      const newBtn = document.getElementById('workbenchNewBtn');
+
+      if (tab === 'task') {
+        btnTask.classList.add('active');
+        btnCurio.classList.remove('active');
+        newBtn.textContent = '+ 新建任务';
+      } else {
+        btnCurio.classList.add('active');
+        btnTask.classList.remove('active');
+        newBtn.textContent = '+ 留下好奇';
+      }
+
+      renderWorkbenchContent();
+    }
+
+    function renderWorkbenchContent() {
+      const grid = document.getElementById('workbenchGridContainer');
+      grid.innerHTML = '';
+
+      if (currentWorkbenchTab === 'task') {
+        taskManagerPool.forEach(task => {
+          const card = document.createElement('div');
+          card.className = 'task-item-card';
+          card.onclick = () => alert(`检视任务: ${task.title}`);
+          card.innerHTML = `
+            <div class="tic-top">
+              <div class="tic-title">${task.title}</div>
+              ${task.pinned ? '<span class="tic-pin" title="已置顶">📌</span>' : ''}
+            </div>
+            <div class="tic-footer">
+              <span class="slot-tag">🏷 ${task.tag}</span>
+              <span>${task.date}</span>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+      } else {
+        curiosityPool.forEach(curio => {
+          const card = document.createElement('div');
+          card.className = 'curiosity-item-card';
+          card.innerHTML = `
+            <div>
+              <div class="cic-header">
+                <span class="curio-state-badge state-${curio.state}">${curio.stateText}</span>
+                <span style="font-size: 11px; color: var(--text-tertiary);">💡 好奇心</span>
+              </div>
+              <div class="cic-question">${curio.question}</div>
+            </div>
+            <div class="cic-source-row">
+              <span style="max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">来源: ${curio.source}</span>
+              <button class="cic-convert-btn" onclick="event.stopPropagation(); alert('已触发转化：转为任务卡或资源卡')">转化 ›</button>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+      }
+    }
+
+    // 列数切换控制 G1-G6
+    function setCardCols(cols) {
+      currentCols = cols;
+      const grid = document.getElementById('workbenchGridContainer');
+      grid.className = `dynamic-cards-grid cols-${cols}`;
+
+      document.querySelectorAll('.cp-btn').forEach(btn => {
+        if (parseInt(btn.textContent) === cols) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
+
+    function switchViewMode(mode) {
+      document.querySelectorAll('.m-seg-item').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById(`viewMode${mode.charAt(0).toUpperCase() + mode.slice(1)}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const colsBox = document.getElementById('colsPickerBox');
+      if (mode === 'card') {
+        colsBox.style.display = 'flex';
+      } else {
+        colsBox.style.display = 'none';
+        alert(`切换至【${mode}】视图模式`);
+      }
+    }
+
+    function handleWorkbenchNew() {
+      if (currentWorkbenchTab === 'task') {
+        alert('呼出快捷任务采集浮层 (Ctrl+Shift+J)');
+      } else {
+        alert('呼出好奇心念头采集浮层 (Ctrl+Shift+I)');
+      }
+    }
+
+    // 初始化
+    window.addEventListener('DOMContentLoaded', () => {
+      selectSlot(1);
+      renderWorkbenchContent();
+    });
+
+    // 纯前端原生导出并下载原型 HTML 文件
+    function downloadPrototypeFile() {
+      const fullHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+      const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+      const blobUrl = URL.createObjectURL(blob);
+      const tempLink = document.createElement('a');
+      tempLink.href = blobUrl;
+      tempLink.download = 'zhiyuan_ownway_home_production_prototype.html';
+      document.body.appendChild(tempLink);
+      tempLink.click();
+      document.body.removeChild(tempLink);
+      URL.revokeObjectURL(blobUrl);
+    }
+  </script>
+</body>
+</html>

@@ -173,7 +173,7 @@ check('R22 好奇 store 去虚拟排序（拖拽根修二段）', () => !read('/
 console.log('【第廿一轮 · 修复验收】');
 check('R21-1 好奇心选采预取缓存', () => read('/content/search-overlay.ts').includes('selCache') && read('/content/search-overlay.ts').includes('function resolveSelection'));
 check('R21-2 拖拽位置感知全落点（好奇列表/看板 + 任务分组行/看板 + 资源看板）', () => read('/newtab/components/compass/CuriosityPanel.vue').includes("const after = dropMark.value.endsWith('-b')") && read('/newtab/components/compass/TaskManagerPanel.vue').includes("markTaskDrop($event, task.id)") && read('/newtab/components/compass/TaskManagerPanel.vue').includes('onTaskCardDrop') && read('/newtab/views/Workspace.vue').includes("markDrop($event, r.id, 'y')"));
-check('R21-3/R49 页面对齐（方向台/调度台统一页边距 max-width 1440）', () => read('/newtab/views/CompassShell.vue').includes('padding: 20px 36px 64px') && read('/newtab/views/CompassHome.vue').includes('padding: 20px 36px 64px'));
+check('R21-3/R49 页面对齐（方向台/调度台统一页边距 max-width 1440）★R175 重指带备案：调度台 .page 顶/底距随原型改 18px/72px（左右 36px 与顶栏 align-page 同线不变），方向台仍 20px 顶距', () => read('/newtab/views/CompassShell.vue').includes('padding: 20px 36px 64px') && read('/newtab/views/CompassHome.vue').includes('padding: 18px 36px 72px'));
 check('R21-4 手册独立页（/manual 路由 + 目录锚点 + 富文本非 scoped）', () => read('/newtab/router.ts').includes("path: '/manual'") && read('/newtab/views/ManualPage.vue').includes('mn-content .mc-tip') && read('/newtab/views/GlobalSettings.vue').includes('openManualTab'));
 
 console.log('【第十九~二十轮 · 拼音搜索/拖拽修复/手册白皮书】');

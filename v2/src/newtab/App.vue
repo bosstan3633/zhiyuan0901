@@ -602,8 +602,9 @@ const backupReminderDot = computed(() => {
 .topbar-inner.align-manual { max-width: 1440px; margin: 0 auto; padding: 0 36px; }
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }
 .home-logo { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
-/* R123（原型）：tab 6×12、active = 浅紫填充块（accent-light + accent 600），下划线退役 */
-.tab { padding: 6px 12px; border-radius: var(--radius-xs); font-size: var(--fs-body); font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color var(--dur) ease, background var(--dur) ease; position: relative; white-space: nowrap; }
+/* R123（原型）：tab 6×12、active = 浅紫填充块（accent-light + accent 600），下划线退役
+   R175（原型 nav-tab-item）：padding 6×12→5×11、圆角 xs→sm，其余口径不变 */
+.tab { padding: 5px 11px; border-radius: var(--radius-sm); font-size: var(--fs-body); font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color var(--dur) ease, background var(--dur) ease; position: relative; white-space: nowrap; }
 .tab:hover { background: var(--surface-2); color: var(--text); }
 .tab.active { color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }
 /* R45-5：.badge 样式随角标移除一并清理（全应用已无渲染点） */

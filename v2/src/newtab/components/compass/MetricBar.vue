@@ -81,8 +81,9 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
 </template>
 
 <style scoped>
-/* R120-TB1：合流方向条——单行 ≤40px，全 tokens（四主题自适应） */
-.metric-bar { background: color-mix(in srgb, var(--surface) 72%, transparent); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px; box-shadow: var(--shadow-sm); }
+/* R120-TB1：合流方向条——单行 ≤38px，全 tokens（四主题自适应）
+   R175（原型）：圆角对齐 radius-md（10px），磨砂底玻璃浓度 72%→88% 更贴近原型近实心 */
+.metric-bar { background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 10px; box-shadow: var(--shadow-sm); }
 .mb-row { display: flex; align-items: center; gap: 10px; padding: 5px 14px; min-height: 38px; max-height: 38px; min-width: 0; }
 .mb-period { display: flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; flex-shrink: 0; }
 .mb-period span { padding: 2px 9px; font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; transition: all var(--dur-fast); }

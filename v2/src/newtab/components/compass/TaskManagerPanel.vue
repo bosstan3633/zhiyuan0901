@@ -1070,13 +1070,14 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .mgr-body { padding-bottom: 4px; }
 .mgr-body.batch .check-sm { display: none; }
 .mgr-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-.view-tabs { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 2px; gap: 2px; }
-.view-tab { padding: 6px 13px; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; color: var(--text-2); transition: all var(--dur); }
-.view-tab.active { background: var(--surface-2); color: var(--text); font-weight: 600; }
-.sel { padding: 6px 11px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; outline: none; font-family: inherit; }
+/* R175（原型 macos-segmented）：视图三态改连体分段（subtle 底 + 选中浮起白片），类名与交互一字未动 */
+.view-tabs { display: flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px; gap: 2px; }
+.view-tab { padding: 5px 12px; border-radius: var(--radius-xs); font-size: var(--fs-sub); cursor: pointer; color: var(--text-2); transition: all var(--dur); border: none; background: transparent; font-family: inherit; }
+.view-tab.active { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: var(--shadow-sm); }
+.sel { padding: 5px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; outline: none; font-family: inherit; }
 .sort-dir-btn { white-space: nowrap; font-size: var(--fs-sub); }
 .sort-dir-btn:hover { border-color: var(--accent); color: var(--text); }
-.search-box { margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.search-box { margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 5px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
 .search-box:focus-within { border-color: var(--accent); }
 .search-box input { border: none; outline: none; font-size: var(--fs-sub); width: 150px; background: transparent; color: var(--text); font-family: inherit; }
 .mgr-count { display: flex; align-items: center; gap: 2px; font-size: var(--fs-sub); color: var(--text-3); white-space: nowrap; flex-shrink: 0; padding-right: 4px; }

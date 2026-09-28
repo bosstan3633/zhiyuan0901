@@ -232,9 +232,9 @@ check('R94-4 B2 能力保留：.cur-split 与 startCurSplitDrag 仍在（展开�
 check('R94-5 B3：focusAllDone = 非空 && every(done)（空列表不算完成）', () => {
   return CH94_C.includes('todayFocusList.value.length > 0 && todayFocusList.value.every(s => s.done)');
 });
-check('R94-6 B3：完成态挂在 .card.focus 上，.today-cards 走 filter: saturate( 去饱和', () => {
+check('R94-6 B3：完成态挂在 .card.focus 上，.today-cards 走 filter: saturate( 去饱和 ★R175 重指带备案：去饱和幅距 .5→.65（新原型 spec，仍低饱和+安静收束哲学不变）', () => {
   return CH94.includes('<div class="card focus" :class="{ \'all-done\': focusAllDone }">')
-    && CH94.includes('.card.focus.all-done .today-cards { filter: saturate(.5); }');
+    && CH94.includes('.card.focus.all-done .today-cards { filter: saturate(.65); }');
 });
 check('R94-7 ★ B3 安静（R120-TB2 文案对齐原型）：完成行「✓ 今日三件事已闭环 · 专注带来从容」；完成态样式零 --danger / 零 animation / 零百分比', () => {
   return TODAY94.includes('✓ 今日三件事已闭环 · 专注带来从容')

@@ -193,9 +193,9 @@ check('R169-13 ★整行归属=进方向树的唯一入口：role=button + tabin
     && !ch.includes('cur-goal-link') && !ch.includes('进入项目详情 ›') && !ch.includes('router.push(\'/compass/tree\')"><Icon')
     && !/class="cc-it"[^>]*@click/.test(ch)
 });
-check('R169-14 ★下半部定高走变量不走像素：行高 --sp-sub-h 与行数 --sp-rows 各一个，总高由它们算出（写死 340px 这类"看着差不多"的数正是本轮要消掉的）；中缝可拖 25–70 夹界 + 双击复位 + UIPrefs.spotSplit 持久化（与 curSplit 分开存：那是摘要vs任务树，这是描述vs子任务，合一个键拖一条会拽走另一条）', () => {
+check('R169-14 ★下半部定高走变量不走像素：行高 --sp-sub-h 与行数 --sp-rows 各一个，总高由它们算出（写死 340px 这类"看着差不多"的数正是本轮要消掉的）；中缝可拖 25–70 夹界 + 双击复位 + UIPrefs.spotSplit 持久化（与 curSplit 分开存：那是摘要vs任务树，这是描述vs子任务，合一个键拖一条会拽走另一条）★R175 重指带备案：--sp-sub-h 33→32px（原型固定 152px = 栏头 24 + 4×32，总高仍由变量算出，不写死像素）', () => {
   const ch = codeOnly(read('/newtab/views/CompassHome.vue')); const m = read('/shared/models/index.ts')
-  return ch.includes('--sp-sub-h: 33px') && ch.includes('--sp-rows: 4')
+  return ch.includes('--sp-sub-h: 32px') && ch.includes('--sp-rows: 4')
     && ch.includes('height: calc(var(--sp-rows) * var(--sp-sub-h))') && !ch.includes('.spot-dual { height: 340px')
     && ch.includes('box-sizing: border-box; display: flex; align-items: center; gap: 9px; height: var(--sp-sub-h)')
     && ch.includes('Math.min(70, Math.max(25,') && ch.includes('saveUIPrefs({ spotSplit: spotSplit.value })')
