@@ -60,7 +60,7 @@ check('B17 目录与策展目录样式统一(200px sticky)', () => read('/newtab
 check('B18 字段行样式迁入子组件', () => count('/newtab/views/FieldEditor.vue', 'gs-fr-action') >= 2);
 check('B22 状态三选 chips', () => read('/newtab/components/compass/TaskDetailDrawer.vue').includes('ts-status-chip'));
 check('B23 文档级 Ctrl+Enter/Esc', () => read('/newtab/components/compass/TaskDetailDrawer.vue').includes('onSidebarDocKey'));
-check('O19/R121 主航线项目行卡（全宽行：🎯/名/停滞 + pct% · done/total + 迷你进度条；双击进项目详情页）', () => { const l = read('/newtab/components/compass/LighthousePanel.vue'); return l.includes('class="proj-row"') && l.includes('pr-meta') && l.includes('mini-bar') && l.includes('@dblclick="openProject(p)"') && !l.includes('ProjectDetailDrawer'); });
+check('O19/R121 主航线项目行卡（全宽行：名/停滞 + 统计 + 迷你进度条；双击进项目详情页）★R177 重指带备案：行卡对齐原型 project-mini-chip（pr-meta 并入 pr-row2 统计段），判据改 pr-stats', () => { const l = read('/newtab/components/compass/LighthousePanel.vue'); return l.includes('class="proj-row"') && l.includes('pr-stats') && l.includes('mini-bar') && l.includes('@dblclick="openProject(p)"') && !l.includes('ProjectDetailDrawer'); });
 check('O20（R126 重指）标签最多两级守卫 + 缩进兜底', () => read('/newtab/views/GlobalSettings.vue').includes('最多两级') && read('/newtab/views/GlobalSettings.vue').includes('padding-left: 58px !important'));
 check('O21 分组列表跨组拖拽改归属', () => read('/newtab/components/compass/TaskManagerPanel.vue').includes('onListGroupDrop'));
 check('Bug1 目标卡按钮/箭头不重叠', () => read('/newtab/views/CompassTree.vue').includes('margin-right: 52px'));

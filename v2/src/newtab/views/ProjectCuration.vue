@@ -348,6 +348,9 @@ function onTocScroll() {
   tocActive.value = cur
 }
 onMounted(() => window.addEventListener('scroll', onTocScroll, { passive: true }))
+// R177（原型 fcb-detail-link）：主攻条「项目详情表单 ›」经窗口事件唤起本页详情抽屉（?p= 选中即当前项目）
+onMounted(() => window.addEventListener('zy-open-project-detail', openProjectDetail))
+onUnmounted(() => window.removeEventListener('zy-open-project-detail', openProjectDetail))
 onUnmounted(() => window.removeEventListener('scroll', onTocScroll))
 // R52-F5：「返回项目列表」按钮移除——右上角「← 返回方向台」为唯一返回路径；项目切换走左侧目录
 // R59-T1：返回按钮恒为「返回方向台」（完整方向树已有独立入口，见操作区「🌲 完整方向树」）
@@ -604,8 +607,40 @@ function addTaskFromHeader() {
           <span class="pc-sep">›</span>
           <b class="pc-current">{{ currentProject.name }}</b>
         </div>
+        <!-- R177（原型 pec-metrics-strip）：4 项事实指标随面包屑同排单行轻量文本（原大色块统计条降权降位） -->
+        <div class="pb-stats">
+          <span class="pbs">成功指标 <b>{{ currentProject.metrics.length }}</b></span>
+          <span class="pb-sep">·</span>
+          <span class="pbs">关联任务 <b>{{ projectProgress(currentProject).total }}</b></span>
+          <span class="pb-sep">·</span>
+          <span class="pbs">已推进完成 <b class="ok">{{ projectProgress(currentProject).done }}</b></span>
+          <span class="pb-sep">·</span>
+          <span class="pbs">正在进行中 <b class="acc">{{ projectProgress(currentProject).total - projectProgress(currentProject).done }}</b></span>
+          <template v-if="currentProject.startDate || currentProject.endDate"><span class="pb-sep">·</span><span class="pbs pb-tail-inline">⏱ {{ currentProject.startDate || '—' }} → {{ currentProject.endDate || '—' }}</span></template>
+        </div>
+      </div>
+      <!-- R52-F6：成功指标名输入行 -->
+      <div v-if="headerMetricAdding" class="metric-add-row">
+        <input v-model="headerMetricTitle" placeholder="成功指标名称，回车确认（同步完整方向树）" v-focus
+          @keydown.enter.prevent="confirmHeaderAddMetric" @keydown.esc="headerMetricAdding=false" />
+        <button class="mini-btn primary" @click="confirmHeaderAddMetric">确定</button>
+        <button class="mini-btn" @click="headerMetricAdding=false">取消</button>
+      </div>
+      <!-- R177（原型 pec-summary-row）：标题行 = 名称+主攻徽标+⚙项目详情 ｜ 进度轨 ｜ 动作组（成功指标/建议/添加任务/⋯） -->
+      <div class="pb-title-row">
+        <div class="pb-title">
+          <span class="pb-picon" title="项目">📦</span>
+          <span class="hero-pname" contenteditable="true" spellcheck="false" @focus="editingProjId = currentProject?.id ?? null" @blur="renameProject" @keydown.enter.prevent="($event.target as HTMLElement).blur()">{{ currentProject.name }}</span>
+          <span v-if="currentProject.isFocused" class="tag accent">🚀 主攻项目</span>
+          <button class="mini-btn pd-open" title="项目详情：愿景 / 使命 / 日期 / 描述（滑出抽屉）" @click="openProjectDetail">⚙ 项目详情</button>
+        </div>
+        <div class="pb-progress-box">
+          <span class="pb-progress-label">进度</span>
+          <div class="pb-track"><div class="pb-track-fill" :style="{ width: projectProgress(currentProject).pct + '%' }" /></div>
+          <span class="pb-pct">{{ projectProgress(currentProject).pct }}%</span>
+        </div>
         <div class="pb-acts">
-          <button class="mini-btn" @click="startHeaderAddMetric">＋ 添加成功指标</button>
+          <button class="mini-btn" @click="startHeaderAddMetric">＋ 成功指标</button>
           <button class="mini-btn" @click="aiChainMetrics" title="AI 基于上游目标链建议可量化成功指标（查重后采纳才创建）"><AiEntryButton variant="inline" label="建议指标" /></button>
           <button class="mini-btn primary" @click="addTaskFromHeader">＋ 添加任务</button>
           <span class="pb-more-wrap">
@@ -618,35 +653,6 @@ function addTaskFromHeader() {
           </span>
         </div>
       </div>
-      <!-- R52-F6：成功指标名输入行 -->
-      <div v-if="headerMetricAdding" class="metric-add-row">
-        <input v-model="headerMetricTitle" placeholder="成功指标名称，回车确认（同步完整方向树）" v-focus
-          @keydown.enter.prevent="confirmHeaderAddMetric" @keydown.esc="headerMetricAdding=false" />
-        <button class="mini-btn primary" @click="confirmHeaderAddMetric">确定</button>
-        <button class="mini-btn" @click="headerMetricAdding=false">取消</button>
-      </div>
-      <!-- 标题行：项目名（可编辑）+ 主攻 badge + 大号进度 ｜ R170-①：标题旁补「详情」入口（滑出项目详情抽屉） -->
-      <div class="pb-title-row">
-        <div class="pb-title">
-          <span class="pb-picon" title="项目">📦</span>
-          <span class="hero-pname" contenteditable="true" spellcheck="false" @focus="editingProjId = currentProject?.id ?? null" @blur="renameProject" @keydown.enter.prevent="($event.target as HTMLElement).blur()">{{ currentProject.name }}</span>
-          <span v-if="currentProject.isFocused" class="tag accent">🚀 主攻</span>
-          <button class="mini-btn pd-open" title="项目详情：愿景 / 使命 / 日期 / 描述（滑出抽屉）" @click="openProjectDetail">📄 详情</button>
-        </div>
-        <span class="pb-pct">{{ projectProgress(currentProject).pct }}%</span>
-      </div>
-      <!-- 统计条（原型：成功指标 / 任务总数 / 已完成 / 进行中）+ 尾部日期与健康（信息保留·低占位） -->
-      <div class="pb-stats">
-        <span class="pbs">成功指标：<b>{{ currentProject.metrics.length }}</b></span>
-        <span class="pbs">任务总数：<b>{{ projectProgress(currentProject).total }}</b></span>
-        <span class="pbs">已完成：<b>{{ projectProgress(currentProject).done }}</b></span>
-        <span class="pbs">进行中：<b>{{ projectProgress(currentProject).total - projectProgress(currentProject).done }}</b></span>
-        <span class="pb-tail">
-          <template v-if="currentProject.startDate || currentProject.endDate">⏱ {{ currentProject.startDate || '—' }} → {{ currentProject.endDate || '—' }} · </template>
-          <span :class="isStalled(currentProject) ? 'warn' : 'ok'">{{ isStalled(currentProject) ? '⚠ 存在停滞' : '● 推进中' }}</span>
-        </span>
-      </div>
-      <div class="pb-hint">💡 任务可拖拽排序 / 跨指标拖拽归属 · 点击任务名打开详情抽屉 · 全部实时同步罗盘</div>
 
       <div v-for="(m, mi) in currentProject.metrics" :key="m.id" class="metric-sec" :id="'metric-sec-' + m.id" :class="{ 'sec-flash': metricFlashId === m.id }"
         @dragover.prevent="onMetricDragOver($event, m.id)" @dragleave="onMetricDragLeave" @drop="onMetricDrop($event, m.id)">
@@ -863,6 +869,12 @@ function addTaskFromHeader() {
 .btask .bt { flex: 1; font-size: var(--fs-body); cursor: pointer; min-width: 0; }
 .btask:hover .bt { color: var(--accent); }
 .btask.done .bt { text-decoration: line-through; color: var(--text-3); }
+/* R177（原型 task-priority-pill + smp-row-actions）：优先级胶囊降权（仅高优保留琥珀淡底，中/低纯文本）+ 行内操作 hover 显露 */
+.btask .tag { background: transparent; padding: 1px 4px; }
+.btask .tag .tag-dot { display: none; }
+.btask .tag.danger { background: var(--tag-warn-bg); color: var(--warning); font-weight: 600; }
+.btask > .icon-btn-sm { opacity: 0; transition: opacity var(--dur-fast); }
+.btask:hover > .icon-btn-sm { opacity: 1; }
 .task-add { display: flex; align-items: center; gap: 8px; padding: 6px 8px; color: var(--text-3); font-size: var(--fs-sub); cursor: pointer; border-radius: 8px; }
 .task-add:hover { color: var(--accent-ink); background: var(--accent-light); }
 .board-foot-hint { margin-top: 14px; font-size: var(--fs-caption); color: var(--text-3); text-align: center; padding: 10px; background: var(--surface-2); border-radius: var(--radius-xs); }
@@ -890,12 +902,22 @@ function addTaskFromHeader() {
 .pb-title .hero-pname:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .pb-title .hero-pname:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
 .pb-pct { flex-shrink: 0; font-size: 18px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
-.pb-stats { display: flex; align-items: center; gap: 20px; background: var(--surface-2); padding: 10px 16px; border-radius: var(--radius-md); margin-bottom: 16px; font-size: var(--fs-sub); color: var(--text-2); flex-wrap: wrap; }
-.pb-stats .pbs b { font-size: 14px; color: var(--text); font-variant-numeric: tabular-nums; }
-.pb-tail { margin-left: auto; font-size: var(--fs-caption); color: var(--text-3); }
-.pb-tail .ok { color: var(--success); }
-.pb-tail .warn { color: var(--warning); }
-.pb-hint { font-size: var(--fs-caption); color: var(--text-3); margin-bottom: 12px; }
+/* R177（原型 pec-metrics-strip）：统计条降权为面包屑同排单行轻量文本 */
+.pb-stats { display: flex; align-items: center; gap: 10px; font-size: var(--fs-sub); color: var(--text-3); flex-wrap: wrap; }
+.pb-stats .pbs b { font-size: var(--fs-sub); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.pb-stats .pbs b.ok { color: var(--success); }
+.pb-stats .pbs b.acc { color: var(--accent); }
+.pb-sep { color: var(--text-4); }
+.pb-tail-inline { color: var(--text-3); }
+/* R177（原型 pec-progress-box）：标题行进度轨（label + 5px 轨 + 数值） */
+.pb-progress-box { display: flex; align-items: center; gap: 10px; min-width: 200px; flex-shrink: 0; }
+.pb-progress-label { font-size: var(--fs-caption); color: var(--text-3); flex-shrink: 0; }
+.pb-track { flex-grow: 1; height: 5px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+.pb-track-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width var(--dur-slow) ease; }
+.pb-pct { flex-shrink: 0; font-size: var(--fs-sub); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+/* R177（原型 btn-project-meta-detail）：⚙ 项目详情 = 展板主行动之一（subtle 底 + strong 边 + hover accent） */
+.pb-title .pd-open { flex-shrink: 0; color: var(--text); border-color: var(--border-strong); background: var(--surface-2); font-weight: 600; }
+.pb-title .pd-open:hover { color: var(--accent); border-color: var(--accent); background: var(--surface-3); }
 
 /* ===== R121：指标块与任务行（Linear 极简发丝线，对齐原型） ===== */
 .metric-sec { padding: 0; overflow: hidden; }

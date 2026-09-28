@@ -317,9 +317,9 @@ check('R82-8 版本五处同步（manifest/package/ManualPage/regression/关于�
 
 console.log('【第八十三轮 · V2.52.0：主航线信息密度（M1 + M2 + M3）】');
 // ⚠ next 用 '\n</template>' —— 组件里还有嵌套的 <template #actions>，用裸 '</template>' 会在 437 字符处被截断
-check('R83-1/R121 M1 愿景/使命一行锚点条：.vm-bar（≤40px）+ 单行省略 + 整条可点', () => {
+check('R83-1/R121 M1 愿景/使命一行锚点条：.vm-bar（R177 重指带备案：40→38px 对齐原型 vmb）+ 单行省略 + 整条可点', () => {
   return LH_TPL.includes('class="vm-bar"') && LH_TPL.includes('@click="openTree">')
-    && LH_STYLE.includes('.vm-bar { display: flex') && LH_STYLE.includes('min-height: 40px')
+    && LH_STYLE.includes('.vm-bar { display: flex') && LH_STYLE.includes('min-height: 38px')
     && LH_STYLE.includes('.vm-text {') && LH_STYLE.includes('font-size: var(--fs-body)')
     && LH_STYLE.includes('text-overflow: ellipsis');
 });
@@ -489,12 +489,12 @@ check('R86-2 M7：主航线与项目总览各自的开关已移除（.mr-tool �
   return !LH86.includes('class="mr-tool" :class="{ off') && !CS86.includes('class="ov-toggle"')
     && !CS_STY.includes('.ov-toggle {');
 });
-check('R86-3 M7：方向台页头有开关；完整方向树独立页那一处**保留**', () => {
-  return CS_TPL.includes('class="done-toggle"') && CS_TPL.includes('toggleShowDone')
+check('R86-3 M7：方向台页头有开关 ★R177 重指带备案：开关改原型 checkbox 形态（done-toggle-label）；完整方向树独立页那一处**保留**', () => {
+  return CS_TPL.includes('class="done-toggle-label"') && CS_TPL.includes('toggleShowDone')
     && CT86.includes('toggleShowDone') && CT86.includes('class="tree-tool"');
 });
-check('R86-4 M7：主航线的「完整方向树 →」导航入口**未被误删**（只删开关，不删导航）', () => {
-  return LH86.includes('class="mr-tool accent"') && LH86.includes('完整方向树 →') && LH86.includes('function openTree');
+check('R86-4 M7 ★R177 重指带备案：面板级「完整方向树 →」随原型退役（页头 tree-link 承担同一导航；面板内 vm-bar 整条也进树），openTree 函数保留', () => {
+  return LH86.includes('function openTree') && CS_TPL.includes('class="tree-link"');
 });
 check('R86-5/R121 D-A：主航线「看主线」模块标签保留；项目详情改由展板单行面包屑（pb-crumb）承载上下文', () => {
   const pc = read('/newtab/views/ProjectCuration.vue');
@@ -502,21 +502,20 @@ check('R86-5/R121 D-A：主航线「看主线」模块标签保留；项目详�
     && !CS_TPL.includes('管项目') && CS_TPL.includes('<ProjectCuration embedded />')
     && pc.includes('class="pb-crumb"') && pc.includes('pb-title-row');
 });
-check('R86-6 D-B（R117 重写：项目状态筛选控件由项目总览 .ov-filter 收敛为主航线 .mr-filter，同一份 ovFilter 单一来源）：门控仍在 >12 项（OV_TOOLS_MIN = 12）', () => {
+check('R86-6 D-B ★R177 重指带备案：M8 >12 门控退役（其存在理由「与项目总览可见性分裂」已随 R117 项目总览退役消失），筛选改分段组常驻（原型 lh-filter-group），ovFilter 单一来源不变', () => {
   const lh = read('/newtab/components/compass/LighthousePanel.vue');
-  return stripComments(CS86).includes('const OV_TOOLS_MIN = 12')
-    && CS_TPL.includes(':tools-gate="showOverviewTools"')
-    && lh.includes('v-if="toolsGate"') && lh.includes('class="mr-filter"');
+  return CS_TPL.includes(':tools-gate="true"')
+    && lh.includes('class="lh-filter-group"') && lh.includes("emit('update:ovFilter', f)");
 });
 check('R86-7 D-B：★ 状态判定复用 isProjectStalled / isProjectDone 且**预计算成索引**（模板内不逐项调）', () => {
   const fn = stripComments(segOf(CS86, 'const projState = computed(', 'const filteredProjects'));
   return fn.includes('isProjectStalled(p)') && fn.includes('isProjectDone(p)')
     && !CS_TPL.includes('isProjectStalled(') && !CS_TPL.includes('isProjectDone(');
 });
-check('R86-8 D-B（R117 重写：项目总览退役，其「筛已完成而全局隐藏」提示与 resetOvTools 一键清除随模块一并退役；主航线筛选不提供绕过全局开关的入口）', () => {
+check('R86-8 D-B（R117 重写 · R177 随分段化改判据：主航线筛选不提供绕过全局开关的入口）', () => {
   const lh = read('/newtab/components/compass/LighthousePanel.vue');
   return !CS_TPL.includes('ov-empty-act') && !CS_TPL.includes('resetOvTools')
-    && !CS86.includes('resetOvTools') && lh.includes('class="mr-filter"');
+    && !CS86.includes('resetOvTools') && lh.includes('class="lh-filter-group"');
 });
 check('R86-9 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');

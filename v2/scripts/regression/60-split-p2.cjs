@@ -173,19 +173,19 @@ console.log('【第九十九轮 · V2.68.0：方向台组四件（M6 + M8 + D-D 
 check('R99-1/R121 M6 主航线 3 列网格顶对齐：goals-grid align-items:start——「更多 N」展开只长自己这张卡', () => {
   return LP99.includes('.goals-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }');
 });
-check('R99-2 M8 主航线筛选与项目总览共用 ovFilter：props/emits + projectsOf 三分支 + 四档 select + 宿主 v-model + 空态双文案', () => {
+check('R99-2 M8 主航线筛选共用 ovFilter ★R177 重指带备案：select 改分段组常驻（原型 lh-filter-group，M8 门控退役）、宿主 tools-gate=true；ovFilter 单一来源与空态双文案不变', () => {
   return LP99.includes("ovFilter?: 'all' | 'active' | 'stalled' | 'done'") && LP99.includes('toolsGate?: boolean') && LP99.includes('selectedId?: string')
     && LP99.includes("(e: 'update:ovFilter', v: 'all' | 'active' | 'stalled' | 'done')")
     && LP99.includes("if (f === 'stalled') return !!st?.stall")
     && LP99.includes("if (f === 'done') return !!st?.finished")
     && LP99.includes('return !st?.finished && !st?.stall // active')
-    && LP99.includes('v-if="toolsGate" class="mr-filter"')
+    && LP99.includes('class="lh-filter-group"')
     && LP99.includes('无符合当前筛选的项目')
     && LP99.includes('function rawVisibleCount(dirIdx: number): number {')
-    && CS99.includes('<LighthousePanel v-model:ov-filter="ovFilter" :tools-gate="showOverviewTools" :selected-id="selectedProjectId" @select-project="onSelectProject" />');
+    && CS99.includes('<LighthousePanel v-model:ov-filter="ovFilter" :tools-gate="true" :selected-id="selectedProjectId" @select-project="onSelectProject" />');
 });
-check('R99-3 D-D 方向台页头主线状态摘要：X 目标 · Y 项目 · Z 主攻 · W 停滞（projState 预计算消费）', () => {
-  return CS99.includes('{{ d.compass.directions.length }} 目标 · {{ visibleProjects.length }} 项目 · {{ focusCount }} 主攻 · {{ stalledCount }} 停滞')
+check('R99-3 D-D 方向台页头主线状态摘要 ★R177 重指带备案：对齐原型 cph-summary-badge「战略目标 N · 推进项目 N · 🚀 主攻 N · ⚠ 停滞 N」（粗值；🚀 图标语义按 R139 契约），projState 预计算消费不变', () => {
+  return CS99.includes('战略目标 <b>{{ d.compass.directions.length }}</b> · 推进项目 <b>{{ visibleProjects.length }}</b> · 🚀 主攻 <b>{{ focusCount }}</b> · ⚠ 停滞 <b>{{ stalledCount }}</b>')
     && CS99.includes('const focusCount = computed(() => visibleProjects.value.filter(p => p.isFocused).length)')
     && CS99.includes('const stalledCount = computed(() => visibleProjects.value.filter(p => projState.value.get(p.id)?.stall).length)')
     && CS99.includes('class="mainline-summary"');

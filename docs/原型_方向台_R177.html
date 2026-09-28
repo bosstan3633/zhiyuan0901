@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>知源方向台 Ownway · 个人战略主航线 (功能完整 1:1 交付级原型)</title>
+  <style>
+    /* ==========================================================================
+       1. 全局设计令牌 (Tokens - 深空薰衣草主色 #5E6AD2 + 纸墨白底)
+       ========================================================================== */
+    :root {
+      --bg: #F5F5F7;
+      --surface: #FFFFFF;
+      --surface-subtle: #FBFBFD;
+      --surface-hover: #F0F0F2;
+      --surface-active: #E8E8ED;
+
+      --border-hairline: rgba(0, 0, 0, 0.08);
+      --border-strong: rgba(0, 0, 0, 0.14);
+      --divider: rgba(0, 0, 0, 0.06);
+
+      --text-primary: #1D1D1F;
+      --text-secondary: #515154;
+      --text-tertiary: #86868B;
+      --text-quaternary: #AEAEB2;
+
+      /* 核心主色 (主色稀缺律 - 薰衣草紫蓝) */
+      --accent: #5E6AD2;
+      --accent-hover: #4B56B8;
+      --accent-light: rgba(94, 106, 210, 0.08);
+      --accent-border: rgba(94, 106, 210, 0.28);
+
+      /* 语义色 (克制收敛) */
+      --semantic-green: #34C759;
+      --semantic-green-light: rgba(52, 199, 89, 0.12);
+      --semantic-amber: #FF9F0A;
+      --semantic-amber-light: rgba(255, 159, 10, 0.12);
+      --semantic-red: #FF3B30;
+
+      --radius-xs: 4px;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+
+      --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.03);
+      --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+      --shadow-floating: 0 12px 32px rgba(0, 0, 0, 0.08);
+      --shadow-drawer: -12px 0 36px rgba(0, 0, 0, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", sans-serif;
+      font-feature-settings: "tnum";
+      font-variant-numeric: tabular-nums;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      line-height: 1.45;
+      padding-bottom: 72px;
+    }
+
+    /* ==========================================================================
+       2. 顶栏导航 (严格对齐 F2 规范：左对齐)
+       ========================================================================== */
+    .app-navbar {
+      height: 48px;
+      background: rgba(255, 255, 255, 0.84);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-bottom: 1px solid var(--border-hairline);
+      position: sticky;
+      top: 0;
+      z-index: 200;
+    }
+
+    .navbar-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 0 36px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-left-cluster {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .nav-brand-chip {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-right: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-brand-en {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      margin-left: 2px;
+      letter-spacing: 0.02em;
+    }
+
+    .nav-tab-item {
+      padding: 5px 11px;
+      border-radius: var(--radius-sm);
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+    }
+
+    .nav-tab-item:hover {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+
+    .nav-tab-item.active {
+      background: var(--accent-light);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .nav-tab-item.ws-tab {
+      color: var(--text-secondary);
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .nav-right-cluster {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-shortcut-tip {
+      font-size: 11.5px;
+      color: var(--text-tertiary);
+      background: var(--surface-hover);
+      padding: 3px 8px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--border-hairline);
+    }
+
+    /* ==========================================================================
+       3. 页面主容器 (1440px 居中安全视域)
+       ========================================================================== */
+    .viewport-container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 18px 36px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ==========================================================================
+       4. 方向台页头：主线状态摘要 (D-D) 与总控开关 (M7)
+       ========================================================================== */
+    .compass-page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 32px;
+    }
+
+    .cph-title-group {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .cph-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .cph-summary-badge {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cph-summary-badge b {
+      color: var(--text-primary);
+    }
+
+    .cph-controls-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .done-toggle-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .ghost-action-btn {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--accent);
+      background: var(--accent-light);
+      border: 1px solid transparent;
+      padding: 3px 9px;
+      border-radius: var(--radius-xs);
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+    }
+
+    .ghost-action-btn:hover {
+      background: rgba(94, 106, 210, 0.15);
+    }
+
+    /* ==========================================================================
+       5. 模块一：主航线 (看主线 · LighthousePanel)
+       ========================================================================== */
+    .lighthouse-module-card {
+      background: var(--surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* M1 规范：愿景 / 使命 单行极简锚点条 (≤44px) */
+    .vision-mission-anchor-bar {
+      height: 38px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .vision-mission-anchor-bar:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-strong);
+    }
+
+    .vmb-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .vmb-tag {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: var(--accent-light);
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .vmb-divider {
+      width: 1px;
+      height: 12px;
+      background: var(--divider);
+      flex-shrink: 0;
+    }
+
+    .vmb-right-link {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+
+    /* M4 规范：主攻聚焦条 (≤38px) —— 右端补全「进入详情 ›」 */
+    .focus-corridor-bar {
+      height: 36px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+    }
+
+    .fcb-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .fcb-pill {
+      font-size: 11.5px;
+      font-weight: 700;
+      background: var(--accent);
+      color: #FFF;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .fcb-item {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .fcb-item:hover {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+
+    .fcb-pct {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+    }
+
+    .fcb-detail-link {
+      font-size: 11.5px;
+      color: var(--accent);
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      font-weight: 500;
+    }
+
+    .fcb-detail-link:hover {
+      text-decoration: underline;
+    }
+
+    /* 主航线工具栏 */
+    .lighthouse-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 2px;
+    }
+
+    .lh-tier-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-tertiary);
+      background: var(--surface-hover);
+      padding: 2.5px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+    }
+
+    .lh-filter-group {
+      display: flex;
+      align-items: center;
+      background: var(--surface-hover);
+      padding: 2px;
+      border-radius: var(--radius-sm);
+    }
+
+    .lh-filter-btn {
+      border: none;
+      background: transparent;
+      padding: 2.5px 8px;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      border-radius: var(--radius-xs);
+      cursor: pointer;
+    }
+
+    .lh-filter-btn.active {
+      background: var(--surface);
+      color: var(--text-primary);
+      box-shadow: var(--shadow-subtle);
+      font-weight: 600;
+    }
+
+    /* 战略目标网格 */
+    .goals-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      align-items: start;
+    }
+
+    .goal-card {
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: all 0.15s ease;
+    }
+
+    .goal-card:hover {
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow-subtle);
+    }
+
+    .gc-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .gc-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .gc-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .gc-meta-line {
+      font-size: 11.5px;
+      color: var(--text-tertiary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .gc-pct-badge {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    /* M3/M5 规范：两行项目小卡 (补齐 Hover 右侧详情入口 › 与 主攻 🎯 切换) */
+    .gc-projects-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .project-mini-chip {
+      background: var(--surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-sm);
+      padding: 7px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .project-mini-chip:hover {
+      border-color: var(--border-strong);
+      background: #FFF;
+      box-shadow: var(--shadow-subtle);
+      transform: translateY(-1px);
+    }
+
+    .project-mini-chip.is-focused {
+      border-color: var(--accent);
+      background: #FFF;
+      box-shadow: 0 0 0 1px var(--accent), 0 2px 6px rgba(94, 106, 210, 0.08);
+    }
+
+    .project-mini-chip.is-active-detail {
+      background: var(--accent-light);
+      border-color: var(--accent);
+    }
+
+    .pmc-row-1 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pmc-name {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 220px;
+    }
+
+    .pmc-actions-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pmc-badge-focused {
+      font-size: 10.5px;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* Hover 浮出的详情跳转箭头入口 › */
+    .pmc-hover-arrow {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-tertiary);
+      opacity: 0;
+      transform: translateX(-3px);
+      transition: all 0.15s ease;
+    }
+
+    .project-mini-chip:hover .pmc-hover-arrow {
+      opacity: 1;
+      transform: translateX(0);
+      color: var(--accent);
+    }
+
+    .pmc-row-2 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .mini-progress-track {
+      flex-grow: 1;
+      height: 3px;
+      background: var(--surface-active);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .mini-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .pmc-stats {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      flex-shrink: 0;
+    }
+
+    /* ==========================================================================
+       6. 模块二：项目执行展板 (做项目 · Project Detail Canvas)
+       ========================================================================== */
+    .project-execution-card {
+      background: var(--surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-lg);
+      padding: 18px 22px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* 展板顶部：六层单行文本轻量溯源 + 4项事实指标 */
+    .pec-header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--divider);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .pec-breadcrumb-line {
+      font-size: 12.5px;
+      color: var(--text-tertiary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pec-breadcrumb-line b {
+      color: var(--text-primary);
+    }
+
+    .pec-metrics-strip {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .pec-metrics-strip b {
+      color: var(--text-primary);
+    }
+
+    /* 项目展板主信息行：大标题、进度条与【显式项目详情入口】 */
+    .pec-summary-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .pec-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pec-main-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pec-progress-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 200px;
+    }
+
+    .pec-track {
+      flex-grow: 1;
+      height: 5px;
+      background: var(--surface-active);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .pec-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .pec-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 补齐核心：【⚙ 项目详情】按钮 */
+    .btn-project-meta-detail {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-strong);
+      padding: 4px 10px;
+      border-radius: var(--radius-xs);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-project-meta-detail:hover {
+      background: var(--surface-active);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* 成功指标与任务执行树 */
+    .success-metrics-group-container {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .sm-metric-pod {
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      background: var(--surface-subtle);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .smp-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--divider);
+    }
+
+    .smp-tasks-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .smp-task-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      transition: background 0.15s ease;
+      background: var(--surface);
+      border: 1px solid var(--border-hairline);
+      cursor: pointer;
+    }
+
+    .smp-task-row:hover {
+      background: #FFF;
+      border-color: var(--border-strong);
+    }
+
+    .task-checkbox-ring {
+      width: 15px;
+      height: 15px;
+      border-radius: 4px;
+      border: 1.5px solid var(--border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      background: #FFF;
+    }
+
+    .task-checkbox-ring.checked {
+      background: var(--text-tertiary);
+      border-color: var(--text-tertiary);
+      color: #FFF;
+      font-size: 10px;
+    }
+
+    .smp-task-title {
+      flex-grow: 1;
+      font-weight: 500;
+    }
+
+    .smp-task-row.is-done .smp-task-title {
+      text-decoration: line-through;
+      color: var(--text-tertiary);
+    }
+
+    .task-priority-pill {
+      font-size: 10.5px;
+      font-weight: 500;
+      padding: 1px 6px;
+      border-radius: 4px;
+      color: var(--text-tertiary);
+    }
+
+    .task-priority-pill.high {
+      background: var(--semantic-amber-light);
+      color: var(--semantic-amber);
+      font-weight: 600;
+    }
+
+    .smp-row-actions {
+      display: none;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .smp-task-row:hover .smp-row-actions {
+      display: flex;
+    }
+
+    .icon-mini-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+
+    .icon-mini-btn:hover {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+
+    /* ==========================================================================
+       7. 右侧项目详情与元信息检视抽屉 (macOS Sheet Drawer)
+       ========================================================================== */
+    .drawer-scrim {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.18);
+      backdrop-filter: blur(4px);
+      z-index: 300;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .drawer-scrim.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .apple-drawer-sheet {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 480px;
+      background: var(--surface);
+      border-left: 1px solid var(--border-hairline);
+      box-shadow: var(--shadow-drawer);
+      z-index: 310;
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .apple-drawer-sheet.visible {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--divider);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dh-title {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .drawer-close-btn {
+      border: none;
+      background: var(--surface-hover);
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .drawer-close-btn:hover {
+      background: var(--surface-active);
+      color: var(--text-primary);
+    }
+
+    .drawer-body {
+      padding: 20px;
+      overflow-y: auto;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .inset-grouped-section {
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+    }
+
+    .ig-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .ig-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* 底部操作验证 Dock */
+    .prototype-dock {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(29, 29, 31, 0.9);
+      backdrop-filter: blur(16px);
+      color: #FFF;
+      padding: 6px 16px;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 12px;
+      box-shadow: var(--shadow-floating);
+      z-index: 500;
+    }
+
+    .dock-pill {
+      background: var(--accent);
+      color: #FFF;
+      border: none;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .dock-pill:hover {
+      background: var(--accent-hover);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 全局顶部磨砂导航 (严格对齐 F2 规范：左对齐) -->
+  <nav class="app-navbar">
+    <div class="navbar-inner">
+      <div class="nav-left-cluster">
+        <div class="nav-brand-chip">
+          <span style="color: var(--accent); font-size: 16px;">🧭</span>
+          <span>知源调度台</span>
+          <span class="nav-brand-en">Ownway</span>
+        </div>
+        <div class="nav-tab-item" onclick="alert('返回调度台 (/)')">调度台</div>
+        <div class="nav-tab-item active">方向台</div>
+        <div class="nav-tab-item" onclick="alert('进入资源台 (/workspace/zy-curation)')">资源台</div>
+        <div class="nav-tab-item ws-tab" onclick="alert('进入自建策展台')">🎯 武汉升学政策研究</div>
+      </div>
+
+      <div class="nav-right-cluster">
+        <span class="nav-shortcut-tip">调出快捷键 ⌘K</span>
+        <div style="font-size: 11.5px; color: var(--text-tertiary);">纸墨白 ▾</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 视域主容器 (1440px 居中安全约束) -->
+  <main class="viewport-container">
+
+    <!-- 1. 方向台页头：主线状态摘要 (D-D) 与总控开关 (M7) -->
+    <section class="compass-page-header">
+      <div class="cph-title-group">
+        <span class="cph-title">方向台</span>
+        <div class="cph-summary-badge">
+          <span>战略目标 <b>3</b></span>
+          <span>·</span>
+          <span>推进项目 <b>5</b></span>
+          <span>·</span>
+          <span>🎯 主攻 <b>2</b></span>
+          <span>·</span>
+          <span style="color: var(--semantic-green);">⚠ 停滞 <b>0</b></span>
+        </div>
+      </div>
+
+      <div class="cph-controls-right">
+        <label class="done-toggle-label">
+          <input type="checkbox" id="toggleDoneProjects" checked onchange="toggleDoneVisibility(this.checked)" />
+          <span>显示已完成项目</span>
+        </label>
+        <button class="ghost-action-btn" onclick="alert('进入完整方向树 (/compass/tree)')">
+          <span>完整方向树</span>
+          <span>›</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 2. 模块一：主航线 (看主线 · LighthousePanel) -->
+    <section class="lighthouse-module-card">
+      <!-- M1 规范：愿景 / 使命 极简单行锚点条 (≤44px，整条可点) -->
+      <div class="vision-mission-anchor-bar" onclick="alert('整条点击：直达完整方向树顶层锚点')" title="点击直达完整方向树">
+        <div class="vmb-left">
+          <span class="vmb-tag">愿景 / 使命</span>
+          <span>成为终身受用的深度研究与自主知识调度践行者</span>
+          <div class="vmb-divider"></div>
+          <span>以认知周转率为尺，经营个人数据资产与行动成果</span>
+        </div>
+        <div class="vmb-right-link">
+          <span>进入方向树</span>
+          <span>›</span>
+        </div>
+      </div>
+
+      <!-- M4 规范：主攻聚焦条 (≤38px) —— 右端补全「进入详情 ›」 -->
+      <div class="focus-corridor-bar">
+        <div class="fcb-left">
+          <span class="fcb-pill">🎯 当前主攻</span>
+          <div class="fcb-item" onclick="switchDetailProject('p1')">
+            <span>软硬一体服务系统解决方案</span>
+            <span class="fcb-pct">0% · 待办 1</span>
+          </div>
+          <div style="width: 1px; height: 12px; background: var(--divider); margin: 0 4px;"></div>
+          <div class="fcb-item" onclick="switchDetailProject('p2')">
+            <span>workbuddy培训项目</span>
+            <span class="fcb-pct">33% · 待办 4</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <a class="fcb-detail-link" onclick="openCurrentProjectMetaDrawer()">
+            <span>项目详情表单</span>
+            <span>›</span>
+          </a>
+          <span style="font-size: 11px; color: var(--text-tertiary);">直通调度台速览 · 最多 2 个</span>
+        </div>
+      </div>
+
+      <!-- 主航线工具栏 -->
+      <div class="lighthouse-toolbar">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="lh-tier-badge">看主线 · 全景推进</span>
+          <span style="font-size: 12px; color: var(--text-tertiary);">点击项目小卡，下方就地切入执行展板</span>
+        </div>
+        <div class="lh-filter-group">
+          <button class="lh-filter-btn active" onclick="filterProjects('all', this)">全部</button>
+          <button class="lh-filter-btn" onclick="filterProjects('doing', this)">进行中</button>
+          <button class="lh-filter-btn" onclick="filterProjects('done', this)">已完成</button>
+        </div>
+      </div>
+
+      <!-- 战略目标网格 (Auto-fit 3 列，M3/M5 项目小卡补全) -->
+      <div class="goals-grid">
+        <!-- 目标 1 -->
+        <div class="goal-card">
+          <div class="gc-header">
+            <div class="gc-title-group">
+              <span class="gc-title">产品生命周期管理专家</span>
+              <span class="gc-meta-line">中期攻坚 · 2 项目 (主攻 1)</span>
+            </div>
+            <span class="gc-pct-badge">17%</span>
+          </div>
+          <div class="gc-projects-list">
+            <!-- 项目小卡 1 (主攻) -->
+            <div class="project-mini-chip is-focused" id="chip-p1" onclick="switchDetailProject('p1')">
+              <div class="pmc-row-1">
+                <span class="pmc-name">📦 软硬一体服务系统解决方案</span>
+                <div class="pmc-actions-right">
+                  <span class="pmc-badge-focused">🎯 主攻</span>
+                  <span class="pmc-hover-arrow" title="查看项目详情">›</span>
+                </div>
+              </div>
+              <div class="pmc-row-2">
+                <div class="mini-progress-track">
+                  <div class="mini-progress-fill" style="width: 0%;"></div>
+                </div>
+                <span class="pmc-stats">0% · 0/4</span>
+              </div>
+            </div>
+
+            <!-- 项目小卡 2 -->
+            <div class="project-mini-chip" id="chip-p3" onclick="switchDetailProject('p3')">
+              <div class="pmc-row-1">
+                <span class="pmc-name">📦 知源产品打造与销售</span>
+                <div class="pmc-actions-right">
+                  <span class="pmc-hover-arrow" title="查看项目详情">›</span>
+                </div>
+              </div>
+              <div class="pmc-row-2">
+                <div class="mini-progress-track">
+                  <div class="mini-progress-fill" style="width: 33%;"></div>
+                </div>
+                <span class="pmc-stats">33% · 2/6</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 目标 2 -->
+        <div class="goal-card">
+          <div class="gc-header">
+            <div class="gc-title-group">
+              <span class="gc-title">AI知识管理 + 个人中台专家</span>
+              <span class="gc-meta-line">中期攻坚 · 2 项目 (主攻 1)</span>
+            </div>
+            <span class="gc-pct-badge">33%</span>
+          </div>
+          <div class="gc-projects-list">
+            <!-- 项目小卡 3 (主攻) -->
+            <div class="project-mini-chip is-focused is-active-detail" id="chip-p2" onclick="switchDetailProject('p2')">
+              <div class="pmc-row-1">
+                <span class="pmc-name">📦 workbuddy培训项目</span>
+                <div class="pmc-actions-right">
+                  <span class="pmc-badge-focused">🎯 主攻</span>
+                  <span class="pmc-hover-arrow" title="查看项目详情">›</span>
+                </div>
+              </div>
+              <div class="pmc-row-2">
+                <div class="mini-progress-track">
+                  <div class="mini-progress-fill" style="width: 33%;"></div>
+                </div>
+                <span class="pmc-stats">33% · 2/6</span>
+              </div>
+            </div>
+
+            <!-- 项目小卡 4 -->
+            <div class="project-mini-chip" id="chip-p4" onclick="switchDetailProject('p4')">
+              <div class="pmc-row-1">
+                <span class="pmc-name">📦 obsidian工作流深度接入</span>
+                <div class="pmc-actions-right">
+                  <span class="pmc-hover-arrow" title="查看项目详情">›</span>
+                </div>
+              </div>
+              <div class="pmc-row-2">
+                <div class="mini-progress-track">
+                  <div class="mini-progress-fill" style="width: 50%;"></div>
+                </div>
+                <span class="pmc-stats">50% · 2/4</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 目标 3 -->
+        <div class="goal-card">
+          <div class="gc-header">
+            <div class="gc-title-group">
+              <span class="gc-title">教育政策与咨询业务线</span>
+              <span class="gc-meta-line">近期推进 · 1 项目</span>
+            </div>
+            <span class="gc-pct-badge">100%</span>
+          </div>
+          <div class="gc-projects-list">
+            <!-- 项目小卡 5 (已完成) -->
+            <div class="project-mini-chip is-done-proj" id="chip-p5" onclick="switchDetailProject('p5')">
+              <div class="pmc-row-1">
+                <span class="pmc-name">📦 武汉地区教育政策研究</span>
+                <div class="pmc-actions-right">
+                  <span style="font-size: 10.5px; color: var(--semantic-green);">✓ 已达成</span>
+                  <span class="pmc-hover-arrow" title="查看项目详情">›</span>
+                </div>
+              </div>
+              <div class="pmc-row-2">
+                <div class="mini-progress-track">
+                  <div class="mini-progress-fill" style="width: 100%; background: var(--semantic-green);"></div>
+                </div>
+                <span class="pmc-stats">100% · 3/3</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 模块二：项目执行展板 (做项目 · Project Detail Canvas) -->
+    <section class="project-execution-card" id="projectDetailSection">
+      <!-- 展板顶栏：六层单行文本溯源 + 4项事实指标数据 -->
+      <div class="pec-header-bar">
+        <div class="pec-breadcrumb-line">
+          <span>来处:</span>
+          <span>愿景</span>
+          <span>›</span>
+          <span id="detailGoalName">AI知识管理 + 个人中台专家</span>
+          <span>›</span>
+          <b id="detailBreadcrumbProj">workbuddy培训项目</b>
+        </div>
+        <div class="pec-metrics-strip">
+          <span>成功指标 <b id="detailMetricCount">2</b></span>
+          <span>·</span>
+          <span>关联任务 <b id="detailTaskTotal">6</b></span>
+          <span>·</span>
+          <span>已推进完成 <b id="detailTaskDone" style="color: var(--semantic-green);">2</b></span>
+          <span>·</span>
+          <span>正在进行中 <b id="detailTaskDoing" style="color: var(--accent);">1</b></span>
+        </div>
+      </div>
+
+      <!-- 展板核心信息行：补齐显式【⚙ 项目详情】入口 -->
+      <div class="pec-summary-row">
+        <div class="pec-title-wrap">
+          <span style="font-size: 18px;">📦</span>
+          <span class="pec-main-title" id="detailProjectTitle">workbuddy培训项目</span>
+          <span class="pmc-badge-focused" id="detailFocusBadge">🎯 主攻项目</span>
+        </div>
+
+        <div class="pec-progress-box">
+          <span style="font-size: 11.5px; color: var(--text-tertiary);">进度</span>
+          <div class="pec-track">
+            <div class="pec-fill" id="detailProgressFill" style="width: 33%;"></div>
+          </div>
+          <span style="font-size: 13px; font-weight: 700;" id="detailProgressPct">33%</span>
+        </div>
+
+        <!-- 操作区：补齐项目详情表单入口 -->
+        <div class="pec-actions-group">
+          <button class="btn-project-meta-detail" onclick="openCurrentProjectMetaDrawer()">
+            <span>⚙ 项目详情</span>
+          </button>
+          <button class="ghost-action-btn" onclick="alert('添加成功指标')">+ 成功指标</button>
+          <button class="ghost-action-btn" style="background: var(--accent); color: #FFF;" onclick="alert('添加执行任务')">+ 添加任务</button>
+        </div>
+      </div>
+
+      <!-- 成功指标与任务清单树 -->
+      <div class="success-metrics-group-container" id="metricsTasksContainer">
+        <!-- 动态渲染指标与任务 -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 4. 右侧抽屉：项目详情与属性完整表单 (Detail Drawer) -->
+  <div class="drawer-scrim" id="drawerScrim" onclick="closeDrawer()"></div>
+  <aside class="apple-drawer-sheet" id="detailDrawer">
+    <div class="drawer-header">
+      <div class="dh-title" id="drawerTitle">项目详情</div>
+      <button class="drawer-close-btn" onclick="closeDrawer()" title="按 Esc 关闭">✕</button>
+    </div>
+    <div class="drawer-body">
+      <div class="inset-grouped-section">
+        <div class="ig-label">项目名称</div>
+        <div class="ig-value" id="drawerProjectName">workbuddy培训项目</div>
+      </div>
+
+      <div class="inset-grouped-section">
+        <div class="ig-label">所属战略目标</div>
+        <div style="font-size: 12.5px; font-weight: 600; color: var(--accent);" id="drawerProjectGoal">
+          AI知识管理 + 个人中台专家
+        </div>
+        <div style="font-size: 11.5px; color: var(--text-tertiary); margin-top: 2px;">
+          愿景: 成为终身受用的深度研究与自主知识调度践行者
+        </div>
+      </div>
+
+      <div class="inset-grouped-section">
+        <div class="ig-label">项目说明与描述</div>
+        <div style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.5;" id="drawerProjectDesc">
+          针对 AI 知识工作者与独立研究者打造的系统化实践培训。围绕感知、记忆、规划与行动调度展开，输出标准教程与内测社群。
+        </div>
+      </div>
+
+      <div class="inset-grouped-section">
+        <div class="ig-label">调度与生命周期属性</div>
+        <div style="display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap;">
+          <span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background: var(--surface-hover);">状态: 进行中</span>
+          <span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background: var(--accent-light); color: var(--accent); font-weight: 600;">🎯 核心主攻 (Focused)</span>
+          <span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background: var(--surface-hover);">指标数: 2</span>
+          <span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background: var(--surface-hover);">总任务: 6</span>
+        </div>
+      </div>
+
+      <div style="margin-top: auto; display: flex; gap: 10px;">
+        <button class="ghost-action-btn" style="flex-grow: 1; justify-content: center; height: 32px;" onclick="closeDrawer()">完成检视 (Esc)</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 5. 底部交互演示 Dock -->
+  <div class="prototype-dock">
+    <span>🍎 方向台 (含补齐的项目详情入口)</span>
+    <button class="dock-pill" onclick="switchDetailProject('p1')">查看主攻 1 详情</button>
+    <button class="dock-pill" onclick="openCurrentProjectMetaDrawer()">呼出项目详情抽屉</button>
+    <button class="dock-pill" style="background: #3A3A3C;" onclick="downloadPrototypeFile()">下载此原型 HTML</button>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. 项目与任务事实数据池 (Project Data Pool)
+    // =========================================================================
+    const projectDetailStore = {
+      p1: {
+        id: 'p1',
+        name: '软硬一体服务系统解决方案',
+        goal: '产品生命周期管理专家',
+        pct: 0,
+        isFocused: true,
+        desc: '把硬件+软件+服务的一体化业务，做成标准化解决方案。搞场景，做销售工具包，自己去讲。',
+        stats: { metrics: 1, total: 4, done: 0, doing: 1 },
+        metrics: [
+          {
+            title: '🎯 方案白皮书封版与硬件打样完成',
+            tasks: [
+              { title: '完成嵌入式中控单元通信接口规范', done: false, priority: 'high', date: '9-30' },
+              { title: '输出软硬件协议联调测试用例清单', done: false, priority: 'normal', date: '10-05' },
+              { title: '采购第一批 5 套工程测试模组', done: false, priority: 'normal', date: '10-10' }
+            ]
+          }
+        ]
+      },
+      p2: {
+        id: 'p2',
+        name: 'workbuddy培训项目',
+        goal: 'AI知识管理 + 个人中台专家',
+        pct: 33,
+        isFocused: true,
+        desc: '针对 AI 知识工作者与独立研究者打造的系统化实践培训。围绕感知、记忆、规划与行动调度展开，输出标准教程与内测社群。',
+        stats: { metrics: 2, total: 6, done: 2, doing: 1 },
+        metrics: [
+          {
+            title: '🎯 教程文章 20 篇',
+            tasks: [
+              { title: '用 workbuddy 解决职场办公的 100 个方案', done: false, priority: 'high', date: '9-28' },
+              { title: '拆解 Agent 核心交互与记忆调度机制', done: true, priority: 'normal', date: '9-25' },
+              { title: 'AI Agent 概念梳理，构建认知基础', done: false, priority: 'normal', date: '9-29' }
+            ]
+          },
+          {
+            title: '🎯 课程产品研发与学员交付群建立',
+            tasks: [
+              { title: '搭建课程交付基础飞书档案表单', done: true, priority: 'normal', date: '9-20' },
+              { title: '录制第一模块 3 节样课视频', done: false, priority: 'normal', date: '10-02' }
+            ]
+          }
+        ]
+      },
+      p3: {
+        id: 'p3',
+        name: '知源产品打造与销售',
+        goal: '产品生命周期管理专家',
+        pct: 33,
+        isFocused: false,
+        desc: '知源核心产品的架构完善与商业化探索，完成种子用户反馈验证与销售工具包研发。',
+        stats: { metrics: 1, total: 6, done: 2, doing: 2 },
+        metrics: [
+          {
+            title: '🎯 课程产品研发与首轮内测',
+            tasks: [
+              { title: '搭建内测交付群并跑通闭环', done: true, priority: 'normal', date: '9-18' },
+              { title: '收集首批 5 位学员测试问卷反馈', done: false, priority: 'high', date: '9-30' }
+            ]
+          }
+        ]
+      },
+      p4: {
+        id: 'p4',
+        name: 'obsidian工作流深度接入',
+        goal: 'AI知识管理 + 个人中台专家',
+        pct: 50,
+        isFocused: false,
+        desc: '打通与本地笔记工具 Obsidian 的协议调用与双链引用，实现素材到深度写作的无缝闭环。',
+        stats: { metrics: 1, total: 4, done: 2, doing: 1 },
+        metrics: [
+          {
+            title: '🎯 双链与资源台深链直跳打通',
+            tasks: [
+              { title: '验证 obsidian:// 协议的本地唤醒性能', done: true, priority: 'normal', date: '9-10' },
+              { title: '编写卡片反向导出为 md 文件的脚本', done: false, priority: 'normal', date: '10-01' }
+            ]
+          }
+        ]
+      },
+      p5: {
+        id: 'p5',
+        name: '武汉地区教育政策研究',
+        goal: '教育政策与咨询业务线',
+        pct: 100,
+        isFocused: false,
+        desc: '武汉市教育政策全景白皮书与指标生分配推演报告，交付高质量咨询成果。',
+        stats: { metrics: 1, total: 3, done: 3, doing: 0 },
+        metrics: [
+          {
+            title: '🎯 2026 武汉小升初及中考新政政策报告封版',
+            tasks: [
+              { title: '梳理各区指标生分配比例测算数据', done: true, priority: 'normal', date: '8-20' },
+              { title: '输出 1.2 万字深度咨询白皮书 PDF', done: true, priority: 'normal', date: '9-01' }
+            ]
+          }
+        ]
+      }
+    };
+
+    let currentSelectedProjId = 'p2';
+
+    // =========================================================================
+    // 2. 主航线联动与展板渲染 (Master-Detail Engine)
+    // =========================================================================
+    function switchDetailProject(projId) {
+      currentSelectedProjId = projId;
+      const data = projectDetailStore[projId];
+      if (!data) return;
+
+      // 切换小卡的高亮选中态
+      document.querySelectorAll('.project-mini-chip').forEach(el => el.classList.remove('is-active-detail'));
+      const activeChip = document.getElementById(`chip-${projId}`);
+      if (activeChip) activeChip.classList.add('is-active-detail');
+
+      // 更新展板顶栏与信息
+      document.getElementById('detailGoalName').textContent = data.goal;
+      document.getElementById('detailBreadcrumbProj').textContent = data.name;
+      document.getElementById('detailProjectTitle').textContent = data.name;
+      document.getElementById('detailFocusBadge').style.display = data.isFocused ? 'inline-block' : 'none';
+
+      document.getElementById('detailProgressFill').style.width = `${data.pct}%`;
+      document.getElementById('detailProgressPct').textContent = `${data.pct}%`;
+
+      document.getElementById('detailMetricCount').textContent = data.stats.metrics;
+      document.getElementById('detailTaskTotal').textContent = data.stats.total;
+      document.getElementById('detailTaskDone').textContent = data.stats.done;
+      document.getElementById('detailTaskDoing').textContent = data.stats.doing;
+
+      // 更新抽屉内预填数据
+      document.getElementById('drawerProjectName').textContent = data.name;
+      document.getElementById('drawerProjectGoal').textContent = data.goal;
+      document.getElementById('drawerProjectDesc').textContent = data.desc;
+
+      // 渲染指标与任务树
+      renderMetricsTree(data.metrics);
+
+      // 平滑视线微滚动
+      document.getElementById('projectDetailSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function renderMetricsTree(metricsList) {
+      const container = document.getElementById('metricsTasksContainer');
+      container.innerHTML = '';
+
+      metricsList.forEach(m => {
+        const pod = document.createElement('div');
+        pod.className = 'sm-metric-pod';
+
+        let tasksHtml = '';
+        m.tasks.forEach(t => {
+          tasksHtml += `
+            <div class="smp-task-row ${t.done ? 'is-done' : ''}" onclick="openTaskDrawer('${t.title}')">
+              <div class="task-checkbox-ring ${t.done ? 'checked' : ''}" onclick="event.stopPropagation(); toggleTaskRow(this)">${t.done ? '✓' : ''}</div>
+              <span class="smp-task-title">${t.title}</span>
+              <span class="task-priority-pill ${t.priority === 'high' ? 'high' : ''}">${t.priority === 'high' ? '高优' : '正常'}</span>
+              <span style="font-size: 11px; color: var(--text-tertiary);">${t.date}</span>
+              <div class="smp-row-actions">
+                <button class="icon-mini-btn" title="查看任务详情" onclick="event.stopPropagation(); openTaskDrawer('${t.title}')">👁</button>
+              </div>
+            </div>
+          `;
+        });
+
+        pod.innerHTML = `
+          <div class="smp-head">
+            <span>${m.title}</span>
+            <span style="font-size: 11.5px; color: var(--text-tertiary); font-weight: 500;">${m.tasks.length} 项任务</span>
+          </div>
+          <div class="smp-tasks-list">
+            ${tasksHtml}
+          </div>
+        `;
+        container.appendChild(pod);
+      });
+    }
+
+    function toggleTaskRow(ring) {
+      const row = ring.closest('.smp-task-row');
+      const isDone = row.classList.toggle('is-done');
+      ring.classList.toggle('checked');
+      ring.textContent = isDone ? '✓' : '';
+    }
+
+    // =========================================================================
+    // 3. 抽屉 Sheet 控制器 (项目详情与任务检视)
+    // =========================================================================
+    function openCurrentProjectMetaDrawer() {
+      const data = projectDetailStore[currentSelectedProjId];
+      if (!data) return;
+      document.getElementById('drawerTitle').textContent = '项目元信息详情 (Project Details)';
+      document.getElementById('drawerProjectName').textContent = data.name;
+      document.getElementById('drawerProjectGoal').textContent = data.goal;
+      document.getElementById('drawerProjectDesc').textContent = data.desc;
+
+      document.getElementById('drawerScrim').classList.add('visible');
+      document.getElementById('detailDrawer').classList.add('visible');
+    }
+
+    function openTaskDrawer(taskTitle) {
+      document.getElementById('drawerTitle').textContent = '任务详情检视';
+      document.getElementById('drawerProjectName').textContent = taskTitle;
+      document.getElementById('drawerProjectGoal').textContent = `所属项目: ${projectDetailStore[currentSelectedProjId].name}`;
+      document.getElementById('drawerProjectDesc').textContent = '在项目执行现场展开的任务具体内容与执行步骤，支持编辑与状态变更。';
+
+      document.getElementById('drawerScrim').classList.add('visible');
+      document.getElementById('detailDrawer').classList.add('visible');
+    }
+
+    function closeDrawer() {
+      document.getElementById('drawerScrim').classList.remove('visible');
+      document.getElementById('detailDrawer').classList.remove('visible');
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDrawer();
+    });
+
+    // 状态过滤与已完成开关
+    function filterProjects(mode, btn) {
+      document.querySelectorAll('.lh-filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const p5 = document.getElementById('chip-p5');
+      if (mode === 'doing') {
+        if (p5) p5.style.display = 'none';
+      } else if (mode === 'done') {
+        document.querySelectorAll('.project-mini-chip').forEach(el => {
+          el.style.display = el.classList.contains('is-done-proj') ? 'flex' : 'none';
+        });
+      } else {
+        document.querySelectorAll('.project-mini-chip').forEach(el => el.style.display = 'flex');
+      }
+    }
+
+    function toggleDoneVisibility(show) {
+      const p5 = document.getElementById('chip-p5');
+      if (p5) p5.style.display = show ? 'flex' : 'none';
+    }
+
+    // 初始化加载
+    window.addEventListener('DOMContentLoaded', () => {
+      switchDetailProject('p2');
+    });
+
+    // 纯前端原生导出并下载原型 HTML 文件
+    function downloadPrototypeFile() {
+      const fullHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+      const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+      const blobUrl = URL.createObjectURL(blob);
+      const tempLink = document.createElement('a');
+      tempLink.href = blobUrl;
+      tempLink.download = 'zhiyuan_ownway_compass_full_prototype.html';
+      document.body.appendChild(tempLink);
+      tempLink.click();
+      document.body.removeChild(tempLink);
+      URL.revokeObjectURL(blobUrl);
+    }
+  </script>
+</body>
+</html>

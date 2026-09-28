@@ -508,7 +508,7 @@ async function main() {
   report('E2E-12 主航线全量呈现：未投射项目 chip 也出现（R52-F4）', chipCount >= 2 && unPinnedChip,
     `chips=${chipCount} unPinnedVisible=${unPinnedChip}`)
 
-  // E2E-13 方向台导航与项目详情操作（R52-F8/F5/F6）：方向树返回方向台 + 项目详情无「返回项目列表」+ 头部「添加成功指标」
+  // E2E-13 方向台导航与项目详情操作（R52-F8/F5/F6）：方向树返回方向台 + 项目详情无「返回项目列表」+ 标题行「＋ 成功指标」（R177 随原型改文案并移入标题行，原「头部添加成功指标」）
   await page.evaluate(() => { location.hash = '#/compass/tree' })
   await page.waitForTimeout(1500)
   const backBtn = await page.getByText('← 返回方向台').first().isVisible().catch(() => false)
@@ -519,9 +519,9 @@ async function main() {
   await page.waitForTimeout(1500)
   // R121：原「成功指标 → 任务」层头退役 → 展板统计条（pb-stats）
   const projHead = await page.locator('.pb-stats').first().isVisible().catch(() => false)
-  const addMetricBtn = await page.getByText('添加成功指标').first().isVisible().catch(() => false)
+  const addMetricBtn = await page.getByText('＋ 成功指标').first().isVisible().catch(() => false) // R177：随原型改文案「＋ 成功指标」（标题行动作组）
   const backListGone = !(await page.getByText('返回项目列表').first().isVisible().catch(() => false))
-  report('E2E-13 方向树返回方向台 + 项目详情头部添加成功指标 + 返回项目列表移除（R52-F5/F6/F8）', backBtn && backToCompass && projHead && addMetricBtn && backListGone,
+  report('E2E-13 方向树返回方向台 + 项目详情标题行成功指标入口 + 返回项目列表移除（R52-F5/F6/F8 · R177 随迁）', backBtn && backToCompass && projHead && addMetricBtn && backListGone,
     `back=${backBtn} toCompass=${backToCompass} proj=${projHead} addMetric=${addMetricBtn} backListGone=${backListGone}`)
 
   // E2E-14 指标下钻弹窗（R54-B2）：调度台项目调度 4 格可点击 → 弹窗列指标清单
