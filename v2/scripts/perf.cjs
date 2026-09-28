@@ -77,6 +77,26 @@ function push(name, ms, extra) {
   if (extra) Object.assign(out.metrics, extra)
   log(`  ${name} = ${Math.round(ms)}ms`)
 }
+/** R173-T0：__switchViews 的结果是"每视图一份账单"（最小/中位/散布 + 阻塞 + 项数），逐视图展平成指标。
+ *  ★ 口径（06-2 §B 通则）：本机 ms 级噪声压不干净 ⇒ 主指标取**同批最小值**（无噪声下界），
+ *  中位与散布倍数并列写出供审——散布 >2 倍时只有最小值与结构量（项数）能读。 */
+function pushViews(prefix, obj) {
+  if (!obj) return
+  for (const [k, v] of Object.entries(obj)) {
+    if (v && v.ms != null && v.ms >= 0) {
+      out.metrics[prefix + k + '(ms)'] = v.ms
+      out.metrics[prefix + k + '_中位ms'] = v.msMed
+      out.metrics[prefix + k + '_散布倍数'] = v.spread
+      out.metrics[prefix + k + '_阻塞ms'] = v.block
+      out.metrics[prefix + k + '_最大单任务ms'] = v.max
+      out.metrics[prefix + k + '_项数'] = v.items
+      log(`  ${prefix}${k}（→${v.mode}）：最小 ${v.ms}ms / 中位 ${v.msMed}ms（散布 ${v.spread}×）· 阻塞 ${v.block}ms（峰值 ${v.max}）· 项数 ${v.items}${v.itemsOk ? '' : ' ⚠未等到卡元素'}`)
+    } else {
+      out.metrics[prefix + k + '_失败'] = 1
+      log(`  ⚠ ${prefix}${k}：未取到（视图根未渲染）`)
+    }
+  }
+}
 
 /** 页面内计时工具（随每次导航注入） */
 const HARNESS = `
@@ -164,8 +184,43 @@ window.__navTo = async function (prefix, sel) {
 }
 /** 等渲染稳定：微任务清空（Vue 的 nextTick 渲染在此完成），不包含帧等待 */
 window.__flush = () => new Promise(r => setTimeout(r, 0))
-/** 等渲染稳定：微任务清空（Vue 的 nextTick 渲染在此完成），不包含帧等待 */
-window.__flush = () => new Promise(r => setTimeout(r, 0))
+/* ═══ R173-T0：视图感知（量具修正）═══
+   缺陷（R172 实测）：真库 hub 有中心论点 ⇒ 默认渲染「金字塔」视图，而量具一律等「.res-card」。
+   后果不是"慢"，是**量错了东西**——等待条件永不成立（无上限 while ⇒ 打满超时甚至挂死），
+   而静默 catch 会把卡片视图的数字贴上「看板」的标签。修法：量具先认当前视图，按视图取
+   就绪元素与卡片元素，并把"实际看到的视图"写进结果，读的人一眼能校验。 */
+window.__VIEW_ROOT = { card: '.ws-view', list: '.ws-view', kanban: '.kanban', pyramid: '.pyramid' }
+window.__VIEW_CARD = { card: '.res-card', list: '.res-row', kanban: '.kc-card', pyramid: '.py-card-chip' }
+/** 当前工作台视图。限定在 .ws-page 内取——旧版全文档扫类名，别的页面残留同名节点会被误认成本台视图 */
+window.__viewOf = function () {
+  const pg = document.querySelector('.ws-page')
+  if (!pg) return ''
+  if (pg.querySelector('.pyramid')) return 'pyramid'
+  if (pg.querySelector('.kanban')) return 'kanban'
+  const v = pg.querySelector('.ws-view')
+  if (!v) return ''
+  return v.querySelector('.res-row') ? 'list' : 'card'
+}
+window.__cardSelOf = function (mode) { return window.__VIEW_CARD[mode || window.__viewOf()] || '.res-card, .res-row, .kc-card, .py-card-chip' }
+/** 等「当前视图根」出现（不预设卡片类）：{mode, ms, ok} */
+window.__waitViewRoot = async function (timeout) {
+  const t0 = performance.now()
+  const w = await window.__waitFor(() => !!window.__viewOf(), timeout || 10000)
+  return { mode: window.__viewOf(), ms: Math.round(performance.now() - t0), ok: w >= 0 }
+}
+/** 等该视图的卡片元素（等不到不算失败：返回 n=0 + ok=false，由调用方决定怎么记账） */
+window.__waitItems = async function (mode, timeout) {
+  const sel = window.__cardSelOf(mode)
+  const t0 = performance.now()
+  const w = await window.__waitFor(() => document.querySelector(sel), timeout || 3000)
+  return { n: document.querySelectorAll(sel).length, ms: Math.round(performance.now() - t0), ok: w >= 0 }
+}
+/** 长任务窗口（T0 口径：每个动作报「窗口内合计」，不只看最大单条——切看板正是"墙钟短、阻塞重"） */
+window.__ltCap = function () { return (window.__lt || []).length }
+window.__ltSince = function (cap) {
+  const lts = (window.__lt || []).slice(cap).map(x => x.d)
+  return { block: lts.reduce((s, x) => s + x, 0), max: lts.length ? Math.max.apply(null, lts) : 0, n: lts.length }
+}
 /** 主线程工作量计时：测「点下去 → DOM 更新完毕」的同步/微任务耗时，剔除帧等待 */
 window.__tick = async function (fn) {
   await window.__flush()
@@ -182,25 +237,43 @@ window.__median = async function (fn, times) {
   xs.sort((a, b) => a - b)
   return Math.round(xs[Math.floor(n / 2)] * 10) / 10
 }
-/** 依次切到每个视图标签，只计「切到目标视图」这一次的主线程耗时（复位切换不计入） */
+/** 依次切到每个视图标签，只计「切到目标视图」这一次的主线程耗时（复位切换不计入）。
+ *  R173-T0 重写：① 就绪信号按**目标视图**取（旧版只等一个 microtask flush，切看板那 211ms 卡顿量不到）；
+ *  ② 每个视图报「窗口内长任务合计 + 最大单条 + 实际渲染出的项数」；③ 结果带视图名，读的人能校验量的是谁。 */
 window.__switchViews = async function (sel) {
   const res = {}
   const tabs = [...document.querySelectorAll(sel)]
-  const timeOne = async (from, to) => {
-    from.click(); await window.__flush()      // 复位到另一视图（不计时）
-    const t0 = performance.now()
-    to.click()
-    await window.__flush()
-    return performance.now() - t0
+  const initMode = window.__viewOf()   // 收尾复位到这个视图：本台默认视图（真库 hub=金字塔），
+                                       // 旧版一律复位到 tabs[0]（卡片）⇒ 复现出的"默认首屏"被量具自己改掉了
+  const modeOf = (tab) => {
+    const t = tab.textContent || ''
+    return /金字塔/.test(t) ? 'pyramid' : /看板/.test(t) ? 'kanban' : /列表/.test(t) ? 'list' : /卡片/.test(t) ? 'card' : ''
   }
   for (let i = 0; i < tabs.length; i++) {
     const tab = tabs[i], other = tabs[(i + 1) % tabs.length]
+    const mode = modeOf(tab)
+    if (!mode) continue
+    const otherMode = modeOf(other)
     const xs = []
-    for (let k = 0; k < 5; k++) { const v = await timeOne(other, tab); if (k >= 1) xs.push(v) }  // 首轮预热
-    xs.sort((a, b) => a - b)
-    res[tab.textContent.trim()] = Math.round(xs[Math.floor(xs.length / 2)] * 10) / 10
+    for (let k = 0; k < 5; k++) {          // 首轮预热
+      other.click(); await window.__waitViewRoot(3000); await window.__flush()   // 复位到另一视图（不计时）
+      const cap = window.__ltCap()
+      const t0 = performance.now()
+      tab.click()
+      const items = await window.__waitItems(mode, 1200)
+      await window.__flush()
+      const w = window.__ltSince(cap)
+      if (k >= 1) xs.push({ ms: performance.now() - t0, block: w.block, max: w.max, n: w.n, items: items.n, itemsOk: items.ok, itemMs: items.ms })
+    }
+    xs.sort((a, b) => a.ms - b.ms)
+    const lo = xs[0], hi = xs[xs.length - 1]
+    const med = xs[Math.floor(xs.length / 2)]
+    res[(tab.textContent || '').trim()] = lo
+      ? { ms: Math.round(lo.ms * 10) / 10, msMed: Math.round(med.ms * 10) / 10, spread: Math.round((hi.ms / Math.max(lo.ms, 0.1)) * 10) / 10, block: lo.block, max: lo.max, n: lo.n, items: lo.items, itemsOk: lo.itemsOk, itemMs: lo.itemMs, from: otherMode, mode }
+      : { ms: -1, mode }
   }
-  if (tabs[0]) { tabs[0].click(); await window.__flush() }
+  const back = initMode ? tabs.find(t => modeOf(t) === initMode) : null
+  if (back) { back.click(); await window.__waitViewRoot(3000); await window.__flush() }
   return res
 }
 /** 分类树整树重渲染（折叠↔展开交替，确保每次都是真实全量重算） */
@@ -236,6 +309,33 @@ window.__searchType = async function (sel, q, debounceMs) {
   xs.sort((a, b) => a - b)
   return Math.round(xs[Math.floor(xs.length / 2)] * 10) / 10
 }
+/** R173-T0：键入的完整账单（净耗时 + 窗口内长任务合计 + 最大单条）——合成路径的 __searchType 数字口径保持不变，
+ *  真实路径改用本函数（检索是用户点名要调快的动作，只看净耗时看不出"键入时主线程被谁占了"）。 */
+window.__searchTypeBill = async function (sel, q, debounceMs) {
+  const inp = document.querySelector(sel)
+  if (!inp) return null
+  const GAP = 8, DEBOUNCE = debounceMs || 240
+  const xs = []
+  for (let k = 0; k < 5; k++) {
+    const cap = window.__ltCap()
+    const t0 = performance.now()
+    for (let i = 1; i <= q.length; i++) {
+      inp.value = q.slice(0, i)
+      inp.dispatchEvent(new Event('input', { bubbles: true }))
+      await new Promise(r => setTimeout(r, GAP))
+    }
+    await new Promise(r => setTimeout(r, DEBOUNCE))
+    await window.__flush()
+    const net = performance.now() - t0 - q.length * GAP - DEBOUNCE
+    const w = window.__ltSince(cap)
+    if (k >= 2) xs.push({ net, block: w.block, max: w.max, n: w.n })   // 前 2 轮预热
+    inp.value = ''; inp.dispatchEvent(new Event('input', { bubbles: true }))
+    await new Promise(r => setTimeout(r, 60))
+  }
+  xs.sort((a, b) => a.net - b.net)
+  const lo = xs[0], hi = xs[xs.length - 1], med = xs[Math.floor(xs.length / 2)]
+  return lo ? { net: Math.round(lo.net * 10) / 10, netMed: Math.round(med.net * 10) / 10, spread: Math.round((hi.net / Math.max(lo.net, 0.1)) * 10) / 10, block: lo.block, max: lo.max, n: lo.n } : null
+}
 /** R148：一次点击的"卡顿账单"——同步成本 + 之后 1.5s 内的长任务阻塞量 + 主数据键被重写几次 */
 window.__clickCost = async function (sel, waitMs) {
   const el = document.querySelector(sel)
@@ -265,6 +365,48 @@ window.__clickMedian = async function (sel, times) {
   for (let i = 0; i < n; i++) { const v = await window.__clickCost(sel); if (!v) return null; xs.push(v); await new Promise(r => setTimeout(r, 250)) }
   const pick = (k) => { const a = xs.map(x => x[k]).sort((p, q) => p - q); return a[Math.floor(a.length / 2)] }
   return { sync: pick('sync'), block: pick('block'), maxlt: pick('maxlt'), mainWrites: pick('mainWrites'), allWrites: pick('allWrites') }
+}
+/** R173-T2：开详情墙钟口径。旧 R3 用 __clickMedian 量 click() 同步段（0.4ms）——开抽屉发生在 260ms
+    单双击判别定时器里，同步段够不着它，"单击开详情"名不副实；R172 的 116ms 是 census 的阻塞口径，
+    且混着进台 4s 整库写盘。新口径对齐用户感知：关净抽屉 → t0 → 点卡 → 等 body 直属 .drawer 出现 →
+    墙钟（判别器成本如实计入）。三次取中位/最小；并记窗口内长任务与主数据键/热度键写盘次数
+    ——后两者是结构量，不受 ms 抖动影响。长任务/写盘采集窗延到点击后约 1s：热度键写盘在
+    「260 判别器 + 250ms 防抖」之后才落，收集太早会把它读成"零写盘"的假账。 */
+window.__openDetailWall = async function (sel, times) {
+  const n = times || 3
+  const xs = []
+  const blocks = []
+  let blockSum = 0, mainWrites = 0, hotWrites = 0
+  const closeDrawer = async function () {
+    if (!document.querySelector('body > .drawer')) return
+    const c = document.querySelector('.drawer-close')
+    if (c) c.click()
+    await window.__waitFor(() => !document.querySelector('body > .drawer'), 3000)
+    await new Promise(r => setTimeout(r, 350))
+  }
+  for (let i = 0; i < n; i++) {
+    await closeDrawer()
+    const el = document.querySelector(sel)
+    if (!el) return null
+    const cap = window.__ltCap()
+    const io0 = (window.__io || []).length
+    const t0 = performance.now()
+    el.click()
+    const w = await window.__waitFor(() => document.querySelector('body > .drawer'), 4000)
+    if (w < 0) return { xs: xs.slice().sort((p, q) => p - q), blocks, failAt: i, block: blockSum, mainWrites, hotWrites }
+    xs.push(Math.round(performance.now() - t0))
+    await new Promise(r => setTimeout(r, 700))
+    const bt = window.__ltSince(cap)
+    blockSum += bt.block
+    blocks.push(bt.block)
+    const sets = (window.__io || []).slice(io0).filter(x => x.op === 'set')
+    mainWrites += sets.filter(x => /zy_data_v2/.test(x.keys || '')).length
+    hotWrites += sets.filter(x => /zy_stats_v1/.test(x.keys || '')).length
+    await new Promise(r => setTimeout(r, 350))
+  }
+  await closeDrawer()
+  const a = xs.slice().sort((p, q) => p - q)
+  return { xs: a, min: a[0], med: a[Math.floor(a.length / 2)], max: a[a.length - 1], block: Math.round(blockSum / Math.max(a.length, 1)), blocks, mainWrites, hotWrites }
 }
 /** R148：hash 导航到某视图并等首屏就位（测"切模块"的端到端主观耗时，含 chunk 加载与重挂载） */
 window.__hashTo = async function (hash, sel, resetHash) {
@@ -330,6 +472,11 @@ async function main() {
   // ── 首次打开：让扩展自建默认数据 ──
   await page.goto(base + '#/workspace', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
+  // R173-T0：HARNESS 注入自检——注释里混进反引号会把模板串撕碎（本脚本真实踩过：`.res-card`
+  // 被解析成 `res - card`，`node --check` **不报错**，跑起来才 ReferenceError），而探针一旦没装上，
+  // 后面的指标全是静默空值。装完立刻验，验不过立即抛。
+  const harnessMissing = await page.evaluate(() => ['__waitFor', '__viewOf', '__cardSelOf', '__waitViewRoot', '__waitItems', '__ltCap', '__ltSince', '__switchViews', '__searchTypeBill'].filter(k => typeof window[k] !== 'function'))
+  if (harnessMissing.length) throw new Error('HARNESS 注入失败，页面里缺：' + harnessMissing.join(', '))
 
   // ══════════ R164：--real=<导出 JSON> 真实路径模式 ══════════
   // 为什么单开一条路：M3（合成压力测试）量的是合成库 + 合成操作序列的布局/绘制，与真库体感互相矛盾
@@ -364,33 +511,54 @@ async function main() {
     push('R1_冷启动_首页可交互(ms)', await page.evaluate(() => window.__ready))
 
     // R2 冷挂资源台（墙钟 + 主线程阻塞 + 长任务）——真实库体感第一现场
+    // R173-T0：就绪信号按**当前视图**取（真库 hub 有中心论点 ⇒ 默认金字塔，旧版等 .res-card 会打满超时），
+    //   并把实际视图/项数写进报告——否则"量到的是我等错了东西"会被读成"产品很快"。
     const r2 = await page.evaluate(async () => {
-      const lt0 = (window.__lt || []).length
+      const cap = window.__ltCap()
       const t0 = performance.now()
       const tab = [...document.querySelectorAll('.tabs .tab')].find(e => ((e.getAttribute('title') || '') + (e.textContent || '')).includes('资源台'))
       if (tab) tab.click()
-      while (!document.querySelector('.res-card, .res-row, .kc-card')) await new Promise(r => setTimeout(r, 40))
+      const vr = await window.__waitViewRoot(12000)
+      const it = await window.__waitItems(vr.mode, 2500)
       const wall = Math.round(performance.now() - t0)
-      const lts = (window.__lt || []).slice(lt0).map(x => x.d)
-      return { wall, block: lts.reduce((s, x) => s + x, 0), maxlt: lts.length ? Math.max.apply(null, lts) : 0, ltN: lts.length }
+      const w = window.__ltSince(cap)
+      return { wall, block: w.block, maxlt: w.max, ltN: w.n, view: vr.mode, rootMs: vr.ms, rootOk: vr.ok, items: it.n, itemMs: it.ms }
     })
-    push('R2_冷挂资源台_墙钟(ms)', r2.wall, { 'R2_冷挂资源台_阻塞ms': r2.block, 'R2_冷挂资源台_最大单任务ms': r2.maxlt, 'R2_冷挂资源台_长任务数': r2.ltN })
+    push('R2_冷挂资源台_墙钟(ms)', r2.wall, { 'R2_冷挂资源台_阻塞ms': r2.block, 'R2_冷挂资源台_最大单任务ms': r2.maxlt, 'R2_冷挂资源台_长任务数': r2.ltN, 'R2_冷挂资源台_视图': r2.view, 'R2_冷挂资源台_视图就绪ms': r2.rootMs, 'R2_冷挂资源台_项数': r2.items })
     await page.waitForTimeout(400)
 
-    // R3 单击开详情（中位账单：同步成本 + 1.5s 内阻塞 + 主数据被重写次数）
-    const r3 = await page.evaluate(() => window.__clickMedian('.res-card', 3))
-    if (r3) {
-      out.metrics['R3_单击开详情_同步ms'] = r3.sync
-      out.metrics['R3_单击开详情_阻塞ms'] = r3.block
-      out.metrics['R3_单击开详情_主数据重写'] = r3.mainWrites
-      log('  R3 单击开详情：同步 ' + r3.sync + 'ms · 阻塞 ' + r3.block + 'ms · 主数据重写 ' + r3.mainWrites + ' 次')
+    // R3 单击开详情（R173-T2 重写口径：点击 → body 直属 .drawer 出现的墙钟中位——含 260ms 单双击判别器，
+    //   这是用户真实等待的那段时间；旧口径量 click() 同步段 0.4ms，"单击开详情"名不副实。
+    //   R173-T0 保留：点的是"当前视图"的卡元素（真库 hub 默认金字塔 ⇒ .py-card-chip 才是卡），
+    //   并把实际视图与选择器写进报告。
+    //   前置 4600ms：R2 点进资源台即安排「进台 4s + 防抖」的落盘（当时是整库写盘，真库 49~84ms 序列化），
+    //   不等过它会砸进前几轮计量窗——R172 的 116ms 就是这么被读出来的。（T2 拍板 a 后该笔已改走热度键
+    //   小载荷，本等待保留：清尾逻辑与落盘通道解耦。）
+    await page.waitForTimeout(4600)
+    const r3 = await page.evaluate(async () => {
+      const mode = window.__viewOf()
+      const sel = window.__cardSelOf(mode)
+      const bill = await window.__openDetailWall(sel, 3)
+      return { mode, sel, bill }
+    })
+    if (r3.bill && r3.bill.med != null) {
+      out.metrics['R3_开详情_点击到抽屉ms'] = r3.bill.med
+      out.metrics['R3_开详情_点击到抽屉_最小ms'] = r3.bill.min
+      out.metrics['R3_开详情_阻塞均值ms'] = r3.bill.block
+      out.metrics['R3_开详情_主数据重写'] = r3.bill.mainWrites
+      out.metrics['R3_开详情_热度键写盘'] = r3.bill.hotWrites
+      out.metrics['R3_开详情_视图'] = r3.mode
+      log('  R3 开详情（' + r3.mode + ' 视图 · ' + r3.sel + '）：点击→抽屉 中位 ' + r3.bill.med + 'ms（三次 ' + r3.bill.xs.join('/') + '，各轮阻塞 ' + (r3.bill.blocks || []).join('/') + 'ms）· 主数据重写 ' + r3.bill.mainWrites + ' 次 · 热度键写盘 ' + r3.bill.hotWrites + ' 次')
+    } else {
+      out.metrics['R3_开详情_未取到'] = 1
+      log('  ⚠ R3 未取到卡元素或抽屉未出现（视图 ' + (r3.mode || '?') + ' · 选择器 ' + r3.sel + '）')
     }
     await page.keyboard.press('Escape').catch(() => {})
     await page.waitForTimeout(300)
 
-    // R4 三视图切换（卡片/列表/看板，主线程耗时中位）
+    // R4 四视图切换（卡片/列表/看板/金字塔；每视图：中位墙钟 + 窗口内长任务合计 + 实渲染项数）
     const r4 = await page.evaluate(() => window.__switchViews('.ws-toolbar .view-tab'))
-    if (r4) for (const [k, v] of Object.entries(r4)) out.metrics['R4_视图切换_' + k + '(ms)'] = v
+    pushViews('R4_视图切换_', r4)
 
     // R5 滚动掉帧（资源台网格滚动 90 帧）
     const r5 = await page.evaluate(async () => {
@@ -410,33 +578,41 @@ async function main() {
     log('  R5 滚动：' + r5.frames + ' 帧 · 掉帧 ' + r5.dropped + ' · 最差 ' + r5.worst + 'ms')
 
     // R6 M14 真库账单（与合成路径同口径，可直接对比）
+    // R173-T0：等待改为有界（旧版无上限 while + 写死 .res-card ⇒ 金字塔下会一直空转、把"量错东西"读成"很轻"）；
+    //   卡数按当前视图取，并把视图名写进报告。
     const m14 = await page.evaluate(async () => {
       const gaps = []; let last = performance.now(); let raf = 0
       const tick = () => { const n = performance.now(); gaps.push(n - last); last = n; raf = requestAnimationFrame(tick) }
       raf = requestAnimationFrame(tick)
       const t = [...document.querySelectorAll('.tab')].find(e => e.offsetParent && /资源台/.test(e.innerText || ''))
       if (t) t.click()
-      while (!document.querySelector('.res-card, .res-row, .kc-card')) await new Promise(r => setTimeout(r, 40))
+      const vr = await window.__waitViewRoot(12000)
+      const it = await window.__waitItems(vr.mode, 2500)
       await new Promise(r => setTimeout(r, 500))
       cancelAnimationFrame(raf)
       const vis = e => e.offsetParent !== null
-      const cards = [...document.querySelectorAll('.res-card, .res-row, .kc-card')].filter(vis).length
+      const cards = [...document.querySelectorAll(window.__cardSelOf(vr.mode))].filter(vis).length
       const all = [...document.querySelectorAll('body *')].filter(vis).length
       const svgs = [...document.querySelectorAll('svg')].filter(vis).length
       const marks = [...document.querySelectorAll('.ai-mark, .ai-entry')].filter(vis).length
       const g = gaps.slice(1).sort((x, y) => y - x)
-      return { cards, all, svgs, marks, worst: Math.round(g[0] || 0), dropped: gaps.filter(x => x > 34).length, frames: gaps.length }
+      return { view: vr.mode, viewOk: vr.ok, viewMs: vr.ms, itemsOk: it.ok, cards, all, svgs, marks, worst: Math.round(g[0] || 0), dropped: gaps.filter(x => x > 34).length, frames: gaps.length }
     })
     out.metrics['R6_真库首屏可见节点'] = m14.all; out.metrics['R6_真库首屏卡片数'] = m14.cards
+    out.metrics['R6_真库视图'] = m14.view || '未知'
     out.metrics['R6_真库最差帧ms'] = m14.worst; out.metrics['R6_真库掉帧数'] = m14.dropped
     out.metrics['R6_真库svg元素数'] = m14.svgs; out.metrics['R6_真库AI徽标数'] = m14.marks
-    log('  R6 真库账单：可见节点 ' + m14.all + '（卡 ' + m14.cards + ' · svg ' + m14.svgs + ' · AI 徽标 ' + m14.marks + '）· 最差帧 ' + m14.worst + 'ms · 掉帧 ' + m14.dropped + '/' + m14.frames)
+    log('  R6 真库账单：视图 ' + (m14.view || '未知') + (m14.viewOk ? '' : ' ⚠视图未就绪') + '（' + m14.viewMs + 'ms）· 可见节点 ' + m14.all
+      + '（卡 ' + m14.cards + (m14.itemsOk ? '' : ' ⚠未等到卡元素') + ' · svg ' + m14.svgs + ' · AI 徽标 ' + m14.marks + '）· 最差帧 ' + m14.worst + 'ms · 掉帧 ' + m14.dropped + '/' + m14.frames)
 
     // R7 全局搜索（content 宿主页）：唤起 + 键入 6 字净耗时
+    // R173-T0：唤起也带"窗口内长任务合计"（浮层注入与结果是主线程渲染，墙钟短不代表不卡）；
+    //   键入改用完整账单（净耗时 + 阻塞），并保留旧指标名以保持跨版本可比。
     try {
       await page.goto('http://127.0.0.1:' + gsPort + '/', { waitUntil: 'load' })
       await page.waitForTimeout(1200)
       const gsOpen = async () => {
+        const cap = await page.evaluate(() => window.__ltCap())
         const t0 = Date.now()
         await worker.evaluate(async (port) => {
           const tabs = await chrome.tabs.query({ url: 'http://127.0.0.1:' + port + '/*' })
@@ -444,17 +620,24 @@ async function main() {
           await chrome.tabs.sendMessage(tabs[0].id, { type: 'zy-open-search' })
         }, gsPort)
         await page.waitForSelector('#__zy_si__', { timeout: 8000 })
-        return Date.now() - t0
+        const w = await page.evaluate((c) => window.__ltSince(c), cap)
+        return { wall: Date.now() - t0, block: w.block, max: w.max }
       }
       await gsOpen()
       await page.keyboard.press('Escape')
       await page.waitForTimeout(400)
       const xs = []
       for (let k = 0; k < 3; k++) { xs.push(await gsOpen()); if (k < 2) { await page.keyboard.press('Escape'); await page.waitForTimeout(400) } }
-      xs.sort((a, b) => a - b)
-      push('R7_全局搜索唤起(ms)', xs[Math.floor(xs.length / 2)])
-      const gsType = await page.evaluate(() => window.__searchType('#__zy_si__', '教育规划', 60))
-      if (gsType >= 0) push('R7_全局搜索键入6字净耗时(ms)', gsType)
+      xs.sort((a, b) => a.wall - b.wall)
+      const gsMid = xs[Math.floor(xs.length / 2)]
+      push('R7_全局搜索唤起(ms)', gsMid.wall, { 'R7_全局搜索唤起_阻塞ms': gsMid.block, 'R7_全局搜索唤起_最大单任务ms': gsMid.max })
+      const gsType = await page.evaluate(() => window.__searchTypeBill('#__zy_si__', '教育规划', 60))
+      if (gsType && gsType.net >= 0) {
+        push('R7_全局搜索键入6字净耗时(ms)', gsType.net, {
+          'R7_全局搜索键入_中位ms': gsType.netMed, 'R7_全局搜索键入_散布倍数': gsType.spread,
+          'R7_全局搜索键入_阻塞ms': gsType.block, 'R7_全局搜索键入_最大单任务ms': gsType.max, 'R7_全局搜索键入_长任务数': gsType.n
+        })
+      }
     } catch (e) {
       log('  ⚠ R7 全局搜索采样失败：' + e.message)
       out.metrics.R7_采样失败 = 1
@@ -645,11 +828,12 @@ async function main() {
     raf = requestAnimationFrame(tick)
     const t = [...document.querySelectorAll('.tab')].find(e => e.offsetParent && /资源台|PERF/.test(e.innerText || ''))
     if (t) t.click()
-    while (!document.querySelector('.res-card, .res-row, .kc-card')) await new Promise(r => setTimeout(r, 40))
+    const vr = await window.__waitViewRoot(12000)
+    const it = await window.__waitItems(vr.mode, 2500)
     await new Promise(r => setTimeout(r, 500))
     cancelAnimationFrame(raf)
     const vis = e => e.offsetParent !== null
-    const cards = [...document.querySelectorAll('.res-card, .res-row, .kc-card')].filter(vis).length
+    const cards = [...document.querySelectorAll(window.__cardSelOf(vr.mode))].filter(vis).length
     const all = [...document.querySelectorAll('body *')].filter(vis).length
     // R155：节点数是"总账"，不足以归因。徽标从 emoji（1 个 span）换成 SVG（svg + 6 个子元素）
     // 后每张卡 +6 节点——这是**有意的结构代价**，不是渲染劣化。把它单列成计量，
@@ -657,12 +841,13 @@ async function main() {
     const svgs = [...document.querySelectorAll('svg')].filter(vis).length
     const marks = [...document.querySelectorAll('.ai-mark, .ai-entry')].filter(vis).length
     const g = gaps.slice(1).sort((x, y) => y - x)
-    return { cards, all, svgs, marks, worst: Math.round(g[0] || 0), dropped: gaps.filter(x => x > 34).length, frames: gaps.length }
+    return { view: vr.mode, viewOk: vr.ok, itemsOk: it.ok, cards, all, svgs, marks, worst: Math.round(g[0] || 0), dropped: gaps.filter(x => x > 34).length, frames: gaps.length }
   })
   out.metrics['M14_资源台首屏可见节点'] = m14.all; out.metrics['M14_首屏卡片数'] = m14.cards
+  out.metrics['M14_视图'] = m14.view || '未知'
   out.metrics['M14_最差帧ms'] = m14.worst; out.metrics['M14_掉帧数'] = m14.dropped
   out.metrics['M14b_资源台svg元素数'] = m14.svgs; out.metrics['M14c_资源台AI徽标数'] = m14.marks
-  log(`  M14 账单：可见节点 ${m14.all}（卡 ${m14.cards} 张 · svg ${m14.svgs} · AI 徽标 ${m14.marks}）· 最差帧 ${m14.worst}ms · 掉帧 ${m14.dropped}/${m14.frames}`)
+  log(`  M14 账单：可见节点 ${m14.all}（卡 ${m14.cards} 张 · svg ${m14.svgs} · AI 徽标 ${m14.marks}）· 最差帧 ${m14.worst}ms · 掉帧 ${m14.dropped}/${m14.frames} · 视图 ${m14.view || '未知'}${m14.itemsOk ? '' : ' ⚠未等到卡元素'}`)
   // R112 修脚本漂移：原用前缀 '策展台'，但顶栏策展台 Tab 文本已被剥成「📘PERF0」，
   // 唯一含「策展台」三字的可匹配项是溢出指示（见 __navTo 内注释）→ 打满 15000ms 超时。
   // R109/R111 记录的 15006/15019ms 即此超时值，非真实耗时。改用与下方一致的 PERF0 定位。
@@ -682,6 +867,7 @@ async function main() {
   const ccViews = await page.evaluate(() => window.__switchViews('.view-tab'))
   log('  资源台视图切换：' + JSON.stringify(ccViews))
   out.raw.push({ target: '资源台视图切换', data: ccViews })
+  pushViews('M4c_资源台视图切换_', ccViews)
 
   // ══════════ 策展台（原生+镜像混排）══════════
   await page.evaluate(() => window.__navTo('PERF0', '.res-card'))
@@ -699,6 +885,7 @@ async function main() {
   const wsViews = await page.evaluate(() => window.__switchViews('.ws-toolbar .view-tab'))
   log('  策展台视图切换：' + JSON.stringify(wsViews))
   out.raw.push({ target: '策展台视图切换', data: wsViews })
+  pushViews('M2d_策展台视图切换_', wsViews)
 
   // ══════════ M3 长任务汇总（交互期，不含启动期）══════════
   const lt = await page.evaluate(() => {

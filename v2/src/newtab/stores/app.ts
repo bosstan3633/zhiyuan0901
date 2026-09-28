@@ -141,12 +141,13 @@ export const useAppStore = defineStore('app', () => {
     if (data.value) saveData()
   }
   /**
-   * R148-P0b：只落热度统计（打开次数 / 最近打开 / WRR 段），**不重写整库**。
+   * R148-P0b：只落热度统计（打开次数 / 最近打开 / WRR 段 / R173-T2 起的台热度），**不重写整库**。
    * 用在"单击卡片看详情"这类最高频、又只改统计字段的动作上——
    * 走 persist() 会把 medium 档 600KB 主 JSON 重新序列化并写盘一次。
+   * R173-T2：immediate=true 供页面隐藏/卸载补写（跳过 250ms 防抖，见 hotStats.writeHot）。
    */
-  function persistHot() {
-    if (data.value) writeHot(data.value)
+  function persistHot(immediate?: boolean) {
+    if (data.value) writeHot(data.value, immediate)
   }
 
   return { data, ui, workspaces, theme, init, setTheme, persist, persistHot }

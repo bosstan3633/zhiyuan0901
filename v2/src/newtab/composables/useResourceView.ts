@@ -4,7 +4,7 @@
  * 实现自 views/Workspace.vue 原位迁出、零行为变更；标识符经解构保留原绑定——模板零改动。
  * 依赖经由 ctx 注入（与 useCategoryCrud / useWorkspaceBatch 同一接线范式）。
  */
-import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onActivated, onUnmounted } from 'vue'
 import type { ComputedRef } from 'vue'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { useCardCols, CARD_COLS_DEFAULT } from '@/shared/utils/cardCols'
@@ -16,7 +16,7 @@ import type { curationMetrics } from '@/shared/storage/hub'
 import type { AppData, ResourceCard, Category, UIPrefs } from '@/shared/models'
 
 /** R115：宿主 Pinia store 的结构子集（结构性兼容，避免索引签名不匹配） */
-export interface WsStore { ui: UIPrefs | null; persist(): void; /** R148-P0b：只落热度统计（不重写整库） */ persistHot?(): void }
+export interface WsStore { ui: UIPrefs | null; persist(): void; /** R148-P0b：只落热度统计（不重写整库）；R173-T2：immediate 跳过防抖（页隐藏补写用） */ persistHot?(immediate?: boolean): void }
 
 export interface ResourceGroup { key: string; title: string; count: number; /** R122：含全部子分类的合计（原型「直属 N · 含 M 个子分类共 K」） */ total: number; items: ResourceCard[]; depth: number }
 
@@ -362,20 +362,30 @@ export function useResourceView(ctx: ResourceViewCtx) {
   function ensureCardRendered(id: string): boolean {
     let hit = -1
     let seen = 0
+    let hitCard: ResourceCard | null = null
     for (const g of resourceGroups.value) {
       const i = g.items.findIndex(r => r.id === id)
-      if (i >= 0) { hit = seen + i + 1; break }
+      if (i >= 0) { hit = seen + i + 1; hitCard = g.items[i] ?? null; break }
       seen += g.items.length
     }
     if (hit < 0) return false
     if (hit > renderLimit.value) renderLimit.value = Math.min(totalVisibleCount.value, hit + RENDER_STEP)
-    // 看板：抬升目标所在列的列内限额（与列体滚动追加同一入口）
-    for (const col of kanbanColumns.value) {
-      const i = col.items.findIndex(r => r.id === id)
-      if (i >= 0) {
-        if (i + 1 > kanbanLimitOf(col.key)) kanbanColLimit.value = { ...kanbanColLimit.value, [col.key]: i + 1 + KANBAN_COL_STEP }
-        break
+    // 看板：抬升目标所在列的列内限额（与列体滚动追加同一入口）。
+    // R173-T1：改按**目标卡的分类 key** 取列——列已窗口化，视口外的列不在 kanbanColumns 里，
+    // 按列遍历会漏掉它。
+    // R173-T3 收口：列窗口化后目标列若不在窗内 ⇒ 节点根本不渲染。先把窗口滚到目标列
+    // （scrollLeft 定位 + 立即重量收敛），并给 kc-card 补 data-rid/flash（模板侧）——
+    // R117 时代「看板定位静默落空」到此为止（此前注记的"留给 T3 收口"即此）。
+    if (hitCard && viewMode.value === 'kanban') {
+      const key = hitCard.categoryId || ''
+      const ci = kanbanCategories.value.findIndex(c => c.key === key)
+      const wrap = kanbanWrapRef.value
+      if (ci >= 0 && wrap && (ci < kanbanFirst.value || ci > kanbanLast.value)) {
+        wrap.scrollLeft = Math.max(0, (ci - KANBAN_COL_BUFFER) * KANBAN_COL_PITCH)
+        measureKanbanWin(wrap)
       }
+      const i = resourcesByCategory(key).findIndex(r => r.id === id)
+      if (i >= 0 && i + 1 > kanbanLimitOf(key)) kanbanColLimit.value = { ...kanbanColLimit.value, [key]: i + 1 + KANBAN_COL_STEP }
     }
     // 目标所在分组被折叠时先展开（否则节点不在 DOM 里）
     for (const g of resourceGroups.value) {
@@ -433,29 +443,64 @@ export function useResourceView(ctx: ResourceViewCtx) {
     const el = e.target as HTMLElement
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 60) kanbanMore(key)
   }
+  /** R173-T1：列**窗口化**改视图驱动——R169 立的是「列数 > 60 才裁剪」，而真库是 50 台 / 33 列（48 台资源台），
+   *  阈值永不触发、等于没做（R172 实测切看板 +1143 节点 / 阻塞 249ms，仍是全站最慢的同屏切换）。
+   *  新口径：只渲染「滚动位置 ± 缓冲」内的列；窗口外两侧渲染**等宽 ghost 占位**（1 节点/列）保住
+   *  横向几何与滚动条位置，滚到位即原位换真列。拖拽源列由 setKanbanDragCol 钉住（见下）。 */
+  const KANBAN_COL_PITCH = 274   // 列宽 260 + 间距 14（workspace.css `.kanban-col` 宽 / `.kanban` gap）——改版式须同步此数
+  const KANBAN_COL_BUFFER = 2    // 视口外两侧各多渲染 2 列（≈548px）：补窗总落后滚动事件一拍，缓冲吸收甩动
+  const kanbanWrapRef = ref<HTMLElement | null>(null)
+  const kanbanFirst = ref(0)
+  const kanbanLast = ref(7)
+  // ★空闲哨兵必须是 null 而非 ''：'' 是「待分类」列的**合法 key**（kanbanCategories 末尾 push），
+  //   若用 '' 表示空闲，findIndex 会恒命中待分类列，被当成「永远钉着最后一列」——
+  //   hi 遂恒 = n-1（窗口右缘永远收不回来），实测表现为「切看板仍是全量 23 列」。
+  const kanbanDragKey = ref<string | null>(null)
+  /** HTML5 拖拽期间钉住拖拽源列：源节点被摘除后 dragend 可能不触发（dropMark/dragState 残留）。
+   *  dragstart 置（可为 '' = 待分类列）、dragend 清 null；窗口外的列会被卸载，故必须显式留住它 */
+  function setKanbanDragCol(key: string | null) { kanbanDragKey.value = key }
+  /** 量一次视口 → 收敛窗口。容器未布局（宽 0，含 keep-alive 停用期）时不动窗口，交给下一次滚动/缩放/归位再量 */
+  function measureKanbanWin(el: HTMLElement) {
+    const n = kanbanCategories.value.length
+    if (!n || !el.clientWidth) return
+    const first = Math.max(0, Math.floor(el.scrollLeft / KANBAN_COL_PITCH) - KANBAN_COL_BUFFER)
+    const last = Math.min(n - 1, Math.ceil((el.scrollLeft + el.clientWidth) / KANBAN_COL_PITCH) + KANBAN_COL_BUFFER)
+    if (first !== kanbanFirst.value) kanbanFirst.value = first
+    if (last !== kanbanLast.value) kanbanLast.value = last
+  }
+  /** 横向滚动（.kanban）→ 收敛窗口 */
+  function onKanbanWinScroll(e: Event) { measureKanbanWin(e.target as HTMLElement) }
+  function onKanbanWinResize() { const el = kanbanWrapRef.value; if (el) measureKanbanWin(el) }
+  watch(kanbanWrapRef, (el) => { if (el) measureKanbanWin(el) })
+  // 视口缩放与 keep-alive 归位都要重量：停用期容器宽 0 量不了，回来时视图可能已变宽
+  onMounted(() => window.addEventListener('resize', onKanbanWinResize))
+  onActivated(onKanbanWinResize)
+  onUnmounted(() => window.removeEventListener('resize', onKanbanWinResize))
+  // 换台/换视图后钉住的列作废（列 key 属于上一上下文）
+  watch([workspaceId, viewMode], () => { kanbanDragKey.value = null })
+  /** 窗口 ∪ 钉住的列 → 渲染区间 [lo, hi]（必须连续：ghost 只补两侧，中间不留洞） */
+  const kanbanWinRange = computed(() => {
+    const cats = kanbanCategories.value
+    const n = cats.length
+    const held = kanbanDragKey.value === null ? -1 : cats.findIndex(c => c.key === kanbanDragKey.value)
+    return {
+      lo: Math.max(0, held >= 0 ? Math.min(kanbanFirst.value, held) : kanbanFirst.value),
+      hi: Math.min(Math.max(0, n - 1), held >= 0 ? Math.max(kanbanLast.value, held) : kanbanLast.value),
+      n,
+    }
+  })
   const kanbanColumns = computed(() => {
-    // R169-老账②：列窗口化——列数 > 60 时只渲染窗口内的列（R168 交付说明 §七遗留：
-    // 看板首屏 6 张/列是按真库 33 列定的，列数继续涨（>60）时下一刀是只渲染可见列）。
-    // 真库 33 列 ⇒ 窗口不生效（行为零变化）；护栏针对"书签导入后分类爆炸"的未来态。
-    const win = kanbanCategories.value.slice(0, kanbanColWin.value)
+    const { lo, hi } = kanbanWinRange.value
+    const win = kanbanCategories.value.slice(lo, hi + 1)
     return win.map(c => {
       const items = resourcesByCategory(c.key)
       const shown = items.slice(0, kanbanLimitOf(c.key))
       return { key: c.key, name: c.name, items: shown, count: items.length, hiddenCount: items.length - shown.length }
     })
   })
-  /** R169-老账②：列窗口档位与续载——横向滚近右缘 480px 内自动扩窗 + 列尾显式入口（kanbanMoreCols） */
-  const KANBAN_COL_WINDOW = 60
-  const KANBAN_COL_WIN_STEP = 30
-  const kanbanColWin = ref(KANBAN_COL_WINDOW)
-  const kanbanWinMore = computed(() => kanbanColWin.value < kanbanCategories.value.length)
-  function kanbanMoreCols() {
-    if (kanbanColWin.value < kanbanCategories.value.length) kanbanColWin.value += KANBAN_COL_WIN_STEP
-  }
-  function onKanbanWinScroll(e: Event) {
-    const el = e.target as HTMLElement
-    if (el.scrollWidth - el.scrollLeft - el.clientWidth < 480) kanbanMoreCols()
-  }
+  /** 窗口外两侧的 ghost 占位列数（等宽空壳：透明且无内容，只保几何；滚到即原位换真列） */
+  const kanbanGhostL = computed(() => kanbanWinRange.value.lo)
+  const kanbanGhostR = computed(() => Math.max(0, kanbanWinRange.value.n - 1 - kanbanWinRange.value.hi))
 
   // ===== R122（原型）：资源台指标条尾注 + 一级状态快捷筛选 =====
   /** R122（原型）：最近更新时间（今天/昨天显示 HH:mm；更早不显示时间，仅日期由页头 lastUpdateText 承载） */
@@ -493,7 +538,7 @@ export function useResourceView(ctx: ResourceViewCtx) {
     onContentScroll, renderMore, ensureCardRendered, groupChildCount,
     kanbanCategories, resourcesByCategory, kanbanColumns,
     KANBAN_COL_STEP, kanbanLimitOf, kanbanMore, onKanbanColScroll,
-    KANBAN_COL_WINDOW, kanbanColWin, kanbanWinMore, kanbanMoreCols, onKanbanWinScroll,
+    kanbanWrapRef, kanbanGhostL, kanbanGhostR, setKanbanDragCol, onKanbanWinScroll,
   }
 }
 

@@ -3197,13 +3197,13 @@ check('R112-9 ★ 切台零重算：workspaceId 离开 /workspace 时保持上�
     && w.includes("watch(() => route.params.id, (id) => { if (typeof id === 'string' && id) lastWsId.value = id }, { immediate: true })")
     && w.includes("return (typeof id === 'string' && id) ? id : lastWsId.value");
 });
-check('R112-10 ★ 切台热度落盘节流：改为 4s 合并落盘 + 页面隐藏/卸载补写（原实现每次切台立即 persist 整树 JSON）', () => {
-  const w = read('/newtab/views/Workspace.vue');
+check('R112-10 ★ 切台热度落盘节流（R173-T2 重指备案：4s 后由 persist() 整库改 persistHot() 小载荷——真库每次进台省 49~84ms 整库序列化；热度键帧扩 ws；页隐藏补写 persistHot(true) 跳防抖）', () => {
+  const w = read('/newtab/views/Workspace.vue'); const h = read('/shared/storage/hotStats.ts');
   return w.includes('function scheduleWsOpenPersist()')
-    && w.includes('wsOpenPersistTimer = setTimeout(() => { wsOpenPersistTimer = null; store.persist() }, 4000)')
-    && w.includes('function flushWsOpenPersist()')
-    && w.includes("document.addEventListener('visibilitychange', onWsOpenVisibility)")
-    && !w.includes('if (ws) { recordWorkspaceOpen(d.value, ws); store.persist() }');
+    && w.includes('wsOpenPersistTimer = setTimeout(() => { wsOpenPersistTimer = null; store.persistHot() }, 4000)')
+    && w.includes('function flushWsOpenPersist()') && w.includes('store.persistHot(true) }')
+    && h.includes('ws?: Record<string, [number, number]>') && h.includes('writeHot(d: AppData, immediate?: boolean)')
+    && w.includes("document.addEventListener('visibilitychange', onWsOpenVisibility)") && !w.includes('if (ws) { recordWorkspaceOpen(d.value, ws); store.persist() }');
 });
 check('R112-11 ★ perf 脚本漂移修复：tab-overflow 过滤 + 策展台切台改用 PERF0 定位（原「策展台」前缀误命中溢出指示「≪ N」，打满 15s 超时被误读为「慢」）', () => {
   const p = read('/../scripts/perf.cjs');
@@ -3911,8 +3911,8 @@ check('R148-1 ★热度统计拆独立键（单击卡片不再重写整库）：
   const st = read('/shared/storage/stats.ts'); const app = read('/newtab/stores/app.ts'); const gs = read('/newtab/views/GlobalSettings.vue')
   return HOT148.includes('export const HOT_KEY = K.STATS') && HOT148.includes('export function applyHot') && HOT148.includes('export function clearHot')
     && REPO148.includes('cs.get([STORAGE_KEY, HOT_KEY])') && REPO148.includes('if (hot) applyHot(data, hot)') && REPO148.includes('data.hotStatsSplitAt')
-    && (REPO148.match(/writeHot\(/g) || []).length >= 1 && (REPO148.match(/extractHot\(cache!?\)/g) || []).length === 2 && app.includes('function persistHot()')
-    && (read('/newtab/composables/useResourceDrawer.ts').includes('persistHot') && read('/newtab/components/GlobalPopups.vue').includes('persistHot')) && gs.includes('clearHot()')
+    && (REPO148.match(/writeHot\(/g) || []).length >= 1 && (REPO148.match(/extractHot\(cache!?\)/g) || []).length === 2 && app.includes('function persistHot(immediate?: boolean)') /* R173-T2：签名扩 immediate（页隐藏补写跳防抖） */
+    && (read('/newtab/composables/useResourceDrawer.ts').includes('persistHot') && read('/newtab/components/GlobalPopups.vue').includes('persistHot')) && gs.includes('clearHot()') && !/recordWorkspaceOpen\([\s\S]{0,120}?store\.persist\(\)/.test(read('/newtab/components/GlobalPopups.vue')) /* R173-T3：两处台跳转（locateCat / ws 条目）只动 ws 热度，改走 persistHot 小载荷——再出现整库 persist() 即红 */
     && !st.includes('TODO')
 });
 check('R148-2 内存脏计数取代"写盘成功才自增"的 dataVersion 作派生缓存依据（防抖窗口内读到旧索引这条隐患一并堵）', () => {
@@ -4715,7 +4715,7 @@ check('R164-5 ★依赖纪律：pinyin-pro 不进 dependencies（生成器专用
 check('R164-6 ★生成物防腐化二期：pinyinTable.ts 漂移即红（--check 与代码索引同法，含 CRLF 归一化；R169-EB：实跑通道改 runGateSync，判据不变）', () => { const g = read('/../scripts/gen-pinyin-table.cjs'); if (!(g.includes('--check') && g.includes('已漂移'))) return false; const r = runGateSync(path.resolve(__dirname, '..', 'scripts', 'gen-pinyin-table.cjs'), ['--check']); return r.status === 0; });
 check('R164-7 A1 触发门禁（记录型）：写盘 >50ms 或主数据 >2MB → perf 提示「启动分域评估」（ADR-02 复审条件量化）', () => { const p = read('/../scripts/perf.cjs'); return p.includes('分域评估') && p.includes('a1M6b > 50') && p.includes('a1Kb > 2048') && p.includes("A1_分域评估触发"); });
 check('R164-8 M3 改名「合成压力测试」：不再冒充用户体感口径（真实路径走 --real）', () => { const p = read('/../scripts/perf.cjs'); return p.includes('M3_合成压力测试_交互期长任务总计(ms)') && p.includes('用户体感口径 = M14 + 掉帧'); });
-check('R164-9 ★perf --real 真实路径模式在位：R1~R7 指标（冷启动/冷挂/单击/视图/滚动/真库 M14/搜索）+ 报告 scale=real', () => { const p = read('/../scripts/perf.cjs'); return p.includes('--real=') && p.includes('R1_冷启动_首页可交互(ms)') && p.includes('R2_冷挂资源台_墙钟(ms)') && p.includes('R3_单击开详情_同步ms') && p.includes('R5_滚动掉帧数') && p.includes('R6_真库首屏可见节点') && p.includes('R7_全局搜索键入6字净耗时(ms)') && p.includes("out.scale = 'real'"); });
+check('R164-9 ★perf --real 真实路径模式在位：R1~R7 指标（冷启动/冷挂/单击/视图/滚动/真库 M14/搜索）+ 报告 scale=real（R173-T2 重指备案：R3 由「click() 同步段 0.4ms」改「点击→抽屉出现」墙钟口径 + __openDetailWall）', () => { const p = read('/../scripts/perf.cjs'); return p.includes('--real=') && p.includes('R1_冷启动_首页可交互(ms)') && p.includes('R2_冷挂资源台_墙钟(ms)') && p.includes('__openDetailWall') && p.includes('R3_开详情_点击到抽屉ms') && p.includes('R5_滚动掉帧数') && p.includes('R6_真库首屏可见节点') && p.includes('R7_全局搜索键入6字净耗时(ms)') && p.includes("out.scale = 'real'"); });
 
 // ============== R165-A · 三卡详情页重设计（方案 A 标准落地：AI 进标题行三态 / 页脚两钮 / 动作贴对象） ==============
 console.log('【R165-A · 三卡详情重设计（方案 A）】');
@@ -5148,12 +5148,12 @@ check('R169-23 老账① 分类自绘选择器：ResourceEditForm 分类不再�
     && cp.includes("e.key === 'Escape'") && cp.includes("e.key === 'ArrowDown'") && cp.includes("e.key === 'Enter'")
     && cp.includes('useOverlayTarget');
 });
-check('R169-24 老账② 看板列窗口化：列数 > 60 只渲染窗口内列（R168 §七"列数继续涨时只渲染可见列"）——KANBAN_COL_WINDOW=60 + 横向滚近右缘自动扩窗 + 列尾显式入口；真库 33 列 ⇒ 行为零变化，护栏针对分类爆炸未来态', () => {
-  const v = codeOnly(read('/newtab/composables/useResourceView.ts'));
-  const w = codeOnly(read('/newtab/views/Workspace.vue'));
-  return v.includes('const KANBAN_COL_WINDOW = 60') && v.includes('kanbanCategories.value.slice(0, kanbanColWin.value)')
-    && v.includes('function kanbanMoreCols()') && v.includes('function onKanbanWinScroll(') && v.includes('scrollWidth - el.scrollLeft - el.clientWidth < 480')
-    && w.includes('class="kanban" @scroll="onKanbanWinScroll"') && w.includes('v-if="kanbanWinMore"') && w.includes('@click="kanbanMoreCols"');
+check('R173-T1（R169-24 重指带备案；R173-T3 收口带备案）★ 看板列窗口化改**视口驱动**：R169 原口径「列数 > 60 才裁剪」在真库 50 台 / 33 列（48 个资源台）下永不触发、等于没做——R172 实测切看板仍 +1143 节点 / 阻塞 249ms。现口径：窗口 = 滚动位置 ± KANBAN_COL_BUFFER，窗口外两侧渲染等宽 ghost 占位（1 节点/列）保横向几何、scrollWidth 不随窗口漂移；拖拽源列由 setKanbanDragCol 钉住（源节点中途被摘 ⇒ dragend 可能不触发、dragState/dropMark 残留）。★空哨兵必须 null：「待分类」列 key 就是 \'\'，用 \'\' 表空闲会恒命中最后一列（实测 hi 恒 = n-1、窗口右缘收不回、切看板仍全量 23 列）。R173-T3 收口：窗口化的代价是「目标列不在窗外 ⇒ kc-card 节点根本不渲染」——kc-card 补 data-rid+flash、定位时 .kanban 先横滚到目标列（scrollLeft → measureKanbanWin）再抬列内限额。★备案：T3 另查过「检索面板独立合成层（.gp-panel will-change）」提案，真包 A/B 与顺序平衡变体轮转均无可复现收益（早前 lpanel=0 系顺序混淆），已撤下不入包，账见 docs/交付说明_R173-T_性能主线四刀.md', () => {
+  const v = codeOnly(read('/newtab/composables/useResourceView.ts')); const w = codeOnly(read('/newtab/views/Workspace.vue')); const css = read('/newtab/views/workspace.css');
+  return v.includes('const KANBAN_COL_PITCH = 274') && v.includes('const KANBAN_COL_BUFFER = 2') && v.includes('Math.floor(el.scrollLeft / KANBAN_COL_PITCH) - KANBAN_COL_BUFFER') && v.includes('const kanbanDragKey = ref<string | null>(null)') && v.includes('kanbanDragKey.value === null ? -1 :') && v.includes('function setKanbanDragCol(') && v.includes('function measureKanbanWin(') && v.includes('onActivated(onKanbanWinResize)') && v.includes('wrap.scrollLeft = Math.max(0, (ci - KANBAN_COL_BUFFER) * KANBAN_COL_PITCH)') /* R173-T3：目标列先入窗（否则节点不渲染、定位静默落空） */
+    && w.includes('class="kanban" ref="kanbanWrapRef" @scroll="onKanbanWinScroll"') && w.includes('v-for="g in kanbanGhostL"') && w.includes('v-for="g in kanbanGhostR"') && w.includes('setKanbanDragCol(r.categoryId') && w.includes('setKanbanDragCol(null)')
+    && w.includes('flash: highlightId===r.id, \'drop-line-t\'') /* R173-T3：kc-card 接 flash */ && w.includes(':data-rid="r.id" :draggable="!batchMode" @dragstart="onDragStart($event,r); setKanbanDragCol(') /* R173-T3：kc-card 补 data-rid（e2e 早就按这个选择器取卡） */ && css.includes('.res-card.flash, .res-row.flash, .kc-card.flash') /* R173-T3 */
+    && !w.includes('kanbanWinMore') && !css.includes('.kc-col-more') && css.includes('.kanban-col.kc-ghost');
 });
 check('R169-25 老账③ 抽屉两代容器合并：Workspace 自绘 .drawer 退役、资源详情抽屉走共享 Drawer.vue 壳（Teleport/Esc/遮罩/进出场/reduced-motion 单源）；壳带 bodyClass prop 承载镜像只读态；workspace.css 零 .dr-head/.dr-close/.drawer{ 残留（.dr-footer-btn 家族因弹窗复用而保留，见交付说明）★备案：本条对 Workspace.vue 用裸读不用 codeOnly——模板 accept="image/*," 的 /* 会被注释剥离吞掉后续代码（R169 实踩）', () => {
   const w = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8').replace(/\r\n/g, '\n');

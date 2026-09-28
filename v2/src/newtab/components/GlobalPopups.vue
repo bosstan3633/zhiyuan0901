@@ -838,7 +838,8 @@ function wsNameOf(id: string): string {
 /** R49-G3：点击分类 → 定位策展台该分类（有卡=高亮第一张；无卡=高亮分类行） */
 function locateCat(wsId: string, cat: { id: string; name: string }) {
   recordWorkspaceOpen(d.value, d.value.workspaces.find(w => w.id === wsId))
-  store.persist()
+  // R173-T3：只动台热度（ws 段在热度键载荷里）——整库写盘留给真改数据的动作
+  store.persistHot()
   closeAll()
   router.push({ path: `/workspace/${wsId}`, query: { cat: cat.id } })
   showToast(`↗ 定位到「${cat.name}」`)
@@ -1372,7 +1373,8 @@ function openItem(item: SearchResult) {
   if (item.type === 'ws') {
     // 第卅二轮 REQ-008：策展台条目 → 直接打开对应策展台
     recordWorkspaceOpen(d.value, d.value.workspaces.find(w => w.id === item.id))
-    store.persist()
+    // R173-T3：同上——台热度走热度键小载荷，不重写整库
+    store.persistHot()
     router.push(`/workspace/${item.id}`)
     closeAll()
     return

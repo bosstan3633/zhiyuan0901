@@ -280,8 +280,8 @@
 .render-more { margin: 16px 0 4px; padding: 10px 0; text-align: center; font-size: var(--fs-sub); color: var(--text-3); border: 1px dashed var(--border-strong); border-radius: 8px; cursor: pointer; transition: all var(--dur); }
 .render-more:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
 
-/* 采集跳转高亮（2秒渐隐） */
-.res-card.flash, .res-row.flash { animation: rc-flash 2s ease-out; }
+/* 采集跳转高亮（2秒渐隐） · R173-T3：看板 kc-card 此前没接 flash（定位到看板时既不滚也不亮） */
+.res-card.flash, .res-row.flash, .kc-card.flash { animation: rc-flash 2s ease-out; }
 .cat-item.flash { animation: rc-flash 2s ease-out; }
 @keyframes rc-flash {
   0% { box-shadow: 0 0 0 3px var(--accent), 0 4px 20px color-mix(in srgb, var(--accent) 35%, transparent); background: var(--accent-light); }
@@ -329,6 +329,8 @@
 /* 看板视图 */
 .kanban { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 10px; min-height: 400px; }
 .kanban-col { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; width: 260px; flex-shrink: 0; display: flex; flex-direction: column; max-height: calc(100vh - 340px); }
+/* R173-T1：窗口外列的 ghost 占位——等宽同高但透明空壳（只保横向几何与滚动条，1 节点/列） */
+.kanban-col.kc-ghost { background: transparent; border-color: transparent; }
 .kc-header { position: sticky; top: 0; z-index: 1; background: var(--surface-2); padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .kc-name { font-size: var(--fs-sub); font-weight: 600; color: var(--text); }
 .kc-count { font-size: var(--fs-tiny); background: var(--surface); color: var(--text-3); padding: 1px 7px; border-radius: 99px; }
@@ -338,9 +340,6 @@
 /* R116：看板列增量渲染——列底显式「显示更多」入口（与卡片/列表 R112 同构） */
 .kc-more { text-align: center; padding: 8px 0 4px; font-size: var(--fs-sub); color: var(--accent); cursor: pointer; user-select: none; }
 .kc-more:hover { text-decoration: underline; }
-/* R169-老账②：列窗口续载入口（列数 > 60 时出现在列尾，与 .kc-more 同语言） */
-.kc-col-more { flex: 0 0 220px; align-self: stretch; display: flex; align-items: center; justify-content: center; padding: 12px; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); font-size: var(--fs-sub); color: var(--accent); cursor: pointer; user-select: none; }
-.kc-col-more:hover { border-color: var(--accent); background: var(--surface-2); }
 .kc-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .kc-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
 /* R79（R1-看）：position: relative 为 hover 动作条的绝对定位提供参照（插入线走 box-shadow: inset，不受影响） */

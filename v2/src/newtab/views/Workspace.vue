@@ -472,8 +472,10 @@
         </div>
 
         <!-- 看板视图 -->
-        <!-- R169-老账②：列窗口化——列数 > 60 时只渲染窗口内列；横向滚近右缘自动扩窗 + 列尾显式入口 -->
-        <div v-if="viewMode==='kanban'" class="kanban" @scroll="onKanbanWinScroll">
+        <!-- R173-T1：列窗口化改视口驱动——只渲染滚动位置 ± 缓冲内的列，窗口外两侧用等宽 ghost 占位保几何 -->
+        <div v-if="viewMode==='kanban'" class="kanban" ref="kanbanWrapRef" @scroll="onKanbanWinScroll">
+          <!-- R173-T1：窗口外左侧占位列（1 节点/列，透明空壳——滚到即原位换真列） -->
+          <div v-for="g in kanbanGhostL" :key="'kgl' + g" class="kanban-col kc-ghost"></div>
           <div v-for="cat in kanbanColumns" :key="cat.key" class="kanban-col"
             @dragover.prevent @drop="onDropToCategory($event,cat.key)">
             <div class="kc-header">
@@ -483,8 +485,8 @@
             </div>
             <!-- R116 性能：列体增量渲染——滚动近底自动追加（与卡片/列表 R112 同构） -->
             <div class="kc-body" @scroll="onKanbanColScroll($event, cat.key)">
-              <div v-for="r in cat.items" :key="r.id" class="kc-card" :class="{pinned: r.pinned, 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
-                :draggable="!batchMode" @dragstart="onDragStart($event,r)" @dragover.prevent.stop="markDrop($event, r.id, 'y')" @dragend="clearDragState" @dragleave="clearDropMark" @drop.stop="onKanbanCardDrop($event, r)" @click="onCardClick(r)" @dblclick="onCardDblClick(r)">
+              <div v-for="r in cat.items" :key="r.id" class="kc-card" :class="{pinned: r.pinned, flash: highlightId===r.id, 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
+                :data-rid="r.id" :draggable="!batchMode" @dragstart="onDragStart($event,r); setKanbanDragCol(r.categoryId || '')" @dragover.prevent.stop="markDrop($event, r.id, 'y')" @dragend="clearDragState(); setKanbanDragCol(null)" @dragleave="clearDropMark" @drop.stop="onKanbanCardDrop($event, r)" @click="onCardClick(r)" @dblclick="onCardDblClick(r)">
                 <!-- R79（R1-看）：看板此前只有 🗑 删除 + 只读星标，动作条与卡片/列表视图严重不齐 -->
                 <div class="kc-actions">
                   <span class="kc-action open" @click.stop="openResourceLink(r)" title="打开链接（无链接则提示补全）">↗</span>
@@ -518,10 +520,8 @@
               <div v-if="cat.hiddenCount > 0" class="kc-more" @click="kanbanMore(cat.key)">显示更多 {{ cat.hiddenCount }} 张</div>
             </div>
           </div>
-          <!-- R169-老账②：列窗口续载显式入口（与列内「显示更多」同语言，键盘/触屏可达） -->
-          <div v-if="kanbanWinMore" class="kc-col-more" @click="kanbanMoreCols">
-            📂 显示更多分类（还有 {{ kanbanCategories.length - kanbanColWin }} 列未渲染）
-          </div>
+          <!-- R173-T1：窗口外右侧占位列（同上；两侧合起来保住 scrollWidth，滚动位置不因窗口漂移而跳） -->
+          <div v-for="g in kanbanGhostR" :key="'kgr' + g" class="kanban-col kc-ghost"></div>
         </div>
 
         <!-- ===== R62-5：金字塔视图（L1 中心论点根 + 分类树逐层铺开 + 卡片拖换节点）；R64-F11 SVG 结构连线 ===== -->
@@ -1089,15 +1089,17 @@ function openThesisCreate() {
 // R47-B4：进入/切换策展台 = 一次「调用」，计入热度（全局检索无输入时策展台参与热度排序）
 // R112 性能：**落盘节流**。原实现每次切台立即 store.persist()，300ms 防抖后同步执行整树
 // JSON.stringify + JSON.parse（medium 规模 ~800 卡 / 100 分类）——切台窗口长任务的来源之一。
-// 热度是统计信息：内存态即时更新已保证本会话 UI 正确，落盘合并到 4s 后；
-// 页面隐藏 / 组件卸载时补一次，避免「切台后立刻关页」丢数据。
+// R173-T2（用户拍板 a）：4s 后那笔从 **persist() 整库** 改走 **persistHot() 小载荷**——进台只改
+// workspaces[].callCount/lastCalledAt 两个字段，真库实测整库序列化要 49~84ms（每次进台都付），
+// 而热度键帧已扩 ws（hotStats.ts）。页面隐藏/卸载补写走 persistHot(true)：补写必须跳过防抖——
+// 250ms 定时器会随页面一起被冻结/销毁，这正是原 flush 存在的意义。
 let wsOpenPersistTimer: ReturnType<typeof setTimeout> | null = null
 function scheduleWsOpenPersist() {
   if (wsOpenPersistTimer) clearTimeout(wsOpenPersistTimer)
-  wsOpenPersistTimer = setTimeout(() => { wsOpenPersistTimer = null; store.persist() }, 4000)
+  wsOpenPersistTimer = setTimeout(() => { wsOpenPersistTimer = null; store.persistHot() }, 4000)
 }
 function flushWsOpenPersist() {
-  if (wsOpenPersistTimer) { clearTimeout(wsOpenPersistTimer); wsOpenPersistTimer = null; store.persist() }
+  if (wsOpenPersistTimer) { clearTimeout(wsOpenPersistTimer); wsOpenPersistTimer = null; store.persistHot(true) }
 }
 function onWsOpenVisibility() { if (document.visibilityState === 'hidden') flushWsOpenPersist() }
 watch(workspaceId, (id) => {
@@ -1260,7 +1262,7 @@ const {
   onContentScroll, renderMore, ensureCardRendered, groupChildCount,
   kanbanCategories, resourcesByCategory, kanbanColumns,
   kanbanMore, onKanbanColScroll, lastUpdateTime, assetKindBreakdown, quickFilter,
-  kanbanWinMore, kanbanMoreCols, onKanbanWinScroll, kanbanColWin,
+  kanbanGhostL, kanbanGhostR, setKanbanDragCol, onKanbanWinScroll, kanbanWrapRef,
 } = useResourceView({
   store, d, workspaceId, allResources, metrics, thesisCard, categories, wsCats, catIdx, resBucket,
   rootCats, childCatsOf, familyIds, isUncat,
