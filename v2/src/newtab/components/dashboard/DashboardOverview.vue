@@ -102,7 +102,8 @@ const fmtPct = (p: number | null): string => (p === null ? '—' : `${p >= 0 ? '
 </script>
 
 <template>
-  <section class="dz-sec" :class="{ 'dz-tip-open': tipOn }">
+  <!-- R174-4：dz-sec-ov = 压缩版式（单行矮 chip + 紧行），热力图升首屏焦点（04-69 拍板 A） -->
+  <section class="dz-sec dz-sec-ov" :class="{ 'dz-tip-open': tipOn }">
     <div class="dz-sec-h">
       <span class="dz-n">1</span><span class="dz-t">概览带</span><span class="dz-en">OVERVIEW</span>
       <span class="dz-sp"></span>
@@ -116,14 +117,12 @@ const fmtPct = (p: number | null): string => (p === null ? '—' : `${p >= 0 ? '
         <div class="dz-ov-stock">
           <button v-for="c in chips" :key="c.k" class="dz-chip" :class="{ bind: !!selDay }"
             :title="`点击查看${c.k}明细`" @click="emit('open-cards', c.kind)">
-            <div class="k">{{ c.k }}</div>
-            <div class="v">{{ c.v.toLocaleString() }}</div>
-            <div class="dl">
+            <span class="k">{{ c.k }}</span><b class="v">{{ c.v.toLocaleString() }}</b><span class="dl">
               <template v-if="c.dv === null">—</template>
               <template v-else-if="c.dv === 0">±0</template>
               <template v-else-if="c.dv > 0"><span class="up">+{{ c.dv }}</span></template>
               <template v-else><span class="dn">{{ c.dv }}</span></template>
-            </div>
+            </span>
           </button>
         </div>
 

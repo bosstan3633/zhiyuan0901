@@ -23,21 +23,30 @@
 .dz-btn.ghost { background: transparent; }
 .dz-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
-.dz-ov { display: flex; gap: var(--sp-4); align-items: stretch; flex-wrap: wrap; }
+.dz-ov { display: flex; gap: var(--sp-3); align-items: stretch; flex-wrap: wrap; }
 .dz-ov-stock { display: flex; gap: var(--sp-1); flex-wrap: wrap; flex: 1; min-width: 0; }
-.dz-chip { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 6px 10px; background: var(--surface-2); min-width: 96px; text-align: left; cursor: pointer; transition: border-color var(--dur-fast); }
+/* R174-4：chip 压成单行矮条（label + 数字 + 增减同行）——概览带总高 ≤ 改前 50%，首屏让位热力图（04-69 拍板 A） */
+.dz-chip { display: flex; align-items: baseline; gap: 5px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 3px 10px; background: var(--surface-2); min-width: 0; text-align: left; cursor: pointer; transition: border-color var(--dur-fast); }
 .dz-chip:hover { border-color: var(--accent); }
 .dz-chip .k { font-size: var(--fs-micro); color: var(--text-3); white-space: nowrap; }
-.dz-chip .v { font-size: var(--fs-headline); font-weight: 700; line-height: 1.15; margin-top: 1px; }
+.dz-chip .v { font-size: var(--fs-headline); font-weight: 700; line-height: 1.15; }
 .dz-chip .v small { font-size: var(--fs-caption); font-weight: 500; color: var(--text-3); margin-left: 3px; }
-.dz-chip .dl { font-size: var(--fs-micro); margin-top: 1px; color: var(--text-3); }
+.dz-chip .dl { font-size: var(--fs-micro); color: var(--text-3); }
 .dz-chip .dl .up { color: var(--success); font-weight: 700; }
 .dz-chip .dl .dn { color: var(--danger); font-weight: 700; }
 .dz-chip.bind { border-color: var(--heat-ring); box-shadow: 0 0 0 1px var(--heat-ring) inset; }
+/* R174-4：概览带专段压缩——页头/正文内边距降档、行距收紧、药丸去边框（其余段不受影响）；
+   探针实测：188px → 94px 内（1280 档，见交付说明记账） */
+.dz-sec-ov .dz-sec-h { padding: 3px var(--sp-4); }
+.dz-sec-ov .dz-sec-b { padding: var(--sp-1) var(--sp-4) var(--sp-2); }
+.dz-sec-ov .dz-ov { gap: var(--sp-1) var(--sp-3); }
+.dz-sec-ov .dz-chip { padding: 1px 9px; }
+.dz-sec-ov .dz-ov-meta .pill { border-color: transparent; padding: 1px 6px; }
+.dz-sec-ov .dz-ov-meta { margin-top: 0; line-height: 1.4; }
 .dz-ov-say { flex: none; width: 100%; border-top: 1px dashed var(--border); margin-top: var(--sp-2); padding-top: var(--sp-2); font-size: var(--fs-sub); color: var(--text-2); line-height: 1.8; }
 .dz-ov-say b { color: var(--text); font-weight: 700; }
 .dz-ov-say .hl { color: var(--heat-ink); font-weight: 700; }
-.dz-ov-meta { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; flex: 1 1 100%; position: relative; margin-top: var(--sp-2); font-size: var(--fs-caption); color: var(--text-3); }
+.dz-ov-meta { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; flex: 1 1 100%; position: relative; margin-top: 2px; font-size: var(--fs-caption); color: var(--text-3); }
 .dz-ov-meta .pill { border: 1px solid var(--border); border-radius: 99px; padding: 2px 9px; }
 .dz-ov-meta .pill .up { color: var(--success); font-weight: 700; }
 .dz-ov-meta .pill .dn { color: var(--danger); font-weight: 700; }
@@ -51,12 +60,13 @@
 .dz-calib .cf { padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--border); font-size: var(--fs-caption); color: var(--text-4); }
 
 /* ================= ② 热力图 ================= */
-.dz-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-3); margin-bottom: var(--sp-4); }
-.dz-sum .c { border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--sp-3); background: var(--surface-2); }
-.dz-sum .k { font-size: var(--fs-caption); color: var(--text-3); }
-.dz-sum .v { font-size: var(--fs-display); font-weight: 700; line-height: 1.15; margin-top: 2px; }
-.dz-sum .v small { font-size: var(--fs-sub); font-weight: 500; color: var(--text-3); margin-left: 4px; }
-.dz-sum .d { font-size: var(--fs-caption); color: var(--text-3); margin-top: 3px; line-height: 1.6; }
+/* R174-5：摘要四卡压单行指标条（说明收进 title tooltip，导出件 kpis 数据源不动）——格子区上移成焦点（04-69 拍板 B） */
+.dz-sum { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.dz-sum .c { display: flex; align-items: baseline; gap: 6px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 3px 10px; background: var(--surface-2); cursor: help; }
+.dz-sum .k { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; }
+.dz-sum .v { font-size: var(--fs-headline); font-weight: 700; line-height: 1.15; }
+.dz-sum .v small { font-size: var(--fs-caption); font-weight: 500; color: var(--text-3); margin-left: 3px; }
+.dz-sum .d { display: none; }
 .dz-sum .d b { color: var(--heat-ink); }
 .dz-months { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--sp-3) 6px; }
 .dz-mb-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }

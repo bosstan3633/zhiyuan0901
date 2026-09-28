@@ -163,11 +163,12 @@ function onExport(fmt: 'csv' | 'md' | 'png'): void {
     </div>
 
     <div class="dz-sec-b">
+      <!-- R174-5：四卡压单行指标条，说明收进 title（数据源 summary 不动——导出三件套 kpis 仍取全量） -->
       <div class="dz-sum">
-        <div v-for="s in summary" :key="s.k" class="c">
-          <div class="k">{{ s.k }}</div>
-          <div class="v">{{ typeof s.v === 'number' ? fmtW(s.v) : s.v }}<small>{{ s.u }}</small></div>
-          <div class="d">{{ s.d }}</div>
+        <div v-for="s in summary" :key="s.k" class="c" :title="s.d">
+          <span class="k">{{ s.k }}</span>
+          <span class="v">{{ typeof s.v === 'number' ? fmtW(s.v) : s.v }}<small>{{ s.u }}</small></span>
+          <span class="d">{{ s.d }}</span>
         </div>
       </div>
 
