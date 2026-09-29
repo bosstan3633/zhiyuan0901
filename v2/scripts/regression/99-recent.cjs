@@ -726,3 +726,17 @@ check('R2-⑧ ★增量渲染上限立住：默认一屏 60 张 + 滚动到底�
     && p.includes('function renderMore()') && p.includes('visibleCount.value = Math.max(visibleCount.value')
     && p.includes('poolCards.value.slice(0, visibleCount.value)')
 });
+
+// ============== R3 收尾 · F38 交互点高亮开关 ==============
+console.log('【R3-F38 · 高亮可交互】');
+check('R3-F38 ★仪表盘「👁 高亮可交互」开关三件齐全：页头工具条按钮 + UIPrefs.dzHl 持久化（saveUIPrefs，不是会话态）+ 面板根挂 dz-hl 类；CSS 走 outline 不占布局（圈出来不该把版面挤动）且色只取令牌', () => {
+  const gs = read('/newtab/views/GlobalSettings.vue'), css = read('/newtab/components/dashboard/dashboard.css'), m = read('/shared/models/index.ts')
+  return gs.includes('👁 高亮可交互') && gs.includes(':class="{ \'dz-hl\': dzHl }"') && gs.includes('saveUIPrefs({ dzHl: dzHl.value })')
+    && m.includes('dzHl?: boolean')
+    && css.includes('.dz-hl :is(') && css.includes('outline: 1px dashed var(--accent)') && css.includes('outline-offset: 1px')
+    && !/\.dz-hl[^{]*\{[^}]*(#[0-9a-fA-F]{3,8}|rgba?\()/.test(css)
+});
+check('R3-F38 ★覆盖判据是硬核的：theme-audit 新增 dz-hl 场景，量「圈出数 == 面板内全部可点元素数」（差一个即红），并当场把开关关回去免得污染后续截图；未来日热力格是 disabled button，按"看得见但点不动"走虚点、不计入漏圈', () => {
+  const a = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8')
+  return a.includes("id: 'dz-hl'") && a.includes('outlined === marked.length') && a.includes('const marked = all.filter(e => !e.disabled)') && a.includes('btn.click()')
+});

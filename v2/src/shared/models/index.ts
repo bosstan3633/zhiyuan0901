@@ -583,6 +583,9 @@ export interface UIPrefs {
   /* R2-⑥：curSplit / spotSplit 两键随「项目调度卡」退役（R2-②）失去全部消费方后删除。
      老库里残留的这两个键不影响读取（UIPrefs 是宽松对象，多余键随写盘原样带回，无人读它）。 */
   dateStr?: string
+  /** R3-F38（04-67）：仪表盘「👁 高亮可交互」开关——开启后所有交互点被虚线圈出，
+   *  用来回答"这一屏我到底能点哪里"（仪表盘交互点多且外观同质，缺这层就靠猜）。 */
+  dzHl?: boolean
   /** 应用内切台快捷键修饰键（O18：五种可选，默认 Alt） */
   wsSwitchMod?: 'ctrl' | 'alt' | 'ctrl-shift' | 'alt-shift' | 'none'
   /** 方向台上次停留的二级页（R49 起仅项目详情/完整方向树；旧值 /compass/actions 由 CompassShell 容错归一） */

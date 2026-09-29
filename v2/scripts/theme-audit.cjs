@@ -219,6 +219,23 @@ const DASH_SCENES = [
       const b = [...document.querySelectorAll('button')].find(x => /复盘/.test(x.textContent))
       return { ok: !!b && !document.querySelector('.dz-rpt'), txt: `入口=${b ? b.textContent.trim().replace(/\s+/g, '') : '无'} 报告未开=${!document.querySelector('.dz-rpt') ? '是' : '否'}` }
     })
+  },
+  {
+    id: 'dz-hl', name: '交互点高亮',
+    /* R3-F38：开关一开，这一屏**每一个**交互点都该被虚线圈出——判据按「圈出数 == 交互点数」硬核，
+       差一个就是漏（漏圈的交互点等于没有这层提示）。量完当场关回去，别把后面场景的截图都画上虚线。 */
+    act: async (page) => { await page.locator('.gs-dash-hl').click().catch(() => {}); await page.waitForTimeout(700) },
+    judge: async (page) => page.evaluate(() => {
+      const on = !!document.querySelector('.gs-panel.dz-hl')
+      const all = [...document.querySelectorAll('.gs-panel button, .gs-panel .dz-kpi, .gs-panel .dz-mcol, .gs-panel .dz-log-row, .gs-panel .dz-rule, .gs-panel .dz-chip')]
+      const dis = all.filter(e => e.disabled)
+      const marked = all.filter(e => !e.disabled)
+      const outlined = marked.filter(e => (getComputedStyle(e).outlineStyle || '').includes('dash')).length
+      /* 未来日的热力格是 disabled button——它不是交互点，用虚点区分"看得见但点不动"，不算漏圈 */
+      const btn = document.querySelector('.gs-dash-hl')
+      if (btn) btn.click()
+      return { ok: on && marked.length > 20 && outlined === marked.length, txt: `开关=${on} 圈出=${outlined}/${marked.length}（禁用格另计 ${dis.length} 走虚点）` }
+    })
   }
 ]
 

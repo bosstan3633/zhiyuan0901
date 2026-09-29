@@ -22,10 +22,13 @@
       <div class="gs-back-btn" @click="router.push('/compass')">← 返回</div>
 
       <!-- ===== 知源仪表盘（第卌四轮 T-03：默认首屏） ===== -->
-      <div v-if="activePage === 'dashboard'" class="gs-panel">
+      <div v-if="activePage === 'dashboard'" class="gs-panel" :class="{ 'dz-hl': dzHl }">
         <div class="gs-page-header">
           <div class="gs-page-title">📊 知源仪表盘 <span class="gs-dash-en">DASHBOARD</span></div>
           <div class="gs-page-desc">数据总览 · 行为有痕 · 复盘有据 —— 这一年我是怎么走的（概览带 · 年度热力图 · 复盘）</div>
+          <!-- R3-F38：交互点高亮开关（工具条位，与页头同排；开启后整面板虚线圈出可点处） -->
+          <button class="gs-dash-hl" :class="{ on: dzHl }" @click="toggleDzHl"
+            :title="dzHl ? '关闭交互点高亮' : '把这一屏所有能点的地方圈出来'">👁 高亮可交互</button>
         </div>
 
         <!-- R172-T5：① 概览带（存量快照 + ★时间绑定 + 人话总结 + 参照系行 + 分数口径表）
@@ -1334,6 +1337,15 @@ import { recordResourceOpen } from '../stores/compass'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
 
 const gd = computed(() => store.data!)
+
+/* R3-F38（04-67）：仪表盘「👁 高亮可交互」开关。
+   仪表盘一屏里热力格 / KPI / 规则行 / 下钻卡 / chip 外观高度同质，光看界面分不清哪些能点——
+   这个开关把所有交互点用虚线圈出来，用来回答"这一屏我到底能点哪里"。偏好持久化在 UIPrefs.dzHl。 */
+const dzHl = ref<boolean>(store.ui?.dzHl === true)
+function toggleDzHl() {
+  dzHl.value = !dzHl.value
+  saveUIPrefs({ dzHl: dzHl.value })
+}
 const gResLive = computed(() => gd.value.resources.filter(r => !r.deletedAt))
 const gTaskLive = computed(() => gd.value.tasks.filter(t => !t.deletedAt))
 const gCurioLive = computed(() => gd.value.curiosities.filter(c => !c.deletedAt))
@@ -3166,7 +3178,11 @@ const activeManualSec = ref('quick-1')
 
 /* 右侧内容 */
 .gs-content { flex: 1; min-width: 0; max-width: 1100px; padding: 24px 32px; overflow-y: auto; } /* R155-①：容器放到 1440 后右栏会到 1230px，表单强行拉满则单行过长 → 内容列限宽 1100 */
-.gs-page-header { margin-bottom: 22px; }
+.gs-page-header { margin-bottom: 22px; position: relative; }
+/* R3-F38：交互点高亮开关（工具条位） */
+.gs-dash-hl { position: absolute; right: 0; top: 0; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); font-weight: 600; border-radius: var(--radius-sm); padding: 5px 12px; cursor: pointer; font-family: inherit; transition: all var(--dur); }
+.gs-dash-hl:hover { border-color: var(--accent); color: var(--accent); }
+.gs-dash-hl.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
 .gs-page-title { font-size: 18px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
 .gs-page-desc { font-size: var(--fs-sub); color: var(--text-3); margin-top: 4px; }
 

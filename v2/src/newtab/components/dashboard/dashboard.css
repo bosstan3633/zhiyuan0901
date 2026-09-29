@@ -325,3 +325,14 @@
 .dz-rpt-ctl select, .dz-rpt-ctl .dir { font-family: inherit; font-size: var(--fs-sub); color: var(--text); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 4px 8px; }
 .dz-rpt-ctl .dir { flex: 1; min-width: 180px; }
 .dz-rpt-ctl select:focus, .dz-rpt-ctl .dir:focus { outline: none; border-color: var(--accent); box-shadow: var(--shadow-focus); }
+
+/* ===== R3-F38：👁 高亮可交互 —— 把这一屏所有能点的地方圈出来 =====
+   判据不是"看起来像按钮"，而是**真的是交互点**：原生可交互元素 + 仪表盘里用 div 挂 @click 的那批。
+   虚线用 accent 令牌（四主题各自取色），outline 不占布局——圈出来不该把版面挤动。 */
+.dz-hl :is(button, a, input, select, textarea, summary, [role="button"], [tabindex]:not([tabindex="-1"]),
+  .dz-kpi, .dz-mcol, .dz-log-row, .dz-rule, .dz-chip, .dz-calib, .dz-drill-h, .dz-drill .dz-row,
+  .dz-ov-card, .dz-entry, .dz-hintline, .dz-drill-card) {
+  outline: 1px dashed var(--accent);
+  outline-offset: 1px;
+}
+.dz-hl :is(button[disabled], .dz-cell[disabled]) { outline-style: dotted; outline-color: var(--border-strong); }
