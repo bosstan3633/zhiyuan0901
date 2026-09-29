@@ -26,6 +26,7 @@
  *   E2E-24 R167 镜像只读详情边界（标题 readonly / AI 行不给入口 / 页脚两钮是定位）
  *   E2E-25 R174-3 按日快照落盘（读合并：老日子不褪色 / 写链路：保存→pagehide→days 出现今天）
  *   E2E-26 R2-④⑤ K 定位改靶「资源卡池」（tab 激活 + 目标卡高亮）+ 打开池卡详情记一次「调出」事件
+ *   E2E-27 R2-⑧ 池控制行：新建单卡入池 → 批量全选打标签 → 批量软删进回收站
  */
 const path = require('path')
 const fs = require('fs')
@@ -870,6 +871,60 @@ async function main() {
   report('E2E-26 ★R2-④⑤ ⌘K 定位改靶「资源卡池」（tab 激活 + 目标卡高亮）+ 打开详情记一次调出（热度键与事件日志双落盘）',
     poolTabOn && hlCount === 1 && hlFlash && drawerTitle.includes('E2E 池卡定位') && callEv.n > 0 && !!callEv.hotEntry,
     `池tab=${poolTabOn} 目标卡=${hlCount} 高亮=${hlFlash} 抽屉="${drawerTitle.slice(0, 18)}" call事件=${callEv.n}(${callEv.kind}) 热度=${JSON.stringify(callEv.hotEntry)}`)
+
+  // E2E-27（R2-⑧）：池管理面控制行——新建单卡 → 批量打标签 → 批量软删（三步都走真实点击）
+  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+  const countBefore = await page.locator('.pcp-card').count()
+  await page.getByText('＋ 新建卡').first().click().catch(() => {})
+  await page.waitForTimeout(500)
+  const popOn = await page.locator('.pcp-pop').count()
+  const popInputs = page.locator('.pcp-pop input')
+  await popInputs.nth(0).fill('E2E 新建池卡').catch(() => {})
+  await popInputs.nth(1).fill('https://example.com/new').catch(() => {})
+  await popInputs.nth(2).fill('E2E 标签甲').catch(() => {})
+  await page.getByText('存入卡池').first().click().catch(() => {})
+  await page.waitForTimeout(900)
+  const newCard = page.locator('.pcp-card', { hasText: 'E2E 新建池卡' }).first()
+  const newCardOn = await newCard.isVisible().catch(() => false)
+  const countAfterNew = await page.locator('.pcp-card').count()
+  // 批量：进批量态 → 全选 → 加标签 → 应用
+  await page.getByText('批量').first().click().catch(() => {})
+  await page.waitForTimeout(400)
+  const batchBarOn = await page.locator('.pcp-batch').isVisible().catch(() => false)
+  await page.getByText('全选本池').first().click().catch(() => {})
+  await page.waitForTimeout(400)
+  await page.locator('.pcp-tagin').fill('E2E 批量标签').catch(() => {})
+  await page.getByText('应用标签').first().click().catch(() => {})
+  await page.waitForTimeout(900)
+  const tagged = await page.evaluate(() => {
+    const app = document.querySelector('#app').__vue_app__
+    const prov = app && app._context && app._context.provides
+    let pinia = null
+    for (const k of Object.getOwnPropertySymbols(prov || {})) { const v = prov[k]; if (v && v._s && v.state) pinia = v }
+    const st = pinia && pinia._s.get('app')
+    const c = st && (st.data.resources || []).find(x => x.title === 'E2E 新建池卡' && !x.deletedAt)
+    return { found: !!c, tags: c ? c.tags : [], ws: c ? c.workspaceId : '' }
+  })
+  // 批量软删：删完这张卡应当从台面消失，且带 deletedAt（回收站族）
+  await page.getByText('🗑 删除（进回收站）').first().click().catch(() => {})
+  await page.waitForTimeout(900)
+  const goneAfterBatch = (await page.locator('.pcp-card', { hasText: 'E2E 新建池卡' }).count()) === 0
+  const softDeleted = await page.evaluate(() => {
+    const app = document.querySelector('#app').__vue_app__
+    const prov = app && app._context && app._context.provides
+    let pinia = null
+    for (const k of Object.getOwnPropertySymbols(prov || {})) { const v = prov[k]; if (v && v._s && v.state) pinia = v }
+    const st = pinia && pinia._s.get('app')
+    const c = st && (st.data.resources || []).find(x => x.title === 'E2E 新建池卡')
+    return !!(c && c.deletedAt)
+  })
+  report('E2E-27 ★R2-⑧ 池控制行：新建入池（计数+1）→ 批量全选打标签 → 批量软删进回收站',
+    popOn === 1 && newCardOn && countAfterNew > countBefore && batchBarOn
+    && tagged.found && tagged.ws === 'zy-curation' && (tagged.tags || []).includes('E2E 标签甲') && (tagged.tags || []).includes('E2E 批量标签')
+    && goneAfterBatch && softDeleted,
+    `浮层=${popOn} 新卡上屏=${newCardOn} 计数=${countBefore}→${countAfterNew} 批量条=${batchBarOn} 标签=${JSON.stringify(tagged.tags)} 台=${tagged.ws} 删后端点=${goneAfterBatch} 软删=${softDeleted}`)
 
   await ctx.close()
   const fail = results.filter(r => !r.ok).length

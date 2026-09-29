@@ -701,3 +701,28 @@ check('R2-⑦ ★调出事件不再等整库保存：writeHot 的 set 载荷并�
   const fire = h.slice(h.indexOf('const fire = ()'), h.indexOf('if (immediate) fire()'))
   return fire.includes('takeEventLogPatch()') && fire.includes('[HOT_KEY]: extractHot(d)')
 });
+
+// ============== R2-⑧ 池管理面收编（新建 / 本地导入入口 / 批量 / 增量渲染） ==============
+console.log('【R2-⑧ · 池管理面收编】');
+check('R2-⑧ ★控制行四件套在位且导入口径与旧宿主一致：新建卡 / 导入本地文件（accept 串逐字同 R80-6 那份，选了不支持的类型不会静默吞）/ 批量开关 / 计数', () => {
+  const p = read('/newtab/components/compass/PoolCardsPanel.vue')
+  return p.includes('＋ 新建卡') && p.includes('📥 导入本地文件') && p.includes('function toggleBatch')
+    && p.includes('accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.avif,.ico,.html,.htm,.pdf,application/pdf,text/html"')
+    && p.includes('fileImport()') && p.includes('handleFileImport')
+});
+check('R2-⑧ ★新建仍守池语义不变量：新卡 workspaceId=CURATION_WS_ID + categoryId 留空（标签独任组织，R179 已删分类控件）+ id 走 uid 前缀 rc，绝不再产出台内资源卡', () => {
+  const p = codeOnly(read('/newtab/components/compass/PoolCardsPanel.vue'))
+  return p.includes("workspaceId: CURATION_WS_ID, categoryId: ''") && p.includes("uid('rc')")
+    && p.includes('store.data!.resources.unshift(card)') && !p.includes('workspaceId: workspaceId.value')
+});
+check('R2-⑧ ★批量口径：打标签只加不减（去标签回卡详情，避免面板里做出第二套标签编辑）· 批量删除走软删带撤销不弹确认（与单卡/全站一致）', () => {
+  const p = read('/newtab/components/compass/PoolCardsPanel.vue')
+  return p.includes('Array.from(new Set([...(r.tags || []), t]))') && p.includes('只加不减')
+    && p.includes('r.deletedAt = now') && p.includes("label: '撤销'") && !p.includes('useConfirm')
+});
+check('R2-⑧ ★增量渲染上限立住：默认一屏 60 张 + 滚动到底自动追加（IntersectionObserver rootMargin 240px）+ 手动「加载更多」兜底；?hl 定位会先把目标卡纳入渲染范围（否则分页之外滚不到）', () => {
+  const p = read('/newtab/components/compass/PoolCardsPanel.vue')
+  return p.includes('const PAGE = 60') && p.includes('new IntersectionObserver') && p.includes("rootMargin: '240px'")
+    && p.includes('function renderMore()') && p.includes('visibleCount.value = Math.max(visibleCount.value')
+    && p.includes('poolCards.value.slice(0, visibleCount.value)')
+});

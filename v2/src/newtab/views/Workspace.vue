@@ -654,9 +654,10 @@
         </div>
         <div class="modal-body">
           <!-- V3.7.0（R179）：hub 导入分支（书签/本地文件）随资源台退役——
-               书签导入唯一路线收敛到 设置→导入数据（文件夹→标签）；本地文件导入迁调度台 3张卡「新建」弹窗。
-               ★parked：下方 bookmarkInput / fileImportInput 与书签文件夹勾选弹窗为保留能力（宿主绑定与链路完整、
-               入口暂缺），待 R2 管理面重落入口；不要按"死代码"删（删了要连带拆 useWorkspaceImport 两条链路）。 -->
+               书签导入唯一路线收敛到 设置→导入数据（文件夹→标签）；
+               ★R2-⑧：本地文件导入入口已按 R179 的既定去向重落到 调度台「资源卡池」控制行
+               （PoolCardsPanel 复用 useWorkspaceImport 同一条链路，workspaceId 钉成池 id），
+               本页不再保留 fileImportInput。bookmarkInput 仍 parked（入口在设置页，链路完整）。 -->
           <div class="modal-option" @click="boardImportInput?.click()">
             <span class="mo-icon">🧩</span>
             <div>
@@ -669,8 +670,6 @@
     </div>
     <input ref="boardImportInput" type="file" accept=".json,application/json" style="display:none" @change="handleBoardImport" />
     <input ref="bookmarkInput" type="file" accept=".html,.htm" style="display:none" @change="handleBookmarkImport" />
-    <!-- R80（R13）：accept 列出支持类型（图片 / HTML / PDF）——改前是裸 multiple，选了 zip/docx 只能导入后才发现被跳过 -->
-    <input ref="fileImportInput" type="file" multiple accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.avif,.ico,.html,.htm,.pdf,application/pdf,text/html" style="display:none" @change="handleFileImport" />
 
     <!-- R1.5：论证节点卡快速创建（台内新建语义 = 论证卡；资源卡经采集入池 / 节点「🔗 关联资源卡」引用） -->
     <div v-if="argOpen" class="modal-overlay open" @click.self="argOpen=false">
@@ -1260,12 +1259,14 @@ const {
 
 // ===== R100（纯拆分第一批）：导入三链路（数据包 / 书签 / 本地文件）拆入 useWorkspaceImport =====
 // 实现原位迁出、零行为变更；标识符经解构保留原绑定——模板与既有断言的入口面不变（04-49 任务书）。
+// ★R2-⑧：本地文件链路（fileImport / handleFileImport / fileImportInput）不再由本页持有——入口重落到
+// 调度台「资源卡池」，实现仍留在 useWorkspaceImport 一条口径（池面板以 workspaceId=池 id 复用）。
 const {
   importModalOpen, boardImportInput,
-  bookmarkInput, fileImportInput, bookmarkModalOpen, bkFolders,
+  bookmarkInput, bookmarkModalOpen, bkFolders,
   allBkChecked, bkTotalCount,
   handleBoardImport, handleBookmarkImport, confirmBookmarkImport, toggleAllBk,
-  fileImport, handleFileImport, makeHubResource
+  makeHubResource
 } = useWorkspaceImport({ d, workspaceId, newCardCatId, persist: () => store.persist() })
 
 // ===== R115 拆分接线：拖拽域（卡片/看板/分类/区域拖拽全量；共享拖拽状态层 dragState）=====

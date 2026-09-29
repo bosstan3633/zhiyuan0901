@@ -182,9 +182,9 @@ check('R80-5 R13 guessAssetKind 抽为共享工具，AssetManager 改 import（�
     && am.includes("from '@/shared/utils/assetKind'") && !am.includes('function guessKind(name: string, mime: string)')
     && read('/newtab/composables/useWorkspaceImport.ts').includes("from '@/shared/utils/assetKind'");
 });
-check('R80-6 R13 导入 input 的 accept 已列支持类型（图片 / HTML / PDF）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  const inp = segOf(w, '<input ref="fileImportInput"', '/>');
+check('R80-6 R13 导入 input 的 accept 已列支持类型（图片 / HTML / PDF）★R2-⑧ 随迁：input 随入口搬到「资源卡池」面板', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const inp = segOf(pool, '<input ref="fileImportInput"', '/>');
   return inp.includes('accept="image/*') && inp.includes('.pdf') && inp.includes('.html');
 });
 check('R80-7 R14 zy-asset:// 三分支齐全：image 走 AssetPreview / html·pdf 走 openHtmlAsset', () => {
