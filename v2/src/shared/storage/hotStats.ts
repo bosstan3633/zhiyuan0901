@@ -20,6 +20,7 @@
  */
 import type { AppData } from '@/shared/models'
 import { K } from '@/shared/storage/keys'
+import { takeEventLogPatch } from '@/shared/utils/eventLog'
 
 export const HOT_KEY = K.STATS
 
@@ -63,7 +64,10 @@ export function extractHot(d: AppData): HotStats {
     const lc = w.lastCalledAt || 0
     if (cc || lc) ws[w.id] = [cc, lc]
   })
-  return { v: 1, t: Date.now(), cards, ws, stats: d.stats || null }
+  /* ★R2-⑦（同 V2.17.1 那条教训）：`d.stats` 是从 **reactive 主树**按引用摘下来的 Proxy，
+     chrome.storage 的结构化克隆吃不下 Vue Proxy（DataCloneError），而两条写路径的失败都被静默 catch
+     吞掉 ⇒ 热度键从来没写成功过。cards/ws 是新建的普通对象，stats 必须净化后再入 payload。 */
+  return JSON.parse(JSON.stringify({ v: 1, t: Date.now(), cards, ws, stats: d.stats || null })) as HotStats
 }
 
 /** 把热度段覆盖回主树（启动期调用；不在库的 id 自然被忽略，等于自动修剪） */
@@ -93,8 +97,12 @@ export function applyHot(d: AppData, h: HotStats | null | undefined): void {
 
 function store(): ((o: Record<string, unknown>) => unknown) | null {
   const g = globalThis as unknown as { chrome?: { storage?: { local?: { set?: (o: Record<string, unknown>) => unknown } } } }
-  const set = g.chrome?.storage?.local?.set
-  return typeof set === 'function' ? set : null
+  const area = g.chrome?.storage?.local
+  const set = area?.set
+  /* R2-⑦：必须绑回 StorageArea 接收者。此前返回摘下来的裸引用，调用即抛
+     `TypeError: Illegal invocation`（Chrome 对 StorageArea 方法强制校验接收者），
+     而调用点全包在静默 catch 里 ⇒ 全站每一次 persistHot() 都在空转。 */
+  return typeof set === 'function' ? (o: Record<string, unknown>) => set.call(area, o) : null
 }
 
 let hotTimer: ReturnType<typeof setTimeout> | null = null
@@ -107,7 +115,9 @@ export function writeHot(d: AppData, immediate?: boolean): void {
   if (hotTimer) { clearTimeout(hotTimer); hotTimer = null }
   const fire = (): void => {
     try {
-      const p = set({ [HOT_KEY]: extractHot(d) }) as Promise<void> | undefined
+      const payload: Record<string, unknown> = { [HOT_KEY]: extractHot(d) }
+      Object.assign(payload, takeEventLogPatch() || {})
+      const p = set(payload) as Promise<void> | undefined
       if (p && typeof p.catch === 'function') p.catch(() => { /* 热度写失败不影响主数据，下次整库保存会补 */ })
     } catch { /* noop */ }
   }

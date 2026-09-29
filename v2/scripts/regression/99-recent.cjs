@@ -685,3 +685,19 @@ check('R2-⑤ ★论证卡进回收站族（R1.5 硬删旁路退役）：软删 
     && pu.includes('argCards?: ArgumentCard[]') && pu.includes('d.argCards = (d.argCards || []).filter') && pu.includes('argCards: (d.argCards || []).filter(a => a.deletedAt)')
     && rb.includes('function restoreArg') && rb.includes("purgeWith('论证卡'") && rb.includes("'🧭 论证卡'")
 });
+
+// ============== R2-⑦ 热度写通道修复（persistHot 空转的两层病根） ==============
+console.log('【R2-⑦ · persistHot 真落盘】');
+check('R2-⑦ ★热度写通道两层病根都在位修：① set 必须绑回 StorageArea 接收者（摘成裸引用即 Illegal invocation，被静默 catch 吞成全站 persistHot 空转）；② payload 必须净化 reactive 主树摘下的 stats（Vue Proxy 过不了结构化克隆 → DataCloneError，①修好后才暴露）', () => {
+  const h = read('/shared/storage/hotStats.ts')
+  const seg = h.slice(h.indexOf('function store('), h.indexOf('let hotTimer'))
+  const ex = h.slice(h.indexOf('export function extractHot'), h.indexOf('export function applyHot'))
+  return seg.includes('set.call(area, o)') && !/return typeof set === 'function' \? set : null/.test(seg)
+    && ex.includes('JSON.parse(JSON.stringify(') && ex.includes('DataCloneError')
+    && h.includes("import { takeEventLogPatch } from '@/shared/utils/eventLog'")
+});
+check('R2-⑦ ★调出事件不再等整库保存：writeHot 的 set 载荷并入 takeEventLogPatch()（无待写事件时返回 null，零额外开销），与 repository.saveData 同一条「一次动作 = 一次 IPC」口径', () => {
+  const h = read('/shared/storage/hotStats.ts')
+  const fire = h.slice(h.indexOf('const fire = ()'), h.indexOf('if (immediate) fire()'))
+  return fire.includes('takeEventLogPatch()') && fire.includes('[HOT_KEY]: extractHot(d)')
+});

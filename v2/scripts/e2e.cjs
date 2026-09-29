@@ -860,20 +860,7 @@ async function main() {
     const el = t && (t.querySelector('input,textarea') || t)
     return el ? String(el.value !== undefined && el.value !== '' ? el.value : el.textContent || '') : ''
   })
-  await page.waitForTimeout(1200)
-  /* 落盘证据走整库保存：repository.saveData 会把热度键与待写事件日志并入同一次 set。
-     （热度小载荷通道 `writeHot` 自身有个既存缺陷——它把 chrome.storage.local.set 摘下来裸调，
-     Chrome 抛 Illegal invocation 被静默 catch 吞掉 ⇒ 全站 persistHot 空转；本轮已定位、另轮专修，
-     故此处不依赖 persistHot，只依赖整库保存这条通。） */
-  await page.evaluate(() => {
-    const app = document.querySelector('#app').__vue_app__
-    const prov = app && app._context && app._context.provides
-    let pinia = null
-    for (const k of Object.getOwnPropertySymbols(prov || {})) { const v = prov[k]; if (v && v._s && v.state) pinia = v }
-    const st = pinia && pinia._s.get('app')
-    if (st && st.persist) st.persist()
-  })
-  await page.waitForTimeout(1500)
+  await page.waitForTimeout(2500) // 热度写 250ms 防抖 + 事件日志并入同一次 set（R2-⑦ 修好后这条通道才真的通）
   const callEv = await page.evaluate(() => chrome.storage.local.get(['zy_event_log', 'zy_stats_v1']).then((raw) => {
     const ev = raw['zy_event_log'] || []
     const hit = ev.filter(e => e.action === 'call' && e.cardId === 'e2e-pool-1')
