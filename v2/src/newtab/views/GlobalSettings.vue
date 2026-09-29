@@ -903,14 +903,7 @@
                 <a :href="shortcutsUrl" target="_blank" class="gs-keycap gs-keycap-link">Ctrl+Shift+J</a>
               </div>
             </div>
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">默认存入台面</span>
-              <div class="gs-sr-control">
-                <select class="gs-select" v-model="defaultCaptureWs" @change="persistCapturePref">
-                  <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}（待分类）</option>
-                </select>
-              </div>
-            </div>
+            <!-- R1.5：「默认存入台面」选择器随资源台退役删除——采集单形态落「🗂 资源卡池」，defaultWsId 零消费方 -->
             <div class="gs-setting-row">
               <span class="gs-sr-label">自动取文件夹名</span>
               <div class="gs-sr-control"><div class="gs-toggle" :class="{ on: capturePref.autoFolderName }" @click="capturePref.autoFolderName = !capturePref.autoFolderName; persistCapturePref()"></div></div>
@@ -2381,10 +2374,7 @@ function clearCache() {
 
 // ---- 抓取偏好 ----
 const capturePref = reactive({ defaultWsId: '', autoFolderName: true })
-const defaultCaptureWs = computed({
-  get: () => capturePref.defaultWsId || store.workspaces[0]?.id || '',
-  set: (v: string) => { capturePref.defaultWsId = v }
-})
+// R1.5：defaultCaptureWs 计算属性随「默认存入台面」控件退役（采集单形态落池，defaultWsId 零消费方）
 function persistCapturePref() {
   if (typeof chrome !== 'undefined' && chrome.storage) {
     chrome.storage.local.set({ zy_capture_pref: { ...capturePref } })

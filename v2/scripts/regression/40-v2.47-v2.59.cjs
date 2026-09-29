@@ -639,9 +639,9 @@ check('R88-7 W6：导入收进 ⚙（V3.7.0 重指：资源台分支退役后单
     && WS88.includes('function openImport(') && WS88.includes('importModalOpen.value = true')
     && !TB1_88.includes('importModalOpen = true');
 });
-check('R88-8（R122 重指；V3.7.0 随迁）主色稀缺：一级只有「＋ 新建卡片」一个 primary（导入/批量为 ghost 次级）', () => {
+check('R88-8（R122 重指；V3.7.0 随迁 · R1.5 重指带备案：主 CTA 文案随「台内新建=论证卡」改「＋ 新建论证卡」）主色稀缺：一级只有一个 primary（导入/批量为 ghost 次级）', () => {
   return (TB1_88.match(/hero-btn primary/g) || []).length === 1
-    && TB1_88.includes('hero-btn primary" @click="openNewResource"')
+    && TB1_88.includes('hero-btn primary" @click="openNewArgument"')
     && (TB1_88.match(/hero-btn ghost/g) || []).length === 2
     && TB1_88.includes('⬇ 导入数据包') && TB1_88.includes('☑ 批量');
 });

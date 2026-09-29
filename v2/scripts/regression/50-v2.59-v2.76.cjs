@@ -23,10 +23,11 @@ check('R90-2 R8-①（V3.7.0 退役）：HUB_HELP_TEXT 四段文案现行源码�
   return !WS90.includes('HUB_HELP_TEXT') && !WS90.includes('卡片在此存储为真身')
     && !WS90.includes('📡 单卡') && !WS90.includes('📤 分类');
 });
-check('R90-3 R8-②：主 CTA「＋新建」前置——出现位置早于 .toolbar-search', () => {
-  return TB90.includes('openNewResource')
-    && TB90.indexOf('openNewResource') < TB90.indexOf('class="toolbar-search"')
-    && (TB90.match(/openNewResource/g) || []).length === 1; // 不因重排出现两个主 CTA
+check('R90-3 R8-② ★R1.5 重指带备案：主 CTA 前置位置不变，锚随「台内新建=论证卡」改 openNewArgument', () => {
+  // R1.5：主 CTA 唯一 = 论证卡新建（openNewResource 仍存在于脚本段供论点创建，但模板内零出现）
+  return !TB90.includes('openNewResource')
+    && TB90.indexOf('openNewArgument') < TB90.indexOf('class="toolbar-search"')
+    && (TB90.match(/openNewArgument/g) || []).length === 1;
 });
 check('R90-4 R8-②：右推职责交给 .toolbar-spacer（.toolbar-search 不再自带 margin-left:auto）', () => {
   const search = segOf(STYLE90, '.toolbar-search {', '}');
@@ -281,10 +282,10 @@ console.log('【第九十六轮 · V2.65.0：P2 首轮勘验对账与坏账清�
  *  本轮零业务代码：① 把三项能力用断言钉住，防止再次劣化为坏账；
  *  ② 把两处「AI 接手最危险」的文档失真回正并纳入门禁——架构文档「无 IndexedDB」（附件层第卅九轮即上线）
  *  与 v2/README 版本停在 V2.14.2（后者自本轮成为版本同步第 6 处）。 */
-check('R96-1 ★ P2 资源台组三项能力在位：starred 筛选（R89/W5）+ 抽屉 recordResourceOpen 统一入口（R70）+ 网格末尾 rc-add-card（第卅三轮）', () => {
+check('R96-1 ★ P2 资源台组三项能力在位 ★R1.5 重指带备案：rc-add-card 锚随「台内新建=论证卡」改 openNewArgument——starred 筛选（R89/W5）+ 抽屉 recordResourceOpen 统一入口（R70）+ 网格末尾 rc-add-card', () => {
   return WS96.includes("const FILTER_KEYS = ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'starred', 'hot']")
     && WS96.includes('starred: (r) => !!r.starred')
-    && WS96.includes('class="rc-add-card"') && WS96.includes('@click="openNewResource"')
+    && WS96.includes('class="rc-add-card"') && WS96.includes('@click="openNewArgument"')
     && RDD96.includes("import { recordResourceOpen } from '@/shared/storage/stats'")
     && RDD96.includes('recordResourceOpen(store.data, r)');
 });

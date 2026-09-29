@@ -27,7 +27,7 @@ console.log(`数据源：${hits[hits.length - 1]}（version=${dataIn.version}）
 const entry = path.join(ROOT, '.tmp-r179-rehearsal-entry.ts')
 const out = path.join(ROOT, '.tmp-r179-rehearsal-entry.cjs')
 fs.writeFileSync(entry, [
-  "export { migrateCatsToTags, migrateBoardCardsToPool, migratePoolWorkPending, writeMigrateBackup, readMigrateBackup, restoreMigrateBackup } from './src/shared/storage/poolMigration'",
+  "export { migrateCatsToTags, migrateBoardCardsToPool, migratePoolWorkPending, writeMigrateBackup, readMigrateBackup, restoreMigrateBackup, relocateCatsMigrateReport } from './src/shared/storage/poolMigration'",
   "export { K } from './src/shared/storage/keys'",
   '',
 ].join('\n'))
@@ -126,6 +126,64 @@ assert('② 原位投射：指向原台与原分类', !!p3 && p3.wsId === HUB &&
 assert('② 已有投射不重复生成', proj('syn-b1').length === 1)
 const synHash = hash(s)
 assert('② 合成样本幂等（二跑 false + 逐字节不变）', M.migrateBoardCardsToPool(s) === false && hash(s) === synHash)
+
+// ===== R1.5 脏数据工况演练：空分类 / 成环 / 超深层级（迁移代码在他人脏库上的鲁棒性） =====
+console.log('\n[脏数据工况 · R1.5]')
+function freshDirty(cats, cards) {
+  const d = structuredClone(dataIn)
+  d.catsMigratedAt = undefined
+  d.categories = (d.categories || []).filter(c => c.workspaceId !== HUB).concat(cats)
+  d.resources = (d.resources || []).filter(r => r.workspaceId !== HUB).concat(cards)
+  d.tagTree = []
+  return d
+}
+const dirtyCard = (id, catId) => ({ ...base, id, title: '脏工况·' + id, workspaceId: HUB, categoryId: catId, tags: [] })
+const dirtyCardOf = (d, id) => (d.resources || []).find(r => r.id === id)
+
+// 工况 A：空分类（挂树零卡）——不抛、hub 清零、报告落独立小键
+const dA = freshDirty([
+  { id: 'dc-a1', name: '空分类甲', workspaceId: HUB, order: 0 },
+  { id: 'dc-a2', name: '空分类乙', workspaceId: HUB, order: 1 },
+], [])
+let threwA = false
+try { M.migrateCatsToTags(dA) } catch (e) { threwA = true; console.log('  抛错：', String(e).slice(0, 100)) }
+assert('脏A 空分类：迁移完成不抛', !threwA)
+assert('脏A 空分类：hub 分类清零', dA.categories.filter(c => c.workspaceId === HUB).length === 0)
+assert('脏A 空分类：报告主根交接在位', !!dA.catsMigrateReport)
+await M.relocateCatsMigrateReport(dA)
+assert('脏A 空分类：relocate 后报告入独立小键 + 主根字段摘除', !!mem.get('zy_cats_migrate_report_v1') && !dA.catsMigrateReport)
+
+// 工况 B：成环（甲↔乙互指父分类）——R1.5 断环提根守卫：环内双双按一级处理，卡片不脱组织
+const dB = freshDirty([
+  { id: 'dc-b1', name: '环甲', workspaceId: HUB, parentId: 'dc-b2', order: 0 },
+  { id: 'dc-b2', name: '环乙', workspaceId: HUB, parentId: 'dc-b1', order: 1 },
+], [dirtyCard('dc-card-b1', 'dc-b1'), dirtyCard('dc-card-b2', 'dc-b2')])
+let threwB = false
+try { M.migrateCatsToTags(dB) } catch (e) { threwB = true; console.log('  抛错：', String(e).slice(0, 100)) }
+assert('脏B 成环：迁移完成不挂死不抛', !threwB)
+assert('脏B 成环：hub 分类清零', dB.categories.filter(c => c.workspaceId === HUB).length === 0)
+const b1Tagged = (dirtyCardOf(dB, 'dc-card-b1')?.tags || []).length > 0
+const b2Tagged = (dirtyCardOf(dB, 'dc-card-b2')?.tags || []).length > 0
+assert('脏B 成环：环内两张卡均获标签（断环提根生效）', b1Tagged && b2Tagged)
+
+// 工况 C：超深层级（5 级链）——l1/l2/deep 拍平口径 + 全链卡片获标签
+const chain = [
+  { id: 'dc-c1', name: '一级', workspaceId: HUB, order: 0 },
+  { id: 'dc-c2', name: '二级', workspaceId: HUB, parentId: 'dc-c1', order: 1 },
+  { id: 'dc-c3', name: '三级', workspaceId: HUB, parentId: 'dc-c2', order: 2 },
+  { id: 'dc-c4', name: '四级', workspaceId: HUB, parentId: 'dc-c3', order: 3 },
+  { id: 'dc-c5', name: '五级', workspaceId: HUB, parentId: 'dc-c4', order: 4 },
+]
+const cardsC = chain.map((c, i) => dirtyCard('dc-card-c' + (i + 1), c.id))
+const dC = freshDirty(chain, cardsC)
+let threwC = false
+try { M.migrateCatsToTags(dC) } catch (e) { threwC = true; console.log('  抛错：', String(e).slice(0, 100)) }
+assert('脏C 超深层级：迁移完成不抛', !threwC)
+const repC = dC.catsMigrateReport
+assert('脏C 超深层级：拍平口径 l1=1 · l2=1 · deep=3', !!repC && repC.l1 === 1 && repC.l2 === 1 && repC.deep === 3)
+const allTaggedC = cardsC.every(c => (dirtyCardOf(dC, c.id)?.tags || []).length > 0)
+assert('脏C 超深层级：全链五张卡均获标签', allTaggedC)
+assert('脏C 超深层级：幂等（二跑 false）', M.migrateCatsToTags(dC) === false)
 
 fs.rmSync(entry, { force: true })
 fs.rmSync(out, { force: true })

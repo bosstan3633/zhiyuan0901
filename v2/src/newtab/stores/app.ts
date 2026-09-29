@@ -5,7 +5,7 @@ import { CURATION_WS_ID } from '@/shared/models'
 import { getData, saveData, loadUIPrefs, saveUIPrefs, subscribe, syncCache } from '@/shared/storage/repository'
 import { writeHot } from '@/shared/storage/hotStats'
 import { migrateCurationTree, migrateHubStructure, migrateHubMerge, hubMergeWorkPending } from '@/shared/storage/curationMigration'
-import { migrateCatsToTags, migrateBoardCardsToPool, migratePoolWorkPending, writeMigrateBackup } from '@/shared/storage/poolMigration'
+import { migrateCatsToTags, migrateBoardCardsToPool, migratePoolWorkPending, writeMigrateBackup, relocateCatsMigrateReport } from '@/shared/storage/poolMigration'
 import { normalizeCardTagPaths } from '@/shared/utils/tags'
 import { sanitizeMetricTaskIds } from '@/shared/utils/taskLinks'
 // R156：主题「跟随系统」——解析 + 系统配色监听
@@ -70,6 +70,12 @@ export const useAppStore = defineStore('app', () => {
       const tCats = migrateCatsToTags(data.value)
       const tPool = migrateBoardCardsToPool(data.value)
       migrated = t1 || t2 || t3 || tz || tLinks || tCats || tPool
+    }
+
+    // R1.5：迁移报告迁独立小键（幂等，无条件执行）——旧版持久化在 AppData 主根的报告一次性搬出；
+    //   本轮新迁移的报告同样经此落键（红线更正：报告不进 zy_data_v2 主根）
+    if (data.value) {
+      try { await relocateCatsMigrateReport(data.value) } catch { /* 报告搬运失败不阻断启动 */ }
     }
 
     // R60：投射至灯塔功能取消——清除存量 vision/mission/project 上的 pinnedToLighthouse 残留字段（幂等，静默）

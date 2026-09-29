@@ -46,6 +46,19 @@ export function migrateCatsToTags(d: AppData): boolean {
   const parentByName = new Map<string, TagNode>()
   for (const n of tree) parentByName.set(n.name, n)
 
+  // R1.5 脏工况守卫：分类成环（A↔B 互指）会双双落不进 roots ⇒ 环内卡片脱组织。
+  //   逐卡沿父链上溯 + visited 集，发现回到已访节点即断环提根（本级升一级分类处理）。
+  for (const c of hubCats) {
+    const visited = new Set<ID>([c.id])
+    let cur = hubCats.find(x => x.id === c.parentId)
+    while (cur) {
+      if (visited.has(cur.id)) { c.parentId = undefined; break }
+      visited.add(cur.id)
+      const pid: ID | undefined = cur.parentId
+      cur = hubCats.find(x => x.id === pid)
+    }
+  }
+
   const roots = hubCats.filter(c => !c.parentId || !hubCats.some(x => x.id === c.parentId))
   for (const root of roots) {
     const pendingSubtree = root.name === '待分类'
@@ -99,7 +112,8 @@ export function migrateCatsToTags(d: AppData): boolean {
   }
 
   d.catsMigratedAt = Date.now()
-  if (hubCats.length) d.catsMigrateReport = report
+  // R1.5：仅作内存交接（AppData 主根字段已退役）——调用方随即 relocateCatsMigrateReport 搬独立小键
+  if (hubCats.length) (d as { catsMigrateReport?: CatsMigrateReport }).catsMigrateReport = report
   return true
 }
 
@@ -175,12 +189,20 @@ export async function readMigrateBackup(): Promise<{ at: number; reason?: string
  * 回退：用备份整库覆盖当前数据并清除迁移落戳（调用方负责写回与刷新）。
  * 备份缺失 / 结构不符返回 null。
  */
+/** R1.5：迁移报告迁独立小键（幂等）——旧版写在 AppData 主根的报告一次性搬出；新迁移的报告同径落键 */
+export async function relocateCatsMigrateReport(d: AppData): Promise<void> {
+  const carrier = d as { catsMigrateReport?: CatsMigrateReport }
+  if (!carrier.catsMigrateReport) return
+  await chrome.storage.local.set({ [K.MIGRATE_REPORT]: carrier.catsMigrateReport })
+  delete carrier.catsMigrateReport
+}
+
 export async function restoreMigrateBackup(): Promise<AppData | null> {
   const b = await readMigrateBackup()
   if (!b?.data || b.data.version !== 2) return null
   const d = b.data
   d.catsMigratedAt = undefined
   d.boardCardsPooledAt = undefined
-  d.catsMigrateReport = undefined
+  delete (d as { catsMigrateReport?: unknown }).catsMigrateReport // R1.5：报告随回退失效；K.MIGRATE_REPORT 由调用方一并清除
   return d
 }

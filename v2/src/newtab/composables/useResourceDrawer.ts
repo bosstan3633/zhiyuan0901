@@ -5,7 +5,7 @@
  * 实现自 views/Workspace.vue 原位迁出、零行为变更；标识符经解构保留原绑定——模板零改动。
  * 初始化序：晚于 useResourceOpen / useWorkspaceBatch / useWorkspaceMirror（消费其返回值）。
  */
-import { ref, reactive, watch, onUnmounted, nextTick, type ComputedRef, type Ref } from 'vue'
+import { ref, reactive, computed, watch, onUnmounted, nextTick, type ComputedRef, type Ref } from 'vue'
 import type { Router } from 'vue-router'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
@@ -13,7 +13,7 @@ import { uid } from '@/shared/utils'
 import { isMirrorView, removeProjection } from '@/shared/storage/hub'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
-import type { AppData, ResourceCard, Category, AssetMeta } from '@/shared/models'
+import type { AppData, ResourceCard, ArgumentCard, Category, AssetMeta } from '@/shared/models'
 import type { WsStore } from './useResourceView'
 
 export interface ResourceDrawerCtx {
@@ -94,6 +94,49 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     const c = activeCategory.value
     return (c && c !== 'uncat' && c !== 'all') ? c : ''
   }
+
+  // ===== R1.5：论证节点卡（V3.7.0 第 4 卡种）台内新建 =====
+  // 台内新建此前仍建资源卡（uid('res') + workspaceId=台）——违反池语义不变量（资源卡唯一居所=
+  // 资源卡池 zy-curation，台内呈现一律走引用式投射）。改建议论卡（台内原生卡种）。
+  const argOpen = ref(false)
+  const argDraft = reactive({ title: '', content: '' })
+  function openNewArgument() {
+    argDraft.title = ''
+    argDraft.content = ''
+    argOpen.value = true
+  }
+  function saveArgument() {
+    const title = argDraft.title.trim()
+    if (!title) { showToast('请输入论证要点'); return }
+    const wsId = workspaceId.value
+    const siblings = (d.value.argCards || []).filter(a => a.workspaceId === wsId)
+    const card: ArgumentCard = {
+      id: uid('arg'), kind: 'argument', title,
+      content: argDraft.content.trim() || undefined,
+      workspaceId: wsId,
+      order: siblings.reduce((m, a) => Math.max(m, a.order ?? 0), -1) + 1,
+      linkedResourceIds: [],
+      customFields: {}, createdAt: Date.now(), updatedAt: Date.now(),
+    }
+    if (!d.value.argCards) d.value.argCards = []
+    d.value.argCards.push(card)
+    store.persist()
+    argOpen.value = false
+    showToast('✓ 论证节点卡已创建')
+  }
+  /** 删除论证节点卡：R1.5 过渡实现为硬删（argCards 不进回收站族——R2 DeckTabs 收编时接软删/撤销） */
+  async function deleteArgument(a: ArgumentCard) {
+    if (!(await useConfirm({
+      title: '删除论证节点卡',
+      message: `将删除「${a.title.slice(0, 24)}」，不可恢复（回收站暂不覆盖论证卡）。继续？`,
+      confirmText: '确认删除'
+    }))) return
+    d.value.argCards = (d.value.argCards || []).filter(x => x.id !== a.id)
+    store.persist()
+    showToast('论证节点卡已删除')
+  }
+  /** 台内论证节点卡（卡片视图过渡呈现段的数据源；R2 DeckTabs 收编） */
+  const argCardsOfWs = computed(() => (d.value.argCards || []).filter(a => a.workspaceId === workspaceId.value))
 
   function openNewResource() {
     resetEditing(editingResource, emptyResource())
@@ -286,6 +329,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     onCardClick, onCardDblClick,
     drawerOpen, editingResource, isNewResource, drawerReadonly,
     newCardCatId, openNewResource, addResourceToCategory, openMirrorDetail,
+    argOpen, argDraft, openNewArgument, saveArgument, argCardsOfWs, deleteArgument,
     cleanAllMirrors, locateMirrorSourceCard, openResource, closeDrawer, syncEditingFromStore,
     saveResource, deleteCurrentResource, deleteResource, togglePin, toggleStar, copyLink,
     resFormRef, fixLink, resCtx, resCtxItems, openResCtx,

@@ -55,7 +55,7 @@ const THEMES = ['linear', 'raycast', 'apple', 'notion']
 const VIEWS = [
   { id: 'dashboard', hash: '#/', name: '调度台' },
   { id: 'compass', hash: '#/compass', name: '方向台' },
-  { id: 'resource', hash: '#/workspace/zy-curation', name: '资源台' },
+  // R1.5：资源台台面场随 R179 资源台退役（/workspace/zy-curation 为隐藏池 id，用户不可达，拍了也是空调试面）
   { id: 'settings', hash: '#/settings', name: '设置页' }
 ]
 /** R161：AI 评审已是**中央弹窗**（不再是右侧抽屉），只抓四个台面默认态等于没抓本轮主交付面。

@@ -324,6 +324,10 @@ export interface ArgumentCard extends CardBase {
   workspaceId: ID
   /** 台内排序（拖拽自由排序） */
   order?: number
+  /** R1.5：论证内容（论点的展开说明，支撑性正文） */
+  content?: string
+  /** R1.5：关联资源卡（引用式记录关联，指向资源卡池真身；记录型关联豁免同 SupportLink，卡本体零挂载） */
+  linkedResourceIds?: ID[]
 }
 
 // ============ 策展台与分类 ============
@@ -494,7 +498,6 @@ export interface AppData {
   /** V3.7.0：策展台台内资源卡收编入池完成时间戳（幂等标记） */
   boardCardsPooledAt?: number
   /** V3.7.0：分类 → 标签迁移报告（设置页「标签管理」展示；映射清单逐条可查） */
-  catsMigrateReport?: CatsMigrateReport
 }
 
 /** V3.7.0：分类 → 标签迁移报告（口径与逐条映射，供设置页展示与核对） */
@@ -514,6 +517,7 @@ export interface CatsMigrateReport {
   mapping: { catId: ID; path: string; tagName: string; kind: 'parent' | 'child' | 'flat' }[]
 }
 
+/** R1.5：catsMigrateReport 已迁独立小键 K.MIGRATE_REPORT（红线更正：报告不进 zy_data_v2 主根）；接口 CatsMigrateReport 保留供键值类型 */
 /** R63：Airtable 单向同步配置 + 状态（存 AppData 单根内，随导出带走） */
 export interface AirtableSyncState {
   /** Personal Access Token（明文存 chrome.storage.local，零云端立场） */

@@ -113,7 +113,7 @@
       </div>
       <!-- R90（R8-②）：主 CTA「＋新建」前置——从最右移到视图 Tab 之后、搜索之前。
            R88 只做了"分级"（一级收到 5 件），**位置仍在右端**；R8 要的是"主 CTA 不被挤到最右"。 -->
-      <button class="hero-btn primary" @click="openNewResource">＋ 新建卡片</button>
+      <button class="hero-btn primary" @click="openNewArgument">＋ 新建论证卡</button>
       <button class="hero-btn ghost" title="导入策展台数据包" @click="openImport">⬇ 导入数据包</button>
       <button class="hero-btn ghost" :class="{ on: batchMode }" title="批量管理（选择卡片后整体移动 / 删除 / 打开）" @click="toggleBatchMode">{{ batchMode ? '✓ 完成批量' : '☑ 批量' }}</button>
       <!-- R113-N4：金字塔模板导入提到一级。原藏在 ⚙ 菜单第 4 项（用户反馈"埋太深、不方便"），
@@ -360,8 +360,8 @@
                   </span>
                 </div>
               </div>
-              <div v-if="gi === renderedGroups.length - 1 && !hasMoreToRender" class="rc-add-card" @click="openNewResource">
-                <span style="font-size:20px">＋</span><span>新建资源卡</span>
+              <div v-if="gi === renderedGroups.length - 1 && !hasMoreToRender" class="rc-add-card" @click="openNewArgument">
+                <span style="font-size:20px">＋</span><span>新建论证卡</span>
               </div>
             </div>
             </div>
@@ -372,12 +372,25 @@
           <EmptyState v-if="!resourceGroups.length && hasActiveFilter" icon="folder"
             :title="hasActiveFilter ? '当前筛选没有匹配的资源卡' : '暂无资源卡'"
             :desc="hasActiveFilter ? '已按「' + filterLabel + '」过滤' + (debouncedQuery.trim() ? '，且搜索「' + debouncedQuery.trim() + '」无命中' : '') : '双击卡片直达链接；单击查看详情。用 Ctrl+Shift+J 可从任意网页采集'"
-            :action-label="hasActiveFilter ? '清除筛选' : '＋ 新建资源卡'"
-            @action="hasActiveFilter ? resetFilters() : openNewResource()" />
+            :action-label="hasActiveFilter ? '清除筛选' : '＋ 新建论证卡'"
+            @action="hasActiveFilter ? resetFilters() : openNewArgument()" />
           <div v-else-if="!resourceGroups.length" class="cur-empty-skeleton">
             <div class="ces-l1"><span class="ces-badge">L1</span>中心论点占位 —— 确立后即成为金字塔根节点</div><div class="ces-line"></div>
             <div class="ces-l2row"><div class="ces-l2">L2 论据分支 A</div><div class="ces-l2">L2 论据分支 B</div><div class="ces-l2">L2 论据分支 C</div></div>
-            <p class="ces-hint">在金字塔节点「🔗 关联资源卡」（AI 语义检索）或新建论证节点卡以支撑论点，把研究变成可表达的成果</p><div class="ces-actions"><button class="hero-btn primary" @click="openNewResource">＋ 新建卡片</button><button class="hero-btn ghost" @click="setViewMode('pyramid')">⬡ 去金字塔挂载</button></div>
+            <p class="ces-hint">在金字塔节点「🔗 关联资源卡」（AI 语义检索）或新建论证节点卡以支撑论点，把研究变成可表达的成果</p><div class="ces-actions"><button class="hero-btn primary" @click="openNewArgument">＋ 新建论证卡</button><button class="hero-btn ghost" @click="setViewMode('pyramid')">⬡ 去金字塔挂载</button></div>
+          </div>
+          <!-- R1.5：论证节点卡（第 4 卡种）台内过渡呈现——台内新建的论证卡在此列出；R2 DeckTabs 收编后由统一渲染器接管 -->
+          <div v-if="argCardsOfWs.length" class="arg-sec">
+            <div class="arg-sec-h">🧭 论证节点卡<span class="arg-sec-n">{{ argCardsOfWs.length }}</span></div>
+            <div class="arg-list">
+              <div v-for="a in argCardsOfWs" :key="a.id" class="arg-item">
+                <div class="arg-main">
+                  <div class="arg-t">{{ a.title }}</div>
+                  <div v-if="a.content" class="arg-c">{{ a.content }}</div>
+                </div>
+                <button class="arg-del" title="删除论证节点卡（不可恢复，回收站族 R2 接入）" @click="deleteArgument(a)">✕</button>
+              </div>
+            </div>
           </div>
           <!-- R112 性能：增量渲染的显式入口（滚动到此处也会自动追加一屏） -->
           <div v-if="hasMoreToRender" class="render-more" @click="renderMore">
@@ -455,7 +468,7 @@
             <div class="kc-header">
               <span class="kc-name">📂 {{ cat.name }}</span>
               <span class="kc-count">{{ cat.count }}</span>
-              <div class="kc-add" @click="addResourceToCategory(cat.key)" title="在此分类新建">＋</div>
+              <div class="kc-add" @click="openNewArgument" title="新建论证节点卡（资源卡经采集入池 / 节点关联引用）">＋</div>
             </div>
             <!-- R116 性能：列体增量渲染——滚动近底自动追加（与卡片/列表 R112 同构） -->
             <div class="kc-body" @scroll="onKanbanColScroll($event, cat.key)">
@@ -552,7 +565,7 @@
               <!-- R65-F3：节点双入口——关联资源卡（资源台选择器镜像）/ 新建卡片（台内卡，可挂附件） -->
               <div class="py-node-foot">
                 <span class="py-foot-btn" title="从资源台选择资源卡镜像到该节点" @click.stop="openLinkCards(cell.cat)">🔗 关联资源卡</span>
-                <span class="py-foot-btn" title="新建台内卡（可挂附件，真身留在本台）" @click.stop="addResourceToCategory(cell.cat.id)">➕ 新建卡片</span>
+                <span class="py-foot-btn" title="新建论证节点卡（台内原生卡种）" @click.stop="openNewArgument">➕ 新建论证卡</span>
               </div>
               <span v-if="pyDepthOf(cell.cat) < 3" class="py-node-add" title="新建子节点" @click.stop="openCreateCat(cell.cat.id)">＋</span>
             </div>
@@ -658,6 +671,27 @@
     <input ref="bookmarkInput" type="file" accept=".html,.htm" style="display:none" @change="handleBookmarkImport" />
     <!-- R80（R13）：accept 列出支持类型（图片 / HTML / PDF）——改前是裸 multiple，选了 zip/docx 只能导入后才发现被跳过 -->
     <input ref="fileImportInput" type="file" multiple accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.avif,.ico,.html,.htm,.pdf,application/pdf,text/html" style="display:none" @change="handleFileImport" />
+
+    <!-- R1.5：论证节点卡快速创建（台内新建语义 = 论证卡；资源卡经采集入池 / 节点「🔗 关联资源卡」引用） -->
+    <div v-if="argOpen" class="modal-overlay open" @click.self="argOpen=false">
+      <div class="modal" style="width:460px">
+        <div class="modal-header">
+          <span style="font-size:16px">🧭</span>
+          <span class="mh-title">新建论证节点卡</span>
+          <div class="modal-close" @click="argOpen=false">×</div>
+        </div>
+        <div class="modal-body">
+          <div class="arg-label">论证要点（标题）</div>
+          <input v-model="argDraft.title" class="arg-input" placeholder="一句话论点 / 论据短句" @keydown.enter.prevent="saveArgument" @keydown.esc="argOpen=false" />
+          <div class="arg-label" style="margin-top:12px">论证内容（可选）</div>
+          <textarea v-model="argDraft.content" class="arg-input" rows="4" placeholder="展开说明：为什么这个要点成立、支撑材料是什么……"></textarea>
+        </div>
+        <div class="modal-footer-row" style="display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--border);justify-content:flex-end">
+          <button class="mini-btn" @click="argOpen=false">取消</button>
+          <button class="mini-btn primary" @click="saveArgument">✓ 创建</button>
+        </div>
+      </div>
+    </div>
 
     <!-- R73-S2：书签导入文件夹选择（自 CurationCenter 迁入） -->
     <div v-if="bookmarkModalOpen" class="modal-overlay open" @click.self="bookmarkModalOpen=false">
@@ -1213,7 +1247,7 @@ const {
 const {
   onCardClick, onCardDblClick,
   drawerOpen, editingResource, isNewResource, drawerReadonly,
-  newCardCatId, openNewResource, addResourceToCategory, openMirrorDetail,
+  newCardCatId, openNewResource, openNewArgument, saveArgument, argOpen, argDraft, argCardsOfWs, deleteArgument, openMirrorDetail,
   cleanAllMirrors, locateMirrorSourceCard, openResource, closeDrawer, syncEditingFromStore,
   saveResource, deleteCurrentResource, deleteResource, togglePin, toggleStar, copyLink,
   resFormRef, fixLink, resCtx, resCtxItems, openResCtx,

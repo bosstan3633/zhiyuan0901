@@ -89,7 +89,7 @@ check('R168-2 ★台面零"常驻浮层"（V3.7.0 重指：镜像两弹窗随资
   const w = read('/newtab/views/Workspace.vue'); const css = read('/newtab/views/workspace.css'); const d = read('/shared/components/Drawer.vue')
   const openConds = ['importModalOpen', 'bookmarkModalOpen', 'moveModalOpen', 'moveOneOpen', 'catModal.open', 'inputModal.open']
   const stillMounted = openConds.filter(k => w.includes(`class="modal-overlay" :class="{open: ${k}`))
-  return stillMounted.length === 0 && (w.match(/class="modal-overlay open"/g) || []).length === 6
+  return stillMounted.length === 0 && (w.match(/class="modal-overlay open"/g) || []).length === 7
     && w.includes('<Drawer :open="drawerOpen" width="520px"') && !w.includes('class="drawer" :class="{open: drawerOpen}"')
     && d.includes('<aside v-if="open" class="drawer"') && d.includes('.drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }')
     && d.includes('prefers-reduced-motion: reduce') && !css.includes('.drawer.open { transform: translateX(0); }')

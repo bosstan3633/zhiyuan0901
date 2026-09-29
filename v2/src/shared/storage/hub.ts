@@ -221,6 +221,7 @@ export function curationMetrics(d: AppData, wsId: ID, cardsIn?: ResourceCard[]):
 // ===== 挂载校验（61-6：金字塔节点只允许挂资源卡） =====
 
 export function canMountInNode(card: AnyCard): boolean {
+  // R1.5：argument 卡为台内原生描述节点（不挂指标）——挂载语义仍仅资源卡
   return card.kind === 'resource'
 }
 
@@ -232,6 +233,8 @@ export function canMountInNode(card: AnyCard): boolean {
  * @returns 是否成功（卡不存在/不在本台/已删除 → false）
  */
 export function setThesis(d: AppData, wsId: ID, cardId: ID | null): boolean {
+  // R1.5：论证节点卡不做中心论点——论点语义由池卡（金字塔 L1）承担；传 arg id 显式拒绝
+  if (cardId && d.argCards?.some(a => a.id === cardId)) return false
   for (const r of d.resources) {
     if (r.workspaceId !== wsId || !r.isThesis) continue
     if (r.id !== cardId) r.isThesis = undefined
@@ -304,7 +307,8 @@ export function sanitizeThesisDuplicates(d: AppData): { wsCount: number; cleared
 export function pruneDanglingProjections(d: AppData): number {
   const arr = d.curationProjections
   if (!Array.isArray(arr) || !arr.length) return 0
-  const aliveCards = new Set(d.resources.map(r => r.id))
+  // R1.5：第 4 卡种 argument 台内原生（argCards）——投射虽只指向池卡，alive 集合仍纳入，防未来引用误剪
+  const aliveCards = new Set([...d.resources.map(r => r.id), ...(d.argCards || []).map(a => a.id)])
   const aliveWs = new Set(d.workspaces.map(w => w.id))
   const before = arr.length
   d.curationProjections = arr.filter(p => p.kind === 'card' ? (aliveCards.has(p.cardId || '') && aliveWs.has(p.targetWsId || '')) : true)

@@ -37,6 +37,8 @@ export const K = {
   TAGREVISE_BACKUP: 'zy_tagrevise_backup_v1',
   /** V3.7.0：分类→标签 + 台内卡收编 迁移前的全量备份（设置页迁移报告卡可下载/回退） */
   MIGRATE_BACKUP: 'zy_migrate_backup_v1',
+  /** R1.5：分类→标签迁移报告（独立小键，不进 zy_data_v2 主根——红线更正） */
+  MIGRATE_REPORT: 'zy_cats_migrate_report_v1',
   /** R159 启动期清理的遗留键（V1 时代） */
   LEGACY: ['lm_data_v5', 'lm_data_v5_backup'] as readonly string[]
 } as const
