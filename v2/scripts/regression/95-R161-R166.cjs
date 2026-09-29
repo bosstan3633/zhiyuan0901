@@ -3,7 +3,7 @@
  * 依赖基建见 ./helpers.cjs；__dirname/__filename 已换锚为 SCRIPTS_DIR/ANCHOR_FILE（语义=原 scripts/ 根与回归自体）。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, SIX, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
+  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
 } = require('./helpers.cjs');
 
 console.log('【R161 · V3.2.2：AI 中央弹窗、星标置顶、历史检索、全字段投料、镜像 AI】');
@@ -280,10 +280,11 @@ check('R158-6 右键重排（高频在卡面、长尾在右键）：置顶/星�
   const iEdit = u.indexOf("'✏️ 编辑详情'"), iPin = u.indexOf("r.pinned ? '取消置顶' : '置顶'"), iStar = u.indexOf("r.starred ? '☆ 取消星标' : '⭐ 星标'"), iMove = u.indexOf("{ label: '移动分类'"), iThesis = u.indexOf("'🏛 设为中心论点'"), iDel = u.indexOf("{ label: '删除', icon: 'trash', danger: true");
   return iEdit > 0 && iEdit < iPin && iPin < iStar && iStar < iMove && iMove < iThesis && iThesis < iDel;
 });
-check('R158-7 ★入口数量锚：注册表 24 条（R166 任务侧两枚 +2；R169-T3 今日三件事排序 +1，2026-09-26 用户拍板"推荐接 AI"）（R157 口径；R162 推荐挂载退役 -1）；命令面板补导航 3 条（资源台/回收站/手册）不改 ai-advice 语义', () => {
+check('R158-7 ★入口数量锚（V3.7.0 重指）：注册表 24 条不变；命令面板导航改「方向台/项目详情/方向树/回收站/手册/设置」6 条（资源台入口随退役下线）不改 ai-advice 语义', () => {
   const ids = (REGISTRY_FILE.match(/\n    id: '/g) || []).length;
   return ids === 24
-    && GP_FILE.includes("label: '打开资源台'") && GP_FILE.includes("label: '打开回收站'") && GP_FILE.includes("label: '打开使用手册'");
+    && !GP_FILE.includes("label: '打开资源台'")
+    && GP_FILE.includes("label: '打开方向台'") && GP_FILE.includes("label: '打开回收站'") && GP_FILE.includes("label: '打开使用手册'");
 });
 check('R158-8 矩阵门禁常驻复核：R158 后 entry-matrix 仍零退出（宿主迁移漂移已被对账抓过一次——dormant-scan 锚 aiDormantScan→aiAdviceRun、cross-deck/thesis-drift 宿主随迁 GlobalPopups；R169-EB：实跑通道改 runGateSync，判据不变）', () => {
   const r = runGateSync(path.join(SCRIPTS_DIR, 'entry-matrix.cjs'));

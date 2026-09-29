@@ -69,7 +69,7 @@ export function useResourceDragDrop(ctx: ResourceDragDropCtx) {
   function groupKeyOf(r: ResourceCard): string {
     const validIds = new Set(wsCats.value.map(c => c.id))
     if (isUncat(r, validIds)) return 'uncat'
-    return r.categoryId
+    return r.categoryId || ''
   }
 
   function onDropCard(e: DragEvent, target: ResourceCard) {

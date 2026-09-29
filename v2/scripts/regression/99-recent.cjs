@@ -3,7 +3,7 @@
  * 依赖基建见 ./helpers.cjs；__dirname/__filename 已换锚为 SCRIPTS_DIR/ANCHOR_FILE（语义=原 scripts/ 根与回归自体）。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, SIX, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
+  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
 } = require('./helpers.cjs');
 
 console.log('【R167 · 两卡详情 OPPO 质感重排 / AI 入口共享化 / 弹窗下半部主导】');
@@ -85,11 +85,11 @@ check('R168-1 ★AI 徽标图形只挂一份：形状本体在 AiMarkSymbol（�
     && (app.match(/<AiMarkSymbol/g) || []).length === 1 && app.includes("import AiMarkSymbol from '@/shared/components/AiMarkSymbol.vue'")
     && read('/shared/components/AiEntryButton.vue').includes("from '@/shared/components/AiMark.vue'")
 });
-check('R168-2 ★台面零"常驻浮层"：Workspace 的九副浮层（详情抽屉 + 8 个 modal）一律 v-if——真库实测抽屉开着与否都在 DOM 里（168 节点含 88 个 option），而它是每次进台面都摊的固定成本；不得再用 transform 移出视口冒充"关掉"（R169 重指：抽屉进出场/Esc/遮罩随两代容器合并进 Drawer 壳单源，壳内 v-if="open" 点开才挂）', () => {
+check('R168-2 ★台面零"常驻浮层"（V3.7.0 重指：镜像两弹窗随资源台退役，九副 → 七副）：Workspace 的浮层（详情抽屉 + 6 个 modal）一律 v-if——真库实测抽屉开着与否都在 DOM 里（168 节点含 88 个 option），而它是每次进台面都摊的固定成本；不得再用 transform 移出视口冒充"关掉"（R169 重指：抽屉进出场/Esc/遮罩随两代容器合并进 Drawer 壳单源，壳内 v-if="open" 点开才挂）', () => {
   const w = read('/newtab/views/Workspace.vue'); const css = read('/newtab/views/workspace.css'); const d = read('/shared/components/Drawer.vue')
-  const openConds = ['importModalOpen', 'bookmarkModalOpen', 'moveModalOpen', 'moveOneOpen', 'catModal.open', 'inputModal.open', 'mirrorCatModal.open', 'mirrorPushModal']
+  const openConds = ['importModalOpen', 'bookmarkModalOpen', 'moveModalOpen', 'moveOneOpen', 'catModal.open', 'inputModal.open']
   const stillMounted = openConds.filter(k => w.includes(`class="modal-overlay" :class="{open: ${k}`))
-  return stillMounted.length === 0 && (w.match(/class="modal-overlay open"/g) || []).length === 8
+  return stillMounted.length === 0 && (w.match(/class="modal-overlay open"/g) || []).length === 6
     && w.includes('<Drawer :open="drawerOpen" width="520px"') && !w.includes('class="drawer" :class="{open: drawerOpen}"')
     && d.includes('<aside v-if="open" class="drawer"') && d.includes('.drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }')
     && d.includes('prefers-reduced-motion: reduce') && !css.includes('.drawer.open { transform: translateX(0); }')
@@ -215,15 +215,15 @@ check('R169-16 ★有意偏离原型并备案：指标分组任务树（全站�
   return ch.includes('const curTreeOpen = ref(false)') && ch.includes('<div class="cur-split" @mousedown="startCurSplitDrag"')
     && ch.includes('展开关联任务树') && ch.includes('＋ 新增成功指标')
 });
-check('R169-17 ★设置页导入导出文案：模板可见文字零轮次号（注释里的轮次号是开发者账，不算失真）；书签两条路径各自说清（本页=只当标签 / 资源台=按文件夹建分类），不再共用一句含糊话；"导入前自动备份"与"附件要两步迁"写进界面而不是只存在于代码里', () => {
+check('R169-17 ★设置页导入导出文案（V3.7.0 重指：资源台「按文件夹建分类」括注随退役下线，书签导入单路径说清）：模板可见文字零轮次号（注释里的轮次号是开发者账，不算失真）；"导入前自动备份"与"附件要两步迁"写进界面而不是只存在于代码里', () => {
   const gs = read('/newtab/views/GlobalSettings.vue')
   const tplRaw = gs.slice(gs.indexOf('<template>'), gs.indexOf('</template>'))
   const tpl = codeOnly(tplRaw) /* 只判模板：注释里的轮次号是开发者账（且本文件 script 在 template 之后，整段切会连脚本一起判） */
   const ws = read('/newtab/views/Workspace.vue'); const man = read('/newtab/manual-data.ts')
   return !/第[卌卅卄一二三四五六七八九十]{1,4}轮/.test(tpl)
-    && gs.includes('本页只把文件夹层级写成标签') && gs.includes('前 2 级文件夹建成分类')
+    && gs.includes('本页只把文件夹层级写成标签') && !gs.includes('前 2 级文件夹建成分类')
     && gs.includes('导入前会先自动下载一份当前数据备份')
-    && ws.includes('文件夹结构生成为分类（最多 2 级）')
+    && !ws.includes('文件夹结构生成为分类（最多 2 级）')
     && man.includes('两步') && man.includes('不在 JSON 里')
 });
 check('R169-19 ★AI 徽标换骨第二轮（② 渐变实心脸）：图形仍只有一份、轮廓语义未动（头+双眼+天线，6 个形状），呈现改走两个可覆写口子 --ai-mark-fill / --ai-mark-eye；渐变两端一律取 accent 令牌，symbol 内零硬编码色（白眼睛除外——它是"头上的洞"，与宿主底色无关）', () => {
@@ -259,10 +259,13 @@ check('R169-22 ★"今天已推荐过"的章只在真看过任务池之后才盖
 
 // ============== R169-老账闭环（R168 交付说明 §七 + R164 提案 E3/E4） ==============
 console.log('【R169-老账闭环】');
-check('R169-23 老账① 分类自绘选择器：ResourceEditForm 分类不再用原生 select（<option> 无法懒渲染，真库 88+ 分类每次开抽屉都是常驻节点）——改走 CatPicker（点开才挂、可搜索、Esc/↑↓/Enter 键盘契约，惯例同 TagPicker）；CatPicker 是分类弹层唯一实现', () => {
+// V3.7.0（R179）退役：分类控件随池语义整体退役（ResourceEditForm 不再有分类行）——
+// 「分类自绘选择器」这条老账随宿主消失而结清；CatPicker 组件本体保留（随 R2 管理面再议），
+// 本断言转守退役边界：表单零分类控件 + 组件本体健在（可直接复用）。
+check('R169-23 老账①（V3.7.0 退役）：ResourceEditForm 分类控件零残留（原生 select 与 CatPicker 一并下线）；CatPicker 组件本体保留待复用', () => {
   const f = codeOnly(read('/newtab/components/ResourceEditForm.vue'));
   const cp = read('/shared/components/CatPicker.vue').replace(/\r\n/g, '\n');
-  return !f.includes('<select') && f.includes('<CatPicker v-model="model.categoryId" :options="catOptions"')
+  return !f.includes('<select') && !f.includes('CatPicker') && !f.includes('catOptions')
     && cp.includes("defineProps<{") && cp.includes('modelValue?: string') && cp.includes("emit('update:modelValue', id)")
     && cp.includes("e.key === 'Escape'") && cp.includes("e.key === 'ArrowDown'") && cp.includes("e.key === 'Enter'")
     && cp.includes('useOverlayTarget');

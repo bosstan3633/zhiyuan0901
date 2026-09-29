@@ -5,6 +5,7 @@ import { CURATION_WS_ID } from '@/shared/models'
 import { getData, saveData, loadUIPrefs, saveUIPrefs, subscribe, syncCache } from '@/shared/storage/repository'
 import { writeHot } from '@/shared/storage/hotStats'
 import { migrateCurationTree, migrateHubStructure, migrateHubMerge, hubMergeWorkPending } from '@/shared/storage/curationMigration'
+import { migrateCatsToTags, migrateBoardCardsToPool, migratePoolWorkPending, writeMigrateBackup } from '@/shared/storage/poolMigration'
 import { normalizeCardTagPaths } from '@/shared/utils/tags'
 import { sanitizeMetricTaskIds } from '@/shared/utils/taskLinks'
 // R156：主题「跟随系统」——解析 + 系统配色监听
@@ -61,7 +62,14 @@ export const useAppStore = defineStore('app', () => {
       const tz = normalizeCardTagPaths(data.value)
       // R141（反馈 #1）：metric.taskIds 引用消毒（历史软删残留一次清干净，幂等静默）
       const tLinks = sanitizeMetricTaskIds(data.value)
-      migrated = t1 || t2 || t3 || tz || tLinks
+      // V3.7.0（R179 架构简化轮）：分类→标签 + 台内卡收编入池（幂等落戳；
+      //   首次执行前把迁移前全量写入 K.MIGRATE_BACKUP——静默落键，回退入口 UI 未落地，见交付说明_R179 遗留 1）
+      if (migratePoolWorkPending(data.value)) {
+        try { await writeMigrateBackup(data.value) } catch { /* 备份失败不阻断迁移 */ }
+      }
+      const tCats = migrateCatsToTags(data.value)
+      const tPool = migrateBoardCardsToPool(data.value)
+      migrated = t1 || t2 || t3 || tz || tLinks || tCats || tPool
     }
 
     // R60：投射至灯塔功能取消——清除存量 vision/mission/project 上的 pinnedToLighthouse 残留字段（幂等，静默）

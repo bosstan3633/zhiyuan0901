@@ -5,7 +5,7 @@ import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from './stores/app'
 import { uid } from '@/shared/utils'
-import { CURATION_WS_ID, type Workspace } from '@/shared/models'
+import { type Workspace } from '@/shared/models'
 import Toast from '@/shared/components/Toast.vue'
 import { showToast } from '@/shared/components/toast'
 // R160（P1）：GlobalPopups（99KB 源，入口最大应用模块）改按需挂载——首屏不加载，首次呼出（热键/顶栏/消息）时拉起
@@ -133,20 +133,14 @@ function navigate(path: string) { router.push(path) }
 const activeTab = computed(() => {
   if (route.path === '/') return 'home'
   if (route.path.startsWith('/compass')) return 'compass'
-  if (route.path.startsWith('/curation')) return 'curation'
-  // R73（R16 收敛）：/curation 已 redirect 到 /workspace/zy-curation ⇒ hub 工作区同样点亮「资源台」Tab
-  if (activeWorkspaceId.value === CURATION_WS_ID) return 'curation'
+  // V3.7.0（R179）：/curation 已 redirect 到 /（资源台退役）；hub 工作区路由不复存在
   if (route.path.startsWith('/settings')) return 'settings'
   return activeWorkspaceId.value || 'home'
 })
 
-/** 方向台 Tab 点击（R49：调度台/方向台/资源台三系统页 + 用户策展台） */
+/** 方向台 Tab 点击（R49：调度台/方向台两大系统页 + 用户策展台；V3.7.0 资源台退役） */
 function openCompass() {
   navigate('/compass')
-}
-/** 资源台（R61：原策展中心转正——资源卡唯一存储与镜像源头） */
-function openResource() {
-  navigate('/curation')
 }
 
 // 策展台 CRUD
@@ -229,11 +223,10 @@ async function archiveDeck() {
   const ws = menuWs.value
   closeMenu()
   if (!ws || !store.data) return
-  if (ws.id === CURATION_WS_ID) { showToast('ℹ 资源台为系统空间，不在此归档'); return }
   // R160（P1）：策展台 CRUD（9.1KB 源）改动态加载——仅归档动作时入内存
   const { deckCardCount, archiveWorkspace } = await import('@/shared/utils/compassCrud')
   const n = deckCardCount(store.data, ws.id)
-  if (!(await useConfirm({ title: '归档策展台', message: `确定归档「${wsDisplayNameOf(ws)}」？\n其下 ${n} 张资源卡将搬到其它策展台的「待分类」（卡片不删），此台从标签栏收起，可在设置 · 重置与回滚附近找回。`, confirmText: '归档' }))) return
+  if (!(await useConfirm({ title: '归档策展台', message: `确定归档「${wsDisplayNameOf(ws)}」？\n其下 ${n} 张卡将搬入资源卡池或其它策展台的「待分类」（卡片不删，论点标记随台摘除），此台从标签栏收起。`, confirmText: '归档' }))) return
   const r = archiveWorkspace(store.data, ws)
   store.persist()
   if (activeWorkspaceId.value === ws.id) navigate('/')
@@ -241,7 +234,7 @@ async function archiveDeck() {
 }
 
 // ===== 全局快捷键 =====
-// Esc 关闭弹窗；修饰键+数字 = 应用内切台（R117 拍板：1 调度台 / 2 方向台 / 3 资源台 / 4+ 策展台）
+// Esc 关闭弹窗；修饰键+数字 = 应用内切台（V3.7.0 R179 拍板：1 调度台 / 2 方向台 / 3+ 策展台——资源台退役后顺延）
 // 调度台刷新自动回首页。
 function isEditableTarget(e: KeyboardEvent): boolean {
   const t = e.target as HTMLElement | null
@@ -251,13 +244,12 @@ function isEditableTarget(e: KeyboardEvent): boolean {
 }
 
 function switchToIndex(n: number) {
-  // R117（04-61 C3）拍板改口径：**Alt+1 调度台（落地首页）/ Alt+2 方向台 / Alt+3 资源台 / Alt+4.. 用户策展台**
+  // V3.7.0（R179）拍板改口径：**Alt+1 调度台（落地首页）/ Alt+2 方向台 / Alt+3.. 用户策展台**
   // （台签顺序计数，拖拽改序后数字键跟随顺序，不绑定具体台）。
-  // 旧口径 R68-F3（1=方向台、2=资源台、3+=策展台）废止——调度台是默认落地页，占 1 号位更好记。
+  // 旧口径 R117（1=调度台 / 2=方向台 / 3=资源台 / 4+ 策展台）随资源台退役废止，策展台顺延到 3 号位。
   if (n === 1) { navigate('/'); return }
   if (n === 2) { openCompass(); return }
-  if (n === 3) { openResource(); return }
-  const ws = store.workspaces[n - 4]
+  const ws = store.workspaces[n - 3]
   if (ws) navigate(`/workspace/${ws.id}`)
   else showToast(`没有第 ${n} 号台（当前共 ${store.workspaces.length} 个策展台）`)
 }
@@ -456,13 +448,10 @@ const backupReminderDot = computed(() => {
           <span class="brand-name">知源调度台</span>
           <span class="brand-en">Ownway</span>
         </div>
-        <!-- 固定页：调度台 / 方向台 / 资源台（R49 三大系统页） -->
+        <!-- 固定页：调度台 / 方向台（V3.7.0 R179：资源台退役，资源卡管理收敛到调度台「3张卡」） -->
         <div class="tab" :class="{active: activeTab === 'home'}" @click="navigate('/')">调度台</div>
         <div class="tab" :class="{active: activeTab === 'compass'}" @click="openCompass">
           <Icon name="compass" :size="15" />方向台
-        </div>
-        <div class="tab tab-reserved" :class="{active: activeTab === 'curation'}" title="资源台 · 资源卡唯一存储与镜像源头" @click="openResource">
-          <Icon name="layout" :size="15" />资源台
         </div>
 
         <div class="tab-divider" />
@@ -623,9 +612,7 @@ const backupReminderDot = computed(() => {
 .tab.active { color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }
 /* R45-5：.badge 样式随角标移除一并清理（全应用已无渲染点） */
 .tab-divider { width: 1px; height: 20px; background: var(--border); margin: 0 6px; }
-/* R49：资源台占位（下轮交付）——弱化呈现 */
-.tab.tab-reserved { opacity: .45; }
-.tab.tab-reserved:hover { opacity: .8; }
+/* V3.7.0（R179）：.tab-reserved（R49 资源台占位）随资源台退役清理——全应用已无渲染点 */
 .tab.drop-line-l { box-shadow: inset 2px 0 0 var(--accent); }
 .tab.drop-line-r { box-shadow: inset -2px 0 0 var(--accent); }
 .tab-add { padding: 8px 12px; color: var(--text-3); font-size: 16px; font-weight: 300; }

@@ -206,7 +206,7 @@ const tabMeta = computed(() => [
       <div v-for="r in res" :key="r.id" class="rb-item">
         <div class="rb-item-main">
           <div class="rb-item-title">{{ r.title }}</div>
-          <div class="rb-item-meta">📂 {{ wsNameOf(r.workspaceId) }} · {{ catNameOf(r.categoryId) }} · 🕓 删除于 {{ fmt(r.deletedAt) }}</div>
+          <div class="rb-item-meta">📂 {{ wsNameOf(r.workspaceId) }} · {{ catNameOf(r.categoryId || "") }} · 🕓 删除于 {{ fmt(r.deletedAt) }}</div>
         </div>
         <div class="rb-item-ops">
           <button class="rb-btn sm" @click="restoreRes(r)">恢复</button>

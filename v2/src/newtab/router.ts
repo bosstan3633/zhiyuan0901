@@ -1,5 +1,4 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { CURATION_WS_ID } from '@/shared/models'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -35,20 +34,20 @@ const router = createRouter({
       ]
     },
     {
+      // V3.7.0（R179）：仅策展台（论点 + 论证节点卡 + 镜像投射）。资源台已随池语义退役——
+      // 工作区不再有 isHub 分支，资源卡统一入池，管理面收敛到调度台「3张卡」。
       path: '/workspace/:id',
       name: 'workspace',
       component: () => import('./views/Workspace.vue'),
       meta: { title: '策展台' }
     },
     {
-      // R73（R16 收敛）：资源台两入口合一。
-      // 旧路径 /curation 不再渲染独立组件，改为 redirect 到 hub 工作区（Workspace.vue 的 isHub 分支）；
-      // 显式透传 to.query，保住 ?hl=<cardId> 高亮定位与 ?cat= 分类定位。
-      // 顶栏「资源台」仍 navigate('/curation')，由本 redirect 落到 /workspace/zy-curation。
+      // V3.7.0（R179）：资源台退役——旧深链 /curation（含 ?hl/?cat）改投调度台首页；
+      // 卡片定位由 ⌘K「定位卡片所在处」走 3张卡高亮（?hk 语义，见 GlobalPopups）。
       path: '/curation',
       name: 'curation',
-      redirect: to => ({ path: '/workspace/' + CURATION_WS_ID, query: to.query }),
-      meta: { title: '知源调度台 · 资源台' }
+      redirect: () => ({ path: '/' }),
+      meta: { title: '知源调度台 · 调度台' }
     },
     {
       path: '/settings',

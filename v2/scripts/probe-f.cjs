@@ -7,6 +7,11 @@
  * 为什么值得常驻：`06-2 §F` 是每次发版都要过的验收项，靠人手在浏览器里点容易漏、也不好留痕。
  * 首跑即抓出一处**文档漂移**：§F 原写「Alt+1 方向台 / Alt+2 资源台」，实际（R117 起）是
  * `Alt+1 调度台 / Alt+2 方向台 / Alt+3 资源台`——探针把三条都实测了一遍才发现。
+ * V3.7.0（R179）：资源台页签退役 ⇒ 键位口径改 `Alt+1 调度台 / Alt+2 方向台 / Alt+3 起=各策展台`
+ * （按台签顺序，与 App.vue switchToIndex 的 n-3 落位一致）；F-3c 判据（hash 含 workspace）不变，
+ * ★但空档口经 R64 合台后**用户策展台为 0**（只剩资源台实体，不属前台列表）⇒ 直按 Alt+3 按设计
+ * 只弹「没有第 N 号台」提示、不跳转（V3.7.0 首跑实测红即此因）。探针先种一台「探针台」再验，
+ * 才是在验「键位 → 台签首台」这条真实路径（夹具缺口，非产品缺陷；诊断留痕见 archive/r179-probe-f3-diag.cjs）。
  *
  * 用法：
  *   node scripts/probe-f.cjs                                  # 自动取桌面最新 `知源调度台_V*` 包
@@ -130,6 +135,19 @@ async function main() {
   await wt('#/settings')
   await page.waitForTimeout(800)
 
+  // ★R179：先种一台「探针台」——空档口用户策展台为 0（R64 合台把默认台并入资源台并删实体），
+  //   Alt+3 无台可落只会弹提示。种一台后 F-3c 验的才是「Alt+3 → 台签首台」的真实路径。
+  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const d = cur['zy_data_v2']
+    if (!d) return
+    d.workspaces = (d.workspaces || []).filter((w) => w.id !== 'probe-f-ws-1')
+    d.workspaces.push({ id: 'probe-f-ws-1', name: '探针台', icon: '🧪', color: '#4A7FB5', coverTheme: 'deep-sea', desc: '', order: 0, archived: false, kind: 'curation' })
+    return chrome.storage.local.set({ zy_data_v2: d })
+  }))
+  // R145 律：外部直写 zy_data_v2 后必须整页重载（SPA 内存态不重读 storage）
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+
   async function press(code) {
     await page.evaluate(() => window.focus())
     await page.keyboard.down('Alt')
@@ -148,7 +166,7 @@ async function main() {
   report('F-3b Alt+2 → 方向台', hash(u2).includes('compass'), hash(u2) || '(无 hash)')
 
   const u3 = await press('Digit3')
-  report('F-3c Alt+3 → 资源台', hash(u3).includes('workspace'), hash(u3) || '(无 hash)')
+  report('F-3c Alt+3 → 台签首台「探针台」（workspace 路由；V3.7.0/R179：资源台页签退役后 3 起=各策展台）', hash(u3).includes('workspace'), hash(u3) || '(无 hash)')
 
   // 浏览器级 commands 清单（manifest 定义）——只作信息输出，便于比对 §F 的键位说明
   const cmds = Object.keys(mf.commands || {})

@@ -2,12 +2,14 @@
 /**
  * 第卅九轮 V2.15.0（技术债，第卅七轮 REQ-042 拍板）：资源卡编辑表单（共享单份）
  * - 合一对象：Workspace 内联抽屉（原 dr-* 字段区/标题/footer）与 ResourceDetailDrawer（原 red-* 全套）
- * - 范围：标题 / 链接(类型·输入·file 告警) / 分类 / TagPicker / 描述(拖拽记忆) /
+ * - 范围：标题 / 链接(类型·输入·file 告警) / TagPicker / 描述(拖拽记忆) /
  *         附件(REQ-048) / extra 插槽(宿主差异内容，如使用统计) / 创建更新时刻
  *         （R162：被任务挂载区块随任务↔资源挂载关系退役）
  * - R165-A（方案 A 标准）：**删「策展台」下拉**——资源台里恒为真身、零信息，且唯一动作与 ADR-08 矛盾
  *         （曾致真身静默迁移 BUG，见下方历史注释）；分类升整行。AI 主上下文动作与链接动作改由宿主经
  *         **title-extra / link-actions 插槽**注入（页脚只留 删除+保存 两钮）。
+ * - V3.7.0（R179）：**分类行随 hub 分类退役**——池卡分类迁为两级标签树（TAG_SEP 路径），
+ *         组织机制由「标签」（TagPicker）独任；CatPicker 唯一宿主就此下线（组件本体保留，随管理面再议）。
  * - 行为约定：
  *   ① 标题/链接/描述 Ctrl+Enter 保存（emit save）
  *   ③ 附件变更即时持久化：已入库卡(idx>=0)写回 + persist；新建未入库仅暂挂 model（宿主保存时统一入库）
@@ -16,15 +18,12 @@
 import { computed, nextTick, ref } from 'vue'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
-// R169-老账①：分类改自绘选择器（点开才展开）——原生 select 的 <option> 无法懒渲染，
-// 真库 88+ 分类每次开抽屉都是一整列常驻节点（R168 交付说明 §七遗留）
-import CatPicker from '@/shared/components/CatPicker.vue'
 import { showToast } from '@/shared/components/toast'
 import { useAppStore } from '../stores/app'
 import { useTaHeight } from '@/shared/utils/taHeight'
 // R87（R7）：链接三态判据收敛到 shared/utils/link（此前 isFullPath 是本组件私有函数，卡片视图用不到）
 import { linkStateOf, LINK_SLOT_TABS, linkPlaceholderFor, slotFillOf, switchLinkSlot, setLinkSlot } from '@/shared/utils/link'
-import type { ResourceCard, Category, AssetMeta } from '@/shared/models'
+import type { ResourceCard, AssetMeta } from '@/shared/models'
 
 const props = defineProps<{
   /** 编辑中的资源卡（宿主 reactive 对象，字段直接 v-model 生效） */
@@ -38,34 +37,21 @@ const emit = defineEmits<{
 }>()
 
 const store = useAppStore()
-const d = computed(() => store.data!)
 const { taH: noteH, startTaResize: startNoteResize } = useTaHeight(props.heightKey, store.ui)
 
 /**
- * R165-A：「策展台」下拉退役。
- * 历史（R90/R17 注释存档）：此下拉在资源台里恒为「资源台（真身）」——零信息控件，
- * 且唯一动作是把卡片 `workspaceId` 改写、真身静默迁去策展台（镜像原地不动），与 ADR-08 矛盾。
- * 字段本身仍随卡持久化（归属不变），只是不再有 UI 改它；分类候选按卡当前所在台过滤。
+ * V3.7.0（R179）：分类行退役（catOptions / treeCatOptions / CatPicker 一并下线）。
+ * 历史（R165-A/R169 注释存档）：「策展台」下拉在资源台里恒为「资源台（真身）」——零信息控件，
+ * 且唯一动作是把卡片 `workspaceId` 改写、真身静默迁去策展台（镜像原地不动），与 ADR-08 矛盾；
+ * R169 起分类候选改按卡当前所在台过滤的自绘选择器。现 hub 分类整体迁为两级标签树（TAG_SEP 路径），
+ * 卡的组织机制由「标签」独任——字段 categoryId 仍随卡持久化（遗留），只是不再有 UI 改它。
  */
-const catOptions = computed(() => treeCatOptions((d.value.categories || []).filter(c => c.workspaceId === props.model.workspaceId)))
 // R169-T2：三槽的文案与占位符取自 LINK_SLOT_TABS（唯一真源），不再在本组件里按 linkType 分支写死
 const linkPlaceholder = computed(() => linkPlaceholderFor(props.model.linkType))
 /** 三槽填写状态（●=有值 / ○=空），点 tab 时一眼看出另外两条挂没挂 */
 const slotFill = computed(() => slotFillOf(props.model))
 /** 当前槽空着：这不是"断链"，别拿断链文案吓人（旧缺陷正是切到空槽立刻报"仅存文件名"） */
 const slotEmpty = computed(() => !(props.model.link || '').trim())
-
-function treeCatOptions(cats: Category[]): { id: string; label: string }[] {
-  const roots = cats.filter(c => !c.parentId || !cats.some(p => p.id === c.parentId)).sort((a, b) => a.order - b.order)
-  const out: { id: string; label: string }[] = []
-  for (const r0 of roots) {
-    out.push({ id: r0.id, label: r0.name })
-    for (const ch of cats.filter(c => c.parentId === r0.id).sort((a, b) => a.order - b.order)) {
-      out.push({ id: ch.id, label: '└ ' + ch.name })
-    }
-  }
-  return out
-}
 
 // R87（R7）：本地 isFullPath 退役 —— 判据迁至 shared/utils/link 的 linkStateOf。
 // 行为差异（**修正既有缺陷**）：zy-asset:// 附件卡（R80 起本地文件导入的标准形态）linkType 是 file 但
@@ -143,10 +129,7 @@ function fmtTs(ts?: number): string {
       <div v-if="linkIncomplete" class="ref-warn">
         ⚠ 当前仅存文件名，双击打开前请补全完整路径（如 D:\docs\file.pdf）
       </div>
-      <div class="ds-kv"><span class="k">分类</span><span class="v">
-        <!-- R169-老账①：原生 select（88+ option 常驻）→ CatPicker 自绘（点开才挂，可搜索/Esc/↑↓/Enter） -->
-        <CatPicker v-model="model.categoryId" :options="catOptions" :title="'真身只在资源台，策展台以镜像呈现'" />
-      </span></div>
+      <!-- V3.7.0（R179）：分类行退役（hub 分类→标签树），卡的组织机制由下行「标签」独任 -->
       <div class="ds-kv"><span class="k">标签</span><span class="v"><TagPicker v-model="model.tags" /></span></div>
     </section>
 

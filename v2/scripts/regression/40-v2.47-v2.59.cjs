@@ -3,7 +3,7 @@
  * 依赖基建见 ./helpers.cjs；__dirname/__filename 已换锚为 SCRIPTS_DIR/ANCHOR_FILE（语义=原 scripts/ 根与回归自体）。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, SIX, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
+  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
 } = require('./helpers.cjs');
 
 console.log('【第七十七轮 · V2.46.0：浮层主题化（A1 主题接入 + A2 轻 scrim + C2 主色稀缺）】');
@@ -130,10 +130,10 @@ console.log('【第七十九轮 · V2.48.0：三视图卡片信息量对齐（R1
 /** 截取具名函数/代码段——断言只看实现，不被注释或同名字符串干扰（R78 引入，沿用） */
 /** 六动作在模板中的固定顺序（↗ 📌 ⭐ 📂 📡 🗑） */
 check('R79-1（R158 重指）卡片一级 hover = AI徽标/移动/删除/⋯（+断链补全）；置顶降级进右键；打开走双击 / 右键菜单', () => { const seg = RES_CARD_ACTIONS; return seg.includes('<CardAiEntry :card="r" />') && seg.includes('openMoveOne(r)') && seg.includes('deleteResource(r)') && seg.includes('fixLink(r)') && seg.includes('openResCtx($event, r)') && !seg.includes('togglePin(r)') && !seg.includes('toggleStar(r)'); });
-check('R79-2（R162 重指）卡片 hover 顺序 AI徽标→📂→🗑（→✏→⋯）；右键菜单新序固定：打开→复制→编辑→置顶→星标→移动→镜像→论点→删除（挂载位随挂载关系退役）', () => { const seg = RES_CARD_ACTIONS; const a = seg.indexOf('<CardAiEntry'), b = seg.indexOf('openMoveOne(r)'), c = seg.indexOf('deleteResource(r)'), x = seg.indexOf('fixLink(r)'), m = seg.indexOf('openResCtx($event, r)'); const res = read('/newtab/composables/useResourceDrawer.ts'); const k1 = res.indexOf('resCtxItems.value = ['); const k2 = res.indexOf('resCtxItems.value = [', k1 + 1); const own = k2 >= 0 ? res.slice(k2, res.indexOf('resCtx.value = {', k2)) : ''; const iOpen = own.indexOf('打开链接'), iEdit = own.indexOf('编辑详情'), iPin = own.indexOf('取消置顶'), iStar = own.indexOf('取消星标'), iMove = own.indexOf('移动分类'), iMir = own.indexOf('镜像到策展台'), iDel = own.indexOf("label: '删除'"); return a >= 0 && b > a && c > b && x > c && m > x && iOpen >= 0 && iEdit > iOpen && iPin > iEdit && iStar > iPin && iMove > iStar && iMir > iMove && iDel > iMir && !own.includes('挂载到任务'); });
-check('R79-3 列表视图动作条补齐 ↗ / 📂 / 📡，与卡片视图同六动作同顺序', () => {
+check('R79-2（R162 重指；V3.7.0 随迁：镜像位随资源台退役）卡片 hover 顺序 AI徽标→📂→🗑（→✏→⋯）；右键菜单新序固定：打开→复制→编辑→置顶→星标→移动→删除（挂载位随挂载关系退役、镜像位随资源台退役）', () => { const seg = RES_CARD_ACTIONS; const a = seg.indexOf('<CardAiEntry'), b = seg.indexOf('openMoveOne(r)'), c = seg.indexOf('deleteResource(r)'), x = seg.indexOf('fixLink(r)'), m = seg.indexOf('openResCtx($event, r)'); const res = read('/newtab/composables/useResourceDrawer.ts'); const k1 = res.indexOf('resCtxItems.value = ['); const k2 = res.indexOf('resCtxItems.value = [', k1 + 1); const own = k2 >= 0 ? res.slice(k2, res.indexOf('resCtx.value = {', k2)) : ''; const ownC = stripComments(own); const iOpen = ownC.indexOf('打开链接'), iEdit = ownC.indexOf('编辑详情'), iPin = ownC.indexOf('取消置顶'), iStar = ownC.indexOf('取消星标'), iMove = ownC.indexOf('移动分类'), iDel = ownC.indexOf("label: '删除'"); return a >= 0 && b > a && c > b && x > c && m > x && iOpen >= 0 && iEdit > iOpen && iPin > iEdit && iStar > iPin && iMove > iStar && iDel > iMove && !ownC.includes('挂载到任务') && !ownC.includes('镜像到策展台') && !ownC.includes('openMirrorCard'); });
+check('R79-3 列表视图动作条（V3.7.0 重指：镜像推送退役后收敛五动作）= ↗ / 📌 / ⭐ / 📂 / 🗑，与卡片/看板视图同顺序', () => {
   return RES_ROW_ACTIONS.includes('openResourceLink(r)') && RES_ROW_ACTIONS.includes('openMoveOne(r)')
-    && RES_ROW_ACTIONS.includes('openMirrorCard(r)') && inOrder(RES_ROW_ACTIONS);
+    && !RES_ROW_ACTIONS.includes('openMirrorCard(r)') && inOrder(RES_ROW_ACTIONS);
 });
 check('R79-4（R122 重指）列表 🔥 rr-calls 与卡片 🔥 rc-heat 同口径（v-if="r.callCount"）', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -154,7 +154,7 @@ check('R79-7 看板视图补 🔥 调用 N 次（kc-calls）', () => {
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('<span v-if="r.callCount" class="kc-calls"') && w.includes('.rr-calls, .kc-calls');
 });
-check('R79-8（R123 重指）三视图 📡 口径：卡片一级已无 📡（要求 #3 收进菜单），列表/看板仍对真身卡出现且均带门控', () => { const G_WRAP = '<template v-if="!isMirrorView(r)">'; const has = (seg) => seg.includes(G_WRAP) && seg.includes('openMirrorCard(r)'); return !RES_CARD_ACTIONS.includes('openMirrorCard(r)') && RES_CARD_ACTIONS.includes(G_WRAP) && has(RES_ROW_ACTIONS) && has(KANBAN_ACTIONS); });
+check('R79-8（R123 重指；V3.7.0 随迁）三视图镜像口径：镜像推送（openMirrorCard）三视图全零——镜像卡引用侧 🎯 定位 / ✕ 移出仍在列表与看板', () => { return !RES_CARD_ACTIONS.includes('openMirrorCard(r)') && !RES_ROW_ACTIONS.includes('openMirrorCard(r)') && !KANBAN_ACTIONS.includes('openMirrorCard(r)') && RES_ROW_ACTIONS.includes('locateMirrorSource(r)') && KANBAN_ACTIONS.includes('locateMirrorSource(r)'); });
 
 console.log('【第八十轮 · V2.49.0：附件卡闭环（R13 导入改为附件卡 + R14 开放附件卡打开）】');
 // R100 重指：导入实现拆入 useWorkspaceImport（宿主保留绑定与入口面）
@@ -279,9 +279,9 @@ check('R82-1（R162 重指：挂载到任务整体退役）三视图动作条零
     && RES_ROW_ACTIONS.includes(G_WRAP) && !RES_ROW_ACTIONS.includes('-action mount')
     && KANBAN_ACTIONS.includes(G_WRAP) && !KANBAN_ACTIONS.includes('-action mount');
 });
-check('R82-2（R162 重指）卡片 hover 移动→删除（断链再补全，AI徽标居首）；列表/看板 📡 后直接 🗑（挂载位退役）', () => {
+check('R82-2（R162 重指；V3.7.0 随迁：镜像位随资源台退役）卡片 hover 移动→删除（断链再补全，AI徽标居首）；列表/看板 📂 后直接 🗑', () => {
   const at = (seg, s) => seg.indexOf(s);
-  const ok = (seg) => { const m = at(seg, 'openMirrorCard(r)'), d = at(seg, 'deleteResource(r)'); return m >= 0 && d > m && !seg.includes('openMountOne'); };
+  const ok = (seg) => { const m = at(seg, 'openMoveOne(r)'), d = at(seg, 'deleteResource(r)'); return m >= 0 && d > m && !seg.includes('openMountOne') && !seg.includes('openMirrorCard'); };
   const cardOk = at(RES_CARD_ACTIONS, 'deleteResource(r)') > at(RES_CARD_ACTIONS, 'openMoveOne(r)') && at(RES_CARD_ACTIONS, 'openResCtx($event, r)') > at(RES_CARD_ACTIONS, 'deleteResource(r)');
   return cardOk && ok(RES_ROW_ACTIONS) && ok(KANBAN_ACTIONS);
 });
@@ -372,15 +372,16 @@ check('R84-1 W1 页头四要素齐全：图标 + workspace.name + 台描述 + �
     && HEAD_TPL.includes('class="wsh-desc"')
     && HEAD_TPL.includes('class="wsh-summary"');
 });
-check('R84-2 W1 描述为空不占位（v-if 而非三元）+ hub 回落 R73 既有文案', () => {
-  // R90 重指：wsHeadDesc 拆成两态（自写描述内联 / 资源台 fallback 降为 ⓘ tooltip），
-  // 能力完全一致——描述为空仍不占位（v-if + v-else-if，非三元），hub 回落文案一字未改。
-  const fnOwn = segOf(WS84, 'const wsHeadDescOwn = computed(', 'const wsHeadDescFallback');
-  const fnFb = segOf(WS84, 'const wsHeadDescFallback = computed(', 'const HUB_HELP_TEXT');
-  return (HEAD_TPL.includes('v-if="wsHeadDescOwn"') || HEAD_TPL.includes('v-if="wsHeadDesc"'))
-    && (HEAD_TPL.includes('v-else-if="wsHeadDescFallback"') || HEAD_TPL.includes('class="wsh-locator"'))
-    && (stripComments(fnOwn) + stripComments(fnFb)).includes('workspace.value?.desc')
-    && (stripComments(fnOwn) + stripComments(fnFb)).includes("'资源卡唯一存储 · 镜像源头'");
+// R179-MIGRATED R84-2
+// V3.7.0（R179）随迁重写：hub 回落文案（'资源卡唯一存储 · 镜像源头' + wsHeadDescFallback + ? 教学气泡）
+// 随资源台退役整体下线——页头描述收敛单形态：wsHeadDescOwn（用户自写台描述）为空即不占位（v-if 非三元）。
+check('R84-2 W1 描述为空不占位（v-if 而非三元）——V3.7.0：hub 回落形态退役，自写描述为唯一形态', () => {
+  const i = WS84.indexOf('const wsHeadDescOwn = computed(');
+  const body = i >= 0 ? WS84.slice(i, i + 300) : '';
+  return HEAD_TPL.includes('v-if="wsHeadDescOwn"')
+    && !HEAD_TPL.includes('wsh-locator')
+    && !WS84.includes('wsHeadDescFallback')
+    && body.includes('workspace.value?.desc');
 });
 check('R84-3 W1 页头 ≤40px', () => {
   return read('/newtab/views/workspace.css').includes('.ws-id-head { display: flex; align-items: center; gap: 8px; min-height: 30px; max-height: 36px;');
@@ -633,16 +634,16 @@ check('R88-5 W3-③：生效值徽标——四项非默认才计入、最多 2 �
 check('R88-6（R122 重指）批量开关常驻一级：批量中显「✓ 完成批量」（toggleBatchMode），退出通道不断', () => {
   return WS88_TPL.includes("{{ batchMode ? '✓ 完成批量' : '☑ 批量' }}") && WS88_TPL.includes('toggleBatchMode');
 });
-check('R88-7 W6：导入收进 ⚙ 且**按台身份改名**消歧义（资源台=导入资源 / 策展台=导入数据包）', () => {
-  return SM88.includes('@click="openImport"') && SM88.includes("isHub ? '⬇ 导入资源' : '⬇ 导入数据包'")
+check('R88-7 W6：导入收进 ⚙（V3.7.0 重指：资源台分支退役后单形态「⬇ 导入数据包」，按台改名消歧义不再需要）', () => {
+  return SM88.includes('@click="openImport"') && SM88.includes('⬇ 导入数据包') && !SM88.includes("isHub ? '⬇ 导入资源'")
     && WS88.includes('function openImport(') && WS88.includes('importModalOpen.value = true')
     && !TB1_88.includes('importModalOpen = true');
 });
-check('R88-8（R122 重指）主色稀缺：一级只有「＋ 新建卡片」一个 primary（导入/批量为 ghost 次级）', () => {
+check('R88-8（R122 重指；V3.7.0 随迁）主色稀缺：一级只有「＋ 新建卡片」一个 primary（导入/批量为 ghost 次级）', () => {
   return (TB1_88.match(/hero-btn primary/g) || []).length === 1
     && TB1_88.includes('hero-btn primary" @click="openNewResource"')
     && (TB1_88.match(/hero-btn ghost/g) || []).length === 2
-    && TB1_88.includes('⬇ 导入资源') && TB1_88.includes('☑ 批量');
+    && TB1_88.includes('⬇ 导入数据包') && TB1_88.includes('☑ 批量');
 });
 check('R88-9 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');

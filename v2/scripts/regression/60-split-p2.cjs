@@ -3,7 +3,7 @@
  * 依赖基建见 ./helpers.cjs；__dirname/__filename 已换锚为 SCRIPTS_DIR/ANCHOR_FILE（语义=原 scripts/ 根与回归自体）。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, SIX, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
+  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
 } = require('./helpers.cjs');
 
 console.log('【第一百零七轮 · V2.76.0：卡片内容自适应修复 + 安装包瘦身 + 生产复检】');
@@ -34,12 +34,12 @@ check('R106-2 F2 顶栏对齐（R108 重指：F10 资源台/策展台容器并�
     && APP106.includes('.topbar-inner.align-page { max-width: 1440px; margin: 0 auto; padding: 0 36px; }')
     && !APP106.includes('align-ws');
 });
-check('R106-3 F4 镜像卡三键：单击只读详情（表单禁交互+只读守卫）/ Ctrl+Enter 定位源卡 / 定位走 hl（R169 重指：只读态随两代容器合并挂壳 .drawer-body 的 bodyClass，选择器 .dr-body.dr-readonly → .dr-readonly）', () => {
+check('R106-3 F4 镜像卡三键：单击只读详情（表单禁交互+只读守卫）/ Ctrl+Enter 定位源卡 / 定位落地调度台（R169 重指：只读态随两代容器合并挂壳 .drawer-body 的 bodyClass，选择器 .dr-body.dr-readonly → .dr-readonly；V3.7.0 重指：/curation?hl= 深链随资源台退役 → router.push(/) + 源卡在资源卡池 toast）', () => {
   return WSP106.includes('function openMirrorDetail(r: ResourceCard)')
     && WSP106.includes('const drawerReadonly = ref(false)')
     && WSP106.includes('.dr-readonly .ref-form { pointer-events: none; }')
-    && WSP106.includes("if (drawerReadonly.value) { showToast('📡 镜像卡为引用——请到资源台编辑'); return }")
-    && WSP106.includes("router.push('/curation?hl=' + id)")
+    && WSP106.includes("if (drawerReadonly.value) { showToast('📡 镜像卡为引用——编辑请到源卡'); return }")
+    && WSP106.includes("router.push('/')") && WSP106.includes('↗ 源卡在资源卡池 · ')
     && WSP106.includes("if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); locateMirrorSourceCard() }");
 });
 check('R106-4 F7 一键清理本台镜像卡：只删投射（源卡保留）+ 确认框报数 + 仅策展台入口', () => {
@@ -109,15 +109,16 @@ check('R104-1 ★ 分类 CRUD 拆分不变量：实现随迁 + 宿主解构绑�
 
 console.log('【第一百零三轮 · V2.72.0：Workspace 纯拆分第四批（镜像域 → useWorkspaceMirror）】');
 /** R103：第四刀（本批断言纠缠最大，32 行逐一勘验后仅 6 处需重指——其余靠模板零改动+绑定存续自然存活）。
- *  三段实现：引用侧（isMirrorCat/moveMirrorTo/removeMirror/locateMirrorSource）+ 推送侧（mirrorPushModal
- *  单卡📡/分类📤）+ 拉取侧（mirrorCatModal 分类镜像到本台）。本断言守拆分不变量。 */
-check('R103-1 ★ 镜像域拆分不变量：三段实现在 composable + 宿主解构绑定（模板零改动）+ 宿主零重复实现', () => {
+ *  V3.7.0（R179）：推送侧（mirrorPushModal 单卡📡/分类📤）与拉取侧（mirrorCatModal）随资源台退役，
+ *  本断言收窄为**引用侧**拆分不变量（isMirrorCat/moveMirrorTo/removeMirror/locateMirrorSource）。 */
+check('R103-1 ★ 镜像域拆分不变量（V3.7.0 重指）：引用侧四函数实现在 composable + 宿主解构绑定 + 宿主零重复实现（推送/拉取侧随资源台退役）', () => {
   return MIR103.includes('export function useWorkspaceMirror(')
     && MIR103.includes('function moveMirrorTo(m: MirrorView, catId: string)')
-    && MIR103.includes('function confirmMirrorPush()') && MIR103.includes('function confirmMirrorCat()')
-    && WSP103.includes('useWorkspaceMirror({ d, workspaceId, categories, router, treeCatOptions, persist: () => store.persist() })')
+    && MIR103.includes('function removeMirror(r: ResourceCard)') && MIR103.includes('function locateMirrorSource(r: ResourceCard)')
+    && WSP103.includes('useWorkspaceMirror({ d, categories, router, persist: () => store.persist() })')
     && WSP103.includes('isMirrorCat, moveMirrorTo, removeMirror, locateMirrorSource,')
     && !WSP103.includes('function moveMirrorTo') && !WSP103.includes('function confirmMirrorPush')
+    && !MIR103.includes('confirmMirrorPush') && !MIR103.includes('confirmMirrorCat')
     && !WSP103.includes('const hubCatOptions = computed');
 });
 

@@ -43,7 +43,6 @@ export interface PyramidCtx {
   clearCardDropTarget: () => void
   // useWorkspaceMirror
   moveMirrorTo: (m: MirrorView, catId: string) => void
-  mirrorCatModal: Ref<{ open: boolean; catId: string }>
   // useCategoryCrud
   normalizeCatOrders: (rootId: string) => void
   openCreateCat: (parentId: string) => void
@@ -59,7 +58,7 @@ export function usePyramid(ctx: PyramidCtx) {
     activeCategory, catFlashId, setViewMode, openInputModal,
     pyDepthOf, pyHeightOf, pyLevelOf, childIds,
     dragState, onCatDragEnd, clearCardDropTarget,
-    moveMirrorTo, mirrorCatModal, normalizeCatOrders, openCreateCat, startCatRename, deleteCategory,
+    moveMirrorTo, normalizeCatOrders, openCreateCat, startCatRename, deleteCategory,
     selectedCards, selectedIds } = ctx
 
   /** R108（T3）：金字塔 Markdown 模板导入写入链——
@@ -153,7 +152,7 @@ export function usePyramid(ctx: PyramidCtx) {
     for (const arr of byDepth.values()) for (const n of arr) nodeByCat.set(n.cat.id, n)
     for (const r of allResources.value) {
       if (r.isThesis) continue
-      nodeByCat.get(r.categoryId)?.cards.push(r)
+      nodeByCat.get(r.categoryId || "")?.cards.push(r)
     }
     return [...byDepth.keys()].sort((a, b) => a - b).map(k => byDepth.get(k)!)
   })
@@ -167,9 +166,9 @@ export function usePyramid(ctx: PyramidCtx) {
     const cardsBy = new Map<string, ResourceCard[]>()
     for (const r of allResources.value) {
       if (r.isThesis) continue
-      const arr = cardsBy.get(r.categoryId) || []
+      const arr = cardsBy.get(r.categoryId || "") || []
       arr.push(r)
-      cardsBy.set(r.categoryId, arr)
+      cardsBy.set(r.categoryId || "", arr)
     }
     const cells: { cat: Category; depth: number; colStart: number; colSpan: number; cards: ResourceCard[] }[] = []
     let leafSeq = 0
@@ -585,10 +584,6 @@ export function usePyramid(ctx: PyramidCtx) {
     const cat = nmCat(); nodeMenu.value.open = false
     if (cat) openCreateCat(cat.parentId || '')
   }
-  function nmMirrorCat() {
-    nodeMenu.value.open = false
-    mirrorCatModal.value = { open: true, catId: '' }
-  }
   function nmPack() {
     const cat = nmCat(); nodeMenu.value.open = false
     packIntoNode(cat || undefined)
@@ -629,7 +624,7 @@ export function usePyramid(ctx: PyramidCtx) {
     pyLinkPaths, drawPyLinks, pyLinksThrottled,
     pyDropTarget, pyDropMode, pyRootDrop, onPyDragOver, onPyDrop, onPyRootDragOver, onPyRootDrop,
     selectPyNode,
-    nodeMenu, openNodeMenu, nmCreateChild, nmCreateSibling, nmMirrorCat, nmPack, nmRename, nmDelete,
+    nodeMenu, openNodeMenu, nmCreateChild, nmCreateSibling, nmPack, nmRename, nmDelete,
     packIntoNode,
   }
 }

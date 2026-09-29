@@ -38,7 +38,7 @@ function cardLine(d: AppData, r: ResourceCard, c: typeof CAP.std): string {
   const bits = [`「${cut(r.title, 60)}」`]
   if (r.link) bits.push(`链接:${cut(r.link, 90)}`)
   if (r.tags?.length) bits.push(`标签:[${r.tags.join(',')}]`)
-  const cat = catPathOf(d, r.categoryId)
+  const cat = catPathOf(d, r.categoryId || "")
   if (cat) bits.push(`分类:${cat}`)
   if (r.description) bits.push(`描述:${cut(r.description, c.desc)}`)
   bits.push(`打开${r.callCount || 0}次`)
@@ -112,7 +112,7 @@ export function projectDormant(d: AppData, days: number, depth: AiDepth): { text
       ...dormant.map(r => {
         const last = r.lastCalledAt || r.createdAt || 0
         const idleDays = Math.floor((now - last) / 86400000)
-        return `- cardId=${r.id} 「${cut(r.title, 60)}」 | ${idleDays}天未打开 | 历史打开${r.callCount || 0}次 | 分类:${catPathOf(d, r.categoryId) || '未分类'} | 标签:[${(r.tags || []).join(',')}]`
+        return `- cardId=${r.id} 「${cut(r.title, 60)}」 | ${idleDays}天未打开 | 历史打开${r.callCount || 0}次 | 分类:${catPathOf(d, r.categoryId || "") || '未分类'} | 标签:[${(r.tags || []).join(',')}]`
       }),
       doing ? `\n【当前进行中的任务（相关性参照）】\n${doing}` : '',
       dirs ? `\n【活跃战略目标】\n${dirs}` : '',
@@ -194,7 +194,7 @@ export function cardDirectory(d: AppData, opts: { excludeIds?: Set<string> }, de
   for (const r of d.resources || []) {
     if (r.deletedAt || opts.excludeIds?.has(r.id)) continue
     if (lines.length >= c.cards * 2) break
-    lines.push(`- cardId=${r.id} 「${cut(r.title, 50)}」${r.tags?.length ? ` 标签[${r.tags.join(',')}]` : ''} 分类:${catPathOf(d, r.categoryId) || '未分类'}${r.description ? ` ${cut(r.description, 50)}` : ''} 打开${r.callCount || 0}次`)
+    lines.push(`- cardId=${r.id} 「${cut(r.title, 50)}」${r.tags?.length ? ` 标签[${r.tags.join(',')}]` : ''} 分类:${catPathOf(d, r.categoryId || "") || '未分类'}${r.description ? ` ${cut(r.description, 50)}` : ''} 打开${r.callCount || 0}次`)
   }
   return lines.join('\n')
 }
@@ -281,7 +281,7 @@ export function projectTrash(d: AppData, depth: AiDepth): string {
     `【回收站清单】共 ${tr.length} 张资源卡（删于 30 天内优先评估）`,
     ...tr.map(r => {
       const sim = [...live].find(t => t !== r.title && (t.includes(r.title.slice(0, 6)) || r.title.includes(t.slice(0, 6))))
-      return `- cardId=${r.id} 「${cut(r.title, 50)}」 删前分类:${catPathOf(d, r.categoryId) || '未分类'} 标签[${(r.tags || []).join(',')}] 删前打开${r.callCount || 0}次 删除于${new Date(r.deletedAt!).toLocaleDateString('zh-CN')}${sim ? ` ⚠与现存卡「${cut(sim, 30)}」疑似同物` : ''}`
+      return `- cardId=${r.id} 「${cut(r.title, 50)}」 删前分类:${catPathOf(d, r.categoryId || "") || '未分类'} 标签[${(r.tags || []).join(',')}] 删前打开${r.callCount || 0}次 删除于${new Date(r.deletedAt!).toLocaleDateString('zh-CN')}${sim ? ` ⚠与现存卡「${cut(sim, 30)}」疑似同物` : ''}`
     }),
     dirs ? `【当前活跃战略目标（相关性参照）】\n${dirs}` : '',
   ].filter(Boolean).join('\n')
@@ -330,7 +330,7 @@ export function projectDeckThesis(d: AppData, wsId: string, depth: AiDepth, snip
   L.push(`【愿景】${cut(d.compass.vision?.content, 120) || '（未填）'}\n【使命】${cut(d.compass.mission?.content, 120) || '（未填）'}`)
   const catName = new Map((d.categories || []).filter(x => !x.deletedAt).map(x => [x.id, x.name]))
   const rows = cards.slice(0, c.cards).map(r =>
-    `- cardId=${r.id} 「${cut(r.title, 40)}」 分类:${catName.get(r.categoryId) || '未分'} 描述:${r.description?.trim() ? cut(r.description.trim(), 50) : '（空）'} 标签[${(r.tags || []).join('、') || '无'}] 打开${r.callCount || 0}次`)
+    `- cardId=${r.id} 「${cut(r.title, 40)}」 分类:${catName.get(r.categoryId || "") || '未分'} 描述:${r.description?.trim() ? cut(r.description.trim(), 50) : '（空）'} 标签[${(r.tags || []).join('、') || '无'}] 打开${r.callCount || 0}次`)
   L.push(`【卡群台账（共 ${cards.length} 张${cards.length > c.cards ? `，取前 ${c.cards}` : ''}）】\n${rows.join('\n')}`)
   const mine = [...snips.entries()].filter(([id]) => cards.some(r => r.id === id))
   L.push(mine.length

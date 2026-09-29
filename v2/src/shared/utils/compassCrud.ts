@@ -139,15 +139,30 @@ export async function removeMetricWithConfirm(d: AppData, metricId: string, pers
 }
 
 // ============== 策展台：归档 / 删除 两语义（R146 拆名，不再同名两实现） ==============
-/** 归档：台仍在数据里（archived=true），其下卡搬到首个可用台的待分类，镜像投射随台摘除 */
+/**
+ * 归档：台仍在数据里（archived=true），其下卡搬到首个可用台的待分类（兜底池），镜像投射随台摘除。
+ * V3.7.0（R179）池语义适配：
+ *  - 兜底目标 = 资源卡池（CURATION_WS_ID）时**不建「待分类」分类**（hub 分类已退役）， categoryId 置空；
+ *  - isThesis 论点卡随台迁移时**摘除论点标记**（「每台最多一张」不变量不被迁入卡破坏，卡内容保留入池）。
+ */
 export function archiveWorkspace(d: AppData, ws: Workspace): { moved: number } {
   ws.archived = true
   let moved = 0
   const other = (d.workspaces || []).find(w => !w.archived && w.id !== ws.id && w.id !== CURATION_WS_ID) || (d.workspaces || []).find(w => w.id === CURATION_WS_ID)
   if (other) {
-    let cat = (d.categories || []).find(c => c.workspaceId === other.id && !c.deletedAt && c.name === '待分类')
-    if (!cat) { cat = { id: uid('cat'), workspaceId: other.id, name: '待分类', order: 0 } as Category; d.categories.push(cat) }
-    for (const r of d.resources) if (r.workspaceId === ws.id && !r.deletedAt) { r.workspaceId = other.id; r.categoryId = cat.id; moved++ }
+    const toPool = other.id === CURATION_WS_ID
+    let cat: Category | undefined
+    if (!toPool) {
+      cat = (d.categories || []).find(c => c.workspaceId === other.id && !c.deletedAt && c.name === '待分类')
+      if (!cat) { cat = { id: uid('cat'), workspaceId: other.id, name: '待分类', order: 0 } as Category; d.categories.push(cat) }
+    }
+    for (const r of d.resources) {
+      if (r.workspaceId !== ws.id || r.deletedAt) continue
+      r.workspaceId = other.id
+      r.categoryId = toPool ? '' : cat!.id
+      if (r.isThesis) r.isThesis = undefined
+      moved++
+    }
   }
   if (d.curationProjections?.length) d.curationProjections = d.curationProjections.filter(p => !(p.kind === 'card' && p.targetWsId === ws.id))
   pruneMirrorCats(d, ws.id)

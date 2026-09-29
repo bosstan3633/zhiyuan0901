@@ -100,7 +100,7 @@ export function useWorkspaceBatch(ctx: WorkspaceBatchCtx) {
     // R61：镜像卡不参与跨台移动（引用随台走），先移出镜像再提示
     const mirrors = items.filter(isMirrorView)
     const natives = items.filter(r => !isMirrorView(r))
-    if (mirrors.length && !natives.length) { showToast('📡 所选均为镜像卡——移动请在资源台操作，或先移出镜像'); return }
+    if (mirrors.length && !natives.length) { showToast('📡 所选均为镜像卡——移动请在源卡处操作，或先移出镜像'); return }
     let catId = moveCatId.value
     if (!catId) {
       let cat = d.value.categories.find(c => !c.deletedAt && c.workspaceId === moveWsId.value && c.name === '待分类')
@@ -127,7 +127,7 @@ export function useWorkspaceBatch(ctx: WorkspaceBatchCtx) {
   const moveOneTarget = ref<ResourceCard | null>(null)
   const moveOneOptions = computed(() => treeCatOptions(wsCats.value))
   function openMoveOne(r: ResourceCard) {
-    if (isMirrorView(r)) { showToast('📡 镜像卡为引用——移动落点请直接拖拽，编辑请到资源台'); return }
+    if (isMirrorView(r)) { showToast('📡 镜像卡为引用——移动落点请直接拖拽，编辑请到源卡'); return }
     moveOneTarget.value = r
     moveOneCatId.value = r.categoryId || ''
     moveOneOpen.value = true

@@ -425,7 +425,7 @@ async function main() {
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2000)
   report('E2E-24 R167 镜像只读详情边界（标题 readonly / AI 行不给入口 / 页脚两钮是定位）+ 真身侧反向对照（AI 行两格 + 标题可写）',
-    mirFound > 0 && mirHeadVisible && mirTitleReadonly && mirBanner && mirAiCells === 0 && mirFootBtns === 2 && mirFootText.includes('定位到资源台编辑') && hubAiCells === 2 && hubTitleEditable && hubTitleValue === 'E2E 只读镜像源卡',
+    mirFound > 0 && mirHeadVisible && mirTitleReadonly && mirBanner && mirAiCells === 0 && mirFootBtns === 2 && mirFootText.includes('定位到源卡') && hubAiCells === 2 && hubTitleEditable && hubTitleValue === 'E2E 只读镜像源卡',
     `镜像在位=${mirFound} 头=${mirHeadVisible} 标题只读=${mirTitleReadonly} banner=${mirBanner} AI格=${mirAiCells} 页脚钮=${mirFootBtns}(${mirFootText.slice(0, 24)}) 投射=${mirDiag.proj}/目标台=${roBoardId || '无'} | 真身 AI格=${hubAiCells} 可写=${hubTitleEditable} 值="${hubTitleValue}"`)
 
   // E2E-25（R174-3）：zy_daily_stats 落盘——读合并 + 写链路两端到端。

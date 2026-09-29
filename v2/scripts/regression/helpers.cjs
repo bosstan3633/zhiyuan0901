@@ -102,7 +102,7 @@ function codeOnly(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.6.8'";
+const VER_ANCHOR_LITERAL = "version: '3.7.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -125,10 +125,12 @@ const segOf = (src, head, next) => {
 const RES_CARD_ACTIONS = segOf(read('/newtab/views/Workspace.vue'), '<div class="res-card-actions">', '<div class="rc-head">');
 const RES_ROW_ACTIONS = segOf(read('/newtab/views/Workspace.vue'), '<span class="rr-actions">', '</span>\n              </div>');
 const KANBAN_ACTIONS = segOf(read('/newtab/views/Workspace.vue'), '<div class="kc-actions">', '</div>\n                <div class="kc-card-title">');
-const SIX = ['openResourceLink(r)', 'togglePin(r)', 'toggleStar(r)', 'openMoveOne(r)', 'openMirrorCard(r)', 'deleteResource(r)'];
+// R179（V3.7.0）：镜像域退役（资源卡真身统一入池，「镜像到策展台」入口整域删除）——
+// 六动作序列收敛为五动作（原 openMirrorCard(r) 居 📂 与 🗑 之间，随其退役一并移出）。
+const ACTION_SEQ = ['openResourceLink(r)', 'togglePin(r)', 'toggleStar(r)', 'openMoveOne(r)', 'deleteResource(r)'];
 const inOrder = (seg) => {
   let at = -1;
-  for (const fn of SIX) {
+  for (const fn of ACTION_SEQ) {
     const i = seg.indexOf(fn, at + 1);
     if (i < 0) return false;
     at = i;
@@ -157,7 +159,7 @@ const TERM_FN = segOf(LH, 'function termText(', 'function focusedOf(');
 const WS84 = read('/newtab/views/Workspace.vue');
 const WSVIEW = read('/shared/utils/wsView.ts');
 const HEAD_TPL = segOf(WS84, '<div class="ws-id-head">', '</div>');
-const BANNER_TPL = segOf(WS84, '<div v-if="!isHub" class="thesis-banner"', '</div>');
+const BANNER_TPL = segOf(WS84, '<div class="thesis-banner"', '</div>');
 const LH85 = read('/newtab/components/compass/LighthousePanel.vue');
 const ST85 = read('/newtab/stores/compass.ts');
 const TPL85 = segOf(LH85, '<template>', '\n</template>');
@@ -281,4 +283,4 @@ function getTally() { return { pass, fail }; }
 /* R174-1：分片锚——ANCHOR_FILE = 本文件（版本锚 VER_ANCHOR_LITERAL 与聚合读取机制断言读这里） */
 const ANCHOR_FILE = __filename;
 
-module.exports = { fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, SIX, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getTally };
+module.exports = { fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getTally };

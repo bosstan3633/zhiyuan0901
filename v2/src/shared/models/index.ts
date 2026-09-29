@@ -10,6 +10,14 @@
  *    六层归属（projectId/metricId）同理不受限。
  * 3. 六层树：Vision → Mission → Direction → Goal → Project → Metric → Task
  * 4. 软删除：所有卡片 deletedAt 标记，回收站恢复
+ *
+ * V3.7.0（R179 架构简化轮）：
+ * - 卡片原点：资源卡真身统一入池（workspaceId=CURATION_WS_ID 为隐藏池 id），策展台一律以镜像投射呈现；
+ *   isThesis 主题卡是唯一例外（台内 UI 层论点，纯界面呈现，不进池语义）。
+ * - 新增第 4 种卡「论证节点卡」ArgumentCard：策展台内新建，围绕策展主题的描述性论证节点，
+ *   用于统筹镜像进来的资源卡——**不属于三卡池**（不进 3张卡 Tab / 全局三卡统计），随台存亡。
+ * - hub 分类退役：categories 中 workspaceId=CURATION_WS_ID 的实体由迁移器移除（口径见 poolMigration.ts），
+ *   `categoryId` 降级为遗留字段（池卡置空串）；策展台自己的分类树（金字塔结构）原样保留。
  */
 
 // ============ 通用类型 ============
@@ -117,7 +125,8 @@ export interface Compass {
  */
 export interface CardBase {
   id: ID
-  kind: 'resource' | 'task' | 'curiosity'
+  /** V3.7.0：新增 'argument'（论证节点卡，策展台专用；不在三卡池，见 ArgumentCard） */
+  kind: 'resource' | 'task' | 'curiosity' | 'argument'
   /** 描述（资源采集时自动填入选中文本；任务/好奇手动补充） */
   description?: string
   /** N4：标签（从标签管理体系选择） */
@@ -165,8 +174,13 @@ export interface ResourceCard extends CardBase {
    * （目标槽空 ⇒ `link` 置空，用户要的"切过去没有就该为空"）。老数据无本字段 ⇒ 首次切槽时才建。
    */
   linkSlots?: Partial<Record<LinkType, string>>
+  /**
+   * V3.7.0（池语义）：池卡（workspaceId=CURATION_WS_ID）此字段**置空串**——hub 分类实体已由
+   * 迁移器移除（catsMigratedAt），组织维度只有 tags。字段保留为遗留兼容：老投射记录的 catId
+   * 历史快照、策展台自有分类的台内卡（isThesis 主题卡）仍可能有值；新建/收编的池卡一律 ''。
+   */
   workspaceId: ID
-  categoryId: ID
+  categoryId?: ID
   /** 来源类型（官�?学术/媒体等），不在采集弹窗中设置，后期编�*/
   sourceType?: SourceType
   tags: string[]
@@ -295,6 +309,23 @@ export interface CuriosityCard extends CardBase {
 
 export type AnyCard = ResourceCard | TaskCard | CuriosityCard
 
+/**
+ * V3.7.0：论证节点卡（第 4 种卡，策展台专用）。
+ * 围绕策展主题的**描述性论证节点**——用来统筹（镜像进来的）资源卡，本身不是好奇/任务/资源卡：
+ * - 存独立表 `AppData.argCards`（不进 resources 数组 ⇒ 天然不进三卡池 / 3张卡 Tab / 全局三卡统计）；
+ * - workspaceId = 所属策展台 id，随台存亡（台删则节点删，走回收站同口径）；
+ * - 金字塔节点/台内列表消费它；与资源卡的关联继续走「挂载/投射」，卡间零挂载红线不破。
+ */
+export interface ArgumentCard extends CardBase {
+  kind: 'argument'
+  /** 节点标题（论证要点的短句） */
+  title: string
+  /** 所属策展台 */
+  workspaceId: ID
+  /** 台内排序（拖拽自由排序） */
+  order?: number
+}
+
 // ============ 策展台与分类 ============
 
 export interface Workspace {
@@ -378,6 +409,8 @@ export interface FieldConfig {
   curiosity: FieldDef[]
   /** R62-3：策展主题卡字段组（isThesis 资源卡专用，界面层独立配置；老数据无此组，加载期补默认） */
   thesis?: FieldDef[]
+  /** V3.7.0：论证节点卡字段组（老数据无此组，消费方按默认组兜底） */
+  argument?: FieldDef[]
 }
 
 // ============ 统计指标 ============
@@ -454,6 +487,31 @@ export interface AppData {
    *  跨上下文合并按 id 取并集对"替换"是错的（旧节点会被并回来），故谁号大听谁的。 */
   tagTreeRevision?: number
   tagsVisibleMigratedAt?: number
+  /** V3.7.0：论证节点卡（策展台专用第 4 种卡；导入合并同 curationProjections 走 mergeByIdArr） */
+  argCards?: ArgumentCard[]
+  /** V3.7.0：分类 → 标签迁移完成时间戳（幂等标记——有值即跳过；备份见 K.MIGRATE_BACKUP） */
+  catsMigratedAt?: number
+  /** V3.7.0：策展台台内资源卡收编入池完成时间戳（幂等标记） */
+  boardCardsPooledAt?: number
+  /** V3.7.0：分类 → 标签迁移报告（设置页「标签管理」展示；映射清单逐条可查） */
+  catsMigrateReport?: CatsMigrateReport
+}
+
+/** V3.7.0：分类 → 标签迁移报告（口径与逐条映射，供设置页展示与核对） */
+export interface CatsMigrateReport {
+  at: number
+  /** 一级分类 → 标签父节点 数 */
+  l1: number
+  /** 二级分类 → 子标签 数 */
+  l2: number
+  /** 三 / 四级分类 → 拍平路径标签 数 */
+  deep: number
+  /** 被追加标签的卡片数 */
+  cardsTouched: number
+  /** 累计追加的标签次数（去重后） */
+  tagsAdded: number
+  /** 逐条映射：catId=原分类 id；path=原分类全路径；tagName=落库标签值；kind=去向 */
+  mapping: { catId: ID; path: string; tagName: string; kind: 'parent' | 'child' | 'flat' }[]
 }
 
 /** R63：Airtable 单向同步配置 + 状态（存 AppData 单根内，随导出带走） */

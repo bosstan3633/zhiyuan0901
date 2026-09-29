@@ -3,7 +3,7 @@
  * 依赖基建见 ./helpers.cjs；__dirname/__filename 已换锚为 SCRIPTS_DIR/ANCHOR_FILE（语义=原 scripts/ 根与回归自体）。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, SIX, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
+  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
 } = require('./helpers.cjs');
 
 console.log('【第九十轮 · V2.59.0：工具条收敛与右键菜单（R8 + R10 + R17）】');
@@ -12,14 +12,16 @@ console.log('【第九十轮 · V2.59.0：工具条收敛与右键菜单（R8 + 
 /** 右键菜单函数体（到 B6 拖拽段为止） */
 // R115：样式外置 workspace.css——锚点换源（断言口径不变）
 
-check('R90-1 ★ R8-①：常驻教学文案「· 可镜像到策展台」退出右端摘要（改「?」气泡）', () => {
+// V3.7.0（R179）随迁重写：镜像域整体退役——教学气泡（wsh-help / HUB_HELP_TEXT）与「· 可镜像到策展台」一并退出，
+// 不常驻 ≠ 删除的口径由 git 历史承担（原文案零残留为正例）。
+check('R90-1 ★ R8-①（V3.7.0 重指）：常驻教学文案「· 可镜像到策展台」零出现；教学气泡（wsh-help / HUB_HELP_TEXT）随镜像域退役', () => {
   const summary = segOf(HEAD90, '<span class="wsh-summary"', '</span>');
   return !HEAD90.includes('· 可镜像到策展台') && !summary.includes('可镜像到策展台')
-    && HEAD90.includes('class="wsh-help"') && HEAD90.includes('HUB_HELP_TEXT');
+    && !HEAD90.includes('wsh-help') && !WS90.includes('HUB_HELP_TEXT');
 });
-check('R90-2 R8-①：HUB_HELP_TEXT 逐字保留 04-18 原文案（不常驻 ≠ 删除）', () => {
-  const t = stripComments(segOf(WS90, 'const HUB_HELP_TEXT =', '\n'));
-  return t.includes('卡片在此存储为真身') && t.includes('📡 单卡') && t.includes('📤 分类') && t.includes('源数据零影响');
+check('R90-2 R8-①（V3.7.0 退役）：HUB_HELP_TEXT 四段文案现行源码零残留（卡片在此存储为真身 / 📡 单卡 / 📤 分类）', () => {
+  return !WS90.includes('HUB_HELP_TEXT') && !WS90.includes('卡片在此存储为真身')
+    && !WS90.includes('📡 单卡') && !WS90.includes('📤 分类');
 });
 check('R90-3 R8-②：主 CTA「＋新建」前置——出现位置早于 .toolbar-search', () => {
   return TB90.includes('openNewResource')
@@ -30,11 +32,13 @@ check('R90-4 R8-②：右推职责交给 .toolbar-spacer（.toolbar-search 不�
   const search = segOf(STYLE90, '.toolbar-search {', '}');
   return STYLE90.includes('.toolbar-spacer { flex: 1; }') && !search.includes('margin-left: auto');
 });
-check('R90-5 ★ R8-③：资源台 fallback 定位语不再内联（降为 ⓘ + title）；用户自写台描述**仍内联**', () => {
+// V3.7.0（R179）随迁重写：资源台 fallback 定位语（wsHeadDescFallback / wsh-locator）随退役下线，
+// 页头描述收敛为单形态——用户自写描述内联（wsHeadDescOwn）。
+check('R90-5 ★ R8-③（V3.7.0 重指）：页头描述单形态——用户自写描述内联（wsHeadDescOwn）；fallback 定位语零残留', () => {
   return !HEAD90.includes('{{ wsHeadDesc }}')
-    && HEAD90.includes('v-if="wsHeadDescOwn"') && HEAD90.includes('v-else-if="wsHeadDescFallback"')
-    && HEAD90.includes('class="wsh-locator"')
-    && stripComments(segOf(WS90, 'const wsHeadDescFallback = computed(', 'const HUB_HELP_TEXT')).includes('资源卡唯一存储 · 镜像源头');
+    && HEAD90.includes('v-if="wsHeadDescOwn"')
+    && !HEAD90.includes('wsHeadDescFallback') && !HEAD90.includes('wsh-locator')
+    && !WS90.includes('资源卡唯一存储');
 });
 check('R90-6 R10：右键菜单补「编辑详情」——直达抽屉（改前须先单击卡进详情）', () => {
   return CTX90.includes('编辑详情') && CTX90.includes('cb: () => openResource(r)');
@@ -42,17 +46,20 @@ check('R90-6 R10：右键菜单补「编辑详情」——直达抽屉（改前�
 check('R90-7 R10：右键菜单补星标（两态文案 + 调既有 toggleStar）', () => {
   return CTX90.includes('r.starred ?') && CTX90.includes('⭐ 星标') && CTX90.includes('cb: () => toggleStar(r)');
 });
-check('R90-8 ★ R10：「📡 镜像到策展台」带 isHub 门控（策展台的卡再推给别的台无意义）', () => {
-  return CTX90.includes('isHub.value ?') && CTX90.includes('📡 镜像到策展台') && CTX90.includes('openMirrorCard(r)');
+// V3.7.0（R179）退役：镜像推送入口（📡 镜像到策展台 · isHub 门控）随资源台退役整体下线；
+// 引用侧（策展台内镜像卡定位源卡 locateMirrorSource）保留——本断言转守退役边界 + 引用侧不误伤。
+check('R90-8 ★ R10（V3.7.0 退役）：右键菜单「📡 镜像到策展台」入口零残留（isHub 门控/推送调用下线）；引用侧 locateMirrorSource 仍在', () => {
+  return !CTX90.includes('isHub') && !CTX90.includes('镜像到策展台') && !CTX90.includes('openMirrorCard')
+    && WS90.includes('locateMirrorSource');
 });
 check('R90-9 ★ R17：wsOptions 首位注入补救（R165-A 重指：策展台字段整体退役——表单不再出现 wsOptions/CURATION_WS_ID 注入，静默迁移通道随之焊死）', () => {
   const f = read('/newtab/components/ResourceEditForm.vue');
   return !f.includes('wsOptions') && !f.includes('CURATION_WS_ID') && f.includes('策展台」下拉') && f.includes('真身静默迁');
 });
-check('R90-10 R10 附带：Icon 补齐 edit / star / share（此前 icon:"star" 静默回落罗盘）；中心论点让位 target', () => {
+check('R90-10 R10 附带（V3.7.0 重指）：Icon 仍备 edit/star/share 三定义；真身菜单用 edit/star + 中心论点 target；📡 镜像位退役（share 调用零残留）', () => {
   return ICON90.includes('edit:') && ICON90.includes('star:') && ICON90.includes('share:')
-    && CTX90.includes("icon: 'edit'") && CTX90.includes("icon: 'star'") && CTX90.includes("icon: 'share'")
-    && CTX90.includes("icon: 'target'");
+    && CTX90.includes("icon: 'edit'") && CTX90.includes("icon: 'star'")
+    && !CTX90.includes("icon: 'share'") && CTX90.includes("icon: 'target'");
 });
 check('R90-11 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');

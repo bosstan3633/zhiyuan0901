@@ -3,7 +3,7 @@
  * 依赖基建见 ./helpers.cjs；__dirname/__filename 已换锚为 SCRIPTS_DIR/ANCHOR_FILE（语义=原 scripts/ 根与回归自体）。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, SIX, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
+  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
 } = require('./helpers.cjs');
 
 console.log('【第六十五轮 · V2.35.0：资源台对齐旧工作台 + 金字塔 2~7 列树状自适应 + 节点双入口 + 导入导出语义修正】');
@@ -23,7 +23,9 @@ check('R65-6 金字塔严格树状：DFS 先序排序（同父节点紧邻）', 
 check('R65-7 节点双入口：🔗 关联资源卡（linkCandidates 关键词过滤 + 已在该台去重 + confirmLinkCards projectCardToBoard 镜像）+ ➕ 新建卡片（addResourceToCategory 台内卡）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('openLinkCards') && w.includes('linkCandidates') && w.includes('confirmLinkCards') && w.includes('projectCardToBoard(d.value, id, workspaceId.value, m.catId)') && w.includes('🔗 关联资源卡') && w.includes('➕ 新建卡片') && w.includes('py-node-foot'); });
 check('R65-8（R100 重指：实现拆入 useWorkspaceImport；R169-T1 再重指：资源段合并前先钳 updatedAt）策展台导入=策展台数据包 JSON：version 校验 + 按 ID 并集合并本台段 + 投射清单并入', () => { const imp = read('/newtab/composables/useWorkspaceImport.ts'); return imp.includes('handleBoardImport') && imp.includes("startsWith('2')") && imp.includes('mergeById(d.value.resources, clampUpdatedAt(d.value.resources, incRes)') && imp.includes('curationProjections = mergeById'); });
 check('R65-9 全景收窄为资源台全景：panHubWss 过滤 isHubWs + 导航/标题改名', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('const panHubWss = computed') && g.includes("(store.data?.workspaces || []).filter(w => isHubWs(w) && !w.archived)") && g.includes("label: '资源台全景'") && g.includes('🗺 资源台全景') && !g.includes("label: '工作台全景'"); });
-check('R65-10（R68/R117 修订）快捷键口径：open-resource 退役，资源台入口=应用内 Alt+3（switchToIndex）', () => { const m = read('/manifest.ts'); const a = read('/newtab/App.vue'); return !m.includes("'open-resource'") && a.includes('if (n === 3) { openResource(); return }'); });
+// R179-MIGRATED R65-10
+// V3.7.0（R179）随迁重写：资源台退役后应用内数字键顺延——1=调度台 / 2=方向台 / 3 起=各策展台（无资源台号位）
+check('R65-10 快捷键口径（V3.7.0 重指）：open-resource 退役 + 应用内 Alt+1 调度台 / Alt+2 方向台 / Alt+3 起各策展台', () => { const m = read('/manifest.ts'); const a = read('/newtab/App.vue'); return !m.includes("'open-resource'") && a.includes("if (n === 1) { navigate('/'); return }") && a.includes('if (n === 2) { openCompass(); return }') && a.includes('const ws = store.workspaces[n - 3]'); });
 check('R65-11（R74 重写）KeepAlive 切台缓存：三主视图 include（+CompassShell）+ defineOptions 实例名 + 跨台 :id 复位局部状态', () => {
   const a = read('/newtab/App.vue');
   const w = read('/newtab/views/Workspace.vue');
@@ -61,7 +63,7 @@ console.log('【第六十八轮 · R68：搜索口径修复 + 深色可见性 + 
 check('R68-1 搜索工作台分组口径对齐台签栏：两端均排除资源台本体实体（CURATION_WS_ID）+ 已归档', () => { const g = read('/newtab/components/GlobalPopups.vue'); const c = read('/content/overlay-impl.ts'); return g.includes('!w.archived && w.id !== CURATION_WS_ID') && g.includes('ws: all.workspaces.filter(w=>!w.archived && w.id !== CURATION_WS_ID).length') && c.includes("!w.archived && w.id !== CURATION_WS_ID") && c.includes("import { CURATION_WS_ID } from '@/shared/models'"); });
 check('R68-2 搜索项目分组尊重 showDoneProjects（浮层读 zy_ui_v2 + isProjDone 派生口径）', () => { const c = read('/content/overlay-impl.ts'); return c.includes('showDoneProjectsCache') && c.includes('loadShowDonePref') && c.includes('zy_ui_v2') && c.includes('function isProjDone') && c.includes('if (!showDoneProjectsCache && isProjDone(p, d)) return'); });
 check('R68-3（R155 令牌化备案）任务卡删除按钮 emoji → 主题色 trash 线性图标（深色主题可见）', () => { const t = read('/newtab/components/compass/TaskManagerPanel.vue'); return t.includes('import Icon from') && t.split('<Icon name="trash" :size="12" />').length >= 4 && t.includes('.k-del { position: absolute; top: 6px; right: 58px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-caption); cursor: pointer; opacity: 0; transition: all var(--dur) ease; z-index: 1; color: var(--text-3);') && t.includes('.kcard:hover .k-pin, .kcard:hover .k-star, .kcard:hover .k-del { opacity: .85; }'); });
-check('R68-4 快捷键体系改造（R117 修订）：open-compass/open-resource 退役 + 数字键 1=调度台 2=方向台 3=资源台 4..=策展台（goto-tasks/goto-curiosity 同落调度台并锚对应 tab）', () => { const m = read('/manifest.ts'); const b = read('/background/index.ts'); const a = read('/newtab/App.vue'); return !m.includes("'open-compass'") && !m.includes("'open-resource'") && b.includes('open-compass/open-resource 已从 manifest 下架') && b.includes("const anchor = command === 'goto-curiosity' ? 'curiosity' : 'task'") && a.includes("if (n === 1) { navigate('/'); return }") && a.includes('if (n === 2) { openCompass(); return }') && a.includes('const ws = store.workspaces[n - 4]'); });
+check('R68-4 快捷键体系改造（R117 修订；V3.7.0 重指：资源台退役后策展台索引由 n-4 顺延到 n-3）：open-compass/open-resource 退役 + 数字键 1=调度台 2=方向台 3..=策展台（goto-tasks/goto-curiosity 同落调度台并锚对应 tab）', () => { const m = read('/manifest.ts'); const b = read('/background/index.ts'); const a = read('/newtab/App.vue'); return !m.includes("'open-compass'") && !m.includes("'open-resource'") && b.includes('open-compass/open-resource 已从 manifest 下架') && b.includes("const anchor = command === 'goto-curiosity' ? 'curiosity' : 'task'") && a.includes("if (n === 1) { navigate('/'); return }") && a.includes('if (n === 2) { openCompass(); return }') && a.includes('const ws = store.workspaces[n - 3]'); });
 check('R68-5 任务调度直达落位（R117 重写：宿主由方向台迁调度台底部双 tab）：调度台承接 zy-goto-anchor（curiosity→好奇 tab 并挂载 / task→任务 tab），方向台不再持任务模块', () => { const h = read('/newtab/views/CompassHome.vue'); const sh = read('/newtab/views/CompassShell.vue'); return h.includes("addEventListener('zy-goto-anchor', onAnchorEvt)") && h.includes("if (name === 'curiosity') { bottomTab.value = 'curio'; curioMounted.value = true }") && h.includes("else if (name === 'task') bottomTab.value = 'task'") && !sh.includes('flashTaskModule') && !sh.includes('task-mgmt-module'); });
 check('R68-6（R155 令牌化备案）方向树操作按钮主题感知（去硬编码白底，深色主题可见）', () => { const t = read('/newtab/views/CompassTree.vue'); return t.includes('.node-action { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: var(--fs-caption); cursor: pointer; color: var(--text-2); transition: all var(--dur); background: var(--surface-3); border: 1px solid var(--border); }') && !t.includes('rgba(255,255,255,.9)'); });
 check('R68-7 加载动画排版重整：分隔线对齐轴 + slogan 升字号提对比', () => { const h = read('/newtab/index.html'); return h.includes('zy-skl-divider') && h.includes('font-size: 15.5px; font-weight: 500; color: #C6CBD4; letter-spacing: 0.22em;') && h.includes('万千可调用，自有我方向</div>') && !h.includes('万千可调用，自有我方向。'); });
@@ -82,8 +84,8 @@ check('R69-3（R74 重写）资源台聚合哨兵不污染数据层：新建卡/
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('function newCardCatId(): string') && w.includes("return (c && c !== 'uncat' && c !== 'all') ? c : ''") && w.includes('editingResource.categoryId = newCardCatId()') && w.includes('const targetKey = catKeyToCatId(groupKey)');
 });
-check('R69-4 设置页快捷键映射表键位修正（R117 修订：数字键整体 +1，第 N 个策展台 = 修饰键 + (N+3)）', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes("{{ i + 4 <= 9 ? modLabel() + ' + ' + (i + 4) : '—' }}") && s.includes('第 N 个策展台 = 修饰键 + (N+3)') && s.includes('Alt + 数字键（1=调度台、2=方向台、3=资源台、4 起=各策展台）'); });
-check('R69-5 快捷键速查口径修正（R117 修订）：Ctrl+Shift+K 打开调度台 + Alt+1 调度台 / Alt+2 方向台 / Alt+3 资源台 / Alt+4…9 各策展台', () => { const s = read('/newtab/components/GlobalPopups.vue'); return s.includes("desc: '打开调度台'") && s.includes("desc: '各策展台（按台签顺序）'") && s.includes("{ keys: 'Alt+1', desc: '调度台（修饰键可自定义）' }") && s.includes("{ keys: 'Alt+2', desc: '方向台' }") && s.includes("{ keys: 'Alt+3', desc: '资源台' }"); });
+check('R69-4 设置页快捷键映射表键位（V3.7.0 重指：资源台退役后策展台顺延，第 N 个策展台 = 修饰键 + (N+2)，与 App.vue switchToIndex 的 n-3 落位一致）', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes("{{ i + 3 <= 9 ? modLabel() + ' + ' + (i + 3) : '—' }}") && s.includes('第 N 个策展台 = 修饰键 + (N+2)') && s.includes('Alt + 数字键（1=调度台、2=方向台、3 起=各策展台）') && !s.includes('3=资源台'); });
+check('R69-5 快捷键速查口径修正（V3.7.0 重指：资源台退役后 Alt+3 起整体让位各策展台）', () => { const s = read('/newtab/components/GlobalPopups.vue'); return s.includes("desc: '打开调度台'") && s.includes("desc: '各策展台（按台签顺序）'") && s.includes("{ keys: 'Alt+1', desc: '调度台（修饰键可自定义）' }") && s.includes("{ keys: 'Alt+2', desc: '方向台' }") && s.includes("{ keys: 'Alt+3…9', desc: '各策展台（按台签顺序）' }"); });
 check('R69-6 垃圾清理：旧版浮层备份 search-overlay.ts.orig.bak 与 scripts/.r6a 已移除', () => !exists('/content/search-overlay.ts.orig.bak') && !fs.existsSync(path.resolve(SCRIPTS_DIR, '..', 'scripts', '.r6a')));
 check('R69-7 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); const reg = fs.readFileSync(ANCHOR_FILE, 'utf8'); const gs = read('/newtab/views/GlobalSettings.vue'); return m.includes(VER_ANCHOR_LITERAL) && pkg.includes('"version": "' + CUR_VER + '"') && mp.includes(CUR_VTAG) && reg.includes(VER_ANCHOR_LITERAL) && gs.includes('runtimeVersion'); });
 
@@ -300,14 +302,17 @@ check('R72-9 G7 界面偏好包补齐列数：导入侧按白名单归一后落�
 
 console.log('');
 console.log('【第七十三轮 · V2.42.0：资源台收敛（R16）】');
-check('R73-1 资源台两入口合一：/curation 为 redirect（透传 query）到 /workspace/zy-curation，不再渲染独立组件', () => {
+// R179-MIGRATED R73-1 / R74-2
+// V3.7.0（R179）随迁重写：资源台页退役——/curation 不再改投 /workspace/zy-curation（hub 分支已无），
+// 改为 redirect 回调度台首页；旧深链零 404 仍由本断言守。
+check('R73-1 资源台两入口合一（V3.7.0 重指）：/curation 为 redirect 到调度台首页（资源台页退役，独立组件与 hub 分支双清）', () => {
   const r = read('/newtab/router.ts');
-  return r.includes("path: '/curation'") && r.includes('redirect: to => ({ path: ' + "'/workspace/' + CURATION_WS_ID" + ', query: to.query })')
-    && !r.includes("import('./views/CurationCenter.vue')") && r.includes('CURATION_WS_ID');
+  return r.includes("path: '/curation'") && r.includes("redirect: () => ({ path: '/' })") && !r.includes("import('./views/CurationCenter.vue')") && r.includes('资源台已随池语义退役');
 });
-check('R73-2 顶栏「资源台」Tab 高亮认 hub：activeTab 在 activeWorkspaceId === CURATION_WS_ID 时返回 curation', () => {
-  const a = read('/newtab/App.vue');
-  return a.includes("if (activeWorkspaceId.value === CURATION_WS_ID) return 'curation'") && a.includes("navigate('/curation')");
+// V3.7.0（R179）重指：同 R73-1，redirect 目标随资源台退役改投首页
+check('R73-2 顶栏「资源台」Tab 退役（V3.7.0 重指：读码区剥注释＋/curation 残留负向）：固定页签=调度台/方向台，activeTab curation 分支与 /curation 导航一并下线', () => {
+  const a = codeOnly(read('/newtab/App.vue'));
+  return !a.includes("return 'curation'") && !a.includes("navigate('/curation')") && !a.includes('/curation') && a.includes('>调度台') && a.includes('>方向台');
 });
 check('R73-3 KeepAlive 不再缓存已收敛的 CurationCenterView（三主视图）', () => {
   const a = read('/newtab/App.vue');
@@ -317,29 +322,31 @@ check('R73-3 KeepAlive 不再缓存已收敛的 CurationCenterView（三主视�
 // R84 重指：页头由 R73 的 hub 专属 `.ws-hub-head`（写死「资源台」）升级为 W1 的全台通用 `.ws-id-head`
 // （台名取 workspace.name、描述取 workspace.desc）。**能力仍在且更强**——资源台标题可见，
 // 而且不再写死、策展台也有了。名冻结、只改断言体，零退役。
-check('R73-4 hub 补页头：资源台标题在页面内可见（R64-F13 删 hero 后的空档；R84 起走 W1 通用页头）', () => {
+// R179-MIGRATED R73-4
+// V3.7.0（R179）随迁重写：hub 回落文案（「资源卡唯一存储 · 镜像源头」）随资源台退役下线，
+// .ws-id-head 收敛为策展台唯一形态（图标 + 台名 + 用户自写描述 + 结构摘要 + 更新流水入口）。
+check('R73-4 页头全台渲染（V3.7.0 重指）：res台退役后 .ws-id-head 为唯一形态——图标+台名+自写描述+结构摘要', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes('class="ws-id-head"') && w.includes("class=\"wsh-name\">{{ wsDisplayNameOf(workspace) }}")
-    && w.includes('资源卡唯一存储 · 镜像源头')
+  return w.includes('class="ws-id-head"') && w.includes('{{ wsDisplayNameOf(workspace) }}') && w.includes('class="wsh-desc"')
+    && w.includes('class="wsh-summary"')
     && w.includes('font-size: 16px; letter-spacing: .2px');
 });
-check('R73-5 导入弹窗 mode-aware：hub 提供书签+本地文件，策展台只收数据包 JSON', () => {
+// R179-MIGRATED R73-5
+// V3.7.0（R179）随迁重写：导入弹窗收敛单形态「导入策展台数据包（JSON）」——hub 分支（书签/本地文件）
+// 随资源台退役，书签导入唯一路线=设置→导入数据，本地文件导入待 R2 3张卡「新建」弹窗接手（composable 能力保留）。
+check('R73-5 导入弹窗单形态（V3.7.0 重指）：只收策展台数据包 JSON，hub 双选项分支退役（boardImportInput 唯一入口）', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes("isHub ? '导入资源到资源台' : '导入策展台数据包'") && w.includes('bookmarkInput?.click()') && w.includes('@click="fileImport"') && w.includes('boardImportInput?.click()');
+  return !w.includes("isHub ? '导入资源到资源台' : '导入策展台数据包'") && w.includes('导入策展台数据包（JSON）') && w.includes('boardImportInput?.click()');
 });
 check('R73-6（R100 重指：实现拆入 useWorkspaceImport）书签导入全链路在 hub：解析/根文件夹白名单/前 2 级建分类/第 3 级+转标签/文件夹勾选弹窗', () => {
   const imp = read('/newtab/composables/useWorkspaceImport.ts');
   return imp.includes('function parseBookmarksHtml') && imp.includes('function ensureBookmarkCategory') && imp.includes('const BK_ROOT_NAMES = new Set(')
     && imp.includes('segs.slice(2)') && imp.includes('function confirmBookmarkImport') && imp.includes('bkFolders');
 });
-check('R73-7（R123 重指：卡面 📡 退出 hover，收进右键菜单；分类 📤 仍在 ⋯ 菜单 canMirror 门控）hub 镜像推送入口：右键菜单 📡（isHub 门控）/ 分类 📤（菜单）/ 目标台弹窗，且仅 hub 出现', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  const d = read('/newtab/composables/useResourceDrawer.ts');
-  return d.includes("'📡 镜像到策展台'") && d.includes('...(isHub.value ? [') && w.includes("runCatMenu('mirror')")
-    && w.includes('canMirror: !!(isHub.value && !isMirrorCat(sc.cat))') && w.includes('openMirrorCat(c)')
-    && !w.includes('v-if="isHub" class="rc-action" title="镜像到策展台"')
-    && read('/newtab/composables/useWorkspaceMirror.ts').includes('function confirmMirrorPush') && read('/newtab/composables/useWorkspaceMirror.ts').includes('mirrorPushTargetCats') && w.includes('mirrorPushTargetCats');
-});
+// V3.7.0（R179）退役：hub 镜像推送入口（右键菜单 📡 isHub 门控 / 分类 ⋯ 📤 canMirror 门控 / 目标台弹窗）
+// 随资源台退役整体下线——池化架构下「从资源台推镜像」不再存在这回事（策展台取卡走「🔗 关联资源卡」与投射记录）。
+// 实现侧：useWorkspaceMirror 只余引用侧四函数；useResourceDrawer 的 📡 菜单项与 canMirror 门控一并移除。
+// R73-7 hub 镜像推送入口：右键菜单 📡（isHub 门控）/ 分类 📤（菜单）/ 目标台弹窗，且仅 hub 出现
 check('R73-8 hub 补齐 L5：区域级落卡（空白区可落）+ 拖拽结束复位 + 混排重编号', () => {
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('@dragover="onAreaDragOver($event, g.key)"') && w.includes('@drop="onAreaDrop($event, g.key)"')
@@ -367,9 +374,10 @@ check('R74-1 旧入口组件删除 + 全仓零残留（router 不 import / App K
   const r = read('/newtab/router.ts'); const a = read('/newtab/App.vue');
   return !exists('/newtab/views/CurationCenter.vue') && !r.includes('CurationCenter') && !a.includes('CurationCenterView');
 });
-check('R74-2 路由收敛保持：/curation 仍为 redirect（透传 query）到 /workspace/zy-curation', () => {
+// V3.7.0（R179）重指：同 R73-1——/curation 现改投调度台首页（旧深链不 404 的不变量保持）
+check('R74-2 路由收敛保持（V3.7.0 重指）：/curation 仍为 redirect（改投 /），hub 工作区路由不再存在', () => {
   const r = read('/newtab/router.ts');
-  return r.includes("path: '/curation'") && r.includes('redirect: to => ({ path: ' + "'/workspace/' + CURATION_WS_ID" + ', query: to.query })') && r.includes('CURATION_WS_ID');
+  return r.includes("path: '/curation'") && r.includes("redirect: () => ({ path: '/' })") && !r.includes("'/workspace/' + CURATION_WS_ID");
 });
 check('R74-3（R88 重指：导入入口收进 ⚙）hub 资源台工具条：四视图 + 搜索 + 批量 + 导入 + 新建', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -391,10 +399,9 @@ check('R74-7 hub 镜像分类同树呈现（isMirrorCat 徽标，无独立镜像
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('isMirrorCat(sc.cat)') && !w.includes('📡 镜像分组');
 });
-check('R74-8 hub 镜像推送入口：卡面 📡 / 分类 📤（R113-N1 起走 ⋯ 菜单 runCatMenu） / 目标台弹窗', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('title="镜像到策展台"') && w.includes('openMirrorCard(r)') && w.includes("runCatMenu('mirror')") && w.includes('openMirrorCat(c)') && w.includes('mirrorPushTargetCats') && read('/newtab/composables/useWorkspaceMirror.ts').includes('function confirmMirrorPush');
-});
+// V3.7.0（R179）退役：hub 镜像推送入口（卡面 📡 / 分类 ⋯ 📤 / 目标台弹窗）随资源台退役整体下线——
+// 宿主 Workspace.vue 与 useWorkspaceMirror.ts 双清；策展台内镜像**引用侧**（📡 徽标 / 定位 / 移出）仍在。
+// R74-8 hub 镜像推送入口：卡面 📡 / 分类 📤（R113-N1 起走 ⋯ 菜单 runCatMenu） / 目标台弹窗
 check('R74-9 hub 区域级落卡 + 混排重编号 + 拖拽复位', () => {
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('@dragover="onAreaDragOver($event, g.key)"') && w.includes('@drop="onAreaDrop($event, g.key)"') && w.includes('function reorderMixed') && w.includes('function acceptDragOver') && w.includes('function clearDragState');
@@ -416,10 +423,10 @@ check('R74-13 hub 离屏渲染抑制：content-visibility 2 处 + contain-intrin
   const w = read('/newtab/views/Workspace.vue');
   return (w.match(/content-visibility: auto/g) || []).length >= 2 && w.includes('contain-intrinsic-size: auto 44px');
 });
-check('R74-14 资源台两入口合一（顶栏 tab 高亮认 hub + KeepAlive 三视图）', () => {
+check('R74-14 资源台两入口合一（V3.7.0 重指：资源台页与 tab 高亮分支退役；KeepAlive 缓存 CompassHomeView/WorkspaceView/CompassShell 三视图不变）', () => {
   const a = read('/newtab/App.vue');
   const inc = (a.match(/keep-alive include="([^"]+)"/) || [, ''])[1].split(',')
-  return a.includes("if (activeWorkspaceId.value === CURATION_WS_ID) return 'curation'") && inc.includes('WorkspaceView') && inc.includes('CompassShell');
+  return !a.includes("if (activeWorkspaceId.value === CURATION_WS_ID) return 'curation'") && inc.includes('WorkspaceView') && inc.includes('CompassShell');
 });
 check('R74-15 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'package.json'), 'utf8');
@@ -429,36 +436,21 @@ check('R74-15 版本五处同步（manifest/package/ManualPage/regression/关于
 
 console.log('');
 console.log('【第七十五轮 · V2.44.0：资源台（hub）指标条 3 格版（R18）】');
-check('R75-1 资源台（hub）指标条 3 格块：v-if="isHub" class="ws-metrics hub3"', () => {
+// V3.7.0（R179）退役：hub 指标条 3 格块随资源台退役——策展台三格（.ws-metrics.cur3）收敛为唯一形态，
+// 指标条样式分流（R75-1/2/3）失去第二形态，判据由 R75-4（选择器零残留）承接。
+// R75-1 资源台（hub）指标条 3 格块：v-if="isHub" class="ws-metrics hub3"
+// V3.7.0（R179）退役：hub 三格 label（📊 卡片总数 / 📎 附件数量 / 🕐 最近更新）随资源台退役——
+// 资源总量口径由调度台「3张卡」与设置页资源卡池全景承接。
+// R75-2 hub 三格 label 齐备：📊 卡片总数 / 📎 附件数量 / 🕐 最近更新
+// V3.7.0（R179）退役：hub 块的「不含论点格」守护随块退役——策展台 cur3 本就不含论点格（论点上横幅）。
+// R75-3 hub 块不含论点格与来源构成格（无 openThesisDetail / 无 source 模式调用 / 无策展主题字样）
+check('R75-4 指标条样式（V3.7.0 重指：hub3 分流随资源台退役——三格形态唯一、.ws-metrics.hub3 选择器零残留；.ws-metrics 本体三列在位）', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes('<div v-if="isHub" class="ws-metrics hub3 flat">');
+  return !w.includes('.ws-metrics.hub3') && !w.includes('hub3') && w.includes('.ws-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0 0; }');
 });
-check('R75-2 hub 三格 label 齐备：📊 卡片总数 / 📎 附件数量 / 🕐 最近更新', () => {
+check('R75-5（R123 重指；V3.7.0 随迁：hub 分支退役后 cur3 为唯一形态）策展台指标条 = 3 × metric-box（论据卡片总数 / 佐证附件数量 / 金字塔论证深度）', () => {
   const w = read('/newtab/views/Workspace.vue');
-  const s = w.indexOf('<div v-if="isHub" class="ws-metrics hub3 flat">');
-  const e = w.indexOf('<div v-if="!isHub" class="ws-metrics cur3">');
-  if (s < 0 || e < 0 || e < s) return false;
-  const blk = w.slice(s, e);
-  return blk.includes('📊 卡片总数') && blk.includes('📎 附件数量') && blk.includes('🕐 最近更新') && blk.includes('assetKindBreakdown') && blk.includes('lastUpdateTime');
-});
-check('R75-3 hub 块不含论点格与来源构成格（无 openThesisDetail / 无 source 模式调用 / 无策展主题字样）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  const s = w.indexOf('<div v-if="isHub" class="ws-metrics hub3 flat">');
-  const e = w.indexOf('<div v-if="!isHub" class="ws-metrics cur3">');
-  if (s < 0 || e < 0 || e < s) return false;
-  const blk = w.slice(s, e);
-  return !blk.includes('openThesisDetail') && !blk.includes("openDrill('source')") && !blk.includes('来源构成') && !blk.includes('策展主题');
-});
-check('R75-4 指标条样式分流（R98 重指：W8 后两台同为三格）：.ws-metrics.hub3 三列 repeat(3,1fr)，.ws-metrics 本体三列 1.4fr 1fr 1fr', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  const i = w.indexOf('.ws-metrics.hub3');
-  if (i < 0) return false;
-  const seg = w.slice(i, i + 140);
-  return seg.includes('grid-template-columns: repeat(3, 1fr)') && w.includes('.ws-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0 0; }');
-});
-check('R75-5（R123 重指）策展台指标条 = 3 × metric-box（论据总数 / 佐证附件 / 论证深度）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  const s = w.indexOf('<div v-if="!isHub" class="ws-metrics cur3">');
+  const s = w.indexOf('<div class="ws-metrics cur3">');
   if (s < 0) return false;
   const e = w.indexOf('<CurationDrillDrawer', s);
   if (e < 0) return false;
@@ -471,15 +463,11 @@ check('R75-6（R122 重指）hub 卡片总数补充口径退役：分类数并�
   const w = read('/newtab/views/Workspace.vue');
   return !w.includes('hubCountHint') && w.includes('{{ categories.length }} 个分类');
 });
-check('R75-7 hub 三格复用既有下钻：total / assets / recent 三 mode，未新增 mode 与下钻组件', () => {
+check('R75-7 hub 三格复用既有下钻（V3.7.0 重指：hub 块退役；下钻组件与模式不新增——CurationDrillDrawer 仍是唯一 Driller）', () => {
   const w = read('/newtab/views/Workspace.vue');
-  const s = w.indexOf('<div v-if="isHub" class="ws-metrics hub3 flat">');
-  const e = w.indexOf('<div v-if="!isHub" class="ws-metrics cur3">');
-  if (s < 0 || e < 0 || e < s) return false;
-  const blk = w.slice(s, e);
   const dd = read('/newtab/components/CurationDrillDrawer.vue');
   const names = w.match(/[A-Za-z]*Drill[A-Za-z]*\.vue/g) || [];
-  return blk.includes("openDrill('total')") && blk.includes("openDrill('assets')") && blk.includes("openDrill('recent')")
+  return w.includes("openDrill('total')") && w.includes("openDrill('assets')") && w.includes("openDrill('recent')")
     && dd.includes("mode: 'total' | 'source' | 'assets' | 'recent'") && names.length > 0 && names.every(n => n === 'CurationDrillDrawer.vue');
 });
 check('R75-8（R110/R112 改写）指标条数据源仍为 curationMetrics：未新增统计函数；hub.ts 统计段改动 = R110-B1-2 红线兜底镜像恒 0 + R112-4 第三参复用宿主 cards（纯签名扩展，零行为变更）', () => {
@@ -487,12 +475,14 @@ check('R75-8（R110/R112 改写）指标条数据源仍为 curationMetrics：未
   const h = read('/shared/storage/hub.ts');
   return w.includes('const metrics = computed(() => curationMetrics(d.value, workspaceId.value, allResources.value))') && h.includes('export function curationMetrics') && h.includes('R110-BUG1：资源台（hub）按单向挂载红线镜像恒 0') && h.includes('cardsIn?: ResourceCard[]');
 });
-check('R75-9 hub3 样式块零硬编码色（只用 tokens 变量）', () => {
+// V3.7.0（R179）退役：hub3 样式块随资源台退役；本断言转守退役边界——选择器零残留，
+// 且承接其形态的 .metric-box 样式块仍零硬编码色（只用 tokens）。
+check('R75-9 hub3 样式块（V3.7.0 退役）：选择器零残留 + .metric-box 样式零硬编码色（tokens 不变）', () => {
   const w = read('/newtab/views/Workspace.vue');
-  const i = w.indexOf('.ws-metrics.hub3');
+  const i = w.indexOf('.metric-box {');
   if (i < 0) return false;
   const seg = w.slice(i, w.indexOf('\n', i));
-  return !/#[0-9a-fA-F]{3,8}\b/.test(seg);
+  return !w.includes('.ws-metrics.hub3') && !/#[0-9a-fA-F]{3,8}\b/.test(seg);
 });
 
 console.log('【第七十六轮 · V2.45.0：资源台计数口径统一（R3）】');

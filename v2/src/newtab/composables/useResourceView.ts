@@ -63,7 +63,7 @@ export function useResourceView(ctx: ResourceViewCtx) {
    *  持久化会造成「每次打开都被折叠」，与 D-B 拍板同口径）；同一组件跨台复用，折叠态跟随会话。 */
   const pyFold = ref<'l2' | 'l3' | 'all'>('all')
   // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.res；网格模板由 --grid-cols 驱动）
-  // 资源台（isHub）与策展台为同一组件同一网格 ⇒ 共用 'res' 键，列数在两台一致
+  // V3.7.0（R179）：各策展台同一组件同一网格 ⇒ 共用 'res' 键，列数跨台一致
   const resCols = useCardCols('res', store.ui)
   /** R87（R5-①）：排序档位白名单——sortPrefs.res.by 是持久化字段，防止未来退役档位后读到死值卡住 UI */
   const SORT_BY_KEYS = ['manual', 'recent', 'visited', 'hot', 'title']

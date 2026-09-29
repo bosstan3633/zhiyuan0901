@@ -305,7 +305,7 @@ function finish(one: { items: AiSearchHit[]; note: string }, scanned: number, to
 export function buildResourceEnrichJob(card: ResourceCard, ctx: SelectCtx): AiJob {
   const personaText = chainPersonaText(ctx.personaId || '')
   const known = knownTagSet(ctx.d)
-  const catName = () => catPathOf(ctx.d, card.categoryId) || '（未分类）'
+  const catName = () => catPathOf(ctx.d, card.categoryId || "") || '（未分类）'
   const job: AiJob = {
     key: 'enrich:' + card.id,
     title: `AI 补全 · ${card.title.slice(0, 18) || '（无名卡）'}`,

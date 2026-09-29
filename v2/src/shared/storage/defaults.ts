@@ -43,12 +43,26 @@ function defaultFieldDefs() {
     { key: 'link', label: '链接', type: 'text', visible: false, order: 4 },
     { key: 'assets', label: '附件', type: 'text', visible: true, order: 5 }
   ]
-  return { resource, task, curiosity, thesis }
+  // V3.7.0：论证节点卡字段组（策展台专用第 4 种卡；描述性节点，链接语义弱化默认隐藏）
+  const argument: FieldDef[] = [
+    { key: 'title', label: '节点标题', type: 'text', visible: true, order: 0 },
+    { key: 'description', label: '论证描述', type: 'text', visible: true, order: 1 },
+    { key: 'tags', label: '标签', type: 'tags', visible: false, order: 2 },
+    { key: 'createdAt', label: '创建时间', type: 'date', visible: false, order: 3 },
+    { key: 'link', label: '链接', type: 'text', visible: false, order: 4 },
+    { key: 'assets', label: '附件', type: 'text', visible: false, order: 5 }
+  ]
+  return { resource, task, curiosity, thesis, argument }
 }
 
 /** R62-3：老数据归一化用——thesis 字段组缺省补齐 */
 export function defaultThesisFieldDefs(): FieldDef[] {
   return defaultFieldDefs().thesis!
+}
+
+/** V3.7.0：老数据归一化用——argument 字段组缺省补齐 */
+export function defaultArgumentFieldDefs(): FieldDef[] {
+  return defaultFieldDefs().argument!
 }
 
 export function createDefaultData(): AppData {
@@ -78,6 +92,7 @@ export function createDefaultData(): AppData {
     resources: [],
     tasks: [],
     curiosities: [],
+    argCards: [],
     dailyFocus: {},
     tagTree: [],
     fieldConfig: defaultFieldDefs(),

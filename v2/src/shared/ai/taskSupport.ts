@@ -101,7 +101,7 @@ export function buildTaskSupportJob(ctx: TaskSupportCtx): AiJob | null {
         { role: 'user', content: `【任务】${subjectText}\n【目录】（本地预筛后没有一张卡与它字面相关——请返回空 items）` },
       ] }
       for (const r of cands) known.set(r.id, r)
-      const list = cands.map(r => `- cardId=${r.id} 「${r.title.slice(0, 50)}」${r.tags?.length ? ` 标签[${r.tags.join(',')}]` : ''} 分类:${catPathOf(d, r.categoryId) || (r.workspaceId === CURATION_WS_ID ? '资源台' : '策展台')}`).join('\n')
+      const list = cands.map(r => `- cardId=${r.id} 「${r.title.slice(0, 50)}」${r.tags?.length ? ` 标签[${r.tags.join(',')}]` : ''} 分类:${catPathOf(d, r.categoryId || "") || (r.workspaceId === CURATION_WS_ID ? '资源台' : '策展台')}`).join('\n')
       return { messages: [
         { role: 'system', content: taskSupportSystem() + (chainPersonaText(ctx.personaId || '') ? `\n\n【执笔视角】${chainPersonaText(ctx.personaId || '')}` : '') },
         { role: 'user', content: [

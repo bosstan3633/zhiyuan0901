@@ -242,20 +242,10 @@
               @keydown.ctrl.enter.prevent="saveCapture" @keydown.meta.enter.prevent="saveCapture"></textarea>
           </div>
           <div class="gp-field-row">
+            <!-- V3.7.0（R179）：资源台退役——采集统一入资源卡池，标签由「保存后补全」AI 建议（可保存后编辑） -->
             <div class="gp-field">
-              <label class="gp-field-label">存入台面</label>
-              <select class="gp-status-select" v-model="capForm.workspaceId">
-                <option v-for="ws in userWorkspaces" :key="ws.id" :value="ws.id">{{ ws.icon }} {{ ws.name }}</option>
-                <option disabled>🧭 方向台（系统）</option>
-                <option disabled>✅ 任务调度（系统）</option>
-              </select>
-            </div>
-            <div class="gp-field">
-              <label class="gp-field-label">分类</label>
-              <select class="gp-status-select" v-model="capForm.categoryId">
-                <option value="">📥 待分类</option>
-                <option v-for="cat in capCategories" :key="cat.id" :value="cat.id">📂 {{ cat.label }}</option>
-              </select>
+              <label class="gp-field-label">存入</label>
+              <div class="gp-status-select" style="display:flex;align-items:center;gap:6px;">🗂 资源卡池<span style="color:var(--text-tertiary);font-size:11px;">· 标签保存后可补</span></div>
             </div>
           </div>
         </div>
@@ -473,7 +463,6 @@ import type { ResourceCard, TaskCard, CuriosityCard, Workspace, Category, AnyCar
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
 import { markRank } from '@/shared/utils/marksort'
 import { saveUIPrefs } from '@/shared/storage/repository'
-import { buildCatOptions } from '@/shared/utils/catTree'
 // R158：命令面板 AI 分组数据源——只引注册表**纯声明**（零 import 红线：registry.ts 不拉任何工厂，
 // 入口 chunk 触达的只是静态常量，启动零 AI 不变；真正的 AI 栈仍由各宿主懒加载）
 import { AI_ENTRIES } from '@/shared/ai/jobs/registry'
@@ -532,8 +521,6 @@ function openPanel(p: PanelType, prefill?: { title?: string; description?: strin
     if (p === 'search') { searchInput.value?.focus(); runSearch() }
     if (p === 'capture') {
       prefillCapture()
-      // R64-F8：默认选中资源台（下拉回显一致）
-      if (!capForm.workspaceId) capForm.workspaceId = defaultCaptureWsId()
       if (capSaved.value) return
       capTitleInput.value?.focus(); capTitleInput.value?.select()
     }
@@ -727,7 +714,7 @@ const allResults = computed<SearchResult[]>(() => {
   // 资源卡
   all.resources.filter(r=>!r.deletedAt).forEach(r => {
     const ws = wsById.get(r.workspaceId)
-    const cat = catById.get(r.categoryId)
+    const cat = catById.get(r.categoryId || "")
     const rlink = r.link
     results.push({
       id: r.id, type: 'res', iconClass: 'res', iconText: '📄',
@@ -1096,7 +1083,6 @@ const QUICK_ACTIONS = [
   { label: '打开方向台', icon: 'compass', run: () => { closeAll(); router.push('/compass') } },
   { label: '打开项目详情', icon: 'layout', run: () => { closeAll(); router.push('/compass/projects') } },
   { label: '打开方向树', icon: 'branch', run: () => { closeAll(); router.push('/compass/tree') } },
-  { label: '打开资源台', icon: 'folder', run: () => { closeAll(); router.push('/workspace/zy-curation') } },
   { label: '打开回收站', icon: 'trash', run: () => { closeAll(); router.push('/recycle') } },
   { label: '打开使用手册', icon: 'arrowright', run: () => { closeAll(); router.push('/manual') } },
   { label: '打开设置', icon: 'settings', run: () => { closeAll(); router.push('/settings') } },
@@ -1388,13 +1374,12 @@ function openItem(item: SearchResult) {
   }
   if (item.type === 'res') {
     const r = item.raw as ResourceCard
-    // R117（04-61 B · 拍板反转）：单击 = **定位到该卡在资源台的位置并高亮**。
-    // 旧行为「有链接直接外开浏览器」与「先定位到卡片所在处」的诉求相反，已废——
-    // 外开降级为行内「↗ 打开链接」按钮（openResLink）与 Ctrl+Enter 定位后开详情。
+    // V3.7.0（R179）：资源台退役——资源卡统一入池，管理面收敛到调度台「3张卡」。
+    // 定位语义改为落地调度台（R2 3张卡上线后接 ?hk 卡片高亮）；外开仍走行内「↗ 打开链接」。
     const openable = !!toOpenableUrl(r.linkType, r.link)
-    router.push({ path: `/workspace/${r.workspaceId}`, query: { hl: r.id, hk: 'res' } })
-    if (!openable && r.link) showToast('⚠ 本地文件缺少完整路径，已定位到卡片')
-    else showToast('↗ 已定位到卡片所在资源台')
+    router.push({ path: '/' })
+    if (!openable && r.link) showToast('⚠ 本地文件缺少完整路径 · 已回调度台（3张卡检索查看）')
+    else showToast('↗ 已回调度台 · 资源卡在 3张卡中检索查看')
   } else if (item.type === 'task') {
     recordCardOpen(d.value, d.value.tasks.find(t => t.id === item.id))
     store.persistHot()
@@ -1506,8 +1491,7 @@ const SHORTCUT_GROUPS = [
   { title: '应用内', items: [
     { keys: 'Alt+1', desc: '调度台（修饰键可自定义）' },
     { keys: 'Alt+2', desc: '方向台' },
-    { keys: 'Alt+3', desc: '资源台' },
-    { keys: 'Alt+4…9', desc: '各策展台（按台签顺序）' },
+    { keys: 'Alt+3…9', desc: '各策展台（按台签顺序）' },
     { keys: '?', desc: '呼出本速查' },
   ]},
   { title: '编辑与导航', items: [
@@ -1531,16 +1515,6 @@ const capSaved = ref(false)
 const savedResourceId = ref('')
 const savedWsId = ref('')
 let savedTimer: ReturnType<typeof setTimeout> | null = null
-
-const userWorkspaces = computed(() => d.value.workspaces.filter(w => !w.archived))
-/** R64-F8：采集默认落资源台（未被删即资源台，否则回退第一个台） */
-function defaultCaptureWsId(): string {
-  const hub = d.value.workspaces.find(w => w.id === CURATION_WS_ID && !w.archived)
-  return hub?.id || userWorkspaces.value[0]?.id || ''
-}
-// R117（04-61 A）：分类口径统一——过滤软删（原实现漏 deletedAt，软删分类成为下拉「幽灵项」）
-// 且与资源台同视觉（buildCatOptions 层级缩进 label）
-const capCategories = computed(() => buildCatOptions(d.value.categories.filter(c => c.workspaceId === capForm.workspaceId)))
 
 // ===== R55-C：快速采集任务（四字段全非必填，直存全域任务；未挂项目=未归档） =====
 const tcForm = reactive({ title: '', description: '', projectId: '', metricId: '' })
@@ -1611,8 +1585,9 @@ async function saveCapture() {
   const r: ResourceCard = {
     id: uid('res'), kind: 'resource', title: capForm.title.trim(),
     linkType: capForm.linkType, link: capForm.link.trim(),
-    workspaceId: capForm.workspaceId || defaultCaptureWsId(),
-    categoryId: capForm.categoryId, description: capForm.description.trim(),
+    // V3.7.0（R179）：统一入池——workspaceId 固定池 id，categoryId 遗留字段置空
+    workspaceId: CURATION_WS_ID,
+    categoryId: '', description: capForm.description.trim(),
     tags: [], customFields: {}, pinned: false, callCount: 0,
     createdAt: Date.now(), updatedAt: Date.now()
   }

@@ -21,7 +21,6 @@ export interface ResourceDrawerCtx {
   d: ComputedRef<AppData>
   workspaceId: ComputedRef<string>
   router: Router
-  isHub: ComputedRef<boolean>
   categories: ComputedRef<Category[]>
   activeCategory: Ref<string>
   thesisCard: ComputedRef<ResourceCard | null>
@@ -35,23 +34,22 @@ export interface ResourceDrawerCtx {
   toggleSelect: (id: string) => void
   openMoveOne: (r: ResourceCard) => void
   // useWorkspaceMirror
-  openMirrorCard: (r: ResourceCard) => void
   removeMirror: (r: ResourceCard) => void
   locateMirrorSource: (r: ResourceCard) => void
 }
 
 export function useResourceDrawer(ctx: ResourceDrawerCtx) {
-  const { store, d, workspaceId, router, isHub, categories, activeCategory, thesisCard,
+  const { store, d, workspaceId, router, categories, activeCategory, thesisCard,
     openResourceLink, openImageAsset, setThesisCard, unsetThesis,
     batchMode, toggleSelect, openMoveOne,
-    openMirrorCard, removeMirror, locateMirrorSource } = ctx
+    removeMirror, locateMirrorSource } = ctx
 
   // 单击（详情）与双击（打开链接）区分
   let clickTimer: ReturnType<typeof setTimeout> | null = null
   function onCardClick(r: ResourceCard) {
     if (batchMode.value) { toggleSelect(r.id); return }
     if (isMirrorView(r)) {
-      // R106（F4）：镜像卡单击 = 打开只读详情（编辑定位回资源台；双击打开链接照常）
+      // R106（F4）：镜像卡单击 = 打开只读详情（编辑定位回源卡；双击打开链接照常）
       if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return }
       clickTimer = setTimeout(() => { clickTimer = null; openMirrorDetail(r) }, 260)
       return
@@ -115,7 +113,8 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     drawerOpen.value = true
   }
   /** R106（F4）：镜像卡只读详情态——表单禁交互、footer 换定位按钮、Ctrl+Enter=定位源卡。
-   *  镜像 id 即源卡 id（boardCardsOf 浅拷贝），定位走 /curation?hl=<id>（redirect 透传 query）。 */
+   *  V3.7.0（R179）：旧定位深链 /curation?hl= 随资源台页退役（redirect 落首页、query 即丢）——
+   *  改与 ⌘K/卡片 🎯 同口径：落地调度台（R2 3张卡上线后接 ?hk 卡片高亮）。 */
   const drawerReadonly = ref(false)
   function openMirrorDetail(r: ResourceCard) {
     resetEditing(editingResource, r)
@@ -123,14 +122,14 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     drawerReadonly.value = true
     drawerOpen.value = true
   }
-  /** R106（F7）：一键清理本台全部镜像卡——只删投射记录（removeProjection），源卡保留在资源台。
-   *  确认框报数；空台直接提示。源卡如需重建镜像，走资源台 📡 推送即可。 */
+  /** R106（F7）：一键清理本台全部镜像卡——只删投射记录（removeProjection），源卡保留在资源卡池。
+   *  确认框报数；空台直接提示。源卡如需重新入台，走节点「🔗 关联资源卡」拉取（推送侧已随 R179 退役）。 */
   async function cleanAllMirrors() {
     const n = (d.value.curationProjections || []).filter(pp => pp.targetWsId === workspaceId.value).length
     if (!n) { showToast('ℹ 本台没有镜像卡'); return }
     if (!(await useConfirm({
       title: '清理本台镜像卡',
-      message: `将移出本台全部 ${n} 张镜像卡（只删引用，源卡保留在资源台；可随时重新镜像）。继续？`,
+      message: `将移出本台全部 ${n} 张镜像卡（只删引用，源卡保留在资源卡池；需要时可在节点重新关联）。继续？`,
       confirmText: '确认清理'
     }))) return
     let removed = 0
@@ -138,14 +137,13 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
       if (pp.targetWsId === workspaceId.value && removeProjection(d.value, pp.id)) removed++
     }
     store.persist()
-    showToast(`✓ 已清理 ${removed} 张镜像卡（源卡保留在资源台）`)
+    showToast(`✓ 已清理 ${removed} 张镜像卡（源卡保留在资源卡池）`)
   }
   function locateMirrorSourceCard() {
-    const id = editingResource.id
     drawerReadonly.value = false
     closeDrawer()
-    router.push('/curation?hl=' + id)
-    showToast('↗ 已定位到资源台源卡')
+    router.push('/')
+    showToast(`↗ 源卡在资源卡池 · ${editingResource.title.slice(0, 20)}`)
   }
   function openResource(r: ResourceCard) {
     drawerReadonly.value = false
@@ -185,7 +183,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
 
   function closeDrawer() { drawerOpen.value = false }
   function saveResource() {
-    if (drawerReadonly.value) { showToast('📡 镜像卡为引用——请到资源台编辑'); return } // R106（F4）：只读守卫（防 Tab 聚焦写穿）
+    if (drawerReadonly.value) { showToast('📡 镜像卡为引用——编辑请到源卡'); return } // R106（F4）：只读守卫（防 Tab 聚焦写穿）
     if (!editingResource.title.trim()) { showToast('请输入标题'); return }
     if (isNewResource.value) {
       d.value.resources.unshift({ ...editingResource })
@@ -220,7 +218,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     } })
   }
   function togglePin(r: ResourceCard) {
-    if (isMirrorView(r)) { showToast('📡 镜像卡为引用——置顶请在资源台操作'); return }
+    if (isMirrorView(r)) { showToast('📡 镜像卡为引用——置顶请在源卡处操作'); return }
     r.pinned = !r.pinned
     r.updatedAt = Date.now()
     store.persist()
@@ -228,7 +226,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
   }
   /** 第卅三轮 REQ-020：星标切换（独立于置顶，可叠加） */
   function toggleStar(r: ResourceCard) {
-    if (isMirrorView(r)) { showToast('📡 镜像卡为引用——星标请在资源台操作'); return }
+    if (isMirrorView(r)) { showToast('📡 镜像卡为引用——星标请在源卡处操作'); return }
     r.starred = !r.starred
     r.updatedAt = Date.now()
     store.persist()
@@ -240,11 +238,11 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
   }
   /**
    * R87（R7-②）：「⚠ 待补全」徽标的一键补全 —— 打开详情抽屉并把光标送进链接输入框。
-   * 镜像卡是策展台里的只读引用（与 📌⭐🗑 同款拦截），补全得上资源台真身卡。
+   * 镜像卡是策展台里的只读引用（与 📌⭐🗑 同款拦截），补全得上源卡（池内真身）。
    */
   const resFormRef = ref<InstanceType<typeof ResourceEditForm> | null>(null)
   function fixLink(r: ResourceCard) {
-    if (isMirrorView(r)) { showToast('📡 镜像卡为引用——补全路径请到资源台'); return }
+    if (isMirrorView(r)) { showToast('📡 镜像卡为引用——补全路径请到源卡'); return }
     openResource(r)
     nextTick(() => resFormRef.value?.focusLink())
   }
@@ -258,7 +256,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
       resCtxItems.value = [
         { label: '打开链接', icon: 'arrowright', cb: () => openResourceLink(r) },
         { label: '复制链接', icon: 'copy', cb: () => { if (r.link) { navigator.clipboard.writeText(r.link); showToast('✓ 链接已复制') } } },
-        { label: '🎯 定位到资源台', icon: 'folder', cb: () => locateMirrorSource(r) },
+        { label: '🎯 定位到源卡', icon: 'folder', cb: () => locateMirrorSource(r) },
         { label: '✕ 移出镜像', icon: 'trash', danger: true, cb: () => removeMirror(r) }
       ]
     } else {
@@ -273,9 +271,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
         // R90（R10）：星标——toggleStar 能力早就在、hover 动作条早早就有 ⭐，右键此前一直缺
         { label: r.starred ? '☆ 取消星标' : '⭐ 星标', icon: 'star', cb: () => toggleStar(r) },
         { label: '移动分类', icon: 'folder', cb: () => openMoveOne(r) },
-        // R90（R10）：镜像到策展台——**仅资源台真身卡**有语义（策展台的卡源头就是资源台，再推给别的台无意义）。
-        // openMirrorCard 内部已对「还没有策展台」给提示，此处不重复兜底。
-        ...(isHub.value ? [{ label: '📡 镜像到策展台', icon: 'share', cb: () => openMirrorCard(r) }] : []),
+        // V3.7.0（R179）：「📡 镜像到策展台」随资源台退役——真身唯一入池，策展台经投射引用（推送入口退役，拉取走挂载/投射）。
         // R62-3：中心论点（每台一张；设即替换旧论点）
         r.isThesis
           ? { label: '取消中心论点', icon: 'target', cb: () => unsetThesis() }

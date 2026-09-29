@@ -161,7 +161,7 @@ const kicker = computed(() => {
   if (!c) return '资源卡'
   const ws = (store.data?.workspaces || []).find(w => w.id === c.workspaceId)
   const cat = (store.data?.categories || []).find(x => x.id === c.categoryId)
-  return ['资源卡', ws ? (ws.id === 'zy-curation' ? '资源台' : '策展台镜像') : '资源台', cat?.name].filter(Boolean).join(' · ')
+  return ['资源卡', ws ? (ws.id === 'zy-curation' ? '资源卡池' : '策展台镜像') : '资源卡池', cat?.name].filter(Boolean).join(' · ')
 })
 </script>
 

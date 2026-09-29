@@ -239,10 +239,10 @@
           <template v-if="panDetail">
             <div class="gs-pd-title">{{ panDetail.title }}</div>
             <div class="gs-pd-row"><span class="gs-pd-k">链接</span><span class="gs-pd-v">{{ panDetail.link || '—' }}</span></div>
-            <div class="gs-pd-row"><span class="gs-pd-k">归属</span><span class="gs-pd-v">{{ gWsName(panDetail.workspaceId) }} / {{ gCatName(panDetail.categoryId) || '待分类' }}</span></div>
+            <div class="gs-pd-row"><span class="gs-pd-k">归属</span><span class="gs-pd-v">{{ gWsName(panDetail.workspaceId) }} / {{ gCatName(panDetail.categoryId || "") || '待分类' }}</span></div>
             <!-- R63-1：镜像卡展示真身归属 + 跳转 -->
             <template v-if="panMirrorSrc">
-              <div class="gs-pd-row"><span class="gs-pd-k">📡 镜像</span><span class="gs-pd-v">真身在 {{ gWsName(panMirrorSrc.workspaceId) }} / {{ gCatName(panMirrorSrc.categoryId) || '待分类' }}</span></div>
+              <div class="gs-pd-row"><span class="gs-pd-k">📡 镜像</span><span class="gs-pd-v">真身在 {{ gWsName(panMirrorSrc.workspaceId) }} / {{ gCatName(panMirrorSrc.categoryId || "") || '待分类' }}</span></div>
               <div class="gs-pd-actions"><button class="gs-btn" @click="jumpMirrorSource">↩ 前往资源台真身</button></div>
             </template>
             <div class="gs-pd-row" v-if="panDetail.description"><span class="gs-pd-k">描述</span><span class="gs-pd-v">{{ panDetail.description }}</span></div>
@@ -563,7 +563,7 @@
             </div>
             <div class="gs-import-option" @click="bookmarkInput?.click()">
               <div class="gs-io-icon">🔖</div>
-              <div><div class="gs-io-name">导入书签文件</div><div class="gs-io-desc">选择浏览器导出的书签 HTML：<b>本页只把文件夹层级写成标签</b>，链接 + 标题进资源卡。（资源台的「导入资源」是另一套：前 2 级文件夹建成分类）</div></div>
+              <div><div class="gs-io-name">导入书签文件</div><div class="gs-io-desc">选择浏览器导出的书签 HTML：<b>本页只把文件夹层级写成标签</b>，链接 + 标题进资源卡；文件夹→分类的建树导入已随资源台退役。</div></div>
               <button class="gs-btn gs-io-btn">选择文件</button>
             </div>
             <!-- R154（E3）：导入完不再自动弹评审抽屉——它抢焦点、也没人点过它。改成回执上的显式入口 -->
@@ -700,8 +700,8 @@
               <span class="gs-sr-label">应用内切台</span>
               <div class="gs-sr-control">
                 <select class="gs-select" v-model="wsMod" @change="saveWsMod">
-            <option value="alt">Alt + 数字键（1=调度台、2=方向台、3=资源台、4 起=各策展台）</option>
-            <option value="ctrl">Ctrl + 数字键（1=调度台、2=方向台、3=资源台、4 起=各策展台）</option>
+            <option value="alt">Alt + 数字键（1=调度台、2=方向台、3 起=各策展台）</option>
+            <option value="ctrl">Ctrl + 数字键（1=调度台、2=方向台、3 起=各策展台）</option>
                   <option value="ctrl-shift">Ctrl + Shift + 数字键</option>
                   <option value="alt-shift">Alt + Shift + 数字键</option>
                   <option value="none">纯数字键（无修饰键）</option>
@@ -716,18 +716,18 @@
         </div>
       </div>
 
-      <!-- ===== 策展台快捷键（R49-I2 引入；R117：键位改为 1=调度台、2=方向台、3=资源台、4 起=各策展台） ===== -->
+      <!-- ===== 策展台快捷键（R49-I2 引入；V3.7.0 R179：资源台退役后策展台顺延——1=调度台、2=方向台、3 起=各策展台） ===== -->
       <div v-if="activePage === 'shortcuts'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">🎛 策展台快捷键</div>
-          <div class="gs-page-desc">应用内按「修饰键 + 数字」切台：1 = 调度台、2 = 方向台、3 = 资源台、4 起按台签顺序对应各策展台（拖拽改序后数字键跟随顺序）；完整方向树等浏览器级命令在 chrome://extensions/shortcuts 自定义</div>
+          <div class="gs-page-desc">应用内按「修饰键 + 数字」切台：1 = 调度台、2 = 方向台、3 起按台签顺序对应各策展台（拖拽改序后数字键跟随顺序）；完整方向树等浏览器级命令在 chrome://extensions/shortcuts 自定义</div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">映射表（按顶部导航顺序）</span><span class="gs-card-desc">第 N 个策展台 = 修饰键 + (N+3)（最多到数字 9）</span></div>
+          <div class="gs-card-header"><span class="gs-card-title">映射表（按顶部导航顺序）</span><span class="gs-card-desc">第 N 个策展台 = 修饰键 + (N+2)（最多到数字 9）</span></div>
           <div class="gs-card-body">
             <div class="gs-setting-row" v-for="(w, i) in store.workspaces" :key="w.id">
               <span class="gs-sr-label">第 {{ i + 1 }} 个 · {{ w.icon }} {{ wsDisplayNameOf(w) }}</span>
-              <div class="gs-sr-control"><span class="gs-keycap">{{ i + 4 <= 9 ? modLabel() + ' + ' + (i + 4) : '—' }}</span></div>
+              <div class="gs-sr-control"><span class="gs-keycap">{{ i + 3 <= 9 ? modLabel() + ' + ' + (i + 3) : '—' }}</span></div>
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">修饰键</span>
@@ -1772,8 +1772,8 @@ function movePanCards(ids: string[], wsId: string, catId: string) {
     }
     const r = gd.value.resources.find(x => x.id === id)
     if (!r) continue
-    // R63-1：资源台真身不可直接搬进策展台——改用资源台「📡 镜像到策展台」入台
-    if (!targetIsHub && r.workspaceId === CURATION_WS_ID) { showToast('⚠ 资源台真身不能直接搬入策展台，请用资源台的「📡 镜像到策展台」'); continue }
+    // R63-1 → V3.7.0（R179）：池卡真身不搬台（真身唯一入池）——要进策展台走节点「🔗 关联资源卡」（投射引用）
+    if (!targetIsHub && r.workspaceId === CURATION_WS_ID) { showToast('⚠ 池卡真身不能直接搬入策展台，请在策展台节点用「🔗 关联资源卡」'); continue }
     r.workspaceId = targetWs
     r.categoryId = cat ? cat.id : ''
     r.updatedAt = Date.now()
@@ -2251,7 +2251,7 @@ function exportCsvForWorkspace() {
   // 目录外管理列（卡片固有元数据，固定尾随）
   cols.push(
     { label: '链接类型', get: r => (r.linkType === 'url' ? 'URL' : r.linkType === 'file' ? '本地文件' : 'Obsidian') },
-    { label: '分类', get: r => catMap.get(r.categoryId) || '待分类' },
+    { label: '分类', get: r => catMap.get(r.categoryId || "") || '待分类' },
     // R63-2：金字塔路径/层级/中心论点（适配多维表分层分析）
     { label: '分类路径', get: r => catPathOf(d, r.workspaceId, r.categoryId).path || '待分类' },
     { label: '层级', get: r => String(catPathOf(d, r.workspaceId, r.categoryId).level) },
