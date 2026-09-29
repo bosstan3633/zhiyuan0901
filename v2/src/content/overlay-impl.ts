@@ -1175,6 +1175,19 @@ function onSearchKeydown(e: KeyboardEvent) {
   }
 }
 
+/**
+ * R2-④：资源卡定位路由（两入口共用一份口径）。
+ * 池卡的居所是调度台「资源卡池」这张卡——`/workspace/zy-curation` 自 R179 资源台退役后
+ * 恒落 Workspace.vue「策展台不存在」死页，往那儿推等于把用户送进死胡同；台内原生卡仍走该台深链。
+ */
+function resLocateRoute(r: any): string {
+  if (!r) return '/'
+  const id = encodeURIComponent(String(r.id))
+  if (r.workspaceId === CURATION_WS_ID) return '/?hl=' + id + '&hk=res'
+  const cat = r.categoryId ? '&cat=' + encodeURIComponent(String(r.categoryId)) : ''
+  return '/workspace/' + r.workspaceId + '?hl=' + id + '&hk=res' + cat
+}
+
 function openSearchLocator(item: any) {
   // R120 键位统一：Ctrl+Enter = **仅定位到卡片所在处**（不再打开详情抽屉）。
   // 单击/Enter = 打开卡片链接（见 openSearchResult）；两入口（网页浮层 / 应用内搜索）语义一致。
@@ -1201,10 +1214,8 @@ function openSearchLocator(item: any) {
     return
   }
   if (item.type === 'res') {
-    const r = item.raw || {}
-    const cat = r.categoryId ? '&cat=' + encodeURIComponent(String(r.categoryId)) : ''
-    openRoute('/workspace/' + r.workspaceId + '?hl=' + item.id + '&hk=res' + cat)
-    showToast('🎯 已定位到卡片所在处')
+    openRoute(resLocateRoute(item.raw))
+    showToast(item.raw?.workspaceId === CURATION_WS_ID ? '🎯 已定位到资源卡池' : '🎯 已定位到卡片所在处')
   } else if (item.type === 'task') {
     openRoute('/?hl=' + item.id + '&hk=task')
     showToast('🎯 已定位到任务卡片')
@@ -1268,12 +1279,12 @@ function openSearchResult(item: any) {
       const openable = toOpenableUrl(r.linkType, r.link)
       if (openable) window.open(openable, '_blank')
       else if (r.linkType === 'file') {
-        showToast('⚠ 本地文件缺少完整路径，请到资源台补全')
-        safeSend({ type: 'zy-open-route', route: '/workspace/' + r.workspaceId + '?hl=' + r.id })
+        showToast('⚠ 本地文件缺少完整路径，请到资源卡池补全')
+        safeSend({ type: 'zy-open-route', route: resLocateRoute(r) })
       } else showToast('⚠ 该链接协议不被允许打开')
     } else {
-      safeSend({ type: 'zy-open-route', route: '/workspace/' + r.workspaceId + '?hl=' + r.id })
-      showToast('↗ 已定位到卡片所在资源台')
+      safeSend({ type: 'zy-open-route', route: resLocateRoute(r) })
+      showToast(r.workspaceId === CURATION_WS_ID ? '↗ 已定位到资源卡池' : '↗ 已定位到卡片所在策展台')
     }
   } else if (item.type === 'task') {
     bumpHeat('task', item.id)

@@ -1268,6 +1268,16 @@ function openLinkOrLocate(item: SearchResult) {
 function locateOnly(item: SearchResult) {
   if (item.type === 'res') {
     const r = item.raw as ResourceCard
+    /* R2-④（本轮）：池卡的居所是调度台「资源卡池」这张卡——`/workspace/zy-curation` 自 R179
+       资源台退役后恒落 Workspace.vue「策展台不存在」死页（R1.5 拍 theme-audit 时已实证该 id 用户不可达），
+       所以定位改靶到首页 + `?hk=res`（CompassHome 的 watch 负责切到池 tab，PoolCardsPanel 负责高亮滚动）。
+       台内原生卡（论点卡等 workspaceId≠池 id）仍走策展台深链，那条路是通的。 */
+    if (r.workspaceId === CURATION_WS_ID) {
+      router.push({ path: '/', query: { hl: item.id, hk: 'res' } })
+      closeAll()
+      showToast('🎯 已定位到资源卡池')
+      return
+    }
     const query: Record<string, string> = { hl: item.id, hk: 'res' }
     if (r.categoryId) query.cat = r.categoryId
     router.push({ path: `/workspace/${r.workspaceId}`, query })
@@ -1374,13 +1384,14 @@ function openItem(item: SearchResult) {
   }
   if (item.type === 'res') {
     const r = item.raw as ResourceCard
-    // V3.7.0（R179）：资源台退役——资源卡统一入池，管理面收敛到调度台「3张卡」。
-    // 定位语义改为落地调度台（R2 3张卡上线后接 ?hk 卡片高亮）；外开仍走行内「↗ 打开链接」。
-    const openable = !!toOpenableUrl(r.linkType, r.link)
-    router.push({ path: '/' })
-    if (!openable && r.link) showToast('⚠ 本地文件缺少完整路径 · 已回调度台（3张卡检索查看）')
-    else showToast('↗ 已回调度台 · 资源卡在 3张卡中检索查看')
-  } else if (item.type === 'task') {
+    /* V3.7.0（R179）资源台退役 → R2-④ 定位改靶：无链接的资源卡不再只回一句「已回调度台」的
+       空话，而是与 Ctrl+Enter 同一条定位链路（池卡落「资源卡池」并高亮该卡）。
+       外开仍走行内「↗ 打开链接」（openResLink），不改 R120 三键契约。 */
+    if (r.link && !toOpenableUrl(r.linkType, r.link)) showToast('⚠ 本地文件缺少完整路径 · 先定位到卡')
+    locateOnly(item)
+    return
+  }
+  if (item.type === 'task') {
     recordCardOpen(d.value, d.value.tasks.find(t => t.id === item.id))
     store.persistHot()
     // R117（04-61 B）：hk 显式分派——调度台同时挂着任务卡与好奇心卡两个 hl 消费者

@@ -10,7 +10,7 @@ import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { purgeCardsCompletely, type PurgeTargets } from '@/shared/storage/purge'
-import type { ResourceCard, TaskCard, CuriosityCard, ID } from '@/shared/models'
+import type { ResourceCard, TaskCard, CuriosityCard, ArgumentCard, ID } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 // R137-H2：AI 捞回清单（懒路由，可直接静态引 AI 栈；采纳=恢复 deletedAt 置空，与手工恢复同字段）
 import AiSuggestionDrawer from '@/newtab/components/AiSuggestionDrawer.vue'
@@ -34,7 +34,7 @@ const router = useRouter()
 const store = useAppStore()
 const d = computed(() => store.data!)
 
-const tab = ref<'res' | 'task' | 'curio' | 'cat'>('res')
+const tab = ref<'res' | 'task' | 'curio' | 'cat' | 'arg'>('res')
 /** R109（F12-b）：软删分类（删除分类/删除策展台/合并重复 均走 deletedAt）——恢复 = 清 deletedAt */
 const cats = computed(() =>
   d.value.categories.filter(c => c.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
@@ -42,6 +42,16 @@ function restoreCat(c: { id: ID; deletedAt?: number }) {
   c.deletedAt = undefined
   store.persist()
   show('↩️ 分类已恢复（其下卡片仍在待分类/回收站，可手动归位）')
+}
+
+/** R2-⑤：论证节点卡（第 4 种卡）进回收站族——R1.5 的「硬删不可恢复」旁路到此为止 */
+const args = computed(() =>
+  (d.value.argCards || []).filter(a => a.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
+function restoreArg(a: ArgumentCard) {
+  a.deletedAt = undefined
+  a.updatedAt = Date.now()
+  store.persist()
+  show(`✓ 已恢复「${a.title.slice(0, 20)}」${d.value.workspaces.some(w => w.id === a.workspaceId) ? '' : '（原策展台已删除，回台面需先恢复该台）'}`)
 }
 
 const res = computed(() =>
@@ -141,12 +151,14 @@ function purgeTask(t: TaskCard) { void purgeWith('任务卡', t.title, { tasks: 
 function purgeCurio(c: CuriosityCard) { void purgeWith('好奇心卡', c.question, { curiosities: [c] }) }
 /** R146：分类分区补上永久删除（原先只有恢复——四类对象两套口径） */
 function purgeCat(c: { id: ID; name: string }) { void purgeWith('分类', c.name, { categories: [c as never] }) }
+/** R2-⑤：论证卡同口径（永久删除逐次确认 + 回执点名） */
+function purgeArg(a: ArgumentCard) { void purgeWith('论证卡', a.title, { argCards: [a] }) }
 
 // ---- 全部恢复 / 清空 ----
 /** 恢复是安全动作：不弹确认，但一次动作只报一条账（原实现每条各弹一次 toast，互相顶掉） */
 function restoreAll() {
   const cur = tab.value
-  const list = cur === 'res' ? res.value : cur === 'task' ? tasks.value : cur === 'cat' ? cats.value : curios.value
+  const list = cur === 'res' ? res.value : cur === 'task' ? tasks.value : cur === 'cat' ? cats.value : cur === 'arg' ? args.value : curios.value
   if (!list.length) { show('该分区没有可恢复的条目'); return }
   const now = Date.now()
   for (const x of list as { deletedAt?: number; updatedAt?: number; convertedAt?: number; convertedTo?: 'task' | 'res' }[]) {
@@ -159,16 +171,17 @@ function restoreAll() {
   store.persist()
   show(`♻ 已恢复 ${list.length} 项（${tabLabelOf(cur)}）· 归属需手动归位的见各条说明`)
 }
-function tabLabelOf(k: 'res' | 'task' | 'curio' | 'cat') { return k === 'res' ? '资源卡' : k === 'task' ? '任务卡' : k === 'cat' ? '分类' : '好奇心卡' }
+function tabLabelOf(k: typeof tab.value) { return k === 'res' ? '资源卡' : k === 'task' ? '任务卡' : k === 'cat' ? '分类' : k === 'arg' ? '论证卡' : '好奇心卡' }
 async function purgeAll() {
   const cur = tab.value
-  const list = cur === 'res' ? res.value : cur === 'task' ? tasks.value : cur === 'cat' ? cats.value : curios.value
+  const list = cur === 'res' ? res.value : cur === 'task' ? tasks.value : cur === 'cat' ? cats.value : cur === 'arg' ? args.value : curios.value
   if (!list.length) { show('该分区已是空的'); return }
   if (!(await useConfirm({ title: '清空回收站分区', message: `确定永久删除本分区全部 ${list.length} 项（${tabLabelOf(cur)}）？\n不可恢复，且会一并清除仅被这些卡引用的附件本体。`, confirmText: `清空 ${list.length} 项` }))) return
   const targets: PurgeTargets =
     cur === 'cat' ? { categories: list as never }
     : cur === 'res' ? { resources: list as ResourceCard[] }
     : cur === 'task' ? { tasks: list as TaskCard[] }
+    : cur === 'arg' ? { argCards: list as ArgumentCard[] }
     : { curiosities: list as CuriosityCard[] }
   const n = await purge(targets)
   show(n ? `✓ 已永久删除 ${n} 项（${tabLabelOf(cur)}）· 不可恢复` : '该分区已是空的')
@@ -177,7 +190,8 @@ const tabMeta = computed(() => [
   { k: 'res' as const, label: '📄 资源卡', list: res.value, n: res.value.length },
   { k: 'cat' as const, label: '📁 分类', list: cats.value, n: cats.value.length },
   { k: 'task' as const, label: '📋 任务卡', list: tasks.value, n: tasks.value.length },
-  { k: 'curio' as const, label: '💡 好奇心卡', list: curios.value, n: curios.value.length }
+  { k: 'curio' as const, label: '💡 好奇心卡', list: curios.value, n: curios.value.length },
+  { k: 'arg' as const, label: '🧭 论证卡', list: args.value, n: args.value.length }
 ])
 </script>
 
@@ -262,6 +276,21 @@ const tabMeta = computed(() => [
         </div>
       </div>
       <div v-if="!cats.length" class="rb-empty">回收站空空如也 ✨</div>
+    </div>
+
+    <!-- R2-⑤：论证卡分区（台内原生第 4 种卡，软删后与三卡同一条恢复/永久删除通道） -->
+    <div v-else-if="tab === 'arg'" class="rb-list">
+      <div v-for="a in args" :key="a.id" class="rb-item">
+        <div class="rb-item-main">
+          <div class="rb-item-title">🧭 {{ a.title }}</div>
+          <div class="rb-item-meta">🗂 {{ wsNameOf(a.workspaceId) }} · 🕓 删除于 {{ fmt(a.deletedAt) }}<span style="color:var(--text-4)"> · 论证卡随策展台存续，台若已删需先恢复台</span></div>
+        </div>
+        <div class="rb-item-ops">
+          <button class="rb-btn sm" @click="restoreArg(a)">恢复</button>
+          <button class="rb-btn sm danger" @click="purgeArg(a)">永久删除</button>
+        </div>
+      </div>
+      <div v-if="!args.length" class="rb-empty">回收站空空如也 ✨</div>
     </div>
 
     

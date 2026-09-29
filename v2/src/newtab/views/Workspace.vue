@@ -388,7 +388,7 @@
                   <div class="arg-t">{{ a.title }}</div>
                   <div v-if="a.content" class="arg-c">{{ a.content }}</div>
                 </div>
-                <button class="arg-del" title="删除论证节点卡（不可恢复，回收站族 R2 接入）" @click="deleteArgument(a)">✕</button>
+                <button class="arg-del" title="删除论证节点卡（进回收站，可撤销）" @click="deleteArgument(a)">✕</button>
               </div>
             </div>
           </div>

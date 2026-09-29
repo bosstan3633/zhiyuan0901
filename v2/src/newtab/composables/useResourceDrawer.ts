@@ -124,19 +124,25 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     argOpen.value = false
     showToast('✓ 论证节点卡已创建')
   }
-  /** 删除论证节点卡：R1.5 过渡实现为硬删（argCards 不进回收站族——R2 DeckTabs 收编时接软删/撤销） */
-  async function deleteArgument(a: ArgumentCard) {
-    if (!(await useConfirm({
-      title: '删除论证节点卡',
-      message: `将删除「${a.title.slice(0, 24)}」，不可恢复（回收站暂不覆盖论证卡）。继续？`,
-      confirmText: '确认删除'
-    }))) return
-    d.value.argCards = (d.value.argCards || []).filter(x => x.id !== a.id)
+  /**
+   * R2-⑤：论证卡接入回收站族（R1.5 的硬删过渡退役）。
+   * 口径全站统一：**软删即时可撤销不弹确认，永久删除才逐次确认**（R146）——
+   * 与资源卡（ResourceDetailDrawer 的 deletedAt + 撤销 toast）同一条路，不再另立一套确认框。
+   */
+  function deleteArgument(a: ArgumentCard) {
+    const live = (d.value.argCards || []).find(x => x.id === a.id)
+    if (!live || live.deletedAt) return
+    const old = live.deletedAt
+    live.deletedAt = Date.now()
+    live.updatedAt = Date.now()
     store.persist()
-    showToast('论证节点卡已删除')
+    showToast(`已删除「${live.title.slice(0, 20)}」· 进回收站`, { label: '撤销', cb: () => {
+      const cur = (d.value.argCards || []).find(x => x.id === a.id)
+      if (cur && cur.deletedAt) { cur.deletedAt = old; store.persist() }
+    } })
   }
-  /** 台内论证节点卡（卡片视图过渡呈现段的数据源；R2 DeckTabs 收编） */
-  const argCardsOfWs = computed(() => (d.value.argCards || []).filter(a => a.workspaceId === workspaceId.value))
+  /** 台内论证节点卡（卡片视图过渡呈现段的数据源；R2 DeckTabs 收编）——软删卡不在台面出现 */
+  const argCardsOfWs = computed(() => (d.value.argCards || []).filter(a => a.workspaceId === workspaceId.value && !a.deletedAt))
 
   function openNewResource() {
     resetEditing(editingResource, emptyResource())

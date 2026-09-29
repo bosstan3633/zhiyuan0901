@@ -18,7 +18,7 @@
  * 不能无条件 deleteAsset——否则另一张卡（含回收站里待恢复的卡）的附件会打不开。
  * keepIds 由**存活卡**（本次未硬删的全部卡，软删卡也算存活）的 assets 并集构成。
  */
-import type { AppData, Category, CuriosityCard, ResourceCard, TaskCard } from '../models'
+import type { AppData, ArgumentCard, Category, CuriosityCard, ResourceCard, TaskCard } from '../models'
 import { deleteAsset } from './assets'
 import { getData } from './repository'
 import { pruneDanglingProjections } from './hub'
@@ -29,6 +29,8 @@ export interface PurgeTargets {
   curiosities?: CuriosityCard[]
   /** R109（F12-b）软删分类：无附件语义，仅数组移除 */
   categories?: Category[]
+  /** R2-⑤：论证节点卡（第 4 种卡）——无附件、无指标引用，数组移除 + 投射剪枝即覆盖其全部副作用 */
+  argCards?: ArgumentCard[]
 }
 
 export interface PurgeResult {
@@ -99,12 +101,18 @@ export async function purgeCardsCompletely(d: AppData, targets: PurgeTargets): P
     const catIds = new Set(cats.map(c => c.id))
     d.categories = d.categories.filter(c => !catIds.has(c.id))
   }
+  // R2-⑤：论证卡（软删后进回收站，与三卡同一条硬删通道——不再另设「不可恢复」的旁路）
+  const args = targets.argCards || []
+  if (args.length) {
+    const argIds = new Set(args.map(a => a.id))
+    d.argCards = (d.argCards || []).filter(a => !argIds.has(a.id))
+  }
 
   // ④ 悬空投射剪枝（幂等；软删卡仍在数组里，故不影响「恢复后镜像自动回来」语义）
   const projectionsPruned = pruneDanglingProjections(d)
 
   return {
-    cards: res.length + tasks.length + curios.length + cats.length,
+    cards: res.length + tasks.length + curios.length + cats.length + args.length,
     assetsPurged,
     assetsShared,
     assetsFailed,
@@ -112,13 +120,14 @@ export async function purgeCardsCompletely(d: AppData, targets: PurgeTargets): P
   }
 }
 
-/** 当前树中所有软删（回收站内）的三类卡 + 分类 */
+/** 当前树中所有软删（回收站内）的三类卡 + 分类 + 论证卡 */
 export function recycledCardsOf(d: AppData): Required<PurgeTargets> {
   return {
     resources: d.resources.filter(r => r.deletedAt),
     tasks: d.tasks.filter(t => t.deletedAt),
     curiosities: d.curiosities.filter(c => c.deletedAt),
-    categories: d.categories.filter(c => c.deletedAt)
+    categories: d.categories.filter(c => c.deletedAt),
+    argCards: (d.argCards || []).filter(a => a.deletedAt)
   }
 }
 

@@ -60,7 +60,7 @@ check('R146-3 回收站两口径（回退契约⑤⑥）：永久删除必过确
   const rb = read('/newtab/views/RecycleBin.vue'); const gs = read('/newtab/views/GlobalSettings.vue')
   const seg = segOf(rb, 'async function purgeWith', '// ---- 全部恢复 / 清空 ----')
   return seg.includes("title: '永久删除'") && seg.includes('此操作不可恢复') && seg.includes('已永久删除') && rb.includes('function purgeCat')
-    && (rb.match(/purgeWith\('/g) || []).length === 4
+    && (rb.match(/purgeWith\('/g) || []).length === 5 // R2-⑤：论证卡分区补齐，永久删除回执点名对象由四路增至五路
     && rb.includes('show(`♻ 已恢复 ${list.length} 项') && rb.includes('confirmText: `清空 ${list.length} 项`')
     && gs.includes('confirmText: `永久删除 ${n} 项`') && gs.includes('recycledCardsOf(d)')
 });

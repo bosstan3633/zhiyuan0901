@@ -271,7 +271,7 @@ check('R109-5 ★ F12-b 分类软删：Category.deletedAt + 删除分类/合并�
     && WSP109.includes('deleteDeck(d.value, workspaceId.value)') && read('/shared/utils/compassCrud.ts').includes('for (const c of d.categories) if (c.workspaceId === wsId && !c.deletedAt) { c.deletedAt = now; catIds.push(c.id) }')
     && WSP109.includes('const wsCats = computed(() => d.value.categories.filter(c => c.workspaceId === workspaceId.value && !c.deletedAt))')
     && GS109.includes('!c.parentId && !c.deletedAt')
-    && RB109.includes("const tab = ref<'res' | 'task' | 'curio' | 'cat'>('res')")
+    && RB109.includes("const tab = ref<'res' | 'task' | 'curio' | 'cat' | 'arg'>('res')") // R2-⑤：论证卡入族，分区联合类型随之扩一枚
     && RB109.includes('function restoreCat(c: { id: ID; deletedAt?: number })')
     && RB109.includes('分类分区');
 });

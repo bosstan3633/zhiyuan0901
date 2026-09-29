@@ -96,7 +96,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
     factory: 'buildThesisDraftJob', factoryFile: 'shared/ai/batchG.ts',
     hosts: ['newtab/components/ThesisAiBtn.vue'],
     caps: { apply: true, persona: true },
-    panel: { icon: 'edit', mode: 'nav', route: '/workspace/zy-curation', hint: '在资源台选中论文卡后，从卡面 AI 徽标发起' },
+    panel: { icon: 'edit', mode: 'nav', route: '/', hint: '在调度台「资源卡池」选中论文卡后，从卡面 AI 徽标发起' },
     note: 'persona 走 ctx.personaId/onPersona 条件通道（batchG:188）',
   },
   {
@@ -112,7 +112,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
     factory: 'buildEvidenceJob', factoryFile: 'shared/ai/batchG.ts',
     hosts: ['newtab/components/EvidenceMenuItem.vue'],
     caps: { apply: true },
-    panel: { icon: 'search', mode: 'nav', route: '/workspace/zy-curation', hint: '在资源台卡面菜单发起' },
+    panel: { icon: 'search', mode: 'nav', route: '/', hint: '在资源卡池卡面菜单发起' },
   },
   {
     id: 'deliver', title: '成果文稿', family: 'proactive', kind: 'job',
@@ -188,7 +188,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
     factory: 'buildResourceEnrichJob', factoryFile: 'shared/ai/select.ts',
     hosts: ['newtab/components/GlobalPopups.vue', 'newtab/components/ResourceAiStrip.vue', 'newtab/components/CardAiEntry.vue'],
     caps: { apply: true, before: true, promptScope: 'enrich:card', persona: true },
-    panel: { icon: 'copy', mode: 'nav', route: '/workspace/zy-curation', hint: '选中卡后从卡面 AI 徽标 / 详情抽屉 AI 行 / 采集浮层发起' },
+    panel: { icon: 'copy', mode: 'nav', route: '/', hint: '选中卡后从卡面 AI 徽标 / 详情抽屉 AI 行 / 采集浮层发起' },
     note: '★ R167：原「单卡补全」与「全方位优化」并成一枚工厂——http(s) 链接点了才抓正文；空字段直接补，已填字段只给 optIn 建议（默认不勾）；R147-a 新词闸与分类消毒同装（合并入口不得再留下"没装闸的那条"）',
   },
   {
@@ -212,7 +212,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
     factory: 'buildResourceLinkTaskJob', factoryFile: 'shared/ai/resourceLinkTask.ts',
     hosts: ['newtab/components/ResourceAiStrip.vue'],
     caps: { apply: true, before: true, promptScope: 'linktask:card', persona: true },
-    panel: { icon: 'compass', mode: 'nav', route: '/workspace/zy-curation', hint: '资源详情 AI 行第二枚（两宿主同一组件：内联抽屉与 App 级抽屉）' },
+    panel: { icon: 'compass', mode: 'nav', route: '/', hint: '资源详情 AI 行第二枚（两宿主同一组件：内联抽屉与 App 级抽屉）' },
     note: 'R167：「找资源支持」的反向入口（同一条 SupportLink、同一张表）——扫全量任务卡本地预筛 → 模型只排序+一句判词 → 采纳只写关联记录，两端卡本体零改动；解绑仍只在任务侧（定案 10 的边界不越）',
   },
   {

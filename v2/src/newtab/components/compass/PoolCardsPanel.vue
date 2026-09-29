@@ -1,28 +1,57 @@
 <script setup lang="ts">
 /**
- * R2-③（V3.7.0 架构简化轮·资源卡管理补位）：资源卡池面板
- * —— 资源台退役后，池卡的唯一管理面（R179 交付说明遗留：池语义落地后管理入口待补位）。
- * 最小可用骨架：搜索 + 池卡网格（标题/标签/链资产标记）+ 单击开编辑抽屉（App 级 ResourceDetailDrawer
- * 经 zy-open-drawer 总线）+ 软删。控制行组件化 / 三视图渲染器 / 批量打标签 = R2 第二批（DeckTabs 收编）。
- * 数据口径：workspaceId='zy-curation'（隐藏池 id，R179 定案）且未软删。
+ * R2-③（V3.7.0 架构简化轮·资源卡管理补位）→ R2-④⑤ 收口：资源卡池面板
+ * —— 资源台退役后，池卡的唯一管理面。
+ * 已接：搜索 + 池卡网格 + 单击开编辑抽屉（App 级 ResourceDetailDrawer 经 zy-open-drawer 总线，
+ * 打开即记一次「调出」，与内联抽屉宿主同口径）+ 软删带撤销 + `?hl=&hk=res` 定位高亮（⌘K / 网页浮层 / AI 面板直达）。
+ * 仍欠（R2 第三批）：控制行组件化 / 三视图渲染器 / 批量打标签 / 新建单卡 / 本地文件导入入口。
+ * 数据口径：workspaceId=CURATION_WS_ID（隐藏池 id，R179 定案）且未软删。
  */
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../../stores/app'
+import { CURATION_WS_ID } from '@/shared/models'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import { showToast } from '@/shared/components/toast'
 import NewBadge from '@/shared/components/NewBadge.vue'
 
 const store = useAppStore()
+const route = useRoute()
+const router = useRouter()
 
 const query = ref('')
 const poolCards = computed(() => {
   const q = query.value.trim().toLowerCase()
   return (store.data?.resources || [])
-    .filter(r => !r.deletedAt && r.workspaceId === 'zy-curation')
+    .filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
     .filter(r => !q || r.title.toLowerCase().includes(q) || (r.tags || []).some(t => t.toLowerCase().includes(q)))
     .sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (b.updatedAt || 0) - (a.updatedAt || 0))
 })
-const poolTotal = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === 'zy-curation').length)
+const poolTotal = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID).length)
+
+/**
+ * R2-④：`?hl=&hk=res` 卡片定位消费者（⌘K 单击/Ctrl+Enter、网页浮层定位、AI 面板直达同一条链路）。
+ * 纪律照 `useWsLocate.ts:61-68`：**hk 指明别的卡型就让路**——调度台同页挂着任务卡与好奇卡两个
+ * hl 消费者，抢着处理会把别人的定位抹掉（R152 真机报过的那类 bug）。
+ */
+const highlightId = ref<string | null>(null)
+watch(() => route.query.hl, (hl) => {
+  if (!hl || typeof hl !== 'string') return
+  const hk = typeof route.query.hk === 'string' ? route.query.hk : ''
+  if (hk && hk !== 'res') return
+  const hit = (store.data?.resources || []).find(r => r.id === hl && !r.deletedAt)
+  if (!hit) return
+  if (hit.workspaceId !== CURATION_WS_ID) { showToast('⚠ 这张卡不在资源卡池（在策展台内）'); return }
+  query.value = '' // 过滤态下目标卡可能根本不在渲染列表里，定位先清过滤
+  highlightId.value = hl
+  nextTick(() => {
+    setTimeout(() => {
+      document.querySelector(`[data-rid="${hl}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setTimeout(() => { highlightId.value = null }, 2000)
+    }, 120)
+  })
+  router.replace({ path: route.path })
+}, { immediate: true })
 
 function openCard(r: { id: string }) {
   emitOpenDrawer({ kind: 'res', id: r.id })
@@ -53,8 +82,8 @@ function removeCard(r: { id: string; title: string }) {
     </div>
 
     <div v-else class="pcp-grid">
-      <div v-for="r in poolCards" :key="r.id" class="pcp-card" :title="r.title + ' · 单击打开详情'"
-        @click="openCard(r)">
+      <div v-for="r in poolCards" :key="r.id" class="pcp-card" :class="{ flash: highlightId === r.id }" :data-rid="r.id"
+        :title="r.title + ' · 单击打开详情'" @click="openCard(r)">
         <div class="pcp-top">
           <div class="pcp-title">
             <NewBadge :at="r.createdAt" />
@@ -86,6 +115,13 @@ function removeCard(r: { id: string; title: string }) {
 .pcp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
 .pcp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; min-height: 94px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; cursor: pointer; transition: all var(--dur) ease; }
 .pcp-card:hover { border-color: var(--border-strong); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+/* R2-④：定位高亮——与 workspace.css 的 .res-card.flash 同一视觉语言（该表在调度台不加载，故本地定义） */
+.pcp-card.flash { animation: pcp-flash 2s ease-out; }
+@keyframes pcp-flash {
+  0% { box-shadow: 0 0 0 3px var(--accent), 0 4px 20px color-mix(in srgb, var(--accent) 35%, transparent); background: var(--accent-light); }
+  60% { box-shadow: 0 0 0 3px var(--accent); background: var(--accent-light); }
+  100% { box-shadow: none; }
+}
 .pcp-top { display: flex; align-items: flex-start; gap: 6px; }
 .pcp-title { flex: 1; min-width: 0; font-size: var(--fs-body); font-weight: 600; line-height: 1.4; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
 .pcp-pin { flex-shrink: 0; font-size: var(--fs-tiny); }

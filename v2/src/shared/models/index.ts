@@ -580,12 +580,8 @@ export interface UIPrefs {
   theme: string
   viewMode: 'list' | 'kanban' | 'card'
   tcSplitRatio: number
-  /** R54-B1：调度台项目调度左右分栏比例（左列 %，30–75） */
-  curSplit?: number
-  /** R169-T4：项目调度**下半部**（左=描述原文 / 右=子任务）中缝比例（左列 %，25–70）。
-   *  与 curSplit 分开存：那是"摘要 vs 任务树"的宽度，这是"描述 vs 子任务"的宽度，
-   *  合成一个键会让拖其中一条把另一条也拽走。 */
-  spotSplit?: number
+  /* R2-⑥：curSplit / spotSplit 两键随「项目调度卡」退役（R2-②）失去全部消费方后删除。
+     老库里残留的这两个键不影响读取（UIPrefs 是宽松对象，多余键随写盘原样带回，无人读它）。 */
   dateStr?: string
   /** 应用内切台快捷键修饰键（O18：五种可选，默认 Alt） */
   wsSwitchMod?: 'ctrl' | 'alt' | 'ctrl-shift' | 'alt-shift' | 'none'

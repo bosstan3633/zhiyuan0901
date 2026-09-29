@@ -58,12 +58,21 @@ const resource = computed(() => {
 })
 
 function openFromId(id: string) {
-  const r = store.data?.resources.find(x => x.id === id)
-  if (!r) return
+  const data = store.data
+  const r = data?.resources.find(x => x.id === id)
+  if (!r || !data) return
   resId.value = id
   resetEditing(r)
   open.value = true
   highlight.value = true
+  /* R2-⑤（★口径合一）：此前 App 级抽屉只在「↗ 打开链接」时记调出，而内联抽屉宿主
+     （useResourceDrawer.openResource:191-198）把「单击打开详情」就算一次调用——同一个用户动作
+     两个宿主两套口径，池卡（唯一走本抽屉的卡群）因此系统性不进热力图/复盘的「调出」维度。
+     现两宿主合一：打开详情即一次调出。落盘随下一次保存带出（热度小载荷通道 persistHot 另有一个
+     既存缺陷：hotStats 摘走 set 丢了 StorageArea 接收者 → Illegal invocation 被静默 catch 吞掉，
+     本轮已定位、单独一轮修，修好后这里就是 250ms 内落盘）。 */
+  recordResourceOpen(data, r)
+  store.persistHot()
   setTimeout(() => { highlight.value = false }, 1800)
 }
 

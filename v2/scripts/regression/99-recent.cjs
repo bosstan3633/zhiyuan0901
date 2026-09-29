@@ -652,3 +652,36 @@ check('R172-20 ★F31/F32 采纳出口是真的：落卡登记进全局撤销栈
 });
 
 check('R172-21 ★F39 导出三件套：ExportMenu 三项（CSV / Markdown / PNG）且 v-if 不开即零节点、菜单右锚定不越视口右缘；复盘段与热力图段两处都挂上；PNG 走 canvas 自绘并现取当前主题令牌（不引 html2canvas：体积 + foreignObject 不吃外部样式表必然丢色）；CSV 出口全站并轨（抽屉那份不再自己 createObjectURL / 手写 BOM）', () => { const ex = codeOnly(read('/newtab/components/dashboard/ExportMenu.vue')); const css = read('/newtab/components/dashboard/dashboard.css'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hm = read('/newtab/components/dashboard/Heatmap.vue'); const dl = codeOnly(read('/newtab/components/dashboard/DashboardLogDrawer.vue')); const ev = codeOnly(read('/shared/utils/exportView.ts')); return has(ex, ["pick('csv')", "pick('md')", "pick('png')", 'v-if="open"']) && css.includes('.dz-exp {') && css.includes('right: 0') && css.includes('repeat(12, minmax(0, 1fr))') /* R173-4：一行 12 月块 */ && css.includes('@media (max-width: 1279px) { .dz-wk { display: none; } }') /* R173-4b 带备案：星期行 7×9px 汉字 + 6×2px 缝 = 75px，月块窄于 75px 时每块横向溢出（1100 档实测 +15px）；1280 档月块 75.5px 是实测最小装得下的档 ⇒ 以下隐去（该档格子只剩 8px，日期仍在 tooltip 里） */ && has(rp, ['<ExportMenu @pick="onExport" />', 'tablesToCsv', 'sectionsToMd', 'pngBlobFromSpec']) && has(hm, ['<ExportMenu @pick="onExport" />', 'pngBlobFromSpec', 'tablesToCsv']) && dl.includes('tablesToCsv') && !dl.includes('URL.createObjectURL') && has(ev, ['getComputedStyle(document.documentElement)', "'--heat-5'", 'toBlob']); });
+// ============== R2 第二批 · 池语义收尾（死链改靶 / 调出记账 / 论证卡回收站族） ==============
+console.log('【R2 第二批 · 池语义收尾】');
+check('R2-④ ★死链族全站清零：`/workspace/zy-curation` 自 R179 起恒落 Workspace「策展台不存在」死页，四处深链（⌘K locateOnly / content 浮层 resLocateRoute / AI 面板 panel.route ×4 / 仪表盘 R6 归因）全部改靶，代码内该路由字面量零残留（注释留痕说明改靶缘由，故走 codeOnly 剥注释判定）', () => {
+  const gp = codeOnly(read('/newtab/components/GlobalPopups.vue')), ov = codeOnly(read('/content/overlay-impl.ts'))
+  const rg = codeOnly(read('/shared/ai/jobs/registry.ts')), dr = codeOnly(read('/newtab/composables/useDashboardReport.ts'))
+  return !gp.includes('/workspace/zy-curation') && !ov.includes('/workspace/zy-curation') && !rg.includes('/workspace/zy-curation') && !dr.includes('/workspace/zy-curation')
+    && gp.includes('if (r.workspaceId === CURATION_WS_ID)') && gp.includes("hk: 'res'")
+    && ov.includes('function resLocateRoute') && ov.includes('r.workspaceId === CURATION_WS_ID')
+    && rg.includes("route: '/'") && dr.includes("R6: ['/', '资源卡池']")
+});
+check('R2-④ ★池面板是 `?hl&hk=res` 的真消费者，且守「hk 指明别的卡型就让路」纪律（R152 那类抢消费权的 bug 不再复发）；定位不清过滤即落空 ⇒ 先清 query，命中走 data-rid + flash', () => {
+  const p = read('/newtab/components/compass/PoolCardsPanel.vue')
+  return p.includes("watch(() => route.query.hl") && p.includes("if (hk && hk !== 'res') return")
+    && p.includes('query.value =') && p.includes(':data-rid="r.id"') && p.includes('highlightId === r.id')
+    && p.includes('@keyframes pcp-flash') && p.includes('router.replace({ path: route.path })')
+    && p.includes("emitOpenDrawer({ kind: 'res', id: r.id })")
+});
+check('R2-⑤ ★「调出」记账两宿主合一：App 级抽屉 openFromId 与内联宿主 openResource 同口径（打开详情即一次调出 + 热度小载荷落盘），池卡不再系统性漏计热力图/复盘的调出维度', () => {
+  const r = read('/newtab/components/ResourceDetailDrawer.vue'), u = read('/newtab/composables/useResourceDrawer.ts')
+  const i0 = r.indexOf('function openFromId'), i1 = r.indexOf('function close()')
+  const seg = i0 > 0 && i1 > i0 ? r.slice(i0, i1) : ''
+  return seg.includes('recordResourceOpen(data, r)') && seg.includes('store.persistHot()')
+    && u.includes('recordResourceOpen(d.value, r)') && u.includes('单击打开详情 = 一次调用')
+});
+check('R2-⑤ ★论证卡进回收站族（R1.5 硬删旁路退役）：软删 + 撤销 toast 不弹确认、台内呈现过滤 deletedAt、purge 引擎与 recycledCardsOf 双纳 argCards、回收站第五分区可恢复可永久删除', () => {
+  const u = read('/newtab/composables/useResourceDrawer.ts'), pu = read('/shared/storage/purge.ts'), rb = read('/newtab/views/RecycleBin.vue')
+  const i0 = u.indexOf('function deleteArgument'), i1 = u.indexOf('const argCardsOfWs')
+  const seg = i0 > 0 && i1 > i0 ? u.slice(i0, i1) : ''
+  return seg.includes('live.deletedAt = Date.now()') && !seg.includes('useConfirm') && seg.includes("label: '撤销'")
+    && u.includes('a.workspaceId === workspaceId.value && !a.deletedAt')
+    && pu.includes('argCards?: ArgumentCard[]') && pu.includes('d.argCards = (d.argCards || []).filter') && pu.includes('argCards: (d.argCards || []).filter(a => a.deletedAt)')
+    && rb.includes('function restoreArg') && rb.includes("purgeWith('论证卡'") && rb.includes("'🧭 论证卡'")
+});

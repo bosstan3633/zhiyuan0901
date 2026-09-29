@@ -24,7 +24,7 @@ export interface ReportDeps {
 
 /** 建议 → 该去哪儿处理（只有这四类有明确居所，其余回调度台，不硬凑跳转） */
 const RULE_GOTO: Record<string, [string, string]> = {
-  R2: ['/compass', '方向台'], R5: ['/compass', '方向台'], R6: ['/workspace/zy-curation', '资源台'], skew: ['/compass', '方向台']
+  R2: ['/compass', '方向台'], R5: ['/compass', '方向台'], R6: ['/', '资源卡池'], skew: ['/compass', '方向台']
 }
 
 export function useDashboardReport(deps: ReportDeps) {

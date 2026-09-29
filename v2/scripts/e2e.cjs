@@ -25,6 +25,7 @@
  *   E2E-21 周报浮层可见 + 可关闭（R113-N3 P0：模板引用但未 import 的静默失效修复）
  *   E2E-24 R167 镜像只读详情边界（标题 readonly / AI 行不给入口 / 页脚两钮是定位）
  *   E2E-25 R174-3 按日快照落盘（读合并：老日子不褪色 / 写链路：保存→pagehide→days 出现今天）
+ *   E2E-26 R2-④⑤ K 定位改靶「资源卡池」（tab 激活 + 目标卡高亮）+ 打开池卡详情记一次「调出」事件
  */
 const path = require('path')
 const fs = require('fs')
@@ -176,6 +177,8 @@ async function main() {
   const grabPdfTab = async (ms) => {
     try {
       const popup = await ctx.waitForEvent('page', { timeout: ms })
+      // R2-⑤ 随迁：新标签先以 about:blank 出现、file:// 导航随后落地——不等一下就取 URL 会把真打开的那一页判成没开
+      await popup.waitForTimeout(800).catch(() => {})
       const u = popup.url()
       if (/^file:\/\//i.test(u) || /^blob:/i.test(u)) return u
     } catch { /* timeout */ }
@@ -824,6 +827,62 @@ async function main() {
     report('E2E-22 金字塔真全屏交互（R113-N5）', fsOn && fsToolbar && fsSidebarGone && fsOff && (nodeMenuVisible !== false),
       'fs=' + fsOn + ' toolbar=' + fsToolbar + ' sidebar隐藏=' + fsSidebarGone + ' 节点菜单=' + nodeMenuVisible + ' exit=' + fsOff)
   }
+
+  // E2E-26（R2-④⑤）：K 定位改靶到「资源卡池」+ 打开池卡详情即记一次「调出」
+  //   种一张池卡（workspaceId=zy-curation）→ 以 locateOnly 的同一条路由（hash 变更=router.push）落地
+  //   → 断言池 tab 激活、目标卡渲染并被高亮 → 单击开抽屉 → 事件日志出现 call/resource 记录
+  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const data = cur['zy_data_v2']
+    if (!data) return
+    data.resources = (data.resources || []).filter(r => r.id !== 'e2e-pool-1')
+    data.resources.push({
+      id: 'e2e-pool-1', kind: 'resource', title: 'E2E 池卡定位', linkType: 'url', link: 'https://example.com/e2e-pool',
+      workspaceId: 'zy-curation', categoryId: '', tags: ['E2E 标签'], pinned: false, starred: false,
+      callCount: 0, createdAt: Date.now(), updatedAt: Date.now(), description: '', customFields: {}, assets: []
+    })
+    return chrome.storage.local.set({ zy_data_v2: data })
+  }))
+  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+  await page.evaluate(() => { location.hash = '#/?hl=e2e-pool-1&hk=res' })
+  await page.waitForTimeout(1600)
+  const poolTabOn = await page.locator('.bt-tab.on').first().textContent().then((t) => (t || '').includes('资源卡池')).catch(() => false)
+  const hlNode = page.locator('[data-rid="e2e-pool-1"]')
+  const hlCount = await hlNode.count()
+  const hlFlash = hlCount ? (await hlNode.first().getAttribute('class').catch(() => '') || '').includes('flash') : false
+  await page.bringToFront() // 前面几步开过 popup/新页面（E2E-5 的 file:// 尝试、E2E-22 的全屏页）——后台页的定时器会被节流，热度写的 250ms 防抖就永远不触发
+  await hlNode.first().click().catch(() => {})
+  await page.waitForTimeout(1500)
+  // 抽屉标题是决定性证据（`.ds-ib` 只证明"有个抽屉"，证明不了"开的是这张卡"）
+  const drawerTitle = await page.evaluate(() => {
+    const t = document.querySelector('.drawer-title')
+    const el = t && (t.querySelector('input,textarea') || t)
+    return el ? String(el.value !== undefined && el.value !== '' ? el.value : el.textContent || '') : ''
+  })
+  await page.waitForTimeout(1200)
+  /* 落盘证据走整库保存：repository.saveData 会把热度键与待写事件日志并入同一次 set。
+     （热度小载荷通道 `writeHot` 自身有个既存缺陷——它把 chrome.storage.local.set 摘下来裸调，
+     Chrome 抛 Illegal invocation 被静默 catch 吞掉 ⇒ 全站 persistHot 空转；本轮已定位、另轮专修，
+     故此处不依赖 persistHot，只依赖整库保存这条通。） */
+  await page.evaluate(() => {
+    const app = document.querySelector('#app').__vue_app__
+    const prov = app && app._context && app._context.provides
+    let pinia = null
+    for (const k of Object.getOwnPropertySymbols(prov || {})) { const v = prov[k]; if (v && v._s && v.state) pinia = v }
+    const st = pinia && pinia._s.get('app')
+    if (st && st.persist) st.persist()
+  })
+  await page.waitForTimeout(1500)
+  const callEv = await page.evaluate(() => chrome.storage.local.get(['zy_event_log', 'zy_stats_v1']).then((raw) => {
+    const ev = raw['zy_event_log'] || []
+    const hit = ev.filter(e => e.action === 'call' && e.cardId === 'e2e-pool-1')
+    const hot = raw['zy_stats_v1']
+    return { n: hit.length, kind: hit.length ? hit[0].kind : '', hotEntry: hot && hot.cards ? hot.cards['e2e-pool-1'] : null }
+  }))
+  report('E2E-26 ★R2-④⑤ ⌘K 定位改靶「资源卡池」（tab 激活 + 目标卡高亮）+ 打开详情记一次调出（热度键与事件日志双落盘）',
+    poolTabOn && hlCount === 1 && hlFlash && drawerTitle.includes('E2E 池卡定位') && callEv.n > 0 && !!callEv.hotEntry,
+    `池tab=${poolTabOn} 目标卡=${hlCount} 高亮=${hlFlash} 抽屉="${drawerTitle.slice(0, 18)}" call事件=${callEv.n}(${callEv.kind}) 热度=${JSON.stringify(callEv.hotEntry)}`)
 
   await ctx.close()
   const fail = results.filter(r => !r.ok).length

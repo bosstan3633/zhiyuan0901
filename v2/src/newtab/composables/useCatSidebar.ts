@@ -90,7 +90,7 @@ export function useCatSidebar(ctx: CatSidebarCtx) {
 
   // ---- R113-N1：左侧分类树宽度拖拽（持久化 UIPrefs.wsSideW）----
   // 原实现宽度写死 200px（.ws-sidebar），深层级长分类名必被截断，且项目内其他三处侧栏
-  // （CompassHome 的 curSplit / TaskDetailDrawer 的 drawerWs / ProjectCuration 的 projRailW）
+  // （TaskDetailDrawer 的 drawerWs / ProjectCuration 的 projRailW；当年还有 CompassHome 的 curSplit，随 R2-② 调度卡退役）
   // 都支持拖拽，资源台是唯一例外。此处沿用 px 范式（同 TaskDetailDrawer）。
   const SIDE_W_MIN = 160
   const SIDE_W_MAX = 420
