@@ -33,6 +33,7 @@ import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
 // R117（04-61 C1）：任务调度整体自方向台迁入调度台底部（与好奇心培育并列 tab）
 import TaskManagerPanel from '../components/compass/TaskManagerPanel.vue'
+import PoolCardsPanel from '../components/compass/PoolCardsPanel.vue'
 import MetricBar from '../components/compass/MetricBar.vue'
 // R172-T9（04-67 Q7）：调度画像周报浮层**已退役**（组件已物理删除，全仓零引用）——
 // 四段式能力并入知源仪表盘的「复盘段」（ReviewPanel.vue），入口由本页右上角 `📈 复盘` 承担。
@@ -267,6 +268,25 @@ function todayTaskForSlot(slot: FocusSlot): TaskCard | null {
   }
   return null
 }
+/** R2-①：槽内子任务视口——固定可见 5 行（超出滚动），底部渐隐 + 「还有 N 项」随滚动收敛 */
+const SUB_VISIBLE_ROWS = 5
+const subScrolled = ref<Record<number, boolean>>({})
+function onSubScroll(idx: number, e: Event) {
+  const el = e.target as HTMLElement
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 4) subScrolled.value[idx] = true
+}
+function subScrollAt(idx: number): boolean { return !!subScrolled.value[idx] }
+function subMoreCount(t?: TaskCard | null): number {
+  const n = t?.subtasks?.length || 0
+  return Math.max(0, n - SUB_VISIBLE_ROWS)
+}
+/** 槽内子任务勾选：落 doneAt（R172-T2 推进维度同口径），随父卡持久化 */
+function toggleSlotSub(t: TaskCard, subId: string) {
+  t.subtasks = (t.subtasks || []).map(s => (s.id === subId ? { ...s, done: !s.done, doneAt: !s.done ? Date.now() : undefined } : s))
+  t.updatedAt = Date.now()
+  store.persist()
+}
+
 /** 三件事卡 → 选中索引（默认第一件事），联动右栏项目调度面板 */
 const focusSelIdx = ref(0)
 const focusTasks = computed<(TaskCard | null)[]>(() => todayFocusList.value.map(s => todayTaskForSlot(s)))
@@ -451,257 +471,13 @@ function metricName(metricId?: string): string {
 const tFields = computed(() => visibleFields(d.value.fieldConfig, 'task'))
 const taskAssetsOn = computed(() => tFields.value.some(f => f.key === 'assets'))
 
-// ================= 项目调度面板（右栏，单击三件事联动；自 CompassActions 迁入） =================
-function goalOf(p: Project): Direction | null {
-  for (const dir of d.value.compass.directions) {
-    if (dir.projects.some(x => x.id === p.id)) return dir
-  }
-  return null
-}
-const curProject = computed<Project | null>(() => {
-  const pid = selTask.value?.projectId
-  if (!pid) return null
-  return allProjects().find(p => p.id === pid) || null
-})
-const projMetrics = computed(() => curProject.value?.metrics || [])
-const projTasks = computed(() => (curProject.value ? projectTasksOf(curProject.value.id) : []))
-const projDoneCount = computed(() => projTasks.value.filter(t => t.status === 'done').length)
-const projDoingCount = computed(() => projTasks.value.filter(t => t.status === 'doing').length)
-/** 按成功指标分组（+ 未归类），空指标组隐藏；R52-F2：默认全部展开，可手动折叠 */
-const metricGroups = computed(() => {
-  const p = curProject.value
-  if (!p) return []
-  const groups = p.metrics.map(m => ({ key: m.id, title: m.title, tasks: projTasks.value.filter(t => t.metricId === m.id) }))
-  const mids = new Set(p.metrics.map(m => m.id))
-  const orphan = projTasks.value.filter(t => !t.metricId || !mids.has(t.metricId))
-  if (orphan.length) groups.push({ key: '__none__', title: '未归类任务', tasks: orphan })
-  return groups
-})
-/**
- * R94（B2）：项目调度右侧任务树**默认折叠**——提案原文「默认只显示左侧摘要；
- * 右侧任务树默认折叠，或改为点击任务后滑出的右侧抽屉」。
- *
- * 本轮选**默认折叠**而非抽屉：抽屉要新建组件 + 遮罩 + 焦点管理，且会引入第二套
- * 任务编辑入口（现有点任意任务即 `drawerRef?.open(t)` 开详情，再套一层是重复）。
- * 折叠方案复用既有结构，回退只是把 `ref(false)` 改成 `ref(true)`，收益点完全一致。
- *
- * ⚠ **不持久化**：写进 UIPrefs 会变成"记住上次"，与"默认折叠"矛盾（首屏就不再干净了）。
- *   同一会话内切换项目**不重置** —— 用户已经表达要看，切个项目不该收回去。
- */
-const curTreeOpen = ref(false)
-/** R54-B1：项目调度左右分栏拖拽（左列 30–75%，持久化 UIPrefs.curSplit） */
-const curSplit = ref(Math.min(75, Math.max(30, store.ui?.curSplit ?? 38)))
-let splitDragging = false
-function startCurSplitDrag(e: MouseEvent) {
-  e.preventDefault()
-  splitDragging = true
-  const container = (e.currentTarget as HTMLElement).parentElement
-  if (!container) return
-  const move = (ev: MouseEvent) => {
-    const rect = container.getBoundingClientRect()
-    const pct = Math.min(75, Math.max(30, ((ev.clientX - rect.left) / rect.width) * 100))
-    curSplit.value = Math.round(pct)
-  }
-  const up = () => {
-    splitDragging = false
-    document.removeEventListener('mousemove', move)
-    document.removeEventListener('mouseup', up)
-    saveUIPrefs({ curSplit: curSplit.value })
-  }
-  document.addEventListener('mousemove', move)
-  document.addEventListener('mouseup', up)
-}
-const curColsStyle = computed(() =>
-  // R94（B2）：任务树折叠时左列独占一行（首屏只显示"项目 + 进度 + 四指标"的摘要）
-  curTreeOpen.value ? `minmax(0, ${curSplit.value}%) 8px 1fr` : '1fr')
-
-// ================= R169-T4：项目调度下半部（左=描述原文 · 右=子任务，中缝可拖、纵向定高） =================
-/**
- * 版式拍板（2026-09-26 用户两轮定案）：
- *  - **整行归属 = 进方向树的唯一入口**（原先头部的「方向树」钮与 `.cur-goal` 里的「进入项目详情 ›」一并撤掉，
- *    点这一行任一级都到同一页——三枚入口做一件事是噪音）；
- *  - 下半部左=**卡片描述字段原文**、右=**子任务清单**，两栏各自内滚；
- *  - 纵向定高 = **右栏恰 4 条子任务**（行高与行数各一个 CSS 变量算出总高，不写死像素）；
- *  - 右栏**只读 + 可勾选**：不放输入框、不放删除、不放 AI 入口，增删改一律回任务详情抽屉
- *    （找资源已经住在抽屉的三入口行，两处都能编辑必然漂移）。
- * ★与交接原型的**一处有意偏离**：指标分组任务树（新建任务/关联/删指标等结构编辑）**没有删**，
- *  仍留在「展开关联任务树」后面（默认折叠 ⇒ 首屏就是原型画的那个样子）。
- *  原因：那是全站唯一的指标结构管理面，静默删掉它等于砍功能；用户要的是台面变干净，不是失去入口。
- */
-const spotSplit = ref(Math.min(70, Math.max(25, store.ui?.spotSplit ?? 42)))
-function startSpotSplitDrag(e: MouseEvent) {
-  e.preventDefault()
-  const container = (e.currentTarget as HTMLElement).parentElement
-  if (!container) return
-  const rect = container.getBoundingClientRect()
-  const move = (ev: MouseEvent) => {
-    spotSplit.value = Math.round(Math.min(70, Math.max(25, ((ev.clientX - rect.left) / rect.width) * 100)))
-  }
-  const up = () => {
-    document.removeEventListener('mousemove', move)
-    document.removeEventListener('mouseup', up)
-    saveUIPrefs({ spotSplit: spotSplit.value })
-  }
-  document.addEventListener('mousemove', move)
-  document.addEventListener('mouseup', up)
-}
-function resetSpotSplit() { spotSplit.value = 42; saveUIPrefs({ spotSplit: 42 }) }
-/** 当前选中任务所属的成功指标（归属行第三级；未挂指标时明说，不显示"—"糊过去） */
-const selMetricTitle = computed(() => {
-  const mid = selTask.value?.metricId
-  if (!mid) return '未挂指标'
-  return metricName(mid)
-})
-const selSubs = computed<Subtask[]>(() => selTask.value?.subtasks || [])
-const selSubsDone = computed(() => selSubs.value.filter(s => s.done).length)
-/** 勾选子任务：只改本行 done（定案 3：完成不计分），随卡 persist——与任务详情抽屉同一口径
- *  R172-T2：同时落 `doneAt`（热力图/复盘「推进」维度按日归集依据） */
-function toggleSelSub(subId: string) {
-  const t = selTask.value
-  if (!t) return
-  t.subtasks = (t.subtasks || []).map(s => (s.id === subId ? { ...s, done: !s.done, doneAt: !s.done ? Date.now() : undefined } : s))
-  t.updatedAt = Date.now()
-  store.persist()
-}
-/** 整行归属 = 进方向树（原型承诺"定位到本项目"，CompassTree 现无定位入参，这里不假称能定位） */
-function gotoTree() { router.push('/compass/tree') }
-/** 右栏子任务行 = 回任务详情抽屉编辑（这一栏只负责"勾"，不负责改文案） */
-function openSelTask() { if (selTask.value) drawerRef.value?.open(selTask.value) }
-
-/** R54-B2：4 指标下钻弹窗（成功指标 / 任务总数 / 已完成 / 进行中） */
-const curDrill = ref<null | { key: 'metrics' | 'total' | 'done' | 'doing'; title: string }>(null)
-const drillMetricPct = (metricId: string) => {
-  const ts = d.value.tasks.filter(t => !t.deletedAt && t.metricId === metricId)
-  return ts.length ? Math.round(ts.filter(t => t.status === 'done').length / ts.length * 100) : 0
-}
-const drillTasks = computed<TaskCard[]>(() => {
-  if (!curDrill.value || curDrill.value.key === 'metrics') return []
-  const all = projTasks.value
-  if (curDrill.value.key === 'done') return all.filter(t => t.status === 'done')
-  if (curDrill.value.key === 'doing') return all.filter(t => t.status === 'doing')
-  return all
-})
-function openCurDrill(key: 'metrics' | 'total' | 'done' | 'doing') {
-  if (!curProject.value) return
-  const titles = { metrics: '成功指标', total: '任务总数', done: '已完成任务', doing: '进行中任务' } as const
-  curDrill.value = { key, title: titles[key] }
-}
-const collapsedGroups = ref<Set<string>>(new Set())
-function toggleGroup(key: string) {
-  if (collapsedGroups.value.has(key)) collapsedGroups.value.delete(key)
-  else collapsedGroups.value.add(key)
-}
-/** R52-F2：去掉关联——任务摘除项目/指标（转未归档），不删除任务。R141：走统一解绑函数 */
-function unlinkTask(t: TaskCard) {
-  unbindTaskFromMetric(d.value, t)
-  store.persist()
-  showToast(`✓ 已去掉关联：「${t.title.slice(0, 16)}」转为未归档任务`)
-}
-function syncMetricTaskIds(taskId: string, oldMetricId?: string, newMetricId?: string) {
-  for (const dir of d.value.compass.directions) {
-    for (const proj of dir.projects) {
-      for (const m of proj.metrics) {
-        if (oldMetricId && m.id === oldMetricId) m.taskIds = m.taskIds.filter(x => x !== taskId)
-        if (newMetricId && m.id === newMetricId && !m.taskIds.includes(taskId)) m.taskIds.push(taskId)
-      }
-    }
-  }
-}
-/** 新建任务：预设项目（可预设指标），创建后直接打开详情抽屉 */
-function createProjectTask(metricId?: string) {
-  const p = curProject.value
-  if (!p) { showToast('请先在今日三件事选择已关联项目的任务'); return }
-  const task: TaskCard = {
-    id: uid('tk'),
-    kind: 'task',
-    title: '新任务',
-    status: 'todo',
-    priority: 'medium',
-    projectId: p.id,
-    metricId,
-    customFields: {},
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  }
-  if (metricId) syncMetricTaskIds(task.id, undefined, metricId)
-  d.value.tasks.unshift(task)
-  store.persist()
-  drawerRef.value?.open(task)
-  showToast('✓ 新任务已创建')
-  nextTick(() => {
-    const el = document.querySelector('.ts-title') as HTMLTextAreaElement | null
-    if (el) { el.focus(); el.select() }
-  })
-}
-/** 关联任务：从任务库选一个未属于该项目的任务挂进来（可预选/补选目标指标） */
-const linkPickerOpen = ref(false)
-const linkSearch = ref('')
-const linkTargetMetric = ref('')
-function openLinkPicker(metricId?: string) {
-  if (!curProject.value) { showToast('请先在今日三件事选择已关联项目的任务'); return }
-  linkSearch.value = ''
-  linkTargetMetric.value = metricId || ''
-  linkPickerOpen.value = true
-}
-const linkCandidates = computed(() => {
-  const q = linkSearch.value.trim().toLowerCase()
-  const pid = curProject.value?.id
-  return d.value.tasks
-    .filter(t => !t.deletedAt && t.projectId !== pid)
-    .filter(t => !q || t.title.toLowerCase().includes(q))
-    .slice(0, 30)
-})
-function linkTaskToProject(t: TaskCard) {
-  linkTaskToMetric(t, linkTargetMetric.value || undefined)
-}
-/** 成功指标新增 */
-const addingMetric = ref(false)
-const newMetricTitle = ref('')
-function startAddMetric() { addingMetric.value = true; newMetricTitle.value = '' }
-function confirmAddMetric() {
-  const p = curProject.value
-  const title = newMetricTitle.value.trim()
-  if (!p || !title) { addingMetric.value = false; return }
-  p.metrics.push({ id: uid('met'), title, taskIds: [] })
-  store.persist()
-  showToast('✓ 成功指标「' + title + '」已新增')
-  addingMetric.value = false
-}
-/** 成功指标删除 = 摘除关联（R146 并到真源：确认报数 + 3 秒撤销，四视图同一口径） */
-function removeMetric(metricId: string) {
-  if (!curProject.value) return
-  void removeMetricWithConfirm(d.value, metricId, () => store.persist())
-}
-/** 关联任务到具体指标：跨项目先改归属，再设指标并双写 taskIds */
-function linkTaskToMetric(t: TaskCard, metricId?: string) {
-  const p = curProject.value
-  if (!p) return
-  const oldMetric = t.metricId
-  t.projectId = p.id
-  t.metricId = metricId
-  syncMetricTaskIds(t.id, oldMetric, metricId)
-  t.updatedAt = Date.now()
-  store.persist()
-  linkPickerOpen.value = false
-  showToast('✓ 已关联到「' + p.name + '」' + (metricId ? ' · ' + metricName(metricId) : ''))
-}
-/** 任务删除（软删除进回收站，可撤销）——R141：走统一函数，顺手摘净 metric.taskIds 引用 */
-function removeTask(t: TaskCard) {
-  softDeleteTaskToTrash(d.value, t)
-  store.persist()
-  showToast('已删除「' + t.title.slice(0, 20) + '」', { label: '撤销', cb: () => {
-    const cur = d.value.tasks.find(x => x.id === t.id)
-    if (cur && cur.deletedAt) {
-      cur.deletedAt = undefined
-      // R141：删除时引用已摘，撤销按恢复同口径回填 taskIds（REQ-030）
-      if (cur.metricId) {
-        for (const dir of d.value.compass.directions) for (const proj of dir.projects) for (const m of proj.metrics)
-          if (m.id === cur.metricId && !m.taskIds.includes(cur.id)) m.taskIds.push(cur.id)
-      }
-    }
-    store.persist()
-  } })
-}
+// ================= R2-②：项目调度卡退役 =================
+// 指标结构管理归方向台（ProjectCuration 展板 metric-head2 ＋/🗑/AI 与完整方向树指标行齐全，
+// R169-16「全站唯一指标结构管理面」语义由二者承接）；「描述｜子任务」双栏由三件事槽内子任务
+// 视口（R2-①）承接；单击三件事联动右栏的联动语义随 DeckTabs 单页化退役。
+// 退役的机制：项目归属链、四事实统计、指标分组树、分栏拖拽、下钻弹窗、描述子任务双栏——一并退役
+// 各类选中/分栏/联动/树编辑机制（连同其函数名）一并退役
+// 各类分组/树编辑/关联/下钻/统计与任务删改机制（连同其函数名）一并退役
 
 // ---- Ctrl+←/→ 切换三件事日期（非输入焦点时） ----
 function onDateKey(e: KeyboardEvent) {
@@ -711,12 +487,6 @@ function onDateKey(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'ArrowLeft') { e.preventDefault(); shiftDate(-1) }
   else if ((e.ctrlKey || e.metaKey) && e.key === 'ArrowRight') { e.preventDefault(); shiftDate(1) }
 }
-/** R54-B2：Esc 关闭指标下钻弹窗（与遮罩点击同语义） */
-function onDrillEsc(e: KeyboardEvent) {
-  if (e.key !== 'Escape' || !curDrill.value) return
-  e.preventDefault()
-  curDrill.value = null
-}
 // R67-F4：浏览器快捷键模块直达（curiosity=好奇心培养 / project=任务调度）——滚动定位 + 高亮闪烁
 /**
  * R117（04-61 C1 拍板）：底部改为 **任务调度 / 好奇心培育** 双 tab，**默认任务调度**。
@@ -725,10 +495,11 @@ function onDrillEsc(e: KeyboardEvent) {
  * - 好奇心面板**懒挂载**（首次切到该 tab 才挂载）——保住首屏冷启动成本；
  * - `?hl=` 定位到好奇心卡时自动切 tab 并挂载（否则消费者不在 DOM 里，定位会落空）。
  */
-const bottomTab = ref<'task' | 'curio'>('task')
+const bottomTab = ref<'pool' | 'task' | 'curio'>('pool')
 const curioMounted = ref(false)
 watch(bottomTab, (t) => { if (t === 'curio') curioMounted.value = true })
 /** 底部 tab 计数徽标：任务调度 = 未删除任务数 · 好奇心培育 = 未删除好奇心数 */
+const poolLiveCount = computed(() => (d.value.resources || []).filter(r => !r.deletedAt && r.workspaceId === 'zy-curation').length)
 const taskLiveCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt).length)
 const curioLiveCount = computed(() => (d.value.curiosities || []).filter(c => !c.deletedAt).length)
 // R117（04-61 B）：`?hl` 带 `?hk` 时把对应面板切到前台——任务卡与好奇卡消费者同页，靠 hk 分派
@@ -737,12 +508,14 @@ watch(() => route.query.hl, (hl) => {
   const hk = typeof route.query.hk === 'string' ? route.query.hk : ''
   if (hk === 'curio') { bottomTab.value = 'curio'; curioMounted.value = true }
   else if (hk === 'task') bottomTab.value = 'task'
+  else if (hk === 'res') bottomTab.value = 'pool'
 }, { immediate: true })
 // R117（04-61 C1）：`?bottom=task|curio` 直达底部 tab——原 `?zone=task`（方向台任务调度模块）随模块搬迁退役，
 // 新建任务后跳转（GlobalPopups）等场景改由本页底部 tab 承接。
 watch(() => route.query.bottom, (b) => {
   if (b === 'curio') { bottomTab.value = 'curio'; curioMounted.value = true }
   else if (b === 'task') bottomTab.value = 'task'
+  else if (b === 'pool') bottomTab.value = 'pool'
 }, { immediate: true })
 
 function gotoAnchor(name: string) {
@@ -763,7 +536,6 @@ function gotoAnchor(name: string) {
 function onAnchorEvt(e: Event) { gotoAnchor(String((e as CustomEvent).detail || '')) }
 onMounted(() => {
   document.addEventListener('keydown', onDateKey, true)
-  document.addEventListener('keydown', onDrillEsc, true)
   document.addEventListener('click', onDocClickCloseWhy, true)
   window.addEventListener('zy-goto-anchor', onAnchorEvt)
   // R172-T9：`loadEventLog()` 随记录族退役 —— 本页不再需要事件日志（仪表盘自取）
@@ -776,7 +548,6 @@ onMounted(() => {
 })
 onUnmounted(() => {
   document.removeEventListener('keydown', onDateKey, true)
-  document.removeEventListener('keydown', onDrillEsc, true)
   document.removeEventListener('click', onDocClickCloseWhy, true)
   window.removeEventListener('zy-goto-anchor', onAnchorEvt)
   if (saveErrSub) saveErrSub()
@@ -914,15 +685,11 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
           <span class="sync-gear" title="Airtable 同步设置" @click.stop="router.push('/settings?page=airtable')">⚙</span>
         </button>
         <button class="mb-act cta" title="复盘 · 年度热力图与四范围复盘 · 直达知源仪表盘" @click="openReview">📈 复盘</button>
-        <span class="cf-go" title="去方向台管理主攻与目标" @click="router.push('/compass')">去方向台 ›</span>
       </template>
     </MetricBar>
 
-    <!-- 左右分栏：今日三件事 ｜ 项目调度 -->
-    <div id="dispatch-split" class="split">
-      <!-- 左列 · 今日三件事 -->
-      <!-- 上 · 今日三件事（R51-F10 视觉焦点；R53-C1：工具按钮移头部，槽位即入口） -->
-      <section class="module left-col">
+    <!-- R2-②：上下联动 split 容器随项目调度卡退役——三件事直挂页容器 -->
+    <section class="module">
         <div class="card focus" :class="{ 'all-done': focusAllDone }">
           <div class="card-head">
             <span class="ic"><Icon name="flame" :size="18" /></span><span class="nm">今日三件事</span><span class="en">TODAY'S FOCUS</span>
@@ -980,11 +747,25 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
                     <div class="tc-title"><NewBadge :at="c.task.createdAt" />{{ c.slot?.text }}</div>
                   </div>
                   <div class="tc-meta">
-                    <span class="tag accent">📦 {{ projectName(c.task.projectId) }}</span>
-                    <span class="tag warn">🎯 {{ metricName(c.task.metricId) }}</span>
+                    <span class="tag neutral">📦 {{ projectName(c.task.projectId) }}</span>
+                    <span class="tag neutral">🎯 {{ metricName(c.task.metricId) }}</span>
                     <AssetBadge v-if="taskAssetsOn && c.task.assets?.length" :assets="c.task.assets" />
                     <MaturityBadge :m="taskMaturity(c.task)" />
                     <span v-if="c.slot?.auto === true" class="tag rec" data-testid="focus-rec" title="系统推荐写入的一格 · 点右上角 ✦ 看依据">✦ 荐</span>
+                  </div>
+                  <!-- R2-①：槽内子任务视口（固定 5 行 + 底部渐隐 + 「还有 N 项」+ 滚动监听）
+                       ——「描述｜子任务」双栏（项目调度卡 R2 退役）的执行细节由槽内承接；
+                       勾选 = 完成切换（doneAt 同 R172-T2 口径）、点文字 = 进任务详情抽屉。 -->
+                  <div v-if="c.task.subtasks?.length" class="tc-subs" :class="{ 'at-end': subScrollAt(c.idx) }"
+                    @scroll.passive="onSubScroll(c.idx, $event)">
+                    <div v-for="st in (c.task.subtasks || [])" :key="st.id" class="tc-sub" :class="{ done: st.done }"
+                      :title="st.done ? '点方框取消完成' : '点方框标记完成 · 点文字进任务详情'" @click="openCellTask(c)">
+                      <span class="tsub-check" @click.stop="toggleSlotSub(c.task, st.id)">{{ st.done ? '✓' : '' }}</span>
+                      <span class="tsub-t">{{ st.title }}</span>
+                    </div>
+                  </div>
+                  <div v-if="subMoreCount(c.task) > 0 && !subScrollAt(c.idx)" class="tc-sub-more" @click.stop="openCellTask(c)">
+                    还有 {{ subMoreCount(c.task) }} 项 · 进详情查看
                   </div>
                   <div class="tc-remove" @click.stop="removeTodaySlot(c.idx)" title="移除">×</div>
                 </div>
@@ -1008,126 +789,15 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
         </div>
       </section>
 
-    <!-- 下 · 项目调度（选中任务联动）｜ R67-F4：id 供快捷键直达锚点 -->
-    <section id="zy-mod-tasks" class="module right-col">
-        <div class="card curation">
-          <!-- R176（原型 task-detail-card）：卡头标题行退役——原型直接以「行动来处」行开篇；
-               「展开关联任务树」是全站唯一指标结构管理面入口（R169-16 备案不删），移至归属行右端。 -->
-          <div v-if="curProject" class="cur-body-v">
-            <!-- R66-F2：删顶部项目名行与愿景/使命模块（数据保留在方向台）——项目名大字下移为模块主体首行，纵向压缩 -->
-            <div class="cur-cols" :style="{ gridTemplateColumns: curColsStyle }">
-              <div class="cur-col-l">
-                <!-- R169-T4：原「战略目标小字 + 项目名大字 + meta 行 + 详情链接」四行卡片压成**一行归属**，
-                     与四格数值同排（用户标注⑤：更扁平、同一行显示）。
-                     ★整行 = 进方向树的唯一入口（三枚入口做同一件事是噪音），行内每一级都不再有独立点击语义。 -->
-                <div class="cur-l-row">
-                  <!-- R175（原型 1:1）：归属行改「行动来处」标签 + 链路胶囊（goal › 项目 › 指标）；
-                       ★R169-T4 口径不变：整行 = 进方向树唯一入口（行内每一级无独立点击语义），
-                       项目一级保留 pct 内联（R67-2 判据串原样保留），方向树 › 为行内视觉出口。 -->
-                  <div class="cur-crumb" role="button" tabindex="0" data-testid="cur-crumb"
-                    title="点这一行任一级 → 进入方向树全景（查看/编辑方向结构）" @click="gotoTree" @keydown.enter="gotoTree">
-                    <span class="cc-k">行动来处</span>
-                    <span class="cc-it"><span class="v">{{ goalOf(curProject)?.name || '—' }}</span></span>
-                    <span class="cc-sep">›</span>
-                    <span class="cc-it"><span class="v">{{ curProject.name }} · {{ projectProgress(curProject).pct }}%</span></span>
-                    <span class="cc-sep">›</span>
-                    <span class="cc-it cur" data-testid="cur-crumb-metric"><span class="v">{{ selMetricTitle }}</span></span>
-                    <span class="cc-go">方向树 ›</span>
-                  </div>
-                  <!-- R56-P1：4 指标卡（一行四格与归属同排；R176：标签对齐原型——关联任务/已推进完成/正在进行中，四格下钻判据不变） -->
-                  <div class="cur-stats-v2">
-                    <div class="csv-cell clickable" title="成功指标 · 点击下钻" @click="openCurDrill('metrics')"><span class="csv-lab">成功指标</span><span class="csv-num">{{ projMetrics.length }}</span></div>
-                    <div class="csv-cell clickable" title="关联任务 · 点击下钻" @click="openCurDrill('total')"><span class="csv-lab">关联任务</span><span class="csv-num">{{ projTasks.length }}</span></div>
-                    <div class="csv-cell clickable" title="已推进完成 · 点击下钻" @click="openCurDrill('done')"><span class="csv-lab">已推进完成</span><span class="csv-num ok">{{ projDoneCount }}</span></div>
-                    <div class="csv-cell clickable" title="正在进行中 · 点击下钻" @click="openCurDrill('doing')"><span class="csv-lab">正在进行中</span><span class="csv-num warn">{{ projDoingCount }}</span></div>
-                  </div>
-                  <!-- R176：任务树切换钮自退役卡头移入归属行右端（R169-16 口径不变：默认折叠，首屏即原型形态） -->
-                  <button class="mini-btn tree-toggle" :title="curTreeOpen ? '收起任务树' : '展开任务树'"
-                    @click="curTreeOpen = !curTreeOpen">
-                    <Icon name="branch" :size="13" />{{ curTreeOpen ? '收起关联任务树' : '展开关联任务树' }} ({{ projTasks.length }}) <span class="cur-tree-caret">{{ curTreeOpen ? '▴' : '▾' }}</span>
-                  </button>
-                </div>
-                <!-- R120-TB3：进度条（对齐原型；数据沿用 projectProgress 既有口径） -->
-                <div class="cur-progress" title="项目进度">
-                  <div class="cur-progress-fill" :style="{ width: projectProgress(curProject).pct + '%' }" />
-                </div>
-              </div>
-              <!-- R94（B2）：折叠时**真的不渲染**（v-if 而非 v-show）——首屏的信息密度与渲染成本双降。
-                   collapsedGroups 是组件级 ref<Set>，重建不丢。 -->
-              <template v-if="curTreeOpen">
-              <div class="cur-split" @mousedown="startCurSplitDrag" title="拖拽调节左右宽度（30%–75%）" />
-              <div class="cur-col-r">
-                <div class="cur-groups">
-                  <div v-for="grp in metricGroups" :key="grp.key" class="cur-group">
-                    <div class="cg-head" @click="toggleGroup(grp.key)">
-                      <span class="cg-caret" :class="{ open: !collapsedGroups.has(grp.key) }">▸</span>
-                      <span class="cg-name" :class="{none: grp.key==='__none__}'}">{{ grp.key==='__none__' ? '🗂 ' + grp.title : '🎯 ' + grp.title }}</span>
-                      <span class="cg-count">{{ grp.tasks.length }}</span>
-                      <span class="cg-tools" @click.stop>
-                        <button class="cg-add" title="关联已有任务到此指标" @click.stop="openLinkPicker(grp.key==='__none__' ? undefined : grp.key)">🔗</button>
-                        <button v-if="grp.key!=='__none__'" class="cg-add danger" title="删除此指标（其下任务转为未关联指标，不删任务）" @click.stop="removeMetric(grp.key)">🗑</button>
-                        <button class="cg-add" title="在此指标下新建任务" @click.stop="createProjectTask(grp.key==='__none__' ? undefined : grp.key)">＋</button>
-                      </span>
-                    </div>
-                    <div v-show="!collapsedGroups.has(grp.key)" class="cg-tasks">
-                      <div v-for="t in grp.tasks" :key="t.id" class="cg-task" :class="{'is-done': t.status==='done'}" @dblclick="drawerRef?.open(t)" @click="drawerRef?.open(t)">
-                        <span class="cg-dot" :class="'st-'+t.status">{{ t.status==='done'?'✓':t.status==='doing'?'◐':'○' }}</span>
-                        <span class="cg-t">{{ t.title }}</span>
-                        <span class="cg-st">{{ t.status==='done'?'已完成':t.status==='doing'?'进行中':'待开始' }}</span>
-                        <MaturityBadge :m="taskMaturity(t)" />
-                        <button class="cg-del" title="去掉关联（转为未归档任务，不删除）" @click.stop="unlinkTask(t)">⨯</button>
-                        <button class="cg-del" title="删除任务（进回收站，可撤销）" @click.stop="removeTask(t)">🗑</button>
-                      </div>
-                      <div v-if="!grp.tasks.length" class="cg-empty">暂无任务</div>
-                    </div>
-                  </div>
-                  <div v-if="!metricGroups.length" class="cg-empty" style="padding:20px">该项目还没有成功指标与任务——右侧新增成功指标，或「新建任务」</div>
-                  <div v-if="addingMetric" class="cur-add-metric">
-                    <input v-model="newMetricTitle" class="cam-input" placeholder="成功指标名称，回车确认"
-                      @keydown.enter.prevent="confirmAddMetric" @keydown.esc="addingMetric=false" />
-                    <button class="mini-btn primary" @click="confirmAddMetric">确定</button>
-                  </div>
-                  <div v-else class="cur-add-metric-link" @click="startAddMetric">＋ 新增成功指标</div>
-                </div>
-              </div>
-              </template>
-            </div>
-            <!-- ===== R169-T4：下半部两块（左=描述原文 · 右=子任务），中缝可拖、纵向定高 ===== -->
-            <div class="spot-dual" data-testid="spot-dual" :style="{ gridTemplateColumns: `minmax(0, ${spotSplit}%) 8px 1fr` }">
-              <div class="sp-col">
-                <div class="sp-h"><b>任务描述 (DESCRIPTION)</b></div>
-                <div class="sp-b"><div class="sp-desc">{{ selTask?.description || '（这张卡还没有描述 —— 到任务详情里写一句"做完算成"的标准，比标题更能提醒明天的自己）' }}</div></div>
-              </div>
-              <div class="sp-split" data-testid="sp-split" title="拖动调节两栏宽度（25%–70%）· 双击复位"
-                @mousedown="startSpotSplitDrag" @dblclick="resetSpotSplit"><i /></div>
-              <div class="sp-col">
-                <div class="sp-h"><b>子任务清单 (SUBTASKS)</b><span class="r" data-testid="sp-sub-n">{{ selSubsDone }} / {{ selSubs.length }} 项已完成</span></div>
-                <div class="sp-b" data-testid="sp-sub-body">
-                  <div v-for="s in selSubs" :key="s.id" class="sp-sub" :class="{ done: s.done }"
-                    :title="s.done ? '点方框取消完成' : '点方框标记完成 · 改文案请进任务详情'" @click="openSelTask">
-                    <span class="b" @click.stop="toggleSelSub(s.id)">{{ s.done ? '✓' : '' }}</span>
-                    <span class="t">{{ s.title }}</span><span class="go">›</span>
-                  </div>
-                  <div v-if="!selSubs.length" class="sp-sub-empty">这张卡还没有子任务 —— 到任务详情里拆，或用详情标题下的「AI 拆解步骤」。</div>
-                  <div class="sp-sub-foot">右栏只读 + 可勾选 · 增删改 → 任务详情抽屉</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div v-else class="cur-empty">
-            <div class="ce-icon">🧭</div>
-            <div class="ce-title">上方三件事尚未指向项目</div>
-            <div class="ce-desc">单击任务卡联动项目；若任务还未关联项目，可在任务详情（双击打开）中选择所属项目</div>
-          </div>
-        </div>
-      </section>
-    </div>
-
     <!-- 底部 · 任务调度 / 好奇心培育（R117 C1 拍板：任务调度整体自方向台迁入，与好奇心培育并列 tab，
          默认任务调度；取代 R55-B2「任务调度在方向台」与 R105-B4「好奇心默认折叠摘要」两条旧策略）
          R67-F4：id 供快捷键直达锚点 -->
     <section id="zy-mod-curiosity" class="module">
+      <!-- R2-③：DeckTabs 三张卡（资源卡池 / 任务调度 / 好奇心培育）——资源台退役后池管理在此补位 -->
       <div class="bottom-tabs">
+        <button class="bt-tab" :class="{ on: bottomTab === 'pool' }" @click="bottomTab = 'pool'">
+          <Icon name="layout" :size="14" />资源卡池<span class="bt-cnt">{{ poolLiveCount }}</span>
+        </button>
         <button class="bt-tab" :class="{ on: bottomTab === 'task' }" @click="bottomTab = 'task'">
           <Icon name="clipboard" :size="14" />任务调度<span class="bt-cnt">{{ taskLiveCount }}</span>
         </button>
@@ -1135,7 +805,11 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
           <Icon name="bulb" :size="14" />好奇心培育<span class="bt-cnt">{{ curioLiveCount }}</span>
         </button>
       </div>
-      <!-- 任务调度：默认 tab，常驻挂载 -->
+      <!-- 资源卡池：默认 tab，常驻挂载（R179 池语义的管理面补位） -->
+      <div v-show="bottomTab === 'pool'" class="bottom-pane">
+        <PoolCardsPanel />
+      </div>
+      <!-- 任务调度：常驻挂载 -->
       <div v-show="bottomTab === 'task'" class="bottom-pane">
         <TaskManagerPanel />
       </div>
@@ -1182,38 +856,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
       </div>
     </Transition>
 
-    <!-- ===== 关联任务弹窗（项目调度） ===== -->
-    <Transition name="fade">
-      <div v-if="linkPickerOpen" class="overlay" @click="linkPickerOpen=false" />
-    </Transition>
-    <Transition name="modal">
-      <div v-if="linkPickerOpen" class="picker-modal">
-        <div class="pm-head">
-          <span>🔗 关联任务到「{{ curProject?.name }}」</span>
-          <div class="pm-close" @click="linkPickerOpen=false">×</div>
-        </div>
-        <div class="pm-body">
-          <div class="search-box" style="margin:0 0 12px"><span>🔍</span><input v-model="linkSearch" placeholder="搜索任务..."></div>
-          <div class="ts-label-pm" style="margin-bottom:6px">关联到成功指标</div>
-          <select v-model="linkTargetMetric" class="ts-select-pm" style="width:100%;margin-bottom:12px">
-            <option value="">（不指定 · 仅挂项目）</option>
-            <option v-for="m in projMetrics" :key="m.id" :value="m.id">🎯 {{ m.title }}</option>
-          </select>
-          <div v-for="task in linkCandidates" :key="task.id" class="picker-item" @click="linkTaskToProject(task)">
-            <div class="pi-check">＋</div>
-            <div class="pi-info">
-              <div class="pi-title">{{ task.title }}</div>
-              <div class="pi-meta">
-                <span class="tag accent">{{ projectName(task.projectId) }}</span>
-                <span class="tag" :class="{ok: task.status==='done'}">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
-              </div>
-            </div>
-          </div>
-          <div v-if="!linkCandidates.length" class="list-empty">没有可关联的任务（均属本项目或库为空）</div>
-        </div>
-      </div>
-    </Transition>
-
     <!-- ===== 三件事导出弹窗（时间范围） ===== -->
     <Transition name="fade">
       <div v-if="exportOpen" class="overlay" @click="exportOpen=false" />
@@ -1243,44 +885,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
     <!-- R172-T9：今日记录抽屉已下线 —— 记录能力迁入知源仪表盘
          （日详情按日过滤 + `DashboardLogDrawer` 全量三维筛选 + CSV；见本页右上角 `📈 复盘`）。 -->
 
-    <!-- ===== R54-B2：指标下钻弹窗 ===== -->
-    <Transition name="fade">
-      <div v-if="curDrill" class="overlay" @click="curDrill=null" />
-    </Transition>
-    <Transition name="modal">
-      <div v-if="curDrill" class="picker-modal" style="width:520px">
-        <div class="pm-head">
-          <span>📊 {{ curDrill.title }} · {{ curProject?.name }}</span>
-          <div class="pm-close" @click="curDrill=null">×</div>
-        </div>
-        <div class="pm-body">
-          <template v-if="curDrill.key === 'metrics'">
-            <div v-for="grp in metricGroups.filter(g => g.key !== '__none__')" :key="grp.key" class="picker-item" style="cursor:default">
-              <div class="pi-check pi-ghost">🎯</div>
-              <div class="pi-info">
-                <div class="pi-title">{{ grp.title }}</div>
-                <div class="pi-meta"><span class="tag accent">任务 {{ grp.tasks.length }}</span><span class="tag ok">完成 {{ drillMetricPct(grp.key) }}%</span></div>
-              </div>
-            </div>
-            <div v-if="!metricGroups.filter(g => g.key !== '__none__').length" class="list-empty">该项目暂无成功指标</div>
-          </template>
-          <template v-else>
-            <div v-for="t in drillTasks" :key="t.id" class="picker-item" @click="drawerRef?.open(t)">
-              <div class="pi-check pi-ghost">{{ t.status==='done'?'✓':t.status==='doing'?'◐':'○' }}</div>
-              <div class="pi-info">
-                <div class="pi-title">{{ t.title }}</div>
-                <div class="pi-meta">
-                  <span class="tag accent">{{ projectName(t.projectId) }}</span>
-                  <span class="tag" :class="{ok: t.status==='done'}">{{ t.status==='done'?'✅ 已完成':t.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
-                </div>
-              </div>
-            </div>
-            <div v-if="!drillTasks.length" class="list-empty">暂无{{ curDrill.title }}</div>
-          </template>
-        </div>
-      </div>
-    </Transition>
-
     <!-- 任务详情抽屉（共享组件） -->
     <TaskDetailDrawer ref="drawerRef" />
     <!-- R169-T3：AI 复核今日三件事 → 走全站唯一的中央评审弹窗（不建第二套对照壳） -->
@@ -1295,7 +899,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 /* R175：page-head 行随「页头并入合流状态条」退役——存储/同步 chip 移入 MetricBar 右槽，页面身份由顶栏活动页签承担 */
 
 /* R50-F2 数据存储状态栏 ｜ R175（原型）：默认态改无框轻量指示（绿点+文本），异常态保留红点闪烁与点击重试；
-   原硬编码 #2EA043/#F85149 一并归位 var(--success)/var(--danger)（红线 3：零硬编码色值） */
+   原有两处硬编码色值一并归位 var(--success)/var(--danger)（红线 3：零硬编码色值） */
 .storage-chip { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-caption); color: var(--text-3); background: transparent; border: 1px solid transparent; padding: 3px 4px; border-radius: var(--radius-xs); cursor: pointer; transition: border-color var(--dur), background var(--dur); font-family: inherit; }
 .storage-chip:hover { background: var(--surface-2); }
 .storage-chip .sc-dot { width: 6px; height: 6px; border-radius: 99px; background: var(--success); box-shadow: 0 0 6px color-mix(in srgb, var(--success) 55%, transparent); flex-shrink: 0; }
@@ -1320,8 +924,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .mb-act:hover { border-color: var(--border-strong); background: var(--surface-3); color: var(--text); }
 .mb-act.cta { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }
 
-/* 左右分栏 */
-/* R51-F10：上下联动——三件事在上占视觉焦点，项目调度在下 */
 /* R120-TB1：合流方向条内元素（主攻 / 去方向台）——单行 ≤40px，全 tokens */
 /* R175（原型）：主攻标签改强调胶囊（accent-light 底 + xs 圆角） */
 .cf-label { flex-shrink: 0; font-size: var(--fs-caption); font-weight: 600; color: var(--accent-ink); background: var(--accent-light); padding: 2.5px 8px; border-radius: var(--radius-xs); }
@@ -1336,9 +938,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cf-hint:hover { color: var(--accent); }
 .cf-go { flex-shrink: 0; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; }
 .cf-go:hover { color: var(--accent); }
-.split { display: flex; flex-direction: column; gap: 14px; margin-bottom: 4px; }
-.left-col { min-width: 0; }
-.right-col { min-width: 0; }
 
 /* R105（B4）：好奇心培育折叠摘要行——呼应 ModuleCard 的视觉语言（surface 底 + 发丝边） */
 /* R120-TB4：底部胶囊 Tab（对齐原型：pill 形态 + 中性选中态；计数为轻量 pill） */
@@ -1453,131 +1052,19 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .today-card:hover .tc-remove { opacity: 1; }
 .tc-remove:hover { background: var(--danger); color: #fff; }
 
-/* 项目调度（R52-F2：左右两列——左=方向感，右=执行面）｜ R176：卡头退役 ⇒ 卡体自带顶部内距（原型 16px 20px） */
-.cur-body-v { padding: 14px 20px 18px; display: flex; flex-direction: column; gap: 10px; }
-/* R176：任务树切换钮（自退役卡头移入归属行右端） */
-.tree-toggle { align-self: center; flex-shrink: 0; }
-/* R54-B1：左右两列 + 可拖拽分隔条（行内 style 动态列宽，此处为基础回退值） */
-/* R55-E（修复 R54-B1）：列宽绑定 ${curSplit.value}——此前 ${curSplit} 插值 ref 对象生成非法值被 CSSOM 静默拒绝 */
-.cur-cols { display: grid; grid-template-columns: minmax(0, 38%) 8px 1fr; gap: 0 10px; align-items: stretch; }
-.cur-col-l, .cur-col-r { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
-/* R169-T4：归属压扁成一行（原「战略目标小字 + 项目名大字 + 元信息 + 进入详情链接」四行卡片与
-   .cur-proj-name / .cur-goal-* 样式一并退役）。
-   ★整行就是"进方向树"的按钮：行内每一级都不再有自己的点击语义——三枚入口做同一件事是噪音。
-   一行四格数值同排（用户标注⑤"更扁平化、同一行显示"），窄一点时整行换行而不是挤掉字。 */
-.cur-l-row { display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap; }
-/* R175（原型 chain-flow）：归属行 = 「行动来处」标签 + 链路胶囊（值为主、分隔符弱化）+ 行内「方向树 ›」强调出口；
-   整行仍是进方向树唯一入口（R169-T4 口径），R67-2 判据串（项目一级 pct 内联）原样保留 */
-.cur-crumb { flex: 1 1 340px; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; overflow: hidden; cursor: pointer; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; transition: border-color var(--dur); }
-.cur-crumb:hover { border-color: var(--accent); }
-.cur-crumb .cc-k { flex-shrink: 0; font-size: var(--fs-caption); font-weight: 600; color: var(--text-4); letter-spacing: .04em; }
-.cur-crumb .cc-it { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; }
-.cur-crumb .cc-it .v { font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.cur-crumb .cc-it.cur .v { color: var(--accent-2); }
-.cur-crumb .cc-sep { color: var(--text-4); font-size: var(--fs-caption); flex-shrink: 0; }
-.cur-crumb .cc-go { margin-left: auto; flex-shrink: 0; font-size: var(--fs-caption); font-weight: 600; color: var(--accent-ink); background: var(--accent-light); padding: 2px 8px; border-radius: var(--radius-xs); white-space: nowrap; }
-/* R169-T4 下半部：左=卡片描述原文 · 右=子任务（只读 + 可勾选）。
-   ★纵向定高走变量不走像素（R169-14 哲学）：R175 对齐原型「固定 152px」——
-   152 = 栏头 24px + 4 行 × 32px（--sp-sub-h 33→32、--sp-rows: 4 不变，总高仍由变量算出）。
-   高度**加在滚动体上、不加在外壳上**：外壳写死总高曾让第 4 行被悄悄削掉一截，让行高变量直接决定滚动体。 */
-.spot-dual { --sp-sub-h: 32px; --sp-rows: 4; display: grid; grid-template-columns: minmax(0, 42%) 8px 1fr; gap: 0 10px; align-items: stretch; margin-top: 12px; }
-.sp-col { display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
-/* R175（原型）：左栏描述面板整块 subtle 底，与右栏白底子任务清单形成分区 */
-.spot-dual .sp-col:first-child { background: var(--surface-2); }
-.sp-h { box-sizing: border-box; display: flex; align-items: center; gap: 8px; height: 24px; padding: 0 11px; border-bottom: 1px solid var(--border); background: var(--surface-2); flex-shrink: 0; }
-.sp-h b { font-size: var(--fs-caption); font-weight: 700; letter-spacing: .05em; color: var(--text-3); text-transform: uppercase; }
-.sp-h i { font-style: normal; font-size: var(--fs-caption); color: var(--text-4); }
-.sp-h .r { margin-left: auto; font-size: var(--fs-caption); color: var(--text-4); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.sp-b { flex: none; overflow-y: auto; padding: 11px 12px; height: calc(var(--sp-rows) * var(--sp-sub-h)); }
-.sp-desc { font-size: var(--fs-body); line-height: 1.55; color: var(--text-2); white-space: pre-wrap; }
-.sp-split { position: relative; cursor: col-resize; display: flex; align-items: center; justify-content: center; }
-.sp-split i { width: 3px; height: 26px; border-radius: 2px; background: var(--border-strong); transition: all var(--dur); }
-.sp-split:hover i { background: var(--accent); height: 100%; }
-.sp-split::after { content: ''; position: absolute; inset: 0 -4px; }
-.sp-sub { box-sizing: border-box; display: flex; align-items: center; gap: 9px; height: var(--sp-sub-h); padding: 8px 2px; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); cursor: pointer; }
-.sp-sub .b { flex-shrink: 0; width: 15px; height: 15px; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid var(--border-strong); border-radius: 4px; font-size: var(--fs-micro); color: var(--accent); background: var(--surface); }
-.sp-sub .b:hover { border-color: var(--accent); }
-.sp-sub.done .b { background: var(--accent); border-color: var(--accent); color: #fff; }
-.sp-sub .t { flex: 1; min-width: 0; }
-.sp-sub.done .t { text-decoration: line-through; color: var(--text-3); }
-.sp-sub .go { color: var(--text-4); font-size: var(--fs-macro); flex-shrink: 0; }
-.sp-sub-empty { padding: 10px 2px; font-size: var(--fs-sub); color: var(--text-4); line-height: 1.7; }
-.sp-sub-foot { padding: 8px 2px 2px; font-size: var(--fs-caption); color: var(--text-4); border-top: 1px dashed var(--border); margin-top: 6px; }
-@media (max-width: 1199px) {
-  .spot-dual { grid-template-columns: 1fr; gap: 10px 0; }
-  .sp-split { display: none; }
-}
-/* R120-TB3：进度条（5px，对齐原型；宽度=项目进度既有口径） */
-.cur-progress { height: 5px; margin-top: 10px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
-.cur-progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width var(--dur-slow) ease; }
-/* R56-P1：项目调度 4 指标卡 ｜ R57-F2：两两一行 ｜ R120-TB3：原型 mini box（左对齐 / 14px 数值 / 11px 标签） */
-/* R169-T4：2×2 → 一行四格，与归属同排（下钻判据与四格语义一字未改） */
-.cur-stats-v2 { display: grid; grid-template-columns: repeat(4, minmax(58px, auto)); gap: 6px; align-self: center; }
-/* R175（原型 td-metric-chip）：格子内改「标签+数值」同行 chip 形态（背景保持 var(--surface)，R120-8 判据在守；四格下钻不变） */
-.csv-cell { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 9px; text-align: left; display: flex; align-items: baseline; gap: 5px; white-space: nowrap; }
-.csv-cell.clickable { cursor: pointer; transition: all var(--dur-fast); }
-.csv-cell.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
-.csv-num { font-size: var(--fs-sub); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.25; }
-.csv-num.ok { color: var(--success); }
-.csv-num.warn { color: var(--warning); }
-.csv-lab { font-size: var(--fs-caption); color: var(--text-3); }
-/* R54-B1：分栏拖拽分隔条 */
-/* R55-E2：分隔条常显可见（细线）+ hover/拖动增强，命中区 8px */
-.cur-split { width: 8px; border-radius: 99px; cursor: col-resize; background: transparent; transition: background var(--dur); align-self: stretch; position: relative; }
-.cur-split::after { content: ''; position: absolute; left: 3px; top: 6px; bottom: 6px; width: 2px; border-radius: 99px; background: var(--border-strong); opacity: .5; transition: all var(--dur); }
-.cur-split:hover, .cur-split:active { background: var(--accent-light); }
-.cur-split:hover::after, .cur-split:active::after { background: var(--accent); opacity: 1; top: 0; bottom: 0; }
-/* R54-B2：指标卡可点击 */
-.cur-stat.clickable { cursor: pointer; transition: border-color var(--dur), transform var(--dur-fast); }
-.cur-stat.clickable:hover { border-color: var(--accent); transform: translateY(-1px); }
-.cur-stat.clickable:hover .cs-lab { color: var(--accent); }
-/* R55-D2：4 指标降级为一行状态栏（card-head 右侧，点击下钻保留） */
-.cur-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 6px; text-align: center; }
-.cs-num { font-size: var(--fs-display); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
-.cs-num.ok { color: var(--success); }
-.cs-num.warn { color: var(--warning); }
-.cs-lab { font-size: var(--fs-tiny); color: var(--text-3); margin-top: 2px; }
-/* R120-TB3：任务树列——对齐原型（白底 + 发丝边 + 表头分隔线；两列排布沿用 R57-F2） */
-.cur-groups { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-items: start; }
-.cur-groups > .cg-empty, .cur-groups > .cur-add-metric, .cur-groups > .cur-add-metric-link { grid-column: 1 / -1; }
-.cur-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
-.cg-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: transparent; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
-/* R52-F2：指标组折叠 caret */
-.cg-caret { width: 12px; text-align: center; font-size: var(--fs-tiny); color: var(--text-3); transition: transform var(--dur); flex-shrink: 0; }
-.cg-caret.open { transform: rotate(90deg); }
-.cg-name { font-size: var(--fs-sub); font-weight: 700; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cg-name.none { color: var(--text-3); }
-.cg-count { font-size: var(--fs-tiny); color: var(--text-3); background: var(--surface); padding: 1px 8px; border-radius: 99px; }
-.cg-add { width: 20px; height: 20px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); cursor: pointer; line-height: 1; }
-.cg-add:hover { border-color: var(--accent); color: var(--accent); }
-.cg-tools { display: none; gap: 4px; margin-left: auto; }
-.cg-head:hover .cg-tools, .cg-head:focus-within .cg-tools { display: inline-flex; }
-.cg-add.danger:hover { border-color: #d46a6a; color: #d46a6a; }
-.cg-del { width: 20px; height: 20px; border: none; background: transparent; color: var(--text-3); font-size: var(--fs-caption); cursor: pointer; border-radius: 5px; opacity: 0; flex-shrink: 0; line-height: 1; }
-/* R52-F2：去关联（⨯）+删除（🗑）两钮——首钮吃 auto margin 靠右成组 */
-.cg-task button:first-of-type { margin-left: auto; }
-.cg-task button + button { margin-left: 0; }
-.cg-task:hover .cg-del { opacity: 1; }
-.cg-del:hover { color: #d46a6a; background: rgba(212,106,106,.12); }
-.cur-add-metric { display: flex; gap: 8px; padding: 10px 12px; }
-.cam-input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: var(--fs-body); outline: none; background: var(--surface); color: var(--text); font-family: inherit; }
-.cam-input:focus { border-color: var(--accent); }
-.cur-add-metric-link { margin: 2px 0 0; padding: 7px 10px; font-size: var(--fs-sub); color: var(--text-3); border: 1px dashed var(--border); border-radius: 8px; cursor: pointer; text-align: center; transition: all var(--dur-fast); }
-.cur-add-metric-link:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
-.cg-tasks { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 4px; }
-.cg-task { display: flex; align-items: center; gap: 8px; padding: 4px 4px; border-radius: 7px; cursor: pointer; transition: background var(--dur-fast); }
-.cg-task:hover { background: var(--surface-2); }
-.cg-task.is-done .cg-t { text-decoration: line-through; color: var(--text-3); }
-/* R120-TB3：12px 状态环（对齐原型；doing/done 保留语义色与微标记以便辨识） */
-.cg-dot { width: 12px; height: 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; line-height: 1; flex-shrink: 0; background: transparent; border: 1.5px solid var(--text-4); color: var(--text-4); }
-.cg-dot.st-doing { border-color: var(--tag-warn-text); color: var(--tag-warn-text); }
-.cg-dot.st-done { background: var(--text-4); border-color: var(--text-4); color: var(--surface); }
-.cg-t { font-size: var(--fs-body); color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cg-st { font-size: var(--fs-tiny); color: var(--text-4); flex-shrink: 0; }
-.cg-empty { font-size: var(--fs-caption); color: var(--text-4); text-align: center; padding: 8px; }
-.cur-empty { padding: 18px 16px 22px; text-align: center; }
-.ce-icon { font-size: 30px; opacity: .45; margin-bottom: 6px; }
-.ce-title { font-size: 14px; font-weight: 600; color: var(--text-2); margin-bottom: 4px; }
+/* ===== R2-①：槽内子任务视口（固定 5 行 + 底部渐隐 + 还有 N 项） ===== */
+.tc-subs { margin-top: 6px; max-height: calc(5 * 24px + 4px); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; scrollbar-width: thin; -webkit-mask-image: linear-gradient(to bottom, var(--text) calc(100% - 16px), transparent); mask-image: linear-gradient(to bottom, var(--text) calc(100% - 16px), transparent); }
+.tc-subs.at-end { -webkit-mask-image: none; mask-image: none; }
+.tc-sub { display: flex; align-items: center; gap: 6px; min-height: 22px; font-size: var(--fs-caption); color: var(--text-2); cursor: pointer; }
+.tc-sub .tsub-check { flex-shrink: 0; width: 13px; height: 13px; border-radius: 3.5px; border: 1.2px solid var(--border-strong); display: inline-flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; background: var(--surface); }
+.tc-sub .tsub-check:hover { border-color: var(--accent); }
+.tc-sub.done .tsub-check { background: var(--text-3); border-color: var(--text-3); }
+.tc-sub .tsub-t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tc-sub.done .tsub-t { text-decoration: line-through; color: var(--text-3); }
+.tc-sub-more { margin-top: 4px; font-size: var(--fs-caption); color: var(--text-3); text-align: center; cursor: pointer; }
+.tc-sub-more:hover { color: var(--accent); }
+
+/* R2-②：项目调度卡 CSS 全段随卡退役（ce-desc 由导出弹窗沿用保留） */
 .ce-desc { font-size: var(--fs-sub); color: var(--text-3); margin-bottom: 12px; line-height: 1.7; }
 
 /* 底部专区 Tab */
@@ -1625,10 +1112,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 @media (max-width: 1080px) {
   /* R52-F1/F2：窄窗口降级回纵向 */
   .today-cards { grid-template-columns: 1fr; }
-  .cur-cols { grid-template-columns: 1fr; }
-  .cur-groups { grid-template-columns: 1fr; }
-  .cur-split { display: none; }
 /* R125：卡面微阴影（三件事 + 项目聚焦看板） */
-.today-card, .cur-crumb { box-shadow: var(--shadow-sm); }
+.today-card { box-shadow: var(--shadow-sm); }
 }
 </style>

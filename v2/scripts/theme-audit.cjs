@@ -198,6 +198,10 @@ const DASH_SCENES = [
   },
   {
     id: 'dz-report', name: 'AI文本报告',
+    /* ★R2-② 备案：本报告的数据源=zy_daily_stats 快照，而快照只在「saveData 后 45s 时间闸」或「页卸载补写」时重建——
+       播种的备份数据会在早期某次整库保存时被 flushCardEvents diff 成 create 事件、经时间闸落进快照。
+       本文件任何位置（含 deck 探针）**不得在 dz-report 之前 page.reload**：reload 会连同 pending 定时器一起死掉，
+       快照断源，报告退化成「本期没有任何动作记录」零态（2026-09-29 实测断过一次）。 */
     act: async (page) => { await page.locator('button:has-text("AI 复盘")').first().click().catch(() => {}); await page.waitForTimeout(1500) },
     judge: async (page) => page.evaluate(() => {
       const r = document.querySelector('.dz-rpt')
@@ -337,7 +341,7 @@ async function main() {
   const drawerFail = []
   /** R167：AI 评审弹窗的三条新结构（对照区 / 一次性指令条 / 分栏把手）缺一即记账 */
   const modalFail = []
-  /** R169-T4：项目调度（归属一行 + 下半部定高两栏）判据 */
+  /** R2-②③：DeckTabs 三张卡 + 槽内子任务视口判据（原 R169-T4 项目调度 spotlight 改靶） */
   const spotFail = []
   const dashFail = [] /* R172-T13：仪表盘七场景 */
   for (const theme of themes) {
@@ -463,53 +467,40 @@ async function main() {
       await page.waitForTimeout(400)
       await closeOverlays(page)
     }
-    // R169-T4：项目调度重排是本轮主交付面之一（归属一行 + 下半部定高两栏），必须现场核而不是只看台面图
+    // R2-②③ 改靶判据（原 R169-T4 项目调度 spotlight 随调度卡退役）：现场核调度台新主交付面
+    //   = DeckTabs 三张卡（资源卡池默认 / 任务调度 / 好奇心培育）+ R2-① 槽内子任务视口（固定 5 行 / 零编辑控件）
     await page.setViewportSize(VIEWPORT)
     await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(2000)
-    await page.locator('.today-cards .today-card').first().click().catch(() => {})
-    await page.waitForTimeout(700)
+    /* ★R2 判据坑两条：① 同 hash 的 goto 不触发 SPA 重载，上一阶段留下的 tab 态会污染默认档判定
+       ⇒ 用真实点击复位（第一枚 tab）。② 不可用 page.reload 复位：dailyStats 快照走 saveData 后 45s 时间闸，
+       reload 会连同模块内 pending timer 一起死掉，下游 dz-report 的「本期动作」就断了来源。 */
+    await page.locator('.bt-tab').first().click().catch(() => {})
+    await page.waitForTimeout(500)
     await resetView(page)
     const spot = await page.evaluate(() => {
-      const crumb = document.querySelector('[data-testid="cur-crumb"]')
-      const cells = Array.from(document.querySelectorAll('.cur-stats-v2 .csv-cell'))
-      const dual = document.querySelector('[data-testid="spot-dual"]')
-      if (!crumb || !dual) return null
-      const tops = Array.from(crumb.querySelectorAll('.cc-it')).map(e => Math.round(e.getBoundingClientRect().top))
-      const cRect = crumb.getBoundingClientRect(), dRect = dual.getBoundingClientRect()
-      const cols = Array.from(dual.querySelectorAll('.sp-col')).map(c => Math.round(c.getBoundingClientRect().height))
-      const body = document.querySelector('[data-testid="sp-sub-body"]')
-      const rows = body ? body.querySelectorAll('.sp-sub').length : 0
-      const visible = body ? Array.from(body.querySelectorAll('.sp-sub')).filter(r => r.getBoundingClientRect().bottom <= body.getBoundingClientRect().bottom + 1).length : 0
-      /* 定高到底是不是"4 行"：量**滚动体**而不是量外壳——外壳高要加栏头与内边距，
-         历史上正是那笔加法差 4px 把第 4 行削掉一截（本轮 audit 抓到）。
-         不靠数据碰运气：fixture 里的任务未必有子任务，若只数可见行，零子任务时这条判据等于没判。 */
-      const dcs = getComputedStyle(dual)
-      const rowsN = parseInt(dcs.getPropertyValue('--sp-rows'), 10)
-      const subHN = parseFloat(dcs.getPropertyValue('--sp-sub-h'))
-      const bodyEls = Array.from(dual.querySelectorAll('.sp-b'))
-      const bodyHs = bodyEls.map(e => Math.round(e.getBoundingClientRect().height))
-      const wantH = rowsN * subHN
-      return {
-        oneLine: new Set(tops).size === 1, cellN: cells.length,
-        rowsN, subHN, wantH, bodyHs,
-        sameRow: cells.length > 0 && Math.abs(cells[0].getBoundingClientRect().top - cRect.top) < 40,
-        go: !!crumb.querySelector('.cc-go'),
-        dualH: Math.round(dRect.height), colsEqual: cols.length === 2 && cols[0] === cols[1],
-        rows, visible, scrollable: body ? getComputedStyle(body).overflowY === 'auto' : false,
-        editors: dual.querySelectorAll('input,textarea,[contenteditable]').length,
-        insidePanel: dRect.bottom <= document.querySelector('[data-testid="spot-dual"]').closest('.card').getBoundingClientRect().bottom + 1,
+      const tabs = Array.from(document.querySelectorAll('.bt-tab'))
+      const first = tabs[0]
+      const poolOn = !!first && first.classList.contains('on') && (first.textContent || '').includes('资源卡池')
+      const pane = document.querySelector('.pcp-card, .pcp-empty')
+      /* 不靠数据碰运气：无 .tc-subs 时视口判据记「无数据」，DeckTabs 结构判据恒核 */
+      const subs = document.querySelector('.today-cards .tc-subs')
+      let subInfo = null
+      if (subs) {
+        const rows = Array.from(subs.querySelectorAll('.tc-sub'))
+        const sRect = subs.getBoundingClientRect()
+        const visible = rows.filter(r => r.getBoundingClientRect().bottom <= sRect.bottom + 1).length
+        subInfo = { rows: rows.length, visible, maxH: Math.round(sRect.height), editors: subs.querySelectorAll('input,textarea,[contenteditable]').length }
       }
+      return { tabN: tabs.length, poolOn, paneOn: !!pane, subInfo }
     })
-    const spotFile = path.join(outDir, `${theme}-spotlight.png`)
+    const spotFile = path.join(outDir, `${theme}-deck.png`)
     await page.screenshot({ path: spotFile })
     shots.push(spotFile)
-    const spotOk = !!spot && spot.oneLine && spot.cellN === 4 && spot.sameRow && spot.go
-      && spot.colsEqual && spot.rowsN === 4 && spot.bodyHs.length === 2
-      && spot.bodyHs.every(h => h === spot.wantH) && spot.editors === 0 && spot.insidePanel
-      && (!spot.scrollable || spot.visible <= spot.rowsN + 1)
-    console.log(`  ${spotOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'项目调度'.padEnd(4)} 归属一行=${spot && spot.oneLine ? '是' : '否'} 四格同排=${spot ? spot.cellN : 0}/4 进树入口=${spot && spot.go ? '有' : '无'} 两栏同高=${spot && spot.colsEqual ? '是' : '否'} 滚动体=${spot ? spot.bodyHs.join('/') : '?'}px(应=${spot ? spot.wantH : '?'}=${spot ? spot.rowsN : '?'}×${spot ? spot.subHN : '?'}px) 子任务${spot ? spot.visible : 0}/${spot ? spot.rows : 0}可见 编辑控件=${spot ? spot.editors : '?'}   → ${path.basename(spotFile)} (${Math.round(fs.statSync(spotFile).size / 1024)}KB)`)
-    if (!spotOk) spotFail.push(`${theme}/spotlight：${JSON.stringify(spot)}（应：归属一行 + 四格同排 + 两栏滚动体高=${spot ? spot.wantH : '?'}px + 零编辑控件 + 收在面板内）`)
+    const spotOk = spot.tabN === 3 && spot.poolOn && spot.paneOn
+      && (!spot.subInfo || (spot.subInfo.editors === 0 && spot.subInfo.visible <= 6))
+    console.log(`  ${spotOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'deck'.padEnd(4)} tabs=${spot.tabN}/3 池默认=${spot.poolOn ? '是' : '否'} 池面板=${spot.paneOn ? '有' : '无'} 槽内子任务=${spot.subInfo ? spot.subInfo.visible + '/' + spot.subInfo.rows + '可见·编辑' + spot.subInfo.editors : '无数据'}   → ${path.basename(spotFile)} (${Math.round(fs.statSync(spotFile).size / 1024)}KB)`)
+    if (!spotOk) spotFail.push(`${theme}/deck：${JSON.stringify(spot)}（应：三张卡 + 资源卡池默认激活 + 池面板可见 + 槽内视口≤6可见/零编辑控件）`)
     await closeOverlays(page)
     await page.setViewportSize(VIEWPORT)
     for (const sc of DASH_SCENES) {
@@ -532,8 +523,8 @@ async function main() {
   await page.evaluate(async () => { await chrome.storage.local.remove(['zy_ai_v1']) }).catch(() => {})
   await ctx.close()
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
-  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length + 1 /* R169-T4：项目调度 spotlight */ + DASH_SCENES.length /* R172-T13：仪表盘七场景 ⇒ 40→68 */)
-  if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情 + 1 项目调度)）`); process.exit(1) }
+  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length + 1 /* R2-②③：DeckTabs deck 判据（原项目调度 spotlight 改靶） */ + DASH_SCENES.length /* R172-T13：仪表盘七场景 ⇒ 40→68 */)
+  if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情 + 1 deck)）`); process.exit(1) }
   if (escLeak.length) {
     console.log(`❌ Esc 未能关闭中央弹窗：${escLeak.join(' / ')}（台面图已受影响，请查 Modal.vue 的 watch immediate）`)
     process.exit(1)
@@ -551,7 +542,7 @@ async function main() {
     process.exit(1)
   }
   if (spotFail.length) {
-    console.log(`❌ 项目调度判据未过 ${spotFail.length} 项：\n  ` + spotFail.join('\n  '))
+    console.log(`❌ DeckTabs/deck 判据未过 ${spotFail.length} 项：\n  ` + spotFail.join('\n  '))
     process.exit(1)
   }
 }

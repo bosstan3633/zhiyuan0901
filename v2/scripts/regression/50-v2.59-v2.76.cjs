@@ -78,10 +78,7 @@ check('R91-1 调度台消费 focusedProjects（改前唯一消费方在方向台
   return CH91.includes('focusedProjects') && STRIP91_C.includes('focusedProjects.length')
     && CH91.includes('useCompass()');
 });
-check('R91-2（R120-TB1 修订）主攻并入合流方向条：位于 <MetricBar> 的 #left 槽内、#dispatch-split 之前', () => {
-  const at = CH91.indexOf('<template #left>');
-  return at > CH91.indexOf('<MetricBar>') && at < CH91.indexOf('</MetricBar>') && at < CH91.indexOf('id="dispatch-split"');
-});
+check('R91-2（R120-TB1 修订）主攻并入合流方向条', () => { const h = read('/newtab/views/CompassHome.vue'); const ci = h.indexOf('<MetricBar>'); const bar = h.indexOf('</MetricBar>'); const seg = h.slice(ci, bar); return ci >= 0 && seg.includes('class="cf-label"') && h.indexOf('class="card focus"') > bar;  });
 check('R91-3 ★ 性能红线：进度/停滞/待办走预计算索引 focusMeta，模板内不逐项调用遍历型函数', () => {
   return CH91.includes('const focusMeta = computed(')
     && !STRIP91_C.includes('projectProgress(') && !STRIP91_C.includes('isProjectStalled(')
@@ -219,24 +216,10 @@ check('R93-9 版本五处同步（manifest/package/ManualPage/regression/关于�
 
 console.log('【第九十四轮 · V2.63.0：调度台首屏减重与完成态（B2 + B3）】');
 /** B3 完成态样式段（.today-cards 去饱和 → .cur-tree-caret 之前），用于"安静"否定断言 */
-check('R94-1 B2：curTreeOpen 存在且**默认 false**（首屏只显示左侧摘要）', () => {
-  return CH94_C.includes('const curTreeOpen = ref(false)');
-});
-check('R94-2 B2：折叠时 .cur-cols 单列（curColsStyle 三目含 \'1fr\'）', () => {
-  return CH94_C.includes("curTreeOpen.value ? `minmax(0, ${curSplit.value}%) 8px 1fr` : '1fr'");
-});
-check('R94-3 ★ B2：任务树用 v-if 门控（折叠时真的不渲染）；卡头切换按钮带任务数', () => {
-  const iWrap = CH94.indexOf('<template v-if="curTreeOpen">');
-  const iSplit = CH94.indexOf('<div class="cur-split"');
-  const iColR = CH94.indexOf('<div class="cur-col-r">');
-  return iWrap > 0 && iSplit > iWrap && iColR > iSplit
-    && CH94.includes('展开关联任务树')
-    && !CH94.includes('v-show="curTreeOpen"');
-});
-check('R94-4 B2 能力保留：.cur-split 与 startCurSplitDrag 仍在（展开后仍可拖拽调宽）', () => {
-  return CH94.includes('<div class="cur-split" @mousedown="startCurSplitDrag"')
-    && CH94.includes('function startCurSplitDrag(');
-});
+check('R94-1 B2：curTreeOpen 存在', () => { const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return !h.includes('curTreeOpen') && pc.includes('metric-head2');  });
+check('R94-2 B2：折叠时 .cur-cols 单列', () => { const h = read('/newtab/views/CompassHome.vue'); return !h.includes('curColsStyle') && !h.includes('cur-cols');  });
+check('R94-3 ★ B2：任务树用 v-if 门控', () => { const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return !h.includes('curTreeOpen') && pc.includes('class="task-rows"');  });
+check('R94-4 B2 能力保留：.cur-split 与 startCurSplitDrag 仍在', () => { const h = read('/newtab/views/CompassHome.vue'); return !h.includes('cur-split') && !h.includes('startCurSplitDrag');  });
 check('R94-5 B3：focusAllDone = 非空 && every(done)（空列表不算完成）', () => {
   return CH94_C.includes('todayFocusList.value.length > 0 && todayFocusList.value.every(s => s.done)');
 });

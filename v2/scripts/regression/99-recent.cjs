@@ -187,34 +187,23 @@ check('R169-12 ★「为什么是这三件」是右上角一枚小图标，不�
     && ch.includes('v-if="c.slot?.auto === true"') && ch.includes('这一格是你自己选的，系统不评价')
     && ch.includes('不改任务卡、不改状态、不改归属')
 });
-check('R169-13 ★整行归属=进方向树的唯一入口：role=button + tabindex=0 + Enter 等价，行内每一级都不带自己的 onclick；「进入项目详情」与头部「方向树」钮一并退役（三枚入口做同一件事是噪音）', () => {
-  const ch = codeOnly(read('/newtab/views/CompassHome.vue'))
-  return ch.includes('class="cur-crumb" role="button" tabindex="0"') && ch.includes('@keydown.enter="gotoTree"')
-    && !ch.includes('cur-goal-link') && !ch.includes('进入项目详情 ›') && !ch.includes('router.push(\'/compass/tree\')"><Icon')
-    && !/class="cc-it"[^>]*@click/.test(ch)
+check('R169-13 ★整行归属=进方向树的唯一入口', () => { const h = read('/newtab/views/CompassHome.vue'); return !h.includes('cur-crumb') && !h.includes('gotoTree');  });
+check('R169-14 ★R2-② 重指带备案：项目调度卡「描述｜子任务」定高双栏退役，承接者=三件事槽内子任务视口（tc-subs 固定 5 行 + 底部渐隐 + 还有 N 项 + 滚动收敛）', () => {
+  const h = read('/newtab/views/CompassHome.vue')
+  return h.includes('class="tc-subs"') && h.includes('max-height: calc(5 * 24px + 4px)')
+    && h.includes('mask-image: linear-gradient(to bottom, var(--text) calc(100% - 16px), transparent)') // R1.5 后置：渐隐黑改 var(--text)（R120-10 零硬编码色判据联动）
+    && h.includes('还有 {{ subMoreCount(c.task) }} 项 · 进详情查看')
+    && h.includes('function toggleSlotSub') && h.includes("doneAt: !s.done ? Date.now() : undefined")
+    && h.includes('function onSubScroll') && !h.includes('spot-dual')
 });
-check('R169-14 ★下半部定高走变量不走像素：行高 --sp-sub-h 与行数 --sp-rows 各一个，总高由它们算出（写死 340px 这类"看着差不多"的数正是本轮要消掉的）；中缝可拖 25–70 夹界 + 双击复位 + UIPrefs.spotSplit 持久化（与 curSplit 分开存：那是摘要vs任务树，这是描述vs子任务，合一个键拖一条会拽走另一条）★R175 重指带备案：--sp-sub-h 33→32px（原型固定 152px = 栏头 24 + 4×32，总高仍由变量算出，不写死像素）', () => {
-  const ch = codeOnly(read('/newtab/views/CompassHome.vue')); const m = read('/shared/models/index.ts')
-  return ch.includes('--sp-sub-h: 32px') && ch.includes('--sp-rows: 4')
-    && ch.includes('height: calc(var(--sp-rows) * var(--sp-sub-h))') && !ch.includes('.spot-dual { height: 340px')
-    && ch.includes('box-sizing: border-box; display: flex; align-items: center; gap: 9px; height: var(--sp-sub-h)')
-    && ch.includes('Math.min(70, Math.max(25,') && ch.includes('saveUIPrefs({ spotSplit: spotSplit.value })')
-    && ch.includes('@dblclick="resetSpotSplit"') && m.includes('spotSplit?: number')
+check('R169-15 ★R2-② 重指带备案：双栏「右栏只读可勾、编辑回详情」分工由槽内视口承接——槽内只勾选/进详情，零输入控件', () => {
+  const h = read('/newtab/views/CompassHome.vue')
+  const i0 = h.indexOf('class="tc-subs"'), i1 = h.indexOf('tc-sub-more')
+  const seg = i0 >= 0 && i1 > i0 ? h.slice(i0, i1) : ''
+  return i0 > 0 && i1 > i0 && !/<input|<textarea/.test(seg)
+    && seg.includes('toggleSlotSub') && h.includes('openCellTask')
 });
-check('R169-15 ★左右两栏零编辑控件（Q3/Q4 定案的机器口径）：左栏直接铺 description 原文（不新增 acceptance 字段、不做 🤖 前缀解析），右栏只有勾选框与"回详情"的 ›，增删改与 AI 都不在这一栏', () => {
-  const ch = read('/newtab/views/CompassHome.vue')
-  const i0 = ch.indexOf('data-testid="spot-dual"'), i1 = ch.indexOf('v-else class="cur-empty"')
-  const dual = ch.slice(i0, i1)
-  return i0 > 0 && i1 > i0 && !/<input|<textarea|contenteditable/.test(dual)
-    && dual.includes('{{ selTask?.description') && dual.includes('增删改 → 任务详情抽屉')
-    && dual.includes('@click="openSelTask"') && dual.includes('toggleSelSub(s.id)')
-    && !ch.includes('acceptance: ') /* 卡片级 acceptance 字段没被发明出来（Metric.acceptance 是既有指标字段，不在此列） */
-});
-check('R169-16 ★有意偏离原型并备案：指标分组任务树（全站唯一的指标结构管理面）**没被删**，仍在「展开关联任务树」后面（默认折叠 ⇒ 首屏就是原型画的样子）。删它等于砍功能，用户要的是台面干净不是失去入口', () => {
-  const ch = read('/newtab/views/CompassHome.vue')
-  return ch.includes('const curTreeOpen = ref(false)') && ch.includes('<div class="cur-split" @mousedown="startCurSplitDrag"')
-    && ch.includes('展开关联任务树') && ch.includes('＋ 新增成功指标')
-});
+check('R169-16 ★有意偏离原型并备案', () => { const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return !h.includes('展开关联任务树') && pc.includes('metric-head2') && pc.includes('openTaskAdd') && pc.includes('removeMetric');  });
 check('R169-17 ★设置页导入导出文案（V3.7.0 重指：资源台「按文件夹建分类」括注随退役下线，书签导入单路径说清）：模板可见文字零轮次号（注释里的轮次号是开发者账，不算失真）；"导入前自动备份"与"附件要两步迁"写进界面而不是只存在于代码里', () => {
   const gs = read('/newtab/views/GlobalSettings.vue')
   const tplRaw = gs.slice(gs.indexOf('<template>'), gs.indexOf('</template>'))

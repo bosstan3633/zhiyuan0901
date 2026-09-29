@@ -238,7 +238,8 @@ async function main() {
       data.tasks = (data.tasks || []).filter((t) => t.id !== 'e2e-task-1' && t.id !== 'e2e-task-2')
       data.tasks.push({
         id: 'e2e-task-1', kind: 'task', title: 'E2E 任务卡', projectId: 'e2e-proj-1', metricId: 'e2e-metric-1',
-        status: 'doing', priority: 'high', mountedResourceIds: [], mountedCuriosityIds: [], customFields: {}, tags: [], pinned: false,
+        status: 'doing', priority: 'high', mountedResourceIds: [], mountedCuriosityIds: [], customFields: {}, tags: [],
+        subtasks: [{ id: 'e2e-sub-1', title: 'E2E 子任务甲', done: false }, { id: 'e2e-sub-2', title: 'E2E 子任务乙', done: true, doneAt: now }], pinned: false,
         createdAt: now, updatedAt: now
       })
       data.tasks.push({
@@ -253,47 +254,38 @@ async function main() {
   })
   await page.waitForTimeout(800)
 
-  // E2E-7 调度台底部双 tab（R117-C1）：任务调度（默认）+ 好奇心培育同宿一节，好奇心懒挂载；方向台不再持任务模块
+  // E2E-7 ★R2-③ 随迁：DeckTabs 三张卡（资源卡池默认 / 任务调度 / 好奇心培育懒挂载）；方向台不再持任务模块
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   await page.waitForSelector('.bt-tab', { timeout: 8000 }).catch(() => {})
   const tabsCount = await page.locator('.bt-tab').count()
-  const taskTabActive = await page.locator('.bt-tab.on').first().textContent().then((t) => (t || '').includes('任务')).catch(() => false)
-  const taskPaneOn = await page.locator('.bottom-pane').first().isVisible().catch(() => false)
-  const tmCardCount = await page.locator('.tm-card').count()
+  // R2-③：默认 tab = 资源卡池（第 1 枚激活）；任务调度第 2、好奇心第 3
+  const poolTabActive = await page.locator('.bt-tab.on').first().textContent().then((t) => (t || '').includes('资源卡池')).catch(() => false)
+  const poolPaneOn = await page.locator('.pcp-card, .pcp-empty').first().isVisible().catch(() => false)
   // 懒挂载：未切到好奇 tab 前好奇心面板整棵不在 DOM（`.cz-batch-btn` 是面板内首个稳定锚点；
   //   section#zy-mod-curiosity 常驻，故不能用它计数）
   const curioBefore = await page.locator('.cz-batch-btn').count()
-  await page.locator('.bt-tab').nth(1).click().catch(() => {})
+  await page.locator('.bt-tab').nth(2).click().catch(() => {})
   await page.waitForTimeout(1200)
   const curioPanelOn = await page.locator('.cz-batch-btn').first().isVisible().catch(() => false)
   // 方向台不再有任务调度模块（搬迁后宿主为调度台）
   await page.evaluate(() => { location.hash = '#/compass' })
   await page.waitForTimeout(1800)
   const dirTaskModule = await page.locator('#task-mgmt-module').count()
-  report('E2E-7 调度台底部双 tab：任务调度（默认）+ 好奇心培育（懒挂载）；方向台无任务模块（R117-C1）',
-    tabsCount === 2 && taskTabActive && taskPaneOn && curioBefore === 0 && curioPanelOn && dirTaskModule === 0,
-    'tabs=' + tabsCount + ' taskTab=' + taskTabActive + ' taskPane=' + taskPaneOn + ' tmCards=' + tmCardCount + ' curioBefore=' + curioBefore + ' curioOn=' + curioPanelOn + ' dirTaskModule=' + dirTaskModule)
+  report('E2E-7 ★R2-③ 调度台底部三张卡：资源卡池（默认）+ 任务调度 + 好奇心培育（懒挂载）；方向台无任务模块',
+    tabsCount === 3 && poolTabActive && poolPaneOn && curioBefore === 0 && curioPanelOn && dirTaskModule === 0,
+    'tabs=' + tabsCount + ' poolTab=' + poolTabActive + ' poolPane=' + poolPaneOn + ' curioBefore=' + curioBefore + ' curioOn=' + curioPanelOn + ' dirTaskModule=' + dirTaskModule)
 
   // E2E-8 调度台首页（R49 迁移）：三件事卡片 + 项目调度面板（愿景/使命小卡 + 战略目标 + 四数值）
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   const todayCard = await page.locator('.today-card').first().isVisible().catch(() => false)
-  const curationOn = await page.locator('.cur-body-v').first().isVisible().catch(() => false)
-  // R111 修漂移：R66-F2 主动删除调度台顶部的「愿景/使命」小卡（源码注释原文「删顶部项目名行与愿景/使命
-  //   模块（数据保留在方向台）」），属产品决策而非缺失 → 该两项断言退役，不再设。
-  // R169-T4 再重指：`.cur-goal-lab`/`.cur-goal-name` 两代锚点随"四行卡片压成一行归属"一起退役，
-  //   当代等值锚点 = `.cur-crumb`（整行归属，点它即进方向树）+ 行内 `.cc-it` 三级；
-  //   并补核本轮真正新增的两件事：下半部两栏在位、且**零编辑控件**（右栏只读 + 可勾选的定案）。
-  const goalCard = await page.locator('[data-testid="cur-crumb"]').first().isVisible().catch(() => false)
-  const crumbLevels = await page.locator('.cur-crumb .cc-it').count()
-  const goalOn = await page.getByText('E2E 战略目标').first().isVisible().catch(() => false)
-  // R56-P1：4 指标恢复左列（cur-stats-v2 一行四格），头部状态栏已移除
-  const statCount = await page.locator('.cur-stats-v2 .csv-cell').count()
-  const spotDualOn = await page.locator('[data-testid="spot-dual"]').first().isVisible().catch(() => false)
-  const spotEditors = await page.locator('[data-testid="spot-dual"] input, [data-testid="spot-dual"] textarea, [data-testid="spot-dual"] [contenteditable]').count()
-  report('E2E-8 调度台三件事 + 项目调度（一行归属可进树 + 四指标 + 下半部两栏只读，R56-P1 → R169-T4）', todayCard && curationOn && goalCard && goalOn && statCount === 4 && crumbLevels === 3 && spotDualOn && spotEditors === 0,
-    `todayCard=${todayCard} curation=${curationOn} 归属行=${goalCard}(级=${crumbLevels}) stats=${statCount} goal=${goalOn} 下半部=${spotDualOn} 编辑控件=${spotEditors}`)
+  // R2-②：项目调度卡退役——槽内子任务视口承接执行细节；DeckTabs 三张卡同页
+  const curGone = !(await page.locator('.card.curation').first().isVisible().catch(() => false))
+  const slotSubs = await page.locator('.tc-subs').first().isVisible().catch(() => false)
+  const deckTabs = await page.locator('.bt-tab').count()
+  report('E2E-8 ★R2-② 调度台三件事（槽内子任务视口）+ 项目调度卡退役 + DeckTabs 三张卡', todayCard && curGone && slotSubs && deckTabs === 3,
+    `todayCard=${todayCard} 调度卡已退役=${curGone} 槽内视口=${slotSubs} deckTabs=${deckTabs}`)
 
   // E2E-9 存量回填迁移（R46 BUG-2）：重新加载页面触发 init 回填 → task-2 补齐 projectId + projBackfillFixed 记录
   await page.goto(base, { waitUntil: 'domcontentloaded' })
@@ -543,8 +535,8 @@ async function main() {
     if (!m) return true
     return getComputedStyle(m).opacity === '0'
   })
-  report('E2E-14 项目调度指标下钻弹窗（R54-B2）', drillModal && drillRow && drillGone,
-    `modal=${drillModal} row=${drillRow} escClosed=${drillGone}`)
+  report('E2E-14 ★R2-② 指标下钻弹窗随项目调度卡退役（能力去向：方向台展板 metric-sec 任务行）——弹窗不再出现、展板任务行在位', drillModal === false && drillRow && drillGone,
+    `modal=${drillModal} row=${drillRow} gone=${drillGone}`)
 
   // E2E-15 二级导航闭环（R54-A）：项目详情 → 跳树带定位与来源 → 树返回按钮=返回项目详情 → 回到项目详情
   await page.evaluate(() => { location.hash = '#/compass/projects?p=e2e-proj-1' })
@@ -589,24 +581,14 @@ async function main() {
     'panel=' + tcPanelOn + ' saved=' + tcSavedOn + ' inDb=' + taskIn + ' errs=' + JSON.stringify(pageErrs))
 
 
-  // E2E-17 项目调度 4 指标恢复（R56-P1）：左列一行四格 → 弹窗下钻 → 点击任务开右侧详情抽屉
+  // E2E-17 ★R2-② 项目调度卡退役改验：四格/下钻弹窗在调度台零残留（能力去向：方向台展板 metric-sec 任务行，E2E-20/25 已覆盖）
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   const cellsOn = await page.locator('.cur-stats-v2 .csv-cell').count()
   const stripGone = await page.locator('.cur-stat-strip').count()
-  await page.locator('.cur-stats-v2 .csv-cell').nth(3).click().catch(() => {}) // 第 4 格 = 进行中
-  await page.waitForTimeout(600)
-  const drillTitle = await page.getByText('进行中任务 · E2E 策展项目').first().isVisible().catch(() => false)
-  const drillTaskRow = await page.getByText('E2E 任务卡').first().isVisible().catch(() => false)
-  await page.evaluate(() => { const rows = [...document.querySelectorAll('.picker-modal .picker-item')]; const hit = rows.find(r => r.textContent.includes('E2E 任务卡')); if (hit) hit.click() })
-  await page.waitForTimeout(900)
-  const drawerOpen = await page.evaluate(() => {
-    const t = document.querySelector('.ts-title')
-    return !!t && ((t.value || t.textContent || '').includes('E2E 任务卡'))
-  })
-  const cellStat = cellsOn === 4 && stripGone === 0
-  report('E2E-17 项目调度4指标恢复左列+下钻链路（R56-P1）', cellStat && drillTitle && drillTaskRow && drawerOpen,
-    'cells=' + cellsOn + ' stripGone=' + (stripGone === 0) + ' modal=' + drillTitle + ' row=' + drillTaskRow + ' drawer=' + drawerOpen)
+  const drawerOpen = await page.evaluate(() => !!document.querySelector('.ts-title'))
+  report('E2E-17 ★R2-② 项目调度卡退役改验：四格/下钻弹窗退役（能力去向：方向台展板 metric-sec 任务行，E2E-20/25 已覆盖）——调度台零残留',
+    cellsOn === 0 && stripGone === 0 && drawerOpen === false, 'cells=' + cellsOn + ' stripGone=' + stripGone + ' drawer=' + drawerOpen)
 
 
   // E2E-18 策展台资源卡可拖真值 + 跨分类落卡（R111 承接 R57-F1）
