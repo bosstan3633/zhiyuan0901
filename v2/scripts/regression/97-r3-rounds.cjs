@@ -479,3 +479,24 @@ check('R4-Ea ★七个用浏览器的门禁脚本必须都从 browser.cjs 取，
   });
   return bad.length === 0 && files.every(f => fs.existsSync(path.resolve(SCRIPTS_DIR, f)));
 });
+
+// ============== R4-Dj · 孤儿 CSS 清账（60+19 条死规则删除，两条误删已还原） ==============
+console.log('【R4-Dj · 死规则不许回流 + 被误判活着的规则必须在位】');
+check('R4-Dj ★已删的 46 枚死类名不许再以样式规则回流（它们模板零引用、DOM 走查在六个界面/三视图/详情抽屉里全部零命中，是纯粹的负重）。★这条同时钉住"删过的东西别再抄回来"：想复活某个视觉，先把它的使用点写回模板，再谈样式', () => {
+  const css = [codeOnly(read('/newtab/views/workspace.css')), codeOnly(read('/shared/styles/detail-sheet.css')),
+    codeOnly(read('/newtab/components/compass/CuriosityPanel.vue'))].join('\n');
+  const dead = ['metric-card', 'mc-label', 'mc-value', 'mc-sep', 'mc-hint', 'mt-list', 'mt-item', 'mt-mark', 'mt-title',
+    'mt-proj', 'mt-empty', 'mt-hint', 'rc-fields', 'rc-summary', 'rc-tags', 'rc-tag', 'rc-src', 'rc-date', 'rc-assets',
+    'rc-custom', 'rc-link', 'rc-calls', 'rc-open-hint', 'dr-footer', 'name-text', 'cover-swatch', 'toolbar-batch',
+    'py-empty', 'ws-icon-btn', 'thesis-hl', 'ds-quote', 'ds-tag', 'ds-tag-add', 'cz-add-row', 'cz-add-input',
+    'cz-add-actions', 'cz-sort-dir', 'detail-src', 'detail-meta', 'detail-sec-head', 'detail-textarea', 'status-chip'];
+  const back = dead.filter(c => new RegExp('\\.' + c + '(?![\\w-])').test(css));
+  return back.length === 0 && !css.includes('.dr-footer {') && !read('/newtab/views/workspace.css').includes('toolbar-batch');
+});
+check('R4-Dj ★两条"被自动判据误杀"的规则必须在位：`body .module-title .name/.en`（ModuleCard.vue 在用）与 `body .dash-value, body .ns-value, body .fds-value`（NorthStarPanel 的 ns-value 在用）。★教训写死在这里：多段逗号选择器只要**任何一段**的祖先类活着，整条就活着——上一遍按"最后一段复合选择器的主类"判死，把这两条排除了；后代选择器的主类不是被着色元素，判据必须看整条', () => {
+  const t = read('/shared/styles/tokens.css');
+  return t.includes('body .module-title .name') && t.includes('body .tc-module-title .tc-name')
+    && t.includes('body .module-title .en') && t.includes('body .dash-value')
+    && t.includes('body .ns-value') && t.includes('font-variant-numeric: tabular-nums')
+    && t.includes('font-weight: 600;');
+});

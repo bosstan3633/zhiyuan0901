@@ -10,7 +10,7 @@ console.log('【第六十五轮 · V2.35.0：资源台对齐旧工作台 + 金�
 check('R65-1（R74 重写；R88 重指：导入/批量入口收进 ⚙）资源台工具条：卡片/列表/看板/金字塔四视图 + 搜索 + 批量管理 + 导入 + 新建', () => {
   const w = read('/newtab/views/Workspace.vue');
   // R88：导入与批量管理的入口由工具条一级收进 ⚙ 菜单（W6 / W3），能力仍在，只改入口判据
-  return w.includes("viewMode = ref<'card'|'list'|'kanban'|'pyramid'>('card')") && w.includes('☰ 列表') && w.includes('▤ 看板') && w.includes('toolbar-search') && w.includes('toolbar-batch') && w.includes('importModalOpen.value = true') && w.includes('＋ 新建') && w.includes('function openImport(');
+  return w.includes("viewMode = ref<'card'|'list'|'kanban'|'pyramid'>('card')") && w.includes('☰ 列表') && w.includes('▤ 看板') && w.includes('toolbar-search') && w.includes('toggleBatchMode') && w.includes('☑ 批量管理') /* ★R4-Dj 随迁：原锚 toolbar-batch 是 workspace.css 里的死类名（R88 把批量入口收进 ⚙ 菜单后模板改走 .sm-item / .hero-btn.ghost，CSS 那三条再没人用），删规则才暴露；换成模板里真在渲染的那两件事 */ && w.includes('importModalOpen.value = true') && w.includes('＋ 新建') && w.includes('function openImport(');
 });
 check('R65-2（R74 重写 · R169 重指）资源台抽屉详情：单击 openResource 开抽屉（共享 ResourceEditForm + Drawer 壳）+ 双击打开 + 260ms 判别 · R169 备案：遮罩随两代容器合并进 Drawer 壳（自带 .drawer-overlay），旧的 .overlay.open 自绘遮罩退役', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -418,7 +418,7 @@ check('R74-2 路由收敛保持（V3.7.0 重指）：/curation 仍为 redirect�
 });
 check('R74-3（R88 重指：导入入口收进 ⚙）hub 资源台工具条：四视图 + 搜索 + 批量 + 导入 + 新建', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes("viewMode = ref<'card'|'list'|'kanban'|'pyramid'>('card')") && w.includes('☰ 列表') && w.includes('▤ 看板') && w.includes('toolbar-search') && w.includes('toolbar-batch') && w.includes('importModalOpen.value = true') && w.includes('function openImport(');
+  return w.includes("viewMode = ref<'card'|'list'|'kanban'|'pyramid'>('card')") && w.includes('☰ 列表') && w.includes('▤ 看板') && w.includes('toolbar-search') && w.includes('toggleBatchMode') && w.includes('importModalOpen.value = true') && w.includes('function openImport(');
 });
 check('R74-4 hub 抽屉详情与双击开链（ResourceEditForm + 260ms 判别）', () => {
   const w = read('/newtab/views/Workspace.vue');

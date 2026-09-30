@@ -752,27 +752,16 @@ function srcShort(url: string): string {
 <style scoped>
 .cz-batch-btn { padding: 5px 12px; border-radius: 8px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
 .cz-batch-btn:hover { border-color: var(--border-strong); }
-.cz-batch-btn.active { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
-.cz-add-row { background: var(--surface-2); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 14px; box-shadow: 0 0 0 3px var(--accent-glow); }
-.cz-add-input { width: 100%; border: none; outline: none; background: transparent; font-size: 14px; font-family: inherit; line-height: 1.7; color: var(--text); resize: vertical; }
-.cz-add-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
-.mini-btn { padding: 5px 12px; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
+.cz-batch-btn.active { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }.mini-btn { padding: 5px 12px; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
 .mini-btn:hover { border-color: var(--border-strong); color: var(--text); }
 .mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .mini-btn.primary:hover { background: var(--accent-hover); }
 .mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
-.mini-btn.danger:hover { background: color-mix(in srgb, var(--danger) 8%, transparent); border-color: var(--danger); }
-/* R48 详情重设计补充 */
-.ds-src-link { max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: bottom; }
-.ds-status-wrap { margin-left: 8px; }
+.mini-btn.danger:hover { background: color-mix(in srgb, var(--danger) 8%, transparent); border-color: var(--danger); }.ds-status-wrap { margin-left: 8px; }
 .ds-status-chip2:active { transform: scale(.97); }
 /* R167：「已转化」是计数不是筛选器——非交互、弱化，但带边框与池内 chip 同形（同形不同色，读得出"这是另一本账"） */
 .cz-converted { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-caption); letter-spacing: var(--tracking-sm); color: var(--text-3); padding: 3px 9px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface-2); cursor: default; }
-.cz-converted b { color: var(--text-2); font-weight: 600; }
-/* 第卅二轮 REQ-007：时间排序方向切换 */
-.cz-sort-dir { font-size: var(--fs-body); font-weight: 600; margin-right: 2px; border: 1px solid var(--border); background: var(--surface); font-family: inherit; }
-.cz-sort-dir:hover { border-color: var(--accent); color: var(--accent); }
-/* R110-LC（T3）：归档降级提示条 */
+.cz-converted b { color: var(--text-2); font-weight: 600; }/* R110-LC（T3）：归档降级提示条 */
 .cz-archived-hint { margin: 6px 0 0; padding: 6px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all var(--dur); }
 .cz-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
 
@@ -829,27 +818,10 @@ function srcShort(url: string): string {
 .cz-kanban-card:hover { border-color: var(--accent); box-shadow: var(--shadow); }
 .cz-kanban-text { font-size: var(--fs-body); color: var(--text); line-height: 1.5; margin-bottom: 6px; }
 .cz-kanban-meta { font-size: var(--fs-tiny); color: var(--text-3); }
-.cz-kanban-empty { text-align: center; padding: 20px; font-size: var(--fs-caption); color: var(--text-4); border: 1px dashed var(--border); border-radius: var(--radius-xs); }
-.detail-sec-head { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
-.status-chip { padding: 5px 12px; border-radius: 99px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
-.status-chip:hover { border-color: var(--border-strong); }
-.status-chip.active.pending { background: var(--accent-light); color: var(--accent-ink); border-color: var(--accent); }
-.status-chip.active.exploring { background: var(--tag-warn-bg); color: var(--tag-warn-text); border-color: var(--tag-warn-text); }
-.status-chip.active.verified { background: var(--tag-ok-bg); color: var(--tag-ok-text); border-color: var(--tag-ok-text); }
-.status-chip.active.shelved { background: var(--surface-3); color: var(--text-2); border-color: var(--border-strong); }
-.detail-textarea { width: 100%; min-height: 96px; max-height: 400px; border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 12px; font-size: 14px; font-family: inherit; line-height: 1.7; color: var(--text); background: var(--surface); outline: none; resize: vertical; }
-.detail-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-/* 第卅三轮 REQ-024：文本框拖拽手柄（高度经 UIPrefs.taHeights 记忆） */
+.cz-kanban-empty { text-align: center; padding: 20px; font-size: var(--fs-caption); color: var(--text-4); border: 1px dashed var(--border); border-radius: var(--radius-xs); }/* 第卅三轮 REQ-024：文本框拖拽手柄（高度经 UIPrefs.taHeights 记忆） */
 .ta-wrap { position: relative; }
 .ta-resize { position: absolute; right: 3px; bottom: 3px; width: 16px; height: 12px; cursor: ns-resize; z-index: 2; opacity: .45; border-right: 3px solid var(--text-3); border-bottom: 3px solid var(--text-3); border-bottom-right-radius: 3px; }
-.ta-resize:hover { opacity: .9; }
-.detail-meta { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; font-size: var(--fs-sub); color: var(--text-3); }
-.detail-src { display: flex; align-items: center; gap: 6px; margin: 8px 0 6px; padding: 6px 9px; background: var(--surface-2); border: 1px dashed var(--border); border-radius: 8px; font-size: var(--fs-sub); min-width: 0; }
-.detail-src .ds-ico { flex-shrink: 0; }
-.detail-src .ds-link { color: var(--accent); cursor: pointer; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.detail-src .ds-link:hover { text-decoration: underline; }
-.detail-src .ds-title { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-/* R142（反馈 #4）：成熟度徽标行（卡面用） */
+.ta-resize:hover { opacity: .9; }/* R142（反馈 #4）：成熟度徽标行（卡面用） */
 .cz-matrow { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
 /* ===== R167（OPPO 质感 · 模块化）：详情抽屉的控件语言全部搬到 detail-sheet.css 的 ds-* 分组面板体系；
    R165-A 那批头部钮（.cz-ai-btn / .cz-pin-btn / .cz-src-* / .cz-flow-*）随"AI 降正文一行 + 流转收进面板"退役。 ===== */

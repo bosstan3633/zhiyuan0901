@@ -10,17 +10,7 @@
  */
 
 /* ---- Hero 引用体（好奇心摘录：无底色大框，左侧竖线，内容即主角） ---- */
-.ds-quote-wrap { position: relative; }
-.ds-quote {
-  width: 100%; box-sizing: border-box; resize: none; border: none; outline: none;
-  background: transparent; color: var(--text); font-family: inherit;
-  font-size: 14px; line-height: 1.8; padding: 2px 4px 2px 14px;
-  border-left: 3px solid var(--accent); min-height: 72px;
-}
-.ds-quote::placeholder { color: var(--text-4, #b8b8bd); }
-.ds-quote:focus { border-left-color: var(--accent-hover, var(--accent)); }
-
-/* ---- Hero 说明区（任务说明 / 资源注释：浅底大编辑区） ---- */
+.ds-quote-wrap { position: relative; }/* ---- Hero 说明区（任务说明 / 资源注释：浅底大编辑区） ---- */
 .ds-desc {
   width: 100%; box-sizing: border-box; resize: none; border: 1px solid transparent;
   border-radius: 8px; background: var(--surface-2); color: var(--text);
@@ -49,10 +39,7 @@
 .ds-prop-select:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
 /* ---- 元数据行（捕获/更新时间等：一行小字灰） ---- */
-.ds-meta { display: flex; align-items: center; gap: 14px; font-size: var(--fs-caption); color: var(--text-3); flex-wrap: wrap; }
-.ds-meta .lnk { color: var(--text-3); cursor: pointer; border-bottom: 1px dashed var(--border-strong); }
-.ds-meta .lnk:hover { color: var(--accent); border-bottom-color: var(--accent); }
-.ds-meta a { color: inherit; }
+.ds-meta { display: flex; align-items: center; gap: 14px; font-size: var(--fs-caption); color: var(--text-3); flex-wrap: wrap; }.ds-meta a { color: inherit; }
 
 /* ---- 折叠附属区（附件/挂载：默认收起，有内容显示计数） ---- */
 .ds-details { border-top: 1px solid var(--border); padding-top: 10px; }
@@ -137,12 +124,8 @@
   border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); color: var(--text-3);
   font-size: var(--fs-caption); font-family: inherit; cursor: pointer; transition: all var(--dur); }
 .ds-ib:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
-.ds-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: var(--radius-xs);
-  background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-size: var(--fs-caption); white-space: nowrap; }
-.ds-tag .x { opacity: .45; cursor: pointer; font-style: normal; }
-.ds-tag .x:hover { opacity: 1; color: var(--danger); }
-.ds-tag-add { padding: 2px 7px; border: 1px dashed var(--border-strong); border-radius: var(--radius-xs); background: transparent; color: var(--text-3); font-size: var(--fs-caption); cursor: pointer; }
-
+/* R4-Dj：`.ds-tag` / `.ds-tag .x` 一族删除——详情抽屉的标签行自 R167 起走 ds-tagrow/ds-chip，
+   这三个类在任何模板里零引用（DOM 走查在六个界面 + 台内三视图 + 详情抽屉里全部零命中）。 */
 /* 描述/问题原文＝焦点：占面板内最大一块，安静到底 */
 .ds-hero-note {
   flex: 1; width: 100%; box-sizing: border-box; min-height: 170px; border: 1px solid transparent; background: transparent;

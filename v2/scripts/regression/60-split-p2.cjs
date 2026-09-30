@@ -247,10 +247,10 @@ check('R109-2 ★ F13 资源台/策展台单一滚动域：顶部三模块移入
 });
 check('R109-3 F14 页头单图标 + 指标卡两行重设计：台名剥离图标前缀 + 纵向布局 + hover 抬升', () => {
   return WSP109.includes("wsDisplayNameOf(workspace)")
-    && WSP109.includes("align-items: flex-start; gap: 3px; }")
-    && WSP109.includes('.metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px;')
-    && WSP109.includes('.metric-card:hover { border-color: var(--accent); transform: translateY(-1px);')
-    && WSP109.includes('.mc-value { font-size: 20px;');
+    && WSP109.includes('.rc-head { display: flex; align-items: flex-start; gap: 5px;') /* ★R4-Dj 随迁：原锚 "align-items: flex-start; gap: 3px; }" 是 .metric-card 块内的一行，指标卡随台面退役后整块零引用；"图标与标题顶对齐 + 间距"的现役落点是卡片头 .rc-head */
+    && WSP109.includes('.res-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;')
+    && WSP109.includes('.res-card:hover { border-color: var(--border-strong); transform: translateY(-1px);') /* ★R4-Dj 随迁备案：本条的"卡片纵向布局 + hover 抬升"两半原先钉 .metric-card 的字面样式，而指标卡随资源台台面退役（R4-Da 那批），CSS 里只剩零引用规则；hover 抬升这条视觉语言现役落在 .res-card（值也从 accent 变成 border-strong，是 R133 令牌化的既定口径），所以锚点跟到 .res-card 并逐字核现役值 */
+    && !WSP109.includes('.mc-value') && !WSP109.includes('.metric-card'); /* ★R4-Dj：原第三条正判据 .mc-value{font-size:20px} 与被搬走的 .metric-card 同属退役指标卡，改为负判据钉"死类名不许回流"——数值字号这件事在现役 UI 里没有对应物（台面指标区 R98/R123 起逐步退役、读数移到调度台 MetricBar），硬找等价样式来钉只会再养一条假证据 */
 });
 check('R109-4 ★ F12-a workspaceId 收紧（★R4-Da 退役重指带备案：原判据点名全景右栏的 panSelWs+panSelCat 双过滤、计数的 ws|cat 复合键、树头措辞「全景 · 资源台 · N 分类」——🗺 全景整页随资源台退役删除。"卡列表/计数必须按所在台收紧，别台卡不得混入"这条口径本身没有松：三个存活管理面各自仍有硬判据——① 池面板 workspaceId===CURATION_WS_ID ② 策展台 boardCardsOf(d, workspaceId) + 分类计数走 catId 桶 resBucket ③ 设置页按台导出 CSV 亦带 workspaceId 过滤；全景那三条锚点改为 codeOnly 零命中判据防回流）+ 树头措辞修正随页面退役一并归档', () => {
   const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));

@@ -435,7 +435,10 @@ html, body {
 
 /* Linear 规范：深色画布即留白，无氛围渐变、无聚光卡片 */
 
-/* 标题排印：600 字重 + 轻负字距（以 body 前缀稳定覆盖 scoped 样式） */
+/* 标题排印：600 字重 + 轻负字距（以 body 前缀稳定覆盖 scoped 样式）
+   ★R4-Dj：这两条曾被自动清账误删——它按"最后一段复合选择器的主类"判死（.name / .fds-value 确实零引用），
+   但 `.module-title`（ModuleCard.vue）与 `.ns-value`（NorthStarPanel.vue）是活的，后代选择器照样命中。
+   规则只要有一个复合段活着就整条保留，这条教训写进交付说明。 */
 body .module-title .name,
 body .tc-module-title .tc-name {
   font-size: var(--fs-title);
