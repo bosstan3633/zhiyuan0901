@@ -8,7 +8,7 @@
  */
 import type { AppData, ResourceCard, Project, Metric, TaskCard } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
-import { wsDisplayNameOf } from '@/shared/utils/wsName'
+import { wsDisplayNameOf, wsNameById } from '@/shared/utils/wsName'
 import type { AiDepth } from './config'
 
 const CAP: Record<AiDepth, { cards: number; titles: number; list: number; desc: number }> = {
@@ -290,7 +290,7 @@ export function projectTrash(d: AppData, depth: AiDepth): string {
 /** R137 · G2 跨台相似卡投料：全库卡目录（带台归属）+ 台清单 */
 export function projectCrossDeck(d: AppData, depth: AiDepth): { text: string; hubIds: Set<string> } {
   const c = CAP[depth]
-  const wsName = new Map((d.workspaces || []).map(w => [w.id, wsDisplayNameOf(w)]))
+  const wsName = new Map((d.workspaces || []).map(w => [w.id, wsNameById(d.workspaces, w.id)]))
   const hubIds = new Set<string>((d.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID).map(r => r.id))
   const lines: string[] = []
   for (const r of d.resources || []) {
@@ -426,7 +426,7 @@ export function projectWeekDigest(d: AppData, depth: AiDepth): string {
     return `- ${x.name}（${x.term || '未分期'}）：${projs.join('；') || '无项目'}`
   })
   // R139：调用分布（按台聚合）+ 主攻项目投入对照——深度洞察的"重心偏离"证据源
-  const wsName = new Map((d.workspaces || []).map(w => [w.id, w.name]))
+  const wsName = new Map((d.workspaces || []).map(w => [w.id, wsNameById(d.workspaces, w.id)]))
   const byWs = new Map<string, { n: number; calls: number }>()
   for (const r of opened) {
     const k = wsName.get(r.workspaceId) || '未知台'

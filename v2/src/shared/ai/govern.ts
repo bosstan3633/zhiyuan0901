@@ -4,6 +4,7 @@
  * 捞回=deletedAt 置空；镜像=hub.ts projectCardToBoard（零源数据影响）；主题漂移=只读。
  */
 import type { AppData, ResourceCard, TagNode } from '@/shared/models'
+import { wsNameById } from '@/shared/utils/wsName'
 import { K } from '@/shared/storage/keys'
 import { uid } from '@/shared/utils'
 import { projectCardToBoard } from '@/shared/storage/hub'
@@ -215,7 +216,7 @@ export function buildCrossDeckJob(ctx: GovernCtx): AiJob | null {
     parse: (raw) => {
       const pairs = Array.isArray((raw as { pairs?: DupPair[] })?.pairs) ? (raw as { pairs: DupPair[] }).pairs : []
       const rows: AiRow[] = []
-      const wsName = new Map(ctx.d.workspaces.map(w => [w.id, w.name]))
+      const wsName = new Map(ctx.d.workspaces.map(w => [w.id, wsNameById(ctx.d.workspaces, w.id)]))
       pairs.forEach((p, i) => {
         const s = sanitizeRefs({ cardId: p.srcId } as { cardId?: string }, ctx.d)
         const src = ctx.d.resources.find(r => r.id === s.cardId && !r.deletedAt && r.workspaceId === 'zy-curation')
@@ -250,7 +251,7 @@ export function buildThesisJob(ctx: GovernCtx): AiJob | null {
     build: () => ({ messages: [{ role: 'system', content: thesisDriftSystem() }, { role: 'user', content: text }] }),
     parse: (raw) => {
       const items = Array.isArray((raw as { items?: ThesisDrift[] })?.items) ? (raw as { items: ThesisDrift[] }).items : []
-      const wsName = new Map(ctx.d.workspaces.map(w => [w.id, w.name]))
+      const wsName = new Map(ctx.d.workspaces.map(w => [w.id, wsNameById(ctx.d.workspaces, w.id)]))
       const rows: AiRow[] = []
       items.forEach((f, i) => {
         if (!wsName.has(String(f.wsId)) || !['ok', 'drift'].includes(String(f.verdict))) return

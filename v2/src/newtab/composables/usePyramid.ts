@@ -13,6 +13,7 @@ import { setThesis, isMirrorView, canMountInNode, projectCardToBoard, type Mirro
 import { parsePyramidTemplate, type PyramidParseResult, type PyramidNode } from '@/shared/utils/mdImport'
 import type { CatIndex } from '@/shared/utils/catIndex'
 import { CURATION_WS_ID, type AppData, type ResourceCard, type Category } from '@/shared/models'
+import { POOL_DISPLAY_NAME } from '@/shared/utils/wsName'
 import type { WsStore } from './useResourceView'
 import type { DragState } from './useResourceDragDrop'
 
@@ -313,10 +314,10 @@ export function usePyramid(ctx: PyramidCtx) {
     const q = linkCardsQ.value.trim()
     if (!q) { showToast('先在关键词框里写下你要找什么（一句话就行），再点 AI 检索'); return }
     const pool = linkBase.value
-    if (pool.length < 2) { showToast('资源台可镜像的卡太少，换个大点的分类再来'); return }
+    if (pool.length < 2) { showToast('资源卡池里可镜像的卡太少（不足 2 张），先去池里多攒几张再来'); return }
     const catName = (id?: string) => d.value.categories.find(c => c.id === id)?.name || ''
     const cands = pool.map(c => ({
-      id: c.r.id, type: 'res', title: c.r.title, ws: '资源台', cat: catName(c.r.categoryId),
+      id: c.r.id, type: 'res', title: c.r.title, ws: POOL_DISPLAY_NAME, cat: catName(c.r.categoryId),
       summary: c.r.description, tags: c.r.tags, callCount: c.r.callCount, updatedAt: c.r.updatedAt,
       fields: linkAiFieldText(c.r), link: c.r.link || undefined,
     }))

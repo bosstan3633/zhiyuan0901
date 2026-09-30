@@ -834,7 +834,7 @@
 // R65-F7：KeepAlive 缓存实例名（App.vue router-view include）
 defineOptions({ name: 'WorkspaceView' })
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { wsDisplayNameOf } from '@/shared/utils/wsName'
+import { wsDisplayNameOf, wsNameById } from '@/shared/utils/wsName'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
 import { useCompass } from '@/newtab/stores/compass'
@@ -1074,15 +1074,15 @@ const catNameById = computed(() => {
   for (const c of d.value.categories) m.set(c.id, c.name)
   return m
 })
-const wsNameById = computed(() => {
+const wsNameMap = computed(() => {
   const m = new Map<string, string>()
-  for (const w of d.value.workspaces) m.set(w.id, w.name)
+  for (const w of d.value.workspaces) m.set(w.id, wsNameById(d.value.workspaces, w.id))
   return m
 })
 function val(r: ResourceCard, key: string): string {
   return fieldValue(r, key, {
     catName: (id) => catNameById.value.get(id) || '待分类',
-    wsName: (id) => wsNameById.value.get(id) || ''
+    wsName: (id) => wsNameMap.value.get(id) || ''
   })
 }
 function shortVal(r: ResourceCard, f: FieldDef): string {

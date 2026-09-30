@@ -910,7 +910,7 @@
 defineOptions({ name: 'GlobalSettingsView' })
 
 import { ref, reactive, computed, watch, watchEffect, onMounted, onUnmounted, shallowRef } from 'vue'
-import { wsDisplayNameOf } from '@/shared/utils/wsName'
+import { wsDisplayNameOf, wsNameById } from '@/shared/utils/wsName'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { saveUIPrefs, loadUIPrefs, getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage, stripRetiredCardKeys } from '@/shared/storage/repository'
@@ -1404,7 +1404,7 @@ function fmtDay(ts?: number): string {
   const dt = new Date(ts)
   return `${dt.getMonth() + 1}-${dt.getDate()}`
 }
-function gWsName(id: string): string { return gd.value.workspaces.find(w => w.id === id)?.name || '' }
+function gWsName(id: string): string { return wsNameById(gd.value.workspaces, id) || '' }
 function gCatName(id: string): string { return gd.value.categories.find(c => c.id === id)?.name || '' }
 
 // ---- 核心指标下钻抽屉 ----
@@ -1932,17 +1932,27 @@ function exportWorkspace() {
 
 function exportMarkdown() {
   const d = store.data!
-  const wsMap = new Map(d.workspaces.map(w => [w.id, w.name]))
+  const wsMap = new Map(d.workspaces.map(w => [w.id, wsNameById(d.workspaces, w.id)]))
   const catMap = new Map(d.categories.map(c => [c.id, c.name]))
   let md = '# 知源调度台 · 资源卡导出\n\n'
-  for (const ws of d.workspaces) {
-    const cards = d.resources.filter(r => r.workspaceId === ws.id && !r.deletedAt)
-    if (cards.length === 0) continue
-    md += `## ${ws.icon} ${ws.name}\n\n`
-    for (const cat of d.categories.filter(c => c.workspaceId === ws.id)) {
-      const catCards = cards.filter(r => r.categoryId === cat.id)
-      if (catCards.length === 0) continue
-      md += `### ${cat.name}\n\n`
+  // R4-Dg：按**卡自己的** workspaceId/categoryId 分组，不再按 workspace 实体枚举——
+  // 资源卡池既可能没有实体（新建库），其卡又恒无分类（categoryId 置空＝待分类），
+  // 旧的两层 for（先台后分类）会把池卡整批静默漏掉。
+  const byWs = new Map<string, ResourceCard[]>()
+  for (const r of d.resources.filter(x => !x.deletedAt)) {
+    const arr = byWs.get(r.workspaceId)
+    if (arr) arr.push(r); else byWs.set(r.workspaceId, [r])
+  }
+  for (const [wsId, cards] of byWs) {
+    md += `## ${wsNameById(d.workspaces, wsId) || '未知来源'}\n\n`
+    const byCat = new Map<string, ResourceCard[]>()
+    for (const r of cards) {
+      const k = r.categoryId || ''
+      const arr = byCat.get(k)
+      if (arr) arr.push(r); else byCat.set(k, [r])
+    }
+    for (const [catId, catCards] of byCat) {
+      md += `### ${catMap.get(catId) || '待分类'}\n\n`
       for (const r of catCards) {
         md += `- [${r.title}](${r.link})`
         if (r.description) md += ` — ${r.description}`

@@ -394,3 +394,37 @@ check('R4-Df3 ★把 D-f2 给设置页加的语境判据扩到手册：手册里
   return stray.length === 0 && m.includes('资源卡池 › 待分类') && !m.includes('资源台 › 待分类')
     && !rp.includes('资源台 › 待分类');
 });
+
+// ============== R4-Dg · 池的显示名单源（顺带修「导出 Markdown 整批漏池卡」） ==============
+console.log('【R4-Dg · workspaceId→展示名 单源 + 导出按卡分组】');
+check('R4-Dg ★wsName.ts 是 workspaceId→展示名 的唯一口径：wsNameById 必须**先判池再落实体**（顺序反了就会拿到 R61 留下的历史名「资源台」，新库则根本没有那枚实体），POOL_DISPLAY_NAME 全站只在这一处定义，剥图标仍走 wsDisplayNameOf', () => {
+  const n = codeOnly(read('/shared/utils/wsName.ts'));
+  const iPool = n.indexOf('if (id === CURATION_WS_ID) return POOL_DISPLAY_NAME');
+  const iFind = n.indexOf('wsDisplayNameOf((workspaces || []).find');
+  return iPool > 0 && iFind > iPool
+    && n.includes('export function wsNameById') && n.includes("export const POOL_DISPLAY_NAME = '资源卡池'")
+    && n.includes('export function wsDisplayNameOf') && count('/shared/utils/wsName.ts', 'export const POOL_DISPLAY_NAME') === 1
+    && !n.includes("|| '资源台'");
+});
+check('R4-Dg ★十一个消费点不许再各自把 workspaceId 翻成台名：全部走 wsNameById / POOL_DISPLAY_NAME，ad-hoc 取法（裸 .name 拼兜底、find(w => w.id === id)?.name、把池写成「资源台」字面量）一律不许回流。★成因不是难看：存量库里那枚 id=zy-curation 的实体名还叫「资源台」（R61 建、store getter 过滤但原始数组还在），照实体取名＝把用户指向退役台面；新库没有那枚实体，照实体取名＝显示「未知」', () => {
+  const files = ['/newtab/components/GlobalPopups.vue', '/newtab/views/RecycleBin.vue', '/newtab/components/compass/NorthStarPanel.vue',
+    '/content/overlay-impl.ts', '/shared/ai/project.ts', '/shared/ai/govern.ts', '/newtab/views/Workspace.vue',
+    '/newtab/views/GlobalSettings.vue', '/newtab/composables/usePyramid.ts', '/newtab/views/CompassTree.vue', '/shared/ai/taskSupport.ts'];
+  const bad = files.filter(f => { const c = codeOnly(read(f)); return !(c.includes('wsNameById') || c.includes('POOL_DISPLAY_NAME')) });
+  const gp = codeOnly(read('/newtab/components/GlobalPopups.vue'));
+  const ns = codeOnly(read('/newtab/components/compass/NorthStarPanel.vue'));
+  const ov = codeOnly(read('/content/overlay-impl.ts'));
+  const ct = codeOnly(read('/newtab/views/CompassTree.vue'));
+  const py = codeOnly(read('/newtab/composables/usePyramid.ts'));
+  const ts = codeOnly(read('/shared/ai/taskSupport.ts'));
+  return bad.length === 0 && !gp.includes('ws?.name ||') && !ns.includes('find(w => w.id === id)?.name')
+    && !ov.includes("w.name || '未知'") && !ct.includes("'资源台'") && !py.includes("'资源台'") && !ts.includes("'资源台'");
+});
+check('R4-Dg ★导出 Markdown 必须按**卡**分组，不许再按 workspace 实体 + 该台分类两层枚举：池卡在新库里没有实体、且 categoryId 恒空（R179 起标签独任组织），旧两层 for 会把用户的全部资源卡静默漏出导出物（★这不是命名问题，是数据缺失——而它此前只有源码文本可见，E2E-36 真点一次导出并读导出物本体）', () => {
+  const gs = codeOnly(read('/newtab/views/GlobalSettings.vue'));
+  const iFn = gs.indexOf('function exportMarkdown');
+  const seg = gs.slice(iFn, gs.indexOf('function dateStr', iFn));
+  return iFn > 0 && seg.includes('byWs.get(r.workspaceId)') && seg.includes('for (const [wsId, cards] of byWs)')
+    && seg.includes("catMap.get(catId) || '待分类'") && seg.includes('wsNameById(d.workspaces, wsId)')
+    && !seg.includes('for (const ws of d.workspaces)') && !seg.includes('r.workspaceId === ws.id');
+});

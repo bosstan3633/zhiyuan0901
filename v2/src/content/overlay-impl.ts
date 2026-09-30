@@ -11,7 +11,7 @@
 
 import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { K } from '@/shared/storage/keys'
-import { wsDisplayNameOf } from '@/shared/utils/wsName'
+import { wsDisplayNameOf, POOL_DISPLAY_NAME } from '@/shared/utils/wsName'
 import { CURATION_WS_ID } from '@/shared/models'
 import { buildCatOptions } from '@/shared/utils/catTree'
 import { detachTaskFromMetrics } from '@/shared/utils/taskLinks'
@@ -663,7 +663,10 @@ function buildSearchMaps(d: any): SearchMaps {
   const catName = new Map<string, string>()
   const projName = new Map<string, string>()
   const wsCount = new Map<string, number>()
-  for (const w of d.workspaces || []) wsName.set(w.id, w.name || '未知')
+  // R4-Dg：台名走 wsName.ts 口径（此前裸取 w.name 会带图标前缀，与本页 1019 行的分组标题不一致）；
+  // 池卡（zy-curation）单独覆盖成「资源卡池」——存量库里那枚历史实体的名字仍叫「资源台」。
+  for (const w of d.workspaces || []) wsName.set(w.id, wsDisplayNameOf(w) || '未知')
+  wsName.set(CURATION_WS_ID, POOL_DISPLAY_NAME)
   for (const c of d.categories || []) catName.set(c.id, c.name || '')
   for (const dir of d.compass?.directions || [])
     for (const p of dir.projects || []) projName.set(p.id, p.name)

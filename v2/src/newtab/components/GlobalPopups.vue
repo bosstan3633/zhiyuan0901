@@ -444,7 +444,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch, nextTick, onMounted, onUnmounted, shallowRef, defineAsyncComponent } from 'vue'
-import { wsDisplayNameOf } from '@/shared/utils/wsName'
+import { wsNameById } from '@/shared/utils/wsName'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
 import { showToast } from '@/shared/components/toast'
@@ -718,7 +718,7 @@ const allResults = computed<SearchResult[]>(() => {
     const rlink = r.link
     results.push({
       id: r.id, type: 'res', iconClass: 'res', iconText: '📄',
-      title: r.title, ws: ws?.name || '未知', cat: cat?.name || '待分类',
+      title: r.title, ws: wsNameById(all.workspaces, r.workspaceId) || '未知', cat: cat?.name || '待分类',
       badges: [],
       link: rlink ? { type: r.linkType, icon: r.linkType==='url'?'🔗':r.linkType==='file'?'📁':'📝', text: linkShort(rlink as string) } : undefined,
       summary: r.description,
@@ -820,7 +820,7 @@ const wsTree = computed(() => {
     })
 })
 function wsNameOf(id: string): string {
-  return wsDisplayNameOf(d.value.workspaces.find(w => w.id === id))
+  return wsNameById(d.value.workspaces, id)
 }
 /** R49-G3：点击分类 → 定位策展台该分类（有卡=高亮第一张；无卡=高亮分类行） */
 function locateCat(wsId: string, cat: { id: string; name: string }) {

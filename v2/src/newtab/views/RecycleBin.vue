@@ -3,7 +3,7 @@
 defineOptions({ name: 'RecycleBinView' })
 
 import { ref, computed } from 'vue'
-import { wsDisplayNameOf } from '@/shared/utils/wsName'
+import { wsDisplayNameOf, wsNameById } from '@/shared/utils/wsName'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { showToast } from '@/shared/components/toast'
@@ -62,7 +62,7 @@ const curios = computed(() =>
   d.value.curiosities.filter(c => c.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
 
 function wsNameOf(id: string): string {
-  return wsDisplayNameOf(d.value.workspaces.find(w => w.id === id)) || '未知策展台'
+  return wsNameById(d.value.workspaces, id) || '未知策展台'
 }
 function catNameOf(id: string): string {
   return d.value.categories.find(c => c.id === id)?.name || '待分类'

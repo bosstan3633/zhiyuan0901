@@ -5,6 +5,7 @@ defineOptions({ name: 'CompassTreeView' })
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, defineAsyncComponent, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
+import { wsNameById } from '@/shared/utils/wsName'
 import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
 import { K } from '@/shared/storage/keys'
@@ -565,7 +566,7 @@ const peekData = computed(() => {
     const r = d.value.resources.find(x => x.id === peek.value!.id && !x.deletedAt)
     if (!r) return null
     const lt = r.linkType === 'file' ? '本地文件' : r.linkType === 'obsidian' ? 'Obsidian' : '网页链接'
-    return { kind: 'res' as const, title: r.title, link: r.link || '', linkType: lt, desc: r.description || '', tags: r.tags || [] }
+    return { kind: 'res' as const, title: r.title, src: wsNameById(d.value.workspaces, r.workspaceId) || '资源卡池', link: r.link || '', linkType: lt, desc: r.description || '', tags: r.tags || [] }
   }
   const c = d.value.curiosities.find(x => x.id === peek.value!.id && !x.deletedAt)
   if (!c) return null
@@ -836,7 +837,7 @@ onUnmounted(() => {
     <Drawer :open="!!peekData" :title="peek?.kind === 'res' ? '📄 资源卡详情' : '💡 好奇心卡详情'" @close="peek = null">
       <template v-if="peekData">
         <div class="peek-row"><span class="peek-label">标题</span><div class="peek-val strong">{{ peekData.title }}</div></div>
-        <div class="peek-row"><span class="peek-label">来源</span><div class="peek-val">{{ peekData.kind === 'res' ? '资源台' : '我的好奇心' }}{{ peekData.linkType ? ' · ' + peekData.linkType : '' }}</div></div>
+        <div class="peek-row"><span class="peek-label">来源</span><div class="peek-val">{{ peekData.kind === 'res' ? peekData.src : '我的好奇心' }}{{ peekData.linkType ? ' · ' + peekData.linkType : '' }}</div></div>
         <div v-if="peekData.link" class="peek-row"><span class="peek-label">链接</span><div class="peek-val link">{{ peekData.link }}</div></div>
         <div v-if="peekData.desc" class="peek-row"><span class="peek-label">描述</span><div class="peek-val">{{ peekData.desc }}</div></div>
         <div v-if="peekData.tags.length" class="peek-row"><span class="peek-label">标签</span><div class="peek-val"><span v-for="t in peekData.tags" :key="t" class="peek-tag">#{{ t }}</span></div></div>

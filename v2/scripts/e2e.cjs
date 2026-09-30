@@ -9,6 +9,7 @@
  *   E2E-33 ★R4-Dc 附件 keepIds 单源（活卡/软删卡/论证卡引用必留，仅孤儿被删）
  *   E2E-34 ★R4-Dd Airtable 标签列名落盘（不碰网络，核配置链与 PAT 遮罩）
  *   E2E-35 ★R4-De 池卡定位落调度台卡池（采集后 Enter 那条链路不再跳死页）
+ *   E2E-36 ★R4-Dg 导出 Markdown 含池卡 + 台名走单源（「资源卡池」）
  *   E2E-4  北极星「新增卡片/删除卡片」卡渲染（R45-1 三档周期联动改名）
  *   E2E-5  PDF 附件双击 file:// 打开（data 层种卡 + IndexedDB blob → 双击卡片 → 新标签 file://…pdf）
  *   E2E-6  事件日志 zy_event_log 独立 key 落盘（打开资源卡产生事件）
@@ -1306,6 +1307,44 @@ async function main() {
   report('E2E-35 ★R4-De 池卡定位落调度台卡池并高亮，不落「策展台不存在」死页',
     !de.hash.includes('/workspace/') && !de.dead && de.row && de.flash,
     `落点=${de.hash.slice(0, 46)} 非工作区死链=${!de.hash.includes('/workspace/')} 死页=${de.dead} 卡上屏=${de.row} 高亮=${de.flash}`)
+
+  // E2E-36 ★R4-Dg 池的显示名单源 + 导出 Markdown 不许漏池卡。
+  //   改前的两层漏：① 台名取 workspace 实体的 name ⇒ 存量库印「资源台」（R61 留下的历史名）、新库印「未知」（根本没有那枚实体）；
+  //   ② 导出按 `for (const ws of d.workspaces)` 再按「该台的分类」分组 ⇒ 池卡在新库里没有实体、
+  //      而且池卡 categoryId 恒空（R179 起标签独任组织），两层 for 都接不住它们——整批池卡从导出物里静默消失。
+  //   判据：真点一次「导出MD」，读导出物本体（不是读界面）。
+  const dgTitles = ['E2E-Dg 池卡甲', 'E2E-Dg 池卡乙']
+  await page.evaluate((titles) => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const d = cur['zy_data_v2']
+    d.resources = (d.resources || []).filter(r => !String(r.title || '').startsWith('E2E-Dg 池卡'))
+    titles.forEach((t, i) => d.resources.unshift({
+      id: 'e2e-dg-' + i, kind: 'resource', title: t, linkType: 'url', link: `https://e2e-dg.test/${i}`,
+      workspaceId: 'zy-curation', categoryId: '', tags: ['E2E-Dg'], description: `导出核收 ${i}`, assets: [],
+      customFields: {}, pinned: false, callCount: 0, createdAt: Date.now(), updatedAt: Date.now()
+    }))
+    return chrome.storage.local.set({ zy_data_v2: d })
+  }), dgTitles)
+  await page.goto(base + '#/settings?page=export', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+  /* 抓 Blob 而不是抓下载文件：downloadFile 走 createObjectURL + a.click()，headless 里落盘路径不可控，
+     而"导出物里到底有没有池卡"这件事只看内容。 */
+  await page.evaluate(() => {
+    const orig = URL.createObjectURL.bind(URL)
+    window.__dgBlob = null
+    URL.createObjectURL = (b) => { window.__dgBlob = b; return orig(b) }
+  })
+  const dgBtn = page.locator('button.gs-btn', { hasText: '导出MD' }).first()
+  const dgClicked = (await dgBtn.count()) ? await dgBtn.click().then(() => true).catch(() => false) : false
+  await page.waitForTimeout(1200)
+  const dgMd = await page.evaluate(async () => (window.__dgBlob ? await window.__dgBlob.text() : ''))
+  const dgPoolH2 = /^##\s*资源卡池\s*$/m.test(dgMd)
+  const dgTitlesIn = dgTitles.filter(t => dgMd.includes(t)).length
+  const dgOldName = dgMd.includes('资源台')
+  const dgNoCat = /^###\s*待分类\s*$/m.test(dgMd)
+  report('E2E-36 ★R4-Dg 导出 Markdown 含池卡且台名走单源（「资源卡池」，无分类的池卡落「待分类」段）',
+    dgClicked && dgPoolH2 && dgTitlesIn === dgTitles.length && !dgOldName && dgNoCat,
+    `点击=${dgClicked} 导出物长度=${dgMd.length} 资源卡池段=${dgPoolH2} 池卡入列=${dgTitlesIn}/${dgTitles.length} 待分类段=${dgNoCat} 旧名残留=${dgOldName}`)
 
   // E2E-28（R4-a）：迁移报告卡与整库回退出口——种备份+报告 → 设置页出卡 → 回退（确认框）→ 停用键落、报告清、卡片转停用态
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {

@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useCompass } from '../../stores/compass'
 import { useAppStore } from '../../stores/app'
+import { wsNameById } from '@/shared/utils/wsName'
 import { recordResourceOpen } from '../../stores/compass'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { uid } from '@/shared/utils'
@@ -81,7 +82,7 @@ const wrrTop = computed(() =>
     .slice(0, 10)
 )
 function wsName(id: string): string {
-  return d.value.workspaces.find(w => w.id === id)?.name || '未知'
+  return wsNameById(d.value.workspaces, id) || '未知'
 }
 
 // ---- R45-1：新增/删除卡片（纯派生 createdAt/deletedAt，零新增存储；窗口随周期三档联动） ----
