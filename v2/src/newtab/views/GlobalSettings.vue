@@ -328,8 +328,10 @@
                     <div class="gs-page-desc">两级标签体系 · 三种卡片打标签的唯一来源 · 拖拽根标签到另一根标签上即成子标签（卡片标签同步为「父/子」）· 双击标签行直接改名</div>
         </div>
         <div class="tt-wrap">
+        <!-- R4-a：迁移报告卡（组件化——GS 有 ≤3,560 行增长门禁，R164-2） -->
+        <MigrateReportCard />
         <div class="gs-card">
-                    <div class="gs-card-header"><span class="gs-card-title">标签树</span><span class="gs-card-desc">最多两级：拖拽根标签到另一根标签上挂载为子标签</span></div>
+          <div class="gs-card-header"><span class="gs-card-title">标签树</span><span class="gs-card-desc">最多两级：拖拽根标签到另一根标签上挂载为子标签</span></div>
           <div class="gs-card-body">
             <div class="gs-tagtree">
               <!-- 新建根标签：行内输入 -->
@@ -1023,6 +1025,7 @@ import type { FieldDef, AppData, ResourceCard, TaskCard, CuriosityCard, Workspac
 // R63-1/63-2：全景两级（资源台/策展台）与导出镜像卡适配
 import { isHubWs, boardCardsOf, isMirrorView, sanitizeThesisDuplicates } from '@/shared/storage/hub'
 import DataCheckupCard from '../components/DataCheckupCard.vue'
+import MigrateReportCard from '../components/MigrateReportCard.vue'
 import { CURATION_WS_ID } from '@/shared/models'
 // R113-N2：资源生命周期聚合页（入口从三宿主收敛至此；内嵌式面板 + 三类卡聚合 + 跨台定位）
 import LifecyclePanel, { type LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
@@ -2505,6 +2508,7 @@ function toggleAtPoll() {
   showToast(s.pollEnabled ? '✓ 已开启 3 小时自动轮询' : '已关闭自动轮询')
 }
 
+
 // ---- N4 标签管理 ----
 interface TagNodeLite { id: string; name: string; children?: TagNodeLite[] }
 const tagTree = computed<TagNodeLite[]>(() => (store.data?.tagTree || []).filter(n => n && typeof n.id === 'string'))
@@ -3528,6 +3532,7 @@ const activeManualSec = ref('quick-1')
 .ai-pedit-row { display: flex; gap: 8px; }
 .ai-persona { display: flex; align-items: center; gap: 6px; font-size: var(--fs-body); color: var(--text); cursor: pointer; white-space: nowrap; }
 .ai-persona-brief { font-size: var(--fs-sub); color: var(--text-3); line-height: 1.6; }
+
 .gs-btn.ai-batch-btn { margin-left: 10px; padding: 3px 10px; font-size: var(--fs-sub); }
 .ai-tray { margin: 0 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
 .ai-tray-head { display: flex; align-items: center; gap: 10px; font-size: var(--fs-sub); color: var(--text); }

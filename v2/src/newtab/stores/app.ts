@@ -5,7 +5,7 @@ import { CURATION_WS_ID } from '@/shared/models'
 import { getData, saveData, loadUIPrefs, saveUIPrefs, subscribe, syncCache } from '@/shared/storage/repository'
 import { writeHot } from '@/shared/storage/hotStats'
 import { migrateCurationTree, migrateHubStructure, migrateHubMerge, hubMergeWorkPending } from '@/shared/storage/curationMigration'
-import { migrateCatsToTags, migrateBoardCardsToPool, migratePoolWorkPending, writeMigrateBackup, relocateCatsMigrateReport } from '@/shared/storage/poolMigration'
+import { migrateCatsToTags, migrateBoardCardsToPool, migratePoolWorkPending, writeMigrateBackup, relocateCatsMigrateReport, hasMigrateOptOut } from '@/shared/storage/poolMigration'
 import { normalizeCardTagPaths } from '@/shared/utils/tags'
 import { sanitizeMetricTaskIds } from '@/shared/utils/taskLinks'
 // R156：主题「跟随系统」——解析 + 系统配色监听
@@ -63,12 +63,19 @@ export const useAppStore = defineStore('app', () => {
       // R141（反馈 #1）：metric.taskIds 引用消毒（历史软删残留一次清干净，幂等静默）
       const tLinks = sanitizeMetricTaskIds(data.value)
       // V3.7.0（R179 架构简化轮）：分类→标签 + 台内卡收编入池（幂等落戳；
-      //   首次执行前把迁移前全量写入 K.MIGRATE_BACKUP——静默落键，回退入口 UI 未落地，见交付说明_R179 遗留 1）
-      if (migratePoolWorkPending(data.value)) {
-        try { await writeMigrateBackup(data.value) } catch { /* 备份失败不阻断迁移 */ }
+      //   首次执行前把迁移前全量写入 K.MIGRATE_BACKUP——静默落键，回退入口 R4-a 已落设置页）
+      /* R4-a：设置页「回退到迁移前」会同时落下迁移停用开关。不认它的话，回退把幂等落戳清掉 =
+         下次启动原样再迁一遍，回退只活一次刷新——「可回退」必须是停得住的状态，不是瞬时演示。 */
+      const poolOptOut = await hasMigrateOptOut()
+      let tCats = false
+      let tPool = false
+      if (!poolOptOut) {
+        if (migratePoolWorkPending(data.value)) {
+          try { await writeMigrateBackup(data.value) } catch { /* 备份失败不阻断迁移 */ }
+        }
+        tCats = migrateCatsToTags(data.value)
+        tPool = migrateBoardCardsToPool(data.value)
       }
-      const tCats = migrateCatsToTags(data.value)
-      const tPool = migrateBoardCardsToPool(data.value)
       migrated = t1 || t2 || t3 || tz || tLinks || tCats || tPool
     }
 

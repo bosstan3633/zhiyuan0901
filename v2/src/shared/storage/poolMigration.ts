@@ -206,3 +206,25 @@ export async function restoreMigrateBackup(): Promise<AppData | null> {
   delete (d as { catsMigrateReport?: unknown }).catsMigrateReport // R1.5：报告随回退失效；K.MIGRATE_REPORT 由调用方一并清除
   return d
 }
+
+/**
+ * R4-a：迁移停用开关（回退要能"停得住"）。
+ * 两个迁移是幂等落戳的——`restoreMigrateBackup` 把戳清掉之后，**下次启动会原样再迁一遍**，
+ * 回退就只活一次刷新。所以回退必须同时落下这个开关，启动期 `stores/app.ts` 见到它即跳过整段池迁移，
+ * 直到用户在设置页主动点「重新执行迁移」。开关存独立布尔键，不进主 JSON（不进导出/备份链）。
+ */
+export async function setMigrateOptOut(on: boolean): Promise<void> {
+  const cs = typeof chrome !== 'undefined' ? chrome?.storage?.local : null
+  if (!cs) return
+  if (on) await cs.set({ [K.MIGRATE_OPTOUT]: true })
+  else await cs.remove([K.MIGRATE_OPTOUT])
+}
+
+export async function hasMigrateOptOut(): Promise<boolean> {
+  const cs = typeof chrome !== 'undefined' ? chrome?.storage?.local : null
+  if (!cs) return false
+  try {
+    const o = await cs.get(K.MIGRATE_OPTOUT)
+    return o && o[K.MIGRATE_OPTOUT] === true
+  } catch { return false }
+}

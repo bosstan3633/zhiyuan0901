@@ -39,6 +39,8 @@ export const K = {
   MIGRATE_BACKUP: 'zy_migrate_backup_v1',
   /** R1.5：分类→标签迁移报告（独立小键，不进 zy_data_v2 主根——红线更正） */
   MIGRATE_REPORT: 'zy_cats_migrate_report_v1',
+  /** R4-a：迁移停用开关（设置页「回退到迁移前」时置位，启动期跳过池迁移；不进主 JSON） */
+  MIGRATE_OPTOUT: 'zy_migrate_optout',
   /** R159 启动期清理的遗留键（V1 时代） */
   LEGACY: ['lm_data_v5', 'lm_data_v5_backup'] as readonly string[]
 } as const

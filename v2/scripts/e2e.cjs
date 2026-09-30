@@ -27,6 +27,7 @@
  *   E2E-25 R174-3 按日快照落盘（读合并：老日子不褪色 / 写链路：保存→pagehide→days 出现今天）
  *   E2E-26 R2-④⑤ K 定位改靶「资源卡池」（tab 激活 + 目标卡高亮）+ 打开池卡详情记一次「调出」事件
  *   E2E-27 R2-⑧ 池控制行：新建单卡入池 → 批量全选打标签 → 批量软删进回收站
+ *   E2E-28 R4-a 迁移报告卡：出卡 → 回退落停用开关并清报告 → 可重新执行迁移
  */
 const path = require('path')
 const fs = require('fs')
@@ -925,6 +926,44 @@ async function main() {
     && tagged.found && tagged.ws === 'zy-curation' && (tagged.tags || []).includes('E2E 标签甲') && (tagged.tags || []).includes('E2E 批量标签')
     && goneAfterBatch && softDeleted,
     `浮层=${popOn} 新卡上屏=${newCardOn} 计数=${countBefore}→${countAfterNew} 批量条=${batchBarOn} 标签=${JSON.stringify(tagged.tags)} 台=${tagged.ws} 删后端点=${goneAfterBatch} 软删=${softDeleted}`)
+
+  // E2E-28（R4-a）：迁移报告卡与整库回退出口——种备份+报告 → 设置页出卡 → 回退（确认框）→ 停用键落、报告清、卡片转停用态
+  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const d = cur['zy_data_v2']
+    return chrome.storage.local.set({
+      zy_migrate_backup_v1: { at: Date.now() - 86400000, reason: 'e2e 迁移前备份', data: JSON.parse(JSON.stringify(d)) },
+      zy_cats_migrate_report_v1: { at: Date.now() - 86400000, l1: 7, l2: 20, deep: 3, cardsTouched: 257, tagsAdded: 257, mapping: [
+        { catId: 'c1', path: 'AI工具/知识库', tagName: 'AI工具/知识库', kind: 'child' },
+        { catId: 'c2', path: '内容生产工程', tagName: '内容生产工程', kind: 'parent' }
+      ] }
+    })
+  }))
+  await page.goto(base + '#/settings', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2600)
+  await page.getByText('标签管理').first().click().catch(() => {})
+  await page.waitForTimeout(1200)
+  const mgCardOn = await page.locator('.mg-card').first().isVisible().catch(() => false)
+  const mgStats = await page.locator('.mg-stats').first().textContent().catch(() => '')
+  const mgMapBtn = await page.getByText('逐条映射清单').first().isVisible().catch(() => false)
+  await page.getByText('回退到迁移前').first().click().catch(() => {})
+  await page.waitForTimeout(600)
+  const mgConfirmShown = await page.getByText('整库覆盖').first().isVisible().catch(() => false)
+  await page.evaluate(() => { const b = document.querySelector('.cdf-btn.ok'); if (b) b.click() })
+  await page.waitForTimeout(2000)
+  const afterRollback = await page.evaluate(() => chrome.storage.local.get(['zy_migrate_optout', 'zy_cats_migrate_report_v1']).then(r => ({
+    optOut: r['zy_migrate_optout'] === true, reportGone: !r['zy_cats_migrate_report_v1']
+  })))
+  const offBadge = await page.locator('.mg-off').first().isVisible().catch(() => false)
+  const rerunBtn = await page.getByText('重新执行迁移').first().isVisible().catch(() => false)
+  await page.getByText('重新执行迁移').first().click().catch(() => {})
+  await page.waitForTimeout(500)
+  await page.evaluate(() => { const b = document.querySelector('.cdf-btn.ok'); if (b) b.click() })
+  await page.waitForTimeout(2600)
+  const optOutCleared = await page.evaluate(() => chrome.storage.local.get('zy_migrate_optout').then(r => r['zy_migrate_optout'] !== true))
+  report('E2E-28 ★R4-a 迁移报告卡出卡（统计+映射清单）→ 回退落停用开关并清报告 → 可重新执行迁移',
+    mgCardOn && /257/.test(mgStats || '') && mgMapBtn && mgConfirmShown && afterRollback.optOut && afterRollback.reportGone && offBadge && rerunBtn && optOutCleared,
+    `卡片=${mgCardOn} 统计="${(mgStats || '').replace(/\s+/g, '').slice(0, 26)}" 清单钮=${mgMapBtn} 确认框=${mgConfirmShown} 停用=${afterRollback.optOut} 报告清=${afterRollback.reportGone} 停用徽标=${offBadge} 重跑钮=${rerunBtn} 解除=${optOutCleared}`)
 
   await ctx.close()
   const fail = results.filter(r => !r.ok).length

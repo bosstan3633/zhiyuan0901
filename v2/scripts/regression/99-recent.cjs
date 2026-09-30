@@ -740,3 +740,20 @@ check('R3-F38 ★覆盖判据是硬核的：theme-audit 新增 dz-hl 场景，�
   const a = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8')
   return a.includes("id: 'dz-hl'") && a.includes('outlined === marked.length') && a.includes('const marked = all.filter(e => !e.disabled)') && a.includes('btn.click()')
 });
+
+// ============== R4-a 迁移报告卡与整库回退出口 ==============
+console.log('【R4-a · 迁移报告卡】');
+check('R4-a ★迁移原语有了出口：设置页标签管理读 K.MIGRATE_REPORT + K.MIGRATE_BACKUP 出报告卡（统计 + 逐条映射清单 + 下载备份），restoreMigrateBackup 不再是零调用方（卡片组件化：GS 有 ≤3,560 行增长门禁 R164-2）；回退走 useConfirm 报数（备份时间/迁移前卡数 vs 当前卡数与任务数）', () => {
+  const gs = read('/newtab/components/MigrateReportCard.vue'), pm = read('/shared/storage/poolMigration.ts'), host = read('/newtab/views/GlobalSettings.vue')
+  return host.includes('<MigrateReportCard />') && gs.includes('K.MIGRATE_REPORT') && gs.includes('K.MIGRATE_BACKUP') && gs.includes('mg-card')
+    && gs.includes('restoreMigrateBackup()') && gs.includes('readMigrateBackup()') && gs.includes('report.mapping')
+    && gs.includes('async function rollback') && gs.includes('整库回退') && gs.includes('async function reRun')
+    && pm.includes('export async function restoreMigrateBackup')
+});
+check('R4-a ★回退要停得住：回退同时落 K.MIGRATE_OPTOUT，启动期 stores/app.ts 以 hasMigrateOptOut() 守卫跳过整段池迁移（不清开关的话幂等落戳被清 = 下次启动原样再迁一遍，回退只活一次刷新）；UI 侧给「重新执行迁移」解除', () => {
+  const pm = read('/shared/storage/poolMigration.ts'), ap = read('/newtab/stores/app.ts'), gs = read('/newtab/components/MigrateReportCard.vue'), k = read('/shared/storage/keys.ts')
+  return k.includes("MIGRATE_OPTOUT: 'zy_migrate_optout'")
+    && pm.includes('export async function setMigrateOptOut') && pm.includes('export async function hasMigrateOptOut')
+    && ap.includes('const poolOptOut = await hasMigrateOptOut()') && ap.includes('if (!poolOptOut)')
+    && gs.includes('setMigrateOptOut(true)') && gs.includes('setMigrateOptOut(false)') && gs.includes('重新执行迁移')
+});
