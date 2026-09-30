@@ -16,6 +16,7 @@
  *    （用户要求「定位到卡片所在的具体位置」，而不只是切到台面）。
  */
 import type { AppData } from '@/shared/models'
+import { CURATION_WS_ID } from '@/shared/models'
 
 export type LocateKind = 'resource' | 'task' | 'curiosity'
 
@@ -28,6 +29,23 @@ export interface LocateTarget {
 export const LOCATE_HK: Record<LocateKind, string> = { resource: 'res', task: 'task', curiosity: 'curio' }
 
 /**
+ * ★R4-E 资源卡定位落点的唯一判据：**池卡不属于任何策展台**。
+ * V3.7.0（R179）把资源卡真身统一收进隐藏池 `zy-curation`，而池**不是一枚 workspace 实体**——
+ * `stores/app.ts` 的 workspaces getter 显式过滤掉它，`defaults.ts` 新建库也不含它。
+ * 于是 `/workspace/zy-curation` 自 R179 起恒落 Workspace.vue 的「策展台不存在」死页。
+ * R2-④ 当年把四处深链逐个改靶成 `/?hl&hk=res`，但**漏了这个共享算式本身**，
+ * 结果凡是走这里的调用点（仪表盘明细 / 今日入台明细 / 钻取抽屉附件行 / 采集后按 Enter）
+ * 对池卡仍然跳死页。修在算式里，一次修完所有调用点。
+ */
+export function resourceLocateRoute(workspaceId: string, categoryId = ''): LocateTarget {
+  const query: Record<string, string> = { hk: LOCATE_HK.resource }
+  if (categoryId) query.cat = categoryId
+  return workspaceId === CURATION_WS_ID
+    ? { path: '/', query }
+    : { path: `/workspace/${workspaceId}`, query }
+}
+
+/**
  * 计算某张卡的定位目标。
  * @returns null = 该卡已不在库中（调用方应提示"已不在库"，而不是静默跳到台面）
  */
@@ -35,10 +53,9 @@ export function locateTargetOf(d: AppData, kind: LocateKind, id: string): Locate
   if (kind === 'resource') {
     const r = d.resources.find(x => x.id === id)
     if (!r) return null
-    const query: Record<string, string> = { hl: id, hk: LOCATE_HK.resource }
-    // 带上所在分类 → 消费端会先切到该分类再滚动（「定位到具体位置」）
-    if (r.categoryId) query.cat = r.categoryId
-    return { path: `/workspace/${r.workspaceId}`, query }
+    // 带上所在分类 → 消费端会先切到该分类再滚动（「定位到具体位置」）；池卡由 resourceLocateRoute 改靶调度台
+    const t = resourceLocateRoute(r.workspaceId, r.categoryId)
+    return { path: t.path, query: { hl: id, ...t.query } }
   }
   // R117：任务卡与好奇心卡的宿主都在调度台 `/`（任务调度与好奇心培育同页 tab）
   const exists = kind === 'task' ? d.tasks.some(t => t.id === id) : d.curiosities.some(c => c.id === id)

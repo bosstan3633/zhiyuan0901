@@ -275,3 +275,31 @@ check('R4-Dd ★422 不等于「记录被删」：写值错误（INVALID_VALUE_F
     && seg.includes('INVALID_VALUE_FOR_COLUMN') && seg.includes('record (was )?not found')
     && seg.includes('UNKNOWN_RECORD') && a.includes('isMissingRecord(batchMsg)') && a.includes('isMissingRecord(oneMsg)');
 });
+
+// ============== R4-De · 旧世界清账：池卡定位落点收进唯一算式 ==============
+console.log('【R4-De · 池卡定位链路对齐】');
+check('R4-De ★池卡不是 workspace 实体：定位落点必须由 resourceLocateRoute 一处算，zy-curation 一律落调度台卡池 tab（R2-④ 当年改了四处深链，漏了这个被四处共用的算式本身）', () => {
+  const l = read('/shared/utils/locate.ts');
+  return l.includes('export function resourceLocateRoute')
+    && l.includes('workspaceId === CURATION_WS_ID')
+    && l.includes("path: '/', query")
+    && l.includes('hk: LOCATE_HK.resource')
+    && l.includes('return { path: t.path, query: { hl: id, ...t.query } }')
+    && !/return \{ path: `\/workspace\/\$\{r\.workspaceId\}`/.test(l);
+});
+check('R4-De ★三个消费端不再各自拼工作区路径：App 的 zy-locate 与 background 的 handleLocate 都走同一算式（两边各拼一次正是这次死链能活到今天的形状）', () => {
+  const app = read('/newtab/App.vue');
+  const bg = read('/background/index.ts');
+  return app.includes('resourceLocateRoute(wsId)') && bg.includes('resourceLocateRoute(wsId)')
+    && bg.includes('const target = route.path') && bg.includes('${hashQuery}')
+    && !app.includes("path: `/workspace/${wsId}`, query: hl")
+    && !bg.includes('const target = `/workspace/${wsId}`')
+    && !bg.includes('?hl=${encodeURIComponent(hl)}');
+});
+check('R4-De ★采集后按 Enter 的落点不许是死页：savedWsId 自 R179 起恒为池 id，这条链路必须与检索侧同源（检索侧 R2-④ 已改靶、采集侧当时没跟上）', () => {
+  const gp = codeOnly(read('/newtab/components/GlobalPopups.vue'));
+  const seg = gp.slice(gp.indexOf('function openSavedBoard'), gp.indexOf('function openSavedBoard') + 400);
+  return seg.includes("type: 'zy-locate-workspace'") && seg.includes('savedWsId.value')
+    && gp.includes('savedWsId.value = r.workspaceId')
+    && !gp.includes('/workspace/zy-curation');
+});

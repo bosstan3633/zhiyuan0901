@@ -7,6 +7,7 @@
  *  3. 无法注入的页面（chrome:// 等）降级为独立弹窗窗口
  */
 import { K } from '@/shared/storage/keys'
+import { resourceLocateRoute } from '@/shared/utils/locate'
 
 const SESSION_KEY = K.QC_PREFILL
 
@@ -361,7 +362,12 @@ function askRoute(tabId: number, timeout = 600): Promise<string | null> {
 async function handleLocate(wsId: string, hl: string, senderTabId?: number): Promise<void> {
   if (!wsId) return
   const base = await newtabBase()
-  const target = `/workspace/${wsId}`
+  /* ★R4-E：落点由 resourceLocateRoute 一处算——隐藏池（zy-curation）不是 workspace 实体，
+     拼成 /workspace/zy-curation 自 R179 起恒落「策展台不存在」死页（采集后按 Enter 即此路径）。
+     与 App.vue 的 zy-locate 消费端同一个判据，不再两边各写一次字符串拼接。 */
+  const route = resourceLocateRoute(wsId)
+  const target = route.path
+  const hashQuery = `?${new URLSearchParams(hl ? { hl, ...route.query } : route.query).toString()}`
   const tabs = await chrome.tabs.query({ url: base + '*' })
   // 1) 找已打开目标策展台的标签页
   // REQ-031 P-031-7：并行询问所有标签页（150ms 短超时），取首个命中——N 个标签页不再串行 N×600ms
@@ -394,10 +400,10 @@ async function handleLocate(wsId: string, hl: string, senderTabId?: number): Pro
   if (host?.id != null) {
     if (host.windowId != null) await chrome.windows.update(host.windowId, { focused: true }).catch(() => {})
     await chrome.tabs.update(host.id, { active: true })
-    await chrome.tabs.sendMessage(host.id, { type: 'zy-route', route: `${target}${hl ? `?hl=${encodeURIComponent(hl)}` : ''}` }).catch(() => {})
+    await chrome.tabs.sendMessage(host.id, { type: 'zy-route', route: `${target}${hashQuery}` }).catch(() => {})
     return
   }
-  chrome.tabs.create({ url: `${base}#${target}${hl ? `?hl=${encodeURIComponent(hl)}` : ''}` })
+  chrome.tabs.create({ url: `${base}#${target}${hashQuery}` })
 }
 
 /** 通用路由打开（B4：搜索结果定位任务/好奇心），优先复用已开新标签页；可选透传 drawer（打开详情抽屉） */

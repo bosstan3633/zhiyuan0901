@@ -2,6 +2,7 @@
 import { computed, ref, watch, onErrorCaptured, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import { K } from '@/shared/storage/keys'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
+import { resourceLocateRoute } from '@/shared/utils/locate'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from './stores/app'
 import { uid } from '@/shared/utils'
@@ -353,11 +354,14 @@ onMounted(async () => {
     else if (msg?.type === 'zy-open-curiosity') gpOpen('curio')
     else if (msg?.type === 'zy-open-task-capture') gpOpen('taskcapture')
     // 策展台单例定位（G）：跳转到目标策展台并高亮资源卡
+    // ★R4-E：隐藏池卡（zy-curation）不是一枚 workspace 实体，走 resourceLocateRoute 落调度台资源卡池，
+    //   否则跳 /workspace/zy-curation 必落「策展台不存在」死页（采集后按 Enter 就是这条路径）
     else if (msg?.type === 'zy-locate') {
       const wsId: string = msg.wsId || ''
       const hl: string = msg.hl || ''
       if (wsId) {
-        router.push({ path: `/workspace/${wsId}`, query: hl ? { hl } : undefined })
+        const t = resourceLocateRoute(wsId)
+        router.push({ path: t.path, query: hl ? { hl, ...t.query } : t.query })
       }
     }
     // 通用路由跳转（B4：搜索结果定位任务/好奇心；第卅六轮扩展 drawer 参数）

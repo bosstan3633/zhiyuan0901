@@ -7,7 +7,7 @@ import { computed, nextTick, type ComputedRef, type Ref } from 'vue'
 import type { Router } from 'vue-router'
 import { showToast } from '@/shared/components/toast'
 import { deleteAsset, cleanupOrphanAssetsOf, collectReferencedAssetIds } from '@/shared/storage/assets'
-import { locateTargetOf } from '@/shared/utils/locate'
+import { locateTargetOf, resourceLocateRoute } from '@/shared/utils/locate'
 import type { AppData, AssetMeta } from '@/shared/models'
 
 export interface WsAssetHygieneCtx {
@@ -54,7 +54,9 @@ export function useWsAssetHygiene(ctx: WsAssetHygieneCtx) {
       })
     } else {
       const t = locateTargetOf(d.value, 'resource', cardId)
-      router.push(t || { path: `/workspace/${r.workspaceId}`, query: { hl: cardId } })
+      // 兜底也走同一个算式：r 是池卡时直拼 /workspace/zy-curation 会落死页（R4-De）
+      const fb = resourceLocateRoute(r.workspaceId)
+      router.push(t || { path: fb.path, query: { ...fb.query, hl: cardId } })
     }
     showToast(`↗ 已定位到「${(r.title || '').slice(0, 20)}」`)
   }

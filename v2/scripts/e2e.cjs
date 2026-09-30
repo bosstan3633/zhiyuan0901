@@ -8,6 +8,7 @@
  *   E2E-32 ★R4-Db 书签导入唯一路线（真喂书签 HTML 跑一次导入）
  *   E2E-33 ★R4-Dc 附件 keepIds 单源（活卡/软删卡/论证卡引用必留，仅孤儿被删）
  *   E2E-34 ★R4-Dd Airtable 标签列名落盘（不碰网络，核配置链与 PAT 遮罩）
+ *   E2E-35 ★R4-De 池卡定位落调度台卡池（采集后 Enter 那条链路不再跳死页）
  *   E2E-4  北极星「新增卡片/删除卡片」卡渲染（R45-1 三档周期联动改名）
  *   E2E-5  PDF 附件双击 file:// 打开（data 层种卡 + IndexedDB blob → 双击卡片 → 新标签 file://…pdf）
  *   E2E-6  事件日志 zy_event_log 独立 key 落盘（打开资源卡产生事件）
@@ -1259,6 +1260,52 @@ async function main() {
   report('E2E-34 ★R4-Dd 标签列名落盘 + 留空回落 + PAT 仍按密码框呈现',
     atTagVisible && atStored === 'Tags（知源同步）' && (atCleared === '' || atCleared === undefined) && atPatType === 'password',
     `列名框=${atTagVisible} 落库="${atStored}" 清空后="${atCleared}" PAT型=${atPatType}`)
+
+  // E2E-35 ★R4-De 池卡定位不许落死页：真发一次 background 的单例定位消息（采集后按 Enter 走的就是这条），
+  //   核三件事：① 落点是调度台资源卡池（URL 带 hl + hk=res）而不是 /workspace/zy-curation；
+  //   ② 目标卡真的渲染出来并被高亮（flash 类 + data-rid）；③ 屏幕上没有「策展台不存在」死页文案。
+  //   ★R2-④ 当年改了四处深链的落点，却漏了这四处共用的那个算式本身——所以采集侧一直还在跳死页。
+  const deCardId = 'e2e-de-pool-card'
+  await page.evaluate(async (cid) => {
+    const cur = await chrome.storage.local.get('zy_data_v2')
+    const d = cur['zy_data_v2']
+    d.resources = (d.resources || []).filter(r => r.id !== cid)
+    d.resources.unshift({
+      id: cid, kind: 'resource', title: 'E2E 池卡定位', linkType: 'url', link: 'https://e2e-de.test/pool',
+      workspaceId: 'zy-curation', categoryId: '', description: '', tags: ['E2E 定位'], assets: [],
+      customFields: {}, pinned: false, callCount: 0, createdAt: Date.now(), updatedAt: Date.now()
+    })
+    await chrome.storage.local.set({ zy_data_v2: d })
+  }, deCardId)
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2600)
+  await page.evaluate((cid) => chrome.runtime.sendMessage({ type: 'zy-locate-workspace', wsId: 'zy-curation', hl: cid }), deCardId)
+  /* ★两个时间窗都是踩过才知道的：
+     ① 落点 query 是**瞬态**的——PoolCardsPanel 消费完 hl 会 router.replace 把 query 抹掉（防止下次进页面重复定位），
+        所以 hash 必须早读（400ms），晚读只会看到干净的 `#/`，那不是没定位上；
+     ② 高亮 flash 类只活 2s（highlightId 到点自清），所以要用轮询抓"曾经亮过"，不能睡完再查。 */
+  await page.waitForTimeout(400)
+  const deHash = await page.evaluate(() => location.hash)
+  let deFlash = false
+  for (let i = 0; i < 14 && !deFlash; i++) {
+    deFlash = await page.evaluate((cid) => !!document.querySelector(`[data-rid="${cid}"].flash`), deCardId)
+    if (!deFlash) await page.waitForTimeout(200)
+  }
+  const de = await page.evaluate((cid) => ({
+    dead: document.body.innerText.includes('策展台不存在'),
+    row: !!document.querySelector(`[data-rid="${cid}"]`)
+  }), deCardId)
+  de.hash = deHash
+  de.flash = deFlash
+  /* ★落点 query 核不了，而且**不该**核：PoolCardsPanel 的 hl watcher 是 immediate 的，
+     消费完在同一拍里就 router.replace 把 hl/hk 抹掉（防下次进页面重复定位），
+     400ms 时读到的 hash 已经是干净的 `#/`。所以这里判的是可观测的三件事：
+     ① 没落在工作区路由上（这正是本轮修的 bug：/workspace/zy-curation 死页）；
+     ② 没有「策展台不存在」文案；③ 目标卡真的在池面板里渲染出来并被高亮过。 */
+  report('E2E-35 ★R4-De 池卡定位落调度台卡池并高亮，不落「策展台不存在」死页',
+    !de.hash.includes('/workspace/') && !de.dead && de.row && de.flash,
+    `落点=${de.hash.slice(0, 46)} 非工作区死链=${!de.hash.includes('/workspace/')} 死页=${de.dead} 卡上屏=${de.row} 高亮=${de.flash}`)
 
   // E2E-28（R4-a）：迁移报告卡与整库回退出口——种备份+报告 → 设置页出卡 → 回退（确认框）→ 停用键落、报告清、卡片转停用态
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
