@@ -176,10 +176,10 @@ check('R148-3 标签用量一次建表（原按树节点各扫全库 = O(标签�
     && g.includes("for (const n of nodes) { bump(n); const i = n.indexOf('/'); if (i > 0) bump(n.slice(0, i)) }")
     && g.includes('const rev = d.tagTreeRevision || 0') && g.includes('function tagUsage(name: string): number {') && !g.includes('tagUsageOld')
 });
-check('R148-4 KeepAlive 扩到设置页/回收站/项目详情/方向树（四页都是重计算首屏，此前每次进全量重挂）+ 显式实例名', () => {
-  const a = read('/newtab/App.vue'); const cs = read('/newtab/views/CompassShell.vue')
+check('R148-4 KeepAlive 扩到设置页/回收站/项目详情/方向树（四页都是重计算首屏，此前每次进全量重挂）+ 显式实例名 ★R3-B1：方向台两级从 Shell 内层 keep-alive 上收到 App 级 include', () => {
+  const a = read('/newtab/App.vue');
   const inc = (a.match(/keep-alive include="([^"]+)"/) || [, ''])[1].split(',')
-  return inc.includes('GlobalSettingsView') && inc.includes('RecycleBinView') && cs.includes('keep-alive include="ProjectCurationView,CompassTreeView"')
+  return inc.includes('GlobalSettingsView') && inc.includes('RecycleBinView') && inc.includes('CompassTreeView') && inc.includes('ProjectCurationView')
     && read('/newtab/views/GlobalSettings.vue').includes("defineOptions({ name: 'GlobalSettingsView' })") && read('/newtab/views/RecycleBin.vue').includes("defineOptions({ name: 'RecycleBinView' })")
     && read('/newtab/views/ProjectCuration.vue').includes("defineOptions({ name: 'ProjectCurationView' })") && read('/newtab/views/CompassTree.vue').includes("defineOptions({ name: 'CompassTreeView' })")
 });

@@ -152,27 +152,18 @@ const CTX_OWN = segOf(CTX_FN, '} else {', 'resCtx.value = {');
 const MOUNT_FN = segOf(read('/newtab/composables/useWorkspaceBatch.ts'), 'function toggleMountTask(', 'function closeMountOne');
 const MOUNT_PICKER = segOf(read('/newtab/composables/useWorkspaceBatch.ts'), 'const mountTaskOptions = computed<TaskCard[]>(', 'function mountProjectName');
 const RES_CARD_IFACE = segOf(read('/shared/models/index.ts'), 'export interface ResourceCard {', '\n}');
-const LH = read('/newtab/components/compass/LighthousePanel.vue');
-const LH_TPL = segOf(LH, '<template>', '\n</template>');
-const LH_STYLE = segOf(LH, '<style scoped>', '</style>');
-const TERM_FN = segOf(LH, 'function termText(', 'function focusedOf(');
+// R3-B1：CompassShell.vue / LighthousePanel.vue 退役——原 LH / LH_TPL / LH_STYLE / TERM_FN /
+// LH85 / TPL85 / STY85 / FBAR_TPL / CS86 / LH86 / CS_TPL / CS_STY / LP99 / CS99 一并撤走，
+// 引用它们的断言逐条重指到方向台新现实（不再静默指向空串，避免"判据还在、证据已空"）。
 const WS84 = read('/newtab/views/Workspace.vue');
 const WSVIEW = read('/shared/utils/wsView.ts');
 const HEAD_TPL = segOf(WS84, '<div class="ws-id-head">', '</div>');
 const BANNER_TPL = segOf(WS84, '<div class="thesis-banner"', '</div>');
-const LH85 = read('/newtab/components/compass/LighthousePanel.vue');
 const ST85 = read('/newtab/stores/compass.ts');
-const TPL85 = segOf(LH85, '<template>', '\n</template>');
-const STY85 = segOf(LH85, '<style scoped>', '</style>');
 const FOCUS_FN = segOf(ST85, 'function toggleFocusProject(', 'function addProjectToDir');
 const ADDP_FN = segOf(ST85, 'function addProjectToDir(', '// ---- 项目进度计算');
-const FBAR_TPL = segOf(LH85, '<div class="focus-bar"', '</div>');
-const CS86 = read('/newtab/views/CompassShell.vue');
-const LH86 = read('/newtab/components/compass/LighthousePanel.vue');
 const CT86 = read('/newtab/views/CompassTree.vue');
 const ST86 = read('/newtab/stores/compass.ts');
-const CS_TPL = segOf(CS86, '<template>', '\n</template>');
-const CS_STY = segOf(CS86, '<style scoped>', '</style>');
 const WS87 = read('/newtab/views/Workspace.vue');
 const LINK87 = read('/shared/utils/link.ts');
 const REF87 = read('/newtab/components/ResourceEditForm.vue');
@@ -239,8 +230,6 @@ const DR101 = read('/newtab/composables/useCurationDrill.ts');
 const WSP101 = read('/newtab/views/Workspace.vue');
 const IMP100 = read('/newtab/composables/useWorkspaceImport.ts');
 const WSP100 = read('/newtab/views/Workspace.vue');
-const LP99 = read('/newtab/components/compass/LighthousePanel.vue');
-const CS99 = read('/newtab/views/CompassShell.vue');
 const MI108 = read('/shared/utils/mdImport.ts');
 const ITM108 = read('/newtab/components/ImportTemplateModal.vue');
 const CT108 = read('/newtab/views/CompassTree.vue');
@@ -283,4 +272,4 @@ function getTally() { return { pass, fail }; }
 /* R174-1：分片锚——ANCHOR_FILE = 本文件（版本锚 VER_ANCHOR_LITERAL 与聚合读取机制断言读这里） */
 const ANCHOR_FILE = __filename;
 
-module.exports = { fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getTally };
+module.exports = { fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, ST85, FOCUS_FN, ADDP_FN, CT86, ST86, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getTally };

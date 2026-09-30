@@ -30,7 +30,7 @@ import type { GoalParseResult } from '@/shared/utils/mdImport'
 const router = useRouter()
 const route = useRoute()
 const store = useAppStore()
-const { d, visionText, missionText, allProjects, projectProgress, toggleFocusProject, addProjectToDir, isProjectDone, showDone, toggleShowDone } = useCompass()
+const { d, visionText, missionText, allProjects, projectProgress, toggleFocusProject, addProjectToDir, isProjectDone, isProjectStalled, showDone, toggleShowDone } = useCompass()
 
 // ---- R135：罗盘链式生成（directions/projects/metrics/tasks 四层入口共用一个评审抽屉） ----
 const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
@@ -54,8 +54,8 @@ async function aiChain(level: import('@/shared/ai/scenarios').ChainLevel, anchor
 const fromProjId = computed(() => route.query.from === 'proj' && typeof route.query.p === 'string' ? route.query.p : '')
 const fromProjName = computed(() => fromProjId.value ? allProjects().find(p => p.id === fromProjId.value)?.name || '项目详情' : '')
 function goBack() {
+  // R3-B1：树就是方向台一级，一级台面没有「回上一级」这回事——只有从项目详情带 from=proj 进来才有一级可回
   if (fromProjId.value) router.push({ path: '/compass/projects', query: { p: fromProjId.value } })
-  else router.push('/compass')
 }
 function locateHlGoal() {
   const dirId = route.query.hl
@@ -71,6 +71,8 @@ function locateHlGoal() {
 }
 function onPageEsc(e: KeyboardEvent) {
   if (e.key !== 'Escape') return
+  // R3-B1：一级台面没有上级可回——Esc 交回给浮层/浏览器默认行为
+  if (!fromProjId.value) return
   if (document.querySelector('.task-sidebar, .overlay, .modal-mask')) return
   e.preventDefault()
   goBack()
@@ -144,12 +146,37 @@ function visibleProjectsOf(dir: Direction): Project[] {
     .slice()
     .sort((a, b) => (Number(b.isFocused) - Number(a.isFocused)))
 }
-const treeStats = computed(() => ({
-  dirs: d.value.compass.directions.length,
-  projects: d.value.compass.directions.reduce((s, dir) => s + visibleProjectsOf(dir).length, 0),
-  metrics: d.value.compass.directions.reduce((s, dir) => s + dir.projects.reduce((s2, p) => s2 + p.metrics.length, 0), 0),
-  tasks: d.value.tasks.filter(t => !t.deletedAt).length
-}))
+const treeStats = computed(() => {
+  // R3-B1：主攻/停滞两项随 CompassShell 页头退役搬进来（状态**筛选**按 R3 计划退役，读数不留失）
+  let focused = 0, stalled = 0
+  let projects = 0, metrics = 0
+  for (const dir of d.value.compass.directions) {
+    const vis = visibleProjectsOf(dir)
+    projects += vis.length
+    metrics += dir.projects.reduce((s, p) => s + p.metrics.length, 0)
+    for (const p of vis) {
+      if (p.isFocused) focused++
+      if (isProjectStalled(p)) stalled++
+    }
+  }
+  return {
+    dirs: d.value.compass.directions.length,
+    projects, metrics,
+    focused, stalled,
+    tasks: d.value.tasks.filter(t => !t.deletedAt).length
+  }
+})
+
+/** R3-B1：树升首屏后补上项目级预计算表——R83-7 性能红线（模板内不逐项调 projectProgress）
+ *  此前只管主航线面板，树里每张卡头调 4 次、任务数还在模板里现算一次 filter。 */
+const projMeta = computed(() => {
+  const m = new Map<string, { pct: number; done: number; total: number; tasks: number; stall: boolean }>()
+  for (const dir of d.value.compass.directions) for (const p of dir.projects) {
+    const pr = projectProgress(p)
+    m.set(p.id, { pct: pr.pct, done: pr.done, total: pr.total, stall: isProjectStalled(p), tasks: d.value.tasks.filter(t => !t.deletedAt && t.projectId === p.id).length })
+  }
+  return m
+})
 
 function toggleMetric(id: string) {
   if (expandedMetrics.value.has(id)) expandedMetrics.value.delete(id)
@@ -548,11 +575,12 @@ onUnmounted(() => {
     <!-- 六层悬浮目录 -->
 
       <div class="tree-page-head">
-        <div class="crumb"><span class="crumb-up" title="返回方向台" @click="router.push('/compass')">方向台</span><span class="crumb-sep"> / </span><b>完整方向树</b> · 六层思维链全深度</div>
+        <!-- R3-B1：树升一级——面包屑由「方向台 / 完整方向树」收成「方向台」，六层全深度成了台面本身 -->
+        <div class="crumb"><b>方向台</b> · 六层思维链全深度<span v-if="fromProjName"> · 来自项目「{{ fromProjName }}」</span></div>
         <div class="spacer"></div>
-        <!-- R54-A1：来源感知返回（从项目详情进入时返回该项目详情） -->
-        <button class="tree-tool accent" @click="goBack" :title="fromProjId ? '返回项目详情' : '返回方向台'">← {{ fromProjId ? '返回项目详情' : '返回方向台' }}</button>
-        <div class="tree-stats">愿景 1 · 使命 1 · 战略目标 {{ treeStats.dirs }} · 项目 {{ treeStats.projects }} · 指标 {{ treeStats.metrics }} · 任务 {{ treeStats.tasks }}</div>
+        <!-- R54-A1：来源感知返回（?from=proj&p= 进来才有「返回项目详情」；一级台面不放返回钮） -->
+        <button v-if="fromProjId" class="tree-tool accent" @click="goBack" title="返回刚才那个项目的详情页">← 返回项目详情</button>
+        <div class="tree-stats">愿景 1 · 使命 1 · 战略目标 {{ treeStats.dirs }} · 项目 {{ treeStats.projects }} · 🚀 主攻 {{ treeStats.focused }} · ⚠ 停滞 {{ treeStats.stalled }} · 指标 {{ treeStats.metrics }} · 任务 {{ treeStats.tasks }}</div>
         <button class="tree-tool" @click="expandAllNodes" title="展开全部层级">⊞ 展开</button>
         <button class="tree-tool" @click="collapseAllNodes" title="收起全部战略目标与指标">⊟ 收起</button>
         <!-- R3-B′：目标级入口上收页头（原先埋在第 3 层卡头里，新建战略目标要先把视线降到层内） -->
@@ -644,14 +672,15 @@ onUnmounted(() => {
                     <div class="tp-title">
                       <span class="tp-caret" :title="projOpen(proj) ? '折叠该项目（指标与任务）' : '展开该项目的指标与任务'" @click.stop="toggleProjectFold(proj)">{{ projOpen(proj) ? '▾' : '▸' }}</span>
                       <span v-if="proj.isFocused" class="tp-mark" title="主攻项目">🚀</span>
+                      <span v-if="projMeta.get(proj.id)?.stall" class="tp-flag" title="有任务但近 14 天无推进/完成活动">停滞</span>
                       <span class="node-title editable" :class="{editing: editingField === 'proj-' + proj.id}" :data-edit="'proj-' + proj.id" :contenteditable="editingField === 'proj-' + proj.id"
                         @click="startEdit('proj-' + proj.id, $event)" @blur="saveEdit('proj-' + proj.id, $event)" @keydown.enter.prevent="saveEdit('proj-' + proj.id, $event)" @keydown.esc="cancelEdit">{{ proj.name }}</span>
                     </div>
-                    <span class="tp-pct" :class="{ ok: projectProgress(proj).pct === 100 }">{{ projectProgress(proj).pct }}% · {{ projectProgress(proj).done }}/{{ projectProgress(proj).total }}</span>
+                    <span class="tp-pct" :class="{ ok: (projMeta.get(proj.id)?.pct || 0) === 100 }">{{ projMeta.get(proj.id)?.pct || 0 }}% · {{ projMeta.get(proj.id)?.done || 0 }}/{{ projMeta.get(proj.id)?.total || 0 }}</span>
                     <MaturityBadge :m="projectMaturity(d, proj)" />
                   </div>
                   <div class="tp-meta">
-                    <span>📊 {{ proj.metrics.length }} 指标 · 📋 {{ d.tasks.filter(t=>!t.deletedAt && t.projectId===proj.id).length }} 任务</span>
+                    <span>📊 {{ proj.metrics.length }} 指标 · 📋 {{ projMeta.get(proj.id)?.tasks || 0 }} 任务</span>
                     <!-- R3-B′：卡头 6 入口 → 「全景 / AI / ▾」三枚，设主攻·添加指标·进详情·删除进折叠菜单
                          （删除仍走 compassNodeCounts 报数 + useConfirm + 3 秒撤销，防呆不因收敛而降级） -->
                     <span class="tp-acts" @click.stop>
@@ -864,9 +893,6 @@ onUnmounted(() => {
 .tree-tool.off { opacity: .6; }
 /* R52-F8/R54-A1：返回入口（accent 强调）+ 面包屑上级可点 */
 .tree-tool.accent { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
-.tree-page-head .crumb .crumb-up { cursor: pointer; color: var(--text-3); }
-.tree-page-head .crumb .crumb-up:hover { color: var(--accent); }
-.tree-page-head .crumb .crumb-sep { color: var(--text-4); }
 /* R54-A3：?hl 定位闪烁 */
 .tc-strategic-branch.goal-flash { animation: treeGoalFlash 1.4s ease; }
 @keyframes treeGoalFlash { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); border-color: var(--accent); } }
@@ -1048,6 +1074,8 @@ onUnmounted(() => {
 .tp-title { display: flex; align-items: center; gap: 5px; min-width: 0; }
 .tp-title .node-title { font-size: var(--fs-body); font-weight: 700; color: var(--text); }
 .tp-mark { flex-shrink: 0; color: var(--accent); font-size: var(--fs-caption); }
+/* R3-B1：停滞标随主航线项目行卡退役搬进树卡头（原 .pr-flag 同色同形，令牌取色） */
+.tp-flag { flex-shrink: 0; font-size: var(--fs-micro); padding: 1px 4px; border-radius: 3px; background: var(--tag-warn-bg); color: var(--warning); }
 .tp-pct { flex-shrink: 0; font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; }
 .tp-pct.ok { color: var(--success); font-weight: 600; }
 .tp-caret { flex: none; width: 14px; text-align: center; font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; user-select: none; }

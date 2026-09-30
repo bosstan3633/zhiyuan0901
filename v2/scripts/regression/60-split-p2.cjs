@@ -165,30 +165,21 @@ console.log('【第九十九轮 · V2.68.0：方向台组四件（M6 + M8 + D-D 
  *  总览共用 ovFilter（v-model 跨组件，一处切换两处生效，门控同 D-B）；D-D 页头主线状态摘要；
  *  D-E 跨区拖拽自动切换 pinned（连同 dragover 跨区放行——不改那条 drop 永远触发不了）。
  *  零数据模型改动、零迁移。 */
-check('R99-1/R121 M6 主航线 3 列网格顶对齐：goals-grid align-items:start——「更多 N」展开只长自己这张卡', () => {
-  return LP99.includes('.goals-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }');
+check('R99-1/R121 M6 目标网格顶对齐 ★R3-B1 随宿主改靶：主航线 goals-grid 退役，同一条 align-items:start（「更多 N」展开只长自己这张卡）落在方向树第 4 层 .tree-columns-grid', () => {
+  return CT108.includes('.tree-columns-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }') && !CT108.includes('.goals-grid {');
 });
-check('R99-2 M8 主航线筛选共用 ovFilter ★R177 重指带备案：select 改分段组常驻（原型 lh-filter-group，M8 门控退役）、宿主 tools-gate=true；ovFilter 单一来源与空态双文案不变', () => {
-  return LP99.includes("ovFilter?: 'all' | 'active' | 'stalled' | 'done'") && LP99.includes('toolsGate?: boolean') && LP99.includes('selectedId?: string')
-    && LP99.includes("(e: 'update:ovFilter', v: 'all' | 'active' | 'stalled' | 'done')")
-    && LP99.includes("if (f === 'stalled') return !!st?.stall")
-    && LP99.includes("if (f === 'done') return !!st?.finished")
-    && LP99.includes('return !st?.finished && !st?.stall // active')
-    && LP99.includes('class="lh-filter-group"')
-    && LP99.includes('无符合当前筛选的项目')
-    && LP99.includes('function rawVisibleCount(dirIdx: number): number {')
-    && CS99.includes('<LighthousePanel v-model:ov-filter="ovFilter" :tools-gate="true" :selected-id="selectedProjectId" @select-project="onSelectProject" />');
+check('R99-2 M8 筛选传参链 ★R3-B1 退役重指带备案：ovFilter/tools-gate/selected-id 三件套（select→分段组→常驻）随主航线整体退役——方向台一级不再筛项目，密度由 R3-B′ 折叠控制；传参链不得在别处复刻', () => {
+  const t = CT108; const pc = read('/newtab/views/ProjectCuration.vue');
+  return !t.includes('tools-gate') && !t.includes('toolsGate') && !t.includes('selectedId') && !pc.includes('ovFilter') && !t.includes('update:ovFilter');
 });
-check('R99-3 D-D 方向台页头主线状态摘要 ★R177 重指带备案：对齐原型 cph-summary-badge「战略目标 N · 推进项目 N · 🚀 主攻 N · ⚠ 停滞 N」（粗值；🚀 图标语义按 R139 契约），projState 预计算消费不变', () => {
-  return CS99.includes('战略目标 <b>{{ d.compass.directions.length }}</b> · 推进项目 <b>{{ visibleProjects.length }}</b> · 🚀 主攻 <b>{{ focusCount }}</b> · ⚠ 停滞 <b>{{ stalledCount }}</b>')
-    && CS99.includes('const focusCount = computed(() => visibleProjects.value.filter(p => p.isFocused).length)')
-    && CS99.includes('const stalledCount = computed(() => visibleProjects.value.filter(p => projState.value.get(p.id)?.stall).length)')
-    && CS99.includes('class="mainline-summary"');
+check('R99-3 D-D 方向台页头主线状态摘要 ★R3-B1 随宿主改靶（R177 的 cph-summary-badge 形态随 Shell 退役）：同一组读数（战略目标/推进项目/🚀 主攻/⚠ 停滞/指标/任务）由方向树页头 treeStats 一次算齐，不在模板逐项调', () => {
+  const t = CT108;
+  return t.includes('🚀 主攻 {{ treeStats.focused }} · ⚠ 停滞 {{ treeStats.stalled }}') && t.includes('战略目标 {{ treeStats.dirs }}')
+    && t.includes('const treeStats = computed(') && !t.includes('focusCount');
 });
-check('R99-4/R121 置顶能力收敛右键菜单（左栏退役）：togglePin 落库 + 上移/下移 moveProject + 旧左栏拖拽零残留', () => {
-  const l = read('/newtab/components/compass/LighthousePanel.vue');
-  const pc = read('/newtab/views/ProjectCuration.vue');
-  return l.includes('function togglePin') && l.includes('function moveProject')
+check('R99-4/R121 置顶/上下移收敛右键菜单 ★R3-B1 退役重指带备案：togglePin/moveProject 随主航线右键菜单退役（字段保留、无新读写方，见 R49-18/R49-19）；旧左栏拖拽残留仍须为零', () => {
+  const t = CT108; const pc = read('/newtab/views/ProjectCuration.vue');
+  return !codeOnly(t).includes('function togglePin') && !codeOnly(t).includes('function moveProject')
     && !pc.includes('dragProjId') && !pc.includes('跨区移动请先用 📌 置顶/取消置顶');
 });
 

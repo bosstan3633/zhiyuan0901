@@ -12,8 +12,8 @@
  *   E2E-8  调度台三件事 + 项目调度面板（愿景/使命小卡 + 战略目标 + 四数值，R45 T-04 → R49 迁移）
  *   E2E-9  存量回填迁移：有 metricId 无 projectId 的任务启动后按指标反查补齐 + projBackfillFixed 记录（R46 BUG-2）
  *   E2E-10 策展统一树：遗留投射记录迁移物化 + 源卡实时 + 原生卡 + 清空引用回落零影响（R53）
- *   E2E-11 主航线目标行 chip + 指标条未归档任务格 + 档位入表头（R50-F4/F5）
- *   E2E-12 主航线全量呈现：未投射项目 chip 也出现（R52-F4 修订 R51-F18）
+ *   E2E-11 方向台首屏项目卡头（★R3-B1 树即一级）+ 指标条未归档任务格 + 档位入表头（R50-F4/F5）
+ *   E2E-12 全量呈现：未投射项目卡头照样在（折叠态仍可见，★R3-B1 换呈现单位）
  *   E2E-13 方向树返回方向台 + 项目详情头部添加成功指标 + 返回项目列表移除（R52-F5/F6/F8）
  *   E2E-14 项目调度指标下钻弹窗（R54-B2）
  *   E2E-15 面包屑 + 来源感知返回 + 树定位闭环（R54-A）
@@ -482,7 +482,7 @@ async function main() {
     dsAugL2 >= 1 && dsBadge.includes('2026-08-15') && dsWritten.has && dsWritten.add >= 1,
     `8月l2格=${dsAugL2} 徽章="${dsBadge}" 卡=${dsCard} 抽屉=${dsDrawer} 保存钮=${dsSaveBtn} 今日落盘=${JSON.stringify(dsWritten)}`)
 
-  // E2E-11 主航线（R55-D1 后）：目标行 chip；未归档格随 MetricBar 迁调度台（E2E-4 已覆盖）
+  // E2E-11 方向台首屏（★R3-B1 树即一级）：项目卡头渲染；未归档格随 MetricBar 迁调度台（E2E-4 已覆盖）
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const data = cur['zy_data_v2']
     if (!data) return
@@ -493,34 +493,38 @@ async function main() {
   await page.waitForTimeout(2500)
   await page.evaluate(() => { location.hash = '#/compass' })
   await page.waitForTimeout(2000)
-  // R121：项目 chip → 项目行卡（proj-row）；等待渲染防长序列时序抖动
-  await page.waitForSelector('.proj-row', { timeout: 8000 }).catch(() => {})
-  const goalChip = await page.locator('.proj-row').first().isVisible().catch(() => false)
+  // ★R3-B1：主航线项目行卡（proj-row）随退役消失，方向台一级的呈现单位是方向树项目卡头（tp-head）；
+  //   种进数据的遗留字段 pinnedToLighthouse 不应改变任何呈现（R60-4 零引用口径的活体版）
+  await page.waitForSelector('.tp-head', { timeout: 8000 }).catch(() => {})
+  const goalChip = await page.locator('.tp-head').first().isVisible().catch(() => false)
   const offCourseGone = !(await page.getByText('偏航行动').first().isVisible().catch(() => false))
-  report('E2E-11 主航线目标行 chip（未归档格迁调度台由 E2E-4 覆盖）', goalChip && offCourseGone,
-    `chip=${goalChip} offCourseGone=${offCourseGone}`)
+  report('E2E-11 ★R3-B1 方向台首屏=方向树项目卡头（tp-head 可见 · 遗留投射字段不影响呈现 · 未归档格迁调度台由 E2E-4 覆盖）', goalChip && offCourseGone,
+    `heads=${goalChip} offCourseGone=${offCourseGone}`)
 
-  // E2E-12 主航线全量呈现（R52-F4）：未投射项目也出现在战略目标行 chip（修订 R51-F18「仅已投射」）
-  const chipCount = await page.locator('.proj-row').count()
+  // E2E-12 全量呈现（R52-F4 → ★R3-B1 换呈现单位）：非主攻/未投射项目照样有卡头（折叠只收指标与任务，卡头常显）
+  const headCount = await page.locator('.tp-head').count()
+  const foldedHeads = await page.locator('.tp-head.folded').count()
   const unPinnedChip = await page.getByText('E2E 回填项目').first().isVisible().catch(() => false)
-  report('E2E-12 主航线全量呈现：未投射项目 chip 也出现（R52-F4）', chipCount >= 2 && unPinnedChip,
-    `chips=${chipCount} unPinnedVisible=${unPinnedChip}`)
+  report('E2E-12 ★R3-B1 全量呈现：未投射项目卡头照样在（折叠态仍可见）', headCount >= 2 && unPinnedChip && foldedHeads >= 1,
+    `heads=${headCount} folded=${foldedHeads} unPinnedVisible=${unPinnedChip}`)
 
-  // E2E-13 方向台导航与项目详情操作（R52-F8/F5/F6）：方向树返回方向台 + 项目详情无「返回项目列表」+ 标题行「＋ 成功指标」（R177 随原型改文案并移入标题行，原「头部添加成功指标」）
-  await page.evaluate(() => { location.hash = '#/compass/tree' })
-  await page.waitForTimeout(1500)
-  const backBtn = await page.getByText('← 返回方向台').first().isVisible().catch(() => false)
-  await page.getByText('← 返回方向台').first().click().catch(() => {})
-  await page.waitForTimeout(1200)
-  const backToCompass = page.url().includes('/compass')
+  // E2E-13 方向台导航与项目详情操作（R52-F8/F5/F6 → ★R3-B1 随一级化改判据）：
+  //   老深链 #/compass/tree 必须带 query 重定向到 /compass 且渲染出树（不许变死页），一级台面不再有「返回方向台」自指入口；
+  //   项目详情仍无「返回项目列表」+ 标题行「＋ 成功指标」（R177 随原型改文案并移入标题行）
+  await page.evaluate(() => { location.hash = '#/compass/tree?hl=e2e-dir-1' })
+  await page.waitForTimeout(1600)
+  const redirected = (page.url().split('#')[1] || '').split('?')[0] === '/compass'
+  const treeRendered = await page.locator('.tp-head').first().isVisible().catch(() => false)
+  const backBtn = !(await page.getByText('← 返回方向台').first().isVisible().catch(() => false))
+  const backToCompass = redirected && treeRendered
   await page.evaluate(() => { location.hash = '#/compass/projects?p=e2e-proj-1' })
   await page.waitForTimeout(1500)
   // R121：原「成功指标 → 任务」层头退役 → 展板统计条（pb-stats）
   const projHead = await page.locator('.pb-stats').first().isVisible().catch(() => false)
   const addMetricBtn = await page.getByText('＋ 成功指标').first().isVisible().catch(() => false) // R177：随原型改文案「＋ 成功指标」（标题行动作组）
   const backListGone = !(await page.getByText('返回项目列表').first().isVisible().catch(() => false))
-  report('E2E-13 方向树返回方向台 + 项目详情标题行成功指标入口 + 返回项目列表移除（R52-F5/F6/F8 · R177 随迁）', backBtn && backToCompass && projHead && addMetricBtn && backListGone,
-    `back=${backBtn} toCompass=${backToCompass} proj=${projHead} addMetric=${addMetricBtn} backListGone=${backListGone}`)
+  report('E2E-13 ★R3-B1 老深链重定向落地（/compass/tree?hl → /compass 且渲染树）+ 一级无自指返回钮 + 项目详情标题行成功指标入口 + 返回项目列表移除（R52-F5/F6/F8 · R177 随迁）', backBtn && backToCompass && projHead && addMetricBtn && backListGone,
+    `无返回钮=${backBtn} 重定向且出树=${backToCompass} proj=${projHead} addMetric=${addMetricBtn} backListGone=${backListGone}`)
 
   // E2E-14 指标下钻弹窗（R54-B2）：调度台项目调度 4 格可点击 → 弹窗列指标清单
   await page.goto(base, { waitUntil: 'domcontentloaded' })

@@ -160,15 +160,16 @@ chrome.commands.onCommand.addListener(async (command) => {
     }
     case 'open-tree': {
       // R50-F8：完整方向树浏览器级命令（chrome://extensions/shortcuts 自定义键位）
+      // R3-B1：树即方向台一级——命令名 open-tree 保留（用户可能已把它绑到自定义键位），目的地改投 /compass
       const base = chrome.runtime.getURL('src/newtab/index.html')
       const tabs = await chrome.tabs.query({ url: base + '*' })
       const existing = tabs.find(t => t.id != null && t.windowId === tab?.windowId) || tabs.find(t => t.id != null)
       if (existing?.id != null) {
         if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
         await chrome.tabs.update(existing.id, { active: true })
-        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route: '/compass/tree' }).catch(() => {})
+        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route: '/compass' }).catch(() => {})
       } else {
-        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html#/compass/tree') })
+        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html#/compass') })
       }
       break
     }

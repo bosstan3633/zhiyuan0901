@@ -588,8 +588,8 @@ export interface UIPrefs {
   dzHl?: boolean
   /** 应用内切台快捷键修饰键（O18：五种可选，默认 Alt） */
   wsSwitchMod?: 'ctrl' | 'alt' | 'ctrl-shift' | 'alt-shift' | 'none'
-  /** 方向台上次停留的二级页（R49 起仅项目详情/完整方向树；旧值 /compass/actions 由 CompassShell 容错归一） */
-  compassTab?: '/compass/projects' | '/compass/tree'
+  // R3-B1：`compassTab`（方向台上次停留的二级页）退役——树即方向台一级后只剩「一级 + 项目详情」，
+  // 该字段在源码里本就零读写（老库残留键不影响读取），随 CompassShell 一并清。
   /** B7：抽屉宽度记忆（task/resource/curiosity） */
   drawerWs?: Record<string, number>
   /** 第卅三轮 REQ-007：三视图排序偏好（res/task/curio → { by, dir }），时间排序默认倒序 */

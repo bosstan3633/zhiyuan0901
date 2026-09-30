@@ -42,8 +42,8 @@ import MetricBar from '../components/compass/MetricBar.vue'
 const router = useRouter()
 const route = useRoute()
 const store = useAppStore()
-// R91：解构出主攻相关口径——手册「🚀 主攻（最多 2 个）直通调度台速览」此前在调度台**零消费**，
-// focusedProjects 的唯一消费方在方向台的 LighthousePanel。
+// R91：解构出主攻相关口径——手册「🚀 主攻（最多 2 个）直通调度台速览」此前在调度台**零消费**。
+// R3-B1：方向台的主攻聚焦条随 CompassShell 退役，focusedProjects 的**唯一**消费方就是本页速览。
 const { d, allProjects, projectProgress, projectTasksOf, focusedProjects, isProjectStalled, isProjectDone, refreshWce } = useCompass()
 // R127：挂载即刷新 WCE 事件缓存（事件日志异步读取一次；computed 同步消费）
 onMounted(() => { refreshWce?.() })
@@ -640,7 +640,7 @@ const focusMeta = computed(() => {
   }
   return m
 })
-/** 与方向台主攻聚焦条同路由（LighthousePanel.openProject），避免两处跳法不一致 */
+/** 主攻速览点项目 = 进项目详情页（方向台一级现为完整方向树，树里的项目走 ▾ 菜单「进入项目详情页」同一条路由） */
 function openFocusProject(p: Project) {
   router.push({ path: '/compass/projects', query: { p: p.id } })
 }

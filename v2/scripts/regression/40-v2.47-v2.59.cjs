@@ -317,44 +317,34 @@ check('R82-8 版本五处同步（manifest/package/ManualPage/regression/关于�
 
 console.log('【第八十三轮 · V2.52.0：主航线信息密度（M1 + M2 + M3）】');
 // ⚠ next 用 '\n</template>' —— 组件里还有嵌套的 <template #actions>，用裸 '</template>' 会在 437 字符处被截断
-check('R83-1/R121 M1 愿景/使命一行锚点条：.vm-bar（R177 重指带备案：40→38px 对齐原型 vmb）+ 单行省略 + 整条可点', () => {
-  return LH_TPL.includes('class="vm-bar"') && LH_TPL.includes('@click="openTree">')
-    && LH_STYLE.includes('.vm-bar { display: flex') && LH_STYLE.includes('min-height: 38px')
-    && LH_STYLE.includes('.vm-text {') && LH_STYLE.includes('font-size: var(--fs-body)')
-    && LH_STYLE.includes('text-overflow: ellipsis');
+check('R83-1/R121 M1 愿景/使命一行呈现 ★R3-B1 退役重指带备案：主航线上方 .vm-bar（38px/单行省略/整条可点）随 LighthousePanel 退役——愿景/使命改为方向台首屏的第 1-2 层卡，就地可点编辑且同样单行省略', () => {
+  const t = read('/newtab/views/CompassTree.vue');
+  return !exists('/newtab/components/compass/LighthousePanel.vue') && t.includes('class="node-title editable"') && t.includes("startEdit('vision'") && t.includes("startEdit('mission'") && t.includes('text-overflow: ellipsis');
 });
-check('R83-2/R121 M1 右端「进入方向树 ›」收敛为一个（不再每张卡各一个）', () => {
-  return (LH_TPL.match(/vm-go/g) || []).length === 1 && (LH_TPL.match(/进入方向树 ›/g) || []).length === 1;
+check('R83-2/R121 M1 右端「进入方向树 ›」收敛为一个 ★R3-B1 退役重指带备案：树即一级后该入口整体消失（连 openTree 这个跳转函数都不该再有），残留即死链族', () => {
+  const t = read('/newtab/views/CompassTree.vue');
+  return !codeOnly(t).includes('function openTree') && !codeOnly(t).includes('进入方向树');
 });
-check('R83-3 M1 空态文案仍是「尚未设定愿景 / 尚未设定使命」', () => {
-  return LH_TPL.includes("visionText || '尚未设定愿景'") && LH_TPL.includes("missionText || '尚未设定使命'");
+check('R83-3 M1 空态文案在位 ★R3-B1 随宿主改靶：主航线的「尚未设定愿景/使命」随退役换成方向树第 1-2 层的就地引导文案（空态不许留白）', () => {
+  const t = read('/newtab/views/CompassTree.vue');
+  return t.includes("visionText || '点击设定你的核心愿景…'") && t.includes("missionText || '点击设定你的核心使命…'");
 });
-check('R83-4 M2 期限三值映射齐全（远期/中期/近期）且未设期限不显示（v-if="dir.term"）', () => {
-  const s = stripComments(TERM_FN);
-  // ⚠ R85 重指：v-else 只在**目标头内**判——全模板判会被 R85 新增的「＋ 新建项目 / 内联输入」那对 v-if/v-else 误伤。
-  //   本条要守的是"期限未设时不留空位"，与项目区无关。能力本身一字未动。
-  const head = segOf(LH, '<div class="gc-meta">', '</div>');
-  return s.includes("'远期'") && s.includes("'中期'") && s.includes("'近期'")
-    && head.includes('v-if="termText(dir.term)"');
+check('R83-4 M2 期限三值映射齐全（远期/中期/近期）★R3-B1 去向点名：主航线目标卡的期限位随退役消失，读数由项目详情页承接（面包屑 + 目标行两处同口径），未设期限不显示', () => {
+  const pc = read('/newtab/views/ProjectCuration.vue');
+  return pc.includes("dir.term === 'long' ? '远期'") && pc.includes("'近期'") && pc.includes("'中期'") && pc.includes("dir.term==='long' ? '（远期）'");
 });
-check('R83-5/R121 M2 主攻数只在 >0 时显示；进度百分比保留（goalPct 口径）', () => {
-  return LH_TPL.includes('<template v-if="focusedOf(di)">（主攻 {{ focusedOf(di) }}）</template>')
-    && LH_TPL.includes('goalPct(di)')
-    && segOf(LH, 'function focusedOf(', 'function openProject').includes('filter(p => p.isFocused).length');
+check('R83-5/R121 M2 主攻数与进度读数 ★R3-B1 去向点名：主航线 goalPct/focusedOf 随退役消失，方向台页头改由 treeStats 一次算齐（战略目标/项目/主攻/停滞/指标/任务），不在模板里逐项调', () => {
+  const t = read('/newtab/views/CompassTree.vue');
+  return t.includes('const treeStats = computed(') && t.includes('focused, stalled') && t.includes('🚀 主攻 {{ treeStats.focused }}') && !t.includes('goalPct(');
 });
-check('R83-6/R121 M3 项目行卡：🚀 主攻 / 停滞标 / 迷你进度条 / pct% · done/total / 已完成降透明度', () => {
-  return LH_TPL.includes('class="pr-mark" title="主攻项目">🚀')
-    && LH_TPL.includes('class="pr-flag"')
-    && LH_TPL.includes('class="mini-bar"><i :style="{ width:')
-    && LH_TPL.includes('}}% · {{ projMeta.get(p.id)?.done')
-    && LH_TPL.includes("done: projMeta.get(p.id)?.finished")
-    && LH_STYLE.includes('.proj-row.done { opacity: .6; }');
+check('R83-6/R121 M3 项目卡头三读数 ★R3-B1 随宿主改靶：🚀 主攻 / 停滞标 / pct% · done/total 从主航线行卡搬进方向树卡头（.tp-mark / .tp-flag / .tp-pct）', () => {
+  const t = read('/newtab/views/CompassTree.vue');
+  return t.includes('class="tp-mark" title="主攻项目">🚀') && t.includes('class="tp-flag"') && t.includes('class="tp-pct"') && t.includes('projMeta.get(proj.id)?.pct') && t.includes('.tp-flag {');
 });
-check('R83-7 ★ 性能红线：模板内不直接调 projectProgress / isProjectStalled（一律走 projMeta 索引）', () => {
-  const t = stripComments(LH_TPL);
-  return LH.includes('const projMeta = computed(')
-    && !t.includes('projectProgress(') && !t.includes('isProjectStalled(')
-    && t.includes('projMeta.get(p.id)');
+check('R83-7 ★ 性能红线（★R3-B1 随首屏换宿主扩管）：方向台一级=方向树，模板内不得逐项调 projectProgress / isProjectStalled，也不得在模板里 filter 任务——一律走 projMeta 预计算表', () => {
+  const t = read('/newtab/views/CompassTree.vue');
+  const tpl = segOf(t, '<template>', '\n</template>');
+  return t.includes('const projMeta = computed(') && !tpl.includes('projectProgress(') && !tpl.includes('isProjectStalled(') && !tpl.includes('d.tasks.filter(') && tpl.includes('projMeta.get(proj.id)');
 });
 check('R83-8 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');
@@ -437,37 +427,33 @@ check('R85-4 T0-B：addProjectToDir 建的项目字段完整（pinned + order �
   return fn.includes('pinned: false') && fn.includes('order: dir.projects.length')
     && fn.includes('isFocused: false') && fn.includes('dir.projects.push(proj)');
 });
-check('R85-5 T0-B（R117 修订：CompassShell 出口随「项目总览」退役移除，改由 ProjectCuration 持）：三处新建出口都调 addProjectToDir（dir.projects.push 全项目收敛到 store 一处）', () => {
+check('R85-5 T0-B（R117 修订 · ★R3-B1 出口由三处收敛为两处）：方向树与项目详情两处新建出口都调 addProjectToDir（dir.projects.push 全项目收敛到 store 一处）', () => {
   const tr = stripComments(read('/newtab/views/CompassTree.vue'));
   const pc = stripComments(read('/newtab/views/ProjectCuration.vue'));
-  const lh = stripComments(LH85);
   return tr.includes('addProjectToDir(')
-    && pc.includes('addProjectToDir(') && lh.includes('addProjectToDir(')
+    && pc.includes('addProjectToDir(')
     && !tr.includes('dir.projects.push')
-    && !pc.includes('dir.projects.push') && !lh.includes('dir.projects.push')
+    && !pc.includes('dir.projects.push')
     && ST85.includes('dir.projects.push(proj)');
 });
-check('R85-6/R121 M4：聚焦条走 focusedProjects + projMeta 索引（模板内不直接调 projectProgress / isProjectStalled）', () => {
-  return FBAR_TPL.includes('focusedProjects') && FBAR_TPL.includes('projMeta.get(p.id)?.pct')
-    && !FBAR_TPL.includes('projectProgress(') && !FBAR_TPL.includes('isProjectStalled(')
-    && !FBAR_TPL.includes('isProjectDone(');
+check('R85-6/R121 M4 聚焦条 ★R3-B1 退役重指带备案：主航线「当前主攻」横条（focusedProjects + projMeta 索引）随 LighthousePanel 退役，主攻一览由树的「主攻置前 + 自动展开 + 🚀 标记」承担；调度台速览仍是 focusedProjects 唯一消费方', () => {
+  const t = read('/newtab/views/CompassTree.vue'); const h = read('/newtab/views/CompassHome.vue');
+  return !exists('/newtab/components/compass/LighthousePanel.vue') && t.includes('Number(b.isFocused) - Number(a.isFocused)') && t.includes('o === undefined ? !!p.isFocused : o') && h.includes('focusedProjects');
 });
-check('R85-7/R121 M4：两态齐全——有主攻横排 fs-chip（单击联动展板/双击进详情），无主攻轻引导且把「最多 N 个」说在前面', () => {
-  return FBAR_TPL.includes('focusedProjects.length') && TPL85.includes('class="fs-chip"')
-    && TPL85.includes('openProject(p)') && TPL85.includes('class="fp-hint"')
-    && TPL85.includes('FOCUS_PROJECT_LIMIT') && TPL85.includes('最多');
+check('R85-7/R121 M4 两态齐全 ★R3-B1 退役重指带备案：fs-chip/fp-hint（含「最多 N 个」提示）随聚焦条退役；「最多 2 个」的口径仍在 store 的 toggleFocusProject 里拒绝超限，树 ▾ 菜单点主攻走同一条（返回 msg 即提示）', () => {
+  const t = read('/newtab/views/CompassTree.vue'); const st = read('/newtab/stores/compass.ts');
+  return !t.includes('fs-chip') && !t.includes('fp-hint') && st.includes('FOCUS_PROJECT_LIMIT') && t.includes('onToggleFocus(') && t.includes('🚀 设为主攻');
 });
-check('R85-8 M5-①：目标卡底内联新建——回车创建 / Esc 取消 / 失焦取消 / 预选该目标（不弹窗）', () => {
-  return TPL85.includes('@keyup.enter="confirmAdd(dir.id)"') && TPL85.includes('@keyup.esc="cancelAdd"')
-    && TPL85.includes('@blur="cancelAdd"') && TPL85.includes('class="chip-add"')
-    && TPL85.includes('startAdd(dir.id)') && stripComments(LH85).includes('addProjectToDir(dirId, name)');
+check('R85-8 M5-① 目标下新建项目 ★R3-B1 退役重指带备案：主航线目标卡底的内联输入（回车/Esc/失焦）随退役消失，树的出口是目标头 ＋ 直建「新攻坚项目」+ 就地改名；两处都经 addProjectToDir，不得回添第二份 projects.push', () => {
+  const t = read('/newtab/views/CompassTree.vue');
+  return t.includes("function addProject(dirId: string)") && t.includes("addProjectToDir(dirId, '新攻坚项目')") && t.includes('title=\"添加项目\"') && !t.includes('chip-add-input');
 });
-check('R85-9/R121 M5-②：hover 两动作 🎯 / › 齐全且 .stop 防冒泡（不误触整卡点击）', () => {
-  const i = TPL85.indexOf('<span class="pr-acts">');
-  const acts = i >= 0 ? TPL85.slice(i, i + 420) : '';
-  return acts.includes('onToggleFocus(p)') && acts.includes('openProject(p)')
-    && (acts.match(/@click\.stop/g) || []).length >= 2
-    && STY85.includes('.proj-row:hover .pr-acts { display: inline-flex; }');
+check('R85-9/R121 M5-② 卡头动作防冒泡 ★R3-B1 随宿主改靶：主航线行卡 hover 两动作退役，方向树卡头三枚（📦/AI/▾）同样必须 .stop 防冒泡（不误触卡头折叠）', () => {
+  const t = read('/newtab/views/CompassTree.vue');
+  const i = t.indexOf('<span class="tp-acts" @click.stop>');
+  const acts = i >= 0 ? t.slice(i, i + 700) : '';
+  return i >= 0 && acts.includes('openProjectDrawer(proj.id)') && acts.includes('toggleProjMenu(proj.id)')
+    && (acts.match(/@click\.stop/g) || []).length >= 1 && t.includes('@click.stop="toggleProjectFold(proj)"');
 });
 check('R85-10 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');
@@ -480,43 +466,42 @@ check('R85-10 版本五处同步（manifest/package/ManualPage/regression/关于
 
 console.log('【第八十六轮 · V2.55.0：方向台分工与项目总览检索（M7 + D-A + D-B）】');
 // ⚠ next 不能用裸 '</template>'——子组件模板里有嵌套 <template #actions>（R83 同款坑）
-check('R86-1 T0：showDone / toggleShowDone **只在 store 定义**（三处组件零残留，不再各写一份）', () => {
+check('R86-1 T0：showDone / toggleShowDone **只在 store 定义**（★R3-B1 组件面收敛为方向树/项目详情/调度台三处，零份组件级复刻）', () => {
   return ST86.includes('const showDone = computed') && ST86.includes('function toggleShowDone')
-    && !stripComments(LH86).includes('function toggleShowDone')
-    && !stripComments(CS86).includes('function toggleShowDone')
-    && !stripComments(CT86).includes('function toggleShowDone');
+    && !stripComments(CT86).includes('function toggleShowDone')
+    && !stripComments(read('/newtab/views/ProjectCuration.vue')).includes('function toggleShowDone')
+    && !stripComments(read('/newtab/views/CompassHome.vue')).includes('function toggleShowDone');
 });
-check('R86-2 M7：主航线与项目总览各自的开关已移除（.mr-tool 开关 / .ov-toggle 零残留）', () => {
-  return !LH86.includes('class="mr-tool" :class="{ off') && !CS86.includes('class="ov-toggle"')
-    && !CS_STY.includes('.ov-toggle {');
+check('R86-2 M7：面板级显隐开关零残留（★R3-B1 随宿主改靶：主航线 .mr-tool 与项目总览 .ov-toggle 连宿主一起退役，方向台只留页头一处开关）', () => {
+  const t = CT86; const h = read('/newtab/views/CompassHome.vue');
+  return !t.includes('class="mr-tool" :class="{ off') && !t.includes('class="ov-toggle"') && !h.includes('class="ov-toggle"') && !t.includes('.ov-toggle {');
 });
-check('R86-3 M7：方向台页头有开关 ★R177 重指带备案：开关改原型 checkbox 形态（done-toggle-label）；完整方向树独立页那一处**保留**', () => {
-  return CS_TPL.includes('class="done-toggle-label"') && CS_TPL.includes('toggleShowDone')
-    && CT86.includes('toggleShowDone') && CT86.includes('class="tree-tool"');
+check('R86-3 M7 方向台页头有已完成开关 ★R3-B1 形态收敛带备案：R177 的 checkbox 形态（done-toggle-label）随 CompassShell 退役，一级页头改由树的 tree-tool 按钮承担同一开关——两处形态不同但**同一份 store 口径**，"一处切换全台生效"不变', () => {
+  return CT86.includes('toggleShowDone') && CT86.includes('class="tree-tool"') && CT86.includes('👁 已完成项目') && ST86.includes('function toggleShowDone');
 });
-check('R86-4 M7 ★R177 重指带备案：面板级「完整方向树 →」随原型退役（页头 tree-link 承担同一导航；面板内 vm-bar 整条也进树），openTree 函数保留', () => {
-  return LH86.includes('function openTree') && CS_TPL.includes('class="tree-link"');
+check('R86-4 M7 ★R3-B1 退役重指带备案：面板级「完整方向树 →」与页头 tree-link 双双退役（树即一级，不需要跳自己的入口）；openTree 函数不得残留', () => {
+  const t = CT86; const h = read('/newtab/views/CompassHome.vue');
+  return !codeOnly(t).includes('class="tree-link"') && !codeOnly(h).includes('tree-link') && !codeOnly(t).includes('function openTree');
 });
-check('R86-5/R121 D-A：主航线「看主线」模块标签保留；项目详情改由展板单行面包屑（pb-crumb）承载上下文', () => {
+check('R86-5/R121 D-A ★R3-B1 退役重指带备案：主航线「看主线」模块标签随面板退役（方向台只剩一面，无需再标"这块是读还是写"）；项目详情上下文仍由单行面包屑 pb-crumb 承载', () => {
   const pc = read('/newtab/views/ProjectCuration.vue');
-  return LH86.includes('class="mod-role"') && LH86.includes('看主线')
-    && !CS_TPL.includes('管项目') && CS_TPL.includes('<ProjectCuration embedded />')
+  return !exists('/newtab/components/compass/LighthousePanel.vue') && !pc.includes('管项目')
     && pc.includes('class="pb-crumb"') && pc.includes('pb-title-row');
 });
-check('R86-6 D-B ★R177 重指带备案：M8 >12 门控退役（其存在理由「与项目总览可见性分裂」已随 R117 项目总览退役消失），筛选改分段组常驻（原型 lh-filter-group），ovFilter 单一来源不变', () => {
-  const lh = read('/newtab/components/compass/LighthousePanel.vue');
-  return CS_TPL.includes(':tools-gate="true"')
-    && lh.includes('class="lh-filter-group"') && lh.includes("emit('update:ovFilter', f)");
+check('R86-6 D-B ★R3-B1 退役重指带备案（R3 计划点名项）：主航线状态筛选（all/active/stalled/done 分段组 + ovFilter/tools-gate 传参链）整体退役，全站零残留；停滞读数改由树页头「⚠ 停滞 N」+ 卡头停滞标承担（只读不筛）', () => {
+  const t = CT86; const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue');
+  return !t.includes('ovFilter') && !h.includes('ovFilter') && !pc.includes('ovFilter') && !t.includes('lh-filter-group')
+    && t.includes('⚠ 停滞 {{ treeStats.stalled }}') && t.includes('class="tp-flag"');
 });
-check('R86-7 D-B：★ 状态判定复用 isProjectStalled / isProjectDone 且**预计算成索引**（模板内不逐项调）', () => {
-  const fn = stripComments(segOf(CS86, 'const projState = computed(', 'const filteredProjects'));
-  return fn.includes('isProjectStalled(p)') && fn.includes('isProjectDone(p)')
-    && !CS_TPL.includes('isProjectStalled(') && !CS_TPL.includes('isProjectDone(');
+check('R86-7 D-B：★ 状态判定复用 isProjectStalled / isProjectDone 且**预计算成索引**（★R3-B1 随首屏换宿主：判据从 CompassShell 的 projState 换成方向树的 projMeta，模板内仍不得逐项调）', () => {
+  const fn = stripComments(segOf(CT86, 'const projMeta = computed(', 'function toggleMetric'));
+  const tpl = segOf(CT86, '<template>', '\n</template>');
+  return fn.includes('isProjectStalled(p)') && fn.includes('projectProgress(p)')
+    && !tpl.includes('isProjectStalled(') && !tpl.includes('isProjectDone(');
 });
-check('R86-8 D-B（R117 重写 · R177 随分段化改判据：主航线筛选不提供绕过全局开关的入口）', () => {
-  const lh = read('/newtab/components/compass/LighthousePanel.vue');
-  return !CS_TPL.includes('ov-empty-act') && !CS_TPL.includes('resetOvTools')
-    && !CS86.includes('resetOvTools') && lh.includes('class="lh-filter-group"');
+check('R86-8 D-B（R117 重写 · R177 随分段化 → ★R3-B1 随筛选退役）：筛选绕过入口（ov-empty-act / resetOvTools）全站零残留', () => {
+  const t = CT86; const h = read('/newtab/views/CompassHome.vue');
+  return !t.includes('ov-empty-act') && !t.includes('resetOvTools') && !h.includes('resetOvTools') && !exists('/newtab/components/compass/LighthousePanel.vue');
 });
 check('R86-9 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');

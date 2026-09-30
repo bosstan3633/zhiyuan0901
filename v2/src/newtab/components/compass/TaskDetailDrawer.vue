@@ -479,7 +479,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         <div class="ts-section ds-meta">
           <span>创建 {{ fmtTaskTs(selectedTask.createdAt) }}</span>
           <span>更新 {{ fmtTaskTs(selectedTask.updatedAt) }}</span>
-          <span class="ts-goto ds-goto-inline" @click="router.push('/compass/tree')">🧭 没有合适的项目/指标？去方向树创建 ›</span>
+          <span class="ts-goto ds-goto-inline" @click="router.push('/compass')">🧭 没有合适的项目/指标？去方向台创建 ›</span>
         </div>
         <!-- R48：附属区折叠（附件）；R165：挂载区随卡间挂载退役 -->
         <details class="ds-details" style="margin-top:14px">

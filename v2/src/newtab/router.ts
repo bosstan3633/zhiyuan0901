@@ -15,23 +15,24 @@ const router = createRouter({
       redirect: '/'
     },
     {
-      // 方向台：满宽模块页；projects=项目详情二级页、tree=完整方向树二级页
+      // R3-B1（V3.7.x）：**树即首屏**——方向台一级直接渲染完整方向树，
+      // CompassShell（主航线 + 内嵌项目详情展板）与 LighthousePanel（锚点条/聚焦条/状态筛选/目标卡网格）退役。
       path: '/compass',
-      component: () => import('./views/CompassShell.vue'),
-      children: [
-        {
-          path: 'projects',
-          name: 'compass-projects',
-          component: () => import('./views/ProjectCuration.vue'),
-          meta: { title: '知源调度台 · 项目详情' }
-        },
-        {
-          path: 'tree',
-          name: 'compass-tree',
-          component: () => import('./views/CompassTree.vue'),
-          meta: { title: '知源调度台 · 完整方向树' }
-        }
-      ]
+      name: 'compass',
+      component: () => import('./views/CompassTree.vue'),
+      meta: { title: '知源调度台 · 方向台' }
+    },
+    {
+      // R3-B1：原「完整方向树」二级页与一级合并；老深链（content 快捷动作 / background 开台 / 收藏的 #/compass/tree）
+      // 一律带 query 重定向到 /compass，不再另立一份台面
+      path: '/compass/tree',
+      redirect: to => ({ path: '/compass', query: to.query })
+    },
+    {
+      path: '/compass/projects',
+      name: 'compass-projects',
+      component: () => import('./views/ProjectCuration.vue'),
+      meta: { title: '知源调度台 · 项目详情' }
     },
     {
       // V3.7.0（R179）：仅策展台（论点 + 论证节点卡 + 镜像投射）。资源台已随池语义退役——

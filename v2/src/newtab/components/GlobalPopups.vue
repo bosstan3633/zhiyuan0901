@@ -1082,7 +1082,7 @@ watch(currentType, () => { aiSearch.value = null; aiAbort('') })
 const QUICK_ACTIONS = [
   { label: '打开方向台', icon: 'compass', run: () => { closeAll(); router.push('/compass') } },
   { label: '打开项目详情', icon: 'layout', run: () => { closeAll(); router.push('/compass/projects') } },
-  { label: '打开方向树', icon: 'branch', run: () => { closeAll(); router.push('/compass/tree') } },
+  // R3-B1：「打开方向树」与「打开方向台」在树即首屏后是同一个目的地，重复项退役（老 /compass/tree 深链由路由重定向兜住）
   { label: '打开回收站', icon: 'trash', run: () => { closeAll(); router.push('/recycle') } },
   { label: '打开使用手册', icon: 'arrowright', run: () => { closeAll(); router.push('/manual') } },
   { label: '打开设置', icon: 'settings', run: () => { closeAll(); router.push('/settings') } },

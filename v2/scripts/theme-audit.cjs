@@ -54,9 +54,10 @@ const argv = Object.fromEntries(process.argv.slice(2).map(a => {
 const THEMES = ['linear', 'raycast', 'apple', 'notion']
 const VIEWS = [
   { id: 'dashboard', hash: '#/', name: '调度台' },
-  { id: 'compass', hash: '#/compass', name: '方向台' },
-  // R3-B′：完整方向树补场——本轮改的就是这一面（项目层折叠 + 卡头 6→3 收敛），此前无镜头等于白改
-  { id: 'compass-tree', hash: '#/compass/tree', name: '方向台完整方向树' },
+  // R3-B1：树即方向台一级——#/compass 拍的就是完整方向树（原 CompassShell 主航线 + 内嵌展板退役）
+  { id: 'compass', hash: '#/compass', name: '方向台（树即首屏）' },
+  // R3-B1：老深链 #/compass/tree（content 快捷动作 / 浏览器命令 / 用户收藏）必须带 query 落到 /compass
+  { id: 'compass-tree', hash: '#/compass/tree', name: '方向台老深链重定向' },
   // R1.5：资源台台面场随 R179 资源台退役（/workspace/zy-curation 为隐藏池 id，用户不可达，拍了也是空调试面）
   { id: 'settings', hash: '#/settings', name: '设置页' }
 ]
@@ -391,22 +392,27 @@ async function main() {
       const kb = Math.round(fs.statSync(file).size / 1024)
       shots.push(file)
       let extra = ''
-      /* R3-B′：本轮改的就是方向树的项目层折叠——静态断言只证明代码在，不证明渲染对。
-         活体三条：① 卡头数 == 分支数 == caret 数（每张卡头都有开合把手）
+      /* R3-B′/B1：方向台两条镜头共用同一套活体判据——静态断言只证明代码在，不证明渲染对。
+         ① 卡头数 == 分支数 == caret 数（每张卡头都有开合把手）
          ② 折叠卡里 **一个指标分支都没有**（v-if 真摘节点，不是 v-show 藏起来）
-         ③ 有数据可判（0 张卡头 = 数据没种上，判据空转） */
-      if (v.id === 'compass-tree') {
+         ③ 有数据可判（0 张卡头 = 数据没种上，判据空转）
+         ④ compass-tree 另判「重定向真的发生了」：hash 必须落到 #/compass（老深链不许变成死页） */
+      if (v.id === 'compass' || v.id === 'compass-tree') {
         const j = await page.evaluate(() => {
           const branches = [...document.querySelectorAll('.tree-project-branch')]
           const heads = [...document.querySelectorAll('.tp-head')]
           const folded = heads.filter(h => h.classList.contains('folded'))
           const bad = folded.filter(h => h.parentElement && h.parentElement.querySelector('.tree-metric-branch')).length
-          return { branches: branches.length, heads: heads.length, folded: folded.length, carets: document.querySelectorAll('.tp-caret').length, metrics: document.querySelectorAll('.tree-metric-branch').length, bad }
+          return { branches: branches.length, heads: heads.length, folded: folded.length, carets: document.querySelectorAll('.tp-caret').length, metrics: document.querySelectorAll('.tree-metric-branch').length, bad, hash: location.hash }
         })
         extra = ` 卡头=${j.heads}/${j.branches} caret=${j.carets} 折叠=${j.folded} 指标=${j.metrics}`
         if (!j.heads) treeFail.push(`${theme}/${v.id}：一张项目卡头都没有（数据没种上或视图没渲染）——判据空转`)
         else if (j.bad) treeFail.push(`${theme}/${v.id}：${j.bad} 张折叠项目卡里仍渲染了指标分支 ⇒ 折叠是假折叠`)
         else if (j.carets !== j.heads) treeFail.push(`${theme}/${v.id}：caret ${j.carets} != 卡头 ${j.heads} ⇒ 有卡头没有开合把手`)
+        if (v.id === 'compass-tree') {
+          extra += ` 落点=${j.hash}`
+          if (!/^#\/compass(\?|$)/.test(j.hash)) treeFail.push(`${theme}/${v.id}：#/compass/tree 未重定向到 /compass（实际 ${j.hash}）⇒ 老深链在丢命`)
+        }
       }
       console.log(`  ✓ ${theme.padEnd(8)} ${v.name.padEnd(4)} hash=${(hash || '#/').padEnd(26)}${extra} → ${path.basename(file)} (${kb}KB)`)
     }

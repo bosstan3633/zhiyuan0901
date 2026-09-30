@@ -801,7 +801,7 @@ function collectResults(d: any, query: string, results: any[], maps: SearchMaps)
 const QUICK_ACTIONS_ZY = [
   { label: '打开方向台', icon: 'compass', route: '/compass' },
   { label: '打开项目详情', icon: 'layout', route: '/compass/projects' },
-  { label: '打开方向树', icon: 'branch', route: '/compass/tree' },
+  // R3-B1：树即方向台一级，「打开方向树」与「打开方向台」同目的地，重复项退役
   { label: '打开设置', icon: 'settings', route: '/settings' }
 ]
 

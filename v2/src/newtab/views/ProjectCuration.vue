@@ -282,7 +282,7 @@ const createDirId = ref('')
 const createName = ref('')
 const hasDirs = computed(() => d.value.compass.directions.length > 0)
 function openCreateProject() {
-  if (!hasDirs.value) { showToast('还没有战略目标——请先到方向树创建'); router.push('/compass/tree'); return }
+  if (!hasDirs.value) { showToast('还没有战略目标——请先到方向台创建'); router.push('/compass'); return }
   createDirId.value = d.value.compass.directions[0]!.id
   createName.value = ''
   createOpen.value = true
@@ -348,23 +348,16 @@ function onTocScroll() {
   tocActive.value = cur
 }
 onMounted(() => window.addEventListener('scroll', onTocScroll, { passive: true }))
-// R177（原型 fcb-detail-link）：主攻条「项目详情表单 ›」经窗口事件唤起本页详情抽屉（?p= 选中即当前项目）
-onMounted(() => window.addEventListener('zy-open-project-detail', openProjectDetail))
-onUnmounted(() => window.removeEventListener('zy-open-project-detail', openProjectDetail))
 onUnmounted(() => window.removeEventListener('scroll', onTocScroll))
 // R52-F5：「返回项目列表」按钮移除——右上角「← 返回方向台」为唯一返回路径；项目切换走左侧目录
-// R59-T1：返回按钮恒为「返回方向台」（完整方向树已有独立入口，见操作区「🌲 完整方向树」）
-const fromTree = computed(() => false)
-function goBack() {
-  if (fromTree.value) router.push('/compass/tree')
-  else router.push('/compass')
-}
-/** R54-A3：跳完整方向树并定位到本项目战略目标（?hl=<dirId> 滚动+闪烁） */
+// R3-B1：方向台一级就是完整方向树，goBack 与 goTreeLocated 同指 /compass（原 ?from=proj 二级跳法随之退役）
+function goBack() { router.push('/compass') }
+/** R54-A3：跳方向台并定位到本项目战略目标（?hl=<dirId> 滚动+闪烁，?from=proj&p= 让树给「返回项目详情」） */
 function goTreeLocated() {
   const p = currentProject.value
-  if (!p) { router.push('/compass/tree'); return }
+  if (!p) { router.push('/compass'); return }
   const dir = goalOf(p)
-  router.push({ path: '/compass/tree', query: { from: 'proj', p: p.id, ...(dir ? { hl: dir.id } : {}) } })
+  router.push({ path: '/compass', query: { from: 'proj', p: p.id, ...(dir ? { hl: dir.id } : {}) } })
 }
 /** R54-A4：Esc = 返回上级（抽屉/弹层打开时让位其自关） */
 function onPageEsc(e: KeyboardEvent) {

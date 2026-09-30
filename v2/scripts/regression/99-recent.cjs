@@ -783,3 +783,33 @@ check('R3-B′ ★目标级入口上收页头：＋添加战略目标 与 建议
   const layer = t.slice(t.indexOf('<div class="tl-head-row">'), t.indexOf('<div v-if="!d.compass.directions.length"'))
   return head.includes('addDirection') && head.includes("aiChain('directions'") && !layer.includes('addDirection')
 });
+function pc0() { return read('/newtab/views/ProjectCuration.vue') }
+
+// ============== R3-B1 方向台一级化：树即首屏 + CompassShell/LighthousePanel 退役 ==============
+console.log('【R3-B1 · 方向台一级化（树即首屏）】');
+check('R3-B1 ★路由一级化与老深链兼容：/compass 直挂方向树、/compass/projects 平铺成一级、/compass/tree 转成带 query 的重定向（老深链不许变死页）；CompassShell 与 LighthousePanel 物理不存在；App 级 keep-alive 同时缓存两面', () => {
+  const r = read('/newtab/router.ts'), a = read('/newtab/App.vue')
+  return r.includes("name: 'compass'") && r.includes("import('./views/CompassTree.vue')")
+    && r.includes("path: '/compass/projects'") && r.includes("path: '/compass/tree'")
+    && r.includes("redirect: to => ({ path: '/compass', query: to.query })")
+    && !exists('/newtab/views/CompassShell.vue') && !exists('/newtab/components/compass/LighthousePanel.vue')
+    && (a.match(/keep-alive include="([^"]+)"/) || [, ''])[1].split(',').filter(x => ['CompassTreeView', 'ProjectCurationView'].includes(x)).length === 2
+});
+check('R3-B1 ★退役不悬空（能力去向逐条点名）：主航线面（vm-bar/focus-bar/goals-grid/proj-row/右键菜单/ovFilter 状态筛选/置顶与上下移）随宿主整体退役，全站零命中；读数改由树页头 treeStats（主攻/停滞）+ 卡头 tp-flag 承担，密度由 R3-B′ 折叠承担', () => {
+  const t = read('/newtab/views/CompassTree.vue'), h = read('/newtab/views/CompassHome.vue'), pc = read('/newtab/views/ProjectCuration.vue')
+  const gone = ['vm-bar', 'focus-bar', 'goals-grid', 'proj-row', 'proj-menu', 'ovFilter', 'toolsGate', 'CHIP_LIMIT', 'function togglePin', 'function moveProject']
+  return gone.every(k => !t.includes(k) && !h.includes(k) && !pc.includes(k))
+    && t.includes('⚠ 停滞 {{ treeStats.stalled }}') && t.includes('class="tp-flag"') && t.includes('🚀 主攻 {{ treeStats.focused }}')
+});
+check('R3-B1 ★修掉一条既存坏链：指标下钻「定位」原先只 dispatch zy-locate-goal（唯一监听者住在 /compass 主航线，而抽屉挂在调度台首页 ⇒ 点了什么都没发生）；改走 /compass?hl=<dirId> 深链由方向树 locateHlGoal 承接滚动+闪烁，事件链两端一起清零', () => {
+  const md = codeOnly(read('/newtab/components/compass/MetricDrillDrawer.vue')), t = read('/newtab/views/CompassTree.vue')
+  return !md.includes('zy-locate-goal') && md.includes("router.push({ path: '/compass', query: { hl: dirId } })")
+    && t.includes('function locateHlGoal') && t.includes("route.query.hl")
+    && !codeOnly(pc0()).includes('zy-open-project-detail') && !codeOnly(t).includes('zy-open-project-detail')
+});
+check('R3-B1 ★树担得起首屏：项目级读数走 projMeta 预计算表（模板内零逐项调 projectProgress/isProjectStalled、零模板内 filter 任务），一级页头不再自指（无「返回方向台」/tree-link/进入方向树 三类残留入口），UIPrefs.compassTab（二级页停留记忆）随合并退役', () => {
+  const t = read('/newtab/views/CompassTree.vue'), tpl = segOf(t, '<template>', '\n</template>'), m = read('/shared/models/index.ts')
+  return t.includes('const projMeta = computed(') && !tpl.includes('projectProgress(') && !tpl.includes('isProjectStalled(') && !tpl.includes('d.tasks.filter(')
+    && !codeOnly(t).includes('返回方向台') && !codeOnly(t).includes('tree-link') && !codeOnly(t).includes('进入方向树')
+    && !codeOnly(m).includes('compassTab')
+});

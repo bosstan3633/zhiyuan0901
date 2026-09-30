@@ -550,7 +550,7 @@ const backupReminderDot = computed(() => {
              R148-P1a：设置页与回收站纳入缓存——设置页 3500+ 行、挂载即算 lcCards/gFlat/tagUsage，
              每次进都全量重挂是"切模块卡"的主要来源之一（实测冷挂 190ms / 二挂 101ms） -->
         <router-view v-slot="{ Component }">
-          <keep-alive include="CompassHomeView,WorkspaceView,CompassShell,GlobalSettingsView,RecycleBinView">
+          <keep-alive include="CompassHomeView,WorkspaceView,CompassTreeView,ProjectCurationView,GlobalSettingsView,RecycleBinView">
             <component :is="Component" />
           </keep-alive>
         </router-view>

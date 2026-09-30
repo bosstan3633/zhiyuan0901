@@ -89,10 +89,10 @@ check('R91-4 手册承诺的「14 天无推进自动亮 ⚠ 停滞」兑现（�
   return stripComments(FOCUS_FN91).includes('isProjectStalled(p)') && STRIP91_C.includes('cf-stall')
     && STRIP91_C.includes('停滞');
 });
-check('R91-5 点击直达项目详情，且与方向台主攻聚焦条同路由（/compass/projects?p=<id>）', () => {
-  const lh = read('/newtab/components/compass/LighthousePanel.vue');
+check('R91-5 点击直达项目详情同路由（/compass/projects?p=<id>）★R3-B1 随宿主改靶：调度台主攻速览与方向树 ▾ 菜单「进入项目详情页」走同一条路由（原第三处=主航线聚焦条，随退役消失）', () => {
+  const t = read('/newtab/views/CompassTree.vue');
   return CH91.includes("router.push({ path: '/compass/projects', query: { p: p.id } })")
-    && lh.includes("router.push({ path: '/compass/projects', query: { p: p.id } })");
+    && t.includes("path: '/compass/projects', query: { p: proj.id, from: 'tree' }");
 });
 check('R91-6 无主攻时给轻引导，且**可点去方向台**（不是一句死文案）', () => {
   return STRIP91_C.includes('cf-hint') && STRIP91_C.includes("router.push('/compass')")

@@ -101,7 +101,10 @@ const projOptions = computed(() => {
 const fmtDay = (ts?: number) => (ts ? new Date(ts).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }) : '—')
 function locateGoal(dirId: string) {
   emit('close')
-  window.dispatchEvent(new CustomEvent('zy-locate-goal', { detail: { dirId } }))
+  // R3-B1：原 `zy-locate-goal` 窗口事件只有主航线在听，而主航线住在 /compass、本抽屉挂在调度台首页
+  // ——**在 / 上点「定位」什么都不会发生**（既没跳转也没有监听者）。改走与 locateCurio 同一条深链口径，
+  // 由方向台的 ?hl 消费者滚动 + 闪烁，事件链整条退役。
+  router.push({ path: '/compass', query: { hl: dirId } })
 }
 function locateCurio(id: string) {
   emit('close')

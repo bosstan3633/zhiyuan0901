@@ -26,12 +26,13 @@ check('R65-9 全景收窄为资源台全景：panHubWss 过滤 isHubWs + 导航/
 // R179-MIGRATED R65-10
 // V3.7.0（R179）随迁重写：资源台退役后应用内数字键顺延——1=调度台 / 2=方向台 / 3 起=各策展台（无资源台号位）
 check('R65-10 快捷键口径（V3.7.0 重指）：open-resource 退役 + 应用内 Alt+1 调度台 / Alt+2 方向台 / Alt+3 起各策展台', () => { const m = read('/manifest.ts'); const a = read('/newtab/App.vue'); return !m.includes("'open-resource'") && a.includes("if (n === 1) { navigate('/'); return }") && a.includes('if (n === 2) { openCompass(); return }') && a.includes('const ws = store.workspaces[n - 3]'); });
-check('R65-11（R74 重写）KeepAlive 切台缓存：三主视图 include（+CompassShell）+ defineOptions 实例名 + 跨台 :id 复位局部状态', () => {
+check('R65-11（R74 重写 · ★R3-B1 随宿主改靶）KeepAlive 切台缓存：主视图 include 含方向台一级（CompassTreeView，原 CompassShell 随退役换名）+ defineOptions 实例名 + 跨台 :id 复位局部状态', () => {
   const a = read('/newtab/App.vue');
   const w = read('/newtab/views/Workspace.vue');
   const h = read('/newtab/views/CompassHome.vue');
+  const t = read('/newtab/views/CompassTree.vue');
   const inc = (a.match(/keep-alive include="([^"]+)"/) || [, ''])[1].split(',')
-  return inc.includes('CompassHomeView') && inc.includes('WorkspaceView') && inc.includes('CompassShell') && read('/newtab/views/CompassShell.vue').includes("defineOptions({ name: 'CompassShell' })") && w.includes("defineOptions({ name: 'WorkspaceView' })") && h.includes("defineOptions({ name: 'CompassHomeView' })") && w.includes('watch(() => route.params.id');
+  return inc.includes('CompassHomeView') && inc.includes('WorkspaceView') && inc.includes('CompassTreeView') && !inc.includes('CompassShell') && t.includes("defineOptions({ name: 'CompassTreeView' })") && w.includes("defineOptions({ name: 'WorkspaceView' })") && h.includes("defineOptions({ name: 'CompassHomeView' })") && w.includes('watch(() => route.params.id');
 });
 check('R65-12 方向状态单行指标条：副行收 tooltip（mb-v 13.5px 单行 + st-warn 保留）', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); return mb.includes('mb-row') && mb.includes('mb-k') && mb.includes('mb-v') && mb.includes('st-warn') && !mb.includes('mb-head'); });
 
@@ -64,10 +65,10 @@ check('R68-1 搜索工作台分组口径对齐台签栏：两端均排除资源�
 check('R68-2 搜索项目分组尊重 showDoneProjects（浮层读 zy_ui_v2 + isProjDone 派生口径）', () => { const c = read('/content/overlay-impl.ts'); return c.includes('showDoneProjectsCache') && c.includes('loadShowDonePref') && c.includes('zy_ui_v2') && c.includes('function isProjDone') && c.includes('if (!showDoneProjectsCache && isProjDone(p, d)) return'); });
 check('R68-3（R155 令牌化备案）任务卡删除按钮 emoji → 主题色 trash 线性图标（深色主题可见）', () => { const t = read('/newtab/components/compass/TaskManagerPanel.vue'); return t.includes('import Icon from') && t.split('<Icon name="trash" :size="12" />').length >= 4 && t.includes('.k-del { position: absolute; top: 6px; right: 58px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-caption); cursor: pointer; opacity: 0; transition: all var(--dur) ease; z-index: 1; color: var(--text-3);') && t.includes('.kcard:hover .k-pin, .kcard:hover .k-star, .kcard:hover .k-del { opacity: .85; }'); });
 check('R68-4 快捷键体系改造（R117 修订；V3.7.0 重指：资源台退役后策展台索引由 n-4 顺延到 n-3）：open-compass/open-resource 退役 + 数字键 1=调度台 2=方向台 3..=策展台（goto-tasks/goto-curiosity 同落调度台并锚对应 tab）', () => { const m = read('/manifest.ts'); const b = read('/background/index.ts'); const a = read('/newtab/App.vue'); return !m.includes("'open-compass'") && !m.includes("'open-resource'") && b.includes('open-compass/open-resource 已从 manifest 下架') && b.includes("const anchor = command === 'goto-curiosity' ? 'curiosity' : 'task'") && a.includes("if (n === 1) { navigate('/'); return }") && a.includes('if (n === 2) { openCompass(); return }') && a.includes('const ws = store.workspaces[n - 3]'); });
-check('R68-5 任务调度直达落位（R117 重写：宿主由方向台迁调度台底部双 tab）：调度台承接 zy-goto-anchor（curiosity→好奇 tab 并挂载 / task→任务 tab），方向台不再持任务模块', () => { const h = read('/newtab/views/CompassHome.vue'); const sh = read('/newtab/views/CompassShell.vue'); return h.includes("addEventListener('zy-goto-anchor', onAnchorEvt)") && h.includes("if (name === 'curiosity') { bottomTab.value = 'curio'; curioMounted.value = true }") && h.includes("else if (name === 'task') bottomTab.value = 'task'") && !sh.includes('flashTaskModule') && !sh.includes('task-mgmt-module'); });
+check('R68-5 任务调度直达落位（R117 重写：宿主由方向台迁调度台底部双 tab · ★R3-B1 负判据随宿主改靶方向树）：调度台承接 zy-goto-anchor（curiosity→好奇 tab 并挂载 / task→任务 tab），方向台不再持任务模块', () => { const h = read('/newtab/views/CompassHome.vue'); const t = read('/newtab/views/CompassTree.vue'); return h.includes("addEventListener('zy-goto-anchor', onAnchorEvt)") && h.includes("if (name === 'curiosity') { bottomTab.value = 'curio'; curioMounted.value = true }") && h.includes("else if (name === 'task') bottomTab.value = 'task'") && !t.includes('flashTaskModule') && !t.includes('TaskManagerPanel'); });
 check('R68-6（R155 令牌化备案）方向树操作按钮主题感知（去硬编码白底，深色主题可见）', () => { const t = read('/newtab/views/CompassTree.vue'); return t.includes('.node-action { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: var(--fs-caption); cursor: pointer; color: var(--text-2); transition: all var(--dur); background: var(--surface-3); border: 1px solid var(--border); }') && !t.includes('rgba(255,255,255,.9)'); });
 check('R68-7 加载动画排版重整：分隔线对齐轴 + slogan 升字号提对比', () => { const h = read('/newtab/index.html'); return h.includes('zy-skl-divider') && h.includes('font-size: 15.5px; font-weight: 500; color: #C6CBD4; letter-spacing: 0.22em;') && h.includes('万千可调用，自有我方向</div>') && !h.includes('万千可调用，自有我方向。'); });
-check('R68-8（R160 重指）性能：KeepAlive 保留方向台 CompassShell + 拼音词典零分发（两层表内联，无 312KB 字典 chunk）', () => { const a = read('/newtab/App.vue'); const g = read('/newtab/components/GlobalPopups.vue'); const p = read('/shared/utils/pinyin.ts'); return a.includes('CompassHomeView,WorkspaceView,CompassShell') && !a.includes("from '@/shared/utils/pinyin'") && !a.includes('requestIdleCallback') && g.includes("if (p === 'search')") && g.includes('void ensurePinyin()') && !p.includes("import('pinyin-pro')"); });
+check('R68-8（R160 重指 · ★R3-B1 缓存对象换向）性能：KeepAlive 保留方向台一级（CompassTreeView）+ 拼音词典零分发（两层表内联，无 312KB 字典 chunk）', () => { const a = read('/newtab/App.vue'); const g = read('/newtab/components/GlobalPopups.vue'); const p = read('/shared/utils/pinyin.ts'); return a.includes('CompassHomeView,WorkspaceView,CompassTreeView') && !a.includes("from '@/shared/utils/pinyin'") && !a.includes('requestIdleCallback') && g.includes("if (p === 'search')") && g.includes('void ensurePinyin()') && !p.includes("import('pinyin-pro')"); });
 
 // ============== 第六十九轮 · R69：术语统一（工作台→策展台）+ 资源台「全部分类」默认根节点 + 快捷键映射表键位修正 + 垃圾文件清理 ==============
 console.log('【第六十九轮 · R69：术语统一 + 资源台全部分类 + 键位修正 + 清理】');
@@ -423,10 +424,10 @@ check('R74-13 hub 离屏渲染抑制：content-visibility 2 处 + contain-intrin
   const w = read('/newtab/views/Workspace.vue');
   return (w.match(/content-visibility: auto/g) || []).length >= 2 && w.includes('contain-intrinsic-size: auto 44px');
 });
-check('R74-14 资源台两入口合一（V3.7.0 重指：资源台页与 tab 高亮分支退役；KeepAlive 缓存 CompassHomeView/WorkspaceView/CompassShell 三视图不变）', () => {
+check('R74-14 资源台两入口合一（V3.7.0 重指：资源台页与 tab 高亮分支退役；KeepAlive 三视图不变，★R3-B1 方向台侧由 CompassShell 换成 CompassTreeView）', () => {
   const a = read('/newtab/App.vue');
   const inc = (a.match(/keep-alive include="([^"]+)"/) || [, ''])[1].split(',')
-  return !a.includes("if (activeWorkspaceId.value === CURATION_WS_ID) return 'curation'") && inc.includes('WorkspaceView') && inc.includes('CompassShell');
+  return !a.includes("if (activeWorkspaceId.value === CURATION_WS_ID) return 'curation'") && inc.includes('WorkspaceView') && inc.includes('CompassTreeView');
 });
 check('R74-15 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'package.json'), 'utf8');

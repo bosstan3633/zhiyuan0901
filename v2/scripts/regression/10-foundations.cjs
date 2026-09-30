@@ -13,10 +13,10 @@ check('单向挂载：Resource 无 taskId', () => !/taskId\??\s*:/.test(read('/s
 check('数据 100% 本地：无 http 数据上传', () => !/fetch\(|XMLHttpRequest/.test(read('/newtab/App.vue')));
 
 console.log('【架构检查】');
-check('路由：首页/方向台二级页/工作台/设置（R49：actions 子页退役）', () => count('/newtab/router.ts', "path: 'actions'") === 0 && count('/newtab/router.ts', "path: 'projects'") === 1 && count('/newtab/router.ts', "path: 'tree'") === 1);
+check('路由：首页/方向台一级（★R3-B1 树即首屏：/compass 直挂 CompassTree、/compass/tree 转带 query 重定向、/compass/projects 平铺成一级）/工作台/设置（R49：actions 子页退役）', () => { const r = read('/newtab/router.ts'); return r.includes("name: 'compass'") && r.includes("import('./views/CompassTree.vue')") && count('/newtab/router.ts', "path: '/compass/projects'") === 1 && count('/newtab/router.ts', "path: '/compass/tree'") === 1 && count('/newtab/router.ts', "path: 'actions'") === 0 && r.includes("redirect: to => ({ path: '/compass', query: to.query })"); });
 check('旧任务中心路由已退役', () => !read('/newtab/router.ts').includes("'/tasks'"));
 check('此刻最重要已整体移除', () => !exists('/newtab/components/compass/FocusPanel.vue'));
-check('R49 方向台容器（R117 重写：项目详情由二级提为一级）：page-head + 满宽两模块（主航线 LighthousePanel / 项目详情 ProjectCuration embedded）——项目总览与任务调度已迁出，MetricBar 在调度台', () => { const s = read('/newtab/views/CompassShell.vue'); return count('/newtab/views/CompassShell.vue', 'LighthousePanel') >= 1 && count('/newtab/views/CompassShell.vue', 'ProjectCuration') >= 1 && s.includes('<ProjectCuration embedded />') && !s.includes('TaskManagerPanel') && !s.includes('MetricBar'); });
+check('R49 方向台容器（R117 重写 → ★R3-B1 再重写：树即一级）：router 把 /compass 直挂 CompassTree，方向台不再嵌项目详情/任务调度/MetricBar', () => { const r = read('/newtab/router.ts'); const t = read('/newtab/views/CompassTree.vue'); return r.includes("path: '/compass'") && r.includes("component: () => import('./views/CompassTree.vue')") && !codeOnly(r).includes('CompassShell') && !r.includes('children:') && !t.includes('ProjectCuration') && !t.includes('TaskManagerPanel') && !t.includes('MetricBar'); });
 
 console.log('【A组 弹窗工作流】');
 check('四端 zy-locate-workspace 单例定位', () => ['background/index.ts', 'content/search-overlay.ts', 'newtab/components/GlobalPopups.vue', 'popup/App.vue'].every(f => count('/' + f, 'zy-locate-workspace') >= 1));
@@ -60,7 +60,7 @@ check('B17 目录与策展目录样式统一(200px sticky)', () => read('/newtab
 check('B18 字段行样式迁入子组件', () => count('/newtab/views/FieldEditor.vue', 'gs-fr-action') >= 2);
 check('B22 状态三选 chips', () => read('/newtab/components/compass/TaskDetailDrawer.vue').includes('ts-status-chip'));
 check('B23 文档级 Ctrl+Enter/Esc', () => read('/newtab/components/compass/TaskDetailDrawer.vue').includes('onSidebarDocKey'));
-check('O19/R121 主航线项目行卡（全宽行：名/停滞 + 统计 + 迷你进度条；双击进项目详情页）★R177 重指带备案：行卡对齐原型 project-mini-chip（pr-meta 并入 pr-row2 统计段），判据改 pr-stats', () => { const l = read('/newtab/components/compass/LighthousePanel.vue'); return l.includes('class="proj-row"') && l.includes('pr-stats') && l.includes('mini-bar') && l.includes('@dblclick="openProject(p)"') && !l.includes('ProjectDetailDrawer'); });
+check('O19/R121 主航线项目行卡 ★R3-B1 退役重指带备案：行卡（proj-row/mini-bar/双击）随 LighthousePanel 整面退役，能力去向=方向树项目卡头（tp-head 名称 + tp-pct 进度 + 停滞读数在页头 + ▾ 菜单「进入项目详情页」取代双击）', () => { const t = read('/newtab/views/CompassTree.vue'); return !exists('/newtab/components/compass/LighthousePanel.vue') && t.includes('class="tp-head"') && t.includes('class="tp-pct"') && t.includes('📄 进入项目详情页') && t.includes('function openProjectDrawer('); });
 check('O20（R126 重指）标签最多两级守卫 + 缩进兜底', () => read('/newtab/views/GlobalSettings.vue').includes('最多两级') && read('/newtab/views/GlobalSettings.vue').includes('padding-left: 58px !important'));
 check('O21 分组列表跨组拖拽改归属', () => read('/newtab/components/compass/TaskManagerPanel.vue').includes('onListGroupDrop'));
 check('Bug1 目标卡按钮/箭头不重叠', () => read('/newtab/views/CompassTree.vue').includes('margin-right: 52px'));
@@ -138,7 +138,7 @@ console.log('【第十四轮 · Linear 视觉重构】');
 check('P1 六主题 Linear 体系（深空薰衣草默认）', () => read('/shared/styles/tokens.css').includes("[data-theme='linear']") && read('/shared/styles/tokens.css').includes('#0D0E11') && read('/shared/styles/tokens.css').includes('#5E6AD2'));
 check('P1 默认主题迁移（green→linear 一次性）', () => read('/shared/storage/repository.ts').includes("theme: 'linear'") && read('/shared/storage/repository.ts').includes("uiCache.theme === 'green'"));
 check('P2 封面扁平化（R64 修订：hero 已删，等效锚点换指标卡样式）', () => !read('/newtab/views/Workspace.vue').includes('COVER_THEMES') && !read('/newtab/views/Workspace.vue').includes('heroGradient') && read('/newtab/views/Workspace.vue').includes('.metric-card { background: var(--surface); border: 1px solid var(--border);'));
-check('R49 方向台扁平化（原 P2 罗盘 Hero）：满宽 page-head + 无装饰渐变', () => read('/newtab/views/CompassShell.vue').includes('.page { max-width: 1440px; margin: 0 auto; padding: 20px 36px 64px; }'));
+check('R49 方向台扁平化（原 P2 罗盘 Hero）★R3-B1 随宿主改靶：满宽页头口径落在方向树（.compass-layout 1440 居中 + tree-page-head 一行工具条）', () => read('/newtab/views/CompassTree.vue').includes('.compass-layout { display: block; min-height: 100%; padding: 20px 36px 64px; max-width: 1440px; margin: 0 auto; }') && read('/newtab/views/CompassTree.vue').includes('.tree-page-head { display: flex'));
 check('P3 去弹跳（hover 无位移）+ 焦点环', () => !read('/newtab/views/ProjectCuration.vue').includes('translateY(-3px)') && !read('/newtab/views/Workspace.vue').includes('.res-card:hover { border-color: var(--accent); box-shadow') && read('/shared/styles/tokens.css').includes(':focus-visible'));
 check('P3 过渡统一 200ms 内', () => !read('/newtab/views/ProjectCuration.vue').includes('transform .26s') && read('/shared/styles/tokens.css').includes('font-feature-settings: "tnum"'));
 
@@ -173,7 +173,7 @@ check('R22 好奇 store 去虚拟排序（拖拽根修二段）', () => !read('/
 console.log('【第廿一轮 · 修复验收】');
 check('R21-1 好奇心选采预取缓存', () => read('/content/search-overlay.ts').includes('selCache') && read('/content/search-overlay.ts').includes('function resolveSelection'));
 check('R21-2 拖拽位置感知全落点（好奇列表/看板 + 任务分组行/看板 + 资源看板）', () => read('/newtab/components/compass/CuriosityPanel.vue').includes("const after = dropMark.value.endsWith('-b')") && read('/newtab/components/compass/TaskManagerPanel.vue').includes("markTaskDrop($event, task.id)") && read('/newtab/components/compass/TaskManagerPanel.vue').includes('onTaskCardDrop') && read('/newtab/views/Workspace.vue').includes("markDrop($event, r.id, 'y')"));
-check('R21-3/R49 页面对齐（方向台/调度台统一页边距 max-width 1440）★R175 重指带备案：调度台 .page 顶/底距随原型改 18px/72px（左右 36px 与顶栏 align-page 同线不变），方向台仍 20px 顶距', () => read('/newtab/views/CompassShell.vue').includes('padding: 20px 36px 64px') && read('/newtab/views/CompassHome.vue').includes('padding: 18px 36px 72px'));
+check('R21-3/R49 页面对齐（方向台/调度台统一页边距 max-width 1440）★R175/R3-B1 重指带备案：调度台 .page 18px/72px 不变，方向台 20px 顶距的宿主由 CompassShell 换成方向树 .compass-layout', () => read('/newtab/views/CompassTree.vue').includes('padding: 20px 36px 64px') && read('/newtab/views/CompassHome.vue').includes('padding: 18px 36px 72px'));
 check('R21-4 手册独立页（/manual 路由 + 目录锚点 + 富文本非 scoped）', () => read('/newtab/router.ts').includes("path: '/manual'") && read('/newtab/views/ManualPage.vue').includes('mn-content .mc-tip') && read('/newtab/views/GlobalSettings.vue').includes('openManualTab'));
 
 console.log('【第十九~二十轮 · 拼音搜索/拖拽修复/手册白皮书】');
@@ -199,7 +199,7 @@ console.log('【第十七轮 · 修复与功能补全】');
 check('R17-1 三件事导出弹窗（时间范围+6字段 CSV）', () => read('/newtab/views/CompassHome.vue').includes('openExportModal') && read('/newtab/views/CompassHome.vue').includes('任务内容,所属项目,项目→成功指标,任务状态,安排时间,创建时间') && read('/newtab/views/CompassHome.vue').includes('doExport'));
 check('R17-2 好奇心来源仅选中时附带（两端，可为空）', () => read('/newtab/components/GlobalPopups.vue').includes("if (sel) {") && read('/content/search-overlay.ts').includes('const hasSel = !!selection'));
 check('R17-3 项目策展创建项目（视觉链+选战略目标+直接进展板）', () => read('/newtab/views/ProjectCuration.vue').includes('openCreateProject') && read('/newtab/views/ProjectCuration.vue').includes('confirmCreateProject') && read('/newtab/views/ProjectCuration.vue').includes('createDirId') && read('/newtab/views/ProjectCuration.vue').includes('cm-chain'));
-check('R17-4/R49 主航线工具组在模块右上角（actions 插槽：展开收起/显隐/完整方向树入口）', () => read('/newtab/components/compass/LighthousePanel.vue').includes('<template #actions>') && read('/newtab/components/compass/LighthousePanel.vue').includes('mr-tools') && !read('/newtab/components/compass/LighthousePanel.vue').includes('lh-footer">'));
+check('R17-4/R49 工具组常驻右上角 ★R3-B1 重指带备案：主航线模块的 #actions 插槽随退役消失，工具组落在方向台页头一行（⊞ 展开 / ⊟ 收起 / 👁 已完成 / 健康度），且不再另设面板级 footer', () => { const t = read('/newtab/views/CompassTree.vue'); return !exists('/newtab/components/compass/LighthousePanel.vue') && t.includes('⊞ 展开') && t.includes('⊟ 收起') && t.includes('👁 已完成项目') && t.includes('dhi-badge') && !t.includes('lh-footer">'); });
 check('R17-5 置顶右上角统一（好奇三视图）', () => read('/newtab/components/compass/CuriosityPanel.vue').includes('cz-pin-corner') && read('/newtab/components/compass/CuriosityPanel.vue').includes('置顶优先'));
 check('R17-6 任务卡置顶（模型+列表+看板+选取）', () => read('/shared/models/index.ts').includes('pinned?: boolean') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('toggleTaskPin') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('.k-pin') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('.t-pin'));
 
@@ -208,7 +208,7 @@ check('V13-1 任务卡链接字段 + 单/双击统一', () => read('/shared/mode
 check('V13-2 任务抽屉链接+备注（可拖拽调高）', () => read('/newtab/components/compass/TaskDetailDrawer.vue').includes('selectedTask.link') && read('/newtab/components/compass/TaskDetailDrawer.vue').includes('selectedTask.description') && read('/newtab/components/compass/TaskDetailDrawer.vue').includes('.ts-note {'));
 check('V13-3 好奇心链接口径（sourceUrl+本地路径直达；R129-B5 起统一走 link.toOpenableRawLink）', () => { const cp = read('/newtab/components/compass/CuriosityPanel.vue'); return cp.includes('toOpenableRawLink') && !cp.includes('function toOpenableCurioLink') && cp.includes('来源链接（网页 / 本地路径 / obsidian://，失焦即保存）'); });
 check('V13-4 文本框可拖拽调高（三卡详情）· R167 重指：资源表单的 `.ref-note` 搬进 ds-* 面板成 `.ds-hero-note`，判据跟着换成「焦点区 + 拖拽把手 + 记忆 hook」三件同在（把手没了就是"调了不记"，比不调更气人）', () => { const f = read('/newtab/components/ResourceEditForm.vue'); return f.includes('ds-hero-note') && f.includes('ref-ta-resize') && f.includes('useTaHeight') && read('/newtab/components/compass/CuriosityPanel.vue').includes('max-height: 400px') && read('/newtab/components/compass/TaskDetailDrawer.vue').includes('max-height: 320px') });
-check('V13-5 罗盘子页 out-in 过渡移除（切换即时）', () => !read('/newtab/views/CompassShell.vue').includes('mode="out-in"'));
+check('V13-5 罗盘子页 out-in 过渡移除（切换即时）★R3-B1 随宿主改靶：过渡宿主是 App 级 router-view（方向台一级化后仍不得回添 out-in）', () => !read('/newtab/App.vue').includes('mode="out-in"') && !read('/newtab/views/CompassTree.vue').includes('mode="out-in"'));
 check('V13-6 刷新骨架品牌动画保留（仅加载时）', () => read('/../src/newtab/index.html').includes('zy-skl'));
 
 console.log('【第廿八轮 · 拖拽体系修复】');
@@ -328,9 +328,9 @@ check('R34-12（R64 修订）子分类组标题弱化样式（ws-cat-head.sub）
 check('R34-13 REQ-028 F-028-4 列表视图共用分区拖拽规则（res-row @drop 绑定 onDropCard）', () => read('/newtab/views/Workspace.vue').includes('onDropCard($event,r)') && read('/newtab/views/Workspace.vue').split('onDropCard($event,r)').length - 1 >= 2);
 
 console.log('【第卅四轮 · V2.13 需求包第四批：REQ-029 罗盘按需引导】');
-check('R34-14 REQ-029 F-029-1 侧栏常驻三行文案移除（side-note 无残留）', () => !read('/newtab/views/CompassShell.vue').includes('side-note') && !read('/newtab/views/CompassShell.vue').includes('方向树给「为什么」'));
-check('R34-15 退役（R49 方向台撤侧栏，气泡引导随撤）+ 无残留', () => !read('/newtab/views/CompassShell.vue').includes('guide-bubble') && !read('/newtab/views/CompassShell.vue').includes('zy_compass_guide_v1'));
-check('R49 方向台满宽模块化（R117 重写）：「主航线 → 项目详情」两模块（原 R55 三模块中「项目总览」「任务调度」已退役/迁出；侧栏与 MetricBar 零残留）', () => { const s = read('/newtab/views/CompassShell.vue'); return s.includes('方向台') && s.includes('LighthousePanel') && s.includes('<ProjectCuration embedded />') && !s.includes('ov-grid') && !s.includes('TaskManagerPanel') && !s.includes('comp-sidebar') && !s.includes('MetricBar'); });
+check('R34-14 REQ-029 F-029-1 侧栏常驻三行文案移除（side-note 无残留）★R3-B1 随宿主改靶：方向台两面（树 + 项目详情）都不得回添', () => !read('/newtab/views/CompassTree.vue').includes('side-note') && !read('/newtab/views/ProjectCuration.vue').includes('side-note') && !read('/newtab/views/CompassTree.vue').includes('方向树给「为什么」'));
+check('R34-15 退役（R49 方向台撤侧栏，气泡引导随撤）★R3-B1 随宿主改靶：树与项目详情两面均无残留', () => !read('/newtab/views/CompassTree.vue').includes('guide-bubble') && !read('/newtab/views/ProjectCuration.vue').includes('zy_compass_guide_v1'));
+check('R49 方向台满宽模块化（R117 重写 → ★R3-B1 收成一面）：方向台一级=完整方向树，主航线/项目总览/任务调度/MetricBar 全部不在台面内（各自去向：树层、调度台底部双 tab、调度台顶栏）', () => { const t = read('/newtab/views/CompassTree.vue'); return t.includes('方向台') && !exists('/newtab/views/CompassShell.vue') && !t.includes('LighthousePanel') && !t.includes('ov-grid') && !t.includes('TaskManagerPanel') && !t.includes('comp-sidebar') && !t.includes('MetricBar'); });
 
 console.log('【第卅四轮 · V2.13 需求包第五批：REQ-031 系统性能调优】');
 check('R34-17 REQ-031 P-031-1 搜索关联 Map 化（buildSearchMaps 一次遍历 + collectResults O(1) 查找 + 卡数累加）', () => read('/content/search-overlay.ts').includes('function buildSearchMaps') && read('/content/search-overlay.ts').includes('maps.wsName.get(r.workspaceId)') && read('/content/search-overlay.ts').includes('maps.projName.get(t.projectId)') && read('/content/search-overlay.ts').includes('maps.wsCount.get(w.id)'));
@@ -420,7 +420,7 @@ console.log('【第卅七轮 · V2.14.2 第二批：REQ-043 命名体系（首�
 // R179-MIGRATED R37-5
 // V3.7.0（R179）随迁重写：固定页签 = 调度台 / 方向台（资源台退役，收敛到调度台「3张卡」）
 check('R37-5/R50-F3 导航 Tab（V3.7.0 重指：读码区剥注释＋/curation 残留负向）：首页→调度台、方向台两固定页签；资源台页签退役', () => { const s = codeOnly(read('/newtab/App.vue')); return s.includes('>调度台') && s.includes('>方向台') && !s.includes('>资源台') && !s.includes('taskBadge') && !s.includes('/curation'); });
-check('R37-6/R49 路由 meta：home=调度台、compass 二级页=项目详情/完整方向树、旧 actions 重定向 /', () => { const s = read('/newtab/router.ts'); return s.includes("title: '知源调度台 · 调度台'") && s.includes("title: '知源调度台 · 项目详情'") && s.includes("title: '知源调度台 · 完整方向树'") && s.includes("path: '/compass/actions',"); });
+check('R37-6/R49 路由 meta：home=调度台、一级=方向台（★R3-B1：树即一级，独立标题「完整方向树」随合并退役）、二级=项目详情、旧 actions 重定向 /', () => { const s = read('/newtab/router.ts'); return s.includes("title: '知源调度台 · 调度台'") && s.includes("title: '知源调度台 · 项目详情'") && s.includes("title: '知源调度台 · 方向台'") && !s.includes("title: '知源调度台 · 完整方向树'") && s.includes("path: '/compass/actions',"); });
 check('R37-7/R49 好奇心卡归属名保持「调度台」（首页即调度台，归属自洽）', () => { const s1 = read('/content/search-overlay.ts'); const s2 = read('/newtab/components/GlobalPopups.vue'); return s1.includes("ws: '调度台'") && s2.includes("ws: '调度台'"); });
 check('R37-8/R49 使用手册命名统一（方向台/调度台新章节标题，无旧「首页：30 秒」）', () => { const s = read('/newtab/manual-data.ts'); return s.includes('方向台') && s.includes('调度台：今天，从哪里出发') && !s.includes('首页：30 秒方向确认仪式') && !s.includes('🏠 首页（看方向'); });
 console.log('【第卅七轮 · V2.14.2 第三批：REQ-044 定位文案深化 + 竞品对比】');
