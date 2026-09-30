@@ -545,6 +545,26 @@ async function main() {
       && (!spot.subInfo || (spot.subInfo.editors === 0 && spot.subInfo.visible <= 6))
     console.log(`  ${spotOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'deck'.padEnd(4)} tabs=${spot.tabN}/3 池默认=${spot.poolOn ? '是' : '否'} 池面板=${spot.paneOn ? '有' : '无'} 槽内子任务=${spot.subInfo ? spot.subInfo.visible + '/' + spot.subInfo.rows + '可见·编辑' + spot.subInfo.editors : '无数据'}   → ${path.basename(spotFile)} (${Math.round(fs.statSync(spotFile).size / 1024)}KB)`)
     if (!spotOk) spotFail.push(`${theme}/deck：${JSON.stringify(spot)}（应：三张卡 + 资源卡池默认激活 + 池面板可见 + 槽内视口≤6可见/零编辑控件）`)
+    /* R3-Ca：池面板新增的列表视图（四主题各一张）——量完当场切回网格，别把视图态留给后面的场景 */
+    await page.evaluate(() => { const b = [...document.querySelectorAll('.pcp-btn')].find(x => (x.textContent || '').includes('☰ 列表')); if (b) b.click() })
+    await page.waitForTimeout(700)
+    await resetView(page)
+    const pl = await page.evaluate(() => {
+      const rows = document.querySelectorAll('.pcp-row').length
+      const cards = document.querySelectorAll('.pcp-card').length
+      const none = document.querySelectorAll('.pcp-tag-none').length
+      const untaggedBtn = [...document.querySelectorAll('.pcp-btn')].some(b => (b.textContent || '').includes('待打标'))
+      return { rows, cards, none, untaggedBtn }
+    })
+    const plFile = path.join(outDir, `${theme}-deck-pool-list.png`)
+    await page.screenshot({ path: plFile })
+    shots.push(plFile)
+    /* 量完当场切回网格再往下走——视图态是组件内的，不切回会串到后面的场景截图里 */
+    await page.evaluate(() => { const b = [...document.querySelectorAll('.pcp-btn')].find(x => (x.textContent || '').includes('▦ 网格')); if (b) b.click() })
+    await page.waitForTimeout(500)
+    const plOk = pl.rows > 0 && pl.cards === 0 && pl.untaggedBtn
+    console.log(`  ${plOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'池列表'.padEnd(4)} 行=${pl.rows} 网格残留=${pl.cards} 无标签标=${pl.none} 待打标钮=${pl.untaggedBtn ? '是' : '否'}   → ${path.basename(plFile)} (${Math.round(fs.statSync(plFile).size / 1024)}KB)`)
+    if (!plOk) spotFail.push(`${theme}/deck-pool-list：${JSON.stringify(pl)}（应：列表有行、网格零残留、控制行含「待打标」）`)
     await closeOverlays(page)
     await page.setViewportSize(VIEWPORT)
     for (const sc of DASH_SCENES) {
@@ -567,7 +587,7 @@ async function main() {
   await page.evaluate(async () => { await chrome.storage.local.remove(['zy_ai_v1']) }).catch(() => {})
   await ctx.close()
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
-  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length + 1 /* R2-②③：DeckTabs deck 判据（原项目调度 spotlight 改靶） */ + DASH_SCENES.length /* R172-T13：仪表盘七场景 + R3-B′：方向台完整方向树台面 ⇒ 68→72 */)
+  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length + 2 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 */ + DASH_SCENES.length /* R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 ⇒ 72→76 */)
   if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情 + 1 deck)）`); process.exit(1) }
   if (escLeak.length) {
     console.log(`❌ Esc 未能关闭中央弹窗：${escLeak.join(' / ')}（台面图已受影响，请查 Modal.vue 的 watch immediate）`)

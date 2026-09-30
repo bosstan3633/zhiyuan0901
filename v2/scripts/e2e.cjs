@@ -29,6 +29,7 @@
  *   E2E-26 R2-④⑤ K 定位改靶「资源卡池」（tab 激活 + 目标卡高亮）+ 打开池卡详情记一次「调出」事件
  *   E2E-27 R2-⑧ 池控制行：新建单卡入池 → 批量全选打标签 → 批量软删进回收站
  *   E2E-28 R4-a 迁移报告卡：出卡 → 回退落停用开关并清报告 → 可重新执行迁移
+ *   E2E-30 R3-Ca 池面板：列表视图 / 待打标筛选 / 批量反选 / 右键置顶
  */
 const path = require('path')
 const fs = require('fs')
@@ -980,6 +981,60 @@ async function main() {
     && tagged.found && tagged.ws === 'zy-curation' && (tagged.tags || []).includes('E2E 标签甲') && (tagged.tags || []).includes('E2E 批量标签')
     && goneAfterBatch && softDeleted,
     `浮层=${popOn} 新卡上屏=${newCardOn} 计数=${countBefore}→${countAfterNew} 批量条=${batchBarOn} 标签=${JSON.stringify(tagged.tags)} 台=${tagged.ws} 删后端点=${goneAfterBatch} 软删=${softDeleted}`)
+
+  // E2E-30（R3-Ca）：池面板补齐——列表视图 / 待打标筛选 / 批量反选 / 右键菜单置顶
+  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const d = cur['zy_data_v2']; if (!d) return
+    const mk = (id, title, tags) => ({ id, kind: 'resource', title, linkType: 'url', link: tags.length ? 'https://example.com/' + id : '',
+      description: '', tags, assets: [], customFields: {}, workspaceId: 'zy-curation', categoryId: '', pinned: false, callCount: 0,
+      createdAt: Date.now() - 86400000, updatedAt: Date.now() - 86400000, deletedAt: undefined })
+    d.resources = (d.resources || []).filter(x => !String(x.id).startsWith('e2e-ca-'))
+    d.resources.unshift(mk('e2e-ca-1', 'E2E 池卡甲', ['E2E 标签甲']), mk('e2e-ca-2', 'E2E 池卡乙', []), mk('e2e-ca-3', 'E2E 池卡丙', ['E2E 标签丙']))
+    return chrome.storage.local.set({ zy_data_v2: d })
+  }))
+  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2600)
+  await page.evaluate(() => { const b = [...document.querySelectorAll('.pcp-btn')].find(x => x.textContent.includes('退出批量')); if (b) b.click() })
+  await page.waitForTimeout(400)
+  const gridCount = await page.locator('.pcp-card').count()
+  await page.getByText('☰ 列表').first().click().catch(() => {})
+  await page.waitForTimeout(600)
+  const listCount = await page.locator('.pcp-row').count()
+  const noTagShown = await page.locator('.pcp-row', { hasText: 'E2E 池卡乙' }).first().isVisible().catch(() => false)
+  await page.getByText('🏷 待打标').first().click().catch(() => {})
+  await page.waitForTimeout(600)
+  const untaggedCount = await page.locator('.pcp-row').count()
+  const untaggedIsB = untaggedCount === 1 && (await page.locator('.pcp-row').first().textContent() || '').includes('E2E 池卡乙')
+  await page.getByText('🏷 待打标').first().click().catch(() => {})
+  await page.waitForTimeout(500)
+  await page.getByText('批量').first().click().catch(() => {})
+  await page.waitForTimeout(400)
+  await page.getByText('全选本池').first().click().catch(() => {})
+  await page.waitForTimeout(400)
+  const selAll = parseInt((await page.locator('.pcp-sel').textContent().catch(() => '0'))?.replace(/\D/g, '') || '0', 10)
+  await page.getByText('反选').first().click().catch(() => {})
+  await page.waitForTimeout(400)
+  const selAfterInvert = parseInt((await page.locator('.pcp-sel').textContent().catch(() => 'x'))?.replace(/\D/g, '') || 'x', 10)
+  await page.evaluate(() => { const b = [...document.querySelectorAll('.pcp-btn')].find(x => x.textContent.includes('退出批量')); if (b) b.click() })
+  await page.waitForTimeout(400)
+  // 右键取「甲」——它有链接，菜单应是四件（无链接的卡少一项「复制链接」，那正是条件项的口径）
+  const cardA = page.locator('.pcp-row', { hasText: 'E2E 池卡甲' }).first()
+  await cardA.click({ button: 'right' }).catch(() => {})
+  await page.waitForTimeout(500)
+  const ctxItems = await page.locator('.cx-item').allTextContents().catch(() => [])
+  const pinItem = page.locator('.cx-item', { hasText: '置顶' }).first()
+  await pinItem.click().catch(() => {})
+  await page.waitForTimeout(900)
+  const pinnedBack = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const c = ((cur['zy_data_v2'] || {}).resources || []).find(x => x.id === 'e2e-ca-1')
+    return { pinned: !!(c && c.pinned) }
+  }))
+  const pinBadge = await page.locator('.pcp-row', { hasText: 'E2E 池卡甲' }).first().locator('.pcp-pin').isVisible().catch(() => false)
+  report('E2E-30 ★R3-Ca 池面板：网格↔列表同源 → 待打标只留无标签卡 → 全选后反选归零 → 右键菜单置顶落库并出 📌',
+    gridCount >= 3 && listCount === gridCount && noTagShown && untaggedIsB && selAll >= 3 && selAfterInvert === 0
+    && ctxItems.length === 4 && ctxItems.some(x => x.includes('复制链接')) && pinnedBack.pinned && pinBadge,
+    `网格=${gridCount} 列表=${listCount} 待打标只留乙=${untaggedIsB} 全选=${selAll}→反选=${selAfterInvert} 菜单=${JSON.stringify(ctxItems)} 落库pinned=${pinnedBack.pinned} 徽标=${pinBadge}`)
 
   // E2E-28（R4-a）：迁移报告卡与整库回退出口——种备份+报告 → 设置页出卡 → 回退（确认框）→ 停用键落、报告清、卡片转停用态
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {

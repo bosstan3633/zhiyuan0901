@@ -3,9 +3,10 @@
  * R2-③ 建面板 → R2-④⑤ 收口 → R2-⑧ 管理面收编：资源卡池面板
  * —— 资源台退役后，池卡的唯一管理面。
  * 已有：搜索 + 网格 + 单击开详情（记一次调出）+ 软删带撤销 + `?hl=&hk=res` 定位高亮。
- * 本轮补：新建单卡 / 本地文件导入入口重落（R179 parked 的那条）/ 批量选择（打标签·删除）/ 增量渲染上限。
- * ★有意偏离记账：**不做看板与列表视图**——资源卡没有状态字段（看板无列可分），列表视图与网格信息重叠，
- *   等真实需求出现再说；「三视图渲染器」这条记账按此收口，不是漏做。
+ * R2-⑧ 补：新建单卡 / 本地文件导入入口重落（R179 parked 的那条）/ 批量选择（打标签·删除）/ 增量渲染上限。
+ * R3-Ca 补：列表视图 / 「待打标」筛选（R179 迁移时承诺的兜底出口）/ 批量反选 / 右键菜单（置顶·复制链接·删除）。
+ * ★有意偏离记账（更新）：**看板视图仍不做**——资源卡没有状态字段，看板无列可分；列表视图已补上，
+ *   它与网格不是"信息重叠"而是密度差（列表标签全展开、一屏看得多）。
  * 数据口径：workspaceId=CURATION_WS_ID（隐藏池 id，R179 定案）且未软删。
  */
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
@@ -15,6 +16,7 @@ import { CURATION_WS_ID, type ResourceCard } from '@/shared/models'
 import { uid } from '@/shared/utils'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import { showToast } from '@/shared/components/toast'
+import ContextMenu from '@/shared/components/ContextMenu.vue'
 import NewBadge from '@/shared/components/NewBadge.vue'
 import { useWorkspaceImport } from '../../composables/useWorkspaceImport'
 
@@ -23,14 +25,20 @@ const route = useRoute()
 const router = useRouter()
 
 const query = ref('')
+/** R3-Ca：视图两档（网格/列表）——与任务、好奇面板同口径存组件内 ref，不落盘（三面板一致，别在这里单开持久化） */
+const viewMode = ref<'card' | 'list'>('card')
+/** R3-Ca：「待打标」筛选——池卡由标签组织，无标签=召回不上的存量，这条是 R179 迁移时承诺的兜底出口 */
+const onlyUntagged = ref(false)
 const poolCards = computed(() => {
   const q = query.value.trim().toLowerCase()
   return (store.data?.resources || [])
     .filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
     .filter(r => !q || r.title.toLowerCase().includes(q) || (r.tags || []).some(t => t.toLowerCase().includes(q)))
+    .filter(r => !onlyUntagged.value || !(r.tags || []).length)
     .sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (b.updatedAt || 0) - (a.updatedAt || 0))
 })
 const poolTotal = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID).length)
+const untaggedCount = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID && !(r.tags || []).length).length)
 
 /* ===== R2-⑧ 增量渲染：默认一屏 60 张，滚动到底自动追加（260 张实测 449ms/longtask 0，
    但线性上涨到 500+ 就是首屏成本——上限先立住，不必等它变慢再补） ===== */
@@ -91,6 +99,21 @@ function removeCard(r: { id: string; title: string }) {
   } })
 }
 
+/* ===== R3-Ca 右键菜单（与好奇面板共用 ContextMenu 单根；池卡此前只有单击开详情，
+   置顶/复制链接这类"不想开详情"的动作没有出口） ===== */
+const ctx = ref({ open: false, x: 0, y: 0 })
+const ctxItems = ref<{ label: string; icon?: string; danger?: boolean; cb: () => void }[]>([])
+function openCtx(e: MouseEvent, r: ResourceCard) {
+  e.preventDefault()
+  ctxItems.value = [
+    { label: '打开详情', icon: 'eye', cb: () => emitOpenDrawer({ kind: 'res', id: r.id }) },
+    { label: r.pinned ? '取消置顶' : '📌 置顶', cb: () => { r.pinned = !r.pinned; r.updatedAt = Date.now(); store.persist() } },
+    ...(r.link ? [{ label: '复制链接', cb: () => { void navigator.clipboard?.writeText(r.link).then(() => showToast('✓ 链接已复制'), () => showToast('⚠ 复制失败（浏览器未授权剪贴板）')) } }] : []),
+    { label: '删除（进回收站）', icon: 'trash', danger: true, cb: () => removeCard(r) }
+  ]
+  ctx.value = { open: true, x: Math.min(e.clientX, window.innerWidth - 190), y: Math.min(e.clientY, window.innerHeight - 220) }
+}
+
 /* ===== R2-⑧ 新建单卡（标题必填，链接/标签可选；采集仍是主要入口，这里补「我知道要什么」的场景） ===== */
 const newOpen = ref(false)
 const newDraft = ref({ title: '', link: '', tags: '' })
@@ -146,6 +169,13 @@ function toggleSel(id: string) {
 function selectAll() {
   selected.value = poolCards.value.length === selected.value.size ? new Set() : new Set(poolCards.value.map(r => r.id))
 }
+/** R3-Ca 反选：在**当前过滤结果**内取反（不是全池）——过滤态下"反选全池"会把看不见的卡卷进来 */
+function invertSel() {
+  const s = new Set(selected.value)
+  const next = new Set<string>()
+  for (const r of poolCards.value) if (!s.has(r.id)) next.add(r.id)
+  selected.value = next
+}
 function applyTagToSelected() {
   const t = tagDraft.value.trim()
   if (!t) { showToast('先写一个标签'); return }
@@ -179,6 +209,11 @@ function deleteSelected() {
   <div class="pcp">
     <div class="pcp-toolbar">
       <div class="pcp-search"><span>🔍</span><input v-model="query" placeholder="快速过滤标题 / 标签..."></div>
+      <div class="pcp-views">
+        <button class="pcp-btn sm" :class="{ on: viewMode === 'card' }" @click="viewMode = 'card'" title="网格视图">▦ 网格</button>
+        <button class="pcp-btn sm" :class="{ on: viewMode === 'list' }" @click="viewMode = 'list'" title="列表视图（一屏看更多，标签全展开）">☰ 列表</button>
+      </div>
+      <button class="pcp-btn" :class="{ on: onlyUntagged }" :title="`无标签的卡在任何筛选下都召回不到——这里单独捞出来补标（当前 ${untaggedCount} 张）`" @click="onlyUntagged = !onlyUntagged">🏷 待打标 {{ untaggedCount }}</button>
       <button class="pcp-btn primary" @click="openNew">＋ 新建卡</button>
       <button class="pcp-btn" title="图片 / HTML / PDF，一文件一卡（本体存本地 IndexedDB）" @click="fileImport()">📥 导入本地文件</button>
       <button class="pcp-btn" :class="{ on: batchMode }" @click="toggleBatch">{{ batchMode ? '退出批量' : '批量' }}</button>
@@ -187,6 +222,7 @@ function deleteSelected() {
 
     <div v-if="batchMode" class="pcp-batch">
       <button class="pcp-btn sm" @click="selectAll">{{ poolCards.length && poolCards.length === selected.size ? '取消全选' : '全选本池' }}</button>
+      <button class="pcp-btn sm" :disabled="!poolCards.length" title="在当前过滤结果内反选" @click="invertSel">反选</button>
       <span class="pcp-sel">已选 {{ selected.size }} 张</span>
       <input v-model="tagDraft" class="pcp-tagin" placeholder="加一个标签，回车应用" @keydown.enter="applyTagToSelected">
       <button class="pcp-btn sm" :disabled="!selected.size" @click="applyTagToSelected">应用标签</button>
@@ -208,13 +244,33 @@ function deleteSelected() {
     </div>
 
     <div v-if="!poolCards.length" class="pcp-empty">
-      <template v-if="query">没有匹配「{{ query }}」的资源卡——试试清空过滤</template>
+      <template v-if="onlyUntagged">没有待打标的卡——池里每张卡都有标签了</template>
+      <template v-else-if="query">没有匹配「{{ query }}」的资源卡——试试清空过滤</template>
       <template v-else>资源卡池还空着——用 <b>Ctrl+Shift+J</b> 从任意网页采集第一张卡，或点上面「＋ 新建卡」</template>
+    </div>
+
+    <!-- R3-Ca 列表视图：一屏看更多 + 标签全展开（网格留作默认，两档共用同一份 poolCards 与分页） -->
+    <div v-else-if="viewMode === 'list'" class="pcp-list">
+      <div v-for="r in rendered" :key="r.id" class="pcp-row" :class="{ flash: highlightId === r.id, picked: selected.has(r.id) }" :data-rid="r.id"
+        :title="batchMode ? '点击选中 / 取消' : r.title + ' · 单击打开详情 · 右键更多'" @click="openCard(r)" @contextmenu="openCtx($event, r)">
+        <span v-if="batchMode" class="pcp-check">{{ selected.has(r.id) ? '✓' : '' }}</span>
+        <span class="pcp-r-title"><NewBadge :at="r.createdAt" /><span v-if="r.pinned" class="pcp-pin" title="已置顶">📌</span>{{ r.title }}</span>
+        <span class="pcp-r-tags">
+          <span v-if="!(r.tags || []).length" class="pcp-tag-none" title="无标签——任何筛选都召回不到它">无标签</span>
+          <span v-for="t in (r.tags || [])" :key="t" class="pcp-tag">{{ t }}</span>
+        </span>
+        <span class="pcp-r-marks">
+          <span v-if="r.link" class="pcp-mark" title="已挂链接">🔗</span>
+          <span v-if="r.assets?.length" class="pcp-mark" title="有附件">📎{{ r.assets.length }}</span>
+        </span>
+        <span class="pcp-date">{{ new Date(r.updatedAt || r.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span>
+        <button v-if="!batchMode" class="pcp-del" title="删除（进回收站，可撤销）" @click.stop="removeCard(r)">🗑</button>
+      </div>
     </div>
 
     <div v-else class="pcp-grid">
       <div v-for="r in rendered" :key="r.id" class="pcp-card" :class="{ flash: highlightId === r.id, picked: selected.has(r.id) }" :data-rid="r.id"
-        :title="batchMode ? '点击选中 / 取消' : r.title + ' · 单击打开详情'" @click="openCard(r)">
+        :title="batchMode ? '点击选中 / 取消' : r.title + ' · 单击打开详情 · 右键更多'" @click="openCard(r)" @contextmenu="openCtx($event, r)">
         <div class="pcp-top">
           <div class="pcp-title">
             <NewBadge :at="r.createdAt" />
@@ -231,6 +287,8 @@ function deleteSelected() {
         </div>
       </div>
     </div>
+
+    <ContextMenu :state="ctx" :items="ctxItems" @close="ctx.open = false" />
 
     <div v-if="hasMore" :ref="setSentinel" class="render-more" @click="renderMore">
       ↓ 已显示 {{ rendered.length }} / {{ poolCards.length }} 张 —— 点此加载更多
@@ -274,7 +332,7 @@ function deleteSelected() {
 .pcp-card:hover { border-color: var(--border-strong); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
 .pcp-card.picked { border-color: var(--accent); background: var(--accent-light); }
 /* R2-④：定位高亮——与 workspace.css 的 .res-card.flash 同一视觉语言（该表在调度台不加载，故本地定义） */
-.pcp-card.flash { animation: pcp-flash 2s ease-out; }
+.pcp-card.flash, .pcp-row.flash { animation: pcp-flash 2s ease-out; }
 @keyframes pcp-flash {
   0% { box-shadow: 0 0 0 3px var(--accent), 0 4px 20px color-mix(in srgb, var(--accent) 35%, transparent); background: var(--accent-light); }
   60% { box-shadow: 0 0 0 3px var(--accent); background: var(--accent-light); }
@@ -291,6 +349,18 @@ function deleteSelected() {
 .pcp-mark { flex-shrink: 0; }
 .pcp-tag { padding: 0 6px; border-radius: 99px; background: var(--surface-3); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
 .pcp-date { margin-left: auto; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+/* R3-Ca：视图切换段控件 + 列表视图（行高固定、标签全展开、hover 才出删除——与网格同一套令牌） */
+.pcp-views { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.pcp-views .pcp-btn { border-color: transparent; background: transparent; }
+.pcp-views .pcp-btn.on { border-color: var(--border); background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.pcp-list { display: flex; flex-direction: column; gap: 4px; }
+.pcp-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: border-color var(--dur) ease, background var(--dur) ease; }
+.pcp-row:hover { border-color: var(--border-strong); }
+.pcp-row.picked { border-color: var(--accent); background: var(--accent-light); }
+.pcp-r-title { flex: 0 1 auto; min-width: 120px; font-size: var(--fs-sub); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pcp-r-tags { flex: 1 1 auto; min-width: 0; display: inline-flex; gap: 4px; overflow: hidden; }
+.pcp-r-marks { flex-shrink: 0; display: inline-flex; gap: 4px; font-size: var(--fs-tiny); color: var(--text-3); }
+.pcp-tag-none { padding: 0 6px; border-radius: 99px; background: var(--tag-warn-bg); color: var(--tag-warn-text); white-space: nowrap; font-size: var(--fs-tiny); }
 .render-more { margin-top: 12px; padding: 9px; text-align: center; font-size: var(--fs-sub); color: var(--text-3); border: 1px dashed var(--border); border-radius: var(--radius-sm); cursor: pointer; }
 .render-more:hover { color: var(--accent); border-color: var(--accent); }
 </style>

@@ -830,3 +830,25 @@ check('R3-B2 ★排序键口径：主攻 → 置顶 → order（pinned 不是第
     && t.includes('function toggleProjectPin(dir: Direction, p: Project)') && t.includes('p.order = minOrder - 1') && t.includes('store.persist()')
     && t.includes('class="tp-pin"') && t.includes('📌 置顶到本目标前排') && t.includes('☆ 取消置顶')
 });
+
+// ============== R3-Ca 池面板补齐：列表视图 / 待打标筛选 / 批量反选 / 右键菜单 ==============
+console.log('【R3-Ca · 资源卡池面板补齐】');
+check('R3-Ca ★两视图同一份数据源 + 待打标筛选：viewMode 存组件内 ref（与任务/好奇面板同口径，不单开持久化）；列表与网格都从 rendered（poolCards 分页切片）渲染，**不许复制第二份过滤链**；列表行同样带 data-rid/flash/picked（定位高亮与批量选择两视图等价）；无标签的行显式标出来；「🏷 待打标 N」是 R179 迁移承诺的兜底出口（无标签=任何筛选都召回不到）', () => {
+  const t = read('/newtab/components/compass/PoolCardsPanel.vue')
+  return t.includes("const viewMode = ref<'card' | 'list'>('card')") && t.includes('v-else-if="viewMode === \'list\'"') && t.includes('class="pcp-list"')
+    && (t.match(/v-for="r in rendered"/g) || []).length === 2
+    && t.includes('class="pcp-row"') && t.includes(':data-rid="r.id"') && t.includes('.pcp-card.flash, .pcp-row.flash')
+    && t.includes('class="pcp-tag-none"') && t.includes('const onlyUntagged = ref(false)') && t.includes('🏷 待打标 {{ untaggedCount }}')
+    && t.includes('const untaggedCount = computed(') && !t.includes('wsViewMode')
+});
+check('R3-Ca ★批量反选只在当前过滤结果内取反：invertSel 遍历 poolCards（不是全池 resources）——过滤态下"反选全池"会把看不见的卡卷进批量动作，那是静默误删的配方', () => {
+  const t = read('/newtab/components/compass/PoolCardsPanel.vue')
+  return t.includes('function invertSel()') && t.includes('for (const r of poolCards.value) if (!s.has(r.id)) next.add(r.id)')
+    && t.includes('@click="invertSel"') && !t.includes('for (const r of store.data!.resources) if (!s.has(r.id))')
+});
+check('R3-Ca ★右键菜单复用 ContextMenu 单根（不新写第二套菜单 DOM），四项动作全部复用既有函数：删除仍走 removeCard 的软删+撤销、置顶就地翻 pinned、复制链接走剪贴板且失败有提示', () => {
+  const t = read('/newtab/components/compass/PoolCardsPanel.vue')
+  return t.includes("import ContextMenu from '@/shared/components/ContextMenu.vue'") && t.includes('<ContextMenu :state="ctx" :items="ctxItems" @close="ctx.open = false" />')
+    && t.includes('@contextmenu="openCtx($event, r)"') && t.includes('function openCtx(') && !t.includes('ctx-menu')
+    && t.includes("cb: () => removeCard(r)") && t.includes("label: r.pinned ? '取消置顶' : '📌 置顶'") && t.includes('navigator.clipboard?.writeText')
+});
