@@ -715,9 +715,9 @@ check('R2-⑧ ★新建仍守池语义不变量：新卡 workspaceId=CURATION_WS
   return p.includes("workspaceId: CURATION_WS_ID, categoryId: ''") && p.includes("uid('rc')")
     && p.includes('store.data!.resources.unshift(card)') && !p.includes('workspaceId: workspaceId.value')
 });
-check('R2-⑧ ★批量口径：打标签只加不减（去标签回卡详情，避免面板里做出第二套标签编辑）· 批量删除走软删带撤销不弹确认（与单卡/全站一致）', () => {
-  const p = read('/newtab/components/compass/PoolCardsPanel.vue')
-  return p.includes('Array.from(new Set([...(r.tags || []), t]))') && p.includes('只加不减')
+check('R2-⑧ ★批量口径（★R3-Cb 实现上收到 useBatchSelect/addTagToCards 一份，口径不变）：打标签只加不减（去标签回卡详情，面板里不得有第二套标签编辑）· 批量删除走软删带撤销不弹确认（与单卡/全站一致）', () => {
+  const p = read('/newtab/components/compass/PoolCardsPanel.vue'), b = read('/newtab/composables/useBatchSelect.ts')
+  return b.includes('Array.from(new Set([...(it.tags || []), t]))') && p.includes('addTagToCards(') && p.includes('只加不减')
     && p.includes('r.deletedAt = now') && p.includes("label: '撤销'") && !p.includes('useConfirm')
 });
 check('R2-⑧ ★增量渲染上限立住：默认一屏 60 张 + 滚动到底自动追加（IntersectionObserver rootMargin 240px）+ 手动「加载更多」兜底；?hl 定位会先把目标卡纳入渲染范围（否则分页之外滚不到）', () => {
@@ -841,14 +841,43 @@ check('R3-Ca ★两视图同一份数据源 + 待打标筛选：viewMode 存组�
     && t.includes('class="pcp-tag-none"') && t.includes('const onlyUntagged = ref(false)') && t.includes('🏷 待打标 {{ untaggedCount }}')
     && t.includes('const untaggedCount = computed(') && !t.includes('wsViewMode')
 });
-check('R3-Ca ★批量反选只在当前过滤结果内取反：invertSel 遍历 poolCards（不是全池 resources）——过滤态下"反选全池"会把看不见的卡卷进批量动作，那是静默误删的配方', () => {
-  const t = read('/newtab/components/compass/PoolCardsPanel.vue')
-  return t.includes('function invertSel()') && t.includes('for (const r of poolCards.value) if (!s.has(r.id)) next.add(r.id)')
-    && t.includes('@click="invertSel"') && !t.includes('for (const r of store.data!.resources) if (!s.has(r.id))')
+check('R3-Ca ★批量反选只在当前过滤结果内取反（★R3-Cb 收归 useBatchSelect，三面板共用同一份语义）：invert 遍历 visibleIds()（各面板传的是**当前过滤结果**，不是全量集合）——过滤态下"反选全量"会把看不见的卡卷进批量动作，而批量动作里就有删除', () => {
+  const b = codeOnly(read('/newtab/composables/useBatchSelect.ts'))
+  const p = read('/newtab/components/compass/PoolCardsPanel.vue'), t = read('/newtab/components/compass/TaskManagerPanel.vue'), c = read('/newtab/components/compass/CuriosityPanel.vue')
+  return b.includes('function invert()') && b.includes('visibleIds().filter(id => !selected.value.has(id))') && !b.includes('store.data')
+    && p.includes("useBatchSelect(() => poolCards.value.map(r => r.id))") && t.includes("useBatchSelect(() => filteredTasks.value.map(t => t.id))") && c.includes("useBatchSelect(() => filtered.value.map(c => c.id))")
 });
 check('R3-Ca ★右键菜单复用 ContextMenu 单根（不新写第二套菜单 DOM），四项动作全部复用既有函数：删除仍走 removeCard 的软删+撤销、置顶就地翻 pinned、复制链接走剪贴板且失败有提示', () => {
   const t = read('/newtab/components/compass/PoolCardsPanel.vue')
   return t.includes("import ContextMenu from '@/shared/components/ContextMenu.vue'") && t.includes('<ContextMenu :state="ctx" :items="ctxItems" @close="ctx.open = false" />')
     && t.includes('@contextmenu="openCtx($event, r)"') && t.includes('function openCtx(') && !t.includes('ctx-menu')
     && t.includes("cb: () => removeCard(r)") && t.includes("label: r.pinned ? '取消置顶' : '📌 置顶'") && t.includes('navigator.clipboard?.writeText')
+});
+
+// ============== R3-Cb 批量口径合一：三张卡共用一份选择与打标实现 ==============
+console.log('【R3-Cb · 三面板批量选择与打标合一】');
+check('R3-Cb ★批量选择唯一实现：三面板全部 import useBatchSelect，面板内不得再留第二份 selectAll / 自建 selected 容器（改前三份各写各的，任务与好奇的按钮文案写「全选/反选」而函数体只做满选↔清空）', () => {
+  const p = codeOnly(read('/newtab/components/compass/PoolCardsPanel.vue')), t = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue')), c = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue'))
+  const b = read('/newtab/composables/useBatchSelect.ts')
+  return [p, t, c].every(x => x.includes("from '../../composables/useBatchSelect'"))
+    && [p, t, c].every(x => !x.includes('function selectAll')) && [p, t, c].every(x => !x.includes('const selected: Ref<Set<string>> = ref') && !(x.match(/selected\w*(TaskIds)? = ref<Set<string>>/g) || []).length)
+    && b.includes('export function useBatchSelect') && b.includes('export function addTagToCards') && b.includes('function setMode(on: boolean)')
+});
+check('R3-Cb ★批量栏在批量态即出现（不是"先选中才给你按钮"）：三面板 v-if 只看 batchMode，动作按钮一律 :disabled="!selected.size"，且禁用态有 var(--opacity-disabled) 可见反馈（改前任务与好奇的「全选」按钮藏在需要勾选才会渲染的栏里）', () => {
+  const t = read('/newtab/components/compass/TaskManagerPanel.vue'), c = read('/newtab/components/compass/CuriosityPanel.vue'), p = read('/newtab/components/compass/PoolCardsPanel.vue')
+  return t.includes('v-if="batchMode" class="batch-bar"') && c.includes('v-if="batchMode" class="cz-batch-bar"')
+    && t.includes(':disabled="!selectedTaskIds.size"') && c.includes(':disabled="!selected.size"') && p.includes(':disabled="!selected.size"')
+    && t.includes('.mini-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }') && c.includes('.mini-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }')
+});
+check('R3-Cb ★退出批量必须清空选择（三处同一句 setMode）：改前好奇面板退出批量不清空 selected，下一轮进来上一轮勾选还在而可见集合可能已变——批量动作里就有删除，那是"我以为没选"的误删配方', () => {
+  const b = read('/newtab/composables/useBatchSelect.ts')
+  const t = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue')), c = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue')), p = codeOnly(read('/newtab/components/compass/PoolCardsPanel.vue'))
+  return b.includes('if (!on) clear()') && [t, c, p].every(x => /set(Batch)?Mode\(!batchMode(\.value)?\)/.test(x))
+    && !c.includes('batchMode = !batchMode')
+});
+check('R3-Cb ★三类卡批量打标签齐全且同一写入式：任务与好奇各补「批量打标签」入口（输入框 + 应用，回车即应用），三处都调 addTagToCards（只加不减、软删卡跳过、命中数回提示），去标签一律回卡详情不在面板里做第二套编辑', () => {
+  const t = read('/newtab/components/compass/TaskManagerPanel.vue'), c = read('/newtab/components/compass/CuriosityPanel.vue'), p = read('/newtab/components/compass/PoolCardsPanel.vue')
+  return t.includes('function batchAddTag()') && c.includes('function batchAddTag()') && p.includes('function applyTagToSelected()')
+    && t.includes('addTagToCards(d.value.tasks') && c.includes('addTagToCards(d.value.curiosities') && p.includes('addTagToCards(store.data!.resources')
+    && [t, c, p].every(x => x.includes('只加不减') && x.includes('回车应用'))
 });

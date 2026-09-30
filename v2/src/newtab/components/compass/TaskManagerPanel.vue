@@ -10,6 +10,7 @@ import { uid } from '@/shared/utils'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { onOpenDrawer } from '@/shared/utils/bus'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
+import { useBatchSelect, addTagToCards } from '../../composables/useBatchSelect'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import type { TaskCard, Subtask, FieldDef } from '@/shared/models'
 import { recordCardOpen } from '@/shared/storage/stats'
@@ -68,10 +69,7 @@ function toggleSortDir() { sortDir.value = sortDir.value === 'desc' ? 'asc' : 'd
 const searchQuery = ref('')
 const batchMode = ref(false)
 
-function toggleBatchMode() {
-  batchMode.value = !batchMode.value
-  if (!batchMode.value) selectedTaskIds.value.clear()
-}
+function toggleBatchMode() { batchMode.value = setBatchMode(!batchMode.value) }
 
 /** R110-LC（T3）：统一任务过滤管线（软删 → 状态/未归档 → 搜索）——归档提示与默认列表复用同一口径 */
 function applyTaskFilters(list: TaskCard[]): TaskCard[] {
@@ -162,14 +160,19 @@ const listGroups = computed<{ key: string; name: string; icon: string; pct: numb
   ].filter(g => g.tasks.length)
 })
 
-const selectedTaskIds = ref<Set<string>>(new Set())
-function toggleSelect(taskId: string) {
-  if (selectedTaskIds.value.has(taskId)) selectedTaskIds.value.delete(taskId)
-  else selectedTaskIds.value.add(taskId)
-}
-function selectAll() {
-  if (selectedTaskIds.value.size === filteredTasks.value.length) selectedTaskIds.value.clear()
-  else filteredTasks.value.forEach(t => selectedTaskIds.value.add(t.id))
+/* R3-Cb：批量选择收归 useBatchSelect 一份实现——改前这里的按钮文案写「全选/反选」，
+   函数体却只做满选↔清空（反选从来没实现过）。 */
+const { selected: selectedTaskIds, allSelected: allTasksSelected, toggle: toggleSelect, selectAll, invert: invertSelect, clear: clearSelection, setMode: setBatchMode } =
+  useBatchSelect(() => filteredTasks.value.map(t => t.id))
+const batchTagDraft = ref('')
+function batchAddTag() {
+  const t = batchTagDraft.value.trim()
+  if (!selectedTaskIds.value.size) { showToast('还没选中任务'); return }
+  if (!t) { showToast('先写一个标签'); return }
+  const n = addTagToCards(d.value.tasks, selectedTaskIds.value, t)
+  store.persist()
+  batchTagDraft.value = ''
+  showToast(`✓ 已给 ${n} 个任务加标签「${t}」（只加不减，去标签到任务详情里改）`)
 }
 function batchDelete() {
   const removed: TaskCard[] = []
@@ -708,10 +711,14 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
         📦 另有 {{ archivedHintCount }} 张已归档任务未显示（点此在 设置 → 总览 · 资源生命周期 中查看 / 恢复）
       </div>
 
-      <!-- 批量操作栏 -->
-      <div v-if="batchMode && selectedTaskIds.size" class="batch-bar">
+      <!-- 批量操作栏（R3-Cb：批量态一进来就该看得见，改前"未选中即整栏不渲染"，
+           于是「全选」按钮要先把每张卡点一遍才会出现） -->
+      <div v-if="batchMode" class="batch-bar">
         <span class="batch-count">已选 {{ selectedTaskIds.size }} 项</span>
-        <button class="mini-btn" @click="selectAll">全选/反选</button>
+        <button class="mini-btn" @click="selectAll">{{ allTasksSelected ? '取消全选' : '全选' }}</button>
+        <button class="mini-btn" :disabled="!filteredTasks.length" title="在当前过滤结果内反选" @click="invertSelect">反选</button>
+        <input v-model="batchTagDraft" class="batch-tagin" placeholder="加一个标签，回车应用" @keydown.enter="batchAddTag">
+        <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="batchAddTag">应用标签</button>
         <button class="mini-btn" @click="batchSetStatus('todo')">待开始</button>
         <button class="mini-btn" @click="batchSetStatus('doing')">进行中</button>
         <button class="mini-btn" @click="batchSetStatus('done')">已完成</button>
@@ -720,7 +727,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
         <button class="mini-btn" @click="batchSetPriority('low')">🟢 低优</button>
         <button class="mini-btn" @click="openBatchMount">📦 挂到项目→指标</button>
         <button class="mini-btn danger" @click="batchDelete">🗑 删除</button>
-        <button class="mini-btn" @click="selectedTaskIds.clear()">取消</button>
+        <button class="mini-btn" @click="clearSelection()">取消选择</button>
       </div>
 
       <!-- 卡片视图（第卌五轮新增 · 默认；R47-A3：置顶/非置顶分组区块渲染，与好奇心培育同款） -->
@@ -1062,6 +1069,10 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .mini-btn.primary:hover { background: var(--accent-hover); }
 .mini-btn.active { background: var(--accent-light); color: var(--accent-ink); border-color: var(--accent); }
 .mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
+
+.mini-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+.batch-tagin { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius-sm); padding: 3px 8px; font-size: var(--fs-caption); font-family: inherit; outline: none; width: 160px; }
+.batch-tagin:focus { border-color: var(--accent); }
 .mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 .tag { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-tiny); padding: 2px 8px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 500; white-space: nowrap; }
 .tag.accent { background: var(--accent-light); color: var(--accent-ink); }
@@ -1092,6 +1103,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .mgr-count .total.act:hover { text-decoration: underline; }
 .batch-bar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: var(--accent-light); border-radius: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 .batch-count { font-size: var(--fs-sub); font-weight: 700; color: var(--accent); margin-right: 4px; }
+.batch-tagin { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius-sm); padding: 3px 8px; font-size: var(--fs-caption); font-family: inherit; outline: none; width: 160px; }
+.batch-tagin:focus { border-color: var(--accent); }
 .batch-check { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: var(--fs-caption); color: #fff; background: var(--surface); }
 .batch-check.checked { background: var(--accent); border-color: var(--accent); }
 

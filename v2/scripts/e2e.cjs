@@ -30,6 +30,7 @@
  *   E2E-27 R2-⑧ 池控制行：新建单卡入池 → 批量全选打标签 → 批量软删进回收站
  *   E2E-28 R4-a 迁移报告卡：出卡 → 回退落停用开关并清报告 → 可重新执行迁移
  *   E2E-30 R3-Ca 池面板：列表视图 / 待打标筛选 / 批量反选 / 右键置顶
+ *   E2E-31 R3-Cb 三张卡批量口径合一：栏即出 / 全选反选可达 / 退出清空 / 任务批量打标
  */
 const path = require('path')
 const fs = require('fs')
@@ -1035,6 +1036,56 @@ async function main() {
     gridCount >= 3 && listCount === gridCount && noTagShown && untaggedIsB && selAll >= 3 && selAfterInvert === 0
     && ctxItems.length === 4 && ctxItems.some(x => x.includes('复制链接')) && pinnedBack.pinned && pinBadge,
     `网格=${gridCount} 列表=${listCount} 待打标只留乙=${untaggedIsB} 全选=${selAll}→反选=${selAfterInvert} 菜单=${JSON.stringify(ctxItems)} 落库pinned=${pinnedBack.pinned} 徽标=${pinBadge}`)
+
+  // E2E-31（R3-Cb）：三张卡批量口径合一——批量栏进来就在、全选/反选可达、退出即清空、任务补批量打标
+  // 好奇面板：先种两张卡再测（E2E 库里可能一张不剩，"全选后 0 项"会被误读成反选生效）
+  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const d = cur['zy_data_v2']; if (!d) return
+    d.curiosities = (d.curiosities || []).filter(x => !String(x.id).startsWith('e2e-cb-'))
+    const mk = (id, q) => ({ id, kind: 'curiosity', question: q, sourceUrl: 'https://example.com/' + id, status: 'todo', pinned: false, tags: [], customFields: {}, assets: [], createdAt: Date.now() - 86400000, updatedAt: Date.now() - 86400000 })
+    d.curiosities.unshift(mk('e2e-cb-1', 'E2E 好奇甲'), mk('e2e-cb-2', 'E2E 好奇乙'))
+    return chrome.storage.local.set({ zy_data_v2: d })
+  }))
+  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+  await page.locator('.bt-tab').nth(1).click().catch(() => {})
+  await page.waitForTimeout(900)
+  // 按钮文案是「☑ 批量管理」/「✓ 完成」——按文案找，别按 .cz-batch-btn 的第一枚（那是 AI 转化研判钮）
+  await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => (x.textContent || '').includes('批量管理')); if (b) b.click() })
+  await page.waitForTimeout(600)
+  const barWithoutSel = await page.locator('.batch-bar').isVisible().catch(() => false)
+  const sel0 = (await page.locator('.batch-count').textContent().catch(() => '')) || ''
+  await page.locator('.batch-bar .mini-btn', { hasText: '全选' }).first().click().catch(() => {})
+  await page.waitForTimeout(500)
+  const tSelAll = parseInt(((await page.locator('.batch-count').textContent().catch(() => '0')) || '').replace(/\D/g, '') || '0', 10)
+  await page.locator('.batch-tagin').fill('E2E 批量任务标签').catch(() => {})
+  await page.locator('.batch-bar .mini-btn', { hasText: '应用标签' }).first().click().catch(() => {})
+  await page.waitForTimeout(900)
+  const taskTagged = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const ts = ((cur['zy_data_v2'] || {}).tasks || []).filter(t => !t.deletedAt && (t.tags || []).includes('E2E 批量任务标签'))
+    return { n: ts.length, ids: ts.map(t => t.id) }
+  }))
+  await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => (x.textContent || '').includes('完成') && x.classList.contains('mini-btn')); if (b) b.click() })
+  await page.waitForTimeout(500)
+  await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => (x.textContent || '').includes('批量管理')); if (b) b.click() })
+  await page.waitForTimeout(600)
+  const selAfterReenter = parseInt(((await page.locator('.batch-count').textContent().catch(() => 'x')) || '').replace(/\D/g, '') || 'x', 10)
+  await page.locator('.bt-tab').nth(2).click().catch(() => {})
+  await page.waitForTimeout(1400)
+  await page.evaluate(() => { const b = [...document.querySelectorAll('.cz-batch-btn')].find(x => (x.textContent || '').includes('批量管理')); if (b) b.click() })
+  await page.waitForTimeout(600)
+  const czBar = await page.locator('.cz-batch-bar').isVisible().catch(() => false)
+  await page.locator('.cz-batch-bar .mini-btn', { hasText: '全选' }).first().click().catch(() => {})
+  await page.waitForTimeout(500)
+  const czAll = (await page.locator('.cz-batch-bar span').first().textContent().catch(() => '')) || ''
+  await page.locator('.cz-batch-bar .mini-btn', { hasText: '反选' }).first().click().catch(() => {})
+  await page.waitForTimeout(500)
+  const czInvert = (await page.locator('.cz-batch-bar span').first().textContent().catch(() => '')) || ''
+  report('E2E-31 ★R3-Cb 批量合一：任务批量栏未选即出 → 全选可点 → 批量打标落库 → 退出再进不残留勾选；好奇全选→反选归零',
+    barWithoutSel && /已选 0/.test(sel0) && tSelAll >= 2 && taskTagged.n === tSelAll && selAfterReenter === 0
+    && czBar && /已选 2/.test(czAll) && /已选 0/.test(czInvert),
+    `栏即出=${barWithoutSel} 初始="${sel0.trim()}" 全选=${tSelAll} 打标落库=${taskTagged.n} 重进残留=${selAfterReenter} 好奇栏=${czBar} 全选="${czAll.trim()}" 反选="${czInvert.trim()}"`)
 
   // E2E-28（R4-a）：迁移报告卡与整库回退出口——种备份+报告 → 设置页出卡 → 回退（确认框）→ 停用键落、报告清、卡片转停用态
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {

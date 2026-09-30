@@ -19,6 +19,7 @@ import { showToast } from '@/shared/components/toast'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import NewBadge from '@/shared/components/NewBadge.vue'
 import { useWorkspaceImport } from '../../composables/useWorkspaceImport'
+import { useBatchSelect, addTagToCards } from '../../composables/useBatchSelect'
 
 const store = useAppStore()
 const route = useRoute()
@@ -153,40 +154,16 @@ const { fileImportInput, fileImport, handleFileImport } = useWorkspaceImport({
   persist: () => store.persist()
 })
 
-/* ===== R2-⑧ 批量：选择 → 打标签 / 软删（打标签只加不删，与拖拽打标同口径） ===== */
+/* ===== R2-⑧ 批量 → R3-Cb 选择与打标口径收归 useBatchSelect 一份实现 ===== */
 const batchMode = ref(false)
-const selected = ref<Set<string>>(new Set())
+const { selected, size: selSize, allSelected, toggle: toggleSel, selectAll, invert: invertSel, clear: clearSel, setMode } = useBatchSelect(() => poolCards.value.map(r => r.id))
 const tagDraft = ref('')
-function toggleBatch() {
-  batchMode.value = !batchMode.value
-  if (!batchMode.value) selected.value = new Set()
-}
-function toggleSel(id: string) {
-  const s = new Set(selected.value)
-  if (s.has(id)) s.delete(id); else s.add(id)
-  selected.value = s
-}
-function selectAll() {
-  selected.value = poolCards.value.length === selected.value.size ? new Set() : new Set(poolCards.value.map(r => r.id))
-}
-/** R3-Ca 反选：在**当前过滤结果**内取反（不是全池）——过滤态下"反选全池"会把看不见的卡卷进来 */
-function invertSel() {
-  const s = new Set(selected.value)
-  const next = new Set<string>()
-  for (const r of poolCards.value) if (!s.has(r.id)) next.add(r.id)
-  selected.value = next
-}
+function toggleBatch() { batchMode.value = setMode(!batchMode.value) }
 function applyTagToSelected() {
   const t = tagDraft.value.trim()
-  if (!t) { showToast('先写一个标签'); return }
   if (!selected.value.size) { showToast('还没选中卡片'); return }
-  let n = 0
-  for (const r of store.data!.resources) {
-    if (!selected.value.has(r.id) || r.deletedAt) continue
-    r.tags = Array.from(new Set([...(r.tags || []), t]))
-    r.updatedAt = Date.now()
-    n++
-  }
+  if (!t) { showToast('先写一个标签'); return }
+  const n = addTagToCards(store.data!.resources, selected.value, t)
   store.persist()
   tagDraft.value = ''
   showToast(`✓ 已给 ${n} 张卡加标签「${t}」（只加不减，去标签到卡详情里改）`)
@@ -197,7 +174,7 @@ function deleteSelected() {
   const now = Date.now()
   for (const r of store.data!.resources) if (ids.includes(r.id) && !r.deletedAt) r.deletedAt = now
   store.persist()
-  selected.value = new Set()
+  clearSel()
   showToast(`已删除 ${ids.length} 张卡 · 进回收站`, { label: '撤销', cb: () => {
     for (const r of store.data!.resources) if (ids.includes(r.id) && r.deletedAt === now) r.deletedAt = undefined
     store.persist()
@@ -221,9 +198,9 @@ function deleteSelected() {
     </div>
 
     <div v-if="batchMode" class="pcp-batch">
-      <button class="pcp-btn sm" @click="selectAll">{{ poolCards.length && poolCards.length === selected.size ? '取消全选' : '全选本池' }}</button>
+      <button class="pcp-btn sm" @click="selectAll">{{ allSelected ? '取消全选' : '全选本池' }}</button>
       <button class="pcp-btn sm" :disabled="!poolCards.length" title="在当前过滤结果内反选" @click="invertSel">反选</button>
-      <span class="pcp-sel">已选 {{ selected.size }} 张</span>
+      <span class="pcp-sel">已选 {{ selSize }} 张</span>
       <input v-model="tagDraft" class="pcp-tagin" placeholder="加一个标签，回车应用" @keydown.enter="applyTagToSelected">
       <button class="pcp-btn sm" :disabled="!selected.size" @click="applyTagToSelected">应用标签</button>
       <button class="pcp-btn sm danger" :disabled="!selected.size" @click="deleteSelected">🗑 删除（进回收站）</button>
