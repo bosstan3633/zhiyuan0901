@@ -19,9 +19,9 @@ const fs = require('fs')
 const path = require('path')
 const { chromium } = require('playwright-core')
 
-const CHROME = process.platform === 'darwin'
-  ? path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright', 'chromium-1234', 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing')
-  : path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1223', 'chrome-win64', 'chrome.exe')
+/* R4-Ea（挂账 #84）：浏览器可执行文件解析统一到 scripts/browser.cjs——四级回落的唯一实现。
+   此前这里各抄一份且抄得不一致（img-diff 只写死 chromium-1234，缓存换版本后直接起不来）。 */
+const { CHROME } = require('./browser.cjs')
 
 const argv = process.argv.slice(2)
 const files = argv.filter(a => !a.startsWith('--'))

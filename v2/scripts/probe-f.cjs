@@ -27,30 +27,9 @@ const path = require('path')
 const fs = require('fs')
 const { chromium } = require('playwright-core')
 
-// 与 e2e.cjs / perf.cjs 同一条浏览器回落链（06-2 §B 的 R145/R149 口径）：
-// pinned Chrome for Testing → ZY_CHROME → 本机任一 ms-playwright Chromium → 系统 Chrome。
-// 「本机没钉那个版本」不该成为跳过门禁的理由。
-const CHROME_PINNED = process.platform === 'darwin'
-  ? path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright', 'chromium-1234', 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing')
-  : path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1223', 'chrome-win64', 'chrome.exe')
-function resolveChrome() {
-  if (fs.existsSync(CHROME_PINNED)) return CHROME_PINNED
-  if (process.env.ZY_CHROME) return process.env.ZY_CHROME
-  const cache = process.platform === 'darwin'
-    ? path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright')
-    : path.join(process.env.LOCALAPPDATA || '', 'ms-playwright')
-  try {
-    const hits = fs.readdirSync(cache).filter(x => /^chromium-\d+$/.test(x)).sort()
-    for (const hit of hits.reverse()) {
-      for (const rel of ['chrome-win64/chrome.exe', 'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing', 'chrome-mac/Chromium.app/Contents/MacOS/Chromium', 'chrome-linux/chrome']) {
-        const p = path.join(cache, hit, rel)
-        if (fs.existsSync(p)) return p
-      }
-    }
-  } catch { /* 无缓存目录 */ }
-  const sys = process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : ''
-  return sys && fs.existsSync(sys) ? sys : CHROME_PINNED
-}
+/* R4-Ea（挂账 #84）：浏览器可执行文件解析统一到 scripts/browser.cjs——四级回落的唯一实现。
+   此前这里各抄一份且抄得不一致（img-diff 只写死 chromium-1234，缓存换版本后直接起不来）。 */
+const { CHROME } = require('./browser.cjs')
 
 const ROOT = path.resolve(__dirname, '..')
 const EXT_INDEX = 'src/newtab/index.html'
@@ -78,7 +57,7 @@ function sourceVersion() {
 }
 
 const PKG = path.resolve(process.argv[2] || defaultPkg())
-const CHROME = resolveChrome()
+// （CHROME 由上方 browser.cjs 统一解析）
 
 const results = []
 function report(name, ok, detail) { results.push({ name, ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  —— ' + detail : ''}`) }

@@ -22,27 +22,10 @@ const fs = require('fs')
 const os = require('os')
 const { chromium } = require('playwright-core')
 
-/* R165-A 跨机移植（与 e2e.cjs/perf.cjs 同口径）：pinned → ZY_CHROME → 本机任一 ms-playwright Chromium → 系统 Chrome。
-   原实现写死 Windows 路径，Mac 上门禁直接不可跑——防线不该绑死一台机器。 */
-const CHROME_PINNED = process.platform === 'darwin'
-  ? path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright', 'chromium-1234', 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing')
-  : path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1223', 'chrome-win64', 'chrome.exe')
-const CHROME = (() => {
-  if (fs.existsSync(CHROME_PINNED)) return CHROME_PINNED
-  if (process.env.ZY_CHROME) return process.env.ZY_CHROME
-  const cache = path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright')
-  try {
-    const hit = fs.readdirSync(cache).filter(x => /^chromium-\d+$/.test(x)).sort().pop()
-    if (hit) {
-      for (const p of [
-        path.join(cache, hit, 'chrome-mac', 'Chromium.app', 'Contents', 'MacOS', 'Chromium'),
-        path.join(cache, hit, 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
-      ]) if (fs.existsSync(p)) return p
-    }
-  } catch { /* 无缓存目录 */ }
-  const sys = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-  return process.platform === 'darwin' && fs.existsSync(sys) ? sys : CHROME_PINNED
-})()
+/* R4-Ea（挂账 #84）：浏览器可执行文件解析统一到 scripts/browser.cjs——四级回落的唯一实现。
+   沿革：R165-A 跨机移植（原实现写死 Windows 路径，Mac 上门禁直接不可跑——防线不该绑死一台机器），
+   当时把回落链在 7 个脚本里各抄一份，抄出了不一致（img-diff 只写死 chromium-1234，缓存换版本即失效）。 */
+const { CHROME } = require('./browser.cjs')
 const EXT_INDEX = 'src/newtab/index.html'
 const ROOT = path.resolve(__dirname, '..', '..')
 

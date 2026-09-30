@@ -538,7 +538,8 @@ check('R155-11 ★06-2 §F 分发路径复测常驻化：scripts/probe-f.cjs 加
   return p.includes('launchPersistentContext') && p.includes('--load-extension') && p.includes('--disable-extensions-except')
     && p.includes('chrome_url_overrides') && p.includes("'Digit1'") && p.includes("'Digit2'") && p.includes("'Digit3'")
     && p.includes('function sourceVersion') && p.includes("'src', 'manifest.ts'")
-    && p.includes('ZY_CHROME') /* 与 e2e/perf 同一条浏览器回落链 */
+    && p.includes("require('./browser.cjs')") /* ★R4-Ea 随迁：与 e2e/perf 同一条浏览器回落链——链本身已上收到 scripts/browser.cjs，这里核「probe-f 从它取」，四级顺序与 ZY_CHROME 由 R4-Ea 那两条钉 */
+    && fs.readFileSync(path.resolve(SCRIPTS_DIR, 'browser.cjs'), 'utf8').includes('ZY_CHROME')
     && !/mf\.version === '\d+\.\d+\.\d+'/.test(p) /* 反例：写死版本号 */
 });
 check('R155-12 ★同机 A/B 改为「零移动」+ 报告自证：perf.cjs 认 `--dist=<目录>`（旧做法靠 `mv` 换目录名，撞同名目录会把包嵌套成不完整包 ⇒ 扩展加载不出 worker ⇒ 报错被重定向吞掉 ⇒ 读到上一轮残留报告，得出"两版读数一字不差"的假结论）；报告新增 `build` 字段（从 service worker 回读 manifest.version，磁盘上的 manifest 不代表浏览器加载的就是它）与 `M14b/M14c` 归因计量；**开跑即删旧报告**', () => {

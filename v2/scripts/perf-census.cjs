@@ -39,29 +39,9 @@ const ONLY = (argv.find(a => a.startsWith('--steps=')) || '--steps=').split('=')
 const want = (s) => !ONLY.length || ONLY.includes(s)
 
 /* 浏览器四级回落（与 e2e/perf 同口径：本机没钉某个版本不是跳过门禁的理由） */
-const CHROME = (() => {
-  const pinned = process.platform === 'darwin'
-    ? path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright', 'chromium-1234', 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing')
-    : path.join(process.env.LOCALAPPDATA || '', 'ms-playwright', 'chromium-1223', 'chrome-win64', 'chrome.exe')
-  if (process.env.ZY_CHROME && fs.existsSync(process.env.ZY_CHROME)) return process.env.ZY_CHROME
-  if (fs.existsSync(pinned)) return pinned
-  const roots = process.platform === 'darwin'
-    ? [path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright')]
-    : [path.join(process.env.LOCALAPPDATA || '', 'ms-playwright'), path.join(os.homedir(), '.cache', 'ms-playwright')]
-  for (const root of roots) {
-    try {
-      const hit = fs.readdirSync(root).filter(x => /^chromium-\d+$/.test(x)).sort().pop()
-      if (!hit) continue
-      const cand = process.platform === 'darwin'
-        ? path.join(root, hit, 'chrome-mac', 'Chromium.app', 'Contents', 'MacOS', 'Chromium')
-        : path.join(root, hit, 'chrome-win64', 'chrome.exe')
-      if (fs.existsSync(cand)) return cand
-    } catch (e) { /* 换下一个根 */ }
-  }
-  const sys = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-  if (process.platform === 'darwin' && fs.existsSync(sys)) return sys
-  console.error('✗ 找不到可用 Chromium（ZY_CHROME / ms-playwright / 系统 Chrome 全部落空）'); process.exit(1)
-})()
+/* R4-Ea（挂账 #84）：浏览器可执行文件解析统一到 scripts/browser.cjs——四级回落的唯一实现。
+   此前这里各抄一份且抄得不一致（img-diff 只写死 chromium-1234，缓存换版本后直接起不来）。 */
+const { CHROME } = require('./browser.cjs')
 
 const raw = JSON.parse(fs.readFileSync(REAL, 'utf8'))
 const data = raw.zy_data_v2 || raw

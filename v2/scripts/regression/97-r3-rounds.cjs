@@ -457,3 +457,25 @@ check('R4-Di ★池卡推给 Airtable 的「所属工作台」列值必须走显
     && !a.includes("?.name || '资源台'") && !a.includes("'资源台'")
     && a.includes('if (r.workspaceId === CURATION_WS_ID)');
 });
+
+// ============== R4-Ea（挂账 #84）· 浏览器回落链合一 ==============
+console.log('【R4-Ea · scripts/browser.cjs 是浏览器解析的唯一实现】');
+check('R4-Ea ★四级回落链只允许一份实现（scripts/browser.cjs）：pinned → ZY_CHROME → 本机任一 ms-playwright Chromium → 系统 Chrome，顺序不许倒（系统 Chrome 的旧 headless 起不了 MV3 service worker，缓存必须优先）。★起因不是洁癖：这条链此前在 7 个门禁脚本里各抄一份，抄出来的那份 img-diff 只写死 chromium-1234，Playwright 缓存换版本后它直接起不来（实测报错：executable doesn exist at …/chromium-1234/…），而它是 R161 用来回答"这次到底改了像素没有"的工具，坏掉没有任何门禁会红', () => {
+  const b = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'browser.cjs'), 'utf8');
+  const iPin = b.indexOf('for (const p of pinnedCandidates())');
+  const iEnv = b.indexOf("if (process.env.ZY_CHROME)");
+  const iCache = b.indexOf('const cached = anyCachedChromium()');
+  const iSys = b.indexOf('const sys = systemChrome()');
+  return b.includes('module.exports = { CHROME, resolveChromium, cacheRoot }')
+    && iPin > 0 && iEnv > iPin && iCache > iEnv && iSys > iCache
+    && b.includes('chrome-win64') && b.includes('chrome-linux') && b.includes('chrome-mac-arm64')
+    && b.includes('chromium-1234') && !b.includes('process.argv');
+});
+check('R4-Ea ★七个用浏览器的门禁脚本必须都从 browser.cjs 取，且不许再自己拼 ms-playwright 路径（剥注释判定——browser.cjs 的缘由注释里就要写这些字面量，裸读会自匹配）：e2e / perf / perf-census / probe-f / theme-audit / test-import-compat / img-diff', () => {
+  const files = ['e2e.cjs', 'perf.cjs', 'perf-census.cjs', 'probe-f.cjs', 'theme-audit.cjs', 'test-import-compat.cjs', 'img-diff.cjs'];
+  const bad = files.filter(f => {
+    const src = fs.readFileSync(path.resolve(SCRIPTS_DIR, f), 'utf8');
+    return !src.includes("require('./browser.cjs')") || codeOnly(src).includes('ms-playwright');
+  });
+  return bad.length === 0 && files.every(f => fs.existsSync(path.resolve(SCRIPTS_DIR, f)));
+});
