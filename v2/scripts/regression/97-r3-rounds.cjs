@@ -306,13 +306,25 @@ check('R4-De ★采集后按 Enter 的落点不许是死页：savedWsId 自 R179
 
 // ============== R4-Df · 旧世界清账：手册口径对齐 V3.7.0 之后的真形状 ==============
 console.log('【R4-Df · 手册重写（界面全景 / 快捷键表 / 退役模块说明）】');
-check('R4-Df ★手册命令表必须跟 manifest 真值一致：无默认键的每条命令都要在手册里实名出现（少一条＝用户去 shortcuts 页找不到手册说的那条），两条已下架旧命令不许以"可分配清单"的形式回流。★不硬编码条数——从 manifest 现算，将来加/删命令时这条自动要求同步手册（ref-1 反复漂移的根因就是手抄一份命令清单：open-compass / open-resource 下架多年手册还在列）', () => {
+// 命令清单的唯一真源是 manifest：手册与设置页里那些"几条无默认键命令"的说法一律从这里现算，
+// 不许再手抄（ref-1 反复漂移的根因就是手抄一份命令清单与条数）。
+function noKeyCmds() {
   const mf = read('/manifest.ts');
+  const re = /'([a-z][a-z-]+)':\s*\{([\s\S]*?)\n    \}/g;
+  const out = [];
+  let mt = null;
+  while ((mt = re.exec(mf))) {
+    if (!mt[2].includes('suggested_key')) {
+      const dd = (mt[2].match(/description: '([^']+)'/) || [])[1];
+      if (dd) out.push(dd);
+    }
+  }
+  return out;
+}
+const CN_NUM = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
+check('R4-Df ★手册命令表必须跟 manifest 真值一致：无默认键的每条命令都要在手册里实名出现（少一条＝用户去 shortcuts 页找不到手册说的那条），两条已下架旧命令不许以"可分配清单"的形式回流。★不硬编码条数——名单与条数都从 manifest 现算，将来加/删命令时这条自动要求同步手册', () => {
   const m = read('/newtab/manual-data.ts');
-  const noKey = []
-  const re = /'([a-z][a-z-]+)':\s*\{([\s\S]*?)\n    \}/g
-  let mt = null
-  while ((mt = re.exec(mf))) { if (!mt[2].includes('suggested_key')) { const dd = (mt[2].match(/description: '([^']+)'/) || [])[1]; if (dd) noKey.push(dd) } }
+  const noKey = noKeyCmds();
   return noKey.length === 6 && noKey.every(k => m.includes(k))
     && m.includes('chrome://extensions/shortcuts')
     && !m.includes('打开方向台 / 打开资源台 / 打开完整方向树 / 打开设置')
@@ -323,6 +335,26 @@ check('R4-Df ★应用内切台键位口径写对：1=调度台、2=方向台、
   const a = read('/newtab/App.vue');
   return m.includes('1 = 调度台') && m.includes('2 = 方向台') && m.includes('3 起才是各策展台')
     && !m.includes('从 1 起按导航顺序计数') && a.includes('switchToIndex');
+});
+check('R4-Df2 ★手册改对了而界面在打对台＝白改：设置页用户可见文案不许把已退役台面/已下架命令写成现役功能，且那句「N 条无默认键命令」的 N 必须等于 manifest 现算值。★判据不写死"六"——将来增删一条命令，界面这句就得跟着改口；另加一条语境判据：设置页里每一枚「资源台」字样都必须落在"这东西已退役"的句子里，否则等于给用户指一个不存在的去处', () => {
+  const gs = codeOnly(read('/newtab/views/GlobalSettings.vue'));
+  const nk = noKeyCmds();
+  const stray = [...gs.matchAll(/资源台/g)]
+    .filter(x => !/退役|已删|旧世界/.test(gs.slice(Math.max(0, x.index - 14), x.index + 14)))
+    .map(x => gs.slice(Math.max(0, x.index - 18), x.index + 18));
+  return nk.length >= 1 && gs.includes(`${CN_NUM[nk.length]}条无默认键命令`)
+    && stray.length === 0
+    && !gs.includes('资源台：双击卡片打开链接') && !gs.includes('资源台工具条')
+    && !gs.includes('含方向台/资源台/完整方向树/任务调度') && !gs.includes('资源台资源卡')
+    && !gs.includes('方向台/资源台/完整方向树无默认键')
+    && gs.includes('资源卡池控制行「批量」') && gs.includes('资源卡池资源卡');
+});
+check('R4-Df2 ★手册里五处"照做会走进死路"的事实订正必须在位且旧说法不许回流：撤销窗口 9 秒（不是 3 秒）、生命周期入口只有一个（不是三处 ⏳）、阈值是可配的（不是"本期固定 30/90"）、不再教用户去分配已下架的命令、没有"台面级入口"的旧句式。★这几条各钉一句曾经逐字教错的话——判据只核新说法在场且旧说法回不来，回潮即红', () => {
+  const m = read('/newtab/manual-data.ts');
+  return !m.includes('打开设置/方向台/资源台/完整方向树/任务调度')
+    && !m.includes('「打开方向台」「打开资源台」') && !m.includes('直达项目调度模块')
+    && m.includes('窗口 9 秒') && !m.includes('给 3 秒撤销')
+    && m.includes('入口只有一个') && m.includes('阈值是可配的') && !m.includes('阈值本期固定');
 });
 check('R4-Df ★章节标题本身不许带退役物：手册目录是用户唯一的导航入口，标题写着「与资源台操作」「与项目调度」就等于在目录层许诺一个不存在的去处（正文改对了、目录还在骗人）', () => {
   const m = read('/newtab/manual-data.ts');

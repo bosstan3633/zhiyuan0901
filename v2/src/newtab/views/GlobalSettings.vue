@@ -588,10 +588,10 @@
       <div v-if="activePage === 'shortcuts'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">⌨ 快捷键设置</div>
-          <div class="gs-page-desc">💡 系统级快捷键（含方向台/资源台/完整方向树/任务调度）请在浏览器地址栏打开 chrome://extensions/shortcuts 自定义（高效使用知源的第一步）；应用内快捷键开箱即用</div>
+          <div class="gs-page-desc">💡 系统级快捷键（含完整方向树/快速采集任务/同步到 Airtable 等六条无默认键命令）请在浏览器地址栏打开 chrome://extensions/shortcuts 自定义（高效使用知源的第一步）；应用内快捷键开箱即用</div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">全局快捷键（任意网页可用）</span><span class="gs-card-desc">由 Chrome 统一管理 · 方向台/资源台/完整方向树无默认键，需手动分配</span></div>
+          <div class="gs-card-header"><span class="gs-card-title">全局快捷键（任意网页可用）</span><span class="gs-card-desc">由 Chrome 统一管理 · 下表是本扩展的全部命令，键位显示「未设置」的几条没有默认键，需到 chrome://extensions/shortcuts 手动分配</span></div>
           <div class="gs-card-body">
             <div class="gs-setting-row" v-for="c in chromeCommands" :key="c.name">
               <span class="gs-sr-label">{{ c.description }}</span>
@@ -691,7 +691,7 @@
           <div class="gs-card-body">
             <div class="gs-setting-row">
               <span class="gs-sr-label">同步范围</span>
-              <div class="gs-sr-control" style="font-size: var(--fs-sub);color:var(--text-2);max-width:380px;line-height:1.7;text-align:left">调度台好奇心卡 · 方向台任务卡 · 资源台资源卡 · 各策展台镜像卡（每条镜像为独立记录，带各自所属工作台标识）· 主题卡以「是否中心论点」列体现</div>
+              <div class="gs-sr-control" style="font-size: var(--fs-sub);color:var(--text-2);max-width:380px;line-height:1.7;text-align:left">调度台好奇心卡 · 方向台任务卡 · 资源卡池资源卡 · 各策展台镜像卡（每条镜像为独立记录，带各自所属工作台标识）· 主题卡以「是否中心论点」列体现</div>
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">增量游标</span>
@@ -2796,8 +2796,8 @@ const appShortcuts = [
   { label: '保存（所有编辑弹窗）', keys: 'Ctrl+Enter' },
   { label: '关闭弹窗/浮层', keys: 'Esc' },
   { label: '搜索浮层内过滤类型', keys: '输入「任务/资源/好奇心」+ Tab' },
-  { label: '资源台：双击卡片打开链接', keys: '双击' },
-  { label: '资源卡批量管理', keys: '资源台工具条「☑ 批量管理」' }
+  { label: '资源卡池 / 策展台：双击卡片打开链接', keys: '双击' },
+  { label: '资源卡批量管理', keys: '资源卡池控制行「批量」' }
 ]
 
 // ---- 使用手册（第二十轮：数据外置 manual-data.ts，五篇结构） ----
