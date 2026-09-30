@@ -303,3 +303,40 @@ check('R4-De ★采集后按 Enter 的落点不许是死页：savedWsId 自 R179
     && gp.includes('savedWsId.value = r.workspaceId')
     && !gp.includes('/workspace/zy-curation');
 });
+
+// ============== R4-Df · 旧世界清账：手册口径对齐 V3.7.0 之后的真形状 ==============
+console.log('【R4-Df · 手册重写（界面全景 / 快捷键表 / 退役模块说明）】');
+check('R4-Df ★手册命令表必须跟 manifest 真值一致：无默认键的每条命令都要在手册里实名出现（少一条＝用户去 shortcuts 页找不到手册说的那条），两条已下架旧命令不许以"可分配清单"的形式回流。★不硬编码条数——从 manifest 现算，将来加/删命令时这条自动要求同步手册（ref-1 反复漂移的根因就是手抄一份命令清单：open-compass / open-resource 下架多年手册还在列）', () => {
+  const mf = read('/manifest.ts');
+  const m = read('/newtab/manual-data.ts');
+  const noKey = []
+  const re = /'([a-z][a-z-]+)':\s*\{([\s\S]*?)\n    \}/g
+  let mt = null
+  while ((mt = re.exec(mf))) { if (!mt[2].includes('suggested_key')) { const dd = (mt[2].match(/description: '([^']+)'/) || [])[1]; if (dd) noKey.push(dd) } }
+  return noKey.length === 6 && noKey.every(k => m.includes(k))
+    && m.includes('chrome://extensions/shortcuts')
+    && !m.includes('打开方向台 / 打开资源台 / 打开完整方向树 / 打开设置')
+    && !m.includes('打开设置 / 方向台 / 资源台 / 完整方向树 / 任务调度 / 同步到 Airtable');
+});
+check('R4-Df ★应用内切台键位口径写对：1=调度台、2=方向台、3 起才是策展台（手册原写「1…N 各策展台，从 1 起按导航顺序计数」，与 App.vue switchToIndex 的 n-3 差两位——照手册按 Alt+1 会进第一个策展台而不是调度台）', () => {
+  const m = read('/newtab/manual-data.ts');
+  const a = read('/newtab/App.vue');
+  return m.includes('1 = 调度台') && m.includes('2 = 方向台') && m.includes('3 起才是各策展台')
+    && !m.includes('从 1 起按导航顺序计数') && a.includes('switchToIndex');
+});
+check('R4-Df ★章节标题本身不许带退役物：手册目录是用户唯一的导航入口，标题写着「与资源台操作」「与项目调度」就等于在目录层许诺一个不存在的去处（正文改对了、目录还在骗人）', () => {
+  const m = read('/newtab/manual-data.ts');
+  const titles = [...m.matchAll(/\{ id: '[\w-]+', title: '([^']+)'/g)].map(x => x[1]);
+  const banned = ['资源台', '项目调度', '项目总览', '主航线', '灯塔', '策展中心'];
+  return titles.length === 24 && titles.every(t => !banned.some(b => t.includes(b)))
+    && titles.some(t => t.includes('资源卡池')) && titles.some(t => t.includes('三大台面'));
+});
+check('R4-Df ★退役结构不许作为现役功能写回手册：资源台台面 / 主航线 / 项目总览 / 项目调度面板 / 今日记录四格 / 策展主题格 六件各自点名，且手册必须明说它们去哪了（只删不说＝用户按旧记忆找而手册沉默，等于没写）', () => {
+  const m = read('/newtab/manual-data.ts');
+  return m.includes('资源卡没有台面') && m.includes('唯一管理面是调度台底部默认打开的「资源卡池」tab')
+    && m.includes('一级就是完整方向树') && m.includes('这块面板已退役')
+    && m.includes('已整体退役，调度台现在') && m.includes('三格辅助条')
+    && !m.includes('资源台：资源卡真身的唯一居所') && !m.includes('主航线（R52 全量呈现）')
+    && !m.includes('项目总览</b>：满宽三列卡') && !m.includes('5 指标条')
+    && !m.includes('🏛 策展主题（R67 起');
+});

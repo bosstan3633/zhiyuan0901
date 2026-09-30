@@ -285,6 +285,26 @@ const DASH_SCENES = [
       return { ok: !!tagRow && !!pat && pat.getAttribute('type') === 'password' && syncBtn && bgs.length === 1,
         txt: `标签列行=${!!tagRow} PAT型=${pat ? pat.getAttribute('type') : '无'} 同步钮=${syncBtn} 输入框底色=${bgs.length}种/${ins.length}枚` }
     })
+  },
+  {
+    /* R4-Df：手册页从来没有过活体门禁——它只被 read() 字符串断言管着，
+       于是「章节数对不上、目录点了不跳、正文里 <b> 被当字面量印出来」这类失效全都看不见。
+       这一屏量三件：① 目录条目数 == 正文 section 数（少一节就是渲染断了）；
+       ② 点目录真的把 active 挪过去（只允许一枚选中）；③ 正文不许漏出未渲染的 HTML 字面量。 */
+    id: 'st-manual', name: '使用手册', hash: '#/manual',
+    act: async (page) => {
+      await page.locator('.mn-item').nth(4).click().catch(() => {})
+      await page.waitForTimeout(700)
+    },
+    judge: async (page) => page.evaluate(() => {
+      const toc = [...document.querySelectorAll('.mn-item')]
+      const secs = [...document.querySelectorAll('section[id^="mn-"]')]
+      const active = toc.filter(t => (t.className || '').includes('active')).length
+      const body = secs.map(x => x.textContent || '').join('')
+      const leaked = /<\/(?:b|strong|kbd|code)>/.test(body)
+      return { ok: toc.length >= 20 && secs.length === toc.length && active === 1 && !leaked,
+        txt: `目录=${toc.length} 节=${secs.length} 选中=${active} 漏标签=${leaked}` }
+    })
   }
 ]
 
@@ -651,7 +671,7 @@ async function main() {
   await page.evaluate(async () => { await chrome.storage.local.remove(['zy_ai_v1']) }).catch(() => {})
   await ctx.close()
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
-  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length  + 3 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 + R3-Cc 共用批量栏 */ + DASH_SCENES.length /* R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 + R3-Cc 批量栏 ⇒ 72→80；R4-Da 标签双栏 ⇒ 80→84；R4-Dd Airtable 面板 ⇒ 84→88 */)
+  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length  + 3 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 + R3-Cc 共用批量栏 */ + DASH_SCENES.length /* R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 + R3-Cc 批量栏 ⇒ 72→80；R4-Da 标签双栏 ⇒ 80→84；R4-Dd Airtable 面板 ⇒ 84→88；R4-Df 使用手册 ⇒ 88→92 */)
   if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情 + 1 deck)）`); process.exit(1) }
   if (escLeak.length) {
     console.log(`❌ Esc 未能关闭中央弹窗：${escLeak.join(' / ')}（台面图已受影响，请查 Modal.vue 的 watch immediate）`)
