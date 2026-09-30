@@ -372,3 +372,25 @@ check('R4-Df ★退役结构不许作为现役功能写回手册：资源台台�
     && !m.includes('项目总览</b>：满宽三列卡') && !m.includes('5 指标条')
     && !m.includes('🏛 策展主题（R67 起');
 });
+
+// ============== R4-Df3 · 报告卡落点归池（D-f2 收尾时撞出来的巧合落点） ==============
+console.log('【R4-Df3 · 报告卡落点与地名（hubDeck 巧合退役）】');
+check('R4-Df3 ★报告卡落点不许靠"找 kind===resource 的 workspace 实体"这种巧合：唯一写法是 CURATION_WS_ID 常量 + categoryId 恒空（与 R2-⑧ 新建入池同一条池不变量），hubDeck 那类算式不许回流。★成因：那枚实体只在存量库里存在（R61 migrateHubStructure 建的，store getter 过滤掉了但原始数组还在）⇒ 旧写法在老库"看起来是对的"，而 defaults.ts 新建库根本不建它 ⇒ 新库第一条报告卡会掉进第一张策展台，回执还写着台面旧名', () => {
+  const rp = codeOnly(read('/shared/ai/reports.ts'));
+  return rp.includes("import { CURATION_WS_ID } from '@/shared/models'")
+    && rp.includes('workspaceId: CURATION_WS_ID') && rp.includes("categoryId: ''")
+    && rp.includes("export const REPORT_TAG = 'AI 报告·待审阅'")
+    && !rp.includes('hubDeck') && !rp.includes('d.workspaces') && !/kind\s*===\s*'resource'/.test(rp)
+    && rp.includes('资源卡池 › 待分类') && !rp.includes('资源台 › 待分类')
+    && (rp.match(/资源卡池 › 待分类/g) || []).length === 2;
+});
+check('R4-Df3 ★把 D-f2 给设置页加的语境判据扩到手册：手册里每一枚「资源台」字样都必须落在"这东西已退役"的句子里（前后 20 字内要有退役/作废/早期/曾经/下架/移除/不许/旧词），并且「资源台 › 待分类」这个地名在手册与代码两侧都不许回流。★这条正是抓出 ai-1:342 那一处的手法——枚举"我改过的串"抓不到没改的，语境判据不依赖事先想到', () => {
+  const m = read('/newtab/manual-data.ts');
+  const rp = codeOnly(read('/shared/ai/reports.ts'));
+  const ctxOk = (seg) => /退役|作废|早期|曾经|下架|移除|不许|旧词/.test(seg);
+  const stray = [...m.matchAll(/资源台/g)]
+    .filter(x => !ctxOk(m.slice(Math.max(0, x.index - 20), x.index + 20)))
+    .map(x => m.slice(Math.max(0, x.index - 24), x.index + 24));
+  return stray.length === 0 && m.includes('资源卡池 › 待分类') && !m.includes('资源台 › 待分类')
+    && !rp.includes('资源台 › 待分类');
+});

@@ -4,6 +4,7 @@
  * 所以允许自动落；凡会改既有数据的动作（打标 / 归架 / 拆解 / 转化 / 建标签节点）一律不走本文件。
  */
 import type { AppData, ResourceCard } from '@/shared/models'
+import { CURATION_WS_ID } from '@/shared/models'
 import { uid } from '@/shared/utils'
 import { pushUndo } from '@/shared/utils/undo'
 import type { AiJob, AiRow } from './job'
@@ -13,12 +14,9 @@ export interface ReportPayload { title: string; description: string; tags?: stri
 
 export const REPORT_TAG = 'AI 报告·待审阅'
 
-function hubDeck(d: AppData): string {
-  const hub = (d.workspaces || []).find(w => w.kind === 'resource') || (d.workspaces || [])[0]
-  return hub ? hub.id : ''
-}
-
-/** 落一张报告卡到资源台待分类（categoryId 置空 = 待分类），返回给用户的回执 */
+/** 落一张报告卡到资源卡池 › 待分类（categoryId 置空 = 待分类），返回给用户的回执。
+ *  落点写死池 id 而不是去找 `kind==='resource'` 的 workspace 实体：那枚实体只在存量库里存在
+ *  （R61 建、store getter 已过滤），`defaults.ts` 新建库没有它 ⇒ 找实体的写法会把报告卡丢进第一张策展台。 */
 export function saveReportCard(ctx: ReportCtx, p: ReportPayload): string {
   const d = ctx.d
   const title = p.title.slice(0, 60)
@@ -41,11 +39,11 @@ export function saveReportCard(ctx: ReportCtx, p: ReportPayload): string {
       d.resources[i] = { ...dup, description: prevDesc, tags: prevTags, updatedAt: prevAt }
       ctx.persist()
     })
-    return `✓ 报告已刷新 资源台 › 待分类「${dup.title.slice(0, 18)}」（同日重跑不另起新卡 · Ctrl/Cmd+Z 可撤销）`
+    return `✓ 报告已刷新 资源卡池 › 待分类「${dup.title.slice(0, 18)}」（同日重跑不另起新卡 · Ctrl/Cmd+Z 可撤销）`
   }
   const card: ResourceCard = {
     id: uid('res'), kind: 'resource', title, linkType: 'url', link: '',
-    workspaceId: hubDeck(d), categoryId: '', description: p.description.slice(0, 4000),
+    workspaceId: CURATION_WS_ID, categoryId: '', description: p.description.slice(0, 4000),
     tags,
     pinned: false, callCount: 0, createdAt: Date.now(), updatedAt: Date.now(), customFields: {},
   } as ResourceCard
@@ -59,7 +57,7 @@ export function saveReportCard(ctx: ReportCtx, p: ReportPayload): string {
     d.resources[i] = { ...card, deletedAt: Date.now() }
     ctx.persist()
   })
-  return `✓ 报告已存入 资源台 › 待分类「${card.title.slice(0, 18)}」（未改动任何既有卡片 · Ctrl/Cmd+Z 可撤销）`
+  return `✓ 报告已存入 资源卡池 › 待分类「${card.title.slice(0, 18)}」（未改动任何既有卡片 · Ctrl/Cmd+Z 可撤销）`
 }
 
 /**
