@@ -21,6 +21,7 @@
  */
 import type { AppData, AirtableSyncState, AirtableLogEntry, AnyCard } from '../models'
 import { CURATION_WS_ID } from '../models'
+import { POOL_DISPLAY_NAME } from '../utils/wsName'
 import { isHubWs, curationBoards } from './hub'
 
 const API = 'https://api.airtable.com/v0'
@@ -85,7 +86,9 @@ function taskContext(d: AppData, projectId?: string): { path: string; level: num
 /** 收集全量同步行（内部先全量算，再由游标过滤，保证软删/回流正确） */
 export function collectSyncRows(d: AppData): SyncRow[] {
   const rows: SyncRow[] = []
-  const hubName = d.workspaces.find(w => w.id === CURATION_WS_ID)?.name || '资源台'
+  // R4-Di：池卡的「所属工作台」列值走显示名单源，不再取那枚历史实体的名字。
+  // 取实体名有两个错法：存量库里它叫「资源台」（已退役的台面名），新库里根本没有那枚实体（只剩兜底字面量）。
+  const hubName = POOL_DISPLAY_NAME
 
   // 1) 调度台好奇心卡
   for (const c of d.curiosities) {

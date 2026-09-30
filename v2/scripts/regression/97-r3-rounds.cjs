@@ -447,3 +447,13 @@ check('R4-Dh ★视觉门禁必须真的在量这件事：theme-audit 的 st-air
   return seg.includes('cardBg') && seg.includes('offToken.length === 0') && seg.includes('input[type="password"]')
     && seg.includes('与卡同色');
 });
+
+// ============== R4-Di · 推给 Airtable 的台名列也走单源（用户拍板：值改「资源卡池」） ==============
+console.log('【R4-Di · Airtable「所属工作台」列值 = 资源卡池】');
+check('R4-Di ★池卡推给 Airtable 的「所属工作台」列值必须走显示名单源，不许再取那枚历史实体的名字：改前 `hubName = d.workspaces.find(w => w.id === CURATION_WS_ID)?.name || \'资源台\'` 有两个错法——存量库里那枚实体（R61 建、store getter 过滤）名字仍叫「资源台」，推过去的就是已退役的台面名，而设置页同步范围早就写着「资源卡池资源卡」，界面与数据互相打脸；新库没有那枚实体，只剩兜底字面量。★值口径变更由用户 2026-10-01 拍板（代价：Base 里按该列筛选/分组/着色的视图需同步改条件，已在交付说明点名）', () => {
+  const a = codeOnly(read('/shared/storage/airtable.ts'));
+  return a.includes("import { POOL_DISPLAY_NAME } from '../utils/wsName'")
+    && a.includes('const hubName = POOL_DISPLAY_NAME') && a.includes("wsName: hubName")
+    && !a.includes("?.name || '资源台'") && !a.includes("'资源台'")
+    && a.includes('if (r.workspaceId === CURATION_WS_ID)');
+});
