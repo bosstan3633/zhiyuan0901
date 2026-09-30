@@ -528,6 +528,10 @@ export interface AirtableSyncState {
   tableId: string
   /** 表名（回显用） */
   tableName?: string
+  /** R4-Dd：标签写到哪一列（留空 = 默认「标签」）。列类型由同步时读远端实际类型自适应
+   *  （multipleSelects 发数组、文本列发分号串），所以这里只存列名、不存类型——
+   *  存了就会和远端真值漂移，而漂移的代价是把一批 422 当成成功。 */
+  tagColumn?: string
   /** 3 小时轮询开关（默认关，R63-10） */
   pollEnabled?: boolean
   /** 上次同步完成时间戳 */

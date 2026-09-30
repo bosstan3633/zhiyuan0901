@@ -668,6 +668,15 @@
               <span class="gs-sr-label">Table ID</span>
               <div class="gs-sr-control"><input class="gs-input" v-model="atTableId" placeholder="tbl 开头（表 URL 中获取）" style="width:260px" /></div>
             </div>
+            <!-- R4-Dd：标签列名可指到自己表里已有的列。★只存列名、不存列类型——
+                 类型每次同步时读远端真值；存下来必然与 Airtable 漂移，而漂移的代价是把一批 422 当成成功。 -->
+            <div class="gs-setting-row">
+              <span class="gs-sr-label">标签列名</span>
+              <div class="gs-sr-control gs-sr-control-wrap">
+                <input class="gs-input" v-model="atTagColumn" :placeholder="atTagColumnDefault" style="width:260px" @change="applyTagColumn" />
+                <span class="gs-sr-hint">留空即「{{ atTagColumnDefault }}」；该列若是多选（multipleSelects）会自动按数组写入，否则用分号分隔</span>
+              </div>
+            </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">连接测试</span>
               <div class="gs-sr-control" style="display:flex;gap:10px;align-items:center">
@@ -912,7 +921,7 @@ import FieldEditor from './FieldEditor.vue'
 const logoUrl = '/icons/icon128.png' // R174-2 减重：与 public/icons/icon128.png 逐字节同源，走公共路径不再重复入库
 import { createDefaultData, defaultThesisFieldDefs } from '@/shared/storage/defaults'
 // R63-4：Airtable 单向同步（连接测试 / 立即同步 / 配额提示）
-import { testConnection, runSync, quotaHint, catPathOf } from '@/shared/storage/airtable'
+import { testConnection, runSync, quotaHint, catPathOf, DEFAULT_TAG_COLUMN } from '@/shared/storage/airtable'
 import { LETTER_HTML, buildLetterStandaloneHtml } from '../letter-data'
 import { uid, dateKey, weekStartKey } from '@/shared/utils'
 import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
@@ -2060,6 +2069,18 @@ const atTableName = ref('')
 const atPat = ref('')
 const atBaseId = ref('')
 const atTableId = ref('')
+const atTagColumn = ref('')
+const atTagColumnDefault = DEFAULT_TAG_COLUMN
+/* ★标签列名是改完即写的，与 PAT/Base/Table 三条不同：那三条是半成品凭据，存一半会污染连接测试；
+   列名不存在「半截」这件事，且同步只在点「立即同步」时发生，失焦即写是唯一不丢改动的做法。 */
+let atTagTouched = false
+function applyTagColumn() {
+  const st = store.data?.airtableSync
+  atTagTouched = true
+  if (!st) return
+  st.tagColumn = atTagColumn.value.trim()
+  store.persist()
+}
 // 配置回填（不在模板直接 v-model 到 storage——「改完即写」会把半截 PAT 存库；失焦/操作时统一写回）
 watchEffect(() => {
   const s = store.data?.airtableSync
@@ -2068,6 +2089,10 @@ watchEffect(() => {
   if (!atBaseId.value) atBaseId.value = s.baseId
   if (!atTableId.value) atTableId.value = s.tableId
   if (s.tableName && !atTableName.value) atTableName.value = s.tableName
+  /* ★只在用户没碰过这一栏时回填。加了「改完即写」之后这条必须带 touched 门，否则：
+     用户把列名清空的那一刻，watchEffect 看见空值就把 storage 里的旧列名灌回输入框，
+     清空这个动作被静默撤销（E2E-34 首轮就是这么抓到的）。 */
+  if (!atTagTouched && s.tagColumn) atTagColumn.value = s.tagColumn
 })
 function syncAtConfig() {
   const s = store.data!.airtableSync!
@@ -2824,6 +2849,9 @@ const activeManualSec = ref('quick-1')
 .gs-setting-row:last-child { border-bottom: none; }
 .gs-sr-label { font-size: var(--fs-body); color: var(--text); min-width: 120px; }
 .gs-sr-control { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+/* R4-Dd：带说明文字的setting行——说明占满余下宽度并允许换行，输入框不被挤扁 */
+.gs-sr-control-wrap { gap: 10px; flex-wrap: wrap; }
+.gs-sr-hint { font-size: var(--fs-caption); color: var(--text-3); flex: 1; min-width: 220px; }
 
 /* 开关 */
 .gs-toggle { width: 38px; height: 21px; border-radius: 99px; background: var(--border-strong); cursor: pointer; position: relative; transition: background .2s; flex-shrink: 0; }

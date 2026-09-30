@@ -48,7 +48,9 @@ export interface SyncRow {
   title: string
   link: string
   description: string
-  tags: string
+  /** ★R4-Dd：标签以**数组**流转到写出处。原先在采集期就 join 成 'a;b'，
+   *  于是「这一列到底是文本还是多选」在唯一来得及决定的地方已经查不到了。 */
+  tags: string[]
   status: string
   priority: string
   dueDate: string
@@ -90,7 +92,7 @@ export function collectSyncRows(d: AppData): SyncRow[] {
     rows.push({
       key: c.id, cardType: '好奇心', wsName: '调度台', catPath: '', level: 0, isThesis: false,
       title: c.question || '', link: c.sourceUrl || '', description: c.description || '',
-      tags: (c.tags || []).join(';'), status: ({ todo: '待探索', doing: '探索中', done: '已求证', shelf: '已搁置' } as Record<string, string>)[c.status] || c.status,
+      tags: c.tags || [], status: ({ todo: '待探索', doing: '探索中', done: '已求证', shelf: '已搁置' } as Record<string, string>)[c.status] || c.status,
       priority: '', dueDate: '', updatedAt: c.updatedAt, deleted: !!c.deletedAt
     })
   }
@@ -100,7 +102,7 @@ export function collectSyncRows(d: AppData): SyncRow[] {
     rows.push({
       key: t.id, cardType: '任务', wsName: '方向台', catPath: ctx.path, level: ctx.level, isThesis: false,
       title: t.title || '', link: t.link || '', description: t.description || '',
-      tags: (t.tags || []).join(';'), status: ({ todo: '待办', doing: '进行中', done: '已完成' } as Record<string, string>)[t.status] || t.status,
+      tags: t.tags || [], status: ({ todo: '待办', doing: '进行中', done: '已完成' } as Record<string, string>)[t.status] || t.status,
       priority: ({ high: '高', medium: '中', low: '低' } as Record<string, string>)[t.priority] || '',
       dueDate: t.dueDate || '', updatedAt: t.updatedAt, deleted: !!t.deletedAt
     })
@@ -114,7 +116,7 @@ export function collectSyncRows(d: AppData): SyncRow[] {
         key: r.id, cardType: '资源', wsName: hubName,
         catPath: cp.path, level: cp.level, isThesis: !!r.isThesis,
         title: r.title || '', link: r.link || '', description: r.description || '',
-        tags: (r.tags || []).join(';'), status: '', priority: '', dueDate: '',
+        tags: r.tags || [], status: '', priority: '', dueDate: '',
         updatedAt: r.updatedAt, deleted: !!r.deletedAt
       })
     } else if (boards.some(b => b.id === r.workspaceId)) {
@@ -123,7 +125,7 @@ export function collectSyncRows(d: AppData): SyncRow[] {
         key: r.id, cardType: '资源', wsName: d.workspaces.find(w => w.id === r.workspaceId)?.name || '',
         catPath: cp.path, level: cp.level, isThesis: !!r.isThesis,
         title: r.title || '', link: r.link || '', description: r.description || '',
-        tags: (r.tags || []).join(';'), status: '', priority: '', dueDate: '',
+        tags: r.tags || [], status: '', priority: '', dueDate: '',
         updatedAt: r.updatedAt, deleted: !!r.deletedAt
       })
     }
@@ -141,7 +143,7 @@ export function collectSyncRows(d: AppData): SyncRow[] {
       key: `${p.cardId}:m:${p.targetWsId}`, cardType: '资源', wsName: targetName,
       catPath: cp.path, level: cp.level, isThesis: !!src.isThesis,
       title: src.title || '', link: src.link || '', description: src.description || '',
-      tags: (src.tags || []).join(';'), status: '', priority: '', dueDate: '',
+      tags: src.tags || [], status: '', priority: '', dueDate: '',
       updatedAt: src.updatedAt, deleted: !!src.deletedAt
     })
   }
@@ -213,8 +215,16 @@ async function listFields(state: AirtableSyncState): Promise<Map<string, Airtabl
   return map
 }
 
+/** 默认标签列名；用户可在 设置→Airtable 同步 指到自己表里已有的标签列（R4-Dd） */
+export const DEFAULT_TAG_COLUMN = '标签'
+/** 本次同步该写的标签列名。★默认值不塞进 repository 的初始化对象——
+ *  那句 `data.airtableSync = { pat: '', baseId: '', tableId: '', pollEnabled: false }` 是 R63-1 的逐字锚点。 */
+export function tagColumnOf(state: { tagColumn?: string }): string {
+  return (state.tagColumn || '').trim() || DEFAULT_TAG_COLUMN
+}
+
 /** 目标列定义（自动建字段用；已存在的列绝不动） */
-export function targetColumns(): { name: string; type: string; options?: Record<string, unknown>; desc: string }[] {
+export function targetColumns(tagCol: string = DEFAULT_TAG_COLUMN): { name: string; type: string; options?: Record<string, unknown>; desc: string }[] {
   return [
     { name: '知源ID', type: 'singleLineText', desc: '幂等键' },
     { name: '标题', type: 'singleLineText', desc: '资源/任务=标题，好奇心=问题' },
@@ -225,7 +235,7 @@ export function targetColumns(): { name: string; type: string; options?: Record<
     { name: '是否中心论点', type: 'checkbox', options: { icon: 'check', color: 'greenBright' }, desc: '主题卡标记' },
     { name: '链接', type: 'url', desc: '' },
     { name: '描述', type: 'multilineText', desc: '' },
-    { name: '标签', type: 'singleLineText', desc: '分号分隔' },
+    { name: tagCol, type: 'singleLineText', desc: '分号分隔；该列若已是 multipleSelects 则改发数组' },
     { name: '状态', type: 'singleLineText', desc: '' },
     { name: '优先级', type: 'singleLineText', desc: '' },
     { name: '截止日期', type: 'singleLineText', desc: 'YYYY-MM-DD' },
@@ -235,10 +245,12 @@ export function targetColumns(): { name: string; type: string; options?: Record<
 }
 
 /** 比对缺列并自动补建（跳过 formula/rollup/lookup 与任何已存在列） */
-async function ensureColumns(state: AirtableSyncState): Promise<number> {
+async function ensureColumns(state: AirtableSyncState): Promise<{ created: number; fields: Map<string, AirtableField> }> {
   const existing = await listFields(state)
   let created = 0
-  for (const col of targetColumns()) {
+  /* ★R4-Dd：返回值从「建了几个」扩成 { created, fields }——远端字段表顺手交给写出处，
+     标签列要按它**实际是什么类型**决定发字符串还是发数组，为此多跑一次 GET 不划算。 */
+  for (const col of targetColumns(tagColumnOf(state))) {
     if (existing.has(col.name)) continue // 已存在列不改名不改类型
     const payload: Record<string, unknown> = { name: col.name, type: col.type }
     if (col.options) payload.options = col.options
@@ -247,10 +259,15 @@ async function ensureColumns(state: AirtableSyncState): Promise<number> {
     })
     created++
   }
-  return created
+  return { created, fields: existing }
 }
 
-function rowToFields(row: SyncRow): Record<string, unknown> {
+function rowToFields(row: SyncRow, tagCol: string = DEFAULT_TAG_COLUMN, tagType = 'singleLineText'): Record<string, unknown> {
+  /* 标签列按远端**实际列类型**落值（R4-Dd）：multipleSelects 必须收字符串数组，
+     发 'a;b' 会被 Airtable 判 INVALID_VALUE_FOR_COLUMN；文本列收分号串（R63 以来的既有口径）。
+     ★两种都无条件写（含空值）——条件写会让「本地把标签删空」在远端留下旧值，
+     清不掉比写不进更坑（与 R63-5「已删除」同理）。 */
+  const tagsCell: unknown = tagType === 'multipleSelects' ? row.tags : row.tags.join(';')
   const f: Record<string, unknown> = {
     '知源ID': row.key,
     '标题': row.title,
@@ -259,7 +276,7 @@ function rowToFields(row: SyncRow): Record<string, unknown> {
     '层级': row.level,
     '是否中心论点': row.isThesis,
     '描述': row.description,
-    '标签': row.tags,
+    [tagCol]: tagsCell,
     '已删除': row.deleted,
     '更新时间': new Date(row.updatedAt).toISOString()
   }
@@ -315,9 +332,17 @@ export async function runSync(d: AppData): Promise<{ pushed: number; created: nu
   let calls = 0
   try {
     // 1) 建表字段比对（失败即中止——结构未就绪推送无意义）
-    const createdCols = await ensureColumns(state)
+    const { created: createdCols, fields: remoteFields } = await ensureColumns(state)
     calls += 2 // tables GET（ensureColumns 内含 listFields 一次；连接测试不计入本次）
     if (createdCols) pushLog(state, 'info', `自动补建字段 ${createdCols} 个`)
+    /* R4-Dd：标签列名与实际类型在这一轮里定一次，供每条记录写值时复用。
+       只读计算列（formula/rollup/lookup）当场报错中止——比推一批注定失败的记录好诊断得多。 */
+    const tagCol = tagColumnOf(state)
+    const tagType = remoteFields.get(tagCol)?.type || 'singleLineText'
+    if (tagType === 'formula' || tagType === 'rollup' || tagType === 'lookup') {
+      throw new Error(`标签列「${tagCol}」是 ${tagType}（只读计算列），知源写不进去——请在设置页改指一个文本或多选列`)
+    }
+    if (tagCol !== DEFAULT_TAG_COLUMN) pushLog(state, 'info', `标签写入列「${tagCol}」· 类型 ${tagType}`)
 
     // 2) 远端索引（映射表缺失的 key 用远端扫描补）
     const map = d.airtableMap = d.airtableMap || {}
@@ -331,8 +356,15 @@ export async function runSync(d: AppData): Promise<{ pushed: number; created: nu
       .filter(r => !map[r.key] || map[r.key].syncedAt < r.updatedAt || r.deleted)
 
     let pushed = 0
-    /** 记录不存在语义（422/404）——触发单条降级重建 */
-    const isMissingRecord = (msg: string) => /does not exist|422|404/i.test(msg)
+    /** 记录不存在语义——触发单条降级重建。
+     *  ★R4-Dd 收紧：原先 `/does not exist|422|404/` 把**任何 422** 都当成「远端记录被删了」并转 POST 重建，
+     *  于是表里凭空多出重复行。而 422 最常见的两种成因根本不是记录缺失：
+     *  INVALID_VALUE_FOR_COLUMN（列类型不匹配——正是标签列最容易撞的那个）与 REQUIRED_FIELD_*。
+     *  把一次可诊断的写值错误读成「该重建」，代价是一批脏数据。
+     *  现在只认「记录确实不在」的措辞，其余照旧抛出、进同步日志。 */
+    const isMissingRecord = (msg: string) =>
+      /record (was )?not found|does not exist|UNKNOWN_RECORD|404/i.test(msg)
+      && !/INVALID_VALUE_FOR_COLUMN|REQUIRED_FIELD|READ_ONLY/i.test(msg)
     /** 单条创建（自愈重建用），返回新 recordId */
     const createOne = async (fields: Record<string, unknown>): Promise<string> => {
       const res = await atFetch(state, `${API}/${state.baseId}/${state.tableId}`, {
@@ -347,7 +379,7 @@ export async function runSync(d: AppData): Promise<{ pushed: number; created: nu
       const creates: { fields: Record<string, unknown>; key: string }[] = []
       const updates: { id: string; fields: Record<string, unknown>; key: string }[] = []
       for (const row of batch) {
-        const fields = rowToFields(row)
+        const fields = rowToFields(row, tagCol, tagType)
         // R64 自愈 R1：远端索引优先（远端实测存在的 recordId 才可信），本地 map 仅兜底
         const rid = remote.get(row.key) || map[row.key]?.recordId
         if (rid) { updates.push({ id: rid, fields, key: row.key }); map[row.key] = { recordId: rid, syncedAt: row.updatedAt } }

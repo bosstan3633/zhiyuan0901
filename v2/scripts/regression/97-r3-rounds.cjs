@@ -245,3 +245,33 @@ check('R4-Dc ★只删 IndexedDB 本体的那条动作不许多写一遍主 JSON
   const seg = segOf(read('/newtab/composables/useWsAssetHygiene.ts'), 'async function onDrillCleanupOrphans', '\n  return {');
   return !seg.includes('store.persist()') && seg.includes('cleanupOrphanAssetsOf(d.value)');
 });
+
+// ============== R4-Dd · 旧世界清账：Airtable 标签列映射 ==============
+console.log('【R4-Dd · Airtable 标签列映射】');
+check('R4-Dd ★标签列名可配且按远端实际类型落值：数组流到写出处才来得及决定发什么（多选发数组、文本发分号串），且两种都无条件写含空值', () => {
+  const a = read('/shared/storage/airtable.ts');
+  const m = read('/shared/models/index.ts');
+  return a.includes("export const DEFAULT_TAG_COLUMN = '\u6807\u7b7e'") && a.includes('export function tagColumnOf(')
+    && a.includes('tags: string[]') && !a.includes("tags: (c.tags || []).join(';')") && !a.includes("tags: (r.tags || []).join(';')")
+    && a.includes("tagType === 'multipleSelects' ? row.tags : row.tags.join(';')")
+    && a.includes('[tagCol]: tagsCell') && !a.includes("if (row.tags) f[tagCol]")
+    && a.includes('const { created: createdCols, fields: remoteFields } = await ensureColumns(state)')
+    && m.includes('tagColumn?: string');
+});
+check('R4-Dd ★只读计算列当场报错中止，不推一批注定失败的记录；列名与实际类型每轮只读一次远端真值（不落地存类型，存了必与 Airtable 漂移）', () => {
+  const a = read('/shared/storage/airtable.ts');
+  const gs = read('/newtab/views/GlobalSettings.vue');
+  const seg = a.slice(a.indexOf('const { created: createdCols'), a.indexOf('// 2) 远端索引'));
+  return seg.includes("tagType === 'formula' || tagType === 'rollup' || tagType === 'lookup'")
+    && seg.includes('throw new Error(') && seg.includes('只读计算列')
+    && seg.includes("remoteFields.get(tagCol)?.type")
+    && gs.includes('@change="applyTagColumn"') && gs.includes('st.tagColumn = atTagColumn.value.trim()')
+    && !gs.includes('tagColumnType');
+});
+check('R4-Dd ★422 不等于「记录被删」：写值错误（INVALID_VALUE_FOR_COLUMN 等）不得触发自愈重建，否则一次类型不匹配会变成表里一批重复行', () => {
+  const a = read('/shared/storage/airtable.ts');
+  const seg = a.slice(a.indexOf('const isMissingRecord = (msg: string) =>'), a.indexOf('const createOne'));
+  return !/\|422\|/.test(seg) && !/422\//.test(seg)
+    && seg.includes('INVALID_VALUE_FOR_COLUMN') && seg.includes('record (was )?not found')
+    && seg.includes('UNKNOWN_RECORD') && a.includes('isMissingRecord(batchMsg)') && a.includes('isMissingRecord(oneMsg)');
+});

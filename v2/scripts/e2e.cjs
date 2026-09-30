@@ -7,6 +7,7 @@
  *   E2E-3  ★R4-Da 改靶：全景整页退役归零 + 标签管理双栏仍两列（连带 CSS 的活性证据）
  *   E2E-32 ★R4-Db 书签导入唯一路线（真喂书签 HTML 跑一次导入）
  *   E2E-33 ★R4-Dc 附件 keepIds 单源（活卡/软删卡/论证卡引用必留，仅孤儿被删）
+ *   E2E-34 ★R4-Dd Airtable 标签列名落盘（不碰网络，核配置链与 PAT 遮罩）
  *   E2E-4  北极星「新增卡片/删除卡片」卡渲染（R45-1 三档周期联动改名）
  *   E2E-5  PDF 附件双击 file:// 打开（data 层种卡 + IndexedDB blob → 双击卡片 → 新标签 file://…pdf）
  *   E2E-6  事件日志 zy_event_log 独立 key 落盘（打开资源卡产生事件）
@@ -1233,6 +1234,31 @@ async function main() {
     d0.argCards = (d0.argCards || []).filter(c => !String(c.id).startsWith('e2e-hy-'))
     await chrome.storage.local.set({ zy_data_v2: d0 })
   })
+
+  // E2E-34 ★R4-Dd Airtable 标签列映射：这一轮不碰网络（真推要用户 PAT，测试里绝不引入凭据），
+  //   但配置链路本身此前零覆盖——列名改了到底落没落库、PAT 是不是仍然按密码框呈现，都只靠文本断言。
+  //   这里真点真读：改列名 → 失焦即写 → 回读 zy_data_v2.airtableSync.tagColumn；顺带核 PAT 输入框是 password。
+  await page.goto(base + '#/settings?page=airtable', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2600)
+  const atTagInput = page.locator('.gs-setting-row').filter({ hasText: '标签列名' }).locator('input.gs-input')
+  const atTagVisible = await atTagInput.isVisible().catch(() => false)
+  await atTagInput.fill('Tags（知源同步）').catch(() => {})
+  await atTagInput.blur().catch(() => {})
+  await page.waitForTimeout(900)
+  const atPatType = await page.locator('.gs-setting-row').filter({ hasText: 'Personal Access Token' })
+    .locator('input').first().getAttribute('type').catch(() => '')
+  const atStored = await page.evaluate(() => chrome.storage.local.get('zy_data_v2')
+    .then(r => (r['zy_data_v2'].airtableSync || {}).tagColumn))
+  /* 清空要回落默认列名：留空不是"没配"，是"用默认"，这条也得是真跑过的 */
+  await atTagInput.fill('').catch(() => {})
+  await atTagInput.blur().catch(() => {})
+  await page.waitForTimeout(900)
+  const atCleared = await page.evaluate(() => chrome.storage.local.get('zy_data_v2')
+    .then(r => (r['zy_data_v2'].airtableSync || {}).tagColumn))
+  report('E2E-34 ★R4-Dd 标签列名落盘 + 留空回落 + PAT 仍按密码框呈现',
+    atTagVisible && atStored === 'Tags（知源同步）' && (atCleared === '' || atCleared === undefined) && atPatType === 'password',
+    `列名框=${atTagVisible} 落库="${atStored}" 清空后="${atCleared}" PAT型=${atPatType}`)
 
   // E2E-28（R4-a）：迁移报告卡与整库回退出口——种备份+报告 → 设置页出卡 → 回退（确认框）→ 停用键落、报告清、卡片转停用态
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {

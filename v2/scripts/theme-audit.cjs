@@ -266,6 +266,25 @@ const DASH_SCENES = [
       return { ok: cols === 2 && rows.length > 0 && !!active && !!plain && bgA !== bgP,
         txt: `列=${cols} 标签行=${rows.length} 选中=${!!active} 底色变=${bgA !== bgP} 右列卡=${card ? `圆角${radius}/内边距${pad}` : '无'}` }
     })
+  },
+  {
+    /* R4-Dd：⇄ Airtable 同步面板从未进过视觉审计。这一屏要看的不是好看，是两件安全/可用事实：
+       ① 标签列那一行真的渲染出来了（本轮新加的控件）；② PAT 输入框仍是 password 型——
+       凭据以明文出现在输入框里是这一屏最坏的失效，而它在源码文本断言里表现为「什么都没变」。 */
+    id: 'st-airtable', name: 'Airtable 面板', hash: '#/settings?page=airtable',
+    judge: async (page) => page.evaluate(() => {
+      const rows = [...document.querySelectorAll('.gs-setting-row')]
+      const tagRow = rows.find(r => (r.textContent || '').includes('标签列名'))
+      const pat = rows.find(r => (r.textContent || '').includes('Personal Access Token'))?.querySelector('input')
+      const syncBtn = rows.some(r => (r.textContent || '').includes('立即同步'))
+      /* ★同类输入框必须看起来是同一个东西：这一屏的输入框原先靠一个**全站没有定义**的
+         .gs-input 类名撑着（和 .gs-panel 一样是死类名），实际观感来自别处的选择器——
+         新加一行时最容易"功能对、长得不对"，而文本断言看不见。按计算样式核同一性。 */
+      const ins = [...document.querySelectorAll('.gs-setting-row input[type="text"], .gs-setting-row input:not([type])')]
+      const bgs = Array.from(new Set(ins.map(i => getComputedStyle(i).backgroundColor)))
+      return { ok: !!tagRow && !!pat && pat.getAttribute('type') === 'password' && syncBtn && bgs.length === 1,
+        txt: `标签列行=${!!tagRow} PAT型=${pat ? pat.getAttribute('type') : '无'} 同步钮=${syncBtn} 输入框底色=${bgs.length}种/${ins.length}枚` }
+    })
   }
 ]
 
@@ -632,7 +651,7 @@ async function main() {
   await page.evaluate(async () => { await chrome.storage.local.remove(['zy_ai_v1']) }).catch(() => {})
   await ctx.close()
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
-  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length  + 3 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 + R3-Cc 共用批量栏 */ + DASH_SCENES.length /* R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 + R3-Cc 批量栏 ⇒ 72→80；R4-Da 标签双栏 ⇒ 80→84 */)
+  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length  + 3 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 + R3-Cc 共用批量栏 */ + DASH_SCENES.length /* R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 + R3-Cc 批量栏 ⇒ 72→80；R4-Da 标签双栏 ⇒ 80→84；R4-Dd Airtable 面板 ⇒ 84→88 */)
   if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情 + 1 deck)）`); process.exit(1) }
   if (escLeak.length) {
     console.log(`❌ Esc 未能关闭中央弹窗：${escLeak.join(' / ')}（台面图已受影响，请查 Modal.vue 的 watch immediate）`)
