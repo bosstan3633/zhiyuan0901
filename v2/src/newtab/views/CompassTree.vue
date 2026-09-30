@@ -137,14 +137,63 @@ function onDocClickCloseProjMenu(e: MouseEvent) {
 onMounted(() => document.addEventListener('click', onDocClickCloseProjMenu, true))
 onUnmounted(() => document.removeEventListener('click', onDocClickCloseProjMenu, true))
 
+/* ================= R3-B2：同一战略目标内的手动排序与置顶 =================
+   这两项原本活在主航线项目行卡的右键菜单里，随 CompassShell 退役一度归零；用户拍板保留，
+   落回方向树（**不跨目标**——跨目标改归属是另一件事，走项目详情）。
+   排序键：主攻 → 置顶 → order。置顶只决定"非主攻组的第一位"，不写 order；
+   拖拽落位即手动位置，落完清掉 pinned（否则排序键会把它弹回前排，看着像"拖不动"）。 */
+const dragProj = ref<{ dirId: string; id: string } | null>(null)
+const dropTargetId = ref('')
+function onProjDragStart(dirId: string, p: Project, e: DragEvent) {
+  dragProj.value = { dirId, id: p.id }
+  e.dataTransfer?.setData('text/plain', p.id)
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+}
+function onProjDragOver(dirId: string, p: Project) {
+  const drag = dragProj.value
+  if (!drag || drag.dirId !== dirId || drag.id === p.id) return
+  dropTargetId.value = p.id
+}
+function onProjDragLeave(id: string) { if (dropTargetId.value === id) dropTargetId.value = '' }
+function onProjDragEnd() { dragProj.value = null; dropTargetId.value = '' }
+function onProjDrop(dirId: string, target: Project) {
+  const drag = dragProj.value
+  dropTargetId.value = ''
+  dragProj.value = null
+  if (!drag || drag.dirId !== dirId || drag.id === target.id) return
+  const dir = d.value.compass.directions.find(x => x.id === dirId)
+  if (!dir) return
+  const list = visibleProjectsOf(dir)
+  const from = list.findIndex(p => p.id === drag.id)
+  const to = list.findIndex(p => p.id === target.id)
+  if (from < 0 || to < 0) return
+  const [moved] = list.splice(from, 1)
+  list.splice(to, 0, moved)
+  if (!moved) return
+  moved.pinned = false
+  list.forEach((p, i) => { p.order = i })
+  store.persist()
+  showToast(`↕ 「${moved.name}」排到该目标第 ${to + 1} 位（同目标内拖拽，主攻项目恒在前排）`)
+}
+function toggleProjectPin(dir: Direction, p: Project) {
+  p.pinned = !p.pinned
+  if (p.pinned) {
+    const minOrder = Math.min(0, ...dir.projects.filter(x => !x.isFocused && x.id !== p.id).map(x => x.order ?? 999))
+    p.order = minOrder - 1
+  }
+  store.persist()
+  showToast(p.pinned ? `📌 「${p.name}」置顶到该目标前排` : '已取消置顶')
+}
+
 // R86（T0）：已完成项目显隐改由 store 提供（showDone / toggleShowDone）——三处模块共用同一份实现。
 function visibleProjectsOf(dir: Direction): Project[] {
   // R52-BUG-2：口径统一 isProjectDone（手动 done/archived 或全任务完成派生），修复「已完成项目显隐」开关失效
   // R59-T3：主攻项目置前（稳定排序，组内保持原有顺序）
+  // R3-B2：主攻 → 置顶 → order（order 由同目标内拖拽落位；置顶是"非主攻组第一位"的快捷方式）
   return dir.projects
     .filter(p => showDone.value || !isProjectDone(p))
     .slice()
-    .sort((a, b) => (Number(b.isFocused) - Number(a.isFocused)))
+    .sort((a, b) => (Number(b.isFocused) - Number(a.isFocused)) || (Number(!!b.pinned) - Number(!!a.pinned)) || ((a.order ?? 999) - (b.order ?? 999)))
 }
 const treeStats = computed(() => {
   // R3-B1：主攻/停滞两项随 CompassShell 页头退役搬进来（状态**筛选**按 R3 计划退役，读数不留失）
@@ -639,7 +688,7 @@ onUnmounted(() => {
           <div class="tree-level-card" id="layer-3">
             <div class="tl-head-row">
               <span class="tl-badge">3 战略目标 → 4 攻坚项目 → 5 成功指标 → 6 任务</span>
-              <span class="tl-hint">主攻项目默认展开 · 其余折叠成卡头（点 ▸ 展开）· 缺任务指标实时警示</span>
+              <span class="tl-hint">主攻项目默认展开 · 其余折叠成卡头（点 ▸ 展开）· 卡头 ⠿ 拖拽可在本目标内排序 · 缺任务指标实时警示</span>
             </div>
 
             <div v-if="!d.compass.directions.length" class="empty-state">
@@ -667,11 +716,14 @@ onUnmounted(() => {
                   </div>
                 </div>
 
-                <div v-for="proj in visibleProjectsOf(dir)" :key="proj.id" class="tree-project-branch" :class="{ 'is-focused': proj.isFocused }">
-                  <div class="tp-head" :class="{ folded: !projOpen(proj) }">
+                <div v-for="proj in visibleProjectsOf(dir)" :key="proj.id" class="tree-project-branch" :class="{ 'is-focused': proj.isFocused, 'is-dragging': dragProj?.id === proj.id }">
+                  <!-- R3-B2：drop 目标=同目标的另一张卡头（跨目标不接受，改归属走项目详情） -->
+                  <div class="tp-head" :class="{ folded: !projOpen(proj), 'drop-on': dropTargetId === proj.id }"
+                    @dragover.prevent="onProjDragOver(dir.id, proj)" @dragleave="onProjDragLeave(proj.id)" @drop.prevent="onProjDrop(dir.id, proj)">
                     <div class="tp-title">
                       <span class="tp-caret" :title="projOpen(proj) ? '折叠该项目（指标与任务）' : '展开该项目的指标与任务'" @click.stop="toggleProjectFold(proj)">{{ projOpen(proj) ? '▾' : '▸' }}</span>
                       <span v-if="proj.isFocused" class="tp-mark" title="主攻项目">🚀</span>
+                      <span v-if="proj.pinned" class="tp-pin" title="已置顶到该目标前排">📌</span>
                       <span v-if="projMeta.get(proj.id)?.stall" class="tp-flag" title="有任务但近 14 天无推进/完成活动">停滞</span>
                       <span class="node-title editable" :class="{editing: editingField === 'proj-' + proj.id}" :data-edit="'proj-' + proj.id" :contenteditable="editingField === 'proj-' + proj.id"
                         @click="startEdit('proj-' + proj.id, $event)" @blur="saveEdit('proj-' + proj.id, $event)" @keydown.enter.prevent="saveEdit('proj-' + proj.id, $event)" @keydown.esc="cancelEdit">{{ proj.name }}</span>
@@ -681,14 +733,16 @@ onUnmounted(() => {
                   </div>
                   <div class="tp-meta">
                     <span>📊 {{ proj.metrics.length }} 指标 · 📋 {{ projMeta.get(proj.id)?.tasks || 0 }} 任务</span>
-                    <!-- R3-B′：卡头 6 入口 → 「全景 / AI / ▾」三枚，设主攻·添加指标·进详情·删除进折叠菜单
+                    <!-- R3-B′：卡头 6 入口 → 「⠿ / 全景 / AI / ▾」，设主攻·置顶·添加指标·进详情·删除进折叠菜单
                          （删除仍走 compassNodeCounts 报数 + useConfirm + 3 秒撤销，防呆不因收敛而降级） -->
                     <span class="tp-acts" @click.stop>
+                      <span class="tp-grip" draggable="true" title="拖拽排序（仅同一战略目标内；主攻恒在前排）" @dragstart="onProjDragStart(dir.id, proj, $event)" @dragend="onProjDragEnd">⠿</span>
                       <span class="node-action" @click="openProjectDrawer(proj.id)" title="打开项目全景">📦</span>
                       <span class="node-action" @click="aiChain('metrics', proj.id)" title="AI 建议成功指标（可量化验收，查重后采纳才创建）"><AiEntryButton /></span>
-                      <span class="node-action" :class="{ on: projMenu === proj.id }" @click="toggleProjMenu(proj.id)" title="更多操作（主攻 / 指标 / 详情 / 删除）">▾</span>
+                      <span class="node-action" :class="{ on: projMenu === proj.id }" @click="toggleProjMenu(proj.id)" title="更多操作（主攻 / 置顶 / 指标 / 详情 / 删除）">▾</span>
                       <div v-if="projMenu === proj.id" class="tp-menu">
                         <div class="tpm-item" @click="onToggleFocus(proj.id); closeProjMenu()">{{ proj.isFocused ? '☆ 取消主攻' : '🚀 设为主攻' }}</div>
+                        <div class="tpm-item" @click="toggleProjectPin(dir, proj); closeProjMenu()">{{ proj.pinned ? '☆ 取消置顶' : '📌 置顶到本目标前排' }}</div>
                         <div class="tpm-item" @click="addMetric(proj.id); closeProjMenu()">＋ 添加成功指标</div>
                         <div class="tpm-item" @click="closeProjMenu(); router.push({ path: '/compass/projects', query: { p: proj.id, from: 'tree' } })">📄 进入项目详情页</div>
                         <div class="tpm-item danger" @click="closeProjMenu(); deleteNode('proj', proj.id)">🗑 删除项目</div>
@@ -1080,6 +1134,13 @@ onUnmounted(() => {
 .tp-pct.ok { color: var(--success); font-weight: 600; }
 .tp-caret { flex: none; width: 14px; text-align: center; font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; user-select: none; }
 .tp-caret:hover { color: var(--accent); }
+/* R3-B2：置顶徽标 + 拖拽手柄 + 落位指示（指示用 inset box-shadow，不占布局——落位时不许把版面挤动） */
+.tp-pin { flex-shrink: 0; font-size: var(--fs-caption); }
+.tp-grip { flex: none; width: 16px; text-align: center; font-size: var(--fs-caption); color: var(--text-4); cursor: grab; user-select: none; }
+.tp-grip:hover { color: var(--accent); }
+.tp-grip:active { cursor: grabbing; }
+.tree-project-branch.is-dragging { opacity: var(--opacity-disabled); }
+.tp-head.drop-on { box-shadow: inset 0 2px 0 0 var(--accent); }
 .tp-head.folded { border-bottom: 1px dashed var(--border); }
 .tp-acts { position: relative; }
 .tp-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 168px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); padding: 4px; }

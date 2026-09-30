@@ -795,9 +795,9 @@ check('R3-B1 ★路由一级化与老深链兼容：/compass 直挂方向树、/
     && !exists('/newtab/views/CompassShell.vue') && !exists('/newtab/components/compass/LighthousePanel.vue')
     && (a.match(/keep-alive include="([^"]+)"/) || [, ''])[1].split(',').filter(x => ['CompassTreeView', 'ProjectCurationView'].includes(x)).length === 2
 });
-check('R3-B1 ★退役不悬空（能力去向逐条点名）：主航线面（vm-bar/focus-bar/goals-grid/proj-row/右键菜单/ovFilter 状态筛选/置顶与上下移）随宿主整体退役，全站零命中；读数改由树页头 treeStats（主攻/停滞）+ 卡头 tp-flag 承担，密度由 R3-B′ 折叠承担', () => {
+check('R3-B1 ★退役不悬空（能力去向逐条点名；★R3-B2 拍板后置顶与排序已回归树内，不在本条清单里）：主航线实现（vm-bar/focus-bar/goals-grid/proj-row/proj-menu/ovFilter/toolsGate/CHIP_LIMIT）随宿主整体退役，三面全站零命中；读数改由树页头 treeStats（主攻/停滞）+ 卡头 tp-flag 承担，密度由 R3-B′ 折叠承担', () => {
   const t = read('/newtab/views/CompassTree.vue'), h = read('/newtab/views/CompassHome.vue'), pc = read('/newtab/views/ProjectCuration.vue')
-  const gone = ['vm-bar', 'focus-bar', 'goals-grid', 'proj-row', 'proj-menu', 'ovFilter', 'toolsGate', 'CHIP_LIMIT', 'function togglePin', 'function moveProject']
+  const gone = ['vm-bar', 'focus-bar', 'goals-grid', 'proj-row', 'proj-menu', 'ovFilter', 'toolsGate', 'CHIP_LIMIT']
   return gone.every(k => !t.includes(k) && !h.includes(k) && !pc.includes(k))
     && t.includes('⚠ 停滞 {{ treeStats.stalled }}') && t.includes('class="tp-flag"') && t.includes('🚀 主攻 {{ treeStats.focused }}')
 });
@@ -812,4 +812,21 @@ check('R3-B1 ★树担得起首屏：项目级读数走 projMeta 预计算表（
   return t.includes('const projMeta = computed(') && !tpl.includes('projectProgress(') && !tpl.includes('isProjectStalled(') && !tpl.includes('d.tasks.filter(')
     && !codeOnly(t).includes('返回方向台') && !codeOnly(t).includes('tree-link') && !codeOnly(t).includes('进入方向树')
     && !codeOnly(m).includes('compassTab')
+});
+
+// ============== R3-B2 方向树：同目标内手动拖拽排序 + 置顶（用户拍板回归） ==============
+console.log('【R3-B2 · 方向树拖拽排序与置顶】');
+check('R3-B2 ★拖拽只在同一战略目标内且所见即所得：⠿ 手柄 draggable → dragover 只在同 dir 且非自身时给落位指示（.drop-on 用 inset box-shadow，不许把版面挤动）→ drop 取「当前所见序」重排并逐位重写 order，落完清 pinned（否则排序键把它弹回前排＝看着拖不动）；跨目标 drop 直接 return（改归属是另一件事，走项目详情）', () => {
+  const t = read('/newtab/views/CompassTree.vue')
+  return t.includes('function onProjDragStart(') && t.includes('function onProjDragOver(') && t.includes('function onProjDrop(')
+    && t.includes('draggable="true"') && t.includes('@dragover.prevent="onProjDragOver(dir.id, proj)"') && t.includes('@drop.prevent="onProjDrop(dir.id, proj)"')
+    && t.includes('drag.dirId !== dirId') && t.includes('drag.id === target.id')
+    && t.includes('list.splice(to, 0, moved)') && t.includes('list.forEach((p, i) => { p.order = i })') && t.includes('moved.pinned = false')
+    && t.includes('.tp-head.drop-on { box-shadow: inset 0 2px 0 0 var(--accent); }') && !t.includes('.tp-head.drop-on { border')
+});
+check('R3-B2 ★排序键口径：主攻 → 置顶 → order（pinned 不是第二个排序真源而是"钉到非主攻组前排"的快捷方式，置顶时把 order 压到该组最小）；toggleProjectPin 落库 + toast，卡头 📌 徽标显式可见，▾ 菜单第五项进/出两态文案', () => {
+  const t = read('/newtab/views/CompassTree.vue')
+  return t.includes("(Number(b.isFocused) - Number(a.isFocused)) || (Number(!!b.pinned) - Number(!!a.pinned)) || ((a.order ?? 999) - (b.order ?? 999))")
+    && t.includes('function toggleProjectPin(dir: Direction, p: Project)') && t.includes('p.order = minOrder - 1') && t.includes('store.persist()')
+    && t.includes('class="tp-pin"') && t.includes('📌 置顶到本目标前排') && t.includes('☆ 取消置顶')
 });

@@ -177,11 +177,7 @@ check('R99-3 D-D 方向台页头主线状态摘要 ★R3-B1 随宿主改靶（R1
   return t.includes('🚀 主攻 {{ treeStats.focused }} · ⚠ 停滞 {{ treeStats.stalled }}') && t.includes('战略目标 {{ treeStats.dirs }}')
     && t.includes('const treeStats = computed(') && !t.includes('focusCount');
 });
-check('R99-4/R121 置顶/上下移收敛右键菜单 ★R3-B1 退役重指带备案：togglePin/moveProject 随主航线右键菜单退役（字段保留、无新读写方，见 R49-18/R49-19）；旧左栏拖拽残留仍须为零', () => {
-  const t = CT108; const pc = read('/newtab/views/ProjectCuration.vue');
-  return !codeOnly(t).includes('function togglePin') && !codeOnly(t).includes('function moveProject')
-    && !pc.includes('dragProjId') && !pc.includes('跨区移动请先用 📌 置顶/取消置顶');
-});
+check('R99-4/R121 置顶与手动排序 ★R3-B2 回归方向树（右键菜单形态不再回来）：树内拖拽落位 + ▾ 菜单置顶，旧左栏拖拽与「跨区移动请先用 📌 置顶」文案仍须零残留', () => { const t = CT108; const pc = read('/newtab/views/ProjectCuration.vue'); return t.includes('function onProjDrop(') && t.includes('function toggleProjectPin(') && !t.includes('class="proj-menu"') && !pc.includes('dragProjId') && !pc.includes('跨区移动请先用 📌 置顶/取消置顶'); });
 
 console.log('【第一百零八轮 · V2.77.0：Markdown 模板导入实装（T1-T5）+ 页边距统一（F10）】');
 /** R108：① 用户确认的两项 Markdown 导入实装——方向树战略目标下批量生成项目/指标/任务

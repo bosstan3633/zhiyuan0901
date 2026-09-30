@@ -14,6 +14,7 @@
  *   E2E-10 策展统一树：遗留投射记录迁移物化 + 源卡实时 + 原生卡 + 清空引用回落零影响（R53）
  *   E2E-11 方向台首屏项目卡头（★R3-B1 树即一级）+ 指标条未归档任务格 + 档位入表头（R50-F4/F5）
  *   E2E-12 全量呈现：未投射项目卡头照样在（折叠态仍可见，★R3-B1 换呈现单位）
+ *   E2E-29 ★R3-B2 方向树同目标拖拽排序 + 置顶（落位重写 order / 📌 钉到非主攻组前排）
  *   E2E-13 方向树返回方向台 + 项目详情头部添加成功指标 + 返回项目列表移除（R52-F5/F6/F8）
  *   E2E-14 项目调度指标下钻弹窗（R54-B2）
  *   E2E-15 面包屑 + 来源感知返回 + 树定位闭环（R54-A）
@@ -525,6 +526,55 @@ async function main() {
   const backListGone = !(await page.getByText('返回项目列表').first().isVisible().catch(() => false))
   report('E2E-13 ★R3-B1 老深链重定向落地（/compass/tree?hl → /compass 且渲染树）+ 一级无自指返回钮 + 项目详情标题行成功指标入口 + 返回项目列表移除（R52-F5/F6/F8 · R177 随迁）', backBtn && backToCompass && projHead && addMetricBtn && backListGone,
     `无返回钮=${backBtn} 重定向且出树=${backToCompass} proj=${projHead} addMetric=${addMetricBtn} backListGone=${backListGone}`)
+
+  // E2E-29 ★R3-B2 方向树同目标拖拽排序 + 置顶：拖拽落位重写 order（所见即所得）→ ▾ 菜单置顶把第二张钉到前排
+  await page.evaluate(() => { location.hash = '#/compass' })
+  await page.waitForTimeout(1500)
+  const dragOut = await page.evaluate(async () => {
+    const host = [...document.querySelectorAll('.tc-strategic-branch')].find(b => b.querySelectorAll('.tree-project-branch').length >= 2)
+    if (!host) return { ok: false, why: '没有含两张项目卡的战略目标' }
+    const nameOf = (el) => (el.querySelector('.tp-title .node-title')?.textContent || '').trim()
+    const read = () => [...host.querySelectorAll('.tree-project-branch')].map(nameOf)
+    const before = read()
+    const items = [...host.querySelectorAll('.tree-project-branch')]
+    const dt = new DataTransfer()
+    const grip = items[0].querySelector('.tp-grip')
+    const head2 = items[1].querySelector('.tp-head')
+    grip.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }))
+    head2.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    // Vue 的 class 绑定在下一个 tick 才落到 DOM，同步读必假——落位指示要等一拍再量
+    await new Promise((r) => setTimeout(r, 80))
+    const showedDrop = head2.classList.contains('drop-on')
+    head2.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    grip.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }))
+    await new Promise((r) => setTimeout(r, 900))
+    const after = read()
+    const stored = await chrome.storage.local.get('zy_data_v2')
+    const dir = ((stored['zy_data_v2'] || {}).compass?.directions || []).find((x) => (x.projects || []).length >= 2)
+    return { ok: showedDrop && after[0] === before[1] && after[1] === before[0], showedDrop, before, after,
+      orders: (dir?.projects || []).map((x) => x.name + '=' + x.order) }
+  })
+  const pinOut = await page.evaluate(async () => {
+    const host = [...document.querySelectorAll('.tc-strategic-branch')].find(b => b.querySelectorAll('.tree-project-branch').length >= 2)
+    const nameOf = (el) => (el.querySelector('.tp-title .node-title')?.textContent || '').trim()
+    const items = [...host.querySelectorAll('.tree-project-branch')]
+    const target = items[1]
+    const before = [...host.querySelectorAll('.tree-project-branch')].map(nameOf)
+    target.querySelectorAll('.tp-acts .node-action')[2].click()          // ▾ 更多操作
+    await new Promise((r) => setTimeout(r, 250))
+    const pinItem = [...target.querySelectorAll('.tp-menu .tpm-item')].find((x) => (x.textContent || '').includes('置顶到本目标前排'))
+    if (!pinItem) return { ok: false, why: '菜单里没有置顶项' }
+    pinItem.click()
+    await new Promise((r) => setTimeout(r, 900))
+    const now = [...host.querySelectorAll('.tree-project-branch')]
+    const stored = await chrome.storage.local.get('zy_data_v2')
+    const dir = ((stored['zy_data_v2'] || {}).compass?.directions || []).find((x) => (x.projects || []).length >= 2)
+    return { ok: now[0] && nameOf(now[0]) === before[1] && !!now[0].querySelector('.tp-pin'),
+      moved: !!now[0] && nameOf(now[0]) === before[1], badge: !!(now[0] && now[0].querySelector('.tp-pin')),
+      pinned: (dir?.projects || []).filter((x) => x.pinned).map((x) => x.name) }
+  })
+  report('E2E-29 ★R3-B2 方向树拖拽排序（落位重写 order 且所见即所得）+ ▾ 菜单置顶（钉到非主攻组前排 + 📌 徽标 + 落库）',
+    dragOut.ok && pinOut.ok, `拖拽=${JSON.stringify(dragOut)} 置顶=${JSON.stringify(pinOut)}`)
 
   // E2E-14 指标下钻弹窗（R54-B2）：调度台项目调度 4 格可点击 → 弹窗列指标清单
   await page.goto(base, { waitUntil: 'domcontentloaded' })
