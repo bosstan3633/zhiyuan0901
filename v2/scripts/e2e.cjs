@@ -5,6 +5,7 @@
  *   E2E-1  MV3 扩展加载（worker = CRXJS service-worker-loader.js）
  *   E2E-2  设置页默认首屏 = 知源仪表盘（导航四组 R54 + 动态条/操作记录时间线）
  *   E2E-3  ★R4-Da 改靶：全景整页退役归零 + 标签管理双栏仍两列（连带 CSS 的活性证据）
+ *   E2E-32 ★R4-Db 书签导入唯一路线（真喂书签 HTML 跑一次导入）
  *   E2E-4  北极星「新增卡片/删除卡片」卡渲染（R45-1 三档周期联动改名）
  *   E2E-5  PDF 附件双击 file:// 打开（data 层种卡 + IndexedDB blob → 双击卡片 → 新标签 file://…pdf）
  *   E2E-6  事件日志 zy_event_log 独立 key 落盘（打开资源卡产生事件）
@@ -1094,6 +1095,59 @@ async function main() {
     barWithoutSel && /已选 0/.test(sel0) && tSelAll >= 2 && taskTagged.n === tSelAll && selAfterReenter === 0
     && czBar && /已选 2/.test(czAll) && /已选 0/.test(czInvert),
     `栏即出=${barWithoutSel} 初始="${sel0.trim()}" 全选=${tSelAll} 打标落库=${taskTagged.n} 重进残留=${selAfterReenter} 好奇栏=${czBar} 全选="${czAll.trim()}" 反选="${czInvert.trim()}"`)
+
+  // E2E-32 ★R4-Db 书签导入唯一路线：真喂一份 Netscape 书签 HTML 进设置页那枚 input，核四件
+  //   此前**只有源码文本断言**在管的事（书签链路过去零行为覆盖，删一整条死链却没有活性凭据
+  //   就等于"合一"可能只是"删坏了"）：
+  //   ① 落库张数 == 解析张数；② 文件夹层级进标签、浏览器根栏名不混进标签；
+  //   ③ percent-encoding 标题被解码（合一从旧实现带来的那处硬化）；④ 卡不落隐藏池 + 回执挂出
+  //   「归类并补全这批」（R138-H3：导入完不自动弹抽屉）。
+  const bkHtml = [
+    '<!DOCTYPE NETSCAPE-Bookmark-file-1>',
+    '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">',
+    '<TITLE>Bookmarks</TITLE><H1>Bookmarks</H1><DL><p>',
+    '  <DT><H3>书签栏</H3><DL><p>',
+    '    <DT><H3>AI工具</H3><DL><p>',
+    '      <DT><A HREF="https://e2e-db.test/a">%E4%B9%A0%E6%83%AF%E5%85%BB%E6%88%90</A>',
+    '      <DT><A HREF="https://e2e-db.test/b">普通标题乙</A>',
+    '    </DL><p>',
+    '    <DT><A HREF="obsidian://e2e-db">Obsidian 直达</A>',
+    '  </DL><p>',
+    '</DL><p>'
+  ].join('\n')
+  const bkBefore = await page.evaluate(() => chrome.storage.local.get('zy_data_v2')
+    .then(r => (r['zy_data_v2'].resources || []).filter(x => !x.deletedAt).length))
+  await page.goto(base + '#/settings?page=import', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2600)
+  await page.locator('input[accept=".html,.htm"]').first()
+    .setInputFiles({ name: 'bookmarks.html', mimeType: 'text/html', buffer: Buffer.from(bkHtml, 'utf8') })
+  await page.waitForTimeout(2000)
+  const bk = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => {
+    const d = r['zy_data_v2']
+    const cards = (d.resources || []).filter(x => /^https:\/\/e2e-db\.test|^obsidian:\/\/e2e-db/.test(x.link || ''))
+    const ws = d.workspaces.find(w => w.id === (cards[0] || {}).workspaceId)
+    return {
+      added: cards.length,
+      tags: Array.from(new Set(cards.flatMap(c => c.tags || []))),
+      decoded: cards.map(c => c.title).find(t => t === '习惯养成') || '',
+      linkTypes: Array.from(new Set(cards.map(c => c.linkType))).sort(),
+      wsName: ws ? ws.name : '(无)',
+      inPool: cards.some(c => c.workspaceId === 'zy-curation'),
+      catUncat: cards.every(c => !!c.categoryId)
+    }
+  }))
+  /* ★回执钮文案是**条件式**的：接入未配时印「先在 AI 助手完成接入」、配了才印「归类并补全这批」，
+     按后者找在 E2E 环境里永远命不中（首轮就红在这里，而导入本身其实已经成功）。
+     改核那一行无条件存在的「刚导入 N 张卡」——它才证明 pendingImportEnrich 真的被赋值了。 */
+  const bkReceipt = await page.getByText(/刚导入 3 张卡/).first().isVisible().catch(() => false)
+  const bkCount = await page.evaluate(() => chrome.storage.local.get('zy_data_v2')
+    .then(r => (r['zy_data_v2'].resources || []).filter(x => !x.deletedAt).length))
+  report('E2E-32 ★R4-Db 书签导入唯一路线：落库张数=解析张数 / 层级进标签且根栏名排除 / 编码标题解码 / 不落池 + 回执在位',
+    bk.added === 3 && bkCount === bkBefore + 3 && JSON.stringify(bk.tags) === '["AI工具"]'
+    && bk.decoded === '习惯养成' && JSON.stringify(bk.linkTypes) === '["obsidian","url"]'
+    && bk.wsName.startsWith('🔖 书签导入') && !bk.inPool && bk.catUncat && bkReceipt,
+    `落库=${bk.added} 总数=${bkBefore}→${bkCount} 标签=${JSON.stringify(bk.tags)} 解码="${bk.decoded}" 型=${JSON.stringify(bk.linkTypes)} 台="${bk.wsName}" 落池=${bk.inPool} 回执=${bkReceipt}`)
 
   // E2E-28（R4-a）：迁移报告卡与整库回退出口——种备份+报告 → 设置页出卡 → 回退（确认框）→ 停用键落、报告清、卡片转停用态
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {

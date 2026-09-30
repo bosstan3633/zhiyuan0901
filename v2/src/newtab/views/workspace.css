@@ -420,23 +420,7 @@
 .mt-empty { padding: 18px; text-align: center; font-size: var(--fs-sub); color: var(--text-3); }
 .mt-hint { flex: 1; font-size: var(--fs-caption); color: var(--text-3); line-height: 1; align-self: center; }
 
-/* R73-S2：书签导入文件夹选择（自 CurationCenter 迁入） */
-.bk-hint { font-size: var(--fs-sub); color: var(--text-3); line-height: 1.7; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; margin-bottom: 8px; }
-.bk-all { display: flex; align-items: center; gap: 8px; font-size: var(--fs-body); font-weight: 600; color: var(--text); padding: 6px 0 10px; cursor: pointer; }
-.bk-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-.bk-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; transition: background .1s; }
-.bk-item:hover { background: var(--surface-2); }
-.bk-name { flex: 1; font-size: var(--fs-sub); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bk-count { font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-3); padding: 1px 8px; border-radius: 99px; }
-
-/* 书签文件夹选择 */
-.bk-hint { font-size: var(--fs-sub); color: var(--text-3); line-height: 1.7; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; margin-bottom: 8px; }
-.bk-all { display: flex; align-items: center; gap: 8px; font-size: var(--fs-body); font-weight: 600; color: var(--text); padding: 6px 0 10px; cursor: pointer; }
-.bk-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-.bk-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; transition: background .1s; }
-.bk-item:hover { background: var(--surface-2); }
-.bk-name { flex: 1; font-size: var(--fs-sub); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bk-count { font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-3); padding: 1px 8px; border-radius: 99px; }
+/* R4-Db：书签导入「文件夹勾选」弹窗的两份 .bk-* 样式一并删除（模板锚点已随死链消失）。   ★原先这两段是逐字重复的两份（同一批规则在 R73-S2 迁来时又贴了一遍），本轮一并清掉。 */
 
 /* Toast */
 

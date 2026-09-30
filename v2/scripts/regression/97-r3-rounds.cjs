@@ -196,3 +196,30 @@ check('R3-Cc2 ★差异是数据不是三份模板：三面板把值域以数组
     && p.includes('const poolViews =') && p.includes('const poolFilters = computed(')
 });
 
+// ============== R4-Db · 旧世界清账：书签导入单路线合一 ==============
+console.log('【R4-Db · 书签导入单路线合一】');
+check('R4-Db ★书签导入唯一实现：全站只有一处书签解析器与一处根文件夹白名单，宿主零副本', () => {
+  const bk = read('/newtab/composables/useBookmarkImport.ts');
+  const hosts = ['/newtab/views/GlobalSettings.vue', '/newtab/views/Workspace.vue',
+    '/newtab/components/compass/PoolCardsPanel.vue', '/newtab/composables/useWorkspaceImport.ts'];
+  const dup = hosts.filter(f => codeOnly(read(f)).includes('function parseBookmarksHtml'));
+  const imp = codeOnly(read('/newtab/composables/useWorkspaceImport.ts'));
+  return bk.includes('function parseBookmarksHtml') && bk.includes('const BK_ROOT_NAMES = new Set(')
+    && dup.length === 0 && !imp.includes('BK_ROOT_NAMES') && !imp.includes('bookmarkInput')
+    && imp.includes('export function useWorkspaceImport(') && imp.includes('function handleBoardImport(');
+});
+check('R4-Db ★合一不是"留下活的那份"就完事：死链身上三处硬化必须搬进唯一实现，且绝不写隐藏池（★本条一律走 codeOnly——唯一实现的头注释为了讲清退役缘由点了池 id 的字面量，用裸 read 会让这条负判据恒假：R166 那条纪律第四次咬人，这次咬的是我自己刚写的判据）', () => {
+  const bk = codeOnly(read('/newtab/composables/useBookmarkImport.ts'));
+  return bk.includes('safeDecodeText(h3.textContent') && bk.includes('safeDecodeText(a.textContent')
+    && bk.includes('find(c => !c.deletedAt && c.workspaceId === target.id')
+    && bk.includes("'Bookmarks Toolbar'") && bk.includes("'移动书签'")
+    && !bk.includes('CURATION_WS_ID') && bk.includes('assets: []') && bk.includes('return ids');
+});
+check('R4-Db ★书签入口只有设置页一枚，Workspace 台面不再挂着够不着的 parked input 与其弹窗样式', () => {
+  const gs = read('/newtab/views/GlobalSettings.vue');
+  const wc = codeOnly(read('/newtab/views/Workspace.vue'));
+  const css = codeOnly(read('/newtab/views/workspace.css'));
+  return gs.includes('ref="bookmarkInput"') && gs.includes('@click="bookmarkImport()"') && gs.includes('@change="onBookmarkFile"')
+    && !wc.includes('bookmarkInput') && !wc.includes('accept=".html,.htm"')
+    && !css.includes('.bk-hint') && !css.includes('.bk-item');
+});

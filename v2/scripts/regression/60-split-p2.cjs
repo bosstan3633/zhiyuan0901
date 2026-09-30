@@ -150,14 +150,18 @@ console.log('【第一百轮 · V2.69.0：Workspace.vue 纯拆分第一批（导
  *  ~220 行）为独立 composable，实现原位迁出、零行为变更。拆分约定：实现随迁（composable 内实现），
  *  绑定留宿主（解构保持原标识符，模板与断言入口面不变），断言按域归位（R100 重指 13 处）。
  *  本断言守拆分不变量：实现在 composable、宿主有绑定、宿主无重复实现。 */
-check('R100-1 ★ 导入域拆分不变量：三链路实现在 composable + 宿主经 useWorkspaceImport 解构绑定 + 宿主零重复实现', () => {
+check('R100-1 ★ 导入域拆分不变量（★R4-Db 重指带备案：书签那条自本模块搬出，唯一实现住在 useBookmarkImport.ts——拆分不变量本身一字未松，只是"实现在 composable、宿主只解构绑定、宿主零重复实现"这条管辖范围从三链路同文件变成两文件三链路，故判据按新落点点名，并把"宿主不得自带解析器"的负判据从 Workspace 扩到 GlobalSettings（它原先真有一份副本））：三链路实现在 composable + 宿主经解构绑定 + 宿主零重复实现', () => {
+  const BK100 = read('/newtab/composables/useBookmarkImport.ts');
+  const GS100 = codeOnly(read('/newtab/views/GlobalSettings.vue'));
   return IMP100.includes('export function useWorkspaceImport(')
-    && IMP100.includes('function handleBoardImport(') && IMP100.includes('function parseBookmarksHtml(')
-    && IMP100.includes('async function handleFileImport(') && IMP100.includes('function confirmBookmarkImport(')
+    && IMP100.includes('function handleBoardImport(') && IMP100.includes('async function handleFileImport(')
+    && BK100.includes('export function useBookmarkImport(') && BK100.includes('function parseBookmarksHtml(')
     && WSP100.includes('useWorkspaceImport({ d, workspaceId, newCardCatId, persist: () => store.persist() })')
-    && WSP100.includes('handleBoardImport, handleBookmarkImport, confirmBookmarkImport, toggleAllBk,')
+    && WSP100.includes('handleBoardImport')
+    && GS100.includes('useBookmarkImport({') && GS100.includes('await handleBookmarkImport(e, bookmarkTargetWs.value)')
     && !WSP100.includes('function parseBookmarksHtml') && !WSP100.includes('function ensureBookmarkCategory')
-    && !WSP100.includes('async function handleFileImport(');
+    && !WSP100.includes('async function handleFileImport(')
+    && !GS100.includes('function parseBookmarksHtml') && !GS100.includes('interface BkNode');
 });
 
 console.log('【第九十九轮 · V2.68.0：方向台组四件（M6 + M8 + D-D + D-E）】');

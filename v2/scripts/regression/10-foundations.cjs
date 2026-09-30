@@ -226,15 +226,24 @@ check('R29-2 快捷键跟随位置（顺序即快捷键，自定义绑定移除�
 check('R29-3 资源卡拖到侧栏分类改归属（三视图通用+待分类落点）', () => read('/newtab/views/Workspace.vue').includes('cardDropTarget') && read('/newtab/views/Workspace.vue').includes('onDropToCategory(e, cat.id)') && read('/newtab/views/Workspace.vue').includes("onDropToCategory(e, '')"));
 check('R29-4 分类落点高亮（与分类拖拽指示区分）', () => read('/newtab/views/Workspace.vue').includes('.cat-item.card-drop'));
 check('R29-5/R49 信纸明显留白（应用内+分享版同步；R49 行距 3.1）', () => read('/newtab/views/GlobalSettings.vue').includes('line-height: 3.1') && read('/newtab/letter-data.ts').includes('line-height: 3.1'));
-check('R29-6（R65 修订）分类/标签名 URL 编码归一化（书签解析移交资源台）', () => read('/shared/storage/repository.ts').includes('safeDecodeText') && read('/shared/utils/index.ts').includes('export function safeDecodeText') && read('/newtab/composables/useWorkspaceImport.ts').includes('safeDecodeText(h3.textContent'));
+check('R29-6（R65 修订；★R4-Db 重指带备案：书签解析器自 useWorkspaceImport 搬进唯一实现 useBookmarkImport，解码锚点跟着搬到新落点，判据一字未松）分类/标签名 URL 编码归一化——三处解码点：仓库读取层 + 工具真源 + 书签解析', () => read('/shared/storage/repository.ts').includes('safeDecodeText') && read('/shared/utils/index.ts').includes('export function safeDecodeText') && read('/newtab/composables/useBookmarkImport.ts').includes('safeDecodeText(h3.textContent') && read('/newtab/composables/useBookmarkImport.ts').includes('safeDecodeText(a.textContent'));
 check('R29-7 「升为一级」落点先取引用再清理（修拖拽状态自吞）', () => read('/newtab/views/Workspace.vue').includes('先取引用再清理状态'));
 
 console.log('【第卅轮 · 信件模块化/书签导入分类树 · V2.10.0】');
 check('R30-1 信件节头+停顿+信念行（应用内样式）', () => read('/newtab/views/GlobalSettings.vue').includes('.gs-letter .lp-body p.lp-h') && read('/newtab/views/GlobalSettings.vue').includes('.gs-letter .lp-body p.lp-turn') && read('/newtab/views/GlobalSettings.vue').includes('.gs-letter .lp-body p.lp-creed'));
 check('R30-2 信件 HTML 模块化结构（两处渲染共享）', () => read('/newtab/letter-data.ts').includes('<p class="lp-h">') && read('/newtab/letter-data.ts').includes('<p class="lp-turn">') && read('/newtab/letter-data.ts').includes('<p class="lp-creed">'));
 check('R30-3 分享版分节样式同构', () => read('/newtab/letter-data.ts').includes('.lp-body p.lp-h'));
-check('R30-4（R73 修订；R100 重指：实现拆入 useWorkspaceImport，宿主保留绑定）书签文件夹→分类树（资源台 hub 分支承接：前 2 级建分类，同名同级复用）', () => { const imp = read('/newtab/composables/useWorkspaceImport.ts'); return imp.includes('ensureBookmarkCategory') && imp.includes('BK_ROOT_NAMES') && imp.includes('cat.parentId = parentId'); });
-check('R30-5（R73 修订；R100 重指：实现拆入 useWorkspaceImport）第 3 级+并入标签（资源台 hub 分支承接）', () => { const imp = read('/newtab/composables/useWorkspaceImport.ts'); return imp.includes('segs.slice(2)') && !imp.includes("b.path.filter(p => p && p !== '书签栏')"); });
+check('R30-4（R73 修订；R100 拆入 composable；★R4-Db 退役重指带备案：本条守的「书签文件夹前 2 级建分类 + 同名同级复用」**整条能力按设计删除**，不是搬家——它建的分类挂在隐藏池 CURATION_WS_ID 下，而 models 明令「池卡 categoryId 恒空、hub 分类实体已由迁移器移除」，清理器又被 catsMigratedAt 幂等戳挡住不会重跑 ⇒ 触发一次就留下金字塔仍在枚举的永久残留；且它的触发钮自 V3.7.0 起全站零 .click()，是一条够不着的死链。判据转退役三条腿：① 两份实现（旧 composable 与唯一实现）剥注释后一律零命中那套建树符号；② 存活口径点名=书签层级**只进标签**（BK_ROOT_NAMES 过滤后整条 path 进 tags）+ 台内单「待分类」承接归属；③ 设置页文案照旧写明"建树导入已随资源台退役"（R169-17 同锚，两处不许互相打架）', () => {
+  const bk = codeOnly(read('/newtab/composables/useBookmarkImport.ts'));
+  const imp = codeOnly(read('/newtab/composables/useWorkspaceImport.ts'));
+  const gs = read('/newtab/views/GlobalSettings.vue');
+  const retired = ['function ensureBookmarkCategory', 'cat.parentId = parentId', 'segs.slice(0, 2)', 'bkFolders', 'bookmarkModalOpen'];
+  return retired.every(k => !bk.includes(k) && !imp.includes(k))
+    && bk.includes('b.path.filter(p => p && !BK_ROOT_NAMES.has(p))') && bk.includes("name: '待分类'")
+    && !bk.includes('CURATION_WS_ID') && !imp.includes('CURATION_WS_ID')
+    && gs.includes('文件夹→分类的建树导入已随资源台退役');
+});
+check('R30-5（R73 修订；R100 拆入 composable；★R4-Db 重指带备案：口径由「第 3 级+转标签（前 2 级已建分类）」改成「整条路径全部转标签」——建树那条已随上一条退役，层级不再有第二处去处；本条原先那条负判据禁的正是旧设置页那枚只排 书签栏 的公式，本轮唯一实现用的就是它当初要求的那一侧：按 BK_ROOT_NAMES 八枚排净，中英文与移动端栏名都不漏进标签）书签层级→标签唯一口径', () => { const bk = read('/newtab/composables/useBookmarkImport.ts'); const imp = codeOnly(read('/newtab/composables/useWorkspaceImport.ts')); const gs = codeOnly(read('/newtab/views/GlobalSettings.vue')); return bk.includes('!BK_ROOT_NAMES.has(p)') && bk.includes("const BK_ROOT_NAMES = new Set(['书签栏', '收藏栏', '其他书签'") && !bk.includes('segs.slice(2)') && !bk.includes("p !== '书签栏'") && !imp.includes("p !== '书签栏'") && !gs.includes("p !== '书签栏'") && !gs.includes('function parseBookmarksHtml'); });
 
 console.log('【第卅一轮 · 下钻抽屉重构/Esc修复/发版 · V2.11.0】');
 check('R31-1 Drawer 组件 Esc 关闭（open 期间 document 级捕获）', () => read('/shared/components/Drawer.vue').includes("watch(() => props.open") && read('/shared/components/Drawer.vue').includes("document.addEventListener('keydown', onKey, true)"));

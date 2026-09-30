@@ -3,7 +3,7 @@
  *
  * 覆盖三条导入链路（W6/R73 的 mode-aware 入口语义不变）：
  *   1. 策展台数据包 JSON（`handleBoardImport`，非 hub；R65-F4/R65-8/R70 结构校验）
- *   2. 书签 HTML（`handleBookmarkImport` → 文件夹勾选 → `confirmBookmarkImport`，hub；R30-4/R73-6）
+ *   2. ~~书签 HTML~~ → ★R4-Db 起唯一实现在 `composables/useBookmarkImport.ts`（本模块那份是死链，已删）
  *   3. 本地文件批量（`handleFileImport`，hub；R13 一文件一卡 + 附件本体入 IndexedDB）
  *
  * 拆分约定（04-49 任务书）：
@@ -13,7 +13,6 @@
  */
 import { ref, computed, type ComputedRef } from 'vue'
 import type { AppData, AssetMeta, ResourceCard } from '@/shared/models'
-import { CURATION_WS_ID } from '@/shared/models'
 import { uid, safeDecodeText } from '@/shared/utils'
 import { guessAssetKind, assetMimeOf, stripExt, ASSET_KIND_MB } from '@/shared/utils/assetKind'
 import { putAsset } from '@/shared/storage/assets'
@@ -99,128 +98,17 @@ export function useWorkspaceImport(ctx: WorkspaceImportCtx) {
     input.value = ''
   }
 
-  // ===== R73-S2（R16 收敛）：书签 HTML 导入 + 本地文件导入（自 CurationCenter 迁入，真身落资源台） =====
-  const bookmarkInput = ref<HTMLInputElement | null>(null)
+  // ===== R4-Db（旧世界清账）：书签导入整段搬出本模块 =====
+  /* 原先这里挂着书签的**第二条**实现（文件夹勾选 → 按前 2 级在隐藏池下建分类）。
+     它自 V3.7.0 起就是够不着的死链（宿主那一枚 file input 全站零 .click()），
+     且写的形状被 models 明令禁止（池卡 categoryId 恒空、hub 分类实体已由迁移器移除），
+     而清理器被幂等戳挡住不会重跑 ⇒ 触发一次就永久残留。
+     本轮连同勾选弹窗、其文件夹清单与那一段样式一并删除，本模块只剩「策展台数据包 JSON」与
+     「本地文件批量」两条链路。书签唯一实现见 composables/useBookmarkImport.ts
+     （含从本模块搬走的解码与软删分类排除两处硬化）。
+     ★写这条注释时刻意不点被删符号的名字——本仓库已三次踩到"解释退役原因的注释把自己的
+       零命中判据顶成恒真"（R166 纪律：负判据一律走 codeOnly，注释里也不留字面量）。 */
   const fileImportInput = ref<HTMLInputElement | null>(null)
-
-  interface BkFolder { path: string; name: string; count: number; checked: boolean }
-  interface BkNode { title: string; url: string; path: string[] }
-
-  const bookmarkModalOpen = ref(false)
-  const bkFolders = ref<BkFolder[]>([])
-  // R129-B11：原为普通 `let`——`bkTotalCount` computed 因无响应式依赖而**不会**随重新解析刷新
-  //（第二次导入时计数停在旧值）。改 ref，解析结果一律走 `.value`。
-  const bkBookmarks = ref<BkNode[]>([])
-
-  /** 建一张资源台真身卡（分类由调用方给定；聚合视图下须传 newCardCatId() 的回落值） */
-  function makeHubResource(title: string, linkType: ResourceCard['linkType'], link: string, categoryId: string, tags: string[] = []): ResourceCard {
-    return {
-      id: uid('res'), kind: 'resource', title, linkType, link,
-      workspaceId: CURATION_WS_ID, categoryId, description: '', tags,
-      customFields: {}, pinned: false, callCount: 0, createdAt: Date.now(), updatedAt: Date.now()
-    }
-  }
-
-  /** 解析 Netscape 书签 HTML（浏览器导出格式）：DL/DT/H3 递归，取 A 的 href 与文本 */
-  function parseBookmarksHtml(html: string): BkNode[] {
-    const doc = new DOMParser().parseFromString(html, 'text/html')
-    const out: BkNode[] = []
-    function walk(dl: Element | null, path: string[]) {
-      if (!dl) return
-      for (const dt of Array.from(dl.children).filter(el => el.tagName === 'DT')) {
-        const h3 = dt.querySelector(':scope > h3')
-        const a = dt.querySelector(':scope > a')
-        if (h3) {
-          const name = safeDecodeText(h3.textContent?.trim() || '未命名')
-          walk(dt.querySelector(':scope > dl'), [...path, name])
-        } else if (a) {
-          const url = a.getAttribute('href') || ''
-          if (url && /^(https?:|file:|obsidian:)/i.test(url)) {
-            out.push({ title: safeDecodeText(a.textContent?.trim() || url), url, path })
-          }
-        }
-      }
-    }
-    walk(doc.querySelector('dl'), [])
-    return out
-  }
-
-  /** 选中书签文件 → 解析 → 按文件夹路径分组 → 弹出文件夹勾选弹窗 */
-  function handleBookmarkImport(e: Event) {
-    const input = e.target as HTMLInputElement
-    const file = input.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      try {
-        bkBookmarks.value = parseBookmarksHtml(reader.result as string)
-        if (!bkBookmarks.value.length) { showToast('未在文件中解析到书签，请确认是浏览器导出的书签 HTML'); return }
-        const groups = new Map<string, BkNode[]>()
-        for (const b of bkBookmarks.value) {
-          const key = b.path.length ? b.path.join(' / ') : '未分组'
-          if (!groups.has(key)) groups.set(key, [])
-          groups.get(key)!.push(b)
-        }
-        bkFolders.value = Array.from(groups.entries())
-          .map(([path, items]) => ({ path, name: path.split(' / ').pop() || path, count: items.length, checked: true }))
-          .sort((a, b) => b.count - a.count)
-        bookmarkModalOpen.value = true
-        importModalOpen.value = false
-      } catch { showToast('✗ 书签文件解析失败') }
-    }
-    reader.readAsText(file)
-    input.value = ''
-  }
-
-  const allBkChecked = computed(() => bkFolders.value.length > 0 && bkFolders.value.every(f => f.checked))
-  const bkTotalCount = computed(() => bkBookmarks.value.length)
-  function toggleAllBk() {
-    const next = !allBkChecked.value
-    bkFolders.value.forEach(f => { f.checked = next })
-  }
-
-  /** 浏览器标准根文件夹不生成分类 */
-  const BK_ROOT_NAMES = new Set(['书签栏', '收藏栏', '其他书签', 'Bookmarks bar', 'Bookmarks Toolbar', 'Favorites bar', 'Mobile bookmarks', '移动书签'])
-
-  /** 按路径前 2 级确保资源台分类存在（同名同级复用），返回卡片归属分类 id（'' = 未分类） */
-  function ensureBookmarkCategory(segs: string[]): string {
-    let parentId: string | undefined
-    let catId = ''
-    for (const seg of segs.slice(0, 2)) {
-      const name = seg.trim()
-      if (!name) break
-      // R129-B11：必须排除软删分类——此前同名分类在回收站时，导入的卡被挂进已删分类，
-      // 卡既不显示（分类被过滤）也不可恢复，与 usePyramid.ts 的 `!c.deletedAt` 口径不一致。
-      let cat = d.value.categories.find(c => !c.deletedAt && c.workspaceId === CURATION_WS_ID && (c.parentId || undefined) === parentId && c.name === name)
-      if (!cat) {
-        cat = { id: uid('cat'), workspaceId: CURATION_WS_ID, name, order: d.value.categories.filter(c => c.workspaceId === CURATION_WS_ID && (c.parentId || undefined) === parentId).length }
-        if (parentId) cat.parentId = parentId
-        d.value.categories.push(cat)
-      }
-      catId = cat.id
-      parentId = cat.id
-    }
-    return catId
-  }
-
-  /** 按勾选文件夹导入：前 2 级建分类、第 3 级+ 并入标签（R30-4 / R30-5 口径） */
-  function confirmBookmarkImport() {
-    const checkedPaths = new Set(bkFolders.value.filter(f => f.checked).map(f => f.path))
-    const items = bkBookmarks.value.filter(b => checkedPaths.has(b.path.length ? b.path.join(' / ') : '未分组'))
-    if (!items.length) { showToast('未选择任何文件夹'); return }
-    for (const b of items) {
-      const segs = b.path.filter(p => p && !BK_ROOT_NAMES.has(p))
-      const catId = ensureBookmarkCategory(segs)
-      const tags = Array.from(new Set(segs.slice(2)))
-      let linkType: ResourceCard['linkType'] = 'url'
-      if (b.url.startsWith('file:')) linkType = 'file'
-      else if (b.url.startsWith('obsidian:')) linkType = 'obsidian'
-      d.value.resources.unshift(makeHubResource(b.title.substring(0, 120), linkType, b.url, catId, tags))
-    }
-    persist()
-    bookmarkModalOpen.value = false
-    showToast(`✓ 已导入 ${items.length} 个书签（文件夹结构已生成为分类，可自行增删改）`)
-  }
 
   /** 本地文件批量导入（R13）：**每文件一张带附件的卡**。
    *  改前只把文件名当 link 存进卡里（如「报告.pdf」）——`toOpenableUrl('file','报告.pdf')` 因不是完整
@@ -281,9 +169,8 @@ export function useWorkspaceImport(ctx: WorkspaceImportCtx) {
 
   return {
     importModalOpen, boardImportInput,
-    bookmarkInput, fileImportInput, bookmarkModalOpen, bkFolders,
-    allBkChecked, bkTotalCount,
-    handleBoardImport, handleBookmarkImport, confirmBookmarkImport, toggleAllBk,
-    fileImport, handleFileImport, makeHubResource
+    fileImportInput,
+    handleBoardImport,
+    fileImport, handleFileImport
   }
 }

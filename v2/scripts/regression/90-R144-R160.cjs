@@ -448,7 +448,7 @@ check('R154-8 ★采纳文案全站统一「✓ 采纳（直接写库）」（�
 });
 check('R154-9 ★E3 导入归类不再自动弹 + 采纳直接写库：两处旧语义退役且不留死代码（inline job 与 knownTags 缓存一并删）· R167 备案：apply 的同步包装层随入口搬进共享 ResourceAiStrip，判据改指该组件（宿主只留 onAdopted 回调）', () => {
   const g = read('/newtab/views/GlobalSettings.vue'); const r = read('/newtab/components/ResourceDetailDrawer.vue'); const st = read('/newtab/components/ResourceAiStrip.vue')
-  return g.includes('pendingImportEnrich.value = importedIds') && !g.includes('aiEnrichIds(new Set(importedIds))')
+  return g.includes('if (ids.length) pendingImportEnrich.value = ids') && !g.includes('aiEnrichIds(new Set(importedIds))')
     && st.includes('const base = j.apply') && !st.includes('建议已回填表单') && !st.includes('function knownTags()') && !st.includes('AiRowLite')
     && !r.includes('建议已回填表单') && !r.includes('const baseApply = job.apply!')
 });

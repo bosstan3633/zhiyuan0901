@@ -657,7 +657,7 @@
                书签导入唯一路线收敛到 设置→导入数据（文件夹→标签）；
                ★R2-⑧：本地文件导入入口已按 R179 的既定去向重落到 调度台「资源卡池」控制行
                （PoolCardsPanel 复用 useWorkspaceImport 同一条链路，workspaceId 钉成池 id），
-               本页不再保留 fileImportInput。bookmarkInput 仍 parked（入口在设置页，链路完整）。 -->
+               本页不再保留 fileImportInput。★R4-Db：parked 的 bookmarkInput 与其文件夹弹窗已删除（书签导入唯一路线在设置页）。 -->
           <div class="modal-option" @click="boardImportInput?.click()">
             <span class="mo-icon">🧩</span>
             <div>
@@ -669,7 +669,6 @@
       </div>
     </div>
     <input ref="boardImportInput" type="file" accept=".json,application/json" style="display:none" @change="handleBoardImport" />
-    <input ref="bookmarkInput" type="file" accept=".html,.htm" style="display:none" @change="handleBookmarkImport" />
 
     <!-- R1.5：论证节点卡快速创建（台内新建语义 = 论证卡；资源卡经采集入池 / 节点「🔗 关联资源卡」引用） -->
     <div v-if="argOpen" class="modal-overlay open" @click.self="argOpen=false">
@@ -692,31 +691,8 @@
       </div>
     </div>
 
-    <!-- R73-S2：书签导入文件夹选择（自 CurationCenter 迁入） -->
-    <div v-if="bookmarkModalOpen" class="modal-overlay open" @click.self="bookmarkModalOpen=false">
-      <div class="modal">
-        <div class="modal-header">
-          <span style="font-size:16px">🔖</span>
-          <span class="mh-title">选择要导入的书签文件夹</span>
-          <div class="modal-close" @click="bookmarkModalOpen=false">×</div>
-        </div>
-        <div class="modal-body bk-body">
-          <div class="bk-hint">导入后将按文件夹结构生成分类（前 2 级，同名自动合并），卡片归入原文件夹对应的分类；更深层级转为标签。后续可自行增删改分类。</div>
-          <label class="bk-all"><input type="checkbox" :checked="allBkChecked" @change="toggleAllBk" /> 全部导入（{{ bkTotalCount }} 个书签）</label>
-          <div class="bk-list">
-            <label v-for="f in bkFolders" :key="f.path" class="bk-item">
-              <input type="checkbox" v-model="f.checked" />
-              <span class="bk-name">📁 {{ f.path }}</span>
-              <span class="bk-count">{{ f.count }} 个书签</span>
-            </label>
-          </div>
-        </div>
-        <div class="modal-footer-row">
-          <button class="dr-footer-btn" @click="bookmarkModalOpen=false">取消</button>
-          <button class="dr-footer-btn primary" @click="confirmBookmarkImport">✓ 导入所选</button>
-        </div>
-      </div>
-    </div>
+    <!-- R4-Db：书签导入「文件夹勾选 → 建池内分类」弹窗随死链一并删除——
+         书签唯一路线在 设置→导入数据（目标台 + 文件夹转标签），本页不再有第二个入口 -->
 
     <!-- 批量移动弹窗（第八轮：策展台→分类级联，含当前策展台） -->
     <div v-if="moveModalOpen" class="modal-overlay open" @click.self="moveModalOpen=false">
@@ -1263,10 +1239,7 @@ const {
 // 调度台「资源卡池」，实现仍留在 useWorkspaceImport 一条口径（池面板以 workspaceId=池 id 复用）。
 const {
   importModalOpen, boardImportInput,
-  bookmarkInput, bookmarkModalOpen, bkFolders,
-  allBkChecked, bkTotalCount,
-  handleBoardImport, handleBookmarkImport, confirmBookmarkImport, toggleAllBk,
-  makeHubResource
+  handleBoardImport
 } = useWorkspaceImport({ d, workspaceId, newCardCatId, persist: () => store.persist() })
 
 // ===== R115 拆分接线：拖拽域（卡片/看板/分类/区域拖拽全量；共享拖拽状态层 dragState）=====

@@ -471,7 +471,7 @@
               <div><div class="gs-io-name">导入附件包</div><div class="gs-io-desc">选择「导出附件包」生成的 zip，附件本体按 assetId 写回（同 ID 覆盖）；先导 JSON 再导附件包 = 完整迁移</div></div>
               <button class="gs-btn gs-io-btn">选择文件</button>
             </div>
-            <div class="gs-import-option" @click="bookmarkInput?.click()">
+            <div class="gs-import-option" @click="bookmarkImport()">
               <div class="gs-io-icon">🔖</div>
               <div><div class="gs-io-name">导入书签文件</div><div class="gs-io-desc">选择浏览器导出的书签 HTML：<b>本页只把文件夹层级写成标签</b>，链接 + 标题进资源卡；文件夹→分类的建树导入已随资源台退役。</div></div>
               <button class="gs-btn gs-io-btn">选择文件</button>
@@ -497,7 +497,7 @@
         </div>
         <input ref="fileInput" type="file" accept=".json" style="display:none" @change="handleFileImport" />
         <input ref="assetPackInput" type="file" accept=".zip" style="display:none" @change="handleAssetPackImport" />
-        <input ref="bookmarkInput" type="file" accept=".html,.htm" style="display:none" @change="handleBookmarkImport" />
+        <input ref="bookmarkInput" type="file" accept=".html,.htm" style="display:none" @change="onBookmarkFile" />
       </div>
 
       <!-- ===== 导出数据 ===== -->
@@ -1235,6 +1235,7 @@ import { useDashboardStats } from '@/newtab/components/dashboard/useDashboardSta
 import type { DirLike, TaskLike } from '@/shared/utils/reviewReport'
 // R172-T11：报告出口（落卡 / 导出 / 生成任务 / 跳转）整体抽进 composable，宿主只挂一行
 import { useDashboardReport } from '@/newtab/composables/useDashboardReport'
+import { useBookmarkImport } from '@/newtab/composables/useBookmarkImport'
 import { readEventLog, curioCumulativeSince, countCurioCumulative, EVENT_LOG_CAP, type CardEvent } from '@/shared/utils/eventLog'
 import { readErrorLog, subscribeErrorLog } from '@/shared/utils/runtimeError'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
@@ -1589,8 +1590,18 @@ const resourcePreviewHtml = computed(() => {
 // ---- 导入 ----
 const fileInput = ref<HTMLInputElement | null>(null)
 const assetPackInput = ref<HTMLInputElement | null>(null)
-const bookmarkInput = ref<HTMLInputElement | null>(null)
 const bookmarkTargetWs = ref('__new__')
+// R4-Db：书签导入的解析与落库全部住在 useBookmarkImport（原先本页自带第二份解析器，
+// 与 useWorkspaceImport 那份互为副本、且漏了实体解码与软删分类排除两处硬化）
+const { bookmarkInput, bookmarkImport, handleBookmarkImport } = useBookmarkImport({
+  d: computed(() => store.data!),
+  persist: () => store.persist()
+})
+/** 导入回执：把新建卡 id 交给「归类并补全这批」入口（R138-H3：不自动弹抽屉） */
+async function onBookmarkFile(e: Event) {
+  const ids = await handleBookmarkImport(e, bookmarkTargetWs.value)
+  if (ids.length) pendingImportEnrich.value = ids
+}
 
 function triggerFileImport() { fileInput.value?.click() }
 
@@ -1646,78 +1657,6 @@ function handleFileImport(e: Event) {
 }
 
 /** 解析 Netscape 书签 HTML（浏览器导出格式） */
-interface BkNode { title: string; url: string; path: string[] }
-function parseBookmarksHtml(html: string): BkNode[] {
-  const doc = new DOMParser().parseFromString(html, 'text/html')
-  const out: BkNode[] = []
-  function walk(dl: Element | null, path: string[]) {
-    if (!dl) return
-    for (const dt of Array.from(dl.children).filter(el => el.tagName === 'DT')) {
-      const h3 = dt.querySelector(':scope > h3')
-      const a = dt.querySelector(':scope > a')
-      if (h3) {
-        const name = h3.textContent?.trim() || '未命名'
-        walk(dt.querySelector(':scope > dl'), [...path, name])
-      } else if (a) {
-        const url = a.getAttribute('href') || ''
-        if (url && /^(https?:|file:|obsidian:)/i.test(url)) {
-          out.push({ title: a.textContent?.trim() || url, url, path })
-        }
-      }
-    }
-  }
-  walk(doc.querySelector('dl'), [])
-  return out
-}
-
-function handleBookmarkImport(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = () => {
-    try {
-      const items = parseBookmarksHtml(reader.result as string)
-      if (!items.length) { showToast('未在文件中解析到书签，请确认是浏览器导出的书签 HTML'); return }
-      const d = store.data!
-      let ws = d.workspaces.find(w => w.id === bookmarkTargetWs.value)
-      if (!ws) {
-        ws = {
-          id: uid('ws'), name: '🔖 书签导入 ' + new Date().toLocaleDateString(), icon: '🔖',
-          color: 'var(--accent)', coverTheme: 'deep-sea', desc: '从浏览器书签导入', order: d.workspaces.length, archived: false
-        }
-        d.workspaces.push(ws)
-      }
-      let cat = d.categories.find(c => c.workspaceId === ws!.id && c.name === '待分类')
-      if (!cat) {
-        cat = { id: uid('cat'), workspaceId: ws!.id, name: '待分类', order: d.categories.filter(c => c.workspaceId === ws!.id).length }
-        d.categories.push(cat)
-      }
-      const importedIds: string[] = []
-      for (const b of items) {
-        const tags = Array.from(new Set(b.path.filter(p => p && p !== '书签栏')))
-        let linkType: ResourceCard['linkType'] = 'url'
-        if (b.url.startsWith('file:')) linkType = 'file'
-        else if (b.url.startsWith('obsidian:')) linkType = 'obsidian'
-        const rid = uid('rc')
-        importedIds.push(rid)
-        d.resources.unshift({
-          id: rid, kind: 'resource', title: b.title.substring(0, 120), linkType, link: b.url,
-          workspaceId: ws!.id, categoryId: cat.id, description: '', tags,
-          customFields: {}, pinned: false, callCount: 0, createdAt: Date.now(), updatedAt: Date.now()
-        })
-      }
-      store.persist()
-      showToast('✓ 已导入 ' + items.length + ' 个书签到「' + ws.name + '」（文件夹已作为标签）')
-      // R138-H3 → R154（E3）：导入完成**不自动弹**评审抽屉（它抢焦点、用户也没点过它），
-      // 改成导入回执那一行的显式入口——范式是"点击 → 弹窗"，不是"导入 → 弹窗"
-      pendingImportEnrich.value = importedIds
-    } catch { showToast('✗ 书签文件解析失败') }
-  }
-  reader.readAsText(file)
-  input.value = ''
-}
-
 /** R47-A2：全量并集合并——罗盘（愿景/使命/方向→项目→指标）+ 引擎数据 + 全部关系字段
  *  原则：卡片/指标按 id 去重合并；「关系列表」（taskIds/linkedResourceIds 等）一律取并集；
  *        计数类（stats.wrr）取最大值；标量以导入方覆盖（无 updatedAt 的层级按导入值合并）。 */
