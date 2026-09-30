@@ -2870,6 +2870,12 @@ const activeManualSec = ref('quick-1')
 .gs-toggle.on::after { transform: translateX(17px); }
 
 /* 输入框/下拉 */
+/* R4-Dh：`.gs-input` 此前全站没有一条自有规则（只有三处 `.ai-field .gs-input` 之类的复合选择器改宽度/字号），
+   实测四主题 × 设置页输入框全部吃浏览器默认：底色 rgb(255,255,255)、字色黑、边框 2px 灰——
+   在 linear / raycast 两个深色主题里就是两排白块，其中一枚是 PAT（凭据）框。按同段 .gs-select 的语言补齐。 */
+.gs-input { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: var(--fs-sub); color: var(--text); background: var(--surface); outline: none; transition: all var(--dur); font-family: inherit; }
+.gs-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.gs-input::placeholder { color: var(--text-4); }
 .gs-select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: var(--fs-sub); color: var(--text); background: var(--surface); outline: none; transition: all var(--dur); font-family: inherit; }
 .gs-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
 

@@ -279,11 +279,18 @@ const DASH_SCENES = [
       const syncBtn = rows.some(r => (r.textContent || '').includes('立即同步'))
       /* ★同类输入框必须看起来是同一个东西：这一屏的输入框原先靠一个**全站没有定义**的
          .gs-input 类名撑着（和 .gs-panel 一样是死类名），实际观感来自别处的选择器——
-         新加一行时最容易"功能对、长得不对"，而文本断言看不见。按计算样式核同一性。 */
-      const ins = [...document.querySelectorAll('.gs-setting-row input[type="text"], .gs-setting-row input:not([type])')]
+         新加一行时最容易"功能对、长得不对"，而文本断言看不见。按计算样式核同一性。
+         ★R4-Dh 补第二条判据，它当场抓到了那条死类名的代价：四主题下这排输入框全是
+         浏览器默认白底（rgb(255,255,255) + 黑字 + 2px 灰框），在 linear/raycast 两个深色主题里是白块，
+         其中一枚是 PAT 凭据框。核法＝输入框底色必须等于所在卡片的底色（两者同取 var(--surface)），
+         这样浅色主题不会被误判，而"没走主题 token"一定红。 */
+      const ins = [...document.querySelectorAll('.gs-setting-row input[type="text"], .gs-setting-row input:not([type]), .gs-setting-row input[type="password"]')]
       const bgs = Array.from(new Set(ins.map(i => getComputedStyle(i).backgroundColor)))
-      return { ok: !!tagRow && !!pat && pat.getAttribute('type') === 'password' && syncBtn && bgs.length === 1,
-        txt: `标签列行=${!!tagRow} PAT型=${pat ? pat.getAttribute('type') : '无'} 同步钮=${syncBtn} 输入框底色=${bgs.length}种/${ins.length}枚` }
+      const cardBg = getComputedStyle(document.querySelector('.gs-card')).backgroundColor
+      const offToken = ins.filter(i => getComputedStyle(i).backgroundColor !== cardBg)
+      return { ok: !!tagRow && !!pat && pat.getAttribute('type') === 'password' && syncBtn
+          && bgs.length === 1 && offToken.length === 0,
+        txt: `标签列行=${!!tagRow} PAT型=${pat ? pat.getAttribute('type') : '无'} 同步钮=${syncBtn} 输入框底色=${bgs.length}种/${ins.length}枚 与卡同色=${offToken.length === 0}(卡=${cardBg})` }
     })
   },
   {

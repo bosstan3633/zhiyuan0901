@@ -428,3 +428,22 @@ check('R4-Dg ★导出 Markdown 必须按**卡**分组，不许再按 workspace 
     && seg.includes("catMap.get(catId) || '待分类'") && seg.includes('wsNameById(d.workspaces, wsId)')
     && !seg.includes('for (const ws of d.workspaces)') && !seg.includes('r.workspaceId === ws.id');
 });
+
+// ============== R4-Dh · 设置页输入框补齐（.gs-input 是一条全站无定义的死类名） ==============
+console.log('【R4-Dh · .gs-input 定义与深色主题观感】');
+check('R4-Dh ★`.gs-input` 必须有自有规则且全部取令牌：此前全站只有三处 `.ai-field .gs-input` 这类复合选择器改宽度/字号，**没有一条 .gs-input 本体规则** ⇒ 四主题实测这排输入框吃浏览器默认（底色 rgb(255,255,255)、黑字、2px 灰框），在 linear/raycast 两个深色主题里是白块，其中一枚是 PAT 凭据框。★判据核"取令牌"而不是核"不许白"，因为 apple/notion 的令牌底色本来就是白——只看计算样式会两样都对', () => {
+  const gs = read('/newtab/views/GlobalSettings.vue');
+  const i = gs.indexOf('.gs-input {');
+  const rule = i < 0 ? '' : gs.slice(i, gs.indexOf('}', i));
+  return i > 0 && rule.includes('var(--surface)') && rule.includes('var(--text)')
+    && rule.includes('var(--border)') && rule.includes('var(--fs-sub)') && rule.includes('font-family: inherit')
+    && gs.includes('.gs-input:focus') && gs.includes('var(--accent)')
+    && gs.includes('.gs-input::placeholder') && gs.includes('var(--text-4)')
+    && gs.indexOf('.gs-input {') < gs.indexOf('.gs-select {');
+});
+check('R4-Dh ★视觉门禁必须真的在量这件事：theme-audit 的 st-airtable 场景要把输入框底色与所在卡片底色对比（同取 var(--surface)），并把 PAT 框纳入取样——这条场景改动若被悄悄删掉，回归与截图都不会红，只有这一条会', () => {
+  const t = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8');
+  const seg = t.slice(t.indexOf("id: 'st-airtable'"), t.indexOf("id: 'st-manual'"));
+  return seg.includes('cardBg') && seg.includes('offToken.length === 0') && seg.includes('input[type="password"]')
+    && seg.includes('与卡同色');
+});
