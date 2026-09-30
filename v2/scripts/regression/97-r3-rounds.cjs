@@ -223,3 +223,25 @@ check('R4-Db ★书签入口只有设置页一枚，Workspace 台面不再挂着
     && !wc.includes('bookmarkInput') && !wc.includes('accept=".html,.htm"')
     && !css.includes('.bk-hint') && !css.includes('.bk-item');
 });
+
+// ============== R4-Dc · 旧世界清账：附件卫生 keepIds 单源 + 破坏性入口必有门 ==============
+console.log('【R4-Dc · 数据体检与附件卫生合流】');
+check('R4-Dc ★keepIds 只有一个算式：两个清理入口共用一份实现，宿主不得再手写 keep 集合', () => {
+  const bk = codeOnly(read('/newtab/composables/useWsAssetHygiene.ts'));
+  const gs = codeOnly(read('/newtab/views/GlobalSettings.vue'));
+  return bk.includes('collectReferencedAssetIds(d.value)') && bk.includes('cleanupOrphanAssetsOf(d.value)')
+    && gs.includes('collectReferencedAssetIds(all)') && gs.includes('cleanupOrphanAssetsOf(all)')
+    && !bk.includes('new Set(referencedAssetIds.value)') && !gs.includes('cleanupOrphanAssets(keep)');
+});
+check('R4-Dc ★不可恢复的物理删除必须先数清再确认：设置页那枚「清理」钮此前单击即删（与 R146 给清空回收站补门同一条理由——同一张卡上「导出附件包」被写成完整备份，两个相邻动作给出相反的风险信号）', () => {
+  const gs = read('/newtab/views/GlobalSettings.vue');
+  const seg = gs.slice(gs.indexOf('async function cleanupOrphanAssetsAction'), gs.indexOf("watch(activePage, (p) => { if (p === 'export')"));
+  return seg.includes('listOrphanAssetIds(') && seg.includes('await useConfirm({')
+    && seg.includes('清理 ${orphans.length} 个') && seg.includes('if (!ok) return')
+    && seg.indexOf('listOrphanAssetIds(') < seg.indexOf('cleanupOrphanAssetsOf(')
+    && seg.includes('导出附件包');
+});
+check('R4-Dc ★只删 IndexedDB 本体的那条动作不许多写一遍主 JSON（AppData 一个字节没变 ⇒ persist 是纯开销）', () => {
+  const seg = segOf(read('/newtab/composables/useWsAssetHygiene.ts'), 'async function onDrillCleanupOrphans', '\n  return {');
+  return !seg.includes('store.persist()') && seg.includes('cleanupOrphanAssetsOf(d.value)');
+});

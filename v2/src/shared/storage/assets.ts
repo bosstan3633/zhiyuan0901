@@ -111,13 +111,22 @@ export async function getAllAssetIds(): Promise<string[]> {
   })
 }
 
+/** 只读盘点：列出不在 keepIds 里的附件 id（★删之前先数得清，确认门才报得出具体数字） */
+export async function listOrphanAssetIds(keepIds: Set<string>): Promise<string[]> {
+  const db = await openDb()
+  if (!db) return []
+  const orphans: string[] = []
+  await forEachAsset((id) => { if (!keepIds.has(id)) orphans.push(id) }).catch(() => {})
+  return orphans
+}
+
 /** 清理孤儿附件：删除不在 keepIds 中的所有附件，返回清理数量。
- *  调用方应传「全部卡片（含回收站软删卡）的 assets id 并集」——软删可恢复，故其附件必须保留 */
+ *  调用方应传「全部卡片（含回收站软删卡）的 assets id 并集」——软删可恢复，故其附件必须保留
+ *  （★取 id 一律走下面的 `collectReferencedAssetIds`，别再手写 collect） */
 export async function cleanupOrphanAssets(keepIds: Set<string>): Promise<number> {
   const db = await openDb()
   if (!db) return 0
-  const orphans: string[] = []
-  await forEachAsset((id) => { if (!keepIds.has(id)) orphans.push(id) }).catch(() => {})
+  const orphans = await listOrphanAssetIds(keepIds)
   if (!orphans.length) return 0
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite')
@@ -133,6 +142,37 @@ export function assetIdsOf(metas: { id: string }[] | null | undefined): Set<stri
   const s = new Set<string>()
   ;(metas || []).forEach(m => s.add(m.id))
   return s
+}
+
+/**
+ * R4-Dc（旧世界清账）：**keepIds 的唯一算式**。
+ * 此前有两份逐字重复的手写实现（`useWsAssetHygiene.referencedAssetIds` 与设置页
+ * `cleanupOrphanAssetsAction` 里的 `collect` 循环），两份只差一个签名、各自演进，
+ * 而它们算出来的是「哪些二进制本体不许删」——漂移一次就是用户附件被物理删掉且不可恢复。
+ * ★本轮同时补上此前两份都漏的一类卡：`argCards`（论证卡）。`assets?: AssetMeta[]` 挂在
+ * `CardBase` 上，论证卡本就继承该字段（R39-1 断言「四张卡 extends CardBase」），
+ * 今天只是没人往上面挂附件所以没出事——那是**侥幸**不是判据。宁可少删不可错删：
+ * 多算进去的 id 只会让本体留在库里，漏算则会删掉活引用。
+ */
+export function collectReferencedAssetIds(d: {
+  resources?: { assets?: { id: string }[] }[]
+  tasks?: { assets?: { id: string }[] }[]
+  curiosities?: { assets?: { id: string }[] }[]
+  argCards?: { assets?: { id: string }[] }[]
+}): Set<string> {
+  const keep = new Set<string>()
+  const collect = (cards: { assets?: { id: string }[] }[] | undefined) =>
+    (cards || []).forEach(c => (c.assets || []).forEach(a => keep.add(a.id)))
+  collect(d.resources)
+  collect(d.tasks)
+  collect(d.curiosities)
+  collect(d.argCards)
+  return keep
+}
+
+/** 清理孤儿附件（keepIds = 全库卡片引用的并集）——两条入口（策展台钻取抽屉 / 设置页附件存储）共用这一句 */
+export async function cleanupOrphanAssetsOf(d: Parameters<typeof collectReferencedAssetIds>[0]): Promise<number> {
+  return cleanupOrphanAssets(collectReferencedAssetIds(d))
 }
 
 /** 第卌二轮 REQ-059：读取全部附件（id + Blob）——附件包导出用 */

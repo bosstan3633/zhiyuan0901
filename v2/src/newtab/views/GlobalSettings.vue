@@ -916,7 +916,7 @@ import { testConnection, runSync, quotaHint, catPathOf } from '@/shared/storage/
 import { LETTER_HTML, buildLetterStandaloneHtml } from '../letter-data'
 import { uid, dateKey, weekStartKey } from '@/shared/utils'
 import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
-import { getAssetStats, cleanupOrphanAssets, getAllAssets, putAssets } from '@/shared/storage/assets'
+import { getAssetStats, cleanupOrphanAssetsOf, collectReferencedAssetIds, listOrphanAssetIds, getAllAssets, putAssets } from '@/shared/storage/assets'
 import { purgeCardsCompletely, recycledCardsOf } from '@/shared/storage/purge'
 import { clearHot } from '@/shared/storage/hotStats'
 import { getMutationSeq } from '@/shared/storage/repository'
@@ -926,7 +926,7 @@ import { visibleFields, allFields } from '@/shared/utils/fields'
 import { sanitizeCardCols } from '@/shared/utils/cardCols'
 import { sanitizeWsView } from '@/shared/utils/wsView'
 import { assetSummary } from '@/shared/utils/assetKind'
-import type { FieldDef, AppData, ResourceCard, TaskCard, CuriosityCard, Workspace, Category, TagNode, AssetMeta, ID } from '@/shared/models'
+import type { FieldDef, AppData, ResourceCard, TaskCard, CuriosityCard, Workspace, Category, TagNode, ID } from '@/shared/models'
 // R63-1/63-2：全景两级（资源台/策展台）与导出镜像卡适配
 import { isHubWs, boardCardsOf, isMirrorView, sanitizeThesisDuplicates } from '@/shared/storage/hub'
 import DataCheckupCard from '../components/DataCheckupCard.vue'
@@ -1043,21 +1043,32 @@ async function refreshAssetStats() {
     console.error('[assets] stats failed:', err)
   }
 }
-/** 清理孤儿：保留所有卡片（含回收站软删卡）引用的附件，删除其余 */
+/** 清理孤儿附件：与策展台钻取抽屉同一条实现（`cleanupOrphanAssetsOf` 一份 keepIds 算式，含论证卡）
+ *  ★R4-Dc 补确认门：这一枚钮点下去是**物理删除不可恢复的 IndexedDB 本体**，此前单击即删；
+ *  同一张卡上「导出附件包」被写成"完整可迁移备份"，两个相邻动作给出相反的风险信号——
+ *  与 R146 当年给「清空回收站」补门是同一条理由（见本文件 emptyRecycleBin 那段注释）。 */
 async function cleanupOrphanAssetsAction() {
+  const all = store.data
+  if (!all) return
+  let orphans: string[] = []
   try {
-    const keep = new Set<string>()
-    const collect = (cards: AssetMeta[] | undefined) => (cards || []).forEach(m => keep.add(m.id))
-    const all = store.data
-    if (all) {
-      all.resources.forEach(r => collect(r.assets))
-      all.tasks.forEach(t => collect(t.assets))
-      all.curiosities.forEach(c => collect(c.assets))
-    }
-    const n = await cleanupOrphanAssets(keep)
+    orphans = await listOrphanAssetIds(collectReferencedAssetIds(all))
+  } catch (err) {
+    console.error('[assets] scan failed:', err)
+    showToast('⚠ 盘点失败，请重试')
+    return
+  }
+  if (!orphans.length) { showToast('✓ 无孤儿附件，一切干净'); return }
+  const ok = await useConfirm({
+    title: '清理孤儿附件',
+    message: `共发现 ${orphans.length} 个未被任何卡片（含回收站里的卡与论证卡）引用的附件本体。\n清理后不可恢复，但不会影响任何现存卡片的附件。\n想先留一份，可点上面的「导出附件包」。`,
+    confirmText: `清理 ${orphans.length} 个`
+  })
+  if (!ok) return
+  try {
+    const n = await cleanupOrphanAssetsOf(all)
     await refreshAssetStats()
-    if (n > 0) showToast(`🧹 已清理 ${n} 个孤儿附件`)
-    else showToast('✓ 无孤儿附件，一切干净')
+    showToast(n > 0 ? `🧹 已清理 ${n} 个孤儿附件` : '✓ 无孤儿附件，一切干净')
   } catch (err) {
     console.error('[assets] cleanup failed:', err)
     showToast('⚠ 清理失败，请重试')

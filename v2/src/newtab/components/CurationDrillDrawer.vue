@@ -43,8 +43,11 @@ const emit = defineEmits<{
   (e: 'locate', id: string): void
   /** R110-BUG2：点击附件行 → 宿主关抽屉并定位到来源卡（本台高亮 / 跨台路由） */
   (e: 'locate-asset', cardId: string): void
-  /** R110-BUG2：单条清理（摘除失效引用 / 删除残留本体） */
-  (e: 'cleanup-asset', row: { cardId: string; assetId: string }): void
+  /** R110-BUG2：单条清理（摘除失效引用 / 删除残留本体）
+   *  ★R4-Dc：载荷从 {cardId, assetId} 收成 assetId——handler 从来没读那个 cardId，
+   *  而它**故意**是全树摘除（转卡共享同一 assetId 时三张卡都要摘，R128-A3），
+   *  留个 cardId 在场会让人以为清理是按卡作用域的，进而不敢点。 */
+  (e: 'cleanup-asset', assetId: string): void
   /** R110-BUG2：批量清理全部孤儿附件（宿主复用 cleanupOrphanAssets 语义） */
   (e: 'cleanup-orphans'): void
 }>()
@@ -163,7 +166,7 @@ async function onCleanup(row: { st: AssetRowState; cardId: string; assetId: stri
     confirmText: '确认清理'
   })
   if (!ok) return
-  emit('cleanup-asset', { cardId: row.cardId, assetId: row.assetId })
+  emit('cleanup-asset', row.assetId)
   rescanLater()
 }
 async function onCleanupOrphanBlob(assetId: string) {
@@ -173,7 +176,7 @@ async function onCleanupOrphanBlob(assetId: string) {
     confirmText: '确认删除'
   })
   if (!ok) return
-  emit('cleanup-asset', { cardId: '', assetId })
+  emit('cleanup-asset', assetId)
   rescanLater()
 }
 async function onCleanupAll() {

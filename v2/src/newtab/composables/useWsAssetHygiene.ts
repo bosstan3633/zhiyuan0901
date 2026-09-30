@@ -6,7 +6,7 @@
 import { computed, nextTick, type ComputedRef, type Ref } from 'vue'
 import type { Router } from 'vue-router'
 import { showToast } from '@/shared/components/toast'
-import { deleteAsset, cleanupOrphanAssets } from '@/shared/storage/assets'
+import { deleteAsset, cleanupOrphanAssetsOf, collectReferencedAssetIds } from '@/shared/storage/assets'
 import { locateTargetOf } from '@/shared/utils/locate'
 import type { AppData, AssetMeta } from '@/shared/models'
 
@@ -30,16 +30,9 @@ export function useWsAssetHygiene(ctx: WsAssetHygieneCtx) {
   function cardExistsGlobally(id: string): boolean {
     return d.value.resources.some(r => r.id === id && !r.deletedAt)
   }
-  /** 全局被引用附件 id 并集（含回收站软删卡的附件——软删可恢复，其附件必须保留） */
-  const referencedAssetIds = computed<string[]>(() => {
-    const ids = new Set<string>()
-    const collect = (cards: { assets?: AssetMeta[] }[] | undefined) =>
-      (cards || []).forEach(c => (c.assets || []).forEach(a => ids.add(a.id)))
-    collect(d.value.resources)
-    collect(d.value.tasks)
-    collect(d.value.curiosities)
-    return [...ids]
-  })
+  /** 全局被引用附件 id 并集（含回收站软删卡的附件——软删可恢复，其附件必须保留）
+   *  R4-Dc：算式收进 `collectReferencedAssetIds` 一份，与设置页那条共用（此前两份各写各的） */
+  const referencedAssetIds = computed<string[]>(() => [...collectReferencedAssetIds(d.value)])
   /** 附件行点击 → 定位来源卡：本台就地定位（含增量渲染前置 + 所在分类），跨台走统一 locateTargetOf */
   function onDrillLocateAsset(cardId: string) {
     drillOpen.value = false
@@ -68,13 +61,13 @@ export function useWsAssetHygiene(ctx: WsAssetHygieneCtx) {
   /** 单条清理：摘除卡片上的失效引用（若有）+ 删除 IndexedDB 本体
    *  R128-A3：引用摘除必须覆盖三类卡——此前只扫 resources，任务/好奇卡上的同一本体引用
    *  会残留成死链（转卡是引用拷贝，两张卡可共用一个 assetId） */
-  async function onDrillCleanupAsset(row: { cardId: string; assetId: string }) {
+  async function onDrillCleanupAsset(assetId: string) {
     let detached = false
     const detachFrom = (cards: { assets?: AssetMeta[]; updatedAt?: number }[]) => {
       for (const card of cards) {
         const list = card.assets
-        if (!list || !list.some(a => a.id === row.assetId)) continue
-        card.assets = list.filter(a => a.id !== row.assetId)
+        if (!list || !list.some(a => a.id === assetId)) continue
+        card.assets = list.filter(a => a.id !== assetId)
         card.updatedAt = Date.now()
         detached = true
       }
@@ -82,15 +75,16 @@ export function useWsAssetHygiene(ctx: WsAssetHygieneCtx) {
     detachFrom(d.value.resources)
     detachFrom(d.value.tasks)
     detachFrom(d.value.curiosities)
-    try { await deleteAsset(row.assetId) } catch { /* IndexedDB 不可用：引用已摘除，本体留待全局清理 */ }
+    try { await deleteAsset(assetId) } catch { /* IndexedDB 不可用：引用已摘除，本体留待全局清理 */ }
     store.persist()
     showToast(detached ? '🧹 已清理失效附件引用' : '🧹 已删除残留附件本体')
   }
-  /** 批量清理：复用 REQ-048 语义——保留全部卡片（含回收站）引用的附件，删除其余 */
+  /** 批量清理：与设置页那条共用 `cleanupOrphanAssetsOf`（同一 keepIds 算式）
+   *  ★R4-Dc 去掉原先那句 `store.persist()`——本函数只删 IndexedDB 本体，AppData 一个字节都没变，
+   *    却每次点完都写一遍主 JSON（几百 KB 起）；设置页那条本来就没写，合一后以它为准。 */
   async function onDrillCleanupOrphans() {
     try {
-      const n = await cleanupOrphanAssets(new Set(referencedAssetIds.value))
-      store.persist()
+      const n = await cleanupOrphanAssetsOf(d.value)
       showToast(n > 0 ? `🧹 已清理 ${n} 个孤儿附件` : '✓ 无孤儿附件，一切干净')
     } catch {
       showToast('⚠ 清理失败，请重试')

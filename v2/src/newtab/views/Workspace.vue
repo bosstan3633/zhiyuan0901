@@ -842,7 +842,6 @@ import { recordWorkspaceOpen } from '@/shared/storage/stats'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { useOverlayTarget } from '@/shared/utils/overlayHost'
 import { showToast } from '@/shared/components/toast'
-import { deleteAsset, cleanupOrphanAssets } from '@/shared/storage/assets'
 import AssetPreview from '@/shared/components/AssetPreview.vue'; import CardAiEntry from '@/newtab/components/CardAiEntry.vue'; import CatNodeName from '@/newtab/components/CatNodeName.vue'; import ThesisAiBtn from '@/newtab/components/ThesisAiBtn.vue'; import EvidenceMenuItem from '@/newtab/components/EvidenceMenuItem.vue'; import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'; import DetailTitle from '@/newtab/components/DetailTitle.vue'; import ResourceAiStrip from '@/newtab/components/ResourceAiStrip.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'; import ContextMenu from '@/shared/components/ContextMenu.vue'; import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'; import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'; import AssetBadge from '@/shared/components/AssetBadge.vue'; import SupportTasksPanel from '@/shared/components/SupportTasksPanel.vue'
 // R117（04-61 C3）：当日新增角标（自然日口径）——资源卡卡片视图 / 列表视图同一枚

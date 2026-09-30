@@ -6,6 +6,7 @@
  *   E2E-2  设置页默认首屏 = 知源仪表盘（导航四组 R54 + 动态条/操作记录时间线）
  *   E2E-3  ★R4-Da 改靶：全景整页退役归零 + 标签管理双栏仍两列（连带 CSS 的活性证据）
  *   E2E-32 ★R4-Db 书签导入唯一路线（真喂书签 HTML 跑一次导入）
+ *   E2E-33 ★R4-Dc 附件 keepIds 单源（活卡/软删卡/论证卡引用必留，仅孤儿被删）
  *   E2E-4  北极星「新增卡片/删除卡片」卡渲染（R45-1 三档周期联动改名）
  *   E2E-5  PDF 附件双击 file:// 打开（data 层种卡 + IndexedDB blob → 双击卡片 → 新标签 file://…pdf）
  *   E2E-6  事件日志 zy_event_log 独立 key 落盘（打开资源卡产生事件）
@@ -1148,6 +1149,90 @@ async function main() {
     && bk.decoded === '习惯养成' && JSON.stringify(bk.linkTypes) === '["obsidian","url"]'
     && bk.wsName.startsWith('🔖 书签导入') && !bk.inPool && bk.catUncat && bkReceipt,
     `落库=${bk.added} 总数=${bkBefore}→${bkCount} 标签=${JSON.stringify(bk.tags)} 解码="${bk.decoded}" 型=${JSON.stringify(bk.linkTypes)} 台="${bk.wsName}" 落池=${bk.inPool} 回执=${bkReceipt}`)
+
+  // E2E-33 ★R4-Dc 附件 keepIds 单源：真跑一次设置页「清理孤儿附件」，核四类本体的生死。
+  //   这条守的是**不可恢复的物理删除**判错一次的代价：
+  //   活卡引用 / 回收站软删卡引用 / 论证卡引用（★本轮新补进 keepIds 的那一类）三者必须留，
+  //   只有谁都不引用的残留本体才准删。此前这条性质零行为覆盖，只有源码文本断言在管。
+  //   顺带验确认门：点钮先出弹窗，不确认就一个字节都不该动。
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2200)
+  await page.evaluate(async () => {
+    const blob = new Blob(['zy-e2e-hygiene'], { type: 'text/plain' })
+    const db = await new Promise((res, rej) => {
+      const rq = indexedDB.open('zy_assets', 1)
+      rq.onupgradeneeded = () => { if (!rq.result.objectStoreNames.contains('assets')) rq.result.createObjectStore('assets') }
+      rq.onsuccess = () => res(rq.result)
+      rq.onerror = () => rej(rq.error)
+    })
+    await new Promise((res, rej) => {
+      const tx = db.transaction('assets', 'readwrite')
+      for (const k of ['e2e-hy-live', 'e2e-hy-del', 'e2e-hy-arg', 'e2e-hy-orphan']) tx.objectStore('assets').put(blob, k)
+      tx.oncomplete = () => { db.close(); res() }
+      tx.onerror = () => rej(tx.error)
+    })
+    const meta = (id) => ({ id, kind: 'text', name: id, size: 12, mime: 'text/plain', createdAt: Date.now() })
+    const cur = await chrome.storage.local.get('zy_data_v2')
+    const d = cur['zy_data_v2']
+    const wsId = d.workspaces[0].id
+    const mk = (id, assets, deleted) => ({
+      id, kind: 'resource', title: 'E2E 卫生 ' + id, linkType: 'file', link: 'zy-asset://' + assets[0].id,
+      workspaceId: wsId, categoryId: '', description: '', tags: [], assets, customFields: {},
+      pinned: false, callCount: 0, createdAt: Date.now(), updatedAt: Date.now(), ...(deleted ? { deletedAt: Date.now() } : {})
+    })
+    d.resources = d.resources.filter(r => !r.id.startsWith('e2e-hy-'))
+    d.resources.push(mk('e2e-hy-live', [meta('e2e-hy-live')], false))
+    d.resources.push(mk('e2e-hy-del', [meta('e2e-hy-del')], true))
+    d.argCards = (d.argCards || []).filter(c => !String(c.id).startsWith('e2e-hy-'))
+    d.argCards.push({ id: 'e2e-hy-arg-card', kind: 'argument', statement: 'E2E 论证卡带附件', workspaceId: wsId, assets: [meta('e2e-hy-arg')], createdAt: Date.now(), updatedAt: Date.now() })
+    await chrome.storage.local.set({ zy_data_v2: d })
+  })
+  await page.goto(base + '#/settings?page=export', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2600)
+  const hyBtn = page.locator('.gs-export-row').filter({ hasText: '清理孤儿附件' }).locator('button')
+  await hyBtn.click()
+  await page.waitForTimeout(900)
+  /* 确认门必须在：弹窗没点掉之前一个字节都不许动（本轮补的就是这道门） */
+  const hyGateShown = await page.getByText('清理孤儿附件').last().isVisible().catch(() => false)
+  /* ★不写"库里正好 4 个键"这种绝对数——同一轮跑里前面的场景（E2E-5 的 e2e-pdf-1）也会往 zy_assets 里留东西。
+     要验的性质是**相对的**：弹窗还开着的时候，我种的这四个键一个都还没被删。 */
+  const hyAfterCancel = await page.evaluate(() => new Promise((res, rej) => {
+    const rq = indexedDB.open('zy_assets', 1)
+    rq.onsuccess = () => {
+      const tx = rq.result.transaction('assets', 'readonly')
+      const all = tx.objectStore('assets').getAllKeys()
+      all.onsuccess = () => { rq.result.close(); res(all.result) }
+      all.onerror = () => rej(all.error)
+    }
+    rq.onerror = () => rej(rq.error)
+  }))
+  await page.evaluate(() => { const b = document.querySelector('.cdf-btn.ok'); if (b) b.click() })
+  await page.waitForTimeout(2000)
+  const hyKeys = await page.evaluate(() => new Promise((res, rej) => {
+    const rq = indexedDB.open('zy_assets', 1)
+    rq.onsuccess = () => {
+      const tx = rq.result.transaction('assets', 'readonly')
+      const all = tx.objectStore('assets').getAllKeys()
+      all.onsuccess = () => { rq.result.close(); res(all.result) }
+      all.onerror = () => rej(all.error)
+    }
+    rq.onerror = () => rej(rq.error)
+  }))
+  const hy = {
+    live: hyKeys.includes('e2e-hy-live'), del: hyKeys.includes('e2e-hy-del'),
+    arg: hyKeys.includes('e2e-hy-arg'), orphanGone: !hyKeys.includes('e2e-hy-orphan'),
+    untouchedBeforeConfirm: ['e2e-hy-live', 'e2e-hy-del', 'e2e-hy-arg', 'e2e-hy-orphan'].every(k => hyAfterCancel.includes(k))
+  }
+  report('E2E-33 ★R4-Dc keepIds 单源：活卡/软删卡/论证卡引用一律留，仅孤儿本体被删，且删前必有确认门',
+    hyGateShown && hy.untouchedBeforeConfirm && hy.live && hy.del && hy.arg && hy.orphanGone,
+    `弹窗=${hyGateShown} 未确认前不动=${hy.untouchedBeforeConfirm}(${hyAfterCancel.length}) 留活=${hy.live} 留软删=${hy.del} 留论证卡=${hy.arg} 孤儿已删=${hy.orphanGone}`)
+  await page.evaluate(async () => {
+    const d0 = (await chrome.storage.local.get('zy_data_v2'))['zy_data_v2']
+    d0.resources = d0.resources.filter(r => !String(r.id).startsWith('e2e-hy-'))
+    d0.argCards = (d0.argCards || []).filter(c => !String(c.id).startsWith('e2e-hy-'))
+    await chrome.storage.local.set({ zy_data_v2: d0 })
+  })
 
   // E2E-28（R4-a）：迁移报告卡与整库回退出口——种备份+报告 → 设置页出卡 → 回退（确认框）→ 停用键落、报告清、卡片转停用态
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
