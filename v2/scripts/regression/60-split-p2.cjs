@@ -248,16 +248,25 @@ check('R109-3 F14 页头单图标 + 指标卡两行重设计：台名剥离图�
     && WSP109.includes('.metric-card:hover { border-color: var(--accent); transform: translateY(-1px);')
     && WSP109.includes('.mc-value { font-size: 20px;');
 });
-check('R109-4 ★ F12-a 资源台全景 workspaceId 收紧：分类视图/计数补 ws 过滤（策展台卡不得混入；R131-C3 计数改 ws|cat 复合键 bucket，收紧语义由键承载）+ 树头措辞修正', () => {
-  return GS109.includes('return gResLive.value.filter(r => r.workspaceId === panSelWs.value && r.categoryId === panSelCat.value)')
-    && GS109.includes("cat.workspaceId + '|' + cat.id")
-    && GS109.includes('全景 · 资源台 · {{ panTotalCats }} 分类');
+check('R109-4 ★ F12-a workspaceId 收紧（★R4-Da 退役重指带备案：原判据点名全景右栏的 panSelWs+panSelCat 双过滤、计数的 ws|cat 复合键、树头措辞「全景 · 资源台 · N 分类」——🗺 全景整页随资源台退役删除。"卡列表/计数必须按所在台收紧，别台卡不得混入"这条口径本身没有松：三个存活管理面各自仍有硬判据——① 池面板 workspaceId===CURATION_WS_ID ② 策展台 boardCardsOf(d, workspaceId) + 分类计数走 catId 桶 resBucket ③ 设置页按台导出 CSV 亦带 workspaceId 过滤；全景那三条锚点改为 codeOnly 零命中判据防回流）+ 树头措辞修正随页面退役一并归档', () => {
+  const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));
+  const pcp = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const ws = read('/newtab/views/Workspace.vue');
+  const retired = ['r.workspaceId === panSelWs.value && r.categoryId === panSelCat.value', "cat.workspaceId + '|' + cat.id", '全景 · 资源台 · {{ panTotalCats }} 分类'];
+  return retired.every(k => !g.includes(k))
+    && pcp.includes('.filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)')
+    && pcp.includes('const poolTotal = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID).length)')
+    && ws.includes('boardCardsOf(d.value, workspaceId.value)')
+    && ws.includes('const resBucket = computed(() => buildBucketIndex(allResources.value')
+    && ws.includes('directCount: (resBucket.value.get(c.id) || []).length')
+    && g.includes('!r.deletedAt && r.workspaceId === csvWsId.value');
 });
-check('R109-5 ★ F12-b 分类软删：Category.deletedAt + 删除分类/合并重复/删除策展台三链路统一软删 + 回收站分类分区（恢复=清 deletedAt）', () => {
+check('R109-5 ★ F12-b 分类软删：Category.deletedAt + 删除分类/合并重复/删除策展台三链路统一软删 + 回收站分类分区（恢复=清 deletedAt）（★R4-Da 退役重指带备案：原判据里 GS 那一处 !c.parentId && !c.deletedAt 是全景根分类的过滤，随整页退役删除——同一条「软删分类不参与组织与回填」纪律在设置页仍有一处活落点：AI 建议采纳回填 categoryId 前先确认该分类未软删，判据改指它，并对全景旧过滤做 codeOnly 零命中防回流；models / 策展台 / 回收站三侧判据一字未动）', () => {
   return read('/shared/models/index.ts').includes('deletedAt?: number')
     && WSP109.includes('deleteDeck(d.value, workspaceId.value)') && read('/shared/utils/compassCrud.ts').includes('for (const c of d.categories) if (c.workspaceId === wsId && !c.deletedAt) { c.deletedAt = now; catIds.push(c.id) }')
     && WSP109.includes('const wsCats = computed(() => d.value.categories.filter(c => c.workspaceId === workspaceId.value && !c.deletedAt))')
-    && GS109.includes('!c.parentId && !c.deletedAt')
+    && GS109.includes('dd.categories.some(c => c.id === s.categoryId && !c.deletedAt)')
+    && !codeOnly(GS109).includes('!c.parentId && !c.deletedAt')
     && RB109.includes("const tab = ref<'res' | 'task' | 'curio' | 'cat' | 'arg'>('res')") // R2-⑤：论证卡入族，分区联合类型随之扩一枚
     && RB109.includes('function restoreCat(c: { id: ID; deletedAt?: number })')
     && RB109.includes('分类分区');
@@ -290,7 +299,7 @@ check('R110-B2-4 ★ 清理口径含回收站软删卡（软删可恢复 ⇒ 其
 check('R110-LC-1 生命周期引擎（R117-E 修订：阈值由全局写死改为 per-card 自定义，出厂默认仍是 30/90 = 3:1）：三态纯计算 + 新卡 14 天宽限 + 进行中任务恒活跃', () => { const l = read('/shared/utils/lifecycle.ts'); return l.includes('export function lifecycleState') && l.includes('export const DEFAULT_COOLING_DAYS = 30') && l.includes('export const ARCHIVE_RATIO = 3') && l.includes('export const DAY_MS = 86400_000') && l.includes('export const COOLING_MS = DEFAULT_COOLING_DAYS * DAY_MS') && l.includes('export const ARCHIVE_MS = COOLING_MS * ARCHIVE_RATIO') && l.includes('export const NEW_GRACE_MS = 14 * DAY_MS') && l.includes('export function coolingMsOf(card: LifecycleInput)') && l.includes("card.kind === 'task' && card.status === 'doing'"); });
 check('R110-LC-2（R113-N2 重指：内嵌化 + 实体切换）生命周期面板：甜甜圈三态 + 数字可点击切换列表 + 归档/忽略30d/恢复 + 点击条目定位 + 顶部实体切换', () => { const v = read('/newtab/components/LifecyclePanel.vue'); return v.includes('lc-donut') && v.includes("setFilter('archived')") && v.includes("emit('archive', e.card.id)") && v.includes("emit('snooze', e.card.id)") && v.includes("emit('reactivate', e.card.id)") && v.includes("emit('locate', e.card.id, e.card.kind)") && v.includes('lc-kind-tab') && v.includes('lc-kind-badge') && !v.includes('<Drawer'); });
 check('R110-LC-3 ★（R113-N2 重指：宿主=GlobalSettings）面板被动化：面板只发意图、不改 props；设置页对真实卡对象落库 + persist（修复「传副本 ⇒ 归档落空」）', () => { const v = read('/newtab/components/LifecyclePanel.vue'); const g = read('/newtab/views/GlobalSettings.vue'); return v.includes('archive: [id: string]') && !v.includes('e.card.lifecycleArchived = true') && g.includes('function lcFind(id: string)') && g.includes('c.lifecycleArchived = true') && g.includes('store.persist()') && g.includes('reactivateCard(c)') && g.includes('snoozeCard(c)'); });
-check('R110-LC-4（R113-N2 重指：入口收敛）生命周期唯一入口 = 设置→总览·资源生命周期（navGroups 位于仪表盘与全景之间）；三宿主就地面板/⏳ 已移除；归档提示条跳设置页', () => { const g = read('/newtab/views/GlobalSettings.vue'); const w = read('/newtab/views/Workspace.vue'); const cp = read('/newtab/components/compass/CuriosityPanel.vue'); const tp = read('/newtab/components/compass/TaskManagerPanel.vue'); const gi = g.indexOf("key: 'dashboard'"), gl = g.indexOf("key: 'lifecycle'"), gp = g.indexOf("key: 'panorama'"); return gi >= 0 && gi < gl && gl < gp && g.includes('<LifecyclePanel kind="all" :cards="lcCards"') && !w.includes('<LifecyclePanel') && !cp.includes('<LifecyclePanel') && !tp.includes('<LifecyclePanel') && w.includes('/settings?page=lifecycle') && cp.includes('/settings?page=lifecycle') && tp.includes('/settings?page=lifecycle'); });
+check('R110-LC-4（R113-N2 重指：入口收敛）生命周期唯一入口 = 设置→总览·资源生命周期（★R4-Da 退役重指带备案：原口径「navGroups 里位于仪表盘与全景之间」的两个界点中，全景那一格已随 🗺 整页退役删除——收敛语义不因此变松：lifecycle 仍必须在 dashboard 之后、且同组内再无第三格，故判据改为「仪表盘在前、生命周期紧随」+ 全景键位 codeOnly 零命中；三宿主就地面板/⏳ 已移除与归档提示条跳设置页四条判据一字未动）；三宿主就地面板/⏳ 已移除；归档提示条跳设置页', () => { const g = read('/newtab/views/GlobalSettings.vue'); const gc = codeOnly(g); const w = read('/newtab/views/Workspace.vue'); const cp = read('/newtab/components/compass/CuriosityPanel.vue'); const tp = read('/newtab/components/compass/TaskManagerPanel.vue'); const gi = g.indexOf("key: 'dashboard'"), gl = g.indexOf("key: 'lifecycle'"), gnext = g.indexOf("title: '卡片与字段'"); return gi >= 0 && gi < gl && gl < gnext && !gc.includes("key: 'panorama'") && !gc.includes("label: '资源台全景'") && g.includes('<LifecyclePanel kind="all" :cards="lcCards"') && !w.includes('<LifecyclePanel') && !cp.includes('<LifecyclePanel') && !tp.includes('<LifecyclePanel') && w.includes('/settings?page=lifecycle') && cp.includes('/settings?page=lifecycle') && tp.includes('/settings?page=lifecycle'); });
 check('R110-LC-5 ★ T3 归档集成：默认视图排除归档卡 + 三处降级提示 + 全局搜索排除归档并按同口径报数', () => { const w = read('/newtab/views/Workspace.vue'); const cp = read('/newtab/components/compass/CuriosityPanel.vue'); const tp = read('/newtab/components/compass/TaskManagerPanel.vue'); const g = read('/newtab/components/GlobalPopups.vue'); return w.includes('.filter(r => !r.lifecycleArchived)') && w.includes('ws-archived-hint') && cp.includes('!c.lifecycleArchived') && cp.includes('cz-archived-hint') && tp.includes('!t.lifecycleArchived') && tp.includes('tm-archived-hint') && g.includes('allResults.value.filter(r => !r.archived)') && g.includes('archivedMatchCount') && g.includes('gp-archived-hint') && g.includes('function hitResult('); });
 check('R110-LC-6 零迁移：lifecycleArchived 为 CardBase 可选字段（三卡共享，老数据无需迁移）', () => { const m = read('/shared/models/index.ts'); return m.includes('/** R110-LC：生命周期归档标记（可选字段，零迁移）') && m.includes('lifecycleArchived?: boolean'); });
 // ---- FS：金字塔全屏 ----

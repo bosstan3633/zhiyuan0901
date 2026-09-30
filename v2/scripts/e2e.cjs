@@ -4,7 +4,7 @@
  * 检查项：
  *   E2E-1  MV3 扩展加载（worker = CRXJS service-worker-loader.js）
  *   E2E-2  设置页默认首屏 = 知源仪表盘（导航四组 R54 + 动态条/操作记录时间线）
- *   E2E-3  资源台全景第二屏可切换（双栏 + 三级计数树）
+ *   E2E-3  ★R4-Da 改靶：全景整页退役归零 + 标签管理双栏仍两列（连带 CSS 的活性证据）
  *   E2E-4  北极星「新增卡片/删除卡片」卡渲染（R45-1 三档周期联动改名）
  *   E2E-5  PDF 附件双击 file:// 打开（data 层种卡 + IndexedDB blob → 双击卡片 → 新标签 file://…pdf）
  *   E2E-6  事件日志 zy_event_log 独立 key 落盘（打开资源卡产生事件）
@@ -142,12 +142,20 @@ async function main() {
   // R178 备案：分组重组 4→5（AI 认知协作者独立成组，原型分组口径；条目零增减）
   report('E2E-2 设置默认首屏=知源仪表盘（导航五组 R54→R178 + 动态/时间线区）', dashVisible && groupCount === 5, `groups=${groupCount} timeline=${timelineVisible}`)
 
-  // E2E-3 资源台全景
-  await page.getByText('资源台全景').first().click().catch(() => {})
+  // E2E-3 ★R4-Da 改靶：「资源台全景」整页随资源台退役删除，本场景原先只核那一屏能否切出。
+  //   不写"页面没了所以恒过"的空转判据，改测两件本轮真实交付面：
+  //   ① 全景版面与导航格在 DOM 里归零（删干净）；
+  //   ② 标签管理双栏还活着——.tt-wrap 实测必须是两列 grid。这条是本轮补回连带 CSS 的活性证据：
+  //      那段样式原先与全景样式同处一批被删（右列卡片还借用了全景类名），tt-wrap 一旦失样式就退化成
+  //      单列流，纯文本断言看不出来。回归 R130-3 核规则文本在不在，这里核它真的作用到盒子上。
+  await page.locator('.gs-nav-item').filter({ hasText: '标签管理' }).first().click()
   await page.waitForTimeout(1200)
-  const panVisible = await page.locator('.gs-pan-panel').isVisible().catch(() => false)
-  const treeWs = await page.locator('.gs-pan-ws').count()
-  report('E2E-3 资源台全景双栏+计数树', panVisible && treeWs >= 1, `panel=${panVisible} wsNodes=${treeWs}`)
+  const panNodes = await page.locator('.gs-pan-panel, .gs-pan-ws, .gs-pan-tree').count()
+  const navPan = await page.locator('.gs-nav-item').filter({ hasText: '资源台全景' }).count()
+  const wrapCols = await page.locator('.tt-wrap').first()
+    .evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length).catch(() => 0)
+  const treeRows = await page.locator('.gs-tt-row').count()
+  report('E2E-3 全景退役归零 + 标签双栏仍两列', panNodes === 0 && navPan === 0 && wrapCols === 2 && treeRows >= 1, `panNodes=${panNodes} navPan=${navPan} cols=${wrapCols} treeRows=${treeRows}`)
 
   // E2E-4 方向状态四格（R55-D1 迁调度台顶部；R57-F3 详细指标按钮移除 → 改验证四格自下钻抽屉）
   // R110 修漂移：`.mb-cells` 已不存在（MetricBar 根为 .metric-bar + .mb-row）；「未归档任务」文案

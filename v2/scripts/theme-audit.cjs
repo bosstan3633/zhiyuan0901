@@ -239,6 +239,33 @@ const DASH_SCENES = [
       if (btn) btn.click()
       return { ok: on && marked.length > 20 && outlined === marked.length, txt: `开关=${on} 圈出=${outlined}/${marked.length}（禁用格另计 ${dis.length} 走虚点）` }
     })
+  },
+  {
+    /* R4-Da：标签管理双栏是「删一整页」最容易伤到的存活页面——它的样式原先和全景样式同批删除，
+       右列卡片还直接借用了全景类名。文本断言只看规则在不在文件里，看不见规则有没有作用到盒子上，
+       所以这一屏拍的是**量出来的版式**：① .tt-wrap 实测两列（掉了 CSS 就退化成单列流），
+       ② 点中的标签行底色真的变了（.gs-tt-row.active 那条规则在生效）。两条都可失败，不空转。 */
+    id: 'st-tags', name: '标签双栏版式', hash: '#/settings?page=tags',
+    act: async (page) => {
+      /* 点第一枚「有名字的」标签行：data-depth 才是真行（首枚可能是就地新建输入行），
+         点完等一拍——Vue 的 class 绑定在下一个 tick 才落 DOM（E2E-29 同一条时序坑） */
+      await page.locator('.gs-tt-row[data-depth]').first().click().catch(() => {})
+      await page.waitForTimeout(900)
+    },
+    judge: async (page) => page.evaluate(() => {
+      const w = document.querySelector('.tt-wrap')
+      const cols = w ? getComputedStyle(w).gridTemplateColumns.trim().split(/\s+/).length : 0
+      const rows = [...document.querySelectorAll('.gs-tt-row[data-depth]')]
+      const active = document.querySelector('.gs-tt-row.active')
+      const plain = rows.find(r => !r.classList.contains('active'))
+      const bgA = active ? getComputedStyle(active).backgroundColor : ''
+      const bgP = plain ? getComputedStyle(plain).backgroundColor : ''
+      const card = document.querySelector('.tt-card')
+      const radius = card ? getComputedStyle(card).borderTopLeftRadius : ''
+      const pad = card ? getComputedStyle(card).paddingTop : ''
+      return { ok: cols === 2 && rows.length > 0 && !!active && !!plain && bgA !== bgP,
+        txt: `列=${cols} 标签行=${rows.length} 选中=${!!active} 底色变=${bgA !== bgP} 右列卡=${card ? `圆角${radius}/内边距${pad}` : '无'}` }
+    })
   }
 ]
 
@@ -605,7 +632,7 @@ async function main() {
   await page.evaluate(async () => { await chrome.storage.local.remove(['zy_ai_v1']) }).catch(() => {})
   await ctx.close()
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
-  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length  + 3 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 + R3-Cc 共用批量栏 */ + DASH_SCENES.length /* R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 + R3-Cc 批量栏 ⇒ 72→80 */)
+  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length  + 3 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 + R3-Cc 共用批量栏 */ + DASH_SCENES.length /* R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 + R3-Cc 批量栏 ⇒ 72→80；R4-Da 标签双栏 ⇒ 80→84 */)
   if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情 + 1 deck)）`); process.exit(1) }
   if (escLeak.length) {
     console.log(`❌ Esc 未能关闭中央弹窗：${escLeak.join(' / ')}（台面图已受影响，请查 Modal.vue 的 watch immediate）`)

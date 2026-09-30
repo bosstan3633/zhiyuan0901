@@ -108,7 +108,7 @@ console.log('【第卌四轮 第二批：T-05 卡片操作事件日志（reposit
 check('R44-4 eventLog.ts 独立 key zy_event_log + 5000 条滚动上限 + CardEvent 接口 + 快照重建/flush 双导出', () => { const s = read('/shared/utils/eventLog.ts'); return s.includes('EVENT_LOG_KEY = K.EVENT_LOG') && s.includes('EVENT_LOG_CAP = 5000') && s.includes('export interface CardEvent') && s.includes('export function rebuildEventSnapshot') && s.includes('export function flushCardEvents'); });
 check('R44-5 repository 全路径挂载：loadData 重建快照 + saveData/saveDataNow flush + syncCache 外部写入静默重建（R160-P5：日志并入整库 set + onChanged 刷缓存）', () => { const s = read('/shared/storage/repository.ts'); return s.includes('flushCardEvents, takeEventLogPatch, initEventLog, EVENT_LOG_KEY') && (s.match(/rebuildEventSnapshot\(/g) || []).length >= 2 && (s.match(/flushCardEvents\(cache\)/g) || []).length === 2; });
 console.log('【第卌四轮 第三批：T-03 知源仪表盘（默认首屏 + 动态条抽屉 + 操作记录时间线 + CSV 按筛选导出）】');
-check('R44-6（R54 重写：四组 ★R178 重指带备案：分组对齐设置中心原型更名——通用与度量/卡片与字段/AI 认知协作者/数据与信任/系统信息；Airtable 归入数据与信任；条目与功能零增减）设置页导航', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes("const activePage = ref('dashboard')") && s.includes("{ title: '通用与度量', items: [") && s.includes("{ key: 'panorama', icon: '🗺', label: '资源台全景' }") && s.includes("{ title: '卡片与字段', items: [") && s.includes("{ title: '数据与信任', items: [") && s.includes("{ title: '系统信息', items: [") && s.includes("{ title: 'AI 认知协作者', items: [") && !s.includes("{ title: '整理'") && s.indexOf("'tags'") < s.indexOf("const activePage = ref"); });
+check('R44-6（R54 重写：四组 ★R178 重指带备案：分组对齐设置中心原型更名——通用与度量/卡片与字段/AI 认知协作者/数据与信任/系统信息；Airtable 归入数据与信任；条目与功能零增减）（★R4-Da 退役重指带备案：本条原判据把「{ key: \'panorama\', icon: \'🗺\', label: \'资源台全景\' }」当成导航必备项——它守的是"设置页导航五组齐备 + 全景有一格"；V3.7.0 资源台退役后全景整页删除，那一格随之消失，故判据拆两半：五组与全部存活键位仍逐项点名（一项不减），全景格改为 codeOnly 零命中判据（注释里写「全景」讲退役缘由不算残留），并点名能力去向的三个真锚点：调度台资源卡池面板 PoolCardsPanel.vue / 策展台 Workspace.vue / 设置页标签管理 gs-tagtree）设置页导航', () => { const s = read('/newtab/views/GlobalSettings.vue'); const c = codeOnly(s); return s.includes("const activePage = ref('dashboard')") && s.includes("{ title: '通用与度量', items: [") && !c.includes("{ key: 'panorama'") && !c.includes("label: '资源台全景'") && !c.includes('🗺') && s.includes("{ title: '卡片与字段', items: [") && s.includes("{ title: '数据与信任', items: [") && s.includes("{ title: '系统信息', items: [") && s.includes("{ title: 'AI 认知协作者', items: [") && !s.includes("{ title: '整理'") && s.indexOf("'tags'") < s.indexOf("const activePage = ref") && s.includes("{ key: 'tags', icon: '🏷', label: '标签管理' }") && c.includes('gs-tagtree') && read('/newtab/components/compass/PoolCardsPanel.vue').includes('const poolCards = computed(') && read('/newtab/views/Workspace.vue').includes('function openResCtx('); });
 check('R44-7（R172-T5 重指带备案）仪表盘入口 → 抽屉：原「5 张核心指标卡 + 动态条」的 8 个点击点并入 ① 概览带（DashboardOverview.vue）——5 张存量 chip `emit open-cards` → `onDashOpenCards` → `openStatDrawer(kind)`；环比/移出 pill `emit open-dyn` → `onDashOpenDyn` → `openDynDrawer(type)`。断言由「字面量 8 个调用」改为「入口零丢失的双向对账」', () => {
   const s = read('/newtab/views/GlobalSettings.vue');
   const o = read('/newtab/components/dashboard/DashboardOverview.vue');
@@ -127,8 +127,30 @@ check('R44-7（R172-T5 重指带备案）仪表盘入口 → 抽屉：原「5 �
 check('R44-8（R172-T8 重指带备案）记录三维筛选（类型/动作/时间）迁入全量抽屉：筛选后列表 + 超 200 条导出提示 + 老数据回退派生（`derivedEvents` / `logEmpty` 仍在 GlobalSettings 承接时间线）', () => { const d = read('/newtab/components/dashboard/DashboardLogDrawer.vue'); const s = read('/newtab/views/GlobalSettings.vue'); return d.includes('const filtered = computed') && d.includes('filtered.slice(0, 200)') && d.includes('导出 CSV 可获得完整筛选结果') && s.includes('const derivedEvents = computed') && s.includes('(logEmpty.value ? derivedEvents.value : eventLog.value)'); });
 check('R44-9（R172-T8/T12 两次重指带备案）CSV 按**当前筛选结果**导出：抽屉 exportCsv 遍历 filtered + 统一出口 tablesToCsv/downloadText（T12 起 BOM 与 createObjectURL 的真源收进 `shared/utils/download.ts`，判据同步指那儿，不再认抽屉内的字面量）+ 文件名含「操作记录」（顺带修掉旧 exportEventsCsv「定义了却无按钮调用」的死代码）', () => { const d = read('/newtab/components/dashboard/DashboardLogDrawer.vue'); return d.includes('function exportCsv()') && d.includes('tablesToCsv') && d.includes("downloadText(exportName('操作记录', 'csv')") && read('/shared/utils/download.ts').includes('\uFEFF') && /function exportCsv\(\)[\s\S]{0,700}filtered\.value/.test(d) && d.includes('@click="exportCsv"'); });
 console.log('【第卌四轮 第四批：T-04 资源台全景（双栏 Master-Detail + 三级计数树 + 拖拽/按钮双通道）】');
-check('R44-10 资源台全景第二屏：panorama 面板 + 双栏布局 + 三级计数树（工作台→分类→子分类，parentId 派生）默认全展开', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes("activePage === 'panorama'") && s.includes('🗺 资源台全景') && s.includes('panHubWss') && s.includes('const panTree = computed') && s.includes('gs-pan-panel') && s.includes('panTotalCards'); });
-check('R44-11 全景双通道：拖拽（draggable 卡片 + onPanDrop 工作台/分类落点）+ 按钮（movePanSelection 批量移动）', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes('function onPanDrop') && s.includes('function movePanCards') && s.includes('function movePanSelection') && s.includes('draggable="true"'); });
+check('R44-10 ★R4-Da 退役重指带备案：原守「设置页第二屏 = 🗺 资源台全景：activePage===\'panorama\' 面板 + gs-pan-* 双栏 Master-Detail + 三级计数树（panTree/panHubWss/panTotalCards，默认全展开）」——V3.7.0「资源台退役」后整页删除。判据转退役三条腿：① GS 剥注释后（codeOnly，R166 纪律：否则"为什么退役"的注释会自匹配让判据恒假）这些实现与类名零命中＝删干净的凭据；② 「按台/按分类计数的树」点名去向=设置页标签管理树（gs-tagtree + 每节点 tagUsage 卡数 + ttCollapsed 默认空集即全展开）与策展台分类树（sidebarCats 递归 + cat-count 取 directCount），两处锚点必须在位；③ 「卡数合计」去向=调度台资源卡池面板 poolTotal', () => {
+  const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));
+  const ws = read('/newtab/views/Workspace.vue');
+  const pcp = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const retired = ["activePage === 'panorama'", 'gs-pan-panel', 'gs-pan-wrap', 'gs-pan-tree', 'gs-pan-tree-head', 'gs-pan-row', 'gs-pan-ws', 'gs-pan-list', 'gs-pan-crumb', 'gs-pan-kind', 'gs-pan-count', 'gs-pan-card-date', 'gs-pan-batch', 'gs-pan-rename-input', 'const panTree = computed', 'panHubWss', 'panTotalCards', 'panTotalCats', 'interface PanCatNode', 'interface PanWsNode'];
+  return retired.every(k => !g.includes(k))
+    && g.includes('gs-tagtree') && g.includes('{{ tagUsage(root.name) }} 卡') && g.includes("{{ tagUsage(root.name + '/' + child.name) }} 卡")
+    && g.includes('const ttCollapsed = ref<Set<string>>(new Set())')
+    && ws.includes('const sidebarCats = computed<SidebarCat[]>') && ws.includes('directCount: (resBucket.value.get(c.id) || []).length')
+    && ws.includes('const collapsedCats = ref<Set<string>>(new Set())') && ws.includes('<span class="cat-count"')
+    && pcp.includes('const poolTotal = computed(');
+});
+check('R44-11 ★R4-Da 退役重指带备案：原守「全景双通道：draggable 卡片 + onPanDrop 工作台/分类落点 + movePanCards/movePanSelection 按钮批量移动」——整页退役。批量移动本身没丢，只是搬家：① 拖拽通道=设置页标签管理（右列卡片 draggable → 左树 drop → ttMoveCards 替换语义）与策展台卡拖拽（onCardDrop 走 useResourceDragDrop，聚合读 Workspace.vue 覆盖）；② 按钮通道=策展台批量移动弹窗（confirmBatchMove）与池面板批量栏（DeckBatchBar 打标签/删除）；全景那三个函数名与 gs-pan-batch 类名改为 codeOnly 零命中判据防回流', () => {
+  const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));
+  const ws = read('/newtab/views/Workspace.vue');
+  const pcp = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const retired = ['function onPanDrop', 'function movePanCards', 'function movePanSelection', 'gs-pan-batch', 'panDragIds', 'const dropTarget = ref'];
+  return retired.every(k => !g.includes(k))
+    && g.includes('function onTtRowDragStart(e: DragEvent, row: TtRow)') && g.includes('function ttMoveCards(targetPath: string)')
+    && g.includes('@drop.prevent="ttDrop($event, root.id)"') && g.includes('draggable="true"')
+    && ws.includes('function onDropCard(') && ws.includes('function onCatDrop(e: DragEvent, cat: Category)')
+    && read('/newtab/composables/useWorkspaceBatch.ts').includes('function confirmBatchMove()')
+    && pcp.includes('@apply-tag="applyTagToSelected"') && pcp.includes('invert: invertSel');
+});
 console.log('【第卌四轮 第五批：T-08 PDF 附件接入（沿 HTML 单卡唯一模式，100MB 上限，file:// 通道泛化）】');
 check('R44-12 AssetMeta.kind 增加 pdf + htmlAsset 通道泛化（路径键 zy_file_paths + openFileAsset 别名）', () => { const s = read('/shared/models/index.ts'); const h = read('/shared/utils/htmlAsset.ts'); return s.includes("'image' | 'html' | 'pdf'") && h.includes('PATHS_KEY = K.FILE_PATHS') && h.includes('export const openFileAsset = openHtmlAsset'); });
 // R80 重指：guessKind 抽到 shared/utils/assetKind.ts（导入侧复用），PDF_MAX_MB 改由 ASSET_KIND_MB 供值
@@ -384,7 +406,7 @@ check('R54-12（R74 重写）dragend 统一复位 clearDragState + 卡片拖过�
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('function clearDragState') && (w.match(/@dragend="clearDragState"/g) || []).length >= 2 && w.includes('dropMark');
 });
-check('R54-13 F1 工作台名图标去重：下拉渲染 name 去前缀（R129-B12 起全站统一 wsDisplayNameOf）（GlobalSettings 5 处 + CuriosityPanel 1 处）', () => { const g = read('/newtab/views/GlobalSettings.vue'); const c = read('/newtab/components/compass/CuriosityPanel.vue'); const bad = '{{ w.icon }} {{ w.name }}'; return !g.includes(bad) && !c.includes(bad) && g.split('wsDisplayNameOf(w)').length - 1 >= 5 && c.includes('wsDisplayNameOf(w)'); });
+check('R54-13 F1 工作台名图标去重：下拉渲染 name 去前缀（R129-B12 起全站统一 wsDisplayNameOf）（★R4-Da 退役重指带备案：原「GlobalSettings 5 处」里有一处是全景树的 wsDisplayNameOf(wsNode.ws)，随全景整页退役删除——去重纪律本身一项未减：判据改为「模板里逐字命中等值式 {{ w.icon }} {{ wsDisplayNameOf(w) }} ≥4 处 + GS 内 wsDisplayNameOf( 调用点（扣掉 import）≥5 处」，并对全景那处调用点做 codeOnly 零命中防回流；CuriosityPanel 1 处照旧）', () => { const g = read('/newtab/views/GlobalSettings.vue'); const gc = codeOnly(g); const c = read('/newtab/components/compass/CuriosityPanel.vue'); const bad = '{{ w.icon }} {{ w.name }}'; return !g.includes(bad) && !c.includes(bad) && (g.match(/\{\{ w\.icon \}\} \{\{ wsDisplayNameOf\(w\) \}\}/g) || []).length >= 4 && (g.match(/wsDisplayNameOf\(/g) || []).length - 1 >= 5 && !gc.includes('wsDisplayNameOf(wsNode.ws)') && c.includes('wsDisplayNameOf(w)'); });
 check('R63-16 手册同步口径更新（替代 R54-14 策展段）：快速采集任务语义 + 二级导航 + 分栏下钻 + 金字塔拖拽语义（R61 结构反转后策展段重写；R169-T4 重指：项目调度中缝措辞随"上下两截 + 下半部两栏"改版一起换，两条中缝各自的比例都要在手册里说清）', () => { const m = read('/newtab/manual-data.ts'); return m.includes('快速采集任务') && m.includes('二级导航（R54）') && m.includes('中缝可拖（25%–70%') && m.includes('30%–75%') && m.includes('节点可拖挂子级'); });
 
 // ============== 第五十五轮 · V2.28.0：策展混排平权 + 任务调度迁方向台 + 快速采集任务三端 + 方向状态迁调度台 + DHI 新口径 + 分栏修复 + 项目详情双列目录 + 检索免确认 + 体积 ==============
@@ -582,8 +604,32 @@ check('R63-7 manifest sync-airtable 命令（无默认键）+ alarms 权限 + ba
 check('R63-8 3 小时轮询：AT_POLL_ALARM periodInMinutes 180 + alignAirtableAlarm 按 pollEnabled 对齐 + storage.onChanged 即时对齐 + 无页跳过', () => { const b = read('/background/index.ts'); return b.includes("const AT_POLL_ALARM = 'airtable-poll'") && b.includes('periodInMinutes: 180') && b.includes('async function alignAirtableAlarm') && b.includes('chrome.storage.onChanged.addListener') && b.includes('轮询跳过：无已开新标签页'); });
 check('R63-9 newtab 执行器：App.vue zy-airtable-sync 消息 + runAirtableSync 单例防重入 + zy-autosync 查询参数自启', () => { const a = read('/newtab/App.vue'); return a.includes("msg?.type === 'zy-airtable-sync'") && a.includes('async function runAirtableSync') && a.includes('let atSyncBusy = false') && a.includes("new URLSearchParams(location.search).has('zy-autosync')") && a.includes("await import('@/shared/storage/airtable')"); });
 check('R63-10 首页同步状态卡：sync-chip（未配置/待同步/出错三态）+ pendingRows 待推计数 + 点击立即同步 + ⚙ 进设置', () => { const c = read('/newtab/views/CompassHome.vue'); return c.includes('class="sync-chip"') && c.includes('⇄ 未配置同步') && c.includes('⇄ 同步出错') && c.includes('pendingRows(store.data!)') && c.includes('async function onSyncChipClick') && c.includes("router.push('/settings?page=airtable')"); });
-check('R63-11 全景两级：panCountByWs/panCountByCat 策展台含镜像（boardCardsOf，R131-C3 起并入 panCounts bucket 一趟成型）+ 台型徽标（资源台/策展台）+ 镜像卡 📡 标记与真身跳转', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('function panCountByWs') && g.includes('for (const r of boardCardsOf(store.data!, w.id)) bump(w.id') && g.includes("isHubWs(gWsById(wsNode.ws.id)) ? '资源台' : '策展台'") && g.includes('isMirrorView(r)') && g.includes('panMirrorSrc') && g.includes('jumpMirrorSource'); });
-check('R63-12 全景移动守卫（V3.7.0 重指：真身禁搬守点文案「资源台真身」→「池卡真身」——真身唯一入池）：镜像卡=改投射落点（targetWsId/targetCatId）+ 池卡真身禁直接搬入策展台', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('p.targetWsId = targetWs') && g.includes('p.targetCatId = cat?.id') && g.includes('池卡真身不能直接搬入策展台'); });
+check('R63-11 ★R4-Da 退役重指带备案：原守「全景两级：panCountByWs/panCountByCat（策展台含镜像，走 boardCardsOf）+ 台型徽标（资源台/策展台）+ 镜像卡 📡 标记与 jumpMirrorSource 跳真身」——🗺 全景整页随资源台退役删除。四件事都另有落点，判据逐件点名：① 台型分流 + 含镜像计数仍在设置页「按台导出 CSV」（isHubWs 分流 → 策展台取 boardCardsOf、资源台取池内卡；列里带「镜像标记 📡」）② 卡面 📡 徽标在策展台卡片/列表/金字塔三视图（rc-mirror-badge）③ 跳真身=useWorkspaceMirror.locateMirrorSource（V3.7.0 改回落调度台首页）④ 计数含镜像的口径源=boardCardsOf；全景侧 panCounts/panCountByWs/panCountByCat/panMirrorSrc/jumpMirrorSource/gWsById 一律 codeOnly 零命中（防回流）', () => {
+  const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));
+  const ws = read('/newtab/views/Workspace.vue');
+  const mir = read('/newtab/composables/useWorkspaceMirror.ts');
+  const retired = ['const panCounts = computed', 'function panCountByWs', 'function panCountByCat', 'panMirrorSrc', 'jumpMirrorSource', 'function gWsById', "isHubWs(gWsById(wsNode.ws.id)) ? '资源台' : '策展台'"];
+  return retired.every(k => !g.includes(k))
+    && g.includes('const isBoard = !isHubWs(ws)') && g.includes('boardCardsOf(d, ws.id)')
+    && g.includes("{ label: '镜像标记', get: r => (isMirrorView(r) ? '📡' : '') }")
+    && ws.includes('<span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源卡池">📡</span>')
+    && ws.includes('const allResources = computed<ResourceCard[]>(() => boardCardsOf(d.value, workspaceId.value))')
+    && mir.includes('function locateMirrorSource(r: ResourceCard)') && mir.includes("router.push('/')");
+});
+check('R63-12 ★R4-Da 退役重指带备案：原守「全景移动守卫：镜像卡=改投射落点（p.targetWsId/p.targetCatId）+ 池卡真身禁直接搬入策展台（守点文案「池卡真身不能直接搬入策展台」）」——整页退役后守卫没丢，而是下沉到真正写数据的三层，判据按那三层点名：① useWorkspaceMirror.moveMirrorTo 只改投射记录 p.targetCatId（源卡零影响，注释即 R61 纪律）② hub.projectCardToBoard 两道硬门槛：源卡必须 !deletedAt && workspaceId===CURATION_WS_ID、且 toWsId===CURATION_WS_ID 直接 return null（真身唯一入池，池不是搬运目标）③ useWorkspaceBatch 批量/单卡移动只作用 natives，镜像一律拦并给守点文案；GS 侧那套直写投射 + 守点文案按 codeOnly 零命中', () => {
+  const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));
+  const mir = read('/newtab/composables/useWorkspaceMirror.ts');
+  const hub = read('/shared/storage/hub.ts');
+  const bat = read('/newtab/composables/useWorkspaceBatch.ts');
+  const retired = ['p.targetWsId = targetWs', 'p.targetCatId = cat?.id', '池卡真身不能直接搬入策展台', 'const panMoveWs', 'panMoveCat'];
+  return retired.every(k => !g.includes(k))
+    && mir.includes('function moveMirrorTo(m: MirrorView, catId: string)') && mir.includes('p.targetCatId = catId || undefined')
+    && hub.includes('const src = d.resources.find(r => r.id === cardId && !r.deletedAt && r.workspaceId === CURATION_WS_ID)')
+    && hub.includes('if (toWsId === CURATION_WS_ID) return null')
+    && bat.includes("if (mirrors.length && !natives.length) { showToast('📡 所选均为镜像卡——移动请在源卡处操作，或先移出镜像'); return }")
+    && bat.includes('natives.forEach(r => { r.workspaceId = moveWsId.value; r.categoryId = catId; r.updatedAt = Date.now() })')
+    && bat.includes("if (isMirrorView(r)) { showToast('📡 镜像卡为引用——移动落点请直接拖拽，编辑请到源卡'); return }");
+});
 check('R63-13 导出适配：CSV 策展台含镜像 + 尾随分类路径/层级/是否中心论点/镜像标记列 + exportWorkspace 只带本台投射 + mergeImport airtableMap 并集', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('boardCardsOf(d, ws.id)') && g.includes("label: '分类路径'") && g.includes("label: '层级'") && g.includes("label: '是否中心论点'") && g.includes("label: '镜像标记'") && g.includes('curationProjections: (d.curationProjections || []).filter(p => p.targetWsId === ws.id)') && g.includes('d.airtableMap = { ...(imported.airtableMap), ...(d.airtableMap || {}) }'); });
 check('R63-14 导入兼容：mergeImport 四字段组（含 thesis）合并保留 R62 语义', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes("for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const)") && g.includes('if (!cfg.thesis) cfg.thesis = defaultThesisFieldDefs()'); });
 

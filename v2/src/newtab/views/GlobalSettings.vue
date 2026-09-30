@@ -163,101 +163,6 @@
         </Teleport>
       </div>
 
-      <!-- ===== 资源台全景（第卌四轮 T-04 双栏 Master-Detail；R65-F5 只呈现资源台，策展台不再进全景） ===== -->
-      <div v-if="activePage === 'panorama'" class="gs-panel gs-pan-panel">
-        <div class="gs-page-header">
-          <div class="gs-page-title">🗺 资源台全景</div>
-          <div class="gs-page-desc">左栏看全景（资源台 → 分类 → 子分类），右栏做整理 · 勾选卡片拖到左栏目标分类即可批量移动 · 单击详情 / 双击打开 · 双击分类行直接改名</div>
-        </div>
-        <div class="gs-pan-wrap">
-          <!-- 左栏：全景计数树（默认全展开） -->
-          <div class="gs-pan-tree">
-            <div class="gs-pan-tree-head">全景 · 资源台 · {{ panTotalCats }} 分类 · {{ panTotalCards }} 卡</div>
-            <div v-for="(wsNode, wi) in panTree" :key="wsNode.ws.id" class="gs-pan-ws">
-              <div class="gs-pan-row gs-pan-ws-row" :class="{ active: panSelWs === wsNode.ws.id && !panSelCat, drop: dropTarget === 'ws:' + wsNode.ws.id }"
-                draggable="false" @click="selectPanWs(wsNode.ws.id)"
-                @dragover.prevent="dropTarget = 'ws:' + wsNode.ws.id" @dragleave="dropTarget === 'ws:' + wsNode.ws.id && (dropTarget = '')" @drop.prevent="onPanDrop('ws:' + wsNode.ws.id, wsNode.ws.id, '')">
-                <span class="gs-pan-toggle leaf" @click.stop="togglePanCollapse('ws:' + wsNode.ws.id)">{{ panCollapsed.has('ws:' + wsNode.ws.id) ? '▸' : '▾' }}</span>
-                <span class="gs-pan-name">{{ wsNode.ws.icon || '📁' }} {{ wsDisplayNameOf(wsNode.ws) }}<span class="gs-pan-kind">{{ isHubWs(gWsById(wsNode.ws.id)) ? '资源台' : '策展台' }}</span></span>
-                <span class="gs-pan-count">{{ wsNode.count }}</span>
-              </div>
-              <template v-if="!panCollapsed.has('ws:' + wsNode.ws.id)">
-                <!-- R66-F6：递归 N 级扁平行渲染（原固定 2 级），深层子分类缩进呈现、折叠语义沿祖先链 -->
-                <template v-for="row in panFlatCats[wi]" :key="row.node.cat.id">
-                  <div class="gs-pan-row" :class="[row.depth === 0 ? 'gs-pan-cat-row' : 'gs-pan-sub-row', { active: panSelCat === row.node.cat.id, drop: dropTarget === 'cat:' + row.node.cat.id }]"
-                    :style="row.depth ? { paddingLeft: (row.depth * 14) + 'px' } : undefined"
-                    @click="selectPanCat(row.node.cat.id)" @dblclick="panCatRename(row.node.cat.id)"
-                    @dragover.prevent="dropTarget = 'cat:' + row.node.cat.id" @dragleave="dropTarget === 'cat:' + row.node.cat.id && (dropTarget = '')" @drop.prevent="onPanDrop('cat:' + row.node.cat.id, row.node.cat.workspaceId, row.node.cat.id)">
-                    <span v-if="row.node.children.length" class="gs-pan-toggle" @click.stop="togglePanCollapse('cat:' + row.node.cat.id)">{{ panCollapsed.has('cat:' + row.node.cat.id) ? '▸' : '▾' }}</span>
-                    <span v-else class="gs-pan-toggle leaf">·</span>
-                    <input v-if="panEdit && panEdit.id === row.node.cat.id" v-model="panEdit.value" class="gs-tt-input gs-pan-rename-input" v-focus
-                      @click.stop @dblclick.stop @keydown.enter.prevent="panCatRenameConfirm" @keydown.esc="panEdit = null" @blur="panCatRenameConfirm" />
-                    <span v-else class="gs-pan-name">{{ row.depth === 0 ? '📂 ' : '└ ' }}{{ row.node.cat.name }}</span>
-                    <span class="gs-pan-count">{{ row.node.count }}</span>
-                  </div>
-                </template>
-              </template>
-            </div>
-            <div v-if="!panTree.length" class="gs-ev-empty">暂无策展台</div>
-          </div>
-          <!-- 右栏：当前分类卡片列表 -->
-          <div class="gs-pan-list-wrap">
-            <div class="gs-pan-list-head">
-              <span class="gs-pan-crumb">{{ panCrumb }}</span>
-              <label class="gs-pan-allcheck"><input type="checkbox" :checked="panAllChecked" @change="togglePanAll" /> 全选本分类</label>
-            </div>
-            <div class="gs-pan-list" @scroll.passive="onPanListScroll">
-              <div v-for="r in panVisibleCards" :key="r.id" class="gs-pan-card" :class="{ selected: panSelected.has(r.id) }" draggable="true"
-                @dragstart="onPanDragStart($event, r.id)" @dragend="dropTarget = ''"
-                @click="onPanCardClick(r)" @dblclick="onPanCardDblClick(r)">
-                <input type="checkbox" class="gs-pan-check" :checked="panSelected.has(r.id)" @click.stop @change="togglePanCard(r.id)" />
-                <div class="gs-pan-card-main">
-                  <div class="gs-pan-card-title"><span v-if="isMirrorView(r)" title="资源台镜像（真身在资源台）">📡 </span>{{ r.title }}</div>
-                  <div class="gs-pan-card-sub">{{ panCardSub(r) }}</div>
-                </div>
-                <span class="gs-pan-card-date">{{ fmtDay(r.createdAt) }}</span>
-              </div>
-              <div v-if="panHasMore" class="gs-ev-empty">已显示 {{ panVisibleCards.length }} / {{ panCards.length }} 张 · 继续滚动加载</div>
-              <div v-if="!panCards.length" class="gs-ev-empty">左侧选择策展台或分类查看卡片</div>
-            </div>
-            <div v-if="panSelected.size" class="gs-pan-batch">
-              <span class="gs-pan-batch-n">已选 {{ panSelected.size }} 张</span>
-              <select class="gs-select" v-model="panMoveWs" @change="panMoveCat = ''">
-                <option value="">目标策展台…</option>
-                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}</option>
-              </select>
-              <select class="gs-select" v-model="panMoveCat" :disabled="!panMoveWs">
-                <option value="">目标分类（可选）</option>
-                <option v-for="c in panMoveCatOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
-              </select>
-              <button class="gs-btn gs-btn-primary" :disabled="!panMoveWs" @click="movePanSelection">移动</button>
-              <button class="gs-btn" @click="panSelected = new Set()">取消</button>
-            </div>
-            <div class="gs-pan-foot">拖拽动线：勾选卡片 → 拖到左栏目标分类（虚线高亮）松手即移动 · 也可用下方按钮兜底 · 单击详情 双击打开</div>
-          </div>
-        </div>
-
-        <!-- 全景卡片详情抽屉（单击打开） -->
-        <Drawer :open="!!panDetail" title="🔗 卡片详情" @close="panDetail = null">
-          <template v-if="panDetail">
-            <div class="gs-pd-title">{{ panDetail.title }}</div>
-            <div class="gs-pd-row"><span class="gs-pd-k">链接</span><span class="gs-pd-v">{{ panDetail.link || '—' }}</span></div>
-            <div class="gs-pd-row"><span class="gs-pd-k">归属</span><span class="gs-pd-v">{{ gWsName(panDetail.workspaceId) }} / {{ gCatName(panDetail.categoryId || "") || '待分类' }}</span></div>
-            <!-- R63-1：镜像卡展示真身归属 + 跳转 -->
-            <template v-if="panMirrorSrc">
-              <div class="gs-pd-row"><span class="gs-pd-k">📡 镜像</span><span class="gs-pd-v">真身在 {{ gWsName(panMirrorSrc.workspaceId) }} / {{ gCatName(panMirrorSrc.categoryId || "") || '待分类' }}</span></div>
-              <div class="gs-pd-actions"><button class="gs-btn" @click="jumpMirrorSource">↩ 前往资源台真身</button></div>
-            </template>
-            <div class="gs-pd-row" v-if="panDetail.description"><span class="gs-pd-k">描述</span><span class="gs-pd-v">{{ panDetail.description }}</span></div>
-            <div class="gs-pd-row" v-if="panDetail.tags && panDetail.tags.length"><span class="gs-pd-k">标签</span><span class="gs-pd-v">#{{ panDetail.tags.join(' #') }}</span></div>
-            <div class="gs-pd-actions">
-              <button class="gs-btn gs-btn-primary" @click="openCardLink(panDetail)">↗ 打开链接</button>
-              <button class="gs-btn" @click="panDetail = null">关闭</button>
-            </div>
-          </template>
-        </Drawer>
-      </div>
-
       <!-- ===== 资源卡字段 ===== -->
       <div v-if="activePage === 'resource'" class="gs-panel">
         <div class="gs-page-header">
@@ -394,7 +299,7 @@
         </div>
           <!-- R127：右列——当前标签下的卡片（三卡合一 / 类型过滤 / 搜索 / 多选拖拽移动） -->
           <div class="gs-card">
-            <div class="gs-card-header"><span class="gs-card-title">#{{ ttActiveTag || '未选择标签' }}{{ ttActiveTag ? ' · ' + ttRows.length + ' 张' : '' }}</span><label v-if="ttActiveTag" class="gs-pan-allcheck"><input type="checkbox" :checked="ttAllChecked" @change="toggleTtAll" /> 全选本标签</label><button v-if="ttPicked.size" class="gs-btn ai-batch-btn" :disabled="!aiReady" title="对勾选卡片做 AI 批量补全（标签/描述/分类建议）" @click="aiTtEnrich"><AiEntryButton variant="inline" :label="'批量补全(' + ttPicked.size + ')'" /></button><span class="gs-card-desc">单击选中 · 双击详情 · 多选后拖到左侧标签即移动（替换）</span></div>
+            <div class="gs-card-header"><span class="gs-card-title">#{{ ttActiveTag || '未选择标签' }}{{ ttActiveTag ? ' · ' + ttRows.length + ' 张' : '' }}</span><label v-if="ttActiveTag" class="tt-allcheck"><input type="checkbox" :checked="ttAllChecked" @change="toggleTtAll" /> 全选本标签</label><button v-if="ttPicked.size" class="gs-btn ai-batch-btn" :disabled="!aiReady" title="对勾选卡片做 AI 批量补全（标签/描述/分类建议）" @click="aiTtEnrich"><AiEntryButton variant="inline" :label="'批量补全(' + ttPicked.size + ')'" /></button><span class="gs-card-desc">单击选中 · 双击详情 · 多选后拖到左侧标签即移动（替换）</span></div>
             <div class="gs-card-body">
               <div v-if="!ttActiveTag" class="gs-tt-empty">点击左侧标签查看其下卡片</div>
               <template v-else>
@@ -409,12 +314,12 @@
                   <span v-if="ttPicked.size" class="tt-picked">已选 {{ ttPicked.size }} 张 · 拖到左侧标签即可移动</span>
                 </div>
                 <div class="tt-list">
-                  <div v-for="row in ttRows" :key="row.id" class="gs-pan-card" :class="{ selected: ttPicked.has(row.id), dragging: ttCardDragging && ttPicked.has(row.id) }" draggable="true"
+                  <div v-for="row in ttRows" :key="row.id" class="tt-card" :class="{ selected: ttPicked.has(row.id), dragging: ttCardDragging && ttPicked.has(row.id) }" draggable="true"
                     @click="onTtRowClick(row)" @dblclick="onTtRowDblClick(row)" @dragstart="onTtRowDragStart($event, row)" @dragend="onTtRowDragEnd">
-                    <input type="checkbox" class="gs-pan-check" :checked="ttPicked.has(row.id)" @click.stop @change="ttTogglePick(row.id)" />
-                    <div class="gs-pan-card-main">
-                      <div class="gs-pan-card-title">{{ row.kind === 'resource' ? '📦' : row.kind === 'task' ? '✅' : '💡' }} {{ row.title }}</div>
-                      <div class="gs-pan-card-sub">{{ row.sub }}</div>
+                    <input type="checkbox" class="tt-check" :checked="ttPicked.has(row.id)" @click.stop @change="ttTogglePick(row.id)" />
+                    <div class="tt-card-main">
+                      <div class="tt-card-title">{{ row.kind === 'resource' ? '📦' : row.kind === 'task' ? '✅' : '💡' }} {{ row.title }}</div>
+                      <div class="tt-card-sub">{{ row.sub }}</div>
                     </div>
                   </div>
                   <div v-if="!ttRows.length" class="gs-ev-empty">该标签下暂无卡片</div>
@@ -1232,9 +1137,8 @@ const navGroups: { title: string; items: NavItem[] }[] = [
   // R178（原型 sns-group-title）：分组对齐设置中心原型——通用与度量 / 卡片与字段 / AI 认知协作者 / 数据与信任 / 系统信息（条目与功能零增减）
   { title: '通用与度量', items: [
     { key: 'dashboard', icon: '📊', label: '知源仪表盘' },
-    // R113-N2：资源生命周期聚合页——位置拍板「知源仪表盘之下、资源台全景之上」
+    // R113-N2：资源生命周期聚合页——位置拍板「紧跟知源仪表盘、本组不留第三格」（R110-LC-4 守此序）
     { key: 'lifecycle', icon: '⏳', label: '资源生命周期' },
-    { key: 'panorama', icon: '🗺', label: '资源台全景' },
   ]},
   { title: '卡片与字段', items: [
     { key: 'resource', icon: '📇', label: '资源卡' },
@@ -1606,242 +1510,9 @@ const dynDrawerTitle = computed(() => ({
   '': ''
 }[dynDrawer.value]))
 
-// ============================================================
-// 第卌四轮 T-04/T-04'：策展台全景（双栏 Master-Detail + 批量移动双通道）
-// R63-1：资源台/策展台两级——策展台计数与列表含镜像卡（boardCardsOf），镜像卡标 📡 可跳真身
-interface PanCatNode { cat: { id: string; name: string; workspaceId: string }; count: number; children: PanCatNode[] }
-interface PanWsNode { ws: { id: string; name: string; icon?: string }; count: number; cats: PanCatNode[] }
-/** R67-F3：按原始数据查台——app store 的 workspaces getter 显式排除资源台（id=CURATION_WS_ID），
- *  全景内一切 isHubWs 判定不得走该 getter，否则资源台被判为「不存在」→ 右栏串台到策展台 */
-function gWsById(wsId: string) { return (store.data?.workspaces || []).find(w => w.id === wsId) }
-/** R63-1：分类计数——资源台按原生卡，策展台按台内+镜像（镜像归到台内落点分类）
- *  R131-C3：原实现每个分类节点全量扫一遍卡（panCountByCat × 分类数 = O(分类×卡)，且子分类递归再乘一遍）
- *  → 改为两趟 bucket：台级计数一张 Map，分类计数对「可见卡」一次遍历成 Map，建树时 O(1) 查表。 */
-const panWsIdSet = computed(() => new Set(panHubWss.value.map(w => w.id)))
-const panCounts = computed(() => {
-  const catCount = new Map<string, number>()
-  const wsCount = new Map<string, number>()
-  // 键 = ws|cat：与旧实现「workspaceId + categoryId 双条件」口径一致（R109 F12-a 悬空分类不串计）
-  const bump = (wsId: string, catId: string) => {
-    wsCount.set(wsId, (wsCount.get(wsId) || 0) + 1)
-    const k = wsId + '|' + catId
-    catCount.set(k, (catCount.get(k) || 0) + 1)
-  }
-  for (const r of gResLive.value) if (panWsIdSet.value.has(r.workspaceId)) bump(r.workspaceId, r.categoryId || '')
-  for (const w of panHubWss.value) if (!isHubWs(w)) for (const r of boardCardsOf(store.data!, w.id)) bump(w.id, r.categoryId || '')
-  return { catCount, wsCount }
-})
-function panCountByCat(cat: { id: string; workspaceId: string }): number {
-  return panCounts.value.catCount.get(cat.workspaceId + '|' + cat.id) || 0
-}
-/** R63-1：台卡片计数——资源台原生卡数；策展台含镜像（R65-F5 全景仅资源台，策展台分支保留兜底） */
-function panCountByWs(wsId: string): number {
-  return panCounts.value.wsCount.get(wsId) || 0
-}
-/** R65-F5：全景树只呈现资源台（策展台不进全景）｜ R66-F6：子分类递归 N 级渲染
- *  ｜ R67-F3：数据源改原始 workspaces（getter 排除资源台 → panTree 恒空 bug 根因） */
-const panHubWss = computed(() => (store.data?.workspaces || []).filter(w => isHubWs(w) && !w.archived))
-const panTree = computed<PanWsNode[]>(() =>
-  panHubWss.value.map(w => {
-    const roots = gd.value.categories.filter(c => c.workspaceId === w.id && !c.parentId && !c.deletedAt).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) // R109（F12-b）：软删分类不入全景
-    const toNode = (c: { id: string; name: string; workspaceId: string }): PanCatNode => ({
-      cat: { id: c.id, name: c.name, workspaceId: c.workspaceId },
-      count: panCountByCat(c),
-      children: gd.value.categories
-        .filter(ch => ch.parentId === c.id && !ch.deletedAt)
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-        .map(toNode)
-    })
-    return { ws: { id: w.id, name: w.name, icon: w.icon }, count: panCountByWs(w.id), cats: roots.map(toNode) }
-  })
-)
-const panTotalCats = computed(() => gd.value.categories.filter(c => panHubWss.value.some(w => w.id === c.workspaceId) && !c.deletedAt).length)
-const panTotalCards = computed(() => panHubWss.value.reduce((s, w) => s + panCountByWs(w.id), 0))
-const panCollapsed = ref<Set<string>>(new Set()) // 默认全展开
-/** R66-F6：递归扁平行（折叠沿祖先链：父收起则整棵子树不渲染）
- *  R131-C3：模板内直调改为 panFlatCats computed——原每次渲染对每个台各跑一遍递归建树，
- *  折叠一次全树重算 N 次；现在 panTree/panCollapsed 不变时直接命中缓存。 */
-function flattenPanCats(cats: { cat: { id: string; name: string; workspaceId: string }; count: number; children: any[] }[], depth: number): { node: any; depth: number }[] {
-  const out: { node: any; depth: number }[] = []
-  for (const n of cats) {
-    out.push({ node: n, depth })
-    if (n.children?.length && !panCollapsed.value.has('cat:' + n.cat.id)) out.push(...flattenPanCats(n.children, depth + 1))
-  }
-  return out
-}
-const panFlatCats = computed(() => panTree.value.map(n => flattenPanCats(n.cats, 0)))
-function togglePanCollapse(key: string) {
-  const next = new Set(panCollapsed.value)
-  if (next.has(key)) next.delete(key); else next.add(key)
-  panCollapsed.value = next
-}
-const panSelWs = ref('')
-const panSelCat = ref('')
-const panSelected = ref<Set<string>>(new Set())
-const dropTarget = ref('')
-let panDragIds: string[] = []
-function selectPanWs(wsId: string) { panSelWs.value = wsId; panSelCat.value = ''; panSelected.value = new Set() }
-function selectPanCat(catId: string) {
-  const cat = gd.value.categories.find(c => c.id === catId)
-  panSelCat.value = catId
-  panSelWs.value = cat?.workspaceId || panSelWs.value
-  panSelected.value = new Set()
-}
-const panCards = computed<ResourceCard[]>(() => {
-  if (panSelWs.value && !isHubWs(gWsById(panSelWs.value))) {
-    // R63-1：策展台 = 台内原生 + 镜像卡（视图模型），按分类过滤
-    const cards = boardCardsOf(store.data!, panSelWs.value)
-    return panSelCat.value ? cards.filter(r => (r.categoryId || '') === panSelCat.value) : cards
-  }
-  if (panSelCat.value) return gResLive.value.filter(r => r.workspaceId === panSelWs.value && r.categoryId === panSelCat.value) // R109（F12-a）：workspaceId 收紧——策展台卡不得混入资源台分类视图
-  if (panSelWs.value) return gResLive.value.filter(r => r.workspaceId === panSelWs.value)
-  return []
-})
-/** R131-C3：右栏大列表增量渲染（与主界面 RENDER_STEP 同构）——原一次全选分类即挂载数百 DOM，
- *  滚动到底部 400px 内追加一批；切台/切分类复位首屏 */
-const PAN_RENDER_STEP = 32
-const panRenderLimit = ref(PAN_RENDER_STEP)
-watch([panSelWs, panSelCat], () => { panRenderLimit.value = PAN_RENDER_STEP })
-const panVisibleCards = computed(() => panCards.value.length > panRenderLimit.value ? panCards.value.slice(0, panRenderLimit.value) : panCards.value)
-const panHasMore = computed(() => panCards.value.length > panRenderLimit.value)
-function onPanListScroll(e: Event) {
-  if (!panHasMore.value) return
-  const el = e.target as HTMLElement
-  if (el.scrollHeight - el.scrollTop - el.clientHeight < 400) panRenderLimit.value += PAN_RENDER_STEP
-}
-// R132-T3：全景树分类双击行内改名——分类按 id 被卡片引用，只改 name + persist，无卡片级联
-const panEdit = ref<{ id: string; value: string } | null>(null)
-function panCatRename(catId: string) {
-  const c = gd.value.categories.find(x => x.id === catId)
-  if (c) panEdit.value = { id: catId, value: c.name }
-}
-function panCatRenameConfirm() {
-  const ed = panEdit.value
-  panEdit.value = null
-  if (!ed) return
-  const name = ed.value.trim()
-  const cat = gd.value.categories.find(x => x.id === ed.id)
-  if (!cat || !name || cat.name === name) return
-  const dup = gd.value.categories.some(x => x.id !== cat.id && !x.deletedAt && x.workspaceId === cat.workspaceId && (x.parentId || '') === (cat.parentId || '') && x.name === name)
-  if (dup) { showToast('同一层级下已有同名分类'); return }
-  cat.name = name
-  store.persist()
-  showToast(`✓ 分类已重命名为「${name}」`)
-}
-const panCrumb = computed(() => {
-  if (panSelCat.value) {
-    const cat = gd.value.categories.find(c => c.id === panSelCat.value)
-    if (cat) {
-      const parent = cat.parentId ? gCatName(cat.parentId) + ' / ' : ''
-      return `${gWsName(cat.workspaceId)} / ${parent}${cat.name} · ${panCards.value.length} 张`
-    }
-  }
-  if (panSelWs.value) return `${gWsName(panSelWs.value)} · 全部卡片 ${panCards.value.length} 张`
-  return '左侧选择策展台或分类'
-})
-const panAllChecked = computed(() => panCards.value.length > 0 && panCards.value.every(r => panSelected.value.has(r.id)))
-function togglePanAll() {
-  if (panAllChecked.value) panSelected.value = new Set()
-  else panSelected.value = new Set(panCards.value.map(r => r.id))
-}
-function togglePanCard(id: string) {
-  const next = new Set(panSelected.value)
-  if (next.has(id)) next.delete(id); else next.add(id)
-  panSelected.value = next
-}
-function onPanDragStart(e: DragEvent, id: string) {
-  panDragIds = panSelected.value.has(id) ? [...panSelected.value] : [id]
-  if (!panSelected.value.has(id)) togglePanCard(id)
-  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
-}
-function onPanDrop(_key: string, wsId: string, catId: string) {
-  dropTarget.value = ''
-  if (!panDragIds.length) return
-  movePanCards(panDragIds, wsId, catId)
-  panDragIds = []
-}
-function movePanCards(ids: string[], wsId: string, catId: string) {
-  const cat = catId ? gd.value.categories.find(c => c.id === catId) : null
-  const targetWs = cat ? cat.workspaceId : wsId
-  const targetIsHub = isHubWs(gWsById(targetWs))
-  let moved = 0
-  let mirrorMoved = 0
-  for (const id of ids) {
-    // R63-1：镜像卡移动 = 改投射落点（真身零影响）——先按视图模型判定
-    const view = panCards.value.find(x => x.id === id)
-    if (view && isMirrorView(view)) {
-      const p = (gd.value.curationProjections || []).find(pp => pp.id === view.__mirrorProjId)
-      if (p) {
-        if (p.targetWsId !== targetWs) p.targetWsId = targetWs
-        p.targetCatId = cat?.id
-        mirrorMoved++
-      }
-      continue
-    }
-    const r = gd.value.resources.find(x => x.id === id)
-    if (!r) continue
-    // R63-1 → V3.7.0（R179）：池卡真身不搬台（真身唯一入池）——要进策展台走节点「🔗 关联资源卡」（投射引用）
-    if (!targetIsHub && r.workspaceId === CURATION_WS_ID) { showToast('⚠ 池卡真身不能直接搬入策展台，请在策展台节点用「🔗 关联资源卡」'); continue }
-    r.workspaceId = targetWs
-    r.categoryId = cat ? cat.id : ''
-    r.updatedAt = Date.now()
-    moved++
-  }
-  if (moved || mirrorMoved) {
-    store.persist()
-    showToast(`✓ 已移动 ${moved} 张卡片${mirrorMoved ? ` · 调整 ${mirrorMoved} 个镜像落点` : ''}`)
-    panSelected.value = new Set()
-  }
-}
-const panMoveWs = ref('')
-const panMoveCat = ref('')
-const panMoveCatOptions = computed(() => {
-  if (!panMoveWs.value) return []
-  const roots = gd.value.categories.filter(c => c.workspaceId === panMoveWs.value && !c.parentId)
-  const out: { id: string; name: string }[] = []
-  for (const c of roots) {
-    out.push({ id: c.id, name: c.name })
-    for (const ch of gd.value.categories.filter(x => x.parentId === c.id)) out.push({ id: ch.id, name: c.name + ' / ' + ch.name })
-  }
-  return out
-})
-function movePanSelection() {
-  if (!panMoveWs.value || !panSelected.value.size) return
-  movePanCards([...panSelected.value], panMoveWs.value, panMoveCat.value)
-  panMoveWs.value = ''; panMoveCat.value = ''
-}
-// 单击详情 / 双击打开（260ms 判定，与全产品统一）
-const panDetail = ref< ResourceCard | null >(null)
-/** R63-1：全景详情抽屉——镜像卡的真身引用（非镜像为 null） */
-const panMirrorSrc = computed<ResourceCard | null>(() => {
-  const det = panDetail.value
-  if (!det || !isMirrorView(det)) return null
-  const p = (gd.value.curationProjections || []).find(pp => pp.id === det.__mirrorProjId)
-  if (!p?.cardId) return null
-  return gd.value.resources.find(r => r.id === p.cardId) || null
-})
-function jumpMirrorSource() {
-  const src = panMirrorSrc.value
-  if (!src) return
-  panDetail.value = null
-  router.push(`/workspace/${CURATION_WS_ID}?hl=${src.id}`)
-}
-function panCardSub(r: ResourceCard): string {  const src = r.sourceType ? ({ official: '官方', academic: '学术', media: '媒体', personal: '个人', 'ai-tool': 'AI 工具', 'own-work': '自有' } as Record<string, string>)[r.sourceType] || '' : ''
-  const host = r.linkType === 'url' ? (() => { try { return new URL(r.link).host } catch { return '' } })() : r.linkType === 'file' ? '本地文件' : 'Obsidian'
-  return [host, src].filter(Boolean).join(' · ')
-}
-/** R126（诉求 6）：全景列表单击=选中（勾选态），双击=打开详情抽屉（原：单击详情 / 双击开链接） */
-function onPanCardClick(r: ResourceCard) { togglePanCard(r.id) }
-function onPanCardDblClick(r: ResourceCard) { recordResourceOpen(gd.value, r); store.persistHot(); panDetail.value = r }
 watch(activePage, (p) => {
   /** R173-1：进仪表盘重读一次错误日志 —— 原来只在 setup 读一次，会话里新崩的看不见 */
   if (p === 'dashboard') { refreshEventLog(); refreshErrorCount() }
-  if (p === 'panorama' && !panSelWs.value) {
-    // R67-F3：默认选中资源台本体（原 workspaces[0] 是第一个策展台，右栏因此串台）
-    const hubWs = panHubWss.value[0]
-    if (hubWs) selectPanWs(hubWs.id)
-    else if (store.workspaces.length) selectPanWs(store.workspaces[0].id)
-  }
 })
 refreshEventLog()
 
@@ -3455,47 +3126,12 @@ const activeManualSec = ref('quick-1')
 .gs-ev-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .gs-ev-empty { text-align: center; padding: 22px; color: var(--text-3); font-size: var(--fs-body); }
 
-/* ===== 第卌四轮：策展台全景（双栏 Master-Detail） ===== */
-.gs-pan-panel { display: flex; flex-direction: column; }
-.gs-pan-wrap { display: grid; grid-template-columns: 250px 1fr; gap: 12px; align-items: start; }
-.gs-pan-tree { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; max-height: 560px; overflow-y: auto; }
-.gs-pan-tree-head { font-size: var(--fs-caption); color: var(--text-3); padding: 2px 6px 8px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
-.gs-pan-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: var(--fs-body); color: var(--text-2); transition: all var(--dur-fast); border: 1px dashed transparent; }
-.gs-pan-row:hover { background: var(--surface-3); color: var(--text); }
-.gs-pan-row.active { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
-.gs-pan-row.drop { border-color: var(--accent); background: var(--accent-light); }
-.gs-pan-ws-row { font-weight: 600; color: var(--text); }
-.gs-pan-cat-row { padding-left: 18px; }
-.gs-pan-sub-row { padding-left: 34px; font-size: var(--fs-sub); }
-.gs-pan-toggle { width: 14px; flex-shrink: 0; font-size: var(--fs-tiny); color: var(--text-3); text-align: center; cursor: pointer; user-select: none; }
-.gs-pan-toggle.leaf { cursor: default; opacity: .4; }
-.gs-pan-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gs-pan-rename-input { flex: 1; min-width: 0; border: 1px solid var(--accent); border-radius: 4px; background: var(--surface); }
-.gs-pan-kind { display: inline-block; margin-left: 6px; padding: 0 6px; font-size: var(--fs-tiny); line-height: 16px; border-radius: 99px; background: var(--accent-light); color: var(--accent-ink); vertical-align: 1px; }
-.gs-pan-count { font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 1px 8px; flex-shrink: 0; }
-.gs-pan-row.active .gs-pan-count { color: var(--accent-ink); background: var(--accent-light); }
-.gs-pan-list-wrap { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; max-height: 560px; }
-.gs-pan-list-head { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
-.gs-pan-crumb { font-size: var(--fs-body); font-weight: 600; color: var(--text); flex: 1; }
-.gs-pan-allcheck { display: flex; align-items: center; gap: 5px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; }
-.gs-pan-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 5px; }
-.gs-pan-card { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); cursor: pointer; transition: all var(--dur-fast); }
-.gs-pan-card:hover { border-color: var(--accent); background: var(--accent-light); }
-.gs-pan-card.selected { border-color: var(--accent); background: var(--accent-light); }
-.gs-pan-check { flex-shrink: 0; cursor: pointer; }
-.gs-pan-card-main { flex: 1; min-width: 0; }
-.gs-pan-card-title { font-size: var(--fs-body); font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gs-pan-card-sub { font-size: var(--fs-caption); color: var(--text-4); margin-top: 1px; }
-.gs-pan-card-date { font-size: var(--fs-caption); color: var(--text-3); flex-shrink: 0; }
-.gs-pan-batch { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); background: var(--accent-light); border-radius: 0 0 var(--radius) var(--radius); }
-.gs-pan-batch-n { font-size: var(--fs-sub); font-weight: 700; color: var(--accent); white-space: nowrap; }
-.gs-pan-foot { padding: 9px 14px; border-top: 1px solid var(--border); font-size: var(--fs-caption); color: var(--text-3); }
-.gs-pd-title { font-size: var(--fs-title); font-weight: 600; color: var(--text); line-height: 1.5; margin-bottom: 12px; }
-.gs-pd-row { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); }
-.gs-pd-k { width: 40px; flex-shrink: 0; color: var(--text-4); }
-.gs-pd-v { flex: 1; min-width: 0; color: var(--text-2); word-break: break-all; line-height: 1.6; }
-.gs-pd-actions { display: flex; gap: 8px; margin-top: 14px; }
-
+/* ===== R4-Da（旧世界清账）：🗺 全景整页退役后，原同一段样式里仍被存活页面消费的规则补回。
+   ★这一段不是"把全景样式留着"——它守的是三类连带损失：生命周期阈值弹窗（lc-set-*）、
+   标签管理双栏与右列卡片（tt-*）、标签详情抽屉（gs-pd-*）。全景自己的双栏树样式（左树/ws 行/
+   分类行/计数徽标/批量条/卡片日期）一律没补，退役类名按 R44-10/11 判据零命中。
+   右列卡片原借全景的 gs-pan-* 类名，本轮改成标签管理本地 tt-*：类名跟着居所走，
+   下一个读代码的人不会以为它属于已删的那一页。 ===== */
 /* R126（诉求 5）：阈值设置弹窗 */
 .lc-set-global { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; font-size: var(--fs-body); color: var(--text-2); }
 .lc-set-list { max-height: 260px; overflow-y: auto; margin-top: 8px; border-top: 1px solid var(--border); }
@@ -3504,15 +3140,30 @@ const activeManualSec = ref('quick-1')
 /* R127：标签管理双栏（左树 + 右列卡片） */
 .tt-wrap { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
 .gs-tt-row.active { border-color: var(--accent); background: var(--accent-light); }
-/* R130-T3：拖拽落点高亮（比 active 多一圈实心内环，选中行被划过时也能分辨）+ 被拖卡片行降透明度 */
+/* R130-T3：拖拽落点高亮（比 active 多一圈实心内环）+ 被拖卡片行降透明度 */
 .gs-tt-row.drop { border-color: var(--accent); background: var(--accent-light); box-shadow: inset 0 0 0 1.5px var(--accent); }
-.gs-pan-card.dragging { opacity: .45; }
+.tt-card.dragging { opacity: .45; }
 .tt-tools { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .tt-picked { font-size: var(--fs-caption); color: var(--accent); white-space: nowrap; }
 .tt-list { display: flex; flex-direction: column; gap: 6px; max-height: 560px; overflow-y: auto; }
+.tt-allcheck { display: flex; align-items: center; gap: 5px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; }
+.tt-card { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); cursor: pointer; transition: all var(--dur-fast); }
+.tt-card:hover { border-color: var(--accent); background: var(--accent-light); }
+.tt-card.selected { border-color: var(--accent); background: var(--accent-light); }
+.tt-check { flex-shrink: 0; cursor: pointer; }
+.tt-card-main { flex: 1; min-width: 0; }
+.tt-card-title { font-size: var(--fs-body); font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-card-sub { font-size: var(--fs-caption); color: var(--text-4); margin-top: 1px; }
+/* 标签详情抽屉字段行 */
+.gs-pd-title { font-size: var(--fs-title); font-weight: 600; color: var(--text); line-height: 1.5; margin-bottom: 12px; }
+.gs-pd-row { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); }
+.gs-pd-k { width: 40px; flex-shrink: 0; color: var(--text-4); }
+.gs-pd-v { flex: 1; min-width: 0; color: var(--text-2); word-break: break-all; line-height: 1.6; }
+.gs-pd-actions { display: flex; gap: 8px; margin-top: 14px; }
 @media (max-width: 1100px) { .tt-wrap { grid-template-columns: 1fr; } }
 
 /* ===== R134-F · AI 助手页 ===== */
+
 .ai-form { display: flex; flex-direction: column; gap: 10px; }
 .ai-field { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sub); color: var(--text-3); }
 .ai-field.inline { flex-direction: row; align-items: center; gap: 8px; font-size: var(--fs-sub); color: var(--text-2); }

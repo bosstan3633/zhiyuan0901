@@ -22,7 +22,17 @@ check('R65-5/R66 金字塔居中树布局：pyLayout 叶子占列+父跨子组�
 check('R65-6 金字塔严格树状：DFS 先序排序（同父节点紧邻）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('const dfsOrder = new Map<string, number>()') && w.includes("walk('')") && w.includes('dfsOrder.get(a.cat.id)'); });
 check('R65-7 节点双入口', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('openLinkCards') && w.includes('linkCandidates') && w.includes('confirmLinkCards') && w.includes('projectCardToBoard(d.value, id, workspaceId.value, m.catId)') && w.includes('🔗 关联资源卡') && w.includes('➕ 新建论证卡') && w.includes('py-node-foot');  });
 check('R65-8（R100 重指：实现拆入 useWorkspaceImport；R169-T1 再重指：资源段合并前先钳 updatedAt）策展台导入=策展台数据包 JSON：version 校验 + 按 ID 并集合并本台段 + 投射清单并入', () => { const imp = read('/newtab/composables/useWorkspaceImport.ts'); return imp.includes('handleBoardImport') && imp.includes("startsWith('2')") && imp.includes('mergeById(d.value.resources, clampUpdatedAt(d.value.resources, incRes)') && imp.includes('curationProjections = mergeById'); });
-check('R65-9 全景收窄为资源台全景：panHubWss 过滤 isHubWs + 导航/标题改名', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('const panHubWss = computed') && g.includes("(store.data?.workspaces || []).filter(w => isHubWs(w) && !w.archived)") && g.includes("label: '资源台全景'") && g.includes('🗺 资源台全景') && !g.includes("label: '工作台全景'"); });
+check('R65-9 ★R4-Da 退役重指带备案：原守「全景收窄为资源台全景（panHubWss 过滤 isHubWs，策展台不进全景）+ 导航/标题改名（label: 资源台全景 / 页标题 🗺 资源台全景），且旧措辞 label: 工作台全景 不得回流」——V3.7.0 资源台退役后该整页删除，"只呈现资源台"这一收敛语义不再靠过滤函数、而是由数据层直接承担：池卡唯一管理面=调度台资源卡池面板（恒以 workspaceId===CURATION_WS_ID 取数，连"选台"这一步都不存在），策展台管理面=Workspace.vue。判据＝全景侧实现与两种措辞（新旧都算）codeOnly 零命中 + 去向两处真实锚点在位（池过滤 + 隐藏池 id 定义）', () => {
+  const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));
+  const pcp = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const mod = read('/shared/models/index.ts');
+  const retired = ['const panHubWss = computed', "label: '资源台全景'", "label: '工作台全景'", '🗺 资源台全景', '🗺 工作台全景', 'gs-pan-ws'];
+  return retired.every(k => !g.includes(k))
+    && !g.includes('(store.data?.workspaces || []).filter(w => isHubWs(w) && !w.archived)')
+    && pcp.includes('.filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)')
+    && pcp.includes("import { CURATION_WS_ID, type ResourceCard } from '@/shared/models'")
+    && mod.includes("export const CURATION_WS_ID = 'zy-curation'");
+});
 // R179-MIGRATED R65-10
 // V3.7.0（R179）随迁重写：资源台退役后应用内数字键顺延——1=调度台 / 2=方向台 / 3 起=各策展台（无资源台号位）
 check('R65-10 快捷键口径（V3.7.0 重指）：open-resource 退役 + 应用内 Alt+1 调度台 / Alt+2 方向台 / Alt+3 起各策展台', () => { const m = read('/manifest.ts'); const a = read('/newtab/App.vue'); return !m.includes("'open-resource'") && a.includes("if (n === 1) { navigate('/'); return }") && a.includes('if (n === 2) { openCompass(); return }') && a.includes('const ws = store.workspaces[n - 3]'); });
@@ -41,7 +51,18 @@ console.log('【第六十六轮 · V2.36.0：任务采集选区预填 + 金字�
 check('R66-1 任务采集选区预填：openTaskCapture 接入选区链路（文本→内容/标题→名称/URL→链接字段，均可编辑）+ 保存写 link', () => { const c = read('/content/overlay-impl.ts'); return c.includes('R66-F1') && c.includes('resolveSelection()') && c.includes('clearSelCache()') && c.includes('__zy_tc_link__') && c.includes('（已填入选中文本，可编辑）') && c.includes('link: link || undefined'); });
 check('R66-2 金字塔直角连线：drawPyLinks 改横平竖直折线（父底中点↓横移↑子顶中点）+ SVG 画布按滚动区设定', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('M ${a.x} ${a.bottom} L ${a.x} ${mid} L ${b.x} ${mid} L ${b.x} ${b.top}') && w.includes('scrollWidth') && !w.includes('C ${a.x} ${mid}'); });
 check('R66-3（R156 解析改写）全量导出附 uiPrefs + 导入自动应用：exportAll 载入 UI 偏好并入包，导入侧落 data-theme（经 resolveTheme 解析 auto）/data-density', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('async function exportAll') && g.includes('loadUIPrefs') && g.includes('{ ...safeData, uiPrefs }') && g.includes("document.documentElement.setAttribute('data-theme', resolveTheme(ui.theme))") && g.includes("saveUIPrefs({ density: ui.density as 'compact' | 'cozy' })") && g.includes('界面偏好已应用'); });
-check('R66-4 资源台全景递归 N 级：panTree toNode 递归 + flattenPanCats 扁平渲染（折叠沿祖先链）', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('.map(toNode)') && g.includes('function flattenPanCats') && g.includes('row.depth * 14'); });
+check('R66-4 ★R4-Da 退役重指带备案：原守「资源台全景递归 N 级：panTree 的 toNode 递归 + flattenPanCats 扁平行渲染（折叠沿祖先链）+ row.depth * 14 缩进」——🗺 全景整页随资源台退役删除。四件事（多级递归 / 扁平序列 / 折叠沿祖先链 / 按层缩进）在两个存活管理面都还在，判据按它们点名：① 策展台分类树 useCatSidebar（sidebarCats 递归 pushTree depth+1 + seenSide 防环 = 扁平序列；selectSidebarCat 沿 parentId 上行走链展开祖先；卡片/列表视图按 g.depth * 16 缩进）② 设置页标签树按 tagDepth 缩进；panTree/toNode/flattenPanCats/panCollapsed 在 GS 按 codeOnly 零命中', () => {
+  const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));
+  const ws = read('/newtab/views/Workspace.vue');
+  const retired = ['function flattenPanCats', '.map(toNode)', 'row.depth * 14', 'const panTree = computed', 'panCollapsed', 'togglePanCollapse'];
+  return retired.every(k => !g.includes(k))
+    && ws.includes('const sidebarCats = computed<SidebarCat[]>')
+    && ws.includes('for (const k of childCatsOf(c.id)) pushTree(k, depth + 1')
+    && ws.includes('const seenSide = new Set<string>()')
+    && ws.includes('while (pid && !guard.has(pid) && collapsedCats.value.has(pid))')
+    && ws.includes("'margin-left:' + (g.depth * 16) + 'px'")
+    && g.includes('paddingLeft: 8 + tagDepth(root.id) * 18');
+});
 check('R66-5 品牌刷新落点：启动动画/采集浮层页脚/搜索页脚/一封信全部换新 Slogan（旧「你不缺信息」清零）', () => { const h = read('/newtab/index.html'); const ov = read('/content/overlay-impl.ts'); const gp = read('/newtab/components/GlobalPopups.vue'); const lt = read('/newtab/letter-data.ts'); return h.includes('万千可调用，自有我方向') && ov.includes('知源调度台 · 万千可调用，自有我方向') && gp.includes('知源调度台 · 万千可调用，自有我方向') && lt.includes('万千可调用，自有我方向') && !lt.includes('你不缺信息') && lt.includes('lp-creed'); });
 check('R66-6 一封信按新叙事重写：新病根开场→三个看见工作流→信任承诺→新 Slogan 收束（旧「我也焦虑」开场退役）', () => { const lt = read('/newtab/letter-data.ts'); return lt.includes('外部可能性持续增加') && lt.includes('今天的行动有来处') && lt.includes('策展成可以讲给别人听的成果') && lt.includes('伊里奇') && lt.includes('万千可调用，自有我方向') && !lt.includes('我也焦虑') && lt.includes('R66'); });
 check('R66-7 应用内手册对齐新口径：quick-1 三项核心价值表 + 方向状态 R66 整合口径 + 金字塔居中树口径', () => { const m = read('/newtab/manual-data.ts'); return m.includes('三项核心价值') && m.includes('<strong>调用</strong>贯穿三者') && m.includes('R66 整合') && m.includes('R67 重排') && m.includes('R66 居中树布局') && m.includes('界面偏好段 uiPrefs'); });
@@ -54,7 +75,19 @@ check('R67-2 项目调度归属呈现', () => { const h = read('/newtab/views/Co
 check('R67-3（R123 重指）论点入大横幅常亮强调（tb-badge 实底 + tb-btn），原 thesis-hl 指标卡退役', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('class="tb-badge"') && w.includes('.tb-badge {') && w.includes('.tb-btn {') && !w.includes('metric-card thesis-hl'); });
 check('R67-4 任务采集弹窗改页面正中（openTaskCapture center，资源采集保持 corner）', () => { const c = read('/content/overlay-impl.ts'); return c.includes('R67-F2') && c.split("openOverlay('center', closeOverlay)").length === 4 && c.split("openOverlay('corner', closeOverlay)").length === 2; });
 check('R67-5 新卡落位口径守护：三卡入库 unshift + marksort 置顶>星标>普通（新卡落置顶之后、普通卡最前）', () => { const cu = read('/newtab/stores/curiosity.ts'); const ms = read('/shared/utils/marksort.ts'); const ov = read('/content/overlay-impl.ts'); return cu.includes('curiosities.unshift') && cu.includes('tasks.unshift') && cu.includes('resources.unshift') && ms.includes('markRank') && ov.includes('tasks?.unshift'); });
-check('R67-6 全景数据源修复：panHubWss 改原始 workspaces 过滤（getter 排除资源台致恒空）+ gWsById 全景判定 + 默认选中资源台', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('(store.data?.workspaces || []).filter(w => isHubWs(w) && !w.archived)') && g.includes('function gWsById') && g.includes('const hubWs = panHubWss.value[0]') && g.includes('isHubWs(gWsById(panSelWs.value))'); });
+check('R67-6 ★R4-Da 退役重指带备案：原守「全景数据源修复：panHubWss 改读原始 store.data.workspaces 过滤（当时 store.workspaces getter 排除资源台 ⇒ 全景恒空）+ gWsById 全景判定 + 默认选中资源台（const hubWs = panHubWss.value[0]）」——整页退役，但它修的病（数据源走带排除语义的 getter ⇒ 管理面恒空）在现管理面已被结构性避免，判据改认那三处真实锚点：① 池面板与调度台池 tab 都直读原始数组 store.data.resources 并按 workspaceId===CURATION_WS_ID 过滤（不经过任何排除资源台的 getter）② "默认选中资源台" 的现形=调度台底部三张卡默认 tab 就是资源卡池 ③ 池 id 常量仍是模型层唯一真源；panHubWss/gWsById/hubWs 在 GS 按 codeOnly 零命中', () => {
+  const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));
+  const pcp = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const ch = read('/newtab/views/CompassHome.vue');
+  const retired = ['const panHubWss = computed', 'function gWsById', 'const hubWs = panHubWss.value[0]', 'isHubWs(gWsById(panSelWs.value))', 'panSelWs'];
+  return retired.every(k => !g.includes(k))
+    && pcp.includes('(store.data?.resources || [])')
+    && pcp.includes('.filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)')
+    && pcp.includes("const poolCards = computed(")
+    && ch.includes("const bottomTab = ref<'pool' | 'task' | 'curio'>('pool')")
+    && ch.includes('const poolLiveCount = computed(')
+    && read('/shared/models/index.ts').includes("export const CURATION_WS_ID = 'zy-curation'");
+});
 check('R67-7（R68 修订）模块直达快捷键：goto-tasks 描述升级为「直达任务调度模块」（锚方向台），goto-curiosity 不变', () => { const m = read('/manifest.ts'); const b = read('/background/index.ts'); const a = read('/newtab/App.vue'); const h = read('/newtab/views/CompassHome.vue'); return m.includes("'goto-curiosity'") && m.includes("'goto-tasks'") && m.includes('直达好奇心培养模块') && m.includes('直达任务调度模块') && !m.includes('直达项目调度模块') && b.includes("case 'goto-curiosity':") && b.includes('zy-anchor=') && a.includes('zy-goto-anchor') && h.includes('zy-mod-curiosity') && h.includes('zy-mod-tasks') && h.includes('anchor-flash'); });
 check('R67-8/R121 左栏宽高拖拽随左栏退役（startRailResize/rail-grip 全量零残留）', () => { const p = read('/newtab/views/ProjectCuration.vue'); return !p.includes('startRailResize') && !p.includes('rail-grip'); });
 check('R67-9 手册口径跟进：项目调度 R67 重排 + 直达快捷键 + 策展主题常亮高亮', () => { const m = read('/newtab/manual-data.ts'); return m.includes('R67 重排') && m.includes('战略目标小字在上、项目名称大字在下') && m.includes('直达好奇心培养模块') && m.includes('常亮高亮') && m.includes('单击开右侧详情抽屉、双击打开链接'); });
