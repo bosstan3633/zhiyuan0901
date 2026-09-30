@@ -757,3 +757,29 @@ check('R4-a ★回退要停得住：回退同时落 K.MIGRATE_OPTOUT，启动期
     && ap.includes('const poolOptOut = await hasMigrateOptOut()') && ap.includes('if (!poolOptOut)')
     && gs.includes('setMigrateOptOut(true)') && gs.includes('setMigrateOptOut(false)') && gs.includes('重新执行迁移')
 });
+
+// ============== R3-B′ 方向台树：项目层折叠 + 卡头收敛 + 页头整合 ==============
+console.log('【R3-B′ · 方向台树交互收敛】');
+check('R3-B′ ★项目层折叠口径：主攻自动展开、非主攻折叠成卡头（caret 开合），折叠项目不再渲染其指标（不是 v-show 藏起来）；开合态是**会话记忆**走 sessionStorage 键（浏览态不进 UIPrefs，不随导出/同步跑掉）；⊞⊟ 两级一起管', () => {
+  const t = read('/newtab/views/CompassTree.vue'), m = read('/shared/models/index.ts'), k = read('/shared/storage/keys.ts')
+  return t.includes('function projOpen(') && t.includes('o === undefined ? !!p.isFocused : o')
+    && t.includes('projOpen(proj) ? proj.metrics : []') && t.includes('function toggleProjectFold(')
+    && t.includes('PROJ_FOLD_KEY = K.TREE_PROJ_FOLD_SS') && k.includes("TREE_PROJ_FOLD_SS: 'zy_tree_proj_fold_v1'")
+    && !m.includes('treeProjFold') && t.includes('function collapseAllNodes') && t.includes('for (const proj of dir.projects) projFoldOverride.value[proj.id] = false')
+    && t.includes('if (projOpen(proj)) expandMetricsOf(proj)')
+});
+check('R3-B′ ★卡头 6 入口收敛为「全景 / AI / ▾」：设主攻·添加指标·进详情·删除四项收进 .tp-menu（各自全文件只剩菜单里一处触发点），删除仍走 compassNodeCounts 报数 + useConfirm + 撤销（收敛不降防呆），点菜单外区域关闭', () => {
+  const t = read('/newtab/views/CompassTree.vue')
+  const once = (re) => (t.match(new RegExp(re, 'g')) || []).length === 1
+  return t.includes('class="tp-menu"') && t.includes('🚀 设为主攻') && t.includes('＋ 添加成功指标') && t.includes('🗑 删除项目')
+    && once('onToggleFocus\\(proj\\.id\\)') && once('addMetric\\(proj\\.id\\)') && once("deleteNode\\('proj'")
+    && t.includes('toggleProjMenu(proj.id)') && t.includes('openProjectDrawer(proj.id)') && t.includes("aiChain('metrics', proj.id)")
+    && t.includes('onDocClickCloseProjMenu') && t.includes("closest('.tp-acts')")
+    && t.includes('compassNodeCounts') && t.includes('useConfirm')
+});
+check('R3-B′ ★目标级入口上收页头：＋添加战略目标 与 建议目标 在 tree-page-head（原埋第 3 层卡头），层内只留 badge + hint', () => {
+  const t = read('/newtab/views/CompassTree.vue')
+  const head = t.slice(t.indexOf('<div class="tree-page-head">'), t.indexOf('</div>\n\n      <!-- 画布'))
+  const layer = t.slice(t.indexOf('<div class="tl-head-row">'), t.indexOf('<div v-if="!d.compass.directions.length"'))
+  return head.includes('addDirection') && head.includes("aiChain('directions'") && !layer.includes('addDirection')
+});

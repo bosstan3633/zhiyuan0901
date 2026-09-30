@@ -41,6 +41,8 @@ export const K = {
   MIGRATE_REPORT: 'zy_cats_migrate_report_v1',
   /** R4-a：迁移停用开关（设置页「回退到迁移前」时置位，启动期跳过池迁移；不进主 JSON） */
   MIGRATE_OPTOUT: 'zy_migrate_optout',
+  /** R3-B′：方向台项目卡折叠态的 **sessionStorage** 键（浏览态非偏好，不进 chrome.storage 也不进导出链） */
+  TREE_PROJ_FOLD_SS: 'zy_tree_proj_fold_v1',
   /** R159 启动期清理的遗留键（V1 时代） */
   LEGACY: ['lm_data_v5', 'lm_data_v5_backup'] as readonly string[]
 } as const

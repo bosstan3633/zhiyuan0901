@@ -7,6 +7,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
+import { K } from '@/shared/storage/keys'
 import { matchPinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
@@ -84,20 +85,55 @@ watch(() => route.query.hl, () => locateHlGoal())
 // ---- 展开状态 ----
 
 const expandedMetrics = ref<Set<string>>(new Set())
-/** B26：默认全局展开——数据变化时补齐缺失的展开 id（手动收起的保持折叠） */
+
+/* ================= R3-B′：项目层折叠（「树即首屏」的前置） =================
+   原状态：B26 把指标层默认全展开，一棵大方向树在首屏全摊开——既看不动也摸不准层次。
+   新口径：战略目标与项目卡头常显，**主攻项目自动展开、非主攻折叠成卡头**，点卡头开合。
+   开合态走 **会话记忆**（sessionStorage：跨页面切换保住，关浏览器即忘）——它是浏览态不是偏好，
+   不该进 UIPrefs 跟着导出/同步跑掉。 */
+const PROJ_FOLD_KEY = K.TREE_PROJ_FOLD_SS
+function readProjFold(): Record<string, boolean> {
+  try { return JSON.parse(sessionStorage.getItem(PROJ_FOLD_KEY) || '{}') as Record<string, boolean> } catch { return {} }
+}
+const projFoldOverride = ref<Record<string, boolean>>(readProjFold())
+function writeProjFold() {
+  try { sessionStorage.setItem(PROJ_FOLD_KEY, JSON.stringify(projFoldOverride.value)) } catch { /* 隐私模式写不进就算了 */ }
+}
+function projOpen(p: Project): boolean {
+  const o = projFoldOverride.value[p.id]
+  return o === undefined ? !!p.isFocused : o
+}
+function expandMetricsOf(p: Project) { for (const m of p.metrics) expandedMetrics.value.add(m.id) }
+function toggleProjectFold(p: Project) {
+  const next = !projOpen(p)
+  projFoldOverride.value[p.id] = next
+  writeProjFold()
+  if (next) expandMetricsOf(p)
+}
+/** B26 口径保留（数据变化补齐展开），但只摊**展开中的项目**——折叠项目里的指标不必先渲染再隐藏 */
 function expandAllNodes() {
-  // R121：目标列常显（原型全展开）——展开只控指标层
-  d.value.compass.directions.forEach(dir => {
-    dir.projects.forEach(proj => proj.metrics.forEach(m => expandedMetrics.value.add(m.id)))
-  })
+  for (const dir of d.value.compass.directions) for (const proj of dir.projects) if (projOpen(proj)) expandMetricsOf(proj)
 }
 watch(() => d.value?.compass.directions, () => expandAllNodes(), { deep: true, immediate: true })
 
-/** R49-C7：一键展开/收起全部（展开=全层级展开；收起=全部战略目标与指标折叠） */
+/** R49-C7：一键展开/收起全部（R3-B′ 起两级一起管：项目卡 + 指标） */
 function collapseAllNodes() {
-  // R121：目标列常显——收起只控指标层
+  for (const dir of d.value.compass.directions) for (const proj of dir.projects) projFoldOverride.value[proj.id] = false
+  writeProjFold()
   expandedMetrics.value.clear()
 }
+
+/* R3-B′：项目卡头入口收敛（6 枚 → 全景 / AI / ▾），其余四项进折叠菜单 */
+const projMenu = ref<string | null>(null)
+function toggleProjMenu(id: string) { projMenu.value = projMenu.value === id ? null : id }
+function closeProjMenu() { projMenu.value = null }
+function onDocClickCloseProjMenu(e: MouseEvent) {
+  if (!projMenu.value) return
+  if ((e.target as HTMLElement | null)?.closest('.tp-acts')) return
+  projMenu.value = null
+}
+onMounted(() => document.addEventListener('click', onDocClickCloseProjMenu, true))
+onUnmounted(() => document.removeEventListener('click', onDocClickCloseProjMenu, true))
 
 // R86（T0）：已完成项目显隐改由 store 提供（showDone / toggleShowDone）——三处模块共用同一份实现。
 function visibleProjectsOf(dir: Direction): Project[] {
@@ -519,6 +555,9 @@ onUnmounted(() => {
         <div class="tree-stats">愿景 1 · 使命 1 · 战略目标 {{ treeStats.dirs }} · 项目 {{ treeStats.projects }} · 指标 {{ treeStats.metrics }} · 任务 {{ treeStats.tasks }}</div>
         <button class="tree-tool" @click="expandAllNodes" title="展开全部层级">⊞ 展开</button>
         <button class="tree-tool" @click="collapseAllNodes" title="收起全部战略目标与指标">⊟ 收起</button>
+        <!-- R3-B′：目标级入口上收页头（原先埋在第 3 层卡头里，新建战略目标要先把视线降到层内） -->
+        <button class="tree-tool accent" @click="addDirection" title="添加战略目标">＋ 添加战略目标</button>
+        <span class="node-action ai-chain-act" title="AI 依愿景/使命建议本阶段战略目标（同层查重后采纳才创建）" @click="aiChain('directions', '')"><AiEntryButton variant="inline" label="建议目标" /></span>
         <button class="tree-tool" :class="{ off: !showDone }" @click="toggleShowDone" title="与方向台页头同一开关（同一偏好，一处切换全台生效）">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
         <div class="dhi-badge" :class="dhiStatus.cls">
           <span>🧭</span>
@@ -572,9 +611,7 @@ onUnmounted(() => {
           <div class="tree-level-card" id="layer-3">
             <div class="tl-head-row">
               <span class="tl-badge">3 战略目标 → 4 攻坚项目 → 5 成功指标 → 6 任务</span>
-              <span class="tl-hint">主攻项目强化边框 · 缺任务指标实时警示 · 点击指标展开任务</span>
-              <button class="add-btn-inline" @click="addDirection"><span>＋</span> 添加战略目标</button>
-              <span class="node-action ai-chain-act" title="AI 依愿景/使命建议本阶段战略目标（同层查重后采纳才创建）" @click="aiChain('directions', '')"><AiEntryButton variant="inline" label="建议目标" /></span>
+              <span class="tl-hint">主攻项目默认展开 · 其余折叠成卡头（点 ▸ 展开）· 缺任务指标实时警示</span>
             </div>
 
             <div v-if="!d.compass.directions.length" class="empty-state">
@@ -603,8 +640,9 @@ onUnmounted(() => {
                 </div>
 
                 <div v-for="proj in visibleProjectsOf(dir)" :key="proj.id" class="tree-project-branch" :class="{ 'is-focused': proj.isFocused }">
-                  <div class="tp-head">
+                  <div class="tp-head" :class="{ folded: !projOpen(proj) }">
                     <div class="tp-title">
+                      <span class="tp-caret" :title="projOpen(proj) ? '折叠该项目（指标与任务）' : '展开该项目的指标与任务'" @click.stop="toggleProjectFold(proj)">{{ projOpen(proj) ? '▾' : '▸' }}</span>
                       <span v-if="proj.isFocused" class="tp-mark" title="主攻项目">🚀</span>
                       <span class="node-title editable" :class="{editing: editingField === 'proj-' + proj.id}" :data-edit="'proj-' + proj.id" :contenteditable="editingField === 'proj-' + proj.id"
                         @click="startEdit('proj-' + proj.id, $event)" @blur="saveEdit('proj-' + proj.id, $event)" @keydown.enter.prevent="saveEdit('proj-' + proj.id, $event)" @keydown.esc="cancelEdit">{{ proj.name }}</span>
@@ -614,18 +652,23 @@ onUnmounted(() => {
                   </div>
                   <div class="tp-meta">
                     <span>📊 {{ proj.metrics.length }} 指标 · 📋 {{ d.tasks.filter(t=>!t.deletedAt && t.projectId===proj.id).length }} 任务</span>
+                    <!-- R3-B′：卡头 6 入口 → 「全景 / AI / ▾」三枚，设主攻·添加指标·进详情·删除进折叠菜单
+                         （删除仍走 compassNodeCounts 报数 + useConfirm + 3 秒撤销，防呆不因收敛而降级） -->
                     <span class="tp-acts" @click.stop>
-                      <span class="node-action" :class="{on: proj.isFocused}" @click="onToggleFocus(proj.id)" :title="proj.isFocused ? '取消主攻' : '设为主攻'">🚀</span>
                       <span class="node-action" @click="openProjectDrawer(proj.id)" title="打开项目全景">📦</span>
-                      <span class="node-action" @click="router.push({ path: '/compass/projects', query: { p: proj.id, from: 'tree' } })" title="进入项目详情页">📄</span>
-                      <span class="node-action" @click="addMetric(proj.id)" title="添加指标">＋</span>
                       <span class="node-action" @click="aiChain('metrics', proj.id)" title="AI 建议成功指标（可量化验收，查重后采纳才创建）"><AiEntryButton /></span>
-                      <span class="node-action danger" @click="deleteNode('proj', proj.id)" title="删除项目">🗑</span>
+                      <span class="node-action" :class="{ on: projMenu === proj.id }" @click="toggleProjMenu(proj.id)" title="更多操作（主攻 / 指标 / 详情 / 删除）">▾</span>
+                      <div v-if="projMenu === proj.id" class="tp-menu">
+                        <div class="tpm-item" @click="onToggleFocus(proj.id); closeProjMenu()">{{ proj.isFocused ? '☆ 取消主攻' : '🚀 设为主攻' }}</div>
+                        <div class="tpm-item" @click="addMetric(proj.id); closeProjMenu()">＋ 添加成功指标</div>
+                        <div class="tpm-item" @click="closeProjMenu(); router.push({ path: '/compass/projects', query: { p: proj.id, from: 'tree' } })">📄 进入项目详情页</div>
+                        <div class="tpm-item danger" @click="closeProjMenu(); deleteNode('proj', proj.id)">🗑 删除项目</div>
+                      </div>
                     </span>
                   </div>
 
-                  <!-- 第5-6层：指标（发丝缩进）与任务叶 -->
-                  <div v-for="metric in proj.metrics" :key="metric.id" class="tree-metric-branch">
+                  <!-- 第5-6层：指标（发丝缩进）与任务叶——R3-B′：折叠态的项目只留卡头 -->
+                  <div v-for="metric in (projOpen(proj) ? proj.metrics : [])" :key="metric.id" class="tree-metric-branch">
                     <div class="tm-title-row" @click="toggleMetric(metric.id)">
                       <span class="tm-dot" :class="{doing: tasksForMetric(metric.id).some(t=>t.status==='doing'), done: tasksForMetric(metric.id).length && tasksForMetric(metric.id).every(t=>t.status==='done')}">{{ tasksForMetric(metric.id).length && tasksForMetric(metric.id).every(t=>t.status==='done') ? '✓' : tasksForMetric(metric.id).some(t=>t.status==='doing') ? '◐' : '○' }}</span>
                       <span class="node-title editable" :class="{editing: editingField === 'metric-' + metric.id}" :data-edit="'metric-' + metric.id" :contenteditable="editingField === 'metric-' + metric.id"
@@ -1007,6 +1050,15 @@ onUnmounted(() => {
 .tp-mark { flex-shrink: 0; color: var(--accent); font-size: var(--fs-caption); }
 .tp-pct { flex-shrink: 0; font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; }
 .tp-pct.ok { color: var(--success); font-weight: 600; }
+.tp-caret { flex: none; width: 14px; text-align: center; font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; user-select: none; }
+.tp-caret:hover { color: var(--accent); }
+.tp-head.folded { border-bottom: 1px dashed var(--border); }
+.tp-acts { position: relative; }
+.tp-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 168px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); padding: 4px; }
+.tpm-item { font-size: var(--fs-sub); color: var(--text-2); padding: 7px 10px; border-radius: var(--radius-xs); cursor: pointer; white-space: nowrap; }
+.tpm-item:hover { background: var(--surface-2); color: var(--text); }
+.tpm-item.danger { color: var(--danger); }
+.tpm-item.danger:hover { background: var(--danger-bg-soft); }
 .tp-meta { display: flex; align-items: center; gap: 8px; font-size: var(--fs-caption); color: var(--text-3); }
 .tp-acts { display: none; gap: 2px; margin-left: auto; }
 .tree-project-branch:hover .tp-acts { display: inline-flex; }

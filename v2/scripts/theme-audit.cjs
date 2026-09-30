@@ -55,6 +55,8 @@ const THEMES = ['linear', 'raycast', 'apple', 'notion']
 const VIEWS = [
   { id: 'dashboard', hash: '#/', name: '调度台' },
   { id: 'compass', hash: '#/compass', name: '方向台' },
+  // R3-B′：完整方向树补场——本轮改的就是这一面（项目层折叠 + 卡头 6→3 收敛），此前无镜头等于白改
+  { id: 'compass-tree', hash: '#/compass/tree', name: '方向台完整方向树' },
   // R1.5：资源台台面场随 R179 资源台退役（/workspace/zy-curation 为隐藏池 id，用户不可达，拍了也是空调试面）
   { id: 'settings', hash: '#/settings', name: '设置页' }
 ]
@@ -361,6 +363,7 @@ async function main() {
   /** R2-②③：DeckTabs 三张卡 + 槽内子任务视口判据（原 R169-T4 项目调度 spotlight 改靶） */
   const spotFail = []
   const dashFail = [] /* R172-T13：仪表盘七场景 */
+  const treeFail = [] /* R3-B′：完整方向树项目层折叠活体判据 */
   for (const theme of themes) {
     // 上一主题遗留的浮层先清掉（best-effort）：不掩盖问题——下面每张弹窗图收尾都会判一次 Esc
     if (await overlayOpen(page)) {
@@ -387,7 +390,25 @@ async function main() {
       await page.screenshot({ path: file })
       const kb = Math.round(fs.statSync(file).size / 1024)
       shots.push(file)
-      console.log(`  ✓ ${theme.padEnd(8)} ${v.name.padEnd(4)} hash=${(hash || '#/').padEnd(26)} → ${path.basename(file)} (${kb}KB)`)
+      let extra = ''
+      /* R3-B′：本轮改的就是方向树的项目层折叠——静态断言只证明代码在，不证明渲染对。
+         活体三条：① 卡头数 == 分支数 == caret 数（每张卡头都有开合把手）
+         ② 折叠卡里 **一个指标分支都没有**（v-if 真摘节点，不是 v-show 藏起来）
+         ③ 有数据可判（0 张卡头 = 数据没种上，判据空转） */
+      if (v.id === 'compass-tree') {
+        const j = await page.evaluate(() => {
+          const branches = [...document.querySelectorAll('.tree-project-branch')]
+          const heads = [...document.querySelectorAll('.tp-head')]
+          const folded = heads.filter(h => h.classList.contains('folded'))
+          const bad = folded.filter(h => h.parentElement && h.parentElement.querySelector('.tree-metric-branch')).length
+          return { branches: branches.length, heads: heads.length, folded: folded.length, carets: document.querySelectorAll('.tp-caret').length, metrics: document.querySelectorAll('.tree-metric-branch').length, bad }
+        })
+        extra = ` 卡头=${j.heads}/${j.branches} caret=${j.carets} 折叠=${j.folded} 指标=${j.metrics}`
+        if (!j.heads) treeFail.push(`${theme}/${v.id}：一张项目卡头都没有（数据没种上或视图没渲染）——判据空转`)
+        else if (j.bad) treeFail.push(`${theme}/${v.id}：${j.bad} 张折叠项目卡里仍渲染了指标分支 ⇒ 折叠是假折叠`)
+        else if (j.carets !== j.heads) treeFail.push(`${theme}/${v.id}：caret ${j.carets} != 卡头 ${j.heads} ⇒ 有卡头没有开合把手`)
+      }
+      console.log(`  ✓ ${theme.padEnd(8)} ${v.name.padEnd(4)} hash=${(hash || '#/').padEnd(26)}${extra} → ${path.basename(file)} (${kb}KB)`)
     }
     // R161：AI 评审中央弹窗（走 设置 › AI 助手 › 本周回顾 —— 该入口已接左栏与指令条）
     for (const m of MODAL_VIEWS) {
@@ -540,7 +561,7 @@ async function main() {
   await page.evaluate(async () => { await chrome.storage.local.remove(['zy_ai_v1']) }).catch(() => {})
   await ctx.close()
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
-  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length + 1 /* R2-②③：DeckTabs deck 判据（原项目调度 spotlight 改靶） */ + DASH_SCENES.length /* R172-T13：仪表盘七场景 ⇒ 40→68 */)
+  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length + 1 /* R2-②③：DeckTabs deck 判据（原项目调度 spotlight 改靶） */ + DASH_SCENES.length /* R172-T13：仪表盘七场景 + R3-B′：方向台完整方向树台面 ⇒ 68→72 */)
   if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情 + 1 deck)）`); process.exit(1) }
   if (escLeak.length) {
     console.log(`❌ Esc 未能关闭中央弹窗：${escLeak.join(' / ')}（台面图已受影响，请查 Modal.vue 的 watch immediate）`)
@@ -552,6 +573,10 @@ async function main() {
   }
   if (drawerFail.length) {
     console.log(`❌ 卡详情抽屉判据未过 ${drawerFail.length} 项：\n  ` + drawerFail.join('\n  '))
+    process.exit(1)
+  }
+  if (treeFail.length) {
+    console.log(`❌ 方向树折叠判据未过 ${treeFail.length} 项：\n  ` + treeFail.join('\n  '))
     process.exit(1)
   }
   if (dashFail.length) {
