@@ -21,6 +21,7 @@ import NewBadge from '@/shared/components/NewBadge.vue'
 import { useWorkspaceImport } from '../../composables/useWorkspaceImport'
 import { useBatchSelect, addTagToCards } from '../../composables/useBatchSelect'
 import DeckBatchBar from './DeckBatchBar.vue'
+import DeckControls from './DeckControls.vue'
 
 const store = useAppStore()
 const route = useRoute()
@@ -41,6 +42,14 @@ const poolCards = computed(() => {
 })
 const poolTotal = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID).length)
 const untaggedCount = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID && !(r.tags || []).length).length)
+/** R3-Cc2：控制行的值域在这里配置，模板里不写第二套按钮 */
+const poolViews = [{ id: 'card', label: '▦ 网格', title: '网格视图' }, { id: 'list', label: '☰ 列表', title: '列表视图（一屏看更多，标签全展开）' }]
+/** 胶囊组没有"再点一次取消"的语义（点谁选谁），这里补上：再点「待打标」= 回到全部 */
+function onPoolFilter(v: string) { onlyUntagged.value = v === 'untagged' ? !onlyUntagged.value : false }
+const poolFilters = computed(() => [
+  { id: 'all', label: '全部', count: poolTotal.value },
+  { id: 'untagged', label: '🏷 待打标', count: untaggedCount.value, title: '无标签的卡在任何筛选下都召回不到——这里单独捞出来补标' }
+])
 
 /* ===== R2-⑧ 增量渲染：默认一屏 60 张，滚动到底自动追加（260 张实测 449ms/longtask 0，
    但线性上涨到 500+ 就是首屏成本——上限先立住，不必等它变慢再补） ===== */
@@ -180,18 +189,15 @@ function deleteSelected() {
 
 <template>
   <div class="pcp">
-    <div class="pcp-toolbar">
-      <div class="pcp-search"><span>🔍</span><input v-model="query" placeholder="快速过滤标题 / 标签..."></div>
-      <div class="pcp-views">
-        <button class="pcp-btn sm" :class="{ on: viewMode === 'card' }" @click="viewMode = 'card'" title="网格视图">▦ 网格</button>
-        <button class="pcp-btn sm" :class="{ on: viewMode === 'list' }" @click="viewMode = 'list'" title="列表视图（一屏看更多，标签全展开）">☰ 列表</button>
-      </div>
-      <button class="pcp-btn" :class="{ on: onlyUntagged }" :title="`无标签的卡在任何筛选下都召回不到——这里单独捞出来补标（当前 ${untaggedCount} 张）`" @click="onlyUntagged = !onlyUntagged">🏷 待打标 {{ untaggedCount }}</button>
-      <button class="pcp-btn primary" @click="openNew">＋ 新建卡</button>
+    <!-- R3-Cc2：控制行收归 DeckControls——顺序/样式一份实现，池的值域（两档视图 + 全部/待打标）以数据传入 -->
+    <DeckControls panel="pool" search search-ph="快速过滤标题 / 标签..." :query="query" @search="query = $event"
+      :filters="poolFilters" :filter="onlyUntagged ? 'untagged' : 'all'" @filter="onPoolFilter"
+      :views="poolViews" :view="viewMode" @view="viewMode = $event as 'card' | 'list'"
+      :batch-labels="['批量', '退出批量']" :batch-on="batchMode" @batch="toggleBatch"
+      new-label="＋ 新建卡" new-title="新建单张资源卡（采集走 Ctrl+Shift+J）" @create="openNew">
       <button class="pcp-btn" title="图片 / HTML / PDF，一文件一卡（本体存本地 IndexedDB）" @click="fileImport()">📥 导入本地文件</button>
-      <button class="pcp-btn" :class="{ on: batchMode }" @click="toggleBatch">{{ batchMode ? '退出批量' : '批量' }}</button>
-      <span class="pcp-count"><b>{{ poolCards.length }}</b> / 全部 {{ poolTotal }} 张</span>
-    </div>
+      <template #count><span class="pcp-count"><b>{{ poolCards.length }}</b> / 全部 {{ poolTotal }} 张</span></template>
+    </DeckControls>
 
     <!-- R3-Cc：批量栏收归 DeckBatchBar 一份实现（全选/反选/打标签三处同源，卡型动作走默认槽） -->
     <DeckBatchBar v-if="batchMode" :size="selSize" :total="poolCards.length" :all-selected="allSelected"
@@ -270,12 +276,6 @@ function deleteSelected() {
 <style scoped>
 /* R2-③：池卡网格——与 DeckTabs 卡片语言同款（surface + hairline + hover 抬升） */
 .pcp { min-height: 120px; }
-.pcp-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-.pcp-search { display: flex; align-items: center; gap: 6px; padding: 5px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
-.pcp-search:focus-within { border-color: var(--accent); }
-.pcp-search input { border: none; outline: none; font-size: var(--fs-sub); width: 190px; background: transparent; color: var(--text); font-family: inherit; }
-.pcp-count { margin-left: auto; font-size: var(--fs-sub); color: var(--text-3); font-variant-numeric: tabular-nums; }
-.pcp-count b { color: var(--text-2); }
 .pcp-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: var(--radius-sm); padding: 5px 11px; font-size: var(--fs-sub); font-weight: 600; cursor: pointer; font-family: inherit; transition: all var(--dur); }
 .pcp-btn:hover:not(:disabled) { border-color: var(--border-strong); color: var(--text); }
 .pcp-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
@@ -316,9 +316,6 @@ function deleteSelected() {
 .pcp-tag { padding: 0 6px; border-radius: 99px; background: var(--surface-3); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
 .pcp-date { margin-left: auto; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 /* R3-Ca：视图切换段控件 + 列表视图（行高固定、标签全展开、hover 才出删除——与网格同一套令牌） */
-.pcp-views { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
-.pcp-views .pcp-btn { border-color: transparent; background: transparent; }
-.pcp-views .pcp-btn.on { border-color: var(--border); background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
 .pcp-list { display: flex; flex-direction: column; gap: 4px; }
 .pcp-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: border-color var(--dur) ease, background var(--dur) ease; }
 .pcp-row:hover { border-color: var(--border-strong); }

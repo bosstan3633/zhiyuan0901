@@ -546,28 +546,28 @@ async function main() {
     console.log(`  ${spotOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'deck'.padEnd(4)} tabs=${spot.tabN}/3 池默认=${spot.poolOn ? '是' : '否'} 池面板=${spot.paneOn ? '有' : '无'} 槽内子任务=${spot.subInfo ? spot.subInfo.visible + '/' + spot.subInfo.rows + '可见·编辑' + spot.subInfo.editors : '无数据'}   → ${path.basename(spotFile)} (${Math.round(fs.statSync(spotFile).size / 1024)}KB)`)
     if (!spotOk) spotFail.push(`${theme}/deck：${JSON.stringify(spot)}（应：三张卡 + 资源卡池默认激活 + 池面板可见 + 槽内视口≤6可见/零编辑控件）`)
     /* R3-Ca：池面板新增的列表视图（四主题各一张）——量完当场切回网格，别把视图态留给后面的场景 */
-    await page.evaluate(() => { const b = [...document.querySelectorAll('.pcp-btn')].find(x => (x.textContent || '').includes('☰ 列表')); if (b) b.click() })
+    await page.evaluate(() => { const b = [...document.querySelectorAll('.dk-row[data-panel="pool"] .dk-view')].find(x => (x.textContent || '').includes('列表')); if (b) b.click() })
     await page.waitForTimeout(700)
     await resetView(page)
     const pl = await page.evaluate(() => {
       const rows = document.querySelectorAll('.pcp-row').length
       const cards = document.querySelectorAll('.pcp-card').length
       const none = document.querySelectorAll('.pcp-tag-none').length
-      const untaggedBtn = [...document.querySelectorAll('.pcp-btn')].some(b => (b.textContent || '').includes('待打标'))
+      const untaggedBtn = !!document.querySelector('.dk-row[data-panel="pool"] .dk-pill')
       return { rows, cards, none, untaggedBtn }
     })
     const plFile = path.join(outDir, `${theme}-deck-pool-list.png`)
     await page.screenshot({ path: plFile })
     shots.push(plFile)
     /* 量完当场切回网格再往下走——视图态是组件内的，不切回会串到后面的场景截图里 */
-    await page.evaluate(() => { const b = [...document.querySelectorAll('.pcp-btn')].find(x => (x.textContent || '').includes('▦ 网格')); if (b) b.click() })
+    await page.evaluate(() => { const b = [...document.querySelectorAll('.dk-row[data-panel="pool"] .dk-view')].find(x => (x.textContent || '').includes('网格')); if (b) b.click() })
     await page.waitForTimeout(500)
     const plOk = pl.rows > 0 && pl.cards === 0 && pl.untaggedBtn
     console.log(`  ${plOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'池列表'.padEnd(4)} 行=${pl.rows} 网格残留=${pl.cards} 无标签标=${pl.none} 待打标钮=${pl.untaggedBtn ? '是' : '否'}   → ${path.basename(plFile)} (${Math.round(fs.statSync(plFile).size / 1024)}KB)`)
     if (!plOk) spotFail.push(`${theme}/deck-pool-list：${JSON.stringify(pl)}（应：列表有行、网格零残留、控制行含「待打标」）`)
     /* R3-Cc：三张卡共用的批量栏（DeckBatchBar）——池面板这侧底色由 surface-2 换成 accent-light，
        四主题各拍一张，量「栏在 / 全选·反选·应用标签三枚齐 / 卡型动作在槽内」，量完退出批量免得串染 */
-    await page.evaluate(() => { const b = [...document.querySelectorAll('.pcp-btn')].find(x => (x.textContent || '').trim() === '批量'); if (b) b.click() })
+    await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="pool"] .dk-batch'); if (b) b.click() })
     await page.waitForTimeout(700)
     await resetView(page)
     const bb = await page.evaluate(() => {
@@ -578,7 +578,7 @@ async function main() {
     const bbFile = path.join(outDir, `${theme}-deck-batch.png`)
     await page.screenshot({ path: bbFile })
     shots.push(bbFile)
-    await page.evaluate(() => { const b = [...document.querySelectorAll('.pcp-btn')].find(x => (x.textContent || '').trim() === '退出批量'); if (b) b.click() })
+    await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="pool"] .dk-batch'); if (b) b.click() })
     await page.waitForTimeout(400)
     const bbOk = bb.on && bb.hasSel && bb.hasInv && bb.hasTag && bb.del
     console.log(`  ${bbOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'批量栏'.padEnd(4)} 栏=${bb.on ? '是' : '否'} 全选=${bb.hasSel ? '是' : '否'} 反选=${bb.hasInv ? '是' : '否'} 打标=${bb.hasTag ? '是' : '否'} 卡型动作=${bb.del ? '在' : '缺'}   → ${path.basename(bbFile)} (${Math.round(fs.statSync(bbFile).size / 1024)}KB)`)

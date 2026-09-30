@@ -12,6 +12,7 @@ import { onOpenDrawer } from '@/shared/utils/bus'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { useBatchSelect, addTagToCards } from '../../composables/useBatchSelect'
 import DeckBatchBar from './DeckBatchBar.vue'
+import DeckControls from './DeckControls.vue'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import type { TaskCard, Subtask, FieldDef } from '@/shared/models'
 import { recordCardOpen } from '@/shared/storage/stats'
@@ -68,6 +69,11 @@ watch([sortBy, sortDir, filterBy, groupMode], () => {
 })
 function toggleSortDir() { sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc' }
 const searchQuery = ref('')
+/** R3-Cc2：控制行值域配置（视图/筛选/排序/分组），模板里不再各写一份 option 列表 */
+const TASK_VIEWS = [{ id: 'card', label: '卡片' }, { id: 'list', label: '列表' }, { id: 'kanban', label: '看板' }]
+const TASK_FILTERS = [{ id: 'all', label: '全部状态' }, { id: 'todo', label: '待办' }, { id: 'doing', label: '推进中' }, { id: 'done', label: '已完成' }, { id: 'unarchived', label: '⚠ 未归档' }]
+const TASK_SORTS = [{ id: 'manual', label: '手动排序' }, { id: 'recent', label: '最近添加' }, { id: 'priority', label: '优先级' }]
+const TASK_GROUPS = [{ id: 'project', label: '📂 按项目分组' }, { id: 'status', label: '⏱ 按任务状态分组' }, { id: 'pin', label: '📌 按置顶与否分组' }]
 const batchMode = ref(false)
 
 function toggleBatchMode() { batchMode.value = setBatchMode(!batchMode.value) }
@@ -665,42 +671,19 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
   <ModuleCard title="">
 
     <div class="mgr-body" :class="{batch: batchMode}">
-      <div class="mgr-toolbar">
-        <div class="view-tabs">
-          <!-- R176（原型 m-seg-item）：纯文字分段（▦/☰/▥ 图标退役） -->
-          <div class="view-tab" :class="{active: viewMode==='card'}" @click="viewMode='card'">卡片</div>
-          <div class="view-tab" :class="{active: viewMode==='list'}" @click="viewMode='list'">列表</div>
-          <div class="view-tab" :class="{active: viewMode==='kanban'}" @click="viewMode='kanban'">看板</div>
-        </div>
+      <!-- R3-Cc2：控制行收归 DeckControls——顺序与样式一份实现，任务的值域（三视图 / 五状态 / 三排序 / 三分组）以数据传入 -->
+      <DeckControls panel="task" search :query="searchQuery" @search="searchQuery = $event"
+        :filters="TASK_FILTERS" filter-kind="select" :filter="filterBy" @filter="filterBy = $event as TaskFilter" filter-title="状态筛选"
+        :views="TASK_VIEWS" :view="viewMode" @view="viewMode = $event as 'card' | 'list' | 'kanban'"
+        :sorts="TASK_SORTS" :sort="sortBy" @sort="sortBy = $event"
+        :sort-dir="(sortBy === 'recent' || sortBy === 'priority') ? sortDir : ''"
+        :sort-dir-titles="['当前倒序，点击切换正序', '当前正序，点击切换倒序']" @sort-dir="toggleSortDir"
+        :groups="viewMode === 'list' ? TASK_GROUPS : []" :group="groupMode" @group="groupMode = $event as TaskGroupMode"
+        :batch-on="batchMode" @batch="toggleBatchMode" new-label="＋新建任务" @create="createNewTask">
         <!-- R72：卡片视图横向列数（4/5/6/7，仅卡片视图出现） -->
-        <ColsPicker v-if="viewMode==='card'" v-model="taskCols" label="列数" />
-        <select v-model="sortBy" class="sel">
-          <option value="manual">手动排序</option>
-          <option value="recent">最近添加</option>
-          <option value="priority">优先级</option>
-        </select>
-        <button v-if="sortBy==='recent' || sortBy==='priority'" class="sel sort-dir-btn" :title="sortDir==='desc' ? '当前倒序，点击切换正序' : '当前正序，点击切换倒序'" @click="toggleSortDir">{{ sortDir==='desc' ? '↓ 倒序' : '↑ 正序' }}</button>
-        <select v-model="filterBy" class="sel">
-          <option value="all">全部状态</option>
-          <option value="todo">待办</option>
-          <option value="doing">推进中</option>
-          <option value="done">已完成</option>
-          <option value="unarchived">⚠ 未归档</option>
-        </select>
-        <select v-if="viewMode==='list'" v-model="groupMode" class="sel" title="分组方式">
-          <option value="project">📂 按项目分组</option>
-          <option value="status">⏱ 按任务状态分组</option>
-          <option value="pin">📌 按置顶与否分组</option>
-        </select>
-        <!-- R113-N2：⏳ 入口移除——生命周期收敛到 设置→总览 -->
-        <div class="search-box"><span>🔍</span><input v-model="searchQuery" placeholder="快速过滤..."></div>
-        <span class="mgr-count"><span class="cur">{{ filteredTasks.length }} 条</span><span class="total" :class="{act: filterBy !== 'all' || searchQuery.trim()}" @click="clearTaskFilter" :title="filterBy !== 'all' || searchQuery.trim() ? '点击查看全部任务' : '全部任务数'">/ 全部 {{ totalTaskCount }}</span></span>
-        <!-- R176（原型 primary-cta-btn）：批量管理/新建任务自模块标题行移入工具条右端 -->
-        <div class="mgr-actions">
-          <button class="mini-btn" :class="{active: batchMode}" @click="toggleBatchMode">{{ batchMode ? '✓ 完成' : '☑ 批量管理' }}</button>
-          <button class="mini-btn primary" @click="createNewTask"><span>＋</span>新建任务</button>
-        </div>
-      </div>
+        <ColsPicker v-if="viewMode === 'card'" v-model="taskCols" label="列数" />
+        <template #count><span class="mgr-count"><span class="cur">{{ filteredTasks.length }} 条</span><span class="total" :class="{ act: filterBy !== 'all' || searchQuery.trim() }" @click="clearTaskFilter" :title="filterBy !== 'all' || searchQuery.trim() ? '点击查看全部任务' : '全部任务数'">/ 全部 {{ totalTaskCount }}</span></span></template>
+      </DeckControls>
 
       <!-- R110-LC（T3）：归档卡已从默认视图隐藏——降级提示（R113-N2 起点击跳 设置→总览·资源生命周期） -->
       <div v-if="archivedHintCount" class="tm-archived-hint" @click="router.push('/settings?page=lifecycle')">
@@ -1075,8 +1058,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .mgr-body { padding-bottom: 4px; }
 .mgr-body.batch .check-sm { display: none; }
 /* R176（原型 panel-toolbar）：模块标题行退役 ⇒ 工具条自带顶部内距；批量/新建动作组贴右 */
-.mgr-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; padding-top: 16px; }
-.mgr-actions { display: flex; align-items: center; gap: 8px; }
 /* R175（原型 macos-segmented）：视图三态改连体分段（subtle 底 + 选中浮起白片），类名与交互一字未动 */
 .view-tabs { display: flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px; gap: 2px; }
 .view-tab { padding: 5px 12px; border-radius: var(--radius-xs); font-size: var(--fs-sub); cursor: pointer; color: var(--text-2); transition: all var(--dur); border: none; background: transparent; font-family: inherit; }
@@ -1084,9 +1065,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .sel { padding: 5px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; outline: none; font-family: inherit; }
 .sort-dir-btn { white-space: nowrap; font-size: var(--fs-sub); }
 .sort-dir-btn:hover { border-color: var(--accent); color: var(--text); }
-.search-box { margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 5px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
-.search-box:focus-within { border-color: var(--accent); }
-.search-box input { border: none; outline: none; font-size: var(--fs-sub); width: 150px; background: transparent; color: var(--text); font-family: inherit; }
 .mgr-count { display: flex; align-items: center; gap: 2px; font-size: var(--fs-sub); color: var(--text-3); white-space: nowrap; flex-shrink: 0; padding-right: 4px; }
 .mgr-count .cur { color: var(--text-2); font-weight: 600; }
 .mgr-count .total { cursor: default; }

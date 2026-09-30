@@ -25,6 +25,7 @@ import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { useBatchSelect, addTagToCards } from '../../composables/useBatchSelect'
 import DeckBatchBar from './DeckBatchBar.vue'
+import DeckControls from './DeckControls.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { useCardCols } from '@/shared/utils/cardCols'
@@ -47,6 +48,12 @@ const highlightId = ref<string | null>(null)
 const viewMode = ref<'card' | 'list' | 'kanban'>('card')
 // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.curio；网格模板由 --grid-cols 驱动）
 const curioCols = useCardCols('curio', store.ui)
+/** R3-Cc2：控制行值域配置（视图三档 + 状态胶囊带计数由 statusCounts 现算） */
+const CURIO_VIEWS = [{ id: 'card', label: '▦ 卡片', title: '卡片视图' }, { id: 'list', label: '☰ 列表', title: '列表视图' }, { id: 'kanban', label: '▥ 看板', title: '看板视图' }]
+const curioFilters = computed(() => [
+  { id: 'all', label: '全部', count: statusCounts.value.all || 0 },
+  ...Object.entries(STATUS_MAP).map(([key, v]) => ({ id: key, label: `${v.icon} ${v.label}`, count: statusCounts.value[key] || 0 }))
+])
 const statusFilter = ref<CuriStatus | 'all'>('all')
 watch(() => route.query.hl, (hl) => {
   if (!hl || typeof hl !== 'string' || route.path !== '/') return
@@ -467,36 +474,18 @@ function srcShort(url: string): string {
 
 <template>
   <ModuleCard icon-name="bulb" title="好奇心培育" en="CURIOSITY">
-    <template #actions>
-      <button class="cz-batch-btn ai" title="AI 逐条研判待探索池：哪些值得转成任务、哪些继续养着、哪些可以放下（勾选采纳才写库）" @click="aiTriage()"><AiEntryButton variant="inline" label="转化研判" /></button>
-      <button class="cz-batch-btn" :class="{active: batchMode}" @click="batchMode = setBatchMode(!batchMode)">
-        {{ batchMode ? '完成' : '☑ 批量管理' }}
-      </button>
-    </template>
 
     <div class="cz-body">
-      <div class="cz-filters">
-        <button class="cz-filter" :class="{active: statusFilter === 'all'}" @click="statusFilter = 'all'">
-          全部 <span class="cz-count">{{ statusCounts.all || 0 }}</span>
-        </button>
-        <button v-for="(s, key) in STATUS_MAP" :key="key"
-          class="cz-filter" :class="{active: statusFilter === key}"
-          @click="statusFilter = key as CuriStatus">
-          {{ s.icon }} {{ s.label }} <span class="cz-count">{{ statusCounts[key] || 0 }}</span>
-        </button>
+      <!-- R3-Cc2：控制行收归 DeckControls（好奇的值域=状态胶囊带计数 + 三视图；批量管理从标题行进来） -->
+      <DeckControls panel="curio" :filters="curioFilters" :filter="statusFilter" @filter="statusFilter = $event as CuriStatus | 'all'"
+        :views="CURIO_VIEWS" :view="viewMode" @view="viewMode = $event as 'card' | 'list' | 'kanban'"
+        :sort-dir="sortDir" :sort-dir-titles="['捕获时间倒序（新→旧），点击切换正序', '捕获时间正序（旧→新），点击切换倒序']" @sort-dir="toggleSortDir"
+        :batch-labels="['☑ 批量管理', '✓ 完成']" :batch-on="batchMode" @batch="batchMode = setBatchMode(!batchMode)">
+        <ColsPicker v-if="viewMode === 'card'" v-model="curioCols" label="列数" />
         <!-- R167：转化即出路的账——离场的卡只能在这里被看见 -->
         <span class="cz-converted" :title="convertedCount ? `已转出 ${convertedCount} 条（转任务 / 归档资源都算）· 在回收站点「恢复」即撤销这次转化` : '还没有好奇心被转出'">→ 已转化 <b>{{ convertedCount }}</b></span>
-        <div class="cz-views">
-          <!-- R72：卡片视图横向列数（4/5/6/7，仅卡片视图出现） -->
-          <ColsPicker v-if="viewMode === 'card'" v-model="curioCols" label="列数" />
-          <!-- 第卅二轮 REQ-007：时间排序方向（默认倒序，偏好本地记忆） -->
-          <button class="cz-view-btn cz-sort-dir" :title="sortDir==='desc' ? '捕获时间倒序（新→旧），点击切换正序' : '捕获时间正序（旧→新），点击切换倒序'" @click="toggleSortDir">{{ sortDir==='desc' ? '↓' : '↑' }}</button>
-          <button class="cz-view-btn" :class="{active: viewMode === 'card'}" @click="viewMode = 'card'" title="卡片视图">▦</button>
-          <button class="cz-view-btn" :class="{active: viewMode === 'list'}" @click="viewMode = 'list'" title="列表视图">☰</button>
-          <button class="cz-view-btn" :class="{active: viewMode === 'kanban'}" @click="viewMode = 'kanban'" title="看板视图">▥</button>
-          <!-- R113-N2：⏳ 入口移除——生命周期收敛到 设置→总览 -->
-        </div>
-      </div>
+        <button class="cz-batch-btn ai" title="AI 逐条研判待探索池：哪些值得转成任务、哪些继续养着、哪些可以放下（勾选采纳才写库）" @click="aiTriage()"><AiEntryButton variant="inline" label="转化研判" /></button>
+      </DeckControls>
 
       <Transition name="expand">
         <DeckBatchBar v-if="batchMode" :size="selected.size" :total="filtered.length" :all-selected="allCurioSelected"
@@ -777,21 +766,12 @@ function srcShort(url: string): string {
 .ds-src-link { max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: bottom; }
 .ds-status-wrap { margin-left: 8px; }
 .ds-status-chip2:active { transform: scale(.97); }
-.cz-filters { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
-.cz-filter { font-size: var(--fs-sub); padding: 5px 12px; border-radius: 99px; background: var(--surface-3); color: var(--text-2); cursor: pointer; transition: all var(--dur); border: none; font-family: inherit; display: flex; align-items: center; gap: 4px; }
-.cz-filter:hover { background: var(--border); }
-.cz-filter.active { background: var(--accent); color: #fff; }
-.cz-count { font-size: var(--fs-tiny); opacity: .7; }
 /* R167：「已转化」是计数不是筛选器——非交互、弱化，但带边框与池内 chip 同形（同形不同色，读得出"这是另一本账"） */
 .cz-converted { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-caption); letter-spacing: var(--tracking-sm); color: var(--text-3); padding: 3px 9px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface-2); cursor: default; }
 .cz-converted b { color: var(--text-2); font-weight: 600; }
-.cz-views { display: flex; gap: 2px; margin-left: auto; }
-.cz-view-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 14px; transition: all var(--dur); border: none; background: transparent; }
 /* 第卅二轮 REQ-007：时间排序方向切换 */
 .cz-sort-dir { font-size: var(--fs-body); font-weight: 600; margin-right: 2px; border: 1px solid var(--border); background: var(--surface); font-family: inherit; }
 .cz-sort-dir:hover { border-color: var(--accent); color: var(--accent); }
-.cz-view-btn:hover { background: var(--surface-3); color: var(--text-2); }
-.cz-view-btn.active { background: var(--accent-light); color: var(--accent-ink); }
 /* R110-LC（T3）：归档降级提示条 */
 .cz-archived-hint { margin: 6px 0 0; padding: 6px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all var(--dur); }
 .cz-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
