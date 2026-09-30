@@ -949,10 +949,10 @@ async function main() {
   // 批量：进批量态 → 全选 → 加标签 → 应用
   await page.getByText('批量').first().click().catch(() => {})
   await page.waitForTimeout(400)
-  const batchBarOn = await page.locator('.pcp-batch').isVisible().catch(() => false)
-  await page.getByText('全选本池').first().click().catch(() => {})
+  const batchBarOn = await page.locator('.pcp .dkb-bar').isVisible().catch(() => false)
+  await page.locator('.pcp .dkb-bar button', { hasText: /^全选$/ }).first().click().catch(() => {})
   await page.waitForTimeout(400)
-  await page.locator('.pcp-tagin').fill('E2E 批量标签').catch(() => {})
+  await page.locator('.pcp .dkb-tagin').fill('E2E 批量标签').catch(() => {})
   await page.getByText('应用标签').first().click().catch(() => {})
   await page.waitForTimeout(900)
   const tagged = await page.evaluate(() => {
@@ -1009,14 +1009,14 @@ async function main() {
   const untaggedIsB = untaggedCount === 1 && (await page.locator('.pcp-row').first().textContent() || '').includes('E2E 池卡乙')
   await page.getByText('🏷 待打标').first().click().catch(() => {})
   await page.waitForTimeout(500)
-  await page.getByText('批量').first().click().catch(() => {})
+  await page.locator('.pcp .pcp-btn', { hasText: /^批量$/ }).first().click().catch(() => {})
   await page.waitForTimeout(400)
-  await page.getByText('全选本池').first().click().catch(() => {})
+  await page.locator('.pcp .dkb-bar button', { hasText: /^全选$/ }).first().click().catch(() => {})
   await page.waitForTimeout(400)
-  const selAll = parseInt((await page.locator('.pcp-sel').textContent().catch(() => '0'))?.replace(/\D/g, '') || '0', 10)
-  await page.getByText('反选').first().click().catch(() => {})
+  const selAll = parseInt((await page.locator('.pcp .dkb-count').textContent().catch(() => '0'))?.replace(/\D/g, '') || '0', 10)
+  await page.locator('.pcp .dkb-bar button', { hasText: /^反选$/ }).first().click().catch(() => {})
   await page.waitForTimeout(400)
-  const selAfterInvert = parseInt((await page.locator('.pcp-sel').textContent().catch(() => 'x'))?.replace(/\D/g, '') || 'x', 10)
+  const selAfterInvert = parseInt((await page.locator('.pcp .dkb-count').textContent().catch(() => 'x'))?.replace(/\D/g, '') || 'x', 10)
   await page.evaluate(() => { const b = [...document.querySelectorAll('.pcp-btn')].find(x => x.textContent.includes('退出批量')); if (b) b.click() })
   await page.waitForTimeout(400)
   // 右键取「甲」——它有链接，菜单应是四件（无链接的卡少一项「复制链接」，那正是条件项的口径）
@@ -1054,13 +1054,13 @@ async function main() {
   // 按钮文案是「☑ 批量管理」/「✓ 完成」——按文案找，别按 .cz-batch-btn 的第一枚（那是 AI 转化研判钮）
   await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => (x.textContent || '').includes('批量管理')); if (b) b.click() })
   await page.waitForTimeout(600)
-  const barWithoutSel = await page.locator('.batch-bar').isVisible().catch(() => false)
-  const sel0 = (await page.locator('.batch-count').textContent().catch(() => '')) || ''
-  await page.locator('.batch-bar .mini-btn', { hasText: '全选' }).first().click().catch(() => {})
+  const barWithoutSel = await page.locator('.mgr-body .dkb-bar').isVisible().catch(() => false)
+  const sel0 = (await page.locator('.mgr-body .dkb-count').textContent().catch(() => '')) || ''
+  await page.locator('.mgr-body .dkb-bar button', { hasText: /^全选$/ }).first().click().catch(() => {})
   await page.waitForTimeout(500)
-  const tSelAll = parseInt(((await page.locator('.batch-count').textContent().catch(() => '0')) || '').replace(/\D/g, '') || '0', 10)
-  await page.locator('.batch-tagin').fill('E2E 批量任务标签').catch(() => {})
-  await page.locator('.batch-bar .mini-btn', { hasText: '应用标签' }).first().click().catch(() => {})
+  const tSelAll = parseInt(((await page.locator('.mgr-body .dkb-count').textContent().catch(() => '0')) || '').replace(/\D/g, '') || '0', 10)
+  await page.locator('.mgr-body .dkb-tagin').fill('E2E 批量任务标签').catch(() => {})
+  await page.locator('.mgr-body .dkb-bar button', { hasText: '应用标签' }).first().click().catch(() => {})
   await page.waitForTimeout(900)
   const taskTagged = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const ts = ((cur['zy_data_v2'] || {}).tasks || []).filter(t => !t.deletedAt && (t.tags || []).includes('E2E 批量任务标签'))
@@ -1070,18 +1070,18 @@ async function main() {
   await page.waitForTimeout(500)
   await page.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => (x.textContent || '').includes('批量管理')); if (b) b.click() })
   await page.waitForTimeout(600)
-  const selAfterReenter = parseInt(((await page.locator('.batch-count').textContent().catch(() => 'x')) || '').replace(/\D/g, '') || 'x', 10)
+  const selAfterReenter = parseInt(((await page.locator('.mgr-body .dkb-count').textContent().catch(() => 'x')) || '').replace(/\D/g, '') || 'x', 10)
   await page.locator('.bt-tab').nth(2).click().catch(() => {})
   await page.waitForTimeout(1400)
   await page.evaluate(() => { const b = [...document.querySelectorAll('.cz-batch-btn')].find(x => (x.textContent || '').includes('批量管理')); if (b) b.click() })
   await page.waitForTimeout(600)
-  const czBar = await page.locator('.cz-batch-bar').isVisible().catch(() => false)
-  await page.locator('.cz-batch-bar .mini-btn', { hasText: '全选' }).first().click().catch(() => {})
+  const czBar = await page.locator('.cz-body .dkb-bar').isVisible().catch(() => false)
+  await page.locator('.cz-body .dkb-bar button', { hasText: /^全选$/ }).first().click().catch(() => {})
   await page.waitForTimeout(500)
-  const czAll = (await page.locator('.cz-batch-bar span').first().textContent().catch(() => '')) || ''
-  await page.locator('.cz-batch-bar .mini-btn', { hasText: '反选' }).first().click().catch(() => {})
+  const czAll = (await page.locator('.cz-body .dkb-count').textContent().catch(() => '')) || ''
+  await page.locator('.cz-body .dkb-bar button', { hasText: /^反选$/ }).first().click().catch(() => {})
   await page.waitForTimeout(500)
-  const czInvert = (await page.locator('.cz-batch-bar span').first().textContent().catch(() => '')) || ''
+  const czInvert = (await page.locator('.cz-body .dkb-count').textContent().catch(() => '')) || ''
   report('E2E-31 ★R3-Cb 批量合一：任务批量栏未选即出 → 全选可点 → 批量打标落库 → 退出再进不残留勾选；好奇全选→反选归零',
     barWithoutSel && /已选 0/.test(sel0) && tSelAll >= 2 && taskTagged.n === tSelAll && selAfterReenter === 0
     && czBar && /已选 2/.test(czAll) && /已选 0/.test(czInvert),

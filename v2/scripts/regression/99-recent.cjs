@@ -863,11 +863,12 @@ check('R3-Cb ★批量选择唯一实现：三面板全部 import useBatchSelect
     && [p, t, c].every(x => !x.includes('function selectAll')) && [p, t, c].every(x => !x.includes('const selected: Ref<Set<string>> = ref') && !(x.match(/selected\w*(TaskIds)? = ref<Set<string>>/g) || []).length)
     && b.includes('export function useBatchSelect') && b.includes('export function addTagToCards') && b.includes('function setMode(on: boolean)')
 });
-check('R3-Cb ★批量栏在批量态即出现（不是"先选中才给你按钮"）：三面板 v-if 只看 batchMode，动作按钮一律 :disabled="!selected.size"，且禁用态有 var(--opacity-disabled) 可见反馈（改前任务与好奇的「全选」按钮藏在需要勾选才会渲染的栏里）', () => {
+check('R3-Cb ★批量栏在批量态即出现（不是"先选中才给你按钮"）★R3-Cc 收进 DeckBatchBar 一份：三面板一律 <DeckBatchBar v-if="batchMode">，全选/反选/应用标签在组件内且反选看 total、打标与应用看 size 才禁用，禁用态有 var(--opacity-disabled) 可见反馈（该样式必须由组件自带——scoped 边界下父面板的 .mini-btn:disabled 选不到子组件节点）', () => {
+  const b = read('/newtab/components/compass/DeckBatchBar.vue')
   const t = read('/newtab/components/compass/TaskManagerPanel.vue'), c = read('/newtab/components/compass/CuriosityPanel.vue'), p = read('/newtab/components/compass/PoolCardsPanel.vue')
-  return t.includes('v-if="batchMode" class="batch-bar"') && c.includes('v-if="batchMode" class="cz-batch-bar"')
-    && t.includes(':disabled="!selectedTaskIds.size"') && c.includes(':disabled="!selected.size"') && p.includes(':disabled="!selected.size"')
-    && t.includes('.mini-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }') && c.includes('.mini-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }')
+  return [t, c, p].every(x => x.includes('<DeckBatchBar v-if="batchMode"'))
+    && b.includes(':disabled="!total"') && b.includes(':disabled="!size"') && b.includes('.dkb-bar button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }')
+    && [t, c].every(x => x.includes('.mini-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }'))
 });
 check('R3-Cb ★退出批量必须清空选择（三处同一句 setMode）：改前好奇面板退出批量不清空 selected，下一轮进来上一轮勾选还在而可见集合可能已变——批量动作里就有删除，那是"我以为没选"的误删配方', () => {
   const b = read('/newtab/composables/useBatchSelect.ts')
@@ -875,9 +876,18 @@ check('R3-Cb ★退出批量必须清空选择（三处同一句 setMode）：�
   return b.includes('if (!on) clear()') && [t, c, p].every(x => /set(Batch)?Mode\(!batchMode(\.value)?\)/.test(x))
     && !c.includes('batchMode = !batchMode')
 });
-check('R3-Cb ★三类卡批量打标签齐全且同一写入式：任务与好奇各补「批量打标签」入口（输入框 + 应用，回车即应用），三处都调 addTagToCards（只加不减、软删卡跳过、命中数回提示），去标签一律回卡详情不在面板里做第二套编辑', () => {
+check('R3-Cb ★三类卡批量打标签齐全且同一写入式（★R3-Cc：输入框与「回车应用」也在 DeckBatchBar 里，一处改三处生效）：三处都调 addTagToCards（只加不减、软删卡跳过、updatedAt 置当前），去标签一律回卡详情不在面板里做第二套编辑', () => {
+  const b = read('/newtab/components/compass/DeckBatchBar.vue')
   const t = read('/newtab/components/compass/TaskManagerPanel.vue'), c = read('/newtab/components/compass/CuriosityPanel.vue'), p = read('/newtab/components/compass/PoolCardsPanel.vue')
-  return t.includes('function batchAddTag()') && c.includes('function batchAddTag()') && p.includes('function applyTagToSelected()')
+  return b.includes('加一个标签，回车应用') && b.includes("@keydown.enter=\"apply\"")
+    && t.includes('function batchAddTag(t: string)') && c.includes('function batchAddTag(t: string)') && p.includes('function applyTagToSelected(t: string)')
     && t.includes('addTagToCards(d.value.tasks') && c.includes('addTagToCards(d.value.curiosities') && p.includes('addTagToCards(store.data!.resources')
-    && [t, c, p].every(x => x.includes('只加不减') && x.includes('回车应用'))
+    && [t, c, p].every(x => x.includes('只加不减'))
+});
+check('R3-Cc ★批量栏唯一实现：三面板 import DeckBatchBar，面板内不得再留第二份「全选 / 反选 / 应用标签」DOM 或自建 tagDraft 输入（C-b 修掉的三条缺陷正是三份各写各的写出来的，留着三份就会再漂回去）；卡型专属动作走默认槽，不复制整栏', () => {
+  const t = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue')), c = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue')), p = codeOnly(read('/newtab/components/compass/PoolCardsPanel.vue'))
+  return [t, c, p].every(x => x.includes("import DeckBatchBar from './DeckBatchBar.vue'"))
+    && [t, c, p].every(x => !x.includes('>反选</button>') && !x.includes('应用标签</button>'))
+    && [t, c, p].every(x => !x.includes('batchTagDraft') && !x.includes('tagDraft'))
+    && t.includes('<DeckBatchBar') && c.includes('<DeckBatchBar') && p.includes('<DeckBatchBar')
 });

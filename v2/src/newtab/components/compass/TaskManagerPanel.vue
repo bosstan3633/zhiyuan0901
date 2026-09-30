@@ -11,6 +11,7 @@ import { saveUIPrefs } from '@/shared/storage/repository'
 import { onOpenDrawer } from '@/shared/utils/bus'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { useBatchSelect, addTagToCards } from '../../composables/useBatchSelect'
+import DeckBatchBar from './DeckBatchBar.vue'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import type { TaskCard, Subtask, FieldDef } from '@/shared/models'
 import { recordCardOpen } from '@/shared/storage/stats'
@@ -164,14 +165,9 @@ const listGroups = computed<{ key: string; name: string; icon: string; pct: numb
    函数体却只做满选↔清空（反选从来没实现过）。 */
 const { selected: selectedTaskIds, allSelected: allTasksSelected, toggle: toggleSelect, selectAll, invert: invertSelect, clear: clearSelection, setMode: setBatchMode } =
   useBatchSelect(() => filteredTasks.value.map(t => t.id))
-const batchTagDraft = ref('')
-function batchAddTag() {
-  const t = batchTagDraft.value.trim()
-  if (!selectedTaskIds.value.size) { showToast('还没选中任务'); return }
-  if (!t) { showToast('先写一个标签'); return }
+function batchAddTag(t: string) {
   const n = addTagToCards(d.value.tasks, selectedTaskIds.value, t)
   store.persist()
-  batchTagDraft.value = ''
   showToast(`✓ 已给 ${n} 个任务加标签「${t}」（只加不减，去标签到任务详情里改）`)
 }
 function batchDelete() {
@@ -711,24 +707,19 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
         📦 另有 {{ archivedHintCount }} 张已归档任务未显示（点此在 设置 → 总览 · 资源生命周期 中查看 / 恢复）
       </div>
 
-      <!-- 批量操作栏（R3-Cb：批量态一进来就该看得见，改前"未选中即整栏不渲染"，
-           于是「全选」按钮要先把每张卡点一遍才会出现） -->
-      <div v-if="batchMode" class="batch-bar">
-        <span class="batch-count">已选 {{ selectedTaskIds.size }} 项</span>
-        <button class="mini-btn" @click="selectAll">{{ allTasksSelected ? '取消全选' : '全选' }}</button>
-        <button class="mini-btn" :disabled="!filteredTasks.length" title="在当前过滤结果内反选" @click="invertSelect">反选</button>
-        <input v-model="batchTagDraft" class="batch-tagin" placeholder="加一个标签，回车应用" @keydown.enter="batchAddTag">
-        <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="batchAddTag">应用标签</button>
-        <button class="mini-btn" @click="batchSetStatus('todo')">待开始</button>
-        <button class="mini-btn" @click="batchSetStatus('doing')">进行中</button>
-        <button class="mini-btn" @click="batchSetStatus('done')">已完成</button>
-        <button class="mini-btn" @click="batchSetPriority('high')">🔴 高优</button>
-        <button class="mini-btn" @click="batchSetPriority('medium')">🟡 中优</button>
-        <button class="mini-btn" @click="batchSetPriority('low')">🟢 低优</button>
-        <button class="mini-btn" @click="openBatchMount">📦 挂到项目→指标</button>
-        <button class="mini-btn danger" @click="batchDelete">🗑 删除</button>
+      <!-- R3-Cc：批量栏收归 DeckBatchBar（三张卡同一份「已选/全选/反选/打标」DOM） -->
+      <DeckBatchBar v-if="batchMode" :size="selectedTaskIds.size" :total="filteredTasks.length" :all-selected="allTasksSelected"
+        @select-all="selectAll" @invert="invertSelect" @apply-tag="batchAddTag">
+        <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="batchSetStatus('todo')">待开始</button>
+        <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="batchSetStatus('doing')">进行中</button>
+        <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="batchSetStatus('done')">已完成</button>
+        <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="batchSetPriority('high')">🔴 高优</button>
+        <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="batchSetPriority('medium')">🟡 中优</button>
+        <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="batchSetPriority('low')">🟢 低优</button>
+        <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="openBatchMount">📦 挂到项目→指标</button>
+        <button class="mini-btn danger" :disabled="!selectedTaskIds.size" @click="batchDelete">🗑 删除</button>
         <button class="mini-btn" @click="clearSelection()">取消选择</button>
-      </div>
+      </DeckBatchBar>
 
       <!-- 卡片视图（第卌五轮新增 · 默认；R47-A3：置顶/非置顶分组区块渲染，与好奇心培育同款） -->
       <div v-if="viewMode==='card'" class="tm-grid" :style="{ '--grid-cols': String(taskCols) }">
@@ -1101,8 +1092,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .mgr-count .total { cursor: default; }
 .mgr-count .total.act { cursor: pointer; color: var(--accent); font-weight: 600; }
 .mgr-count .total.act:hover { text-decoration: underline; }
-.batch-bar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: var(--accent-light); border-radius: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-.batch-count { font-size: var(--fs-sub); font-weight: 700; color: var(--accent); margin-right: 4px; }
 .batch-tagin { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius-sm); padding: 3px 8px; font-size: var(--fs-caption); font-family: inherit; outline: none; width: 160px; }
 .batch-tagin:focus { border-color: var(--accent); }
 .batch-check { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: var(--fs-caption); color: #fff; background: var(--surface); }

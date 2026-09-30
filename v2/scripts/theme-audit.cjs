@@ -565,6 +565,24 @@ async function main() {
     const plOk = pl.rows > 0 && pl.cards === 0 && pl.untaggedBtn
     console.log(`  ${plOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'池列表'.padEnd(4)} 行=${pl.rows} 网格残留=${pl.cards} 无标签标=${pl.none} 待打标钮=${pl.untaggedBtn ? '是' : '否'}   → ${path.basename(plFile)} (${Math.round(fs.statSync(plFile).size / 1024)}KB)`)
     if (!plOk) spotFail.push(`${theme}/deck-pool-list：${JSON.stringify(pl)}（应：列表有行、网格零残留、控制行含「待打标」）`)
+    /* R3-Cc：三张卡共用的批量栏（DeckBatchBar）——池面板这侧底色由 surface-2 换成 accent-light，
+       四主题各拍一张，量「栏在 / 全选·反选·应用标签三枚齐 / 卡型动作在槽内」，量完退出批量免得串染 */
+    await page.evaluate(() => { const b = [...document.querySelectorAll('.pcp-btn')].find(x => (x.textContent || '').trim() === '批量'); if (b) b.click() })
+    await page.waitForTimeout(700)
+    await resetView(page)
+    const bb = await page.evaluate(() => {
+      const bar = document.querySelector('.dkb-bar')
+      const labels = bar ? [...bar.querySelectorAll('button')].map(x => (x.textContent || '').trim()) : []
+      return { on: !!bar, hasSel: labels.includes('全选'), hasInv: labels.includes('反选'), hasTag: labels.includes('应用标签'), del: labels.some(x => x.includes('删除')) }
+    })
+    const bbFile = path.join(outDir, `${theme}-deck-batch.png`)
+    await page.screenshot({ path: bbFile })
+    shots.push(bbFile)
+    await page.evaluate(() => { const b = [...document.querySelectorAll('.pcp-btn')].find(x => (x.textContent || '').trim() === '退出批量'); if (b) b.click() })
+    await page.waitForTimeout(400)
+    const bbOk = bb.on && bb.hasSel && bb.hasInv && bb.hasTag && bb.del
+    console.log(`  ${bbOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'批量栏'.padEnd(4)} 栏=${bb.on ? '是' : '否'} 全选=${bb.hasSel ? '是' : '否'} 反选=${bb.hasInv ? '是' : '否'} 打标=${bb.hasTag ? '是' : '否'} 卡型动作=${bb.del ? '在' : '缺'}   → ${path.basename(bbFile)} (${Math.round(fs.statSync(bbFile).size / 1024)}KB)`)
+    if (!bbOk) spotFail.push(`${theme}/deck-batch：${JSON.stringify(bb)}（应：共用栏渲染且 全选/反选/应用标签/卡型动作 齐全）`)
     await closeOverlays(page)
     await page.setViewportSize(VIEWPORT)
     for (const sc of DASH_SCENES) {
@@ -587,7 +605,7 @@ async function main() {
   await page.evaluate(async () => { await chrome.storage.local.remove(['zy_ai_v1']) }).catch(() => {})
   await ctx.close()
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
-  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length + 2 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 */ + DASH_SCENES.length /* R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 ⇒ 72→76 */)
+  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length  + 3 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 + R3-Cc 共用批量栏 */ + DASH_SCENES.length /* R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 + R3-Cc 批量栏 ⇒ 72→80 */)
   if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情 + 1 deck)）`); process.exit(1) }
   if (escLeak.length) {
     console.log(`❌ Esc 未能关闭中央弹窗：${escLeak.join(' / ')}（台面图已受影响，请查 Modal.vue 的 watch immediate）`)

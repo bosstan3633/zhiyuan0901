@@ -24,6 +24,7 @@ import NewBadge from '@/shared/components/NewBadge.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { useBatchSelect, addTagToCards } from '../../composables/useBatchSelect'
+import DeckBatchBar from './DeckBatchBar.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { useCardCols } from '@/shared/utils/cardCols'
@@ -417,14 +418,9 @@ const batchMode = ref(false)
    下一轮进来上一轮的勾选还在（两次之间可见集合可能已变），而批量动作里就有删除。 */
 const { selected, allSelected: allCurioSelected, toggle: toggleSelect, selectAll, invert: invertSelect, clear: clearSelection, setMode: setBatchMode } =
   useBatchSelect(() => filtered.value.map(c => c.id))
-const batchTagDraft = ref('')
-function batchAddTag() {
-  const t = batchTagDraft.value.trim()
-  if (!selected.value.size) { showToast('还没选中好奇心卡'); return }
-  if (!t) { showToast('先写一个标签'); return }
+function batchAddTag(t: string) {
   const n = addTagToCards(d.value.curiosities, selected.value, t)
   store.persist()
-  batchTagDraft.value = ''
   showToast(`✓ 已给 ${n} 张卡加标签「${t}」（只加不减，去标签到卡详情里改）`)
 }
 function batchDelete() {
@@ -503,17 +499,13 @@ function srcShort(url: string): string {
       </div>
 
       <Transition name="expand">
-        <div v-if="batchMode" class="cz-batch-bar">
-          <span>已选 {{ selected.size }} 项</span>
-          <button class="mini-btn" @click="selectAll">{{ allCurioSelected ? '取消全选' : '全选' }}</button>
-          <button class="mini-btn" :disabled="!filtered.length" title="在当前过滤结果内反选" @click="invertSelect">反选</button>
-          <input v-model="batchTagDraft" class="cz-tagin" placeholder="加一个标签，回车应用" @keydown.enter="batchAddTag">
-          <button class="mini-btn" :disabled="!selected.size" @click="batchAddTag">应用标签</button>
-          <button class="mini-btn" @click="batchSetStatus('doing')">标记探索中</button>
-          <button class="mini-btn" @click="batchSetStatus('done')">标记已求证</button>
-          <button class="mini-btn" @click="batchSetStatus('shelf')">标记已搁置</button>
-          <button class="mini-btn danger" @click="batchDelete">删除</button>
-        </div>
+        <DeckBatchBar v-if="batchMode" :size="selected.size" :total="filtered.length" :all-selected="allCurioSelected"
+          @select-all="selectAll" @invert="invertSelect" @apply-tag="batchAddTag">
+          <button class="mini-btn" :disabled="!selected.size" @click="batchSetStatus('doing')">标记探索中</button>
+          <button class="mini-btn" :disabled="!selected.size" @click="batchSetStatus('done')">标记已求证</button>
+          <button class="mini-btn" :disabled="!selected.size" @click="batchSetStatus('shelf')">标记已搁置</button>
+          <button class="mini-btn danger" :disabled="!selected.size" @click="batchDelete">删除</button>
+        </DeckBatchBar>
       </Transition>
 
       <!-- R110-LC（T3）：归档卡已从默认视图隐藏——降级提示（R113-N2 起点击跳 设置→总览·资源生命周期） -->
@@ -803,11 +795,8 @@ function srcShort(url: string): string {
 /* R110-LC（T3）：归档降级提示条 */
 .cz-archived-hint { margin: 6px 0 0; padding: 6px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all var(--dur); }
 .cz-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
-.cz-batch-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--accent-light); border-radius: var(--radius-sm); margin-bottom: 14px; font-size: var(--fs-sub); color: var(--accent-ink); font-weight: 500; }
 
 .mini-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
-.cz-tagin { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius-sm); padding: 3px 8px; font-size: var(--fs-caption); font-family: inherit; outline: none; width: 160px; }
-.cz-tagin:focus { border-color: var(--accent); }
 /* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 200px */
 .cz-grid { display: grid; /* R106（F3）：精确 N 列——选中 N 即渲染 N 列，卡片宽度自适应收缩（含看板外全部视图） */ grid-template-columns: repeat(var(--grid-cols, 4), minmax(0, 1fr)); gap: 12px; }
 .cz-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }

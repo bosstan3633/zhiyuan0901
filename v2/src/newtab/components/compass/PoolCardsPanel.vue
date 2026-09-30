@@ -20,6 +20,7 @@ import ContextMenu from '@/shared/components/ContextMenu.vue'
 import NewBadge from '@/shared/components/NewBadge.vue'
 import { useWorkspaceImport } from '../../composables/useWorkspaceImport'
 import { useBatchSelect, addTagToCards } from '../../composables/useBatchSelect'
+import DeckBatchBar from './DeckBatchBar.vue'
 
 const store = useAppStore()
 const route = useRoute()
@@ -157,15 +158,10 @@ const { fileImportInput, fileImport, handleFileImport } = useWorkspaceImport({
 /* ===== R2-⑧ 批量 → R3-Cb 选择与打标口径收归 useBatchSelect 一份实现 ===== */
 const batchMode = ref(false)
 const { selected, size: selSize, allSelected, toggle: toggleSel, selectAll, invert: invertSel, clear: clearSel, setMode } = useBatchSelect(() => poolCards.value.map(r => r.id))
-const tagDraft = ref('')
 function toggleBatch() { batchMode.value = setMode(!batchMode.value) }
-function applyTagToSelected() {
-  const t = tagDraft.value.trim()
-  if (!selected.value.size) { showToast('还没选中卡片'); return }
-  if (!t) { showToast('先写一个标签'); return }
+function applyTagToSelected(t: string) {
   const n = addTagToCards(store.data!.resources, selected.value, t)
   store.persist()
-  tagDraft.value = ''
   showToast(`✓ 已给 ${n} 张卡加标签「${t}」（只加不减，去标签到卡详情里改）`)
 }
 function deleteSelected() {
@@ -197,14 +193,11 @@ function deleteSelected() {
       <span class="pcp-count"><b>{{ poolCards.length }}</b> / 全部 {{ poolTotal }} 张</span>
     </div>
 
-    <div v-if="batchMode" class="pcp-batch">
-      <button class="pcp-btn sm" @click="selectAll">{{ allSelected ? '取消全选' : '全选本池' }}</button>
-      <button class="pcp-btn sm" :disabled="!poolCards.length" title="在当前过滤结果内反选" @click="invertSel">反选</button>
-      <span class="pcp-sel">已选 {{ selSize }} 张</span>
-      <input v-model="tagDraft" class="pcp-tagin" placeholder="加一个标签，回车应用" @keydown.enter="applyTagToSelected">
-      <button class="pcp-btn sm" :disabled="!selected.size" @click="applyTagToSelected">应用标签</button>
-      <button class="pcp-btn sm danger" :disabled="!selected.size" @click="deleteSelected">🗑 删除（进回收站）</button>
-    </div>
+    <!-- R3-Cc：批量栏收归 DeckBatchBar 一份实现（全选/反选/打标签三处同源，卡型动作走默认槽） -->
+    <DeckBatchBar v-if="batchMode" :size="selSize" :total="poolCards.length" :all-selected="allSelected"
+      unit="张" @select-all="selectAll" @invert="invertSel" @apply-tag="applyTagToSelected">
+      <button class="pcp-btn sm danger" :disabled="!selSize" @click="deleteSelected">🗑 删除（进回收站）</button>
+    </DeckBatchBar>
 
     <!-- 新建单卡浮层：v-if 不开即零节点（全站浮层纪律） -->
     <div v-if="newOpen" class="pcp-mask" @click.self="newOpen = false">
@@ -290,10 +283,6 @@ function deleteSelected() {
 .pcp-btn.on { border-color: var(--text); background: var(--text); color: var(--bg); }
 .pcp-btn.sm { padding: 4px 9px; font-size: var(--fs-caption); }
 .pcp-btn.danger { border-color: var(--danger-border); color: var(--danger); }
-.pcp-batch { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); flex-wrap: wrap; }
-.pcp-sel { font-size: var(--fs-sub); color: var(--text-2); font-variant-numeric: tabular-nums; }
-.pcp-tagin { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius-sm); padding: 4px 9px; font-size: var(--fs-sub); font-family: inherit; outline: none; width: 180px; }
-.pcp-tagin:focus { border-color: var(--accent); }
 .pcp-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); display: flex; align-items: center; justify-content: center; z-index: 60; }
 .pcp-pop { width: min(420px, 92vw); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 18px; box-shadow: var(--shadow-lg); }
 .pcp-pop-h { font-size: var(--fs-body); font-weight: 700; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; }
