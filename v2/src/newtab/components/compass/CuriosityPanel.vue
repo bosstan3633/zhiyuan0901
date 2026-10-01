@@ -3,7 +3,9 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick, defineAsyncComp
 import { useRoute, useRouter } from 'vue-router'
 import { useCuriosity, type CuriStatus } from '../../stores/curiosity'
 // R129-B12：台名剥图标走全站唯一口径（此处原为 /[^s]+s/ 漏写转义，图标一直在下拉里重复显示）
-import { wsDisplayNameOf } from '@/shared/utils/wsName'
+// R4-Ep：可选台列表与「id→展示名」都走 wsName.ts 单源，不再从这里自己 filter 原始 workspaces 数组
+import { selectableWsOptions, wsNameById } from '@/shared/utils/wsName'
+import { CURATION_WS_ID } from '@/shared/models'
 // R129-B5：链接协议白名单与打开通道全站唯一实现
 import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
 import { useAppStore } from '../../stores/app'
@@ -334,7 +336,7 @@ const convertCatId = ref('')
 const convertProjId = ref('')
 const convertMetId = ref('')
 
-const convWorkspaces = computed(() => store.data!.workspaces.filter(w => !w.archived))
+const convWorkspaces = computed(() => selectableWsOptions(store.data!.workspaces))
 const convCategories = computed(() =>
   store.data!.categories.filter(c => c.workspaceId === convertWsId.value)
 )
@@ -355,7 +357,9 @@ const convMetrics = computed(() =>
 function openConvert(c: CuriosityCard, target: 'task' | 'res') {
   convertItem.value = c
   convertTarget.value = target
-  convertWsId.value = convWorkspaces.value[0]?.id || ''
+  // R4-Ep：默认落点显式写池——改前取 convWorkspaces[0]，而它来自原始 d.workspaces 数组，
+  // 存量库第一枚是 hub 实体（落池）、新库第一枚是策展台（落台），同一个动作默认落点随库形状漂移。
+  convertWsId.value = CURATION_WS_ID
   convertCatId.value = ''
   convertProjId.value = ''
   convertMetId.value = ''
@@ -370,10 +374,10 @@ function confirmConvert() {
   const c = convertItem.value
   if (!c) return
   if (convertTarget.value === 'res') {
-    if (!convertWsId.value) { showToast('请选择策展台'); return }
-    const ws = convWorkspaces.value.find(w => w.id === convertWsId.value)
+    if (!convertWsId.value) { showToast('请选择存入位置'); return }
     convertToResource(c, convertWsId.value, convertCatId.value || undefined)
-    showToast(`✓ 已归档至「${ws?.name || ''}」资源台`)
+    // 台名走 wsNameById 单源；改前硬拼 `「${ws.name}」资源台`，存量库实测印成「已归档至「🗂 资源台」资源台」
+    showToast(`✓ 已归档至「${wsNameById(store.data!.workspaces, convertWsId.value) || '未命名台'}」`)
   } else {
     const proj = convProjects.value.find(p => p.id === convertProjId.value)
     const wasShelf = c.status === 'shelf'
@@ -710,9 +714,9 @@ function srcShort(url: string): string {
             <div class="cz-modal-sub">{{ convertItem?.question }}</div>
 
             <template v-if="convertTarget === 'res'">
-              <label class="cz-modal-label">存入策展台</label>
+              <label class="cz-modal-label">存入位置</label>
               <select v-model="convertWsId" class="cz-modal-select">
-                <option v-for="w in convWorkspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}</option>
+                <option v-for="w in convWorkspaces" :key="w.id" :value="w.id">{{ w.label }}</option>
               </select>
               <label class="cz-modal-label">分类（默认待分类）</label>
               <select v-model="convertCatId" class="cz-modal-select">

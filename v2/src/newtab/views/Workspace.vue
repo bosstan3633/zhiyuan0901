@@ -707,7 +707,7 @@
             <div class="dr-label">目标策展台（含当前策展台，可只换分类）</div>
             <select class="dr-category-select" v-model="moveWsId">
               <option v-for="w in moveWorkspaces" :key="w.id" :value="w.id">
-                {{ w.icon }} {{ wsDisplayNameOf(w) }}{{ w.id === workspaceId ? '（当前）' : '' }}
+                {{ w.label }}{{ w.id === workspaceId ? '（当前）' : '' }}
               </option>
             </select>
           </div>

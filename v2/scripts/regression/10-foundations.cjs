@@ -100,7 +100,7 @@ check('W4 左栏树形渲染 + 置顶分区 + 聚合计数', () => read('/newtab
 // R112 重指：familyIds 现在包一层 Set 再过滤（O(卡数×家族) → O(卡数)），聚合过滤语义不变 —— 承接 R112-7
 check('W5 父分类聚合过滤（点击父分类含子分类资源）', () => read('/newtab/views/Workspace.vue').includes('const ids = new Set(familyIds(activeCategory.value))'));
 check('W6 分类拖拽：挂子级/同级排序/升一级/防循环', () => read('/newtab/views/Workspace.vue').includes("catDropMode.value = 'child'") && read('/newtab/views/Workspace.vue').includes('onCatRootDrop') && read('/newtab/views/Workspace.vue').includes('不能移动到自己的子分类'));
-check('W7 批量移动含当前工作台 + 分类层级缩进（R102 重指：实现拆入 useWorkspaceBatch）', () => read('/newtab/composables/useWorkspaceBatch.ts').includes('const moveWorkspaces = computed(() => d.value.workspaces.filter(w => !w.archived))') && read('/newtab/views/Workspace.vue').includes('treeCatOptions') && read('/newtab/views/Workspace.vue').includes('📦 移动到…'));
+check('W7 批量移动含当前工作台 + 分类层级缩进（R102 重指：实现拆入 useWorkspaceBatch；★R4-Ep 二次重指带备案：那行自搓 filter 换成可选台列表单源 boardWsOptions——原判据锚的是整行字面量，实现收口后必然对不上，判据要的多列表存在/含当前台/分类缩进三项一条未减，只把出处改成单源调用，并钉住旧 filter 写法不许回流）', () => { const b = codeOnly(read('/newtab/composables/useWorkspaceBatch.ts')); return b.includes('const moveWorkspaces = computed(() => boardWsOptions(d.value.workspaces))') && !b.includes('d.value.workspaces.filter(w => !w.archived)') && read('/newtab/views/Workspace.vue').includes('treeCatOptions') && read('/newtab/views/Workspace.vue').includes('📦 移动到…') });
 check('W8 单卡移动分类弹窗 + 工作台重命名/描述弹窗', () => read('/newtab/views/Workspace.vue').includes('openMoveOne') && read('/newtab/views/Workspace.vue').includes('openInputModal') && read('/newtab/views/Workspace.vue').includes('renameWs()'));
 check('W9 采集浮层分类下拉层级化', () => read('/content/search-overlay.ts').includes('treeCatLabels'));
 

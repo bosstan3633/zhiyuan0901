@@ -14,6 +14,8 @@ import { ref, computed, watch, type ComputedRef } from 'vue'
 import type { AppData, Category, Project, ResourceCard } from '@/shared/models'
 import { uid } from '@/shared/utils'
 import { isMirrorView, removeProjection, type MirrorView } from '@/shared/storage/hub'
+// R4-Ep：可选台列表的唯一口径（批量移动只列策展台，池不是一枚台面）
+import { boardWsOptions } from '@/shared/utils/wsName'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 
@@ -84,7 +86,10 @@ export function useWorkspaceBatch(ctx: WorkspaceBatchCtx) {
   const moveModalOpen = ref(false)
   const moveWsId = ref('')
   const moveCatId = ref('')
-  const moveWorkspaces = computed(() => d.value.workspaces.filter(w => !w.archived))
+  // R4-Ep：列表构造走 wsName.ts 单源（boardWsOptions）——改前自己从原始 d.workspaces filter，
+  // 存量库里那枚 hub 实体因此以退役名「🗂 资源台」出现在「目标策展台」下拉里且可被选中；
+  // 移进池会顺带造出一枚 workspaceId=zy-curation 的「待分类」分类，而池卡只由标签组织（R179）。
+  const moveWorkspaces = computed(() => boardWsOptions(d.value.workspaces))
   // R117（04-61 A）：分类口径统一——过滤软删（原实现漏 deletedAt，软删分类会成为下拉里的「幽灵项」）；
   // 与采集浮层 / 全局采集 / 资源台左树同源（buildCatOptions）
   const moveCatOptions = computed(() => treeCatOptions(d.value.categories.filter(c => c.workspaceId === moveWsId.value && !c.deletedAt)))

@@ -1491,6 +1491,98 @@ async function main() {
     && dkLanding.池面可见 && dkLanding.高亮 >= 1,
     `搜到=${dkRowFound} 菜单=${dkMenuHit}/${dkItemHit} 落点=${dkAfter.ws} 分类=${JSON.stringify(dkAfter.cat)} 标签=${dkAfter.tags} 描述/附件/自定义/星标/置顶=${dkAfter.描述}/${dkAfter.附件}/${dkAfter.自定义}/${dkAfter.星标}/${dkAfter.置顶} 出路=${dkAfter.出路} 回执含「资源卡池」=${dkPoolReceipt} ｜ 查看→${dkLanding.hash} 死页=${dkLanding.死页} 旧台面=${dkLanding.旧台面} 高亮=${dkLanding.高亮} 池面可见=${dkLanding.池面可见}`)
 
+  // E2E-39（R4-Ep）★好奇心「归档为资源」弹窗在两种库形状下真点一次。
+  //   起因（/tmp/zy_ep_probe.cjs 实测改前）：下拉的可选台列表由本组件自己从**原始 d.workspaces** filter，
+  //   存量库第一枚是 R61 留下的 hub 实体 ⇒ 选项印「🗂 资源台」且是默认项，确认后回执印成
+  //   「✓ 已归档至「🗂 资源台」资源台」（台名 + 硬后缀撞成两个旧世界词）；新库没有那枚实体 ⇒ 同一个动作默认落进「💼 事业策展台」。
+  //   ★这条为什么值得运行时覆盖：源码文本断言里"下拉印什么名、默认选谁"表现为什么都没变，而它是用户每天点的动作。
+  const epQ = 'R4-Ep 归档探针好奇心'
+  const epSnapshot = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(c => JSON.stringify(c['zy_data_v2'])))
+  async function epRun(label, wsList) {
+    await page.evaluate(({ ws, q }) => chrome.storage.local.get('zy_data_v2').then(cur => {
+      const d = cur['zy_data_v2']
+      d.workspaces = ws
+      const keep = (d.curiosities || []).filter(c => !String(c.question || '').includes(q))
+      d.curiosities = [{
+        id: 'ep-curo-1', kind: 'curiosity', question: q, status: 'doing', pinned: false,
+        tags: [], assets: [], customFields: {}, callCount: 0, createdAt: 1760000000000, updatedAt: 1760000000000
+      }, ...keep]
+      d.resources = (d.resources || []).filter(r => !String(r.title || '').includes(q))
+      return chrome.storage.local.set({ zy_data_v2: d })
+    }), { ws: wsList, q: epQ })
+    await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(2400)
+    await page.locator('.bt-tab').nth(2).click().catch(() => {})
+    await page.waitForTimeout(1300)
+    /* ★点的是探针那张卡所在的行，不是"第一行"：面板默认按创建时间排，硬造的探针卡不一定排最前——
+       取第一行会转化到别人的卡上，toast 照样绿、落库核收空（第一版就红在这）。 */
+    await page.locator('.cz-list-item, .cz-card', { hasText: epQ }).first().click().catch(() => {})
+    await page.waitForTimeout(800)
+    const kv = page.locator('.ds-kv', { hasText: '归档资源' }).first()
+    if (await kv.count()) await kv.click().catch(() => {})
+    else await page.locator('button', { hasText: '归档' }).first().click({ force: true }).catch(() => {})
+    await page.waitForTimeout(900)
+    const form = await page.evaluate(() => {
+      const m = document.querySelector('.cz-modal')
+      const sel = document.querySelector('.cz-modal-select')
+      const labels = m ? [...m.querySelectorAll('.cz-modal-label')].map(l => (l.textContent || '').trim()) : []
+      return {
+        开: !!m && !!sel,
+        选项: sel ? [...sel.options].map(o => (o.textContent || '').trim() + '→' + o.value) : [],
+        文本: sel ? [...sel.options].map(o => (o.textContent || '').trim()) : [],
+        默认: sel ? sel.value : '',
+        标签: labels
+      }
+    })
+    await page.locator('.cz-modal-foot button', { hasText: '确认转化' }).first().click().catch(() => {})
+    await page.waitForTimeout(1300)
+    const toast = await page.evaluate(() => {
+      const t = document.querySelector('[class*=toast]')
+      return t ? (t.textContent || '').trim() : ''
+    })
+    /* 读**内存态 store**而不是 chrome.storage：转化走 store.persist()，落盘是异步的（E2E-38 同一取证面，
+       拿 storage 当证据会把"已转化"读成"无卡"——我第一次就踩了这个）。 */
+    await page.waitForFunction((q) => {
+      const app = document.querySelector('#app').__vue_app__
+      const prov = app && app._context && app._context.provides
+      let pinia = null
+      for (const k of Object.getOwnPropertySymbols(prov || {})) { const v = prov[k]; if (v && v._s && v.state) pinia = v }
+      const dd = pinia && pinia._s.get('app') && pinia._s.get('app').data
+      return !!dd && (dd.resources || []).some(x => String(x.title || '').includes(q))
+    }, epQ, { timeout: 5000 }).catch(() => {})
+    const after = await page.evaluate((q) => {
+      const app = document.querySelector('#app').__vue_app__
+      const prov = app && app._context && app._context.provides
+      let pinia = null
+      for (const k of Object.getOwnPropertySymbols(prov || {})) { const v = prov[k]; if (v && v._s && v.state) pinia = v }
+      const dd = pinia && pinia._s.get('app') && pinia._s.get('app').data
+      const r = dd ? (dd.resources || []).find(x => String(x.title || '').includes(q)) : null
+      return { 有卡: !!r, ws: r ? r.workspaceId : '无', cat: r ? JSON.stringify(r.categoryId) : '-' }
+    }, epQ)
+    return { label, form, toast, after }
+  }
+  const epHub = await epRun('存量库（hub 实体排第一）', [
+    { id: 'zy-curation', name: '🗂 资源台', icon: '🗂', order: -1, archived: false, kind: 'resource' },
+    { id: 'ws-biz-000', name: '💼 事业策展台', icon: '💼', order: 0, archived: false }
+  ])
+  const epFresh = await epRun('新库（无 hub 实体）', [
+    { id: 'ws-biz-000', name: '💼 事业策展台', icon: '💼', order: 0, archived: false },
+    { id: 'ws-b-1', name: '🧪 另一个台', icon: '🧪', order: 1, archived: false }
+  ])
+  // 还原快照，别把后面的用例建在同一份改造过的库上
+  await page.evaluate((raw) => chrome.storage.local.set({ zy_data_v2: JSON.parse(raw) }), epSnapshot)
+  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2000)
+  const epOk = (r) => r.form.开 && r.form.文本[0] === '资源卡池' && r.form.选项[0].endsWith('→zy-curation')
+    && r.form.文本.filter(t => t.includes('资源台')).length === 0 && r.form.默认 === 'zy-curation'
+    && r.form.标签.includes('存入位置') && r.toast.includes('已归档至「资源卡池」') && !r.toast.includes('资源台')
+    && r.after.有卡 && r.after.ws === 'zy-curation'
+  report('E2E-39 ★R4-Ep 好奇心归档弹窗真点（两种库形状）：下拉首项=「资源卡池」且退役名残留 0、默认选中=zy-curation（不再随实体顺序漂移）、标签=「存入位置」、回执=「已归档至「资源卡池」」且不含「资源台」、落库 workspaceId=zy-curation',
+    epOk(epHub) && epOk(epFresh),
+    `${epHub.label} 开=${epHub.form.开} 选项=${JSON.stringify(epHub.form.选项)} 默认=${epHub.form.默认} 标签=${JSON.stringify(epHub.form.标签)} 退役名残留=${epHub.form.文本.filter(t => t.includes('资源台')).length} toast=${JSON.stringify(epHub.toast)} 落点=${epHub.after.ws} ｜ ${epFresh.label} 选项=${JSON.stringify(epFresh.form.选项)} 默认=${epFresh.form.默认} toast=${JSON.stringify(epFresh.toast)} 落点=${epFresh.after.ws}`)
+
   // E2E-28（R4-a）：迁移报告卡与整库回退出口——种备份+报告 → 设置页出卡 → 回退（确认框）→ 停用键落、报告清、卡片转停用态
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const d = cur['zy_data_v2']

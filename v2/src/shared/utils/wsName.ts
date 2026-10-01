@@ -37,3 +37,30 @@ export function wsNameById(
   return wsDisplayNameOf((workspaces || []).find(w => w.id === id))
 }
 
+export interface WsOption { id: string; label: string; pool: boolean }
+
+/**
+ * R4-Ep：用户可选「资源卡去处」列表的唯一口径（下拉/选项模板用这一份，label 已含图标前缀）。
+ * 池**显式排第一**——新资源卡的默认落点（R2-⑧ 池内新建 / R4-Dk 面板转化 / R4-Df3 报告卡落点同一口径），
+ * 其余是未归档策展台。
+ * ★调用方不许再各自从原始 `d.workspaces` filter 一份：存量库里那枚 hub 实体（名「资源台」）排在数组第一项，
+ * 自搓列表会把它当普通台面印出退役名，还会让「取第一枚当默认」在两种库形状下指向不同的地方。
+ */
+export function selectableWsOptions(
+  workspaces: { id: string; name?: string; icon?: string; archived?: boolean }[] | undefined | null
+): WsOption[] {
+  return [{ id: CURATION_WS_ID, label: POOL_DISPLAY_NAME, pool: true }, ...boardWsOptions(workspaces)]
+}
+
+/**
+ * R4-Ep：**只含策展台**的版本，给「在台面之间移动」这类动作（池不是一枚台面，
+ * 把卡"移进池"会顺带给池造出一枚 `workspaceId=zy-curation` 的「待分类」分类，而池卡只由标签组织）。
+ */
+export function boardWsOptions(
+  workspaces: { id: string; name?: string; icon?: string; archived?: boolean }[] | undefined | null
+): WsOption[] {
+  return (workspaces || [])
+    .filter(w => w.id !== CURATION_WS_ID && !w.archived)
+    .map(w => ({ id: w.id, label: wsNameWithIcon(w.icon, wsDisplayNameOf(w)) || '未命名台', pool: false }))
+}
+

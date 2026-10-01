@@ -11,7 +11,7 @@
 
 import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { K } from '@/shared/storage/keys'
-import { wsDisplayNameOf, POOL_DISPLAY_NAME } from '@/shared/utils/wsName'
+import { wsDisplayNameOf, POOL_DISPLAY_NAME, selectableWsOptions } from '@/shared/utils/wsName'
 import { CURATION_WS_ID } from '@/shared/models'
 import { buildCatOptions } from '@/shared/utils/catTree'
 import { detachTaskFromMetrics } from '@/shared/utils/taskLinks'
@@ -1340,10 +1340,12 @@ async function openCapture() {
     const fp = normalizeUrl(r.link)
     if (!capUrlMap.has(fp)) capUrlMap.set(fp, r)
   }
-  const workspaces = d?.workspaces?.filter((w: any) => !w.archived) || []
-  const defaultWs = workspaces[0]
+  // R4-Ep：「存入位置」列表与新卡默认落点走 wsName.ts 单源——改前这里自己 filter 原始数组再取 [0]，
+  // 存量库第一枚恰是那枚 hub 实体（歪打正着落池），新库第一枚是策展台（同一个动作落进台里）。
+  const wsOptions = selectableWsOptions(d?.workspaces)
+  const defaultWsId = wsOptions[0]?.id || ''
   // R117（04-61 A）：分类口径统一——过滤软删（原实现漏了 deletedAt，软删分类会以「幽灵项」留存在下拉里）
-  const categories = buildCatOptions(d?.categories?.filter((c: any) => c.workspaceId === defaultWs?.id) || [], { sep: ' / ' })
+  const categories = buildCatOptions(d?.categories?.filter((c: any) => c.workspaceId === defaultWsId) || [], { sep: ' / ' })
   const selection = getSelectionText()
 
   openOverlay('corner', closeOverlay)
@@ -1381,10 +1383,10 @@ async function openCapture() {
         <div class="zy-field">
           <label class="zy-field-label">存入位置</label>
           <select class="zy-field-select" id="__zy_cap_ws__">
-            ${/* R4-Dm：台名走 wsName.ts 单源，且池那一枚不许再以退役实体名「资源台」出现在选项里——
-                  V3.7.0 起所有资源卡真身住池，它就是这一栏的默认落点，只是不该冒充一枚"台面"。
-                  （存量库里那枚 hub 实体排在数组第一项，所以它既是首个选项又是默认项。） */ ''}
-            ${workspaces.map((w: any) => `<option value="${escapeHtml(w.id)}">${escapeHtml(w.id === CURATION_WS_ID ? POOL_DISPLAY_NAME : (wsDisplayNameOf(w) || '未命名台'))}</option>`).join('')}
+            ${/* R4-Dm→R4-Ep：选项文本与新卡默认落点都来自 wsName.ts 的 selectableWsOptions——
+                  池那一枚不许再以退役实体名「资源台」出现（V3.7.0 起所有资源卡真身住池，它就是这一栏的默认落点，
+                  只是不该冒充一枚"台面"），也不许在这里再抄一份"判池 + 剥图标"的算式。 */ ''}
+            ${wsOptions.map((o: any) => `<option value="${escapeHtml(o.id)}">${escapeHtml(o.label)}</option>`).join('')}
           </select>
         </div>
         <div class="zy-field">
