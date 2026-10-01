@@ -714,3 +714,65 @@ check('R4-Dl ★截图可复现两闩在位且**可关**（逃生阀不是装饰
     && segR.includes('animation:none !important;transition:none !important') && segR.includes('if (calm && window.__ZY_CALM__ !== true)')
     && segR.includes('getAnimations') && segR.includes('a.finish()') && t.slice(iR, t.indexOf('}, CALM)', iR)).includes('(calm)');
 });
+
+// ============== R4-Dm 池实体不该冒充"台面"：路由拼法登记 + 采集下拉单源 ==============
+console.log('【R4-Dm · 路由拼法登记与采集下拉】');
+check('R4-Dm ★把「池卡不许拼出退役台面/死链」从字面量扫描升级成登记表：R2-④ 当年判的是"代码内 `/workspace/zy-curation` 字面量零残留"，而缺陷的实际形状是**变量拼出来的** `/workspace/${…}`——字面量扫描对它天生失明（所以它连漏两个入口：⌘K 转资源的「查看」、指标下钻抽屉的佐证行）。这张表每次现扫再比，多一处少一处都红，新增只能走算式或在提交里显式改表', () => {
+  const REG = {
+    'shared/utils/locate.ts': 1,                    // 唯一算式本体（resourceLocateRoute 的 else 分支）
+    'newtab/App.vue': 3,                            // 台签 / 新建台后跳转 / 数字快捷键跳台：来源都是 store.workspaces getter（已过滤池）
+    'newtab/components/GlobalPopups.vue': 3         // locateOnly 的池分支之后、ws 类型行、分类树定位：三处都在 !== CURATION_WS_ID 过滤之后
+  };
+  const root = path.resolve(SCRIPTS_DIR, '..', 'src');
+  const found = {};
+  (function walk(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p2 = path.join(dir, e.name);
+      if (e.isDirectory()) { if (e.name !== 'node_modules') walk(p2); continue }
+      if (!/\.(ts|vue)$/.test(e.name)) continue;
+      const n = (stripComments(fs.readFileSync(p2, 'utf8')).match(/`[^`]*\/workspace\/\$\{/g) || []).length;
+      if (n) found[path.relative(root, p2).split(path.sep).join('/')] = n;
+    }
+  })(root);
+  const got = Object.keys(found).sort().join('|');
+  const want = Object.keys(REG).sort().join('|');
+  const countsOk = Object.keys(REG).every(k => found[k] === REG[k]);
+  return got === want && countsOk && Object.keys(found).length === Object.keys(REG).length;
+});
+check('R4-Dm ★算式本体仍是唯一判池的地方：`resourceLocateRoute` 里那条 `=== CURATION_WS_ID` 必须在位且返回调度台 + `hk`；同时全站不许出现把 `/workspace/` 与池 id（字面量或 `${CURATION_WS_ID}`）拼在一起的写法——R2-④ 那条"字面量零残留"继续留着，这条补它看不见的另一半', () => {
+  const loc = codeOnly(read('/shared/utils/locate.ts'));
+  return loc.includes('workspaceId === CURATION_WS_ID') && loc.includes("path: '/', query") && loc.includes('LOCATE_HK')
+    && !read('/shared/utils/locate.ts').includes('/workspace/${CURATION_WS_ID}')
+    && !codeOnly(read('/newtab/components/GlobalPopups.vue')).includes('/workspace/${CURATION_WS_ID}')
+    && !codeOnly(read('/newtab/components/compass/MetricDrillDrawer.vue')).includes('/workspace/${');
+});
+check('R4-Dm ★采集浮层的「存入位置」下拉不许再让隐藏池冒充一枚台面：实测存量库里那枚 hub 实体排在 workspaces[0]，改前下拉第一项直接印退役实体名「资源台」且是默认选中（手册明写"照那句话去找是找不到的"，结果用户在采集面板里找到了它）；现在台名走 wsName.ts 单源、池那一枚显示 POOL_DISPLAY_NAME，旧文案「存入台面」不许回流', () => {
+  const ov = read('/content/overlay-impl.ts');
+  const i = ov.indexOf('__zy_cap_ws__');
+  const seg = ov.slice(Math.max(0, i - 700), i + 700);
+  return i > 0 && seg.includes('w.id === CURATION_WS_ID ? POOL_DISPLAY_NAME') && seg.includes('wsDisplayNameOf(w)')
+    && seg.includes('存入位置') && !ov.includes('存入台面</label>')
+    && !/option value="\$\{escapeHtml\(w\.id\)\}">\$\{escapeHtml\(w\.name\)\}/.test(seg);
+});
+check('R4-Dm ★"取 workspaces[0] 当默认落点"这一族形状必须逐处登记理由（R4-Pa/R4-Dk 两条实测都栽在它上面：默认库第一枚是「事业策展台」、存量库第一枚是隐藏池，同一个动作在两种库形状下落进不同的地方）：现扫条数与登记表不符即红', () => {
+  const REG = {
+    'content/overlay-impl.ts': 1,      // 采集面板分类下拉的默认台（与新卡默认落点同项：选中池 ⇒ 分类只剩「待分类」，正是池语义）
+    'shared/storage/migration.ts': 2,  // V1 老数据导入兜底：v1 里没有池实体，取第一枚真台是导入语义而非新卡落点
+    'newtab/views/RecycleBin.vue': 1   // 恢复时的兜底台，且前一项已显式 `w.id !== CURATION_WS_ID`
+  };
+  const root = path.resolve(SCRIPTS_DIR, '..', 'src');
+  const found = {};
+  (function walk(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p2 = path.join(dir, e.name);
+      if (e.isDirectory()) { if (e.name !== 'node_modules') walk(p2); continue }
+      if (!/\.(ts|vue)$/.test(e.name)) continue;
+      const n = (stripComments(fs.readFileSync(p2, 'utf8')).match(/workspaces\[0\]/g) || []).length;
+      if (n) found[path.relative(root, p2).split(path.sep).join('/')] = n;
+    }
+  })(root);
+  return Object.keys(found).sort().join('|') === Object.keys(REG).sort().join('|')
+    && Object.keys(REG).every(k => found[k] === REG[k])
+    && !codeOnly(read('/newtab/components/GlobalPopups.vue')).includes('workspaces[0]')
+    && !codeOnly(read('/newtab/components/compass/MetricDrillDrawer.vue')).includes('workspaces[0]');
+});

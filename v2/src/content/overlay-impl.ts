@@ -1379,9 +1379,12 @@ async function openCapture() {
       </div>
       <div class="zy-field-row">
         <div class="zy-field">
-          <label class="zy-field-label">存入台面</label>
+          <label class="zy-field-label">存入位置</label>
           <select class="zy-field-select" id="__zy_cap_ws__">
-            ${workspaces.map((w: any) => `<option value="${escapeHtml(w.id)}">${escapeHtml(w.name)}</option>`).join('')}
+            ${/* R4-Dm：台名走 wsName.ts 单源，且池那一枚不许再以退役实体名「资源台」出现在选项里——
+                  V3.7.0 起所有资源卡真身住池，它就是这一栏的默认落点，只是不该冒充一枚"台面"。
+                  （存量库里那枚 hub 实体排在数组第一项，所以它既是首个选项又是默认项。） */ ''}
+            ${workspaces.map((w: any) => `<option value="${escapeHtml(w.id)}">${escapeHtml(w.id === CURATION_WS_ID ? POOL_DISPLAY_NAME : (wsDisplayNameOf(w) || '未命名台'))}</option>`).join('')}
           </select>
         </div>
         <div class="zy-field">
