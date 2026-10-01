@@ -75,4 +75,35 @@ function resolveChromium() {
 
 const CHROME = resolveChromium()
 
-module.exports = { CHROME, resolveChromium, cacheRoot }
+/**
+ * R4-Pa：等 MV3 service worker 的 `chrome.*` 注入就绪，再允许脚本对它求值。
+ *
+ * 为什么要有它：perf.cjs 拿 worker 后的**第一次** evaluate 就是读 manifest.version，本机现在稳定抛
+ * `TypeError: Cannot read properties of undefined (reading 'getManifest')`——`serviceworker` 事件在目标
+ * 挂上时就发，扩展的 chrome.runtime 绑定还要晚一拍才进上下文（实测立即失败、1 秒后同一条 evaluate 返回 "3.7.1"）。
+ * perf 是 R148「先立尺子再动手」里检索瘦身的验收尺子（M5/R7），它起不来等于这一轮没有基线可读；
+ * 而它坏在门禁链之外（perf 手动跑），没有任何一条断言会红——和 Ea 修 img-diff 是同一种烂法。
+ *
+ * @param worker Playwright 的 Worker 句柄
+ * @param {{tries?: number, gap?: number}} opt 默认 12×250ms＝最多等 3 秒
+ * @returns 就绪时的自检结果（含 version）；超时抛错并把 worker.url() 写进消息，便于诊断"等的是哪个 SW"
+ */
+async function swReady(worker, opt = {}) {
+  const tries = opt.tries || 12
+  const gap = opt.gap || 250
+  let last = null
+  for (let i = 0; i < tries; i++) {
+    try {
+      const info = await worker.evaluate(() => ({
+        ready: !!(chrome && chrome.runtime && typeof chrome.runtime.getManifest === 'function'),
+        version: (chrome && chrome.runtime && chrome.runtime.getManifest) ? chrome.runtime.getManifest().version : ''
+      }))
+      if (info && info.ready) return info
+      last = 'chrome.runtime 未注入'
+    } catch (e) { last = e instanceof Error ? e.message : String(e) }
+    await new Promise(r => setTimeout(r, gap))
+  }
+  throw new Error(`service worker 未就绪（等 ${tries * gap}ms）：${worker.url()} —— ${last}`)
+}
+
+module.exports = { CHROME, resolveChromium, cacheRoot, swReady }

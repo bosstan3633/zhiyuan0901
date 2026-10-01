@@ -460,13 +460,13 @@ check('R4-Di ★池卡推给 Airtable 的「所属工作台」列值必须走显
 
 // ============== R4-Ea（挂账 #84）· 浏览器回落链合一 ==============
 console.log('【R4-Ea · scripts/browser.cjs 是浏览器解析的唯一实现】');
-check('R4-Ea ★四级回落链只允许一份实现（scripts/browser.cjs）：pinned → ZY_CHROME → 本机任一 ms-playwright Chromium → 系统 Chrome，顺序不许倒（系统 Chrome 的旧 headless 起不了 MV3 service worker，缓存必须优先）。★起因不是洁癖：这条链此前在 7 个门禁脚本里各抄一份，抄出来的那份 img-diff 只写死 chromium-1234，Playwright 缓存换版本后它直接起不来（实测报错：executable doesn exist at …/chromium-1234/…），而它是 R161 用来回答"这次到底改了像素没有"的工具，坏掉没有任何门禁会红', () => {
+check('R4-Ea ★四级回落链只允许一份实现（scripts/browser.cjs）：pinned → ZY_CHROME → 本机任一 ms-playwright Chromium → 系统 Chrome，顺序不许倒（系统 Chrome 的旧 headless 起不了 MV3 service worker，缓存必须优先）。★起因不是洁癖：这条链此前在 7 个门禁脚本里各抄一份，抄出来的那份 img-diff 只写死 chromium-1234，Playwright 缓存换版本后它直接起不来（实测报错：executable doesn exist at …/chromium-1234/…），而它是 R161 用来回答"这次到底改了像素没有"的工具，坏掉没有任何门禁会红。★R4-Pa 备案：同一份 browser.cjs 的导出面又长了一项 swReady（等 MV3 service worker 的 chrome.* 注入就绪再求值），导出面判据跟着写全，别的都不动', () => {
   const b = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'browser.cjs'), 'utf8');
   const iPin = b.indexOf('for (const p of pinnedCandidates())');
   const iEnv = b.indexOf("if (process.env.ZY_CHROME)");
   const iCache = b.indexOf('const cached = anyCachedChromium()');
   const iSys = b.indexOf('const sys = systemChrome()');
-  return b.includes('module.exports = { CHROME, resolveChromium, cacheRoot }')
+  return b.includes('module.exports = { CHROME, resolveChromium, cacheRoot, swReady }')
     && iPin > 0 && iEnv > iPin && iCache > iEnv && iSys > iCache
     && b.includes('chrome-win64') && b.includes('chrome-linux') && b.includes('chrome-mac-arm64')
     && b.includes('chromium-1234') && !b.includes('process.argv');
@@ -535,4 +535,81 @@ check('R4-Fa ★过期注释也是账：poolMigration 不许再写"尚无 UI 调
   const card = read('/newtab/components/MigrateReportCard.vue');
   return !pm.includes('尚无 UI 调用方') && pm.includes('MigrateReportCard.vue')
     && card.includes('restoreMigrateBackup()');
+});
+
+// ============== R4-Pa 全局检索链路瘦身（#71 / R148-P2） ==============
+console.log('【R4-Pa · 检索链路瘦身】');
+check('R4-Pa ★结果表"按数据建、按开合露出"两层拆开：改前 allResults 把 searchActive 读进 computed ⇒ 关一次面板就是一次依赖变化，每次开 ⌘K 都重建整表（合成库 2,548 行实测连开五次 78/97/95/100/102ms，改后 64/65/63/81/82；perf M5c 最小 69.5→48.9ms，跨过 #71 的"唤起 <60ms"验收线）。建表体里不许再出现 searchActive，短路只能写在薄壳 allResults 上', () => {
+  const g = codeOnly(read('/newtab/components/GlobalPopups.vue'));
+  const iT = g.indexOf('const resultTable = computed<SearchResult[]>');
+  const iA = g.indexOf('const allResults = computed<SearchResult[]>');
+  const tableBody = g.slice(iT, iA);
+  return iT > 0 && iA > iT
+    && g.includes('const EMPTY_RESULTS: SearchResult[] = []')
+    && g.includes('const allResults = computed<SearchResult[]>(() => searchActive.value ? resultTable.value : EMPTY_RESULTS)')
+    && !tableBody.includes('searchActive')
+    && !g.includes('const allResults = computed<SearchResult[]>(() => {\n  if (!searchActive.value) return []');
+});
+check('R4-Pa ★匹配用的派生串在建行时算一次（bl/nb/nt/tl/cjk 五份走 withMatchFields）：判据里不许再对整片字段跑 normalize/正则——改前每次键入尾部重算都对 2,548 行各跑一遍 blobOf+toLowerCase+normKey（NFKC+两条正则），CPU 谱里那条 `RegExp: [\\s\\-_/\\\\.,·、|]+` 就是它；hitRank 也不许再现场 normKey(标题)', () => {
+  const g = codeOnly(read('/newtab/components/GlobalPopups.vue'));
+  const iH = g.indexOf('function hitResult(');
+  const hitBody = g.slice(iH, g.indexOf('const filteredResults', iH));
+  const iR = g.indexOf('function hitRank(');
+  const rankBody = g.slice(iR, g.indexOf('/**', iR));
+  return g.includes('type SearchResultSeed = Omit<SearchResult, ')
+    && g.includes('return { ...x, bl, nb: normKey(bl), nt: normKey(x.title), tl: x.title.toLowerCase(), cjk:')
+    && g.includes('const bl = blobOf(x).toLowerCase()')
+    && hitBody.includes('const blob = r.bl') && hitBody.includes('const nb = r.nb')
+    && !hitBody.includes('blobOf(r)') && !hitBody.includes('normKey(blob)')
+    && rankBody.includes('const nt = x.nt') && rankBody.includes('const title = x.tl')
+    && !rankBody.includes('normKey(x.title)') && !rankBody.includes('x.title.toLowerCase()');
+});
+check('R4-Pa ★拼音闸门：matchPinyin 只许在"词面有可能是拼音"时调用（normedParts 的 py=/^[a-z]+$/ + 行上 cjk 两道），且这条闸门判的是**不可能成立的调用**不是召回——拼音串只由小写字母组成（full 形态再多加空格），而 parts 来自 q.toLowerCase()，含汉字/数字/全角的词永远不可能是它的子串；改前中文查询也逐行进 pinyinOf 的 LRU（命中同样要 delete+set 各一次）。裸调用 `pinyinOn && matchPinyin(` 一律不许回流', () => {
+  const g = codeOnly(read('/newtab/components/GlobalPopups.vue'));
+  const iN = g.indexOf('function normedParts(');
+  const npBody = g.slice(iN, g.indexOf('\n}\n', iN));
+  return iN > 0 && npBody.includes("partsNp = parts.map(p => normKey(p))") && npBody.includes("partsPy = parts.map(p => /^[a-z]+$/.test(p))")
+    && g.includes('const { np, py } = normedParts(parts)')
+    && g.includes('const pinyinOn = pinyinReady.value && r.cjk') && g.includes('const pinyinOn = pinyinReady.value && x.cjk')
+    && g.split('pinyinOn && py[i] && matchPinyin(').length - 1 === 2
+    && g.split('pinyinOn && matchPinyin(').length - 1 === 0
+    && !g.includes('const pinyinOn = pinyinReady.value\n');
+});
+check('R4-Pa ★每词归一化按查询词缓存（normedParts 一份 np/py），不许退回"每行每词各跑一遍 normKey"；命中判据本体（两层：整串归一 + 分词 AND）与 R117-F6 口径一字未动，动的是调用次数', () => {
+  const g = codeOnly(read('/newtab/components/GlobalPopups.vue'));
+  const iH = g.indexOf('function hitResult(');
+  const hitBody = g.slice(iH, g.indexOf('const filteredResults', iH));
+  return g.includes('let partsKey = ') && g.includes("const key = parts.join(' ')")
+    && hitBody.includes('!!np[i] && nb.includes(np[i])') && !/normKey\(p\)/.test(hitBody)
+    && hitBody.includes("const nq = parts.join('')") && hitBody.includes('if (nq && nb.includes(nq)) return true')
+    && g.includes("list = list.filter(r => hitResult(r, parts))");
+});
+check('R4-Pa ★AI 合并那一扫只在真有 AI 命中时付：改前 groupedResults 五个组各建一份 Set 再把全表 filter 一遍（rank 是空 Map 也照扫，5 × 2,548 ≈ 1.3 万次比较/轮），现在 hits 为空直接给 rank=null、extra=[]', () => {
+  const g = codeOnly(read('/newtab/components/GlobalPopups.vue'));
+  const iG = g.indexOf('const groupedResults = computed');
+  const body = g.slice(iG, g.indexOf('\n})\n', iG));
+  return body.includes('const rank = hits.length ? new Map(') && body.includes('const seenIds = rank ? new Set(all.map(r => r.id)) : null')
+    && body.includes('const ordered = rank')
+    && !body.includes('const rank = new Map(hits.map(') && !body.includes('rank.size');
+});
+check('R4-Pa ★尺子补齐：perf.cjs 必须量**应用内 ⌘K 面板**（M5c/M5d 走 gp-search-input + gp-result-item + 顶栏「全局搜索」按钮），这条链此前零度量——M5/R7 量的是 content 浮层 overlay-impl（它的 match() 只做 toLowerCase().includes，没有归一化没有分组），而 #71 要瘦的是 GlobalPopups 那条；入口也不许退回扩展页派发合成 Ctrl+K（新tab 页没有 keydown 监听者，旧 M6 因此恒 ≈0ms 是假指标，R114-59 已记过一次）', () => {
+  const pf = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'perf.cjs'), 'utf8'));
+  return pf.includes("push('M5c_应用内搜索面板唤起(ms)'") && pf.includes("push('M5d_应用内搜索键入净耗时(ms)'")
+    && pf.includes("'.gp-search-input'") && pf.includes("'.gp-result-item'")
+    && pf.includes('includes(\'全局搜索\')') && pf.includes("window.__ltMark5c")
+    && !/press\('Meta\+k'\)/.test(pf) && !/Control\+k/.test(pf);
+});
+check('R4-Pa ★MV3 service worker 求值必须走 browser.cjs 的 swReady：`serviceworker` 事件发在扩展 chrome.runtime 绑定进上下文之前，perf 开跑第一件事就是裸调 worker.evaluate 读 manifest.version，本机实测稳定抛 "Cannot read properties of undefined" 并在此退出、一个指标都不写（而 perf 手动跑、不在回归链里，坏了没有任何门禁会红——与 Ea 的 img-diff 同一种烂法）', () => {
+  const b = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'browser.cjs'), 'utf8'));
+  const pf = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'perf.cjs'), 'utf8'));
+  return b.includes('async function swReady(worker') && b.includes('typeof chrome.runtime.getManifest === \'function\'')
+    && b.includes('module.exports = { CHROME, resolveChromium, cacheRoot, swReady }')
+    && pf.includes("require('./browser.cjs')") && pf.includes('const loadedVer = (await swReady(worker)).version')
+    && !pf.includes('getManifest');
+});
+check('R4-Pa ★运行时覆盖补上：e2e 必须有 E2E-37 真开面板逐档核召回（中文子串 / 拼音首字母 / 归一化跨分隔符 / 数字词 / 多词 AND / 零命中 / 归档卡只进「另有 N 张」/ 新建卡立刻可搜），因为这条链在 e2e 与 theme-audit 里原本零触点——grep gp-overlay 两个脚本各零命中，动判据的改法一旦把召回改窄，页面照样打开、typecheck 照样 0、老断言照样绿', () => {
+  const e = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8');
+  return e.includes('E2E-37 ★R4-Pa') && e.includes("paSearch('zshz')") && e.includes("paSearch('db skill')")
+    && e.includes("paSearch('12 号')") && e.includes("paSearch('zzqqxx')") && e.includes('.gp-archived-hint')
+    && e.includes('E2E-Pa 新建缓存卡') && e.includes("'.gp-result-item .gp-ri-title'");
 });

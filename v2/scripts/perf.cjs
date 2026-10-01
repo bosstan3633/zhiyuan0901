@@ -19,6 +19,9 @@
  *   M3b 窗口二（M2c 回调度台 + M5 全局搜索）的主线程阻塞量（R114-59 新增，与 M3 分窗互不污染）
  *   M2c 回到调度台耗时（R114-59 新增——此前无度量）
  *   M5  全局搜索浮层：唤起 / 键入 6 字净耗时（R114-59 重写——旧 M6 在扩展页派发合成按键，无监听者，恒 ≈0ms 假指标）
+ *   M5c/M5d 应用内 ⌘K 检索面板（newtab 侧 GlobalPopups.vue）：唤起 / 键入净耗时 + 命中与渲染行数
+ *       （R4-P2 新增。M5/R7 量的是 content 浮层那条链，#71「检索链路瘦身」要瘦的是归一化+分组+v-html
+ *        这条，改前它在整套指标里零覆盖——先立尺子再动手）
  *   M6  保存链路耗时（R131-C1 门禁）：整库 JSON 序列化 + 同载荷 storage.local.set 写盘
  *       （写独立探针键，不碰 zy_data_v2——避免触发应用合并路径污染采样）
  */
@@ -28,7 +31,7 @@ const { chromium } = require('playwright-core')
 
 /* R4-Ea（挂账 #84）：浏览器可执行文件解析统一到 scripts/browser.cjs——四级回落的唯一实现。
    此前这里各抄一份且抄得不一致（img-diff 只写死 chromium-1234，缓存换版本后直接起不来）。 */
-const { CHROME } = require('./browser.cjs')
+const { CHROME, swReady } = require('./browser.cjs')
 const argv = process.argv.slice(2)
 const DEFAULT_DIST = path.resolve(__dirname, '..', 'dist')
 /** R155：支持 `--dist=<目录>` 指定被测包。
@@ -432,7 +435,11 @@ async function main() {
   // R155：报告必须自证"测的是哪个构建"。做同机 A/B 时若两轮读数完全相同，第一件要排除的
   // 就是"其实两次测的是同一个包"——从 service worker 里回读 manifest.version 是唯一硬证据
   // （磁盘上的 dist/manifest.json 可能已被换走，不代表浏览器加载的就是它）。
-  const loadedVer = await worker.evaluate(() => chrome.runtime.getManifest().version)
+  // R4-Pa：这条 evaluate 必须走 swReady。`serviceworker` 事件在目标挂上时就发，扩展的
+  //   chrome.runtime 绑定晚一拍才进上下文——本机实测裸调稳定抛 "Cannot read properties of
+  //   undefined (reading 'getManifest')"，perf 因此在第 435 行就退出、连一个指标都不写
+  //   （而 perf 是手动工具、不在回归链里，坏了没有任何门禁会红）。
+  const loadedVer = (await swReady(worker)).version
   out.build = loadedVer
   console.log(`[perf] 实测构建：manifest.version = ${loadedVer}    (dist = ${DIST})`)
 
@@ -1062,6 +1069,82 @@ async function main() {
   })
   push('M3b_窗口二长任务总计(ms)', lt2.total, { M3b_长任务次数: lt2.count, M3b_最大单任务ms: lt2.max })
   log(`  窗口二长任务（M2c+M5）：${lt2.count} 次 · 总计 ${lt2.total}ms · 最大 ${lt2.max}ms · Top5 ${JSON.stringify(lt2.top5)}`)
+
+  // ══════════ M5c/M5d 应用内 ⌘K 检索面板（R4-P2 新增尺子）══════════
+  // ★为什么要补这一档：#71（R148-P2「全局检索链路瘦身」）要瘦的是 **newtab 侧 GlobalPopups.vue** 那条链
+  //   （allResults → blobOf/normKey 归一化 → hitRank 命中分级 → groupedResults 五组各过一遍 → v-html 高亮），
+  //   而本脚本的 M5 与真实档 R7 量的都是 **content 浮层 overlay-impl**——它的 match() 只做
+  //   toLowerCase().includes()，既没归一化也没分组。开工前在整套 perf 指标里 grep
+  //   `gp-search-input` / `gp-result-item`：零命中 ⇒ P2 的验收标准「键入单帧 <16ms、唤起 <60ms」
+  //   从来没有尺子可读（R148 资产 #1：先立尺子再动手——没有基线的"优化"等于没做）。
+  // 入口用顶栏「全局搜索」按钮（与 perf-census R173-T2 同一真实路径）。不在新tab 页派发合成 Ctrl+K：
+  //   快捷键是 background commands → zy-open-search 消息触发的，页面里没有 keydown 监听者，
+  //   合成按键会重演旧 M6「墙钟全花在等一个永远不会开的浮层」（R114-59 教训）。
+  await page.goto(base + '#/workspace', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(900)
+  await page.evaluate(() => { window.__ltMark5c = (window.__lt || []).length })
+  const gpOpenXs = []
+  let gpErr = ''
+  for (let k = 0; k < 3; k++) {
+    const r = await page.evaluate(async () => {
+      const t0 = performance.now()
+      const cap = window.__ltCap()
+      const btn = [...document.querySelectorAll('.icon-btn')].find(e => (e.getAttribute('title') || '').includes('全局搜索'))
+      if (!btn) return { err: '顶栏「全局搜索」按钮未找到（M5c/M5d 无入口）' }
+      btn.click()
+      const ok = await window.__waitFor(() => {
+        const el = document.querySelector('.gp-overlay.open .gp-results')
+        return el && el.children.length ? el : null
+      }, 8000)
+      await window.__flush()
+      const w = window.__ltSince(cap)
+      return { wall: ok ? Math.round((performance.now() - t0) * 10) / 10 : -1, block: w.block, max: w.max }
+    })
+    if (r.err) { gpErr = r.err; break }
+    gpOpenXs.push(r)
+    await page.keyboard.press('Escape').catch(() => {})
+    await page.waitForTimeout(350)
+  }
+  if (gpErr) { log('  ⚠ M5c ' + gpErr); out.metrics.M5c_采样失败 = 1 }
+  try {
+    // 键入档在第 4 次唤起里做（前 3 次只做唤起，避免"首开含拼音 chunk + JIT 冷启动"混进键入读数）
+    await page.evaluate(async () => {
+      const btn = [...document.querySelectorAll('.icon-btn')].find(e => (e.getAttribute('title') || '').includes('全局搜索'))
+      if (btn) btn.click()
+      await window.__waitFor(() => document.querySelector('.gp-overlay.open .gp-results')?.children.length, 8000)
+    })
+    // 词面故意取"大面积命中"：'资源条目 1' 在合成库里命中上千张卡 ⇒ 归一化/分组/渲染全按最坏档走
+    const gpType = await page.evaluate(() => window.__searchTypeBill('.gp-search-input', '资源条目 1', 240))
+    const gpCount = await page.evaluate(() => ({
+      rows: document.querySelectorAll('.gp-result-item').length,
+      matched: [...document.querySelectorAll('.gp-group-cnt')].reduce((s, e) => s + (parseInt(e.textContent || '', 10) || 0), 0)
+    }))
+    const gpLt = await page.evaluate(() => {
+      const arr = (window.__lt || []).slice(window.__ltMark5c || 0).map(x => x.d).sort((a, b) => b - a)
+      return { count: arr.length, total: arr.reduce((s, x) => s + x, 0), max: arr[0] || 0 }
+    })
+    if (gpOpenXs.length) {
+      const xs = gpOpenXs.map(x => x.wall).sort((a, b) => a - b)
+      push('M5c_应用内搜索面板唤起(ms)', xs[0], {
+        'M5c_唤起_中位ms': xs[Math.floor(xs.length / 2)],
+        'M5c_唤起_阻塞ms': Math.max(...gpOpenXs.map(x => x.block)),
+        'M5c_唤起_最大单任务ms': Math.max(...gpOpenXs.map(x => x.max))
+      })
+    }
+    if (gpType) push('M5d_应用内搜索键入净耗时(ms)', gpType.net, {
+      'M5d_键入_中位ms': gpType.netMed, 'M5d_键入_散布倍数': gpType.spread,
+      'M5d_键入_阻塞ms': gpType.block, 'M5d_键入_最大单任务ms': gpType.max, 'M5d_键入_长任务数': gpType.n
+    })
+    out.metrics.M5d_命中行数 = gpCount.matched
+    out.metrics.M5d_渲染行数 = gpCount.rows
+    push('M3f_搜索面板窗口长任务总计(ms)', gpLt.total, { M3f_长任务次数: gpLt.count, M3f_最大单任务ms: gpLt.max })
+    log(`  M5d 命中 ${gpCount.matched} 行 · 渲染 ${gpCount.rows} 行（窗口三b 长任务 ${gpLt.count} 次 / ${gpLt.total}ms）`)
+  } catch (e) {
+    log('  ⚠ M5d 应用内搜索键入采样失败：' + e.message)
+    out.metrics.M5d_采样失败 = 1
+  }
+  await page.keyboard.press('Escape').catch(() => {})
+  await page.waitForTimeout(250)
 
   // ══════════ M6 保存链路耗时（R131-C1 门禁：保存路径此前无度量）══════════
   // 复刻 saveData 计时区间的两段主线程成本：整库 JSON.stringify + 同载荷 storage.local.set。

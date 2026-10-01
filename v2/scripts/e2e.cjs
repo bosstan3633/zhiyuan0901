@@ -1329,6 +1329,89 @@ async function main() {
     dgClicked && dgPoolH2 && dgTitlesIn === dgTitles.length && !dgOldName && dgNoCat,
     `点击=${dgClicked} 导出物长度=${dgMd.length} 资源卡池段=${dgPoolH2} 池卡入列=${dgTitlesIn}/${dgTitles.length} 待分类段=${dgNoCat} 旧名残留=${dgOldName}`)
 
+  // E2E-37（R4-Pa）★应用内 ⌘K 检索面板的真跑覆盖 + 召回逐条核。
+  //   ★为什么这一条必须存在：GlobalPopups.vue 那条链（allResults → blobOf/normKey → hitRank →
+  //   groupedResults）此前在 e2e 与 theme-audit 里都是零触点（grep 'gp-overlay' / 'gp-search-input'
+  //   两个脚本各零命中），也就是说**面板只有源码文本可见**——R4-Pa 动的正是命中判据（拼音闸门、
+  //   归一化改缓存），这类改动一旦把召回改窄，页面照样能打开、typecheck 照样 0、老断言照样绿。
+  //   六种词面各盯一条通道：中文子串 / 拼音首字母 / 归一化跨分隔符 / 数字词（闸门判 false 的那类）/
+  //   多词 AND / 零命中不许误报；归档卡走另一份判据（archivedMatchCount）但共用同一个 hitResult。
+  //   最后一档验"结果表按数据失效"：关面板 → 真新建一张卡 → 再开面板要能搜到（缓存不能把新卡吞了）。
+  const paTitles = {
+    cjk: 'E2E-Pa 深度学习笔记', py: 'E2E-Pa 知识汇总', norm: 'E2E-Pa db-skill 手册',
+    digit: 'E2E-Pa 第 12 号', archived: 'E2E-Pa 归档卡', deleted: 'E2E-Pa 回收站卡'
+  }
+  await page.evaluate((t) => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const d = cur['zy_data_v2']
+    const mk = (id, title, extra) => Object.assign({
+      id, kind: 'resource', title, linkType: 'url', link: `https://e2e-pa.test/${id}`,
+      workspaceId: 'zy-curation', categoryId: '', tags: ['E2E-Pa'], description: '判据覆盖用',
+      assets: [], customFields: {}, pinned: false, starred: false, callCount: 0,
+      createdAt: Date.now(), updatedAt: Date.now()
+    }, extra || {})
+    d.resources = (d.resources || []).filter(r => !String(r.title || '').startsWith('E2E-Pa'))
+    d.resources.unshift(
+      mk('e2e-pa-1', t.cjk),
+      mk('e2e-pa-2', t.py),
+      mk('e2e-pa-3', t.norm),
+      mk('e2e-pa-4', t.digit),
+      mk('e2e-pa-5', t.archived, { lifecycleArchived: true }),
+      mk('e2e-pa-6', t.deleted, { deletedAt: Date.now() })
+    )
+    return chrome.storage.local.set({ zy_data_v2: d })
+  }), paTitles)
+  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+  const paOpen = async () => {
+    await page.evaluate(() => {
+      if (!document.querySelector('.gp-overlay.open')) {
+        const btn = [...document.querySelectorAll('.icon-btn')].find(e => (e.getAttribute('title') || '').includes('全局搜索'))
+        if (btn) btn.click()
+      }
+    })
+    await page.waitForTimeout(500)
+  }
+  const paSearch = async (q) => {
+    await paOpen()
+    await page.locator('.gp-search-input').fill(q)
+    await page.waitForTimeout(420)   // 面板防抖 120ms + 一轮渲染
+    const titles = await page.locator('.gp-result-item .gp-ri-title').allTextContents()
+    const hint = (await page.locator('.gp-archived-hint').count()) ? await page.locator('.gp-archived-hint').first().textContent() : ''
+    return { titles: titles.map(s => (s || '').trim()), hint: (hint || '').trim() }
+  }
+  await paSearch('E2E-Pa')
+  const paAll = await paSearch('E2E-Pa')
+  // 拼音通道：'zshz' 是「知识汇总」的首字母串，逐字取自 pinyinTable 的 INITIALS（第一次我凭读感写成
+  //   'zhhz'，跑出来 false —— 那条错在测试自己的期望值，不在被测代码；这类词面一律按表算）
+  const paPy = await paSearch('zshz')
+  const paNorm = await paSearch('db skill')                 // 词间空格 ≡ 数据里的连字符（R117-F6 归一化）
+  const paDigit = await paSearch('12 号')                    // 数字词：拼音通道不可能成立，必须靠子串
+  const paAnd = await paSearch('E2E-Pa 汇总')                // 多词 AND
+  const paNone = await paSearch('zzqqxx')                    // 零命中不许捞出一张
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(300)
+  // 结果表失效验证：先在关面板的状态下经界面新建一张卡，再开面板搜它
+  const paPreMissing = (await paSearch('E2E-Pa 新建缓存卡')).titles.length === 0
+  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2200)
+  await page.locator('.dk-row[data-panel="pool"] .dk-new').click().catch(() => {})
+  await page.waitForTimeout(500)
+  await page.locator('.pcp-pop input').nth(0).fill('E2E-Pa 新建缓存卡').catch(() => {})
+  await page.locator('.pcp-pop input').nth(1).fill('https://e2e-pa.test/new').catch(() => {})
+  await page.getByText('存入卡池').first().click().catch(() => {})
+  await page.waitForTimeout(1200)
+  const paAfterCreate = (await paSearch('E2E-Pa 新建缓存卡')).titles
+  const paHits = (r, s) => r.titles.some(t => t.includes(s))
+  const paAllOk = [paTitles.cjk, paTitles.py, paTitles.norm, paTitles.digit].every(s => paAll.titles.some(t => t.includes(s)))
+    && !paAll.titles.some(t => t.includes(paTitles.archived)) && !paAll.titles.some(t => t.includes(paTitles.deleted))
+  report('E2E-37 ★R4-Pa 应用内 ⌘K 面板真跑：中文/拼音/归一化/数字/多词 AND/零命中六档召回逐条核 + 归档卡只进「另有 N 张」+ 新建卡立刻可搜（结果表按数据失效，不是按开合）',
+    paAllOk && /另有\s*1\s*张/.test(paAll.hint) && paHits(paPy, paTitles.py) && paHits(paNorm, paTitles.norm) &&
+    paHits(paDigit, paTitles.digit) && paAnd.titles.length === 1 && paAnd.titles[0].includes(paTitles.py) &&
+    paNone.titles.length === 0 && paPreMissing && paAfterCreate.length === 1 && paAfterCreate[0].includes('E2E-Pa 新建缓存卡'),
+    `六档：全量=${paAll.titles.length}（归档提示「${paAll.hint}」）拼音 zshz=${paHits(paPy, paTitles.py)} 归一「db skill」=${paHits(paNorm, paTitles.norm)} 数字「12 号」=${paHits(paDigit, paTitles.digit)} AND=${paAnd.titles.length} 零命中=${paNone.titles.length} ｜ 缓存失效：建前搜不到=${paPreMissing} 建后搜到=${paAfterCreate.length}`)
+
   // E2E-28（R4-a）：迁移报告卡与整库回退出口——种备份+报告 → 设置页出卡 → 回退（确认框）→ 停用键落、报告清、卡片转停用态
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const d = cur['zy_data_v2']

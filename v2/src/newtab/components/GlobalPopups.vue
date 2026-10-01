@@ -695,11 +695,43 @@ interface SearchResult {
   summary?: string
   /** R110-LC（T3）：已归档卡（默认检索结果集排除，仅用于「另有 N 张」降级提示计数） */
   archived?: boolean
+  /**
+   * R4-Pa：命中判据要用的三份字符串**建行时算一次**（此前每次键入对每张卡现算）——
+   *   bl＝命中字段拼接后转小写、nb＝bl 的归一化（R117-F6 那套 NFKC+去分隔符）、nt＝标题归一化。
+   *   实测理由：合成库 2,548 行、键入 6 字的尾部重算 16~38ms（perf M5d），CPU 谱里
+   *   `RegExp: [\s\-_/\\.,·、|]+` 就是 normKey 的那条正则——归一化本身被重复付了 n 遍。
+   *   建表按数据缓存（见 resultTable），所以这几份只在数据真变过才算第二次。
+   */
+  bl: string
+  nb: string
+  nt: string
+  /** R4-Pa：标题转小写（hitRank 每行都要，改前每行现算） */
+  tl: string
+  /** R4-Pa：标题里有没有汉字——没有就不可能有拼音通道，连 pinyinOf 都不必进 */
+  cjk: boolean
   raw: ResourceCard | TaskCard | CuriosityCard | Workspace
 }
+/** 建行时的形状：匹配用的派生字段由 withMatchFields 补齐 */
+type SearchResultSeed = Omit<SearchResult, 'bl' | 'nb' | 'nt' | 'tl' | 'cjk'>
 
-const allResults = computed<SearchResult[]>(() => {
-  if (!searchActive.value) return []
+/** R4-Pa：面板关着时 allResults 返回的共享空表（不新建数组，免得把依赖关系写活） */
+const EMPTY_RESULTS: SearchResult[] = []
+
+/** R4-Pa：建行时把命中判据要的三份字符串一次算完（blobOf 仍是「命中字段清单」的唯一定义处） */
+function withMatchFields(x: SearchResultSeed): SearchResult {
+  const bl = blobOf(x).toLowerCase()
+  return { ...x, bl, nb: normKey(bl), nt: normKey(x.title), tl: x.title.toLowerCase(), cjk: /[\u4e00-\u9fff]/.test(x.title) }
+}
+
+/**
+ * R4-Pa（#71 第一刀）：结果表**按数据建、按开合露出**，两层拆开。
+ * 改前 `allResults` 直接把 `searchActive` 读进 computed，于是「关面板」也算一次依赖变化——
+ * 每次开 ⌘K 都把整表重建（2,548 行 × 建对象 + 台名/分类查表 + 链接截断正则）。
+ * 实测对照：空库开面板 48ms、满库开 100ms 且连开五次不衰减（48/100 都是墙钟，/tmp/zy_pa_attr.cjs）。
+ * 拆开后：关着不读 → 不建；开着时读的是按 d 缓存的那份 → 第二次开直接吃缓存，
+ * 只有数据真变过（任何一次写库）才重建。
+ */
+const resultTable = computed<SearchResult[]>(() => {
   const results: SearchResult[] = []
   const all = d.value
   // R131-C2：查表索引一次成型——改前逐卡对全表 find（900 卡 × 200 台/类 ≈ 18 万次比较/轮）
@@ -716,7 +748,7 @@ const allResults = computed<SearchResult[]>(() => {
     const ws = wsById.get(r.workspaceId)
     const cat = catById.get(r.categoryId || "")
     const rlink = r.link
-    results.push({
+    results.push(withMatchFields({
       id: r.id, type: 'res', iconClass: 'res', iconText: '📄',
       title: r.title, ws: wsNameById(all.workspaces, r.workspaceId) || '未知', cat: cat?.name || '待分类',
       badges: [],
@@ -724,7 +756,7 @@ const allResults = computed<SearchResult[]>(() => {
       summary: r.description,
       archived: !!r.lifecycleArchived,
       raw: r
-    })
+    }))
   })
 
   // 任务卡
@@ -736,26 +768,26 @@ const allResults = computed<SearchResult[]>(() => {
     if (t.priority==='high') badges.push({type:'prio-high', text:'🔴 高'})
     else if (t.priority==='medium') badges.push({type:'prio-mid', text:'🟡 中'})
     badges.push({type:`status-${t.status}`, text: t.status==='done'?'已完成':t.status==='doing'?'进行中':'待开始'})
-    results.push({
+    results.push(withMatchFields({
       id: t.id, type: 'task', iconClass: statusClass, iconText: statusIcon,
       title: t.title, ws: '任务中心', cat: proj?.name || '未归属',
       badges,
       summary: t.description,
       archived: !!t.lifecycleArchived,
       raw: t
-    })
+    }))
   })
 
   // 好奇心
   all.curiosities.filter(c=>!c.deletedAt).forEach(c => {
     const statusText = c.status==='todo'?'🔵 待探索':c.status==='doing'?'🟡 探索中':c.status==='done'?'🟢 已求证':'⚪ 已搁置'
-    results.push({
+    results.push(withMatchFields({
       id: c.id, type: 'curio', iconClass: 'curio', iconText: '💡',
       title: c.question, ws: '调度台', cat: '好奇心',
       badges: [{type:'curio-status', text: statusText}],
       archived: !!c.lifecycleArchived,
       raw: c
-    })
+    }))
   })
 
   // 第卅二轮 REQ-008：检索范围扩展至策展台实体（模糊匹配策展台名称，专属图标区分类别）
@@ -763,13 +795,13 @@ const allResults = computed<SearchResult[]>(() => {
   // 唯独结果集漏了（此处直读 d.value.workspaces，绕过了 store 的 workspaces getter）。
   d.value.workspaces.filter(w => !w.archived && w.id !== CURATION_WS_ID).forEach(w => {
     const cardCount = wsCardCount.get(w.id) || 0
-    results.push({
+    results.push(withMatchFields({
       id: w.id, type: 'ws', iconClass: 'ws', iconText: '🗂',
       title: w.name, ws: '策展台', cat: `${cardCount} 张资源卡`,
       badges: [{ type: 'ws-badge', text: '策展台' }],
       summary: '',
       raw: w
-    })
+    }))
   })
 
   // R49-G：项目实体（点击直达项目详情 /compass/projects?p=；受已完成显隐开关约束）
@@ -778,17 +810,18 @@ const allResults = computed<SearchResult[]>(() => {
     const badges: {type:string,text:string}[] = []
     if (p.isFocused) badges.push({ type: 'prio-high', text: '🚀 主攻' })
     if (p.status === 'archived') badges.push({ type: 'curio-status', text: '已完成' })
-    results.push({
+    results.push(withMatchFields({
       id: p.id, type: 'proj', iconClass: 'ws', iconText: '📦',
       title: p.name, ws: '方向台', cat: dir?.name || '—',
       badges,
       summary: '',
       raw: p as any
-    })
+    }))
   })
 
   return results
 })
+const allResults = computed<SearchResult[]>(() => searchActive.value ? resultTable.value : EMPTY_RESULTS)
 
 /** R49-G4：项目类型受已完成显隐开关约束（与主航线/项目总览/完整方向树共用 UIPrefs） */
 const showDoneProjects = computed(() => (store.ui as any)?.showDoneProjects !== false)
@@ -846,10 +879,32 @@ function normKey(s: string): string {
     .replace(/[\s\-_/\\.,·、|]+/g, '')
 }
 /** 命中字段拼接（R58-B4 两端同构：搜索面板与网页浮层一致；raw 为原始卡） */
-function blobOf(r: SearchResult): string {
+function blobOf(r: SearchResultSeed): string {
   const rawTags = Array.isArray((r.raw as { tags?: string[] })?.tags) ? ((r.raw as { tags?: string[] }).tags as string[]).join(' ') : ''
   return r.title + ' ' + r.ws + ' ' + r.cat + ' ' + (r.summary || '') + ' ' + (r.link?.text || '') + ' ' + rawTags
 }
+/**
+ * R4-Pa：同一查询词的"每词派生量"只算一份（一轮键入 2,548 行传的是同一个 parts）。
+ *   np[i] = normKey(parts[i]) —— 改前每行每词各跑一遍 normalize + 两条正则；
+ *   py[i] = 这个词还**可能**有拼音命中吗——拼音串只由小写字母组成（full 形态再多加空格），
+ *     而 parts 来自 `q.toLowerCase()`，所以含汉字/数字/全角的词面永远不可能是它的子串。
+ *     改前这些词照样逐行进 pinyinOf（LRU 命中也要 delete+set 各一次）——中文查询时整条
+ *     拼音通道都是白付（实测见 /tmp/zy_pa_attr.cjs 的词扫）。判据放宽的是召回，
+ *     这一刀不改任何召回结果，只砍掉不可能成立的调用。
+ */
+let partsKey = ''
+let partsNp: string[] = []
+let partsPy: boolean[] = []
+function normedParts(parts: string[]): { np: string[]; py: boolean[] } {
+  const key = parts.join(' ')
+  if (key !== partsKey) {
+    partsKey = key
+    partsNp = parts.map(p => normKey(p))
+    partsPy = parts.map(p => /^[a-z]+$/.test(p))
+  }
+  return { np: partsNp, py: partsPy }
+}
+
 /**
  * R110-LC（T3）：检索命中判据——默认结果集与归档提示计数共用同一实现（两处必须同口径）。
  * R117（04-61 F6）两层判据：
@@ -858,14 +913,16 @@ function blobOf(r: SearchResult): string {
  */
 function hitResult(r: SearchResult, parts: string[]): boolean {
   if (!parts.length) return true
-  const blob = blobOf(r).toLowerCase()
-  const nb = normKey(blob)
+  // R4-Pa：bl/nb 建行时已算好（见 withMatchFields）——这里只做子串比较，不再碰 normalize 与正则
+  const blob = r.bl
+  const nb = r.nb
   // ① 整串归一：允许用户输入的词间空格/分隔符与数据不一致
   const nq = parts.join('')
   if (nq && nb.includes(nq)) return true
   // ② 分词 AND：每词「原文子串 或 归一子串」命中；中文标题另有拼音通道
-  const pinyinOn = pinyinReady.value
-  return parts.every(p => blob.includes(p) || (!!normKey(p) && nb.includes(normKey(p))) || (pinyinOn && matchPinyin(r.title, p)))
+  const { np, py } = normedParts(parts)
+  const pinyinOn = pinyinReady.value && r.cjk
+  return parts.every((p, i) => blob.includes(p) || (!!np[i] && nb.includes(np[i])) || (pinyinOn && py[i] && matchPinyin(r.title, p)))
 }
 const filteredResults = computed<SearchResult[]>(() => {
   // R110-LC（T3）：归档卡从默认检索结果消失（只在「另有 N 张」提示里报数）
@@ -893,12 +950,13 @@ const filteredResults = computed<SearchResult[]>(() => {
  */
 function hitRank(x: SearchResult, parts: string[]): number {
   if (!parts.length) return 0
-  const title = x.title.toLowerCase()
-  const nt = normKey(x.title)
+  const title = x.tl          // R4-Pa：标题小写与归一化都建行时算好
+  const nt = x.nt
   const nq = parts.join('')
   if (nq && nt.includes(nq)) return 2
-  const pinyinOn = pinyinReady.value
-  if (parts.every(p => title.includes(p) || (!!normKey(p) && nt.includes(normKey(p))) || (pinyinOn && matchPinyin(x.title, p)))) return 1
+  const { np, py } = normedParts(parts)
+  const pinyinOn = pinyinReady.value && x.cjk
+  if (parts.every((p, i) => title.includes(p) || (!!np[i] && nt.includes(np[i])) || (pinyinOn && py[i] && matchPinyin(x.title, p)))) return 1
   return 0
 }
 
@@ -1197,14 +1255,18 @@ const groupedResults = computed(() => {
     // R152：AI 命中并入本组、顶到最前（每卡只有一行）。但**字面零命中的卡根本不在 filteredResults 里**——
     // 只排序不补入就会把 AI 唯一捞回来的那几张丢掉，等于把"换个说法也召得回"这个功能本身删了。
     const hits = aiSearch.value?.hits || []
-    const rank = new Map(hits.map((h, i) => [h.id, i]))
-    const seenIds = new Set(all.map(r => r.id))
-    const extra = (allResults.value || []).filter(r => r.type === d0.type && rank.has(r.id) && !seenIds.has(r.id))
+    // R4-Pa：没跑 AI 时（绝大多数键入）这五组扫描全是空转——改前每组都要 new Set(全组 id) +
+    //   全表再 filter 一遍（5 组 × 2,548 行 ≈ 1.3 万次比较）。有 AI 命中才付这笔。
+    const rank = hits.length ? new Map(hits.map((h, i) => [h.id, i])) : null
+    const seenIds = rank ? new Set(all.map(r => r.id)) : null
+    const extra = rank && seenIds
+      ? (allResults.value || []).filter(r => r.type === d0.type && rank.has(r.id) && !seenIds.has(r.id))
+      : []
     const pool = extra.length ? [...all, ...extra] : all
     // R161-①：**星标/置顶在同组内永远是第一顺位**，AI 命中次序只在标记之后才决定。
     //   改前只按 AI 次序排，"星标卡会被 AI 结果挤到组尾"，与"置顶>星标>普通"的既有口径打架（真机反馈）。
     //   同标记且同非命中时比较器返回 0，稳定排序保持 filteredResults 的既有次序（命中强度>热度>最近）。
-    const ordered = rank.size
+    const ordered = rank
       ? [...pool].sort((a, b) => {
         const mr = markRank(b.raw as AnyCard) - markRank(a.raw as AnyCard)
         if (mr) return mr

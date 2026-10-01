@@ -542,10 +542,12 @@ check('R155-11 ★06-2 §F 分发路径复测常驻化：scripts/probe-f.cjs 加
     && fs.readFileSync(path.resolve(SCRIPTS_DIR, 'browser.cjs'), 'utf8').includes('ZY_CHROME')
     && !/mf\.version === '\d+\.\d+\.\d+'/.test(p) /* 反例：写死版本号 */
 });
-check('R155-12 ★同机 A/B 改为「零移动」+ 报告自证：perf.cjs 认 `--dist=<目录>`（旧做法靠 `mv` 换目录名，撞同名目录会把包嵌套成不完整包 ⇒ 扩展加载不出 worker ⇒ 报错被重定向吞掉 ⇒ 读到上一轮残留报告，得出"两版读数一字不差"的假结论）；报告新增 `build` 字段（从 service worker 回读 manifest.version，磁盘上的 manifest 不代表浏览器加载的就是它）与 `M14b/M14c` 归因计量；**开跑即删旧报告**', () => {
+check('R155-12 ★同机 A/B 改为「零移动」+ 报告自证：perf.cjs 认 `--dist=<目录>`（旧做法靠 `mv` 换目录名，撞同名目录会把包嵌套成不完整包 ⇒ 扩展加载不出 worker ⇒ 报错被重定向吞掉 ⇒ 读到上一轮残留报告，得出"两版读数一字不差"的假结论）；报告新增 `build` 字段（从 service worker 回读 manifest.version，磁盘上的 manifest 不代表浏览器加载的就是它）与 `M14b/M14c` 归因计量；**开跑即删旧报告**。★R4-Pa 随迁备案（口径不放宽）：那句 getManifest 从 perf 搬进 browser.cjs 的 swReady（裸调 evaluate 会抢在扩展 chrome.runtime 注入前，本机实测稳定抛错、perf 一个指标都不写），所以判据改成三条腿：① perf 仍把 swReady 的 version 写进 out.build；② getManifest 那句确实在 browser.cjs 里；③ perf 自己不许再拼回裸调用', () => {
   const p = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'perf.cjs'), 'utf8')
-  return p.includes("a.startsWith('--dist=')") && p.includes('chrome.runtime.getManifest().version')
-    && p.includes('out.build = loadedVer') && p.includes('M14b_资源台svg元素数') && p.includes('M14c_资源台AI徽标数')
+  const b = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'browser.cjs'), 'utf8')
+  return p.includes("a.startsWith('--dist=')") && p.includes('const loadedVer = (await swReady(worker)).version') && p.includes('out.build = loadedVer')
+    && b.includes('chrome.runtime.getManifest().version') && !p.includes('chrome.runtime.getManifest')
+    && p.includes('M14b_资源台svg元素数') && p.includes('M14c_资源台AI徽标数')
     && /fs\.unlinkSync\(reportPath\)/.test(p);
 });
 
