@@ -11,6 +11,8 @@ import { useRouter } from 'vue-router'
 import Drawer from '@/shared/components/Drawer.vue'
 import { useCompass } from '../../stores/compass'
 import { useAppStore } from '../../stores/app'
+import { resourceLocateRoute } from '@/shared/utils/locate'
+import { showToast } from '@/shared/components/toast'
 
 const props = defineProps<{ cell: '' | 'dhi' | 'wce' | 'wrr' | 'unarch'; period: 'day' | 'week' | 'all' }>()
 const emit = defineEmits<{ close: [] }>()
@@ -110,11 +112,21 @@ function locateCurio(id: string) {
   emit('close')
   router.push({ path: '/', query: { hl: id } })
 }
+/**
+ * R4-Dk：资源卡定位落点改走唯一算式 `resourceLocateRoute`。
+ * 改前这里自己拼 `/workspace/${wsId}`，而 V3.7.0 起资源卡真身默认住隐藏池——
+ * 于是「指标下钻 → 点击佐证行」对**池卡**（今天的常态）恒落 `workspace/zy-curation`：
+ * 存量库里渲染出一枚看不到这张卡的退役「资源台」台面，没有 hub 实体的库里是「策展台不存在」。
+ * ★locate.ts 的注释早写明 R2-④「漏了这个共享算式本身，修在算式里一次修完所有调用点」——
+ *   但本函数没接进算式，就是那个"所有调用点"里漏掉的第五个。兜底 `store.workspaces[0]` 同删：
+ *   卡不在库里就不该跳去别人的台（与 locateCard 的 null 语义一致）。
+ */
 function locateRes(id: string) {
-  const r = d.value.resources.find(v => v.id === id)
-  const wsId = r?.workspaceId || store.workspaces[0]?.id
+  const r = d.value.resources.find(v => v.id === id)   // 与 locateTargetOf 同口径：只有整张卡不在库里才算取不到（软删卡仍在库，只是住回收站）
   emit('close')
-  if (wsId) router.push({ path: `/workspace/${wsId}`, query: { hl: id } })
+  if (!r) { showToast('这张卡已不在库里'); return }
+  const t = resourceLocateRoute(r.workspaceId, r.categoryId || '')
+  router.push({ path: t.path, query: { ...t.query, hl: id } })
 }
 function locateTask(id: string) {
   emit('close')

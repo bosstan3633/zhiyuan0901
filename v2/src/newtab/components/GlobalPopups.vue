@@ -447,6 +447,9 @@ import { ref, computed, reactive, watch, nextTick, onMounted, onUnmounted, shall
 import { wsNameById } from '@/shared/utils/wsName'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
+/* R4-Dk：「转化为资源卡/任务」的唯一实现（CuriosityPanel 那条路一直在用它）——
+   面板此前自己手搓一份卡，公共字段与出路记账全丢，见 convertCurio 的注释。 */
+import { useCuriosity } from '@/newtab/stores/curiosity'
 import { showToast } from '@/shared/components/toast'
 import { uid, normalizeUrl } from '@/shared/utils'
 import { CURATION_WS_ID } from '@/shared/models'
@@ -469,6 +472,7 @@ import { AI_ENTRIES } from '@/shared/ai/jobs/registry'
 
 const router = useRouter()
 const store = useAppStore()
+const { convertToResource, convertToTask } = useCuriosity()
 const d = computed(() => store.data!)
 
 // 弹窗状态
@@ -1527,30 +1531,27 @@ function toggleConvertMenu(id: string) {
 
 function convertCurio(item: SearchResult, target: 'res'|'task') {
   const c = item.raw as CuriosityCard
+  /**
+   * R4-Dk：两个出口都接回唯一实现 `useCuriosity`（此前面板自己手搓一份卡）。改前四处偏差：
+   *  ① 落点写 `d.value.workspaces[0]?.id`——存量库里那枚恰好是 zy-curation，默认库里第一枚是
+   *    「事业策展台」（defaults.ts），所以同一个动作在两种库形状下落进完全不同的台；池才是新卡默认居所（R2-⑧）。
+   *  ② 「查看」直推 `/workspace/${r.workspaceId}`：池 id 自 R179 起恒落 Workspace「策展台不存在」死页。
+   *    R2-④ 清这族死链时判据是**路由字面量扫描**，变量拼法它看不见——本行就是漏网的那一个入口。
+   *  ③ 手搓的卡只带 title：标签/附件/星标/置顶/自定义字段整片丢，任务还不按好奇心状态映射。
+   *  ④ 不写 convertedAt/convertedTo ⇒ 池头部「已转化」计数与 CuriosityPanel 那条路对不上同一个动作。
+   */
   if (target === 'res') {
-    const r: ResourceCard = {
-      id: uid('res'), kind: 'resource', title: c.question, linkType: 'url', link: '',
-      workspaceId: d.value.workspaces[0]?.id || '', categoryId: '', description: '',
-      tags: [], customFields: {}, pinned: false, callCount: 0, createdAt: Date.now(), updatedAt: Date.now()
-    }
-    d.value.resources.unshift(r)
-    c.deletedAt = Date.now()
-    store.persist()
-    showToast('✓ 已转化为资源卡，存入待分类', { label: '查看', cb: () => {
-      if (r.workspaceId) router.push(`/workspace/${r.workspaceId}`)
+    const r = convertToResource(c, CURATION_WS_ID, '')
+    closeAll()
+    showToast('✓ 已转化为资源卡，存入资源卡池', { label: '查看', cb: () => {
+      // 与 locateOnly 同一改靶口径：池卡的居所是调度台「资源卡池」，不是策展台深链
+      router.push({ path: '/', query: { hl: r.id, hk: 'res' } })
     } })
-  } else {
-    const t: TaskCard = {
-      id: uid('tk'), kind: 'task', title: c.question, status: 'todo', priority: 'medium',
-      projectId: '', metricId: '', description: '',
-      customFields: {}, createdAt: Date.now(), updatedAt: Date.now()
-    }
-    d.value.tasks.unshift(t)
-    c.deletedAt = Date.now()
-    store.persist()
-    showToast('✓ 已转化为任务，前往任务调度', { label: '查看', cb: () => router.push('/') })
+    return
   }
+  const t = convertToTask(c)
   closeAll()
+  showToast('✓ 已转化为任务，前往任务调度', { label: '查看', cb: () => router.push({ path: '/', query: { hl: t.id, hk: 'task' } }) })
 }
 
 // ===== B3：快捷键速查数据 =====

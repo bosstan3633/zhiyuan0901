@@ -1412,6 +1412,85 @@ async function main() {
     paNone.titles.length === 0 && paPreMissing && paAfterCreate.length === 1 && paAfterCreate[0].includes('E2E-Pa 新建缓存卡'),
     `六档：全量=${paAll.titles.length}（归档提示「${paAll.hint}」）拼音 zshz=${paHits(paPy, paTitles.py)} 归一「db skill」=${paHits(paNorm, paTitles.norm)} 数字「12 号」=${paHits(paDigit, paTitles.digit)} AND=${paAnd.titles.length} 零命中=${paNone.titles.length} ｜ 缓存失效：建前搜不到=${paPreMissing} 建后搜到=${paAfterCreate.length}`)
 
+  // E2E-38（R4-Dk）★⌘K 面板「转化为资源卡」真点一次：落点、公共字段、出路记账、回执与「查看」落点
+  //   为什么必须真点：这条路径的三种库形状差异（默认库落进事业策展台 / 存量库落到退役的「资源台」空台面 /
+  //   没有 hub 实体的库点「查看」是「策展台不存在」）与字段搬运，只有运行时看得见——源码里它就是一行 workspaces[0]。
+  const dkQ = 'R4-Dk 转化探针好奇心'
+  await page.evaluate((q) => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const d = cur['zy_data_v2']
+    d.curiosities = (d.curiosities || []).filter(c => !String(c.question || '').startsWith(q))
+    d.resources = (d.resources || []).filter(r => !String(r.title || '').startsWith(q))
+    d.curiosities.unshift({
+      id: 'e2e-dk-1', kind: 'curiosity', question: q + '：它到底落在哪个台', description: 'DK 描述必须活着',
+      status: 'doing', tags: ['DK 标签', 'AI'], starred: true, pinned: true,
+      assets: [{ id: 'e2e-dk-as', kind: 'pdf', name: 'DK 附件.pdf', size: 8, mime: 'application/pdf', createdAt: Date.now() }],
+      customFields: { custom_dk: '带过来的值' }, relatedResourceIds: [], createdAt: Date.now(), updatedAt: Date.now()
+    })
+    return chrome.storage.local.set({ zy_data_v2: d })
+  }), dkQ)
+  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2400)
+  await paOpen()
+  await page.locator('.gp-search-input').fill(dkQ)
+  await page.waitForTimeout(500)
+  const dkRowFound = await page.locator('.gp-result-item', { hasText: dkQ }).count()
+  // .gp-ri-actions 在面板里被 tab 条挡住命中（真机靠 hover 露出），这里点 handler 而不是坐标
+  const dkMenuHit = (await page.locator('.gp-result-item', { hasText: dkQ }).first().locator('.convert span').count())
+    ? await page.evaluate((q) => {
+      const row = [...document.querySelectorAll('.gp-result-item')].find(e => (e.textContent || '').includes(q))
+      const sp = row && row.querySelector('.convert span')
+      if (!sp) return false
+      sp.click()
+      return true
+    }, dkQ) : false
+  await page.waitForTimeout(350)
+  const dkItemHit = await page.evaluate((q) => {
+    const it = [...document.querySelectorAll('.gp-convert-menu-item')].find(e => (e.textContent || '').includes('转化为资源卡'))
+    if (!it) return false
+    it.click()
+    return true
+  }, dkQ)
+  await page.waitForTimeout(900)
+  const dkAfter = await page.evaluate((q) => {
+    const app = document.querySelector('#app').__vue_app__
+    const prov = app && app._context && app._context.provides
+    let pinia = null
+    for (const k of Object.getOwnPropertySymbols(prov || {})) { const v = prov[k]; if (v && v._s && v.state) pinia = v }
+    const st = pinia && pinia._s.get('app')
+    const dd = st && st.data
+    const r = (dd.resources || []).find(x => String(x.title).startsWith(q))
+    const c = (dd.curiosities || []).find(x => x.id === 'e2e-dk-1')
+    return {
+      有卡: !!r, ws: r ? r.workspaceId : '', cat: r ? r.categoryId : '',
+      tags: r ? JSON.stringify(r.tags) : '', 描述: r ? r.description === 'DK 描述必须活着' : false,
+      附件: r ? (r.assets || []).length === 1 : false, 自定义: r ? r.customFields && r.customFields.custom_dk === '带过来的值' : false,
+      星标: r ? !!r.starred : false, 置顶: r ? !!r.pinned : false,
+      软删好奇: !!(c && c.deletedAt), 出路: c ? c.convertedTo : ''
+    }
+  }, dkQ)
+  const dkToast = (await page.locator('.toast-msg', { hasText: '已转化为资源卡' }).count()) > 0
+  const dkPoolReceipt = (await page.locator('.toast-msg', { hasText: '存入资源卡池' }).count()) > 0
+  const dkView = (await page.locator('.toast-action', { hasText: '查看' }).count()) > 0
+    ? await page.locator('.toast-action', { hasText: '查看' }).first().click({ force: true }).then(() => true).catch(() => false) : false
+  await page.waitForTimeout(1300)
+  const dkLanding = await page.evaluate((q) => ({
+    hash: location.hash,
+    死页: document.body.innerText.includes('策展台不存在'),
+    旧台面: document.body.innerText.includes('中心论点') && document.body.innerText.includes('个分类'),
+    高亮: document.querySelectorAll('.pcp-card.flash, .pcp-row.flash').length,
+    池面可见: [...document.querySelectorAll('.pcp-card, .pcp-row')].some(e => (e.textContent || '').includes(q))
+  }), dkQ)
+  report('E2E-38 ★R4-Dk ⌘K 面板真点「转化为资源卡」：落点=资源卡池（不是 workspaces[0] 那枚恰好排第一的台）、标签/描述/附件/自定义字段/星标/置顶整片带过来、写 convertedTo=res、回执改口「存入资源卡池」、「查看」落调度台卡池并高亮（不进死页也不进退役空台面）',
+    dkRowFound === 1 && dkMenuHit && dkItemHit && dkAfter.有卡 && dkAfter.ws === 'zy-curation' && dkAfter.cat === ''
+    && dkAfter.tags === '["DK 标签","AI"]' && dkAfter.描述 && dkAfter.附件 && dkAfter.自定义 && dkAfter.星标 && dkAfter.置顶
+    && dkAfter.软删好奇 && dkAfter.出路 === 'res' && dkToast && dkPoolReceipt && dkView
+    // ★落点判"没去策展台"而不是"hash 里带 hl="：消费端（CompassHome/PoolCardsPanel）定位后会清掉 query
+    //   （R2-④ 那条"定位不清过滤即落空"），1.3 秒后读到的 hash 就是 #/ ——拿 ?hl 当证据会假红。
+    && !dkLanding.hash.startsWith('#/workspace/') && !dkLanding.死页 && !dkLanding.旧台面
+    && dkLanding.池面可见 && dkLanding.高亮 >= 1,
+    `搜到=${dkRowFound} 菜单=${dkMenuHit}/${dkItemHit} 落点=${dkAfter.ws} 分类=${JSON.stringify(dkAfter.cat)} 标签=${dkAfter.tags} 描述/附件/自定义/星标/置顶=${dkAfter.描述}/${dkAfter.附件}/${dkAfter.自定义}/${dkAfter.星标}/${dkAfter.置顶} 出路=${dkAfter.出路} 回执含「资源卡池」=${dkPoolReceipt} ｜ 查看→${dkLanding.hash} 死页=${dkLanding.死页} 旧台面=${dkLanding.旧台面} 高亮=${dkLanding.高亮} 池面可见=${dkLanding.池面可见}`)
+
   // E2E-28（R4-a）：迁移报告卡与整库回退出口——种备份+报告 → 设置页出卡 → 回退（确认框）→ 停用键落、报告清、卡片转停用态
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const d = cur['zy_data_v2']

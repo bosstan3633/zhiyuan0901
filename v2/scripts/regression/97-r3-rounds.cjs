@@ -613,3 +613,60 @@ check('R4-Pa ★运行时覆盖补上：e2e 必须有 E2E-37 真开面板逐档�
     && e.includes("paSearch('12 号')") && e.includes("paSearch('zzqqxx')") && e.includes('.gp-archived-hint')
     && e.includes('E2E-Pa 新建缓存卡') && e.includes("'.gp-result-item .gp-ri-title'");
 });
+
+// ============== R4-Dk 面板转化接回唯一实现 ==============
+console.log('【R4-Dk · 转化落点与字段】');
+check('R4-Dk ★⌘K 面板的「转化为资源卡/任务」必须走唯一实现 useCuriosity（CuriosityPanel 一直在用它），不许再在面板里手搓卡：改前手搓的那份只带 title，标签/附件/星标/置顶/自定义字段整片丢，任务还不按好奇心状态映射，也不写 convertedAt/convertedTo（池头部「已转化」因此与另一个入口对不上同一个动作）', () => {
+  const g = codeOnly(read('/newtab/components/GlobalPopups.vue'));
+  const i = g.indexOf('function convertCurio(');
+  const body = g.slice(i, g.indexOf('\n}', i));
+  return i > 0
+    && body.includes('convertToResource(c, CURATION_WS_ID') && body.includes('convertToTask(c)')
+    && g.includes("import { useCuriosity } from '@/newtab/stores/curiosity'")
+    && g.includes('const { convertToResource, convertToTask } = useCuriosity()')
+    && !/id: uid\('res'\), kind: 'resource', title: c\.question/.test(body)
+    && !/id: uid\('tk'\), kind: 'task', title: c\.question/.test(body)
+    && !body.includes('d.value.resources.unshift') && !body.includes('d.value.tasks.unshift')
+    && !body.includes('store.persist()');
+});
+check('R4-Dk ★转化落点显式归池：改前写 `d.value.workspaces[0]?.id`——默认库第一枚是「事业策展台」（实测落点 ws-biz-000，而回执 toast 却说「存入待分类」），存量库第一枚才是那枚已退役的 hub 实体；同一个动作在两种库形状下落进不同的台，这就是 R4-Df3「靠实体找池」那一族巧合的第二个出口', () => {
+  const g = codeOnly(read('/newtab/components/GlobalPopups.vue'));
+  const i = g.indexOf('function convertCurio(');
+  const body = g.slice(i, g.indexOf('\n}', i));
+  return body.includes("convertToResource(c, CURATION_WS_ID, '')")
+    && body.includes('存入资源卡池')
+    && !body.includes('workspaces[0]')
+    && !g.includes("showToast('✓ 已转化为资源卡，存入待分类'");
+});
+check('R4-Dk ★「查看」不许再拼 `/workspace/${r.workspaceId}`：R2-④ 清这族死链时判据是**路由字面量扫描**，变量拼法它天生看不见，所以这个入口漏到了今天。实测三种形状——① 无 hub 实体的库点过去是「策展台不存在」；② 存量库点过去渲染出一枚 0 个分类的退役「资源台」空台面（刚转出的卡在池里，这个台面上看不见它，比死页更隐蔽）；③ 默认库直接进错台。改后走 locateOnly 同一改靶口径 `/?hl=&hk=res`', () => {
+  const g = codeOnly(read('/newtab/components/GlobalPopups.vue'));
+  const i = g.indexOf('function convertCurio(');
+  const body = g.slice(i, g.indexOf('\n}', i));
+  return body.includes("router.push({ path: '/', query: { hl: r.id, hk: 'res' } })")
+    && body.includes("query: { hl: t.id, hk: 'task' }")
+    && !body.includes('`/workspace/${r.workspaceId}`')
+    && !body.includes("router.push('/')");
+});
+check('R4-Dk ★ensureCustomDefs 不许假设 fieldConfig 一定在：repository 的归一化全写成 `if (data.fieldConfig && …)`，没有谁负责补这块；改前这一行 `cfg.curiosity` 在没有该块的库上直接抛 TypeError，而**抛错点在 convertToResource 的 store.persist() 之前** ⇒ 卡进了内存、没落盘、toast 也不弹（界面看着成功，刷新就没了）。缺定义只是没得搬，不该让转化整体失败', () => {
+  const c = codeOnly(read('/newtab/stores/curiosity.ts'));
+  const i = c.indexOf('function ensureCustomDefs');
+  const body = c.slice(i, c.indexOf('\n  }', i));
+  return i > 0 && body.includes('if (!cfg) return') && body.includes("const dest = cfg[targetKind] || (cfg[targetKind] = [])")
+    && !/const srcDefs = cfg\.curiosity/.test(body)
+    && body.includes('(cfg.curiosity || [])');
+});
+check('R4-Dk ★同族的第五个活口：指标下钻抽屉的「点击佐证行定位资源卡」也必须走 `resourceLocateRoute` 那一处算式。locate.ts 的注释早写着 R2-④「漏了这个共享算式本身，修在算式里一次修完所有调用点」——但这个组件当时没接进算式，于是 V3.7.0 起池卡（今天的常态）从这里点出去照样落 `workspace/zy-curation`；兜底 `store.workspaces[0]` 一并删（卡不在库里不该跳去别人的台）', () => {
+  const m = codeOnly(read('/newtab/components/compass/MetricDrillDrawer.vue'));
+  const i = m.indexOf('function locateRes(');
+  const body = m.slice(i, m.indexOf('\n}', i));
+  return i > 0 && body.includes('resourceLocateRoute(r.workspaceId') && m.includes("import { resourceLocateRoute } from '@/shared/utils/locate'")
+    && body.includes('query: { ...t.query, hl: id }')
+    && !body.includes('`/workspace/${wsId}`') && !body.includes('store.workspaces[0]')
+    && body.includes("showToast('这张卡已不在库里')");
+});
+check('R4-Pa ★运行时覆盖补第二档：e2e 必须有 E2E-38 真点转化（搜出好奇卡→🔄→转化为资源卡→读库→点 toast「查看」），因为这条路径的两种库形状差异与字段搬运只在运行时看得见', () => {
+  const e = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8');
+  return e.includes('E2E-38 ★R4-Dk') && e.includes('R4-Dk 转化探针好奇心') && e.includes('转化为资源卡')
+    && e.includes(".toast-action") && e.includes("dkAfter.出路 === 'res'") && e.includes("dkAfter.ws === 'zy-curation'")
+    && e.includes('旧台面') && e.includes('池面可见');
+});

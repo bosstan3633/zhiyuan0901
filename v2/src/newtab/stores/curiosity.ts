@@ -64,12 +64,21 @@ export function useCuriosity() {
    * 仅注入「源卡实际有值」的 custom key，避免空 def 噪音。
    */
   function ensureCustomDefs(c: CuriosityCard, targetKind: 'resource' | 'task') {
+    /**
+     * R4-Dk：这里原先直接 `store.data!.fieldConfig.curiosity`。老库/导入合过来的库可以整块没有
+     * fieldConfig（repository 的归一化全都写成 `if (data.fieldConfig && …)`，没有谁负责补这块），
+     * 于是这一行抛 TypeError——而它发生在 convertToResource/convertToTask 的 `store.persist()` **之前**：
+     * 卡进了内存却没落盘、回执 toast 也不弹，界面看上去"转化成功了"但刷新就没了（R4-Dk 把 ⌘K 面板
+     * 接进这条唯一实现时被撞出来）。缺定义只是没得搬，不该让转化整体失败。
+     */
     const cfg = store.data!.fieldConfig
+    if (!cfg) return
+    const dest = cfg[targetKind] || (cfg[targetKind] = [])
     const hasValue = (k: string) => Object.prototype.hasOwnProperty.call(c.customFields || {}, k)
     const srcDefs = (cfg.curiosity || []).filter(f => hasValue(f.key))
-    const missing = missingCustomDefs(srcDefs, (cfg[targetKind] || []).map(f => f.key))
+    const missing = missingCustomDefs(srcDefs, dest.map(f => f.key))
     for (const m of missing) {
-      cfg[targetKind].push({ ...m, visible: true, order: cfg[targetKind].length } as FieldDef)
+      dest.push({ ...m, visible: true, order: dest.length } as FieldDef)
     }
   }
 
