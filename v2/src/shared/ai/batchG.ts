@@ -332,7 +332,7 @@ export function buildEvidenceJob(ctx: EvidenceCtx): AiJob | null {
         sub: reason.slice(0, 60) || '（模型没给理由）', weak: !reason, data: { __cardId: id },
       })
     })
-    if (!rows.length && (bag.items || []).length) return [{ key: 'ev:bad', badge: '空手', badgeType: 'warn', main: '模型点名的卡都不在资源台目录里（或已挂在本分支），无可镜像项', data: { __none: 1 } }]
+    if (!rows.length && (bag.items || []).length) return [{ key: 'ev:bad', badge: '空手', badgeType: 'warn', main: '模型点名的卡都不在资源卡池里（或已挂在本分支），无可镜像项', data: { __none: 1 } }]
     return rows
   }
   const user = () => projectEvidenceFor(d, ctx.depth, { name: ctx.branchName, path: ctx.branchPath }, inBranch, candidates)
@@ -340,10 +340,10 @@ export function buildEvidenceJob(ctx: EvidenceCtx): AiJob | null {
     key: 'evidence:' + ctx.catId,
     title: '🔍 找佐证（全库推荐）',
     subject: `🏛 ${ctx.branchPath}`,
-    hint: '从资源台目录里挑能支撑本分支的卡（本台其它分支的卡不抢——一张卡只能待在一个分类）。采纳=把选中的卡镜像进本分支（投影，不改动源卡归属）。',
+    hint: '从资源卡池里挑能支撑本分支的卡（本台其它分支的卡不抢——一张卡只能待在一个分类）。采纳=把选中的卡镜像进本分支（投影，不改动源卡归属）。',
     build: () => ({ messages: [{ role: 'system', content: evidenceSystem() }, { role: 'user', content: user() }] }),
     parse: raw => parseRows((raw || {}) as { items?: EvidencePick[] }),
-    audit: () => (drop.ghost || drop.noWhy ? [drop.ghost ? `${drop.ghost} 行点的卡不在资源台目录（或已在本分支）` : '', drop.noWhy ? `${drop.noWhy} 行没给理由（已判弱）` : ''].filter(Boolean).join('、') : null),
+    audit: () => (drop.ghost || drop.noWhy ? [drop.ghost ? `${drop.ghost} 行点的卡不在资源卡池里（或已在本分支）` : '', drop.noWhy ? `${drop.noWhy} 行没给理由（已判弱）` : ''].filter(Boolean).join('、') : null),
     apply: (rows) => {
       let n = 0
       for (const r of rows) {
@@ -388,7 +388,7 @@ export function buildDeliverJob(ctx: DeliverCtx): AiJob | null {
     key: 'deliver',
     title: '📄 成果文稿',
     subject: `📄 ${(ctx.genre || '可直接转发的短文').slice(0, 18)}`,
-    hint: '把这段时间攒下的判断与证据写成一份可交付文稿：只用台账里出现过的事实，逐条能指回出处。跑完自动存为一张「成果文稿」资源卡放进资源台待分类（不改任何既有数据）；底部「📥 下载 .md」拿走文件不改库。',
+    hint: '把这段时间攒下的判断与证据写成一份可交付文稿：只用台账里出现过的事实，逐条能指回出处。跑完自动存为一张「成果文稿」资源卡放进资源卡池（不改任何既有数据）；底部「📥 下载 .md」拿走文件不改库。',
     rawText: true,
     adoptable: false,
     build: () => ({ messages: [{ role: 'system', content: sys() }, { role: 'user', content: text }], jsonMode: false }),

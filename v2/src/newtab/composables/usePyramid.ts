@@ -601,7 +601,7 @@ export function usePyramid(ctx: PyramidCtx) {
   function packIntoNode(parentCat?: Category) {
     const natives = selectedCards().filter(r => !isMirrorView(r))
     if (!selectedIds.value.size) { showToast('请先开启「☑ 批量管理」选择卡片'); return }
-    if (!natives.length) { showToast('📡 所选均为镜像卡，打包请在资源台操作'); return }
+    if (!natives.length) { showToast('📡 所选均为镜像卡——镜像只是引用，打包请在它的源卡上做'); return }
     const mirrorNote = selectedIds.value.size - natives.length
     openInputModal(parentCat ? `🗂 新节点（挂「${parentCat.name}」下）` : '🗂 新节点（一级）', '', (name) => {
       if (parentCat && pyLevelOf(parentCat) + 1 > 4) { showToast('ℹ 最多 4 级——该节点已处于最深层'); return }

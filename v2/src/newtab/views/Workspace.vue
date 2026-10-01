@@ -222,7 +222,7 @@
         </div>
         <template v-if="!sideRail"><div class="cat-item" :class="{active: activeCategory==='all'}" @click="activeCategory='all'">
           <span class="cat-icon">📁</span><span class="cat-name">全部</span>
-          <span class="cat-count" title="本台全部可见卡（策展台含资源台镜像卡）">{{ allResources.length }}</span>
+          <span class="cat-count" title="本台全部可见卡（策展台含资源卡池镜像卡）">{{ allResources.length }}</span>
         </div>
         <!-- 第廿九轮：「待分类」成为卡片归属落点 -->
         <div class="cat-item" :class="{active: activeCategory==='uncat', 'card-drop': cardDropTarget==='uncat'}" @click="activeCategory='uncat'"
@@ -564,7 +564,7 @@
               </div>
               <!-- R65-F3：节点双入口——关联资源卡（资源台选择器镜像）/ 新建卡片（台内卡，可挂附件） -->
               <div class="py-node-foot">
-                <span class="py-foot-btn" title="从资源台选择资源卡镜像到该节点" @click.stop="openLinkCards(cell.cat)">🔗 关联资源卡</span>
+                <span class="py-foot-btn" title="从资源卡池选择资源卡镜像到该节点" @click.stop="openLinkCards(cell.cat)">🔗 关联资源卡</span>
                 <span class="py-foot-btn" title="新建论证节点卡（台内原生卡种）" @click.stop="openNewArgument">➕ 新建论证卡</span>
               </div>
               <span v-if="pyDepthOf(cell.cat) < 3" class="py-node-add" title="新建子节点" @click.stop="openCreateCat(cell.cat.id)">＋</span>

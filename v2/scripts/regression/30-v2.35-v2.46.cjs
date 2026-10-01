@@ -545,7 +545,11 @@ check('R76-5（R122 重指）分组头三计数：直属（direct.length）· �
 });
 check('R76-6 左树「全部」与「待分类」均带口径 title，数值来源不变', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes("<span class=\"cat-count\" title=\"本台全部可见卡（策展台含资源台镜像卡）\">{{ allResources.length }}</span>") && w.includes("<span class=\"cat-count\" title=\"未归入任何分类，或所属分类已失效\">{{ uncategorizedCount }}</span>");
+  /* ★R4-Eq 随迁带备案：title 里的「资源台」是退役台面名（池的现名是「资源卡池」，R4-Dg 单源），
+     本轮把它改口 ⇒ 这条正锚跟着换成新串，并补一条旧串负锚防回流；「待分类」那枚 title 与两个数值来源一字未动。 */
+  return w.includes("<span class=\"cat-count\" title=\"本台全部可见卡（策展台含资源卡池镜像卡）\">{{ allResources.length }}</span>")
+    && !w.includes('策展台含资源台镜像卡')
+    && w.includes("<span class=\"cat-count\" title=\"未归入任何分类，或所属分类已失效\">{{ uncategorizedCount }}</span>");
 });
 check('R76-7 有子分类的侧栏节点以 title 补充子分类数与聚合数（childCount / aggCount 仍被消费）', () => {
   const w = read('/newtab/views/Workspace.vue');

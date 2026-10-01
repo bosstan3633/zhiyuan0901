@@ -47,7 +47,7 @@ async function run() {
       wsId: props.wsId, catId: props.catId, branchName: cat.name, branchPath: branchPath(d, cat),
       onApplied: n => showToast(`✓ ${n} 张佐证卡已挂上「${cat.name}」`),
     })
-    if (!job.value) showToast('⚠ 资源台里没有可推荐的卡（或都已挂在本分支）')
+    if (!job.value) showToast('⚠ 资源卡池里没有可推荐的卡（或都已挂在本分支）')
   } finally { busy.value = false }
 }
 </script>

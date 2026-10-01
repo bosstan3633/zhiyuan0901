@@ -55,7 +55,7 @@ const emit = defineEmits<{
       <input :value="q" placeholder="关键词过滤（或写一句需求，再点右侧 AI 检索）"
         @input="emit('update:q', ($event.target as HTMLInputElement).value)" />
       <button type="button" class="lc-ai-btn" :class="{ busy: aiBusy, on: aiOn }"
-        :title="aiBusy ? '点击取消本次 AI 检索（不写任何数据）' : 'AI 读懂你这句话，从资源台可镜像的卡里按相关度挑一批顶到最前（只读不改数据；再点=清除）'"
+        :title="aiBusy ? '点击取消本次 AI 检索（不写任何数据）' : 'AI 读懂你这句话，从资源卡池可镜像的卡里按相关度挑一批顶到最前（只读不改数据；再点=清除）'"
         @click="emit('ai-run')">
         <AiEntryButton variant="inline" :spin="aiBusy" :label="aiBusy ? '检索中…' : 'AI 检索'" />
       </button>

@@ -211,7 +211,7 @@ export function buildCrossDeckJob(ctx: GovernCtx): AiJob | null {
   return {
     key: 'crossDeck',
     title: '跨台镜像发现',
-    hint: '把资源台的好卡镜像进明显需要它的策展台（引用式，源卡零影响）。',
+    hint: '把资源卡池里的好卡镜像进明显需要它的策展台（引用式，源卡零影响）。',
     build: () => ({ messages: [{ role: 'system', content: crossDeckDupSystem() }, { role: 'user', content: text }] }),
     parse: (raw) => {
       const pairs = Array.isArray((raw as { pairs?: DupPair[] })?.pairs) ? (raw as { pairs: DupPair[] }).pairs : []
@@ -246,7 +246,7 @@ export function buildThesisJob(ctx: GovernCtx): AiJob | null {
   return {
     key: 'drift',
     title: '金字塔主题漂移检测',
-    hint: '逐台核对卡群是否仍支撑主题卡；发现只读，调整动作（移卡/改论点）由你在资源台执行。',
+    hint: '逐台核对卡群是否仍支撑主题卡；发现只读，调整动作（移卡/改论点）由你在对应策展台上执行。',
     adoptable: false,
     build: () => ({ messages: [{ role: 'system', content: thesisDriftSystem() }, { role: 'user', content: text }] }),
     parse: (raw) => {

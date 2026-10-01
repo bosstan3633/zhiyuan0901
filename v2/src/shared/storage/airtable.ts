@@ -232,7 +232,7 @@ export function targetColumns(tagCol: string = DEFAULT_TAG_COLUMN): { name: stri
     { name: '知源ID', type: 'singleLineText', desc: '幂等键' },
     { name: '标题', type: 'singleLineText', desc: '资源/任务=标题，好奇心=问题' },
     { name: '卡片类型', type: 'singleSelect', options: { choices: [{ name: '资源' }, { name: '任务' }, { name: '好奇心' }] }, desc: '资源/任务/好奇心' },
-    { name: '所属工作台', type: 'singleLineText', desc: '调度台/方向台/资源台/策展台名' },
+    { name: '所属工作台', type: 'singleLineText', desc: '调度台/方向台/资源卡池/策展台名' },
     { name: '分类路径', type: 'singleLineText', desc: '金字塔分类链（A / B / C）' },
     { name: '层级', type: 'number', options: { precision: 0 }, desc: '分类树深度，根=1' },
     { name: '是否中心论点', type: 'checkbox', options: { icon: 'check', color: 'greenBright' }, desc: '主题卡标记' },

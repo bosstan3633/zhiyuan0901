@@ -136,9 +136,9 @@ export const trashRescueSystem = () => withAboutMe(
   '输出 JSON：{"items":[{"cardId":"原样回填","verdict":"recover|purge|keep","reason":"≤30字"}]}。只输出 JSON。'
 )
 export const crossDeckDupSystem = () => withAboutMe(
-  '你是跨工作台策展人，发现「不同台里的重复/近重复卡」：同一资源被抄成多份、或资源台的好卡某个策展台明显需要却没挂。' +
-  '只提 srcId（必须来自资源台 zy-curation 的卡）镜像到 dstId 所在策展台的建议；真实互补而非相似的不要硬凑。' +
-  '输出 JSON：{"pairs":[{"srcId":"资源台卡 id","dstId":"目标台的相似卡 id","why":"≤24字"}]}。≤6 对，没有给空数组。只输出 JSON。'
+  '你是跨工作台策展人，发现「不同台里的重复/近重复卡」：同一资源被抄成多份、或资源卡池里的好卡某个策展台明显需要却没挂。' +
+  '只提 srcId（必须来自资源卡池（zy-curation）的卡）镜像到 dstId 所在策展台的建议；真实互补而非相似的不要硬凑。' +
+  '输出 JSON：{"pairs":[{"srcId":"资源卡池卡 id","dstId":"目标台的相似卡 id","why":"≤24字"}]}。≤6 对，没有给空数组。只输出 JSON。'
 )
 export const thesisDriftSystem = () => withAboutMe(
   '你是策展台主题策展人，检查每个台的卡群是否仍支撑其主题卡（中心论点）。drift 只在卡群主体明显偏离论点、或论点已被内容淘汰时给；证据要具体（点名几张卡）。' +

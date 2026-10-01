@@ -1512,7 +1512,7 @@ function showDupConfirm(dupTitle: string, onJump: () => void, onForceNew: () => 
     <div class="zy-saved">
       <div class="zy-saved-icon warn">⚠️</div>
       <div class="zy-saved-title">该页面已收录</div>
-      <div class="zy-saved-sub">「${escapeHtml(dupTitle)}」已存在于资源台——可定位到原卡，或仍然新建一张（例如要存不同上下文的两份笔记）</div>
+      <div class="zy-saved-sub">「${escapeHtml(dupTitle)}」已经收过了（在「${POOL_DISPLAY_NAME}」里）——可定位到原卡，或仍然新建一张（例如要存不同上下文的两份笔记）</div>
       <div class="zy-saved-actions">
         <button class="zy-btn zy-btn-ghost" id="__zy_dup_cancel__">取消</button>
         <button class="zy-btn zy-btn-ghost" id="__zy_dup_force__">仍然新建一张</button>

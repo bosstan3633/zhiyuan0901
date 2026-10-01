@@ -376,7 +376,7 @@ export function projectEvidenceFor(
   L.push(`【该分支已有的卡（${existing.length} 张，不要重复推荐）】\n${existing.map(x => `· ${cut(x.title, 40)}`).join('\n') || '（一张都没有——这正是来找证据的原因）'}`)
   const rows = board.slice(0, c.cards).map(r =>
     `- cardId=${r.id} 「${cut(r.title, 44)}」${r.description ? ` ${cut(r.description.trim(), 60)}` : ''}${r.tags?.length ? ` 标签[${r.tags.join(',')}]` : ''} 打开${r.callCount || 0}次`)
-  L.push(`【资源台卡目录（${board.length} 张${board.length > c.cards ? `，取前 ${c.cards}` : ''}）】\n${rows.join('\n') || '（资源台是空的——无卡可佐证）'}`)
+  L.push(`【资源卡池目录（${board.length} 张${board.length > c.cards ? `，取前 ${c.cards}` : ''}）】\n${rows.join('\n') || '（资源卡池是空的——无卡可佐证）'}`)
   return L.join('\n\n')
 }
 

@@ -18,6 +18,7 @@ const SHARDS = [
   '90-R144-R160',
   '95-R161-R166',
   '97-r3-rounds',
+  '98-r4-gates',
   '99-recent',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');

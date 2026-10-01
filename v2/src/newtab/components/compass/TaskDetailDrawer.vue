@@ -382,7 +382,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           <button class="ts-ai-cell" :disabled="aiBusy" title="AI 拆解本任务：采纳为子任务清单，或只把步骤写进详情（双通道）；可换执笔专家" @click="aiBreakdown">
             <AiEntryButton variant="inline" label="拆解步骤" :spin="aiBusy" />
           </button>
-          <button class="ts-ai-cell" :disabled="aiBusy" title="AI 围绕本任务盘点资源台，推荐能支持它的资源（勾选采纳才建关联，两张卡本体都不改）" @click="aiSupport()">
+          <button class="ts-ai-cell" :disabled="aiBusy" title="AI 围绕本任务盘点资源卡池，推荐能支持它的资源（勾选采纳才建关联，两张卡本体都不改）" @click="aiSupport()">
             <AiEntryButton variant="inline" label="找资源支持" :spin="aiBusy" />
           </button>
         </div>

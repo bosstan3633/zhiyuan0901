@@ -1731,7 +1731,7 @@ async function aiAdviceRun(entryId: 'cross-deck' | 'thesis-drift' | 'dormant-sca
   aiAdviceBusy.value = true
   try {
     if (entryId === 'cross-deck') {
-      jobOf(gov.buildCrossDeckJob({ d: dd, depth, persist }), '资源台还没有卡，无法做跨台镜像发现')
+      jobOf(gov.buildCrossDeckJob({ d: dd, depth, persist }), '资源卡池还没有卡，无法做跨台镜像发现')
     } else if (entryId === 'thesis-drift') {
       jobOf(gov.buildThesisJob({ d: dd, depth, persist }), '还没有带主题卡的策展台')
     } else {

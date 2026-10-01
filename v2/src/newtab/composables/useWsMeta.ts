@@ -114,7 +114,7 @@ export function useWsMeta(ctx: WsMetaCtx) {
   }
   async function deleteWorkspace() {
     // R58-B1：资源台是全局策展空间，不可从此入口删除
-    if (workspaceId.value === CURATION_WS_ID) { showToast('ℹ 资源台为系统空间，不在此删除'); return }
+    if (workspaceId.value === CURATION_WS_ID) { showToast('ℹ 「资源卡池」是系统空间，不在此删除'); return }
     // R146（回退契约）：接真源 deleteDeck——确认里报出会被带进回收站的卡数，删除后 3 秒可整台撤销
     const n = deckCardCount(d.value, workspaceId.value)
     if (!(await useConfirm({ title: '删除策展台', message: `确定删除策展台「${wsDisplayNameOf(workspace.value)}」？\n其中 ${n} 张资源卡与全部分类将移入回收站（可恢复）；台本身从标签栏移除，3 秒内可撤销，超时后需在回收站逐张恢复。`, confirmText: '确认删除' }))) return
