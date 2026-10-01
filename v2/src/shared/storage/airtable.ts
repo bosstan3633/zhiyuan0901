@@ -315,12 +315,24 @@ function pushLog(state: AirtableSyncState, kind: AirtableLogEntry['kind'], msg: 
 }
 
 /** 全量行 × 游标 → 待推送集合（映射表已有且远端未变则跳过） */
-export function pendingRows(d: AppData): { rows: SyncRow[]; unsynced: number } {
+/**
+ * R4-Fa：「待推」的唯一算式。此前 `pendingRows`（首页/同步 chip 的角标）只按游标筛，
+ * 而 `runSync` 在其之上多过一层 `map[key].syncedAt < row.updatedAt`——
+ * 两处口径不一致，角标就把"游标之后动过但早已同步过"的行全算进待推，**系统性高估**。
+ * 现在两边共用这一个函数，谁也不会再单独漂。
+ */
+export function todoRows(d: AppData): SyncRow[] {
   const state = d.airtableSync
-  if (!state) return { rows: [], unsynced: 0 }
+  if (!state) return []
   const cursor = state.cursorAt || 0
-  const all = collectSyncRows(d)
-  const rows = all.filter(r => !cursor || r.updatedAt > cursor || r.deleted)
+  const map = d.airtableMap || {}
+  return collectSyncRows(d)
+    .filter(r => !cursor || r.updatedAt > cursor || r.deleted)
+    .filter(r => !map[r.key] || map[r.key].syncedAt < r.updatedAt || r.deleted)
+}
+
+export function pendingRows(d: AppData): { rows: SyncRow[]; unsynced: number } {
+  const rows = todoRows(d)
   return { rows, unsynced: rows.length }
 }
 
@@ -352,11 +364,9 @@ export async function runSync(d: AppData): Promise<{ pushed: number; created: nu
     const remote = await buildRemoteIndex(state)
     calls++
 
-    // 3) 游标过滤
+    // 3) 待推集合（R4-Fa：与首页角标同一个算式，不再在这里各筛一遍）
     const cursor = state.cursorAt || 0
-    const all = collectSyncRows(d)
-    const todo = all.filter(r => !cursor || r.updatedAt > cursor || r.deleted)
-      .filter(r => !map[r.key] || map[r.key].syncedAt < r.updatedAt || r.deleted)
+    const todo = todoRows(d)
 
     let pushed = 0
     /** 记录不存在语义——触发单条降级重建。
@@ -379,21 +389,25 @@ export async function runSync(d: AppData): Promise<{ pushed: number; created: nu
     }
     for (let i = 0; i < todo.length; i += BATCH_SIZE) {
       const batch = todo.slice(i, i + BATCH_SIZE)
-      const creates: { fields: Record<string, unknown>; key: string }[] = []
-      const updates: { id: string; fields: Record<string, unknown>; key: string }[] = []
+      /* R4-Fa：`syncedAt` 的语义是"远端已收到该行的哪个版本"＝**该行当时的 updatedAt**（版本戳），不是墙钟。
+         原先 POST 与自愈重建两处写 `Date.now()`：墙钟必然 ≥ 任何本地编辑时间，
+         于是"发起同步之后紧接着改卡"会被下一轮判成已同步而**永久漏推**。
+         三处写入口径统一后，比较式 `syncedAt < r.updatedAt` 才成立。 */
+      const creates: { fields: Record<string, unknown>; key: string; updatedAt: number }[] = []
+      const updates: { id: string; fields: Record<string, unknown>; key: string; updatedAt: number }[] = []
       for (const row of batch) {
         const fields = rowToFields(row, tagCol, tagType)
         // R64 自愈 R1：远端索引优先（远端实测存在的 recordId 才可信），本地 map 仅兜底
         const rid = remote.get(row.key) || map[row.key]?.recordId
-        if (rid) { updates.push({ id: rid, fields, key: row.key }); map[row.key] = { recordId: rid, syncedAt: row.updatedAt } }
-        else creates.push({ fields, key: row.key })
+        if (rid) { updates.push({ id: rid, fields, key: row.key, updatedAt: row.updatedAt }); map[row.key] = { recordId: rid, syncedAt: row.updatedAt } }
+        else creates.push({ fields, key: row.key, updatedAt: row.updatedAt })
       }
       if (creates.length) {
         const res = await atFetch(state, `${API}/${state.baseId}/${state.tableId}`, {
           method: 'POST', body: JSON.stringify({ records: creates.map(c => ({ fields: c.fields })) })
         })
         const body = await res.json() as { records: { id: string; fields: Record<string, unknown> }[] }
-        body.records?.forEach((rec, idx) => { map[creates[idx].key] = { recordId: rec.id, syncedAt: Date.now() } })
+        body.records?.forEach((rec, idx) => { map[creates[idx].key] = { recordId: rec.id, syncedAt: creates[idx].updatedAt } })
         calls++; pushed += creates.length
       }
       if (updates.length) {
@@ -417,7 +431,7 @@ export async function runSync(d: AppData): Promise<{ pushed: number; created: nu
               const oneMsg = oneErr instanceof Error ? oneErr.message : String(oneErr)
               if (!isMissingRecord(oneMsg)) throw oneErr
               const newId = await createOne(u.fields)
-              if (newId) { map[u.key] = { recordId: newId, syncedAt: Date.now() }; pushed++ }
+              if (newId) { map[u.key] = { recordId: newId, syncedAt: u.updatedAt }; pushed++ }
               else pushLog(state, 'error', `重建失败：${u.key}`)
             }
             await sleep(BATCH_GAP)

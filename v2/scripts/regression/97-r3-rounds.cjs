@@ -500,3 +500,39 @@ check('R4-Dj ★两条"被自动判据误杀"的规则必须在位：`body .modu
     && t.includes('body .ns-value') && t.includes('font-variant-numeric: tabular-nums')
     && t.includes('font-weight: 600;');
 });
+
+// ============== R4-Fa · 微缺陷清账（同步引擎两处口径 + setThesis + 过期注释） ==============
+console.log('【R4-Fa · 待推集合单源 / syncedAt 单一时钟 / 论点软删口径】');
+check('R4-Fa ★「待推」只允许一个算式（todoRows）：pendingRows 此前只按游标筛，runSync 在其之上多过一层 map[key].syncedAt < updatedAt ⇒ 首页与同步 chip 的「待推 N」把"游标之后动过但早已同步"的行全算进来，系统性高估。★判据要同时钉"两边都走它"和"谁也不许再自己筛一遍"——只判前者，下次谁在 pendingRows 里加一个 filter 就又把口径分叉了', () => {
+  const a = codeOnly(read('/shared/storage/airtable.ts'));
+  const iP = a.indexOf('export function pendingRows');
+  const pendBody = a.slice(iP, a.indexOf('}', a.indexOf('return { rows, unsynced', iP)));
+  const iR = a.indexOf('export async function runSync');
+  const seg = a.slice(iR, a.indexOf('for (let i = 0', iR));
+  return a.includes('export function todoRows(d: AppData): SyncRow[]')
+    && iP > 0 && pendBody.includes('todoRows(d)') && !pendBody.includes('.filter(')
+    && seg.includes('const todo = todoRows(d)') && !seg.includes('.filter(r => !cursor')
+    && !seg.includes('const all = collectSyncRows(d)')
+    && seg.includes('const cursor = state.cursorAt || 0');
+});
+check('R4-Fa ★syncedAt 只能是版本戳（该行推送时的 updatedAt），全站三处写入口径统一：原先 POST 成功与自愈重建两处写 Date.now()，墙钟必然 ≥ 任何本地编辑时间 ⇒ "发起同步后紧接着改卡"会被下一轮判成已同步而永久漏推（models 里那句注释早就写明是"本地 updatedAt"，是代码没照做）', () => {
+  const a = codeOnly(read('/shared/storage/airtable.ts'));
+  const m = read('/shared/models/index.ts');
+  return !a.includes('syncedAt: Date.now()')
+    && a.includes('syncedAt: row.updatedAt') && a.includes('syncedAt: creates[idx].updatedAt') && a.includes('syncedAt: u.updatedAt')
+    && a.includes('key: string; updatedAt: number')
+    && m.includes('/** 该卡上次同步成功时本地updatedAt */');
+});
+check('R4-Fa ★setThesis 摘标不许碰回收站里的卡：同文件 countThesisDuplicates / sanitizeThesisDuplicates 的口径写死"软删卡不计入、恢复后语义不变"，唯独 setThesis 的清除循环漏判 deletedAt ⇒ 用户恢复一张旧论点卡，回来的是没有论点头衔的普通卡且无提示', () => {
+  const h = read('/shared/storage/hub.ts');
+  const i = h.indexOf('export function setThesis');
+  const body = h.slice(i, h.indexOf('\n}', i));
+  return i > 0 && body.includes('if (r.workspaceId !== wsId || !r.isThesis || r.deletedAt) continue')
+    && !/if \(r\.workspaceId !== wsId \|\| !r\.isThesis\)/.test(body);
+});
+check('R4-Fa ★过期注释也是账：poolMigration 不许再写"尚无 UI 调用方"（R4-a 的 MigrateReportCard 就是调用方），并点名现役出口', () => {
+  const pm = read('/shared/storage/poolMigration.ts');
+  const card = read('/newtab/components/MigrateReportCard.vue');
+  return !pm.includes('尚无 UI 调用方') && pm.includes('MigrateReportCard.vue')
+    && card.includes('restoreMigrateBackup()');
+});

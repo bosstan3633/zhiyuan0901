@@ -236,7 +236,10 @@ export function setThesis(d: AppData, wsId: ID, cardId: ID | null): boolean {
   // R1.5：论证节点卡不做中心论点——论点语义由池卡（金字塔 L1）承担；传 arg id 显式拒绝
   if (cardId && d.argCards?.some(a => a.id === cardId)) return false
   for (const r of d.resources) {
-    if (r.workspaceId !== wsId || !r.isThesis) continue
+    // R4-Fa：软删卡上的论点标记不动——与同文件 countThesisDuplicates / sanitizeThesisDuplicates 的
+    // 既有口径同源（「软删卡不计入，回收站恢复后语义不变」）。此前这里连回收站里的卡一起摘标，
+    // 用户从回收站恢复一张旧论点卡，恢复回来的是一张没有论点头衔的普通卡，且没有任何提示。
+    if (r.workspaceId !== wsId || !r.isThesis || r.deletedAt) continue
     if (r.id !== cardId) r.isThesis = undefined
   }
   if (!cardId) return true

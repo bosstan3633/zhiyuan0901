@@ -18,8 +18,9 @@
  *
  * 备份 / 回退：writeMigrateBackup 把迁移前全量数据写入 K.MIGRATE_BACKUP；
  * restoreMigrateBackup 整库覆盖回退并清除迁移落戳（备份缺失/版本不符返回 null）。
- * ★R179 记账：readMigrateBackup / restoreMigrateBackup 数据层原语已备，**尚无 UI 调用方**——
- *   设置页迁移报告卡（展示备份时间 / 下载 / 回退）属遗留项，未落地（见交付说明_R179 遗留 1）。
+ * ★R179 记账 → R4-a 已落地（R4-Fa 订正这条过期注释）：readMigrateBackup / restoreMigrateBackup
+ *   的 UI 调用方是设置页的 `components/MigrateReportCard.vue`（展示备份时间 / 下载 / 回退 / 停用迁移），
+ *   不再是"数据层原语已备、尚无调用方"。
  */
 import { CURATION_WS_ID, type AppData, type CatsMigrateReport, type ID, type TagNode } from '../models'
 import { uid } from '../utils'
