@@ -368,6 +368,68 @@ async function overlayOpen(page) {
   return await page.locator('.md-panel, .drawer, .gp-overlay.open').first().isVisible().catch(() => false)
 }
 /**
+ * R4-En：两个 content 浮层进视觉门禁（#115）。
+ * 为什么必须补：采集面板与网页 ⌘K 浮层在 theme-audit 与 e2e 里**都是零触点**
+ * （grep e2e.cjs 的 `__zy_cap_*` = 0 条，grep 本脚本的浮层场景 = 0 条），
+ * 而 R4-Dm 刚在采集下拉里量出一枚本该不可达的退役台面——"资源台"三个字印在选项里且是默认项，
+ * 这种形状在源码文本断言里表现为什么都没变。判据里的数都是 2026-10-01 用
+ * /tmp/zy_en_probe.cjs 实测出来的（面板 402×521、越界 -10/-189、控件底色 5 枚 1 种、输入框透明随面板）。
+ * 浮层注入在宿主页普通 DOM（A4 的 Shadow DOM 隔离仍挂账），主题靠它自己读 `zy_ui_v2` 判一次，
+ * 所以这里同时核一件事：**浮层强调色必须与应用内 `--accent` 同值**（两端各写一份映射，早晚会漂）。
+ */
+const OVERLAY_SCENES = [
+  {
+    id: 'ov-capture', name: '采集面板', msg: 'zy-open-capture', ready: '#__zy_cap_ws__',
+    judge: async (page, expectAccent) => page.evaluate((exp) => {
+      const panel = document.querySelector('.zy-panel')
+      const root = document.getElementById('__zy_global_overlay__') || (panel && panel.closest('div[id^="__zy"]')) || document.body
+      const toRgb = (v) => { const sp = document.createElement('span'); sp.style.color = v; document.body.appendChild(sp); const c = getComputedStyle(sp).color; sp.remove(); return c }
+      if (!panel) return { ok: false, txt: '面板没渲染' }
+      const pr = panel.getBoundingClientRect()
+      const sel = document.getElementById('__zy_cap_ws__')
+      const cats = document.getElementById('__zy_cap_cat__')
+      const ctrls = [...panel.querySelectorAll('input, select, textarea')]
+      const bgs = [...new Set(ctrls.map(c => getComputedStyle(c).backgroundColor))]
+      const optList = sel ? [...sel.options].map(o => ({ v: o.value, t: (o.textContent || '').trim() })) : []
+      const opts = optList.map(o => o.t)
+      const accent = toRgb((getComputedStyle(root).getPropertyValue('--zy-accent') || '').trim() || '#000')
+      const retired = opts.filter(t => t.includes('资源台'))
+      /* ★真实库里用户可能只剩一枚可见台（实测：其它台已归档），所以条数不是判据；
+         判据是形状：选项文本非空、不得出现退役实体名、池那一枚必须显示「资源卡池」。 */
+      const poolOpt = optList.find(o => o.v === 'zy-curation')
+      const ok = Number(getComputedStyle(panel).opacity) > 0.9 && pr.width > 320 && pr.right <= window.innerWidth + 1 && pr.left >= 0
+        && opts.length >= 1 && opts.every(t => t.length > 0) && retired.length === 0
+        && !!poolOpt && poolOpt.t === '资源卡池'
+        && !!cats && cats.options.length >= 1 && bgs.length === 1
+        && !!document.getElementById('__zy_cap_save__') && accent === exp
+      return { ok, txt: `宽=${Math.round(pr.width)} 越界=${Math.round(pr.right - window.innerWidth)}px 台选项=${JSON.stringify(opts)} 池项=${poolOpt ? poolOpt.t : '无'} 退役名残留=${retired.length} 分类项=${cats ? cats.options.length : 0} 控件底色=${bgs.length}种/${bgs[0] || '无'} 浮层accent==应用accent=${accent === exp}(${accent})` }
+    }, expectAccent)
+  },
+  {
+    id: 'ov-search', name: '网页 ⌘K 浮层', msg: 'zy-open-search', ready: '#__zy_si__',
+    act: async (page, needle) => {
+      await page.locator('#__zy_si__').fill(needle)
+      await page.waitForTimeout(900)
+    },
+    judge: async (page, expectAccent) => page.evaluate((exp) => {
+      const inp = document.getElementById('__zy_si__')
+      const panel = inp && inp.closest('.zy-panel')
+      if (!panel) return { ok: false, txt: '浮层面板没找到' }
+      const pr = panel.getBoundingClientRect()
+      const rows = [...document.querySelectorAll('.zy-result-item')]
+      const mark = document.querySelector('.zy-hl, mark')
+      const toRgb = (v) => { const sp = document.createElement('span'); sp.style.color = v; document.body.appendChild(sp); const c = getComputedStyle(sp).color; sp.remove(); return c }
+      const root = document.getElementById('__zy_global_overlay__') || panel.closest('div[id^="__zy"]') || document.body
+      const accent = toRgb((getComputedStyle(root).getPropertyValue('--zy-accent') || '').trim() || '#000')
+      const inputBg = getComputedStyle(inp).backgroundColor
+      const ok = pr.width > 320 && pr.right <= window.innerWidth + 1 && rows.length >= 1
+        && !!mark && (inputBg === 'rgba(0, 0, 0, 0)' || inputBg === getComputedStyle(panel).backgroundColor) && accent === exp
+      return { ok, txt: `宽=${Math.round(pr.width)} 越界=${Math.round(pr.right - window.innerWidth)}px 行=${rows.length} 高亮=${!!mark} 输入框底色=${inputBg === 'rgba(0, 0, 0, 0)' ? '透明(随面板)' : inputBg} 首行=${rows[0] ? JSON.stringify((rows[0].textContent || '').trim().slice(0, 18)) : '无'} accent一致=${accent === exp}` }
+    }, expectAccent)
+  }
+]
+
+/**
  * 关掉遗留浮层，返回"仍关不掉"。为什么需要它：主题之间**只切 hash 不整页重载**（见下），
  * 浮层是全局的 ⇒ 上一主题收尾没关掉的评审面板会一路盖住后面所有台面图。
  * 先按 Esc；还不掉就点关闭按钮（两代壳都试）——「Esc 关不掉」本身是产品缺陷（R161 实测修掉），
@@ -466,6 +528,17 @@ async function main() {
     window.Date = F
   }, FREEZE_AT)
 
+  /* R4-En：content 浮层注入在 http/https 页，扩展页里没有它的宿主 —— 与 perf 的 M5 同一手法 */
+  const http = require('http')
+  const ovServer = http.createServer((rq, rs) => {
+    rs.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    rs.end('<!doctype html><title>知源浮层走查宿主页</title><h1>浮层走查宿主页</h1><p>这一段文字用来确认浮层是注入在本页而不是扩展页。</p>')
+  })
+  await new Promise(r => ovServer.listen(0, '127.0.0.1', r))
+  const ovPort = ovServer.address().port
+  const ovUrl = `http://127.0.0.1:${ovPort}/`
+  let ovPage = null
+
   const page = await ctx.newPage()
   page.setDefaultTimeout(30000)
 
@@ -510,7 +583,8 @@ async function main() {
   const modalFail = []
   /** R2-②③：DeckTabs 三张卡 + 槽内子任务视口判据（原 R169-T4 项目调度 spotlight 改靶） */
   const spotFail = []
-  const dashFail = [] /* R172-T13：仪表盘七场景 */
+  const dashFail = []
+  const overlayFail = [] /* R4-En：content 浮层两场景 */ /* R172-T13：仪表盘七场景 */
   const treeFail = [] /* R3-B′：完整方向树项目层折叠活体判据 */
   for (const theme of themes) {
     // 上一主题遗留的浮层先清掉（best-effort）：不掩盖问题——下面每张弹窗图收尾都会判一次 Esc
@@ -746,13 +820,52 @@ async function main() {
       if (!info.ok) dashFail.push(`${theme}/${sc.id}：${info.txt}`)
       await closeOverlays(page)
     }
+    /* ===== R4-En：content 浮层两场景（采集面板 / 网页 ⌘K）===== */
+    // 浮层自己读 zy_ui_v2 判主题（普通 DOM，不共享扩展页的 data-theme），故上面刚写回的 storage 主题对它生效。
+    let appAccent = ''
+    try {
+      appAccent = await page.evaluate(() => {
+        const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
+        const sp = document.createElement('span'); sp.style.color = v; document.body.appendChild(sp)
+        const c = getComputedStyle(sp).color; sp.remove(); return c
+      })
+    } catch (e) { /* 取不到就走判据红 */ }
+    // 检索词面从注入的真实库里取一张卡的标题前 4 字（写死词会随库变化而搜不到 ⇒ 空态图 + 判据仍绿）
+    const ovNeedle = ((data.resources || []).find(r => r && r.title) || {}).title
+    const needle = String(ovNeedle || '资源').replace(/\s+/g, '').slice(0, 4)
+    for (const sc of OVERLAY_SCENES) {
+      if (!ovPage) { ovPage = await ctx.newPage(); ovPage.setDefaultTimeout(20000) }
+      await ovPage.goto(ovUrl, { waitUntil: 'load' })
+      await ovPage.waitForTimeout(1400)   // content script 注入 + 读 storage
+      let ready = false
+      let opened = true
+      try {
+        await worker.evaluate(async ({ p, t }) => {
+          const tabs = await chrome.tabs.query({ url: `http://127.0.0.1:${p}/*` })
+          if (!tabs[0]) throw new Error('宿主页 tab 未找到')
+          await chrome.tabs.sendMessage(tabs[0].id, { type: t })
+        }, { p: ovPort, t: sc.msg })
+        ready = !!(await ovPage.waitForSelector(sc.ready, { timeout: 8000 }).catch(() => null))
+      } catch (e) { opened = false; overlayFail.push(`${theme}/${sc.id}：唤起消息失败 ${e.message}`) }
+      if (ready && sc.act) await sc.act(ovPage, needle)
+      if (ready) await resetView(ovPage)
+      const info = ready ? await sc.judge(ovPage, appAccent) : { ok: false, txt: opened ? '浮层没开（等不到就绪选择器）' : '唤起失败' }
+      const f = path.join(outDir, `${theme}-${sc.id}.png`)
+      await ovPage.screenshot({ path: f })
+      shots.push(f)
+      console.log(`  ${info.ok ? '✓' : '✗'} ${theme.padEnd(8)} ${sc.name.padEnd(9)} ${info.txt}   → ${path.basename(f)} (${Math.round(fs.statSync(f).size / 1024)}KB)`)
+      if (!info.ok) overlayFail.push(`${theme}/${sc.id}：${info.txt}`)
+      await ovPage.keyboard.press('Escape').catch(() => {})
+      await ovPage.waitForTimeout(300)
+    }
+
     console.log(`  主题 ${theme} 落盘（data-theme=${okTheme}）`)
   }
 
   await page.evaluate(async () => { await chrome.storage.local.remove(['zy_ai_v1']) }).catch(() => {})
   await ctx.close()
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
-  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length  + 3 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 + R3-Cc 共用批量栏 */ + DASH_SCENES.length /* R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 + R3-Cc 批量栏 ⇒ 72→80；R4-Da 标签双栏 ⇒ 80→84；R4-Dd Airtable 面板 ⇒ 84→88；R4-Df 使用手册 ⇒ 88→92；R4-Dl ⌘K 检索面板 ⇒ 92→96 */)
+  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length  + 3 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 + R3-Cc 共用批量栏 */ + DASH_SCENES.length + OVERLAY_SCENES.length /* R4-En content 浮层 2 场景 ⇒ 96→104；R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 + R3-Cc 批量栏 ⇒ 72→80；R4-Da 标签双栏 ⇒ 80→84；R4-Dd Airtable 面板 ⇒ 84→88；R4-Df 使用手册 ⇒ 88→92；R4-Dl ⌘K 检索面板 ⇒ 92→96 */)
   if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情 + 1 deck)）`); process.exit(1) }
   if (escLeak.length) {
     console.log(`❌ Esc 未能关闭中央弹窗：${escLeak.join(' / ')}（台面图已受影响，请查 Modal.vue 的 watch immediate）`)
@@ -774,6 +887,11 @@ async function main() {
     console.log(`❌ 仪表盘场景判据未过 ${dashFail.length} 项：\n  ` + dashFail.join('\n  '))
     process.exit(1)
   }
+  if (overlayFail.length) {
+    console.log(`❌ content 浮层判据未过 ${overlayFail.length} 项：\n  ` + overlayFail.join('\n  '))
+    process.exit(1)
+  }
+  await ovServer.close()
   if (spotFail.length) {
     console.log(`❌ DeckTabs/deck 判据未过 ${spotFail.length} 项：\n  ` + spotFail.join('\n  '))
     process.exit(1)

@@ -776,3 +776,42 @@ check('R4-Dm ★"取 workspaces[0] 当默认落点"这一族形状必须逐处�
     && !codeOnly(read('/newtab/components/GlobalPopups.vue')).includes('workspaces[0]')
     && !codeOnly(read('/newtab/components/compass/MetricDrillDrawer.vue')).includes('workspaces[0]');
 });
+
+// ============== R4-En content 浮层进视觉门禁（#115） ==============
+console.log('【R4-En · content 浮层场景】');
+check('R4-En ★两个 content 浮层终于有像素门禁：theme-audit 必须有 ov-capture（采集面板）与 ov-search（网页 ⌘K）两条场景，且都在**宿主页**上拍（浮层只注入 http/https 页，扩展页里拍到的是空文档），任一判据不过即非零退出。起因是 R4-Dm 在采集下拉里量出一枚本该不可达的退役台面「资源台」且它是默认项——那件事只有真开一次浮层看得见，而 e2e 驱动采集浮层 0 条、本脚本此前浮层场景 0 条', () => {
+  const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
+  const i1 = t.indexOf("id: 'ov-capture'");
+  const i2 = t.indexOf("id: 'ov-search'");
+  return i1 > 0 && i2 > i1
+    && t.includes("msg: 'zy-open-capture'") && t.includes("ready: '#__zy_cap_ws__'")
+    && t.includes("msg: 'zy-open-search'") && t.includes("ready: '#__zy_si__'")
+    && t.includes('chrome.tabs.sendMessage') && t.includes('ovServer.listen')
+    && t.includes('if (!ovPage) { ovPage = await ctx.newPage()')
+    && t.includes('if (overlayFail.length)') && /overlayFail\.length\) \{\s*console\.log\(`❌ content 浮层判据未过/.test(t)
+    && t.includes('DASH_SCENES.length + OVERLAY_SCENES.length');
+});
+check('R4-En ★采集面板的判据钉的是形状不是条数：真实库里可见台可能只剩一枚（实测台选项=["资源卡池"]，其它台已归档），所以条数不是判据；判据是「选项文本非空 + 全站不许再出现退役实体名『资源台』+ 池那一枚必须显示单源名『资源卡池』+ 同类控件底色只能有一种 + 浮层强调色必须与应用内 --accent 同值（两端各写一份主题映射，早晚会漂）」。第一版我写了 opts.length >= 2，真库当场假红——这条把那个错也钉住', () => {
+  const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
+  const i = t.indexOf("id: 'ov-capture'");
+  const seg = t.slice(i, t.indexOf("id: 'ov-search'"));
+  /* 切"逻辑那一段"而不是整段：段首有个 `if (!panel) return { ok: false, … }` 的早退分支，
+     用 indexOf('return { ok') 会切到它前面、得到空串，而"切片为空"在 includes 下会恒真 */
+  const iOk = seg.indexOf('const ok =')
+  const okExpr = seg.slice(iOk, seg.lastIndexOf('return {'))
+  return i > 0 && iOk > 0 && okExpr.length > 40 && seg.includes("poolOpt.t === '资源卡池'") && seg.includes("t.includes('资源台')")
+    && okExpr.includes('opts.length >= 1') && okExpr.includes('opts.every(t => t.length > 0)')
+    && !okExpr.includes('opts.length >= 2') && okExpr.includes('bgs.length === 1') && okExpr.includes('accent === exp')
+    && seg.includes("document.getElementById('__zy_global_overlay__')");
+});
+check('R4-En ★网页 ⌘K 浮层的三条像素事实必须在位：真开 + 结果行 ≥1 + 高亮节点存在 + 输入框不吃白底（透明随面板或等于面板底色）+ 不越视口；检索词面从注入库里第一张卡的标题现取前 4 字——写死词会随库变化而搜不到，那一屏就退化成空态图而判据还会绿（R4-Dl 同一条纪律在浮层上的落地）', () => {
+  const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
+  const i = t.indexOf("id: 'ov-search'");
+  const seg = t.slice(i, t.indexOf('\n]\n', i));
+  const iOk = seg.indexOf('const ok =')
+  const okExpr = seg.slice(iOk, seg.lastIndexOf('return {'))
+  return i > 0 && iOk > 0 && okExpr.length > 40 && okExpr.includes('rows.length >= 1') && okExpr.includes('!!mark') && okExpr.includes("rgba(0, 0, 0, 0)")
+    && okExpr.includes('pr.right <= window.innerWidth + 1') && okExpr.includes('accent === exp')
+    && t.includes("const ovNeedle = ((data.resources || []).find(r => r && r.title) || {}).title")
+    && t.includes(".replace(/\\s+/g, '').slice(0, 4)");
+});
