@@ -34,6 +34,19 @@ const argv = Object.fromEntries(process.argv.slice(2).map(a => {
   return m ? [m[1], m[2] ?? true] : [a, true]
 }))
 
+/*
+ * R4-Dl：截图可复现的两道闩（默认开）。R4-Dj 实测**同一份代码连采两次仍有 25-26/92 张逐像素不同**
+ * ——原因是分钟级相对时间文本、hover 残留、动画窗口三种噪声，它们比一次真实改动还大，
+ * 于是"改前改后截图对比"跨时间就不可用（那一轮只能退化成"同会话双构建 A/B"）。
+ *   --no-freeze  不冻结墙上时钟（回到"每跑一次日期都在走"）
+ *   --no-calm    截图前不关动画/过渡（回到"抓到动画中间帧"）
+ * 关掉的用途不是偷懒，是让改前/改后能在**同一会话同一构建**上各测一次可复现率。
+ */
+const FREEZE = !argv['no-freeze']
+const CALM = !argv['no-calm']
+/** 冻结到本次运行的 UTC 日起点：分钟级"X 前"在同一天内恒定，跨日的差异是数据本身应有的变化 */
+const FREEZE_AT = Math.floor(Date.now() / 86400000) * 86400000
+
 const THEMES = ['linear', 'raycast', 'apple', 'notion']
 const VIEWS = [
   { id: 'dashboard', hash: '#/', name: '调度台' },
@@ -295,12 +308,64 @@ const DASH_SCENES = [
       return { ok: toc.length >= 20 && secs.length === toc.length && active === 1 && !leaked,
         txt: `目录=${toc.length} 节=${secs.length} 选中=${active} 漏标签=${leaked}` }
     })
+  },
+  {
+    /* R4-Dl：⌘K 检索面板进视觉门禁。此前这条链在 theme-audit 与 e2e 里都是零触点（R4-Pa 补了 E2E-37、
+       R4-Dk 补了 E2E-38 的运行时判据，但**像素层仍然没人看**——纯样式/版式改动只靠源码文本断言，
+       而"面板真开、高亮真渲染、hover 才露出的那排钮真能露"这三件事在源码里都表现为什么都没变。
+       词面故意从当前结果流第一行取：写死词会随用户库内容变化而搜不到，那一屏就退化成空态图。 */
+    id: 'gp-search', name: '⌘K 检索面板', hash: '#/',
+    act: async (page) => {
+      await page.evaluate(() => {
+        const btn = [...document.querySelectorAll('.icon-btn')].find(e => (e.getAttribute('title') || '').includes('全局搜索'))
+        if (!document.querySelector('.gp-overlay.open') && btn) btn.click()
+      })
+      await page.waitForTimeout(900)
+      const word = await page.evaluate(() => {
+        const t = document.querySelector('.gp-result-item .gp-ri-title')
+        return t ? (t.textContent || '').trim().slice(0, 2) : ''
+      })
+      if (word) { await page.locator('.gp-search-input').fill(word); await page.waitForTimeout(800) }
+      /* hover 判据必须在 resetView 把鼠标挪走**之前**测完——那排动作钮就是靠 hover 露出的 */
+      await page.locator('.gp-result-item').first().hover().catch(() => {})
+      await page.waitForTimeout(350)
+      await page.evaluate(() => {
+        const row = document.querySelector('.gp-result-item')
+        const acts = row ? row.querySelector('.gp-ri-actions') : null
+        const vis = acts ? [...acts.querySelectorAll('button, .convert')].filter(b => {
+          const r = b.getBoundingClientRect()
+          return r.width > 4 && r.height > 4
+        }).length : 0
+        window.__gpHover = { acts: !!acts, vis }
+      })
+    },
+    judge: async (page) => page.evaluate(() => {
+      const ov = document.querySelector('.gp-overlay.open')
+      const panel = document.querySelector('.gp-panel')
+      const input = document.querySelector('.gp-search-input')
+      const pr = panel ? panel.getBoundingClientRect() : null
+      const op = ov ? Number(getComputedStyle(ov).opacity) : 0
+      const marks = [...document.querySelectorAll('mark.gp-hl')]
+      const panelBg = panel ? getComputedStyle(panel).backgroundColor : ''
+      const markBg = marks.length ? getComputedStyle(marks[0]).backgroundColor : ''
+      const inputBg = input ? getComputedStyle(input).backgroundColor : ''
+      const rows = document.querySelectorAll('.gp-result-item').length
+      const groups = document.querySelectorAll('.gp-group-title').length
+      const tabs = document.querySelectorAll('.gp-type-tab').length
+      const hover = window.__gpHover || { acts: false, vis: 0 }
+      const overflow = pr ? (pr.right > window.innerWidth + 1 || pr.left < -1) : true
+      /* ★面板必须压在页面之上且不越视口；输入框不许是浏览器白底（R4-Dh 在设置页抓到过同一类失效） */
+      const ok = !!ov && op > 0.9 && !!panel && !!pr && pr.width > 320 && !overflow &&
+        rows > 0 && groups >= 1 && tabs >= 6 && marks.length > 0 && markBg !== panelBg &&
+        [ 'rgba(0, 0, 0, 0)', panelBg ].includes(inputBg) && hover.acts && hover.vis >= 3
+      return { ok, txt: `开=${!!ov}/opacity${op.toFixed(2)} 宽=${panel ? Math.round(pr.width) : 0} 越视口=${overflow} 行=${rows} 组=${groups} tab=${tabs} 高亮=${marks.length} 高亮底色≠卡底=${markBg !== panelBg && !!markBg} 输入框底色=${inputBg === 'rgba(0, 0, 0, 0)' ? '透明(随面板)' : inputBg} hover露钮=${hover.vis}` }
+    })
   }
 ]
 
 /** 浮层是否还挂着（两代壳都认：R161 起的中央弹窗 `.md-panel` + V3.2.1 及以前的右侧抽屉 `.drawer`）。 */
 async function overlayOpen(page) {
-  return await page.locator('.md-panel, .drawer').first().isVisible().catch(() => false)
+  return await page.locator('.md-panel, .drawer, .gp-overlay.open').first().isVisible().catch(() => false)
 }
 /**
  * 关掉遗留浮层，返回"仍关不掉"。为什么需要它：主题之间**只切 hash 不整页重载**（见下），
@@ -312,7 +377,12 @@ async function closeOverlays(page) {
   for (let i = 0; i < 3; i++) {
     if (!(await overlayOpen(page))) return
     if (i === 0) await page.keyboard.press('Escape').catch(() => {})
-    else await page.locator('.md-close, .drawer-close').first().click().catch(() => {})
+    else {
+      await page.locator('.md-close, .drawer-close').first().click().catch(() => {})
+      /* R4-Dl：⌘K 浮层没有关闭钮，靠 Esc 或点遮罩空白（`.gp-overlay` 的 @click.self）——
+         点面板中心会命中结果行并打开详情，所以点遮罩盒子左上角 */
+      await page.locator('.gp-overlay.open').click({ position: { x: 6, y: 6 } }).catch(() => {})
+    }
     await page.waitForTimeout(400)
   }
 }
@@ -327,12 +397,22 @@ async function closeOverlays(page) {
  */
 async function resetView(page) {
   await page.mouse.move(0, 0).catch(() => {}) /* 鼠标挪到左上角空白，清掉卡片 hover 态 */
-  await page.evaluate(() => {
+  await page.evaluate((calm) => {
     window.scrollTo(0, 0)
     for (const el of Array.from(document.querySelectorAll('*'))) {
       if (el.scrollTop) el.scrollTop = 0
     }
-  }).catch(() => {})
+    /* R4-Dl：关动画/过渡并跑完非循环动画。静照里本来就没有"正在动"这件事，
+       留着它只会让两次采样差在随机帧上；hover 露出这类**终态**判据不受影响（transition:none 让终态瞬时生效）。 */
+    if (calm && window.__ZY_CALM__ !== true) {
+      window.__ZY_CALM__ = true
+      const st = document.createElement('style')
+      st.id = '__zy_calm__'
+      st.textContent = '*,*::before,*::after{animation:none !important;transition:none !important}'
+      document.head.appendChild(st)
+    }
+    try { for (const a of (document.getAnimations ? document.getAnimations() : [])) { try { a.finish() } catch (e) {} } } catch (e) {}
+  }, CALM).catch(() => {})
   await page.waitForTimeout(300)
 }
 
@@ -375,6 +455,17 @@ async function main() {
   if (!worker) worker = await ctx.waitForEvent('serviceworker', { timeout: 20000 })
   const extId = new URL(worker.url()).host
   const base = `chrome-extension://${extId}/${EXT_INDEX}`
+  /* R4-Dl：冻结 Date（只冻无参构造与 Date.now，带参的 new Date(x) 原样透传）。
+     性能计时不受影响——本脚本不测时间，只测像素。 */
+  if (FREEZE) await ctx.addInitScript((ms) => {
+    const Real = Date
+    const F = class FrozenDate extends Real {
+      constructor(...a) { if (a.length === 0) super(ms); else super(...a) }
+      static now() { return ms }
+    }
+    window.Date = F
+  }, FREEZE_AT)
+
   const page = await ctx.newPage()
   page.setDefaultTimeout(30000)
 
@@ -661,7 +752,7 @@ async function main() {
   await page.evaluate(async () => { await chrome.storage.local.remove(['zy_ai_v1']) }).catch(() => {})
   await ctx.close()
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
-  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length  + 3 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 + R3-Cc 共用批量栏 */ + DASH_SCENES.length /* R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 + R3-Cc 批量栏 ⇒ 72→80；R4-Da 标签双栏 ⇒ 80→84；R4-Dd Airtable 面板 ⇒ 84→88；R4-Df 使用手册 ⇒ 88→92 */)
+  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length  + 3 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 + R3-Cc 共用批量栏 */ + DASH_SCENES.length /* R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 + R3-Cc 批量栏 ⇒ 72→80；R4-Da 标签双栏 ⇒ 80→84；R4-Dd Airtable 面板 ⇒ 84→88；R4-Df 使用手册 ⇒ 88→92；R4-Dl ⌘K 检索面板 ⇒ 92→96 */)
   if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情 + 1 deck)）`); process.exit(1) }
   if (escLeak.length) {
     console.log(`❌ Esc 未能关闭中央弹窗：${escLeak.join(' / ')}（台面图已受影响，请查 Modal.vue 的 watch immediate）`)

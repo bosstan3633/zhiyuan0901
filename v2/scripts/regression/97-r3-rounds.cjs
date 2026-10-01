@@ -670,3 +670,47 @@ check('R4-Pa ★运行时覆盖补第二档：e2e 必须有 E2E-38 真点转化�
     && e.includes(".toast-action") && e.includes("dkAfter.出路 === 'res'") && e.includes("dkAfter.ws === 'zy-curation'")
     && e.includes('旧台面') && e.includes('池面可见');
 });
+
+// ============== R4-Dl ⌘K 面板进视觉门禁 + 截图可复现 ==============
+console.log('【R4-Dl · 视觉门禁与确定性采样】');
+check('R4-Dl ★⌘K 面板终于进了一次视觉门禁（id: gp-search）。此前这条链只有源码文本可见：面板真开、高亮真渲染、hover 才露出的那排动作钮、输入框有没有吃浏览器白底——这四件事在文本断言里都表现为"什么都没变"。判据必须核到这四件 + 面板越视口，只拍一张图不核即红', () => {
+  const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
+  const i = t.indexOf("id: 'gp-search'");
+  const seg = t.slice(i, t.indexOf("\n  },", i) > 0 ? t.indexOf("\n  },", i) : i + 4000);
+  /* ★判据只认 `const ok =` 那一段：这些锚点串在"打印明细"的模板里也出现一遍，
+     整段 grep 会让"把判据从 ok 里删掉、只留明细"这种改动照样绿——H4 变异当场抓到的就是这个形状。 */
+  const iOk = seg.indexOf('const ok =');
+  const okExpr = seg.slice(iOk, seg.indexOf('return {', iOk));
+  return i > 0 && iOk > 0 && okExpr.length > 40
+    && seg.includes('.gp-overlay.open') && seg.includes('.gp-result-item') && seg.includes('.gp-search-input')
+    && seg.includes('window.__gpHover')
+    && seg.includes("document.querySelectorAll('mark.gp-hl')") && okExpr.includes('marks.length > 0') && okExpr.includes('markBg !== panelBg')
+    && okExpr.includes('pr.width > 320') && okExpr.includes('!overflow') && okExpr.includes('op > 0.9')
+    && okExpr.includes('rows > 0') && okExpr.includes('groups >= 1') && okExpr.includes('tabs >= 6')
+    && okExpr.includes('hover.acts') && okExpr.includes('hover.vis >= 3') && okExpr.includes('panelBg ].includes(inputBg)');
+});
+check('R4-Dl ★hover 判据必须在 resetView 把鼠标挪走**之前**测完（act 内），且结果经 window.__gpHover 交给 judge：resetView 的鼠标归零是 R4-Dj 立的"可比性前提"，谁把 hover 类判据搬到截图前就必然测到未悬停态——那是"断言还在、证据已空"的又一个形状', () => {
+  const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
+  const iAct = t.indexOf("id: 'gp-search'");
+  const seg = t.slice(iAct, t.indexOf('judge: async (page) => page.evaluate', iAct));
+  return seg.includes(".locator('.gp-result-item').first().hover()") && seg.includes('window.__gpHover =') && iAct < t.indexOf('async function resetView');
+});
+check('R4-Dl ★收尾必须认得 ⌘K 浮层：主题/场景之间只切 hash 不重载页面，`overlayOpen` 不含 .gp-overlay.open 就会把开着的面板一路带进后面每一张台面图（污染证据且无人报错）；面板没有关闭钮，兜底点遮罩盒子左上角触发 @click.self（点中心会命中结果行、反而打开详情）', () => {
+  const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
+  const iO = t.indexOf('async function overlayOpen');
+  const iC = t.indexOf('async function closeOverlays');
+  return t.slice(iO, iO + 260).includes("'.md-panel, .drawer, .gp-overlay.open'")
+    && iC > 0 && t.slice(iC, iC + 700).includes("locator('.gp-overlay.open').click({ position:")
+    && t.slice(iC, iC + 700).includes('x: 6, y: 6');
+});
+check('R4-Dl ★截图可复现两闩在位且**可关**（逃生阀不是装饰：关掉它才量得出"没有它会怎样"，实测同码重采 13/24 → 24/24 字节一致）：① ctx.addInitScript 只冻无参 Date 与 Date.now()（带参 new Date(x) 原样透传，性能计时不碰）② resetView 注入 animation/transition:none 并跑完非循环动画（静照里没有"正在动"，留着只会让两次采样差在随机帧上，而 hover 露出这类终态判据不受影响）', () => {
+  const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
+  const iF = t.indexOf('if (FREEZE) await ctx.addInitScript');
+  const segF = t.slice(iF, iF + 420);
+  const iR = t.indexOf('async function resetView');
+  const segR = t.slice(iR, t.indexOf('\n}', iR));
+  return iF > 0 && segF.includes('window.Date = F') && segF.includes('if (a.length === 0) super(ms); else super(...a)') && segF.includes('static now() { return ms }')
+    && t.includes("const FREEZE = !argv['no-freeze']") && t.includes("const CALM = !argv['no-calm']")
+    && segR.includes('animation:none !important;transition:none !important') && segR.includes('if (calm && window.__ZY_CALM__ !== true)')
+    && segR.includes('getAnimations') && segR.includes('a.finish()') && t.slice(iR, t.indexOf('}, CALM)', iR)).includes('(calm)');
+});
