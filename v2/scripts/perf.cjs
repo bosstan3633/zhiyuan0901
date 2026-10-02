@@ -1146,6 +1146,88 @@ async function main() {
   await page.keyboard.press('Escape').catch(() => {})
   await page.waitForTimeout(250)
 
+  // ══════════ M15 ⌘K 结果表**驻留**（R4-Er 新增尺子）══════════
+  // ★为什么要补这一档：#114 的③写的是「结果表 ~1.3MB 派生串驻留」，那是**按字符数 ×2 估出来的**，
+  //   本脚本此前所有指标都是墙钟与长任务，没有一个"面板关掉之后到底还占着多少"的读数。
+  //   口径：CDP 堆用量（GC 后的稳定态）在「新文档」与「开过一次 ⌘K 再关掉并 GC」之间的差
+  //   = 关着面板时被永久占住的那一份（结果表按数据缓存，见 R4-Pa 那条拆层，它不会随面板释放）。
+  //   另存「开面板瞬时」与「每卡驻留 B」——每卡数才是能被跨库大小比较的形状量。
+  let m15 = null
+  try {
+    const mp = await ctx.newPage()
+    await mp.goto(base + '#/workspace', { waitUntil: 'domcontentloaded' })
+    await mp.waitForTimeout(2600)
+    const mcdp = await ctx.newCDPSession(mp)
+    await mcdp.send('HeapProfiler.enable').catch(() => {})
+    const heapKB = async () => {
+      await mcdp.send('HeapProfiler.collectGarbage').catch(() => {})
+      return Math.round((await mcdp.send('Runtime.getHeapUsage')).usedSize / 1024)
+    }
+    const h0 = await heapKB()
+    const opened = await mp.evaluate(async () => {
+      const btn = [...document.querySelectorAll('.icon-btn')].find(e => (e.getAttribute('title') || '').includes('全局搜索'))
+      if (!btn) throw new Error('顶栏「全局搜索」按钮未找到（M15 无入口）')
+      btn.click()
+      const ok = await new Promise(res => {
+        const t = setInterval(() => { if (document.querySelector('.gp-result-item')) { clearInterval(t); res(true) } }, 100)
+        setTimeout(() => { clearInterval(t); res(false) }, 8000)
+      })
+      // ★等落定再采样：懒加载 chunk（拼音字典按中文查询才进）与空闲回调若没跑完，会被算进「关掉后的驻留」——
+      //   小库上实测出现过「关着比开着还占」的假读数，就是这个没等。
+      await new Promise(r => setTimeout(r, ok ? 2200 : 400))
+      return ok
+    })
+    if (!opened) throw new Error('面板没真开出结果行（M15 采样作废，不报假数）')
+    const hOpen = await heapKB()
+    await mp.keyboard.press('Escape').catch(() => {})
+    await mp.waitForTimeout(700)
+    if (await mp.locator('.gp-overlay.open').count()) {
+      await mp.locator('.gp-overlay.open').click({ position: { x: 6, y: 6 } }).catch(() => {})
+      await mp.waitForTimeout(500)
+    }
+    const closedOk = (await mp.locator('.gp-overlay.open').count()) === 0
+    const h1 = await heapKB()
+    const cnt = await mp.evaluate(() => {
+      const app = document.querySelector('#app').__vue_app__
+      const prov = app && app._context && app._context.provides
+      let pinia = null
+      for (const k of Object.getOwnPropertySymbols(prov || {})) { const v = prov[k]; if (v && v._s && v.state) pinia = v }
+      const dd = pinia._s.get('app').data
+      const live = (a) => (a || []).filter(x => !x.deletedAt).length
+      let proj = 0
+      for (const dir of (dd.compass && dd.compass.directions) || []) proj += ((dir.projects || []).filter(x => !x.deletedAt).length)
+      return { res: live(dd.resources), task: live(dd.tasks), curio: live(dd.curiosities), ws: (dd.workspaces || []).filter(x => !x.archived && x.id !== 'zy-curation').length, proj }
+    })
+    await mp.close()
+    const rows = cnt.res + cnt.task + cnt.curio + cnt.ws + cnt.proj
+    // 闸只设三条真事实：面板确实关掉了、关掉后的堆不低于稳定态、结果集确实有行。
+    // ★曾经加过第四条「开着 ≥ 关着」，那是我想当然——SPA 里关掉面板时缓存与派生表留下、DOM 与 vnode
+    //   释放，两个读数之间没有必然大小关系（小库实测就是关着 2,072KB > 开着 1,782KB）。
+    //   拿臆造的不变式当作废条件，会把真样本判成假数，比不设闸更坏。
+    // ★这里故意只用行注释：本文件里有 `url: 'http://127.0.0.1:' + port + '/*'` 这样的**字符串里的 /***，
+    //   而回归的注释剥离器不跳字符串，块注释会把后面所有代码吞进"注释"里 ⇒ 依赖 codeOnly 的判据集体失明
+    //   （R4-Er 实测：加了两段块注释后 codeOnly 只剩 65,236B 中的 26,398B，R4-Pa 的 M5c/M5d 锚点全红）。
+    if (!closedOk || h1 < h0 || !rows) {
+      log('  ⚠ M15 采样作废（关面板=' + closedOk + ' 堆差=' + (h1 - h0) + 'KB 行数=' + rows + '）——宁可不报也不报假数')
+      out.metrics.M15_采样失败 = 1
+    } else m15 = { h0, hOpen, h1, rows, cnt }
+  } catch (e) { log('  ⚠ M15 驻留采样失败：' + e.message); out.metrics.M15_采样失败 = 1 }
+  if (m15) {
+    // ★不走 push()：那是 ms 专用（名字后面硬拼 "ms"），而驻留是 KB —— 单位标错比不标更坏，
+    //   所以这里直写 out.metrics（与 M5d_命中行数 同一形态）。
+    const retained = m15.h1 - m15.h0, transient = m15.hOpen - m15.h0
+    const perCard = Math.round(retained * 1024 / m15.rows)
+    Object.assign(out.metrics, {
+      'M15_面板关着仍驻留(KB)': retained,
+      'M15_开面板瞬时(KB)': transient,
+      'M15_每卡驻留(B)': perCard,
+      'M15_结果集行数': m15.rows,
+      'M15_明细_资源/任务/好奇/台/项目': [m15.cnt.res, m15.cnt.task, m15.cnt.curio, m15.cnt.ws, m15.cnt.proj].join('/'),
+      M15_稳定态基线KB: m15.h0
+    })
+    log(`  M15_面板关着仍驻留(KB) = ${retained}（开着时 ${transient}KB）· 结果集 ${m15.rows} 行 · M15_每卡驻留(B) = ${perCard}`)
+  }
+
   // ══════════ M6 保存链路耗时（R131-C1 门禁：保存路径此前无度量）══════════
   // 复刻 saveData 计时区间的两段主线程成本：整库 JSON.stringify + 同载荷 storage.local.set。
   // 写独立探针键（不碰 zy_data_v2）：直写现役键会被 isSelfWrite 判为外部写入 → 触发合并再写一轮，污染采样。

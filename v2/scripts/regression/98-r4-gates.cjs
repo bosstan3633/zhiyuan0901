@@ -290,3 +290,29 @@ check('R4-Eq ★改口过的界面文案要留下"旧串不许回来"的锚：�
   return w.includes('从资源卡池选择资源卡镜像到该节点') && !w.includes('从资源台选择资源卡镜像到该节点')
     && w.includes('策展台含资源卡池镜像卡') && !w.includes('策展台含资源台镜像卡');
 });
+
+// ============== R4-Er ⌘K 驻留尺子（#114 的③，只立尺子不动链路） ==============
+console.log('【R4-Er · 面板驻留指标】');
+check('R4-Er ★#114 的③「结果表 ~1.3MB 派生串驻留」从来是**估算**（按字符数 ×2），本轮把它换成常驻指标：perf 必须有 M15——CDP `HeapProfiler.collectGarbage` 后取 `Runtime.getHeapUsage`，量「新文档稳定态」与「开过一次 ⌘K 再关掉并 GC」之差（关着面板被永久占住的那份），并换算每卡驻留；采样作废（面板没关掉 / 堆差为负 / 行数为零）必须显式记 M15_采样失败 而不是静默少一项', () => {
+  const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'perf.cjs'), 'utf8'));
+  const i = t.indexOf("'M15_面板关着仍驻留(KB)'");
+  return t.includes("HeapProfiler.collectGarbage") && t.includes('Runtime.getHeapUsage') && t.includes('HeapProfiler.enable')
+    && t.includes('const mp = await ctx.newPage()') && i > 0
+    && t.includes("'M15_每卡驻留(B)'") && t.includes("'M15_开面板瞬时(KB)'") && t.includes('out.metrics.M15_采样失败 = 1')
+    && t.includes('宁可不报也不报假数') && t.includes('closedOk')
+    /* ★负锚：作废条件里不许出现「开着 ≥ 关着」这类我臆造的不变式。
+       小库实测 关着 2,072KB > 开着 1,782KB（关面板时缓存与派生表留下、DOM 与 vnode 释放，
+       两个读数没有必然大小关系）——把假不变式当门禁条件会把真样本判成假数，比不设闸更坏。 */
+    && !/h1 < h0 \|\| hOpen/.test(t);
+});
+check('R4-Er ★M15 的分母必须是**结果集行数**（资源+任务+好奇+策展台+项目，与面板真实建行口径一致），只数资源卡会把每卡驻留算成虚高的假数；稳定态基线也要一起报，否则跨次运行的堆漂移会被读成"驻留涨了"', () => {
+  const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'perf.cjs'), 'utf8'));
+  const i = t.indexOf('const cnt = await mp.evaluate');
+  /* 段尾取「采样作废判据」那行为止：rows 的合式写在 mp.close() 之后（页面关掉了才换算），
+     拿 close 当段尾会把它切在段外——判据自己先得是看得全的。 */
+  const seg = t.slice(i, t.indexOf('if (!closedOk', i));
+  return i > 0 && seg.includes('res: live(dd.resources)') && seg.includes('task: live(dd.tasks)')
+    && seg.includes('curio: live(dd.curiosities)') && seg.includes("x.id !== 'zy-curation'") && seg.includes('proj +=')
+    && seg.includes('const rows = cnt.res + cnt.task + cnt.curio + cnt.ws + cnt.proj')
+    && t.includes('M15_稳定态基线KB') && t.includes("'M15_结果集行数'");
+});
