@@ -240,9 +240,10 @@ const fnBody = (src, head, next) => {
 const getSliceMisses = () => SLICE_MISS;
 const segOf = (src, head, next) => {
   const i = src.indexOf(head);
-  if (i < 0) return '';
+  if (i < 0) { SLICE_MISS.push('segOf 起点缺失「' + String(head).slice(0, 48) + '」'); return ''; }
   const j = src.indexOf(next, i + head.length);
-  return j < 0 ? src.slice(i) : src.slice(i, j);
+  if (j < 0) { SLICE_MISS.push('segOf 终点缺失「' + String(next).slice(0, 48) + '」'); return src.slice(i); }
+  return src.slice(i, j);
 };
 const RES_CARD_ACTIONS = segOf(read('/newtab/views/Workspace.vue'), '<div class="res-card-actions">', '<div class="rc-head">');
 const RES_ROW_ACTIONS = segOf(read('/newtab/views/Workspace.vue'), '<span class="rr-actions">', '</span>\n              </div>');
@@ -260,7 +261,9 @@ const inOrder = (seg) => {
   return true;
 };
 const IMPORT_FN = segOf(read('/newtab/composables/useWorkspaceImport.ts'), 'async function handleFileImport(', '\n  return {');
-const OPEN_LINK_FN = segOf(read('/newtab/views/Workspace.vue'), 'function openResourceLink(', '\n// 单击（详情）与双击（打开链接）区分');
+// ★R4-Eu 随迁备案：原终点 `// 单击（详情）与双击（打开链接）区分` 随 R115 物理拆分搬走了（该注释在宿主文件里，
+// 函数搬进 composable 后切片一路吃到聚合文本末尾）⇒ OPEN_LINK_FN 从"一个函数"变成"后面所有代码"。
+const OPEN_LINK_FN = segOf(read('/newtab/views/Workspace.vue'), 'function openResourceLink(', '\n  return { previewOpen, previewUrl');
 const stripComments = (s) => s.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
 const BADGE = read('/shared/components/AssetBadge.vue');
 const BADGE_TPL = segOf(BADGE, '<template>', '</template>');
@@ -271,9 +274,10 @@ const WS82 = read('/newtab/views/Workspace.vue');
 const CTX_FN = segOf(WS82, 'function openResCtx(', '// B6：拖拽插入线');
 const CTX_MIRROR = segOf(CTX_FN, 'if (isMirrorView(r)) {', '} else {');
 const CTX_OWN = segOf(CTX_FN, '} else {', 'resCtx.value = {');
-const MOUNT_FN = segOf(read('/newtab/composables/useWorkspaceBatch.ts'), 'function toggleMountTask(', 'function closeMountOne');
-const MOUNT_PICKER = segOf(read('/newtab/composables/useWorkspaceBatch.ts'), 'const mountTaskOptions = computed<TaskCard[]>(', 'function mountProjectName');
-const RES_CARD_IFACE = segOf(read('/shared/models/index.ts'), 'export interface ResourceCard {', '\n}');
+// ★R4-Eu：MOUNT_FN / MOUNT_PICKER 两条切片随挂载选择器一起退役（R82-7 已把 mountTaskOptions /
+// mountProjectName / mountOneOpen 判成零命中），两条起点标记在 src 里早已不存在 ⇒ 切片恒为空串、
+// 没有任何判据在用它们。删掉，不留"永远绿"的空哨兵。
+const RES_CARD_IFACE = segOf(read('/shared/models/index.ts'), 'export interface ResourceCard extends CardBase {', '\n}');
 // R3-B1：CompassShell.vue / LighthousePanel.vue 退役——原 LH / LH_TPL / LH_STYLE / TERM_FN /
 // LH85 / TPL85 / STY85 / FBAR_TPL / CS86 / LH86 / CS_TPL / CS_STY / LP99 / CS99 一并撤走，
 // 引用它们的断言逐条重指到方向台新现实（不再静默指向空串，避免"判据还在、证据已空"）。
@@ -305,7 +309,10 @@ const REF90 = read('/newtab/components/ResourceEditForm.vue');
 const ICON90 = read('/shared/components/Icon.vue');
 const HEAD90 = segOf(WS90, '<div class="ws-id-head">', '</div>');
 const TB90 = segOf(WS90, '<div class="ws-toolbar">', '<!-- ③ 资源策展区 -->');
-const CTX90 = stripComments(segOf(WS90, 'function openResCtx(', '// ===== 拖拽排序'));
+// ★R4-Eu 随迁备案：原终点 `// ===== 拖拽排序` 在 R115 拆分后不再紧跟 openResCtx ⇒ 切片一路到聚合文本末尾，
+// 里面既有 `openMirrorDetail` 又有各域 return —— 三条负锚（isHub / openMirrorCard / icon: 'share'）
+// 核的早就不是"右键菜单那一段"了。换成 composable 的 return 作为活边界。
+const CTX90 = stripComments(segOf(WS90, 'function openResCtx(', '\n  return {\n    onCardClick, onCardDblClick,'));
 const STYLE90 = read('/newtab/views/workspace.css');
 const CH91 = read('/newtab/views/CompassHome.vue');
 const STRIP91 = segOf(CH91, '<span class="cf-label"', '</MetricBar>');
@@ -402,4 +409,4 @@ function getTally() { return { pass, fail }; }
 /* R174-1：分片锚——ANCHOR_FILE = 本文件（版本锚 VER_ANCHOR_LITERAL 与聚合读取机制断言读这里） */
 const ANCHOR_FILE = __filename;
 
-module.exports = { fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, getSliceMisses, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, ST85, FOCUS_FN, ADDP_FN, CT86, ST86, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getTally };
+module.exports = { fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, getSliceMisses, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, ST85, FOCUS_FN, ADDP_FN, CT86, ST86, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getTally };

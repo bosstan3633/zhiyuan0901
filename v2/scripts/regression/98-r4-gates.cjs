@@ -5,7 +5,7 @@
  * 97 顶到 956 行，撞上 R164-2 的「每个分片 ≤900 行」刹车；按既有拍板处置是**加分片而不是放宽上限**。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getSliceMisses,
+  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getSliceMisses,
 } = require('./helpers.cjs');
 // ============== R4-Dl ⌘K 面板进视觉门禁 + 截图可复现 ==============
 console.log('【R4-Dl · 视觉门禁与确定性采样】');
@@ -400,4 +400,28 @@ check('R4-Et④ ★退役选择器登记表（本轮删掉的 150 条里挑出�
   }
   if (back.length) console.log('    回流：' + back.join(' / '));
   return back.length === 0;
+});
+
+// ============== R4-Eu 切片闸扩到 segOf，并把闸本身钉进门禁 ==============
+console.log('【R4-Eu · 切片漂移闸（83 处全覆盖）】');
+check('R4-Eu① ★闸必须装在收口处而不是某条分片里：segOf 的 69 处调用大多在判据体内惰性求值，任何分片里判"账本为空"都只覆盖到那一刻之前 ⇒ 由 regression.cjs 在**全部跑完之后**统一收口并影响退出码；helpers 侧的记账要覆盖 fnBody 与 segOf 两个工具的四条失败路径。★这条判据第一轮差点写成"文件里有 getSliceMisses 这个词"——那是 R4-Dl 那族失效的第五次，所以锚点全部取行首可执行语句，并负锚 runner 退回旧退出码写法', () => {
+  const r = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'regression.cjs'), 'utf8');
+  const h = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'regression/helpers.cjs'), 'utf8');
+  const at = (re) => re.test(r) || re.test(h);
+  return /^\s*const misses = \[\.\.\.new Set\(getSliceMisses\(\)\)\];/m.test(r)
+    && /^\s*process\.exit\(fail \|\| misses\.length \? 1 : 0\);/m.test(r)
+    && !/^\s*process\.exit\(fail \? 1 : 0\);/m.test(r)
+    && at(/^\s*if \(i < 0\) \{ SLICE_MISS\.push\('segOf 起点缺失/m)
+    && at(/^\s*if \(j < 0\) \{ SLICE_MISS\.push\('segOf 终点缺失/m)
+    && getSliceMisses().length === 0;
+});
+check('R4-Eu② ★"标记还在"不等于"切片还对"：漂移闸只抓"标记找不到"，抓不到"标记还在但落点错了"（起点在文件里重复出现、终点被改成一个存在却很晚的串，都会静默把切片撑大）。所以再钉一层**形状**：三段 helpers 级切片必须还是那一段代码的量级，且各自的承重内容在、区外的东西不在。U3 变异把 CTX90 的终点从 composable 的 return 换成一个行首右花括号（旧标记与新标记在源码里都找得到、都不记漂移），宽度从 1,870 涨到上万且把 `openMirrorDetail` 卷进来——正是这一条把它抓住', () => {
+  return CTX90.length > 200 && CTX90.length < 4000
+    && CTX90.includes("icon: 'star'") && CTX90.includes('编辑详情')
+    && !CTX90.includes('openMirrorDetail') && !CTX90.includes('onCardClick, onCardDblClick')
+    && OPEN_LINK_FN.length > 200 && OPEN_LINK_FN.length < 2500
+    && OPEN_LINK_FN.includes("if (meta.kind === 'image')") && !OPEN_LINK_FN.includes('previewName')
+    && RES_CARD_IFACE.length > 100 && RES_CARD_IFACE.length < 3000
+    && RES_CARD_IFACE.includes("kind: 'resource'")
+    && RES_CARD_IFACE.split('export interface').length === 2;   /* 切片自带起点那一句，所以"只许出现一次"= 没串到下一个 interface */
 });

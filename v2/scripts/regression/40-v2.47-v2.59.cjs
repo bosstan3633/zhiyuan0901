@@ -3,7 +3,7 @@
  * 依赖基建见 ./helpers.cjs；__dirname/__filename 已换锚为 SCRIPTS_DIR/ANCHOR_FILE（语义=原 scripts/ 根与回归自体）。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
+  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
 } = require('./helpers.cjs');
 
 console.log('【第七十七轮 · V2.46.0：浮层主题化（A1 主题接入 + A2 轻 scrim + C2 主色稀缺）】');
@@ -184,7 +184,9 @@ check('R80-5 R13 guessAssetKind 抽为共享工具，AssetManager 改 import（�
 });
 check('R80-6 R13 导入 input 的 accept 已列支持类型（图片 / HTML / PDF）★R2-⑧ 随迁：input 随入口搬到「资源卡池」面板', () => {
   const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
-  const inp = segOf(pool, '<input ref="fileImportInput"', '/>');
+  // ★R4-Eu 随迁备案：原终点 '/>' 不在了——R2-⑧ 把导入入口搬进池面板后这枚 input 不再自闭合（行尾是 `>`），
+  // 切片一路吃到文件尾，accept 串是在整份文件里被找的。换成同一行尾的 @change 作为活边界。
+  const inp = segOf(pool, '<input ref="fileImportInput"', '@change="handleFileImport"');
   return inp.includes('accept="image/*') && inp.includes('.pdf') && inp.includes('.html');
 });
 check('R80-7 R14 zy-asset:// 三分支齐全：image 走 AssetPreview / html·pdf 走 openHtmlAsset', () => {
@@ -555,14 +557,16 @@ check('R87-6（R122 重指）断链三视图：卡片整卡警示 + 描述替换
     && !WS_STY.includes('#D9A03C');
 });
 check('R87-7 R7-②：一键补全 = fixLink 打开抽屉 + focusLink 聚焦链接框；镜像卡只读拦截', () => {
-  const fn = stripComments(segOf(WS87, 'function fixLink(', '// 单击（详情）与双击（打开链接）区分'));
+  // ★R4-Eu 随迁备案：原终点注释随 R115 拆分搬走 ⇒ 切片过宽；换成 fixLink 之后的段落标题。
+  const fn = stripComments(segOf(WS87, 'function fixLink(', '\n  // B5：右键菜单'));
   return WS_TPL.includes('@click.stop="fixLink(r)"') && fn.includes('isMirrorView(r)')
     && fn.includes('openResource(r)') && fn.includes('resFormRef.value?.focusLink()')
     && REF87.includes('defineExpose({ focusLink })') && REF87.includes('function focusLink(')
     && REF87.includes('linkInputRef.value?.select()');
 });
 check('R87-8 R7-③：双击打不开的 toast 按三态分流（none / incomplete / 协议不受支持）', () => {
-  const fn = stripComments(segOf(WS87, 'function openResourceLink(', '\nfunction fixLink('));
+  // ★R4-Eu 随迁备案：fixLink 现在是 `async function`，`'\nfunction fixLink('` 永不命中 ⇒ 切片过宽；
+  const fn = stripComments(segOf(WS87, 'function openResourceLink(', '\n  return { previewOpen, previewUrl'));
   return fn.includes("st === 'none'") && fn.includes("st === 'incomplete'")
     && fn.includes('该卡还没填链接') && fn.includes('仅存文件名') && fn.includes('协议不受支持')
     && !fn.includes('请先补全链接（本地文件需完整路径');
@@ -645,7 +649,8 @@ check('R89-1 R6：搜索纳入**自定义字段值**（此前能在卡片上显�
   return fn.includes('Object.values(r.customFields || {})') && fn.includes('String(v).toLowerCase().includes(p.kw)');
 });
 check('R89-2 R6：`#标签` 直筛 —— 多个取**交集**，单个 # 回落为普通词', () => {
-  const pq = stripComments(segOf(WS89, 'function parseQuery(', '/**' + ' 卡片是否命中查询'));
+  // ★R4-Eu 随迁备案：JSDoc 是 `/**\n * 卡片是否命中查询` 两行式，旧标记（同一行）永不命中 ⇒ 切片过宽。
+  const pq = stripComments(segOf(WS89, 'function parseQuery(', '\n  /**\n   * 卡片是否命中查询'));
   const mc = stripComments(segOf(WS89, 'function matchCard(', '// 筛选（第八轮'));
   return pq.includes("tok.startsWith('#')") && pq.includes('tok.length > 1')
     && mc.includes('if (cardTags.some(c => c.split(\'/\').pop() === t)) continue');
