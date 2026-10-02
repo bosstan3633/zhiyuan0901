@@ -206,7 +206,6 @@ const vFocus = { mounted: (el: HTMLInputElement) => el.focus() }
 .gs-fr-visibility.hidden { color: var(--text-4); background: var(--surface-3); }
 .gs-fr-visibility:hover { border-color: var(--accent); }
 .gs-fr-visibility.disabled { cursor: not-allowed; opacity: .35; }
-.gs-fr-actions { display: flex; gap: 3px; flex-shrink: 0; }
 .gs-fr-action { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; font-size: var(--fs-body); color: var(--text-3); transition: all .1s; border: 1px solid transparent; }
 .gs-fr-action:hover { background: var(--surface-3); color: var(--text); border-color: var(--border); }
 .gs-fr-action.delete:hover { color: var(--danger); background: var(--tag-danger-bg); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }

@@ -1045,8 +1045,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
 
 .mini-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
-.batch-tagin { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius-sm); padding: 3px 8px; font-size: var(--fs-caption); font-family: inherit; outline: none; width: 160px; }
-.batch-tagin:focus { border-color: var(--accent); }
 .mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 .tag { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-tiny); padding: 2px 8px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 500; white-space: nowrap; }
 .tag.accent { background: var(--accent-light); color: var(--accent-ink); }
@@ -1070,8 +1068,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .mgr-count .total { cursor: default; }
 .mgr-count .total.act { cursor: pointer; color: var(--accent); font-weight: 600; }
 .mgr-count .total.act:hover { text-decoration: underline; }
-.batch-tagin { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius-sm); padding: 3px 8px; font-size: var(--fs-caption); font-family: inherit; outline: none; width: 160px; }
-.batch-tagin:focus { border-color: var(--accent); }
 .batch-check { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: var(--fs-caption); color: #fff; background: var(--surface); }
 .batch-check.checked { background: var(--accent); border-color: var(--accent); }
 

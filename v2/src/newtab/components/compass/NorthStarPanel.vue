@@ -405,15 +405,6 @@ function changeTaskMetric(taskId: string, e: Event) {
 .nd-stat { background: var(--surface-2); border-radius: var(--radius-xs); padding: 12px; text-align: center; }
 .nd-stat b { display: block; font-size: 18px; color: var(--accent); }
 .nd-stat span { font-size: var(--fs-caption); color: var(--text-3); }
-
-.nd-group { margin-bottom: 16px; }
-.nd-group-name { font-size: var(--fs-sub); font-weight: 700; color: var(--text-2); margin-bottom: 6px; }
-.nd-drag { color: var(--text-4); font-size: var(--fs-caption); cursor: grab; flex-shrink: 0; }
-.nd-input { flex: 1; min-width: 0; border: 1px solid transparent; background: transparent; outline: none; font-size: var(--fs-body); color: var(--text); font-family: inherit; border-radius: 5px; padding: 3px 6px; margin: -3px -6px; }
-.nd-input:focus { border-color: var(--accent); background: var(--surface); }
-.nd-edit { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-.nd-edit-actions { display: flex; gap: 6px; justify-content: flex-end; }
-.nd-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: var(--fs-caption); cursor: pointer; font-family: inherit; }
 .nd-btn.ghost { background: var(--surface); border-color: var(--border); color: var(--text-2); }
 .nd-task-row { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-xs); margin-bottom: 8px; background: var(--surface); }
 .nd-task-head { display: flex; align-items: center; gap: 8px; }
@@ -422,14 +413,5 @@ function changeTaskMetric(taskId: string, e: Event) {
 .nd-select { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: var(--fs-caption); color: var(--text-2); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; }
 .nd-select:focus { border-color: var(--accent); }
 .nd-select:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
-
-/* 第卌四轮 T-02：模块分组/链接卡片下钻 UI 已撤卡（wsPopup/nd-ws/nd-flat/nw-* 死样式全清），全景下钻由设置页「策展台全景」承接 */
-
-/* 第卌一轮：卡片详情抽屉 */
-.nr-title { font-size: var(--fs-title); font-weight: 600; color: var(--text); line-height: 1.5; margin-bottom: 14px; }
-.nr-row { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); }
-.nr-k { width: 40px; flex-shrink: 0; color: var(--text-4); }
-.nr-v { flex: 1; min-width: 0; color: var(--text-2); word-break: break-all; line-height: 1.6; }
 .nr-v.link { color: var(--accent); }
-.nr-actions { display: flex; gap: 8px; margin-top: 16px; }
 </style>

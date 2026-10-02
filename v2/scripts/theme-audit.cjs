@@ -542,6 +542,22 @@ async function main() {
   const page = await ctx.newPage()
   page.setDefaultTimeout(30000)
 
+  /* R4-Et 类名普查：包一层 screenshot，每拍一张就把当时 DOM 里所有 class token 记账（主页面与浮层页都包）。
+     为什么要它：孤儿 CSS 的静态扫描会误杀（Transition 生成的类、数据修饰类、v-html 里的类），
+     R4-Dj 那次就因为"没有活证据"一条没删。以后删除要同时满足：静态零引用 + 全部场景截图时刻的 DOM 里查无此类。 */
+  const classSeen = new Map()
+  const censusOf = async (pg) => {
+    try {
+      const toks = await pg.evaluate(() => [...document.querySelectorAll('[class]')]
+        .flatMap(e => (e.getAttribute('class') || '').split(/\s+/)).filter(Boolean))
+      for (const t of toks) classSeen.set(t, (classSeen.get(t) || 0) + 1)
+    } catch { /* 采不到不影响截图 */ }
+  }
+  {
+    const orig = page.screenshot.bind(page)
+    page.screenshot = async (opt) => { const r = await orig(opt); await censusOf(page); return r }
+  }
+
   // 首次进入让扩展完成初始化（否则随后注入会被 createDefaultData 覆盖）
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(3000)
@@ -837,6 +853,10 @@ async function main() {
       if (!ovPage) { ovPage = await ctx.newPage(); ovPage.setDefaultTimeout(20000) }
       await ovPage.goto(ovUrl, { waitUntil: 'load' })
       await ovPage.waitForTimeout(1400)   // content script 注入 + 读 storage
+    {
+      const os = ovPage.screenshot.bind(ovPage)
+      ovPage.screenshot = async (opt) => { const r = await os(opt); await censusOf(ovPage); return r }
+    }
       let ready = false
       let opened = true
       try {
@@ -864,6 +884,11 @@ async function main() {
 
   await page.evaluate(async () => { await chrome.storage.local.remove(['zy_ai_v1']) }).catch(() => {})
   await ctx.close()
+  fs.writeFileSync(path.join(outDir, 'class-census.json'), JSON.stringify({
+    生成: new Date().toISOString(), 场景数: shots.length, token数: classSeen.size,
+    计数: Object.fromEntries([...classSeen.entries()].sort())
+  }, null, 1))
+  console.log(`类名普查：${classSeen.size} 个 class token → ${path.join(outDir, 'class-census.json')}`)
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
   const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length  + 3 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 + R3-Cc 共用批量栏 */ + DASH_SCENES.length + OVERLAY_SCENES.length /* R4-En content 浮层 2 场景 ⇒ 96→104；R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 + R3-Cc 批量栏 ⇒ 72→80；R4-Da 标签双栏 ⇒ 80→84；R4-Dd Airtable 面板 ⇒ 84→88；R4-Df 使用手册 ⇒ 88→92；R4-Dl ⌘K 检索面板 ⇒ 92→96 */)
   if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情 + 1 deck)）`); process.exit(1) }

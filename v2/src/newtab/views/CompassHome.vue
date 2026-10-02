@@ -936,9 +936,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cf-stall { flex-shrink: 0; font-size: var(--fs-tiny); color: var(--warning); }
 .cf-hint { font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cf-hint:hover { color: var(--accent); }
-.cf-go { flex-shrink: 0; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; }
-.cf-go:hover { color: var(--accent); }
-
 /* R105（B4）：好奇心培育折叠摘要行——呼应 ModuleCard 的视觉语言（surface 底 + 发丝边） */
 /* R120-TB4：底部胶囊 Tab（对齐原型：pill 形态 + 中性选中态；计数为轻量 pill） */
 .bottom-tabs { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
@@ -1021,8 +1018,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .card.focus.all-done .tc-num { color: var(--text-3); }
 /* R175（原型 quiet-done-banner）：沉静收束行带上分隔虚线，居中 12px 中性字 */
 .td-done { margin-top: 12px; padding-top: 8px; border-top: 1px dashed var(--border); font-size: var(--fs-sub); color: var(--text-3); text-align: center; letter-spacing: .3px; }
-/* R94（B2）：任务树折叠/展开按钮的箭头（纯文字，不引新图标） */
-.cur-tree-caret { opacity: .7; }
 /* R52-F1：三件事横向并列——3 槽一行，压缩纵向空间（R175：槽距 8→12px 对齐原型 hero-grid） */
 .today-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .today-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; cursor: pointer; transition: all var(--dur) ease; position: relative; display: flex; flex-direction: column; min-height: 84px; }
@@ -1087,8 +1082,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .pi-info { flex: 1; min-width: 0; }
 .pi-title { font-size: var(--fs-body); font-weight: 500; margin-bottom: 3px; }
 .pi-meta { display: flex; gap: 5px; flex-wrap: wrap; }
-.pager { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 0 2px; }
-.pg-num { font-size: var(--fs-sub); color: var(--text-2); font-variant-numeric: tabular-nums; }
 .search-box { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
 .search-box:focus-within { border-color: var(--accent); }
 .search-box input { border: none; outline: none; font-size: var(--fs-sub); width: 150px; background: transparent; color: var(--text); font-family: inherit; }

@@ -5,7 +5,7 @@
  * 97 顶到 956 行，撞上 R164-2 的「每个分片 ≤900 行」刹车；按既有拍板处置是**加分片而不是放宽上限**。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
+  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getSliceMisses,
 } = require('./helpers.cjs');
 // ============== R4-Dl ⌘K 面板进视觉门禁 + 截图可复现 ==============
 console.log('【R4-Dl · 视觉门禁与确定性采样】');
@@ -337,4 +337,67 @@ check('R4-Es ★Vue 的 template 区不能按 JS 字符串语义剥（HTML 文�
     && !wsTpl.includes('parked 的 bookmarkInput') && !wsTpl.includes('fileImportInput。★R4-Db')
     && !wsTpl.includes('R167（OPPO 质感') && wsTpl.includes('class="cat-count"')
     && !ws.includes('parked 的 bookmarkInput') && ws.includes('const pyLayout = computed');
+});
+
+// ============== R4-Et 孤儿 CSS 清账：依据本身要在门禁里 ==============
+console.log('【R4-Et · 死样式扫描器与它的三票依据】');
+check('R4-Et① ★删样式的准绳是 dead-css-scan.cjs，而它必须先有 DOM 类名普查才能出结论——**这条判据实跑它两次**：拿一个不存在的 census 去问，它必须拒绝出清单并以非零退出（R4-Dj 当年"走查覆盖不足所以不动手"就是这个洞，R4-En 补了 census 才有今天这把尺子）；拿当前 src 去问，它必须真跑出三票口径的清单。三票逐条钉：本文件精确 class token、全站 class 属性 token（Vue 会把父组件写在你根元素上的类透传下去，跨文件的精确类名也算在用）、census；过渡件只豁免 <Transition name=x> 真生成的 x 与六件套', () => {
+  const p = path.resolve(SCRIPTS_DIR, 'dead-css-scan.cjs');
+  const s = fs.readFileSync(p, 'utf8');
+  const refused = runGateSync(p, ['--census', '/tmp/zy_et_no_such_census.json']);
+  const ran = runGateSync(p, ['--json']);
+  let out = null
+  try { out = JSON.parse(ran.stdout || '') } catch { }
+  return !!refused && refused.status === 2 && /先跑一次 node scripts\/theme-audit\.cjs/.test((refused.stderr || '') + (refused.stdout || ''))
+    && !!ran && ran.status === 0 && !!out && Array.isArray(out.死) && Array.isArray(out.祖先断) && out.规则总数 > 2500
+    && !!out.census && /class-census\.json/.test(out.census)
+    && s.includes('globalAttrTokens.has(tok)') && s.includes('transitionTokens.has(t)') && s.includes('blankComments')
+    && !s.includes("txt.matchAll(/\\bname")            /* 宽口径 name= 会把表单控件当过渡名（name="batch" 放过 .batch-tagin） */
+    && !s.includes("t.startsWith(n + '-')")           /* 同上：name="expand" 曾把 .goal-node .expand-icon 豁免掉 */
+    && !s.includes('s.includes(tok)')                 /* 子串票：node 因 node-title 而"活着"，那是命名法不是拼接 */;
+});
+check('R4-Et② ★切片不许静默失效：fnBody 的起点/终点标记只要有一个找不到，切片就变成"到文件尾"或"空串"——前者让负判据误红（本轮 .cur-tree-caret 被删后 R94-7 就是），后者更坏：正判据在空串上永远假、负判据永远绿。现在两处都记账，判据要求账本为空（这一条同时是活体检查：现场任何一条 fnBody 标记漂了都会红在这里，而不是红在别的判据上却查不出原因）', () => {
+  const h = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'regression/helpers.cjs'), 'utf8');
+  const iF = h.indexOf('const fnBody'), jF = h.indexOf('const segOf');
+  const region = iF >= 0 && jF > iF ? h.slice(iF, jF) : '';
+  return region.includes("SLICE_MISS.push('起点缺失") && region.includes("SLICE_MISS.push('终点缺失")
+    && !region.includes("if (i < 0) return '';")
+    && h.includes('const getSliceMisses = () => SLICE_MISS') && h.includes('getSliceMisses,')
+    && getSliceMisses().length === 0;
+});
+check('R4-Et③ ★普查每次走查都要重出，且**图与普查必须同一批**：theme-audit 在每张截图后数一遍页面上的 class token（含 content 浮层那条 ovPage，它不在扩展页文档里），最后与图同目录写出 class-census.json。锚点全部走"行首可执行语句"的形态——T3 变异把写文件那行整行注释掉，纯 includes 写法照样绿（R4-Dl/R4-En/R4-Ep 之后这族失效的第四次成形，这次一次修两处）。另核盘上那份产物：场景数=同目录 png 张数、token 数与 计数 表自洽、活类名在册而本轮退役的类名不在册', () => {
+  const t = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8');
+  const atLineStart = (re) => re.test(t);
+  const dir = path.resolve(SCRIPTS_DIR, '..', '..', 'docs', '视觉归档');
+  const day = fs.readdirSync(dir).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().pop();
+  const dd = path.join(dir, day);
+  const c = JSON.parse(fs.readFileSync(path.join(dd, 'class-census.json'), 'utf8'));
+  const pngs = fs.readdirSync(dd).filter(f => f.endsWith('.png')).length;
+  return atLineStart(/^\s*fs\.writeFileSync\(path\.join\(outDir, 'class-census\.json'\)/m)
+    && atLineStart(/^\s*const censusOf = /m)
+    && atLineStart(/^\s*page\.screenshot = async \(opt\) => \{ const r = await orig\(opt\); await censusOf\(page\); return r \}/m)
+    && atLineStart(/^\s*ovPage\.screenshot = async \(opt\) => \{ const r = await os\(opt\); await censusOf\(ovPage\); return r \}/m)
+    && c.场景数 === pngs && pngs > 90 && Object.keys(c.计数).length === c.token数 && c.token数 > 700
+    && !!c.计数['cat-count'] && !c.计数['ts-note'] && !c.计数['goal-node'] && !c.计数['metric-item'] && !c.计数['gs-mc-section'];
+});
+const ET_RETIRE = {
+  '/newtab/App.vue': ['.home-logo'],
+  '/newtab/components/GlobalPopups.vue': ['.gp-ai-row', '.gp-curio-src'],
+  '/newtab/components/compass/NorthStarPanel.vue': ['.nd-group', '.nd-group-name', '.nd-drag', '.nd-input', '.nd-edit', '.nd-btn', '.nr-row', '.nr-k', '.nr-v', '.nr-actions'],
+  '/newtab/components/compass/TaskDetailDrawer.vue': ['.ts-label', '.ts-select', '.ts-input', '.ts-note', '.ts-field', '.ts-rel-up', '.ts-status-chip', '.ts-time-text'],
+  '/newtab/components/compass/TaskManagerPanel.vue': ['.batch-tagin'],
+  '/newtab/views/CompassHome.vue': ['.cf-go', '.pager', '.pg-num', '.cur-tree-caret'],
+  '/newtab/views/CompassTree.vue': ['.node', '.sidebar', '.breadcrumb', '.main-area', '.goals-row', '.goal-col', '.goal-node', '.project-node', '.project-branch', '.vision-node', '.mission-node', '.metric-item', '.metric-name', '.metric-status', '.metrics-wrap', '.tasks-wrap', '.tasks-header', '.sub-tree', '.tree-connector', '.guide-line', '.branch-connector', '.progress-bar', '.progress-fill', '.focus-btn', '.linked-chips', '.add-btn-inline'],
+  '/newtab/views/FieldEditor.vue': ['.gs-fr-actions'],
+  '/newtab/views/GlobalSettings.vue': ['.gs-manual', '.gs-manual-nav', '.gs-manual-body', '.gs-mc-section', '.gs-mc-content', '.gs-mc-title', '.gs-mn-part', '.gs-dd-seg', '.gs-dash-stats', '.gs-dash-stat', '.ai-days'],
+  '/newtab/views/ProjectCuration.vue': ['.back-row'],
+};
+check('R4-Et④ ★退役选择器登记表（本轮删掉的 150 条里挑出这些族名，全量账在交付说明 R4-Et 第一节）：样式可以重写，但"模板里已经没有这个类"这件事不该被一条同名规则悄悄带回——登记文件里任何一条选择器重新出现在自己的组件里即红，改表必须进 diff。为什么钉族名而不是整条规则文本：规则文本一改格式（空格、换行）锚点就静默失效，而"族名 + 紧跟一个左花括号"既能认出回流又不在乎排版', () => {
+  const back = [];
+  for (const [f, sels] of Object.entries(ET_RETIRE)) {
+    const body = read(f);
+    for (const s of sels) if (body.includes(s + ' {')) back.push(f + ' ← ' + s);
+  }
+  if (back.length) console.log('    回流：' + back.join(' / '));
+  return back.length === 0;
 });

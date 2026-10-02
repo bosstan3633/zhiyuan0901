@@ -2982,30 +2982,9 @@ const activeManualSec = ref('quick-1')
 .gs-confirm-input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: var(--fs-sub); outline: none; font-family: inherit; margin-top: 8px; background: var(--surface); color: var(--text); }
 .gs-confirm-input:focus { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(196,68,68,.15); }
 .gs-modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
-
-/* 使用手册（左目录右内容） */
-.gs-manual { display: flex; gap: 16px; align-items: flex-start; }
-.gs-manual-nav { width: 200px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 8px; position: sticky; top: 16px; }
-.gs-mn-part { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding: 10px 10px 5px; }
-.gs-mn-item { font-size: var(--fs-body); color: var(--text-2); padding: 7px 10px; border-radius: 6px; cursor: pointer; transition: all var(--dur-fast); }
-.gs-mn-item:hover { background: var(--surface-3); color: var(--text); }
 .gs-mn-item.active { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
-.gs-manual-body { flex: 1; min-width: 0; }
-.gs-mc-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 34px 40px; margin-bottom: 20px; }
-.gs-mc-title { font-size: var(--fs-title); font-weight: 700; color: var(--text); margin-bottom: 10px; }
-.gs-mc-content { font-size: var(--fs-body); color: var(--text-2); line-height: 1.9; }
 .gs-manual-open { padding: 10px 22px; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; transition: all var(--dur); }
 .gs-manual-open:hover { background: var(--accent-hover); }
-
-/* 手册富文本（v-html 内容） */
-.gs-mc-content p { margin: 8px 0; }
-.gs-mc-content h4 { font-size: var(--fs-body); font-weight: 700; color: var(--text); margin: 16px 0 6px; padding-left: 9px; border-left: 3px solid var(--accent); }
-.gs-mc-content ul { margin: 6px 0; padding-left: 20px; }
-.gs-mc-content li { margin: 5px 0; }
-.gs-mc-content li b, .gs-mc-content p b { color: var(--text); }
-.gs-mc-content strong { color: var(--accent); font-weight: 700; }
-.gs-mc-content code { background: var(--surface-3); border-radius: 4px; padding: 1px 6px; font-size: var(--fs-sub); color: var(--text-2); }
-.gs-mc-content kbd { background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: 5px; padding: 1px 7px; font-family: inherit; font-size: var(--fs-caption); color: var(--text); margin: 0 2px; box-shadow: 0 1px 0 var(--border-strong); white-space: nowrap; }
 .gs-mc-content .mc-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: 8px; padding: 10px 14px; margin: 10px 0; font-size: var(--fs-body); color: var(--text); }
 .gs-mc-content .mc-tip { background: var(--accent-light); border-radius: 8px; padding: 10px 14px; margin: 12px 0; font-size: var(--fs-body); color: var(--text-2); line-height: 1.8; }
 .gs-mc-content .mc-warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); border-radius: 8px; padding: 10px 14px; margin: 12px 0; font-size: var(--fs-body); line-height: 1.8; }
@@ -3013,7 +2992,6 @@ const activeManualSec = ref('quick-1')
 .gs-mc-content .mc-steps { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
 .gs-mc-content .mc-step { display: flex; gap: 10px; align-items: flex-start; background: var(--surface-2); border-radius: 10px; padding: 9px 12px; font-size: var(--fs-body); color: var(--text-2); line-height: 1.7; }
 .gs-mc-content .mc-step b:first-child { flex-shrink: 0; width: 22px; height: 22px; border-radius: 7px; background: var(--accent); color: #fff; font-size: var(--fs-caption); display: flex; align-items: center; justify-content: center; font-weight: 700; margin-top: 1px; }
-.gs-mc-content .mc-note { display: flex; gap: 8px; font-size: var(--fs-sub); color: var(--text-3); padding: 6px 2px; line-height: 1.7; }
 .gs-mc-content .mc-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: var(--fs-body); }
 .gs-mc-content .mc-table th { text-align: left; background: var(--surface-3); color: var(--text); font-weight: 600; padding: 7px 10px; border: 1px solid var(--border); }
 .gs-mc-content .mc-table td { padding: 7px 10px; border: 1px solid var(--border); color: var(--text-2); vertical-align: top; }
@@ -3064,21 +3042,7 @@ const activeManualSec = ref('quick-1')
 
 /* ===== 第卌四轮：知源仪表盘 ===== */
 .gs-dash-en { font-size: var(--fs-tiny); color: var(--text-3); letter-spacing: 2px; margin-left: 6px; }
-.gs-dash-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
-.gs-dash-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; cursor: pointer; transition: all var(--dur); }
-.gs-dash-stat:hover { border-color: var(--accent); background: var(--accent-light); }
-.gs-ds-label { font-size: var(--fs-sub); color: var(--text-2); margin-bottom: 6px; }
-.gs-ds-value { font-size: 24px; font-weight: 700; color: var(--text); line-height: 1.1; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 8px; }
-.gs-ds-today { font-size: var(--fs-caption); font-weight: 600; color: var(--accent-ink); background: var(--accent-light); border-radius: 99px; padding: 1px 8px; }
-.gs-ds-sub { font-size: var(--fs-tiny); color: var(--text-3); margin-top: 3px; }
-.gs-dash-dynamic { display: flex; align-items: center; gap: 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 16px; margin-bottom: 14px; }
-.gs-dd-seg { font-size: var(--fs-body); color: var(--text-2); cursor: pointer; border-radius: 6px; padding: 2px 6px; transition: all var(--dur); }
-.gs-dd-seg:hover { background: var(--accent-light); color: var(--accent-ink); }
 .gs-dd-seg b.up { color: var(--accent); font-size: var(--fs-title); }
-.gs-dd-seg b.down { color: var(--danger); font-size: var(--fs-title); }
-.gs-dd-imp { font-size: var(--fs-caption) !important; color: var(--text-3) !important; margin-left: 4px; font-weight: 600 !important; }
-.gs-dd-err { color: var(--danger); }
-.gs-dd-err b { font-size: var(--fs-body) !important; }
 /* R48-B1：明细抽屉搜索框 + 翻页器 */
 .gs-drawer-search { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .gs-drawer-search input { flex: 1; padding: 7px 11px; border: 1px solid var(--border); border-radius: 8px; font-size: var(--fs-sub); font-family: inherit; outline: none; background: var(--surface); color: var(--text); }
@@ -3089,8 +3053,6 @@ const activeManualSec = ref('quick-1')
 .gs-pager button { padding: 5px 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
 .gs-pager button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .gs-pager button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
-.gs-dd-sep { color: var(--border); }
-.gs-dd-export { margin-left: auto; }
 /* R172-T8：记录条自身的筛选行/明细行样式随内联卡退役 —— 三维筛选与明细已在 DashboardLogDrawer.vue */
 .gs-ev-list { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; }
 /* R51-B7：抽屉内列表撑满高度——搜索固定、列表 flex 撑满、翻页贴底，消除下方大片空白 */
@@ -3163,7 +3125,6 @@ const activeManualSec = ref('quick-1')
 .ai-field.inline { flex-direction: row; align-items: center; gap: 8px; font-size: var(--fs-sub); color: var(--text-2); }
 .ai-field .gs-input { width: 100%; }
 .ai-form-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.ai-days { width: 72px; }
 .ai-genre { width: 260px; font-size: var(--fs-sub); }
 .ai-depth { width: auto; }
 .ai-msg { font-size: var(--fs-sub); color: var(--success); max-width: 100%; word-break: break-all; }

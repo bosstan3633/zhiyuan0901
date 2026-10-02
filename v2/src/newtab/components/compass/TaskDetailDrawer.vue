@@ -553,35 +553,17 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 /* R144：父子软层级徽标（子 ↳ 父名 + ⤴ 升顶层；父显子任务数） */
 .ts-rel-chip { flex-shrink: 0; align-self: center; display: inline-flex; align-items: center; gap: 4px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
 .ts-rel-chip.sub { color: var(--text-2); border-style: dashed; }
-.ts-rel-up { cursor: pointer; font-weight: 700; color: var(--accent); margin-left: 2px; }
 .ts-close { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; color: var(--text-3); font-size: 18px; flex-shrink: 0; }
 .ts-close:hover { background: var(--surface-3); color: var(--text); }
 .ts-body { flex: 1; overflow-y: auto; padding: 18px 20px; }
 .ts-section { margin-bottom: 16px; }
-.ts-label { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin-bottom: 7px; }
-.ts-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.ts-select { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: var(--fs-body); color: var(--text); border: 1px solid transparent; outline: none; cursor: pointer; font-family: inherit; }
-.ts-select:focus { border-color: var(--accent); }
-.ts-select:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .ts-goto { margin-top: 7px; font-size: var(--fs-caption); color: var(--accent); cursor: pointer; }
 .ts-goto:hover { text-decoration: underline; }
-.ts-input { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: var(--fs-body); color: var(--text); border: 1px solid transparent; outline: none; font-family: inherit; }
-.ts-input:focus { border-color: var(--accent); }
-.ts-note { width: 100%; min-height: 64px; max-height: 320px; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: var(--fs-body); color: var(--text); border: 1px solid transparent; outline: none; font-family: inherit; resize: vertical; line-height: 1.7; }
-.ts-note:focus { border-color: var(--accent); }
 /* 第卅三轮 REQ-024：文本框拖拽手柄（高度经 UIPrefs.taHeights 记忆） */
 .ta-wrap { position: relative; }
 .ta-resize { position: absolute; right: 3px; bottom: 3px; width: 16px; height: 12px; cursor: ns-resize; z-index: 2; opacity: .45; border-right: 3px solid var(--text-3); border-bottom: 3px solid var(--text-3); border-bottom-right-radius: 3px; }
 .ta-resize:hover { opacity: .9; }
-/* B22：状态三选 chips */
-.ts-status-chip { flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); font-size: var(--fs-sub); cursor: pointer; font-family: inherit; color: var(--text-2); transition: all var(--dur-fast); white-space: nowrap; }
-.ts-status-chip:hover { border-color: var(--accent); color: var(--accent); }
 .ts-status-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
-.ts-time-text { font-size: var(--fs-caption); color: var(--text-3); }
-.ts-field { padding: 10px 13px; background: var(--surface-2); border-radius: 8px; font-size: var(--fs-body); cursor: pointer; transition: all var(--dur); display: flex; align-items: center; gap: 8px; border: 1px solid transparent; }
-.ts-field:hover { border-color: var(--border); background: var(--surface); }
-.ts-field .fv { flex: 1; }
-.ts-field .fh { font-size: var(--fs-tiny); color: var(--text-4); }
 /* R165-A：优先级 3 段 segment（语义色 tint，对比度过 4.5） */
 .ts-prio { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 4px; }
 .ts-prio button { padding: 7px 16px; font-size: var(--fs-sub); background: var(--surface-2); border: 0; color: var(--text-3); cursor: pointer; transition: all var(--dur); font-family: inherit; }

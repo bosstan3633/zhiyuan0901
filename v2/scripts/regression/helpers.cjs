@@ -222,12 +222,22 @@ const CUR_VTAG = 'V' + CUR_VER;
 
 
 /* ---- R174-1：中段顶层定义原样上提（原执行位在各分节之间，全部为源文件只读计算，先于断言执行语义等价） ---- */
+/**
+ * R4-Et：切片工具的**失效方向不对称**，所以要有闸。
+ *   终点标记没了 → 切片一路吃到文件尾 ⇒ 负判据误红（本轮 `.cur-tree-caret` 被删后 R94-7 就是这样响的）；
+ *   起点标记没了 → 切片变成空串 ⇒ **正判据恒假、负判据恒真**，一条"永远绿"的空哨兵静默上岗。
+ * 两种都记进下面这张表，由判据 R4-Et② 统一要求它为空（只上 fnBody 这 14 处；segOf 的 69 处同题另立 #120，
+ * 一次只改一把尺子——R4-Es 的教训）。
+ */
+const SLICE_MISS = []
 const fnBody = (src, head, next) => {
   const i = src.indexOf(head);
-  if (i < 0) return '';
+  if (i < 0) { SLICE_MISS.push('起点缺失「' + String(head).slice(0, 48) + '」'); return ''; }
   const j = src.indexOf(next, i + head.length);
-  return j < 0 ? src.slice(i) : src.slice(i, j);
+  if (j < 0) { SLICE_MISS.push('终点缺失「' + String(next).slice(0, 48) + '」'); return src.slice(i); }
+  return src.slice(i, j);
 };
+const getSliceMisses = () => SLICE_MISS;
 const segOf = (src, head, next) => {
   const i = src.indexOf(head);
   if (i < 0) return '';
@@ -305,15 +315,23 @@ const OV92 = read('/content/overlay-impl.ts');
 const OV92_C = stripComments(OV92);
 const FOCUS_FN92 = fnBody(OV92, 'function focusWhenReady(', '/** 打开浮层');
 const ESC92 = fnBody(OV92, "} else if (e.key === 'Escape') {\n    // R92（D2）", 'function openSearchLocator');
-const CAP_FN92 = fnBody(OV92, 'async function saveCapture(', "document.getElementById('__zy_cap_save__')");
+// ★R4-Et 随迁备案（非本轮删的，是查切片闸时现抓的两条潜伏松动）：原终点 `document.getElementById('__zy_cap_save__')`
+// 在源码里只出现在 saveCapture **之前**的那一行（钮的 addEventListener），indexOf 从起点往后找不到 ⇒ 切片一路吃到文件尾，
+// R92-6 那三条正锚（filed / 两种回执文案）从此在整份文件里找——文案挪出函数也不会红。换成紧随其后的块注释头。
+const CAP_FN92 = fnBody(OV92, 'async function saveCapture(', '/** 采集去重确认视图');
 const TC_FN92 = fnBody(OV92, 'const saveTc = async () => {', "document.getElementById('__zy_tc_save__')");
 const OV93 = read('/content/overlay-impl.ts');
 const OV93_C = stripComments(OV93);
 const HEX93 = ['#E9F1FA', '#E4F2E8', '#FBF1DE', '#EFEFEA', '#F9F3E4', '#E9EAF6', '#FBEAEA', '#C03B3B', '#8A5A00', '#6E6E66', '#2E7D42', '#3D439B'];
 const CH94 = read('/newtab/views/CompassHome.vue');
 const CH94_C = stripComments(CH94);
-const TODAY94 = fnBody(CH94, '<div class="today-body">', '<!-- 下 · 项目调度');
-const DONE_STYLE94 = fnBody(CH94, '.card.focus.all-done .today-cards', '.cur-tree-caret');
+// ★R4-Et 随迁备案：原终点 `<!-- 下 · 项目调度` 是 R117（任务调度整体迁出方向台）改写那段注释时留下的旧措辞，
+// 标记找不到 ⇒ 切片从 today-body 一路吃到文件尾（连整个 <style> 块都算进"今日三件事"），R94-7 的正锚从此在整份文件里找文案。
+const TODAY94 = fnBody(CH94, '<div class="today-body">', '<!-- 底部 · 任务调度');
+// ★R4-Et 随迁备案：原终点标记 `.cur-tree-caret` 是 R4-Et 清掉的孤儿规则（该 class 在本文件模板、104 场景 DOM census、
+// 全站字符串/classList 三处都为零）——标记一没，切片一路吃到文件尾，把无关的 --danger/animation/% 卷进"完成态样式"里，
+// R94-7 当场误红。换成同文件里的活边界 `.today-cards { display: grid`，切片仍然只覆盖安静完成态那四条规则。
+const DONE_STYLE94 = fnBody(CH94, '.card.focus.all-done .today-cards', '.today-cards { display: grid');
 const CC95 = read('/shared/utils/cardCols.ts');
 const CC95_C = stripComments(CC95);
 const WS96 = read('/newtab/views/Workspace.vue');
@@ -384,4 +402,4 @@ function getTally() { return { pass, fail }; }
 /* R174-1：分片锚——ANCHOR_FILE = 本文件（版本锚 VER_ANCHOR_LITERAL 与聚合读取机制断言读这里） */
 const ANCHOR_FILE = __filename;
 
-module.exports = { fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, ST85, FOCUS_FN, ADDP_FN, CT86, ST86, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getTally };
+module.exports = { fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, getSliceMisses, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, MOUNT_FN, MOUNT_PICKER, RES_CARD_IFACE, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, ST85, FOCUS_FN, ADDP_FN, CT86, ST86, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getTally };

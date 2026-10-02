@@ -1904,7 +1904,6 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-ai-scope { margin-left: 8px; font-weight: 400; font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; }
 .gp-ai-note { margin-left: 8px; font-weight: 400; color: var(--text-3); }
 .gp-ai-why { font-size: var(--fs-caption); color: var(--accent-ink); background: var(--accent-light); border-radius: var(--radius-xs); padding: 1px 6px; }
-.gp-ai-row { border-left: 2px solid var(--accent); }
 .gp-search-esc { font-size: var(--fs-caption); color: var(--text-4); background: var(--surface-2); border: 1px solid var(--border);
   border-radius: 6px; padding: 3px 8px; flex-shrink: 0; cursor: pointer; transition: all var(--dur-fast); font-family: inherit; }
 .gp-search-esc:hover { color: var(--text-2); border-color: var(--border-strong); }
@@ -2041,8 +2040,6 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--accent) 14%, transparent); }
 textarea.gp-field-input { resize: vertical; min-height: 90px; font-size: 14px; line-height: 1.65; }
 .gp-curio-text { min-height: 120px; }
-.gp-curio-src { margin-top: 6px; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); border: 1px dashed var(--border); border-radius: 6px; padding: 5px 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
 /* 链接类型 segmented */
 .gp-seg-control { display: flex; gap: 3px; background: var(--surface-2); border-radius: var(--radius-sm); padding: 3px; margin-bottom: 8px; }
 .gp-seg-btn { flex: 1; padding: 7px 8px; border-radius: 8px; border: none; background: transparent; font-size: var(--fs-sub);

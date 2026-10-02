@@ -600,7 +600,6 @@ const backupReminderDot = computed(() => {
 .topbar-inner.align-settings { max-width: 1440px; margin: 0 auto; padding: 0 36px; }
 .topbar-inner.align-manual { max-width: 1440px; margin: 0 auto; padding: 0 36px; }
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }
-.home-logo { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
 /* R176（原型 nav-brand-chip）：品牌位（logo 16px + 知源调度台 13px/700 + Ownway 11px 次要字） */
 .brand-chip { display: flex; align-items: center; gap: 6px; margin-right: 14px; cursor: pointer; flex-shrink: 0; }
 .brand-chip .brand-logo { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }

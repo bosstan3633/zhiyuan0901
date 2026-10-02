@@ -277,7 +277,7 @@ check('R169-25 老账③ 抽屉两代容器合并：Workspace 自绘 .drawer 退
     && css.includes('.dr-readonly .ref-form') && css.includes('.dr-footer-btn {');
 });
 check('R169-26 老账④ 脚本归档白名单：scripts/ 根目录只允许 18 个登记脚本（门禁/量具/生成器）；一次性探针 9 个已归档 scripts/archive/（R164 提案 E4：门禁清单只列活的）——根目录出现未登记文件即红 ★R174-1 备案：regression/ 分片目录（helpers + 11 时代分片，见 R164-2 行数门禁）随分片落地加入白名单；★R4-Ea 备案：browser.cjs 是七个门禁脚本共用的浏览器解析实现，属门禁基建不是探针', () => {
-  const ALLOW = ['browser.cjs', 'check-cycles.cjs', 'e2e.cjs', 'entry-literals.cjs', 'entry-matrix.cjs', 'gen-code-index.cjs', 'gen-pinyin-table.cjs', 'img-diff.cjs', 'pack.cjs', 'perf-census.cjs', 'perf.cjs', 'probe-f.cjs', 'regression-eb.cjs', 'regression.cjs', 'test-import-compat.cjs', 'theme-audit.cjs', 'theme-contrast.cjs', '.gate-cache.json'];
+  const ALLOW = ['browser.cjs', 'check-cycles.cjs', 'dead-css-scan.cjs', 'e2e.cjs', 'entry-literals.cjs', 'entry-matrix.cjs', 'gen-code-index.cjs', 'gen-pinyin-table.cjs', 'img-diff.cjs', 'pack.cjs', 'perf-census.cjs', 'perf.cjs', 'probe-f.cjs', 'regression-eb.cjs', 'regression.cjs', 'test-import-compat.cjs', 'theme-audit.cjs', 'theme-contrast.cjs', '.gate-cache.json'];
   const actual = fs.readdirSync(SCRIPTS_DIR).filter(f => f !== 'archive' && f !== 'regression' && !f.endsWith('.log'));
   return actual.length === ALLOW.length && actual.every(f => ALLOW.includes(f)) && fs.existsSync(path.join(SCRIPTS_DIR, 'archive', 'test-perf.cjs')) && fs.existsSync(path.join(SCRIPTS_DIR, 'regression', 'helpers.cjs'));
 });

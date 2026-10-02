@@ -63,7 +63,15 @@ check('B23 文档级 Ctrl+Enter/Esc', () => read('/newtab/components/compass/Tas
 check('O19/R121 主航线项目行卡 ★R3-B1 退役重指带备案：行卡（proj-row/mini-bar/双击）随 LighthousePanel 整面退役，能力去向=方向树项目卡头（tp-head 名称 + tp-pct 进度 + 停滞读数在页头 + ▾ 菜单「进入项目详情页」取代双击）', () => { const t = read('/newtab/views/CompassTree.vue'); return !exists('/newtab/components/compass/LighthousePanel.vue') && t.includes('class="tp-head"') && t.includes('class="tp-pct"') && t.includes('📄 进入项目详情页') && t.includes('function openProjectDrawer('); });
 check('O20（R126 重指）标签最多两级守卫 + 缩进兜底', () => read('/newtab/views/GlobalSettings.vue').includes('最多两级') && read('/newtab/views/GlobalSettings.vue').includes('padding-left: 58px !important'));
 check('O21 分组列表跨组拖拽改归属', () => read('/newtab/components/compass/TaskManagerPanel.vue').includes('onListGroupDrop'));
-check('Bug1 目标卡按钮/箭头不重叠', () => read('/newtab/views/CompassTree.vue').includes('margin-right: 52px'));
+check('Bug1 目标卡按钮/箭头不重叠 · ★R4-Et 随迁备案：原锚 margin-right: 52px 挂在 .goal-node .expand-icon 上，而 .goal-node/.expand-icon 是主航线时代留下的死选择器（模板零引用 + 104 场景 DOM census 零命中 + 全站字符串/classList 零出现，本轮随孤儿 CSS 一并清）。当年按钮是绝对定位、要给箭头留 52px 才不叠；今天的形状是卡头走 flex space-between、动作组 display:none 只在 hover 时作为**流内兄弟**占自己的槽、标题 min-width:0 可缩——重叠在新形状里结构上不可能，判据改钉这个形状，并钉住旧的魔数预留不许回流', () => {
+  const t = read('/newtab/views/CompassTree.vue');
+  return t.includes('.tp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }')
+    && t.includes('.tct-acts { display: none; gap: 2px; margin-left: auto; }')
+    && t.includes('.tp-acts { display: none; gap: 2px; margin-left: auto; }')
+    && t.includes('.tm-acts { display: none; gap: 2px; margin-left: auto; }')
+    && t.includes('.tct-name { display: flex; align-items: center; gap: 6px; min-width: 0; }')
+    && !t.includes('margin-right: 52px') && !t.includes('padding-right: 58px');
+});
 check('Bug2 标签缩进 !important 兜底', () => read('/newtab/views/GlobalSettings.vue').includes('padding-left: 58px !important'));
 
 console.log('【第六轮】');
@@ -145,7 +153,8 @@ check('P3 过渡统一 200ms 内', () => !read('/newtab/views/ProjectCuration.vu
 console.log('【第廿七轮 · 身份与排版精修】');
 check('R28/R49 信纸排版精修（衬线+留白，应用内+分享版；R49 调度台重写并加大行距留白）', () => read('/newtab/views/GlobalSettings.vue').includes('padding: 80px 64px') && read('/newtab/letter-data.ts').includes('padding: 96px 76px'));
 check('R28 donge 哥身份（教育科技/AI 探索者）', () => read('/newtab/letter-data.ts').includes('教育科技行业深耕了十余年') && read('/newtab/letter-data.ts').includes('AI 如何真正赋能学习与工作'));
-check('R28 手册排版留白精修（三处同步）', () => read('/newtab/views/ManualPage.vue').includes('padding: 36px 44px') && read('/newtab/views/GlobalSettings.vue').includes('padding: 34px 40px') && read('/newtab/manual-data.ts').includes('padding: 38px 46px'));
+check('R28 手册排版留白精修（三处同步）· ★R4-Et 随迁备案：第三处原锚 padding: 34px 40px 挂在 .gs-mc-section 上——那是设置页内嵌手册正文时代的容器，手册自第廿一轮起独立成页，设置页现在只剩一个「打开使用手册」按钮（模板里 gs-mc-section 零引用、census 零命中，本轮清掉）。三处同步因此收敛成两处活锚（阅读页 + 手册数据），第三处换成"设置页不许再把手册正文嵌回来"的负锚：.gs-mc-section 与内联手册容器 .gs-manual 回流即红', () => read('/newtab/views/ManualPage.vue').includes('padding: 36px 44px') && read('/newtab/manual-data.ts').includes('padding: 38px 46px')
+  && !read('/newtab/views/GlobalSettings.vue').includes('.gs-mc-section') && !read('/newtab/views/GlobalSettings.vue').includes('.gs-manual {'));
 
 console.log('【第廿六轮 · 信件身份与排版精修】');
 check('R26-1 donge 哥身份融入（教育科技/AI 探索者）', () => read('/newtab/letter-data.ts').includes('教育科技行业深耕了十余年') && read('/newtab/letter-data.ts').includes('AI 如何真正赋能学习与工作'));
@@ -205,9 +214,11 @@ check('R17-6 任务卡置顶（模型+列表+看板+选取）', () => read('/sha
 
 console.log('【第十三轮 · V2.2.0 正式版】');
 check('V13-1 任务卡链接字段 + 单/双击统一', () => read('/shared/models/index.ts').includes('link?: string') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('onTaskRowDblClick') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('openCardLink'));
-check('V13-2 任务抽屉链接+备注（可拖拽调高）', () => read('/newtab/components/compass/TaskDetailDrawer.vue').includes('selectedTask.link') && read('/newtab/components/compass/TaskDetailDrawer.vue').includes('selectedTask.description') && read('/newtab/components/compass/TaskDetailDrawer.vue').includes('.ts-note {'));
+check('V13-2 任务抽屉链接+备注（可拖拽调高）· ★R4-Et 随迁备案：第三处原锚 .ts-note { 是 R167 详情重设计后遗留的死规则（备注框早已换 class="ds-desc"，模板/census/字符串三处零引用，本轮清掉）。第三处换成今天真在渲染的那三件：备注 textarea 绑 selectedTask.description + 记忆高度的 :style + 拖拽把手，并钉住 .ts-note 不许回流', () => { const f = read('/newtab/components/compass/TaskDetailDrawer.vue'); return f.includes('selectedTask.link') && f.includes('selectedTask.description')
+  && f.includes('<textarea v-model="selectedTask.description" class="ds-desc" :style="{ height: taskNoteH + \'px\' }"')
+  && f.includes('<div class="ta-resize" @mousedown="startTaskNoteResize"') && !f.includes('.ts-note {') });
 check('V13-3 好奇心链接口径（sourceUrl+本地路径直达；R129-B5 起统一走 link.toOpenableRawLink）', () => { const cp = read('/newtab/components/compass/CuriosityPanel.vue'); return cp.includes('toOpenableRawLink') && !cp.includes('function toOpenableCurioLink') && cp.includes('来源链接（网页 / 本地路径 / obsidian://，失焦即保存）'); });
-check('V13-4 文本框可拖拽调高（三卡详情）· R167 重指：资源表单的 `.ref-note` 搬进 ds-* 面板成 `.ds-hero-note`，判据跟着换成「焦点区 + 拖拽把手 + 记忆 hook」三件同在（把手没了就是"调了不记"，比不调更气人）', () => { const f = read('/newtab/components/ResourceEditForm.vue'); return f.includes('ds-hero-note') && f.includes('ref-ta-resize') && f.includes('useTaHeight') && read('/newtab/components/compass/CuriosityPanel.vue').includes('class="ds-hero-note"') && read('/newtab/components/compass/CuriosityPanel.vue').includes('height: detailH') /* ★R4-Dj 随迁备案：原锚 max-height:400px 挂在 .detail-textarea 上，而 .detail-textarea 模板零引用（R167 详情重设计后 Curio 走 ds-hero-note + detailH 记忆高度）；换成"类名与记忆高度两件事都在"，比只看一条 max-height 更实 */ && read('/newtab/components/compass/TaskDetailDrawer.vue').includes('max-height: 320px') });
+check('V13-4 文本框可拖拽调高（三卡详情）· R167 重指：资源表单的 `.ref-note` 搬进 ds-* 面板成 `.ds-hero-note`，判据跟着换成「焦点区 + 拖拽把手 + 记忆 hook」三件同在（把手没了就是"调了不记"，比不调更气人）', () => { const f = read('/newtab/components/ResourceEditForm.vue'); return f.includes('ds-hero-note') && f.includes('ref-ta-resize') && f.includes('useTaHeight') && read('/newtab/components/compass/CuriosityPanel.vue').includes('class="ds-hero-note"') && read('/newtab/components/compass/CuriosityPanel.vue').includes('height: detailH') /* ★R4-Dj 随迁备案：原锚 max-height:400px 挂在 .detail-textarea 上，而 .detail-textarea 模板零引用（R167 详情重设计后 Curio 走 ds-hero-note + detailH 记忆高度）；换成"类名与记忆高度两件事都在"，比只看一条 max-height 更实 */ && read('/newtab/components/compass/TaskDetailDrawer.vue').includes("useTaHeight('task-note'") /* ★R4-Et 随迁备案：原锚 max-height: 320px 是死规则 .ts-note 的属性（同 V13-2），换成任务抽屉这一路的"记忆 hook"本体——三件同在的口径本来就比一条写死的 max-height 承重 */ });
 check('V13-5 罗盘子页 out-in 过渡移除（切换即时）★R3-B1 随宿主改靶：过渡宿主是 App 级 router-view（方向台一级化后仍不得回添 out-in）', () => !read('/newtab/App.vue').includes('mode="out-in"') && !read('/newtab/views/CompassTree.vue').includes('mode="out-in"'));
 check('V13-6 刷新骨架品牌动画保留（仅加载时）', () => read('/../src/newtab/index.html').includes('zy-skl'));
 

@@ -830,7 +830,6 @@ function addTaskFromHeader() {
 .metric-sec .mname { outline: none; border-radius: 5px; padding: 2px 5px; margin: -2px -5px; cursor: text; }
 .metric-sec .mname:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .metric-sec .mname:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
-.back-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
 /* R52-F6：成功指标名输入行 */
 .metric-add-row { display: flex; gap: 8px; margin: -6px 0 14px; }
 .metric-add-row input { flex: 1; border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 8px 12px; font-size: var(--fs-body); color: var(--text); outline: none; font-family: inherit; }
