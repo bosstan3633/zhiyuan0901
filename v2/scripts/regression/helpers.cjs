@@ -81,13 +81,125 @@ function exists(p) { return fs.existsSync(base + p); }
  * 断言假红（本轮 R144 系与红线五条同时中），或逼着实现把注释删掉（把知识丢了）。
  * 剥完还在，才是真残留。覆盖块注释整段、`//` 与 `*` 行、模板 `<!-- -->` 整段。
  */
+function codeOnlyJs(text) {
+  /* R119：剥注释必须先**跳过字符串与模板串**。
+     旧实现是三条整段正则（块注释、HTML 注释、行首 // 或 *），所以源码里只要出现"斜杠紧跟星号"
+     这两个字符——哪怕它在字符串里（URL 通配、accept 的图片类型、glob、被嵌进模板串的 HTML 与 CSS 注释）——
+     就会被当成注释起点一路吞到下一个闭合的"星斜杠"，中间的真实代码对**所有负判据隐形**。
+     R4-Er 实测：往 perf.cjs 加两段块注释后 codeOnly 只剩 26,398B / 65,465B（六成看不见），
+     既有正锚集体红；更危险的是同族的静默方向——负锚在这种文件上会永远绿。
+     口径变化清单：① 块注释与 HTML 注释只在**字符串外**生效（这是本轮要修的洞）；② 行注释从「只看行首」扩到「字符串外的双斜杠一律算注释」——第一版我保留了行首限制，结果模板里一个带反引号的行尾注释就让状态机误判成"模板串还没结束"，后半份文件的 HTML 注释全不剥（自查抓到的，见交付说明）；③ 行首的 * 仍按块注释续行剥。状态机要点：模板串的 ${ } 要按代码递归，
+     花括号深度必须配对——第一版我把 ${ 之后又退回一格，导致输出出现 双花括号 且整份文件后
+     半段被误当字符串内容（连带 HTML 注释也不剥了），这条判据自己就得先是对的。 */
+  let out = ''
+  let i = 0
+  let head = 0                       // out 里当前行的起点，用于判"行首注释"
+  const atLineHead = () => /^[ \t]*$/.test(out.slice(head))
+  const eatBlock = () => { i += 2; while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) i++; i += 2 }
+  const eatLine = () => { while (i < text.length && text[i] !== '\n') i++ }
+  const eatHtml = () => { i += 4; while (i < text.length && !text.startsWith('-->', i)) i++; i += 3 }
+  const readStr = () => {
+    const q = text[i]
+    out += q; i++
+    while (i < text.length) {
+      const t = text[i]
+      if (t === '\\') { out += t + (text[i + 1] || ''); i += 2; continue }
+      if (t === q) { out += q; i++; return }
+      if (t === '\n') return
+      out += t; i++
+    }
+  }
+  // 正则字面量：只在"运算符之后"的位置才当正则，避免把 a / b 读成串
+  const regexLikely = () => {
+    for (let k = out.length - 1; k >= 0; k--) {
+      const ch = out[k]
+      if (ch === ' ' || ch === '\t') continue
+      return ch === '\n' || '(,=:;[{!&|?~^+'.includes(ch) || ch === '}'
+    }
+    return true
+  }
+  const eatRegex = () => {
+    let j = i + 1, cls = false
+    while (j < text.length) {
+      const t = text[j]
+      if (t === '\\') { j += 2; continue }
+      if (t === '\n') break
+      if (t === '[') cls = true
+      else if (t === ']') cls = false
+      else if (t === '/' && !cls) break
+      j++
+    }
+    const lit = text.slice(i, Math.min(j + 1, text.length))
+    if (lit.length > 1 && !/\s|=/.test(lit[1])) { out += lit; i += lit.length; return true }
+    return false
+  }
+  const readTpl = () => {
+    out += '`'; i++
+    let depth = 0                    // 0 = 在模板正文里；>0 = 在 ${ … } 表达式里
+    while (i < text.length) {
+      const t = text[i], u = text[i + 1]
+      if (t === '\\') { out += t + (u || ''); i += 2; continue }
+      if (depth === 0) {
+        if (t === '`') { out += '`'; i++; return }
+        if (t === '$' && u === '{') { out += '${'; i += 2; depth = 1; continue }
+        out += t; i++; continue
+      }
+      if (t === '/' && u === '*') { eatBlock(); continue }
+      if (t === '/' && u === '/' && atLineHead()) { eatLine(); continue }
+      if (t === '{') { depth++; out += t; i++; continue }
+      if (t === '}') { depth--; out += t; i++; continue }
+      if (t === '`') { readTpl(); continue }
+      if (t === "'" || t === '"') { readStr(); continue }
+      out += t; i++
+    }
+  }
+  while (i < text.length) {
+    const c = text[i], d = text[i + 1]
+    if (c === '/' && d === '*') { eatBlock(); continue }
+    if (c === '/' && d === '/' && atLineHead()) { eatLine(); continue }
+    if (c === '*' && atLineHead()) { eatLine(); continue }
+    if (c === '<' && text.startsWith('!--', i)) { eatHtml(); continue }
+    if (c === "'" || c === '"') { readStr(); continue }
+    if (c === '`') { readTpl(); continue }
+    if (c === '/' && regexLikely() && eatRegex()) continue
+    if (c === '\n') { out += c; head = out.length; i++; continue }
+    out += c; i++
+  }
+  return out
+}
+/**
+ * R119 的第二道闸：**Vue 的 template 区不按 JS 字符串解释**。
+ * 状态机在 JS 里把成对引号当字符串是对的，但 HTML 文本里的引号（属性值、按钮里的 `width: 400px`、
+ * 中文里夹的英文撇号）一多就会误开一个"字符串"，把后面真正的 HTML 注释整段留在视野里——
+ * 实测 Workspace.vue 第 656 行那条注释里的 bookmarkInput 因此被 R4-Db 的负锚读到，判据假红。
+ * 所以：SFC 只在 script 区跑状态机；template 与 style 区沿用旧整段正则（口径不变）。
+ * 被修的洞（字符串里的 斜杠星 吞代码）在 JS/CSS 侧，模板区本来也没有那种字符串。
+ */
 function codeOnly(text) {
-  return text
+  /* R119 分派器：SFC 的 template/style 区不按 JS 字符串语义走（HTML 文本里的引号不是字符串定界符，
+     误判会把后面的真注释整段留在视野里，实测 Workspace.vue 656 行那条注释就害得 R4-Db 假红）；
+     script 区才用状态机——要修的洞（字符串里的 斜杠星 吞掉后面代码）本来也只发生在 JS 侧。 */
+  const i = text.indexOf('<script')
+  const j = text.lastIndexOf('</script>')
+  if (i >= 0 && j > i) return codeOnlyNaive(text.slice(0, i)) + codeOnlyJs(text.slice(i, j + 9)) + codeOnlyNaive(text.slice(j + 9))
+  /* 判据也会只切一段模板喂进来（R169-17 切 <template>…</template>、R65-4 切一段 div）——
+     这种整段都是标记的，引号不是 JS 字符串定界符，退回旧口径；纯 JS 文件与脚本切片走状态机。 */
+  if (/^\s*</.test(text)) return codeOnlyNaive(text)
+  return codeOnlyJs(text)
+}
+function codeOnlyNaive(t) {
+  return t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/<!--[\s\S]*?-->/g, '')
+    .split('\n').filter(l => !/^\s*(\/\/|\*)/.test(l)).join('\n')
+}
+function codeOnlyVueUnused(text) {
+  const naive = (t) => t
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/<!--[\s\S]*?-->/g, '')
-    .split('\n')
-    .filter(l => !/^\s*(\/\/|\*)/.test(l))
-    .join('\n')
+    .split('\n').filter(l => !/^\s*(\/\/|\*)/.test(l)).join('\n')
+  const i = text.indexOf('<script')
+  const j = text.lastIndexOf('</script>')
+  if (i < 0 || j < 0 || j < i) return naive(text)
+  return naive(text.slice(0, i)) + codeOnly(text.slice(i, j + 9)) + naive(text.slice(j + 9))
 }
 
 /**

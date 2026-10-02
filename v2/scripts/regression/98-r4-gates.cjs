@@ -316,3 +316,25 @@ check('R4-Er ★M15 的分母必须是**结果集行数**（资源+任务+好奇
     && seg.includes('const rows = cnt.res + cnt.task + cnt.curio + cnt.ws + cnt.proj')
     && t.includes('M15_稳定态基线KB') && t.includes("'M15_结果集行数'");
 });
+
+// ============== R4-Es 尺子自证：codeOnly 必须跳字符串（#119） ==============
+console.log('【R4-Es · 剥离器字符串感知】');
+check('R4-Es ★#119 修完要留下现场锚：旧 codeOnly 是三条整段正则，manifest.ts 的 host_permissions 里那个 file 协议通配串被当成块注释起点，**从第 10 行往后 32 行真结构全被吞**（chrome_url_overrides / background / action 都不在视野里）——那之后任何"manifest 里不许出现 X"的负判据都会永远绿。现在这些行必须看得见（本次实测全仓库 39 处 manifest 判据都走 read 原文，所以没有现存假绿；这条钉的是"别让它上膛"）', () => {
+  const m = codeOnly(read('/manifest.ts'));
+  const g = codeOnly(read('/newtab/components/GlobalPopups.vue'));
+  return m.includes("host_permissions: ['<all_urls>', 'file:///*']")
+    && m.includes('chrome_url_overrides: {') && m.includes("newtab: 'src/newtab/index.html'")
+    && m.includes('background: {') && m.includes('default_title:')
+    && g.includes("chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] })");
+});
+check('R4-Es ★Vue 的 template 区不能按 JS 字符串语义剥（HTML 文本里的引号不是定界符）：第一版状态机保留了这条限制没做，结果一个带反引号的行尾注释让 Workspace.vue 后半段的 HTML 注释全不剥、把注释里的 bookmarkInput 露给 R4-Db 的负锚（假红）。现在要求：整段标记（以 < 开头，含判据常切的 <template>…</template> 片段）走旧口径，注释一律剥干净', () => {
+  const gs = read('/newtab/views/GlobalSettings.vue');
+  const wsRaw = read('/newtab/views/Workspace.vue');
+  const tpl = codeOnly(gs.slice(gs.indexOf('<template>'), gs.indexOf('<script')))
+  const wsTpl = codeOnly(wsRaw.slice(wsRaw.indexOf('<template>'), wsRaw.indexOf('<script')))   // 判据常切的"纯标记片段"（模板区＝到 <script 为止，嵌套的 </template> 会切断）
+  const ws = codeOnly(wsRaw);
+  return !/第\s*[卌卅一二三四五六七八九十]{1,3}轮/.test(tpl.slice(0, 6000))
+    && !wsTpl.includes('parked 的 bookmarkInput') && !wsTpl.includes('fileImportInput。★R4-Db')
+    && !wsTpl.includes('R167（OPPO 质感') && wsTpl.includes('class="cat-count"')
+    && !ws.includes('parked 的 bookmarkInput') && ws.includes('const pyLayout = computed');
+});
