@@ -278,8 +278,8 @@
 .rr-action { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all .1s; }
 .rr-action:hover { background: var(--surface-3); color: var(--text); }
 .rr-action.delete:hover { color: var(--danger); }
-/* R82（R4）：📋 挂载的已挂载态——用强调色，与 ⭐ 的金色区分；三视图同一表现，样式全走 tokens */
-.rc-action.mount.on, .rr-action.mount.on, .kc-action.mount.on { color: var(--accent-ink); background: var(--accent-light); }
+/* R82（R4）的「📋 已挂载态」高亮（.rc-action.mount.on / .rr-action.mount.on / .kc-action.mount.on）随挂载选择器
+   整域退役（R82-7 判 mountTaskOptions/mountProjectName/mountOneOpen 零命中），样式在 R4-Ev 孤儿 CSS 第二批清掉 */
 /* 第卅三轮 REQ-020：列表行星标高亮 + 卡片操作区星标高亮 */
 .rr-action.on, .rc-action.on { color: #d99a1e; }
 .rc-action.on { background: color-mix(in srgb, #f5b942 14%, transparent); }

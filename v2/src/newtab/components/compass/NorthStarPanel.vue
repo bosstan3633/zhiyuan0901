@@ -405,7 +405,6 @@ function changeTaskMetric(taskId: string, e: Event) {
 .nd-stat { background: var(--surface-2); border-radius: var(--radius-xs); padding: 12px; text-align: center; }
 .nd-stat b { display: block; font-size: 18px; color: var(--accent); }
 .nd-stat span { font-size: var(--fs-caption); color: var(--text-3); }
-.nd-btn.ghost { background: var(--surface); border-color: var(--border); color: var(--text-2); }
 .nd-task-row { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-xs); margin-bottom: 8px; background: var(--surface); }
 .nd-task-head { display: flex; align-items: center; gap: 8px; }
 .nd-task-head .nd-name { flex: 1; }
@@ -413,5 +412,4 @@ function changeTaskMetric(taskId: string, e: Event) {
 .nd-select { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: var(--fs-caption); color: var(--text-2); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; }
 .nd-select:focus { border-color: var(--accent); }
 .nd-select:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
-.nr-v.link { color: var(--accent); }
 </style>

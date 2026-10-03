@@ -381,16 +381,18 @@ check('R4-Et③ ★普查每次走查都要重出，且**图与普查必须同�
     && !!c.计数['cat-count'] && !c.计数['ts-note'] && !c.计数['goal-node'] && !c.计数['metric-item'] && !c.计数['gs-mc-section'];
 });
 const ET_RETIRE = {
+  '/newtab/components/AiSuggestionDrawer.vue': ['.ai-badge.b-warn', '.ai-badge.b-ok', '.ai-badge.b-danger', '.ai-badge.b-neutral', '.ai-chg-tag.t-new', '.ai-chg-tag.t-edit', '.ai-chg-tag.t-move', '.ai-chg-tag.t-same'],
   '/newtab/App.vue': ['.home-logo'],
   '/newtab/components/GlobalPopups.vue': ['.gp-ai-row', '.gp-curio-src'],
-  '/newtab/components/compass/NorthStarPanel.vue': ['.nd-group', '.nd-group-name', '.nd-drag', '.nd-input', '.nd-edit', '.nd-btn', '.nr-row', '.nr-k', '.nr-v', '.nr-actions'],
-  '/newtab/components/compass/TaskDetailDrawer.vue': ['.ts-label', '.ts-select', '.ts-input', '.ts-note', '.ts-field', '.ts-rel-up', '.ts-status-chip', '.ts-time-text'],
+  '/newtab/components/compass/NorthStarPanel.vue': ['.nd-group', '.nd-group-name', '.nd-drag', '.nd-input', '.nd-edit', '.nd-btn', '.nr-row', '.nr-k', '.nr-v', '.nr-actions', '.nd-btn.ghost', '.nr-v.link',],
+  '/newtab/components/compass/TaskDetailDrawer.vue': ['.ts-label', '.ts-select', '.ts-input', '.ts-note', '.ts-field', '.ts-rel-up', '.ts-status-chip', '.ts-time-text', '.ts-status-chip.active',],
   '/newtab/components/compass/TaskManagerPanel.vue': ['.batch-tagin'],
-  '/newtab/views/CompassHome.vue': ['.cf-go', '.pager', '.pg-num', '.cur-tree-caret'],
-  '/newtab/views/CompassTree.vue': ['.node', '.sidebar', '.breadcrumb', '.main-area', '.goals-row', '.goal-col', '.goal-node', '.project-node', '.project-branch', '.vision-node', '.mission-node', '.metric-item', '.metric-name', '.metric-status', '.metrics-wrap', '.tasks-wrap', '.tasks-header', '.sub-tree', '.tree-connector', '.guide-line', '.branch-connector', '.progress-bar', '.progress-fill', '.focus-btn', '.linked-chips', '.add-btn-inline'],
+  '/newtab/views/CompassHome.vue': ['.cf-go', '.pager', '.pg-num', '.cur-tree-caret', '.picker-item.sys', '.pi-check.pi-ghost',],
+  '/newtab/views/CompassTree.vue': ['.node', '.sidebar', '.breadcrumb', '.main-area', '.goals-row', '.goal-col', '.goal-node', '.project-node', '.project-branch', '.vision-node', '.mission-node', '.metric-item', '.metric-name', '.metric-status', '.metrics-wrap', '.tasks-wrap', '.tasks-header', '.sub-tree', '.tree-connector', '.guide-line', '.branch-connector', '.progress-bar', '.progress-fill', '.focus-btn', '.linked-chips', '.add-btn-inline', '.sidebar-item.active', '.sidebar-item .tip', '.breadcrumb .root', '.breadcrumb .sep', '.project-node.primary', '.focus-btn.on', '.vision-node .node-title', '.tm-task-leaf:hover .tml-up',],
   '/newtab/views/FieldEditor.vue': ['.gs-fr-actions'],
-  '/newtab/views/GlobalSettings.vue': ['.gs-manual', '.gs-manual-nav', '.gs-manual-body', '.gs-mc-section', '.gs-mc-content', '.gs-mc-title', '.gs-mn-part', '.gs-dd-seg', '.gs-dash-stats', '.gs-dash-stat', '.ai-days'],
-  '/newtab/views/ProjectCuration.vue': ['.back-row'],
+  '/newtab/views/GlobalSettings.vue': ['.gs-manual', '.gs-manual-nav', '.gs-manual-body', '.gs-mc-section', '.gs-mc-content', '.gs-mc-title', '.gs-mn-part', '.gs-dd-seg', '.gs-dash-stats', '.gs-dash-stat', '.ai-days', '.gs-mn-item.active', '.gs-mc-content .mc-flow', '.gs-mc-content .mc-table', '.gs-dd-seg b.up',],
+  '/newtab/views/workspace.css': ['.rc-action.mount.on'],
+  '/newtab/views/ProjectCuration.vue': ['.back-row',],
 };
 check('R4-Et④ ★退役选择器登记表（本轮删掉的 150 条里挑出这些族名，全量账在交付说明 R4-Et 第一节）：样式可以重写，但"模板里已经没有这个类"这件事不该被一条同名规则悄悄带回——登记文件里任何一条选择器重新出现在自己的组件里即红，改表必须进 diff。为什么钉族名而不是整条规则文本：规则文本一改格式（空格、换行）锚点就静默失效，而"族名 + 紧跟一个左花括号"既能认出回流又不在乎排版', () => {
   const back = [];
@@ -424,4 +426,19 @@ check('R4-Eu② ★"标记还在"不等于"切片还对"：漂移闸只抓"标�
     && RES_CARD_IFACE.length > 100 && RES_CARD_IFACE.length < 3000
     && RES_CARD_IFACE.includes("kind: 'resource'")
     && RES_CARD_IFACE.split('export interface').length === 2;   /* 切片自带起点那一句，所以"只许出现一次"= 没串到下一个 interface */
+});
+
+// ============== R4-Ev 祖先段口径 + 行号自证：第二批孤儿 CSS 清账 ==============
+console.log('【R4-Ev · 扫描器口径的四处修正与清零棘轮】');
+check('R4-Ev① ★"祖先段整段判死"这条口径要能独立站住，就得先承认旧口径的四处误判并把救活它的四条票钉住：① 逗号选择器列表必须**逐段判**（旧版把整串当一条链，body .module-title .name, body .tc-module-title .tc-name 里第一段断了就把整条报成祖先断，而第二段活着）；② 括号要**配平**剥（:is(a, :not(b)) 用 [^)]* 会在第一个右括号早停，把 :is 的尾巴当成祖先段）；③ 运行时插值的类名（Heatmap 的 `l${lv}` ⇒ .dz-cell.l4）token 匹配天生看不见，要有"插值前缀"票；④ 类名值由**别的文件**的数据表产出（curiosity.ts 的 cls: exploring、DashboardLogDrawer 的 expanded）时，scoped 也要吃"全站精确字符串"这一票。**棘轮就是实跑扫描器两桶为零**：这四条里任何一条被拆掉，对应的规则立刻浮回名单 ⇒ 清零不是"把判据调松"能换来的。ET_RETIRE 已随本批扩到第二批的 40 条退役选择器', () => {
+  const p = path.resolve(SCRIPTS_DIR, 'dead-css-scan.cjs');
+  const s = fs.readFileSync(p, 'utf8');
+  const ran = runGateSync(p, ['--json']);
+  let out = null; try { out = JSON.parse(ran.stdout || '') } catch { }
+  const ex = (sel) => runGateSync(p, ['--explain', sel]).status === 0;
+  return !!out && out.规则总数 > 2900 && out.死.length === 0 && out.祖先断.length === 0
+    && s.includes('function splitTopLevel') && s.includes('function stripParens')
+    && s.includes('interpPrefixes.add') && s.includes('globalTokens.has(tok)')
+    && ex('.metric-item.expanded') && ex('.dz-cell.l4') && ex('body .module-title')
+    && ex('.picker-item') && ex('.toggle') && ex('.dz-hl');
 });

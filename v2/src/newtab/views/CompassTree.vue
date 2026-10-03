@@ -905,12 +905,7 @@ onUnmounted(() => {
 .peek-tag { display: inline-block; font-size: var(--fs-caption); color: var(--accent-ink); background: var(--accent-light); padding: 1px 8px; border-radius: 99px; margin: 0 4px 4px 0; }
 .peek-open { width: 100%; margin-top: 14px; padding: 10px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; }
 .peek-open:hover { background: var(--accent-hover); }
-.sidebar-item.active { background: var(--accent-light); color: var(--accent-ink); }
-.sidebar-item .tip { position: absolute; left: 48px; background: #1A1D23; color: #fff; font-size: var(--fs-caption); padding: 4px 9px; border-radius: 6px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity var(--dur); z-index: var(--z-sticky); }
-.sidebar-item:hover .tip { opacity: 1; }
 .topbar { height: 48px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0; }
-.breadcrumb .root { color: var(--accent); font-weight: 600; cursor: pointer; }
-.breadcrumb .sep { color: var(--text-3); }
 .dhi-badge { display: flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 99px; background: var(--accent-light); font-size: var(--fs-sub); font-weight: 500; color: var(--accent-ink); }
 .dhi-badge.warning { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
 
@@ -962,15 +957,11 @@ onUnmounted(() => {
 .ai-chain-act { width: auto; padding: 0 8px; gap: 3px; font-size: var(--fs-caption); white-space: nowrap; }
 .node-action:hover { background: var(--accent-light); color: var(--accent-ink); border-color: var(--accent); }
 .node-action.danger:hover { color: var(--danger); }
-.vision-node .node-title { font-size: 16px; font-weight: 600; color: var(--accent); line-height: 1.55; }
-.vision-node .layer-label { font-size: var(--fs-micro); color: var(--accent); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
 .stagnant-tag { background: var(--tag-danger-bg); color: var(--danger); font-size: var(--fs-micro); padding: 2px 7px; border-radius: 99px; font-weight: 500; }
 .status-active { color: var(--success); }
 .status-paused { color: var(--warning); }
-/* R59-T3：主攻项目——强调色凸显（边+底色+左侧强调条），与普通项目一眼区分 */
-.project-node.primary { border: 1px solid var(--accent); background: var(--accent-light); box-shadow: inset 3px 0 0 var(--accent), 0 0 12px color-mix(in srgb, var(--accent) 14%, transparent); }
-.project-node.primary .node-title { color: var(--accent); }
-.focus-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* R59-T3 的「主攻项目强调」（.project-node.primary / .project-node.primary .node-title）随旧树节点类族一并退役
+   （R4-Ev 孤儿 CSS 第二批）——今天的主攻标记在 .tree-project-branch.is-focused 与 .tp-mark 🚀 上 */
 .metric-item.expanded { background: var(--surface); border-color: color-mix(in srgb, var(--accent) 20%, var(--border)); border-bottom-left-radius: 0; border-bottom-right-radius: 0; margin-bottom: 0; }
 .metric-status.done { background: var(--success); }
 .metric-status.doing { background: var(--warning); }
@@ -1074,7 +1065,6 @@ onUnmounted(() => {
 .tml-pri { flex-shrink: 0; margin-left: auto; font-size: var(--fs-tiny); color: var(--text-4); }
 .tml-del { display: none; flex-shrink: 0; }
 .tm-task-leaf:hover .tml-del { display: inline-flex; }
-.tm-task-leaf:hover .tml-up { display: inline-flex; }
 /* 空指标警示（原型：⚠ 暂无支撑任务） */
 .tm-empty-alert { margin-top: 4px; font-size: var(--fs-caption); color: var(--warning); background: var(--warning-bg-soft); padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; }
 @media (max-width: 1180px) { .tree-columns-grid { grid-template-columns: repeat(2, 1fr); } }

@@ -959,7 +959,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .card-head .ic { font-size: 16px; color: var(--accent); display: flex; align-items: center; }
 .card-head .nm { font-size: var(--fs-title); font-weight: 600; letter-spacing: .3px; }
 .card-head .en { font-size: var(--fs-micro); color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; }
-.card-head .ds { font-size: var(--fs-sub); color: var(--text-3); margin-left: 6px; flex: 1; }
 .mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); user-select: none; }
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
 .mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -1078,7 +1077,6 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .picker-item.disabled { opacity: .55; cursor: default; }
 .picker-item.disabled:hover { background: var(--surface-2); }
 .pi-check { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-.pi-check.pi-ghost { background: var(--surface-3); color: var(--text-2); font-size: var(--fs-sub); }
 .pi-info { flex: 1; min-width: 0; }
 .pi-title { font-size: var(--fs-body); font-weight: 500; margin-bottom: 3px; }
 .pi-meta { display: flex; gap: 5px; flex-wrap: wrap; }
@@ -1099,9 +1097,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 .modal-enter-active, .modal-leave-active { transition: all var(--dur) ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; transform: translate(-50%, -50%) scale(.95); }
-/* R52-BUG-1：系统事件灰显（不计数，仅可见） */
-.picker-item.sys { opacity: .45; }
-.picker-item.sys .pi-title { color: var(--text-3); font-weight: 400; }
+/* R52-BUG-1 的「系统事件灰显」（.picker-item.sys）已随选择器不再列系统事件而退役（R4-Ev 孤儿 CSS 第二批） */
 @media (max-width: 1080px) {
   /* R52-F1/F2：窄窗口降级回纵向 */
   .today-cards { grid-template-columns: 1fr; }

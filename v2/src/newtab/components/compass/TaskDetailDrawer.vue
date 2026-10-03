@@ -563,7 +563,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ta-wrap { position: relative; }
 .ta-resize { position: absolute; right: 3px; bottom: 3px; width: 16px; height: 12px; cursor: ns-resize; z-index: 2; opacity: .45; border-right: 3px solid var(--text-3); border-bottom: 3px solid var(--text-3); border-bottom-right-radius: 3px; }
 .ta-resize:hover { opacity: .9; }
-.ts-status-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
 /* R165-A：优先级 3 段 segment（语义色 tint，对比度过 4.5） */
 .ts-prio { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 4px; }
 .ts-prio button { padding: 7px 16px; font-size: var(--fs-sub); background: var(--surface-2); border: 0; color: var(--text-3); cursor: pointer; transition: all var(--dur); font-family: inherit; }

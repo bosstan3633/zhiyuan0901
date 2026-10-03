@@ -722,10 +722,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
 .ai-row-main { color: var(--text); font-weight: 500; line-height: 1.55; word-break: break-word }
 .ai-row-sub { color: var(--text-3); font-size: var(--fs-caption); line-height: 1.65; margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--border); white-space: pre-wrap; word-break: break-word }
 .ai-badge { display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: var(--radius-xs); font-size: var(--fs-caption); font-weight: 600; vertical-align: 1px; }
-.ai-badge.b-warn { background: var(--warning-bg-soft); color: var(--warning); }
-.ai-badge.b-ok { background: var(--success-bg-soft); color: var(--success); }
-.ai-badge.b-danger { background: var(--danger-bg-soft); color: var(--danger); }
-.ai-badge.b-neutral { background: var(--tag-neutral-bg); color: var(--tag-neutral-text); }
 .ai-btn { padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-size: var(--fs-body); cursor: pointer; font-family: inherit; transition: all var(--dur); }
 /* R161：强调色只给主行动（.primary / .ghost.on = 当前态）——次级按钮 hover 一律走中性，不再"满屏泛紫" */
 .ai-btn:hover { border-color: var(--border-strong); color: var(--text); }
@@ -769,10 +765,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
 .ai-psub { display: block; font-size: var(--fs-caption); color: var(--text-3); margin-top: 2px; white-space: pre-wrap }
 .ai-pempty { color: var(--text-4) }
 .ai-chg-tag { font-size: var(--fs-tiny); padding: 2px 6px; border-radius: var(--radius-xs); align-self: flex-start; letter-spacing: var(--tracking-sm); white-space: nowrap; font-weight: 600 }
-.ai-chg-tag.t-new { background: var(--success-bg-soft); color: var(--success) }
-.ai-chg-tag.t-edit { background: var(--accent-light); color: var(--accent-ink) }
-.ai-chg-tag.t-move { background: var(--warning-bg-soft); color: var(--warning) }
-.ai-chg-tag.t-same { background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 400 }
 .ai-clickable { cursor: text; border-bottom: 1px dashed var(--border-strong) }
 .ai-edit { width: 100%; background: var(--surface-3); border: 1px solid var(--accent); border-radius: var(--radius-xs); color: var(--text); font-size: var(--fs-body); line-height: 1.6; padding: 5px 7px; font-family: inherit; resize: vertical; outline: none }
 .ai-edited-mark { margin-left: 5px; font-size: var(--fs-caption) }

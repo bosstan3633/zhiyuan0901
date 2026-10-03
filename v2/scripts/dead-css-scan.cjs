@@ -69,6 +69,7 @@ const globalStrings = new Set()      // 全站字符串（拼接票的语料）
 const transitionNames = new Set()
 const perFile = new Map()            // 文件 → { attr: Set, strings: Set }
 
+const interpPrefixes = new Set() // 模板串整体就是 `前缀${…}` 形状时的那个前缀（Heatmap 的 `l${lv}` ⇒ l1…l4）
 function harvest(txt) {
   const attr = new Set()
   const strings = new Set()
@@ -76,15 +77,16 @@ function harvest(txt) {
   const re = new RegExp(strRe.source, strRe.flags)
   while ((m = re.exec(txt))) {
     const body = (m[1] ?? m[2] ?? m[3] ?? '')
-    // 分隔符含引号与点，但**不含连字符**（类名里的 - 必须保住）：
-    // :class="{ 'ai-clickable': canEdit(r) }" 里若不剥引号，token 就成了带撇的 'ai-clickable'，
-    // 本文件的静态票就漏判——A/B 复算时 AiSuggestionDrawer 的 .ai-clickable 因此被误列进死桶。
     for (const t of body.split(/[\s,;{}()?|&+:./`]+/)) if (t && /^[A-Za-z][\w-]*$/.test(t)) strings.add(t)
     for (const t of body.replace(/['"]/g, ' ').split(/[\s,;{}()?|&+:/]+/)) if (t && /^[A-Za-z][\w-]*$/.test(t)) strings.add(t)
+    const it = body.match(/^([A-Za-z][\w-]*)\$\{[^}]*\}$/)
+    if (it) interpPrefixes.add(it[1])
     strings.add(body)
   }
   for (const mm of txt.matchAll(/\bclass\s*=\s*"([^"]*)"/g)) {
-    for (const t of mm[1].trim().split(/\s+/)) if (t) attr.add(t)
+    // 同样要剥引号与冒号：:class="{ 'dz-hl': dzHl }" 里若留下 'dz-hl':，这枚**真在用**的类就被判死
+    // （R4-Ev 的第一批假阳性就是这么来的——dz-hl 只在设置页"高亮可交互"打开时渲染，census 也看不见它）
+    for (const t of mm[1].trim().split(/[\s'":]+/)) if (t) attr.add(t)
   }
   for (const mm of txt.matchAll(/<\s*(?:Transition|transition)[^>]*\bname\s*=\s*"([^"]+)"/g)) transitionNames.add(mm[1])
   return { attr, strings }
@@ -115,6 +117,9 @@ function concatAlive(tok, strings) {
   return false
 }
 
+const globalTokens = new Set()   // 全站字符串里出现过的**精确 token**（不是子串）
+function collectGlobals() { for (const h of perFile.values()) for (const s of h.strings) globalTokens.add(s) }
+
 /** <Transition name="x"> 真实生成的 token 全集：x 本体 + 六件套。**只豁免这些**——
  *  v1 用 startsWith(name + '-') 判过渡件，于是 CuriosityPanel 的 name="expand" 顺手把 CompassTree 里
  *  毫不相干的 .goal-node .expand-icon 豁免了（Workspace 的 name="batch" 同理放过 .batch-tagin）。 */
@@ -135,6 +140,14 @@ function collectGlobalAttrs() { for (const h of perFile.values()) for (const t o
 function aliveTok(tok, fileTokens, scoped) {
   if (fileTokens.attr.has(tok) || fileTokens.strings.has(tok)) return '静态(本文件)'
   if (globalAttrTokens.has(tok)) return 'class 属性(全站·pass-through)'
+  // ★scoped 也要吃这一票：类名值可以由**别的文件**的数据表产出（curiosity.ts 的 cls:'exploring'
+  //  被 CuriosityPanel 的 :class="statusMeta(...).cls" 用掉），只查本文件字符串会把它判死。
+  //  这里比的是**精确 token**，不是 v1 的子串匹配，所以不会把 node 因 node-title 救活。
+  if (globalTokens.has(tok)) return '字符串(全站)'
+  // ★插值前缀票：Heatmap 的 cells.push({cls:[`l${lv}`]…}) 让 .dz-cell.l4 是活的，
+  //   但 `l4` 这个 token 在任何源码里都不存在（是运行时拼出来的），token 匹配天生看不见。
+  //   只认"整个模板串就是 前缀${…}"这一种形状，且要求尾巴 ≤3 字符（l4 / t2 这种），免得把整片 l* 都救活。
+  for (const p of interpPrefixes) if (p !== tok && tok.startsWith(p) && tok.length - p.length >= 1 && tok.length - p.length <= 3) return '插值前缀(' + p + '${…})'
   if (!scoped && concatAlive(tok, globalStrings)) return '拼接'
   if (scoped && concatAlive(tok, fileTokens.strings)) return '拼接(本文件)'
   if (!scoped) { for (const h of perFile.values()) if (h.attr.has(tok)) return '静态(他文件)' }
@@ -145,23 +158,103 @@ function aliveTok(tok, fileTokens, scoped) {
 const styleBlocks = []
 /** 注释按等长空白抹掉：保行号，且不让样式说明里那些带点号的字（.lc-* / workspace.css）混进选择器被当成 token */
 const blankComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' '))
+/** 从 `{` 往回走，跳过空白、再剥掉紧邻的注释块，落到选择器自身那一行。
+    行号一律按**整份文件**数换行（absBase = 样式块内容在文件里的绝对起点），
+    不再用"line0 + 块内行号"那种加减——R4-Et/R4-Ev 两轮的行号偏移都出在这套加减上。 */
+function selectorLine(rawCss, fromIdx) {
+  // 前向走：跳过空白 → 跳过紧邻的注释块（可多段）→ 落在选择器第一个字符上。
+  // 比"从 { 往回走"对：逗号列表跨行时（`a .x,\n  b .y {`）往回走会停在最后一段那一行。
+  let i = fromIdx
+  for (let guard = 0; guard < 12; guard++) {
+    while (i < rawCss.length && /\s/.test(rawCss[i])) i++
+    if (rawCss.slice(i, i + 2) === '/*') {
+      const close = rawCss.indexOf('*/', i + 2)
+      if (close < 0) break
+      i = close + 2
+      continue
+    }
+    break
+  }
+  return i
+}
 for (const f of sfc.filter(x => x.endsWith('.vue'))) {
   const txt = fs.readFileSync(f, 'utf8')
   for (const mm of txt.matchAll(/<style([^>]*)>([\s\S]*?)<\/style>/g)) {
     const scoped = /\bscoped\b/.test(mm[1])
-    styleBlocks.push({ file: f, css: blankComments(mm[2]), line0: txt.slice(0, mm.index).split('\n').length, scoped })
+    // line0 = 样式块**第一行内容**所在的文件行号：`<style scoped>` 自己占一行，内容从下一行开始。
+    // ★R4-Ev 修：原先直接取 <style> 那一行的行号，导致 .vue 里报出的行号一律比实际小 1
+    //   （.css 文件 line0=1 不受影响）——按行号去定位删除会删错行，所以必须修准。
+    styleBlocks.push({ file: f, css: blankComments(mm[2]), raw: mm[2], absBase: mm.index + mm[0].indexOf('>') + 1, scoped })
   }
 }
 for (const f of files.filter(x => x.endsWith('.css'))) {
-  styleBlocks.push({ file: f, css: blankComments(fs.readFileSync(f, 'utf8')), line0: 1, scoped: false })
+  const raw = fs.readFileSync(f, 'utf8')
+  styleBlocks.push({ file: f, css: blankComments(raw), raw, absBase: 0, scoped: false })
+}
+
+/** 逗号在括号里不算分隔（`:is(button, a, .x)` / `:not(.a, .b)`），选择器列表要先按顶层逗号拆开 */
+function splitTopLevel(sel) {
+  const out = []; let depth = 0, cur = ''
+  for (const ch of sel) {
+    if (ch === '(') depth++
+    else if (ch === ')') depth--
+    else if (ch === ',' && depth === 0) { out.push(cur.trim()); cur = ''; continue }
+    cur += ch
+  }
+  if (cur.trim()) out.push(cur.trim())
+  return out
+}
+/** 去掉**配平的**括号组（`:is(a, :not(b))` 这种嵌套要用深度计数，`[^)]*` 会在第一个右括号处早停，
+ *  把 `:is(... , .dz-ov-card, ...)` 的尾巴留在外面 ⇒ 尾巴被当成祖先段，整条规则被误报成祖先断） */
+function stripParens(s) {
+  let out = '', depth = 0
+  for (const ch of s) {
+    if (ch === '(') depth++
+    else if (ch === ')') { if (depth > 0) depth-- }
+    else if (depth === 0) out += ch
+  }
+  return out
+}
+/** 单个选择器段的判定：'活' | '死' | '祖先断'（断在哪一段）
+ *  ★R4-Ev 口径收紧：复合段 `.a.b` 要求元素**同时**带 a 与 b ⇒ 其中一个类名四票全零，整段就匹配不到。
+ *    旧口径"这一段里任一 token 活着就算活"把 `.toggle.on`（toggle 死、on 活）、`.metric-item.expanded`
+ *    这类**孤儿兄弟**留下了——R4-Et 删完基类后它们已经谁也够不着，只是没人报。
+ *    `:is(...)` / `:not(...)` 的参数一律剥掉不参与判定（那是"或"与"非"，不是必须同时成立）。 */
+function judgePart(part, ft, scoped) {
+  const bare = stripParens(part)
+  const compounds = bare.split(/[>+~\s]+/).filter(Boolean)
+  const deadOf = (c) => {
+    const st = [...c.matchAll(/\.([A-Za-z_][\w-]*)/g)].map(x => x[1])
+    return st.length ? st.find(t => !aliveTok(t, ft, scoped)) : ''
+  }
+  const hit = compounds.map((c, idx) => ({ c, idx, t: deadOf(c) })).filter(x => x.t)
+  if (!hit.length) return { kind: '无类或全活' }
+  const last = compounds.length - 1
+  const first = hit.find(x => x.idx < last) || (hit[0].idx === last && compounds.length === 1 ? null : null)
+  if (compounds.length === 1) return { kind: '死', 因: hit[0].t }
+  if (first) return { kind: '祖先断', 断在: first.c }
+  return { kind: '尾段断', 断在: hit[0].c }      // 末段自己带了死类名（如 .x .toggle.on）
 }
 
 const RULE = /([^{}]+)\{([^{}]*)\}/g
+const explainHits = []
+/** 每个换行符记一行：行号 = 该字符之前的换行数 + 1（一次算好，避免各处加减口径不一） */
+const TXTS = new Map()
+const txtLineAt = (file) => {
+  if (!TXTS.has(file)) {
+    const t = fs.readFileSync(file, 'utf8')
+    const arr = [1]
+    for (let i = 0; i < t.length; i++) arr.push(arr[i] + (t[i] === '\n' ? 1 : 0))
+    TXTS.set(file, { lineOf: arr, text: t })
+  }
+  return TXTS.get(file)
+}
 const dead = [], ancestorDead = []
 collectGlobalAttrs()
+collectGlobals()
 expandTransitions()
 let total = 0
-for (const { file, css, line0, scoped } of styleBlocks) {
+for (const { file, css, raw, absBase, scoped } of styleBlocks) {
   const ft = perFile.get(file) || { attr: new Set(), strings: new Set() }
   let m
   const re = new RegExp(RULE.source, RULE.flags)
@@ -172,21 +265,34 @@ for (const { file, css, line0, scoped } of styleBlocks) {
     const toks = [...sel.matchAll(/\.([A-Za-z_][\w-]*)/g)].map(x => x[1])
     if (!toks.length) continue
     if (toks.some(t => transitionTokens.has(t))) continue
-    const why = toks.map(t => aliveTok(t, ft, scoped))
     const rel = path.relative(SRC, file)
-    const line = line0 + css.slice(0, m.index).split('\n').length - 1
+
+    // 行号指到**选择器自己那一行**（R4-Ev 修的两处偏移：.vue 的 <style> 占一行；规则上面压着注释时
+    //   旧算法会把规则报成注释那一行——按行号去删就会跳过错删）
+    const line = txtLineAt(file).lineOf[absBase + selectorLine(raw, m.index)]
+    explainHits.push({ file: path.relative(SRC, file), line, sel: sel.replace(/\s+/g, ' ').trim() })
     const rec = { file: rel, line, sel: sel.replace(/\s+/g, ' ').slice(0, 78), toks: toks.join(',') }
-    if (why.every(w => !w)) { dead.push(rec); continue }
-    // 祖先断：选择器按组合符切成几段，任意**前置段**整段三票全零 ⇒ 这条规则永远匹配不到
-    const compounds = sel.split(/[>+~\s]+/).filter(Boolean)
-    if (compounds.length > 1) {
-      const deadSeg = compounds.slice(0, -1).find(seg => {
-        const st = [...seg.matchAll(/\.([A-Za-z_][\w-]*)/g)].map(x => x[1])
-        return st.length > 0 && st.every(t => !aliveTok(t, ft, scoped))
-      })
-      if (deadSeg) ancestorDead.push({ ...rec, 断在: deadSeg.slice(0, 40) })
-    }
+    /** ★整条规则要**每个逗号段**都判死才算死**（R4-Ev 修的口径）：旧版把带逗号的整串当一条链切，
+     *  于是 `body .module-title .name, body .tc-module-title .tc-name` 里第一段被当成"祖先段"，
+     *  只要它断了就把整条规则报成祖先断——而第二段完全可能活着。 */
+    const parts = splitTopLevel(sel).map(p => judgePart(p, ft, scoped))
+    const deadish = p => p.kind === '死' || p.kind === '祖先断' || p.kind === '尾段断'
+    if (!parts.every(deadish)) continue
+    if (parts.every(p => p.kind === '死')) { dead.push(rec); continue }
+    ancestorDead.push({ ...rec, 断在: parts.map(p => p.断在 || p.因).filter(Boolean).join(' , ').slice(0, 40) })
   }
+}
+
+/* --explain <选择器>：打印扫描器为某条规则算出的 file:line，并回显该行真实内容。
+   行号是这个工具最主要的"人用的坐标"，R4-Et/R4-Ev 两轮都栽在行号加减上（.vue 的 <style> 占一行、
+   规则上面压着注释时又偏一行），所以给一条能被判据实跑自证的路。 */
+const explain = argOf('--explain')
+if (explain) {
+  const hit = explainHits.find(h => h.sel.startsWith(explain))
+  if (!hit) { console.log('未找到选择器：' + explain); process.exit(4) }
+  const src = fs.readFileSync(path.join(SRC, hit.file), 'utf8').split('\n')[hit.line - 1] || ''
+  console.log(JSON.stringify({ file: hit.file, line: hit.line, 该行: src.trim().slice(0, 90), 吻合: src.trim().startsWith(explain) }))
+  process.exit(src.trim().startsWith(explain) ? 0 : 5)
 }
 
 const byFile = (rows) => rows.reduce((a, r) => ((a[r.file] = a[r.file] || []).push(r), a), {})

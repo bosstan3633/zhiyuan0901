@@ -2982,20 +2982,8 @@ const activeManualSec = ref('quick-1')
 .gs-confirm-input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: var(--fs-sub); outline: none; font-family: inherit; margin-top: 8px; background: var(--surface); color: var(--text); }
 .gs-confirm-input:focus { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(196,68,68,.15); }
 .gs-modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
-.gs-mn-item.active { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
 .gs-manual-open { padding: 10px 22px; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; transition: all var(--dur); }
 .gs-manual-open:hover { background: var(--accent-hover); }
-.gs-mc-content .mc-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: 8px; padding: 10px 14px; margin: 10px 0; font-size: var(--fs-body); color: var(--text); }
-.gs-mc-content .mc-tip { background: var(--accent-light); border-radius: 8px; padding: 10px 14px; margin: 12px 0; font-size: var(--fs-body); color: var(--text-2); line-height: 1.8; }
-.gs-mc-content .mc-warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); border-radius: 8px; padding: 10px 14px; margin: 12px 0; font-size: var(--fs-body); line-height: 1.8; }
-.gs-mc-content .mc-quote { background: linear-gradient(135deg, var(--accent-light), color-mix(in srgb, var(--accent-light) 40%, var(--surface))); border-left: 3px solid var(--accent); border-radius: 0 12px 12px 0; padding: 14px 18px; margin: 12px 0; font-size: var(--fs-body); line-height: 2; color: var(--text); }
-.gs-mc-content .mc-steps { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
-.gs-mc-content .mc-step { display: flex; gap: 10px; align-items: flex-start; background: var(--surface-2); border-radius: 10px; padding: 9px 12px; font-size: var(--fs-body); color: var(--text-2); line-height: 1.7; }
-.gs-mc-content .mc-step b:first-child { flex-shrink: 0; width: 22px; height: 22px; border-radius: 7px; background: var(--accent); color: #fff; font-size: var(--fs-caption); display: flex; align-items: center; justify-content: center; font-weight: 700; margin-top: 1px; }
-.gs-mc-content .mc-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: var(--fs-body); }
-.gs-mc-content .mc-table th { text-align: left; background: var(--surface-3); color: var(--text); font-weight: 600; padding: 7px 10px; border: 1px solid var(--border); }
-.gs-mc-content .mc-table td { padding: 7px 10px; border: 1px solid var(--border); color: var(--text-2); vertical-align: top; }
-.gs-mc-content .mc-table tr:hover td { background: var(--surface-2); }
 
 /* 一封信 */
 /* 信纸排版（第廿九轮：明显留白——行距 2.75 / 段距 32px / 640px 窄栏 / 落款前 72px，给读者呼吸感） */
@@ -3042,7 +3030,6 @@ const activeManualSec = ref('quick-1')
 
 /* ===== 第卌四轮：知源仪表盘 ===== */
 .gs-dash-en { font-size: var(--fs-tiny); color: var(--text-3); letter-spacing: 2px; margin-left: 6px; }
-.gs-dd-seg b.up { color: var(--accent); font-size: var(--fs-title); }
 /* R48-B1：明细抽屉搜索框 + 翻页器 */
 .gs-drawer-search { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .gs-drawer-search input { flex: 1; padding: 7px 11px; border: 1px solid var(--border); border-radius: 8px; font-size: var(--fs-sub); font-family: inherit; outline: none; background: var(--surface); color: var(--text); }

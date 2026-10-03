@@ -58,7 +58,12 @@ console.log('【第五轮】');
 check('B17 方向树目录入 tree-layout 左栏', () => read('/newtab/views/CompassTree.vue').indexOf('tree-page-head') < read('/newtab/views/CompassTree.vue').indexOf('tree-layout') && read('/newtab/views/CompassTree.vue').includes('class="tree-layout"'));
 check('B17 目录与策展目录样式统一(200px sticky)', () => read('/newtab/views/CompassTree.vue').includes('width: 200px; flex-shrink: 0;') && read('/newtab/views/CompassTree.vue').includes('position: sticky'));
 check('B18 字段行样式迁入子组件', () => count('/newtab/views/FieldEditor.vue', 'gs-fr-action') >= 2);
-check('B22 状态三选 chips', () => read('/newtab/components/compass/TaskDetailDrawer.vue').includes('ts-status-chip'));
+check('B22 状态三选 chips · ★R4-Ev 随迁备案：原锚 ts-status-chip 只剩一条死样式在撑着——模板早在 R167 换成 ds-status-chip2 + STATUS_UI[...].cls，而 CSS 里那份 .ts-status-chip.active 是旧实现留下的孤儿（R4-Et 删了基规则，本轮删了 .active 这条），所以这条判据一直在核一件不再存在的事。改钉现役三件：钮在位 + 状态类由 STATUS_UI 映射 + 三档 st-* 各有规则；并负锚旧类名不许回流', () => {
+  const f = read('/newtab/components/compass/TaskDetailDrawer.vue');
+  return f.includes('class="ds-status-chip2"') && f.includes('STATUS_UI[selectedTask.status].cls')
+    && ['.st-todo', '.st-doing', '.st-done'].every(c => f.includes('.ds-status-chip2' + c))
+    && !f.includes('ts-status-chip');
+});
 check('B23 文档级 Ctrl+Enter/Esc', () => read('/newtab/components/compass/TaskDetailDrawer.vue').includes('onSidebarDocKey'));
 check('O19/R121 主航线项目行卡 ★R3-B1 退役重指带备案：行卡（proj-row/mini-bar/双击）随 LighthousePanel 整面退役，能力去向=方向树项目卡头（tp-head 名称 + tp-pct 进度 + 停滞读数在页头 + ▾ 菜单「进入项目详情页」取代双击）', () => { const t = read('/newtab/views/CompassTree.vue'); return !exists('/newtab/components/compass/LighthousePanel.vue') && t.includes('class="tp-head"') && t.includes('class="tp-pct"') && t.includes('📄 进入项目详情页') && t.includes('function openProjectDrawer('); });
 check('O20（R126 重指）标签最多两级守卫 + 缩进兜底', () => read('/newtab/views/GlobalSettings.vue').includes('最多两级') && read('/newtab/views/GlobalSettings.vue').includes('padding-left: 58px !important'));
