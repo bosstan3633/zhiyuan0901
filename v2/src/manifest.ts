@@ -12,7 +12,7 @@ export default defineManifest({
     newtab: 'src/newtab/index.html'
   },
   action: {
-    default_title: '知源调度台 · 点击打开采集小窗'
+    default_title: '知源调度台 · 点击打开采集面板'
   },
   options_page: 'src/options/index.html',
   background: {
@@ -76,7 +76,7 @@ export default defineManifest({
   },
   web_accessible_resources: [
     {
-      resources: ['src/popup/index.html', 'assets/*'],
+      resources: ['assets/*'],
       matches: ['<all_urls>']
     }
   ]

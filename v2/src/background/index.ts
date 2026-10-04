@@ -4,12 +4,11 @@
  * 职责：
  *  1. 监听全局快捷键（chrome.commands.onCommand）
  *  2. 确保 content script 已注入，发消息唤起页内浮层
- *  3. 无法注入的页面（chrome:// 等）降级为独立弹窗窗口
+ *  3. 无法注入的页面（chrome:// 等）降级为「进应用开对应面板」
  */
 import { K } from '@/shared/storage/keys'
 import { resourceLocateRoute } from '@/shared/utils/locate'
 
-const SESSION_KEY = K.QC_PREFILL
 
 /** 获取 content script 文件路径（从 manifest 动态读取，兼容构建 hash） */
 function getContentScriptFiles(): string[] {
@@ -57,45 +56,26 @@ async function notifyTab(tabId: number, type: string): Promise<boolean> {
   }
 }
 
-/** 计算弹窗位置（贴近工具栏图标） */
-async function anchorPosition(width: number): Promise<Partial<chrome.windows.CreateData>> {
+/**
+ * R4-Fb（#117 拍板「撤降级路径」）：不可注入页的降级出口 = **进应用开对应面板**。
+ * 原降级独立弹窗 `src/popup/index.html` **从未进过构建**（dist 里它仍引 ./main.ts、
+ * manifest 的 action 没有 default_popup）⇒ 在 chrome:// / 扩展页 / Web Store 按快捷键只得到一个空白窗口。
+ * 应用内那三块面板本来就是同一件事的正路，且采集/好奇面板会自己从最近的网页标签取标题与链接
+ * （GlobalPopups 的 getRecentWebTab），所以这里不需要 prefill 通道。
+ */
+async function openQuickPanel(panel: 'capture' | 'curio' | 'taskcapture'): Promise<void> {
+  const base = chrome.runtime.getURL('src/newtab/index.html')
   try {
-    const win = await chrome.windows.getLastFocused()
-    if (win && typeof win.left === 'number' && typeof win.width === 'number') {
-      return {
-        left: Math.round(win.left + win.width - width - 56),
-        top: Math.round((typeof win.top === 'number' ? win.top : 0) + 96)
-      }
-    }
-  } catch { /* ignore */ }
-  return {}
-}
-
-/** 单例打开弹窗窗口 */
-async function openPopupWindow(url: string, width = 460, height = 640): Promise<void> {
-  const target = chrome.runtime.getURL(url)
-  try {
-    const base = target.split('?')[0].split('#')[0]
     const tabs = await chrome.tabs.query({ url: base + '*' })
-    const hit = tabs?.find((t) => t.url && t.url.split('#')[0] === target)
-    if (hit?.windowId != null) {
-      const win = await chrome.windows.get(hit.windowId).catch(() => null)
-      const patch: chrome.windows.UpdateInfo = { focused: true }
-      if (win?.state === 'minimized') patch.state = 'normal'
-      await chrome.windows.update(hit.windowId, patch)
+    const hit = tabs.find(t => t.id != null)
+    if (hit?.id != null) {
+      if (hit.windowId != null) await chrome.windows.update(hit.windowId, { focused: true }).catch(() => {})
+      await chrome.tabs.update(hit.id, { active: true })
+      await chrome.tabs.sendMessage(hit.id, { type: 'zy-quick-panel', panel }).catch(() => {})
       return
     }
   } catch { /* 查询失败退回新建 */ }
-
-  const pos = await anchorPosition(width)
-  chrome.windows.create({
-    url: target,
-    type: 'popup',
-    focused: true,
-    width,
-    height,
-    ...pos
-  })
+  chrome.tabs.create({ url: `${base}?zy-panel=${panel}#/` })
 }
 
 /** 获取当前标签页信息 */
@@ -195,17 +175,12 @@ chrome.commands.onCommand.addListener(async (command) => {
       break
     }
     case 'open-tasks': {
-      // R55-C：快速采集任务（浏览器级命令，无默认键）——优先页内浮层（含新标签页应用内面板），降级独立弹窗
+      // R55-C：快速采集任务（浏览器级命令，无默认键）——优先页内浮层；不可注入页降级进应用开面板（R4-Fb）
       if (tab?.id) {
         const ok = await notifyTab(tab.id, 'zy-open-task-capture')
         if (ok) break
       }
-      if (tab) {
-        await chrome.storage.session.set({
-          [SESSION_KEY]: { title: '', url: tab.url || '', mode: 'task' }
-        })
-      }
-      openPopupWindow('src/popup/index.html?mode=task', 460, 480)
+      await openQuickPanel('taskcapture')
       break
     }
     case 'quick-capture': {
@@ -214,13 +189,8 @@ chrome.commands.onCommand.addListener(async (command) => {
         const ok = await notifyTab(tab.id, 'zy-open-capture')
         if (ok) break
       }
-      // 降级：chrome:// 等无法注入的页面，用独立弹窗窗口
-      if (tab) {
-        await chrome.storage.session.set({
-          [SESSION_KEY]: { title: tab.title || '', url: tab.url || '', mode: 'capture' }
-        })
-      }
-      openPopupWindow('src/popup/index.html')
+      // 降级：chrome:// 等无法注入的页面 → 进应用开「采集」面板（R4-Fb 撤掉那个从未进过构建的独立弹窗）
+      await openQuickPanel('capture')
       break
     }
     case 'inspire': {
@@ -228,12 +198,7 @@ chrome.commands.onCommand.addListener(async (command) => {
         const ok = await notifyTab(tab.id, 'zy-open-curiosity')
         if (ok) break
       }
-      if (tab) {
-        await chrome.storage.session.set({
-          [SESSION_KEY]: { title: tab.title || '', url: tab.url || '', mode: 'curiosity' }
-        })
-      }
-      openPopupWindow('src/popup/index.html?mode=curiosity', 460, 420)
+      await openQuickPanel('curio')
       break
     }
     case 'search': {
@@ -305,19 +270,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 })
 
-/** 扩展图标点击 → 优先 content script 浮层，降级弹窗窗口 */
+/** 扩展图标点击 → 优先 content script 浮层；不可注入页降级进应用开「采集」面板（R4-Fb） */
 chrome.action.onClicked.addListener(async () => {
   const tab = await getActiveTab()
   if (tab?.id) {
     const ok = await notifyTab(tab.id, 'zy-open-capture')
     if (ok) return
   }
-  if (tab) {
-    await chrome.storage.session.set({
-      [SESSION_KEY]: { title: tab.title || '', url: tab.url || '', mode: 'capture' }
-    })
-  }
-  openPopupWindow('src/popup/index.html')
+  await openQuickPanel('capture')
 })
 
 /**

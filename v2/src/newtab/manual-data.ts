@@ -155,7 +155,7 @@ export const MANUAL: ManualPart[] = [
           <li><strong>结果键位（单击 / Enter / Ctrl+Enter 三键）</strong>：单击或 <kbd>Enter</kbd> = <b>打开卡片链接</b>（无链接或本地路径不完整时自动降级为定位到卡片所在处）；<kbd>Ctrl</kbd>+<kbd>Enter</kbd> = <b>仅定位到卡片所在处</b>（高亮，不打开详情）。网页浮层与新标签页内搜索<strong>键位一致</strong>。</li>
           <li>选中结果按 <kbd>Ctrl</kbd>+<kbd>C</kbd> 复制 Markdown 引用（标题+链接）。</li>
         </ul>
-        <div class="mc-warn">⚠ chrome:// 等不可注入页面会自动改用独立小窗，体验一致。</div>
+        <div class="mc-warn">⚠ chrome:// 等不可注入页面会自动带你进知源并打开同一块面板（采集 / 好奇 / 任务），键位与浮层一致。</div>
       ` },
       { id: 'basic-3', title: '策展台与资源卡池操作', html: `
         <h4>单击看详情 · 双击开链接（三卡一致）</h4>

@@ -381,6 +381,11 @@ onMounted(async () => {
     else if (msg?.type === 'zy-toast' && msg.text) {
       showToast(String(msg.text))
     }
+    // R4-Fb：不可注入页的降级出口——background 把用户带进应用后请求开对应面板（采集 / 好奇 / 任务）
+    else if (msg?.type === 'zy-quick-panel') {
+      const p = String(msg.panel || '')
+      if (p === 'capture' || p === 'curio' || p === 'taskcapture') gpOpen(p)
+    }
     // R63-8/63-10：background 触发 Airtable 同步（命令/轮询）——只在 newtab 上下文写数据
     else if (msg?.type === 'zy-airtable-sync') {
       runAirtableSync(msg.silent !== false)
@@ -393,6 +398,9 @@ onMounted(async () => {
   // R67-F4：background 开的新页带模块直达标记（?zy-anchor=curiosity|project）→ 视图挂载后定位闪烁
   const zyAnchor = new URLSearchParams(location.search).get('zy-anchor')
   if (zyAnchor) setTimeout(() => window.dispatchEvent(new CustomEvent('zy-goto-anchor', { detail: zyAnchor })), 900)
+  // R4-Fb：一个已开的新标签页都没有时，background 直接开 ?zy-panel=<capture|curio|taskcapture>
+  const zyPanel = new URLSearchParams(location.search).get('zy-panel')
+  if (zyPanel === 'capture' || zyPanel === 'curio' || zyPanel === 'taskcapture') setTimeout(() => gpOpen(zyPanel), 700)
 })
 
 // ---- R63：Airtable 同步执行器（单例防重入；配置缺失静默跳过，手动触发给 toast） ----

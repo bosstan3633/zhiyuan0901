@@ -133,12 +133,12 @@ check('R169-4 ★导入不许让旧包时间戳盖掉今日改动：资源段合
   return i.includes('const clampUpdatedAt =') && i.includes('cur.updatedAt > i.updatedAt')
     && i.includes('mergeById(d.value.resources, clampUpdatedAt(d.value.resources, incRes)')
 });
-check('R169-5 ★三槽口径单一真源在 link.ts：槽序/文案/占位符一份（LINK_SLOT_TABS + linkPlaceholderFor），三处表单共用；两处采集表单不再各写一份 linkType 三元分支（各写一份 ⇒ 加第四种槽时必有一处漏）', () => {
-  const l = codeOnly(read('/shared/utils/link.ts')); const gp = read('/newtab/components/GlobalPopups.vue'); const pp = read('/popup/App.vue')
+check('R169-5 ★三槽口径单一真源在 link.ts：槽序/文案/占位符一份（LINK_SLOT_TABS + linkPlaceholderFor），两处采集/详情表单共用 ★R4-Fb 随迁：第三处原锚在 popup/App.vue，那个独立弹窗从未进过构建、已随降级路径一起撤，这一格换成 ResourceEditForm（详情抽屉里的表单）；两处采集表单不再各写一份 linkType 三元分支（各写一份 ⇒ 加第四种槽时必有一处漏）', () => {
+  const l = codeOnly(read('/shared/utils/link.ts')); const gp = read('/newtab/components/GlobalPopups.vue'); const rf = read('/newtab/components/ResourceEditForm.vue')
   return l.includes('export const LINK_SLOT_TABS') && l.includes('export function linkPlaceholderFor')
     && l.includes('export function slotLinkOf') && l.includes('export function switchLinkSlot') && l.includes('export function setLinkSlot')
     && gp.includes('linkPlaceholderFor(capForm.linkType)') && !/capForm\.linkType === 'url'\) return/.test(gp)
-    && pp.includes('linkPlaceholderFor(linkType)') && !pp.includes("linkType === 'url' ? 'https://…'")
+    && rf.includes('linkPlaceholderFor(') && !rf.includes("=== 'url' ? 'https://…'")
 });
 check('R169-6 ★切槽语义（用户主诉"切过去没有就该为空"）：先把当前值存回它所属槽，再取目标槽值进 link；目标槽空 ⇒ link 置空、且空值不留键。同一条纪律也管住非手输路径（挂附件走 setLinkSlot，不许直写 linkType+link 冲掉别槽）', () => {
   const l = codeOnly(read('/shared/utils/link.ts'))

@@ -3,7 +3,7 @@
  * 依赖基建见 ./helpers.cjs；__dirname/__filename 已换锚为 SCRIPTS_DIR/ANCHOR_FILE（语义=原 scripts/ 根与回归自体）。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
+  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, srcFileEntries, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
 } = require('./helpers.cjs');
 
 console.log('【第六十五轮 · V2.35.0：资源台对齐旧工作台 + 金字塔 2~7 列树状自适应 + 节点双入口 + 导入导出语义修正】');
@@ -107,7 +107,7 @@ check('R68-8（R160 重指 · ★R3-B1 缓存对象换向）性能：KeepAlive �
 console.log('【第六十九轮 · R69：术语统一 + 资源台全部分类 + 键位修正 + 清理】');
 check('R69-1 术语统一：界面/浮层/设置/手册用户可见文案已无「工作台」旧称', () => {
   const bad = ['工作台图标', '导出工作台数据', '删除工作台', '存入工作台', '各工作台', '工作台不存在', '新建工作台', '工作台名称', '选择工作台', '跨全部工作台', '暂无工作台', '工作台已删除', '打开工作台', '已定位到卡片所在工作台', '请到工作台补全', '该工作台暂无分类', '没有匹配的工作台', '目标工作台', '导出指定工作台', '资源工作台', '新增工作台', '展开工作台', '收起工作台'];
-  const files = ['/newtab/views/Workspace.vue', '/newtab/components/GlobalPopups.vue', '/content/search-overlay.ts', '/newtab/views/GlobalSettings.vue', '/newtab/manual-data.ts', '/newtab/App.vue', '/popup/App.vue'];
+  const files = ['/newtab/views/Workspace.vue', '/newtab/components/GlobalPopups.vue', '/content/search-overlay.ts', '/newtab/views/GlobalSettings.vue', '/newtab/manual-data.ts', '/newtab/App.vue'];
   return bad.every(k => files.every(f => !read(f).includes(k)));
 });
 check('R69-2（R74 重写）资源台默认根节点「全部分类」：聚合哨兵 + 默认选中 + 树节点 + 聚合视图分支', () => {
@@ -175,10 +175,12 @@ check('R70-12 P2 replaceData 加版本校验 + 遗漏段按 id 合并', () => {
   const r = read('/shared/storage/repository.ts');
   return r.includes('function mergeByIdArr') && r.includes('replaceData: 数据版本不兼容') && r.includes('mergeByIdArr(cur.categories') && r.includes('mergeByIdArr(cur.workspaces');
 });
-check('R70-13 P2 popup 改走 repository（进事件日志 + 统一落盘）', () => {
-  const p = read('/popup/App.vue');
-  return p.includes("import { loadData, saveDataNow } from '@/shared/storage/repository'") && p.includes('async function setData(): Promise<void>') && !p.includes('chrome.storage.local.set({ zy_data_v2: d })');
+check('R70-13 P2 主数据只有一个写口 ★R4-Fb 重指带备案：原锚钉的是 popup 改走 repository，popup 端已随降级路径退役；这条性质升级成现扫负锚——除 shared/storage/repository.ts 自己，全 src 的**代码**里出现裸写 zy_data_v2 即红（吃 codeOnly，注释里讲历史不算）', () => {
+  const bare = srcFileEntries().filter(e => e.rel !== 'shared/storage/repository.ts' && /local\.set\(\s*\{[^}]*zy_data_v2/.test(codeOnly(e.text)));
+  const r = read('/shared/storage/repository.ts');
+  return bare.length === 0 && r.includes('export async function saveDataNow') && r.includes('mergeExternalData');
 });
+
 check('R70-14 P2 链接协议黑名单（javascript/data/vbscript/blob）', () => {
   return read('/shared/utils/link.ts').includes('javascript|data|vbscript|blob');
 });

@@ -5,7 +5,7 @@
  * 97 顶到 956 行，撞上 R164-2 的「每个分片 ≤900 行」刹车；按既有拍板处置是**加分片而不是放宽上限**。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getSliceMisses,
+  fs, path, base, check, runGateSync, gateSha, readGateCache, srcFileEntries, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getSliceMisses,
 } = require('./helpers.cjs');
 // ============== R4-Dl ⌘K 面板进视觉门禁 + 截图可复现 ==============
 console.log('【R4-Dl · 视觉门禁与确定性采样】');
@@ -190,7 +190,6 @@ check('R4-Ep ★好奇心「归档为资源」弹窗的三处实测偏差必须�
 });
 check('R4-Ep ★"取第一枚实体当默认落点"这一族的扫描形态必须比 R4-Dm 那张表更宽：窄正则 workspaces[0] 对 **`convWorkspaces.value[0]`** 天生失明（别名与 .value 都不匹配），所以 R4-Dm 立表之后同一族又漏出第三个出口——本轮换成宽形态登记表（任何 *orkspaces[.value][数字] 取第 N 枚），现扫条数与表不符即红（多一处红、少一处也红；新增要么改代码要么在 diff 里写明理由）', () => {
   const REG = {
-    'popup/App.vue': 2,                 // 降级独立弹窗：action 无 default_popup，靠命令 chrome.windows.create 打开。实测 dist/src/popup/index.html 仍引 ./main.ts（构建没打这个入口）⇒ 打开即白屏；本轮不动它——修法是补构建入口还是撤降级路径属产品取舍，挂 #117 待拍板
     'newtab/views/RecycleBin.vue': 1,   // 恢复时的兜底台，且前一项已显式 `w.id !== CURATION_WS_ID`
     'shared/storage/migration.ts': 2    // V1 老数据导入兜底：v1 里没有池实体，取第一枚真台是导入语义而非新卡落点
   };
@@ -552,3 +551,23 @@ check('R4-Ez① ★注释里的退役台面名（资源台 / 策展中心 / 主�
   return offenders === 0 && files.length > 150;
 });
 
+// ============== R4-Fb 撤掉从未进过构建的独立弹窗，降级出口改「进应用开面板」 ==============
+console.log('【R4-Fb · 不可注入页的降级出口】');
+check('R4-Fb① ★不可注入页（chrome:// / 扩展页 / Web Store）的降级出口必须是「进应用开对应面板」，不是那个从未进过构建的独立弹窗：background 的 openQuickPanel 在位（有已开新标签页就复用并发消息，一个都没有才新建并带 ?zy-panel=），四个出口都走它（open-tasks / quick-capture / inspire / action.onClicked），App.vue 两种入口都认（消息 zy-quick-panel 与查询参数 zy-panel），且 manifest 的 web_accessible_resources 不再声明 src/popup。★这条同时钉的是"半拉子入口不许回流"：出现 openPopupWindow 或 src/popup 路径即红', () => {
+  const bg = codeOnly(read('/background/index.ts'));
+  const ap = codeOnly(read('/newtab/App.vue'));
+  const mf = codeOnly(read('/manifest.ts'));
+  return /^\s*async function openQuickPanel\(panel: 'capture' \| 'curio' \| 'taskcapture'\): Promise<void> \{/m.test(bg)
+    && (bg.match(/await openQuickPanel\('/g) || []).length === 4
+    && bg.includes("type: 'zy-quick-panel', panel") && bg.includes('?zy-panel=${panel}')
+    && ap.includes("msg?.type === 'zy-quick-panel'") && ap.includes("get('zy-panel')")
+    && !bg.includes('openPopupWindow') && !bg.includes('src/popup') && !mf.includes('src/popup')
+    && !srcFileEntries().some(e => codeOnly(e.text).includes('src/popup'));
+});
+check('R4-Fb② ★降级出口的两种入口各有一条真跑的 e2e（E2E-43），锚点取算 ok 的那个表达式里的片段：?zy-panel=curio 要真开出好奇面板（含"等不够就补等一次再判死"的形状）、background 复用已开新标签页发的 zy-quick-panel 要真开出采集面板并按标题文本认，两条都成立才算过——只测一条会放过"另一条其实接不上"的半拉子实现', () => {
+  const e = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8'));
+  return e.includes("base + '?zy-panel=curio#/'") && e.includes("textarea.gp-curio-text")
+    && e.includes("if (!qCurio) { await page.waitForTimeout(2500)")
+    && e.includes("type: 'zy-quick-panel', panel: 'capture'") && e.includes("capHead.includes('快速采集资源卡')")
+    && e.includes('qCurio === true && msgOk === true');
+});

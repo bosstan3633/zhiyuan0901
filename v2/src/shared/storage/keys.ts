@@ -27,8 +27,6 @@ export const K = {
   STATS: 'zy_stats_v1',
   /** R172-T2（04-67 §7.4）：按日聚合统计（热力图/复盘的时间序列真源；只增不淘汰） */
   DAILY_STATS: 'zy_daily_stats',
-  /** 快速采集预填 */
-  QC_PREFILL: 'zy_qc_prefill',
   /** AI 配置 */
   AI_CONFIG: 'zy_ai_v1',
   /** AI 一次性指令 */

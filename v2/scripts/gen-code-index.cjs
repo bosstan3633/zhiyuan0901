@@ -91,8 +91,6 @@ const MANUAL_NOTES = {
   'newtab/main.ts': '启动链：错误留痕最早注册 → V1 迁移检测 → 单次批量读 → 骨架屏 → 挂载',
   'newtab/router.ts': '路由表（hash 模式）',
   'newtab/manual-data.ts': '内置使用手册的章节数据（另可导出独立 HTML）',
-  'popup/App.vue': '降级弹窗（chrome:// 等不可注入页的快速采集入口）',
-  'popup/main.ts': 'popup 入口挂载',
   // ---- 视图（路由级）----
   'newtab/views/GlobalSettings.vue': '全局设置页（全仓最大文件）：手册 / 导入导出 / Airtable 同步 / AI 配置 / 标签管理 / 字段设计 / 仪表盘 / 快捷键',
   'newtab/views/Workspace.vue': '资源台 + 策展台共用视图（卡片 / 列表 / 看板 / 金字塔四视图 + 分类树 + 批量 + 镜像）',

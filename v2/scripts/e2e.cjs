@@ -1774,6 +1774,26 @@ async function main() {
   report('E2E-42 ★R4-Ew 指标条四种下钻抽屉各自真渲染（此前只点过第 5 格）：标题对得上、有行或有空态、说明行在、WCE/WRR 带计数行，且每行都挂着自己的动作面（三格=「定位 ›」，未归档=两支归档下拉）',
     drillOk, drillRes.map(r => `${r.名}:题=${r.题在} 行=${r.rows} 空=${r.empty} tip=${r.tip} 计数=${r.head} 定位=${r.loc} 下拉=${r.sel}`).join(' ｜ '))
 
+  // ══════════ E2E-43（R4-Fb）★不可注入页的降级出口：两种入口都要真开面板 ══════════
+  // 原来这条链的末端是一个**从未进过构建**的独立弹窗（dist/src/popup/index.html 仍引 ./main.ts、
+  // manifest 无 default_popup）⇒ 用户在 chrome:// 按快捷键得到空白窗口。撤降级后出口是"进应用开对应面板"，
+  // 有两种走法：有已开的新标签页就复用并发消息，一个都没有才新建并带 ?zy-panel=。**两条都得真跑**，
+  // 只测一条会放过"另一条其实接不上"的半拉子实现。
+  await page.goto(base + '?zy-panel=curio#/', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(3000)
+  let qCurio = await page.locator('textarea.gp-curio-text').isVisible().catch(() => false)
+  if (!qCurio) { await page.waitForTimeout(2500); qCurio = await page.locator('textarea.gp-curio-text').isVisible().catch(() => false) }
+  await page.keyboard.press('Escape').catch(() => {})
+  await page.waitForTimeout(600)
+  const msgOk = await worker.evaluate(() => chrome.tabs.query({ url: chrome.runtime.getURL('src/newtab/index.html') + '*' })
+    .then(ts => ts[0] ? chrome.tabs.sendMessage(ts[0].id, { type: 'zy-quick-panel', panel: 'capture' }).then(() => true) : '无新标签页')
+    .catch(e => '发消息失败：' + e.message))
+  await page.waitForTimeout(1600)
+  const capHead = (((await page.locator('.gp-cap-title').first().textContent().catch(() => '')) || '') + '').trim()
+  report('E2E-43 ★R4-Fb 撤掉那个从未进过构建的独立弹窗后，不可注入页的降级出口两种入口都真开面板：?zy-panel=curio 开出好奇面板；background 复用已开新标签页发 zy-quick-panel 开出采集面板',
+    qCurio === true && msgOk === true && capHead.includes('快速采集资源卡'),
+    `查询入口=好奇面板 ${qCurio} ｜ 消息入口回执=${JSON.stringify(msgOk)} 面板标题="${capHead}"`)
+
   await ctx.close()
   const fail = results.filter(r => !r.ok).length
   console.log(`\nE2E 结果：${results.length - fail} 通过 / ${fail} 失败`)
