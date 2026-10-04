@@ -450,9 +450,13 @@ check('R4-Dh ★视觉门禁必须真的在量这件事：theme-audit 的 st-air
 
 // ============== R4-Di · 推给 Airtable 的台名列也走单源（用户拍板：值改「资源卡池」） ==============
 console.log('【R4-Di · Airtable「所属工作台」列值 = 资源卡池】');
-check('R4-Di ★池卡推给 Airtable 的「所属工作台」列值必须走显示名单源，不许再取那枚历史实体的名字：改前 `hubName = d.workspaces.find(w => w.id === CURATION_WS_ID)?.name || \'资源台\'` 有两个错法——存量库里那枚实体（R61 建、store getter 过滤）名字仍叫「资源台」，推过去的就是已退役的台面名，而设置页同步范围早就写着「资源卡池资源卡」，界面与数据互相打脸；新库没有那枚实体，只剩兜底字面量。★值口径变更由用户 2026-10-01 拍板（代价：Base 里按该列筛选/分组/着色的视图需同步改条件，已在交付说明点名）', () => {
+check('R4-Di ★池卡推给 Airtable 的「所属工作台」列值必须走显示名单源，不许再取那枚历史实体的名字：改前 `hubName = d.workspaces.find(w => w.id === CURATION_WS_ID)?.name || \'资源台\'` 有两个错法——存量库里那枚实体（R61 建、store getter 过滤）名字仍叫「资源台」，推过去的就是已退役的台面名，而设置页同步范围早就写着「资源卡池资源卡」，界面与数据互相打脸；新库没有那枚实体，只剩兜底字面量。★值口径变更由用户 2026-10-01 拍板（代价：Base 里按该列筛选/分组/着色的视图需同步改条件，已在交付说明点名）· ★R4-Fc 随迁备案：同一条 import 被加了 wsNameById（列值统一剥图标），原先钉整行 import 的逐字锚当场红——随迁是锚到本条真正在守的那件事（hubName 走 POOL_DISPLAY_NAME、不许退役字面量），不是放宽', () => {
   const a = codeOnly(read('/shared/storage/airtable.ts'));
-  return a.includes("import { POOL_DISPLAY_NAME } from '../utils/wsName'")
+  /* ★R4-Fc 随迁备案：这条的正锚原本钉整行 `import { POOL_DISPLAY_NAME } from '../utils/wsName'`，
+     而 R4-Fc 把同一条 import 加了 wsNameById（列值统一走剥图标显示名）⇒ 逐字锚点当场红。
+     随迁的做法是把锚收到"这条判据真正在守的那件事"（hubName 用 POOL_DISPLAY_NAME、不许出现退役字面量），
+     不是放宽也不是删——判据体其余部分一字未动。 */
+  return a.includes("import { POOL_DISPLAY_NAME, wsNameById } from '../utils/wsName'")
     && a.includes('const hubName = POOL_DISPLAY_NAME') && a.includes("wsName: hubName")
     && !a.includes("?.name || '资源台'") && !a.includes("'资源台'")
     && a.includes('if (r.workspaceId === CURATION_WS_ID)');

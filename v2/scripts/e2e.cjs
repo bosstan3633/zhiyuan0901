@@ -1794,6 +1794,65 @@ async function main() {
     qCurio === true && msgOk === true && capHead.includes('快速采集资源卡'),
     `查询入口=好奇面板 ${qCurio} ｜ 消息入口回执=${JSON.stringify(msgOk)} 面板标题="${capHead}"`)
 
+  // ══════════ E2E-44（R4-Fc）★Airtable「所属工作台」列值真出网形态：不许带图标前缀 ══════════
+  // 这条量的是**离开机器那一列的值**，不是源码字符串：`Workspace.name` 存的是「icon + 空格 + 名称」，
+  // 台内卡与镜像行改前各自 `find(w => w.id === …)?.name` 原样取实体名 ⇒ 同一列混着两种形态
+  // （台内卡 `💼 事业策展台`、池卡/调度台/方向台不带图标），而下游按这列筛选分组的人得同时匹配两种写法。
+  // 取证姿势：给 api.airtable.com 挂 route 桩（**绝不碰真网络、绝不引入真 PAT**），种一枚带图标的探针台 +
+  // 一枚池卡投射到它，真点「立即同步」，把 POST/PATCH 的 fields 收进 Node 侧数组逐条判。
+  const AT_FIELDS = [
+    ['知源ID', 'singleLineText'], ['标题', 'singleLineText'], ['卡片类型', 'singleSelect'], ['所属工作台', 'singleLineText'],
+    ['分类路径', 'singleLineText'], ['层级', 'number'], ['是否中心论点', 'checkbox'], ['链接', 'url'],
+    ['描述', 'multilineText'], ['标签', 'singleLineText'], ['状态', 'singleLineText'], ['优先级', 'singleLineText'],
+    ['截止日期', 'singleLineText'], ['已删除', 'checkbox'], ['更新时间', 'singleLineText']
+  ].map(([name, type], i) => ({ id: 'fldE2E' + i, name, type }))
+  const atCells = []
+  await page.route('**://api.airtable.com/**', (route) => {
+    const req = route.request()
+    const u = req.url(), m = req.method()
+    const body = (m === 'POST' || m === 'PATCH') ? (() => { try { return JSON.parse(req.postData() || '{}') } catch { return {} } })() : {}
+    if ((m === 'POST' || m === 'PATCH') && /\/appE2EPROBE\/tblE2EPROBE/.test(u)) {
+      for (const r of body.records || []) atCells.push(r.fields)
+      const recs = (body.records || []).map((r, i) => ({ id: r.id || 'recE2E' + m + i }))
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ records: recs }) })
+    }
+    if (u.includes('/meta/bases/')) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tables: [{ id: 'tblE2EPROBE', name: '知源同步（E2E 桩）', fields: AT_FIELDS }] }) })
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ records: [] }) })
+  })
+  const seedNote = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => {
+    const d = r['zy_data_v2'] || {}
+    const now = Date.now()
+    const next = {
+      ...d,
+      workspaces: [{ id: 'ws-e2e-fc', name: '🧪 探针策展台', icon: '🧪' }],
+      resources: [
+        { id: 'card-e2e-fc', title: 'E2E-44 台内探针卡', workspaceId: 'ws-e2e-fc', categoryId: '', tags: [], updatedAt: now },
+        { id: 'card-e2e-fc2', title: 'E2E-44 池卡（投射真身）', workspaceId: 'zy-curation', categoryId: '', tags: [], updatedAt: now }
+      ],
+      tasks: [], curiosities: [],
+      curationProjections: [{ kind: 'card', cardId: 'card-e2e-fc2', targetWsId: 'ws-e2e-fc', targetCatId: '' }],
+      airtableSync: { ...(d.airtableSync || {}), pat: 'pat-e2e-stub-only', baseId: 'appE2EPROBE', tableId: 'tblE2EPROBE', pollEnabled: false, cursorAt: 0, log: [] },
+      airtableMap: {}
+    }
+    return chrome.storage.local.set({ zy_data_v2: next }).then(() => ({ hadRealWorkspaces: (d.workspaces || []).length }))
+  }))
+  await page.goto(base + '#/settings?page=airtable', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+  await page.locator('button.gs-btn-primary:has-text("立即同步")').first().click().catch(() => {})
+  await page.waitForTimeout(2500)
+  const atVals = atCells.map(f => String(f['所属工作台'] ?? ''))
+  const cellOf = (id) => { const hit = atCells.find(f => f['知源ID'] === id); return hit ? String(hit['所属工作台']) : '(没推到)' }
+  const iconRows = atVals.filter(v => /^\p{Extended_Pictographic}/u.test(v))
+  report('E2E-44 ★R4-Fc 真点「立即同步」收到出网那一列的值（route 桩、零真网络、零真凭据）：台内卡与镜像行的「所属工作台」必须是剥图标的显示名，同一列不许两种形态',
+    atCells.length > 0 && iconRows.length === 0
+    && cellOf('card-e2e-fc') === '探针策展台' && cellOf('card-e2e-fc2:m:ws-e2e-fc') === '探针策展台'
+    && cellOf('card-e2e-fc2') === '资源卡池',
+    `出网 ${atCells.length} 行 · 带图标前缀 ${iconRows.length} 行${iconRows.length ? '（' + JSON.stringify(iconRows) + '）' : ''} ｜ 台内卡="${cellOf('card-e2e-fc')}" 镜像行="${cellOf('card-e2e-fc2:m:ws-e2e-fc')}" 池卡="${cellOf('card-e2e-fc2')}" ｜ 桩前真实台面数=${seedNote.hadRealWorkspaces}`)
+  // 不用清场：ctx 是 launchPersistentContext('')——每次跑都是临时新 profile，探针库随进程结束一起没。
+  await page.unroute('**://api.airtable.com/**').catch(() => {})
+
   await ctx.close()
   const fail = results.filter(r => !r.ok).length
   console.log(`\nE2E 结果：${results.length - fail} 通过 / ${fail} 失败`)

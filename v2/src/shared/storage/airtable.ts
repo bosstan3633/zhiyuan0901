@@ -13,6 +13,9 @@
  * - 调度台好奇心卡 / 方向台任务卡 / 资源卡池的资源卡 / 各策展台台内卡（+ 主题卡标记）
  * - R64 拍板：镜像卡是独立记录（幂等键 cardId:m:targetWsId，所属工作台=落点台名），
  *   真身与镜像在 Airtable 各自成行，均带各自「所属工作台」列标识
+ * - R4-Fc 拍板：「所属工作台」的**列值**一律是剥图标的显示名（走 wsNameById）——`Workspace.name` 里存的是
+ *   「icon + 空格 + 名称」，原样推出去会让同一列混着两种形态（台内卡带 💼，池卡/调度台/方向台不带），
+ *   而下游按这一列筛选分组的人得同时匹配两种写法
  *
  * R64 自愈（用户报 422：Record does not exist）：
  * - 映射优先级改为远端索引优先（远端实测存在才可信，本地 map 仅兜底）
@@ -21,7 +24,7 @@
  */
 import type { AppData, AirtableSyncState, AirtableLogEntry, AnyCard } from '../models'
 import { CURATION_WS_ID } from '../models'
-import { POOL_DISPLAY_NAME } from '../utils/wsName'
+import { POOL_DISPLAY_NAME, wsNameById } from '../utils/wsName'
 import { isHubWs, curationBoards } from './hub'
 
 const API = 'https://api.airtable.com/v0'
@@ -125,7 +128,7 @@ export function collectSyncRows(d: AppData): SyncRow[] {
     } else if (boards.some(b => b.id === r.workspaceId)) {
       const cp = catPathOf(d, r.workspaceId, r.categoryId)
       rows.push({
-        key: r.id, cardType: '资源', wsName: d.workspaces.find(w => w.id === r.workspaceId)?.name || '',
+        key: r.id, cardType: '资源', wsName: wsNameById(d.workspaces, r.workspaceId),
         catPath: cp.path, level: cp.level, isThesis: !!r.isThesis,
         title: r.title || '', link: r.link || '', description: r.description || '',
         tags: r.tags || [], status: '', priority: '', dueDate: '',
@@ -139,7 +142,7 @@ export function collectSyncRows(d: AppData): SyncRow[] {
     if (p.kind !== 'card' || !p.targetWsId || !p.cardId) continue
     const src = d.resources.find(r => r.id === p.cardId)
     if (!src) continue
-    const targetName = d.workspaces.find(w => w.id === p.targetWsId)?.name
+    const targetName = wsNameById(d.workspaces, p.targetWsId)
     if (!targetName) continue
     const cp = catPathOf(d, p.targetWsId, p.targetCatId)
     rows.push({

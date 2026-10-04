@@ -571,3 +571,23 @@ check('R4-Fb② ★降级出口的两种入口各有一条真跑的 e2e（E2E-43
     && e.includes("type: 'zy-quick-panel', panel: 'capture'") && e.includes("capHead.includes('快速采集资源卡')")
     && e.includes('qCurio === true && msgOk === true');
 });
+
+// ============== R4-Fc 推给 Airtable 的「所属工作台」列值 = 剥图标的显示名（用户 2026-10-04 拍板"全站去前缀"） ==============
+console.log('【R4-Fc · Airtable「所属工作台」出网值形态】');
+check('R4-Fc① ★「所属工作台」列值必须走剥图标的显示名单源：`Workspace.name` 存的是「icon + 空格 + 名称」（图标另有 icon 字段，两份都写），改前台内卡与镜像行各自 `find(w => w.id === …)?.name` 把实体名原样推出去 ⇒ E2E-44 实测出网三行里两行是「🧪 探针策展台」、一行「资源卡池」——**同一列两种形态**，而界面、手册、设置页「同步范围」写的都是不带图标的那份，用户在 Base 里按这列筛选/分组/着色得同时匹配两种写法。现两处都走 wsNameById（与界面同一口径，池仍显 POOL_DISPLAY_NAME、查不到返回空串由调用方兜底）。★值口径变更是外向影响：下一次同步会覆盖远端已有的带前缀值。负锚两条——ad-hoc 取实体名不许回流、wsNameWithIcon 不许进这条链（拼图标只用于"可选台去处"的下拉 label）', () => {
+  const a = codeOnly(read('/shared/storage/airtable.ts'));
+  return a.includes("import { POOL_DISPLAY_NAME, wsNameById } from '../utils/wsName'")
+    && a.includes('wsName: wsNameById(d.workspaces, r.workspaceId)')
+    && a.includes('const targetName = wsNameById(d.workspaces, p.targetWsId)')
+    && !/find\(w => w\.id === (r\.workspaceId|p\.targetWsId)\)\?\.name/.test(a)
+    && !a.includes('wsNameWithIcon');
+});
+check('R4-Fc② ★这条链的运行时证据必须真在跑且不许退化成"只看同步成功回执"：E2E-44 的三条腿缺一不可——① 拦 `**://api.airtable.com/**` 并把 POST/PATCH 的 fields 逐条收进 Node 侧数组（量的是**离开机器那一列的值**，源码断言看不到 rowToFields 之后的形态）；② 判据是「带图标前缀 0 行」**加上三格各自点名**（台内卡 / 镜像行 / 池卡各自的值），只判有无图标会放过"整列取错字段"；③ 桩对 /meta/bases/ 返回 15 列全名——少一列 ensureColumns 就会去 POST 建列，测试就变成了改远端结构。凭据一律是明写的桩值 pat-e2e-stub-only，不许出现真 PAT 的形状', () => {
+  const e = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8'));
+  return e.includes("page.route('**://api.airtable.com/**'") && e.includes('atCells.push(r.fields)')
+    && e.includes('iconRows.length === 0') && e.includes('/^\\p{Extended_Pictographic}/u')
+    && e.includes("cellOf('card-e2e-fc') === '探针策展台'") && e.includes("cellOf('card-e2e-fc2:m:ws-e2e-fc') === '探针策展台'")
+    && e.includes("cellOf('card-e2e-fc2') === '资源卡池'") && e.includes("u.includes('/meta/bases/')")
+    && e.includes('fields: AT_FIELDS')
+    && e.includes("atCells.length > 0") && e.includes("pat: 'pat-e2e-stub-only'");
+});
