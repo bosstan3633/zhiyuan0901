@@ -546,13 +546,15 @@ async function main() {
        想消掉边线带的取色抖动。实测**没消掉**（连采仍每次有 3–7 张在 1–5 行高的边线上差 3–20 px），
        反而让 raycast-st-manual 整页差 98,518 px（包围盒 0,58–1439,899）——一次改动没带来确定性，
        只带来新的不确定。⇒ 抖动改由 img-diff 的"变化像素 / 抖动像素"二分来判，见该脚本。 */
-    /* ★R4-Fd（#130 归因）：`--disable-lcd-text` 把字形抗锯齿钉成灰度。实测成因：同一份构建连采两次，
-       池卡列表那两枚标签 pill 差 368 px——位移抵消测试证明几何完全对齐（0,0 是最小值，平移 1px 反而涨到 1,395–2,259），
-       而色偏统计显示 372 个差异像素**一侧 |R−B|>3 全中、另一侧一个都没有**（平均绝对色偏 4.99 vs 2.96）
-       ⇒ 两侧用的是不同的文字 AA 模式（LCD 子像素 vs 灰度），Chromium 在图层被提升期间会退回灰度。
-       这条与 R4-Ex 撤掉的那三条渲染路径旗标不同：那三条是**猜**，这一条是**量出来的**，且它把噪声轴直接关掉。
-       副作用方向：多数历史归档本来就是灰度（异常那一跑才是 LCD），所以钉灰度不改变既有基线的形态。 */
-    args: [`--disable-extensions-except=${pkg}`, `--load-extension=${pkg}`, `--hide-scrollbars`, '--disable-lcd-text']
+    /* ★R4-Fe 撤掉 R4-Fd 加的一条旗标（**我自己的归因错了一次，记在这里免得再走**）：R4-Fd 量到池卡列表
+       同构建两跑差 368 px、色偏只在一侧，判成"LCD 子像素 vs 灰度"，于是加 `--disable-lcd-text` 钉灰度，
+       当时拿"钉完两跑 0 差"当证据。★但那是**单主题连采**（--only=notion）——R4-Fd 自己又量过：
+       单主题跑与全量跑不可互比（会话顺序影响画面）。R4-Fe 用**全量两跑**复测：加了旗标之后
+       `notion-deck-pool-list` 仍然差 368 px、色偏仍然只在一侧（A=0 B=376），而 96 张主页面场景的
+       DOM 几何与计算样式**逐点全同** ⇒ 这一族不在文字 AA 模式上，是**光栅层的非确定性**，
+       这条旗标管不到它 ⇒ 撤。与 R4-Ex 那三条的区别现在清楚了：那三条改不了，这一条也改不了，
+       区别只在我这次误以为改得了。 */
+    args: [`--disable-extensions-except=${pkg}`, `--load-extension=${pkg}`, `--hide-scrollbars`]
   })
 
   let [worker] = ctx.serviceWorkers()
@@ -595,9 +597,39 @@ async function main() {
       for (const t of toks) classSeen.set(t, (classSeen.get(t) || 0) + 1)
     } catch { /* 采不到不影响截图 */ }
   }
+  /* ★R4-Fd/Fe 场景几何记账：给三处已知跳变坐标留下"截图那一刻"的元素链，用来把"同构建两跑差 1px"
+     这类跳变**点到具体元素**（#127 手册页 y=58 以下整体下移 1px、#131 设置页标签区 y=859 一条 1 行的线、
+     #130 池卡列表胶囊 y≈500——那一条已由 --disable-lcd-text 钉掉，留坐标是为了下次换轴时还有对照）。
+     两次 --tag 跑完把两份 scene-state.json 一比即可，不必再靠人眼在 104 张图里找。 */
+  /* 四个点各盯一族：(720,58) 手册页那条分界本身、(720,120) **分界下方**——整片挪 1px 只有采下方才看得见
+     （只采分界上那一个点会两边同 y，错过 #127 的形态）、(940,859) 设置页标签区那条 1 行的线、
+     (280,500) 池卡列表胶囊（光栅层那一族的现场）。 */
+  const STATE_PTS = [[720, 58], [720, 120], [940, 859], [280, 500]]
+  const sceneState = {}
+  const stateOf = async (pg, file) => {
+    if (!file) return
+    try {
+      sceneState[path.basename(file)] = await pg.evaluate((pts) => ({
+        scrollY: window.scrollY,
+        docH: document.scrollingElement ? document.scrollingElement.scrollHeight : -1,
+        pts: pts.map(([x, y]) => ({
+          at: `${x},${y}`,
+          chain: document.elementsFromPoint(x, y).slice(0, 3).map((e) => {
+            const r = e.getBoundingClientRect(), cs = getComputedStyle(e)
+            return {
+              cls: (e.getAttribute('class') || e.tagName).slice(0, 40),
+              y: +r.y.toFixed(2), h: +r.height.toFixed(2),
+              bt: cs.borderTopWidth, bb: cs.borderBottomWidth, bbc: cs.borderBottomColor,
+              bg: cs.backgroundColor, op: cs.opacity, tr: cs.transform
+            }
+          })
+        }))
+      }), STATE_PTS)
+    } catch { /* 采不到不影响截图 */ }
+  }
   {
     const orig = page.screenshot.bind(page)
-    page.screenshot = async (opt) => { const r = await orig(opt); await censusOf(page); return r }
+    page.screenshot = async (opt) => { const r = await orig(opt); await censusOf(page); await stateOf(page, opt && opt.path); return r }
   }
 
   // 首次进入让扩展完成初始化（否则随后注入会被 createDefaultData 覆盖）
@@ -897,7 +929,9 @@ async function main() {
       await ovPage.waitForTimeout(1400)   // content script 注入 + 读 storage
     {
       const os = ovPage.screenshot.bind(ovPage)
-      ovPage.screenshot = async (opt) => { const r = await os(opt); await censusOf(ovPage); return r }
+      /* ★R4-Fe：浮层页也要记 DOM 态。R4-Fd 的 scene-state 只包在主页面截图上（104 张里只覆盖 96 张），
+         于是 apple-ov-search 那条 1 行、幅度 30 的差**没有活证据可查**——正是"证据面比断言窄"的老形状。 */
+      ovPage.screenshot = async (opt) => { const r = await os(opt); await censusOf(ovPage); await stateOf(ovPage, opt && opt.path); return r }
     }
       let ready = false
       let opened = true
@@ -932,6 +966,8 @@ async function main() {
     计数: Object.fromEntries([...classSeen.entries()].sort())
   }, null, 1))
   console.log(`类名普查：${classSeen.size} 个 class token → ${path.join(outDir, 'class-census.json')}`)
+  fs.writeFileSync(path.join(outDir, 'scene-state.json'), JSON.stringify({ 生成: new Date().toISOString(), 场景数: Object.keys(sceneState).length, 取样点: STATE_PTS, 状态: sceneState }, null, 1))
+  console.log(`场景几何记账：${Object.keys(sceneState).length} 张图的 ${STATE_PTS.length} 个取样点 → ${path.join(outDir, 'scene-state.json')}`)
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
   const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length  + 3 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 + R3-Cc 共用批量栏 */ + DASH_SCENES.length + OVERLAY_SCENES.length /* R4-En content 浮层 2 场景 ⇒ 96→104；R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 + R3-Cc 批量栏 ⇒ 72→80；R4-Da 标签双栏 ⇒ 80→84；R4-Dd Airtable 面板 ⇒ 84→88；R4-Df 使用手册 ⇒ 88→92；R4-Dl ⌘K 检索面板 ⇒ 92→96 */)
   if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情 + 1 deck)）`); process.exit(1) }

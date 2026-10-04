@@ -12,7 +12,7 @@
  *   node scripts/img-diff.cjs <A.png> <B.png> --crop=610,415,245,195,3,out.png
  *                                                                  # 再裁出该区域放大 ×3 存 PNG（目视定位）
  *   node scripts/img-diff.cjs --batch <目录A> <目录B> [--only=子串] [--strict] [--why]
- *     --why：对每张落到"有变化"的图再问一次它属于哪一种（位移抵消 / 字形 AA 色偏 / 要人看）
+ *     --why：对每张落到"有变化"的图再问一次它属于哪一种（位移抵消 / 色偏幅度分档 / 要人看），并读同目录 scene-state.json 判 DOM 态是否一致
  *                                                                  # ★R4-Ex 整归档成对比（一次起浏览器）
  *                                                                  # 同名 png 逐对判像素，分三档：0 差 / 抖动 / 变化
  *                                                                  # 有任一"变化"或两侧张数不齐 ⇒ 退出码 1
@@ -125,12 +125,35 @@ const SHIFT_FN = async ([src, dx, dy]) => {
  *  ③ 色偏只在一侧但幅度更大 ⇒ 瞬时态（光标/选区那一类；实测 notion-ov-search 62 px、幅度 30、1 行 ⇒ calm 钉 caret-color）。
  *  ④ 都不成立 ⇒ 明写「要人看」并给裁图坐标——**归因不明的不许被判成噪声放过去**。
  *  ★分界用幅度不用行数：行数这条我错过一次，pool-list 只有 2 行（胶囊上下各一条边线）却确实是渲染模式差。 */
+/** 读一个归档目录里的 scene-state.json（theme-audit 每张截图记的三个取样点的元素几何）。
+    有它才能把"像素差"分成两类：**DOM 态一致 ⇒ 差异只在光栅层**（结构与样式都没变，别再翻 CSS），
+    与 **DOM 态不一致 ⇒ 直接点名是哪个取样点、哪一层元素的几何变了**。 */
+function readState(dir) {
+  const f = path.join(dir, 'scene-state.json')
+  try { return JSON.parse(fs.readFileSync(f, 'utf8')).状态 || null } catch { return null }
+}
+function stateDiffBrief(a, b) {
+  const out = []
+  if (a.scrollY !== b.scrollY) out.push(`scrollY ${a.scrollY}→${b.scrollY}`)
+  if (a.docH !== b.docH) out.push(`文档高 ${a.docH}→${b.docH}`)
+  for (let i = 0; i < (a.pts || []).length; i++) {
+    const pa = a.pts[i], pb = b.pts[i]
+    if (!pb || JSON.stringify(pa.chain) === JSON.stringify(pb.chain)) continue
+    for (let k = 0; k < Math.max(pa.chain.length, (pb.chain || []).length); k++) {
+      const x = pa.chain[k], y = (pb.chain || [])[k]
+      if (JSON.stringify(x) !== JSON.stringify(y)) out.push(`取样点 ${pa.at} 第${k}层 ${x ? x.cls : '—'}{y:${x ? x.y : '—'},h:${x ? x.h : '—'},bb:${x ? x.bb : '—'}} → ${y ? y.cls : '—'}{y:${y ? y.y : '—'},h:${y ? y.h : '—'},bb:${y ? y.bb : '—'}}`)
+    }
+  }
+  return out.slice(0, 3).join(' ｜ ') || '取样点外有差异'
+}
 function 归因(r, best, crop) {
   const zero = r.hardPixels, maxD = r.maxChannelDelta
   if (zero === 0) return '取样框内已无变化像素（包围盒取整边界）'
   if (best.n <= zero * 0.2) return `几何位移：把 B 平移 ${best.位移} 后变化像素 ${zero}→${best.n} ⇒ 整片挪位置，不是内容变`
   const oneSided = (r.chromaA === 0 || r.chromaB === 0) && (r.chromaA + r.chromaB) > 0
-  if (oneSided && maxD <= 12) return `渲染模式差（幅度 ${maxD}、色偏只在一侧 A=${r.chromaA} B=${r.chromaB}、${r.diffRows} 行）⇒ 一侧 LCD 子像素、一侧灰度（处置：取景侧 --disable-lcd-text，不改产品）`
+  /* ★措辞跟着 R4-Fe 的复测改：这一档原先写"处置＝取景侧 --disable-lcd-text"，那是 R4-Fd 的错结论
+       （全量两跑复测：加了旗标仍差 368 px）。现在只报观察到的形态 + 下一步该看什么，不给假药方。 */
+  if (oneSided && maxD <= 12) return `色偏差·低幅度（幅度 ${maxD}、色偏只在一侧 A=${r.chromaA} B=${r.chromaB}、${r.diffRows} 行）⇒ 同一份 DOM 被光栅化成两种边缘（LCD 子像素形态）；★压文字 AA 的那条 chromium 旗标实测无效（原因与复测记在 theme-audit 的 args 上方），先看下面那行 DOM 态是否一致`
   if (oneSided) return `瞬时态差（幅度 ${maxD}、${r.diffRows} 行、色偏只在一侧 A=${r.chromaA} B=${r.chromaB}）＝光标/选区/图标一类 ⇒ 先看 calm 钉没钉（caret-color），不改产品`
   return `非位移、非单侧色偏（幅度 ${maxD}）⇒ 要人看：--crop=${crop}`
 }
@@ -148,6 +171,8 @@ async function runBatch(page, dirA, dirB) {
   if (inA.length - both.length || missA.length) {
     console.log(`❌ 两侧张数不齐：A 独有 ${inA.filter(f => !inB.has(f)).join(',') || '无'} ｜ B 独有 ${missA.join(',') || '无'}`)
   }
+  const stA = readState(dirA), stB = readState(dirB)
+  if (why) console.log(`  DOM 态对照：${stA && stB ? '两侧都有 scene-state（' + Object.keys(stA).length + ' 张）' : '缺 scene-state.json（跑 theme-audit 时会生成）⇒ 只判像素'}`)
   const changed = [], jittered = []
   for (const f of both) {
     const r = await page.evaluate(DIFF_FN, [b64(path.join(dirA, f)), b64(path.join(dirB, f)), TOL, HARD])
@@ -156,7 +181,11 @@ async function runBatch(page, dirA, dirB) {
     if (尺寸变了 || c.档 === 'changed' || (strict && c.档 === 'jitter')) {
       changed.push({ 图: f, 变化: r.hardPixels, 抖动: r.diffPixels - r.hardPixels })
       console.log(`✗ ${f.padEnd(32)} 变化像素 ${r.hardPixels}  抖动 ${r.diffPixels - r.hardPixels}  差异带高 ${c.rows || 0} 行  单通道最大差 ${r.maxChannelDelta}  变化包围盒 ${r.hardBBox ? r.hardBBox.join(',') : '—'}${尺寸变了 ? `  尺寸 ${r.sizeA.join('x')} vs ${r.sizeB.join('x')}` : ''}`)
-      if (why && r.hardBBox && !尺寸变了) {
+      /* ★R4-Fe 修自己的工具一处失明：只有"带宽超标"的红图（hardPixels=0、bbox 却跨几百行）
+         以前根本不进归因分支——于是 raycast-deck-pool-list 那张 372 抖动像素摊在 262 行上的图
+         红了却没有一句话解释。退回用 bbox。 */
+      const box = r.hardBBox || r.bbox
+      if (why && box && !尺寸变了) {
         const a64 = b64(path.join(dirA, f))
         let best = { 位移: '0,0', n: r.hardPixels }
         for (const [dx, dy] of WHY_SHIFTS) {
@@ -164,10 +193,16 @@ async function runBatch(page, dirA, dirB) {
           const rr = await page.evaluate(DIFF_FN, [a64, shifted, TOL, HARD])
           if (rr.hardPixels < best.n) best = { 位移: `${dx},${dy}`, n: rr.hardPixels }
         }
-        const [bx0, by0, bx1, by1] = r.hardBBox
+        const [bx0, by0, bx1, by1] = box
         const crop = `${Math.max(0, bx0 - 3)},${Math.max(0, by0 - 3)},${bx1 - bx0 + 7},${by1 - by0 + 7},4,/tmp/c.png`
         console.log(`    └ 归因：${归因(r, best, crop)}`)
         console.log(`       位移抵消 变化像素 ${r.hardPixels}→${best.n}（最佳位移 ${best.位移}）｜ 带色偏像素 A=${r.chromaA} B=${r.chromaB}｜差异行数 ${r.diffRows}｜幅度 ${r.maxChannelDelta}`)
+        if (stA && stB && stA[f] && stB[f]) {
+          const same = JSON.stringify(stA[f]) === JSON.stringify(stB[f])
+          console.log(`       DOM 态：${same ? '一致（scene-state 各取样点的元素几何与计算样式逐点全同）⇒ 差异只在光栅层，别再翻结构与 CSS' : '不一致 ⇒ ' + stateDiffBrief(stA[f], stB[f])}`)
+        } else if (stA && stB) {
+          console.log('       DOM 态：这张图没有 scene-state 记录（浮层页在 R4-Fe 之前不记账）')
+        }
       }
     } else if (c.档 === 'jitter') {
       jittered.push({ 图: f, 抖动: r.diffPixels, 带高: c.rows, 单通道最大差: r.maxChannelDelta })

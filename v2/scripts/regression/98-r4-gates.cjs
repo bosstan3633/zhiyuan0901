@@ -374,8 +374,11 @@ check('R4-Et③ ★普查每次走查都要重出，且**图与普查必须同�
   const pngs = fs.readdirSync(dd).filter(f => f.endsWith('.png')).length;
   return atLineStart(/^\s*fs\.writeFileSync\(path\.join\(outDir, 'class-census\.json'\)/m)
     && atLineStart(/^\s*const censusOf = /m)
-    && atLineStart(/^\s*page\.screenshot = async \(opt\) => \{ const r = await orig\(opt\); await censusOf\(page\); return r \}/m)
-    && atLineStart(/^\s*ovPage\.screenshot = async \(opt\) => \{ const r = await os\(opt\); await censusOf\(ovPage\); return r \}/m)
+    /* ★R4-Fe 随迁备案：两个包装行各多挂了一次 stateOf（截图时同时记 DOM 态），锚跟着盘上真实语句走。
+       这条判据守的是"每张截图都当场记账、图与账同一批"，包装里多一件工具不改变它守的事；
+       锚取的是整行形态，所以加东西必然红——这是设计（要人来确认加的正是这件事），不是锚写坏了。 */
+    && atLineStart(/^\s*page\.screenshot = async \(opt\) => \{ const r = await orig\(opt\); await censusOf\(page\); await stateOf\(page, opt && opt\.path\); return r \}/m)
+    && atLineStart(/^\s*ovPage\.screenshot = async \(opt\) => \{ const r = await os\(opt\); await censusOf\(ovPage\); await stateOf\(ovPage, opt && opt\.path\); return r \}/m)
     && c.场景数 === pngs && pngs > 90 && Object.keys(c.计数).length === c.token数 && c.token数 > 700
     && !!c.计数['cat-count'] && !c.计数['ts-note'] && !c.计数['goal-node'] && !c.计数['metric-item'] && !c.计数['gs-mc-section'];
 });
@@ -598,13 +601,15 @@ check('R4-Fc② ★这条链的运行时证据必须真在跑且不许退化成"
 
 // ============== R4-Fd 同构建跳变两族归因 + 把"归因"做成尺子的一部分（#130 关闭 / #127 推进） ==============
 console.log('【R4-Fd · 像素 A/B 的噪声轴与归因】');
-check('R4-Fd① ★取景侧两条噪声轴必须钉在脚本里（都是量出来的，不是猜的）：① chromium 参数带 `--disable-lcd-text`——notion-deck-pool-list 同构建两跑差 368 px，位移抵消测试证明几何完全对齐（0,0 最小，平移 1px 反涨到 1,426），而色偏统计是**一侧 376 个像素 |R−B|>3、另一侧 0 个**（平均 4.98 vs 2.94）⇒ 一侧 LCD 子像素、一侧灰度；② calm 的 style 里带 `caret-color:transparent`——notion-ov-search 那一族是 62 px / 只有 1 行 / 幅度 30 / 色偏在一侧，搜索框光标在闪。★两条都只动取景，产品一行没改', () => {
-  const t = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8');
-  return /args:\s*\[[^\]]*'--disable-lcd-text'[^\]]*\]/.test(t)
-    && t.includes('animation:none !important;transition:none !important;caret-color:transparent !important')
-    && t.includes('--hide-scrollbars');
+check('R4-Fd① ★取景侧只钉"量出来确实有效"的那条噪声轴，并且**不许把已证无效的方向加回来**：① calm 的 style 里必须有 `caret-color:transparent`（实测 notion-ov-search 62 px / 只有 1 行 / 幅度 30 / 色偏在一侧＝搜索框光标在闪；钉掉后该场景从变化名单里消失）；② `--disable-lcd-text` **不许回流到代码里**——R4-Fd 曾据"单主题连采两跑 0 差"加它、并把 pool-list 判成文字 AA 模式差，R4-Fe 用**全量两跑**复测：带旗标仍差 368 px、色偏仍只在一侧（A=0 B=376），而 96 张主页面场景的 DOM 几何与计算样式逐点全同 ⇒ 那是光栅层非确定性，旗标管不到 ⇒ 撤。③ 撤的来龙去脉必须留在 args 上方的注释里（负锚吃 codeOnly，注释不算代码；但注释本身要被正锚钉住——下一个人得知道这条猜过、错在哪一步、被什么证据推翻，免得再猜一遍）', () => {
+  const raw = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8');
+  const code = codeOnly(raw);
+  return code.includes('animation:none !important;transition:none !important;caret-color:transparent !important')
+    && !code.includes('--disable-lcd-text') && code.includes('--hide-scrollbars')
+    && raw.includes('R4-Fe 撤掉 R4-Fd 加的一条旗标') && raw.includes('单主题连采')
+    && raw.includes('DOM 几何与计算样式') && raw.includes('光栅层的非确定性');
 });
-check('R4-Fd② ★img-diff 必须能自己回答「这张为什么算变化」（--why 两条算式，且**都不许自己读像素**）：① 位移抵消——把 B 在 ±2px 十个方向上各平移一次、**每次重新喂给同一把 DIFF_FN** 数变化像素，非零位移能压到 0,0 的 20% 以下即判「整片挪位置」（实测 linear-st-manual 93,410→1,440 @0,-1 ⇒ #127 那族跳变定性完成：1px 位移，不是内容变）；② 单侧色偏——DIFF_FN 顺手算好的 |R−B|>3 计数，只有一侧有且**幅度 ≤12** 才判渲染模式差，幅度更大判「瞬时态（光标/选区）」。★分界用幅度不用行数：行数这条我错过一次——pool-list 只有 2 行（胶囊上下各一条边线）却确实是渲染模式差', () => {
+check('R4-Fd② ★img-diff 必须能自己回答「这张为什么算变化」（--why 两条算式，且**都不许自己读像素**）：① 位移抵消——把 B 在 ±2px 十个方向上各平移一次、**每次重新喂给同一把 DIFF_FN** 数变化像素，非零位移能压到 0,0 的 20% 以下即判「整片挪位置」（实测 linear-st-manual 93,410→1,440 @0,-1 ⇒ #127 那族跳变定性完成：1px 位移，不是内容变）；② 单侧色偏——DIFF_FN 顺手算好的 |R−B|>3 计数，只有一侧有且**幅度 ≤12** 才判渲染模式差，幅度更大判「瞬时态（光标/选区）」。★分界用幅度不用行数：行数这条我错过一次——pool-list 只有 2 行（胶囊上下各一条边线）却确实是同一类差 · ★R4-Fe 勘误：这一档曾叫「渲染模式差」并给出处置「加 --disable-lcd-text」，全量复测证伪（旗标压不住），档位现在只报形态、药方改成「先看 DOM 态一致否」', () => {
   const t = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'img-diff.cjs'), 'utf8'));
   return t.includes('const WHY_SHIFTS = [[0, 1], [0, -1], [1, 0], [-1, 0], [0, 2], [0, -2], [1, 1], [-1, -1], [2, 0], [-2, 0]]')
     && /^const SHIFT_FN = async/m.test(t) && /^function 归因\(r, best, crop\) \{$/m.test(t)
@@ -620,4 +625,22 @@ check('R4-Fd③ ★归因只许「多说话」，不许「改判」：--why 必�
   return iP > 0 && iW > iP && iE > iW
     && t.includes('非位移、非单侧色偏') && t.includes('要人看：--crop=')
     && /^\s*process\.exit\(changed\.length \|\| 不齐 \? 1 : 0\)$/m.test(t);
+});
+
+// ============== R4-Fe 证据面补齐：每张截图都要有 DOM 态可对（scene-state） ==============
+console.log('【R4-Fe · 场景几何记账与像素归因接上】');
+check('R4-Fe① ★每张截图都得有"那一刻的 DOM 态"可对，否则像素红了也没证据：theme-audit 必须把三个取样点（720,58 / 940,859 / 280,500＝三族跳变各自的现场）的元素几何与计算样式记进 scene-state.json，img-diff --why 必须读它并把红图分成「DOM 态一致 ⇒ 差异只在光栅层」与「不一致 ⇒ 点名哪一层变了」。★为什么钉在"两个包装都挂"上：R4-Fd 只包了主页面截图，104 张里 8 张浮层图没有账，于是 apple-ov-search 那条 1 行 / 幅度 30 的差**没有任何活证据可查**——证据面比断言窄，是本项目反复犯的形状', () => {
+  const ta = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
+  const id = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'img-diff.cjs'), 'utf8'));
+  return ta.includes('const STATE_PTS = [[720, 58], [720, 120], [940, 859], [280, 500]]')
+    && ta.includes('await stateOf(page, opt && opt.path)') && ta.includes('await stateOf(ovPage, opt && opt.path)')
+    && ta.includes("scene-state.json") && ta.includes('elementsFromPoint')
+    && id.includes('function readState(dir)') && id.includes('function stateDiffBrief(a, b)')
+    && id.includes('DOM 态：') && id.includes('差异只在光栅层');
+});
+check('R4-Fe② ★归因不许给假药方：色偏低幅度那一档的文案里**不许再出现 --disable-lcd-text**（那条已被 R4-Fe 全量复测证伪），必须改成指向下一步该看的证据（DOM 态是否一致）；同时"瞬时态差""要人看"两档的处置文字必须还在——归因只报形态与下一步，不替人拍板', () => {
+  const id = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'img-diff.cjs'), 'utf8'));
+  return !id.includes('--disable-lcd-text')
+    && id.includes('实测无效（原因与复测记在 theme-audit 的 args 上方）') && id.includes('先看下面那行 DOM 态是否一致')
+    && id.includes('瞬时态差（幅度') && id.includes('要人看：--crop=');
 });
