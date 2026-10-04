@@ -116,7 +116,7 @@ export function migrateHubStructure(d: AppData): boolean {
   return true
 }
 
-/** 资源台根分类的下一个排序键 */
+/** 资源卡池根分类的下一个排序键 */
 function nextHubRootOrder(d: AppData): number {
   let max = -1
   for (const c of d.categories) if (c.workspaceId === CURATION_WS_ID && !c.parentId && (c.order ?? 0) > max) max = c.order ?? 0
@@ -153,7 +153,7 @@ export function migrateHubMerge(d: AppData): boolean {
   if (!boards.length) { d.hubMergedAt = Date.now(); return false }
   let changed = false
   for (const b of boards) {
-    // ① 资源台根下同名根分类（已有同名根则复用）
+    // ① 资源卡池根下同名根分类（已有同名根则复用）
     let root = d.categories.find(c => c.workspaceId === CURATION_WS_ID && !c.parentId && c.name === b.name)
     if (!root) {
       root = { id: uid('cat'), workspaceId: CURATION_WS_ID, name: b.name, order: nextHubRootOrder(d) }

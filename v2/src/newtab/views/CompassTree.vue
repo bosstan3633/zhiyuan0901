@@ -549,7 +549,7 @@ function openChipLink(kind: 'res' | 'curio', id: string) {
     const r = d.value.resources.find(x => x.id === id && !x.deletedAt)
     const url = r ? toOpenableUrl(r.linkType, r.link) : ''
     if (!r || !url) { showToast('该卡片没有可打开的链接'); return }
-    // WRR 口径：关联卡片打开同样计入调用统计（与资源台/搜索/北极星一致）
+    // WRR 口径：关联卡片打开同样计入调用统计（与资源卡池/搜索/北极星一致）
     recordResourceOpen(d.value, r)
     store.persistHot()
     openExternalLink(url)

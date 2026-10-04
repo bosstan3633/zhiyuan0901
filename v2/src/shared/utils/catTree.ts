@@ -4,7 +4,7 @@
  * 背景：分类树导入（设置页「导入数据」/ 策展台「导入数据包」）此前只校验 version，
  * 不校验结构；而 mergeById 用 { ...existing, ...incoming } 覆盖 parentId —— 可造出「环」。
  * 环会让「沿父链上行」的 while 死转、让「向下递归」栈溢出，且发生在分类树渲染/计数路径上，
- * 于是资源台与相关策展台将**永久打不开**（无界面入口可自救）。
+ * 于是资源卡池与相关策展台将**永久打不开**（无界面入口可自救）。
  *
  * 本模块：
  *  1. 收敛 MAX_CAT_LEVEL / MAX_CAT_NODES（此前 4 这个上限散落在多个文件里各写各的）；
@@ -95,7 +95,7 @@ export function catTreeFixNote(r: CatFixReport): string {
  * 而资源台侧（Workspace.vue 的 wsCats）口径是对的。用户诉求「采集当前资源台内的分类」。
  *
  * 本函数把口径固化为一处：过滤软删 → 建索引 → 带 visited 防环 DFS → label。
- *   - 默认缩进式 label（`└` 前缀，与资源台 treeCatOptions 同视觉）
+ *   - 默认缩进式 label（`└` 前缀，与资源卡池的 treeCatOptions 同视觉）
  *   - 传 `sep` 则用路径式 label（「父 / 子」，与采集浮层 treeCatLabels 同视觉）
  * ========================================================================== */
 

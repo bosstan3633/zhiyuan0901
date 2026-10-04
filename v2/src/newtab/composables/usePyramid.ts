@@ -239,7 +239,7 @@ export function usePyramid(ctx: PyramidCtx) {
     if (m.picked.has(id)) m.picked.delete(id)
     else m.picked.add(id)
   }
-  /** 弹窗候选的**共同底座**：资源台在册卡 + 分类过滤。
+  /** 弹窗候选的**共同底座**：资源卡池在册卡 + 分类过滤。
    *  关键词只影响**可见列表**，不进底座——与检索面板同一条纪律：AI 的候选不该被"字面没命中"提前砍掉，
    *  否则"换个说法也能召回"这个功能本身就白做了。 */
   const linkBase = computed<{ r: ResourceCard; mirrored: boolean }[]>(() => {

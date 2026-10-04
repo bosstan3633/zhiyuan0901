@@ -10,7 +10,7 @@
  * - 主题卡：isThesis 仅作为「是否中心论点」列值（拍板 C：不额外加列，此列随基础字段自动建）
  *
  * 同步范围（拍板）：
- * - 调度台好奇心卡 / 方向台任务卡 / 资源台资源卡 / 各策展台台内卡（+ 主题卡标记）
+ * - 调度台好奇心卡 / 方向台任务卡 / 资源卡池的资源卡 / 各策展台台内卡（+ 主题卡标记）
  * - R64 拍板：镜像卡是独立记录（幂等键 cardId:m:targetWsId，所属工作台=落点台名），
  *   真身与镜像在 Airtable 各自成行，均带各自「所属工作台」列标识
  *
@@ -476,5 +476,5 @@ export function isSyncableCard(card: AnyCard): boolean {
   return card.kind === 'resource' || card.kind === 'task' || card.kind === 'curiosity'
 }
 
-/** 资源台判定重导出（设置页/首页状态卡复用，避免散落 import） */
+/** 资源卡池判定重导出（设置页/首页状态卡复用，避免散落 import） */
 export { isHubWs }

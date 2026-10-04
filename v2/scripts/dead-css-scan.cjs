@@ -5,15 +5,23 @@
    R4-En 给 theme-audit 装了 DOM class census（每张截图前记一遍页面上出现过的 class token），这把尺子才存在。
    所以本工具的第一条硬要求就是 census 文件在位——**没有 census 就拒绝出结论**（宁可不给候选，也不给一份"看起来能删"的清单）。
 
-   口径（三票都零才算「死」，任一票 nonzero 就留下）：
-     ① 静态票：token 出现在**同一个文件**的 class="…" / :class 字符串 / 任意字符串字面量里 ⇒ 活。
-        为什么按文件：本轮动的 10 个组件全是 <style scoped>，跨文件的同名 class 不可能命中这里的 DOM。
-        全局 .css（非 scoped）不适用这一条，退回全站静态票。
-     ② census 票：token 出现在 104 场景任一张截图的真实 DOM 里 ⇒ 活（这一票是全局的，偏保守，只 veto 不误放）。
-     ③ 拼接票：token 是某个字符串字面量的前缀/后缀/子串（'gp-' + kind、`class="x ${y}"`） ⇒ 活。
-   另加两类只报不删的桶：
-     · 祖先断：`.a .b` 里 .a 三票全零而 .b 活着 ⇒ 整条规则匹配不到任何东西（R4-Et 删完才暴露出来的口径盲区：
-       旧版"任一 token 活就留"会把这种孤儿兄弟留下）。这一桶留给下一轮，本轮不动手。
+   口径（★R4-Ev 之后是**四票**，全零才算「死」，任一非零就留下；见 aliveTok 的实际来源）：
+     ① 本文件静态票：token 出现在**同一个文件**的 class="…" / :class / 任意字符串字面量里 ⇒ 活。
+        为什么按文件：被扫的组件几乎都是 <style scoped>，跨文件同名 class 不可能命中这里的 DOM。
+        全局 .css（非 scoped）不适用这一条，退回全站票。
+     ② 全站 class 属性票：Vue 把父组件写在 <Child class="x"> 上的类透传到子根元素 ⇒ 子的 scoped 规则照样命中。
+     ③ 全站精确字符串票（★scoped 也吃这一票，R4-Ev 补）：类名值可以来自**别的文件**的数据表
+        （curiosity.ts 的 cls:'exploring' 被 :class="statusMeta(...).cls" 用掉）；比的是精确 token，不是子串。
+        同族还有**插值前缀票**：`l${lv}` 让 .dz-cell.l4 活着，而 l4 这个 token 全仓库不存在——
+        只认"整串形如 前缀${…}"且尾巴 ≤3 字符，免得把整片 l* 都救活。
+     ④ census 票：token 出现在 104 场景任一张截图的真实 DOM 里 ⇒ 活（全局、偏保守，只 veto 不误放）。
+     另有拼接票（只认以 -/_ 结尾的字面量前缀，'gp-' + kind 这种），口径细节见 concatAlive。
+   两类特殊桶（★现状：两桶都已在 R4-Ev 删清，此后**非空即棘轮红**——判据 R4-Ev①，
+   处置是删掉或写备案，不是"留给下一轮"，更不是把票调松）：
+     · 死：四票全零。
+     · 祖先断：复合段 .a.b 要求元素同时带 a 与 b ⇒ 任一类名四票全零，整段就匹配不到。
+       （R4-Et 的旧口径"任一 token 活就留"会把这种孤儿兄弟留下；逗号列表按顶层逗号拆段、每段都判死才算死，
+       括号组按深度剥、:is/:not 的参数不参与段判定——这两处都是 R4-Ev 现场逼出来的。）
      · 过渡件：<Transition name="x"> 的 x-enter-active 等六件套永不进死桶。
 
    用法：
@@ -136,7 +144,7 @@ function expandTransitions() {
 const globalAttrTokens = new Set()
 function collectGlobalAttrs() { for (const h of perFile.values()) for (const t of h.attr) globalAttrTokens.add(t) }
 
-/** 三票合一的存活判定。scoped=true 时静态票只看本文件 */
+/** 四票合一的存活判定（口径见文件头）。scoped=true 时本文件静态票只看本文件，但全站精确字符串票照吃 */
 function aliveTok(tok, fileTokens, scoped) {
   if (fileTokens.attr.has(tok) || fileTokens.strings.has(tok)) return '静态(本文件)'
   if (globalAttrTokens.has(tok)) return 'class 属性(全站·pass-through)'
@@ -301,7 +309,7 @@ if (JSONout) {
   console.log(JSON.stringify({ census: path.relative(path.resolve(SRC, '..', '..'), CENSUS.file), census场景数: CENSUS.场景数, 规则总数: total, 死: dead, 祖先断: ancestorDead }, null, 1))
 } else {
   console.log(`census=${CENSUS.file}（${CENSUS.场景数} 场景 / ${Object.keys(CENSUS.tokens).length} token）  作用域=${SRC}`)
-  console.log(`扫了 ${total} 条规则：判死 ${dead.length} 条（三票全零）· 祖先断 ${ancestorDead.length} 条（只报不删，留给下一轮）`)
+  console.log(`扫了 ${total} 条规则：判死 ${dead.length} 条（四票全零）· 祖先断 ${ancestorDead.length} 条（棘轮：两桶非空即红，见判据 R4-Ev①）`)
   for (const [k, rows] of Object.entries(byFile(dead)).sort((a, b) => b[1].length - a[1].length)) {
     console.log('\n### 死 ' + k + '  (' + rows.length + ' 条)')
     for (const r of rows.slice(0, 30)) console.log(`   L${r.line}  {${r.toks}}  ${r.sel}`)

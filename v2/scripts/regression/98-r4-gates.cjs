@@ -340,8 +340,8 @@ check('R4-Es ★Vue 的 template 区不能按 JS 字符串语义剥（HTML 文�
 });
 
 // ============== R4-Et 孤儿 CSS 清账：依据本身要在门禁里 ==============
-console.log('【R4-Et · 死样式扫描器与它的三票依据】');
-check('R4-Et① ★删样式的准绳是 dead-css-scan.cjs，而它必须先有 DOM 类名普查才能出结论——**这条判据实跑它两次**：拿一个不存在的 census 去问，它必须拒绝出清单并以非零退出（R4-Dj 当年"走查覆盖不足所以不动手"就是这个洞，R4-En 补了 census 才有今天这把尺子）；拿当前 src 去问，它必须真跑出三票口径的清单。三票逐条钉：本文件精确 class token、全站 class 属性 token（Vue 会把父组件写在你根元素上的类透传下去，跨文件的精确类名也算在用）、census；过渡件只豁免 <Transition name=x> 真生成的 x 与六件套', () => {
+console.log('【R4-Et · 死样式扫描器与它的四票依据（R4-Ev 补到四票）】');
+check('R4-Et① ★删样式的准绳是 dead-css-scan.cjs，而它必须先有 DOM 类名普查才能出结论——**这条判据实跑它两次**：拿一个不存在的 census 去问，它必须拒绝出清单并以非零退出（R4-Dj 当年"走查覆盖不足所以不动手"就是这个洞，R4-En 补了 census 才有今天这把尺子）；拿当前 src 去问，它必须真跑出四票口径的清单。四票逐条钉（★R4-Ev 把 scoped 也接进全站精确字符串票，并补了插值前缀票）：本文件精确 class token、全站 class 属性 token（Vue 会把父组件写在你根元素上的类透传下去，跨文件的精确类名也算在用）、全站精确字符串与插值前缀、census；过渡件只豁免 <Transition name=x> 真生成的 x 与六件套', () => {
   const p = path.resolve(SCRIPTS_DIR, 'dead-css-scan.cjs');
   const s = fs.readFileSync(p, 'utf8');
   const refused = runGateSync(p, ['--census', '/tmp/zy_et_no_such_census.json']);
@@ -501,6 +501,7 @@ check('R4-Ex④ ★噪声地板必须是**形状判据**而不是数值放宽：
 
 // ============== R4-Ey 评审交接包数字反漂 ==============
 console.log('【R4-Ey · 评审交接包与真源对齐】');
+
 check('R4-Ey① ★评审交接包的数字不许漂：透视卡 §2.1 的合计行与 §2.2 的债务候选条数，必须与 02_代码索引.md 现读到的值一致（索引是生成物、由 R163-1 守着不漂 ⇒ 真源只有一处，卡上抄的数字必须跟着走）；本卡还必须写明数据时效并附与上一版的差异账', () => {
   const PKG = path.resolve(SCRIPTS_DIR, '..', '..', '评审交接包');
   const idx = fs.readFileSync(path.resolve(PKG, '02_代码索引.md'), 'utf8');
@@ -517,4 +518,37 @@ check('R4-Ey① ★评审交接包的数字不许漂：透视卡 §2.1 的合计
     && /^> \*\*数据时效\*\*：/m.test(card) && card.includes('## 附 · 与 09-23 版的差异账');
 });
 
-console.log('【R4-Ex · 跨天时钟钉 / 取景侧消噪 / 整归档像素对照】');
+
+// ============== R4-Ez 注释里的退役台面名：只许出现在"写明是历史"的地方 ==============
+console.log('【R4-Ez · 注释旧称清账棘轮】');
+check('R4-Ez① ★注释里的退役台面名（资源台 / 策展中心 / 主航线 / 项目总览 / CompassShell / LighthousePanel）只许出现在"同一处写明这是历史"的行里：现扫 src 的注释，命中退役名又找不到历史标记词即红。R4-Ez 把 22 处"用退役名描述现状"的注释逐条改成池/任务调度的现行称呼后清零，此后新增即红（要复现清单：把本判据的 RETIRED/MARK 两个表抄进一行 node 脚本跑 src 即可，无需新工具）', () => {
+  const RETIRED = ['资源台', '策展中心', '主航线', '项目总览', 'CompassShell', 'LighthousePanel'];
+  const MARK = /退役|已删|已下架|旧|原|历史|曾|转正|随|不再|R\d{2,}|V3\.|迁入|搬|改前|改后|改造前|此前|当年|既有口径|第[一二三四五六七八九十百卅零〇\d]+轮|REQ-/;
+  const files = [];
+  (function walk(d) {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (/\.(ts|vue)$/.test(e.name)) files.push(p);
+    }
+  })(base);
+  let offenders = 0;
+  for (const p of files) {
+    const L = fs.readFileSync(p, 'utf8').split('\n');
+    for (let i = 0; i < L.length; i++) {
+      const raw = L[i], s = raw.trim();
+      // 注释文本：整行注释（// 或块注释续行 * 或 /* 或 <!--），以及代码行尾的 // 之后
+      // （协议里的 `//` 不算注释起点——'http://' 会让后半串被当注释扫）
+      let cmt = '';
+      if (/^(\/\/|\*|\/\*|<!--)/.test(s)) cmt = s;
+      else { const k = raw.indexOf('//'); if (k > 0 && raw[k - 1] !== ':') cmt = raw.slice(k); }
+      if (!cmt || !RETIRED.some(r => cmt.includes(r))) continue;
+      if (MARK.test(cmt)) continue;
+      const ctx = L.slice(Math.max(0, i - 2), i + 1).join(' ');
+      if (MARK.test(ctx)) continue;
+      offenders++;
+    }
+  }
+  return offenders === 0 && files.length > 150;
+});
+

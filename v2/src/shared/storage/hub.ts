@@ -4,8 +4,8 @@
  * 结构语义（R61 拍板）：
  * - 资源台 = 全局唯一 kind='resource' 的 Workspace 实体（id 固定 CURATION_WS_ID，存量数据零迁移）
  * - 策展台 = 其余未归档台（kind 缺省视为 'curation'）
- * - 镜像方向：资源台 → 策展台（CurationProjection.targetWsId 标记目标台）
- * - 决策 A：策展台新建卡不写入资源台（台内卡 workspaceId=台 id，与镜像引用并存）
+ * - 投射方向：资源卡池 → 策展台（CurationProjection.targetWsId 标记目标台）
+ * - 决策 A：策展台新建卡不写入资源卡池（台内卡 workspaceId=台 id，与镜像引用并存）
  * - 决策 C：isThesis 主题卡纯界面层标记，不参与同步列
  */
 import {
@@ -26,7 +26,7 @@ export function isHubWs(w?: Workspace | null): boolean {
   return !!w && (w.kind === 'resource' || w.id === CURATION_WS_ID)
 }
 
-/** 策展台列表（未归档、非资源台） */
+/** 策展台列表（未归档、非资源卡池） */
 export function curationBoards(d: AppData): Workspace[] {
   return d.workspaces.filter(w => !w.archived && !isHubWs(w)).sort((a, b) => a.order - b.order)
 }
@@ -36,7 +36,7 @@ export function boardName(d: AppData, wsId?: ID): string {
   return d.workspaces.find(w => w.id === wsId)?.name || '（台已删除）'
 }
 
-// ===== 投射（资源台 → 策展台） =====
+// ===== 投射（资源卡池 → 策展台） =====
 
 /** 某策展台收到的镜像记录 */
 export function projectionsOf(d: AppData, targetWsId: ID): CurationProjection[] {

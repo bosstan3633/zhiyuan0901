@@ -30,7 +30,7 @@ function emitCall(card: OpenableCard | null | undefined, fallbackKind?: CardKind
 }
 
 /**
- * 记录一次资源卡打开（资源台单击/双击/搜索打开/关联卡片/北极星下钻统一入口）
+ * 记录一次资源卡打开（资源卡池单击/双击/搜索打开/关联卡片/北极星下钻统一入口）
  * 维护：callCount、lastCalledAt、本周计数（lastVisits，跨周自动重置）、WRR 累计
  */
 export function recordResourceOpen(data: AppData, resource: ResourceCard): void {

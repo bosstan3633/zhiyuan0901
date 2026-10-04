@@ -2,7 +2,7 @@
  * R72-1：卡片视图横向列数（4 / 5 / 6 / 7 列，卡片宽度自适应）。
  *
  * 承载卡片网格的三个模块共用同一份口径——好奇心培育（cz-grid）/ 任务调度（tm-grid-inner）/
- * 资源台·策展台（card-grid、cur-grid）。偏好写入 `UIPrefs.cardCols[<模块键>]`，
+ * 资源卡池·策展台（card-grid、cur-grid）。偏好写入 `UIPrefs.cardCols[<模块键>]`，
  * 与 `density` / `sortPrefs` / `taHeights` 同为本地记忆（zy_ui_v2，不随数据同步）。
  *
  * 网格模板（R106-F3 起统一为**精确 N 列**）：
@@ -28,7 +28,7 @@ export type CardColsKey = 'curio' | 'task' | 'res'
  * 各模块默认列数 = **改造前的等效列数**，保证升级后视觉零变化：
  * - `curio`（好奇心培育）改造前 `repeat(4, 1fr)` → 4
  * - `task`（任务调度）改造前 `auto-fill minmax(240px, 1fr)`，在方向台 1440px 页宽下 ≈ 5 → 5
- * - `res`（资源台 / 策展台）改造前 `auto-fill minmax(260px, 1fr)` 同口径 ≈ 5 → 5
+ * - `res`（资源卡池 / 策展台）改造前 `auto-fill minmax(260px, 1fr)` 同口径 ≈ 5 → 5
  */
 export const CARD_COLS_DEFAULT: Record<CardColsKey, number> = { curio: 4, task: 5, res: 6 }
 

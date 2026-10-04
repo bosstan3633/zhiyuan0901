@@ -3,7 +3,7 @@
  * 与 govern.ts 同骨架「投影→chat→行→采纳」，采纳全部走既有字段通道，零新增数据模型：
  *  G1=写主题卡（isThesis）标题与 🤖 论点块；次通道=分论点落成一级分类并归架佐证卡
  *  G2=convert 交宿主 convertToTask / drop=status 'shelf' / keep 只读
- *  G3=hub.ts projectCardToBoard（只镜像资源台源卡，源数据零影响）
+ *  G3=hub.ts projectCardToBoard（只投射资源卡池的源卡，源数据零影响）
  *  G4=存一张「成果文稿」资源卡；次通道=下载 .md
  * 链接正文抽样复用 govern 的 reviseSnips 会话缓存（R143 抓过的零重抓）。
  */
