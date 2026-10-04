@@ -464,6 +464,7 @@ check('R4-Ew② ★content 侧用例的两条环境事实必须留在脚本里�
 
 // ============== R4-Ex 让像素 A/B 能当门禁（#120 的③ / #125） ==============
 console.log('【R4-Ex · 跨天时钟钉 / 取景侧消噪 / 整归档像素对照】');
+
 check('R4-Ex① ★跨天像素 A/B 的前提是把时钟钉到指定那一天：theme-audit 的 --freeze-at 在位、非法值实跑必须退 2 并点名怎么改、不传时仍按当天零点冻。默认零点跟着今天走，拿今天的重跑去比历史归档必然整片不同（R4-Ev 实测跨天 86/104 逐字节不同），像素 A/B 因此只能当参考不能当门禁', () => {
   const f = path.resolve(SCRIPTS_DIR, 'theme-audit.cjs');
   const t = codeOnly(fs.readFileSync(f, 'utf8'));
@@ -498,3 +499,22 @@ check('R4-Ex④ ★噪声地板必须是**形状判据**而不是数值放宽：
     && /if \(mx > hard\) \{/.test(t) && t.includes('hardPixels: hardN');
 });
 
+// ============== R4-Ey 评审交接包数字反漂 ==============
+console.log('【R4-Ey · 评审交接包与真源对齐】');
+check('R4-Ey① ★评审交接包的数字不许漂：透视卡 §2.1 的合计行与 §2.2 的债务候选条数，必须与 02_代码索引.md 现读到的值一致（索引是生成物、由 R163-1 守着不漂 ⇒ 真源只有一处，卡上抄的数字必须跟着走）；本卡还必须写明数据时效并附与上一版的差异账', () => {
+  const PKG = path.resolve(SCRIPTS_DIR, '..', '..', '评审交接包');
+  const idx = fs.readFileSync(path.resolve(PKG, '02_代码索引.md'), 'utf8');
+  const card = fs.readFileSync(path.resolve(PKG, '01_项目透视卡.md'), 'utf8');
+  const m = idx.match(/规模：\*\*(\d+) 个源文件 \/ ([\d,]+) 行\*\*/);
+  if (!m) return false;
+  const h = idx.indexOf('## 一、结构性债务候选');
+  if (h < 0) return false;
+  const sec = idx.slice(h, idx.indexOf('\n## ', h + 5) > 0 ? idx.indexOf('\n## ', h + 5) : idx.length);
+  const rows = [...sec.matchAll(/^\| `[^`]+` \| (\d+) \|$/gm)];
+  const big = rows.filter(r => Number(r[1]) >= 800).length;
+  return big > 0 && card.includes(`| **合计** | **${m[1]}** | **${m[2]}** |`)
+    && card.includes(`### 2.2 结构性债务候选（≥800 行的单文件，实测 ${big} 个）`)
+    && /^> \*\*数据时效\*\*：/m.test(card) && card.includes('## 附 · 与 09-23 版的差异账');
+});
+
+console.log('【R4-Ex · 跨天时钟钉 / 取景侧消噪 / 整归档像素对照】');
