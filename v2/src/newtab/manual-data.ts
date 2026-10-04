@@ -154,6 +154,7 @@ export const MANUAL: ManualPart[] = [
           <li><strong>项目类型</strong>：列出全部项目（🚀 主攻/已完成标记），单击直达项目详情。</li>
           <li><strong>结果键位（单击 / Enter / Ctrl+Enter 三键）</strong>：单击或 <kbd>Enter</kbd> = <b>打开卡片链接</b>（无链接或本地路径不完整时自动降级为定位到卡片所在处）；<kbd>Ctrl</kbd>+<kbd>Enter</kbd> = <b>仅定位到卡片所在处</b>（高亮，不打开详情）。网页浮层与新标签页内搜索<strong>键位一致</strong>。</li>
           <li>选中结果按 <kbd>Ctrl</kbd>+<kbd>C</kbd> 复制 Markdown 引用（标题+链接）。</li>
+          <li><strong>唤起那一帧的取舍（明写在这是为了让它不是暗病）</strong>：面板遮罩用毛玻璃（<code>backdrop-filter: blur(20px)</code>）+ 自动聚焦输入框，实测唤起后会有<b>一帧约 100ms 的渲染阻塞</b>——发生在面板打开之后、不影响你开始打字与检索。本项目的拍板是<b>保留毛玻璃、接受这一帧</b>：它是四主题观感的一部分，而省掉它要动的是遮罩合成分支，代价是观感一致性。</li>
         </ul>
         <div class="mc-warn">⚠ chrome:// 等不可注入页面会自动带你进知源并打开同一块面板（采集 / 好奇 / 任务），键位与浮层一致。</div>
       ` },

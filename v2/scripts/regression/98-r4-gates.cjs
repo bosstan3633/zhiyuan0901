@@ -496,12 +496,12 @@ check('R4-Ex③ ★像素对照要能一次判整归档（逐张起浏览器时 
        并把 getImageData 那条的优先级写进标题。 */
     && (t.match(/await page\.evaluate\(DIFF_FN/g) || []).length === 3;
 });
-check('R4-Ex④ ★噪声地板必须是**形状判据**而不是数值放宽：抖动档要求"每个差异像素单通道 ≤HARD"**且**"差异带高 ≤8 行"，两者缺一即算变化；两个阈值都钉死在 6 与 8（实测同构建连采抖动为 3–6/通道、带高 4–6 行；真变化如采集面板那串 URL 是 232/通道、带高 13 行）。把 HARD 调大或把带高去掉，就是把门禁改成"看不见小改动"', () => {
+check('R4-Ex④ ★噪声地板是**形状判据**不是数值放宽：HARD 与 TOL 钉死在 6（实测同构建连采抖动 3–6/通道；真变化如采集面板那串 URL 是 232/通道）。★R4-Fg 随迁（用户拍板 A 案）：抖动档原来还要求"带高 ≤8 行"，两条缺一即算变化——9 对同构建连采量到光栅层非确定性会产出「幅度 ≤7、摊在几百行」的差且 DOM 态逐点全同，那条带宽腿于是变成「同一份产物两跑每对必红 1–3 张」的来源，已改由 hardPixels 单独定变化、带宽只报不判（见 R4-Fg①）。HARD 这条腿**没动**，它才是防"整片调淡"的那道闸', () => {
   const t = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'img-diff.cjs'), 'utf8'));
   const iC = t.indexOf('const classify = (r) => {');
   const body = t.slice(iC, t.indexOf('\n}', iC) + 2);
   return /^\s*const TOL = 6$/m.test(t) && /^\s*const HARD = 6$/m.test(t) && /^\s*const JITTER_BAND_ROWS = 8$/m.test(t)
-    && iC > 0 && body.includes('r.hardPixels > 0 || rows > JITTER_BAND_ROWS') && body.includes('if (!r.diffPixels) return')
+    && iC > 0 && body.includes("if (r.hardPixels > 0) return { 档: 'changed', rows }") && body.includes('if (!r.diffPixels) return')
     && /if \(mx > hard\) \{/.test(t) && t.includes('hardPixels: hardN');
 });
 
@@ -653,4 +653,27 @@ check('R4-Ff① ★截图前必须等窗口滚动落定（#127 那 1px 的成因
     && ta.includes('for (let i = 0; i < 5; i++) { if (settle() === 0) break; await new Promise(r => setTimeout(r, 60)) }')
     && ta.includes('if (de && de.scrollTop !== 0) de.scrollTop = 0')
     && ta.indexOf('const settle =') > 0 && ta.indexOf('const settle =') < ta.indexOf('__zy_calm__');
+});
+
+// ============== R4-Fg 像素档按拍板改形（A 案）+ ⌘K 那一帧写进用户可见手册 ==============
+console.log('【R4-Fg · 像素档与 ⌘K 取舍】');
+check('R4-Fg① ★变化档只由 hardPixels 定（用户 2026-10-04 拍板 A 案），但带宽必须照样报出来、--strict 必须还能咬：classify 里不许再出现「rows > JITTER_BAND_ROWS 就算 changed」那条腿，改成 hardPixels>0 才 changed、其余落抖动并带「带宽超阈」标记；批量输出的抖动档那行必须把标记与「要严用 --strict」打出来。★改判依据必须留在代码注释里（9 对同构建连采：光栅层非确定性 ⇒ 每对必红 1–3 张、scene-state 逐点全同），否则下一个人只看到规则变松、不知道为什么。HARD/TOL 这条腿没动（见 R4-Ex④），它才是防「整片调淡」的闸', () => {
+  const raw = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'img-diff.cjs'), 'utf8');
+  const t = codeOnly(raw);
+  const iC = t.indexOf('const classify = (r) => {');
+  const body = t.slice(iC, t.indexOf('\n}', iC) + 2);
+  return iC > 0 && body.includes("if (r.hardPixels > 0) return { 档: 'changed', rows }")
+    && !body.includes("r.hardPixels > 0 || rows > JITTER_BAND_ROWS")
+    && body.includes('带宽超阈: rows > JITTER_BAND_ROWS')
+    /* 注释里的改判依据走 raw（codeOnly 会把它剥掉——这条锚第一轮就因此自己红过一次），
+       代码里的输出串走 t。两种读法各管一件事，别混成一个 read。 */
+    && raw.includes('光栅层非确定性') && raw.includes('要严的时候用 --strict')
+    && t.includes('A 案计入抖动；要严用 --strict');
+});
+check('R4-Fg② ★⌘K 那一帧的取舍必须是用户读得到的一句话（拍板＝保留毛玻璃、接受 ~100ms 阻塞，那就不能只写在内部文档里）：手册「全局检索」章节要有这条 li，且必须同时说清三件事——发生在面板打开之后不影响打字、结论是保留、以及它是"明写不是暗病"的姿态。锚点取那句里的语义片段而不是整句（改文案不必重指，但少一个语义就红）', () => {
+  const m = codeOnly(read('/newtab/manual-data.ts'));
+  return m.includes('唤起那一帧的取舍') && m.includes('backdrop-filter: blur(20px)')
+    && m.includes('一帧约 100ms 的渲染阻塞')
+    && m.includes('发生在面板打开之后、不影响你开始打字与检索')
+    && m.includes('保留毛玻璃、接受这一帧');
 });

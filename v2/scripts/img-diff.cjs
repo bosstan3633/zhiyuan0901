@@ -103,8 +103,15 @@ const JITTER_BAND_ROWS = 8
 const classify = (r) => {
   if (!r.diffPixels) return { 档: 'same' }
   const rows = r.bbox[3] - r.bbox[1] + 1
-  if (r.hardPixels > 0 || rows > JITTER_BAND_ROWS) return { 档: 'changed', rows }
-  return { 档: 'jitter', rows }
+  /* ★R4-Fg（用户 2026-10-04 拍板，A 案）：只有「存在单通道 >HARD 的像素」才算变化；
+     带宽不再单独定变化，但**照样报出来**（下面批量打印里带「带宽超阈」标记，DOM 态可查）。
+     改判依据是 9 对同构建连采：光栅层非确定性会产出「幅度 ≤7/255、摊在几百行」的差，
+     而 scene-state 逐点全同 ⇒ 旧规则下「同一份产物两跑每对必红 1–3 张」，像素 A/B 就当不了门禁。
+     防「整片调淡」的活仍由 HARD 干（>6/通道 就红）；如实接受的代价：整片均匀 ≤6/通道 的多行变化会被判成抖动
+     ——那本来就在 R4-Ex 记的分辨率下限（约 2.4% 色差、肉眼不可辨）里，只是现在覆盖到「很多行」。
+     要严的时候用 --strict（连抖动都不许）。 */
+  if (r.hardPixels > 0) return { 档: 'changed', rows }
+  return { 档: 'jitter', rows, 带宽超阈: rows > JITTER_BAND_ROWS }
 }
 
 /* ★R4-Fd（#130/#127 归因收进尺子）：一张被判「有变化」的图，先问它属于哪一类，再决定动不动产品。
@@ -205,14 +212,14 @@ async function runBatch(page, dirA, dirB) {
         }
       }
     } else if (c.档 === 'jitter') {
-      jittered.push({ 图: f, 抖动: r.diffPixels, 带高: c.rows, 单通道最大差: r.maxChannelDelta })
+      jittered.push({ 图: f, 抖动: r.diffPixels, 带高: c.rows, 单通道最大差: r.maxChannelDelta, 带宽超阈: !!c.带宽超阈 })
     }
   }
   const 不齐 = (inA.length - both.length) + missA.length
   console.log(`\n⇒ 成对 ${both.length} 张：0 差 ${both.length - changed.length - jittered.length}，抖动 ${jittered.length}，有变化 ${changed.length}；张数不齐 ${不齐}`)
   if (jittered.length) {
     console.log('  抖动档（同构建边线取整，不算变化）：')
-    for (const j of jittered) console.log(`    ${j.图.padEnd(32)} ${j.抖动} px  差异带高 ${j.带高} 行  单通道最大差 ${j.单通道最大差}`)
+    for (const j of jittered) console.log(`    ${j.图.padEnd(32)} ${j.抖动} px  差异带高 ${j.带高} 行  单通道最大差 ${j.单通道最大差}${j.带宽超阈 ? `  带宽超阈(>${JITTER_BAND_ROWS} 行，A 案计入抖动；要严用 --strict)` : ''}`)
   }
   if (changed.length) console.log('  变化像素合计 ' + changed.reduce((s, x) => s + x.变化, 0))
   process.exit(changed.length || 不齐 ? 1 : 0)
