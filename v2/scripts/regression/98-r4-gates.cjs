@@ -461,3 +461,40 @@ check('R4-Ew② ★content 侧用例的两条环境事实必须留在脚本里�
     && !/capPage\.evaluate\(\(t\) => chrome\.storage/.test(e)
     && /await page\.evaluate\(\(t\) => chrome\.storage\.local\.get\('zy_data_v2'\)\.then\(r => \{\s*const c = \(r\['zy_data_v2'\]\.resources \|\| \[\]\)\.find\(x => x\.title === t\)/.test(e);
 });
+
+// ============== R4-Ex 让像素 A/B 能当门禁（#120 的③ / #125） ==============
+console.log('【R4-Ex · 跨天时钟钉 / 取景侧消噪 / 整归档像素对照】');
+check('R4-Ex① ★跨天像素 A/B 的前提是把时钟钉到指定那一天：theme-audit 的 --freeze-at 在位、非法值实跑必须退 2 并点名怎么改、不传时仍按当天零点冻。默认零点跟着今天走，拿今天的重跑去比历史归档必然整片不同（R4-Ev 实测跨天 86/104 逐字节不同），像素 A/B 因此只能当参考不能当门禁', () => {
+  const f = path.resolve(SCRIPTS_DIR, 'theme-audit.cjs');
+  const t = codeOnly(fs.readFileSync(f, 'utf8'));
+  const r = runGateSync(f, ['--freeze-at=不是个日期']);
+  return /^\s*const FREEZE_AT = \(\(\) => \{/m.test(t) && t.includes("argv['freeze-at']")
+    && /^\s*if \(v === undefined \|\| v === true\) return Math\.floor\(Date\.now\(\) \/ 86400000\) \* 86400000$/m.test(t)
+    && r.status === 2 && /解析不出时间/.test(r.stderr + r.stdout)
+    && /process\.exit\(2\)/.test(t);
+});
+check('R4-Ex② ★采集面板那四张的噪声在取景侧消掉，而不是把宿主服务改成写死端口：pin 钩子挂在 ov-capture 场景里、调用点在 judge 之前（拍的就是钉过的那一框），钉的是链接框常量；宿主页服务仍必须 listen(0) 现取（写死会撞本机其它服务，与 R4-Ew② 同一条口径）', () => {
+  const t = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
+  const iPin = t.indexOf('if (ready && sc.pin) await sc.pin(ovPage)');
+  return /^\s*pin: async \(pg\) => pg\.evaluate\(\(\) => \{$/m.test(t)
+    && t.includes('zy-visual-baseline.invalid') && iPin > 0
+    && iPin < t.indexOf('await sc.judge(ovPage, appAccent)')
+    && /^\s*await new Promise\(r => ovServer\.listen\(0, '127\.0\.0\.1', r\)\)/m.test(t);
+});
+check('R4-Ex③ ★像素对照要能一次判整归档（逐张起浏览器时 104 张根本没法当门禁跑）：img-diff 的 --batch 分支在位、两侧张数不齐即红、退出码由有变化的张数决定；且逐张算式只有 DIFF_FN 一份——批量与单对共用同一把尺子，getImageData 出现第二次就是有人另抄了一份', () => {
+  const t = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'img-diff.cjs'), 'utf8'));
+  return /const DIFF_FN = async/.test(t) && /^\s*async function runBatch\(page, dirA, dirB\) \{$/m.test(t)
+    && t.includes("argv.includes('--batch')") && t.includes('张数不齐')
+    && /^\s*process\.exit\(changed\.length \|\| 不齐 \? 1 : 0\)$/m.test(t)
+    && (t.match(/getImageData/g) || []).length === 1
+    && (t.match(/await page\.evaluate\(DIFF_FN/g) || []).length === 2;
+});
+check('R4-Ex④ ★噪声地板必须是**形状判据**而不是数值放宽：抖动档要求"每个差异像素单通道 ≤HARD"**且**"差异带高 ≤8 行"，两者缺一即算变化；两个阈值都钉死在 6 与 8（实测同构建连采抖动为 3–6/通道、带高 4–6 行；真变化如采集面板那串 URL 是 232/通道、带高 13 行）。把 HARD 调大或把带高去掉，就是把门禁改成"看不见小改动"', () => {
+  const t = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'img-diff.cjs'), 'utf8'));
+  const iC = t.indexOf('const classify = (r) => {');
+  const body = t.slice(iC, t.indexOf('\n}', iC) + 2);
+  return /^\s*const TOL = 6$/m.test(t) && /^\s*const HARD = 6$/m.test(t) && /^\s*const JITTER_BAND_ROWS = 8$/m.test(t)
+    && iC > 0 && body.includes('r.hardPixels > 0 || rows > JITTER_BAND_ROWS') && body.includes('if (!r.diffPixels) return')
+    && /if \(mx > hard\) \{/.test(t) && t.includes('hardPixels: hardN');
+});
+

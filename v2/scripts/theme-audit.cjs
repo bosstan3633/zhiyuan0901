@@ -44,8 +44,22 @@ const argv = Object.fromEntries(process.argv.slice(2).map(a => {
  */
 const FREEZE = !argv['no-freeze']
 const CALM = !argv['no-calm']
-/** 冻结到本次运行的 UTC 日起点：分钟级"X 前"在同一天内恒定，跨日的差异是数据本身应有的变化 */
-const FREEZE_AT = Math.floor(Date.now() / 86400000) * 86400000
+/** 冻结到本次运行的 UTC 日起点：分钟级"X 前"在同一天内恒定，跨日的差异是数据本身应有的变化
+ *  ★R4-Ex：`--freeze-at=YYYY-MM-DD`（或完整 ISO / 毫秒数）把时钟钉到指定日。
+ *  为什么开这个口子：默认零点跟着"今天"走 ⇒ 拿今天的重跑去比历史归档，字节级必然整片不同
+ *  （R4-Ev 实测跨天 86/104 张不同），像素 A/B 因此只能当参考不能当门禁。钉住归档那一天，
+ *  "改前构建 vs 改后构建"才可以在不同日期各跑一次而仍然可比。 */
+const FREEZE_AT = (() => {
+  const v = argv['freeze-at']
+  if (v === undefined || v === true) return Math.floor(Date.now() / 86400000) * 86400000
+  const s = String(v).trim()
+  const t = /^\d+$/.test(s) ? Number(s) : Date.parse(s.length === 10 ? s + 'T00:00:00Z' : s)
+  if (Number.isNaN(t)) {
+    console.error(`--freeze-at=${s} 解析不出时间（收 YYYY-MM-DD、完整 ISO 或毫秒数）`)
+    process.exit(2)
+  }
+  return Math.floor(t / 86400000) * 86400000
+})()
 
 const THEMES = ['linear', 'raycast', 'apple', 'notion']
 const VIEWS = [
@@ -380,6 +394,15 @@ async function overlayOpen(page) {
 const OVERLAY_SCENES = [
   {
     id: 'ov-capture', name: '采集面板', msg: 'zy-open-capture', ready: '#__zy_cap_ws__',
+    /* ★R4-Ex：取景前把「链接」框钉成常量。噪声源实测在 `overlay-impl.ts:1418`
+       （`linkInput.value = location.href`）——宿主页服务用 listen(0) 现取端口，端口号被印进画面，
+       于是这四张 `*-ov-capture` 每次跑都不同（R4-Ev 量到 261 px/张，正好压在同构建噪声地板 305 px 之下，
+       像素 A/B 因此一直"看不出问题"）。端口该保持现取（写死会撞本机其它服务，见 R4-Ew②），
+       所以消噪在取景侧做，不动产品代码。 */
+    pin: async (pg) => pg.evaluate(() => {
+      const i = document.getElementById('__zy_cap_link__')
+      if (i) i.value = 'https://zy-visual-baseline.invalid/doc'
+    }),
     judge: async (page, expectAccent) => page.evaluate((exp) => {
       const panel = document.querySelector('.zy-panel')
       const root = document.getElementById('__zy_global_overlay__') || (panel && panel.closest('div[id^="__zy"]')) || document.body
@@ -510,6 +533,11 @@ async function main() {
     deviceScaleFactor: 1,
     executablePath: CHROME,
     ignoreDefaultArgs: ['--disable-extensions'],
+    /* ★R4-Ex 试过又撤掉的一条路（记录免得重走）：给 chromium 加
+       --disable-skia-runtime-opts / --disable-partial-raster / --disable-gpu-shader-disk-cache，
+       想消掉边线带的取色抖动。实测**没消掉**（连采仍每次有 3–7 张在 1–5 行高的边线上差 3–20 px），
+       反而让 raycast-st-manual 整页差 98,518 px（包围盒 0,58–1439,899）——一次改动没带来确定性，
+       只带来新的不确定。⇒ 抖动改由 img-diff 的"变化像素 / 抖动像素"二分来判，见该脚本。 */
     args: [`--disable-extensions-except=${pkg}`, `--load-extension=${pkg}`, `--hide-scrollbars`]
   })
 
@@ -868,6 +896,7 @@ async function main() {
         ready = !!(await ovPage.waitForSelector(sc.ready, { timeout: 8000 }).catch(() => null))
       } catch (e) { opened = false; overlayFail.push(`${theme}/${sc.id}：唤起消息失败 ${e.message}`) }
       if (ready && sc.act) await sc.act(ovPage, needle)
+      if (ready && sc.pin) await sc.pin(ovPage)
       if (ready) await resetView(ovPage)
       const info = ready ? await sc.judge(ovPage, appAccent) : { ok: false, txt: opened ? '浮层没开（等不到就绪选择器）' : '唤起失败' }
       const f = path.join(outDir, `${theme}-${sc.id}.png`)
