@@ -495,7 +495,13 @@ async function resetView(page) {
       window.__ZY_CALM__ = true
       const st = document.createElement('style')
       st.id = '__zy_calm__'
-      st.textContent = '*,*::before,*::after{animation:none !important;transition:none !important}'
+      /* ★R4-Fd（#130 同轮量到的第二条噪声轴）：连光标也钉掉。实测 notion-ov-search 在同构建两跑之间
+         差 62 px、**差异带高只有 1 行**、单通道最大差 30、包围盒 422,186–483,186 —— 那是搜索框光标在闪，
+         截图赶上了"亮"与"灭"两个相位。光标闪烁不是 CSS animation（calm 管不到它），但静照里同样
+         不存在"正在闪"这件事，与关动画是同一类：取景侧钉掉，产品一行没动。
+         两类噪声轴的分界见 img-diff 的 --why：幅度 ≤12 且色偏在一侧＝渲染模式差（--disable-lcd-text），
+         幅度 ≥30 且只有一两行＝瞬时态差（这条 caret）。 */
+      st.textContent = '*,*::before,*::after{animation:none !important;transition:none !important;caret-color:transparent !important}'
       document.head.appendChild(st)
     }
     try { for (const a of (document.getAnimations ? document.getAnimations() : [])) { try { a.finish() } catch (e) {} } } catch (e) {}
@@ -540,7 +546,13 @@ async function main() {
        想消掉边线带的取色抖动。实测**没消掉**（连采仍每次有 3–7 张在 1–5 行高的边线上差 3–20 px），
        反而让 raycast-st-manual 整页差 98,518 px（包围盒 0,58–1439,899）——一次改动没带来确定性，
        只带来新的不确定。⇒ 抖动改由 img-diff 的"变化像素 / 抖动像素"二分来判，见该脚本。 */
-    args: [`--disable-extensions-except=${pkg}`, `--load-extension=${pkg}`, `--hide-scrollbars`]
+    /* ★R4-Fd（#130 归因）：`--disable-lcd-text` 把字形抗锯齿钉成灰度。实测成因：同一份构建连采两次，
+       池卡列表那两枚标签 pill 差 368 px——位移抵消测试证明几何完全对齐（0,0 是最小值，平移 1px 反而涨到 1,395–2,259），
+       而色偏统计显示 372 个差异像素**一侧 |R−B|>3 全中、另一侧一个都没有**（平均绝对色偏 4.99 vs 2.96）
+       ⇒ 两侧用的是不同的文字 AA 模式（LCD 子像素 vs 灰度），Chromium 在图层被提升期间会退回灰度。
+       这条与 R4-Ex 撤掉的那三条渲染路径旗标不同：那三条是**猜**，这一条是**量出来的**，且它把噪声轴直接关掉。
+       副作用方向：多数历史归档本来就是灰度（异常那一跑才是 LCD），所以钉灰度不改变既有基线的形态。 */
+    args: [`--disable-extensions-except=${pkg}`, `--load-extension=${pkg}`, `--hide-scrollbars`, '--disable-lcd-text']
   })
 
   let [worker] = ctx.serviceWorkers()

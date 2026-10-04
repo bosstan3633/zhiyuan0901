@@ -11,7 +11,8 @@
  *   node scripts/img-diff.cjs <A.png> <B.png>                       # 差异统计 + 差异包围盒
  *   node scripts/img-diff.cjs <A.png> <B.png> --crop=610,415,245,195,3,out.png
  *                                                                  # 再裁出该区域放大 ×3 存 PNG（目视定位）
- *   node scripts/img-diff.cjs --batch <目录A> <目录B> [--only=子串] [--strict]
+ *   node scripts/img-diff.cjs --batch <目录A> <目录B> [--only=子串] [--strict] [--why]
+ *     --why：对每张落到"有变化"的图再问一次它属于哪一种（位移抵消 / 字形 AA 色偏 / 要人看）
  *                                                                  # ★R4-Ex 整归档成对比（一次起浏览器）
  *                                                                  # 同名 png 逐对判像素，分三档：0 差 / 抖动 / 变化
  *                                                                  # 有任一"变化"或两侧张数不齐 ⇒ 退出码 1
@@ -54,6 +55,8 @@ const DIFF_FN = async ([s1, s2, tol, hard]) => {
   }
   const d1 = px(i1), d2 = px(i2)
   let n = 0, hardN = 0, x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1, hx0 = 1e9, hy0 = 1e9, hx1 = -1, hy1 = -1, maxd = 0, maxSingle = 0
+  let chromaA = 0, chromaB = 0
+  const rows = new Set()
   const samples = []
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -66,6 +69,12 @@ const DIFF_FN = async ([s1, s2, tol, hard]) => {
         if (d > maxd) maxd = d
         const mx = Math.max(dr, dg, db)
         if (mx > maxSingle) maxSingle = mx
+        /* ★R4-Fd：归因要用的两项统计顺手在这里算掉，**不再另起一遍逐像素循环**——
+           R4-Ex③ 那条「getImageData 只许出现一次」的锚就是为此而设（我第一版 --why 自己抄了一份，被它当场红）。
+           色偏＝|R−B|>3 的像素数：LCD 子像素抗锯齿会给边缘上彩色，灰度 AA 不会。 */
+        rows.add(y)
+        if (Math.abs(d1[i] - d1[i + 2]) > 3) chromaA++
+        if (Math.abs(d2[i] - d2[i + 2]) > 3) chromaB++
         if (mx > hard) {
           hardN++
           if (x < hx0) hx0 = x; if (x > hx1) hx1 = x; if (y < hy0) hy0 = y; if (y > hy1) hy1 = y
@@ -77,7 +86,7 @@ const DIFF_FN = async ([s1, s2, tol, hard]) => {
   return {
     sizeA: [i1.width, i1.height], sizeB: [i2.width, i2.height], diffPixels: n, hardPixels: hardN, total: w * h,
     bbox: n ? [x0, y0, x1, y1] : null, hardBBox: hardN ? [hx0, hy0, hx1, hy1] : null,
-    maxChannelDelta: maxSingle, maxDelta: maxd, samples
+    maxChannelDelta: maxSingle, maxDelta: maxd, chromaA, chromaB, diffRows: rows.size, samples
   }
 }
 
@@ -98,16 +107,37 @@ const classify = (r) => {
   return { 档: 'jitter', rows }
 }
 
-/**
- * ★R4-Ex 批量模式：整归档成对判像素。
- * 语义：目录同名 `.png` 逐对比；A 有 B 无（或反之）算**缺失即红**（少一张图不是"没差异"）。
- * 每张分三档：0 差 / 只有抖动（边线取整）/ 有变化（存在单通道 >HARD 的像素，或差异带高 >8 行）。
- * 退出码 0 = 没有任何一张落到"有变化"，也没有张数不齐；`--strict` 连抖动都不许有。
- * 这条把"像素 A/B"从参考升级成门禁：同构建连采必须落到 0 差或抖动档，
- * 改前/改后 build 各跑一次（同一个 --freeze-at 日子）之后，**只有"有变化"那一档才是本次改动**。
- */
+/* ★R4-Fd（#130/#127 归因收进尺子）：一张被判「有变化」的图，先问它属于哪一类，再决定动不动产品。
+   两条算式都**不自己读像素**：位移抵消是把 B 平移后**再喂给同一把 DIFF_FN**，色偏/幅度/行数是 DIFF_FN 顺手算好的。 */
+const WHY_SHIFTS = [[0, 1], [0, -1], [1, 0], [-1, 0], [0, 2], [0, -2], [1, 1], [-1, -1], [2, 0], [-2, 0]]
+const SHIFT_FN = async ([src, dx, dy]) => {
+  const img = await new Promise((r) => { const i = new Image(); i.onload = () => r(i); i.src = src })
+  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false
+  x.drawImage(img, dx, dy)
+  return c.toDataURL('image/png')
+}
+/** 归因口径（实测分界写死在这里，别凭感觉）：
+ *  ① 位移抵消——非零平移能把变化像素压到 0,0 的 20% 以下 ⇒ 整片挪位置（实测 linear-st-manual 93,410→1,440 @0,-1，
+ *     #127 那族「整页跳变」到此定性：1px 位移，不是内容变）。
+ *  ② 色偏只在一侧 + **幅度 ≤12** ⇒ 渲染模式差（一侧 LCD 子像素、一侧灰度；实测 notion-deck-pool-list 368 px、
+ *     A 侧 376 个带色偏 / B 侧 0 个、幅度 7 ⇒ 处置是取景侧 --disable-lcd-text）。
+ *  ③ 色偏只在一侧但幅度更大 ⇒ 瞬时态（光标/选区那一类；实测 notion-ov-search 62 px、幅度 30、1 行 ⇒ calm 钉 caret-color）。
+ *  ④ 都不成立 ⇒ 明写「要人看」并给裁图坐标——**归因不明的不许被判成噪声放过去**。
+ *  ★分界用幅度不用行数：行数这条我错过一次，pool-list 只有 2 行（胶囊上下各一条边线）却确实是渲染模式差。 */
+function 归因(r, best, crop) {
+  const zero = r.hardPixels, maxD = r.maxChannelDelta
+  if (zero === 0) return '取样框内已无变化像素（包围盒取整边界）'
+  if (best.n <= zero * 0.2) return `几何位移：把 B 平移 ${best.位移} 后变化像素 ${zero}→${best.n} ⇒ 整片挪位置，不是内容变`
+  const oneSided = (r.chromaA === 0 || r.chromaB === 0) && (r.chromaA + r.chromaB) > 0
+  if (oneSided && maxD <= 12) return `渲染模式差（幅度 ${maxD}、色偏只在一侧 A=${r.chromaA} B=${r.chromaB}、${r.diffRows} 行）⇒ 一侧 LCD 子像素、一侧灰度（处置：取景侧 --disable-lcd-text，不改产品）`
+  if (oneSided) return `瞬时态差（幅度 ${maxD}、${r.diffRows} 行、色偏只在一侧 A=${r.chromaA} B=${r.chromaB}）＝光标/选区/图标一类 ⇒ 先看 calm 钉没钉（caret-color），不改产品`
+  return `非位移、非单侧色偏（幅度 ${maxD}）⇒ 要人看：--crop=${crop}`
+}
+
 async function runBatch(page, dirA, dirB) {
   const strict = argv.includes('--strict')
+  const why = argv.includes('--why')
   const only = (argv.find(a => a.startsWith('--only=')) || '').split('=')[1] || ''
   const inA = fs.readdirSync(dirA).filter(f => f.endsWith('.png') && (!only || f.includes(only)))
   const inB = new Set(fs.readdirSync(dirB).filter(f => f.endsWith('.png')))
@@ -126,6 +156,19 @@ async function runBatch(page, dirA, dirB) {
     if (尺寸变了 || c.档 === 'changed' || (strict && c.档 === 'jitter')) {
       changed.push({ 图: f, 变化: r.hardPixels, 抖动: r.diffPixels - r.hardPixels })
       console.log(`✗ ${f.padEnd(32)} 变化像素 ${r.hardPixels}  抖动 ${r.diffPixels - r.hardPixels}  差异带高 ${c.rows || 0} 行  单通道最大差 ${r.maxChannelDelta}  变化包围盒 ${r.hardBBox ? r.hardBBox.join(',') : '—'}${尺寸变了 ? `  尺寸 ${r.sizeA.join('x')} vs ${r.sizeB.join('x')}` : ''}`)
+      if (why && r.hardBBox && !尺寸变了) {
+        const a64 = b64(path.join(dirA, f))
+        let best = { 位移: '0,0', n: r.hardPixels }
+        for (const [dx, dy] of WHY_SHIFTS) {
+          const shifted = await page.evaluate(SHIFT_FN, [b64(path.join(dirB, f)), dx, dy])
+          const rr = await page.evaluate(DIFF_FN, [a64, shifted, TOL, HARD])
+          if (rr.hardPixels < best.n) best = { 位移: `${dx},${dy}`, n: rr.hardPixels }
+        }
+        const [bx0, by0, bx1, by1] = r.hardBBox
+        const crop = `${Math.max(0, bx0 - 3)},${Math.max(0, by0 - 3)},${bx1 - bx0 + 7},${by1 - by0 + 7},4,/tmp/c.png`
+        console.log(`    └ 归因：${归因(r, best, crop)}`)
+        console.log(`       位移抵消 变化像素 ${r.hardPixels}→${best.n}（最佳位移 ${best.位移}）｜ 带色偏像素 A=${r.chromaA} B=${r.chromaB}｜差异行数 ${r.diffRows}｜幅度 ${r.maxChannelDelta}`)
+      }
     } else if (c.档 === 'jitter') {
       jittered.push({ 图: f, 抖动: r.diffPixels, 带高: c.rows, 单通道最大差: r.maxChannelDelta })
     }

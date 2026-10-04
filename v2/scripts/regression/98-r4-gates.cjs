@@ -481,13 +481,17 @@ check('R4-Ex② ★采集面板那四张的噪声在取景侧消掉，而不是�
     && iPin < t.indexOf('await sc.judge(ovPage, appAccent)')
     && /^\s*await new Promise\(r => ovServer\.listen\(0, '127\.0\.0\.1', r\)\)/m.test(t);
 });
-check('R4-Ex③ ★像素对照要能一次判整归档（逐张起浏览器时 104 张根本没法当门禁跑）：img-diff 的 --batch 分支在位、两侧张数不齐即红、退出码由有变化的张数决定；且逐张算式只有 DIFF_FN 一份——批量与单对共用同一把尺子，getImageData 出现第二次就是有人另抄了一份', () => {
+check('R4-Ex③ ★像素对照要能一次判整归档（逐张起浏览器时 104 张根本没法当门禁跑）：img-diff 的 --batch 分支在位、两侧张数不齐即红、退出码由有变化的张数决定；且逐张算式只有 DIFF_FN 一份——批量、单对、以及 R4-Fd 的位移抵消三处**共用同一把尺子**（调用点 3 个），getImageData 出现第二次就是有人另抄了一份（★R4-Fd 实测被自己咬一次：--why 第一版抄了逐像素循环，这条当场红）', () => {
   const t = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'img-diff.cjs'), 'utf8'));
   return /const DIFF_FN = async/.test(t) && /^\s*async function runBatch\(page, dirA, dirB\) \{$/m.test(t)
     && t.includes("argv.includes('--batch')") && t.includes('张数不齐')
     && /^\s*process\.exit\(changed\.length \|\| 不齐 \? 1 : 0\)$/m.test(t)
     && (t.match(/getImageData/g) || []).length === 1
-    && (t.match(/await page\.evaluate\(DIFF_FN/g) || []).length === 2;
+    /* ★R4-Fd 随迁备案：调用点从 2 个变 3 个——--why 的位移抵消测试**不另抄算式**，而是把 B 平移后
+       再喂给同一把 DIFF_FN（第三个调用点）。这条判据真正在守的是"逐像素算式只有一份"，
+       那由上一行的 getImageData === 1 钉死；调用点数只是"别有人绕过尺子"的旁证，所以随形态改数字，
+       并把 getImageData 那条的优先级写进标题。 */
+    && (t.match(/await page\.evaluate\(DIFF_FN/g) || []).length === 3;
 });
 check('R4-Ex④ ★噪声地板必须是**形状判据**而不是数值放宽：抖动档要求"每个差异像素单通道 ≤HARD"**且**"差异带高 ≤8 行"，两者缺一即算变化；两个阈值都钉死在 6 与 8（实测同构建连采抖动为 3–6/通道、带高 4–6 行；真变化如采集面板那串 URL 是 232/通道、带高 13 行）。把 HARD 调大或把带高去掉，就是把门禁改成"看不见小改动"', () => {
   const t = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'img-diff.cjs'), 'utf8'));
@@ -590,4 +594,30 @@ check('R4-Fc② ★这条链的运行时证据必须真在跑且不许退化成"
     && e.includes("cellOf('card-e2e-fc2') === '资源卡池'") && e.includes("u.includes('/meta/bases/')")
     && e.includes('fields: AT_FIELDS')
     && e.includes("atCells.length > 0") && e.includes("pat: 'pat-e2e-stub-only'");
+});
+
+// ============== R4-Fd 同构建跳变两族归因 + 把"归因"做成尺子的一部分（#130 关闭 / #127 推进） ==============
+console.log('【R4-Fd · 像素 A/B 的噪声轴与归因】');
+check('R4-Fd① ★取景侧两条噪声轴必须钉在脚本里（都是量出来的，不是猜的）：① chromium 参数带 `--disable-lcd-text`——notion-deck-pool-list 同构建两跑差 368 px，位移抵消测试证明几何完全对齐（0,0 最小，平移 1px 反涨到 1,426），而色偏统计是**一侧 376 个像素 |R−B|>3、另一侧 0 个**（平均 4.98 vs 2.94）⇒ 一侧 LCD 子像素、一侧灰度；② calm 的 style 里带 `caret-color:transparent`——notion-ov-search 那一族是 62 px / 只有 1 行 / 幅度 30 / 色偏在一侧，搜索框光标在闪。★两条都只动取景，产品一行没改', () => {
+  const t = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8');
+  return /args:\s*\[[^\]]*'--disable-lcd-text'[^\]]*\]/.test(t)
+    && t.includes('animation:none !important;transition:none !important;caret-color:transparent !important')
+    && t.includes('--hide-scrollbars');
+});
+check('R4-Fd② ★img-diff 必须能自己回答「这张为什么算变化」（--why 两条算式，且**都不许自己读像素**）：① 位移抵消——把 B 在 ±2px 十个方向上各平移一次、**每次重新喂给同一把 DIFF_FN** 数变化像素，非零位移能压到 0,0 的 20% 以下即判「整片挪位置」（实测 linear-st-manual 93,410→1,440 @0,-1 ⇒ #127 那族跳变定性完成：1px 位移，不是内容变）；② 单侧色偏——DIFF_FN 顺手算好的 |R−B|>3 计数，只有一侧有且**幅度 ≤12** 才判渲染模式差，幅度更大判「瞬时态（光标/选区）」。★分界用幅度不用行数：行数这条我错过一次——pool-list 只有 2 行（胶囊上下各一条边线）却确实是渲染模式差', () => {
+  const t = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'img-diff.cjs'), 'utf8'));
+  return t.includes('const WHY_SHIFTS = [[0, 1], [0, -1], [1, 0], [-1, 0], [0, 2], [0, -2], [1, 1], [-1, -1], [2, 0], [-2, 0]]')
+    && /^const SHIFT_FN = async/m.test(t) && /^function 归因\(r, best, crop\) \{$/m.test(t)
+    && t.includes('await page.evaluate(DIFF_FN, [a64, shifted, TOL, HARD])')
+    && t.includes('best.n <= zero * 0.2') && t.includes('oneSided && maxD <= 12')
+    && t.includes('if (Math.abs(d1[i] - d1[i + 2]) > 3) chromaA++')
+    && t.includes('if (Math.abs(d2[i] - d2[i + 2]) > 3) chromaB++')
+    && t.includes("argv.includes('--why')");
+});
+check('R4-Fd③ ★归因只许「多说话」，不许「改判」：--why 必须挂在已经判成「有变化」的分支里（changed.push 在前、归因在后），且**不能动退出码**——一张「整片挪 1px」的图仍然是红（要人拍板是不是布局回退），只是红的时候直接告诉你它红在哪一类。锚三件：changed.push 早于位移循环、退出码那行仍是 `changed.length || 不齐`、兜底分支必须明写「要人看」并给 --crop 坐标（归因不明的图**不许**被判成噪声放过去）', () => {
+  const t = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'img-diff.cjs'), 'utf8'));
+  const iP = t.indexOf('changed.push('), iW = t.indexOf('for (const [dx, dy] of WHY_SHIFTS)'), iE = t.indexOf('process.exit(changed.length || 不齐 ? 1 : 0)');
+  return iP > 0 && iW > iP && iE > iW
+    && t.includes('非位移、非单侧色偏') && t.includes('要人看：--crop=')
+    && /^\s*process\.exit\(changed\.length \|\| 不齐 \? 1 : 0\)$/m.test(t);
 });
