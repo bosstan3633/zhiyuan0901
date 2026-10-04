@@ -484,6 +484,21 @@ async function closeOverlays(page) {
  */
 async function resetView(page) {
   await page.mouse.move(0, 0).catch(() => {}) /* 鼠标挪到左上角空白，清掉卡片 hover 态 */
+  /* ★R4-Ff 修 #127（找了一整轮的那 1px）：`scrollTo(0, 0)` 之后**窗口可以停在 0.5px 上没落定**，
+     于是整页内容 y=47.5 而不是 48 —— 截图就差出「y=58 以下整体挪 1px、93,152 变化像素」。
+     定位靠的是 R4-Fe 的 scene-state：四份全量跑两两成对判，凡是红的那几对都写着
+     `DOM 态：不一致 ⇒ scrollY 0.5→0 ｜ mn-head{y:47.5} → {y:48}`，一次就点到；
+     产品 CSS 里没有 scroll-behavior（grep 全站 0 处）⇒ 不是平滑滚动，是滚动落定与截图抢时间。
+     处置＝取景侧等它落定：最多补五次、每次 60ms，仍不落定就把残值留在 scene-state 里（红的时候能自证）。 */
+  await page.evaluate(async () => {
+    const settle = () => {
+      window.scrollTo(0, 0)
+      const de = document.scrollingElement || document.documentElement
+      if (de && de.scrollTop !== 0) de.scrollTop = 0
+      return window.scrollY
+    }
+    for (let i = 0; i < 5; i++) { if (settle() === 0) break; await new Promise(r => setTimeout(r, 60)) }
+  }).catch(() => {})
   await page.evaluate((calm) => {
     window.scrollTo(0, 0)
     for (const el of Array.from(document.querySelectorAll('*'))) {

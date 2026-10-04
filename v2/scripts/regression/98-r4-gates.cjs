@@ -644,3 +644,13 @@ check('R4-Fe② ★归因不许给假药方：色偏低幅度那一档的文案�
     && id.includes('实测无效（原因与复测记在 theme-audit 的 args 上方）') && id.includes('先看下面那行 DOM 态是否一致')
     && id.includes('瞬时态差（幅度') && id.includes('要人看：--crop=');
 });
+
+// ============== R4-Ff #127 收口：截图前等窗口滚动落定 ==============
+console.log('【R4-Ff · 滚动落定与那 1px】');
+check('R4-Ff① ★截图前必须等窗口滚动落定（#127 那 1px 的成因就是没等）：resetView 里 scrollTo 之后要**读回 window.scrollY、最多补五次、每次 60ms**，并顺手清 scrollingElement 的 scrollTop。★为什么值得钉成判据：四份全量跑两两成对判，`apple-st-manual` 红的那三对都留着同一句现场证据 `DOM 态：不一致 ⇒ scrollY 0.5→0 ｜ mn-head{y:47.5,h:52} → {y:48,h:52}`——不是平滑滚动（全站 grep `scroll-behavior` = 0 处），是滚动落定与截图抢时间；修后再跑三份两两成对，st-manual 三对全 0 差。锚取行首可执行语句 + 一条顺序锚（等落定必须发生在装 calm 之前），别只锚"文件里有 scrollY 这个词"——scene-state 也读 scrollY，那不算等它落定', () => {
+  const ta = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
+  return /^\s*const settle = \(\) => \{$/m.test(ta)
+    && ta.includes('for (let i = 0; i < 5; i++) { if (settle() === 0) break; await new Promise(r => setTimeout(r, 60)) }')
+    && ta.includes('if (de && de.scrollTop !== 0) de.scrollTop = 0')
+    && ta.indexOf('const settle =') > 0 && ta.indexOf('const settle =') < ta.indexOf('__zy_calm__');
+});
