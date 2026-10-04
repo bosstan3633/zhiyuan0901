@@ -1621,6 +1621,159 @@ async function main() {
     mgCardOn && /257/.test(mgStats || '') && mgMapBtn && mgConfirmShown && afterRollback.optOut && afterRollback.reportGone && offBadge && rerunBtn && optOutCleared,
     `卡片=${mgCardOn} 统计="${(mgStats || '').replace(/\s+/g, '').slice(0, 26)}" 清单钮=${mgMapBtn} 确认框=${mgConfirmShown} 停用=${afterRollback.optOut} 报告清=${afterRollback.reportGone} 停用徽标=${offBadge} 重跑钮=${rerunBtn} 解除=${optOutCleared}`)
 
+  // ══════════ E2E-40（R4-Ew）★content 采集面板的「保存」写库链路 ══════════
+  // 此前 theme-audit 只拍了面板的样子（ov-capture 场景），从"点保存"到"卡真进资源卡池"这一段
+  // 在 e2e 与 theme-audit 里都是零触点——保存路径坏了（比如落错台、回执文案变了）视觉门禁照样全绿。
+  // 浮层注入在 http/https 页，扩展页没有它的宿主 ⇒ 与 theme-audit / perf 同一手法起一个本地宿主页。
+  const http = require('http')
+  const capServer = http.createServer((rq, rs) => {
+    rs.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    rs.end('<!doctype html><title>E2E 采集宿主</title><h1>采集浮层宿主</h1><p>用于验证 content 侧保存写库链路。</p>')
+  })
+  await new Promise(r => capServer.listen(0, '127.0.0.1', r))
+  const capPort = capServer.address().port
+  const capPage = await ctx.newPage(); capPage.setDefaultTimeout(20000)
+  await capPage.goto(`http://127.0.0.1:${capPort}/`, { waitUntil: 'load' })
+  await capPage.waitForTimeout(1600)
+  const capTitle = 'E2Ew 采集链路探针'
+  await page.evaluate((t) => chrome.storage.local.get('zy_data_v2').then(cur => {
+    const d = cur['zy_data_v2']; d.resources = (d.resources || []).filter(x => x.title !== t)
+    return chrome.storage.local.set({ zy_data_v2: d })
+  }), capTitle)
+  await worker.evaluate(async (p) => {
+    const tabs = await chrome.tabs.query({ url: `http://127.0.0.1:${p}/*` })
+    if (!tabs[0]) throw new Error('宿主页 tab 未找到')
+    await chrome.tabs.sendMessage(tabs[0].id, { type: 'zy-open-capture' })
+  }, capPort)
+  const capReady = !!(await capPage.waitForSelector('#__zy_cap_ws__', { timeout: 9000 }).catch(() => null))
+  let capToast = '', capRow = { 有卡: false, ws: '无', catEmpty: false, link: '' }, capWsOpt = '', capSelDefault = ''
+  if (capReady) {
+    capSelDefault = await capPage.inputValue('#__zy_cap_ws__').catch(() => '')
+    capWsOpt = (await capPage.evaluate(() => {
+      const s = document.getElementById('__zy_cap_ws__')
+      const o = s && s.options[s.selectedIndex]
+      return o ? o.textContent.trim() : ''
+    })) || ''
+    await capPage.fill('#__zy_cap_title__', capTitle)
+    await capPage.click('#__zy_cap_save__')
+    await capPage.waitForTimeout(1000)
+    capToast = ((await capPage.locator('#__zy_toast__').textContent().catch(() => '')) || '').trim()
+    // ★踩坑记账（本轮第一版就是这么写的，当场 Cannot read properties of undefined (reading 'local')）：
+    // MV3 的 http 宿主页里没有 chrome.storage，写错成 capPage.evaluate((t) => chrome.storage.local.get(...)) 一定取不到库，
+    // 测试取库/写库一律回扩展页 page.evaluate ——这条由判据 R4-Ew② 的负锚守着（所以它必须吃 codeOnly，注释不算代码）。
+    capRow = await page.evaluate((t) => chrome.storage.local.get('zy_data_v2').then(r => {
+      const c = (r['zy_data_v2'].resources || []).find(x => x.title === t)
+      return c ? { 有卡: true, ws: c.workspaceId || '无', catEmpty: !c.categoryId, link: c.link || '' } : { 有卡: false, ws: '无', catEmpty: false, link: '' }
+    }), capTitle)
+    await page.evaluate((t) => chrome.storage.local.get('zy_data_v2').then(cur => {
+      const d = cur['zy_data_v2']; d.resources = (d.resources || []).filter(x => x.title !== t)
+      return chrome.storage.local.set({ zy_data_v2: d })
+    }), capTitle)
+  }
+  await capPage.close(); capServer.close()
+  report('E2E-40 ★R4-Ew content 采集面板真点「保存」：浮层在 http 宿主页唤起、台下拉默认选中池且显示「资源卡池」、保存后回执 toast 出现、卡落库 workspaceId=zy-curation 且分类留空（未归档）',
+    capReady && capSelDefault === 'zy-curation' && capWsOpt.includes('资源卡池') && /已入台/.test(capToast) && capRow.有卡 && capRow.ws === 'zy-curation' && capRow.catEmpty,
+    `唤起=${capReady} 默认台=${capSelDefault} 选项文本=${JSON.stringify(capWsOpt)} toast=${JSON.stringify(capToast)} 落库=${JSON.stringify(capRow)}`)
+
+  // ══════════ E2E-41（R4-Ew）★⌘K 结果行 hover 动作区：三枚钮 + 星标真写库再复原 ══════════
+  // theme-audit 的 gp-search 只数了"hover 露出几枚钮"，没钉**是哪三枚、点了有没有落库**——
+  // 把 title 改错或把 toggleStar 接断，像素层看不出来。词面故意自己种一张探针卡（E2E-38 的教训：
+  // 靠库里现成的卡当锚点，会随库变化而搜不到，那一屏就退化成"什么都没测"）。
+  const gpQ = 'E2Ew 星标探针'
+  await page.evaluate((t) => chrome.storage.local.get('zy_data_v2').then(cur => {
+    const d = cur['zy_data_v2']
+    d.resources = (d.resources || []).filter(r => !String(r.title || '').startsWith(t))
+    d.resources.unshift({ id: 'e2e-ew-star2', kind: 'resource', title: t + ' 乙卡', link: 'https://example.com/ew2', workspaceId: 'zy-curation', categoryId: '', tags: [], starred: false, createdAt: Date.now(), updatedAt: Date.now() })
+    d.resources.unshift({ id: 'e2e-ew-star', kind: 'resource', title: t, link: 'https://example.com/ew', workspaceId: 'zy-curation', categoryId: '', tags: [], starred: false, createdAt: Date.now(), updatedAt: Date.now() })
+    return chrome.storage.local.set({ zy_data_v2: d })
+  }), gpQ)
+  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2200)
+  await paOpen()
+  await page.locator('.gp-search-input').fill(gpQ)
+  await page.waitForTimeout(900)
+  const gpRow = await page.evaluate((t) => {
+    const row = [...document.querySelectorAll('.gp-result-item')].find(r => ((r.querySelector('.gp-ri-title') || {}).textContent || '').includes(t))
+    if (!row) return { found: false, titles: [], actsOpacity: '' }
+    const box = row.querySelector('.gp-ri-actions')
+    return {
+      found: true,
+      titles: [...row.querySelectorAll('.gp-ri-act')].map(b => (b.getAttribute('title') || '').trim()),
+      // 探针行必须"未选中"，它才是 hover 前该隐藏的那个样本（面板默认 selected 落在别的行上）
+      未选中: !row.classList.contains('selected'),
+      actsOpacity: box ? getComputedStyle(box).opacity : '无动作区',
+      全部行: [...document.querySelectorAll('.gp-result-item .gp-ri-title')].map(x => (x.textContent || '').trim()).slice(0, 5),
+    }
+  }, gpQ)
+  await page.locator('.gp-result-item', { hasText: gpQ }).first().hover().catch(() => {})
+  await page.waitForTimeout(350)
+  const gpHover = await page.evaluate((t) => {
+    const row = [...document.querySelectorAll('.gp-result-item')].find(r => ((r.querySelector('.gp-ri-title') || {}).textContent || '').includes(t))
+    const box = row && row.querySelector('.gp-ri-actions')
+    return box ? Number(getComputedStyle(box).opacity) : -1
+  }, gpQ)
+  const gpClickStar = () => page.evaluate((q) => {
+    const row = [...document.querySelectorAll('.gp-result-item')].find(r => ((r.querySelector('.gp-ri-title') || {}).textContent || '').includes(q))
+    const b = row && row.querySelector('.gp-ri-act')          // 第一枚就是星标（.gp-ri-actions 被 tab 条挡住，点 handler 不点坐标）
+    if (b) b.click()
+    return !!b
+  }, gpQ)
+  const gpReadStar = () => page.evaluate((t) => chrome.storage.local.get('zy_data_v2').then(r => {
+    const c = (r['zy_data_v2'].resources || []).find(x => x.title === t); return c ? !!c.starred : '无卡'
+  }), gpQ)
+  await gpClickStar()
+  await page.waitForTimeout(1500)
+  const starAfter = await gpReadStar()
+  await gpClickStar()
+  await page.waitForTimeout(1500)
+  const starBack = await gpReadStar()
+  await page.keyboard.press('Escape').catch(() => {})
+  await page.evaluate((t) => chrome.storage.local.get('zy_data_v2').then(cur => {
+    const d = cur['zy_data_v2']; d.resources = (d.resources || []).filter(x => x.title !== t)
+    return chrome.storage.local.set({ zy_data_v2: d })
+  }), gpQ)
+  report('E2E-41 ★R4-Ew ⌘K 结果行 hover 动作区是真控件不是装饰：资源行三枚钮的 title 齐（星标/删除/打开链接）、hover 才从不透明变可见，点星标**真写库**再点回**真复原**',
+    gpRow.found && gpRow.titles.length === 3 && gpRow.titles.some(x => x.includes('星标')) && gpRow.titles.some(x => x.includes('删除')) && gpRow.titles.some(x => x.includes('打开链接'))
+    && gpRow.未选中 && Number(gpRow.actsOpacity) === 0 && gpHover > 0.9 && starAfter === true && starBack === false,
+    `行=${gpRow.found} 钮=${JSON.stringify(gpRow.titles)} hover 前 opacity=${gpRow.actsOpacity} 面板行=${JSON.stringify(gpRow.全部行)} hover 后=${gpHover} starred: 点后=${JSON.stringify(starAfter)} 复原=${JSON.stringify(starBack)}`)
+
+  // ══════════ E2E-42（R4-Ew）★指标条五格各自下钻的抽屉都真渲染 ══════════
+  // E2E-4 只点过第 5 格（未归档），另外三种抽屉（战略目标明细 / WCE / WRR）在门禁里从没打开过。
+  const DRILLS = [
+    { i: 0, 名: '战略目标', 题: '战略目标 / 推进项目 · 明细', 需计数行: false },
+    { i: 2, 名: 'WCE 探索', 题: 'WCE 好奇探索 · 明细', 需计数行: true },
+    { i: 3, 名: 'WRR 复用', 题: 'WRR 资源复用 · 明细', 需计数行: true },
+    // 未归档这格的行**不挂定位**（挂的是两支归档下拉：选项目→选指标），动作面按 .md-select 判
+    { i: 4, 名: '未归档', 题: '未归档任务 · 待归档清单', 需计数行: false, 动作: 'select' },
+  ]
+  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2200)
+  const drillRes = []
+  for (const dr of DRILLS) {
+    await page.locator('.mb-cell').nth(dr.i).click().catch(() => {})
+    await page.waitForTimeout(900)
+    const one = await page.evaluate((d) => {
+      // 注意取 .drawer-title 而不是 .drawer*：document.querySelector('.drawer, [class*="drawer"]')
+      // 会先命中遮罩 .drawer-overlay（无文本），标题就永远读不到
+      const title = (document.querySelector('.drawer-title') || {}).textContent || ''
+      const rows = document.querySelectorAll('.md-row').length
+      const empty = !!document.querySelector('.md-empty')
+      const tip = !!document.querySelector('.md-tip')
+      const head = !!document.querySelector('.md-head-count')
+      const loc = document.querySelectorAll('.md-go').length
+      const sel = document.querySelectorAll('.md-task .md-select').length
+      return { 名: d.名, 题在: title.includes(d.题), 题: title.trim().slice(0, 30), rows, empty, tip, head, loc, sel }
+    }, dr)
+    drillRes.push({ ...one, 需计数行: dr.需计数行, 动作: dr.动作 })
+    await page.keyboard.press('Escape').catch(() => {})
+    await page.waitForTimeout(500)
+  }
+  const drillOk = drillRes.every(r => r.题在 && r.tip && (r.rows > 0 || r.empty) && (!r.需计数行 || r.head)
+    && (r.动作 === 'select' ? (r.rows === 0 || r.sel === r.rows * 2) : (r.rows === 0 || r.loc === r.rows)))
+  report('E2E-42 ★R4-Ew 指标条四种下钻抽屉各自真渲染（此前只点过第 5 格）：标题对得上、有行或有空态、说明行在、WCE/WRR 带计数行，且每行都挂着自己的动作面（三格=「定位 ›」，未归档=两支归档下拉）',
+    drillOk, drillRes.map(r => `${r.名}:题=${r.题在} 行=${r.rows} 空=${r.empty} tip=${r.tip} 计数=${r.head} 定位=${r.loc} 下拉=${r.sel}`).join(' ｜ '))
+
   await ctx.close()
   const fail = results.filter(r => !r.ok).length
   console.log(`\nE2E 结果：${results.length - fail} 通过 / ${fail} 失败`)

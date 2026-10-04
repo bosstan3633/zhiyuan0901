@@ -442,3 +442,22 @@ check('R4-Ev① ★"祖先段整段判死"这条口径要能独立站住，就�
     && ex('.metric-item.expanded') && ex('.dz-cell.l4') && ex('body .module-title')
     && ex('.picker-item') && ex('.toggle') && ex('.dz-hl');
 });
+
+// ============== R4-Ew 三条运行时触点进 e2e ==============
+console.log('【R4-Ew · 采集保存链路 / hover 动作区 / 下钻抽屉】');
+check('R4-Ew① ★三条"改了没人报"的链各有了一条真点的 e2e：E2E-40 content 采集面板从 http 宿主页唤起、台下拉默认选中池且显示「资源卡池」、真点保存后核 toast 与**落库那张卡的 workspaceId=zy-curation 且分类留空**；E2E-41 ⌘K 结果行动作区三枚钮 title 齐、hover 前 opacity 为 0 后为 1、点星标**真写库**再点回**真复原**；E2E-42 指标条四种下钻抽屉各自真渲染，且每格按**自己的动作面形状**判（三格=每行一个「定位 ›」，未归档=每行两支归档下拉）。锚点一律取判据表达式而非用例标题——标题留在文件里而条件被删掉，是 R4-Dl 那族失效的老形状', () => {
+  const e = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8'));
+  return e.includes("type: 'zy-open-capture'") && e.includes("capSelDefault === 'zy-curation'")
+    && e.includes('/已入台/.test(capToast)') && e.includes('capRow.ws === \'zy-curation\'') && e.includes('capRow.catEmpty')
+    && e.includes('Number(gpRow.actsOpacity) === 0') && e.includes('gpHover > 0.9')
+    && e.includes('starAfter === true && starBack === false')
+    && e.includes('r.sel === r.rows * 2') && e.includes('r.loc === r.rows')
+    && e.includes("题在: title.includes(d.题)");
+});
+check('R4-Ew② ★content 侧用例的两条环境事实必须留在脚本里（本轮各踩一次）：① MV3 的 http 宿主页里**没有 chrome.storage**（浮层自己走消息，测试取库要回扩展页）——所以库读写一律 page.evaluate，出现 capPage.evaluate 里读 chrome.storage 即红；② 宿主页端口用 listen(0) 现取、用完关，不写死端口（写死会撞本机其它服务，且 theme-audit/perf 同一手法各自起）', () => {
+  const e = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8'));
+  return /^\s*await new Promise\(r => capServer\.listen\(0, '127\.0\.0\.1', r\)\)/m.test(e)
+    && e.includes('capServer.close()') && e.includes("await capPage.goto(`http://127.0.0.1:${capPort}/`")
+    && !/capPage\.evaluate\(\(t\) => chrome\.storage/.test(e)
+    && /await page\.evaluate\(\(t\) => chrome\.storage\.local\.get\('zy_data_v2'\)\.then\(r => \{\s*const c = \(r\['zy_data_v2'\]\.resources \|\| \[\]\)\.find\(x => x\.title === t\)/.test(e);
+});
