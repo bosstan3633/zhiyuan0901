@@ -1,0 +1,58 @@
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+dist/
+.workbuddy/git-recovery/
+.workbuddy/memory/
+.workbuddy/
+vite.config.ts.timestamp-*.mjs
+*.timestamp-*.mjs
+知源工作台_V2.12.0.zip
+
+# perf --profile 生成的 CDP 采样报告（归因用，不入库）
+.prof-*.json
+
+# theme-audit.cjs 生成的视觉走查截图（每轮 16 张 ≈1.9M，7 轮就是 13M+；工具在库内、
+# 数据由真实备份注入 ⇒ 任何时候都能一条命令重放，属派生件，不入库）
+docs/视觉归档/
+
+# 上一版构建产物（同机 A/B 的参照包，`perf.cjs --dist=<目录>` 用；二进制派生件，不入库）
+v2/dist_*/
+
+# R156 设计期临时产物（色值迭代脚本 / 采样副本 / 归档对照脚本）—— 结论已落进交付说明与门禁脚本
+v2/.r156/
+
+# R172 性能 A/B 复采台架（B1 待静置时段，脚本为一次性量具）——同 .r156 惯例
+v2/.r171/
+
+# ===== ↑ 以上同步自 .gitignore（「从 .gitignore 同步」只重写以上部分）=====
+.git/
+.hg/
+.svn/
+bower_components/
+jspm_packages/
+__pycache__/
+site-packages/
+venv/
+coverage/
+htmlcov/
+lcov-report/
+cmakefiles/
+cmake-build-*/
+bazel-*/
+pods/
+deriveddata/
+storybook-static/
+playwright-report/
+test-results/
+allure-results/
+allure-report/
+cdk.out/
+*.egg-info/
+*.dist-info/
+eggs/
+pip-wheel-metadata/
+wheels/
+# ----- ↑ 以上为 ZCode 默认排除规则（自定义规则请写在本行下方，不会被同步/恢复改动）-----
+# 自定义规则写在下方（本行提示可删除）

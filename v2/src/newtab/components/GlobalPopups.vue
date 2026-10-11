@@ -256,12 +256,15 @@
             <!-- V3.7.0（R179）：资源台退役——采集统一入资源卡池，标签由「保存后补全」AI 建议（可保存后编辑） -->
             <div class="gp-field">
               <label class="gp-field-label">存入</label>
-              <div class="gp-status-select" style="display:flex;align-items:center;gap:6px;">🗂 资源卡池<span style="color:var(--text-tertiary);font-size:11px;">· 标签保存后可补</span></div>
+              <div class="gp-status-select" style="display:flex;align-items:center;gap:6px;">🗂 资源卡池<span style="color:var(--text-tertiary);font-size:11px;">· 标签保存后自动补</span></div>
             </div>
           </div>
         </div>
         <div class="gp-cap-foot">
-          <label class="gp-cap-enrich" title="保存成功后自动打开 AI 补全评审（勾选采纳才写库）"><input type="checkbox" v-model="capEnrichOn" @change="capEnrichSave" /> <AiEntryButton variant="inline" label="保存后补全" /></label>
+          <!-- W4（V3.8.4）：「保存后补全」默认开——新卡入库自动预打标（AI 建议，勾选采纳才写库）。
+               默认值由 config.ts 的一次性迁移接管（存量 false → true 一次；用户关掉后一直尊重），
+               这里只保留开关本体与说明，不再改标签措辞。 -->
+          <label class="gp-cap-enrich" title="保存成功后自动打开 AI 补全评审（勾选采纳才写库）；W4 起默认开——新卡入库自动预打标"><input type="checkbox" v-model="capEnrichOn" @change="capEnrichSave" /> <AiEntryButton variant="inline" label="保存后补全" /></label>
           <button class="gp-btn gp-btn-ghost" @click="closeAll">取消</button>
           <button class="gp-btn gp-btn-primary" @click="saveCapture">💾 保存（Ctrl+Enter）</button>
         </div>
@@ -1706,7 +1709,7 @@ const aiEnrichJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
 const aiAdviceJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
 const gpAiJob = computed(() => aiEnrichJob.value || aiAdviceJob.value)
 function gpAiJobClose() { aiEnrichJob.value = null; aiAdviceJob.value = null }
-const capEnrichOn = ref(false)
+const capEnrichOn = ref(true)
 const capEnrichReady = ref(false)
 let lastEnrichCard: ResourceCard | null = null
 async function runCardEnrich(card: ResourceCard) {

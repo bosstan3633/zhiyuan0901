@@ -29,18 +29,21 @@ export interface AiConfig {
   personas: AiPersonaCfg[]
   /** R137 自建专家列表 */
   customPersonas: AiCustomPersona[]
-  /** R138-H1′：采集保存后自动跑「补全建议」（评审抽屉勾选采纳才写库；默认关） */
+  /** R138-H1′：采集保存后自动跑「补全建议」（评审抽屉勾选采纳才写库）。
+   *  W4（V3.8.4）起默认开——新卡入库自动预打标（AI 建议，采纳才写库）；见 loadAiConfig 的一次性迁移。 */
   captureEnrich: boolean
   /** R141（反馈 #2）：拆解/生成/优化等场景的默认执笔专家 id（'' / 'default' = 场景内置角色） */
   defaultPersona: string
 }
 
 const DEFAULTS: AiConfig = {
-  baseUrl: '', apiKey: '', model: '', depth: 'std', aboutMe: '', personas: [], customPersonas: [], captureEnrich: false, defaultPersona: '',
+  baseUrl: '', apiKey: '', model: '', depth: 'std', aboutMe: '', personas: [], customPersonas: [], captureEnrich: true, defaultPersona: '',
 }
 
 const raw = ref<AiConfig>({ ...DEFAULTS })
 const loaded = ref(false)
+/** W4（V3.8.4）：captureEnrich 一次性迁移已跑过的戳（存独立键，不进 AppData / 不随备份外发） */
+const CAPTURE_ENRICH_MIGRATED_KEY = K.AI_CAPTURE_ENRICH_MIGRATED
 
 /**
  * 惰性加载一次（多处并发调用只读一回盘）；不挂 App.vue 启动链。
@@ -58,12 +61,36 @@ export async function loadAiConfig(): Promise<AiConfig> {
     if (s && typeof s === 'object') {
       raw.value = { ...DEFAULTS, ...s }
       loaded.value = true
+      await migrateCaptureEnrichDefault()
     }
   } catch { /* 读不到按默认值（本机工具，静默回落），且下次仍会重试 */ }
   return raw.value
 }
 
 export const aiConfig = raw
+
+/**
+ * W4（V3.8.4）：`captureEnrich` 语义从 opt-in 翻成「默认开」的一次性迁移。
+ *
+ * 为什么必须迁移而不是简单改 DEFAULTS：存量库里这个键几乎都是 `false`（旧默认），
+ * 直接改默认值对他们是空话——老用户永远停在关闭态，新卡入库自动预打标根本不会触发。
+ * 而若在读取时粗暴地 `!== false` 强制开回来，则**用户主动关掉的开关每次唤起采集面板都会被翻回开**，
+ * 「可一键关掉」的承诺当场作废。
+ *
+ * 所以只做一次：没跑过迁移戳时，把 `false` 翻成 `true` 并落盘，同时打上迁移戳。
+ * 之后（有戳）一律尊重存量值——用户关掉就一直是关的。存量已是 `true` 的（主动开过的）原样保留。
+ */
+async function migrateCaptureEnrichDefault(): Promise<void> {
+  try {
+    const stamped = await chrome.storage.local.get(CAPTURE_ENRICH_MIGRATED_KEY)
+    if (stamped?.[CAPTURE_ENRICH_MIGRATED_KEY]) return
+    if (raw.value.captureEnrich === false) {
+      raw.value = { ...raw.value, captureEnrich: true }
+      await persistAiConfig()
+    }
+    await chrome.storage.local.set({ [CAPTURE_ENRICH_MIGRATED_KEY]: true })
+  } catch { /* 满盘等异常静默——下次 load 会重试；打不上戳只是这次迁移不生效，不阻断读配置 */ }
+}
 
 export function patchAiConfig(p: Partial<AiConfig>) {
   raw.value = { ...raw.value, ...p }

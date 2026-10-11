@@ -82,17 +82,20 @@ check('R4-Dm ★算式本体仍是唯一判池的地方：`resourceLocateRoute` 
     && !codeOnly(read('/newtab/components/GlobalPopups.vue')).includes('/workspace/${CURATION_WS_ID}')
     && !codeOnly(read('/newtab/components/compass/MetricDrillDrawer.vue')).includes('/workspace/${');
 });
-check('R4-Dm ★采集浮层的「存入位置」下拉不许再让隐藏池冒充一枚台面：实测存量库里那枚 hub 实体排在 workspaces[0]，改前下拉第一项直接印退役实体名「资源台」且是默认选中（手册明写"照那句话去找是找不到的"，结果用户在采集面板里找到了它）；现在台名走 wsName.ts 单源、池那一枚显示 POOL_DISPLAY_NAME，旧文案「存入台面」不许回流 · ★R4-Ep 随迁带备案：选项文本来自单源，判池与剥图标两条从正锚翻成负锚（不许在消费者里抄第二份算式），三条旧腿一条不少', () => {
-  /* R4-Ep 随迁（备案）：这一栏的选项文本改由 selectableWsOptions 一处给出——原判据的两条正向锚点
-     （在这里判池、在这里剥图标）翻成负锚点：同一份算式不许在消费者里抄第二份；
-     「存入位置/无退役名/无裸 w.name 模板」三条腿一条不少。 */
+check('R4-Dm ★采集浮层的「存入」不许再让隐藏池冒充一枚台面：R4-Dm 初版钉的是台/分类双下拉的单源与池项显示名（workspaces[0] 曾把退役实体名「资源台」印成默认项）；W4（V3.8.4）把这两枚下拉整体退役——统一入资源卡池，改静态 .zy-cap-pool 池提示行，落点在 saveCapture 里写死 CURATION_WS_ID。判据随之翻面：下拉结构不许回流（负锚），池提示行与入池写死是正锚（「存入」一栏仍在、回执仍带单源池名）。★R4-Ep 随迁带备案：选项文本单源的负锚改成「下拉已整体退役」这一条，池/分类/台名的第二份算式一律不许在消费者里重建', () => {
+  /* W4（V3.8.4）随迁备案：本判据的旧形态（selectableWsOptions(d?.workspaces) / escapeHtml(o.label) /
+     池项显示 POOL_DISPLAY_NAME 的下拉选项）随两枚下拉一并退役。取而代之的是三条：
+     ① 负锚：#__zy_cap_ws__ / #__zy_cap_cat__ 两个 id 与 option-workspace 模板结构不许回流；
+     ② 正锚：静态池提示行 .zy-cap-pool 在位（含 POOL_DISPLAY_NAME 文案）；
+     ③ 正锚：saveCapture 落点写死 CURATION_WS_ID、categoryId 留空。
+     三条一条不少，旧文案「存入台面」继续不许回流。 */
   const ov = codeOnly(read('/content/overlay-impl.ts'));
-  const i = ov.indexOf('__zy_cap_ws__');
-  const seg = ov.slice(Math.max(0, i - 700), i + 700);
-  return i > 0 && ov.includes('selectableWsOptions(d?.workspaces)') && seg.includes('escapeHtml(o.label)')
-    && !seg.includes('w.id === CURATION_WS_ID ? POOL_DISPLAY_NAME') && !seg.includes('wsDisplayNameOf(w)')
-    && seg.includes('存入位置') && !ov.includes('存入台面</label>')
-    && !/option value="\$\{escapeHtml\(w\.id\)\}">\$\{escapeHtml\(w\.name\)\}/.test(seg) && !seg.includes('workspaces?.filter((w: any) => !w.archived)');
+  return !ov.includes('__zy_cap_ws__') && !ov.includes('__zy_cap_cat__')
+    && !/option value="\$\{escapeHtml\(w\.id\)\}"/.test(ov) && !ov.includes('selectableWsOptions(d?.workspaces)')
+    && ov.includes('zy-cap-pool') && ov.includes('资源卡池')
+    && ov.includes('workspaceId: CURATION_WS_ID') && ov.includes("categoryId: ''")
+    && !ov.includes('存入台面</label>')
+    && !ov.includes('workspaces?.filter((w: any) => !w.archived)');
 });
 check('R4-Dm ★"取 workspaces[0] 当默认落点"这一族形状必须逐处登记理由（R4-Pa/R4-Dk 两条实测都栽在它上面：默认库第一枚是「事业策展台」、存量库第一枚是隐藏池，同一个动作在两种库形状下落进不同的地方）：现扫条数与登记表不符即红', () => {
   const REG = {
@@ -119,19 +122,19 @@ check('R4-Dm ★"取 workspaces[0] 当默认落点"这一族形状必须逐处�
 
 // ============== R4-En content 浮层进视觉门禁（#115） ==============
 console.log('【R4-En · content 浮层场景】');
-check('R4-En ★两个 content 浮层终于有像素门禁：theme-audit 必须有 ov-capture（采集面板）与 ov-search（网页 ⌘K）两条场景，且都在**宿主页**上拍（浮层只注入 http/https 页，扩展页里拍到的是空文档），任一判据不过即非零退出。起因是 R4-Dm 在采集下拉里量出一枚本该不可达的退役台面「资源台」且它是默认项——那件事只有真开一次浮层看得见，而 e2e 驱动采集浮层 0 条、本脚本此前浮层场景 0 条', () => {
+check('R4-En ★两个 content 浮层终于有像素门禁：theme-audit 必须有 ov-capture（采集面板）与 ov-search（网页 ⌘K）两条场景，且都在**宿主页**上拍（浮层只注入 http/https 页，扩展页里拍到的是空文档），任一判据不过即非零退出。起因是 R4-Dm 在采集下拉里量出一枚本该不可达的退役台面「资源台」且它是默认项——那件事只有真开一次浮层看得见，而 e2e 驱动采集浮层 0 条、本脚本此前浮层场景 0 条。★W4（V3.8.4）随迁：采集面板的两枚下拉退役，就绪锚从 #__zy_cap_ws__ 换成保存钮 #__zy_cap_save__（msg 仍是 zy-open-capture，不变）', () => {
   const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
   const i1 = t.indexOf("id: 'ov-capture'");
   const i2 = t.indexOf("id: 'ov-search'");
   return i1 > 0 && i2 > i1
-    && t.includes("msg: 'zy-open-capture'") && t.includes("ready: '#__zy_cap_ws__'")
+    && t.includes("msg: 'zy-open-capture'") && t.includes("ready: '#__zy_cap_save__'")
     && t.includes("msg: 'zy-open-search'") && t.includes("ready: '#__zy_si__'")
     && t.includes('chrome.tabs.sendMessage') && t.includes('ovServer.listen')
     && t.includes('if (!ovPage) { ovPage = await ctx.newPage()')
     && t.includes('if (overlayFail.length)') && /overlayFail\.length\) \{\s*console\.log\(`❌ content 浮层判据未过/.test(t)
     && t.includes('DASH_SCENES.length + OVERLAY_SCENES.length');
 });
-check('R4-En ★采集面板的判据钉的是形状不是条数：真实库里可见台可能只剩一枚（实测台选项=["资源卡池"]，其它台已归档），所以条数不是判据；判据是「选项文本非空 + 全站不许再出现退役实体名『资源台』+ 池那一枚必须显示单源名『资源卡池』+ 同类控件底色只能有一种 + 浮层强调色必须与应用内 --accent 同值（两端各写一份主题映射，早晚会漂）」。第一版我写了 opts.length >= 2，真库当场假红——这条把那个错也钉住', () => {
+check('R4-En ★采集面板的判据钉的是形状不是条数：真实库里可见台可能只剩一枚（改前实测台选项=["资源卡池"]，其它台已归档），所以条数从来不是判据。★W4（V3.8.4）随迁：两枚下拉退役，判据从「选项文本非空 + 无退役名 + 池项显示单源名」翻面成「静态池提示行 .zy-cap-pool 在且含资源卡池 + 两个下拉 id 负锚不在」；同类控件底色只能有一种 + 浮层强调色与应用内 --accent 同值两条腿不动（它们守的是主题映射会漂这件事，与下拉存废无关）', () => {
   const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
   const i = t.indexOf("id: 'ov-capture'");
   const seg = t.slice(i, t.indexOf("id: 'ov-search'"));
@@ -139,9 +142,11 @@ check('R4-En ★采集面板的判据钉的是形状不是条数：真实库里�
      用 indexOf('return { ok') 会切到它前面、得到空串，而"切片为空"在 includes 下会恒真 */
   const iOk = seg.indexOf('const ok =')
   const okExpr = seg.slice(iOk, seg.lastIndexOf('return {'))
-  return i > 0 && iOk > 0 && okExpr.length > 40 && seg.includes("poolOpt.t === '资源卡池'") && seg.includes("t.includes('资源台')")
-    && okExpr.includes('opts.length >= 1') && okExpr.includes('opts.every(t => t.length > 0)')
-    && !okExpr.includes('opts.length >= 2') && okExpr.includes('bgs.length === 1') && okExpr.includes('accent === exp')
+  return i > 0 && iOk > 0 && okExpr.length > 40
+    && seg.includes("poolText.includes('资源卡池')") && seg.includes('wsGone') && seg.includes('catGone')
+    && okExpr.includes('!!poolRow') && okExpr.includes('wsGone') && okExpr.includes('catGone')
+    && okExpr.includes('bgs.length === 1') && okExpr.includes('accent === exp')
+    && !okExpr.includes('opts.length >= 2')
     && seg.includes("document.getElementById('__zy_global_overlay__')");
 });
 check('R4-En ★网页 ⌘K 浮层的三条像素事实必须在位：真开 + 结果行 ≥1 + 高亮节点存在 + 输入框不吃白底（透明随面板或等于面板底色）+ 不越视口；检索词面从注入库里第一张卡的标题现取前 4 字——写死词会随库变化而搜不到，那一屏就退化成空态图而判据还会绿（R4-Dl 同一条纪律在浮层上的落地）', () => {
@@ -167,7 +172,9 @@ check('R4-Ep ★「用户可选台列表」只许有一处构造：selectableWsO
   return iSel > 0 && iBr > iSel
     && bodySel.includes('{ id: CURATION_WS_ID, label: POOL_DISPLAY_NAME, pool: true }') && bodySel.includes('...boardWsOptions(workspaces)')
     && bodyBr.includes('w.id !== CURATION_WS_ID && !w.archived') && bodyBr.includes('wsNameWithIcon(w.icon, wsDisplayNameOf(w))')
-    && codeOnly(read('/content/overlay-impl.ts')).includes('selectableWsOptions(d?.workspaces)')
+    /* ★W4（V3.8.4）随迁：content 采集浮层的台/分类两枚下拉整体退役（统一入资源卡池，落点写死 CURATION_WS_ID），
+       于是它不再是 selectableWsOptions 的消费者——单源的正锚改由应用内 CuriosityPanel 承接（那条下拉仍在）。
+       overlay 侧改钉负锚：不许再自己 filter 原始数组当"可选台列表"。 */
     && codeOnly(read('/newtab/components/compass/CuriosityPanel.vue')).includes('selectableWsOptions(store.data!.workspaces)')
     && codeOnly(read('/newtab/composables/useWorkspaceBatch.ts')).includes('boardWsOptions(d.value.workspaces)')
     // 负判据（走 codeOnly，注释里留着历史说明）：三处都不许再自己 filter 原始数组当"可选台列表"
@@ -447,10 +454,11 @@ check('R4-Ev① ★"祖先段整段判死"这条口径要能独立站住，就�
 
 // ============== R4-Ew 三条运行时触点进 e2e ==============
 console.log('【R4-Ew · 采集保存链路 / hover 动作区 / 下钻抽屉】');
-check('R4-Ew① ★三条"改了没人报"的链各有了一条真点的 e2e：E2E-40 content 采集面板从 http 宿主页唤起、台下拉默认选中池且显示「资源卡池」、真点保存后核 toast 与**落库那张卡的 workspaceId=zy-curation 且分类留空**；E2E-41 ⌘K 结果行动作区三枚钮 title 齐、hover 前 opacity 为 0 后为 1、点星标**真写库**再点回**真复原**；E2E-42 指标条四种下钻抽屉各自真渲染，且每格按**自己的动作面形状**判（三格=每行一个「定位 ›」，未归档=每行两支归档下拉）。锚点一律取判据表达式而非用例标题——标题留在文件里而条件被删掉，是 R4-Dl 那族失效的老形状', () => {
+check('R4-Ew① ★三条"改了没人报"的链各有了一条真点的 e2e：E2E-40 content 采集面板从 http 宿主页唤起、池提示行显示「资源卡池」且两枚下拉已退役、真点保存后核 toast 与**落库那张卡的 workspaceId=zy-curation 且分类留空**；E2E-41 ⌘K 结果行动作区三枚钮 title 齐、hover 前 opacity 为 0 后为 1、点星标**真写库**再点回**真复原**；E2E-42 指标条四种下钻抽屉各自真渲染，且每格按**自己的动作面形状**判（三格=每行一个「定位 ›」，未归档=每行两支归档下拉）。锚点一律取判据表达式而非用例标题——标题留在文件里而条件被删掉，是 R4-Dl 那族失效的老形状', () => {
   const e = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8'));
-  return e.includes("type: 'zy-open-capture'") && e.includes("capSelDefault === 'zy-curation'")
-    && e.includes('/已入台/.test(capToast)') && e.includes('capRow.ws === \'zy-curation\'') && e.includes('capRow.catEmpty')
+  return e.includes("type: 'zy-open-capture'") && e.includes("capPoolText.includes('资源卡池')")
+    && e.includes('capDropGone') && e.includes('/资源卡池/.test(capToast)')
+    && e.includes('capRow.ws === \'zy-curation\'') && e.includes('capRow.catEmpty')
     && e.includes('Number(gpRow.actsOpacity) === 0') && e.includes('gpHover > 0.9')
     && e.includes('starAfter === true && starBack === false')
     && e.includes('r.sel === r.rows * 2') && e.includes('r.loc === r.rows')
@@ -462,6 +470,31 @@ check('R4-Ew② ★content 侧用例的两条环境事实必须留在脚本里�
     && e.includes('capServer.close()') && e.includes("await capPage.goto(`http://127.0.0.1:${capPort}/`")
     && !/capPage\.evaluate\(\(t\) => chrome\.storage/.test(e)
     && /await page\.evaluate\(\(t\) => chrome\.storage\.local\.get\('zy_data_v2'\)\.then\(r => \{\s*const c = \(r\['zy_data_v2'\]\.resources \|\| \[\]\)\.find\(x => x\.title === t\)/.test(e);
+});
+
+// ============== W4 需求 #5 资源卡标签体系（V3.8.4） ==============
+console.log('【W4 · 网页浮层入池对齐 + 保存后自动预打标】');
+check('W4-1 ★网页浮层采集与应用内对齐（V3.8.4 用户拍板③「顺手清掉」）：overlay 采集的「存入」两枚下拉（台面 #__zy_cap_ws__ / 分类 #__zy_cap_cat__）整体退役，改静态池提示行 .zy-cap-pool，落点在 saveCapture 里写死 CURATION_WS_ID 且 categoryId 留空（R179 定案：池卡只由标签组织，没有分类）。回执只报「已入 资源卡池」，「未归档 · 去归位」一支随之退役。三条负锚钉死回流：不许出现两个下拉 id、不许 selectableWsOptions、不许重新 filter 原始 workspaces。★负锚纪律（R166/codeOnly）：负判据先剥注释再比——退役注释里按纪律必须留 selectableWsOptions / 未归档等旧词当知识锚，剥完才算残留；「未归档」那条额外收进 saveCapture 资源采集体（fnBody 已剥离注释），因为它在任务采集体（另一条链路，L1632 附近）里仍然合法存活，不能全仓负锚。', () => {
+  const raw = read('/content/overlay-impl.ts');
+  const ov = codeOnly(raw);
+  const saveFn = fnBody(raw, 'async function saveCapture(', '/** 采集去重确认视图');
+  return !ov.includes('__zy_cap_ws__') && !ov.includes('__zy_cap_cat__')
+    && !ov.includes('selectableWsOptions') && !ov.includes('workspaces?.filter((w: any) => !w.archived)')
+    && ov.includes('zy-cap-pool') && ov.includes('POOL_DISPLAY_NAME')
+    && ov.includes('workspaceId: CURATION_WS_ID') && ov.includes("categoryId: ''")
+    && saveFn.includes('已入 ${POOL_DISPLAY_NAME} · Enter 打开看板')
+    && !saveFn.includes('未归档 · Enter 去归位');
+});
+check('W4-2 ★保存后自动预打标（用户拍板①）：captureEnrich 的语义从 opt-in 翻成「默认开」——新卡入库自动 AI 建议标签，采纳才写库（不动「AI 不替决策」红线）。存量库里存着旧默认 false，若直接覆盖 ref 会让老用户永远停在关闭态；若读取时粗暴 `!== false` 强制开回来，用户主动关掉的开关每次唤起都被翻回开。所以走一次性迁移：没跑过戳时把 false→true 落盘并打迁移戳，之后一律尊重存量值。config.ts 三件套（默认 true / 迁移戳常量 / migrateCaptureEnrichDefault）+ GlobalPopups 的 ref(true) 与迁移后的值读取，缺一即红', () => {
+  const cfg = codeOnly(read('/shared/ai/config.ts'));
+  const gp = codeOnly(read('/newtab/components/GlobalPopups.vue'));
+  return cfg.includes('captureEnrich: true') && cfg.includes('CAPTURE_ENRICH_MIGRATED_KEY')
+    && cfg.includes('migrateCaptureEnrichDefault') && cfg.includes('captureEnrich === false')
+    && cfg.includes('captureEnrich: true }') && cfg.includes('MIGRATED_KEY]: true')
+    && cfg.includes('await migrateCaptureEnrichDefault()')
+    && gp.includes('const capEnrichOn = ref(true)')
+    && gp.includes('capEnrichOn.value = m.aiConfig.value.captureEnrich')
+    && !gp.includes('captureEnrich !== false');
 });
 
 // ============== R4-Ex 让像素 A/B 能当门禁（#120 的③ / #125） ==============

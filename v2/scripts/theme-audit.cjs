@@ -395,7 +395,7 @@ async function overlayOpen(page) {
  */
 const OVERLAY_SCENES = [
   {
-    id: 'ov-capture', name: '采集面板', msg: 'zy-open-capture', ready: '#__zy_cap_ws__',
+    id: 'ov-capture', name: '采集面板', msg: 'zy-open-capture', ready: '#__zy_cap_save__',
     /* ★R4-Ex：取景前把「链接」框钉成常量。噪声源实测在 `overlay-impl.ts:1418`
        （`linkInput.value = location.href`）——宿主页服务用 listen(0) 现取端口，端口号被印进画面，
        于是这四张 `*-ov-capture` 每次跑都不同（R4-Ev 量到 261 px/张，正好压在同构建噪声地板 305 px 之下，
@@ -411,23 +411,20 @@ const OVERLAY_SCENES = [
       const toRgb = (v) => { const sp = document.createElement('span'); sp.style.color = v; document.body.appendChild(sp); const c = getComputedStyle(sp).color; sp.remove(); return c }
       if (!panel) return { ok: false, txt: '面板没渲染' }
       const pr = panel.getBoundingClientRect()
-      const sel = document.getElementById('__zy_cap_ws__')
-      const cats = document.getElementById('__zy_cap_cat__')
+      // W4（V3.8.4）：采集「存入」下拉已退役——统一入资源卡池，改静态 .zy-cap-pool 池提示行。
+      // 判据翻转：正向钉池提示行在、文本对；负向钉两枚下拉（#__zy_cap_ws__ / #__zy_cap_cat__）不许回流。
+      const poolRow = panel.querySelector('.zy-cap-pool')
+      const poolText = poolRow ? (poolRow.textContent || '').trim() : ''
+      const wsGone = !document.getElementById('__zy_cap_ws__')
+      const catGone = !document.getElementById('__zy_cap_cat__')
       const ctrls = [...panel.querySelectorAll('input, select, textarea')]
       const bgs = [...new Set(ctrls.map(c => getComputedStyle(c).backgroundColor))]
-      const optList = sel ? [...sel.options].map(o => ({ v: o.value, t: (o.textContent || '').trim() })) : []
-      const opts = optList.map(o => o.t)
       const accent = toRgb((getComputedStyle(root).getPropertyValue('--zy-accent') || '').trim() || '#000')
-      const retired = opts.filter(t => t.includes('资源台'))
-      /* ★真实库里用户可能只剩一枚可见台（实测：其它台已归档），所以条数不是判据；
-         判据是形状：选项文本非空、不得出现退役实体名、池那一枚必须显示「资源卡池」。 */
-      const poolOpt = optList.find(o => o.v === 'zy-curation')
       const ok = Number(getComputedStyle(panel).opacity) > 0.9 && pr.width > 320 && pr.right <= window.innerWidth + 1 && pr.left >= 0
-        && opts.length >= 1 && opts.every(t => t.length > 0) && retired.length === 0
-        && !!poolOpt && poolOpt.t === '资源卡池'
-        && !!cats && cats.options.length >= 1 && bgs.length === 1
+        && !!poolRow && poolText.includes('资源卡池')
+        && wsGone && catGone && bgs.length === 1
         && !!document.getElementById('__zy_cap_save__') && accent === exp
-      return { ok, txt: `宽=${Math.round(pr.width)} 越界=${Math.round(pr.right - window.innerWidth)}px 台选项=${JSON.stringify(opts)} 池项=${poolOpt ? poolOpt.t : '无'} 退役名残留=${retired.length} 分类项=${cats ? cats.options.length : 0} 控件底色=${bgs.length}种/${bgs[0] || '无'} 浮层accent==应用accent=${accent === exp}(${accent})` }
+      return { ok, txt: `宽=${Math.round(pr.width)} 越界=${Math.round(pr.right - window.innerWidth)}px 池行=${poolRow ? '有' : '无'} 池文本=${JSON.stringify(poolText.slice(0, 40))} 台下拉已删=${wsGone} 分类下拉已删=${catGone} 控件底色=${bgs.length}种/${bgs[0] || '无'} 浮层accent==应用accent=${accent === exp}(${accent})` }
     }, expectAccent)
   },
   {

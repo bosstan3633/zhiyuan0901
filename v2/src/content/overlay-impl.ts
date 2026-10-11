@@ -11,9 +11,8 @@
 
 import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { K } from '@/shared/storage/keys'
-import { wsDisplayNameOf, POOL_DISPLAY_NAME, selectableWsOptions } from '@/shared/utils/wsName'
+import { wsDisplayNameOf, POOL_DISPLAY_NAME } from '@/shared/utils/wsName'
 import { CURATION_WS_ID } from '@/shared/models'
-import { buildCatOptions } from '@/shared/utils/catTree'
 import { detachTaskFromMetrics } from '@/shared/utils/taskLinks'
 // R128-A4：打开链接走统一口径（含 javascript:/data:/vbscript:/blob: 伪协议黑名单）
 import { toOpenableUrl } from '@/shared/utils/link'
@@ -249,6 +248,9 @@ function injectStyles() {
     .zy-cur-src{margin-top:6px;font-size:var(--zy-fs-xs);color:var(--zy-text-2);background:var(--zy-bg-2);border:1px dashed var(--zy-border);border-radius:7px;padding:5px 9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .zy-cap-foot{display:flex;gap:10px;padding:12px 20px;border-top:1px solid var(--zy-border);background:var(--zy-bg-2);}
     .zy-cap-boundary{font-size:var(--zy-fs-xs);line-height:1.5;color:var(--zy-text-3);padding:8px 20px 0;}
+    /* W4（V3.8.4）：采集「存入」行改静态池提示（台面/分类两下拉退役）——与应用内 gp-status-select 同形态：不可点、随主题、说清去向 */
+    .zy-cap-pool{display:flex;align-items:center;gap:6px;padding:9px 12px;border:1px solid var(--zy-border);border-radius:10px;font-size:var(--zy-fs-sm);color:var(--zy-text);background:var(--zy-bg-2);}
+    .zy-cap-pool-sub{font-size:var(--zy-fs-xs);color:var(--zy-text-3);}
     .zy-btn{padding:8px 16px;border-radius:9px;font-size:var(--zy-fs-sm);font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;border:1px solid transparent;display:inline-flex;align-items:center;gap:6px;}
     .zy-btn-ghost{background:var(--zy-bg);border-color:var(--zy-border);color:var(--zy-text-2);}
     .zy-btn-ghost:hover{border-color:var(--zy-border-strong);color:var(--zy-text);}
@@ -1340,12 +1342,9 @@ async function openCapture() {
     const fp = normalizeUrl(r.link)
     if (!capUrlMap.has(fp)) capUrlMap.set(fp, r)
   }
-  // R4-Ep：「存入位置」列表与新卡默认落点走 wsName.ts 单源——改前这里自己 filter 原始数组再取 [0]，
-  // 存量库第一枚恰是那枚 hub 实体（歪打正着落池），新库第一枚是策展台（同一个动作落进台里）。
-  const wsOptions = selectableWsOptions(d?.workspaces)
-  const defaultWsId = wsOptions[0]?.id || ''
-  // R117（04-61 A）：分类口径统一——过滤软删（原实现漏了 deletedAt，软删分类会以「幽灵项」留存在下拉里）
-  const categories = buildCatOptions(d?.categories?.filter((c: any) => c.workspaceId === defaultWsId) || [], { sep: ' / ' })
+  // W4（V3.8.4）：R179 漏网清账——原「存入位置」下拉与「分类」下拉整体退役。
+  // 单源纪律随迁：台面选择走 selectableWsOptions 那一段（R4-Dm/R4-Ep 钉过）已无消费者，
+  // 分类构建（R117 软删过滤）也随之退役；采集统一入池，标签由「保存后补」承接。
   const selection = getSelectionText()
 
   openOverlay('corner', closeOverlay)
@@ -1380,21 +1379,12 @@ async function openCapture() {
         <textarea class="zy-field-input" id="__zy_cap_desc__" placeholder="对该资源的注解、摘录、引用…">${escapeHtml(selection)}</textarea>
       </div>
       <div class="zy-field-row">
+        <!-- W4（V3.8.4）：R179 漏网清账——网页浮层采集此前还在「选台面 + 选分类」，
+             与应用内采集（统一入池 + 标签保存后可补）不一致。本行改为单行静态提示，
+             与 GlobalPopups 采集面板的「存入」行同形态；saveCapture 里 workspaceId 固定池 id、categoryId 置空。 -->
         <div class="zy-field">
-          <label class="zy-field-label">存入位置</label>
-          <select class="zy-field-select" id="__zy_cap_ws__">
-            ${/* R4-Dm→R4-Ep：选项文本与新卡默认落点都来自 wsName.ts 的 selectableWsOptions——
-                  池那一枚不许再以退役实体名「资源台」出现（V3.7.0 起所有资源卡真身住池，它就是这一栏的默认落点，
-                  只是不该冒充一枚"台面"），也不许在这里再抄一份"判池 + 剥图标"的算式。 */ ''}
-            ${wsOptions.map((o: any) => `<option value="${escapeHtml(o.id)}">${escapeHtml(o.label)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="zy-field">
-          <label class="zy-field-label">分类</label>
-          <select class="zy-field-select" id="__zy_cap_cat__">
-            <option value="">📥 待分类</option>
-            ${categories.map((c: any) => `<option value="${escapeHtml(c.id)}">📂 ${escapeHtml(c.label)}</option>`).join('')}
-          </select>
+          <label class="zy-field-label">存入</label>
+          <div class="zy-cap-pool">🗂 ${POOL_DISPLAY_NAME}<span class="zy-cap-pool-sub">· 标签保存后可补</span></div>
         </div>
       </div>
       <!-- R97（D4）：资源采集不设「关联项目」——ResourceCard 模型无 projectId（卡间零挂载红线：
@@ -1411,7 +1401,6 @@ async function openCapture() {
   let linkType = 'url'
   const titleInput = document.getElementById('__zy_cap_title__') as HTMLInputElement
   const linkInput = document.getElementById('__zy_cap_link__') as HTMLInputElement
-  const wsSelect = document.getElementById('__zy_cap_ws__') as HTMLSelectElement
 
   // 通过 DOM 属性设置值，避免模板字面量注入问题
   titleInput.value = document.title || ''
@@ -1430,14 +1419,6 @@ async function openCapture() {
       linkType = (btn as HTMLElement).dataset.ltype || 'url'
       linkInput.placeholder = linkType === 'url' ? 'https://…' : linkType === 'file' ? 'D:\\folder\\file.pdf' : 'obsidian://open?vault=…'
     })
-  })
-
-  wsSelect.addEventListener('change', async () => {
-    // R117（04-61 A）：切台面重算分类——同口径（过滤软删 + 防环 + 路径 label）
-    const d2 = await getData(true)
-    const cats = buildCatOptions(d2?.categories?.filter((c: any) => c.workspaceId === wsSelect.value) || [], { sep: ' / ' })
-    const catSelect = document.getElementById('__zy_cap_cat__') as HTMLSelectElement
-    catSelect.innerHTML = '<option value="">📥 待分类</option>' + cats.map((c: any) => `<option value="${escapeHtml(c.id)}">📂 ${escapeHtml(c.label)}</option>`).join('')
   })
 
   const onCapEnter = (e: KeyboardEvent) => {
@@ -1472,14 +1453,13 @@ async function openCapture() {
         return
       }
     }
-    const catSelect = document.getElementById('__zy_cap_cat__') as HTMLSelectElement
     const descInput = document.getElementById('__zy_cap_desc__') as HTMLTextAreaElement
-    const cat = d2.categories?.find((c: any) => c.workspaceId === wsSelect.value && c.name === '待分类')
     const resource = {
       id: uid('rc'), kind: 'resource', title,
       linkType, link: linkInput.value.trim(),
-      workspaceId: wsSelect.value,
-      categoryId: catSelect.value || cat?.id || '',
+      // W4（V3.8.4）：统一入池——与应用内采集同一口径，workspaceId 固定池 id、categoryId 置空（R179 定案）
+      workspaceId: CURATION_WS_ID,
+      categoryId: '',
       description: (descInput?.value || '').trim(),
       tags: [], customFields: {}, pinned: false, callCount: 0,
       createdAt: Date.now(), updatedAt: Date.now()
@@ -1491,12 +1471,10 @@ async function openCapture() {
       if (!capUrlMap.has(nfp)) capUrlMap.set(nfp, resource)
     }
     await saveData(d2)
-    // R92（E1）：未归档轻引导——分类下拉的「📥 待分类」是**默认项且 value 为空**，
-    // 故 catSelect.value 为空 = 这张卡落在待分类 = 还没归位。动线断点正是"采集后不归位"，
-    // 回执里点一句，而不是等用户自己想起来。**动作不变**，只说明为什么要去那儿。
-    const filed = !!catSelect.value
+    // W4（V3.8.4）：统一入池后没有「未归档」一说——分类下拉已退役，回执只报入池。
+    // R92（E1）原「未归档轻引导」随之退役：它的动线断点（采集后不归位）已由标签体系承接（保存后补）。
     // R78（A3）：回执 toast 化——不再整屏确认；回执期内 Enter 仍可打开看板并定位到这张卡
-    showSaved(filed ? '✓ 已入台 · Enter 打开看板' : '✓ 已入台 · 未归档 · Enter 去归位', () => {
+    showSaved(`✓ 已入 ${POOL_DISPLAY_NAME} · Enter 打开看板`, () => {
       // 通知 background：单例定位到已打开的策展台标签页，或新建
       chrome.runtime.sendMessage({ type: 'zy-locate-workspace', wsId: resource.workspaceId, hl: resource.id })
     })

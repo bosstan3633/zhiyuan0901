@@ -29,6 +29,8 @@ export const K = {
   DAILY_STATS: 'zy_daily_stats',
   /** AI 配置 */
   AI_CONFIG: 'zy_ai_v1',
+  /** W4（V3.8.4）：captureEnrich 一次性迁移已跑过的戳（存独立键，不进 AppData / 不随备份外发） */
+  AI_CAPTURE_ENRICH_MIGRATED: 'zy_ai_capture_enrich_migrated_v1',
   /** AI 一次性指令 */
   AI_DIRECTIVES: 'zy_ai_directives_v1',
   /** 标签整体整理备份 */

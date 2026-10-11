@@ -35,7 +35,7 @@ onMounted(() => { document.title = '使用手册 · 知源调度台' })
   <div class="mn-page">
     <header class="mn-head">
       <button class="mn-back" @click="router.push('/settings')"><Icon name="arrowright" :size="13" style="transform: rotate(180deg)" />返回设置</button>
-      <div class="mn-brand">📖 知源调度台 · 使用手册 <span class="mn-ver">V3.8.3</span></div>
+      <div class="mn-brand">📖 知源调度台 · 使用手册 <span class="mn-ver">V3.8.4</span></div>
       <div class="mn-spacer" />
       <button class="mn-dl" @click="downloadShare">⬇ 下载分享版</button>
     </header>

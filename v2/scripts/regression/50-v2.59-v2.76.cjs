@@ -142,10 +142,10 @@ check('R92-5 D2 边界：右端「Esc」按钮仍直接 closeOverlay()（显式�
     && OV92_C.includes("document.getElementById('__zy_esc__')?.addEventListener('click', closeOverlay)")
     && OV92_C.includes('title="关闭浮层（键盘 Esc 会先清空搜索框，空了才关闭）"');
 });
-check('R92-6 E1：资源卡未选分类（落在待分类）时，回执带「未归档 · 去归位」', () => {
-  return CAP_FN92.includes('const filed = !!catSelect.value')
-    && CAP_FN92.includes('✓ 已入台 · 未归档 · Enter 去归位')
-    && CAP_FN92.includes('✓ 已入台 · Enter 打开看板');
+check('R92-6 E1 ★W4（V3.8.4）随迁：采集回执不再有「未归档 · 去归位」一支——两枚下拉退役后统一入资源卡池，未分类/未归档这个分支随之消失。回执只剩「✓ 已入 资源卡池 · Enter 打开看板」一条，池名走 POOL_DISPLAY_NAME 单源', () => {
+  return CAP_FN92.includes('已入 ${POOL_DISPLAY_NAME} · Enter 打开看板')
+    && !CAP_FN92.includes('✓ 已入台 · 未归档 · Enter 去归位')
+    && !CAP_FN92.includes('✓ 已入台 · Enter 打开看板');
 });
 check('R92-7 E1：任务卡未挂项目时回执带「未归档 · 去归位」；好奇采集 toEnd 条件保留', () => {
   return TC_FN92.includes('const filed = !!task.projectId')

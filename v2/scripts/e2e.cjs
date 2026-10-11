@@ -1654,15 +1654,16 @@ async function main() {
     if (!tabs[0]) throw new Error('宿主页 tab 未找到')
     await chrome.tabs.sendMessage(tabs[0].id, { type: 'zy-open-capture' })
   }, capPort)
-  const capReady = !!(await capPage.waitForSelector('#__zy_cap_ws__', { timeout: 9000 }).catch(() => null))
-  let capToast = '', capRow = { 有卡: false, ws: '无', catEmpty: false, link: '' }, capWsOpt = '', capSelDefault = ''
+  // W4（V3.8.4）：采集面板台/分类下拉已退役，改静态池提示行 .zy-cap-pool（统一入资源卡池）。
+  // 就绪锚从 #__zy_cap_ws__ 换成保存钮 #__zy_cap_save__；下拉「已删」用负锚钉死，防止门禁和实现一起漂回下拉形态。
+  const capReady = !!(await capPage.waitForSelector('#__zy_cap_save__', { timeout: 9000 }).catch(() => null))
+  let capToast = '', capRow = { 有卡: false, ws: '无', catEmpty: false, link: '' }, capPoolText = '', capDropGone = false
   if (capReady) {
-    capSelDefault = await capPage.inputValue('#__zy_cap_ws__').catch(() => '')
-    capWsOpt = (await capPage.evaluate(() => {
-      const s = document.getElementById('__zy_cap_ws__')
-      const o = s && s.options[s.selectedIndex]
-      return o ? o.textContent.trim() : ''
+    capPoolText = (await capPage.evaluate(() => {
+      const r = document.querySelector('.zy-cap-pool')
+      return r ? (r.textContent || '').trim() : ''
     })) || ''
+    capDropGone = await capPage.evaluate(() => !document.getElementById('__zy_cap_ws__') && !document.getElementById('__zy_cap_cat__'))
     await capPage.fill('#__zy_cap_title__', capTitle)
     await capPage.click('#__zy_cap_save__')
     await capPage.waitForTimeout(1000)
@@ -1680,9 +1681,9 @@ async function main() {
     }), capTitle)
   }
   await capPage.close(); capServer.close()
-  report('E2E-40 ★R4-Ew content 采集面板真点「保存」：浮层在 http 宿主页唤起、台下拉默认选中池且显示「资源卡池」、保存后回执 toast 出现、卡落库 workspaceId=zy-curation 且分类留空（未归档）',
-    capReady && capSelDefault === 'zy-curation' && capWsOpt.includes('资源卡池') && /已入台/.test(capToast) && capRow.有卡 && capRow.ws === 'zy-curation' && capRow.catEmpty,
-    `唤起=${capReady} 默认台=${capSelDefault} 选项文本=${JSON.stringify(capWsOpt)} toast=${JSON.stringify(capToast)} 落库=${JSON.stringify(capRow)}`)
+  report('E2E-40 ★R4-Ew/W4 content 采集面板真点「保存」：浮层在 http 宿主页唤起、台/分类下拉已退役改静态池提示行、保存后回执 toast 出现、卡落库 workspaceId=zy-curation 且分类留空',
+    capReady && capPoolText.includes('资源卡池') && capDropGone && /资源卡池/.test(capToast) && capRow.有卡 && capRow.ws === 'zy-curation' && capRow.catEmpty,
+    `唤起=${capReady} 池行=${JSON.stringify(capPoolText.slice(0, 40))} 下拉已删=${capDropGone} toast=${JSON.stringify(capToast)} 落库=${JSON.stringify(capRow)}`)
 
   // ══════════ E2E-41（R4-Ew）★⌘K 结果行 hover 动作区：三枚钮 + 星标真写库再复原 ══════════
   // theme-audit 的 gp-search 只数了"hover 露出几枚钮"，没钉**是哪三枚、点了有没有落库**——
