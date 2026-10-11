@@ -56,14 +56,21 @@ const agg = computed(() => yearAgg(props.stats, props.year))
 const streak = computed(() => longestStreak(props.stats, props.year))
 const curYear = computed(() => Number(today.slice(0, 4)))
 
+/* W5（V3.8.5）#4c：摘要 4 chip → 图标化指标卡（图标 + 大数字 + 标签）。数据源 summary 不变——导出 kpis 仍取全量。 */
+const SUM_ICONS = {
+  act: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none"/></svg>',
+  done: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg>',
+  streak: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1"/></svg>',
+  peak: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 20 6-12 4 7 2.5-4 5.5 9z"/><path d="m15.5 13.5 1.5-1"/></svg>'
+} as const
 const summary = computed(() => {
   const a = agg.value
   const lv = a.peak ? levelOf(a.peak[1]) : 0
   return [
-    { k: '活跃天数', v: a.act, u: `/ ${a.days} 天`, d: `覆盖率 ${Math.round((a.act / Math.max(1, a.days)) * 100)}% · 平均每 ${(a.days / Math.max(1, a.act)).toFixed(1)} 天动一次` },
-    { k: '有效动作', v: a.acts, u: '件', d: `加权 ${Math.round(a.W)} 分（内部量）· 日均 ${(a.acts / Math.max(1, a.act)).toFixed(1)} 件` },
-    { k: '最长连续', v: streak.value, u: '天', d: streak.value >= 7 ? '节奏稳定' : '存在断档' },
-    { k: '最猛的一天', v: a.peak ? a.peak[0].slice(5) : '—', u: a.peak ? `· ${LV_NAME[lv]}` : '', d: a.peak ? `${a.peak[1]} 分 · ${LV_DESC[lv]} · 今年第 1` : '暂无数据' }
+    { k: '活跃天数', ic: SUM_ICONS.act, v: a.act, u: `/ ${a.days} 天`, d: `覆盖率 ${Math.round((a.act / Math.max(1, a.days)) * 100)}% · 平均每 ${(a.days / Math.max(1, a.act)).toFixed(1)} 天动一次` },
+    { k: '有效动作', ic: SUM_ICONS.done, v: a.acts, u: '件', d: `加权 ${Math.round(a.W)} 分（内部量）· 日均 ${(a.acts / Math.max(1, a.act)).toFixed(1)} 件` },
+    { k: '最长连续', ic: SUM_ICONS.streak, v: streak.value, u: '天', d: streak.value >= 7 ? '节奏稳定' : '存在断档' },
+    { k: '最猛的一天', ic: SUM_ICONS.peak, v: a.peak ? a.peak[0].slice(5) : '—', u: a.peak ? `· ${LV_NAME[lv]}` : '', d: a.peak ? `${a.peak[1]} 分 · ${LV_DESC[lv]} · 今年第 1` : '暂无数据' }
   ]
 })
 
@@ -157,7 +164,8 @@ function onExport(fmt: ExportFmt): void {
 <template>
   <section class="dz-sec">
     <div class="dz-sec-h">
-      <span class="dz-n">2</span><span class="dz-t">年度热力图</span><span class="dz-en">ANNUAL HEATMAP</span>
+      <!-- W5（V3.8.5）#2：数字角标 → SVG 图标（accent）——与「今日三件事 / 三张卡」三标题统一规格 -->
+      <span class="dz-n dz-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none"/></svg></span><span class="dz-t">年度热力图</span><span class="dz-en">ANNUAL HEATMAP</span>
       <span class="dz-sp"></span>
       <span class="dz-badge">{{ agg.first }} → {{ agg.last }}</span>
       <span class="dz-badge">{{ selDay ? `已选 ${selDay}` : '点格子看那一天' }}</span>
@@ -168,11 +176,15 @@ function onExport(fmt: ExportFmt): void {
     </div>
 
     <div class="dz-sec-b">
-      <!-- R174-5：四卡压单行指标条，说明收进 title（数据源 summary 不动——导出三件套 kpis 仍取全量） -->
+      <!-- R174-5：四卡压单行指标条，说明收进 title（数据源 summary 不动——导出三件套 kpis 仍取全量）
+           W5 #4c：chip → 图标化指标卡（图标 + 大数字 + 标签，纵向堆叠）；.d 保 DOM（R174-5 判据）display:none -->
       <div class="dz-sum">
         <div v-for="s in summary" :key="s.k" class="c" :title="s.d">
-          <span class="k">{{ s.k }}</span>
-          <span class="v">{{ typeof s.v === 'number' ? fmtW(s.v) : s.v }}<small>{{ s.u }}</small></span>
+          <span class="ic" v-html="s.ic"></span>
+          <span class="tx">
+            <span class="v">{{ typeof s.v === 'number' ? fmtW(s.v) : s.v }}<small>{{ s.u }}</small></span>
+            <span class="k">{{ s.k }}</span>
+          </span>
           <span class="d">{{ s.d }}</span>
         </div>
       </div>

@@ -804,6 +804,10 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
          取代 R117 C1 的「任务调度 / 好奇心培育」双 tab 与 R2-③ 的资源卡池默认两版旧序）
           R67-F4：id 供快捷键直达锚点 -->
     <section id="zy-mod-curiosity" class="module">
+      <!-- W5（V3.8.5）#2：三标题统一 —— 图标(accent) + 17px 标题 + 英文副标（胶囊 tab 保留） -->
+      <div class="decks-title">
+        <span class="ic"><Icon name="layers" :size="18" /></span><span class="nm">三张卡</span><span class="en">THREE DECKS</span>
+      </div>
       <!-- R2-③：DeckTabs 三张卡（W1.1 改名：任务卡 / 好奇心卡 / 资源卡） -->
       <div class="bottom-tabs">
         <button class="bt-tab" :class="{ on: bottomTab === 'task' }" @click="bottomTab = 'task'">
@@ -948,6 +952,11 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cf-hint { font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cf-hint:hover { color: var(--accent); }
 /* R105（B4）：好奇心培育折叠摘要行——呼应 ModuleCard 的视觉语言（surface 底 + 发丝边） */
+/* W5（V3.8.5）#2 三标题统一：三张卡标题行（图标 accent + 17px + 英文副标），与今日三件事 / 年度热力图同规格 */
+.decks-title { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.decks-title .ic { color: var(--accent); display: flex; align-items: center; }
+.decks-title .nm { font-size: var(--fs-headline); font-weight: 700; letter-spacing: -.01em; }
+.decks-title .en { font-size: var(--fs-micro); color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; }
 /* R120-TB4：底部胶囊 Tab（对齐原型：pill 形态 + 中性选中态；计数为轻量 pill） */
 .bottom-tabs { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .bt-tab { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-body); font-weight: 600; border-radius: 99px; padding: 5px 14px; cursor: pointer; font-family: inherit; transition: all .13s; }

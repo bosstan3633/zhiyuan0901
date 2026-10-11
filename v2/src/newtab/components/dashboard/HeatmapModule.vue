@@ -16,11 +16,12 @@
  *  · live 取真实在库数，base 由 useDashboardStats 反推（见该文件头注释）
  */
 import './dashboard.css'
-import { computed, onMounted, ref, shallowRef } from 'vue'
+import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import { useAppStore } from '@/newtab/stores/app'
 import type { CardEvent } from '@/shared/utils/eventLog'
 import { readEventLog } from '@/shared/utils/eventLog'
 import { useDashboardStats } from './useDashboardStats'
+import { useDailyLogRequest } from '@/newtab/composables/useDailyLog'
 import Heatmap from './Heatmap.vue'
 import DashboardLogDrawer, { type LogPreset } from './DashboardLogDrawer.vue'
 
@@ -65,6 +66,16 @@ const dashYear = dash.year
 const dashSelDay = dash.selDay
 const dashStats = dash.stats
 
+/* W5（V3.8.5）#6：品牌区「今日战报」请求消费 —— 置 selDay + 校正年份（跨年历史日也能落到正确年视图）。
+   请求是模块级单例，挂载时消费一次、此后 watch 即时消费；选中日同时驱动概览带时间绑定（既有语义，零新机制）。 */
+const { pendingDay, consume } = useDailyLogRequest()
+function applyDailyLogDay(day: string): void {
+  const y = Number(day.slice(0, 4))
+  if (y >= 2000 && y <= 2100 && y !== dashYear.value) dashYear.value = y
+  dashSelDay.value = day
+}
+watch(pendingDay, (d) => { if (d) applyDailyLogDay(consume()!) })
+
 // ---- 日详情「查看全部记录 ›」→ 打开全量抽屉并按该日预筛 ----
 const logOpen = ref(false)
 const logPreset = ref<LogPreset>({ kind: 'all', action: 'all', from: '', to: '' })
@@ -73,7 +84,11 @@ function onOpenLog(day: string) {
   logOpen.value = true
 }
 
-onMounted(() => { void refreshEventLog() })
+onMounted(() => {
+  void refreshEventLog()
+  const d = consume()
+  if (d) applyDailyLogDay(d)
+})
 </script>
 
 <template>

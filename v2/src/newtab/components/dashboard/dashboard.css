@@ -9,7 +9,9 @@
 .dz-sec { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: var(--sp-4); overflow: hidden; }
 .dz-sec-h { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .dz-sec-h .dz-n { width: 18px; height: 18px; flex: none; border-radius: var(--radius-xs); display: grid; place-items: center; background: var(--accent-light); color: var(--accent-ink); font-size: var(--fs-micro); font-weight: 700; }
-.dz-sec-h .dz-t { font-size: var(--fs-title); font-weight: 700; }
+/* W5（V3.8.5）#2 三标题统一：区段标题 15px → 17px；dz-ico = 数字角标位放 SVG 图标（热力图用） */
+.dz-sec-h .dz-n.dz-ico svg { width: 12px; height: 12px; display: block; }
+.dz-sec-h .dz-t { font-size: var(--fs-headline); font-weight: 700; }
 .dz-sec-h .dz-en { font-size: var(--fs-micro); color: var(--text-4); letter-spacing: var(--tracking-sm); }
 .dz-sp { flex: 1; }
 .dz-sec-b { padding: var(--sp-4); }
@@ -63,13 +65,17 @@
 
 /* ================= ② 热力图 ================= */
 /* R174-5：摘要四卡压单行指标条（说明收进 title tooltip，导出件 kpis 数据源不动）——格子区上移成焦点（04-69 拍板 B） */
-.dz-sum { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-3); }
-.dz-sum .c { display: flex; align-items: baseline; gap: 6px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 3px 10px; background: var(--surface-2); cursor: help; }
-.dz-sum .k { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; }
-.dz-sum .v { font-size: var(--fs-headline); font-weight: 700; line-height: 1.15; }
+/* W5（V3.8.5）#4c：摘要指标卡 —— 图标(accent) + 大数字 + 标签纵向堆叠，四卡等宽压一行 */
+.dz-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.dz-sum .c { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px 12px; background: var(--surface-2); cursor: help; min-width: 0; }
+.dz-sum .ic { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; background: var(--accent-light, var(--surface-3)); color: var(--accent-ink, var(--accent)); }
+.dz-sum .ic svg { width: 16px; height: 16px; display: block; }
+.dz-sum .tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.dz-sum .v { font-size: var(--fs-headline); font-weight: 700; line-height: 1.15; white-space: nowrap; }
 .dz-sum .v small { font-size: var(--fs-caption); font-weight: 500; color: var(--text-3); margin-left: 3px; }
+.dz-sum .k { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dz-sum .d { display: none; }
-.dz-sum .d b { color: var(--heat-ink); }
+@media (max-width: 900px) { .dz-sum { grid-template-columns: repeat(2, 1fr); } }
 .dz-months { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--sp-3) 6px; }
 .dz-mb-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
 .dz-mb-h .m { font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); }
@@ -102,10 +108,11 @@
 .dz-legend .note b { color: var(--heat-ink); }
 .dz-empty { padding: var(--sp-5); text-align: center; color: var(--text-4); font-size: var(--fs-sub); }
 
-/* ================= 日详情 ================= */
+/* ================= 日详情（战报） ================= */
 /* W2（V3.8.2）：日详情从 section 内联改为中央弹窗（Teleport 到 body，不受父容器 overflow 裁切）。
-   弹窗壳与 DayDetail 本体解耦：壳只管居中 + 遮罩 + 最大高度，DayDetail 内部结构不动。 */
-.dz-day-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,.32); display: flex; align-items: flex-start; justify-content: center; padding: 4vh 16px; }
+   弹窗壳与 DayDetail 本体解耦：壳只管居中 + 遮罩 + 最大高度，DayDetail 内部结构不动。
+   W5（V3.8.5）#4b：垂直居中（flex-start → center）。4vh×2 + max-height 92vh 恰好不溢出。 */
+.dz-day-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,.32); display: flex; align-items: center; justify-content: center; padding: 4vh 16px; }
 .dz-day-modal { width: min(1080px, 100%); max-height: 92vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
 .dz-day { margin: 0; border: 0; border-radius: var(--radius-lg); }
 .dz-day-head { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); background: var(--surface-2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
@@ -136,12 +143,33 @@
 .dz-dstock .it .dn { color: var(--danger); }
 .dz-tl { padding: 0 var(--sp-4) var(--sp-4); }
 .dz-tl .th { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-caption); color: var(--text-3); margin-bottom: var(--sp-2); letter-spacing: var(--tracking-sm); }
-.dz-tl .row { display: flex; align-items: center; gap: var(--sp-3); padding: 5px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); }
-.dz-tl .row:last-child { border-bottom: 0; }
-.dz-tl .tm { font-size: var(--fs-caption); color: var(--text-4); width: 38px; flex: none; font-variant-numeric: tabular-nums; }
-.dz-tl .ac { font-size: var(--fs-caption); color: var(--heat-ink); width: 88px; flex: none; }
-.dz-tl .ti { flex: 1; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dz-tl .pt { font-size: var(--fs-caption); color: var(--text-3); flex: none; font-variant-numeric: tabular-nums; }
+/* W5 #6：旧「当日流水 .row/.tm/.ac/.ti/.pt」随叙事时间线（.dz-tl-row）整体退役——行样式统一走下方 .dz-tl-row 段 */
+
+/* ===== W5（V3.8.5）#6 今日战报：摘要行 + 分时段叙事时间线 + 底部导出 ===== */
+.dz-dl-sum { padding: var(--sp-2) var(--sp-4); font-size: var(--fs-sub); color: var(--text-2); background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.dz-tl-grp { margin-top: var(--sp-3); margin-bottom: var(--sp-1); font-size: var(--fs-micro); font-weight: 700; color: var(--text-3); letter-spacing: var(--tracking-sm); }
+.dz-tl-row { display: flex; align-items: center; gap: var(--sp-2); padding: 5px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); min-width: 0; }
+.dz-tl-row:last-child { border-bottom: 0; }
+.dz-tl-row .tm { font-size: var(--fs-caption); color: var(--text-4); width: 38px; flex: none; font-variant-numeric: tabular-nums; font-family: ui-monospace, Consolas, monospace; }
+.dz-tl-row .dotcol { flex: none; display: flex; align-items: center; }
+.dz-tl-row .tl-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-4); display: block; }
+.dz-tl-row .ac { flex: none; font-size: var(--fs-caption); font-weight: 600; padding: 1px 7px; border-radius: 99px; white-space: nowrap; }
+.dz-tl-row .kd { flex: none; font-size: var(--fs-tiny); color: var(--text-3); width: 30px; }
+.dz-tl-row .ti { flex: 1; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dz-tl-row .to { flex: none; font-size: var(--fs-tiny); color: var(--accent-ink); background: var(--accent-light); border-radius: 99px; padding: 0 7px; }
+/* 语义色：动词徽标与色点同源（create=success / call=accent / status=info / delete·purge=danger / restore=warning） */
+.dz-tl-row .act-create { color: var(--success); background: var(--success-bg-soft); }
+.dz-tl-row .tl-dot.act-create { background: var(--success); }
+.dz-tl-row .act-call { color: var(--accent-ink); background: var(--accent-light); }
+.dz-tl-row .tl-dot.act-call { background: var(--accent-ink); }
+.dz-tl-row .act-status { color: var(--info-blue); background: var(--info-blue-light); }
+.dz-tl-row .tl-dot.act-status { background: var(--info-blue); }
+.dz-tl-row .act-delete, .dz-tl-row .act-purge { color: var(--danger); background: var(--danger-bg-soft); }
+.dz-tl-row .tl-dot.act-delete, .dz-tl-row .tl-dot.act-purge { background: var(--danger); }
+.dz-tl-row .act-restore { color: var(--warning); background: var(--warning-bg-soft); }
+.dz-tl-row .tl-dot.act-restore { background: var(--warning); }
+.dz-dl-foot { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4); border-top: 1px solid var(--border); background: var(--surface-2); }
+.dz-dl-foot .note { font-size: var(--fs-tiny); color: var(--text-4); flex: 1; }
 
 /* ================= 下钻卡片列表（共用） ================= */
 .dz-drill { margin: 0 var(--sp-4) var(--sp-4); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }

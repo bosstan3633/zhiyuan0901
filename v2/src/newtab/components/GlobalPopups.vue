@@ -470,7 +470,7 @@ import { CURATION_WS_ID } from '@/shared/models'
 // V2.21：拼音字典改为按需加载（约 296KB），未就绪时降级为纯文本匹配
 import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { recordResourceOpen, recordCardOpen, recordWorkspaceOpen } from '@/shared/storage/stats'
-import { toOpenableUrl, openExternalLink, linkPlaceholderFor } from '@/shared/utils/link'
+import { toOpenableUrl, toOpenableRawLink, openExternalLink, linkPlaceholderFor } from '@/shared/utils/link'
 import { useConfirm } from '@/shared/components/confirm'
 import Icon from '@/shared/components/Icon.vue'
 // R146-b：AI 入口统一徽标（真源 AiMark.vue，零 AI 字面量，可进启动链）
@@ -1341,7 +1341,8 @@ function runFlatLocator(index: number) {
   locateOnly(it.item)
 }
 
-/** R120 键位统一：单击 / Enter —— 打开卡片链接优先；无链接/不可打开则定位到卡片所在处 */
+/** R120 键位统一 + W5 扩展：单击 / Enter —— 打开卡片链接优先（res/task/curio 三类卡都有链接字段了）；
+    无链接/不可打开则定位到卡片所在处（proj/ws 走既有打开语义） */
 function openLinkOrLocate(item: SearchResult) {
   recordSearch(searchQuery.value) // R161-②：这次检索被用出去了，记账
   if (item.type === 'res') {
@@ -1350,8 +1351,33 @@ function openLinkOrLocate(item: SearchResult) {
     openItem(item)
     return
   }
-  // task / curio / proj / ws：无"外链"概念，走既有打开语义
-  // （ws 打开策展台、proj 打开项目详情、task/curio 定位到卡片所在处）
+  if (item.type === 'task') {
+    const t = item.raw as TaskCard
+    const url = toOpenableRawLink(t.link)
+    if (url) {
+      recordCardOpen(d.value, t)
+      store.persistHot()
+      openExternalLink(url)
+      closeAll()
+      return
+    }
+    openItem(item)
+    return
+  }
+  if (item.type === 'curio') {
+    const c = item.raw as CuriosityCard
+    const url = toOpenableRawLink(c.sourceUrl)
+    if (url) {
+      recordCardOpen(d.value, c)
+      store.persistHot()
+      openExternalLink(url)
+      closeAll()
+      return
+    }
+    openItem(item)
+    return
+  }
+  // proj / ws：无"外链"概念，走既有打开语义
   openItem(item)
 }
 

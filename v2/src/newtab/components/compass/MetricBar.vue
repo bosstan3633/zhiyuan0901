@@ -45,34 +45,37 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
 </script>
 
 <template>
-  <!-- R120-TB1：合流方向条（单行）——左槽主攻 · 档位段控 · 5 项指标 · 右槽（记录四格/周报/去方向台） -->
+  <!-- R120-TB1：合流方向条（单行）——左槽主攻 · 档位段控 · 5 项指标 · 右槽（存储/同步 chip + 复盘）
+       W5（V3.8.5）#1：三段浅底色分组块（导航口径 / 五指标 / 右槽动作），38px 单行不变 -->
   <div class="metric-bar">
     <div class="mb-row">
-      <slot name="left" />
-      <span class="mb-divider" />
-      <div class="mb-period" title="统计口径：日 / 周 / 累计">
-        <span :class="{ on: period === 'day' }" @click="setPeriod('day')">日</span>
-        <span :class="{ on: period === 'week' }" @click="setPeriod('week')">周</span>
-        <span :class="{ on: period === 'all' }" @click="setPeriod('all')">累计</span>
+      <div class="mb-group mb-nav">
+        <slot name="left" />
+        <div class="mb-period" title="统计口径：日 / 周 / 累计">
+          <span :class="{ on: period === 'day' }" @click="setPeriod('day')">日</span>
+          <span :class="{ on: period === 'week' }" @click="setPeriod('week')">周</span>
+          <span :class="{ on: period === 'all' }" @click="setPeriod('all')">累计</span>
+        </div>
       </div>
-      <span class="mb-divider" />
-      <div class="mb-cell clickable" title="战略目标 = 使命下拆解的方向数 · 点击下钻各目标明细" @click="openCell('dhi')">
-        <span class="mb-k">战略目标</span><span class="mb-v">{{ dhiMain }}</span>
+      <div class="mb-group mb-metrics">
+        <div class="mb-cell clickable" title="战略目标 = 使命下拆解的方向数 · 点击下钻各目标明细" @click="openCell('dhi')">
+          <span class="mb-k">战略目标</span><span class="mb-v">{{ dhiMain }}</span>
+        </div>
+        <div class="mb-cell clickable" title="推进项目 = 挂有任务（任务数≠0）的项目数 · 点击下钻各目标明细" @click="openCell('dhi')">
+          <span class="mb-k">推进项目</span><span class="mb-v">{{ pushingMain }}</span>
+        </div>
+        <div class="mb-cell clickable" title="WCE 好奇探索 = 好奇卡「创建 + 状态变更 + 删除」的事件数（{{ m.wce.label }}）· 点击下钻明细" @click="openCell('wce')">
+          <span class="mb-k">WCE 探索</span><span class="mb-v">{{ m.wce.count ?? 0 }}</span>
+        </div>
+        <div class="mb-cell clickable" title="WRR 资源复用 = 资源卡被打开次数（{{ m.wrr.sub }}）· 点击下钻调出资源清单" @click="openCell('wrr')">
+          <span class="mb-k">WRR 复用</span><span class="mb-v">{{ wrrMain }}</span>
+        </div>
+        <div class="mb-cell clickable" :class="{ 'st-warn': unarchived > 0 }" title="未归档任务 = 未挂项目/指标或引用失效的任务（口径同明细）· 点击下钻归档" @click="openCell('unarch')">
+          <span class="mb-k">未归档</span><span class="mb-v">{{ unarchived }}<i class="mb-denom">/{{ totalTasks }}</i></span>
+        </div>
       </div>
-      <div class="mb-cell clickable" title="推进项目 = 挂有任务（任务数≠0）的项目数 · 点击下钻各目标明细" @click="openCell('dhi')">
-        <span class="mb-k">推进项目</span><span class="mb-v">{{ pushingMain }}</span>
-      </div>
-      <div class="mb-cell clickable" title="WCE 好奇探索 = 好奇卡「创建 + 状态变更 + 删除」的事件数（{{ m.wce.label }}）· 点击下钻明细" @click="openCell('wce')">
-        <span class="mb-k">WCE 探索</span><span class="mb-v">{{ m.wce.count ?? 0 }}</span>
-      </div>
-      <div class="mb-cell clickable" title="WRR 资源复用 = 资源卡被打开次数（{{ m.wrr.sub }}）· 点击下钻调出资源清单" @click="openCell('wrr')">
-        <span class="mb-k">WRR 复用</span><span class="mb-v">{{ wrrMain }}</span>
-      </div>
-      <div class="mb-cell clickable" :class="{ 'st-warn': unarchived > 0 }" title="未归档任务 = 未挂项目/指标或引用失效的任务（口径同明细）· 点击下钻归档" @click="openCell('unarch')">
-        <span class="mb-k">未归档</span><span class="mb-v">{{ unarchived }}<i class="mb-denom">/{{ totalTasks }}</i></span>
-      </div>
-      <!-- 右端扩展位：今日记录四格 + 周报 + 去方向台（R120-TB1：记录四格落在周报左侧） -->
-      <div class="mb-right"><slot name="right" /></div>
+      <!-- 右端扩展位：存储/同步 chip + 周报（R120-TB1） -->
+      <div class="mb-group mb-right"><slot name="right" /></div>
     </div>
   </div>
 
@@ -84,13 +87,15 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
 /* R120-TB1：合流方向条——单行 ≤38px，全 tokens（四主题自适应）
    R175（原型）：圆角对齐 radius-md（10px），磨砂底玻璃浓度 72%→88% 更贴近原型近实心 */
 .metric-bar { background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 10px; box-shadow: var(--shadow-sm); }
-.mb-row { display: flex; align-items: center; gap: 10px; padding: 5px 14px; min-height: 38px; max-height: 38px; min-width: 0; }
+.mb-row { display: flex; align-items: center; gap: 6px; padding: 5px 14px; min-height: 38px; max-height: 38px; min-width: 0; }
+/* W5（V3.8.5）#1：三段浅底色分组块（替代 1px 分隔线）——surface-2 浅底 + 圆角，38px 单行不变 */
+.mb-group { display: flex; align-items: center; gap: 6px; min-width: 0; background: var(--surface-2); border-radius: 7px; padding: 3px 8px; }
+.mb-metrics { gap: 2px; }
 .mb-period { display: flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; flex-shrink: 0; }
 .mb-period span { padding: 2px 9px; font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; transition: all var(--dur-fast); }
 .mb-period span + span { border-left: 1px solid var(--border); }
 .mb-period span:hover { background: var(--surface-3); color: var(--text-2); }
 .mb-period span.on { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
-.mb-divider { width: 1px; height: 14px; background: var(--border); flex-shrink: 0; }
 .mb-cell { display: flex; align-items: baseline; gap: 5px; min-width: 0; padding: 2px 7px; border-radius: 6px; }
 .mb-cell.clickable { cursor: pointer; transition: background var(--dur-fast); }
 .mb-cell.clickable:hover { background: var(--surface-2); }

@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { computed, ref, watch, onErrorCaptured, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
+import { computed, ref, watch, onErrorCaptured, onMounted, onUnmounted, defineAsyncComponent, nextTick } from 'vue'
 import { K } from '@/shared/storage/keys'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { resourceLocateRoute } from '@/shared/utils/locate'
@@ -22,6 +22,8 @@ import { getBytesInUse, subscribeSaveError, clearLastSaveError, subscribeSaveSta
 import { installGlobalUndo } from '@/shared/utils/undo'
 import { recordRuntimeError } from '@/shared/utils/runtimeError'
 import { emitOpenDrawer, onOpenDrawer, setPendingDrawer, onOpenPanel } from '@/shared/utils/bus'
+// W5（V3.8.5）#6：品牌区 → 今日战报（全局单例请求，HeatmapModule 消费）
+import { requestDailyLog } from './composables/useDailyLog'
 // R160（P1）：详情抽屉（10KB 源）同走按需挂载——首个打开事件到达时挂载，事件经 bus 暂存回放
 const ResourceDetailDrawer = defineAsyncComponent(() => import('./components/ResourceDetailDrawer.vue'))
 
@@ -130,6 +132,16 @@ const hiddenWsCount = computed(() => (wsOverflow.value && !wsOverflowOpen.value)
   : 0)
 
 function navigate(path: string) { router.push(path) }
+
+/* W5（V3.8.5）#6：品牌区点击 = 打开今日战报（脉冲 → 120ms 后请求；不在调度台则先导航，HeatmapModule 挂载时消费） */
+const brandPulse = ref(false)
+function onBrandClick(): void {
+  brandPulse.value = false
+  void nextTick(() => { brandPulse.value = true })
+  window.setTimeout(() => { brandPulse.value = false }, 1200)
+  if (route.path !== '/') navigate('/')
+  window.setTimeout(() => requestDailyLog(), route.path !== '/' ? 260 : 120)
+}
 
 const activeTab = computed(() => {
   if (route.path === '/') return 'home'
@@ -454,8 +466,10 @@ const backupReminderDot = computed(() => {
     <header class="topbar">
       <div class="topbar-inner" :class="topbarAlign">
       <nav class="tabs" @mouseleave="wsOverflowOpen = false">
-        <!-- R176（原型 nav-brand-chip）：品牌位 = logo + 知源调度台 + Ownway（点击回调度台）；随后才是台面页签 -->
-        <div class="brand-chip" title="知源调度台 Ownway" @click="navigate('/')">
+        <!-- R176（原型 nav-brand-chip）：品牌位 = logo + 知源调度台 + Ownway。
+             W5（V3.8.5）#6：点击 = 打开今日战报（脉冲动画 + HeatmapModule 消费请求） -->
+        <div class="brand-chip" :class="{ pulsing: brandPulse }" title="今日战报 · 点击查看当日操作时间线"
+          role="button" tabindex="0" @click="onBrandClick" @keydown.enter.prevent="onBrandClick" @keydown.space.prevent="onBrandClick">
           <img :src="logoUrl" class="brand-logo" alt="知源调度台" />
           <span class="brand-name">知源调度台</span>
           <span class="brand-en">Ownway</span>
@@ -610,6 +624,9 @@ const backupReminderDot = computed(() => {
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }
 /* R176（原型 nav-brand-chip）：品牌位（logo 16px + 知源调度台 13px/700 + Ownway 11px 次要字） */
 .brand-chip { display: flex; align-items: center; gap: 6px; margin-right: 14px; cursor: pointer; flex-shrink: 0; }
+/* W5（V3.8.5）#6：点击战报的脉冲反馈（两轮光晕，约 1.1s 后复位） */
+.brand-chip.pulsing { animation: brandPulse 0.55s ease-in-out 2; }
+@keyframes brandPulse { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 6px var(--accent-light); } }
 .brand-chip .brand-logo { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
 .brand-chip .brand-name { font-size: var(--fs-body); font-weight: 700; letter-spacing: -.01em; color: var(--text); white-space: nowrap; }
 .brand-chip .brand-en { font-size: var(--fs-caption); font-weight: 500; color: var(--text-3); letter-spacing: .02em; white-space: nowrap; }

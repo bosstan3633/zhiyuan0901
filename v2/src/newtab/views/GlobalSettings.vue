@@ -835,6 +835,31 @@
         </div>
       </div>
 
+      <!-- ===== 产品更新日志（W5 / V3.8.5） ===== -->
+      <div v-if="activePage === 'changelog'" class="gs-panel">
+        <div class="gs-page-header">
+          <div class="gs-page-title">🕘 产品更新日志</div>
+          <div class="gs-page-desc">每个版本的发版时间与功能要点——看看这个产品是怎么一步步长成今天这样的</div>
+        </div>
+        <div class="gs-card">
+          <div class="gs-card-body">
+            <div class="gs-cl-list">
+              <div v-for="e in CHANGELOG" :key="e.version" class="gs-cl-item" :class="{ current: e.version === runtimeVersion }">
+                <div class="gs-cl-meta">
+                  <span class="gs-cl-ver">V{{ e.version }}</span>
+                  <span class="gs-cl-date">{{ e.date }}</span>
+                  <span v-if="e.version === runtimeVersion" class="gs-cl-now">当前版本</span>
+                </div>
+                <div class="gs-cl-title">{{ e.title }}</div>
+                <ul class="gs-cl-points">
+                  <li v-for="(p, i) in e.points" :key="i">{{ p }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ===== 关于 ===== -->
       <div v-if="activePage === 'about'" class="gs-panel">
         <div class="gs-page-header"><div class="gs-page-title">ℹ 关于</div></div>
@@ -917,6 +942,7 @@ import { createDefaultData, defaultThesisFieldDefs } from '@/shared/storage/defa
 // R63-4：Airtable 单向同步（连接测试 / 立即同步 / 配额提示）
 import { testConnection, runSync, quotaHint, catPathOf, DEFAULT_TAG_COLUMN } from '@/shared/storage/airtable'
 import { LETTER_HTML, buildLetterStandaloneHtml } from '../letter-data'
+import { CHANGELOG } from '../changelog-data'
 import { uid, dateKey, weekStartKey } from '@/shared/utils'
 import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
 import { getAssetStats, cleanupOrphanAssetsOf, collectReferencedAssetIds, listOrphanAssetIds, getAllAssets, putAssets } from '@/shared/storage/assets'
@@ -1182,6 +1208,8 @@ const navGroups: { title: string; items: NavItem[] }[] = [
     { key: 'airtable', icon: '⇄', label: 'Airtable 同步' },
     { key: 'manual', icon: '📖', label: '使用手册' },
     { key: 'letter', icon: '✉️', label: '一封信' },
+    // W5（V3.8.5）：产品更新日志——时间线看版本演变
+    { key: 'changelog', icon: '🕘', label: '产品更新日志' },
     { key: 'about', icon: 'ℹ', label: '关于' },
   ]},
 ]
@@ -2946,6 +2974,21 @@ const activeManualSec = ref('quick-1')
 .gs-keycap-link:hover { border-color: var(--accent); color: var(--accent); }
 .gs-shortcut-link { font-size: var(--fs-sub); color: var(--accent); text-decoration: none; }
 .gs-shortcut-link:hover { text-decoration: underline; }
+
+/* 产品更新日志（W5 / V3.8.5）——时间线：左轨 + 圆点，当前版本整轨染 accent */
+.gs-cl-list { position: relative; }
+.gs-cl-item { border-left: 2px solid var(--border); padding: 0 0 22px 18px; position: relative; }
+.gs-cl-item:last-child { border-left-color: transparent; padding-bottom: 0; }
+.gs-cl-item::before { content: ''; position: absolute; left: -7px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface-3); border: 2px solid var(--border-strong); }
+.gs-cl-item.current { border-left-color: var(--accent); }
+.gs-cl-item.current::before { background: var(--accent); border-color: var(--accent); }
+.gs-cl-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.gs-cl-ver { font-weight: 700; font-size: var(--fs-sub); color: var(--text); font-variant-numeric: tabular-nums; }
+.gs-cl-date { font-size: var(--fs-caption); color: var(--text-4); }
+.gs-cl-now { font-size: var(--fs-micro); background: var(--accent-light); color: var(--accent-ink); border-radius: 99px; padding: 1px 8px; font-weight: 600; }
+.gs-cl-title { font-size: var(--fs-body); font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.gs-cl-points { margin: 0; padding-left: 18px; font-size: var(--fs-sub); color: var(--text-2); }
+.gs-cl-points li { margin-bottom: 2px; }
 
 /* 关于 */
 .gs-about-card { text-align: center; padding: 28px 20px; }

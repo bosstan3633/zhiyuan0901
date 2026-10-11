@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今日战报 · Daily Log Timeline — 知源调度台</title>
+<style>
+/* 设计令牌：复刻产品 tokens.css（linear 暗 / apple 亮） */
+:root[data-theme="dark"] {
+  --bg:#0D0E11; --surface:#14161B; --surface-2:#1A1D24; --surface-3:#1C1F26;
+  --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.14);
+  --text:rgba(255,255,255,.92); --text-2:rgba(255,255,255,.70); --text-3:rgba(255,255,255,.50); --text-4:rgba(255,255,255,.32);
+  --accent:#5E6AD2; --accent-2:#7A85E0; --accent-light:rgba(94,106,210,.16); --accent-ink:#828FFF; --accent-glow:rgba(109,92,232,.40);
+  --scrim-modal:rgba(0,0,0,.45);
+  --success:#4ADE80; --warning:#FBBF24; --danger:#F87171; --info-blue:#60A5FA;
+  --shadow-lg:0 0 0 1px var(--border),0 16px 48px rgba(0,0,0,.6);
+  --shadow-modal:0 2px 10px rgba(0,0,0,.35),0 28px 72px rgba(0,0,0,.60);
+  --toast-bg:#22252D; --toast-fg:rgba(255,255,255,.92); --toast-action:var(--accent-ink);
+  --heat-0:#16181D; --heat-1:#1E3A5F; --heat-2:#2563AB; --heat-3:#3B82D9; --heat-4:#5B9BE8; --heat-5:#437CB8;
+  --act-create-bg:rgba(74,222,128,.14); --act-call-bg:rgba(94,106,210,.16);
+  --act-status-bg:rgba(96,165,250,.14); --act-delete-bg:rgba(248,113,113,.14); --act-restore-bg:rgba(251,191,36,.14);
+}
+:root[data-theme="light"] {
+  --bg:#F5F5F7; --surface:#FFFFFF; --surface-2:#EFEFF2; --surface-3:#EAEAEF;
+  --border:rgba(0,0,0,.09); --border-strong:rgba(0,0,0,.15);
+  --text:rgba(0,0,0,.90); --text-2:rgba(0,0,0,.62); --text-3:rgba(0,0,0,.46); --text-4:rgba(0,0,0,.28);
+  --accent:#8452E0; --accent-2:#9E8FEC; --accent-light:#EFEBFB; --accent-ink:#6C3FC8; --accent-glow:rgba(132,82,224,.18);
+  --scrim-modal:rgba(0,0,0,.45);
+  --success:#16A34A; --warning:#D97706; --danger:#DC2626; --info-blue:#2563EB;
+  --shadow-lg:0 0 0 1px var(--border),0 16px 48px rgba(0,0,0,.12);
+  --shadow-modal:0 2px 10px rgba(0,0,0,.10),0 28px 72px rgba(0,0,0,.18);
+  --toast-bg:#FFFFFF; --toast-fg:rgba(0,0,0,.90); --toast-action:var(--accent-ink);
+  --heat-0:#EFEFF2; --heat-1:#C7DDF5; --heat-2:#8BB8E8; --heat-3:#5B9BE8; --heat-4:#3B82D9; --heat-5:#3A6FA8;
+  --act-create-bg:rgba(22,163,74,.12); --act-call-bg:rgba(132,82,224,.12);
+  --act-status-bg:rgba(37,99,235,.10); --act-delete-bg:rgba(220,38,38,.10); --act-restore-bg:rgba(217,119,6,.12);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+body{background:var(--bg);color:var(--text);min-height:100vh;transition:background .25s,color .25s;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* 顶栏 */
+.topbar{position:sticky;top:0;z-index:100;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.topbar-inner{max-width:1360px;margin:0 auto;display:flex;align-items:center;height:52px;padding:0 20px;gap:4px}
+.brand-chip{display:flex;align-items:center;gap:7px;margin-right:16px;flex-shrink:0;cursor:pointer;padding:6px 10px;border-radius:8px;transition:background .15s,box-shadow .3s;position:relative}
+.brand-chip:hover{background:var(--surface-2)}
+.brand-chip.pulsing{animation:brandPulse .55s ease-in-out 2}
+@keyframes brandPulse{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 0 6px var(--accent-glow)}}
+.brand-logo{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.brand-logo svg{width:14px;height:14px}
+.brand-name{font-size:14px;font-weight:700;letter-spacing:-.01em;color:var(--text);white-space:nowrap}
+.brand-en{font-size:11px;font-weight:500;color:var(--text-3);white-space:nowrap}
+.brand-hint{font-size:10px;color:var(--text-4);margin-left:2px;padding:2px 6px;border:1px dashed var(--border-strong);border-radius:99px;white-space:nowrap;opacity:0;transition:opacity .2s}
+.brand-chip:hover .brand-hint{opacity:1}
+.tabs{display:flex;align-items:center;gap:2px}
+.tab{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;color:var(--text-2);cursor:pointer;border:none;background:transparent;transition:background .15s,color .15s;text-decoration:none}
+.tab:hover{background:var(--surface-2);color:var(--text)}
+.tab.on{background:var(--accent-light);color:var(--accent-ink)}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.kbd-chip{font-size:11px;color:var(--text-3);padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);white-space:nowrap}
+.theme-picker{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-2);padding:5px 12px;border:1px solid var(--border);border-radius:99px;background:var(--surface);cursor:pointer;transition:border-color .15s}
+.theme-picker:hover{border-color:var(--border-strong)}
+.theme-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* 主体骨架 */
+.shell{max-width:1360px;margin:0 auto;padding:18px 20px 80px}
+.metric-bar{background:color-mix(in srgb,var(--surface) 70%,transparent);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:10px;padding:6px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:38px}
+.mb-group{display:flex;align-items:center;gap:8px;background:var(--surface-2);border-radius:8px;padding:4px 10px}
+.mb-label{font-size:11px;color:var(--text-3);white-space:nowrap}
+.mb-val{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.mb-period{display:flex;gap:2px;background:var(--surface-2);border-radius:8px;padding:3px}
+.mb-period button{border:none;background:transparent;color:var(--text-3);font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;cursor:pointer}
+.mb-period button.on{background:var(--accent-light);color:var(--accent-ink)}
+.mb-cta{margin-left:auto;background:var(--accent-light);color:var(--accent-ink);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);font-size:12px;font-weight:600;padding:6px 14px;border-radius:8px;cursor:pointer}
+.mb-cta:hover{background:color-mix(in srgb,var(--accent) 24%,transparent)}
+.module-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin-bottom:16px}
+.mod-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.mod-ic{color:var(--accent);display:flex}
+.mod-title{font-size:17px;font-weight:700;letter-spacing:.3px}
+.mod-en{font-size:9px;color:var(--text-3);letter-spacing:1.4px;text-transform:uppercase}
+.skel{background:var(--surface-2);border-radius:8px;position:relative;overflow:hidden}
+.skel::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--text) 4%,transparent),transparent);animation:shimmer 1.6s infinite}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.skel-row{height:56px}
+.skel-heat{height:150px;margin-bottom:10px}
+
+/* 遮罩+弹窗 */
+.scrim{position:fixed;inset:0;z-index:300;background:var(--scrim-modal);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .25s}
+.scrim.show{opacity:1;pointer-events:auto}
+.modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.975);z-index:301;width:min(720px,92vw);max-height:86vh;background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow-modal);display:flex;flex-direction:column;overflow:hidden;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s cubic-bezier(.16,1,.3,1)}
+.modal.show{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+.md-head{display:flex;align-items:center;gap:10px;padding:18px 22px 0}
+.md-head-ic{width:36px;height:36px;border-radius:10px;background:var(--accent-light);display:flex;align-items:center;justify-content:center;color:var(--accent-ink);flex-shrink:0}
+.md-head-txt{flex:1;min-width:0}
+.md-title{font-size:17px;font-weight:700;letter-spacing:.2px}
+.md-sub{font-size:12px;color:var(--text-3);margin-top:2px;font-variant-numeric:tabular-nums}
+.md-close{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-3);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.md-close:hover{background:var(--surface-3);color:var(--text);border-color:var(--border-strong)}
+.md-summary{margin:14px 22px 0;font-size:13px;color:var(--text-2);line-height:1.6}
+.md-summary b{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums}
+.md-recent{font-size:12px;color:var(--text-3);margin-top:3px}
+.md-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 22px 0}
+.stat-cell{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;transition:border-color .15s}
+.stat-cell:hover{border-color:var(--border-strong)}
+.stat-cell.dim{opacity:.42}
+.stat-num{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15}
+.stat-lbl{font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:5px}
+.stat-lbl svg{width:12px;height:12px}
+
+/* 时间线 */
+.md-scroll{flex:1;overflow-y:auto;padding:18px 22px 6px;min-height:0}
+.tl-group-lbl{font-size:11px;color:var(--text-4);font-weight:600;letter-spacing:.5px;padding:10px 0 8px;display:flex;align-items:center;gap:10px}
+.tl-group-lbl::after{content:'';flex:1;height:1px;background:var(--border)}
+.tl-item{display:flex;align-items:flex-start;gap:12px;padding:8px 10px;margin:0 -10px;border-radius:8px;cursor:pointer;transition:background .15s;position:relative}
+.tl-item:hover{background:var(--surface-2)}
+.tl-rail{width:56px;flex-shrink:0;display:flex;justify-content:flex-end;padding-top:2px}
+.tl-time{font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.tl-dot-col{width:16px;flex-shrink:0;display:flex;justify-content:center;padding-top:5px;position:relative}
+.tl-dot-col::before{content:'';position:absolute;top:0;bottom:-14px;left:50%;transform:translateX(-50%);width:2px;background:var(--border)}
+.tl-item:last-child .tl-dot-col::before{bottom:50%}
+.tl-dot{width:9px;height:9px;border-radius:50%;position:relative;z-index:1;box-shadow:0 0 0 3px var(--surface)}
+.tl-item:hover .tl-dot{box-shadow:0 0 0 3px var(--surface-2)}
+.tl-body{flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tl-act{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap;flex-shrink:0}
+.tl-kind{display:flex;align-items:center;color:var(--text-3);flex-shrink:0}
+.tl-title{font-size:13px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+.tl-ws{font-size:11px;color:var(--text-3);margin-left:auto;white-space:nowrap;flex-shrink:0}
+.tl-status{font-size:10px;color:var(--text-3);background:var(--surface-3);padding:1px 6px;border-radius:4px;flex-shrink:0}
+.tl-empty{text-align:center;padding:48px 20px 56px;color:var(--text-3)}
+.tl-empty-ic{font-size:40px;margin-bottom:12px;opacity:.5}
+.tl-empty p{font-size:13px;line-height:1.7}
+.tl-empty .hint{font-size:12px;color:var(--text-4);margin-top:6px}
+
+/* 骨架加载 */
+.md-loading{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:56px 20px 64px}
+.load-logo{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;animation:breathe 1.1s ease-in-out infinite;box-shadow:0 0 32px var(--accent-glow)}
+.load-logo svg{width:28px;height:28px}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.load-txt{font-size:12px;color:var(--text-3);letter-spacing:.3px}
+
+/* 底部 */
+.md-foot{display:flex;align-items:center;gap:10px;padding:12px 22px 16px;border-top:1px solid var(--border);margin-top:6px}
+.foot-note{font-size:11px;color:var(--text-4)}
+.foot-btns{margin-left:auto;display:flex;gap:8px}
+.foot-btn{font-size:12px;font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.foot-btn:hover{border-color:var(--border-strong);color:var(--text);background:var(--surface-3)}
+.foot-btn.primary{background:var(--accent-light);color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.foot-btn.primary:hover{background:color-mix(in srgb,var(--accent) 24%,transparent)}
+.exp-wrap{position:relative}
+.exp-menu{position:absolute;bottom:calc(100% + 6px);right:0;min-width:210px;z-index:20;background:var(--surface);border:1px solid var(--border-strong);border-radius:10px;box-shadow:var(--shadow-lg);padding:5px}
+.exp-menu button{display:flex;align-items:center;gap:9px;width:100%;padding:8px 11px;border:none;background:transparent;color:var(--text);font-size:12px;font-weight:500;border-radius:7px;cursor:pointer;text-align:left;transition:background .12s}
+.exp-menu button:hover{background:var(--surface-2)}
+.exp-menu .hint{font-size:10px;color:var(--text-4);margin-left:auto}
+
+/* Toast */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(12px);z-index:9999;background:var(--toast-bg);color:var(--toast-fg);border:1px solid var(--border-strong);border-radius:10px;box-shadow:var(--shadow-lg);padding:11px 18px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:9px;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s cubic-bezier(.16,1,.3,1);max-width:90vw}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast .t-action{color:var(--toast-action);font-weight:700;cursor:pointer;margin-left:6px}
+
+/* 演示条 */
+.demo-bar{position:fixed;bottom:0;left:0;right:0;z-index:90;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:12px;justify-content:center}
+.demo-bar .lbl{font-size:11px;color:var(--text-3)}
+.demo-btn{font-size:12px;font-weight:600;padding:6px 14px;border-radius:8px;cursor:pointer;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);transition:all .15s}
+.demo-btn:hover{border-color:var(--border-strong);color:var(--text)}
+.demo-btn.on{background:var(--accent-light);color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+@media (max-width:720px){.md-stats{grid-template-columns:repeat(2,1fr)}.tl-ws{display:none}.brand-en{display:none}.kbd-chip{display:none}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand-chip" id="brandChip" role="button" tabindex="0" aria-label="知源调度台 Ownway — 点击刷新并查看今日战报">
+      <span class="brand-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+      </span>
+      <span class="brand-name">知源调度台</span>
+      <span class="brand-en">Ownway</span>
+      <span class="brand-hint">点击查看今日战报</span>
+    </div>
+    <nav class="tabs">
+      <a class="tab on" href="#" onclick="return false;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        调度台
+      </a>
+      <a class="tab" href="#" onclick="return false;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"/></svg>
+        方向台
+      </a>
+    </nav>
+    <div class="topbar-right">
+      <span class="kbd-chip">调出快捷键 ⌘K</span>
+      <div class="theme-picker" id="themePicker" role="button" tabindex="0" aria-label="切换主题">
+        <span class="theme-dot" id="themeDot"></span>
+        <span id="themeName">深空薰衣草</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="shell">
+  <div class="metric-bar">
+    <div class="mb-group"><span class="mb-label">🚀 主攻</span><span class="mb-val">软硬一体服务系统解决方案</span></div>
+    <div class="mb-period"><button class="on">日</button><button>周</button><button>累计</button></div>
+    <div class="mb-group"><span class="mb-label">战略目标</span><span class="mb-val">3</span></div>
+    <div class="mb-group"><span class="mb-label">推进项目</span><span class="mb-val">6</span></div>
+    <div class="mb-group"><span class="mb-label">WCE 探索</span><span class="mb-val">0</span></div>
+    <div class="mb-group"><span class="mb-label">未归档</span><span class="mb-val" style="color:var(--warning)">1/30</span></div>
+    <button class="mb-cta">📈 复盘</button>
+  </div>
+
+  <section class="module-card">
+    <div class="mod-head">
+      <span class="mod-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></span>
+      <span class="mod-title">今日三件事</span>
+      <span class="mod-en">Today's Focus</span>
+    </div>
+    <div class="skel skel-row"></div>
+  </section>
+
+  <section class="module-card">
+    <div class="mod-head">
+      <span class="mod-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span>
+      <span class="mod-title">年度热力图</span>
+      <span class="mod-en">Annual Heatmap</span>
+    </div>
+    <div class="skel skel-heat"></div>
+    <div style="display:flex;gap:6px">
+      <span style="width:14px;height:14px;border-radius:3px;background:var(--heat-0);display:inline-block"></span>
+      <span style="width:14px;height:14px;border-radius:3px;background:var(--heat-1);display:inline-block"></span>
+      <span style="width:14px;height:14px;border-radius:3px;background:var(--heat-2);display:inline-block"></span>
+      <span style="width:14px;height:14px;border-radius:3px;background:var(--heat-3);display:inline-block"></span>
+      <span style="width:14px;height:14px;border-radius:3px;background:var(--heat-4);display:inline-block"></span>
+      <span style="width:14px;height:14px;border-radius:3px;background:var(--heat-5);display:inline-block"></span>
+    </div>
+  </section>
+
+  <section class="module-card">
+    <div style="display:flex;gap:8px">
+      <span style="padding:6px 16px;border:1px solid var(--text);background:var(--text);color:var(--bg);border-radius:99px;font-size:13px;font-weight:600">任务卡 30</span>
+      <span style="padding:6px 16px;border:1px solid var(--border);color:var(--text-2);border-radius:99px;font-size:13px;font-weight:600">好奇心卡 7</span>
+      <span style="padding:6px 16px;border:1px solid var(--border);color:var(--text-2);border-radius:99px;font-size:13px;font-weight:600">资源卡 261</span>
+    </div>
+  </section>
+</main>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="md-loading" id="modalLoading">
+    <div class="load-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+    </div>
+    <div class="load-txt">正在为你汇总今日操作…</div>
+  </div>
+
+  <div id="modalContent" style="display:none;flex-direction:column;flex:1;min-height:0">
+    <div class="md-head">
+      <div class="md-head-ic">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="4"/></svg>
+      </div>
+      <div class="md-head-txt">
+        <div class="md-title" id="modalTitle">今日战报</div>
+        <div class="md-sub" id="modalDate">2026-10-11 周日</div>
+      </div>
+      <button class="md-close" id="modalClose" aria-label="关闭">×</button>
+    </div>
+    <div class="md-summary" id="modalSummary"></div>
+    <div class="md-stats" id="modalStats"></div>
+    <div class="md-scroll" id="modalScroll"></div>
+    <div class="md-foot">
+      <span class="foot-note" id="modalFootNote">数据来源：本机事件日志 · 仅今日 · 自然日口径</span>
+      <div class="foot-btns">
+        <button class="foot-btn" id="btnViewAll">查看全部记录 ›</button>
+        <div class="exp-wrap">
+          <button class="foot-btn primary" id="btnExport" aria-haspopup="true" aria-expanded="false">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            导出
+          </button>
+          <div class="exp-menu" id="expMenu" style="display:none">
+            <button data-fmt="png"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>PNG 图片<span class="hint">当前主题配色</span></button>
+            <button data-fmt="html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" xmlns="http://www.w3.org/2000/svg"><path d="m18 16 4-4-4-4M6 8l-4 4 4 4M14.5 4l-5 16"/></svg>HTML 分享页<span class="hint">浏览器打开即看</span></button>
+            <button data-fmt="md"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg"><path d="M4 3h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M8 17v-5l3 3 3-3v5M16 17v-4"/></svg>Markdown 文档<span class="hint">贴进笔记即成形</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="demo-bar">
+  <span class="lbl">演示场景：</span>
+  <button class="demo-btn on" id="btnScnFull">完整战报</button>
+  <button class="demo-btn" id="btnScnSparse">稀疏战报</button>
+  <button class="demo-btn" id="btnScnEmpty">空态</button>
+</div>
+<script>
+const ACT_BADGE={
+  create:{txt:'+ 新增',color:'var(--success)',bg:'var(--act-create-bg)'},
+  call:{txt:'↗ 调出',color:'var(--accent-ink)',bg:'var(--act-call-bg)'},
+  status:{txt:'◐ 改状态',color:'var(--info-blue)',bg:'var(--act-status-bg)'},
+  delete:{txt:'✕ 删除',color:'var(--danger)',bg:'var(--act-delete-bg)'},
+  restore:{txt:'⟲ 恢复',color:'var(--warning)',bg:'var(--act-restore-bg)'},
+  purge:{txt:'✕ 清理',color:'var(--danger)',bg:'var(--act-delete-bg)'}
+};
+const KIND_SVG={
+  resource:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>',
+  task:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>',
+  curiosity:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>'
+};
+const STAT_ICON={
+  create:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg"><path d="M12 5v14M5 12h14"/></svg>',
+  call:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg"><path d="M7 17 17 7M7 7h10v10"/></svg>',
+  status:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg"><path d="M20 6 9 17l-5-5"/></svg>',
+  del:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>'
+};
+
+function mkEvent(ts,action,kind,title,cardId,ws,to){return{id:ts+'-'+action,ts,action,kind,title,cardId,ws,to}}
+const T=(h,m)=>new Date(2026,9,11,h,m).getTime();
+const SCENARIOS={
+  full:[
+    mkEvent(T(14,32),'call','resource','QQ邮箱','rc-001','数字生活与效率'),
+    mkEvent(T(14,10),'status','task','obsidian工作流','tk-014','内容生产工程','已完成'),
+    mkEvent(T(13,55),'call','resource','学业规划升学管理平台','rc-002','教育+AI研究'),
+    mkEvent(T(11,20),'create','resource','MiniMax Agent: Minimize Effort','rc-003','AI工具与知识库'),
+    mkEvent(T(10,48),'call','task','设计解决方案报价模板','tk-001','软硬一体服务系统解决方案'),
+    mkEvent(T(10,30),'status','curiosity','如何用AI辅助志愿填报决策？','cu-007','好奇心卡池','已归档'),
+    mkEvent(T(9,52),'create','task','搭建课程产品V1.0','tk-020','课程产品研发'),
+    mkEvent(T(9,30),'create','resource','Bosstan2023 Obsidian 知识库','rc-004','AI工具与知识库'),
+    mkEvent(T(9,15),'call','resource','QQ邮箱','rc-001','数字生活与效率'),
+    mkEvent(T(8,40),'status','task','制作产品介绍PPT模板','tk-002','软硬一体服务系统解决方案','进行中'),
+    mkEvent(T(8,20),'delete','resource','临时测试卡','rc-999','资源卡池'),
+    mkEvent(T(8,5),'create','curiosity','AI Agent 概念梳理，构建认知基础','cu-008','好奇心卡池')
+  ],
+  sparse:[
+    mkEvent(T(9,12),'create','resource','obsidian工作流','rc-010','内容生产工程'),
+    mkEvent(T(8,50),'call','task','梳理产品核心卖点清单','tk-003','软硬一体服务系统解决方案')
+  ],
+  empty:[]
+};
+let currentScenario='full';
+
+const THEMES=[{id:'dark',name:'深空薰衣草',dot:'#5E6AD2'},{id:'light',name:'极简白',dot:'#8452E0'}];
+let themeIdx=0;
+const themeDot=document.getElementById('themeDot');
+const themeName=document.getElementById('themeName');
+function applyTheme(i){themeIdx=i%THEMES.length;const t=THEMES[themeIdx];document.documentElement.dataset.theme=t.id;themeDot.style.background=t.dot;themeName.textContent=t.name}
+applyTheme(0);
+document.getElementById('themePicker').addEventListener('click',()=>applyTheme(themeIdx+1));
+document.getElementById('themePicker').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();applyTheme(themeIdx+1)}});
+
+const scrim=document.getElementById('scrim');
+const modal=document.getElementById('modal');
+const modalLoading=document.getElementById('modalLoading');
+const modalContent=document.getElementById('modalContent');
+let loadingTimer=null;
+let toastTimer=null;
+
+function fmtTime(ts){const d=new Date(ts);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+function relTime(ts){const mins=Math.floor((Date.now()-ts)/60000);if(mins<1)return'刚刚';if(mins<60)return mins+' 分钟前';const h=Math.floor(mins/60);if(h<24)return h+' 小时前';return Math.floor(h/24)+' 天前'}
+function weekDay(ts){return['周日','周一','周二','周三','周四','周五','周六'][new Date(ts).getDay()]}
+
+function showToast(msg,actionLabel){
+  const t=document.getElementById('toast');
+  t.innerHTML='';
+  const s=document.createElement('span');s.textContent=msg;t.appendChild(s);
+  if(actionLabel){const a=document.createElement('span');a.className='t-action';a.textContent=actionLabel;a.addEventListener('click',()=>{t.classList.remove('show')});t.appendChild(a)}
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+function renderTimeline(events){
+  const scrollEl=document.getElementById('modalScroll');
+  if(!events.length){
+    scrollEl.innerHTML='<div class="tl-empty"><div class="tl-empty-ic">📭</div><p>今天还没有操作记录</p><p class="hint">去调度台做点什么吧 — 采集一张卡、推进一个任务、或打开一次资源</p></div>';
+    return;
+  }
+  const sorted=events.slice().sort((a,b)=>b.ts-a.ts);
+  let html='<div class="timeline">';
+  let lastGroup='';
+  const groups={morning:'上午',afternoon:'下午',evening:'晚上'};
+  sorted.forEach(e=>{
+    const h=new Date(e.ts).getHours();
+    const g=h<12?'morning':(h<18?'afternoon':'evening');
+    if(g!==lastGroup){html+='<div class="tl-group-lbl">'+groups[g]+'</div>';lastGroup=g}
+    const badge=ACT_BADGE[e.action]||{txt:e.action,color:'var(--text-2)',bg:'var(--surface-2)'};
+    const kindIcon=KIND_SVG[e.kind]||'';
+    html+='<div class="tl-item" tabindex="0" role="button" data-card="'+(e.cardId||'')+'" aria-label="'+e.title+'">'
+      +'<div class="tl-rail"><span class="tl-time">'+fmtTime(e.ts)+'</span></div>'
+      +'<div class="tl-dot-col"><span class="tl-dot" style="background:'+badge.color+'"></span></div>'
+      +'<div class="tl-body">'
+      +'<span class="tl-act" style="color:'+badge.color+';background:'+badge.bg+'">'+badge.txt+'</span>'
+      +'<span class="tl-kind">'+kindIcon+'</span>'
+      +'<span class="tl-title">'+e.title+'</span>'
+      +(e.to?'<span class="tl-status">'+e.to+'</span>':'')
+      +(e.ws?'<span class="tl-ws">'+e.ws+'</span>':'')
+      +'</div></div>';
+  });
+  html+='</div>';
+  scrollEl.innerHTML=html;
+
+  scrollEl.querySelectorAll('.tl-item').forEach(item=>{
+    item.addEventListener('click',()=>showToast('定位到卡片：'+(item.querySelector('.tl-title')?.textContent||''),'查看'));
+    item.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();item.click()}});
+  });
+}
+
+function renderStats(events){
+  const statsEl=document.getElementById('modalStats');
+  if(!events.length){statsEl.style.display='none';return}
+  statsEl.style.display='grid';
+  const c={create:0,call:0,status:0,del:0};
+  events.forEach(e=>{if(e.action==='create')c.create++;else if(e.action==='call')c.call++;else if(e.action==='status')c.status++;else if(e.action==='delete'||e.action==='purge')c.del++});
+  const cards=new Set(events.map(e=>e.cardId).filter(Boolean));
+  const maxTs=Math.max(...events.map(e=>e.ts));
+  const sum=document.getElementById('modalSummary');
+  sum.innerHTML='今天你完成了 <b>'+events.length+'</b> 项操作，涉及 <b>'+cards.size+'</b> 张卡。';
+  const r=document.createElement('div');r.className='md-recent';r.textContent='最近一次操作：'+fmtTime(maxTs)+'（'+relTime(maxTs)+'）';sum.appendChild(r);
+
+  const cells=[
+    {n:c.create,lbl:'新增',ic:STAT_ICON.create,c:'var(--success)'},
+    {n:c.call,lbl:'调出',ic:STAT_ICON.call,c:'var(--accent-ink)'},
+    {n:c.status,lbl:'推进',ic:STAT_ICON.status,c:'var(--info-blue)'},
+    {n:c.del,lbl:'清理',ic:STAT_ICON.del,c:'var(--danger)'}
+  ];
+  statsEl.innerHTML=cells.map(cell=>
+    '<div class="stat-cell'+(cell.n===0?' dim':'')+'">'
+    +'<span class="stat-num" style="color:'+cell.c+'">'+cell.n+'</span>'
+    +'<span class="stat-lbl">'+cell.ic+cell.lbl+'</span>'
+    +'</div>'
+  ).join('');
+}
+
+function openModal(){
+  if(loadingTimer)clearTimeout(loadingTimer);
+  scrim.classList.add('show');
+  modal.classList.add('show');
+  modalLoading.style.display='flex';
+  modalContent.style.display='none';
+  document.getElementById('modalDate').textContent='2026-10-11 '+weekDay(T(12,0));
+  loadingTimer=setTimeout(()=>{
+    const events=SCENARIOS[currentScenario]||[];
+    renderStats(events);
+    renderTimeline(events);
+    modalLoading.style.display='none';
+    modalContent.style.display='flex';
+  },650);
+}
+function closeModal(){scrim.classList.remove('show');modal.classList.remove('show');if(loadingTimer)clearTimeout(loadingTimer)}
+
+document.getElementById('brandChip').addEventListener('click',()=>{
+  const chip=document.getElementById('brandChip');
+  chip.classList.remove('pulsing');void chip.offsetWidth;chip.classList.add('pulsing');
+  setTimeout(openModal,120);
+});
+document.getElementById('brandChip').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();document.getElementById('brandChip').click()}});
+document.getElementById('modalClose').addEventListener('click',closeModal);
+scrim.addEventListener('click',closeModal);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('show')){closeModal()}});
+
+const expMenu=document.getElementById('expMenu');
+const btnExport=document.getElementById('btnExport');
+btnExport.addEventListener('click',e=>{e.stopPropagation();const open=expMenu.style.display!=='none';expMenu.style.display=open?'none':'block';btnExport.setAttribute('aria-expanded',String(!open))});
+document.addEventListener('click',()=>{expMenu.style.display='none';btnExport.setAttribute('aria-expanded','false')});
+expMenu.addEventListener('click',e=>{e.stopPropagation();const b=e.target.closest('button[data-fmt]');if(b){expMenu.style.display='none';btnExport.setAttribute('aria-expanded','false');showToast('导出 '+b.dataset.fmt.toUpperCase()+' — 演示环境不生成真实文件')}});
+
+document.getElementById('btnViewAll').addEventListener('click',()=>showToast('打开「全量记录抽屉」— 演示环境不跳转'));
+
+function setScenario(id,btn){
+  currentScenario=id;
+  document.querySelectorAll('.demo-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  if(modal.classList.contains('show')&&modalContent.style.display==='flex'){
+    const events=SCENARIOS[currentScenario]||[];
+    renderStats(events);renderTimeline(events);
+  }
+}
+document.getElementById('btnScnFull').addEventListener('click',function(){setScenario('full',this)});
+document.getElementById('btnScnSparse').addEventListener('click',function(){setScenario('sparse',this)});
+document.getElementById('btnScnEmpty').addEventListener('click',function(){setScenario('empty',this)});
+</script>
+</body>
+</html>

@@ -16,6 +16,9 @@ import { CURATION_WS_ID, type ResourceCard } from '@/shared/models'
 import { uid } from '@/shared/utils'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import { showToast } from '@/shared/components/toast'
+import { saveUIPrefs } from '@/shared/storage/repository'
+import { recordResourceOpen } from '@/shared/storage/stats'
+import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import NewBadge from '@/shared/components/NewBadge.vue'
 import { useWorkspaceImport } from '../../composables/useWorkspaceImport'
@@ -32,13 +35,37 @@ const query = ref('')
 const viewMode = ref<'card' | 'list'>('card')
 /** R3-Ca：「待打标」筛选——池卡由标签组织，无标签=召回不上的存量，这条是 R179 迁移时承诺的兜底出口 */
 const onlyUntagged = ref(false)
+/* W5（V3.8.5）#3：排序接线 DeckControls —— 三档（最近更新默认 / 最近采集 / 最近调出）+ 方向钮。
+   偏好键用 `pool`（新键，不碰 useResourceView 的 `sortPrefs.res`——那是策展台资源台的口径）。
+   置顶恒浮顶（与档位/方向无关，右键菜单的置顶动作语义即"钉在最上面"）。 */
+type PoolSortBy = 'updated' | 'created' | 'called'
+const POOL_SORTS = [
+  { id: 'updated', label: '最近更新' },
+  { id: 'created', label: '最近采集' },
+  { id: 'called', label: '最近调出' }
+]
+const POOL_SORT_KEYS: PoolSortBy[] = ['updated', 'created', 'called']
+const savedPoolSort = store.ui?.sortPrefs?.pool?.by
+const sortBy = ref<PoolSortBy>(POOL_SORT_KEYS.includes(savedPoolSort as PoolSortBy) ? savedPoolSort as PoolSortBy : 'updated')
+const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.pool?.dir === 'asc') ? 'asc' : 'desc')
+watch([sortBy, sortDir], () => {
+  const sp = { ...(store.ui?.sortPrefs || {}), pool: { by: sortBy.value, dir: sortDir.value } }
+  if (store.ui) store.ui.sortPrefs = sp
+  saveUIPrefs({ sortPrefs: sp })
+})
+function toggleSortDir() { sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc' }
 const poolCards = computed(() => {
   const q = query.value.trim().toLowerCase()
+  const dirMul = sortDir.value === 'asc' ? 1 : -1
+  const keyOf = (r: ResourceCard): number =>
+    sortBy.value === 'created' ? (r.createdAt || 0)
+    : sortBy.value === 'called' ? (r.callCount || 0)
+    : (r.updatedAt || 0)
   return (store.data?.resources || [])
     .filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
     .filter(r => !q || r.title.toLowerCase().includes(q) || (r.tags || []).some(t => t.toLowerCase().includes(q)))
     .filter(r => !onlyUntagged.value || !(r.tags || []).length)
-    .sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (b.updatedAt || 0) - (a.updatedAt || 0))
+    .sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (keyOf(b) - keyOf(a)) * dirMul)
 })
 const poolTotal = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID).length)
 const untaggedCount = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID && !(r.tags || []).length).length)
@@ -56,6 +83,7 @@ const poolFilters = computed(() => [
 const PAGE = 60
 const visibleCount = ref(PAGE)
 watch(query, () => { visibleCount.value = PAGE })
+watch([sortBy, sortDir], () => { visibleCount.value = PAGE })
 const rendered = computed(() => poolCards.value.slice(0, visibleCount.value))
 const hasMore = computed(() => poolCards.value.length > visibleCount.value)
 function renderMore() { if (hasMore.value) visibleCount.value += PAGE }
@@ -95,9 +123,27 @@ watch(() => route.query.hl, (hl) => {
   router.replace({ path: route.path })
 }, { immediate: true })
 
-function openCard(r: { id: string }) {
+// ---- 三卡交互统一（单击详情 / 双击打开卡内链接，与任务、好奇面板同款 260ms 去重） ----
+let pcpClickTimer: ReturnType<typeof setTimeout> | null = null
+function openCard(r: ResourceCard) {
   if (batchMode.value) { toggleSel(r.id); return }
-  emitOpenDrawer({ kind: 'res', id: r.id })
+  if (pcpClickTimer) { clearTimeout(pcpClickTimer); pcpClickTimer = null; return }
+  pcpClickTimer = setTimeout(() => {
+    pcpClickTimer = null
+    emitOpenDrawer({ kind: 'res', id: r.id })
+  }, 260)
+}
+function openCardLink(r: ResourceCard) {
+  const url = toOpenableUrl(r.linkType, r.link)
+  if (!url) { showToast('该卡片还没有可打开的链接，可在详情中添加'); return }
+  recordResourceOpen(store.data!, r)
+  store.persistHot()
+  openExternalLink(url)
+}
+function onCardDblClick(r: ResourceCard) {
+  if (batchMode.value) return
+  if (pcpClickTimer) { clearTimeout(pcpClickTimer); pcpClickTimer = null }
+  openCardLink(r)
 }
 function removeCard(r: { id: string; title: string }) {
   const live = (store.data?.resources || []).find(x => x.id === r.id)
@@ -193,6 +239,8 @@ function deleteSelected() {
     <DeckControls panel="pool" search search-ph="快速过滤标题 / 标签..." :query="query" @search="query = $event"
       :filters="poolFilters" :filter="onlyUntagged ? 'untagged' : 'all'" @filter="onPoolFilter"
       :views="poolViews" :view="viewMode" @view="viewMode = $event as 'card' | 'list'"
+      :sorts="POOL_SORTS" :sort="sortBy" @sort="sortBy = $event as PoolSortBy"
+      :sort-dir="sortDir" :sort-dir-titles="['当前倒序，点击切换正序', '当前正序，点击切换倒序']" @sort-dir="toggleSortDir"
       :batch-labels="['批量', '退出批量']" :batch-on="batchMode" @batch="toggleBatch"
       new-label="＋ 新建卡" new-title="新建单张资源卡（采集走 Ctrl+Shift+J）" @create="openNew">
       <button class="pcp-btn" title="图片 / HTML / PDF，一文件一卡（本体存本地 IndexedDB）" @click="fileImport()">📥 导入本地文件</button>
@@ -228,7 +276,7 @@ function deleteSelected() {
     <!-- R3-Ca 列表视图：一屏看更多 + 标签全展开（网格留作默认，两档共用同一份 poolCards 与分页） -->
     <div v-else-if="viewMode === 'list'" class="pcp-list">
       <div v-for="r in rendered" :key="r.id" class="pcp-row" :class="{ flash: highlightId === r.id, picked: selected.has(r.id) }" :data-rid="r.id"
-        :title="batchMode ? '点击选中 / 取消' : r.title + ' · 单击打开详情 · 右键更多'" @click="openCard(r)" @contextmenu="openCtx($event, r)">
+        :title="batchMode ? '点击选中 / 取消' : r.title + ' · 单击打开详情 · 双击打开链接 · 右键更多'" @click="openCard(r)" @dblclick="onCardDblClick(r)" @contextmenu="openCtx($event, r)">
         <span v-if="batchMode" class="pcp-check">{{ selected.has(r.id) ? '✓' : '' }}</span>
         <span class="pcp-r-title"><NewBadge :at="r.createdAt" /><span v-if="r.pinned" class="pcp-pin" title="已置顶">📌</span>{{ r.title }}</span>
         <span class="pcp-r-tags">
@@ -246,7 +294,7 @@ function deleteSelected() {
 
     <div v-else class="pcp-grid">
       <div v-for="r in rendered" :key="r.id" class="pcp-card" :class="{ flash: highlightId === r.id, picked: selected.has(r.id) }" :data-rid="r.id"
-        :title="batchMode ? '点击选中 / 取消' : r.title + ' · 单击打开详情 · 右键更多'" @click="openCard(r)" @contextmenu="openCtx($event, r)">
+        :title="batchMode ? '点击选中 / 取消' : r.title + ' · 单击打开详情 · 双击打开链接 · 右键更多'" @click="openCard(r)" @dblclick="onCardDblClick(r)" @contextmenu="openCtx($event, r)">
         <div class="pcp-top">
           <div class="pcp-title">
             <NewBadge :at="r.createdAt" />

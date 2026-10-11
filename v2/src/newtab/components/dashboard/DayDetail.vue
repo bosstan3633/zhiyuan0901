@@ -13,11 +13,17 @@
  * R172-T7 修订：折叠逻辑（同卡多次 `×N` + 首末时刻）上移到 `shared/utils/drillRows.ts`，
  * 与复盘段 KPI 下钻共用**同一实现** —— 顺带修掉一个真缺陷：本地版返回 `t1/t2` 而
  * `DrillCardList` 读 `time/time2`，日详情下钻的时间列此前恒为空白。
+ *
+ * W5（V3.8.5）#6 今日战报合一：本组件即「战报+分析」统一弹窗 ——
+ *   传今天 = 今日战报（品牌区入口），传历史日 = 那日战报（热力图点格子入口），同一 props.day 参数化。
+ *   新增：②.5 战报摘要行（N 项操作 · M 张卡片 · 最近一次时刻）；流水升级为分时段叙事时间线
+ *   （上午/下午/晚上 + 语义色点 + 动词徽标 + 归属台图标，正序讲完这一天）；底部导出三件套（#4a）。
+ *   分析段（四列下钻 + 库容变化条 + 加权分徽标）一字不动地保留在原位。
  */
 import './dashboard.css'
 import { computed, ref } from 'vue'
 import { useAppStore } from '@/newtab/stores/app'
-import type { CardEvent, CardKind } from '@/shared/utils/eventLog'
+import type { CardEvent, CardKind, EventAction } from '@/shared/utils/eventLog'
 import { EVENT_ACT_LABEL } from '@/shared/utils/eventLog'
 import {
   W, actsOf, deltaOf, emptyDay, levelName, levelDesc, levelRange, stockAt,
@@ -25,6 +31,10 @@ import {
 } from '@/shared/utils/dailyStats'
 import { groupEventRows, hm, dayOfTs, type DrillRow } from '@/shared/utils/drillRows'
 import DrillCardList from './DrillCardList.vue'
+import ExportMenu, { type ExportFmt } from './ExportMenu.vue'
+import { pngBlobFromSpec, dailyReportShareHtml, sectionsToMd, exportName } from '@/shared/utils/exportView'
+import { downloadBlob, downloadText } from '@/shared/utils/download'
+import { showToast } from '@/shared/components/toast'
 
 const props = defineProps<{
   stats: DailyStats
@@ -115,8 +125,104 @@ const dl = computed(() => deltaOf(props.stats, props.day))
 const st = computed(() => stockAt(props.stats, props.day, props.liveLink))
 const wd = computed(() => WD[(new Date(props.day.replace(/-/g, '/')).getDay() + 6) % 7])
 
-/** 当日流水（F16）：倒序 + 动作徽标；总数与 zy_event_log 当日明细一致 */
-const flow = computed(() => [...dayEvents.value].sort((a, b) => b.ts - a.ts))
+/* ===== W5（V3.8.5）#6 战报层：摘要行 + 分时段叙事时间线 + 导出三件套 ===== */
+
+/** 战报摘要：N 项操作 · M 张卡片 · 最近一次时刻 · 含 N 次清理（delete/purge 计入"清理"） */
+const dlSum = computed(() => {
+  const evs = dayEvents.value
+  const cards = new Set(evs.map(e => e.cardId).filter(Boolean)).size
+  const cleanN = evs.filter(e => e.action === 'delete' || e.action === 'purge').length
+  const last = evs.length ? Math.max(...evs.map(e => e.ts)) : 0
+  return { n: evs.length, cards, cleanN, last }
+})
+
+/** 动词徽标：符号 + EVENT_ACT_LABEL（单一真源，判据锚 `EVENT_ACT_LABEL[e.action]` 在此消费）。
+ *  类名走**字面量表**而非 `act-${a}` 拼接：dead-css-scan 的 token 匹配看不见运行时拼串，
+ *  字面量让 act-create 等 token 全站可见（与 curiosity 的 cls 数据表同一口径）。 */
+const ACT_SYM: Record<EventAction, string> = { create: '+', call: '↗', status: '◐', delete: '✕', restore: '⟲', purge: '✕' }
+const ACT_CLS: Record<EventAction, string> = {
+  create: 'act-create', call: 'act-call', status: 'act-status',
+  delete: 'act-delete', restore: 'act-restore', purge: 'act-purge'
+}
+function actOf(a: EventAction): { txt: string; cls: string } {
+  return { txt: `${ACT_SYM[a]} ${EVENT_ACT_LABEL[a]}`, cls: ACT_CLS[a] }
+}
+const KIND_LABEL: Record<string, string> = { resource: '资源', task: '任务', curiosity: '好奇', system: '系统' }
+
+/** 叙事时间线：正序（上午→晚上讲完这一天），同时间段连续成组 */
+const flowGroups = computed(() => {
+  const out: { label: string; rows: { tm: string; e: CardEvent }[] }[] = []
+  const sorted = [...dayEvents.value].sort((a, b) => a.ts - b.ts)
+  for (const e of sorted) {
+    const h = new Date(e.ts).getHours()
+    const label = h < 12 ? '上午' : h < 18 ? '下午' : '晚上'
+    let g = out[out.length - 1]
+    if (!g || g.label !== label) { g = { label, rows: [] }; out.push(g) }
+    g.rows.push({ tm: hm(e.ts), e })
+  }
+  return out
+})
+
+/* ---- 导出三件套（PNG / HTML / Markdown）：导出的是弹窗当前算出来的东西，不另跑一套算法 ---- */
+const exportKpis = () => {
+  const evs = dayEvents.value
+  const c = { create: 0, call: 0, status: 0, del: 0 }
+  for (const e of evs) {
+    if (e.action === 'create') c.create++
+    else if (e.action === 'call') c.call++
+    else if (e.action === 'status') c.status++
+    else if (e.action === 'delete' || e.action === 'purge') c.del++
+  }
+  return [
+    { label: '新增', value: String(c.create), note: '采集入卡' },
+    { label: '调出', value: String(c.call), note: '打开卡片' },
+    { label: '推进', value: String(c.status), note: '状态变更' },
+    { label: '清理', value: String(c.del), note: '删除 / 清理' }
+  ]
+}
+const exportRows = () => [...dayEvents.value].sort((a, b) => a.ts - b.ts).map(e => ({ time: hm(e.ts), label: EVENT_ACT_LABEL[e.action], title: e.title }))
+const summaryText = computed(() => dlSum.value.n
+  ? `当天完成 ${dlSum.value.n} 项操作，涉及 ${dlSum.value.cards} 张卡片${dlSum.value.last ? `，最近一次 ${hm(dlSum.value.last)}` : ''}${dlSum.value.cleanN ? `，含 ${dlSum.value.cleanN} 次清理` : ''}`
+  : '这一天没有操作记录。')
+
+async function exportPng(): Promise<void> {
+  const blob = await pngBlobFromSpec({
+    title: `每日战报 ${props.day}`,
+    sub: summaryText.value,
+    kpis: exportKpis(),
+    grid: null,
+    rows: exportRows(),
+    footer: '知源调度台 · 每日战报 · 数据只在本机'
+  })
+  downloadBlob(exportName('战报', 'png', props.day), blob)
+  showToast('✓ 已导出战报 PNG（当前主题配色）')
+}
+function exportHtml(): void {
+  const html = dailyReportShareHtml({
+    title: `每日战报 ${props.day}`,
+    sub: `周${wd.value} · 加权 ${rec.value.w} 分 · 有效动作 ${actsOf(rec.value)} 件`,
+    summary: summaryText.value.replace(/(\d+)/g, '<b>$1</b>'),
+    kpis: exportKpis(),
+    rows: exportRows(),
+    footer: '知源调度台 · 每日战报 · 数据只在本机'
+  })
+  downloadText(exportName('战报', 'html', props.day), html, 'html')
+  showToast('✓ 已导出 HTML 分享页（任何人浏览器打开即看）')
+}
+function exportMd(): void {
+  const md = sectionsToMd(`每日战报 ${props.day}`, `周${wd.value} · ${summaryText.value}`, [
+    { h: '统计', lines: exportKpis().map(k => `- ${k.label}：${k.value}（${k.note}）`) },
+    { h: '库容变化', lines: [`- 截至该日总库容：${st.value.total} 张（资源 ${st.value.res} · 任务 ${st.value.task} · 好奇 ${st.value.curio} · 链接 ${st.value.link}）`, `- 当天入台 +${dl.value.add} · 当天移出 -${dl.value.del}`] },
+    { h: '操作流水（正序）', lines: exportRows().map(r => `- ${r.time}　${r.label}　${r.title}`) }
+  ])
+  downloadText(exportName('战报', 'md', props.day), md, 'md')
+  showToast('✓ 已导出 Markdown（贴进笔记即成形）')
+}
+function onExport(fmt: ExportFmt): void {
+  if (fmt === 'png') void exportPng()
+  else if (fmt === 'html') exportHtml()
+  else if (fmt === 'md') exportMd()
+}
 </script>
 
 <template>
@@ -131,6 +237,9 @@ const flow = computed(() => [...dayEvents.value].sort((a, b) => b.ts - a.ts))
       <span class="dz-sp"></span>
       <button class="dz-btn ghost sm" @click="emit('close')">收起 ×</button>
     </div>
+
+    <!-- W5 #6 战报摘要行：一句话讲清当天干了多少事 -->
+    <div class="dz-dl-sum">{{ summaryText }}</div>
 
     <div class="dz-hintline">▸ 点击下方任一指标 → 展开该类<b>内容卡片</b>；卡片<b>单击看详情</b> · <b>双击直达链接</b>（与资源台 / 任务中心一致）</div>
 
@@ -159,18 +268,30 @@ const flow = computed(() => [...dayEvents.value].sort((a, b) => b.ts - a.ts))
 
     <DrillCardList :rows="cur.rows" :label="cur.h" :total="cur.total" plain />
 
+    <!-- W5 #6：当日流水升级为分时段叙事时间线（正序，上午→晚上） -->
     <div class="dz-tl">
-      <div class="th">当日原始记录流水（倒序）<span class="dz-sp"></span>
-        <span style="color:var(--text-4)">共 {{ flow.length }} 条 · 明细来自 zy_event_log</span>
+      <div class="th">当日操作时间线<span class="dz-sp"></span>
+        <span style="color:var(--text-3)">共 {{ dlSum.n }} 条 · 明细来自 zy_event_log</span>
         <button class="dz-btn sm" @click="emit('open-log', day)">查看全部记录 ›</button>
       </div>
-      <div v-if="!flow.length" class="dz-row"><span class="ti" style="color:var(--text-3)">当天无记录</span></div>
-      <div v-for="e in flow" :key="e.id" class="row">
-        <span class="tm">{{ hm(e.ts) }}</span>
-        <span class="ac">{{ EVENT_ACT_LABEL[e.action] }}</span>
-        <span class="ti">{{ e.title }}</span>
-        <span class="pt"></span>
-      </div>
+      <div v-if="!flowGroups.length" class="dz-row"><span class="ti" style="color:var(--text-3)">这一天没有操作记录</span></div>
+      <template v-for="g in flowGroups" :key="g.label">
+        <div class="dz-tl-grp">{{ g.label }}</div>
+        <div v-for="({ tm, e }, i) in g.rows" :key="e.id + '-' + i" class="dz-tl-row" :title="e.title">
+          <span class="tm">{{ tm }}</span>
+          <span class="dotcol"><span class="tl-dot" :class="actOf(e.action).cls"></span></span>
+          <span class="ac" :class="actOf(e.action).cls">{{ actOf(e.action).txt }}</span>
+          <span class="kd">{{ KIND_LABEL[e.kind] || e.kind }}</span>
+          <span class="ti">{{ e.title }}</span>
+          <span v-if="e.to" class="to">{{ e.to }}</span>
+        </div>
+      </template>
+    </div>
+
+    <!-- W5 #4a：导出移入日详情（PNG / HTML / Markdown 三件套） -->
+    <div class="dz-dl-foot">
+      <span class="note">数据来源：本机事件日志 · 自然日口径</span>
+      <ExportMenu :formats="['png', 'html', 'md']" @pick="onExport" />
     </div>
   </div>
 </template>

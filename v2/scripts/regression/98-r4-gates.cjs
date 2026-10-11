@@ -256,12 +256,13 @@ const retiredNameHits = (root) => {
   })(root);
   return out;
 };
-check('R4-Eq ★退役台面名「资源台」只许活在带理由的三处：字符串字面量现扫（剥注释）与登记表逐文件比条数——多一处红、少一处也红（改表必须出现在 diff 里）。白名单：迁移写入的 hub 实体名（改名=动迁移语义，与 hub 存废待拍板绑在一起）、手册与迁移报告卡里的**退役说明**（那是"早期版本曾叫资源台，现已作废"这句话本身）。界面文案、AI hint/投料标签、Airtable 字段说明一律不许再出现它——R4-Dg 定名单源、R4-Dm 收采集下拉、R4-Ep 收可选台列表，这轮收最后一类：写死的字', () => {
+check('R4-Eq ★退役台面名「资源台」只许活在带理由的四处：字符串字面量现扫（剥注释）与登记表逐文件比条数——多一处红、少一处也红（改表必须出现在 diff 里）。白名单：迁移写入的 hub 实体名（改名=动迁移语义，与 hub 存废待拍板绑在一起）、手册与迁移报告卡里的**退役说明**（那是"早期版本曾叫资源台，现已作废"这句话本身）、产品更新日志的历史叙述（★W5 扩表：版本标题与性能基线数字里的旧名是当时实测语境，与手册退役说明同形态）。界面文案、AI hint/投料标签、Airtable 字段说明一律不许再出现它——R4-Dg 定名单源、R4-Dm 收采集下拉、R4-Ep 收可选台列表，这轮收最后一类：写死的字', () => {
   const root = path.resolve(SCRIPTS_DIR, '..', 'src');
   const REG = {
     'shared/storage/curationMigration.ts': 2,   // R61 迁移给 hub 实体写的 name，用户库实测仍叫「资源台」；显示一律走 wsNameById（R4-Dg），这里不许被当文案改
     'newtab/manual-data.ts': 4,                 // 手册的退役说明与历史叙述（"早期版本顶部导航里有一个资源台的说法已作废"等），R4-De 明确保留这一形态
-    'newtab/components/MigrateReportCard.vue': 1 // 整库回退确认里的"回退后分类树会回来，但资源台页面已退役"——历史事实陈述
+    'newtab/components/MigrateReportCard.vue': 1, // 整库回退确认里的"回退后分类树会回来，但资源台页面已退役"——历史事实陈述
+    'newtab/changelog-data.ts': 3               // ★W5 扩表：产品更新日志的版本标题与要点（"资源台退役 + 池语义迁移"/「/workspace 资源台」整页退役/冷挂资源台阻塞基线）——与手册退役说明同形态的历史事实陈述，用户设置页可见
   };
   const found = retiredNameHits(root);
   return Object.keys(found).sort().join('|') === Object.keys(REG).sort().join('|')
@@ -495,6 +496,122 @@ check('W4-2 ★保存后自动预打标（用户拍板①）：captureEnrich 的
     && gp.includes('const capEnrichOn = ref(true)')
     && gp.includes('capEnrichOn.value = m.aiConfig.value.captureEnrich')
     && !gp.includes('captureEnrich !== false');
+});
+
+// ============== W5 · 调度台五条反馈 + 今日战报（V3.8.5） ==============
+console.log('【W5 · 调度台五条反馈 + 今日战报】');
+check('W5-1 ★指标条三段分组块（用户拍板#1/#5）：MetricBar 模板三段 `.mb-group`（mb-nav 左槽+档位段控 / mb-metrics 5 格 / mb-right），组件内样式 `.mb-group` 用 surface-2 浅底圆角块、`.mb-metrics gap:2px`；旧 `.mb-divider` 退役删除。R120-10 锚不动：`min-height: 38px; max-height: 38px`、`<slot name="left/right"`、mb-right', () => {
+  const mb = codeOnly(read('/newtab/components/compass/MetricBar.vue'));
+  return mb.includes('class="mb-group mb-nav"')
+    && mb.includes('class="mb-group mb-metrics"')
+    && mb.includes('class="mb-group mb-right"')
+    && mb.includes('min-height: 38px; max-height: 38px')
+    && mb.includes('<slot name="left"') && mb.includes('<slot name="right"')
+    && mb.includes('.mb-group {') && mb.includes('background: var(--surface-2)')
+    && mb.includes('.mb-metrics {') && mb.includes('gap: 2px')
+    && !mb.includes('.mb-divider');
+});
+check('W5-2 ★标题统一「SVG 图标(accent) + 17px + 英文副标」（用户拍板#2/#3）：Heatmap 标题 dz-n 数字退役，改 `.dz-n dz-ico` 内联日历 SVG + `.dz-t` 用 fs-headline(17px)；CompassHome 三张卡上方加 `.decks-title`（Icon layers + 三张卡 + THREE DECKS 英文副标）；今日三件事已是 17px+Icon+EN 不动', () => {
+  const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
+  const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
+  const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
+  return hm.includes('dz-n dz-ico') && hm.includes('<svg viewBox="0 0 24 24"')
+    && !hm.includes('今年第 {{ yearStat.days }}') // dz-n 数字标题退役
+    && ch.includes('decks-title') && ch.includes('THREE DECKS')
+    && ch.includes('.decks-title {')
+    && css.includes('.dz-n.dz-ico') && css.includes('fs-headline');
+});
+check('W5-3 ★热力图摘要四卡图标化（用户拍板#2/#4c）：SUM_ICONS 四枚内联 SVG（act/done/streak/peak 键）+ summary 条目带 ic 字段 + `.dz-sum` 改 4 列 grid 图标卡（accent-light 底 icon 方块）；`.dz-sum .c` 与 `.dz-sum .d`（R174-5 保 DOM，display:none）两条判据锚不动；峰路径不含 L[0-5]（R172-6 负锚——SVG 路径里的 L21 曾误触发）', () => {
+  const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
+  const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
+  return hm.includes('SUM_ICONS') && hm.includes('act:') && hm.includes('done:')
+    && hm.includes('streak:') && hm.includes('peak:')
+    && hm.includes('class="ic" v-html="s.ic"')
+    && hm.includes('<span class="d">{{ s.d }}</span>')
+    && !/L[0-5]/.test(hm)
+    && css.includes('.dz-sum {') && css.includes('grid-template-columns: repeat(4')
+    && css.includes('.dz-sum .d { display: none; }');
+});
+check('W5-4 ★资源卡池排序接线（用户拍板#4）：PoolCardsPanel 接 DeckControls（POOL_SORTS / PoolSortBy / sortPrefs?.pool 持久化 / toggleSortDir / poolCards keyOf+pinned 浮顶 / watch([sortBy,sortDir]) 重置 visibleCount）；排序键用 pool 新键（不污染 sortPrefs.res），置顶卡恒浮顶', () => {
+  const pc = codeOnly(read('/newtab/components/compass/PoolCardsPanel.vue'));
+  return pc.includes('POOL_SORTS') && pc.includes("type PoolSortBy")
+    && pc.includes('sortPrefs?.pool') && pc.includes('toggleSortDir')
+    && pc.includes('keyOf') && pc.includes('pinned')
+    && pc.includes('visibleCount.value = PAGE')
+    && pc.includes('<DeckControls')
+    && !pc.includes('sortPrefs.res');
+});
+check('W5-5 ★弹窗居中（用户拍板#4b）：`.dz-day-modal-overlay` align-items 从 flex-start 改 center（4vh×2 + 92vh 不溢出），注释同步更新', () => {
+  const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
+  const i = css.indexOf('.dz-day-modal-overlay');
+  const body = css.slice(i, css.indexOf('}', i));
+  return body.includes('align-items: center') && !body.includes('flex-start');
+});
+check('W5-6 ★今日战报双入口 + 合并弹窗（用户拍板#6 合并方案）：useDailyLog.ts 模块级单例（requestDailyLog/consume）；App.vue 品牌区 brand-chip 点击 onBrandClick（脉冲 brandPulse 1200ms、非 / 先导航再请求、role/tabindex/keydown）；HeatmapModule 消费（applyDailyLogDay 校正年份+置 selDay、watch pendingDay、onMounted 消费）；DayDetail 原地改战报+分析合一（props.day 参数化：今天=品牌区入口、历史=热力图入口）', () => {
+  const dl = read('/newtab/composables/useDailyLog.ts');
+  const ap = codeOnly(read('/newtab/App.vue'));
+  const hm = codeOnly(read('/newtab/components/dashboard/HeatmapModule.vue'));
+  const dd = codeOnly(read('/newtab/components/dashboard/DayDetail.vue'));
+  return dl.includes('requestDailyLog') && dl.includes('consume')
+    && ap.includes('onBrandClick') && ap.includes('brandPulse')
+    && ap.includes('brand-chip') && ap.includes('pulsing')
+    && ap.includes("role=\"button\"") && ap.includes('tabindex="0"')
+    && hm.includes('applyDailyLogDay') && hm.includes('consume')
+    && hm.includes('dashSelDay.value = day')
+    && dd.includes('dlSum') && dd.includes('flowGroups')
+    && dd.includes("emit('open-log', day)");
+});
+check('W5-7 ★战报层：摘要行 + 分时段叙事时间线 + 导出三格式（#4a + #6）：DayDetail dlSum（操作数/卡片数/最近一次/含清理）+ flowGroups 按上午/下午/晚上分组正序 + ACT_SYM/ACT_CLS 字面量表（dead-css-scan token 可见）+ 底部 ExportMenu formats=[png,html,md]；exportView 新增 DailyReportShareSpec + dailyReportShareHtml + PngSpec.rows；R172-7 判据锚全保留：groupEventRows / EVENT_ACT_LABEL / deltaOf / stockAt / DrillCardList / 查看全部记录', () => {
+  const dd = codeOnly(read('/newtab/components/dashboard/DayDetail.vue'));
+  const ev = codeOnly(read('/shared/utils/exportView.ts'));
+  return dd.includes('dlSum') && dd.includes('flowGroups')
+    && dd.includes('ACT_SYM') && dd.includes("create: 'act-create'")
+    && dd.includes("purge: 'act-purge'")
+    && dd.includes("formats=\"['png', 'html', 'md']\"")
+    && dd.includes('exportPng') && dd.includes('exportHtml') && dd.includes('exportMd')
+    && dd.includes('groupEventRows(') && dd.includes("from '@/shared/utils/drillRows'")
+    && dd.includes('EVENT_ACT_LABEL[e.action]')
+    && dd.includes('deltaOf(props.stats, props.day)')
+    && dd.includes('stockAt(props.stats, props.day')
+    && dd.includes('该日库容变化') && dd.includes('当天入台') && dd.includes('当天移出')
+    && dd.includes("emit('open-log', day)") && dd.includes('查看全部记录')
+    && dd.includes('DrillCardList')
+    && ev.includes('PngSpec') && ev.includes('rows?')
+    && ev.includes('DailyReportShareSpec') && ev.includes('dailyReportShareHtml');
+});
+check('W5-8 ★三卡交互统一「单击详情 / 双击开链接」（用户拍板 NEW-#1）：资源卡池补双击——与任务、好奇面板同款 260ms 去重（pcpClickTimer），双击走 toOpenableUrl(r.linkType, r.link) → openExternalLink 并记热度（recordResourceOpen + persistHot）；无链接 toast 提示；列表/网格两视图均绑 @dblclick，title 提示含「双击打开链接」。任务卡（onTaskRowDblClick）与好奇卡（onCardDblClick）既有实现不动', () => {
+  const pc = codeOnly(read('/newtab/components/compass/PoolCardsPanel.vue'));
+  const tm = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue'));
+  const cz = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue'));
+  return pc.includes('pcpClickTimer') && pc.includes('onCardDblClick')
+    && pc.includes('toOpenableUrl(r.linkType, r.link)') && pc.includes('openExternalLink(url)')
+    && pc.includes('recordResourceOpen') && pc.includes('persistHot')
+    && pc.includes('@dblclick="onCardDblClick(r)"')
+    && (pc.match(/@dblclick="onCardDblClick\(r\)"/g) || []).length === 2
+    && pc.includes('双击打开链接')
+    && tm.includes('onTaskRowDblClick') && tm.includes('260')
+    && cz.includes('onCardDblClick') && cz.includes('260');
+});
+check('W5-9 ★全局检索键位语义升级（用户拍板 NEW-#2）：⌘K 单击/Enter 对三类卡都先开链接——res 走 toOpenableUrl、task 走 t.link、curio 走 c.sourceUrl（toOpenableRawLink 白名单），有链接即 openExternalLink + closeAll 并记热度；无链接回落 openItem（定位）；Ctrl+单击/Ctrl+Enter 仍是 locateOnly 仅定位。键位契约 title 提示与 R120 锚不动', () => {
+  const gp = codeOnly(read('/newtab/components/GlobalPopups.vue'));
+  return gp.includes("item.type === 'task'") && gp.includes('toOpenableRawLink(t.link)')
+    && gp.includes("item.type === 'curio'") && gp.includes('toOpenableRawLink(c.sourceUrl)')
+    && gp.includes('openLinkOrLocate') && gp.includes('locateOnly')
+    && gp.includes('单击/Enter → 打开链接（无链接则定位）')
+    && gp.includes('Ctrl+单击 或 Ctrl+Enter → 定位到卡片所在处')
+    && gp.includes('recordCardOpen(d.value, t)') && gp.includes('recordCardOpen(d.value, c)');
+});
+check('W5-10 ★设置页产品更新日志（用户拍板 NEW-#3）：changelog-data.ts 单一真源（CHANGELOG 倒序、裸版本号与 manifest 同格式、发版日期、要点数组）+ GlobalSettings 导航「系统信息」组 letter 与 about 之间挂 changelog 分区 + 时间线面板（gs-cl-* 样式、current 版本轨染 accent、当前版本徽标对照 runtimeVersion 不写字面量）；深链 /settings?page=changelog 经 navGroups 白名单自动生效', () => {
+  const cl = codeOnly(read('/newtab/changelog-data.ts'));
+  const gs = codeOnly(read('/newtab/views/GlobalSettings.vue'));
+  return cl.includes('export const CHANGELOG') && cl.includes("version: '3.8.5'")
+    && cl.includes("date: '2026-10-11'")
+    && gs.includes("key: 'changelog'") && gs.includes("label: '产品更新日志'")
+    && gs.includes("activePage === 'changelog'")
+    && gs.includes("import { CHANGELOG } from '../changelog-data'")
+    && gs.includes('gs-cl-list') && gs.includes('gs-cl-item')
+    && gs.includes("e.version === runtimeVersion")
+    && !/version:\s*['"]3\.8\.[0-9]/.test(gs); // 面板不写字面量版本（对照走 runtimeVersion）
 });
 
 // ============== R4-Ex 让像素 A/B 能当门禁（#120 的③ / #125） ==============

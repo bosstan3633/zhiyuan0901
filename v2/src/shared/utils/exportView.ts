@@ -45,6 +45,8 @@ export interface PngSpec {
   kpis: { label: string; value: string; note?: string }[]
   /** 格子图：调用方给**坐标 + 档位**（12 月块怎么排由调用方决定，本模块不懂业务） */
   grid?: { cells: { c: number; r: number; lv: number }[]; cols: number; rows: number; cell: number; gap: number; label?: string } | null
+  /** W5（V3.8.5）：战报流水行（可选）——有则画在 KPI 下方；heatmap 导出不传则行为不变 */
+  rows?: { time: string; label: string; title: string }[]
   footer: string
 }
 
@@ -59,7 +61,8 @@ export function pngBlobFromSpec(spec: PngSpec): Promise<Blob> {
   const kpiRows = Math.ceil(spec.kpis.length / kpiPerRow)
   const kpiH = 74
   const gridH = spec.grid ? spec.grid.rows * (spec.grid.cell + spec.grid.gap) + 26 : 0
-  const H = pad + 54 + kpiRows * kpiH + (gridH ? gridH + 18 : 0) + 34
+  const rowH = spec.rows?.length ? spec.rows.length * 22 + 24 : 0
+  const H = pad + 54 + kpiRows * kpiH + (gridH ? gridH + 18 : 0) + rowH + 34
   const cv = document.createElement('canvas')
   const dpr = 2
   cv.width = W * dpr
@@ -113,6 +116,27 @@ export function pngBlobFromSpec(spec: PngSpec): Promise<Blob> {
       g.fillRect(gx + cell.c * (spec.grid!.cell + spec.grid!.gap), gy + cell.r * (spec.grid!.cell + spec.grid!.gap), spec.grid!.cell, spec.grid!.cell)
     }
     y = gy + spec.grid.rows * (spec.grid.cell + spec.grid.gap) + 8
+  }
+
+  /* W5（V3.8.5）：战报流水行（仅传 rows 时渲染；热力图导出不传则零变化） */
+  if (spec.rows?.length) {
+    const ry0 = y + 16
+    g.fillStyle = c.fg2
+    g.font = '400 12px system-ui, "PingFang SC", sans-serif'
+    g.fillText('当日操作流水', pad, ry0)
+    spec.rows.forEach((r, i) => {
+      const ry = ry0 + 20 + i * 22
+      g.fillStyle = c.fg2
+      g.font = '400 12px ui-monospace, Consolas, monospace'
+      g.fillText(r.time, pad, ry)
+      g.fillStyle = c.fg
+      g.font = '600 12px system-ui, "PingFang SC", sans-serif'
+      g.fillText(r.label, pad + 54, ry)
+      g.fillStyle = c.fg2
+      g.font = '400 12px system-ui, "PingFang SC", sans-serif'
+      g.fillText(r.title, pad + 104, ry)
+    })
+    y = ry0 + 20 + spec.rows.length * 22
   }
 
   g.fillStyle = c.fg2
@@ -216,6 +240,77 @@ h1{font-size:22px;font-weight:700;margin:0 0 6px}
     <div class="legend">${LEGEND_DOTS}</div>
   </div>
   ${legendHtml ? `<div class="legend">${legendHtml}</div>` : ''}
+  <p class="foot"><span>${escHtml(spec.footer)}</span><span>知源调度台 · 生成于 ${stamp}</span></p>
+</div>
+</body>
+</html>`
+}
+
+/**
+ * W5（V3.8.5）#6：单日战报**独立 HTML 分享页**（与 heatmapShareHtml 同一口径：
+ * 单文件自包含、令牌生成瞬间现取、浏览器双击即看）。
+ */
+export interface DailyReportShareSpec {
+  title: string
+  sub: string
+  summary: string
+  kpis: { label: string; value: string; note?: string }[]
+  rows: { time: string; label: string; title: string }[]
+  footer: string
+}
+
+export function dailyReportShareHtml(spec: DailyReportShareSpec): string {
+  const c = tok({ bg: '--surface', fg: '--text', fg2: '--text-3', line: '--border', card: '--surface-2', acc: '--accent' })
+  const kpiHtml = spec.kpis.map(k =>
+    `<div class="k"><div class="kl">${escHtml(k.label)}</div><div class="kv">${escHtml(String(k.value))}</div>${
+      k.note ? `<div class="kn">${escHtml(k.note)}</div>` : ''}</div>`).join('')
+  const rowHtml = spec.rows.length
+    ? spec.rows.map(r =>
+      `<div class="row"><span class="tm">${escHtml(r.time)}</span><span class="lb">${escHtml(r.label)}</span><span class="ti">${escHtml(r.title)}</span></div>`).join('')
+    : '<p class="empty">这一天没有操作记录。</p>'
+  const now = new Date()
+  const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escHtml(spec.title)}</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:${c.bg};color:${c.fg};font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:760px;margin:0 auto;padding:40px 28px 48px}
+h1{font-size:22px;font-weight:700;margin:0 0 6px}
+.sub{color:${c.fg2};font-size:13px;margin:0 0 4px}
+.summary{font-size:14px;margin:0 0 22px}
+.summary b{color:${c.acc}}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:0 0 26px}
+.k{background:${c.card};border:1px solid ${c.line};border-radius:10px;padding:14px 16px}
+.kl{color:${c.fg2};font-size:12px}
+.kv{font-size:24px;font-weight:700;margin-top:4px;line-height:1.2}
+.kn{color:${c.fg2};font-size:11px;margin-top:3px}
+.panel{background:${c.card};border:1px solid ${c.line};border-radius:12px;padding:18px 20px}
+.ptitle{font-size:14px;font-weight:600;margin:0 0 12px}
+.row{display:flex;gap:12px;align-items:baseline;padding:6px 2px;border-top:1px solid ${c.line}}
+.row:first-of-type{border-top:0}
+.tm{color:${c.fg2};font-family:ui-monospace,Consolas,monospace;font-size:12px;width:46px;flex:none}
+.lb{font-weight:600;font-size:12px;width:52px;flex:none}
+.ti{font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.empty{color:${c.fg2};font-size:13px;margin:0}
+.foot{color:${c.fg2};font-size:11px;margin:22px 0 0;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>${escHtml(spec.title)}</h1>
+  <p class="sub">${escHtml(spec.sub)}</p>
+  <p class="summary">${spec.summary}</p>
+  <div class="kpis">${kpiHtml}</div>
+  <div class="panel">
+    <p class="ptitle">当日操作流水</p>
+    ${rowHtml}
+  </div>
   <p class="foot"><span>${escHtml(spec.footer)}</span><span>知源调度台 · 生成于 ${stamp}</span></p>
 </div>
 </body>
