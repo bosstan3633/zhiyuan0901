@@ -381,10 +381,10 @@ check('R171-3 ★数据体检卡（设置→导出数据页）：中心论点重
     && gs.includes('<DataCheckupCard v-if="activePage === \'export\'" />');
 });
 
-check('R171-4 ★命令面板「快速开关」组（04-63「全部开关收进去」收口）：GlobalPopups 出 PALETTE_TOGGLES（暗色主题/紧凑密度/已完成项目/备份提醒，computed 行内明示当前态），扁平列表与模板渲染序同步插组、runFlat/runFlatLocator 两键位都认 tgl；store.ui 手改与 saveUIPrefs 双写（R170 uiCache/store.ui 两份引用教训）', () => {
+check('R171-4 ★命令面板「快速开关」组（04-63「全部开关收进去」收口；★W3 随迁：常用内容 Tab 内快速开关索引基=近期最常用+快捷操作）：GlobalPopups 出 PALETTE_TOGGLES（暗色主题/紧凑密度/已完成项目/备份提醒，computed 行内明示当前态）、模板渲染序同步插组、runFlat/runFlatLocator 两键位都认 tgl；store.ui 手改与 saveUIPrefs 双写（R170 uiCache/store.ui 两份引用教训）', () => {
   const gp = read('/newtab/components/GlobalPopups.vue');
   return gp.includes('PALETTE_TOGGLES') && gp.includes("kind: 'tgl'") && gp.includes("it.kind === 'tgl'")
-    && gp.includes('QUICK_ACTIONS.length+PALETTE_TOGGLES.length+j') && gp.includes('if (store.ui) (store.ui as')
+    && gp.includes('recentResources.length+QUICK_ACTIONS.length+i') && gp.includes('if (store.ui) (store.ui as')
     && (gp.match(/label: '(暗色主题|紧凑密度|已完成项目|备份提醒)'/g) || []).length === 4;
 });
 
@@ -783,6 +783,48 @@ check("W2-6 ★日详情 open-log 新宿主（★随迁备案：原 GlobalSettin
   const heat = read('/newtab/components/dashboard/Heatmap.vue');
   return hm.includes('onOpenLog') && hm.includes('logOpen') && hm.includes(':preset="logPreset"')
     && heat.includes("emit('open-log'") && hm.includes('@open-log');
+});
+
+// ============== W3 · ⌘K 浏览态双 Tab（常用内容/AI 动作）+ 常用内容前置 ==============
+console.log('【W3 · ⌘K 浏览态双 Tab：常用内容/AI 动作】');
+check('W3-1 ★⌘K 浏览态双 Tab 切换控件：browseTab state（common/ai 两值 + setBrowseTab 重置 selIndex/selectedId）+ 顶部 `.gp-browse-tabs` 两枚 `.gp-browse-tab`（常用内容/AI 动作，active 绑 browseTab）+ `.gp-browse-tabs` / `.gp-browse-tab` / `.gp-browse-tab.active` CSS 三段在位（active 用 --accent-ink/--accent-light 口径对齐 gp-type-tab）', () => {
+  const gp = read('/newtab/components/GlobalPopups.vue');
+  return gp.includes("type BrowseTab = 'common' | 'ai'")
+    && gp.includes("browseTab = ref<BrowseTab>('common')")
+    && gp.includes('function setBrowseTab')
+    && gp.includes('selIndex.value = 0')
+    && gp.includes("selectedId.value = ''")
+    && gp.includes('class="gp-browse-tabs"')
+    && gp.includes('class="gp-browse-tab"')
+    && gp.includes('setBrowseTab(\'common\')')
+    && gp.includes('setBrowseTab(\'ai\')')
+    && gp.includes('.gp-browse-tabs {')
+    && gp.includes('.gp-browse-tab.active {')
+    && gp.includes('color: var(--accent-ink)');
+});
+check('W3-2 ★常用内容 Tab = 近期最常用置顶（用户拍板②）：flatList 常用内容分支顺序 recentResources→QUICK_ACTIONS→PALETTE_TOGGLES，且模板渲染序逐项一致（R60-1：近期最常用组在快捷操作组之前）；常用内容 Tab 三组索引基=当前 tab 可见集合内连续（近期=0、快捷操作=recentResources.length、快速开关=recentResources.length+QUICK_ACTIONS.length）', () => {
+  const gp = read('/newtab/components/GlobalPopups.vue');
+  // flatList 常用内容分支：近期最常用 → 快捷操作 → 快速开关
+  const branchOrder = gp.indexOf('recentResources.value.forEach(item => out.push')
+    < gp.indexOf('QUICK_ACTIONS.forEach(qa =>')
+    && gp.indexOf('QUICK_ACTIONS.forEach(qa =>')
+    < gp.indexOf('PALETTE_TOGGLES.value.forEach(tg => out.push');
+  // 模板渲染序（R60-1）：近期最常用分组标题在快捷操作分组标题之前
+  const tplOrder = gp.indexOf('🔥 近期最常用 · 按调用次数') < gp.indexOf('>快捷操作<');
+  // 索引基：近期=0、快捷操作=recentResources.length、快速开关=recentResources.length+QUICK_ACTIONS.length
+  const idxBase = gp.includes('@click="runFlat(j)"')
+    && gp.includes('selIndex===recentResources.length+i')
+    && gp.includes('selIndex===recentResources.length+QUICK_ACTIONS.length+i');
+  return branchOrder && tplOrder && idxBase;
+});
+check('W3-3 ★AI 动作 Tab：flatList AI 分支顺序 proactive→passive、模板 AI 动作/AI 建议两组仅在 browseTab==\'ai\' 时渲染（v-if），常用内容三组仅在 browseTab==\'common\' 时渲染；tab 切换即重置选中（setBrowseTab 内 selIndex=0 + selectedId 清空，防止 selIndex 指向另一 tab 的集合并错位）', () => {
+  const gp = read('/newtab/components/GlobalPopups.vue');
+  return gp.includes("browseTab.value === 'ai'")
+    && gp.includes("v-if=\"browseTab==='ai'\"")
+    && gp.includes("v-if=\"browseTab==='common'\"")
+    && gp.indexOf("aiPanelRows.value.proactive.forEach") < gp.indexOf("aiPanelRows.value.passive.forEach")
+    && gp.includes('function setBrowseTab')
+    && /function setBrowseTab[\s\S]{0,200}selIndex\.value = 0[\s\S]{0,80}selectedId\.value = ''/.test(gp);
 });
 
 // ============== R3 收尾 · F38 交互点高亮开关 ==============

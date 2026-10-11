@@ -147,7 +147,7 @@ export const MANUAL: ManualPart[] = [
         </ul>
         <h4>🔍 全局搜索 · Ctrl+K</h4>
         <ul>
-          <li>穿透三卡、全部策展台与项目；空查询时显示<strong>快捷操作 + 最近打开</strong>。</li>
+          <li>穿透三卡、全部策展台与项目；空查询时顶部有<strong>「常用内容 / AI 动作」双 Tab</strong>：<b>常用内容</b>置顶「🔥 近期最常用」（按调用次数），其后是<b>快捷操作 + 快速开关</b>；<b>AI 动作</b>Tab 收「AI 动作 / AI 建议」两组（W3 V3.8.3 起——此前 AI 组混在快捷操作前，现在切 Tab 隔离，常用内容前置）。</li>
           <li>结果按 📄 资源 / ✅ 任务 / 💡 好奇 / 🗂 策展台 / 📦 项目 <b>分组</b>呈现，关键词<b>高亮</b>；支持<b>拼音与首字母</b>（输入 sj 能命中「设计」）。</li>
           <li><kbd>Tab</kbd> 循环过滤类型，或输入「任务」「资源」「好奇」「策展台」「项目」+ Tab 直达。</li>
           <li><strong>策展台类型 = 分类树</strong>：展示每个策展台下的分类与卡片数；单击分类即定位——分类下有卡则高亮第一张，无卡则高亮分类行本身。</li>
@@ -463,7 +463,7 @@ export const MANUAL: ManualPart[] = [
           <tr><td rowspan="5">全局（任意网页 · 系统级默认键）</td><td><kbd>Ctrl+Shift+K</kbd></td><td>打开知源调度台（新标签页）</td></tr>
           <tr><td><kbd>Ctrl+Shift+J</kbd></td><td>快速采集当前页面为资源卡</td></tr>
           <tr><td><kbd>Ctrl+Shift+I</kbd></td><td>采集好奇心（选中文字附带来源）</td></tr>
-          <tr><td><kbd>Ctrl+K</kbd></td><td>全局搜索（空查询 = 快捷操作 + 最近打开；结果：单击 / <kbd>Enter</kbd> 打开链接 · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> 定位到卡）</td></tr>
+          <tr><td><kbd>Ctrl+K</kbd></td><td>全局搜索（空查询 = 双 Tab：常用内容[近期最常用+快捷操作+快速开关] / AI 动作[AI 动作+AI 建议]；结果：单击 / <kbd>Enter</kbd> 打开链接 · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> 定位到卡）</td></tr>
           <tr><td>（无默认键）</td><td>以下六条命令在 <code>chrome://extensions/shortcuts</code> 自行分配：<b>全局设置</b> · <b>打开完整方向树</b> · <b>快速采集任务</b> · <b>同步到 Airtable</b> · <b>直达好奇心培养模块</b> · <b>直达任务调度模块</b></td></tr>
           <tr><td rowspan="4">应用内</td><td><kbd>修饰键</kbd>+<kbd>1</kbd> / <kbd>2</kbd> / <kbd>3…N</kbd></td><td><b>1 = 调度台 · 2 = 方向台 · 3 起才是各策展台</b>（按台签顺序，第 N 个策展台 = 修饰键 + (N+2)）。修饰键可在 设置 → 快捷键设置 换成 Ctrl / Ctrl+Shift / Alt+Shift / 无修饰</td></tr>
           <tr><td><kbd>?</kbd></td><td>快捷键速查面板（应用内真值的唯一清单）</td></tr>

@@ -54,60 +54,71 @@
           <!-- R152：AI 命中不再单列一组——同一张卡在主列表只有一行，命中信息挂在行上（重复行会让
                键盘扁平列表里同一个 id 出现两次，选中高亮与执行落到不同那行，看着就是"手势没按约定走"） -->
         </template>
-        <!-- B1：浏览模式（空查询）= AI 动作/AI 建议 + 快捷操作 + 最近打开（R158：AI 分组数据源=注册表纯声明） -->
+        <!-- B1：浏览模式（空查询）——W3 双 Tab：常用内容（近期最常用置顶）/ AI 动作（R158：AI 分组数据源=注册表纯声明） -->
         <template v-if="isBrowseMode">
-          <template v-if="aiPanelRows.proactive.length">
-            <div class="gp-group-title">AI 动作 <span class="gp-group-cnt">主动 · 到台面使用</span></div>
-            <div v-for="(ai, i) in aiPanelRows.proactive" :key="'aip' + ai.id"
-              class="gp-result-item" :class="{selected: selIndex===i}" @click="runFlat(i)" @mouseenter="selIndex=i"
-              :title="ai.panel.hint ? `${ai.title} —— ${ai.panel.hint}` : ai.title">
-              <div class="gp-ri-icon res"><Icon :name="ai.panel.icon" :size="15" /></div>
-              <div class="gp-ri-main"><div class="gp-ri-title">{{ ai.title }}</div>
-                <div class="gp-ri-cat">{{ ai.panel.hint }}</div></div>
-              <span class="gp-ri-link url">↗</span>
-            </div>
-          </template>
-          <template v-if="aiPanelRows.passive.length">
-            <div class="gp-group-title">AI 建议 <span class="gp-group-cnt">被动 · AI 建议我看</span></div>
-            <div v-for="(ai, j) in aiPanelRows.passive" :key="'aiv' + ai.id"
-              class="gp-result-item" :class="{selected: selIndex===aiProLen+j}" @click="runFlat(aiProLen+j)" @mouseenter="selIndex=aiProLen+j"
-              :title="ai.panel.hint ? `${ai.title} —— ${ai.panel.hint}` : ai.title">
-              <div class="gp-ri-icon res"><Icon :name="ai.panel.icon" :size="15" /></div>
-              <div class="gp-ri-main"><div class="gp-ri-title">{{ ai.title }}</div>
-                <div class="gp-ri-cat">{{ ai.panel.hint }}</div></div>
-              <span class="gp-ri-link url">↗</span>
-            </div>
-          </template>
-          <div class="gp-group-title">快捷操作</div>
-          <div v-for="(qa, i) in QUICK_ACTIONS" :key="'qa' + i"
-            class="gp-result-item" :class="{selected: selIndex===aiRowLen+i}" @click="runFlat(aiRowLen+i)" @mouseenter="selIndex=aiRowLen+i">
-            <div class="gp-ri-icon res"><Icon :name="qa.icon" :size="15" /></div>
-            <div class="gp-ri-main"><div class="gp-ri-title">{{ qa.label }}</div></div>
-            <span class="gp-ri-link url">↵</span>
+          <!-- W3（需求 #6）：浏览态顶部「常用内容 / AI 动作」双 Tab 切换控件（真 Tab，非仅分组标题） -->
+          <div class="gp-browse-tabs">
+            <button class="gp-browse-tab" :class="{active: browseTab==='common'}" @click="setBrowseTab('common')">常用内容</button>
+            <button class="gp-browse-tab" :class="{active: browseTab==='ai'}" @click="setBrowseTab('ai')">AI 动作</button>
           </div>
-          <!-- R171-C1：快速开关（04-63 任务书「全部开关收进去」的收口）——行内明示当前态，点了立即生效 -->
-          <template v-if="PALETTE_TOGGLES.length">
-            <div class="gp-group-title">快速开关</div>
-            <div v-for="(tg, i) in PALETTE_TOGGLES" :key="'tg' + i"
-              class="gp-result-item" :class="{selected: selIndex===aiRowLen+QUICK_ACTIONS.length+i}" @click="runFlat(aiRowLen+QUICK_ACTIONS.length+i)" @mouseenter="selIndex=aiRowLen+QUICK_ACTIONS.length+i"
-              :title="tg.hint">
-              <div class="gp-ri-icon res"><Icon :name="tg.icon" :size="15" /></div>
-              <div class="gp-ri-main"><div class="gp-ri-title">{{ tg.label }}</div></div>
-              <span class="gp-ri-link" :class="tg.on ? 'url' : ''">{{ tg.on ? '● 开' : '○ 关' }}</span>
-            </div>
-          </template>
-          <template v-if="recentResources.length">
-            <div class="gp-group-title">🔥 近期最常用 · 按调用次数</div>
-            <div v-for="(r, j) in recentResources" :key="r.id"
-              class="gp-result-item" :class="{selected: selIndex===aiRowLen+QUICK_ACTIONS.length+PALETTE_TOGGLES.length+j}"
-              @click="runFlat(aiRowLen+QUICK_ACTIONS.length+PALETTE_TOGGLES.length+j)" @mouseenter="selIndex=aiRowLen+QUICK_ACTIONS.length+PALETTE_TOGGLES.length+j"
-              :title="'单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'">
-              <div class="gp-ri-icon" :class="r.iconClass">{{ r.iconText }}</div>
-              <div class="gp-ri-main"><div class="gp-ri-title">{{ r.title }}</div>
-                <div class="gp-ri-cat">{{ r.ws }}<template v-if="r.cat"> · {{ r.cat }}</template></div>
+          <!-- AI 动作 Tab：AI 动作 + AI 建议 -->
+          <template v-if="browseTab==='ai'">
+            <template v-if="aiPanelRows.proactive.length">
+              <div class="gp-group-title">AI 动作 <span class="gp-group-cnt">主动 · 到台面使用</span></div>
+              <div v-for="(ai, i) in aiPanelRows.proactive" :key="'aip' + ai.id"
+                class="gp-result-item" :class="{selected: selIndex===i}" @click="runFlat(i)" @mouseenter="selIndex=i"
+                :title="ai.panel.hint ? `${ai.title} —— ${ai.panel.hint}` : ai.title">
+                <div class="gp-ri-icon res"><Icon :name="ai.panel.icon" :size="15" /></div>
+                <div class="gp-ri-main"><div class="gp-ri-title">{{ ai.title }}</div>
+                  <div class="gp-ri-cat">{{ ai.panel.hint }}</div></div>
+                <span class="gp-ri-link url">↗</span>
               </div>
-              <span class="gp-ri-link url">🔥{{ (r.raw as any).callCount || 0 }}</span>
+            </template>
+            <template v-if="aiPanelRows.passive.length">
+              <div class="gp-group-title">AI 建议 <span class="gp-group-cnt">被动 · AI 建议我看</span></div>
+              <div v-for="(ai, j) in aiPanelRows.passive" :key="'aiv' + ai.id"
+                class="gp-result-item" :class="{selected: selIndex===aiProLen+j}" @click="runFlat(aiProLen+j)" @mouseenter="selIndex=aiProLen+j"
+                :title="ai.panel.hint ? `${ai.title} —— ${ai.panel.hint}` : ai.title">
+                <div class="gp-ri-icon res"><Icon :name="ai.panel.icon" :size="15" /></div>
+                <div class="gp-ri-main"><div class="gp-ri-title">{{ ai.title }}</div>
+                  <div class="gp-ri-cat">{{ ai.panel.hint }}</div></div>
+                <span class="gp-ri-link url">↗</span>
+              </div>
+            </template>
+          </template>
+          <!-- 常用内容 Tab：近期最常用（置顶）→ 快捷操作 → 快速开关（索引 = recent + QA + TGL，与 flatList 逐项一致） -->
+          <template v-if="browseTab==='common'">
+            <template v-if="recentResources.length">
+              <div class="gp-group-title">🔥 近期最常用 · 按调用次数</div>
+              <div v-for="(r, j) in recentResources" :key="r.id"
+                class="gp-result-item" :class="{selected: selIndex===j}"
+                @click="runFlat(j)" @mouseenter="selIndex=j"
+                :title="'单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'">
+                <div class="gp-ri-icon" :class="r.iconClass">{{ r.iconText }}</div>
+                <div class="gp-ri-main"><div class="gp-ri-title">{{ r.title }}</div>
+                  <div class="gp-ri-cat">{{ r.ws }}<template v-if="r.cat"> · {{ r.cat }}</template></div>
+                </div>
+                <span class="gp-ri-link url">🔥{{ (r.raw as any).callCount || 0 }}</span>
+              </div>
+            </template>
+            <div class="gp-group-title">快捷操作</div>
+            <div v-for="(qa, i) in QUICK_ACTIONS" :key="'qa' + i"
+              class="gp-result-item" :class="{selected: selIndex===recentResources.length+i}" @click="runFlat(recentResources.length+i)" @mouseenter="selIndex=recentResources.length+i">
+              <div class="gp-ri-icon res"><Icon :name="qa.icon" :size="15" /></div>
+              <div class="gp-ri-main"><div class="gp-ri-title">{{ qa.label }}</div></div>
+              <span class="gp-ri-link url">↵</span>
             </div>
+            <!-- R171-C1：快速开关（04-63 任务书「全部开关收进去」的收口）——行内明示当前态，点了立即生效 -->
+            <template v-if="PALETTE_TOGGLES.length">
+              <div class="gp-group-title">快速开关</div>
+              <div v-for="(tg, i) in PALETTE_TOGGLES" :key="'tg' + i"
+                class="gp-result-item" :class="{selected: selIndex===recentResources.length+QUICK_ACTIONS.length+i}" @click="runFlat(recentResources.length+QUICK_ACTIONS.length+i)" @mouseenter="selIndex=recentResources.length+QUICK_ACTIONS.length+i"
+                :title="tg.hint">
+                <div class="gp-ri-icon res"><Icon :name="tg.icon" :size="15" /></div>
+                <div class="gp-ri-main"><div class="gp-ri-title">{{ tg.label }}</div></div>
+                <span class="gp-ri-link" :class="tg.on ? 'url' : ''">{{ tg.on ? '● 开' : '○ 关' }}</span>
+              </div>
+            </template>
           </template>
         </template>
         <!-- B1：搜索模式 = 分组 + 关键词高亮 -->
@@ -1207,7 +1218,13 @@ const aiPanelRows = computed(() => ({
   passive: AI_ENTRIES.filter(e => e.family === 'passive' && e.panel && e.panel.mode !== 'hidden') as AiPanelEntry[],
 }))
 const aiProLen = computed(() => aiPanelRows.value.proactive.length)
-const aiRowLen = computed(() => aiProLen.value + aiPanelRows.value.passive.length)
+// W3（需求 #6，用户已确认两案）：⌘K 浏览态顶部加「常用内容 / AI 动作」双 Tab 切换控件。
+// - 常用内容 Tab = 近期最常用置顶（用户拍板②）+ 快捷操作 + 快速开关；AI 动作 Tab = AI 动作 + AI 建议（用户拍板①「独立 Tab」）。
+// - flatList 按当前 tab 过滤构建 ⇒ 模板渲染序天然等于扁平序（R60-1 纪律零破坏），selIndex 只在当前 tab 可见集合内连续。
+type BrowseTab = 'common' | 'ai'
+const browseTab = ref<BrowseTab>('common')
+/** 切 Tab = 重开视图：选中回第一条、清掉旧 tab 的卡片选中（否则 selIndex 指向另一个 tab 的集合并错位） */
+function setBrowseTab(t: BrowseTab) { if (browseTab.value === t) return; browseTab.value = t; selIndex.value = 0; selectedId.value = '' }
 /** R158：AI 分组行执行——nav=跳台面（hint 告诉用户到哪用）；popup=打开全局弹窗（AI 建议面板） */
 function runAiEntry(e: AiPanelEntry) {
   closeAll()
@@ -1224,7 +1241,8 @@ const recentResources = computed<SearchResult[]>(() => {
   })
   return heat.slice(0, 8)
 })
-/** 浏览模式的扁平列表（AI 动作/AI 建议 + 快捷操作 + 快速开关 + 最近打开）——顺序必须与模板渲染序逐项一致（R60-1 教训） */
+/** 浏览模式的扁平列表（按当前 tab 过滤构建）——顺序必须与模板渲染序逐项一致（R60-1 教训）
+ *  W3：常用内容 Tab = 近期最常用(置顶) + 快捷操作 + 快速开关；AI 动作 Tab = AI 动作 + AI 建议。 */
 type FlatItem = { kind: 'ai'; entry: AiPanelEntry } | { kind: 'qa'; qa: typeof QUICK_ACTIONS[number] } | { kind: 'tgl'; tg: PaletteToggle } | { kind: 'res'; item: SearchResult } | { kind: 'result'; item: SearchResult }
 const flatList = computed<FlatItem[]>(() => {
   if (!isBrowseMode.value) {
@@ -1238,11 +1256,15 @@ const flatList = computed<FlatItem[]>(() => {
     return out
   }
   const out: FlatItem[] = []
-  aiPanelRows.value.proactive.forEach(e => out.push({ kind: 'ai', entry: e }))
-  aiPanelRows.value.passive.forEach(e => out.push({ kind: 'ai', entry: e }))
-  QUICK_ACTIONS.forEach(qa => out.push({ kind: 'qa', qa }))
-  PALETTE_TOGGLES.value.forEach(tg => out.push({ kind: 'tgl', tg }))
-  recentResources.value.forEach(item => out.push({ kind: 'res', item }))
+  if (browseTab.value === 'ai') {
+    aiPanelRows.value.proactive.forEach(e => out.push({ kind: 'ai', entry: e }))
+    aiPanelRows.value.passive.forEach(e => out.push({ kind: 'ai', entry: e }))
+  } else {
+    // 常用内容 Tab：近期最常用置顶（用户拍板②）→ 快捷操作 → 快速开关
+    recentResources.value.forEach(item => out.push({ kind: 'res', item }))
+    QUICK_ACTIONS.forEach(qa => out.push({ kind: 'qa', qa }))
+    PALETTE_TOGGLES.value.forEach(tg => out.push({ kind: 'tgl', tg }))
+  }
   return out
 })
 const groupedResults = computed(() => {
@@ -1923,6 +1945,13 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-type-tab.active { color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }
 .gp-tt-count { font-size: var(--fs-caption); color: var(--text-4); font-weight: 500; }
 .gp-type-tab.active .gp-tt-count { color: var(--accent); opacity: .7; }
+
+/* W3：浏览态「常用内容 / AI 动作」双 Tab（真切换控件，active 对齐 gp-type-tab 淡底深字 accent-ink 口径） */
+.gp-browse-tabs { display: flex; gap: 2px; padding: 4px 12px 2px; border-bottom: 1px solid var(--border); }
+.gp-browse-tab { padding: 6px 14px; border-radius: 8px 8px 0 0; font-size: var(--fs-body); color: var(--text-3); cursor: pointer;
+  transition: all var(--dur-fast); font-weight: 500; white-space: nowrap; border: none; background: transparent; font-family: inherit; }
+.gp-browse-tab:hover { color: var(--text-2); background: var(--surface-2); }
+.gp-browse-tab.active { color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }
 
 /* B1：分组标题与关键词高亮 */
 .gp-group-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .08em; padding: 10px 12px 4px; display: flex; align-items: center; gap: 6px; }

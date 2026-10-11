@@ -242,13 +242,15 @@ check('R158-1 注册表 panel 声明完备：panel.mode 三值（nav/popup/hidde
     && REGISTRY_FILE.includes('hint?: string')
     && REGISTRY_FILE.includes('R158 定稿被动');
 });
-check('R158-2 命令面板 AI 分组：GlobalPopups 只引注册表纯声明（零工厂 import）+ aiPanelRows 按 family 两视图 + flatList 渲染序一致（AI 动作→AI 建议→快捷操作→近期）', () => {
+check('R158-2 命令面板 AI 分组（★W3 随迁：浏览态改「常用内容/AI 动作」双 Tab）：GlobalPopups 只引注册表纯声明（零工厂 import）+ aiPanelRows 按 family 两视图 + flatList 按 tab 过滤（AI Tab=AI 动作→AI 建议；常用内容 Tab=近期最常用→快捷操作→快速开关，模板渲染序=扁平序 R60-1）', () => {
   return GP_FILE.includes("import { AI_ENTRIES } from '@/shared/ai/jobs/registry'")
     && !GP_FILE.includes("from '@/shared/ai/govern'\n") // 静态引 AI 工厂即红（懒 import 除外）
-    && GP_FILE.includes("AI_ENTRIES.filter(e => e.family === 'proactive'")
-    && GP_FILE.includes("AI_ENTRIES.filter(e => e.family === 'passive'")
-    && GP_FILE.indexOf("aiPanelRows.value.proactive.forEach") < GP_FILE.indexOf("QUICK_ACTIONS.forEach(qa =>")
-    && GP_FILE.indexOf("QUICK_ACTIONS.forEach(qa =>") < GP_FILE.indexOf("recentResources.value.forEach(item => out.push")
+    && GP_FILE.includes("aiPanelRows.value.proactive.forEach")
+    && GP_FILE.includes("aiPanelRows.value.passive.forEach")
+    && GP_FILE.includes("browseTab.value === 'ai'")
+    && GP_FILE.indexOf("aiPanelRows.value.proactive.forEach") < GP_FILE.indexOf("aiPanelRows.value.passive.forEach") // AI Tab 内序
+    && GP_FILE.indexOf("recentResources.value.forEach(item => out.push") < GP_FILE.indexOf("QUICK_ACTIONS.forEach(qa =>") // 常用内容 Tab：近期最常用置顶（用户拍板②）
+    && GP_FILE.indexOf("QUICK_ACTIONS.forEach(qa =>") < GP_FILE.indexOf("PALETTE_TOGGLES.value.forEach(tg => out.push");
 });
 check('R158-3 AI 建议面板：PanelType 含 ai-advice + gp-panel-advice 壳 + 3 张建议卡（跨台镜像/主题漂移/沉睡）+ 评审抽屉共用懒实例（gpAiJob）', () => {
   return GP_FILE.includes("'ai-advice'")
