@@ -114,10 +114,22 @@ function toggleProjectFold(p: Project) {
   if (next) expandMetricsOf(p)
 }
 /** B26 口径保留（数据变化补齐展开），但只摊**展开中的项目**——折叠项目里的指标不必先渲染再隐藏 */
-function expandAllNodes() {
+function expandMetricsOfOpenProjects() {
   for (const dir of d.value.compass.directions) for (const proj of dir.projects) if (projOpen(proj)) expandMetricsOf(proj)
 }
-watch(() => d.value?.compass.directions, () => expandAllNodes(), { deep: true, immediate: true })
+watch(() => d.value?.compass.directions, () => expandMetricsOfOpenProjects(), { deep: true, immediate: true })
+
+/** R49-C7：一键展开/收起全部（R3-B′ 起两级一起管：项目卡 + 指标）
+    W1.1 修「收起后展开没反应」：收起把每个项目显式写 projFoldOverride=false 落盘（显式值压过主攻默认），
+    而旧实现只补指标层、不复位项目层 ⇒ 点展开循环体被 projOpen 守卫挡在门外，零副作用。
+    修复＝与 collapseAllNodes 对称：展开把每个项目写 override=true 并全摊指标，按钮才真的反向。 */
+function expandAllNodes() {
+  for (const dir of d.value.compass.directions) for (const proj of dir.projects) {
+    projFoldOverride.value[proj.id] = true
+    expandMetricsOf(proj)
+  }
+  writeProjFold()
+}
 
 /** R49-C7：一键展开/收起全部（R3-B′ 起两级一起管：项目卡 + 指标） */
 function collapseAllNodes() {
@@ -690,6 +702,10 @@ onUnmounted(() => {
             <div class="tl-head-row">
               <span class="tl-badge">3 战略目标 → 4 攻坚项目 → 5 成功指标 → 6 任务</span>
               <span class="tl-hint">主攻项目默认展开 · 其余折叠成卡头（点 ▸ 展开）· 卡头 ⠿ 拖拽可在本目标内排序 · 缺任务指标实时警示</span>
+              <!-- W1.1（V3.8.1）：项目详情通用直达入口——此前只有钻进项目卡折叠菜单才有「进入项目详情页」，
+                   用户拍板在攻坚项目区右上放一枚通用按钮；默认项目=主攻项目（无主攻兜底第一个未完成，
+                   落点口径见 W1.1 交付说明） -->
+              <button class="tree-tool accent" title="打开项目详情（默认落主攻项目）" @click="router.push({ path: '/compass/projects' })">📄 项目详情</button>
             </div>
 
             <div v-if="!d.compass.directions.length" class="empty-state">

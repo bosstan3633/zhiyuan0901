@@ -494,8 +494,10 @@ function onDateKey(e: KeyboardEvent) {
  *   并与其并列，故按新拍板执行（旧降权策略退役）；
  * - 好奇心面板**懒挂载**（首次切到该 tab 才挂载）——保住首屏冷启动成本；
  * - `?hl=` 定位到好奇心卡时自动切 tab 并挂载（否则消费者不在 DOM 里，定位会落空）。
+ * W1.1（V3.8.1）：三张卡改名改序——**任务卡 / 好奇心卡 / 资源卡**，默认落第一张「任务卡」
+ * （用户拍板：任务卡是默认；旧默认 'pool' 与 R117 的「默认任务」本就矛盾，此轮对齐）。
  */
-const bottomTab = ref<'pool' | 'task' | 'curio'>('pool')
+const bottomTab = ref<'pool' | 'task' | 'curio'>('task')
 const curioMounted = ref(false)
 watch(bottomTab, (t) => { if (t === 'curio') curioMounted.value = true })
 /** 底部 tab 计数徽标：任务调度 = 未删除任务数 · 好奇心培育 = 未删除好奇心数 */
@@ -789,33 +791,33 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
         </div>
       </section>
 
-    <!-- 底部 · 任务调度 / 好奇心培育（R117 C1 拍板：任务调度整体自方向台迁入，与好奇心培育并列 tab，
-         默认任务调度；取代 R55-B2「任务调度在方向台」与 R105-B4「好奇心默认折叠摘要」两条旧策略）
-         R67-F4：id 供快捷键直达锚点 -->
+    <!-- 底部 · 三张卡（W1.1 V3.8.1 改名改序：任务卡 → 好奇心卡 → 资源卡，默认任务卡；
+         取代 R117 C1 的「任务调度 / 好奇心培育」双 tab 与 R2-③ 的资源卡池默认两版旧序）
+          R67-F4：id 供快捷键直达锚点 -->
     <section id="zy-mod-curiosity" class="module">
-      <!-- R2-③：DeckTabs 三张卡（资源卡池 / 任务调度 / 好奇心培育）——资源台退役后池管理在此补位 -->
+      <!-- R2-③：DeckTabs 三张卡（W1.1 改名：任务卡 / 好奇心卡 / 资源卡） -->
       <div class="bottom-tabs">
-        <button class="bt-tab" :class="{ on: bottomTab === 'pool' }" @click="bottomTab = 'pool'">
-          <Icon name="layout" :size="14" />资源卡池<span class="bt-cnt">{{ poolLiveCount }}</span>
-        </button>
         <button class="bt-tab" :class="{ on: bottomTab === 'task' }" @click="bottomTab = 'task'">
-          <Icon name="clipboard" :size="14" />任务调度<span class="bt-cnt">{{ taskLiveCount }}</span>
+          <Icon name="clipboard" :size="14" />任务卡<span class="bt-cnt">{{ taskLiveCount }}</span>
         </button>
         <button class="bt-tab" :class="{ on: bottomTab === 'curio' }" @click="bottomTab = 'curio'">
-          <Icon name="bulb" :size="14" />好奇心培育<span class="bt-cnt">{{ curioLiveCount }}</span>
+          <Icon name="bulb" :size="14" />好奇心卡<span class="bt-cnt">{{ curioLiveCount }}</span>
+        </button>
+        <button class="bt-tab" :class="{ on: bottomTab === 'pool' }" @click="bottomTab = 'pool'">
+          <Icon name="layout" :size="14" />资源卡<span class="bt-cnt">{{ poolLiveCount }}</span>
         </button>
       </div>
-      <!-- 资源卡池：默认 tab，常驻挂载（R179 池语义的管理面补位） -->
-      <div v-show="bottomTab === 'pool'" class="bottom-pane">
-        <PoolCardsPanel />
-      </div>
-      <!-- 任务调度：常驻挂载 -->
+      <!-- 任务卡：默认 tab（W1.1 改序后居首），常驻挂载 -->
       <div v-show="bottomTab === 'task'" class="bottom-pane">
         <TaskManagerPanel />
       </div>
-      <!-- 好奇心培育：懒挂载（首次切到该 tab 才挂载）——保住首屏冷启动成本 -->
+      <!-- 好奇心卡：懒挂载（首次切到该 tab 才挂载）——保住首屏冷启动成本 -->
       <div v-show="bottomTab === 'curio'" class="bottom-pane">
         <CuriosityPanel v-if="curioMounted" />
+      </div>
+      <!-- 资源卡：常驻挂载（R179 池语义的管理面补位） -->
+      <div v-show="bottomTab === 'pool'" class="bottom-pane">
+        <PoolCardsPanel />
       </div>
     </section>
 

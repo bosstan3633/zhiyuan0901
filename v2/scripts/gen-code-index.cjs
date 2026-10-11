@@ -94,7 +94,7 @@ const MANUAL_NOTES = {
   // ---- 视图（路由级）----
   'newtab/views/GlobalSettings.vue': '全局设置页（全仓最大文件）：手册 / 导入导出 / Airtable 同步 / AI 配置 / 标签管理 / 字段设计 / 仪表盘 / 快捷键',
   'newtab/views/Workspace.vue': '资源台 + 策展台共用视图（卡片 / 列表 / 看板 / 金字塔四视图 + 分类树 + 批量 + 镜像）',
-  'newtab/views/CompassHome.vue': '调度台首页：方向状态四指标 + 今日三件事 + 项目调度 + 好奇心培育',
+  'newtab/views/CompassHome.vue': '调度台首页：方向状态四指标 + 今日三件事 + 底部三张卡（任务卡 / 好奇心卡 / 资源卡）',
   'newtab/views/CompassTree.vue': '完整方向树（战略目标 → 项目 → 指标 → 任务）',
   'newtab/views/ProjectCuration.vue': '项目详情页（内嵌方向台，`?p=` 定位；含金字塔/看板）',
   'newtab/views/CompassShell.vue': '方向台一级工作区（主航线「看」+ 项目总览「管」）',
@@ -129,8 +129,8 @@ const MANUAL_NOTES = {
   'newtab/components/CatNodeName.vue': '分类树 / 金字塔共用的「双击就地改名」单元',
   'newtab/components/MountCountBadge.vue': '任务「弹药」计数徽标（挂载资源卡 / 好奇心）',
   // ---- 方向台组件 ----
-  'newtab/components/compass/TaskManagerPanel.vue': '任务调度面板（方向台；含批量与 AI 入口）',
-  'newtab/components/compass/CuriosityPanel.vue': '好奇心培育面板（调度台）',
+  'newtab/components/compass/TaskManagerPanel.vue': '任务卡面板（调度台第三 tab W1.1 前旧称任务调度；含批量与 AI 入口）',
+  'newtab/components/compass/CuriosityPanel.vue': '好奇心卡面板（调度台；W1.1 前旧称好奇心培育）',
   'newtab/components/compass/TaskDetailDrawer.vue': '任务详情抽屉',
   'newtab/components/compass/NorthStarPanel.vue': '北极星面板（方向台底部）',
   'newtab/components/compass/MetricBar.vue': '方向状态四指标条（日 / 周 / 累计三档，可下钻）',

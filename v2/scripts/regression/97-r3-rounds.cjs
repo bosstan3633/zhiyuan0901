@@ -363,9 +363,9 @@ check('R4-Df ★章节标题本身不许带退役物：手册目录是用户唯�
   return titles.length === 24 && titles.every(t => !banned.some(b => t.includes(b)))
     && titles.some(t => t.includes('资源卡池')) && titles.some(t => t.includes('三大台面'));
 });
-check('R4-Df ★退役结构不许作为现役功能写回手册：资源台台面 / 主航线 / 项目总览 / 项目调度面板 / 今日记录四格 / 策展主题格 六件各自点名，且手册必须明说它们去哪了（只删不说＝用户按旧记忆找而手册沉默，等于没写）', () => {
+check('R4-Df ★退役结构不许作为现役功能写回手册：资源台台面 / 主航线 / 项目总览 / 项目调度面板 / 今日记录四格 / 策展主题格 六件各自点名，且手册必须明说它们去哪了（只删不说＝用户按旧记忆找而手册沉默，等于没写）（★W1.1 随迁：V3.8.1 三张卡改名，「唯一管理面是调度台底部默认打开的『资源卡池』tab」→「唯一管理面是调度台底部『资源卡』tab」——默认档由池切任务卡，锚句改指现役句）', () => {
   const m = read('/newtab/manual-data.ts');
-  return m.includes('资源卡没有台面') && m.includes('唯一管理面是调度台底部默认打开的「资源卡池」tab')
+  return m.includes('资源卡没有台面') && m.includes('唯一管理面是调度台底部「资源卡」tab')
     && m.includes('一级就是完整方向树') && m.includes('这块面板已退役')
     && m.includes('已整体退役，调度台现在') && m.includes('三格辅助条')
     && !m.includes('资源台：资源卡真身的唯一居所') && !m.includes('主航线（R52 全量呈现）')

@@ -84,7 +84,7 @@ check('R67-6 ★R4-Da 退役重指带备案：原守「全景数据源修复：p
     && pcp.includes('(store.data?.resources || [])')
     && pcp.includes('.filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)')
     && pcp.includes("const poolCards = computed(")
-    && ch.includes("const bottomTab = ref<'pool' | 'task' | 'curio'>('pool')")
+    && ch.includes("const bottomTab = ref<'pool' | 'task' | 'curio'>('task')")
     && ch.includes('const poolLiveCount = computed(')
     && read('/shared/models/index.ts').includes("export const CURATION_WS_ID = 'zy-curation'");
 });

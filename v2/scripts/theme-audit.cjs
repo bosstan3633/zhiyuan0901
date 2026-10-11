@@ -108,12 +108,12 @@ const DRAWER_VIEWS = [
     foot: '.dr-footer button, .drawer-footer button',
   },
   {
-    id: 'drawer-task', name: '任务卡详情', hash: '#/', tab: '任务调度',
+    id: 'drawer-task', name: '任务卡详情', hash: '#/', tab: '任务卡',
     card: '[data-tid]', open: '.task-sidebar', ai: '.task-sidebar .ts-ai-cell', aiCount: 3, foot: '.ts-foot button',
     invert: '.task-sidebar .ts-ai-cell',
   },
   {
-    id: 'drawer-curio', name: '好奇心详情', hash: '#/', tab: '好奇心培育',
+    id: 'drawer-curio', name: '好奇心详情', hash: '#/', tab: '好奇心卡',
     card: '.cz-card', open: '.drawer .ds-hero-note', ai: '.ds-ai-cell', aiCount: 1, foot: '.drawer-footer button',
   },
 ]
@@ -847,11 +847,24 @@ async function main() {
        reload 会连同模块内 pending timer 一起死掉，下游 dz-report 的「本期动作」就断了来源。 */
     await page.locator('.bt-tab').first().click().catch(() => {})
     await page.waitForTimeout(500)
+    /* ★W1.1 随迁（V3.8.1 三张卡改名改序 + 默认切任务卡）：默认档这一格先钉新形状——
+       第一枚 tab 必须激活且文案是「任务卡」。随后**显式点到「资源卡」tab**再量池面板
+       （旧口径靠「第一枚=资源卡池默认」顺带量到池面板，改序后那条捷径没了；
+        场景要量的是池面板本身，不是它恰好是默认档）。 */
+    const dflt = await page.evaluate(() => {
+      const first = document.querySelector('.bt-tab')
+      return { on: !!first && first.classList.contains('on'), text: (first && first.textContent || '').trim() }
+    })
+    await page.evaluate(() => {
+      const b = [...document.querySelectorAll('.bt-tab')].find(x => (x.textContent || '').includes('资源卡'))
+      if (b) b.click()
+    })
+    await page.waitForTimeout(500)
     await resetView(page)
     const spot = await page.evaluate(() => {
       const tabs = Array.from(document.querySelectorAll('.bt-tab'))
-      const first = tabs[0]
-      const poolOn = !!first && first.classList.contains('on') && (first.textContent || '').includes('资源卡池')
+      const poolBtn = tabs.find(x => (x.textContent || '').includes('资源卡'))
+      const poolOn = !!poolBtn && poolBtn.classList.contains('on')
       const pane = document.querySelector('.pcp-card, .pcp-empty')
       /* 不靠数据碰运气：无 .tc-subs 时视口判据记「无数据」，DeckTabs 结构判据恒核 */
       const subs = document.querySelector('.today-cards .tc-subs')
@@ -867,10 +880,11 @@ async function main() {
     const spotFile = path.join(outDir, `${theme}-deck.png`)
     await page.screenshot({ path: spotFile })
     shots.push(spotFile)
-    const spotOk = spot.tabN === 3 && spot.poolOn && spot.paneOn
+    const dfltOk = dflt.on && dflt.text.includes('任务卡')
+    const spotOk = dfltOk && spot.tabN === 3 && spot.poolOn && spot.paneOn
       && (!spot.subInfo || (spot.subInfo.editors === 0 && spot.subInfo.visible <= 6))
-    console.log(`  ${spotOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'deck'.padEnd(4)} tabs=${spot.tabN}/3 池默认=${spot.poolOn ? '是' : '否'} 池面板=${spot.paneOn ? '有' : '无'} 槽内子任务=${spot.subInfo ? spot.subInfo.visible + '/' + spot.subInfo.rows + '可见·编辑' + spot.subInfo.editors : '无数据'}   → ${path.basename(spotFile)} (${Math.round(fs.statSync(spotFile).size / 1024)}KB)`)
-    if (!spotOk) spotFail.push(`${theme}/deck：${JSON.stringify(spot)}（应：三张卡 + 资源卡池默认激活 + 池面板可见 + 槽内视口≤6可见/零编辑控件）`)
+    console.log(`  ${spotOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'deck'.padEnd(4)} tabs=${spot.tabN}/3 默认档=${dfltOk ? '任务卡' : dflt.text.slice(0, 4) + '(非任务卡)'} 池面板=${spot.paneOn ? '有' : '无'} 槽内子任务=${spot.subInfo ? spot.subInfo.visible + '/' + spot.subInfo.rows + '可见·编辑' + spot.subInfo.editors : '无数据'}   → ${path.basename(spotFile)} (${Math.round(fs.statSync(spotFile).size / 1024)}KB)`)
+    if (!spotOk) spotFail.push(`${theme}/deck：${JSON.stringify({ ...spot, dflt })}（应：三张卡 + 默认档=任务卡 + 资源卡面板可见 + 槽内视口≤6可见/零编辑控件）`)
     /* R3-Ca：池面板新增的列表视图（四主题各一张）——量完当场切回网格，别把视图态留给后面的场景 */
     await page.evaluate(() => { const b = [...document.querySelectorAll('.dk-row[data-panel="pool"] .dk-view')].find(x => (x.textContent || '').includes('列表')); if (b) b.click() })
     await page.waitForTimeout(700)

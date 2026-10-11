@@ -214,7 +214,7 @@ function codeOnlyVueUnused(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.8.0'";
+const VER_ANCHOR_LITERAL = "version: '3.8.1'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -334,7 +334,8 @@ const CH94 = read('/newtab/views/CompassHome.vue');
 const CH94_C = stripComments(CH94);
 // ★R4-Et 随迁备案：原终点 `<!-- 下 · 项目调度` 是 R117（任务调度整体迁出方向台）改写那段注释时留下的旧措辞，
 // 标记找不到 ⇒ 切片从 today-body 一路吃到文件尾（连整个 <style> 块都算进"今日三件事"），R94-7 的正锚从此在整份文件里找文案。
-const TODAY94 = fnBody(CH94, '<div class="today-body">', '<!-- 底部 · 任务调度');
+// ★W1.1 再随迁：那段注释在 V3.8.1 改三张卡名（底部章节头改为 `<!-- 底部 · 三张卡`）时又被抹掉一次 ⇒ 终点改指现役边界。
+const TODAY94 = fnBody(CH94, '<div class="today-body">', '<!-- 底部 · 三张卡');
 // ★R4-Et 随迁备案：原终点标记 `.cur-tree-caret` 是 R4-Et 清掉的孤儿规则（该 class 在本文件模板、104 场景 DOM census、
 // 全站字符串/classList 三处都为零）——标记一没，切片一路吃到文件尾，把无关的 --danger/animation/% 卷进"完成态样式"里，
 // R94-7 当场误红。换成同文件里的活边界 `.today-cards { display: grid`，切片仍然只覆盖安静完成态那四条规则。

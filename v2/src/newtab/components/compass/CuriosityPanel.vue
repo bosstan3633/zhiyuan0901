@@ -477,7 +477,7 @@ function srcShort(url: string): string {
 </script>
 
 <template>
-  <ModuleCard icon-name="bulb" title="好奇心培育" en="CURIOSITY">
+  <ModuleCard icon-name="bulb" title="好奇心卡" en="CURIOSITY">
 
     <div class="cz-body">
       <!-- R3-Cc2：控制行收归 DeckControls（好奇的值域=状态胶囊带计数 + 三视图；批量管理从标题行进来） -->

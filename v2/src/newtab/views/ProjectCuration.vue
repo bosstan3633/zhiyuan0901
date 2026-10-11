@@ -386,9 +386,14 @@ watch(() => route.query.p, (pid) => {
 // 内嵌态与聚焦态同口径：项目详情永远有项目，不再经「项目选择墙」（与左栏目录重复，已退役）。
 // ⚠ 只落内存、不写 URL：避免在 setup 期发起导航（组件由路由渲染时 replace 有竞态）；
 //   用户主动切换项目时仍由 openProject 写 `?p`，深链 / 前进后退口径不变。
+// W1.1（V3.8.1）：默认项目口径修订——优先**主攻项目**（isFocused），无主攻取第一个**未完成**项目
+// （status 非 done/archived；旧口径 projects[0] 可能落在已完成/已归档项目上）。用户从方向树新
+// 「📄 项目详情」直达按钮进来即落主攻。
 const pid0 = typeof route.query.p === 'string' ? route.query.p : ''
 if (!(pid0 && projects.value.some(x => x.id === pid0)) && projects.value.length) {
-  currentProject.value = projects.value[0]!
+  const focused = projects.value.find(x => x.isFocused)
+  const alive = projects.value.find(x => x.status !== 'done' && x.status !== 'archived')
+  currentProject.value = focused || alive || projects.value[0]!
   currentDir = goalOf(currentProject.value)
 }
 
