@@ -103,7 +103,11 @@
 .dz-empty { padding: var(--sp-5); text-align: center; color: var(--text-4); font-size: var(--fs-sub); }
 
 /* ================= 日详情 ================= */
-.dz-day { margin: var(--sp-4) 0 0; border: 1px solid var(--border-strong); border-radius: var(--radius-lg); overflow: hidden; }
+/* W2（V3.8.2）：日详情从 section 内联改为中央弹窗（Teleport 到 body，不受父容器 overflow 裁切）。
+   弹窗壳与 DayDetail 本体解耦：壳只管居中 + 遮罩 + 最大高度，DayDetail 内部结构不动。 */
+.dz-day-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,.32); display: flex; align-items: flex-start; justify-content: center; padding: 4vh 16px; }
+.dz-day-modal { width: min(1080px, 100%); max-height: 92vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+.dz-day { margin: 0; border: 0; border-radius: var(--radius-lg); }
 .dz-day-head { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); background: var(--surface-2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .dz-day-head .d { font-size: var(--fs-title); font-weight: 700; }
 .dz-day-head .w { font-size: var(--fs-caption); color: var(--text-3); }

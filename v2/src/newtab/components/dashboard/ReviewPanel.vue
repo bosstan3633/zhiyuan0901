@@ -27,7 +27,7 @@ import type { ReviewReport, ReviewSug } from '@/shared/ai/review'
 // R155 口径：AI 入口徽标必须是单色线性 SVG（`AiEntryButton`），不许用 emoji —— 全站统一
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import DrillCardList from './DrillCardList.vue'
-import ExportMenu from './ExportMenu.vue'
+import ExportMenu, { type ExportFmt } from './ExportMenu.vue'
 import { tablesToCsv, sectionsToMd, pngBlobFromSpec, exportName } from '@/shared/utils/exportView'
 import { downloadText, downloadBlob } from '@/shared/utils/download'
 import { showToast } from '@/shared/components/toast'
@@ -276,7 +276,7 @@ async function exportPng(): Promise<void> {
   downloadBlob(exportName('复盘', 'png', win.value.label), blob)
   showToast('✓ 已导出复盘 PNG（当前主题配色）')
 }
-function onExport(fmt: 'csv' | 'md' | 'png'): void {
+function onExport(fmt: ExportFmt): void {
   if (fmt === 'csv') exportCsv()
   else if (fmt === 'md') exportMd()
   else void exportPng()

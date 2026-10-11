@@ -40,12 +40,6 @@
           @clear-day="dashSelDay = null"
           @open-cards="onDashOpenCards" @open-dyn="onDashOpenDyn" @export-error="exportErrorLog" />
 
-        <!-- R172-T6：② 年度热力图 + 日详情（点格 → 那天做了什么 / 库变成了什么样 / 原始流水） -->
-        <Heatmap
-          :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"
-          :events="timelineEvents" :live-link="linkCardCount"
-          @update:year="dashYear = $event" @update:sel-day="dashSelDay = $event" @open-log="onDashOpenLog" />
-
         <!-- R172-T7：③ 复盘段（紧凑两栏：左＝画像摘要 + 节奏曲线｜右＝目标对账 + 偏离预警；三类可下钻） -->
         <ReviewPanel
           :stats="dashStats" :events="timelineEvents" :data="gd"
@@ -1245,9 +1239,9 @@ function onLcLocate(id: string, kind: LifecycleCard['kind']) {
 // 第卌四轮 T-03/T-06/T-07：知源仪表盘（核心指标 + 动态条 + 操作记录 + CSV）
 // ============================================================
 import Drawer from '@/shared/components/Drawer.vue'
-// R172-T5/T6：仪表盘三段（① 概览带 · ② 年度热力图 + 日详情）—— 数据桥 useDashboardStats 收口聚合与选中态
+// R172-T5/T6：仪表盘（① 概览带 + ③ 复盘段）—— 数据桥 useDashboardStats 收口聚合与选中态
+// W2（V3.8.2）：② 年度热力图整体迁调度台（HeatmapModule 自包含宿主），此处不再挂 Heatmap
 import DashboardOverview from '@/newtab/components/dashboard/DashboardOverview.vue'
-import Heatmap from '@/newtab/components/dashboard/Heatmap.vue'
 import ReviewPanel from '@/newtab/components/dashboard/ReviewPanel.vue'
 // R172-T8：全量记录抽屉（承接今日记录四格 + 日详情「查看全部记录 ›」）
 import DashboardLogDrawer, { type LogPreset } from '@/newtab/components/dashboard/DashboardLogDrawer.vue'
@@ -1365,11 +1359,6 @@ const dashTasks = computed<TaskLike[]>(() => (gd.value.tasks || []).map(t => ({
 })))
 function onDashOpenCards(kind: 'all' | 'resource' | 'task' | 'curiosity' | 'link') { openStatDrawer(kind) }
 function onDashOpenDyn(t: 'today-add' | 'week-add' | 'cum-del') { openDynDrawer(t) }
-/** 日详情「查看全部记录 ›」：打开全量抽屉并按该日预筛（R172-T8 起不再改视图内时间线） */
-function onDashOpenLog(day: string) {
-  logPreset.value = { kind: 'all', action: 'all', from: day, to: day, note: `来源：日详情「查看全部记录」—— 已按 ${day} 预筛，可自由改条件。` }
-  logOpen.value = true
-}
 /** R172-T9：调度台旧「今日四格」的等价入口 —— 四类记录在仪表盘内全部可用（F36） */
 function openLog(k: 'in' | 'out' | 'called' | 'log') {
   const today = fmtDayKey(Date.now())

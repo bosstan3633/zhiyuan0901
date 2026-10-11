@@ -164,7 +164,7 @@ const DASH_SCENES = [
     }
   },
   {
-    id: 'dz-heatmap', name: '年度热力图',
+    id: 'dz-heatmap', name: '年度热力图', hash: '#/', /* W2 V3.8.2：热力图迁调度台 */
     judge: async (page) => page.evaluate(() => {
       const cells = document.querySelectorAll('.dz-cell').length
       const legend = [...document.querySelectorAll('.dz-legend .lv')].map(x => x.textContent.trim())
@@ -177,7 +177,7 @@ const DASH_SCENES = [
     })
   },
   {
-    id: 'dz-day', name: '日详情',
+    id: 'dz-day', name: '日详情', hash: '#/', /* W2 V3.8.2：热力图迁调度台 */
     /* R170 备案的"补等重数一次"口径：慢机日首击可能还没回流到父级 selDay ⇒ 补点另一格，等够再判死（判据不放宽） */
     act: async (page) => { await page.locator('.dz-cell:not([disabled])').first().click().catch(() => {}); await page.waitForTimeout(900); if (!(await page.locator('.dz-day').first().isVisible().catch(() => false))) { await page.locator('.dz-cell:not([disabled])').nth(3).click().catch(() => {}); await page.waitForTimeout(1500) } },
     judge: async (page) => page.evaluate(() => {

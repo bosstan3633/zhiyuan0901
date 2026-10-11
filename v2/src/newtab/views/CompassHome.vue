@@ -35,6 +35,9 @@ import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
 import TaskManagerPanel from '../components/compass/TaskManagerPanel.vue'
 import PoolCardsPanel from '../components/compass/PoolCardsPanel.vue'
 import MetricBar from '../components/compass/MetricBar.vue'
+// W2（V3.8.2）：年度热力图自设置页知源仪表盘迁入调度台（今日三件事下方、三卡上方）。
+// HeatmapModule 自带数据桥（useDashboardStats）+ 事件日志读取 + 日详情记录抽屉 —— 本页不直接碰事件日志。
+import HeatmapModule from '../components/dashboard/HeatmapModule.vue'
 // R172-T9（04-67 Q7）：调度画像周报浮层**已退役**（组件已物理删除，全仓零引用）——
 // 四段式能力并入知源仪表盘的「复盘段」（ReviewPanel.vue），入口由本页右上角 `📈 复盘` 承担。
 // 历史包袱顺带清掉：R113-N3 曾因"模板引用但从未 import"导致点按钮无任何反应，该类问题随组件退役消失。
@@ -790,6 +793,12 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
           </div>
         </div>
       </section>
+
+    <!-- W2（V3.8.2）：年度热力图 —— 自设置页知源仪表盘迁入调度台（今日三件事下方、三卡上方，独立模块常驻）。
+         HeatmapModule 自带数据桥 + 事件日志 + 日详情记录抽屉，本页零接触事件日志。 -->
+    <section class="module">
+      <HeatmapModule />
+    </section>
 
     <!-- 底部 · 三张卡（W1.1 V3.8.1 改名改序：任务卡 → 好奇心卡 → 资源卡，默认任务卡；
          取代 R117 C1 的「任务调度 / 好奇心培育」双 tab 与 R2-③ 的资源卡池默认两版旧序）

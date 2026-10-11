@@ -19,10 +19,10 @@ function fire(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url)
 }
 
-/** 文本导出：只有 CSV 补 UTF-8 BOM（Excel 需要）；Markdown / 纯文本不补——编辑器与 git diff 会把 BOM 当噪音 */
-export function downloadText(filename: string, text: string, mime: 'csv' | 'md' | 'txt'): void {
+/** 文本导出：只有 CSV 补 UTF-8 BOM（Excel 需要）；Markdown / 纯文本 / HTML 不补——编辑器与 git diff 会把 BOM 当噪音 */
+export function downloadText(filename: string, text: string, mime: 'csv' | 'md' | 'txt' | 'html'): void {
   const bom = mime === 'csv' ? '﻿' : ''
-  const type = mime === 'csv' ? 'text/csv;charset=utf-8' : mime === 'md' ? 'text/markdown;charset=utf-8' : 'text/plain;charset=utf-8'
+  const type = mime === 'csv' ? 'text/csv;charset=utf-8' : mime === 'md' ? 'text/markdown;charset=utf-8' : mime === 'html' ? 'text/html;charset=utf-8' : 'text/plain;charset=utf-8'
   fire(new Blob([bom + text], { type }), filename)
 }
 

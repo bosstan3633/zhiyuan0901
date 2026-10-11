@@ -575,10 +575,11 @@ check('R172-11 ★T8 全量记录抽屉（04-67 F18~F20）：三维筛选（类�
     && gs.includes(':preset="logPreset"') && gs.includes(':open="logOpen"');
 });
 
-check('R172-12 ★T9 调度台入口整合（04-67 F33~F36）：删 5 个旧入口（`.rec-mini` 四格 / 今日记录抽屉 / `wrOpen` / `onWrDrill` / 周报浮层）—— CompassHome 零残留；右槽仅「📈 复盘」直达 `/settings?page=dashboard`；`MetricBar.vue` 中段 5 指标零改动（Q8）；被删的四类记录能力在仪表盘内等价可用', () => {
+check('R172-12 ★T9 调度台入口整合（04-67 F33~F36）：删 5 个旧入口（`.rec-mini` 四格 / 今日记录抽屉 / `wrOpen` / `onWrDrill` / 周报浮层）—— CompassHome 零残留；右槽仅「📈 复盘」直达 `/settings?page=dashboard`；`MetricBar.vue` 中段 5 指标零改动（Q8）；被删的四类记录能力在仪表盘内等价可用。★W2 重指带备案：日详情「查看全部记录」的宿主自 GlobalSettings.onDashOpenLog 迁至 HeatmapModule.onOpenLog（热力图整体迁调度台）', () => {
   const h = read('/newtab/views/CompassHome.vue');
   const mb = read('/newtab/components/compass/MetricBar.vue');
   const gs = read('/newtab/views/GlobalSettings.vue');
+  const hmod = read('/newtab/components/dashboard/HeatmapModule.vue');
   const fsx = require('fs');
   return !h.includes('rec-mini') && !h.includes('openRec(') && !h.includes('recOpen') && !h.includes('wrOpen')
     && !h.includes('onWrDrill') && !h.includes('📊 周报')
@@ -586,7 +587,8 @@ check('R172-12 ★T9 调度台入口整合（04-67 F33~F36）：删 5 个旧入�
     && !fsx.existsSync(path.resolve(base, 'newtab', 'components', 'WeeklyReportOverlay.vue'))
     && !fsx.existsSync(path.resolve(base, 'shared', 'utils', 'weeklyReport.ts'))
     && mb.includes('战略目标') && mb.includes('未归档') && mb.includes('mb-right')
-    && gs.includes("openLog('called')") && gs.includes('onDashOpenLog');
+    && gs.includes("openLog('called')") && !gs.includes('onDashOpenLog')
+    && hmod.includes('onOpenLog') && hmod.includes('logOpen') && hmod.includes(':preset="logPreset"');
 });
 
 check('R172-13 ★规格张力收口（R166 定案 3 优先于 04-67 §7.2 初值）：子任务完成计分 `W.subtask = 0`（不进加权分 ⇒ 不影响热力图档位），分数口径表第 10 行标注「不计分」；件数口径**不动**（`DayRec.sub` 仍计入推进与有效动作件数，R3/R5 仍以它作"完成项"凭据）—— 边界已在 dailyStats 文件头登记，未外延。★2026-09-27 用户拍板：子任务完成不计分（本条即终态，非临时）', () => {
@@ -651,7 +653,7 @@ check('R172-20 ★F31/F32 采纳出口是真的：落卡登记进全局撤销栈
     && pop.includes("tcForm.title = prefill?.title || ''") && pop.includes('tcSaved.value = false');
 });
 
-check('R172-21 ★F39 导出三件套：ExportMenu 三项（CSV / Markdown / PNG）且 v-if 不开即零节点、菜单右锚定不越视口右缘；复盘段与热力图段两处都挂上；PNG 走 canvas 自绘并现取当前主题令牌（不引 html2canvas：体积 + foreignObject 不吃外部样式表必然丢色）；CSV 出口全站并轨（抽屉那份不再自己 createObjectURL / 手写 BOM）', () => { const ex = codeOnly(read('/newtab/components/dashboard/ExportMenu.vue')); const css = read('/newtab/components/dashboard/dashboard.css'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hm = read('/newtab/components/dashboard/Heatmap.vue'); const dl = codeOnly(read('/newtab/components/dashboard/DashboardLogDrawer.vue')); const ev = codeOnly(read('/shared/utils/exportView.ts')); return has(ex, ["pick('csv')", "pick('md')", "pick('png')", 'v-if="open"']) && css.includes('.dz-exp {') && css.includes('right: 0') && css.includes('repeat(12, minmax(0, 1fr))') /* R173-4：一行 12 月块 */ && css.includes('@media (max-width: 1279px) { .dz-wk { display: none; } }') /* R173-4b 带备案：星期行 7×9px 汉字 + 6×2px 缝 = 75px，月块窄于 75px 时每块横向溢出（1100 档实测 +15px）；1280 档月块 75.5px 是实测最小装得下的档 ⇒ 以下隐去（该档格子只剩 8px，日期仍在 tooltip 里） */ && has(rp, ['<ExportMenu @pick="onExport" />', 'tablesToCsv', 'sectionsToMd', 'pngBlobFromSpec']) && has(hm, ['<ExportMenu @pick="onExport" />', 'pngBlobFromSpec', 'tablesToCsv']) && dl.includes('tablesToCsv') && !dl.includes('URL.createObjectURL') && has(ev, ['getComputedStyle(document.documentElement)', "'--heat-5'", 'toBlob']); });
+check('R172-21 ★F39 导出：ExportMenu 四项可配（CSV / Markdown / PNG / HTML，formats prop 决定开哪几项）且 v-if 不开即零节点、菜单右锚定不越视口右缘；复盘段仍是 CSV/MD/PNG 三件套、热力图段收为 PNG/HTML 两项（★W2 重指带备案：热力图逐日 CSV/年度 MD 随迁取消，新增自包含 HTML 分享页）；PNG 走 canvas 自绘并现取当前主题令牌（不引 html2canvas：体积 + foreignObject 不吃外部样式表必然丢色）；CSV 出口全站并轨（抽屉那份不再自己 createObjectURL / 手写 BOM）', () => { const ex = codeOnly(read('/newtab/components/dashboard/ExportMenu.vue')); const css = read('/newtab/components/dashboard/dashboard.css'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hm = read('/newtab/components/dashboard/Heatmap.vue'); const dl = codeOnly(read('/newtab/components/dashboard/DashboardLogDrawer.vue')); const ev = codeOnly(read('/shared/utils/exportView.ts')); return has(ex, ["pick('csv')", "pick('md')", "pick('png')", "pick('html')", 'v-if="open"', "formats"]) && css.includes('.dz-exp {') && css.includes('right: 0') && css.includes('repeat(12, minmax(0, 1fr))') /* R173-4：一行 12 月块 */ && css.includes('@media (max-width: 1279px) { .dz-wk { display: none; } }') /* R173-4b 带备案：星期行 7×9px 汉字 + 6×2px 缝 = 75px，月块窄于 75px 时每块横向溢出（1100 档实测 +15px）；1280 档月块 75.5px 是实测最小装得下的档 ⇒ 以下隐去（该档格子只剩 8px，日期仍在 tooltip 里） */ && has(rp, ['<ExportMenu @pick="onExport" />', 'tablesToCsv', 'sectionsToMd', 'pngBlobFromSpec']) && has(hm, ['<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />', 'pngBlobFromSpec', 'heatmapShareHtml', 'exportHtml']) && !hm.includes('tablesToCsv') && dl.includes('tablesToCsv') && !dl.includes('URL.createObjectURL') && has(ev, ['getComputedStyle(document.documentElement)', "'--heat-5'", 'toBlob', 'heatmapShareHtml']); });
 // ============== R2 第二批 · 池语义收尾（死链改靶 / 调出记账 / 论证卡回收站族） ==============
 console.log('【R2 第二批 · 池语义收尾】');
 check('R2-④ ★死链族全站清零：`/workspace/zy-curation` 自 R179 起恒落 Workspace「策展台不存在」死页，四处深链（⌘K locateOnly / content 浮层 resLocateRoute / AI 面板 panel.route ×4 / 仪表盘 R6 归因）全部改靶，代码内该路由字面量零残留（注释留痕说明改靶缘由，故走 codeOnly 剥注释判定）', () => {
@@ -725,6 +727,62 @@ check('R2-⑧ ★增量渲染上限立住：默认一屏 60 张 + 滚动到底�
   return p.includes('const PAGE = 60') && p.includes('new IntersectionObserver') && p.includes("rootMargin: '240px'")
     && p.includes('function renderMore()') && p.includes('visibleCount.value = Math.max(visibleCount.value')
     && p.includes('poolCards.value.slice(0, visibleCount.value)')
+});
+
+// ============== W2 ★热力图迁调度台（V3.8.2） ==============
+console.log('【W2 · 热力图迁调度台】');
+check('W2-1 ★热力图挂载在调度台：CompassHome 挂 `<HeatmapModule />`（今日三件事 section 之后、三卡 section 之前，独立模块常驻）且源码内无 readEventLog（R49-3 保持：读日志的活只在 HeatmapModule 做）', () => {
+  const ch = read('/newtab/views/CompassHome.vue');
+  const iH = ch.indexOf('<HeatmapModule />');
+  const iF = ch.indexOf('focusAllDone');
+  const iC = ch.indexOf('id="zy-mod-curiosity"');
+  return ch.includes("import HeatmapModule from '../components/dashboard/HeatmapModule.vue'")
+    && iH > 0 && iF > 0 && iC > 0
+    && iH > iF && iH < iC
+    && !ch.includes('readEventLog');
+});
+check('W2-2 ★GlobalSettings 不再挂热力图：无 Heatmap import / 无 <Heatmap> 模板 / 无 onDashOpenLog（日详情「查看全部记录」迁 HeatmapModule.onOpenLog），但概览带 + 复盘段 + 操作记录保留', () => {
+  const gs = read('/newtab/views/GlobalSettings.vue');
+  return !gs.includes("import Heatmap from")
+    && !gs.includes('<Heatmap')
+    && !gs.includes('onDashOpenLog')
+    && gs.includes('dashYear') && gs.includes('dashSelDay') && gs.includes('dashStats')
+    && gs.includes('<ReviewPanel')
+    && gs.includes('openLog(');
+});
+check('W2-3 ★HeatmapModule 自包含宿主：useAppStore + gResLive/gTaskLive/gCurioLive + linkCardCount + readEventLog + derivedEvents 回退 + timelineEvents + useDashboardStats + dashYear/dashSelDay/dashStats + onOpenLog 开 DashboardLogDrawer', () => {
+  const hm = read('/newtab/components/dashboard/HeatmapModule.vue');
+  return hm.includes('useAppStore') && hm.includes('gResLive') && hm.includes('gTaskLive') && hm.includes('gCurioLive')
+    && hm.includes('linkCardCount') && hm.includes('readEventLog') && hm.includes('derivedEvents')
+    && hm.includes('timelineEvents') && hm.includes('useDashboardStats')
+    && hm.includes('dashYear') && hm.includes('dashSelDay') && hm.includes('dashStats')
+    && hm.includes('onOpenLog') && hm.includes('logOpen') && hm.includes(':preset="logPreset"')
+    && hm.includes('<Heatmap')
+    && hm.includes('DashboardLogDrawer');
+});
+check('W2-4 ★日详情改中央弹窗：Heatmap 内 DayDetail 用 `<Teleport to="body">` + `.dz-day-modal-overlay` / `.dz-day-modal`（@click.self 关闭），dashboard.css 两样式在位；导出挂 `<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />`（不再有 tablesToCsv / exportCsv / exportMd）', () => {
+  const hm = read('/newtab/components/dashboard/Heatmap.vue');
+  const css = read('/newtab/components/dashboard/dashboard.css');
+  return hm.includes('<Teleport to="body">')
+    && hm.includes('dz-day-modal-overlay') && hm.includes('dz-day-modal')
+    && hm.includes('@click.self')
+    && hm.includes('<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />')
+    && !hm.includes('tablesToCsv') && !hm.includes('exportCsv') && !hm.includes('exportMd')
+    && css.includes('.dz-day-modal-overlay') && css.includes('.dz-day-modal');
+});
+check('W2-5 ★HTML 分享导出真在位：exportView.heatmapShareHtml 生成自包含单文件 HTML（内联 CSS、tok() 现取 --heat-0..5、escHtml 转义），Heatmap.exportHtml 调用之；PNG 导出走 pngBlobFromSpec 现取主题令牌', () => {
+  const ev = codeOnly(read('/shared/utils/exportView.ts'));
+  const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
+  return ev.includes('heatmapShareHtml') && ev.includes('HeatmapShareSpec')
+    && ev.includes("'--heat-0'") && ev.includes('escHtml')
+    && hm.includes('exportHtml') && hm.includes('heatmapShareHtml')
+    && hm.includes('pngBlobFromSpec');
+});
+check("W2-6 ★日详情 open-log 新宿主（★随迁备案：原 GlobalSettings.onDashOpenLog 迁至 HeatmapModule.onOpenLog）：Heatmap 内 emit('open-log', day) 被 HeatmapModule 的 @open-log 监听并转发为 logOpen + logPreset", () => {
+  const hm = read('/newtab/components/dashboard/HeatmapModule.vue');
+  const heat = read('/newtab/components/dashboard/Heatmap.vue');
+  return hm.includes('onOpenLog') && hm.includes('logOpen') && hm.includes(':preset="logPreset"')
+    && heat.includes("emit('open-log'") && hm.includes('@open-log');
 });
 
 // ============== R3 收尾 · F38 交互点高亮开关 ==============

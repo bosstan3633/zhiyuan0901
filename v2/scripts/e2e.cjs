@@ -445,8 +445,8 @@ async function main() {
   }), [dsOldDay])
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  // 读合并断言：显式导航到仪表盘（上个用例把 hash 留在了资源台）；8 月块（第 8 个 .mb）出现 l2 格 + fullSince 徽章含老日子
-  await page.evaluate(() => { location.hash = '#/settings?page=dashboard' })
+  // 读合并断言：显式导航到调度台（热力图 W2 起在 #/ 而非设置页；上个用例把 hash 留在了资源台）；8 月块（第 8 个 .mb）出现 l2 格 + fullSince 徽章含老日子
+  await page.evaluate(() => { location.hash = '#/' })
   await page.waitForTimeout(2200)
   const dsAugL2 = await page.locator('.dz-months .mb').nth(7).locator('.dz-cell.l2').count()
   const dsBadge = (await page.locator('.dz-sec-h', { hasText: '年度热力图' }).locator('.dz-badge').first().innerText().catch(() => ''))

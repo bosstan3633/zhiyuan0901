@@ -7,17 +7,17 @@
  * 性能：整年格子一次性取数（`Object.keys(days)` 一次遍历），切年仅换 `year` 重算 —— 不重扫全库。
  */
 import './dashboard.css'
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import type { CardEvent } from '@/shared/utils/eventLog'
 import {
-  LV_NAME, LV_DESC, LV_RANGE, levelOf, actsOf,
+  LV_NAME, LV_DESC, LV_RANGE, levelOf,
   type DailyStats
 } from '@/shared/utils/dailyStats'
 import { yearAgg, longestStreak, todayKey } from '@/shared/utils/reviewReport'
 import DayDetail from './DayDetail.vue'
-import ExportMenu from './ExportMenu.vue'
-import { tablesToCsv, sectionsToMd, pngBlobFromSpec, exportName } from '@/shared/utils/exportView'
-import { downloadText, downloadBlob } from '@/shared/utils/download'
+import ExportMenu, { type ExportFmt } from './ExportMenu.vue'
+import { pngBlobFromSpec, heatmapShareHtml, exportName } from '@/shared/utils/exportView'
+import { downloadBlob, downloadText } from '@/shared/utils/download'
 import { showToast } from '@/shared/components/toast'
 
 const props = defineProps<{
@@ -30,8 +30,23 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:year', y: number): void
   (e: 'update:selDay', d: string | null): void
-  (e: 'open-log', day: string): void
+    (e: 'open-log', day: string): void
 }>()
+
+/* W2（V3.8.2）：日详情 Teleport 到 body 后，路由/场景切换不会卸载宿主 ⇒ 遮罩会跨场存留
+   （theme-audit 实测：dz-hl / dz-report / st-tags 三张图被遗留遮罩盖住）。这里挂 hash 变化监听，
+   跨到其它场景即清空 selDay，使 v-if 卸载弹窗——保留 `<Teleport to="body">` 的居中/不裁切收益。 */
+const routeWatchOff = (): void => {
+  if (typeof window === 'undefined') return
+  window.removeEventListener('hashchange', dismissOnRoute)
+}
+function dismissOnRoute(): void {
+  if (props.selDay) emit('update:selDay', null)
+}
+onMounted(() => {
+  if (typeof window !== 'undefined') window.addEventListener('hashchange', dismissOnRoute)
+})
+onUnmounted(routeWatchOff)
 
 const WD = ['一', '二', '三', '四', '五', '六', '日']
 const pad2 = (n: number): string => String(n).padStart(2, '0')
@@ -92,36 +107,9 @@ function shiftYear(n: number) {
 }
 const fmtW = (n: number): string => (n >= 1000 ? n.toLocaleString() : String(n))
 
-/* ---------- R172-T12（F39）：热力图段导出三件套（逐日明细 CSV / 年度摘要 MD / 年历 PNG） ---------- */
-const dayKeys = computed(() => Object.keys(props.stats.days).filter(k => k.slice(0, 4) === String(props.year)).sort())
-const yearRows = computed(() => dayKeys.value.map(k => {
-  const r = props.stats.days[k]
-  return [k, r.w, LV_NAME[levelOf(r.w)], actsOf(r), r.c.res, r.c.curio, r.c.task, r.u, r.s.curio, r.s.task, r.d, r.sub, r.focus, r.link, r.x.add, r.x.del]
-}))
-const lvCount = computed(() => {
-  const t = [0, 0, 0, 0, 0, 0]
-  for (const k of dayKeys.value) t[levelOf(props.stats.days[k].w)]++
-  return t
-})
-function exportCsv(): void {
-  const csv = tablesToCsv([{
-    header: ['日期', '加权分', '档位', '有效动作', '采集·资源', '采集·好奇', '采集·任务', '调出', '状态变更·好奇', '状态变更·任务',
-      '推进合计', '推进·子任务', '推进·三件事', '推进·任务资源', '入台', '移出'],
-    rows: yearRows.value
-  }])
-  downloadText(exportName('热力图', 'csv', String(props.year)), csv, 'csv')
-  showToast(`✓ 已导出 ${props.year} 年逐日明细 CSV（${yearRows.value.length} 天）`)
-}
-function exportMd(): void {
-  const md = sectionsToMd(`${props.year} 年调度热力图`, `${agg.value.first} → ${agg.value.last} · 数据自 ${props.stats.fullSince} 起完整`, [
-    { h: '年度摘要', lines: summary.value.map(s => `- **${s.k}** ${typeof s.v === 'number' ? fmtW(s.v) : s.v} ${s.u} — ${s.d}`) },
-    { h: '档位分布', lines: LV_NAME.map((n, i) => `- ${n}（${LV_RANGE[i]}）：${lvCount.value[i]} 天`) },
-    { h: '各月加权分', lines: months.value.map(mo => `- ${mo.m} 月：${mo.w} 分`) }
-  ])
-  downloadText(exportName('热力图', 'md', String(props.year)), md, 'md')
-  showToast('✓ 已导出年度 Markdown')
-}
-async function exportPng(): Promise<void> {
+/* ---------- W2（V3.8.2）：热力图段导出收为「PNG 下载 + HTML 分享」两项 ---------- */
+/** 格子坐标（12 月块 4×3 布局）—— PNG 与 HTML 共用同一份坐标，导出即所见 */
+function gridCells(): { c: number; r: number; lv: number }[] {
   const cells: { c: number; r: number; lv: number }[] = []
   months.value.forEach((mo, bi) => {
     const bx = bi % 4
@@ -132,20 +120,37 @@ async function exportPng(): Promise<void> {
       cells.push({ c: bx * 8 + (n % 7), r: by * 8 + Math.floor(n / 7), lv: x.lv })
     })
   })
+  return cells
+}
+const kpiSpec = () => summary.value.map(s => ({ label: s.k, value: `${typeof s.v === 'number' ? fmtW(s.v) : s.v}${s.u}`, note: s.d }))
+const footerText = '知源调度台 · 档位由加权分映射 · 数据只在本机'
+
+async function exportPng(): Promise<void> {
   const blob = await pngBlobFromSpec({
     title: `${props.year} 年调度热力图`,
     sub: `活跃 ${agg.value.act}/${agg.value.days} 天 · 有效动作 ${fmtW(agg.value.acts)} 件 · 加权 ${Math.round(agg.value.W)} 分 · P90 = ${agg.value.p90} 分 · 最长连续 ${streak.value} 天`,
-    kpis: summary.value.map(s => ({ label: s.k, value: `${typeof s.v === 'number' ? fmtW(s.v) : s.v}${s.u}`, note: s.d })),
-    grid: { cells, cols: 32, rows: 24, cell: 11, gap: 2, label: '六档：' + LV_NAME.join(' / ') },
-    footer: '知源调度台 · 档位由加权分映射（分数口径见设置 › 知源仪表盘）· 数据只在本机'
+    kpis: kpiSpec(),
+    grid: { cells: gridCells(), cols: 32, rows: 24, cell: 11, gap: 2, label: '六档：' + LV_NAME.join(' / ') },
+    footer: footerText
   })
   downloadBlob(exportName('热力图', 'png', String(props.year)), blob)
   showToast('✓ 已导出年历 PNG（当前主题配色）')
 }
-function onExport(fmt: 'csv' | 'md' | 'png'): void {
-  if (fmt === 'csv') exportCsv()
-  else if (fmt === 'md') exportMd()
-  else void exportPng()
+function exportHtml(): void {
+  const html = heatmapShareHtml({
+    title: `${props.year} 年调度热力图`,
+    sub: `活跃 ${agg.value.act}/${agg.value.days} 天 · 有效动作 ${fmtW(agg.value.acts)} 件 · 加权 ${Math.round(agg.value.W)} 分 · 最长连续 ${streak.value} 天`,
+    kpis: kpiSpec(),
+    grid: { cells: gridCells(), cols: 32, rows: 24, cell: 11, gap: 2, label: '每日档位（0–5 档，越深越忙）' },
+    legend: LV_NAME.map((n, i) => ({ name: n, desc: LV_DESC[i] })),
+    footer: footerText
+  })
+  downloadText(exportName('热力图', 'html', String(props.year)), html, 'html')
+  showToast('✓ 已导出 HTML 分享页（任何人浏览器打开即看）')
+}
+function onExport(fmt: ExportFmt): void {
+  if (fmt === 'png') void exportPng()
+  else if (fmt === 'html') exportHtml()
 }
 </script>
 
@@ -156,7 +161,7 @@ function onExport(fmt: 'csv' | 'md' | 'png'): void {
       <span class="dz-sp"></span>
       <span class="dz-badge">{{ agg.first }} → {{ agg.last }}</span>
       <span class="dz-badge">{{ selDay ? `已选 ${selDay}` : '点格子看那一天' }}</span>
-      <ExportMenu @pick="onExport" />
+      <ExportMenu :formats="['png', 'html']" @pick="onExport" />
       <button class="dz-btn sm ghost" title="上一年" @click="shiftYear(-1)">‹</button>
       <b style="font-size:var(--fs-sub);min-width:44px;text-align:center">{{ year }}</b>
       <button class="dz-btn sm ghost" :disabled="year >= curYear" title="下一年" @click="shiftYear(1)">›</button>
@@ -201,7 +206,13 @@ function onExport(fmt: 'csv' | 'md' | 'png'): void {
       </template>
     </div>
 
-    <DayDetail v-if="selDay" :stats="stats" :day="selDay" :events="events" :live-link="liveLink"
-      @close="emit('update:selDay', null)" @open-log="(d) => emit('open-log', d)" />
+    <Teleport to="body">
+      <div v-if="selDay" class="dz-day-modal-overlay" @click.self="emit('update:selDay', null)">
+        <div class="dz-day-modal" role="dialog" aria-modal="true">
+          <DayDetail :stats="stats" :day="selDay" :events="events" :live-link="liveLink"
+            @close="emit('update:selDay', null)" @open-log="(d) => emit('open-log', d)" />
+        </div>
+      </div>
+    </Teleport>
   </section>
 </template>
