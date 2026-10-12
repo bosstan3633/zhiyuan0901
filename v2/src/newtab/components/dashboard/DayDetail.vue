@@ -5,29 +5,31 @@
  * 原型结构五段，从上到下：
  *   ① md-head     —— 图标 + 标题 + 日期 + 关闭
  *   ② md-summary  —— 「今天你完成了 N 项操作，涉及 M 张卡。」+ 最近一次操作时刻
- *   ③ md-stats    —— 四格统计（新增 / 调出 / 推进 / 清理），彩色大数，零值压淡
- *   ③.5 热力带     —— 该日加权分 / 等级 / 强度（用户拍板：四格统计下方一条热力带，
- *                     背景 var(--heat-{lv})，文字 --heat-ink）
- *   ④ md-scroll   —— 分时段叙事时间线（**降序**：下午在前，对齐原型 sort b.ts-a.ts）
+ *   ③ md-stats    —— 四格统计（新增 / 调出 / 推进 / 清理），彩色大数，零值压淡，可点击下钻
+ *   ③.5 热力带     —— 该日加权分 / 等级 / 强度（用户拍板：四格统计下方一条热力带）
+ *   ④ md-scroll   —— 分时段叙事时间线（**降序**：下午在前），行可点击（单击定位 / 双击开链接）
  *   ⑤ md-foot     —— 页脚注 + 查看全部记录 + 导出三件套
  *
- * 分析段（W5 保留的四列下钻 dz-mcols + 库容变化条 dz-dstock + hintline + DrillCardList）
- * 随本轮裁剪**整体退役**——日详情只回答「那天我做了什么」，下钻入口收敛到复盘段
- * （ReviewPanel 经 drillRows.ts 仍持有 groupEventRows 消费）。
- *
- * ★判据随迁（见 scripts/regression）：R172-7/8、W5-7 的旧锚（groupEventRows/dz-mcol/
- * deltaOf/stockAt/DrillCardList/该日库容变化）迁移为 drillRows.ts 仍在 + ReviewPanel
- * 消费 + 日详情新锚（dz-stats 四格 / dz-heat-band / dz-tl-row 降序结构）。
+ * ★ W6.1 用户拍板（2026-10-12）：
+ *   · 四格统计指标卡可点击下钻 → DrillCardList（与全库统一：单击定位 / 双击开链接）
+ *   · 时间线明细行可点击 → 单击定位卡片 / 双击直达链接（与 DrillCardList 同一套交互）
+ *   · 「查看全部记录」先关弹窗再开右侧抽屉（HeatmapModule.onOpenLog 处理）
+ *   · 弹窗宽度 / 字号 / 字间距对齐原型 min(720px,92vw) / 86vh / radius 18px
  */
 import './dashboard.css'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAppStore } from '@/newtab/stores/app'
 import type { CardEvent, EventAction } from '@/shared/utils/eventLog'
 import { EVENT_ACT_LABEL } from '@/shared/utils/eventLog'
 import {
   emptyDay, levelOf, levelName, levelDesc, levelRange, actsOf,
   type DailyStats
 } from '@/shared/utils/dailyStats'
-import { hm, dayOfTs } from '@/shared/utils/drillRows'
+import { hm, dayOfTs, groupEventRows, type DrillRow } from '@/shared/utils/drillRows'
+import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
+import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
+import DrillCardList from './DrillCardList.vue'
 import ExportMenu, { type ExportFmt } from './ExportMenu.vue'
 import { pngBlobFromSpec, dailyReportShareHtml, sectionsToMd, exportName } from '@/shared/utils/exportView'
 import { downloadBlob, downloadText } from '@/shared/utils/download'
@@ -40,6 +42,9 @@ const props = defineProps<{
   liveLink: number
 }>()
 const emit = defineEmits<{ (e: 'close'): void; (e: 'open-log', day: string): void }>()
+
+const router = useRouter()
+const store = useAppStore()
 
 const WD = ['一', '二', '三', '四', '五', '六', '日']
 
@@ -58,7 +63,10 @@ const dlSum = computed(() => {
   return { n: evs.length, cards, last }
 })
 
-/** 四格统计（原型 renderStats 口径：create/call/status/delete+purge → 新增/调出/推进/清理） */
+/** 四格统计（原型 renderStats 口径：create/call/status/delete+purge → 新增/调出/推进/清理）。
+ *  ★ W6.1：指标卡可点击下钻——drill 状态 toggle，激活时展开 DrillCardList。 */
+type DrillKey = '' | 'create' | 'call' | 'status' | 'del'
+const drill = ref<DrillKey>('')
 const statCells = computed(() => {
   const c = { create: 0, call: 0, status: 0, del: 0 }
   for (const e of dayEvents.value) {
@@ -68,11 +76,30 @@ const statCells = computed(() => {
     else if (e.action === 'delete' || e.action === 'purge') c.del++
   }
   return [
-    { k: 'create', n: c.create, lbl: '新增', cls: 'sc-create' },
-    { k: 'call', n: c.call, lbl: '调出', cls: 'sc-call' },
-    { k: 'status', n: c.status, lbl: '推进', cls: 'sc-status' },
-    { k: 'del', n: c.del, lbl: '清理', cls: 'sc-del' }
+    { k: 'create' as DrillKey, n: c.create, lbl: '新增', sym: '+', cls: 'sc-create' },
+    { k: 'call' as DrillKey, n: c.call, lbl: '调出', sym: '↗', cls: 'sc-call' },
+    { k: 'status' as DrillKey, n: c.status, lbl: '推进', sym: '✓', cls: 'sc-status' },
+    { k: 'del' as DrillKey, n: c.del, lbl: '清理', sym: '⌫', cls: 'sc-del' }
   ]
+})
+function toggleDrill(k: DrillKey) {
+  drill.value = drill.value === k ? '' : k
+}
+/** 下钻行：按四格口径过滤当天事件 → groupEventRows 聚合（同卡多次 ×N，与全库单一实现） */
+const drillRows = computed<{ label: string; rows: DrillRow[]; total: number } | null>(() => {
+  if (!drill.value) return null
+  const filtered = dayEvents.value.filter(e => {
+    if (drill.value === 'create') return e.action === 'create'
+    if (drill.value === 'call') return e.action === 'call'
+    if (drill.value === 'status') return e.action === 'status'
+    return e.action === 'delete' || e.action === 'purge'
+  })
+  const lbl = statCells.value.find(s => s.k === drill.value)!.lbl
+  return {
+    label: `当日「${lbl}」下钻`,
+    rows: groupEventRows(filtered, e => EVENT_ACT_LABEL[e.action]),
+    total: filtered.length
+  }
 })
 
 /** 动词徽标：符号 + EVENT_ACT_LABEL（单一真源，判据锚 `EVENT_ACT_LABEL[e.action]` 在此消费）。
@@ -88,7 +115,8 @@ function actOf(a: EventAction): { txt: string; cls: string } {
 const KIND_LABEL: Record<string, string> = { resource: '资源', task: '任务', curiosity: '好奇', system: '系统' }
 
 /** 分时段叙事时间线：**降序**（下午在前——对齐原型 renderTimeline 的 sort((a,b)=>b.ts-a.ts)），
- *  同时间段连续成组（上午 / 下午 / 晚上）。 */
+ *  同时间段连续成组（上午 / 下午 / 晚上）。
+ *  ★ W6.1：行可点击——单击定位卡片 / 双击直达链接（与 DrillCardList 同一套交互，全库统一）。 */
 const flowGroups = computed(() => {
   const out: { label: string; rows: { tm: string; e: CardEvent }[] }[] = []
   const sorted = [...dayEvents.value].sort((a, b) => b.ts - a.ts)
@@ -101,6 +129,25 @@ const flowGroups = computed(() => {
   }
   return out
 })
+
+/** 时间线行点击：单击 → 定位并高亮；双击 → 直达链接 / 打开文件（与 DrillCardList.pick/open 同构） */
+function locateRow(e: CardEvent) {
+  const kind = asLocateKind(e.kind)
+  if (!kind || !e.cardId) { showToast(`「${e.title}」无对应卡片类型`); return }
+  const t = locateTargetOf(store.data!, kind, e.cardId)
+  if (!t) { showToast(`⚠ 「${e.title}」已不在库中`); return }
+  void router.push(t)
+}
+function openRow(e: CardEvent) {
+  if (e.kind === 'resource' && e.cardId) {
+    const card = store.data?.resources.find(x => x.id === e.cardId)
+    if (card && card.link) {
+      const url = toOpenableUrl(card.linkType, card.link)
+      if (url) { openExternalLink(url); return }
+    }
+  }
+  locateRow(e)
+}
 
 /* ---- 导出三件套（PNG / HTML / Markdown）：导出的是弹窗当前算出来的东西，不另跑一套算法 ---- */
 const exportKpis = () => {
@@ -175,16 +222,22 @@ function onExport(fmt: ExportFmt): void {
     <div class="dz-dl-sum">
       <template v-if="dlSum.n">今天你完成了 <b>{{ dlSum.n }}</b> 项操作，涉及 <b>{{ dlSum.cards }}</b> 张卡。</template>
       <template v-else>这一天没有操作记录。</template>
-      <div v-if="dlSum.last" class="dz-dl-recent">最近一次操作：{{ hm(dlSum.last) }}</div>
+      <div v-if="dlSum.last" class="dz-dl-recent">最近一次操作：{{ hm(dlSum.last) }}<template v-if="dlSum.last">（{{ dayOfTs(dlSum.last) === day ? '' : dayOfTs(dlSum.last) + ' ' }}{{ Math.round((Date.now() - dlSum.last) / 3600000) }} 小时前）</template></div>
     </div>
 
-    <!-- ③ 四格统计（原型 md-stats：新增 / 调出 / 推进 / 清理，零值压淡） -->
+    <!-- ③ 四格统计（原型 md-stats：新增 / 调出 / 推进 / 清理，零值压淡；★W6.1 可点击下钻） -->
     <div v-if="dlSum.n" class="dz-stats">
-      <div v-for="c in statCells" :key="c.k" class="dz-stat" :class="[c.cls, { dim: c.n === 0 }]">
+      <button v-for="c in statCells" :key="c.k" class="dz-stat" :class="[c.cls, { dim: c.n === 0, on: drill === c.k }]"
+        :disabled="c.n === 0" :title="c.n === 0 ? `当日无「${c.lbl}」记录` : `点击下钻「${c.lbl}」明细`"
+        @click="toggleDrill(c.k)">
         <span class="n">{{ c.n }}</span>
-        <span class="lbl">{{ c.lbl }}</span>
-      </div>
+        <span class="lbl"><span class="sym">{{ c.sym }}</span>{{ c.lbl }}</span>
+      </button>
     </div>
+
+    <!-- ③ 下钻区（★W6.1：紧跟四格下方，与全库 DrillCardList 同一套交互） -->
+    <DrillCardList v-if="drillRows" :rows="drillRows.rows" :label="drillRows.label"
+      :total="drillRows.total" plain />
 
     <!-- ③.5 热力带（用户拍板：四格统计下方一条）：加权分 / 等级 / 强度，背景走 heat 色阶 -->
     <div class="dz-heat-band" :class="`lv${lvIdx}`" :title="levelDesc(rec.w)">
@@ -195,7 +248,7 @@ function onExport(fmt: ExportFmt): void {
       <span class="acts">有效动作 {{ actsOf(rec) }} 件</span>
     </div>
 
-    <!-- ④ 分时段叙事时间线（原型 md-scroll：降序，下午在前） -->
+    <!-- ④ 分时段叙事时间线（原型 md-scroll：降序，下午在前；★W6.1 行可点击） -->
     <div class="dz-tl">
       <div class="th">当日操作时间线<span class="dz-sp"></span>
         <span style="color:var(--text-3)">共 {{ dlSum.n }} 条 · 明细来自 zy_event_log</span>
@@ -204,7 +257,9 @@ function onExport(fmt: ExportFmt): void {
       <div v-if="!flowGroups.length" class="dz-row"><span class="ti" style="color:var(--text-3)">今天还没有操作记录 —— 去调度台做点什么吧：采集一张卡、推进一个任务、或打开一次资源</span></div>
       <template v-for="g in flowGroups" :key="g.label">
         <div class="dz-tl-grp">{{ g.label }}</div>
-        <div v-for="({ tm, e }, i) in g.rows" :key="e.id + '-' + i" class="dz-tl-row" :title="e.title">
+        <div v-for="({ tm, e }, i) in g.rows" :key="e.id + '-' + i" class="dz-tl-row"
+          :title="`单击 → 定位「${e.title}」· 双击 → 直达链接 / 打开文件`"
+          @click="locateRow(e)" @dblclick="openRow(e)">
           <span class="tm">{{ tm }}</span>
           <span class="dotcol"><span class="tl-dot" :class="actOf(e.action).cls"></span></span>
           <span class="ac" :class="actOf(e.action).cls">{{ actOf(e.action).txt }}</span>
@@ -218,6 +273,7 @@ function onExport(fmt: ExportFmt): void {
     <!-- ⑤ 页脚（原型 md-foot：注 + 查看全部记录 + 导出三件套） -->
     <div class="dz-dl-foot">
       <span class="note">数据来源：本机事件日志 · 仅当日 · 自然日口径</span>
+      <button class="dz-btn sm" @click="emit('open-log', day)">查看全部记录 ›</button>
       <ExportMenu :formats="['png', 'html', 'md']" @pick="onExport" />
     </div>
   </div>

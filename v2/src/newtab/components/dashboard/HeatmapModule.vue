@@ -77,9 +77,12 @@ function applyDailyLogDay(day: string): void {
 watch(pendingDay, (d) => { if (d) applyDailyLogDay(consume()!) })
 
 // ---- 日详情「查看全部记录 ›」→ 打开全量抽屉并按该日预筛 ----
+// ★ W6 增补（用户拍板 2026-10-12）：点「查看全部记录」先关日详情弹窗再开右侧抽屉——
+//   两个面板并存会让遮罩叠两层、交互语义含糊（"退出当前弹窗"）。dashSelDay 置 null 即关。
 const logOpen = ref(false)
 const logPreset = ref<LogPreset>({ kind: 'all', action: 'all', from: '', to: '' })
 function onOpenLog(day: string) {
+  dashSelDay.value = null
   logPreset.value = { kind: 'all', action: 'all', from: day, to: day, note: `来源：日详情「查看全部记录」—— 已按 ${day} 预筛，可自由改条件。` }
   logOpen.value = true
 }

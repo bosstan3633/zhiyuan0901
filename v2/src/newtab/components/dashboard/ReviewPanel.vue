@@ -286,7 +286,7 @@ function onExport(fmt: ExportFmt): void {
 <template>
   <section class="dz-sec">
     <div class="dz-sec-h">
-      <span class="dz-n">3</span><span class="dz-t">复盘</span><span class="dz-en">REVIEW</span>
+      <span class="dz-n">2</span><span class="dz-t">复盘</span><span class="dz-en">REVIEW</span>
       <span class="dz-sp"></span>
       <span class="dz-badge">{{ win.label }} · {{ win.days }} 天</span>
       <ExportMenu @pick="onExport" />

@@ -111,12 +111,14 @@
 /* ================= 日详情（战报） ================= */
 /* W2（V3.8.2）：日详情从 section 内联改为中央弹窗（Teleport 到 body，不受父容器 overflow 裁切）。
    弹窗壳与 DayDetail 本体解耦：壳只管居中 + 遮罩 + 最大高度，DayDetail 内部结构不动。
-   W5（V3.8.5）#4b：垂直居中（flex-start → center）。4vh×2 + max-height 92vh 恰好不溢出。
+   W5（V3.8.5）#4b：垂直居中（flex-start → center）。4vh×2 + max-height 86vh 恰好不溢出。
    W6（V3.8.6）#1：完全按原型重构——头部（图标+标题+日期）/ 摘要 / 四格统计 / 热力带 /
-   降序时间线 / 页脚。分析段（dz-mcols/dz-dstock/dz-hintline）整体退役。 */
+   降序时间线 / 页脚。分析段（dz-mcols/dz-dstock/dz-hintline）整体退役。
+   ★ W6 增补（用户拍板 2026-10-12）：弹窗宽度/字号/字间距对齐原型 min(720px,92vw) / 86vh / radius 18px；
+   时间线行布局对齐原型（tl-rail 56px 右对齐 / tl-dot-col 16px 带竖线 / tl-act 徽标 10px/700）。 */
 .dz-day-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,.32); display: flex; align-items: center; justify-content: center; padding: 4vh 16px; }
-.dz-day-modal { width: min(1080px, 100%); max-height: 92vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
-.dz-day { margin: 0; border: 0; border-radius: var(--radius-lg); }
+.dz-day-modal { width: min(720px, 92vw); max-height: 86vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 18px; box-shadow: var(--shadow); }
+.dz-day { margin: 0; border: 0; border-radius: 18px; }
 /* 原型 md-head：36px 图标方块 + 标题/日期双行 + 关闭 */
 .dz-day-head { display: flex; align-items: center; gap: 10px; padding: 18px 22px 0; }
 .dz-day-ic { width: 36px; height: 36px; border-radius: 10px; background: var(--accent-light); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -130,10 +132,12 @@
 .dz-dl-sum { margin: 14px 22px 0; font-size: 13px; color: var(--text-2); line-height: 1.6; }
 .dz-dl-sum b { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
 .dz-dl-recent { font-size: 12px; color: var(--text-3); margin-top: 3px; font-variant-numeric: tabular-nums; }
-/* 原型 md-stats：四格彩色大数（新增=success / 调出=accent / 推进=info / 清理=danger），零值压淡 */
+/* 原型 md-stats：四格彩色大数（新增=success / 调出=accent / 推进=info / 清理=danger），零值压淡
+   ★W6增补：改为 button 可点击下钻（DayDetail.toggleDrill），激活时边框高亮。 */
 .dz-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 16px 22px 0; }
-.dz-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; transition: border-color var(--dur); }
-.dz-stat:hover { border-color: var(--border-strong); }
+.dz-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; transition: border-color var(--dur), background var(--dur); cursor: pointer; font-family: inherit; text-align: left; color: inherit; }
+.dz-stat:hover:not(:disabled) { border-color: var(--border-strong); }
+.dz-stat.on { border-color: var(--accent); background: var(--accent-light); }
 .dz-stat.dim { opacity: .42; }
 .dz-stat .n { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
 .dz-stat .lbl { font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: 5px; }
@@ -151,15 +155,21 @@
 .dz-heat-band.lv4 { background: var(--heat-4); }
 .dz-heat-band.lv5 { background: var(--heat-5); }
 .dz-tl-grp { margin-top: var(--sp-3); margin-bottom: var(--sp-1); font-size: var(--fs-micro); font-weight: 700; color: var(--text-3); letter-spacing: var(--tracking-sm); }
-.dz-tl-row { display: flex; align-items: center; gap: var(--sp-2); padding: 5px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); min-width: 0; }
+/* ★W6增补：时间线行对齐原型（tl-rail 56px / tl-dot-col 16px 带竖线 / tl-act 10px/700）
+   单击=定位 / 双击=开链接（DayDetail.locateRow/openRow，与 DrillCardList 同构）。 */
+.dz-tl-row { display: flex; align-items: center; gap: 6px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; min-width: 0; cursor: pointer; transition: background var(--dur); }
 .dz-tl-row:last-child { border-bottom: 0; }
-.dz-tl-row .tm { font-size: var(--fs-caption); color: var(--text-4); width: 38px; flex: none; font-variant-numeric: tabular-nums; font-family: ui-monospace, Consolas, monospace; }
-.dz-tl-row .dotcol { flex: none; display: flex; align-items: center; }
-.dz-tl-row .tl-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-4); display: block; }
-.dz-tl-row .ac { flex: none; font-size: var(--fs-caption); font-weight: 600; padding: 1px 7px; border-radius: 99px; white-space: nowrap; }
-.dz-tl-row .kd { flex: none; font-size: var(--fs-tiny); color: var(--text-3); width: 30px; }
+.dz-tl-row:hover { background: var(--surface-2); }
+.dz-tl-row .tm { font-size: 11px; color: var(--text-4); width: 56px; flex: none; text-align: right; font-variant-numeric: tabular-nums; font-family: ui-monospace, Consolas, monospace; }
+.dz-tl-row .dotcol { flex: none; width: 16px; display: flex; align-items: center; justify-content: center; position: relative; }
+.dz-tl-row .dotcol::before { content: ''; position: absolute; top: -8px; bottom: -8px; left: 50%; width: 1px; background: var(--border); z-index: 0; }
+.dz-tl-row:first-of-type .dotcol::before { top: 50%; }
+.dz-tl-row:last-of-type .dotcol::before { bottom: 50%; }
+.dz-tl-row .tl-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-4); display: block; position: relative; z-index: 1; }
+.dz-tl-row .ac { flex: none; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px; white-space: nowrap; }
+.dz-tl-row .kd { flex: none; font-size: 10px; color: var(--text-3); width: 28px; }
 .dz-tl-row .ti { flex: 1; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dz-tl-row .to { flex: none; font-size: var(--fs-tiny); color: var(--accent-ink); background: var(--accent-light); border-radius: 99px; padding: 0 7px; }
+.dz-tl-row .to { flex: none; font-size: 10px; color: var(--accent-ink); background: var(--accent-light); border-radius: 99px; padding: 0 7px; }
 /* 语义色：动词徽标与色点同源（create=success / call=accent / status=info / delete·purge=danger / restore=warning） */
 .dz-tl-row .act-create { color: var(--success); background: var(--success-bg-soft); }
 .dz-tl-row .tl-dot.act-create { background: var(--success); }
