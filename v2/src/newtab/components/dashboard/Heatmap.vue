@@ -50,11 +50,12 @@ onUnmounted(routeWatchOff)
 
 const WD = ['一', '二', '三', '四', '五', '六', '日']
 const pad2 = (n: number): string => String(n).padStart(2, '0')
-const today = todayKey()
+/* ★ V3.8.6 增补：today 改 computed——原 setup 期一次性取值，跨零点后"今天"格子标记会停在旧日期 */
+const today = computed(() => todayKey())
 
 const agg = computed(() => yearAgg(props.stats, props.year))
 const streak = computed(() => longestStreak(props.stats, props.year))
-const curYear = computed(() => Number(today.slice(0, 4)))
+const curYear = computed(() => Number(today.value.slice(0, 4)))
 
 /* W5（V3.8.5）#4c：摘要 4 chip → 图标化指标卡（图标 + 大数字 + 标签）。数据源 summary 不变——导出 kpis 仍取全量。 */
 const SUM_ICONS = {
@@ -89,12 +90,12 @@ const months = computed(() => {
     let mw = 0
     for (let dd = 1; dd <= dim; dd++) {
       const k = `${y}-${pad2(m + 1)}-${pad2(dd)}`
-      if (k > today) { cells.push({ k, lv: 0, cls: 'future' }); continue }
+      if (k > today.value) { cells.push({ k, lv: 0, cls: 'future' }); continue }
       const r = props.stats.days[k]
       const lv = levelOf(r ? r.w : 0)
       mw += r ? r.w : 0
       const cls = [`l${lv}`]
-      if (k === today) cls.push('today')
+      if (k === today.value) cls.push('today')
       if (k === props.selDay) cls.push('sel')
       cells.push({ k, lv, cls: cls.join(' ') })
     }

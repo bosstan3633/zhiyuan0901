@@ -67,14 +67,24 @@ const dashSelDay = dash.selDay
 const dashStats = dash.stats
 
 /* W5（V3.8.5）#6：品牌区「今日战报」请求消费 —— 置 selDay + 校正年份（跨年历史日也能落到正确年视图）。
-   请求是模块级单例，挂载时消费一次、此后 watch 即时消费；选中日同时驱动概览带时间绑定（既有语义，零新机制）。 */
+   请求是模块级单例，挂载时消费一次、此后 watch 即时消费；选中日同时驱动概览带时间绑定（既有语义，零新机制）。
+   ★ V3.8.6 增补（用户反馈 2026-10-12）：打开战报前必须重新读事件日志——
+   原因：CompassHome 走 keep-alive，HeatmapModule 全会话只挂载一次，refreshEventLog 仅在 onMounted 跑；
+   此后新增/删除/调出/状态变更只进了 zy_event_log 缓存，UI 侧 eventLog 快照冻结在首次挂载那一刻，
+   战报四格统计/摘要/时间线/热力图加权分全部基于旧数据 → 内容过时。
+   修法：watch 里先 await refreshEventLog()（内存缓存，微秒级），eventLog.value 更新会触发
+   timelineEvents → dashStats → DayDetail 的 dayEvents/statCells/dlSum 全链 computed 重算，再置选中日。 */
 const { pendingDay, consume } = useDailyLogRequest()
 function applyDailyLogDay(day: string): void {
   const y = Number(day.slice(0, 4))
   if (y >= 2000 && y <= 2100 && y !== dashYear.value) dashYear.value = y
   dashSelDay.value = day
 }
-watch(pendingDay, (d) => { if (d) applyDailyLogDay(consume()!) })
+watch(pendingDay, async (d) => {
+  if (!d) return
+  await refreshEventLog()
+  applyDailyLogDay(consume()!)
+})
 
 // ---- 日详情「查看全部记录 ›」→ 打开全量抽屉并按该日预筛 ----
 // ★ W6 增补（用户拍板 2026-10-12）：点「查看全部记录」先关日详情弹窗再开右侧抽屉——
