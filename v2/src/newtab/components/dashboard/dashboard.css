@@ -68,13 +68,17 @@
 /* ================= ② 热力图 ================= */
 /* R174-5：摘要四卡压单行指标条（说明收进 title tooltip，导出件 kpis 数据源不动）——格子区上移成焦点（04-69 拍板 B） */
 /* W5（V3.8.5）#4c：摘要指标卡 —— 图标(accent) + 大数字 + 标签纵向堆叠，四卡等宽压一行 */
+/* ★V3.8.7 补丁三：这四枚指标**降级**。原 `.v` 用 fs-headline(17px)，比它所在区块自己的标题
+   （.dz-t 已降到 fs-title 15px）还大 ⇒ 层级倒置、真机截图里四枚数字抢走整块视觉焦点。
+   现：大数降到 fs-body(13px) + 700，图标 30→22px、内边距收紧、去掉卡面底色改为纯文本行，
+   让展开态的主角重新变回「全年网格本身」。判据 W7-4 钉住这条不许回涨。 */
 .dz-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-2); margin-bottom: var(--sp-3); }
-.dz-sum .c { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px 12px; background: var(--surface-2); cursor: help; min-width: 0; }
-.dz-sum .ic { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; background: var(--accent-light, var(--surface-3)); color: var(--accent-ink, var(--accent)); }
-.dz-sum .ic svg { width: 16px; height: 16px; display: block; }
-.dz-sum .tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.dz-sum .v { font-size: var(--fs-headline); font-weight: 700; line-height: 1.15; white-space: nowrap; }
-.dz-sum .v small { font-size: var(--fs-caption); font-weight: 500; color: var(--text-3); margin-left: 3px; }
+.dz-sum .c { display: flex; align-items: center; gap: 7px; border: 0; border-radius: var(--radius-sm); padding: 2px 4px; background: transparent; cursor: help; min-width: 0; }
+.dz-sum .ic { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; flex-shrink: 0; border-radius: 6px; background: var(--accent-light, var(--surface-3)); color: var(--accent-ink, var(--accent)); }
+.dz-sum .ic svg { width: 13px; height: 13px; display: block; }
+.dz-sum .tx { display: flex; align-items: baseline; gap: 5px; min-width: 0; }
+.dz-sum .v { font-size: var(--fs-body); font-weight: 700; line-height: 1.2; white-space: nowrap; }
+.dz-sum .v small { font-size: var(--fs-tiny); font-weight: 500; color: var(--text-3); margin-left: 2px; }
 .dz-sum .k { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dz-sum .d { display: none; }
 @media (max-width: 900px) { .dz-sum { grid-template-columns: repeat(2, 1fr); } }
@@ -100,15 +104,24 @@
 .dz-cell.l3 { background: var(--heat-3); }
 .dz-cell.l4 { background: var(--heat-4); }
 .dz-cell.l5 { background: var(--heat-5); }
-.dz-cell.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* ★V3.8.7 补丁三：当日格子必须**看得见**。原样式在位但只有 1.5px text-2 描边，
+   在纸墨白（notion）底上 heat 色阶本身也浅 ⇒ 等于没有。改为 accent 2px 实环 + 轻微提亮，
+   且与「选中」态拉开距离（sel 是 offset 2px + accent-light 填充）。 */
+.dz-cell.today { outline: 2px solid var(--accent); outline-offset: 1px; }
+.dz-cell.today.l0 { background: var(--surface-3); }
+/* 选中态：环 + 淡底，与 today 的「只有环」可区分（同在位时叠加也不糊） */
+.dz-cell.sel { outline: 2px solid var(--accent); outline-offset: 2px; background-color: var(--accent-light); }
 /* ★V3.8.7 焦点契约 #4：调度台首屏的「近 26 周」概览条。
-   条形高度编码周强度（与 lv 同步），色阶仍走 heat 令牌 ⇒ 六主题自动适配。
-   dead-css-scan 注意：.dz-mini-w 的类名是字面量表（l0..l5），不是运行时拼接。 */
+   条形高度编码周强度（6+lv*4px，内联），色阶走 heat 令牌 ⇒ 六主题自动适配。
+   ★空档可见性：lv=0 原用 heat-0，在纸墨白/苹果亮底上等于隐形（真机截图实证），
+   改用 surface-3（暖/冷浅灰，四主题均与 surface 有可见差）并给 min-height 兜底。
+   dead-css-scan 注意：类名是字面量表（l0..l5），不是运行时拼接。 */
 .dz-mini { display: flex; flex-direction: column; gap: 9px; }
-.dz-mini-strip { display: flex; gap: 2px; align-items: flex-end; height: 26px; }
-.dz-mini-w { flex: 1; min-width: 0; border: 0; padding: 0; border-radius: 2px; background: var(--heat-0); cursor: pointer; transition: transform var(--dur-fast), filter var(--dur-fast); font-family: inherit; }
+.dz-mini-strip { display: flex; gap: 3px; align-items: flex-end; height: 30px; padding-bottom: 1px; border-bottom: 1px solid var(--border); }
+.dz-mini-w { flex: 1; min-width: 0; min-height: 5px; border: 0; padding: 0; border-radius: 2px; background: var(--surface-3); cursor: pointer; transform-origin: bottom; transition: transform var(--dur-fast), filter var(--dur-fast); font-family: inherit; }
 .dz-mini-w:disabled { cursor: default; }
 .dz-mini-w:not(:disabled):hover { transform: scaleY(1.12); filter: brightness(1.15); }
+.dz-mini-w.l0 { background: var(--surface-3); }
 .dz-mini-w.l1 { background: var(--heat-1); }
 .dz-mini-w.l2 { background: var(--heat-2); }
 .dz-mini-w.l3 { background: var(--heat-3); }
@@ -118,11 +131,15 @@
 .dz-mini-meta b { color: var(--text); font-size: var(--fs-body); font-weight: 700; font-variant-numeric: tabular-nums; }
 .dz-mini-more { margin-left: auto; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); font-size: var(--fs-caption); padding: 4px 10px; border-radius: var(--radius-xs); cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
 .dz-mini-more:hover { border-color: var(--accent); color: var(--accent-ink); }
-.dz-cell.today { outline: 1.5px solid var(--text-2); outline-offset: 1px; }
+/* ★V3.8.7 补丁三：原此处有一条 1.5px text-2 的弱 today 描边（真机实证在纸墨白底上等于没有），
+   已由上方 .dz-cell.today 的 accent 2px 实环取代并整条删除——留两条同选择器规则等于暗病。 */
 .dz-legend { display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-4); flex-wrap: wrap; font-size: var(--fs-caption); color: var(--text-3); }
 .dz-legend .lvs { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; }
 .dz-legend .lv { display: flex; align-items: center; gap: 4px; cursor: help; }
 .dz-legend .sw { width: 13px; height: 13px; border-radius: 3px; display: inline-block; flex: none; }
+/* 「今天」图例项：与 .dz-cell.today 同款 accent 描边，视觉语言一致 */
+.dz-legend .today-key { cursor: default; }
+.dz-legend .today-key::before { content: ''; width: 13px; height: 13px; border-radius: 3px; background: var(--surface-3); outline: 2px solid var(--accent); outline-offset: 1px; flex: none; }
 .dz-legend .note { margin-left: auto; text-align: right; line-height: 1.6; }
 .dz-legend .note b { color: var(--heat-ink); }
 .dz-empty { padding: var(--sp-5); text-align: center; color: var(--text-4); font-size: var(--fs-sub); }

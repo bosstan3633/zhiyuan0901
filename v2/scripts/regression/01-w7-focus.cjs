@@ -58,8 +58,13 @@ check('W7-3 ★热力图概览条（用户拍板A 案：压成 26 周概览条 +
        细柱、首屏只留下一整块空白（原型是对的，移植时丢了容器）。本条钉住 strip 容器与列方向。 */
     && hm.includes('class="dz-mini-strip"')
     && css.includes('.dz-mini { display: flex; flex-direction: column; gap: 9px; }')
-    && css.includes('.dz-mini-strip { display: flex; gap: 2px; align-items: flex-end; height: 26px; }')
-    && !css.includes('.dz-mini-w { flex: 1; min-width: 0; height: 26px;') /* 条高不再写死在条上，由 strip 容器 + 内联高度承担 */
+    /* ★只钉「横向一行」这个不变量，不钉 gap/height 的具体数值（补丁三把 strip 调高到 30px
+       并加了基线，若锚死数值下次调尺寸又会假红）。行方向 +贴底对齐才是承重处。 */
+    && /\.dz-mini-strip \{ display: flex;[^}]*align-items: flex-end/.test(css)
+    /* 条高不许写死（由 strip 容器 + 内联 height 承担）——只认 `height:` 不认 `min-height:`，
+       后者是刻意加的空档可见性兜底（补丁三），误伤它会逼着把兜底删掉。 */
+    && !/\.dz-mini-w \{[^}]*[^-]height: \d+px/.test(css)
+    && css.includes('min-height: 5px;')
     && hm.includes('.dz-mini-w.l1') === false /* 类名靠 :class 绑定表，正锚看 CSS 六档在位 */
     && css.includes('.dz-mini-w {') && css.includes('.dz-mini-w.l5 { background: var(--heat-5); }')
     && css.includes('.dz-mini-more {')
@@ -74,4 +79,41 @@ check('W7-3 ★热力图概览条（用户拍板A 案：压成 26 周概览条 +
     && hm.includes('const expanded = ref(false)')
     && hm.includes('@click="expanded = true"')
     && hm.includes('@click="expanded = false"');
+});
+check('W7-4 ★展开态不许被四枚指标抢焦点（用户 2026-10-12 真机截图反馈）：原`.dz-sum .v` 用 fs-headline(17px)，比它所在区块自己的标题（.dz-t 已降fs-title 15px）**还大** ⇒ 层级倒置、四枚数字压过全年网格。现降 fs-body(13px)+700、图标 30→22px、去卡面底色改纯文本行，且 .tx 由 column 改 baseline 同排——展开态的主角必须重新变回「全年网格本身」。★负锚钉死不许回涨到headline（这条就是防"指标卡又变大"）', () => {
+  const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
+  return css.includes('.dz-sum .v { font-size: var(--fs-body); font-weight: 700;')
+    && !css.includes('.dz-sum .v { font-size: var(--fs-headline);')
+    /* 层级自洽：大数必须严格小于本区块标题 fs-title(15px) —— 用字面量大小关系钉，不只钉 token 名 */
+    && /\.dz-sum \.v \{ font-size: var\(--fs-(body|sub)\)/.test(css)
+    /* 装饰减法：图标与卡面都收 */
+    && css.includes('width: 22px; height: 22px; flex-shrink: 0; border-radius: 6px;')
+    && css.includes('padding: 2px 4px; background: transparent;')
+    && css.includes('.dz-sum .tx { display: flex; align-items: baseline; gap: 5px; min-width: 0; }');
+});
+check('W7-5 ★当日格子必须**看得见**且可被一眼认出：.dz-cell.today 用 accent 2px 实环（真机实证原1.5px text-2 描边在纸墨白底上等于没有）+ 选中态改 accent-light 填充 + offset 2px 与 today 可区分 + 图例补「今天」说明那一圈是什么（高亮若没说明，用户不知道该看哪格）', () => {
+  const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
+  const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
+  return css.includes('.dz-cell.today { outline: 2px solid var(--accent); outline-offset: 1px; }')
+    /* 负锚：原来那条弱描边不许复活 */
+    && !css.includes('.dz-cell.today { outline: 1.5px solid var(--text-2);')
+    /* today 与 sel 必须可区分（同在位时不糊）：sel 多一层 accent-light 填充 + offset 2px */
+    && css.includes('.dz-cell.sel { outline: 2px solid var(--accent); outline-offset: 2px; background-color: var(--accent-light); }')
+    /* 模板侧：today 类名确实由 months 计算产出并落到格子 class 上 */
+    && hm.includes("if (k === today.value) cls.push('today')")
+    /* 图例项在位（正锚吃 codeOnly：模板原文） */
+    && hm.includes('class="lv today-key"') && hm.includes('今天</span>')
+    && css.includes('.dz-legend .today-key::before');
+});
+check('W7-6 ★概览条空档必须可见（真机实证：lv=0 原用 heat-0，在纸墨白/苹果亮底上等于隐形，整条像坏了）：空档改 surface-3 + min-height 兜底 + strip 加基线（border-bottom）把柱子"落"在同一条线上；同时补 .l0 显式档避免只靠基础选择器', () => {
+  const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
+  return css.includes('.dz-mini-w { flex: 1; min-width: 0; min-height: 5px;')
+    && css.includes('background: var(--surface-3); cursor: pointer; transform-origin: bottom;')
+    /* ★负锚：heat-0 不许再当概览条空档底色（它在亮底上隐形） */
+    && !/\.dz-mini-w \{[^}]*background: var\(--heat-0\)/.test(css)
+    && css.includes('.dz-mini-w.l0 { background: var(--surface-3); }')
+    /* 基线：条不悬空 */
+    && css.includes('align-items: flex-end; height: 30px; padding-bottom: 1px; border-bottom: 1px solid var(--border); }')
+    /* 悬停从底部放大，不跳 */
+    && css.includes('transform-origin: bottom;');
 });

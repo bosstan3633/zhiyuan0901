@@ -268,6 +268,8 @@ function onExport(fmt: ExportFmt): void {
             <span v-for="(n, i) in LV_NAME" :key="n" class="lv" :title="`${LV_DESC[i]}（${LV_RANGE[i]}）`">
               <span class="sw" :style="{ background: `var(--heat-${i})` }"></span>{{ n }}
             </span>
+            <!-- ★V3.8.7 补丁三：当日格子既然高亮了，图例就得说明那圈是什么，否则用户不知道该看哪格 -->
+            <span class="lv today-key" title="今天 · accent 描边">今天</span>
           </span>
           <span class="note">
             本年活跃日均 {{ (agg.W / Math.max(1, agg.act)).toFixed(1) }} 分 · <b>P90 = {{ agg.p90 }} 分</b>（P90 以上即「满格」档）<br>
