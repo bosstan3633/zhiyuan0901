@@ -105,7 +105,8 @@
    条形高度编码周强度（与 lv 同步），色阶仍走 heat 令牌 ⇒ 六主题自动适配。
    dead-css-scan 注意：.dz-mini-w 的类名是字面量表（l0..l5），不是运行时拼接。 */
 .dz-mini { display: flex; flex-direction: column; gap: 9px; }
-.dz-mini-w { flex: 1; min-width: 0; height: 26px; border: 0; padding: 0; border-radius: 3px; background: var(--heat-0); cursor: pointer; transition: transform var(--dur-fast), filter var(--dur-fast); font-family: inherit; }
+.dz-mini-strip { display: flex; gap: 2px; align-items: flex-end; height: 26px; }
+.dz-mini-w { flex: 1; min-width: 0; border: 0; padding: 0; border-radius: 2px; background: var(--heat-0); cursor: pointer; transition: transform var(--dur-fast), filter var(--dur-fast); font-family: inherit; }
 .dz-mini-w:disabled { cursor: default; }
 .dz-mini-w:not(:disabled):hover { transform: scaleY(1.12); filter: brightness(1.15); }
 .dz-mini-w.l1 { background: var(--heat-1); }

@@ -7,6 +7,7 @@
 const { getTally, getSliceMisses } = require('./regression/helpers.cjs');
 
 const SHARDS = [
+  '01-w7-focus',
   '10-foundations',
   '20-req39-64',
   '30-v2.35-v2.46',

@@ -221,9 +221,12 @@ function onExport(fmt: ExportFmt): void {
       <!-- ★V3.8.7 焦点契约 #4：调度台首屏默认只给「近 26 周」概览条，全年 366 格收进「看全年 ›」。
            折叠的是**呈现**，不是数据——months/summary/导出三件套/日详情全部照常在位，展开即恢复原样。 -->
       <div v-if="!expanded" class="dz-mini">
-        <button v-for="(w, i) in compactWeeks" :key="'w' + i" class="dz-mini-w" :class="'l' + w.lv"
-          :disabled="!w.best" :title="w.best ? `${w.best} · 当周 ${w.n} 天有记录 · ${LV_NAME[w.lv]}` : '无记录'"
-          @click="pickCompact(w)" />
+        <div class="dz-mini-strip">
+          <button v-for="(w, i) in compactWeeks" :key="'w' + i" class="dz-mini-w" :class="'l' + w.lv"
+            :style="{ height: (6 + w.lv * 4) + 'px' }"
+            :disabled="!w.best" :title="w.best ? `${w.best} · 当周 ${w.n} 天有记录 · ${LV_NAME[w.lv]}` : '无记录'"
+            @click="pickCompact(w)" />
+        </div>
         <div class="dz-mini-meta">
           <span>近 26 周活跃 <b>{{ compactStat.act }}</b> 天</span>
           <span>今日 <b>{{ compactStat.todayN }}</b> 次操作</span>
