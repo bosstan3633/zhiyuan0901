@@ -11,7 +11,9 @@
 .dz-sec-h .dz-n { width: 18px; height: 18px; flex: none; border-radius: var(--radius-xs); display: grid; place-items: center; background: var(--accent-light); color: var(--accent-ink); font-size: var(--fs-micro); font-weight: 700; }
 /* W5（V3.8.5）#2 三标题统一：区段标题 15px → 17px；dz-ico = 数字角标位放 SVG 图标（热力图用） */
 .dz-sec-h .dz-n.dz-ico svg { width: 12px; height: 12px; display: block; }
-.dz-sec-h .dz-t { font-size: var(--fs-headline); font-weight: 700; }
+/* ★V3.8.7 焦点契约 #3：热力图标题自 headline(17) 降级 title(15) —— 与三张卡同档，
+   今日三件事是本页唯一 display 级主体。随迁备案见判据 W5-2 / W7-1。 */
+.dz-sec-h .dz-t { font-size: var(--fs-title); font-weight: 600; }
 .dz-sec-h .dz-en { font-size: var(--fs-micro); color: var(--text-4); letter-spacing: var(--tracking-sm); }
 .dz-sp { flex: 1; }
 .dz-sec-b { padding: var(--sp-4); }
@@ -99,6 +101,22 @@
 .dz-cell.l4 { background: var(--heat-4); }
 .dz-cell.l5 { background: var(--heat-5); }
 .dz-cell.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* ★V3.8.7 焦点契约 #4：调度台首屏的「近 26 周」概览条。
+   条形高度编码周强度（与 lv 同步），色阶仍走 heat 令牌 ⇒ 六主题自动适配。
+   dead-css-scan 注意：.dz-mini-w 的类名是字面量表（l0..l5），不是运行时拼接。 */
+.dz-mini { display: flex; flex-direction: column; gap: 9px; }
+.dz-mini-w { flex: 1; min-width: 0; height: 26px; border: 0; padding: 0; border-radius: 3px; background: var(--heat-0); cursor: pointer; transition: transform var(--dur-fast), filter var(--dur-fast); font-family: inherit; }
+.dz-mini-w:disabled { cursor: default; }
+.dz-mini-w:not(:disabled):hover { transform: scaleY(1.12); filter: brightness(1.15); }
+.dz-mini-w.l1 { background: var(--heat-1); }
+.dz-mini-w.l2 { background: var(--heat-2); }
+.dz-mini-w.l3 { background: var(--heat-3); }
+.dz-mini-w.l4 { background: var(--heat-4); }
+.dz-mini-w.l5 { background: var(--heat-5); }
+.dz-mini-meta { display: flex; align-items: center; gap: 14px; font-size: var(--fs-caption); color: var(--text-3); }
+.dz-mini-meta b { color: var(--text); font-size: var(--fs-body); font-weight: 700; font-variant-numeric: tabular-nums; }
+.dz-mini-more { margin-left: auto; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); font-size: var(--fs-caption); padding: 4px 10px; border-radius: var(--radius-xs); cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
+.dz-mini-more:hover { border-color: var(--accent); color: var(--accent-ink); }
 .dz-cell.today { outline: 1.5px solid var(--text-2); outline-offset: 1px; }
 .dz-legend { display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-4); flex-wrap: wrap; font-size: var(--fs-caption); color: var(--text-3); }
 .dz-legend .lvs { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; }

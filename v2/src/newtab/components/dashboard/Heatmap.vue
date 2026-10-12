@@ -7,10 +7,10 @@
  * 性能：整年格子一次性取数（`Object.keys(days)` 一次遍历），切年仅换 `year` 重算 —— 不重扫全库。
  */
 import './dashboard.css'
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { CardEvent } from '@/shared/utils/eventLog'
 import {
-  LV_NAME, LV_DESC, LV_RANGE, levelOf,
+  LV_NAME, LV_DESC, LV_RANGE, levelOf, actsOf,
   type DailyStats
 } from '@/shared/utils/dailyStats'
 import { yearAgg, longestStreak, todayKey } from '@/shared/utils/reviewReport'
@@ -108,6 +108,41 @@ function pickCell(c: { k: string; cls: string }) {
   if (!c.k || c.cls.includes('future')) return
   emit('update:selDay', props.selDay === c.k ? null : c.k)
 }
+
+/* ★V3.8.7 焦点契约 #4：调度台首屏不再让回看型内容占最大连续面积。
+   概览条取**最近 26 周**（半年）的逐周活跃度——保留「这一年」的持续在场感，
+   但把 366 格的全年网格收进「看全年 ›」展开态（数据与交互零改动，只是默认折叠）。
+   取数复用 months 已算好的 lv，不重扫 days。 */
+const COMPACT_WEEKS = 26
+const expanded = ref(false)
+/** 最近 26 周：每周取该周内最高的 lv 作为该周强度（无记录=0 静默档） */
+const compactWeeks = computed(() => {
+  const cells = months.value.flatMap(m => m.cells).filter(c => !c.cls.includes('future'))
+  const out: { lv: number; n: number; best: string }[] = []
+  // 从末尾按 7 天一组回推，最后一组为「本周」
+  for (let i = 0; i < COMPACT_WEEKS; i++) {
+    const end = cells.length - i * 7
+    const start = Math.max(0, end - 7)
+    const seg = cells.slice(start, end)
+    if (!seg.length) { out.unshift({ lv: 0, n: 0, best: '' }); continue }
+    let lv = 0, best = seg[0]
+    for (const c of seg) if (c.lv > lv) { lv = c.lv; best = c }
+    out.unshift({ lv, n: seg.filter(c => c.lv > 0).length, best: best.k })
+  }
+  return out
+})
+/** 概览条旁的两枚数字（近半年活跃天数 / 今日操作数）——口径走 actsOf 单一真源，不自造计数 */
+const compactStat = computed(() => {
+  const cells = months.value.flatMap(m => m.cells).filter(c => !c.cls.includes('future'))
+  const half = cells.slice(Math.max(0, cells.length - COMPACT_WEEKS * 7))
+  const r = props.stats.days[today.value]
+  return { act: half.filter(c => c.lv > 0).length, todayN: r ? actsOf(r) : 0 }
+})
+function pickCompact(w: { lv: number; best: string }) {
+  if (!w.best) return
+  expanded.value = true
+  emit('update:selDay', props.selDay === w.best ? null : w.best)
+}
 function shiftYear(n: number) {
   const y = props.year + n
   if (y > curYear.value || y < 2000) return
@@ -168,15 +203,32 @@ function onExport(fmt: ExportFmt): void {
       <!-- W5（V3.8.5）#2：数字角标 → SVG 图标（accent）——与「今日三件事 / 三张卡」三标题统一规格 -->
       <span class="dz-n dz-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none"/></svg></span><span class="dz-t">年度热力图</span><span class="dz-en">ANNUAL HEATMAP</span>
       <span class="dz-sp"></span>
+      <!-- ★V3.8.7：切年/导出/选中态等控件随全年网格一起进展开态（概览条只讲「近半年」） -->
+      <template v-if="expanded">
       <span class="dz-badge">{{ agg.first }} → {{ agg.last }}</span>
       <span class="dz-badge">{{ selDay ? `已选 ${selDay}` : '点格子看那一天' }}</span>
       <ExportMenu :formats="['png', 'html']" @pick="onExport" />
       <button class="dz-btn sm ghost" title="上一年" @click="shiftYear(-1)">‹</button>
       <b style="font-size:var(--fs-sub);min-width:44px;text-align:center">{{ year }}</b>
       <button class="dz-btn sm ghost" :disabled="year >= curYear" title="下一年" @click="shiftYear(1)">›</button>
+      </template>
     </div>
 
     <div class="dz-sec-b">
+      <!-- ★V3.8.7 焦点契约 #4：调度台首屏默认只给「近 26 周」概览条，全年 366 格收进「看全年 ›」。
+           折叠的是**呈现**，不是数据——months/summary/导出三件套/日详情全部照常在位，展开即恢复原样。 -->
+      <div v-if="!expanded" class="dz-mini">
+        <button v-for="(w, i) in compactWeeks" :key="'w' + i" class="dz-mini-w" :class="'l' + w.lv"
+          :disabled="!w.best" :title="w.best ? `${w.best} · 当周 ${w.n} 天有记录 · ${LV_NAME[w.lv]}` : '无记录'"
+          @click="pickCompact(w)" />
+        <div class="dz-mini-meta">
+          <span>近 26 周活跃 <b>{{ compactStat.act }}</b> 天</span>
+          <span>今日 <b>{{ compactStat.todayN }}</b> 次操作</span>
+          <button class="dz-mini-more" @click="expanded = true">看全年 ›</button>
+        </div>
+      </div>
+
+      <template v-else>
       <!-- R174-5：四卡压单行指标条，说明收进 title（数据源 summary 不动——导出三件套 kpis 仍取全量）
            W5 #4c：chip → 图标化指标卡（图标 + 大数字 + 标签，纵向堆叠）；.d 保 DOM（R174-5 判据）display:none -->
       <div class="dz-sum">
@@ -216,6 +268,7 @@ function onExport(fmt: ExportFmt): void {
             调出维度自 {{ stats.fullSince }} 起完整（新增 call 事件后）
           </span>
         </div>
+      </template>
       </template>
     </div>
 

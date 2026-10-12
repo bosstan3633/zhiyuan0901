@@ -959,13 +959,17 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 /* W5（V3.8.5）#2 三标题统一：三张卡标题行（图标 accent + 17px + 英文副标），与今日三件事 / 年度热力图同规格
    W6（V3.8.6）#2 标题入框：标题行包进 .deck-frame（.card 同款框），margin 由 frame 内边距接管 */
 .decks-title { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.deck-frame { padding: 12px 20px 16px; }
+.deck-frame { padding: 12px 20px 16px; /* ★V3.8.7 焦点契约 #3：去框体阴影，与 hero 的 shadow-lg 拉开层级 */ box-shadow: none; }
 /* W6 #2：内层 ModuleCard 压成无框无底（标题/边框由外层 deck-frame 统一；tab 已标明当前面板） */
 .deck-frame :deep(.module-card) { background: transparent; border: none; box-shadow: none; }
 .deck-frame :deep(.module-title) { display: none; }
 .deck-frame :deep(.module-body) { padding: 0; }
 .decks-title .ic { color: var(--accent); display: flex; align-items: center; }
-.decks-title .nm { font-size: var(--fs-headline); font-weight: 700; letter-spacing: -.01em; }
+/* ★V3.8.7 焦点契约 #3：三张卡标题自 headline(17) **降级** title(15)，并去框体阴影
+   ——原 W5「三标题统一」让主角与工具区同规格，本页因此没有焦点；用户拍板焦点契约后此处反向调整。
+   ★随迁备案：判据 W5-2 原钉「三标题统一 17px」，其守的是"三标题形态一致"这件结构事实，
+   焦点层级由新判据 W7-1 单独守（display 唯一 + hero 重框 + 三张卡 ≤title）。 */
+.decks-title .nm { font-size: var(--fs-title); font-weight: 600; letter-spacing: -.01em; }
 .decks-title .en { font-size: var(--fs-micro); color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; }
 /* R120-TB4：底部胶囊 Tab（对齐原型：pill 形态 + 中性选中态；计数为轻量 pill） */
 .bottom-tabs { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
@@ -1027,11 +1031,13 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .today-body { padding: 0 20px 10px; }
 /* R120-TB2：今日三件事——对齐原型（模块边框强调 + 方形勾选 + 编号右上 + 完成态安静收束），
    ⚠ 功能不动：勾选/移除/复制昨日/导出/日期导航/双击开详情 全部保留 */
-.card.focus { border-color: var(--border-strong); background: var(--surface); box-shadow: var(--shadow-sm); }
+.card.focus { border-color: var(--border-strong); background: var(--surface); box-shadow: var(--shadow-lg); }
 /* R175（原型 all-completed 浅底）：原型的近白完成态底色以令牌化等价落地——surface-2 向 surface 调 60%，六主题自适应 */
 .card.focus.all-done { background: color-mix(in srgb, var(--surface-2) 60%, var(--surface)); }
-.card.focus:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent), var(--shadow-sm); }
-.card.focus .card-head .nm { font-size: var(--fs-headline); font-weight: 700; color: var(--text); }
+.card.focus:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent), var(--shadow-lg); }
+/* ★V3.8.7 焦点契约 #1：今日三件事是本页**唯一** display 级主体（原 W5「三标题统一 17px」把主角与工具区
+   抹成同规格，首屏无焦点）。判据 W7-1 钉：全页 display 唯一 + hero 重框。 */
+.card.focus .card-head .nm { font-size: var(--fs-display); font-weight: 700; color: var(--text); letter-spacing: -.02em; line-height: 1.2; }
 .card.focus .card-head .ic { color: var(--accent); }
 .card.focus .tc-title { font-size: var(--fs-body); font-weight: 600; }
 .card.focus .tc-num { color: var(--text-3); font-size: var(--fs-sub); font-weight: 500; opacity: 1; }
@@ -1064,9 +1070,11 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .tc-num { position: absolute; top: 12px; right: 14px; font-size: var(--fs-sub); color: var(--text-4); font-weight: 700; font-variant-numeric: tabular-nums; }
 .tc-row { display: flex; align-items: flex-start; gap: 8px; }
 /* R120-TB2：方形勾选框（对齐原型：16px / 4px 圆角 / 1.5px 边框 / 选中随主题强调色） */
-.tc-check { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: var(--fs-tiny); color: #fff; background: var(--surface); margin-top: 2px; transition: all var(--dur); }
+/* ★V3.8.7 焦点契约 #2：格内任务名与勾选框随主角字阶抬升（原 14px 字面量 / 16px 方块）
+   ——焦点不只靠标题，内容也参与；勾选框 16→18px 与 17px 字阶视觉对齐。判据 W7-1 钉。 */
+.tc-check { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: var(--fs-tiny); color: #fff; background: var(--surface); margin-top: 1px; transition: all var(--dur); }
 .tc-check.done { background: var(--accent); border-color: var(--accent); }
-.tc-title { font-size: 14px; font-weight: 600; line-height: 1.4; flex: 1; }
+.tc-title { font-size: var(--fs-headline); font-weight: 600; line-height: 1.35; flex: 1; }
 .tc-title.empty-t { color: var(--text-3); font-weight: 400; }
 .tc-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
 .tc-meta .tag { font-size: var(--fs-caption); padding: 1px 7px; }

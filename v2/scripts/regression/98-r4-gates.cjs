@@ -262,7 +262,7 @@ check('R4-Eq ★退役台面名「资源台」只许活在带理由的四处：�
     'shared/storage/curationMigration.ts': 2,   // R61 迁移给 hub 实体写的 name，用户库实测仍叫「资源台」；显示一律走 wsNameById（R4-Dg），这里不许被当文案改
     'newtab/manual-data.ts': 4,                 // 手册的退役说明与历史叙述（"早期版本顶部导航里有一个资源台的说法已作废"等），R4-De 明确保留这一形态
     'newtab/components/MigrateReportCard.vue': 1, // 整库回退确认里的"回退后分类树会回来，但资源台页面已退役"——历史事实陈述
-    'newtab/changelog-data.ts': 3               // ★W5 扩表：产品更新日志的版本标题与要点（"资源台退役 + 池语义迁移"/「/workspace 资源台」整页退役/冷挂资源台阻塞基线）——与手册退役说明同形态的历史事实陈述，用户设置页可见
+    'newtab/changelog-data.ts': 12              // ★W5 扩表：产品更新日志的版本标题与要点（"资源台退役 + 池语义迁移"/「/workspace 资源台」整页退役/冷挂资源台阻塞基线）——与手册退役说明同形态的历史事实陈述，用户设置页可见。★2026-10-12 随V3.8.6 增补由 3 改 12：用户拍板「完整呈现全部 128 个版本」，v2 时代 88 版标题里的旧台名（"资源台 UI 迭代"/"资源台检索"等）随之进表，仍属历史叙述同一形态；改表随 diff 备案，判据体与口径一字未动
   };
   const found = retiredNameHits(root);
   return Object.keys(found).sort().join('|') === Object.keys(REG).sort().join('|')
@@ -511,7 +511,7 @@ check('W5-1 ★指标条三段分组块（用户拍板#1/#5）：MetricBar 模�
     && mb.includes('.mb-metrics {') && mb.includes('gap: 2px')
     && !mb.includes('.mb-divider');
 });
-check('W5-2 ★标题统一「SVG 图标(accent) + 17px + 英文副标」（用户拍板#2/#3）：Heatmap 标题 dz-n 数字退役，改 `.dz-n dz-ico` 内联日历 SVG + `.dz-t` 用 fs-headline(17px)；CompassHome 三张卡上方加 `.decks-title`（Icon layers + 三张卡 + THREE DECKS 英文副标）；今日三件事已是 17px+Icon+EN 不动', () => {
+check('W5-2 ★标题统一「SVG 图标(accent) + 英文副标」（用户拍板#2/#3）：Heatmap 标题 dz-n 数字退役，改 `.dz-n dz-ico` 内联日历 SVG + CompassHome 三张卡上方加 `.decks-title`（Icon layers + 三张卡 + THREE DECKS 英文副标）。★V3.8.7 随迁带备案：原「三标题统一 17px」这一条被焦点契约推翻——统一形态（图标+英文副标）保留，但**字号分层**改由 W7-1 守（今日三件事 display 唯一，三张卡与热力图降到 title）；W5-2 守的是"三标题形态一致"，不再是"三标题同字号"', () => {
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
   const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
@@ -519,7 +519,7 @@ check('W5-2 ★标题统一「SVG 图标(accent) + 17px + 英文副标」（用�
     && !hm.includes('今年第 {{ yearStat.days }}') // dz-n 数字标题退役
     && ch.includes('decks-title') && ch.includes('THREE DECKS')
     && ch.includes('.decks-title {')
-    && css.includes('.dz-n.dz-ico') && css.includes('fs-headline');
+    && css.includes('.dz-n.dz-ico') && css.includes('.dz-sec-h .dz-t');
 });
 check('W5-3 ★热力图摘要四卡图标化（用户拍板#2/#4c）：SUM_ICONS 四枚内联 SVG（act/done/streak/peak 键）+ summary 条目带 ic 字段 + `.dz-sum` 改 4 列 grid 图标卡（accent-light 底 icon 方块）；`.dz-sum .c` 与 `.dz-sum .d`（R174-5 保 DOM，display:none）两条判据锚不动；峰路径不含 L[0-5]（R172-6 负锚——SVG 路径里的 L21 曾误触发）', () => {
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
@@ -561,7 +561,7 @@ check('W5-6 ★今日战报双入口 + 合并弹窗（用户拍板#6 合并方�
     && dd.includes('dlSum') && dd.includes('flowGroups')
     && dd.includes("emit('open-log', day)");
 });
-check('W5-7 ★战报层：摘要行 + 分时段叙事时间线 + 导出三格式（#4a + #6 · ★W6 #1 再随迁：flowGroups 改降序对齐原型、分析段锚随裁剪退役改认新结构）：DayDetail dlSum + flowGroups 分组 + ACT_SYM/ACT_CLS 字面量表（dead-css-scan token 可见）+ 底部 ExportMenu formats=[png,html,md] + 四格统计 dz-stats + 热力带 dz-heat-band + exportView DailyReportShareSpec/dailyReportShareHtml/PngSpec.rows', () => {
+check('W5-7 ★战报层：摘要行 + 分时段叙事时间线 + 导出三格式（#4a + #6 · ★W6 #1 再随迁：flowGroups 改降序对齐原型、分析段锚随裁剪退役改认新结构 · ★W6.1 再随迁带备案：四格统计可点击下钻，DrillCardList 与 groupEventRows 在日详情**重新在位**（W6 裁剪期退役、W6.1 用户拍板加回），故这两条负锚改为正锚；裁剪真正退役的是分析段的库容变化条与 hintline）：DayDetail dlSum + flowGroups 分组 + ACT_SYM/ACT_CLS 字面量表（dead-css-scan token 可见）+ 底部 ExportMenu formats=[png,html,md] + 四格统计 dz-stats + 热力带 dz-heat-band + exportView DailyReportShareSpec/dailyReportShareHtml/PngSpec.rows', () => {
   const dd = codeOnly(read('/newtab/components/dashboard/DayDetail.vue'));
   const ev = codeOnly(read('/shared/utils/exportView.ts'));
   return dd.includes('dlSum') && dd.includes('flowGroups')
@@ -574,7 +574,10 @@ check('W5-7 ★战报层：摘要行 + 分时段叙事时间线 + 导出三格�
     && dd.includes('b.ts - a.ts') /* W6：降序对齐原型 */
     && dd.includes('dz-stats') && dd.includes('dz-heat-band') && dd.includes('今日战报')
     && dd.includes("emit('open-log', day)") && dd.includes('查看全部记录')
-    && !dd.includes('groupEventRows(') && !dd.includes('deltaOf(') && !dd.includes('stockAt(') && !dd.includes('DrillCardList')
+    /* ★W6.1 随迁：下钻加回 ⇒ 这两条由负锚转正锚（承重处在调用与模板挂载，不在 import 行——删了 import 会连带类型错，删调用才红） */
+    && dd.includes('groupEventRows(filtered') && dd.includes('<DrillCardList v-if="drillRows"')
+    /* 裁剪期真正退役的三件仍守负锚：库容变化条 / hintline / 四列下钻容器 */
+    && !dd.includes('deltaOf(') && !dd.includes('stockAt(') && !dd.includes('该日库容变化')
     && ev.includes('PngSpec') && ev.includes('rows?')
     && ev.includes('DailyReportShareSpec') && ev.includes('dailyReportShareHtml');
 });
@@ -616,7 +619,7 @@ check('W5-10 ★设置页产品更新日志（用户拍板 NEW-#3）：changelog
 
 // ============== W6 · 调度台三条反馈（V3.8.6） ==============
 console.log('【W6 · 调度台三条反馈（V3.8.6）】');
-check('W6-1 ★日详情完全按原型（用户拍板：完全按原型裁剪 + 四格统计下方热力带）：DayDetail 五段结构（md-head 图标+标题+日期 / md-summary 摘要 / dz-stats 四格统计新增调出推进清理 / dz-heat-band 热力带加权分等级强度 / 降序时间线下午在前 / 页脚查看全部记录+导出）；分析段（四列下钻/库容变化条/hintline/DrillCardList）整体退役；dashboard.css 死样式清零（dz-mcols/dz-dstock/dz-hintline/dz-badge.hi）+ 新类字面量在位（dz-stats/dz-heat-band/dz-day-ic）；flowGroups 降序 b.ts-a.ts 对齐原型', () => {
+check('W6-1 ★日详情完全按原型（用户拍板：完全按原型裁剪 + 四格统计下方热力带 · ★W6.1 再随迁带备案：四格统计可点击下钻，DrillCardList 与 groupEventRows 加回日详情，故这两条负锚转正锚；退役的是分析段的四列下钻容器 / 库容变化条 / hintline）：DayDetail 五段结构（md-head 图标+标题+日期 / md-summary 摘要 / dz-stats 四格统计新增调出推进清理 / dz-heat-band 热力带加权分等级强度 / 降序时间线下午在前 / 页脚查看全部记录+导出）；dashboard.css 死样式清零（dz-mcols/dz-dstock/dz-hintline/dz-badge.hi）+ 新类字面量在位（dz-stats/dz-heat-band/dz-day-ic）；flowGroups 降序 b.ts-a.ts 对齐原型', () => {
   const dd = codeOnly(read('/newtab/components/dashboard/DayDetail.vue'));
   const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
   const ta = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
@@ -626,7 +629,9 @@ check('W6-1 ★日详情完全按原型（用户拍板：完全按原型裁剪 +
     && dd.includes('b.ts - a.ts') && dd.includes('查看全部记录')
     && dd.includes("emit('open-log', day)") && dd.includes('EVENT_ACT_LABEL[e.action]')
     && !dd.includes('dz-mcol') && !dd.includes('dz-dstock') && !dd.includes('dz-hintline')
-    && !dd.includes('groupEventRows(') && !dd.includes('deltaOf(') && !dd.includes('stockAt(') && !dd.includes('DrillCardList')
+    /* ★W6.1 随迁：下钻加回 ⇒ 这两条由负锚转正锚 */
+    && dd.includes('groupEventRows(filtered') && dd.includes('<DrillCardList v-if="drillRows"')
+    && !dd.includes('deltaOf(') && !dd.includes('stockAt(')
     && css.includes('.dz-stats') && css.includes('.dz-heat-band') && css.includes('.dz-day-ic')
     && !css.includes('.dz-mcols') && !css.includes('.dz-dstock') && !css.includes('.dz-hintline') && !css.includes('.dz-badge.hi')
     && ta.includes("dz-stats > .dz-stat") && ta.includes('dz-heat-band');
@@ -749,7 +754,7 @@ check('R4-Ez① ★注释里的退役台面名（资源台 / 策展中心 / 主�
 
 // ============== R4-Fb 撤掉从未进过构建的独立弹窗，降级出口改「进应用开面板」 ==============
 console.log('【R4-Fb · 不可注入页的降级出口】');
-check('R4-Fb① ★不可注入页（chrome:// / 扩展页 / Web Store）的降级出口必须是「进应用开对应面板」，不是那个从未进过构建的独立弹窗：background 的 openQuickPanel 在位（有已开新标签页就复用并发消息，一个都没有才新建并带 ?zy-panel=），四个出口都走它（open-tasks / quick-capture / inspire / action.onClicked），App.vue 两种入口都认（消息 zy-quick-panel 与查询参数 zy-panel），且 manifest 的 web_accessible_resources 不再声明 src/popup。★这条同时钉的是"半拉子入口不许回流"：出现 openPopupWindow 或 src/popup 路径即红', () => {
+check('R4-Fb① ★不可注入页（chrome:// / 扩展页 / Web Store）的降级出口必须是「进应用开对应面板」，不是那个从未进过构建的独立弹窗：background 的 openQuickPanel 在位（有已开新标签页就复用并发消息，一个都没有才新建并带 ?zy-panel=），四个出口都走它（open-tasks / quick-capture / inspire / action.onClicked），App.vue 两种入口都认（消息 zy-quick-panel 与查询参数 zy-panel），且 manifest 的 web_accessible_resources 不再声明 src/popup。★这条同时钉的是"半拉子入口不许回流"：出现 openPopupWindow 或 src/popup 路径即红。★负锚豁免带备案：changelog-data.ts（产品更新日志的用户可见历史叙述，V3.8.0 那条要点本身就是「src/popup/ 删除」这件事的记录）——半拉子入口的形态是**可执行的代码路径**，历史叙述里的路径字面量不是；这与 R4-Eq 把 changelog 列入退役名白名单同形态，不豁免就会逼着改用户可见文案', () => {
   const bg = codeOnly(read('/background/index.ts'));
   const ap = codeOnly(read('/newtab/App.vue'));
   const mf = codeOnly(read('/manifest.ts'));
@@ -758,7 +763,7 @@ check('R4-Fb① ★不可注入页（chrome:// / 扩展页 / Web Store）的降�
     && bg.includes("type: 'zy-quick-panel', panel") && bg.includes('?zy-panel=${panel}')
     && ap.includes("msg?.type === 'zy-quick-panel'") && ap.includes("get('zy-panel')")
     && !bg.includes('openPopupWindow') && !bg.includes('src/popup') && !mf.includes('src/popup')
-    && !srcFileEntries().some(e => codeOnly(e.text).includes('src/popup'));
+    && !srcFileEntries().some(e => !e.rel.endsWith('changelog-data.ts') && codeOnly(e.text).includes('src/popup'));
 });
 check('R4-Fb② ★降级出口的两种入口各有一条真跑的 e2e（E2E-43），锚点取算 ok 的那个表达式里的片段：?zy-panel=curio 要真开出好奇面板（含"等不够就补等一次再判死"的形状）、background 复用已开新标签页发的 zy-quick-panel 要真开出采集面板并按标题文本认，两条都成立才算过——只测一条会放过"另一条其实接不上"的半拉子实现', () => {
   const e = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8'));
