@@ -142,11 +142,13 @@ check('R147-4 ★打标克制落到行级：AI 造的体系外新词单独成行
     && st.includes('buildResourceEnrichJob(card, ctx)')
     && !rdd.includes("from '@/shared/ai/llm'") && !rdd.includes("import { chat") && !st.includes("from '@/shared/ai/llm'")
 });
-check('R147-5 ★任务级「知」菜单共享化并跨视图落位：TaskAiMenu.vue 自包含（按钮+浮层菜单+评审抽屉+样式+AI 懒栈），项目详情页两处行位与任务面板 12 处行位同组件 · R151 备案：本条原写"6 处（卡/列表/看板×2 形态）"，实为卡片与列表两视图共 6 处、看板 6 处一直缺位（写断言时按字面数了行数没核视图），R151 补齐后按 12 处钉；打开详情走宿主 @detail 通道', () => {
-  const m = read('/newtab/components/TaskAiMenu.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); const tp = read('/newtab/components/compass/TaskManagerPanel.vue')
+check('R147-5 ★任务级「知」菜单共享化并跨视图落位：TaskAiMenu.vue 自包含（按钮+浮层菜单+评审抽屉+样式+AI 懒栈），项目详情页两处行位与任务面板列表/看板 9 处行位同组件 · W6 再随迁（V3.8.6 #3）：卡片视图 3 处行位改 TaskAiCorner（右上角角标直跑补全，自包含+AI 懒栈，打开详情走单击卡片 onTaskRowClick），菜单形态零残留于卡片视图 · R151 备案：本条原写"6 处（卡/列表/看板×2 形态）"，实为卡片与列表两视图共 6 处、看板 6 处一直缺位（写断言时按字面数了行数没核视图），R151 补齐后按 12 处钉，W6 按 9+3 拆分', () => {
+  const m = read('/newtab/components/TaskAiMenu.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); const tp = read('/newtab/components/compass/TaskManagerPanel.vue'); const ca = read('/newtab/components/TaskAiCorner.vue')
   return !m.includes("from '@/shared/ai/") && m.includes("import('@/shared/ai/chain')") && !m.includes("import('@/shared/ai/select')") && m.includes("import { AiDrawer } from './lazyAiDrawer'") /* R152：并入全站单例 */
     && m.includes('.tam-menu {') && m.includes('拆解成子任务') && m.includes("emit('detail'") && m.includes('if (busy.value) return')
-    && (pc.match(/<TaskAiMenu :task=/g) || []).length === 2 && (tp.match(/<TaskAiMenu :task=/g) || []).length === 12 && tp.includes('function openTaskFromAi')
+    && (pc.match(/<TaskAiMenu :task=/g) || []).length === 2 && (tp.match(/<TaskAiMenu :task=/g) || []).length === 9 && (tp.match(/<TaskAiCorner :task=/g) || []).length === 3 && tp.includes('function openTaskFromAi')
+    && ca.includes("import('@/shared/ai/taskEnrich')") && ca.includes('buildTaskEnrichJob') && ca.includes('class="taic-btn"') && ca.includes("import { AiDrawer } from './lazyAiDrawer'")
+    && !ca.includes("from '@/shared/ai/") /* W6：角标同款 AI 零静态引用纪律 */
     && !pc.includes('ai-menu-item') && fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8').split('\n').length <= 1500
 });
 check('R147-6 论点骨架结构化只读预览：aiMarks 写读同源真源（batchG 写、ThesisBlock 读同一串字面量）；解析不出中心论点就整块不渲染（回落原文，绝不编结论）；与一级分类只做 ✓已建架/○未建架 只读对照，零写库', () => {

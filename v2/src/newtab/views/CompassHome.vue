@@ -802,35 +802,39 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 
     <!-- 底部 · 三张卡（W1.1 V3.8.1 改名改序：任务卡 → 好奇心卡 → 资源卡，默认任务卡；
          取代 R117 C1 的「任务调度 / 好奇心培育」双 tab 与 R2-③ 的资源卡池默认两版旧序）
-          R67-F4：id 供快捷键直达锚点 -->
+          R67-F4：id 供快捷键直达锚点
+          W6（V3.8.6）#2：标题入框——整块包进 .card 框（与今日三件事 / 年度热力图一体化），
+          decks-title 由框外浮标题改为框内头部，不再是裸标题+裸胶囊。 -->
     <section id="zy-mod-curiosity" class="module">
-      <!-- W5（V3.8.5）#2：三标题统一 —— 图标(accent) + 17px 标题 + 英文副标（胶囊 tab 保留） -->
-      <div class="decks-title">
-        <span class="ic"><Icon name="layers" :size="18" /></span><span class="nm">三张卡</span><span class="en">THREE DECKS</span>
-      </div>
-      <!-- R2-③：DeckTabs 三张卡（W1.1 改名：任务卡 / 好奇心卡 / 资源卡） -->
-      <div class="bottom-tabs">
-        <button class="bt-tab" :class="{ on: bottomTab === 'task' }" @click="bottomTab = 'task'">
-          <Icon name="clipboard" :size="14" />任务卡<span class="bt-cnt">{{ taskLiveCount }}</span>
-        </button>
-        <button class="bt-tab" :class="{ on: bottomTab === 'curio' }" @click="bottomTab = 'curio'">
-          <Icon name="bulb" :size="14" />好奇心卡<span class="bt-cnt">{{ curioLiveCount }}</span>
-        </button>
-        <button class="bt-tab" :class="{ on: bottomTab === 'pool' }" @click="bottomTab = 'pool'">
-          <Icon name="layout" :size="14" />资源卡<span class="bt-cnt">{{ poolLiveCount }}</span>
-        </button>
-      </div>
-      <!-- 任务卡：默认 tab（W1.1 改序后居首），常驻挂载 -->
-      <div v-show="bottomTab === 'task'" class="bottom-pane">
-        <TaskManagerPanel />
-      </div>
-      <!-- 好奇心卡：懒挂载（首次切到该 tab 才挂载）——保住首屏冷启动成本 -->
-      <div v-show="bottomTab === 'curio'" class="bottom-pane">
-        <CuriosityPanel v-if="curioMounted" />
-      </div>
-      <!-- 资源卡：常驻挂载（R179 池语义的管理面补位） -->
-      <div v-show="bottomTab === 'pool'" class="bottom-pane">
-        <PoolCardsPanel />
+      <div class="card deck-frame">
+        <!-- W5（V3.8.5）#2：三标题统一 —— 图标(accent) + 17px 标题 + 英文副标（胶囊 tab 保留） -->
+        <div class="decks-title">
+          <span class="ic"><Icon name="layers" :size="18" /></span><span class="nm">三张卡</span><span class="en">THREE DECKS</span>
+        </div>
+        <!-- R2-③：DeckTabs 三张卡（W1.1 改名：任务卡 / 好奇心卡 / 资源卡） -->
+        <div class="bottom-tabs">
+          <button class="bt-tab" :class="{ on: bottomTab === 'task' }" @click="bottomTab = 'task'">
+            <Icon name="clipboard" :size="14" />任务卡<span class="bt-cnt">{{ taskLiveCount }}</span>
+          </button>
+          <button class="bt-tab" :class="{ on: bottomTab === 'curio' }" @click="bottomTab = 'curio'">
+            <Icon name="bulb" :size="14" />好奇心卡<span class="bt-cnt">{{ curioLiveCount }}</span>
+          </button>
+          <button class="bt-tab" :class="{ on: bottomTab === 'pool' }" @click="bottomTab = 'pool'">
+            <Icon name="layout" :size="14" />资源卡<span class="bt-cnt">{{ poolLiveCount }}</span>
+          </button>
+        </div>
+        <!-- 任务卡：默认 tab（W1.1 改序后居首），常驻挂载 -->
+        <div v-show="bottomTab === 'task'" class="bottom-pane">
+          <TaskManagerPanel />
+        </div>
+        <!-- 好奇心卡：懒挂载（首次切到该 tab 才挂载）——保住首屏冷启动成本 -->
+        <div v-show="bottomTab === 'curio'" class="bottom-pane">
+          <CuriosityPanel v-if="curioMounted" />
+        </div>
+        <!-- 资源卡：常驻挂载（R179 池语义的管理面补位） -->
+        <div v-show="bottomTab === 'pool'" class="bottom-pane">
+          <PoolCardsPanel />
+        </div>
       </div>
     </section>
 
@@ -952,8 +956,14 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
 .cf-hint { font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cf-hint:hover { color: var(--accent); }
 /* R105（B4）：好奇心培育折叠摘要行——呼应 ModuleCard 的视觉语言（surface 底 + 发丝边） */
-/* W5（V3.8.5）#2 三标题统一：三张卡标题行（图标 accent + 17px + 英文副标），与今日三件事 / 年度热力图同规格 */
+/* W5（V3.8.5）#2 三标题统一：三张卡标题行（图标 accent + 17px + 英文副标），与今日三件事 / 年度热力图同规格
+   W6（V3.8.6）#2 标题入框：标题行包进 .deck-frame（.card 同款框），margin 由 frame 内边距接管 */
 .decks-title { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.deck-frame { padding: 12px 20px 16px; }
+/* W6 #2：内层 ModuleCard 压成无框无底（标题/边框由外层 deck-frame 统一；tab 已标明当前面板） */
+.deck-frame :deep(.module-card) { background: transparent; border: none; box-shadow: none; }
+.deck-frame :deep(.module-title) { display: none; }
+.deck-frame :deep(.module-body) { padding: 0; }
 .decks-title .ic { color: var(--accent); display: flex; align-items: center; }
 .decks-title .nm { font-size: var(--fs-headline); font-weight: 700; letter-spacing: -.01em; }
 .decks-title .en { font-size: var(--fs-micro); color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; }

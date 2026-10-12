@@ -517,25 +517,28 @@ check('R172-6 ★T6 年度热力图（04-67 F7~F11）：12 月块 × 366 格（�
     // ★ F8 可读性硬判据：图例区不得出现分档裸代号（大写 L+数字）
     && !/L[0-5]/.test(h);
 });
-check('R172-7 ★T6 日详情（04-67 F12~F17）：四列指标（采集/调出/状态变更/推进）可点开下钻 + 下钻同卡聚合 ×N（R172-T7 起分组逻辑上移 `shared/utils/drillRows.ts` 单一实现，顺带修掉 `t1/t2` 与 `time/time2` 契约不一致导致的时间列空白）+ 库容变化条（deltaOf 分卡种净增减）+ 当日流水（zy_event_log 按日过滤）+ [查看全部记录 ›] 入口', () => {
-  const d = read('/newtab/components/dashboard/DayDetail.vue');
+check('R172-7 ★T6 日详情（04-67 F12~F17 · ★W6 #1 重指带备案：日详情完全按原型裁剪——四列下钻/库容变化条/hintline 整体退役，分析入口收敛到复盘段；分组逻辑仍在 drillRows.ts 单一实现且 ReviewPanel 消费）：日详情原型结构（头部图标+标题+日期 / 摘要 / 四格统计 dz-stats ≥4 / 热力带 dz-heat-band / 降序时间线 / 查看全部记录 ›）', () => {
+  const d = codeOnly(read('/newtab/components/dashboard/DayDetail.vue'));
   const dr = read('/shared/utils/drillRows.ts');
+  const rp = read('/newtab/components/dashboard/ReviewPanel.vue');
   return dr.includes('export function groupEventRows(') && dr.includes('cur.row.n++') && dr.includes('x.row.time = hm(x.t1)')
-    && d.includes('groupEventRows(') && d.includes("from '@/shared/utils/drillRows'")
-    && d.includes("sel = ref<MetricKey>('create')") && d.includes('dz-mcol')
-    && d.includes('deltaOf(props.stats, props.day)') && d.includes('stockAt(props.stats, props.day')
-    && d.includes('该日库容变化') && d.includes('当天入台') && d.includes('当天移出')
+    && rp.includes('groupEventRows(') && rp.includes("from '@/shared/utils/drillRows'") /* ★随迁：下钻消费方改认复盘段 */
+    && d.includes('今日战报') && d.includes('dz-day-ic') && d.includes('dz-day-title')
+    && d.includes('dz-stats') && d.includes('dz-heat-band')
     && d.includes("emit('open-log', day)") && d.includes('查看全部记录')
-    && d.includes('EVENT_ACT_LABEL[e.action]')      // 流水动作标签单一真源
-    && d.includes('subtasks') && d.includes('supportLinks') && d.includes('dailyFocus');
+    && d.includes('EVENT_ACT_LABEL[e.action]')
+    && !d.includes('groupEventRows(') && !d.includes('dz-mcol') && !d.includes('deltaOf(') && !d.includes('stockAt(')
+    && !d.includes('DrillCardList') && !d.includes('该日库容变化');
 });
-check('R172-8 ★T6 共用下钻卡片列表（04-66 §6.2 组件复用）：单一实现（DrillCardList.vue），单击=定位并高亮（locateTargetOf）、双击=直达链接/打开文件（openExternalLink）+「N 类卡片 · 共 M 条记录（同卡多次已合并 ×N）」表头', () => {
+check('R172-8 ★T6 共用下钻卡片列表（04-66 §6.2 组件复用 · ★W6 #1 随迁：日详情不再挂 DrillCardList——消费方改认复盘段 ReviewPanel）：单一实现（DrillCardList.vue），单击=定位并高亮（locateTargetOf）、双击=直达链接/打开文件（openExternalLink）+「N 类卡片 · 共 M 条记录（同卡多次已合并 ×N）」表头', () => {
   const c = read('/newtab/components/dashboard/DrillCardList.vue');
-  const d = read('/newtab/components/dashboard/DayDetail.vue');
+  const rp = read('/newtab/components/dashboard/ReviewPanel.vue');
+  const d = codeOnly(read('/newtab/components/dashboard/DayDetail.vue'));
   return c.includes('locateTargetOf(') && c.includes('asLocateKind(') && c.includes('openExternalLink(')
     && c.includes('@click="pick(r)"') && c.includes('@dblclick="open(r)"')
     && c.includes('同卡多次已合并 ×N') && c.includes('dz-row-n')
-    && d.includes("import DrillCardList from './DrillCardList.vue'");
+    && rp.includes("import DrillCardList from './DrillCardList.vue'")
+    && !d.includes("import DrillCardList from './DrillCardList.vue'");
 });
 check('R172-9 ★T6 性能红线：概览带时间绑定不触发整库重扫（DashboardOverview 只吃 stats prop，不得自行扫 store.data / resources）+ zy_daily_stats 走前缀和（stockAt 只累加 days）', () => {
   const o = read('/newtab/components/dashboard/DashboardOverview.vue');

@@ -33,6 +33,8 @@ import { useCardCols } from '@/shared/utils/cardCols'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
 // R147-d：任务行「知」AI 辅助菜单（与项目详情页同一组件）
 import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'
+// W6（V3.8.6）#3：卡片视图右上角 AI 入口 —— 点击直接跑补全（详情走单击卡片）
+import TaskAiCorner from '@/newtab/components/TaskAiCorner.vue'
 import SubtaskList from '@/shared/components/SubtaskList.vue'
 // R113-N2：LifecyclePanel / useLifecycle 移除——生命周期入口收敛到 设置→总览
 
@@ -45,8 +47,8 @@ const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 
 // ---- 视图与工具栏状态 ----
 // 第卌五轮：卡片视图默认（card | list | kanban）
-/** R176：默认卡片视图（原型 seg/m-seg 口径；R127 的默认列表由用户 2026-09-28 拍板「与原型完全一致」取代） */
-const viewMode = ref<'card' | 'list' | 'kanban'>('card')
+/** W6（V3.8.6）#3：默认列表视图（用户拍板；R176 曾改 card，本轮随卡片视图 AI 入口重构改回 list） */
+const viewMode = ref<'card' | 'list' | 'kanban'>('list')
 // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.task；网格模板由 --grid-cols 驱动）
 const taskCols = useCardCols('task', store.ui)
 /** R127：分组三档（默认按项目；列表视图用） */
@@ -725,7 +727,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               <span v-else-if="tShow('status')" class="tm-status" :class="'st-'+task.status">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
               <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
               <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
-              <TaskAiMenu :task="task" @detail="openTaskFromAi" />
+              <!-- W6 #3：卡片视图 AI 入口改右上角角标直跑补全（详情走单击卡片）；TaskAiMenu 菜单形态留列表/看板 -->
+              <TaskAiCorner :task="task" />
               <div class="tm-title"><NewBadge :at="task.createdAt" /><span v-if="subProgress(task)" class="tm-sub" :title="'子任务 ' + subProgress(task) + ' 已完成（不进成熟度与周报计分）'">↳ {{ subProgress(task) }}</span>{{ task.title }}</div>
               <!-- R117（04-61 D）：项目/指标/附件逐项受字段设置控制（原先无条件渲染） -->
               <div v-if="tShow('projectId') || tShow('metricId') || (taskAssetsOn && task.assets?.length)" class="tm-tags">
@@ -759,7 +762,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               <span v-else-if="tShow('status')" class="tm-status" :class="'st-'+task.status">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
               <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
               <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
-              <TaskAiMenu :task="task" @detail="openTaskFromAi" />
+              <!-- W6 #3：卡片视图 AI 入口改右上角角标直跑补全（详情走单击卡片）；TaskAiMenu 菜单形态留列表/看板 -->
+              <TaskAiCorner :task="task" />
               <div class="tm-title"><NewBadge :at="task.createdAt" /><span v-if="subProgress(task)" class="tm-sub" :title="'子任务 ' + subProgress(task) + ' 已完成（不进成熟度与周报计分）'">↳ {{ subProgress(task) }}</span>{{ task.title }}</div>
               <!-- R117（04-61 D）：项目/指标/附件逐项受字段设置控制（原先无条件渲染） -->
               <div v-if="tShow('projectId') || tShow('metricId') || (taskAssetsOn && task.assets?.length)" class="tm-tags">
@@ -792,7 +796,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <span v-else class="tm-status" :class="'st-'+task.status">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
             <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶">📌</button>
             <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标">⭐</button>
-            <TaskAiMenu :task="task" @detail="openTaskFromAi" />
+            <TaskAiCorner :task="task" />
             <div class="tm-title"><NewBadge :at="task.createdAt" /><span v-if="subProgress(task)" class="tm-sub" :title="'子任务 ' + subProgress(task) + ' 已完成（不进成熟度与周报计分）'">↳ {{ subProgress(task) }}</span>{{ task.title }}</div>
             <div class="tm-tags">
               <span class="tag accent">📦 {{ projectName(task.projectId) }}</span>

@@ -112,7 +112,7 @@ const MANUAL_NOTES = {
   // ---- 知源仪表盘组件（R172-T5~T8；调度画像周报浮层按 04-67 Q7 于 T9 退役）----
   'newtab/components/dashboard/DashboardOverview.vue': '概览带：5 存量卡 + 时间绑定 + 人话总结 + 参照系行 + 分数口径表',
   'newtab/components/dashboard/Heatmap.vue': '年度热力图：12 月 × 366 格 + 六档语义图例 + 摘要卡 + 切年',
-  'newtab/components/dashboard/DayDetail.vue': '日详情：四列指标下钻 + 库容变化条 + 当日流水',
+  'newtab/components/dashboard/DayDetail.vue': '日详情（今日战报）：摘要 + 四格统计 + 热力带 + 降序叙事时间线 + 导出三件套（按原型，W6）',
   'newtab/components/dashboard/ReviewPanel.vue': '复盘段：紧凑两栏（画像摘要 + 节奏曲线 ｜ 目标对账 + 偏离预警），KPI/条形/规则三类下钻',
   'newtab/components/dashboard/DrillCardList.vue': '共用下钻卡片列表（同卡多次聚合 ×N；单击定位 / 双击开链）',
   'newtab/components/dashboard/DashboardLogDrawer.vue': '全量记录抽屉：三维筛选 + CSV + 容量提示（承接调度台旧四格记录能力）',
@@ -121,7 +121,8 @@ const MANUAL_NOTES = {
   'newtab/components/LifecyclePanel.vue': '三卡生命周期面板（内嵌于设置页）',
   'newtab/components/ImportTemplateModal.vue': 'Markdown 模板导入弹窗（方向树 goal / 策展台 pyramid）',
   'newtab/components/LinkCardsModal.vue': '策展台节点「关联资源卡（镜像）」弹窗',
-  'newtab/components/TaskAiMenu.vue': '任务级 AI 菜单（拆子任务 / 推荐资源卡 / 打开详情）',
+  'newtab/components/TaskAiMenu.vue': '任务级 AI 菜单（拆子任务 / 推荐资源卡 / 打开详情）——列表/看板/项目页',
+  'newtab/components/TaskAiCorner.vue': '任务卡右上角 AI 角标（点击直跑补全 enrich，W6）',
   'newtab/components/ThesisBlock.vue': '论点骨架的结构化只读预览',
   'newtab/components/EvidenceMenuItem.vue': '节点菜单里的「🔍 找佐证」项',
   'newtab/components/ThesisAiBtn.vue': '策展台头部的「提炼论点骨架」AI 入口',

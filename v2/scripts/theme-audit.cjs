@@ -182,9 +182,10 @@ const DASH_SCENES = [
     act: async (page) => { await page.locator('.dz-cell:not([disabled])').first().click().catch(() => {}); await page.waitForTimeout(900); if (!(await page.locator('.dz-day').first().isVisible().catch(() => false))) { await page.locator('.dz-cell:not([disabled])').nth(3).click().catch(() => {}); await page.waitForTimeout(1500) } },
     judge: async (page) => page.evaluate(() => {
       const d = document.querySelector('.dz-day')
-      const cols = document.querySelectorAll('.dz-day .dz-mcols > .dz-mcol').length
-      const stock = !!document.querySelector('.dz-day') && /库容/.test(d ? d.textContent : '')
-      return { ok: !!d && cols >= 4 && stock, txt: `日详情=${!!d} 指标列=${cols}(应≥4) 库容条=${stock ? '有' : '无'}` }
+      const stats = document.querySelectorAll('.dz-day .dz-stats > .dz-stat').length
+      const band = !!document.querySelector('.dz-day .dz-heat-band')
+      const tl = !!document.querySelector('.dz-day .dz-tl')
+      return { ok: !!d && stats >= 4 && band && tl, txt: `日详情=${!!d} 四格统计=${stats}(应≥4) 热力带=${band ? '有' : '无'} 时间线=${tl ? '有' : '无'}` }
     })
   },
   {
@@ -240,7 +241,7 @@ const DASH_SCENES = [
     act: async (page) => { await page.locator('.gs-dash-hl').click().catch(() => {}); await page.waitForTimeout(700) },
     judge: async (page) => page.evaluate(() => {
       const on = !!document.querySelector('.gs-panel.dz-hl')
-      const all = [...document.querySelectorAll('.gs-panel button, .gs-panel .dz-kpi, .gs-panel .dz-mcol, .gs-panel .dz-log-row, .gs-panel .dz-rule, .gs-panel .dz-chip')]
+      const all = [...document.querySelectorAll('.gs-panel button, .gs-panel .dz-kpi, .gs-panel .dz-log-row, .gs-panel .dz-rule, .gs-panel .dz-chip')]
       const dis = all.filter(e => e.disabled)
       const marked = all.filter(e => !e.disabled)
       const outlined = marked.filter(e => (getComputedStyle(e).outlineStyle || '').includes('dash')).length

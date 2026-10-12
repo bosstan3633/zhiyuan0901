@@ -561,7 +561,7 @@ check('W5-6 ★今日战报双入口 + 合并弹窗（用户拍板#6 合并方�
     && dd.includes('dlSum') && dd.includes('flowGroups')
     && dd.includes("emit('open-log', day)");
 });
-check('W5-7 ★战报层：摘要行 + 分时段叙事时间线 + 导出三格式（#4a + #6）：DayDetail dlSum（操作数/卡片数/最近一次/含清理）+ flowGroups 按上午/下午/晚上分组正序 + ACT_SYM/ACT_CLS 字面量表（dead-css-scan token 可见）+ 底部 ExportMenu formats=[png,html,md]；exportView 新增 DailyReportShareSpec + dailyReportShareHtml + PngSpec.rows；R172-7 判据锚全保留：groupEventRows / EVENT_ACT_LABEL / deltaOf / stockAt / DrillCardList / 查看全部记录', () => {
+check('W5-7 ★战报层：摘要行 + 分时段叙事时间线 + 导出三格式（#4a + #6 · ★W6 #1 再随迁：flowGroups 改降序对齐原型、分析段锚随裁剪退役改认新结构）：DayDetail dlSum + flowGroups 分组 + ACT_SYM/ACT_CLS 字面量表（dead-css-scan token 可见）+ 底部 ExportMenu formats=[png,html,md] + 四格统计 dz-stats + 热力带 dz-heat-band + exportView DailyReportShareSpec/dailyReportShareHtml/PngSpec.rows', () => {
   const dd = codeOnly(read('/newtab/components/dashboard/DayDetail.vue'));
   const ev = codeOnly(read('/shared/utils/exportView.ts'));
   return dd.includes('dlSum') && dd.includes('flowGroups')
@@ -569,13 +569,12 @@ check('W5-7 ★战报层：摘要行 + 分时段叙事时间线 + 导出三格�
     && dd.includes("purge: 'act-purge'")
     && dd.includes("formats=\"['png', 'html', 'md']\"")
     && dd.includes('exportPng') && dd.includes('exportHtml') && dd.includes('exportMd')
-    && dd.includes('groupEventRows(') && dd.includes("from '@/shared/utils/drillRows'")
+    && dd.includes("from '@/shared/utils/drillRows'")
     && dd.includes('EVENT_ACT_LABEL[e.action]')
-    && dd.includes('deltaOf(props.stats, props.day)')
-    && dd.includes('stockAt(props.stats, props.day')
-    && dd.includes('该日库容变化') && dd.includes('当天入台') && dd.includes('当天移出')
+    && dd.includes('b.ts - a.ts') /* W6：降序对齐原型 */
+    && dd.includes('dz-stats') && dd.includes('dz-heat-band') && dd.includes('今日战报')
     && dd.includes("emit('open-log', day)") && dd.includes('查看全部记录')
-    && dd.includes('DrillCardList')
+    && !dd.includes('groupEventRows(') && !dd.includes('deltaOf(') && !dd.includes('stockAt(') && !dd.includes('DrillCardList')
     && ev.includes('PngSpec') && ev.includes('rows?')
     && ev.includes('DailyReportShareSpec') && ev.includes('dailyReportShareHtml');
 });
@@ -604,14 +603,54 @@ check('W5-9 ★全局检索键位语义升级（用户拍板 NEW-#2）：⌘K �
 check('W5-10 ★设置页产品更新日志（用户拍板 NEW-#3）：changelog-data.ts 单一真源（CHANGELOG 倒序、裸版本号与 manifest 同格式、发版日期、要点数组）+ GlobalSettings 导航「系统信息」组 letter 与 about 之间挂 changelog 分区 + 时间线面板（gs-cl-* 样式、current 版本轨染 accent、当前版本徽标对照 runtimeVersion 不写字面量）；深链 /settings?page=changelog 经 navGroups 白名单自动生效', () => {
   const cl = codeOnly(read('/newtab/changelog-data.ts'));
   const gs = codeOnly(read('/newtab/views/GlobalSettings.vue'));
-  return cl.includes('export const CHANGELOG') && cl.includes("version: '3.8.5'")
-    && cl.includes("date: '2026-10-11'")
+  return cl.includes('export const CHANGELOG') && cl.includes("version: '3.8.6'")
+    && cl.includes("date: '2026-10-12'")
+    && cl.includes("version: '3.8.5'") /* 历史条目保留（倒序最新在前） */
     && gs.includes("key: 'changelog'") && gs.includes("label: '产品更新日志'")
     && gs.includes("activePage === 'changelog'")
     && gs.includes("import { CHANGELOG } from '../changelog-data'")
     && gs.includes('gs-cl-list') && gs.includes('gs-cl-item')
     && gs.includes("e.version === runtimeVersion")
     && !/version:\s*['"]3\.8\.[0-9]/.test(gs); // 面板不写字面量版本（对照走 runtimeVersion）
+});
+
+// ============== W6 · 调度台三条反馈（V3.8.6） ==============
+console.log('【W6 · 调度台三条反馈（V3.8.6）】');
+check('W6-1 ★日详情完全按原型（用户拍板：完全按原型裁剪 + 四格统计下方热力带）：DayDetail 五段结构（md-head 图标+标题+日期 / md-summary 摘要 / dz-stats 四格统计新增调出推进清理 / dz-heat-band 热力带加权分等级强度 / 降序时间线下午在前 / 页脚查看全部记录+导出）；分析段（四列下钻/库容变化条/hintline/DrillCardList）整体退役；dashboard.css 死样式清零（dz-mcols/dz-dstock/dz-hintline/dz-badge.hi）+ 新类字面量在位（dz-stats/dz-heat-band/dz-day-ic）；flowGroups 降序 b.ts-a.ts 对齐原型', () => {
+  const dd = codeOnly(read('/newtab/components/dashboard/DayDetail.vue'));
+  const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
+  const ta = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
+  return dd.includes('今日战报') && dd.includes('dz-day-ic') && dd.includes('dz-day-title') && dd.includes('dz-day-sub')
+    && dd.includes('dz-stats') && dd.includes('sc-create') && dd.includes('sc-call') && dd.includes('sc-status') && dd.includes('sc-del')
+    && dd.includes('dz-heat-band') && dd.includes('lvIdx') && dd.includes('intensity')
+    && dd.includes('b.ts - a.ts') && dd.includes('查看全部记录')
+    && dd.includes("emit('open-log', day)") && dd.includes('EVENT_ACT_LABEL[e.action]')
+    && !dd.includes('dz-mcol') && !dd.includes('dz-dstock') && !dd.includes('dz-hintline')
+    && !dd.includes('groupEventRows(') && !dd.includes('deltaOf(') && !dd.includes('stockAt(') && !dd.includes('DrillCardList')
+    && css.includes('.dz-stats') && css.includes('.dz-heat-band') && css.includes('.dz-day-ic')
+    && !css.includes('.dz-mcols') && !css.includes('.dz-dstock') && !css.includes('.dz-hintline') && !css.includes('.dz-badge.hi')
+    && ta.includes("dz-stats > .dz-stat") && ta.includes('dz-heat-band');
+});
+check('W6-2 ★三张卡模块标题入框（用户拍板：标题在框内、矩形一体化）：CompassHome 三张卡整块包进 .card.deck-frame（与今日三件事/年度热力图同款框），decks-title 由框外浮标题改为框内头部；内层 ModuleCard 用 :deep 压成无框无底（避免双框）；bt-tab 三枚与 bottom-pane 三面板结构不动', () => {
+  const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
+  return ch.includes('class="card deck-frame"') && ch.includes('.deck-frame {')
+    && ch.includes('.deck-frame :deep(.module-card)') && ch.includes('.deck-frame :deep(.module-title)') && ch.includes('.deck-frame :deep(.module-body)')
+    && ch.includes('decks-title') && ch.includes('THREE DECKS')
+    && ch.includes('bottom-tabs') && ch.includes('bt-tab')
+    && ch.includes('<TaskManagerPanel />') && ch.includes('<CuriosityPanel') && ch.includes('<PoolCardsPanel');
+});
+check('W6-3 ★任务卡默认列表视图 + 卡片视图 AI 入口移右上角直跑补全（用户拍板：点图标直接跑补全，不弹菜单）：TaskManagerPanel viewMode 默认 list；卡片视图 3 处 TaskAiMenu 换 TaskAiCorner（列表/看板/项目页保留 TaskAiMenu）；TaskAiCorner 自包含（taic-btn + AI 零静态引用 dynamic import taskEnrich + buildTaskEnrichJob + AiDrawer 懒栈）；手册默认视图文案同步；R147-5 判据按 9+3 拆分', () => {
+  const tm = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue'));
+  const ca = codeOnly(read('/newtab/components/TaskAiCorner.vue'));
+  const m = codeOnly(read('/newtab/manual-data.ts'));
+  return tm.includes("ref<'card' | 'list' | 'kanban'>('list')")
+    && (tm.match(/<TaskAiCorner :task=/g) || []).length === 3
+    && (tm.match(/<TaskAiMenu :task=/g) || []).length === 9
+    && tm.includes("import TaskAiCorner from '@/newtab/components/TaskAiCorner.vue'")
+    && ca.includes('buildTaskEnrichJob') && ca.includes("import('@/shared/ai/taskEnrich')")
+    && ca.includes('class="taic-btn"') && ca.includes("import { AiDrawer } from './lazyAiDrawer'")
+    && !ca.includes("from '@/shared/ai/")
+    && m.includes('默认列表视图 + 已完成任务自动沉底 + 分组三档');
 });
 
 // ============== R4-Ex 让像素 A/B 能当门禁（#120 的③ / #125） ==============

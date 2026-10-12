@@ -111,42 +111,45 @@
 /* ================= 日详情（战报） ================= */
 /* W2（V3.8.2）：日详情从 section 内联改为中央弹窗（Teleport 到 body，不受父容器 overflow 裁切）。
    弹窗壳与 DayDetail 本体解耦：壳只管居中 + 遮罩 + 最大高度，DayDetail 内部结构不动。
-   W5（V3.8.5）#4b：垂直居中（flex-start → center）。4vh×2 + max-height 92vh 恰好不溢出。 */
+   W5（V3.8.5）#4b：垂直居中（flex-start → center）。4vh×2 + max-height 92vh 恰好不溢出。
+   W6（V3.8.6）#1：完全按原型重构——头部（图标+标题+日期）/ 摘要 / 四格统计 / 热力带 /
+   降序时间线 / 页脚。分析段（dz-mcols/dz-dstock/dz-hintline）整体退役。 */
 .dz-day-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,.32); display: flex; align-items: center; justify-content: center; padding: 4vh 16px; }
 .dz-day-modal { width: min(1080px, 100%); max-height: 92vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
 .dz-day { margin: 0; border: 0; border-radius: var(--radius-lg); }
-.dz-day-head { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); background: var(--surface-2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.dz-day-head .d { font-size: var(--fs-title); font-weight: 700; }
-.dz-day-head .w { font-size: var(--fs-caption); color: var(--text-3); }
-.dz-badge.hi { background: var(--tag-info-bg); color: var(--tag-info-text); font-weight: 600; }
-.dz-hintline { padding: var(--sp-2) var(--sp-4); font-size: var(--fs-caption); color: var(--text-3); background: var(--heat-0); border-bottom: 1px solid var(--border); }
-.dz-hintline b { color: var(--heat-ink); }
-.dz-mcols { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-3); padding: var(--sp-4); }
-.dz-mcol { border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--sp-3); background: var(--surface); text-align: left; transition: all var(--dur-fast); display: flex; flex-direction: column; gap: 3px; cursor: pointer; }
-.dz-mcol:hover { border-color: var(--accent); }
-.dz-mcol.on { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 1px var(--accent) inset; }
-.dz-mcol .h { display: flex; align-items: center; gap: 5px; font-size: var(--fs-caption); color: var(--text-3); }
-.dz-mcol .h .dot { width: 6px; height: 6px; border-radius: 99px; background: var(--heat-4); flex: none; }
-.dz-mcol .h .go { margin-left: auto; color: var(--accent-ink); font-weight: 600; }
-.dz-mcol .n { font-size: var(--fs-display); font-weight: 700; line-height: 1.1; }
-.dz-mcol .n small { font-size: var(--fs-sub); font-weight: 500; color: var(--text-3); margin-left: 3px; }
-.dz-mcol .sc { font-size: var(--fs-caption); color: var(--heat-ink); font-weight: 600; }
-.dz-mcol .bd { font-size: var(--fs-caption); color: var(--text-4); line-height: 1.55; }
-.dz-dstock { margin: 0 var(--sp-4) var(--sp-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); padding: var(--sp-3); }
-.dz-dstock .t { font-size: var(--fs-caption); color: var(--text-3); margin-bottom: var(--sp-2); }
-.dz-dstock .t b { color: var(--text); }
-.dz-dstock .row { display: flex; gap: var(--sp-4); flex-wrap: wrap; font-size: var(--fs-caption); }
-.dz-dstock .it { display: flex; align-items: baseline; gap: 5px; }
-.dz-dstock .it .k { color: var(--text-3); }
-.dz-dstock .it .v { font-weight: 700; }
-.dz-dstock .it .up { color: var(--success); }
-.dz-dstock .it .dn { color: var(--danger); }
+/* 原型 md-head：36px 图标方块 + 标题/日期双行 + 关闭 */
+.dz-day-head { display: flex; align-items: center; gap: 10px; padding: 18px 22px 0; }
+.dz-day-ic { width: 36px; height: 36px; border-radius: 10px; background: var(--accent-light); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.dz-day-txt { flex: 1; min-width: 0; }
+.dz-day-title { font-size: 17px; font-weight: 700; letter-spacing: .2px; }
+.dz-day-sub { font-size: 12px; color: var(--text-3); margin-top: 2px; font-variant-numeric: tabular-nums; }
 .dz-tl { padding: 0 var(--sp-4) var(--sp-4); }
 .dz-tl .th { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-caption); color: var(--text-3); margin-bottom: var(--sp-2); letter-spacing: var(--tracking-sm); }
-/* W5 #6：旧「当日流水 .row/.tm/.ac/.ti/.pt」随叙事时间线（.dz-tl-row）整体退役——行样式统一走下方 .dz-tl-row 段 */
 
-/* ===== W5（V3.8.5）#6 今日战报：摘要行 + 分时段叙事时间线 + 底部导出 ===== */
-.dz-dl-sum { padding: var(--sp-2) var(--sp-4); font-size: var(--fs-sub); color: var(--text-2); background: var(--surface-2); border-bottom: 1px solid var(--border); }
+/* ===== W6（V3.8.6）#1 今日战报：摘要 + 四格统计 + 热力带 + 降序时间线 + 底部导出 ===== */
+.dz-dl-sum { margin: 14px 22px 0; font-size: 13px; color: var(--text-2); line-height: 1.6; }
+.dz-dl-sum b { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.dz-dl-recent { font-size: 12px; color: var(--text-3); margin-top: 3px; font-variant-numeric: tabular-nums; }
+/* 原型 md-stats：四格彩色大数（新增=success / 调出=accent / 推进=info / 清理=danger），零值压淡 */
+.dz-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 16px 22px 0; }
+.dz-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; transition: border-color var(--dur); }
+.dz-stat:hover { border-color: var(--border-strong); }
+.dz-stat.dim { opacity: .42; }
+.dz-stat .n { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.dz-stat .lbl { font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: 5px; }
+.dz-stat.sc-create .n { color: var(--success); }
+.dz-stat.sc-call .n { color: var(--accent-ink); }
+.dz-stat.sc-status .n { color: var(--info-blue); }
+.dz-stat.sc-del .n { color: var(--danger); }
+/* 热力带（用户拍板：四格统计下方一条）：背景走 --heat-{lv} 色阶，文字 --heat-ink */
+.dz-heat-band { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; margin: 12px 22px 0; padding: 9px 14px; border-radius: 10px; background: var(--heat-0); color: var(--heat-ink); font-size: var(--fs-caption); font-variant-numeric: tabular-nums; }
+.dz-heat-band .lv { font-weight: 700; font-size: var(--fs-sub); }
+.dz-heat-band .w, .dz-heat-band .range, .dz-heat-band .int, .dz-heat-band .acts { font-weight: 600; }
+.dz-heat-band.lv1 { background: var(--heat-1); }
+.dz-heat-band.lv2 { background: var(--heat-2); }
+.dz-heat-band.lv3 { background: var(--heat-3); }
+.dz-heat-band.lv4 { background: var(--heat-4); }
+.dz-heat-band.lv5 { background: var(--heat-5); }
 .dz-tl-grp { margin-top: var(--sp-3); margin-bottom: var(--sp-1); font-size: var(--fs-micro); font-weight: 700; color: var(--text-3); letter-spacing: var(--tracking-sm); }
 .dz-tl-row { display: flex; align-items: center; gap: var(--sp-2); padding: 5px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); min-width: 0; }
 .dz-tl-row:last-child { border-bottom: 0; }
@@ -168,7 +171,7 @@
 .dz-tl-row .tl-dot.act-delete, .dz-tl-row .tl-dot.act-purge { background: var(--danger); }
 .dz-tl-row .act-restore { color: var(--warning); background: var(--warning-bg-soft); }
 .dz-tl-row .tl-dot.act-restore { background: var(--warning); }
-.dz-dl-foot { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4); border-top: 1px solid var(--border); background: var(--surface-2); }
+.dz-dl-foot { display: flex; align-items: center; gap: var(--sp-2); padding: 12px 22px 16px; border-top: 1px solid var(--border); margin-top: 6px; }
 .dz-dl-foot .note { font-size: var(--fs-tiny); color: var(--text-4); flex: 1; }
 
 /* ================= 下钻卡片列表（共用） ================= */
@@ -362,8 +365,8 @@
    判据不是"看起来像按钮"，而是**真的是交互点**：原生可交互元素 + 仪表盘里用 div 挂 @click 的那批。
    虚线用 accent 令牌（四主题各自取色），outline 不占布局——圈出来不该把版面挤动。 */
 .dz-hl :is(button, a, input, select, textarea, summary, [role="button"], [tabindex]:not([tabindex="-1"]),
-  .dz-kpi, .dz-mcol, .dz-log-row, .dz-rule, .dz-chip, .dz-calib, .dz-drill-h, .dz-drill .dz-row,
-  .dz-ov-card, .dz-entry, .dz-hintline, .dz-drill-card) {
+  .dz-kpi, .dz-log-row, .dz-rule, .dz-chip, .dz-calib, .dz-drill-h, .dz-drill .dz-row,
+  .dz-ov-card, .dz-entry, .dz-drill-card) {
   outline: 1px dashed var(--accent);
   outline-offset: 1px;
 }

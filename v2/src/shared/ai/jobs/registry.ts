@@ -194,9 +194,9 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   {
     id: 'task-enrich', title: 'AI 补全任务', family: 'proactive', kind: 'job',
     factory: 'buildTaskEnrichJob', factoryFile: 'shared/ai/taskEnrich.ts',
-    hosts: ['newtab/components/compass/TaskDetailDrawer.vue'],
+    hosts: ['newtab/components/compass/TaskDetailDrawer.vue', 'newtab/components/TaskAiCorner.vue'],
     caps: { apply: true, before: true, promptScope: 'enrich:task' },
-    panel: { icon: 'copy', mode: 'nav', route: '/compass', hint: '任务详情标题下三入口之一' },
+    panel: { icon: 'copy', mode: 'nav', route: '/compass', hint: '任务详情标题下三入口之一；卡片视图右上角角标直跑' },
     note: '只补缺不覆盖：说明已有验收标准就不再建议；归属建议判弱默认不勾（定案：AI 不替决策）',
   },
   {
