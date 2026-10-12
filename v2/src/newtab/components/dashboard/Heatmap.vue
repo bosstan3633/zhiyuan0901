@@ -203,8 +203,11 @@ function onExport(fmt: ExportFmt): void {
       <!-- W5（V3.8.5）#2：数字角标 → SVG 图标（accent）——与「今日三件事 / 三张卡」三标题统一规格 -->
       <span class="dz-n dz-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none"/></svg></span><span class="dz-t">年度热力图</span><span class="dz-en">ANNUAL HEATMAP</span>
       <span class="dz-sp"></span>
-      <!-- ★V3.8.7：切年/导出/选中态等控件随全年网格一起进展开态（概览条只讲「近半年」） -->
+      <!-- ★V3.8.7：切年/导出/选中态等控件随全年网格一起进展开态（概览条只讲「近半年」）。
+           ★收起按钮：折叠必须是**双向**的——V3.8.7 首版只给了「看全年 ›」没给回来的路，
+           展开后与旧版长得一模一样、且回不去（真缺陷，W7-3 随迁钉住双向）。 -->
       <template v-if="expanded">
+      <button class="dz-btn sm ghost" title="收起全年网格，回到近 26 周概览条" @click="expanded = false">收起</button>
       <span class="dz-badge">{{ agg.first }} → {{ agg.last }}</span>
       <span class="dz-badge">{{ selDay ? `已选 ${selDay}` : '点格子看那一天' }}</span>
       <ExportMenu :formats="['png', 'html']" @pick="onExport" />

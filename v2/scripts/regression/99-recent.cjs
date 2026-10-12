@@ -877,7 +877,7 @@ check('W7-2 ★焦点必须是**唯一标题级display**而不是"这一处是 2
   }
   return hits.length === 1 && hits[0].startsWith('newtab/views/CompassHome.vue');
 });
-check('W7-3 ★热力图概览条（用户拍板 A 案：压成26 周概览条 + 「看全年 ›」，回看型内容不再占首屏最大连续面积）：dz-mini 在位且类名是**字面量表** l0..l5（dead-css-scan 看不见运行时拼串，故不许`l${lv}`）+ COMPACT_WEEKS=26 + 展开态保留全年 366 格与切年/导出/图例（折叠的是呈现不是数据）+ 两枚数字口径走 actsOf 单一真源', () => {
+check('W7-3 ★热力图概览条（用户拍板A 案：压成 26 周概览条 + 「看全年 ›」，回看型内容不再占首屏最大连续面积）：dz-mini 在位且类名是**字面量表** l0..l5（dead-css-scan 看不见运行时拼串，故不许 `l${lv}`）+ COMPACT_WEEKS=26 + 展开态保留全年 366 格与切年/导出/图例（折叠的是呈现不是数据）+ 两枚数字口径走 actsOf 单一真源。★2026-10-12 补钉**双向**：V3.8.7 首版只给「看全年 ›」没给回来的路——展开后与旧版长得一样且回不去（用户真机截图当场发现），本条因此同时钉住 `expanded = false` 的收起路径，不许再退化成单向门', () => {
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
   const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
   return hm.includes('class="dz-mini"') && hm.includes('class="dz-mini-w"') && hm.includes('class="dz-mini-more"')
@@ -889,5 +889,11 @@ check('W7-3 ★热力图概览条（用户拍板 A 案：压成26 周概览条 +
     && hm.includes('class="dz-months"') && hm.includes('class="dz-cell"') && hm.includes('class="dz-legend"')
     && hm.includes("shiftYear(-1)") && hm.includes(':formats="[\'png\', \'html\']"')
     /* 计数口径：今日操作数走 actsOf，不自造字段 */
-    && hm.includes('actsOf(r)') && !hm.includes('r.n :');
+    && hm.includes('actsOf(r)') && !hm.includes('r.n :')
+    /* ★双向折叠：默认 false + 两个方向都要有落点（收起用行内@click="expanded = false"，
+       正锚吃原文/codeOnly 不吃——所以这里特意用完整绑定串而不是只看 "expanded" 这个词，
+       否则「声明了变量但没接按钮」也会绿）。*/
+    && hm.includes('const expanded = ref(false)')
+    && hm.includes('@click="expanded = true"')
+    && hm.includes('@click="expanded = false"');
 });
