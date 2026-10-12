@@ -658,7 +658,7 @@ onUnmounted(() => {
       <!-- 画布 -->
       <div class="tree-layout">
       <aside class="layer-toc">
-        <div class="lt-title">🧭 六层思维链</div>
+        <div class="lt-title">🧭 六层思维链<span class="en">SIX-LAYER CHAIN</span></div>
         <div v-for="item in tocItems" :key="item.n" class="lt-item"
           :class="{active: activeLayer === item.n}" @click="scrollToLayer(item.n)">
           <span class="lt-num">{{ item.n }}</span>
@@ -670,7 +670,7 @@ onUnmounted(() => {
         <div class="canvas-inner">
 
           <!-- 第1-2层：愿景 / 使命 锚点卡（R121：两张 node 卡 → 单卡紧凑；编辑与关联卡片保留） -->
-          <div class="tree-level-card" id="layer-1">
+          <div class="tree-level-card hero" id="layer-1">
             <span class="tl-badge">1 愿景 · 终极方向</span>
             <div class="tl-text">
               <span class="node-title editable" :class="{editing: editingField === 'vision'}" :data-edit="'vision'" :contenteditable="editingField === 'vision'"
@@ -931,6 +931,11 @@ onUnmounted(() => {
 
 .tree-page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .tree-page-head .crumb { font-size: var(--fs-body); color: var(--text-2); }
+/* ⑤ 层级倒置的修法**不是**降面包屑，而是抬内容标题：原状面包屑 16px > 内容标题 11px。
+   ★R123 定案「工作台/项目详情/方向台三页页头统一 16px」是跨页一致性决策，用户 2026-10-12 拍板
+   **保三页一致**，故 crumb 维持 16px 不动，改把「六层思维链」提到 --fs-headline(17px) ——
+   层级变成愿景 22 › 区块标题 17 › 面包屑 16 › 正文 13，单调递减，倒置同样被消除，
+   且不需要随迁 R51-6 / R123-10 两条判据。 */
 .tree-page-head .crumb b { color: var(--text); font-weight: 700; font-size: 16px; letter-spacing: .2px; }
 .tree-page-head .crumb .sep { color: var(--text-4); margin: 0 6px; }
 .tree-page-head .spacer { flex: 1; }
@@ -947,7 +952,8 @@ onUnmounted(() => {
 
 /* D8：六层目录 = 布局内左栏 + sticky 跟随（目录在左，内容在右，随滚动吸附） */
 .layer-toc { position: sticky; top: 16px; align-self: flex-start; width: 200px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 10px; display: flex; flex-direction: column; gap: 3px; box-shadow: var(--shadow); max-height: calc(100vh - 120px); overflow-y: auto; }
-.lt-title { font-size: var(--fs-caption); font-weight: 700; color: var(--accent); letter-spacing: .5px; padding: 0 8px 10px; }
+.lt-title { font-size: var(--fs-headline); font-weight: 600; color: var(--text); letter-spacing: -.01em; padding: 0 2px 12px; display: flex; align-items: baseline; gap: 8px; }
+.lt-title .en { font-size: var(--fs-micro); color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; }
 .lt-item { display: flex; align-items: center; gap: 8px; padding: 8px 9px; border-radius: 8px; cursor: pointer; transition: all var(--dur); border: 1px solid transparent; }
 .lt-item:hover { background: var(--surface-3); }
 .lt-item.active { background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
@@ -1020,8 +1026,15 @@ onUnmounted(() => {
 .tree-level-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 18px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 6px; }
 .tl-badge { align-self: flex-start; font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink); background: var(--accent-light); padding: 2px 6px; border-radius: 4px; }
 .tl-badge.ghost { background: var(--surface-2); color: var(--text-2); margin-top: 6px; }
-.tl-text { font-size: 14px; font-weight: 700; color: var(--text); }
-.tl-text.sub { font-size: var(--fs-body); font-weight: 500; color: var(--text-2); }
+/* ★V3.8.8 方向台焦点契约（用户拍板：主角=愿景、攻坚项目 17px）：
+   原状全页最大字是页头面包屑（16px 字面量），而真内容标题「六层思维链」只有 11px（caption）
+   ⇒ 层级倒置。以下五条把方向台拉回「一处主角 + 六层可辨」。判据 W8-1~W8-5 把守。
+
+   ① 愿景 = 本页**唯一** display 级主体（语义根：产品名与 Slogan「自有我方向」都指向它） */
+.tree-level-card.hero { border-color: var(--border-strong); box-shadow: var(--shadow-lg); padding: 18px 20px 16px; }
+.tl-text { font-size: var(--fs-display); font-weight: 700; color: var(--text); letter-spacing: -.02em; line-height: 1.24; }
+/* ② 使命降一档到 headline（它是准则不是方向本身） */
+.tl-text.sub { font-size: var(--fs-headline); font-weight: 500; color: var(--text-2); line-height: 1.4; }
 .tl-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--fs-sub); color: var(--text-3); }
 .tl-head-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
 .tl-hint { font-size: var(--fs-sub); color: var(--text-3); }
@@ -1029,15 +1042,24 @@ onUnmounted(() => {
 .tc-strategic-branch { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .tc-strategic-title { padding-bottom: 8px; border-bottom: 1px solid var(--border); }
 .tct-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.tct-name .node-title { font-size: var(--fs-body); font-weight: 700; color: var(--text); }
+/* ③ 六层字阶真正分层（用户拍板）：原第 2~6 层全是 --fs-body(13px)，层级只能靠缩进辨认。
+   现 战略目标 title(15) / 攻坚项目 headline(17) / 指标·任务 保持 body(13)。
+   ★攻坚项目取17 而非 13：用户拍板——它是「当前在做的事」，比所属战略目标更该被看见；
+   代价是字阶出现「使命17→目标15→项目17」起伏，这是有意取舍不是失误。 */
+.tct-name .node-title { font-size: var(--fs-title); font-weight: 600; color: var(--text); line-height: 1.35; }
 .tct-meta { display: flex; align-items: center; gap: 8px; margin-top: 3px; font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; }
 .tct-acts { display: none; gap: 2px; margin-left: auto; }
 .tc-strategic-branch:hover .tct-acts { display: inline-flex; }
 .tree-project-branch { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
-.tree-project-branch.is-focused { border-color: color-mix(in srgb, var(--accent) 28%, var(--border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent); }
+/* ★V3.8.8：原此处一条 accent-28% 的弱 is-focused 规则已由下方「次级焦点」版取代并整条删除
+   （同选择器两条规则并存＝靠 cascade 顺序碰巧生效，是 W7-5 抓过的那类暗病）。 */
 .tp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .tp-title { display: flex; align-items: center; gap: 5px; min-width: 0; }
-.tp-title .node-title { font-size: var(--fs-body); font-weight: 700; color: var(--text); }
+.tp-title .node-title { font-size: var(--fs-headline); font-weight: 600; color: var(--text); line-height: 1.35; }
+/* ④ 主攻项目成为**次级焦点**：原仅 accent28% 边框 + 🚀 emoji，而它恰恰是「我现在在哪」的唯一落点。
+   现给 accent 边框 + accent-light 底色 + 文字转 accent-ink；选中态锚点结构保留（R59-3 判据钉 `.is-focused {` 前缀）。 */
+.tree-project-branch.is-focused { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
+.tree-project-branch.is-focused .tp-title .node-title { color: var(--accent-ink); }
 .tp-mark { flex-shrink: 0; color: var(--accent); font-size: var(--fs-caption); }
 /* R3-B1：停滞标随主航线项目行卡退役搬进树卡头（原 .pr-flag 同色同形，令牌取色） */
 .tp-flag { flex-shrink: 0; font-size: var(--fs-micro); padding: 1px 4px; border-radius: 3px; background: var(--tag-warn-bg); color: var(--warning); }
