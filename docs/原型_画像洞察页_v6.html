@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="apple">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知源 Ownway · 画像洞察页原型 v6 —— OPPO Aquamorphic 设计语言</title>
+<!--
+  v6（用户反馈 2026-10-13 终轮）：
+   ① 模块1顶部与产品现状结合 —— 页头对齐 ProfileInsights §0（画像摘要 + 战报入口 + 导出 + AI 解读），
+      今日指标改用产品真实口径「今日入台 / 今日移出 / 今日调出 / 写入记录」
+   ② 模块2 与模块4 功能重合 → 操作流 / 错误日志 / 全部记录 整合进模块2「近期」，模块4 退役
+   ③ 模块3 改为「年度热力图」+ 生命周期（近 12 周热力退役）
+   ④ 视觉重构为 OPPO ColorOS / Aquamorphic 风格：大圆角 24px、无边框软阴影、胶囊按钮、
+      渐变强调、着色图标圆、64-72px 模块留白、大字号友好中文
+   结构：时间轴三段 —— ① 今天 TODAY · ② 近期 WEEK/MONTH · ③ 全年 YEAR
+-->
+<style>
+:root{--font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+--fs-micro:9px;--fs-tiny:10px;--fs-cap:11px;--fs-sub:12px;--fs-body:13px;--fs-title:15px;--fs-h2:17px;--fs-h1:20px;--fs-hero:34px;
+--r-card:24px;--r-block:18px;--r-md:14px;--r-sm:10px;--r-xs:6px;--r-pill:999px;
+--sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:22px;--sp-6:28px;--sp-7:40px;--sp-8:64px;
+--dur:160ms;--ease:cubic-bezier(.22,.61,.36,1);
+--z-nav:100;--z-drawer:250;--z-modal:300;--z-toast:400}
+:root,[data-theme='linear']{--bg:#0D0E11;--surface:#15171C;--surface-2:#1B1E25;--surface-3:#21252D;
+--line:rgba(255,255,255,.07);--line-strong:rgba(255,255,255,.13);
+--t1:rgba(255,255,255,.93);--t2:rgba(255,255,255,.70);--t3:rgba(255,255,255,.50);--t4:rgba(255,255,255,.30);
+--accent:#6E7BE8;--accent2:#96A0F5;--accent-soft:rgba(110,123,232,.16);--accent-ink:#96A0F5;--accent-deep:#5A67D8;
+--grad:linear-gradient(135deg,#6E7BE8,#9A6FF0);
+--ok:#2BB673;--ok-soft:rgba(43,182,115,.15);--warn:#E0A038;--warn-soft:rgba(224,160,56,.15);
+--bad:#EE5A5F;--bad-soft:rgba(238,90,95,.12);--stg:#D4715D;--vio:#A78BFA;--amb:#D9B45C;--info:#5B8DEF;--info-soft:rgba(91,141,239,.15);
+--heat-ink:rgba(255,255,255,.72);
+--h0:rgba(255,255,255,.04);--h1:#1E3455;--h2:#264572;--h3:#2B4E79;--h4:#356397;--h5:#4E86C8;
+--sh-card:0 1px 2px rgba(0,0,0,.35),0 16px 40px -12px rgba(0,0,0,.55);
+--sh-pop:0 2px 6px rgba(0,0,0,.4),0 24px 60px -12px rgba(0,0,0,.7);
+--chrome:rgba(21,23,28,.80)}
+[data-theme='raycast']{--bg:#08080A;--surface:#111116;--surface-2:#17171D;--surface-3:#1D1D24;
+--line:rgba(255,255,255,.10);--line-strong:rgba(255,255,255,.17);
+--t1:rgba(255,255,255,.95);--t2:rgba(255,255,255,.72);--t3:rgba(255,255,255,.52);--t4:rgba(255,255,255,.32);
+--accent:#2E7DF0;--accent2:#5C9BFF;--accent-soft:rgba(46,125,240,.18);--accent-ink:#5C9BFF;--accent-deep:#1E6FE0;
+--grad:linear-gradient(135deg,#2E7DF0,#3FC1D9);
+--ok:#2BB673;--ok-soft:rgba(43,182,115,.15);--warn:#E0A038;--warn-soft:rgba(224,160,56,.15);
+--bad:#EE5A5F;--bad-soft:rgba(238,90,95,.12);--stg:#D4715D;--vio:#A78BFA;--amb:#D9B45C;--info:#5B8DEF;--info-soft:rgba(91,141,239,.15);
+--heat-ink:rgba(255,255,255,.72);
+--h0:rgba(255,255,255,.05);--h1:#203757;--h2:#2B4A76;--h3:#2F5489;--h4:#3A6AA9;--h5:#5591D6;
+--sh-card:0 1px 2px rgba(0,0,0,.4),0 18px 44px -12px rgba(0,0,0,.6);
+--sh-pop:0 2px 6px rgba(0,0,0,.45),0 26px 64px -12px rgba(0,0,0,.75);
+--chrome:rgba(8,8,10,.82)}
+[data-theme='apple']{--bg:#F6F6F8;--surface:#FFFFFF;--surface-2:#F1F1F4;--surface-3:#E9E9EE;
+--line:rgba(0,0,0,.055);--line-strong:rgba(0,0,0,.12);
+--t1:rgba(0,0,0,.90);--t2:rgba(0,0,0,.62);--t3:rgba(0,0,0,.44);--t4:rgba(0,0,0,.26);
+--accent:#7C5CFC;--accent2:#9B82FF;--accent-soft:#EFEAFE;--accent-ink:#6C45F0;--accent-deep:#5A31E0;
+--grad:linear-gradient(135deg,#7C5CFC,#B45CF0);
+--ok:#22A06B;--ok-soft:#E3F4EC;--warn:#B8791B;--warn-soft:#FAF0DE;
+--bad:#D8453F;--bad-soft:#FBE9E8;--stg:#C4614B;--vio:#7C3AED;--amb:#A87B2A;--info:#3B6FD4;--info-soft:#E9EFFC;
+--heat-ink:rgba(0,0,0,.60);
+--h0:#ECEEF2;--h1:#D6E2F3;--h2:#B9CDE9;--h3:#9BB7DA;--h4:#7399C7;--h5:#4A78B4;
+--sh-card:0 1px 2px rgba(0,0,0,.03),0 12px 28px -6px rgba(0,0,0,.07);
+--sh-pop:0 2px 8px rgba(0,0,0,.05),0 24px 60px -12px rgba(0,0,0,.14);
+--chrome:rgba(255,255,255,.82)}
+[data-theme='notion']{--bg:#F7F6F3;--surface:#FFFFFF;--surface-2:#F2F0EB;--surface-3:#EBE8E1;
+--line:rgba(40,34,24,.07);--line-strong:rgba(40,34,24,.14);
+--t1:rgba(35,31,25,.90);--t2:rgba(35,31,25,.64);--t3:rgba(35,31,25,.50);--t4:rgba(35,31,25,.28);
+--accent:#9E3FAF;--accent2:#C067D0;--accent-soft:#F6EDF8;--accent-ink:#85349A;--accent-deep:#73288A;
+--grad:linear-gradient(135deg,#9E3FAF,#C45C8A);
+--ok:#448361;--ok-soft:#E4EFE7;--warn:#9A6A1F;--warn-soft:#F5E9D3;
+--bad:#C0392B;--bad-soft:#FBE9E7;--stg:#B5654D;--vio:#9065B0;--amb:#9F7B2D;--info:#3F6FA8;--info-soft:#E7EDF5;
+--heat-ink:rgba(35,31,25,.60);
+--h0:#EFEEEA;--h1:#D9DEE9;--h2:#BCC8DD;--h3:#A0B2CD;--h4:#7D95BA;--h5:#5A77A5;
+--sh-card:0 1px 2px rgba(0,0,0,.025),0 12px 28px -6px rgba(15,15,15,.06);
+--sh-pop:0 2px 8px rgba(0,0,0,.04),0 24px 60px -12px rgba(15,15,15,.12);
+--chrome:rgba(255,255,255,.82)}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:var(--font);background:var(--bg);color:var(--t1);font-size:var(--fs-body);line-height:1.65;
+font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit;background:none;border:none;outline:none}
+button{cursor:pointer}
+input,select{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:7px 11px}
+input:focus,select:focus{border-color:var(--accent)}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:4px}
+.sp{flex:1}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-cap);padding:3px 10px;border-radius:var(--r-pill);
+background:var(--surface-2);color:var(--t3);white-space:nowrap;font-weight:600}
+.badge.info{background:var(--info-soft);color:var(--info)}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}
+.badge.warn{background:var(--warn-soft);color:var(--warn)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r-pill);font-size:var(--fs-sub);font-weight:600;
+background:var(--surface-2);color:var(--t2);transition:all var(--dur);white-space:nowrap}
+.btn:hover{background:var(--surface-3);color:var(--t1);transform:translateY(-1px)}
+.btn:active{transform:translateY(0) scale(.98)}
+.btn.pri{background:var(--grad);color:#fff;box-shadow:0 4px 14px -4px color-mix(in srgb,var(--accent) 55%,transparent)}
+.btn.pri:hover{filter:brightness(1.07);box-shadow:0 6px 20px -4px color-mix(in srgb,var(--accent) 65%,transparent)}
+.btn.line{background:transparent;box-shadow:inset 0 0 0 1px var(--line-strong)}
+.btn.line:hover{box-shadow:inset 0 0 0 1px var(--accent);color:var(--accent-ink)}
+.btn.sm{padding:5px 12px;font-size:var(--fs-cap)}
+.btn.ghost{background:transparent;color:var(--t3)}
+.btn.ghost:hover{background:var(--surface-2);color:var(--t1)}
+.btn:disabled{opacity:.4;pointer-events:none}
+/* 胶囊分段控件 */
+.seg{display:inline-flex;padding:3px;background:var(--surface-2);border-radius:var(--r-pill);gap:2px}
+.seg button{padding:5px 14px;border-radius:var(--r-pill);font-size:var(--fs-cap);font-weight:600;color:var(--t3);transition:all var(--dur)}
+.seg button.on{background:var(--surface);color:var(--t1);box-shadow:0 1px 3px rgba(0,0,0,.10)}
+.seg button:not(.on):hover{color:var(--t1)}
+
+/* ══ 顶栏 ══ */
+.nav{position:sticky;top:0;z-index:var(--z-nav);background:var(--chrome);backdrop-filter:blur(24px) saturate(180%);border-bottom:1px solid var(--line)}
+.nav-in{max-width:1400px;margin:0 auto;height:56px;padding:0 32px;display:flex;align-items:center;gap:16px}
+.brand{display:flex;align-items:center;gap:9px;padding:5px 12px 5px 6px;border-radius:var(--r-pill);transition:all var(--dur)}
+.brand:hover{background:var(--surface-2)}
+.brand.on{background:var(--surface-2)}
+.brand .mark{width:28px;height:28px;border-radius:9px;background:var(--grad);display:grid;place-items:center;flex:none;
+box-shadow:0 4px 12px -4px color-mix(in srgb,var(--accent) 60%,transparent)}
+.brand .mark svg{width:15px;height:15px;color:#fff}
+.brand .bn{font-size:var(--fs-title);font-weight:700;letter-spacing:-.01em}
+.brand .be{font-size:var(--fs-micro);font-weight:700;letter-spacing:.06em;color:var(--t4)}
+.nav-tabs{display:flex;gap:4px;flex:1;margin-left:12px}
+.nav-tab{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r-pill);color:var(--t3);font-size:var(--fs-sub);font-weight:500;transition:all var(--dur)}
+.nav-tab:hover{color:var(--t1);background:var(--surface-2)}
+.nav-tab.on{color:var(--t1);font-weight:700;background:var(--surface-2)}
+.nav-div{width:1px;height:18px;background:var(--line-strong);margin:0 6px;flex:none}
+.nav-tab.nav-add{color:var(--t4);padding:7px 10px}
+.nav-chip{font-size:var(--fs-micro);font-weight:600;color:var(--t3);background:var(--surface-2);padding:4px 10px;border-radius:var(--r-pill);transition:all var(--dur)}
+.nav-chip:hover{background:var(--surface-3);color:var(--t1)}
+.nav-ico{width:30px;height:30px;border-radius:var(--r-pill);display:grid;place-items:center;font-size:13px;background:var(--surface-2);transition:all var(--dur)}
+.nav-ico:hover{background:var(--surface-3)}
+.nav-right{display:flex;align-items:center;gap:10px}
+.theme-pick{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 8px;border-radius:var(--r-pill);background:var(--surface-2);transition:all var(--dur)}
+.theme-pick:hover{background:var(--surface-3)}
+.tw{width:13px;height:13px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.22);opacity:.45;transition:all var(--dur)}
+.tw.on{opacity:1;box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--t2)}
+.tw[data-t=linear]{background:#6E7BE8}.tw[data-t=raycast]{background:#2E7DF0}.tw[data-t=apple]{background:#7C5CFC}.tw[data-t=notion]{background:#9E3FAF}
+</style><style>
+.page{max-width:1400px;margin:0 auto;padding:36px 32px 96px}
+.vp{display:none}.vp.on{display:block}
+
+/* ══ 页头（对齐 ProfileInsights §0：画像摘要 + 战报入口 + 导出 + AI 解读） ══ */
+.hero{display:flex;align-items:flex-start;gap:32px;flex-wrap:wrap;margin-bottom:56px}
+.hero-l{flex:1;min-width:360px}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:var(--fs-cap);font-weight:700;letter-spacing:.12em;color:var(--accent-ink);margin-bottom:12px}
+.hero-eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--grad)}
+.hero-t{font-size:var(--fs-hero);font-weight:700;letter-spacing:-.025em;line-height:1.15}
+.hero-t .en{font-size:var(--fs-micro);font-weight:700;letter-spacing:.16em;color:var(--t4);margin-left:12px;vertical-align:8px}
+.hero-sub{font-size:var(--fs-sub);color:var(--t3);margin-top:12px;max-width:560px;line-height:1.85}
+.hero-sum{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+.hchip{display:inline-flex;align-items:baseline;gap:6px;padding:7px 14px;border-radius:var(--r-pill);
+background:var(--surface);box-shadow:var(--sh-card);cursor:pointer;transition:all var(--dur)}
+.hchip:hover{transform:translateY(-2px)}
+.hchip .v{font-size:var(--fs-title);font-weight:700}
+.hchip .v small{font-size:var(--fs-micro);font-weight:600;color:var(--t3);margin-left:1px}
+.hchip .l{font-size:var(--fs-cap);color:var(--t3)}
+.hero-r{display:flex;flex-direction:column;align-items:flex-end;gap:12px;padding-top:6px}
+.hero-acts{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+
+/* ══ 时间轴主线（3 段） ══ */
+.tl{display:grid;grid-template-columns:78px 1fr}
+.rail{position:relative}
+.rail::before{content:'';position:absolute;left:30px;top:12px;bottom:12px;width:3px;border-radius:3px;opacity:.5;
+background:linear-gradient(180deg,var(--accent),var(--vio) 52%,var(--amb))}
+.rnode{position:relative;padding:4px 0 76px;display:flex;flex-direction:column;align-items:center;gap:9px;cursor:pointer}
+.rnode:last-child{padding-bottom:6px}
+.rdot{width:16px;height:16px;border-radius:50%;background:var(--bg);border:4px solid var(--accent);position:relative;z-index:2;transition:all var(--dur)}
+.rnode[data-k=recent] .rdot{border-color:var(--vio)}
+.rnode[data-k=year] .rdot{border-color:var(--amb)}
+.rnode.on .rdot{transform:scale(1.28);box-shadow:0 0 0 6px color-mix(in srgb,var(--accent) 16%,transparent)}
+.rlab{font-size:var(--fs-micro);font-weight:700;letter-spacing:.05em;color:var(--t4);text-align:center;line-height:1.5}
+.rnode.on .rlab{color:var(--accent-ink)}
+.rmods{display:flex;flex-direction:column;gap:72px;min-width:0}
+
+/* ══ 模块卡（OPPO：无边框软阴影，24px 圆角） ══ */
+.mod{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--sh-card);overflow:hidden;scroll-margin-top:72px}
+[data-theme='linear'] .mod,[data-theme='raycast'] .mod{box-shadow:0 0 0 1px var(--line),0 18px 44px -12px rgba(0,0,0,.55)}
+.mod-h{display:flex;align-items:center;gap:14px;padding:22px 26px 0;flex-wrap:wrap}
+.mod-ico{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;flex:none;font-size:20px}
+.mod-ico.i-now{background:var(--accent-soft)}
+.mod-ico.i-recent{background:color-mix(in srgb,var(--vio) 14%,transparent)}
+.mod-ico.i-year{background:color-mix(in srgb,var(--amb) 18%,transparent)}
+.mod-t{flex:1;min-width:200px}
+.mod-t h2{font-size:var(--fs-h1);font-weight:700;letter-spacing:-.015em;line-height:1.3;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.mod-t h2 .en{font-size:var(--fs-micro);font-weight:700;letter-spacing:.14em;color:var(--t4)}
+.mod-t h2 .tagline{font-size:var(--fs-cap);font-weight:600;color:var(--accent-ink);background:var(--accent-soft);padding:3px 10px;border-radius:var(--r-pill)}
+.mod-t p{font-size:var(--fs-cap);color:var(--t3);margin-top:6px;line-height:1.7;max-width:600px}
+.mod-acts{display:flex;gap:8px;flex:none;flex-wrap:wrap}
+.mod-b{padding:20px 26px 24px;display:flex;flex-direction:column;gap:18px}
+.hair{height:1px;background:var(--line);margin:4px 0}
+
+/* ══ 小节 ══ */
+.sect{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.sect .n{width:20px;height:20px;border-radius:7px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-ink);font-size:var(--fs-micro);font-weight:700;flex:none}
+.sect .t{font-size:var(--fs-sub);font-weight:700}
+.sect .m{font-size:var(--fs-micro);color:var(--t4);margin-left:auto}
+
+/* ══ 指标胶囊（极简，36px） ══ */
+.strip{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.strip-lab{font-size:var(--fs-micro);font-weight:700;letter-spacing:.1em;color:var(--t4);text-transform:uppercase;padding-right:2px}
+.chip{display:inline-flex;align-items:baseline;gap:6px;height:36px;padding:0 15px;border-radius:var(--r-pill);
+background:var(--surface-2);cursor:pointer;transition:all var(--dur)}
+.chip:hover{background:var(--accent-soft);transform:translateY(-1px)}
+.chip:active{transform:translateY(0) scale(.98)}
+.chip .v{font-size:var(--fs-title);font-weight:700;line-height:1;letter-spacing:-.015em}
+.chip .v small{font-size:var(--fs-micro);font-weight:600;color:var(--t3);margin-left:1px}
+.chip .l{font-size:var(--fs-cap);color:var(--t3);font-weight:500}
+.chip .ar{font-size:8px;color:var(--t4);margin-left:-1px}
+.chip:hover .ar{color:var(--accent-ink)}
+.chip.ok .v{color:var(--ok)}.chip.acc .v{color:var(--accent-ink)}.chip.warn .v{color:var(--warn)}
+.chip.bad .v{color:var(--bad)}.chip.up .v{color:var(--ok)}.chip.down .v{color:var(--bad)}
+
+/* ══ 洞察条 ══ */
+.insight{display:flex;align-items:flex-start;gap:10px;font-size:var(--fs-sub);color:var(--t2);line-height:1.8;
+padding:12px 16px;border-radius:var(--r-md);background:linear-gradient(135deg,var(--accent-soft),transparent)}
+.insight .ic{flex:none;margin-top:1px;font-size:14px}
+.insight b{color:var(--t1);font-weight:700}
+
+/* ══ 节奏柱 ══ */
+.bars{display:flex;align-items:flex-end;gap:5px;height:76px;padding:0 2px}
+.bars .b{flex:1;min-width:4px;border-radius:6px 6px 3px 3px;cursor:pointer;transition:all var(--dur)}
+.bars .b:hover{transform:scaleY(1.05);filter:brightness(1.12)}
+.bars-x{display:flex;justify-content:space-between;font-size:var(--fs-micro);color:var(--t4);margin-top:7px;padding:0 2px}
+
+/* ══ 年度热力网格（OPPO 软方格） ══ */
+.hmbox{background:var(--surface-2);border-radius:var(--r-block);padding:16px 18px}
+.hm-months{display:flex;gap:3px;margin-bottom:6px;font-size:var(--fs-micro);color:var(--t4)}
+.hm-months span{width:13px;white-space:nowrap;overflow:visible}
+.hm-days{display:flex;gap:3px}
+.hm-days .wd{width:16px;flex:none;font-size:var(--fs-micro);color:var(--t4);height:13px;line-height:13px}
+.hm-wrap{display:flex;gap:5px;overflow-x:auto;padding-bottom:4px}
+.hm-col{display:flex;flex-direction:column;gap:3px;flex:none}
+.hm-c{width:13px;height:13px;border-radius:4px;cursor:pointer;transition:all var(--dur);flex:none}
+.hm-c:hover{transform:scale(1.28);outline:2px solid var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.hm-legend{display:flex;align-items:center;gap:5px;font-size:var(--fs-micro);color:var(--t4);margin-top:12px;flex-wrap:wrap}
+.hm-legend .s{width:12px;height:12px;border-radius:4px}
+.hm-stats{display:flex;gap:18px;flex-wrap:wrap;font-size:var(--fs-cap);color:var(--t3)}
+.hm-stats b{color:var(--t1);font-weight:700}
+
+/* ══ 六维 ══ */
+.dim6{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.dim{background:var(--surface-2);border-radius:var(--r-md);padding:11px 13px;cursor:pointer;transition:all var(--dur)}
+.dim:hover{background:var(--accent-soft);transform:translateY(-1px)}
+.dim .k{font-size:var(--fs-micro);color:var(--t3);display:flex;justify-content:space-between;gap:4px}
+.dim .v{font-size:var(--fs-h2);font-weight:700;margin-top:4px;line-height:1.1}
+.dim .d{font-size:var(--fs-micro);margin-top:2px}
+.dim .d .up{color:var(--ok);font-weight:700}.dim .d .dn{color:var(--bad);font-weight:700}.dim .d .eq{color:var(--t4)}
+
+/* ══ 目标 ══ */
+.goals{display:flex;flex-direction:column;gap:10px}
+.goal{display:flex;align-items:center;gap:12px;font-size:var(--fs-cap);cursor:pointer;padding:2px 0}
+.goal:hover .gbar i{filter:brightness(1.15)}
+.goal .nm{flex:none;width:168px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.goal .gbar{flex:1;height:9px;border-radius:5px;background:var(--h0);overflow:hidden}
+.goal .gbar i{display:block;height:100%;border-radius:5px;background:var(--grad);transition:all var(--dur)}
+.goal .n{flex:none;width:78px;text-align:right;color:var(--t3)}
+.goal .n b{color:var(--t1);font-weight:700}
+
+/* ══ 生命周期 ══ */
+.lc{display:flex;gap:30px;align-items:center;flex-wrap:wrap}
+.donut{width:132px;height:132px;border-radius:50%;position:relative;flex:none;
+background:conic-gradient(var(--ok) 0 43%,var(--warn) 43% 78%,var(--stg) 78% 100%)}
+.donut::after{content:'';position:absolute;inset:26px;border-radius:50%;background:var(--surface)}
+.donut-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2}
+.donut-c .n{font-size:var(--fs-hero);font-weight:700;letter-spacing:-.03em;line-height:1}
+.donut-c .k{font-size:var(--fs-micro);color:var(--t4);margin-top:3px}
+.lc-leg{display:flex;flex-direction:column;gap:7px;min-width:210px;flex:1}
+.lcr{display:flex;align-items:center;gap:10px;font-size:var(--fs-cap);padding:7px 12px;border-radius:var(--r-md);cursor:pointer;transition:all var(--dur)}
+.lcr:hover{background:var(--surface-2)}
+.lcr.on{background:var(--accent-soft)}
+.lcr .sw{width:10px;height:10px;border-radius:4px;flex:none}
+.lcr .nm{flex:1;color:var(--t2)}
+.lcr .ct{font-weight:700;font-size:var(--fs-sub)}
+.lc-list{flex:1;min-width:300px;display:flex;flex-direction:column;gap:7px}
+.lcrow{display:flex;align-items:center;gap:11px;padding:10px 13px;background:var(--surface-2);border-radius:var(--r-md);cursor:pointer;transition:all var(--dur)}
+.lcrow:hover{background:var(--accent-soft)}
+.lcrow .t{flex:1;font-size:var(--fs-cap);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lcrow .t .s{color:var(--t4);font-size:var(--fs-micro)}
+.lcrow .ops{display:flex;gap:6px;flex:none}
+
+/* ══ 操作流 ══ */
+.flow{display:flex;flex-direction:column;gap:2px;max-height:280px;overflow-y:auto;border-radius:var(--r-md)}
+.frow{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:var(--r-md);cursor:pointer;transition:background var(--dur)}
+.frow:hover{background:var(--surface-2)}
+.frow .tm{flex:none;width:40px;font-size:var(--fs-micro);color:var(--t4);font-family:ui-monospace,Consolas,monospace}
+.frow .ac{flex:none;font-size:var(--fs-micro);font-weight:700;padding:3px 9px;border-radius:var(--r-pill)}
+.frow .ti{flex:1;font-size:var(--fs-cap);color:var(--t1);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.frow .kd{flex:none;font-size:var(--fs-micro);color:var(--t4)}
+.ac-create{color:var(--ok);background:var(--ok-soft)}.ac-call{color:var(--accent-ink);background:var(--accent-soft)}
+.ac-status{color:var(--info);background:var(--info-soft)}.ac-delete,.ac-purge{color:var(--bad);background:var(--bad-soft)}
+.ac-restore{color:var(--warn);background:var(--warn-soft)}
+
+/* ══ 底部条 ══ */
+.endbar{display:flex;align-items:center;gap:12px;margin-top:56px;padding:16px 22px;border-radius:var(--r-card);
+background:var(--surface);box-shadow:var(--sh-card);flex-wrap:wrap}
+.endbar .tx{font-size:var(--fs-cap);color:var(--t3);flex:1;min-width:220px;line-height:1.7}
+@media (max-width:1100px){.dim6{grid-template-columns:repeat(3,1fr)}.tl{grid-template-columns:56px 1fr}.lc{flex-direction:column;align-items:stretch}}
+</style><style>
+/* ══ 下钻列表（DrillCardList） ══ */
+.drill{border-radius:var(--r-md);background:var(--surface-2);padding:11px 13px}
+.drill.plain{background:transparent;padding:2px 0}
+.drill-h{display:flex;align-items:center;gap:9px;font-size:var(--fs-cap);color:var(--t3);margin-bottom:8px;flex-wrap:wrap}
+.drill-h b{color:var(--t1);font-weight:700}
+.drill-hint{color:var(--t4);font-size:var(--fs-micro)}
+.drow{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);cursor:pointer;transition:background var(--dur)}
+.drow:hover{background:var(--surface)}
+.drow .i{flex:none;font-size:13px}
+.drow .t{flex:1;font-size:var(--fs-cap);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drow .n{flex:none;font-size:var(--fs-micro);font-weight:700;color:var(--accent-ink);background:var(--accent-soft);padding:2px 7px;border-radius:var(--r-pill)}
+.drow .m{flex:none;font-size:var(--fs-micro);color:var(--t4);font-family:ui-monospace,Consolas,monospace}
+.drow .p{flex:none;font-size:var(--fs-micro);color:var(--t3);background:var(--surface-3);padding:2px 8px;border-radius:var(--r-pill)}
+.drow .g{flex:none;color:var(--t4);font-size:11px}
+
+/* ══ 弹层 ══ */
+.ov{position:fixed;inset:0;z-index:var(--z-modal);background:rgba(0,0,0,.38);backdrop-filter:blur(6px);
+display:none;align-items:center;justify-content:center;padding:4vh 16px}
+.ov.on{display:flex}
+.sheet{width:min(760px,92vw);max-height:88vh;overflow-y:auto;background:var(--surface);border-radius:var(--r-card);
+box-shadow:var(--sh-pop);animation:pop .28s var(--ease) both}
+@keyframes pop{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
+.sheet.wide{width:min(900px,94vw)}
+.sheet.narrow{width:min(560px,92vw)}
+
+/* ══ 今日战报（DayDetail 五段 1:1） ══ */
+.dy-h{display:flex;align-items:center;gap:12px;padding:22px 26px 0}
+.dy-ic{width:40px;height:40px;border-radius:13px;background:var(--grad);color:#fff;display:grid;place-items:center;flex:none;
+box-shadow:0 6px 16px -6px color-mix(in srgb,var(--accent) 60%,transparent)}
+.dy-txt{flex:1;min-width:0}
+.dy-title{font-size:var(--fs-h1);font-weight:700;letter-spacing:-.015em}
+.dy-sub{font-size:var(--fs-sub);color:var(--t3);margin-top:2px}
+.dy-sum{margin:16px 26px 0;font-size:var(--fs-body);color:var(--t2);line-height:1.7}
+.dy-sum b{color:var(--t1);font-weight:700}
+.dy-recent{font-size:var(--fs-cap);color:var(--t3);margin-top:4px}
+.dy-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 26px 0}
+.dystat{background:var(--surface-2);border-radius:var(--r-md);padding:14px 16px;display:flex;flex-direction:column;gap:4px;cursor:pointer;text-align:left;transition:all var(--dur)}
+.dystat:hover:not(:disabled){background:var(--accent-soft);transform:translateY(-1px)}
+.dystat.on{background:var(--accent-soft);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.dystat.dim{opacity:.38;cursor:default}
+.dystat .n{font-size:var(--fs-hero);font-weight:700;line-height:1.05;letter-spacing:-.03em}
+.dystat .l{font-size:var(--fs-cap);color:var(--t3);display:flex;align-items:center;gap:5px;font-weight:600}
+.sc-create .n{color:var(--ok)}.sc-call .n{color:var(--accent-ink)}.sc-status .n{color:var(--info)}.sc-del .n{color:var(--bad)}
+.heatband{display:flex;align-items:center;gap:var(--sp-4);flex-wrap:wrap;margin:14px 26px 0;padding:11px 16px;border-radius:var(--r-md);background:var(--h0);color:var(--heat-ink);font-size:var(--fs-cap);font-weight:600}
+.heatband .lv{font-weight:700;font-size:var(--fs-sub)}
+.heatband.lv3{background:var(--h3);color:#fff}
+[data-theme='apple'] .heatband.lv3,[data-theme='notion'] .heatband.lv3{color:rgba(0,0,0,.78)}
+.dy-tl{padding:0 26px 20px}
+.dy-tl .th{display:flex;align-items:center;gap:9px;font-size:var(--fs-cap);color:var(--t3);margin:18px 0 8px;flex-wrap:wrap}
+.dy-tl .th b{color:var(--t1);font-weight:700}
+.tlgrp{margin-top:14px;margin-bottom:4px;font-size:var(--fs-micro);font-weight:700;color:var(--t4);letter-spacing:.04em}
+.tlrow{display:flex;align-items:center;gap:7px;padding:8px 0;border-bottom:1px solid var(--line);font-size:var(--fs-body);min-width:0;cursor:pointer;transition:background var(--dur)}
+.tlrow:last-child{border-bottom:none}
+.tlrow:hover{background:var(--surface-2)}
+.tlrow .tm{font-size:var(--fs-cap);color:var(--t4);width:58px;flex:none;text-align:right;font-family:ui-monospace,Consolas,monospace}
+.tlrow .dotcol{flex:none;width:16px;display:flex;align-items:center;justify-content:center;position:relative}
+.tlrow .dotcol::before{content:'';position:absolute;top:-9px;bottom:-9px;left:50%;width:1px;background:var(--line)}
+.tlrow .dot{width:7px;height:7px;border-radius:50%;display:block;position:relative;z-index:1}
+.tlrow .ac{flex:none;font-size:var(--fs-tiny);font-weight:700;padding:3px 9px;border-radius:var(--r-pill);white-space:nowrap}
+.tlrow .kd{flex:none;font-size:var(--fs-tiny);color:var(--t3)}
+.tlrow .ti{flex:1;color:var(--t1);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tlrow .to{flex:none;font-size:var(--fs-tiny);color:var(--accent-ink);background:var(--accent-soft);border-radius:var(--r-pill);padding:2px 9px}
+.dy-foot{display:flex;align-items:center;gap:9px;padding:14px 26px 22px;border-top:1px solid var(--line);margin-top:4px;flex-wrap:wrap}
+.dy-foot .note{font-size:var(--fs-tiny);color:var(--t4);flex:1;min-width:190px}
+
+/* ══ 复盘弹窗 ══ */
+.rv-bar{display:flex;align-items:center;gap:12px;padding:16px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap;background:var(--surface-2)}
+.rv-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-4);padding:var(--sp-4) var(--sp-5)}
+.rv-col{display:flex;flex-direction:column;gap:var(--sp-4);min-width:0}
+.blk{border-radius:var(--r-block);overflow:hidden;background:var(--surface-2)}
+.blk .bh{display:flex;align-items:center;gap:8px;padding:11px 14px;flex-wrap:wrap}
+.blk .bh .n{width:20px;height:20px;flex:none;border-radius:7px;display:grid;place-items:center;background:var(--surface);color:var(--accent-ink);font-size:var(--fs-micro);font-weight:700}
+.blk .bh .t{font-size:var(--fs-sub);font-weight:700}
+.blk .bh .meta{font-size:var(--fs-micro);color:var(--t4)}
+.blk .bb{padding:0 14px 14px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpi{background:var(--surface);border-radius:var(--r-md);padding:10px 12px;text-align:left;cursor:pointer;transition:all var(--dur)}
+.kpi:hover{background:var(--accent-soft);transform:translateY(-1px)}
+.kpi.on{background:var(--accent-soft);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.kpi .k{font-size:var(--fs-micro);color:var(--t3);display:flex;align-items:center;gap:4px}
+.kpi .k .go{margin-left:auto;color:var(--accent-ink);font-weight:700}
+.kpi .v{font-size:var(--fs-h1);font-weight:700;line-height:1.15;margin-top:2px}
+.kpi .v small{font-size:var(--fs-micro);font-weight:500;color:var(--t3);margin-left:2px}
+.kpi .c{font-size:var(--fs-micro);color:var(--t4);margin-top:2px}
+.kpi .c .up{color:var(--ok);font-weight:700}.kpi .c .dn{color:var(--bad);font-weight:700}
+.objs{display:flex;flex-direction:column;gap:7px}
+.obj{display:flex;align-items:center;gap:9px;font-size:var(--fs-cap);cursor:pointer;padding:3px 6px;border-radius:var(--r-sm);text-align:left;width:100%}
+.obj:hover,.obj.on{background:var(--accent-soft)}
+.obj .nm{width:124px;flex:none;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.obj .nm .f{font-size:var(--fs-micro);color:var(--accent-ink);font-weight:700;margin-right:3px}
+.obj .bar{flex:1;height:9px;border-radius:5px;background:var(--h0);overflow:hidden}
+.obj .bar i{display:block;height:100%;border-radius:5px;background:var(--grad)}
+.obj .n{width:80px;flex:none;text-align:right;color:var(--t3)}
+.obj .n b{color:var(--t1)}
+.obj-foot{margin-top:10px;font-size:var(--fs-cap);color:var(--t3);line-height:1.8}
+.obj-foot b{color:var(--t1)}.obj-foot .warn{color:var(--warn)}
+.rules{display:flex;flex-direction:column;gap:8px}
+.rule{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--r-md);background:var(--surface);cursor:pointer;text-align:left;width:100%;transition:all var(--dur)}
+.rule:hover{background:var(--accent-soft)}
+.rule.on{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.rule .rid{flex:none;width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:var(--fs-micro);font-weight:700;background:var(--warn-soft);color:var(--warn)}
+.rule .rb{flex:1;min-width:0}
+.rule .rt{font-size:var(--fs-cap);font-weight:700;display:block}
+.rule .rd{font-size:var(--fs-micro);color:var(--t3);display:block;line-height:1.6}
+.rule .go{color:var(--t4)}
+.rule-w{margin-top:10px;background:var(--surface);border-radius:var(--r-md);padding:11px 14px;font-size:var(--fs-cap);color:var(--t3);line-height:1.9}
+.rule-w .k{display:inline-block;width:36px;color:var(--t4)}
+.rule-w b{color:var(--t1)}
+
+/* ══ 抽屉 ══ */
+.drawer-ov{position:fixed;inset:0;z-index:var(--z-drawer);background:rgba(0,0,0,.3);backdrop-filter:blur(4px);display:none}
+.drawer-ov.on{display:block}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(580px,94vw);background:var(--surface);border-radius:var(--r-card) 0 0 var(--r-card);
+box-shadow:var(--sh-pop);z-index:calc(var(--z-drawer) + 1);display:none;flex-direction:column;animation:slide .3s var(--ease) both}
+.drawer.on{display:flex}
+@keyframes slide{from{transform:translateX(24px);opacity:.6}to{transform:none;opacity:1}}
+.dr-h{display:flex;align-items:center;gap:11px;padding:20px 22px;border-bottom:1px solid var(--line)}
+.dr-h .t{font-size:var(--fs-h1);font-weight:700;flex:1}
+.dr-h .t .d{font-size:var(--fs-micro);color:var(--t3);font-weight:400;margin-top:3px;line-height:1.6}
+.dr-f{display:flex;gap:8px;padding:13px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap;background:var(--surface-2)}
+.dr-b{flex:1;overflow-y:auto;padding:6px 12px 20px}
+.dr-day{font-size:var(--fs-micro);font-weight:700;color:var(--t3);letter-spacing:.04em;padding:16px 10px 5px;position:sticky;top:0;background:var(--surface);z-index:2}
+.dr-i{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);cursor:pointer;font-size:var(--fs-cap)}
+.dr-i:hover{background:var(--surface-2)}
+.dr-i .tt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t2)}
+.err{display:flex;gap:11px;padding:12px 14px;border-radius:var(--r-md);background:var(--surface-2);margin-bottom:9px;align-items:flex-start}
+.err.hit{background:var(--bad-soft)}
+.err .tm{font-size:var(--fs-micro);color:var(--t4);flex:none;padding-top:2px}
+
+/* ══ toast ══ */
+.toasts{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);z-index:var(--z-toast);display:flex;flex-direction:column;gap:9px;align-items:center;pointer-events:none}
+.toast{background:var(--t1);color:var(--bg);border-radius:var(--r-pill);padding:9px 20px;font-size:var(--fs-sub);font-weight:600;
+box-shadow:var(--sh-pop);animation:tin .3s var(--ease) both}
+@keyframes tin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+</style><style>
+/* ══ 调度台首页（CompassHome 1:1 · OPPO 风格） ══ */
+.note{display:flex;align-items:center;gap:9px;font-size:var(--fs-cap);color:var(--t3);padding:11px 16px;
+border-radius:var(--r-md);background:var(--accent-soft);margin-bottom:18px;line-height:1.7}
+.note b{color:var(--t1)}
+.mbar{display:flex;align-items:center;gap:10px;min-height:46px;padding:8px 18px;margin-bottom:18px;
+background:var(--surface);border-radius:var(--r-card);box-shadow:var(--sh-card);flex-wrap:wrap}
+.mbar-l,.mbar-r{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cf-lab{font-size:var(--fs-cap);color:var(--t3);white-space:nowrap;font-weight:600}
+.cf{display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border-radius:var(--r-pill);cursor:pointer;
+background:var(--accent-soft);transition:all var(--dur)}
+.cf:hover{transform:translateY(-1px)}
+.cf.done{opacity:.5}
+.cf .nm{font-size:var(--fs-cap);font-weight:700;color:var(--accent-ink)}
+.cf .pc{font-size:var(--fs-micro);font-weight:700;color:var(--t3)}
+.cf .st{font-size:var(--fs-micro);font-weight:700;color:var(--warn);background:var(--warn-soft);padding:2px 7px;border-radius:var(--r-pill)}
+.cf-hint{font-size:var(--fs-cap);color:var(--t4);cursor:pointer}
+.cf-hint:hover{color:var(--accent-ink)}
+.schip{display:inline-flex;align-items:center;gap:7px;font-size:var(--fs-micro);color:var(--t3);
+padding:6px 12px;border-radius:var(--r-pill);background:var(--surface-2);cursor:pointer;transition:all var(--dur);white-space:nowrap;font-weight:600}
+.schip:hover{background:var(--surface-3)}
+.schip .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+.schip.err{color:var(--bad)}.schip.err .dot{background:var(--bad)}
+.schip.sync .dot{background:var(--info)}
+
+.hmod{margin-bottom:22px}
+.card{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--sh-card);overflow:hidden}
+.card-h{display:flex;align-items:center;gap:11px;padding:18px 22px 14px;flex-wrap:wrap}
+.card-h .ico{width:34px;height:34px;border-radius:11px;background:var(--accent-soft);display:grid;place-items:center;flex:none;font-size:16px}
+.card-h .nm{font-size:var(--fs-h1);font-weight:700;letter-spacing:-.015em}
+.card-h .en{font-size:var(--fs-micro);font-weight:700;letter-spacing:.14em;color:var(--t4)}
+.card-b{padding:0 22px 22px}
+
+/* 今日三件事 */
+.f3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.fcard{position:relative;background:var(--surface-2);border-radius:var(--r-block);padding:14px 15px 12px;cursor:pointer;
+transition:all var(--dur);min-height:120px;display:flex;flex-direction:column;gap:8px}
+.fcard:hover{background:var(--accent-soft);transform:translateY(-2px)}
+.fcard.sel{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.fcard.done{opacity:.55}
+.fcard.empty{border:1.5px dashed var(--line-strong);background:transparent;align-items:center;justify-content:center;text-align:center}
+.fcard.empty:hover{border-color:var(--accent);background:var(--accent-soft)}
+.fc-n{font-size:var(--fs-micro);font-weight:700;color:var(--t4);letter-spacing:.1em}
+.fc-row{display:flex;align-items:flex-start;gap:9px}
+.fc-ck{flex:none;width:18px;height:18px;border-radius:6px;border:1.6px solid var(--line-strong);display:grid;place-items:center;font-size:10px;color:#fff;cursor:pointer;transition:all var(--dur);margin-top:1px}
+.fc-ck:hover{border-color:var(--accent)}
+.fc-ck.done{background:var(--ok);border-color:var(--ok)}
+.fc-t{font-size:var(--fs-sub);font-weight:600;line-height:1.55;flex:1;min-width:0}
+.fc-meta{display:flex;gap:5px;flex-wrap:wrap}
+.tag{display:inline-flex;align-items:center;gap:3px;font-size:var(--fs-micro);font-weight:600;padding:2px 8px;border-radius:var(--r-pill);white-space:nowrap}
+.tag.neutral{background:var(--surface-3);color:var(--t3)}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.tag.acc{background:var(--accent-soft);color:var(--accent-ink)}
+.fc-subs{display:flex;flex-direction:column;gap:3px;max-height:60px;overflow:hidden;padding-top:6px;border-top:1px solid var(--line)}
+.fc-sub{display:flex;align-items:flex-start;gap:6px;font-size:var(--fs-micro);color:var(--t3);cursor:pointer;line-height:1.6}
+.fc-sub .ck{flex:none;width:12px;height:12px;border-radius:4px;border:1px solid var(--line-strong);display:grid;place-items:center;font-size:8px;color:#fff;margin-top:2px}
+.fc-sub.done .ck{background:var(--ok);border-color:var(--ok)}
+.fc-sub.done .tx{text-decoration:line-through;color:var(--t4)}
+.fc-rm{position:absolute;top:10px;right:11px;font-size:13px;color:var(--t4);opacity:0;transition:all var(--dur)}
+.fcard:hover .fc-rm{opacity:1}.fc-rm:hover{color:var(--bad)}
+.f3-done{text-align:center;font-size:var(--fs-sub);color:var(--t3);padding:16px 0 2px;font-weight:600}
+
+/* 为什么浮层 */
+.whywrap{position:relative}
+.whybtn{width:30px;height:30px;border-radius:var(--r-pill);display:grid;place-items:center;background:var(--surface-2);cursor:pointer;color:var(--accent-ink);transition:all var(--dur)}
+.whybtn:hover,.whybtn.on{background:var(--accent-soft)}
+.why{position:absolute;top:38px;right:0;width:min(420px,92vw);background:var(--surface);border-radius:var(--r-block);
+box-shadow:var(--sh-pop);z-index:60;padding:16px 18px}
+.why-h{font-size:var(--fs-sub);font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.why-r{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.why-r:last-of-type{border-bottom:none}
+.why-r .n{font-size:var(--fs-micro);font-weight:700;color:var(--t4);flex:none;padding-top:2px}
+.why-r .t{font-size:var(--fs-cap);font-weight:700;line-height:1.6}
+.why-r .t.off{color:var(--t4);font-weight:500}
+.why-r .w{font-size:var(--fs-micro);color:var(--t3);line-height:1.75;margin-top:3px}
+.why-f{font-size:var(--fs-micro);color:var(--t3);line-height:1.8;padding:11px 0;border-top:1px solid var(--line);margin-top:6px}
+.why-f b{color:var(--t1)}
+.why-a{display:flex;gap:7px;flex-wrap:wrap}
+
+/* 热力 */
+.heat-top{display:flex;align-items:center;gap:11px;margin-bottom:14px;flex-wrap:wrap}
+.heat-top .t{font-size:var(--fs-sub);font-weight:700}
+.heat-top .m{font-size:var(--fs-micro);color:var(--t4)}
+.hm-pill{font-size:var(--fs-micro);color:var(--t3);padding:3px 10px;border-radius:var(--r-pill);background:var(--surface-2);font-weight:600}
+
+/* 三张卡 */
+.deck-t{display:flex;align-items:center;gap:11px;padding:18px 22px 12px}
+.deck-tabs{display:flex;gap:6px;padding:0 22px 14px;border-bottom:1px solid var(--line)}
+.dtab{display:flex;align-items:center;gap:7px;padding:8px 15px;border-radius:var(--r-pill);font-size:var(--fs-sub);color:var(--t3);
+background:var(--surface-2);transition:all var(--dur);font-weight:600}
+.dtab:hover{color:var(--t1)}
+.dtab.on{background:var(--grad);color:#fff;box-shadow:0 4px 12px -4px color-mix(in srgb,var(--accent) 55%,transparent)}
+.dtab .cnt{font-size:var(--fs-micro);font-weight:700;background:var(--surface);color:var(--t3);padding:1px 7px;border-radius:var(--r-pill)}
+.dtab.on .cnt{background:rgba(255,255,255,.22);color:#fff}
+.dpane{padding:14px 22px 22px}
+.drow{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:var(--r-md);background:var(--surface-2);margin-bottom:8px;cursor:pointer;transition:all var(--dur)}
+.drow:hover{background:var(--accent-soft);transform:translateY(-1px)}
+.drow .ck{flex:none;width:17px;height:17px;border-radius:5px;border:1.5px solid var(--line-strong);display:grid;place-items:center;font-size:9px;color:#fff}
+.drow .ck.done{background:var(--ok);border-color:var(--ok)}
+.drow .tx{flex:1;font-size:var(--fs-cap);min-width:0}
+.drow .tx .s{font-size:var(--fs-micro);color:var(--t4);display:block;margin-top:2px}
+.dnew{display:flex;align-items:center;justify-content:center;gap:7px;padding:12px;border:1.5px dashed var(--line-strong);
+border-radius:var(--r-md);color:var(--t3);font-size:var(--fs-cap);cursor:pointer;transition:all var(--dur);font-weight:600}
+.dnew:hover{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft)}
+.dbar{display:flex;align-items:center;gap:10px;font-size:var(--fs-cap);color:var(--t3);margin-bottom:12px}
+.dbar .bar{flex:1;height:8px;border-radius:4px;background:var(--h0);overflow:hidden}
+.dbar .bar i{display:block;height:100%;border-radius:4px;background:var(--grad)}
+
+/* 任务选取 / 导出 */
+.pm{width:min(580px,92vw);max-height:80vh;background:var(--surface);border-radius:var(--r-card);box-shadow:var(--sh-pop);display:flex;flex-direction:column;animation:pop .28s var(--ease) both}
+.pm-h{display:flex;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line);font-size:var(--fs-sub);font-weight:700}
+.pm-h .x{margin-left:auto;width:28px;height:28px;border-radius:var(--r-pill);display:grid;place-items:center;color:var(--t3);cursor:pointer}
+.pm-h .x:hover{background:var(--surface-2)}
+.pm-f{display:flex;gap:9px;padding:14px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.pm-f input{flex:1;min-width:130px}
+.pm-b{flex:1;overflow-y:auto;padding:8px 12px}
+.pm-i{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:var(--r-md);cursor:pointer;transition:background var(--dur)}
+.pm-i:hover{background:var(--surface-2)}
+.pm-i.dis{opacity:.4;pointer-events:none}
+.pi-ck{flex:none;width:20px;color:var(--accent-ink);font-weight:700;text-align:center}
+.pi-t{flex:1;font-size:var(--fs-cap);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pi-m{display:flex;gap:5px;margin-top:4px;flex-wrap:wrap}
+.pm-ft{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:9px;justify-content:flex-end}
+.empty{text-align:center;color:var(--t4);font-size:var(--fs-cap);padding:28px 0}
+@media (max-width:1000px){.f3{grid-template-columns:1fr}.rv-grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}.dim6{grid-template-columns:repeat(3,1fr)}}
+</style></head>
+<body>
+<!-- 顶栏 = 生产 App.vue 真实结构：品牌位（→画像洞察）+ 调度台 + 方向台 + divider + N 策展台 + ＋ ｜ 右侧 ⌘K/主题/搜索/设置 -->
+<header class="nav">
+  <div class="nav-in">
+    <button class="brand" onclick="go('profile')" title="画像洞察 · 点击查看我的画像与洞察">
+      <span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+      <span class="bn">知源调度台</span><span class="be">Ownway</span>
+    </button>
+    <nav class="nav-tabs">
+      <button class="nav-tab" data-nav="home" onclick="go('home')">调度台</button>
+      <button class="nav-tab" data-nav="x" onclick="stub('方向台')">🧭 方向台</button>
+      <span class="nav-div"></span>
+      <button class="nav-tab" data-nav="x" onclick="stub('策展台')">📁 研究生备考</button>
+      <button class="nav-tab" data-nav="x" onclick="stub('策展台')">📁 AI学习力体系</button>
+      <button class="nav-tab nav-add" onclick="stub('新增策展台')">＋</button>
+    </nav>
+    <div class="nav-right">
+      <button class="nav-chip" onclick="stub('全局搜索')">调出快捷键 ⌘K</button>
+      <button class="theme-pick" id="themeBtn">
+        <span class="tw" data-t="linear"></span><span class="tw" data-t="raycast"></span>
+        <span class="tw on" data-t="apple"></span><span class="tw" data-t="notion"></span>
+        <span id="themeName" style="font-weight:700;color:var(--t1);font-size:var(--fs-cap)">apple</span>
+      </button>
+      <button class="nav-ico" onclick="stub('全局搜索')" title="全局搜索">🔍</button>
+      <button class="nav-ico" onclick="stub('设置')" title="设置">⚙️</button>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ 页面 1 · 画像洞察 /profile ═══ -->
+<div class="page vp on" id="vp-profile">
+
+  <!-- 页头 = ProfileInsights §0：画像摘要 + 战报入口 + 导出 + AI 解读 -->
+  <section class="hero">
+    <div class="hero-l">
+      <div class="hero-eyebrow"><span class="dot"></span>画像洞察 · PROFILE INSIGHTS</div>
+      <h1 class="hero-t">你的知识生命体征<span class="en">PROFILE INSIGHTS</span></h1>
+      <p class="hero-sub">不是又一个仪表盘，是<b style="color:var(--t1)">一条时间线</b>：今天做了什么、这一周什么节奏、这一年走过多远。所有指标可点开明细。</p>
+      <div class="hero-sum">
+        <button class="hchip" onclick="drill('total','卡片总量 · 未删除')"><span class="v">284<small>张</small></span><span class="l">卡片总量</span></button>
+        <button class="hchip" onclick="drill('streak','连续打卡 · 连续有记录的天数')"><span class="v">12<small>天</small></span><span class="l">连续打卡</span></button>
+        <button class="hchip" onclick="drill('active','活跃天数 · 有任意有效动作')"><span class="v">284<small>天</small></span><span class="l">活跃天数</span></button>
+        <button class="hchip" onclick="drill('entropy','知识熵 · 卡片主题离散度')"><span class="v">4.2</span><span class="l">知识熵</span></button>
+        <button class="hchip" onclick="drill('longest','最长连续 · 历史峰值')"><span class="v">28<small>天</small></span><span class="l">最长连续</span></button>
+      </div>
+    </div>
+    <div class="hero-r">
+      <div class="hero-acts">
+        <button class="btn line" onclick="toast('已刷新 · 数据来自本机事件日志')">⟳ 刷新</button>
+        <button class="btn line" onclick="toast('✓ 已导出画像摘要（当前主题配色）')">⬇ 导出</button>
+        <button class="btn line" onclick="toast('🤖 AI 解读生成中…')">✦ AI 解读</button>
+        <button class="btn pri" onclick="openBattle(TODAY)">📊 今日战报</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="tl">
+    <aside class="rail" id="rail">
+      <div class="rnode on" data-k="now" onclick="jump('now')"><span class="rdot"></span><span class="rlab">今天<br>TODAY</span></div>
+      <div class="rnode" data-k="recent" onclick="jump('recent')"><span class="rdot"></span><span class="rlab">近期<br>WEEK</span></div>
+      <div class="rnode" data-k="year" onclick="jump('year')"><span class="rdot"></span><span class="rlab">全年<br>YEAR</span></div>
+    </aside>
+
+    <div class="rmods">
+
+      <!-- ═══ ① 今天 · TODAY —— 今日战报（产品现状口径） ═══ -->
+      <section class="mod" id="mod-now" data-k="now">
+        <div class="mod-h">
+          <span class="mod-ico i-now">📊</span>
+          <div class="mod-t">
+            <h2>今日战报<span class="en">DAILY REPORT</span><span class="tagline">DayDetail · 五段式</span></h2>
+            <p>当天的四类记录，全部来自本机事件日志。点任一格 → 明细下钻（单击定位 · 双击开链接）。</p>
+          </div>
+          <div class="mod-acts">
+            <button class="btn line" onclick="openBattle(TODAY)">打开战报</button>
+            <button class="btn pri" onclick="openBattle(TODAY)">▸</button>
+          </div>
+        </div>
+        <div class="mod-b">
+          <div class="strip">
+            <span class="strip-lab">今日</span>
+            <button class="chip up" onclick="drill('d-in','今日入台 · action=create（含导入）')"><span class="v">8<small>张</small></span><span class="l">今日入台</span><span class="ar">▸</span></button>
+            <button class="chip bad" onclick="drill('d-out','今日移出 · action=delete（软删，可恢复）')"><span class="v">3<small>张</small></span><span class="l">今日移出</span><span class="ar">▸</span></button>
+            <button class="chip acc" onclick="drill('d-call','今日调出 · action=call（被打开的卡片）')"><span class="v">12<small>次</small></span><span class="l">今日调出</span><span class="ar">▸</span></button>
+            <button class="chip" onclick="openBattle(TODAY)"><span class="v">20<small>条</small></span><span class="l">写入记录</span><span class="ar">▸</span></button>
+            <button class="chip ok" onclick="drill('streak','连续打卡 · 连续有记录的天数')"><span class="v">12<small>天</small></span><span class="l">连续打卡</span><span class="ar">▸</span></button>
+            <button class="chip acc" onclick="openBattle(TODAY)"><span class="v">✅</span><span class="l">复盘就绪</span><span class="ar">▸</span></button>
+          </div>
+          <div class="hair"></div>
+          <div>
+            <div class="sect"><span class="n">1</span><span class="t">今日三件事</span><span class="m">来自调度台 · 点任一格进详情</span></div>
+            <div class="f3" id="f3mini"></div>
+          </div>
+          <div class="insight"><span class="ic">💡</span><div><b>今日洞察：</b>入台 8 张已超日均线（5.4），且集中在「AI 学习力」主题——最近一周你在密集补这个方向。今晚建议补一条复盘，把今天 20 条写入记录固化成结论。</div></div>
+        </div>
+      </section>
+
+      <!-- ═══ ② 近期 · WEEK —— 一周的节奏（整合原模块4：操作流 / 错误日志） ═══ -->
+      <section class="mod" id="mod-recent" data-k="recent">
+        <div class="mod-h">
+          <span class="mod-ico i-recent">🎯</span>
+          <div class="mod-t">
+            <h2>一周的节奏<span class="en">RHYTHM</span></h2>
+            <p>柱看密度、六维看均衡、目标看进度、预检看堆积。操作流与错误日志也在本段，不再单独成段。</p>
+          </div>
+          <div class="mod-acts">
+            <div class="seg" id="rangeSeg">
+              <button class="on" onclick="setRange(this,'w')">本周</button>
+              <button onclick="setRange(this,'m')">本月</button>
+              <button onclick="setRange(this,'y')">今年</button>
+            </div>
+            <button class="btn line" onclick="openReview()">📈 周/月复盘</button>
+          </div>
+        </div>
+        <div class="mod-b">
+          <div class="strip">
+            <span class="strip-lab">本周</span>
+            <button class="chip up" onclick="drill('wk-add','本周新增 · 窗口内 create')"><span class="v">23<small>张</small></span><span class="l">新增</span><span class="ar">▸</span></button>
+            <button class="chip" onclick="drill('wk-arch','本周归档 · 状态变更 → 归档')"><span class="v">15<small>张</small></span><span class="l">归档</span><span class="ar">▸</span></button>
+            <button class="chip acc" onclick="drill('wk-acts','有效动作 · 剔除打开类噪声')"><span class="v">41<small>件</small></span><span class="l">有效动作</span><span class="ar">▸</span></button>
+            <button class="chip" onclick="drill('wk-w','加权分 · 按动作权重加总')"><span class="v">268<small>分</small></span><span class="l">加权</span><span class="ar">▸</span></button>
+            <button class="chip warn" onclick="drill('wk-pace','节奏波动 · 加权分变异系数')"><span class="v">±18<small>%</small></span><span class="l">节奏波动</span><span class="ar">▸</span></button>
+          </div>
+          <div class="hair"></div>
+          <div>
+            <div class="sect"><span class="n">1</span><span class="t">节奏曲线</span><span class="m">加权分 · 点柱 → 该日战报</span></div>
+            <div class="bars" id="bars"></div>
+            <div class="bars-x"><span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>周日</span></div>
+          </div>
+          <div>
+            <div class="sect"><span class="n">2</span><span class="t">六维学习力</span><span class="m">点任一维 → 明细</span></div>
+            <div class="dim6" id="dim6"></div>
+          </div>
+          <div>
+            <div class="sect"><span class="n">3</span><span class="t">目标进度</span><span class="m">点条形 → 该目标产出</span></div>
+            <div class="goals" id="goals"></div>
+          </div>
+          <div>
+            <div class="sect"><span class="n">4</span><span class="t">归档预检</span><span class="m">4 条规则 · 点规则看阈值与实测</span></div>
+            <div class="strip">
+              <button class="chip ok" onclick="rule('R1','重复卡检测','阈值 ≥3 相似度','命中 0 组')"><span class="v">✅</span><span class="l">重复卡</span><span class="ar">▸</span></button>
+              <button class="chip warn" onclick="rule('R2','长期未回顾','阈值 90 天未打开','实测 17 张超阈')"><span class="v">17<small>张</small></span><span class="l">长期未回顾</span><span class="ar">▸</span></button>
+              <button class="chip" onclick="rule('R3','孤立卡检测','阈值 ≥5 张无链接','命中 2 张')"><span class="v">2<small>张</small></span><span class="l">孤立卡</span><span class="ar">▸</span></button>
+              <button class="chip warn" onclick="rule('R4','生命周期堆积','健康线 成长期 ≤50%','实测 61% 超线')"><span class="v">61<small>%</small></span><span class="l">成长期占比</span><span class="ar">▸</span></button>
+            </div>
+          </div>
+          <div class="hair"></div>
+          <div>
+            <div class="sect"><span class="n">5</span><span class="t">操作流</span><span class="m">单击定位 · 双击开链接</span></div>
+            <div class="strip" style="margin-bottom:10px">
+              <div class="seg" id="flowSeg">
+                <button class="on" onclick="setFlow(this,'all')">全部</button>
+                <button onclick="setFlow(this,'create')">录入</button>
+                <button onclick="setFlow(this,'call')">调用</button>
+                <button onclick="setFlow(this,'status')">状态</button>
+              </div>
+              <span class="sp"></span>
+              <button class="btn sm line" onclick="openDrawer('err')">🚨 错误日志</button>
+              <button class="btn sm line" onclick="openDrawer('log')">🗂️ 全部记录 ›</button>
+            </div>
+            <div class="flow" id="flow"></div>
+            <div style="font-size:var(--fs-micro);color:var(--t4);margin-top:9px;line-height:1.7">操作流仅保留最近 500 条，更早的记录在「全部记录」抽屉按日检索。</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ ③ 全年 · YEAR —— 年度热力图 + 生命周期 ═══ -->
+      <section class="mod" id="mod-year" data-k="year">
+        <div class="mod-h">
+          <span class="mod-ico i-year">📅</span>
+          <div class="mod-t">
+            <h2>这一年，你走过什么<span class="en">LIFECYCLE</span></h2>
+            <p>全年尺度：热力看分布、生命周期看流转。点任意一天 → 该日战报。</p>
+          </div>
+          <div class="mod-acts">
+            <div class="seg" id="hmSeg">
+              <button class="on" onclick="setHm(this,'y')">年</button>
+              <button onclick="setHm(this,'m')">月</button>
+            </div>
+            <button class="btn line" onclick="openReview()">📈 目标对账</button>
+          </div>
+        </div>
+        <div class="mod-b">
+          <div class="strip">
+            <span class="strip-lab">累计</span>
+            <button class="chip up" onclick="drill('as-create','累计入台 · action=create 全量')"><span class="v">1,247<small>次</small></span><span class="l">入台</span><span class="ar">▸</span></button>
+            <button class="chip acc" onclick="drill('as-call','累计调出 · 卡片被打开次数')"><span class="v">8,412<small>次</small></span><span class="l">调出</span><span class="ar">▸</span></button>
+            <button class="chip" onclick="drill('as-status','累计状态变更 · 生命周期迁移')"><span class="v">2,073<small>次</small></span><span class="l">状态变更</span><span class="ar">▸</span></button>
+            <button class="chip bad" onclick="drill('as-del','累计清理 · delete + purge')"><span class="v">318<small>次</small></span><span class="l">清理</span><span class="ar">▸</span></button>
+            <button class="chip warn" onclick="openDrawer('err')"><span class="v">3<small>条</small></span><span class="l">近 30 天错误</span><span class="ar">▸</span></button>
+          </div>
+          <div class="hair"></div>
+          <div>
+            <div class="sect"><span class="n">1</span><span class="t">年度热力图</span><span class="m">点任意格 → 该日战报</span></div>
+            <div class="hmbox">
+              <div class="hm-months" id="hmMonths"></div>
+              <div class="hm-wrap"><div class="hm-days"><span class="wd">一</span><span class="wd">三</span><span class="wd">五</span></div>
+                <div style="display:flex;gap:3px;overflow-x:auto;padding-bottom:4px" id="hm"></div></div>
+              <div class="hm-legend">
+                <span>少</span>
+                <span class="s" style="background:var(--h0)"></span><span class="s" style="background:var(--h1)"></span>
+                <span class="s" style="background:var(--h2)"></span><span class="s" style="background:var(--h3)"></span>
+                <span class="s" style="background:var(--h4)"></span><span class="s" style="background:var(--h5)"></span>
+                <span>多</span>
+                <span class="hm-stats" style="margin-left:auto">活跃 <b>284</b> 天 · 最长连续 <b>28</b> 天 · 单日峰值 <b>55</b> 分（03-18）</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="sect"><span class="n">2</span><span class="t">生命周期</span><span class="m">点状态 → 该状态卡片明细</span></div>
+            <div class="lc">
+              <div class="donut"><div class="donut-c"><span class="n">284</span><span class="k">张卡片</span></div></div>
+              <div class="lc-leg" id="lcLeg"></div>
+              <div class="lc-list" id="lcList"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <div class="endbar">
+    <span class="tx">数据只在本机 · 全部口径来自 <b>zy_event_log</b> 与卡片生命周期字段 · 导出 PNG / HTML / Markdown 三种分享格式</span>
+    <button class="btn line" onclick="openDrawer('log')">🗂️ 全部记录</button>
+    <button class="btn line" onclick="openDrawer('err')">🚨 错误日志</button>
+    <button class="btn pri" onclick="openBattle(TODAY)">📊 打开今日战报</button>
+  </div>
+</div><!-- ═══ 页面 2 · 调度台 /（CompassHome 1:1） ═══ -->
+<div class="page vp" id="vp-home">
+  <div class="note">📌 本页是<b>调度台首页</b>的完整交互原型：合流状态条 / 今日三件事 / 年度热力图 / 三张卡，以及全部弹窗与下钻。生产代码见 <b>CompassHome.vue</b>。</div>
+
+  <div class="mbar">
+    <div class="mbar-l">
+      <span class="cf-lab">🚀 主攻</span>
+      <span class="cf" onclick="toast('进入项目详情页（原型示意）')"><span class="nm">AI学习力体系</span><span class="pc">62%</span></span>
+      <span class="cf" onclick="toast('进入项目详情页（原型示意）')"><span class="nm">高考志愿咨询</span><span class="pc">38%</span><span class="st">⚠ 停滞</span></span>
+    </div>
+    <div class="mbar-r">
+      <span class="sp"></span>
+      <button class="schip" onclick="toast('本机存储正常 · 已用 486 KB')"><span class="dot"></span><span>本机存储正常 · 刚写入</span></button>
+      <button class="schip sync" onclick="toast('立即同步到 Airtable（原型示意）')"><span class="dot"></span><span>⇄ 12 分钟前同步</span></button>
+      <button class="btn pri" onclick="go('profile')">📈 复盘</button>
+    </div>
+  </div>
+
+  <div class="hmod">
+    <div class="card">
+      <div class="card-h">
+        <span class="ico">🔥</span><span class="nm">今日三件事</span><span class="en">TODAY'S FOCUS</span>
+        <span class="sp"></span>
+        <button class="btn sm line" onclick="toast('✓ 已复制昨日三件事')">⧉ 复制昨日</button>
+        <button class="btn sm line" onclick="openExport()">⬇ 导出</button>
+        <div class="seg"><button onclick="shiftDate(-1)">‹</button><button class="on" id="f3date">10月13日 周一</button><button onclick="shiftDate(1)">›</button></div>
+        <div class="whywrap"><button class="whybtn" id="whyBtn" onclick="toggleWhy()">✦</button><div class="why" id="why" style="display:none"></div></div>
+      </div>
+      <div class="card-b">
+        <div class="f3" id="f3"></div>
+        <div class="f3-done" id="f3done" style="display:none">✓ 今日三件事已闭环 · 专注带来从容</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hmod">
+    <div class="card">
+      <div class="card-h">
+        <span class="ico">📅</span><span class="nm">年度热力图</span><span class="en">YEAR HEATMAP</span>
+        <span class="sp"></span>
+        <div class="seg" id="hmSeg2"><button class="on" onclick="setHm2(this,'y')">年</button><button onclick="setHm2(this,'m')">月</button></div>
+        <button class="btn sm line" onclick="openDrawer('log')">🗂️ 操作记录</button>
+      </div>
+      <div class="card-b">
+        <div class="heat-top"><span class="t">2026 年 · 活跃热力</span><span class="hm-pill">年度加权 8,412 分</span>
+          <span class="m">· 活跃 284 天 · 最长连续 28 天 · 单日峰值 55 分（03-18）</span></div>
+        <div class="hmbox">
+          <div class="hm-months" id="hmMonths2"></div>
+          <div class="hm-wrap"><div class="hm-days"><span class="wd">一</span><span class="wd">三</span><span class="wd">五</span></div>
+            <div style="display:flex;gap:3px;overflow-x:auto;padding-bottom:4px" id="hm2"></div></div>
+          <div class="hm-legend"><span>少</span>
+            <span class="s" style="background:var(--h0)"></span><span class="s" style="background:var(--h1)"></span>
+            <span class="s" style="background:var(--h2)"></span><span class="s" style="background:var(--h3)"></span>
+            <span class="s" style="background:var(--h4)"></span><span class="s" style="background:var(--h5)"></span>
+            <span>多</span><span style="margin-left:auto">点任意格 → 打开该日战报</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hmod">
+    <div class="card">
+      <div class="deck-t"><span class="ico" style="width:34px;height:34px;border-radius:11px;background:var(--accent-soft);display:grid;place-items:center;font-size:16px">🗂️</span>
+        <span class="nm" style="font-size:var(--fs-h1);font-weight:700">三张卡</span><span class="en" style="font-size:var(--fs-micro);font-weight:700;letter-spacing:.14em;color:var(--t4)">THREE DECKS</span></div>
+      <div class="deck-tabs" id="deckTabs">
+        <button class="dtab on" onclick="setDeck(this,'task')">📋 任务卡<span class="cnt">18</span></button>
+        <button class="dtab" onclick="setDeck(this,'curio')">💡 好奇心卡<span class="cnt">12</span></button>
+        <button class="dtab" onclick="setDeck(this,'pool')">📦 资源卡<span class="cnt">47</span></button>
+      </div>
+      <div class="dpane" id="deck"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 弹层 -->
+<div class="ov" id="ovBattle"><div class="sheet"><div id="battle"></div></div></div>
+<div class="ov" id="ovDrill"><div class="sheet narrow"><div id="drill"></div></div></div>
+<div class="ov" id="ovReview"><div class="sheet wide"><div id="review"></div></div></div>
+<div class="ov" id="ovPicker"><div class="pm">
+  <div class="pm-h"><span>📋 从任务库选取</span><span class="x" onclick="closePicker()">×</span></div>
+  <div class="pm-f"><input id="pkS" placeholder="🔍 搜索任务..." oninput="renderPicker()"><select id="pkP" onchange="renderPicker()"></select></div>
+  <div class="pm-b" id="pkB"></div>
+  <div class="pm-ft"><button class="btn line" onclick="closePicker()">取消</button></div></div></div>
+<div class="ov" id="ovExport"><div class="pm" style="width:min(420px,92vw)">
+  <div class="pm-h"><span>⬇ 导出三件事任务（CSV）</span><span class="x" onclick="closeExport()">×</span></div>
+  <div class="pm-b" style="padding:18px 22px">
+    <div style="font-size:var(--fs-cap);color:var(--t3);margin-bottom:9px">时间范围（按三件事安排日期）</div>
+    <div style="display:flex;gap:9px;align-items:center"><input type="date" value="2026-10-07" style="flex:1"><span style="color:var(--t3)">→</span><input type="date" value="2026-10-13" style="flex:1"></div>
+    <div style="font-size:var(--fs-micro);color:var(--t4);margin-top:12px;line-height:1.8">导出字段：任务内容 / 所属项目 / 项目→成功指标 / 任务状态 / 安排时间 / 创建时间</div></div>
+  <div class="pm-ft"><button class="btn line" onclick="closeExport()">取消</button><button class="btn pri" onclick="closeExport();toast('✓ 已导出 28 条记录（CSV）')">✓ 导出 CSV</button></div></div></div>
+
+<div class="drawer-ov" id="drvOv" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="dr-h"><div class="t"><span id="drT">全部记录</span><div class="d" id="drD"></div></div><button class="btn line sm" onclick="closeDrawer()">收起 ×</button></div>
+  <div class="dr-f" id="drF"></div>
+  <div class="dr-b" id="drB"></div>
+</aside>
+<div class="toasts" id="toasts"></div><script>
+/* ══ 基础 ══ */
+const TODAY='2026-10-13';
+function toast(m){const w=document.getElementById('toasts');const d=document.createElement('div');d.className='toast';d.textContent=m;w.appendChild(d);
+  setTimeout(()=>{d.style.transition='opacity .3s';d.style.opacity='0';setTimeout(()=>d.remove(),320)},2000)}
+function go(p){document.querySelectorAll('.vp').forEach(v=>v.classList.remove('on'));document.getElementById('vp-'+p).classList.add('on');
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.toggle('on',t.dataset.nav===p));
+  document.querySelector('.brand').classList.toggle('on',p==='profile');window.scrollTo({top:0,behavior:'smooth'})}
+function stub(n){toast('「'+n+'」页原型未覆盖 —— 本轮只做 洞察 / 调度 两页')}
+function jump(k){document.getElementById('mod-'+k).scrollIntoView({behavior:'smooth',block:'start'})}
+document.getElementById('themeBtn').addEventListener('click',e=>{const t=e.target.closest('.tw');if(!t)return;const k=t.dataset.t;
+  document.documentElement.dataset.theme=k;document.querySelectorAll('.theme-pick .tw').forEach(x=>x.classList.toggle('on',x.dataset.t===k));
+  document.getElementById('themeName').textContent=k});
+function closeAll(){['ovBattle','ovDrill','ovReview','ovPicker','ovExport'].forEach(i=>document.getElementById(i).classList.remove('on'))}
+document.addEventListener('click',e=>{if(e.target.classList.contains('ov'))closeAll()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAll();closeDrawer()}});
+
+/* ══ 数据 ══ */
+const C={
+ c1:['🌱','AI Agent 记忆机制','#AI学习力 · 资源'],c2:['🧠','费曼技巧 × 输出倒逼','#学习方法 · 资源'],
+ c3:['🏠','家庭决策动力学 v2','#志愿咨询 · 资源'],c4:['🛤️','小镇做题家发展路径','#生涯 · 资源'],
+ c5:['📐','十二维志愿决策模型','#志愿咨询 · 资源'],c6:['🔁','迁移失效的三种典型','#学习方法 · 资源'],
+ c7:['⚖️','偏科诊断四象限','#学业规划 · 资源'],c8:['🎯','主攻项目进度口径','#项目 · 系统'],
+ c9:['🧭','成长路由器的四层护城河','#IP · 资源'],c10:['🧩','复利式内容生产流水线','#内容工程 · 资源'],
+ t1:['📋','写「十二维模型」自查表','#AI学习力 · 任务'],q1:['💡','好奇：AI 会不会替代志愿老师','#好奇 · 好奇卡']};
+/* EV: k 已是中文（与产品 eventLog 的 kind 归一后一致） */
+const EV=[
+ {t:'09:12',a:'create',k:'资源',c:'c1',link:1},{t:'09:48',a:'call',k:'资源',c:'c2',link:1},
+ {t:'10:03',a:'call',k:'资源',c:'c5',link:1},{t:'10:35',a:'create',k:'资源',c:'c10',link:1},
+ {t:'11:02',a:'status',k:'资源',c:'c3',to:'孵化 → 成长'},{t:'11:20',a:'call',k:'任务',c:'t1'},
+ {t:'11:47',a:'create',k:'资源',c:'c9',link:1},{t:'13:05',a:'call',k:'资源',c:'c4',link:1},
+ {t:'13:20',a:'status',k:'资源',c:'c6',to:'成长 → 衰退'},{t:'13:44',a:'delete',k:'资源',c:'c7'},
+ {t:'14:05',a:'call',k:'资源',c:'c2',link:1},{t:'14:22',a:'create',k:'资源',c:'c6',link:1},
+ {t:'14:51',a:'status',k:'系统',c:'c8',to:'主攻口径更新'},{t:'15:33',a:'create',k:'资源',c:'c5',link:1},
+ {t:'16:18',a:'status',k:'资源',c:'c7',to:'建议归档'},{t:'16:40',a:'call',k:'好奇',c:'q1'},
+ {t:'17:12',a:'delete',k:'资源',c:'c9'},{t:'17:40',a:'call',k:'资源',c:'c4',link:1},
+ {t:'19:02',a:'create',k:'系统',c:'c8',to:'今日复盘快照'},{t:'20:15',a:'status',k:'系统',c:'c8',to:'连续打卡 → 第 12 天'}];
+const ASYM={create:'+',call:'↗',status:'◐',delete:'✕',restore:'⟲',purge:'✕'};
+const ALBL={create:'新增',call:'调出',status:'推进',delete:'删除',restore:'恢复',purge:'清理'};
+const ACOL={create:'var(--ok)',call:'var(--accent-ink)',status:'var(--info)',delete:'var(--bad)',restore:'var(--warn)'};
+const ct=i=>C[i]?C[i][1]:'系统事件';
+const ci=i=>C[i]?C[i][0]:'📄';
+const cp=i=>C[i]?C[i][2]:'';
+function evsOf(d){
+ if(d===TODAY)return EV;
+ const s=d.replace(/-/g,'');const n=3+(parseInt(s.slice(-2))%7);
+ const acts=['create','call','status','call','create','delete','call','status'];
+ const ks=['资源','资源','任务','资源','系统','好奇','资源','资源'];
+ const cs=['c1','c2','c3','c5','c8','c4','c6','c10'];
+ const out=[];for(let i=0;i<n;i++){const h=9+Math.floor(i*1.3),m=(i*17)%60;
+  out.push({t:String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'),a:acts[i%8],k:ks[i%8],c:cs[i%8],link:i%3===0?1:0})}
+ return out}
+const WK=[28,34,55,41,22,12,41];
+const DIMS=[['专注 Focus',82,'up','+4'],['记忆 Memory',68,'eq','持平'],['理解 Comprehend',85,'up','+6'],
+ ['执行 Execute',79,'up','+2'],['迁移 Transfer',54,'down','-3 · 建议加练'],['复盘 Reflect',88,'up','+5']];
+const GOALS=[['📖 年阅读 52 本',38,52],['🗂️ 归档 300 张卡',183,300],['✍️ 输出 24 篇文章',12,24],['🎓 完成 30 次咨询',8,30]];
+const LC={inc:{n:122,p:43,c:'ok',lab:'孵化期',it:['c1|3 天','c2|5 天','c10|8 天','c9|12 天']},
+ gro:{n:99,p:35,c:'warn',lab:'成长期',it:['c3|28 天','c5|31 天','c4|45 天','c6|52 天']},
+ dec:{n:63,p:22,c:'stg',lab:'衰退期',it:['c7|104 天','c8|127 天','c2|153 天']}};
+let lcCur='inc',flowCur='all';
+
+/* ══ 洞察页渲染 ══ */
+function renderBars(){
+  const el=document.getElementById('bars');el.innerHTML='';
+  WK.forEach((w,i)=>{const d=new Date('2026-10-13');d.setDate(d.getDate()-(6-i));
+    const day=d.toISOString().slice(0,10);
+    const b=document.createElement('div');b.className='b';b.style.height=Math.max(8,w/55*100)+'%';
+    b.style.background='var(--h'+Math.min(5,Math.ceil(w/11))+')';b.title=day+' · 加权 '+w+' 分 · 点击打开当日战报';
+    b.onclick=()=>openBattle(day);el.appendChild(b)})}
+function renderDim6(){
+  document.getElementById('dim6').innerHTML=DIMS.map(d=>
+   `<div class="dim" onclick="dimDrill('${d[0]}',${d[1]},'${d[3]}')"><div class="k"><span>${d[0]}</span></div>
+    <div class="v">${d[1]}</div><div class="d ${d[2]==='up'?'up':d[2]==='down'?'dn':'eq'}">${d[3]}</div></div>`).join('')}
+function renderGoals(){
+  document.getElementById('goals').innerHTML=GOALS.map(g=>{const p=Math.round(g[1]/g[2]*100);
+   return `<div class="goal" onclick="goalDrill('${g[0]}',${g[1]},${g[2]})"><span class="nm">${g[0]}</span>
+    <span class="gbar"><i style="width:${p}%"></i></span><span class="n"><b>${g[1]}</b> / ${g[2]}</span></div>`}).join('')}
+function renderLc(){
+  document.getElementById('lcLeg').innerHTML=Object.keys(LC).map(k=>{const s=LC[k];
+   return `<div class="lcr ${k===lcCur?'on':''}" onclick="lcPick('${k}')"><span class="sw" style="background:var(--${s.c})"></span>
+    <span class="nm">${s.lab}</span><span class="ct">${s.n} 张 · ${s.p}%</span></div>`}).join('')+
+   `<div class="lcr" onclick="toast('本年升阶 46 张（孵化→成长 / 成长→成熟）')"><span class="sw" style="background:var(--accent)"></span>
+    <span class="nm">本年升阶</span><span class="ct">46 张</span></div>`;
+  const s=LC[lcCur];
+  document.getElementById('lcList').innerHTML=s.it.map(t=>{const[ck,age]=t.split('|');
+   return `<div class="lcrow" onclick="locate('${ct(ck)}')"><span>${ci(ck)}</span>
+    <span class="t">${ct(ck)} <span class="s">· ${cp(ck)} · 停留 ${age}</span></span>
+    <span class="ops"><button class="btn sm line" onclick="event.stopPropagation();toast('已升阶 ✓')">升阶 ›</button>
+     <button class="btn sm line" onclick="event.stopPropagation();toast('已归档（可恢复）')">归档</button></span></div>`}).join('')}
+function renderFlow(){
+  const rows=flowCur==='all'?EV:EV.filter(e=>e.a===flowCur);
+  document.getElementById('flow').innerHTML=rows.map(e=>
+   `<div class="frow" onclick="locate('${ct(e.c)}')" ${e.link?`ondblclick="toast('双击 → 直达链接：${ct(e.c)}')"`:''} title="单击 → 定位卡片 · 双击 → 直达链接">
+     <span class="tm">${e.t}</span><span class="ac ac-${e.a}">${ASYM[e.a]} ${ALBL[e.a]}</span>
+     <span class="ti">${ct(e.c)}</span><span class="kd">${e.k}${e.to?' · '+e.to:''}</span></div>`).join('')||
+    '<div class="empty">该筛选下暂无记录</div>'}
+function renderF3mini(){
+  const mini=[['01','写「十二维模型」自查表','AI学习力体系','✓ 2/2 子任务'],['02','改高考志愿咨询话术 SOP','高考志愿咨询','✦ 荐 · 14 天停滞'],['03','录 3 条小红书素材','个人IP与内容工程','✅ 已完成']];
+  document.getElementById('f3mini').innerHTML=mini.map(m=>
+   `<div class="fcard" onclick="toast('进任务详情抽屉：${m[1]}')"><span class="fc-n">${m[0]}</span>
+     <div class="fc-row"><span class="fc-ck ${m[3]==='✅ 已完成'?'done':''}">${m[3]==='✅ 已完成'?'✓':''}</span>
+      <div class="fc-t">${m[1]}</div></div>
+     <div class="fc-meta"><span class="tag neutral">📦 ${m[2]}</span><span class="tag ${m[3].startsWith('✓')?'ok':'acc'}">${m[3]}</span></div></div>`).join('')}
+
+/* 年度热力图（含月份刻度） */
+function renderHm(elId,mId,view){
+  const box=document.getElementById(elId),mo=document.getElementById(mId);
+  const cols=view==='y'?53:5, per=view==='y'?7:1, step=view==='y'?7:1;
+  const base=new Date('2026-10-13');const M=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  let mh='';let lastM=-1;box.innerHTML='';
+  for(let w=cols-1;w>=0;w--){
+    const first=new Date(base);first.setDate(base.getDate()-(w*step+per-1));
+    const mIdx=first.getMonth();
+    mh+=`<span style="width:${view==='y'?13:46}px">${mIdx!==lastM&&w!==cols-1?M[mIdx]:''}</span>`;
+    lastM=mIdx;
+    const col=document.createElement('div');col.className='hm-col';
+    for(let d=0;d<per;d++){
+      const dt=new Date(base);dt.setDate(base.getDate()-(w*step+d));
+      const day=dt.toISOString().slice(0,10);
+      const v=(w*11+d*13+parseInt(day.slice(-2)))%11;
+      const lv=v<2?0:v<4?1:v<6?2:v<8?3:v<10?4:5;
+      const c=document.createElement('div');c.className='hm-c';c.style.background='var(--h'+lv+')';
+      c.title=day+' · 活跃等级 '+lv+' · 点击打开当日战报';c.onclick=()=>openBattle(day);
+      col.appendChild(c)}
+    box.appendChild(col)}
+  mo.innerHTML=mh;
+}
+</script><script>
+/* ══ 下钻弹窗 ══ */
+function openDrill(label,rows,total,extra){
+  total=total??rows.length;
+  const more=total>rows.length?'（同卡多次已合并 ×N）':'';
+  let h=`<div class="dy-h"><span class="dy-ic">🔍</span><div class="dy-txt">
+    <div class="dy-title">${label}</div><div class="dy-sub">${rows.length} 类卡片 · 共 ${total} 条记录${more}</div></div>
+    <button class="btn line sm" onclick="closeDrill()">收起 ×</button></div>`;
+  if(extra)h+=`<div class="dy-sum">${extra}</div>`;
+  h+=`<div style="padding:16px 26px 24px"><div class="drill"><div class="drill-h"><b>明细</b><span class="sp"></span>
+    <span class="drill-hint">单击看详情 · 双击直达链接</span></div>`;
+  h+=rows.length?rows.map(r=>`<div class="drow" onclick="locate('${r.t}')" ${r.link?`ondblclick="toast('双击 → 直达链接：${r.t}')"`:''}
+    title="单击 → 定位「${r.t}」· 双击 → 直达链接 / 打开文件">
+    <span class="i">${r.i||ci(r.c)}</span><span class="t">${r.t}</span>
+    ${(r.n||1)>1?`<span class="n">×${r.n}</span>`:''}<span class="m">${r.time||''}</span>
+    <span class="p">${r.tag||''}</span><span class="g">›</span></div>`).join('')
+    :'<div class="empty">该维度无记录</div>';
+  h+=`</div><div style="margin-top:14px;display:flex;gap:9px">
+    <button class="btn line" onclick="closeDrill()">关闭</button>
+    <button class="btn line" onclick="toast('已导出下钻明细（CSV）')">⬇ 导出</button></div></div>`;
+  document.getElementById('drill').innerHTML=h;document.getElementById('ovDrill').classList.add('on')}
+function closeDrill(){document.getElementById('ovDrill').classList.remove('on')}
+function locate(t){toast('定位「'+t+'」→ 高亮该卡片（原型示意）')}
+function rowOf(ck,time,tag){return {c:ck,t:ct(ck),tag:tag||cp(ck),time:time||'—',n:1}}
+const DR={
+ 'd-in':[[['c1','09:12'],['c10','10:35'],['c9','11:47'],['c6','14:22'],['c5','15:33']],8,'口径：今日新增（含导入）的卡片 · action=create'],
+ 'd-out':[[['c7','13:44'],['c9','17:12'],['c4','20:40']],3,'口径：今日软删的卡片（可恢复）· action=delete'],
+ 'd-call':[[['c2','09:48 & 14:05'],['c5','10:03'],['c4','13:05 & 17:40'],['t1','11:20'],['q1','16:40']],12,'口径：今日被打开的卡片 · action=call'],
+ 'streak':[[['c1','第 12 天'],['c2','第 11 天'],['c5','第 10 天'],['c8','最长 28 天']],28,'口径：相邻两天都有 ≥1 条有效动作即续 1 天'],
+ 'total':[[['c1','孵化'],['c3','成长'],['c7','衰退'],['c5','成长']],284,'口径：未删除卡片全量去重'],
+ 'active':[[['c1','284 天'],['c2','201 天'],['c5','176 天']],284,'口径：当日存在任意有效动作即计 1 个活跃日'],
+ 'entropy':[[['c1','#AI学习力'],['c3','#志愿咨询'],['c2','#学习方法'],['c4','#生涯']],4.2,'口径：卡片主题分布的信息熵，越低越聚焦'],
+ 'longest':[[['c8','28 天'],['c1','21 天'],['c5','15 天']],28,'口径：历史最长连续活跃记录'],
+ 'wk-add':[[['c1','周一'],['c10','周一'],['c9','周二'],['c5','周三'],['c6','周四']],23,'窗口 10-07 → 10-13 · 同卡多次已合并 ×N'],
+ 'wk-arch':[[['c6','周三'],['c7','周五'],['c9','周六'],['c3','周一']],15,'口径：状态变更事件的 to 命中「归档」'],
+ 'wk-acts':[[['c1','录入 11 件'],['c3','状态 9 件'],['c7','删除 3 件'],['c6','归档 18 件']],41,'口径：剔除 call(打开) 与 restore 后的动作条数'],
+ 'wk-w':[[['c1','+80'],['c3','+84'],['c6','+72'],['c7','+32']],268,'权重 create=10 / status=4 / archive=4 / delete=8'],
+ 'wk-pace':[[['c5','周三 55 分 +38%'],['c4','周六 12 分 -52%'],['c1','周一 28 分 -24%']],18,'口径：7 天加权分的变异系数，越低越稳'],
+ 'as-create':[[['c1','09-12'],['c10','08-30'],['c9','08-21']],1247,'口径：全量事件日志 action=create 累计'],
+ 'as-call':[[['c2','09-13'],['c4','09-13'],['c5','09-13']],8412,'口径：卡片被打开 / 引用的累计次数'],
+ 'as-status':[[['c3','11:02'],['c6','13:20'],['c7','16:18']],2073,'口径：生命周期状态迁移累计'],
+ 'as-del':[[['c7','13:44'],['c9','17:12']],318,'口径：delete + purge 累计']};
+function drill(k,label){
+  const d=DR[k];if(!d)return openDrill(label,[rowOf('c1','—'),rowOf('c2','—')],2,'原型示意明细');
+  openDrill(label,d[0].map(r=>rowOf(r[0],r[1])),d[1],d[2])}function drillRaw(label,items,total,extra){openDrill(label,items.map(i=>rowOf(i[0],i[1])),total,extra)}
+function dimDrill(n,v,note){drillRaw('维度下钻 · '+n,[['c1','相关 Top1'],['c6','相关 Top2'],['c2','相关 Top3']],v,
+  `本周得分 <b>${v}</b> · 环比 ${note} · 该维取自 12 周加权动作的归因分`)}
+function goalDrill(n,cur,tot){drillRaw('目标产出 · '+n,[['c1','本周 2 项'],['c5','本周 1 项'],['c9','上周 3 项']],cur,
+  `完成 <b>${cur}</b> / ${tot}（${Math.round(cur/tot*100)}%）· 剩余 41 天`)}
+function rule(id,name,thr,act){drillRaw('偏离规则 · '+id+' '+name,[['c1','实测样本 1'],['c6','实测样本 2'],['c7','实测样本 3']],3,
+  `规则 <b>${id} ${name}</b> · 阈值 <b>${thr}</b> · 实际 <b>${act}</b> · 窗口 10-07 → 10-13`)}
+function lcPick(k){lcCur=k;renderLc();
+  drillRaw('生命周期 · '+LC[k].lab,LC[k].it.map(t=>{const[ck,age]=t.split('|');return [ck,age]}),LC[k].n,
+  `${LC[k].lab} <b>${LC[k].n}</b> 张 · 占比 ${LC[k].p}% · 按停留天数排序`)}
+
+/* ══ 今日战报（DayDetail 五段 1:1） ══ */
+let bDrill='',bDay='';
+function openBattle(day){
+  bDay=day;const evs=evsOf(day);
+  const wd=['一','二','三','四','五','六','日'][(new Date(day.replace(/-/g,'/')).getDay()+6)%7];
+  const c={create:0,call:0,status:0,del:0};
+  evs.forEach(e=>{c[e.a==='delete'||e.a==='purge'?'del':e.a]++});
+  const cells=[['create',c.create,'新增','+','sc-create'],['call',c.call,'调出','↗','sc-call'],
+    ['status',c.status,'推进','◐','sc-status'],['del',c.del,'清理','⌫','sc-del']];
+  const cards=new Set(evs.map(e=>e.c)).size;
+  const W=c.create*10+c.call+c.status*4+c.del*8;
+  const lv=Math.min(5,Math.ceil(W/12)),lvName=['静默','微光','温流','活跃','炽热','峰值'][lv];
+  const range=['0-9 分','10-19 分','20-34 分','35-49 分','50-74 分','75 分以上'][lv];
+  const groups=[];[...evs].reverse().forEach(e=>{const h=+e.t.slice(0,2);const lb=h<12?'上午':h<18?'下午':'晚上';
+    let g=groups[groups.length-1];if(!g||g.lb!==lb){g={lb,rows:[]};groups.push(g)}g.rows.push(e)});
+  let h=`<div class="dy-h"><span class="dy-ic">
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="4"/></svg></span>
+    <div class="dy-txt"><div class="dy-title">${day===TODAY?'今日战报':'日详情'}</div><div class="dy-sub">${day} 周${wd}</div></div>
+    <button class="btn line sm" onclick="closeBattle()">收起 ×</button></div>`;
+  h+=`<div class="dy-sum">${evs.length?`今天你完成了 <b>${evs.length}</b> 项操作，涉及 <b>${cards}</b> 张卡。`:'这一天没有操作记录。'}
+    <div class="dy-recent">最近一次操作：${evs.length?evs[evs.length-1].t:'—'} · ${day===TODAY?'2 小时前':day}</div></div>`;
+  if(evs.length)h+=`<div class="dy-stats">${cells.map(x=>
+   `<button class="dystat ${x[4]} ${x[1]===0?'dim':''} ${bDrill===x[0]?'on':''}" ${x[1]===0?'disabled':''}
+     title="${x[1]===0?'当日无「'+x[2]+'」记录':'点击下钻「'+x[2]+'」明细'}" onclick="bDrillSet('${x[0]}')">
+     <span class="n">${x[1]}</span><span class="l"><span>${x[3]}</span>${x[2]}</span></button>`).join('')}</div>`;
+  if(bDrill){
+    const lb=cells.find(x=>x[0]===bDrill)[2];
+    const f=evs.filter(e=>bDrill==='del'?(e.a==='delete'||e.a==='purge'):e.a===bDrill);
+    const keys=[...new Set(f.map(e=>e.c))];
+    h+=`<div style="margin:14px 26px 0"><div class="drill"><div class="drill-h"><b>当日「${lb}」下钻</b>
+      <span>${keys.length} 类卡片 · 共 ${f.length} 条记录</span><span class="sp"></span>
+      <span class="drill-hint">单击看详情 · 双击直达链接</span></div>
+      ${keys.map(k=>{const sub=f.filter(x=>x.c===k);
+       return `<div class="drow" onclick="locate('${ct(k)}')" ${sub.some(x=>x.link)?`ondblclick="toast('双击 → 直达链接：${ct(k)}')"`:''}>
+        <span class="i">${ci(k)}</span><span class="t">${ct(k)}</span>${sub.length>1?`<span class="n">×${sub.length}</span>`:''}
+        <span class="m">${sub.slice(0,2).map(x=>x.t).join(' – ')}</span><span class="p">${sub[0].k}</span><span class="g">›</span></div>`}).join('')}
+      </div></div>`}
+  h+=`<div class="heatband lv${lv}"><span class="lv">${lvName}</span><span>加权 ${W} 分</span><span>${range}</span>
+    <span>强度 ${Math.min(100,Math.round(W/55*100))}%</span><span>有效动作 ${c.create+c.status+c.del} 件</span></div>`;
+  h+=`<div class="dy-tl"><div class="th"><b>当日操作时间线</b><span class="sp"></span>
+    <span>共 ${evs.length} 条 · 明细来自 zy_event_log</span>
+    <button class="btn sm line" onclick="closeBattle();openDrawer('log','${day}')">查看全部记录 ›</button></div>`;
+  if(!evs.length)h+=`<div class="empty">今天还没有操作记录 —— 去调度台做点什么吧：采集一张卡、推进一个任务、或打开一次资源</div>`;
+  groups.forEach(g=>{h+=`<div class="tlgrp">${g.lb}</div>`;
+    g.rows.forEach(e=>h+=`<div class="tlrow" onclick="locate('${ct(e.c)}')" ${e.link?`ondblclick="toast('双击 → 直达链接：${ct(e.c)}')"`:''}
+      title="单击 → 定位「${ct(e.c)}」· 双击 → 直达链接 / 打开文件">
+      <span class="tm">${e.t}</span><span class="dotcol"><span class="dot" style="background:${ACOL[e.a]}"></span></span>
+      <span class="ac ac-${e.a}">${ASYM[e.a]} ${ALBL[e.a]}</span><span class="kd">${e.k}</span>
+      <span class="ti">${ct(e.c)}</span>${e.to?`<span class="to">${e.to}</span>`:''}</div>`)});
+  h+=`</div><div class="dy-foot"><span class="note">数据来源：本机事件日志 · 仅当日 · 自然日口径</span>
+    <button class="btn sm line" onclick="closeBattle();openDrawer('log','${day}')">查看全部记录 ›</button>
+    <div class="seg"><button class="on" onclick="expFmt(this,'PNG')">导出 PNG</button>
+      <button onclick="expFmt(this,'HTML')">HTML</button><button onclick="expFmt(this,'Markdown')">MD</button></div></div>`;
+  document.getElementById('battle').innerHTML=h;document.getElementById('ovBattle').classList.add('on')}
+function bDrillSet(k){bDrill=bDrill===k?'':k;openBattle(bDay)}
+function closeBattle(){document.getElementById('ovBattle').classList.remove('on')}
+function expFmt(b,f){b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+  toast(f==='PNG'?'✓ 已导出战报 PNG（当前主题配色）':f==='HTML'?'✓ 已导出 HTML 分享页':'✓ 已导出 Markdown（贴进笔记即成形）')}
+</script><script>
+/* ══ 复盘弹窗（ReviewPanel 双栏四块） ══ */
+let rvRange='week',rvDrill='';
+const KPI=[['acts','有效动作','41','件','剔除打开类噪声'],['w','加权分','268','分','环比 <span class="up">+12%</span>'],
+ ['cards','触达卡片','37','张','同卡多次已合并'],['create','新增入台','23','张','环比 <span class="dn">-4</span>'],
+ ['archive','归档','15','张','环比 <span class="up">+3</span>'],['focus','三件事完成','11','/21','完成率 52%']];
+const DIRS=[['AI学习力体系',14,38,1],['高考志愿咨询',9,25,1],['个人IP与内容工程',6,17,0],['知识系统与检索',4,11,0],['未挂项目',3,9,0]];
+const RLS=[['R1','采集消化配比失衡','新增 23 / 归档 15 = 1.53 > 1.2'],['R2','主攻无推进','「高考志愿咨询」近 14 天无状态变更'],
+ ['R7','周末塌陷','周六日加权 12 分 < 周均 35 分'],['R3','复盘缺位','本周未生成复盘快照']];
+const RT={R1:['新增 / 归档 ≤ 1.2','23 / 15 = 1.53'],R2:['主攻 14 天内 ≥1 次状态变更','高考志愿咨询 0 次'],
+ R7:['周末加权 ≥ 周均 70%','12 分 = 周均 34%'],R3:['每周 ≥1 份复盘快照','本周 0 份']};
+function renderReview(){
+  const w=rvRange==='week'?['本周','10-07 → 10-13',7]:rvRange==='month'?['本月','10-01 → 10-13',13]:
+    rvRange==='custom'?['自定义','09-01 → 10-13',43]:['项目','高考志愿咨询 · 全周期',86];
+  let h=`<div class="dy-h"><span class="dy-ic">📈</span><div class="dy-txt">
+    <div class="dy-title">复盘</div><div class="dy-sub">${w[0]} · ${w[1]} · ${w[2]} 天</div></div>
+    <button class="btn line sm" onclick="closeReview()">收起 ×</button></div>`;
+  h+=`<div class="rv-bar"><div class="seg">
+    <button class="${rvRange==='week'?'on':''}" onclick="rvPick('week')">周复盘</button>
+    <button class="${rvRange==='month'?'on':''}" onclick="rvPick('month')">月复盘</button>
+    <button class="${rvRange==='custom'?'on':''}" onclick="rvPick('custom')">自定义</button>
+    <button class="${rvRange==='project'?'on':''}" onclick="rvPick('project')">项目复盘</button></div>
+    <span class="sp"></span><span style="font-size:var(--fs-cap);color:var(--t4)">环比 有效动作 <b style="color:var(--ok)">+12%</b> · 加权 <b style="color:var(--ok)">+8%</b></span>
+    <button class="btn line" onclick="toast('🤖 AI 解读生成中…')">✦ AI 解读</button></div>`;
+  h+=`<div class="rv-grid"><div class="rv-col">
+    <div class="blk"><div class="bh"><span class="n">①</span><span class="t">画像摘要</span><span class="badge">纯计算</span><span class="sp"></span><span class="meta">${w[0]}</span></div>
+      <div class="bb"><div class="kpis">${KPI.map(k=>
+       `<button class="kpi ${rvDrill===k[0]?'on':''}" onclick="rvDrillSet('${k[0]}')"><div class="k">${k[1]}<span class="go">${rvDrill===k[0]?'▾':'▸'}</span></div>
+        <div class="v">${k[2]}<small>${k[3]}</small></div><div class="c">${k[4]}</div></button>`).join('')}</div>${rvBlock()}</div></div>
+    <div class="blk"><div class="bh"><span class="n">②</span><span class="t">节奏曲线</span><span class="badge">纯计算</span><span class="sp"></span><span class="meta">加权分</span></div>
+      <div class="bb"><div style="display:flex;font-size:var(--fs-micro);color:var(--t3);margin-bottom:8px">
+        <span>窗口内每日加权分</span><span class="sp"></span><span>峰值 周三 55 分</span></div>
+        <div class="bars" style="height:64px">${WK.map(w2=>`<div class="b" style="height:${Math.max(8,w2/55*100)}%;background:var(--h${Math.min(5,Math.ceil(w2/11))})" title="${w2} 分"></div>`).join('')}</div></div></div>
+    </div><div class="rv-col">
+    <div class="blk"><div class="bh"><span class="n">③</span><span class="t">目标对账</span><span class="badge info">规则算 · AI 解读</span><span class="sp"></span><span class="meta">点条形看该方向明细</span></div>
+      <div class="bb"><div class="objs">${DIRS.map((d,i)=>{const p=Math.round(d[1]/d[2]*100);
+       return `<button class="obj ${rvDrill==='d'+i?'on':''}" onclick="rvDrillSet('d${i}')">
+        <span class="nm">${d[3]?'<span class="f">主攻</span>':''}${d[0]}</span><span class="bar"><i style="width:${p}%"></i></span>
+        <span class="n"><b>${d[1]}</b> 项 · ${p}%</span></button>`}).join('')}</div>
+        <div class="obj-foot">本期产出 <b>36</b> 项（窗口内新建 ∪ 完成的任务，按任务去重）· 覆盖度 <b>4/4</b> 个战略目标 ·
+          偏斜度 <b class="warn">38%</b> · 分布均衡（≤45% 未触发）<br>另有 <b>3</b> 项未挂项目 ⇒ 无法归属方向（资源卡 / 好奇卡本就无项目归属）。</div>${rvBlock()}</div></div>
+    <div class="blk"><div class="bh"><span class="n">④</span><span class="t">偏离预警</span><span class="badge info">规则引擎 · 非 AI</span><span class="sp"></span><span class="meta">命中 ${RLS.length} / 8 · 点规则看阈值与实测</span></div>
+      <div class="bb"><div class="rules">${RLS.map(r=>
+       `<button class="rule ${rvDrill==='r'+r[0]?'on':''}" onclick="rvDrillSet('r${r[0]}')"><span class="rid">${r[0]}</span>
+        <span class="rb"><span class="rt">${r[1]}</span><span class="rd">${r[2]}</span></span><span class="go">›</span></button>`).join('')}</div>
+        ${rvDrill&&rvDrill.startsWith('r')?(function(){const id=rvDrill.slice(1),r=RLS.find(x=>x[0]===id);
+         return `<div class="rule-w"><div><span class="k">规则</span> ${id} ${r[1]}</div><div><span class="k">阈值</span> <b>${RT[id][0]}</b></div>
+          <div><span class="k">实际</span> <b>${RT[id][1]}</b></div><div><span class="k">窗口</span> 10-07 → 10-13（7 天，k = 0.23）</div></div>`})():''}</div></div>
+    </div></div>`;
+  h+=`<div class="dy-foot"><span class="note">规则算的是「事实偏离」，AI 只做解读 —— 两者不混算</span>
+    <button class="btn line" onclick="toast('🤖 生成 AI 复盘报告')">✦ AI 复盘报告</button>
+    <div class="seg"><button onclick="toast('✓ 已导出复盘 PDF')">PDF</button><button onclick="toast('✓ 已导出复盘 Markdown')">MD</button></div></div>`;
+  document.getElementById('review').innerHTML=h;document.getElementById('ovReview').classList.add('on')}
+function rvBlock(){if(!rvDrill)return '';
+  return `<div class="drill plain" style="margin-top:12px"><div class="drill-h"><b>下钻明细</b><span class="sp"></span>
+    <span class="drill-hint">单击看详情 · 双击直达链接</span></div>
+    ${[['c1','相关 Top1'],['c6','相关 Top2'],['c5','相关 Top3'],['c2','相关 Top4']].map(r=>
+     `<div class="drow" onclick="locate('${ct(r[0])}')"><span class="i">${ci(r[0])}</span><span class="t">${ct(r[0])}</span>
+      <span class="m">${r[1]}</span><span class="p">${cp(r[0])}</span><span class="g">›</span></div>`).join('')}</div>`}
+function rvPick(r){rvRange=r;rvDrill='';renderReview()}
+function rvDrillSet(k){rvDrill=rvDrill===k?'':k;renderReview()}
+function openReview(){rvDrill='';renderReview()}
+function closeReview(){document.getElementById('ovReview').classList.remove('on')}
+
+/* ══ 抽屉 ══ */
+let drKind='log',drDay='';const DR_ACT=[['全部',''],['新增','create'],['调出','call'],['推进','status'],['清理','delete']];
+const ERRS=[['10-12 14:02','hit','微信导入解析失败 1条','编码异常 · 已跳过该条','需处理'],
+ ['10-09 09:31','','Airtable 同步超时','自动重试 2 次后成功','已恢复'],
+ ['10-03 21:17','hit','热力图年份回退','跨年历史日落到当前年视图','需处理'],
+ ['09-28 16:05','','本地存储写入','无异常','已恢复']];
+function openDrawer(kind,day){
+  drKind=kind;drDay=day||'';
+  document.getElementById('drT').textContent=kind==='log'?'全部记录':'错误日志';
+  document.getElementById('drD').textContent=kind==='log'
+    ?'全部事件 · 类型 × 动作 × 时间三维可筛'+(day?' · 已按 '+day+' 预筛':'')
+    :'导入 / 同步 / 渲染异常 · 本机日志';
+  document.getElementById('drF').innerHTML=kind==='log'
+   ?DR_ACT.map((a,i)=>`<button class="btn sm ${i===0?'pri':'line'}" onclick="drAct(this,'${a[1]}')">${a[0]}</button>`).join('')+
+    `<button class="btn sm line" onclick="toast('按日筛选（原型示意）')">📅 按日</button>
+     <button class="btn sm line" onclick="toast('时间范围（原型示意）')">10-07 → 10-13</button>`
+   :`<button class="btn sm pri">全部 ${ERRS.length} 条</button><button class="btn sm line">仅异常 2 条</button>`;
+  document.getElementById('drB').innerHTML=kind==='err'
+   ?ERRS.map(e=>`<div class="err ${e[1]}"><span class="tm">${e[0]}</span><div style="flex:1;min-width:0">
+      <div style="font-size:var(--fs-cap);font-weight:700">${e[2]}</div>
+      <div style="font-size:var(--fs-micro);color:var(--t3);margin-top:3px">${e[3]}</div></div>
+      <span class="badge ${e[4]==='已恢复'?'ok':'warn'}">${e[4]}</span></div>`).join('')
+   :(drDay?[drDay]:['2026-10-13','2026-10-12','2026-10-11','2026-10-10','2026-10-09']).map((d,i)=>{
+     const evs=i===0&&!drDay?EV:evsOf(d);const lab=i===0&&!drDay?'今天':d.slice(5).replace('-','月')+'日';
+     return `<div class="dr-day">${lab} · ${d} · ${evs.length} 条</div>`+evs.map(e=>
+      `<div class="dr-i" onclick="closeDrawer();openBattle('${d}')"><span class="ac ac-${e.a}">${ASYM[e.a]} ${ALBL[e.a]}</span>
+        <span style="flex:none;font-size:var(--fs-micro);color:var(--t4);width:38px">${e.t}</span>
+        <span class="tt">${ct(e.c)}${e.to?' · '+e.to:''}</span><span class="p" style="font-size:var(--fs-micro);color:var(--t3);background:var(--surface-3);padding:2px 8px;border-radius:99px">${e.k}</span></div>`).join('')}).join('');
+  document.getElementById('drvOv').classList.add('on');document.getElementById('drawer').classList.add('on')}
+function drAct(b,a){b.parentElement.querySelectorAll('.btn').forEach(x=>{x.classList.remove('pri');x.classList.add('line')});
+  b.classList.add('pri');b.classList.remove('line');toast(a?'筛选：'+a+' · 已按动作预筛':'显示全部')}
+function closeDrawer(){document.getElementById('drvOv').classList.remove('on');document.getElementById('drawer').classList.remove('on')}
+
+/* ══ 调度台首页 ══ */
+const TASKS=[['写「十二维模型」自查表','AI学习力体系','内容可交付','doing',['列出十二个维度','每个维度给 1 个真实案例'],1],
+ ['改高考志愿咨询话术 SOP','高考志愿咨询','转化率','todo',['把「先问家庭」写成第一句','补 3 个失败案例'],2],
+ ['录 3 条小红书素材','个人IP与内容工程','内容产能','done',[],3],
+ ['搭 AI 学习力知识晶体模板','AI学习力体系','产品化','todo',['封面页提示词','内容页提示词'],0],
+ ['复盘上周 5 个咨询个案','高考志愿咨询','专业度','todo',[],0],
+ ['整理家庭决策动力学案例库','个人IP与内容工程','护城河','doing',['脱敏 3 个真实家庭'],1]];
+const CUR=[['AI 会不会替代志愿老师',1],['小镇做题家的学习力更依赖家庭决策',0],['费曼技巧在 AI 时代是否过时',1],['知识熵能不能量化焦虑',0],['AI Agent 长期记忆靠什么',1]];
+const POOL=[['《认知觉醒》读书笔记','#学习方法','url'],['知源调度台 v3.8.9 发布说明','#产品','file'],['小红书图文：十二维模型','#内容','url'],['Obsidian：知识库规范 v2.6','#知识系统','obsidian']];
+let slots=[null,{ti:1,auto:0},{ti:2,auto:1}],fdate=0;
+const WHY=[['本地依据：主攻项目下未开始的直接产出项',0],['主攻「高考志愿咨询」停滞 14 天，近 7 天完成率 33%',1],['这一格是你自己选的，系统不评价、也不会覆盖。',0]];
+function renderF3(){
+  const box=document.getElementById('f3');box.innerHTML='';
+  slots.forEach((s,i)=>{
+    if(s===null){box.insertAdjacentHTML('beforeend',`<div class="fcard empty" onclick="openPicker(${i})">
+      <span class="fc-n">0${i+1}</span><div class="fc-t" style="color:var(--t4)">＋ 从任务库选取</div></div>`);return}
+    const T=TASKS[s.ti],done=s.auto===9;
+    let h=`<div class="fcard ${done?'done':''}" onclick="toast('单击选中（原型示意）')" ondblclick="toast('进任务详情抽屉：${T[0]}')" title="单击选中 · 双击进任务详情">
+      <span class="fc-n">0${i+1}</span><div class="fc-row">
+      <span class="fc-ck ${done?'done':''}" onclick="event.stopPropagation();done1(${i})">${done?'✓':''}</span>
+      <div class="fc-t">${T[0]}</div></div><div class="fc-meta">
+      <span class="tag neutral">📦 ${T[1]}</span><span class="tag neutral">🎯 ${T[2]}</span>
+      ${T[4].length?`<span class="tag ok">✓ ${T[5]}/${T[4].length} 子任务</span>`:''}
+      ${s.auto===1?'<span class="tag acc">✦ 荐</span>':''}</div>`;
+    if(T[4].length)h+=`<div class="fc-subs">${T[4].map((st,k)=>
+      `<div class="fc-sub ${k<T[5]?'done':''}" onclick="event.stopPropagation();toast('切换子任务：${st}')">
+       <span class="ck">${k<T[5]?'✓':''}</span><span class="tx">${st}</span></div>`).join('')}</div>`;
+    h+=`<span class="fc-rm" onclick="event.stopPropagation();rmSlot(${i})">×</span></div>`;
+    box.insertAdjacentHTML('beforeend',h)});
+  document.getElementById('f3done').style.display=slots.every(s=>s&&s.auto===9)?'block':'none'}
+function done1(i){slots[i].auto=9;renderF3();toast('✓ 已标记完成 · 同步任务卡状态')}
+function rmSlot(i){slots[i]=null;renderF3();toast('已移除该格')}
+function shiftDate(d){fdate+=d;const dt=new Date('2026-10-13');dt.setDate(dt.getDate()+fdate);
+  if(dt.getTime()>Date.now()){fdate=0;document.getElementById('f3date').textContent='10月13日 周一';return}
+  document.getElementById('f3date').textContent=(dt.getMonth()+1)+'月'+dt.getDate()+'日 周'+'一二三四五六日'[dt.getDay()];
+  toast(fdate===0?'回到今天':'已切到 '+(dt.getMonth()+1)+'月'+dt.getDate()+'日（三件事按日存档）')}
+function toggleWhy(){const p=document.getElementById('why'),b=document.getElementById('whyBtn');
+  const open=p.style.display==='none'||!p.style.display;p.style.display=open?'block':'none';b.classList.toggle('on',open);
+  if(!open)return;
+  p.innerHTML=`<div class="why-h">为什么是这三件</div>`+WHY.map((w,i)=>
+   `<div class="why-r"><span class="n">0${i+1}</span><div><div class="t">${slots[i]===null?'<span class="off">空着</span>':TASKS[slots[i].ti][0]}</div>
+    <div class="w">${slots[i]===null?'点这一格从任务库选，或点下面「换一批」。':w[0]}${w[1]?'<span class="tag acc" style="margin-left:5px">AI 判词</span>':''}</div></div></div>`).join('')+
+   `<div class="why-f">过去 7 天完成 <b>11/21</b>（按三件事格子计）<br>推荐只写"今天这一天的计划位"，<b>不改任务卡、不改状态、不改归属</b>；你动过的格子系统不再插手。</div>
+    <div class="why-a"><button class="btn sm line" onclick="toast('已换一批推荐')">换一批</button>
+     <button class="btn sm line" onclick="toast('🤖 AI 复核顺序中…')">让 AI 复核顺序</button>
+     <button class="btn sm line" onclick="toast('今天不再自动推荐')">今天别自动推荐</button></div>`}
+let pk=-1;
+function openPicker(i){pk=i;const s=document.getElementById('pkP');
+  const ps=[...new Set(TASKS.map(t=>t[1]))];
+  s.innerHTML='<option value="">全部项目</option><option value="__none__">未关联项目（0）</option>'+
+    ps.map(p=>`<option value="${p}">${p}（${TASKS.filter(t=>t[1]===p).length}）</option>`).join('');
+  document.getElementById('pkS').value='';renderPicker();document.getElementById('ovPicker').classList.add('on')}
+function renderPicker(){
+  const q=(document.getElementById('pkS').value||'').trim(),pj=document.getElementById('pkP').value;
+  const list=TASKS.filter(t=>(!q||t[0].includes(q))&&(!pj||pj==='__none__'?true:t[1]===pj));
+  document.getElementById('pkB').innerHTML=list.length?list.map(t=>{const ti=TASKS.indexOf(t),used=slots.some(s=>s&&s.ti===ti);
+   return `<div class="pm-i ${used?'dis':''}" onclick="${used?'':'pick('+ti+')'}"><span class="pi-ck">${used?'—':'＋'}</span>
+    <div style="flex:1;min-width:0"><div class="pi-t">${t[0]}</div><div class="pi-m">
+     <span class="tag acc">${t[1]}</span><span class="tag ${t[3]==='done'?'ok':t[3]==='doing'?'acc':'neutral'}">${t[3]==='done'?'✅ 已完成':t[3]==='doing'?'◐ 进行中':'○ 待开始'}</span>
+     ${used?'<span class="tag warn">已在三件事里</span>':''}</div></div></div>`}).join(''):'<div class="empty">暂无任务</div>'}
+function pick(ti){slots[pk]={ti,auto:0};closePicker();renderF3();toast('✓ 已选入第 '+(pk+1)+' 格 · '+TASKS[ti][0])}
+function closePicker(){document.getElementById('ovPicker').classList.remove('on')}
+function openExport(){document.getElementById('ovExport').classList.add('on')}
+function closeExport(){document.getElementById('ovExport').classList.remove('on')}
+let deckCur='task';
+function setDeck(b,k){b.parentElement.querySelectorAll('.dtab').forEach(x=>x.classList.toggle('on',x===b));deckCur=k;renderDeck()}
+function renderDeck(){
+  const p=document.getElementById('deck');
+  if(deckCur==='task'){const done=TASKS.filter(t=>t[3]==='done').length,pct=Math.round(done/TASKS.length*100);
+    p.innerHTML=`<div class="dbar"><span>任务库完成度</span><span class="bar"><i style="width:${pct}%"></i></span><span><b>${done}</b> / ${TASKS.length} 张 · ${pct}%</span></div>`+
+     TASKS.map(t=>`<div class="drow" onclick="toast('进任务详情抽屉：${t[0]}')"><span class="ck ${t[3]==='done'?'done':''}">${t[3]==='done'?'✓':''}</span>
+      <span class="tx">${t[0]}<span class="s">📦 ${t[1]} · 🎯 ${t[2]}${t[4].length?' · ✓ '+t[5]+'/'+t[4].length:''}</span></span>
+      <span class="tag ${t[3]==='done'?'ok':t[3]==='doing'?'acc':'neutral'}">${t[3]==='done'?'✅ 已完成':t[3]==='doing'?'◐ 进行中':'○ 待开始'}</span></div>`).join('')+
+     `<div class="dnew" onclick="toast('新建任务卡（原型示意）')">＋ 新建任务卡</div>`}
+  else if(deckCur==='curio')p.innerHTML=CUR.map(c=>`<div class="drow" onclick="toast('进好奇卡详情：${c[0]}')">
+     <span style="flex:none">💡</span><span class="tx">${c[0]}<span class="s">好奇心培育 · ${c[1]?'已验证 ✓':'待验证'}</span></span>
+     <span class="tag ${c[1]?'ok':'neutral'}">${c[1]?'已验证':'待验证'}</span></div>`).join('')+
+     `<div class="dnew" onclick="toast('新建好奇卡（原型示意）')">＋ 新建好奇卡</div>`;
+  else p.innerHTML=POOL.map(x=>`<div class="drow" onclick="toast('双击 → 直达${x[2]==='url'?'链接':'文件'}：${x[0]}')">
+     <span style="flex:none">${x[2]==='url'?'🔗':x[2]==='file'?'📁':'📝'}</span>
+     <span class="tx">${x[0]}<span class="s">${x[1]} · ${x[2]==='url'?'网页':x[2]==='file'?'文件':'Obsidian 笔记'}</span></span>
+     <button class="btn sm line" onclick="event.stopPropagation();toast('已打开：${x[0]}')">打开</button></div>`).join('')+
+     `<div class="dnew" onclick="toast('采集新资源（原型示意）')">＋ 采集资源</div>`}
+
+/* ══ tabs ══ */
+function setRange(b,r){b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+  toast(r==='w'?'口径：本周 10-07 → 10-13':r==='m'?'口径：本月 10-01 → 10-13':'口径：今年 01-01 → 10-13')}
+function setFlow(b,a){flowCur=a;b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));renderFlow()}
+function setHm(b,v){b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));renderHm('hm','hmMonths',v)}
+function setHm2(b,v){b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));renderHm('hm2','hmMonths2',v)}
+
+/* ══ 初始化 ══ */
+renderBars();renderDim6();renderGoals();renderLc();renderFlow();renderF3mini();
+renderHm('hm','hmMonths','y');renderHm('hm2','hmMonths2','y');
+renderF3();renderDeck();
+document.querySelector('.brand').classList.add('on');
+['now','recent','year'].forEach(k=>{const el=document.getElementById('mod-'+k);
+  new IntersectionObserver(es=>{es.forEach(en=>{if(!en.isIntersecting)return;
+    document.querySelectorAll('.rnode').forEach(n=>n.classList.toggle('on',n.dataset.k===en.target.dataset.k))})},
+    {rootMargin:'-22% 0px -62% 0px'}).observe(el)});
+</script>
+</body>
+</html>

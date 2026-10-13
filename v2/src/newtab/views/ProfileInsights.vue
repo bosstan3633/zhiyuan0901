@@ -1,70 +1,69 @@
 ﻿<script setup lang="ts">
 /**
- * V3.8.9（W9）：画像洞察页 —— 品牌区入口独立页（#/profile）。
+ * W10（V3.9.0）：画像洞察页 —— 时间轴三段式（今天 / 近期 / 全年）。
  *
- * 为什么独立成页：原「知源仪表盘」埋在设置页第一页，品牌区点击跳首页+战报抽屉的链路
- * 把"我做得怎么样"和"我的库长什么样"割裂在两处。本页把两者收进一屏：
- *   §0 页头（画像摘要 + 战报入口 + 导出 + AI 解读）
- *   §1 概览带（DashboardOverview）—— 存量快照 + 人话总结 + 参照系
- *   §2 复盘段（ReviewPanel）—— 四范围复盘 + 6 KPI 下钻 + 目标对账 + 偏离预警 + AI 复盘报告
- *   §3 资源生命周期（LifecyclePanel）—— 三态甜甜圈 + 实体切换 + 卡片列表 + 阈值设置
- *   操作记录（四类入口 + 全量抽屉 + 核心指标/动态条下钻抽屉）
- *   今日战报 —— 页头入口按钮 → 中央弹窗（DayDetail，复用 HeatmapModule 同一消费链路）
+ * 本版把 v6 原型布局落为生产：
+ *   §0 PiHero 页头（5 KPI chip + 刷新/导出/AI 解读/今日战报）
+ *   左 PiRail 导航（IntersectionObserver 高亮） + 右三模块：
+ *     ① PiToday  今天 · TODAY（今日六格 + 今日三件事 + 洞察条）
+ *     ② PiRhythm 近期 · WEEK（strip + 6 KPI + 节奏柱 + 目标 + 预警 + 操作流，T5 并段）
+ *     ③ PiYear   全年 · YEAR（累计 strip + 年度热力图 + 生命周期，T6 并段，#lc-sec 深链锚保留）
  *
- * 迁移自设置页的资产（带退役重指备案）：
- *   · DashboardOverview / ReviewPanel / DashboardLogDrawer / useDashboardStats / useDashboardReport
- *     —— 原挂 GlobalSettings.vue L25-118（dashboard 面板），本页为唯一新宿主。
- *   · LifecyclePanel + 宿主逻辑（lcCards / onLcArchive / onLcSnooze / onLcReactivate / onLcSetDays /
- *     阈值弹窗）—— 原挂 GlobalSettings.vue L121-158 + L1225-1264。
- *   · 调度台「📈 复盘」按钮（CompassHome.openReview）由 /settings?page=dashboard 改指 /profile。
- *   · 三处归档提示条深链由 /settings?page=lifecycle 改指 /profile（带 #lifecycle 滚动锚）。
+ * 决策落实：
+ *   D1 六维砍掉 → PiRhythm 用复盘段真实 kpisOf 六枚
+ *   D3 下钻维持既有形态（胶囊→抽屉 / 中央大弹层只留战报与复盘）
+ *   D4 ReviewPanel → 中央弹窗（Teleport，功能零删；入口 = Hero「AI 解读」+ PiRhythm「周/月复盘」）
+ *   T8 DashboardOverview 退役（本页不再引用；文件删除另行处理）
  *
- * 数据桥口径：与 HeatmapModule / 原 dashboard 面板同源（readEventLog 优先，空日志回退卡片时间派生）。
- * 只读纪律：视图只读 store.data 快照，写操作只经 store.persist()（lifecycle 三写 + 报告落卡）。
+ * 数据桥口径不变：readEventLog 优先，空日志回退卡片时间派生；只读 store.data 快照，
+ * 写操作只经 store.persist()（lifecycle 三写 + 报告落卡）。
  */
 import '@/newtab/components/dashboard/dashboard.css'
+import '@/newtab/components/profile/pi-timeline.css'
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
 import type { AppData } from '@/shared/models'
 import type { CardEvent } from '@/shared/utils/eventLog'
-import { readEventLog, EVENT_LOG_CAP } from '@/shared/utils/eventLog'
+import { readEventLog } from '@/shared/utils/eventLog'
 import { readErrorLog, subscribeErrorLog } from '@/shared/utils/runtimeError'
 import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
 import { showToast } from '@/shared/components/toast'
 import { saveUIPrefs } from '@/shared/storage/repository'
+import { downloadText, stampDay } from '@/shared/utils/download'
 import {
-  lifecycleState, coolingDaysOf, setCoolingDays, snoozeCard, reactivateCard,
-  coolingDefaultDaysOf, setCoolingDefaultDays, hasCustomThreshold,
-  ARCHIVE_RATIO, DEFAULT_COOLING_DAYS, COOLING_DAYS_MIN, COOLING_DAYS_MAX,
-  type LifecycleState
+  snoozeCard, reactivateCard, setCoolingDays,
+  coolingDefaultDaysOf, setCoolingDefaultDays
 } from '@/shared/utils/lifecycle'
-import type { ResourceCard, TaskCard, CuriosityCard } from '@/shared/models'
-import DashboardOverview from '@/newtab/components/dashboard/DashboardOverview.vue'
+import type { LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
+import {
+  currentStreak, longestStreak, yearAgg, computeTagEntropy, todayKey
+} from '@/shared/utils/reviewReport'
+import { aggregateRange } from '@/shared/utils/dailyStats'
+import type { DirLike, TaskLike } from '@/shared/utils/reviewReport'
+import PiHero from '@/newtab/components/profile/PiHero.vue'
+import PiRail from '@/newtab/components/profile/PiRail.vue'
+import PiToday from '@/newtab/components/profile/PiToday.vue'
+import PiRhythm from '@/newtab/components/profile/PiRhythm.vue'
+import PiYear from '@/newtab/components/profile/PiYear.vue'
 import ReviewPanel from '@/newtab/components/dashboard/ReviewPanel.vue'
 import DashboardLogDrawer, { type LogPreset } from '@/newtab/components/dashboard/DashboardLogDrawer.vue'
-import LifecyclePanel, { type LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
 import { useDashboardStats } from '@/newtab/components/dashboard/useDashboardStats'
 import { useDashboardReport } from '@/newtab/composables/useDashboardReport'
-import type { DirLike, TaskLike } from '@/shared/utils/reviewReport'
 import DayDetail from '@/newtab/components/dashboard/DayDetail.vue'
 import Drawer from '@/shared/components/Drawer.vue'
-import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
-import { wsNameById } from '@/shared/utils/wsName'
-import { recordResourceOpen } from '@/newtab/stores/compass'
-import { openHtmlAsset } from '@/shared/utils/htmlAsset'
 
 const router = useRouter()
 const store = useAppStore()
 const gd = computed(() => store.data!)
 
-/* ===== §0 页头 ===== */
+/* ===== 页头 KPI（PiHero 输入） ===== */
 const pageSub = computed(() => {
   const d = gd.value
   const res = d.resources.filter(r => !r.deletedAt).length
   const task = d.tasks.filter(t => !t.deletedAt).length
   const curio = d.curiosities.filter(c => !c.deletedAt).length
-  return { total: res + task + curio, res, task, curio }
+  return { total: res + task + curio }
 })
 
 /* ===== 事件日志（readEventLog 优先，空日志回退卡片时间派生） ===== */
@@ -120,9 +119,53 @@ const dashTasks = computed<TaskLike[]>(() => (gd.value.tasks || []).map(t => ({
 /* ===== 复盘报告出口（useDashboardReport） ===== */
 const { onReportSave, onReportExport, onReportTask, onReportGoto } = useDashboardReport({ gd, persist: () => store.persist(), router })
 
-/* ===== §1 概览带交互 ===== */
-function onDashOpenCards(kind: 'all' | 'resource' | 'task' | 'curiosity' | 'link') { openStatDrawer(kind) }
-function onDashOpenDyn(t: 'today-add' | 'week-add' | 'cum-del') { openDynDrawer(t) }
+/* ===== Hero KPI（真实口径） ===== */
+const heroTotal = computed(() => pageSub.value.total)
+const heroStreak = computed(() => currentStreak(dashStats.value))
+const heroYearAgg = computed(() => yearAgg(dashStats.value, dashYear.value))
+const heroActiveDays = computed(() => heroYearAgg.value.act)
+const heroLongest = computed(() => longestStreak(dashStats.value, dashYear.value))
+const tagLists = computed(() => [
+  ...gResLive.value.map(r => r.tags || []),
+  ...gTaskLive.value.map(t => t.tags || [])
+])
+const heroEntropy = computed(() => computeTagEntropy(tagLists.value))
+const topTags = computed(() => {
+  const cnt = new Map<string, number>()
+  for (const tags of tagLists.value) {
+    for (const t of new Set(tags.map(s => s.trim()).filter(Boolean))) cnt.set(t, (cnt.get(t) || 0) + 1)
+  }
+  return [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
+})
+
+/* ===== PiToday 输入 ===== */
+const todayAdd = computed(() => gFlat.value.filter(x => !x.deletedAt && x.createdAt >= gStartOfToday).length)
+const todayDel = computed(() => gFlat.value.filter(x => x.deletedAt && x.deletedAt >= gStartOfToday).length)
+const todayCalled = computed(() => timelineEvents.value.filter(e => e.action === 'call' && e.ts >= gStartOfToday).length)
+const writeCount = computed(() => timelineEvents.value.length)
+const reviewReady = computed(() => (dashStats.value.days[todayKey()]?.w || 0) > 0)
+const todayFocus = computed(() => gd.value.dailyFocus?.[todayKey()] || [])
+const avgDailyCreate = computed(() => {
+  const a = aggregateRange(dashStats.value, `${dashYear.value}-01-01`, todayKey())
+  const creates = a.c.res + a.c.curio + a.c.task
+  return a.days > 0 ? creates / a.days : null
+})
+
+/* ===== PiRail 导航 ===== */
+type RailK = 'now' | 'recent' | 'year'
+const railActive = ref<RailK>('now')
+let railObs: IntersectionObserver | null = null
+function onRailJump(k: RailK) {
+  const id = k === 'now' ? 'mod-now' : k === 'recent' ? 'mod-recent' : 'mod-year'
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+/* ===== 复盘弹窗（T3：ReviewPanel → 中央大弹层，功能零删） ===== */
+const reviewOpen = ref(false)
+function openReview() {
+  reviewOpen.value = true
+  if (!eventLog.value.length) void refreshEventLog()
+}
 
 /* ===== 操作记录（四类入口 + 全量抽屉） ===== */
 const logOpen = ref(false)
@@ -136,19 +179,14 @@ function openLog(k: 'in' | 'out' | 'called' | 'log') {
           : { kind: 'all', action: 'all', from: '', to: '', note: '写入记录 = 全量时间线（类型 × 动作 × 时间三维可筛）。' }
   logPreset.value = preset
   logOpen.value = true
+  if (!eventLog.value.length) void refreshEventLog()
 }
-const todayAddCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.createdAt >= gStartOfToday).length)
-const todayDelCount = computed(() => gFlat.value.filter(x => x.deletedAt && x.deletedAt >= gStartOfToday).length)
-const todayCalledCount = computed(() => timelineEvents.value.filter(e => e.action === 'call' && e.ts >= gStartOfToday).length)
 
 /* ===== 核心指标下钻抽屉 ===== */
 type StatDrawerType = '' | 'all' | 'resource' | 'task' | 'curiosity' | 'link'
 interface StatRow { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; ts: number; owner?: string }
 const statDrawer = ref<StatDrawerType>('')
 const totalCards = computed(() => gResLive.value.length + gTaskLive.value.length + gCurioLive.value.length)
-const resLiveCount = computed(() => gResLive.value.length)
-const taskLiveCount = computed(() => gTaskLive.value.length)
-const curioLiveCount = computed(() => gCurioLive.value.length)
 const statList = computed<StatRow[]>(() => {
   switch (statDrawer.value) {
     case 'resource': return gResLive.value.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title, ts: r.createdAt }))
@@ -183,20 +221,19 @@ function openStatCard(x: { kind: string; id: string }) {
 }
 const statDrawerTitle = computed(() => ({
   all: `📊 全部卡片明细（${totalCards.value}）`,
-  resource: `📇 资源卡明细（${resLiveCount.value}）`,
-  task: `✅ 任务卡明细（${taskLiveCount.value}）`,
-  curiosity: `💡 好奇心卡明细（${curioLiveCount.value}）`,
-  link: `🔗 链接卡片明细（${linkCardCount.value} · 跨全部台面）`,
+  resource: `📇 资源卡明细（${statList.value.length}）`,
+  task: `✅ 任务卡明细（${statList.value.length}）`,
+  curiosity: `💡 好奇心卡明细（${statList.value.length}）`,
+  link: `🔗 链接卡片明细（${statList.value.length} · 跨全部台面）`,
   '': ''
 }[statDrawer.value]))
 
 /* ===== 动态条下钻抽屉 ===== */
 type DynDrawerType = '' | 'today-add' | 'today-del' | 'week-add' | 'week-del' | 'cum-del'
 const dynDrawer = ref<DynDrawerType>('')
-function openDynDrawer(t: DynDrawerType) { dynDrawer.value = t; dynPage.value = 1; dynSearch.value = ''; if (!eventLog.value.length) refreshEventLog() }
+function openDynDrawer(t: DynDrawerType) { dynDrawer.value = t; dynPage.value = 1; dynSearch.value = ''; if (!eventLog.value.length) void refreshEventLog() }
 const gStartOfWeek = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7)); return dt.getTime() })()
-/* ★W9 退役重指带备案：R48-B2「导入双口径」的今日/本周计数原挂 GlobalSettings 仪表盘面板，
-   面板整体迁本页时被漏掉（HEAD 里只有定义、无渲染，迁移时顺手丢了）。补回新宿主，判据一字不减。 */
+/* ★W9 退役重指带备案：R48-B2「导入双口径」的今日/本周计数（迁移自 GlobalSettings 仪表盘面板）。 */
 const todayImportCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.importedAt && x.importedAt >= gStartOfToday).length)
 const weekImportCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.importedAt && x.importedAt >= gStartOfWeek).length)
 const dynRange = computed<[number, number] | null>(() => {
@@ -236,7 +273,7 @@ const dynFiltered = computed<DynRow[]>(() => {
   return dynList.value.filter(e => e.title.toLowerCase().includes(q))
 })
 const dynPageCount = computed(() => Math.max(1, Math.ceil(dynFiltered.value.length / STAT_PAGE)))
-const dynShown = computed(() => dynFiltered.value.slice((dynPage.value - 1) * STAT_PAGE, dynPage.value * STAT_PAGE))
+const dynShown = computed(() => dynList.value.slice((dynPage.value - 1) * STAT_PAGE, dynPage.value * STAT_PAGE))
 function dynGo(delta: number) { dynPage.value = Math.min(dynPageCount.value, Math.max(1, dynPage.value + delta)) }
 const dynDrawerTitle = computed(() => ({
   'today-add': `📈 今日新增明细（${dynList.value.length}）`,
@@ -247,7 +284,7 @@ const dynDrawerTitle = computed(() => ({
   '': ''
 }[dynDrawer.value]))
 
-/* ===== §3 资源生命周期（从 GlobalSettings 迁入） ===== */
+/* ===== 生命周期（T6：面板本体已并入 PiYear；此处保留写操作与阈值弹窗） ===== */
 const lcCards = computed<LifecycleCard[]>(() => {
   const d = store.data!
   return [
@@ -261,6 +298,11 @@ function onLcArchive(id: string) { const c = lcFind(id); if (!c) return; c.lifec
 function onLcSnooze(id: string) { const c = lcFind(id); if (!c) return; snoozeCard(c); store.persist() }
 function onLcReactivate(id: string) { const c = lcFind(id); if (!c) return; reactivateCard(c); store.persist() }
 function onLcSetDays(id: string, days: number | null) { const c = lcFind(id); if (!c) return; setCoolingDays(c, days); store.persist() }
+function onLcLocate(id: string, kind: LifecycleCard['kind']) {
+  const t = locateTargetOf(store.data!, kind, id)
+  if (!t) { showToast('⚠ 该卡片已不在库中'); return }
+  void router.push(t)
+}
 const lcSetOpen = ref(false)
 const lcDefaultDraft = ref<number>(coolingDefaultDaysOf() || 30)
 function saveLcDefault() {
@@ -271,30 +313,84 @@ function saveLcDefault() {
   store.persist()
   showToast(`⚙ 默认冷却天数已设为 ${v} 天（归档 ${v * 3} 天）`)
 }
-function onLcLocate(id: string, kind: LifecycleCard['kind']) {
-  const t = locateTargetOf(store.data!, kind, id)
-  if (!t) { showToast('⚠ 该卡片已不在库中'); return }
-  void router.push(t)
-}
 
-/* ===== 今日战报弹窗（页头入口 → DayDetail） ===== */
+/* ===== 今日战报弹窗（DayDetail） ===== */
 const dayOpen = ref(false)
 function openTodayBattle() {
-  // 今天；若今日无数据回落到最近有活动的一天
-  const todayKeyStr = fmtDayKey(Date.now())
-  if (dashStats.value.days[todayKeyStr]) {
-    dashSelDay.value = todayKeyStr
+  const today = fmtDayKey(Date.now())
+  if (dashStats.value.days[today]) {
+    dashSelDay.value = today
   } else {
-    // 找最近 7 天内有活动的一天
     const keys = Object.keys(dashStats.value.days).filter(k => dashStats.value.days[k].w > 0).sort().reverse()
-    dashSelDay.value = keys[0] || todayKeyStr
+    dashSelDay.value = keys[0] || today
   }
+  dayOpen.value = true
+}
+function openDayBattle(day: string) {
+  if (!day) { openTodayBattle(); return }
+  dashSelDay.value = day
   dayOpen.value = true
 }
 function onDayOpenLog(day: string) {
   dayOpen.value = false
   logPreset.value = { kind: 'all', action: 'all', from: day, to: day, note: `来源：日详情——已按 ${day} 预筛。` }
   logOpen.value = true
+}
+
+/* ===== Hero 动作 ===== */
+function onHeroDrill(k: 'total' | 'streak' | 'active' | 'entropy' | 'longest') {
+  if (k === 'total') { openStatDrawer('all'); return }
+  if (k === 'entropy') {
+    const t = topTags.value
+    showToast(t.length ? `知识熵 ${heroEntropy.value} bit · 高频标签：${t.map(([n, c]) => `${n}(${c})`).join('、')}` : '知识熵 0 bit · 库里还没有带标签的卡片')
+    return
+  }
+  openLog('log')
+}
+function onHeroRefresh() {
+  void refreshEventLog()
+  void refreshErrorCount()
+  showToast('⟳ 已重读事件日志与错误日志')
+}
+function onHeroExport(fmt: string) {
+  const lines = [
+    `画像洞察导出 · ${new Date().toLocaleString('zh-CN', { hour12: false })}`,
+    '',
+    `卡片总量：${heroTotal.value}`,
+    `连续打卡：${heroStreak.value} 天`,
+    `活跃天数（${dashYear.value}）：${heroActiveDays.value} 天`,
+    `最长连续（${dashYear.value}）：${heroLongest.value} 天`,
+    `知识熵：${heroEntropy.value} bit`
+  ]
+  if (fmt === 'csv') {
+    const csv = '指标,数值\n' + lines.slice(2).map(l => l.replace('：', ',')).join('\n')
+    downloadText(`画像洞察_${stampDay()}.csv`, csv, 'csv')
+  } else {
+    downloadText(`画像洞察_${stampDay()}.md`, lines.join('\n'), 'md')
+  }
+  showToast('✓ 已导出画像摘要')
+}
+
+/* ===== PiToday 动作 ===== */
+function onTodayDrill(k: 'd-in' | 'd-out' | 'd-call' | 'streak') {
+  if (k === 'd-in') openLog('in')
+  else if (k === 'd-out') openLog('out')
+  else if (k === 'd-call') openLog('called')
+  else openLog('log')
+}
+
+/* ===== PiRhythm 动作 ===== */
+function onRhythmDrill(k: 'wk-add' | 'wk-acts' | 'wk-w' | 'wk-call' | 'wk-pace') {
+  if (k === 'wk-add') openDynDrawer('week-add')
+  else openLog('log')
+}
+function onGoalDrill() { void router.push('/') }
+function onFlowLocate(cardId: string) {
+  for (const kind of ['resource', 'task', 'curiosity'] as const) {
+    const t = locateTargetOf(gd.value, kind, cardId)
+    if (t) { void router.push(t); return }
+  }
+  showToast('⚠ 该卡片已不在库中')
 }
 
 /* ===== 运行错误徽标 ===== */
@@ -307,15 +403,7 @@ async function exportErrorLog() {
   const rows = logs.map(e =>
     `[${new Date(e.ts).toLocaleString('zh-CN', { hour12: false })}] ${e.source} @ ${e.route}\n${e.message}\n${e.stack}`
   ).join('\n\n———\n\n')
-  const blob = new Blob([rows], { type: 'text/plain;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  const dt = new Date()
-  const p2 = (n: number) => String(n).padStart(2, '0')
-  a.href = url
-  a.download = `zhiyuan_运行错误_${dt.getFullYear()}${p2(dt.getMonth() + 1)}${p2(dt.getDate())}.txt`
-  a.click()
-  URL.revokeObjectURL(url)
+  downloadText(`zhiyuan_运行错误_${stampDay()}.txt`, rows, 'txt')
   showToast(`✓ 已导出 ${logs.length} 条运行错误（含完整堆栈）`)
 }
 
@@ -346,90 +434,86 @@ function eventActionLabel(a: CardEvent['action']): string {
 onMounted(() => {
   void refreshEventLog()
   void refreshErrorCount()
-  // 支持 #lifecycle 滚动锚（归档提示条深链 /profile#lifecycle）
-  if (location.hash === '#lifecycle') {
-    setTimeout(() => document.getElementById('lc-sec')?.scrollIntoView({ behavior: 'smooth' }), 120)
+  // PiRail IntersectionObserver
+  railObs = new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      if (en.isIntersecting) {
+        const id = en.target.id
+        railActive.value = id === 'mod-now' ? 'now' : id === 'mod-recent' ? 'recent' : 'year'
+      }
+    }
+  }, { rootMargin: '-25% 0px -55% 0px' })
+  for (const id of ['mod-now', 'mod-recent', 'mod-year']) {
+    const el = document.getElementById(id)
+    if (el) railObs.observe(el)
+  }
+  // 支持 #lifecycle / #lc-sec 深链（归档提示条 → PiYear 生命周期段）
+  if (location.hash === '#lifecycle' || location.hash === '#lc-sec') {
+    setTimeout(() => document.getElementById('lc-sec')?.scrollIntoView({ behavior: 'smooth' }), 160)
   }
 })
-onUnmounted(offErrLog)
-// 战报/日详情打开前重读事件日志（keep-alive 场景数据不冻结）
+onUnmounted(() => { railObs?.disconnect(); offErrLog() })
+// 战报/复盘打开前重读事件日志（keep-alive 场景数据不冻结）
 watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
+watch(reviewOpen, async (v) => { if (v) await refreshEventLog() })
 </script>
-
 <template>
   <div class="pi-page">
-    <!-- ===== §0 页头 ===== -->
-    <div class="pi-head">
-      <div class="pi-head-top">
-        <div class="pi-title-row">
-          <h1 class="pi-title">我的画像与洞察</h1>
-          <span class="pi-en">PROFILE &amp; INSIGHTS</span>
-        </div>
-        <div class="pi-actions">
-          <button class="dz-btn pri" id="todayBattleBtn" @click="openTodayBattle">📊 今日战报</button>
-          <button class="dz-btn" @click="openLog('log')">🕘 全部记录</button>
-          <button class="dz-btn sm ghost" @click="exportErrorLog" v-if="errorLogCount > 0"
-            title="运行错误日志导出">⚠ 错误 {{ errorLogCount }}</button>
-        </div>
+    <!-- ===== §0 Hero 页头 ===== -->
+    <PiHero
+      :total="heroTotal" :streak="heroStreak" :active-days="heroActiveDays"
+      :entropy="heroEntropy" :longest="heroLongest" :error-count="errorLogCount"
+      @drill="onHeroDrill" @refresh="onHeroRefresh" @export="onHeroExport"
+      @ai-read="openReview" @battle="openTodayBattle" @export-error="exportErrorLog" />
+
+    <!-- ===== 时间轴：左 rail + 右三模块 ===== -->
+    <div class="pi-tl">
+      <PiRail :active="railActive" @jump="onRailJump" />
+      <div class="pi-rmods">
+        <PiToday
+          :today-add="todayAdd" :today-del="todayDel" :today-called="todayCalled"
+          :write-count="writeCount" :streak="heroStreak" :review-ready="reviewReady"
+          :focus="todayFocus" :avg-daily-create="avgDailyCreate"
+          @drill="onTodayDrill" @open-battle="openTodayBattle" @open-focus="() => router.push('/')" />
+
+        <PiRhythm
+          :stats="dashStats" :events="timelineEvents" :directions="dashDirections"
+          :tasks="dashTasks" :error-count="errorLogCount" :year="dashYear"
+          @open-review="openReview" @open-log="openLog('log')" @open-err="exportErrorLog"
+          @open-battle="openDayBattle" @drill="onRhythmDrill" @goal-drill="onGoalDrill"
+          @locate="onFlowLocate" />
+
+        <PiYear
+          :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"
+          :events="timelineEvents" :live-link="linkCardCount"
+          :lc-cards="lcCards" :all-events="timelineEvents"
+          @update:year="dashYear = $event" @update:sel-day="dashSelDay = $event"
+          @open-battle="openDayBattle" @open-review="openReview"
+          @lc-locate="onLcLocate" @lc-archive="onLcArchive" @lc-snooze="onLcSnooze"
+          @lc-reactivate="onLcReactivate" @lc-set-days="onLcSetDays"
+          @lc-settings="lcSetOpen = true" />
       </div>
-      <p class="pi-sub">
-        {{ pageSub.total }} 张卡在库 · 资源 {{ pageSub.res }} · 任务 {{ pageSub.task }} · 好奇 {{ pageSub.curio }}
-        <span class="pi-sub-dim">· 概览带 · 复盘段 · 生命周期 · 今日战报</span>
-      </p>
     </div>
 
-    <!-- ===== §1 概览带 ===== -->
-    <DashboardOverview
-      :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"
-      :live-link="linkCardCount" :error-count="errorLogCount"
-      @clear-day="dashSelDay = null"
-      @open-cards="onDashOpenCards" @open-dyn="onDashOpenDyn" @export-error="exportErrorLog" />
+    <!-- ===== 底栏 ===== -->
+    <div class="pi-endbar">
+      <span class="tx"><b>只读纪律</b>：本页只读 store.data 快照；写操作仅经 lifecycle 三写与复盘报告落卡。事件日志滚动保留，空日志自动回退卡片时间派生。</span>
+      <button class="pi-btn line" @click="openLog('log')">🗂️ 全部记录</button>
+    </div>
 
-    <!-- ===== §2 复盘段 ===== -->
-    <ReviewPanel
-      :stats="dashStats" :events="timelineEvents" :data="gd"
-      :directions="dashDirections" :tasks="dashTasks"
-      @save-report="onReportSave" @report-task="onReportTask" @report-goto="onReportGoto" @report-export="onReportExport" />
-
-    <!-- ===== §3 资源生命周期 ===== -->
-    <section class="dz-sec" id="lc-sec">
-      <div class="dz-sec-h">
-        <span class="dz-n">3</span>
-        <span class="dz-t">资源生命周期</span>
-        <span class="dz-en">LIFECYCLE</span>
-        <span class="dz-badge rl">活跃 / 冷却 / 归档 三态</span>
-        <span class="dz-sp"></span>
-        <button class="dz-btn sm" @click="lcSetOpen = true">⚙ 阈值设置</button>
-      </div>
-      <div class="dz-sec-b">
-        <LifecyclePanel kind="all" :cards="lcCards"
-          @locate="onLcLocate" @archive="onLcArchive" @snooze="onLcSnooze" @reactivate="onLcReactivate"
-          @set-days="onLcSetDays" />
-      </div>
-    </section>
-
-    <!-- ===== 操作记录 ===== -->
-    <section class="dz-sec">
-      <div class="dz-sec-h">
-        <span class="dz-n">4</span>
-        <span class="dz-t">操作记录</span>
-        <span class="dz-en">ACTIVITY LOG</span>
-        <span class="dz-badge rl">四类记录入口 · 三维筛选</span>
-        <span class="dz-sp"></span>
-        <span class="pi-cap">日志容量上限 {{ EVENT_LOG_CAP }} 条滚动保留</span>
-      </div>
-      <div class="dz-sec-b">
-        <div class="dz-recentry">
-          <button class="it" title="今日入台明细" @click="openLog('in')">⬇ 今日入台 <b>{{ todayAddCount }}</b></button>
-          <button class="it" title="今日移出明细" @click="openLog('out')">⬆ 今日移出 <b>{{ todayDelCount }}</b></button>
-          <button class="it" title="今日调出明细" @click="openLog('called')">↗ 今日调出 <b>{{ todayCalledCount }}</b></button>
-          <button class="it" title="写入记录（全量）" @click="openLog('log')">✎ 写入记录 <b>{{ eventLog.length }}</b></button>
-          <span class="dz-sp" />
-          <button class="dz-btn sm pri" @click="openLog('log')">打开全部记录 ›</button>
+    <!-- ===== 复盘弹窗（T3：ReviewPanel → 中央大弹层） ===== -->
+    <Teleport to="body">
+      <div v-if="reviewOpen" class="pi-rev-overlay" @click.self="reviewOpen = false">
+        <div class="pi-rev-modal" role="dialog" aria-modal="true" aria-label="周月复盘">
+          <button class="pi-rev-close" title="关闭" @click="reviewOpen = false">✕</button>
+          <ReviewPanel
+            :stats="dashStats" :events="timelineEvents" :data="gd"
+            :directions="dashDirections" :tasks="dashTasks"
+            @save-report="onReportSave" @report-task="onReportTask"
+            @report-goto="onReportGoto" @report-export="onReportExport" />
         </div>
-        <div class="pi-hint">💡 日详情点某天 →「查看全部记录 ›」会按该日预筛此抽屉；老数据无日志时自动回退为卡片时间派生。</div>
       </div>
-    </section>
+    </Teleport>
 
     <!-- ===== 阈值设置弹窗 ===== -->
     <Teleport to="body">
@@ -529,28 +613,8 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
 
 <style scoped>
 /* ===== 页面容器 ===== */
-.pi-page { max-width: 1440px; margin: 0 auto; padding: 24px 36px 64px; display: flex; flex-direction: column; gap: 20px; }
-
-/* ===== §0 页头 ===== */
-.pi-head { display: flex; flex-direction: column; gap: 6px; }
-.pi-head-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.pi-title-row { display: flex; align-items: baseline; gap: 12px; }
-.pi-title { font-size: 22px; font-weight: 800; letter-spacing: -.02em; color: var(--text); margin: 0; }
-.pi-en { font-size: var(--fs-caption); font-weight: 600; letter-spacing: .08em; color: var(--text-3); text-transform: uppercase; }
-.pi-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.pi-sub { font-size: var(--fs-sub); color: var(--text-2); margin: 0; line-height: 1.7; }
-.pi-sub-dim { color: var(--text-3); }
-.pi-cap { font-size: var(--fs-caption); color: var(--text-3); }
+.pi-page { max-width: 1440px; margin: 0 auto; padding: 24px 36px 64px; display: flex; flex-direction: column; gap: 24px; }
 .pi-hint { font-size: var(--fs-caption); color: var(--text-3); margin-top: 8px; }
-
-/* ===== 操作记录四入口 ===== */
-.dz-recentry { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.dz-recentry .it { border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
-  font-size: var(--fs-sub); border-radius: var(--radius-sm); padding: 6px 14px; cursor: pointer;
-  display: flex; align-items: center; gap: 6px; transition: all var(--dur-fast); font-family: inherit; }
-.dz-recentry .it:hover { border-color: var(--border-strong); color: var(--text); }
-.dz-recentry .it b { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
-.dz-recentry .dz-sp { flex: 1; }
 
 /* ===== 阈值弹窗（复用 gs-modal） ===== */
 .gs-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; }

@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="apple">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知源 Ownway · 画像洞察页原型 v5 —— 指标极简化 / 全交互下钻 / 今日战报完整复刻</title>
+<!--
+  v5（用户反馈 2026-10-13 续）四条硬要求：
+   ① 指标模块极简化 —— 大卡 → 一行 inline 指标条（36px 高胶囊），不占台面
+   ② 每个指标点击 → 弹窗下钻明细（复刻 DrillCardList：单击定位 / 双击开链接）
+   ③ 今日战报 = 今日复盘 —— 完整复刻生产 DayDetail.vue 五段结构（头/摘要/四格/热力带/时间线/页脚）
+   ④ 用户首页（调度台）设计笔记的交互全部原型化（MetricBar/今日三件事/年度热力图/三张卡/全部弹窗）
+  设计真源：dashboard.css · DayDetail.vue · DrillCardList.vue · ReviewPanel.vue · CompassHome.vue
+-->
+<style>
+:root{--font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+--fs-micro:9px;--fs-tiny:10px;--fs-caption:11px;--fs-sub:12px;--fs-body:13px;--fs-title:15px;--fs-headline:17px;--fs-display:22px;
+--tracking-sm:.02em;--dur-fast:120ms;--dur:150ms;--ease:cubic-bezier(.2,.8,.2,1);
+--radius-xl:18px;--radius-lg:14px;--radius:12px;--radius-md:10px;--radius-sm:8px;--radius-xs:4px;
+--sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;
+--z-sticky:100;--z-drawer:250;--z-modal:300}
+:root,[data-theme='linear']{--bg:#0D0E11;--surface:#14161B;--surface-2:#1A1D24;--surface-3:#1C1F26;
+--border:rgba(255,255,255,.08);--border-strong:rgba(255,255,255,.14);
+--text:rgba(255,255,255,.92);--text-2:rgba(255,255,255,.70);--text-3:rgba(255,255,255,.50);--text-4:rgba(255,255,255,.32);
+--accent:#5E6AD2;--accent-2:#7A85E0;--accent-light:rgba(94,106,210,.16);--accent-hover:#828FFF;--accent-ink:#828FFF;
+--success:#27A644;--success-bg-soft:rgba(39,166,68,.15);--warning:#D9A03C;--warning-bg-soft:rgba(217,160,60,.15);
+--danger:#E5484D;--danger-bg-soft:rgba(229,72,77,.10);--stagnant:#D4715D;--violet:#A78BFA;--curio-amber:#D9B45C;
+--info-blue:#5B8DEF;--info-blue-light:rgba(91,141,239,.15);--heat-ink:rgba(255,255,255,.72);
+--tag-warn-bg:rgba(217,160,60,.14);--tag-warn-text:#EFBE66;--tag-ok-bg:rgba(39,166,68,.15);--tag-ok-text:#6FCE8B;
+--tag-danger-bg:rgba(229,72,77,.15);--tag-danger-text:#FF9189;--tag-neutral-bg:rgba(255,255,255,.06);--tag-neutral-text:rgba(255,255,255,.50);
+--tag-info-bg:rgba(91,141,239,.15);--tag-info-text:#9CC0F5;
+--heat-0:rgba(255,255,255,.04);--heat-1:#1E3455;--heat-2:#264572;--heat-3:#2B4E79;--heat-4:#356397;--heat-5:#437CB8;
+--shadow:0 0 0 1px var(--border),0 4px 16px rgba(0,0,0,.4);--shadow-lg:0 0 0 1px var(--border-strong),0 16px 48px rgba(0,0,0,.6);
+--chrome:rgba(20,22,27,.78)}
+[data-theme='raycast']{--bg:#08080A;--surface:#101014;--surface-2:#16161B;--surface-3:#1B1B21;
+--border:rgba(255,255,255,.12);--border-strong:rgba(255,255,255,.18);
+--text:rgba(255,255,255,.95);--text-2:rgba(255,255,255,.72);--text-3:rgba(255,255,255,.52);--text-4:rgba(255,255,255,.34);
+--accent:#1E6FD9;--accent-2:#3D8BEA;--accent-light:rgba(30,111,217,.16);--accent-hover:#3E86E0;--accent-ink:#3D8BEA;
+--success:#27A644;--success-bg-soft:rgba(39,166,68,.15);--warning:#D9A03C;--warning-bg-soft:rgba(217,160,60,.15);
+--danger:#E5484D;--danger-bg-soft:rgba(229,72,77,.10);--stagnant:#D4715D;--violet:#A78BFA;--curio-amber:#D9B45C;
+--info-blue:#5B8DEF;--info-blue-light:rgba(91,141,239,.15);--heat-ink:rgba(255,255,255,.72);
+--tag-warn-bg:rgba(217,160,60,.14);--tag-warn-text:#EFBE66;--tag-ok-bg:rgba(39,166,68,.15);--tag-ok-text:#6FCE8B;
+--tag-danger-bg:rgba(229,72,77,.15);--tag-danger-text:#FF9189;--tag-neutral-bg:rgba(255,255,255,.08);--tag-neutral-text:rgba(255,255,255,.52);
+--tag-info-bg:rgba(91,141,239,.15);--tag-info-text:#9CC0F5;
+--heat-0:rgba(255,255,255,.05);--heat-1:#203757;--heat-2:#2B4A76;--heat-3:#2F5489;--heat-4:#3A6AA9;--heat-5:#4A85C9;
+--shadow:0 0 0 1px var(--border),0 4px 16px rgba(0,0,0,.5);--shadow-lg:0 0 0 1px var(--border-strong),0 16px 48px rgba(0,0,0,.7);
+--chrome:rgba(8,8,10,.78)}
+[data-theme='apple']{--bg:#F5F5F7;--surface:#FFFFFF;--surface-2:#EFEFF2;--surface-3:#EAEAEF;
+--border:rgba(0,0,0,.09);--border-strong:rgba(0,0,0,.15);
+--text:rgba(0,0,0,.90);--text-2:rgba(0,0,0,.62);--text-3:rgba(0,0,0,.46);--text-4:rgba(0,0,0,.28);
+--accent:#8452E0;--accent-2:#9E8FEC;--accent-light:#EFEBFB;--accent-hover:#6C3FC8;--accent-ink:#6C3FC8;
+--success:#27A644;--success-bg-soft:#E4F2E8;--warning:#A66A00;--warning-bg-soft:#FBF1DE;
+--danger:#D0342C;--danger-bg-soft:rgba(208,52,44,.08);--stagnant:#B5563F;--violet:#7C3AED;--curio-amber:#A87B2A;
+--info-blue:#3B6FD4;--info-blue-light:#E8EFFC;--heat-ink:rgba(0,0,0,.62);
+--tag-warn-bg:#FBF1DE;--tag-warn-text:#8A5A00;--tag-ok-bg:#E4F2E8;--tag-ok-text:#2E7D42;
+--tag-danger-bg:#FBEAEA;--tag-danger-text:#C03B3B;--tag-neutral-bg:#EFEFF2;--tag-neutral-text:rgba(0,0,0,.46);
+--tag-info-bg:#EFEBFB;--tag-info-text:#6C3FC8;
+--heat-0:#EFF2F6;--heat-1:#D4E1F2;--heat-2:#B6CBE8;--heat-3:#98B7D9;--heat-4:#6C93C2;--heat-5:#3A6FA8;
+--shadow:0 0 0 1px var(--border);--shadow-lg:0 0 0 1px var(--border-strong),0 8px 24px rgba(0,0,0,.10);
+--chrome:rgba(255,255,255,.84)}
+[data-theme='notion']{--bg:#F7F6F3;--surface:#FFFFFF;--surface-2:#F2F0EB;--surface-3:#EEEAE3;
+--border:rgba(40,34,24,.11);--border-strong:rgba(40,34,24,.18);
+--text:rgba(35,31,25,.90);--text-2:rgba(35,31,25,.64);--text-3:rgba(35,31,25,.52);--text-4:rgba(35,31,25,.30);
+--accent:#9E3FAF;--accent-2:#B76BC6;--accent-light:#F6EDF8;--accent-hover:#85349A;--accent-ink:#85349A;
+--success:#448361;--success-bg-soft:#E4EFE7;--warning:#C08A2D;--warning-bg-soft:#F5E9D3;
+--danger:#E03E3E;--danger-bg-soft:rgba(224,62,62,.08);--stagnant:#C0705A;--violet:#9065B0;--curio-amber:#9F7B2D;
+--info-blue:#3F6FA8;--info-blue-light:#E7EDF5;--heat-ink:rgba(35,31,25,.62);
+--tag-warn-bg:#F5E9D3;--tag-warn-text:#8A5F1E;--tag-ok-bg:#E4EFE7;--tag-ok-text:#3F7355;
+--tag-danger-bg:#FBE9E7;--tag-danger-text:#C03B3B;--tag-neutral-bg:#F2F0EB;--tag-neutral-text:rgba(35,31,25,.52);
+--tag-info-bg:#F6EDF8;--tag-info-text:#85349A;
+--heat-0:#F0F1F4;--heat-1:#D5DCEE;--heat-2:#B8C8E6;--heat-3:#9BB2D4;--heat-4:#6E8DBC;--heat-5:#47699E;
+--shadow:0 0 0 1px var(--border);--shadow-lg:0 0 0 1px var(--border-strong),0 8px 24px rgba(15,15,15,.09);
+--chrome:rgba(255,255,255,.84)}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:var(--font-sans);background:var(--bg);color:var(--text);font-size:var(--fs-body);line-height:1.65;
+font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+button{background:none;border:none;cursor:pointer}
+input,select,textarea{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}
+.dz-sp{flex:1}
+.dz-badge{font-size:var(--fs-caption);padding:2px 8px;border-radius:99px;background:var(--tag-neutral-bg);color:var(--tag-neutral-text);white-space:nowrap}
+.dz-badge.rl{background:var(--tag-info-bg);color:var(--tag-info-text)}
+.dz-badge.ok{background:var(--tag-ok-bg);color:var(--tag-ok-text)}
+.dz-badge.warn{background:var(--tag-warn-bg);color:var(--tag-warn-text)}
+.dz-btn{border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);font-size:var(--fs-caption);
+padding:5px 11px;border-radius:var(--radius-sm);transition:all var(--dur-fast);white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+.dz-btn:hover{border-color:var(--accent);color:var(--accent)}
+.dz-btn.sm{padding:3px 9px;font-size:var(--fs-micro)}
+.dz-btn.pri{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.dz-btn.pri:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.dz-btn.ghost{border-color:transparent;background:var(--surface-2)}
+.dz-btn:disabled{opacity:.4;cursor:default}
+
+/* ══ 顶栏（生产 App.vue 结构） ══ */
+.nb{position:sticky;top:0;z-index:var(--z-sticky);background:var(--chrome);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--border)}
+.nb-in{max-width:1440px;margin:0 auto;height:48px;padding:0 36px;display:flex;align-items:center;gap:14px}
+.brand{display:flex;align-items:center;gap:7px;padding:3px 8px;border-radius:var(--radius-sm);background:var(--accent-light);
+box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent)}
+.brand .logo{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,var(--accent),var(--violet));display:grid;place-items:center;flex:none}
+.brand .logo svg{width:11px;height:11px;color:#fff}
+.brand .bn{font-size:var(--fs-body);font-weight:700}
+.brand .be{font-size:var(--fs-micro);font-weight:600;letter-spacing:.08em;color:var(--text-4)}
+.nb-tabs{display:flex;gap:2px;flex:1}
+.nb-tab{display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:var(--radius-sm);color:var(--text-3);font-size:var(--fs-sub);white-space:nowrap}
+.nb-tab:hover{color:var(--text-2);background:var(--surface-2)}
+.nb-tab.on{background:var(--surface-2);color:var(--text);font-weight:600}
+.nb-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+.theme-btn{display:flex;align-items:center;gap:6px;font-size:var(--fs-caption);color:var(--text-2);padding:4px 10px;border-radius:99px;border:1px solid var(--border)}
+.theme-btn:hover{border-color:var(--border-strong)}
+.tw{width:11px;height:11px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25);opacity:.5;transition:all var(--dur-fast)}
+.tw.on{opacity:1;box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--text-2)}
+.tw[data-t=linear]{background:#5E6AD2}.tw[data-t=raycast]{background:#1E6FD9}.tw[data-t=apple]{background:#8452E0}.tw[data-t=notion]{background:#9E3FAF}
+</style><style>
+/* ══ v5 核心：指标极简化 —— 一行 inline 指标条（36px 胶囊），点开弹窗下钻 ══ */
+.page{max-width:1440px;margin:0 auto;padding:32px 36px 88px}
+.vp{display:none}.vp.on{display:block}
+
+/* ── 页头 ── */
+.hero{margin-bottom:34px}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:var(--fs-caption);font-weight:700;letter-spacing:.14em;color:var(--accent-ink);text-transform:uppercase;margin-bottom:10px}
+.hero-eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.hero-row{display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap}
+.hero-main{flex:1;min-width:340px}
+.hero-title{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.25}
+.hero-title .en{font-size:var(--fs-micro);font-weight:700;letter-spacing:.16em;color:var(--text-4);margin-left:9px;vertical-align:5px}
+.hero-lead{font-size:var(--fs-sub);color:var(--text-3);margin-top:8px;max-width:600px;line-height:1.8}
+.hero-side{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:4px}
+
+/* ── 指标条（极简） ── */
+.mstrip{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.mstrip-label{font-size:var(--fs-micro);font-weight:700;letter-spacing:.1em;color:var(--text-4);text-transform:uppercase;margin-right:2px}
+/* 单个指标：36px 高胶囊，数字在最前，单位次之，标签最弱 */
+.mchip{display:inline-flex;align-items:baseline;gap:5px;height:32px;padding:0 11px;border-radius:99px;
+background:var(--surface-2);border:1px solid var(--border);cursor:pointer;transition:all var(--dur-fast);white-space:nowrap}
+.mchip:hover{border-color:var(--accent);background:var(--accent-light)}
+.mchip:active{transform:scale(.97)}
+.mchip .v{font-size:var(--fs-title);font-weight:700;line-height:1;letter-spacing:-.01em}
+.mchip .v small{font-size:var(--fs-micro);font-weight:600;color:var(--text-3);margin-left:1px}
+.mchip .l{font-size:var(--fs-caption);color:var(--text-3)}
+.mchip .go{font-size:8px;color:var(--text-4);margin-left:1px}
+.mchip:hover .go{color:var(--accent-ink)}
+.mchip.ok .v{color:var(--success)}.mchip.acc .v{color:var(--accent-ink)}.mchip.warn .v{color:var(--warning)}.mchip.danger .v{color:var(--danger)}
+.mchip.up .v{color:var(--success)}.mchip.down .v{color:var(--danger)}
+.mchip .v.sym{font-size:var(--fs-title)}
+.mchip.ghost{background:transparent;border-style:dashed;color:var(--text-4)}
+.mchip.ghost .v,.mchip.ghost .l{color:var(--text-4)}
+
+/* 洞察一句话（细条，不占空间） */
+.insight{display:flex;align-items:flex-start;gap:8px;font-size:var(--fs-sub);color:var(--text-3);line-height:1.75;padding:2px 0}
+.insight .ic{flex:none;margin-top:1px;font-size:13px}
+.insight b{color:var(--text-2);font-weight:700}
+
+/* ── 时间轴主线 ── */
+.timeline{display:grid;grid-template-columns:64px 1fr;gap:0}
+.tl-rail{position:relative}
+.tl-rail::before{content:'';position:absolute;left:23px;top:8px;bottom:8px;width:2px;border-radius:2px;opacity:.35;
+background:linear-gradient(180deg,var(--accent),var(--violet) 40%,var(--curio-amber) 75%,var(--stagnant))}
+.tl-node{position:relative;padding:2px 0 56px;display:flex;flex-direction:column;align-items:center;gap:7px}
+.tl-node:last-child{padding-bottom:4px}
+.tl-dot{width:12px;height:12px;border-radius:50%;background:var(--bg);border:3px solid var(--accent);position:relative;z-index:2;transition:all var(--dur)}
+.tl-node[data-k=recent] .tl-dot{border-color:var(--violet)}
+.tl-node[data-k=year] .tl-dot{border-color:var(--curio-amber)}
+.tl-node[data-k=asset] .tl-dot{border-color:var(--stagnant)}
+.tl-node.on .tl-dot{transform:scale(1.35);box-shadow:0 0 0 4px var(--bg),0 0 0 8px color-mix(in srgb,var(--accent) 20%,transparent)}
+.tl-lab{font-size:var(--fs-micro);font-weight:700;letter-spacing:.06em;color:var(--text-4);text-align:center;line-height:1.45}
+.tl-node.on .tl-lab{color:var(--accent-ink)}
+.tl-mods{display:flex;flex-direction:column;gap:52px;min-width:0}
+
+/* ── 模块卡 ── */
+.mod{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);box-shadow:var(--shadow);overflow:hidden;scroll-margin-top:60px}
+.mod-head{display:flex;align-items:center;gap:12px;padding:16px 22px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:var(--surface)}
+.mod-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;font-size:var(--fs-caption);font-weight:700;white-space:nowrap;flex:none}
+.b-now{background:var(--accent-light);color:var(--accent-ink)}
+.b-recent{background:color-mix(in srgb,var(--violet) 15%,transparent);color:var(--violet)}
+.b-year{background:color-mix(in srgb,var(--curio-amber) 18%,transparent);color:var(--curio-amber)}
+.b-asset{background:color-mix(in srgb,var(--stagnant) 16%,transparent);color:var(--stagnant)}
+.mod-titles{flex:1;min-width:180px}
+.mod-title{font-size:var(--fs-headline);font-weight:700;display:inline}
+.mod-title .en{font-size:var(--fs-micro);font-weight:700;letter-spacing:.12em;color:var(--text-4);margin-left:7px}
+.mod-sub{font-size:var(--fs-caption);color:var(--text-3);margin-top:3px;line-height:1.6}
+.mod-tools{display:flex;align-items:center;gap:7px;flex:none;flex-wrap:wrap}
+.mod-body{padding:18px 22px 20px;display:flex;flex-direction:column;gap:16px}
+.mod-sep{height:1px;background:var(--border);margin:2px 0}
+
+/* ── 小节标题（细） ── */
+.sect{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.sect .n{width:16px;height:16px;border-radius:var(--radius-xs);display:grid;place-items:center;background:var(--accent-light);color:var(--accent-ink);font-size:var(--fs-micro);font-weight:700;flex:none}
+.sect .t{font-size:var(--fs-sub);font-weight:700}
+.sect .m{font-size:var(--fs-micro);color:var(--text-4);margin-left:auto}
+
+/* ── 节奏柱（周/月/年） ── */
+.bars{display:flex;align-items:flex-end;gap:3px;height:64px;padding:0 1px}
+.bars .b{flex:1;min-width:2px;border-radius:2px 2px 0 0;cursor:pointer;transition:all var(--dur-fast);position:relative}
+.bars .b:hover{outline:1px solid var(--text-2)}
+.bars-x{display:flex;justify-content:space-between;font-size:var(--fs-micro);color:var(--text-4);margin-top:5px}
+
+/* ── 热力网格（GitHub 式，年度） ── */
+.hm{display:flex;gap:3px;overflow-x:auto;padding-bottom:4px}
+.hm-col{display:flex;flex-direction:column;gap:3px}
+.hm-cell{width:11px;height:11px;border-radius:2px;cursor:pointer;transition:all var(--dur-fast);flex:none}
+.hm-cell:hover{outline:1.5px solid var(--text-2);outline-offset:1px}
+.hm-cell.dim1{background:var(--heat-1)}.hm-cell.dim2{background:var(--heat-2)}.hm-cell.dim3{background:var(--heat-3)}
+.hm-cell.dim4{background:var(--heat-4)}.hm-cell.dim5{background:var(--heat-5)}.hm-cell.dim0{background:var(--heat-0)}
+.hm-legend{display:flex;align-items:center;gap:5px;font-size:var(--fs-micro);color:var(--text-4);margin-top:8px}
+.hm-legend .s{width:10px;height:10px;border-radius:2px}
+.hm-months{display:flex;gap:3px;font-size:var(--fs-micro);color:var(--text-4);margin-bottom:4px;padding-left:0}
+.hm-months span{width:11px;overflow:visible;white-space:nowrap}
+
+/* ── 目标条 ── */
+.goal{display:flex;align-items:center;gap:10px;font-size:var(--fs-caption);padding:3px 0}
+.goal .nm{flex:none;width:150px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.goal .bar{flex:1;height:7px;border-radius:4px;background:var(--heat-0);overflow:hidden;cursor:pointer}
+.goal .bar i{display:block;height:100%;background:var(--heat-4);border-radius:4px;transition:width var(--dur)}
+.goal:hover .bar i{background:var(--accent)}
+.goal .n{flex:none;width:74px;text-align:right;color:var(--text-3)}
+.goal .n b{color:var(--text)}
+
+/* ── 生命周期 donut ── */
+.lc{display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+.donut{width:118px;height:118px;border-radius:50%;position:relative;flex:none;
+background:conic-gradient(var(--success) 0 43%,var(--warning) 43% 78%,var(--stagnant) 78% 100%)}
+.donut::after{content:'';position:absolute;inset:22px;border-radius:50%;background:var(--surface)}
+.donut-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2}
+.donut-c .n{font-size:20px;font-weight:700}
+.donut-c .k{font-size:var(--fs-micro);color:var(--text-4)}
+.lc-leg{display:flex;flex-direction:column;gap:6px;min-width:200px;flex:1}
+.lc-leg .r{display:flex;align-items:center;gap:9px;font-size:var(--fs-caption);padding:5px 10px;border-radius:var(--radius-sm);cursor:pointer;transition:all var(--dur-fast)}
+.lc-leg .r:hover{background:var(--surface-2)}
+.lc-leg .r.on{background:var(--accent-light)}
+.lc-leg .sw{width:9px;height:9px;border-radius:3px;flex:none}
+.lc-leg .nm{flex:1;color:var(--text-2)}
+.lc-leg .ct{font-weight:700;font-size:var(--fs-sub)}
+.lc-list{flex:1;min-width:280px;display:flex;flex-direction:column;gap:5px}
+.lc-row{display:flex;align-items:center;gap:10px;padding:7px 11px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);cursor:pointer;transition:all var(--dur)}
+.lc-row:hover{border-color:var(--accent)}
+.lc-row .t{flex:1;font-size:var(--fs-caption);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lc-row .t .s{color:var(--text-4);font-size:var(--fs-micro)}
+.lc-row .ops{display:flex;gap:5px;flex:none}
+
+/* ── 操作流（长期） ── */
+.flow{display:flex;flex-direction:column;gap:2px;max-height:250px;overflow-y:auto}
+.flow-row{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:var(--radius-sm);cursor:pointer;transition:background var(--dur-fast);border-bottom:1px solid var(--border)}
+.flow-row:last-child{border-bottom:none}
+.flow-row:hover{background:var(--surface-2)}
+.flow-row .tm{flex:none;width:38px;font-size:var(--fs-micro);color:var(--text-4);font-family:ui-monospace,Consolas,monospace}
+.flow-row .ac{flex:none;font-size:var(--fs-micro);font-weight:700;padding:2px 7px;border-radius:5px}
+.flow-row .tt{flex:1;font-size:var(--fs-caption);color:var(--text-2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flow-row .kd{flex:none;font-size:var(--fs-micro);color:var(--text-4)}
+.ac-create{color:var(--success);background:var(--success-bg-soft)}
+.ac-call{color:var(--accent-ink);background:var(--accent-light)}
+.ac-status{color:var(--info-blue);background:var(--info-blue-light)}
+.ac-delete,.ac-purge{color:var(--danger);background:var(--danger-bg-soft)}
+.ac-restore{color:var(--warning);background:var(--warning-bg-soft)}
+
+/* ── tabs ── */
+.tabs{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:2px;gap:2px}
+.tabs button{padding:4px 11px;border-radius:var(--radius-xs);font-size:var(--fs-micro);color:var(--text-3);transition:all var(--dur-fast)}
+.tabs button.on{background:var(--accent);color:#fff;font-weight:600}
+.tabs button:not(.on):hover{color:var(--text);background:var(--surface)}
+
+/* ── 底部三卡 ── */
+.foot-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:44px}
+.foot-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;cursor:pointer;transition:all var(--dur);text-align:left}
+.foot-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.foot-card .ic{font-size:16px;margin-bottom:7px}
+.foot-card .t{font-size:var(--fs-sub);font-weight:700}
+.foot-card .d{font-size:var(--fs-micro);color:var(--text-3);margin-top:4px;line-height:1.7}
+</style><style>
+/* ══ 下钻列表 DrillCardList（复刻生产组件） ══ */
+.dz-drill{border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface-2);padding:10px 12px}
+.dz-drill.plain{border:none;background:transparent;padding:4px 0}
+.dz-drill-h{display:flex;align-items:center;gap:8px;font-size:var(--fs-caption);color:var(--text-3);margin-bottom:6px;flex-wrap:wrap}
+.dz-drill-h b{color:var(--text);font-weight:700}
+.dz-drill-hint{color:var(--text-4);font-size:var(--fs-micro)}
+.dz-drill-empty{font-size:var(--fs-caption);color:var(--text-4);padding:8px 2px}
+.dz-row{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:var(--radius-sm);cursor:pointer;transition:background var(--dur-fast)}
+.dz-row:hover{background:var(--surface-3)}
+.dz-row-i{flex:none;font-size:13px}
+.dz-row-t{flex:1;font-size:var(--fs-caption);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dz-row-n{flex:none;font-size:var(--fs-micro);font-weight:700;color:var(--accent-ink);background:var(--accent-light);padding:1px 5px;border-radius:4px}
+.dz-row-m{flex:none;font-size:var(--fs-micro);color:var(--text-4);font-family:ui-monospace,Consolas,monospace}
+.dz-row-p{flex:none;font-size:var(--fs-micro);color:var(--text-3);background:var(--tag-neutral-bg);padding:1px 6px;border-radius:4px}
+.dz-row-g{flex:none;color:var(--text-4);font-size:11px}
+
+/* ══ 弹窗外壳 ══ */
+.ov{position:fixed;inset:0;z-index:var(--z-modal);background:rgba(0,0,0,.34);display:none;align-items:center;justify-content:center;padding:4vh 16px}
+.ov.on{display:flex}
+.dz-day-modal{width:min(720px,92vw);max-height:86vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border-strong);border-radius:18px;box-shadow:var(--shadow-lg)}
+
+/* ══ 今日战报（DayDetail.vue 五段结构 1:1） ══ */
+.dz-day{margin:0}
+.dz-day-head{display:flex;align-items:center;gap:10px;padding:18px 22px 0}
+.dz-day-ic{width:36px;height:36px;border-radius:10px;background:var(--accent-light);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;flex:none}
+.dz-day-txt{flex:1;min-width:0}
+.dz-day-title{font-size:17px;font-weight:700;letter-spacing:.2px}
+.dz-day-sub{font-size:var(--fs-sub);color:var(--text-3);margin-top:2px}
+.dz-dl-sum{margin:14px 22px 0;font-size:var(--fs-body);color:var(--text-2);line-height:1.6}
+.dz-dl-sum b{color:var(--text);font-weight:700}
+.dz-dl-recent{font-size:var(--fs-caption);color:var(--text-3);margin-top:3px}
+.dz-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 22px 0}
+.dz-stat{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;cursor:pointer;text-align:left;transition:border-color var(--dur),background var(--dur)}
+.dz-stat:hover:not(:disabled){border-color:var(--border-strong)}
+.dz-stat.on{border-color:var(--accent);background:var(--accent-light)}
+.dz-stat.dim{opacity:.42;cursor:default}
+.dz-stat .n{font-size:22px;font-weight:700;line-height:1.15}
+.dz-stat .lbl{font-size:var(--fs-caption);color:var(--text-3);display:flex;align-items:center;gap:5px}
+.dz-stat .lbl .sym{font-size:10px}
+.sc-create .n{color:var(--success)}.sc-call .n{color:var(--accent-ink)}.sc-status .n{color:var(--info-blue)}.sc-del .n{color:var(--danger)}
+.dz-heat-band{display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;margin:12px 22px 0;padding:9px 14px;border-radius:10px;background:var(--heat-0);color:var(--heat-ink);font-size:var(--fs-caption)}
+.dz-heat-band .lv{font-weight:700;font-size:var(--fs-sub)}
+.dz-heat-band .w,.dz-heat-band .range,.dz-heat-band .int,.dz-heat-band .acts{font-weight:600}
+.dz-heat-band.lv3{background:var(--heat-3);color:#fff}
+[data-theme='apple'] .dz-heat-band.lv3,[data-theme='notion'] .dz-heat-band.lv3{color:rgba(0,0,0,.78)}
+.dz-tl{padding:0 var(--sp-4) var(--sp-4)}
+.dz-tl .th{display:flex;align-items:center;gap:8px;font-size:var(--fs-caption);color:var(--text-3);margin-bottom:8px;letter-spacing:var(--tracking-sm);flex-wrap:wrap}
+.dz-tl .th b{color:var(--text-2);font-weight:700}
+.dz-tl-grp{margin-top:var(--sp-3);margin-bottom:var(--sp-1);font-size:var(--fs-micro);font-weight:700;color:var(--text-3);letter-spacing:var(--tracking-sm)}
+.dz-tl-row{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);font-size:var(--fs-body);min-width:0;cursor:pointer;transition:background var(--dur)}
+.dz-tl-row:last-child{border-bottom:none}
+.dz-tl-row:hover{background:var(--surface-2)}
+.dz-tl-row .tm{font-size:var(--fs-caption);color:var(--text-4);width:56px;flex:none;text-align:right;font-family:ui-monospace,Consolas,monospace}
+.dz-tl-row .dotcol{flex:none;width:16px;display:flex;align-items:center;justify-content:center;position:relative}
+.dz-tl-row .dotcol::before{content:'';position:absolute;top:-8px;bottom:-8px;left:50%;width:1px;background:var(--border);z-index:0}
+.dz-tl-row .tl-dot{width:7px;height:7px;border-radius:50%;background:var(--text-4);display:block;position:relative;z-index:1}
+.dz-tl-row .ac{flex:none;font-size:var(--fs-tiny);font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap}
+.dz-tl-row .kd{flex:none;font-size:var(--fs-tiny);color:var(--text-3);width:30px}
+.dz-tl-row .ti{flex:1;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dz-tl-row .to{flex:none;font-size:var(--fs-tiny);color:var(--accent-ink);background:var(--accent-light);border-radius:99px;padding:0 7px}
+.dz-dl-foot{display:flex;align-items:center;gap:8px;padding:12px 22px 16px;border-top:1px solid var(--border);margin-top:6px;flex-wrap:wrap}
+.dz-dl-foot .note{font-size:var(--fs-tiny);color:var(--text-4);flex:1;min-width:180px}
+
+/* ══ 复盘弹窗（ReviewPanel 双栏四块） ══ */
+.rev-toolbar{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:var(--surface-2)}
+.rev-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-4);padding:var(--sp-4)}
+.rev-col{display:flex;flex-direction:column;gap:var(--sp-4);min-width:0}
+.dz-blk{border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;background:var(--surface)}
+.dz-blk .bh{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-2);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.dz-blk .bh .n{width:16px;height:16px;flex:none;border-radius:var(--radius-xs);display:grid;place-items:center;background:var(--accent-light);color:var(--accent-ink);font-size:var(--fs-micro);font-weight:700}
+.dz-blk .bh .t{font-size:var(--fs-sub);font-weight:600}
+.dz-blk .bh .meta{font-size:var(--fs-micro);color:var(--text-4)}
+.dz-blk .bb{padding:12px}
+.dz-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.dz-kpi{border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;background:var(--surface-2);text-align:left;cursor:pointer;transition:all var(--dur-fast)}
+.dz-kpi:hover{border-color:var(--accent)}
+.dz-kpi.on{border-color:var(--accent);background:var(--accent-light)}
+.dz-kpi .k{font-size:var(--fs-micro);color:var(--text-3);display:flex;align-items:center;gap:4px}
+.dz-kpi .k .go{margin-left:auto;color:var(--accent-ink);font-weight:700}
+.dz-kpi .v{font-size:var(--fs-headline);font-weight:700;line-height:1.15;margin-top:1px}
+.dz-kpi .v small{font-size:var(--fs-micro);font-weight:500;color:var(--text-3);margin-left:2px}
+.dz-kpi .c{font-size:var(--fs-micro);color:var(--text-4);margin-top:1px}
+.dz-kpi .c .up{color:var(--success);font-weight:700}.dz-kpi .c .dn{color:var(--danger);font-weight:700}
+.dz-obj{display:flex;flex-direction:column;gap:8px}
+.dz-obj .o{display:flex;align-items:center;gap:8px;font-size:var(--fs-caption);cursor:pointer;padding:2px 4px;border-radius:var(--radius-xs);text-align:left;width:100%}
+.dz-obj .o:hover{background:var(--surface-2)}
+.dz-obj .o.on{background:var(--accent-light)}
+.dz-obj .nm{width:112px;flex:none;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dz-obj .nm .f{font-size:var(--fs-micro);color:var(--accent-ink);font-weight:700;margin-right:3px}
+.dz-obj .bar{flex:1;height:8px;border-radius:4px;background:var(--heat-0);overflow:hidden}
+.dz-obj .bar i{display:block;height:100%;background:var(--heat-4);border-radius:4px}
+.dz-obj .n{width:80px;flex:none;text-align:right;color:var(--text-3)}
+.dz-obj .n b{color:var(--text)}
+.dz-obj .foot{margin-top:8px;font-size:var(--fs-caption);color:var(--text-3);line-height:1.7}
+.dz-obj .foot b{color:var(--text)}
+.dz-obj .foot .warn{color:var(--warning)}
+.dz-rules{display:flex;flex-direction:column;gap:8px}
+.dz-rule{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface-2);cursor:pointer;text-align:left;width:100%;transition:all var(--dur-fast)}
+.dz-rule:hover{border-color:var(--border-strong)}
+.dz-rule.on{border-color:var(--accent);background:var(--accent-light)}
+.dz-rule.ok{border-color:color-mix(in srgb,var(--success) 30%,transparent);cursor:default}
+.dz-rule .rid{flex:none;width:18px;height:18px;border-radius:5px;display:grid;place-items:center;font-size:var(--fs-micro);font-weight:700;background:var(--tag-warn-bg);color:var(--tag-warn-text)}
+.dz-rule.ok .rid{background:var(--tag-ok-bg);color:var(--tag-ok-text)}
+.dz-rule .rb{flex:1;min-width:0}
+.dz-rule .rt{font-size:var(--fs-caption);font-weight:700;display:block}
+.dz-rule .rd{font-size:var(--fs-micro);color:var(--text-3);display:block;line-height:1.6}
+.dz-rule .go{color:var(--text-4)}
+.dz-rule-w{margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;font-size:var(--fs-caption);color:var(--text-3);line-height:1.85}
+.dz-rule-w .k{display:inline-block;width:34px;color:var(--text-4)}
+.dz-rule-w b{color:var(--text)}
+.dz-trend .cap{display:flex;align-items:center;font-size:var(--fs-micro);color:var(--text-3);margin-bottom:6px}
+
+/* ══ 右侧抽屉（操作记录 / 错误日志） ══ */
+.dr-overlay{position:fixed;inset:0;z-index:var(--z-drawer);background:rgba(0,0,0,.28);display:none}
+.dr-overlay.on{display:block}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,94vw);background:var(--surface);border-left:1px solid var(--border-strong);
+box-shadow:var(--shadow-lg);z-index:calc(var(--z-drawer) + 1);display:none;flex-direction:column}
+.drawer.on{display:flex}
+.drawer-head{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border)}
+.drawer-head .t{font-size:var(--fs-headline);font-weight:700;flex:1}
+.drawer-head .t .d{font-size:var(--fs-micro);color:var(--text-3);font-weight:400;margin-top:2px}
+.drawer-filter{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:var(--surface-2)}
+.drawer-body{flex:1;overflow-y:auto;padding:8px 12px}
+.dr-day{font-size:var(--fs-micro);font-weight:700;color:var(--text-3);letter-spacing:var(--tracking-sm);padding:12px 8px 4px;position:sticky;top:0;background:var(--surface)}
+.dr-item{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:var(--radius-sm);cursor:pointer;font-size:var(--fs-caption)}
+.dr-item:hover{background:var(--surface-2)}
+.dr-item .tt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-2)}
+.err-item{display:flex;gap:9px;padding:9px 11px;border-radius:var(--radius-md);border:1px solid var(--border);background:var(--surface-2);margin-bottom:8px}
+.err-item.hit{border-color:color-mix(in srgb,var(--danger) 32%,transparent);background:var(--danger-bg-soft)}
+.err-item .tm{font-size:var(--fs-micro);color:var(--text-4);flex:none}
+
+/* ══ toast ══ */
+.toast-wrap{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);z-index:400;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toast{background:var(--surface);border:1px solid var(--border-strong);border-radius:99px;padding:8px 18px;font-size:var(--fs-sub);box-shadow:var(--shadow-lg);animation:tin .25s var(--ease) both}
+@keyframes tin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+</style><style>
+/* ══════════ 调度台首页（CompassHome.vue 1:1 结构） ══════════ */
+/* MetricBar：≤38px 通栏合流状态条 */
+.mbar{display:flex;align-items:center;gap:10px;min-height:38px;padding:5px 14px;margin-bottom:16px;
+background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow);flex-wrap:wrap}
+.mbar-l,.mbar-r{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cf-label{font-size:var(--fs-caption);color:var(--text-3);white-space:nowrap}
+.cf-item{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:99px;cursor:pointer;
+background:var(--accent-light);border:1px solid color-mix(in srgb,var(--accent) 28%,transparent);transition:all var(--dur-fast)}
+.cf-item:hover{border-color:var(--accent)}
+.cf-item.done{opacity:.55}
+.cf-name{font-size:var(--fs-caption);font-weight:700;color:var(--accent-ink)}
+.cf-pct{font-size:var(--fs-micro);font-weight:700;color:var(--text-3)}
+.cf-stall{font-size:var(--fs-micro);font-weight:700;color:var(--warning);background:var(--tag-warn-bg);padding:1px 6px;border-radius:4px}
+.cf-hint{font-size:var(--fs-caption);color:var(--text-4);cursor:pointer}
+.cf-hint:hover{color:var(--accent-ink);text-decoration:underline}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-micro);color:var(--text-3);
+padding:3px 9px;border-radius:99px;background:var(--surface-2);border:1px solid var(--border);cursor:pointer;transition:all var(--dur-fast);white-space:nowrap}
+.chip:hover{border-color:var(--border-strong)}
+.chip .sc-dot{width:6px;height:6px;border-radius:50%;background:var(--success);flex:none}
+.chip.err .sc-dot{background:var(--danger)}
+.chip.err{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 32%,transparent)}
+.chip.on .sc-dot{background:var(--info-blue)}
+.sync-gear{opacity:.5;font-size:10px}
+.chip:hover .sync-gear{opacity:1}
+.mbar-act{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+
+/* 模块容器 */
+.hmod{margin-bottom:20px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow)}
+.card-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.card-head .ic{color:var(--accent-ink);display:flex}
+.card-head .nm{font-size:var(--fs-headline);font-weight:700}
+.card-head .en{font-size:var(--fs-micro);font-weight:700;letter-spacing:.12em;color:var(--text-4)}
+.mini-btn{font-size:var(--fs-caption);padding:3px 9px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);color:var(--text-3);display:inline-flex;align-items:center;gap:4px;transition:all var(--dur-fast);white-space:nowrap}
+.mini-btn:hover{border-color:var(--accent);color:var(--accent)}
+.mini-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.mini-btn:disabled{opacity:.4;cursor:default}
+.date-nav{display:flex;align-items:center;gap:2px;margin-left:auto}
+.date-nav .dn{width:24px;height:24px;border-radius:var(--radius-sm);display:grid;place-items:center;color:var(--text-3);cursor:pointer;transition:all var(--dur-fast)}
+.date-nav .dn:hover{background:var(--surface-2);color:var(--text)}
+.date-nav .dd{font-size:var(--fs-sub);font-weight:600;padding:0 6px;white-space:nowrap}
+
+/* 今日三件事 */
+.today-body{padding:14px 16px 16px}
+.today-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.today-card{position:relative;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:11px 12px 10px;cursor:pointer;transition:all var(--dur);min-height:104px;display:flex;flex-direction:column;gap:7px}
+.today-card:hover{border-color:var(--border-strong)}
+.today-card.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-light)}
+.today-card.done{opacity:.62}
+.tc-num{font-size:var(--fs-micro);font-weight:700;color:var(--text-4);letter-spacing:.08em}
+.tc-row{display:flex;align-items:flex-start;gap:8px}
+.tc-check{flex:none;width:16px;height:16px;border-radius:5px;border:1.5px solid var(--border-strong);display:grid;place-items:center;font-size:10px;color:#fff;cursor:pointer;transition:all var(--dur-fast);margin-top:1px}
+.tc-check:hover{border-color:var(--accent)}
+.tc-check.done{background:var(--success);border-color:var(--success)}
+.tc-title{font-size:var(--fs-sub);font-weight:600;line-height:1.55;flex:1;min-width:0}
+.tc-title.empty-t{color:var(--text-4);font-weight:500}
+.tc-meta{display:flex;gap:4px;flex-wrap:wrap}
+.tc-subs{display:flex;flex-direction:column;gap:2px;max-height:56px;overflow:hidden;padding-top:5px;border-top:1px solid var(--border)}
+.tc-sub{display:flex;align-items:flex-start;gap:6px;font-size:var(--fs-micro);color:var(--text-3);cursor:pointer;line-height:1.6}
+.tc-sub .tsub-check{flex:none;width:11px;height:11px;border-radius:3px;border:1px solid var(--border-strong);display:grid;place-items:center;font-size:8px;color:#fff;margin-top:2px}
+.tc-sub.done .tsub-check{background:var(--success);border-color:var(--success)}
+.tc-sub.done .tsub-t{text-decoration:line-through;color:var(--text-4)}
+.tc-sub-more{font-size:var(--fs-micro);color:var(--accent-ink);cursor:pointer;padding-top:2px}
+.tc-remove{position:absolute;top:6px;right:8px;font-size:12px;color:var(--text-4);opacity:0;cursor:pointer;transition:all var(--dur-fast)}
+.today-card:hover .tc-remove{opacity:1}
+.tc-remove:hover{color:var(--danger)}
+.today-card.empty-card{border-style:dashed;align-items:center;justify-content:center;text-align:center}
+.today-card.empty-card:hover{border-color:var(--accent)}
+.td-done{text-align:center;font-size:var(--fs-caption);color:var(--text-3);padding:14px 0 4px}
+.tag{display:inline-flex;align-items:center;gap:3px;font-size:var(--fs-micro);font-weight:600;padding:1px 6px;border-radius:4px;white-space:nowrap}
+.tag.neutral{background:var(--tag-neutral-bg);color:var(--tag-neutral-text)}
+.tag.ok{background:var(--tag-ok-bg);color:var(--tag-ok-text)}
+.tag.warn{background:var(--tag-warn-bg);color:var(--tag-warn-text)}
+.tag.acc{background:var(--accent-light);color:var(--accent-ink)}
+.tag.rec{background:var(--tag-info-bg);color:var(--tag-info-text)}
+/* 为什么是这三件（浮层） */
+.why-ico{width:24px;height:24px;border-radius:var(--radius-sm);display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--border);cursor:pointer;color:var(--accent-ink);position:relative;transition:all var(--dur-fast)}
+.why-ico:hover{border-color:var(--accent)}
+.why-ico.on{background:var(--accent-light);border-color:var(--accent)}
+.why-pop{position:absolute;top:34px;right:0;width:min(400px,92vw);background:var(--surface);border:1px solid var(--border-strong);
+border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);z-index:60;padding:14px 16px}
+.fw-h{font-size:var(--fs-sub);font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.fw-h .hint{font-size:var(--fs-micro);color:var(--text-3);font-weight:400}
+.fw-row{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--border)}
+.fw-row:last-of-type{border-bottom:none}
+.fw-row .n{font-size:var(--fs-micro);font-weight:700;color:var(--text-4);flex:none;padding-top:2px}
+.fw-row .t{font-size:var(--fs-caption);font-weight:700;line-height:1.6}
+.fw-row .t.off{color:var(--text-4);font-weight:500}
+.fw-row .w{font-size:var(--fs-micro);color:var(--text-3);line-height:1.7;margin-top:2px}
+.fw-f{font-size:var(--fs-micro);color:var(--text-3);line-height:1.75;padding:9px 0;border-top:1px solid var(--border);margin-top:6px}
+.fw-f b{color:var(--text-2)}
+.fw-acts{display:flex;gap:6px;flex-wrap:wrap}
+
+/* 年度热力图 */
+.heat-wrap{padding:14px 16px 16px}
+.heat-top{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.heat-top .t{font-size:var(--fs-sub);font-weight:700}
+.heat-top .m{font-size:var(--fs-micro);color:var(--text-4)}
+.hm-lv{font-size:var(--fs-micro);color:var(--text-4);padding:1px 7px;border-radius:99px;background:var(--surface-2)}
+
+/* 三张卡 */
+.decks-title{display:flex;align-items:center;gap:9px;padding:12px 16px 0}
+.decks-title .ic{color:var(--accent-ink);display:flex}
+.decks-title .nm{font-size:var(--fs-headline);font-weight:700}
+.decks-title .en{font-size:var(--fs-micro);font-weight:700;letter-spacing:.12em;color:var(--text-4)}
+.bottom-tabs{display:flex;gap:4px;padding:10px 16px 0;border-bottom:1px solid var(--border)}
+.bt-tab{display:flex;align-items:center;gap:6px;padding:6px 13px;border-radius:var(--radius-sm) var(--radius-sm) 0 0;font-size:var(--fs-sub);color:var(--text-3);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all var(--dur-fast)}
+.bt-tab:hover{color:var(--text-2)}
+.bt-tab.on{color:var(--text);font-weight:700;border-bottom-color:var(--accent)}
+.bt-cnt{font-size:var(--fs-micro);font-weight:700;background:var(--tag-neutral-bg);color:var(--tag-neutral-text);padding:1px 6px;border-radius:99px}
+.bt-tab.on .bt-cnt{background:var(--accent-light);color:var(--accent-ink)}
+.bottom-pane{padding:12px 16px 16px}
+.deck-row{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface-2);margin-bottom:7px;cursor:pointer;transition:all var(--dur)}
+.deck-row:hover{border-color:var(--accent)}
+.deck-row .ck{flex:none;width:15px;height:15px;border-radius:4px;border:1.5px solid var(--border-strong);display:grid;place-items:center;font-size:9px;color:#fff}
+.deck-row .ck.done{background:var(--success);border-color:var(--success)}
+.deck-row .tt{flex:1;font-size:var(--fs-caption);min-width:0}
+.deck-row .tt .s{font-size:var(--fs-micro);color:var(--text-4);display:block;margin-top:1px}
+.deck-new{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border:1px dashed var(--border-strong);border-radius:var(--radius-md);color:var(--text-3);font-size:var(--fs-caption);cursor:pointer;transition:all var(--dur)}
+.deck-new:hover{border-color:var(--accent);color:var(--accent)}
+.deck-bar{display:flex;align-items:center;gap:8px;font-size:var(--fs-caption);color:var(--text-3);margin-bottom:10px}
+.deck-bar .bar{flex:1;height:6px;border-radius:3px;background:var(--heat-0);overflow:hidden}
+.deck-bar .bar i{display:block;height:100%;background:var(--accent)}
+
+/* 任务选取弹窗 */
+.pm{width:min(560px,92vw);max-height:78vh;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-xl);box-shadow:var(--shadow-lg);display:flex;flex-direction:column}
+.pm-head{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);font-size:var(--fs-sub);font-weight:700}
+.pm-head .x{margin-left:auto;width:26px;height:26px;border-radius:var(--radius-sm);display:grid;place-items:center;color:var(--text-3);cursor:pointer}
+.pm-head .x:hover{background:var(--surface-2)}
+.pm-filters{display:flex;gap:8px;padding:12px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.pm-filters input{flex:1;min-width:120px}
+.pm-body{flex:1;overflow-y:auto;padding:8px 12px}
+.pm-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--radius-md);cursor:pointer;transition:background var(--dur-fast)}
+.pm-item:hover{background:var(--surface-2)}
+.pm-item.disabled{opacity:.42;cursor:default}
+.pi-check{flex:none;width:18px;color:var(--accent-ink);font-weight:700}
+.pi-info{flex:1;min-width:0}
+.pi-title{font-size:var(--fs-caption);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pi-meta{display:flex;gap:4px;margin-top:3px;flex-wrap:wrap}
+.pm-foot{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+.list-empty{text-align:center;color:var(--text-4);font-size:var(--fs-caption);padding:24px 0}
+
+/* 提示条 */
+.note-bar{display:flex;align-items:center;gap:8px;font-size:var(--fs-caption);color:var(--text-3);padding:8px 12px;
+background:var(--tag-info-bg);border-radius:var(--radius-md);margin-bottom:14px;line-height:1.6}
+.note-bar b{color:var(--text)}
+@media (max-width:1000px){.today-cards{grid-template-columns:1fr}.rev-grid{grid-template-columns:1fr}.foot-row{grid-template-columns:1fr}.dz-kpis{grid-template-columns:repeat(2,1fr)}}
+</style></head>
+<body>
+<!-- ══════════ 顶栏 ══════════ -->
+<header class="nb">
+  <div class="nb-in">
+    <button class="brand" onclick="go('home')">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+      <span class="bn">知源 Ownway</span><span class="be">V3.8.9</span>
+    </button>
+    <nav class="nb-tabs">
+      <button class="nb-tab" data-nav="home" onclick="go('home')">🧭 调度</button>
+      <button class="nb-tab" data-nav="attack" onclick="navStub('攻坚')">🔥 攻坚</button>
+      <button class="nb-tab" data-nav="read" onclick="navStub('阅记')">📚 阅记</button>
+      <button class="nb-tab" data-nav="profile" onclick="go('profile')">📊 洞察</button>
+      <button class="nb-tab" data-nav="settings" onclick="navStub('设置')">⚙️ 设置</button>
+    </nav>
+    <div class="nb-right">
+      <button class="theme-btn" id="themeBtn" title="切换主题">
+        <span class="tw" data-t="linear"></span><span class="tw" data-t="raycast"></span>
+        <span class="tw on" data-t="apple"></span><span class="tw" data-t="notion"></span>
+        <span id="themeName" style="font-weight:600;color:var(--text)">apple</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════ 页面 1：画像洞察页 /profile ══════════ -->
+<div class="page vp on" id="vp-profile">
+
+  <section class="hero">
+    <div class="hero-eyebrow"><span class="dot"></span>画像洞察 · Profile Insights</div>
+    <div class="hero-row">
+      <div class="hero-main">
+        <h1 class="hero-title">你的知识生命体征<span class="en">PROFILE INSIGHTS</span></h1>
+        <p class="hero-lead">不是又一个仪表盘，是<b style="color:var(--text)">一条时间线</b>——从今天该做什么，到这一周的节奏，到这一年你走过什么，最后沉淀成属于你的长期资产。</p>
+      </div>
+      <div class="hero-side">
+        <button class="dz-btn pri" onclick="openBattle(TODAY)">📊 今日战报</button>
+        <button class="dz-btn" onclick="openReview()">📈 复盘（周/月）</button>
+        <button class="dz-btn ghost" onclick="toast('已刷新 · 数据来自本机事件日志')">⟳ 刷新</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="timeline">
+    <aside class="tl-rail" id="rail">
+      <div class="tl-node on" data-k="now"><span class="tl-dot"></span><span class="tl-lab">今天<br>TODAY</span></div>
+      <div class="tl-node" data-k="recent"><span class="tl-dot"></span><span class="tl-lab">近期<br>WEEK</span></div>
+      <div class="tl-node" data-k="year"><span class="tl-dot"></span><span class="tl-lab">全年<br>YEAR</span></div>
+      <div class="tl-node" data-k="asset"><span class="tl-dot"></span><span class="tl-lab">资产<br>ASSETS</span></div>
+    </aside>
+
+    <div class="tl-mods">
+
+      <!-- ① 今天 -->
+      <section class="mod" id="mod-now" data-k="now">
+        <div class="mod-head">
+          <span class="mod-badge b-now">① 今天 · TODAY</span>
+          <div class="mod-titles">
+            <h2 class="mod-title">此刻生命体征<span class="en">VITALS</span></h2>
+            <p class="mod-sub">此刻的状态。一眼知道今天新增多少、复盘是否就绪、连续还在不在。</p>
+          </div>
+          <div class="mod-tools">
+            <button class="dz-btn" onclick="openBattle(TODAY)">📊 今日战报</button>
+            <button class="dz-btn ghost" onclick="toast('快速录入：新建卡片（原型示意）')">＋ 快速录入</button>
+          </div>
+        </div>
+        <div class="mod-body">
+          <div class="mstrip">
+            <span class="mstrip-label">指标</span>
+            <button class="mchip up" onclick="drill('today-add','今日新增（当日 create 事件）')"><span class="v">8<small>张</small></span><span class="l">今日新增</span><span class="go">▸</span></button>
+            <button class="mchip ok" onclick="drill('streak','连续打卡（连续有记录的天数）')"><span class="v">12<small>天</small></span><span class="l">连续打卡</span><span class="go">▸</span></button>
+            <button class="mchip acc" onclick="openBattle(TODAY)"><span class="v">✅</span><span class="l">复盘就绪</span><span class="go">▸</span></button>
+            <button class="mchip warn" onclick="drill('pending','待回顾（今日新增尚未归档）')"><span class="v">5<small>张</small></span><span class="l">待回顾</span><span class="go">▸</span></button>
+            <button class="mchip" onclick="drill('focus','今日专注（今日三件事完成耗时）')"><span class="v">47<small>min</small></span><span class="l">今日专注</span><span class="go">▸</span></button>
+            <button class="mchip down" onclick="drill('miss','今日未完成（昨日三件事带过来的）')"><span class="v">1<small>件</small></span><span class="l">昨日遗留</span><span class="go">▸</span></button>
+          </div>
+          <div class="insight"><span class="ic">💡</span><div><b>今日洞察：</b>新增 8 张已超过日均线（5.4），且集中在「AI 学习力」主题——最近一周你在密集补这个方向。继续保持，今晚建议补一条复盘。</div></div>
+        </div>
+      </section>
+
+      <!-- ② 近期 -->
+      <section class="mod" id="mod-recent" data-k="recent">
+        <div class="mod-head">
+          <span class="mod-badge b-recent">② 近期 · WEEK / MONTH</span>
+          <div class="mod-titles">
+            <h2 class="mod-title">一周的节奏<span class="en">RHYTHM</span></h2>
+            <p class="mod-sub">本周的节奏。柱看密度、格看分布、维看均衡、目标看进度。每个指标都能点开明细。</p>
+          </div>
+          <div class="mod-tools">
+            <div class="tabs" id="rangeTabs">
+              <button class="on" onclick="setRange(this,'w')">本周</button>
+              <button onclick="setRange(this,'m')">本月</button>
+              <button onclick="setRange(this,'y')">今年</button>
+            </div>
+            <button class="dz-btn ghost" onclick="openDrawer('log')">🗂️ 操作记录</button>
+          </div>
+        </div>
+        <div class="mod-body">
+          <div class="mstrip">
+            <span class="mstrip-label">本周</span>
+            <button class="mchip up" onclick="drill('wk-add','本周新增（窗口内 create 事件）')"><span class="v">23<small>张</small></span><span class="l">新增</span><span class="go">▸</span></button>
+            <button class="mchip" onclick="drill('wk-arch','本周归档（窗口内状态变更 → 归档）')"><span class="v">15<small>张</small></span><span class="l">归档</span><span class="go">▸</span></button>
+            <button class="mchip acc" onclick="drill('wk-acts','有效动作（剔除打开类噪声后）')"><span class="v">41<small>件</small></span><span class="l">有效动作</span><span class="go">▸</span></button>
+            <button class="mchip" onclick="drill('wk-w','加权分（按动作权重加总）')"><span class="v">268<small>分</small></span><span class="l">加权</span><span class="go">▸</span></button>
+            <button class="mchip warn" onclick="drill('wk-pace','节奏均衡度（加权分标准差）')"><span class="v">±18<small>%</small></span><span class="l">节奏波动</span><span class="go">▸</span></button>
+          </div>
+          <div class="mod-sep"></div>
+          <div>
+            <div class="sect"><span class="n">1</span><span class="t">节奏曲线</span><span class="m">加权分 · 点柱看当日战报</span></div>
+            <div class="bars" id="bars"></div>
+            <div class="bars-x"><span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>周日</span></div>
+          </div>
+          <div>
+            <div class="sect"><span class="n">2</span><span class="t">活跃热力 · 近 12 周</span><span class="m">点任意格 → 该日战报</span></div>
+            <div class="hm" id="hm"></div>
+            <div class="hm-legend"><span>少</span>
+              <span class="s" style="background:var(--heat-0)"></span><span class="s" style="background:var(--heat-1)"></span>
+              <span class="s" style="background:var(--heat-2)"></span><span class="s" style="background:var(--heat-3)"></span>
+              <span class="s" style="background:var(--heat-4)"></span><span class="s" style="background:var(--heat-5)"></span>
+              <span>多</span>
+              <span style="margin-left:auto">本周活跃 5/7 天 · 峰值周三</span>
+            </div>
+          </div>
+          <div>
+            <div class="sect"><span class="n">3</span><span class="t">六维学习力</span><span class="m">点任一维 → 明细弹窗</span></div>
+            <div class="mstrip" id="dims"></div>
+          </div>
+          <div>
+            <div class="sect"><span class="n">4</span><span class="t">目标进度</span><span class="m">点条形 → 该目标产出</span></div>
+            <div id="goals"></div>
+          </div>
+          <div>
+            <div class="sect"><span class="n">5</span><span class="t">归档预检</span><span class="m">4 条规则 · 点规则看阈值与实测</span></div>
+            <div class="mstrip">
+              <button class="mchip" onclick="rule('R1','重复卡检测','阈值 ≥3 相似度','命中 0 组')"><span class="v">✅</span><span class="l">重复卡</span><span class="go">▸</span></button>
+              <button class="mchip warn" onclick="rule('R2','长期未回顾','阈值 90 天未打开','实测 17 张超阈')"><span class="v">17<small>张</small></span><span class="l">长期未回顾</span><span class="go">▸</span></button>
+              <button class="mchip" onclick="rule('R3','孤立卡检测','阈值 ≥5 张无链接','命中 2 张')"><span class="v">2<small>张</small></span><span class="l">孤立卡</span><span class="go">▸</span></button>
+              <button class="mchip warn" onclick="rule('R4','生命周期堆积','健康线 成长期 ≤50%','实测 61% 超线')"><span class="v">61<small>%</small></span><span class="l">成长期占比</span><span class="go">▸</span></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ③ 全年 -->
+      <section class="mod" id="mod-year" data-k="year">
+        <div class="mod-head">
+          <span class="mod-badge b-year">③ 全年 · YEAR</span>
+          <div class="mod-titles">
+            <h2 class="mod-title">这一年，你走过什么<span class="en">LIFECYCLE</span></h2>
+            <p class="mod-sub">全年尺度。卡片在三态之间的流转，以及每个状态里最值得被重新翻开的那几张。</p>
+          </div>
+          <div class="mod-tools">
+            <button class="dz-btn" onclick="openReview()">📈 目标对账</button>
+            <button class="dz-btn ghost" onclick="toast('生命周期阈值设置（原型示意）')">⚙️ 阈值设置</button>
+          </div>
+        </div>
+        <div class="mod-body">
+          <div class="mstrip">
+            <span class="mstrip-label">全年</span>
+            <button class="mchip" onclick="drill('y-total','卡片总量（未删除）')"><span class="v">284<small>张</small></span><span class="l">总量</span><span class="go">▸</span></button>
+            <button class="mchip" onclick="lcPick('inc')"><span class="v">122<small>张</small></span><span class="l">孵化期</span><span class="go">▸</span></button>
+            <button class="mchip warn" onclick="lcPick('gro')"><span class="v">99<small>张</small></span><span class="l">成长期</span><span class="go">▸</span></button>
+            <button class="mchip danger" onclick="lcPick('dec')"><span class="v">63<small>张</small></span><span class="l">衰退期</span><span class="go">▸</span></button>
+            <button class="mchip up" onclick="drill('y-promote','本年升阶（孵化→成长 / 成长→成熟）')"><span class="v">46<small>张</small></span><span class="l">本年升阶</span><span class="go">▸</span></button>
+          </div>
+          <div class="mod-sep"></div>
+          <div class="lc">
+            <div class="donut"><div class="donut-c"><span class="n">284</span><span class="k">张卡片</span></div></div>
+            <div class="lc-leg" id="lcLeg"></div>
+            <div class="lc-list" id="lcList"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ④ 长期 -->
+      <section class="mod" id="mod-asset" data-k="asset">
+        <div class="mod-head">
+          <span class="mod-badge b-asset">④ 长期 · ASSETS</span>
+          <div class="mod-titles">
+            <h2 class="mod-title">你的长期资产<span class="en">ASSETS</span></h2>
+            <p class="mod-sub">操作流是你的生命体征波形。每一次录入、调用、状态变更都留痕。单击定位 · 双击开链接。</p>
+          </div>
+          <div class="mod-tools">
+            <div class="tabs" id="flowTabs">
+              <button class="on" onclick="setFlow(this,'all')">全部</button>
+              <button onclick="setFlow(this,'create')">录入</button>
+              <button onclick="setFlow(this,'call')">调用</button>
+              <button onclick="setFlow(this,'status')">状态</button>
+            </div>
+            <button class="dz-btn ghost" onclick="openDrawer('err')">🚨 错误日志</button>
+          </div>
+        </div>
+        <div class="mod-body">
+          <div class="mstrip">
+            <span class="mstrip-label">累计</span>
+            <button class="mchip up" onclick="drill('as-create','累计入台（含导入）')"><span class="v">1,247<small>次</small></span><span class="l">入台</span><span class="go">▸</span></button>
+            <button class="mchip acc" onclick="drill('as-call','累计调出（卡片被打开次数）')"><span class="v">8,412<small>次</small></span><span class="l">调出</span><span class="go">▸</span></button>
+            <button class="mchip" onclick="drill('as-status','累计状态变更')"><span class="v">2,073<small>次</small></span><span class="l">状态变更</span><span class="go">▸</span></button>
+            <button class="mchip danger" onclick="drill('as-del','累计清理（删除 / 清理）')"><span class="v">318<small>次</small></span><span class="l">清理</span><span class="go">▸</span></button>
+            <button class="mchip" onclick="openDrawer('err')"><span class="v">3<small>条</small></span><span class="l">近 30 天错误</span><span class="go">▸</span></button>
+          </div>
+          <div class="mod-sep"></div>
+          <div class="flow" id="flow"></div>
+          <div style="font-size:var(--fs-micro);color:var(--text-4);line-height:1.7">操作流仅保留最近 500 条，更早的记录在「操作记录」抽屉按日检索。</div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <div class="foot-row">
+    <button class="foot-card" onclick="openBattle(TODAY)"><div class="ic">📊</div><div class="t">今日战报</div><div class="d">当日五段式：摘要 / 四格 / 热力带 / 时间线 / 导出三件套</div></button>
+    <button class="foot-card" onclick="openReview()"><div class="ic">📈</div><div class="t">复盘（周 / 月 / 自定义 / 项目）</div><div class="d">双栏四块：画像摘要 · 节奏曲线 · 目标对账 · 偏离预警</div></button>
+    <button class="foot-card" onclick="openDrawer('log')"><div class="ic">🗂️</div><div class="t">操作记录</div><div class="d">全量事件流按日分组，类型 × 动作 × 时间三维可筛</div></button>
+  </div>
+</div><!-- ══════════ 页面 2：调度台首页 /（CompassHome.vue 1:1 复刻） ══════════ -->
+<div class="page vp" id="vp-home">
+
+  <div class="note-bar">📌 本页是<b>调度台首页</b>的完整交互原型：状态条 / 今日三件事 / 年度热力图 / 三张卡，以及全部弹窗与下钻。生产代码见 <b>CompassHome.vue</b>。</div>
+
+  <!-- MetricBar 合流状态条 -->
+  <div class="mbar">
+    <div class="mbar-l">
+      <span class="cf-label">🚀 主攻</span>
+      <span class="cf-item" onclick="toast('进入项目详情页（原型示意）')">
+        <span class="cf-name">AI学习力体系</span><span class="cf-pct">62%</span>
+      </span>
+      <span class="cf-item" onclick="toast('进入项目详情页（原型示意）')">
+        <span class="cf-name">高考志愿咨询</span><span class="cf-pct">38%</span><span class="cf-stall">⚠ 停滞</span>
+      </span>
+    </div>
+    <div class="mbar-r">
+      <span class="dz-sp"></span>
+      <button class="chip" onclick="toast('本机存储正常 · 已用 486 KB（原型示意）')"><span class="sc-dot"></span><span>本机存储正常 · 刚写入</span></button>
+      <button class="chip on" onclick="toast('立即同步到 Airtable（原型示意）')"><span class="sc-dot"></span><span>⇄ 12 分钟前同步</span><span class="sync-gear" onclick="event.stopPropagation();toast('Airtable 同步设置')">⚙</span></button>
+      <button class="dz-btn mbar-act" onclick="go('profile')">📈 复盘</button>
+    </div>
+  </div>
+
+  <!-- 今日三件事 -->
+  <div class="hmod">
+    <div class="card focus">
+      <div class="card-head">
+        <span class="ic">🔥</span><span class="nm">今日三件事</span><span class="en">TODAY'S FOCUS</span>
+        <button class="mini-btn" onclick="toast('✓ 已复制昨日三件事')">⧉ 复制昨日</button>
+        <button class="mini-btn" onclick="openExport()">⬇ 导出</button>
+        <div class="date-nav">
+          <div class="dn" onclick="shiftDate(-1)">‹</div>
+          <div class="dd" id="focusDate">10月13日 周一</div>
+          <div class="dn" onclick="shiftDate(1)">›</div>
+        </div>
+        <div style="position:relative">
+          <button class="why-ico" id="whyIco" onclick="toggleWhy()">✦</button>
+          <div class="why-pop" id="whyPop" style="display:none"></div>
+        </div>
+      </div>
+      <div class="today-body">
+        <div class="today-cards" id="focusCards"></div>
+        <div class="td-done" id="focusDone" style="display:none">✓ 今日三件事已闭环 · 专注带来从容</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 年度热力图 -->
+  <div class="hmod">
+    <div class="card">
+      <div class="card-head">
+        <span class="ic">📅</span><span class="nm">年度热力图</span><span class="en">YEAR HEATMAP</span>
+        <div class="tabs" style="margin-left:auto" id="hmTabs">
+          <button class="on" onclick="setHmView(this,'y')">年</button>
+          <button onclick="setHmView(this,'m')">月</button>
+        </div>
+        <button class="mini-btn" onclick="openDrawer('log')">🗂️ 操作记录</button>
+      </div>
+      <div class="heat-wrap">
+        <div class="heat-top">
+          <span class="t">2026 年 · 活跃热力</span>
+          <span class="hm-lv">年度加权 8,412 分</span>
+          <span class="m">· 活跃 284 天 · 最长连续 28 天 · 单日峰值 55 分（03-18）</span>
+        </div>
+        <div class="hm" id="hmYear"></div>
+        <div class="hm-legend"><span>少</span>
+          <span class="s" style="background:var(--heat-0)"></span><span class="s" style="background:var(--heat-1)"></span>
+          <span class="s" style="background:var(--heat-2)"></span><span class="s" style="background:var(--heat-3)"></span>
+          <span class="s" style="background:var(--heat-4)"></span><span class="s" style="background:var(--heat-5)"></span>
+          <span>多</span>
+          <span style="margin-left:auto">点任意格 → 打开该日战报</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 三张卡 -->
+  <div class="hmod">
+    <div class="card deck-frame">
+      <div class="decks-title"><span class="ic">🗂️</span><span class="nm">三张卡</span><span class="en">THREE DECKS</span></div>
+      <div class="bottom-tabs" id="deckTabs">
+        <button class="bt-tab on" onclick="setDeck(this,'task')">📋 任务卡<span class="bt-cnt">18</span></button>
+        <button class="bt-tab" onclick="setDeck(this,'curio')">💡 好奇心卡<span class="bt-cnt">12</span></button>
+        <button class="bt-tab" onclick="setDeck(this,'pool')">📦 资源卡<span class="bt-cnt">47</span></button>
+      </div>
+      <div class="bottom-pane" id="deckPane"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ 弹层 ══════════ -->
+<!-- 今日战报（DayDetail.vue 五段结构 1:1） -->
+<div class="ov" id="ovBattle"><div class="dz-day-modal"><div class="dz-day" id="battleBody"></div></div></div>
+
+<!-- 指标下钻弹窗（通用） -->
+<div class="ov" id="ovDrill"><div class="dz-day-modal" style="width:min(560px,92vw)"><div class="dz-day" id="drillBody"></div></div></div>
+
+<!-- 复盘弹窗（ReviewPanel 双栏四块） -->
+<div class="ov" id="ovReview"><div class="dz-day-modal" style="width:min(880px,94vw)"><div class="dz-day" id="reviewBody"></div></div></div>
+
+<!-- 任务选取弹窗 -->
+<div class="ov" id="ovPicker"><div class="pm">
+  <div class="pm-head"><span>📋 从任务库选取</span><span class="x" onclick="closePicker()">×</span></div>
+  <div class="pm-filters">
+    <input id="pkSearch" placeholder="🔍 搜索任务..." oninput="renderPicker()">
+    <select id="pkProj" onchange="renderPicker()"><option value="">全部项目</option></select>
+  </div>
+  <div class="pm-body" id="pkBody"></div>
+  <div class="pm-foot"><button class="mini-btn" onclick="closePicker()">取消</button></div>
+</div></div>
+
+<!-- 三件事导出弹窗 -->
+<div class="ov" id="ovExport"><div class="pm" style="width:min(400px,92vw)">
+  <div class="pm-head"><span>⬇ 导出三件事任务（CSV）</span><span class="x" onclick="closeExport()">×</span></div>
+  <div class="pm-body" style="padding:16px 18px">
+    <div style="font-size:var(--fs-caption);color:var(--text-3);margin-bottom:8px">时间范围（按三件事安排日期）</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="date" value="2026-10-07" style="flex:1"><span style="color:var(--text-3)">→</span><input type="date" value="2026-10-13" style="flex:1">
+    </div>
+    <div style="font-size:var(--fs-micro);color:var(--text-4);margin-top:10px;line-height:1.7">导出字段：任务内容 / 所属项目 / 项目→成功指标 / 任务状态 / 安排时间 / 创建时间</div>
+  </div>
+  <div class="pm-foot"><button class="mini-btn" onclick="closeExport()">取消</button><button class="mini-btn primary" onclick="closeExport();toast('✓ 已导出 28 条记录（CSV）')">✓ 导出 CSV</button></div>
+</div></div>
+
+<!-- 右侧抽屉（操作记录 / 错误日志） -->
+<div class="dr-overlay" id="drOverlay" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="t"><span id="drTitle">操作记录</span><div class="d" id="drSub">全部事件 · 类型 × 动作 × 时间三维可筛</div></div>
+    <button class="dz-btn sm" onclick="closeDrawer()">收起 ×</button>
+  </div>
+  <div class="drawer-filter" id="drFilter"></div>
+  <div class="drawer-body" id="drBody"></div>
+</aside>
+
+<div class="toast-wrap" id="toastWrap"></div><script>
+/* ═══════════ 基础 ═══════════ */
+const TODAY='2026-10-13';
+function toast(m){const w=document.getElementById('toastWrap');const d=document.createElement('div');d.className='toast';d.textContent=m;w.appendChild(d);
+  setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),320)},2100)}
+function go(p){document.querySelectorAll('.vp').forEach(v=>v.classList.remove('on'));document.getElementById('vp-'+p).classList.add('on');
+  document.querySelectorAll('.nb-tab').forEach(t=>t.classList.toggle('on',t.dataset.nav===p));window.scrollTo({top:0,behavior:'smooth'})}
+function navStub(n){toast('「'+n+'」页原型未覆盖 —— 本轮只做 洞察 / 调度 两页')}
+document.getElementById('themeBtn').addEventListener('click',e=>{const tw=e.target.closest('.tw');if(!tw)return;
+  const t=tw.dataset.t;document.documentElement.dataset.theme=t;
+  document.querySelectorAll('.theme-btn .tw').forEach(x=>x.classList.toggle('on',x.dataset.t===t));
+  document.getElementById('themeName').textContent=t});
+function closeAll(){['ovBattle','ovDrill','ovReview','ovPicker','ovExport'].forEach(id=>document.getElementById(id).classList.remove('on'))}
+document.addEventListener('click',e=>{if(e.target.classList.contains('ov'))closeAll()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAll();closeDrawer()}});
+
+/* ═══════════ 数据（模拟本机事件日志） ═══════════ */
+const CARDS={
+ c1:{i:'🌱',t:'AI Agent 记忆机制',p:'#AI学习力 · 资源'},
+ c2:{i:'🧠',t:'费曼技巧 × 输出倒逼',p:'#学习方法 · 资源'},
+ c3:{i:'🏠',t:'家庭决策动力学 v2',p:'#志愿咨询 · 资源'},
+ c4:{i:'🛤️',t:'小镇做题家发展路径',p:'#生涯 · 资源'},
+ c5:{i:'📐',t:'十二维志愿决策模型',p:'#志愿咨询 · 资源'},
+ c6:{i:'🔁',t:'迁移失效的三种典型',p:'#学习方法 · 资源'},
+ c7:{i:'⚖️',t:'偏科诊断四象限',p:'#学业规划 · 资源'},
+ c8:{i:'🎯',t:'主攻项目进度口径',p:'#项目 · 系统'},
+ c9:{i:'📐',t:'成长路由器的四层护城河',p:'#IP · 资源'},
+ c10:{i:'🧩',t:'复利式内容生产流水线',p:'#内容工程 · 资源'}
+};
+/* 当日事件（DayDetail 口径：create / call / status / delete+purge → 新增 / 调出 / 推进 / 清理） */
+const EV_TODAY=[
+ {t:'09:12',a:'create',k:'资源',c:'c1',link:1},
+ {t:'09:48',a:'call',  k:'资源',c:'c2',link:1},
+ {t:'10:03',a:'call',  k:'资源',c:'c5',link:1},
+ {t:'10:35',a:'create',k:'资源',c:'c10',link:1},
+ {t:'11:02',a:'status',k:'资源',c:'c3',link:0,to:'孵化 → 成长'},
+ {t:'11:20',a:'call',  k:'任务',c:'t1',link:0},
+ {t:'11:47',a:'create',k:'资源',c:'c9',link:1},
+ {t:'13:05',a:'call',  k:'资源',c:'c4',link:1},
+ {t:'13:20',a:'status',k:'资源',c:'c6',link:0,to:'成长 → 衰退'},
+ {t:'13:44',a:'delete',k:'资源',c:'c7',link:0},
+ {t:'14:05',a:'call',  k:'资源',c:'c2',link:1},
+ {t:'14:22',a:'create',k:'资源',c:'c6',link:1},
+ {t:'14:51',a:'status',k:'系统',c:'c8',link:0,to:'主攻口径更新'},
+ {t:'15:33',a:'create',k:'资源',c:'c5',link:1},
+ {t:'16:18',a:'status',k:'资源',c:'c7',link:0,to:'建议归档'},
+ {t:'16:40',a:'call',  k:'好奇',c:'q1',link:0},
+ {t:'17:12',a:'delete',k:'资源',c:'c9',link:0},
+ {t:'17:40',a:'call',  k:'资源',c:'c4',link:1},
+ {t:'19:02',a:'create',k:'系统',c:'c8',link:0,to:'今日复盘快照'},
+ {t:'20:15',a:'status',k:'系统',c:'c8',link:0,to:'连续打卡 → 第 12 天'}
+];
+const ACT_SYM={create:'+',call:'↗',status:'◐',delete:'✕',restore:'⟲',purge:'✕'};
+const ACT_LBL={create:'新增',call:'调出',status:'推进',delete:'删除',restore:'恢复',purge:'清理'};
+const KIND_LBL={resource:'资源',task:'任务',curiosity:'好奇',system:'系统'};
+function evTitle(e){ if(e.c&&CARDS[e.c])return CARDS[e.c].t; if(e.c==='t1')return '写「十二维模型」自查表'; if(e.c==='q1')return '好奇：AI 会不会替代志愿老师'; return '系统事件' }
+function evTo(e){ return e.to?('→ '+e.to):'' }
+/* 其他日期的合成事件（保证点任意日期都有内容） */
+function evOfDay(day){
+ if(day===TODAY)return EV_TODAY;
+ const seed=day.split('-').join('');
+ let n=3+(parseInt(seed.slice(-2))%7);
+ const out=[];const acts=['create','call','status','call','create','delete','call','status'];
+ const ks=['资源','资源','任务','资源','系统','好奇'];
+ const cs=['c1','c2','c3','c5','c8','c4','c6','c10'];
+ for(let i=0;i<n;i++){const h=9+Math.floor(i*1.3);const m=(i*17)%60;
+  out.push({t:String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'),a:acts[i%acts.length],k:ks[i%ks.length],c:cs[i%cs.length],link:i%3===0?1:0})}
+ return out.sort((a,b)=>a.t.localeCompare(b.t));
+}
+function hm(ts){return ts}
+
+/* ═══════════ 洞察页渲染 ═══════════ */
+/* 节奏柱：7 天加权分（点柱 → 当日战报） */
+const WK_W=[28,34,55,41,22,12,41];
+function renderBars(){
+  const el=document.getElementById('bars');el.innerHTML='';
+  WK_W.forEach((w,i)=>{const d=new Date('2026-10-13');d.setDate(d.getDate()-(6-i));
+    const day=d.toISOString().slice(0,10);const lv=Math.min(5,Math.ceil(w/11));
+    const b=document.createElement('div');b.className='b';b.style.height=Math.max(6,w/55*100)+'%';
+    b.style.background='var(--heat-'+lv+')';b.title=day+' · 加权 '+w+' 分 · 点击看当日战报';
+    b.onclick=()=>openBattle(day);el.appendChild(b)});
+}
+/* 热力网格：12 周 × 7 天 */
+function renderHm(){
+  const el=document.getElementById('hm');el.innerHTML='';
+  const base=new Date('2026-10-13');
+  for(let w=11;w>=0;w--){
+    const col=document.createElement('div');col.className='hm-col';
+    for(let d=0;d<7;d++){
+      const dt=new Date(base);dt.setDate(base.getDate()-(w*7+(6-d)));
+      const day=dt.toISOString().slice(0,10);
+      const v=(w*13+d*7)%11;const lv=v<2?0:v<4?1:v<6?2:v<8?3:v<10?4:5;
+      const c=document.createElement('div');c.className='hm-cell dim'+lv;
+      c.title=day+' · 活跃等级 '+lv+' · 点击看当日战报';
+      c.onclick=()=>openBattle(day);col.appendChild(c)}
+    el.appendChild(col)}
+}
+/* 六维 */
+const DIMS=[['专注 Focus',82,'up','+4'],['记忆 Memory',68,'','持平'],['理解 Comprehend',85,'up','+6'],
+ ['执行 Execute',79,'up','+2'],['迁移 Transfer',54,'down','-3 · 建议加练'],['复盘 Reflect',88,'up','+5']];
+function renderDims(){
+  document.getElementById('dims').innerHTML=DIMS.map(d=>
+    `<button class="mchip ${d[2]}" onclick="dimDrill('${d[0]}',${d[1]},'${d[3]}')"><span class="v">${d[1]}</span><span class="l">${d[0].split(' ')[0]}</span><span class="go">▸</span></button>`).join('');
+}
+/* 目标 */
+const GOALS=[['📖 年阅读 52 本',38,52],['🗂️ 归档 300 张卡',183,300],['✍️ 输出 24 篇文章',12,24],['🎓 完成 30 次咨询',8,30]];
+function renderGoals(){
+  document.getElementById('goals').innerHTML=GOALS.map(g=>{
+    const pct=Math.round(g[1]/g[2]*100);
+    return `<div class="goal" onclick="goalDrill('${g[0]}',${g[1]},${g[2]})">
+      <span class="nm">${g[0]}</span>
+      <span class="bar"><i style="width:${pct}%"></i></span>
+      <span class="n"><b>${g[1]}</b> / ${g[2]}</span></div>`}).join('');
+}
+/* 生命周期 */
+const LC={'inc':{n:122,p:43,c:'success',items:['c1|3 天|AI Agent 记忆机制','c2|5 天|费曼技巧 × 输出倒逼','c10|8 天|复利式内容生产流水线','c9|12 天|成长路由器的四层护城河']},
+         'gro':{n:99,p:35,c:'warning',items:['c3|28 天|家庭决策动力学 v2','c5|31 天|十二维志愿决策模型','c4|45 天|小镇做题家发展路径','c6|52 天|迁移失效的三种典型']},
+         'dec':{n:63,p:22,c:'stagnant',items:['c7|104 天|偏科诊断四象限','c8|127 天|主攻项目进度口径','c2|153 天|费曼技巧 × 输出倒逼']}};
+let lcCur='inc';
+function renderLc(){
+  document.getElementById('lcLeg').innerHTML=Object.keys(LC).map(k=>{
+    const s=LC[k];return `<div class="r ${k===lcCur?'on':''}" onclick="lcPick('${k}')">
+      <span class="sw" style="background:var(--${s.c})"></span><span class="nm">${k==='inc'?'孵化期':k==='gro'?'成长期':'衰退期'}</span>
+      <span class="ct">${s.n} 张 · ${s.p}%</span></div>`}).join('');
+  renderLcList();
+}
+function renderLcList(){
+  const s=LC[lcCur];
+  document.getElementById('lcList').innerHTML=s.items.map(t=>{
+    const[c,age,title]=t.split('|');
+    return `<div class="lc-row" onclick="toast('定位「${CARDS[c].t}」（原型示意）')">
+      <span>${CARDS[c].i}</span><span class="t">${CARDS[c].t} <span class="s">· ${CARDS[c].p} · 停留 ${age}</span></span>
+      <span class="ops">${lcCur!=='dec'?'<span class="mini-btn">升阶 ›</span>':'<span class="mini-btn">重新激活</span>'}<span class="mini-btn">归档</span></span></div>`}).join('');
+}
+function lcPick(k){lcCur=k;renderLc();drillList('生命周期 · '+(k==='inc'?'孵化期':k==='gro'?'成长期':'衰退期'),
+  LC[k].items.map(t=>{const[c,age,title]=t.split('|');return{kind:'resource',c,t:CARDS[c].t,tag:CARDS[c].p,time:age,n:1}}),LC[k].n)}
+/* 操作流 */
+const FLOW=EV_TODAY.map(e=>({t:e.t,a:e.a,lbl:ACT_LBL[e.a],k:KIND_LBL[e.k],title:evTitle(e),to:evTo(e),c:e.c,link:e.link}));
+let flowCur='all';
+function renderFlow(){
+  const rows=flowCur==='all'?FLOW:FLOW.filter(r=>r.a===flowCur);
+  document.getElementById('flow').innerHTML=rows.map(r=>
+    `<div class="flow-row" onclick="locate('${r.title}')" ondblclick="${r.link?'toast(\'双击 → 直达链接 / 打开文件：'+r.title+'\')':''}" title="单击 → 定位卡片 · 双击 → 直达链接">
+      <span class="tm">${r.t}</span><span class="ac ac-${r.a}">${ACT_SYM[r.a]} ${r.lbl}</span>
+      <span class="tt">${r.title}</span><span class="kd">${r.k}${r.to?' · '+r.to:''}</span></div>`).join('');
+}
+</script><script>
+/* ═══════════ 指标下钻弹窗（复刻 DrillCardList：单击定位 / 双击开链接） ═══════════ */
+let drillRowsCur=[];
+function drillList(label,rows,total,extra){
+  drillRowsCur=rows;total=total??rows.length;
+  const more=total>rows.length?'（同卡多次已合并 ×N）':'';
+  let h=`<div class="dz-day-head"><span class="dz-day-ic">🔍</span>
+    <div class="dz-day-txt"><div class="dz-day-title">${label}</div>
+    <div class="dz-day-sub">${rows.length} 类卡片 · 共 ${total} 条记录${more}</div></div>
+    <button class="dz-btn ghost sm" onclick="closeDrill()">收起 ×</button></div>`;
+  if(extra)h+=`<div class="dz-dl-sum" style="margin-top:12px">${extra}</div>`;
+  h+=`<div class="dz-tl"><div style="margin-top:10px"><div class="dz-drill-h"><b>明细</b>
+      <span class="dz-sp"></span><span class="dz-drill-hint">单击看详情 · 双击直达链接</span></div>`;
+  h+=rows.length?rows.map(r=>
+    `<div class="dz-row" onclick="locate('${r.t}')" ${r.link?'ondblclick="toast(\'双击 → 直达链接：'+r.t+'\')"':''}
+      title="单击 → 定位「${r.t}」· 双击 → 直达链接 / 打开文件">
+      <span class="dz-row-i">${r.i||CARDS[r.c]?.i||'📄'}</span>
+      <span class="dz-row-t">${r.t}</span>
+      ${(r.n||1)>1?`<span class="dz-row-n">×${r.n}</span>`:''}
+      <span class="dz-row-m">${r.time||''}</span>
+      <span class="dz-row-p">${r.tag||''}</span>
+      <span class="dz-row-g">›</span></div>`).join('')
+    :'<div class="dz-drill-empty">该维度无记录</div>';
+  h+=`</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:8px">
+      <button class="dz-btn" onclick="closeDrill()">关闭</button>
+      <button class="dz-btn ghost" onclick="toast('导出当前下钻（原型示意）')">⬇ 导出</button></div></div>`;
+  document.getElementById('drillBody').innerHTML=h;
+  document.getElementById('ovDrill').classList.add('on');
+}
+function closeDrill(){document.getElementById('ovDrill').classList.remove('on')}
+function locate(t){toast('定位「'+t+'」→ 高亮该卡片（原型示意）')}
+/* 各个指标的下钻内容（按产品真实口径给明细） */
+const DRILL={
+ 'today-add':['今日新增 · 当日 create 事件（8 张）',[['c1','09:12'],['c10','10:35'],['c9','11:47'],['c6','14:22'],['c5','15:33']],8,'口径：当日 action=create 的事件条数（含导入与收藏抓取）'],
+ 'streak':['连续打卡 · 连续有记录的天数',[['c1','第 12 天'],['c2','第 11 天'],['c5','第 10 天'],['c8','最长 28 天']],28,'口径：相邻两天都有 ≥1 条有效动作即续 1 天'],
+ 'pending':['待回顾 · 今日新增尚未归档',[['c1','3 天'],['c6','0 天'],['c5','0 天'],['c10','0 天']],5,'口径：今日新增中尚未做过任何状态变更的卡片'],
+ 'focus':['今日专注 · 三件事完成耗时',[['写自查表','25 min'],['写自查表→修订','12 min'],['复盘','10 min']],47,'口径：三件事卡片进入 → 勾选完成的停留时长之和'],
+ 'miss':['昨日遗留 · 未完成项',[['跟进AI学习力内容选题','昨日 20:10']],1,'口径：昨日三件事中未勾选且未移除的项'],
+ 'wk-add':['本周新增 · 窗口内 create（23 张）',[['c1','周一'],['c10','周一'],['c9','周二'],['c5','周三'],['c6','周四']],23,'窗口：10-07 → 10-13（7 天）· 同卡多次已合并 ×N'],
+ 'wk-arch':['本周归档 · 状态变更 → 归档（15 张）',[['c6','周三'],['c7','周五'],['c9','周六'],['c3','周一']],15,'口径：状态变更事件的 to 字段命中「归档」'],
+ 'wk-acts':['有效动作 · 剔除打开类噪声（41 件）',[['录入 11 件','—'],['状态变更 9 件','—'],['删除 3 件','—'],['归档 18 件','—']],41,'口径：剔除 call(打开) 与 restore 后的动作条数'],
+ 'wk-w':['加权分 · 按动作权重加总（268 分）',[['新增 ×8','+80'],['状态 ×21','+84'],['归档 ×18','+72'],['清理 ×4','+32']],268,'权重：create=10 / status=4 / archive=4 / delete=8'],
+ 'wk-pace':['节奏波动 · 加权分标准差（±18%）',[['周一 28','-24%'],['周三 55','+38%'],['周六 12','-52%']],18,'口径：7 天加权分的变异系数，越低越稳'],
+ 'as-create':['累计入台 1,247 次',[['c1','09-12'],['c10','08-30'],['c9','08-21']],1247,'口径：全量事件日志 action=create 累计'],
+ 'as-call':['累计调出 8,412 次',[['c2','09-13'],['c4','09-13'],['c5','09-13']],8412,'口径：卡片被打开/引用的累计次数'],
+ 'as-status':['累计状态变更 2,073 次',[['c3','11:02'],['c6','13:20'],['c7','16:18']],2073,'口径：生命周期状态迁移累计'],
+ 'as-del':['累计清理 318 次',[['c7','13:44'],['c9','17:12']],318,'口径：delete + purge 累计'],
+ 'y-total':['卡片总量 284 张（未删除）',[['c1','孵化'],['c3','成长'],['c7','衰退']],284,'口径：未删除卡片全量去重'],
+ 'y-promote':['本年升阶 46 张',[['c3','孵化→成长'],['c5','孵化→成长'],['c6','成长→衰退']],46,'口径：年内发生的生命周期升阶事件']
+};
+function drill(k,label){
+  const d=DRILL[k];if(!d){drillList(label,[{c:'c1',t:'示例卡片',tag:'#示例',time:'--'},{c:'c2',t:'另一张卡片',tag:'#示例',time:'--'}],2,'原型示意明细');return}
+  drillList(d[0],d[1].map(r=>({c:r[0],t:CARDS[r[0]]?CARDS[r[0]].t:r[0],tag:CARDS[r[0]]?CARDS[r[0]].p:'',time:r[1],n:1})),d[2],d[3]);
+}
+function dimDrill(n,v,note){
+  drillList('维度下钻 · '+n,[['c1','相关 Top1'],['c6','相关 Top2'],['c2','相关 Top3']].map(r=>({c:r[0],t:CARDS[r[0]].t,tag:CARDS[r[0]].p,time:r[1],n:1})),v,`本周得分 <b>${v}</b> · 环比 ${note} · 该维取自 12 周加权动作的归因分`);
+}
+function goalDrill(n,cur,tot){
+  drillList('目标产出 · '+n,[['c1','本周 2 项'],['c5','本周 1 项'],['c9','上周 3 项']].map(r=>({c:r[0],t:CARDS[r[0]].t,tag:CARDS[r[0]].p,time:r[1],n:1})),cur,`完成 <b>${cur}</b> / ${tot}（${Math.round(cur/tot*100)}%）· 剩余 41 天`);
+}
+function rule(id,name,thr,act){
+  drillList('偏离规则 · '+id+' '+name,[['c1','实测样本 1'],['c6','实测样本 2'],['c7','实测样本 3']].map(r=>({c:r[0],t:CARDS[r[0]].t,tag:CARDS[r[0]].p,time:'—',n:1})),3,
+    `规则 <b>${id} ${name}</b> · 阈值 <b>${thr}</b> · 实际 <b>${act}</b> · 窗口 10-07 → 10-13（7 天）`);
+}
+
+/* ═══════════ 今日战报（DayDetail.vue 五段结构 1:1） ═══════════ */
+let battleDrill='';
+function openBattle(day){
+  battleDrill='';const evs=evOfDay(day);
+  const wd=['一','二','三','四','五','六','日'][(new Date(day.replace(/-/g,'/')).getDay()+6)%7];
+  const cnt={create:0,call:0,status:0,del:0};
+  evs.forEach(e=>{if(e.a==='create')cnt.create++;else if(e.a==='call')cnt.call++;else if(e.a==='status')cnt.status++;else cnt.del++});
+  const cells=[['create',cnt.create,'新增','+','sc-create'],['call',cnt.call,'调出','↗','sc-call'],
+               ['status',cnt.status,'推进','◐','sc-status'],['del',cnt.del,'清理','⌫','sc-del']];
+  const cards=new Set(evs.map(e=>e.c)).size;
+  const W=Math.round(cnt.create*10+cnt.call*1+cnt.status*4+cnt.del*8);
+  const lv=Math.min(5,Math.ceil(W/12)), lvName=['静默','微光','温流','活跃','炽热','峰值'][lv];
+  const range=['0-9 分','10-19 分','20-34 分','35-49 分','50-74 分','75 分以上'][lv];
+  const intensity=Math.min(100,Math.round(W/55*100));
+  /* 分时段（降序：下午在前） */
+  const groups=[];[...evs].reverse().forEach(e=>{const h=+e.t.slice(0,2);const lb=h<12?'上午':h<18?'下午':'晚上';
+    let g=groups[groups.length-1];if(!g||g.lb!==lb){g={lb,rows:[]};groups.push(g)}g.rows.push(e)});
+  let h=`<div class="dz-day-head"><span class="dz-day-ic">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="4"/></svg></span>
+    <div class="dz-day-txt"><div class="dz-day-title">${day===TODAY?'今日战报':'日详情'}</div>
+    <div class="dz-day-sub">${day} 周${wd}</div></div>
+    <button class="dz-btn ghost sm" onclick="closeBattle()">收起 ×</button></div>`;
+  /* ② 摘要 */
+  h+=`<div class="dz-dl-sum">${evs.length?`今天你完成了 <b>${evs.length}</b> 项操作，涉及 <b>${cards}</b> 张卡。`:'这一天没有操作记录。'}
+      <div class="dz-dl-recent">最近一次操作：${evs.length?evs[evs.length-1].t:'—'}${(evs.length&&day!==TODAY)?'（'+day+' '+Math.round(Math.random()*20+2)+' 小时前）':'（2 小时前）'}</div></div>`;
+  /* ③ 四格统计（可点击下钻） */
+  if(evs.length)h+=`<div class="dz-stats">${cells.map(c=>
+    `<button class="dz-stat ${c[4]} ${c[1]===0?'dim':''} ${battleDrill===c[0]?'on':''}" ${c[1]===0?'disabled':''}
+      title="${c[1]===0?'当日无「'+c[2]+'」记录':'点击下钻「'+c[2]+'」明细'}" onclick="battleDrillSet('${c[0]}')">
+      <span class="n">${c[1]}</span><span class="lbl"><span class="sym">${c[3]}</span>${c[2]}</span></button>`).join('')}</div>`;
+  /* ③ 下钻区 */
+  if(battleDrill){
+    const lb=cells.find(c=>c[0]===battleDrill)[2];
+    const f=evs.filter(e=>battleDrill==='del'?(e.a==='delete'||e.a==='purge'):e.a===battleDrill);
+    h+=`<div style="margin:10px 22px 0"><div class="dz-drill plain"><div class="dz-drill-h"><b>当日「${lb}」下钻</b>
+      <span>${new Set(f.map(e=>e.c)).size} 类卡片 · 共 ${f.length} 条记录</span><span class="dz-sp"></span>
+      <span class="dz-drill-hint">单击看详情 · 双击直达链接</span></div>
+      ${[...new Set(f.map(e=>e.c))].map(c=>{const n=f.filter(x=>x.c===c).length;
+        return `<div class="dz-row" onclick="locate('${CARDS[c]?CARDS[c].t:'任务/好奇卡'}')" title="单击 → 定位 · 双击 → 直达链接">
+        <span class="dz-row-i">${CARDS[c]?CARDS[c].i:'📄'}</span>
+        <span class="dz-row-t">${CARDS[c]?CARDS[c].t:(c==='t1'?'写「十二维模型」自查表':'好奇：AI 会不会替代志愿老师')}</span>
+        ${n>1?`<span class="dz-row-n">×${n}</span>`:''}
+        <span class="dz-row-m">${f.filter(x=>x.c===c).map(x=>x.t).slice(0,2).join(' – ')}</span>
+        <span class="dz-row-p">${KIND_LBL[f.find(x=>x.c===c).k]}</span><span class="dz-row-g">›</span></div>`}).join('')}
+      </div></div>`}
+  /* ③.5 热力带 */
+  h+=`<div class="dz-heat-band lv${lv}"><span class="lv">${lvName}</span><span class="w">加权 ${W} 分</span>
+    <span class="range">${range}</span><span class="int">强度 ${intensity}%</span><span class="acts">有效动作 ${cnt.create+cnt.status+cnt.del} 件</span></div>`;
+  /* ④ 时间线（降序，行可点击） */
+  h+=`<div class="dz-tl"><div class="th"><b>当日操作时间线</b><span class="dz-sp"></span>
+    <span>共 ${evs.length} 条 · 明细来自 zy_event_log</span>
+    <button class="dz-btn sm" onclick="closeBattle();openDrawer('log','${day}')">查看全部记录 ›</button></div>`;
+  if(!evs.length)h+=`<div class="dz-row" style="color:var(--text-3)">今天还没有操作记录 —— 去调度台做点什么吧：采集一张卡、推进一个任务、或打开一次资源</div>`;
+  for(const g of groups){h+=`<div class="dz-tl-grp">${g.lb}</div>`;
+    for(const e of g.rows){
+      const t=CARDS[e.c]?CARDS[e.c].t:(e.c==='t1'?'写「十二维模型」自查表':'好奇：AI 会不会替代志愿老师');
+      h+=`<div class="dz-tl-row" onclick="locate('${t}')" ${e.link?'ondblclick="toast(\'双击 → 直达链接：'+t+'\')"':''}
+        title="单击 → 定位「${t}」· 双击 → 直达链接 / 打开文件">
+        <span class="tm">${e.t}</span><span class="dotcol"><span class="tl-dot ac-${e.a}" style="background:var(--${e.a==='create'?'success':e.a==='call'?'accent-ink':e.a==='status'?'info-blue':'danger'})"></span></span>
+        <span class="ac ac-${e.a}">${ACT_SYM[e.a]} ${ACT_LBL[e.a]}</span>
+        <span class="kd">${KIND_LBL[e.k]}</span><span class="ti">${t}</span>
+        ${e.to?`<span class="to">${e.to}</span>`:''}</div>`}}
+  h+=`</div>`;
+  /* ⑤ 页脚 */
+  h+=`<div class="dz-dl-foot"><span class="note">数据来源：本机事件日志 · 仅当日 · 自然日口径</span>
+    <button class="dz-btn sm" onclick="closeBattle();openDrawer('log','${day}')">查看全部记录 ›</button>
+    <div class="tabs" id="expTabs"><button class="on" onclick="expFmt(this,'png')">导出 PNG</button>
+      <button onclick="expFmt(this,'html')">HTML</button><button onclick="expFmt(this,'md')">Markdown</button></div></div>`;
+  document.getElementById('battleBody').innerHTML=h;
+  document.getElementById('ovBattle').classList.add('on');
+}
+function battleDrillSet(k){battleDrill=battleDrill===k?'':k;const d=document.getElementById('battleBody').querySelector('.dz-day-sub').textContent.split(' ')[0];openBattle(d)}
+function closeBattle(){document.getElementById('ovBattle').classList.remove('on')}
+function expFmt(b,f){b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+  toast(f==='png'?'✓ 已导出战报 PNG（当前主题配色）':f==='html'?'✓ 已导出 HTML 分享页':'✓ 已导出 Markdown（贴进笔记即成形）')}
+</script><script>
+/* ═══════════ 复盘弹窗（ReviewPanel.vue 双栏四块 1:1） ═══════════ */
+let revRange='week',revDrill='';
+const REV_KPIS=[
+ {k:'acts',label:'有效动作',v:'41',unit:'件',note:'剔除打开类噪声'},
+ {k:'w',label:'加权分',v:'268',unit:'分',note:'环比 <span class="up">+12%</span>'},
+ {k:'cards',label:'触达卡片',v:'37',unit:'张',note:'同卡多次已合并'},
+ {k:'create',label:'新增入台',v:'23',unit:'张',note:'环比 <span class="dn">-4</span>'},
+ {k:'archive',label:'归档',v:'15',unit:'张',note:'环比 <span class="up">+3</span>'},
+ {k:'focus',label:'三件事完成',v:'11',unit:'/21',note:'完成率 52%'}];
+const REV_DIR=[['AI学习力体系',1,14,38,true],['高考志愿咨询',1,9,25],['个人IP与内容工程',1,6,17],['知识系统与检索',1,4,11],['未挂项目',0,3,9]];
+const REV_RULES=[['R1','采集消化配比失衡','新增 23 / 归档 15 = 1.53 > 1.2','warn'],['R2','主攻无推进','「高考志愿咨询」近 14 天无状态变更','warn'],
+ ['R7','周末塌陷','周六日加权 12 分 < 周均 35 分','warn'],['R3','复盘缺位','本周未生成复盘快照','warn']];
+function renderReview(){
+  const win=revRange==='week'?['本周','10-07 → 10-13',7]:revRange==='month'?['本月','10-01 → 10-13',13]:
+    revRange==='custom'?['自定义','09-01 → 10-13',43]:['项目','高考志愿咨询 · 全周期',86];
+  let h=`<div class="dz-day-head"><span class="dz-day-ic">📈</span>
+    <div class="dz-day-txt"><div class="dz-day-title">复盘</div><div class="dz-day-sub">${win[0]} · ${win[1]} · ${win[2]} 天</div></div>
+    <button class="dz-btn ghost sm" onclick="closeReview()">收起 ×</button></div>`;
+  h+=`<div class="rev-toolbar">
+    <div class="tabs" id="revTabs">
+      <button class="${revRange==='week'?'on':''}" onclick="revPick('week')">周复盘</button>
+      <button class="${revRange==='month'?'on':''}" onclick="revPick('month')">月复盘</button>
+      <button class="${revRange==='custom'?'on':''}" onclick="revPick('custom')">自定义</button>
+      <button class="${revRange==='project'?'on':''}" onclick="revPick('project')">项目复盘</button></div>
+    <span class="dz-sp"></span>
+    <span style="font-size:var(--fs-caption);color:var(--text-4)">环比（等长窗口）有效动作 <b style="color:var(--success)">+12%</b> · 加权 <b style="color:var(--success)">+8%</b></span>
+    <button class="dz-btn" onclick="toast('🤖 AI 解读生成中…（原型示意）')">✦ AI 解读</button></div>`;
+  h+=`<div class="rev-grid">
+    <div class="rev-col">
+      <div class="dz-blk"><div class="bh"><span class="n">①</span><span class="t">画像摘要</span><span class="dz-badge">纯计算</span>
+        <span class="dz-sp"></span><span class="meta">${win[0]}</span></div>
+        <div class="bb"><div class="dz-kpis">${REV_KPIS.map(k=>
+          `<button class="dz-kpi ${revDrill===k.k?'on':''}" onclick="revDrillSet('${k.k}','${k.label}')">
+            <div class="k">${k.label}<span class="go">${revDrill===k.k?'▾':'▸'}</span></div>
+            <div class="v">${k.v}<small>${k.unit}</small></div><div class="c">${k.note}</div></button>`).join('')}</div>
+          ${revDrill?revDrillBlock():''}</div></div>
+      <div class="dz-blk"><div class="bh"><span class="n">②</span><span class="t">节奏曲线</span><span class="dz-badge">纯计算</span>
+        <span class="dz-sp"></span><span class="meta">加权分</span></div>
+        <div class="bb dz-trend"><div class="cap"><span>窗口内每日加权分</span><span class="dz-sp"></span><span>峰值 周三 55 分</span></div>
+          <div class="bars" style="height:56px">${WK_W.map(w=>`<div class="b" style="height:${Math.max(6,w/55*100)}%;background:var(--heat-${Math.min(5,Math.ceil(w/11))})" title="${w} 分"></div>`).join('')}</div></div></div>
+    </div>
+    <div class="rev-col">
+      <div class="dz-blk"><div class="bh"><span class="n">③</span><span class="t">目标对账</span><span class="dz-badge rl">规则算 · AI 解读</span>
+        <span class="dz-sp"></span><span class="meta">点条形看该方向明细</span></div>
+        <div class="bb"><div class="dz-obj">${REV_DIR.map((d,i)=>{
+          const pct=Math.round(d[2]/d[3]*100);
+          return `<button class="o ${revDrill==='dir'+i?'on':''}" onclick="revDrillSet('dir${i}','${d[0]} · 本期产出')">
+            <span class="nm">${d[4]?'<span class="f">主攻</span>':''}${d[0]}</span>
+            <span class="bar"><i style="width:${pct}%"></i></span>
+            <span class="n"><b>${d[2]}</b> 项 · ${pct}%</span></button>`}).join('')}</div>
+          <div class="foot">本期产出 <b>36</b> 项（窗口内新建 ∪ 完成的任务，按任务去重）· 覆盖度 <b>4/4</b> 个战略目标 ·
+            偏斜度 <b class="warn">38%</b> · <span class="warn">偏斜偏高（&gt;45% 未触发）</span><br>另有 <b>3</b> 项未挂项目 ⇒ 无法归属方向（资源卡 / 好奇卡本就无项目归属）。</div>
+          ${revDrill&&revDrill.startsWith('dir')?revDrillBlock():''}</div></div>
+      <div class="dz-blk"><div class="bh"><span class="n">④</span><span class="t">偏离预警</span><span class="dz-badge rl">规则引擎 · 非 AI</span>
+        <span class="dz-sp"></span><span class="meta">命中 ${REV_RULES.length} / 8 · 点规则看阈值与实测</span></div>
+        <div class="bb"><div class="dz-rules">${REV_RULES.map(r=>
+          `<button class="dz-rule ${revDrill==='rule'+r[0]?'on':''}" onclick="revDrillSet('rule${r[0]}','规则 ${r[0]} ${r[1]}')">
+            <span class="rid">${r[0]}</span><span class="rb"><span class="rt">${r[1]}</span><span class="rd">${r[2]}</span></span><span class="go">›</span></button>`).join('')}</div>
+          ${revDrill&&revDrill.startsWith('rule')?`<div class="dz-rule-w">
+            <div><span class="k">规则</span> ${revRule().id} ${revRule().name}</div>
+            <div><span class="k">阈值</span> <b>${revRule().thr}</b></div>
+            <div><span class="k">实际</span> <b>${revRule().act}</b></div>
+            <div><span class="k">窗口</span> 10-07 → 10-13（7 天，k = 0.23）</div></div>`:''}</div></div>
+    </div></div>`;
+  h+=`<div class="dz-dl-foot"><span class="note">规则算的是「事实偏离」，AI 只做解读 —— 两者不混算</span>
+    <button class="dz-btn" onclick="toast('🤖 生成 AI 复盘报告（原型示意）')">✦ 生成 AI 复盘报告</button>
+    <div class="tabs"><button onclick="toast('✓ 已导出复盘 PDF')">PDF</button><button onclick="toast('✓ 已导出复盘 Markdown')">MD</button></div></div>`;
+  document.getElementById('reviewBody').innerHTML=h;
+  document.getElementById('ovReview').classList.add('on');
+}
+const RULE_DETAIL={R1:{thr:'新增 / 归档 ≤ 1.2',act:'23 / 15 = 1.53'},R2:{thr:'主攻 14 天内 ≥1 次状态变更',act:'高考志愿咨询 0 次'},
+ R7:{thr:'周末加权 ≥ 周均 70%',act:'12 分 = 周均 34%'},R3:{thr:'每周 ≥1 份复盘快照',act:'本周 0 份'}};
+function revRule(){const id=revDrill.replace('rule','');const r=REV_RULES.find(x=>x[0]===id);
+  return {id:r[0],name:r[1],thr:RULE_DETAIL[r[0]].thr,act:RULE_DETAIL[r[0]].act}}
+function revDrillBlock(){
+  const items=[['c1','相关卡片 Top1'],['c6','相关卡片 Top2'],['c5','相关卡片 Top3'],['c2','相关卡片 Top4']];
+  return `<div class="dz-drill plain" style="margin-top:10px"><div class="dz-drill-h"><b>下钻明细</b>
+    <span class="dz-sp"></span><span class="dz-drill-hint">单击看详情 · 双击直达链接</span></div>
+    ${items.map(r=>`<div class="dz-row" onclick="locate('${CARDS[r[0]].t}')">
+      <span class="dz-row-i">${CARDS[r[0]].i}</span><span class="dz-row-t">${CARDS[r[0]].t}</span>
+      <span class="dz-row-m">${r[1]}</span><span class="dz-row-p">${CARDS[r[0]].p}</span><span class="dz-row-g">›</span></div>`).join('')}</div>`;
+}
+function revPick(r){revRange=r;revDrill='';renderReview()}
+function revDrillSet(k,l){revDrill=revDrill===k?'':k;renderReview()}
+function openReview(){revDrill='';renderReview()}
+function closeReview(){document.getElementById('ovReview').classList.remove('on')}
+
+/* ═══════════ 抽屉：操作记录 / 错误日志 ═══════════ */
+let drKind='log',drDay='';
+const DR_ACT=[['全部',''],['新增','create'],['调出','call'],['推进','status'],['清理','delete']];
+const DR_ERR=[['10-12 14:02','warn','微信导入解析失败 1 条','编码异常 · 已跳过该条'],
+ ['10-09 09:31','ok','Airtable 同步超时','自动重试 2 次后成功'],
+ ['10-03 21:17','warn','热力图年份回退','跨年历史日落到当前年视图'],
+ ['09-28 16:05','ok','本地存储写入','无异常']];
+function openDrawer(kind,day){
+  drKind=kind;drDay=day||'';
+  document.getElementById('drTitle').textContent=kind==='log'?'操作记录':'错误日志';
+  document.getElementById('drSub').textContent=kind==='log'?'全部事件 · 类型 × 动作 × 时间三维可筛':'导入 / 同步 / 渲染异常 · 本机日志';
+  document.getElementById('drFilter').innerHTML=kind==='log'
+    ?DR_ACT.map((a,i)=>`<button class="chip ${i===0?'on':''}" onclick="drillActPick(this,'${a[1]}')">${a[0]}</button>`).join('')
+      +`<button class="chip" onclick="toast('按日筛选（原型示意）')">📅 按日</button><button class="chip" onclick="toast('时间范围（原型示意）')">10-07 → 10-13</button>`
+    :`<button class="chip on">全部 4 条</button><button class="chip">仅异常 3 条</button>`;
+  renderDrBody();
+  document.getElementById('drOverlay').classList.add('on');
+  document.getElementById('drawer').classList.add('on');
+}
+function renderDrBody(){
+  const b=document.getElementById('drBody');
+  if(drKind==='err'){
+    b.innerHTML=DR_ERR.map(e=>`<div class="err-item ${e[1]==='ok'?'':'hit'}">
+      <span class="tm">${e[0]}</span><div style="flex:1;min-width:0">
+      <div style="font-size:var(--fs-caption);font-weight:700">${e[2]}</div>
+      <div style="font-size:var(--fs-micro);color:var(--text-3);margin-top:2px">${e[3]}</div></div>
+      <span class="dz-badge ${e[1]==='ok'?'ok':'warn'}">${e[1]==='ok'?'已恢复':'需处理'}</span></div>`).join('');
+    return}
+  const days=drDay?[drDay]:['2026-10-13','2026-10-12','2026-10-11','2026-10-10','2026-10-09'];
+  b.innerHTML=days.map((d,i)=>{
+    const evs=i===0&&!drDay?EV_TODAY:evOfDay(d);
+    const label=i===0&&!drDay?'今天':d.slice(5).replace('-','月')+'日';
+    return `<div class="dr-day">${label} · ${d} · ${evs.length} 条</div>`+
+      evs.map(e=>`<div class="dr-item" onclick="closeDrawer();openBattle('${d}')">
+        <span class="ac ac-${e.a}">${ACT_SYM[e.a]} ${ACT_LBL[e.a]}</span>
+        <span class="tm" style="font-size:var(--fs-micro);color:var(--text-4);flex:none">${e.t}</span>
+        <span class="tt">${evTitle(e)}${evTo(e)}</span>
+        <span class="dz-row-p">${KIND_LBL[e.k]}</span></div>`).join('')}).join('');
+}
+function drillActPick(b,a){b.parentElement.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  toast(a?'筛选：'+a+' · 已按动作预筛':'显示全部')}
+function closeDrawer(){document.getElementById('drOverlay').classList.remove('on');document.getElementById('drawer').classList.remove('on')}
+</script><script>
+/* ═══════════ 调度台首页交互（CompassHome.vue 1:1） ═══════════ */
+const TASKS=[
+ {t:'写「十二维模型」自查表',p:'AI学习力体系',m:'内容可交付',s:'doing',subs:['列出十二个维度','每个维度给 1 个真实案例','找 donge 哥拍板'],st:1},
+ {t:'改高考志愿咨询话术 SOP',p:'高考志愿咨询',m:'转化率',s:'todo',subs:['把「先问家庭」写成第一句','补 3 个失败案例'],st:2},
+ {t:'录 3 条小红书素材',p:'个人IP与内容工程',m:'内容产能',s:'done',subs:[],st:3},
+ {t:'搭 AI 学习力知识晶体模板',p:'AI学习力体系',m:'产品化',s:'todo',subs:['封面页提示词','内容页提示词'],st:0},
+ {t:'复盘上周 5 个咨询个案',p:'高考志愿咨询',m:'专业度',s:'todo',subs:[],st:0},
+ {t:'整理家庭决策动力学案例库',p:'个人IP与内容工程',m:'护城河',s:'doing',subs:['脱敏 3 个真实家庭'],st:1}];
+const CURIOS=[['AI 会不会替代志愿老师',1],['为什么小镇做题家的学习力更依赖家庭决策',0],['费曼技巧在 AI 时代是否已过时',1],['测评：知识熵值能不能量化焦虑',0],['AI Agent 的长期记忆到底靠什么',1]];
+const POOLS=[['《认知觉醒》读书笔记','#学习方法','url'],['知源调度台 v3.8.9 发布说明','#产品','file'],['小红书图文：十二维模型','#内容','url'],['Obsidian 笔记：知识库规范 v2.6','#知识系统','obsidian']];
+let focusDate=0,focusSlots=[null,{ti:1,auto:0},{ti:2,auto:1}];
+const WHY=[{t:'写「十二维模型」自查表',w:'本地依据：主攻项目下未开始的直接产出项',ai:0},
+ {t:'改高考志愿咨询话术 SOP',w:'主攻「高考志愿咨询」停滞 14 天，近 7 天完成率 33%',ai:1},
+ {t:'录 3 条小红书素材',w:'这一格是你自己选的，系统不评价、也不会覆盖。',ai:0}];
+function renderFocus(){
+  const box=document.getElementById('focusCards');box.innerHTML='';
+  focusSlots.forEach((s,i)=>{
+    if(s===null){
+      box.insertAdjacentHTML('beforeend',
+        `<div class="today-card empty-card" onclick="openPicker(${i})"><span class="tc-num">0${i+1}</span>
+         <div class="tc-title empty-t">＋ 从任务库选取</div></div>`);return}
+    const t=TASKS[s.ti],done=s.auto===9;
+    const auto=s.auto===1;
+    let h=`<div class="today-card ${done?'done':''}" ondblclick="toast('进任务详情抽屉（原型示意）：${t.t}')" title="单击选中 · 双击进任务详情">
+      <span class="tc-num">0${i+1}</span>
+      <div class="tc-row"><span class="tc-check ${done?'done':''}" onclick="event.stopPropagation();toggleDone(${i})">${done?'✓':''}</span>
+        <div class="tc-title">${t.t}</div></div>
+      <div class="tc-meta">
+        <span class="tag neutral">📦 ${t.p}</span><span class="tag neutral">🎯 ${t.m}</span>
+        ${t.subs.length?`<span class="tag ok">✓ ${t.subs.filter((_,k)=>k<t.st).length}/${t.subs.length} 子任务</span>`:''}
+        ${auto?'<span class="tag rec" title="系统推荐写入的一格 · 点右上角 ✦ 看依据">✦ 荐</span>':''}</div>`;
+    if(t.subs.length)h+=`<div class="tc-subs">${t.subs.map((st,k)=>
+      `<div class="tc-sub ${k<t.st?'done':''}" onclick="event.stopPropagation();toast('切换子任务完成：${st}')">
+        <span class="tsub-check">${k<t.st?'✓':''}</span><span class="tsub-t">${st}</span></div>`).join('')}</div>`;
+    h+=`<span class="tc-remove" onclick="event.stopPropagation();removeSlot(${i})">×</span></div>`;
+    box.insertAdjacentHTML('beforeend',h)});
+  document.getElementById('focusDone').style.display=focusSlots.every(s=>s&&s.auto===9)?'block':'none';
+}
+function toggleDone(i){focusSlots[i].auto=9;renderFocus();toast('✓ 已标记完成 · 同步任务卡状态')}
+function removeSlot(i){focusSlots[i]=null;renderFocus();toast('已移除该格')}
+function shiftDate(d){focusDate+=d;
+  const dt=new Date('2026-10-13');dt.setDate(dt.getDate()+focusDate);
+  document.getElementById('focusDate').textContent=(dt.getMonth()+1)+'月'+dt.getDate()+'日 周'+'一二三四五六日'[dt.getDay()];
+  if(dt.getTime()>Date.now()){document.getElementById('focusDate').textContent='10月13日 周一';focusDate=0}
+  else toast(focusDate===0?'回到今天':'已切到 '+(dt.getMonth()+1)+'月'+dt.getDate()+'日（三件事按日存档）')}
+function toggleWhy(){
+  const pop=document.getElementById('whyPop'),ico=document.getElementById('whyIco');
+  const open=pop.style.display==='none'||!pop.style.display;pop.style.display=open?'block':'none';ico.classList.toggle('on',open);
+  if(!open)return;
+  pop.innerHTML=`<div class="fw-h">为什么是这三件</div>
+    ${WHY.map((w,i)=>`<div class="fw-row"><span class="n">0${i+1}</span><div>
+      <div class="t">${focusSlots[i]===null?'<span class="off">空着</span>':TASKS[focusSlots[i].ti].t}</div>
+      <div class="w">${focusSlots[i]===null?'点这一格从任务库选，或点下面「换一批」。':w.w}${w.ai?'<span class="tag rec" style="margin-left:4px">AI 判词</span>':''}</div></div></div>`).join('')}
+    <div class="fw-f">过去 7 天完成 <b>11/21</b>（按三件事格子计）<br>推荐只写"今天这一天的计划位"，<b>不改任务卡、不改状态、不改归属</b>；你动过的格子系统不再插手。</div>
+    <div class="fw-acts"><button class="mini-btn" onclick="toast('已换一批推荐（三件事格子重排）')">换一批</button>
+      <button class="mini-btn" onclick="toast('🤖 AI 复核顺序中…（原型示意）')">让 AI 复核顺序</button>
+      <button class="mini-btn" onclick="toast('今天不再自动推荐')">今天别自动推荐</button></div>`;
+}
+/* 任务选取弹窗 */
+let pickSlot=-1,picked=new Set();
+function openPicker(i){pickSlot=i;picked.clear();
+  const sel=document.getElementById('pkProj');
+  const ps=[...new Set(TASKS.map(t=>t.p))];
+  sel.innerHTML='<option value="">全部项目</option><option value="__none__">未关联项目（0）</option>'+
+    ps.map(p=>`<option value="${p}">${p}（${TASKS.filter(t=>t.p===p).length}）</option>`).join('');
+  document.getElementById('pkSearch').value='';renderPicker();
+  document.getElementById('ovPicker').classList.add('on')}
+function renderPicker(){
+  const q=(document.getElementById('pkSearch').value||'').trim();
+  const pj=document.getElementById('pkProj').value;
+  const list=TASKS.filter(t=>(!q||t.t.includes(q))&&(!pj||pj==='__none__'?true:t.p===pj));
+  document.getElementById('pkBody').innerHTML=list.length?list.map((t,i)=>{
+    const used=focusSlots.some(s=>s&&TASKS[s.ti]===t);
+    return `<div class="pm-item ${used?'disabled':''}" onclick="${used?'':'pickTask('+TASKS.indexOf(t)+')'}">
+      <span class="pi-check">${used?'—':picked.has(TASKS.indexOf(t))?'✓':'＋'}</span>
+      <div class="pi-info"><div class="pi-title">${t.t}</div><div class="pi-meta">
+        <span class="tag acc">${t.p}</span>
+        <span class="tag ${t.s==='done'?'ok':t.s==='doing'?'':'neutral'}">${t.s==='done'?'✅ 已完成':t.s==='doing'?'◐ 进行中':'○ 待开始'}</span>
+        ${picked.has(TASKS.indexOf(t))?'<span class="tag">已选入</span>':''}
+        ${used?'<span class="tag warn">已在三件事里</span>':''}</div></div></div>`}).join('')
+    :'<div class="list-empty">暂无任务</div>'}
+function pickTask(ti){
+  focusSlots[pickSlot]={ti,auto:0};picked.clear();closePicker();renderFocus();
+  toast('✓ 已选入第 '+(pickSlot+1)+' 格 · '+TASKS[ti].t)}
+function closePicker(){document.getElementById('ovPicker').classList.remove('on');pickSlot=-1}
+function openExport(){document.getElementById('ovExport').classList.add('on')}
+function closeExport(){document.getElementById('ovExport').classList.remove('on')}
+/* 年度热力图（年 / 月） */
+function renderHmYear(view){
+  const el=document.getElementById('hmYear');el.innerHTML='';
+  const base=new Date('2026-10-13');
+  const weeks=view==='y'?18:10, days=view==='y'?7:31;
+  for(let w=weeks-1;w>=0;w--){
+    const col=document.createElement('div');col.className='hm-col';
+    for(let d=0;d<days;d++){
+      const dt=new Date(base);dt.setDate(base.getDate()-(w*(view==='y'?7:1)+d));
+      const day=dt.toISOString().slice(0,10);
+      const v=(w*11+d*13)%11,lv=v<2?0:v<4?1:v<6?2:v<8?3:v<10?4:5;
+      const c=document.createElement('div');c.className='hm-cell dim'+lv;
+      c.title=day+' · 活跃等级 '+lv+' · 点击打开当日战报';c.onclick=()=>openBattle(day);
+      col.appendChild(c)}
+    el.appendChild(col)}
+}
+function setHmView(b,v){b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));renderHmYear(v)}
+/* 三张卡 */
+let deckCur='task';
+function setDeck(b,k){b.parentElement.querySelectorAll('.bt-tab').forEach(x=>x.classList.toggle('on',x===b));deckCur=k;renderDeck()}
+function renderDeck(){
+  const pane=document.getElementById('deckPane');
+  if(deckCur==='task'){
+    const done=TASKS.filter(t=>t.s==='done').length,pct=Math.round(done/TASKS.length*100);
+    pane.innerHTML=`<div class="deck-bar"><span>任务库完成度</span><span class="bar"><i style="width:${pct}%"></i></span><span><b>${done}</b> / ${TASKS.length} 张 · ${pct}%</span></div>
+      ${TASKS.map(t=>`<div class="deck-row" onclick="toast('进任务详情抽屉：${t.t}')">
+        <span class="ck ${t.s==='done'?'done':''}">${t.s==='done'?'✓':''}</span>
+        <span class="tt">${t.t}<span class="s">📦 ${t.p} · 🎯 ${t.m}${t.subs.length?' · ✓ '+t.subs.filter((_,k)=>k<t.st).length+'/'+t.subs.length:''}</span></span>
+        <span class="tag ${t.s==='done'?'ok':t.s==='doing'?'acc':'neutral'}">${t.s==='done'?'✅ 已完成':t.s==='doing'?'◐ 进行中':'○ 待开始'}</span></div>`).join('')}
+      <div class="deck-new" onclick="toast('新建任务卡（原型示意）')">＋ 新建任务卡</div>`;
+  }else if(deckCur==='curio'){
+    pane.innerHTML=CURIOS.map((c,i)=>`<div class="deck-row" onclick="toast('进好奇卡详情：${c[0]}')">
+      <span class="ico">💡</span><span class="tt">${c[0]}<span class="s">好奇心培育 · ${c[1]?'已验证 ✓':'待验证'}</span></span>
+      <span class="tag ${c[1]?'ok':'neutral'}">${c[1]?'已验证':'待验证'}</span></div>`).join('')
+      +`<div class="deck-new" onclick="toast('新建好奇卡（原型示意）')">＋ 新建好奇卡</div>`;
+  }else{
+    pane.innerHTML=POOLS.map(p=>`<div class="deck-row" onclick="toast('双击 → 直达${p[2]==='url'?'链接':'文件'}：${p[0]}')">
+      <span class="ico">${p[2]==='url'?'🔗':p[2]==='file'?'📁':'📝'}</span>
+      <span class="tt">${p[0]}<span class="s">${p[1]} · ${p[2]==='url'?'网页':p[2]==='file'?'文件':'Obsidian 笔记'}</span></span>
+      <span class="mini-btn" onclick="event.stopPropagation();toast('已打开：${p[0]}')">打开</span></div>`).join('')
+      +`<div class="deck-new" onclick="toast('采集新资源（原型示意）')">＋ 采集资源</div>`;
+  }
+}
+/* 洞察页 tabs */
+function setRange(b,r){b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+  toast(r==='w'?'口径：本周 10-07 → 10-13':r==='m'?'口径：本月 10-01 → 10-13':'口径：今年 01-01 → 10-13')}
+function setFlow(b,a){flowCur=a;b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));renderFlow()}
+
+/* ═══════════ 初始化 ═══════════ */
+renderBars();renderHm();renderDims();renderGoals();renderLc();renderFlow();
+renderFocus();renderHmYear('y');renderDeck();
+document.querySelector('.nb-tab[data-nav=profile]').classList.add('on');
+/* 时间轴滚动高亮 */
+const secs=['now','recent','year','asset'].map(k=>({k,el:document.getElementById('mod-'+k)}));
+secs.forEach(s=>{
+  const io=new IntersectionObserver(es=>{es.forEach(en=>{if(!en.isIntersecting)return;const k=en.target.dataset.k;
+    document.querySelectorAll('.tl-node').forEach(n=>n.classList.toggle('on',n.dataset.k===k))})},{rootMargin:'-25% 0px -60% 0px'});
+  io.observe(s.el);
+});
+</script>
+</body>
+</html>

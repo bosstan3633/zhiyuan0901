@@ -156,6 +156,34 @@ export function longestStreak(stats: DailyStats, year: number): number {
   return best
 }
 
+/** W10（V3.9.0）：连续打卡（画像 Hero chip）——从今天往回数连续 `w>0` 的天数。
+ * 今天尚未产生动作时不算断卡：回数从昨天起（当天未过完，不提前清零）。
+ * 与 `longestStreak` 同用 `w>0` 判据，口径一致。 */
+export function currentStreak(stats: DailyStats, now = Date.now()): number {
+  const k = todayKey(now)
+  let d = parseDay(k)
+  if (!(stats.days[k]?.w || 0)) d.setDate(d.getDate() - 1)
+  let n = 0
+  for (; (stats.days[ymd(d)]?.w || 0) > 0; d.setDate(d.getDate() - 1)) n++
+  return n
+}
+
+/** W10（V3.9.0）：知识熵（画像 Hero chip）——各卡标签分布的香农熵（bit，log2）。
+ * 入参为三类存活卡的 `tags` 拍平（调用方负责过滤 deletedAt）；同卡重复标签先去重再计。
+ * 无标签 / 单一标签时返回 0（无离散度）；结果保留 1 位小数。 */
+export function computeTagEntropy(tagLists: ReadonlyArray<ReadonlyArray<string>>): number {
+  const cnt = new Map<string, number>()
+  let total = 0
+  for (const tags of tagLists) {
+    const uniq = new Set(tags.map(t => t.trim()).filter(Boolean))
+    for (const t of uniq) { cnt.set(t, (cnt.get(t) || 0) + 1); total++ }
+  }
+  if (!total || cnt.size <= 1) return 0
+  let h = 0
+  for (const c of cnt.values()) { const p = c / total; h -= p * Math.log2(p) }
+  return Math.round(h * 10) / 10
+}
+
 /* ================= 偏离预警 8 规则（04-67 §7.6；非 AI、可断言） ================= */
 
 export interface RuleHit {

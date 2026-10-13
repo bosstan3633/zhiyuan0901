@@ -40,7 +40,6 @@
 .dz-chip .dl { font-size: var(--fs-micro); color: var(--text-3); }
 .dz-chip .dl .up { color: var(--success); font-weight: 700; }
 .dz-chip .dl .dn { color: var(--danger); font-weight: 700; }
-.dz-chip.bind { border-color: var(--heat-ring); box-shadow: 0 0 0 1px var(--heat-ring) inset; }
 /* R174-4：概览带专段压缩——页头/正文内边距降档、行距收紧、药丸去边框（其余段不受影响）；
    探针实测：188px → 94px 内（1280 档，见交付说明记账） */
 .dz-sec-ov .dz-sec-h { padding: 3px var(--sp-4); }
@@ -56,7 +55,6 @@
 .dz-ov-meta .pill { border: 1px solid var(--border); border-radius: 99px; padding: 2px 9px; }
 .dz-ov-meta .pill .up { color: var(--success); font-weight: 700; }
 .dz-ov-meta .pill .dn { color: var(--danger); font-weight: 700; }
-.dz-ov-err { color: var(--warning); border-color: var(--warning-border); cursor: pointer; }
 .dz-calib { margin-top: var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); display: none; }
 .dz-calib.on { display: block; }
 .dz-calib .ch { padding: var(--sp-2) var(--sp-3); font-size: var(--fs-caption); color: var(--text-3); border-bottom: 1px solid var(--border); }
@@ -388,8 +386,7 @@
 /* ============ R173-5：概览带「说明」改悬停浮层（不折叠、不占行） ============
    节点常驻 DOM（visibility 切换），因此视觉走查与断言仍能读到文案；
    :focus-within 让键盘用户 Tab 进去也能看到 —— hover-only 会把信息锁在鼠标后面。 */
-/* 悬停期间放开裁切：`.dz-sec` 为圆角默认 overflow:hidden，浮层向下展开会被切掉（绑定日文案更长时必然越界） */
-.dz-sec.dz-tip-open { overflow: visible; }
+/* ★W10：.dz-sec.dz-tip-open 随概览带退役删除（dead-css-scan 判死） */
 /* 浮层锚在**整行**（不是药丸）上：药丸在窄屏会落到行首，锚药丸会把 460px 浮层顶出左边界 */
 .dz-ov-info { font-size: var(--fs-caption); color: var(--text-3); cursor: help; border: 1px dashed var(--border-strong); border-radius: 99px; padding: 2px 9px; }
 .dz-ov-info:hover, .dz-ov-info:focus-within { color: var(--accent-ink); border-color: var(--accent); }

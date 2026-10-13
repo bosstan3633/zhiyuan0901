@@ -297,12 +297,16 @@ check('R174-3 ★zy_daily_stats 落盘（04-69 T1）：热力图不褪色的数�
     && ds.includes('c: sr.c, del: sr.del, s: sr.s, u: sr.u, x: sr.x') && ds.includes('if (k > boundary) continue')
     && ub.includes('readDailySnapshot') && ub.includes('mergeDailyStats(snapRef.value, rebuilt, boundaryDayOf(ev))') && ub.includes('snapRef.value = s');
 });
-check('R174-4 概览带 ★R178 重指带备案：用户 2026-09-28 设置中心原型把概览带改回堆叠指标卡（ov-metric-card：数字 20px/700 + tabular-nums 置顶、标签 11px 在下，卡距 10px），R174-4 的单行压缩完成历史使命——信息一项不删（R173-5 悬停说明、绑定态、口径表全保留），dz-sec-ov 专段内边距判据保留；判据：DashboardOverview 挂 dz-sec-ov + chip 内联三件 + css 纵向堆叠 + 专段三压（页头 3px/正文 4·8/行距 4px/药丸去边框）（探针量化记账存档：1280 档 188px → 94px，R174 版式）', () => {
-  const o = read('/newtab/components/dashboard/DashboardOverview.vue');
-  const css = read('/newtab/components/dashboard/dashboard.css');
-  return o.includes('class="dz-sec dz-sec-ov"') && o.includes('<span class="k">{{ c.k }}</span><b class="v">')
-    && css.includes('.dz-chip { display: flex; flex-direction: column;') && css.includes('.dz-sec-ov .dz-sec-h { padding: 3px var(--sp-4); }')
-    && css.includes('.dz-sec-ov .dz-sec-b { padding: var(--sp-1) var(--sp-4) var(--sp-2); }');
+check('R174-4 概览带 ★W10 退役重指带备案：概览带（DashboardOverview + dz-sec-ov 专段版式）随 W10 时间轴三段式重构整体退役——D1 拍板砍假六维、Hero 5 KPI chip（PiHero pi-hchip）承接存量摘要职责；判据转退役三条腿：① DashboardOverview.vue 文件不存在（删干净的凭据）② 新宿主 PiHero 5 枚 pi-hchip 在位 ③ 宿主 import pi-timeline.css 且不再 import DashboardOverview', () => {
+  const fsx = require('fs');
+  const gone = !fsx.existsSync(path.resolve(base, 'newtab/components/dashboard/DashboardOverview.vue'));
+  const hero = read('/newtab/components/profile/PiHero.vue');
+  const pi = read('/newtab/views/ProfileInsights.vue');
+  return gone
+    && (hero.match(/class="pi-hchip"/g) || []).length === 5
+    && hero.includes("emit('drill', 'total')") && hero.includes("emit('drill', 'streak')")
+    && pi.includes("import '@/newtab/components/profile/pi-timeline.css'")
+    && !codeOnly(pi).includes('DashboardOverview');
 });
 check('R174-5 热力图焦点化（04-69 拍板 B）：摘要四卡压单行指标条（说明收 title tooltip，.d 保 DOM）+ 四主题六档色阶低两档拉距（亮主题 l0↔l1 原本 ΔL*≈3.3 肉眼不可辨——实测病根 #EFF2F6 vs #E3EBF5）；判据：① Heatmap 摘要条带 title + .d 仍在 DOM ② tokens.css 四主题新值在位 ③ 亮主题 ΔL*(l0,l1) ≥ 5 且 ΔL*(l1,l2) ≥ 4（Lab L* 实算，防"改了但仍不可辨"）④ 档位阈值/语义名不动（跨年可比红线）', () => {
   const h = read('/newtab/components/dashboard/Heatmap.vue');
@@ -491,23 +495,22 @@ check('R172-4 ★T4 复盘计算引擎（04-67 §6/§7.6）：四范围窗口 + 
     && !/\.persist\(|saveData|chrome\.storage/.test(rr);
 });
 
-check('R172-5 ★T5 概览带（04-66 §4.2 可读性三层 / 04-67 F1~F6）：5 张存量 chip + 时间绑定（Q11：selDay 非空 ⇒ 截至那天的库容 + 当日增减 + bind 高亮）+ 人话总结（主数字=有效动作件数，加权分降副行）+ 参照系行（等长窗口环比 近30vs前30 / 近7vs前7 + P 分位 + 年度移出）+ 分数口径表 12 行', () => {
-  const o = read('/newtab/components/dashboard/DashboardOverview.vue');
+check('R172-5 ★W10 退役重指带备案：概览带 UI（DashboardOverview 5 存量 chip + dz-ov-say + bind 高亮）随时间轴三段式整体退役——能力拆解为：① 5 存量 chip 移交 PiHero（total/streak/active/entropy/longest）② 窗口聚合移交 PiRhythm（aggregateRange + 等长窗口 prevWindow/pct）③ W_ROWS 口径表单一真源留 dailyStats.ts ④ 数据桥 useDashboardStats 三锚不变（buildDailyStats 重建 + 快照合并 + selDay 态）⑤ GS 零命中负锚不变', () => {
+  const fsx = require('fs');
+  const gone = !fsx.existsSync(path.resolve(base, 'newtab/components/dashboard/DashboardOverview.vue'));
+  const hero = read('/newtab/components/profile/PiHero.vue');
+  const rh = read('/newtab/components/profile/PiRhythm.vue');
+  const rr = read('/shared/utils/reviewReport.ts');
+  const ds = read('/shared/utils/dailyStats.ts');
   const pi = read('/newtab/views/ProfileInsights.vue');
-  const ud = read('/newtab/components/dashboard/useDashboardStats.ts'), css = read('/newtab/components/dashboard/dashboard.css');
-  return o.includes('dz-ov-info') && o.includes('dz-ov-tip') /* R173-5：说明改 hover，不再占整行 */ && css.includes(':focus-within .dz-ov-tip') /* hover-only 会把信息锁在鼠标后面，键盘 Tab 也要能看到 */ && css.includes('.dz-sec.dz-tip-open { overflow: visible; }') /* R173-5：悬停期间放开圆角裁切（`.dz-sec` 默认 overflow:hidden，浮层向下展开会被切掉） */ && /\.dz-ov-meta \{[^}]*flex: 1 1 100%/.test(css) && /\.dz-ov-meta \{[^}]*position: relative/.test(css) && !/\.dz-ov-info \{[^}]*position: relative/.test(css) /* R173-5 真机截图：指标行不再独占整行后 5 张 chip 被挤成 100px 竖列；浮层锚在**整行**上（锚药丸在窄屏会把 460px 浮层顶出左边界 388px） */ && o.includes('stockBoundTo(')                    // ★ 时间绑定走前缀和（不重扫全库）
-    && o.includes('aggregateRange(')                    // 环比用区间聚合
-    && o.includes('addDays(ref, -29)') && o.includes('addDays(ref, -59)')  // 等长窗口：近30 vs 前30
-    && o.includes('addDays(ref, -6)') && o.includes('addDays(ref, -13)')
-    && o.includes('W_ROWS')                             // 分数口径表 12 行（单一真源）
-    && o.includes('dz-chip') && o.includes("'📇 资源卡'") && o.includes("'🔗 链接卡'")
-    && o.includes('dz-ov-say') && o.includes('次有效动作')  // 人话总结
-    && o.includes('加权分是内部量') /* R173-5：括注挪进 title，屏上不占字 */            // 加权分降为副行
-    && o.includes('bind: !!selDay')                      // 绑定态高亮
-    // 数据桥（R164-2 增长门禁：聚合与选中态抽 useDashboardStats，不占视图行数；R174-3 重指带备案：重建行改名 `ev` 且后接快照合并）
+  const ud = read('/newtab/components/dashboard/useDashboardStats.ts');
+  return gone
+    && hero.includes("emit('drill', 'total')") && hero.includes("emit('drill', 'streak')")
+    && hero.includes("emit('drill', 'active')") && hero.includes("emit('drill', 'entropy')")
+    && rh.includes('aggregateRange(') && rh.includes('prevWindow(') && rh.includes('pct(')
+    && ds.includes('export const W_ROWS')
+    && rr.includes('export function stockBoundTo(') && ds.includes('export function aggregateRange(')
     && ud.includes('buildDailyStats(data(), ev)') && ud.includes('mergeDailyStats(snapRef.value, rebuilt, boundaryDayOf(ev))') && ud.includes('const selDay = ref<string | null>(null)')
-    /* ★W9 退役重指带备案：数据桥（useDashboardStats 接线 + dashStats）宿主随仪表盘迁画像洞察页，
-       GS 加 codeOnly 零命中负锚，防有人把桥再搭回设置页 */
     && pi.includes("from '@/newtab/components/dashboard/useDashboardStats'")
     && pi.includes('const dashStats = dash.stats')
     && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes('useDashboardStats');
@@ -550,11 +553,15 @@ check('R172-8 ★T6 共用下钻卡片列表（04-66 §6.2 组件复用 · ★W6
     && d.includes("import DrillCardList from './DrillCardList.vue'")
     && (srcFileEntries().filter(e => codeOnly(e.text).includes("import DrillCardList from './DrillCardList.vue'")).length === 2);
 });
-check('R172-9 ★T6 性能红线：概览带时间绑定不触发整库重扫（DashboardOverview 只吃 stats prop，不得自行扫 store.data / resources）+ zy_daily_stats 走前缀和（stockAt 只累加 days）', () => {
-  const o = read('/newtab/components/dashboard/DashboardOverview.vue');
+check('R172-9 ★W10 退役重指带备案：「只吃 stats prop 不扫 store」性能红线随概览带退役移交三段式——PiToday/PiRhythm/PiYear 三组件零 useAppStore/零扫 store.data/零扫 resources（props-only），聚合全在宿主算好再传 + zy_daily_stats 走前缀和（stockAt 只累加 days）不变', () => {
+  const today = read('/newtab/components/profile/PiToday.vue');
+  const rhythm = read('/newtab/components/profile/PiRhythm.vue');
+  const year = read('/newtab/components/profile/PiYear.vue');
   const ds = read('/shared/utils/dailyStats.ts');
-  return !o.includes('useAppStore') && !o.includes('store.data') && !o.includes('resources')
-    && o.includes('props.stats')
+  const propsOnly = (t) => !t.includes('useAppStore') && !t.includes('store.data') && !t.includes('resources');
+  return propsOnly(today) && propsOnly(rhythm) && propsOnly(year)
+    && rhythm.includes('defineProps') && rhythm.includes('stats')
+    && year.includes('defineProps') && year.includes('stats')
     && ds.includes('export function stockAt(')
     && /for \(const k of Object\.keys\(stats\.days\)\.sort\(\)\)/.test(ds);
 });

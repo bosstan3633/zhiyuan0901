@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="notion">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>知源调度台 · 方向台重构 · 战略金字塔 v1</title>
+<style>
+/* ══════════════════════════════════════════════════════════════
+   令牌层 —— 与 v2/src/shared/styles/tokens.css 同源，可直接落地
+   四主题：linear / raycast / apple / notion
+   ══════════════════════════════════════════════════════════════ */
+:root{
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  --fs-micro:9px;--fs-tiny:10px;--fs-cap:11px;--fs-sub:12px;--fs-body:13px;--fs-title:15px;--fs-h2:17px;--fs-h1:20px;--fs-hero:34px;
+  --r-card:24px;--r-block:18px;--r-md:14px;--r-sm:10px;--r-xs:6px;--r-pill:999px;
+  --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:22px;--sp-6:28px;--sp-7:40px;--sp-8:64px;
+  --dur:160ms;--ease:cubic-bezier(.22,.61,.36,1);
+}
+:root,[data-theme='linear']{--bg:#0D0E11;--surface:#15171C;--surface-2:#1B1E25;--surface-3:#21252D;
+  --line:rgba(255,255,255,.07);--line-strong:rgba(255,255,255,.13);
+  --t1:rgba(255,255,255,.93);--t2:rgba(255,255,255,.70);--t3:rgba(255,255,255,.50);--t4:rgba(255,255,255,.30);
+  --accent:#6E7BE8;--accent2:#96A0F5;--accent-soft:rgba(110,123,232,.16);--accent-ink:#96A0F5;--accent-deep:#5A67D8;
+  --grad:linear-gradient(135deg,#6E7BE8,#9A6FF0);
+  --ok:#2BB673;--ok-soft:rgba(43,182,115,.15);--warn:#E0A038;--warn-soft:rgba(224,160,56,.15);
+  --bad:#EE5A5F;--bad-soft:rgba(238,90,95,.12);--stg:#D4715D;--vio:#A78BFA;--amb:#D9B45C;--info:#5B8DEF;--info-soft:rgba(91,141,239,.15);
+  --sh-card:0 1px 2px rgba(0,0,0,.35),0 16px 40px -12px rgba(0,0,0,.55);
+  --sh-pop:0 2px 6px rgba(0,0,0,.4),0 24px 60px -12px rgba(0,0,0,.7);
+}
+[data-theme='raycast']{--bg:#08080A;--surface:#111116;--surface-2:#17171D;--surface-3:#1D1D24;
+  --line:rgba(255,255,255,.10);--line-strong:rgba(255,255,255,.17);
+  --t1:rgba(255,255,255,.95);--t2:rgba(255,255,255,.72);--t3:rgba(255,255,255,.52);--t4:rgba(255,255,255,.32);
+  --accent:#2E7DF0;--accent2:#5C9BFF;--accent-soft:rgba(46,125,240,.18);--accent-ink:#5C9BFF;--accent-deep:#1E6FE0;
+  --grad:linear-gradient(135deg,#2E7DF0,#3FC1D9);
+  --ok:#2BB673;--ok-soft:rgba(43,182,115,.15);--warn:#E0A038;--warn-soft:rgba(224,160,56,.15);
+  --bad:#EE5A5F;--bad-soft:rgba(238,90,95,.12);--stg:#D4715D;--vio:#A78BFA;--amb:#D9B45C;--info:#5B8DEF;--info-soft:rgba(91,141,239,.15);
+  --sh-card:0 1px 2px rgba(0,0,0,.4),0 18px 44px -12px rgba(0,0,0,.6);
+  --sh-pop:0 2px 6px rgba(0,0,0,.45),0 26px 64px -12px rgba(0,0,0,.75);
+}
+[data-theme='apple']{--bg:#F6F6F8;--surface:#FFFFFF;--surface-2:#F1F1F4;--surface-3:#E9E9EE;
+  --line:rgba(0,0,0,.055);--line-strong:rgba(0,0,0,.12);
+  --t1:rgba(0,0,0,.90);--t2:rgba(0,0,0,.62);--t3:rgba(0,0,0,.44);--t4:rgba(0,0,0,.26);
+  --accent:#7C5CFC;--accent2:#9B82FF;--accent-soft:#EFEAFE;--accent-ink:#6C45F0;--accent-deep:#5A31E0;
+  --grad:linear-gradient(135deg,#7C5CFC,#B45CF0);
+  --ok:#22A06B;--ok-soft:#E3F4EC;--warn:#B8791B;--warn-soft:#FAF0DE;
+  --bad:#D8453F;--bad-soft:#FBE9E8;--stg:#C4614B;--vio:#7C3AED;--amb:#A87B2A;--info:#3B6FD4;--info-soft:#E9EFFC;
+  --sh-card:0 1px 2px rgba(0,0,0,.03),0 12px 28px -6px rgba(0,0,0,.07);
+  --sh-pop:0 2px 8px rgba(0,0,0,.05),0 24px 60px -12px rgba(0,0,0,.14);
+}
+[data-theme='notion']{--bg:#F7F6F3;--surface:#FFFFFF;--surface-2:#F2F0EB;--surface-3:#EBE8E1;
+  --line:rgba(40,34,24,.07);--line-strong:rgba(40,34,24,.14);
+  --t1:rgba(35,31,25,.90);--t2:rgba(35,31,25,.64);--t3:rgba(35,31,25,.50);--t4:rgba(35,31,25,.28);
+  --accent:#9E3FAF;--accent2:#C067D0;--accent-soft:#F6EDF8;--accent-ink:#85349A;--accent-deep:#73288A;
+  --grad:linear-gradient(135deg,#9E3FAF,#C45C8A);
+  --ok:#448361;--ok-soft:#E4EFE7;--warn:#9A6A1F;--warn-soft:#F5E9D3;
+  --bad:#C0392B;--bad-soft:#FBE9E7;--stg:#B5654D;--vio:#9065B0;--amb:#9F7B2D;--info:#3F6FA8;--info-soft:#E7EDF5;
+  --sh-card:0 1px 2px rgba(0,0,0,.025),0 12px 28px -6px rgba(15,15,15,.06);
+  --sh-pop:0 2px 8px rgba(0,0,0,.04),0 24px 60px -12px rgba(15,15,15,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--t1);font-size:var(--fs-body);
+  -webkit-font-smoothing:antialiased;line-height:1.6;transition:background var(--dur),color var(--dur)}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:4px}
+button{font-family:inherit;font-size:inherit;color:inherit;background:none;border:none;cursor:pointer}
+h1,h2,h3{font-weight:700;letter-spacing:-.015em}
+
+/* ══ 通用件 ══ */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-cap);font-weight:600;padding:3px 10px;border-radius:var(--r-pill)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r-pill);font-size:var(--fs-sub);font-weight:600;transition:all var(--dur) var(--ease)}
+.btn.pri{background:var(--grad);color:#fff;box-shadow:0 4px 14px -4px color-mix(in srgb,var(--accent) 55%,transparent)}
+.btn.pri:hover{filter:brightness(1.07)}
+.btn.line{background:transparent;box-shadow:inset 0 0 0 1px var(--line-strong);color:var(--t2)}
+.btn.line:hover{box-shadow:inset 0 0 0 1px var(--accent);color:var(--accent-ink)}
+.btn.sm{padding:5px 12px;font-size:var(--fs-cap)}
+.seg{display:inline-flex;padding:3px;background:var(--surface-2);border-radius:var(--r-pill);gap:2px}
+.seg button{padding:6px 15px;border-radius:var(--r-pill);font-size:var(--fs-cap);font-weight:600;color:var(--t3);transition:all var(--dur)}
+.seg button.on{background:var(--surface);color:var(--t1);box-shadow:0 1px 3px rgba(0,0,0,.10)}
+.gA{--pc:var(--accent);--pcs:var(--accent-soft);--pck:var(--accent-ink)}
+.gB{--pc:var(--vio);--pcs:color-mix(in srgb,var(--vio) 14%,transparent);--pck:var(--vio)}
+.gC{--pc:var(--info);--pcs:var(--info-soft);--pck:var(--info)}
+.gD{--pc:var(--amb);--pcs:color-mix(in srgb,var(--amb) 18%,transparent);--pck:var(--amb)}
+.gE{--pc:var(--ok);--pcs:var(--ok-soft);--pck:var(--ok)}
+.gF{--pc:var(--stg);--pcs:color-mix(in srgb,var(--stg) 14%,transparent);--pck:var(--stg)}
+.gA{--pc:var(--accent);--pcs:var(--accent-soft);--pck:var(--accent-ink)}
+.gB{--pc:var(--vio);--pcs:color-mix(in srgb,var(--vio) 14%,transparent);--pck:var(--vio)}
+
+/* ══ 顶栏 ══ */
+.nav{position:sticky;top:0;z-index:var(--z-nav);background:color-mix(in srgb,var(--bg) 82%,transparent);
+  backdrop-filter:saturate(180%) blur(18px);border-bottom:1px solid var(--line)}
+.nav-in{max-width:1440px;margin:0 auto;padding:10px 32px;display:flex;align-items:center;gap:14px}
+.brand{display:flex;align-items:center;gap:9px;padding:5px 12px 5px 6px;border-radius:var(--r-pill);transition:all var(--dur)}
+.brand:hover{background:var(--surface-2)}
+.brand .mark{width:28px;height:28px;border-radius:9px;background:var(--grad);display:grid;place-items:center;flex:none;color:#fff;
+  box-shadow:0 4px 12px -4px color-mix(in srgb,var(--accent) 60%,transparent)}
+.brand .bn{font-weight:700;font-size:var(--fs-body)}
+.brand .be{font-size:var(--fs-tiny);color:var(--t4);font-weight:600;letter-spacing:.08em}
+.nav-tabs{display:flex;align-items:center;gap:4px;margin-left:6px}
+.nav-tab{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r-pill);color:var(--t3);font-size:var(--fs-sub);font-weight:500;transition:all var(--dur)}
+.nav-tab:hover{background:var(--surface-2);color:var(--t2)}
+.nav-tab.on{background:var(--accent-soft);color:var(--accent-ink);font-weight:600}
+.nav-div{width:1px;height:18px;background:var(--line-strong);margin:0 4px}
+.nav-add{color:var(--t4);font-size:var(--fs-title);padding:7px 10px}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.nav-chip{font-size:var(--fs-micro);font-weight:600;color:var(--t3);background:var(--surface-2);padding:5px 11px;border-radius:var(--r-pill);transition:all var(--dur)}
+.nav-chip:hover{color:var(--t1)}
+.theme-pick{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 8px;border-radius:var(--r-pill);background:var(--surface-2);cursor:pointer}
+.tw{width:13px;height:13px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.22);opacity:.45;transition:all var(--dur)}
+.tw[data-t=linear]{background:#15171C}.tw[data-t=raycast]{background:#111116}
+.tw[data-t=apple]{background:#E9E9EE}.tw[data-t=notion]{background:#EBE8E1}
+.tw.on{opacity:1;box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--t2)}
+.nav-ico{width:30px;height:30px;border-radius:var(--r-pill);display:grid;place-items:center;font-size:13px;background:var(--surface-2);transition:all var(--dur)}
+.nav-ico:hover{background:var(--surface-3)}
+
+/* ══ 页容器 ══ */
+.page{max-width:1440px;margin:0 auto;padding:32px 32px 96px}
+.hidden{display:none !important}
+
+/* ══ HERO ══ */
+.hero{display:flex;align-items:flex-start;gap:32px;flex-wrap:wrap;margin-bottom:var(--sp-5);padding-bottom:2px}
+.hero-l{flex:1;min-width:360px}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:var(--fs-cap);font-weight:700;letter-spacing:.12em;color:var(--accent-ink);margin-bottom:12px}
+.hero-eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--grad)}
+.hero-t{font-size:var(--fs-hero);font-weight:700;letter-spacing:-.025em;line-height:1.15}
+.hero-t .en{font-size:var(--fs-micro);font-weight:700;letter-spacing:.16em;color:var(--t4);margin-left:12px;vertical-align:8px}
+.hero-sub{font-size:var(--fs-sub);color:var(--t3);margin-top:12px;max-width:580px;line-height:1.85}
+.hero-sub b{color:var(--t1)}
+.hero-sum{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+.hchip{display:inline-flex;align-items:baseline;gap:6px;padding:7px 14px;border-radius:var(--r-pill);
+  background:var(--surface);box-shadow:var(--sh-card);cursor:pointer;transition:all var(--dur) var(--ease)}
+.hchip:hover{transform:translateY(-2px)}
+.hchip .v{font-size:var(--fs-title);font-weight:700}
+.hchip .v small{font-size:var(--fs-micro);font-weight:600;color:var(--t3);margin-left:1px}
+.hchip .l{font-size:var(--fs-cap);color:var(--t3)}
+.hero-r{display:flex;flex-direction:column;align-items:flex-end;gap:12px;padding-top:6px}
+.hero-acts{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+
+/* （旧 .arch 样式已随结构改版移除） */
+
+/* ══ 主区：左导航 + 右项目塔 ══ */
+.split{display:grid;grid-template-columns:210px 1fr;gap:var(--sp-7);align-items:start}
+.navside{position:sticky;top:74px;display:flex;flex-direction:column;gap:var(--sp-2)}
+.ns-t{font-size:var(--fs-micro);font-weight:700;letter-spacing:.14em;color:var(--t4);padding:0 4px 6px}
+.ns-item{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;border-radius:var(--r-md);cursor:pointer;transition:all var(--dur)}
+.ns-item:hover{background:var(--surface-2)}
+.ns-item.on{background:var(--pcs);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pc) 40%,transparent)}
+.ns-idx{width:18px;height:18px;border-radius:6px;display:grid;place-items:center;font-size:var(--fs-micro);font-weight:700;
+  background:var(--pcs);color:var(--pck);flex:none;margin-top:1px}
+.ns-body{min-width:0;flex:1}
+.ns-n{font-size:var(--fs-cap);font-weight:700;line-height:1.4;word-break:break-word}
+.ns-m{font-size:var(--fs-micro);color:var(--t4);margin-top:2px}
+.ns-hint{font-size:var(--fs-micro);color:var(--t4);padding:8px 11px;line-height:1.7;border-top:1px solid var(--line);margin-top:4px}
+
+/* ══ 项目塔 ══ */
+.towers{display:flex;flex-direction:column;gap:var(--sp-8);min-width:0}
+/* ══ 骨架条：HERO 与项目塔之间的"活体控制条" ══
+   设计要点：不再是一张独立展示图，而是项目塔的骨架控制条。
+   ① 与项目塔共用一套结构量，两处数字永远一致
+   ② 每个层级是一个可点的过滤/聚焦按钮，点了下方立即响应
+   ③ 战略目标层级直接内嵌目标名芯片，选中即过滤下方项目舱
+   ④ 高度压到 ~112px，让项目塔在首屏就露出边缘（暗示下面有东西） */
+.spine{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--sh-card);
+  margin-bottom:var(--sp-6);overflow:hidden;position:relative}
+[data-theme='linear'] .spine,[data-theme='raycast'] .spine{box-shadow:0 0 0 1px var(--line),0 18px 44px -12px rgba(0,0,0,.55)}
+.spine-h{display:flex;align-items:center;gap:12px;padding:13px 20px 11px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.spine-ico{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;
+  background:var(--accent-soft);color:var(--accent-ink);font-size:12px}
+.spine-t{font-size:var(--fs-sub);font-weight:700;display:flex;align-items:baseline;gap:7px}
+.spine-t .en{font-size:var(--fs-micro);font-weight:700;letter-spacing:.13em;color:var(--t4)}
+.spine-hint{font-size:var(--fs-micro);color:var(--t4);margin-left:auto;display:flex;align-items:center;gap:10px}
+.spine-b{padding:12px 20px 13px;display:flex;flex-direction:column;gap:11px}
+
+/* 骨架主链：六层横向流，宽度按实体数收窄，形成"漏斗"感 */
+.chain{display:flex;align-items:stretch;gap:0}
+.lv{flex:0 0 auto;position:relative;display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:var(--r-sm);
+  cursor:pointer;transition:all var(--dur) var(--ease);background:var(--surface-2);min-height:34px}
+.lv:hover{background:var(--surface-3)}
+.lv.on{background:var(--pcs);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pc) 45%,transparent)}
+.lv-top{background:var(--accent-soft)}
+.lv-top.on{background:var(--accent);color:#fff}
+.lv-top.on .lv-n,.lv-top.on .lv-e{color:rgba(255,255,255,.8)}
+.lv-n{font-size:var(--fs-micro);font-weight:700;letter-spacing:.05em;color:var(--t4);flex:none}
+.lv-t{font-size:var(--fs-cap);font-weight:700;color:var(--t2);white-space:nowrap}
+.lv.on .lv-t{color:var(--pck)}
+.lv-e{display:none}
+.lv-c{display:flex;align-items:baseline;gap:2px;flex:none;padding-left:5px;border-left:1px solid var(--line-strong)}
+.lv-c b{font-size:var(--fs-sub);font-weight:700;color:var(--t1);line-height:1}
+.lv-c s{text-decoration:none;font-size:var(--fs-micro);color:var(--t4);font-weight:600}
+/* 收窄段：把"层级流向"直接编码成宽度递减 */
+.lv-1{flex:0 0 auto}
+.lv-2{flex:0 0 auto}
+.lv-3{flex:0 0 auto}
+.lv-4{flex:1 1 0}
+.lv-5{flex:1 1 0}
+.lv-6{flex:1 1 0}
+.link{flex:0 0 auto;width:16px;display:grid;place-items:center;color:var(--t4);font-size:9px}
+.link svg{width:11px;height:11px}
+
+/* 战略目标芯片行 —— 第 3 层展开的下挂结构，与项目塔同源 */
+.dirs{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-left:2px}
+.dirs-lab{font-size:var(--fs-micro);font-weight:700;letter-spacing:.06em;color:var(--t4);display:flex;align-items:center;gap:6px}
+.dirs-lab::after{content:'';width:16px;height:1px;background:var(--line-strong)}
+.dchip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:var(--r-pill);
+  background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line);cursor:pointer;transition:all var(--dur) var(--ease)}
+.dchip:hover{box-shadow:inset 0 0 0 1px var(--line-strong);transform:translateY(-1px)}
+.dchip.on{background:var(--pcs);box-shadow:inset 0 0 0 1.5px var(--pc)}
+.dchip i{width:7px;height:7px;border-radius:3px;background:var(--pc);flex:none}
+.dchip .dn{font-size:var(--fs-cap);font-weight:700;color:var(--t2)}
+.dchip.on .dn{color:var(--pck)}
+.dchip .dm{font-size:var(--fs-micro);color:var(--t4);font-weight:600}
+.dchip.on .dm{color:var(--pck);opacity:.8}
+.dchip .dx{font-size:9px;color:var(--t4);opacity:0;margin-left:1px;transition:opacity var(--dur)}
+.dchip:hover .dx,.dchip.on .dx{opacity:1}
+
+/* 断链行：收进骨架条内，与金字塔同呼吸，不再独占横幅 */
+.dbar{display:flex;align-items:center;gap:10px;padding-top:10px;border-top:1px solid var(--line);flex-wrap:wrap}
+.dbar-ico{width:22px;height:22px;border-radius:7px;background:var(--warn-soft);color:var(--warn);
+  display:grid;place-items:center;font-size:11px;flex:none}
+.dbar-t{font-size:var(--fs-micro);color:var(--t3);line-height:1.7}
+.dbar-t b{color:var(--warn);font-weight:700}
+.dbar-acts{margin-left:auto;display:flex;gap:7px;flex:none}
+.pill-btn{display:inline-flex;align-items:center;gap:5px;font-size:var(--fs-micro);font-weight:600;color:var(--t3);
+  background:var(--surface-2);padding:4px 10px;border-radius:var(--r-pill);transition:all var(--dur)}
+.pill-btn:hover{color:var(--t1);background:var(--surface-3)}
+.pill-btn.on{background:var(--bad);color:#fff}
+
+/* 筛选态提示：告诉用户"现在只看这个" */
+.filter-bar{display:flex;align-items:center;gap:9px;padding:8px 14px;margin-bottom:var(--sp-5);
+  background:var(--accent-soft);border-radius:var(--r-md);font-size:var(--fs-cap);color:var(--t2)}
+.filter-bar b{color:var(--accent-ink);font-weight:700}
+.filter-bar .fb-x{margin-left:auto;font-size:var(--fs-micro);color:var(--t3);cursor:pointer;
+  padding:3px 10px;border-radius:var(--r-pill);background:var(--surface);transition:all var(--dur)}
+.filter-bar .fb-x:hover{color:var(--bad)}
+
+/* 战略目标分组头：与骨架条第 3 层同名芯片，视觉同源 */
+.dir-head{display:flex;align-items:center;gap:12px;padding:0 4px 2px}
+.dir-badge{font-size:var(--fs-micro);font-weight:700;letter-spacing:.1em;color:var(--t4);
+  border:1px solid var(--line-strong);border-radius:var(--r-pill);padding:3px 11px;cursor:pointer;transition:all var(--dur)}
+.dir-badge:hover{color:var(--accent-ink);border-color:var(--accent)}
+.dir-badge.on{background:var(--pcs);color:var(--pck);border-color:var(--pc)}
+.dir-name{font-size:var(--fs-h2);font-weight:700;letter-spacing:-.01em}
+.dir-meta{font-size:var(--fs-cap);color:var(--t3);margin-left:2px}
+.dir-line{flex:1;height:1px;background:var(--line);min-width:24px}
+
+/* 项目舱 */
+.tower{position:relative;border-radius:var(--r-card);background:var(--surface);box-shadow:var(--sh-card);overflow:hidden}
+[data-theme='linear'] .tower,[data-theme='raycast'] .tower{box-shadow:0 0 0 1px var(--line),0 18px 44px -12px rgba(0,0,0,.55)}
+.tower::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--pc)}
+.tw-h{display:flex;align-items:center;gap:14px;padding:20px 24px 18px 26px;flex-wrap:wrap}
+.tw-idx{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:var(--fs-sub);font-weight:700;
+  background:var(--pcs);color:var(--pck);flex:none}
+.tw-t{flex:1;min-width:200px}
+.tw-name{font-size:var(--fs-title);font-weight:700;letter-spacing:-.01em;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.tw-crumbs{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:var(--fs-micro);color:var(--t4);flex-wrap:wrap}
+.tw-crumbs .cb{color:var(--t3);font-weight:600}
+.tw-crumbs .sep{opacity:.5}
+.tw-r{display:flex;align-items:center;gap:var(--sp-4);flex:none}
+.tw-prog{display:flex;align-items:center;gap:10px}
+.ring{width:42px;height:42px;flex:none;position:relative}
+.ring svg{transform:rotate(-90deg)}
+.ring .rv{position:absolute;inset:0;display:grid;place-items:center;font-size:var(--fs-micro);font-weight:700;color:var(--t2)}
+.tw-num{font-size:var(--fs-micro);color:var(--t3);line-height:1.6}
+.tw-num b{display:block;font-size:var(--fs-sub);color:var(--t1)}
+.tw-acts{display:flex;gap:6px;align-items:center}
+.tw-fold{width:28px;height:28px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--t3);background:var(--surface-2);
+  font-size:11px;transition:all var(--dur)}
+.tw-fold:hover{color:var(--t1)}
+
+/* 指标矩阵区 —— 归属轨道 */
+.tw-b{padding:2px 24px 24px 26px;display:flex;flex-direction:column;gap:var(--sp-4)}
+.mgrid{display:flex;flex-direction:column;gap:var(--sp-3);padding-left:22px;position:relative}
+/* 归属轨道：从项目色条分出的竖线 */
+.mgrid::before{content:'';position:absolute;left:7px;top:-12px;bottom:22px;width:2px;border-radius:2px;
+  background:linear-gradient(180deg,var(--pc),color-mix(in srgb,var(--pc) 22%,transparent))}
+.metric{position:relative;background:var(--surface-2);border-radius:var(--r-block);padding:14px 16px 14px 18px;transition:all var(--dur) var(--ease)}
+.metric:hover{box-shadow:0 0 0 1px color-mix(in srgb,var(--pc) 34%,transparent)}
+/* 指标 → 轨道 的连接臂 */
+.metric::before{content:'';position:absolute;left:-22px;top:24px;width:20px;height:2px;background:var(--pc);opacity:.55}
+.metric::after{content:'';position:absolute;left:-4px;top:21px;width:9px;height:9px;border-radius:50%;
+  background:var(--surface);box-shadow:inset 0 0 0 2.5px var(--pc)}
+.m-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.m-dot{width:17px;height:17px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:9px;font-weight:700;
+  background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--line-strong);color:var(--t4)}
+.m-dot.doing{box-shadow:inset 0 0 0 2px var(--warn);color:var(--warn)}
+.m-dot.done{background:var(--ok);box-shadow:none;color:#fff}
+.m-n{font-size:var(--fs-sub);font-weight:700}
+.m-caret{font-size:10px;color:var(--t4);transition:all var(--dur);cursor:pointer;padding:2px 4px}
+.m-caret:hover{color:var(--t1)}
+.m-tag{font-size:var(--fs-micro);font-weight:600;padding:2px 8px;border-radius:var(--r-pill)}
+.m-tag.tg-ok{color:var(--ok);background:var(--ok-soft)}
+.m-tag.tg-bad{color:var(--bad);background:var(--bad-soft)}
+.m-tag.tg-warn{color:var(--warn);background:var(--warn-soft)}
+.m-tag.tg-neutral{color:var(--t3);background:var(--surface-3)}
+.m-bar{font-size:var(--fs-micro);color:var(--t3);margin-left:auto;display:flex;align-items:center;gap:7px;flex:none}
+.m-bar .track{width:56px;height:4px;border-radius:2px;background:var(--surface-3);overflow:hidden}
+.m-bar .fill{height:100%;border-radius:2px;background:var(--pc)}
+.m-acc{font-size:var(--fs-micro);color:var(--t3);margin-top:7px;padding-left:26px;line-height:1.7}
+.m-acc .tgt{color:var(--t2);font-weight:600}
+
+/* 任务列表 —— 紧贴指标 */
+.tasks{margin-top:11px;padding-left:26px;position:relative}
+.tasks::before{content:'';position:absolute;left:14px;top:-4px;bottom:14px;width:2px;border-radius:2px;
+  background:color-mix(in srgb,var(--pc) 34%,transparent)}
+.task{position:relative;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--r-md);
+  background:var(--surface);margin-bottom:6px;transition:all var(--dur) var(--ease);cursor:default}
+.task:last-child{margin-bottom:0}
+.task:hover{box-shadow:0 0 0 1px color-mix(in srgb,var(--pc) 42%,transparent);transform:translateX(2px)}
+/* 任务 → 指标轨 的分叉 */
+.task::before{content:'';position:absolute;left:-12px;top:50%;width:12px;height:2px;
+  background:color-mix(in srgb,var(--pc) 42%,transparent)}
+.tk-box{width:16px;height:16px;border-radius:5px;flex:none;box-shadow:inset 0 0 0 1.5px var(--line-strong);cursor:pointer;transition:all var(--dur)}
+.tk-box:hover{box-shadow:inset 0 0 0 2px var(--pc)}
+.tk-tag{cursor:pointer}
+.tk-box.doing{box-shadow:inset 0 0 0 2px var(--warn);background:color-mix(in srgb,var(--warn) 22%,transparent)}
+.tk-box.done{background:var(--ok);box-shadow:none;position:relative}
+.tk-box.done::after{content:'';position:absolute;left:5px;top:2px;width:4px;height:8px;
+  border:solid #fff;border-width:0 2px 2px 0;transform:rotate(42deg)}
+.tk-t{font-size:var(--fs-cap);font-weight:500;line-height:1.55;flex:1;min-width:0}
+.task.done .tk-t{color:var(--t3);text-decoration:line-through;text-decoration-color:var(--t4)}
+.task.doing .tk-t{font-weight:600}
+.tk-tags{display:flex;align-items:center;gap:5px;flex:none}
+.tk-tag{font-size:var(--fs-micro);font-weight:600;padding:2px 7px;border-radius:var(--r-pill);white-space:nowrap}
+.tk-g{letter-spacing:.04em}
+.tk-warn{color:var(--warn);background:var(--warn-soft)}
+.tk-pri{color:var(--t3);background:var(--surface-3)}
+.tk-due{font-size:var(--fs-micro);color:var(--t3);font-family:var(--mono);flex:none}
+.tk-crumb{font-size:var(--fs-micro);color:var(--t4);flex:none;display:none;align-items:center;gap:5px}
+.task:hover .tk-crumb{display:flex}
+/* 未归属收容 */
+.orphan{display:flex;align-items:center;gap:9px;margin-top:11px;margin-left:26px;padding:9px 13px;border-radius:var(--r-md);
+  border:1px dashed color-mix(in srgb,var(--bad) 42%,transparent);background:var(--bad-soft);
+  font-size:var(--fs-micro);color:var(--bad);font-weight:600}
+.orphan .o-t{color:var(--t2);font-weight:500}
+
+/* 平铺视图 */
+.flat{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--sh-card);overflow:hidden}
+.flat table{width:100%;border-collapse:collapse}
+.flat th{font-size:var(--fs-micro);font-weight:700;letter-spacing:.08em;color:var(--t4);text-align:left;
+  padding:13px 16px;border-bottom:1px solid var(--line)}
+.flat td{padding:11px 16px;border-bottom:1px solid var(--line);font-size:var(--fs-cap);vertical-align:middle}
+.flat tr:last-child td{border-bottom:none}
+.flat tr:hover td{background:var(--surface-2)}
+.flat .f-c{color:var(--t3);font-size:var(--fs-micro)}
+.pdot{display:inline-flex;align-items:center;gap:6px}
+.pdot i{width:8px;height:8px;border-radius:3px;background:var(--pc);flex:none}
+
+/* 空/危险区提示条 */
+.notice{display:flex;align-items:flex-start;gap:12px;padding:16px 20px;border-radius:var(--r-block);
+  background:var(--warn-soft);margin-bottom:var(--sp-5)}
+.notice-ico{width:26px;height:26px;border-radius:8px;background:color-mix(in srgb,var(--warn) 24%,transparent);
+  color:var(--warn);display:grid;place-items:center;font-size:13px;flex:none}
+.notice-t{font-size:var(--fs-cap);color:var(--t2);line-height:1.8}
+.notice-t b{color:var(--warn)}
+
+/* 吐司 */
+.toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%) translateY(20px);z-index:var(--z-toast);
+  background:var(--surface);color:var(--t1);box-shadow:var(--sh-pop);padding:11px 22px;border-radius:var(--r-pill);
+  font-size:var(--fs-sub);font-weight:600;opacity:0;pointer-events:none;transition:all var(--dur) var(--ease)}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* 设计决策抽屉 */
+.drawer-mask{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:var(--z-modal);opacity:0;pointer-events:none;transition:opacity var(--dur)}
+.drawer-mask.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;right:0;top:0;bottom:0;width:520px;max-width:92vw;z-index:var(--z-modal);background:var(--surface);
+  box-shadow:var(--sh-pop);transform:translateX(100%);transition:transform var(--dur) var(--ease);
+  display:flex;flex-direction:column}
+.drawer.on{transform:translateX(0)}
+.drawer-h{padding:22px 26px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.drawer-h h3{font-size:var(--fs-h2)}
+.drawer-b{padding:22px 26px;overflow-y:auto;display:flex;flex-direction:column;gap:var(--sp-5)}
+.dz-t{font-size:var(--fs-micro);font-weight:700;letter-spacing:.14em;color:var(--t4);margin-bottom:10px}
+.dz-i{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+.dz-i:last-child{border-bottom:none}
+.dz-k{width:22px;height:22px;border-radius:7px;flex:none;display:grid;place-items:center;font-size:var(--fs-micro);
+  font-weight:700;background:var(--accent-soft);color:var(--accent-ink)}
+.dz-n{font-size:var(--fs-sub);font-weight:700;margin-bottom:4px}
+.dz-d{font-size:var(--fs-cap);color:var(--t3);line-height:1.85}
+.dz-d code{font-family:var(--mono);font-size:var(--fs-micro);background:var(--surface-2);padding:1px 5px;border-radius:4px;color:var(--accent-ink)}
+.dz-c{font-size:var(--fs-micro);color:var(--t4);margin-top:6px}
+
+@media (max-width:1180px){
+  .split{grid-template-columns:1fr}
+  .navside{position:static;flex-direction:row;flex-wrap:wrap}
+  .lv-4,.lv-5,.lv-6{flex:0 0 auto}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════ 顶栏 ══════ -->
+<header class="nav">
+  <div class="nav-in">
+    <button class="brand" onclick="toast('品牌区 · 画像洞察已独立成页（V3.8.9）')">
+      <span class="mark"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+      <span class="bn">知源调度台</span><span class="be">Ownway</span>
+    </button>
+    <nav class="nav-tabs">
+      <button class="nav-tab" onclick="toast('调度台')">调度台</button>
+      <button class="nav-tab on" onclick="toast('方向台 · 当前页')">🧭 方向台</button>
+      <span class="nav-div"></span>
+      <button class="nav-tab" onclick="toast('策展台')">📁 研究生备考</button>
+      <button class="nav-tab" onclick="toast('策展台')">📁 AI学习力体系</button>
+      <button class="nav-tab nav-add" onclick="toast('新增策展台')">＋</button>
+    </nav>
+    <div class="nav-right">
+      <button class="nav-chip" onclick="toast('全局搜索 ⌘K')">调出快捷键 ⌘K</button>
+      <div class="theme-pick" id="themeBtn">
+        <span class="tw" data-t="linear"></span><span class="tw" data-t="raycast"></span>
+        <span class="tw" data-t="apple"></span><span class="tw on" data-t="notion"></span>
+      </div>
+      <button class="nav-ico" onclick="toast('全局搜索')">🔍</button>
+      <button class="nav-ico" onclick="toast('设置')">⚙️</button>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- ══════ HERO ══════ -->
+  <section class="hero">
+    <div class="hero-l">
+      <div class="hero-eyebrow"><span class="dot"></span>方向台 · 战略金字塔 STRATEGY PYRAMID</div>
+      <h1 class="hero-t">愿景之上，<span style="color:var(--accent-ink)">逐层收窄</span>成今天要做的事<span class="en">SIX-LAYER CHAIN</span></h1>
+      <p class="hero-sub">战略目标分岔、项目各自成舱、成功指标内嵌任务——每条任务都能回答"我在为哪个项目的哪个指标服务"。</p>
+    </div>
+    <div class="hero-r">
+      <div class="hero-acts">
+        <div class="seg" id="viewSeg">
+          <button class="on" data-v="pyr" onclick="setView('pyr')">项目塔</button>
+          <button data-v="flat" onclick="setView('flat')">任务流</button>
+        </div>
+        <button class="btn line" onclick="expandAll()">⊞ 展开</button>
+        <button class="btn line" onclick="collapseAll()">⊟ 收起</button>
+        <button class="btn line" onclick="toast('＋ 添加强略项目（挂在所选战略目标下）')">＋ 项目</button>
+        <button class="btn pri" onclick="openGuide()">◎ 交互指南</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════ 骨架控制条 —— 项目塔的导航/过滤/联动中枢 ══════ -->
+  <section class="spine" id="spine">
+    <div class="spine-h">
+      <span class="spine-ico">◈</span>
+      <span class="spine-t">战略骨架<span class="en">SPINE</span></span>
+      <span class="badge" style="color:var(--t3);background:var(--surface-2)">上层定方向 · 下层见动作</span>
+      <div class="spine-hint">
+        <span>数字与下方项目塔实时同源 · 点任意层级即可聚焦</span>
+        <button class="pill-btn" onclick="openDrawer()">◇ 设计决策</button>
+        <button class="pill-btn" onclick="openGuide()">◎ 交互指南</button>
+      </div>
+    </div>
+    <div class="spine-b">
+      <div class="chain">
+        <button class="lv lv-top lv-1" data-lv="1" onclick="lvPick(1)">
+          <span class="lv-n">1</span><span class="lv-t">愿景</span>
+          <span class="lv-c"><b>1</b><s>条</s></span>
+        </button>
+        <span class="link"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 2l4 4-4 4"/></svg></span>
+        <button class="lv lv-top lv-2" data-lv="2" onclick="lvPick(2)">
+          <span class="lv-n">2</span><span class="lv-t">使命</span>
+          <span class="lv-c"><b>1</b><s>条</s></span>
+        </button>
+        <span class="link"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 2l4 4-4 4"/></svg></span>
+        <button class="lv lv-3 gA" data-lv="3" onclick="lvPick(3)">
+          <span class="lv-n">3</span><span class="lv-t">战略目标</span>
+          <span class="lv-c"><b>3</b><s>条</s></span>
+        </button>
+        <span class="link"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 2l4 4-4 4"/></svg></span>
+        <button class="lv lv-4 gA" data-lv="4" onclick="lvPick(4)">
+          <span class="lv-n">4</span><span class="lv-t">攻坚项目</span>
+          <span class="lv-c"><b>6</b><s>个</s></span>
+        </button>
+        <span class="link"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 2l4 4-4 4"/></svg></span>
+        <button class="lv lv-5 gA" data-lv="5" onclick="lvPick(5)">
+          <span class="lv-n">5</span><span class="lv-t">成功指标</span>
+          <span class="lv-c"><b>20</b><s>条</s></span>
+        </button>
+        <span class="link"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 2l4 4-4 4"/></svg></span>
+        <button class="lv lv-6 gA" data-lv="6" onclick="lvPick(6)">
+          <span class="lv-n">6</span><span class="lv-t">任务</span>
+          <span class="lv-c"><b>30</b><s>条</s></span>
+        </button>
+      </div>
+
+      <!-- 第 3 层下挂：战略目标芯片，与下方项目塔的分组头同源同色 -->
+      <div class="dirs">
+        <span class="dirs-lab">按战略目标聚焦</span>
+        <button class="dchip on gA" data-dir="" onclick="dirFilter('')">
+          <span class="dn">全部</span><span class="dm">3 目标 / 6 项目</span>
+        </button>
+      </div>
+
+      <div class="dbar">
+        <span class="dbar-ico">⚠</span>
+        <span class="dbar-t"><b>14 处归属/支撑缺失</b> —— 8 个指标零任务 · 6 个任务未挂指标。已就地标黄</span>
+        <div class="dbar-acts">
+          <button class="pill-btn" id="riskBtn" onclick="toggleRisk()">⚠ 只看断链</button>
+          <button class="pill-btn" onclick="lvPick('orphan')">↗ 无归属任务收容区</button>
+          <button class="pill-btn" onclick="toast('已导出断链清单（14 处，含所属项目与指标定位）')">⬇ 导出清单</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════ 主体：左导航 + 项目塔 ══════ -->
+  <div class="split">
+    <aside class="navside" id="navside"></aside>
+    <main>
+      <div id="filterSlot"></div>
+
+      <div class="towers" id="towers"></div>
+
+      <!-- 任务流视图 -->
+      <div class="flat hidden" id="flatView">
+        <table>
+          <thead><tr>
+            <th style="width:130px">项目</th><th style="width:150px">成功指标</th><th>任务</th>
+            <th style="width:60px">状态</th><th style="width:50px">成熟度</th><th style="width:64px">优先级</th>
+          </tr></thead>
+          <tbody id="flatBody"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ══════ 设计决策抽屉 ══════ -->
+<div class="drawer-mask" id="dMask" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-h">
+    <h3>设计决策 · 六项</h3>
+    <button class="btn line sm" style="margin-left:auto" onclick="closeDrawer()">关闭 ✕</button>
+  </div>
+  <div class="drawer-b">
+    <div>
+      <div class="dz-t">针对旧版四个结构性问题</div>
+      <div class="dz-i"><span class="dz-k">1</span><div>
+        <div class="dz-n">愿景/使命从"平级卡片"升为"页顶唯一主角"</div>
+        <div class="dz-d">旧版愿景是与项目列同级的一张卡，战略目标只是 8px 徽章，视觉权重完全错位。新版把愿景使命提到 HERO 区，用全页唯一 <code>--fs-hero 34px</code>，往下每层递降：34 → 20 → 17 → 15 → 13 → 12 → 11。字阶本身就是金字塔。</div>
+        <div class="dz-c">对齐 V3.8.7 已确立的焦点契约：每个工作面只允许一处 display 字号。</div>
+      </div></div>
+      <div class="dz-i"><span class="dz-k">2</span><div>
+        <div class="dz-n">新增"战略金字塔"架构图，替代左侧数字目录</div>
+        <div class="dz-d">旧的六层 TOC 只有 1~6 数字，看不出层级关系。新版用六层梯形收敛图，每层带实体计数与英文层级名，配色由上到下递减饱和度——<b>结构本身就是导航</b>。点击任一层，下方画布定位到对应区块。</div>
+        <div class="dz-c">梯形用 <code>clip-path</code> 实现宽度递增，一行 CSS 即可随容器自适应。</div>
+      </div></div>
+      <div class="dz-i"><span class="dz-k">3</span><div>
+        <div class="dz-n">项目从"并排列"改为"纵向成舱"</div>
+        <div class="dz-d">旧版 <code>tree-columns-grid</code> 三列并排，项目间只靠列边界，扫视时容易串行。新版每个项目独占一个圆角舱（<code>--r-card</code>），左侧 4px 专属色条，舱间 40px 大间距。舱内自带项目序号、归属面包屑、进度环、指标数任务数。</div>
+        <div class="dz-c">项目色相贯穿全舱：舱色条 → 指标连接线 → 任务分叉线，六舱六色，归属一眼可辨。</div>
+      </div></div>
+      <div class="dz-i"><span class="dz-k">4</span><div>
+        <div class="dz-n">指标升为独立卡，任务内嵌其内</div>
+        <div class="dz-d">旧版指标只是一行标题加一条竖线，同项目内所有指标的任务混在一条流里。新版每个指标一张独立卡（<code>--r-block</code>），卡内含指标名 / 目标 / 验收说明 / 进度条，任务列表<b>缩进 26px 内嵌</b>，用分叉线从指标轨道分出——"任务属于哪个指标"变成视觉事实而非推断。</div>
+        <div class="dz-c">呼吸感来源：指标卡间 12px、任务行高 40px、舱内边距 24px，靠留白分层而非靠边框线堆叠。</div>
+      </div></div>
+      <div class="dz-i"><span class="dz-k">5</span><div>
+        <div class="dz-n">断链显性化：黄标 + 虚线收容区</div>
+        <div class="dz-d">没有任务的指标打「缺任务」黄标并显示 0/0；无归属任务收进项目底部虚线框「无归属任务 · N 条」。不隐藏、不吞掉——结构自己暴露缺口，用户不必手动排查。</div>
+      </div></div>
+      <div class="dz-i"><span class="dz-k">6</span><div>
+        <div class="dz-n">双视图：项目塔 / 任务流</div>
+        <div class="dz-d">「项目塔」是结构视图，回答"我的架构长什么样"；「任务流」是行动视图，一张表列全部 30 条任务并标出所属项目与指标，回答"我现在该干什么"。同一份数据，两种切面。</div>
+      </div></div>
+    </div>
+
+    <div>
+      <div class="dz-t">呼吸感的六条具体做法</div>
+      <div class="dz-i"><span class="dz-k">·</span><div><div class="dz-n">字阶 9→34px 共 8 级，层与层不同级</div>
+        <div class="dz-d">旧版层级差异常常只有 1px（14 vs 15），看不出来。新版每层至少跨 1~2 级，缩放截图也能分辨。</div></div></div>
+      <div class="dz-i"><span class="dz-k">·</span><div><div class="dz-n">大间距只在"层与层"出现</div>
+        <div class="dz-d">战略目标间 40px、项目舱间 64px、指标间 12px、任务间 6px。间距大小直接编码层级差，这是留白的语法。</div></div></div>
+      <div class="dz-i"><span class="dz-k">·</span><div><div class="dz-n">描边极简：只在必要处出现</div>
+        <div class="dz-d">容器靠 <code>--sh-card</code> 阴影分层，不靠 1px 边框堆叠；指标轨道与任务分叉用 2px 色线，不用虚线不用边框。</div></div></div>
+      <div class="dz-i"><span class="dz-k">·</span><div><div class="dz-n">色彩节制：一个强调色 + 六舱色相 + 三状态色</div>
+        <div class="dz-d">紫（accent）只用于当前层与关键动作；六舱色相取自既有令牌（accent/vio/info/amb/ok/stg），不新造颜色；状态只用 ok/warn/bad 三色。</div></div></div>
+      <div class="dz-i"><span class="dz-k">·</span><div><div class="dz-n">圆角三档，不多不少</div>
+        <div class="dz-d">舱 24px / 指标卡 18px / 任务行 14px。同类元素同圆角，一眼看出"谁套着谁"。</div></div></div>
+      <div class="dz-i"><span class="dz-k">·</span><div><div class="dz-n">动效只做"提示"，不做"表演"</div>
+        <div class="dz-d">160ms + <code>cubic-bezier(.22,.61,.36,1)</code>，仅用于 hover 位移与展开收起，无入场动画、无视差。</div></div></div>
+    </div>
+
+    <div>
+      <div class="dz-t">落地时需注意的三个坑</div>
+      <div class="dz-i"><span class="dz-k">!</span><div>
+        <div class="dz-n">连接线容器不可省</div>
+        <div class="dz-d">指标卡左侧的分叉线、归属竖轨都依赖"无内容容器 div"。移植到 Vue 时最容易把这种空容器删掉，元素还在、语义已反（V3.8.7 已踩过一次）。判据要钉"结构归属"而非"元素存在"。</div>
+      </div></div>
+      <div class="dz-i"><span class="dz-k">!</span><div>
+        <div class="dz-n">亮色主题下低对比底色等于隐形</div>
+        <div class="dz-d">指标卡用 <code>--surface-2</code> 而非任何低 alpha 色，避免在 notion/apple 上与页底同色读起来像"坏了"。空态要 <code>min-height</code> 兜底。</div>
+      </div></div>
+      <div class="dz-i"><span class="dz-k">!</span><div>
+        <div class="dz-n">折叠必须双向</div>
+        <div class="dz-d">项目可折叠、指标可折叠，都要有明确的收起入口。单向门（只给展开不给收起）是已发生过的真实缺陷。</div>
+      </div></div>
+    </div>
+  </div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<!-- ══════ 交互指南抽屉 ══════ -->
+<div class="drawer-mask" id="gMask" onclick="closeGuide()"></div>
+<aside class="drawer" id="guide">
+  <div class="drawer-h">
+    <h3>交互指南 · 每一处怎么用</h3>
+    <button class="btn line sm" style="margin-left:auto" onclick="closeGuide()">关闭 ✕</button>
+  </div>
+  <div class="drawer-b">
+    <div>
+      <div class="dz-t">一、战略骨架条（页面上方那一条）</div>
+      <div class="dz-i"><span class="dz-k">→</span><div>
+        <div class="dz-n">点「1 愿景 / 2 使命」→ 回页顶看全页唯一主角</div>
+        <div class="dz-d">这两个层级是整页的视觉原点。<b>回顶</b>看它们在整条链里的位置；再点一次取消聚焦。</div></div></div>
+      <div class="dz-i"><span class="dz-k">→</span><div>
+        <div class="dz-n">点「3 战略目标」→ 展开/收起下方目标芯片行</div>
+        <div class="dz-d">战略目标是从"定方向"转向"分资源"的分岔点。点它把目标芯片行展开或收起——芯片行是下方项目分组头的<b>同源镜像</b>。</div></div></div>
+      <div class="dz-i"><span class="dz-k">→</span><div>
+        <div class="dz-n">点「4 / 5 / 6」→ 滚动到项目塔的第一处对应物并闪一下</div>
+        <div class="dz-d">点「攻坚项目」滚到第一个项目舱并描边闪烁；点「成功指标」滚到第一张指标卡；点「任务」滚到第一条任务行。让你确认"这层的实体长什么样"。</div></div></div>
+      <div class="dz-i"><span class="dz-k">●</span><div>
+        <div class="dz-n">战略目标芯片 → 过滤下方项目塔</div>
+        <div class="dz-d">点某个目标芯片，下方<b>只留这个目标的项目舱</b>，其余淡出；顶部出现一条筛选态提示条可一键清除。再点"全部"恢复。这是最常用的一次点击。</div></div></div>
+      <div class="dz-i"><span class="dz-k">⚠</span><div>
+        <div class="dz-n">「只看断链」→ 只留下有缺口的部分</div>
+        <div class="dz-d">切到断链模式：无任务的指标保留并高亮、支撑任务未开的任务保留、其他全部隐藏，左侧导航同步收窄。再点恢复。</div></div></div>
+      <div class="dz-i"><span class="dz-k">↗</span><div>
+        <div class="dz-n">「无归属任务收容区」→ 跳到虚线框</div>
+        <div class="dz-d">直接定位到「知识库结构治理」舱底的虚线收容区，那2 条既没挂指标也没进任何指标卡的任务就在那里。</div></div></div>
+    </div>
+
+    <div>
+      <div class="dz-t">二、项目舱（第 4 层）</div>
+      <div class="dz-i"><span class="dz-k">▾</span><div>
+        <div class="dz-n">舱头右侧 ▾ → 折叠/展开整个项目</div>
+        <div class="dz-d">折叠的是呈现不是数据——指标数与任务数在舱头常驻，折叠后仍看得见这个项目有多大量。</div></div></div>
+      <div class="dz-i"><span class="dz-k">＋</span><div>
+        <div class="dz-n">「＋ 指标」→ 在本项目下新建成功指标</div>
+        <div class="dz-d">新指标直接落在本舱的指标轨道末端，自动继承项目色相——不需要用户自己选归属。</div></div></div>
+      <div class="dz-i"><span class="dz-k">⚠</span><div>
+        <div class="dz-n">「⚠ 断链」→ 报本舱有几处缺口</div>
+        <div class="dz-d">只在本舱真有缺口时才出现，告诉你"缺任务指标数 + 无归属任务数"。</div></div></div>
+      <div class="dz-i"><span class="dz-k">◷</span><div>
+        <div class="dz-n">进度环 → hover 看完成明细</div>
+        <div class="dz-d">环上数字是本项目全部任务完成占比（跨指标聚合），旁边是「已完成 / 总数」。</div></div></div>
+      <div class="dz-i"><span class="dz-k">▦</span><div>
+        <div class="dz-n">舱头面包屑 → 点任一段跳到该层</div>
+        <div class="dz-d">「愿景 › 使命 › 1 战略目标·名称 › 第 4 层」都可点，逐级回溯定位。</div></div></div>
+    </div>
+
+    <div>
+      <div class="dz-t">三、成功指标卡（第 5 层）</div>
+      <div class="dz-i"><span class="dz-k">○</span><div>
+        <div class="dz-n">状态点 ○ / ◐ / ✓ → 空 / 进行中 / 已全完成</div>
+        <div class="dz-d">由该指标下所有任务的状态聚合得出，不必点开就知道这个指标动没动。</div></div></div>
+      <div class="dz-i"><span class="dz-k">▾</span><div>
+        <div class="dz-n">「▾ 收起 / ▸ 展开」→ 折叠该指标的任务</div>
+        <div class="dz-d">指标多的时候用它压缩视线；收起后指标本身、进度、验收说明仍在，不会"消失"。</div></div></div>
+      <div class="dz-i"><span class="dz-k">▥</span><div>
+        <div class="dz-n">进度条 → 本指标自己的完成度</div>
+        <div class="dz-d">与舱头进度环不同：环是项目级，这根条是指标级。数字在条右侧，永不独立成大数（避免层级倒置）。</div></div></div>
+    </div>
+
+    <div>
+      <div class="dz-t">四、任务行（第 6 层）</div>
+      <div class="dz-i"><span class="dz-k">☐</span><div>
+        <div class="dz-n">方框 → 点一下勾选完成</div>
+        <div class="dz-d">点了行变灰划线，上方指标点与进度条实时联动。注意完成<b>只改状态</b>，不影响归属。</div></div></div>
+      <div class="dz-i"><span class="dz-k">↳</span><div>
+        <div class="dz-n">hover 任务行 → 右侧浮出完整归属路径</div>
+        <div class="dz-d">平时藏起来保持干净；鼠标移上去才显示「战略目标 › 项目 › 指标」三级路径，专门用来回答"这条到底归谁"。</div></div></div>
+      <div class="dz-i"><span class="dz-k">⚠</span><div>
+        <div class="dz-n">黄标「支撑任务（线索未开）」</div>
+        <div class="dz-d">这条任务本身没做完没关系，它依赖的线索还没打开——先开线索，不算失败。</div></div></div>
+      <div class="dz-i"><span class="dz-k">ABCD</span><div>
+        <div class="dz-n">成熟度 A/B/C/D → 就绪 / 可派 / 缺件 / 空壳</div>
+        <div class="dz-d">规则引擎即时算，零 token、可解释。点它看扣分理由。</div></div></div>
+    </div>
+
+    <div>
+      <div class="dz-t">五、左侧导航与视图切换</div>
+      <div class="dz-i"><span class="dz-k">≡</span><div>
+        <div class="dz-n">左侧项目导航 → 点击定位、滚动联动高亮</div>
+        <div class="dz-d">色块即项目色相，与舱左侧色条一一对应。滚动页面时导航自动跟随当前视野所在项目。</div></div></div>
+      <div class="dz-i"><span class="dz-k">⇄</span><div>
+        <div class="dz-n">「项目塔 / 任务流」→ 两种切面</div>
+        <div class="dz-d">项目塔回答"我的架构长什么样"；任务流是 30 条任务的行动表，每行标明所属项目与指标，回答"现在该干什么"。</div></div></div>
+      <div class="dz-i"><span class="dz-k">✦</span><div>
+        <div class="dz-n">「✦ AI 建议」→ 只建议不写入</div>
+        <div class="dz-d">AI 给候选，查重后你点采纳才真正创建。采纳前零写入——AI 不替你决策。</div></div></div>
+    </div>
+
+    <div>
+      <div class="dz-t">六、全局</div>
+      <div class="dz-i"><span class="dz-k">◐</span><div>
+        <div class="dz-n">右上四色圆点 → 循环切主题</div>
+        <div class="dz-d">linear / raycast / apple / notion 四套令牌实时替换，布局与配色同步验证。</div></div></div>
+      <div class="dz-i"><span class="dz-k">⎋</span><div>
+        <div class="dz-n">Esc → 关闭抽屉</div>
+        <div class="dz-d">任何浮层打开时按Esc 直接关，不误触页面。</div></div></div>
+      <div class="dz-i"><span class="dz-k">◇</span><div>
+        <div class="dz-n">「◇ 设计决策」→ 为什么这样设计</div>
+        <div class="dz-d">六项设计决策 + 呼吸感六条 + 三个落地坑（连接线容器移植最易丢等）。</div></div></div>
+    </div>
+  </div>
+</aside>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   演示数据 —— 忠实取自真库当前状态（3 战略目标 / 6 项目 / 20 指标 / 30 任务）
+   ══════════════════════════════════════════════════════════════ */
+const T=(t,s='todo',g='B',pr='高优',w='',sub=0)=>({t,s,g,pr,w,sub});
+const DATA=[
+ { id:'d1', name:'产品全生命周期管理专家', g:'gA',
+   projects:[
+    { id:'p1', name:'软硬一体服务端解决方案', g:'gA', focus:true, pinned:true, pct:0, done:0, total:4, stall:false,
+      metrics:[
+        { id:'m1', name:'产品解决方案', pct:0, done:0, total:4, grade:'D', target:'可复制可拓展', acc:'硬件+软件+服务一体机业务打包成解决方案', tasks:[
+          T('把硬件+软件+服务的一体机业务，做成可复制可拓展的解决方案，提供给工具、日志云、成熟工具','todo','C','中优','',2),
+          T('产品解决方案对齐竞品：Grafana / Datadog','todo','D','高优','支撑任务（线索未开）')
+        ]},
+        { id:'m2', name:'产品销售工具', pct:0, done:0, total:1, grade:'C', target:'3 件套', acc:'报价模板 / PPT 模板 / 英文通稿', tasks:[
+          T('设计解决方案报价模板','todo','B','高优'),
+          T('制作产品的PPT模板','todo','B','高优'),
+          T('梳理产品核心英文通稿','todo','B','高优')
+        ]},
+        { id:'m3', name:'产品解决方案文案 3 版', pct:0, done:0, total:3, grade:'D', target:'3 版', acc:'官网 / 公众号 / 白皮书三套文案', tasks:[]},
+        { id:'m4', name:'产品销售工具包含 5 类材料', pct:0, done:0, total:5, grade:'D', target:'5 类', acc:'报价/PPT/通稿/案例/FAQ', tasks:[]}
+      ]},
+    { id:'p2', name:'产品可观测性平台建设', g:'gB', focus:false, pct:50, done:1, total:2, stall:false,
+      metrics:[
+        { id:'m5', name:'采集链路打通', pct:50, done:1, total:2, grade:'B', target:'2/2 采集器上线', acc:'主机与容器双采集', tasks:[
+          T('主机采集器上线灰度','done','A','高优'),
+          T('容器采集器接入 Sidecar','doing','B','高优')
+        ]},
+        { id:'m6', name:'查询性能达标', pct:0, done:0, total:3, grade:'C', target:'P95 < 800ms', acc:'一亿点位下查询延迟', tasks:[
+          T('查询冷热分层存储压测','todo','C','高优')
+        ]}
+      ]}
+   ]},
+ { id:'d2', name:'教育+AI 专家', g:'gB',
+   projects:[
+    { id:'p3', name:'教育+AI 行业地图研究', g:'gB', focus:true, pinned:true, pct:0, done:0, total:5, stall:true,
+      metrics:[
+        { id:'m7', name:'对行业现状和数据解读', pct:0, done:0, total:3, grade:'C', target:'20 个核心词', acc:'行业文本表 + 新闻速览 + 分类函数', tasks:[
+          T('构建行业文本表（20 个核心词）','todo','B','高优'),
+          T('汇总生成一份行业新闻速览','todo','B','中优'),
+          T('构建生成函数与格式分类','todo','B','高优'),
+          T('构建流程节点图与分层解构','todo','B','中优'),
+          T('整理教育+AI 及创业公司清单','todo','B','高优')
+        ]},
+        { id:'m8', name:'撰写行业分析报告 5 篇', pct:0, done:0, total:5, grade:'D', target:'5 篇', acc:'每篇 3000 字 + 数据支撑', tasks:[]}
+      ]},
+    { id:'p4', name:'武汉地区教育政策解读', g:'gB', focus:true, pinned:false, pct:100, done:2, total:2, stall:false,
+      metrics:[
+        { id:'m9', name:'政策清单结构化', pct:100, done:2, total:2, grade:'A', target:'20 条政策', acc:'时间轴 + 影响面标注', tasks:[
+          T('2026 武汉中考政策 12 条梳理','done','A','高优'),
+          T('高考改革落地细则 8 条梳理','done','A','高优')
+        ]}
+      ]}
+   ]},
+ { id:'d3', name:'AI|知识管理 · 内容生产专家', g:'gC',
+   projects:[
+    { id:'p5', name:'内容生产工程', g:'gC', focus:false, pct:50, done:1, total:2, stall:true,
+      metrics:[
+        { id:'m10', name:'公众号 1W', pct:0, done:0, total:8, grade:'D', target:'1 万阅读', acc:'5 篇支撑任务', tasks:[]},
+        { id:'m11', name:'小红书 1W', pct:0, done:0, total:8, grade:'D', target:'1 万曝光', acc:'5 篇支撑任务', tasks:[]},
+        { id:'m12', name:'持续输出 3 个可复用技能模块', pct:0, done:0, total:0, grade:'D', target:'3 个模块', acc:'可被他人直接复用', tasks:[]},
+        { id:'m13', name:'公众号发布 10 篇，平均阅读 1000', pct:0, done:0, total:0, grade:'D', target:'10 篇 / 均 1000', acc:'平均阅读量达 1000', tasks:[]},
+        { id:'m14', name:'小红书发布 15 篇，累计赞藏 5000', pct:0, done:0, total:0, grade:'D', target:'15 篇 / 5000', acc:'累计赞藏 5000', tasks:[]}
+      ]},
+    { id:'p6', name:'知识库结构治理', g:'gD', focus:false, pct:33, done:2, total:6, stall:true,
+      metrics:[
+        { id:'m15', name:'六段式省份笔记全覆盖', pct:50, done:3, total:6, grade:'C', target:'34 省', acc:'双链接结构串联高校/政策/案例', tasks:[
+          T('湖北、江西两省六段式补齐','doing','B','高优'),
+          T('双链接结构抽样校验 20 条','todo','C','中优'),
+          T('Lint 规则批量过检','todo','C','中优')
+        ]},
+        { id:'m16', name:'schema 与 lint 稳定', pct:33, done:1, total:3, grade:'C', target:'8 项必查清单', acc:'写入前必过 8 项检查', tasks:[
+          T('8 项必查清单自动化脚本','doing','B','高优'),
+          T('WIKI-SCHEMA 版本对齐','todo','C','中优')
+        ]}
+      ],
+      orphans:[
+        T('整理「AI 学习力」入口页文案','todo','B','中优'),
+        T('竞品监控表季度更新','todo','C','低优')
+      ]}
+   ]}
+];
+
+const gs=['A','B','C','D'];
+let view='pyr', riskOnly=false;
+const openDirs={}, openMetrics={};
+DATA.forEach(d=>openDirs[d.id]=true);
+DATA.forEach(d=>d.projects.forEach(p=>p.metrics.forEach(m=>openMetrics[m.id]=true)));
+DATA[0].projects[0].metrics[1].id && (openMetrics['m2']=true);
+
+/* ══ 渲染 ══ */
+function statusIcon(m){
+  const t=m.tasks||[];
+  if(t.length && t.every(x=>x.s==='done')) return {c:'done',g:'✓'};
+  if(t.some(x=>x.s==='doing')) return {c:'doing',g:''};
+  return {c:'',g:''};
+}
+function hasRisk(m){
+  return !m.tasks || m.tasks.length===0;
+}
+function taskRisk(t){ return !!t.w; }
+
+function renderNav(){
+  const el=document.getElementById('navside');
+  let h='<div class="ns-t">项目导航 · 6 个舱</div>';
+  let idx=0;
+  DATA.forEach(d=>{
+    d.projects.forEach(p=>{
+      if(dirAct && d.id!==dirAct) return;
+      idx++;
+      const allT=p.metrics.reduce((a,m)=>a+(m.tasks||[]).length,0);
+      const allD=p.metrics.reduce((a,m)=>a+(m.tasks||[]).filter(t=>t.s==='done').length,0);
+      h+=`<div class="ns-item ${p.g}" data-p="${p.id}" onclick="focusTower('${p.id}')">
+        <span class="ns-idx">${idx}</span>
+        <span class="ns-body">
+          <span class="ns-n">${esc(p.name)}</span>
+          <span class="ns-m">${p.metrics.length} 指标 · ${allD}/${allT} 任务${p.focus?' · 🚀':''}${p.stall?' · ⚠停滞':''}</span>
+        </span></div>`;
+    });
+  });
+  h+='<div class="ns-hint">色块即项目色相 —— 与下方项目舱左侧色条一一对应</div>';
+  el.innerHTML=h;
+  applyRisk();
+}
+function renderTowers(){
+  const el=document.getElementById('towers');
+  let h='';
+  const G=['gA','gB','gC'];
+  DATA.forEach((d,di)=>{
+    if(dirAct && d.id!==dirAct) return;
+    h+=`<div class="dir-head" id="dir-${d.id}">
+      <span class="dir-badge ${G[di%3]} ${dirAct===d.id?'on':''}" data-dir="${d.id}" onclick="dirFilter('${d.id}')">${di+1} 战略目标</span>
+      <span class="dir-name">${esc(d.name)}</span>
+      <span class="dir-meta">· ${d.projects.length} 个攻坚项目 · ${d.projects.reduce((a,p)=>a+p.metrics.length,0)} 条成功指标</span>
+      <span class="dir-line"></span>
+      <button class="btn line sm" onclick="toast('＋ 在「${esc(d.name)}」下添加攻坚项目')">＋ 项目</button>
+      <button class="btn line sm" onclick="toast('🤖 AI 依愿景/使命建议本阶段战略目标（同层查重后采纳才创建）')">✦ AI 建议</button>
+      ${dirAct?`<button class="btn line sm" onclick="dirFilter('')">✕ 看全部目标</button>`:''}
+    </div>`;
+    let idx=0;
+    d.projects.forEach(p=>{
+      idx++;
+      const allT=p.metrics.reduce((a,m)=>a+(m.tasks||[]).length,0);
+      const allD=p.metrics.reduce((a,m)=>a+(m.tasks||[]).filter(t=>t.s==='done').length,0);
+      const hasR=p.metrics.some(hasRisk)||(p.orphans&&p.orphans.length);
+      const R=40, C=2*Math.PI*R;
+      h+=`<section class="tower ${p.g}" id="tower-${p.id}" data-p="${p.id}" data-dir="${d.id}">
+        <div class="tw-h" onclick="focusTower('${p.id}')">
+          <span class="tw-idx">${idx}</span>
+          <div class="tw-t">
+            <div class="tw-name">${esc(p.name)}
+              ${p.focus?'<span class="badge" style="color:var(--accent-ink);background:var(--accent-soft)">🚀 主攻</span>':''}
+              ${p.pinned?'<span class="badge" style="color:var(--t3);background:var(--surface-2)">📌 置顶</span>':''}
+              ${p.stall?'<span class="badge" style="color:var(--warn);background:var(--warn-soft)">⚠ 停滞 14 天+</span>':''}
+            </div>
+            <div class="tw-crumbs">
+              <span onclick="lvPick(1);event.stopPropagation()" style="cursor:pointer">愿景</span><span class="sep">›</span>
+              <span onclick="lvPick(2);event.stopPropagation()" style="cursor:pointer">使命</span><span class="sep">›</span>
+              <span onclick="lvPick(3);event.stopPropagation()" style="cursor:pointer">${di+1} 战略目标 · ${esc(d.name)}</span><span class="sep">›</span>
+              <span class="cb">第 4 层 · 攻坚项目</span>
+            </div>
+          </div>
+          <div class="tw-r" onclick="event.stopPropagation()">
+            <div class="tw-prog">
+              <div class="ring" title="项目级完成度：跨全部指标聚合">
+                <svg width="42" height="42"><circle cx="21" cy="21" r="${R}" fill="none" stroke="var(--surface-3)" stroke-width="3.5"/>
+                <circle cx="21" cy="21" r="${R}" fill="none" stroke="var(--pc)" stroke-width="3.5" stroke-linecap="round"
+                  stroke-dasharray="${C}" stroke-dashoffset="${C*(1-p.pct/100)}"/></svg>
+                <span class="rv">${p.pct}%</span>
+              </div>
+              <div class="tw-num"><b>${allD} / ${allT} 任务完成</b>${p.metrics.length} 条指标 · ${allT} 条任务</div>
+            </div>
+            <div class="tw-acts">
+              ${hasR?`<button class="btn line sm" onclick="toast('⚠ 本舱 ${p.metrics.filter(hasRisk).length+(p.orphans?p.orphans.length:0)} 处断链：${p.metrics.filter(hasRisk).map(m=>esc(m.name)).join('、')||''}${p.orphans?'、'+p.orphans.length+' 条无归属任务':''}')">⚠ 断链</button>`:''}
+              <button class="btn line sm" onclick="toast('＋ 在本项目下新建成功指标，自动继承项目色相与归属')">＋ 指标</button>
+              <button class="tw-fold" onclick="foldTower('${p.id}')" title="折叠/展开本项目（双向）">${openDirs['p_'+p.id]===false?'▸':'▾'}</button>
+            </div>
+          </div>
+        </div>
+        <div class="tw-b" id="body-${p.id}" ${openDirs['p_'+p.id]===false?'style="display:none"':''}>
+          <div class="mgrid">`;
+      p.metrics.forEach(m=>{
+        const st=statusIcon(m);
+        const risky=hasRisk(m);
+        const folded=openMetrics[m.id]===false;
+        h+=`<div class="metric" data-m="${m.id}" data-orphan="${risky?1:0}">
+          <div class="m-h">
+            <span class="m-dot ${st.c}" title="${st.c==='done'?'该指标任务已全完成':st.c==='doing'?'有任务进行中':'任务未启动'}">${st.g}</span>
+            <span class="m-n">${esc(m.name)}</span>
+            <span class="m-tag tg-${risky?'warn':(st.c==='done'?'ok':'neutral')}">${risky?'缺任务':(st.c==='done'?'已达成':'M'+m.grade)}</span>
+            <span class="m-caret" onclick="foldMetric('${m.id}')">${folded?'▸ 展开':'▾ 收起'}</span>
+            <span class="m-bar" title="指标级完成度"><span class="track"><span class="fill" style="width:${m.pct}%"></span></span>${m.pct}% · ${m.done}/${m.total}</span>
+          </div>
+          <div class="m-acc">验收：<span class="tgt">${esc(m.acc)}</span></div>`;
+        if(!folded){
+          if(m.tasks&&m.tasks.length){
+            h+='<div class="tasks">';
+            m.tasks.forEach((t,ti)=>{
+              h+=`<div class="task ${t.s}" data-risk="${taskRisk(t)?1:0}">
+                <span class="tk-box ${t.s}" onclick="toggleTask('${m.id}',${ti},event)" title="点击勾选完成"></span>
+                <span class="tk-t">${esc(t.t)}${t.sub?` <span style="color:var(--t4);font-size:var(--fs-micro)">· ${t.sub} 子任务</span>`:''}</span>
+                <span class="tk-crumb">↳ ${esc(d.name)} › ${esc(p.name)} › ${esc(m.name)}</span>
+                <span class="tk-tags">
+                  ${t.w?`<span class="tk-tag tk-warn" title="依赖线索未打开，不算失败">⚠ ${esc(t.w)}</span>`:''}
+                  <span class="tk-tag tk-pri">${esc(t.pr)}</span>
+                  <span class="tk-tag tk-g" style="color:${t.g==='A'?'var(--ok)':t.g==='B'?'var(--info)':t.g==='C'?'var(--warn)':'var(--bad)'}" onclick="toast('成熟度 ${t.g}：${t.g==='A'?'说明/估时/截止/归属齐备':'扣分理由：说明未写清 · 无估时 · 无截止日'}')">${t.g}</span>
+                </span></div>`;
+            });
+            h+='</div>';
+          }else{
+            h+=`<div class="orphan">⚠ 指标「${esc(m.name)}」下暂无任何任务 —— 验收标准已定，动作未落</div>`;
+          }
+        }
+        h+='</div>';
+      });
+      if(p.orphans&&p.orphans.length){
+        h+=`<div class="orphan tower-orphan" id="orphan-${p.id}" style="margin-left:0">⚠ 无归属任务 · ${p.orphans.length} 条 —— 在本舱内但未挂任何成功指标
+          <span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">${p.orphans.map(t=>`<span class="tk-tag tk-pri">${esc(t.t)}</span>`).join('')}</span></div>`;
+      }
+      h+='</div></div></section>';
+    });
+  });
+  el.innerHTML=h;
+  renderFilterBar();
+  applyRisk();
+  syncNav();
+}
+function renderFlat(){
+  let h='';
+  DATA.forEach(d=>d.projects.forEach(p=>p.metrics.forEach(m=>{
+    if(!m.tasks||!m.tasks.length){
+      h+=`<tr data-risk="1"><td class="f-c"><span class="pdot ${p.g}"><i></i>${esc(p.name)}</span></td>
+        <td class="f-c">${esc(m.name)}</td><td style="color:var(--warn)">⚠ 该指标暂无任务</td>
+        <td>—</td><td class="f-c">${m.grade}</td><td class="f-c">—</td></tr>`;
+      return;
+    }
+    m.tasks.forEach(t=>{
+      h+=`<tr data-risk="${taskRisk(t)?1:0}">
+        <td class="f-c"><span class="pdot ${p.g}"><i></i>${esc(p.name)}</span></td>
+        <td class="f-c">${esc(m.name)}</td>
+        <td>${esc(t.t)}</td>
+        <td>${t.s==='done'?'✓ 已完成':t.s==='doing'?'◐ 进行中':'○ 待办'}</td>
+        <td class="f-c">${t.g}</td><td class="f-c">${esc(t.pr)}</td></tr>`;
+    });
+  })));
+  if(DATA[2].projects[1].orphans){
+    DATA[2].projects[1].orphans.forEach(t=>{
+      h+=`<tr data-risk="1"><td class="f-c"><span class="pdot gD"><i></i>知识库结构治理</span></td>
+        <td style="color:var(--bad)">⚠ 无归属指标</td><td>${esc(t.t)}</td>
+        <td>○ 待办</td><td class="f-c">${t.g}</td><td class="f-c">${esc(t.pr)}</td></tr>`;
+    });
+  }
+  document.getElementById('flatBody').innerHTML=h;
+  applyRisk();
+}
+
+/* ══ 交互 ══ */
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+let tt;
+function toast(m){const el=document.getElementById('toast');el.textContent=m;el.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('on'),1900)}
+function setView(v){
+  view=v;
+  document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  document.getElementById('towers').classList.toggle('hidden',v!=='pyr');
+  document.getElementById('flatView').classList.toggle('hidden',v!=='flat');
+  document.querySelector('.arch').classList.toggle('hidden',v!=='pyr');
+}
+/* ══ 交互：骨架条 ⇄ 项目塔 双向联动 ══ */
+let lvAct=null, dirAct='', dirsOpen=false;
+
+/** 第 3 层：展开/收起战略目标芯片行（芯片是下方分组头的同源镜像） */
+function lvDirs(open){
+  dirsOpen = (open===undefined) ? !dirsOpen : open;
+  renderDirChips();
+  document.querySelector('.lv[data-lv="3"]').classList.toggle('on',dirsOpen);
+  if(dirsOpen) toast('展开战略目标芯片 —— 与下方项目分组头同源，点芯片可过滤项目塔');
+  else toast('收起目标芯片行');
+}
+/** 层级聚焦：1/2 回顶，3 切芯片行，4/5/6 定位到第一处对应实体 */
+function lvPick(lv){
+  if(lv==='orphan'){
+    const p=DATA.flatMap(d=>d.projects).find(x=>x.orphans&&x.orphans.length);
+    if(!p){toast('当前没有无归属任务');return;}
+    const el=document.getElementById('orphan-'+p.id);
+    if(!el){toast('请先展开「'+p.name+'」');openDirs['p_'+p.id]=true;renderTowers();setTimeout(()=>lvPick('orphan'),60);return;}
+    el.scrollIntoView({behavior:'smooth',block:'center'});
+    el.style.transition='box-shadow .45s'; el.style.boxShadow='0 0 0 3px var(--bad)';
+    setTimeout(()=>{el.style.boxShadow=''},1500);
+    toast('这 2 条任务在项目舱内，但没有挂任何成功指标 —— 断链收容区');
+    return;
+  }
+  if(lv===1||lv===2){
+    lvAct = lvAct===lv ? null : lv;
+    markLv();
+    window.scrollTo({top:0,behavior:'smooth'});
+    toast(lv===1?'愿景 · 全页唯一 34px 主角 —— 所有层级都从这一句推导出来':'使命 · 把愿景变成行动准则');
+    return;
+  }
+  if(lv===3){ lvDirs(); return; }
+  lvAct = lvAct===lv ? null : lv;
+  markLv();
+  if(lv===4){ const p=DATA[0].projects[0]; focusTower(p.id); toast('第 4 层 · 每个项目一个独立舱，色条即项目身份'); }
+  if(lv===5){ flash('metric', '第 5 层 · 成功指标在舱内成卡，任务内嵌在指标里'); }
+  if(lv===6){ flash('task', '第 6 层 · 每条任务都隶属某个成功指标，hover 可看完整归属路径'); }
+}
+function markLv(){
+  document.querySelectorAll('.lv').forEach(e=>e.classList.toggle('on',
+    (dirsOpen && e.dataset.lv==='3') || String(lvAct)===e.dataset.lv));
+}
+function flash(sel,msg){
+  const el=document.querySelector('.'+sel);
+  if(!el) return;
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  const ring='0 0 0 3px var(--pc)';
+  el.style.transition='box-shadow .45s'; el.style.boxShadow=ring;
+  setTimeout(()=>{el.style.boxShadow=''},1400);
+  toast(msg);
+}
+/** 战略目标过滤：芯片 ⇄ 项目塔 */
+function dirFilter(id){
+  dirAct = dirAct===id ? '' : id;
+  renderDirChips(); markDirBadge(); renderTowers(); renderNav();
+  const d=DATA.find(x=>x.id===dirAct);
+  if(dirAct&&d) toast(`已聚焦「${d.name}」· ${d.projects.length} 个项目舱已上浮，其余淡出`);
+  else toast('已恢复全部 3 个战略目标 · 6 个项目舱');
+  if(dirAct) setTimeout(()=>{
+    const el=document.querySelector('.dir-head');
+    if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+  },80);
+}
+function renderDirChips(){
+  let h='<span class="dirs-lab">按战略目标聚焦</span>';
+  h+=`<button class="dchip ${dirAct===''?'on':''} gA" onclick="dirFilter('')"><span class="dn">全部</span><span class="dm">3 目标 / 6 项目</span></button>`;
+  if(!dirsOpen) return h;
+  const G=['gA','gB','gC'];
+  DATA.forEach((d,i)=>{
+    const nt=d.projects.reduce((a,p)=>a+p.metrics.reduce((x,m)=>x+(m.tasks||[]).length,0),0);
+    h+=`<button class="dchip ${dirAct===d.id?'on':''} ${G[i%3]}" onclick="dirFilter('${d.id}')">
+      <i></i><span class="dn">${esc(d.name)}</span><span class="dm">${d.projects.length} 项目 · ${nt} 任务</span><span class="dx">✕</span></button>`;
+  });
+  const box=document.querySelector('.dirs');
+  if(box) box.innerHTML=h;
+}
+function markDirBadge(){
+  document.querySelectorAll('.dir-badge').forEach(b=>{
+    const on = dirAct && b.dataset.dir===dirAct;
+    b.classList.toggle('on',!!on);
+  });
+}
+function renderFilterBar(){
+  const slot=document.getElementById('filterSlot');
+  if(!dirAct){ slot.innerHTML=''; return; }
+  const d=DATA.find(x=>x.id===dirAct);
+  const np=d.projects.length, nt=d.projects.reduce((a,p)=>a+p.metrics.reduce((x,m)=>x+(m.tasks||[]).length,0),0);
+  const nm=d.projects.reduce((a,p)=>a+p.metrics.length,0);
+  slot.innerHTML=`<div class="filter-bar">◇ <span>正在只看</span><b>战略目标 · ${esc(d.name)}</b>
+    <span>— ${np} 个项目舱 · ${nm} 条成功指标 · ${nt} 条任务</span>
+    <span class="fb-x" onclick="dirFilter('${dirAct}')">✕ 清除筛选</span></div>`;
+}
+
+/* 折叠：双向可达（只给展开不给收起是已发生过的真实缺陷） */
+function foldTower(pid){
+  const key='p_'+pid, closed=openDirs[key]===false;
+  openDirs[key]=closed;
+  document.getElementById('body-'+pid).style.display=closed?'':'none';
+  document.querySelector('#tower-'+pid+' .tw-fold').textContent=closed?'▾':'▸';
+  if(closed){
+    const p=DATA.flatMap(d=>d.projects).find(x=>x.id===pid);
+    toast('▾ 已展开本项目 · '+p.metrics.length+' 条指标、任务列表已可见');
+  }else{
+    const el=document.querySelector('#tower-'+pid+' .tw-num b');
+    toast('▸ 已折叠本项目 · 数据仍在，舱头仍显示「'+(el?el.textContent:'')+'」');
+  }
+}
+function foldMetric(mid){
+  openMetrics[mid]=openMetrics[mid]===false;
+  renderTowers(); renderFlat();
+  toast(openMetrics[mid]===false?'▾ 已展开该指标下的任务':'▸ 已收起该指标下的任务 · 指标本身与进度仍可见');
+}
+function focusTower(pid){
+  const el=document.getElementById('tower-'+pid);
+  if(!el) return;
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  el.style.transition='box-shadow .45s'; el.style.boxShadow='0 0 0 3px var(--pc)';
+  setTimeout(()=>{el.style.boxShadow=''},1300);
+  syncNav(pid);
+}
+function toggleRisk(){
+  riskOnly=!riskOnly;
+  const b=document.getElementById('riskBtn');
+  b.classList.toggle('on',riskOnly); b.classList.toggle('pill-btn',true);
+  b.textContent = riskOnly?'✓ 断链模式 · 点击退出':'⚠ 只看断链';
+  applyRisk(); renderNav(); renderDirChips();
+  toast(riskOnly?'⚠ 只看断链：缺任务的指标 + 线索未开的支撑任务，其余全部隐藏':'已恢复全部内容');
+}
+function applyRisk(){
+  document.querySelectorAll('.task').forEach(t=>{ t.style.display = riskOnly ? (t.dataset.risk==='1'?'':'none') : ''; });
+  document.querySelectorAll('.metric').forEach(mm=>{
+    const bad = mm.dataset.orphan==='1' || Array.from(mm.querySelectorAll('.task')).some(t=>t.dataset.risk==='1');
+    mm.style.display = riskOnly ? (bad?'':'none') : '';
+  });
+  document.querySelectorAll('.tower').forEach(tw=>{
+    const anyM=Array.from(tw.querySelectorAll('.metric')).some(m=>m.style.display!=='none');
+    const orph=tw.querySelector('.orphan.tower-orphan');
+    tw.style.display=(riskOnly?((anyM||orph)?'':'none'):'');
+  });
+  document.querySelectorAll('.ns-item').forEach(it=>{
+    const tw=document.getElementById('tower-'+it.dataset.p);
+    it.style.display=(riskOnly&&tw&&tw.style.display==='none')?'none':'';
+  });
+}
+function syncNav(act){
+  if(view!=='pyr') return;
+  const top=window.scrollY+300;
+  let cur=act;
+  if(!cur){
+    let best=1e9;
+    DATA.forEach(d=>d.projects.forEach(p=>{
+      const el=document.getElementById('tower-'+p.id); if(!el) return;
+      if(riskOnly&&el.style.display==='none') return;
+      if(dirAct&&el.dataset.dir!==dirAct) return;
+      const dist=Math.abs(el.getBoundingClientRect().top+window.scrollY-top);
+      if(dist<best){best=dist;cur=p.id;}
+    }));
+  }
+  document.querySelectorAll('.ns-item').forEach(e=>e.classList.toggle('on',e.dataset.p===cur));
+}
+function setView(v){
+  view=v;
+  document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  document.getElementById('towers').classList.toggle('hidden',v!=='pyr');
+  document.getElementById('flatView').classList.toggle('hidden',v!=='flat');
+  document.querySelector('.spine').classList.toggle('hidden',v!=='pyr');
+  document.querySelector('.navside').classList.toggle('hidden',v!=='pyr');
+  document.getElementById('filterSlot').classList.toggle('hidden',v!=='pyr');
+  syncNav();
+}
+function expandAll(){
+  DATA.forEach(d=>d.projects.forEach(p=>{ openDirs['p_'+p.id]=true; p.metrics.forEach(m=>openMetrics[m.id]=true); }));
+  renderTowers(); toast('⊞ 已展开全部 6 个项目舱与 20 条指标');
+}
+function collapseAll(){
+  DATA.forEach(d=>d.projects.forEach(p=>{ openDirs['p_'+p.id]=false; p.metrics.forEach(m=>openMetrics[m.id]=false); }));
+  renderTowers(); toast('⊟ 已收起全部项目舱与指标 · 舱头仍显示各项目指标数与任务数');
+}
+function openDrawer(){document.getElementById('drawer').classList.add('on');document.getElementById('dMask').classList.add('on')}
+function closeDrawer(){document.getElementById('drawer').classList.remove('on');document.getElementById('dMask').classList.remove('on')}
+function openGuide(){document.getElementById('guide').classList.add('on');document.getElementById('gMask').classList.add('on')}
+function closeGuide(){document.getElementById('guide').classList.remove('on');document.getElementById('gMask').classList.remove('on')}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){closeDrawer();closeGuide();} });
+document.getElementById('themeBtn').addEventListener('click',()=>{
+  const order=['linear','raycast','apple','notion'];
+  const cur=document.documentElement.dataset.theme;
+  const nx=order[(order.indexOf(cur)+1)%4];
+  document.documentElement.dataset.theme=nx;
+  document.querySelectorAll('.tw').forEach(t=>t.classList.toggle('on',t.dataset.t===nx));
+  toast('主题 · '+nx+' · 布局与配色同步验证');
+});
+let st;
+window.addEventListener('scroll',()=>{clearTimeout(st);st=setTimeout(()=>syncNav(),180)});
+
+/* 任务勾选：只改状态，实时回写指标/项目/骨架条计数与进度 */
+function toggleTask(mid,ti,e){
+  e.stopPropagation();
+  const m=DATA.flatMap(d=>d.projects).flatMap(p=>p.metrics).find(x=>x.id===mid);
+  if(!m||!m.tasks[ti]) return;
+  const t=m.tasks[ti];
+  t.s = t.s==='done' ? 'todo' : (t.s==='doing' ? 'done' : 'doing');
+  recalc();
+  renderTowers(); renderFlat(); renderNav(); renderDirChips(); renderChainCounts();
+  const p=DATA.flatMap(d=>d.projects).find(x=>x.metrics.includes(m));
+  toast(t.s==='done'?`✓ 已完成「${t.t}」`:t.s==='doing'?`◐ 移入进行中「${t.t}」`:`○ 退回待办「${t.t}」`);
+}
+function recalc(){
+  DATA.forEach(d=>d.projects.forEach(p=>{
+    p.metrics.forEach(m=>{
+      const ts=m.tasks||[];
+      m.total=ts.length;
+      m.done=ts.filter(t=>t.s==='done').length;
+      m.pct=ts.length?Math.round(m.done/ts.length*100):0;
+      if(!ts.length) m.pct=0;
+    });
+    const ts=p.metrics.flatMap(m=>m.tasks||[]);
+    const tot=ts.length, dn=ts.filter(t=>t.s==='done').length;
+    p.total=tot; p.done=dn; p.pct=tot?Math.round(dn/tot*100):0;
+  }));
+}
+function renderChainCounts(){
+  const c={1:1,2:1,3:DATA.length,4:DATA.reduce((a,d)=>a+d.projects.length,0),
+           5:DATA.reduce((a,d)=>a+d.projects.reduce((x,p)=>x+p.metrics.length,0),0),
+           6:DATA.reduce((a,d)=>a+d.projects.reduce((x,p)=>x+p.metrics.reduce((y,m)=>y+(m.tasks||[]).length,0),0),0)};
+  document.querySelectorAll('.lv').forEach(el=>{
+    const k=el.dataset.lv;
+    if(c[k]!==undefined) el.querySelector('.lv-c b').textContent=c[k];
+  });
+  const orph=DATA.reduce((a,d)=>a+d.projects.reduce((x,p)=>x+((p.orphans&&p.orphans.length)?p.orphans.length:0),0),0);
+  const dm=DATA.reduce((a,d)=>a+d.projects.reduce((x,p)=>x+p.metrics.filter(hasRisk).length,0),0);
+  const db=document.querySelector('.dbar-t');
+  if(db) db.innerHTML=`<b>${dm+orph} 处归属/支撑缺失</b> —— ${dm} 个指标零任务 · ${orph} 条任务未挂指标。已就地标黄`;
+}
+
+/* 孤儿标记：给缺任务的指标打标，供风险模式识别 */
+renderNav();renderTowers();renderFlat();renderChainCounts();renderDirChips();
+</script>
+</body>
+</html>

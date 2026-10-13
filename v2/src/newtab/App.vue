@@ -626,8 +626,10 @@ const backupReminderDot = computed(() => {
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }
 /* R176（原型 nav-brand-chip）：品牌位（logo 16px + 知源调度台 13px/700 + Ownway 11px 次要字） */
 .brand-chip { display: flex; align-items: center; gap: 6px; margin-right: 14px; cursor: pointer; flex-shrink: 0; }
-/* V3.8.9（W9）：画像洞察页为当前页时品牌区高亮（accent-light 底 + accent 边） */
-.brand-chip.active { background: var(--accent-light); border-radius: var(--radius-sm); padding: 3px 8px 3px 6px; margin-left: -6px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
+/* V3.8.9（W9）：画像洞察页为当前页时品牌区高亮（accent-light 底 + accent 边）。
+   ★修溢出：去掉 margin-left: -6px 负边距——topbar-inner.align-page 的左 padding 仅 36px，
+   负边距 + pulsing 光晕会把高亮推到顶栏容器外，窄窗口下视觉上溢出屏幕左缘。 */
+.brand-chip.active { background: var(--accent-light); border-radius: var(--radius-sm); padding: 3px 8px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
 /* W5（V3.8.5）#6：点击战报的脉冲反馈（两轮光晕，约 1.1s 后复位） */
 .brand-chip.pulsing { animation: brandPulse 0.55s ease-in-out 2; }
 @keyframes brandPulse { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 6px var(--accent-light); } }
