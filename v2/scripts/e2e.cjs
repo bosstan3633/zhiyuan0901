@@ -120,15 +120,19 @@ async function main() {
   await page.waitForTimeout(2500)
   if (!page.url().includes('/workspace/')) { await page.evaluate((id) => { location.hash = '#/workspace/' + id }, seedWsId); await page.waitForTimeout(1500) }
 
-  // E2E-2 设置默认首屏 = 知源仪表盘
+  // E2E-2 设置默认首屏 = 资源卡字段（★W9 退役重指带备案：原判据「默认首屏=知源仪表盘」——
+  //   知源仪表盘整块随 V3.8.7 迁画像洞察页 /profile，设置页默认页回到「资源卡字段」。
+  //   守的两件事一字未松：① 导航五组齐备（R54→R178，组数仍为 5）；② 默认页是真实可见面板（不是空白）。
+  //   时间线区判据转为负锚：.gs-ev-* / .gs-dash-* 不该再出现在设置页 DOM）。
   await page.goto(base + '#/settings', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2000)
   if (!page.url().includes('#/settings')) { await page.evaluate(() => { location.hash = '#/settings' }); await page.waitForTimeout(1500) }
-  const dashVisible = await page.getByText('知源仪表盘').first().isVisible().catch(() => false)
+  const activeNavText = ((await page.locator('.gs-nav-item.active').first().innerText().catch(() => '')) || '').replace(/\s+/g, '')
+  const defaultPanelVisible = await page.locator('.gs-page-title').first().isVisible().catch(() => false)
   const groupCount = await page.locator('.gs-nav-group').count()
   const timelineVisible = await page.locator('.gs-ev-head, .gs-ev-empty, .gs-dash-dyn').first().isVisible().catch(() => false)
   // R178 备案：分组重组 4→5（AI 认知协作者独立成组，原型分组口径；条目零增减）
-  report('E2E-2 设置默认首屏=知源仪表盘（导航五组 R54→R178 + 动态/时间线区）', dashVisible && groupCount === 5, `groups=${groupCount} timeline=${timelineVisible}`)
+  report('E2E-2 设置默认首屏=资源卡字段（★W9 仪表盘迁 /profile；导航五组 R54→R178 + 默认面板真渲染 + 时间线区归零）', defaultPanelVisible && groupCount === 5 && !timelineVisible && !activeNavText.includes('仪表盘'), `groups=${groupCount} active=${JSON.stringify(activeNavText)} panel=${defaultPanelVisible} timeline=${timelineVisible}`)
 
   // E2E-3 ★R4-Da 改靶：「资源台全景」整页随资源台退役删除，本场景原先只核那一屏能否切出。
   //   不写"页面没了所以恒过"的空转判据，改测两件本轮真实交付面：
@@ -781,8 +785,8 @@ async function main() {
 
   // E2E-21 调度台入口整合（R172-T9 · 取代原周报浮层用例）：
   // 原用例（R113-N3 P0）测的是"模板引用了组件却从未 import ⇒ 点按钮毫无反应"这个病根；
-  // 组件退役后病根消失，但**入口必须依然真能到达** —— 判据改为：点「📈 复盘」→ 路由落到
-  // /settings?page=dashboard 且仪表盘真渲染（`.dz-sec` 概览带 + `.dz-chip` 存量卡可见，非空白）。
+  // 组件退役后病根消失，但**入口必须依然真能到达** —— ★W9 退役重指带备案：仪表盘整块再迁画像洞察页，
+  // 判据改为：点「📈 复盘」→ 路由落到 /profile 且画像洞察页真渲染（`.dz-sec` 概览带 + `.dz-chip` 存量卡可见，非空白）。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
   const revBtn = page.locator('.mb-act.cta').first()
@@ -790,10 +794,10 @@ async function main() {
   await revBtn.click()
   await page.waitForTimeout(1400)
   const revUrl = page.url()
-  const revAtSettings = /\/settings/.test(revUrl)
+  const revAtProfile = /\/profile/.test(revUrl)
   const revOverview = await page.locator('.dz-sec').first().isVisible().catch(() => false)
   const revChips = await page.locator('.dz-chip').first().isVisible().catch(() => false)
-  report('E2E-21 调度台「📈 复盘」直达知源仪表盘（R172-T9）', revBtnText.includes('复盘') && revAtSettings && revOverview && revChips,
+  report('E2E-21 调度台「📈 复盘」直达画像洞察页 /profile（R172-T9 · ★W9 重指）', revBtnText.includes('复盘') && revAtProfile && revOverview && revChips,
     'btn=' + JSON.stringify(revBtnText) + ' url=' + revUrl + ' overview=' + revOverview + ' chips=' + revChips)
 
   // E2E-23（R154 · 04-62）：AI 对照式评审**双栏真渲染** + 一次性指令**独立键**。

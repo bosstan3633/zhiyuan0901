@@ -407,13 +407,8 @@
 .dz-rpt-ctl .dir { flex: 1; min-width: 180px; }
 .dz-rpt-ctl select:focus, .dz-rpt-ctl .dir:focus { outline: none; border-color: var(--accent); box-shadow: var(--shadow-focus); }
 
-/* ===== R3-F38：👁 高亮可交互 —— 把这一屏所有能点的地方圈出来 =====
-   判据不是"看起来像按钮"，而是**真的是交互点**：原生可交互元素 + 仪表盘里用 div 挂 @click 的那批。
-   虚线用 accent 令牌（四主题各自取色），outline 不占布局——圈出来不该把版面挤动。 */
-.dz-hl :is(button, a, input, select, textarea, summary, [role="button"], [tabindex]:not([tabindex="-1"]),
-  .dz-kpi, .dz-log-row, .dz-rule, .dz-chip, .dz-calib, .dz-drill-h, .dz-drill .dz-row,
-  .dz-ov-card, .dz-entry, .dz-drill-card) {
-  outline: 1px dashed var(--accent);
-  outline-offset: 1px;
-}
-.dz-hl :is(button[disabled], .dz-cell[disabled]) { outline-style: dotted; outline-color: var(--border-strong); }
+/* ★W9 退役重指带备案：原 R3-F38「👁 高亮可交互」整块（.dz-hl 两条规则 + 注释）随知源仪表盘退役删除。
+   开关三件（页头工具条按钮 / UIPrefs.dzHl 持久化 / 面板根挂 dz-hl 类）只服务设置页里的仪表盘面板；
+   V3.8.7 面板整体迁 ProfileInsights 后页面已是「页头 + 概览带 + 复盘段 + 生命周期 + 操作记录」一屏四节，
+   无需再靠开关圈交互点。留着这两条会让 dead-css-scan 报 2 条祖先断（模板零引用的死规则），故清账。
+   想复活该能力：先把开关写回 ProfileInsights 页头工具条，再把这段样式抄回来。 */

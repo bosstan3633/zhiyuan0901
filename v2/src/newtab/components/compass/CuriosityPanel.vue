@@ -502,7 +502,7 @@ function srcShort(url: string): string {
       </Transition>
 
       <!-- R110-LC（T3）：归档卡已从默认视图隐藏——降级提示（R113-N2 起点击跳 设置→总览·资源生命周期） -->
-      <div v-if="archivedHintCount" class="cz-archived-hint" @click="router.push('/settings?page=lifecycle')">
+      <div v-if="archivedHintCount" class="cz-archived-hint" @click="router.push('/profile#lifecycle')">
         📦 另有 {{ archivedHintCount }} 张已归档好奇卡未显示（点此在 设置 → 总览 · 资源生命周期 中查看 / 恢复）
       </div>
 

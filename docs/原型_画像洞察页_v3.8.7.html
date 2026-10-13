@@ -5,13 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>知源 Ownway · 画像洞察页原型 v3.8.7 —— 品牌区点击进入</title>
 <!--
-  V3.8.7 画像洞察页 · 高保真可交互原型（纯 UI，不动生产代码）
-  入口：左上角品牌区 brand-chip 点击 → 打开本页（独立路由 #/profile，替代旧「跳首页+战报抽屉」链路）。
-  两维度：① 我的方向与执行（§1）+ 我的产品使用画像（§2）+ 画像洞察报告（§3，本地骨架+AI续写）
-          ② 今日战报（§4，收编原 DayDetail 弹窗结构为页面内 section）
+  V3.8.7 画像洞察页 · 高保真可交互原型 v3（纯 UI，不动生产代码）
+  v1 → v2：宽度 1440px 对齐 / 战报改中央弹窗 / 四主题色块直达
+  v2 → v3（本次）：
+   ① 新增 §3 资源生命周期——原设置页 lifecycle 面板迁入（甜甜圈三态 + 实体切换 + 卡片列表 + 阈值入口）
+      数据口径：纯 AppData 派生（lifecycleArchived / coolingDays / snoozedUntil），零依赖 zy_daily_stats / zy_event_log
+   ② 原 §3 画像洞察报告顺延为 §4
+   ③ 配套决策（已确认可行）：生产实现时删除设置页知源仪表盘面板，ReviewPanel 独有能力由本页 §1/§2/§4 吸收；
+      lifecycle 面板从 GlobalSettings 迁出，改由本页 §3 承载；调度台「📈 复盘」按钮改指本页。
+  入口：左上角品牌区 brand-chip 点击 → 打开本页（独立路由 #/profile）。
+  结构：§0 画像页头（含战报入口）→ §1 方向与执行 → §2 产品使用画像 → §3 资源生命周期 → §4 画像洞察报告（本地骨架+AI续写）
   设计令牌：逐字抄 v2/src/shared/styles/tokens.css（四主题 + heat-0..5 + 语义色）。
   结构类名：复刻 dashboard.css 的 dz-sec / dz-blk / dz-kpi / dz-rpt / dz-stats / dz-heat-band / dz-tl-row / dz-drill。
-  交互演示：窗口切换(周/月/全部) / KPI下钻 / 规则展开 / AI画像解读(骨架→续写) / 导出菜单 / 四格统计下钻 / 时间线行 / 四主题切换。
+  交互演示：四主题直达 / 窗口切换(周/月/全部) / KPI下钻 / 规则展开 / AI画像解读 / 战报弹窗 / 生命周期三态过滤+实体切换+行操作。
 -->
 <style>
 /* ===== 0. 生产令牌（源：tokens.css · 四主题逐字） ===== */
@@ -135,7 +141,7 @@ input,select{font-family:inherit}
 .nb{position:sticky;top:0;z-index:var(--z-sticky);background:var(--chrome);
   backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);
   border-bottom:var(--hairline) solid var(--border)}
-.nb-in{max-width:1100px;margin:0 auto;height:48px;padding:0 var(--sp-6);display:flex;align-items:center;gap:var(--sp-4)}
+.nb-in{max-width:1440px;margin:0 auto;height:48px;padding:0 var(--sp-6);display:flex;align-items:center;gap:var(--sp-4)}
 .nb-brand{display:flex;align-items:center;gap:7px;cursor:pointer;padding:5px 9px;border-radius:var(--radius-sm);
   transition:background var(--dur) var(--ease-out-soft);position:relative}
 .nb-brand:hover{background:var(--surface-2)}
@@ -155,10 +161,14 @@ input,select{font-family:inherit}
 .nb-theme{display:flex;align-items:center;gap:5px;font-size:var(--fs-caption);color:var(--text-2);
   padding:4px 10px;border-radius:99px;border:1px solid var(--border);cursor:pointer}
 .nb-theme:hover{border-color:var(--border-strong)}
-.nb-theme .sw{width:9px;height:9px;border-radius:50%;background:var(--accent)}
+.nb-theme .sw{width:9px;height:9px;border-radius:50%;background:var(--accent);flex:none}
+.nb-theme .tw{width:12px;height:12px;border-radius:3px;cursor:pointer;flex:none;
+  opacity:.45;transition:all var(--dur-fast);box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)}
+.nb-theme .tw:hover{opacity:.85;transform:scale(1.15)}
+.nb-theme .tw.on{opacity:1;box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--text-2)}
 
 /* ===== 3. 页面骨架 + §0 画像页头 ===== */
-.wrap{max-width:1100px;margin:0 auto;padding:var(--sp-5) var(--sp-6) var(--sp-7);display:flex;flex-direction:column;gap:var(--sp-4)}
+.wrap{max-width:1440px;margin:0 auto;padding:var(--sp-4) var(--sp-6) var(--sp-7);display:flex;flex-direction:column;gap:var(--sp-4)}
 .pf-head{background:var(--surface);border:var(--hairline) solid var(--border);border-radius:var(--radius-lg);
   padding:var(--sp-5);box-shadow:var(--shadow-lg);position:relative;overflow:hidden}
 .pf-head::before{content:'';position:absolute;inset:0 0 auto 0;height:3px;
@@ -443,6 +453,76 @@ input,select{font-family:inherit}
 .dz-row-m{font-size:var(--fs-tiny);color:var(--text-4);flex:none;font-variant-numeric:tabular-nums}
 .dz-row-g{color:var(--text-4);font-size:var(--fs-caption);flex:none}
 
+/* ===== 9.5 今日战报中央弹窗（复用 DayDetail 弹窗壳：min(720px,92vw)/86vh/18px 圆角） ===== */
+.dz-day-overlay{position:fixed;inset:0;z-index:var(--z-modal);background:rgba(0,0,0,.45);
+  display:none;align-items:center;justify-content:center;padding:4vh 16px;
+  backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+.dz-day-overlay.open{display:flex}
+.dz-day-modal{width:min(720px,92vw);max-height:86vh;overflow-y:auto;background:var(--surface);
+  border:1px solid var(--border-strong);border-radius:18px;box-shadow:var(--shadow-lg);
+  animation:modalIn .25s var(--ease-emphasis)}
+@keyframes modalIn{from{opacity:0;transform:translate(-50%,-46%) scale(.975)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.dz-day-modal .dz-day-head{display:flex;align-items:center;gap:10px;padding:18px 22px 0;position:sticky;top:0;
+  background:var(--surface);z-index:2}
+.dz-day-modal .dz-day-ic{width:36px;height:36px;border-radius:10px;background:var(--accent-light);color:var(--accent-ink);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.dz-day-modal .dz-day-txt{flex:1;min-width:0}
+.dz-day-modal .dz-day-title{font-size:17px;font-weight:700;letter-spacing:.2px}
+.dz-day-modal .dz-day-sub{font-size:12px;color:var(--text-3);margin-top:2px;font-variant-numeric:tabular-nums}
+.dz-day-modal .dz-day-close{width:28px;height:28px;border-radius:var(--radius-sm);display:grid;place-items:center;
+  color:var(--text-3);flex:none;transition:all var(--dur-fast)}
+.dz-day-modal .dz-day-close:hover{background:var(--surface-2);color:var(--text)}
+.dz-day-modal .dz-dl-sum{margin:14px 22px 0;padding:0}
+.dz-day-modal .dz-stats{margin:16px 22px 0}
+.dz-day-modal .dz-heat-band{margin:12px 22px 0}
+.dz-day-modal .dz-tl{padding:0 22px 16px}
+.dz-day-modal .dz-drill{margin:12px 22px 16px}
+.dz-day-modal .dz-dl-foot{padding:12px 22px 16px}
+
+/* ===== 9b. §3 资源生命周期 ===== */
+.lc-grid{display:grid;grid-template-columns:240px 1fr;gap:var(--sp-5);align-items:start}
+.lc-left{display:flex;flex-direction:column;gap:var(--sp-4);align-items:center}
+.lc-donut-wrap{position:relative;width:160px;height:160px}
+.lc-donut{width:100%;height:100%;transform:rotate(-90deg)}
+.lc-ring{stroke-linecap:butt;transition:stroke var(--dur-base)}
+.lc-active{stroke:var(--heat-3)}
+.lc-cooling{stroke:var(--heat-1)}
+.lc-archived{stroke:var(--text-4)}
+.lc-donut-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.lc-donut-c .n{font-size:28px;font-weight:800;letter-spacing:-.02em;line-height:1;color:var(--text)}
+.lc-donut-c .l{font-size:var(--fs-micro);color:var(--text-3);margin-top:4px}
+.lc-states{display:flex;flex-direction:column;gap:6px;width:100%}
+.lc-state{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:var(--radius-sm);
+  border:var(--hairline) solid var(--border);background:var(--surface-2);cursor:pointer;
+  font-size:var(--fs-sub);color:var(--text-2);transition:all var(--dur-fast);text-align:left;width:100%}
+.lc-state:hover{border-color:var(--border-strong)}
+.lc-state.on{border-color:var(--accent);background:var(--accent-soft);color:var(--text)}
+.lc-state .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.lc-state .n{font-weight:700;color:var(--text);min-width:32px}
+.lc-state .l{flex:1}
+.lc-state .pct{font-size:var(--fs-micro);color:var(--text-3)}
+.lc-rule{font-size:var(--fs-micro);color:var(--text-3);line-height:1.7;text-align:center;margin:0}
+.lc-right{display:flex;flex-direction:column;gap:var(--sp-3);min-width:0}
+.lc-kinds{flex:none}
+.lc-list{display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto}
+.lc-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--radius-sm);
+  border:var(--hairline) solid var(--border);background:var(--surface);cursor:pointer;
+  transition:all var(--dur-fast);font-size:var(--fs-sub)}
+.lc-row:hover{border-color:var(--border-strong);background:var(--surface-2)}
+.lc-row .ti{flex:1;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.lc-row .badge{flex:none;font-size:var(--fs-micro);padding:2px 8px;border-radius:99px;font-weight:600}
+.lc-row .badge.act{background:rgba(61,90,242,.12);color:#3d5af2}
+.lc-row .badge.cool{background:var(--accent-soft);color:var(--accent)}
+.lc-row .badge.arch{background:var(--bg-3);color:var(--text-3)}
+.lc-row .kind{flex:none;font-size:var(--fs-micro);color:var(--text-3);padding:2px 6px;border:var(--hairline) solid var(--border);border-radius:4px}
+.lc-row .days{flex:none;font-size:var(--fs-micro);color:var(--text-4);min-width:56px;text-align:right}
+.lc-row .ops{flex:none;display:flex;gap:4px;opacity:0;transition:opacity var(--dur-fast)}
+.lc-row:hover .ops{opacity:1}
+.lc-row .ops button{font-size:var(--fs-micro);padding:3px 8px;border-radius:4px;border:var(--hairline) solid var(--border);
+  background:var(--surface-2);color:var(--text-2);cursor:pointer}
+.lc-row .ops button:hover{border-color:var(--border-strong);color:var(--text)}
+.lc-empty{padding:32px;text-align:center;color:var(--text-3);font-size:var(--fs-sub)}
+
 /* ===== 10. Toast + 原型浮标 ===== */
 .toast-stack{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:var(--z-toast);
   display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
@@ -463,6 +543,794 @@ input,select{font-family:inherit}
 </style>
 </head>
 <body>
-<!-- BODY_PART_2 -->
+<!-- ===== 顶栏：品牌区（本页入口 / 再点返回） ===== -->
+<header class="nb">
+  <div class="nb-in">
+    <div class="nb-brand" id="brandChip" title="点击返回调度台首页">
+      <span class="nb-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></span>
+      <span class="nb-bn">知源调度台</span>
+      <span class="nb-be">OWNWAY</span>
+      <span class="nb-hint">再点返回调度台</span>
+    </div>
+    <button class="nb-back" id="backBtn">← 返回调度台</button>
+    <button class="nb-theme" id="themeBtn" title="切换四主题预览">
+      <span class="sw" id="themeSw"></span><span id="themeName">Linear 深色</span>
+      <span class="tw on" data-t="linear" title="Linear 深色" style="background:#5E6AD2"></span>
+      <span class="tw" data-t="raycast" title="Raycast 深色" style="background:#1E6FD9"></span>
+      <span class="tw" data-t="apple" title="Apple 浅色" style="background:#8452E0"></span>
+      <span class="tw" data-t="notion" title="Notion 暖纸" style="background:#9E3FAF"></span>
+    </button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== §0 画像页头 ===== -->
+  <section class="pf-head">
+    <div class="pf-head-top">
+      <div>
+        <h1 class="pf-title">我的成长轨迹<span class="en">PROFILE &amp; INSIGHTS</span></h1>
+        <p class="pf-sub">从 <b>2026-05-23</b> 起使用知源调度台 · 已同行 <b id="pDays">142</b> 天 · 回答三件事：走了多远 / 产品帮了什么 / 做得怎么样</p>
+      </div>
+      <div class="pf-actions">
+        <button class="dz-btn" id="todayBtn" title="打开今日战报弹窗">
+          <span style="color:var(--heat-ink);font-weight:700">📊</span> 今日战报
+          <span class="dz-badge" style="margin-left:4px;background:var(--heat-0);color:var(--heat-ink)">36 分</span>
+        </button>
+        <div class="dz-exp-wrap">
+          <button class="dz-btn" id="expBtn">⤓ 导出</button>
+          <div class="dz-exp" id="expMenu">
+            <button data-fmt="png"><span class="ic">▦</span>PNG 图片<span class="sub">当前主题配色</span></button>
+            <button data-fmt="md"><span class="ic">¶</span>Markdown<span class="sub">贴笔记</span></button>
+            <button data-fmt="html"><span class="ic">◈</span>HTML 分享页<span class="sub">自包含</span></button>
+          </div>
+        </div>
+        <button class="dz-btn pri" id="aiBtn">
+          <span class="ai-mark"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z"/></svg></span>
+          AI 画像解读
+        </button>
+      </div>
+    </div>
+    <div class="pf-stats">
+      <div class="pf-chip acc"><span class="v">142<small>天</small></span><span class="k">使用天数</span><span class="dl">累计活跃 <b>96</b> 天</span></div>
+      <div class="pf-chip"><span class="v">3,847</span><span class="k">累计有效动作</span><span class="dl">日均 <b>27.1</b></span></div>
+      <div class="pf-chip ok"><span class="v">512<small>张</small></span><span class="k">累计采集</span><span class="dl">资源 298 · 好奇 134 · 任务 80</span></div>
+      <div class="pf-chip"><span class="v">1,203<small>次</small></span><span class="k">累计调用</span><span class="dl">WRR 复用良好</span></div>
+      <div class="pf-chip warn"><span class="v">12<small>天</small></span><span class="k">当前连续</span><span class="dl">最长连续 <b>21</b> 天</span></div>
+      <div class="pf-chip"><span class="v">4<small>条</small></span><span class="k">战略方向</span><span class="dl">主攻 2 · 推进中 3</span></div>
+    </div>
+  </section>
+
+  <!-- ===== §1 我的方向与执行 ===== -->
+  <section class="dz-sec">
+    <div class="dz-sec-h">
+      <span class="dz-n">1</span>
+      <span class="dz-t">我的方向与执行</span>
+      <span class="dz-en">DIRECTION &amp; EXECUTION</span>
+      <span class="dz-badge rl" id="winBadge1">近 30 天</span>
+      <span class="dz-sp"></span>
+      <div class="dz-tabs" id="winTabs">
+        <button data-win="7">周</button>
+        <button data-win="30" class="on">月</button>
+        <button data-win="all">全部</button>
+      </div>
+    </div>
+    <div class="dz-sec-b">
+      <div class="dz-rev-grid">
+        <!-- 左栏 -->
+        <div class="dz-rev-col">
+          <!-- ① 使命愿景对照 -->
+          <div class="dz-blk">
+            <div class="bh"><span class="n">①</span><span class="t">使命愿景对照</span><span class="sp"></span><span class="meta">compass.vision / mission</span></div>
+            <div class="bb">
+              <div class="mv-card"><span class="lab">VISION 愿景</span><span class="txt">成长路由器——把复杂世界翻译成人人可用的成长地图</span></div>
+              <div class="mv-card"><span class="lab">MISSION 使命</span><span class="txt">让每一个普通家庭都能做出不后悔的升学选择</span></div>
+              <p style="margin-top:12px;font-size:var(--fs-caption);color:var(--text-3);line-height:1.8">
+                实际投入与愿景的对照：<b style="color:var(--text)">「高考志愿咨询体系」与「知源调度台产品」两条主攻合计占据本期任务量的 <span style="color:var(--heat-ink)">71%</span></b>——
+                使命在被执行，不只是被书写。
+              </p>
+            </div>
+          </div>
+          <!-- ② 方向-项目对账 -->
+          <div class="dz-blk">
+            <div class="bh"><span class="n">②</span><span class="t">方向-项目对账</span><span class="sp"></span><span class="meta">objectivesOf · 按任务占比</span></div>
+            <div class="bb">
+              <div class="dz-obj" id="dirObj">
+                <button class="o" data-dir="d1"><span class="nm"><span class="f">🚀</span>高考志愿咨询体系</span><span class="bar"><i style="width:42%"></i></span><span class="n"><b>42%</b> · 12 任务</span></button>
+                <button class="o" data-dir="d2"><span class="nm"><span class="f">🚀</span>知源调度台产品</span><span class="bar"><i style="width:29%"></i></span><span class="n"><b>29%</b> · 8 任务</span></button>
+                <button class="o" data-dir="d3"><span class="nm">AI 学习力教练</span><span class="bar"><i style="width:18%"></i></span><span class="n"><b>18%</b> · 5 任务</span></button>
+                <button class="o" data-dir="d4"><span class="nm">个人品牌 · 内容</span><span class="bar"><i style="width:11%"></i></span><span class="n"><b>11%</b> · 3 任务</span></button>
+                <div class="foot">两条主攻合计 <b>71%</b>，方向聚焦良好（阈值 45% 单一方向未超标）。<span class="warn">「AI 学习力教练」近 14 天无推进任务，疑似停滞。</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 右栏 -->
+        <div class="dz-rev-col">
+          <!-- ③ 执行节奏 -->
+          <div class="dz-blk">
+            <div class="bh"><span class="n">③</span><span class="t">执行节奏</span><span class="sp"></span><span class="dz-badge warn">🔥 连续 12 天</span></div>
+            <div class="bb dz-trend">
+              <div class="cap"><span>近 30 天每日加权分</span><span class="sp"></span><span>峰值 <b id="trendPeak">58</b> 分 · 中位 <b id="trendMed">22</b> 分</span></div>
+              <div class="trend-bars" id="trendBars"></div>
+              <div class="trend-x"><span>9月13日</span><span>9月28日</span><span>10月12日</span></div>
+              <div style="margin-top:10px;font-size:var(--fs-caption);color:var(--text-3);line-height:1.8">
+                活跃 <b style="color:var(--text)">24/30</b> 天（80%）· 日均有效动作 <b style="color:var(--text)">8.2</b> 件 ·
+                最忙一天 <b style="color:var(--heat-ink)">10月7日（58 分 · 满格）</b>。节奏稳定偏冲刺型，非突击式。
+              </div>
+            </div>
+          </div>
+          <!-- ④ 偏离预警 -->
+          <div class="dz-blk">
+            <div class="bh"><span class="n">④</span><span class="t">偏离预警</span><span class="sp"></span><span class="meta">规则算 · 点击展开</span></div>
+            <div class="bb">
+              <div class="dz-rules" id="rulesList">
+                <button class="dz-rule" data-rid="R3">
+                  <span class="rid">R3</span>
+                  <span class="rb"><span class="rt">主攻项目停滞</span><span class="rd">「AI 学习力教练」下有任务但近 14 天无活动</span></span>
+                  <span class="go">›</span>
+                </button>
+                <div class="dz-rule-w" data-for="R3">
+                  <span class="k">判定窗口：</span>近 14 天<br>
+                  <span class="k">阈值：</span>主攻项目 doing/updatedAt/completedAt 均无记录 &gt; 14 天<br>
+                  <span class="k">实际：</span>最近活动 <b>2026-09-24</b>（距今 18 天）<br>
+                  <span class="k">建议：</span>要么补一个 15 分钟内可完成的动作，要么显式暂停该项目。
+                </div>
+                <button class="dz-rule ok" data-rid="R2">
+                  <span class="rid">R2</span>
+                  <span class="rb"><span class="rt">资源未被调用</span><span class="rd">采集的资源卡中 62% 从未被打开</span></span>
+                  <span class="go">›</span>
+                </button>
+                <div class="dz-rule-w" data-for="R2">
+                  <span class="k">判定窗口：</span>累计<br>
+                  <span class="k">阈值：</span>零调用卡占比 &gt; 55%<br>
+                  <span class="k">实际：</span>资源卡 298 张，其中 <b>185 张</b> callCount=0（62%）<br>
+                  <span class="k">建议：</span>把最可能复用的 5 张钉到策展台首屏，或用「沉睡唤醒」批量清理。
+                </div>
+                <button class="dz-rule ok" data-rid="R4">
+                  <span class="rid">R4</span>
+                  <span class="rb"><span class="rt">并行过载</span><span class="rd">doing 状态任务 7 个，超过健康上限 5</span></span>
+                  <span class="go">›</span>
+                </button>
+                <div class="dz-rule-w" data-for="R4">
+                  <span class="k">判定窗口：</span>当前快照<br>
+                  <span class="k">阈值：</span>同时 doing 任务数 &gt; 5<br>
+                  <span class="k">实际：</span>doing = <b>7</b>（主攻 4 + 其他 3）<br>
+                  <span class="k">建议：</span>今天三件事只从主攻项目里挑，其余 2 个非主攻 doing 暂停或降级为 todo。
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== §2 我的产品使用画像 ===== -->
+  <section class="dz-sec">
+    <div class="dz-sec-h">
+      <span class="dz-n">2</span>
+      <span class="dz-t">我的产品使用画像</span>
+      <span class="dz-en">PRODUCT USAGE</span>
+      <span class="dz-badge rl" id="winBadge2">近 30 天</span>
+      <span class="dz-sp"></span>
+      <span class="dz-badge">zy_daily_stats · zy_stats · focusHistory</span>
+    </div>
+    <div class="dz-sec-b">
+      <div class="dz-rev-grid">
+        <div class="dz-rev-col">
+          <!-- ⑤ 使用黏性 -->
+          <div class="dz-blk">
+            <div class="bh"><span class="n">⑤</span><span class="t">使用黏性</span><span class="sp"></span><span class="meta">点击瓦片看明细</span></div>
+            <div class="bb">
+              <div class="dz-kpis c4" data-drill="sticky">
+                <button class="dz-kpi" data-k="act"><span class="k">活跃天数<span class="go">›</span></span><span class="v">24<small>/30</small></span><span class="c">活跃率 <span class="up">80%</span></span></button>
+                <button class="dz-kpi" data-k="streak"><span class="k">当前连续<span class="go">›</span></span><span class="v">12<small>天</small></span><span class="c">最长 21 天</span></button>
+                <button class="dz-kpi" data-k="avg"><span class="k">日均动作<span class="go">›</span></span><span class="v">8.2<small>件</small></span><span class="c">上期 7.4 <span class="up">↑11%</span></span></button>
+                <button class="dz-kpi" data-k="peak"><span class="k">最忙一天<span class="go">›</span></span><span class="v">58<small>分</small></span><span class="c">10月7日 · 满格</span></button>
+              </div>
+              <div class="dz-drill dz-drill-plain" id="drillSticky">
+                <div class="dz-drill-h"><b>近 30 天活跃日明细</b><span class="dz-drill-hint">单击定位 · 双击直达</span></div>
+                <div class="dz-row"><span class="dz-row-i">10</span><span class="dz-row-t">10月7日 周二 · 满格</span><span class="dz-row-n">58 分</span><span class="dz-row-m">23 件</span></div>
+                <div class="dz-row"><span class="dz-row-i">10</span><span class="dz-row-t">10月11日 周六 · 高负荷</span><span class="dz-row-n">41 分</span><span class="dz-row-m">15 件</span></div>
+                <div class="dz-row"><span class="dz-row-i">10</span><span class="dz-row-t">10月12日 周日 · 高负荷（今天）</span><span class="dz-row-n">36 分</span><span class="dz-row-m">12 件</span></div>
+                <div class="dz-row"><span class="dz-row-i">09</span><span class="dz-row-t">9月30日 周三 · 常规</span><span class="dz-row-n">17 分</span><span class="dz-row-m">7 件</span></div>
+                <div class="dz-row"><span class="dz-row-i">09</span><span class="dz-row-t">9月28日 周一 · 轻触</span><span class="dz-row-n">6 分</span><span class="dz-row-m">3 件</span></div>
+              </div>
+            </div>
+          </div>
+          <!-- ⑦ 卡片资产健康 -->
+          <div class="dz-blk">
+            <div class="bh"><span class="n">⑦</span><span class="t">卡片资产健康</span><span class="sp"></span><span class="meta">ResourceCard · callCount</span></div>
+            <div class="bb">
+              <div class="dz-kpis" data-drill="assets">
+                <button class="dz-kpi" data-k="stock"><span class="k">在库卡片<span class="go">›</span></span><span class="v">512<small>张</small></span><span class="c">本期净增 <span class="up">+47</span></span></button>
+                <button class="dz-kpi" data-k="zero"><span class="k">零调用占比<span class="go">›</span></span><span class="v">62<small>%</small></span><span class="c">185 张从未打开</span></button>
+                <button class="dz-kpi" data-k="sleep"><span class="k">沉睡卡<span class="go">›</span></span><span class="v">73<small>张</small></span><span class="c">闲置 &gt;30 天且有历史调用</span></button>
+              </div>
+              <div class="dz-drill dz-drill-plain" id="drillAssets">
+                <div class="dz-drill-h"><b>本期最高频调用 Top 5</b><span class="dz-drill-hint">单击定位 · 双击直达</span></div>
+                <div class="dz-row"><span class="dz-row-i">📄</span><span class="dz-row-t">家庭决策动力学 · 60秒识别决策模式</span><span class="dz-row-n">调用 34</span><span class="dz-row-m">昨天</span></div>
+                <div class="dz-row"><span class="dz-row-i">📄</span><span class="dz-row-t">十二维志愿决策模型 v3</span><span class="dz-row-n">调用 28</span><span class="dz-row-m">今天</span></div>
+                <div class="dz-row"><span class="dz-row-i">✓</span><span class="dz-row-t">打磨 599 家庭决策诊断入口产品</span><span class="dz-row-n">调用 21</span><span class="dz-row-m">前天</span></div>
+                <div class="dz-row"><span class="dz-row-i">📄</span><span class="dz-row-t">AI 三层下钻法 · 专业选择框架</span><span class="dz-row-n">调用 17</span><span class="dz-row-m">10月9日</span></div>
+                <div class="dz-row"><span class="dz-row-i">💡</span><span class="dz-row-t">小镇做题家在AI时代的教育突围</span><span class="dz-row-n">调用 12</span><span class="dz-row-m">10月8日</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="dz-rev-col">
+          <!-- ⑥ 行为构成 -->
+          <div class="dz-blk">
+            <div class="bh"><span class="n">⑥</span><span class="t">行为构成</span><span class="sp"></span><span class="meta">采集 / 调用 / 推进</span></div>
+            <div class="bb">
+              <div class="dist" id="behavDist">
+                <div class="d"><span class="dn">采集</span><span class="bar"><i class="c-create" style="width:38%"></i></span><span class="n"><b>146</b> 件</span></div>
+                <div class="d"><span class="dn">调用</span><span class="bar"><i class="c-call" style="width:52%"></i></span><span class="n"><b>203</b> 次</span></div>
+                <div class="d"><span class="dn">推进</span><span class="bar"><i class="c-task" style="width:34%"></i></span><span class="n"><b>131</b> 件</span></div>
+                <div class="d"><span class="dn">状态变更</span><span class="bar"><i class="c-status" style="width:22%"></i></span><span class="n"><b>84</b> 次</span></div>
+                <div class="d"><span class="dn">清理</span><span class="bar"><i class="c-del" style="width:6%"></i></span><span class="n"><b>23</b> 件</span></div>
+              </div>
+              <div class="dist-legend">
+                <span class="lg"><span class="sw" style="background:var(--success)"></span>采集</span>
+                <span class="lg"><span class="sw" style="background:var(--accent)"></span>调用</span>
+                <span class="lg"><span class="sw" style="background:var(--heat-4)"></span>推进</span>
+                <span class="lg"><span class="sw" style="background:var(--info-blue)"></span>状态</span>
+                <span class="lg"><span class="sw" style="background:var(--danger)"></span>清理</span>
+              </div>
+              <p style="margin-top:10px;font-size:var(--fs-caption);color:var(--text-3);line-height:1.8">
+                转化率（推进/采集）<b style="color:var(--text)">0.90</b>——每采 1 张卡平均推进 0.9 件，消化健康（阈值 0.15）。
+                调用 &gt; 采集，说明库在被真实使用，不是单向囤积。
+              </p>
+            </div>
+          </div>
+          <!-- ⑧ 功能使用分布 -->
+          <div class="dz-blk">
+            <div class="bh"><span class="n">⑧</span><span class="t">功能使用分布</span><span class="sp"></span><span class="meta">你最常用的 5 个能力</span></div>
+            <div class="bb">
+              <div class="dist">
+                <div class="d"><span class="dn">今日三件事</span><span class="bar"><i class="c-call" style="width:88%"></i></span><span class="n"><b>28</b>/30 天</span></div>
+                <div class="d"><span class="dn">热力图/战报</span><span class="bar"><i class="c-res" style="width:72%"></i></span><span class="n"><b>22</b> 次</span></div>
+                <div class="d"><span class="dn">策展台调用</span><span class="bar"><i class="c-task" style="width:60%"></i></span><span class="n"><b>91</b> 次</span></div>
+                <div class="d"><span class="dn">AI 报告</span><span class="bar"><i class="c-curio" style="width:30%"></i></span><span class="n"><b>6</b> 份</span></div>
+                <div class="d"><span class="dn">方向台校准</span><span class="bar"><i class="c-status" style="width:16%"></i></span><span class="n"><b>2</b> 次</span></div>
+              </div>
+              <p style="margin-top:10px;font-size:var(--fs-caption);color:var(--text-3);line-height:1.8">
+                三件事采纳率 <b style="color:var(--text)">93%</b>（28/30 天有安排），其中系统推荐自动填充 <b style="color:var(--text)">19</b> 天、你手选 <b style="color:var(--text)">9</b> 天——
+                你在用系统建议，但保留了最终决定权。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== §3 资源生命周期（原设置页 lifecycle 面板迁入 · 纯 AppData 派生） ===== -->
+  <section class="dz-sec">
+    <div class="dz-sec-h">
+      <span class="dz-n">3</span>
+      <span class="dz-t">资源生命周期</span>
+      <span class="dz-en">LIFECYCLE</span>
+      <span class="dz-badge rl">活跃 / 冷却 / 归档 三态</span>
+      <span class="dz-sp"></span>
+      <button class="dz-btn sm" id="lcThBtn">⚙ 阈值设置</button>
+    </div>
+    <div class="dz-sec-b">
+      <div class="lc-grid">
+        <!-- 左：甜甜圈 + 三态统计 -->
+        <div class="lc-left">
+          <div class="lc-donut-wrap">
+            <svg class="lc-donut" viewBox="0 0 120 120">
+              <circle class="lc-ring lc-active" cx="60" cy="60" r="46" fill="none" stroke-width="16"
+                stroke-dasharray="125.4 289.0" stroke-dashoffset="0"/>
+              <circle class="lc-ring lc-cooling" cx="60" cy="60" r="46" fill="none" stroke-width="16"
+                stroke-dasharray="101.1 289.0" stroke-dashoffset="-125.4"/>
+              <circle class="lc-ring lc-archived" cx="60" cy="60" r="46" fill="none" stroke-width="16"
+                stroke-dasharray="60.6 289.0" stroke-dashoffset="-226.5"/>
+            </svg>
+            <div class="lc-donut-c"><span class="n">342</span><span class="l">在库总数</span></div>
+          </div>
+          <div class="lc-states">
+            <button class="lc-state on" data-f="active">
+              <span class="dot" style="background:var(--heat-3)"></span>
+              <span class="n">148</span><span class="l">🔥 活跃</span><span class="pct">43%</span>
+            </button>
+            <button class="lc-state" data-f="cooling">
+              <span class="dot" style="background:var(--heat-1)"></span>
+              <span class="n">121</span><span class="l">🧊 冷却</span><span class="pct">35%</span>
+            </button>
+            <button class="lc-state" data-f="archived">
+              <span class="dot" style="background:var(--text-4)"></span>
+              <span class="n">73</span><span class="l">📦 归档</span><span class="pct">21%</span>
+            </button>
+          </div>
+          <p class="lc-rule">判定：活跃 <b>≤30 天</b>有动作 · 冷却 <b>&gt;30 天</b> · 归档 <b>≥ 冷却 ×3</b> · 逐卡可自定义阈值</p>
+        </div>
+        <!-- 右：实体切换 + 列表 -->
+        <div class="lc-right">
+          <div class="dz-tabs lc-kinds">
+            <button class="on" data-k="all">全部</button>
+            <button data-k="resource">资源卡</button>
+            <button data-k="task">任务卡</button>
+            <button data-k="curiosity">好奇心卡</button>
+          </div>
+          <div class="lc-list" id="lcList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== §4 画像洞察报告（本地骨架 + AI 续写 · .dz-rpt 四段） ===== -->
+  <section class="dz-sec" id="secReport">
+    <div class="dz-sec-h">
+      <span class="dz-n">4</span>
+      <span class="dz-t">画像洞察报告</span>
+      <span class="dz-en">INSIGHT REPORT</span>
+      <span class="dz-badge rl">本地骨架 · AI 只续写洞察与建议</span>
+      <span class="dz-sp"></span>
+      <button class="dz-btn pri" id="aiBtn2">
+        <span class="ai-mark"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z"/></svg></span>
+        AI 画像解读
+      </button>
+    </div>
+    <div class="dz-rpt">
+      <div class="dz-rpt-method">
+        <b>金字塔原理：</b>结论先行 → 以上统下 → MECE → 逻辑递进。AI 只执笔「洞察」与「建议」两段；结论与论据由本地规则从台账计算，数字全部来自白名单。
+      </div>
+      <div class="dz-rpt-ctl">
+        <span style="font-size:var(--fs-caption);color:var(--text-3)">执笔角色</span>
+        <select><option>冷静的教练</option><option>严格的导师</option><option>同行的朋友</option></select>
+        <input type="text" placeholder="给 AI 一个一次性指令，如「重点看看我的方向聚焦」">
+        <button class="dz-btn sm" id="reGenBtn">重新生成</button>
+      </div>
+
+      <h3>① 结论</h3>
+      <div class="lead">
+        过去 30 天，你<b>有在稳定推进</b>——连续 12 天有有效动作、两条主攻合计吃下 71% 的任务量，方向没有被跑偏。
+        真正的问题不在「做不做」，而在<b>采集与复用之间的落差</b>：62% 的资源卡从未被打开，库在长大但还没完全变成你的弹药库。
+      </div>
+
+      <h3>② 支撑论据</h3>
+      <div class="arg">
+        <span class="idx">1</span>
+        <div class="bd">
+          <div class="ah">执行稳定，非突击式<span class="rel">→ 支撑「有在推进」</span></div>
+          <div class="ev">近 30 天活跃 <b>24/30</b> 天（80%），当前连续 <b>12</b> 天，峰值 58 分仅为中位 22 分的 2.6 倍——不是靠某一天爆肝拉高均值。</div>
+        </div>
+      </div>
+      <div class="arg">
+        <span class="idx">2</span>
+        <div class="bd">
+          <div class="ah">方向聚焦良好，但有一条主攻在滑坡<span class="rel">→ 支撑「方向没被跑偏」</span></div>
+          <div class="ev">两条主攻任务占比 <b>71%</b>（阈值 45% 未超标）；但「AI 学习力教练」近 <b>18</b> 天无推进记录，触发 R3 停滞预警。</div>
+        </div>
+      </div>
+      <div class="arg">
+        <span class="idx">3</span>
+        <div class="bd">
+          <div class="ah">库在被使用，但复用不够深<span class="rel">→ 支撑「采集与复用落差」</span></div>
+          <div class="ev">本期调用 <b>203</b> 次 &gt; 采集 <b>146</b> 件，转化率 <b>0.90</b> 健康；但资源卡零调用占比 <b>62%</b>，Top 1 卡片独占调用 34 次——复用集中在少数几张。</div>
+        </div>
+      </div>
+
+      <h3>③ 洞察</h3>
+      <!-- 初始态：本地骨架提示；点击 AI 后替换为续写内容 -->
+      <div id="insLocal" class="dz-rpt-note">
+        本地规则版洞察已就绪（3 条，见上方论据推导）。点击右上「AI 画像解读」可让 AI 在<b>不新增数字</b>的前提下续写更贴合你表达习惯的洞察与建议。
+      </div>
+      <div id="insRun" class="dz-rpt-run ai-hidden">
+        <span class="spin"></span><span><b>AI 执笔中</b> · 投料 projectProfileDigest（约 4KB 台账）· 只允许改写洞察与建议</span>
+      </div>
+      <ul class="ins ai-hidden" id="insAi">
+        <li>你是一个<b>「先建系统、再用系统」</b>的人——先搭好方向树、标签体系和三件事机制，再往里填内容。这解释了为什么你连续 12 天不断：不是靠意志力，是靠系统在托着你。</li>
+        <li>你的注意力正在<b>从「采集」迁移到「调度」</b>——本期调用（203）已超过采集（146），说明你开始把库当弹药库用，而不是当仓库堆。这是从「学习者」转向「创作者」的信号。</li>
+        <li>最值得警惕的不是停滞的那条方向，而是<b>你对「AI 学习力教练」的沉默已经 18 天</b>。它在你的愿景里和「高考志愿」同等重要，但任务占比只有 18%。要么给它排一个本周动作，要么诚实地把它降级——悬着比暂停更耗能。</li>
+      </ul>
+
+      <h3>④ 建议</h3>
+      <div class="sug">
+        <span class="sn">1</span>
+        <div class="sb">
+          <div class="st">给「AI 学习力教练」排一个 15 分钟内能完成的动作</div>
+          <div class="sd">打破 18 天沉默。可以只是「写一条该方向下的任务标题」——目的是让系统里这条线重新有心跳。</div>
+        </div>
+        <div class="sa"><button class="dz-btn sm">去处理 ›</button><button class="dz-btn sm">生成任务</button></div>
+      </div>
+      <div class="sug">
+        <span class="sn">2</span>
+        <div class="sb">
+          <div class="st">本周从零调用卡里挑 5 张钉到策展台首屏</div>
+          <div class="sd">优先挑和两条主攻直接相关的。目标是把零调用占比从 62% 往下压，而不是清空整个库。</div>
+        </div>
+        <div class="sa"><button class="dz-btn sm">去处理 ›</button><button class="dz-btn sm">生成任务</button></div>
+      </div>
+      <div class="sug">
+        <span class="sn">3</span>
+        <div class="sb">
+          <div class="st">在方向台给四条方向做一次 10 分钟校准</div>
+          <div class="sd">你近 30 天只校准过 2 次方向。以当前推进速度，月度校准足够——但「个人品牌」那条 11% 的占比需要你确认：是有意压低，还是被挤掉了。</div>
+        </div>
+        <div class="sa"><button class="dz-btn sm">去处理 ›</button><button class="dz-btn sm">生成任务</button></div>
+      </div>
+
+      <div class="dz-rpt-tag">AI 只执笔洞察与建议；结论、论据、全部数字由本地规则从台账计算，经 facts 白名单回查，越界即弃用 AI 版。</div>
+    </div>
+  </section>
+
+</div><!-- /.wrap -->
+
+<!-- ===== 今日战报中央弹窗（§0 页头入口触发 · 复用 DayDetail 五段结构） ===== -->
+<div class="dz-day-overlay" id="dayModal">
+  <div class="dz-day-modal" role="dialog" aria-modal="true" aria-label="今日战报">
+    <div class="dz-day-head">
+      <span class="dz-day-ic">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+      </span>
+      <div class="dz-day-txt">
+        <div class="dz-day-title">今日战报</div>
+        <div class="dz-day-sub">10月12日 · 周日 · 数据截至 16:42</div>
+      </div>
+      <button class="dz-day-close" id="dayClose" aria-label="关闭">✕</button>
+    </div>
+
+    <div class="dz-dl-sum">
+      今天你完成了 <b>12</b> 项操作，涉及 <b>9</b> 张卡。
+      <div class="dz-dl-recent">最近一次：16:42 调出「十二维志愿决策模型 v3」</div>
+    </div>
+
+    <div class="dz-stats" id="dayStats">
+      <button class="dz-stat sc-create" data-k="create"><span class="n">4</span><span class="lbl">＋ 采集</span></button>
+      <button class="dz-stat sc-call" data-k="call"><span class="n">6</span><span class="lbl">↗ 调出</span></button>
+      <button class="dz-stat sc-status" data-k="status"><span class="n">2</span><span class="lbl">↻ 状态</span></button>
+      <button class="dz-stat sc-del" data-k="del"><span class="n">0</span><span class="lbl">✕ 清理</span></button>
+    </div>
+
+    <div class="dz-drill dz-drill-plain" id="drillDay">
+      <div class="dz-drill-h"><b id="drillDayTitle">采集明细</b><span class="dz-drill-hint">单击定位 · 双击直达</span></div>
+      <div id="drillDayRows"></div>
+    </div>
+
+    <div class="dz-heat-band lv4">
+      <span class="lv">高负荷</span>
+      <span class="w">36 分</span>
+      <span class="range">· 区间 33-52</span>
+      <span class="int">· 强度 69%</span>
+      <span class="acts">· 有效动作 12 件</span>
+    </div>
+
+    <div class="dz-tl">
+      <div class="th"><b>当日操作时间线</b><span style="flex:1"></span><span>共 12 条</span>
+        <button class="dz-btn sm" id="allLogBtn">查看全部记录 ›</button>
+      </div>
+      <div class="dz-tl-grp">下午</div>
+      <div class="dz-tl-row" title="双击打开链接">
+        <span class="tm">16:42</span><span class="dotcol"><span class="tl-dot act-call"></span></span>
+        <span class="ac act-call">↗ 调出</span><span class="kd">资源</span>
+        <span class="ti">十二维志愿决策模型 v3</span><span class="to">去向 ›</span>
+      </div>
+      <div class="dz-tl-row">
+        <span class="tm">15:20</span><span class="dotcol"><span class="tl-dot act-status"></span></span>
+        <span class="ac act-status">↻ 状态</span><span class="kd">任务</span>
+        <span class="ti">打磨 599 家庭决策诊断入口产品 → 进行中</span>
+      </div>
+      <div class="dz-tl-row">
+        <span class="tm">14:05</span><span class="dotcol"><span class="tl-dot act-create"></span></span>
+        <span class="ac act-create">＋ 采集</span><span class="kd">好奇</span>
+        <span class="ti">小镇做题家在AI时代的教育突围</span>
+      </div>
+      <div class="dz-tl-grp">上午</div>
+      <div class="dz-tl-row">
+        <span class="tm">10:33</span><span class="dotcol"><span class="tl-dot act-call"></span></span>
+        <span class="ac act-call">↗ 调出</span><span class="kd">任务</span>
+        <span class="ti">整理 V3.8.6 交付说明</span><span class="to">去向 ›</span>
+      </div>
+      <div class="dz-tl-row">
+        <span class="tm">10:12</span><span class="dotcol"><span class="tl-dot act-status"></span></span>
+        <span class="ac act-status">↻ 状态</span><span class="kd">好奇</span>
+        <span class="ti">家庭决策动力学原型验证 → 已求证</span>
+      </div>
+      <div class="dz-tl-row">
+        <span class="tm">09:47</span><span class="dotcol"><span class="tl-dot act-create"></span></span>
+        <span class="ac act-create">＋ 采集</span><span class="kd">资源</span>
+        <span class="ti">AI 学习力 · 三层下钻法教学案例</span>
+      </div>
+      <div class="dz-tl-row">
+        <span class="tm">09:15</span><span class="dotcol"><span class="tl-dot act-call"></span></span>
+        <span class="ac act-call">↗ 调出</span><span class="kd">资源</span>
+        <span class="ti">家庭决策动力学 · 60秒识别决策模式</span><span class="to">去向 ›</span>
+      </div>
+    </div>
+
+    <div class="dz-dl-foot">
+      <span class="note">数据来源：zy_event_log（事件）+ zy_daily_stats（快照回补）· 单击定位 / 双击打开链接</span>
+      <div class="dz-exp-wrap">
+        <button class="dz-btn sm" id="expBtn2">⤓ 导出</button>
+        <div class="dz-exp" id="expMenu2">
+          <button data-fmt="png"><span class="ic">▦</span>PNG 图片</button>
+          <button data-fmt="html"><span class="ic">◈</span>HTML 分享页</button>
+          <button data-fmt="md"><span class="ic">¶</span>Markdown</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toasts"></div>
+<div class="proto-flag">PROTOTYPE v3.8.7 · 画像洞察页</div>
+
+<script>
+(function(){
+'use strict';
+const $ = (s, r) => (r||document).querySelector(s);
+const $$ = (s, r) => Array.from((r||document).querySelectorAll(s));
+
+/* ---- Toast ---- */
+function toast(msg){
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = '<span class="ic">✓</span><span>' + msg + '</span>';
+  $('#toasts').appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),320); }, 2200);
+}
+
+/* ---- §3 资源生命周期 ---- */
+const LC_ROWS = [
+  { t:'十二维志愿决策模型 v3', s:'active', k:'resource', d:'2小时前' },
+  { t:'家庭决策动力学 · 60秒识别决策模式', s:'active', k:'resource', d:'5小时前' },
+  { t:'AI 学习力 · 三层下钻法教学案例', s:'active', k:'resource', d:'昨天' },
+  { t:'打磨 599 家庭决策诊断入口产品', s:'active', k:'task', d:'今天' },
+  { t:'整理 V3.8.6 交付说明', s:'active', k:'task', d:'今天' },
+  { t:'小镇做题家在AI时代的教育突围', s:'active', k:'curiosity', d:'3天前' },
+  { t:'双一流学科评估指标体系', s:'cooling', k:'resource', d:'37 天前' },
+  { t:'公费师范生报考条件与违约条款', s:'cooling', k:'resource', d:'42 天前' },
+  { t:'强基计划36校招生简章汇总', s:'cooling', k:'resource', d:'55 天前' },
+  { t:'新高考专业组填报实操手册', s:'cooling', k:'resource', d:'61 天前' },
+  { t:'写给高一家长的一封信', s:'cooling', k:'task', d:'34 天前' },
+  { t:'县城中学班主任访谈提纲', s:'cooling', k:'curiosity', d:'48 天前' },
+  { t:'旧版十二维模型 v2', s:'archived', k:'resource', d:'96 天前' },
+  { t:'2024 江苏投档线速查表', s:'archived', k:'resource', d:'112 天前' },
+  { t:'早期直播脚本：志愿填报三误区', s:'archived', k:'task', d:'130 天前' },
+  { t:'日本留学路径调研（弃）', s:'archived', k:'curiosity', d:'147 天前' }
+];
+const LC_LABEL = { active:'活跃', cooling:'冷却', archived:'归档' };
+const LC_BADGE = { active:'act', cooling:'cool', archived:'arch' };
+const LC_OPS = {
+  active:   '<button data-op="locate">📍 定位</button>',
+  cooling:  '<button data-op="archive">📦 归档</button><button data-op="snooze">😴 忽略30d</button>',
+  archived: '<button data-op="reactivate">🔥 重激活</button>'
+};
+let lcFilter = 'active', lcKind = 'all';
+function renderLc(){
+  const rows = LC_ROWS.filter(r => r.s===lcFilter && (lcKind==='all' || r.k===lcKind));
+  const el = $('#lcList');
+  if (!rows.length){ el.innerHTML = '<div class="lc-empty">此筛选下暂无卡片</div>'; return; }
+  el.innerHTML = rows.map(r => `
+    <div class="lc-row" data-t="${r.t}">
+      <span class="ti">${r.t}</span>
+      <span class="badge ${LC_BADGE[r.s]}">${LC_LABEL[r.s]}</span>
+      <span class="kind">${r.k==='resource'?'资源':r.k==='task'?'任务':'好奇'}</span>
+      <span class="days">${r.d}</span>
+      <span class="ops">${LC_OPS[r.s]}</span>
+    </div>`).join('');
+  $$('.lc-row', el).forEach(row => {
+    row.addEventListener('click', (e)=>{
+      const op = e.target.closest('[data-op]');
+      if (op){
+        const map = { locate:'原型：跨台定位该卡', archive:'原型：归档该卡', snooze:'原型：忽略一个冷却周期', reactivate:'原型：重激活，回到活跃' };
+        toast(map[op.dataset.op] || '原型操作'); e.stopPropagation(); return;
+      }
+      toast('原型：打开卡片详情「' + row.dataset.t + '」');
+    });
+  });
+}
+$$('.lc-state').forEach(b => b.addEventListener('click', ()=>{
+  $$('.lc-state').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); lcFilter = b.dataset.f; renderLc();
+}));
+$$('.lc-kinds button').forEach(b => b.addEventListener('click', ()=>{
+  $$('.lc-kinds button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); lcKind = b.dataset.k; renderLc();
+}));
+$('#lcThBtn').addEventListener('click', ()=> toast('原型：打开阈值设置弹窗（全局默认 + 逐卡覆盖）'));
+renderLc();
+
+/* ---- 品牌区 / 返回（模拟路由） ---- */
+function pulse(){
+  const b = $('#brandChip');
+  b.classList.remove('pulsing'); void b.offsetWidth; b.classList.add('pulsing');
+}
+$('#brandChip').addEventListener('click', ()=>{ pulse(); toast('原型：真实产品中此处返回调度台首页 /'); });
+$('#backBtn').addEventListener('click', ()=>{ pulse(); toast('原型：navigate("/") 回调度台'); });
+
+/* ---- 四主题切换（四色并排，点击直达，便于审视觉） ---- */
+const THEMES = [
+  ['linear','Linear 深色','#0D0E11','#5E6AD2'],
+  ['raycast','Raycast 深色','#08080A','#1E6FD9'],
+  ['apple','Apple 浅色','#F5F5F7','#8452E0'],
+  ['notion','Notion 暖纸','#F7F6F3','#9E3FAF']
+];
+let themeIdx = 0;
+function applyTheme(i){
+  themeIdx = i;
+  document.documentElement.setAttribute('data-theme', THEMES[i][0]);
+  $('#themeName').textContent = THEMES[i][1];
+  $$('.nb-theme .tw').forEach((el,j)=>{
+    el.classList.toggle('on', j===i);
+  });
+  $('#themeSw').style.background = THEMES[i][3];
+}
+$$('.nb-theme .tw').forEach((el,j)=>{
+  el.addEventListener('click', (e)=>{ e.stopPropagation(); applyTheme(j); toast('主题：' + THEMES[j][1]); });
+});
+$('#themeBtn').addEventListener('click', (e)=>{
+  // 点按钮本体循环下一个；点色块直达
+  if (e.target.closest('.tw')) return;
+  applyTheme((themeIdx+1)%4);
+});
+
+/* ---- 今日战报弹窗 ---- */
+const dayModal = $('#dayModal');
+function openDay(){ dayModal.classList.add('open'); document.body.style.overflow='hidden'; }
+function closeDay(){ dayModal.classList.remove('open'); document.body.style.overflow=''; }
+$('#todayBtn').addEventListener('click', openDay);
+$('#dayClose').addEventListener('click', closeDay);
+dayModal.addEventListener('click', (e)=>{ if (e.target===dayModal) closeDay(); });
+document.addEventListener('keydown', (e)=>{ if (e.key==='Escape' && dayModal.classList.contains('open')) closeDay(); });
+
+/* ---- 导出菜单 ---- */
+function bindExp(btnId, menuId){
+  const btn = $('#'+btnId), menu = $('#'+menuId);
+  btn.addEventListener('click', (e)=>{ e.stopPropagation(); menu.classList.toggle('open'); });
+  $$('button', menu).forEach(b => b.addEventListener('click', ()=>{
+    menu.classList.remove('open');
+    toast('原型：导出为 ' + b.dataset.fmt.toUpperCase() + '（复用 pngBlobFromSpec / sectionsToMd / profileShareHtml）');
+  }));
+}
+bindExp('expBtn','expMenu'); bindExp('expBtn2','expMenu2');
+document.addEventListener('click', ()=>{ $$('.dz-exp.open').forEach(m=>m.classList.remove('open')); });
+
+/* ---- 窗口切换（周/月/全部）→ 重算 KPI 文案 ---- */
+const WIN_DATA = {
+  '7':   { badge:'近 7 天',  act:'7/7', streak:'12', avg:'9.4', peak:'41', peakNote:'10月11日 · 高负荷' },
+  '30':  { badge:'近 30 天', act:'24/30', streak:'12', avg:'8.2', peak:'58', peakNote:'10月7日 · 满格' },
+  'all': { badge:'全部 142 天', act:'96/142', streak:'12', avg:'6.8', peak:'58', peakNote:'10月7日 · 满格' }
+};
+$$('#winTabs button').forEach(b => b.addEventListener('click', ()=>{
+  $$('#winTabs button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  const w = b.dataset.win, d = WIN_DATA[w];
+  $('#winBadge1').textContent = d.badge;
+  $('#winBadge2').textContent = d.badge;
+  const kpis = $$('[data-drill="sticky"] .dz-kpi');
+  kpis[0].querySelector('.v').innerHTML = d.act.replace('/', '<small>/') + (d.act.includes('/') ? '</small>' : '');
+  if (d.act.includes('/')) { const p = d.act.split('/'); kpis[0].querySelector('.v').innerHTML = p[0] + '<small>/' + p[1] + '</small>'; }
+  kpis[1].querySelector('.v').innerHTML = d.streak + '<small>天</small>';
+  kpis[2].querySelector('.v').innerHTML = d.avg + '<small>件</small>';
+  kpis[3].querySelector('.v').innerHTML = d.peak + '<small>分</small>';
+  kpis[3].querySelector('.c').textContent = d.peakNote;
+  toast('窗口切换：' + d.badge + '（复用 aggregateRange / windowOf）');
+}));
+
+/* ---- 节奏柱状（30 天假数据，按 heat 档着色） ---- */
+(function(){
+  const host = $('#trendBars');
+  // 30 天加权分（含 6 天静默 0），末位为今天
+  const ws = [8,14,0,22,19,31,12,0,7,25,28,44,17,9,0,21,33,15,26,58,11,0,19,24,36,13,29,41,18,36];
+  ws.forEach((w,i)=>{
+    const bar = document.createElement('div');
+    bar.className = 'tb' + (i===ws.length-1 ? ' today' : '');
+    const lv = w===0?0 : w<9?1 : w<19?2 : w<33?3 : w<53?4 : 5;
+    bar.style.height = Math.max(4, Math.round(w/58*60)) + 'px';
+    bar.style.background = lv===0 ? 'var(--surface-2)' : 'var(--heat-'+lv+')';
+    if (i===ws.length-1) bar.style.background = 'var(--heat-5)';
+    bar.title = '第 '+(i+1)+' 天 · ' + w + ' 分';
+    bar.addEventListener('click', ()=> toast('原型：定位到第 '+(i+1)+' 天（'+w+' 分）'));
+    host.appendChild(bar);
+  });
+})();
+
+/* ---- 规则卡展开 ---- */
+$$('.dz-rule').forEach(r => r.addEventListener('click', ()=>{
+  const id = r.dataset.rid;
+  const w = $('.dz-rule-w[data-for="'+id+'"]');
+  const open = w.classList.contains('show');
+  $$('.dz-rule-w').forEach(x=>x.classList.remove('show'));
+  $$('.dz-rule').forEach(x=>x.classList.remove('on'));
+  if (!open){ w.classList.add('show'); r.classList.add('on'); }
+}));
+
+/* ---- KPI 下钻（⑤⑦ 共用模式） ---- */
+$$('[data-drill] .dz-kpi').forEach(k => k.addEventListener('click', ()=>{
+  const group = k.closest('[data-drill]');
+  const drill = group.dataset.drill === 'sticky' ? $('#drillSticky') : $('#drillAssets');
+  const open = drill.classList.contains('show');
+  $$('[data-drill] .dz-kpi').forEach(x=>x.classList.remove('on'));
+  if (open){ drill.classList.remove('show'); }
+  else { drill.classList.add('show'); k.classList.add('on'); }
+}));
+
+/* ---- 今日战报四格下钻 ---- */
+const DAY_ROWS = {
+  create: { title:'采集明细 · 4 件', rows:[
+    ['💡','小镇做题家在AI时代的教育突围','14:05'],
+    ['📄','AI 学习力 · 三层下钻法教学案例','09:47'],
+    ['📄','家庭决策诊断 · 599 产品页面文案','09:22'],
+    ['✓','录制「AI 学习力」第一条短视频','08:50']
+  ]},
+  call: { title:'调出明细 · 6 次', rows:[
+    ['📄','十二维志愿决策模型 v3','16:42'],
+    ['✓','整理 V3.8.6 交付说明','10:33'],
+    ['📄','家庭决策动力学 · 60秒识别决策模式','09:15'],
+    ['📄','志愿填报时间线速查表','09:02'],
+    ['💡','孩子主体性培养三层法','08:41'],
+    ['✓','今日三件事勾选','08:12']
+  ]},
+  status: { title:'状态变更 · 2 次', rows:[
+    ['✓','打磨 599 家庭决策诊断入口产品 → 进行中','15:20'],
+    ['💡','家庭决策动力学原型验证 → 已求证','10:12']
+  ]},
+  del: { title:'清理明细 · 0 件', rows:[] }
+};
+let daySel = null;
+$$('#dayStats .dz-stat').forEach(s => s.addEventListener('click', ()=>{
+  const k = s.dataset.k;
+  const drill = $('#drillDay');
+  if (daySel === k){ daySel = null; drill.classList.remove('show'); s.classList.remove('on'); return; }
+  daySel = k;
+  $$('#dayStats .dz-stat').forEach(x=>x.classList.remove('on'));
+  s.classList.add('on');
+  const d = DAY_ROWS[k];
+  $('#drillDayTitle').textContent = d.title;
+  $('#drillDayRows').innerHTML = d.rows.length
+    ? d.rows.map(r=>'<div class="dz-row"><span class="dz-row-i">'+r[0]+'</span><span class="dz-row-t">'+r[1]+'</span><span class="dz-row-m">'+r[2]+'</span></div>').join('')
+    : '<div style="padding:16px;text-align:center;color:var(--text-3);font-size:var(--fs-sub)">今天没有清理动作。</div>';
+  drill.classList.add('show');
+}));
+
+/* ---- 时间线行：单击定位 / 双击直达（模拟） ---- */
+$$('.dz-tl-row').forEach(row => {
+  let clickTimer = null;
+  row.addEventListener('click', ()=>{
+    if (clickTimer){ clearTimeout(clickTimer); clickTimer = null; toast('原型：双击直达「' + row.querySelector('.ti').textContent + '」'); return; }
+    clickTimer = setTimeout(()=>{
+      clickTimer = null;
+      row.style.background = 'var(--accent-light)';
+      setTimeout(()=> row.style.background = '', 600);
+    }, 220);
+  });
+});
+
+/* ---- AI 画像解读：骨架 → spinner → 续写 ---- */
+function runAi(){
+  const local = $('#insLocal'), run = $('#insRun'), ai = $('#insAi');
+  local.classList.add('ai-hidden');
+  ai.classList.add('ai-hidden');
+  run.classList.remove('ai-hidden');
+  $$('#aiBtn, #aiBtn2').forEach(b => b.disabled = true);
+  setTimeout(()=>{
+    run.classList.add('ai-hidden');
+    ai.classList.remove('ai-hidden');
+    ai.classList.add('fade-in');
+    $$('#aiBtn, #aiBtn2').forEach(b => b.disabled = false);
+    toast('AI 续写完成 · 数字经 facts 白名单回查通过');
+  }, 1600);
+}
+$('#aiBtn').addEventListener('click', ()=>{
+  runAi();
+  $('#secReport').scrollIntoView({behavior:'smooth', block:'start'});
+});
+$('#aiBtn2').addEventListener('click', runAi);
+$('#reGenBtn').addEventListener('click', ()=>{ toast('原型：narrateProfile 重新执笔（可带一次性指令）'); runAi(); });
+
+/* ---- 其它按钮占位 ---- */
+$('#allLogBtn').addEventListener('click', ()=> toast('原型：打开全部记录抽屉 DashboardLogDrawer（保留既有链路）'));
+$$('.sug .sa .dz-btn').forEach(b => b.addEventListener('click', (e)=>{
+  const t = e.target.textContent;
+  toast(t.includes('生成') ? '原型：sug → 生成任务（withReport 落卡）' : '原型：跳转对应处理页面');
+}));
+
+})();
+</script>
 </body>
 </html>

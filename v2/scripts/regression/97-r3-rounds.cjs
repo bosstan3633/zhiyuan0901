@@ -12,16 +12,29 @@ const {
   fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
 } = require('./helpers.cjs');
 console.log('【R3-F38 · 高亮可交互】');
-check('R3-F38 ★仪表盘「👁 高亮可交互」开关三件齐全：页头工具条按钮 + UIPrefs.dzHl 持久化（saveUIPrefs，不是会话态）+ 面板根挂 dz-hl 类；CSS 走 outline 不占布局（圈出来不该把版面挤动）且色只取令牌', () => {
-  const gs = read('/newtab/views/GlobalSettings.vue'), css = read('/newtab/components/dashboard/dashboard.css'), m = read('/shared/models/index.ts')
-  return gs.includes('👁 高亮可交互') && gs.includes(':class="{ \'dz-hl\': dzHl }"') && gs.includes('saveUIPrefs({ dzHl: dzHl.value })')
-    && m.includes('dzHl?: boolean')
-    && css.includes('.dz-hl :is(') && css.includes('outline: 1px dashed var(--accent)') && css.includes('outline-offset: 1px')
-    && !/\.dz-hl[^{]*\{[^}]*(#[0-9a-fA-F]{3,8}|rgba?\()/.test(css)
+// ★W9 退役重指带备案：原判据守的是「仪表盘『👁 高亮可交互』开关三件齐全」——页头工具条按钮 +
+// UIPrefs.dzHl 持久化（saveUIPrefs，不是会话态）+ 面板根挂 dz-hl 类，外加 dashboard.css 两条
+// outline 规则（不占布局、色只取令牌）。V3.8.7 知源仪表盘整块迁 ProfileInsights 后，页面已是
+// 「页头 + 概览带 + 复盘段 + 生命周期 + 操作记录」一屏四节，交互点一眼可数，这个开关失去存在理由，
+// 三件与两条 CSS 规则（以及 theme-audit 的 dz-hl 场景、models 的 dzHl 字段）一并退役。
+// 判据翻面为退役四件套：GS / ProfileInsights / models / dashboard.css 四侧 codeOnly 零命中，
+// 任一侧把开关抄回来即红。能力要复活的前提也写在源码注释里：先把开关写回 ProfileInsights 页头工具条。
+check('R3-F38 ★仪表盘「👁 高亮可交互」开关随知源仪表盘退役（★W9 退役重指带备案）：GS / 画像洞察页 / UIPrefs 模型 / dashboard.css 四侧零命中 dzHl、dz-hl 与开关文案，不许悄悄抄回来', () => {
+  const gs = codeOnly(read('/newtab/views/GlobalSettings.vue'))
+  const pi = codeOnly(read('/newtab/views/ProfileInsights.vue'))
+  const m = codeOnly(read('/shared/models/index.ts'))
+  const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'))
+  return !gs.includes('dzHl') && !gs.includes('dz-hl') && !gs.includes('高亮可交互')
+    && !pi.includes('dzHl') && !pi.includes('dz-hl') && !pi.includes('高亮可交互')
+    && !m.includes('dzHl') && !css.includes('.dz-hl') && !css.includes('dz-hl')
 });
-check('R3-F38 ★覆盖判据是硬核的：theme-audit 新增 dz-hl 场景，量「圈出数 == 面板内全部可点元素数」（差一个即红），并当场把开关关回去免得污染后续截图；未来日热力格是 disabled button，按"看得见但点不动"走虚点、不计入漏圈', () => {
+// ★W9 退役重指带备案：原判据核 theme-audit 里那屏「圈出数 == 面板内全部可点元素数」的硬核覆盖。
+// 开关退役后这一屏没有被量对象，留着只会让每次走查红一次「开关=否」；场景随开关一并删除。
+// 判据翻面为 theme-audit 零残留（id 与 act 选择器都不许回流）+ 覆盖判据的"硬核"要求仍由
+// R4-Ev 的 dead-css-scan 清零棘轮继续守。
+check('R3-F38 ★覆盖判据随开关一并撤销（★W9 退役重指带备案）：theme-audit 的 dz-hl 场景零残留，旧 id 与 .gs-dash-hl 选择器不许回流', () => {
   const a = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8')
-  return a.includes("id: 'dz-hl'") && a.includes('outlined === marked.length') && a.includes('const marked = all.filter(e => !e.disabled)') && a.includes('btn.click()')
+  return !a.includes("id: 'dz-hl'") && !a.includes('.gs-dash-hl')
 });
 
 // ============== R4-a 迁移报告卡与整库回退出口 ==============

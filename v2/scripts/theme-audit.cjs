@@ -234,23 +234,10 @@ const DASH_SCENES = [
       return { ok: !!b && !document.querySelector('.dz-rpt'), txt: `入口=${b ? b.textContent.trim().replace(/\s+/g, '') : '无'} 报告未开=${!document.querySelector('.dz-rpt') ? '是' : '否'}` }
     })
   },
-  {
-    id: 'dz-hl', name: '交互点高亮',
-    /* R3-F38：开关一开，这一屏**每一个**交互点都该被虚线圈出——判据按「圈出数 == 交互点数」硬核，
-       差一个就是漏（漏圈的交互点等于没有这层提示）。量完当场关回去，别把后面场景的截图都画上虚线。 */
-    act: async (page) => { await page.locator('.gs-dash-hl').click().catch(() => {}); await page.waitForTimeout(700) },
-    judge: async (page) => page.evaluate(() => {
-      const on = !!document.querySelector('.gs-panel.dz-hl')
-      const all = [...document.querySelectorAll('.gs-panel button, .gs-panel .dz-kpi, .gs-panel .dz-log-row, .gs-panel .dz-rule, .gs-panel .dz-chip')]
-      const dis = all.filter(e => e.disabled)
-      const marked = all.filter(e => !e.disabled)
-      const outlined = marked.filter(e => (getComputedStyle(e).outlineStyle || '').includes('dash')).length
-      /* 未来日的热力格是 disabled button——它不是交互点，用虚点区分"看得见但点不动"，不算漏圈 */
-      const btn = document.querySelector('.gs-dash-hl')
-      if (btn) btn.click()
-      return { ok: on && marked.length > 20 && outlined === marked.length, txt: `开关=${on} 圈出=${outlined}/${marked.length}（禁用格另计 ${dis.length} 走虚点）` }
-    })
-  },
+  /* ★W9 退役重指带备案：原 R3-F38「dz-hl 交互点高亮」场景随开关退役删除——量的是「圈出数 == 面板内
+     全部可点元素数」，而开关本身（GS 页头工具条按钮 + UIPrefs.dzHl + 面板根 dz-hl 类 + dashboard.css
+     两条规则）已整体清账，留着这一屏会让每次走查都红一次「开关=否」。想复活：先把开关写回
+     ProfileInsights 页头工具条，再把这一屏抄回来（圈出数 == 交互点数的硬核判据一字不减）。 */
   {
     /* R4-Da：标签管理双栏是「删一整页」最容易伤到的存活页面——它的样式原先和全景样式同批删除，
        右列卡片还直接借用了全景类名。文本断言只看规则在不在文件里，看不见规则有没有作用到盒子上，
@@ -925,7 +912,7 @@ async function main() {
     await page.setViewportSize(VIEWPORT)
     for (const sc of DASH_SCENES) {
       await page.setViewportSize(VIEWPORT)
-      await page.goto(base + (sc.hash || '#/settings?page=dashboard'), { waitUntil: 'domcontentloaded' })
+      await page.goto(base + (sc.hash || '#/profile'), { waitUntil: 'domcontentloaded' }) // ★W9 退役重指带备案：仪表盘/复盘段宿主由 /settings?page=dashboard 迁画像洞察页 /profile
       await page.waitForTimeout(2400)
       if (sc.act) await sc.act(page)
       await resetView(page)

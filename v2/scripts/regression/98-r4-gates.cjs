@@ -450,7 +450,7 @@ check('R4-Ev① ★"祖先段整段判死"这条口径要能独立站住，就�
     && s.includes('function splitTopLevel') && s.includes('function stripParens')
     && s.includes('interpPrefixes.add') && s.includes('globalTokens.has(tok)')
     && ex('.metric-item.expanded') && ex('.dz-cell.l4') && ex('body .module-title')
-    && ex('.picker-item') && ex('.toggle') && ex('.dz-hl');
+    && ex('.picker-item') && ex('.toggle') && ex('.dz-recentry') /* ★W9 退役重指带备案：本格原放 ex('.dz-hl')——那张票（运行时插值类名 + 跨文件产出的类名）在 .dz-hl 随 R3-F38 开关退役后失去载体。四条票一条没拆：插值前缀票仍由 ex('.dz-cell.l4') 守，全站精确字符串票仍由 ex('.picker-item') / ex('.toggle') 守；本格改放画像洞察页的 scoped 类 .dz-recentry，顺带证明扫描器在新页的 <style scoped> 上照常工作 */;
 });
 
 // ============== R4-Ew 三条运行时触点进 e2e ==============

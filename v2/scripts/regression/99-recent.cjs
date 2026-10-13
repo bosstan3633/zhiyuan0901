@@ -411,7 +411,7 @@ check('R171-6 ★accent-ink 淡底文字令牌（04-63 后账：accent+accent-li
 check('R172-1 ★T1 事件日志增 call（调出）——EventAction 扩枚举 + 中文标签 + recordCallEvent 原语；stats.ts 两个打开入口（recordResourceOpen/recordCardOpen）成对记账；动作筛选与标签（含「调出」下拉，此前 call 会错落到「永久删除」）R172-T8 起迁入全量记录抽屉', () => {
   const el = read('/shared/utils/eventLog.ts');
   const st = read('/shared/storage/stats.ts');
-  const gs = read('/newtab/views/GlobalSettings.vue');
+  const pi = read('/newtab/views/ProfileInsights.vue');
   const lg = read('/newtab/components/dashboard/DashboardLogDrawer.vue');
   return el.includes("export type EventAction = 'create' | 'delete' | 'restore' | 'purge' | 'status' | 'call'")
     && el.includes("call: '调出'")
@@ -423,8 +423,11 @@ check('R172-1 ★T1 事件日志增 call（调出）——EventAction 扩枚举 
     && lg.includes('<option value="call">调出</option>')
     && lg.includes("call: '↗ 调出'")
     && lg.includes("type EventAction")
-    && gs.includes("'↗ 调出'")
-    && gs.includes("action === 'call'");
+    /* ★W9 退役重指带备案：「调出」标签与 call 动作筛选的宿主随全量记录抽屉迁画像洞察页；
+       抽屉侧（lg）与宿主侧（pi）两侧各守一半，GS 加 codeOnly 零命中负锚 */
+    && pi.includes("'↗ 调出'")
+    && pi.includes("action === 'call'")
+    && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes("action === 'call'");
 });
 
 check('R172-2 ★T2 zy_daily_stats 聚合引擎（04-67 §7.4）：按日只增不淘汰 · 事件为主（六类折叠）+ 卡字段为辅（推进三维）· 前缀和查询不重扫 · 防刷分双规则（同卡同日第 2 次起调出 0.5 / 采集后 24h 内即软删该笔 ×0.3）· 零迁移', () => {
@@ -490,7 +493,7 @@ check('R172-4 ★T4 复盘计算引擎（04-67 §6/§7.6）：四范围窗口 + 
 
 check('R172-5 ★T5 概览带（04-66 §4.2 可读性三层 / 04-67 F1~F6）：5 张存量 chip + 时间绑定（Q11：selDay 非空 ⇒ 截至那天的库容 + 当日增减 + bind 高亮）+ 人话总结（主数字=有效动作件数，加权分降副行）+ 参照系行（等长窗口环比 近30vs前30 / 近7vs前7 + P 分位 + 年度移出）+ 分数口径表 12 行', () => {
   const o = read('/newtab/components/dashboard/DashboardOverview.vue');
-  const gs = read('/newtab/views/GlobalSettings.vue');
+  const pi = read('/newtab/views/ProfileInsights.vue');
   const ud = read('/newtab/components/dashboard/useDashboardStats.ts'), css = read('/newtab/components/dashboard/dashboard.css');
   return o.includes('dz-ov-info') && o.includes('dz-ov-tip') /* R173-5：说明改 hover，不再占整行 */ && css.includes(':focus-within .dz-ov-tip') /* hover-only 会把信息锁在鼠标后面，键盘 Tab 也要能看到 */ && css.includes('.dz-sec.dz-tip-open { overflow: visible; }') /* R173-5：悬停期间放开圆角裁切（`.dz-sec` 默认 overflow:hidden，浮层向下展开会被切掉） */ && /\.dz-ov-meta \{[^}]*flex: 1 1 100%/.test(css) && /\.dz-ov-meta \{[^}]*position: relative/.test(css) && !/\.dz-ov-info \{[^}]*position: relative/.test(css) /* R173-5 真机截图：指标行不再独占整行后 5 张 chip 被挤成 100px 竖列；浮层锚在**整行**上（锚药丸在窄屏会把 460px 浮层顶出左边界 388px） */ && o.includes('stockBoundTo(')                    // ★ 时间绑定走前缀和（不重扫全库）
     && o.includes('aggregateRange(')                    // 环比用区间聚合
@@ -503,8 +506,11 @@ check('R172-5 ★T5 概览带（04-66 §4.2 可读性三层 / 04-67 F1~F6）：5
     && o.includes('bind: !!selDay')                      // 绑定态高亮
     // 数据桥（R164-2 增长门禁：聚合与选中态抽 useDashboardStats，不占视图行数；R174-3 重指带备案：重建行改名 `ev` 且后接快照合并）
     && ud.includes('buildDailyStats(data(), ev)') && ud.includes('mergeDailyStats(snapRef.value, rebuilt, boundaryDayOf(ev))') && ud.includes('const selDay = ref<string | null>(null)')
-    && gs.includes("from '@/newtab/components/dashboard/useDashboardStats'")
-    && gs.includes('const dashStats = dash.stats');
+    /* ★W9 退役重指带备案：数据桥（useDashboardStats 接线 + dashStats）宿主随仪表盘迁画像洞察页，
+       GS 加 codeOnly 零命中负锚，防有人把桥再搭回设置页 */
+    && pi.includes("from '@/newtab/components/dashboard/useDashboardStats'")
+    && pi.includes('const dashStats = dash.stats')
+    && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes('useDashboardStats');
 });
 check('R172-6 ★T6 年度热力图（04-67 F7~F11）：12 月块 × 366 格（周一~周日 + future/today/sel 三态；★R172-T13 重指带备案：月首偏移改走 `grid-column-start`，不再渲染 void 占位格 ⇒ 一年多 38 个不可点的假控件 button 与 38 个节点被消掉）+ 六档语义图例（LV_NAME 单一真源；不出现分档裸代号）+ 4 张摘要卡（活跃天数/有效动作/最长连续/最猛的一天「MM-DD · 档名」）+ P90 由实际数据算出（非硬编码）+ 切年', () => {
   const h = read('/newtab/components/dashboard/Heatmap.vue');
@@ -559,7 +565,7 @@ check('R172-10 ★T7 复盘段（04-67 F21~F26）：紧凑两栏（`.dz-rev-grid
   const rp = read('/newtab/components/dashboard/ReviewPanel.vue');
   const css = fs.readFileSync(path.resolve(base, 'newtab', 'components', 'dashboard', 'dashboard.css'), 'utf8');
   const rr = read('/shared/utils/reviewReport.ts');
-  const gs = read('/newtab/views/GlobalSettings.vue');
+  const pi = read('/newtab/views/ProfileInsights.vue');
   return css.includes('.dz-rev-grid { display: grid; grid-template-columns: 1fr 1fr;')
     && rp.includes('buildReview(') && rp.includes("pickRange('week')") && rp.includes("pickRange('month')")
     && rp.includes("pickRange('custom')") && rp.includes("pickRange('project')")
@@ -567,34 +573,42 @@ check('R172-10 ★T7 复盘段（04-67 F21~F26）：紧凑两栏（`.dz-rev-grid
     && rp.includes("import DrillCardList from './DrillCardList.vue'") && rp.includes('objectivesOf(') && rp.includes('tasksOfDirection(')
     && rp.includes('ruleHit') && rp.includes('ruleHit.thr') && rp.includes('ruleHit.act')
     && rr.includes('thr: string; act: string')
-    && gs.includes('<ReviewPanel') && gs.includes(':directions="dashDirections"') && gs.includes(':tasks="dashTasks"')
+    /* ★W9 退役重指带备案：复盘段宿主由 GlobalSettings 改指 ProfileInsights，props 接线照搬；
+       GS 加 codeOnly 零命中负锚（dashDirections / dashTasks 不许回流） */
+    && pi.includes('<ReviewPanel') && pi.includes(':directions="dashDirections"') && pi.includes(':tasks="dashTasks"')
+    && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes('dashDirections')
     && !rp.includes('useAppStore') && !rp.includes('store.persist');
 });
 
 check('R172-11 ★T8 全量记录抽屉（04-67 F18~F20）：三维筛选（类型 × 动作 × 时间）均生效 + 动作下拉**必须含「调出」**（旧设置页缺这一项）+ CSV 导出对象 = **当前筛选结果**（非全量）+ 容量提示与 `EVENT_LOG_CAP` 同源 + 四类记录入口承接（今日入台/移出/调出/写入记录）', () => {
   const d = read('/newtab/components/dashboard/DashboardLogDrawer.vue');
-  const gs = read('/newtab/views/GlobalSettings.vue');
+  const pi = read('/newtab/views/ProfileInsights.vue');
   return d.includes('v-model="kind"') && d.includes('v-model="action"') && d.includes('v-model="from"') && d.includes('v-model="to"')
     && d.includes('<option value="call">调出</option>')
     && d.includes('rows: filtered.value.map(e =>')
     && d.includes('EVENT_LOG_CAP') && d.includes('日志容量')
-    && gs.includes("openLog('in')") && gs.includes("openLog('out')") && gs.includes("openLog('called')") && gs.includes("openLog('log')")
-    && gs.includes(':preset="logPreset"') && gs.includes(':open="logOpen"');
+    /* ★W9 退役重指带备案：四类记录入口 + :preset/:open 接线随仪表盘迁 ProfileInsights，
+       四个 openLog 调用点与两枚 prop 绑定一字未减；GS 加 codeOnly 零命中负锚 */
+    && pi.includes("openLog('in')") && pi.includes("openLog('out')") && pi.includes("openLog('called')") && pi.includes("openLog('log')")
+    && pi.includes(':preset="logPreset"') && pi.includes(':open="logOpen"')
+    && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes('openLog(');
 });
 
-check('R172-12 ★T9 调度台入口整合（04-67 F33~F36）：删 5 个旧入口（`.rec-mini` 四格 / 今日记录抽屉 / `wrOpen` / `onWrDrill` / 周报浮层）—— CompassHome 零残留；右槽仅「📈 复盘」直达 `/settings?page=dashboard`；`MetricBar.vue` 中段 5 指标零改动（Q8）；被删的四类记录能力在仪表盘内等价可用。★W2 重指带备案：日详情「查看全部记录」的宿主自 GlobalSettings.onDashOpenLog 迁至 HeatmapModule.onOpenLog（热力图整体迁调度台）', () => {
+check('R172-12 ★T9 调度台入口整合（04-67 F33~F36）：删 5 个旧入口（`.rec-mini` 四格 / 今日记录抽屉 / `wrOpen` / `onWrDrill` / 周报浮层）—— CompassHome 零残留；右槽仅「📈 复盘」直达 `/profile`；`MetricBar.vue` 中段 5 指标零改动（Q8）；被删的四类记录能力在画像洞察页内等价可用。★W2 重指带备案：日详情「查看全部记录」的宿主自 GlobalSettings.onDashOpenLog 迁至 HeatmapModule.onOpenLog（热力图整体迁调度台）。★W9 再随迁带备案：四类记录的宿主自 GlobalSettings 再迁 ProfileInsights', () => {
   const h = read('/newtab/views/CompassHome.vue');
   const mb = read('/newtab/components/compass/MetricBar.vue');
   const gs = read('/newtab/views/GlobalSettings.vue');
+  const pi = read('/newtab/views/ProfileInsights.vue');
   const hmod = read('/newtab/components/dashboard/HeatmapModule.vue');
   const fsx = require('fs');
   return !h.includes('rec-mini') && !h.includes('openRec(') && !h.includes('recOpen') && !h.includes('wrOpen')
     && !h.includes('onWrDrill') && !h.includes('📊 周报')
-    && h.includes('📈 复盘') && h.includes("router.push('/settings?page=dashboard')")
+    && h.includes('📈 复盘') && h.includes("router.push('/profile')")
     && !fsx.existsSync(path.resolve(base, 'newtab', 'components', 'WeeklyReportOverlay.vue'))
     && !fsx.existsSync(path.resolve(base, 'shared', 'utils', 'weeklyReport.ts'))
     && mb.includes('战略目标') && mb.includes('未归档') && mb.includes('mb-right')
-    && gs.includes("openLog('called')") && !gs.includes('onDashOpenLog')
+    && pi.includes("openLog('called')") && !gs.includes('onDashOpenLog')
+    && !codeOnly(gs).includes('openLog(')
     && hmod.includes('onOpenLog') && hmod.includes('logOpen') && hmod.includes(':preset="logPreset"');
 });
 
@@ -748,14 +762,18 @@ check('W2-1 ★热力图挂载在调度台：CompassHome 挂 `<HeatmapModule />`
     && iH > iF && iH < iC
     && !ch.includes('readEventLog');
 });
-check('W2-2 ★GlobalSettings 不再挂热力图：无 Heatmap import / 无 <Heatmap> 模板 / 无 onDashOpenLog（日详情「查看全部记录」迁 HeatmapModule.onOpenLog），但概览带 + 复盘段 + 操作记录保留', () => {
+check('W2-2 ★GlobalSettings 不再挂热力图：无 Heatmap import / 无 <Heatmap> 模板 / 无 onDashOpenLog（日详情「查看全部记录」迁 HeatmapModule.onOpenLog）——★W9 再随迁带备案：本条原还要求「概览带 + 复盘段 + 操作记录保留」在 GlobalSettings 里，而这三样已随 V3.8.7 整块迁画像洞察页；负锚三条继续钉在 GS 上（热力图与 onDashOpenLog 都不许搬回设置页），正锚改指新宿主 ProfileInsights（dashYear/dashSelDay/dashStats + <ReviewPanel> + openLog(），能力一项未减', () => {
   const gs = read('/newtab/views/GlobalSettings.vue');
+  const pi = read('/newtab/views/ProfileInsights.vue');
+  const gc = codeOnly(gs);
   return !gs.includes("import Heatmap from")
     && !gs.includes('<Heatmap')
     && !gs.includes('onDashOpenLog')
-    && gs.includes('dashYear') && gs.includes('dashSelDay') && gs.includes('dashStats')
-    && gs.includes('<ReviewPanel')
-    && gs.includes('openLog(');
+    && !gc.includes('dashYear') && !gc.includes('dashSelDay') && !gc.includes('dashStats')
+    && !gc.includes('<ReviewPanel') && !gc.includes('openLog(')
+    && pi.includes('dashYear') && pi.includes('dashSelDay') && pi.includes('dashStats')
+    && pi.includes('<ReviewPanel')
+    && pi.includes('openLog(');
 });
 check('W2-3 ★HeatmapModule 自包含宿主：useAppStore + gResLive/gTaskLive/gCurioLive + linkCardCount + readEventLog + derivedEvents 回退 + timelineEvents + useDashboardStats + dashYear/dashSelDay/dashStats + onOpenLog 开 DashboardLogDrawer', () => {
   const hm = read('/newtab/components/dashboard/HeatmapModule.vue');

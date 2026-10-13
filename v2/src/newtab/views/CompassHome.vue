@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 // R65-F7：KeepAlive 缓存实例名（App.vue router-view include）
 defineOptions({ name: 'CompassHomeView' })
 // R49（V2.22.0）三大系统页改版：本页 = 调度台（默认首页）
@@ -651,9 +651,9 @@ function openFocusProject(p: Project) {
 }
 
 // ================= 底部专区（R55-B2：任务调度已迁方向台，好奇心培育单区直呈） =================
-// ===== R172-T9：调度画像周报浮层退役，入口改为「📈 复盘」直达知源仪表盘 =====
-/** 04-67 F34：点击执行 `router.push('/settings?page=dashboard')`（文案精确为 `📈 复盘`） */
-function openReview(): void { void router.push('/settings?page=dashboard') }
+// ===== R172-T9 → V3.8.9（W9）：调度台「📈 复盘」直达画像洞察页 =====
+/** 原 push('/settings?page=dashboard')；W9 仪表盘退役，改指 /profile（画像洞察页吸收概览带+复盘段） */
+function openReview(): void { void router.push('/profile') }
 const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.deletedAt).length)
 </script>
 
@@ -689,7 +689,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
           <span>{{ atChipText }}</span>
           <span class="sync-gear" title="Airtable 同步设置" @click.stop="router.push('/settings?page=airtable')">⚙</span>
         </button>
-        <button class="mb-act cta" title="复盘 · 年度热力图与四范围复盘 · 直达知源仪表盘" @click="openReview">📈 复盘</button>
+        <button class="mb-act cta" title="复盘 · 概览带 · 复盘段 · 生命周期 · 直达画像洞察页" @click="openReview">📈 复盘</button>
       </template>
     </MetricBar>
 

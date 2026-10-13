@@ -22,8 +22,6 @@ import { getBytesInUse, subscribeSaveError, clearLastSaveError, subscribeSaveSta
 import { installGlobalUndo } from '@/shared/utils/undo'
 import { recordRuntimeError } from '@/shared/utils/runtimeError'
 import { emitOpenDrawer, onOpenDrawer, setPendingDrawer, onOpenPanel } from '@/shared/utils/bus'
-// W5（V3.8.5）#6：品牌区 → 今日战报（全局单例请求，HeatmapModule 消费）
-import { requestDailyLog } from './composables/useDailyLog'
 // R160（P1）：详情抽屉（10KB 源）同走按需挂载——首个打开事件到达时挂载，事件经 bus 暂存回放
 const ResourceDetailDrawer = defineAsyncComponent(() => import('./components/ResourceDetailDrawer.vue'))
 
@@ -87,6 +85,7 @@ const topbarAlign = computed(() => {
   const p = route.path
   if (p.startsWith('/settings')) return 'align-settings'
   if (p.startsWith('/manual')) return 'align-manual'
+  if (p.startsWith('/profile')) return 'align-page' // V3.8.7：画像洞察页同主页面 1440 居中
   return 'align-page'
 })
 
@@ -133,14 +132,15 @@ const hiddenWsCount = computed(() => (wsOverflow.value && !wsOverflowOpen.value)
 
 function navigate(path: string) { router.push(path) }
 
-/* W5（V3.8.5）#6：品牌区点击 = 打开今日战报（脉冲 → 120ms 后请求；不在调度台则先导航，HeatmapModule 挂载时消费） */
+// W5（V3.8.5）#6 → V3.8.9（W9）：品牌区点击 = 打开画像洞察页（独立路由 #/profile）。
+// 原「今日战报」链路（跳首页 + HeatmapModule 消费 requestDailyLog）退役——
+// 战报改为画像页 §0 页头入口按钮 + 中央弹窗，数据桥与 HeatmapModule 同源（useDashboardStats）。
 const brandPulse = ref(false)
 function onBrandClick(): void {
   brandPulse.value = false
   void nextTick(() => { brandPulse.value = true })
   window.setTimeout(() => { brandPulse.value = false }, 1200)
-  if (route.path !== '/') navigate('/')
-  window.setTimeout(() => requestDailyLog(), route.path !== '/' ? 260 : 120)
+  if (route.path !== '/profile') navigate('/profile')
 }
 
 const activeTab = computed(() => {
@@ -148,6 +148,8 @@ const activeTab = computed(() => {
   if (route.path.startsWith('/compass')) return 'compass'
   // V3.7.0（R179）：/curation 已 redirect 到 /（资源台退役）；hub 工作区路由不复存在
   if (route.path.startsWith('/settings')) return 'settings'
+  // V3.8.9（W9）：画像洞察页高亮品牌区（它不是独立 Tab，是品牌区入口页）
+  if (route.path.startsWith('/profile')) return 'profile'
   return activeWorkspaceId.value || 'home'
 })
 
@@ -468,7 +470,7 @@ const backupReminderDot = computed(() => {
       <nav class="tabs" @mouseleave="wsOverflowOpen = false">
         <!-- R176（原型 nav-brand-chip）：品牌位 = logo + 知源调度台 + Ownway。
              W5（V3.8.5）#6：点击 = 打开今日战报（脉冲动画 + HeatmapModule 消费请求） -->
-        <div class="brand-chip" :class="{ pulsing: brandPulse }" title="今日战报 · 点击查看当日操作时间线"
+        <div class="brand-chip" :class="{ pulsing: brandPulse, active: activeTab === 'profile' }" title="画像洞察 · 点击查看我的画像与洞察"
           role="button" tabindex="0" @click="onBrandClick" @keydown.enter.prevent="onBrandClick" @keydown.space.prevent="onBrandClick">
           <img :src="logoUrl" class="brand-logo" alt="知源调度台" />
           <span class="brand-name">知源调度台</span>
@@ -576,7 +578,7 @@ const backupReminderDot = computed(() => {
              R148-P1a：设置页与回收站纳入缓存——设置页 3500+ 行、挂载即算 lcCards/gFlat/tagUsage，
              每次进都全量重挂是"切模块卡"的主要来源之一（实测冷挂 190ms / 二挂 101ms） -->
         <router-view v-slot="{ Component }">
-          <keep-alive include="CompassHomeView,WorkspaceView,CompassTreeView,ProjectCurationView,GlobalSettingsView,RecycleBinView">
+          <keep-alive include="CompassHomeView,WorkspaceView,CompassTreeView,ProjectCurationView,GlobalSettingsView,RecycleBinView,ProfileInsightsView">
             <component :is="Component" />
           </keep-alive>
         </router-view>
@@ -624,6 +626,8 @@ const backupReminderDot = computed(() => {
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }
 /* R176（原型 nav-brand-chip）：品牌位（logo 16px + 知源调度台 13px/700 + Ownway 11px 次要字） */
 .brand-chip { display: flex; align-items: center; gap: 6px; margin-right: 14px; cursor: pointer; flex-shrink: 0; }
+/* V3.8.9（W9）：画像洞察页为当前页时品牌区高亮（accent-light 底 + accent 边） */
+.brand-chip.active { background: var(--accent-light); border-radius: var(--radius-sm); padding: 3px 8px 3px 6px; margin-left: -6px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
 /* W5（V3.8.5）#6：点击战报的脉冲反馈（两轮光晕，约 1.1s 后复位） */
 .brand-chip.pulsing { animation: brandPulse 0.55s ease-in-out 2; }
 @keyframes brandPulse { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 6px var(--accent-light); } }

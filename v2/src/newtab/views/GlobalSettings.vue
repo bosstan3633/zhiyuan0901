@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="gs-page">
     <!-- 左侧导航 -->
     <aside class="gs-nav">
@@ -21,141 +21,9 @@
       <!-- 返回按钮 -->
       <div class="gs-back-btn" @click="router.push('/compass')">← 返回</div>
 
-      <!-- ===== 知源仪表盘（第卌四轮 T-03：默认首屏） ===== -->
-      <div v-if="activePage === 'dashboard'" class="gs-panel" :class="{ 'dz-hl': dzHl }">
-        <div class="gs-page-header">
-          <div class="gs-page-title">📊 知源仪表盘 <span class="gs-dash-en">DASHBOARD</span></div>
-          <div class="gs-page-desc">数据总览 · 行为有痕 · 复盘有据 —— 这一年我是怎么走的（概览带 · 年度热力图 · 复盘）</div>
-          <!-- R3-F38：交互点高亮开关（工具条位，与页头同排；开启后整面板虚线圈出可点处） -->
-          <button class="gs-dash-hl" :class="{ on: dzHl }" @click="toggleDzHl"
-            :title="dzHl ? '关闭交互点高亮' : '把这一屏所有能点的地方圈出来'">👁 高亮可交互</button>
-        </div>
-
-        <!-- R172-T5：① 概览带（存量快照 + ★时间绑定 + 人话总结 + 参照系行 + 分数口径表）
-             取代原「5 张核心指标卡 + 动态条」—— 存量（库里有什么）与流量（我做了什么）合成一条带，
-             可读性三层（人话主数字 / 语义档位 / 参照系）见 04-66 §4.2 -->
-        <DashboardOverview
-          :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"
-          :live-link="linkCardCount" :error-count="errorLogCount"
-          @clear-day="dashSelDay = null"
-          @open-cards="onDashOpenCards" @open-dyn="onDashOpenDyn" @export-error="exportErrorLog" />
-
-        <!-- R172-T7：③ 复盘段（紧凑两栏：左＝画像摘要 + 节奏曲线｜右＝目标对账 + 偏离预警；三类可下钻） -->
-        <ReviewPanel
-          :stats="dashStats" :events="timelineEvents" :data="gd"
-          :directions="dashDirections" :tasks="dashTasks"
-          @save-report="onReportSave" @report-task="onReportTask" @report-goto="onReportGoto" @report-export="onReportExport" />
-
-        <!-- R172-T8/T9：记录能力新居所 —— 四类记录入口（承接调度台旧四格 + 今日记录抽屉）+ 全量抽屉 -->
-        <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">🕘 操作记录</span><span class="gs-card-desc">四类记录入口 · 抽屉内三维筛选（类型 × 动作 × 时间）+ CSV 导出 + 容量提示</span></div>
-          <div class="gs-card-body">
-            <div class="dz-recentry">
-              <button class="it" title="今日入台明细" @click="openLog('in')">⬇ 今日入台 <b>{{ todayAddCount }}</b></button>
-              <button class="it" title="今日移出明细" @click="openLog('out')">⬆ 今日移出 <b>{{ todayDelCount }}</b></button>
-              <button class="it" title="今日调出明细" @click="openLog('called')">↗ 今日调出 <b>{{ todayCalledCount }}</b></button>
-              <button class="it" title="写入记录（全量）" @click="openLog('log')">✎ 写入记录 <b>{{ eventLog.length }}</b></button>
-              <span class="dz-sp" />
-              <button class="dz-btn sm pri" @click="openLog('log')">打开全部记录 ›</button>
-            </div>
-            <div class="gs-field-hint">💡 日详情点某天 →「查看全部记录 ›」会按该日预筛此抽屉；日志容量上限 {{ EVENT_LOG_CAP }} 条滚动保留（含恢复与永久删除），老数据无日志时自动回退为卡片时间派生。</div>
-          </div>
-        </div>
-
-        <!-- R172-T8：全量记录抽屉（记录能力的新居所；数据由宿主以 prop 传入，组件不碰 store） -->
-        <DashboardLogDrawer :open="logOpen" :events="timelineEvents" :data="gd" :preset="logPreset" @close="logOpen = false" />
-
-        <!-- 核心指标下钻抽屉（R48-B1：搜索 + 翻页 20 条；R51-B7 列表撑满抽屉消除下方空白） -->
-        <Drawer :open="!!statDrawer" :title="statDrawerTitle" width="460px" @close="statDrawer = ''">
-          <div class="gs-drawer-fill">
-            <div class="gs-drawer-search">
-              <input v-model="statSearch" placeholder="🔍 搜索标题 / 项目 · 指标">
-              <span class="cnt">{{ statFiltered.length }} 条</span>
-            </div>
-            <div class="gs-ev-list">
-              <div v-for="c in statShown" :key="c.id" class="gs-ev-row static clickable" @click="openStatCard(c)">
-                <span class="gs-ev-kind">{{ statKindIcon(c.kind) }}</span>
-                <span class="gs-ev-badge">{{ statKindLabel(c.kind) }}</span>
-                <span class="gs-ev-title">{{ c.title }}</span>
-                <span v-if="c.kind === 'task'" class="gs-ev-owner">{{ c.owner }}</span>
-                <span class="gs-ev-time">{{ fmtDay(c.ts) }}</span>
-              </div>
-              <div v-if="!statFiltered.length" class="gs-ev-empty">{{ statSearch.trim() ? '没有匹配的卡片' : '暂无卡片' }}</div>
-              <div v-if="statList.length" class="gs-field-hint">💡 单击行可跳转定位到卡片所在页面。</div>
-            </div>
-            <div v-if="statPageCount > 1" class="gs-pager">
-              <button :disabled="statPage <= 1" @click="statGo(-1)">‹ 上一页</button>
-              <span>第 {{ statPage }} / {{ statPageCount }} 页 · 每页 {{ STAT_PAGE }} 条</span>
-              <button :disabled="statPage >= statPageCount" @click="statGo(1)">下一页 ›</button>
-            </div>
-          </div>
-        </Drawer>
-
-        <!-- 动态条明细抽屉（R48-B1 翻页 + R48-B2 双口径徽标：新增/导入/删除同源卡片字段；R51-B7 列表撑满） -->
-        <Drawer :open="!!dynDrawer" :title="dynDrawerTitle" width="460px" @close="dynDrawer = ''">
-          <div class="gs-drawer-fill">
-            <div class="gs-drawer-search">
-              <input v-model="dynSearch" placeholder="🔍 搜索卡片标题">
-              <span class="cnt">{{ dynFiltered.length }} 条</span>
-            </div>
-            <div class="gs-ev-list">
-              <div v-for="e in dynShown" :key="e.id" class="gs-ev-row static">
-                <span class="gs-ev-time">{{ fmtEventTime(e.ts) }}</span>
-                <span class="gs-ev-badge" :class="e.action === 'import' ? 'create' : e.action">{{ e.action === 'import' ? '⇪ 导入' : eventActionLabel(e.action) }}</span>
-                <span class="gs-ev-kind">{{ eventKindLabel(e.kind) }}</span>
-                <span class="gs-ev-title">{{ e.title }}</span>
-              </div>
-              <div v-if="!dynFiltered.length" class="gs-ev-empty">{{ dynSearch.trim() ? '没有匹配的记录' : '该时间范围内没有记录' }}</div>
-            </div>
-            <div v-if="dynPageCount > 1" class="gs-pager">
-              <button :disabled="dynPage <= 1" @click="dynGo(-1)">‹ 上一页</button>
-              <span>第 {{ dynPage }} / {{ dynPageCount }} 页 · 每页 {{ STAT_PAGE }} 条</span>
-              <button :disabled="dynPage >= dynPageCount" @click="dynGo(1)">下一页 ›</button>
-            </div>
-            <div class="gs-field-hint">💡 操作有痕：新增即保存，删除进回收站可恢复；导入的卡带「⇪ 导入」徽标（继承原创建时间）。</div>
-          </div>
-        </Drawer>
-      </div>
-
-      <!-- ===== R113-N2：资源生命周期（三类卡聚合；内嵌式面板，数值可下钻、条目可操作转化） ===== -->
-      <div v-if="activePage === 'lifecycle'" class="gs-panel">
-        <div class="gs-page-header">
-          <div class="gs-page-title">⏳ 资源生命周期</div>
-          <div class="gs-page-desc">资源卡 / 任务卡 / 好奇心卡三类实体的活跃 · 冷却 · 归档全景 —— 点击数字下钻明细，明细行可直接归档 / 忽略 / 重新激活，点击条目跨台定位卡片</div>
-        </div>
-        <!-- R126（诉求 5）：阈值设置入口（全局默认 + 逐卡覆盖） -->
-        <button class="gs-btn" style="margin-bottom: 12px" @click="lcSetOpen = true">⚙ 阈值设置</button>
-        <LifecyclePanel kind="all" :cards="lcCards"
-          @locate="onLcLocate" @archive="onLcArchive" @snooze="onLcSnooze" @reactivate="onLcReactivate"
-          @set-days="onLcSetDays" />
-        <Teleport to="body">
-          <div class="gs-modal-overlay" :class="{ open: lcSetOpen }" @click.self="lcSetOpen = false">
-            <div class="gs-modal" style="width: 640px">
-              <div class="gs-modal-header">⚙ 冷却阈值设置</div>
-              <div class="gs-modal-body">
-                <p>全局默认冷却 <b>{{ lcDefaultDraft || 30 }}</b> 天 · 归档 = 冷却 × 3 = <b>{{ (lcDefaultDraft || 30) * 3 }}</b> 天；每张卡可单独覆盖（清除后回落全局默认）。<br />修改阈值只影响状态判定，<b>不会改变卡片活跃度</b>。</p>
-                <div class="lc-set-global">
-                  <span>默认冷却天数</span>
-                  <input v-model.number="lcDefaultDraft" type="number" min="1" max="365" class="gs-confirm-input" style="width: 90px" />
-                  <button class="gs-btn" @click="saveLcDefault">保存</button>
-                </div>
-                <div class="lc-set-list">
-                  <div v-for="c in lcCards" :key="c.id" class="lc-set-row">
-                    <span class="lc-set-name" :title="(c as any).title">{{ (c as any).title || '未命名' }}</span>
-                    <input class="gs-confirm-input" style="width: 80px" type="number" min="1" max="365" placeholder="默认"
-                      :value="(c as any).coolingDays || ''"
-                      @change="onLcSetDays(c.id, Number(($event.target as HTMLInputElement).value) || null)" />
-                    <button class="gs-btn" @click="onLcSetDays(c.id, null)">清除</button>
-                  </div>
-                </div>
-              </div>
-              <div class="gs-modal-footer">
-                <button class="gs-btn" @click="lcSetOpen = false">关闭</button>
-              </div>
-            </div>
-          </div>
-        </Teleport>
-      </div>
+      <!-- ===== V3.8.9（W9）：知源仪表盘面板退役 —— 概览带 + 复盘段 + 操作记录 + 全量抽屉 + 两个下钻抽屉
+           整体迁至画像洞察页（/profile · ProfileInsights.vue）。热力图此前已随 W2 迁调度台 HeatmapModule。
+           退役重指备案：R44/R46/R48/R51/R172-T6 系列门禁改判 ProfileInsights.vue；openReview 改指 /profile。 ===== -->
 
       <!-- ===== 资源卡字段 ===== -->
       <div v-if="activePage === 'resource'" class="gs-panel">
@@ -928,7 +796,7 @@
 // R148-P1a：显式实例名——纳入 KeepAlive（切模块免重挂载与免重算首屏）
 defineOptions({ name: 'GlobalSettingsView' })
 
-import { ref, reactive, computed, watch, watchEffect, onMounted, onUnmounted, shallowRef } from 'vue'
+import { ref, reactive, computed, watch, watchEffect, onMounted, shallowRef } from 'vue'
 import { wsDisplayNameOf, wsNameById } from '@/shared/utils/wsName'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
@@ -960,14 +828,13 @@ import type { FieldDef, AppData, ResourceCard, TaskCard, CuriosityCard, Workspac
 import { isHubWs, boardCardsOf, isMirrorView, sanitizeThesisDuplicates } from '@/shared/storage/hub'
 import DataCheckupCard from '../components/DataCheckupCard.vue'
 import MigrateReportCard from '../components/MigrateReportCard.vue'
+/* ★W9 退役重指带备案：标签管理面板的「卡片详情」抽屉仍在本页（ttDetail），Drawer 壳的 import 不随
+   仪表盘/生命周期两组抽屉一起删——本轮漏删导致模板 <Drawer> 无对应 import，被 R113-2 孤儿组件护栏抓到。 */
+import Drawer from '@/shared/components/Drawer.vue'
 import { CURATION_WS_ID } from '@/shared/models'
 // R113-N2：资源生命周期聚合页（入口从三宿主收敛至此；内嵌式面板 + 三类卡聚合 + 跨台定位）
-import LifecyclePanel, { type LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
-import {
-  snoozeCard, reactivateCard, setCoolingDays,
-  setCoolingDefaultDays, coolingDefaultDaysOf
-} from '@/shared/utils/lifecycle'
-import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
+// V3.8.9（W9）：资源生命周期聚合页退役 —— LifecyclePanel + 宿主逻辑迁至画像洞察页 /profile §3。
+// R110-LC-3/4 门禁带退役重指备案改写。
 // R134-F（批次 F）：AI 助手——地基三件套（config/llm/projector/scenarios）+ 建议评审抽屉。
 // 性能纪律：shared/ai 只被懒加载路由（设置页/详情抽屉）静态消费，不进启动链；密钥存独立键 zy_ai_v1 不随导出。
 import AiSuggestionDrawer from '@/newtab/components/AiSuggestionDrawer.vue'
@@ -1014,8 +881,9 @@ function onNavClick(item: NavItem) {
   if (item.route) { router.push(item.route); return }
   activePage.value = item.key
 }
-// 第卌四轮 T-03：设置默认首屏 = 知源仪表盘
-const activePage = ref('dashboard')
+// V3.8.9（W9）：默认首屏改为「资源卡」——原「知源仪表盘」退役迁至画像洞察页（/profile），
+// 「资源生命周期」面板同步迁出；R44-6 门禁带退役重指备案改写。
+const activePage = ref('resource')
 /** 深链：/settings?page=tags 直达指定面板（TagPicker 空体系引导跳转用） */
 function pageFromQuery(): string | null {
   const p = route.query.page
@@ -1176,9 +1044,9 @@ const navGroups: { title: string; items: NavItem[] }[] = [
   // R54-E1（修订第卌四轮五组拍板）：总览 = 知源仪表盘 + 策展台全景并列，「整理」组取消
   // R178（原型 sns-group-title）：分组对齐设置中心原型——通用与度量 / 卡片与字段 / AI 认知协作者 / 数据与信任 / 系统信息（条目与功能零增减）
   { title: '通用与度量', items: [
-    { key: 'dashboard', icon: '📊', label: '知源仪表盘' },
-    // R113-N2：资源生命周期聚合页——位置拍板「紧跟知源仪表盘、本组不留第三格」（R110-LC-4 守此序）
-    { key: 'lifecycle', icon: '⏳', label: '资源生命周期' },
+    // V3.8.9（W9）：知源仪表盘（key: dashboard）与资源生命周期（key: lifecycle）退役——
+    // 前者整体迁画像洞察页 /profile（概览带+复盘段+操作记录），后者迁 /profile §3。R110-LC-3/4 带退役备案改写。
+    // 本组暂空；「通用与度量」语义由画像洞察页承担（/profile）。
   ]},
   { title: '卡片与字段', items: [
     { key: 'resource', icon: '📇', label: '资源卡' },
@@ -1223,63 +1091,19 @@ function onFieldChange() { store.persist() }
 function onFieldNotify(msg: string) { showToast(msg) }
 
 // ============================================================
-// R113-N2：资源生命周期聚合页（三类卡统一视图）
+// V3.8.9（W9）：资源生命周期聚合页退役 —— LifecyclePanel + 宿主逻辑（lcCards/onLcArchive/
+// onLcSnooze/onLcReactivate/onLcSetDays/阈值弹窗）整体迁至画像洞察页 /profile §3。
+// R110-LC-3/4 门禁带退役重指备案改写。
 // ============================================================
-const lcCards = computed<LifecycleCard[]>(() => {
-  const d = store.data!
-  return [
-    ...d.resources.filter(r => !r.deletedAt),
-    ...d.tasks.filter(t => !t.deletedAt),
-    ...d.curiosities.filter(c => !c.deletedAt)
-  ]
-})
-/** 按 id 找活卡——面板只发意图，宿主对真实卡对象落库 + persist（与 useLifecycle 同纪律） */
-function lcFind(id: string): LifecycleCard | undefined { return lcCards.value.find(c => c.id === id) }
-function onLcArchive(id: string) { const c = lcFind(id); if (!c) return; c.lifecycleArchived = true; c.updatedAt = Date.now(); store.persist() }
-function onLcSnooze(id: string) { const c = lcFind(id); if (!c) return; snoozeCard(c); store.persist() }
-function onLcReactivate(id: string) { const c = lcFind(id); if (!c) return; reactivateCard(c); store.persist() }
-/**
- * R117（04-61 E）：per-card 自定义冷却天数（null = 清除自定义）。
- * 注意：**只写 coolingDays 字段**——不碰 updatedAt / lastCalledAt / snoozedUntil，
- * 否则「改阈值」这个动作本身会改变卡片活跃度（口径污染）。
- */
-function onLcSetDays(id: string, days: number | null) { const c = lcFind(id); if (!c) return; setCoolingDays(c, days); store.persist() }
-/** R126（诉求 5）：阈值设置——全局默认（UIPrefs.coolingDaysDefault） */
-const lcSetOpen = ref(false)
-const lcDefaultDraft = ref<number>(coolingDefaultDaysOf() || 30)
-function saveLcDefault() {
-  const v = Math.min(365, Math.max(1, Math.round(Number(lcDefaultDraft.value) || 30)))
-  lcDefaultDraft.value = v
-  saveUIPrefs({ coolingDaysDefault: v })
-  setCoolingDefaultDays(v)
-  store.persist()
-  showToast(`⚙ 默认冷却天数已设为 ${v} 天（归档 ${v * 3} 天）`)
-}
-/** R117（04-61 B）：跨台定位统一走 locateTargetOf——资源卡带**所在分类**（定位到位置而非仅切台），
- *  任务/好奇心卡带 `hk` 分派（调度台同页两个 hl 消费者按 kind 认领）。 */
-function onLcLocate(id: string, kind: LifecycleCard['kind']) {
-  const t = locateTargetOf(store.data!, kind, id)
-  if (!t) { showToast('⚠ 该卡片已不在库中'); return }
-  void router.push(t)
-}
 
 // ============================================================
-// 第卌四轮 T-03/T-06/T-07：知源仪表盘（核心指标 + 动态条 + 操作记录 + CSV）
+// V3.8.9（W9）：知源仪表盘退役 —— 概览带/复盘段/操作记录/全量抽屉/两个下钻抽屉/错误日志
+// 整体迁至画像洞察页 /profile。R44/R46/R48/R51/R172-T6 系列门禁带退役重指备案改写。
+// 保留：gWsName/gCatName（导出页复用）、readErrorLog 相关（关于页/导出页仍用）。
 // ============================================================
-import Drawer from '@/shared/components/Drawer.vue'
-// R172-T5/T6：仪表盘（① 概览带 + ③ 复盘段）—— 数据桥 useDashboardStats 收口聚合与选中态
-// W2（V3.8.2）：② 年度热力图整体迁调度台（HeatmapModule 自包含宿主），此处不再挂 Heatmap
-import DashboardOverview from '@/newtab/components/dashboard/DashboardOverview.vue'
-import ReviewPanel from '@/newtab/components/dashboard/ReviewPanel.vue'
-// R172-T8：全量记录抽屉（承接今日记录四格 + 日详情「查看全部记录 ›」）
-import DashboardLogDrawer, { type LogPreset } from '@/newtab/components/dashboard/DashboardLogDrawer.vue'
-import { useDashboardStats } from '@/newtab/components/dashboard/useDashboardStats'
-import type { DirLike, TaskLike } from '@/shared/utils/reviewReport'
-// R172-T11：报告出口（落卡 / 导出 / 生成任务 / 跳转）整体抽进 composable，宿主只挂一行
-import { useDashboardReport } from '@/newtab/composables/useDashboardReport'
 import { useBookmarkImport } from '@/newtab/composables/useBookmarkImport'
-import { readEventLog, curioCumulativeSince, countCurioCumulative, EVENT_LOG_CAP, type CardEvent } from '@/shared/utils/eventLog'
-import { readErrorLog, subscribeErrorLog } from '@/shared/utils/runtimeError'
+// V3.8.9（W9）：readEventLog/readErrorLog/subscribeErrorLog/curioCumulativeSince/countCurioCumulative/
+// EVENT_LOG_CAP/CardEvent 随仪表盘退役迁至 ProfileInsights.vue（错误日志徽标+导出也迁走）。
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 // R156：主题「跟随系统」——导入界面偏好包时 ui.theme 可为 'auto'，落 data-theme 前统一解析
 import { resolveTheme } from '@/shared/utils/theme'
@@ -1288,296 +1112,16 @@ import { openHtmlAsset } from '@/shared/utils/htmlAsset'
 
 const gd = computed(() => store.data!)
 
-/* R3-F38（04-67）：仪表盘「👁 高亮可交互」开关。
-   仪表盘一屏里热力格 / KPI / 规则行 / 下钻卡 / chip 外观高度同质，光看界面分不清哪些能点——
-   这个开关把所有交互点用虚线圈出来，用来回答"这一屏我到底能点哪里"。偏好持久化在 UIPrefs.dzHl。 */
-const dzHl = ref<boolean>(store.ui?.dzHl === true)
-function toggleDzHl() {
-  dzHl.value = !dzHl.value
-  saveUIPrefs({ dzHl: dzHl.value })
-}
-const gResLive = computed(() => gd.value.resources.filter(r => !r.deletedAt))
-const gTaskLive = computed(() => gd.value.tasks.filter(t => !t.deletedAt))
-const gCurioLive = computed(() => gd.value.curiosities.filter(c => !c.deletedAt))
-const totalCards = computed(() => gResLive.value.length + gTaskLive.value.length + gCurioLive.value.length)
-const resLiveCount = computed(() => gResLive.value.length)
-const taskLiveCount = computed(() => gTaskLive.value.length)
-const curioLiveCount = computed(() => gCurioLive.value.length)
-const linkCardCount = computed(() => gResLive.value.filter(r => (r.link || '').trim()).length)
+// V3.8.9（W9）：仪表盘专属脚本已整体迁至 ProfileInsights.vue（概览带数据桥/复盘段依赖/
+// 操作记录/四类入口/全量抽屉/核心指标下钻/动态条下钻/错误日志徽标/dzHl 高亮）。
+// 本文件保留的通用能力：gWsName/gCatName（导出页）、readErrorLog（关于页）、
+// useBookmarkImport（导入页）、recordResourceOpen / toOpenableUrl / openHtmlAsset（卡片预览）。
 
-const gStartOfToday = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); return dt.getTime() })()
-const gStartOfWeek = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7)); return dt.getTime() })()
-type GFlat = { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; createdAt: number; deletedAt?: number; importedAt?: number }
-const gFlat = computed<GFlat[]>(() => [
-  ...gd.value.resources.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title || '（无标题）', createdAt: r.createdAt || 0, deletedAt: r.deletedAt, importedAt: r.importedAt })),
-  ...gd.value.tasks.map(t => ({ kind: 'task' as const, id: t.id, title: t.title || '（无标题）', createdAt: t.createdAt || 0, deletedAt: t.deletedAt, importedAt: t.importedAt })),
-  ...gd.value.curiosities.map(c => ({ kind: 'curiosity' as const, id: c.id, title: c.question || '（无标题）', createdAt: c.createdAt || 0, deletedAt: c.deletedAt, importedAt: c.importedAt }))
-])
-const todayAddCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.createdAt >= gStartOfToday).length)
-// R48-B2 双口径：导入单独计数（importedAt 由导入动作落戳），不与新建混淆
-const todayImportCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.importedAt && x.importedAt >= gStartOfToday).length)
-const todayDelCount = computed(() => gFlat.value.filter(x => x.deletedAt && x.deletedAt >= gStartOfToday).length)
-const weekAddCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.createdAt >= gStartOfWeek).length)
-const weekImportCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.importedAt && x.importedAt >= gStartOfWeek).length)
-const weekDelCount = computed(() => gFlat.value.filter(x => x.deletedAt && x.deletedAt >= gStartOfWeek).length)
-const statTodayAdd = computed(() => todayAddCount.value)
-const statTodayRes = computed(() => gFlat.value.filter(x => x.kind === 'resource' && !x.deletedAt && x.createdAt >= gStartOfToday).length)
-const statTodayTask = computed(() => gFlat.value.filter(x => x.kind === 'task' && !x.deletedAt && x.createdAt >= gStartOfToday).length)
-const statTodayCurio = computed(() => gFlat.value.filter(x => x.kind === 'curiosity' && !x.deletedAt && x.createdAt >= gStartOfToday).length)
-
-// ---- 操作记录：事件日志优先，老数据无日志回退卡片时间派生 ----
-const eventLog = shallowRef<CardEvent[]>([]) // R131-C5：整组替换、只读消费 → shallowRef（5000 条不再逐个建 Proxy）
-const logEmpty = ref(true)
-const cumDelCount = ref(0)
-/** R172-T8：全量记录抽屉（四类记录入口 / 日详情预筛共用同一条打开链） */
-const logOpen = ref(false)
-const logPreset = ref<LogPreset>({ kind: 'all', action: 'all', from: '', to: '' })
-/** R117（04-61 C3）：好奇心「探索累计」——采集 + 状态变更 + 删除，**本版起算**（基线首次运行落盘） */
-const curioCumSince = ref(0)
-const curioCumulative = computed(() =>
-  curioCumSince.value ? countCurioCumulative(eventLog.value, curioCumSince.value) : 0)
-
-async function refreshEventLog() {
-  const log = await readEventLog()
-  eventLog.value = log.slice().reverse() // 新→旧
-  logEmpty.value = log.length === 0
-  cumDelCount.value = log.length
-    ? log.filter(e => e.action === 'delete' || e.action === 'purge').length
-    : gFlat.value.filter(x => x.deletedAt).length
-  // R117（04-61 C3）：累计口径的起算时刻只需读/落一次（模块内缓存）
-  curioCumSince.value = await curioCumulativeSince()
-}
-const derivedEvents = computed<CardEvent[]>(() => {
-  const out: CardEvent[] = []
-  for (const x of gFlat.value) {
-    if (x.createdAt) out.push({ id: `d-${x.id}-c`, ts: x.createdAt, action: 'create', kind: x.kind, title: x.title, cardId: x.id })
-    if (x.deletedAt) out.push({ id: `d-${x.id}-d`, ts: x.deletedAt, action: 'delete', kind: x.kind, title: x.title, cardId: x.id })
-  }
-  return out.sort((a, b) => b.ts - a.ts)
-})
-const timelineEvents = computed<CardEvent[]>(() => (logEmpty.value ? derivedEvents.value : eventLog.value))
-/** R172-T9：今日调出（旧调度台 ↗ 四格之一）—— 在仪表盘内以 `call` 事件计数，历史口径与 T1 记账一致 */
-const todayCalledCount = computed(() => timelineEvents.value.filter(e => e.action === 'call' && e.ts >= gStartOfToday).length)
-function eventActionLabel(a: CardEvent['action']): string {
-  return a === 'create' ? '+ 新增' : a === 'call' ? '↗ 调出' : a === 'delete' ? '− 删除' : a === 'restore' ? '↩ 恢复' : a === 'status' ? '◐ 状态变更' : '✕ 永久删除'
-}
-
-/* ---------- R172-T5/T6：知源仪表盘三段（① 概览带 + ② 年度热力图 + 日详情） ---------- */
-const dash = useDashboardStats(
-  () => gd.value,
-  () => timelineEvents.value,
-  () => ({ res: gResLive.value.length, task: gTaskLive.value.length, curio: gCurioLive.value.length })
-)
-const dashYear = dash.year
-const dashSelDay = dash.selDay
-const dashStats = dash.stats
-/**
- * R172-T7：复盘段只吃 props（不碰 store）。方向对账需要「方向树 × 任务归属」两个只读切片：
- *  · `focused` 取**该方向下任一项目是主攻**（模型里主攻挂在 `Project.isFocused`，方向自身无该字段）
- *  · 任务只带对账所需字段（projectId / createdAt / completedAt / deletedAt / status），不搬全量对象
- */
-const dashDirections = computed<DirLike[]>(() => (gd.value.compass?.directions || []).map(d => ({
-  id: d.id, name: d.name,
-  focused: (d.projects || []).some(p => p.isFocused),
-  projects: (d.projects || []).map(p => ({ id: p.id, name: p.name }))
-})))
-const dashTasks = computed<TaskLike[]>(() => (gd.value.tasks || []).map(t => ({
-  id: t.id, title: t.title, projectId: t.projectId,
-  createdAt: t.createdAt, completedAt: t.completedAt, deletedAt: t.deletedAt, status: t.status
-})))
-function onDashOpenCards(kind: 'all' | 'resource' | 'task' | 'curiosity' | 'link') { openStatDrawer(kind) }
-function onDashOpenDyn(t: 'today-add' | 'week-add' | 'cum-del') { openDynDrawer(t) }
-/** R172-T9：调度台旧「今日四格」的等价入口 —— 四类记录在仪表盘内全部可用（F36） */
-function openLog(k: 'in' | 'out' | 'called' | 'log') {
-  const today = fmtDayKey(Date.now())
-  const preset: LogPreset =
-    k === 'in' ? { kind: 'all', action: 'create', from: today, to: today, note: '今日入台 = 今日新增（含导入）的卡片。' }
-      : k === 'out' ? { kind: 'all', action: 'delete', from: today, to: today, note: '今日移出 = 今日软删的卡片（可恢复）。' }
-        : k === 'called' ? { kind: 'all', action: 'call', from: today, to: today, note: '今日调出 = 今日被打开的卡片（R172-T1 起才有历史事件）。' }
-          : { kind: 'all', action: 'all', from: '', to: '', note: '写入记录 = 全量时间线（类型 × 动作 × 时间三维可筛）。' }
-  logPreset.value = preset
-  logOpen.value = true
-}
-/**
- * R172-T11（04-67 F31/F32）：复盘报告的出口收在 `useDashboardReport`（增长门禁 + 单一实现）——
- * 宿主只提供三样依赖：可写的主数据、persist、router。
- */
-const { onReportSave, onReportExport, onReportTask, onReportGoto } = useDashboardReport({ gd, persist: () => store.persist(), router })
-function fmtDayKey(ts: number): string {
-  const dt = new Date(ts)
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`
-}
-function eventKindLabel(k: CardEvent['kind']): string {
-  return k === 'resource' ? '资源' : k === 'task' ? '任务' : k === 'curiosity' ? '好奇' : '系统'
-}
-function fmtEventTime(ts: number): string {
-  const dt = new Date(ts)
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}`
-}
-function fmtDay(ts?: number): string {
-  if (!ts) return ''
-  const dt = new Date(ts)
-  return `${dt.getMonth() + 1}-${dt.getDate()}`
-}
+// V3.8.9（W9）：仪表盘脚本（gFlat/todayAdd/weekAdd/事件日志/timelineEvents/dash 数据桥/
+// 复盘段依赖/报告出口/openLog/核心指标下钻/动态条下钻/错误日志徽标）已整体迁 ProfileInsights.vue。
+// 保留：gWsName/gCatName（导出页 L1870 复用）。
 function gWsName(id: string): string { return wsNameById(gd.value.workspaces, id) || '' }
 function gCatName(id: string): string { return gd.value.categories.find(c => c.id === id)?.name || '' }
-
-// ---- 核心指标下钻抽屉 ----
-type StatDrawerType = '' | 'all' | 'resource' | 'task' | 'curiosity' | 'link'
-interface StatRow { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; ts: number; owner?: string }
-const statDrawer = ref<StatDrawerType>('')
-const statList = computed<StatRow[]>(() => {
-  switch (statDrawer.value) {
-    case 'resource': return gResLive.value.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title, ts: r.createdAt }))
-    case 'task': return gTaskLive.value.map(t => ({ kind: 'task' as const, id: t.id, title: t.title, ts: t.createdAt }))
-    case 'curiosity': return gCurioLive.value.map(c => ({ kind: 'curiosity' as const, id: c.id, title: c.question, ts: c.createdAt }))
-    case 'link': return gResLive.value.filter(r => (r.link || '').trim()).map(r => ({ kind: 'resource' as const, id: r.id, title: r.title, ts: r.createdAt }))
-    case 'all': return gFlat.value.filter(x => !x.deletedAt).map(x => ({ kind: x.kind, id: x.id, title: x.title, ts: x.createdAt }))
-    default: return []
-  }
-})
-// R48-B1：明细抽屉改为「翻页 20 条 + 搜索过滤」，替换 R47-A5 滚动加载（大库下滚动加载触底延迟高、无从定向找卡）
-const STAT_PAGE = 20
-const statPage = ref(1)
-const statSearch = ref('')
-function openStatDrawer(t: StatDrawerType) { statDrawer.value = t; statPage.value = 1; statSearch.value = '' }
-const statFiltered = computed<StatRow[]>(() => {
-  const q = statSearch.value.trim().toLowerCase()
-  if (!q) return statList.value
-  return statList.value.filter(c => c.title.toLowerCase().includes(q) || (c.owner || '').toLowerCase().includes(q))
-})
-const statPageCount = computed(() => Math.max(1, Math.ceil(statFiltered.value.length / STAT_PAGE)))
-const statShown = computed(() => statFiltered.value.slice((statPage.value - 1) * STAT_PAGE, statPage.value * STAT_PAGE))
-function statGo(delta: number) { statPage.value = Math.min(statPageCount.value, Math.max(1, statPage.value + delta)) }
-// R47-B2：任务归属反查（优先 metricId → 指标所属项目；否则 projectId；缺失显示「未关联」）
-const projMetIndex = computed(() => {
-  const metMap = new Map<string, { proj: string; met: string }>()
-  const projMap = new Map<string, string>()
-  for (const dir of gd.value.compass.directions || []) {
-    for (const proj of dir.projects || []) {
-      projMap.set(proj.id, proj.name)
-      for (const met of proj.metrics || []) metMap.set(met.id, { proj: proj.name, met: met.title })
-    }
-  }
-  return { metMap, projMap }
-})
-function taskOwnerOf(t: { metricId?: string; projectId?: string }): string {
-  const { metMap, projMap } = projMetIndex.value
-  const met = t.metricId ? metMap.get(t.metricId) : undefined
-  const projName = met?.proj || (t.projectId ? projMap.get(t.projectId) : undefined)
-  return `${projName || '未关联项目'} · ${met?.met || '未关联指标'}`
-}
-function statKindIcon(kind: string) { return kind === 'task' ? '✅' : kind === 'curiosity' ? '💡' : '📇' }
-function statKindLabel(kind: string) { return kind === 'task' ? '任务' : kind === 'curiosity' ? '好奇' : '资源' }
-/**
- * R117（04-61 B）：「全部卡片明细」点击 = 定位到卡片所在处并高亮（统一走 locateTargetOf）。
- * 旧实现：任务卡跳 `/` 但消费者在方向台（不定位不高亮）、资源卡不带所在分类（
- * 「只切台面、不定位位置」）。现由 locateTargetOf 一处计算路由目标。
- */
-function openStatCard(x: { kind: string; id: string }) {
-  const kind = asLocateKind(x.kind)
-  if (!kind) { showToast('⚠ 该卡片类型暂不支持定位'); return }
-  const t = locateTargetOf(gd.value, kind, x.id)
-  if (!t) { showToast('⚠ 该卡片已不在库中'); return }
-  statDrawer.value = ''
-  void router.push(t)
-}
-const statDrawerTitle = computed(() => ({
-  all: `📊 全部卡片明细（${totalCards.value}）`,
-  resource: `📇 资源卡明细（${resLiveCount.value}）`,
-  task: `✅ 任务卡明细（${taskLiveCount.value}）`,
-  curiosity: `💡 好奇心卡明细（${curioLiveCount.value}）`,
-  link: `🔗 链接卡片明细（${linkCardCount.value} · 跨全部台面）`,
-  '': ''
-}[statDrawer.value]))
-
-// ---- 动态条抽屉（交互对齐北极星：点击数字 → 右侧抽屉逐条明细） ----
-type DynDrawerType = '' | 'today-add' | 'today-del' | 'week-add' | 'week-del' | 'cum-del'
-const dynDrawer = ref<DynDrawerType>('')
-function openDynDrawer(t: DynDrawerType) { dynDrawer.value = t; dynPage.value = 1; dynSearch.value = ''; if (!eventLog.value.length) refreshEventLog() }
-const dynRange = computed<[number, number] | null>(() => {
-  switch (dynDrawer.value) {
-    case 'today-add': case 'today-del': return [gStartOfToday, Infinity]
-    case 'week-add': case 'week-del': return [gStartOfWeek, Infinity]
-    default: return null
-  }
-})
-// R48-B2：新增/删除明细改为卡片字段派生（与动态条数字同源，不再依赖事件日志是否齐全）——
-// 新增=createdAt、导入=importedAt（双口径分徽标）、删除=deletedAt；累计删除仍走事件日志（保留 purge 记录）
-type DynRow = Omit<CardEvent, 'action'> & { action: 'create' | 'delete' | 'import' }
-const dynList = computed<DynRow[]>(() => {
-  if (!dynDrawer.value) return []
-  const [from, to] = dynRange.value || [0, Infinity]
-  if (dynDrawer.value === 'cum-del') {
-    // 累计删除沿用事件日志（含 purge）；类型上与 DynRow 兼容呈现（create/restore 徽标不会出现在该筛选下）
-    return timelineEvents.value.filter(e => e.action === 'delete' || e.action === 'purge') as unknown as DynRow[]
-  }
-  const wantAdd = dynDrawer.value === 'today-add' || dynDrawer.value === 'week-add'
-  const rows: DynRow[] = []
-  for (const x of gFlat.value) {
-    if (wantAdd) {
-      if (x.deletedAt) continue
-      if (x.importedAt && x.importedAt >= from && x.importedAt <= to)
-        rows.push({ id: 'i-' + x.id, ts: x.importedAt, action: 'import', kind: x.kind, title: x.title, cardId: x.id })
-      else if (x.createdAt >= from && x.createdAt <= to)
-        rows.push({ id: 'c-' + x.id, ts: x.createdAt, action: 'create', kind: x.kind, title: x.title, cardId: x.id })
-    } else if (x.deletedAt && x.deletedAt >= from && x.deletedAt <= to) {
-      rows.push({ id: 'd-' + x.id, ts: x.deletedAt, action: 'delete', kind: x.kind, title: x.title, cardId: x.id })
-    }
-  }
-  return rows.sort((a, b) => b.ts - a.ts)
-})
-const dynPage = ref(1)
-const dynSearch = ref('')
-const dynFiltered = computed<DynRow[]>(() => {
-  const q = dynSearch.value.trim().toLowerCase()
-  if (!q) return dynList.value
-  return dynList.value.filter(e => e.title.toLowerCase().includes(q))
-})
-const dynPageCount = computed(() => Math.max(1, Math.ceil(dynFiltered.value.length / STAT_PAGE)))
-const dynShown = computed(() => dynFiltered.value.slice((dynPage.value - 1) * STAT_PAGE, dynPage.value * STAT_PAGE))
-function dynGo(delta: number) { dynPage.value = Math.min(dynPageCount.value, Math.max(1, dynPage.value + delta)) }
-const dynDrawerTitle = computed(() => ({
-  'today-add': `📈 今日新增明细（${dynList.value.length}）`,
-  'today-del': `📉 今日删除明细（${dynList.value.length}）`,
-  'week-add': `📈 本周新增明细（${dynList.value.length}）`,
-  'week-del': `📉 本周删除明细（${dynList.value.length}）`,
-  'cum-del': `🗑 累计删除明细（${dynList.value.length}）`,
-  '': ''
-}[dynDrawer.value]))
-
-watch(activePage, (p) => {
-  /** R173-1：进仪表盘重读一次错误日志 —— 原来只在 setup 读一次，会话里新崩的看不见 */
-  if (p === 'dashboard') { refreshEventLog(); refreshErrorCount() }
-})
-refreshEventLog()
-
-// ---- R48-A1：运行错误留痕（zy_error_log，TDZ 排查弹药） ----
-const errorLogCount = ref(0)
-async function refreshErrorCount() { errorLogCount.value = (await readErrorLog()).length }
-/** R173-1b：徽章跟落盘实时走 —— 同文档 hash 切换不触发 watch，只在换页重读会漏掉本会话新崩的错误 */
-const offErrLog = subscribeErrorLog((n) => { errorLogCount.value = n })
-onUnmounted(offErrLog)
-async function exportErrorLog() {
-  const logs = await readErrorLog()
-  if (!logs.length) { showToast('没有运行错误记录'); return }
-  const rows = logs.map(e =>
-    `[${new Date(e.ts).toLocaleString('zh-CN', { hour12: false })}] ${e.source} @ ${e.route}\n${e.message}\n${e.stack}`
-  ).join('\n\n———\n\n')
-  const blob = new Blob([rows], { type: 'text/plain;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  const dt = new Date()
-  const p2 = (n: number) => String(n).padStart(2, '0')
-  a.href = url
-  a.download = `zhiyuan_运行错误_${dt.getFullYear()}${p2(dt.getMonth() + 1)}${p2(dt.getDate())}.txt`
-  a.click()
-  URL.revokeObjectURL(url)
-  showToast(`✓ 已导出 ${logs.length} 条运行错误（含完整堆栈）`)
-}
-refreshErrorCount()
 
 // ---- 资源卡实时预览（对齐原型） ----
 const previewMode = ref<'card' | 'list' | 'kanban'>('card')
@@ -3102,16 +2646,13 @@ const activeManualSec = ref('quick-1')
 .gs-ev-empty { text-align: center; padding: 22px; color: var(--text-3); font-size: var(--fs-body); }
 
 /* ===== R4-Da（旧世界清账）：🗺 全景整页退役后，原同一段样式里仍被存活页面消费的规则补回。
-   ★这一段不是"把全景样式留着"——它守的是三类连带损失：生命周期阈值弹窗（lc-set-*）、
-   标签管理双栏与右列卡片（tt-*）、标签详情抽屉（gs-pd-*）。全景自己的双栏树样式（左树/ws 行/
+   ★这一段不是"把全景样式留着"——它守的是两类连带损失：标签管理双栏与右列卡片（tt-*）、
+   标签详情抽屉（gs-pd-*）。全景自己的双栏树样式（左树/ws 行/
    分类行/计数徽标/批量条/卡片日期）一律没补，退役类名按 R44-10/11 判据零命中。
    右列卡片原借全景的 gs-pan-* 类名，本轮改成标签管理本地 tt-*：类名跟着居所走，
-   下一个读代码的人不会以为它属于已删的那一页。 ===== */
-/* R126（诉求 5）：阈值设置弹窗 */
-.lc-set-global { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; font-size: var(--fs-body); color: var(--text-2); }
-.lc-set-list { max-height: 260px; overflow-y: auto; margin-top: 8px; border-top: 1px solid var(--border); }
-.lc-set-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
-.lc-set-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sub); color: var(--text-2); }
+   下一个读代码的人不会以为它属于已删的那一页。
+   ★W9 退役重指带备案：第三类「生命周期阈值弹窗（lc-set-*）」随 LifecyclePanel 整块迁
+   ProfileInsights（新页自带同名样式），本页那四条规则已成孤儿，一并删除。 ===== */
 /* R127：标签管理双栏（左树 + 右列卡片） */
 .tt-wrap { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
 .gs-tt-row.active { border-color: var(--accent); background: var(--accent-light); }

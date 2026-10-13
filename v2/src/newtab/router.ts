@@ -1,4 +1,4 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+﻿import { createRouter, createWebHashHistory } from 'vue-router'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -49,6 +49,14 @@ const router = createRouter({
       name: 'curation',
       redirect: () => ({ path: '/' }),
       meta: { title: '知源调度台 · 调度台' }
+    },
+    {
+      // V3.8.9（W9）：画像洞察页——品牌区入口独立页。吸收原设置页知源仪表盘（概览带+复盘段+操作记录）
+      // 与资源生命周期面板；今日战报改为页头入口+中央弹窗。调度台「📈 复盘」与归档提示条均指向此页。
+      path: '/profile',
+      name: 'profile',
+      component: () => import('./views/ProfileInsights.vue'),
+      meta: { title: '知源调度台 · 画像洞察' }
     },
     {
       path: '/settings',
