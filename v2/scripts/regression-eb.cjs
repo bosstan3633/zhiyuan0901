@@ -16,6 +16,18 @@ const GATES = [
   'entry-matrix.cjs',
   'entry-literals.cjs',
   ['gen-pinyin-table.cjs', ['--check']],
+  /* ★W11(V3.8.11)新增：R4-Ev①（死 CSS 棘轮）要 --json 的**全文**才能判，
+     而原缓存只存末 3 行 tail ⇒ JSON.parse 失败 → out=null → 那条判据恒红。
+     而 dead-css-scan 直跑**不需要 Chromium**（V3.8.7 时误以为要浏览器链，导致这条挂了三个版本）。
+     full: true 让它的 stdout 全文进缓存，其余门禁仍走 tail 省体积。 */
+  ['dead-css-scan.cjs', ['--json'], { full: true }],
+  /* R4-Ev① 还查这六个解释票（--explain 逐条），缺任一条即红 */
+  ['dead-css-scan.cjs', ['--explain', '.metric-item.expanded']],
+  ['dead-css-scan.cjs', ['--explain', '.dz-cell.l4']],
+  ['dead-css-scan.cjs', ['--explain', 'body .module-title']],
+  ['dead-css-scan.cjs', ['--explain', '.picker-item']],
+  ['dead-css-scan.cjs', ['--explain', '.toggle']],
+  ['dead-css-scan.cjs', ['--explain', '.dz-recentry']],
 ];
 
 function runGate(name, args) {
@@ -34,7 +46,7 @@ function runGate(name, args) {
 async function main() {
   const gates = {};
   for (const item of GATES) {
-    const [name, args = []] = Array.isArray(item) ? item : [item, []];
+    const [name, args = [], opt = {}] = Array.isArray(item) ? item : [item, [], {}];
     const r = await runGate(name, args);
     if (r.failed) {
       console.error('❌ 外带实跑通道本身失败（' + name + '）：', r.msg);
@@ -45,7 +57,8 @@ async function main() {
       ts: Date.now(),
       ms: r.ms,
       sha: crypto.createHash('sha256').update(fs.readFileSync(r.p)).digest('hex').slice(0, 16),
-      tail: (r.out || '').split('\n').slice(-3).join('\n'),
+      /* full 的门禁存全文（判据要 parse JSON）；其余存末 3 行（够判 exit 又省体积） */
+      tail: opt.full ? (r.out || '') : (r.out || '').split('\n').slice(-3).join('\n')
     };
     console.log((r.code === 0 ? '✅' : '❌') + ' 外带实跑 ' + name + (args.length ? ' ' + args.join(' ') : '') + ' → exit=' + r.code + ' (' + r.ms + 'ms)');
     if (r.code !== 0) console.log((r.out || '').split('\n').slice(-6).join('\n'));

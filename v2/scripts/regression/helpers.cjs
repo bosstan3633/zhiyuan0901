@@ -214,7 +214,7 @@ function codeOnlyVueUnused(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.8.10'";
+const VER_ANCHOR_LITERAL = "version: '3.8.11'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -371,6 +371,25 @@ const WSP100 = read('/newtab/views/Workspace.vue');
 const MI108 = read('/shared/utils/mdImport.ts');
 const ITM108 = read('/newtab/components/ImportTemplateModal.vue');
 const CT108 = read('/newtab/views/CompassTree.vue');
+
+/* ══ W11（V3.8.11）方向台战略金字塔：三文件合看 ══
+   为什么需要：W11 把方向台拆成「骨架条 / 层级面板 / 指标卡 / 项目舱」四块，
+   老判据只 read CompassTree.vue 就能验的东西，现在分布在四个文件里。
+   若为了迁就旧判据把新结构硬塞回 CompassTree，方向台就退回了1100 行的大文件——
+   那正是 W11 要拆掉的东西。所以改判据：加合看辅助，让断言继续守**行为**而不是守**文件位置**。
+   纪律：承重处选**能力所在文件**，不选 import 行（删 import 会连带类型错，锚不承重）。 */
+const CT_W11 = read('/newtab/views/CompassTree.vue');
+const TOWER = read('/newtab/components/compass/CompassTower.vue');
+const LANE = read('/newtab/components/compass/CompassLane.vue');
+const SPINE = read('/newtab/components/compass/CompassSpine.vue');
+const PANEL = read('/newtab/components/compass/CompassLayerPanel.vue');
+const CMETA = read('/newtab/views/compassMeta.ts');
+/** 方向台全家桶合看：六组件 + 视图 + 取数层，一次拼好给断言用 */
+const PANO = read('/newtab/components/compass/CompassPano.vue');
+const PANO_LANE = read('/newtab/components/compass/CompassPanoLane.vue');
+const CT_ALL = [CT_W11, TOWER, LANE, SPINE, PANEL, PANO, PANO_LANE].join('\n');
+/* 涉及"取数是否集中"的断言用这个（合看 + 取数层） */
+const CT_ALL_META = [CT_ALL, CMETA].join('\n');
 const WSP108 = read('/newtab/views/Workspace.vue');
 const ITM109 = read('/newtab/components/ImportTemplateModal.vue');
 const MI109 = read('/shared/utils/mdImport.ts');
@@ -424,4 +443,4 @@ function getTally() { return { pass, fail }; }
 /* R174-1：分片锚——ANCHOR_FILE = 本文件（版本锚 VER_ANCHOR_LITERAL 与聚合读取机制断言读这里） */
 const ANCHOR_FILE = __filename;
 
-module.exports = { fs, path, base, check, walkSrcFiles, srcFileEntries, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, getSliceMisses, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, ST85, FOCUS_FN, ADDP_FN, CT86, ST86, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getTally };
+module.exports = { fs, path, base, check, walkSrcFiles, srcFileEntries, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, getSliceMisses, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, ST85, FOCUS_FN, ADDP_FN, CT86, ST86, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, CT_W11, TOWER, LANE, SPINE, PANEL, PANO, PANO_LANE, CMETA, CT_ALL, CT_ALL_META, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getTally };

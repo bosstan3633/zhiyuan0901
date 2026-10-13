@@ -3,8 +3,7 @@
  * 依赖基建见 ./helpers.cjs；__dirname/__filename 已换锚为 SCRIPTS_DIR/ANCHOR_FILE（语义=原 scripts/ 根与回归自体）。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
-} = require('./helpers.cjs');
+  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT_ALL, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, CT_W11, TOWER, LANE, SPINE, PANEL, CMETA} = require('./helpers.cjs');
 
 console.log('【第一百零七轮 · V2.76.0：卡片内容自适应修复 + 安装包瘦身 + 生产复检】');
 /** R107：生产复检反馈。F8 = 精确 N 列后长内容（长标题/长链接）经 grid 项 min-width:auto
@@ -169,19 +168,21 @@ console.log('【第九十九轮 · V2.68.0：方向台组四件（M6 + M8 + D-D 
  *  总览共用 ovFilter（v-model 跨组件，一处切换两处生效，门控同 D-B）；D-D 页头主线状态摘要；
  *  D-E 跨区拖拽自动切换 pinned（连同 dragover 跨区放行——不改那条 drop 永远触发不了）。
  *  零数据模型改动、零迁移。 */
-check('R99-1/R121 M6 目标网格顶对齐 ★R3-B1 随宿主改靶：主航线 goals-grid 退役，同一条 align-items:start（「更多 N」展开只长自己这张卡）落在方向树第 4 层 .tree-columns-grid', () => {
-  return CT108.includes('.tree-columns-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }') && !CT108.includes('.goals-grid {');
+check('R99-1/R121 M6 「展开只长自己那张卡」的对齐语义 ★W11 再随迁带备案：主航线 goals-grid 退役，R3-B1 曾把这条钉到 .tree-columns-grid 三列网格；W11 用户拍板项目改纵向成舱 ⇒ 三列网格一并退役。纵向序列本身没有「同行高度对齐」问题（各舱独占一行），但「展开不牵连其他卡」这条意图改由**折叠而非拉伸**承担：非主攻项目走 projOpen 折叠、收起时指标不进渲染。本条改钉折叠在位 + 旧网格零残留，负锚防三列以任何名字回流', () => {
+  return !CT_ALL.includes('.tree-columns-grid {') && !CT_ALL.includes('.goals-grid {')
+    && CT_ALL.includes('function projOpen(') && CT_ALL.includes(':open="projOpen(row.proj)"')
+    && CT_ALL.includes('v-if="!hideWhole"');
 });
 check('R99-2 M8 筛选传参链 ★R3-B1 退役重指带备案：ovFilter/tools-gate/selected-id 三件套（select→分段组→常驻）随主航线整体退役——方向台一级不再筛项目，密度由 R3-B′ 折叠控制；传参链不得在别处复刻', () => {
-  const t = CT108; const pc = read('/newtab/views/ProjectCuration.vue');
+  const t = CT_ALL; const pc = read('/newtab/views/ProjectCuration.vue');
   return !t.includes('tools-gate') && !t.includes('toolsGate') && !t.includes('selectedId') && !pc.includes('ovFilter') && !t.includes('update:ovFilter');
 });
 check('R99-3 D-D 方向台页头主线状态摘要 ★R3-B1 随宿主改靶（R177 的 cph-summary-badge 形态随 Shell 退役）：同一组读数（战略目标/推进项目/🚀 主攻/⚠ 停滞/指标/任务）由方向树页头 treeStats 一次算齐，不在模板逐项调', () => {
-  const t = CT108;
+  const t = CT_ALL;
   return t.includes('🚀 主攻 {{ treeStats.focused }} · ⚠ 停滞 {{ treeStats.stalled }}') && t.includes('战略目标 {{ treeStats.dirs }}')
     && t.includes('const treeStats = computed(') && !t.includes('focusCount');
 });
-check('R99-4/R121 置顶与手动排序 ★R3-B2 回归方向树（右键菜单形态不再回来）：树内拖拽落位 + ▾ 菜单置顶，旧左栏拖拽与「跨区移动请先用 📌 置顶」文案仍须零残留', () => { const t = CT108; const pc = read('/newtab/views/ProjectCuration.vue'); return t.includes('function onProjDrop(') && t.includes('function toggleProjectPin(') && !t.includes('class="proj-menu"') && !pc.includes('dragProjId') && !pc.includes('跨区移动请先用 📌 置顶/取消置顶'); });
+check('R99-4/R121 置顶与手动排序 ★R3-B2 回归方向树（右键菜单形态不再回来）：树内拖拽落位 + ▾ 菜单置顶，旧左栏拖拽与「跨区移动请先用 📌 置顶」文案仍须零残留', () => { const t = CT_ALL; const pc = read('/newtab/views/ProjectCuration.vue'); return t.includes('function onProjDrop(') && t.includes('function toggleProjectPin(') && !t.includes('class="proj-menu"') && !pc.includes('dragProjId') && !pc.includes('跨区移动请先用 📌 置顶/取消置顶'); });
 
 console.log('【第一百零八轮 · V2.77.0：Markdown 模板导入实装（T1-T5）+ 页边距统一（F10）】');
 /** R108：① 用户确认的两项 Markdown 导入实装——方向树战略目标下批量生成项目/指标/任务
@@ -205,11 +206,12 @@ check('R108-2 共享导入弹窗：双模式（goal/pyramid）+ hasThesis 决定
 
 });
 check('R108-3 ★ goal 写入链：任务双挂（projectId+metricId+taskIds 回写）+ 同名跳过幂等 + 单次持久化', () => {
-  return CT108.includes('function confirmGoalImport(payload: { goal?: GoalParseResult })')
-    && CT108.includes("met = { id: uid('met'), title: m.name, taskIds: [] }")
-    && CT108.includes('met.taskIds.push(task.id)')
-    && CT108.includes('d.value.tasks.some(x => !x.deletedAt && x.projectId === proj!.id && x.metricId === met!.id && x.title === t.name)')
-    && CT108.includes('openGoalImport(dir)');
+  return CT_ALL.includes('function confirmGoalImport(payload: { goal?: GoalParseResult })')
+    && CT_ALL.includes("met = { id: uid('met'), title: m.name, taskIds: [] }")
+    && CT_ALL.includes('met.taskIds.push(task.id)')
+    && CT_ALL.includes('d.value.tasks.some(x => !x.deletedAt && x.projectId === proj!.id && x.metricId === met!.id && x.title === t.name)')
+    /* ★W11 随迁带备案：发起端 v-for 变量名由 dir 变 dg（.dir-head 落在 v-for="dg in towerGroups" 内） */
+    && CT_ALL.includes('openGoalImport(dg.dir)');
 });
 check('R108-4 ★ pyramid 写入链：论点卡+setThesis（本台未设时）+ 分类同父同名复用 + 每节点同名台内卡 + 200 节点上限 + 完成切金字塔视图', () => {
   return WSP108.includes('function confirmPyramidImport(payload: { pyramid?: PyramidParseResult })')

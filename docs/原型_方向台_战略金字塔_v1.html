@@ -138,7 +138,159 @@ h1,h2,h3{font-weight:700;letter-spacing:-.015em}
 
 /* （旧 .arch 样式已随结构改版移除） */
 
-/* ══ 主区：左导航 + 右项目塔 ══ */
+/* ══ 层级展开面板：点 1/2/3 后骨架条下方滑出的"那一层的完整内容" ══
+   设计要点：点层级不是弹 toast，而是把"这一层到底是什么"摊开给你看，
+   并且摊开的内容本身就是下一层的入口（推导链 + 下挂实体），保证双向可达。 */
+.lvpanel{overflow:hidden;max-height:0;opacity:0;transition:max-height 320ms var(--ease),opacity 220ms var(--ease);
+  border-top:1px solid transparent}
+.lvpanel.on{max-height:640px;opacity:1;border-top-color:var(--line)}
+.lvpanel-in{padding:20px 20px 22px;display:flex;flex-direction:column;gap:16px}
+/* 愿景/使命主体 */
+.vn{display:flex;align-items:flex-start;gap:14px;padding:16px 18px;border-radius:var(--r-block);background:var(--surface-2)}
+.vn-ico{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:none;font-size:15px;
+  background:var(--accent-soft);color:var(--accent-ink)}
+.vn-b{flex:1;min-width:0}
+.vn-l{font-size:var(--fs-micro);font-weight:700;letter-spacing:.1em;color:var(--t4);margin-bottom:6px;
+  display:flex;align-items:center;gap:8px}
+.vn-t{font-size:var(--fs-h1);font-weight:700;letter-spacing:-.02em;line-height:1.45}
+.vn-s{font-size:var(--fs-cap);color:var(--t3);margin-top:8px;line-height:1.8}
+.vn-r{display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex:none}
+/* 推导链：上层 → 下层，逐段可点 */
+.derive{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.dv{display:inline-flex;align-items:baseline;gap:5px;padding:5px 12px;border-radius:var(--r-pill);
+  background:var(--surface-2);cursor:pointer;transition:all var(--dur)}
+.dv:hover{box-shadow:inset 0 0 0 1px var(--accent);color:var(--accent-ink)}
+.dv b{font-size:var(--fs-sub);font-weight:700}
+.dv span{font-size:var(--fs-micro);color:var(--t4);font-weight:600}
+.dv.self{background:var(--accent-soft)}
+.dv.self b{color:var(--accent-ink)}
+.dv-arrow{color:var(--t4);font-size:9px}
+/* 面板内的小节标题 */
+.pl-t{font-size:var(--fs-micro);font-weight:700;letter-spacing:.11em;color:var(--t4);display:flex;align-items:center;gap:9px}
+.pl-t::after{content:'';flex:1;height:1px;background:var(--line)}
+/* 战略目标横卡 */
+.dcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:var(--sp-3)}
+.dcard{background:var(--surface-2);border-radius:var(--r-md);padding:14px 15px;transition:all var(--dur) var(--ease);
+  cursor:pointer;position:relative;overflow:hidden}
+.dcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--pc)}
+.dcard:hover{transform:translateY(-2px);box-shadow:var(--sh-card)}
+.dcard.on{box-shadow:0 0 0 1.5px var(--pc)}
+.dc-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.dc-i{width:19px;height:19px;border-radius:6px;display:grid;place-items:center;font-size:var(--fs-micro);font-weight:700;
+  background:var(--pcs);color:var(--pck);flex:none}
+.dc-n{font-size:var(--fs-sub);font-weight:700;line-height:1.45;flex:1}
+.dc-m{display:flex;align-items:baseline;gap:5px;font-size:var(--fs-micro);color:var(--t3);margin-bottom:9px}
+.dc-m b{font-size:var(--fs-sub);color:var(--t1)}
+.dc-bar{height:4px;border-radius:2px;background:var(--surface-3);overflow:hidden;margin-bottom:9px}
+.dc-bar i{display:block;height:100%;border-radius:2px;background:var(--pc)}
+.dc-p{display:flex;gap:5px;flex-wrap:wrap}
+.dc-p span{font-size:var(--fs-micro);color:var(--t3);background:var(--surface-3);border-radius:var(--r-pill);padding:2px 8px;font-weight:600}
+.dc-go{margin-top:10px;font-size:var(--fs-micro);font-weight:700;color:var(--pck);opacity:0;transition:opacity var(--dur)}
+.dcard:hover .dc-go{opacity:1}
+
+/* ══ 项目全景（横向）：一个项目的完整链路一次看全 ══
+   设计要点：不用纵向长列表，改成"横向泳道 + 上方层级带"。
+   每根泳道 = 一条成功指标，泳道内竖排该指标的任务；
+   顶部一条三段色带直接标出 第4层项目 › 第5层指标 › 第6层任务 的从属。 */
+.pano{max-width:100%}
+.pano-pick{background:var(--surface);border-radius:var(--r-block);box-shadow:var(--sh-card);padding:12px 16px;margin-bottom:var(--sp-4)}
+[data-theme='linear'] .pano-pick,[data-theme='raycast'] .pano-pick{box-shadow:0 0 0 1px var(--line),0 14px 34px -12px rgba(0,0,0,.55)}
+.pp-t{font-size:var(--fs-micro);font-weight:700;letter-spacing:.11em;color:var(--t4);margin-bottom:9px}
+.pp-row{display:flex;gap:7px;overflow-x:auto;padding-bottom:3px}
+.pp{position:relative;flex:0 0 auto;padding:8px 13px 8px 14px;border-radius:var(--r-md);background:var(--surface-2);
+  cursor:pointer;transition:all var(--dur) var(--ease);min-width:132px;text-align:left}
+.pp::before{content:'';position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:2px;background:var(--pc)}
+.pp:hover{transform:translateY(-1px);box-shadow:var(--sh-card)}
+.pp.on{background:var(--pcs);box-shadow:inset 0 0 0 1.5px var(--pc)}
+.pp-n{font-size:var(--fs-cap);font-weight:700;line-height:1.4;white-space:nowrap;
+  max-width:190px;overflow:hidden;text-overflow:ellipsis}
+.pp-m{font-size:var(--fs-micro);color:var(--t4);margin-top:3px;font-weight:600}
+.pp.on .pp-m{color:var(--pck);opacity:.85}
+
+/* 项目头 */
+.pano-h{display:flex;align-items:center;gap:16px;padding:16px 20px;border-radius:var(--r-block);
+  background:var(--surface);box-shadow:var(--sh-card);margin-bottom:var(--sp-4);flex-wrap:wrap}
+[data-theme='linear'] .pano-h,[data-theme='raycast'] .pano-h{box-shadow:0 0 0 1px var(--line),0 14px 34px -12px rgba(0,0,0,.55)}
+.ph-i{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:var(--fs-title);font-weight:700;
+  background:var(--pcs);color:var(--pck);flex:none}
+.ph-b{flex:1;min-width:240px}
+.ph-n{font-size:var(--fs-h1);font-weight:700;letter-spacing:-.015em;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.ph-c{font-size:var(--fs-micro);color:var(--t4);margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ph-c .on{color:var(--accent-ink);cursor:pointer;font-weight:600}
+.ph-c .on:hover{text-decoration:underline}
+.ph-r{display:flex;align-items:center;gap:var(--sp-5);flex:none}
+
+/* 层级带：从属关系直接印在结构上 */
+.band{display:flex;align-items:stretch;border-radius:var(--r-md);overflow:hidden;margin-bottom:var(--sp-4);
+  box-shadow:var(--sh-card)}
+[data-theme='linear'] .band,[data-theme='raycast'] .band{box-shadow:0 0 0 1px var(--line),0 10px 26px -12px rgba(0,0,0,.5)}
+.bd{display:flex;flex-direction:column;gap:3px;padding:11px 16px;position:relative}
+.bd:nth-child(1){flex:1.25;background:linear-gradient(90deg,color-mix(in srgb,var(--pc) 20%,transparent),color-mix(in srgb,var(--pc) 11%,transparent))}
+.bd:nth-child(2){flex:2;background:linear-gradient(90deg,color-mix(in srgb,var(--pc) 13%,transparent),color-mix(in srgb,var(--pc) 8%,transparent))}
+.bd:nth-child(3){flex:2.6;background:color-mix(in srgb,var(--pc) 8%,transparent)}
+.bd::after{content:'';position:absolute;right:-7px;top:0;bottom:0;width:14px;background:inherit;
+  clip-path:polygon(0 0,100% 50%,0 100%);z-index:1}
+.bd:last-child::after{display:none}
+.bd-l{font-size:var(--fs-micro);font-weight:700;letter-spacing:.09em;color:var(--t2);display:flex;align-items:center;gap:6px;z-index:2}
+.bd-l i{font-style:normal;opacity:.7;font-weight:700}
+.bd-n{font-size:var(--fs-sub);font-weight:700;line-height:1.4;z-index:2}
+.bd-m{font-size:var(--fs-micro);color:var(--t3);z-index:2}
+
+/* 泳道区 */
+.lanes{display:flex;gap:var(--sp-3);overflow-x:auto;padding:2px 2px 16px;align-items:flex-start}
+.lane{flex:0 0 262px;display:flex;flex-direction:column;background:var(--surface);border-radius:var(--r-block);
+  box-shadow:var(--sh-card);overflow:hidden;max-height:64vh}
+[data-theme='linear'] .lane,[data-theme='raycast'] .lane{box-shadow:0 0 0 1px var(--line),0 14px 34px -12px rgba(0,0,0,.5)}
+.lane-h{padding:13px 15px 12px;border-bottom:1px solid var(--line);background:var(--surface-2);flex:none}
+.lane-top{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.lane-i{width:17px;height:17px;border-radius:6px;display:grid;place-items:center;font-size:9px;font-weight:700;flex:none;
+  background:var(--pcs);color:var(--pck)}
+.lane-n{font-size:var(--fs-cap);font-weight:700;line-height:1.45;flex:1;min-width:0}
+.lane-acc{font-size:var(--fs-micro);color:var(--t3);line-height:1.65;margin-top:5px}
+.lane-acc b{color:var(--t2);font-weight:600}
+.lane-bar{display:flex;align-items:center;gap:7px;margin-top:9px}
+.lane-bar .track{flex:1;height:4px;border-radius:2px;background:var(--surface-3);overflow:hidden}
+.lane-bar .fill{height:100%;border-radius:2px;background:var(--pc)}
+.lane-bar .v{font-size:var(--fs-micro);font-weight:700;color:var(--t2);flex:none}
+.lane-b{padding:9px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;flex:1;min-height:74px}
+.ltask{position:relative;padding:9px 10px 9px 11px;border-radius:var(--r-sm);background:var(--surface-2);
+  transition:all var(--dur) var(--ease);cursor:default;border-left:2px solid var(--pc)}
+.ltask:hover{background:var(--surface-3);transform:translateX(2px)}
+.ltask.done{border-left-color:var(--ok)}
+.ltask.doing{border-left-color:var(--warn)}
+.ltask-t{font-size:var(--fs-micro);font-weight:500;line-height:1.6;padding-right:16px}
+.ltask.done .ltask-t{color:var(--t3);text-decoration:line-through;text-decoration-color:var(--t4)}
+.ltask.doing .ltask-t{font-weight:700}
+.ltask-b{display:flex;align-items:center;gap:4px;margin-top:6px;flex-wrap:wrap}
+.lb{font-size:9px;font-weight:600;padding:1px 6px;border-radius:var(--r-pill);white-space:nowrap}
+.lb-pri{color:var(--t3);background:var(--surface-3)}
+.lb-g{letter-spacing:.04em}
+.lb-w{color:var(--warn);background:var(--warn-soft)}
+.lb-box{position:absolute;right:8px;top:8px;width:14px;height:14px;border-radius:4px;
+  box-shadow:inset 0 0 0 1.5px var(--line-strong);cursor:pointer;transition:all var(--dur)}
+.lb-box:hover{box-shadow:inset 0 0 0 2px var(--pc)}
+.lb-box.done{background:var(--ok);box-shadow:none}
+.lb-box.doing{box-shadow:inset 0 0 0 2px var(--warn)}
+/* 空泳道：缺任务也占位，让"缺"可见 */
+.lane-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  padding:20px 14px;border-radius:var(--r-md);border:1px dashed color-mix(in srgb,var(--warn) 45%,transparent);
+  background:var(--warn-soft);min-height:96px;text-align:center}
+.lane-empty .le-i{width:24px;height:24px;border-radius:8px;background:color-mix(in srgb,var(--warn) 22%,transparent);
+  color:var(--warn);display:grid;place-items:center;font-size:12px}
+.lane-empty .le-t{font-size:var(--fs-micro);font-weight:700;color:var(--warn)}
+.lane-empty .le-d{font-size:var(--fs-micro);color:var(--t3);line-height:1.6}
+.lane-foot{padding:9px 11px;border-top:1px solid var(--line);flex:none;background:var(--surface-2)}
+.lane-add{display:flex;align-items:center;gap:6px;font-size:var(--fs-micro);color:var(--t4);cursor:pointer;
+  padding:5px 7px;border-radius:var(--r-xs);transition:all var(--dur);width:100%}
+.lane-add:hover{background:var(--surface-3);color:var(--accent-ink)}
+/* 收容区（横向版） */
+.pano-orph{display:flex;align-items:center;gap:11px;padding:13px 17px;border-radius:var(--r-md);
+  border:1px dashed color-mix(in srgb,var(--bad) 45%,transparent);background:var(--bad-soft);margin-top:var(--sp-3);flex-wrap:wrap}
+.pano-orph .po-i{width:22px;height:22px;border-radius:7px;background:color-mix(in srgb,var(--bad) 20%,transparent);
+  color:var(--bad);display:grid;place-items:center;font-size:11px;flex:none}
+.pano-orph .po-t{font-size:var(--fs-micro);color:var(--t2);font-weight:600}
+.pano-orph .po-t b{color:var(--bad)}
+.pano-orph .po-tags{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
 .split{display:grid;grid-template-columns:210px 1fr;gap:var(--sp-7);align-items:start}
 .navside{position:sticky;top:74px;display:flex;flex-direction:column;gap:var(--sp-2)}
 .ns-t{font-size:var(--fs-micro);font-weight:700;letter-spacing:.14em;color:var(--t4);padding:0 4px 6px}
@@ -333,17 +485,6 @@ h1,h2,h3{font-weight:700;letter-spacing:-.015em}
   font-size:var(--fs-micro);color:var(--bad);font-weight:600}
 .orphan .o-t{color:var(--t2);font-weight:500}
 
-/* 平铺视图 */
-.flat{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--sh-card);overflow:hidden}
-.flat table{width:100%;border-collapse:collapse}
-.flat th{font-size:var(--fs-micro);font-weight:700;letter-spacing:.08em;color:var(--t4);text-align:left;
-  padding:13px 16px;border-bottom:1px solid var(--line)}
-.flat td{padding:11px 16px;border-bottom:1px solid var(--line);font-size:var(--fs-cap);vertical-align:middle}
-.flat tr:last-child td{border-bottom:none}
-.flat tr:hover td{background:var(--surface-2)}
-.flat .f-c{color:var(--t3);font-size:var(--fs-micro)}
-.pdot{display:inline-flex;align-items:center;gap:6px}
-.pdot i{width:8px;height:8px;border-radius:3px;background:var(--pc);flex:none}
 
 /* 空/危险区提示条 */
 .notice{display:flex;align-items:flex-start;gap:12px;padding:16px 20px;border-radius:var(--r-block);
@@ -428,7 +569,7 @@ h1,h2,h3{font-weight:700;letter-spacing:-.015em}
       <div class="hero-acts">
         <div class="seg" id="viewSeg">
           <button class="on" data-v="pyr" onclick="setView('pyr')">项目塔</button>
-          <button data-v="flat" onclick="setView('flat')">任务流</button>
+          <button data-v="pano" onclick="setView('pano')">项目全景</button>
         </div>
         <button class="btn line" onclick="expandAll()">⊞ 展开</button>
         <button class="btn line" onclick="collapseAll()">⊟ 收起</button>
@@ -501,7 +642,21 @@ h1,h2,h3{font-weight:700;letter-spacing:-.015em}
         </div>
       </div>
     </div>
+
+    <!-- 层级展开面板：点 1/2/3 滑出，把"这一层到底是什么"摊开 -->
+    <div class="lvpanel" id="lvPanel">
+      <div class="lvpanel-in" id="lvPanelIn"></div>
+    </div>
   </section>
+
+  <!-- ══════ 项目全景（横向泳道） ══════ -->
+  <div class="pano hidden" id="panoView">
+    <div class="pano-pick">
+      <div class="pp-t">选择项目 · 横向看某个项目的完整链路（愿景 → 战略目标 → 项目 → 指标 → 任务）</div>
+      <div class="pp-row" id="panoPick"></div>
+    </div>
+    <div id="panoBody"></div>
+  </div>
 
   <!-- ══════ 主体：左导航 + 项目塔 ══════ -->
   <div class="split">
@@ -510,17 +665,6 @@ h1,h2,h3{font-weight:700;letter-spacing:-.015em}
       <div id="filterSlot"></div>
 
       <div class="towers" id="towers"></div>
-
-      <!-- 任务流视图 -->
-      <div class="flat hidden" id="flatView">
-        <table>
-          <thead><tr>
-            <th style="width:130px">项目</th><th style="width:150px">成功指标</th><th>任务</th>
-            <th style="width:60px">状态</th><th style="width:50px">成熟度</th><th style="width:64px">优先级</th>
-          </tr></thead>
-          <tbody id="flatBody"></tbody>
-        </table>
-      </div>
     </main>
   </div>
 </div>
@@ -612,11 +756,20 @@ h1,h2,h3{font-weight:700;letter-spacing:-.015em}
     <div>
       <div class="dz-t">一、战略骨架条（页面上方那一条）</div>
       <div class="dz-i"><span class="dz-k">→</span><div>
-        <div class="dz-n">点「1 愿景 / 2 使命」→ 回页顶看全页唯一主角</div>
-        <div class="dz-d">这两个层级是整页的视觉原点。<b>回顶</b>看它们在整条链里的位置；再点一次取消聚焦。</div></div></div>
+        <div class="dz-n">点「1 愿景 / 2 使命 / 3 战略目标」→ 骨架条下方滑出展开面板</div>
+        <div class="dz-d">不是弹个提示就完事，而是把<b>这一层到底是什么完整摊开</b>：主体块（全文 + 关联卡片 + 编辑入口）、推导链（下六层可逐级点）、下挂实体（点即过滤）。再点同一层收起。</div></div></div>
       <div class="dz-i"><span class="dz-k">→</span><div>
-        <div class="dz-n">点「3 战略目标」→ 展开/收起下方目标芯片行</div>
-        <div class="dz-d">战略目标是从"定方向"转向"分资源"的分岔点。点它把目标芯片行展开或收起——芯片行是下方项目分组头的<b>同源镜像</b>。</div></div></div>
+        <div class="dz-n">愿景面板：全文 + 关联卡片 + 推导链 + 3 个目标芯片</div>
+        <div class="dz-d">底部列出这条愿景下的 3 个战略目标芯片，点任一即过滤下方项目塔。<b>面板内可以继续点推导链往下走</b>——1 → 2 → 3 层层展开，面板不关只换内容。</div></div></div>
+      <div class="dz-i"><span class="dz-k">→</span><div>
+        <div class="dz-n">使命面板：全文 + 三条落地判据</div>
+        <div class="dz-d">使命的作用是判据，所以摊开后给的是<b>可执行的落地判据卡</b>：是否在贡献成果 / 是否可开源 / 时间是否可核算，各带当前判定结果，点卡看明细。</div></div></div>
+      <div class="dz-i"><span class="dz-k">→</span><div>
+        <div class="dz-n">战略目标面板：3 张目标横卡</div>
+        <div class="dz-d">每张卡带项目数 / 指标数 / 任务完成数 / 进度条 / 下挂项目名 + 断链提示。<b>点卡即过滤下方项目塔</b>，卡底会显出「▸ 只看这个目标的项目舱」。</div></div></div>
+      <div class="dz-i"><span class="dz-k">→</span><div>
+        <div class="dz-n">推导链每一段都可点 → 面板内容直接切换</div>
+        <div class="dz-d">推导链是「1 愿景 ▸ 2 使命 ▸ 3 战略目标 ▸ 4 项目 ▸ 5 指标 ▸ 6 任务」，前六段点谁切谁，当前所在那段高亮为自身色；点到 4/5/6 则收起面板、直接定位到下方对应实体。</div></div></div>
       <div class="dz-i"><span class="dz-k">→</span><div>
         <div class="dz-n">点「4 / 5 / 6」→ 滚动到项目塔的第一处对应物并闪一下</div>
         <div class="dz-d">点「攻坚项目」滚到第一个项目舱并描边闪烁；点「成功指标」滚到第一张指标卡；点「任务」滚到第一条任务行。让你确认"这层的实体长什么样"。</div></div></div>
@@ -685,8 +838,20 @@ h1,h2,h3{font-weight:700;letter-spacing:-.015em}
         <div class="dz-n">左侧项目导航 → 点击定位、滚动联动高亮</div>
         <div class="dz-d">色块即项目色相，与舱左侧色条一一对应。滚动页面时导航自动跟随当前视野所在项目。</div></div></div>
       <div class="dz-i"><span class="dz-k">⇄</span><div>
-        <div class="dz-n">「项目塔 / 任务流」→ 两种切面</div>
-        <div class="dz-d">项目塔回答"我的架构长什么样"；任务流是 30 条任务的行动表，每行标明所属项目与指标，回答"现在该干什么"。</div></div></div>
+        <div class="dz-n">「项目塔 / 项目全景」→ 纵览与深看</div>
+        <div class="dz-d"><b>项目塔</b>纵着看：6 个项目舱一屏铺开，比的是架构与区隔。<b>项目全景</b>横着看：选中一个项目，它的三层（项目 → 指标 → 任务）以泳道形式横向排开，一屏看完这一个项目的全部动作与缺口。</div></div></div>
+      <div class="dz-i"><span class="dz-k">▤</span><div>
+        <div class="dz-n">全景视图 · 顶部项目选择条</div>
+        <div class="dz-d">六个项目按战略目标分组横向排开，点任一个即切换全景对象；切换后项目头、层级带、全部泳道同步重建。</div></div></div>
+      <div class="dz-i"><span class="dz-k">▥</span><div>
+        <div class="dz-n">全景视图 · 层级带三段</div>
+        <div class="dz-d">项目头下方一条带箭头的三段色带，直接把「第4层项目 › 第5层指标 › 第6层任务」的从属关系印在结构上，不必靠读文字推断。</div></div></div>
+      <div class="dz-i"><span class="dz-k">▥</span><div>
+        <div class="dz-n">全景视图 · 一根泳道 = 一条成功指标</div>
+        <div class="dz-d">泳道头是指标名 / 验收标准 / 进度条，泳道身竖排该指标下的任务。左右滚动即可对比同一项目的不同指标。<b>零任务指标</b>照样占一根泳道，用虚线空位把「缺」显出来。</div></div></div>
+      <div class="dz-i"><span class="dz-k">⚠</span><div>
+        <div class="dz-n">全景视图 · 最右侧收容泳道</div>
+        <div class="dz-d">无归属任务不塞进任何指标泳道，单独占一根红边泳道，每条带「＋ 挂指标」按钮——挂上后卡片移到对应指标泳道。</div></div></div>
       <div class="dz-i"><span class="dz-k">✦</span><div>
         <div class="dz-n">「✦ AI 建议」→ 只建议不写入</div>
         <div class="dz-d">AI 给候选，查重后你点采纳才真正创建。采纳前零写入——AI 不替你决策。</div></div></div>
@@ -934,87 +1099,364 @@ function renderTowers(){
   applyRisk();
   syncNav();
 }
-function renderFlat(){
-  let h='';
-  DATA.forEach(d=>d.projects.forEach(p=>p.metrics.forEach(m=>{
-    if(!m.tasks||!m.tasks.length){
-      h+=`<tr data-risk="1"><td class="f-c"><span class="pdot ${p.g}"><i></i>${esc(p.name)}</span></td>
-        <td class="f-c">${esc(m.name)}</td><td style="color:var(--warn)">⚠ 该指标暂无任务</td>
-        <td>—</td><td class="f-c">${m.grade}</td><td class="f-c">—</td></tr>`;
-      return;
-    }
-    m.tasks.forEach(t=>{
-      h+=`<tr data-risk="${taskRisk(t)?1:0}">
-        <td class="f-c"><span class="pdot ${p.g}"><i></i>${esc(p.name)}</span></td>
-        <td class="f-c">${esc(m.name)}</td>
-        <td>${esc(t.t)}</td>
-        <td>${t.s==='done'?'✓ 已完成':t.s==='doing'?'◐ 进行中':'○ 待办'}</td>
-        <td class="f-c">${t.g}</td><td class="f-c">${esc(t.pr)}</td></tr>`;
-    });
-  })));
-  if(DATA[2].projects[1].orphans){
-    DATA[2].projects[1].orphans.forEach(t=>{
-      h+=`<tr data-risk="1"><td class="f-c"><span class="pdot gD"><i></i>知识库结构治理</span></td>
-        <td style="color:var(--bad)">⚠ 无归属指标</td><td>${esc(t.t)}</td>
-        <td>○ 待办</td><td class="f-c">${t.g}</td><td class="f-c">${esc(t.pr)}</td></tr>`;
-    });
-  }
-  document.getElementById('flatBody').innerHTML=h;
-  applyRisk();
-}
 
 /* ══ 交互 ══ */
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 let tt;
 function toast(m){const el=document.getElementById('toast');el.textContent=m;el.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('on'),1900)}
-function setView(v){
-  view=v;
-  document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
-  document.getElementById('towers').classList.toggle('hidden',v!=='pyr');
-  document.getElementById('flatView').classList.toggle('hidden',v!=='flat');
-  document.querySelector('.arch').classList.toggle('hidden',v!=='pyr');
-}
-/* ══ 交互：骨架条 ⇄ 项目塔 双向联动 ══ */
-let lvAct=null, dirAct='', dirsOpen=false;
+/* ══════════════════════════════════════════════════════════════
+   层级展开面板 —— 点 1/2/3 后摊开"这一层的完整内容"
+   每层摊开后都必须给出下一步入口（推导链 + 下挂实体），双向可达
+   ══════════════════════════════════════════════════════════════ */
+let lvOpen=null;   // 当前展开的层级：1 / 2 / 3 / null
 
-/** 第 3 层：展开/收起战略目标芯片行（芯片是下方分组头的同源镜像） */
-function lvDirs(open){
-  dirsOpen = (open===undefined) ? !dirsOpen : open;
-  renderDirChips();
-  document.querySelector('.lv[data-lv="3"]').classList.toggle('on',dirsOpen);
-  if(dirsOpen) toast('展开战略目标芯片 —— 与下方项目分组头同源，点芯片可过滤项目塔');
-  else toast('收起目标芯片行');
+function panelClose(){
+  lvOpen=null;
+  document.getElementById('lvPanel').classList.remove('on');
+  markLv();
 }
-/** 层级聚焦：1/2 回顶，3 切芯片行，4/5/6 定位到第一处对应实体 */
+/** 面板统一结构：主体块 + 推导链 + 下挂实体 */
+function panelShell(o){
+  return `<div class="lvpanel-in">
+    ${o.main}
+    <div>
+      <div class="pl-t">${o.chainTitle||'推导链 · 从这一层向下'}</div>
+      <div class="derive">${o.chain}</div>
+    </div>
+    ${o.body||''}
+  </div>`;
+}
+function dirChipMini(d,idx){
+  const nt=d.projects.reduce((a,p)=>a+p.metrics.reduce((x,m)=>x+(m.tasks||[]).length,0),0);
+  const G=['gA','gB','gC'];
+  return `<button class="dchip ${G[idx%3]} ${dirAct===d.id?'on':''}" data-dir="${d.id}" onclick="dirFilter('${d.id}')">
+    <i></i><span class="dn">${esc(d.name)}</span><span class="dm">${d.projects.length} 项目 · ${nt} 任务</span>
+    <span class="dx">${dirAct===d.id?'✓':'▸'}</span></button>`;
+}
+function renderPanel(){
+  const box=document.getElementById('lvPanelIn');
+  const C=cnt();
+  if(lvOpen===1){
+    box.innerHTML=panelShell({
+      main:`<div class="vn">
+        <span class="vn-ico">◈</span>
+        <div class="vn-b">
+          <div class="vn-l">第 1 层 · VISION · 终极方向<span class="badge" style="color:var(--accent-ink);background:var(--accent-soft)">全页唯一 34px</span></div>
+          <div class="vn-t">有钱有闲有智慧的平凡人</div>
+          <div class="vn-s">这是全场的<b style="color:var(--t1)">视觉原点</b>——下面五层全部由它推导而来。任何一层的取舍，判据都是"它服务不服务于这句话"。</div>
+        </div>
+        <div class="vn-r">
+          <button class="btn line sm" onclick="toast('🔗 关联卡片 0 张 · 可把资源卡挂到愿景上作论据')">🔗 关联卡片 0</button>
+          <button class="btn pri sm" onclick="toast('进入编辑 · 改愿景会提示哪些层需要复核')">✎ 编辑愿景</button>
+        </div>
+      </div>`,
+      chainTitle:'推导链 · 愿景如何收窄成今天要做的事',
+      chain:`<span class="dv self"><b>${C[1]}</b><span>愿景</span></span>
+        <span class="dv-arrow">▸</span>
+        <span class="dv" onclick="panelTo(2)"><b>${C[2]}</b><span>使命</span></span>
+        <span class="dv-arrow">▸</span>
+        <span class="dv" onclick="panelTo(3)"><b>${C[3]}</b><span>战略目标</span></span>
+        <span class="dv-arrow">▸</span>
+        <span class="dv" onclick="lvPick(4)"><b>${C[4]}</b><span>攻坚项目</span></span>
+        <span class="dv-arrow">▸</span>
+        <span class="dv" onclick="lvPick(5)"><b>${C[5]}</b><span>成功指标</span></span>
+        <span class="dv-arrow">▸</span>
+        <span class="dv" onclick="lvPick(6)"><b>${C[6]}</b><span>任务</span></span>`,
+      body:`<div>
+        <div class="pl-t">这条愿景下的 ${C[3]} 个战略目标</div>
+        <div class="dirs" style="margin-top:10px">${DATA.map(dirChipMini).join('')}</div>
+        <div style="font-size:var(--fs-micro);color:var(--t4);margin-top:9px;line-height:1.7">点任一目标 → 直接过滤下方项目塔；再点一次取消。</div>
+      </div>`
+    });
+  }
+  else if(lvOpen===2){
+    box.innerHTML=panelShell({
+      main:`<div class="vn">
+        <span class="vn-ico" style="background:color-mix(in srgb,var(--vio) 16%,transparent);color:var(--vio)">◆</span>
+        <div class="vn-b">
+          <div class="vn-l">第 2 层 · MISSION · 行动准则</div>
+          <div class="vn-t" style="font-size:var(--fs-h1)">贡献自己的时间和精力研究的成果，开源</div>
+          <div class="vn-s">把愿景翻译成<b style="color:var(--t1)">可执行的动作准则</b>。使命的作用是判据：某件事做不做，先问它符不符合这条。</div>
+        </div>
+        <div class="vn-r">
+          <button class="btn line sm" onclick="toast('🔗 关联卡片 2 张 · 悬停查看')">🔗 关联卡片 2</button>
+          <button class="btn pri sm" onclick="toast('进入编辑 · 改使命会提示哪些项目需要复核')">✎ 编辑使命</button>
+        </div>
+      </div>`,
+      chainTitle:'推导链 · 使命如何变成可交付的结果',
+      chain:`<span class="dv" onclick="panelTo(1)"><b>${C[1]}</b><span>愿景</span></span>
+        <span class="dv-arrow">▸</span>
+        <span class="dv self"><b>${C[2]}</b><span>使命</span></span>
+        <span class="dv-arrow">▸</span>
+        <span class="dv" onclick="panelTo(3)"><b>${C[3]}</b><span>战略目标</span></span>
+        <span class="dv-arrow">▸</span>
+        <span class="dv" onclick="lvPick(4)"><b>${C[4]}</b><span>攻坚项目</span></span>
+        <span class="dv-arrow">▸</span>
+        <span class="dv" onclick="lvPick(5)"><b>${C[5]}</b><span>成功指标</span></span>
+        <span class="dv-arrow">▸</span>
+        <span class="dv" onclick="lvPick(6)"><b>${C[6]}</b><span>任务</span></span>`,
+      body:`<div>
+        <div class="pl-t">使命如何约束下层 · 三条落地判据</div>
+        <div class="dcards" style="margin-top:10px">
+          <div class="dcard gA" onclick="toast('判据一：先问是否服务使命 → 是才立项')">
+            <div class="dc-h"><span class="dc-i">1</span><span class="dc-n">是否在贡献成果</span></div>
+            <div class="dc-m">当前 <b>${C[4]}</b> 个项目，<b>${C[3]}</b> 个战略目标全部声明了与使命的关联</div>
+            <div class="dc-go">▸ 查看判定明细</div>
+          </div>
+          <div class="dcard gB" onclick="toast('判据二：开源优先 → 不可开源的部分需要额外说明')">
+            <div class="dc-h"><span class="dc-i">2</span><span class="dc-n">是否可开源</span></div>
+            <div class="dc-m">已开源 <b>4</b> 个 · 需说明 <b>1</b> 个（武汉地区教育政策解读 · 含未公开数据）</div>
+            <div class="dc-go">▸ 查看判定明细</div>
+          </div>
+          <div class="dcard gC" onclick="toast('判据三：时间投入可核算 → 每周应投入多少小时')">
+            <div class="dc-h"><span class="dc-i">3</span><span class="dc-n">时间是否可核算</span></div>
+            <div class="dc-m">本周已投入 <b>6.5</b> 小时 / 计划 <b>12</b> 小时</div>
+            <div class="dc-go">▸ 查看时间明细</div>
+          </div>
+        </div>
+      </div>`
+    });
+  }
+  else if(lvOpen===3){
+    const G=['gA','gB','gC'];
+    box.innerHTML=panelShell({
+      main:`<div class="vn">
+        <span class="vn-ico" style="background:var(--accent-soft);color:var(--accent-ink)">⛳</span>
+        <div class="vn-b">
+          <div class="vn-l">第 3 层 · DIRECTION · 分岔源头</div>
+          <div class="vn-t" style="font-size:var(--fs-h1)">${C[3]} 个战略目标 · 向下分岔为 ${C[4]} 个攻坚项目</div>
+          <div class="vn-s">这是从"定方向"转向"分资源"的一层。<b style="color:var(--t1)">分岔点</b>：每个目标各自去占资源，目标之间互不抢。</div>
+        </div>
+        <div class="vn-r">
+          <button class="btn line sm" onclick="dirFilter('')">看全部 ${C[3]} 个</button>
+          <button class="btn pri sm" onclick="toast('＋ 新建战略目标（同层查重后写入）')">＋ 战略目标</button>
+        </div>
+      </div>`,
+      chainTitle:'推导链 · 目标分岔到项目',
+      chain:`<span class="dv" onclick="panelTo(1)"><b>${C[1]}</b><span>愿景</span></span>
+        <span class="dv-arrow">▸</span>
+        <span class="dv" onclick="panelTo(2)"><b>${C[2]}</b><span>使命</span></span>
+        <span class="dv-arrow">▸</span>
+        <span class="dv self"><b>${C[3]}</b><span>战略目标</span></span>
+        <span class="dv-arrow">▸</span>
+        <span class="dv" onclick="lvPick(4)"><b>${C[4]}</b><span>攻坚项目</span></span>
+        <span class="dv-arrow">▸</span>
+        <span class="dv" onclick="lvPick(5)"><b>${C[5]}</b><span>成功指标</span></span>
+        <span class="dv-arrow">▸</span>
+        <span class="dv" onclick="lvPick(6)"><b>${C[6]}</b><span>任务</span></span>`,
+      body:`<div>
+        <div class="pl-t">点任一张目标卡 → 过滤下方项目塔</div>
+        <div class="dcards" style="margin-top:10px">
+          ${DATA.map((d,i)=>{
+            const ts=d.projects.flatMap(p=>p.metrics.flatMap(m=>m.tasks||[]));
+            const dn=ts.filter(t=>t.s==='done').length;
+            const pc=ts.length?Math.round(dn/ts.length*100):0;
+            const risk=d.projects.reduce((a,p)=>a+p.metrics.filter(hasRisk).length,0);
+            return `<div class="dcard ${G[i%3]} ${dirAct===d.id?'on':''}" onclick="dirFilter('${d.id}')">
+              <div class="dc-h"><span class="dc-i">${i+1}</span><span class="dc-n">${esc(d.name)}</span>
+                ${d.projects.some(p=>p.stall)?'<span class="badge" style="color:var(--warn);background:var(--warn-soft)">⚠</span>':''}</div>
+              <div class="dc-m"><b>${d.projects.length}</b> 项目 · <b>${d.projects.reduce((a,p)=>a+p.metrics.length,0)}</b> 指标 · <b>${dn}/${ts.length}</b> 任务 · ${pc}%</div>
+              <div class="dc-bar"><i style="width:${pc}%"></i></div>
+              <div class="dc-p">${d.projects.map(p=>`<span>${p.isFocused?'🚀 ':''}${esc(p.name)}</span>`).join('')}</div>
+              ${risk?`<div class="dc-m" style="color:var(--warn);margin:7px 0 0">⚠ ${risk} 个指标零任务</div>`:''}
+              <div class="dc-go">${dirAct===d.id?'▣ 正在只看这个 · 再点取消':'▸ 只看这个目标的项目舱'}</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`
+    });
+  }
+}
+/** 面板内跳转到另一层（面板不关，只换内容） */
+function panelTo(lv){
+  lvOpen=lv;
+  renderPanel(); markLv();
+  const tip=lv===1?'愿景 · 全页唯一主角':lv===2?'使命 · 行动准则':'战略目标 · 向下分岔为项目';
+  toast(tip+' · 面板内已切换，可继续点推导链往下走');
+}
+function cnt(){
+  const t=DATA.flatMap(d=>d.projects.flatMap(p=>p.metrics.flatMap(m=>m.tasks||[])));
+  return {1:1,2:1,3:DATA.length,
+    4:DATA.reduce((a,d)=>a+d.projects.length,0),
+    5:DATA.reduce((a,d)=>a+d.projects.reduce((x,p)=>x+p.metrics.length,0),0),
+    6:t.length, tasks:t};
+}
+
+/* ══════════════════════════════════════════════════════════════
+   项目全景（横向泳道）—— 选一个项目，横向看全它的一条链
+   ══════════════════════════════════════════════════════════════ */
+let panoPid='p1';
+
+function renderPanoPick(){
+  const el=document.getElementById('panoPick');
+  el.innerHTML=DATA.map((d,di)=>{
+    const G=['gA','gB','gC'];
+    return `<div style="display:contents">`+d.projects.map((p,i)=>{
+      const nt=p.metrics.reduce((a,m)=>a+(m.tasks||[]).length,0);
+      return `<button class="pp ${p.g} ${panoPid===p.id?'on':''}" onclick="panoPick('${p.id}')">
+        <div class="pp-n">${i+1} ${esc(p.name)}</div>
+        <div class="pp-m">${p.metrics.length} 指标 · ${nt} 任务${p.isFocused?' · 🚀':''}</div>
+      </button>`;
+    }).join('')+`<span style="flex:0 0 auto;width:1px;background:var(--line);margin:2px 8px"></span>`;
+  }).join('');
+}
+function panoPick(pid){
+  panoPid=pid;
+  renderPanoPick(); renderPano();
+  const p=DATA.flatMap(d=>d.projects).find(x=>x.id===pid);
+  toast('已切到「'+p.name+'」· 横向看这一个项目的完整链路');
+}
+function renderPano(){
+  const flat=DATA.flatMap((d,di)=>d.projects.map(p=>({d,p,di})));
+  const cur=flat.find(x=>x.p.id===panoPid) || flat[0];
+  const {d,p,di}=cur;
+  const R=40,C=2*Math.PI*R;
+  const allT=p.metrics.flatMap(m=>m.tasks||[]);
+  const allD=allT.filter(t=>t.s==='done').length;
+  const risk=p.metrics.filter(hasRisk).length + (p.orphans?p.orphans.length:0);
+  const nm=p.metrics.length;
+
+  let h=`<div class="pano-h ${p.g}">
+    <span class="ph-i">${di+1}-${flat.filter(x=>x.d.id===d.id).indexOf(cur)+1}</span>
+    <div class="ph-b">
+      <div class="ph-n">${esc(p.name)}
+        ${p.isFocused?'<span class="badge" style="color:var(--accent-ink);background:var(--accent-soft)">🚀 主攻</span>':''}
+        ${p.isPinned||p.pinned?'<span class="badge" style="color:var(--t3);background:var(--surface-2)">📌 置顶</span>':''}
+        ${p.stall?'<span class="badge" style="color:var(--warn);background:var(--warn-soft)">⚠ 停滞 14 天+</span>':''}</div>
+      <div class="ph-c">
+        <span class="on" onclick="panelTo(1)">愿景</span>▸
+        <span class="on" onclick="panelTo(2)">使命</span>▸
+        <span class="on" onclick="panelTo(3)">${di+1} 战略目标 · ${esc(d.name)}</span>▸
+        <b style="color:var(--t2)">第 4 层 · 攻坚项目</b>▸
+        <span style="color:var(--t3)">${nm} 指标 · ${allT.length} 任务</span></div>
+    </div>
+    <div class="ph-r">
+      <div class="tw-prog">
+        <div class="ring"><svg width="42" height="42">
+          <circle cx="21" cy="21" r="${R}" fill="none" stroke="var(--surface-3)" stroke-width="3.5"/>
+          <circle cx="21" cy="21" r="${R}" fill="none" stroke="var(--pc)" stroke-width="3.5" stroke-linecap="round"
+            stroke-dasharray="${C}" stroke-dashoffset="${C*(1-p.pct/100)}"/></svg>
+          <span class="rv">${p.pct}%</span></div>
+        <div class="tw-num"><b>${allD} / ${allT.length} 任务完成</b>${nm} 条指标 · ${risk?risk+' 处断链':'链路完整'}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        ${risk?`<button class="btn line sm" onclick="toast('⚠ ${p.metrics.filter(hasRisk).length} 个指标零任务${p.orphans?' · '+p.orphans.length+' 条无归属任务':''}')">⚠ 断链 ${risk}</button>`:''}
+        <button class="btn line sm" onclick="toast('＋ 在本项目下新建成功指标')">＋ 指标</button>
+        <button class="btn pri sm" onclick="toast('✦ AI 依使命与本项目建议成功指标（查重后采纳才创建）')">✦ AI 建议指标</button>
+      </div>
+    </div>
+  </div>`;
+
+  /* 层级带：把从属关系直接印在结构上 */
+  h+=`<div class="band">
+    <div class="bd"><div class="bd-l"><i>第 4 层</i>PROJECT</div>
+      <div class="bd-n">${esc(p.name)}</div>
+      <div class="bd-m">1 个攻坚项目 · 本次全景的主体</div></div>
+    <div class="bd"><div class="bd-l"><i>第 5 层</i>METRIC</div>
+      <div class="bd-n">${nm} 条成功指标</div>
+      <div class="bd-m">${p.metrics.filter(m=>(m.tasks||[]).length).length} 条有任务 · ${p.metrics.filter(hasRisk).length} 条零任务</div></div>
+    <div class="bd"><div class="bd-l"><i>第 6 层</i>TASK</div>
+      <div class="bd-n">${allT.length} 条任务</div>
+      <div class="bd-m">${allD} 已完成 · ${allT.length-allD} 待推进${p.orphans?' · '+p.orphans.length+' 条无归属':''}</div></div>
+  </div>`;
+
+  /* 横向泳道：一根泳道 = 一条成功指标 */
+  h+='<div class="lanes">';
+  p.metrics.forEach((m,mi)=>{
+    const ts=m.tasks||[];
+    const st=statusIcon(m);
+    h+=`<div class="lane ${p.g}" data-m="${m.id}">
+      <div class="lane-h">
+        <div class="lane-top">
+          <span class="lane-i">${mi+1}</span>
+          <span class="lane-n">${esc(m.name)}</span>
+          <span class="m-dot ${st.c}" style="width:15px;height:15px;font-size:8px">${st.g}</span>
+        </div>
+        <div class="lane-acc">验收：<b>${esc(m.acc)}</b></div>
+        <div class="lane-bar">
+          <span class="track"><span class="fill" style="width:${m.pct}%"></span></span>
+          <span class="v">${m.pct}% · ${m.done}/${m.total}</span>
+        </div>
+      </div>
+      <div class="lane-b">`;
+    if(ts.length){
+      ts.forEach((t,ti)=>{
+        h+=`<div class="ltask ${t.s}" data-risk="${taskRisk(t)?1:0}">
+          <span class="lb-box ${t.s}" onclick="toggleTask('${m.id}',${ti},event)" title="点击勾选完成"></span>
+          <div class="ltask-t">${esc(t.t)}</div>
+          <div class="ltask-b">
+            ${t.w?`<span class="lb lb-w">⚠ ${esc(t.w)}</span>`:''}
+            <span class="lb lb-pri">${esc(t.pr)}</span>
+            <span class="lb lb-g" style="color:${t.g==='A'?'var(--ok)':t.g==='B'?'var(--info)':t.g==='C'?'var(--warn)':'var(--bad)'}">${t.g}</span>
+          </div></div>`;
+      });
+    }else{
+      h+=`<div class="lane-empty">
+        <span class="le-i">⚠</span>
+        <span class="le-t">零任务</span>
+        <span class="le-d">验收标准已定<br>动作还没落</span>
+      </div>`;
+    }
+    h+='</div>';
+    h+=`<div class="lane-foot">
+      <button class="lane-add" onclick="toast('＋ 在「${esc(m.name)}」下新建任务，自动挂到本指标')">＋ 添加任务</button>
+    </div></div>`;
+  });
+  /* 无归属收容区 */
+  if(p.orphans&&p.orphans.length){
+    h+=`<div style="flex:0 0 230px" class="lane">
+      <div class="lane-h" style="background:var(--bad-soft)">
+        <div class="lane-top"><span class="lane-i" style="background:var(--bad-soft);color:var(--bad)">!</span>
+          <span class="lane-n">无归属任务</span></div>
+        <div class="lane-acc">在项目内，但<b style="color:var(--bad)">没挂任何成功指标</b></div>
+      </div>
+      <div class="lane-b">${p.orphans.map((t,ti)=>`
+        <div class="ltask" style="border-left-color:var(--bad)">
+          <div class="ltask-t">${esc(t.t)}</div>
+          <div class="ltask-b"><span class="lb lb-w">⚠ 缺指标归属</span>
+            <button class="lb lb-pri" onclick="toast('为该任务选择一个成功指标 → 泳道会把卡片拖过去')">＋ 挂指标</button></div>
+        </div>`).join('')}</div>
+    </div>`;
+  }
+  h+='</div>';
+  document.getElementById('panoBody').innerHTML=h;
+}
+let lvAct=null, dirAct='';
+
+/** 层级聚焦：1/2/3 打开展开面板（再点收起），4/5/6 定位到第一处对应实体 */
 function lvPick(lv){
   if(lv==='orphan'){
     const p=DATA.flatMap(d=>d.projects).find(x=>x.orphans&&x.orphans.length);
     if(!p){toast('当前没有无归属任务');return;}
-    const el=document.getElementById('orphan-'+p.id);
-    if(!el){toast('请先展开「'+p.name+'」');openDirs['p_'+p.id]=true;renderTowers();setTimeout(()=>lvPick('orphan'),60);return;}
-    el.scrollIntoView({behavior:'smooth',block:'center'});
-    el.style.transition='box-shadow .45s'; el.style.boxShadow='0 0 0 3px var(--bad)';
-    setTimeout(()=>{el.style.boxShadow=''},1500);
-    toast('这 2 条任务在项目舱内，但没有挂任何成功指标 —— 断链收容区');
+    panoPid=p.id; renderPanoPick(); renderPano();
+    if(view!=='pano') setView('pano');
+    setTimeout(()=>{
+      const el=document.querySelector('.pano-orph')||document.querySelector('.lanes .lane:last-child');
+      if(el) el.scrollIntoView({behavior:'smooth',block:'center'});
+      toast('这 '+p.orphans.length+' 条任务在项目内但没挂任何成功指标 —— 泳道区最右侧的收容泳道');
+    },140);
     return;
   }
-  if(lv===1||lv===2){
-    lvAct = lvAct===lv ? null : lv;
-    markLv();
-    window.scrollTo({top:0,behavior:'smooth'});
-    toast(lv===1?'愿景 · 全页唯一 34px 主角 —— 所有层级都从这一句推导出来':'使命 · 把愿景变成行动准则');
+  if(lv<=3){
+    if(view!=='pyr') setView('pyr');
+    if(lvOpen===lv){ panelClose(); toast('已收起该层 · 再点可重新展开'); return; }
+    lvOpen=lv; renderPanel(); markLv();
+    document.getElementById('lvPanel').classList.add('on');
+    setTimeout(()=>document.getElementById('lvPanel').scrollIntoView({behavior:'smooth',block:'nearest'}),70);
+    toast(lv===1?'愿景 · 摊开来看：全文 + 关联卡片 + 推导链 + 下挂的 3 个战略目标'
+        :lv===2?'使命 · 摊开来看：全文 + 三条落地判据 + 推导链'
+        :'战略目标 · 摊开来看：3 张目标卡，点任一张即过滤下方项目塔');
     return;
   }
-  if(lv===3){ lvDirs(); return; }
   lvAct = lvAct===lv ? null : lv;
   markLv();
-  if(lv===4){ const p=DATA[0].projects[0]; focusTower(p.id); toast('第 4 层 · 每个项目一个独立舱，色条即项目身份'); }
+  if(lv===4){ focusTower(DATA[0].projects[0].id); toast('第 4 层 · 每个项目一个独立舱，色条即项目身份'); }
   if(lv===5){ flash('metric', '第 5 层 · 成功指标在舱内成卡，任务内嵌在指标里'); }
   if(lv===6){ flash('task', '第 6 层 · 每条任务都隶属某个成功指标，hover 可看完整归属路径'); }
 }
 function markLv(){
   document.querySelectorAll('.lv').forEach(e=>e.classList.toggle('on',
-    (dirsOpen && e.dataset.lv==='3') || String(lvAct)===e.dataset.lv));
+    String(lvOpen)===e.dataset.lv || String(lvAct)===e.dataset.lv));
 }
 function flash(sel,msg){
   const el=document.querySelector('.'+sel);
@@ -1040,12 +1482,12 @@ function dirFilter(id){
 function renderDirChips(){
   let h='<span class="dirs-lab">按战略目标聚焦</span>';
   h+=`<button class="dchip ${dirAct===''?'on':''} gA" onclick="dirFilter('')"><span class="dn">全部</span><span class="dm">3 目标 / 6 项目</span></button>`;
-  if(!dirsOpen) return h;
   const G=['gA','gB','gC'];
   DATA.forEach((d,i)=>{
     const nt=d.projects.reduce((a,p)=>a+p.metrics.reduce((x,m)=>x+(m.tasks||[]).length,0),0);
-    h+=`<button class="dchip ${dirAct===d.id?'on':''} ${G[i%3]}" onclick="dirFilter('${d.id}')">
-      <i></i><span class="dn">${esc(d.name)}</span><span class="dm">${d.projects.length} 项目 · ${nt} 任务</span><span class="dx">✕</span></button>`;
+    h+=`<button class="dchip ${dirAct===d.id?'on':''} ${G[i%3]}" data-dir="${d.id}" onclick="dirFilter('${d.id}')">
+      <i></i><span class="dn">${esc(d.name)}</span><span class="dm">${d.projects.length} 项目 · ${nt} 任务</span>
+      <span class="dx">${dirAct===d.id?'✓':'▸'}</span></button>`;
   });
   const box=document.querySelector('.dirs');
   if(box) box.innerHTML=h;
@@ -1083,7 +1525,7 @@ function foldTower(pid){
 }
 function foldMetric(mid){
   openMetrics[mid]=openMetrics[mid]===false;
-  renderTowers(); renderFlat();
+  renderTowers(); renderPano();
   toast(openMetrics[mid]===false?'▾ 已展开该指标下的任务':'▸ 已收起该指标下的任务 · 指标本身与进度仍可见');
 }
 function focusTower(pid){
@@ -1137,12 +1579,16 @@ function syncNav(act){
 function setView(v){
   view=v;
   document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
-  document.getElementById('towers').classList.toggle('hidden',v!=='pyr');
-  document.getElementById('flatView').classList.toggle('hidden',v!=='flat');
-  document.querySelector('.spine').classList.toggle('hidden',v!=='pyr');
-  document.querySelector('.navside').classList.toggle('hidden',v!=='pyr');
-  document.getElementById('filterSlot').classList.toggle('hidden',v!=='pyr');
-  syncNav();
+  const isPyr=v==='pyr';
+  document.getElementById('towers').classList.toggle('hidden',!isPyr);
+  document.getElementById('panoView').classList.toggle('hidden',v!=='pano');
+  document.getElementById('panoBody').classList.toggle('hidden',v!=='pano');
+  document.querySelector('.split').classList.toggle('hidden',!isPyr);
+  document.querySelector('.hero').classList.toggle('hidden',false);
+  if(v==='pano'){ renderPanoPick(); renderPano(); }
+  else syncNav();
+  window.scrollTo({top:0,behavior:'smooth'});
+  toast(v==='pyr'?'项目塔 · 纵览全部 6 个项目舱的架构':'项目全景 · 横向看单个项目的完整链路（项目 › 指标 › 任务）');
 }
 function expandAll(){
   DATA.forEach(d=>d.projects.forEach(p=>{ openDirs['p_'+p.id]=true; p.metrics.forEach(m=>openMetrics[m.id]=true); }));
@@ -1176,7 +1622,7 @@ function toggleTask(mid,ti,e){
   const t=m.tasks[ti];
   t.s = t.s==='done' ? 'todo' : (t.s==='doing' ? 'done' : 'doing');
   recalc();
-  renderTowers(); renderFlat(); renderNav(); renderDirChips(); renderChainCounts();
+  renderTowers(); renderPano(); renderNav(); renderDirChips(); renderChainCounts();
   const p=DATA.flatMap(d=>d.projects).find(x=>x.metrics.includes(m));
   toast(t.s==='done'?`✓ 已完成「${t.t}」`:t.s==='doing'?`◐ 移入进行中「${t.t}」`:`○ 退回待办「${t.t}」`);
 }
@@ -1209,7 +1655,7 @@ function renderChainCounts(){
 }
 
 /* 孤儿标记：给缺任务的指标打标，供风险模式识别 */
-renderNav();renderTowers();renderFlat();renderChainCounts();renderDirChips();
+renderNav();renderTowers();renderPanoPick();renderPano();renderChainCounts();renderDirChips();
 </script>
 </body>
 </html>

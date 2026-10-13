@@ -3,8 +3,7 @@
  * 依赖基建见 ./helpers.cjs；__dirname/__filename 已换锚为 SCRIPTS_DIR/ANCHOR_FILE（语义=原 scripts/ 根与回归自体）。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
-} = require('./helpers.cjs');
+  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT_ALL, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, CT_W11, TOWER, LANE, SPINE, PANEL, CMETA} = require('./helpers.cjs');
 
 console.log('【第七十七轮 · V2.46.0：浮层主题化（A1 主题接入 + A2 轻 scrim + C2 主色稀缺）】');
 check('R77-1 浮层硬编码品牌色清零（#0E7A4E / #FDFDFC / #1A1D23 全文零命中，含注释）', () => {
@@ -320,15 +319,15 @@ check('R82-8 版本五处同步（manifest/package/ManualPage/regression/关于�
 console.log('【第八十三轮 · V2.52.0：主航线信息密度（M1 + M2 + M3）】');
 // ⚠ next 用 '\n</template>' —— 组件里还有嵌套的 <template #actions>，用裸 '</template>' 会在 437 字符处被截断
 check('R83-1/R121 M1 愿景/使命一行呈现 ★R3-B1 退役重指带备案：主航线上方 .vm-bar（38px/单行省略/整条可点）随 LighthousePanel 退役——愿景/使命改为方向台首屏的第 1-2 层卡，就地可点编辑且同样单行省略', () => {
-  const t = read('/newtab/views/CompassTree.vue');
+  const t = CT_ALL;
   return !exists('/newtab/components/compass/LighthousePanel.vue') && t.includes('class="node-title editable"') && t.includes("startEdit('vision'") && t.includes("startEdit('mission'") && t.includes('text-overflow: ellipsis');
 });
 check('R83-2/R121 M1 右端「进入方向树 ›」收敛为一个 ★R3-B1 退役重指带备案：树即一级后该入口整体消失（连 openTree 这个跳转函数都不该再有），残留即死链族', () => {
-  const t = read('/newtab/views/CompassTree.vue');
+  const t = CT_ALL;
   return !codeOnly(t).includes('function openTree') && !codeOnly(t).includes('进入方向树');
 });
 check('R83-3 M1 空态文案在位 ★R3-B1 随宿主改靶：主航线的「尚未设定愿景/使命」随退役换成方向树第 1-2 层的就地引导文案（空态不许留白）', () => {
-  const t = read('/newtab/views/CompassTree.vue');
+  const t = CT_ALL;
   return t.includes("visionText || '点击设定你的核心愿景…'") && t.includes("missionText || '点击设定你的核心使命…'");
 });
 check('R83-4 M2 期限三值映射齐全（远期/中期/近期）★R3-B1 去向点名：主航线目标卡的期限位随退役消失，读数由项目详情页承接（面包屑 + 目标行两处同口径），未设期限不显示', () => {
@@ -336,18 +335,34 @@ check('R83-4 M2 期限三值映射齐全（远期/中期/近期）★R3-B1 去�
   return pc.includes("dir.term === 'long' ? '远期'") && pc.includes("'近期'") && pc.includes("'中期'") && pc.includes("dir.term==='long' ? '（远期）'");
 });
 check('R83-5/R121 M2 主攻数与进度读数 ★R3-B1 去向点名：主航线 goalPct/focusedOf 随退役消失，方向台页头改由 treeStats 一次算齐（战略目标/项目/主攻/停滞/指标/任务），不在模板里逐项调', () => {
-  const t = read('/newtab/views/CompassTree.vue');
+  const t = CT_ALL;
   return t.includes('const treeStats = computed(') && t.includes('focused, stalled') && t.includes('🚀 主攻 {{ treeStats.focused }}') && !t.includes('goalPct(');
 });
-check('R83-6/R121 M3 项目卡头三读数 ★R3-B1 随宿主改靶：🚀 主攻 / 停滞标 / pct% · done/total 从主航线行卡搬进方向树卡头（.tp-mark / .tp-flag / .tp-pct）', () => {
-  const t = read('/newtab/views/CompassTree.vue');
-  return t.includes('class="tp-mark" title="主攻项目">🚀') && t.includes('class="tp-flag"') && t.includes('class="tp-pct"') && t.includes('projMeta.get(proj.id)?.pct') && t.includes('.tp-flag {');
+check('R83-6/R121 M3 项目卡头三读数 ★W11(V3.8.11)随迁带备案：读数落点由 tp-mark/tp-flag/tp-pct 迁为 tw-badge.focus / tw-badge.stall / tw-ring-v（完成数同时常驻舱头 .tw-num）', () => {
+  const T = TOWER;
+  return T.includes('class="tw-badge focus"')
+    && T.includes('class="tw-badge stall"')
+    && T.includes('class="tw-ring-v"')
+    && /任务完成/.test(T);
 });
-check('R83-7 ★ 性能红线（★R3-B1 随首屏换宿主扩管）：方向台一级=方向树，模板内不得逐项调 projectProgress / isProjectStalled，也不得在模板里 filter 任务——一律走 projMeta 预计算表', () => {
-  const t = read('/newtab/views/CompassTree.vue');
-  const tpl = segOf(t, '<template>', '\n</template>');
-  return t.includes('const projMeta = computed(') && !tpl.includes('projectProgress(') && !tpl.includes('isProjectStalled(') && !tpl.includes('d.tasks.filter(') && tpl.includes('projMeta.get(proj.id)');
+
+check('R83-7 ★性能红线 ★W11(V3.8.11)随迁带备案：方向台模板内不得逐项调 projectProgress / isProjectStalled，也不得在模板里 filter 任务。W11 更进一步：全部取数收进 compassMeta.ts 一次聚合成 Map，模板只做 O(1) 取值——本条改钉这条更强的口径', () => {
+  const tpl = CT_W11.slice(CT_W11.indexOf('<template>'));
+  /* 模板内零逐项调 */
+  const noInline = !/projectProgress\(/.test(tpl) && !/isProjectStalled\(/.test(tpl);
+  /* 模板内零 filter 任务（集中取数后不该再有） */
+  const noFilter = !/tasks\.filter\(/.test(tpl);
+  /* 集中取数层真身在位 */
+  const meta = CMETA;
+  const centralized = meta.includes('export function buildCompassMeta')
+    && meta.includes('const bucket = new Map<string, TaskCard[]>()')
+    && meta.includes('byMetric')
+    && meta.includes('byProject');
+  /* 视图确实吃这份聚合 */
+  const used = /compassMeta = computed\(\(\) => buildCompassMeta\(/.test(CT_W11);
+  return noInline && noFilter && centralized && used;
 });
+
 check('R83-8 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');
   const pkg = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'package.json'), 'utf8');
@@ -430,7 +445,7 @@ check('R85-4 T0-B：addProjectToDir 建的项目字段完整（pinned + order �
     && fn.includes('isFocused: false') && fn.includes('dir.projects.push(proj)');
 });
 check('R85-5 T0-B（R117 修订 · ★R3-B1 出口由三处收敛为两处）：方向树与项目详情两处新建出口都调 addProjectToDir（dir.projects.push 全项目收敛到 store 一处）', () => {
-  const tr = stripComments(read('/newtab/views/CompassTree.vue'));
+  const tr = stripComments(CT_ALL);
   const pc = stripComments(read('/newtab/views/ProjectCuration.vue'));
   return tr.includes('addProjectToDir(')
     && pc.includes('addProjectToDir(')
@@ -439,24 +454,24 @@ check('R85-5 T0-B（R117 修订 · ★R3-B1 出口由三处收敛为两处）：
     && ST85.includes('dir.projects.push(proj)');
 });
 check('R85-6/R121 M4 聚焦条 ★R3-B1 退役重指带备案：主航线「当前主攻」横条（focusedProjects + projMeta 索引）随 LighthousePanel 退役，主攻一览由树的「主攻置前 + 自动展开 + 🚀 标记」承担；调度台速览仍是 focusedProjects 唯一消费方', () => {
-  const t = read('/newtab/views/CompassTree.vue'); const h = read('/newtab/views/CompassHome.vue');
+  const t = CT_ALL; const h = read('/newtab/views/CompassHome.vue');
   return !exists('/newtab/components/compass/LighthousePanel.vue') && t.includes('Number(b.isFocused) - Number(a.isFocused)') && t.includes('o === undefined ? !!p.isFocused : o') && h.includes('focusedProjects');
 });
 check('R85-7/R121 M4 两态齐全 ★R3-B1 退役重指带备案：fs-chip/fp-hint（含「最多 N 个」提示）随聚焦条退役；「最多 2 个」的口径仍在 store 的 toggleFocusProject 里拒绝超限，树 ▾ 菜单点主攻走同一条（返回 msg 即提示）', () => {
-  const t = read('/newtab/views/CompassTree.vue'); const st = read('/newtab/stores/compass.ts');
+  const t = CT_ALL; const st = read('/newtab/stores/compass.ts');
   return !t.includes('fs-chip') && !t.includes('fp-hint') && st.includes('FOCUS_PROJECT_LIMIT') && t.includes('onToggleFocus(') && t.includes('🚀 设为主攻');
 });
 check('R85-8 M5-① 目标下新建项目 ★R3-B1 退役重指带备案：主航线目标卡底的内联输入（回车/Esc/失焦）随退役消失，树的出口是目标头 ＋ 直建「新攻坚项目」+ 就地改名；两处都经 addProjectToDir，不得回添第二份 projects.push', () => {
-  const t = read('/newtab/views/CompassTree.vue');
-  return t.includes("function addProject(dirId: string)") && t.includes("addProjectToDir(dirId, '新攻坚项目')") && t.includes('title=\"添加项目\"') && !t.includes('chip-add-input');
+  const t = CT_ALL;
+  /* ★W11 随迁带备案：按钮 title 随术语统一改「添加攻坚项目」（第 4 层叫攻坚项目，不再笼统叫项目） */
+  return t.includes("function addProject(dirId: string)") && t.includes("addProjectToDir(dirId, '新攻坚项目')") && t.includes('title="添加攻坚项目"') && !t.includes('chip-add-input');
 });
-check('R85-9/R121 M5-② 卡头动作防冒泡 ★R3-B1 随宿主改靶：主航线行卡 hover 两动作退役，方向树卡头三枚（📦/AI/▾）同样必须 .stop 防冒泡（不误触卡头折叠）', () => {
-  const t = read('/newtab/views/CompassTree.vue');
-  const i = t.indexOf('<span class="tp-acts" @click.stop>');
-  const acts = i >= 0 ? t.slice(i, i + 700) : '';
-  return i >= 0 && acts.includes('openProjectDrawer(proj.id)') && acts.includes('toggleProjMenu(proj.id)')
-    && (acts.match(/@click\.stop/g) || []).length >= 1 && t.includes('@click.stop="toggleProjectFold(proj)"');
+check('R85-9/R121 M5-② 卡头动作防冒泡 ★W11(V3.8.11)随迁带备案：动作组已收为 tw-acts，且带 @click.stop 防冒泡（不误触卡头跳转）；拖拽手柄 tw-grip 同在动作组内', () => {
+  return /class="tw-acts" @click\.stop/.test(TOWER)
+    && /class="tw-grip"/.test(TOWER)
+    && /@click\.stop/.test(TOWER);
 });
+
 check('R85-10 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');
   const pkg = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'package.json'), 'utf8');
@@ -491,9 +506,10 @@ check('R86-5/R121 D-A ★R3-B1 退役重指带备案：主航线「看主线」�
     && pc.includes('class="pb-crumb"') && pc.includes('pb-title-row');
 });
 check('R86-6 D-B ★R3-B1 退役重指带备案（R3 计划点名项）：主航线状态筛选（all/active/stalled/done 分段组 + ovFilter/tools-gate 传参链）整体退役，全站零残留；停滞读数改由树页头「⚠ 停滞 N」+ 卡头停滞标承担（只读不筛）', () => {
-  const t = CT86; const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue');
+  const t = CT_ALL; /* ★W11 随迁：读数锚点从旧树切片 CT86 改 CT_ALL（W11 起六层分居四文件，CT86 只覆盖树本体，承重处已迁到舱组件） */ const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue');
   return !t.includes('ovFilter') && !h.includes('ovFilter') && !pc.includes('ovFilter') && !t.includes('lh-filter-group')
-    && t.includes('⚠ 停滞 {{ treeStats.stalled }}') && t.includes('class="tp-flag"');
+    /* ★W11 随迁带备案：停滞徽标承重处迁到舱卡头 CompassTower（.tw-badge.stall），页头读数仍在树本体 */
+    && t.includes('⚠ 停滞 {{ treeStats.stalled }}') && t.includes('class="tw-badge stall"') && t.includes('title="近 14 天无推进/完成活动"');
 });
 check('R86-7 D-B：★ 状态判定复用 isProjectStalled / isProjectDone 且**预计算成索引**（★R3-B1 随首屏换宿主：判据从 CompassShell 的 projState 换成方向树的 projMeta，模板内仍不得逐项调）', () => {
   const fn = stripComments(segOf(CT86, 'const projMeta = computed(', 'function toggleMetric'));

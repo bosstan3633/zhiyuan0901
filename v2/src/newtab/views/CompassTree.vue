@@ -25,6 +25,13 @@ import { showToast } from '@/shared/components/toast'
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
 import TaskAddDrawer from '../components/TaskAddDrawer.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
+// W11（V3.8.11）战略金字塔：骨架控制条 / 层级展开面板 / 项目舱 / 项目全景 四件套（原型 v1 视觉基准）
+import CompassSpine from '../components/compass/CompassSpine.vue'
+import CompassLayerPanel from '../components/compass/CompassLayerPanel.vue'
+import CompassTower from '../components/compass/CompassTower.vue'
+import CompassPano from '../components/compass/CompassPano.vue'
+import { buildCompassMeta } from './compassMeta'
+import type { ProjectMeta } from './compassMeta'
 import ImportTemplateModal from '../components/ImportTemplateModal.vue'
 import type { GoalParseResult } from '@/shared/utils/mdImport'
 
@@ -239,6 +246,219 @@ const projMeta = computed(() => {
   }
   return m
 })
+
+/* ══════════════════════════════════════════════════════════════
+   W11（V3.8.11）战略金字塔 —— 骨架条 ⇄ 项目塔 双向联动
+   ══════════════════════════════════════════════════════════════ */
+/** 集中取数：骨架条数字、舱体计数、指标任务全部吃这一份（判据 W11-7 / W11-11） */
+const compassMeta = computed(() => buildCompassMeta(d.value, isProjectStalled))
+
+/**
+ * ★视图形态（判据 D3 已拍板：方向台内第二视图，不新建路由与页面文件）。
+ * 'tower' 纵向项目舱列 —— 「我在哪个位置」；
+ * 'pano'  横向泳道全景 —— 「这一个项目的完整链路长什么样」。
+ * 两者是**同一份 compassMeta 的两种投影**，不是两个实体世界 ⇒ 切换不重算、不丢筛选。
+ */
+const viewMode = ref<'tower' | 'pano'>('tower')
+/** 全景视图当前聚焦的项目 id（双向：点选择条换主体 / 舱头点进来定主体） */
+const panoId = ref('')
+
+/** 切到全景并定住主体（舱头「全景」与「⇅ 回项目塔」的落点都走这里） */
+function openPano(projId: string) {
+  panoId.value = projId
+  viewMode.value = 'pano'
+  layerOpen.value = null
+  showToast('横向全景 · 一根泳道就是一条成功指标')
+}
+/** 从全景回到项目塔：带着 dirFilter 定位（不做「回来就丢上下文」的假双向） */
+function backToTower(projId: string) {
+  viewMode.value = 'tower'
+  const pm = compassMeta.value.byProject.get(projId)
+  const owner = compassMeta.value.dirs.find(g => g.projects.some(p => p.id === projId))
+  if (owner && owner.dir.id !== dirFilter.value) dirFilter.value = owner.dir.id
+  if (pm) projFoldOverride.value[projId] = false
+  nextTick(() => {
+    const el = document.querySelector(`[data-tower="${projId}"]`)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+  showToast(pm ? `回到项目塔 · ${pm.metrics.length} 指标 · ${pm.total} 任务` : '回到项目塔')
+}
+
+/** 当前聚焦的战略目标 id；'' ＝全部 */
+const dirFilter = ref('')
+/** 当前展开的层级 1|2|3；null ＝全收起 */
+const layerOpen = ref<1 | 2 | 3 | null>(null)
+/** 断链模式：只留有缺口的部分 */
+const riskOnly = ref(false)
+
+/** 筛选态提示条要显示的目标名（拿不到就显示 id 兜底，绝不留空） */
+const dirFilterName = computed(() =>
+  d.value.compass.directions.find(x => x.id === dirFilter.value)?.name || dirFilter.value || ''
+)
+/** 一键清空筛选（判据 W11-9：过滤必须有显式出口，不能"点了就回不去"） */
+function clearFilters() {
+  const had = dirFilter.value || riskOnly.value
+  dirFilter.value = ''
+  riskOnly.value = false
+  if (had) showToast('已清除全部筛选 · 恢复完整六层视图')
+}
+
+/** 舱色六档（判据 D2：从 --accent 派生，不新增色系令牌） */
+const HUES = [88, 70, 52, 38, 26, 16]
+function hueAt(i: number): string {
+  return `color-mix(in srgb, var(--accent) ${HUES[i % HUES.length]}%, var(--surface))`
+}
+
+/**
+ * 舱列数据：按战略目标分组，串上色相与聚合结果。
+ * ★过滤放在这一层做——分组头与舱同时消失，不会留下"有头无舱"的空壳。
+ */
+const towerGroups = computed(() => {
+  const out: {
+    dir: Direction; i: number; hue: string
+    projs: { proj: Project; meta: import('./compassMeta').ProjectMeta; hue: string }[]
+    metaCount: number; taskCount: number
+  }[] = []
+  let gi = 0
+  for (const g of compassMeta.value.dirs) {
+    if (dirFilter.value && g.dir.id !== dirFilter.value) continue
+    /* 断链模式下整个目标都没缺口 ⇒ 连头带舱一起藏 */
+    if (riskOnly.value && g.projects.every(p => p.risk === 0)) continue
+    const rows = g.projects.map((pm, pi) => {
+      const proj = findProject(pm.id)
+      return proj ? { proj, meta: pm, hue: hueAt(gi + pi) } : null
+    }).filter((x): x is { proj: Project; meta: import('./compassMeta').ProjectMeta; hue: string } => !!x)
+    if (!rows.length) continue
+    out.push({
+      dir: g.dir, i: gi, hue: hueAt(gi),
+      projs: rows,
+      metaCount: rows.reduce((s, r) => s + r.meta.metrics.length, 0),
+      taskCount: rows.reduce((s, r) => s + r.meta.total, 0)
+    })
+    gi++
+  }
+  return out
+})
+
+/** 按 id 找项目（供子组件 emit 回传给 store 层动作） */
+function findProject(id: string): Project | undefined {
+  for (const dir of d.value.compass.directions) {
+    const p = dir.projects.find(x => x.id === id)
+    if (p) return p
+  }
+  return undefined
+}
+/** 按 metricId 找 { proj, metric }，供「建第一条任务」带出项目 id */
+function findMetric(metricId: string): { proj: Project; metric: import('@/shared/models').Metric } | undefined {
+  for (const dir of d.value.compass.directions) {
+    for (const proj of dir.projects) {
+      const m = proj.metrics.find(x => x.id === metricId)
+      if (m) return { proj, metric: m }
+    }
+  }
+  return undefined
+}
+
+/** 层级 1/2/3：同层再点收起（★双向可达，判据 W11-3） */
+function onLayerOpen(lv: 1 | 2 | 3) {
+  layerOpen.value = layerOpen.value === lv ? null : lv
+  if (layerOpen.value) {
+    nextTick(() => document.getElementById('layer-1')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+}
+/** 层级 4/5/6：定位到第一处对应实体并闪一下（★先切回纵向视图，定位不许挑视图） */
+function onLocateLayer(lv: 4 | 5 | 6) {
+  layerOpen.value = null
+  activeLayer.value = lv
+  ensureTower(`定位第 ${lv} 层`).then(() => {
+    if (lv === 4) {
+      document.querySelector('[data-tower]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      showToast('第 4 层 · 每个项目一个独立舱，色条即项目身份')
+    } else if (lv === 5) {
+      const el = document.querySelector('.metric-card')
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el?.classList.add('w11-flash')
+      setTimeout(() => el?.classList.remove('w11-flash'), 1400)
+      showToast('第 5 层 · 成功指标成卡，任务内嵌在指标里')
+    } else {
+      const el = document.querySelector('.tk-row')
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el?.classList.add('w11-flash')
+      setTimeout(() => el?.classList.remove('w11-flash'), 1400)
+      showToast('第 6 层 · 每条任务都隶属某个成功指标，悬停看完整归属路径')
+    }
+  })
+}
+/** 战略目标过滤：芯片 / 目标卡 / 分组头 三处同源 */
+function onDirFilter(id: string) {
+  dirFilter.value = dirFilter.value === id ? '' : id
+  const nm = dirFilter.value
+    ? (d.value.compass.directions.find(x => x.id === id)?.name || '')
+    : ''
+  showToast(nm ? `已聚焦「${nm}」· 其余目标的项目舱已隐藏` : '已恢复全部战略目标')
+  if (nm) nextTick(() => document.querySelector('.dir-head')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+}
+function toggleRiskOnly() {
+  riskOnly.value = !riskOnly.value
+  showToast(riskOnly.value ? '⚠ 只看断链：缺任务指标 + 无归属任务' : '已恢复全部内容')
+}
+/** 跳到第一条无归属收容区（全景下则先把主体切到那个有缺口的项目，再进全景的收容泳道） */
+function gotoOrphans() {
+  riskOnly.value = false
+  /* 优先在当前全景主体里找 —— 不然会出现"点了收容却跳去别的项目"的错觉 */
+  const pool: ProjectMeta[] = viewMode.value === 'pano' && panoId.value
+    ? compassMeta.value.byProject.get(panoId.value)
+      ? [compassMeta.value.byProject.get(panoId.value) as ProjectMeta]
+      : []
+    : compassMeta.value.dirs.flatMap(g => g.projects)
+  const hit = pool.find(p => p.orphanTasks.length) || compassMeta.value.dirs.flatMap(g => g.projects).find(p => p.orphanTasks.length)
+  if (!hit) { showToast('当前没有无归属任务'); return }
+  openPano(hit.id)
+  nextTick(() => {
+    const el = document.querySelector('.lane.orph')
+    if (!el) { showToast('已切到该项目 · 它没有无归属任务'); return }
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('w11-flash')
+    setTimeout(() => el.classList.remove('w11-flash'), 1400)
+    showToast(`${hit.orphanTasks.length} 条任务在本项目内但没挂任何成功指标 · 泳道区最右侧的红色收容道`)
+  })
+}
+/** 断链清单：报数 + 导出（口径来自集中取数，与骨架条同源） */
+function showRiskReport() {
+  const lines: string[] = ['# 方向台断链清单（W11）', '']
+  for (const g of compassMeta.value.dirs) {
+    for (const pm of g.projects) {
+      if (!pm.risk) continue
+      const p = findProject(pm.id)
+      lines.push(`## ${g.dir.name} › ${p?.name || pm.id}`)
+      for (const m of pm.metrics) {
+        if (m.orphanMetric) lines.push(`- ⚠ 指标「${m.title}」零任务（验收：${m.acceptance || '未写'}）`)
+      }
+      for (const t of pm.orphanTasks) lines.push(`- ⚠ 任务「${t.title}」未挂任何成功指标`)
+    }
+  }
+  if (lines.length === 2) { showToast('✓ 当前无断链'); return }
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `方向台断链清单_${new Date().toISOString().slice(0, 10)}.md`
+  a.click()
+  URL.revokeObjectURL(a.href)
+  showToast(`已导出断链清单（${compassMeta.value.counts.risk} 处）`)
+}
+/** 任务成熟度详情（从任务行的小徽标点进来） */
+function showTaskGrade(taskId: string) {
+  const t = d.value.tasks.find(x => x.id === taskId)
+  if (!t) return
+  const m = taskMaturity(t)
+  showToast(`${m.grade} · ${m.label}${m.reasons.length ? '｜' + m.reasons.slice(0, 3).join('；') : '｜四维齐备'}`)
+}
+/** 给无归属任务挂指标：进任务抽屉让用户选，本函数只做引导（写入口径唯一在任务侧） */
+function bindOrphan(taskId: string) {
+  const t = d.value.tasks.find(x => x.id === taskId)
+  if (!t) return
+  showToast(`「${t.title.slice(0, 14)}」尚无成功指标：请先在指标卡里新建一条，或用任务详情挂载`)
+}
 
 function toggleMetric(id: string) {
   if (expandedMetrics.value.has(id)) expandedMetrics.value.delete(id)
@@ -458,17 +678,12 @@ function unbindTask(task: TaskCard) {
   showToast(`✓ 已从本指标移除：「${task.title.slice(0, 16)}」回到任务调度模块`)
 }
 
-// ---- 任务数据 ----
-function tasksForMetric(metricId: string): TaskCard[] {
-  // REQ-034：按 id 去重双保险
-  const seen = new Set<string>()
-  return d.value.tasks
-    .filter(t => !t.deletedAt && t.metricId === metricId)
-    .filter(t => { if (seen.has(t.id)) return false; seen.add(t.id); return true })
-    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
-}
-/* R166 定案 1：子任务改成卡内嵌 subtasks，不再是独立卡 ⇒ R144 的 flattenTaskTree 展平与 ⤴ 升顶层退役 */
-function metricTaskRows(metricId: string) { return tasksForMetric(metricId) }
+/* ★W11 二批清账：tasksForMetric() / metricTaskRows() 已退役。
+   它们是"任务数据在视图里现算"的最后一处残留 —— W11 集中取数层（compassMeta.ts）落地后，
+   指标的任务列表、总数、完成数、状态点全部走 byMetric 的 O(1) 取值。
+   ★为什么必须真删而不是留着：留着的唯一后果是"以后有人顺手又用回它"，
+   于是那 6 次/指标 的 filter+sort 悄悄复活，而回归/typecheck/build 全绿。
+   同批 R166 定案 1 已把 flattenTaskTree 展平退役；metricTaskRows 当时的转发壳一并归零。 */
 
 // ---- 停滞检测 ----
 function isStagnant(dir: Direction): boolean {
@@ -491,12 +706,55 @@ const tocItems = [
 ]
 const activeLayer = ref(1)
 const canvasEl = ref<HTMLElement | null>(null)
+/**
+ * ★定位动作前先确保在项目塔视图。
+ * 为什么要这一步：全景视图里第 4/5/6 层不再是纵向排布的 DOM（它们变成了一根根横向泳道），
+ * 于是"点左侧目录第 5 层"在全景下会静默失灵 —— 目录点了没反应，看起来像坏了。
+ * 正确行为是**先切回纵向再定位**（双向可达的反向：任何定位都能抵达，不挑视图）。
+ */
+function ensureTower(hint: string): Promise<void> {
+  if (viewMode.value === 'tower') return Promise.resolve()
+  viewMode.value = 'tower'
+  showToast(`${hint} · 已自动切回项目塔视图`)
+  return nextTick()
+}
 function scrollToLayer(n: number) {
   activeLayer.value = n
-  const el = document.getElementById('layer-' + n)
-  el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  if (n <= 2) {
+    // 1/2 层的正文常驻 HERO 卡，定位即打开层级面板（原来只滚不展开，等于点了没反应）
+    if (layerOpen.value !== (n as 1 | 2)) onLayerOpen(n as 1 | 2)
+    document.getElementById('layer-1')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return
+  }
+  if (n === 3) {
+    if (!layerOpen.value) layerOpen.value = 3
+    document.getElementById('layer-1')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return
+  }
+  ensureTower(`定位第 ${n} 层`).then(() => {
+    if (n === 4) {
+      const el = document.querySelector('[data-tower]')
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      showToast('第 4 层 · 每个攻坚项目一个独立舱，左侧色条即项目身份')
+    } else if (n === 5) {
+      const el = document.querySelector('.metric-card')
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el?.classList.add('w11-flash')
+      setTimeout(() => el?.classList.remove('w11-flash'), 1400)
+      showToast('第 5 层 · 成功指标成卡，任务内嵌在指标里')
+    } else {
+      const el = document.querySelector('.tk-row')
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el?.classList.add('w11-flash')
+      setTimeout(() => el?.classList.remove('w11-flash'), 1400)
+      showToast('第 6 层 · 每条任务都隶属某个成功指标，悬停看完整归属路径')
+    }
+  })
 }
 function onCanvasScroll() {
+  /* 全景视图是横向泳道，纵向滚动不再对应六层 ⇒ 目录高亮保持不动，
+     否则会随页面微滚乱跳（判据 W11-9 的一部分：联动不许制造假信号） */
+  if (viewMode.value === 'pano') return
   const canvas = canvasEl.value
   if (!canvas) return
   const canvasTop = canvas.getBoundingClientRect().top
@@ -643,6 +901,11 @@ onUnmounted(() => {
         <!-- R54-A1：来源感知返回（?from=proj&p= 进来才有「返回项目详情」；一级台面不放返回钮） -->
         <button v-if="fromProjId" class="tree-tool accent" @click="goBack" title="返回刚才那个项目的详情页">← 返回项目详情</button>
         <div class="tree-stats">愿景 1 · 使命 1 · 战略目标 {{ treeStats.dirs }} · 项目 {{ treeStats.projects }} · 🚀 主攻 {{ treeStats.focused }} · ⚠ 停滞 {{ treeStats.stalled }} · 指标 {{ treeStats.metrics }} · 任务 {{ treeStats.tasks }}</div>
+        <!-- ★W11 视图切换（D3：方向台内第二视图）。双向可达：两个按钮都在，任何时候都能来回切 -->
+        <div class="view-seg" role="tablist" aria-label="方向台视图形态">
+          <button class="vs-b" :class="{ on: viewMode === 'tower' }" :aria-selected="viewMode === 'tower'" title="纵向项目舱列 · 看我在哪个位置" @click="viewMode = 'tower'">项目塔</button>
+          <button class="vs-b" :class="{ on: viewMode === 'pano' }" :aria-selected="viewMode === 'pano'" title="横向泳道全景 · 看这一个项目的完整链路" @click="viewMode = 'pano'">项目全景</button>
+        </div>
         <button class="tree-tool" @click="expandAllNodes" title="展开全部层级">⊞ 展开</button>
         <button class="tree-tool" @click="collapseAllNodes" title="收起全部战略目标与指标">⊟ 收起</button>
         <!-- R3-B′：目标级入口上收页头（原先埋在第 3 层卡头里，新建战略目标要先把视线降到层内） -->
@@ -696,9 +959,41 @@ onUnmounted(() => {
               </template>
             </div>
           </div>
+          <!-- W11 ★战略骨架控制条：六层按钮 + 战略目标芯片 + 断链行。
+               它不是"另一张架构展示图"，而是下方项目塔的导航/过滤/联动中枢——
+               六层数字吃 compassMeta.counts（与舱体同源），点层级即定位或过滤。判据 W11-7 钉住数字不得散落现算。 -->
+          <CompassSpine
+            :meta="compassMeta"
+            :dir-filter="dirFilter"
+            :layer-open="layerOpen"
+            :risk-only="riskOnly"
+            @layer="onLayerOpen"
+            @locate="onLocateLayer"
+            @dir="onDirFilter"
+            @risk="toggleRiskOnly"
+            @orphan="gotoOrphans"
+            @risk-bar="showRiskReport"
+          />
 
-          <!-- 第3-6层：战略目标 → 攻坚项目 → 成功指标 → 任务（R121：三列分支网格 + 发丝缩进） -->
-          <div class="tree-level-card" id="layer-3">
+          <!-- W11 ★层级展开面板：点 1/2/3 摊开该层完整内容 + 推导链 + 下挂实体。
+               再点同层收起（判据 W11-3 双向可达，绝不做单向门）。 -->
+          <CompassLayerPanel
+            v-if="layerOpen"
+            :meta="compassMeta"
+            :layer="layerOpen"
+            :vision="visionText"
+            :mission="missionText"
+            :vision-links="linkCount('vision')"
+            :mission-links="linkCount('mission')"
+            :dir-filter="dirFilter"
+            @goto="onLayerOpen"
+            @locate="onLocateLayer"
+            @dir="onDirFilter"
+            @close="layerOpen = null"
+          />
+
+
+          <!-- 第3-6层：战略目标 → 攻坚项目 → 成功指标 → 任务（W11：纵向项目舱序列 + 归属轨道） -->
             <div class="tl-head-row">
               <span class="tl-badge">3 战略目标 → 4 攻坚项目 → 5 成功指标 → 6 任务</span>
               <span class="tl-hint">主攻项目默认展开 · 其余折叠成卡头（点 ▸ 展开）· 卡头 ⠿ 拖拽可在本目标内排序 · 缺任务指标实时警示</span>
@@ -708,98 +1003,108 @@ onUnmounted(() => {
               <button class="tree-tool accent" title="打开项目详情（默认落主攻项目）" @click="router.push({ path: '/compass/projects' })">📄 项目详情</button>
             </div>
 
-            <div v-if="!d.compass.directions.length" class="empty-state">
-              <div class="empty-icon">🎯</div>
-              <div>还没有战略目标，点击上方"添加战略目标"开始</div>
+            <!-- ★W11 筛选态提示条：过滤是隐形的就会让人以为项目丢了。
+                 只要 dirFilter / riskOnly 任一开着就常驻，并给一个一键全清的出口（判据 W11-9）。 -->
+            <div v-if="dirFilter || riskOnly" class="filter-bar" role="status">
+              <span class="fb-t">
+                <template v-if="dirFilter">正在只看战略目标「{{ dirFilterName }}」</template>
+                <template v-if="dirFilter && riskOnly"> · </template>
+                <template v-if="riskOnly">⚠ 只看断链</template>
+              </span>
+              <span class="fb-n">
+                命中 {{ towerGroups.length }} 个目标 · {{ towerGroups.reduce((s, g) => s + g.projs.length, 0) }} 个项目舱
+              </span>
+              <button class="fb-clear" title="清除全部筛选，恢复完整视图" @click="clearFilters">✕ 清除筛选</button>
             </div>
 
-            <div class="tree-columns-grid" id="layer-4">
-              <div v-for="dir in d.compass.directions" :key="dir.id" class="tc-strategic-branch" :data-dir-id="dir.id">
-                <div class="tc-strategic-title">
-                  <div class="tct-name">
-                    <span class="node-title editable" :class="{editing: editingField === 'dir-' + dir.id}" :data-edit="'dir-' + dir.id" :contenteditable="editingField === 'dir-' + dir.id"
-                      @click="startEdit('dir-' + dir.id, $event)" @blur="saveEdit('dir-' + dir.id, $event)" @keydown.enter.prevent="saveEdit('dir-' + dir.id, $event)" @keydown.esc="cancelEdit">{{ dir.name }}</span>
-                    <span v-if="isStagnant(dir)" class="stagnant-tag" title="该目标下项目近 14 天无推进">⚠ 停滞</span>
-                    <MaturityBadge :m="directionMaturity(d, dir)" />
-                  </div>
-                  <div class="tct-meta">
-                    <span>{{ visibleProjectsOf(dir).length }} 攻坚项目 · {{ dir.projects.reduce((s,p)=>s+p.metrics.length,0) }} 成功指标</span>
-                    <span class="tct-acts" @click.stop>
-                      <span class="node-action" @click="addProject(dir.id)" title="添加项目">＋</span>
-                      <span class="node-action" @click="aiChain('projects', dir.id)" title="AI 建议攻坚项目（补路径依赖，查重后采纳才创建）"><AiEntryButton /></span>
-                      <span class="node-action" @click="openGoalImport(dir)" title="导入模板（Markdown 批量生成项目/指标/任务）">📋</span>
-                      <span class="node-action danger" @click="deleteNode('dir', dir.id)" title="删除目标">🗑</span>
-                    </span>
-                  </div>
-                </div>
+            <!-- ★W11 项目全景（横向泳道）。与项目塔同一份数据、两种投影，切换不重算。 -->
+            <CompassPano
+              v-if="viewMode === 'pano'"
+              :meta="compassMeta"
+              :active-id="panoId"
+              @pick="panoId = $event"
+              @to-tower="backToTower"
+              @toggle-task="toggleTask"
+              @task-grade="showTaskGrade"
+              @add-task="(mid, pid) => openTaskAdd(mid, pid)"
+              @add-metric="addMetric"
+              @ai-metric="(id) => aiChain('metrics', id)"
+              @bind-orphan="bindOrphan"
+              @goto-detail="(pid) => router.push({ path: '/compass/projects', query: { p: pid, from: 'tree' } })"
+            />
 
-                <div v-for="proj in visibleProjectsOf(dir)" :key="proj.id" class="tree-project-branch" :class="{ 'is-focused': proj.isFocused, 'is-dragging': dragProj?.id === proj.id }">
-                  <!-- R3-B2：drop 目标=同目标的另一张卡头（跨目标不接受，改归属走项目详情） -->
-                  <div class="tp-head" :class="{ folded: !projOpen(proj), 'drop-on': dropTargetId === proj.id }"
-                    @dragover.prevent="onProjDragOver(dir.id, proj)" @dragleave="onProjDragLeave(proj.id)" @drop.prevent="onProjDrop(dir.id, proj)">
-                    <div class="tp-title">
-                      <span class="tp-caret" :title="projOpen(proj) ? '折叠该项目（指标与任务）' : '展开该项目的指标与任务'" @click.stop="toggleProjectFold(proj)">{{ projOpen(proj) ? '▾' : '▸' }}</span>
-                      <span v-if="proj.isFocused" class="tp-mark" title="主攻项目">🚀</span>
-                      <span v-if="proj.pinned" class="tp-pin" title="已置顶到该目标前排">📌</span>
-                      <span v-if="projMeta.get(proj.id)?.stall" class="tp-flag" title="有任务但近 14 天无推进/完成活动">停滞</span>
-                      <span class="node-title editable" :class="{editing: editingField === 'proj-' + proj.id}" :data-edit="'proj-' + proj.id" :contenteditable="editingField === 'proj-' + proj.id"
-                        @click="startEdit('proj-' + proj.id, $event)" @blur="saveEdit('proj-' + proj.id, $event)" @keydown.enter.prevent="saveEdit('proj-' + proj.id, $event)" @keydown.esc="cancelEdit">{{ proj.name }}</span>
-                    </div>
-                    <span class="tp-pct" :class="{ ok: (projMeta.get(proj.id)?.pct || 0) === 100 }">{{ projMeta.get(proj.id)?.pct || 0 }}% · {{ projMeta.get(proj.id)?.done || 0 }}/{{ projMeta.get(proj.id)?.total || 0 }}</span>
-                    <MaturityBadge :m="projectMaturity(d, proj)" />
-                  </div>
-                  <div class="tp-meta">
-                    <span>📊 {{ proj.metrics.length }} 指标 · 📋 {{ projMeta.get(proj.id)?.tasks || 0 }} 任务</span>
-                    <!-- R3-B′：卡头 6 入口 → 「⠿ / 全景 / AI / ▾」，设主攻·置顶·添加指标·进详情·删除进折叠菜单
-                         （删除仍走 compassNodeCounts 报数 + useConfirm + 3 秒撤销，防呆不因收敛而降级） -->
-                    <span class="tp-acts" @click.stop>
-                      <span class="tp-grip" draggable="true" title="拖拽排序（仅同一战略目标内；主攻恒在前排）" @dragstart="onProjDragStart(dir.id, proj, $event)" @dragend="onProjDragEnd">⠿</span>
-                      <span class="node-action" @click="openProjectDrawer(proj.id)" title="打开项目全景">📦</span>
-                      <span class="node-action" @click="aiChain('metrics', proj.id)" title="AI 建议成功指标（可量化验收，查重后采纳才创建）"><AiEntryButton /></span>
-                      <span class="node-action" :class="{ on: projMenu === proj.id }" @click="toggleProjMenu(proj.id)" title="更多操作（主攻 / 置顶 / 指标 / 详情 / 删除）">▾</span>
-                      <div v-if="projMenu === proj.id" class="tp-menu">
-                        <div class="tpm-item" @click="onToggleFocus(proj.id); closeProjMenu()">{{ proj.isFocused ? '☆ 取消主攻' : '🚀 设为主攻' }}</div>
-                        <div class="tpm-item" @click="toggleProjectPin(dir, proj); closeProjMenu()">{{ proj.pinned ? '☆ 取消置顶' : '📌 置顶到本目标前排' }}</div>
-                        <div class="tpm-item" @click="addMetric(proj.id); closeProjMenu()">＋ 添加成功指标</div>
-                        <div class="tpm-item" @click="closeProjMenu(); router.push({ path: '/compass/projects', query: { p: proj.id, from: 'tree' } })">📄 进入项目详情页</div>
-                        <div class="tpm-item danger" @click="closeProjMenu(); deleteNode('proj', proj.id)">🗑 删除项目</div>
-                      </div>
-                    </span>
-                  </div>
-
-                  <!-- 第5-6层：指标（发丝缩进）与任务叶——R3-B′：折叠态的项目只留卡头 -->
-                  <div v-for="metric in (projOpen(proj) ? proj.metrics : [])" :key="metric.id" class="tree-metric-branch">
-                    <div class="tm-title-row" @click="toggleMetric(metric.id)">
-                      <span class="tm-dot" :class="{doing: tasksForMetric(metric.id).some(t=>t.status==='doing'), done: tasksForMetric(metric.id).length && tasksForMetric(metric.id).every(t=>t.status==='done')}">{{ tasksForMetric(metric.id).length && tasksForMetric(metric.id).every(t=>t.status==='done') ? '✓' : tasksForMetric(metric.id).some(t=>t.status==='doing') ? '◐' : '○' }}</span>
-                      <span class="node-title editable" :class="{editing: editingField === 'metric-' + metric.id}" :data-edit="'metric-' + metric.id" :contenteditable="editingField === 'metric-' + metric.id"
-                        @click.stop="startEdit('metric-' + metric.id, $event)" @blur="saveEdit('metric-' + metric.id, $event)" @keydown.enter.prevent="saveEdit('metric-' + metric.id, $event)" @keydown.esc="cancelEdit">{{ metric.title }}</span>
-                      <span class="tm-count">({{ tasksForMetric(metric.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(metric.id).length }})</span>
-                      <MaturityBadge :m="metricMaturity(d, metric)" />
-                      <span class="tm-caret">{{ expandedMetrics.has(metric.id) ? '▾' : '▸' }}</span>
-                      <span class="tm-acts" @click.stop>
-                        <span class="node-action" @click="openTaskAdd(metric.id, proj.id)" title="添加任务（新建 / 关联）">＋</span>
-                        <span class="node-action" @click="aiChain('tasks', metric.id)" title="AI 按指标缺口建议近两周任务（查重后采纳才创建）"><AiEntryButton /></span>
-                        <span class="node-action danger" @click="deleteNode('metric', metric.id)" title="删除指标">🗑</span>
-                      </span>
-                    </div>
-                    <div v-if="tasksForMetric(metric.id).length && expandedMetrics.has(metric.id)" class="tm-task-checklist">
-                      <div v-for="task in metricTaskRows(metric.id)" :key="task.id" class="tm-task-leaf" :class="{done: task.status==='done'}">
-                        <span class="tml-check" :class="{done: task.status==='done'}" @click.stop="toggleTask(task.id)">{{ task.status==='done' ? '✓' : task.status==='doing' ? '◐' : '○' }}</span>
-                        <span class="node-title editable" :class="{editing: editingField === 'task-' + task.id}" :data-edit="'task-' + task.id" :contenteditable="editingField === 'task-' + task.id"
-                          @click.stop="startEdit('task-' + task.id, $event)" @blur="saveEdit('task-' + task.id, $event)" @keydown.enter.prevent="saveEdit('task-' + task.id, $event)" @keydown.esc="cancelEdit">{{ task.title }}</span>
-                        <span class="tml-pri">{{ task.priority==='high'?'高优':task.priority==='medium'?'中优':'低优' }}</span>
-                        <MaturityBadge :m="taskMaturity(task)" />
-                        <span class="tml-del node-action" @click.stop="unbindTask(task)" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）">✕</span>
-                      </div>
-                    </div>
-                    <div v-else-if="!tasksForMetric(metric.id).length" class="tm-empty-alert">⚠ 暂无支撑任务（线索断开）</div>
-                  </div>
-                  <div v-if="!proj.metrics.length" class="empty-sub">暂无成功指标</div>
-                </div>
-
-                <div v-if="!visibleProjectsOf(dir).length" class="empty-sub">暂无可见攻坚项目（已完成项目可能已隐藏），点上方「＋」创建</div>
+            <!-- W11（V3.8.11）★纵向项目舱序列 —— 替换原三列并排网格（.tree-columns-grid）
+                 为什么换：三列并排时项目之间只靠列边界，扫视易串行，归属靠"在哪一列"推断。
+                 改成纵向舱：每舱独占容器 + 左侧 4px 色条 + 舱间 22px 间距，归属由色条与面包屑显式承担。
+                 判据 W11-1 钉住"纵向舱序列存在 + .tree-columns-grid 消失"。 -->
+            <div v-if="viewMode === 'tower'" class="tower-list" id="layer-4">
+              <div v-if="!d.compass.directions.length" class="empty-state">
+                <div class="empty-icon">🎯</div>
+                <div>还没有战略目标，点击上方"添加战略目标"开始</div>
               </div>
-            </div>
+
+              <template v-for="dg in towerGroups" :key="dg.dir.id">
+                <!-- 战略目标分组头：★与骨架条芯片、层级面板目标卡三处同源同色 -->
+                <div class="dir-head" :class="dg.hue" :data-dir-id="dg.dir.id">
+                  <div class="dh-l">
+                    <span class="dh-i">{{ dg.i + 1 }}</span>
+                    <span class="node-title editable dh-n" :class="{editing: editingField === 'dir-' + dg.dir.id}" :data-edit="'dir-' + dg.dir.id" :contenteditable="editingField === 'dir-' + dg.dir.id"
+                      @click="startEdit('dir-' + dg.dir.id, $event)" @blur="saveEdit('dir-' + dg.dir.id, $event)" @keydown.enter.prevent="saveEdit('dir-' + dg.dir.id, $event)" @keydown.esc="cancelEdit">{{ dg.dir.name }}</span>
+                    <span v-if="isStagnant(dg.dir)" class="stagnant-tag" title="该目标下项目近 14 天无推进">⚠ 停滞</span>
+                    <MaturityBadge :m="directionMaturity(d, dg.dir)" />
+                    <span class="dh-meta">{{ dg.projs.length }} 攻坚项目 · {{ dg.metaCount }} 成功指标 · {{ dg.taskCount }} 任务</span>
+                  </div>
+                  <div class="dh-acts" @click.stop>
+                    <span class="node-action" @click="addProject(dg.dir.id)" title="添加攻坚项目">＋</span>
+                    <span class="node-action" @click="aiChain('projects', dg.dir.id)" title="AI 建议攻坚项目（补路径依赖，查重后采纳才创建）"><AiEntryButton /></span>
+                    <span class="node-action" @click="openGoalImport(dg.dir)" title="导入模板（Markdown 批量生成项目/指标/任务）">📋</span>
+                    <span class="node-action" :class="{ on: dirFilter === dg.dir.id }" @click="onDirFilter(dg.dir.id)" title="只看这个战略目标的项目舱">{{ dirFilter === dg.dir.id ? '✓ 正在只看' : '只看我' }}</span>
+                    <span class="node-action danger" @click="deleteNode('dir', dg.dir.id)" title="删除目标">🗑</span>
+                  </div>
+                </div>
+
+                <!-- ★项目舱列 -->
+                <CompassTower
+                  v-for="(row, pi) in dg.projs"
+                  :key="row.proj.id"
+                  :dir="dg.dir"
+                  :proj="row.proj"
+                  :meta="row.meta"
+                  :idx="pi + 1"
+                  :hue="row.hue"
+                  :open="projOpen(row.proj)"
+                  :open-metrics="expandedMetrics"
+                  :risk-only="riskOnly"
+                  :dragging="dragProj?.id === row.proj.id"
+                  :drop-on="dropTargetId === row.proj.id"
+                  :menu-on="projMenu === row.proj.id"
+                  :editing-field="editingField"
+                  @menu="toggleProjMenu"
+                  @dragstart="(dirId, pid, ev) => { const p = findProject(pid); if (p) onProjDragStart(dirId, p, ev) }"
+                  @dragover="(dirId, pid) => { const p = findProject(pid); if (p) onProjDragOver(dirId, p) }"
+                  @dragleave="onProjDragLeave"
+                  @drop="(dirId, pid) => { const p = findProject(pid); if (p) onProjDrop(dirId, p) }"
+                  @pin="(dirId, pid) => { const dir = d.compass.directions.find(x => x.id === dirId); const p = findProject(pid); if (dir && p) toggleProjectPin(dir, p) }"
+                  @focus="onToggleFocus"
+                  @del="(id) => deleteNode('proj', id)"
+                  @fold="(id) => { const p = findProject(id); if (p) toggleProjectFold(p) }"
+                  @toggle-metric="toggleMetric"
+                  @toggle-task="toggleTask"
+                  @task-grade="showTaskGrade"
+                  @add-task="(mid) => { const r = findMetric(mid); if (r) openTaskAdd(mid, r.proj.id) }"
+                  @unbind="(tid) => { const t = d.tasks.find(x => x.id === tid); if (t) unbindTask(t) }"
+                  @ai-task="(mid) => aiChain('tasks', mid)"
+                  @add-metric="addMetric"
+                  @edit-title="(mid, ev) => startEdit('metric-' + mid, ev)"
+                  @save-title="(mid, ev) => saveEdit('metric-' + mid, ev)"
+                  @cancel-title="cancelEdit"
+                  @edit-project="() => openProjectDrawer(row.proj.id)"
+                  @ai-metric="(id) => aiChain('metrics', id)"
+                  @open-pano="openPano"
+                  @goto-detail="(pid) => { toggleProjMenu(pid); router.push({ path: '/compass/projects', query: { p: pid, from: 'tree' } }) }"
+                  @bind-orphan="bindOrphan"
+                />
+              </template>
           </div>
 
           <!-- 底部说明 -->
@@ -947,7 +1252,8 @@ onUnmounted(() => {
 /* R52-F8/R54-A1：返回入口（accent 强调）+ 面包屑上级可点 */
 .tree-tool.accent { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
 /* R54-A3：?hl 定位闪烁 */
-.tc-strategic-branch.goal-flash { animation: treeGoalFlash 1.4s ease; }
+/* ★随迁备案（W11）：原锚 .tc-strategic-branch 三列网格已退役，改指新结构 .dir-head */
+.dir-head.goal-flash { animation: treeGoalFlash 1.4s ease; }
 @keyframes treeGoalFlash { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); border-color: var(--accent); } }
 
 /* D8：六层目录 = 布局内左栏 + sticky 跟随（目录在左，内容在右，随滚动吸附） */
@@ -983,28 +1289,17 @@ onUnmounted(() => {
 .status-active { color: var(--success); }
 .status-paused { color: var(--warning); }
 /* R59-T3 的「主攻项目强调」（.project-node.primary / .project-node.primary .node-title）随旧树节点类族一并退役
-   （R4-Ev 孤儿 CSS 第二批）——今天的主攻标记在 .tree-project-branch.is-focused 与 .tp-mark 🚀 上 */
+   （R4-Ev 孤儿 CSS 第二批）——★随迁备案（W11）：主攻标记已迁到 .tower 的 is-focused 结构与 tw-badge.focus */
 .metric-item.expanded { background: var(--surface); border-color: color-mix(in srgb, var(--accent) 20%, var(--border)); border-bottom-left-radius: 0; border-bottom-right-radius: 0; margin-bottom: 0; }
 .metric-status.done { background: var(--success); }
 .metric-status.doing { background: var(--warning); }
 .metric-status.todo { background: var(--text-3); }
 .metric-name.editing { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
 .metric-item.expanded .metric-expand-icon { transform: rotate(90deg); }
-.task-item { display: flex; align-items: center; gap: 7px; padding: 5px 9px 5px 20px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; transition: all var(--dur); border-radius: 5px; position: relative; }
-.task-item::before { content: ''; position: absolute; left: 10px; top: 0; bottom: 0; width: 1px; background: var(--border); }
-.task-item::after { content: ''; position: absolute; left: 10px; top: 50%; width: 6px; height: 1px; background: var(--border-strong); }
-.task-item:hover { background: var(--surface-2); color: var(--text); }
-.task-check { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; transition: all var(--dur); display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; font-size: var(--fs-micro); }
-.task-check:hover { border-color: var(--accent); }
-.task-check.done { background: var(--success); border-color: var(--success); color: #fff; }
-.task-item.done .task-text { text-decoration: line-through; color: var(--text-3); }
-.task-text { flex: 1; outline: none; border-radius: 4px; padding: 1px 4px; margin: -1px -4px; cursor: text; transition: background var(--dur); }
-.task-text:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
-.task-text.editing { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
-.task-meta { font-size: var(--fs-micro); color: var(--text-3); }
-.task-actions { display: flex; gap: 2px; opacity: 0; transition: opacity var(--dur); }
-.task-item:hover .task-actions { opacity: 1; }
-.empty-sub { text-align: center; padding: 16px; font-size: var(--fs-caption); color: var(--text-3); }
+/* ★W11 随迁清账（2026-10-13）：下方 .task-item/.task-check/.task-text/.task-meta/.task-actions/.empty-sub 六族
+   共 15 条是 R3-B2 时期的任务行样式，W11 起任务行已迁到 CompassLane 的 .tk-row（判死 13 + 祖先断 2，
+   由 dead-css-scan 实跑坐实）。四票全零 = 模板零引用 + 全站 class 属性零引用 + 全站字符串零引用 + 104 场景普查零命中。
+   同批不删 .metric-*（投影弹窗仍用）与 .proj-toggle/.toggle（R4-Ev① 的活体票载体，删了那条判据会假红）。 */
 .empty-state { text-align: center; padding: 40px 20px; color: var(--text-3); font-size: var(--fs-body); }
 .empty-icon { font-size: 32px; opacity: .4; margin-bottom: 8px; }
 
@@ -1038,74 +1333,77 @@ onUnmounted(() => {
 .tl-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--fs-sub); color: var(--text-3); }
 .tl-head-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
 .tl-hint { font-size: var(--fs-sub); color: var(--text-3); }
-.tree-columns-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }
-.tc-strategic-branch { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-.tc-strategic-title { padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-.tct-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
-/* ③ 六层字阶真正分层（用户拍板）：原第 2~6 层全是 --fs-body(13px)，层级只能靠缩进辨认。
-   现 战略目标 title(15) / 攻坚项目 headline(17) / 指标·任务 保持 body(13)。
-   ★攻坚项目取17 而非 13：用户拍板——它是「当前在做的事」，比所属战略目标更该被看见；
-   代价是字阶出现「使命17→目标15→项目17」起伏，这是有意取舍不是失误。 */
-.tct-name .node-title { font-size: var(--fs-title); font-weight: 600; color: var(--text); line-height: 1.35; }
-.tct-meta { display: flex; align-items: center; gap: 8px; margin-top: 3px; font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; }
-.tct-acts { display: none; gap: 2px; margin-left: auto; }
-.tc-strategic-branch:hover .tct-acts { display: inline-flex; }
-.tree-project-branch { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
-/* ★V3.8.8：原此处一条 accent-28% 的弱 is-focused 规则已由下方「次级焦点」版取代并整条删除
-   （同选择器两条规则并存＝靠 cascade 顺序碰巧生效，是 W7-5 抓过的那类暗病）。 */
-.tp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.tp-title { display: flex; align-items: center; gap: 5px; min-width: 0; }
-.tp-title .node-title { font-size: var(--fs-headline); font-weight: 600; color: var(--text); line-height: 1.35; }
-/* ④ 主攻项目成为**次级焦点**：原仅 accent28% 边框 + 🚀 emoji，而它恰恰是「我现在在哪」的唯一落点。
-   现给 accent 边框 + accent-light 底色 + 文字转 accent-ink；选中态锚点结构保留（R59-3 判据钉 `.is-focused {` 前缀）。 */
-.tree-project-branch.is-focused { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
-.tree-project-branch.is-focused .tp-title .node-title { color: var(--accent-ink); }
-.tp-mark { flex-shrink: 0; color: var(--accent); font-size: var(--fs-caption); }
-/* R3-B1：停滞标随主航线项目行卡退役搬进树卡头（原 .pr-flag 同色同形，令牌取色） */
-.tp-flag { flex-shrink: 0; font-size: var(--fs-micro); padding: 1px 4px; border-radius: 3px; background: var(--tag-warn-bg); color: var(--warning); }
-.tp-pct { flex-shrink: 0; font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; }
-.tp-pct.ok { color: var(--success); font-weight: 600; }
-.tp-caret { flex: none; width: 14px; text-align: center; font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; user-select: none; }
-.tp-caret:hover { color: var(--accent); }
-/* R3-B2：置顶徽标 + 拖拽手柄 + 落位指示（指示用 inset box-shadow，不占布局——落位时不许把版面挤动） */
-.tp-pin { flex-shrink: 0; font-size: var(--fs-caption); }
-.tp-grip { flex: none; width: 16px; text-align: center; font-size: var(--fs-caption); color: var(--text-4); cursor: grab; user-select: none; }
-.tp-grip:hover { color: var(--accent); }
-.tp-grip:active { cursor: grabbing; }
-.tree-project-branch.is-dragging { opacity: var(--opacity-disabled); }
-.tp-head.drop-on { box-shadow: inset 0 2px 0 0 var(--accent); }
-.tp-head.folded { border-bottom: 1px dashed var(--border); }
-.tp-acts { position: relative; }
-.tp-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 168px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); padding: 4px; }
-.tpm-item { font-size: var(--fs-sub); color: var(--text-2); padding: 7px 10px; border-radius: var(--radius-xs); cursor: pointer; white-space: nowrap; }
-.tpm-item:hover { background: var(--surface-2); color: var(--text); }
-.tpm-item.danger { color: var(--danger); }
-.tpm-item.danger:hover { background: var(--danger-bg-soft); }
-.tp-meta { display: flex; align-items: center; gap: 8px; font-size: var(--fs-caption); color: var(--text-3); }
-.tp-acts { display: none; gap: 2px; margin-left: auto; }
-.tree-project-branch:hover .tp-acts { display: inline-flex; }
-/* 第5-6层：发丝缩进（原型：border-left 引导线） */
-.tree-metric-branch { margin-left: 8px; padding-left: 10px; border-left: 1.5px solid var(--border); margin-top: 8px; }
-.tm-title-row { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; }
-.tm-dot { flex-shrink: 0; font-size: var(--fs-tiny); color: var(--text-4); }
-.tm-dot.doing { color: var(--tag-warn-text); }
-.tm-dot.done { color: var(--success); }
-.tm-title-row .node-title { font-weight: 600; min-width: 0; }
-.tm-count { flex-shrink: 0; font-size: var(--fs-caption); color: var(--text-4); font-variant-numeric: tabular-nums; }
-.tm-caret { flex-shrink: 0; font-size: var(--fs-tiny); color: var(--text-4); }
-.tm-acts { display: none; gap: 2px; margin-left: auto; }
-.tree-metric-branch:hover .tm-acts { display: inline-flex; }
-.tm-task-checklist { margin-left: 4px; margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
-.tm-task-leaf { display: flex; align-items: flex-start; gap: 6px; padding: 2px 0; font-size: var(--fs-sub); color: var(--text); line-height: 1.35; }
-.tm-task-leaf.done .node-title { text-decoration: line-through; color: var(--text-4); }
-.tml-check { flex-shrink: 0; font-size: var(--fs-tiny); color: var(--text-4); cursor: pointer; }
-.tml-check.done { color: var(--text-4); }
-.tml-pri { flex-shrink: 0; margin-left: auto; font-size: var(--fs-tiny); color: var(--text-4); }
-.tml-del { display: none; flex-shrink: 0; }
-.tm-task-leaf:hover .tml-del { display: inline-flex; }
-/* 空指标警示（原型：⚠ 暂无支撑任务） */
-.tm-empty-alert { margin-top: 4px; font-size: var(--fs-caption); color: var(--warning); background: var(--warning-bg-soft); padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; }
-@media (max-width: 1180px) { .tree-columns-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 980px) { .tree-columns-grid { grid-template-columns: 1fr; } }
+
+/* ── W11 视图切换段（项目塔 / 项目全景）── */
+/* ★两个按钮都必须常驻可点：切过去容易、切回来难是典型的单向门 */
+.view-seg {
+  display: inline-flex; align-items: center; gap: 2px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 2px;
+}
+.vs-b {
+  font-size: var(--fs-micro); font-weight: 600; color: var(--text-3);
+  background: transparent; border: none; cursor: pointer;
+  padding: 4px 11px; border-radius: 999px; transition: all var(--dur); white-space: nowrap;
+}
+.vs-b:hover { color: var(--text-2); }
+.vs-b.on { color: var(--accent-ink); background: var(--accent-light); }
+
+/* ── W11 筛选态提示条：过滤是隐形的就会让人以为项目丢了 ── */
+.filter-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 12px; padding: 7px 12px;
+  border: 1px solid var(--accent-light); border-radius: var(--radius-sm);
+  background: var(--accent-light);
+}
+.fb-t { font-size: var(--fs-sub); font-weight: 600; color: var(--accent-ink); }
+.fb-n { font-size: var(--fs-micro); color: var(--text-3); }
+.fb-clear {
+  margin-left: auto; font-size: var(--fs-micro); font-weight: 600; color: var(--text-2);
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 3px 10px; border-radius: 999px; cursor: pointer; transition: all var(--dur);
+}
+.fb-clear:hover { color: var(--accent-ink); border-color: var(--accent-light); }
+/* ══ W11：纵向项目舱序列 ══
+   .tree-columns-grid 三列并排已退役（判据 W11-1 钉住它不许复活）——
+   三列时项目之间只靠列边界，扫视易串行，归属靠"在哪一列"推断。 */
+.tower-list { display: flex; flex-direction: column; gap: 4px; }
+
+/* 战略目标分组头：与骨架条芯片、层级面板目标卡三处同源 */
+.dir-head {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 14px 2px 10px; margin-top: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.dir-head:first-of-type { margin-top: 0; }
+.dh-l { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.dh-i {
+  width: 20px; height: 20px; border-radius: 7px; flex: none;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--text-2); font-size: var(--fs-micro); font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+/* ★目标名 --fs-title(15px)：它是"分岔源头"，比项目重一档；使命/愿景仍是更高层（判据 W8-2 备案延续） */
+.dh-n { font-size: var(--fs-title); font-weight: 700; color: var(--text); letter-spacing: -.01em; }
+.dh-meta { font-size: var(--fs-micro); color: var(--text-3); margin-left: 2px; }
+.dh-acts { display: flex; align-items: center; gap: 4px; flex: none; }
+.dh-acts .node-action.on { color: var(--accent-ink); background: var(--accent-light); }
+
+/* 层级定位闪烁：让"我点的这层实体在这儿"一眼可见 */
+@keyframes w11Flash {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  22%, 62% { box-shadow: 0 0 0 3px var(--accent); }
+}
+.w11-flash { animation: w11Flash 1.4s ease; border-radius: var(--radius-md); }
+
+/* ★判据 W11-13 的版式补偿（D1 拍板：愿景保持 fs-display 22px，主角感靠版式）：
+   独占整行 + 上下大留白 + 重边框，三者缺一就是"只降字号不改版式"＝变相没实现。 */
+.tree-level-card.hero {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-lg);
+  padding: 30px 26px 30px 30px;
+  margin-bottom: 22px;
+  gap: 10px;
+}
 
 </style>

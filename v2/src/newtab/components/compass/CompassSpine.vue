@@ -1,0 +1,214 @@
+<script setup lang="ts">
+/**
+ * W11 · 战略骨架控制条（原型 .spine）。
+ *
+ * 它不是"另一张架构展示图"，而是**项目塔的导航 / 过滤 / 联动中枢**——
+ * 六层数字与项目塔同源（吃 CompassMeta.counts），点层级即定位或过滤，
+ * 点战略目标芯片即筛掉其它目标的舱。判据 W11-7 钉的就是"数字不得散落各处现算"。
+ *
+ * 焦点纪律：★全组件不得出现 --fs-display / --fs-hero（判据 W11-13 负锚）。
+ * 层级标题最高只到 --fs-title，主角感由版式与留白承担。
+ */
+import { computed } from 'vue'
+import type { CompassMeta } from '../../views/compassMeta'
+
+const props = defineProps<{
+  meta: CompassMeta
+  /** 当前聚焦的战略目标 id；空串＝全部 */
+  dirFilter: string
+  /** 当前展开的层级 1|2|3；null＝全收起 */
+  layerOpen: 1 | 2 | 3 | null
+  /** 断链模式是否开启 */
+  riskOnly: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'layer', lv: 1 | 2 | 3): void
+  (e: 'locate', lv: 4 | 5 | 6): void
+  (e: 'dir', id: string): void
+  (e: 'risk'): void
+  (e: 'orphan'): void
+  (e: 'riskBar'): void
+}>()
+
+/** 推导链的当前所在层（面板内逐级切换用；null＝不在面板里） */
+const chainAt = computed<1 | 2 | 3 | null>(() => props.layerOpen)
+
+/** 六层各对应 counts 里的哪个键（写成字面量联合，避免模板里再 cast 一次） */
+type CountKey = 'vision' | 'mission' | 'dirs' | 'projects' | 'metrics' | 'tasks'
+const LV: { n: 1 | 2 | 3 | 4 | 5 | 6; t: string; c: CountKey }[] = [
+  { n: 1, t: '愿景', c: 'vision' },
+  { n: 2, t: '使命', c: 'mission' },
+  { n: 3, t: '战略目标', c: 'dirs' },
+  { n: 4, t: '攻坚项目', c: 'projects' },
+  { n: 5, t: '成功指标', c: 'metrics' },
+  { n: 6, t: '任务', c: 'tasks' }
+]
+
+/** 每个项目舱的色相档位（判据 D2：从 accent 派生六档，不新增色系令牌） */
+const HUES = [88, 70, 52, 38, 26, 16]
+function hueOf(idx: number): string {
+  return `color-mix(in srgb, var(--accent) ${HUES[idx % HUES.length]}%, var(--surface))`
+}
+
+/** 点击六层按钮：1/2/3 走面板（emit 给父级做开合），4/5/6 走定位
+ *  ★两个分支必须显式收窄成各自的联合类型——合成一个联合后 emit 重载推不出来（TS2769） */
+function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
+  if (n <= 3) emit('layer', n as 1 | 2 | 3)
+  else emit('locate', n as 4 | 5 | 6)
+}
+</script>
+
+<template>
+  <section class="spine" aria-label="战略骨架控制条">
+    <div class="spine-chain" role="tablist">
+      <template v-for="(lv, i) in LV" :key="lv.n">
+        <span v-if="i" class="spine-arrow" aria-hidden="true">›</span>
+        <button
+          class="spine-lv"
+          :class="[`lv${lv.n}`, { on: chainAt === lv.n }]"
+          :aria-selected="chainAt === lv.n"
+          role="tab"
+          @click="onLv(lv.n)"
+        >
+          <span class="slv-n">{{ lv.n }}</span>
+          <span class="slv-t">{{ lv.t }}</span>
+          <span class="slv-c"><b>{{ meta.counts[lv.c] }}</b></span>
+        </button>
+      </template>
+    </div>
+
+    <!-- 战略目标芯片行：与下方项目分组头同源同色，点即过滤 -->
+    <div class="spine-dirs">
+      <span class="sd-lab">按战略目标聚焦</span>
+      <button class="dchip" :class="{ on: dirFilter === '' }" @click="emit('dir', '')">
+        <span class="dc-n">全部</span>
+        <span class="dc-m">{{ meta.counts.dirs }} 目标 / {{ meta.counts.projects }} 项目</span>
+      </button>
+      <button
+        v-for="(g, i) in meta.dirs"
+        :key="g.dir.id"
+        class="dchip"
+        :class="{ on: dirFilter === g.dir.id }"
+        :style="{ '--chip': hueOf(i) }"
+        @click="emit('dir', g.dir.id)"
+      >
+        <i class="dc-dot" />
+        <span class="dc-n">{{ g.dir.name }}</span>
+        <span class="dc-m">{{ g.projects.length }} 项目 · {{ g.projects.reduce((s, p) => s + p.total, 0) }} 任务</span>
+        <span class="dc-x">{{ dirFilter === g.dir.id ? '✓' : '▸' }}</span>
+      </button>
+    </div>
+
+    <!-- 断链行：收在骨架条内，不独占横幅 -->
+    <div class="spine-risk">
+      <span class="sr-ico" :class="{ zero: meta.counts.risk === 0 }">
+        {{ meta.counts.risk === 0 ? '✓' : '⚠' }}
+      </span>
+      <span v-if="meta.counts.risk > 0" class="sr-t">
+        <b>{{ meta.counts.risk }} 处归属/支撑缺失</b> —— 缺任务指标与无归属任务已就地标黄
+      </span>
+      <span v-else class="sr-t"><b>链路完整</b> —— 每条指标都有任务，每条任务都有归属</span>
+      <div class="sr-acts">
+        <button v-if="meta.counts.risk > 0" class="sr-btn" :class="{ on: riskOnly }" @click="emit('risk')">
+          {{ riskOnly ? '✓ 断链模式 · 退出' : '⚠ 只看断链' }}
+        </button>
+        <button v-if="meta.counts.risk > 0" class="sr-btn" @click="emit('orphan')">↗ 无归属收容区</button>
+        <button class="sr-btn" @click="emit('riskBar')">⤓ 断链清单</button>
+      </div>
+    </div>
+  </section>
+</template>
+
+<style scoped>
+/* ── 骨架条本体 ── */
+.spine {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+/* 六层横向流：上层窄、下层宽，把"逐层收窄"直接做成宽度 */
+.spine-chain { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; }
+.spine-arrow { display: flex; align-items: center; padding: 0 4px; color: var(--text-4); font-size: var(--fs-micro); }
+.spine-lv {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 11px; border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  cursor: pointer; transition: all var(--dur); min-height: 30px;
+}
+.spine-lv:hover { background: var(--surface-3); }
+.spine-lv.on { background: var(--accent-light); border-color: var(--accent); }
+.slv-n { font-size: var(--fs-micro); font-weight: 700; color: var(--text-4); }
+.slv-t { font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.spine-lv.on .slv-t { color: var(--accent); }
+/* 计数与层级名之间一条发丝分隔：数字是统计，名字是层级，别混成一坨 */
+.slv-c { padding-left: 6px; margin-left: 2px; border-left: 1px solid var(--border); }
+.slv-c b { font-size: var(--fs-sub); font-weight: 700; color: var(--text); }
+.spine-lv.on .slv-c { border-left-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.spine-lv.on .slv-c b { color: var(--accent); }
+/* 上层两级用强调底，视觉上"压"着下层 */
+.spine-lv.lv1, .spine-lv.lv2 { background: var(--accent-light); }
+.spine-lv.lv3, .spine-lv.lv4, .spine-lv.lv5, .spine-lv.lv6 { flex: 1 1 0; min-width: 96px; }
+
+/* ── 战略目标芯片 ── */
+.spine-dirs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sd-lab {
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em; color: var(--text-4);
+  padding-right: 2px;
+}
+.dchip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  cursor: pointer; transition: all var(--dur);
+}
+.dchip:hover { border-color: var(--text-4); }
+.dchip.on { background: color-mix(in srgb, var(--chip, var(--accent)) 15%, transparent); border-color: var(--chip, var(--accent)); }
+.dc-dot { width: 6px; height: 6px; border-radius: 2px; background: var(--chip, var(--accent)); flex: none; }
+.dc-n { font-size: var(--fs-micro); font-weight: 700; color: var(--text-2); }
+.dchip.on .dc-n { color: var(--text); }
+.dc-m { font-size: var(--fs-micro); color: var(--text-4); }
+.dc-x { font-size: 9px; color: var(--text-4); opacity: 0; transition: opacity var(--dur); }
+.dchip:hover .dc-x, .dchip.on .dc-x { opacity: 1; }
+
+/* ── 断链行 ── */
+.spine-risk {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding-top: 9px; border-top: 1px solid var(--border);
+}
+.sr-ico {
+  width: 18px; height: 18px; border-radius: 6px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs-micro); font-weight: 700;
+  background: var(--warning-bg-soft); color: var(--warning);
+}
+.sr-ico.zero { background: var(--success-bg-soft); color: var(--success); }
+.sr-t { font-size: var(--fs-micro); color: var(--text-3); }
+.sr-t b { color: var(--warning); font-weight: 700; }
+.spine-risk .sr-t:has(b) b { color: var(--warning); }
+.sr-acts { margin-left: auto; display: flex; gap: 6px; flex: none; }
+.sr-btn {
+  font-size: var(--fs-micro); font-weight: 600; color: var(--text-3);
+  background: var(--surface-2); border: 1px solid transparent;
+  padding: 3px 9px; border-radius: 999px; cursor: pointer; transition: all var(--dur);
+}
+.sr-btn:hover { color: var(--text); background: var(--surface-3); }
+.sr-btn.on { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+/* ── 窄屏：六层改成两行三列，别挤成一条细缝 ── */
+@media (max-width: 900px) {
+  .spine-chain { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .spine-arrow { display: none; }
+  .spine-lv { min-width: 0; }
+  .sr-acts { margin-left: 0; width: 100%; }
+}
+</style>

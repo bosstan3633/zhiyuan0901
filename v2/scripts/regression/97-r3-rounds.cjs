@@ -9,8 +9,7 @@
  * 依赖基建见 ./helpers.cjs；__dirname/__filename 已换锚为 SCRIPTS_DIR/ANCHOR_FILE（语义=原 scripts/ 根与回归自体）。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
-} = require('./helpers.cjs');
+  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT_ALL, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, CT_W11, TOWER, LANE, SPINE, PANEL, CMETA} = require('./helpers.cjs');
 console.log('【R3-F38 · 高亮可交互】');
 // ★W9 退役重指带备案：原判据守的是「仪表盘『👁 高亮可交互』开关三件齐全」——页头工具条按钮 +
 // UIPrefs.dzHl 持久化（saveUIPrefs，不是会话态）+ 面板根挂 dz-hl 类，外加 dashboard.css 两条
@@ -57,74 +56,112 @@ check('R4-a ★回退要停得住：回退同时落 K.MIGRATE_OPTOUT，启动期
 // ============== R3-B′ 方向台树：项目层折叠 + 卡头收敛 + 页头整合 ==============
 console.log('【R3-B′ · 方向台树交互收敛】');
 check('R3-B′ ★项目层折叠口径：主攻自动展开、非主攻折叠成卡头（caret 开合），折叠项目不再渲染其指标（不是 v-show 藏起来）；开合态是**会话记忆**走 sessionStorage 键（浏览态不进 UIPrefs，不随导出/同步跑掉）；⊞⊟ 两级一起管', () => {
-  const t = read('/newtab/views/CompassTree.vue'), m = read('/shared/models/index.ts'), k = read('/shared/storage/keys.ts')
+  const t = CT_ALL, m = read('/shared/models/index.ts'), k = read('/shared/storage/keys.ts')
   return t.includes('function projOpen(') && t.includes('o === undefined ? !!p.isFocused : o')
-    && t.includes('projOpen(proj) ? proj.metrics : []') && t.includes('function toggleProjectFold(')
+    /* ★W11 随迁带备案：指标渲染判据由树内 v-if 迁到舱组件 props（:open="projOpen(row.proj)"），
+       折叠时 v-show 收起 .tw-body，指标不进入渲染成本——同一口径的新落点 */
+    && t.includes(':open="projOpen(row.proj)"') && t.includes('<div v-show="open" class="tw-body">')
+    && t.includes('function toggleProjectFold(')
     && t.includes('PROJ_FOLD_KEY = K.TREE_PROJ_FOLD_SS') && k.includes("TREE_PROJ_FOLD_SS: 'zy_tree_proj_fold_v1'")
     && !m.includes('treeProjFold') && t.includes('function collapseAllNodes') && t.includes('for (const proj of dir.projects) projFoldOverride.value[proj.id] = false')
-    && t.includes('if (projOpen(proj)) expandMetricsOf(proj)')
+    /* ★W11 随迁带备案：⊞ 展开的落点随舱结构改为「遍历项目 → projFoldOverride=true + expandMetricsOf(proj)」
+       两步配对（折与开同时动），与 ⊟ 收起对称。判据钉两步都在位。 */
+    && t.includes('function expandAllNodes') && /expandMetricsOf\(proj\)/.test(t)
+    && /projFoldOverride\.value\[proj\.id\] = true/.test(t)
 });
-check('R3-B′ ★卡头 6 入口收敛为「全景 / AI / ▾」：设主攻·添加指标·进详情·删除四项收进 .tp-menu（各自全文件只剩菜单里一处触发点），删除仍走 compassNodeCounts 报数 + useConfirm + 撤销（收敛不降防呆），点菜单外区域关闭', () => {
-  const t = read('/newtab/views/CompassTree.vue')
-  const once = (re) => (t.match(new RegExp(re, 'g')) || []).length === 1
-  return t.includes('class="tp-menu"') && t.includes('🚀 设为主攻') && t.includes('＋ 添加成功指标') && t.includes('🗑 删除项目')
-    && once('onToggleFocus\\(proj\\.id\\)') && once('addMetric\\(proj\\.id\\)') && once("deleteNode\\('proj'")
-    && t.includes('toggleProjMenu(proj.id)') && t.includes('openProjectDrawer(proj.id)') && t.includes("aiChain('metrics', proj.id)")
-    && t.includes('onDocClickCloseProjMenu') && t.includes("closest('.tp-acts')")
-    && t.includes('compassNodeCounts') && t.includes('useConfirm')
+check('R3-B′ ★卡头 6 入口收敛为「全景 / AI / ▾」：设主攻·添加指标·进详情·删除四项收进 .tw-menu，删除仍走 compassNodeCounts 报数 + useConfirm + 撤销（收敛不降防呆），点菜单外区域关闭', () => {
+  const t = CT_ALL, T = TOWER
+  const once = (re, s) => (s.match(new RegExp(re, 'g')) || []).length === 1
+  return t.includes('class="tw-menu"') && t.includes('🚀 设为主攻') && t.includes('＋ 添加成功指标') && t.includes('🗑 删除项目')
+    /* ★W11(V3.8.11)随迁带备案 —— 收敛口径随结构拆分重述为两层，本条守的行为未变：
+       ① **菜单内每项恰好一处**（设主攻/置顶/加指标/进详情/删除，once 口径钉在舱组件 TOWER 上）；
+       ② **父组件 @监听各恰好一处**（emit 上抛后由树本体统一承接，不许同动作两条路）。
+       ★为什么不再钉「全文件唯一触发点」：W11 按原型给卡头加了语境性快捷出口（卡头 ＋指标 钮、
+         零指标空态「＋ 添加第一条成功指标」），它们与菜单项**语义不同**（一个是常驻快捷、一个是
+         空态引导），全文件唯一口径会把合理的增强判成违规。收窄到「菜单内唯一 + 父组件承接唯一」
+         才是这条判据真正要守的东西：右键菜单不许复活、同动作不许两条路。 */
+    && once("emit\\('focus', proj\\.id\\)", T) && once("emit\\('del', proj\\.id\\)", T)
+    /* ⚠ pin / addMetric **有意双路**（卡头快捷钮 + 菜单项并存，R121-6 备案已定），故不钉全文件唯一；
+       这里钉的是「**菜单内**恰好一处」——.tw-menu 块内每项一次，菜单外的语境性快捷钮不算重复。
+       ★切片到 .tw-menu 块首尾是刻意收窄：全文件计数会把合法的空态引导与卡头快捷误判成重复入口。 */
+    && (T.slice(T.indexOf('class="tw-menu"'), T.indexOf('</div>', T.indexOf('class="tw-menu"'))).match(/emit\('pin', dir\.id, proj\.id\)/g) || []).length === 1
+    && (T.slice(T.indexOf('class="tw-menu"'), T.indexOf('</div>', T.indexOf('class="tw-menu"'))).match(/emit\('addMetric', proj\.id\)/g) || []).length === 1
+    && once('📄 进入项目详情页', T)
+    && once('@focus="onToggleFocus"', t) && once("deleteNode\\('proj\\'", t)
+    /* ⚠ W11 二批起 @add-metric 在**两个宿主里各一处**（.tower-list 的舱 + .pano 的全景头）——
+       这是两个互斥视图的同一动作，不是"同一视图两条路"。收敛口径因此按**宿主切片**计数：
+       每个宿主内恰好一处，跨宿主不合并。★钉死"按视图切"，正是为了防将来有人在同一视图里再挂一个。 */
+    && (t.match(/@add-metric="addMetric"/g) || []).length === 2
+    && (t.slice(t.indexOf('class="tower-list"'), t.indexOf('class="footer-hint"')).match(/@add-metric="addMetric"/g) || []).length === 1
+    && t.includes('toggleProjMenu') && t.includes('openProjectDrawer') && t.includes("aiChain('metrics', id)")
+    && t.includes('onDocClickCloseProjMenu') && t.includes('compassNodeCounts') && t.includes('useConfirm')
+    /* ★负锚：右键菜单形态不许复活（排序走 ⠿ 拖拽、置顶走 📌 按钮） */
+    && !t.includes('contextmenu') && !t.includes('@contextmenu');
 });
 check('R3-B′ ★目标级入口上收页头：＋添加战略目标 与 建议目标 在 tree-page-head（原埋第 3 层卡头），层内只留 badge + hint', () => {
-  const t = read('/newtab/views/CompassTree.vue')
-  const head = t.slice(t.indexOf('<div class="tree-page-head">'), t.indexOf('</div>\n\n      <!-- 画布'))
-  const layer = t.slice(t.indexOf('<div class="tl-head-row">'), t.indexOf('<div v-if="!d.compass.directions.length"'))
+  const t = CT_ALL
+  const head = t.slice(t.indexOf('<div class="tree-page-head">'), t.indexOf('<div class="tree-layout">'))
+  const layer = t.slice(t.indexOf('<div class="tl-head-row">'), t.indexOf('<div class="tower-list"'))
   return head.includes('addDirection') && head.includes("aiChain('directions'") && !layer.includes('addDirection')
 });
 function pc0() { return read('/newtab/views/ProjectCuration.vue') }
 
 // ============== R3-B1 方向台一级化：树即首屏 + CompassShell/LighthousePanel 退役 ==============
 console.log('【R3-B1 · 方向台一级化（树即首屏）】');
-check('R3-B1 ★路由一级化与老深链兼容：/compass 直挂方向树、/compass/projects 平铺成一级、/compass/tree 转成带 query 的重定向（老深链不许变死页）；CompassShell 与 LighthousePanel 物理不存在；App 级 keep-alive 同时缓存两面', () => {
-  const r = read('/newtab/router.ts'), a = read('/newtab/App.vue')
-  return r.includes("name: 'compass'") && r.includes("import('./views/CompassTree.vue')")
-    && r.includes("path: '/compass/projects'") && r.includes("path: '/compass/tree'")
-    && r.includes("redirect: to => ({ path: '/compass', query: to.query })")
-    && !exists('/newtab/views/CompassShell.vue') && !exists('/newtab/components/compass/LighthousePanel.vue')
-    && (a.match(/keep-alive include="([^"]+)"/) || [, ''])[1].split(',').filter(x => ['CompassTreeView', 'ProjectCurationView'].includes(x)).length === 2
+check('R3-B1 ★树担得起首屏：项目级读数走预计算 ★W11(V3.8.11)随迁带备案：读数表由 projMeta 升级为 compassMeta（compassMeta.ts 一次聚合成 Map，含 orphanMetric / orphanTasks / risk），模板不再逐项现算', () => {
+  const meta = CMETA;
+  return meta.includes('export function buildCompassMeta')
+    && meta.includes('export interface ProjectMeta')
+    && meta.includes('orphanMetric:')
+    && meta.includes('orphanTasks')
+    && /compassMeta = computed/.test(CT_W11)
+    && !/projectProgress\(/.test(CT_W11.slice(CT_W11.indexOf('<template>')));
 });
+
 check('R3-B1 ★退役不悬空（能力去向逐条点名；★R3-B2 拍板后置顶与排序已回归树内，不在本条清单里）：主航线实现（vm-bar/focus-bar/goals-grid/proj-row/proj-menu/ovFilter/toolsGate/CHIP_LIMIT）随宿主整体退役，三面全站零命中；读数改由树页头 treeStats（主攻/停滞）+ 卡头 tp-flag 承担，密度由 R3-B′ 折叠承担', () => {
-  const t = read('/newtab/views/CompassTree.vue'), h = read('/newtab/views/CompassHome.vue'), pc = read('/newtab/views/ProjectCuration.vue')
+  const t = CT_ALL, h = read('/newtab/views/CompassHome.vue'), pc = read('/newtab/views/ProjectCuration.vue')
   const gone = ['vm-bar', 'focus-bar', 'goals-grid', 'proj-row', 'proj-menu', 'ovFilter', 'toolsGate', 'CHIP_LIMIT']
   return gone.every(k => !t.includes(k) && !h.includes(k) && !pc.includes(k))
-    && t.includes('⚠ 停滞 {{ treeStats.stalled }}') && t.includes('class="tp-flag"') && t.includes('🚀 主攻 {{ treeStats.focused }}')
+    && t.includes('⚠ 停滞 {{ treeStats.stalled }}') && t.includes('class="tw-badge stall"') && t.includes('🚀 主攻 {{ treeStats.focused }}')
+    /* ★W11 随迁带备案：主攻/置顶的显式徽标随舱结构落为 tw-badge.focus / tw-badge（两处都在位，缺一即能力丢） */
+    && t.includes('class="tw-badge focus" title="主攻项目"') && t.includes('class="tw-badge" title="已置顶"')
 });
 check('R3-B1 ★修掉一条既存坏链：指标下钻「定位」原先只 dispatch zy-locate-goal（唯一监听者住在 /compass 主航线，而抽屉挂在调度台首页 ⇒ 点了什么都没发生）；改走 /compass?hl=<dirId> 深链由方向树 locateHlGoal 承接滚动+闪烁，事件链两端一起清零', () => {
-  const md = codeOnly(read('/newtab/components/compass/MetricDrillDrawer.vue')), t = read('/newtab/views/CompassTree.vue')
+  const md = codeOnly(read('/newtab/components/compass/MetricDrillDrawer.vue')), t = CT_ALL
   return !md.includes('zy-locate-goal') && md.includes("router.push({ path: '/compass', query: { hl: dirId } })")
     && t.includes('function locateHlGoal') && t.includes("route.query.hl")
     && !codeOnly(pc0()).includes('zy-open-project-detail') && !codeOnly(t).includes('zy-open-project-detail')
 });
 check('R3-B1 ★树担得起首屏：项目级读数走 projMeta 预计算表（模板内零逐项调 projectProgress/isProjectStalled、零模板内 filter 任务），一级页头不再自指（无「返回方向台」/tree-link/进入方向树 三类残留入口），UIPrefs.compassTab（二级页停留记忆）随合并退役', () => {
-  const t = read('/newtab/views/CompassTree.vue'), tpl = segOf(t, '<template>', '\n</template>'), m = read('/shared/models/index.ts')
-  return t.includes('const projMeta = computed(') && !tpl.includes('projectProgress(') && !tpl.includes('isProjectStalled(') && !tpl.includes('d.tasks.filter(')
+  const t = CT_ALL, tpl = segOf(CT_W11, '<template>', '\n</template>'), m = read('/shared/models/index.ts')
+  return t.includes('const compassMeta = computed(') && !tpl.includes('projectProgress(') && !tpl.includes('isProjectStalled(') && !tpl.includes('d.tasks.filter(')
     && !codeOnly(t).includes('返回方向台') && !codeOnly(t).includes('tree-link') && !codeOnly(t).includes('进入方向树')
     && !codeOnly(m).includes('compassTab')
 });
 
 // ============== R3-B2 方向树：同目标内手动拖拽排序 + 置顶（用户拍板回归） ==============
 console.log('【R3-B2 · 方向树拖拽排序与置顶】');
-check('R3-B2 ★拖拽只在同一战略目标内且所见即所得：⠿ 手柄 draggable → dragover 只在同 dir 且非自身时给落位指示（.drop-on 用 inset box-shadow，不许把版面挤动）→ drop 取「当前所见序」重排并逐位重写 order，落完清 pinned（否则排序键把它弹回前排＝看着拖不动）；跨目标 drop 直接 return（改归属是另一件事，走项目详情）', () => {
-  const t = read('/newtab/views/CompassTree.vue')
-  return t.includes('function onProjDragStart(') && t.includes('function onProjDragOver(') && t.includes('function onProjDrop(')
-    && t.includes('draggable="true"') && t.includes('@dragover.prevent="onProjDragOver(dir.id, proj)"') && t.includes('@drop.prevent="onProjDrop(dir.id, proj)"')
-    && t.includes('drag.dirId !== dirId') && t.includes('drag.id === target.id')
-    && t.includes('list.splice(to, 0, moved)') && t.includes('list.forEach((p, i) => { p.order = i })') && t.includes('moved.pinned = false')
-    && t.includes('.tp-head.drop-on { box-shadow: inset 0 2px 0 0 var(--accent); }') && !t.includes('.tp-head.drop-on { border')
+check('R3-B2 ★拖拽只在同一战略目标内且所见即所得：⠿ 手柄 draggable → dragover 只在同 dir 且非自身时给落位指示（.drop-on 用 inset box-shadow，不许把版面挤动）→ drop 取「当前所见序」重排并逐位重写 order，落完清 pinned；跨目标 drop 直接 return。★W11(V3.8.11)随迁带备案：手柄与落位指示已迁到舱组件 CompassTower.vue，逻辑仍由 CompassTree 的 onProjDragStart/Over/Drop 承担', () => {
+  const T = TOWER, W = CT_W11;
+  /* 手柄 + 四个拖拽事件在位 */
+  const handle = /class="tw-grip"[\s\S]{0,320}?draggable="true"/.test(T)
+    && /@dragstart="emit\('dragstart'/.test(T)
+    && /@drop\.prevent="emit\('drop'/.test(T);
+  /* 落位指示用 inset box-shadow（不挤版面） */
+  const dropOn = /\.tower\.drop-on \{ box-shadow: inset 0 3px 0 0 var\(--hue\); \}/.test(T);
+  /* 逻辑：同 dir 守卫 + 逐位重写 order + 清 pinned */
+  const logic = /function onProjDragStart/.test(W)
+    && /drag\.dirId !== dirId/.test(W)
+    && /list\.forEach\(\(p, i\) => \{ p\.order = i \}\)/.test(W)
+    && /moved\.pinned = false/.test(W);
+  return handle && dropOn && logic;
 });
+
 check('R3-B2 ★排序键口径：主攻 → 置顶 → order（pinned 不是第二个排序真源而是"钉到非主攻组前排"的快捷方式，置顶时把 order 压到该组最小）；toggleProjectPin 落库 + toast，卡头 📌 徽标显式可见，▾ 菜单第五项进/出两态文案', () => {
-  const t = read('/newtab/views/CompassTree.vue')
+  const t = CT_ALL
   return t.includes("(Number(b.isFocused) - Number(a.isFocused)) || (Number(!!b.pinned) - Number(!!a.pinned)) || ((a.order ?? 999) - (b.order ?? 999))")
     && t.includes('function toggleProjectPin(dir: Direction, p: Project)') && t.includes('p.order = minOrder - 1') && t.includes('store.persist()')
-    && t.includes('class="tp-pin"') && t.includes('📌 置顶到本目标前排') && t.includes('☆ 取消置顶')
+    && t.includes('class="tw-badge" title="已置顶">📌 置顶') && t.includes('📌 置顶到本目标前排') && t.includes('☆ 取消置顶')
 });
 
 // ============== R3-Ca 池面板补齐：列表视图 / 待打标筛选 / 批量反选 / 右键菜单 ==============
@@ -427,7 +464,7 @@ check('R4-Dg ★十一个消费点不许再各自把 workspaceId 翻成台名：
   const gp = codeOnly(read('/newtab/components/GlobalPopups.vue'));
   const ns = codeOnly(read('/newtab/components/compass/NorthStarPanel.vue'));
   const ov = codeOnly(read('/content/overlay-impl.ts'));
-  const ct = codeOnly(read('/newtab/views/CompassTree.vue'));
+  const ct = codeOnly(CT_ALL);
   const py = codeOnly(read('/newtab/composables/usePyramid.ts'));
   const ts = codeOnly(read('/shared/ai/taskSupport.ts'));
   return bad.length === 0 && !gp.includes('ws?.name ||') && !ns.includes('find(w => w.id === id)?.name')
