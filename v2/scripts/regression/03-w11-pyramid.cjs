@@ -23,26 +23,32 @@ console.log('【W11 · 方向台战略金字塔结构契约】');
 
 // ============== 一、六层拆分的归属与体量 ==============
 
-check('W11-1 ★第 4 层的排布必须是「纵向舱序列」，三列并排网格彻底退役。项目之间只靠列边界时扫视易串行、归属靠"在哪一列"推断；纵向舱用「独占容器 + 左侧 4px 色条 + 舱间大间距」把区隔变成结构事实。★负锚必须走 CSS 选择器（`.tree-columns-grid {`）而不是裸类名 —— 退役说明写在注释里提到这个类名是**应该的**（那是随迁备案的一部分），裸类名负锚会把备案注释判成违规。`repeat(3, 1fr)` 收窄到树本体 CT_W11：Spine 的六层三列网格与看板列布局同形，全站扫会误伤', () => {
-  return CT_W11.includes('.tower-list { display: flex; flex-direction: column; gap: 4px; }')
+check('W11-1 ★第 4 层的排布必须是「纵向舱序列」，三列并排网格彻底退役。项目之间只靠列边界时扫视易串行、归属靠"在哪一列"推断；纵向舱用「独占容器 + 左侧 4px 色条 + 舱间大间距」把区隔变成结构事实。★负锚必须走 CSS 选择器（`.tree-columns-grid {`）而不是裸类名 —— 退役说明写在注释里提到这个类名是**应该的**（那是随迁备案的一部分），裸类名负锚会把备案注释判成违规。`repeat(3, 1fr)` 收窄到树本体 CT_W11：Spine 的六层三列网格与看板列布局同形，全站扫会误伤。★W12(V3.8.12)随迁备案：舱间距由 4px 改为 40px（原型 .towers 的 `--sp-8`）—— 4px 是当初"纵向序列"刚落地时的值，舱几乎贴着舱，"区隔明确"这个本条要守的东西反而没做到。判据改为钉**间距存在且 ≥24px**，钉死具体像素会让"跟随原型调呼吸感"反复改判据；同时补钉「舱自身不再叠一份 margin」—— 两级间距相加成 80px 会把页面撑得比原型松散一倍，同样是失真', () => {
+  const gapM = /\.tower-list \{[^}]*gap: (\d+)px/.exec(CT_W11);
+  const gap = gapM ? Number(gapM[1]) : 0;
+  return gap >= 24
     && CT_W11.includes('<div v-if="viewMode === \'tower\'" class="tower-list" id="layer-4">')
     && !CT_W11.includes('.tree-columns-grid {')
+    /* ★间距只由 .tower-list 的 gap 承担一份，舱体自身不许再叠 margin-bottom */
+    && !/\.tower \{[^}]*margin-bottom: \d+px/.test(TOWER)
     && !/grid-template-columns:\s*repeat\(\s*3,\s*1fr\s*\)/.test(CT_W11);
 });
 
-check('W11-2 ★连接线竖轨与分叉横臂必须**归属到正确的父容器方向**。这三样都是无内容元素（::before/容器 div），肉眼看不出作用，删了或挪了父容器方向，视觉归属证据就没了而门禁照绿：① .tw-rail::before 是从项目色条分下来的竖轨（挂在 .tw-rail 上，父容器 position:relative）；② .tw-rail > section::before 是每张指标卡分出的横臂；③ .metric-list::before 是 Lane 内的任务行竖轨。★所以本条同时钉「伪元素存在」+「父容器有 position:relative」+「父容器显式声明了 flex-direction」三条一起，只钉第一条会被改方向骗过去', () => {
+check('W11-2 ★连接线竖轨与分叉横臂必须**归属到正确的父容器方向**。这三样都是无内容元素（::before/容器 div），肉眼看不出作用，删了或挪了父容器方向，视觉归属证据就没了而门禁照绿：① .tw-rail::before 是从项目色条分下来的竖轨（挂在 .tw-rail 上，父容器 position:relative）；② .tw-rail > section::before 是每张指标卡分出的横臂；③ .metric-list::before 是 Lane 内的任务行竖轨。★所以本条同时钉「伪元素存在」+「父容器有 position:relative」+「父容器显式声明了 flex-direction」三条一起，只钉第一条会被改方向骗过去。★W12(V3.8.12)随迁备案：横臂宽 12→15px、任务轨内缩 22→26px（对齐原型 .metric::before 宽 20px / .tasks padding-left 26px），锚点改为钉**宽度存在且 >0**而非具体像素 —— 钉死像素会让"跟随原型调轨道缩进"这种纯视觉调整反复改判据，而本条守的是"臂与轨都在、且挂在正确的父容器上"', () => {
   const railInTower = /\.tw-rail \{[^}]*position: relative/.test(TOWER);
-  const railLine = /\.tw-rail::before \{[^}]*position: absolute[^}]*width: 2px/.test(TOWER);
-  const arm = /\.tw-rail > :deep\(section\)::before \{[^}]*position: absolute[^}]*width: 12px/.test(TOWER);
+  const railLine = /\.tw-rail::before \{[^}]*position: absolute[^}]*width: \d+px/.test(TOWER);
+  /* ★W12 补钉铆钉点：原型 .metric::after 那个圆点是横臂的收头，删了横臂会变成一根断头线 */
+  const rivet = /\.tw-rail > :deep\(section\)::after \{[^}]*position: absolute/.test(TOWER);
+  const arm = /\.tw-rail > :deep\(section\)::before \{[^}]*position: absolute[^}]*width: \d+px/.test(TOWER);
   const railBodyHasStack = /\.tw-body \{[^}]*padding:/.test(TOWER) && /\.tw-rail \{[^}]*padding-left:/.test(TOWER);
-  const laneRail = /\.metric-list::before \{[^}]*position: absolute[^}]*width: 2px/.test(LANE);
+  const laneRail = /\.metric-list::before \{[^}]*position: absolute[^}]*width: \d+px/.test(LANE);
   const laneParentRel = /\.metric-list \{[^}]*position: relative/.test(LANE);
   /* .metric-list 是 <ul>（块级堆叠），任务行靠 margin/gap 自然竖排，
      所以"父方向"在这里的正确形态是「相对定位 + padding-left 让出竖轨」而不是 flex-direction ——
      钉错形态会逼着实现改结构去迎合判据，那是判据反噬。 */
-  const laneParentIndent = /\.metric-list \{[^}]*padding: 0 0 0 22px/.test(LANE);
+  const laneParentIndent = /\.metric-list \{[^}]*padding: 0 0 0 \d+px/.test(LANE);
   const tkRowArm = /\.tk-row::before \{[^}]*position: absolute/.test(LANE);
-  return railInTower && railLine && arm && railBodyHasStack && laneRail && laneParentRel && laneParentIndent && tkRowArm;
+  return railInTower && railLine && arm && rivet && railBodyHasStack && laneRail && laneParentRel && laneParentIndent && tkRowArm;
 });
 
 check('W11-3 ★所有展开/切换都必须**双向可达**（开了能回、点了有出口）。V3.8.7 两次实证的同一个坑：只给"展开"不给"收起"，用户点开后就回不去原样，且回归/typecheck/build 全绿。本条逐个钉回程：① 层级面板同层再点收起；② 项目舱 ▸/▾ 双向；③ 指标卡展开/收起；④ 视图切换两按钮常驻；⑤ 筛选态提示条带"清除筛选"。★判据钉的是"回程入口存在且文案/形态成对"（▸ 对 ▾、tower 对 pano），不是钉某个变量名', () => {
@@ -141,17 +147,17 @@ check('W11-8 ★全景视图的三态必须都在：① 零任务泳道占位可
     && CT_W11.includes('function backToTower(') && CT_W11.includes('dirFilter.value = owner.dir.id');
 });
 
-check('W11-9 ★全景视图必须真的是**同一份数据的第二种投影**，不是第二个实体世界：数据只来自 compassMeta 的 props，不得自行再聚合一次（两处聚合 = 两处口径，将来必然漂）。同时：形态切换不得丢筛选态（viewMode 与 dirFilter/riskOnly 互不相干），任何定位类动作（左侧六层目录 / 骨架条 4-6 层 / 断链行）在全景下都必须**先切回纵向再定位**——不切的话点在全景里会静默失灵，看着像坏了', () => {
+check('W11-9 ★全景视图必须真的是**同一份数据的第二种投影**，不是第二个实体世界：数据只来自 compassMeta 的 props，不得自行再聚合一次（两处聚合 = 两处口径，将来必然漂）。同时：形态切换不得丢筛选态（viewMode 与 dirFilter/riskOnly 互不相干），任何定位类动作（左侧项目导航 / 骨架条 4-6 层 / 断链行）在全景下都必须**先切回纵向再定位**——不切的话点在全景里会静默失灵，看着像坏了。★W12(V3.8.12)随迁备案：左栏由六层数字目录改为项目导航后，定位入口从 scrollToLayer(n) 改为 gotoTower(projId)，两条 ensureTower 调用点随之改钉 —— 本条守的是"任何定位都能抵达、不挑视图"，不是钉某个函数名', () => {
   return PANO.includes('meta: CompassMeta')
     && !/buildCompassMeta\(/.test(PANO)                                 /* 组件内不重复聚合 */
     && CT_W11.includes("const viewMode = ref<'tower' | 'pano'>('tower')")
     /* 形态切换不清筛选 */
     && !/viewMode\.value = .*\n?[^\n]*dirFilter\.value = ''/.test(CT_W11)
-    /* ★定位必须先 ensureTower：左侧目录、onLocateLayer、gotoOrphans 三处都要走它 */
+    /* ★定位必须先 ensureTower：左侧项目导航、onLocateLayer、gotoOrphans 三处都要走它 */
     && CT_W11.includes('function ensureTower(')
-    && CT_W11.includes('ensureTower(`定位第 ${n} 层`)')
+    && CT_W11.includes("ensureTower('定位项目舱')")
     && CT_W11.includes('ensureTower(`定位第 ${lv} 层`)')
-    /* ★全景下滚动不得改六层目录高亮（横向视图不产生纵向层级信号，否则会乱跳） */
+    /* ★全景下滚动不得改左栏高亮（横向视图不产生纵向层级信号，否则会乱跳） */
     && /function onCanvasScroll\(\)[\s\S]{0,200}viewMode\.value === 'pano'\) return/.test(CT_W11)
     /* 筛选态提示条：过滤是隐形的就会让人以为项目丢了 */
     && CT_W11.includes('class="filter-bar"')
@@ -195,11 +201,12 @@ check('W11-10 ★全景里的动作能力不得比项目塔少（否则"换个�
 
 // ============== 四、焦点与层级纪律 ==============
 
-check('W11-11 ★方向台焦点契约：**愿景是唯一的主体**。D1 已拍板（用户 2026-10-13 三选一）：愿景保持 --fs-display(22px)，**不新增 --fs-hero、不动 W8-5 判据**，主角感靠版式承担 —— 独占一行 + 上下留白 + shadow-lg 重框。配套：项目名 --fs-title(15px)、指标 --fs-sub(12px)、任务 --fs-micro，层级必须真的分层。★负锚必须走 `var(--fs-display)` / `var(--fs-hero)` 的**用法**而不是裸词：`--fs-hero` 在三个新组件的纪律注释里出现是**应该的**（那是判据自带的免责说明），裸词负锚会把自己的说明判成违规。判据钉用法（`font-size: var(--fs-display)` 计数），不钉词', () => {
+check('W11-11 ★方向台焦点契约：**愿景是唯一的主体**。D1 已拍板（用户 2026-10-13 三选一）：愿景保持 --fs-display(22px)，**不新增 --fs-hero、不动 W8-5 判据**，主角感靠版式承担 —— 独占一行 + 上下大留白 + 强调框。配套：项目名 --fs-title(15px)、指标 --fs-sub(12px)、任务 --fs-micro，层级必须真的分层。★负锚必须走 `var(--fs-display)` / `var(--fs-hero)` 的**用法**而不是裸词：`--fs-hero` 在三个新组件的纪律注释里出现是**应该的**（那是判据自带的免责说明），裸词负锚会把自己的说明判成违规。判据钉用法（`font-size: var(--fs-display)` 计数），不钉词。★W12(V3.8.12)随迁备案：愿景正文随结构归位搬进层级面板（骨架条之下），"重边框"改为**左侧 2px accent 实轨 + 大留白** —— 面板自带卡面，块内再套卡会变成双层框把主角压下去；本条守的"主角感必须由版式承担、不许只降字号"没变，锚点随之改钉实轨', () => {
   /* 愿景正锚：.tl-text 是愿景正文的承重选择器（--fs-display） */
   const visionDisplay = /\.tl-text \{[^}]*font-size: var\(--fs-display\)/.test(CT_W11);
-  /* 版式补偿：hero 留白与重框 */
-  const heroPad = /\.tree-level-card\.hero \{[^}]*padding: 30px 26px 30px 30px/.test(CT_W11);
+  /* 版式补偿：独占一行 + 大留白 + accent 实轨（外框随 W12 由 shadow-lg 重框改为实轨，面板自带卡面） */
+  const heroPad = /\.tree-level-card\.hero \{[^}]*padding: 14px 0 16px 16px/.test(CT_W11);
+  const heroRail = /\.tree-level-card\.hero \{[^}]*border-left: 2px solid var\(--accent\)/.test(CT_W11);
   /* 层级纪律：使命降级，不得与愿景同规格 */
   const missionSub = /\.tl-text\.sub \{[^}]*font-size: var\(--fs-headline\)/.test(CT_W11);
   /* ★负锚必须走 codeOnly：六个新组件的头部都有「★全组件不得出现 font-size: var(--fs-display)」
@@ -216,7 +223,7 @@ check('W11-11 ★方向台焦点契约：**愿景是唯一的主体**。D1 已�
   if (visionDisplay && (CT_W11.match(/font-size:\s*var\(--fs-display\)/g) || []).length !== 1) {
     console.error('   · 方向台 fs-display 不止一处（焦点契约要求愿景唯一）');
   }
-  return visionDisplay && heroPad && missionSub && noDisplay && noHeroUse && noHeroToken && projectName && panoName
+  return visionDisplay && heroPad && heroRail && missionSub && noDisplay && noHeroUse && noHeroToken && projectName && panoName
     && (CT_W11.match(/font-size:\s*var\(--fs-display\)/g) || []).length === 1;
 });
 

@@ -61,60 +61,74 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
 
 <template>
   <section class="spine" aria-label="战略骨架控制条">
-    <div class="spine-chain" role="tablist">
-      <template v-for="(lv, i) in LV" :key="lv.n">
-        <span v-if="i" class="spine-arrow" aria-hidden="true">›</span>
+    <!-- ★W12 骨架条头部（原型 .spine-h）：图标 + 名称 + 定位语 + 右侧提示。
+         之前骨架条没有头部，直接就是六层按钮 —— 于是它看起来像"一排统计标签"而不是
+         "六层的骨架"，标题与定位语这两条让层级从哪开始、往哪收一眼可读。 -->
+    <header class="spine-h">
+      <span class="spine-ico" aria-hidden="true">◈</span>
+      <span class="spine-t">战略骨架<span class="spine-en">SPINE</span></span>
+      <span class="spine-badge">上层定方向 · 下层见动作</span>
+      <div class="spine-hint">
+        <span>六层数字与下方项目舱同源 · 点 1/2/3 展开该层 · 点 4/5/6 定位到实体</span>
+      </div>
+    </header>
+
+    <div class="spine-b">
+      <div class="spine-chain" role="tablist">
+        <template v-for="(lv, i) in LV" :key="lv.n">
+          <span v-if="i" class="spine-arrow" aria-hidden="true">›</span>
+          <button
+            class="spine-lv"
+            :class="[`lv${lv.n}`, { on: chainAt === lv.n }]"
+            :aria-selected="chainAt === lv.n"
+            role="tab"
+            @click="onLv(lv.n)"
+          >
+            <span class="slv-n">{{ lv.n }}</span>
+            <span class="slv-t">{{ lv.t }}</span>
+            <span class="slv-c"><b>{{ meta.counts[lv.c] }}</b></span>
+          </button>
+        </template>
+      </div>
+
+      <!-- 战略目标芯片行：与下方项目分组头同源同色，点即过滤 -->
+      <div class="spine-dirs">
+        <span class="sd-lab">按战略目标聚焦</span>
+        <button class="dchip" :class="{ on: dirFilter === '' }" @click="emit('dir', '')">
+          <span class="dc-n">全部</span>
+          <span class="dc-m">{{ meta.counts.dirs }} 目标 / {{ meta.counts.projects }} 项目</span>
+        </button>
         <button
-          class="spine-lv"
-          :class="[`lv${lv.n}`, { on: chainAt === lv.n }]"
-          :aria-selected="chainAt === lv.n"
-          role="tab"
-          @click="onLv(lv.n)"
+          v-for="(g, i) in meta.dirs"
+          :key="g.dir.id"
+          class="dchip"
+          :class="{ on: dirFilter === g.dir.id }"
+          :style="{ '--chip': hueOf(i) }"
+          @click="emit('dir', g.dir.id)"
         >
-          <span class="slv-n">{{ lv.n }}</span>
-          <span class="slv-t">{{ lv.t }}</span>
-          <span class="slv-c"><b>{{ meta.counts[lv.c] }}</b></span>
+          <i class="dc-dot" />
+          <span class="dc-n">{{ g.dir.name }}</span>
+          <span class="dc-m">{{ g.projects.length }} 项目 · {{ g.projects.reduce((s, p) => s + p.total, 0) }} 任务</span>
+          <span class="dc-x">{{ dirFilter === g.dir.id ? '✓' : '▸' }}</span>
         </button>
-      </template>
-    </div>
+      </div>
 
-    <!-- 战略目标芯片行：与下方项目分组头同源同色，点即过滤 -->
-    <div class="spine-dirs">
-      <span class="sd-lab">按战略目标聚焦</span>
-      <button class="dchip" :class="{ on: dirFilter === '' }" @click="emit('dir', '')">
-        <span class="dc-n">全部</span>
-        <span class="dc-m">{{ meta.counts.dirs }} 目标 / {{ meta.counts.projects }} 项目</span>
-      </button>
-      <button
-        v-for="(g, i) in meta.dirs"
-        :key="g.dir.id"
-        class="dchip"
-        :class="{ on: dirFilter === g.dir.id }"
-        :style="{ '--chip': hueOf(i) }"
-        @click="emit('dir', g.dir.id)"
-      >
-        <i class="dc-dot" />
-        <span class="dc-n">{{ g.dir.name }}</span>
-        <span class="dc-m">{{ g.projects.length }} 项目 · {{ g.projects.reduce((s, p) => s + p.total, 0) }} 任务</span>
-        <span class="dc-x">{{ dirFilter === g.dir.id ? '✓' : '▸' }}</span>
-      </button>
-    </div>
-
-    <!-- 断链行：收在骨架条内，不独占横幅 -->
-    <div class="spine-risk">
-      <span class="sr-ico" :class="{ zero: meta.counts.risk === 0 }">
-        {{ meta.counts.risk === 0 ? '✓' : '⚠' }}
-      </span>
-      <span v-if="meta.counts.risk > 0" class="sr-t">
-        <b>{{ meta.counts.risk }} 处归属/支撑缺失</b> —— 缺任务指标与无归属任务已就地标黄
-      </span>
-      <span v-else class="sr-t"><b>链路完整</b> —— 每条指标都有任务，每条任务都有归属</span>
-      <div class="sr-acts">
-        <button v-if="meta.counts.risk > 0" class="sr-btn" :class="{ on: riskOnly }" @click="emit('risk')">
-          {{ riskOnly ? '✓ 断链模式 · 退出' : '⚠ 只看断链' }}
-        </button>
-        <button v-if="meta.counts.risk > 0" class="sr-btn" @click="emit('orphan')">↗ 无归属收容区</button>
-        <button class="sr-btn" @click="emit('riskBar')">⤓ 断链清单</button>
+      <!-- 断链行：收在骨架条内，不独占横幅 -->
+      <div class="spine-risk">
+        <span class="sr-ico" :class="{ zero: meta.counts.risk === 0 }">
+          {{ meta.counts.risk === 0 ? '✓' : '⚠' }}
+        </span>
+        <span v-if="meta.counts.risk > 0" class="sr-t">
+          <b>{{ meta.counts.risk }} 处归属/支撑缺失</b> —— 缺任务指标与无归属任务已就地标黄
+        </span>
+        <span v-else class="sr-t"><b>链路完整</b> —— 每条指标都有任务，每条任务都有归属</span>
+        <div class="sr-acts">
+          <button v-if="meta.counts.risk > 0" class="sr-btn" :class="{ on: riskOnly }" @click="emit('risk')">
+            {{ riskOnly ? '✓ 断链模式 · 退出' : '⚠ 只看断链' }}
+          </button>
+          <button v-if="meta.counts.risk > 0" class="sr-btn" @click="emit('orphan')">↗ 无归属收容区</button>
+          <button class="sr-btn" @click="emit('riskBar')">⤓ 断链清单</button>
+        </div>
       </div>
     </div>
   </section>
@@ -127,22 +141,50 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  overflow: hidden;
   margin-bottom: 16px;
 }
+
+/* ── 头部行（原型 .spine-h）：名称 + 定位语 + 右侧提示 ── */
+.spine-h {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 11px 18px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.spine-ico {
+  width: 24px; height: 24px; border-radius: 8px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-light); color: var(--accent-ink); font-size: var(--fs-sub);
+}
+.spine-t {
+  font-size: var(--fs-sub); font-weight: 700; color: var(--text);
+  display: flex; align-items: baseline; gap: 7px;
+}
+.spine-en {
+  font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: .13em; color: var(--text-4);
+}
+.spine-badge {
+  font-size: var(--fs-micro); font-weight: 600;
+  color: var(--text-3); background: var(--surface-2);
+  padding: 2px 9px; border-radius: 999px;
+}
+.spine-hint {
+  margin-left: auto; display: flex; align-items: center; gap: 8px;
+  font-size: var(--fs-micro); color: var(--text-4);
+}
+
+.spine-b { padding: 12px 18px 13px; display: flex; flex-direction: column; gap: 11px; }
 
 /* 六层横向流：上层窄、下层宽，把"逐层收窄"直接做成宽度 */
 .spine-chain { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; }
 .spine-arrow { display: flex; align-items: center; padding: 0 4px; color: var(--text-4); font-size: var(--fs-micro); }
 .spine-lv {
-  display: flex; align-items: center; gap: 6px;
-  padding: 5px 11px; border-radius: 8px;
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 13px; border-radius: 8px;
   background: var(--surface-2);
   border: 1px solid transparent;
-  cursor: pointer; transition: all var(--dur); min-height: 30px;
+  cursor: pointer; transition: all var(--dur); min-height: 34px;
 }
 .spine-lv:hover { background: var(--surface-3); }
 .spine-lv.on { background: var(--accent-light); border-color: var(--accent); }
@@ -156,7 +198,11 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
 .spine-lv.on .slv-c b { color: var(--accent); }
 /* 上层两级用强调底，视觉上"压"着下层 */
 .spine-lv.lv1, .spine-lv.lv2 { background: var(--accent-light); }
-.spine-lv.lv3, .spine-lv.lv4, .spine-lv.lv5, .spine-lv.lv6 { flex: 1 1 0; min-width: 96px; }
+/* ★W12：宽度直接编码层级流向（原型 .lv-1~3 flex:0 0 auto / .lv-4~6 flex:1 1 0）。
+   上层按内容宽、下层三段等分铺满 ⇒ 六颗按钮在版面上自动排成"上窄下宽"的漏斗，
+   "逐层收窄"从一句口号变成看得见的形状。这两条缺任一条，六层就退化成六个等大标签。 */
+.spine-lv.lv1, .spine-lv.lv2, .spine-lv.lv3 { flex: 0 0 auto; }
+.spine-lv.lv4, .spine-lv.lv5, .spine-lv.lv6 { flex: 1 1 0; min-width: 96px; }
 
 /* ── 战略目标芯片 ── */
 .spine-dirs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

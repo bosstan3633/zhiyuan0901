@@ -177,10 +177,11 @@ check('R99-2 M8 筛选传参链 ★R3-B1 退役重指带备案：ovFilter/tools-
   const t = CT_ALL; const pc = read('/newtab/views/ProjectCuration.vue');
   return !t.includes('tools-gate') && !t.includes('toolsGate') && !t.includes('selectedId') && !pc.includes('ovFilter') && !t.includes('update:ovFilter');
 });
-check('R99-3 D-D 方向台页头主线状态摘要 ★R3-B1 随宿主改靶（R177 的 cph-summary-badge 形态随 Shell 退役）：同一组读数（战略目标/推进项目/🚀 主攻/⚠ 停滞/指标/任务）由方向树页头 treeStats 一次算齐，不在模板逐项调', () => {
+check('R99-3 D-D 方向台页头主线状态摘要 ★R3-B1 随宿主改靶（R177 的 cph-summary-badge 形态随 Shell 退役）+ ★W12(V3.8.12)随迁备案：读数由方向树页头 treeStats 一次算齐、不在模板逐项调这条不变；载体随页头重构从 .tree-stats 一行密排改为 HERO 右栏的 .hero-stats（原型 .hero 右侧动作区下方的读数行）。★锚点用分段正则而非跨标签 includes —— 跨标签字面量对空白极敏感，一次格式化就静默失效', () => {
   const t = CT_ALL;
-  return t.includes('🚀 主攻 {{ treeStats.focused }} · ⚠ 停滞 {{ treeStats.stalled }}') && t.includes('战略目标 {{ treeStats.dirs }}')
-    && t.includes('const treeStats = computed(') && !t.includes('focusCount');
+  return /🚀 主攻 \{\{ treeStats\.focused \}\}/.test(t) && /战略目标 \{\{ treeStats\.dirs \}\}/.test(t)
+    && t.includes('const treeStats = computed(') && !t.includes('focusCount')
+    && t.includes('class="hero-stats"');
 });
 check('R99-4/R121 置顶与手动排序 ★R3-B2 回归方向树（右键菜单形态不再回来）：树内拖拽落位 + ▾ 菜单置顶，旧左栏拖拽与「跨区移动请先用 📌 置顶」文案仍须零残留', () => { const t = CT_ALL; const pc = read('/newtab/views/ProjectCuration.vue'); return t.includes('function onProjDrop(') && t.includes('function toggleProjectPin(') && !t.includes('class="proj-menu"') && !pc.includes('dragProjId') && !pc.includes('跨区移动请先用 📌 置顶/取消置顶'); });
 

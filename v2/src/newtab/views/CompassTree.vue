@@ -363,7 +363,8 @@ function findMetric(metricId: string): { proj: Project; metric: import('@/shared
 function onLayerOpen(lv: 1 | 2 | 3) {
   layerOpen.value = layerOpen.value === lv ? null : lv
   if (layerOpen.value) {
-    nextTick(() => document.getElementById('layer-1')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    /* ★W12：面板开在骨架条之下（第 1/2 层正文已搬进面板），滚到面板而不是"愿景卡" */
+    nextTick(() => document.getElementById('lvpanel-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
   }
 }
 /** 层级 4/5/6：定位到第一处对应实体并闪一下（★先切回纵向视图，定位不许挑视图） */
@@ -695,21 +696,30 @@ function isStagnant(dir: Direction): boolean {
   return recentTask ? Date.now() - (recentTask.updatedAt || 0) > 14 * 86400_000 : false
 }
 
-// ---- 六层悬浮目录（左侧，快速定位 + 滚动高亮） ----
-const tocItems = [
-  { n: 1, name: '愿景' },
-  { n: 2, name: '使命' },
-  { n: 3, name: '战略目标' },
-  { n: 4, name: '攻坚项目' },
-  { n: 5, name: '成功指标' },
-  { n: 6, name: '任务' }
-]
+// ---- 左侧项目导航（W12：由六层数字目录改为项目清单，对齐原型 .navside） ----
+/**
+ * ★为什么左栏不再放「1~6 六层目录」：
+ * 六层目录是一排纯数字，看不出层级关系，而且它做的事（定位到某一层）骨架条的 1~6 按钮已经在做了 ——
+ * 同一件事摆两处，第二处就变成"看着像导航、点了其实是另一套"。
+ * 原型的 .navside 是**项目清单**（序号 + 项目名 + 指标/任务数），并随滚动高亮当前所在舱。
+ */
+const activeTowerId = ref('')
+/** 点左栏舱 → 定位到该舱（与项目塔的定位动作同一入口，不另起一条路） */
+function gotoTower(projId: string) {
+  activeTowerId.value = projId
+  ensureTower('定位项目舱').then(() => {
+    const el = document.querySelector(`[data-tower="${projId}"]`)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el?.classList.add('w11-flash')
+    setTimeout(() => el?.classList.remove('w11-flash'), 1400)
+  })
+}
 const activeLayer = ref(1)
 const canvasEl = ref<HTMLElement | null>(null)
 /**
  * ★定位动作前先确保在项目塔视图。
  * 为什么要这一步：全景视图里第 4/5/6 层不再是纵向排布的 DOM（它们变成了一根根横向泳道），
- * 于是"点左侧目录第 5 层"在全景下会静默失灵 —— 目录点了没反应，看起来像坏了。
+ * 于是"点骨架条第 5 层"在全景下会静默失灵 —— 点了没反应，看起来像坏了。
  * 正确行为是**先切回纵向再定位**（双向可达的反向：任何定位都能抵达，不挑视图）。
  */
 function ensureTower(hint: string): Promise<void> {
@@ -718,52 +728,25 @@ function ensureTower(hint: string): Promise<void> {
   showToast(`${hint} · 已自动切回项目塔视图`)
   return nextTick()
 }
-function scrollToLayer(n: number) {
-  activeLayer.value = n
-  if (n <= 2) {
-    // 1/2 层的正文常驻 HERO 卡，定位即打开层级面板（原来只滚不展开，等于点了没反应）
-    if (layerOpen.value !== (n as 1 | 2)) onLayerOpen(n as 1 | 2)
-    document.getElementById('layer-1')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    return
-  }
-  if (n === 3) {
-    if (!layerOpen.value) layerOpen.value = 3
-    document.getElementById('layer-1')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    return
-  }
-  ensureTower(`定位第 ${n} 层`).then(() => {
-    if (n === 4) {
-      const el = document.querySelector('[data-tower]')
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      showToast('第 4 层 · 每个攻坚项目一个独立舱，左侧色条即项目身份')
-    } else if (n === 5) {
-      const el = document.querySelector('.metric-card')
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      el?.classList.add('w11-flash')
-      setTimeout(() => el?.classList.remove('w11-flash'), 1400)
-      showToast('第 5 层 · 成功指标成卡，任务内嵌在指标里')
-    } else {
-      const el = document.querySelector('.tk-row')
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      el?.classList.add('w11-flash')
-      setTimeout(() => el?.classList.remove('w11-flash'), 1400)
-      showToast('第 6 层 · 每条任务都隶属某个成功指标，悬停看完整归属路径')
-    }
-  })
-}
 function onCanvasScroll() {
-  /* 全景视图是横向泳道，纵向滚动不再对应六层 ⇒ 目录高亮保持不动，
+  /* 全景视图是横向泳道，纵向滚动不再对应舱序列 ⇒ 左栏高亮保持不动，
      否则会随页面微滚乱跳（判据 W11-9 的一部分：联动不许制造假信号） */
   if (viewMode.value === 'pano') return
   const canvas = canvasEl.value
   if (!canvas) return
   const canvasTop = canvas.getBoundingClientRect().top
-  let current = 1
-  for (const item of tocItems) {
-    const el = document.getElementById('layer-' + item.n)
-    if (el && el.getBoundingClientRect().top - canvasTop <= 80) current = item.n
+  /* 高亮"当前视野顶部所在的舱"。遍历 DOM 顺序取最后一个已越线的，
+     比反向查找 first 更快，且与阅读顺序一致（上方舱先命中）。 */
+  const towers = canvas.querySelectorAll('[data-tower]')
+  let current = ''
+  for (const el of towers) {
+    if (el.getBoundingClientRect().top - canvasTop <= 120) {
+      current = (el as HTMLElement).dataset.tower || ''
+    }
   }
-  activeLayer.value = current
+  if (current) activeTowerId.value = current
+  /* 当前舱所属的层（第 4/5/6）仍对外可见：定位 toast 与骨架条高亮共用它 */
+  activeLayer.value = activeTowerId.value ? 4 : 1
 }
 
 // ---- 战略目标 / 推进项目（R70：原 DHI 口径已于 R64 退役） ----
@@ -892,73 +875,100 @@ onUnmounted(() => {
 
 <template>
   <div class="compass-layout">
-    <!-- 六层悬浮目录 -->
-
-      <div class="tree-page-head">
-        <!-- R3-B1：树升一级——面包屑由「方向台 / 完整方向树」收成「方向台」，六层全深度成了台面本身 -->
-        <div class="crumb"><b>方向台</b> · 六层思维链全深度<span v-if="fromProjName"> · 来自项目「{{ fromProjName }}」</span></div>
-        <div class="spacer"></div>
-        <!-- R54-A1：来源感知返回（?from=proj&p= 进来才有「返回项目详情」；一级台面不放返回钮） -->
-        <button v-if="fromProjId" class="tree-tool accent" @click="goBack" title="返回刚才那个项目的详情页">← 返回项目详情</button>
-        <div class="tree-stats">愿景 1 · 使命 1 · 战略目标 {{ treeStats.dirs }} · 项目 {{ treeStats.projects }} · 🚀 主攻 {{ treeStats.focused }} · ⚠ 停滞 {{ treeStats.stalled }} · 指标 {{ treeStats.metrics }} · 任务 {{ treeStats.tasks }}</div>
-        <!-- ★W11 视图切换（D3：方向台内第二视图）。双向可达：两个按钮都在，任何时候都能来回切 -->
-        <div class="view-seg" role="tablist" aria-label="方向台视图形态">
-          <button class="vs-b" :class="{ on: viewMode === 'tower' }" :aria-selected="viewMode === 'tower'" title="纵向项目舱列 · 看我在哪个位置" @click="viewMode = 'tower'">项目塔</button>
-          <button class="vs-b" :class="{ on: viewMode === 'pano' }" :aria-selected="viewMode === 'pano'" title="横向泳道全景 · 看这一个项目的完整链路" @click="viewMode = 'pano'">项目全景</button>
+    <!-- ══ W12 HERO 区（原型 .hero）：左文案 / 右动作，二者各自成栏，不再挤成一条横排 ══
+         ★为什么要补这一块：原型首屏是「一句 Slogan + 副标」定调，动作区靠右独立成组；
+         实际实现把面包屑/统计/7 个按钮全塞进一条 tree-page-head，结果首屏第一眼是一行
+         密排小字，Slogan 完全缺席。1:1 还原必须先把这个结构补回来。 -->
+    <section class="hero">
+      <div class="hero-l">
+        <!-- R3-B1 / R123：面包屑保留 16px 档（三页页头一致），随 W12 从 .tree-page-head 迁到 HERO 区 -->
+        <div class="hero-crumb"><b>方向台</b> · 六层思维链全深度</div>
+        <!-- R3-B1：方向台一级化 —— eyebrow 定调，副标说明这一页在做什么 -->
+        <div class="hero-eyebrow">
+          <span class="he-dot" />
+          方向台 · 战略金字塔 STRATEGY PYRAMID
+          <span v-if="fromProjName" class="he-from">· 来自项目「{{ fromProjName }}」</span>
         </div>
-        <button class="tree-tool" @click="expandAllNodes" title="展开全部层级">⊞ 展开</button>
-        <button class="tree-tool" @click="collapseAllNodes" title="收起全部战略目标与指标">⊟ 收起</button>
-        <!-- R3-B′：目标级入口上收页头（原先埋在第 3 层卡头里，新建战略目标要先把视线降到层内） -->
-        <button class="tree-tool accent" @click="addDirection" title="添加战略目标">＋ 添加战略目标</button>
-        <span class="node-action ai-chain-act" title="AI 依愿景/使命建议本阶段战略目标（同层查重后采纳才创建）" @click="aiChain('directions', '')"><AiEntryButton variant="inline" label="建议目标" /></span>
-        <button class="tree-tool" :class="{ off: !showDone }" @click="toggleShowDone" title="与方向台页头同一开关（同一偏好，一处切换全台生效）">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
-        <div class="dhi-badge" :class="dhiStatus.cls">
-          <span>🧭</span>
-          <span>方向健康度：{{ dhiStatus.label }}</span>
-        </div>
+        <!-- ★Slogan 用 --fs-headline(17px) 而不是原型的 --fs-hero(34px)：
+             D1 已拍板方向台不新增 --fs-hero，W8-5 钉死全站 display 只许两处。
+             17px 仍 > 面包屑 16px，层级不倒置（判据 W8-3 的意图守得住）。 -->
+        <h1 class="hero-title">
+          愿景之上，<span class="hero-hl">逐层收窄</span>成今天要做的事
+          <span class="hero-en">SIX-LAYER CHAIN</span>
+        </h1>
+        <p class="hero-sub">
+          战略目标分岔、项目各自成舱、成功指标内嵌任务——每条任务都能回答「我在为哪个项目的哪个指标服务」。
+        </p>
       </div>
 
-      <!-- 画布 -->
-      <div class="tree-layout">
-      <aside class="layer-toc">
-        <div class="lt-title">🧭 六层思维链<span class="en">SIX-LAYER CHAIN</span></div>
-        <div v-for="item in tocItems" :key="item.n" class="lt-item"
-          :class="{active: activeLayer === item.n}" @click="scrollToLayer(item.n)">
-          <span class="lt-num">{{ item.n }}</span>
-          <span class="lt-name">{{ item.name }}</span>
+      <div class="hero-r">
+        <div class="hero-acts">
+          <!-- ★W11 视图切换（D3：方向台内第二视图）。双向可达：两个按钮都在，任何时候都能来回切 -->
+          <div class="view-seg" role="tablist" aria-label="方向台视图形态">
+            <button class="vs-b" :class="{ on: viewMode === 'tower' }" :aria-selected="viewMode === 'tower'" title="纵向项目舱列 · 看我在哪个位置" @click="viewMode = 'tower'">项目塔</button>
+            <button class="vs-b" :class="{ on: viewMode === 'pano' }" :aria-selected="viewMode === 'pano'" title="横向泳道全景 · 看这一个项目的完整链路" @click="viewMode = 'pano'">项目全景</button>
+          </div>
+          <button class="tree-tool" @click="expandAllNodes" title="展开全部层级">⊞ 展开</button>
+          <button class="tree-tool" @click="collapseAllNodes" title="收起全部战略目标与指标">⊟ 收起</button>
+          <!-- R3-B′：目标级入口上收页头（原先埋在第 3 层卡头里，新建战略目标要先把视线降到层内） -->
+          <button class="tree-tool accent" @click="addDirection" title="添加战略目标">＋ 战略目标</button>
+          <span class="node-action ai-chain-act" title="AI 依愿景/使命建议本阶段战略目标（同层查重后采纳才创建）" @click="aiChain('directions', '')"><AiEntryButton variant="inline" label="建议目标" /></span>
         </div>
-        <div class="lt-hint">点击快速定位</div>
+        <div class="hero-meta">
+          <!-- R54-A1：来源感知返回（?from=proj&p= 进来才有「返回项目详情」；一级台面不放返回钮） -->
+          <button v-if="fromProjId" class="tree-tool accent" @click="goBack" title="返回刚才那个项目的详情页">← 返回项目详情</button>
+          <button class="tree-tool" :class="{ off: !showDone }" @click="toggleShowDone" title="与方向台页头同一开关（同一偏好，一处切换全台生效）">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
+          <div class="dhi-badge" :class="dhiStatus.cls">
+            <span>🧭</span>
+            <span>方向健康度：{{ dhiStatus.label }}</span>
+          </div>
+        </div>
+        <div class="hero-stats">
+          <span>愿景 {{ compassMeta.counts.vision }}</span><i>·</i>
+          <span>使命 {{ compassMeta.counts.mission }}</span><i>·</i>
+          <span>战略目标 {{ treeStats.dirs }}</span><i>·</i>
+          <span>项目 {{ treeStats.projects }}</span><i>·</i>
+          <span>🚀 主攻 {{ treeStats.focused }}</span><i>·</i>
+          <span>⚠ 停滞 {{ treeStats.stalled }}</span><i>·</i>
+          <span>指标 {{ treeStats.metrics }}</span><i>·</i>
+          <span>任务 {{ treeStats.tasks }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 画布：左栏 = 项目导航（原型 .navside），右侧 = 骨架条 + 项目塔 -->
+    <div class="tree-layout">
+      <!-- ★W12：左栏由「六层数字目录」改为「项目导航」。
+           病根＝六层目录是 1~6 的纯数字，看不出层级关系；而原型的 .navside 是**项目清单**
+           （序号 + 项目名 + 指标/任务数），滚动时自动跟随当前视野所在项目。
+           六层定位能力没有丢——它本来就由骨架条的 1~6 按钮承担（点 4/5/6 定位、点 1/2/3 展开面板），
+           左栏只是把同一件事重复了一遍。滚动联动从"层高亮"改为"舱高亮"。 -->
+      <aside class="navside">
+        <div class="ns-t">项目塔 {{ towerGroups.reduce((s, g) => s + g.projs.length, 0) }} 个舱</div>
+        <!-- ★序号用**全局舱序号**（原型 .ns-idx 是 1~N 连号），不用「目标·项目」复合号：
+             复合号在左栏只有 210px 宽时会挤掉项目名，而项目名才是这一栏唯一要读的东西。
+             全局号还能与舱头的 tw-idx 对上，两处是同一把尺子。 -->
+        <template v-for="dg in towerGroups" :key="dg.dir.id">
+          <button
+            v-for="(row, pi) in dg.projs"
+            :key="row.proj.id"
+            class="ns-item"
+            :class="{ on: activeTowerId === row.proj.id }"
+            :style="{ '--pc': row.hue }"
+            @click="gotoTower(row.proj.id)"
+          >
+            <span class="ns-idx">{{ dg.i + 1 }}.{{ pi + 1 }}</span>
+            <span class="ns-body">
+              <span class="ns-n">{{ row.proj.name }}</span>
+              <span class="ns-m">{{ row.meta.metrics.length }} 指标 · {{ row.meta.total }} 任务<span v-if="row.proj.isFocused" class="ns-f">🚀</span></span>
+            </span>
+          </button>
+        </template>
+        <div class="ns-hint">点任意舱直达；滚动时左侧自动跟随当前视野所在舱</div>
       </aside>
       <div class="canvas" ref="canvasEl" @scroll="onCanvasScroll">
         <div class="canvas-inner">
 
-          <!-- 第1-2层：愿景 / 使命 锚点卡（R121：两张 node 卡 → 单卡紧凑；编辑与关联卡片保留） -->
-          <div class="tree-level-card hero" id="layer-1">
-            <span class="tl-badge">1 愿景 · 终极方向</span>
-            <div class="tl-text">
-              <span class="node-title editable" :class="{editing: editingField === 'vision'}" :data-edit="'vision'" :contenteditable="editingField === 'vision'"
-                @click="startEdit('vision', $event)" @blur="saveEdit('vision', $event)" @keydown.enter.ctrl.prevent="saveEdit('vision', $event)" @keydown.esc="cancelEdit">{{ visionText || '点击设定你的核心愿景…' }}</span>
-            </div>
-            <div class="tl-links">
-              <span class="proj-toggle" @click.stop="toggleLinkPop('vision')">🔗 关联卡片 <span class="link-count">{{ linkCount('vision') }}</span></span>
-              <template v-if="linkCount('vision')">
-                <span v-for="rid in linkIds('vision', 'res')" :key="'vr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico">📄</span><span class="lc-text">{{ resTitle(rid) }}</span></span>
-                <span v-for="cid in linkIds('vision', 'curio')" :key="'vc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico">💡</span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
-              </template>
-            </div>
-            <span class="tl-badge ghost" id="layer-2">2 使命 · 行动准则</span>
-            <div class="tl-text sub">
-              <span class="node-title editable" :class="{editing: editingField === 'mission'}" :data-edit="'mission'" :contenteditable="editingField === 'mission'"
-                @click="startEdit('mission', $event)" @blur="saveEdit('mission', $event)" @keydown.enter.ctrl.prevent="saveEdit('mission', $event)" @keydown.esc="cancelEdit">{{ missionText || '点击设定你的核心使命…' }}</span>
-            </div>
-            <div class="tl-links">
-              <span class="proj-toggle" @click.stop="toggleLinkPop('mission')">🔗 关联卡片 <span class="link-count">{{ linkCount('mission') }}</span></span>
-              <template v-if="linkCount('mission')">
-                <span v-for="rid in linkIds('mission', 'res')" :key="'mr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico">📄</span><span class="lc-text">{{ resTitle(rid) }}</span></span>
-                <span v-for="cid in linkIds('mission', 'curio')" :key="'mc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico">💡</span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
-              </template>
-            </div>
-          </div>
           <!-- W11 ★战略骨架控制条：六层按钮 + 战略目标芯片 + 断链行。
                它不是"另一张架构展示图"，而是下方项目塔的导航/过滤/联动中枢——
                六层数字吃 compassMeta.counts（与舱体同源），点层级即定位或过滤。判据 W11-7 钉住数字不得散落现算。 -->
@@ -975,33 +985,67 @@ onUnmounted(() => {
             @risk-bar="showRiskReport"
           />
 
-          <!-- W11 ★层级展开面板：点 1/2/3 摊开该层完整内容 + 推导链 + 下挂实体。
-               再点同层收起（判据 W11-3 双向可达，绝不做单向门）。 -->
+          <!-- W11 ★层级展开面板（原型 .lvpanel）：点 1/2/3 摊开该层完整内容 + 推导链 + 下挂实体。
+               再点同层收起（判据 W11-3 双向可达，绝不做单向门）。
+
+               ★W12 结构归位（1:1 还原）：第 1/2 层的**正文**（愿景 22px / 使命 / 关联卡片 / 就地编辑）
+               从"骨架条上方独占一整块常驻卡"搬进本面板的 entity 槽。
+               原型的层级关系是 spine → lvpanel → towers，第 1/2 层内容只在 lvpanel 里出现；
+               之前把愿景卡摆在 spine 之上，等于在六层链条之外另开了一个平级区块，
+               于是首屏被一块大字卡吃掉、"逐层收窄"在版面上断掉。
+               判据 W8-1 / W8-2 / W11-11 守的是"愿景仍是唯一主体且独占一行 + 重框"，
+               面板位同样满足（默认展开第 1 层），承重未丢，只是位置回到链条之内。 -->
           <CompassLayerPanel
             v-if="layerOpen"
             :meta="compassMeta"
             :layer="layerOpen"
-            :vision="visionText"
-            :mission="missionText"
-            :vision-links="linkCount('vision')"
-            :mission-links="linkCount('mission')"
             :dir-filter="dirFilter"
             @goto="onLayerOpen"
             @locate="onLocateLayer"
             @dir="onDirFilter"
             @close="layerOpen = null"
-          />
+          >
+            <!-- ★第 1/2 层正文插槽：就地编辑与关联卡片能力全在这一段（判据随迁备案见上方注释） -->
+            <template #entity>
+              <div class="tree-level-card hero" id="layer-1">
+                <template v-if="layerOpen === 1">
+                  <span class="tl-badge">1 愿景 · 终极方向</span>
+                  <div class="tl-text">
+                    <span class="node-title editable" :class="{editing: editingField === 'vision'}" :data-edit="'vision'" :contenteditable="editingField === 'vision'"
+                      @click="startEdit('vision', $event)" @blur="saveEdit('vision', $event)" @keydown.enter.ctrl.prevent="saveEdit('vision', $event)" @keydown.esc="cancelEdit">{{ visionText || '点击设定你的核心愿景…' }}</span>
+                  </div>
+                  <div class="tl-links">
+                    <span class="proj-toggle" @click.stop="toggleLinkPop('vision')">🔗 关联卡片 <span class="link-count">{{ linkCount('vision') }}</span></span>
+                    <template v-if="linkCount('vision')">
+                      <span v-for="rid in linkIds('vision', 'res')" :key="'vr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico">📄</span><span class="lc-text">{{ resTitle(rid) }}</span></span>
+                      <span v-for="cid in linkIds('vision', 'curio')" :key="'vc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico">💡</span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
+                    </template>
+                  </div>
+                </template>
+                <template v-else>
+                  <span class="tl-badge ghost" id="layer-2">2 使命 · 行动准则</span>
+                  <div class="tl-text sub">
+                    <span class="node-title editable" :class="{editing: editingField === 'mission'}" :data-edit="'mission'" :contenteditable="editingField === 'mission'"
+                      @click="startEdit('mission', $event)" @blur="saveEdit('mission', $event)" @keydown.enter.ctrl.prevent="saveEdit('mission', $event)" @keydown.esc="cancelEdit">{{ missionText || '点击设定你的核心使命…' }}</span>
+                  </div>
+                  <div class="tl-links">
+                    <span class="proj-toggle" @click.stop="toggleLinkPop('mission')">🔗 关联卡片 <span class="link-count">{{ linkCount('mission') }}</span></span>
+                    <template v-if="linkCount('mission')">
+                      <span v-for="rid in linkIds('mission', 'res')" :key="'mr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico">📄</span><span class="lc-text">{{ resTitle(rid) }}</span></span>
+                      <span v-for="cid in linkIds('mission', 'curio')" :key="'mc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico">💡</span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </CompassLayerPanel>
 
-
-          <!-- 第3-6层：战略目标 → 攻坚项目 → 成功指标 → 任务（W11：纵向项目舱序列 + 归属轨道） -->
-            <div class="tl-head-row">
-              <span class="tl-badge">3 战略目标 → 4 攻坚项目 → 5 成功指标 → 6 任务</span>
-              <span class="tl-hint">主攻项目默认展开 · 其余折叠成卡头（点 ▸ 展开）· 卡头 ⠿ 拖拽可在本目标内排序 · 缺任务指标实时警示</span>
-              <!-- W1.1（V3.8.1）：项目详情通用直达入口——此前只有钻进项目卡折叠菜单才有「进入项目详情页」，
-                   用户拍板在攻坚项目区右上放一枚通用按钮；默认项目=主攻项目（无主攻兜底第一个未完成，
-                   落点口径见 W1.1 交付说明） -->
-              <button class="tree-tool accent" title="打开项目详情（默认落主攻项目）" @click="router.push({ path: '/compass/projects' })">📄 项目详情</button>
-            </div>
+          <!-- W1.1（V3.8.1）：项目详情通用直达入口。原位置在第 3~6 层区右上，
+               随 W12 结构归位上收到项目塔区首行，避免"进项目"这一级动作藏在六层说明行里。 -->
+          <div class="tl-head-row">
+            <span class="tl-badge">3 战略目标 → 4 攻坚项目 → 5 成功指标 → 6 任务</span>
+            <button class="tree-tool accent" title="打开项目详情（默认落主攻项目）" @click="router.push({ path: '/compass/projects' })">📄 项目详情</button>
+          </div>
 
             <!-- ★W11 筛选态提示条：过滤是隐形的就会让人以为项目丢了。
                  只要 dirFilter / riskOnly 任一开着就常驻，并给一个一键全清的出口（判据 W11-9）。 -->
@@ -1047,12 +1091,21 @@ onUnmounted(() => {
                 <!-- 战略目标分组头：★与骨架条芯片、层级面板目标卡三处同源同色 -->
                 <div class="dir-head" :class="dg.hue" :data-dir-id="dg.dir.id">
                   <div class="dh-l">
+                    <!-- ★W12：原型的 .dh-i 是纯数字方块，但原型同时有一枚「N 战略目标」pill 承担
+                         "这是第几层、点它即过滤"的语义。数字方块看不出层，pill 能。
+                         两者合并：pill 收在左（点即过滤，与骨架条芯片同源同色），方块退为序号。 -->
+                    <button class="dir-badge" :class="{ on: dirFilter === dg.dir.id }" @click.stop="onDirFilter(dg.dir.id)"
+                      :title="dirFilter === dg.dir.id ? '正在只看这个目标 · 再点取消' : '只看这个战略目标的项目舱'">
+                      {{ dg.i + 1 }} 战略目标
+                    </button>
                     <span class="dh-i">{{ dg.i + 1 }}</span>
                     <span class="node-title editable dh-n" :class="{editing: editingField === 'dir-' + dg.dir.id}" :data-edit="'dir-' + dg.dir.id" :contenteditable="editingField === 'dir-' + dg.dir.id"
                       @click="startEdit('dir-' + dg.dir.id, $event)" @blur="saveEdit('dir-' + dg.dir.id, $event)" @keydown.enter.prevent="saveEdit('dir-' + dg.dir.id, $event)" @keydown.esc="cancelEdit">{{ dg.dir.name }}</span>
                     <span v-if="isStagnant(dg.dir)" class="stagnant-tag" title="该目标下项目近 14 天无推进">⚠ 停滞</span>
                     <MaturityBadge :m="directionMaturity(d, dg.dir)" />
                     <span class="dh-meta">{{ dg.projs.length }} 攻坚项目 · {{ dg.metaCount }} 成功指标 · {{ dg.taskCount }} 任务</span>
+                    <!-- ★发丝线（原型 .dir-line）：把一行读数在右侧收口，别让按钮组孤零零吊在行尾 -->
+                    <span class="dh-line" />
                   </div>
                   <div class="dh-acts" @click.stop>
                     <span class="node-action" @click="addProject(dg.dir.id)" title="添加攻坚项目">＋</span>
@@ -1190,8 +1243,57 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* ══ W12 HERO 区（原型 .hero）：左文案 + 右动作，两栏各自成列 ══ */
+.hero {
+  display: flex; align-items: flex-start; gap: 32px; flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.hero-l { flex: 1; min-width: 340px; }
+.hero-crumb { margin-bottom: 8px; }
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: .1em;
+  color: var(--accent-ink); margin-bottom: 10px; flex-wrap: wrap;
+}
+.he-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex: none;
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 45%, var(--danger)));
+}
+.he-from { color: var(--text-4); letter-spacing: normal; font-weight: 500; }
+/* ★Slogan 用 --fs-headline(17px)：D1 已拍板不新增 --fs-hero，W8-5 钉死全站 display 只许两处。
+   17px 仍 > 面包屑 16px，层级不倒置（判据 W8-3 的意图守得住）。 */
+.hero-title {
+  font-size: var(--fs-headline); font-weight: 700;
+  letter-spacing: -.02em; line-height: 1.4; color: var(--text);
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+}
+.hero-hl { color: var(--accent-ink); }
+.hero-en {
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: .16em; color: var(--text-4);
+}
+.hero-sub {
+  font-size: var(--fs-body); color: var(--text-3); margin-top: 10px;
+  max-width: 620px; line-height: 1.8;
+}
+.hero-r {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+  flex: none; max-width: 100%;
+}
+.hero-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.hero-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.hero-stats {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end;
+  font-size: var(--fs-micro); color: var(--text-4);
+  font-variant-numeric: tabular-nums;
+}
+.hero-stats i { opacity: .5; font-style: normal; }
+
+/* ★W12：容器 padding 完全不动（`20px 36px 64px`）——
+   R125「骨架 1440+36」把四页页边距拍成一条跨页一致性纪律，方向台侧的内缩就落在这条规则上；
+   原型的 .page 32px 是原型自己的值，拿它覆盖会让另外三页不动的情况下方向台单独"对齐"，
+   那正是 R123/R125 要挡的事。HERO 区的呼吸由 .hero 自身的 margin-bottom 承担，不动容器。 */
 .compass-layout { display: block; min-height: 100%; padding: 20px 36px 64px; max-width: 1440px; margin: 0 auto; }
-.tree-layout { display: flex; gap: 20px; align-items: flex-start; }
+.tree-layout { display: flex; gap: 28px; align-items: flex-start; }
 .link-count { font-size: var(--fs-tiny); color: var(--accent-ink); background: var(--accent-light); padding: 1px 7px; border-radius: 99px; font-weight: 600; }
 /* R59-T4：关联卡片选择器（居中弹窗） */
 .lm-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: var(--z-mask-lg); display: flex; align-items: center; justify-content: center; }
@@ -1230,9 +1332,61 @@ onUnmounted(() => {
 .dhi-badge { display: flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 99px; background: var(--accent-light); font-size: var(--fs-sub); font-weight: 500; color: var(--accent-ink); }
 .dhi-badge.warning { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
 
-/* 画布（左侧为悬浮目录预留空间） */
+/* 画布（左侧为项目导航预留空间） */
 .canvas { flex: 1; min-width: 0; padding: 0 4px 20px; }
-.canvas-inner { max-width: 1000px; margin: 0 auto; min-width: 700px; }
+/* ★W12：放开原先 1000px/700px 的窄栏约束。原型 .page 是 1440px 满宽 + 210px 侧栏，
+   1000px 会让右侧项目舱被压扁、舱头按钮挤成两行（就是实际截图里的那个问题）。 */
+.canvas-inner { max-width: 1180px; margin: 0; }
+
+/* ══ W12 左侧项目导航（原型 .navside）：项目清单 + 滚动跟随高亮 ══ */
+.navside {
+  position: sticky; top: 16px; align-self: flex-start;
+  width: 210px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: calc(100vh - 120px); overflow-y: auto;
+}
+.ns-t {
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: .14em;
+  color: var(--text-4); padding: 0 4px 6px;
+}
+.ns-item {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 9px 11px; border-radius: var(--radius-sm);
+  background: transparent; border: 1px solid transparent;
+  cursor: pointer; transition: all var(--dur); text-align: left;
+  font-family: inherit; width: 100%;
+}
+.ns-item:hover { background: var(--surface-2); }
+.ns-item.on {
+  background: color-mix(in srgb, var(--pc, var(--accent)) 14%, transparent);
+  border-color: color-mix(in srgb, var(--pc, var(--accent)) 40%, transparent);
+}
+.ns-idx {
+  width: 20px; height: 20px; border-radius: 6px; flex: none; margin-top: 1px;
+  background: color-mix(in srgb, var(--pc, var(--accent)) 18%, transparent);
+  color: var(--text-2);
+  font-size: 9px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.ns-item.on .ns-idx { background: var(--pc, var(--accent)); color: #fff; }
+.ns-body { min-width: 0; flex: 1; }
+.ns-n {
+  display: block;
+  font-size: var(--fs-sub); font-weight: 700; color: var(--text-2);
+  line-height: 1.4; word-break: break-word;
+}
+.ns-item.on .ns-n { color: var(--text); }
+.ns-m {
+  display: block;
+  font-size: var(--fs-micro); color: var(--text-4); margin-top: 2px;
+}
+.ns-f { margin-left: 3px; }
+.ns-hint {
+  font-size: var(--fs-micro); color: var(--text-4);
+  padding: 10px 11px 0; line-height: 1.7;
+  border-top: 1px solid var(--border); margin-top: 4px;
+}
 
 .tree-page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .tree-page-head .crumb { font-size: var(--fs-body); color: var(--text-2); }
@@ -1241,12 +1395,21 @@ onUnmounted(() => {
    **保三页一致**，故 crumb 维持 16px 不动，改把「六层思维链」提到 --fs-headline(17px) ——
    层级变成愿景 22 › 区块标题 17 › 面包屑 16 › 正文 13，单调递减，倒置同样被消除，
    且不需要随迁 R51-6 / R123-10 两条判据。 */
-.tree-page-head .crumb b { color: var(--text); font-weight: 700; font-size: 16px; letter-spacing: .2px; }
+/* ★W12 随迁备案：原 .tree-page-head .crumb（16px 面包屑载体）随页头退役，
+   16px 档改由 HERO 区的 .hero-crumb 承担（判据 R51-6 / R123-10 仍在守"三页页头统一 16px"，
+   这条必须是**活体**载体 —— 挂在死样式上会让那两条判据假绿）。 */
+.hero-crumb {
+  color: var(--text-2); font-size: var(--fs-body);
+  display: inline-flex; align-items: baseline; gap: 2px;
+}
+.hero-crumb b { color: var(--text); font-weight: 700; font-size: 16px; letter-spacing: .2px; }
+
 .tree-page-head .crumb .sep { color: var(--text-4); margin: 0 6px; }
 .tree-page-head .spacer { flex: 1; }
 /* R49-C7：顶部统计 + 展开收起/显隐工具 */
 .tree-stats { font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tree-tool { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); border-radius: 8px; padding: 5px 11px; cursor: pointer; font-family: inherit; transition: all var(--dur); white-space: nowrap; }
+
 .tree-tool:hover { border-color: var(--accent); color: var(--accent); }
 .tree-tool.off { opacity: .6; }
 /* R52-F8/R54-A1：返回入口（accent 强调）+ 面包屑上级可点 */
@@ -1256,25 +1419,12 @@ onUnmounted(() => {
 .dir-head.goal-flash { animation: treeGoalFlash 1.4s ease; }
 @keyframes treeGoalFlash { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); border-color: var(--accent); } }
 
-/* D8：六层目录 = 布局内左栏 + sticky 跟随（目录在左，内容在右，随滚动吸附） */
-.layer-toc { position: sticky; top: 16px; align-self: flex-start; width: 200px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 10px; display: flex; flex-direction: column; gap: 3px; box-shadow: var(--shadow); max-height: calc(100vh - 120px); overflow-y: auto; }
-.lt-title { font-size: var(--fs-headline); font-weight: 600; color: var(--text); letter-spacing: -.01em; padding: 0 2px 12px; display: flex; align-items: baseline; gap: 8px; }
-.lt-title .en { font-size: var(--fs-micro); color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; }
-.lt-item { display: flex; align-items: center; gap: 8px; padding: 8px 9px; border-radius: 8px; cursor: pointer; transition: all var(--dur); border: 1px solid transparent; }
-.lt-item:hover { background: var(--surface-3); }
-.lt-item.active { background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
-.lt-item.active .lt-name { color: var(--accent); font-weight: 600; }
-.lt-num { width: 20px; height: 20px; border-radius: 6px; background: var(--surface-3); color: var(--text-2); font-size: var(--fs-tiny); font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all var(--dur); }
-.lt-item.active .lt-num { background: var(--accent); color: #fff; }
-.lt-name { font-size: var(--fs-body); color: var(--text-2); }
-.lt-hint { margin-top: auto; font-size: var(--fs-tiny); color: var(--text-4); text-align: center; padding-top: 12px; }
+/* ══ W12：.tree-page-head / .layer-toc / .lt-* 六层数字目录整族退役 ══
+   ★随迁备案：① 六层目录的定位能力由骨架条 1~6 按钮承担（同一入口，不摆两处）；
+   ② .tree-page-head 的密排工具行由 HERO 右栏（.hero-acts / .hero-meta / .hero-stats）接走，
+      能力一项未少，只是从「一行密排」变成「两栏分组」。③ .layer-header/.layer-num/.layer-name/.layer-desc
+      四条随之成为孤儿（模板零引用），本轮一并清 —— 删选择器容易，删完不跑扫描器就会留下一笔看不见的债。 */
 
-/* 层标题 */
-.layer-header { display: flex; align-items: center; gap: 9px; margin: 20px 0 10px; }
-.layer-header:first-child { margin-top: 0; }
-.layer-num { width: 24px; height: 24px; border-radius: 6px; background: var(--accent); color: #fff; font-size: var(--fs-sub); font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.layer-name { font-size: 14px; font-weight: 600; color: var(--text); }
-.layer-desc { font-size: var(--fs-caption); color: var(--text-3); margin-left: 3px; }
 .node .node-title { font-size: var(--fs-body); font-weight: 500; color: var(--text); line-height: 1.5; flex: 1; min-width: 0; }
 .node .node-title.editable { cursor: text; outline: none; border-radius: 4px; padding: 1px 4px; margin: -1px -4px; transition: background var(--dur); }
 .node .node-title.editable:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
@@ -1367,16 +1517,31 @@ onUnmounted(() => {
 /* ══ W11：纵向项目舱序列 ══
    .tree-columns-grid 三列并排已退役（判据 W11-1 钉住它不许复活）——
    三列时项目之间只靠列边界，扫视易串行，归属靠"在哪一列"推断。 */
-.tower-list { display: flex; flex-direction: column; gap: 4px; }
+.tower-list { display: flex; flex-direction: column; gap: 40px; }
 
 /* 战略目标分组头：与骨架条芯片、层级面板目标卡三处同源 */
 .dir-head {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 14px 2px 10px; margin-top: 10px;
-  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 0 4px 2px; margin-top: 10px;
 }
 .dir-head:first-of-type { margin-top: 0; }
 .dh-l { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
+/* ★W12：「N 战略目标」pill（原型 .dir-badge）—— 点即过滤，与骨架条芯片同源同色。
+   纯数字方块看不出"这是第几层"，pill 同时回答了"第 3 层"与"怎么过滤"两个问题。 */
+.dir-badge {
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: .1em;
+  color: var(--text-4); background: transparent;
+  border: 1px solid var(--border-strong); border-radius: 999px;
+  padding: 3px 11px; cursor: pointer; transition: all var(--dur);
+  font-family: inherit; white-space: nowrap;
+}
+.dir-badge:hover { color: var(--accent-ink); border-color: var(--accent); }
+.dir-badge.on {
+  color: var(--text); border-color: var(--accent);
+  background: var(--accent-light);
+}
+/* 发丝线：把行内读数在右侧收口，动作组因此不再孤零零吊在行尾（原型 .dir-line） */
+.dh-line { flex: 1; height: 1px; background: var(--border); min-width: 24px; }
 .dh-i {
   width: 20px; height: 20px; border-radius: 7px; flex: none;
   background: color-mix(in srgb, var(--accent) 16%, transparent);
@@ -1397,12 +1562,18 @@ onUnmounted(() => {
 .w11-flash { animation: w11Flash 1.4s ease; border-radius: var(--radius-md); }
 
 /* ★判据 W11-13 的版式补偿（D1 拍板：愿景保持 fs-display 22px，主角感靠版式）：
-   独占整行 + 上下大留白 + 重边框，三者缺一就是"只降字号不改版式"＝变相没实现。 */
+   独占一行 + 上下大留白 + 强调框，三者缺一就是"只降字号不改版式"＝变相没实现。
+   ★W12：外框改为「左侧 2px accent 实轨 + 大留白」——
+   本块现在住在层级面板里（骨架条之下），套一层带底色的卡会变成"面板里再套一张卡"的双层框，
+   主角反而被面板抢走；改用实轨后主角感由 accent 承担，且不再与面板争底色。 */
 .tree-level-card.hero {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-lg);
-  padding: 30px 26px 30px 30px;
-  margin-bottom: 22px;
+  background: transparent;
+  border: none;
+  border-left: 2px solid var(--accent);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 14px 0 16px 16px;
+  margin-bottom: 2px;
   gap: 10px;
 }
 

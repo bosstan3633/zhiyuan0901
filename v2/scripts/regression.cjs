@@ -10,6 +10,7 @@ const SHARDS = [
   '01-w7-focus',
   '02-w8-compass',
   '03-w11-pyramid',
+  '04-w12-restore',
   '10-foundations',
   '20-req39-64',
   '30-v2.35-v2.46',

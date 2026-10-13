@@ -54,8 +54,8 @@ check('N4 标签重命名级联卡片', () => read('/newtab/views/GlobalSettings
 check('H1 策展台快捷键映射+五修饰键', () => read('/newtab/views/GlobalSettings.vue').includes('modLabel') && read('/newtab/App.vue').includes('switchToIndex'));
 
 console.log('【第五轮】');
-check('B17 方向树目录入 tree-layout 左栏', () => CT_ALL.indexOf('tree-page-head') < CT_ALL.indexOf('tree-layout') && CT_ALL.includes('class="tree-layout"'));
-check('B17 目录与策展目录样式统一(200px sticky)', () => CT_ALL.includes('width: 200px; flex-shrink: 0;') && CT_ALL.includes('position: sticky'));
+check('B17 方向树目录入 tree-layout 左栏 ★W12(V3.8.12)随迁备案：.tree-page-head 密排页头被 HERO 区（.hero）取代，承重锚改钉 .hero 在 .tree-layout 之前 —— 本条守的是"页头在左栏之前、不在内容流里"这条布局关系，不是某个类名', () => CT_ALL.indexOf('<section class="hero">') < CT_ALL.indexOf('class="tree-layout"') && CT_ALL.includes('class="tree-layout"'));
+check('B17 目录与策展目录样式统一(200px sticky) ★W12 随迁备案：左栏宽度由 200px 调整为 210px（对齐原型 .split 的 grid-template-columns:210px 1fr），本条守的是"左栏定宽 + sticky"这两条布局纪律', () => CT_ALL.includes('width: 210px; flex-shrink: 0;') && CT_ALL.includes('position: sticky'));
 check('B18 字段行样式迁入子组件', () => count('/newtab/views/FieldEditor.vue', 'gs-fr-action') >= 2);
 check('B22 状态三选 chips · ★R4-Ev 随迁备案：原锚 ts-status-chip 只剩一条死样式在撑着——模板早在 R167 换成 ds-status-chip2 + STATUS_UI[...].cls，而 CSS 里那份 .ts-status-chip.active 是旧实现留下的孤儿（R4-Et 删了基规则，本轮删了 .active 这条），所以这条判据一直在核一件不再存在的事。改钉现役三件：钮在位 + 状态类由 STATUS_UI 映射 + 三档 st-* 各有规则；并负锚旧类名不许回流', () => {
   const f = read('/newtab/components/compass/TaskDetailDrawer.vue');
@@ -67,16 +67,17 @@ check('B23 文档级 Ctrl+Enter/Esc', () => read('/newtab/components/compass/Tas
 check('O19/R121 主航线项目行卡 ★R3-B1 退役重指带备案：行卡（proj-row/mini-bar/双击）随 LighthousePanel 整面退役，能力去向=方向树项目卡头（tp-head 名称 + tp-pct 进度 + 停滞读数在页头 + ▾ 菜单「进入项目详情页」取代双击）', () => { const t = CT_ALL; return !exists('/newtab/components/compass/LighthousePanel.vue') && t.includes('class="tw-head"') && t.includes('class="tw-ring-v"') && t.includes('📄 进入项目详情页') && t.includes('function openProjectDrawer('); });
 check('O20（R126 重指）标签最多两级守卫 + 缩进兜底', () => read('/newtab/views/GlobalSettings.vue').includes('最多两级') && read('/newtab/views/GlobalSettings.vue').includes('padding-left: 58px !important'));
 check('O21 分组列表跨组拖拽改归属', () => read('/newtab/components/compass/TaskManagerPanel.vue').includes('onListGroupDrop'));
-check('Bug1 目标卡按钮/箭头不重叠 · ★R4-Et 随迁备案：原锚 margin-right: 52px 挂在 .goal-node .expand-icon 上，而 .goal-node/.expand-icon 是主航线时代留下的死选择器（模板零引用 + 104 场景 DOM census 零命中 + 全站字符串/classList 零出现，本轮随孤儿 CSS 一并清）。当年按钮是绝对定位、要给箭头留 52px 才不叠；今天的形状是卡头走 flex（标题 flex:1 + min-width:0 可缩）、动作组作为**流内兄弟**占自己的槽——重叠在新形状里结构上不可能，判据改钉这个形状，并钉住旧的魔数预留不许回流。★W11 再随迁带备案：动作组从 display:none（hover 才占槽）改为常驻 flex —— 常驻更稳（不必 hover 才知道有动作），重叠判据随之从「hover 才不叠」升级为「常驻也不叠」，因此标题侧必须显式 min-width:0 才成立', () => {
+check('Bug1 目标卡按钮/箭头不重叠 · ★R4-Et 随迁备案：原锚 margin-right: 52px 挂在 .goal-node .expand-icon 上，而 .goal-node/.expand-icon 是主航线时代留下的死选择器（模板零引用 + 104 场景 DOM census 零命中 + 全站字符串/classList 零出现，本轮随孤儿 CSS 一并清）。当年按钮是绝对定位、要给箭头留 52px 才不叠；今天的形状是卡头走 flex（标题 flex:1 + min-width:0 可缩）、动作组作为**流内兄弟**占自己的槽——重叠在新形状里结构上不可能，判据改钉这个形状，并钉住旧的魔数预留不许回流。★W11 随迁：动作组从 display:none（hover 才占槽）改为常驻 flex。★W12(V3.8.12)再随迁：`.tw-head` 从 align-items:flex-start + gap:10px 改为 align-items:center + gap:14px，`.tw-id` 加 min-width:200px，`.tw-right` 从 gap:10 改为 gap:14 —— 起因是实际截图里舱头右侧（进度环 / 完成数 / 六个按钮）在窄栏下挤成两行。判据本轮起改钉**右区固定一块不换行**这条承重：.tw-right 必须 flex:none，且 .tw-head 的 wrap 只能在 tw-id 那一层发生，不能发生在 tw-right 内部', () => {
   const t = CT_ALL;
   return t.includes('.tw-head {')
-    && /\.tw-head \{[^}]*display: flex[^}]*align-items: flex-start[^}]*gap: 10px/.test(t)
-    /* ★标题可缩是「不重叠」的结构前提：flex:1 + min-width:0 让长标题收缩而不是把动作组挤出卡头 */
-    && t.includes('.tw-id { flex: 1; min-width: 0; }')
+    && /\.tw-head \{[^}]*display: flex[^}]*align-items: center[^}]*gap: 14px/.test(t)
+    /* ★标题可缩是「不重叠」的结构前提：flex:1 + min-width 让长标题收缩而不是把动作组挤出卡头 */
+    && /\.tw-id \{ flex: 1; min-width: 200px; \}/.test(t)
     && t.includes('.dh-acts { display: flex; align-items: center; gap: 4px; flex: none; }')
-    && t.includes('.tw-acts { display: flex; align-items: center; gap: 4px; position: relative; }')
-    && t.includes('.tw-right { display: flex; align-items: center; gap: 10px; flex: none; }')
-    && t.includes('.mc-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }')
+    /* ★右区必须 flex:none —— 舱头唯一的换行点是 .tw-head 本身（右区一旦参与换行，
+       进度环/完成数/按钮组就会叠成两行，正是 W12 要修的失真） */
+    && t.includes('.tw-right { display: flex; align-items: center; gap: 14px; flex: none; }')
+    && t.includes('.mc-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }')
     && !t.includes('margin-right: 52px') && !t.includes('padding-right: 58px');
 });
 check('Bug2 标签缩进 !important 兜底', () => read('/newtab/views/GlobalSettings.vue').includes('padding-left: 58px !important'));
@@ -153,7 +154,7 @@ console.log('【第十四轮 · Linear 视觉重构】');
 check('P1 六主题 Linear 体系（深空薰衣草默认）', () => read('/shared/styles/tokens.css').includes("[data-theme='linear']") && read('/shared/styles/tokens.css').includes('#0D0E11') && read('/shared/styles/tokens.css').includes('#5E6AD2'));
 check('P1 默认主题迁移（green→linear 一次性）', () => read('/shared/storage/repository.ts').includes("theme: 'linear'") && read('/shared/storage/repository.ts').includes("uiCache.theme === 'green'"));
 check('P2 封面扁平化（R64 修订：hero 已删，等效锚点换指标卡样式）', () => !read('/newtab/views/Workspace.vue').includes('COVER_THEMES') && !read('/newtab/views/Workspace.vue').includes('heroGradient') && read('/newtab/views/Workspace.vue').includes('.res-card { background: var(--surface); border: 1px solid var(--border);') && !read('/newtab/views/Workspace.vue').includes('.metric-card')); /* ★R4-Dj 随迁备案：R64 那次把"等效锚点"换成 .metric-card，而指标卡随资源台台面一起退役了、CSS 里只剩没人用的规则——锚点跟能力搬到现役卡片语言 .res-card；另加一条负判据：.metric-card 不许再作为 Workspace 的锚点回流 */
-check('R49 方向台扁平化（原 P2 罗盘 Hero）★R3-B1 随宿主改靶：满宽页头口径落在方向树（.compass-layout 1440 居中 + tree-page-head 一行工具条）', () => CT_ALL.includes('.compass-layout { display: block; min-height: 100%; padding: 20px 36px 64px; max-width: 1440px; margin: 0 auto; }') && CT_ALL.includes('.tree-page-head { display: flex'));
+check('R49 方向台扁平化（原 P2 罗盘 Hero）★R3-B1 随宿主改靶 + ★W12 随迁备案：满宽页头口径落在方向树（.compass-layout 1440 居中 + 页头区），页头区本体由 .tree-page-head 一行工具条改为 .hero 两栏（文案左 / 动作右）——守的是"满宽 + 页头区存在"这两条，不是那一行密排的写法。★容器 padding 仍钉 20px 36px 64px（R125 跨页一致性，W12 只改页头区形态不动容器）', () => CT_ALL.includes('.compass-layout { display: block; min-height: 100%; padding: 20px 36px 64px; max-width: 1440px; margin: 0 auto; }') && /^\.hero \{/m.test(CT_ALL));
 check('P3 去弹跳（hover 无位移）+ 焦点环', () => !read('/newtab/views/ProjectCuration.vue').includes('translateY(-3px)') && !read('/newtab/views/Workspace.vue').includes('.res-card:hover { border-color: var(--accent); box-shadow') && read('/shared/styles/tokens.css').includes(':focus-visible'));
 check('P3 过渡统一 200ms 内', () => !read('/newtab/views/ProjectCuration.vue').includes('transform .26s') && read('/shared/styles/tokens.css').includes('font-feature-settings: "tnum"'));
 

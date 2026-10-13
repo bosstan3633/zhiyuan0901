@@ -21,12 +21,6 @@ const props = defineProps<{
   meta: CompassMeta
   /** 当前展开层级 */
   layer: 1 | 2 | 3
-  /** 战略目标全文 */
-  vision: string
-  mission: string
-  /** 愿景/使命关联卡片数 */
-  visionLinks: number
-  missionLinks: number
   /** 当前聚焦的战略目标 id */
   dirFilter: string
 }>()
@@ -70,7 +64,7 @@ function dirProgress(dirIdx: number): { done: number; total: number; pct: number
 
 <template>
   <!-- ★容器 div 是过渡载体（max-height），本身无内容——移植时别删，删了面板直接跳变不出动画 -->
-  <div class="lvp">
+  <div class="lvp" id="lvpanel-anchor">
     <section class="lvp-in" :data-layer="layer">
       <header class="lvp-head">
         <span class="lvp-ic">{{ lm.ic }}</span>
@@ -80,33 +74,20 @@ function dirProgress(dirIdx: number): { done: number; total: number; pct: number
         <button class="lvp-x" title="收起（再点层级可重新展开）" @click="emit('close')">✕ 收起</button>
       </header>
 
-      <!-- 主体：这一层的实体本体 -->
+      <!-- 主体：这一层的实体本体。
+           ★W12：第 1/2 层正文**只**由父组件经 #entity 插槽注入（承载就地编辑 + 关联卡片能力）。
+           这里曾留过一份只读 fallback，理由是"插槽不传时面板也得有内容"—— 但那等于同一句愿景在页面上
+           出现两次：一份能改、一份不能改，两份还会各自漂移。宁可空着（插槽始终会传）也不留影子文本。 -->
       <div class="lvp-main">
-        <template v-if="layer === 1">
-          <h3 class="lvp-hero">{{ vision || '点击设定你的核心愿景…' }}</h3>
-          <p class="lvp-desc">
-            这是整条链的<b>视觉原点</b>——下面五层全部由它推导而来。
-            任何一层的取舍，判据都是"它服务不服务于这一句"。
-          </p>
-          <span class="lvp-chip">🔗 关联卡片 {{ visionLinks }}</span>
-        </template>
-
-        <template v-else-if="layer === 2">
-          <h3 class="lvp-hero sub">{{ mission || '点击设定你的核心使命…' }}</h3>
-          <p class="lvp-desc">
-            把愿景翻译成<b>可执行的行动准则</b>。使命的作用是判据：
-            某件事做不做，先问它符不符合这一条。
-          </p>
-          <span class="lvp-chip">🔗 关联卡片 {{ missionLinks }}</span>
-        </template>
-
-        <template v-else>
-          <h3 class="lvp-hero sub">{{ c.dirs }} 个战略目标 · 向下分岔为 {{ c.projects }} 个攻坚项目</h3>
-          <p class="lvp-desc">
-            这是从"定方向"转向"分资源"的一层。<b>分岔点</b>：
-            每个目标各自去占资源，目标之间互不抢。
-          </p>
-        </template>
+        <slot name="entity">
+          <template v-if="layer === 3">
+            <h3 class="lvp-hero sub">{{ c.dirs }} 个战略目标 · 向下分岔为 {{ c.projects }} 个攻坚项目</h3>
+            <p class="lvp-desc">
+              这是从"定方向"转向"分资源"的一层。<b>分岔点</b>：
+              每个目标各自去占资源，目标之间互不抢。
+            </p>
+          </template>
+        </slot>
       </div>
 
       <!-- 推导链：每段可点，1~3 切面板、4~6 定位 -->
@@ -207,7 +188,8 @@ function dirProgress(dirIdx: number): { done: number; total: number; pct: number
 }
 .lvp-x:hover { color: var(--text); background: var(--surface-3); }
 
-.lvp-main { padding-left: 30px; }
+.lvp-main { padding-left: 0; }
+.lvp-sec { padding-left: 0; display: flex; flex-direction: column; gap: 8px; }
 /* ★判据 W11-13：这里绝不许用 --fs-display / --fs-hero。
    愿景的主角感由独占整行 + 留白 + 重边框承担，字号只到 --fs-title。 */
 .lvp-hero {
@@ -217,11 +199,6 @@ function dirProgress(dirIdx: number): { done: number; total: number; pct: number
 .lvp-hero.sub { font-size: var(--fs-title); font-weight: 600; color: var(--text-2); }
 .lvp-desc { font-size: var(--fs-micro); color: var(--text-3); line-height: 1.75; margin-top: 6px; }
 .lvp-desc b { color: var(--text-2); }
-.lvp-chip {
-  display: inline-block; margin-top: 8px;
-  font-size: var(--fs-micro); color: var(--text-3);
-  background: var(--surface-2); padding: 2px 9px; border-radius: 999px;
-}
 
 .lvp-sec { padding-left: 30px; display: flex; flex-direction: column; gap: 8px; }
 .lvp-lab {

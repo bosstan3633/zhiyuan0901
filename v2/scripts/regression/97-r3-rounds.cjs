@@ -98,9 +98,9 @@ check('R3-B′ ★卡头 6 入口收敛为「全景 / AI / ▾」：设主攻·�
     /* ★负锚：右键菜单形态不许复活（排序走 ⠿ 拖拽、置顶走 📌 按钮） */
     && !t.includes('contextmenu') && !t.includes('@contextmenu');
 });
-check('R3-B′ ★目标级入口上收页头：＋添加战略目标 与 建议目标 在 tree-page-head（原埋第 3 层卡头），层内只留 badge + hint', () => {
+check('R3-B′ ★目标级入口上收页头：＋添加战略目标 与 建议目标 在页头区（原埋第 3 层卡头），层内只留 badge + hint。★W12(V3.8.12)随迁备案：页头区容器由 <div class="tree-page-head"> 改为 HERO 区 <section class="hero">（原型 .hero 两栏结构），承重锚随之改钉 .hero 切片 —— 守的是"这两个入口在页头区、不在层内"这条行为', () => {
   const t = CT_ALL
-  const head = t.slice(t.indexOf('<div class="tree-page-head">'), t.indexOf('<div class="tree-layout">'))
+  const head = t.slice(t.indexOf('<section class="hero">'), t.indexOf('class="tree-layout"'))
   const layer = t.slice(t.indexOf('<div class="tl-head-row">'), t.indexOf('<div class="tower-list"'))
   return head.includes('addDirection') && head.includes("aiChain('directions'") && !layer.includes('addDirection')
 });

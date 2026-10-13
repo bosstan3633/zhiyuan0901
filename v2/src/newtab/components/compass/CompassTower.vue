@@ -87,7 +87,7 @@ function hasClue(t: TaskCard): boolean {
   return !!(t as TaskCard & { w?: string }).w
 }
 
-const ringR = 15
+const ringR = 18
 const ringC = 2 * Math.PI * ringR
 </script>
 
@@ -122,10 +122,10 @@ const ringC = 2 * Math.PI * ringR
 
       <div class="tw-right" @click.stop>
         <div class="tw-ring" :title="`项目级完成度 ${meta.pct}%（跨全部指标聚合）`">
-          <svg viewBox="0 0 36 36" width="34" height="34" aria-hidden="true">
-            <circle cx="18" cy="18" :r="ringR" fill="none" stroke="var(--surface-3)" stroke-width="3" />
+          <svg viewBox="0 0 42 42" width="42" height="42" aria-hidden="true">
+            <circle cx="21" cy="21" :r="ringR" fill="none" stroke="var(--surface-3)" stroke-width="3" />
             <circle
-              cx="18" cy="18" :r="ringR" fill="none"
+              cx="21" cy="21" :r="ringR" fill="none"
               stroke="var(--hue)" stroke-width="3" stroke-linecap="round"
               :stroke-dasharray="ringC" :stroke-dashoffset="ringC * (1 - meta.pct / 100)"
             />
@@ -133,7 +133,8 @@ const ringC = 2 * Math.PI * ringR
           <span class="tw-ring-v">{{ meta.pct }}%</span>
         </div>
         <div class="tw-num">
-          <b>{{ meta.done }} / {{ meta.total }}</b> 任务完成
+          <b>{{ meta.done }} / {{ meta.total }}</b>
+          任务完成
         </div>
         <div class="tw-acts" @click.stop>
           <!-- ★拖拽手柄：只在同一战略目标内排序，跨目标不接受（改归属是另一件事，走项目详情） -->
@@ -219,12 +220,13 @@ const ringC = 2 * Math.PI * ringR
 
 <style scoped>
 /* ── 舱体：区隔靠容器 + 色条 + 大间距，不靠列边界 ── */
+/* 舱间大间距由 .tower-list 的 gap 承担（原型 --sp-8），这里不再叠一份 margin，
+   否则两级间距相加成 80px，页面会被撑得比原型松散一倍 */
 .tower {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
-  margin-bottom: 22px;
   position: relative;
   overflow: hidden;
 }
@@ -233,22 +235,22 @@ const ringC = 2 * Math.PI * ringR
   content: ''; position: absolute; left: 0; top: 0; bottom: 0;
   width: 4px; background: var(--hue);
 }
-.tower:last-child { margin-bottom: 0; }
 
 .tw-head {
-  display: flex; align-items: flex-start; gap: 10px;
-  padding: 12px 14px 12px 18px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 18px 22px 16px 24px;
   cursor: pointer; transition: background var(--dur);
 }
 .tw-head:hover { background: color-mix(in srgb, var(--hue) 6%, transparent); }
+/* ★序号牌 34px：原型 .tw-idx 是舱的"身份印章"，22px 时与 12px 指标序号同量级、层级拉不开 */
 .tw-idx {
-  width: 22px; height: 22px; border-radius: 7px; flex: none;
+  width: 34px; height: 34px; border-radius: 11px; flex: none;
   background: color-mix(in srgb, var(--hue) 22%, transparent);
-  color: var(--text); font-size: var(--fs-micro); font-weight: 700;
+  color: var(--text); font-size: var(--fs-sub); font-weight: 700;
   display: flex; align-items: center; justify-content: center;
 }
-.tw-id { flex: 1; min-width: 0; }
-.tw-name { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.tw-id { flex: 1; min-width: 200px; }
+.tw-name { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 /* ★项目名 --fs-title(15px)：与指标 --fs-sub(12px) 拉开一档，不许抢焦点（愿景才是 display） */
 .tw-name-t { font-size: var(--fs-title); font-weight: 700; color: var(--text); letter-spacing: -.01em; }
 .tw-name-t.editable:hover { text-decoration: underline; text-decoration-style: dotted; }
@@ -261,22 +263,27 @@ const ringC = 2 * Math.PI * ringR
 .tw-badge.risk { color: var(--danger); background: var(--danger-bg-soft); font-weight: 600; }
 
 /* 归属面包屑 */
-.tw-crumb { display: flex; align-items: center; gap: 5px; margin-top: 4px; flex-wrap: wrap; }
+.tw-crumb { display: flex; align-items: center; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
 .tw-cr { font-size: var(--fs-micro); color: var(--text-4); cursor: pointer; transition: color var(--dur); }
 .tw-cr:hover { color: var(--accent-ink); }
 .tw-cr.on { color: var(--text-3); cursor: default; }
 .tw-cr.on:hover { color: var(--text-3); }
 .tw-cr-sep { font-size: var(--fs-micro); color: var(--text-4); opacity: .6; }
 
-.tw-right { display: flex; align-items: center; gap: 10px; flex: none; }
-.tw-ring { position: relative; width: 34px; height: 34px; flex: none; }
+/* ★右侧区固定一块不换行：窄舱时按钮挤成两行是最刺眼的失真，flex-wrap 的容器里给 nowrap + min-width:0 */
+.tw-right { display: flex; align-items: center; gap: 14px; flex: none; }
+/* 原型 .ring 42px + 环上数字；24px 时光环细到看不出进度 */
+.tw-ring { position: relative; width: 42px; height: 42px; flex: none; }
+.tw-ring svg { transform: rotate(-90deg); }
 .tw-ring-v {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-size: var(--fs-micro); font-weight: 700; color: var(--text-2);
 }
-.tw-num { font-size: var(--fs-micro); color: var(--text-3); white-space: nowrap; }
-.tw-num b { color: var(--text-2); font-variant-numeric: tabular-nums; }
-.tw-acts { display: flex; align-items: center; gap: 4px; position: relative; }
+/* ★原型 .tw-num 是两行块：完成数一行（--fs-sub）、"任务完成"一行（--fs-micro）。
+   之前挤成一行 "0 / 5 任务完成"，与舱头 15px 标题同排就糊了。 */
+.tw-num { font-size: var(--fs-micro); color: var(--text-3); line-height: 1.5; white-space: nowrap; }
+.tw-num b { display: block; font-size: var(--fs-sub); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.tw-acts { display: flex; align-items: center; gap: 6px; position: relative; }
 .tower.is-dragging { opacity: .5; }
 /* ★落位指示用 inset box-shadow，绝不挤动版面（R3-B2 明令） */
 .tower.drop-on { box-shadow: inset 0 3px 0 0 var(--hue); }
@@ -315,27 +322,33 @@ const ringC = 2 * Math.PI * ringR
 }
 .tw-fold:hover { color: var(--text); background: var(--surface-3); }
 
-/* ── 舱身 ── */
-.tw-body { padding: 2px 14px 14px 18px; }
-.tw-rail { position: relative; padding-left: 16px; }
+/* ── 舱身：内边距与轨道缩进对齐原型 .tw-b / .mgrid ── */
+.tw-body { padding: 2px 22px 22px 24px; }
+.tw-rail { position: relative; padding-left: 22px; }
 /* ★归属竖轨：从舱色条分下来的一条线，串起本舱所有指标 */
 .tw-rail::before {
-  content: ''; position: absolute; left: 4px; top: 4px; bottom: 10px;
+  content: ''; position: absolute; left: 7px; top: -10px; bottom: 20px;
   width: 2px; border-radius: 2px;
-  background: linear-gradient(180deg, var(--hue), color-mix(in srgb, var(--hue) 18%, transparent));
+  background: linear-gradient(180deg, var(--hue), color-mix(in srgb, var(--hue) 22%, transparent));
 }
-.tw-rail > :deep(section) { margin-bottom: 8px; }
+.tw-rail > :deep(section) { margin-bottom: 12px; }
 .tw-rail > :deep(section:last-child) { margin-bottom: 0; }
 /* ★每张指标卡从竖轨分出一条横臂 —— 判据 W11-2 要求这条不许丢 */
 .tw-rail > :deep(section)::before {
-  content: ''; position: absolute; left: -12px; top: 22px;
-  width: 12px; height: 1px; background: var(--hue); opacity: .5;
+  content: ''; position: absolute; left: -15px; top: 24px;
+  width: 15px; height: 2px; background: var(--hue); opacity: .55;
+}
+/* ★圆点：指标卡挂在轨上的"铆钉"（原型 .metric::after）。与横臂成对，缺一轨就只剩一条断头线 */
+.tw-rail > :deep(section)::after {
+  content: ''; position: absolute; left: 3px; top: 20px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--surface); box-shadow: inset 0 0 0 2.5px var(--hue);
 }
 
 /* ── 无归属收容区 ── */
 .tw-orphans {
-  margin-top: 12px; margin-left: 16px;
-  padding: 9px 11px; border-radius: 8px;
+  margin-top: 12px; margin-left: 22px;
+  padding: 10px 13px; border-radius: 8px;
   border: 1px dashed var(--danger-border); background: var(--danger-bg-soft);
 }
 .to-i { font-size: var(--fs-micro); color: var(--danger); margin-right: 5px; }
@@ -353,7 +366,7 @@ const ringC = 2 * Math.PI * ringR
 }
 
 .tw-empty {
-  margin-left: 16px; padding: 16px 12px; text-align: center;
+  margin-left: 22px; padding: 18px 12px; text-align: center;
   border: 1px dashed var(--border); border-radius: 8px;
   background: var(--surface-2); min-height: 76px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;

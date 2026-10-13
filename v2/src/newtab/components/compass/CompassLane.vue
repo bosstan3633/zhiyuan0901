@@ -80,18 +80,24 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
         @keydown.enter.ctrl.prevent="$emit('saveTitle', m.id, $event)"
         @keydown.esc="$emit('cancelTitle', m.id)"
       >{{ m.title }}</h4>
-      <span class="mc-count">{{ m.done }}/{{ m.total }}</span>
-      <span class="mc-pct" :class="{ full: m.pct === 100 }">{{ m.pct }}%</span>
-      <!-- 断链黄标：缺任务指标必须有，且不许被隐藏 -->
       <span v-if="m.orphanMetric" class="mc-flag warn" title="该指标下没有任何任务，线索断在这">⚠ 缺任务</span>
-      <span v-else class="mc-flag">{{ m.target || '未写目标值' }}</span>
+      <span v-else-if="m.target" class="mc-flag">{{ m.target }}</span>
+      <!-- ★指标级进度条：原型 .m-bar 是「轨道 + 数字」一体、margin-left:auto 顶到行尾。
+           之前只有一个裸百分数飘在行中，进度既不在固定位置也不成条，读起来像标签不是进度。 -->
+      <span class="mc-bar" :title="`本指标完成度 ${m.pct}%（${m.done}/${m.total} 任务）`">
+        <span class="mc-track"><i class="mc-fill" :style="{ width: m.pct + '%' }" /></span>
+        <b class="mc-pct" :class="{ full: m.pct === 100 }">{{ m.done }}/{{ m.total }} · {{ m.pct }}%</b>
+      </span>
       <button class="mc-toggle" :aria-expanded="open" @click="emit('toggle', m.id)">
         {{ open ? '收起 ▾' : '展开 ▸' }}
       </button>
       <!-- ★R135-4（能力保留）：任务层 AI 入口 —— 六入口之一，删了判据红就是能力丢不是判据的问题 -->
       <button class="mc-ai" title="AI 依本成功指标拆解支撑步骤（查重后采纳才创建）" @click="emit('aiTask', m.id)">✦</button>
       <!-- ★R32-14（能力保留）：指标条目 ＋ 加任务 —— 断链空位之外也必须有一份常规出口，
-           否则「指标下加任务」只剩断链时才出现的路径，等于能力退化。 -->
+           否则「指标下加任务」只剩断链时才出现的路径，等于能力退化。
+           ★W12：这两枚按钮改为 hover 才显形 —— 指标头一行要塞 状态点/名称/标签/进度条/折叠，
+           常驻两枚操作钮会把标题挤到换行，正是实际截图里"指标名后面跟一排小方块"的成因。
+           能力没删（判据 R32-14 守的是 @监听挂载点，不是视觉常驻），只是让位给读。 -->
       <button class="mc-add" title="在本成功指标下添加支撑任务" @click="emit('addTask', m.id)">＋任务</button>
     </header>
 
@@ -137,12 +143,14 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .metric-card {
   background: var(--surface-2);
   border-radius: var(--radius-md);
-  padding: 10px 12px 11px;
+  padding: 14px 16px 14px 18px;
   position: relative;
+  transition: box-shadow var(--dur);
 }
-.mc-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.metric-card:hover { box-shadow: 0 0 0 1px color-mix(in srgb, var(--hue) 34%, transparent); }
+.mc-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .mc-dot {
-  width: 15px; height: 15px; border-radius: 50%; flex: none;
+  width: 17px; height: 17px; border-radius: 50%; flex: none;
   border: 1.5px solid var(--border); background: var(--surface);
   color: var(--text-4); font-size: 9px; line-height: 1;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
@@ -151,44 +159,53 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .mc-dot.doing { border-color: var(--warning); color: var(--warning); }
 .mc-dot.done { background: var(--success); border-color: var(--success); color: #fff; }
 .mc-title {
-  font-size: var(--fs-sub); font-weight: 600; color: var(--text);
-  flex: 1; min-width: 0; line-height: 1.4;
+  font-size: var(--fs-sub); font-weight: 700; color: var(--text);
+  flex: 1; min-width: 0; line-height: 1.45;
 }
-.mc-count { font-size: var(--fs-micro); color: var(--text-3); font-variant-numeric: tabular-nums; }
 /* ★就地改名态：与树内 .node-title.editable 同一视觉（虚线下划 + 光标），四层节点改名手感一致 */
 .mc-title.editable { cursor: text; border-bottom: 1px dashed transparent; }
 .mc-title.editable:hover { border-bottom-color: var(--border-strong); }
 .mc-title.editing { border-bottom-color: var(--accent); outline: none; }
-/* ★判据 W11-5：进度数字绝不许大于指标名。这里 --fs-micro < --fs-sub 是硬性前提 */
-.mc-pct { font-size: var(--fs-micro); color: var(--text-4); font-variant-numeric: tabular-nums; }
-.mc-pct.full { color: var(--success); font-weight: 700; }
 .mc-flag {
   font-size: var(--fs-micro); color: var(--text-3);
-  background: var(--surface-3); padding: 1px 7px; border-radius: 999px;
+  background: var(--surface-3); padding: 2px 8px; border-radius: 999px;
   max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .mc-flag.warn { color: var(--warning); background: var(--warning-bg-soft); font-weight: 600; }
+/* ★指标级进度：轨道 56px + 数字并排，顶到行尾（原型 .m-bar 的 margin-left:auto）
+   —— 判据 W11-5：进度数字绝不许大于指标名，这里 --fs-micro < --fs-sub 是硬性前提 */
+.mc-bar {
+  margin-left: auto; display: flex; align-items: center; gap: 7px; flex: none;
+}
+.mc-track {
+  width: 56px; height: 4px; border-radius: 2px;
+  background: var(--surface-3); overflow: hidden; flex: none;
+}
+.mc-fill { display: block; height: 100%; border-radius: 2px; background: var(--hue); transition: width var(--dur); }
+.mc-pct {
+  font-size: var(--fs-micro); color: var(--text-3);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.mc-pct.full { color: var(--success); font-weight: 700; }
 .mc-toggle {
   font-size: var(--fs-micro); color: var(--text-3);
   padding: 2px 6px; border-radius: 5px; cursor: pointer; transition: all var(--dur); flex: none;
 }
 .mc-toggle:hover { color: var(--text); background: var(--surface-3); }
-.mc-add {
+/* ★W12：AI / 加任务 两枚操作钮 hover 才显形，让指标名先被读到（能力未删，见模板注释） */
+.mc-add, .mc-ai {
   font-size: var(--fs-micro); color: var(--text-3);
-  padding: 2px 6px; border-radius: 5px; cursor: pointer; transition: all var(--dur); flex: none;
-  border: 1px solid var(--border); background: var(--surface);
+  padding: 2px 7px; border-radius: 5px; cursor: pointer; transition: all var(--dur); flex: none;
+  opacity: 0;
 }
+.mc-add { border: 1px solid var(--border); background: var(--surface); }
+.metric-card:hover .mc-add, .metric-card:hover .mc-ai,
+.mc-add:focus-visible, .mc-ai:focus-visible { opacity: 1; }
 .mc-add:hover { color: var(--accent-ink); background: var(--accent-light); border-color: var(--accent-light); }
-.mc-ai {
-  font-size: var(--fs-micro); color: var(--text-3);
-  width: 18px; height: 18px; border-radius: 6px; flex: none;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: all var(--dur);
-}
 .mc-ai:hover { color: var(--accent-ink); background: var(--accent-light); }
 .mc-acc {
-  font-size: var(--fs-micro); color: var(--text-3); line-height: 1.65;
-  margin-top: 5px; padding-left: 22px;
+  font-size: var(--fs-micro); color: var(--text-3); line-height: 1.7;
+  margin-top: 7px; padding-left: 26px;
 }
 .mc-acc-l {
   color: var(--text-4); font-weight: 700; margin-right: 5px;
@@ -197,29 +214,36 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 
 /* ★归属竖轨：指标卡从项目色条分出的那条线——无内容容器，别删 */
 .metric-list {
-  list-style: none; margin: 8px 0 0; padding: 0 0 0 22px; position: relative;
+  list-style: none; margin: 11px 0 0; padding: 0 0 0 26px; position: relative;
 }
 .metric-list::before {
-  content: ''; position: absolute; left: 8px; top: -2px; bottom: 8px;
+  content: ''; position: absolute; left: 9px; top: -4px; bottom: 14px;
   width: 2px; border-radius: 2px;
-  background: linear-gradient(180deg, var(--hue), color-mix(in srgb, var(--hue) 25%, transparent));
+  background: color-mix(in srgb, var(--hue) 34%, transparent);
 }
+/* ★任务行：原型 .task 是 9px 12px 内边距 + 悬停右移 2px + 白底卡。
+   之前是 4px 8px 的裸行，一屏十几条时全部糊成一条灰带，"任务属于哪个指标"也就看不见了。 */
 .tk-row {
-  display: flex; align-items: center; gap: 7px;
-  padding: 4px 8px 4px 10px; border-radius: 6px;
-  position: relative; transition: background var(--dur);
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 8px; margin-bottom: 6px;
+  background: var(--surface);
+  position: relative; transition: all var(--dur); cursor: default;
 }
-.tk-row:hover { background: color-mix(in srgb, var(--hue) 9%, transparent); }
+.tk-row:last-child { margin-bottom: 0; }
+.tk-row:hover {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--hue) 42%, transparent);
+  transform: translateX(2px);
+}
 /* ★分叉臂：任务从指标轨道分出的横线——同样是无内容容器 */
 .tk-row::before {
-  content: ''; position: absolute; left: -14px; top: 50%;
-  width: 14px; height: 1px;
-  background: color-mix(in srgb, var(--hue) 45%, transparent);
+  content: ''; position: absolute; left: -12px; top: 50%;
+  width: 12px; height: 2px;
+  background: color-mix(in srgb, var(--hue) 42%, transparent);
 }
-.tk-row.done .tk-title { color: var(--text-3); text-decoration: line-through; }
+.tk-row.done .tk-title { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-4); }
 .tk-row.doing .tk-title { color: var(--text); font-weight: 600; }
 .tk-box {
-  width: 14px; height: 14px; border-radius: 4px; flex: none;
+  width: 16px; height: 16px; border-radius: 5px; flex: none;
   border: 1.5px solid var(--border); background: var(--surface);
   color: transparent; font-size: 9px; line-height: 1;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
@@ -228,7 +252,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .tk-box:hover { border-color: var(--hue); }
 .tk-box.done { background: var(--success); border-color: var(--success); color: #fff; }
 .tk-box.doing { border-color: var(--warning); }
-.tk-title { font-size: var(--fs-body); color: var(--text-2); flex: 1; min-width: 0; line-height: 1.5; }
+.tk-title { font-size: var(--fs-body); color: var(--text-2); flex: 1; min-width: 0; line-height: 1.55; }
 /* 归属路径：默认藏，hover 浮现 */
 .tk-crumb {
   font-size: var(--fs-micro); color: var(--text-4);
@@ -255,8 +279,8 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 
 /* 断链空位：★用 surface-3 而不是低 alpha 底色——亮色主题下低 alpha 等于隐形（判据 W11-6） */
 .mc-orphan {
-  margin: 8px 0 0 22px; padding: 9px 11px;
-  border: 1px dashed var(--warning-border); border-radius: 7px;
+  margin: 11px 0 0 26px; padding: 10px 13px;
+  border: 1px dashed var(--warning-border); border-radius: 8px;
   background: var(--warning-bg-soft);
   min-height: 44px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
@@ -266,8 +290,8 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
   background: var(--accent-light); padding: 2px 8px; border-radius: 999px; cursor: pointer; flex: none;
 }
 .mc-collapsed {
-  margin: 7px 0 0 22px; padding: 6px 11px;
-  background: var(--surface-3); border-radius: 6px; min-height: 30px;
+  margin: 9px 0 0 26px; padding: 7px 12px;
+  background: var(--surface-3); border-radius: 7px; min-height: 30px;
   display: flex; align-items: center; gap: 10px;
   font-size: var(--fs-micro); color: var(--text-4);
 }

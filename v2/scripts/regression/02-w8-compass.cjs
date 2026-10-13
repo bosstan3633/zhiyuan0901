@@ -7,15 +7,15 @@ const {
 
 // ============== W8（V3.8.8）方向台视觉焦点契约 ==============
 console.log('【W8 · 方向台焦点契约】');
-check('W8-1 ★方向台主角＝愿景（用户2026-10-12 拍板 A 案）：.tl-text 升 --fs-display(22px) 且 L1 卡带 hero 类配shadow-lg 重框。★为什么是愿景：它是唯一的、语义根（产品名与 Slogan「自有我方向」都指向它）、且是需要被反复回看校准的静态锚；用户同时明确否掉「主攻项目当主角」（库里主攻有多个，会破坏唯一性）', () => {
+check('W8-1 ★方向台主角＝愿景（用户2026-10-12 拍板 A 案）：.tl-text 升 --fs-display(22px) 且 L1 卡带 hero 类配强调框。★为什么是愿景：它是唯一的、语义根（产品名与 Slogan「自有我方向」都指向它）、且是需要被反复回看校准的静态锚；用户同时明确否掉「主攻项目当主角」（库里主攻有多个，会破坏唯一性）。★W12(V3.8.12)随迁备案：L1 卡的强调框由 shadow-lg 重框改为左侧 2px accent 实轨（愿景正文已搬进层级面板，面板自带卡面，块内再套卡会变成双层框把主角压下去）—— 主角感仍由版式承担，守的行为未变', () => {
   const t = codeOnly(CT_ALL);
   return t.includes('.tl-text { font-size: var(--fs-display); font-weight: 700;')
-    && t.includes('.tree-level-card.hero { border-color: var(--border-strong); box-shadow: var(--shadow-lg);')
+    && t.includes('.tree-level-card.hero {') && t.includes('border-left: 2px solid var(--accent);')
     && t.includes('class="tree-level-card hero" id="layer-1"')
     /*负锚：愿景不许退回字面量14px（原状）或降到 headline */
     && !t.includes('.tl-text { font-size: 14px;');
 });
-check('W8-2 ★六层字阶必须**真的分层**。★W11(V3.8.11)随迁带备案：W11 起六层分居四个文件：使命/战略目标在 CompassTree.vue（.tl-text.sub / .dh-n）、项目与指标在 CompassTower.vue / CompassLane.vue。判据改钉**各层实际字号**而非旧文件位置——本条守的是"层级差真的存在"，不是"样式写在哪个文件"。★取舍备案：层级仍允许使命17 › 项目15 的起伏，这是有意取舍不是失误', () => {
+check('W8-2 ★六层字阶必须**真的分层**。★W11(V3.8.11)随迁带备案：W11 起六层分居四个文件：使命/战略目标在 CompassTree.vue（.tl-text.sub / .dh-n）、项目与指标在 CompassTower.vue / CompassLane.vue。判据改钉**各层实际字号**而非旧文件位置——本条守的是"层级差真的存在"，不是"样式写在哪个文件"。★取舍备案：层级仍允许使命17 › 项目15 的起伏，这是有意取舍不是失误。★W12 随迁备案：hero 留白锚由 30px 改为 14/16px（块内让位给面板卡面）+ accent 实轨', () => {
   const missionOk = /\.tl-text\.sub \{ font-size: var\(--fs-headline\)/.test(CT_W11);
   const dirOk = /\.dh-n \{ font-size: var\(--fs-title\)/.test(CT_W11);
   const projOk = /\.tw-name-t \{ font-size: var\(--fs-title\)/.test(TOWER);
@@ -23,17 +23,21 @@ check('W8-2 ★六层字阶必须**真的分层**。★W11(V3.8.11)随迁带备�
   const taskOk = /\.tk-title \{[^}]*font-size: var\(--fs-body\)/.test(LANE);
   const noInflate = !/\.mc-title \{[^}]*font-size: var\(--fs-(title|headline|display)\)/.test(LANE)
     && !/\.tk-title \{[^}]*font-size: var\(--fs-(title|headline|display)\)/.test(LANE);
-  /* ★W11 版式补偿（D1 拍板：愿景保持22px 不动，主角感靠版式） */
-  const layoutOk = /\.tree-level-card\.hero \{[^}]*padding: 30px/.test(CT_W11);
+  /* ★W11 版式补偿 → W12：hero 独占一行 + 大留白（外框改 accent 实轨，见 W8-1 备案） */
+  const layoutOk = /\.tree-level-card\.hero \{[^}]*padding: 14px 0 16px 16px/.test(CT_W11)
+    && /\.tree-level-card\.hero \{[^}]*border-left: 2px solid var\(--accent\)/.test(CT_W11);
   return missionOk && dirOk && projOk && metricOk && taskOk && noInflate && layoutOk;
 });
 
-check('W8-3 ★层级倒置不得复发：内容标题必须**大于**页头面包屑。原状面包屑 16px > 内容标题 11px（caption）⇒ 倒置。修法不是降面包屑而是抬内容标题——★R123 定案「三页页头统一 16px」是跨页一致性决策，用户拍板保三页一致，故 crumb 维持 16px、改把「六层思维链」提到 --fs-headline(17px)。层级：愿景22 › 区块标题17 › 面包屑16 › 正文13，单调递减', () => {
+check('W8-3 ★层级倒置不得复发：内容标题必须**大于**页头基准字号。原状页头基准（面包屑）16px > 内容标题 11px（caption）⇒ 倒置。修法不是降页头而是抬内容标题——★R123 定案「三页页头统一 16px」是跨页一致性决策，用户拍板保三页一致，故方向台内容标题维持 --fs-headline(17px) 高于 16px 基准，层级单调递减。★W12(V3.8.12)随迁备案：方向台的"区块标题"载体随左栏（.layer-toc/.lt-title）退役，改由 HERO 区的 .hero-title 承担（--fs-headline 17px）；16px 基准载体同步由 .tree-page-head .crumb 迁到 .hero-crumb —— 本条守的是"倒置不得复发"这条意图，不是钉某个类名', () => {
   const t = codeOnly(CT_ALL);
-  return t.includes('.lt-title { font-size: var(--fs-headline); font-weight: 600;')
-    /* 面包屑必须仍是 16px（这是 R123 的跨页一致性，R51-6 / R123-10 两条判据仍在守它） */
-    && t.includes('font-size: 16px; letter-spacing: .2px;')
-    /* ★负锚：lt-title 不许退回 caption 11px（倒置的成因） */
+  /* ★用正则而非 includes：实际样式是多行块（选择器行与属性行分开），
+     写成 `.hero-title { font-size:` 这种单行 includes 会在格式调整时静默失效 —— 那是判据自己骗自己。 */
+  return /\.hero-title \{[^}]*font-size: var\(--fs-headline\)/.test(t)
+    /* 方向台页头基准仍是 16px 档（R123 的跨页一致性，R51-6 / R123-10 两条判据仍在守它） */
+    && /font-size: 16px; letter-spacing: \.2px/.test(t)
+    /* ★负锚：内容标题不许退回 caption 11px（倒置的成因） */
+    && !/\.hero-title \{[^}]*font-size: var\(--fs-caption\)/.test(t)
     && !t.includes('.lt-title { font-size: var(--fs-caption);');
 });
 check('W8-4 ★主攻项目必须是**次级焦点**（原仅 accent-28% 边框 + 🚀 emoji，而它是「我现在在哪」的唯一落点）。★W11(V3.8.11)随迁带备案：项目舱结构重排，承重处迁到 .tower 的 tw-badge.focus 徽标 + 舱头 accent 强调；本条守的是"主攻一眼可辨且是次级焦点"，弱描边旧规则仍不许复活', () => {
