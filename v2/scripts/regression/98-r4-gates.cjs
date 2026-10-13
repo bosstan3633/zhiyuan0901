@@ -602,6 +602,16 @@ check('W5-9 ★全局检索键位语义升级（用户拍板 NEW-#2）：⌘K �
     && gp.includes('Ctrl+单击 或 Ctrl+Enter → 定位到卡片所在处')
     && gp.includes('recordCardOpen(d.value, t)') && gp.includes('recordCardOpen(d.value, c)');
 });
+check('W11-1 ★版本同步第七处「根 README 当前版本行」真正纳入门禁（此前只有 v2/README.md 自称七处同步含此项，实际全仓无一条断言读它——2026-10-13 盘点时根 README 停在 V3.8.9 而代码已到 V3.8.11，两版漂移无人拦）。判据：① 根 README 的「当前版本」行全篇恰好一处、且随版本锚走 ② changelog 逐版齐全：首条必须是当前版本，次新版本必须紧邻递减（本次补录前 3.8.11 之后直接跳 3.8.9，W10 整版对用户不可见）', () => {
+  const rootR = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', '..', 'README.md'), 'utf8');
+  const hits = [...rootR.matchAll(/当前版本\s+V([\d.]+)/g)].map(x => x[1]);
+  const cl = read('/newtab/changelog-data.ts');
+  const vs = [...cl.matchAll(/version:\s*'([\d.]+)'/g)].map(x => x[1]);
+  return hits.length === 1 && hits[0] === CUR_VER
+    && vs[0] === CUR_VER
+    && /^3\.8\.\d+$/.test(vs[1]) && Number(vs[1].split('.')[2]) === Number(CUR_VER.split('.')[2]) - 1;
+});
+
 check('W5-10 ★设置页产品更新日志（用户拍板 NEW-#3）：changelog-data.ts 单一真源（CHANGELOG 倒序、裸版本号与 manifest 同格式、发版日期、要点数组）+ GlobalSettings 导航「系统信息」组 letter 与 about 之间挂 changelog 分区 + 时间线面板（gs-cl-* 样式、current 版本轨染 accent、当前版本徽标对照 runtimeVersion 不写字面量）；深链 /settings?page=changelog 经 navGroups 白名单自动生效', () => {
   const cl = codeOnly(read('/newtab/changelog-data.ts'));
   const gs = codeOnly(read('/newtab/views/GlobalSettings.vue'));
