@@ -27,6 +27,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'toggleTask', taskId: string): void
   (e: 'taskGrade', taskId: string): void
+  /** ★W12-C 补接线 + ★W12-E 并入：全景泳道的任务标题单击开任务详情抽屉。
+   *  这条此前**从未接上**——泳道里任务标题只是个 div，点了没反应（W11-10 断言本轮重指时暴露）。
+   *  与项目塔的 CompassLane 走同一出口 openDetail → 宿主 openTaskDetail → detailRef.open()。 */
+  (e: 'openDetail', taskId: string): void
   (e: 'addTask', metricId: string, projId: string): void
 }>()
 
@@ -71,14 +75,20 @@ function priOf(t: TaskCard): string {
 
     <div class="lane-b">
       <template v-if="m.tasks.length">
+        <!-- ★W12-F（用户 2026-10-13 拍板 C2）：项目 → 成功指标 → 任务的从属用一条**贯穿连接轨**印在结构上。
+             原状泳道里指标头与任务行是各自独立的块，"这条任务属于哪个指标"只能靠"它们在同一条泳道里"
+             推断——层级是排列出来的，不是连出来的。现给任务区加一条左轨 + 每行一个分支点，
+             让归属成为视觉事实（与项目塔 W11 已有的「归属轨道」同一套语言）。 -->
+        <div class="lane-spine" aria-hidden="true"></div>
         <div v-for="t in m.tasks" :key="t.id" class="ltask" :class="statusOf(t)">
+          <span class="ltask-node" aria-hidden="true"></span>
           <button
             class="ltask-box" :class="statusOf(t)"
             :aria-pressed="t.status === 'done'"
             :title="t.status === 'done' ? '点一下取消完成' : '点一下勾选完成'"
             @click="emit('toggleTask', t.id)"
           />
-          <div class="ltask-t">{{ t.title }}</div>
+          <button class="ltask-t" title="打开任务详情抽屉" @click="emit('openDetail', t.id)">{{ t.title }}</button>
           <div class="ltask-b">
             <span v-if="hasClue(t)" class="lb lb-clue" :title="clueOf(t)">⚠ {{ clueOf(t) }}</span>
             <span class="lb lb-pri">{{ priOf(t) }}</span>
@@ -124,19 +134,44 @@ function priOf(t: TaskCard): string {
 .lane-acc { font-size: var(--fs-micro); color: var(--text-3); line-height: 1.65; margin-top: 5px; }
 .lane-acc b { color: var(--text-2); font-weight: 600; }
 .lane-bar { display: flex; align-items: center; gap: 7px; margin-top: 9px; }
+/* ★W12-F：任务区是连接轨的定位上下文 */
+.lane-b { position: relative; }
 .lane-bar .track { flex: 1; height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
 .lane-bar .fill { display: block; height: 4px; border-radius: 2px; background: var(--hue); }
 .lane-bar .v { font-size: var(--fs-micro); font-weight: 700; color: var(--text-2); flex: none; }
 
 .lane-b { padding: 9px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; min-height: 74px; }
+/* ★W12-F 贯穿连接轨：一条从指标头垂到最后一个任务行的竖轨 + 每行一个分支点。
+   轨道颜色取泳道主色 --hue，与进度条、序号牌同源 ⇒ "这条泳道属于这个指标"三处同一色。 */
+.lane-spine {
+  position: absolute; left: 15px; top: 0; bottom: 12px; width: 2px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--hue) 55%, transparent), color-mix(in srgb, var(--hue) 14%, transparent));
+  border-radius: 1px; pointer-events: none;
+}
+.ltask-node {
+  position: absolute; left: 10px; top: 15px; width: 12px; height: 2px;
+  background: color-mix(in srgb, var(--hue) 60%, transparent); pointer-events: none;
+}
+.ltask-node::after {
+  content: ''; position: absolute; right: -2px; top: -2.5px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--surface); border: 1.6px solid color-mix(in srgb, var(--hue) 75%, transparent);
+}
 .ltask {
-  position: relative; padding: 9px 10px 9px 11px; border-radius: var(--radius-sm);
+  position: relative; padding: 9px 10px 9px 30px; border-radius: var(--radius-sm);
   background: var(--surface-2); transition: all var(--dur); border-left: 2px solid var(--hue);
 }
 .ltask:hover { background: var(--surface-3); transform: translateX(2px); }
 .ltask.done { border-left-color: var(--success); }
 .ltask.doing { border-left-color: var(--warning); }
-.ltask-t { font-size: var(--fs-micro); font-weight: 500; line-height: 1.6; padding-right: 18px; color: var(--text); }
+/* ★W12-C：div 改 button（单击开抽屉 + 键盘可达）。显式归零浏览器默认按钮外观，
+   字号字色与 line-height / padding 一字未动；只加交互态反馈。 */
+.ltask-t {
+  font-size: var(--fs-micro); font-weight: 500; line-height: 1.6; padding-right: 18px; color: var(--text);
+  background: none; border: 0; margin: 0; font-family: inherit; text-align: left; cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.ltask-t:hover { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }
+.ltask-t:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ltask.done .ltask-t { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-4); }
 .ltask.doing .ltask-t { font-weight: 700; }
 .ltask-box {
@@ -175,7 +210,7 @@ function priOf(t: TaskCard): string {
 .lane-foot { padding: 9px 11px; border-top: 1px solid var(--border); flex: none; background: var(--surface-2); }
 .lane-add {
   display: flex; align-items: center; gap: 6px; width: 100%;
-  font-size: var(--fs-micro); color: var(--text-4); cursor: pointer;
+  font-size: var(--fs-micro); color: var(--text-2); cursor: pointer;
   padding: 5px 7px; border-radius: var(--radius-xs); transition: all var(--dur); text-align: left;
 }
 .lane-add:hover { background: var(--surface-3); color: var(--accent-ink); }

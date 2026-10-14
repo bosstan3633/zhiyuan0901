@@ -786,8 +786,10 @@ function srcShort(url: string): string {
 .cz-kanban-card.dragging { opacity: .4; }
 .cz-list-item.drop-line-t, .cz-kanban-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .cz-list-item.drop-line-b, .cz-kanban-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.cz-kb-ai { border: none; background: transparent; color: var(--text-4); cursor: pointer; font-size: var(--fs-caption); padding: 0 2px; font-family: inherit; display: inline-flex; align-items: center; }
-.cz-kb-del { margin-left: auto; border: none; background: transparent; color: var(--text-4); cursor: pointer; font-size: var(--fs-caption); padding: 0 2px; font-family: inherit; }
+/* ★W12-G 可读性：AI 采纳与删除两枚原用最淡的 --text-4（notion 主题下≈2:1，隐形）。
+   提到 --text-2；删除枚靠 hover 转 --danger 承担危险语义，不靠"淡到看不见"。 */
+.cz-kb-ai { border: none; background: transparent; color: var(--text-2); cursor: pointer; font-size: var(--fs-caption); padding: 0 2px; font-family: inherit; display: inline-flex; align-items: center; }
+.cz-kb-del { margin-left: auto; border: none; background: transparent; color: var(--text-2); cursor: pointer; font-size: var(--fs-caption); padding: 0 2px; font-family: inherit; }
 .cz-kb-del:hover { color: var(--danger); }
 .cz-card:hover { border-color: var(--accent); background: var(--surface); transform: translateY(-1px); box-shadow: var(--shadow); }
 .cz-card.selected { border-color: var(--accent); background: var(--accent-light); }

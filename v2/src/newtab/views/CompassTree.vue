@@ -937,8 +937,9 @@ onUnmounted(() => {
           <span class="node-action ai-chain-act" title="AI 依愿景/使命建议本阶段战略目标（同层查重后采纳才创建）" @click="aiChain('directions', '')"><AiEntryButton variant="inline" label="建议目标" /></span>
         </div>
         <div class="hero-meta">
-          <!-- R54-A1：来源感知返回（?from=proj&p= 进来才有「返回项目详情」；一级台面不放返回钮） -->
-          <button v-if="fromProjId" class="tree-tool accent" @click="goBack" title="返回刚才那个项目的详情页">← 返回项目详情</button>
+          <!-- ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：这枚「← 返回项目详情」按钮退役。
+           ★但 fromProjId / goBack / Esc 返回**保留**——那是「从项目详情深链进来后按 Esc 送回原处」的
+           来路感知（R54-A1），不是"进项目详情"的入口，两者语义不同。 -->
           <button class="tree-tool" :class="{ off: !showDone }" @click="toggleShowDone" title="与方向台页头同一开关（同一偏好，一处切换全台生效）">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
           <div class="dhi-badge" :class="dhiStatus.cls">
             <span>🧭</span>
@@ -1065,11 +1066,11 @@ onUnmounted(() => {
             </template>
           </CompassLayerPanel>
 
-          <!-- W1.1（V3.8.1）：项目详情通用直达入口。原位置在第 3~6 层区右上，
-               随 W12 结构归位上收到项目塔区首行，避免"进项目"这一级动作藏在六层说明行里。 -->
+          <!-- ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：项目塔与项目全景两个视图已能就地
+         纵览一个项目的全貌，这枚「📄 项目详情」直达入口由此退役。/compass/projects 整页与其余
+         消费方（⌘K 项目搜索、ProjectDetailDrawer 等）本轮不动，只是不再从方向台把用户引过去。 -->
           <div class="tl-head-row">
             <span class="tl-badge">3 战略目标 → 4 攻坚项目 → 5 成功指标 → 6 任务</span>
-            <button class="tree-tool accent" title="打开项目详情（默认落主攻项目）" @click="router.push({ path: '/compass/projects' })">📄 项目详情</button>
           </div>
 
             <!-- ★W11 筛选态提示条：过滤是隐形的就会让人以为项目丢了。
@@ -1100,13 +1101,14 @@ onUnmounted(() => {
               @add-metric="addMetric"
               @ai-metric="(id) => aiChain('metrics', id)"
               @bind-orphan="bindOrphan"
-              @goto-detail="(pid) => router.push({ path: '/compass/projects', query: { p: pid, from: 'tree' } })"
             />
 
             <!-- W11（V3.8.11）★纵向项目舱序列 —— 替换原三列并排网格（.tree-columns-grid）
                  为什么换：三列并排时项目之间只靠列边界，扫视易串行，归属靠"在哪一列"推断。
                  改成纵向舱：每舱独占容器 + 左侧 4px 色条 + 舱间 22px 间距，归属由色条与面包屑显式承担。
                  判据 W11-1 钉住"纵向舱序列存在 + .tree-columns-grid 消失"。 -->
+            <!-- ★W12-E 退役带备案：下面两个视图挂载点上的 @goto-detail 绑定已随「进项目详情」入口退役一并移除（子组件已无此 emit）。
+           /compass/projects 整页与 ⌘K 项目搜索等其它消费方未动，只是不再从方向台把用户引过去。 -->
             <div v-if="viewMode === 'tower'" class="tower-list" id="layer-4">
               <div v-if="!d.compass.directions.length" class="empty-state">
                 <div class="empty-icon">🎯</div>
@@ -1181,7 +1183,6 @@ onUnmounted(() => {
                   @edit-project="() => openProjectDrawer(row.proj.id)"
                   @ai-metric="(id) => aiChain('metrics', id)"
                   @open-pano="openPano"
-                  @goto-detail="(pid) => { toggleProjMenu(pid); router.push({ path: '/compass/projects', query: { p: pid, from: 'tree' } }) }"
                   @bind-orphan="bindOrphan"
                 />
               </template>

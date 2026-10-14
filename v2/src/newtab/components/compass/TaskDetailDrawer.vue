@@ -538,7 +538,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-sup-nm:hover { color: var(--accent); text-decoration: underline; }
 .ts-sup-why { font-size: var(--fs-tiny); color: var(--text-4); max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ts-sup-tag { font-size: var(--fs-micro); color: var(--accent); border: 1px solid var(--accent); border-radius: 99px; padding: 0 5px; }
-.ts-sup-x { color: var(--text-4); cursor: pointer; padding: 0 2px; }
+.ts-sup-x { color: var(--text-3); cursor: pointer; padding: 0 2px; }
 .ts-sup-x:hover { color: var(--danger); }
 .ts-sup-empty { font-size: var(--fs-caption); color: var(--text-3); padding: 8px 2px; }
 .ts-sup-add { display: flex; gap: 6px; margin-top: 8px; }

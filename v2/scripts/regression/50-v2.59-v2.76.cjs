@@ -88,14 +88,13 @@ check('R91-4 手册承诺的「14 天无推进自动亮 ⚠ 停滞」兑现（�
   return stripComments(FOCUS_FN91).includes('isProjectStalled(p)') && STRIP91_C.includes('cf-stall')
     && STRIP91_C.includes('停滞');
 });
-check('R91-5 点击直达项目详情同路由（/compass/projects?p=<id>）★R3-B1 随宿主改靶：调度台主攻速览与方向树 ▾ 菜单「进入项目详情页」走同一条路由（原第三处=主航线聚焦条，随退役消失）', () => {
+check('R91-5 ★W12-E 退役重指带备案（用户 2026-10-13 拍板 C1「只删入口」）：方向树 ▾ 菜单「进入项目详情页」随四枚项目详情入口退役一并移除。★守的语义转「重指后的形态」：调度台主攻速览那一处（CH91）仍直达 /compass/projects?p=<id> 未动；方向树侧改为不再把用户引过去（项目塔/全景就地看全），但路由字面量真源仍在 CompassTree、整页与 ⌘K 项目搜索仍在。判据：① 调度台主攻速览那处未变 ② 方向树内不再有 from=tree 的 projects 跳转（走 codeOnly 剥注释）与 @goto-detail= 绑定 ③ 整页仍在、⌘K 项目搜索仍可达', () => {
   const t = CT_W11;
   return CH91.includes("router.push({ path: '/compass/projects', query: { p: p.id } })")
-    /* ★形参名随接线写法变（@goto-detail 的 pid / 旧版 proj.id），正则只锚路由与 from 值，
-       不锚变量名——锚变量名就是「判据随结构漂移」的典型形态 */
-    && /path: '\/compass\/projects', query: \{ p: [\w.]+, from: 'tree' \}/.test(t)
-    /* ★W11 随迁带备案：树的进详情由舱菜单 emit openPano → 父组件 openProjectDrawer 承接，
-       路由字面量真源仍在 CompassTree，承重锚点改钉「menuOn + openPano 接线」而非旧 DOM 双击绑定 */
+    && !/path: '\/compass\/projects', query: \{ p: [\w.]+, from: 'tree' \}/.test(codeOnly(t))
+    && !t.includes('@goto-detail=')
+    && require('fs').existsSync(path.resolve(base, 'newtab/views/ProjectCuration.vue'))
+    && read('/newtab/components/GlobalPopups.vue').includes('/compass/projects');
 });
 check('R91-6 无主攻时给轻引导，且**可点去方向台**（不是一句死文案）', () => {
   return STRIP91_C.includes('cf-hint') && STRIP91_C.includes("router.push('/compass')")

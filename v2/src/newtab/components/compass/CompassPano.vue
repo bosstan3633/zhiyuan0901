@@ -32,11 +32,15 @@ const emit = defineEmits<{
   (e: 'pick', projId: string): void
   (e: 'toggleTask', taskId: string): void
   (e: 'taskGrade', taskId: string): void
+  /** ★W12-C 补接线：全景泳道任务标题单击开任务详情抽屉（泳道 → 全景 → 树本体 openTaskDetail 两跳透传）。
+   *  这条链路此前从未存在——泳道里任务标题只是个 div，点了没反应，W11-10 断言本轮重指时暴露。 */
+  (e: 'openDetail', taskId: string): void
   (e: 'addTask', metricId: string, projId: string): void
   (e: 'addMetric', projId: string): void
   (e: 'aiMetric', projId: string): void
   (e: 'bindOrphan', taskId: string, projId: string): void
-  (e: 'gotoDetail', projId: string): void
+  /* ★W12-E gotoDetail 随「📄 详情」一并退役（emit 声明不留：没人 emit 的死通道等于骗人）。
+     /compass/projects 整页仍在，只是方向台两个视图不再把它当入口。 */
   (e: 'toTower', projId: string): void
 }>()
 
@@ -145,7 +149,8 @@ const ringC = 2 * Math.PI * ringR
             <button v-if="current.pm.risk > 0" class="ph-act risk" :title="`${current.pm.risk} 处断链：缺任务指标 + 无归属任务`">⚠ 断链 {{ current.pm.risk }}</button>
             <button class="ph-act" title="在本项目下新建成功指标" @click="emit('addMetric', current.proj.id)">＋ 指标</button>
             <button class="ph-act ai" title="✦ AI 依使命与本项目建议成功指标（查重后采纳才创建）" @click="emit('aiMetric', current.proj.id)">✦ AI 建议指标</button>
-            <button class="ph-act" title="打开项目详情页" @click="emit('gotoDetail', current.proj.id)">📄 详情</button>
+            <!-- ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：这枚「📄 详情」与项目塔
+                 舱内菜单、页头那枚同属"进项目详情"的入口，四个视图已能就地看全，一并退役。 -->
           </div>
         </div>
       </section>
@@ -179,6 +184,7 @@ const ringC = 2 * Math.PI * ringR
           :proj-id="current.proj.id"
           @toggle-task="emit('toggleTask', $event)"
           @task-grade="emit('taskGrade', $event)"
+          @open-detail="emit('openDetail', $event)"
           @add-task="(mid, pid) => emit('addTask', mid, pid)"
         />
 

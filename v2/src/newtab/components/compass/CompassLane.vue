@@ -281,8 +281,11 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .tk-row:hover .tk-crumb { opacity: 1; }
 .tk-tags { display: flex; align-items: center; gap: 5px; flex: none; }
 .tk-pri { font-size: var(--fs-micro); color: var(--text-3); background: var(--surface-3); padding: 1px 6px; border-radius: 999px; }
+/* ★W12-G 可读性（用户 2026-10-13 反馈 6「不同主题下按钮看不清」）：
+   原来用最淡的 --text-4（notion 主题下是 30% 不透明度的深色，对 surface-2 约 2:1，远低于 4.5），
+   这枚带文字标签的按钮在极简白主题下基本隐形。提到 --text-2（可读档），弱化交给 hover。 */
 .tk-grade {
-  font-size: var(--fs-micro); color: var(--text-4);
+  font-size: var(--fs-micro); color: var(--text-2);
   padding: 1px 5px; border-radius: 4px; cursor: pointer;
   background: transparent; border: 1px solid transparent;
 }

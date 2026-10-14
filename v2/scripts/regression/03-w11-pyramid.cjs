@@ -164,13 +164,14 @@ check('W11-9 ★全景视图必须真的是**同一份数据的第二种投影**
     && CT_W11.includes('{{ dirFilterName }}');
 });
 
-check('W11-10 ★全景里的动作能力不得比项目塔少（否则"换个视图就丢功能"）。逐项对齐：勾选完成 / 成熟度详情 / 加任务 / 加指标 / AI 建议指标 / 挂指标 / 进详情页 / 回项目塔，八个出口全在。**跨两层组件的出口要查两跳**（泳道 emit → 全景转发 → 树本体 @监听）—— 只查一跳会漏，而漏了的表现是"按钮在、点了没反应"。同样，动作一律上抛给父组件统一执行，不自己写库、不自己弹层', () => {
+check('W11-10 ★全景里的动作能力不得比项目塔少（否则"换个视图就丢功能"）。逐项对齐：勾选完成 / 成熟度详情 / 加任务 / 加指标 / AI 建议指标 / 挂指标 / 回项目塔 / 换主体（+任务详情抽屉，W12-C 起）。**跨两层组件的出口要查两跳**（泳道 emit → 全景转发 → 树本体 @监听）—— 只查一跳会漏，而漏了的表现是"按钮在、点了没反应"。同样，动作一律上抛给父组件统一执行，不自己写库、不自己弹层。★W12-E 退役带备案：「进详情页」一项从清单移除（项目塔/全景就地看全，四枚项目详情入口本轮退役），任务详情抽屉（W12-C 的 openDetail）补进清单', () => {
   const L = PANO_LANE;
   const PANO_L = PANO + '\n' + L;
   /* ① 泳道层出口 */
   const laneEmits = [
     ['勾选完成', "emit('toggleTask', t.id)"],
     ['成熟度详情', "emit('taskGrade', t.id)"],
+    ['任务详情抽屉', "emit('openDetail', t.id)"],
     ['加任务-空位', '＋ 建第一条任务'],
     ['加任务-页脚', "emit('addTask', m.id, projId)"]
   ];
@@ -180,18 +181,18 @@ check('W11-10 ★全景里的动作能力不得比项目塔少（否则"换个�
     ['加指标', "emit('addMetric', current.proj.id)"],
     ['AI 建议指标', "emit('aiMetric', current.proj.id)"],
     ['挂指标', "emit('bindOrphan', t.id, current.proj.id)"],
-    ['进详情页', "emit('gotoDetail', current.proj.id)"],
     ['回项目塔', "emit('toTower', current.proj.id)"],
     ['换主体', "emit('pick', r.proj.id)"],
     ['透传-勾选', "@toggle-task=\"emit('toggleTask', $event)\""],
     ['透传-等级', "@task-grade=\"emit('taskGrade', $event)\""],
-    ['透传-加任务', "(mid, pid) => emit('addTask', mid, pid)"]
+    ['透传-加任务', "(mid, pid) => emit('addTask', mid, pid)"],
+    ['透传-详情抽屉', "@open-detail=\"emit('openDetail', $event)\""]
   ];
   const missingPano = panoOwn.filter(([, lit]) => !PANO_L.includes(lit)).map(([n]) => n);
   /* ③ 树本体 @监听逐条接线（漏接线 = 点了没反应） */
-  const wired = ['@toggle-task="toggleTask"', '@task-grade="showTaskGrade"', '@add-task="(mid, pid) => openTaskAdd(mid, pid)"',
-    '@add-metric="addMetric"', '@ai-metric="(id) => aiChain(\'metrics\', id)"', '@bind-orphan="bindOrphan"',
-    '@goto-detail="(pid) => router.push(', '@to-tower="backToTower"', '@pick="panoId = $event"'];
+  const wired = ['@toggle-task="toggleTask"', '@task-grade="showTaskGrade"', '@open-detail="openTaskDetail"',
+    '@add-task="(mid, pid) => openTaskAdd(mid, pid)"', '@add-metric="addMetric"', '@ai-metric="(id) => aiChain(\'metrics\', id)"',
+    '@bind-orphan="bindOrphan"', '@to-tower="backToTower"', '@pick="panoId = $event"'];
   const notWired = wired.filter(w => !CT_W11.includes(w));
   if (missingLane.length) console.error('   · 泳道层缺出口：' + missingLane.join('、'));
   if (missingPano.length) console.error('   · 全景层缺出口：' + missingPano.join('、'));

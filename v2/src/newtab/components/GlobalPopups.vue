@@ -1955,7 +1955,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-ai-scope { margin-left: 8px; font-weight: 400; font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; }
 .gp-ai-note { margin-left: 8px; font-weight: 400; color: var(--text-3); }
 .gp-ai-why { font-size: var(--fs-caption); color: var(--accent-ink); background: var(--accent-light); border-radius: var(--radius-xs); padding: 1px 6px; }
-.gp-search-esc { font-size: var(--fs-caption); color: var(--text-4); background: var(--surface-2); border: 1px solid var(--border);
+.gp-search-esc { font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); border: 1px solid var(--border);
   border-radius: 6px; padding: 3px 8px; flex-shrink: 0; cursor: pointer; transition: all var(--dur-fast); font-family: inherit; }
 .gp-search-esc:hover { color: var(--text-2); border-color: var(--border-strong); }
 
@@ -1985,7 +1985,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 /* B1：分组标题与关键词高亮 */
 .gp-group-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .08em; padding: 10px 12px 4px; display: flex; align-items: center; gap: 6px; }
 .gp-group-cnt { font-weight: 500; color: var(--text-4); }
-.gp-group-more { font-size: var(--fs-caption); color: var(--text-4); padding: 6px 12px; border-top: 1px dashed var(--border); }
+.gp-group-more { font-size: var(--fs-caption); color: var(--text-3); padding: 6px 12px; border-top: 1px dashed var(--border); }
 .gp-ri-title :deep(mark.gp-hl), .gp-ri-summary :deep(mark.gp-hl) { background: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--text); border-radius: 3px; padding: 0 1px; }
 
 /* 结果区 */

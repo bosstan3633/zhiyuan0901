@@ -13,7 +13,7 @@
  *  ③ 容器 padding 属跨页一致性纪律，原型的值不能拿来覆盖（W12 试过，撞红 R123/R125/R21-3 三条后改回）
  */
 const {
-  fs, path, check, read, codeOnly, SCRIPTS_DIR, CT_W11, TOWER, LANE, SPINE, PANEL, CMETA
+  fs, path, base, check, read, codeOnly, SCRIPTS_DIR, CT_W11, CT_ALL, TOWER, LANE, SPINE, PANEL, CMETA
 } = require('./helpers.cjs');
 
 console.log('【W12 · 方向台 1:1 还原（版面归属）】');
@@ -471,4 +471,86 @@ check('W12-D7 ★双击行为迁移：不再弹抽屉，改走既有 ?hl 定位�
   // 定位通道确实存在（TaskManagerPanel 在 watch 这两个 query）
   const tmp = read('/newtab/components/compass/TaskManagerPanel.vue');
   return tmp.includes('route.query.hl') && tmp.includes('hk') && tmp.includes('scrollIntoView');
+});
+// ============== W12-E/F/G（V3.8.17）项目详情入口退役 · 全景联动 · 按钮可读性 ==============
+console.log('【W12-E/F/G · 方向台入口退役 · 全景联动 · 可读性】');
+check('W12-E1 ★「进项目详情」四枚入口必须真的退役：舱内菜单「📄 进入项目详情页」、全景「📄 详情」、页头「📄 项目详情」、「← 返回项目详情」。判据查**代码形态**（按钮标签闭合、emit 调用、绑定）而不是注释散文——改靶缘由必须留在注释里，查散文判据恒假。/compass/projects 整页与路由未动（⌘K 仍可达），一并钉住', () => {
+  const t = CT_ALL;
+  const tCode = codeOnly(t);
+  // 四枚按钮的代码形态零命中
+  if (t.includes("emit('gotoDetail', proj.id)")) return false;
+  if (t.includes("emit('gotoDetail', current.proj.id)")) return false;
+  if (t.includes('>📄 项目详情</button>')) return false;
+  if (t.includes('>← 返回项目详情</button>')) return false;
+  if (/>📄 详情<\/button>/.test(t)) return false;
+  if (t.includes('@goto-detail=')) return false;
+  // gotoDetail emit 声明零命中（codeOnly 剥注释）
+  if (tCode.includes('gotoDetail')) return false;
+  // 整页与路由仍在
+  if (!require('fs').existsSync(path.resolve(base, 'newtab/views/ProjectCuration.vue'))) return false;
+  if (!read('/newtab/router.ts').includes("path: '/compass/projects'")) return false;
+  return true;
+});
+
+check('W12-E2 ★「← 返回项目详情」退役，但**来路感知必须保留**：fromProjId 解析 / goBack 函数 / Esc 接线三件一件不许少——那是「从项目详情深链进来后按 Esc 送回原处」的返回行为（R54-A1），不是"进项目详情"的入口，两者语义不同。这条专门防「删按钮时把 Esc 返回一起删了」。★Esc 接线要在 CompassTree 本体里查（CT_ALL 是多文件拼接，跨文件正则会误判）', () => {
+  const ct = read('/newtab/views/CompassTree.vue');
+  if (!ct.includes('function goBack')) return false;
+  if (!ct.includes('fromProjId')) return false;
+  if (!/function onPageEsc\(e: KeyboardEvent\)[\s\S]{0,300}goBack\(\)/.test(ct)) return false;
+  // 旧入口「返回方向台」仍零命中
+  if (CT_ALL.includes('返回方向台')) return false;
+  return true;
+});
+
+check('W12-F1 ★全景泳道必须有贯穿连接轨（用户拍板 C2）：项目→成功指标→任务的从属不能只靠"排列在同一条泳道里"推断，要有一条竖轨从指标头垂到最后一个任务行 + 每行一个分支点，轨道色取泳道主色 --hue 与进度条同源。判据：① 轨道与节点 DOM 在位 ② .lane-b 是定位上下文 ③ 轨道用 color-mix(--hue) 而非新增色系令牌 ④ 任务行左侧留出内边距让节点不压文字', () => {
+  const L = read('/newtab/components/compass/CompassPanoLane.vue');
+  if (!L.includes('class="lane-spine"')) return false;
+  if (!L.includes('class="ltask-node"')) return false;
+  if (!/\.lane-b \{ position: relative/.test(L)) return false;
+  if (!/\.lane-spine \{[\s\S]*?var\(--hue\)/.test(L)) return false;
+  if (!/\.ltask \{[\s\S]*?padding: 9px 10px 9px 30px/.test(L)) return false;
+  // 负锚：不许硬编码色
+  if (/#[0-9a-f]{3,6}/i.test(L.match(/\.lane-spine \{[\s\S]*?\n\}/) ? L.match(/\.lane-spine \{[\s\S]*?\n\}/)[0] : '')) return false;
+  return true;
+});
+
+check('W12-F2 ★全景泳道的任务标题必须能开任务详情抽屉——这条链路此前**从未存在**，泳道里任务标题只是个 div，点了没反应（W11-10 断言本轮重指时暴露，与 W12-C 的项目塔同款 bug）。判据钉两跳透传：① 泳道层 emit openDetail + 标题改 button（键盘可达）② 全景层 @open-detail 转发 + emit 声明 ③ 树本体 @open-detail="openTaskDetail"。另钉样式归零：div 改 button 后浏览器默认外观必须显式归零，字号字色不动', () => {
+  const lane = read('/newtab/components/compass/CompassPanoLane.vue');
+  const pano = read('/newtab/components/compass/CompassPano.vue');
+  const ct = read('/newtab/views/CompassTree.vue');
+  // ① 泳道层
+  if (!lane.includes("(e: 'openDetail', taskId: string): void")) return false;
+  if (!lane.includes("emit('openDetail', t.id)")) return false;
+  if (!/<button[^>]*class="ltask-t"[^>]*@click="emit\('openDetail', t\.id\)"/.test(lane)) return false;
+  // ② 全景层
+  if (!pano.includes("(e: 'openDetail', taskId: string): void")) return false;
+  if (!pano.includes('@open-detail="emit(\'openDetail\', $event)"')) return false;
+  // ③ 树本体
+  if ((ct.match(/@open-detail="openTaskDetail"/g) || []).length !== 2) return false;
+  // 样式归零、字色不动
+  const b = (lane.match(/\.ltask-t \{[\s\S]*?\n\}/) || [''])[0];
+  for (const n of ['background: none', 'border: 0', 'font-family: inherit', 'text-align: left', 'cursor: pointer']) {
+    if (!b.includes(n)) return false;
+  }
+  if (!b.includes('font-size: var(--fs-micro)')) return false;
+  if (!b.includes('color: var(--text)')) return false;
+  if (!/\.ltask-t:hover \{/.test(lane)) return false;
+  return true;
+});
+
+check('W12-G1 ★组件级可读性门禁必须真的在 theme-contrast.cjs 里跑（本条钉门禁本体）：用户 2026-10-13 报「不同主题下按钮看不清」，而令牌门禁当时**全绿**——因为它验的是令牌对，验不到组件自己挑了哪一档。根因实例：notion 主题 --text-4 是 30% 不透明度的深色（对 surface-2 ≈2:1），而一批带文字标签的按钮恰恰挑了它。判据：① theme-contrast.cjs 有 W12-G 段（扫全站交互控件不许用 --text-4）② 本轮修掉的那几处不再用 --text-4 ③ 白名单只放纯装饰/次要标记且逐条写明理由', () => {
+  const g = require('fs').readFileSync(path.resolve(SCRIPTS_DIR, 'theme-contrast.cjs'), 'utf8');
+  if (!g.includes('W12-G')) return false;
+  if (!/交互控件不许用最淡的/.test(g)) return false;
+  if (!/W12G_OK/.test(g)) return false;
+  // 本轮修掉的几处
+  const lane = read('/newtab/components/compass/CompassLane.vue');
+  const tg = (lane.match(/\.tk-grade \{[\s\S]*?\n\}/) || [''])[0];
+  if (/var\(--text-4\)/.test(tg)) return false;
+  const pano = read('/newtab/components/compass/CompassPanoLane.vue');
+  const la = (pano.match(/\.lane-add \{[\s\S]*?\n\}/) || [''])[0];
+  if (/var\(--text-4\)/.test(la)) return false;
+  const cz = read('/newtab/components/compass/CuriosityPanel.vue');
+  if (/var\(--text-4\)/.test((cz.match(/\.cz-kb-ai \{[\s\S]*?\n\}/) || [''])[0])) return false;
+  return true;
 });

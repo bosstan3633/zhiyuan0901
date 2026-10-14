@@ -70,7 +70,7 @@ const total = () => (props.subtasks || []).length
 .st-t.done { color: var(--text-4); text-decoration: line-through; }
 .st-sup { font-size: var(--fs-tiny); color: var(--text-3); border: 1px solid var(--border); border-radius: 99px; padding: 0 7px; cursor: pointer; white-space: nowrap; }
 .st-sup:hover { color: var(--accent); border-color: var(--accent); }
-.st-x { color: var(--text-4); cursor: pointer; padding: 0 2px; font-size: var(--fs-body); }
+.st-x { color: var(--text-3); cursor: pointer; padding: 0 2px; font-size: var(--fs-body); }
 .st-x:hover { color: var(--danger); }
 .st-add { display: flex; align-items: center; gap: 9px; padding: 7px 11px; border-top: 1px dashed var(--border); color: var(--text-4); font-size: var(--fs-sub); }
 .st-plus { width: 16px; text-align: center; flex-shrink: 0; }

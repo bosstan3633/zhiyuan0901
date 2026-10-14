@@ -134,5 +134,62 @@ console.log('\n-- accent 色相角差矩阵（信息项；"两两可辨"的最�
 for (let i = 0; i < hue.length; i++) for (let j = i + 1; j < hue.length; j++)
   console.log(`  ·  ${hue[i][0].padEnd(8)} vs ${hue[j][0].padEnd(8)} Δh=${dHue(hue[i][1], hue[j][1]).toFixed(1)}°`)
 
-console.log(`\n${fail === 0 ? '✓ theme-contrast 全绿（4 主题 · 14 项/主题 + accent/heat-5 唯一性）' : `✗ theme-contrast 失败 ${fail} 项`}`)
+// ======================================================================
+// ★W12-G 组件级可读性门禁（2026-10-13 用户反馈「不同主题下按钮看不清」补立）
+//
+// 为什么令牌全绿还看得不清：上面 14 项验的是**令牌对**（text-3 vs surface 之类），
+// 验不到**组件自己挑了哪一档**。真实事故：notion 主题 --text-4 是 30% 不透明度的深色
+// （对 surface-2 ≈ 2:1，远低于 4.5），而 `.tk-grade` / `.cz-kb-ai` / `.lane-add` 等一批
+// 带文字标签的交互控件恰恰挑了它 ⇒ 令牌门禁全绿、真机却隐形。
+// 本档把「交互控件不许挑最淡档」变成硬判据：扫全站 .vue/.css 的样式块，
+// 命中「选择器像控件 且 用了 cursor:pointer 或名字含 btn/tool/...」且「用了 --text-4」即红。
+// 白名单只放**纯装饰/次要标记**（不是可点按钮的东西），逐个写明理由，不许笼统豁免。
+// ======================================================================
+console.log('\n-- W12-G 组件级可读性（交互控件不许用最淡的 --text-4）--')
+const SRC = path.resolve(__dirname, '..', 'src')
+function walk(d, out = []) {
+  for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+    const p = path.join(d, e.name)
+    if (e.isDirectory()) walk(p, out)
+    else if (/\.(vue|css)$/.test(e.name)) out.push(p)
+  }
+  return out
+}
+/** 白名单：纯装饰 / 非可点标记 —— 带文字的按钮不在其中 */
+const W12G_OK = new Set([
+  '.mc-dot',      // 状态点：圆点 + 勾/圈，本身不是按钮（勾选走旁边的 ltask-box）
+  '.tk-unbind',   // ✕ 解绑：纯符号且有 title 提示，危险语义靠 hover 转 danger
+  '.pi-chip .ar', // 药丸尾部的 ▸ 箭头：装饰性 affordance，文字已在 .l 上
+  '.dchip:hover', // 悬停态本身：此时已换成强调色，非静态可读性问题
+  '.dir-badge'    // 目录序号徽标：非交互，仅标层级
+])
+const CTRL = /(btn|tool|chip|action|\bact\b|tab|tog|close|more|menu)/i
+const offenders = []
+for (const f of walk(SRC)) {
+  const rel = path.relative(SRC, f).replace(/\\/g, '/')
+  const t = fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n')
+  const re = /(^|\n)([^{}\n][^{}\n]*)\{([^{}]*)\}/g
+  let m
+  while ((m = re.exec(t))) {
+    const sel = m[2].trim().split(',').map(s => s.trim()).filter(Boolean)
+    const body = m[3]
+    if (!/color:\s*var\(--text-4\)/.test(body)) continue
+    const isCtrl = body.includes('cursor: pointer') || sel.some(s => CTRL.test(s))
+    if (!isCtrl) continue
+    for (const s of sel) {
+      if (W12G_OK.has(s)) continue
+      offenders.push(`${rel}  ${s.replace(/\s+/g, ' ').slice(0, 58)}`)
+    }
+  }
+}
+if (offenders.length) {
+  fail++
+  console.log(`  ✗ 交互控件用了最淡档 --text-4（notion 主题 ≈2:1，真机隐形）${offenders.length} 处：`)
+  for (const o of offenders) console.log('      · ' + o)
+  console.log('      修法：提到 --text-2（可读档），弱化交给 hover；确属装饰的话加进 W12G_OK 并写明理由')
+} else {
+  console.log(`  ✓ 全站交互控件零命中（白名单 ${W12G_OK.size} 条纯装饰/次要标记，已逐条写明理由）`)
+}
+
+console.log(`\n${fail === 0 ? '✓ theme-contrast 全绿（4 主题 · 14 项/主题 + accent/heat-5 唯一性 + W12-G 组件级可读性）' : `✗ theme-contrast 失败 ${fail} 项`}`)
 process.exit(fail === 0 ? 0 : 1)

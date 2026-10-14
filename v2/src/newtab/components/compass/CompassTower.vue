@@ -58,9 +58,11 @@ const emit = defineEmits<{
   (e: 'aiMetric', projId: string): void
   (e: 'openPano', projId: string): void
   (e: 'bindOrphan', taskId: string, projId: string): void
-  /* ★R54-5 / R91-5 能力保留：进项目详情**页**（不是抽屉）—— 详情页有面包屑/头部加任务/⋯ 菜单，
-     抽屉装不下。改写菜单结构时曾一度换成 openPano（抽屉），那是能力降级，判据 R91-5 会红。 */
-  (e: 'gotoDetail', projId: string): void
+  /* ★W12-E gotoDetail 随舱内「📄 进入项目详情页」一并退役（用户 2026-10-13 拍板 C1「只删入口」）。
+     emit 声明不留——没人 emit 的死通道等于骗人说这条路还通。/compass/projects 整页仍在，
+     只是方向台不再把它当入口，⌘K 项目搜索等其它消费方未动。历史留档：
+     R54-5/R91-5 当年要求「进项目详情是页不是抽屉」，那是**形态**约束；
+     本轮退役的是**入口**不是形态——真要进详情页，⌘K 与深链仍可达。 */
   /* ★拖拽排序四件套：R3-B2 定案的"同目标内所见即所得"。重排后必须补回模板挂载点，
      否则函数成了死代码——能力等于丢了（判据 R3-B2 会红，不是判据的问题）。 */
   (e: 'dragstart', dirId: string, projId: string, ev: DragEvent): void
@@ -166,7 +168,9 @@ const ringC = 2 * Math.PI * ringR
               {{ proj.pinned ? '☆ 取消置顶' : '📌 置顶到本目标前排' }}
             </button>
             <button class="twm-item" @click="emit('menu', proj.id); emit('addMetric', proj.id)">＋ 添加成功指标</button>
-            <button class="twm-item" @click="emit('menu', proj.id); emit('gotoDetail', proj.id)">📄 进入项目详情页</button>
+            <!-- ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：舱头「全景」与项目塔
+                 已能就地看全这个项目，这枚「进入项目详情页」随之退役；跨目标改归属一类动作
+                 仍在项目塔的拖拽与骨架条里做（见文件头「改归属不跨目标」说明）。 -->
             <button class="twm-item danger" @click="emit('menu', proj.id); emit('del', proj.id)">🗑 删除项目</button>
           </div>
         </div>
@@ -267,7 +271,7 @@ const ringC = 2 * Math.PI * ringR
 
 /* 归属面包屑 */
 .tw-crumb { display: flex; align-items: center; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
-.tw-cr { font-size: var(--fs-micro); color: var(--text-4); cursor: pointer; transition: color var(--dur); }
+.tw-cr { font-size: var(--fs-micro); color: var(--text-2); cursor: pointer; transition: color var(--dur); }
 .tw-cr:hover { color: var(--accent-ink); }
 .tw-cr.on { color: var(--text-3); cursor: default; }
 .tw-cr.on:hover { color: var(--text-3); }
