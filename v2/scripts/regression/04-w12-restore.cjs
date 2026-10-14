@@ -224,3 +224,80 @@ check('W12-13 ★theme-audit 的场景宿主随 W10 三段式重构搬进了弹�
     && !/legend\.length === 6/.test(audit)
   return shellsOk && ovOk && ovDead && dayOk && modalOk && lgOk
 });
+
+// ============== W12-C（V3.8.13）任务详情抽屉接线 ==============
+console.log('【W12-C · 方向台任务详情抽屉接线】');
+check('W12-C1 ★「点了详情不滑出抽屉」这条接线必须真的在：抽屉组件在位（CompassTree 挂 <TaskDetailDrawer ref="detailRef">）且 open 的调用点不止「新建任务成功后」一处。根因备案：W11/W12 新增项目塔与全景时，任务行/详情按钮没有一条 emit 通到 detailRef.open()——抽屉在位、唯独唯一调用点是 onTaskCreated，于是点了没反应（2026-10-13 真机反馈 bug）。判据钉两侧：① 宿主有 openTaskDetail(taskId) 且按 id 找卡后 open ② 项目塔与全景两处模板都绑了 @open-detail ③ CompassLane 声明 openDetail、CompassTower 原样透传——任一侧断掉即红（这正是本条要防的「接线再丢一次」）', () => {
+  const ct = read('/newtab/views/CompassTree.vue');
+  const lane = read('/newtab/components/compass/CompassLane.vue');
+  const tower = read('/newtab/components/compass/CompassTower.vue');
+  const tdd = read('/newtab/components/compass/TaskDetailDrawer.vue');
+  if (!ct.includes('<TaskDetailDrawer ref="detailRef" />')) return false;
+  if (!/function openTaskDetail\(taskId: string\)/.test(ct)) return false;
+  if (!/openTaskDetail[\s\S]{0,400}detailRef\.value\?\.open\(t\)/.test(ct)) return false;
+  if ((ct.match(/detailRef\.value\?\.open\(/g) || []).length < 2) return false;
+  if ((ct.match(/@open-detail="openTaskDetail"/g) || []).length !== 2) return false;
+  if (!lane.includes("(e: 'openDetail', taskId: string): void")) return false;
+  if (!lane.includes("emit('openDetail', t.id)")) return false;
+  if (!tower.includes("(e: 'openDetail', taskId: string): void")) return false;
+  if (!tower.includes('@open-detail="emit(\'openDetail\', $event)"')) return false;
+  return /defineExpose\(\{[\s\S]{0,200}open/.test(tdd);
+});
+
+check('W12-C2 ★那枚写着「详情」实则开成熟度弹层的按钮必须正名（命名陷阱）。它走 emit(\'grade\') → showTaskGrade = 优先级成熟度依据弹层，从来不是任务详情抽屉；叫「详情」会把人引到错的去处——与 C1 的接线缺失叠加，才凑成用户报的「点了没反应」。判据：① 按钮文案是「成熟度」且带 title 说明 ② 负锚：任务行不许再出现文案为「详情」而指向 grade 的按钮 ③ 真正的详情入口挂在任务标题上（tk-title 由 span 改 button，单击 openDetail，带 title 提示）', () => {
+  const t = read('/newtab/components/compass/CompassLane.vue');
+  const lane = codeOnly(t);
+  if (!lane.includes('>成熟度</button>')) return false;
+  if (!t.includes('看这条任务的优先级成熟度依据')) return false;
+  if (/<button[^>]*>\s*详情\s*<\/button>/.test(lane)) return false;
+  if (/emit\('grade'[^)]*\)">详情/.test(t)) return false;
+  if (!/<button[^>]*class="tk-title"[^>]*@click="emit\('openDetail', t\.id\)"/.test(t)) return false;
+  if (!t.includes('title="打开任务详情抽屉"')) return false;
+  return true;
+});
+
+check('W12-C3 ★tk-title 由 span 改 button 之后样式不得裸奔：浏览器默认按钮外观（背景/边框/内边距/字体/左对齐/指针）必须显式归零，只给交互态（hover 下划线 + focus-visible 焦点环）加反馈，不许顺手改动既有字号与字色——那两处是 W8-2 六层字阶要守的东西。判据：① 归零六件套齐全 ② hover/focus-visible 两态在位 ③ fs-body / text-2 原值一字未动 ④ 负锚：块内不得硬编码色值。★取块必须锚基础规则（`\\n.tk-title {`）：本文件另有一条 `.tk-row.done .tk-title`（已完成划线态），非锚定会先撞上它', () => {
+  const s = read('/newtab/components/compass/CompassLane.vue');
+  const block = (s.match(/\n\.tk-title \{[\s\S]*?\n\}/) || [''])[0];
+  if (!block) return false;
+  const need = ['background: none', 'border: 0', 'padding: 0', 'font-family: inherit', 'text-align: left', 'cursor: pointer'];
+  if (!need.every(n => block.includes(n))) return false;
+  if (!block.includes('font-size: var(--fs-body)')) return false;
+  if (!block.includes('color: var(--text-2)')) return false;
+  if (!/\.tk-title:hover \{/.test(s)) return false;
+  if (!/\.tk-title:focus-visible \{/.test(s)) return false;
+  // 负锚：已完成态那条划线规则必须仍在（别把删除线顺手删了）
+  if (!/\.tk-row\.done \.tk-title \{[^}]*line-through/.test(s)) return false;
+  return !/#[0-9a-f]{3,6}|rgba?\(/i.test(block);
+});
+
+check('W12-C4 ★W12-A 的时间轴接线修法必须是「结构性对齐」而不是「把 30px 调成 39px」。原 `.pi-rail::before` 把线钉死在 left:30px，圆点却跟 align-items:center 走 78px 列宽（中心 39px），两套坐标系横向差 7.5px、整列圆点浮在线右侧（2026-10-13 反馈）。修法改为每节点画自己那段连线、与圆点共用 left:50% ⇒ 以后改列宽也不会再偏。判据：① 负锚：.pi-rail::before 与 left:30px 一行都不许回来 ② 连线段挂在 :not(:last-child)::after 且用 left:50% + translateX(-50%) ③ 末节点 padding-bottom:0（线不再向下悬空）④ 线以 bottom:-12px 落在下一个圆点中心（不穿过标签）。★负锚走 codeOnly：修法本身要在注释里讲清「原来错在哪、为何这么改」，而注释里必然出现 `.pi-rail::before` 与 `left:30px` 这两个退役字面量，不剥注释判据恒假（R166 纪律）', () => {
+  const raw = read('/newtab/components/profile/pi-timeline.css');
+  const css = codeOnly(raw);
+  if (/\.pi-rail::before/.test(css)) return false;
+  if (/left:\s*30px/.test(css)) return false;
+  if (!/\.pi-rnode:not\(:last-child\)::after/.test(css)) return false;
+  if (!/left:\s*50%/.test(css)) return false;
+  if (!/translateX\(-50%\)/.test(css)) return false;
+  if (!/\.pi-rnode:last-child \{ padding-bottom: 0/.test(css)) return false;
+  if (!/bottom:\s*-12px/.test(css)) return false;
+  // 正锚：注释里必须留改靶缘由（防后来人只看到代码不知道为何这么写）
+  return /结构性对齐|永不再偏/.test(raw);
+});
+
+check('W12-C5 ★方向台大标题下的定位语必须单行且可读全文。原文 43 字在 620px 容器折成两行，把「六层思维链」大标题的视觉重心往下拽（2026-10-13 反馈）。用户拍板 C4 选「截断 + title 悬浮全文」而非缩小字号——压字号会掉到可读下限以下，而这行是定位语不是正文。判据：① .hero-sub 有 nowrap + 省略三件套 ② 模板带 title 且 title 与正文一字不差（防改了正文忘改悬浮全文）③ 负锚：不许出现改字号的写法（font-size 仍须是 var(--fs-body)）', () => {
+  const ct = read('/newtab/views/CompassTree.vue');
+  const m = ct.match(/\.hero-sub \{[\s\S]*?\n\}/);
+  if (!m) return false;
+  const b = m[0];
+  if (!b.includes('white-space: nowrap')) return false;
+  if (!b.includes('overflow: hidden')) return false;
+  if (!b.includes('text-overflow: ellipsis')) return false;
+  if (!b.includes('font-size: var(--fs-body)')) return false;
+  // title 与正文一致
+  const tt = ct.match(/<p class="hero-sub" title="([^"]+)">[\s\S]*?<\/p>/);
+  if (!tt) return false;
+  const body = ct.match(/<p class="hero-sub" title="[^"]+">\s*([\s\S]*?)\s*<\/p>/);
+  if (!body) return false;
+  return tt[1].replace(/\s+/g, '') === body[1].replace(/\s+/g, '');
+});

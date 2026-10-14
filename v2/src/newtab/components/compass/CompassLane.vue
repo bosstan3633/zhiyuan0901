@@ -34,6 +34,10 @@ const emit = defineEmits<{
   (e: 'toggle', metricId: string): void
   (e: 'task', taskId: string): void
   (e: 'grade', taskId: string): void
+  /** ★W12-C 任务详情抽屉：标题单击 = 打开右侧任务详情抽屉。
+      此前全站没有任何一条 emit 通到 `CompassTree.detailRef.open()` —— 抽屉组件在位、
+      唯独唯一调用点是「新建任务成功后」，于是任务行点了没反应（用户 2026-10-13 报 bug）。 */
+  (e: 'openDetail', taskId: string): void
   (e: 'addTask', metricId: string): void
   /** ★R141：任务行 ✕ = 解绑回任务调度模块（不删本体）—— 模板挂载点，删了能力就丢 */
   (e: 'unbind', taskId: string): void
@@ -114,12 +118,15 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
           :aria-label="t.status === 'done' ? '标记未完成' : '标记完成'"
           @click="emit('task', t.id)"
         ><span v-if="t.status === 'done'">✓</span></button>
-        <span class="tk-title">{{ t.title }}</span>
+        <button class="tk-title" title="打开任务详情抽屉" @click="emit('openDetail', t.id)">{{ t.title }}</button>
         <!-- 归属路径：hover 浮现 -->
         <span class="tk-crumb" aria-hidden="true">{{ crumb }}</span>
         <span class="tk-tags">
           <span class="tk-pri" :class="t.priority">{{ taskGrade(t) }}</span>
-          <button class="tk-grade" @click="emit('grade', t.id)">详情</button>
+          <!-- ★W12-C 正名：这枚按钮走的是 `emit('grade')` → showTaskGrade = 优先级成熟度弹层，
+               从来不是任务详情抽屉；叫「详情」会把人引到错的去处（用户 2026-10-13 报 bug 的另一半）。
+               改叫「成熟度」并补 title，真正的详情入口是左侧任务标题。 -->
+          <button class="tk-grade" title="看这条任务的优先级成熟度依据" @click="emit('grade', t.id)">成熟度</button>
           <!-- ★R141 保留：✕ 只解绑（摘挂载），删本体走任务详情 —— 两语义不许混 -->
           <button class="tk-unbind" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）" @click="emit('unbind', t.id)">✕</button>
         </span>
@@ -256,7 +263,15 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .tk-box:hover { border-color: var(--hue); }
 .tk-box.done { background: var(--success); border-color: var(--success); color: #fff; }
 .tk-box.doing { border-color: var(--warning); }
-.tk-title { font-size: var(--fs-body); color: var(--text-2); flex: 1; min-width: 0; line-height: 1.55; }
+/* ★W12-C：任务标题从 <span> 改成 <button>（单击开任务详情抽屉）。
+   补齐按钮态归零——只给交互态（hover / focus）加反馈，不改变任何既有字号字色。 */
+.tk-title {
+  font-size: var(--fs-body); color: var(--text-2); flex: 1; min-width: 0; line-height: 1.55;
+  background: none; border: 0; padding: 0; margin: 0; font-family: inherit; text-align: left;
+  cursor: pointer; border-radius: var(--radius-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tk-title:hover { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }
+.tk-title:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* 归属路径：默认藏，hover 浮现 */
 .tk-crumb {
   font-size: var(--fs-micro); color: var(--text-4);

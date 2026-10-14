@@ -42,6 +42,8 @@ const emit = defineEmits<{
   (e: 'toggleMetric', metricId: string): void
   (e: 'toggleTask', taskId: string): void
   (e: 'taskGrade', taskId: string): void
+  /** ★W12-C 透传：任务标题单击开任务详情抽屉（此前项目塔同样无任何 emit 通到 detailRef.open） */
+  (e: 'openDetail', taskId: string): void
   (e: 'addTask', metricId: string): void
   (e: 'addMetric', projId: string): void
   /** ★R141 透传：解绑（不删本体） */
@@ -187,6 +189,7 @@ const ringC = 2 * Math.PI * ringR
           @toggle="emit('toggleMetric', $event)"
           @task="emit('toggleTask', $event)"
           @grade="emit('taskGrade', $event)"
+          @open-detail="emit('openDetail', $event)"
           @add-task="emit('addTask', $event)"
           @unbind="emit('unbind', $event)"
           @ai-task="emit('aiTask', $event)"

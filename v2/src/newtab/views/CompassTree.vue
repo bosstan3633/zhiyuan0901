@@ -636,6 +636,15 @@ function openTaskAdd(metricId: string, projId: string) {
 /** R51-B6：创建成功后直接打开详情抽屉 */
 const detailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 function onTaskCreated(t: TaskCard) { detailRef.value?.open(t) }
+/** ★W12-C：任务行 / 项目塔任务标题单击 → 右侧滑出任务详情抽屉。
+ *  修的是「抽屉在位却永远没人叫它」这个接线缺失——此前 `detailRef.open()` 的唯一调用点
+ *  是 `onTaskCreated`（新建任务成功后），于是用户点任务行、点「详情」都没反应
+ *  （2026-10-13 真机反馈）。项目塔与全景两条路径都走这一处，单一实现。 */
+function openTaskDetail(taskId: string): void {
+  const t = d.value.tasks.find((x) => x.id === taskId)
+  if (!t) { showToast('⚠ 该任务已不在'); return }
+  detailRef.value?.open(t)
+}
 const taskAddMetricTitle = computed(() => {
   if (!taskAdd.value) return ''
   for (const dir of d.value.compass.directions) {
@@ -1086,6 +1095,7 @@ onUnmounted(() => {
               @to-tower="backToTower"
               @toggle-task="toggleTask"
               @task-grade="showTaskGrade"
+              @open-detail="openTaskDetail"
               @add-task="(mid, pid) => openTaskAdd(mid, pid)"
               @add-metric="addMetric"
               @ai-metric="(id) => aiChain('metrics', id)"
@@ -1160,6 +1170,7 @@ onUnmounted(() => {
                   @toggle-metric="toggleMetric"
                   @toggle-task="toggleTask"
                   @task-grade="showTaskGrade"
+                  @open-detail="openTaskDetail"
                   @add-task="(mid) => { const r = findMetric(mid); if (r) openTaskAdd(mid, r.proj.id) }"
                   @unbind="(tid) => { const t = d.tasks.find(x => x.id === tid); if (t) unbindTask(t) }"
                   @ai-task="(mid) => aiChain('tasks', mid)"
