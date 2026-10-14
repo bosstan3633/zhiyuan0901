@@ -125,61 +125,93 @@ const DRAWER_VIEWS = [
  * 日详情四列、共用下钻列表、复盘两栏的**实测列数**、AI 文本报告的四段顺序与「以上统下」闭环、
  * 调度台新「📈 复盘」方向条。任一不过即非零退出。
  */
+/**
+ * 打开画像页的周/月复盘弹窗（★W12 新增）。
+ * 入口有两个，任选其一即可：PiHero 的「✦ AI 解读」与 PiRhythm 的「📈 周/月复盘」，
+ * 两者在 ProfileInsights 里都 emit 到同一个 `openReview`（`.pi-rev-overlay` + `.pi-rev-modal`）。
+ * 这里按 title 定位「✦ AI 解读」（PiHero 上有 title="AI 生成画像解读（进入复盘弹窗）"），
+ * 不用按钮文案 —— 文案会随版本改，title 也在改，但两者都属文案层；真正的稳定锚是
+ * 「点了之后 `.pi-rev-modal` 可见」，所以下面判空一次可见性才算开成功（开失败不静默，
+ * 让后续 judge 如实报红）。
+ */
+async function openReviewModal(page) {
+  await page.locator('.pi-btn[title*="AI"]').first().click({ timeout: 6000 }).catch(() => {})
+  await page.waitForTimeout(700)
+  if (!(await page.locator('.pi-rev-modal').first().isVisible().catch(() => false))) {
+    await page.locator('.pi-btn:has-text("周/月复盘")').first().click({ timeout: 4000 }).catch(() => {})
+    await page.waitForTimeout(700)
+  }
+}
+
 const DASH_SCENES = [
   {
-    id: 'dz-overview', name: '概览带',
-    /* R173-5：说明默认「藏」、悬停才「现」——判据两侧都实测（只查节点会放过"又摊开了"） */
+    id: 'dz-overview', name: '页头 KPI 带',
+    /* ★W12(V3.8.12)随迁备案：原判据守的是 DashboardOverview 的「概览带」——`.dz-ov` 容器 + 五枚
+       `.dz-chip` + `.dz-calib` 口径表 + 说明默认藏/悬停才现。而 DashboardOverview.vue 已随 W10 三段式
+       时间轴重构整体退役（本轮实测 `components/dashboard/` 下确无该文件），职责落到 PiHero：
+       五枚 `.pi-hchip` 就是那五枚 chip，每枚的 `title` 就是那格口径。
+       —— 换的是承重锚（宿主文件换了），守的仍是同一批行为：① 五枚 ② 同排一行（R173-5 原意：
+       删掉人话块后 meta 行抢整行会把 chip 挤成竖排）③ 每枚必须带口径说明（原 .dz-calib 口径表的
+       承载物，如今是 title）④ 出错时不得冒错误徽章（原 .dz-ov-err）。
+       「说明默认藏/悬停才现」一条随组件退役删去：PiHero 用原生 title，不自建浮层，
+       原 R173-5 的裁剪检测（防 .dz-sec overflow:hidden 裁掉浮层）在无自建浮层后无处施放。
+       口径表 `.dz-calib` 在 dashboard.css 里仍有 7 条规则，但已无任何模板挂载点 ⇒ 随判据一并退役。 */
     judge: async (page) => {
       const base = await page.evaluate(() => {
-        const sec = document.querySelector('.dz-ov')
-        const chips = document.querySelectorAll('.dz-ov .dz-chip').length
-        const tip = document.querySelector('.dz-ov-tip')
-        const vis = tip ? getComputedStyle(tip).visibility : 'missing'
-        const calib = document.querySelectorAll('.dz-calib .cb .r').length
-        const errPill = !!document.querySelector('.dz-ov-err')
-        /* R173-5：5 张存量卡必须同排（删掉人话块后 meta 行会抢整行，把 chip 挤成 1 列竖排） */
-        const chipRows = new Set([...document.querySelectorAll('.dz-ov .dz-chip')].map(c => Math.round(c.getBoundingClientRect().top))).size
-        return { sec: !!sec, chips, vis, calib, errPill, chipRows }
+        const chips = [...document.querySelectorAll('.pi-hero-sum .pi-hchip')]
+        const rows = new Set(chips.map(c => Math.round(c.getBoundingClientRect().top))).size
+        const titled = chips.filter(c => (c.getAttribute('title') || '').trim().length > 0).length
+        const errPill = !!document.querySelector('.pi-btn[style*="warning"]')
+        return { sec: !!document.querySelector('.pi-hero-sum'), n: chips.length, rows, titled, errPill }
       })
-      await page.locator('.dz-ov-info').first().hover().catch(() => {})
-      await page.waitForTimeout(260)
-      const shown = await page.evaluate(() => {
-        const tip = document.querySelector('.dz-ov-tip')
-        if (!tip || getComputedStyle(tip).visibility !== 'visible' || Number(getComputedStyle(tip).opacity) <= 0.5) return false
-        /* 裁剪检测：自 tip 向上找所有 overflow 非 visible 的祖先，浮层必须完整落在其内（`.dz-sec` 就是 overflow:hidden） */
-        const r = tip.getBoundingClientRect()
-        let clip = false
-        for (let n = tip.parentElement; n && n !== document.documentElement; n = n.parentElement) {
-          const cs = getComputedStyle(n)
-          if (cs.overflow === 'visible' && cs.overflowX === 'visible' && cs.overflowY === 'visible') continue
-          const b = n.getBoundingClientRect()
-          if (r.top < b.top - 1 || r.bottom > b.bottom + 1 || r.left < b.left - 1 || r.right > b.right + 1) { clip = true; break }
-        }
-        const inView = r.top >= 0 && r.left >= 0 && r.bottom <= window.innerHeight && r.right <= window.innerWidth
-        return !clip && inView
-      })
-      await page.mouse.move(4, 4)
-      await page.waitForTimeout(320) /* 等浮层落回静息态再截图，否则归档图停在半悬停态 */
-      return { ok: base.sec && base.chips === 5 && base.calib >= 10 && base.vis === 'hidden' && shown && !base.errPill && base.chipRows === 1, txt: `chip=${base.chips}/5 同排=${base.chipRows === 1 ? '是' : base.chipRows + '行'} 口径表=${base.calib}行 默认藏=${base.vis === 'hidden'} hover现且不被裁=${shown} 错误徽章0不现=${!base.errPill}` }
+      return {
+        ok: base.sec && base.n === 5 && base.rows === 1 && base.titled === 5 && !base.errPill,
+        txt: `chip=${base.n}/5 同排=${base.rows === 1 ? '是' : base.rows + '行'} 带口径=${base.titled}/5 错误徽章0不现=${!base.errPill}`
+      }
     }
   },
   {
     id: 'dz-heatmap', name: '年度热力图', hash: '#/', /* W2 V3.8.2：热力图迁调度台 */
+    /* ★W12(V3.8.12)随迁备案：图例判据原写死 `legend.length === 6`，而 V3.8.7「补丁三」给图例
+       加了第 7 枚「今天」说明项（Heatmap.vue:272，class `.lv today-key`，用 ::before 画 accent 描边块，
+       因为当日格的底色是 heat-N 而不是固定色）。判据自那版起就一直红着（实测 7 项），
+       是「判据写死数量」这类漂移的又一份样本 ⇒ 改成钉**前六项严格等于 LV_NAME 六档**，
+       第七项单独钉必须是「今天」——这样既守住六档语义，又守住「当日格高亮有说明」，
+       将来真少一档或改名都会红，而多出一枚无关项也会红。 */
     judge: async (page) => page.evaluate(() => {
       const cells = document.querySelectorAll('.dz-cell').length
       const legend = [...document.querySelectorAll('.dz-legend .lv')].map(x => x.textContent.trim())
+      const SIX = ['静默', '轻触', '常规', '高负荷', '冲刺', '满格']
+      const sixOk = legend.length === 7 && legend.slice(0, 6).join('/') === SIX.join('/')
+      const todayOk = legend[6] === '今天'
       const bad = /\bL[0-5]\b/.test(document.querySelector('.dz-legend')?.textContent || '')
       const sum = document.querySelectorAll('.dz-sum .c').length
-            const tops = [...document.querySelectorAll('.dz-mb-h')].map(h => Math.round(h.getBoundingClientRect().top))
+      const tops = [...document.querySelectorAll('.dz-mb-h')].map(h => Math.round(h.getBoundingClientRect().top))
       const oneRow = tops.length === 12 && new Set(tops).size === 1
       const overflow = Math.round(document.documentElement.scrollWidth - window.innerWidth)
-      return { ok: cells >= 360 && legend.length === 6 && !bad && sum === 4 && oneRow && overflow <= 1, txt: `格=${cells}(应≥360) 图例=${legend.join('/')} 裸代号=${bad ? '有(红)' : '无'} 摘要卡=${sum}/4 月块同行=${oneRow} 溢出=${overflow}px` }
+      return { ok: cells >= 360 && sixOk && todayOk && !bad && sum === 4 && oneRow && overflow <= 1, txt: `格=${cells}(应≥360) 图例=${legend.join('/')} 六档名=${sixOk ? '符' : '不符'} 今天项=${todayOk ? '有' : '无'} 裸代号=${bad ? '有(红)' : '无'} 摘要卡=${sum}/4 月块同行=${oneRow} 溢出=${overflow}px` }
     })
   },
   {
-    id: 'dz-day', name: '日详情', hash: '#/', /* W2 V3.8.2：热力图迁调度台 */
-    /* R170 备案的"补等重数一次"口径：慢机日首击可能还没回流到父级 selDay ⇒ 补点另一格，等够再判死（判据不放宽） */
-    act: async (page) => { await page.locator('.dz-cell:not([disabled])').first().click().catch(() => {}); await page.waitForTimeout(900); if (!(await page.locator('.dz-day').first().isVisible().catch(() => false))) { await page.locator('.dz-cell:not([disabled])').nth(3).click().catch(() => {}); await page.waitForTimeout(1500) } },
+    id: 'dz-day', name: '日详情', hash: '#/',
+    /* ★W12(V3.8.12)随迁备案：① 日详情随 W10 搬进 Heatmap 的 Teleport 弹窗 `.dz-day-modal-overlay`，
+       act 必须先点「看全年 ›」把 366 格展开（V3.8.7 起 expanded 初值 false）才有点得着的格子；
+       ② 原 act 点的 `.dz-cell:not([disabled])` 首格 = 全年第一格，几乎必然是空白日，而四格统计
+       带 `v-if="dlSum.n"` 前置（DayDetail.vue:229）——空白日就不渲染，「四格统计=0」是选格选错，
+       不是四格丢了。改为**优先点有记录的格子**（level ≥1，即 class 带 l1~l5），无记录时才退回首格。
+       判据本身不放宽：仍要求 ≥4 格 + 热力带 + 时间线三者齐全。 */
+    act: async (page) => {
+      await page.locator('.dz-mini-more').first().click({ timeout: 6000 }).catch(() => {})
+      await page.waitForTimeout(700)
+      /* R170 备案的"补等重数一次"口径：慢机日首击可能还没回流到父级 selDay ⇒ 补点另一格再判死（判据不放宽） */
+      const has = page.locator('.dz-cell.l1:not(.future), .dz-cell.l2:not(.future), .dz-cell.l3:not(.future), .dz-cell.l4:not(.future), .dz-cell.l5:not(.future)').first()
+      await (await has.count() ? has : page.locator('.dz-cell:not([disabled])').first()).click().catch(() => {})
+      await page.waitForTimeout(900)
+      if (!(await page.locator('.dz-day').first().isVisible().catch(() => false))) {
+        await page.locator('.dz-cell:not([disabled])').nth(3).click().catch(() => {})
+        await page.waitForTimeout(1500)
+      }
+    },
     judge: async (page) => page.evaluate(() => {
       const d = document.querySelector('.dz-day')
       const stats = document.querySelectorAll('.dz-day .dz-stats > .dz-stat').length
@@ -189,8 +221,11 @@ const DASH_SCENES = [
     })
   },
   {
-    id: 'dz-drill', name: '下钻卡片列表',
-    act: async (page) => { await page.locator('.dz-kpi').first().click().catch(() => {}); await page.waitForTimeout(700) },
+    id: 'dz-drill', name: '下钻卡片列表', hash: '#/profile',
+    /* ★W12(V3.8.12)随迁备案：ReviewPanel 随 W10 从「页面内一屏」变成画像页的中央弹窗
+       （ProfileInsights 的 `v-if="reviewOpen"` + `.pi-rev-overlay`），而本场景 act 直接找 `.dz-kpi`
+       —— 那节点在未开弹窗时压根不在 DOM 里 ⇒ 「表头=无 行=0」。act 补上开弹窗这一步。 */
+    act: async (page) => { await openReviewModal(page); await page.locator('.dz-kpi').first().click().catch(() => {}); await page.waitForTimeout(700) },
     judge: async (page) => page.evaluate(() => {
       const h = document.querySelector('.dz-drill-h')
       const rows = document.querySelectorAll('.dz-drill .dz-row').length
@@ -200,7 +235,10 @@ const DASH_SCENES = [
     })
   },
   {
-    id: 'dz-review', name: '复盘两栏',
+    id: 'dz-review', name: '复盘两栏', hash: '#/profile',
+    /* ★W12(V3.8.12)随迁备案：同 dz-drill —— 宿主搬进弹窗，本场景原无 act（靠上一场残留的弹窗才看得到），
+       弹窗一关就全 0。改为自带 act 显式开弹窗，本场不再依赖上一场的残留状态。 */
+    act: async (page) => { await openReviewModal(page) },
     judge: async (page) => page.evaluate(() => {
       const g = document.querySelector('.dz-rev-grid')
       const cols = g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0
@@ -211,12 +249,15 @@ const DASH_SCENES = [
     })
   },
   {
-    id: 'dz-report', name: 'AI文本报告',
+    id: 'dz-report', name: 'AI文本报告', hash: '#/profile',
     /* ★R2-② 备案：本报告的数据源=zy_daily_stats 快照，而快照只在「saveData 后 45s 时间闸」或「页卸载补写」时重建——
        播种的备份数据会在早期某次整库保存时被 flushCardEvents diff 成 create 事件、经时间闸落进快照。
        本文件任何位置（含 deck 探针）**不得在 dz-report 之前 page.reload**：reload 会连同 pending 定时器一起死掉，
        快照断源，报告退化成「本期没有任何动作记录」零态（2026-09-29 实测断过一次）。 */
-    act: async (page) => { await page.locator('button:has-text("AI 复盘")').first().click().catch(() => {}); await page.waitForTimeout(1500) },
+    /* ★W12(V3.8.12)随迁备案：「AI 复盘」钮随 ReviewPanel 搬进 `.pi-rev-modal` 弹窗，
+       原 act 在空 body 上找那个按钮 ⇒ 点不到 ⇒ `.dz-rpt` 不存在 ⇒ 「四段=无」。
+       改为先开复盘弹窗再点报告钮。 */
+    act: async (page) => { await openReviewModal(page); await page.locator('button:has-text("AI 复盘")').first().click().catch(() => {}); await page.waitForTimeout(1500) },
     judge: async (page) => page.evaluate(() => {
       const r = document.querySelector('.dz-rpt')
       const h3 = [...document.querySelectorAll('.dz-rpt h3')].map(x => x.textContent.trim())
@@ -365,9 +406,18 @@ const DASH_SCENES = [
   }
 ]
 
-/** 浮层是否还挂着（两代壳都认：R161 起的中央弹窗 `.md-panel` + V3.2.1 及以前的右侧抽屉 `.drawer`）。 */
+/**
+ * 浮层是否还挂着（三代壳都认：R161 起的中央弹窗 `.md-panel` + V3.2.1 及以前的右侧抽屉 `.drawer`
+ * + content ⌘K 浮层 `.gp-overlay.open`）。
+ *
+ * ★W12(V3.8.12)随迁备案：W10 把画像洞察页重构成三段式后，仪表盘段有两个新弹窗壳，
+ * 而本函数只认前两代 ⇒ closeOverlays 判「没开」直接 return，**弹窗会跨场景残留**：
+ * 上一场开的复盘弹窗挂在 body 上，下一场的判据与截图全带着它（这是 dz-drill / dz-review /
+ * dz-report 三项「全 0」的直接放大器 —— 它们的宿主本就在弹窗里，判据却在空 body 上找）。
+ * `.dz-day-modal-overlay` = Heatmap 点格子弹出的日详情；`.pi-rev-overlay` = 画像页周/月复盘。
+ */
 async function overlayOpen(page) {
-  return await page.locator('.md-panel, .drawer, .gp-overlay.open').first().isVisible().catch(() => false)
+  return await page.locator('.md-panel, .drawer, .gp-overlay.open, .dz-day-modal-overlay, .pi-rev-overlay').first().isVisible().catch(() => false)
 }
 /**
  * R4-En：两个 content 浮层进视觉门禁（#115）。
@@ -450,7 +500,7 @@ async function closeOverlays(page) {
     if (!(await overlayOpen(page))) return
     if (i === 0) await page.keyboard.press('Escape').catch(() => {})
     else {
-      await page.locator('.md-close, .drawer-close').first().click().catch(() => {})
+      await page.locator('.md-close, .drawer-close, .pi-rev-close, .dz-day-modal .dz-btn.ghost').first().click().catch(() => {})
       /* R4-Dl：⌘K 浮层没有关闭钮，靠 Esc 或点遮罩空白（`.gp-overlay` 的 @click.self）——
          点面板中心会命中结果行并打开详情，所以点遮罩盒子左上角 */
       await page.locator('.gp-overlay.open').click({ position: { x: 6, y: 6 } }).catch(() => {})
@@ -710,16 +760,47 @@ async function main() {
          ④ compass-tree 另判「重定向真的发生了」：hash 必须落到 #/compass（老深链不许变成死页） */
       if (v.id === 'compass' || v.id === 'compass-tree') {
         const j = await page.evaluate(() => {
-          const branches = [...document.querySelectorAll('.tree-project-branch')]
-          const heads = [...document.querySelectorAll('.tp-head')]
-          const folded = heads.filter(h => h.classList.contains('folded'))
-          const bad = folded.filter(h => h.parentElement && h.parentElement.querySelector('.tree-metric-branch')).length
-          return { branches: branches.length, heads: heads.length, folded: folded.length, carets: document.querySelectorAll('.tp-caret').length, metrics: document.querySelectorAll('.tree-metric-branch').length, bad, hash: location.hash }
+          /* ★W12(V3.8.12)随迁备案：方向台第 4 层已随 W11 由「三列并排网格」改为纵向项目舱，
+             原锚 .tree-project-branch / .tp-head / .tp-caret / .tree-metric-branch / .folded
+             五个类名全部退役 ⇒ 本段自 W11 起就「一张卡头都没有」空转，
+             而判据把空转当失败报出，W11/W12 两轮都误读成环境缺口（实为选择器失效）。
+             现按真实结构重写：舱=.tower / 卡头=.tw-head / 开合把手=.tw-fold（aria-expanded 承担折叠态）
+             / 指标卡=.metric-card（挂在 .tw-body 内）。
+             所守行为未变：① 每个舱都有卡头（有卡头无把手 = 假折叠的反面）
+             ② 收起的舱不得渲染指标卡（折叠是假折叠）③ 老深链重定向仍成立。 */
+          const towers = [...document.querySelectorAll('.tower')]
+          const heads = [...document.querySelectorAll('.tw-head')]
+          // 收起态 = .tw-fold[aria-expanded="false"]
+          const foldedTowers = towers.filter((t) => {
+            const f = t.querySelector('.tw-fold')
+            return f && f.getAttribute('aria-expanded') === 'false'
+          })
+          /* ★判定必须查「可见性」而不是「DOM 里有没有」—— 舱身用的是 v-show，
+             收起时 display:none 但节点仍在 DOM 里（这是 v-show 的定义，不是缺陷）。
+             先量到这个坑：判据按 querySelectorAll('.metric-card').length 判，
+             于�� 4 个收起舱全部误报「折叠是假折叠」，而用户看到的是正确折叠。
+             改用 offsetParent（display:none 时为 null）判真实可见性。 */
+          const bad = foldedTowers.filter(t => {
+            const body = t.querySelector('.tw-body')
+            if (!body) return false
+            const vis = body.offsetParent !== null || getComputedStyle(body).display !== 'none'
+            return vis && t.querySelectorAll('.metric-card').length > 0
+          }).length
+          // 另记：收起舱仍带指标卡 DOM 是 v-show 的正常形态，单独报个数供人判断是否需要改 v-if
+          const domInFolded = foldedTowers.reduce((s, t) => s + t.querySelectorAll('.metric-card').length, 0)
+          return {
+            branches: towers.length,
+            heads: heads.length,
+            folded: foldedTowers.length,
+            carets: document.querySelectorAll('.tw-fold').length,
+            metrics: document.querySelectorAll('.metric-card').length,
+            bad, domInFolded, hash: location.hash
+          }
         })
-        extra = ` 卡头=${j.heads}/${j.branches} caret=${j.carets} 折叠=${j.folded} 指标=${j.metrics}`
-        if (!j.heads) treeFail.push(`${theme}/${v.id}：一张项目卡头都没有（数据没种上或视图没渲染）——判据空转`)
-        else if (j.bad) treeFail.push(`${theme}/${v.id}：${j.bad} 张折叠项目卡里仍渲染了指标分支 ⇒ 折叠是假折叠`)
-        else if (j.carets !== j.heads) treeFail.push(`${theme}/${v.id}：caret ${j.carets} != 卡头 ${j.heads} ⇒ 有卡头没有开合把手`)
+        extra = ` 舱=${j.branches} 卡头=${j.heads} 开合把手=${j.carets} 收起=${j.folded} 指标卡=${j.metrics} 收起舱内DOM残留=${j.domInFolded}`
+        if (!j.heads) treeFail.push(`${theme}/${v.id}：一张项目舱卡头都没有（数据没种上或视图没渲染）——判据空转`)
+        else if (j.bad) treeFail.push(`${theme}/${v.id}：${j.bad} 个收起的舱里指标卡**仍然可见** ⇒ 折叠是假折叠`)
+        else if (j.carets !== j.heads) treeFail.push(`${theme}/${v.id}：开合把手 ${j.carets} != 卡头 ${j.heads} ⇒ 有卡头没有开合把手`)
         if (v.id === 'compass-tree') {
           extra += ` 落点=${j.hash}`
           if (!/^#\/compass(\?|$)/.test(j.hash)) treeFail.push(`${theme}/${v.id}：#/compass/tree 未重定向到 /compass（实际 ${j.hash}）⇒ 老深链在丢命`)
@@ -912,8 +993,19 @@ async function main() {
     await page.setViewportSize(VIEWPORT)
     for (const sc of DASH_SCENES) {
       await page.setViewportSize(VIEWPORT)
-      await page.goto(base + (sc.hash || '#/profile'), { waitUntil: 'domcontentloaded' }) // ★W9 退役重指带备案：仪表盘/复盘段宿主由 /settings?page=dashboard 迁画像洞察页 /profile
+      await page.goto(base + (sc.hash || '#/profile'), { waitUntil: 'domcontentloaded' }) // ★W9 退役重指带备案：仪表盘/复盘段宿主由 /settings?page=dashboard迁画像洞察页 /profile
       await page.waitForTimeout(2400)
+      /* ★W12(V3.8.12)随迁备案：全年 366 格自 V3.8.7 起收进「看全年 ›」展开态
+         （Heatmap 的 expanded 初值 false），而 dz-heatmap 的判据直接数 .dz-cell ——
+         这些节点**在收起态不存在** ⇒「格=0(应≥360)」是从 V3.8.7 起就一直红着的，
+         与方向台那批同根因（漏迁三轮）。这里先展开再判。
+         折叠本身由 W7-3 守着（双向可达），本处只负责让场景拿到节点。
+         ★只对 dz-heatmap 生效：dz-day 的 act 自己要挑「有记录的格子」（四格统计带 v-if="dlSum.n"
+         前置，展开后点首格必是空白日），若这里也展开一次，它的 act 会点到第二层去。 */
+      if (sc.id === 'dz-heatmap') {
+        await page.locator('.dz-mini-more').first().click({ timeout: 6000 }).catch(() => {})
+        await page.waitForTimeout(800)
+      }
       if (sc.act) await sc.act(page)
       await resetView(page)
       const info = await sc.judge(page)

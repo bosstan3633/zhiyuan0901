@@ -13,7 +13,7 @@
  *  ③ 容器 padding 属跨页一致性纪律，原型的值不能拿来覆盖（W12 试过，撞红 R123/R125/R21-3 三条后改回）
  */
 const {
-  fs, path, check, read, codeOnly, SCRIPTS_DIR, CT_W11, TOWER, LANE, SPINE, PANEL
+  fs, path, check, read, codeOnly, SCRIPTS_DIR, CT_W11, TOWER, LANE, SPINE, PANEL, CMETA
 } = require('./helpers.cjs');
 
 console.log('【W12 · 方向台 1:1 还原（版面归属）】');
@@ -126,4 +126,101 @@ check('W12-10 ★左栏序号必须**短**，且舱间距只由一层承担。�
     && /v-for="\(row, pi\) in dg\.projs"/.test(t)
     /* 间距只由 .tower-list 的 gap 承担一份 */
     && !/\.tower \{[^}]*margin-bottom: \d+px/.test(TOWER);
+});
+
+check('W12-11 ★项目舱的渲染顺序必须真的按「主攻 → 置顶 → order」排。★这是 E2E-29 在真机上抓到的真产品缺陷（不是判据漂移）：onProjDrop 把顺序写进了 order 字段、并重排了 visibleProjectsOf 返回的那个 slice 副本，而 dir.projects 原数组的元素顺序从未变；项目舱的渲染顺序又走 compassMeta 的 dir.projects.map（不排序）⇒ 用户拖完看到 toast 报「排到第 N 位」，视觉顺序一动不动。同一根因还有第二个表现：主攻/置顶项目也未必真在前排（E2E-30 只验徽标、从不验排序位置）。★修法：① compassMeta 成顺序唯一真源，对 projects 施加与 visibleProjectsOf 同源的排序键（isFocused → pinned → order，缺省 999）② onProjDrop 把同一份顺序写回 dir.projects。★本条钉两处承重都在，且负锚钉「取数层不得回退成不排序」', () => {
+  const meta = codeOnly(CMETA)
+  const t = codeOnly(CT_W11)
+  // 拆成四个独立布尔再合取 —— 不要写成 `return 注释 表达式`：
+  // ASI 会把「return 后换行」判成返回 undefined，判据恒红而每个子句单独跑都是 PASS（本条踩过）。
+  // ① 取数层：排序键三段齐，且 projects 是排过的新数组
+  const metaOk = meta.includes('projById')
+    && /Number\(!!pb\?\.isFocused\) - Number\(!!pa\?\.isFocused\)/.test(meta)
+    && /Number\(!!pb\?\.pinned\) - Number\(!!pa\?\.pinned\)/.test(meta)
+    && /\(\(pa\?\.order\) \?\? 999\) - \(\(pb\?\.order\) \?\? 999\)/.test(meta)
+    && /return \{ dir, projects: sorted \}/.test(meta)
+  // 负锚：取数层不得回退成「原数组序直出」—— 那正是本缺陷的成因
+  const metaNoRegress = !/return \{ dir, projects \}/.test(meta)
+  // ② 落位后把顺序写回原数组（否则下次渲染 / 重开又回旧序）
+  const dropOk = t.includes('const orderedIds = list.map((p) => p.id)')
+    && /dir\.projects\.sort\(/.test(t)
+  // 排序键仍单点承担：视图侧 visibleProjectsOf 保留（它承担已完成项目显隐过滤）
+  const keyStillHere = /Number\(b\.isFocused\) - Number\(a\.isFocused\)/.test(t)
+  return metaOk && metaNoRegress && dropOk && keyStillHere
+});
+
+check('W12-12 ★方向台四个组件里所有 button 都必须显式压掉浏览器默认底色，且层级面板默认收起、判折叠按可见性、仪表盘场景先展开（与原型/现役结构一致）。★四条都是 theme-audit 实跑抓到的：① .tw-act / .twm-item / .mc-toggle / .tk-grade / .tk-unbind 只给了 color 与 padding（或只给 hover 底色），没给静止态background 与 border ⇒ 浏览器默认 buttonface 白底透出来，在 linear/raycast 深色主题下是一排白块、文字被吃掉，看着像"按钮坏了"（notion 下则是白底带框）。② 层级面板默认收起这件事被实现注释写成"默认展开第 1 层"，与原型 .lvpanel 的 max-height 初值 0 相反 —— 注释错会诱导下轮误改成默认展开。③ 判定"折叠是否真折叠"必须查**可见性**不能查 DOM 存在性：舱身用 v-show，收起时 display:none 但节点仍在，按 querySelectorAll 判会误报"假折叠"（本条踩过，一次误报 8 项）。④ 全年网格自 V3.8.7 起默认收起，dz-* 四场景直接找 .dz-cell/.dz-kpi/.dz-ov 会在收起态全落空（这批从 V3.8.7 起就一直红着，本轮才暴露）', () => {
+  const tw = codeOnly(TOWER);
+  const ln = codeOnly(LANE);
+  const t = codeOnly(CT_W11);
+  // ① 逐个 button 类：静止态规则里必须自带 background
+  // ★用「按类名切开取第一段花括号」而不是正则扫全文 —— 正则在本项目里反复踩坑
+  //   （codeOnly 后 \b 边界对 .tw-act 这类带点的名字匹配不到，规则数恒 0 ⇒ 判据恒红）。
+  //   切块时顺带跳过所有 `xxx:hover` / `xxx.on` 变体段，只取**静止态**那一段。
+  const bodyOf = (src, cls) => {
+    let from = 0
+    for (;;) {
+      const at = src.indexOf(cls, from)
+      if (at < 0) return ''
+      from = at + cls.length
+      const braceAt = src.indexOf('{', at)
+      if (braceAt < 0) return ''
+      const between = src.slice(at + cls.length, braceAt)
+      // 静态段：类名与 { 之间只允许 , 空格 和 换行；带 : / . 的都是变体段，跳过
+      if (!/^[\s,]*$/.test(between)) continue
+      const close = src.indexOf('}', braceAt)
+      return close < 0 ? '' : src.slice(braceAt + 1, close)
+    }
+  }
+  const needBg = [[tw, '.tw-act'], [tw, '.twm-item'], [ln, '.mc-toggle'], [ln, '.tk-grade'], [ln, '.tk-unbind']]
+  const btnOk = needBg.every(([src, cls]) => /background\s*:/.test(bodyOf(src, cls)))
+  // ② 层级面板默认收起：初值必须是 null（原型 lvpanel 的 max-height 初值就是 0）
+  const panelOk = /const layerOpen = ref<1 \| 2 \| 3 \| null>\(null\)/.test(t)
+    && /<CompassLayerPanel[\s\S]{0,120}v-if="layerOpen"/.test(t)
+  // ③ 折叠判据必须量可见性：v-show 收起时节点仍在 DOM，查存在性会误报
+  const audit = codeOnly(fs.readFileSync(path.join(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'))
+  const foldOk = /offsetParent !== null \|\| getComputedStyle\(body\)\.display !== 'none'/.test(audit)
+    && !/const bad = foldedTowers\.filter\(t => t\.querySelectorAll\('\.metric-card'\)\.length > 0\)/.test(audit)
+  // ④ 数全年格子的场景必须先点「看全年 ›」进展开态 ——
+  //   全年网格自 V3.8.7 起默认收起，dz-heatmap 直接数 .dz-cell 会在收起态数出 0（从 V3.8.7 起就一直红着）。
+  //   ★W12 补跑后收窄到「只对 dz-heatmap 生效」：dz-day 的 act 要挑「有记录的格子」
+  //   （四格统计带 v-if="dlSum.n" 前置，展开后若再统一展开一次，它的 act 会点到第二层去）。
+  const expandOk = /if \(sc\.id === 'dz-heatmap'\)/.test(audit)
+    && /await page\.locator\('\.dz-mini-more'\)\.first\(\)\.click/.test(audit)
+  return btnOk && panelOk && foldOk && expandOk
+});
+
+check('W12-13 ★theme-audit 的场景宿主随 W10 三段式重构搬进了弹窗，判据与 act 必须跟着搬；且「关浮层」要认新弹窗壳。★这一族是本轮补跑真机抓出来的最后一批红：① 概览带宿主 DashboardOverview.vue 整体退役，职责落到 PiHero 的 .pi-hchip 五枚（原判据还钉 .dz-ov/.dz-chip/.dz-calib ⇒ chip=0/5）② 日详情搬进 Heatmap 的 Teleport 弹窗 .dz-day-modal-overlay，且四格统计带 v-if="dlSum.n" 前置 ⇒ act 必须挑「有记录的格子」，点首格必是空白日 ③ ReviewPanel 搬进画像页中央弹窗 .pi-rev-modal，于是 .dz-kpi / .dz-rev-grid / .dz-rpt 三个判据全在空 body 上找 ⇒ 全 0 ④ overlayOpen 只认前两代壳 ⇒ closeOverlays 直接 return，弹窗跨场景残留，把 ② ③ 的红进一步放大。★判据随迁只换承重锚不换所守行为：概览带仍守「五枚 + 同排 + 带口径 + 无错误徽章」', () => {
+  const audit = codeOnly(fs.readFileSync(path.join(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'))
+  // ① closeOverlays 必须认画像页两个新弹窗壳，否则前一场的弹窗会残留到下一场
+  const shellsOk = /\.dz-day-modal-overlay, \.pi-rev-overlay/.test(audit)
+    && /\.pi-rev-close/.test(audit)
+  // ② 概览带判据改钉 PiHero 五枚 chip，且必须钉「同排一行」与「每枚带口径 title」
+  const ovOk = /id: 'dz-overview', name: '页头 KPI 带'/.test(audit)
+    && /pi-hero-sum \.pi-hchip/.test(audit)
+    && /base\.rows === 1/.test(audit)
+    && /base\.titled === 5/.test(audit)
+  // ③ 负锚：已退役的 DashboardOverview 三件套不得复活（dashboard.css 里仍有 7 条 .dz-calib 规则，
+  //    但无任何模板挂载点 —— 样式孤儿不是活体，判据不许再拿它当活证据）
+  const ovDead = !/querySelectorAll\('\.dz-ov \.dz-chip'\)/.test(audit)
+    && !/\.dz-calib \.cb \.r/.test(audit)
+  // ④ 日详情 act 必须挑「有记录的格子」：四格统计带 v-if="dlSum.n" 前置，点首格（全年第一格）必是空白日。
+  //    锚「有记录就挑它、挑不到才退回首格」这个兜底语义，不锚整串三元表达式 ——
+  //    ★两个踩坑叠在一起：① 锚跨表达式的长字面量，一个转义括号写错就恒红，而它红的方式
+  //    与「能力真丢」一模一样；② codeOnly() 抹注释时按等长空白填充，源码里的换行会变成
+  //    别的空白形态，所以**不能用 \s+ 去跨行匹配**（实测 \s+ 版恒不匹配、点号版恒匹配）。
+  const dayOk = /\.dz-cell\.l1:not\(\.future\)/.test(audit)
+    && /has\.count\(\) \? has : page\.locator/.test(audit)
+  // ⑤ 三个宿主在弹窗里的场景必须自带开弹窗这一步，且场景 hash 指向画像页
+  const modalOk = /async function openReviewModal\(page\)/.test(audit)
+    && (audit.match(/await openReviewModal\(page\)/g) || []).length === 3
+    && (audit.match(/hash: '#\/profile'/g) || []).length === 3
+  // ⑥ 图例判据不许写死数量：V3.8.7 加了第 7 枚「今天」说明项（当日格底色是 heat-N，
+  //    图例块要用 accent 描边另画），原判据 `legend.length === 6` 从那版起就一直红。
+  //    改成钉「前六项严格等于 LV_NAME 六档 + 第七项必须是今天」—— 少档/改名/多无关项都会红。
+  const lgOk = /const SIX = \['静默', '轻触', '常规', '高负荷', '冲刺', '满格'\]/.test(audit)
+    && /legend\.slice\(0, 6\)\.join\('\/'\) === SIX\.join\('\/'\)/.test(audit)
+    && /legend\[6\] === '今天'/.test(audit)
+    && !/legend\.length === 6/.test(audit)
+  return shellsOk && ovOk && ovDead && dayOk && modalOk && lgOk
 });

@@ -452,8 +452,17 @@ async function main() {
   // 读合并断言：显式导航到调度台（热力图 W2 起在 #/ 而非设置页；上个用例把 hash 留在了资源台）；8 月块（第 8 个 .mb）出现 l2 格 + fullSince 徽章含老日子
   await page.evaluate(() => { location.hash = '#/' })
   await page.waitForTimeout(2200)
+  // ★W12(V3.8.12)随迁备案：全年 366 格自 V3.8.7 起收进「看全年 ›」展开态（默认 expanded=false），
+  //   而本用例的读合并断言直接找 .dz-months .mb 与 .dz-sec-h 里的 .dz-badge ——
+  //   **这两个都在展开态才渲染**，V3.8.7 起就注定找不到（漏迁三轮，本轮实跑才暴露）。
+  //   所守行为未变：种下的老日快照必须在 8 月块里出现 l2 格（不因纯重建而褪色）+ fullSince 徽章含老日子。
+  //   修法：先点「看全年 ›」进展开态，再量。折叠本身由 W7-3 守着（双向可达）。
+  await page.locator('.dz-mini-more').first().click({ timeout: 8000 }).catch(() => {})
+  await page.waitForTimeout(900)
+  const dsExpanded = await page.locator('.dz-months .mb').count()
   const dsAugL2 = await page.locator('.dz-months .mb').nth(7).locator('.dz-cell.l2').count()
-  const dsBadge = (await page.locator('.dz-sec-h', { hasText: '年度热力图' }).locator('.dz-badge').first().innerText().catch(() => ''))
+  // fullSince 徽章真实落点在网格下方的 .note 区（文案「调出维度自 X 起完整」），不在 .dz-sec-h 里
+  const dsBadge = await page.locator('.dz-sec-b .note, .note').first().innerText().catch(() => '')
   // 写链路：进资源台 → 单击开抽屉 → 改标题 → 保存 → pagehide → 读回
   await page.goto(base + '#/workspace/zy-curation', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
@@ -481,9 +490,9 @@ async function main() {
   }))
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2000)
-  report('E2E-25 R174-3 按日快照落盘（读合并：老日子不褪色 8月l2格+fullSince；写链路：保存→pagehide→days 出现今天）',
+  report('E2E-25 R174-3 按日快照落盘（读合并：老日子不褪色 8月l2格+fullSince；写链路：保存→pagehide→days 出现今天）★W12随迁：全年网格自 V3.8.7 起在「看全年 ›」展开态才渲染，本用例先点开再量；fullSince 徽章真实落点在 .note 区而非 .dz-sec-h',
     dsAugL2 >= 1 && dsBadge.includes('2026-08-15') && dsWritten.has && dsWritten.add >= 1,
-    `8月l2格=${dsAugL2} 徽章="${dsBadge}" 卡=${dsCard} 抽屉=${dsDrawer} 保存钮=${dsSaveBtn} 今日落盘=${JSON.stringify(dsWritten)}`)
+    `月块=${dsExpanded} 8月l2格=${dsAugL2} note="${(dsBadge || '').replace(/\s+/g, ' ').slice(0, 60)}" 卡=${dsCard} 抽屉=${dsDrawer} 保存钮=${dsSaveBtn} 今日落盘=${JSON.stringify(dsWritten)}`)
 
   // E2E-11 方向台首屏（★R3-B1 树即一级）：项目卡头渲染；未归档格随 MetricBar 迁调度台（E2E-4 已覆盖）
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
@@ -496,19 +505,24 @@ async function main() {
   await page.waitForTimeout(2500)
   await page.evaluate(() => { location.hash = '#/compass' })
   await page.waitForTimeout(2000)
-  // ★R3-B1：主航线项目行卡（proj-row）随退役消失，方向台一级的呈现单位是方向树项目卡头（tp-head）；
+  // ★R3-B1：主航线项目行卡（proj-row）随退役消失，方向台一级的呈现单位是方向树项目卡头；
   //   种进数据的遗留字段 pinnedToLighthouse 不应改变任何呈现（R60-4 零引用口径的活体版）
-  await page.waitForSelector('.tp-head', { timeout: 8000 }).catch(() => {})
-  const goalChip = await page.locator('.tp-head').first().isVisible().catch(() => false)
+  // ★W12(V3.8.12)随迁备案：呈现单位随 W11 纵向项目舱由 .tp-head 改钉 .tw-head（舱卡头）。
+  //   所守行为未变：首屏能看见项目卡头、遗留投射字段不影响呈现、未归档格由 E2E-4 覆盖。
+  await page.waitForSelector('.tw-head', { timeout: 8000 }).catch(() => {})
+  const goalChip = await page.locator('.tw-head').first().isVisible().catch(() => false)
   const offCourseGone = !(await page.getByText('偏航行动').first().isVisible().catch(() => false))
-  report('E2E-11 ★R3-B1 方向台首屏=方向树项目卡头（tp-head 可见 · 遗留投射字段不影响呈现 · 未归档格迁调度台由 E2E-4 覆盖）', goalChip && offCourseGone,
+  report('E2E-11 ★R3-B1 方向台首屏=方向台项目舱卡头（.tw-head 可见 · 遗留投射字段不影响呈现 · 未归档格迁调度台由 E2E-4 覆盖）★W12随迁：呈现单位由已退役的 .tp-head 改钉 .tw-head',
+    goalChip && offCourseGone,
     `heads=${goalChip} offCourseGone=${offCourseGone}`)
 
   // E2E-12 全量呈现（R52-F4 → ★R3-B1 换呈现单位）：非主攻/未投射项目照样有卡头（折叠只收指标与任务，卡头常显）
-  const headCount = await page.locator('.tp-head').count()
-  const foldedHeads = await page.locator('.tp-head.folded').count()
+  const headCount = await page.locator('.tw-head').count()
+  // ★W12随迁：折叠标记原锚 .tp-head.folded，舱卡头的收起/展开由 .tw-fold 的 aria-expanded 承担
+  const foldedHeads = await page.locator('.tw-fold[aria-expanded="false"]').count()
   const unPinnedChip = await page.getByText('E2E 回填项目').first().isVisible().catch(() => false)
-  report('E2E-12 ★R3-B1 全量呈现：未投射项目卡头照样在（折叠态仍可见）', headCount >= 2 && unPinnedChip && foldedHeads >= 1,
+  report('E2E-12 ★R3-B1 全量呈现：未投射项目照样有舱卡头（折叠态仍可见）★W12随迁：卡头 .tp-head→.tw-head，折叠标记改钉 .tw-fold[aria-expanded="false"]（舱卡头无 .folded 类，收起态由按钮 aria 承担）',
+    headCount >= 2 && unPinnedChip && foldedHeads >= 1,
     `heads=${headCount} folded=${foldedHeads} unPinnedVisible=${unPinnedChip}`)
 
   // E2E-13 方向台导航与项目详情操作（R52-F8/F5/F6 → ★R3-B1 随一级化改判据）：
@@ -517,7 +531,7 @@ async function main() {
   await page.evaluate(() => { location.hash = '#/compass/tree?hl=e2e-dir-1' })
   await page.waitForTimeout(1600)
   const redirected = (page.url().split('#')[1] || '').split('?')[0] === '/compass'
-  const treeRendered = await page.locator('.tp-head').first().isVisible().catch(() => false)
+  const treeRendered = await page.locator('.tw-head').first().isVisible().catch(() => false)
   const backBtn = !(await page.getByText('← 返回方向台').first().isVisible().catch(() => false))
   const backToCompass = redirected && treeRendered
   await page.evaluate(() => { location.hash = '#/compass/projects?p=e2e-proj-1' })
@@ -526,56 +540,101 @@ async function main() {
   const projHead = await page.locator('.pb-stats').first().isVisible().catch(() => false)
   const addMetricBtn = await page.getByText('＋ 成功指标').first().isVisible().catch(() => false) // R177：随原型改文案「＋ 成功指标」（标题行动作组）
   const backListGone = !(await page.getByText('返回项目列表').first().isVisible().catch(() => false))
-  report('E2E-13 ★R3-B1 老深链重定向落地（/compass/tree?hl → /compass 且渲染树）+ 一级无自指返回钮 + 项目详情标题行成功指标入口 + 返回项目列表移除（R52-F5/F6/F8 · R177 随迁）', backBtn && backToCompass && projHead && addMetricBtn && backListGone,
+  report('E2E-13 ★R3-B1 老深链重定向落地（/compass/tree?hl → /compass 且渲染出方向台）+ 一级无自指返回钮 + 项目详情标题行成功指标入口 + 返回项目列表移除（R52-F5/F6/F8 · R177 随迁 · ★W12随迁：「渲染树」判据由 .tp-head 改钉 .tw-head）', backBtn && backToCompass && projHead && addMetricBtn && backListGone,
     `无返回钮=${backBtn} 重定向且出树=${backToCompass} proj=${projHead} addMetric=${addMetricBtn} backListGone=${backListGone}`)
 
   // E2E-29 ★R3-B2 方向树同目标拖拽排序 + 置顶：拖拽落位重写 order（所见即所得）→ ▾ 菜单置顶把第二张钉到前排
   await page.evaluate(() => { location.hash = '#/compass' })
   await page.waitForTimeout(1500)
+  // ★W12(V3.8.12)随迁备案：方向台第 4 层已随 W11 由「三列并排网格」改为纵向项目舱，
+  //   原锚 .tc-strategic-branch / .tree-project-branch / .tp-* 六个类名全部退役 ⇒ 本段曾因 host=undefined
+  //   直接抛未捕获异常**终止整个脚本**，其后约 30 条用例从未执行（skill §0.1「中断比失败更危险」）。
+  //   现按真实结构重写：舱=.tower（平级序列，用卡头 .tw-crumb 里的「战略目标 · X」判归属），
+  //   卡头=.tw-head / 标题=.tw-name-t / 手柄=.tw-grip / 动作组=.tw-acts .tw-act / 菜单=.tw-menu .twm-item。
+  //   所守行为未变：同目标内拖拽落位重写 order 且所见即所得、▾ 菜单置顶钉到前排并落库出 📌 徽标。
   const dragOut = await page.evaluate(async () => {
-    const host = [...document.querySelectorAll('.tc-strategic-branch')].find(b => b.querySelectorAll('.tree-project-branch').length >= 2)
-    if (!host) return { ok: false, why: '没有含两张项目卡的战略目标' }
-    const nameOf = (el) => (el.querySelector('.tp-title .node-title')?.textContent || '').trim()
-    const read = () => [...host.querySelectorAll('.tree-project-branch')].map(nameOf)
+    const dirNameOf = (t) => {
+      const cr = [...t.querySelectorAll('.tw-cr')].find((x) => (x.textContent || '').trim().startsWith('战略目标'))
+      return (cr?.textContent || '').replace('战略目标 ·', '').trim()
+    }
+    const towers = [...document.querySelectorAll('.tower')]
+    const nameOf = (el) => (el.querySelector('.tw-name-t')?.textContent || '').trim()
+    // 同目标 = 卡头面包屑里「战略目标 · X」相同；取项目数 ≥2 的第一个目标
+    const byDir = new Map()
+    for (const t of towers) {
+      const d = dirNameOf(t)
+      if (!byDir.has(d)) byDir.set(d, [])
+      byDir.get(d).push(t)
+    }
+    const group = [...byDir.values()].find((g) => g.length >= 2)
+    if (!group) return { ok: false, why: '没有同属一个战略目标且至少两舱的分组', dirs: [...byDir.keys()] }
+    const read = () => group.map(nameOf)
     const before = read()
-    const items = [...host.querySelectorAll('.tree-project-branch')]
     const dt = new DataTransfer()
-    const grip = items[0].querySelector('.tp-grip')
-    const head2 = items[1].querySelector('.tp-head')
+    // ★dragstart/dragover/drop 三件套**全部绑在 .tw-grip 手柄上**（CompassTower 模板 L141-150），
+    //   不是卡头 .tw-head —— 手柄才draggable=true，卡头只负责点击进全景。
+    //   而 drop-on 落位指示绑在**舱容器 .tower** 上（dropOn prop → :class），两处各挂各的。
+    const grip = group[0].querySelector('.tw-grip')
+    const grip2 = group[1].querySelector('.tw-grip')
+    const tower2 = group[1]
+    if (!grip || !grip2) return { ok: false, why: '舱头缺少拖拽手柄 .tw-grip' }
     grip.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }))
-    head2.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    grip2.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
     // Vue 的 class 绑定在下一个 tick 才落到 DOM，同步读必假——落位指示要等一拍再量
-    await new Promise((r) => setTimeout(r, 80))
-    const showedDrop = head2.classList.contains('drop-on')
-    head2.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    await new Promise((r) => setTimeout(r, 120))
+    const showedDrop = tower2.classList.contains('drop-on')
+    grip2.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
     grip.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }))
-    await new Promise((r) => setTimeout(r, 900))
-    const after = read()
+    // 落位后走 store.persist() → Vue 重渲染 → DOM 重排；数据层 order 已即时写入，
+    // 但 DOM 顺序要等下一个 tick 后的重排落定。900ms 实测偏紧（读到的仍是旧序），给到 1600ms。
+    await new Promise((r) => setTimeout(r, 1600))
+    // 重排后 DOM 顺序会变，重新按数据 dir 定位该组当前的舱序
+    const nowTowers = [...document.querySelectorAll('.tower')].filter((t) => dirNameOf(t) === dirNameOf(group[0]))
+    const after = nowTowers.map(nameOf)
     const stored = await chrome.storage.local.get('zy_data_v2')
-    const dir = ((stored['zy_data_v2'] || {}).compass?.directions || []).find((x) => (x.projects || []).length >= 2)
+    const dirs = ((stored['zy_data_v2'] || {}).compass?.directions || [])
+    const dir = dirs.find((x) => (x.projects || []).length >= 2 && x.name === dirNameOf(group[0]))
     return { ok: showedDrop && after[0] === before[1] && after[1] === before[0], showedDrop, before, after,
-      orders: (dir?.projects || []).map((x) => x.name + '=' + x.order) }
+      // order 是可选字段（`order?: number`），种的数据本来没有；用 ?? '-' 免得诊断里一串 undefined 掩盖真因
+      orders: (dir?.projects || []).map((x) => x.name + '=' + (x.order ?? '-')) }
   })
   const pinOut = await page.evaluate(async () => {
-    const host = [...document.querySelectorAll('.tc-strategic-branch')].find(b => b.querySelectorAll('.tree-project-branch').length >= 2)
-    const nameOf = (el) => (el.querySelector('.tp-title .node-title')?.textContent || '').trim()
-    const items = [...host.querySelectorAll('.tree-project-branch')]
-    const target = items[1]
-    const before = [...host.querySelectorAll('.tree-project-branch')].map(nameOf)
-    target.querySelectorAll('.tp-acts .node-action')[2].click()          // ▾ 更多操作
+    const dirNameOf = (t) => {
+      const cr = [...t.querySelectorAll('.tw-cr')].find((x) => (x.textContent || '').trim().startsWith('战略目标'))
+      return (cr?.textContent || '').replace('战略目标 ·', '').trim()
+    }
+    const nameOf = (el) => (el.querySelector('.tw-name-t')?.textContent || '').trim()
+    const towers = [...document.querySelectorAll('.tower')]
+    const byDir = new Map()
+    for (const t of towers) {
+      const d = dirNameOf(t)
+      if (!byDir.has(d)) byDir.set(d, [])
+      byDir.get(d).push(t)
+    }
+    const group = [...byDir.values()].find((g) => g.length >= 2)
+    if (!group) return { ok: false, why: '没有同属一个战略目标且至少两舱的分组' }
+    const dirKey = dirNameOf(group[0])
+    const before = group.map(nameOf)
+    const target = group[1]
+    // ▾ 更多操作 = .tw-acts 里title 含「更多操作」的那枚（不用下标，下标随动作增减会漂）
+    const more = [...target.querySelectorAll('.tw-acts .tw-act')].find((b) => (b.getAttribute('title') || '').includes('更多操作'))
+    if (!more) return { ok: false, why: '舱头没有「更多操作」钮' }
+    more.click()
     await new Promise((r) => setTimeout(r, 250))
-    const pinItem = [...target.querySelectorAll('.tp-menu .tpm-item')].find((x) => (x.textContent || '').includes('置顶到本目标前排'))
-    if (!pinItem) return { ok: false, why: '菜单里没有置顶项' }
+    const pinItem = [...target.querySelectorAll('.tw-menu .twm-item')].find((x) => (x.textContent || '').includes('置顶'))
+    if (!pinItem) return { ok: false, why: '菜单里没有置顶项', menu: [...target.querySelectorAll('.tw-menu .twm-item')].map((x) => (x.textContent || '').trim()) }
     pinItem.click()
-    await new Promise((r) => setTimeout(r, 900))
-    const now = [...host.querySelectorAll('.tree-project-branch')]
+    await new Promise((r) => setTimeout(r, 1600))
+    const now = [...document.querySelectorAll('.tower')].filter((t) => dirNameOf(t) === dirKey)
     const stored = await chrome.storage.local.get('zy_data_v2')
-    const dir = ((stored['zy_data_v2'] || {}).compass?.directions || []).find((x) => (x.projects || []).length >= 2)
-    return { ok: now[0] && nameOf(now[0]) === before[1] && !!now[0].querySelector('.tp-pin'),
-      moved: !!now[0] && nameOf(now[0]) === before[1], badge: !!(now[0] && now[0].querySelector('.tp-pin')),
+    const dir = (((stored['zy_data_v2'] || {}).compass?.directions || [])).find((x) => x.name === dirKey)
+    // 📌 徽标 = 卡头 .tw-badge 里 title「已置顶」那枚
+    const badge = !!(now[0] && [...now[0].querySelectorAll('.tw-badge')].some((b) => (b.getAttribute('title') || '') === '已置顶'))
+    return { ok: now[0] && nameOf(now[0]) === before[1] && badge,
+      moved: !!now[0] && nameOf(now[0]) === before[1], badge,
       pinned: (dir?.projects || []).filter((x) => x.pinned).map((x) => x.name) }
   })
-  report('E2E-29 ★R3-B2 方向树拖拽排序（落位重写 order 且所见即所得）+ ▾ 菜单置顶（钉到非主攻组前排 + 📌 徽标 + 落库）',
+  report('E2E-29 ★R3-B2 方向台拖拽排序（落位重写 order 且所见即所得）+ ▾ 菜单置顶（钉到非主攻组前排 + 📌 徽标 + 落库）★W12随迁：选择器由已退役的 .tc-strategic-branch/.tree-project-branch/.tp-* 改钉 .tower/.tw-head/.tw-name-t/.tw-grip/.tw-acts/.tw-menu',
     dragOut.ok && pinOut.ok, `拖拽=${JSON.stringify(dragOut)} 置顶=${JSON.stringify(pinOut)}`)
 
   // E2E-14 指标下钻弹窗（R54-B2）：调度台项目调度 4 格可点击 → 弹窗列指标清单
@@ -785,8 +844,12 @@ async function main() {
 
   // E2E-21 调度台入口整合（R172-T9 · 取代原周报浮层用例）：
   // 原用例（R113-N3 P0）测的是"模板引用了组件却从未 import ⇒ 点按钮毫无反应"这个病根；
-  // 组件退役后病根消失，但**入口必须依然真能到达** —— ★W9 退役重指带备案：仪表盘整块再迁画像洞察页，
-  // 判据改为：点「📈 复盘」→ 路由落到 /profile 且画像洞察页真渲染（`.dz-sec` 概览带 + `.dz-chip` 存量卡可见，非空白）。
+  // 组件退役后病根消失，但**入口必须依然真能到达** —— ★W9 退役重指带备案：仪表盘整块再迁画像洞察页。
+  // ★W12 实跑补随迁备案：原判据量的是 `.dz-sec` 概览带 + `.dz-chip` 存量卡，
+  //   但 W10 已把画像洞察页**三段式时间轴重构**并拆成 PiHero/PiRail/PiToday/PiRhythm/PiYear 五组件，
+  //   `.dz-sec` / `.dz-chip` 两类只留在 dashboard 自己的 Heatmap/ReviewPanel 里，宿主页上一个都没有
+  //   ⇒ chips 恒假，本条自 W10重构起就一直红着（本轮实跑才暴露）。
+  //   现改钉真结构：`.pi-page` 页面根 + `.pi-hero` 画像 Hero + `.pi-tl` 时间轴，宿主与形态两处都验到。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
   const revBtn = page.locator('.mb-act.cta').first()
@@ -795,10 +858,12 @@ async function main() {
   await page.waitForTimeout(1400)
   const revUrl = page.url()
   const revAtProfile = /\/profile/.test(revUrl)
-  const revOverview = await page.locator('.dz-sec').first().isVisible().catch(() => false)
-  const revChips = await page.locator('.dz-chip').first().isVisible().catch(() => false)
-  report('E2E-21 调度台「📈 复盘」直达画像洞察页 /profile（R172-T9 · ★W9 重指）', revBtnText.includes('复盘') && revAtProfile && revOverview && revChips,
-    'btn=' + JSON.stringify(revBtnText) + ' url=' + revUrl + ' overview=' + revOverview + ' chips=' + revChips)
+  const revPage = await page.locator('.pi-page').first().isVisible().catch(() => false)
+  const revHero = await page.locator('.pi-hero').first().isVisible().catch(() => false)
+  const revTimeline = await page.locator('.pi-tl').first().isVisible().catch(() => false)
+  report('E2E-21 调度台「📈 复盘」直达画像洞察页 /profile（R172-T9 · ★W9 重指 · ★W12补随迁：判据由 W10 重构前的 .dz-sec/.dz-chip 改钉 .pi-page/.pi-hero/.pi-tl）',
+    revBtnText.includes('复盘') && revAtProfile && revPage && revHero && revTimeline,
+    'btn=' + JSON.stringify(revBtnText) + ' atProfile=' + revAtProfile + ' page=' + revPage + ' hero=' + revHero + ' timeline=' + revTimeline)
 
   // E2E-23（R154 · 04-62）：AI 对照式评审**双栏真渲染** + 一次性指令**独立键**。
   // 走「设置 › AI 助手 › 本周回顾」：它已接左栏（投料原文）与指令框，且不依赖真网关——

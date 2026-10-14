@@ -130,6 +130,8 @@ export function buildCompassMeta(d: AppData, isStalled: (p: Project) => boolean)
   let nProjects = 0, nMetrics = 0, nTasks = 0
 
   const dirs = d.compass.directions.map(dir => {
+    /* 排序键要用到 isFocused / pinned / order，先建 id→Project 查表，避免每个舱都 find（O(n²)） */
+    const projById = new Map(dir.projects.map((x) => [x.id, x]))
     const projects = dir.projects.map(p => {
       /* 项目内任务＝挂在该项目任一指标下的 + projectId 命中的（后者是「未挂指标」的候选） */
       const projTasks = live.filter(t => t.projectId === p.id)
@@ -157,7 +159,23 @@ export function buildCompassMeta(d: AppData, isStalled: (p: Project) => boolean)
       nMetrics += metrics.length
       return pm
     })
-    return { dir, projects }
+    /* ★W12(V3.8.12)真缺陷修复（E2E-29 实跑抓到）：项目舱的渲染顺序原先直接沿用
+       `dir.projects` 的**原始数组序**，而 CompassTree 的排序键是
+       「主攻 → 置顶 → order」写在 `visibleProjectsOf` 里 —— 两套口径不一致：
+         · 用户拖过的 order 只写进字段、**从不重排数组** ⇒ 视觉顺序一动不动（toast 却报"排到第 N 位"）
+         · 主攻/置顶项目也**不一定真在前排**（E2E-30 只验了徽标，从没验过排序位置）
+       这里把同一套排序键施加到取数层，让本函数成为顺序的**唯一真源**，
+       模板侧不必再各自排一次。★不改 CompassTree.visibleProjectsOf —— 它承担
+       「已完成项目显隐过滤」，过滤后的子集仍需同一套键，故保留；两处键值必须同源维护。
+       （排序键：主攻 → 置顶 → order，order 缺省 999，与 visibleProjectsOf 完全一致） */
+    const sorted = projects.slice().sort((a, b) => {
+      const pa = projById.get(a.id)
+      const pb = projById.get(b.id)
+      return (Number(!!pb?.isFocused) - Number(!!pa?.isFocused))
+        || (Number(!!pb?.pinned) - Number(!!pa?.pinned))
+        || (((pa?.order) ?? 999) - ((pb?.order) ?? 999))
+    })
+    return { dir, projects: sorted }
   })
 
   /* 全站任务数口径：未删除即算（与现役 treeStats.tasks 一致） */

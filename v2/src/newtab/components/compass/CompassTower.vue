@@ -304,6 +304,8 @@ const ringC = 2 * Math.PI * ringR
   display: block; width: 100%; text-align: left;
   padding: 7px 11px; font-size: var(--fs-sub); color: var(--text-2);
   cursor: pointer; transition: background var(--dur);
+  /* 同 .tw-act：button 默认白底必须显式压掉，否则深色主题下菜单项是一列白块 */
+  background: transparent; border: none;
 }
 .twm-item:hover { background: var(--surface-2); color: var(--text); }
 .twm-item.danger { color: var(--danger); border-top: 1px solid var(--border); }
@@ -311,8 +313,14 @@ const ringC = 2 * Math.PI * ringR
 .tw-act {
   font-size: var(--fs-micro); color: var(--text-3);
   padding: 3px 7px; border-radius: 6px; cursor: pointer; transition: all var(--dur); white-space: nowrap;
+  /* ★W12(V3.8.12)真缺陷（theme-audit 100 图实跑抓到）：这条只给了 color/padding，
+     没给 background 与 border ⇒ 浏览器默认 buttonface 白底透出来，在 linear/raycast
+     深色主题下就是一排白块，文字被白底吃掉看着像"按钮坏了"（notion 下则是白底带框）。
+     hover 时才设 background，所以静止态与 hover 态底色不一致，看着更怪。
+     修法：显式给 transparent 底 + 透明边框，把 hover 态的 accent 底留给 hover。 */
+  background: transparent; border: 1px solid transparent;
 }
-.tw-act:hover { color: var(--accent-ink); background: var(--accent-light); }
+.tw-act:hover { color: var(--accent-ink); background: var(--accent-light); border-color: transparent; }
 /* ★折叠必须双向：这里给的是"当前收起时显示展开箭头"，展开时显示收起箭头 */
 .tw-fold {
   width: 20px; height: 20px; border-radius: 6px; flex: none;

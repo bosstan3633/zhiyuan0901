@@ -192,6 +192,19 @@ function onProjDrop(dirId: string, target: Project) {
   if (!moved) return
   moved.pinned = false
   list.forEach((p, i) => { p.order = i })
+  /* ★W12(V3.8.12)真缺陷修复（E2E-29 实跑抓到）：`visibleProjectsOf` 返回的是
+     `.slice().sort()` 的**新数组**，上面的 splice 只改了那个副本 —— `dir.projects`
+     原数组的**元素顺序从未变过**。而项目舱的渲染顺序走 compassMeta →
+     `dir.projects.map(...)`（不排序，按原数组序）⇒ 数据层 order 写了、toast 也报了
+     「排到第 N 位」，**但视觉顺序一动不动**，用户会觉得"拖了没反应"。
+     这里把同一份顺序写回原数组，渲染侧与数据侧口径才一致。
+     （排序键「主攻 → 置顶 → order」由 visibleProjectsOf 单点承担，不在这里重复实现。） */
+  const orderedIds = list.map((p) => p.id)
+  dir.projects.sort((a, b) => {
+    const ia = orderedIds.indexOf(a.id)
+    const ib = orderedIds.indexOf(b.id)
+    return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib)
+  })
   store.persist()
   showToast(`↕ 「${moved.name}」排到该目标第 ${to + 1} 位（同目标内拖拽，主攻项目恒在前排）`)
 }
@@ -994,7 +1007,10 @@ onUnmounted(() => {
                之前把愿景卡摆在 spine 之上，等于在六层链条之外另开了一个平级区块，
                于是首屏被一块大字卡吃掉、"逐层收窄"在版面上断掉。
                判据 W8-1 / W8-2 / W11-11 守的是"愿景仍是唯一主体且独占一行 + 重框"，
-               面板位同样满足（默认展开第 1 层），承重未丢，只是位置回到链条之内。 -->
+               面板位同样满足，承重未丢，只是位置回到链条之内。
+               ★默认收起（layerOpen 初值 null）与原型一致：原型 .lvpanel 的 max-height 初值就是 0，
+               脚本也没有默认展开的调用—— 原型首屏同样是骨架条直接接分组头。
+               点骨架条「1 愿景 / 2 使命 / 3 战略目标」才滑出。判据 W12-12 钉这一条。 -->
           <CompassLayerPanel
             v-if="layerOpen"
             :meta="compassMeta"

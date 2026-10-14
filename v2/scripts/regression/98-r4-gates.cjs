@@ -34,7 +34,14 @@ check('R4-Dl ★收尾必须认得 ⌘K 浮层：主题/场景之间只切 hash 
   const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
   const iO = t.indexOf('async function overlayOpen');
   const iC = t.indexOf('async function closeOverlays');
-  return t.slice(iO, iO + 260).includes("'.md-panel, .drawer, .gp-overlay.open'")
+  return /\.md-panel/.test(t.slice(iO, iO + 400))
+    && /\.gp-overlay\.open/.test(t.slice(iO, iO + 400))
+    /* ★W12(V3.8.12)随迁备案：原锚写死整串 `'.md-panel, .drawer, .gp-overlay.open'`，
+       于是「往 overlayOpen 里加新一代弹窗壳」这个正确动作会让本条恒红 —— 而它红的样子
+       与「⌘K 浮层收尾真丢了」一模一样。★写死整串的选择器列表 = 下一个弹窗壳的敌人。
+       改为逐个点名必须存在的壳（钉语义不钉排列），新增壳不再撞本条，删掉任一壳仍会红。 */
+    && /\.pi-rev-overlay/.test(t.slice(iO, iO + 400))
+    && /\.dz-day-modal-overlay/.test(t.slice(iO, iO + 400))
     && iC > 0 && t.slice(iC, iC + 700).includes("locator('.gp-overlay.open').click({ position:")
     && t.slice(iC, iC + 700).includes('x: 6, y: 6');
 });

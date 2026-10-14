@@ -190,6 +190,10 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .mc-toggle {
   font-size: var(--fs-micro); color: var(--text-3);
   padding: 2px 6px; border-radius: 5px; cursor: pointer; transition: all var(--dur); flex: none;
+  /* ★W12(V3.8.12)真缺陷（theme-audit 深色主题实跑抓到）：button 没给 background/border
+     ⇒ 浏览器默认 buttonface 白底透出来，在 linear/raycast 下是一排白块、文字被吃掉。
+     与 CompassTower 的 .tw-act / .twm-item 同根因，同批修。 */
+  background: transparent; border: 1px solid transparent;
 }
 .mc-toggle:hover { color: var(--text); background: var(--surface-3); }
 /* ★W12：AI / 加任务 两枚操作钮 hover 才显形，让指标名先被读到（能力未删，见模板注释） */
@@ -265,6 +269,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .tk-grade {
   font-size: var(--fs-micro); color: var(--text-4);
   padding: 1px 5px; border-radius: 4px; cursor: pointer;
+  background: transparent; border: 1px solid transparent;
 }
 .tk-grade:hover { color: var(--accent-ink); background: var(--accent-light); }
 /* ★解绑钮：默认低调（不与勾选框争），hover 才显形 —— 误触成本高，不能做成随手可点 */
@@ -273,6 +278,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
   width: 16px; height: 16px; border-radius: 4px; line-height: 1;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: all var(--dur); opacity: 0;
+  background: transparent; border: 1px solid transparent;
 }
 .tk-row:hover .tk-unbind { opacity: 1; }
 .tk-unbind:hover { color: var(--danger); background: var(--danger-bg-soft); }
