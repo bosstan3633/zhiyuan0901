@@ -909,7 +909,7 @@ onUnmounted(() => {
           愿景之上，<span class="hero-hl">逐层收窄</span>成今天要做的事
           <span class="hero-en">SIX-LAYER CHAIN</span>
         </h1>
-        <p class="hero-sub">
+        <p class="hero-sub" title="战略目标分岔、项目各自成舱、成功指标内嵌任务——每条任务都能回答「我在为哪个项目的哪个指标服务」。">
           战略目标分岔、项目各自成舱、成功指标内嵌任务——每条任务都能回答「我在为哪个项目的哪个指标服务」。
         </p>
       </div>
@@ -1290,6 +1290,11 @@ onUnmounted(() => {
 .hero-sub {
   font-size: var(--fs-body); color: var(--text-3); margin-top: 10px;
   max-width: 620px; line-height: 1.8;
+  /* ★W12-A 大标题下的定位语改单行（用户 2026-10-13 拍板 C4）：
+     原文 43 字在 620px 容器里折成两行，把「六层思维链」大标题的视觉重心往下拽。
+     选「截断 + title 悬浮全文」而非缩小字号——压字号会掉到可读下限以下，
+     而这行本来是定位语不是正文，截断后 hover 能看全即可。 */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .hero-r {
   display: flex; flex-direction: column; align-items: flex-end; gap: 10px;

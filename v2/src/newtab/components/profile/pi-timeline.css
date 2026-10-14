@@ -5,14 +5,23 @@
 /* ===== 容器：左 rail + 右模块列 ===== */
 .pi-tl { display: grid; grid-template-columns: 78px 1fr; }
 .pi-rail { position: relative; }
-.pi-rail::before {
-  content: ''; position: absolute; left: 30px; top: 12px; bottom: 12px; width: 3px; border-radius: 3px; opacity: .5;
-  background: linear-gradient(180deg, var(--accent), var(--info-blue) 52%, var(--warning));
-}
+/* ★W12-A 线画在「节点之间」而不是画在 rail 上：
+   原 `.pi-rail::before` 把线钉死在 left:30px，而圆点跟着 `align-items:center` 走 rail 列宽
+   （`grid-template-columns: 78px` ⇒ 中心在 39px）——两套坐标系对不上，横向差 7.5px，
+   圆点整体浮在线右侧（用户 2026-10-13 报「节点不在时间线上」）。
+   改为每节点画自己的连线段，与圆点共用 `left:50%` 同一坐标系 ⇒ 结构性对齐，永不再偏。
+   同时 `bottom:-12px` 让线正好落在**下一个圆点中心**（节点盒底 + 下节点 padding-top 4px + 半径 8px），
+   不再穿过标签文字；末节点 `padding-bottom:0` ⇒ 线不再向下悬空。 */
 .pi-rnode {
   position: relative; padding: 4px 0 76px; display: flex; flex-direction: column; align-items: center; gap: 9px;
   cursor: pointer; background: none; border: 0; font-family: inherit;
 }
+.pi-rnode:not(:last-child)::after {
+  content: ''; position: absolute; left: 50%; top: 12px; bottom: -12px; width: 3px;
+  transform: translateX(-50%); border-radius: 3px; opacity: .5;
+  background: linear-gradient(180deg, var(--accent), var(--info-blue) 52%, var(--warning));
+}
+.pi-rnode:last-child { padding-bottom: 0; }
 .pi-rdot {
   width: 16px; height: 16px; border-radius: 50%; background: var(--bg); border: 4px solid var(--accent);
   position: relative; z-index: 2; transition: all var(--dur);
