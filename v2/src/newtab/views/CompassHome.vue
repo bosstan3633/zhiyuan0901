@@ -9,9 +9,13 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick, shallowRef } fr
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
+// ★W12-D：全貌模块（今日三件事选中项的详情，只读展示）
+import FocusDetail from '../components/compass/FocusDetail.vue'
 import { uid } from '@/shared/utils'
 import { visibleFields } from '@/shared/utils/fields'
 import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
+import { emitOpenDrawer } from '@/shared/utils/bus'
+import type { CardEvent } from '@/shared/utils/eventLog'
 import { focusRecentDays, focusWindowTotals } from '@/shared/utils/focusHistory'
 import type { AiJob, AiRow } from '@/shared/ai/job'
 import { AiDrawer } from '@/newtab/components/lazyAiDrawer'
@@ -35,9 +39,11 @@ import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
 import TaskManagerPanel from '../components/compass/TaskManagerPanel.vue'
 import PoolCardsPanel from '../components/compass/PoolCardsPanel.vue'
 import MetricBar from '../components/compass/MetricBar.vue'
-// W2（V3.8.2）：年度热力图自设置页知源仪表盘迁入调度台（今日三件事下方、三卡上方）。
-// HeatmapModule 自带数据桥（useDashboardStats）+ 事件日志读取 + 日详情记录抽屉 —— 本页不直接碰事件日志。
-import HeatmapModule from '../components/dashboard/HeatmapModule.vue'
+// ★W12-D（V3.8.16）：年度热力图从调度台退役（用户 2026-10-13 拍板——画像洞察页已全量覆盖，
+// 调度台再放一份是重复），但「今日战报」要保留，故先把日详情从 Heatmap.vue 解耦出来，
+// 由 TodayBattleHost 自包含承载（数据桥 + 事件日志读取 + 日详情 + 全量记录抽屉都在它里面）。
+// 本页只挂一行、不直接碰事件日志（R49-3 负锚保持）。
+import TodayBattleHost from '../components/dashboard/TodayBattleHost.vue'
 // R172-T9（04-67 Q7）：调度画像周报浮层**已退役**（组件已物理删除，全仓零引用）——
 // 四段式能力并入知源仪表盘的「复盘段」（ReviewPanel.vue），入口由本页右上角 `📈 复盘` 承担。
 // 历史包袱顺带清掉：R113-N3 曾因"模板引用但从未 import"导致点按钮无任何反应，该类问题随组件退役消失。
@@ -254,8 +260,29 @@ async function openFocusReview(): Promise<void> {
   closeWhy()
   focusJob.value = j
 }
+/** ★W12-D 全貌模块只读本页三件事相关的事件流水。
+ *  不引入完整事件日志（那是 TodayBattleHost 的职责）：本页只要 `store.data` 已有的任务事件，
+ *  从 compass 的任务历史工具取，避免本页读 zy_event_log（R49-3 负锚：调度台视图不碰事件日志）。 */
+const focusDetailEvents = computed(() => {
+  const t = selTask.value
+  if (!t) return []
+  const logs = (store.data?.tasks || []).flatMap((task) => {
+    const out: CardEvent[] = []
+    if (task.createdAt) out.push({ id: `fd-${task.id}-c`, ts: task.createdAt, action: 'create', kind: 'task', title: task.title || '', cardId: task.id })
+    if (task.updatedAt && task.updatedAt !== task.createdAt) out.push({ id: `fd-${task.id}-u`, ts: task.updatedAt, action: 'status', kind: 'task', title: task.title || '', cardId: task.id })
+    if (task.deletedAt) out.push({ id: `fd-${task.id}-d`, ts: task.deletedAt, action: 'delete', kind: 'task', title: task.title || '', cardId: task.id })
+    return out
+  })
+  return logs.filter(e => e.cardId === t.id).sort((a, b) => b.ts - a.ts)
+})
+
+/** ★W12-D 双击三件事卡 → 滚动定位并高亮下方任务列表里那条任务。
+ *  行为迁移（用户 2026-10-13 拍板 B2「双击进入任务列表」）：原先双击直接弹 TaskDetailDrawer，
+ *  但同页上方的「全貌」模块已经把详情常驻展示了，重复弹抽屉价值不大、且列表里双击易误触。
+ *  现复用任务卡面板既有的 `?hl=<id>&hk=task` 定位通道（TaskManagerPanel 已 watch 这两个 query
+ *  做滚动 + 2 秒高亮），零新机制。抽屉仍从「全貌」模块里的「编辑」按钮进（需完整编辑时用）。 */
 function openCellTask(c: FocusCell) {
-  if (c.task) drawerRef.value?.open(c.task)
+  if (c.task) void router.push({ path: '/', query: { hl: c.task.id, hk: 'task' } })
 }
 /**
  * R94（B3）：三件事**全完成** —— 给一个**安静**的收束。
@@ -290,10 +317,15 @@ function toggleSlotSub(t: TaskCard, subId: string) {
   store.persist()
 }
 
-/** 三件事卡 → 选中索引（默认第一件事），联动右栏项目调度面板 */
+/** 三件事卡 → 选中索引（默认第一件事），联动下方「全貌」模块 */
 const focusSelIdx = ref(0)
 const focusTasks = computed<(TaskCard | null)[]>(() => todayFocusList.value.map(s => todayTaskForSlot(s)))
-const selTask = computed<TaskCard | null>(() => focusTasks.value[focusSelIdx.value] || focusTasks.value.find(t => !!t) || null)
+/** ★W12-D 去掉静默 fallback：原式是 `focusTasks[selIdx] || focusTasks.find(t => !!t) || null`，
+ *  选到空槽时会**悄悄回落到另一条任务**——你点 02 看的是 01 的内容，却以为在看 02。
+ *  用户 2026-10-13 拍板：选空槽就显示引导态，不回落。 */
+const selTask = computed<TaskCard | null>(() => focusTasks.value[focusSelIdx.value] ?? null)
+/** 选中的是不是空槽（用于区分「选到空位」与「还没选」） */
+const selSlotEmpty = computed(() => !selTask.value && focusSelIdx.value < focusTasks.value.length)
 function onFocusCardClick(idx: number) {
   focusSelIdx.value = idx
 }
@@ -651,10 +683,22 @@ function openFocusProject(p: Project) {
 }
 
 // ================= 底部专区（R55-B2：任务调度已迁方向台，好奇心培育单区直呈） =================
-// ===== R172-T9 → V3.8.9（W9）：调度台「📈 复盘」直达画像洞察页 =====
-/** 原 push('/settings?page=dashboard')；W9 仪表盘退役，改指 /profile（画像洞察页吸收概览带+复盘段） */
-function openReview(): void { void router.push('/profile') }
+// ===== ★W12-D（V3.8.16）：调度台「📈 复盘」→「📈 今日战报」，行为由跳转改为就地弹窗 =====
+// 历史轨迹：push('/settings?page=dashboard') → V3.8.9 W9 改指 /profile（仪表盘迁画像洞察页）→ 本轮改就地开弹窗。
+// 用户 2026-10-13 拍板：年度热力图退役后，调度台仍需一个「今天的全貌」入口，
+// 而跳去画像洞察页等于让人离开手边的三件事去看另一个尺度，就地弹窗更贴处境。
+const battleHost = ref<InstanceType<typeof TodayBattleHost> | null>(null)
+function openReview(): void { battleHost.value?.openToday() }
 const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.deletedAt).length)
+
+/** ★W12-D 全貌模块的两个出口：编辑（进任务抽屉）/ 定位支撑资源（走全局资源抽屉的 bus 通道）。
+ *  资源抽屉全局挂在 App.vue 上，本页不重复挂实例，故用 emitOpenDrawer 而不是 ref.open。 */
+function onFocusDetailEdit(t: TaskCard) { drawerRef.value?.open(t) }
+function onFocusDetailLocate(resourceId: string) {
+  const res = store.data?.resources.find(r => r.id === resourceId)
+  if (!res) { showToast('⚠ 该资源已不在'); return }
+  emitOpenDrawer({ kind: 'res', id: resourceId })
+}
 </script>
 
 <template>
@@ -689,7 +733,7 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
           <span>{{ atChipText }}</span>
           <span class="sync-gear" title="Airtable 同步设置" @click.stop="router.push('/settings?page=airtable')">⚙</span>
         </button>
-        <button class="mb-act cta" title="复盘 · 概览带 · 复盘段 · 生命周期 · 直达画像洞察页" @click="openReview">📈 复盘</button>
+        <button class="mb-act cta" title="今天的全貌 · 打开今日战报弹窗" @click="openReview">📈 今日战报</button>
       </template>
     </MetricBar>
 
@@ -794,11 +838,23 @@ const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.del
         </div>
       </section>
 
-    <!-- W2（V3.8.2）：年度热力图 —— 自设置页知源仪表盘迁入调度台（今日三件事下方、三卡上方，独立模块常驻）。
-         HeatmapModule 自带数据桥 + 事件日志 + 日详情记录抽屉，本页零接触事件日志。 -->
+    <!-- ★W12-D：原年度热力图槽位改为「当前选中事件的全貌」（今日三件事选中的那条）。
+         热力图已随本轮退役（画像洞察页全量覆盖），但热力图承载的「今日战报」弹窗解耦到
+         TodayBattleHost 保留。FocusDetail 是纯只读展示，写操作一律上抛宿主。 -->
     <section class="module">
-      <HeatmapModule />
+      <div class="mod-head">
+        <span class="ic"><Icon name="target" :size="18" /></span><span class="nm">全貌</span><span class="en">IN FULL</span>
+      </div>
+      <p class="mod-sub">今天这件事的全貌 —— 属于哪、要做什么、凭什么做过什么、下一步做什么。单击上方任意一件切换。</p>
+      <FocusDetail
+        :task="selTask" :empty-slot="selSlotEmpty"
+        :data="store.data!" :events="focusDetailEvents"
+        @edit="onFocusDetailEdit" @locate="onFocusDetailLocate" />
     </section>
+
+    <!-- ★W12-D：今日战报自包含宿主（日详情弹窗 + 全量记录抽屉）。本组件不渲染可见内容，
+         只提供 openToday() 供右上角「📈 今日战报」调用。 -->
+    <TodayBattleHost ref="battleHost" />
 
     <!-- 底部 · 三张卡（W1.1 V3.8.1 改名改序：任务卡 → 好奇心卡 → 资源卡，默认任务卡；
          取代 R117 C1 的「任务调度 / 好奇心培育」双 tab 与 R2-③ 的资源卡池默认两版旧序）

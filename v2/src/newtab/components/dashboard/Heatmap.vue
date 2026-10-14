@@ -14,7 +14,6 @@ import {
   type DailyStats
 } from '@/shared/utils/dailyStats'
 import { yearAgg, longestStreak, todayKey } from '@/shared/utils/reviewReport'
-import DayDetail from './DayDetail.vue'
 import ExportMenu, { type ExportFmt } from './ExportMenu.vue'
 import { pngBlobFromSpec, heatmapShareHtml, exportName } from '@/shared/utils/exportView'
 import { downloadBlob, downloadText } from '@/shared/utils/download'
@@ -30,7 +29,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:year', y: number): void
   (e: 'update:selDay', d: string | null): void
-    (e: 'open-log', day: string): void
+  /* ★W12-D open-log 随日详情一并迁到 TodayBattleHost —— 热力图不再有日详情，
+     「查看全部记录 ›」那条出口也跟着走了，声明不留（没人 emit 的死通道）。 */
 }>()
 
 /* W2（V3.8.2）：日详情 Teleport 到 body 后，路由/场景切换不会卸载宿主 ⇒ 遮罩会跨场存留
@@ -280,13 +280,11 @@ function onExport(fmt: ExportFmt): void {
       </template>
     </div>
 
-    <Teleport to="body">
-      <div v-if="selDay" class="dz-day-modal-overlay" @click.self="emit('update:selDay', null)">
-        <div class="dz-day-modal" role="dialog" aria-modal="true">
-          <DayDetail :stats="stats" :day="selDay" :events="events" :live-link="liveLink"
-            @close="emit('update:selDay', null)" @open-log="(d) => emit('open-log', d)" />
-        </div>
-      </div>
-    </Teleport>
+    <!-- ★W12-D 日详情弹窗从此处解耦出去（V3.8.16）。
+      原先 DayDetail 长在热力图内部，靠 `selDay` 驱动；于是「调度台要能弹今日战报」这件事
+      必须连带把整个热力图挂上才成立——用户 2026-10-13 拍板热力图从调度台退役（画像洞察页已全量覆盖），
+      若不解耦，删掉热力图就会把「今日战报」一起删掉，而它要被保留。
+      现由兄弟宿主 TodayBattleHost.vue 承载（与 HeatmapModule 同一套数据桥口径），
+      热力图只剩热力图的职责。下方留一行注释记改靶缘由，避免日后被当成「漏迁」补回来。 -->
   </section>
 </template>

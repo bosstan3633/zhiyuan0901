@@ -601,22 +601,22 @@ check('R172-11 ★T8 全量记录抽屉（04-67 F18~F20）：三维筛选（类�
     && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes('openLog(');
 });
 
-check('R172-12 ★T9 调度台入口整合（04-67 F33~F36）：删 5 个旧入口（`.rec-mini` 四格 / 今日记录抽屉 / `wrOpen` / `onWrDrill` / 周报浮层）—— CompassHome 零残留；右槽仅「📈 复盘」直达 `/profile`；`MetricBar.vue` 中段 5 指标零改动（Q8）；被删的四类记录能力在画像洞察页内等价可用。★W2 重指带备案：日详情「查看全部记录」的宿主自 GlobalSettings.onDashOpenLog 迁至 HeatmapModule.onOpenLog（热力图整体迁调度台）。★W9 再随迁带备案：四类记录的宿主自 GlobalSettings 再迁 ProfileInsights', () => {
+check('R172-12 ★T9 调度台入口整合（04-67 F33~F36）：删 5 个旧入口（`.rec-mini` 四格 / 今日记录抽屉 / `wrOpen` / `onWrDrill` / 周报浮层）—— CompassHome 零残留；`MetricBar.vue` 中段 5 指标零改动（Q8）；被删的四类记录能力在画像洞察页内等价可用。★W12-D 退役重指带备案：右槽那一枚由「📈 复盘 · 跳 /profile」改为「📈 今日战报 · 就地开弹窗」—— 热力图退役后调度台仍需今天的全貌入口，跳去画像洞察页等于离开手边的三件事去看另一个尺度（用户 2026-10-13 拍板）。原「被删的四类记录能力在画像洞察页等价可用」这句随 W12-B 进一步收紧为「全页唯一入口在画像洞察页页头」；日详情「查看全部记录」的宿主第三次随迁到 TodayBattleHost', () => {
   const h = read('/newtab/views/CompassHome.vue');
   const mb = read('/newtab/components/compass/MetricBar.vue');
   const gs = read('/newtab/views/GlobalSettings.vue');
   const pi = read('/newtab/views/ProfileInsights.vue');
-  const hmod = read('/newtab/components/dashboard/HeatmapModule.vue');
+  const tbh = read('/newtab/components/dashboard/TodayBattleHost.vue');
   const fsx = require('fs');
   return !h.includes('rec-mini') && !h.includes('openRec(') && !h.includes('recOpen') && !h.includes('wrOpen')
     && !h.includes('onWrDrill') && !h.includes('📊 周报')
-    && h.includes('📈 复盘') && h.includes("router.push('/profile')")
+    && h.includes('📈 今日战报') && !h.includes("router.push('/profile')")
     && !fsx.existsSync(path.resolve(base, 'newtab', 'components', 'WeeklyReportOverlay.vue'))
     && !fsx.existsSync(path.resolve(base, 'shared', 'utils', 'weeklyReport.ts'))
     && mb.includes('战略目标') && mb.includes('未归档') && mb.includes('mb-right')
     && pi.includes("openLog('called')") && !gs.includes('onDashOpenLog')
     && !codeOnly(gs).includes('openLog(')
-    && hmod.includes('onOpenLog') && hmod.includes('logOpen') && hmod.includes(':preset="logPreset"');
+    && tbh.includes('onOpenLog') && tbh.includes('logOpen') && tbh.includes(':preset="logPreset"');
 });
 
 check('R172-13 ★规格张力收口（R166 定案 3 优先于 04-67 §7.2 初值）：子任务完成计分 `W.subtask = 0`（不进加权分 ⇒ 不影响热力图档位），分数口径表第 10 行标注「不计分」；件数口径**不动**（`DayRec.sub` 仍计入推进与有效动作件数，R3/R5 仍以它作"完成项"凭据）—— 边界已在 dailyStats 文件头登记，未外延。★2026-09-27 用户拍板：子任务完成不计分（本条即终态，非临时）', () => {
@@ -759,15 +759,19 @@ check('R2-⑧ ★增量渲染上限立住：默认一屏 60 张 + 滚动到底�
 
 // ============== W2 ★热力图迁调度台（V3.8.2） ==============
 console.log('【W2 · 热力图迁调度台】');
-check('W2-1 ★热力图挂载在调度台：CompassHome 挂 `<HeatmapModule />`（今日三件事 section 之后、三卡 section 之前，独立模块常驻）且源码内无 readEventLog（R49-3 保持：读日志的活只在 HeatmapModule 做）', () => {
+check('W2-1 ★W12-D 退役重指带备案：热力图从调度台退役后，「那个槽位」与「读日志只在宿主做」两条纪律都还在，只是宿主换了。年度热力图由画像洞察页全量覆盖，用户 2026-10-13 拍板调度台这份退役；槽位改成「全貌」模块（今日三件事选中项详情）。判据：① CompassHome 挂 TodayBattleHost（今日战报自包含宿主）且无 HeatmapModule ② 槽位顺序仍在「今日三件事之后、三卡之前」（原 HeatmapModule 的位置锚点）③ CompassHome 源码内仍无 readEventLog（R49-3：读日志的活只在宿主组件做）④ 全貌模块 FocusDetail 存在且挂在该槽位', () => {
   const ch = read('/newtab/views/CompassHome.vue');
-  const iH = ch.indexOf('<HeatmapModule />');
+  const iH = ch.indexOf('<TodayBattleHost ref="battleHost" />');
   const iF = ch.indexOf('focusAllDone');
   const iC = ch.indexOf('id="zy-mod-curiosity"');
-  return ch.includes("import HeatmapModule from '../components/dashboard/HeatmapModule.vue'")
+  const iFocus = ch.indexOf('<FocusDetail');
+  return ch.includes("import TodayBattleHost from '../components/dashboard/TodayBattleHost.vue'")
+    && !ch.includes('HeatmapModule')
     && iH > 0 && iF > 0 && iC > 0
     && iH > iF && iH < iC
-    && !ch.includes('readEventLog');
+    && ch.includes("import FocusDetail from '../components/compass/FocusDetail.vue'")
+    && iFocus > iF && iFocus < iC
+    && !/readEventLog/.test(ch)
 });
 check('W2-2 ★GlobalSettings 不再挂热力图：无 Heatmap import / 无 <Heatmap> 模板 / 无 onDashOpenLog（日详情「查看全部记录」迁 HeatmapModule.onOpenLog）——★W9 再随迁带备案：本条原还要求「概览带 + 复盘段 + 操作记录保留」在 GlobalSettings 里，而这三样已随 V3.8.7 整块迁画像洞察页；负锚三条继续钉在 GS 上（热力图与 onDashOpenLog 都不许搬回设置页），正锚改指新宿主 ProfileInsights（dashYear/dashSelDay/dashStats + <ReviewPanel> + openLog(），能力一项未减', () => {
   const gs = read('/newtab/views/GlobalSettings.vue');
@@ -792,15 +796,22 @@ check('W2-3 ★HeatmapModule 自包含宿主：useAppStore + gResLive/gTaskLive/
     && hm.includes('<Heatmap')
     && hm.includes('DashboardLogDrawer');
 });
-check('W2-4 ★日详情改中央弹窗：Heatmap 内 DayDetail 用 `<Teleport to="body">` + `.dz-day-modal-overlay` / `.dz-day-modal`（@click.self 关闭），dashboard.css 两样式在位；导出挂 `<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />`（不再有 tablesToCsv / exportCsv / exportMd）', () => {
+check('W2-4 ★W12-D 退役重指带备案：日详情中央弹窗的 Teleport + overlay/modal 两样式 + CSS 三条一字未改，只是宿主从 Heatmap.vue 迁到 TodayBattleHost.vue（热力图退役但战报保留 ⇒ 日详情必须解耦）。导出仍挂 Heatmap 的 ExportMenu png/html（导出是热力图自己的事，与日详情无关，不动）。判据：① DayDetail import 与 Teleport 块在 TodayBattleHost，Heatmap 内零命中 ② overlay/modal/@click.self 三锚在新宿主 ③ dashboard.css 两样式仍在 ④ Heatmap 的 ExportMenu png/html 导出链未被动', () => {
+  const tbh = read('/newtab/components/dashboard/TodayBattleHost.vue');
   const hm = read('/newtab/components/dashboard/Heatmap.vue');
   const css = read('/newtab/components/dashboard/dashboard.css');
-  return hm.includes('<Teleport to="body">')
-    && hm.includes('dz-day-modal-overlay') && hm.includes('dz-day-modal')
-    && hm.includes('@click.self')
-    && hm.includes('<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />')
-    && !hm.includes('tablesToCsv') && !hm.includes('exportCsv') && !hm.includes('exportMd')
-    && css.includes('.dz-day-modal-overlay') && css.includes('.dz-day-modal');
+  // ① 日详情 Teleport 在新宿主，热力图内已解耦（负锚走 codeOnly：改靶缘由注释里必然提到 DayDetail）
+  if (!tbh.includes("import DayDetail from './DayDetail.vue'")) return false;
+  if (codeOnly(hm).includes('DayDetail')) return false;
+  // ② 三锚
+  if (!tbh.includes('<Teleport to="body">')) return false;
+  if (!tbh.includes('dz-day-modal-overlay') || !tbh.includes('dz-day-modal')) return false;
+  if (!tbh.includes('@click.self')) return false;
+  // ③ CSS 仍在
+  if (!css.includes('.dz-day-modal-overlay') || !css.includes('.dz-day-modal')) return false;
+  // ④ 热力图导出链未动
+  return hm.includes('<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />')
+    && !hm.includes('tablesToCsv') && !hm.includes('exportCsv') && !hm.includes('exportMd');
 });
 check('W2-5 ★HTML 分享导出真在位：exportView.heatmapShareHtml 生成自包含单文件 HTML（内联 CSS、tok() 现取 --heat-0..5、escHtml 转义），Heatmap.exportHtml 调用之；PNG 导出走 pngBlobFromSpec 现取主题令牌', () => {
   const ev = codeOnly(read('/shared/utils/exportView.ts'));
@@ -810,11 +821,14 @@ check('W2-5 ★HTML 分享导出真在位：exportView.heatmapShareHtml 生成�
     && hm.includes('exportHtml') && hm.includes('heatmapShareHtml')
     && hm.includes('pngBlobFromSpec');
 });
-check("W2-6 ★日详情 open-log 新宿主（★随迁备案：原 GlobalSettings.onDashOpenLog 迁至 HeatmapModule.onOpenLog）：Heatmap 内 emit('open-log', day) 被 HeatmapModule 的 @open-log 监听并转发为 logOpen + logPreset", () => {
-  const hm = read('/newtab/components/dashboard/HeatmapModule.vue');
+check("W2-6 ★W12-D 退役重指带备案：日详情「查看全部记录 ›」的 open-log 出口随日详情一起迁到 TodayBattleHost —— 打开全量抽屉并按该日预筛、且先关日详情弹窗再开抽屉（遮罩不叠两层）这条语义一字未改，只是宿主从 HeatmapModule/Heatmap 换成 TodayBattleHost。判据：① 新宿主有 onOpenLog/logOpen/logPreset 且挂 DashboardLogDrawer ② 新宿主把 DayDetail 的 @open-log 接上（不再是 Heatmap emit，因为日详情已解耦出热力图）③ 预筛三字段（from/to = day）与「先关弹窗」那句动作都在", () => {
+  const tbh = read('/newtab/components/dashboard/TodayBattleHost.vue');
   const heat = read('/newtab/components/dashboard/Heatmap.vue');
-  return hm.includes('onOpenLog') && hm.includes('logOpen') && hm.includes(':preset="logPreset"')
-    && heat.includes("emit('open-log'") && hm.includes('@open-log');
+  return tbh.includes('function onOpenLog') && tbh.includes('logOpen') && tbh.includes('logPreset')
+    && tbh.includes(':preset="logPreset"') && tbh.includes('<DashboardLogDrawer')
+    && tbh.includes('@open-log="onOpenLog"') && tbh.includes('dashSelDay.value = null')
+    && tbh.includes('from: day') && tbh.includes('to: day')
+    && !heat.includes("emit('open-log'");
 });
 
 // ============== W3 · ⌘K 浏览态双 Tab（常用内容/AI 动作）+ 常用内容前置 ==============

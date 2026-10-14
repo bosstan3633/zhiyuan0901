@@ -366,3 +366,109 @@ check('W12-B3 ★指标行必须网格化，且是「方案 A · B3-a」这一�
   }
   return true
 });
+// ============== W12-D（V3.8.16）调度台：热力图退役 + 今日战报解耦 + 全貌模块 ==============
+console.log('【W12-D · 调度台热力图退役与全貌模块】');
+check('W12-D1 ★DayDetail 必须**从 Heatmap 里解耦出去**、且解耦是完整的一条：import 走了、Teleport 块走了、open-log emit 声明也走了，三样都干净。这条判据专门防「以为解耦了、其实只删了模板」——留下孤儿 import 会让 build 报错，留下没人 emit 的声明则是死通道。宿主侧 TodayBattleHost 必须把三样都接回来（import + Teleport + @open-log）', () => {
+  const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
+  const tbh = read('/newtab/components/dashboard/TodayBattleHost.vue');
+  // Heatmap 侧三样都干净
+  if (hm.includes('DayDetail')) return false;
+  if (hm.includes('dz-day-modal-overlay')) return false;
+  if (/\(e: 'open-log'/.test(hm)) return false;
+  // 宿主侧三样都接回
+  if (!tbh.includes("import DayDetail from './DayDetail.vue'")) return false;
+  if (!tbh.includes('<Teleport to="body">')) return false;
+  if (!tbh.includes('dz-day-modal-overlay') && !tbh.includes('dz-day-modal')) return false;
+  if (!tbh.includes('@open-log="onOpenLog"')) return false;
+  return true;
+});
+
+check('W12-D2 ★今日战报宿主必须是「自包含」的：数据桥 useDashboardStats + 事件日志读取 readEventLog + 派生回退 + DayDetail + DashboardLogDrawer 五件都在组件内，CompassHome 一行挂载且源码里不出现 readEventLog（R49-3 负锚）。这正是 HeatmapModule 当年被评为「自包含宿主」的同一套口径，TodayBattleHost 照搬不得缩水——否则 HeatmapModule 一退役，调度台就丢了读日志的通道', () => {
+  const tbh = read('/newtab/components/dashboard/TodayBattleHost.vue');
+  const ch = read('/newtab/views/CompassHome.vue');
+  for (const n of ['useDashboardStats', 'readEventLog', 'derivedEvents', 'DayDetail', 'DashboardLogDrawer', 'useDailyLogRequest']) {
+    if (!tbh.includes(n)) return false;
+  }
+  // 派生回退与刷新语义
+  if (!tbh.includes('logEmpty.value ? derivedEvents.value : eventLog.value')) return false;
+  if (!tbh.includes('await refreshEventLog()')) return false;
+  // 页面侧只挂一行、不碰事件日志
+  if (!ch.includes('<TodayBattleHost ref="battleHost" />')) return false;
+  if (/readEventLog/.test(ch)) return false;
+  return true;
+});
+
+check('W12-D3 ★开战报前必须重读事件日志（keep-alive 陷阱的备案）。本组件走 keep-alive 全会话只挂载一次，refreshEventLog 仅在 onMounted 跑；此后新增/删除/调出只进 zy_event_log 缓存，UI 侧 eventLog 快照会冻结在首次挂载那一刻 ⇒ 战报统计过时。判据：watch(pendingDay) 里先 await refreshEventLog() 再消费，onMounted 里也 refresh 一次', () => {
+  const tbh = read('/newtab/components/dashboard/TodayBattleHost.vue');
+  if (!/watch\(pendingDay,[\s\S]{0,400}await refreshEventLog\(\)/.test(tbh)) return false;
+  if (!/onMounted\(\(\) => \{[\s\S]{0,120}void refreshEventLog\(\)/.test(tbh)) return false;
+  // openToday 走今天
+if (!/openToday\s*=\s*\(\)\s*=>/.test(tbh) || !tbh.includes('todayKey()')) return false;
+  if (!tbh.includes('defineExpose({ openToday })')) return false;
+  return true;
+});
+
+check('W12-D4 ★热力图必须真的退役：调度台无 HeatmapModule 引用，且那个槽位改挂 FocusDetail 且顺序仍在「今日三件事之后、三卡之前」（原热力图的位置锚点不许漂）。同时 Heatmap 组件本体保留——画像洞察页仍在用它，不许连锅端', () => {
+  const ch = read('/newtab/views/CompassHome.vue');
+  const iH = ch.indexOf('<FocusDetail');
+  const iF = ch.indexOf('focusAllDone');
+  const iC = ch.indexOf('id="zy-mod-curiosity"');
+  if (ch.includes('HeatmapModule')) return false;
+  if (iH < 0 || iF < 0 || iC < 0) return false;
+  if (!(iH > iF && iH < iC)) return false;
+  // Heatmap 本体保留（画像洞察页在用）
+  const exists = require('fs').existsSync(require('path').resolve('D:/zhiyuan0904/v2/src/newtab/components/dashboard/Heatmap.vue'));
+  if (!exists) return false;
+  // 画像洞察页仍在用
+  return read('/newtab/components/profile/PiYear.vue').includes('Heatmap');
+});
+
+check('W12-D5 ★选中空槽必须显引导态、**不许静默回落**。原式 `focusTasks[selIdx] || focusTasks.find(t => !!t) || null` 会在选到空槽时悄悄回落到另一条任务——你点 02 看的是 01 的内容却以为在看 02（用户 2026-10-13 拍板）。判据：① selTask 只取该槽、无 find 兜底 ② 有 selSlotEmpty 区分「选到空位」③ FocusDetail 有空槽引导态与未选态两种分支', () => {
+  const ch = read('/newtab/views/CompassHome.vue');
+  const fd = read('/newtab/components/compass/FocusDetail.vue');
+  const m = ch.match(/const selTask = computed<TaskCard \| null>\(\(\) =>([^)]*)\)/);
+  if (!m) return false;
+  if (m[1].includes('find(')) return false;
+  if (!ch.includes('const selSlotEmpty = computed')) return false;
+  // FocusDetail 两分支 + 引导态文案
+  if (!fd.includes('emptySlot')) return false;
+  if (!fd.includes('这个位置还空着')) return false;
+  if (!fd.includes('点上面任意一件')) return false;
+  return true;
+});
+
+check('W12-D6 ★七层全貌七层都在，且 ⑥ 那层必须是**本地规则式**、不得出现 AI 调用的痕迹（用户拍板 B4-a：先不做单任务 AI 解读，因为产品里没有这个现成能力，硬上要新增 prompt 与门禁；本地规则按优先级/成熟度/截止/子任务/久未推进/未被调用给直白建议）。判据逐层点名 + 负锚：无 fetch / no AI import / 标题写明「本地判断」', () => {
+  const fd = read('/newtab/components/compass/FocusDetail.vue');
+  for (const layer of ['是什么', '属于哪', '要做什么', '凭什么', '走过什么', '下一步', '动作']) {
+    if (!fd.includes(layer)) return false;
+  }
+  // 六层链：愿景/使命/战略目标/攻坚项目/成功指标
+  for (const lv of ['愿景', '使命', '战略目标', '攻坚项目', '成功指标']) {
+    if (!fd.includes(lv)) return false;
+  }
+  // ⑥ 本地规则：不含 AI 调用痕迹
+  if (/fetch\(|XMLHttpRequest|runAI|@\/shared\/ai\//.test(fd)) return false;
+  if (!fd.includes('本地判断')) return false;
+  // 限高 + 内滚动（用户拍板）
+  if (!/max-height:/.test(fd) || !/overflow-y: auto/.test(fd)) return false;
+// 两个出口上抛而不自行改数据（纯只读）：负锚 —— 本组件不得出现任何落库动作
+  if (!fd.includes("(e: 'edit', task: TaskCard): void")) return false;
+  if (fd.includes('store.persist')) return false;
+  return true;
+});
+
+check('W12-D7 ★双击行为迁移：不再弹抽屉，改走既有 ?hl 定位通道滚动+高亮下方任务列表（用户拍板 B2：同页上方已常驻展示全貌，重复弹抽屉价值不大且列表里双击易误触）。判据：① openCellTask 走 router.push query hl+hk ② 不再 drawerRef.open(c.task) ③ 抽屉改从「全貌」模块的编辑按钮进（onFocusDetailEdit 仍 drawerRef.open）——共享抽屉能力一项未减', () => {
+  const ch = read('/newtab/views/CompassHome.vue');
+  const m = ch.match(/function openCellTask\(c: FocusCell\) \{[\s\S]{0,300}?\n\}/);
+  if (!m) return false;
+  const body = m[0];
+  if (!body.includes("hk: 'task'")) return false;
+  if (!body.includes('hl: c.task.id')) return false;
+  if (body.includes('drawerRef')) return false;
+  // 抽屉仍在：从全貌模块的编辑按钮进
+  if (!ch.includes('function onFocusDetailEdit')) return false;
+  if (!ch.includes('drawerRef.value?.open(t)')) return false;
+  // 定位通道确实存在（TaskManagerPanel 在 watch 这两个 query）
+  const tmp = read('/newtab/components/compass/TaskManagerPanel.vue');
+  return tmp.includes('route.query.hl') && tmp.includes('hk') && tmp.includes('scrollIntoView');
+});
