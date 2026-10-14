@@ -30,7 +30,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'open-review'): void
-  (e: 'open-log'): void
+  /* ★W12-B：open-log 已随模块内那枚「全部记录 ›」一并退役（入口上提页头），
+     声明不留——留着就是没人 emit 的死通道，仓库纪律「函数无消费方 = 能力已丢」的反面：留声明只会骗人。 */
   (e: 'open-err'): void
   (e: 'open-battle', day: string): void
   (e: 'drill', k: 'wk-add' | 'wk-acts' | 'wk-w' | 'wk-call' | 'wk-pace'): void
@@ -169,6 +170,7 @@ function kindLbl(k: CardEvent['kind']): string {
     <div class="pi-mod-b">
       <div class="pi-strip">
         <span class="pi-strip-lab">{{ range === 'w' ? '本周' : range === 'm' ? '本月' : '今年' }}</span>
+        <div class="pi-strip-row">
         <button class="pi-chip up" title="窗口内采集合计" @click="emit('drill', 'wk-add')">
           <span class="v">{{ cTotal }}<small>张</small></span><span class="l">采集</span><span class="ar">▸</span>
         </button>
@@ -184,6 +186,7 @@ function kindLbl(k: CardEvent['kind']): string {
         <button class="pi-chip warn" title="节奏波动 = 有动作日加权分的变异系数" @click="emit('drill', 'wk-pace')">
           <span class="v">±{{ paceCv }}<small>%</small></span><span class="l">节奏波动</span><span class="ar">▸</span>
         </button>
+        </div>
       </div>
 
       <div class="pi-hair"></div>
@@ -251,7 +254,7 @@ function kindLbl(k: CardEvent['kind']): string {
 
       <div>
         <div class="pi-sect"><span class="n">5</span><span class="t">操作流</span><span class="m">单击定位 · 最近 {{ FLOW_CAP }} 条</span></div>
-        <div class="pi-strip" style="margin-bottom:10px">
+        <div class="pi-flowbar">
           <div class="pi-seg">
             <button :class="{ on: flowFilter === 'all' }" @click="flowFilter = 'all'">全部</button>
             <button :class="{ on: flowFilter === 'create' }" @click="flowFilter = 'create'">录入</button>
@@ -261,7 +264,8 @@ function kindLbl(k: CardEvent['kind']): string {
           </div>
           <span style="flex:1"></span>
           <button v-if="errorCount > 0" class="pi-btn sm line" style="color:var(--warning)" @click="emit('open-err')">🚨 错误 {{ errorCount }}</button>
-          <button class="pi-btn sm line" @click="emit('open-log')">🗂️ 全部记录 ›</button>
+          <!-- ★W12-B：这枚「全部记录 ›」按用户 2026-10-13 拍板收掉——页头已有全页唯一入口，
+               近期模块这一枚是重复入口（且它躺在「操作流」分段头里，与那段流水的语义不符）。 -->
         </div>
         <div class="pi-flow">
           <button v-for="e in flowRows" :key="e.id" class="pi-frow" :title="'单击定位卡片'" @click="emit('locate', e.cardId)">

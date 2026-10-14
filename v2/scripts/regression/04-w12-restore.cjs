@@ -301,3 +301,68 @@ check('W12-C5 ★方向台大标题下的定位语必须单行且可读全文。
   if (!body) return false;
   return tt[1].replace(/\s+/g, '') === body[1].replace(/\s+/g, '');
 });
+
+// ============== W12-B（V3.8.15）画像洞察页入口收敛 + 指标行网格化 ==============
+console.log('【W12-B · 画像洞察页入口收敛与指标版式】');
+check('W12-B1 ★页头动作区收敛后必须仍是「刷新 · 导出 ·（错误 N，仅计数>0）· 全部记录」四类能力齐全，一条不减。判据：① 负锚：「AI 解读」与「今日战报」两枚按钮在本组件内零命中（按用户 2026-10-13 拍板，能力由下方模块同级入口承接，不是删除）② 「全部记录」在位且带 title 说明 ③ 错误出口仍是条件渲染 ④ emit 声明与模板一致：ai-read / battle 已从声明里移除，open-log 已加 —— 防「模板改了声明没改」留下没人 emit 的死通道', () => {
+  const h = codeOnly(read('/newtab/components/profile/PiHero.vue'));
+  const raw = read('/newtab/components/profile/PiHero.vue');
+  // ① 负锚
+  if (h.includes('AI 解读')) return false;
+  if (h.includes('ai-read')) return false;
+  if (h.includes("emit('battle')")) return false;
+  // ② 全部记录在位
+  if (!h.includes('>🗂 全部记录</button>')) return false;
+  if (!raw.includes('打开全量操作记录（类型 / 动作 / 时间三维筛选 + CSV 导出）')) return false;
+  // ③ 错误出口仍是条件渲染
+  if (!h.includes('v-if="props.errorCount > 0"')) return false;
+  // ④ emit 声明同步
+  if (!h.includes("(e: 'open-log'): void")) return false;
+  if (/\(e: 'ai-read'\)/.test(h)) return false;
+  if (/\(e: 'battle'\)/.test(h)) return false;
+  // 其余两枚能力仍在
+  if (!h.includes('⟳ 刷新')) return false;
+  if (!h.includes('<ExportMenu')) return false;
+  return true;
+});
+
+check('W12-B2 ★「全部记录」必须收敛成**全页唯一一枚**。原先底部底栏一枚、近期模块「操作流」分段头里一枚，共两枚；按拍板上提页头后另两枚都要退役。判据：① 底栏整条不存在（.pi-endbar 与那段「只读纪律」文字一并退役）② PiRhythm 里的「全部记录 ›」按钮零命中，且其 open-log emit 声明也已移除（留声明就是没人 emit 的死通道）③ PiRhythm 那处横向筛选行改用独立类 .pi-flowbar —— 指标行容器 .pi-strip 已改纵向 flex，若还借用会把「筛选器靠左 · 错误出口靠右」的横向布局压坏。★三条负锚一律走 codeOnly：退役缘由必须写在注释里，而注释里必然出现「只读纪律」「全部记录」「.pi-endbar」这些退役字面量，不剥注释判据恒假（R166 纪律）。★另：PiRhythm 底部那句用户可见提示「更早的记录在『全部记录』抽屉按日检索」**不在**收敛范围——入口仍在页面里（只是换了位置），指引依然成立，按 W13 视觉轮统一措辞', () => {
+  const pi = codeOnly(read('/newtab/views/ProfileInsights.vue'));
+  const rh = read('/newtab/components/profile/PiRhythm.vue');
+  const rhCode = codeOnly(rh);
+  const css = codeOnly(read('/newtab/components/profile/pi-timeline.css'));
+  // ① 底栏退役
+  if (pi.includes('pi-endbar')) return false;
+  if (pi.includes('只读纪律')) return false;
+  if (/\.pi-endbar/.test(css)) return false;
+  // ② 模块内那枚按钮退役 + 声明不留（负锚只认按钮与 emit，不认注释里的退役说明）
+  if (/\.pi-btn[^\n]*全部记录/.test(rhCode)) return false;
+  if (/\(e: 'open-log'\): void/.test(rhCode)) return false;
+  if (rhCode.includes("emit('open-log'")) return false;
+  // ③ 横向筛选行独立成类
+  if (!rh.includes('class="pi-flowbar"')) return false;
+  if (!/\.pi-flowbar \{[^}]*display: flex/.test(css)) return false;
+  return true;
+});
+
+check('W12-B3 ★指标行必须网格化，且是「方案 A · B3-a」这一支：chip 变等宽网格单元、标签提为独立表头行，列数 = 各模块自身 chip 数（今日 6 / 近期 5 / 全年 4），不强求与下方网格同列数。判据钉住实现形态而不只是效果：① 容器 .pi-strip 改纵向 flex（标签在上、网格行在下）② 新增 .pi-strip-row 用 grid-auto-flow:column + grid-auto-columns:1fr（均分铺满，不靠内容自适应宽）③ .pi-chip 补 min-width:0 + justify-content:center + overflow:hidden，窄屏下数字与标签整体居中不左偏 ④ 三个模块模板各有且仅有一层 .pi-strip-row 包裹 ⑤ hover / active 两态不得在改版中丢掉', () => {
+  const css = read('/newtab/components/profile/pi-timeline.css')
+  const strip = (css.match(/\.pi-strip \{[^}]*\}/) || [''])[0]
+  if (!/\.pi-strip \{[^}]*flex-direction: column/.test(css)) return false
+  const row = (css.match(/\.pi-strip-row \{[^}]*\}/) || [''])[0]
+  if (!row.includes('grid-auto-flow: column')) return false
+  if (!row.includes('grid-auto-columns: 1fr')) return false
+  const chip = (css.match(/\.pi-chip \{[^}]*\}/) || [''])[0]
+  for (const n of ['min-width: 0', 'justify-content: center', 'overflow: hidden']) if (!chip.includes(n)) return false
+  if (!/\.pi-chip:hover \{/.test(css)) return false
+  if (!/\.pi-chip:active \{/.test(css)) return false
+  for (const f of ['PiToday', 'PiRhythm', 'PiYear']) {
+    const s = read('/newtab/components/profile/' + f + '.vue')
+    const n = (s.match(/class="pi-strip-row"/g) || []).length
+    if (n !== 1) return false
+    // 标签必须在 grid 行之外（表头行），不能在网格行里面
+    const seg = s.slice(s.indexOf('class="pi-strip"'), s.indexOf('class="pi-strip-row"'))
+    if (!seg.includes('pi-strip-lab')) return false
+  }
+  return true
+});

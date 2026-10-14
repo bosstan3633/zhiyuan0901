@@ -56,20 +56,33 @@
 .pi-mod-acts { display: flex; gap: 8px; flex: none; flex-wrap: wrap; align-items: center; }
 
 /* ===== 胶囊 strip ===== */
-.pi-strip { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+/* ★W12-B 方案 A（用户 2026-10-13 拍板 B3-a）：指标行由「流式自适应药丸」改为**占满内容宽度的等宽网格**。
+   原流式排布的失效机制有两层：① 药丸内容自适应宽、一行放不下就换行，而左侧「今日/本周/累计」标签仍垂直居中对着半行，看起来脱队；
+   ② 更根本的是同一模块内**上下两行用了两套对齐体系**——上行流式药丸只占内容宽约 60%（右侧近一半空着），
+   下行是等宽网格（今日三件 3 列 / 复盘 6 指标 6 列），数字读不出「属于这个模块」。
+   修法：chip 变网格单元（grid-auto-flow column + auto-columns 1fr ⇒ 列数 = chip 数，格宽自动均分铺满），
+   标签从「与药丸同行」提为独立表头行，于是上下都是网格、左右边界对齐。
+   列数不强求与下方网格相同（B3-a 取舍：今日 6 / 近期 5 / 全年 4 各自成阵）。 */
+.pi-strip { display: flex; flex-direction: column; gap: 9px; }
+.pi-strip-row { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 9px; }
 .pi-strip-lab {
   font-size: var(--fs-micro); font-weight: 700; letter-spacing: .1em; color: var(--text-4);
   text-transform: uppercase; padding-right: 2px;
 }
+/* ★W12-B 操作流分段筛选行：不是指标行，它要的是「筛选器靠左 · 错误出口靠右」的横向布局，
+   与 .pi-strip（已改纵向 flex）语义不同，故独立成类，不再借用指标行的容器。 */
+.pi-flowbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .pi-chip {
   display: inline-flex; align-items: baseline; gap: 6px; height: 36px; padding: 0 15px; border-radius: 999px;
   background: var(--surface-2); cursor: pointer; transition: all var(--dur); border: 0; font-family: inherit;
+  /* ★W12-B 网格单元：撑满所在格并居中，窄屏下数字与标签仍整体居中不左偏 */
+  min-width: 0; justify-content: center; overflow: hidden;
 }
 .pi-chip:hover { background: var(--accent-light); transform: translateY(-1px); }
 .pi-chip:active { transform: translateY(0) scale(.98); }
-.pi-chip .v { font-size: var(--fs-title); font-weight: 700; line-height: 1; letter-spacing: -.015em; color: var(--text); }
+.pi-chip .v { font-size: var(--fs-title); font-weight: 700; line-height: 1; letter-spacing: -.015em; color: var(--text); flex: none; }
 .pi-chip .v small { font-size: var(--fs-micro); font-weight: 600; color: var(--text-3); margin-left: 1px; }
-.pi-chip .l { font-size: var(--fs-caption); color: var(--text-3); font-weight: 500; }
+.pi-chip .l { font-size: var(--fs-caption); color: var(--text-3); font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pi-chip .ar { font-size: 8px; color: var(--text-4); margin-left: -1px; }
 .pi-chip:hover .ar { color: var(--accent-ink); }
 .pi-chip.ok .v { color: var(--success); }
@@ -238,13 +251,9 @@
 .pi-hm-legend .hm-stats { margin-left: auto; font-variant-numeric: tabular-nums; }
 .pi-hm-legend .hm-stats b { color: var(--text-2); }
 
-/* ===== 底栏 ===== */
-.pi-endbar {
-  display: flex; align-items: center; gap: 12px; margin-top: 56px; padding: 16px 22px; border-radius: var(--radius-lg);
-  background: var(--surface); box-shadow: var(--shadow); flex-wrap: wrap; border: 1px solid var(--border);
-}
-.pi-endbar .tx { font-size: var(--fs-caption); color: var(--text-3); flex: 1; min-width: 220px; line-height: 1.7; }
-.pi-endbar .tx b { color: var(--text-2); }
+/* ★W12-B 底栏样式（.pi-endbar 及其 .tx 两级）随底栏整条删除一并退役：
+   底栏原挂「只读纪律」免责文字 + 一枚「全部记录」，按用户 2026-10-13 拍板不留。
+   样式留着就是孤儿规则（dead-css-scan 会判死），故同批清掉。 */
 
 /* ===== 复盘弹窗壳（中央大弹层） ===== */
 .pi-rev-overlay {

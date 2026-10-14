@@ -464,7 +464,7 @@ watch(reviewOpen, async (v) => { if (v) await refreshEventLog() })
       :total="heroTotal" :streak="heroStreak" :active-days="heroActiveDays"
       :entropy="heroEntropy" :longest="heroLongest" :error-count="errorLogCount"
       @drill="onHeroDrill" @refresh="onHeroRefresh" @export="onHeroExport"
-      @ai-read="openReview" @battle="openTodayBattle" @export-error="exportErrorLog" />
+      @export-error="exportErrorLog" @open-log="openLog('log')" />
 
     <!-- ===== 时间轴：左 rail + 右三模块 ===== -->
     <div class="pi-tl">
@@ -479,7 +479,7 @@ watch(reviewOpen, async (v) => { if (v) await refreshEventLog() })
         <PiRhythm
           :stats="dashStats" :events="timelineEvents" :directions="dashDirections"
           :tasks="dashTasks" :error-count="errorLogCount" :year="dashYear"
-          @open-review="openReview" @open-log="openLog('log')" @open-err="exportErrorLog"
+          @open-review="openReview" @open-err="exportErrorLog"
           @open-battle="openDayBattle" @drill="onRhythmDrill" @goal-drill="onGoalDrill"
           @locate="onFlowLocate" />
 
@@ -495,11 +495,9 @@ watch(reviewOpen, async (v) => { if (v) await refreshEventLog() })
       </div>
     </div>
 
-    <!-- ===== 底栏 ===== -->
-    <div class="pi-endbar">
-      <span class="tx"><b>只读纪律</b>：本页只读 store.data 快照；写操作仅经 lifecycle 三写与复盘报告落卡。事件日志滚动保留，空日志自动回退卡片时间派生。</span>
-      <button class="pi-btn line" @click="openLog('log')">🗂️ 全部记录</button>
-    </div>
+    <!-- ★W12-B 底栏整条删除：原先这里挂着「只读纪律」免责文字 + 一枚「全部记录」。
+     「全部记录」已上提为页头全页唯一入口（PiHero），近期模块里那一枚重复入口一并收掉；
+     「只读纪律」那段文字按用户 2026-10-13 拍板不留。 -->
 
     <!-- ===== 复盘弹窗（T3：ReviewPanel → 中央大弹层） ===== -->
     <Teleport to="body">

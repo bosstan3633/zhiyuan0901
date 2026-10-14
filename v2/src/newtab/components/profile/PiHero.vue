@@ -3,7 +3,10 @@
  * W10（V3.9.0）PiHero —— 画像洞察页头。
  * 口径（v6 原型 §hero + D1 决策）：
  *   5 枚 KPI chip = 卡片总量 / 连续打卡 / 活跃天数(年) / 知识熵 / 最长连续(年)
- *   右侧动作 = 刷新 · 导出 · AI 解读 · 今日战报
+ *   右侧动作 = 刷新 · 导出 · （错误 N，仅计数>0 时）· 全部记录
+ *   ★W12-B：原为「刷新 · 导出 · AI 解读 · 今日战报」，前两枚能力在下方模块里都有同级入口
+ *   （复盘 → 近期「周/月复盘」+ 全年「目标对账」；战报 → 今日模块「打开战报」），
+ *   按用户 2026-10-13 拍板收敛掉；「全部记录」由页面底部上提为全页唯一入口。
  * 全部数值由宿主 ProfileInsights 计算后传入；本组件零计算、零取 store。
  */
 import ExportMenu, { type ExportFmt } from '@/newtab/components/dashboard/ExportMenu.vue'
@@ -21,8 +24,8 @@ const emit = defineEmits<{
   (e: 'drill', kpi: 'total' | 'streak' | 'active' | 'entropy' | 'longest'): void
   (e: 'refresh'): void
   (e: 'export', fmt: ExportFmt): void
-  (e: 'ai-read'): void
-  (e: 'battle'): void
+  /** ★W12-B：全量操作记录抽屉入口（由页面底部上提，全页唯一一枚） */
+  (e: 'open-log'): void
   (e: 'export-error'): void
 }>()
 
@@ -57,10 +60,16 @@ function onPick(fmt: ExportFmt) { emit('export', fmt) }
       <div class="pi-hero-acts">
         <button class="pi-btn line" title="重读事件日志刷新统计" @click="emit('refresh')">⟳ 刷新</button>
         <ExportMenu @pick="onPick" />
-        <button class="pi-btn line" title="AI 生成画像解读（进入复盘弹窗）" @click="emit('ai-read')">✦ AI 解读</button>
         <button v-if="props.errorCount > 0" class="pi-btn line" style="color:var(--warning)"
           title="运行错误日志导出" @click="emit('export-error')">⚠ 错误 {{ props.errorCount }}</button>
-        <button class="pi-btn pri" @click="emit('battle')">📊 今日战报</button>
+        <!-- ★W12-B 入口收敛（用户 2026-10-13 拍板）：页头这一格原先是「✦ AI 解读」+「📊 今日战报」，
+             两者的能力在下方模块里都有同级入口（复盘：近期「周/月复盘」+ 全年「目标对账」；
+             战报：今日模块「打开战报」），属重复。
+             现按拍板：AI 解读整枚删除（复盘由带周期的模块入口承接，语义更贴语境），
+             「今日战报」这一格换成全页唯一的「全部记录」入口（原先它待在页面最底部，
+             与近期模块里那一枚也重复）。「今日战报」在今日模块内仍可达，能力一项未减。 -->
+        <button class="pi-btn line" title="打开全量操作记录（类型 / 动作 / 时间三维筛选 + CSV 导出）"
+          @click="emit('open-log')">🗂 全部记录</button>
       </div>
     </div>
   </section>

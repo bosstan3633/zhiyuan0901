@@ -56,6 +56,7 @@ const insight = (() => {
     <div class="pi-mod-b">
       <div class="pi-strip">
         <span class="pi-strip-lab">今日</span>
+        <div class="pi-strip-row">
         <button class="pi-chip up" title="今日入台 · action=create（含导入）" @click="emit('drill', 'd-in')">
           <span class="v">{{ props.todayAdd }}<small>张</small></span><span class="l">今日入台</span><span class="ar">▸</span>
         </button>
@@ -74,6 +75,7 @@ const insight = (() => {
         <button class="pi-chip acc" title="复盘就绪 · 今天有 ≥1 条有效动作" @click="emit('open-battle')">
           <span class="v">{{ props.reviewReady ? '✅' : '…' }}</span><span class="l">复盘就绪</span><span class="ar">▸</span>
         </button>
+        </div>
       </div>
 
       <div class="pi-hair"></div>

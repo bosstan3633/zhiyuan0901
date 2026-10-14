@@ -69,6 +69,7 @@ const cum = computed(() => {
     <div class="pi-mod-b">
       <div class="pi-strip">
         <span class="pi-strip-lab">累计</span>
+        <div class="pi-strip-row">
         <button class="pi-chip up" title="累计入台 · action=create 全量" @click="emit('open-battle', props.selDay || ya.last || '')">
           <span class="v">{{ cum.create.toLocaleString() }}<small>次</small></span><span class="l">入台</span><span class="ar">▸</span>
         </button>
@@ -81,6 +82,7 @@ const cum = computed(() => {
         <button class="pi-chip bad" title="累计清理 · delete + purge" @click="emit('open-battle', props.selDay || ya.last || '')">
           <span class="v">{{ cum.del.toLocaleString() }}<small>次</small></span><span class="l">清理</span><span class="ar">▸</span>
         </button>
+        </div>
       </div>
 
       <div class="pi-hair"></div>
