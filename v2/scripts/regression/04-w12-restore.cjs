@@ -295,11 +295,13 @@ check('W12-C5 ★方向台大标题下的定位语必须单行且可读全文。
   if (!b.includes('text-overflow: ellipsis')) return false;
   if (!b.includes('font-size: var(--fs-body)')) return false;
   // title 与正文一致
-  const tt = ct.match(/<p class="hero-sub" title="([^"]+)">[\s\S]*?<\/p>/);
-  if (!tt) return false;
-  const body = ct.match(/<p class="hero-sub" title="[^"]+">\s*([\s\S]*?)\s*<\/p>/);
-  if (!body) return false;
-  return tt[1].replace(/\s+/g, '') === body[1].replace(/\s+/g, '');
+  // ★V3.8.18（N4）随迁备案：副标变为可自定义后，title 与正文都不再是字面量，
+  // 而是同一个 computed（cpSub）的两个出口。**"一字不差"从"比对两个字面量"升级为"结构性保证"**——
+  // 旧写法防的病是"改了正文忘改悬浮全文"，新写法里两个出口物理上同源，那个病直接不可能发生。
+  // 负锚随之改钉：副标不许再写回字面量（写回去就等于退回两份真相）。
+  if (!ct.includes('<p class="hero-sub" :title="cpSub">')) return false;
+  if (!ct.includes('{{ cpSub }}</span>')) return false;
+  return !/<p class="hero-sub" title="/.test(ct);
 });
 
 // ============== W12-B（V3.8.15）画像洞察页入口收敛 + 指标行网格化 ==============
@@ -457,18 +459,20 @@ check('W12-D6 ★七层全貌七层都在，且 ⑥ 那层必须是**本地规�
   return true;
 });
 
-check('W12-D7 ★双击行为迁移：不再弹抽屉，改走既有 ?hl 定位通道滚动+高亮下方任务列表（用户拍板 B2：同页上方已常驻展示全貌，重复弹抽屉价值不大且列表里双击易误触）。判据：① openCellTask 走 router.push query hl+hk ② 不再 drawerRef.open(c.task) ③ 抽屉改从「全貌」模块的编辑按钮进（onFocusDetailEdit 仍 drawerRef.open）——共享抽屉能力一项未减', () => {
+check('W12-D7 ★双击行为**已由 V3.8.18 决策翻转**：W12-D 当时把双击从「弹抽屉」改成「走 ?hl 定位通道滚动+高亮下方任务列表」（用户 2026-10-13 拍板 B2）；N1 把全貌模块从七层纵向堆叠改成三栏横排后，那个决定的前提不成立了 ——「上方已常驻展示全貌」不再成立，首屏只承载「选中时扫一眼」，要动手时的完整信息只剩抽屉。★所以本条随 N1 翻转回抽屉，且翻转理由写在这里（改靶缘由必须留在判据里，不能只留注释）。★能力守恒：`?hl=<id>&hk=task` 定位通道与它的消费方 TaskManagerPanel 一字未动（下方任务卡面板的定位能力仍在），共享抽屉接线从「仅编辑按钮」变成「编辑按钮 + 双击」两处，只增不减。判据：① openCellTask 走 drawerRef.open ② 双击不再 router.push ③ 定位通道与消费方仍在位', () => {
   const ch = read('/newtab/views/CompassHome.vue');
-  const m = ch.match(/function openCellTask\(c: FocusCell\) \{[\s\S]{0,300}?\n\}/);
+  const m = ch.match(/function openCellTask\(c: FocusCell\) \{[\s\S]{0,400}?\n\}/);
   if (!m) return false;
   const body = m[0];
-  if (!body.includes("hk: 'task'")) return false;
-  if (!body.includes('hl: c.task.id')) return false;
-  if (body.includes('drawerRef')) return false;
-  // 抽屉仍在：从全貌模块的编辑按钮进
+  // ① 双击 → 共享抽屉
+  if (!body.includes('drawerRef.value?.open(c.task)')) return false;
+  // ② 不再跳转
+  if (body.includes('router.push')) return false;
+  if (body.includes("hk: 'task'")) return false;
+  // ③ 编辑按钮这条老路仍在（能力只增不减）
   if (!ch.includes('function onFocusDetailEdit')) return false;
   if (!ch.includes('drawerRef.value?.open(t)')) return false;
-  // 定位通道确实存在（TaskManagerPanel 在 watch 这两个 query）
+  // ④ 定位通道与消费方一字未动
   const tmp = read('/newtab/components/compass/TaskManagerPanel.vue');
   return tmp.includes('route.query.hl') && tmp.includes('hk') && tmp.includes('scrollIntoView');
 });
@@ -551,6 +555,168 @@ check('W12-G1 ★组件级可读性门禁必须真的在 theme-contrast.cjs 里�
   const la = (pano.match(/\.lane-add \{[\s\S]*?\n\}/) || [''])[0];
   if (/var\(--text-4\)/.test(la)) return false;
   const cz = read('/newtab/components/compass/CuriosityPanel.vue');
-  if (/var\(--text-4\)/.test((cz.match(/\.cz-kb-ai \{[\s\S]*?\n\}/) || [''])[0])) return false;
+if (/var\(--text-4\)/.test((cz.match(/\.cz-kb-ai \{[\s\S]*?\n\}/) || [''])[0])) return false;
+  return true;
+});
+
+// ============== N 系列 · 批 A/B/C（V3.8.18）：原型评审 15 条需求落库 ==============
+console.log('【N 系列 · 画像洞察 N9 战报入口收敛】');
+check('N9 ★PiToday 战报入口收敛（4 个入口 → 1 个）：strip 里退役「写入记录」「复盘就绪」两枚 chip，只留模块头右上的战报入口。病根＝那两枚不是读数，是**同一个弹窗的另两个入口**（都 emit open-battle），六个 chip 里三个跳同一处，读者要试过才知道它们是一件事；而 strip 自己的语义是"六格读数"。判据：① strip 只剩四枚读数 chip（今日入台 / 今日移出 / 今日调出 / 连续打卡），且四枚仍各带自己的 drill 键——能力减的是**重复入口**，不是下钻能力 ② 模块头两枚战报按钮仍在位 ③ open-battle 这条 emit 通道未被顺手删（模块头还在用）④ 宿主侧那两个只为它们而生的 computed（writeCount/reviewReady）一并退役，不留死数据链 ⑤ 老的 R44-7 判据钉的四枚 drill chip 一字未动（本条与它不冲突，反而互为护栏）。★负锚走 codeOnly：退役理由的注释里必然回指那两个词，拿原文直查会自己咬自己', () => {
+  const t = codeOnly(read('/newtab/components/profile/PiToday.vue'));
+  const p = codeOnly(read('/newtab/views/ProfileInsights.vue'));
+  // ① 两枚重复 chip 必须真的不在
+  if (t.includes('写入记录')) return false;
+  if (t.includes('复盘就绪')) return false;
+  // ② 四枚读数 chip 全在，且各自 drill 键一个不少（"只删入口、不删能力"）
+  for (const k of ['d-in', 'd-out', 'd-call', 'streak']) {
+    if (!t.includes(`emit('drill', '${k}')`)) return false;
+  }
+  for (const lab of ['今日入台', '今日移出', '今日调出', '连续打卡']) {
+    if (!t.includes(`>${lab}<`)) return false;
+  }
+  // ③ 模块头的两枚战报入口仍在位
+  if ((t.match(/emit\('open-battle'\)/g) || []).length < 2) return false;
+  // ④ emit 通道本身还在（模板里必须有 open-battle 的真实调用，不许只留 defineEmits 声明）
+  if (!t.includes(`@click="emit('open-battle')"`) || !t.includes('open-battle')) return false;
+  if (!t.includes(`(e: 'open-battle'): void`)) return false;
+  // ⑤ 宿主侧死数据链已拔
+  if (p.includes('const writeCount')) return false;
+  if (p.includes('const reviewReady')) return false;
+  if (p.includes(':write-count=')) return false;
+  if (p.includes(':review-ready=')) return false;
+  return true;
+});
+
+console.log('【N 系列 · 画像洞察 N6 时间轨吸顶 / N7 Hero KPI 居中】');
+check('N6 ★时间轨吸顶（左轨 sticky）：三段式很长，左轨原先随页面滚走 ⇒ 滚到"全年"段就看不见自己在第几段，导航丢了。判据钉的是**三件套**，少一件都会静默失效：① `.pi-rail` 有 `position: sticky` ② 必须配 `align-self: start`（grid item 默认 stretch ⇒ 盒子拉满整列、没有可粘余量，sticky 形同虚设）③ 必须配 `max-height + overflow-y` 兜底（轨约 330px，小视口不兜底会顶出屏幕 ⇒ 溢出的导航条等于没做）。负锚：不许退回 `position: relative`（那是滚走的形态）；`align-self` 不许是 stretch', () => {
+  const c = read('/newtab/components/profile/pi-timeline.css');
+  const m = c.match(/\.pi-rail \{[\s\S]*?\n\}/);
+  if (!m) return false;
+  const s = m[0];
+  if (!s.includes('position: sticky')) return false;
+  if (!s.includes('align-self: start')) return false;
+  if (!s.includes('max-height: calc(100vh')) return false;
+  if (!s.includes('overflow-y: auto')) return false;
+  if (s.includes('position: relative')) return false;
+  if (/align-self:\s*stretch/.test(s)) return false;
+  // 轨仍是 PiRail.vue 的那一个（吸顶吸错了元素就白做）
+  return read('/newtab/components/profile/PiRail.vue').includes('class="pi-rail"');
+});
+
+check('N7 ★Hero 5 枚 KPI 药丸居中：页头左标题区、右操作区两头都有重量，核心读数却贴左挤在标题下。`.pi-hero-sum` 必须 justify-content: center（flex-wrap 换行时居中的是当前行，不是整块，药丸数量随屏变也稳）。负锚：不许退回 flex-start / 不许用 margin auto 假居中（那只在单行、且需要容器留白时生效，换行即失效）', () => {
+  const c = read('/newtab/components/profile/pi-timeline.css');
+  const m = c.match(/\.pi-hero-sum \{[\s\S]*?\}/);
+  if (!m) return false;
+  const s = m[0];
+  if (!s.includes('justify-content: center')) return false;
+  if (/justify-content:\s*flex-start/.test(s)) return false;
+  if (/margin:\s*0 auto|margin-left:\s*auto|margin-right:\s*auto/.test(s)) return false;
+  // 药丸本体没被顺手改（居中只动排列，不动每一枚）
+  const chip = c.match(/\.pi-hchip \{[\s\S]*?\}/);
+  return !!chip && chip[0].includes('border-radius: 999px');
+});
+
+
+check('N8 ★资源卡镜像到策展台（推送方向恢复）：V3.7.0（R179）把镜像入口整条删掉时，统一的只是**数据方向**（真身统一入池），但人的**动作方向**没统一——池里要把一张卡投给某台，得先切台→找节点→点「关联资源卡」→在选择器里搜，四步且是在别的台里做。N8 恢复推送，与策展台侧的拉取同一条 projectCardToBoard（hub.ts），不是两套机制。★本条钉六件事：① 右键菜单非镜像分支含「📡 镜像到策展台…」且序在「移动分类」之后 ② 实现走 projectCardToBoard（引用投射），**不许物理移动**（负锚：给 .workspaceId 直接赋值，= 后面不是 = 的那种）③ 两宿主都有入口（Workspace 选台弹窗 + ResourceDetailDrawer 行内选台）——只改一边等于交付一半，这是 R167 那条规矩 ④ 镜像卡本身不许再投射（isMirrorView 守卫）⑤ App 级宿主的镜像行必须落在 #extra 面板区，**不许进 #footer**（footer 仍是「删除 + 保存」两钮，drawer-res 场景 footCount===2 是 theme-audit 硬门禁）⑥ 老实现 openMirrorCard 仍零残留（N8 新写的是 openMirrorToBoard）', () => {
+  const res = read('/newtab/composables/useResourceDrawer.ts');
+  const c = codeOnly(res);
+  // ① 菜单入口在，且排在「移动分类」之后
+  const iMove = c.indexOf("label: '移动分类'");
+  const iMir = c.indexOf("label: '📡 镜像到策展台…'");
+  if (iMove < 0 || iMir <= iMove) return false;
+  // ② 走投影，不许物理移动
+  if (!c.includes('projectCardToBoard(')) return false;
+  if (/\.workspaceId\s*=(?!=)/.test(c)) return false;
+  // ④ 镜像卡守卫
+  if (!c.includes('if (isMirrorView(r))')) return false;
+  // ⑥ 老实现零残留
+  if (c.includes('openMirrorCard')) return false;
+  // ③ 宿主一：Workspace 选台弹窗（两钮 + 目标台下拉）
+  const ws = read('/newtab/views/Workspace.vue');
+  if (!ws.includes('mirrorWsId')) return false;
+  if (!ws.includes('确认镜像')) return false;
+  if (!ws.includes(':disabled="!mirrorWsId"')) return false;
+  if (!ws.includes('v-if="mirrorOpen"')) return false;
+  // ③+⑤ 宿主二：App 级抽屉，行内选台且在 #extra 内、不进 #footer
+  const rdd = read('/newtab/components/ResourceDetailDrawer.vue');
+  const c2 = codeOnly(rdd);
+  if (!c2.includes('rd-mirror-select')) return false;
+  if (!c2.includes('projectCardToBoard')) return false;
+  const es = rdd.indexOf('<template #extra>');
+  const ee = rdd.indexOf('</template>', es);
+  if (es < 0 || ee < 0) return false;
+  if (!rdd.slice(es, ee).includes('rd-mirror-select')) return false;
+  const fs = rdd.indexOf('<template #footer>');
+  const fe = rdd.indexOf('</template>', fs);
+  if (fs < 0 || fe < 0) return false;
+  const footer = rdd.slice(fs, fe);
+  if (/mirror|镜像/i.test(footer)) return false;
+  // footer 仍是两钮（与 theme-audit 的 drawer-res footCount===2 同一口径）
+  // footer 双钮 = ArmDeleteButton（组件内一只 button）+ 「✓ 保存」——与 theme-audit 的 drawer-res footCount===2 同一口径
+  const btns = (footer.match(/<button/g) || []).length + (footer.match(/<ArmDeleteButton/g) || []).length;
+  if (btns !== 2) return false;
+  return true;
+});
+
+check('N2 ★单项目 AI 诊断（与设置页 diagnose 整库会诊**各走各的**）：① 五维度结论由**规则算死**、枚举写死在引擎里（进度停滞=近 14 天无状态变更、指标空转=挂载任务数=0……模型改一个结论就无法断言）② AI **只写建议动作**，parse 对 advice 做长度/条数消毒 ③ 报告存 **chrome.storage.session**（会话缓存，不进主数据、不进导出链）④ 方向台**两态入口**：没报告=🧠 AI 诊断（点开即跑），有报告=标签组 + 📄 诊断报告（打开中央弹窗）⑤ **手动触发**（无定时/无自动跑）⑥ 过期只降亮**不撤标签**（撤了反而看不出这个项目曾经有过结论）。另钉：registry 里 project-diagnose 与 diagnose 两个入口并存（独立新 job，不是改旧的）', () => {
+  // ① 引擎：五维度枚举写死 + 规则函数是导出的纯函数
+  const eng = read('/shared/ai/projectDiagnose.ts');
+  const c = codeOnly(eng);
+  if (!c.includes('export function runProjectDiagnosis')) return false;
+  if (!c.includes('export const DIAG_DIM_LABEL')) return false;
+  if (!/progress: '项目完成情况'[\s\S]*metrics: '成功指标'[\s\S]*breakdown: '任务与任务拆解'[\s\S]*completion: '任务完成情况'[\s\S]*overall: '项目整体进展'/.test(c)) return false;
+  if (!c.includes('STALL_WINDOW = 14 * DAY')) return false;
+  if (!c.includes('OVER_SUBTASKS = 8')) return false;
+  // ① 枚举标签只能经 f() 助手产出（AI 拿到的是 tag 名，自造词不进标签组）
+  if (!c.includes('function f(dim')) return false;
+  // ② AI 只写建议：apply 必须拿**规则重算**的那份盖章，不是拿模型回的结论
+  if (!c.includes('const fresh = runProjectDiagnosis(ctx.d, ctx.projId) || rep')) return false;
+  if (!c.includes('fresh.advice = advice')) return false;
+  if (!c.includes('buildFactsText')) return false;
+  if (!c.includes('projectDiagSystem')) return false;
+  if (!c.includes('rows.length >= 5')) return false;
+  if (!c.includes('s.length > 200')) return false;
+  // ③ 会话缓存 + keys 真源
+  if (!c.includes('storage?.session')) return false;
+  if (!c.includes('K.PROJ_DIAG')) return false;
+  const keys = codeOnly(read('/shared/storage/keys.ts'));
+  if (!keys.includes("PROJ_DIAG: 'zy_proj_diag_v1'")) return false;
+  // ⑤ 手动触发：引擎与宿主都不许有定时器/自动跑
+  if (/setInterval\(/.test(c)) return false;
+  // ④ 两态入口落在舱头状态挂件里（W11-12 把只读侧整块拆出 CompassTowerStatus，
+  //    塔本体只留 props + 两个 emit —— 判据跟着组件走，不许在塔里找已搬走的东西）
+  const st = read('/newtab/components/compass/CompassTowerStatus.vue');
+  if (!st.includes('class="tw-diag"')) return false;
+  if (!st.includes("@click=\"emit('diagReport', projId)\"")) return false;
+  if (!st.includes("@click=\"emit('diagRun', projId)\"")) return false;
+  if (!st.includes('🧠 AI 诊断')) return false;
+  if (!st.includes('📄 诊断报告')) return false;
+  if (!st.includes('v-for="t in tags"')) return false;
+  if (!st.includes('.tw-diag.stale .dt')) return false;
+  if (!st.includes('stale?: boolean')) return false;
+  // 塔侧只负责接线（挂件真被 import + 两态 emit 通到宿主，能力没在拆件时丢）
+  const cp = read('/newtab/components/compass/CompassTower.vue');
+  if (!cp.includes("import CompassTowerStatus from './CompassTowerStatus.vue'")) return false;
+  if (!cp.includes('@diag-run=')) return false;
+  if (!cp.includes('@diag-report=')) return false;
+  if (!cp.includes("(e: 'diagRun', projId: string)")) return false;
+  if (!cp.includes("(e: 'diagReport', projId: string)")) return false;
+  if (!cp.includes('diagStale?: boolean')) return false;
+  // ⑥ 宿主：恢复缓存 + 采纳回调顶开弹窗 + 中央弹窗挂载
+  const tr = read('/newtab/views/CompassTree.vue');
+  if (!tr.includes('buildProjectDiagnoseJob(')) return false;
+  if (!tr.includes('loadAllDiagnoses()')) return false;
+  if (!tr.includes('setProjectDiagSavedHandler(')) return false;
+  if (!tr.includes('<ProjectDiagnoseModal')) return false;
+  if (!tr.includes(':diag="diagFor(row.proj.id)"')) return false;
+  // 弹窗形态：Teleport + overlay + 过期条 + 导出 HTML/MD（PNG 二批）
+  const md = read('/newtab/components/compass/ProjectDiagnoseModal.vue');
+  if (!md.includes('<Teleport to="body">')) return false;
+  if (!md.includes('class="pd-stale"')) return false;
+  if (!md.includes('function exportHtml()') || !md.includes('function exportMd()')) return false;
+  // 与设置页 diagnose 并存（不是改旧的）
+  const reg = codeOnly(read('/shared/ai/jobs/registry.ts'));
+  if (!reg.includes("id: 'project-diagnose'")) return false;
+  if (!reg.includes("id: 'diagnose'")) return false;
   return true;
 });

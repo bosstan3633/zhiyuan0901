@@ -142,8 +142,10 @@ const topTags = computed(() => {
 const todayAdd = computed(() => gFlat.value.filter(x => !x.deletedAt && x.createdAt >= gStartOfToday).length)
 const todayDel = computed(() => gFlat.value.filter(x => x.deletedAt && x.deletedAt >= gStartOfToday).length)
 const todayCalled = computed(() => timelineEvents.value.filter(e => e.action === 'call' && e.ts >= gStartOfToday).length)
-const writeCount = computed(() => timelineEvents.value.length)
-const reviewReady = computed(() => (dashStats.value.days[todayKey()]?.w || 0) > 0)
+/* ★V3.8.18（N9）此处原有 writeCount / reviewReady 两个 computed，随 PiToday 的
+   「写入记录」「复盘就绪」两枚重复 chip 一起退役——它们的唯一消费方就是那两枚 chip。
+   能力未减：写入记录的全量口径仍走 eventLog 时间线；复盘就绪的判断仍由
+   DashPanel/复盘链路自己按 `days[today].w > 0` 派生（不依赖这里）。 */
 const todayFocus = computed(() => gd.value.dailyFocus?.[todayKey()] || [])
 const avgDailyCreate = computed(() => {
   const a = aggregateRange(dashStats.value, `${dashYear.value}-01-01`, todayKey())
@@ -472,7 +474,7 @@ watch(reviewOpen, async (v) => { if (v) await refreshEventLog() })
       <div class="pi-rmods">
         <PiToday
           :today-add="todayAdd" :today-del="todayDel" :today-called="todayCalled"
-          :write-count="writeCount" :streak="heroStreak" :review-ready="reviewReady"
+          :streak="heroStreak"
           :focus="todayFocus" :avg-daily-create="avgDailyCreate"
           @drill="onTodayDrill" @open-battle="openTodayBattle" @open-focus="() => router.push('/')" />
 

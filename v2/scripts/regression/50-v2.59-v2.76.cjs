@@ -48,8 +48,12 @@ check('R90-7 R10：右键菜单补星标（两态文案 + 调既有 toggleStar�
 });
 // V3.7.0（R179）退役：镜像推送入口（📡 镜像到策展台 · isHub 门控）随资源台退役整体下线；
 // 引用侧（策展台内镜像卡定位源卡 locateMirrorSource）保留——本断言转守退役边界 + 引用侧不误伤。
-check('R90-8 ★ R10（V3.7.0 退役）：右键菜单「📡 镜像到策展台」入口零残留（isHub 门控/推送调用下线）；引用侧 locateMirrorSource 仍在', () => {
-  return !CTX90.includes('isHub') && !CTX90.includes('镜像到策展台') && !CTX90.includes('openMirrorCard')
+check('R90-8 ★ R10（★V3.8.18（N8）决策翻转再备案）：右键菜单镜像入口——V3.7.0（R179）整域退役后，★V3.8.18（N8）把**推送**方向恢复。★翻转理由：R179 退役的是「资源台」这个概念（真身统一入池），却顺手把「人要把一张池卡投给某台」这个动作也删了，于是只留下拉取方向（切台→找节点→点关联资源卡→选择器里搜，四步且是在别的台里做）；推送与拉取本是同一条 projectCardToBoard，N8 恢复的是入口而不是第二套机制。本条随之改判三件事：① 旧实现零残留仍硬钉（isHub 门控 / openMirrorCard 都不许回流——R179 删对的是那套门控与旧函数）② 新入口必须是 openMirrorToBoard 且走 projectCardToBoard ③ 引用侧 locateMirrorSource 仍在（拉取方向一字未动）。★负锚改走 codeOnly：退役缘由的注释里必然回指「镜像到策展台」，拿原文直查会自己咬自己', () => {
+  const c = codeOnly(CTX90);
+  return !c.includes('isHub') && !c.includes('openMirrorCard')
+    && c.includes("label: '📡 镜像到策展台…'")
+    && c.includes('openMirrorToBoard(r)')
+    && codeOnly(read('/newtab/composables/useResourceDrawer.ts')).includes('projectCardToBoard(')
     && WS90.includes('locateMirrorSource');
 });
 check('R90-9 ★ R17：wsOptions 首位注入补救（R165-A 重指：策展台字段整体退役——表单不再出现 wsOptions/CURATION_WS_ID 注入，静默迁移通道随之焊死）', () => {

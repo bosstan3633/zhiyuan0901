@@ -173,10 +173,10 @@ check('R157-1 ★注册表是纯声明表：零 import（连 import type 都不�
   && REG_TXT.includes('export const AI_CAP_KEYS')
   && REG_TXT.includes('唯一真源'));
 
-check('R157-2 声明结构完备：kind 三值 job×19 / inline×3 / search×2、family 两值（proactive/passive —— R158 二分的字段）、入口共 24 条（R166 任务侧补全 + 找资源支持 +2；R169-T3 今日三件事排序 +1）且 id 唯一（数量锚：增删入口必须连文档一起改；R162 推荐挂载退役 -1）', () => {
+check('R157-2 声明结构完备：kind 三值 job×20 / inline×3 / search×2、family 两值（proactive/passive —— R158 二分的字段）、入口共 25 条（R166 任务侧补全 + 找资源支持 +2；R169-T3 今日三件事排序 +1；N2 项目诊断 +1 —— 与设置页 diagnose 整库会诊**各走各的**，是新 job 不是改旧的）且 id 唯一（数量锚：增删入口必须连文档一起改；R162 推荐挂载退役 -1）', () => {
   const ids = REG_TXT.match(/\n    id: '/g) || [];
-  return ids.length === 24
-    && (REG_TXT.match(/kind: 'job'/g) || []).length === 19
+  return ids.length === 25
+    && (REG_TXT.match(/kind: 'job'/g) || []).length === 20
     && (REG_TXT.match(/kind: 'inline'/g) || []).length === 3
     && (REG_TXT.match(/kind: 'search'/g) || []).length === 2
     && REG_TXT.includes("family: 'proactive'") && REG_TXT.includes("family: 'passive'");
@@ -282,9 +282,9 @@ check('R158-6 右键重排（高频在卡面、长尾在右键）：置顶/星�
   const iEdit = u.indexOf("'✏️ 编辑详情'"), iPin = u.indexOf("r.pinned ? '取消置顶' : '置顶'"), iStar = u.indexOf("r.starred ? '☆ 取消星标' : '⭐ 星标'"), iMove = u.indexOf("{ label: '移动分类'"), iThesis = u.indexOf("'🏛 设为中心论点'"), iDel = u.indexOf("{ label: '删除', icon: 'trash', danger: true");
   return iEdit > 0 && iEdit < iPin && iPin < iStar && iStar < iMove && iMove < iThesis && iThesis < iDel;
 });
-check('R158-7 ★入口数量锚（V3.7.0 重指）：注册表 24 条不变；命令面板导航改「方向台/项目详情/方向树/回收站/手册/设置」6 条（资源台入口随退役下线）不改 ai-advice 语义', () => {
+check('R158-7 ★入口数量锚（V3.7.0 重指 · N2 +1）：注册表 25 条（N2 单项目诊断与设置页 diagnose 各走各的，是新增不是改旧）；命令面板导航改「方向台/项目详情/方向树/回收站/手册/设置」6 条（资源台入口随退役下线）不改 ai-advice 语义', () => {
   const ids = (REGISTRY_FILE.match(/\n    id: '/g) || []).length;
-  return ids === 24
+  return ids === 25
     && !GP_FILE.includes("label: '打开资源台'")
     && GP_FILE.includes("label: '打开方向台'") && GP_FILE.includes("label: '打开回收站'") && GP_FILE.includes("label: '打开使用手册'");
 });

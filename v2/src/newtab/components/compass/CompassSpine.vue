@@ -71,6 +71,11 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
       <div class="spine-hint">
         <span>六层数字与下方项目舱同源 · 点 1/2/3 展开该层 · 点 4/5/6 定位到实体</span>
       </div>
+      <!-- ★V3.8.18（N12）：第 3 层「战略目标」的入口挂到骨架条上，不再挤在页头。
+           病根＝「＋战略目标」「建议目标」是第 3 层的操作，却摆在一堆全局按钮里，
+           用户的视线要先跨过"视图切换/展开收起/已完成显示"才够得到它。
+           用插槽而非硬编码：按钮的文案/图标/是否启用归父级（CompassTree）管，子组件只负责摆位。 -->
+      <div class="spine-actions"><slot name="actions" /></div>
     </header>
 
     <div class="spine-b">
@@ -170,8 +175,13 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
   padding: 2px 9px; border-radius: 999px;
 }
 .spine-hint {
-  margin-left: auto; display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px;
   font-size: var(--fs-micro); color: var(--text-4);
+}
+/* ★V3.8.18（N12）：插槽容器把动作推到最右；.spine-hint 的 margin-left:auto 同时摘掉，
+   否则两个 auto margins 会平分剩余空间，提示语会飘到中间。 */
+.spine-actions {
+  margin-left: auto; display: flex; align-items: center; gap: 7px; flex: none;
 }
 
 .spine-b { padding: 12px 18px 13px; display: flex; flex-direction: column; gap: 11px; }

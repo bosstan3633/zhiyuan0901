@@ -73,7 +73,14 @@ check('Bug1 目标卡按钮/箭头不重叠 · ★R4-Et 随迁备案：原锚 ma
     && /\.tw-head \{[^}]*display: flex[^}]*align-items: center[^}]*gap: 14px/.test(t)
     /* ★标题可缩是「不重叠」的结构前提：flex:1 + min-width 让长标题收缩而不是把动作组挤出卡头 */
     && /\.tw-id \{ flex: 1; min-width: 200px; \}/.test(t)
-    && t.includes('.dh-acts { display: flex; align-items: center; gap: 4px; flex: none; }')
+    /* ★V3.8.18（N5）随迁备案：本条原逐字钉 `.dh-acts { ... gap: 4px; ... }` 的整行字面量。
+     N5 把这五枚按钮分成 t1/t2/t3 三级时把 gap 调到 5px（t3 是文字型，22px 方块之间的
+     4px 贴着读作"同一个控件的碎片"），整行字面量随之失配。
+     ★但这条守的不是 4px 这个数——它守的是**动作组作为一个不换行的整体占自己的槽**
+     （flex 容器 + flex: none + align-items: center）。这三个承重特征一条没动，
+     所以改钉这三个特征本身，不再钉 gap 的具体整数值（钉死一个间隔整数，
+     下次调间距就会假红一次，而重叠与否跟它无关）。 */
+  && /\.dh-acts \{[^}]*display: flex[^}]*align-items: center[^}]*flex: none/.test(t)
     /* ★右区必须 flex:none —— 舱头唯一的换行点是 .tw-head 本身（右区一旦参与换行，
        进度环/完成数/按钮组就会叠成两行，正是 W12 要修的失真） */
     && t.includes('.tw-right { display: flex; align-items: center; gap: 14px; flex: none; }')

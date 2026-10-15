@@ -762,6 +762,32 @@
       </div>
     </div>
 
+    <!-- N8（V3.8.18）镜像到策展台——推送方向的选台弹窗（与上面的「移动分类」同款 modal 形态）。
+         只选台、不选分类：targetCatId 只是"镜像时刻源卡所在分类"的历史快照，不参与任何业务判定
+         （hub.ts:62 已写明），为一个陈旧快照多让用户选一次是白付的成本。 -->
+    <div v-if="mirrorOpen" class="modal-overlay open" @click.self="mirrorOpen=false">
+      <div class="modal" style="width:380px">
+        <div class="modal-header">
+          <span style="font-size:16px">📡</span>
+          <span class="mh-title">镜像「{{ mirrorTarget?.title.slice(0, 20) }}…」到策展台</span>
+          <div class="modal-close" @click="mirrorOpen=false">×</div>
+        </div>
+        <div class="modal-body">
+          <div class="dr-section">
+            <div class="dr-label">目标策展台</div>
+            <select class="dr-category-select" v-model="mirrorWsId">
+              <option v-for="w in mirrorBoards" :key="w.id" :value="w.id">{{ w.icon }} {{ w.name }}</option>
+            </select>
+            <div class="dr-hint">引用投射——源卡仍留在资源卡池，投错了在目标台「移出镜像」即可。</div>
+          </div>
+        </div>
+        <div class="modal-footer-row">
+          <button class="dr-footer-btn" @click="mirrorOpen=false">取消</button>
+          <button class="dr-footer-btn primary" :disabled="!mirrorWsId" @click="confirmMirrorToBoard">✓ 确认镜像</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 第八轮：分类新建弹窗（R141 反馈 #7：重命名改为行内就地编辑，弹窗只管新建） -->
     <div v-if="catModal.open" class="modal-overlay open" @click.self="catModal.open=false">
       <div class="modal" style="width:380px">
@@ -1225,6 +1251,8 @@ const {
   cleanAllMirrors, locateMirrorSourceCard, openResource, closeDrawer, syncEditingFromStore,
   saveResource, deleteCurrentResource, deleteResource, togglePin, toggleStar, copyLink,
   resFormRef, fixLink, resCtx, resCtxItems, openResCtx,
+  // N8：镜像到策展台（推送方向，右键菜单 → 选台弹窗）
+  mirrorOpen, mirrorTarget, mirrorWsId, mirrorBoards, openMirrorToBoard, confirmMirrorToBoard,
 } = useResourceDrawer({
   store, d, workspaceId, router, categories, activeCategory, thesisCard,
   openResourceLink, openImageAsset, setThesisCard, unsetThesis,

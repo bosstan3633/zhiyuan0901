@@ -43,6 +43,9 @@ export const K = {
   MIGRATE_OPTOUT: 'zy_migrate_optout',
   /** R3-B′：方向台项目卡折叠态的 **sessionStorage** 键（浏览态非偏好，不进 chrome.storage 也不进导出链） */
   TREE_PROJ_FOLD_SS: 'zy_tree_proj_fold_v1',
+  /** N2（V3.8.18）：方向台项目 AI 诊断报告——**chrome.storage.session** 专属键。
+   *  会话缓存，关浏览器即失效；不进 AppData 主根、不随导出外发、不落卡片池。 */
+  PROJ_DIAG: 'zy_proj_diag_v1',
   /** R159 启动期清理的遗留键（V1 时代） */
   LEGACY: ['lm_data_v5', 'lm_data_v5_backup'] as readonly string[]
 } as const

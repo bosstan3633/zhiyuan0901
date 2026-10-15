@@ -276,13 +276,24 @@ const focusDetailEvents = computed(() => {
   return logs.filter(e => e.cardId === t.id).sort((a, b) => b.ts - a.ts)
 })
 
-/** ★W12-D 双击三件事卡 → 滚动定位并高亮下方任务列表里那条任务。
- *  行为迁移（用户 2026-10-13 拍板 B2「双击进入任务列表」）：原先双击直接弹 TaskDetailDrawer，
- *  但同页上方的「全貌」模块已经把详情常驻展示了，重复弹抽屉价值不大、且列表里双击易误触。
- *  现复用任务卡面板既有的 `?hl=<id>&hk=task` 定位通道（TaskManagerPanel 已 watch 这两个 query
- *  做滚动 + 2 秒高亮），零新机制。抽屉仍从「全貌」模块里的「编辑」按钮进（需完整编辑时用）。 */
+/** ★W12-D 双击三件事卡 → 原为「滚动定位并高亮下方任务列表里那条任务」。
+ *  ★V3.8.18（N1）决策翻转 → 改为右侧滑出 TaskDetailDrawer（详见下方函数的备案）。
+ *  被取代的旧理由留档：「同页上方的『全貌』模块已经把详情常驻展示了，重复弹抽屉价值不大」
+ *  —— 这条理由在七层纵向堆叠时成立（首屏被它吃掉、抽屉是唯一能看全的地方），
+ *  N1 改成三栏横排后「全貌」只承载"选中时扫一眼"，要动手时的完整信息就只剩抽屉了，
+ *  原来那个理由的前提已经不成立。`?hl=&hk=task` 定位通道本身不退役
+ *  （TaskManagerPanel 仍 watch，下方任务卡面板的定位能力一项没少）。 */
+/**
+ * ★V3.8.18（N1）**决策翻转**：双击由「跳到下方任务列表并高亮」改为「右侧滑出任务详情抽屉」。
+ *
+ * 为什么翻：跳转+高亮是 V3.8.17（W12-D）当时的 B2 拍板，理由是"热力图退役后要保证任务还够得着"。
+ * 但 N1 把全貌横条摆上来之后，用户的工作流变成了「选中 → 看全貌 → 要动手」，
+ * 跳转把视线从上方挪到页面底部、并且把"看"这件事打断，而抽屉能**保持上下文**。
+ * 能力一项没少：抽屉里同样看得到全部子任务、支撑材料、完整描述与编辑入口，
+ * 且 `?hl=&hk=task` 那条定位通道仍在（下方的任务卡面板仍 watch 这两个 query）。
+ */
 function openCellTask(c: FocusCell) {
-  if (c.task) void router.push({ path: '/', query: { hl: c.task.id, hk: 'task' } })
+  if (c.task) drawerRef.value?.open(c.task)
 }
 /**
  * R94（B3）：三件事**全完成** —— 给一个**安静**的收束。
@@ -326,6 +337,25 @@ const focusTasks = computed<(TaskCard | null)[]>(() => todayFocusList.value.map(
 const selTask = computed<TaskCard | null>(() => focusTasks.value[focusSelIdx.value] ?? null)
 /** 选中的是不是空槽（用于区分「选到空位」与「还没选」） */
 const selSlotEmpty = computed(() => !selTask.value && focusSelIdx.value < focusTasks.value.length)
+/**
+ * ★V3.8.18（N1）非任务槽的正确分类。
+ * 病根＝`FocusSlot.sourceType` 本来就有四种（task / resource / curiosity / text），
+ * 但下游只认 `sourceType === 'task'`，于是装资源卡或写了一句自由文本的格子，
+ * 走到渲染层因为"取不到 task 对象"而被当成**失效槽**，显示「⚠ 任务已删除」。
+ * 它明明不空、也没坏 —— 是分类逻辑缺了四种来源里另外三种的分支。
+ * 这里把四种情况显式分成四类，全貌模块据此说对应的话，不再说错。
+ */
+type SlotKind = 'none' | 'stale' | 'nonTask' | 'text'
+const selSlotKind = computed<SlotKind>(() => {
+  const slot = todayFocusList.value[focusSelIdx.value]
+  if (!slot) return 'none'
+  if (slot.sourceType === 'task') {
+    return d.value.tasks.some(t => !t.deletedAt && t.id === slot.sourceId) ? 'none' : 'stale'
+  }
+  if (slot.sourceType === 'text') return 'text'
+  return 'nonTask'
+})
+const selSlotText = computed(() => todayFocusList.value[focusSelIdx.value]?.text || '')
 function onFocusCardClick(idx: number) {
   focusSelIdx.value = idx
 }
@@ -813,17 +843,42 @@ function onFocusDetailLocate(resourceId: string) {
                       <span class="tsub-t">{{ st.title }}</span>
                     </div>
                   </div>
-                  <div v-if="subMoreCount(c.task) > 0 && !subScrollAt(c.idx)" class="tc-sub-more" @click.stop="openCellTask(c)">
+                  <div class="tc-sub-more" @click.stop="openCellTask(c)">
                     还有 {{ subMoreCount(c.task) }} 项 · 进详情查看
                   </div>
-                  <div class="tc-remove" @click.stop="removeTodaySlot(c.idx)" title="移除">×</div>
+                  <!-- ★V3.8.18（N1）删除入口**常驻可见**（原来是 opacity:0 的 hover 显现）：
+                       病根＝一格被移出「今天要做」是一次不可逆的注意力操作，
+                       而它藏在一个 18px 的小圆里、且只在鼠标正好悬上去时才现形
+                       —— 用户根本不知道「原来可以删」。
+                       现在常驻显示，热区从 18px 放大到 28px
+                       （低于 26px 的可点目标在这套体系里算缺陷），
+                       弱化交给「低对比度 + hover 才变红」，而不是「看不见」。
+                       ★语义是**移出这一格**，任务本体仍在任务库 —— title 必须写清这件事。 -->
+                  <div class="tc-remove" @click.stop="removeTodaySlot(c.idx)" title="移出今日三件事（任务本体仍在任务库，不会被删）">×</div>
                 </div>
-                <!-- 失效槽（原任务已删除/已不在库）：显式给格 + 原位重新选取入口 -->
-                <div v-else-if="c.slot" class="today-card stale-card" @click="openPicker(c.idx)" title="原任务已删除或归档 · 点击重新选取">
+                <!-- 失效槽（源任务是任务、但库里已删/已归档）：显式给格 + 原位重新选取入口。
+                     ★V3.8.18（N1）：只判「本该是任务却取不到」这一种；
+                     装资源卡 / 自由文本的格子不再误入这一支（它们进下面的 nonTask 分支）。 -->
+                <div v-else-if="c.slot && c.slot.sourceType === 'task'" class="today-card stale-card" @click="openPicker(c.idx)" title="源任务已删除或归档 · 点击重新选取">
                   <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
-                  <div class="tc-title empty-t">⚠ 任务已失效 · 重新选取</div>
+                  <div class="tc-title empty-t">⚠ 源任务已失效 · 重新选取</div>
                   <div class="tc-meta"><span class="tag warn">原任务已删除</span></div>
-                  <div class="tc-remove" @click.stop="removeTodaySlot(c.idx)" title="移除">×</div>
+                  <div class="tc-remove" @click.stop="removeTodaySlot(c.idx)" title="移出今日三件事">×</div>
+                </div>
+                <!-- ★V3.8.18（N1）非任务槽：资源卡 / 好奇心卡 / 自由文本。
+                     它们**占着一格且没有坏**，只是不是任务 —— 旧实现一律显示「⚠ 任务已删除」，
+                     用户会以为自己刚填进去的东西丢了。现在按来源分别说清它是什么。 -->
+                <div v-else-if="c.slot" class="today-card nonTask-card" @click="onFocusCardClick(c.idx)">
+                  <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
+                  <div class="tc-row">
+                    <div class="tc-check" :class="{done: c.slot.done}" @click.stop="toggleTodayDone(c.slot)">{{ c.slot.done?'✓':'' }}</div>
+                    <div class="tc-title">{{ c.slot.text }}</div>
+                  </div>
+                  <div class="tc-meta">
+                    <span class="tag neutral">{{ c.slot.sourceType === 'text' ? '✎ 自由文本' : '📦 卡片' }}</span>
+                    <span class="tag neutral">不参与六层链</span>
+                  </div>
+                  <div class="tc-remove" @click.stop="removeTodaySlot(c.idx)" title="移出今日三件事">×</div>
                 </div>
                 <div v-else class="today-card empty-card" @click="openPicker(c.idx)">
                   <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
@@ -845,9 +900,10 @@ function onFocusDetailLocate(resourceId: string) {
       <div class="mod-head">
         <span class="ic"><Icon name="target" :size="18" /></span><span class="nm">全貌</span><span class="en">IN FULL</span>
       </div>
-      <p class="mod-sub">今天这件事的全貌 —— 属于哪、要做什么、凭什么做过什么、下一步做什么。单击上方任意一件切换。</p>
+      <p class="mod-sub">今天这件事的全貌 —— 属于哪、走过什么、下一步做什么。单击上方任意一件切换 · <b>双击右侧滑出任务详情</b>。</p>
       <FocusDetail
         :task="selTask" :empty-slot="selSlotEmpty"
+        :slot-kind="selSlotKind" :slot-text="selSlotText"
         :data="store.data!" :events="focusDetailEvents"
         @edit="onFocusDetailEdit" @locate="onFocusDetailLocate" />
     </section>
@@ -1136,9 +1192,22 @@ function onFocusDetailLocate(resourceId: string) {
 .tc-meta .tag { font-size: var(--fs-caption); padding: 1px 7px; }
 /* R176（原型 slot-tag）：三件事槽位标签统一中性灰（项目/指标不分色，tag 语义色别处不受影响） */
 .card.focus .tc-meta .tag.accent, .card.focus .tc-meta .tag.warn { background: var(--surface-3); color: var(--text-2); }
-.tc-remove { position: absolute; top: 7px; right: 32px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: var(--fs-body); color: var(--text-3); cursor: pointer; opacity: 0; transition: all var(--dur); }
-.today-card:hover .tc-remove { opacity: 1; }
-.tc-remove:hover { background: var(--danger); color: #fff; }
+/* ★V3.8.18（N1）删除入口常驻可见 + 热区 18px → 28px。
+   为什么不再 hover 才现形：这是一次不可逆的注意力操作（把一格移出「今天要做」），
+   藏起来等于"没人知道原来可以删"；18px 也低于 26px 的可点目标下限。
+   弱化改用「低对比度 + hover 才变红实底」——看得见但不抢戏，和"看不见"是两件事。
+   ★位置（top 7 / right 32）与 R46-8 一字未动：那里守的是"× 在编号牌左侧、不与复选框同角"，
+   本轮只改尺寸与可见性，不动它守的那条事实。 */
+.tc-remove { position: absolute; top: 7px; right: 32px; width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center; border-radius: 8px;
+  font-size: var(--fs-body); color: var(--text-3); cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--border);
+  opacity: .72; transition: all var(--dur);
+}
+.tc-remove:hover { background: var(--danger); color: #fff; border-color: var(--danger); opacity: 1; }
+.tc-remove:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; opacity: 1; }
+/* × 与右上编号牌现在都常驻，标题行必须让出这一条，否则任务名会被压在它们底下 */
+.today-card .tc-row { padding-right: 44px; }
 
 /* ===== R2-①：槽内子任务视口（固定 5 行 + 底部渐隐 + 还有 N 项） ===== */
 .tc-subs { margin-top: 6px; max-height: calc(5 * 24px + 4px); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; scrollbar-width: thin; -webkit-mask-image: linear-gradient(to bottom, var(--text) calc(100% - 16px), transparent); mask-image: linear-gradient(to bottom, var(--text) calc(100% - 16px), transparent); }

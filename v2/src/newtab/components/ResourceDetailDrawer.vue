@@ -24,6 +24,8 @@ import { useAppStore } from '../stores/app'
 import { onOpenDrawer, consumePendingDrawer, type DrawerPayload } from '@/shared/utils/bus'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
+import { projectCardToBoard } from '@/shared/storage/hub'
+import { CURATION_WS_ID } from '@/shared/models'
 import type { ResourceCard, TaskCard } from '@/shared/models'
 import ThesisBlock from '@/newtab/components/ThesisBlock.vue'
 import SupportTasksPanel from '@/shared/components/SupportTasksPanel.vue'
@@ -63,6 +65,7 @@ function openFromId(id: string) {
   if (!r || !data) return
   resId.value = id
   resetEditing(r)
+  mirrorWsId.value = ''
   open.value = true
   highlight.value = true
   /* R2-⑤（★口径合一）：此前 App 级抽屉只在「↗ 打开链接」时记调出，而内联抽屉宿主
@@ -124,6 +127,25 @@ function openLink() {
 function copyLink() {
   if (!editing.link) { showToast('链接为空'); return }
   navigator.clipboard?.writeText(editing.link).then(() => showToast('✓ 链接已复制')).catch(() => {})
+}
+
+/* N8（V3.8.18）镜像到策展台——推送方向。★两宿主同源（R167 那条规矩：只改一边等于交付一半）：
+   资源卡池内联抽屉（Workspace 右键菜单 → 选台弹窗）与本 App 级抽屉（搜素/⌘K 拉起）
+   必须都有这个入口。这里用「行内选台 + 一枚动作」而不是弹窗——本宿主没有 workspace.css 的
+   modal 形态（那份 css scoped 给 Workspace），为一个下拉再引一层容器得不偿失。 */
+const mirrorWsId = ref('')
+const mirrorBoards = computed(() =>
+  (store.data?.workspaces || []).filter(w => w.kind !== 'resource' && w.id !== CURATION_WS_ID && !w.archived)
+)
+function mirrorToBoard() {
+  const id = resId.value, wsId = mirrorWsId.value
+  if (!id || !wsId) { showToast('请先选一个目标策展台'); return }
+  if (!store.data) return
+  const rec = projectCardToBoard(store.data, id, wsId)
+  if (!rec) { showToast('⚠ 该台已经镜像过这张卡了'); return }
+  store.persist()
+  const name = (store.data.workspaces || []).find(w => w.id === wsId)?.name || '策展台'
+  showToast(`✓ 已镜像到「${name}」（源卡仍在资源卡池）`)
 }
 
 /**
@@ -202,6 +224,17 @@ const kicker = computed(() => {
       <!-- 宿主差异内容：落在「关联与凭证」面板内 -->
       <template #extra>
         <ThesisBlock v-if="resource?.isThesis" :text="editing.description" :ws-id="editing.workspaceId" />
+        <!-- N8：镜像到策展台（没有策展台时整行不出现——不摆一枚点了没用的控件） -->
+        <div v-if="mirrorBoards.length" class="rd-kv">
+          <span class="k">📡</span>
+          <span class="v">
+            <select v-model="mirrorWsId" class="rd-mirror-select">
+              <option value="">镜像到策展台…</option>
+              <option v-for="w in mirrorBoards" :key="w.id" :value="w.id">{{ w.name }}</option>
+            </select>
+          </span>
+          <button class="ds-ib" :disabled="!mirrorWsId" title="镜像到该策展台（引用投射，源卡仍留在资源卡池）" @click="mirrorToBoard">⤴</button>
+        </div>
         <div class="rd-kv"><span class="k">打开</span><span class="v"><b>{{ resource?.callCount || 0 }}</b> 次<span v-if="resource?.lastCalledAt" style="color:var(--text-4)"> · 最近 {{ fmtTs(resource.lastCalledAt) }}</span></span></div>
         <!-- R166 T7：资源侧「支持的任务」只读反查（解绑只在任务侧，定案 10） -->
         <SupportTasksPanel v-if="resource && store.data" :d="store.data" :resource="resource" @open-task="gotoTaskOwner" />
@@ -222,6 +255,15 @@ const kicker = computed(() => {
 .rd-kv > .k { width: 34px; flex-shrink: 0; font-size: var(--fs-caption); color: var(--text-4); letter-spacing: var(--tracking-sm); }
 .rd-kv > .v { flex: 1; min-width: 0; }
 .rd-kv > .v b { color: var(--text); font-weight: 600; }
+/* N8：镜像目标台下拉——贴着行内其它字段的字号/高度走，不做成一个独立控件的体量 */
+.rd-mirror-select {
+  width: 100%; max-width: 240px; height: 26px; padding: 0 6px;
+  font-size: var(--fs-caption); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface-2); cursor: pointer;
+}
+.rd-mirror-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rd-kv .ds-ib:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .red-save {
   flex: 1; padding: 10px 0; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent); color: #fff;
   font-size: var(--fs-body); font-weight: 600; cursor: pointer; transition: all var(--dur); white-space: nowrap;

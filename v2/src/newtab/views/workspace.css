@@ -365,6 +365,9 @@
 .modal-close:hover { background: var(--surface-3); color: var(--text); }
 .modal-body { padding: 18px 20px; max-height: 50vh; overflow-y: auto; }
 .modal-footer-row { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+/* N8（V3.8.18）镜像选台弹窗的说明行——只做"这一步是干什么的"，不抢主控件的注意力：
+   颜色取 --text-3 而不是 --text-4（W12-G：交互区附近不许用最淡档，纯说明文字才允许 --text-4） */
+.dr-hint { margin-top: 8px; font-size: var(--fs-caption); color: var(--text-3); line-height: 1.6; }
 .modal-option { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px; cursor: pointer; transition: all var(--dur); }
 .modal-option:hover { border-color: var(--accent); background: var(--accent-light); }
 .modal-option .mo-icon { font-size: 20px; }

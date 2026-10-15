@@ -13,13 +13,10 @@ const props = defineProps<{
   todayAdd: number
   todayDel: number
   todayCalled: number
-  writeCount: number
   streak: number
-  /** T1c 口径：今日 ≥1 有效动作（w>0）即就绪 */
-  reviewReady: boolean
-  /** 今日三件事（dailyFocus[today]，最多 3 槽；空数组 = 今天还没排） */
+  /** 今日三件事 · dailyFocus[today]（最多 3 件）· 点任一格进详情 */
   focus: FocusSlot[]
-  /** 今日入台 vs 年日均线（宿主算好；null = 今年还没有数据） */
+  /** 调度台 vs 全站日均的简单对照；null = 这库还没有基线 */
   avgDailyCreate: number | null
 }>()
 
@@ -66,15 +63,19 @@ const insight = (() => {
         <button class="pi-chip acc" title="今日调出 · action=call（被打开的卡片）" @click="emit('drill', 'd-call')">
           <span class="v">{{ props.todayCalled }}<small>次</small></span><span class="l">今日调出</span><span class="ar">▸</span>
         </button>
-        <button class="pi-chip" title="写入记录（全量时间线）" @click="emit('open-battle')">
-          <span class="v">{{ props.writeCount }}<small>条</small></span><span class="l">写入记录</span><span class="ar">▸</span>
-        </button>
         <button class="pi-chip ok" title="连续打卡 · 连续有记录的天数" @click="emit('drill', 'streak')">
           <span class="v">{{ props.streak }}<small>天</small></span><span class="l">连续打卡</span><span class="ar">▸</span>
         </button>
-        <button class="pi-chip acc" title="复盘就绪 · 今天有 ≥1 条有效动作" @click="emit('open-battle')">
-          <span class="v">{{ props.reviewReady ? '✅' : '…' }}</span><span class="l">复盘就绪</span><span class="ar">▸</span>
-        </button>
+        <!-- ★V3.8.18（N9）**退役两枚重复 chip**：「写入记录」「复盘就绪」随本轮从 strip 里移除。
+             病根＝这两枚不是读数，是**同一个出口的两个入口**——它们和模块头右上角的
+             「📄 战报」/「⤓」打开的是同一个 DayDetail 弹窗（都 emit('open-battle')）。
+             六个 chip 里三个跳同一个弹窗，读者要试过才知道它们是一件事；
+             而 strip 的语义是"六格读数"，塞两个入口进去就破坏了它自己的语义。
+             ★退役的只是**这枚入口**，能力一项未减：
+               · 写入记录（writeCount）仍在父级 ProfileInsights 的日详情里，且 N6 的时间线是它的全量版；
+               · 复盘就绪（reviewReady）由模块头那枚 ⤓ 按钮与弹窗内的复盘段承接；
+               · 两枚 chip 的 emit 通道 open-battle 一字未动（模块头那两枚仍在用）。
+             判据（02/04 分片里的 N9 条）改钉「strip 只剩四枚读数 chip + 模块头仍有两枚战报入口」。 -->
         </div>
       </div>
 

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>原型 P1 · 调度台三件事横条</title>
+<style>
+  :root{
+    --bg:#0a0a0d; --surface:#141418; --surface-2:#1c1c22; --surface-3:#26262e;
+    --border:rgba(255,255,255,.10); --border-strong:rgba(255,255,255,.20);
+    --text:#e9e9ef; --text-2:rgba(233,233,239,.68); --text-3:rgba(233,233,239,.46); --text-4:rgba(233,233,239,.30);
+    --accent:#8b5cf6; --accent-light:rgba(139,92,246,.16);
+    --success:#34d399; --warning:#fbbf24; --danger:#f87171; --info:#60a5fa;
+    --r:10px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.6 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;padding:28px 32px 80px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--text-3);font-size:13px;margin-bottom:6px}
+  .note{color:var(--text-2);font-size:12.5px;background:var(--surface-2);border-left:2px solid var(--accent);
+    padding:10px 14px;border-radius:0 6px 6px 0;margin:14px 0}
+  .note b{color:var(--text)}
+  hr{border:0;border-top:1px solid var(--border);margin:30px 0}
+
+  /* ── 尺子 ── */
+  .ruler{position:relative;height:24px;margin:6px 0 10px;border-left:1px dashed var(--warning)}
+  .ruler .cap{position:absolute;left:0;top:-2px;font-size:11px;color:var(--warning);white-space:nowrap}
+  .ruler .line{position:absolute;left:0;top:14px;height:0;border-top:1px dashed var(--warning);width:100%}
+  .over{outline:1px dashed var(--danger);outline-offset:4px}
+
+  /* ── 三件事 ── */
+  .focus{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
+  .focus-h{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .focus-h .t{font-size:15px;font-weight:700}
+  .focus-h .en{font-size:10px;letter-spacing:.14em;color:var(--text-4);font-weight:700}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .card{position:relative;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;
+    padding:12px 13px;min-height:96px;cursor:pointer;transition:.15s}
+  .card:hover{border-color:var(--border-strong)}
+  .card.sel{border-color:var(--accent);background:var(--accent-light)}
+  .card .n{position:absolute;top:9px;right:11px;font-size:10px;color:var(--text-4);font-variant-numeric:tabular-nums}
+  .card .ck{width:15px;height:15px;border-radius:5px;border:1.5px solid var(--border-strong);
+    display:inline-grid;place-items:center;font-size:9px;color:var(--success);flex:none}
+  .card .ttl{font-size:13.5px;font-weight:600;line-height:1.5;padding-right:22px}
+  .card .tags{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+  .tag{font-size:10.5px;padding:2px 7px;border-radius:99px;background:var(--surface-3);color:var(--text-2)}
+  .card.empty{display:grid;place-items:center;color:var(--text-4);border-style:dashed}
+  /* ★ 删除入口：hover 显现 + 加大热区 28px + 标题改「移出今日三件事」 */
+  .rm{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:7px;
+    display:grid;place-items:center;color:var(--text-2);background:var(--surface-3);
+    border:1px solid var(--border);cursor:pointer;opacity:0;transition:.15s;font-size:14px}
+  .card:hover .rm{opacity:1}
+  .rm:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
+  .hint{font-size:11px;color:var(--text-4);margin-top:9px;display:flex;gap:14px;flex-wrap:wrap}
+  .hint kbd{background:var(--surface-3);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:10px}
+
+  /* ── 全貌横条 ── */
+  .full{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:0;margin-top:14px;overflow:hidden}
+  .full-h{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border)}
+  .full-h .ttl{font-size:13.5px;font-weight:700}
+  .full-h .who{font-size:11px;color:var(--text-3);max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .full-h .sp{margin-left:auto;display:flex;gap:7px}
+  .tb{font-size:11px;padding:3px 9px;border-radius:6px;background:var(--surface-3);color:var(--text-2);cursor:pointer}
+  .tb.pri{background:var(--accent);color:#fff}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1.6fr;gap:0}
+  .col{padding:13px 16px;border-right:1px solid var(--border);min-width:0}
+  .col:last-child{border-right:0}
+  .col-h{display:flex;align-items:center;gap:7px;margin-bottom:9px}
+  .col-h .n{width:17px;height:17px;border-radius:5px;background:var(--accent-light);color:#c4b5fd;
+    font-size:10px;font-weight:700;display:grid;place-items:center;flex:none}
+  .col-h .t{font-size:12px;font-weight:700;color:var(--text-2)}
+  .col-h .m{margin-left:auto;font-size:10px;color:var(--text-4)}
+
+  .chain{display:flex;flex-direction:column;gap:2px}
+  .chain .r{display:flex;align-items:baseline;gap:9px;font-size:11.5px;padding:2.5px 0}
+  .chain .lv{width:52px;flex:none;color:var(--text-4)}
+  .chain .cv{color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .chain .r:last-child .cv{color:var(--text);font-weight:600}
+
+  .flow{display:flex;flex-direction:column;gap:4px}
+  .flow .e{display:flex;gap:9px;font-size:11px;color:var(--text-3);align-items:baseline}
+  .flow .t{color:var(--text-4);flex:none;font-variant-numeric:tabular-nums}
+
+  .adv{display:flex;flex-direction:column;gap:6px}
+  .adv .a{font-size:11.5px;line-height:1.65;color:var(--text-2);background:var(--surface-2);
+    border-left:2px solid var(--border-strong);border-radius:0 5px 5px 0;padding:6px 10px}
+  .adv .a.warn{border-left-color:var(--warning);color:var(--text)}
+
+  .sec2{padding:10px 16px 11px;border-top:1px solid var(--border);background:rgba(255,255,255,.015)}
+  .sec2 .lb{font-size:10px;color:var(--text-4);letter-spacing:.1em;font-weight:700;margin-bottom:5px;
+    display:flex;align-items:center;gap:9px}
+  .sec2 .lb .cue{margin-left:auto;letter-spacing:0;font-weight:400;color:var(--text-4);display:flex;gap:5px;align-items:center}
+
+  /* ★★ 固定高度 = 恰好 4 条子任务；超出则容器内上下滚动 ★★ */
+  .subtasks{height:140px;overflow-y:auto;overflow-x:hidden;padding-right:5px;
+    scrollbar-width:thin;scrollbar-color:var(--surface-3) transparent}
+  .subtasks::-webkit-scrollbar{width:7px}
+  .subtasks::-webkit-scrollbar-track{background:transparent}
+  .subtasks::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:9px;border:2px solid transparent;background-clip:padding-box}
+  .subtasks::-webkit-scrollbar-thumb:hover{background:var(--border-strong);background-clip:padding-box}
+  .stk{display:flex;align-items:center;gap:9px;height:35px;font-size:11.5px;
+    border-top:1px dashed var(--border)}
+  .stk:first-child{border-top:0}
+  .stk .ck2{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--border-strong);flex:none;
+    display:grid;place-items:center;font-size:8px;color:var(--success)}
+  .stk .ck2.done{border-color:var(--success);background:var(--success-light)}
+  .stk .tx{color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .stk .tx.done{color:var(--text-4);text-decoration:line-through}
+  .stk .pr{font-size:9px;font-weight:800;padding:0 4px;border-radius:3px;background:var(--surface-3);color:var(--text-3);flex:none}
+  .stk .pr.h{background:var(--danger-light);color:var(--danger)}
+  .stk .pr.m{background:var(--warning-light);color:var(--warning)}
+  .stk .meta{margin-left:auto;flex:none;font-size:10px;color:var(--text-4);display:flex;gap:8px;align-items:center}
+  /* 滚动到底的渐隐提示 */
+  .fade{position:relative;margin-top:-16px;height:16px;pointer-events:none;
+    background:linear-gradient(transparent,rgba(20,20,24,.85))}
+
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}
+  .bad{outline:1px dashed var(--danger);outline-offset:3px;border-radius:6px}
+  .cap{font-size:11px;color:var(--text-4);margin-bottom:6px;display:flex;gap:8px;align-items:center}
+  .cap s{color:var(--danger);text-decoration:none}
+</style>
+</head>
+<body>
+
+<h1>原型 P1 · 调度台「三件事」横条</h1>
+<div class="sub">N1 · 单击=下方呈现 2·5·6 三块（横排，≤450px）· 双击=右侧滑出任务详情抽屉 · 删除入口加强</div>
+
+<div class="note">
+<b>对照：</b>原热力图整段 ≈ <b>450px</b>（24 行 × 11px 网格 310 + 月标 14 + 图例 22 + 摘要 34 + 段头 44 + padding 26）。
+现 V3.8.17 的「全貌」是 7 层纵向堆叠、限高 620px —— 实测撑到 900px+。
+本方案砍到 <b>2 属于哪 / 5 走过什么 / 6 下一步</b> 三块横排，标题+描述已在卡片上不重复。
+</div>
+
+<hr>
+
+<div class="cap">① 三件事卡 · <b>单击选中</b> · <b>双击进抽屉</b> · <b>悬停出 ×（28px 热区，移出这一格）</b></div>
+<div class="focus">
+  <div class="focus-h">
+    <span class="t">今日三件事</span><span class="en">TODAY'S FOCUS</span>
+  </div>
+  <div class="cards">
+    <div class="card sel">
+      <span class="rm" title="移出今日三件事（任务本体仍在任务库）">×</span>
+      <span class="n">01</span>
+      <div style="display:flex;gap:8px"><span class="ck"></span></div>
+      <div class="ttl">AI 培训：推荐得到大脑——我的邀请链接 推荐微信输入法</div>
+      <div class="tags"><span class="tag">workbuddy 培训项目</span><span class="tag">课程产品研发</span><span class="tag">D</span></div>
+    </div>
+    <div class="card">
+      <span class="rm" title="移出今日三件事（任务本体仍在任务库）">×</span>
+      <span class="n">02</span>
+      <div style="display:flex;gap:8px"><span class="ck"></span></div>
+      <div class="ttl">把微信输入法装进豆包，做成可复制可拓展的解决方案</div>
+      <div class="tags"><span class="tag">产品全生命周期管理专家</span></div>
+    </div>
+    <div class="card empty">
+      <span class="n">03</span>
+      <div>＋ 从任务库选取</div>
+    </div>
+  </div>
+  <div class="hint">
+    <span><kbd>单击</kbd> 选中 → 下方横条跟着换</span>
+    <span><kbd>双击</kbd> 右侧滑出任务详情抽屉</span>
+    <span><kbd>悬停</kbd> 右上 × 移出这一格（<b>不删任务本体</b>）</span>
+  </div>
+</div>
+
+<div class="ruler">
+  <span class="cap">↑ 热力图原高度 450px（上限）</span>
+  <span class="line"></span>
+</div>
+
+<div class="cap">② 全貌横条 · <b>三块横排</b>：<span style="color:var(--text-2)">属于哪(1fr) │ 走过什么(1fr) │ 下一步(1.6fr)</span>　下方是<b>子任务列表</b>（固定 4 条高度，超出滚动）</div>
+
+<div class="full">
+  <div class="full-h">
+    <span class="ttl">全貌</span>
+    <span class="who">AI 培训：推荐得到大脑——我的邀请链接 推荐微信输入法…</span>
+    <span class="sp">
+      <span class="tb">🗂 全部记录</span>
+      <span class="tb pri">📋 打开任务详情</span>
+    </span>
+  </div>
+
+  <div class="grid3">
+    <div class="col">
+      <div class="col-h"><span class="n">2</span><span class="t">属于哪</span><span class="m">六层链</span></div>
+      <div class="chain">
+        <div class="r"><span class="lv">愿景</span><span class="cv">有钱有闲有智慧的平凡人</span></div>
+        <div class="r"><span class="lv">使命</span><span class="cv">贡献自己的时间精力研究成果，开源</span></div>
+        <div class="r"><span class="lv">战略目标</span><span class="cv">AI 知识管理 + 内容生产专家</span></div>
+        <div class="r"><span class="lv">攻坚项目</span><span class="cv">workbuddy 培训项目</span></div>
+        <div class="r"><span class="lv">成功指标</span><span class="cv">课程产品研发</span></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="col-h"><span class="n">5</span><span class="t">走过什么</span><span class="m">最近 3 条</span></div>
+      <div class="flow">
+        <div class="e"><span class="t">09-26 17:59</span><span>改状态 → 进行中</span></div>
+        <div class="e"><span class="t">09-20 11:17</span><span>新建</span></div>
+        <div class="e"><span class="t">09-14 09:02</span><span>挂指标 → 课程产品研发</span></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="col-h"><span class="n">6</span><span class="t">下一步</span><span class="m">本地判断 · 不调 AI</span></div>
+      <div class="adv">
+        <div class="a warn">已经 18 天没动过了 —— 要么今天推一把，要么诚实一点，把它归档。</div>
+        <div class="a">一条子任务都没有 —— 如果它要分几步做，先拆出来，做完一件划一件更有手感。</div>
+        <div class="a">这条任务一次都没被调出过 —— 记录本身不产生价值，用上才算。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec2">
+    <div class="lb">
+      <span>要做什么 · 子任务</span>
+      <span class="cue">⬍ 固定高度 = 恰好 4 条 · 更多则在此上下滚动（不撑高整条横条）</span>
+    </div>
+    <div class="subtasks">
+      <div class="stk"><span class="ck2 done">✓</span><span class="tx done">整理推荐话术初稿</span><span class="pr m">中</span><span class="meta">已完成 · 09-20</span></div>
+      <div class="stk"><span class="ck2"></span><span class="tx">写第一版推荐位文案（3 组）</span><span class="pr h">高</span><span class="meta">doing · 今天</span></div>
+      <div class="stk"><span class="ck2"></span><span class="tx">搭一个可复制的引导流程</span><span class="pr m">中</span><span class="meta">todo</span></div>
+      <div class="stk"><span class="ck2"></span><span class="tx">约 2 位种子用户试用</span><span class="pr">低</span><span class="meta">todo</span></div>
+      <div class="stk"><span class="ck2"></span><span class="tx">收集试用反馈并归类</span><span class="pr m">中</span><span class="meta">todo</span></div>
+      <div class="stk"><span class="ck2"></span><span class="tx">按反馈迭代引导流程 v2</span><span class="pr">低</span><span class="meta">todo</span></div>
+      <div class="stk"><span class="ck2"></span><span class="tx">输出一页纸复盘</span><span class="pr m">中</span><span class="meta">todo</span></div>
+    </div>
+    <div class="fade"></div>
+  </div>
+</div>
+
+<div class="cmp">
+  <div>
+    <div class="cap"><s>✕ 之前</s>V3.8.17 现状</div>
+    <div class="bad" style="padding:12px 14px">
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:8px">全貌 · 7 层纵向堆叠 · 限高 620px · 实测 900px+</div>
+      <div style="font-size:12px;color:var(--text-2);line-height:2">
+        ① 是什么（标题+描述全文）<br>
+        ② 属于哪（五层链）<br>
+        ③ 要做什么（子任务清单+属性）<br>
+        ④ 凭什么（支撑材料）<br>
+        ⑤ 走过什么（事件流水）<br>
+        ⑥ 下一步（4 条建议）<br>
+        ⑦ 动作（编辑）
+      </div>
+      <div style="font-size:11px;color:var(--danger);margin-top:8px">↑ 把下面真正的指标卡与任务行挤出首屏</div>
+    </div>
+  </div>
+  <div>
+    <div class="cap">✓ 现在 · 本方案</div>
+    <div style="padding:12px 14px;border:1px solid var(--border);border-radius:6px">
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:8px">三块横排 · <b>高度锁定在 450px 内</b>（子任务区固定 4 条）</div>
+      <div style="font-size:12px;color:var(--text-2);line-height:2">
+        横排：<b style="color:var(--text)">② 属于哪 │ ⑤ 走过什么 │ ⑥ 下一步</b><br>
+        下方：<b style="color:var(--text)">③ 要做什么</b> 固定高度 = 4 条子任务，超出<b>容器内滚动</b>
+      </div>
+      <div style="font-size:11px;color:var(--success);margin-top:8px">✓ 砍掉重复的 ①（卡片上已有）与 ④⑤⑦（进抽屉）<br>✓ 子任务再多也不撑高整条横条</div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<div class="note">
+<b>双击行为变更：</b>V3.8.17 双击是「跳到下方任务列表并高亮」（上一轮 B2 拍板）。<b>本轮推翻</b>，改为右侧滑出 <code>TaskDetailDrawer</code>。
+卡片上的<b>子任务行</b>与<b>「还有 N 项」</b>原本也绑同一个 handler，会一起变成开抽屉 —— 这是对的。
+</div>
+
+<div class="note">
+<b>空槽行为：</b>点 02/03 空位 → 显示引导态「这个位置还空着 · ＋ 选取任务」，<b>不静默回落到别的任务</b>。
+</div>
+
+<div class="note">
+<b>顺带修一个 V3.8.17 的缺陷：</b><code>FocusSlot.sourceType</code> 可为 task / resource / curiosity / text，
+但 <code>todayTaskForSlot()</code> 只对 task 返回任务 → 装着资源卡或自由文本的槽位会被显示成「这个位置还空着」。它明明不空。本轮一并修。
+</div>
+
+</body>
+</html>

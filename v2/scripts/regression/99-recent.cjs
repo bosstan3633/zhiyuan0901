@@ -85,11 +85,11 @@ check('R168-1 ★AI 徽标图形只挂一份：形状本体在 AiMarkSymbol（�
     && (app.match(/<AiMarkSymbol/g) || []).length === 1 && app.includes("import AiMarkSymbol from '@/shared/components/AiMarkSymbol.vue'")
     && read('/shared/components/AiEntryButton.vue').includes("from '@/shared/components/AiMark.vue'")
 });
-check('R168-2 ★台面零"常驻浮层"（V3.7.0 重指：镜像两弹窗随资源台退役，九副 → 七副；★R4-Db 再重指带备案：七副 → 六副，减的那一副是书签「文件夹勾选」弹窗——它随整条够不着的建树死链删除，**不是**把某副常驻浮层改成了 v-if，本条守的语义反而更硬：openConds 少一项、计数判据同步下调，且加一条负判据要求那副弹窗与它的开关都不许回流）：Workspace 的浮层（详情抽屉 + 5 个 modal）一律 v-if——真库实测抽屉开着与否都在 DOM 里（168 节点含 88 个 option），而它是每次进台面都摊的固定成本；不得再用 transform 移出视口冒充"关掉"（R169 重指：抽屉进出场/Esc/遮罩随两代容器合并进 Drawer 壳单源，壳内 v-if="open" 点开才挂）', () => {
+check('R168-2 ★台面零"常驻浮层"（V3.7.0 重指：镜像两弹窗随资源台退役，九副 → 七副；★R4-Db 再重指带备案：七副 → 六副，减的那一副是书签「文件夹勾选」弹窗——它随整条够不着的建树死链删除，**不是**把某副常驻浮层改成了 v-if，本条守的语义反而更硬：openConds 少一项、计数判据同步下调，且加一条负判据要求那副弹窗与它的开关都不许回流；★V3.8.18（N8）再加一副：镜像选台弹窗 mirrorOpen，六副 → 七副。★加的是「第七副」而不是「把某副改回常驻」——本条守的语义没变：它同样走 v-if，不开就不在 DOM；顺手把 mirrorOpen 也塞进 openConds 负锚，谁把它改成 v-show 或 transform 冒充关掉就红）：Workspace 的浮层（详情抽屉 + 6 个 modal）一律 v-if——真库实测抽屉开着与否都在 DOM 里（168 节点含 88 个 option），而它是每次进台面都摊的固定成本；不得再用 transform 移出视口冒充"关掉"（R169 重指：抽屉进出场/Esc/遮罩随两代容器合并进 Drawer 壳单源，壳内 v-if="open" 点开才挂）', () => {
   const w = read('/newtab/views/Workspace.vue'); const css = read('/newtab/views/workspace.css'); const d = read('/shared/components/Drawer.vue')
-  const openConds = ['importModalOpen', 'moveModalOpen', 'moveOneOpen', 'catModal.open', 'inputModal.open']
+  const openConds = ['importModalOpen', 'moveModalOpen', 'moveOneOpen', 'catModal.open', 'inputModal.open', 'mirrorOpen']
   const stillMounted = openConds.filter(k => w.includes(`class="modal-overlay" :class="{open: ${k}`))
-  return stillMounted.length === 0 && (w.match(/class="modal-overlay open"/g) || []).length === 6 && !w.includes('bookmarkModalOpen')
+  return stillMounted.length === 0 && (w.match(/class="modal-overlay open"/g) || []).length === 7 && !w.includes('bookmarkModalOpen')
     && w.includes('<Drawer :open="drawerOpen" width="520px"') && !w.includes('class="drawer" :class="{open: drawerOpen}"')
     && d.includes('<aside v-if="open" class="drawer"') && d.includes('.drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }')
     && d.includes('prefers-reduced-motion: reduce') && !css.includes('.drawer.open { transform: translateX(0); }')

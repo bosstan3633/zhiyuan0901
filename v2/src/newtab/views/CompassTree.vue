@@ -14,6 +14,8 @@ import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/uti
 import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 // R146（回退契约）：罗盘节点删除走真源（确认报数 + 3 秒撤销），与策展台/项目抽屉同一口径
 import { compassNodeCounts, removeCompassNode, restoreCompassNode, type CompassNodeKind } from '@/shared/utils/compassCrud'
+import { saveUIPrefs } from '@/shared/storage/repository'
+import type { UIPrefs } from '@/shared/models'
 import { useConfirm } from '@/shared/components/confirm'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
@@ -57,6 +59,70 @@ async function aiChain(level: import('@/shared/ai/scenarios').ChainLevel, anchor
   if (!job) { showToast('⚠ 锚点实体已不存在，请刷新后重试'); return }
   aiJob.value = job
 }
+
+// ---- N2（V3.8.18）单项目 AI 诊断：跑（AI 抽屉）→ 存（会话缓存）→ 看（中央弹窗） ----
+/** ★R135-5 懒通道：AI 栈不许进入口 chunk，诊断引擎整块按需 import（模块级单例缓存） */
+type DiagEng = typeof import('@/shared/ai/projectDiagnose')
+let diagEngP: Promise<DiagEng> | null = null
+const diagEngOf = (): Promise<DiagEng> => (diagEngP ||= import('@/shared/ai/projectDiagnose'))
+const diagEng = shallowRef<DiagEng | null>(null)
+
+const ProjectDiagnoseModal = defineAsyncComponent(() => import('../components/compass/ProjectDiagnoseModal.vue'))
+const diags = shallowRef<Record<string, import('@/shared/ai/projectDiagnose').ProjectDiagnosis>>({})
+const diagOpen = ref(false)
+const diagProjId = ref('')
+/** 过期态＝当前数据重算的指纹 ≠ 报告里的指纹；引擎未加载或没报告的项目不白算 */
+const diagStaleMap = computed<Record<string, boolean>>(() => {
+  const out: Record<string, boolean> = {}
+  const eng = diagEng.value
+  if (!eng || !d.value) return out
+  for (const pid of Object.keys(diags.value)) {
+    const fresh = eng.runProjectDiagnosis(d.value, pid)
+    out[pid] = !fresh || fresh.fingerprint !== diags.value[pid].fingerprint
+  }
+  return out
+})
+const diagFor = (pid: string) => diags.value[pid] || null
+const diagStale = (pid: string) => !!diagStaleMap.value[pid]
+
+/** 与 aiChain 同一道接入闸：没配好 AI 就在入口处拦下，不白建 job */
+async function startProjectDiag(projId: string) {
+  const [{ loadAiConfig, aiReady, aiConfig }, eng] = await Promise.all([import('@/shared/ai/config'), diagEngOf()])
+  await loadAiConfig()
+  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
+  if (!d.value) return
+  if (aiPersonaId.value === 'default' && aiConfig.value.defaultPersona) aiPersonaId.value = aiConfig.value.defaultPersona
+  const job = eng.buildProjectDiagnoseJob({ d: d.value, projId })
+  if (!job) { showToast('⚠ 项目不存在，请刷新后重试'); return }
+  aiJob.value = job
+}
+function openDiagReport(projId: string) {
+  if (!diags.value[projId]) { void startProjectDiag(projId); return }
+  diagProjId.value = projId
+  diagOpen.value = true
+}
+/** 弹窗里的「重新诊断」= 关窗 + 重新跑（手动触发红线：从不自动重跑） */
+function rerunDiag() {
+  const pid = diagProjId.value
+  diagOpen.value = false
+  if (pid) void startProjectDiag(pid)
+}
+const diagReport = computed(() => (diagOpen.value ? diags.value[diagProjId.value] || null : null))
+
+// 挂载即恢复会话缓存里的报告（关浏览器即失效，所以"恢复"只在本次会话内有意义）
+onMounted(() => {
+  void diagEngOf().then(async eng => {
+    diagEng.value = eng
+    diags.value = await eng.loadAllDiagnoses()
+    // 采纳写库后用回调顶开弹窗——不让宿主去轮询 storage
+    eng.setProjectDiagSavedHandler(rep => {
+      diags.value = { ...diags.value, [rep.projId]: rep }
+      diagProjId.value = rep.projId
+      diagOpen.value = true
+    })
+  })
+})
+onUnmounted(() => { diagEngP = null; diagEng.value?.setProjectDiagSavedHandler(null); diagEng.value = null })
 
 // ---- R54-A1：来源感知返回（?from=proj&p= → 项目详情；默认方向台）+ A3 定位 + A4 Esc ----
 const fromProjId = computed(() => route.query.from === 'proj' && typeof route.query.p === 'string' ? route.query.p : '')
@@ -143,6 +209,62 @@ function collapseAllNodes() {
   for (const dir of d.value.compass.directions) for (const proj of dir.projects) projFoldOverride.value[proj.id] = false
   writeProjFold()
   expandedMetrics.value.clear()
+}
+
+/** ★V3.8.18（N11）：合并开关的当前状态 —— 「全部项目舱是否都处于展开」。
+ *  一个项目都没有时判 false：空库点一下应该是"展开"而不是"收起"（无物可收）。
+ *  ★判据只读 projFoldOverride，不读 projOpen —— 后者带「主攻默认展开」兜底，
+ *  那个兜底会让「全部收起」之后仍被算成已展开，按钮就永远弹回同一个状态（死按钮）。 */
+const allExpanded = computed(() => {
+  const projs = d.value.compass.directions.flatMap(x => x.projects)
+  if (!projs.length) return false
+  return projs.every(p => projFoldOverride.value[p.id] === true)
+})
+/** 反向开关：点一次反向。正反都可达，不做单向门。 */
+function toggleAllNodes() { if (allExpanded.value) collapseAllNodes(); else expandAllNodes() }
+
+/* ══ ★V3.8.18（N4）：方向台页头文案自定义 ══
+ * 只存 UIPrefs.compassCopy（UI 偏好），绝不写 compass —— 愿景/使命/战略目标是业务数据，
+ * 这里改的只是「这一页叫什么、怎么介绍自己」。三段各自可编辑：Enter/blur 保存、Esc 取消。
+ * 缺省或空串＝用内置文案，所以从不动它的用户完全无感（不产生空块、不产生"编辑中"边框）。 */
+const DEF_EYEBROW = '方向台 · 战略金字塔 STRATEGY PYRAMID'
+const DEF_SUB = '战略目标分岔、项目各自成舱、成功指标内嵌任务——每条任务都能回答「我在为哪个项目的哪个指标服务」。'
+
+const cpEyebrow = computed(() => store.ui?.compassCopy?.eyebrow || DEF_EYEBROW)
+const cpSub = computed(() => store.ui?.compassCopy?.sub || DEF_SUB)
+/** 自定义标题时整句同色：只把内置文案里「逐层收窄」那半句染成 accent，
+ *  会出现"改了一半标题、其中一段还带高亮色"的半吊子观感。用户整句接管，样式一并整句生效。 */
+const cpTitleParts = computed(() => {
+  const raw = store.ui?.compassCopy?.title
+  if (!raw) return { pre: '愿景之上，', hl: '逐层收窄', post: '成今天要做的事' }
+  return { pre: '', hl: raw, post: '' }
+})
+
+type CopyField = 'eyebrow' | 'title' | 'sub'
+const cpEditing = ref<CopyField | null>(null)
+function startCpEdit(f: CopyField) { cpEditing.value = f }
+function cancelCpEdit() { cpEditing.value = null }
+/** Enter / blur 保存；清空＝「还原默认」而不是「留一段空白」 */
+function saveCpEdit(f: CopyField, ev: Event) {
+  const text = (ev.currentTarget as HTMLElement).textContent?.trim() ?? ''
+  cpEditing.value = null
+  const next: { eyebrow?: string; title?: string; sub?: string } = { ...(store.ui?.compassCopy ?? {}) }
+  if (text) next[f] = text
+  else delete next[f]
+  saveUIPrefs({ compassCopy: next })
+  /* 本地缓存同步（读的是 store.ui，不落这一帧界面不会立刻变；同步赋值省掉"存了但没反应"的错觉） */
+  store.ui = { ...(store.ui as UIPrefs), compassCopy: next }
+}
+/** ✎ 按钮：进入编辑态并全选段内文字，用户直接覆写（比"点了还得手动全选"少一步） */
+function focusCpEdit(f: CopyField) {
+  cpEditing.value = f
+  nextTick(() => {
+    const el = document.querySelector<HTMLElement>(`.cp-edit[data-cp="${f}"]`)
+    el?.focus()
+    if (!el) return
+    const r = document.createRange(); r.selectNodeContents(el)
+    const s = getSelection(); s?.removeAllRanges(); s?.addRange(r)
+  })
 }
 
 /* R3-B′：项目卡头入口收敛（6 枚 → 全景 / AI / ▾），其余四项进折叠菜单 */
@@ -902,49 +1024,80 @@ onUnmounted(() => {
          实际实现把面包屑/统计/7 个按钮全塞进一条 tree-page-head，结果首屏第一眼是一行
          密排小字，Slogan 完全缺席。1:1 还原必须先把这个结构补回来。 -->
     <section class="hero">
-      <div class="hero-l">
+<div class="hero-l">
         <!-- R3-B1 / R123：面包屑保留 16px 档（三页页头一致），随 W12 从 .tree-page-head 迁到 HERO 区 -->
         <div class="hero-crumb"><b>方向台</b> · 六层思维链全深度</div>
         <!-- R3-B1：方向台一级化 —— eyebrow 定调，副标说明这一页在做什么 -->
         <div class="hero-eyebrow">
           <span class="he-dot" />
-          方向台 · 战略金字塔 STRATEGY PYRAMID
+          <!-- ★V3.8.18（N4）：眉标 / 大标题 / 副标三段可就地改写，Enter 或失焦保存、Esc 取消。
+               存 UIPrefs.compassCopy，不碰 compass 业务数据。✎ 按钮进入编辑并全选，省掉"再手动选中一次"。 -->
+          <span class="cp-edit" :class="{ editing: cpEditing === 'eyebrow' }" data-cp="eyebrow"
+            :contenteditable="cpEditing === 'eyebrow'" spellcheck="false" title="点此自定义眉标"
+            @click="startCpEdit('eyebrow')" @blur="saveCpEdit('eyebrow', $event)"
+            @keydown.enter.prevent="saveCpEdit('eyebrow', $event)" @keydown.esc.prevent="cancelCpEdit">{{ cpEyebrow }}</span>
           <span v-if="fromProjName" class="he-from">· 来自项目「{{ fromProjName }}」</span>
+          <span class="cp-pen" title="自定义眉标" @click="focusCpEdit('eyebrow')">✎</span>
         </div>
         <!-- ★Slogan 用 --fs-headline(17px) 而不是原型的 --fs-hero(34px)：
              D1 已拍板方向台不新增 --fs-hero，W8-5 钉死全站 display 只许两处。
              17px 仍 > 面包屑 16px，层级不倒置（判据 W8-3 的意图守得住）。 -->
         <h1 class="hero-title">
-          愿景之上，<span class="hero-hl">逐层收窄</span>成今天要做的事
+          <span class="cp-edit" :class="{ editing: cpEditing === 'title' }" data-cp="title"
+            :contenteditable="cpEditing === 'title'" spellcheck="false" title="点此自定义大标题"
+            @click="startCpEdit('title')" @blur="saveCpEdit('title', $event)"
+            @keydown.enter.prevent="saveCpEdit('title', $event)" @keydown.esc.prevent="cancelCpEdit"><template
+              v-if="cpTitleParts.post">{{ cpTitleParts.pre }}<span class="hero-hl">{{ cpTitleParts.hl }}</span>{{ cpTitleParts.post }}</template><template
+              v-else>{{ cpTitleParts.hl }}</template></span>
           <span class="hero-en">SIX-LAYER CHAIN</span>
+          <span class="cp-pen" title="自定义大标题" @click="focusCpEdit('title')">✎</span>
         </h1>
-        <p class="hero-sub" title="战略目标分岔、项目各自成舱、成功指标内嵌任务——每条任务都能回答「我在为哪个项目的哪个指标服务」。">
-          战略目标分岔、项目各自成舱、成功指标内嵌任务——每条任务都能回答「我在为哪个项目的哪个指标服务」。
+<p class="hero-sub" :title="cpSub">
+          <span class="cp-edit" :class="{ editing: cpEditing === 'sub' }" data-cp="sub"
+            :contenteditable="cpEditing === 'sub'" spellcheck="false" title="点此自定义副标"
+            @click="startCpEdit('sub')" @blur="saveCpEdit('sub', $event)"
+            @keydown.enter.prevent="saveCpEdit('sub', $event)" @keydown.esc.prevent="cancelCpEdit">{{ cpSub }}</span>
+          <span class="cp-pen" title="自定义副标" @click="focusCpEdit('sub')">✎</span>
         </p>
+
+        <!-- ★V3.8.18（N13）：方向健康度从页头右侧动作区搬到左上标题区，成为标题下面的一行状态。
+             病根＝它原来和「视图切换 / 展开收起 / 已完成显示」并排在一排里，读起来是"第四个可点按钮"，
+             可它其实不点不动任何东西 —— 用户点下去没反应，于是把一枚状态读数错认成操作入口。
+             搬到标题下、去掉按钮壳之后它是"这页现在什么状况"的一部分，不再参与动作区的竞争。
+             ★不在这里重复断链条目数：骨架条的断链行已经有一份更全的清单，两处都写数字就会有两个真相。 -->
+        <div class="hero-health">
+          <span class="dhi-badge" :class="dhiStatus.cls">
+            <span aria-hidden="true">🧭</span>
+            <span>方向健康度：{{ dhiStatus.label }}</span>
+          </span>
+        </div>
       </div>
 
       <div class="hero-r">
         <div class="hero-acts">
-          <!-- ★W11 视图切换（D3：方向台内第二视图）。双向可达：两个按钮都在，任何时候都能来回切 -->
+          <!-- ★W11 视图切换（D3：方向台内第二视图）。双向可达：两个按钮都在，任何时候都能来回切。
+               ★V3.8.18（N10）：提为页头**唯一主焦点**（实底 + 加粗 + 加高）。
+               病根＝它原来和旁边六枚同尺寸、同底色、同字重的按钮挤在一排里，谁都不像主入口；
+               而这两个视图恰恰是这一页的第一个决策（它决定下方长什么样），其余都是它的从属开关。 -->
           <div class="view-seg" role="tablist" aria-label="方向台视图形态">
             <button class="vs-b" :class="{ on: viewMode === 'tower' }" :aria-selected="viewMode === 'tower'" title="纵向项目舱列 · 看我在哪个位置" @click="viewMode = 'tower'">项目塔</button>
             <button class="vs-b" :class="{ on: viewMode === 'pano' }" :aria-selected="viewMode === 'pano'" title="横向泳道全景 · 看这一个项目的完整链路" @click="viewMode = 'pano'">项目全景</button>
           </div>
-          <button class="tree-tool" @click="expandAllNodes" title="展开全部层级">⊞ 展开</button>
-          <button class="tree-tool" @click="collapseAllNodes" title="收起全部战略目标与指标">⊟ 收起</button>
-          <!-- R3-B′：目标级入口上收页头（原先埋在第 3 层卡头里，新建战略目标要先把视线降到层内） -->
-          <button class="tree-tool accent" @click="addDirection" title="添加战略目标">＋ 战略目标</button>
-          <span class="node-action ai-chain-act" title="AI 依愿景/使命建议本阶段战略目标（同层查重后采纳才创建）" @click="aiChain('directions', '')"><AiEntryButton variant="inline" label="建议目标" /></span>
+          <!-- ★V3.8.18（N11）：「⊞ 展开」「⊟ 收起」两枚合并为一枚反向开关。
+               两枚并排时用户得先在脑子里判断"我现在是展开还是收起"才知道该点哪一枚；
+               合并后按钮自带当前状态 + 明确动词，读一次就够。点一次反向，正反都可达（不做单向门）。
+               ★不与旁边「已完成项目」合并：那是可见性过滤（按状态筛掉舱），这里是展开状态（同一批舱开合），
+               作用在不同维度，合并会让一枚开关背两个语义。 -->
+          <button class="tree-tool fold-toggle" :class="{ on: allExpanded }" @click="toggleAllNodes"
+            :title="allExpanded ? '当前：全部展开。点击收起全部战略目标与指标' : '当前：默认收起。点击展开全部层级'">↕ {{ allExpanded ? '全部收起' : '全部展开' }}</button>
         </div>
         <div class="hero-meta">
           <!-- ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：这枚「← 返回项目详情」按钮退役。
            ★但 fromProjId / goBack / Esc 返回**保留**——那是「从项目详情深链进来后按 Esc 送回原处」的
            来路感知（R54-A1），不是"进项目详情"的入口，两者语义不同。 -->
           <button class="tree-tool" :class="{ off: !showDone }" @click="toggleShowDone" title="与方向台页头同一开关（同一偏好，一处切换全台生效）">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
-          <div class="dhi-badge" :class="dhiStatus.cls">
-            <span>🧭</span>
-            <span>方向健康度：{{ dhiStatus.label }}</span>
-          </div>
+          <!-- ★V3.8.18（N13）方向健康度已移到左上标题区（.hero-health），不再占动作位。
+               ★V3.8.18（N12）「＋ 战略目标」「建议目标」已移入骨架条第 3 层旁边（.spine-bar）。 -->
         </div>
         <div class="hero-stats">
           <span>愿景 {{ compassMeta.counts.vision }}</span><i>·</i>
@@ -959,7 +1112,37 @@ onUnmounted(() => {
       </div>
     </section>
 
-    <!-- 画布：左栏 = 项目导航（原型 .navside），右侧 = 骨架条 + 项目塔 -->
+    <!-- ══ ★V3.8.18（N14）战略骨架条提到全宽 ══
+         原型首屏顺序是「战略骨架在上 → 下方才是左右结构」；实际实现把骨架条塞在右列
+         （.canvas-inner）里，于是左导航与骨架条**并排起排**，左栏那 210px 从骨架条高度
+         就开始往下悬着、下面全空。本次把骨架条从右列抽出来横跨整个内容宽度单独成条 ——
+         它是「这一页的地图」，本就不该被当成右列里的一个区块；下方 .tree-layout 才是「左导航 + 右内容」。
+         ★能力一项未少：六层按钮 / 目标芯片 / 断链行与 @locate 定位逻辑原封不动，
+         只是挂载点从右列换到全宽条；定位滚动仍作用于 .canvas（onLocateLayer 走 canvasEl）。
+         ★W12-2 判据「骨架条在层级面板之前」依然成立（全宽条仍在 .canvas-inner 之前）。 -->
+    <div class="spine-bar">
+      <CompassSpine
+        :meta="compassMeta"
+        :dir-filter="dirFilter"
+        :layer-open="layerOpen"
+        :risk-only="riskOnly"
+        @layer="onLayerOpen"
+        @locate="onLocateLayer"
+        @dir="onDirFilter"
+        @risk="toggleRiskOnly"
+        @orphan="gotoOrphans"
+        @risk-bar="showRiskReport"
+      >
+        <!-- ★V3.8.18（N12）：「＋战略目标」「建议目标」落到骨架条第 3 层旁边。
+             它们本来就是第 3 层的操作，此前摆在一排全局按钮里，用户得先跨过视图切换才够得到。 -->
+        <template #actions>
+          <button class="tree-tool accent" @click="addDirection" title="添加战略目标">＋ 战略目标</button>
+          <span class="node-action ai-chain-act" title="AI 依愿景/使命建议本阶段战略目标（同层查重后采纳才创建）" @click="aiChain('directions', '')"><AiEntryButton variant="inline" label="建议目标" /></span>
+        </template>
+      </CompassSpine>
+    </div>
+
+    <!-- 画布：左栏 = 项目导航（原型 .navside，吸顶常驻），右侧 = 项目塔 -->
     <div class="tree-layout">
       <!-- ★W12：左栏由「六层数字目录」改为「项目导航」。
            病根＝六层目录是 1~6 的纯数字，看不出层级关系；而原型的 .navside 是**项目清单**
@@ -1069,8 +1252,24 @@ onUnmounted(() => {
           <!-- ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：项目塔与项目全景两个视图已能就地
          纵览一个项目的全貌，这枚「📄 项目详情」直达入口由此退役。/compass/projects 整页与其余
          消费方（⌘K 项目搜索、ProjectDetailDrawer 等）本轮不动，只是不再从方向台把用户引过去。 -->
-          <div class="tl-head-row">
-            <span class="tl-badge">3 战略目标 → 4 攻坚项目 → 5 成功指标 → 6 任务</span>
+          <!-- ★V3.8.18（N3）：三层引导带从「一排带底色的小徽章」缩成一条**极窄引导条**。
+     病根＝它原来用 .tl-badge（accent 底色 + 加粗 + 圆角），和下方项目舱头是同一套视觉件，
+     权重几乎一样高 —— 于是一句"3战略目标→4攻坚项目→5成功指标→6任务"的导航提示，
+     抢走了本该属于"战略目标 → 项目舱"的注意力。**它是路牌，不是招牌。**
+     现在只保留「层号 + 层名 + 计数 + 一句灰字说明」：字号降一档、去底色、发丝分隔，默认安静。
+     ★保留 .tl-head-row 容器类名（R3-B′ 判据靠它切片定位层内区域）。 -->
+<div class="tl-head-row">
+            <span class="gs-i"><i class="gs-n">3</i>战略目标 <b>{{ treeStats.dirs }}</b></span>
+            <span class="gs-d">方向要往哪走</span>
+            <span class="gs-sep" aria-hidden="true" />
+            <span class="gs-i"><i class="gs-n">4</i>攻坚项目 <b>{{ treeStats.projects }}</b></span>
+            <span class="gs-d">落地靠哪些舱</span>
+            <span class="gs-sep" aria-hidden="true" />
+            <span class="gs-i"><i class="gs-n">5</i>成功指标 <b>{{ treeStats.metrics }}</b></span>
+            <span class="gs-d">怎么算做成</span>
+            <span class="gs-sep" aria-hidden="true" />
+            <span class="gs-i"><i class="gs-n">6</i>任务 <b>{{ treeStats.tasks }}</b></span>
+            <span class="gs-d">今天动哪一件</span>
           </div>
 
             <!-- ★W11 筛选态提示条：过滤是隐形的就会让人以为项目丢了。
@@ -1136,11 +1335,20 @@ onUnmounted(() => {
                     <span class="dh-line" />
                   </div>
                   <div class="dh-acts" @click.stop>
-                    <span class="node-action" @click="addProject(dg.dir.id)" title="添加攻坚项目">＋</span>
-                    <span class="node-action" @click="aiChain('projects', dg.dir.id)" title="AI 建议攻坚项目（补路径依赖，查重后采纳才创建）"><AiEntryButton /></span>
-                    <span class="node-action" @click="openGoalImport(dg.dir)" title="导入模板（Markdown 批量生成项目/指标/任务）">📋</span>
-                    <span class="node-action" :class="{ on: dirFilter === dg.dir.id }" @click="onDirFilter(dg.dir.id)" title="只看这个战略目标的项目舱">{{ dirFilter === dg.dir.id ? '✓ 正在只看' : '只看我' }}</span>
-                    <span class="node-action danger" @click="deleteNode('dir', dg.dir.id)" title="删除目标">🗑</span>
+                    <!-- ★V3.8.18（N5）动作**三级分层**：
+                         病根＝五枚按钮共用 .node-action 的固定 22×22 方块，字号/底色/字重完全一样，
+                         于是「只看我」这个**文字型**按钮被硬塞进 22px 方块里，文字逐字折行变成竖排一列
+                         （真 bug，不是观感问题）。修法不是单给它加 white-space，
+                         而是承认"这五枚不是同一类东西"，按操作性质分三级：
+                           t1 主操作 —— 往这个目标里加东西，最常见意图
+                           t2 次操作 —— 图标化能力（AI / 导入），方块形态成立
+                           t3 文字型 —— 状态开关（只看我），本质是"我在哪个视图"而不是"做什么" -->
+                    <span class="node-action t1" @click="addProject(dg.dir.id)" title="添加攻坚项目">＋</span>
+                    <span class="node-action t2" @click="aiChain('projects', dg.dir.id)" title="AI 建议攻坚项目（补路径依赖，查重后采纳才创建）"><AiEntryButton /></span>
+                    <span class="node-action t2" @click="openGoalImport(dg.dir)" title="导入模板（Markdown 批量生成项目/指标/任务）">📋</span>
+                    <span class="node-action t3" :class="{ on: dirFilter === dg.dir.id }" @click="onDirFilter(dg.dir.id)"
+                      :title="dirFilter === dg.dir.id ? '正在只看这个目标 · 再点取消' : '只看这个战略目标的项目舱'">{{ dirFilter === dg.dir.id ? '✓ 正在只看' : '只看我' }}</span>
+                    <span class="node-action t3 danger" @click="deleteNode('dir', dg.dir.id)" title="删除目标">🗑</span>
                   </div>
                 </div>
 
@@ -1160,6 +1368,10 @@ onUnmounted(() => {
                   :drop-on="dropTargetId === row.proj.id"
                   :menu-on="projMenu === row.proj.id"
                   :editing-field="editingField"
+                  :diag="diagFor(row.proj.id)"
+                  :diag-stale="diagStale(row.proj.id)"
+                  @diag-run="(id) => startProjectDiag(id)"
+                  @diag-report="(id) => openDiagReport(id)"
                   @menu="toggleProjMenu"
                   @dragstart="(dirId, pid, ev) => { const p = findProject(pid); if (p) onProjDragStart(dirId, p, ev) }"
                   @dragover="(dirId, pid) => { const p = findProject(pid); if (p) onProjDragOver(dirId, p) }"
@@ -1268,6 +1480,15 @@ onUnmounted(() => {
   />
   <!-- R135：罗盘链式生成评审抽屉（目标/项目/指标/任务四层建议共用） -->
   <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
+  <!-- N2：诊断报告中央弹窗（采纳后自动顶开；过期条与导出都在组件内） -->
+  <ProjectDiagnoseModal
+    v-if="diagOpen"
+    :open="diagOpen"
+    :report="diagReport"
+    :stale="diagStale(diagProjId)"
+    @close="diagOpen = false"
+    @rerun="rerunDiag"
+  />
 </template>
 
 <style scoped>
@@ -1305,9 +1526,66 @@ onUnmounted(() => {
   /* ★W12-A 大标题下的定位语改单行（用户 2026-10-13 拍板 C4）：
      原文 43 字在 620px 容器里折成两行，把「六层思维链」大标题的视觉重心往下拽。
      选「截断 + title 悬浮全文」而非缩小字号——压字号会掉到可读下限以下，
-     而这行本来是定位语不是正文，截断后 hover 能看全即可。 */
+     而这行本来是定位语不是正文，截断后 hover 能看全即可。
+     ★V3.8.18（N4）：截断对象从整段文本改成**内层 .cp-edit**，
+     外层 .hero-sub 保留 nowrap/ellipsis，✎ 按钮仍常驻可见（否则改了副标就没有下一次入口）。 */
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.hero-sub .cp-edit { min-width: 0; }
+
+/* ══ ★V3.8.18（N4）页头文案就地编辑 ══
+   默认完全不可见（无边框、无底色、不改布局），hover 才浮出一层极淡的提示底；
+   进入 .editing 才给 accent 描边。非编辑态不留任何视觉残迹 —— 一旦留了，
+   页头就永远顶着一个"看起来像输入框"的壳，与下方真实输入框抢注意力。 */
+.cp-edit { border-radius: 4px; padding: 1px 4px; margin: 0 -4px; transition: background var(--dur); cursor: text; outline: none; }
+.hero-eyebrow .cp-edit:hover,
+.hero-title .cp-edit:hover,
+.hero-sub .cp-edit:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.cp-edit.editing { background: color-mix(in srgb, var(--accent) 9%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
+.hero-title .cp-edit { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.cp-pen {
+  /* ★W12-G：交互控件不用 --text-4（最淡档，notion 主题下真机隐形）。
+     弱化交给 hover，静态色提到 --text-2 —— 这枚 ✎ 必须在页面上看得见，
+     否则 N4「文案可自定义」等于没有入口。 */
+  font-size: var(--fs-micro); line-height: 1; color: var(--text-2);
+  cursor: pointer; padding: 2px 4px; border-radius: 4px; flex: none;
+  border: 1px solid transparent; align-self: center;
+}
+.cp-pen:hover { color: var(--accent-ink); background: var(--accent-light); border-color: var(--accent-light); }
+
+/* ══ ★V3.8.18（N13）方向健康度移到左上标题区 ══
+   从「动作区里的一枚按钮」降级为「标题下面的一行状态」：去掉可点壳、加发丝衬底，
+   与 .hero-sub 同宽起排。它不再是可点的东西，就不该长得像可点的东西。 */
+.hero-health { margin-top: 12px; }
+.hero-health .dhi-badge { cursor: default; }
+
+/* ══ ★V3.8.18（N14）战略骨架条的全宽承载容器 ══
+   .spine-bar 只负责"占满一行并给下方左右结构留出间距"，卡片本体仍是 CompassSpine 自己的
+   .spine（带自己的边框/圆角/阴影）—— 容器不接管卡片样式，避免两处各画一半边框。 */
+.spine-bar { margin-bottom: 22px; }
+.spine-bar .spine { margin-bottom: 0; }
+
+/* ══ ★V3.8.18（N3）三层引导条：极窄路牌 ══ */
+.tl-head-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 14px; padding: 5px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.gs-i {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-micro); font-weight: 600; color: var(--text-3);
+}
+.gs-i .gs-n {
+  width: 15px; height: 15px; border-radius: 5px; flex: none;
+  background: var(--surface-2); color: var(--text-4);
+  font-size: 9px; font-weight: 700; font-style: normal;
+  display: flex; align-items: center; justify-content: center;
+}
+.gs-i b { color: var(--text-2); font-weight: 700; font-variant-numeric: tabular-nums; }
+.gs-d { font-size: var(--fs-micro); color: var(--text-4); }
+.gs-sep { width: 1px; height: 11px; background: var(--border); margin: 0 3px; }
+.tl-head-row:hover .gs-i { color: var(--text-2); }
+.tl-head-row:hover .gs-i .gs-n { background: var(--accent-light); color: var(--accent-ink); }
 .hero-r {
   display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
   flex: none; max-width: 100%;
@@ -1371,7 +1649,12 @@ onUnmounted(() => {
    1000px 会让右侧项目舱被压扁、舱头按钮挤成两行（就是实际截图里的那个问题）。 */
 .canvas-inner { max-width: 1180px; margin: 0; }
 
-/* ══ W12 左侧项目导航（原型 .navside）：项目清单 + 滚动跟随高亮 ══ */
+/* ══ W12 左侧项目导航（原型 .navside）：项目清单 + 滚动跟随高亮 ══
+   ★V3.8.18（N15）吸顶常驻**本轮复核为已满足**：sticky + align-self:flex-start + top 偏移
+   三件套齐备（align-self 不加的话 flex 子项会按默认 stretch 拉满高度，sticky 直接失效，
+   这是 sticky 在 flex 布局里最常见的静默失效原因）。骨架条提到全宽后 .tree-layout 整体下移，
+   吸顶基准不变，仍以视口顶为参照 —— 项目舱涨到 20+ 时左栏也不会把地图推到屏幕外。
+   max-height + overflow-y 同时在位：舱数多到超过一屏时左栏自己滚，不把整页撑出第二条滚动条。 */
 .navside {
   position: sticky; top: 16px; align-self: flex-start;
   width: 210px; flex-shrink: 0;
@@ -1464,10 +1747,22 @@ onUnmounted(() => {
 .node .node-title.editable.editing { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
 /* R68-F4：操作按钮主题感知——原硬编码不透明白底 + 浅灰图标，深色主题（近黑画布）下对比度崩坏看不到入口 */
 .node-action { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: var(--fs-caption); cursor: pointer; color: var(--text-2); transition: all var(--dur); background: var(--surface-3); border: 1px solid var(--border); }
-/* R135：文字型 AI 入口（添加战略目标旁的「知 建议目标」） */
+/* R135：文字型 AI 入口（骨架条上的「知 建议目标」）—— 与 .t3 同一套文字型规则 */
 .ai-chain-act { width: auto; padding: 0 8px; gap: 3px; font-size: var(--fs-caption); white-space: nowrap; }
 .node-action:hover { background: var(--accent-light); color: var(--accent-ink); border-color: var(--accent); }
 .node-action.danger:hover { color: var(--danger); }
+/* ★V3.8.18（N5）三级分层。t1/t2 的差异只在底色与描边；t3 解除固定方块。
+   ★t3 必须显式 width:auto + white-space:nowrap —— 22px 方块 + 中文字符是竖排 bug 的成因，
+   文字型若继续继承 22px 就等于没修。 */
+.node-action.t1 { background: var(--accent-light); color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 32%, var(--border)); }
+.node-action.t1:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.node-action.t3 {
+  width: auto; min-width: 22px; height: 22px; padding: 0 9px;
+  white-space: nowrap; background: transparent; border-color: transparent;
+  font-size: var(--fs-caption);
+}
+.node-action.t3:hover { background: var(--surface-3); color: var(--text); border-color: var(--border); }
+.node-action.t3.on { color: var(--accent-ink); background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 32%, var(--border)); }
 .stagnant-tag { background: var(--tag-danger-bg); color: var(--danger); font-size: var(--fs-micro); padding: 2px 7px; border-radius: 99px; font-weight: 500; }
 .status-active { color: var(--success); }
 .status-paused { color: var(--warning); }
@@ -1518,19 +1813,26 @@ onUnmounted(() => {
 .tl-hint { font-size: var(--fs-sub); color: var(--text-3); }
 
 /* ── W11 视图切换段（项目塔 / 项目全景）── */
-/* ★两个按钮都必须常驻可点：切过去容易、切回来难是典型的单向门 */
+/* ★两个按钮都必须常驻可点：切过去容易、切回来难是典型的单向门。
+   ★V3.8.18（N10）：改为**页头唯一主焦点** —— 容器加 accent 描边、选中态实底白字、字重 700、
+   上下留白略增。理由：视图选择是这一页的第一个决策，其余页头按钮都是它的从属开关；
+   六枚同权重按钮并排时没有任何一枚"是入口"，用户只能逐个试。 */
 .view-seg {
   display: inline-flex; align-items: center; gap: 2px;
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: 999px; padding: 2px;
+  background: var(--surface-2); border: 1px solid var(--accent);
+  border-radius: 999px; padding: 3px;
+  box-shadow: 0 0 0 3px var(--accent-light);
 }
 .vs-b {
-  font-size: var(--fs-micro); font-weight: 600; color: var(--text-3);
+  font-size: var(--fs-sub); font-weight: 700; color: var(--text-2);
   background: transparent; border: none; cursor: pointer;
-  padding: 4px 11px; border-radius: 999px; transition: all var(--dur); white-space: nowrap;
+  padding: 5px 14px; border-radius: 999px; transition: all var(--dur); white-space: nowrap;
 }
-.vs-b:hover { color: var(--text-2); }
-.vs-b.on { color: var(--accent-ink); background: var(--accent-light); }
+.vs-b:hover { color: var(--text); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.vs-b.on { color: #fff; background: var(--accent); }
+/* N11 合并开关：开着时给一点 accent 提示，让"当前是展开态"一眼可见 */
+.tree-tool.fold-toggle { min-width: 96px; }
+.tree-tool.fold-toggle.on { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); background: var(--accent-light); }
 
 /* ── W11 筛选态提示条：过滤是隐形的就会让人以为项目丢了 ── */
 .filter-bar {
@@ -1584,7 +1886,7 @@ onUnmounted(() => {
 /* ★目标名 --fs-title(15px)：它是"分岔源头"，比项目重一档；使命/愿景仍是更高层（判据 W8-2 备案延续） */
 .dh-n { font-size: var(--fs-title); font-weight: 700; color: var(--text); letter-spacing: -.01em; }
 .dh-meta { font-size: var(--fs-micro); color: var(--text-3); margin-left: 2px; }
-.dh-acts { display: flex; align-items: center; gap: 4px; flex: none; }
+.dh-acts { display: flex; align-items: center; gap: 5px; flex: none; }
 .dh-acts .node-action.on { color: var(--accent-ink); background: var(--accent-light); }
 
 /* 层级定位闪烁：让"我点的这层实体在这儿"一眼可见 */

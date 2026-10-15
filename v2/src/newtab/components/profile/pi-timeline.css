@@ -4,7 +4,22 @@
 
 /* ===== 容器：左 rail + 右模块列 ===== */
 .pi-tl { display: grid; grid-template-columns: 78px 1fr; }
-.pi-rail { position: relative; }
+/* ★N6（V3.8.18）时间轨吸顶：三段式时间轴很长（今天 + 近期 + 全年），左侧轨原先随页面一起滚走，
+   滚到"全年"段时就看不见自己在第几段——**导航丢了**。
+   吸顶三件套，少一件都会静默失效（棘轮里的祖先断层判据就是防这个）：
+     ① `position: sticky` ② `align-self: start`（grid item 默认 stretch 会把盒子拉满整列，
+        盒子和容器一样高 ⇒ 没有可粘的余量，sticky 形同虚设）
+     ③ `max-height + overflow-y` 兜底：轨自身约 330px，小视口上不加这层会顶出屏幕，
+        而溢出的导航条等于没做。
+   top 取 56px = 48px 全局 topbar + 8px 呼吸，与 `.gs-nav`(66) / `.pd-dir`(64) 同一量级；
+   `.pi-mod { scroll-margin-top: 72px }` 也按这层高度算，jump 落点不会被轨压住。
+   连线画在节点之间的那套坐标（W12-A 的 `left:50%`）不受影响——sticky 只挪整列，不改内部定位。 */
+.pi-rail {
+  position: sticky; top: 56px; align-self: start;
+  max-height: calc(100vh - 80px); overflow-y: auto;
+  scrollbar-width: none;
+}
+.pi-rail::-webkit-scrollbar { display: none; }
 /* ★W12-A 线画在「节点之间」而不是画在 rail 上：
    原 `.pi-rail::before` 把线钉死在 left:30px，而圆点跟着 `align-items:center` 走 rail 列宽
    （`grid-template-columns: 78px` ⇒ 中心在 39px）——两套坐标系对不上，横向差 7.5px，
@@ -135,7 +150,11 @@
 .pi-hero-t { font-size: var(--fs-display); font-weight: 700; letter-spacing: -.025em; line-height: 1.15; margin: 0; color: var(--text); }
 .pi-hero-t .en { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .14em; color: var(--text-4); margin-left: 10px; }
 .pi-hero-sub { font-size: var(--fs-sub); color: var(--text-3); margin: 12px 0 0; max-width: 560px; line-height: 1.85; }
-.pi-hero-sum { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+/* ★N7（V3.8.18）Hero 的 5 枚 KPI 药丸居中：页头左边是标题区、右边是操作区，
+   两头都有重量，唯独这一排**身份是"整页的核心读数"**却贴着左边跟标题挤在一起——
+   它不是标题的附属，是读者第一眼要找的东西，位置应该在两头之间。
+   居中对 flex-wrap 后的每一行都生效（换行时居中的是当前行，不是整块），药丸数量随屏变也稳。 */
+.pi-hero-sum { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
 .pi-hchip {
   display: inline-flex; align-items: baseline; gap: 6px; padding: 7px 14px; border-radius: 999px;
   background: var(--surface); box-shadow: var(--shadow); cursor: pointer; transition: all var(--dur);

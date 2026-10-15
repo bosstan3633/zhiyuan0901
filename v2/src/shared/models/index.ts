@@ -622,6 +622,10 @@ export interface UIPrefs {
   wsSideW?: number
   /** R125：工作台左栏收起为 36px 图标轨（记忆偏好） */
   wsSideRail?: boolean
+  /** ★V3.8.18（N4）：方向台页头文案自定义 —— eyebrow（眉标）/ title（大标题）/ sub（副标）。
+   *  键缺省或空串＝用内置文案。**只存 UI 偏好，不碰业务数据**：
+   *  愿景 / 使命 / 战略目标仍在 compass 里，这里改的只是"这一页叫什么、怎么介绍自己"。 */
+  compassCopy?: { eyebrow?: string; title?: string; sub?: string }
   /** R126（诉求 5）：全局默认冷却天数（1~365；缺省 30；归档 = ×3） */
   coolingDaysDefault?: number
   /** R161-②：常用检索词（本地记忆，不随数据同步）——按次数降序取前 3 条铺在检索框下方。

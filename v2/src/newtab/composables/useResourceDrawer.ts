@@ -10,10 +10,11 @@ import type { Router } from 'vue-router'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import { uid } from '@/shared/utils'
-import { isMirrorView, removeProjection } from '@/shared/storage/hub'
+import { isMirrorView, removeProjection, projectCardToBoard } from '@/shared/storage/hub'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
 import type { AppData, ResourceCard, ArgumentCard, Category, AssetMeta } from '@/shared/models'
+import { CURATION_WS_ID } from '@/shared/models'
 import type { WsStore } from './useResourceView'
 
 export interface ResourceDrawerCtx {
@@ -297,7 +298,50 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
   }
 
   // B5：右键菜单
-  const resCtx = ref({ open: false, x: 0, y: 0 })
+/**
+ * N8（V3.8.18）资源卡 →策展台 的「推送」入口（连同它的选台弹窗）
+ *
+ * ★决策翻转备案：V3.7.0（R179）随资源台退役把「📡 镜像到策展台」整条入口砍掉，
+ *   当时的理由是"策展台经投射引用（推送入口退役，拉取走挂载/投射）"。
+ *   那次只统一了**数据方向**，没有统一**人的动作方向**：现在要把池里一张卡放进某台，
+ *   人得先切到那个策展台 → 找到对应节点 → 点「🔗 关联资源卡」→ 再在选择器里搜这张卡，
+ *   四步，而且是**在别的台里**做一件"我正在池里看好卡"时想做的事。
+ *   推送入口（这里）与拉取入口（策展台侧选择器）是**同一条 projectCardToBoard 的两个方向**，
+ *   不是两套机制——重复镜像由它内部的 existed 判重兜住，源卡零影响。
+ *
+ * ★为什么不做成"选台 + 选分类"两步：targetCatId 是可选参数（hub.ts:62 注释已写明
+ *   它只是"镜像时刻源卡所在分类"的历史快照，不参与任何业务判定，渲染一律以源卡实时
+ *   categoryId 为准）。既然不参与判定，就不该让用户为一个陈旧快照多选一次。
+ */
+  const mirrorOpen = ref(false)
+  const mirrorTarget = ref<ResourceCard | null>(null)
+  const mirrorWsId = ref('')
+  /** 可投射的策展台：排除资源卡池本身与已归档台（archived 的台投过去等于投进回收站） */
+  const mirrorBoards = computed(() =>
+    (d.value?.workspaces || []).filter(w => w.kind !== 'resource' && w.id !== CURATION_WS_ID && !w.archived)
+  )
+  function openMirrorToBoard(r: ResourceCard) {
+    if (isMirrorView(r)) { showToast('📡 镜像卡本身就是引用——请到源卡上投射'); return }
+    const boards = mirrorBoards.value
+    if (!boards.length) { showToast('还没有策展台——先在左栏新建一个'); return }
+    mirrorTarget.value = r
+    mirrorWsId.value = boards[0].id
+    mirrorOpen.value = true
+  }
+  function confirmMirrorToBoard() {
+    const r = mirrorTarget.value
+    const wsId = mirrorWsId.value
+    if (!r || !wsId) return
+    const rec = projectCardToBoard(d.value, r.id, wsId)
+    if (!rec) { showToast('⚠ 该台已经镜像过这张卡了'); mirrorOpen.value = false; return }
+    store.persist()
+    const name = (d.value.workspaces || []).find(w => w.id === wsId)?.name || '策展台'
+    showToast(`✓ 已镜像到「${name}」（源卡仍在资源卡池）`)
+    mirrorOpen.value = false
+    mirrorTarget.value = null
+  }
+  
+    const resCtx = ref({ open: false, x: 0, y: 0 })
   const resCtxItems = ref<{ label: string; icon?: string; danger?: boolean; cb: () => void }[]>([])
   function openResCtx(e: MouseEvent, r: ResourceCard) {
     if (isMirrorView(r)) {
@@ -320,7 +364,10 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
         // R90（R10）：星标——toggleStar 能力早就在、hover 动作条早早就有 ⭐，右键此前一直缺
         { label: r.starred ? '☆ 取消星标' : '⭐ 星标', icon: 'star', cb: () => toggleStar(r) },
         { label: '移动分类', icon: 'folder', cb: () => openMoveOne(r) },
-        // V3.7.0（R179）：「📡 镜像到策展台」随资源台退役——真身唯一入池，策展台经投射引用（推送入口退役，拉取走挂载/投射）。
+        // N8（★V3.8.18 决策翻转）：「📡 镜像到策展台」自 V3.7.0（R179）退役后恢复——
+        // 退役的是"资源台"这个概念，不是"把一张池卡投给某台"这个动作；只留拉取方向
+        // 会让人为了投一张卡先切台再翻找（四步），推送与拉取本是同一条 projectCardToBoard。
+        { label: '📡 镜像到策展台…', icon: 'arrowright', cb: () => openMirrorToBoard(r) },
         // R62-3：中心论点（每台一张；设即替换旧论点）
         r.isThesis
           ? { label: '取消中心论点', icon: 'target', cb: () => unsetThesis() }
@@ -328,7 +375,7 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
         { label: '删除', icon: 'trash', danger: true, cb: () => deleteResource(r) }
       ]
     }
-    resCtx.value = { open: true, x: Math.min(e.clientX, window.innerWidth - 190), y: Math.min(e.clientY, window.innerHeight - 240) }
+    resCtx.value = { open: true, x: Math.min(e.clientX, window.innerWidth - 190), y: Math.min(e.clientY, window.innerHeight - 270) }
   }
 
   return {
@@ -339,6 +386,8 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     cleanAllMirrors, locateMirrorSourceCard, openResource, closeDrawer, syncEditingFromStore,
     saveResource, deleteCurrentResource, deleteResource, togglePin, toggleStar, copyLink,
     resFormRef, fixLink, resCtx, resCtxItems, openResCtx,
+    // N8：镜像到策展台（推送方向）——两宿主共用（Workspace 内联抽屉 + App 级 ResourceDetailDrawer）
+    mirrorOpen, mirrorTarget, mirrorWsId, mirrorBoards, openMirrorToBoard, confirmMirrorToBoard,
   }
 }
 

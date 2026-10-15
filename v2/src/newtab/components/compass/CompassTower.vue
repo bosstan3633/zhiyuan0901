@@ -11,8 +11,10 @@
  */
 import { computed } from 'vue'
 import CompassLane from './CompassLane.vue'
+import CompassTowerStatus from './CompassTowerStatus.vue'
 import type { Direction, Project, TaskCard } from '@/shared/models'
 import type { ProjectMeta } from '../../views/compassMeta'
+import type { ProjectDiagnosis } from '@/shared/ai/projectDiagnose'
 
 const props = defineProps<{
   dir: Direction
@@ -35,6 +37,10 @@ const props = defineProps<{
   menuOn?: boolean
   /** 当前处于就地改名态的字段键（'metric-<id>'），由父组件单一真源驱动 */
   editingField?: string | null
+  /** N2：本项目的 AI 诊断报告（会话缓存里的一份；null=还没生成过） */
+  diag?: ProjectDiagnosis | null
+  /** N2：报告指纹与当前数据重算的指纹不一致 → 标签进过期态（宿主算好，这里只显示） */
+  diagStale?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -73,6 +79,9 @@ const emit = defineEmits<{
   (e: 'menu', projId: string): void
   (e: 'focus', projId: string): void
   (e: 'del', projId: string): void
+  /** N2：还没报告 → 跑诊断（走 AI 抽屉，手动触发红线）；已有报告 → 打开中央弹窗 */
+  (e: 'diagRun', projId: string): void
+  (e: 'diagReport', projId: string): void
 }>()
 
 /** 断链模式下，没缺口的指标/项目一律隐藏 */
@@ -80,6 +89,8 @@ const shownMetrics = computed(() =>
   props.riskOnly ? props.meta.metrics.filter(m => m.orphanMetric || m.tasks.some(t => hasClue(t))) : props.meta.metrics
 )
 const shownOrphans = computed(() => props.meta.orphanTasks)
+/* ★N2 诊断标签组已整块拆进 CompassDiagBadge.vue（W11-12：方向台单组件 ≤400 行，
+   舱头本来就挤，再塞标签组 + 过期态 + 两态入口必越线——拆件不放宽上限）。 */
 const hideWhole = computed(() => props.riskOnly && shownMetrics.value.length === 0 && shownOrphans.value.length === 0)
 
 /**
@@ -91,8 +102,6 @@ function hasClue(t: TaskCard): boolean {
   return !!(t as TaskCard & { w?: string }).w
 }
 
-const ringR = 18
-const ringC = 2 * Math.PI * ringR
 </script>
 
 <template>
@@ -125,21 +134,16 @@ const ringC = 2 * Math.PI * ringR
       </div>
 
       <div class="tw-right" @click.stop>
-        <div class="tw-ring" :title="`项目级完成度 ${meta.pct}%（跨全部指标聚合）`">
-          <svg viewBox="0 0 42 42" width="42" height="42" aria-hidden="true">
-            <circle cx="21" cy="21" :r="ringR" fill="none" stroke="var(--surface-3)" stroke-width="3" />
-            <circle
-              cx="21" cy="21" :r="ringR" fill="none"
-              stroke="var(--hue)" stroke-width="3" stroke-linecap="round"
-              :stroke-dasharray="ringC" :stroke-dashoffset="ringC * (1 - meta.pct / 100)"
-            />
-          </svg>
-          <span class="tw-ring-v">{{ meta.pct }}%</span>
-        </div>
-        <div class="tw-num">
-          <b>{{ meta.done }} / {{ meta.total }}</b>
-          任务完成
-        </div>
+        <!-- ★舱头只读侧整块外移：进度环 + 完成数 + N2 诊断标签组（W11-12 单组件 ≤400 行） -->
+        <CompassTowerStatus
+          :proj-id="proj.id"
+          :hue="hue"
+          :meta="meta"
+          :diag="diag"
+          :stale="diagStale"
+          @diag-run="(id) => emit('diagRun', id)"
+          @diag-report="(id) => emit('diagReport', id)"
+        />
         <div class="tw-acts" @click.stop>
           <!-- ★拖拽手柄：只在同一战略目标内排序，跨目标不接受（改归属是另一件事，走项目详情） -->
           <span
@@ -279,17 +283,6 @@ const ringC = 2 * Math.PI * ringR
 
 /* ★右侧区固定一块不换行：窄舱时按钮挤成两行是最刺眼的失真，flex-wrap 的容器里给 nowrap + min-width:0 */
 .tw-right { display: flex; align-items: center; gap: 14px; flex: none; }
-/* 原型 .ring 42px + 环上数字；24px 时光环细到看不出进度 */
-.tw-ring { position: relative; width: 42px; height: 42px; flex: none; }
-.tw-ring svg { transform: rotate(-90deg); }
-.tw-ring-v {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-size: var(--fs-micro); font-weight: 700; color: var(--text-2);
-}
-/* ★原型 .tw-num 是两行块：完成数一行（--fs-sub）、"任务完成"一行（--fs-micro）。
-   之前挤成一行 "0 / 5 任务完成"，与舱头 15px 标题同排就糊了。 */
-.tw-num { font-size: var(--fs-micro); color: var(--text-3); line-height: 1.5; white-space: nowrap; }
-.tw-num b { display: block; font-size: var(--fs-sub); color: var(--text-2); font-variant-numeric: tabular-nums; }
 .tw-acts { display: flex; align-items: center; gap: 6px; position: relative; }
 .tower.is-dragging { opacity: .5; }
 /* ★落位指示用 inset box-shadow，绝不挤动版面（R3-B2 明令） */
