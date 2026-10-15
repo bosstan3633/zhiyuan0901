@@ -622,10 +622,9 @@ export interface UIPrefs {
   wsSideW?: number
   /** R125：工作台左栏收起为 36px 图标轨（记忆偏好） */
   wsSideRail?: boolean
-  /** ★V3.8.18（N4）：方向台页头文案自定义 —— eyebrow（眉标）/ title（大标题）/ sub（副标）。
-   *  键缺省或空串＝用内置文案。**只存 UI 偏好，不碰业务数据**：
-   *  愿景 / 使命 / 战略目标仍在 compass 里，这里改的只是"这一页叫什么、怎么介绍自己"。 */
-  compassCopy?: { eyebrow?: string; title?: string; sub?: string }
+  /** ★V3.8.20 退役带备案（用户拍板 2026-10-15）：原 N4 方向台页头文案自定义 compassCopy
+   *  （eyebrow/title/sub）随 HERO 左文案栏整块退役 —— 字段从接口删除；老库里的残留键
+   *  读取方已不存在，宽松反序列化下无害（多出来的键原样躺在 localStorage 里不影响任何读写）。 */
   /** R126（诉求 5）：全局默认冷却天数（1~365；缺省 30；归档 = ×3） */
   coolingDaysDefault?: number
   /** R161-②：常用检索词（本地记忆，不随数据同步）——按次数降序取前 3 条铺在检索框下方。

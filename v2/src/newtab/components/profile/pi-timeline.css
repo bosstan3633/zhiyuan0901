@@ -55,6 +55,8 @@
 .pi-mod-ico { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; flex: none; font-size: 20px; }
 .pi-mod-ico.i-now { background: var(--accent-light); }
 .pi-mod-ico.i-recent { background: color-mix(in srgb, var(--info-blue) 14%, transparent); }
+/* ★V3.8.20：本月段图标底色 —— 四段各一色相（今天 accent / 本周 info / 本月 success / 全年 warning） */
+.pi-mod-ico.i-month { background: color-mix(in srgb, var(--success) 14%, transparent); }
 .pi-mod-ico.i-year { background: color-mix(in srgb, var(--warning) 18%, transparent); }
 .pi-mod-t { flex: 1; min-width: 200px; }
 .pi-mod-t h2 {

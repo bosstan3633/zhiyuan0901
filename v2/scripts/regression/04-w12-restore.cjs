@@ -18,13 +18,15 @@ const {
 
 console.log('【W12 · 方向台 1:1 还原（版面归属）】');
 
-check('W12-1 ★HERO 区必须是**独立两栏**而不是把工具挤成一条横排。★病根：实际实现把面包屑/6 项读数/7 个按钮全塞进 .tree-page-head 一行 flex，结果首屏第一眼是一行密排小字，原型的 Slogan 完全缺席 —— 结构缺了，不是样式没调好。★本条钉三件事：① <section class="hero"> 在 .tree-layout 之前 ② 左栏 .hero-l 装文案（面包屑/eyebrow/Slogan/副标）③ 右栏 .hero-r 装动作（.hero-acts 视图切换+展开收起+战略目标+AI / .hero-meta 返回+已完成+健康度 / .hero-stats 读数）。★负锚：.tree-page-head 一行密排形态不许复活', () => {
+check('W12-1 ★HERO 区必须是**独立结构**而不是把工具挤成一条横排。【W12 原判 · V3.8.12】钉「左文案 .hero-l + 右动作 .hero-r」两栏。★V3.8.20 翻转带备案（用户拍板 2026-10-15）：左上标题文案区（面包屑/眉标/大标题/副标 + N4 就地编辑）整块退役 —— 方向台是工作台面不是宣传页，定调语由骨架条 .spine-h 承担；hero 改**纵向单列**：动作行（.hero-acts：视图切换主焦点 + ⚙ 工具下拉 + 来路感知文本）+ 读数行（.hero-stats：健康度徽章领衔）。原病根（工具密排横排、首屏无结构）的解法不变：结构分层、主焦点唯一。★本条钉：① <section class="hero"> 在 .tree-layout 之前 ② .hero-acts 在位且含 view-seg ③ .hero-stats 在位且含 dhi-badge（健康度随迁读数行首位，N13 意图随迁）④ ⚙ 工具下拉（.hero-tools-menu）承接展开收起与已完成显隐。★负锚：.tree-page-head 一行密排形态不许复活；退役的 .hero-l/.hero-r 不许回流', () => {
   const t = codeOnly(CT_W11);
   return t.includes('<section class="hero">')
-    && t.includes('class="hero-l"') && t.includes('class="hero-r"')
-    && t.includes('class="hero-acts"') && t.includes('class="hero-meta"') && t.includes('class="hero-stats"')
+    && t.includes('class="hero-acts"') && t.includes('class="hero-stats"')
+    && t.includes('class="hero-tools-menu"')
+    && t.includes('class="dhi-badge"')
     && /^\.hero \{[^}]*display: flex/m.test(t)
-    && /\.hero-l \{ flex: 1; min-width: 340px; \}/.test(t)
+    && /\.hero \{[^}]*flex-direction: column/m.test(t)
+    && !t.includes('class="hero-l"') && !t.includes('class="hero-r"')
     && !t.includes('class="tree-page-head"');
 });
 
@@ -94,10 +96,10 @@ check('W12-6 ★指标头的操作钮必须让位给读 —— 常驻两枚按�
   return hasBtns && hoverOnly && a11y;
 });
 
-check('W12-7 ★容器内边距属**跨页一致性**纪律，原型的值不许覆盖。★本轮实战：曾把 .compass-layout 的 padding 从 `20px 36px 64px` 改成原型 .page 的 `26px 32px 64px`，结果 R21-3 / R123-3 / R125-1 三条同时红 —— R125「骨架 1440+36」把四页页边距拍成一条纪律，方向台侧的内缩就落在这条规则上。★所以本条把这条纪律显式钉住：容器 padding 必须保持原值，HERO 区的呼吸由 .hero 自身的 margin 承担，不许拿原型的数值去动它', () => {
+check('W12-7 ★容器内边距属**跨页一致性**纪律，原型的值不许覆盖。★本轮实战：曾把 .compass-layout 的 padding 从 `20px 36px 64px` 改成原型 .page 的 `26px 32px 64px`，结果 R21-3 / R123-3 / R125-1 三条同时红 —— R125「骨架 1440+36」把四页页边距拍成一条纪律，方向台侧的内缩就落在这条规则上。★所以本条把这条纪律显式钉住：容器 padding 必须保持原值，HERO 区的呼吸由 .hero 自身的 margin 承担，不许拿原型的数值去动它。★V3.8.20 值同步（用户拍板「间隙温和 +8」）：.hero 与 .spine-bar 的 margin-bottom 由 22px 提到 30px（左文案栏退役后纵向堆叠变薄，温和补回呼吸；容器 padding 仍一字不动）', () => {
   const t = codeOnly(CT_W11);
   return t.includes('.compass-layout { display: block; min-height: 100%; padding: 20px 36px 64px; max-width: 1440px; margin: 0 auto; }')
-    && /^\.hero \{[^}]*margin-bottom: 22px/m.test(t);
+    && /^\.hero \{[^}]*margin-bottom: 30px/m.test(t);
 });
 
 check('W12-8 ★拆版式不许顺手删能力：HERO 重构后页头原有的八个出口必须逐项在位。★这条是本项目的核心教训「少做了门禁抓不到」的对冲 —— 一次结构调整最容易丢的不是样式而是入口（按钮被并进菜单、返回钮被省掉、统计从模板里消失）。★逐项点名：返回项目详情 / 已完成显隐 / 健康度 / 视图切换双向 / 展开 / 收起 / ＋战略目标 / AI 建议目标 / 项目详情', () => {
@@ -285,23 +287,9 @@ check('W12-C4 ★W12-A 的时间轴接线修法必须是「结构性对齐」而
   return /结构性对齐|永不再偏/.test(raw);
 });
 
-check('W12-C5 ★方向台大标题下的定位语必须单行且可读全文。原文 43 字在 620px 容器折成两行，把「六层思维链」大标题的视觉重心往下拽（2026-10-13 反馈）。用户拍板 C4 选「截断 + title 悬浮全文」而非缩小字号——压字号会掉到可读下限以下，而这行是定位语不是正文。判据：① .hero-sub 有 nowrap + 省略三件套 ② 模板带 title 且 title 与正文一字不差（防改了正文忘改悬浮全文）③ 负锚：不许出现改字号的写法（font-size 仍须是 var(--fs-body)）', () => {
-  const ct = read('/newtab/views/CompassTree.vue');
-  const m = ct.match(/\.hero-sub \{[\s\S]*?\n\}/);
-  if (!m) return false;
-  const b = m[0];
-  if (!b.includes('white-space: nowrap')) return false;
-  if (!b.includes('overflow: hidden')) return false;
-  if (!b.includes('text-overflow: ellipsis')) return false;
-  if (!b.includes('font-size: var(--fs-body)')) return false;
-  // title 与正文一致
-  // ★V3.8.18（N4）随迁备案：副标变为可自定义后，title 与正文都不再是字面量，
-  // 而是同一个 computed（cpSub）的两个出口。**"一字不差"从"比对两个字面量"升级为"结构性保证"**——
-  // 旧写法防的病是"改了正文忘改悬浮全文"，新写法里两个出口物理上同源，那个病直接不可能发生。
-  // 负锚随之改钉：副标不许再写回字面量（写回去就等于退回两份真相）。
-  if (!ct.includes('<p class="hero-sub" :title="cpSub">')) return false;
-  if (!ct.includes('{{ cpSub }}</span>')) return false;
-  return !/<p class="hero-sub" title="/.test(ct);
+check('W12-C5 ★方向台大标题下的定位语（.hero-sub）。【W12-A 原判 · V3.8.13】钉 nowrap 截断 + title 同源。★V3.8.20 翻转带备案（用户拍板 2026-10-15）：定位语连同整个左文案栏（.hero-l：面包屑/眉标/大标题/副标）与 N4 就地编辑一并退役 —— 定调语由骨架条 .spine-h「上层定方向 · 下层见动作」承担，方向台首屏直接给「动作 + 状态」。翻转不删断言：正锚改钉退役负锚（.hero-sub 与 cpSub 在 CompassTree codeOnly 零命中，防"文案区回流"），退役缘由写在这里。能力守恒：方向台的"定位语"能力未删 —— 它换了居所（.spine-h 定位语 + 层级面板内联说明），不是消失。', () => {
+  const t = codeOnly(read('/newtab/views/CompassTree.vue'));
+  return !t.includes('class="hero-sub"') && !t.includes('cpSub') && !t.includes('.hero-sub');
 });
 
 // ============== W12-B（V3.8.15）画像洞察页入口收敛 + 指标行网格化 ==============
@@ -347,7 +335,7 @@ check('W12-B2 ★「全部记录」必须收敛成**全页唯一一枚**。原�
   return true;
 });
 
-check('W12-B3 ★指标行必须网格化，且是「方案 A · B3-a」这一支：chip 变等宽网格单元、标签提为独立表头行，列数 = 各模块自身 chip 数（今日 6 / 近期 5 / 全年 4），不强求与下方网格同列数。判据钉住实现形态而不只是效果：① 容器 .pi-strip 改纵向 flex（标签在上、网格行在下）② 新增 .pi-strip-row 用 grid-auto-flow:column + grid-auto-columns:1fr（均分铺满，不靠内容自适应宽）③ .pi-chip 补 min-width:0 + justify-content:center + overflow:hidden，窄屏下数字与标签整体居中不左偏 ④ 三个模块模板各有且仅有一层 .pi-strip-row 包裹 ⑤ hover / active 两态不得在改版中丢掉', () => {
+check('W12-B3 ★指标行必须网格化，且是「方案 A · B3-a」这一支：chip 变等宽网格单元、标签提为独立表头行，列数 = 各模块自身 chip 数，不强求与下方网格同列数。判据钉住实现形态而不只是效果：① 容器 .pi-strip 改纵向 flex（标签在上、网格行在下）② 新增 .pi-strip-row 用 grid-auto-flow:column + grid-auto-columns:1fr（均分铺满，不靠内容自适应宽）③ .pi-chip 补 min-width:0 + justify-content:center + overflow:hidden，窄屏下数字与标签整体居中不左偏 ④ 各模块模板各有且仅有一层 .pi-strip-row 包裹（★V3.8.20：PiMonth 新增后由三模块扩为四模块——今日 4 / 本周 5 / 本月 5 / 全年 4 枚 chip）⑤ hover / active 两态不得在改版中丢掉', () => {
   const css = read('/newtab/components/profile/pi-timeline.css')
   const strip = (css.match(/\.pi-strip \{[^}]*\}/) || [''])[0]
   if (!/\.pi-strip \{[^}]*flex-direction: column/.test(css)) return false
@@ -358,7 +346,7 @@ check('W12-B3 ★指标行必须网格化，且是「方案 A · B3-a」这一�
   for (const n of ['min-width: 0', 'justify-content: center', 'overflow: hidden']) if (!chip.includes(n)) return false
   if (!/\.pi-chip:hover \{/.test(css)) return false
   if (!/\.pi-chip:active \{/.test(css)) return false
-  for (const f of ['PiToday', 'PiRhythm', 'PiYear']) {
+  for (const f of ['PiToday', 'PiRhythm', 'PiMonth', 'PiYear']) {
     const s = read('/newtab/components/profile/' + f + '.vue')
     const n = (s.match(/class="pi-strip-row"/g) || []).length
     if (n !== 1) return false

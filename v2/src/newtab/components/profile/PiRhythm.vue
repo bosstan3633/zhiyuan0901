@@ -1,20 +1,23 @@
 <script setup lang="ts">
 /**
- * W10（V3.9.0）PiRhythm —— 时间轴模块② 近期 · WEEK。
+ * W10（V3.9.0）PiRhythm —— 时间轴模块② 本周 · WEEK。
+ * ★V3.8.20（用户拍板 2026-10-15）：固定 week 窗口 —— 原内持的 w/m/y 范围切换随
+ * 「本月」独立成段（PiMonth）一起退役；「📈 周/月复盘」入口一并收掉，ReviewPanel
+ * 在画像洞察页只剩全年「目标对账」一个入口（同一弹窗一个入口，能力零删）。
  * 口径（v6 原型 §mod-recent + D1/D3 决策）：
- *   strip = 当前窗口 5 枚速览 chip（采集/有效动作/加权/调出/节奏波动）
+ *   strip = 本周 5 枚速览 chip（采集/有效动作/加权/调出/节奏波动）
  *   6 KPI 格 = 复盘段真实 kpisOf() 六枚（替代 v6 原型的假「六维学习力」，D1）
- *   节奏曲线 = 当前窗口逐日/逐月加权分柱状图；点柱 → 该日战报
+ *   节奏曲线 = 本周逐日加权分柱状图；点柱 → 该日战报
  *   目标进度 = objectivesOf()（方向对账，D3 保持既有下钻）
  *   偏离预警 = runRules() 8 规则（确定性、非 AI）
  *   操作流 = 最近事件时间线（T5：原 section④ 并入本段）
- * range 状态内持；窗口/聚合/KPI/目标/规则全部内算，宿主只传原始数据。
+ * 窗口/聚合/KPI/目标/规则全部内算，宿主只传原始数据。
  */
 import { computed, ref } from 'vue'
 import {
   windowOf, prevWindow, pct,
   kpisOf, objectivesOf, runRules,
-  type RangeType, type DirLike, type TaskLike
+  type DirLike, type TaskLike
 } from '@/shared/utils/reviewReport'
 import { aggregateRange, type DailyStats } from '@/shared/utils/dailyStats'
 import type { CardEvent } from '@/shared/utils/eventLog'
@@ -25,13 +28,12 @@ const props = defineProps<{
   directions: DirLike[]
   tasks: TaskLike[]
   errorCount: number
-  year: number
+  /* ★V3.8.20：year prop 随年视图分支退役（固定周窗口后无消费方 —— 留着就是死通道） */
 }>()
 
 const emit = defineEmits<{
-  (e: 'open-review'): void
-  /* ★W12-B：open-log 已随模块内那枚「全部记录 ›」一并退役（入口上提页头），
-     声明不留——留着就是没人 emit 的死通道，仓库纪律「函数无消费方 = 能力已丢」的反面：留声明只会骗人。 */
+  /* ★V3.8.20：open-review 从本模块退役 —— 复盘入口随「周/月复盘」按钮一起收掉，
+     画像洞察页 ReviewPanel 只剩全年「目标对账」一个入口（PiYear 侧）。声明不留死通道。 */
   (e: 'open-err'): void
   (e: 'open-battle', day: string): void
   (e: 'drill', k: 'wk-add' | 'wk-acts' | 'wk-w' | 'wk-call' | 'wk-pace'): void
@@ -39,22 +41,8 @@ const emit = defineEmits<{
   (e: 'locate', cardId: string): void
 }>()
 
-/* ===== 范围切换 ===== */
-const range = ref<'w' | 'm' | 'y'>('w')
-const rt = computed<RangeType>(() => range.value === 'w' ? 'week' : range.value === 'm' ? 'month' : 'custom')
-
-const win = computed(() => {
-  if (range.value === 'y') {
-    const y = props.year
-    const t = new Date()
-    const pad = (n: number) => String(n).padStart(2, '0')
-    const from = `${y}-01-01`
-    const to = `${y}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`
-    const days = Math.max(1, Math.round((new Date(to.replace(/-/g, '/')).getTime() - new Date(from.replace(/-/g, '/')).getTime()) / 86400000) + 1)
-    return { s: from, e: to, label: `${y} 年初 → 今天`, days }
-  }
-  return windowOf(rt.value, {})
-})
+/* ===== 窗口固定为本周（V3.8.20：w/m/y 切换退役，月度窗口由 PiMonth 独立承接） ===== */
+const win = computed(() => windowOf('week', {}))
 
 const agg = computed(() => aggregateRange(props.stats, win.value.s, win.value.e))
 const prevAgg = computed(() => {
@@ -88,20 +76,7 @@ function level(w: number, max: number): number {
 }
 const bars = computed<Bar[]>(() => {
   const out: Bar[] = []
-  if (range.value === 'y') {
-    const byMonth = new Map<string, number>()
-    for (const [d, w] of agg.value.list) {
-      const m = d.slice(0, 7)
-      byMonth.set(m, (byMonth.get(m) || 0) + w)
-    }
-    const maxM = Math.max(1, ...byMonth.values())
-    for (let m = 1; m <= 12; m++) {
-      const key = `${props.year}-${String(m).padStart(2, '0')}`
-      const w = Math.round((byMonth.get(key) || 0) * 10) / 10
-      out.push({ key, w, lv: level(w, maxM), label: `${m}月` })
-    }
-    return out
-  }
+  /* ★V3.8.20：逐月（'y' 分支）随年视图切换退役 —— 本模块固定周窗口，逐日柱；年视图在 PiYear。 */
   const start = new Date(win.value.s.replace(/-/g, '/'))
   const end = new Date(win.value.e.replace(/-/g, '/'))
   const wMap = new Map(agg.value.list)
@@ -158,18 +133,12 @@ function kindLbl(k: CardEvent['kind']): string {
         <h2>一周的节奏<span class="en">RHYTHM</span></h2>
         <p>柱看密度、KPI 看均衡、目标看进度、预警看堆积。操作流与错误日志也在本段，不再单独成段。</p>
       </div>
-      <div class="pi-mod-acts">
-        <div class="pi-seg">
-          <button :class="{ on: range === 'w' }" @click="range = 'w'">本周</button>
-          <button :class="{ on: range === 'm' }" @click="range = 'm'">本月</button>
-          <button :class="{ on: range === 'y' }" @click="range = 'y'">今年</button>
-        </div>
-        <button class="pi-btn line" @click="emit('open-review')">📈 周/月复盘</button>
-      </div>
+      <!-- ★V3.8.20：w/m/y 范围切换与「📈 周/月复盘」按钮随固定周窗口退役（月度由 PiMonth 承接；
+           复盘入口只剩 PiYear 全年「目标对账」）。 -->
     </div>
     <div class="pi-mod-b">
       <div class="pi-strip">
-        <span class="pi-strip-lab">{{ range === 'w' ? '本周' : range === 'm' ? '本月' : '今年' }}</span>
+        <span class="pi-strip-lab">本周</span>
         <div class="pi-strip-row">
         <button class="pi-chip up" title="窗口内采集合计" @click="emit('drill', 'wk-add')">
           <span class="v">{{ cTotal }}<small>张</small></span><span class="l">采集</span><span class="ar">▸</span>

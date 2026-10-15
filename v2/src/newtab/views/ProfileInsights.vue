@@ -6,13 +6,14 @@
  *   §0 PiHero 页头（5 KPI chip + 刷新/导出/AI 解读/今日战报）
  *   左 PiRail 导航（IntersectionObserver 高亮） + 右三模块：
  *     ① PiToday  今天 · TODAY（今日六格 + 今日三件事 + 洞察条）
- *     ② PiRhythm 近期 · WEEK（strip + 6 KPI + 节奏柱 + 目标 + 预警 + 操作流，T5 并段）
- *     ③ PiYear   全年 · YEAR（累计 strip + 年度热力图 + 生命周期，T6 并段，#lc-sec 深链锚保留）
+ *     ② PiRhythm 本周 · WEEK（strip + 6 KPI + 节奏柱 + 目标 + 预警 + 操作流，T5 并段；★V3.8.20 固定周窗口）
+ *     ③ PiMonth  本月 · MONTH（★V3.8.20 新增轻量月度段：strip + 月柱 + 6 KPI + 环比；目标/预警/操作流不重复）
+ *     ④ PiYear   全年 · YEAR（累计 strip + 年度热力图 + 生命周期，T6 并段，#lc-sec 深链锚保留）
  *
  * 决策落实：
  *   D1 六维砍掉 → PiRhythm 用复盘段真实 kpisOf 六枚
  *   D3 下钻维持既有形态（胶囊→抽屉 / 中央大弹层只留战报与复盘）
- *   D4 ReviewPanel → 中央弹窗（Teleport，功能零删；入口 = Hero「AI 解读」+ PiRhythm「周/月复盘」）
+ *   D4 ReviewPanel → 中央弹窗（Teleport，功能零删；★V3.8.20 起入口 = PiYear 全年「目标对账」唯一）
  *   T8 DashboardOverview 退役（本页不再引用；文件删除另行处理）
  *
  * 数据桥口径不变：readEventLog 优先，空日志回退卡片时间派生；只读 store.data 快照，
@@ -45,6 +46,7 @@ import PiHero from '@/newtab/components/profile/PiHero.vue'
 import PiRail from '@/newtab/components/profile/PiRail.vue'
 import PiToday from '@/newtab/components/profile/PiToday.vue'
 import PiRhythm from '@/newtab/components/profile/PiRhythm.vue'
+import PiMonth from '@/newtab/components/profile/PiMonth.vue'
 import PiYear from '@/newtab/components/profile/PiYear.vue'
 import ReviewPanel from '@/newtab/components/dashboard/ReviewPanel.vue'
 import DashboardLogDrawer, { type LogPreset } from '@/newtab/components/dashboard/DashboardLogDrawer.vue'
@@ -153,12 +155,12 @@ const avgDailyCreate = computed(() => {
   return a.days > 0 ? creates / a.days : null
 })
 
-/* ===== PiRail 导航 ===== */
-type RailK = 'now' | 'recent' | 'year'
+/* ===== PiRail 导航（★V3.8.20：三节点 → 四节点，本月段新增落点） ===== */
+type RailK = 'now' | 'week' | 'month' | 'year'
 const railActive = ref<RailK>('now')
 let railObs: IntersectionObserver | null = null
 function onRailJump(k: RailK) {
-  const id = k === 'now' ? 'mod-now' : k === 'recent' ? 'mod-recent' : 'mod-year'
+  const id = k === 'now' ? 'mod-now' : k === 'week' ? 'mod-recent' : k === 'month' ? 'mod-month' : 'mod-year'
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
@@ -231,10 +233,12 @@ const statDrawerTitle = computed(() => ({
 }[statDrawer.value]))
 
 /* ===== 动态条下钻抽屉 ===== */
-type DynDrawerType = '' | 'today-add' | 'today-del' | 'week-add' | 'week-del' | 'cum-del'
+/* ★V3.8.20：新增 'month-add' —— 本月段「采集」chip 的下钻落点（与 week-add 同构，窗口换成本月初）。 */
+type DynDrawerType = '' | 'today-add' | 'today-del' | 'week-add' | 'week-del' | 'month-add' | 'cum-del'
 const dynDrawer = ref<DynDrawerType>('')
 function openDynDrawer(t: DynDrawerType) { dynDrawer.value = t; dynPage.value = 1; dynSearch.value = ''; if (!eventLog.value.length) void refreshEventLog() }
 const gStartOfWeek = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7)); return dt.getTime() })()
+const gStartOfMonth = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); dt.setDate(1); return dt.getTime() })()
 /* ★W9 退役重指带备案：R48-B2「导入双口径」的今日/本周计数（迁移自 GlobalSettings 仪表盘面板）。 */
 const todayImportCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.importedAt && x.importedAt >= gStartOfToday).length)
 const weekImportCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.importedAt && x.importedAt >= gStartOfWeek).length)
@@ -242,6 +246,7 @@ const dynRange = computed<[number, number] | null>(() => {
   switch (dynDrawer.value) {
     case 'today-add': case 'today-del': return [gStartOfToday, Infinity]
     case 'week-add': case 'week-del': return [gStartOfWeek, Infinity]
+    case 'month-add': return [gStartOfMonth, Infinity]
     default: return null
   }
 })
@@ -252,7 +257,7 @@ const dynList = computed<DynRow[]>(() => {
   if (dynDrawer.value === 'cum-del') {
     return timelineEvents.value.filter(e => e.action === 'delete' || e.action === 'purge') as unknown as DynRow[]
   }
-  const wantAdd = dynDrawer.value === 'today-add' || dynDrawer.value === 'week-add'
+  const wantAdd = dynDrawer.value === 'today-add' || dynDrawer.value === 'week-add' || dynDrawer.value === 'month-add'
   const rows: DynRow[] = []
   for (const x of gFlat.value) {
     if (wantAdd) {
@@ -282,6 +287,7 @@ const dynDrawerTitle = computed(() => ({
   'today-del': `📉 今日删除明细（${dynList.value.length}）`,
   'week-add': `📈 本周新增明细（${dynList.value.length}）`,
   'week-del': `📉 本周删除明细（${dynList.value.length}）`,
+  'month-add': `📈 本月新增明细（${dynList.value.length}）`,
   'cum-del': `🗑 累计删除明细（${dynList.value.length}）`,
   '': ''
 }[dynDrawer.value]))
@@ -386,6 +392,11 @@ function onRhythmDrill(k: 'wk-add' | 'wk-acts' | 'wk-w' | 'wk-call' | 'wk-pace')
   if (k === 'wk-add') openDynDrawer('week-add')
   else openLog('log')
 }
+/* ===== PiMonth 动作（V3.8.20：与本周段同构；采集 → 本月新增明细，其余 → 全量记录抽屉） ===== */
+function onMonthDrill(k: 'mo-add' | 'mo-acts' | 'mo-w' | 'mo-call' | 'mo-pace') {
+  if (k === 'mo-add') openDynDrawer('month-add')
+  else openLog('log')
+}
 function onGoalDrill() { void router.push('/') }
 function onFlowLocate(cardId: string) {
   for (const kind of ['resource', 'task', 'curiosity'] as const) {
@@ -436,16 +447,16 @@ function eventActionLabel(a: CardEvent['action']): string {
 onMounted(() => {
   void refreshEventLog()
   void refreshErrorCount()
-  // PiRail IntersectionObserver
+  // PiRail IntersectionObserver（★V3.8.20：mod-month 第四锚点）
   railObs = new IntersectionObserver((entries) => {
     for (const en of entries) {
       if (en.isIntersecting) {
         const id = en.target.id
-        railActive.value = id === 'mod-now' ? 'now' : id === 'mod-recent' ? 'recent' : 'year'
+        railActive.value = id === 'mod-now' ? 'now' : id === 'mod-recent' ? 'week' : id === 'mod-month' ? 'month' : 'year'
       }
     }
   }, { rootMargin: '-25% 0px -55% 0px' })
-  for (const id of ['mod-now', 'mod-recent', 'mod-year']) {
+  for (const id of ['mod-now', 'mod-recent', 'mod-month', 'mod-year']) {
     const el = document.getElementById(id)
     if (el) railObs.observe(el)
   }
@@ -468,7 +479,7 @@ watch(reviewOpen, async (v) => { if (v) await refreshEventLog() })
       @drill="onHeroDrill" @refresh="onHeroRefresh" @export="onHeroExport"
       @export-error="exportErrorLog" @open-log="openLog('log')" />
 
-    <!-- ===== 时间轴：左 rail + 右三模块 ===== -->
+    <!-- ===== 时间轴：左 rail + 右四模块（★V3.8.20：本月段新增，3 段 → 4 段） ===== -->
     <div class="pi-tl">
       <PiRail :active="railActive" @jump="onRailJump" />
       <div class="pi-rmods">
@@ -478,12 +489,17 @@ watch(reviewOpen, async (v) => { if (v) await refreshEventLog() })
           :focus="todayFocus" :avg-daily-create="avgDailyCreate"
           @drill="onTodayDrill" @open-battle="openTodayBattle" @open-focus="() => router.push('/')" />
 
+        <!-- ★V3.8.20：@open-review 绑定随「周/月复盘」按钮退役 —— 复盘入口只剩 PiYear 全年「目标对账」 -->
         <PiRhythm
           :stats="dashStats" :events="timelineEvents" :directions="dashDirections"
-          :tasks="dashTasks" :error-count="errorLogCount" :year="dashYear"
-          @open-review="openReview" @open-err="exportErrorLog"
+          :tasks="dashTasks" :error-count="errorLogCount"
+          @open-err="exportErrorLog"
           @open-battle="openDayBattle" @drill="onRhythmDrill" @goal-drill="onGoalDrill"
           @locate="onFlowLocate" />
+
+        <PiMonth
+          :stats="dashStats"
+          @open-battle="openDayBattle" @drill="onMonthDrill" />
 
         <PiYear
           :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"

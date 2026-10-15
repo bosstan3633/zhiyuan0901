@@ -553,17 +553,19 @@ check('R172-8 ★T6 共用下钻卡片列表（04-66 §6.2 组件复用 · ★W6
     && d.includes("import DrillCardList from './DrillCardList.vue'")
     && (srcFileEntries().filter(e => codeOnly(e.text).includes("import DrillCardList from './DrillCardList.vue'")).length === 2);
 });
-check('R172-9 ★W10 退役重指带备案：「只吃 stats prop 不扫 store」性能红线随概览带退役移交三段式——PiToday/PiRhythm/PiYear 三组件零 useAppStore/零扫 store.data/零扫 resources（props-only），聚合全在宿主算好再传 + zy_daily_stats 走前缀和（stockAt 只累加 days）不变', () => {
+check('R172-9 ★W10 退役重指带备案：「只吃 stats prop 不扫 store」性能红线随概览带退役移交时间轴模块——PiToday/PiRhythm/PiMonth/PiYear 四组件零 useAppStore/零扫 store.data/零扫 resources（props-only），聚合全在宿主算好再传 + zy_daily_stats 走前缀和（stockAt 只累加 days）不变。★V3.8.20：PiMonth 新增后纳入同一红线（轻量月度段同款性能契约）', () => {
   const today = read('/newtab/components/profile/PiToday.vue');
   const rhythm = read('/newtab/components/profile/PiRhythm.vue');
+  const month = read('/newtab/components/profile/PiMonth.vue');
   const year = read('/newtab/components/profile/PiYear.vue');
   const ds = read('/shared/utils/dailyStats.ts');
   const propsOnly = (t) => !t.includes('useAppStore') && !t.includes('store.data') && !t.includes('resources');
-  return propsOnly(today) && propsOnly(rhythm) && propsOnly(year)
+  return propsOnly(today) && propsOnly(rhythm) && propsOnly(month) && propsOnly(year)
     && rhythm.includes('defineProps') && rhythm.includes('stats')
+    && month.includes('defineProps') && month.includes('stats')
     && year.includes('defineProps') && year.includes('stats')
     && ds.includes('export function stockAt(')
-    && /for \(const k of Object\.keys\(stats\.days\)\.sort\(\)\)/.test(ds);
+    && /for \(const k of Object\.keys\(stats\.days\)\.sort\(\)/.test(ds);
 });
 
 /* ================= R172 · 知源仪表盘 R3 第 3 轮：复盘段 + 记录抽屉 + 入口整合 ================= */

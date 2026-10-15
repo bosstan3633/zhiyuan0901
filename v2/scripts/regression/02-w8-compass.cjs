@@ -29,16 +29,13 @@ check('W8-2 ★六层字阶必须**真的分层**。★W11(V3.8.11)随迁带备�
   return missionOk && dirOk && projOk && metricOk && taskOk && noInflate && layoutOk;
 });
 
-check('W8-3 ★层级倒置不得复发：内容标题必须**大于**页头基准字号。原状页头基准（面包屑）16px > 内容标题 11px（caption）⇒ 倒置。修法不是降页头而是抬内容标题——★R123 定案「三页页头统一 16px」是跨页一致性决策，用户拍板保三页一致，故方向台内容标题维持 --fs-headline(17px) 高于 16px 基准，层级单调递减。★W12(V3.8.12)随迁备案：方向台的"区块标题"载体随左栏（.layer-toc/.lt-title）退役，改由 HERO 区的 .hero-title 承担（--fs-headline 17px）；16px 基准载体同步由 .tree-page-head .crumb 迁到 .hero-crumb —— 本条守的是"倒置不得复发"这条意图，不是钉某个类名', () => {
+check('W8-3 ★层级倒置不得复发：内容标题必须**大于**页头基准字号。【W8 原判】页头 16px > 内容 11px 倒置，修法是抬内容标题。★W12 随迁：载体曾迁到 .hero-title(--fs-headline 17px) 与 .hero-crumb(16px)。★V3.8.20 翻转带备案（用户拍板 2026-10-15）：HERO 左文案栏（含 .hero-title/.hero-crumb）整块退役 —— "页头基准 vs 内容标题"这对关系的页头一侧不复存在，倒置病根（crumb 16px 压内容 11px）随之消灭。本条守的意图不变，断言随载体翻转：① 负锚升级为**退役负锚**——.hero-title 与 .hero-crumb 在方向台全家桶 codeOnly 零命中（防文案区回流把倒置一起带回来）② 内容标题不许退回 caption 11px 的老病根负锚保留 ③ 层级守卫的活体载体由 .lt-title 负锚继续钉（六层目录退役后仍不许回流 caption 标题）', () => {
   const t = codeOnly(CT_ALL);
-  /* ★用正则而非 includes：实际样式是多行块（选择器行与属性行分开），
-     写成 `.hero-title { font-size:` 这种单行 includes 会在格式调整时静默失效 —— 那是判据自己骗自己。 */
-  return /\.hero-title \{[^}]*font-size: var\(--fs-headline\)/.test(t)
-    /* 方向台页头基准仍是 16px 档（R123 的跨页一致性，R51-6 / R123-10 两条判据仍在守它） */
-    && /font-size: 16px; letter-spacing: \.2px/.test(t)
-    /* ★负锚：内容标题不许退回 caption 11px（倒置的成因） */
-    && !/\.hero-title \{[^}]*font-size: var\(--fs-caption\)/.test(t)
-    && !t.includes('.lt-title { font-size: var(--fs-caption);');
+  /* ★退役负锚：文案区不许回流（回流 = 倒置病根回流） */
+  const retired = !t.includes('.hero-title') && !t.includes('.hero-crumb') && !t.includes('class="hero-title"');
+  /* ★老病根负锚保留：内容标题不许退回 caption 11px */
+  const noInflate = !t.includes('.lt-title { font-size: var(--fs-caption);');
+  return retired && noInflate;
 });
 check('W8-4 ★主攻项目必须是**次级焦点**（原仅 accent-28% 边框 + 🚀 emoji，而它是「我现在在哪」的唯一落点）。★W11(V3.8.11)随迁带备案：项目舱结构重排，承重处迁到 .tower 的 tw-badge.focus 徽标 + 舱头 accent 强调；本条守的是"主攻一眼可辨且是次级焦点"，弱描边旧规则仍不许复活', () => {
   return TOWER.includes('class="tw-badge focus"')

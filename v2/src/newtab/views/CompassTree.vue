@@ -14,8 +14,6 @@ import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/uti
 import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 // R146（回退契约）：罗盘节点删除走真源（确认报数 + 3 秒撤销），与策展台/项目抽屉同一口径
 import { compassNodeCounts, removeCompassNode, restoreCompassNode, type CompassNodeKind } from '@/shared/utils/compassCrud'
-import { saveUIPrefs } from '@/shared/storage/repository'
-import type { UIPrefs } from '@/shared/models'
 import { useConfirm } from '@/shared/components/confirm'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
@@ -223,49 +221,21 @@ const allExpanded = computed(() => {
 /** 反向开关：点一次反向。正反都可达，不做单向门。 */
 function toggleAllNodes() { if (allExpanded.value) collapseAllNodes(); else expandAllNodes() }
 
-/* ══ ★V3.8.18（N4）：方向台页头文案自定义 ══
- * 只存 UIPrefs.compassCopy（UI 偏好），绝不写 compass —— 愿景/使命/战略目标是业务数据，
- * 这里改的只是「这一页叫什么、怎么介绍自己」。三段各自可编辑：Enter/blur 保存、Esc 取消。
- * 缺省或空串＝用内置文案，所以从不动它的用户完全无感（不产生空块、不产生"编辑中"边框）。 */
-const DEF_EYEBROW = '方向台 · 战略金字塔 STRATEGY PYRAMID'
-const DEF_SUB = '战略目标分岔、项目各自成舱、成功指标内嵌任务——每条任务都能回答「我在为哪个项目的哪个指标服务」。'
-
-const cpEyebrow = computed(() => store.ui?.compassCopy?.eyebrow || DEF_EYEBROW)
-const cpSub = computed(() => store.ui?.compassCopy?.sub || DEF_SUB)
-/** 自定义标题时整句同色：只把内置文案里「逐层收窄」那半句染成 accent，
- *  会出现"改了一半标题、其中一段还带高亮色"的半吊子观感。用户整句接管，样式一并整句生效。 */
-const cpTitleParts = computed(() => {
-  const raw = store.ui?.compassCopy?.title
-  if (!raw) return { pre: '愿景之上，', hl: '逐层收窄', post: '成今天要做的事' }
-  return { pre: '', hl: raw, post: '' }
-})
-
-type CopyField = 'eyebrow' | 'title' | 'sub'
-const cpEditing = ref<CopyField | null>(null)
-function startCpEdit(f: CopyField) { cpEditing.value = f }
-function cancelCpEdit() { cpEditing.value = null }
-/** Enter / blur 保存；清空＝「还原默认」而不是「留一段空白」 */
-function saveCpEdit(f: CopyField, ev: Event) {
-  const text = (ev.currentTarget as HTMLElement).textContent?.trim() ?? ''
-  cpEditing.value = null
-  const next: { eyebrow?: string; title?: string; sub?: string } = { ...(store.ui?.compassCopy ?? {}) }
-  if (text) next[f] = text
-  else delete next[f]
-  saveUIPrefs({ compassCopy: next })
-  /* 本地缓存同步（读的是 store.ui，不落这一帧界面不会立刻变；同步赋值省掉"存了但没反应"的错觉） */
-  store.ui = { ...(store.ui as UIPrefs), compassCopy: next }
+/* ══ ★V3.8.20（用户拍板 2026-10-15）「⚙ 工具」下拉 ══
+ * 「↕ 全部展开/收起」「👁 已完成项目」从页头常驻行收进一枚下拉 —— 视图切换是这行
+ * 唯一的主焦点（它决定下方长什么样），这两枚是次级开关，不配与它同级并排。
+ * 病根＝上一版它们常驻时，页头一行四件东西（视图切换 + 展开收起 + 已完成 + 统计）
+ * 谁都不像主入口。外点关闭与 projMenu 同一套路（capture 阶段监听，点到工具区外即收）。
+ * ★N4 页头文案就地编辑（眉标/大标题/副标 + ✎ + UIPrefs.compassCopy）随左文案栏一并退役：
+ * 方向台是工作台面不是宣传页，定调语由骨架条 .spine-h「上层定方向 · 下层见动作」承担。 */
+const toolsOpen = ref(false)
+function onDocClickCloseTools(e: MouseEvent) {
+  if (!toolsOpen.value) return
+  if ((e.target as HTMLElement | null)?.closest('.hero-tools')) return
+  toolsOpen.value = false
 }
-/** ✎ 按钮：进入编辑态并全选段内文字，用户直接覆写（比"点了还得手动全选"少一步） */
-function focusCpEdit(f: CopyField) {
-  cpEditing.value = f
-  nextTick(() => {
-    const el = document.querySelector<HTMLElement>(`.cp-edit[data-cp="${f}"]`)
-    el?.focus()
-    if (!el) return
-    const r = document.createRange(); r.selectNodeContents(el)
-    const s = getSelection(); s?.removeAllRanges(); s?.addRange(r)
-  })
-}
+onMounted(() => document.addEventListener('click', onDocClickCloseTools, true))
+onUnmounted(() => document.removeEventListener('click', onDocClickCloseTools, true))
 
 /* R3-B′：项目卡头入口收敛（6 枚 → 全景 / AI / ▾），其余四项进折叠菜单 */
 const projMenu = ref<string | null>(null)
@@ -1019,96 +989,55 @@ onUnmounted(() => {
 
 <template>
   <div class="compass-layout">
-    <!-- ══ W12 HERO 区（原型 .hero）：左文案 / 右动作，二者各自成栏，不再挤成一条横排 ══
-         ★为什么要补这一块：原型首屏是「一句 Slogan + 副标」定调，动作区靠右独立成组；
-         实际实现把面包屑/统计/7 个按钮全塞进一条 tree-page-head，结果首屏第一眼是一行
-         密排小字，Slogan 完全缺席。1:1 还原必须先把这个结构补回来。 -->
+    <!-- ══ W12 HERO 区（V3.8.20 收口版）：上=动作行（视图切换主焦点 + ⚙ 工具下拉），下=读数行 ══
+         ★V3.8.20（用户拍板 2026-10-15）：左上标题文案区（.hero-l：面包屑/眉标/大标题/副标 + N4 就地编辑）
+         整块退役 —— 方向台是工作台面不是宣传页，首屏直接给「动作 + 状态」；定调语由骨架条
+         .spine-h「战略骨架 · 上层定方向 · 下层见动作」承担，不摆两处。
+         健康度徽章并入读数行首位（原在左栏标题下，N13 的意图是"状态不参与动作区竞争"，
+         挪到读数行同样满足 —— 它与计数同属"这页现在什么状况"）。
+         「全部展开/收起」「👁 已完成」收进「⚙ 工具」下拉，视图切换成为动作行唯一主焦点。
+         ★fromProjId / goBack / Esc 返回保留（R54-A1 深链来路感知），来路文本随行显示。 -->
     <section class="hero">
-<div class="hero-l">
-        <!-- R3-B1 / R123：面包屑保留 16px 档（三页页头一致），随 W12 从 .tree-page-head 迁到 HERO 区 -->
-        <div class="hero-crumb"><b>方向台</b> · 六层思维链全深度</div>
-        <!-- R3-B1：方向台一级化 —— eyebrow 定调，副标说明这一页在做什么 -->
-        <div class="hero-eyebrow">
-          <span class="he-dot" />
-          <!-- ★V3.8.18（N4）：眉标 / 大标题 / 副标三段可就地改写，Enter 或失焦保存、Esc 取消。
-               存 UIPrefs.compassCopy，不碰 compass 业务数据。✎ 按钮进入编辑并全选，省掉"再手动选中一次"。 -->
-          <span class="cp-edit" :class="{ editing: cpEditing === 'eyebrow' }" data-cp="eyebrow"
-            :contenteditable="cpEditing === 'eyebrow'" spellcheck="false" title="点此自定义眉标"
-            @click="startCpEdit('eyebrow')" @blur="saveCpEdit('eyebrow', $event)"
-            @keydown.enter.prevent="saveCpEdit('eyebrow', $event)" @keydown.esc.prevent="cancelCpEdit">{{ cpEyebrow }}</span>
-          <span v-if="fromProjName" class="he-from">· 来自项目「{{ fromProjName }}」</span>
-          <span class="cp-pen" title="自定义眉标" @click="focusCpEdit('eyebrow')">✎</span>
+      <div class="hero-acts">
+        <!-- ★W11 视图切换（D3：方向台内第二视图）。双向可达：两个按钮都在，任何时候都能来回切。
+             ★V3.8.18（N10）：提为页头**唯一主焦点**（实底 + 加粗 + 加高）。
+             病根＝它原来和旁边六枚同尺寸、同底色、同字重的按钮挤在一排里，谁都不像主入口；
+             而这两个视图恰恰是这一页的第一个决策（它决定下方长什么样），其余都是它的从属开关。 -->
+        <div class="view-seg" role="tablist" aria-label="方向台视图形态">
+          <button class="vs-b" :class="{ on: viewMode === 'tower' }" :aria-selected="viewMode === 'tower'" title="纵向项目舱列 · 看我在哪个位置" @click="viewMode = 'tower'">项目塔</button>
+          <button class="vs-b" :class="{ on: viewMode === 'pano' }" :aria-selected="viewMode === 'pano'" title="横向泳道全景 · 看这一个项目的完整链路" @click="viewMode = 'pano'">项目全景</button>
         </div>
-        <!-- ★Slogan 用 --fs-headline(17px) 而不是原型的 --fs-hero(34px)：
-             D1 已拍板方向台不新增 --fs-hero，W8-5 钉死全站 display 只许两处。
-             17px 仍 > 面包屑 16px，层级不倒置（判据 W8-3 的意图守得住）。 -->
-        <h1 class="hero-title">
-          <span class="cp-edit" :class="{ editing: cpEditing === 'title' }" data-cp="title"
-            :contenteditable="cpEditing === 'title'" spellcheck="false" title="点此自定义大标题"
-            @click="startCpEdit('title')" @blur="saveCpEdit('title', $event)"
-            @keydown.enter.prevent="saveCpEdit('title', $event)" @keydown.esc.prevent="cancelCpEdit"><template
-              v-if="cpTitleParts.post">{{ cpTitleParts.pre }}<span class="hero-hl">{{ cpTitleParts.hl }}</span>{{ cpTitleParts.post }}</template><template
-              v-else>{{ cpTitleParts.hl }}</template></span>
-          <span class="hero-en">SIX-LAYER CHAIN</span>
-          <span class="cp-pen" title="自定义大标题" @click="focusCpEdit('title')">✎</span>
-        </h1>
-<p class="hero-sub" :title="cpSub">
-          <span class="cp-edit" :class="{ editing: cpEditing === 'sub' }" data-cp="sub"
-            :contenteditable="cpEditing === 'sub'" spellcheck="false" title="点此自定义副标"
-            @click="startCpEdit('sub')" @blur="saveCpEdit('sub', $event)"
-            @keydown.enter.prevent="saveCpEdit('sub', $event)" @keydown.esc.prevent="cancelCpEdit">{{ cpSub }}</span>
-          <span class="cp-pen" title="自定义副标" @click="focusCpEdit('sub')">✎</span>
-        </p>
-
-        <!-- ★V3.8.18（N13）：方向健康度从页头右侧动作区搬到左上标题区，成为标题下面的一行状态。
-             病根＝它原来和「视图切换 / 展开收起 / 已完成显示」并排在一排里，读起来是"第四个可点按钮"，
-             可它其实不点不动任何东西 —— 用户点下去没反应，于是把一枚状态读数错认成操作入口。
-             搬到标题下、去掉按钮壳之后它是"这页现在什么状况"的一部分，不再参与动作区的竞争。
-             ★不在这里重复断链条目数：骨架条的断链行已经有一份更全的清单，两处都写数字就会有两个真相。 -->
-        <div class="hero-health">
-          <span class="dhi-badge" :class="dhiStatus.cls">
-            <span aria-hidden="true">🧭</span>
-            <span>方向健康度：{{ dhiStatus.label }}</span>
-          </span>
+        <span v-if="fromProjName" class="hero-from">来自项目「{{ fromProjName }}」</span>
+        <div class="hero-tools">
+          <button class="tree-tool" :class="{ on: toolsOpen }" @click.stop="toolsOpen = !toolsOpen" title="展开 / 收起 / 已完成显隐">⚙ 工具</button>
+          <div v-if="toolsOpen" class="hero-tools-menu">
+            <!-- ★V3.8.18（N11）语义保留：反向开关自带当前状态，点一次反向，正反都可达（不做单向门） -->
+            <button class="tree-tool menu-item" @click="toggleAllNodes(); toolsOpen = false"
+              :title="allExpanded ? '当前：全部展开。点击收起全部战略目标与指标' : '当前：默认收起。点击展开全部层级'">↕ {{ allExpanded ? '全部收起' : '全部展开' }}</button>
+            <!-- ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：「← 返回项目详情」按钮退役。
+                 ★但 fromProjId / goBack / Esc 返回**保留**——那是「从项目详情深链进来后按 Esc 送回原处」的
+                 来路感知（R54-A1），不是"进项目详情"的入口，两者语义不同。 -->
+            <button class="tree-tool menu-item" :class="{ off: !showDone }" @click="toggleShowDone(); toolsOpen = false"
+              title="与方向台页头同一开关（同一偏好，一处切换全台生效）">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
+          </div>
         </div>
       </div>
-
-      <div class="hero-r">
-        <div class="hero-acts">
-          <!-- ★W11 视图切换（D3：方向台内第二视图）。双向可达：两个按钮都在，任何时候都能来回切。
-               ★V3.8.18（N10）：提为页头**唯一主焦点**（实底 + 加粗 + 加高）。
-               病根＝它原来和旁边六枚同尺寸、同底色、同字重的按钮挤在一排里，谁都不像主入口；
-               而这两个视图恰恰是这一页的第一个决策（它决定下方长什么样），其余都是它的从属开关。 -->
-          <div class="view-seg" role="tablist" aria-label="方向台视图形态">
-            <button class="vs-b" :class="{ on: viewMode === 'tower' }" :aria-selected="viewMode === 'tower'" title="纵向项目舱列 · 看我在哪个位置" @click="viewMode = 'tower'">项目塔</button>
-            <button class="vs-b" :class="{ on: viewMode === 'pano' }" :aria-selected="viewMode === 'pano'" title="横向泳道全景 · 看这一个项目的完整链路" @click="viewMode = 'pano'">项目全景</button>
-          </div>
-          <!-- ★V3.8.18（N11）：「⊞ 展开」「⊟ 收起」两枚合并为一枚反向开关。
-               两枚并排时用户得先在脑子里判断"我现在是展开还是收起"才知道该点哪一枚；
-               合并后按钮自带当前状态 + 明确动词，读一次就够。点一次反向，正反都可达（不做单向门）。
-               ★不与旁边「已完成项目」合并：那是可见性过滤（按状态筛掉舱），这里是展开状态（同一批舱开合），
-               作用在不同维度，合并会让一枚开关背两个语义。 -->
-          <button class="tree-tool fold-toggle" :class="{ on: allExpanded }" @click="toggleAllNodes"
-            :title="allExpanded ? '当前：全部展开。点击收起全部战略目标与指标' : '当前：默认收起。点击展开全部层级'">↕ {{ allExpanded ? '全部收起' : '全部展开' }}</button>
-        </div>
-        <div class="hero-meta">
-          <!-- ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：这枚「← 返回项目详情」按钮退役。
-           ★但 fromProjId / goBack / Esc 返回**保留**——那是「从项目详情深链进来后按 Esc 送回原处」的
-           来路感知（R54-A1），不是"进项目详情"的入口，两者语义不同。 -->
-          <button class="tree-tool" :class="{ off: !showDone }" @click="toggleShowDone" title="与方向台页头同一开关（同一偏好，一处切换全台生效）">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
-          <!-- ★V3.8.18（N13）方向健康度已移到左上标题区（.hero-health），不再占动作位。
-               ★V3.8.18（N12）「＋ 战略目标」「建议目标」已移入骨架条第 3 层旁边（.spine-bar）。 -->
-        </div>
-        <div class="hero-stats">
-          <span>愿景 {{ compassMeta.counts.vision }}</span><i>·</i>
-          <span>使命 {{ compassMeta.counts.mission }}</span><i>·</i>
-          <span>战略目标 {{ treeStats.dirs }}</span><i>·</i>
-          <span>项目 {{ treeStats.projects }}</span><i>·</i>
-          <span>🚀 主攻 {{ treeStats.focused }}</span><i>·</i>
-          <span>⚠ 停滞 {{ treeStats.stalled }}</span><i>·</i>
-          <span>指标 {{ treeStats.metrics }}</span><i>·</i>
-          <span>任务 {{ treeStats.tasks }}</span>
-        </div>
+      <!-- ★V3.8.20：健康度徽章移到读数行首位（原左栏 .hero-health，N13 意图"状态不参与动作区竞争"随迁）。
+           ★不在这里重复断链条目数：骨架条的断链行已经有一份更全的清单，两处都写数字就会有两个真相。 -->
+      <div class="hero-stats">
+        <span class="dhi-badge" :class="dhiStatus.cls">
+          <span aria-hidden="true">🧭</span>
+          <span>方向健康度：{{ dhiStatus.label }}</span>
+        </span>
+        <i>·</i>
+        <span>愿景 {{ compassMeta.counts.vision }}</span><i>·</i>
+        <span>使命 {{ compassMeta.counts.mission }}</span><i>·</i>
+        <span>战略目标 {{ treeStats.dirs }}</span><i>·</i>
+        <span>项目 {{ treeStats.projects }}</span><i>·</i>
+        <span>🚀 主攻 {{ treeStats.focused }}</span><i>·</i>
+        <span>⚠ 停滞 {{ treeStats.stalled }}</span><i>·</i>
+        <span>指标 {{ treeStats.metrics }}</span><i>·</i>
+        <span>任务 {{ treeStats.tasks }}</span>
       </div>
     </section>
 
@@ -1175,21 +1104,10 @@ onUnmounted(() => {
       <div class="canvas" ref="canvasEl" @scroll="onCanvasScroll">
         <div class="canvas-inner">
 
-          <!-- W11 ★战略骨架控制条：六层按钮 + 战略目标芯片 + 断链行。
-               它不是"另一张架构展示图"，而是下方项目塔的导航/过滤/联动中枢——
-               六层数字吃 compassMeta.counts（与舱体同源），点层级即定位或过滤。判据 W11-7 钉住数字不得散落现算。 -->
-          <CompassSpine
-            :meta="compassMeta"
-            :dir-filter="dirFilter"
-            :layer-open="layerOpen"
-            :risk-only="riskOnly"
-            @layer="onLayerOpen"
-            @locate="onLocateLayer"
-            @dir="onDirFilter"
-            @risk="toggleRiskOnly"
-            @orphan="gotoOrphans"
-            @risk-bar="showRiskReport"
-          />
+          <!-- ★V3.8.20：这里原有第二份 <CompassSpine>（挂在 .canvas-inner 顶部），本轮删除 ——
+               它与全宽 .spine-bar 那份事件同源（@locate 都走 canvasEl），两份并存只产生双倍
+               DOM 与"到底点的是哪一份"的困惑；保留的是全宽条那份（含 #actions 插槽的「＋战略目标」）。
+               W12-2 判据「骨架条在层级面板之前」仍成立（spine-bar 那份在 .canvas-inner 之前）。 -->
 
           <!-- W11 ★层级展开面板（原型 .lvpanel）：点 1/2/3 摊开该层完整内容 + 推导链 + 下挂实体。
                再点同层收起（判据 W11-3 双向可达，绝不做单向门）。
@@ -1492,77 +1410,31 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* ══ W12 HERO 区（原型 .hero）：左文案 + 右动作，两栏各自成列 ══ */
+/* ══ W12 HERO 区（V3.8.20 收口版）：上=动作行，下=读数行 ══
+   ★V3.8.20（用户拍板 2026-10-15）：左文案栏（.hero-l：面包屑/眉标/大标题/副标）与
+   N4 就地编辑（.cp-edit/.cp-pen）整块退役 —— 定调语由骨架条 .spine-h 承担。
+   ★.hero-crumb 的消失意味着「三页页头统一 16px」在方向台侧不再有活体载体：
+   R51-6 / R123-10 随翻转为「工作台/项目详情两页守 16px + 方向台侧负锚」（翻转理由在判据正文）。 */
 .hero {
-  display: flex; align-items: flex-start; gap: 32px; flex-wrap: wrap;
-  margin-bottom: 22px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 10px;
+  margin-bottom: 30px;
 }
-.hero-l { flex: 1; min-width: 340px; }
-.hero-crumb { margin-bottom: 8px; }
-.hero-eyebrow {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-size: var(--fs-micro); font-weight: 700; letter-spacing: .1em;
-  color: var(--accent-ink); margin-bottom: 10px; flex-wrap: wrap;
+.hero-acts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hero-from { font-size: var(--fs-micro); color: var(--text-3); }
+.hero-tools { position: relative; margin-left: auto; }
+.hero-tools-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 30;
+  min-width: 208px; display: flex; flex-direction: column; gap: 4px;
+  padding: 6px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: var(--shadow-lg);
 }
-.he-dot {
-  width: 7px; height: 7px; border-radius: 50%; flex: none;
-  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 45%, var(--danger)));
-}
-.he-from { color: var(--text-4); letter-spacing: normal; font-weight: 500; }
-/* ★Slogan 用 --fs-headline(17px)：D1 已拍板不新增 --fs-hero，W8-5 钉死全站 display 只许两处。
-   17px 仍 > 面包屑 16px，层级不倒置（判据 W8-3 的意图守得住）。 */
-.hero-title {
-  font-size: var(--fs-headline); font-weight: 700;
-  letter-spacing: -.02em; line-height: 1.4; color: var(--text);
-  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
-}
-.hero-hl { color: var(--accent-ink); }
-.hero-en {
-  font-size: var(--fs-micro); font-weight: 700; letter-spacing: .16em; color: var(--text-4);
-}
-.hero-sub {
-  font-size: var(--fs-body); color: var(--text-3); margin-top: 10px;
-  max-width: 620px; line-height: 1.8;
-  /* ★W12-A 大标题下的定位语改单行（用户 2026-10-13 拍板 C4）：
-     原文 43 字在 620px 容器里折成两行，把「六层思维链」大标题的视觉重心往下拽。
-     选「截断 + title 悬浮全文」而非缩小字号——压字号会掉到可读下限以下，
-     而这行本来是定位语不是正文，截断后 hover 能看全即可。
-     ★V3.8.18（N4）：截断对象从整段文本改成**内层 .cp-edit**，
-     外层 .hero-sub 保留 nowrap/ellipsis，✎ 按钮仍常驻可见（否则改了副标就没有下一次入口）。 */
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.hero-sub .cp-edit { min-width: 0; }
-
-/* ══ ★V3.8.18（N4）页头文案就地编辑 ══
-   默认完全不可见（无边框、无底色、不改布局），hover 才浮出一层极淡的提示底；
-   进入 .editing 才给 accent 描边。非编辑态不留任何视觉残迹 —— 一旦留了，
-   页头就永远顶着一个"看起来像输入框"的壳，与下方真实输入框抢注意力。 */
-.cp-edit { border-radius: 4px; padding: 1px 4px; margin: 0 -4px; transition: background var(--dur); cursor: text; outline: none; }
-.hero-eyebrow .cp-edit:hover,
-.hero-title .cp-edit:hover,
-.hero-sub .cp-edit:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
-.cp-edit.editing { background: color-mix(in srgb, var(--accent) 9%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
-.hero-title .cp-edit { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.cp-pen {
-  /* ★W12-G：交互控件不用 --text-4（最淡档，notion 主题下真机隐形）。
-     弱化交给 hover，静态色提到 --text-2 —— 这枚 ✎ 必须在页面上看得见，
-     否则 N4「文案可自定义」等于没有入口。 */
-  font-size: var(--fs-micro); line-height: 1; color: var(--text-2);
-  cursor: pointer; padding: 2px 4px; border-radius: 4px; flex: none;
-  border: 1px solid transparent; align-self: center;
-}
-.cp-pen:hover { color: var(--accent-ink); background: var(--accent-light); border-color: var(--accent-light); }
-
-/* ══ ★V3.8.18（N13）方向健康度移到左上标题区 ══
-   从「动作区里的一枚按钮」降级为「标题下面的一行状态」：去掉可点壳、加发丝衬底，
-   与 .hero-sub 同宽起排。它不再是可点的东西，就不该长得像可点的东西。 */
-.hero-health { margin-top: 12px; }
-.hero-health .dhi-badge { cursor: default; }
+/* ★W12-G：菜单项交互色沿用 .tree-tool 基类的 --text-2，不用 --text-4（notion 主题隐形档） */
+.hero-tools-menu .menu-item { width: 100%; justify-content: flex-start; text-align: left; }
 
 /* ══ ★V3.8.18（N14）战略骨架条的全宽承载容器 ══
    .spine-bar 只负责"占满一行并给下方左右结构留出间距"，卡片本体仍是 CompassSpine 自己的
    .spine（带自己的边框/圆角/阴影）—— 容器不接管卡片样式，避免两处各画一半边框。 */
-.spine-bar { margin-bottom: 22px; }
+.spine-bar { margin-bottom: 30px; }
 .spine-bar .spine { margin-bottom: 0; }
 
 /* ══ ★V3.8.18（N3）三层引导条：极窄路牌 ══ */
@@ -1586,25 +1458,24 @@ onUnmounted(() => {
 .gs-sep { width: 1px; height: 11px; background: var(--border); margin: 0 3px; }
 .tl-head-row:hover .gs-i { color: var(--text-2); }
 .tl-head-row:hover .gs-i .gs-n { background: var(--accent-light); color: var(--accent-ink); }
-.hero-r {
-  display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
-  flex: none; max-width: 100%;
-}
-.hero-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.hero-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+/* ★V3.8.20：.hero-r / .hero-meta 随左文案栏一并退役（hero 改纵向单列：acts 行 + stats 行）。
+   读数行保持右对齐收口 —— 与上方 ⚙ 工具（margin-left:auto）同侧落边。 */
 .hero-stats {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end;
   font-size: var(--fs-micro); color: var(--text-4);
   font-variant-numeric: tabular-nums;
 }
 .hero-stats i { opacity: .5; font-style: normal; }
+/* 健康度徽章在读数行首位：自带药丸壳与纯文本读数拉开一档 —— 它是状态不是计数，
+   N13 意图（不参与动作区竞争）随迁到这里：与计数同属"这页现在什么状况"。 */
+.hero-stats .dhi-badge { cursor: default; }
 
 /* ★W12：容器 padding 完全不动（`20px 36px 64px`）——
    R125「骨架 1440+36」把四页页边距拍成一条跨页一致性纪律，方向台侧的内缩就落在这条规则上；
    原型的 .page 32px 是原型自己的值，拿它覆盖会让另外三页不动的情况下方向台单独"对齐"，
    那正是 R123/R125 要挡的事。HERO 区的呼吸由 .hero 自身的 margin-bottom 承担，不动容器。 */
 .compass-layout { display: block; min-height: 100%; padding: 20px 36px 64px; max-width: 1440px; margin: 0 auto; }
-.tree-layout { display: flex; gap: 28px; align-items: flex-start; }
+.tree-layout { display: flex; gap: 36px; align-items: flex-start; }
 .link-count { font-size: var(--fs-tiny); color: var(--accent-ink); background: var(--accent-light); padding: 1px 7px; border-radius: 99px; font-weight: 600; }
 /* R59-T4：关联卡片选择器（居中弹窗） */
 .lm-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: var(--z-mask-lg); display: flex; align-items: center; justify-content: center; }
@@ -1712,13 +1583,9 @@ onUnmounted(() => {
    层级变成愿景 22 › 区块标题 17 › 面包屑 16 › 正文 13，单调递减，倒置同样被消除，
    且不需要随迁 R51-6 / R123-10 两条判据。 */
 /* ★W12 随迁备案：原 .tree-page-head .crumb（16px 面包屑载体）随页头退役，
-   16px 档改由 HERO 区的 .hero-crumb 承担（判据 R51-6 / R123-10 仍在守"三页页头统一 16px"，
-   这条必须是**活体**载体 —— 挂在死样式上会让那两条判据假绿）。 */
-.hero-crumb {
-  color: var(--text-2); font-size: var(--fs-body);
-  display: inline-flex; align-items: baseline; gap: 2px;
-}
-.hero-crumb b { color: var(--text); font-weight: 700; font-size: 16px; letter-spacing: .2px; }
+   16px 档曾由 HERO 区的 .hero-crumb 承担；★V3.8.20（用户拍板 2026-10-15）文案区整块退役后，
+   方向台侧不再有 16px 页头载体 —— R51-6 / R123-10 随翻转为「工作台/项目详情两页守 16px
+   + 方向台侧负锚」，翻转理由在那两条判据正文里。 */
 
 .tree-page-head .crumb .sep { color: var(--text-4); margin: 0 6px; }
 .tree-page-head .spacer { flex: 1; }
@@ -1831,8 +1698,9 @@ onUnmounted(() => {
 .vs-b:hover { color: var(--text); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .vs-b.on { color: #fff; background: var(--accent); }
 /* N11 合并开关：开着时给一点 accent 提示，让"当前是展开态"一眼可见 */
-.tree-tool.fold-toggle { min-width: 96px; }
-.tree-tool.fold-toggle.on { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); background: var(--accent-light); }
+/* ★V3.8.20：原 .fold-toggle（页头常驻展开收起钮）随 N11 反向开关 + 本轮工具下拉退役，
+   展开态强调色下沉为通用 .tree-tool.on（⚙ 工具菜单展开时用同一态）。 */
+.tree-tool.on { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); background: var(--accent-light); }
 
 /* ── W11 筛选态提示条：过滤是隐形的就会让人以为项目丢了 ── */
 .filter-bar {
