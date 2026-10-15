@@ -87,8 +87,11 @@
 /* ★W12-B 操作流分段筛选行：不是指标行，它要的是「筛选器靠左 · 错误出口靠右」的横向布局，
    与 .pi-strip（已改纵向 flex）语义不同，故独立成类，不再借用指标行的容器。 */
 .pi-flowbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+/* ★2026-10-15 用户拍板：读数要在药丸里**垂直居中**。原先 align-items: baseline 让内容组顶在 36px 药丸上沿、
+   下沿空出一截，浅色主题下读起来像"字掉在药丸外面、没进模块"（与 W12-B 那轮"数字读不出属于这个模块"是同一类观感）。
+   改 center 只动垂直对齐，不动网格形态（列数/均分/居中/截断仍由 W12-B3 判据钉着）。 */
 .pi-chip {
-  display: inline-flex; align-items: baseline; gap: 6px; height: 36px; padding: 0 15px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 15px; border-radius: 999px;
   background: var(--surface-2); cursor: pointer; transition: all var(--dur); border: 0; font-family: inherit;
   /* ★W12-B 网格单元：撑满所在格并居中，窄屏下数字与标签仍整体居中不左偏 */
   min-width: 0; justify-content: center; overflow: hidden;
@@ -97,8 +100,9 @@
 .pi-chip:active { transform: translateY(0) scale(.98); }
 .pi-chip .v { font-size: var(--fs-title); font-weight: 700; line-height: 1; letter-spacing: -.015em; color: var(--text); flex: none; }
 .pi-chip .v small { font-size: var(--fs-micro); font-weight: 600; color: var(--text-3); margin-left: 1px; }
-.pi-chip .l { font-size: var(--fs-caption); color: var(--text-3); font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pi-chip .ar { font-size: 8px; color: var(--text-4); margin-left: -1px; }
+/* 单位/标签/箭头各自回落 baseline：容器居中负责"整组落进药丸"，子项 baseline 负责"组内基线不打架"（15px 数字 vs 11px 标签） */
+.pi-chip .l { align-self: baseline; font-size: var(--fs-caption); color: var(--text-3); font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pi-chip .ar { align-self: baseline; font-size: 8px; color: var(--text-4); margin-left: -1px; }
 .pi-chip:hover .ar { color: var(--accent-ink); }
 .pi-chip.ok .v { color: var(--success); }
 .pi-chip.bad .v { color: var(--danger); }

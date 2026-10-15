@@ -47,7 +47,6 @@ const insight = (() => {
       </div>
       <div class="pi-mod-acts">
         <button class="pi-btn line" @click="emit('open-battle')">打开战报</button>
-        <button class="pi-btn pri" title="打开今日战报" @click="emit('open-battle')">▸</button>
       </div>
     </div>
     <div class="pi-mod-b">
@@ -68,14 +67,18 @@ const insight = (() => {
         </button>
         <!-- ★V3.8.18（N9）**退役两枚重复 chip**：「写入记录」「复盘就绪」随本轮从 strip 里移除。
              病根＝这两枚不是读数，是**同一个出口的两个入口**——它们和模块头右上角的
-             「📄 战报」/「⤓」打开的是同一个 DayDetail 弹窗（都 emit('open-battle')）。
+             战报按钮打开的是同一个 DayDetail 弹窗（都 emit('open-battle')）。
              六个 chip 里三个跳同一个弹窗，读者要试过才知道它们是一件事；
              而 strip 的语义是"六格读数"，塞两个入口进去就破坏了它自己的语义。
              ★退役的只是**这枚入口**，能力一项未减：
                · 写入记录（writeCount）仍在父级 ProfileInsights 的日详情里，且 N6 的时间线是它的全量版；
-               · 复盘就绪（reviewReady）由模块头那枚 ⤓ 按钮与弹窗内的复盘段承接；
-               · 两枚 chip 的 emit 通道 open-battle 一字未动（模块头那两枚仍在用）。
-             判据（02/04 分片里的 N9 条）改钉「strip 只剩四枚读数 chip + 模块头仍有两枚战报入口」。 -->
+               · 复盘就绪（reviewReady）由模块头那枚战报按钮与弹窗内的复盘段承接；
+               · 两枚 chip 的 emit 通道 open-battle 一字未动（模块头那枚仍在用）。
+             判据（04 分片里的 N9 条）改钉「strip 只剩四枚读数 chip + 模块头只剩一枚战报入口」。
+             ★2026-10-15（用户拍板）**模块头 ▶ 图标退役**：N9 上一轮只收了 strip，模块头右上
+             「打开战报」文字按钮与旁边 ▶ 图标是**同一根 open-battle 通道、同一个 DayDetail 弹窗**
+             —— 同一弹窗不给两个入口，这正是 N9 自己定的原则，只是当时漏了这一对。
+             能力同样一项未减：文字按钮就是那条通道的唯一入口，弹窗内容、宿主 openTodayBattle 一字未动。 -->
         </div>
       </div>
 

@@ -561,7 +561,7 @@ if (/var\(--text-4\)/.test((cz.match(/\.cz-kb-ai \{[\s\S]*?\n\}/) || [''])[0])) 
 
 // ============== N 系列 · 批 A/B/C（V3.8.18）：原型评审 15 条需求落库 ==============
 console.log('【N 系列 · 画像洞察 N9 战报入口收敛】');
-check('N9 ★PiToday 战报入口收敛（4 个入口 → 1 个）：strip 里退役「写入记录」「复盘就绪」两枚 chip，只留模块头右上的战报入口。病根＝那两枚不是读数，是**同一个弹窗的另两个入口**（都 emit open-battle），六个 chip 里三个跳同一处，读者要试过才知道它们是一件事；而 strip 自己的语义是"六格读数"。判据：① strip 只剩四枚读数 chip（今日入台 / 今日移出 / 今日调出 / 连续打卡），且四枚仍各带自己的 drill 键——能力减的是**重复入口**，不是下钻能力 ② 模块头两枚战报按钮仍在位 ③ open-battle 这条 emit 通道未被顺手删（模块头还在用）④ 宿主侧那两个只为它们而生的 computed（writeCount/reviewReady）一并退役，不留死数据链 ⑤ 老的 R44-7 判据钉的四枚 drill chip 一字未动（本条与它不冲突，反而互为护栏）。★负锚走 codeOnly：退役理由的注释里必然回指那两个词，拿原文直查会自己咬自己', () => {
+check('N9 ★PiToday 战报入口收敛（同一弹窗只留一个入口）。【N9 原判 · V3.8.18】strip 里退役「写入记录」「复盘就绪」两枚 chip，只留模块头右上的战报入口。病根＝那两枚不是读数，是**同一个弹窗的另两个入口**（都 emit open-battle），六个 chip 里三个跳同一处，读者要试过才知道它们是一件事；而 strip 自己的语义是"六格读数"。【2026-10-15 用户拍板翻转 ③】原判据 ③ 钉的是"模块头**两枚**战报按钮仍在位（≥2）"，而那两枚（文字「打开战报」+ ▶ 图标）**打开的是同一个 DayDetail 弹窗、同一根 emit 通道** —— 按 N9 自己立的原则「同一弹窗不给两个入口」，上一轮只收了 strip、漏了模块头这一对。**本条翻转不删断言，只把断言从"≥2"改为"恰好 1"**，理由写在这里：重复的是入口、不是能力，能力一项未减（open-battle 通道、DayDetail 弹窗、宿主 openTodayBattle 全部原样）。现行判据：① strip 只剩四枚读数 chip（今日入台 / 今日移出 / 今日调出 / 连续打卡），且四枚仍各带自己的 drill 键——能力减的是**重复入口**，不是下钻能力 ② 模块头**只剩一枚** open-battle 入口（文字「打开战报」，▶ 图标已退役）③ open-battle 这条 emit 通道未被顺手删（模板里必须有 @click="emit(\'open-battle\')" 的真实调用，不许只留 defineEmits 声明）④ 宿主侧那两个只为它们而生的 computed（writeCount/reviewReady）一并退役，不留死数据链 ⑤ 老的 R44-7 判据钉的四枚 drill chip 一字未动（本条与它不冲突，反而互为护栏）。★负锚走 codeOnly：退役理由的注释里必然回指那两个词，拿原文直查会自己咬自己', () => {
   const t = codeOnly(read('/newtab/components/profile/PiToday.vue'));
   const p = codeOnly(read('/newtab/views/ProfileInsights.vue'));
   // ① 两枚重复 chip 必须真的不在
@@ -574,8 +574,8 @@ check('N9 ★PiToday 战报入口收敛（4 个入口 → 1 个）：strip 里�
   for (const lab of ['今日入台', '今日移出', '今日调出', '连续打卡']) {
     if (!t.includes(`>${lab}<`)) return false;
   }
-  // ③ 模块头的两枚战报入口仍在位
-  if ((t.match(/emit\('open-battle'\)/g) || []).length < 2) return false;
+  // ③ 模块头只剩一枚战报入口（2026-10-15 翻转：由"≥2"改"恰好 1"，理由写在判据正文）
+  if ((t.match(/emit\('open-battle'\)/g) || []).length !== 1) return false;
   // ④ emit 通道本身还在（模板里必须有 open-battle 的真实调用，不许只留 defineEmits 声明）
   if (!t.includes(`@click="emit('open-battle')"`) || !t.includes('open-battle')) return false;
   if (!t.includes(`(e: 'open-battle'): void`)) return false;
