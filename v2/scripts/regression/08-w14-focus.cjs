@@ -36,8 +36,9 @@ check('W14-1 ★主攻项目的点击必须落在"那个项目"上，不能两�
     && PDD.includes('width="480px"');
 });
 
-check('W14-2 ★Hero 必须"薄"（用户拍板 2026-10-16 方案A 两行化）：容器内距、层间 gap、读数卡内距全部压到上限值以内 —— **从源码读常量比阈值**，不写死等值（写死等值只会让下轮涨回来时又红一条，同 R116 增量渲染那条的读法：锚点要落在会被改的那个值上）', () => {
+check('W14-2 ★Hero 必须"薄"（用户拍板 2026-10-16 方案A 两行化 → ★W16-T1 指标区再降一档为纯文本读数行）：容器内距、层间 gap 压到上限值以内，且读数格**不得再有卡面**（无底色/无边框/无阴影/无圆角），说明文字收进 title 悬浮。★W16-T1 重指理由：W14-2 落地后指标仍是四张压扁的卡（截图实测仍"太突出"，占位约 96px），用户再拍板方案A「纯文本读数行」—— 病灶是常驻路标占着四个卡面压过真正的主角。负锚两项保留：四格仍等宽铺满（N7）、hover 不抬升。**从源码读常量比阈值**，不写死等值', () => {
   const hero = CSS.match(/\.pi-hero\.hero-card \{[^}]*\}/)?.[0] || '';
+  const grid = CSS.match(/\.hero-kpis-grid \{[^}]*\}/)?.[0] || '';
   const kpi = CSS.match(/\.hero-kpi \{[^}]*\}/)?.[0] || '';
   const pad = (s) => {
     const m = s.match(/padding:\s*([\d.]+)px\s+([\d.]+)px(?:\s+([\d.]+)px\s+([\d.]+)px)?/)
@@ -46,15 +47,20 @@ check('W14-2 ★Hero 必须"薄"（用户拍板 2026-10-16 方案A 两行化）�
   const [pt, pr, pb, pl] = pad(hero)
   const [kt, kr, kb, kl] = pad(kpi)
   const gapRow = parseFloat((hero.match(/gap:\s*([\d.]+)px/) || [0, '99'])[1])
-  const gapKpi = parseFloat((kpi.match(/gap:\s*([\d.]+)px/) || [0, '99'])[1])
   return pt <= 14 && pr <= 18 && pb <= 14 && pl <= 18            /* 容器内距上限（原 20/22/18/22） */
-    && gapRow <= 10 && gapKpi <= 2                              /* 层间与卡内 gap 上限（原 14 / 4） */
-    && kt <= 10 && kr <= 12 && kb <= 10 && kl <= 12              /* 读数卡内距上限（原 13/15/12/15） */
-    && CSS.includes('repeat(4, 1fr)')                            /* ★N7 负锚：四卡仍等宽铺满 */
+    && gapRow <= 10
+    && kt <= 4 && kr <= 14 && kb <= 4 && kl <= 14                /* 读数格内距：方案A 已是纯文本，压到 2/14 */
+    && CSS.includes('repeat(4, 1fr)')                            /* ★N7 负锚：四格仍等宽铺满 */
     && !/transform:\s*translateY/.test(kpi)                       /* ★负锚：hover 不许再抬升（常驻区要静） */
+    /* ★W16-T1 负锚：读数格不许再有卡面 —— 底色/边框/圆角/阴影四项全清 */
+    && /background:\s*transparent/.test(kpi) && !/border:\s*1px/.test(kpi.replace(/border-right[^;]*;/, ''))
+    && !/border-radius/.test(kpi) && !/box-shadow/.test(kpi)
+    && grid.includes('grid-template-columns: repeat(4, 1fr)')
+    /* 说明文字收进 title：模板零命中 .d 节点（title 里带说明） */
+    && !HERO.includes('class="d"') && !CSS.includes('.hero-kpi .d')
+    && HERO.includes('点击看明细')
     && !CSS.includes('.pi-hero-sub')                             /* 副标题整段退役（含 CSS 规则） */
-    && !/<p class="pi-hero-sub"|<p class='pi-hero-sub'/.test(HERO)  /* 模板零命中（头注里提到退役语不算） */
-    && !HERO.includes('<p class="pi-hero-sub"');
+    && !/<p class="pi-hero-sub"/.test(HERO);
 });
 
 check('W14-3 ★Hero 不是视觉焦点：主标题降为 fs-title，且画像洞察页 CSS 与组件 codeOnly 内 fs-display 零命中 —— 原先 `.pi-hero-t` 用 fs-display(22px)，与"今日三件事 = 全页唯一 display 级主体"（W7-1/W7-2）的意图相悖：常驻路标不该抢焦点。眉标随标题并作一行（不再独占一行），使命带与读数行并作一行', () => {

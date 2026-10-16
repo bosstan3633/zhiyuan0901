@@ -16,6 +16,7 @@ const SHARDS = [
   '07-w13-profile',
   '08-w14-focus',
   '09-w15-drill-focus',
+  '10-w16-metrics',
   '10-foundations',
   '20-req39-64',
   '30-v2.35-v2.46',

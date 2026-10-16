@@ -3,12 +3,14 @@
  * W14-T2（2026-10-16 · 用户拍板方案A 两行化）PiHero —— 常驻路标，两行结构 `.hero-card`：
  *   ① `.hero-row-top`  两端对齐页头：左 = 眉标 + 主标题（同行的 fs-title）；右 = 刷新/导出/错误/全部记录
  *   ② `.hero-data-row` 数据行 = `.hero-compass-bar`（🧭 使命主线 + ≤2 枚 🚀 主攻胶囊）
- *                          并排 `.hero-kpis-grid`（4 等宽底盘：全库净资产 / 知识熵 / 证据支撑 / 精力落主攻）
+ *                          并排 `.hero-kpis-grid`（4 等宽**纯文本读数**，非卡片）
  *
- * ★为什么压：Hero 在页面最顶部且常驻，内容全是"读一眼就够"的底盘读数。原先三层（眉标行 + 22px 大标题
- *   + 两行副标题 + 使命带 + 三行排布的四张卡）实测约 378px、占首屏约三分之一，而今天的三件事才是主角 ——
- *   主次颠倒。压后约 150px，副标题「不是又一个仪表盘…」按用户拍板整段退役（它是页面定调语，
- *   但不该占常驻区的三行高度），眉标降为标题前的一枚小字。
+ * ★W16-T1（2026-10-16 · 用户拍板方案A「纯文本读数行」）指标区再降一档：
+ *   四格读数彻底去掉卡面（底色/边框/圆角/阴影全清），只用竖线分隔；数字降到 fs-body 加粗、
+ *   标签同行 micro；**说明文字收进各格 title 悬浮**（信息不删，只是不再常驻占位）；
+ *   悬停出底色与 ▸ 箭头提示可下钻；主攻胶囊名截断 24ch（否则「教育+AI行业地图研究」
+ *   会挤掉半个数据行）。指标区整块高度约 26px —— 病灶是它在页面最顶部且常驻，
+ *   却占着四个卡面压过真正的主角（今天的战报与三件事）。
  *
  * ★W13-D1 指标去重：原「连续打卡 / 活跃天数 / 最长连续」三枚 chip 整体迁出本组件
  *   （连续打卡 + 最长连续 → PiYear 年度 strip4；活跃天数同去），全页仅时间轴一处展示。
@@ -95,27 +97,25 @@ function onPick(fmt: ExportFmt) { emit('export', fmt) }
         </span>
       </div>
 
-      <!-- ③ 4 等宽底盘指标卡（F3） -->
+      <!-- ③ 4 等宽底盘读数（F3 · ★W16-T1 方案A：纯文本读数行，无卡面）
+           说明文字已收进各格 title 悬浮，不再常驻占位（信息一项未删）。
+           负锚：仍是 repeat(4,1fr) 四等宽铺满（N7 钉住，不许改回居中或不等宽）。 -->
       <div class="hero-kpis-grid">
-        <button class="hero-kpi" title="卡片总量 · 未删除；副行为三类卡构成" @click="emit('drill', 'total')">
+        <button class="hero-kpi" :title="`全库净资产 = 三类未删卡合计（回收站不计）· 资源 ${props.kindCounts.res} · 任务 ${props.kindCounts.task} · 好奇 ${props.kindCounts.curio} —— 点击看明细`" @click="emit('drill', 'total')">
           <span class="v">{{ props.total.toLocaleString() }}<small>张</small></span>
           <span class="l">全库净资产</span>
-          <span class="d">资源 {{ props.kindCounts.res }} · 任务 {{ props.kindCounts.task }} · 好奇 {{ props.kindCounts.curio }}</span>
         </button>
-        <button class="hero-kpi" title="知识熵 · 卡片标签分布离散度（bit）；点击看高频标签簇" @click="emit('drill', 'entropy')">
+        <button class="hero-kpi" :title="`知识熵 ${props.entropy.toFixed(1)} bit = 卡片标签分布的离散度（越高铺得越散）· 高频标签：${props.topTags.length ? props.topTags.join(' · ') : '尚无带标签的卡片'} —— 点击看明细`" @click="emit('drill', 'entropy')">
           <span class="v">{{ props.entropy.toFixed(1) }}<small>bit</small></span>
           <span class="l">知识熵 (聚焦度)</span>
-          <span class="d">{{ props.topTags.length ? props.topTags.join(' · ') : '尚无带标签的卡片' }}</span>
         </button>
-        <button class="hero-kpi" title="任务有证据支撑 = 有支撑资源关联的未删任务 ÷ 未删任务总数" @click="emit('drill', 'support')">
+        <button class="hero-kpi" :title="`任务有证据支撑 ${props.supportRate}% = 有 ≥1 张支撑资源卡关联的未删任务 ÷ 未删任务总数 —— 点击看明细`" @click="emit('drill', 'support')">
           <span class="v">{{ props.supportRate }}<small>%</small></span>
           <span class="l">任务有证据支撑</span>
-          <span class="d">已挂支撑资源卡的任务占比</span>
         </button>
-        <button class="hero-kpi" title="近30天精力落主攻 = 归属主攻项目的有效动作 ÷ 近30天总有效动作" @click="emit('drill', 'focus')">
+        <button class="hero-kpi" :title="`近30天精力落主攻 ${props.focusShare}% = 归属主攻项目任务的有效动作 ÷ 近30天总有效动作 —— 点击看明细`" @click="emit('drill', 'focus')">
           <span class="v">{{ props.focusShare }}<small>%</small></span>
           <span class="l">近30天精力落主攻</span>
-          <span class="d">有效动作落入主攻项目比</span>
         </button>
       </div>
     </div>

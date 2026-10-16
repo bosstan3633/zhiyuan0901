@@ -184,35 +184,47 @@
   color: var(--accent-ink); cursor: pointer;
 }
 .hcb-empty:hover { text-decoration: underline; }
-.hcb-pills { display: inline-flex; gap: 8px; flex: none; flex-wrap: wrap; }
+.hcb-pills { display: inline-flex; gap: 8px; flex: none; flex-wrap: wrap; min-width: 0; }
 .hcb-pill {
-  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px;
   background: var(--accent-light); border: 1px solid var(--accent); color: var(--accent-ink);
   font-size: var(--fs-caption); font-weight: 700; cursor: pointer; font-family: inherit;
   transition: all var(--dur);
+  /* ★W16-T1：胶囊名截断 —— 「教育+AI行业地图研究」不截断时会挤掉半个数据行 */
+  max-width: 24ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
 }
 .hcb-pill:hover { border-color: var(--accent-ink); }
-/* ③ 4 等宽底盘网格（F3 · grid repeat(4,1fr) 等宽铺满）
-   ★W14-T2：数值与标签并作一行（原来是三行：值 / 标签 / 说明），卡内 padding 与 gap 同步压缩
-   —— Hero 是常驻路标不是舞台，读一眼就够；负锚：hover 不许再抬升（升起的卡会让常驻区显得躁动）。 */
-.hero-kpis-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+/* ③ 4 等宽底盘读数（F3）
+   ★W16-T1（用户拍板 2026-10-16 · 方案A「纯文本读数行」）：指标区从"四张卡"**彻底降级为一行字** ——
+   病灶是它太突出：Hero 在页面最顶部且常驻，读一眼就够，却占着四个卡面 + 15px 大数字 + 说明文字，
+   视觉重量压过真正的主角（今天的战报与三件事）。
+   落地：① 去卡面底色/边框/阴影，只用竖线分隔四格 ② 数字降到 fs-body 加粗、标签同行 micro
+        ③ 说明文字收进 title 悬浮（信息不删，只是不再常驻占位）④ 悬停出底色 + ▸ 提示可下钻
+        ⑤ hover 不抬升（常驻区要静）。
+   负锚：仍是 repeat(4,1fr) 四等宽（N7 钉住，不许改回居中或不等宽）；下限由 W14-2 那条判据守着。 */
+.hero-kpis-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-left: 1px solid var(--border); }
 .hero-kpi {
-  display: flex; flex-direction: column; gap: 2px; text-align: left; cursor: pointer; font-family: inherit;
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: 8px 10px; transition: border-color var(--dur); color: inherit; min-width: 0;
+  position: relative; display: flex; flex-direction: column; gap: 0; text-align: left; cursor: pointer; font-family: inherit;
+  background: transparent; border: 0; border-right: 1px solid var(--border);
+  padding: 2px 14px; transition: background var(--dur-fast); color: inherit; min-width: 0;
 }
-.hero-kpi:hover { border-color: var(--accent); }
-.hero-kpi .v { font-size: var(--fs-title); font-weight: 700; color: var(--text); line-height: 1.2; }
-.hero-kpi .v small { font-size: var(--fs-micro); font-weight: 600; color: var(--text-3); margin-left: 2px; }
-.hero-kpi .l { font-size: var(--fs-caption); font-weight: 700; color: var(--text-2); }
-.hero-kpi .d {
-  font-size: var(--fs-micro); color: var(--text-4);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.hero-kpi:last-child { border-right: none; }
+.hero-kpi:hover { background: var(--surface-2); }
+.hero-kpi .v { font-size: var(--fs-body); font-weight: 700; color: var(--text); line-height: 1.45; white-space: nowrap; }
+.hero-kpi .v small { font-size: var(--fs-micro); font-weight: 600; color: var(--text-4); margin-left: 2px; }
+.hero-kpi .l { font-size: var(--fs-micro); font-weight: 400; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* ★W16-T1：原 `.hero-kpi .d` 说明行随方案A 整段退役 —— 说明文字已改为各格 title 悬浮，
+   模板里没有这个节点，留着就是孤儿规则（dead-css-scan 判死）。 */
+/* 悬停时的下钻提示箭头 */
+.hero-kpi::after {
+  content: '▸'; position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
+  font-size: 9px; color: var(--text-4); opacity: 0; transition: opacity var(--dur-fast);
 }
-/* ★W14-T2：读数行与方向坐标带并作一行（使命在左、四格读数在右，窄屏回落到两行） */
+.hero-kpi:hover::after { opacity: 1; }
+/* ★W16-T1 数据行：使命带 + 四格读数（读数区不再有卡面，两段之间的层级靠竖线与底色差） */
 .hero-data-row { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
-.hero-data-row .hero-compass-bar { flex: 1 1 260px; min-width: 0; }
-.hero-data-row .hero-kpis-grid { flex: 3 1 480px; }
+.hero-data-row .hero-compass-bar { flex: 1 1 240px; min-width: 0; }
+.hero-data-row .hero-kpis-grid { flex: 3 1 460px; }
 .pi-hero-acts { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 
 /* ===== W13-D2 · 统一「一句人话洞察条」（四模块共用：今天/本周/本月/本年）=====

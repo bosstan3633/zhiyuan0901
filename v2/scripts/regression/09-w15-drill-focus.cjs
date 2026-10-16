@@ -22,15 +22,20 @@ check('W15-1 ★两类明细不许混：卡片清单型与事件流水型各有�
     && PI.includes("case 'cooling': return coolingCards.value")
     && PI.includes("case 'today-in': return todayInCards.value")
     && PI.includes("case 'today-call': return todayCalledCards.value")
-    /* 取数口径：弹药 = 三件事任务的 SupportLink 去重资源卡；冷却 = 逐卡 lifecycleState（不另造阈值） */
-    && PI.includes('const ammoCards = computed') && PI.includes('taskIds.has(l.taskId)')
+    /* 取数口径：弹药 = 三件事任务的 SupportLink 去重资源卡（只算存活卡）；冷却 = 逐卡 lifecycleState（不另造阈值） */
+    && PI.includes('const ammoSplit = computed') && PI.includes('taskIds.has(l.taskId)')
     && PI.includes('const coolingCards = computed') && PI.includes("lifecycleState(c) === 'cooling'")
     && PI.includes('coolingMsOf(c)')
-    /* 今日入台/调出 = 当日事件回查卡（不是事件行） */
-    && PI.includes('const todayCardIds = computed')
+    /* 今日入台/调出（★W16-T2 再修正：原实现把「创建 ∪ 调出」并成一个集合，导致"今日调出"
+       会把今天只新建没打开的卡也列进去；现拆成 createdIds / calledIds 两路，入台统一按 createdAt） */
+    && PI.includes('const todayCalledIds = computed') && PI.includes('const todayCreatedEventIds = computed')
     && PI.includes('const todayInCards = computed') && PI.includes('const todayCalledCards = computed')
-    /* 标题自带口径说明：用户不必猜抽屉里是卡还是流水 */
-    && PI.includes('本页是卡片维度，事件流水见页头「全部记录」')
+    && PI.includes('x.createdAt >= gStartOfToday')
+    && !PI.includes('const todayCardIds = computed')
+    /* ★W16-T3 校正：口径说明从抽屉标题移到对账条脚注（标题只留"这是什么清单"，
+       "这是卡还是流水"由对账条 note 统一说明，六个分支一处真源） */
+    && PI.includes('const statReconcileNote = computed')
+    && PI.includes('本清单是卡片维度；想看"谁在什么时候做了什么"，去页头「全部记录」。')
     /* 引擎侧 CTA 键改指：callSupport → ammo；「可调出的旧卡」→ cooling（不再落 openLog） */
     && RR.includes("ctaAction: 'ammo'")
     && codeOnly(RR).includes("ctaAction: 'cooling'")

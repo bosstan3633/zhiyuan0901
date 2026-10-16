@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>画像洞察 · 指标简化与明细下钻 v9 原型</title>
+<style>
+:root{
+  --bg:#0b0d12; --surface:#12151c; --surface-2:#171b24; --surface-3:#1e2430;
+  --border:#262c38; --border-strong:#39424f;
+  --text:#e8ecf3; --text-2:#aab3c2; --text-3:#7b8493; --text-4:#5b6472;
+  --accent:#6d8bff; --accent-ink:#9db1ff; --accent-light:#1c2440;
+  --success:#3ecf8e; --success-bg-soft:#0f2a20;
+  --warning:#e0a33a; --warning-bg-soft:#2a2110;
+  --danger:#e5484d;
+  --radius:12px; --radius-sm:7px; --radius-xs:5px;
+  --fs-display:22px; --fs-headline:17px; --fs-title:15px; --fs-sub:13px; --fs-body:13px;
+  --fs-caption:12px; --fs-tiny:11px; --fs-micro:10px;
+}
+html.light{
+  --bg:#f7f8fa; --surface:#ffffff; --surface-2:#f2f4f7; --surface-3:#e8ebf0;
+  --border:#e2e6ec; --border-strong:#cbd2dc;
+  --text:#161a20; --text-2:#4a5361; --text-3:#6b7482; --text-4:#98a1ae;
+  --accent-light:#eef1fd;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;font-size:var(--fs-body);line-height:1.6;padding-bottom:80px}
+button{font-family:inherit;cursor:pointer}
+
+/* ===== 顶部工具条 ===== */
+.toolbar{position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:12px 28px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border)}
+.tb-title{font-size:var(--fs-headline);font-weight:700}
+.tb-title small{display:block;font-size:var(--fs-micro);font-weight:400;color:var(--text-4);letter-spacing:.1em}
+.tb-group{display:flex;align-items:center;gap:6px;margin-left:auto}
+.tb-label{font-size:var(--fs-caption);color:var(--text-3);margin-right:4px}
+.tb-btn{padding:6px 14px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);
+  border-radius:99px;font-size:var(--fs-caption);font-weight:600;transition:all .13s}
+.tb-btn:hover{border-color:var(--border-strong);color:var(--text)}
+.tb-btn.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+.tb-sep{width:1px;height:22px;background:var(--border)}
+
+/* ===== 页面骨架 ===== */
+.page{max-width:1180px;margin:0 auto;padding:26px 28px}
+
+/* ===== 方案说明条 ===== */
+.plan-note{display:flex;gap:12px;align-items:flex-start;padding:12px 16px;background:var(--surface-2);
+  border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius-sm);
+  margin-bottom:18px;font-size:var(--fs-caption);color:var(--text-2)}
+.plan-note b{color:var(--text)}
+
+/* ===== Hero ===== */
+.hero{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:6px}
+.hero-top{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+.hero-title{font-size:var(--fs-title);font-weight:700;letter-spacing:-.02em}
+.hero-eyebrow{font-size:var(--fs-micro);font-weight:700;letter-spacing:.1em;color:var(--accent-ink);margin-right:10px;position:relative;top:-1px}
+.hero-acts{display:flex;gap:8px}
+.hero-btn{padding:5px 12px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);
+  border-radius:var(--radius-xs);font-size:var(--fs-caption);font-weight:600}
+.hero-btn:hover{border-color:var(--border-strong);color:var(--text)}
+.hero-btn.acc{border-color:var(--accent);color:var(--accent)}
+
+/* ---- 数据行：三方案共用同一份真实数据 ---- */
+.hero-data{display:flex;gap:10px;flex-wrap:wrap}
+.compass{flex:1 1 260px;min-width:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px}
+.mission{display:flex;align-items:center;gap:6px;min-width:0;font-size:var(--fs-caption);color:var(--text-2)}
+.mission b{font-size:var(--fs-tiny);color:var(--text-4);letter-spacing:.05em;flex:none}
+.mission em{font-style:normal;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34ch}
+.pills{display:flex;gap:6px;min-width:0}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;
+  background:var(--accent-light);border:1px solid var(--accent);color:var(--accent-ink);
+  font-size:var(--fs-micro);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:22ch;flex:0 1 auto}
+.pill b{font-weight:700}
+.pill:hover{filter:brightness(1.08)}
+
+/* 指标承载区（方案差异全在这里） */
+.metrics{flex:3 1 480px;display:grid;gap:8px;min-width:0}
+.m{display:flex;flex-direction:column;text-align:left;min-width:0;position:relative;transition:all .13s}
+
+/* 方案 A：纯文本读数行 —— 无卡面、无框、数字加粗、标签同行 */
+.planA .metrics{grid-template-columns:repeat(4,1fr);gap:0;border-left:1px solid var(--border)}
+.planA .m{padding:2px 14px;border-right:1px solid var(--border);cursor:pointer}
+.planA .m:last-child{border-right:none}
+.planA .m .v{font-size:var(--fs-body);font-weight:700;color:var(--text);white-space:nowrap}
+.planA .m .v small{font-size:var(--fs-micro);font-weight:600;color:var(--text-4);margin-left:1px}
+.planA .m .l{font-size:var(--fs-micro);color:var(--text-3);white-space:nowrap}
+.planA .m .d{display:none}
+.planA .m:hover{background:var(--surface-2)}
+.planA .m::after{content:'▸';position:absolute;right:2px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--text-4);opacity:0}
+.planA .m:hover::after{opacity:1}
+
+/* 方案 B：紧凑 chip —— 无卡面，仅悬停出边框 */
+.planB .metrics{grid-template-columns:repeat(4,1fr);gap:6px}
+.planB .m{flex-direction:row;align-items:baseline;gap:6px;padding:5px 10px;border:1px solid transparent;
+  border-radius:var(--radius-sm);background:var(--surface-2);cursor:pointer}
+.planB .m .v{font-size:var(--fs-caption);font-weight:700;white-space:nowrap}
+.planB .m .v small{font-size:var(--fs-micro);font-weight:600;color:var(--text-4)}
+.planB .m .l{font-size:var(--fs-micro);color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.planB .m .d{display:none}
+.planB .m:hover{border-color:var(--accent);background:var(--surface-3)}
+
+/* 方案 C：压平卡 —— 保留网格，去了卡面底色与阴影，只留 hairline */
+.planC .metrics{grid-template-columns:repeat(4,1fr);gap:0}
+.planC .m{padding:4px 12px;border-left:1px solid var(--border);cursor:pointer}
+.planC .m:first-child{border-left:none;padding-left:0}
+.planC .m .v{font-size:var(--fs-caption);font-weight:700;white-space:nowrap}
+.planC .m .v small{font-size:var(--fs-micro);font-weight:600;color:var(--text-4)}
+.planC .m .l{font-size:var(--fs-micro);color:var(--text-3);white-space:nowrap}
+.planC .m .d{font-size:var(--fs-micro);color:var(--text-4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.planC .m:hover{background:var(--surface-2)}
+
+/* 尺寸标注 */
+.measure{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:var(--fs-micro);color:var(--text-4)}
+.measure-bar{height:6px;border-radius:3px;background:var(--accent);opacity:.55}
+.measure-bar.b{background:var(--success);opacity:.5}
+.measure-bar.c{background:var(--warning);opacity:.5}
+
+/* ===== 抽屉 ===== */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:200;opacity:0;pointer-events:none;transition:opacity .18s}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:520px;max-width:92vw;z-index:201;
+  background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .2s cubic-bezier(.4,0,.2,1)}
+.drawer.on{transform:translateX(0)}
+.dr-head{padding:16px 18px 12px;border-bottom:1px solid var(--border)}
+.dr-title{font-size:var(--fs-title);font-weight:700}
+.dr-sub{font-size:var(--fs-tiny);color:var(--text-3);margin-top:4px;line-height:1.55}
+.dr-x{position:absolute;top:14px;right:16px;width:28px;height:28px;border-radius:50%;border:0;
+  background:var(--surface-2);color:var(--text-2);font-size:15px;line-height:1}
+.dr-x:hover{background:var(--surface-3);color:var(--text)}
+/* 对账条：把"计数"和"清单条数"的关系摆出来 */
+.dr-reconcile{display:flex;gap:8px;margin-top:10px;padding:8px 10px;background:var(--surface-2);
+  border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--fs-tiny)}
+.rc{display:flex;flex-direction:column;gap:1px;flex:1}
+.rc .k{color:var(--text-4);font-size:var(--fs-micro)}
+.rc .n{font-size:var(--fs-sub);font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+.rc.warn .n{color:var(--warning)}
+.rc .n small{font-size:var(--fs-micro);font-weight:400;color:var(--text-4);margin-left:2px}
+.dr-tools{display:flex;gap:8px;padding:10px 18px;border-bottom:1px solid var(--border);align-items:center}
+.dr-search{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-xs);
+  background:var(--surface-2);color:var(--text);font-size:var(--fs-caption);font-family:inherit}
+.dr-cnt{font-size:var(--fs-tiny);color:var(--text-3);white-space:nowrap}
+.dr-list{flex:1;overflow-y:auto;padding:6px 10px}
+.dr-row{display:flex;align-items:center;gap:8px;padding:8px 8px;border-radius:var(--radius-sm);
+  border:1px solid transparent;cursor:pointer;transition:all .12s}
+.dr-row:hover{background:var(--surface-2);border-color:var(--border)}
+.dr-kind{font-size:var(--fs-caption);flex:none}
+.dr-main{min-width:0;flex:1}
+.dr-t{font-size:var(--fs-caption);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dr-m{font-size:var(--fs-micro);color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.dr-tag{font-size:var(--fs-micro);padding:1px 7px;border-radius:99px;background:var(--surface-3);color:var(--text-2);flex:none}
+.dr-tag.ok{background:var(--success-bg-soft);color:var(--success)}
+.dr-tag.warn{background:var(--warning-bg-soft);color:var(--warning)}
+.dr-tag.acc{background:var(--accent-light);color:var(--accent-ink)}
+/* 行内展开（替代"点行跳走"） */
+.dr-expand{margin:2px 0 6px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);font-size:var(--fs-tiny);color:var(--text-2)}
+.dr-expand .kv{display:flex;gap:8px;padding:3px 0}
+.dr-expand .kv b{color:var(--text-4);font-weight:400;flex:none;width:72px}
+.dr-empty{padding:40px 20px;text-align:center;color:var(--text-3);font-size:var(--fs-caption)}
+.dr-foot{padding:10px 18px;border-top:1px solid var(--border);font-size:var(--fs-micro);color:var(--text-4);display:flex;justify-content:space-between;gap:10px}
+.dr-foot button{background:none;border:0;color:var(--accent-ink);font-size:var(--fs-micro);cursor:pointer}
+
+/* ===== 对照区 ===== */
+.section{margin-top:34px}
+.sec-h{font-size:var(--fs-headline);font-weight:700;margin-bottom:4px}
+.sec-sub{font-size:var(--fs-caption);color:var(--text-3);margin-bottom:14px}
+table{width:100%;border-collapse:collapse;font-size:var(--fs-caption)}
+th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border-strong);color:var(--text-3);font-weight:600;font-size:var(--fs-tiny)}
+td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--text-2)}
+td.bad{color:var(--danger)}td.good{color:var(--success)}
+td .fix{display:block;color:var(--text-4);font-size:var(--fs-micro);margin-top:3px}
+.sev{display:inline-block;padding:1px 6px;border-radius:99px;font-size:var(--fs-micro);font-weight:700}
+.sev.h{background:color-mix(in srgb,var(--danger) 18%,transparent);color:var(--danger)}
+.sev.m{background:var(--warning-bg-soft);color:var(--warning)}
+.sev.l{background:var(--surface-3);color:var(--text-3)}
+
+/* ===== 拍板区 ===== */
+.decide{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-top:20px}
+.decide h3{font-size:var(--fs-sub);font-weight:700;margin-bottom:10px}
+.q{padding:11px 0;border-bottom:1px dashed var(--border)}
+.q:last-child{border-bottom:0}
+.q-t{font-size:var(--fs-caption);color:var(--text);font-weight:600;margin-bottom:5px}
+.q-o{font-size:var(--fs-tiny);color:var(--text-3);display:flex;gap:8px;flex-wrap:wrap}
+.q-o span{padding:2px 9px;border:1px solid var(--border);border-radius:99px;background:var(--surface-2)}
+.q-o span.rec{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-light)}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="tb-title">画像洞察 · 指标简化与明细下钻<small>PROTOTYPE v9 · 2026-10-16</small></div>
+  <div class="tb-group">
+    <span class="tb-label">指标区方案</span>
+    <button class="tb-btn on" data-plan="A">A 纯文本读数行</button>
+    <button class="tb-btn" data-plan="B">B 紧凑 chip</button>
+    <button class="tb-btn" data-plan="C">C 压平卡</button>
+    <span class="tb-sep"></span>
+    <button class="tb-btn" id="themeBtn">切换浅色</button>
+  </div>
+</div>
+
+<div class="page">
+  <div class="plan-note" id="planNote"></div>
+
+  <!-- Hero 预览 -->
+  <div class="hero">
+    <div class="hero-top">
+      <div class="hero-title"><span class="hero-eyebrow">画像洞察</span>你的知识生命体征<span style="font-size:var(--fs-micro);color:var(--text-4);margin-left:8px;letter-spacing:.12em">PROFILE INSIGHTS</span></div>
+      <div class="hero-acts">
+        <button class="hero-btn">⟳ 刷新</button>
+        <button class="hero-btn">↓ 导出</button>
+        <button class="hero-btn acc">🗂 全部记录</button>
+      </div>
+    </div>
+    <div class="hero-data" style="margin-top:10px">
+      <div class="compass">
+        <span class="mission"><b>🧭 使命主线</b><em title="贡献自己的时间精力研究的成果，开源">贡献自己的时间精力研究的成果，开源</em></span>
+        <span class="pills">
+          <button class="pill" data-open="proj" title="点击查看项目详情">📌 主攻 1：软硬一体服务系统解决方案 <b>0%</b></button>
+          <button class="pill" data-open="proj" title="点击查看项目详情">📌 主攻 2：教育+AI行业地图研究 <b>0%</b></button>
+        </span>
+      </div>
+      <div class="metrics" id="metrics"></div>
+    </div>
+    <div class="measure" id="measure"></div>
+  </div>
+
+  <p style="font-size:var(--fs-micro);color:var(--text-4);margin:10px 2px 0">↑ 点任一指标 → 右侧抽屉展示修正后的明细（口径对账 + 行内展开）。点主攻胶囊 → 项目详情抽屉。</p>
+
+  <!-- 问题对照 -->
+  <div class="section">
+    <div class="sec-h">明细准确性 · 5 处待修（其中 3 处是 V3.8.23 新引入的）</div>
+    <div class="sec-sub">本轮逐个核对了 12 个下钻分支的取数口径与计数口径，发现清单与数字对不上账的地方</div>
+    <table>
+      <thead><tr><th style="width:14%">分支</th><th style="width:8%">严重度</th><th style="width:36%">问题</th><th>修正方案</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>today-call</code><br><span style="font-size:var(--fs-micro);color:var(--text-4)">今日调出</span></td>
+          <td><span class="sev h">高</span></td>
+          <td class="bad">清单取的是「创建 ∪ 调出」两张集合的并集 → 今天只新建、没打开过的卡也会出现在"今日调出"里。且计数按**事件次数**、清单按**去重卡数**，同一张卡调出 3 次时数字是 3、清单只有 1 行。
+            <span class="fix">上一轮改动引入</span></td>
+          <td>拆成两个集合：<code>createdIds</code> / <code>calledIds</code>；调出清单只取 calledIds；对账条显式写「1 次调出 · 2 张不同的卡」，把"次数"和"张数"两件事分开说</td>
+        </tr>
+        <tr>
+          <td><code>today-in</code><br><span style="font-size:var(--fs-micro);color:var(--text-4)">今日入台</span></td>
+          <td><span class="sev h">高</span></td>
+          <td class="bad">计数 <code>todayAdd</code> 按卡字段 <code>createdAt</code> 数，清单却要求「有 create 事件 <b>且</b> createdAt 是今天」——老数据没事件记录时会漏卡，数字与清单不等。
+            <span class="fix">两处口径打架</span></td>
+          <td>统一按 <code>createdAt</code> 取数（与计数同源），事件只用于补一个「⚡ 采集入池 / 📥 本地导入」来源标记</td>
+        </tr>
+        <tr>
+          <td><code>ammo</code><br><span style="font-size:var(--fs-micro);color:var(--text-4)">已备弹药</span></td>
+          <td><span class="sev m">中</span></td>
+          <td class="bad">数字 <code>todayAmmo</code> 数的是 SupportLink 里的资源卡 id（含已软删的），清单只取存活卡 → 弹药卡删掉后数字还是 6、清单只剩 5 行。
+            <span class="fix">上一轮改动引入</span></td>
+          <td>数字与清单同源（都只算存活卡）；被删的弹药在对账条里显示「另 1 张已进回收站」</td>
+        </tr>
+        <tr>
+          <td><code>cooling</code><br><span style="font-size:var(--fs-micro);color:var(--text-4)">可调出的旧卡</span></td>
+          <td><span class="sev m">中</span></td>
+          <td class="bad">右侧日期列塞的是 <code>updatedAt</code>（最近编辑日），但这栏在"冷却"语境下应该回答"多久没动了"。另外抽屉行只在 <code>kind==='task'</code> 时显示说明，冷却/弹药都是资源卡 ⇒ <b>「冷却 12 天 · 阈值 30 天」这句话整列都不显示</b>。</td>
+          <td>日期列按语境换成「冷却 12 天 / 阈值 30 天 / 调用 7 次」；说明列对<b>所有</b>卡类显示（不再是只有任务卡）</td>
+        </tr>
+        <tr>
+          <td>全部 12 个分支<br><span style="font-size:var(--fs-micro);color:var(--text-4)">交互共性</span></td>
+          <td><span class="sev l">体验</span></td>
+          <td class="bad">点行直接 <code>router.push</code> 跳走并关抽屉 —— "看明细"变成"离开页面"，用户还得再点回来。且日期列对所有分支都写死同一个格式。</td>
+          <td>点行改为<b>行内展开</b>（卡类型 / 归属项目 / 标签 / 创建·调出时间 / 支撑它的任务），底部再给一枚「⤴ 定位到卡片」跳转钮；日期列按语境变化</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 方案对比说明 -->
+  <div class="section">
+    <div class="sec-h">三个方案的差别（顶部可切换对比）</div>
+    <div class="sec-sub">三个方案共用同一份真实数据，差别只在"指标区怎么摆"</div>
+    <table>
+      <thead><tr><th style="width:12%">方案</th><th style="width:22%">形态</th><th style="width:14%">高度</th><th style="width:14%">数字字号</th><th>取舍</th></tr></thead>
+      <tbody>
+        <tr><td><b>A 纯文本读数行</b></td><td>无卡面、无框，四个指标用竖线分隔；数字加粗、标签同行，说明文字收进悬浮</td><td>约 26px</td><td>13px（fs-body）</td><td class="good">最彻底：指标区从"四张卡"降级成"一行字"，视觉上彻底不与下面的模块争。也最省空间（整块约 26px）。<span class="fix">代价：单格可点区域小（整行 30px 高），移动端要点准</span></td></tr>
+        <tr><td><b>B 紧凑 chip</b></td><td>每指标一枚小 chip，数字 12px + 标签 10px 同排；悬停才出边框</td><td>约 28px</td><td>12px</td><td>折中：仍可点区域明确（chip 有底色），但没有卡面框，视觉重量介于 A 与 C 之间。<span class="fix">代价：四枚 chip 的底色在深色主题下仍形成四个"块"</span></td></tr>
+        <tr><td><b>C 压平卡</b></td><td>保留四等宽网格，去掉卡面底色与边框，只留左侧 hairline；数字降到 12px，说明文字保留</td><td>约 42px</td><td>12px</td><td>最保守：布局不动只压平，信息一项不减（说明文字还在）。<span class="fix">代价：说明文字仍在，仍有"四个块"的轮廓感</span></td></tr>
+      </tbody>
+    </table>
+    <div class="decide">
+      <h3>另外两处要一并处理的（与方案无关）</h3>
+      <div class="q">
+        <div class="q-t">主攻胶囊把指标区挤窄了 —— 名字不截断时「教育+AI行业地图研究」能占掉半个数据行</div>
+        <div class="q-o"><span class="rec">三个方案统一：胶囊名 max-width 22ch 截断 + title 全文悬浮</span><span>使命主线同理（已截断，保留）</span></div>
+      </div>
+      <div class="q">
+        <div class="q-t">指标区的"下钻提示"目前只有鼠标指针，没有文字说明</div>
+        <div class="q-o"><span class="rec">每个指标补 title 说明「点击看明细」</span><span>悬停时在指标右侧出一个小 ▸ 箭头提示可下钻</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 拍板 -->
+  <div class="section">
+    <div class="sec-h">需要你拍板</div>
+    <div class="sec-sub">选完我就写需求清单并开工</div>
+    <div class="decide">
+      <div class="q">
+        <div class="q-t">Q1 · 指标区走哪个方案？</div>
+        <div class="q-o"><span class="rec" data-pick>A 纯文本读数行（最彻底·26px）</span><span data-pick>B 紧凑 chip（折中·28px）</span><span data-pick>C 压平卡（最保守·42px）</span></div>
+      </div>
+      <div class="q">
+        <div class="q-t">Q2 · 明细行点开的行为？</div>
+        <div class="q-o"><span class="rec" data-pick>行内展开（不离开页面）+ 底部给「定位」钮</span><span data-pick>维持现状：点行直接跳转</span><span data-pick>行内展开为主，⌘/Alt+点击才跳转</span></div>
+      </div>
+      <div class="q">
+        <div class="q-t">Q3 · 「次数 vs 张数」这类对账要不要显式展示？</div>
+        <div class="q-o"><span class="rec" data-pick>要：抽屉顶部加一条对账条，把两种口径的数字并排写清</span><span data-pick>不要：标题里一句话带过即可</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="drawer" id="drawer">
+  <div class="dr-head">
+    <button class="dr-x" onclick="closeDrawer()">×</button>
+    <div class="dr-title" id="drTitle"></div>
+    <div class="dr-sub" id="drSub"></div>
+    <div class="dr-reconcile" id="drReconcile"></div>
+  </div>
+  <div class="dr-tools">
+    <input class="dr-search" placeholder="🔍 搜索标题 / 归属 / 标签">
+    <span class="dr-cnt" id="drCnt"></span>
+  </div>
+  <div class="dr-list" id="drList"></div>
+  <div class="dr-foot">
+    <span id="drFootNote"></span>
+    <span style="display:flex;gap:10px"><button onclick="alert('原型演示：定位到卡片所在页面')">⤴ 定位到卡片</button></span>
+  </div>
+</div>
+
+<script>
+// ===== 指标数据（真实口径：299 张 / 4.1 bit / 3% / 0%）=====
+const METRICS = [
+  { key:'total',   v:'299', u:'张', l:'全库净资产',   d:'资源 262 · 任务 30 · 好奇 7',
+    drawer:{ title:'📊 全部卡片明细', sub:'三类未删卡的全量清单 · 与「全库净资产」计数同源（都按存活卡，不含回收站）',
+      reconcile:[['存活卡片','299','张'],['其中资源','262','张'],['其中任务','30','张'],['回收站','18','张','warn']],
+      foot:'计数与清单同源：都只数未删卡。回收站里的 18 张不进清单 —— 软删可恢复，进清单会让人以为丢了。' },
+    rows:[
+      ['📇','资源','larashero3-dotcom/lieflat-cards: 把文字变成克制编辑感的图文卡片','','资源 · AI工具与知识库','10-09'],
+      ['📇','资源','学业规划学管理平台','3 个标签','资源 · 教育+AI研究','10-09'],
+      ['📇','资源','bosstan3633/Bosstan2023-Obsidian: 我的 Obsidian 知识库版本管理仓库','2 个标签','资源 · AI工具与知识库','10-09'],
+      ['📇','资源','QQ邮箱','1 个标签','资源 · 数字生活与效率','10-09'],
+      ['📇','资源','RedFoxHub','无标签','⚠ 无归属标签 · 任何筛选都召回不到它','10-09'],
+      ['✅','任务','拆解豆包自媒体创作系统案例','未归档','任务 · 软硬一体服务系统解决方案 · 6 子任务','10-14'],
+      ['✅','任务','构建行业术语表（20 个核心词）','进行中','任务 · 教育+AI行业地图研究 · 4 子任务','10-14'],
+      ['💡','好奇','抖音图文笔记怎么一键成图','已搁置','好奇卡 · 未转化','10-12']
+    ]},
+  { key:'entropy', v:'4.1', u:'bit', l:'知识熵 (聚焦度)', d:'内容生产工程/图文设计制作/AI工具与知识库/AI模型与对话/数字生活…',
+    drawer:{ title:'🔀 知识熵 4.1 bit', sub:'熵 = 卡片标签分布的离散度（香农熵，bit）· 越高说明标签铺得越散、聚焦度越低',
+      reconcile:[['当前熵','4.1','bit'],['最高标签占比','18','%'],['标签总量','63','个'],['无标签卡','18','张','warn']],
+      foot:'熵本身不是"错"——它是"你的知识面有多宽"的读数。点任一标签可看它覆盖了哪些卡。' },
+    rows:[
+      ['#','标签','内容生产工程','31 张','覆盖 任务 12 · 资源 15 · 好奇 4','—'],
+      ['#','标签','图文设计制作','24 张','覆盖 任务 9 · 资源 13 · 好奇 2','—'],
+      ['#','标签','AI工具与知识库','21 张','覆盖 任务 7 · 资源 12 · 好奇 2','—'],
+      ['#','标签','AI模型与对话','14 张','覆盖 任务 5 · 资源 8 · 好奇 1','—'],
+      ['#','标签','数字生活与效率','9 张','覆盖 任务 3 · 资源 6','—'],
+      ['⚠','无标签','未打标的卡','18 张','⚠ 任何按标签的筛选都召回不到它们','—']
+    ]},
+  { key:'support', v:'3', u:'%', l:'任务有证据支撑', d:'已挂支撑资源卡的任务占比',
+    drawer:{ title:'🛡 任务证据支撑 3%', sub:'支撑率 = 有 ≥1 张支撑资源卡关联的未删任务 ÷ 未删任务总数 · 「支撑」是任务→资源卡的一条显式关联，不是标签同现',
+      reconcile:[['支撑率','3','%'],['已支撑','1','个','warn'],['未支撑','29','个'],['支撑关联总数','6','条']],
+      foot:'这一栏低不是"错"，是"大部分任务还没配弹药"。点「未支撑」那行可以逐个去补支撑卡。' },
+    rows:[
+      ['✅','已支撑','拆解豆包自媒体创作系统案例','🛡 6 张支撑卡','任务 · 软硬一体服务系统解决方案','10-14'],
+      ['⚠','未支撑','构建行业术语表（20 个核心词）','0 张支撑卡','任务 · 教育+AI行业地图研究','10-14'],
+      ['⚠','未支撑','上架到github上','0 张支撑卡','⚠ 游离 · 未挂项目','10-15'],
+      ['⚠','未支撑','形而上的诗形式演绎句','0 张支撑卡','⚠ 游离 · 未挂项目','10-15'],
+      ['⚠','未支撑','梳理豆包系统整体框架','0 张支撑卡','⚠ 游离 · 未挂项目','10-16']
+    ]},
+  { key:'focus', v:'0', u:'%', l:'近30天精力落主攻', d:'有效动作落入主攻项目比',
+    drawer:{ title:'🚀 近30天精力落主攻 0%', sub:'分母 = 近 30 天全部有效动作（create/call/status 三类）· 分子 = 其中归属主攻项目任务的那些 · 同一动作重复只算一次',
+      reconcile:[['有效动作','16','次'],['落在主攻','0','次','warn'],['主攻项目数','2','个'],['游离动作','16','次','warn']],
+      foot:'0% 的含义要说清：近 30 天的动作**没有一件**挂在你标了主攻的项目下 —— 要么动作发生在游离任务上，要么发生在卡片而非任务上。' },
+    rows:[
+      ['↗','调出','larashero3-dotcom/lieflat-cards 图文卡片','📇 资源卡','动作落在资源卡上（无项目归属）','10-14'],
+      ['＋','新增','PixAI - 任务管理 - 飞书云文档','📇 资源卡','动作落在资源卡上（无项目归属）','10-09'],
+      ['↗','调出','学业规划学管理平台','📇 资源卡','动作落在资源卡上（无项目归属）','10-09'],
+      ['◐','状态','构建行业术语表','✅ 任务 · 教育+AI行业地图研究','非主攻项目（该任务未挂主攻）','10-14']
+    ]}
+];
+
+const PLANS = {
+  A:{ name:'A 纯文本读数行', h:'约 26px', note:'<b>方案 A</b> · 纯文本读数行：指标区彻底降级为"一行字"——无卡面、无边框、无说明文字（悬浮可见）。四个数字用竖线分隔，悬停出底色与下钻箭头。整块高度约 26px，是三案里最省的，视觉上彻底不与下方模块争。' },
+  B:{ name:'B 紧凑 chip', h:'约 28px', note:'<b>方案 B</b> · 紧凑 chip：每指标一枚小 chip（数字 12px + 标签 10px 同排），无卡面边框，悬停才出 accent 边框。可点区域比 A 明确（chip 有底色），深色主题下仍能看出四个小块。' },
+  C:{ name:'C 压平卡', h:'约 42px', note:'<b>方案 C</b> · 压平卡：布局完全不动，只去掉卡面底色与边框、只留左侧 hairline，数字降到 12px。说明文字仍在（信息一项不减），但仍能看出四个块的轮廓感。' }
+};
+
+let plan = 'A';
+function renderMetrics(){
+  const el = document.getElementById('metrics');
+  el.className = 'metrics';
+  el.innerHTML = METRICS.map(m=>`
+    <button class="m" data-key="${m.key}" title="${m.l} —— 点击看明细">
+      <span class="v">${m.v}<small>${m.u}</small></span>
+      <span class="l">${m.l}</span>
+      ${plan==='C'?`<span class="d" title="${m.d}">${m.d}</span>`:''}
+    </button>`).join('');
+  const hero = el.closest('.hero');
+  hero.className = 'hero plan' + plan;
+  document.getElementById('planNote').innerHTML = PLANS[plan].note;
+  document.getElementById('measure').innerHTML =
+    `<span>整块高度</span><span class="measure-bar" style="width:${plan==='C'?168:104}px"></span><span>${PLANS[plan].h}</span>
+     <span style="margin-left:14px">当前版本（V3.8.23）</span><span class="measure-bar b" style="width:300px"></span><span>约 96px</span>`;
+  el.querySelectorAll('.m').forEach(b=>b.onclick=()=>openDrawer(b.dataset.key));
+}
+
+document.querySelectorAll('[data-plan]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('[data-plan]').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); plan=b.dataset.plan; renderMetrics();
+});
+document.getElementById('themeBtn').onclick=function(){
+  document.documentElement.classList.toggle('light');
+  this.textContent = document.documentElement.classList.contains('light') ? '切换深色' : '切换浅色';
+};
+
+let expanded = -1;
+function openDrawer(key){
+  const m = METRICS.find(x=>x.key===key);
+  document.getElementById('drTitle').textContent = m.drawer.title;
+  document.getElementById('drSub').innerHTML = m.drawer.sub;
+  document.getElementById('drReconcile').innerHTML = m.drawer.reconcile.map(([k,n,u,w])=>
+    `<span class="rc ${w||''}"><span class="k">${k}</span><span class="n">${n}<small>${u||''}</small></span></span>`).join('');
+  document.getElementById('drList').innerHTML = m.rows.map((r,i)=>{
+    const [ic,tag,title,mid,meta,date] = r;
+    const cls = tag==='已支撑'||tag==='落在主攻' ? 'ok' : (tag==='未支撑'||tag==='落在主攻' ? 'warn' : '');
+    return `<div class="dr-row" data-i="${i}">
+      <span class="dr-kind">${ic}</span>
+      <span class="dr-main"><span class="dr-t">${title}</span><span class="dr-m">${meta}</span></span>
+      ${mid?`<span class="dr-tag ${cls}">${mid}</span>`:''}
+      <span class="dr-tag">${tag}</span>
+      <span style="font-size:var(--fs-micro);color:var(--text-4);flex:none">${date}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('drCnt').textContent = `${m.rows.length} 条`;
+  document.getElementById('drFootNote').textContent = m.drawer.foot;
+  document.getElementById('scrim').classList.add('on');
+  document.getElementById('drawer').classList.add('on');
+  expanded = -1;
+  document.getElementById('drList').querySelectorAll('.dr-row').forEach(r=>r.onclick=()=>{
+    const i = +r.dataset.i;
+    const next = document.querySelector(`.dr-expand[data-for="${i}"]`);
+    if (next) next.remove();
+    else {
+      const row = m.rows[i];
+      const el = document.createElement('div');
+      el.className='dr-expand'; el.dataset.for=i;
+      el.innerHTML = `<div class="kv"><b>卡片类型</b><span>${row[1]}</span></div>
+        <div class="kv"><b>归属</b><span>${row[4]}</span></div>
+        <div class="kv"><b>关联</b><span>${row[3]||'（无）'}</span></div>
+        <div class="kv"><b>时间</b><span>${row[5]}</span></div>
+        <div class="kv" style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)">
+          <span style="color:var(--text-4)">行内展开不离开本页 · 底部「⤴ 定位到卡片」才跳转</span></div>`;
+      r.after(el);
+    }
+  });
+}
+function closeDrawer(){ document.getElementById('scrim').classList.remove('on'); document.getElementById('drawer').classList.remove('on'); }
+document.getElementById('scrim').onclick = closeDrawer;
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDrawer(); });
+document.querySelectorAll('.pill').forEach(p=>p.onclick=()=>alert('原型演示：右侧滑出该主攻项目的详情抽屉（ProjectDetailDrawer）'));
+document.querySelectorAll('[data-pick]').forEach(s=>s.onclick=()=>{
+  s.style.background='var(--accent-light)'; s.style.borderColor='var(--accent)'; s.style.color='var(--accent-ink)';
+});
+renderMetrics();
+</script>
+</body>
+</html>

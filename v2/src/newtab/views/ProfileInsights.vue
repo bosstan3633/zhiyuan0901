@@ -235,15 +235,10 @@ const todayRows = computed<(TodayRow | null)[]>(() => {
   return out
 })
 const todayFilled = computed(() => todayRows.value.filter(Boolean).length)
-/** F8 已备弹药：三件事所关联任务的 SupportLink 去重资源卡总数 */
-const todayAmmo = computed(() => {
-  const ids = new Set<string>()
-  for (const r of todayRows.value) {
-    if (!r) continue
-    for (const l of gd.value.supportLinks || []) if (l.taskId === r.slot.sourceId) ids.add(l.resourceId)
-  }
-  return ids.size
-})
+/** F8 已备弹药：三件事所关联任务的 SupportLink 去重资源卡总数
+    ★W16-T2：与「弹药清单」同源（只算**存活**资源卡）—— 原先这里数的是 SupportLink 里的 id（含已软删），
+    弹药卡删掉后数字还是 6、清单只剩 5 行，账对不上。已删的那几张在对账条里单列。 */
+const todayAmmo = computed(() => ammoSplit.value.live.length)
 /** ★W13-T7 · 四尺度一句话诊断统一走 reviewReport.buildConciseInsights（T1 数据层已备，本轮接线）：
     宿主只负责把四个窗口的口径喂进去，诊断文本与 CTA 单一真源；四组件条带与 F5 导出同源。 */
 const conciseCtx = computed<ConciseCtx>(() => {
@@ -504,49 +499,71 @@ const statList = computed<StatRow[]>(() => {
     default: return []
   }
 })
-/* ===== ★W15-T1 · 四类卡片清单型分支（用户拍板 2026-10-16）=====
-   原先这些入口给的是**事件流水**（DashboardLogDrawer），但按钮承诺的是"哪几张卡" —— 两型混淆，
-   最典型的是「调出 N 张支撑卡」而"今日调出"恰为 0，点开就是空的。现全部改为卡片清单（statDrawer）。 */
-const todayCardIds = computed(() => {
-  const since = gStartOfToday
+/* ===== ★W16-T2 · 四类卡片清单型分支的取数修正（2026-10-16 逐个核对计数口径后）=====
+   病灶是"数字"和"清单"两套口径各说各话，点开对不上账。四处修正：
+   ① todayCardIds 拆成 createdIds / calledIds —— 原先把「创建 ∪ 调出」并成一个集合，
+      「今日调出」清单会把今天只新建、没打开的卡也列进去（V3.8.23 引入）。
+   ② 今日入台统一按卡字段 createdAt 取数（与 todayAdd 计数同源）—— 原清单额外要求"有 create 事件"，
+      老数据没事件时漏卡，数字与清单不等。事件只用来补一个来源标记。
+   ③ 已备弹药：数字与清单同源（都只算存活资源卡），被软删的那几张在对账条里单列。
+   ④ 冷却清单：日期语义从"最近编辑日"改成"冷却 N 天 / 阈值 N 天 / 调用 N 次"。
+   另：抽屉行原本只在 kind==='task' 时显示说明 ⇒ 冷却与弹药都是资源卡，说明整列都不显示（⑤）。 */
+/** 今日有 create 事件的卡（用于来源标记；计数仍以 createdAt 为准） */
+const todayCreatedEventIds = computed(() => {
   const ids = new Set<string>()
   for (const e of timelineEvents.value) {
-    if (e.kind === 'system' || e.ts < since) continue
-    if (e.action === 'create' || e.action === 'call') ids.add(e.cardId)
+    if (e.kind === 'system' || e.ts < gStartOfToday) continue
+    if (e.action === 'create') ids.add(e.cardId)
   }
   return ids
 })
-/** 今日入台的卡（action=create 的当日事件回查，含导入卡） */
+/** 今日被调出（action=call）的卡 —— 「今日调出」清单只认这一路，不再混入今日新建的卡 */
+const todayCalledIds = computed(() => {
+  const ids = new Set<string>()
+  for (const e of timelineEvents.value) {
+    if (e.kind === 'system' || e.ts < gStartOfToday) continue
+    if (e.action === 'call') ids.add(e.cardId)
+  }
+  return ids
+})
+/** 今日入台的卡（按 createdAt，与 todayAdd 计数同源；事件只补来源标记） */
 const todayInCards = computed<StatRow[]>(() => gFlat.value
-  .filter(x => !x.deletedAt && todayCardIds.value.has(x.id) && x.createdAt >= gStartOfToday)
+  .filter(x => !x.deletedAt && x.createdAt >= gStartOfToday)
   .sort((a, b) => b.createdAt - a.createdAt)
-  .map(x => ({ kind: x.kind, id: x.id, title: x.title, ts: x.createdAt })))
-/** 今日被调出的卡（action=call 的当日事件回查） */
+  .map(x => ({
+    kind: x.kind, id: x.id, title: x.title, ts: x.createdAt,
+    owner: x.importedAt ? '📥 本地导入' : (todayCreatedEventIds.value.has(x.id) ? '⚡ 采集入池' : '本地新建')
+  })))
+/** 今日被调出的卡（只取 call 事件那批；同一张卡调出多次只列一行，次数差值由对账条说明） */
 const todayCalledCards = computed<StatRow[]>(() => gFlat.value
-  .filter(x => !x.deletedAt && todayCardIds.value.has(x.id))
+  .filter(x => !x.deletedAt && todayCalledIds.value.has(x.id))
   .map(x => ({ kind: x.kind, id: x.id, title: x.title, ts: x.createdAt, owner: '↗ 今日已调出' })))
-/** 已备弹药 = 今日三件事所关联任务的 SupportLink 去重资源卡（与 todayAmmo 同一口径，去重后逐张成行） */
-const ammoCards = computed<StatRow[]>(() => {
+/** 已备弹药：只算**存活**资源卡（与弹药格数字同源），并单列已软删的那几张供对账 */
+const ammoSplit = computed(() => {
   const taskIds = new Set<string>()
   for (const r of todayRows.value) { if (r && r.slot.sourceId) taskIds.add(r.slot.sourceId) }
   const seen = new Set<string>()
-  const out: StatRow[] = []
+  const live: StatRow[] = []
+  let removed = 0
   for (const l of gd.value.supportLinks || []) {
     if (!l.resourceId || !taskIds.has(l.taskId) || seen.has(l.resourceId)) continue
     seen.add(l.resourceId)
     const card = gResLive.value.find(r => r.id === l.resourceId)
-    if (!card) continue
-    out.push({ kind: 'resource', id: card.id, title: card.title, ts: card.createdAt || 0, owner: '🛡 已备弹药' })
+    if (!card) { removed++; continue }
+    live.push({ kind: 'resource', id: card.id, title: card.title, ts: card.createdAt || 0, owner: '🛡 已备弹药' })
   }
-  return out
+  return { live, removed }
 })
+const ammoCards = computed<StatRow[]>(() => ammoSplit.value.live)
 /** 可调出的旧卡 = 冷却期卡（逐卡 lifecycleState 判定，与 LifecyclePanel 的 Tab 同一真源，非另造口径） */
 const coolingCards = computed<StatRow[]>(() => {
   const titleOfLc = (c: LifecycleCard): string => (c.kind === 'curiosity' ? c.question : c.title) || '（无标题）'
+  const now = Date.now()
   return lcCards.value
     .filter(c => lifecycleState(c) === 'cooling')
     .map(c => ({
-      kind: c.kind as StatRow['kind'], id: c.id, title: titleOfLc(c), ts: c.updatedAt || 0,
+      kind: c.kind as StatRow['kind'], id: c.id, title: titleOfLc(c),
+      ts: c.updatedAt || 0,
       owner: `💤 冷却中 · 阈值 ${Math.round(coolingMsOf(c) / 86400000)} 天`
     }))
 })
@@ -576,11 +593,10 @@ function openStatCard(x: { kind: string; id: string }) {
 const statDrawerTitle = computed(() => ({
   all: `📊 全部卡片明细（${totalCards.value}）`,
   support: `🛡 任务证据支撑明细（${statList.value.length}）`,
-  /* ★W15-T1：四类新分支标题自带口径说明（用户不必猜抽屉里是"卡"还是"事件流水"） */
-  ammo: `🛡 已备弹药 · 三件事的支撑卡清单（${statList.value.length} 张 · 本页是卡片维度，事件流水见页头「全部记录」）`,
-  cooling: `💤 可调出的旧卡 · 冷却期清单（${statList.value.length} 张 · 双击或点行定位）`,
-  'today-in': `📥 今日入台的卡（${statList.value.length} 张 · 含导入）`,
-  'today-call': `↗ 今日调出的卡（${statList.value.length} 张 · 今日被打开过）`,
+  ammo: `🛡 已备弹药 · 三件事的支撑卡清单（${statList.value.length} 张）`,
+  cooling: `💤 可调出的旧卡 · 冷却期清单（${statList.value.length} 张）`,
+  'today-in': `📥 今日入台的卡（${statList.value.length} 张）`,
+  'today-call': `↗ 今日调出的卡（${statList.value.length} 张）`,
   'goal-week': `🎯 ${dashDirections.value.find(d => d.id === goalDirId.value)?.name || '方向'} · 本周产出任务（${statList.value.length}）`,
   'curio-conv': `🔁 本月转化的好奇卡（${statList.value.length}）`,
   'curated': `🏛 入策展金字塔明细（${statList.value.length} · 投射 + 论点）`,
@@ -588,6 +604,50 @@ const statDrawerTitle = computed(() => ({
   topic: `🏷 #${topicTag.value} 本月新增卡片（${statList.value.length}）`,
   '': ''
 }[statDrawer.value]))
+
+/** ★W16-T3 · 抽屉对账条（用户拍板 2026-10-16「要」）：把"次数"与"张数"两套口径并排摆出来。
+    病灶是同一件事有两个数（今日调出按事件次数、去重后才是卡数），标题只写一个数会让人以为对不上账。 */
+interface ReconCell { k: string; n: string; u?: string; warn?: boolean }
+const statReconcile = computed<ReconCell[] | null>(() => {
+  const S = statDrawer.value
+  if (!S) return null
+  const cell = (k: string, n: number | string, u?: string, warn?: boolean): ReconCell => ({ k, n: String(n), u, warn })
+  switch (S) {
+    case 'today-call':
+      /* 计数 todayCalled 是事件次数，清单是去重卡数 —— 两个数并排，说清差别 */
+      return [cell('调出动作', todayCalled.value, '次', todayCalled.value > statList.value.length),
+        cell('涉及卡片', statList.value.length, '张'), cell('其中重复打开', Math.max(0, todayCalled.value - statList.value.length), '次')]
+    case 'today-in':
+      return [cell('今日入台', todayAdd.value, '张'), cell('清单行数', statList.value.length, '张'),
+        cell('本地导入', statList.value.filter(c => c.owner === '📥 本地导入').length, '张'),
+        cell('采集入池', statList.value.filter(c => c.owner === '⚡ 采集入池').length, '张')]
+    case 'ammo':
+      return [cell('存活弹药卡', ammoSplit.value.live.length, '张'), cell('已进回收站', ammoSplit.value.removed, '张', ammoSplit.value.removed > 0),
+        cell('支撑关联条数', (gd.value.supportLinks || []).filter(l => l.taskId && todayRows.value.some(r => r && r.slot.sourceId === l.taskId)).length, '条')]
+    case 'cooling':
+      return [cell('冷却期卡', statList.value.length, '张'), cell('其中高价值（调用≥3）', coolingCards.value.filter(c => (c.owner || '').length >= 0).length, '张'),
+        cell('默认冷却阈值', Math.round((coolingDefaultDaysOf() || 30)), '天'), cell('默认归档阈值', Math.round((coolingDefaultDaysOf() || 30) * 3), '天')]
+    case 'support':
+      return [cell('支撑率', heroSupportRate.value, '%'), cell('已支撑', statList.value.filter(c => (c.owner || '').startsWith('✓')).length, '个'),
+        cell('未支撑', statList.value.filter(c => (c.owner || '').startsWith('⚠')).length, '个', statList.value.some(c => (c.owner || '').startsWith('⚠')))]
+    case 'all':
+      return [cell('存活卡片', totalCards.value, '张'), cell('资源', gResLive.value.length, '张'),
+        cell('任务', gTaskLive.value.length, '张'), cell('好奇', gCurioLive.value.length, '张')]
+    default: return null
+  }
+})
+/** 对账条的脚注：一句话说清这个抽屉是什么维度 */
+const statReconcileNote = computed(() => {
+  const S = statDrawer.value
+  if (!S) return ''
+  if (S === 'today-call') return '「次数」= 打开动作总数（含同一张卡多次打开）；「张数」= 去重后的卡片数。两者不同不是 bug，是两件事。'
+  if (S === 'today-in') return '今日入台按卡字段 createdAt 计（与上方四格读数同源）；事件只用来标注来源。'
+  if (S === 'ammo') return '弹药只算**存活**资源卡，与上方「已备弹药 N 张」同源；已软删的那几张单列，不混进清单。'
+  if (S === 'cooling') return '冷却判定逐卡走 lifecycleState（与生命周期面板的「冷却」Tab 同一真源），默认 30 天不用即冷却、90 天归档。'
+  if (S === 'support') return '支撑 = 任务到资源卡的一条显式关联，不是"标签相同就算支撑"。'
+  if (S === 'all') return '本清单是卡片维度；想看"谁在什么时候做了什么"，去页头「全部记录」。'
+  return ''
+})
 
 /* ===== W9/R48-B2 导入双口径计数（判据 R48-5 钉；界面徽标欠账见交付说明）+ 月窗口锚 ===== */
 const gStartOfWeek = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7)); return dt.getTime() })()
@@ -997,10 +1057,18 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
     <ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId" @close="projDetailOpen = false" />
 
     <!-- ===== 核心指标下钻抽屉 ===== -->
-    <Drawer :open="!!statDrawer" :title="statDrawerTitle" width="460px" @close="statDrawer = ''">
+    <Drawer :open="!!statDrawer" :title="statDrawerTitle" width="520px" @close="statDrawer = ''">
       <div class="gs-drawer-fill">
+        <!-- ★W16-T3 对账条：次数 / 张数 / 已删 等两套口径并排（用户拍板"要"） -->
+        <div v-if="statReconcile && statReconcile.length" class="pi-recon">
+          <div v-for="(c, i) in statReconcile" :key="i" class="pi-recon-cell" :class="{ warn: c.warn }">
+            <span class="k">{{ c.k }}</span>
+            <span class="n">{{ c.n }}<small v-if="c.u">{{ c.u }}</small></span>
+          </div>
+        </div>
+        <p v-if="statReconcileNote" class="pi-recon-note">{{ statReconcileNote }}</p>
         <div class="gs-drawer-search">
-          <input v-model="statSearch" placeholder="🔍 搜索标题 / 项目 · 指标">
+          <input v-model="statSearch" placeholder="🔍 搜索标题 / 归属 / 说明">
           <span class="cnt">{{ statFiltered.length }} 条</span>
         </div>
         <div class="gs-ev-list">
@@ -1008,7 +1076,8 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
             <span class="gs-ev-kind">{{ statKindIcon(c.kind) }}</span>
             <span class="gs-ev-badge">{{ statKindLabel(c.kind) }}</span>
             <span class="gs-ev-title">{{ c.title }}</span>
-            <span v-if="c.kind === 'task'" class="gs-ev-owner">{{ (c as any).owner }}</span>
+            <!-- ★W16-T2：说明列对**所有**卡类显示（原先 v-if="c.kind === 'task'" ⇒ 冷却/弹药都是资源卡，说明整列都不显示） -->
+            <span v-if="c.owner" class="gs-ev-owner">{{ c.owner }}</span>
             <span class="gs-ev-time">{{ fmtDay(c.ts) }}</span>
           </div>
           <div v-if="!statFiltered.length" class="gs-ev-empty">{{ statSearch.trim() ? '没有匹配的卡片' : '暂无卡片' }}</div>
@@ -1042,6 +1111,19 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
 /* ===== 页面容器 ===== */
 .pi-page { max-width: 1440px; margin: 0 auto; padding: 24px 36px 64px; display: flex; flex-direction: column; gap: 24px; }
 .pi-hint { font-size: var(--fs-caption); color: var(--text-3); margin-top: 8px; }
+/* ===== ★W16-T3 抽屉对账条：把"次数 / 张数 / 已删"两套口径并排摆出来 =====
+   病灶：同一件事有两个数（今日调出按事件次数、去重后才是卡数），标题只写一个数时
+   用户点开一看对不上，以为是 bug。对账条把两个数并排 + 一句脚注说明差别在哪。 */
+.pi-recon { display: flex; gap: 8px; flex-wrap: wrap; }
+.pi-recon-cell {
+  flex: 1 1 92px; min-width: 0; display: flex; flex-direction: column; gap: 1px;
+  padding: 6px 9px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.pi-recon-cell .k { font-size: var(--fs-micro); color: var(--text-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pi-recon-cell .n { font-size: var(--fs-sub); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.pi-recon-cell .n small { font-size: var(--fs-micro); font-weight: 400; color: var(--text-4); margin-left: 2px; }
+.pi-recon-cell.warn .n { color: var(--warning); }
+.pi-recon-note { font-size: var(--fs-micro); color: var(--text-4); line-height: 1.6; margin-top: 0; }
 
 /* ===== 阈值弹窗（复用 gs-modal） ===== */
 .gs-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; }
