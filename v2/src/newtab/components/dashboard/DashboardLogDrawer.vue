@@ -28,6 +28,12 @@ export interface LogPreset {
   to: string
   /** 预设来源的一句话说明（显示在抽屉头部下方） */
   note?: string
+  /**
+   * W13-F28/T7（2026-10-16）：主攻动作预设——原 ProfileInsights.dynDrawer「focus-acts」语义平移：
+   * 只留归属主攻项目任务的 create/call/status 三类动作（系统摘要与删除/恢复等不动主攻的事件排除）。
+   * 动作集在此固定（不走 action 单值筛选），时间窗仍由 from/to 表达。
+   */
+  focusOnly?: boolean
 }
 const props = defineProps<{
   open: boolean
@@ -45,6 +51,8 @@ const from = ref('')
 const to = ref('')
 const expanded = ref('')
 const presetNote = ref('')
+/* W13-F28：主攻动作模式（focusOnly 预设打开时为 true，随打开沿重置） */
+const focusOnly = ref(false)
 
 /** 每次「打开」都按宿主给的预设重置筛选（同一天连点两次也生效 ⇒ 用 open 的上升沿而非值比较） */
 watch(() => props.open, (v) => { if (v) applyPreset() }, { immediate: true })
@@ -55,13 +63,34 @@ function applyPreset() {
   from.value = p?.from || ''
   to.value = p?.to || ''
   presetNote.value = p?.note || ''
+  focusOnly.value = !!p?.focusOnly
   expanded.value = ''
 }
+
+/* W13-F28 focusOnly 过滤口径（与原 ProfileInsights.focus-acts 同构）：
+   主攻项目集 = isFocused && 未归档；事件须是任务事件且 projectId 命中主攻集；动作只留 create/call/status。 */
+const focusIds = computed(() => {
+  const s = new Set<string>()
+  for (const d of props.data.compass?.directions || [])
+    for (const p of d.projects || []) if (p.isFocused && p.status !== 'archived') s.add(p.id)
+  return s
+})
+const taskProj = computed(() => {
+  const m = new Map<string, string | undefined>()
+  for (const t of props.data.tasks || []) if (!t.deletedAt) m.set(t.id, t.projectId)
+  return m
+})
 
 const filtered = computed<CardEvent[]>(() => {
   const f = from.value ? new Date(from.value + 'T00:00:00').getTime() : 0
   const t = to.value ? new Date(to.value + 'T23:59:59').getTime() : Infinity
   return props.events.filter(e => {
+    if (focusOnly.value) {
+      if (e.kind === 'system') return false
+      if (e.action !== 'create' && e.action !== 'call' && e.action !== 'status') return false
+      const pid = taskProj.value.get(e.cardId)
+      if (!pid || !focusIds.value.has(pid)) return false
+    }
     // 系统摘要事件（批量导入/回滚）不属于任何单一卡类 ⇒ 类筛选下不隐藏它（否则"日志对不上账"）
     if (kind.value !== 'all' && e.kind !== kind.value && e.kind !== 'system') return false
     if (action.value !== 'all' && e.action !== action.value) return false

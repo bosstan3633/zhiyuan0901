@@ -5,8 +5,8 @@
   <Transition name="pop">
     <div v-if="open" class="itm-modal">
       <div class="itm-head">
-        <span class="itm-title">📋 {{ mode === 'goal' ? '导入项目模板' : '导入金字塔模板' }}</span>
-        <span class="itm-target">{{ mode === 'goal' ? '导入目标：战略目标「' + targetName + '」' : '导入目标：策展台「' + targetName + '」（金字塔视图）' }}</span>
+        <span class="itm-title">📋 {{ modeTitle }}</span>
+        <span class="itm-target">导入目标：{{ mode === 'project' ? '攻坚项目「' + targetName + '」' : mode === 'goal' ? '战略目标「' + targetName + '」' : '策展台「' + targetName + '」（金字塔视图）' }}</span>
         <span class="itm-close" @click="emit('close')">×</span>
       </div>
       <div class="itm-head-ops">
@@ -15,7 +15,10 @@
       </div>
       <div v-if="ruleOpen" class="itm-rule-panel">{{ ruleText }}</div>
       <div class="itm-rule">
-        <template v-if="mode === 'goal'">
+        <template v-if="mode === 'project'">
+          解析规则：<b># 一级标题 = 成功指标</b>｜<b>## 二级标题 = 该指标下的任务名称</b>｜<b>## 之下的正文 = 该任务的详情</b>（三级及以下标题并入任务详情）· 项目名 = 当前项目，无需写出
+        </template>
+        <template v-else-if="mode === 'goal'">
           解析规则：<b># 一级标题 = 项目名称</b>（可多个）｜<b>## 二级标题 = 该项目的成功指标</b>｜<b>### 三级标题 = 该指标下的任务名称</b>｜<b>### 之下的正文 = 该任务的详情</b>（四级及以下标题并入任务详情）
         </template>
         <template v-else>
@@ -36,8 +39,19 @@
         <div class="itm-pane">
           <div class="itm-pane-head">预览 · 将创建的结构</div>
           <div class="itm-preview">
+            <!-- 场景A'：项目层结构树（F2：# 指标 / ## 任务，无项目维度） -->
+            <template v-if="mode === 'project'">
+              <div v-if="!proj.metrics.length" class="itm-empty">未识别到成功指标（# 一级标题）——解析失败不写入任何数据</div>
+              <div v-for="m in proj.metrics" :key="m.name" class="g-proj">
+                <div class="g-proj-h"><span class="g-tagp">成功指标</span><span>{{ m.name }}</span><span class="g-cnt">{{ m.tasks.length }} 任务</span><span v-if="m.auto" class="g-auto">（自动创建：H2 跳级容错）</span></div>
+                <div v-for="t in m.tasks" :key="m.name + t.name" class="g-task">
+                  <span class="tn">{{ t.name }}</span>
+                  <span class="td">{{ t.detail || '（无详情）' }}</span>
+                </div>
+              </div>
+            </template>
             <!-- 场景A：结构树 -->
-            <template v-if="mode === 'goal'">
+            <template v-else-if="mode === 'goal'">
               <div v-if="!goal.projects.length" class="itm-empty">未识别到项目（# 一级标题）——解析失败不写入任何数据</div>
               <div v-for="pr in goal.projects" :key="pr.name" class="g-proj">
                 <div class="g-proj-h"><span class="g-tagp">项目</span><span>{{ pr.name }}</span><span class="g-cnt">{{ pr.metrics.length }} 指标 · {{ taskCountOf(pr) }} 任务</span></div>
@@ -85,7 +99,11 @@
             </template>
           </div>
           <div class="itm-stat">
-            <template v-if="mode === 'goal'">
+            <template v-if="mode === 'project'">
+              <span class="chip">成功指标 <b>{{ proj.metrics.length }}</b></span>
+              <span class="chip">任务 <b>{{ projTaskCount }}</b></span>
+            </template>
+            <template v-else-if="mode === 'goal'">
               <span class="chip">项目 <b>{{ goal.projects.length }}</b></span>
               <span class="chip">成功指标 <b>{{ goalMetricCount }}</b></span>
               <span class="chip">任务 <b>{{ goalTaskCount }}</b></span>
@@ -110,30 +128,36 @@
 
 <script setup lang="ts">
 /**
- * R108（T2/T3）：Markdown 模板导入共享弹窗（方向树 goal 模式 / 策展台 pyramid 模式）。
+ * R108（T2/T3）：Markdown 模板导入共享弹窗（方向树 goal 模式 / 策展台 pyramid 模式 / 项目层 project 模式）。
  * - 左栏粘贴 Markdown，右栏实时解析预览（解析走 shared/utils/mdImport 纯函数）；
  * - 确认时 emit 解析结果，写入与同名跳过由宿主执行（需要宿主的既有数据上下文）；
  * - pyramid 模式：hasThesis=true 时 H1 被忽略（导入从二级挂入现有论点，安全默认）。
+ * - ★F2（2026-10-15）：project 模式 = goal 下移一级（# 成功指标 / ## 任务），
+ *   项目名恒等于当前项目，解析结果不含项目维度，写入循环在宿主 confirmProjImport。
  */
 import { ref, computed, watch } from 'vue'
-import { parseGoalTemplate, parsePyramidTemplate, GOAL_RULE, PYRAMID_RULE, type GoalParseResult, type PyramidParseResult, type PyramidNode } from '@/shared/utils/mdImport'
+import { parseGoalTemplate, parsePyramidTemplate, parseProjectTemplate, GOAL_RULE, PYRAMID_RULE, PROJECT_RULE, type GoalParseResult, type PyramidParseResult, type PyramidNode, type ProjImportResult } from '@/shared/utils/mdImport'
 import { showToast } from '@/shared/components/toast'
 
 const props = defineProps<{
   open: boolean
-  mode: 'goal' | 'pyramid'
+  mode: 'goal' | 'pyramid' | 'project'
   targetName: string
   /** pyramid 模式：本台是否已设中心论点 */
   hasThesis?: boolean
 }>()
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'confirm', payload: { goal?: GoalParseResult; pyramid?: PyramidParseResult }): void
+  (e: 'confirm', payload: { goal?: GoalParseResult; pyramid?: PyramidParseResult; proj?: ProjImportResult }): void
 }>()
+
+const modeTitle = computed(() =>
+  props.mode === 'project' ? '导入项目模板 · 指标与任务'
+    : props.mode === 'goal' ? '导入项目模板' : '导入金字塔模板')
 
 const src = ref('')
 const ruleOpen = ref(false)
-const ruleText = computed(() => props.mode === 'goal' ? GOAL_RULE : PYRAMID_RULE)
+const ruleText = computed(() => props.mode === 'project' ? PROJECT_RULE : props.mode === 'goal' ? GOAL_RULE : PYRAMID_RULE)
 async function copyRule() {
   try {
     await navigator.clipboard.writeText(ruleText.value + '\n\n现在请整理用户的以下文本：')
@@ -142,10 +166,12 @@ async function copyRule() {
 }
 const goal = computed<GoalParseResult>(() => props.mode === 'goal' ? parseGoalTemplate(src.value) : { projects: [], warns: [] })
 const pyr = computed<PyramidParseResult>(() => props.mode === 'pyramid' ? parsePyramidTemplate(src.value) : { thesis: null, extraH1: [], warns: [] })
-const warns = computed(() => props.mode === 'goal' ? goal.value.warns : pyr.value.warns)
+const proj = computed<ProjImportResult>(() => props.mode === 'project' ? parseProjectTemplate(src.value) : { metrics: [], warns: [] })
+const warns = computed(() => props.mode === 'project' ? proj.value.warns : props.mode === 'goal' ? goal.value.warns : pyr.value.warns)
 
 const goalMetricCount = computed(() => goal.value.projects.reduce((s, p) => s + p.metrics.length, 0))
 const goalTaskCount = computed(() => goal.value.projects.reduce((s, p) => s + p.metrics.reduce((s2, m) => s2 + m.tasks.length, 0), 0))
+const projTaskCount = computed(() => proj.value.metrics.reduce((s, m) => s + m.tasks.length, 0))
 const taskCountOf = (pr: { metrics: { tasks: unknown[] }[] }) => pr.metrics.reduce((s, m) => s + m.tasks.length, 0)
 
 const pyrLevel = (lv: number) => {
@@ -162,12 +188,14 @@ const pyrCardCount = computed(() => {
 })
 
 const canConfirm = computed(() => {
+  if (props.mode === 'project') return proj.value.metrics.length > 0
   if (props.mode === 'goal') return goal.value.projects.length > 0
   return !!(pyr.value.thesis && (pyr.value.thesis.children || []).length)
 })
 function emitConfirm() {
   if (!canConfirm.value) return
-  emit('confirm', props.mode === 'goal' ? { goal: goal.value } : { pyramid: pyr.value })
+  emit('confirm', props.mode === 'project' ? { proj: proj.value }
+    : props.mode === 'goal' ? { goal: goal.value } : { pyramid: pyr.value })
   src.value = ''
 }
 /** 打开时清空上次粘贴（预览即确认原则：每次导入都应看得见全部内容） */

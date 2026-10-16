@@ -289,11 +289,13 @@ async function main() {
   await page.waitForTimeout(2500)
   const todayCard = await page.locator('.today-card').first().isVisible().catch(() => false)
   // R2-②：项目调度卡退役——槽内子任务视口承接执行细节；DeckTabs 三张卡同页
+  // ★P5 翻转（2026-10-16）：卡内子任务视口 tc-subs 随重复病根退役（子任务由下方 P4 全貌单行唯一承接），
+  //   本断言由「视口可见」翻转为「视口已不可见」，todayCard 与 DeckTabs 锚不变。
   const curGone = !(await page.locator('.card.curation').first().isVisible().catch(() => false))
-  const slotSubs = await page.locator('.tc-subs').first().isVisible().catch(() => false)
+  const slotSubsGone = !(await page.locator('.tc-subs').first().isVisible().catch(() => false))
   const deckTabs = await page.locator('.bt-tab').count()
-  report('E2E-8 ★R2-② 调度台三件事（槽内子任务视口）+ 项目调度卡退役 + DeckTabs 三张卡', todayCard && curGone && slotSubs && deckTabs === 3,
-    `todayCard=${todayCard} 调度卡已退役=${curGone} 槽内视口=${slotSubs} deckTabs=${deckTabs}`)
+  report('E2E-8 ★R2-②+P5 调度台三件事（卡内视口已退役，子任务走全貌单行）+ 项目调度卡退役 + DeckTabs 三张卡', todayCard && curGone && slotSubsGone && deckTabs === 3,
+    `todayCard=${todayCard} 调度卡已退役=${curGone} 卡内视口已删=${slotSubsGone} deckTabs=${deckTabs}`)
 
   // E2E-9 存量回填迁移（R46 BUG-2）：重新加载页面触发 init 回填 → task-2 补齐 projectId + projBackfillFixed 记录
   await page.goto(base, { waitUntil: 'domcontentloaded' })

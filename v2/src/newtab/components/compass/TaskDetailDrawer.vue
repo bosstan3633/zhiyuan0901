@@ -2,7 +2,7 @@
 // 第卌五轮 T-03：任务详情抽屉共享组件（自 CompassActions.vue 抽离）
 // 宿主：TaskManagerPanel（任务管理 Tab）+ CompassActions（今日三件事双击详情）
 // 用法：ref 后调用 open(task)；关闭/删除/保存逻辑全部内聚
-import { ref, computed, onMounted, onUnmounted, shallowRef } from 'vue'
+import { ref, computed, onMounted, onUnmounted, shallowRef, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../../stores/app'
 import { useCompass } from '../../stores/compass'
@@ -60,16 +60,19 @@ const { taH: taskNoteH, startTaResize: startTaskNoteResize } = useTaHeight('task
 const selProjectId = ref('')
 const selMetricId = ref('')
 
-function open(task: TaskCard) {
+function open(task: TaskCard, opts?: { focusSub?: boolean }) {
   // R43-0 BUG-1 修复：selectedTask 必须指向 store 内的 reactive Proxy 元素
   selectedTask.value = d.value.tasks.find(x => x.id === task.id) || task
   taskTitleDraft.value = selectedTask.value.title
   selProjectId.value = selectedTask.value.projectId || ''
   selMetricId.value = selectedTask.value.metricId || ''
   sidebarOpen.value = true
+  // ★P4-D5：「＋ 拆分」直达 —— 抽屉开后把光标落进子任务输入框（能力与双击一致，少两步）
+  if (opts?.focusSub) void nextTick(() => subListRef.value?.focusAdd())
 }
 function close() { sidebarOpen.value = false; selectedTask.value = null; emit('closed') }
 defineExpose({ open, close })
+const subListRef = ref<InstanceType<typeof SubtaskList> | null>(null)
 
 /** B22：状态统一出口（completedAt 卫生清理） */
 function setTaskStatusOf(t: TaskCard, status: 'todo' | 'doing' | 'done') {
@@ -416,7 +419,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         <!-- R166 F1/F2：子任务清单紧跟说明——它是本卡内容，不是独立卡，不进看板/指标/周报 -->
         <div class="ts-section">
           <div class="ds-hero-label">↳ 子任务清单 <span class="hint">— 本卡内容 · 不是独立任务卡 · 完成不进计分</span></div>
-          <SubtaskList :subtasks="subtasks" :sup-count="supCountOf" @update="onSubtasksUpdate" @sup="openSupport" />
+          <SubtaskList ref="subListRef" :subtasks="subtasks" :sup-count="supCountOf" @update="onSubtasksUpdate" @sup="openSupport" />
         </div>
         <!-- R166 定案 5/F4：资源支持区——行=资源标题+AI 判词，点行打开链接并计热度，× 只删关联记录。
              两张卡本体互不持有 id（关联住在 AppData.supportLinks 独立表），「卡间零挂载」红线不破。 -->

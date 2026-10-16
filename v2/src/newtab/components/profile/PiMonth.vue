@@ -1,83 +1,51 @@
 <script setup lang="ts">
 /**
- * V3.8.20（用户拍板 2026-10-15）PiMonth —— 时间轴模块③ 本月 · MONTH（轻量月度段）。
- * 病根＝原先月度窗口只是 PiRhythm 里的一个 w/m/y 切换档，rail 上没有落点、
- * 页面上没有独立段 —— 「本月」这个最自然的复盘尺度反而要读者自己记得去点切换。
- * 本段为**轻量**承接（不是把 PiRhythm 复制一份）：
- *   strip = 本月 5 枚速览 chip（采集/有效动作/加权/调出/节奏波动）
- *   节奏曲线 = 本月逐日加权分柱状图；点柱 → 该日战报
- *   6 KPI 格 + 环比（与 PiRhythm 同口径 kpisOf / prevWindow）
- *   目标 / 预警 / 操作流**不重复**——那三样留在 PiRhythm（本周段），页面 3 段 → 4 段不注水。
- * props-only：聚合全在组件内按月窗口算（与 PiToday/PiRhythm/PiYear 同一性能红线）。
+ * W13-T5（2026-10-16 · D2/F16~F19）PiMonth —— 时间轴模块③ 本月 · MONTH（三段式）。
+ *   ① #ins-month `.one-insight` 一句人话诊断条（F16：Top 标签集中度/知识熵变化 × 超 14 天
+ *      老好奇卡 × 入策展金字塔，宿主推导好传入）+ 模块头「知识熵 X.X → Y.Y bit」变化徽标
+ *   ② `.strip4` 四格：本月入池 / 本月调出 / 好奇心转化 / 入策展金字塔（F17 月度专属口径）
+ *   ③ `.light-split` 双栏（拒绝克隆本周柱状图）：左 Top 3 输入主题 → 攻坚项目映射（F18）；
+ *      右 `.funnel3` 捕捉入池 → 支撑任务 → 策展表达 三步转化漏斗（F19）
+ *
+ * ★W13-F17 退役带备案：与 PiRhythm 克隆的逐日柱状图（bars/open-battle）与 6 KPI
+ *   （kpisOf 消费段，与 F13 的 PiRhythm k6 同批口径）整体退役——月度不再重复摆周度的读数。
+ * props-only 红线（R172-9）：聚合全在宿主算好传入，本组件零扫 store。
  */
 import { computed } from 'vue'
-import {
-  windowOf, prevWindow, pct,
-  kpisOf
-} from '@/shared/utils/reviewReport'
+import { windowOf, type ConciseInsight } from '@/shared/utils/reviewReport'
 import { aggregateRange, type DailyStats } from '@/shared/utils/dailyStats'
 
-/* props-only：只吃 stats（R172-9 性能红线同款）；聚合全在组件内按月窗口算。
-   events/year/directions/tasks 不进本段 —— 目标对账与操作流留在本周段与全年段，
-   月度不重复摆（轻量段的"轻"就是砍这些）。 */
+export interface MonthTopic { tag: string; n: number; project: string }
+
 const props = defineProps<{
   stats: DailyStats
+  /** ★W13-T7：诊断条改注入宿主 buildConciseInsights 的 month 段（形状 = ConciseInsight） */
+  insight: ConciseInsight
+  /** 知识熵变化（bit，1 位小数）：from=上月底快照口径 → to=当前全库 */
+  ent: { from: number; to: number }
+  topics: MonthTopic[]
+  untagged: number
+  funnel: { pool: number; support: number; curate: number; convPct: number; sinkPct: number }
+  /** 好奇心转化率（%）：本月转化离场 ÷ 本月入池 */
+  curioConv: number
+  /** 策展金字塔现存量（全量口径，projection 表无时间戳，见宿主注释） */
+  projected: number
 }>()
 
 const emit = defineEmits<{
-  (e: 'open-battle', day: string): void
-  (e: 'drill', k: 'mo-add' | 'mo-acts' | 'mo-w' | 'mo-call' | 'mo-pace'): void
+  (e: 'drill', k: 'mo-add' | 'mo-call' | 'mo-support' | 'mo-conv' | 'mo-curate'): void
+  (e: 'topic', tag: string): void
+  (e: 'insight-action', action: string): void
 }>()
 
-/* ===== 窗口固定为本月 ===== */
+/* ===== 窗口：本月（聚合由宿主与本组件双侧按同口径轻算，stats 为前缀和数据源） ===== */
 const win = computed(() => windowOf('month', {}))
-
 const agg = computed(() => aggregateRange(props.stats, win.value.s, win.value.e))
-const prevAgg = computed(() => {
-  const prev = prevWindow(win.value)
-  return aggregateRange(props.stats, prev.s, prev.e)
-})
-
-/* ===== strip ===== */
 const cTotal = computed(() => agg.value.c.res + agg.value.c.curio + agg.value.c.task)
-const paceCv = computed(() => {
-  const vals = agg.value.list.map(([, w]) => w).filter(w => w > 0)
-  if (vals.length < 2) return 0
-  const mean = vals.reduce((a, b) => a + b, 0) / vals.length
-  if (!mean) return 0
-  const variance = vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length
-  return Math.round(Math.sqrt(variance) / mean * 100)
-})
 
-/* ===== 6 KPI + 环比（与 PiRhythm 同口径） ===== */
-const kpis = computed(() => kpisOf(agg.value))
-const deltaActs = computed(() => pct(agg.value.acts, prevAgg.value.acts))
-const deltaW = computed(() => pct(agg.value.W, prevAgg.value.W))
-function fmtPct(p: number | null): string { return p === null ? '—' : (p > 0 ? '+' : '') + p + '%' }
-
-/* ===== 节奏曲线（本月逐日） ===== */
-interface Bar { key: string; w: number; lv: number; label: string }
-function level(w: number, max: number): number {
-  if (w <= 0) return 0
-  const r = w / max
-  return r > .8 ? 5 : r > .6 ? 4 : r > .4 ? 3 : r > .2 ? 2 : 1
-}
-const bars = computed<Bar[]>(() => {
-  const out: Bar[] = []
-  const start = new Date(win.value.s.replace(/-/g, '/'))
-  const end = new Date(win.value.e.replace(/-/g, '/'))
-  const wMap = new Map(agg.value.list)
-  const maxW = Math.max(1, ...agg.value.list.map(([, w]) => w))
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const pad = (n: number) => String(n).padStart(2, '0')
-    const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-    const w = wMap.get(key) || 0
-    out.push({ key, w, lv: level(w, maxW), label: `${d.getMonth() + 1}/${d.getDate()}` })
-    if (out.length >= 62) break
-  }
-  return out
-})
-const barMax = computed(() => Math.max(1, ...bars.value.map(b => b.w)))
+const entDelta = computed(() => Math.round((props.ent.to - props.ent.from) * 10) / 10)
+const entState = computed(() => entDelta.value === 0 ? '持平' : entDelta.value > 0 ? '更发散' : '更聚焦')
+const topicMax = computed(() => Math.max(1, ...props.topics.map(t => t.n)))
 </script>
 <template>
   <section class="pi-mod" id="mod-month">
@@ -85,58 +53,88 @@ const barMax = computed(() => Math.max(1, ...bars.value.map(b => b.w)))
       <span class="pi-mod-ico i-month">🗓</span>
       <div class="pi-mod-t">
         <h2>这个月，走得怎样<span class="en">MONTH</span></h2>
-        <p>本月逐日密度、5 枚速览、6 项复盘指标与环比。目标对账与偏离预警在本周段与全年段，不在此重复。</p>
+        <p>主题看聚焦、漏斗看转化。读数口径月度专属，与本周段不重复。</p>
+      </div>
+      <div class="pi-mod-acts">
+        <!-- F16：知识熵变化徽标 -->
+        <span class="m-badge" :class="entDelta > 0 ? 'down' : entDelta < 0 ? 'up' : ''"
+          :title="`上月底 ${ent.from} bit → 当前 ${ent.to} bit（香农熵：越低越聚焦）`">
+          知识熵 {{ ent.from }} → {{ ent.to }} bit · {{ entState }}
+        </span>
       </div>
     </div>
     <div class="pi-mod-b">
+      <!-- ① F16 诊断条（宿主确定性推导，三态） -->
+      <div id="ins-month" class="one-insight" :class="insight.warn ? 'warn' : 'info'">
+        <span class="oi-ic">{{ insight.warn ? '⚠️' : '💡' }}</span>
+        <span class="oi-text" v-html="insight.html"></span>
+        <button class="act-link" :title="insight.html" @click="emit('insight-action', insight.ctaAction)">
+          {{ insight.ctaLabel }}
+        </button>
+      </div>
+
+      <!-- ② F17 strip4 月度专属四格 -->
       <div class="pi-strip">
         <span class="pi-strip-lab">本月</span>
-        <div class="pi-strip-row">
-        <button class="pi-chip up" title="本月采集合计" @click="emit('drill', 'mo-add')">
-          <span class="v">{{ cTotal }}<small>张</small></span><span class="l">采集</span><span class="ar">▸</span>
-        </button>
-        <button class="pi-chip" title="有效动作 = 采集 + 调出 + 状态变更 + 推进" @click="emit('drill', 'mo-acts')">
-          <span class="v">{{ agg.acts }}<small>件</small></span><span class="l">有效动作</span><span class="ar">▸</span>
-        </button>
-        <button class="pi-chip acc" title="加权分 = 按动作权重加总" @click="emit('drill', 'mo-w')">
-          <span class="v">{{ Math.round(agg.W) }}<small>分</small></span><span class="l">加权</span><span class="ar">▸</span>
-        </button>
-        <button class="pi-chip" title="本月卡片被打开次数" @click="emit('drill', 'mo-call')">
-          <span class="v">{{ agg.u }}<small>次</small></span><span class="l">调出</span><span class="ar">▸</span>
-        </button>
-        <button class="pi-chip warn" title="节奏波动 = 有动作日加权分的变异系数" @click="emit('drill', 'mo-pace')">
-          <span class="v">±{{ paceCv }}<small>%</small></span><span class="l">节奏波动</span><span class="ar">▸</span>
-        </button>
+        <div class="strip4">
+          <button class="pi-chip up" title="本月入池 = 新增资源 + 好奇 + 任务卡" @click="emit('drill', 'mo-add')">
+            <span class="v">{{ cTotal }}<small>张</small></span><span class="l">本月入池</span><span class="ar">▸</span>
+          </button>
+          <button class="pi-chip" title="本月调出 = 窗口内卡片被打开次数" @click="emit('drill', 'mo-call')">
+            <span class="v">{{ agg.u }}<small>次</small></span><span class="l">本月调出</span><span class="ar">▸</span>
+          </button>
+          <button class="pi-chip acc" title="好奇心转化 = 本月转化离场的好奇卡 ÷ 本月入池好奇卡" @click="emit('drill', 'mo-conv')">
+            <span class="v">{{ curioConv }}<small>%</small></span><span class="l">好奇心转化</span><span class="ar">▸</span>
+          </button>
+          <button class="pi-chip warn" title="入策展金字塔 = 当前投射入策展台的卡片总数（全量现存量）" @click="emit('drill', 'mo-curate')">
+            <span class="v">{{ projected }}<small>张</small></span><span class="l">入策展金字塔</span><span class="ar">▸</span>
+          </button>
         </div>
       </div>
 
       <div class="pi-hair"></div>
 
-      <div>
-        <div class="pi-sect"><span class="n">1</span><span class="t">节奏曲线</span><span class="m">加权分 · 点柱 → 该日战报</span></div>
-        <div class="pi-bars">
-          <div v-for="b in bars" :key="b.key" class="b" :class="'l' + b.lv"
-            :style="{ height: Math.max(4, b.w / barMax * 100) + '%', background: b.lv > 0 ? 'var(--heat-' + b.lv + ')' : 'var(--surface-3)' }"
-            :title="b.label + ' · 加权 ' + b.w + ' 分'" @click="emit('open-battle', b.key)"></div>
+      <!-- ③ light-split：左 Top 主题映射（F18） / 右 funnel3 漏斗（F19） -->
+      <div class="light-split">
+        <div class="lbox">
+          <div class="lbox-h">
+            <b>Top 输入主题 → 项目</b>
+            <span>{{ untagged }} 张待打标 · 点行看该主题本月新卡</span>
+          </div>
+          <div v-if="topics.length" class="topic-rows">
+            <button v-for="t in topics" :key="t.tag" class="topic-row" :title="`#${t.tag} 本月新增 ${t.n} 张 · 点行下钻`" @click="emit('topic', t.tag)">
+              <span class="tg">#{{ t.tag }}</span>
+              <span class="bar"><i :style="{ width: Math.round(t.n / topicMax * 100) + '%' }"></i></span>
+              <span class="n"><b>{{ t.n }}</b> 张</span>
+              <span class="pj">{{ t.project || '未映射' }}</span>
+            </button>
+          </div>
+          <div v-else class="pi-empty">本月暂无带标签的新卡——先给采集的资源打上标签</div>
         </div>
-        <div class="pi-bars-x">
-          <span v-for="i in [0, Math.floor(bars.length * .17), Math.floor(bars.length * .34), Math.floor(bars.length * .5), Math.floor(bars.length * .67), Math.floor(bars.length * .84), bars.length - 1].filter((v, j, a) => v >= 0 && v < bars.length && a.indexOf(v) === j)" :key="i">{{ bars[i]?.label }}</span>
-        </div>
-      </div>
-
-      <div>
-        <div class="pi-sect"><span class="n">2</span><span class="t">复盘 6 指标</span><span class="m">与复盘段同口径 · 点指标 → 明细</span></div>
-        <div class="pi-k6">
-          <button v-for="k in kpis" :key="k.key" class="k" :title="k.note" @click="emit('drill', k.key === 'create' ? 'mo-add' : k.key === 'call' ? 'mo-call' : k.key === 'acts' ? 'mo-acts' : 'mo-w')">
-            <div class="lab">{{ k.label }}</div>
-            <div class="v">{{ k.v.toLocaleString() }}<small style="font-size:var(--fs-micro);font-weight:600;color:var(--text-3);margin-left:1px">{{ k.unit }}</small></div>
-            <div class="note">{{ k.note }}</div>
-          </button>
-        </div>
-        <div style="font-size:var(--fs-micro);color:var(--text-4);margin-top:6px">
-          环比：有效动作 <span :style="{ color: (deltaActs ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)' }">{{ fmtPct(deltaActs) }}</span>
-          · 加权 <span :style="{ color: (deltaW ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)' }">{{ fmtPct(deltaW) }}</span>
-          （等长窗口对比）
+        <div class="lbox">
+          <div class="lbox-h"><b>认知流转三步</b><span>点任一步 → 对应明细</span></div>
+          <div class="funnel3">
+            <button class="fs" @click="emit('drill', 'mo-add')">
+              <span class="st">①</span><b>捕捉入池</b>
+              <span class="v">{{ funnel.pool }}<small>张</small></span>
+              <span class="s">资源 + 好奇入池</span>
+            </button>
+            <span class="fa">→</span>
+            <button class="fs" @click="emit('drill', 'mo-support')">
+              <span class="st">②</span><b>支撑任务</b>
+              <span class="v">{{ funnel.support }}<small>条</small></span>
+              <span class="s">新支撑 + 完成 · 转化 {{ funnel.convPct }}%</span>
+            </button>
+            <span class="fa">→</span>
+            <button class="fs" @click="emit('drill', 'mo-curate')">
+              <span class="st">③</span><b>策展表达</b>
+              <span class="v">{{ funnel.curate }}<small>张</small></span>
+              <span class="s">新论点沉淀 · {{ funnel.sinkPct }}%</span>
+            </button>
+          </div>
+          <div class="funnel-note">
+            ① 本月新建资源+好奇 · ② 新增支撑链接+完成任务（转化 = 支撑 ÷ 入池资源）· ③ 新增论点卡（沉淀 = 论点 ÷ 入池）
+          </div>
         </div>
       </div>
     </div>

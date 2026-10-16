@@ -27,7 +27,10 @@ check('W11-1 ★第 4 层的排布必须是「纵向舱序列」，三列并排�
   const gapM = /\.tower-list \{[^}]*gap: (\d+)px/.exec(CT_W11);
   const gap = gapM ? Number(gapM[1]) : 0;
   return gap >= 24
-    && CT_W11.includes('<div v-if="viewMode === \'tower\'" class="tower-list" id="layer-4">')
+    /* ★F7 随迁带备案（2026-10-16）：第 3/5/6 层专属列表占位后，塔/全景/列表走
+       v-if / v-else-if 互斥链（打开列表即整体切换下方形态），本条锚随改 v-else-if ——
+       守的"第 4 层 = 纵向舱序列 + id=layer-4"语义不变，互斥性反而更强。 */
+    && CT_W11.includes('<div v-else-if="viewMode === \'tower\'" class="tower-list" id="layer-4">')
     && !CT_W11.includes('.tree-columns-grid {')
     /* ★间距只由 .tower-list 的 gap 承担一份，舱体自身不许再叠 margin-bottom */
     && !/\.tower \{[^}]*margin-bottom: \d+px/.test(TOWER)
@@ -51,8 +54,10 @@ check('W11-2 ★连接线竖轨与分叉横臂必须**归属到正确的父容�
   return railInTower && railLine && arm && rivet && railBodyHasStack && laneRail && laneParentRel && laneParentIndent && tkRowArm;
 });
 
-check('W11-3 ★所有展开/切换都必须**双向可达**（开了能回、点了有出口）。V3.8.7 两次实证的同一个坑：只给"展开"不给"收起"，用户点开后就回不去原样，且回归/typecheck/build 全绿。本条逐个钉回程：① 层级面板同层再点收起；② 项目舱 ▸/▾ 双向；③ 指标卡展开/收起；④ 视图切换两按钮常驻；⑤ 筛选态提示条带"清除筛选"。★判据钉的是"回程入口存在且文案/形态成对"（▸ 对 ▾、tower 对 pano），不是钉某个变量名', () => {
-  return CT_W11.includes('layerOpen.value === lv ? null : lv')            /* ① 同层再点收起 */
+check('W11-3 ★所有展开/切换都必须**双向可达**（开了能回、点了有出口）。V3.8.7 两次实证的同一个坑：只给"展开"不给"收起"，用户点开后就回不去原样，且回归/typecheck/build 全绿。本条逐个钉回程：① 层级面板同层再点收起；② 项目舱 ▸/▾ 双向；③ 指标卡展开/收起；④ 视图切换两按钮常驻；⑤ 筛选态提示条带"清除筛选"。★判据钉的是"回程入口存在且文案/形态成对"（▸ 对 ▾、tower 对 pano），不是钉某个变量名。★F7 增强带备案（2026-10-16）：① 收窄为层 1/2 面板锚 + 新增第 3/5/6 层专属列表的**双回程**锚（同层再点 onLayerList 收起 + ✕ 返回按钮，两个出口都要在——只给一个入口就是又造了一扇单向门）', () => {
+  return CT_W11.includes('layerOpen.value === lv ? null : lv')            /* ① 面板同层再点收起 */
+    && CT_W11.includes('layerView.value === lv ? null : lv')              /* ①★F7 列表同层再点收起 */
+    && CT_W11.includes('@close="layerView = null"')                       /* ①★F7 列表 ✕ 返回（第二出口） */
     && TOWER.includes(':aria-expanded="open"')
     && TOWER.includes("{{ open ? '▾' : '▸' }}")                          /* ② 舱折叠双向 */
     && LANE.includes("{{ open ? '收起 ▾' : '展开 ▸' }}")                  /* ③ 指标双向 */
@@ -115,20 +120,20 @@ check('W11-6 ★成熟度等级色只做小圆点/小徽标，绝不许用在指
 
 // ============== 三、项目全景（横向第二视图） ==============
 
-check('W11-7 ★项目全景必须是**横向泳道**而不是纵向长列表的另一种写法：一根泳道 = 一条成功指标，泳道内竖排该指标的任务，顶部一条三段层级带把「第 4 层项目 › 第 5 层指标 › 第 6 层任务」的从属直接印在结构上。★层级带的三段宽度必须递增（1.25 / 2 / 2.6）且段间有折角箭头 —— 少了箭头三段就退化成三块并列色块，从属感全失，而这是**无内容伪元素**，删了照样全绿。所以本条把折角与递进宽度一起钉。★泳道本体已随 W11-12 拆到 CompassPanoLane（承重处随之迁移，判据随迁带备案）', () => {
+check('W11-7 ★项目全景必须是**横向泳道**而不是纵向长列表的另一种写法：一根泳道 = 一条成功指标，泳道内竖排该指标的任务，顶部一条层级带把「第 4 层项目 › 第 5 层指标 › 第 6 层任务」的从属直接印在结构上。★V3.8.21 翻转带备案（用户拍板 F3，2026-10-15）：层级带由「三段等高色块 + flex 递增 1.25/2/2.6 + clip-path 折角箭头」**压成单行面包屑**（.bd-seg ×3 + .bd-sep ×2，约 28–32px 高），三段竖排副文案全砍 —— 层级带与泳道区抢首屏高度，而它承载的「从属」在单行面包屑里同样成立（分隔符 › 就是折角箭头的等价物，从属感不靠伪元素）。翻转不删断言：折角 clip-path 与三段递进宽度改钉退役负锚（回流即红），正锚改钉单行三段 + 分隔符 + 所守不变量（泳道横向 / 固定宽列向堆叠 / 组件真实挂载）。★泳道本体已随 W11-12 拆到 CompassPanoLane（承重处随之迁移，判据随迁带备案）', () => {
   const L = PANO_LANE;
   return PANO.includes('class="lanes"')
     && /\.lanes \{[^}]*display: flex[^}]*overflow-x: auto/.test(PANO)
     /* 泳道本体：一根固定宽、列向堆叠 */
     && /\.lane \{[^}]*flex: 0 0 262px[^}]*flex-direction: column/.test(L)
-    /* 三段带 */
-    && (PANO.match(/class="bd"/g) || []).length === 3
-    && /\.bd:nth-child\(1\) \{ flex: 1\.25/.test(PANO)
-    && /\.bd:nth-child\(2\) \{ flex: 2;/.test(PANO)
-    && /\.bd:nth-child\(3\) \{ flex: 2\.6;/.test(PANO)
-    /* ★段间折角：无内容伪元素，靠 clip-path 画箭头 */
-    && /\.bd::after \{[^}]*clip-path: polygon\(0 0, 100% 50%, 0 100%\)/.test(PANO)
-    && PANO.includes('.bd:last-child::after { display: none; }')
+    /* ★V3.8.21 单行面包屑：三段 .bd-seg + 两枚 .bd-sep 分隔符（层号 + 英文标 + 计数都在段内） */
+    && (PANO.match(/class="bd-seg"/g) || []).length === 3
+    && (PANO.match(/class="bd-sep"/g) || []).length === 2
+    && PANO.includes('第 4 层') && PANO.includes('第 5 层') && PANO.includes('第 6 层')
+    /* ★退役负锚：三段等高色块与 clip-path 折角不许回流（单行面包屑是拍板后的形态） */
+    && !PANO.includes('class="bd"')
+    && !/\.bd:nth-child/.test(PANO)
+    && !/clip-path: polygon\(0 0, 100% 50%, 0 100%\)/.test(PANO)
     /* 泳道组件必须被真实挂载（不是"文件写了但没接"） */
     && PANO.includes('<CompassPanoLane') && PANO.includes('import CompassPanoLane from');
 });
@@ -147,7 +152,7 @@ check('W11-8 ★全景视图的三态必须都在：① 零任务泳道占位可
     && CT_W11.includes('function backToTower(') && CT_W11.includes('dirFilter.value = owner.dir.id');
 });
 
-check('W11-9 ★全景视图必须真的是**同一份数据的第二种投影**，不是第二个实体世界：数据只来自 compassMeta 的 props，不得自行再聚合一次（两处聚合 = 两处口径，将来必然漂）。同时：形态切换不得丢筛选态（viewMode 与 dirFilter/riskOnly 互不相干），任何定位类动作（左侧项目导航 / 骨架条 4-6 层 / 断链行）在全景下都必须**先切回纵向再定位**——不切的话点在全景里会静默失灵，看着像坏了。★W12(V3.8.12)随迁备案：左栏由六层数字目录改为项目导航后，定位入口从 scrollToLayer(n) 改为 gotoTower(projId)，两条 ensureTower 调用点随之改钉 —— 本条守的是"任何定位都能抵达、不挑视图"，不是钉某个函数名', () => {
+check('W11-9 ★全景视图必须真的是**同一份数据的第二种投影**，不是第二个实体世界：数据只来自 compassMeta 的 props，不得自行再聚合一次（两处聚合 = 两处口径，将来必然漂）。同时：形态切换不得丢筛选态（viewMode 与 dirFilter/riskOnly 互不相干），任何定位类动作（左侧项目导航 / 骨架条定位入口 / 断链行）在全景下都必须**先切回纵向再定位**——不切的话点在全景里会静默失灵，看着像坏了。★W12(V3.8.12)随迁备案：左栏由六层数字目录改为项目导航后，定位入口从 scrollToLayer(n) 改为 gotoTower(projId)，两条 ensureTower 调用点随之改钉 —— 本条守的是"任何定位都能抵达、不挑视图"，不是钉某个函数名。★F7 再随迁带备案（2026-10-16）：第 5/6 层的"定位到一条实体"由层级专属列表**行内「定位」**承担（onListLocate → 关列表 + gotoTower），骨架条第 4 层定位语义不变（onLocateLayer 收窄 lv:4，ensureTower 模板串锚与"先切回纵向"语义照旧）', () => {
   return PANO.includes('meta: CompassMeta')
     && !/buildCompassMeta\(/.test(PANO)                                 /* 组件内不重复聚合 */
     && CT_W11.includes("const viewMode = ref<'tower' | 'pano'>('tower')")
@@ -157,6 +162,9 @@ check('W11-9 ★全景视图必须真的是**同一份数据的第二种投影**
     && CT_W11.includes('function ensureTower(')
     && CT_W11.includes("ensureTower('定位项目舱')")
     && CT_W11.includes('ensureTower(`定位第 ${lv} 层`)')
+    /* ★F7：骨架条定位收窄为第 4 层 + 第 5/6 层走列表行内定位（同一条 ensureTower/gotoTower 通道） */
+    && CT_W11.includes('function onLocateLayer(lv: 4)')
+    && CT_W11.includes('function onListLocate(')
     /* ★全景下滚动不得改左栏高亮（横向视图不产生纵向层级信号，否则会乱跳） */
     && /function onCanvasScroll\(\)[\s\S]{0,200}viewMode\.value === 'pano'\) return/.test(CT_W11)
     /* 筛选态提示条：过滤是隐形的就会让人以为项目丢了 */

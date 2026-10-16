@@ -274,6 +274,29 @@ function confirmHeaderAddMetric() {
   showToast('✓ 成功指标已创建，同步方向树')
   headerMetricAdding.value = false
 }
+
+/* ★F4（2026-10-15）：项目详情页页头 AI 诊断入口 —— 与方向台三处共用 useProjectDiag 会话缓存。
+ *  两态与项目塔 1:1（复用 CompassTowerStatus）：无报告 → 🧠 AI 诊断（点击才跑）；
+ *  有报告 → 标签组 + 📄 诊断报告（开中央弹窗）。手动触发红线不破。 */
+import CompassTowerStatus from '../components/compass/CompassTowerStatus.vue'
+import { useProjectDiag } from '../composables/useProjectDiag'
+const ProjectDiagnoseModal = defineAsyncComponent(() => import('../components/compass/ProjectDiagnoseModal.vue'))
+const { diagFor, diagStale, startProjectDiag, openDiagReport, rerunDiag, diagOpen, diagProjId, diagReport } = useProjectDiag({ d, setJob: (job) => { aiJob.value = job } })
+/** ★F4：CompassTowerStatus 需要完整 ProjectMeta —— 与方向台同一口径 buildCompassMeta（不做手搓三件套） */
+import { buildCompassMeta } from './compassMeta'
+const projMeta = computed(() => {
+  if (!d.value || !currentProject.value) return null
+  return buildCompassMeta(d.value, isStalled).byProject.get(currentProject.value.id) || null
+})
+/** 页头诊断入口的 hue：沿用项目塔同款从项目 id 派生（取不到就回落 accent） */
+const projHue = computed(() => {
+  const p = currentProject.value
+  if (!p) return 'var(--accent)'
+  const HUES = [88, 70, 52, 38, 26, 16]
+  const all = allProjects()
+  const k = Math.max(0, all.findIndex(x => x.id === p.id))
+  return `color-mix(in srgb, var(--accent) ${HUES[k % HUES.length]}%, var(--surface))`
+})
 /* R60：原「投射至灯塔」开关已取消，重心语义统一由「🚀 主攻 isFocused」承担 */
 
 /* ================= 第十七轮：创建项目弹窗（愿景→使命→战略目标 → 选目标创建） ================= */
@@ -640,6 +663,17 @@ function addTaskFromHeader() {
         <div class="pb-acts">
           <button class="mini-btn" @click="startHeaderAddMetric">＋ 成功指标</button>
           <button class="mini-btn" @click="aiChainMetrics" title="AI 基于上游目标链建议可量化成功指标（查重后采纳才创建）"><AiEntryButton variant="inline" label="建议指标" /></button>
+          <!-- ★F4：AI 诊断两态入口（与方向台项目塔/全景同语言，复用 CompassTowerStatus） -->
+          <CompassTowerStatus
+            v-if="projMeta && currentProject"
+            :proj-id="currentProject.id"
+            :hue="projHue"
+            :meta="projMeta"
+            :diag="diagFor(currentProject.id)"
+            :stale="diagStale(currentProject.id)"
+            @diag-run="(id) => startProjectDiag(id)"
+            @diag-report="(id) => openDiagReport(id)"
+          />
           <button class="mini-btn primary" @click="addTaskFromHeader">＋ 添加任务</button>
           <span class="pb-more-wrap">
             <button class="mini-btn icon" title="更多：主攻 / 方向树定位 / 删除项目" @click.stop="projMenuOpen = !projMenuOpen">⋯</button>
@@ -766,6 +800,15 @@ function addTaskFromHeader() {
     <ProjectDetailDrawer :open="projDetailOpen && !!currentProject" :project-id="currentProject?.id || ''" @close="projDetailOpen = false" />
     <!-- R135：页头「建议指标」评审抽屉 -->
     <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
+    <!-- ★F4：诊断报告中央弹窗（与方向台共用同一份会话缓存与组件；采纳后自动顶开） -->
+    <ProjectDiagnoseModal
+      v-if="diagOpen"
+      :open="diagOpen"
+      :report="diagReport"
+      :stale="diagStale(diagProjId)"
+      @close="diagOpen = false"
+      @rerun="rerunDiag"
+    />
 
 
     <!-- 第卅三轮 REQ-016：指标添加任务双模式（新建 / 关联） -->

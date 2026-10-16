@@ -12,6 +12,7 @@
  * 焦点纪律：★不得出现 font-size: var(--fs-display) / var(--fs-hero)（判据 W11-11 负锚）。
  * 层级：指标名 --fs-sub(12px)、任务 --fs-micro，与项目名 --fs-title(15px) 严格拉开。
  */
+import { ref } from 'vue'
 import type { TaskCard } from '@/shared/models'
 import type { MetricMeta } from '../../views/compassMeta'
 import { gradeColorVar } from '../../views/compassMeta'
@@ -32,7 +33,13 @@ const emit = defineEmits<{
    *  与项目塔的 CompassLane 走同一出口 openDetail → 宿主 openTaskDetail → detailRef.open()。 */
   (e: 'openDetail', taskId: string): void
   (e: 'addTask', metricId: string, projId: string): void
+  /** ★F1：泳道头删除本指标（走真源 removeMetricWithConfirm，这里只上抛） */
+  (e: 'delMetric', metricId: string): void
 }>()
+
+/** ★F1：泳道头「⋯」菜单（当前只有删除一项，与 CompassLane 同语言） */
+const menuFor = ref<string | null>(null)
+function toggleMenu(id: string) { menuFor.value = menuFor.value === id ? null : id }
 
 /** 状态点：○ 空 / ◐ 进行中 / ✓ 全完成（与 CompassLane 同口径） */
 function dotOf(m: MetricMeta): { cls: string; g: string } {
@@ -65,6 +72,14 @@ function priOf(t: TaskCard): string {
         <span class="lane-i">{{ idx }}</span>
         <span class="lane-n">{{ m.title }}</span>
         <span class="lane-dot" :class="dotOf(m).cls" :title="`完成 ${m.done}/${m.total}`">{{ dotOf(m).g }}</span>
+        <!-- ★F1：hover 🗑 + 「⋯」—— 与项目塔指标卡同一套删除语义（真源报数确认 + 撤销） -->
+        <span class="lane-ops" @click.stop>
+          <button class="lo-del" title="删除本成功指标（其下任务转为未关联，可撤销）" @click="emit('delMetric', m.id)">🗑</button>
+          <button class="lo-more" :class="{ on: menuFor === m.id }" title="指标更多操作" @click="toggleMenu(m.id)">⋯</button>
+          <span v-if="menuFor === m.id" class="lo-menu" @click.stop>
+            <button class="lom-item danger" @click="menuFor = null; emit('delMetric', m.id)">🗑 删除本指标</button>
+          </span>
+        </span>
       </div>
       <div class="lane-acc">验收：<b>{{ m.acceptance || '未写验收标准' }}</b></div>
       <div class="lane-bar">
@@ -131,6 +146,29 @@ function priOf(t: TaskCard): string {
 }
 .lane-dot.doing { background: var(--warning-bg-soft); color: var(--warning); }
 .lane-dot.done { background: var(--success-bg-soft); color: var(--success); }
+/* ★F1：泳道头删除入口 —— hover 显形（与项目塔指标卡同语言），「⋯」下拉同款 */
+.lane-ops { position: relative; display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.lo-del, .lo-more {
+  font-size: var(--fs-micro); color: var(--text-3); opacity: 0;
+  padding: 2px 6px; border-radius: 5px; cursor: pointer; transition: all var(--dur);
+  border: 1px solid transparent; background: transparent;
+}
+.lane:hover .lo-del, .lane:hover .lo-more,
+.lo-del:focus-visible, .lo-more:focus-visible { opacity: 1; }
+.lo-del:hover, .lo-more:hover { color: var(--danger); background: var(--danger-bg-soft); }
+.lo-more.on { opacity: 1; color: var(--accent-ink); background: var(--accent-light); }
+.lo-menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 148px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  box-shadow: var(--shadow); padding: 4px; display: flex; flex-direction: column;
+}
+.lom-item {
+  font-size: var(--fs-micro); font-weight: 600; color: var(--text-2); text-align: left;
+  padding: 6px 9px; border-radius: 5px; cursor: pointer; font-family: inherit; border: 0; background: transparent;
+}
+.lom-item:hover { background: var(--surface-3); }
+.lom-item.danger { color: var(--danger); }
+.lom-item.danger:hover { background: var(--danger-bg-soft); }
 .lane-acc { font-size: var(--fs-micro); color: var(--text-3); line-height: 1.65; margin-top: 5px; }
 .lane-acc b { color: var(--text-2); font-weight: 600; }
 .lane-bar { display: flex; align-items: center; gap: 7px; margin-top: 9px; }

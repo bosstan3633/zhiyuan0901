@@ -14,8 +14,6 @@ import FocusDetail from '../components/compass/FocusDetail.vue'
 import { uid } from '@/shared/utils'
 import { visibleFields } from '@/shared/utils/fields'
 import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
-import { emitOpenDrawer } from '@/shared/utils/bus'
-import type { CardEvent } from '@/shared/utils/eventLog'
 import { focusRecentDays, focusWindowTotals } from '@/shared/utils/focusHistory'
 import type { AiJob, AiRow } from '@/shared/ai/job'
 import { AiDrawer } from '@/newtab/components/lazyAiDrawer'
@@ -260,22 +258,6 @@ async function openFocusReview(): Promise<void> {
   closeWhy()
   focusJob.value = j
 }
-/** ★W12-D 全貌模块只读本页三件事相关的事件流水。
- *  不引入完整事件日志（那是 TodayBattleHost 的职责）：本页只要 `store.data` 已有的任务事件，
- *  从 compass 的任务历史工具取，避免本页读 zy_event_log（R49-3 负锚：调度台视图不碰事件日志）。 */
-const focusDetailEvents = computed(() => {
-  const t = selTask.value
-  if (!t) return []
-  const logs = (store.data?.tasks || []).flatMap((task) => {
-    const out: CardEvent[] = []
-    if (task.createdAt) out.push({ id: `fd-${task.id}-c`, ts: task.createdAt, action: 'create', kind: 'task', title: task.title || '', cardId: task.id })
-    if (task.updatedAt && task.updatedAt !== task.createdAt) out.push({ id: `fd-${task.id}-u`, ts: task.updatedAt, action: 'status', kind: 'task', title: task.title || '', cardId: task.id })
-    if (task.deletedAt) out.push({ id: `fd-${task.id}-d`, ts: task.deletedAt, action: 'delete', kind: 'task', title: task.title || '', cardId: task.id })
-    return out
-  })
-  return logs.filter(e => e.cardId === t.id).sort((a, b) => b.ts - a.ts)
-})
-
 /** ★W12-D 双击三件事卡 → 原为「滚动定位并高亮下方任务列表里那条任务」。
  *  ★V3.8.18（N1）决策翻转 → 改为右侧滑出 TaskDetailDrawer（详见下方函数的备案）。
  *  被取代的旧理由留档：「同页上方的『全貌』模块已经把详情常驻展示了，重复弹抽屉价值不大」
@@ -309,18 +291,9 @@ function todayTaskForSlot(slot: FocusSlot): TaskCard | null {
   }
   return null
 }
-/** R2-①：槽内子任务视口——固定可见 5 行（超出滚动），底部渐隐 + 「还有 N 项」随滚动收敛 */
-const SUB_VISIBLE_ROWS = 5
-const subScrolled = ref<Record<number, boolean>>({})
-function onSubScroll(idx: number, e: Event) {
-  const el = e.target as HTMLElement
-  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 4) subScrolled.value[idx] = true
-}
-function subScrollAt(idx: number): boolean { return !!subScrolled.value[idx] }
-function subMoreCount(t?: TaskCard | null): number {
-  const n = t?.subtasks?.length || 0
-  return Math.max(0, n - SUB_VISIBLE_ROWS)
-}
+/** ★P5（V3.8.22）：槽内子任务视口函数组（SUB_VISIBLE_ROWS/subScrolled/onSubScroll/subScrollAt/subMoreCount）
+ *  随 tc-subs 模板块一并退役——视口本体已删，留守函数会成 dead code。
+ *  toggleSlotSub 保留：FocusDetail 单行 @toggle-sub 链（P4-1 钉住）仍走这条 doneAt 落库路径。 */
 /** 槽内子任务勾选：落 doneAt（R172-T2 推进维度同口径），随父卡持久化 */
 function toggleSlotSub(t: TaskCard, subId: string) {
   t.subtasks = (t.subtasks || []).map(s => (s.id === subId ? { ...s, done: !s.done, doneAt: !s.done ? Date.now() : undefined } : s))
@@ -721,14 +694,12 @@ const battleHost = ref<InstanceType<typeof TodayBattleHost> | null>(null)
 function openReview(): void { battleHost.value?.openToday() }
 const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.deletedAt).length)
 
-/** ★W12-D 全貌模块的两个出口：编辑（进任务抽屉）/ 定位支撑资源（走全局资源抽屉的 bus 通道）。
- *  资源抽屉全局挂在 App.vue 上，本页不重复挂实例，故用 emitOpenDrawer 而不是 ref.open。 */
+/** ★W12-D → ★P4（V3.8.21）全貌出口收敛为两个：
+ *  ① 编辑/详情（双击或「双击详情 ›」）→ 进任务抽屉；
+ *  ② 拆分（D5「＋ 拆分 / ＋子任务」）→ 同一个抽屉，但光标落进子任务输入框。
+ *  原「定位支撑资源」出口随三栏全貌一并退役（P4 D3：支撑信息在抽屉里已有，属迁移不属丢）。 */
 function onFocusDetailEdit(t: TaskCard) { drawerRef.value?.open(t) }
-function onFocusDetailLocate(resourceId: string) {
-  const res = store.data?.resources.find(r => r.id === resourceId)
-  if (!res) { showToast('⚠ 该资源已不在'); return }
-  emitOpenDrawer({ kind: 'res', id: resourceId })
-}
+function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: true }) }
 </script>
 
 <template>
@@ -832,20 +803,10 @@ function onFocusDetailLocate(resourceId: string) {
                     <MaturityBadge :m="taskMaturity(c.task)" />
                     <span v-if="c.slot?.auto === true" class="tag rec" data-testid="focus-rec" title="系统推荐写入的一格 · 点右上角 ✦ 看依据">✦ 荐</span>
                   </div>
-                  <!-- R2-①：槽内子任务视口（固定 5 行 + 底部渐隐 + 「还有 N 项」+ 滚动监听）
-                       ——「描述｜子任务」双栏（项目调度卡 R2 退役）的执行细节由槽内承接；
-                       勾选 = 完成切换（doneAt 同 R172-T2 口径）、点文字 = 进任务详情抽屉。 -->
-                  <div v-if="c.task.subtasks?.length" class="tc-subs" :class="{ 'at-end': subScrollAt(c.idx) }"
-                    @scroll.passive="onSubScroll(c.idx, $event)">
-                    <div v-for="st in (c.task.subtasks || [])" :key="st.id" class="tc-sub" :class="{ done: st.done }"
-                      :title="st.done ? '点方框取消完成' : '点方框标记完成 · 点文字进任务详情'" @click="openCellTask(c)">
-                      <span class="tsub-check" @click.stop="toggleSlotSub(c.task, st.id)">{{ st.done ? '✓' : '' }}</span>
-                      <span class="tsub-t">{{ st.title }}</span>
-                    </div>
-                  </div>
-                  <div class="tc-sub-more" @click.stop="openCellTask(c)">
-                    还有 {{ subMoreCount(c.task) }} 项 · 进详情查看
-                  </div>
+                  <!-- ★P5（V3.8.22）：卡内子任务视口（R2-① tc-subs）整块退役——同一批子任务在 P4 全貌单行
+                       已有一份（前 3 条 + +N + 就地勾选），卡内 5 行视口是重复份；两份并存时用户不知看哪份勾哪份，
+                       且卡内清单把三张卡撑高、首屏又被顶走（与 P4 删全貌同一病根）。
+                       子任务勾选能力未丢：FocusDetail 单行 @toggle-sub → toggleSlotSub 同一条落库路径。 -->
                   <!-- ★V3.8.18（N1）删除入口**常驻可见**（原来是 opacity:0 的 hover 显现）：
                        病根＝一格被移出「今天要做」是一次不可逆的注意力操作，
                        而它藏在一个 18px 的小圆里、且只在鼠标正好悬上去时才现形
@@ -890,23 +851,27 @@ function onFocusDetailLocate(resourceId: string) {
                  不用庆祝动画、不用红色、不用进度百分比。 -->
             <div v-if="focusAllDone" class="td-done">✓ 今日三件事已闭环 · 专注带来从容</div>
           </div>
+
+          <!-- ★W15-T4（用户拍板 2026-10-16）：子任务区从**独立 module 并入本卡下半区** ——
+               原先三件事与子任务是两个平级 section、间距同样 14px，视觉上被切开，"这三件事下面挂着什么"
+               的关系读不出来。现在共享同一张卡面与重框，只用一条 hairline 分隔；
+               子任务区标题降级为卡内分区标签（focus-sub-label），焦点仍唯一属于"今日三件事"。
+               写操作链零变化（FocusDetail emit 上抛宿主，toggleSlotSub 落库路径原样）。 -->
+          <div class="focus-sub-zone">
+            <FocusDetail
+              :task="selTask" :empty-slot="selSlotEmpty"
+              :slot-kind="selSlotKind" :slot-text="selSlotText"
+              :data="store.data!"
+              @edit="onFocusDetailEdit"
+              @toggle-sub="(tid, sid) => selTask && toggleSlotSub(selTask, sid)"
+              @split="onFocusDetailSplit" />
+          </div>
         </div>
       </section>
 
-    <!-- ★W12-D：原年度热力图槽位改为「当前选中事件的全貌」（今日三件事选中的那条）。
-         热力图已随本轮退役（画像洞察页全量覆盖），但热力图承载的「今日战报」弹窗解耦到
-         TodayBattleHost 保留。FocusDetail 是纯只读展示，写操作一律上抛宿主。 -->
-    <section class="module">
-      <div class="mod-head">
-        <span class="ic"><Icon name="target" :size="18" /></span><span class="nm">全貌</span><span class="en">IN FULL</span>
-      </div>
-      <p class="mod-sub">今天这件事的全貌 —— 属于哪、走过什么、下一步做什么。单击上方任意一件切换 · <b>双击右侧滑出任务详情</b>。</p>
-      <FocusDetail
-        :task="selTask" :empty-slot="selSlotEmpty"
-        :slot-kind="selSlotKind" :slot-text="selSlotText"
-        :data="store.data!" :events="focusDetailEvents"
-        @edit="onFocusDetailEdit" @locate="onFocusDetailLocate" />
-    </section>
+<!-- ★W15-T4（用户拍板 2026-10-16）：FocusDetail 原先在这儿是独立 `<section class="module">`，
+         与"今日三件事"平级、间距同为 14px ⇒ 视觉上被切开、关系读不出来。已上提并入 `.card.focus`
+         下半区（见上方 focus-sub-zone）。写操作（勾子任务 / 拆分）仍由 FocusDetail emit 上抛宿主。 -->
 
     <!-- ★W12-D：今日战报自包含宿主（日详情弹窗 + 全量记录抽屉）。本组件不渲染可见内容，
          只提供 openToday() 供右上角「📈 今日战报」调用。 -->
@@ -1100,6 +1065,15 @@ function onFocusDetailLocate(resourceId: string) {
   100% { box-shadow: none; }
 }
 .page > .module { margin-top: 14px; }
+/* ★W15-T4（用户拍板 2026-10-16）主次版式：今日三件事与它的子任务共享一张卡面（同一视觉单元），
+   与下方三张卡之间用 ≥32px 空白拉开 —— 原先三个平级 module 全是 14px，焦点只靠字号撑着。
+   负锚：子任务区不许再做成独立强模块（会把焦点从三件事挪走）；空白不许小于 28px。 */
+.page > #zy-mod-curiosity { margin-top: 32px; }
+.focus-sub-zone {
+  border-top: 1px solid var(--border);       /* 同一卡面内只留一条 hairline，不做第二条框 */
+  margin: 0 20px; padding: 10px 0 4px;
+}
+.focus-sub-zone :deep(.fd-row .lab) { font-size: var(--fs-caption); color: var(--text-3); font-weight: 700; }
 .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-sm); border: 1px solid var(--border); height: 100%; }
 .card-head { display: flex; align-items: center; gap: 8px; padding: 10px 20px 6px; flex-wrap: wrap; }
 .card-head .ic { font-size: 16px; color: var(--accent); display: flex; align-items: center; }
@@ -1209,17 +1183,8 @@ function onFocusDetailLocate(resourceId: string) {
 /* × 与右上编号牌现在都常驻，标题行必须让出这一条，否则任务名会被压在它们底下 */
 .today-card .tc-row { padding-right: 44px; }
 
-/* ===== R2-①：槽内子任务视口（固定 5 行 + 底部渐隐 + 还有 N 项） ===== */
-.tc-subs { margin-top: 6px; max-height: calc(5 * 24px + 4px); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; scrollbar-width: thin; -webkit-mask-image: linear-gradient(to bottom, var(--text) calc(100% - 16px), transparent); mask-image: linear-gradient(to bottom, var(--text) calc(100% - 16px), transparent); }
-.tc-subs.at-end { -webkit-mask-image: none; mask-image: none; }
-.tc-sub { display: flex; align-items: center; gap: 6px; min-height: 22px; font-size: var(--fs-caption); color: var(--text-2); cursor: pointer; }
-.tc-sub .tsub-check { flex-shrink: 0; width: 13px; height: 13px; border-radius: 3.5px; border: 1.2px solid var(--border-strong); display: inline-flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; background: var(--surface); }
-.tc-sub .tsub-check:hover { border-color: var(--accent); }
-.tc-sub.done .tsub-check { background: var(--text-3); border-color: var(--text-3); }
-.tc-sub .tsub-t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tc-sub.done .tsub-t { text-decoration: line-through; color: var(--text-3); }
-.tc-sub-more { margin-top: 4px; font-size: var(--fs-caption); color: var(--text-3); text-align: center; cursor: pointer; }
-.tc-sub-more:hover { color: var(--accent); }
+/* ★P5（V3.8.22）：R2-① 槽内子任务视口 CSS 全段随块退役（.tc-subs / .tc-sub / .tsub- 子类 / .tc-sub-more）。
+   留守会成孤儿规则——dead-css-scan 红；回流需求请先读 docs/需求梳理_三项界面调整_2026-10-16.md。 */
 
 /* R2-②：项目调度卡 CSS 全段随卡退役（ce-desc 由导出弹窗沿用保留） */
 .ce-desc { font-size: var(--fs-sub); color: var(--text-3); margin-bottom: 12px; line-height: 1.7; }

@@ -139,6 +139,81 @@ export function parseGoalTemplate(src: string): GoalParseResult {
   return { projects, warns }
 }
 
+/* ============ 场景 A' · 项目层模板导入（F2 · 2026-10-15） ============ */
+
+/**
+ * 项目层导入 = goal 场景**下移一级**：入口在项目卡上，Markdown 里不再出现项目名——
+ * `# = 成功指标`、`## = 该指标下的任务`、任务标题下正文 = 任务详情。
+ * 项目名恒等于被导入的那个项目（现名），解析结果不含项目维度。
+ * 容错沿 goal 同一套：H2 先于 H1 → 自动建指标「通用执行」承接；H3+ → 并入任务详情。
+ */
+export const PROJECT_RULE = `你是一位项目管理助手。请把用户提供的原始文本，整理成符合以下规则的 Markdown 文档。整理结果将被导入到「知源调度台」的指定攻坚项目中，自动生成成功指标与任务（不需要写项目名，项目已选好）。
+
+【输出格式规则】
+# 成功指标名称
+## 任务名称
+任务详情正文（可多行，也可以省略）
+
+【层级含义】
+1. 一级标题（#）：成功指标。指标是"可衡量的结果"（例：每周产出 3 篇教程），不是动作本身。
+2. 二级标题（##）：该指标下的任务。任务是"具体的执行动作"（例：写第一篇教程大纲）。
+3. 二级标题下面的正文：该任务的详情（执行要点、验收标准、背景上下文），可多行；没有详情就省略。
+
+【整理要求】
+1. 忠实于用户原文的意思，不要发明用户没有提到的内容；归类拿不准时放到最贴近的指标。
+2. 每个任务必须归属于某个成功指标。
+3. 同一层级的条目保持用户原文的先后顺序。
+4. 结构配比建议：每个项目 1-4 个成功指标，每个指标 1-8 个任务；超出时优先合并同类项。
+5. 命名长度：指标 ≤ 25 字、任务 ≤ 30 字。
+6. 任务详情保留原文的关键信息（数字、日期、验收标准），可轻度润色使语句通顺。
+7. 直接输出 Markdown 正文；不要用代码块包裹，不要输出任何解释或前言。`
+
+export interface ProjImportResult { metrics: GoalMetric[]; warns: string[] }
+
+export function parseProjectTemplate(src: string): ProjImportResult {
+  const metrics: GoalMetric[] = []
+  const warns: string[] = []
+  let curM: GoalMetric | null = null
+  let curT: GoalTask | null = null
+  let body: string[] = []
+  const flush = () => {
+    const text = body.join('\n').trim()
+    body = []
+    if (!text) return
+    if (curT) curT.detail = curT.detail ? curT.detail + '\n\n' + text : text
+    else warns.push('检测到不属于任何任务的正文（将忽略）——任务详情请写在 ## 二级标题之下')
+  }
+  for (const raw of src.split(/\r?\n/)) {
+    const line = raw.replace(/\s+$/, '')
+    const m = line.match(/^(#{1,6})\s+(.+)$/)
+    if (m) {
+      flush()
+      const lv = m[1].length
+      const name = m[2].trim()
+      if (lv === 1) {
+        curM = { name, tasks: [], auto: false }
+        metrics.push(curM)
+        curT = null
+      } else if (lv === 2 || lv === 3) {
+        // 容错：H2 先于 H1 → 自动建指标「通用执行」承接（与 goal 场景同语言）
+        if (!curM) {
+          warns.push(`检测到 H${lv} 先于 H1——已自动创建指标「通用执行」承接`)
+          curM = { name: '通用执行', tasks: [], auto: true }
+          metrics.push(curM)
+        }
+        curT = { name, detail: '' }
+        curM.tasks.push(curT)
+      } else {
+        body.push(line) // H4+：并入当前任务详情
+      }
+    } else if (line.trim()) {
+      body.push(line)
+    }
+  }
+  flush()
+  return { metrics, warns }
+}
+
 /* ============ 场景 B · 策展台金字塔 ============ */
 
 export interface PyramidNode {

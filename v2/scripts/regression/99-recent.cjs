@@ -188,20 +188,22 @@ check('R169-12 ★「为什么是这三件」是右上角一枚小图标，不�
     && ch.includes('不改任务卡、不改状态、不改归属')
 });
 check('R169-13 ★整行归属=进方向树的唯一入口', () => { const h = read('/newtab/views/CompassHome.vue'); return !h.includes('cur-crumb') && !h.includes('gotoTree');  });
-check('R169-14 ★R2-② 重指带备案：项目调度卡「描述｜子任务」定高双栏退役，承接者=三件事槽内子任务视口（tc-subs 固定 5 行 + 底部渐隐 + 还有 N 项 + 滚动收敛）', () => {
-  const h = read('/newtab/views/CompassHome.vue')
-  return h.includes('class="tc-subs"') && h.includes('max-height: calc(5 * 24px + 4px)')
-    && h.includes('mask-image: linear-gradient(to bottom, var(--text) calc(100% - 16px), transparent)') // R1.5 后置：渐隐黑改 var(--text)（R120-10 零硬编码色判据联动）
-    && h.includes('还有 {{ subMoreCount(c.task) }} 项 · 进详情查看')
-    && h.includes('function toggleSlotSub') && h.includes("doneAt: !s.done ? Date.now() : undefined")
-    && h.includes('function onSubScroll') && !h.includes('spot-dual')
+check('R169-14 ★R2-②→★P5 重指带备案（2026-10-16）：原「项目调度卡双栏退役 → 承接者=槽内 tc-subs 视口」的两跳重指，第二跳随 P5 一并退役——子任务现在由 P4 全貌单行唯一承接（FocusDetail：前 3 条 visibleSubs + 溢出 +N + 单击勾选），本条改钉「卡内视口零残留 + 落库链仍在」', () => {
+  const h = read('/newtab/views/CompassHome.vue'); const c = codeOnly(h)
+  return !c.includes('class="tc-subs"') && !c.includes('function onSubScroll')      /* 视口本体与滚动监听已删（codeOnly 剥退役注释） */
+    && h.includes('function toggleSlotSub') && h.includes("doneAt: !s.done ? Date.now() : undefined") /* 落库链保留：FocusDetail 单行 @toggle-sub 仍走这条（P4-1） */
+    && h.includes('@toggle-sub=')                                                    /* 宿主接线在位 */
+    && !h.includes('spot-dual')
 });
-check('R169-15 ★R2-② 重指带备案：双栏「右栏只读可勾、编辑回详情」分工由槽内视口承接——槽内只勾选/进详情，零输入控件', () => {
-  const h = read('/newtab/views/CompassHome.vue')
-  const i0 = h.indexOf('class="tc-subs"'), i1 = h.indexOf('tc-sub-more')
-  const seg = i0 >= 0 && i1 > i0 ? h.slice(i0, i1) : ''
-  return i0 > 0 && i1 > i0 && !/<input|<textarea/.test(seg)
-    && seg.includes('toggleSlotSub') && h.includes('openCellTask')
+check('R169-15 ★R2-② 重指带备案（2026-10-16 P5 翻转）：原「槽内视口只勾选/进详情、零输入控件」随视口退役改钉「FocusDetail 单行零输入 + 溢出 +N + openCellTask 进详情仍在」', () => {
+  const h = read('/newtab/views/CompassHome.vue'); const c = codeOnly(h)
+  const fd = read('/newtab/components/compass/FocusDetail.vue')
+  const i0 = fd.indexOf('visibleSubs'), i1 = fd.indexOf('onSplit')
+  const seg = i0 >= 0 && i1 > i0 ? fd.slice(i0, i1) : ''
+  return i0 > 0 && i1 > i0 && !/<input|<textarea/.test(seg)                        /* 单行子任务区零输入控件（勾选由 span @click 承担） */
+    && fd.includes('const VISIBLE_MAX = 3') && fd.includes('+{{ overflow }}')        /* 前 3 条 + 溢出 +N 结构在位 */
+    && !c.includes('class="tc-subs"') && !c.includes('tc-sub-more')                 /* 旧视口与溢出行零残留 */
+    && h.includes('openCellTask')
 });
 check('R169-16 ★有意偏离原型并备案', () => { const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return !h.includes('展开关联任务树') && pc.includes('metric-head2') && pc.includes('openTaskAdd') && pc.includes('removeMetric');  });
 check('R169-17 ★设置页导入导出文案（V3.7.0 重指：资源台「按文件夹建分类」括注随退役下线，书签导入单路径说清）：模板可见文字零轮次号（注释里的轮次号是开发者账，不算失真）；"导入前自动备份"与"附件要两步迁"写进界面而不是只存在于代码里', () => {
@@ -297,14 +299,15 @@ check('R174-3 ★zy_daily_stats 落盘（04-69 T1）：热力图不褪色的数�
     && ds.includes('c: sr.c, del: sr.del, s: sr.s, u: sr.u, x: sr.x') && ds.includes('if (k > boundary) continue')
     && ub.includes('readDailySnapshot') && ub.includes('mergeDailyStats(snapRef.value, rebuilt, boundaryDayOf(ev))') && ub.includes('snapRef.value = s');
 });
-check('R174-4 概览带 ★W10 退役重指带备案：概览带（DashboardOverview + dz-sec-ov 专段版式）随 W10 时间轴三段式重构整体退役——D1 拍板砍假六维、Hero 5 KPI chip（PiHero pi-hchip）承接存量摘要职责；判据转退役三条腿：① DashboardOverview.vue 文件不存在（删干净的凭据）② 新宿主 PiHero 5 枚 pi-hchip 在位 ③ 宿主 import pi-timeline.css 且不再 import DashboardOverview', () => {
+check('R174-4 概览带 ★W10 退役重指带备案：概览带（DashboardOverview + dz-sec-ov 专段版式）随 W10 时间轴三段式重构整体退役——D1 拍板砍假六维、Hero KPI 卡承接存量摘要职责；判据转退役三条腿：① DashboardOverview.vue 文件不存在（删干净的凭据）② 新宿主 PiHero 底盘卡在位（★W13-D1 再随迁 2026-10-16：原 5 枚 pi-hchip 改 4 枚 .hero-kpi total/entropy/support/focus，时间三指标迁 PiYear）③ 宿主 import pi-timeline.css 且不再 import DashboardOverview', () => {
   const fsx = require('fs');
   const gone = !fsx.existsSync(path.resolve(base, 'newtab/components/dashboard/DashboardOverview.vue'));
   const hero = read('/newtab/components/profile/PiHero.vue');
   const pi = read('/newtab/views/ProfileInsights.vue');
   return gone
-    && (hero.match(/class="pi-hchip"/g) || []).length === 5
-    && hero.includes("emit('drill', 'total')") && hero.includes("emit('drill', 'streak')")
+    && (hero.match(/class="hero-kpi"/g) || []).length === 4
+    && hero.includes("emit('drill', 'total')") && hero.includes("emit('drill', 'entropy')")
+    && hero.includes("emit('drill', 'support')") && hero.includes("emit('drill', 'focus')")
     && pi.includes("import '@/newtab/components/profile/pi-timeline.css'")
     && !codeOnly(pi).includes('DashboardOverview');
 });
@@ -429,8 +432,11 @@ check('R172-1 ★T1 事件日志增 call（调出）——EventAction 扩枚举 
     && lg.includes("type EventAction")
     /* ★W9 退役重指带备案：「调出」标签与 call 动作筛选的宿主随全量记录抽屉迁画像洞察页；
        抽屉侧（lg）与宿主侧（pi）两侧各守一半，GS 加 codeOnly 零命中负锚 */
-    && pi.includes("'↗ 调出'")
-    && pi.includes("action === 'call'")
+    && pi.includes('openLogFocus()') /* ★W13-T7 再随迁带备案 2026-10-16：宿主侧「↗ 调出」标签与 action==='call' 筛选随
+       eventActionLabel/dynDrawer 退役——call 动作筛选的唯一宿主就是 DashboardLogDrawer（lg 已钉），宿主侧入口等价性
+       改钉 openLogFocus()（主攻动作明细预设经抽屉三维筛选呈现调出事件） */
+&& pi.includes("openStatDrawer('today-call')") /* ★W15-T1 2026-10-16 改钉：调出入口改卡片清单 */
+    && pi.includes("openLog('log')") /* 写入记录（全量流水）入口仍在页头，能力未减 */
     && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes("action === 'call'");
 });
 
@@ -495,7 +501,7 @@ check('R172-4 ★T4 复盘计算引擎（04-67 §6/§7.6）：四范围窗口 + 
     && !/\.persist\(|saveData|chrome\.storage/.test(rr);
 });
 
-check('R172-5 ★W10 退役重指带备案：概览带 UI（DashboardOverview 5 存量 chip + dz-ov-say + bind 高亮）随时间轴三段式整体退役——能力拆解为：① 5 存量 chip 移交 PiHero（total/streak/active/entropy/longest）② 窗口聚合移交 PiRhythm（aggregateRange + 等长窗口 prevWindow/pct）③ W_ROWS 口径表单一真源留 dailyStats.ts ④ 数据桥 useDashboardStats 三锚不变（buildDailyStats 重建 + 快照合并 + selDay 态）⑤ GS 零命中负锚不变', () => {
+check('R172-5 ★W10 退役重指带备案：概览带 UI（DashboardOverview 5 存量 chip + dz-ov-say + bind 高亮）随时间轴三段式整体退役——能力拆解为：① 存量摘要移交 PiHero（★W13-D1 再随迁带备案 2026-10-16：原 total/streak/active/entropy/longest 5 枚 chip 改 4 枚底盘卡 total/entropy/support/focus——streak/active/longest 三枚时间指标不再留在 Hero，迁 PiYear 年度段，消除全页重复）② 窗口聚合移交 PiRhythm（aggregateRange + 等长窗口 prevWindow/pct）③ W_ROWS 口径表单一真源留 dailyStats.ts ④ 数据桥 useDashboardStats 三锚不变（buildDailyStats 重建 + 快照合并 + selDay 态）⑤ GS 零命中负锚不变', () => {
   const fsx = require('fs');
   const gone = !fsx.existsSync(path.resolve(base, 'newtab/components/dashboard/DashboardOverview.vue'));
   const hero = read('/newtab/components/profile/PiHero.vue');
@@ -505,8 +511,8 @@ check('R172-5 ★W10 退役重指带备案：概览带 UI（DashboardOverview 5 
   const pi = read('/newtab/views/ProfileInsights.vue');
   const ud = read('/newtab/components/dashboard/useDashboardStats.ts');
   return gone
-    && hero.includes("emit('drill', 'total')") && hero.includes("emit('drill', 'streak')")
-    && hero.includes("emit('drill', 'active')") && hero.includes("emit('drill', 'entropy')")
+    && hero.includes("emit('drill', 'total')") && hero.includes("emit('drill', 'entropy')")
+    && hero.includes("emit('drill', 'support')") && hero.includes("emit('drill', 'focus')")
     && rh.includes('aggregateRange(') && rh.includes('prevWindow(') && rh.includes('pct(')
     && ds.includes('export const W_ROWS')
     && rr.includes('export function stockBoundTo(') && ds.includes('export function aggregateRange(')
@@ -584,7 +590,12 @@ check('R172-10 ★T7 复盘段（04-67 F21~F26）：紧凑两栏（`.dz-rev-grid
     && rr.includes('thr: string; act: string')
     /* ★W9 退役重指带备案：复盘段宿主由 GlobalSettings 改指 ProfileInsights，props 接线照搬；
        GS 加 codeOnly 零命中负锚（dashDirections / dashTasks 不许回流） */
-    && pi.includes('<ReviewPanel') && pi.includes(':directions="dashDirections"') && pi.includes(':tasks="dashTasks"')
+    /* ★W13-D5 再随迁带备案 2026-10-16 用户拍板：复盘能力四段常驻化 ⇒ ReviewPanel 随整页复盘弹窗
+       下线（组件文件保留待复用，宿主零挂载零 import）——正锚改钉退役负锚（宿主 codeOnly 零 <ReviewPanel>；
+       注意 :directions="dashDirections" 不许当负锚——它是 LifecyclePanel 的现役接线，T6 起在位），
+       复盘引擎（rp/rr/css）与 GS 负锚一字未动 */
+    && !codeOnly(pi).includes('<ReviewPanel')
+    && pi.includes('★W13-D5') /* 退役备案带必须写明去向，防"删了不解释" */
     && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes('dashDirections')
     && !rp.includes('useAppStore') && !rp.includes('store.persist');
 });
@@ -598,7 +609,10 @@ check('R172-11 ★T8 全量记录抽屉（04-67 F18~F20）：三维筛选（类�
     && d.includes('EVENT_LOG_CAP') && d.includes('日志容量')
     /* ★W9 退役重指带备案：四类记录入口 + :preset/:open 接线随仪表盘迁 ProfileInsights，
        四个 openLog 调用点与两枚 prop 绑定一字未减；GS 加 codeOnly 零命中负锚 */
-    && pi.includes("openLog('in')") && pi.includes("openLog('out')") && pi.includes("openLog('called')") && pi.includes("openLog('log')")
+    && pi.includes("openStatDrawer('today-in')") && pi.includes("openStatDrawer('today-call')")
+    && pi.includes("openLog('out')") && pi.includes("openLog('log')")
+    /* ★W15-T1 2026-10-16 再随迁备案：入台/调出两枚由事件流水预设改卡片清单分支；
+       移出与写入记录两枚仍走事件抽屉 —— 四类入口一项未减，抽屉三维筛选与 CSV 能力一字未动 */
     && pi.includes(':preset="logPreset"') && pi.includes(':open="logOpen"')
     && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes('openLog(');
 });
@@ -616,7 +630,9 @@ check('R172-12 ★T9 调度台入口整合（04-67 F33~F36）：删 5 个旧入�
     && !fsx.existsSync(path.resolve(base, 'newtab', 'components', 'WeeklyReportOverlay.vue'))
     && !fsx.existsSync(path.resolve(base, 'shared', 'utils', 'weeklyReport.ts'))
     && mb.includes('战略目标') && mb.includes('未归档') && mb.includes('mb-right')
-    && pi.includes("openLog('called')") && !gs.includes('onDashOpenLog')
+    && pi.includes("openStatDrawer('today-call')") /* ★W15-T1 2026-10-16 改钉：调出格落点卡片清单 */
+    && pi.includes("openLog('log')") /* 全量流水入口仍在页头唯一一处 */
+    && !gs.includes('onDashOpenLog')
     && !codeOnly(gs).includes('openLog(')
     && tbh.includes('onOpenLog') && tbh.includes('logOpen') && tbh.includes(':preset="logPreset"');
 });
@@ -785,7 +801,9 @@ check('W2-2 ★GlobalSettings 不再挂热力图：无 Heatmap import / 无 <Hea
     && !gc.includes('dashYear') && !gc.includes('dashSelDay') && !gc.includes('dashStats')
     && !gc.includes('<ReviewPanel') && !gc.includes('openLog(')
     && pi.includes('dashYear') && pi.includes('dashSelDay') && pi.includes('dashStats')
-    && pi.includes('<ReviewPanel')
+    /* ★W13-D5 再随迁带备案 2026-10-16：正锚原要求宿主挂 <ReviewPanel>——随复盘弹窗退役改钉
+       openLog（能力去向：复盘数据引擎 reviewReport 仍在共享层，宿主挂载负锚见 R172-10） */
+    && !codeOnly(pi).includes('<ReviewPanel')
     && pi.includes('openLog(');
 });
 check('W2-3 ★HeatmapModule 自包含宿主：useAppStore + gResLive/gTaskLive/gCurioLive + linkCardCount + readEventLog + derivedEvents 回退 + timelineEvents + useDashboardStats + dashYear/dashSelDay/dashStats + onOpenLog 开 DashboardLogDrawer', () => {

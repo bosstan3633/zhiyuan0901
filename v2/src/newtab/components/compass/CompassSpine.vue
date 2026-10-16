@@ -16,23 +16,26 @@ const props = defineProps<{
   meta: CompassMeta
   /** 当前聚焦的战略目标 id；空串＝全部 */
   dirFilter: string
-  /** 当前展开的层级 1|2|3；null＝全收起 */
-  layerOpen: 1 | 2 | 3 | null
+  /** 当前展开的层级面板 1|2；null＝收起（★F7 收窄：第 3 层迁出面板改走专属列表） */
+  layerOpen: 1 | 2 | null
+  /** 当前打开的层级专属列表视图 3|5|6；null＝收起（★F7 新增） */
+  layerView: 3 | 5 | 6 | null
   /** 断链模式是否开启 */
   riskOnly: boolean
 }>()
 
 const emit = defineEmits<{
-  (e: 'layer', lv: 1 | 2 | 3): void
-  (e: 'locate', lv: 4 | 5 | 6): void
+  (e: 'layer', lv: 1 | 2): void
+  (e: 'list', lv: 3 | 5 | 6): void
+  (e: 'locate', lv: 4): void
   (e: 'dir', id: string): void
   (e: 'risk'): void
   (e: 'orphan'): void
   (e: 'riskBar'): void
 }>()
 
-/** 推导链的当前所在层（面板内逐级切换用；null＝不在面板里） */
-const chainAt = computed<1 | 2 | 3 | null>(() => props.layerOpen)
+/** 推导链的当前所在层（面板 1/2 与专属列表 3/5/6 联合高亮；点 4 定位不占高亮——定位是动作不是驻留态） */
+const chainAt = computed<1 | 2 | 3 | 5 | 6 | null>(() => props.layerOpen ?? props.layerView)
 
 /** 六层各对应 counts 里的哪个键（写成字面量联合，避免模板里再 cast 一次） */
 type CountKey = 'vision' | 'mission' | 'dirs' | 'projects' | 'metrics' | 'tasks'
@@ -51,11 +54,12 @@ function hueOf(idx: number): string {
   return `color-mix(in srgb, var(--accent) ${HUES[idx % HUES.length]}%, var(--surface))`
 }
 
-/** 点击六层按钮：1/2/3 走面板（emit 给父级做开合），4/5/6 走定位
+/** 点击六层按钮（★F7 路由改写 2026-10-16）：1/2 走层面板、3/5/6 走层级专属列表视图、4 走定位
  *  ★两个分支必须显式收窄成各自的联合类型——合成一个联合后 emit 重载推不出来（TS2769） */
 function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
-  if (n <= 3) emit('layer', n as 1 | 2 | 3)
-  else emit('locate', n as 4 | 5 | 6)
+  if (n <= 2) emit('layer', n as 1 | 2)
+  else if (n === 4) emit('locate', 4)
+  else emit('list', n as 3 | 5 | 6)
 }
 </script>
 
@@ -69,7 +73,7 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
       <span class="spine-t">战略骨架<span class="spine-en">SPINE</span></span>
       <span class="spine-badge">上层定方向 · 下层见动作</span>
       <div class="spine-hint">
-        <span>六层数字与下方项目舱同源 · 点 1/2/3 展开该层 · 点 4/5/6 定位到实体</span>
+        <span>六层数字与下方项目舱同源 · 点 1/2 展开该层 · 点 4 定位项目舱 · 点 3/5/6 切换层级列表</span>
       </div>
       <!-- ★V3.8.18（N12）：第 3 层「战略目标」的入口挂到骨架条上，不再挤在页头。
            病根＝「＋战略目标」「建议目标」是第 3 层的操作，却摆在一堆全局按钮里，

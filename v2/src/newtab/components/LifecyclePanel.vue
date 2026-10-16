@@ -6,7 +6,7 @@ export type LifecycleCard = ResourceCard | TaskCard | CuriosityCard
 </script>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   lifecycleState, coolingDaysOf, hasCustomThreshold,
   ARCHIVE_RATIO, DEFAULT_COOLING_DAYS, COOLING_DAYS_MIN, COOLING_DAYS_MAX,
@@ -18,6 +18,8 @@ const props = withDefaults(defineProps<{
   /** R113-N2：支持 'all'——设置页聚合三类卡；顶部实体切换由此驱动 */
   kind?: 'resource' | 'task' | 'curiosity' | 'all'
   cards: LifecycleCard[]
+  /** W13-F20：外部注入的三态 Tab（年度诊断条「🔥 去下方唤醒」联动注入 'cooling'；不传时内部自由切换） */
+  focus?: 'active' | 'cooling' | 'archived'
 }>(), { kind: 'all' })
 const emit = defineEmits<{
   /** 下钻定位：宿主跨台跳转（资源卡 ?hl= 精确定位；任务/好奇心卡切调度台） */
@@ -41,6 +43,8 @@ const KIND_TABS: Array<{ key: typeof activeKind.value; label: string }> = [
 
 type Filter = 'active' | 'cooling' | 'archived'
 const filter = ref<Filter>('cooling')
+/* W13-F20：宿主注入 focus 时切入对应 Tab（单向注入——内部点击仍可自由切，不回写） */
+watch(() => props.focus, f => { if (f) filter.value = f })
 
 interface Entry { card: LifecycleCard; state: LifecycleState; daysIdle: number }
 /** 纯计算：不写 ref、不在 computed 内取时间戳存 state（避免自触发重算） */
@@ -60,10 +64,19 @@ const stats = computed(() => ({
   active: entries.value.filter(x => x.state === 'active').length,
   cooling: entries.value.filter(x => x.state === 'cooling').length,
   archived: entries.value.filter(x => x.state === 'archived').length,
+  /** W13-F20/F21：冷却期中 callCount >= 3 的高价值核心证据卡数（置顶唤醒对象） */
+  highCooling: entries.value.filter(x => x.state === 'cooling' && (x.card.callCount || 0) >= 3).length,
   total: entries.value.length
 }))
 
-const visible = computed(() => entries.value.filter(x => x.state === filter.value).sort((a, b) => a.daysIdle - b.daysIdle))
+/* W13-F23④：冷却期按历史 callCount 降序（≥3 的核心卡自然排最前）；其余态仍按空闲天数升序 */
+const visible = computed(() => {
+  const arr = entries.value.filter(x => x.state === filter.value)
+  if (filter.value === 'cooling') return arr.sort((a, b) => (b.card.callCount || 0) - (a.card.callCount || 0) || b.daysIdle - a.daysIdle)
+  return arr.sort((a, b) => a.daysIdle - b.daysIdle)
+})
+/** W13-F23④：高价值核心证据卡标记（冷却态 · callCount ≥ 3） */
+const isHigh = (e: Entry) => filter.value === 'cooling' && (e.card.callCount || 0) >= 3
 
 /** 甜甜圈（SVG stroke-dasharray 三段） */
 const R = 34
@@ -154,7 +167,8 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
           <div class="lc-stat-num">🔥 {{ stats.active }}</div><div class="lc-stat-lab">活跃</div>
         </div>
         <div class="lc-stat clickable" :class="{ on: filter === 'cooling' }" @click="setFilter('cooling')">
-          <div class="lc-stat-num">🧊 {{ stats.cooling }}</div><div class="lc-stat-lab">冷却</div>
+          <div class="lc-stat-num">🧊 {{ stats.cooling }}</div>
+          <div class="lc-stat-lab">冷却<template v-if="stats.highCooling">（含 {{ stats.highCooling }} 核心）</template></div>
         </div>
         <div class="lc-stat clickable" :class="{ on: filter === 'archived' }" @click="setFilter('archived')">
           <div class="lc-stat-num">📦 {{ stats.archived }}</div><div class="lc-stat-lab">归档</div>
@@ -165,11 +179,13 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
 
     <!-- 列表（当前过滤态） -->
     <div class="lc-list">
-      <div v-for="e in visible" :key="e.card.id" class="lc-row clickable" @click="onLocate(e)">
+      <div v-for="e in visible" :key="e.card.id" class="lc-row clickable" :class="{ hv: isHigh(e) }" @click="onLocate(e)">
         <div class="lc-row-main">
-          <div class="lc-row-title" :class="{ done: isDone(e.card) }">{{ titleOf(e.card) }}</div>
+          <!-- W13-F23④：callCount ≥ 3 的高价值核心证据卡冠 🔥，冷却态置顶（visible 排序保证） -->
+          <div class="lc-row-title" :class="{ done: isDone(e.card) }"><span v-if="isHigh(e)" class="lc-hv" title="历史调用 ≥ 3 次的高价值核心证据卡">🔥</span>{{ titleOf(e.card) }}</div>
           <div class="lc-row-meta">
             <span class="lc-badge" :class="'lc-' + e.state">{{ e.state === 'active' ? '🔥 活跃' : e.state === 'cooling' ? '🧊 冷却' : '📦 归档' }} {{ fmtIdle(e.daysIdle) }}</span>
+            <span v-if="isHigh(e)" class="lc-hv-note">历史高频调用 {{ e.card.callCount }} 次 · 已冷却 {{ e.daysIdle }} 天</span>
             <span v-if="activeKind === 'all'" class="lc-kind-badge">{{ KIND_BADGE[e.card.kind] }}</span>
             <!-- R117（04-61 E）：自定义阈值标识（一眼看出这张卡不按默认 30/90 走） -->
             <span v-if="hasCustom(e.card)" class="lc-custom-badge" :title="`自定义冷却 ${daysOf(e.card)} 天 · 归档 ${archiveDaysOf(e.card)} 天（自动推算）`">⏱ 自定义 {{ daysOf(e.card) }}d</span>
@@ -187,11 +203,13 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
             :title="`自定义冷却阈值：冷却 ${daysOf(e.card)} 天 · 归档 ${archiveDaysOf(e.card)} 天（点此修改）`"
             @click="startEditDays(e)">⏱ {{ daysOf(e.card) }}d<span v-if="hasCustom(e.card)">*</span></button>
           <template v-if="e.state === 'cooling'">
+            <!-- W13-D4：冷却期三动作齐装——🔥 唤醒复温（callCount≥3 高价值卡的主出路）+ 延后 + 归档 -->
+            <button class="lc-op primary" @click="onReactivate(e)">🔥 唤醒复温</button>
+            <button class="lc-op" @click="onSnooze(e)">延后 {{ daysOf(e.card) }}d</button>
             <button class="lc-op" @click="onArchive(e)">📦 归档</button>
-            <button class="lc-op" @click="onSnooze(e)">忽略 {{ daysOf(e.card) }}d</button>
           </template>
           <template v-else-if="e.state === 'archived'">
-            <button class="lc-op primary" @click="onReactivate(e)">🔥 重新激活</button>
+            <button class="lc-op primary" @click="onReactivate(e)">🔥 唤醒复温</button>
           </template>
         </div>
       </div>
@@ -221,10 +239,15 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
 .lc-hint { font-size: var(--fs-caption); color: var(--text-3); }
 .lc-list { display: flex; flex-direction: column; gap: 4px; min-height: 200px; }
 .lc-row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--border); transition: all var(--dur-fast); }
+/* W13-F23④：高价值核心卡（callCount ≥ 3 · 冷却态）暖色描边 + 🔥 行标 + 高频调用注 */
+.lc-row.hv { border-color: var(--warning); background: var(--warning-bg-soft); }
+.lc-hv { flex: none; line-height: 1; }
+.lc-hv-note { font-size: var(--fs-micro); color: var(--warning); font-weight: 700; }
 .lc-row.clickable { cursor: pointer; }
 .lc-row.clickable:hover { background: var(--surface-2); border-color: var(--border-strong); }
 .lc-row-main { flex: 1; min-width: 0; }
 .lc-row-title { font-size: var(--fs-body); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-row-title .lc-hv { display: inline; font-size: 13px; margin-right: 4px; }
 .lc-row-title.done { text-decoration: line-through; color: var(--text-3); }
 .lc-row-meta { margin-top: 2px; display: flex; gap: 8px; align-items: center; }
 .lc-badge { font-size: var(--fs-tiny); color: var(--text-3); }

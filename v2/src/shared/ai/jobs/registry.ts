@@ -291,7 +291,10 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   {
     id: 'project-diagnose', title: '项目诊断', family: 'proactive', kind: 'job',
     factory: 'buildProjectDiagnoseJob', factoryFile: 'shared/ai/projectDiagnose.ts',
-    hosts: ['newtab/views/CompassTree.vue'],
+    /* ★F4（V3.8.21）：诊断宿主逻辑下沉 useProjectDiag —— 工厂的唯一调用点在 composable，
+       宿主（CompassTree / ProjectCuration）只消费它的导出，故 hosts 指向真正的调用点文件。
+       矩阵对账的是"工厂在哪被调"，不是"按钮画在哪"。 */
+    hosts: ['newtab/composables/useProjectDiag.ts', 'newtab/views/CompassTree.vue', 'newtab/views/ProjectCuration.vue'],
     caps: { apply: true, paneMode: 'context' },
     note: 'N2（V3.8.18）：单项目体检，与设置页 diagnose（整库会诊）各走各的。五维度结论与标签由规则算死（枚举不可自造），模型只写建议动作；采纳即把报告写进 chrome.storage.session 并顶开中央弹窗，项目舱据此挂常驻标签',
   },

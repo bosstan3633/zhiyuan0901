@@ -79,10 +79,23 @@ const emit = defineEmits<{
   (e: 'menu', projId: string): void
   (e: 'focus', projId: string): void
   (e: 'del', projId: string): void
+  /** ★F2：项目层模板导入（# 成功指标 / ## 任务 下移一级解析），弹窗在宿主 CompassTree */
+  (e: 'importTemplate', projId: string): void
+  /** ★F1：删除成功指标（走真源 removeMetricWithConfirm；本组件只透传，不实现删除） */
+  (e: 'delMetric', metricId: string): void
   /** N2：还没报告 → 跑诊断（走 AI 抽屉，手动触发红线）；已有报告 → 打开中央弹窗 */
   (e: 'diagRun', projId: string): void
   (e: 'diagReport', projId: string): void
 }>()
+
+/** ★F5：整块舱头可拖（替代原独立 ⠿ 手柄）。舱头内的按钮/就地改名区不许起拖——
+ *  按住它们是想点按或改名，不是拖排序（在 dragstart 里按目标拦截，比给每个子元素
+ *  加 draggable=false 更省事且不漏）。 */
+function onHeadDragStart(dirId: string, projId: string, ev: DragEvent) {
+  const el = ev.target as HTMLElement | null
+  if (el?.closest('button, [contenteditable="true"], input, .tw-menu')) { ev.preventDefault(); return }
+  emit('dragstart', dirId, projId, ev)
+}
 
 /** 断链模式下，没缺口的指标/项目一律隐藏 */
 const shownMetrics = computed(() =>
@@ -113,7 +126,17 @@ function hasClue(t: TaskCard): boolean {
     :style="{ '--hue': hue }"
     :data-tower="proj.id"
   >
-    <header class="tw-head" @click="emit('openPano', proj.id)">
+    <header
+      class="tw-head"
+      draggable="true"
+      title="拖动可排序（仅同一战略目标内）；点击进入全景"
+      @click="emit('openPano', proj.id)"
+      @dragstart="onHeadDragStart(dir.id, proj.id, $event)"
+      @dragover.prevent="emit('dragover', dir.id, proj.id)"
+      @dragleave="emit('dragleave', proj.id)"
+      @drop.prevent="emit('drop', dir.id, proj.id)"
+      @dragend="emit('dragleave', proj.id)"
+    >
       <span class="tw-idx">{{ idx }}</span>
       <div class="tw-id">
         <h3 class="tw-name">
@@ -145,21 +168,12 @@ function hasClue(t: TaskCard): boolean {
           @diag-report="(id) => emit('diagReport', id)"
         />
         <div class="tw-acts" @click.stop>
-          <!-- ★拖拽手柄：只在同一战略目标内排序，跨目标不接受（改归属是另一件事，走项目详情） -->
-          <span
-            class="tw-grip"
-            draggable="true"
-            title="拖拽排序（仅同一战略目标内；主攻恒在前排）"
-            @dragstart="emit('dragstart', dir.id, proj.id, $event)"
-            @dragover.prevent="emit('dragover', dir.id, proj.id)"
-            @dragleave="emit('dragleave', proj.id)"
-            @drop.prevent="emit('drop', dir.id, proj.id)"
-            @dragend="emit('dragleave', proj.id)"
-          >⠿</span>
-          <button class="tw-act" title="AI 依使命与本项目建议成功指标（查重后采纳才创建）" @click="emit('aiMetric', proj.id)">✦</button>
+          <!-- ★F5 瘦身（用户 2026-10-15 拍板「激进版」）：舱头常驻只留三控件 —— ＋指标 / ⋯ / 折叠。
+               原「⠿ 拖拽手柄 + ✦ AI建议 + 📌 置顶 + ▾ 菜单」四枚低频/难懂的图标全部退场：
+               拖拽改为整块舱头可拖（见 onHeadDragStart）；✦/📌 收进「⋯」菜单；
+               菜单钮由 ▾ 改「⋯」，与折叠箭头不再打架（此前两个 ▾ 并排，语义全靠 title 撑）。 -->
           <button class="tw-act" title="在本项目下添加成功指标" @click="emit('addMetric', proj.id)">＋指标</button>
-          <button class="tw-act" :class="{ on: proj.pinned }" :title="proj.pinned ? '取消置顶' : '置顶到本目标前排'" @click="emit('pin', dir.id, proj.id)">📌</button>
-          <button class="tw-act" :class="{ on: menuOn }" title="更多操作（设主攻 / 进详情 / 删除）" @click="emit('menu', proj.id)">▾</button>
+          <button class="tw-act menu" :class="{ on: menuOn }" title="更多操作（主攻 / 置顶 / AI 建议指标 / 导入模板 / 删除项目）" @click="emit('menu', proj.id)">⋯</button>
           <!-- ★折叠必须双向：开与合都能点到（判据 W11-3） -->
           <button class="tw-fold" :aria-expanded="open" :title="open ? '收起本项目' : '展开本项目'" @click="emit('fold', proj.id)">
             {{ open ? '▾' : '▸' }}
@@ -171,7 +185,8 @@ function hasClue(t: TaskCard): boolean {
             <button class="twm-item" @click="emit('menu', proj.id); emit('pin', dir.id, proj.id)">
               {{ proj.pinned ? '☆ 取消置顶' : '📌 置顶到本目标前排' }}
             </button>
-            <button class="twm-item" @click="emit('menu', proj.id); emit('addMetric', proj.id)">＋ 添加成功指标</button>
+            <button class="twm-item" @click="emit('menu', proj.id); emit('aiMetric', proj.id)">✦ AI 建议指标</button>
+            <button class="twm-item" @click="emit('menu', proj.id); emit('importTemplate', proj.id)">📋 导入模板（指标与任务）</button>
             <!-- ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：舱头「全景」与项目塔
                  已能就地看全这个项目，这枚「进入项目详情页」随之退役；跨目标改归属一类动作
                  仍在项目塔的拖拽与骨架条里做（见文件头「改归属不跨目标」说明）。 -->
@@ -204,6 +219,7 @@ function hasClue(t: TaskCard): boolean {
           @edit-title="(mid, ev) => emit('editTitle', mid, ev)"
           @save-title="(mid, ev) => emit('saveTitle', mid, ev)"
           @cancel-title="emit('cancelTitle', $event)"
+          @del-metric="(mid) => emit('delMetric', mid)"
         />
       </div>
 
@@ -250,8 +266,10 @@ function hasClue(t: TaskCard): boolean {
 .tw-head {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
   padding: 18px 22px 16px 24px;
-  cursor: pointer; transition: background var(--dur);
+  /* ★F5：整块舱头可拖（原独立 ⠿ 手柄退役）。grab 表达"能拖"，点击行为不变（仍进全景）。 */
+  cursor: grab; transition: background var(--dur);
 }
+.tw-head:active { cursor: grabbing; }
 .tw-head:hover { background: color-mix(in srgb, var(--hue) 6%, transparent); }
 /* ★序号牌 34px：原型 .tw-idx 是舱的"身份印章"，22px 时与 12px 指标序号同量级、层级拉不开 */
 .tw-idx {
@@ -287,14 +305,10 @@ function hasClue(t: TaskCard): boolean {
 .tower.is-dragging { opacity: .5; }
 /* ★落位指示用 inset box-shadow，绝不挤动版面（R3-B2 明令） */
 .tower.drop-on { box-shadow: inset 0 3px 0 0 var(--hue); }
-.tw-grip {
-  font-size: var(--fs-sub); color: var(--text-4); cursor: grab;
-  padding: 2px 4px; border-radius: 5px; line-height: 1; user-select: none;
-}
-.tw-grip:hover { color: var(--text-2); background: var(--surface-2); }
-.tw-grip:active { cursor: grabbing; }
+/* ★F5：原 .tw-grip 样式已随「⠿ 手柄退役、整块舱头可拖」一并删除——
+   死 CSS 不删会被 dead-css-scan 判孤儿。 */
 .tw-act.on { color: var(--accent-ink); background: var(--accent-light); }
-/* ▾ 折叠菜单：设主攻 / 置顶 / 加指标 / 进详情 / 删除（删除仍走报数+确认+撤销，防呆不降级） */
+/* ⋯ 菜单：主攻 / 置顶 / AI 建议指标 / 导入模板 / 删除（删除仍走报数+确认+撤销，防呆不降级） */
 .tw-menu {
   position: absolute; top: 100%; right: 0; z-index: 30; margin-top: 4px;
   min-width: 190px; background: var(--surface); border: 1px solid var(--border-strong);
@@ -313,11 +327,9 @@ function hasClue(t: TaskCard): boolean {
 .tw-act {
   font-size: var(--fs-micro); color: var(--text-3);
   padding: 3px 7px; border-radius: 6px; cursor: pointer; transition: all var(--dur); white-space: nowrap;
-  /* ★W12(V3.8.12)真缺陷（theme-audit 100 图实跑抓到）：这条只给了 color/padding，
-     没给 background 与 border ⇒ 浏览器默认 buttonface 白底透出来，在 linear/raycast
-     深色主题下就是一排白块，文字被白底吃掉看着像"按钮坏了"（notion 下则是白底带框）。
-     hover 时才设 background，所以静止态与 hover 态底色不一致，看着更怪。
-     修法：显式给 transparent 底 + 透明边框，把 hover 态的 accent 底留给 hover。 */
+/* ★W12(V3.8.12)真缺陷（theme-audit 100 图实跑抓到）：这条只给了 color/padding，
+   没给 background 与 border ⇒ 浏览器默认 buttonface 白底透出来，深色主题下就是一排白块。
+   修法：显式给 transparent 底 + 透明边框，把 hover 态的 accent 底留给 hover。 */
   background: transparent; border: 1px solid transparent;
 }
 .tw-act:hover { color: var(--accent-ink); background: var(--accent-light); border-color: transparent; }

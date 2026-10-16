@@ -15,6 +15,8 @@ import {
   aggregateRange, stockAt,
   type DailyStats, type RangeAgg
 } from './dailyStats'
+/* W13-T1：高价值冷却卡判定与 LifecyclePanel 同源（三态阈值单真源） */
+import { lifecycleState } from './lifecycle'
 
 /* ================= 周窗口（原 weeklyReport.ts 的唯一留存能力 · T9/T10 并入） ================= */
 
@@ -331,4 +333,264 @@ export function buildReview(stats: DailyStats, rt: RangeType, opts: WindowOpts =
 /** 概览带「5 存量 chip 的时间绑定」——点某天即显示那天库容（§5.2 核心创新） */
 export function stockBoundTo(stats: DailyStats, day: string | null, linkCount = 0) {
   return stockAt(stats, day || undefined, linkCount)
+}
+
+/* ═════════════════ W13-T1（2026-10-16 · 画像洞察极简认知版）═════════════════
+   四个纯函数：底盘指标 ×2 + 高价值冷却卡筛选 + 四尺度一句话诊断生成。
+   只读纪律照旧：不写任何存储；所有判定可断言（无 AI 参与）。 */
+
+/** 支撑关联表的最小入参形状（`AppData.supportLinks` 结构子集） */
+export interface SupportLinkLike { taskId: string; subId?: string; resourceId: string }
+/** 资源生命周期 + 热度字段交集（三类卡均满足；`kind` 由本函数按调用方语义补齐） */
+export type CoolCardLike = Omit<import('./lifecycle').LifecycleInput, 'kind'> & { callCount?: number; title?: string }
+
+/**
+ * F3 · 任务证据支撑率（%）= 有 SupportLink 记录的未删任务数 ÷ 未删任务总数。
+ * 口径：`subId` 挂在子任务上的关联同样计入其宿主任务（子任务有支撑 = 这件事有证据）；
+ * 分母为 0 返回 0（UI 显示 `—` 由调用方决定）。四舍五入到整数。
+ */
+export function computeTaskSupportRate(
+  tasks: readonly { id: string; deletedAt?: number }[],
+  supportLinks: readonly SupportLinkLike[]
+): number {
+  const alive = tasks.filter(t => !t.deletedAt)
+  if (!alive.length) return 0
+  const withSup = new Set<string>()
+  for (const l of supportLinks) if (l && l.taskId) withSup.add(l.taskId)
+  let n = 0
+  for (const t of alive) if (withSup.has(t.id)) n++
+  return Math.round((n / alive.length) * 100)
+}
+
+/** 主攻集入参：方向树结构子集——项目需带 `isFocused` 与 `status`（archived 不算主攻） */
+export interface FocusDirLike {
+  projects: { id: string; isFocused?: boolean; status?: string }[]
+}
+/** 事件级有效动作的最小形状（`CardEvent` 结构子集） */
+export interface ActEventLike { ts: number; action: string; kind: string; cardId: string }
+
+/**
+ * F3 · 近 N 天精力落主攻（%）= 归属主攻项目的有效动作数 ÷ 近 N 天总有效动作数。
+ *
+ * 口径（与 `dailyStats.actsOf` 的事件来源部分对齐，诚实登记）：
+ *  · 有效动作 = 事件流中的 `create` / `call` / `status`（非 system）——与 actsOf 的 c+u+s 三段一致；
+ *  · 推进三维（focus / link / sub）不在 CardEvent 流里（它们由 dailyFocus / supportLinks /
+ *    subtasks 字段现算），故不进本口径分母（两处口径不同源时宁可少算、不可编造）；
+ *  · 归属判定：事件 cardId → 任务表 → projectId → 主攻项目集（`isFocused && status!=='archived'`）；
+ *    资源卡 / 好奇卡无 projectId ⇒ 计分母不计分子（无法归属的诚实处理）。
+ * 分母为 0 返回 0；结果四舍五入到整数。
+ */
+export function computeMainFocusShare(
+  events: readonly ActEventLike[],
+  directions: readonly FocusDirLike[],
+  tasks: readonly { id: string; projectId?: string; deletedAt?: number }[],
+  days = 30,
+  now = Date.now()
+): number {
+  const focusIds = new Set<string>()
+  for (const d of directions) for (const p of d.projects || [])
+    if (p.isFocused && p.status !== 'archived') focusIds.add(p.id)
+  const projOf = new Map<string, string | undefined>()
+  for (const t of tasks) if (!t.deletedAt) projOf.set(t.id, t.projectId)
+  const from = now - days * 86400_000
+  let total = 0, hit = 0
+  for (const e of events) {
+    if (!e || e.kind === 'system') continue
+    if (e.action !== 'create' && e.action !== 'call' && e.action !== 'status') continue
+    if (!(e.ts >= from && e.ts <= now)) continue
+    total++
+    const pid = projOf.get(e.cardId)
+    if (pid && focusIds.has(pid)) hit++
+  }
+  if (!total) return 0
+  return Math.round((hit / total) * 100)
+}
+
+/**
+ * F20/F23 · 高价值沉睡证据卡 = 处于**冷却期**且历史调用 `callCount >= 3` 的卡。
+ *
+ * 三态判定复用 `lifecycleState`（与 LifecyclePanel 完全同源，杜绝两处阈值漂移）；
+ * `coolingDays` 仅作为**无自定义阈值卡**的默认冷却天数（传入即临时覆盖出厂 30 天，
+ * 不改模块全局状态、不写原卡——判定用的是一次性展开副本）。
+ * 返回按 `callCount` 降序（最该唤醒的排最前）。
+ */
+export function highValueCoolingCardsOf<C extends CoolCardLike>(
+  resources: readonly C[],
+  coolingDays?: number,
+  minCalls = 3,
+  now = Date.now()
+): C[] {
+  const def = coolingDays
+  const out: { card: C; calls: number }[] = []
+  for (const raw of resources) {
+    const calls = raw.callCount || 0
+    if (calls < minCalls) continue
+    const card = { ...raw, kind: 'resource' as const }
+    if (def !== undefined && !raw.coolingDays) card.coolingDays = def
+    if (lifecycleState(card, now) !== 'cooling') continue
+    out.push({ card: raw, calls })
+  }
+  out.sort((a, b) => b.calls - a.calls)
+  return out.map(x => x.card)
+}
+
+/* ================= 四尺度一句话诊断（D2 · buildConciseInsights） ================= */
+
+/** 单条诊断：`html` 允许内嵌 <b> 强调（调用方 v-html 渲染）；`ctaAction` 由宿主分发执行 */
+export interface ConciseInsight {
+  html: string
+  warn: boolean
+  ctaLabel: string
+  /**
+   * 宿主动作分发键。
+   * ★W15-T1（2026-10-16 用户拍板）语义校正——**键必须与它承诺的东西同型**：
+   *   「调出 N 张支撑卡」给的是**卡片清单**（ammo），不是「今日调出事件流水」；
+   *   「看可调出的旧卡」给的是**冷却区卡片清单**（cooling），不是全量记录。
+   *   键集：openFocusBoard / bindFocus / callSupport→ammo / openBattle / openObjectives /
+   *        openLog（= 全部记录，仅页头用）/ cooling / convertCurio / wakeCooling / openLifecycle
+   */
+  ctaAction: string
+}
+
+export interface ConciseCtx {
+  /** ① 今天（F7 三态推导） */
+  today: {
+    /** 游离/无弹药焦点任务数（未挂主攻或 0 支撑卡） */
+    freeCount: number
+    /** 为游离焦点在卡池里词面/标签匹配到的现成卡片数 */
+    freeMatched: number
+    /** 焦点任务关联支撑卡去重总数（已备弹药） */
+    readyCards: number
+    todayCalled: number
+    todayAdd: number
+    /** 调出入台复用比（0-1，今日无入台时为 null） */
+    reusePct: number | null
+    focusDone: number
+    focusTotal: number
+  }
+  /** ② 本周（F12） */
+  week: {
+    acts: number
+    /** 本周调出旧卡次数 */
+    called: number
+    /** 单一战略目标最高产出占比（0-1） */
+    topShare: number
+    /** 0 触达（产出为 0）的战略目标数 */
+    zeroTouch: number
+  }
+  /** ③ 本月（F16） */
+  month: {
+    entropyFrom: number
+    entropyTo: number
+    /** 停留 exploring 超 14 天的好奇心卡数 */
+    oldCurio: number
+    /** 其中已有同标签资源卡支撑、可一键转化的成熟张数 */
+    matureMatched: number
+    /** 本月投射入策展台金字塔张数 */
+    projected: number
+  }
+  /** ④ 本年度（F20） */
+  year: {
+    /** 冷却期中 callCount>=3 的高价值核心卡数 */
+    coolingHigh: number
+    /** 全库存活卡在头号战略方向的归属占比文案（如「主方向 X%」；无方向时 ''） */
+    dirFitText: string
+  }
+}
+
+const INSIGHT_NEVER = '暂无可比对基线'
+/** 生成四条一句话诊断（确定性推导，优先级严格按 F7 / F12 / F16 / F20） */
+export function buildConciseInsights(c: ConciseCtx): Record<'today' | 'week' | 'month' | 'year', ConciseInsight> {
+  /* ---- 今天：① 游离有弹药缺口 → ② 备齐待调用 → ③ 已推进 ---- */
+  let today: ConciseInsight
+  if (c.today.freeCount > 0) {
+    today = {
+      html: `今天 <b>${c.today.freeCount}</b> 件焦点任务还游离在主攻之外${c.today.freeMatched > 0 ? `，卡池里躺着 <b>${c.today.freeMatched}</b> 张词面匹配的现成支撑卡` : '，卡池里也没有匹配的现成卡'}——先归位再开工。`,
+      warn: true,
+      ctaLabel: c.today.freeMatched > 0 ? `🔗 一键归入主攻 + 绑 ${c.today.freeMatched} 张卡 ›` : '🔗 去方向台挂到主攻 ›',
+      ctaAction: 'bindFocus'
+    }
+  } else if (c.today.todayCalled === 0) {
+    today = {
+      html: `焦点已全部挂上主攻，<b>${c.today.readyCards}</b> 张支撑卡备齐待调用——弹药就位，别让它在池子里睡觉。`,
+      warn: false,
+      ctaLabel: `↗ 调出 ${c.today.readyCards} 张支撑卡 ›`,
+      /* ★W15-T1：N = 已备弹药总数（与"今日调出次数"无关）。原落点 openLog 给的是今日调出**事件流水**，
+         今日调出为 0 时点开就是空的 —— 现在给这 N 张卡的**清单**。 */
+      ctaAction: 'ammo'
+    }
+  } else {
+    const reuse = c.today.reusePct === null ? INSIGHT_NEVER : `旧卡复用 <b>${Math.round(c.today.reusePct * 100)}%</b>`
+    today = {
+      html: `今日入台 <b>${c.today.todayAdd}</b> 张、调出 <b>${c.today.todayCalled}</b> 次，${reuse}，焦点推进 ${c.today.focusDone}/${c.today.focusTotal}——晚上打开战报看全貌。`,
+      warn: false,
+      ctaLabel: '📊 打开今日战报 ›',
+      ctaAction: 'openBattle'
+    }
+  }
+
+  /* ---- 本周（F12）：单点淤积 / 只推任务不调库存 → warn ---- */
+  let week: ConciseInsight
+  if (c.week.acts > 0 && c.week.topShare > 0.75 && c.week.zeroTouch > 0) {
+    week = {
+      html: `本周 <b>${Math.round(c.week.topShare * 100)}%</b> 的产出压在同一个战略目标上，还有 <b>${c.week.zeroTouch}</b> 个目标零触达——精力单点淤积，分一点给冷的地方。`,
+      warn: true,
+      ctaLabel: '看方向产出明细 ›',
+      ctaAction: 'openObjectives'
+    }
+  } else if (c.week.acts > 0 && c.week.called === 0) {
+    week = {
+      html: `本周 <b>${c.week.acts}</b> 件有效动作，却一次旧卡都没调出——只推任务、不查库存，先看看手里有没有现成弹药。`,
+      warn: true,
+      ctaLabel: '看可调出旧卡 ›',
+      /* ★W15-T1：「可调出的旧卡」= 冷却区那批卡（卡片清单），不是全量事件流水 */
+      ctaAction: 'cooling'
+    }
+  } else {
+    week = {
+      html: c.week.acts > 0
+        ? `本周 <b>${c.week.acts}</b> 件有效动作、调出旧卡 <b>${c.week.called}</b> 次——推与调保持平衡，节奏健康。`
+        : '本周还没有留下有效动作——从手边一件小事开始推。',
+      warn: false,
+      ctaLabel: '看可调出的旧卡（冷却区）›',
+      ctaAction: 'cooling'
+    }
+  }
+
+  /* ---- 本月（F16）：聚焦度变化 + 超期好奇转化 ---- */
+  const dH = Math.round((c.month.entropyTo - c.month.entropyFrom) * 10) / 10
+  const trend = dH > 0 ? `发散 +${dH} bit` : dH < 0 ? `聚焦 ${dH} bit` : '持平'
+  let month: ConciseInsight
+  if (c.month.oldCurio > 0 && c.month.matureMatched > 0) {
+    month = {
+      html: `知识熵 <b>${c.month.entropyFrom} → ${c.month.entropyTo} bit（${trend}）</b>；<b>${c.month.oldCurio}</b> 张好奇心卡停在探索中超 14 天，其中 <b>${c.month.matureMatched}</b> 张已有同标签资源卡支撑——就差临门一脚。`,
+      warn: true,
+      ctaLabel: `一键转化 ${c.month.matureMatched} 张成熟好奇卡 ›`,
+      ctaAction: 'convertCurio'
+    }
+  } else {
+    month = {
+      html: `知识熵 <b>${c.month.entropyFrom} → ${c.month.entropyTo} bit（${trend}）</b>，本月入策展金字塔 <b>${c.month.projected}</b> 张——采集正在变成表达。`,
+      warn: false,
+      ctaLabel: '🗂️ 全部记录 ›',
+      ctaAction: 'openLog'
+    }
+  }
+
+  /* ---- 本年度（F20）：双轮愿景契合 + 唤醒核心冷却卡 ---- */
+  const year: ConciseInsight = c.year.coolingHigh > 0
+    ? {
+        html: `${c.year.dirFitText || '全库存活卡方向分布已就绪'}；冷却期里有 <b>${c.year.coolingHigh}</b> 张调用 ≥3 次的核心证据卡正在睡——它们是最该被唤醒的资产。`,
+        warn: true,
+        ctaLabel: `🔥 去下方唤醒 ${c.year.coolingHigh} 张核心卡 ›`,
+        ctaAction: 'wakeCooling'
+      }
+    : {
+        html: `${c.year.dirFitText || '全库存活卡方向分布已就绪'}；暂无高价值卡沉睡——资产保持温热。`,
+        warn: false,
+        ctaLabel: '看生命周期 ›',
+        ctaAction: 'openLifecycle'
+      }
+
+  return { today, week, month, year }
 }

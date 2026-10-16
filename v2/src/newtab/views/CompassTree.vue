@@ -13,7 +13,7 @@ import { matchPinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin
 import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 // R146（回退契约）：罗盘节点删除走真源（确认报数 + 3 秒撤销），与策展台/项目抽屉同一口径
-import { compassNodeCounts, removeCompassNode, restoreCompassNode, type CompassNodeKind } from '@/shared/utils/compassCrud'
+import { compassNodeCounts, removeCompassNode, restoreCompassNode, removeMetricWithConfirm, type CompassNodeKind } from '@/shared/utils/compassCrud'
 import { useConfirm } from '@/shared/components/confirm'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
@@ -28,12 +28,14 @@ import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 // W11（V3.8.11）战略金字塔：骨架控制条 / 层级展开面板 / 项目舱 / 项目全景 四件套（原型 v1 视觉基准）
 import CompassSpine from '../components/compass/CompassSpine.vue'
 import CompassLayerPanel from '../components/compass/CompassLayerPanel.vue'
+import CompassLayerList from '../components/compass/CompassLayerList.vue'
 import CompassTower from '../components/compass/CompassTower.vue'
 import CompassPano from '../components/compass/CompassPano.vue'
 import { buildCompassMeta } from './compassMeta'
 import type { ProjectMeta } from './compassMeta'
 import ImportTemplateModal from '../components/ImportTemplateModal.vue'
 import type { GoalParseResult } from '@/shared/utils/mdImport'
+import { useProjectDiag } from '../composables/useProjectDiag'
 
 const router = useRouter()
 const route = useRoute()
@@ -59,68 +61,10 @@ async function aiChain(level: import('@/shared/ai/scenarios').ChainLevel, anchor
 }
 
 // ---- N2（V3.8.18）单项目 AI 诊断：跑（AI 抽屉）→ 存（会话缓存）→ 看（中央弹窗） ----
-/** ★R135-5 懒通道：AI 栈不许进入口 chunk，诊断引擎整块按需 import（模块级单例缓存） */
-type DiagEng = typeof import('@/shared/ai/projectDiagnose')
-let diagEngP: Promise<DiagEng> | null = null
-const diagEngOf = (): Promise<DiagEng> => (diagEngP ||= import('@/shared/ai/projectDiagnose'))
-const diagEng = shallowRef<DiagEng | null>(null)
-
+/** ★F4（2026-10-15）：宿主逻辑下沉 useProjectDiag（三处消费：塔/全景/项目详情共用一份会话缓存）。
+ *  这里只保留「把 job 交给本页 AiDrawer」这一条宿主职责。 */
 const ProjectDiagnoseModal = defineAsyncComponent(() => import('../components/compass/ProjectDiagnoseModal.vue'))
-const diags = shallowRef<Record<string, import('@/shared/ai/projectDiagnose').ProjectDiagnosis>>({})
-const diagOpen = ref(false)
-const diagProjId = ref('')
-/** 过期态＝当前数据重算的指纹 ≠ 报告里的指纹；引擎未加载或没报告的项目不白算 */
-const diagStaleMap = computed<Record<string, boolean>>(() => {
-  const out: Record<string, boolean> = {}
-  const eng = diagEng.value
-  if (!eng || !d.value) return out
-  for (const pid of Object.keys(diags.value)) {
-    const fresh = eng.runProjectDiagnosis(d.value, pid)
-    out[pid] = !fresh || fresh.fingerprint !== diags.value[pid].fingerprint
-  }
-  return out
-})
-const diagFor = (pid: string) => diags.value[pid] || null
-const diagStale = (pid: string) => !!diagStaleMap.value[pid]
-
-/** 与 aiChain 同一道接入闸：没配好 AI 就在入口处拦下，不白建 job */
-async function startProjectDiag(projId: string) {
-  const [{ loadAiConfig, aiReady, aiConfig }, eng] = await Promise.all([import('@/shared/ai/config'), diagEngOf()])
-  await loadAiConfig()
-  if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
-  if (!d.value) return
-  if (aiPersonaId.value === 'default' && aiConfig.value.defaultPersona) aiPersonaId.value = aiConfig.value.defaultPersona
-  const job = eng.buildProjectDiagnoseJob({ d: d.value, projId })
-  if (!job) { showToast('⚠ 项目不存在，请刷新后重试'); return }
-  aiJob.value = job
-}
-function openDiagReport(projId: string) {
-  if (!diags.value[projId]) { void startProjectDiag(projId); return }
-  diagProjId.value = projId
-  diagOpen.value = true
-}
-/** 弹窗里的「重新诊断」= 关窗 + 重新跑（手动触发红线：从不自动重跑） */
-function rerunDiag() {
-  const pid = diagProjId.value
-  diagOpen.value = false
-  if (pid) void startProjectDiag(pid)
-}
-const diagReport = computed(() => (diagOpen.value ? diags.value[diagProjId.value] || null : null))
-
-// 挂载即恢复会话缓存里的报告（关浏览器即失效，所以"恢复"只在本次会话内有意义）
-onMounted(() => {
-  void diagEngOf().then(async eng => {
-    diagEng.value = eng
-    diags.value = await eng.loadAllDiagnoses()
-    // 采纳写库后用回调顶开弹窗——不让宿主去轮询 storage
-    eng.setProjectDiagSavedHandler(rep => {
-      diags.value = { ...diags.value, [rep.projId]: rep }
-      diagProjId.value = rep.projId
-      diagOpen.value = true
-    })
-  })
-})
-onUnmounted(() => { diagEngP = null; diagEng.value?.setProjectDiagSavedHandler(null); diagEng.value = null })
+const { diagFor, diagStale, startProjectDiag, openDiagReport, rerunDiag, diagOpen, diagProjId, diagReport } = useProjectDiag({ d, setJob: (job) => { aiJob.value = job } })
 
 // ---- R54-A1：来源感知返回（?from=proj&p= → 项目详情；默认方向台）+ A3 定位 + A4 Esc ----
 const fromProjId = computed(() => route.query.from === 'proj' && typeof route.query.p === 'string' ? route.query.p : '')
@@ -221,21 +165,13 @@ const allExpanded = computed(() => {
 /** 反向开关：点一次反向。正反都可达，不做单向门。 */
 function toggleAllNodes() { if (allExpanded.value) collapseAllNodes(); else expandAllNodes() }
 
-/* ══ ★V3.8.20（用户拍板 2026-10-15）「⚙ 工具」下拉 ══
- * 「↕ 全部展开/收起」「👁 已完成项目」从页头常驻行收进一枚下拉 —— 视图切换是这行
- * 唯一的主焦点（它决定下方长什么样），这两枚是次级开关，不配与它同级并排。
- * 病根＝上一版它们常驻时，页头一行四件东西（视图切换 + 展开收起 + 已完成 + 统计）
- * 谁都不像主入口。外点关闭与 projMenu 同一套路（capture 阶段监听，点到工具区外即收）。
+/* ══ ★V3.8.20（用户拍板 2026-10-15）「⚙ 工具」下拉 —— ★F6 二次翻转退役（用户拍板 2026-10-16）══
+ * 两枚次级开关（↕ 展开收起 / 👁 已完成）随 F6 恢复为 .hero-acts 常驻按钮：下拉形态让高频操作
+ * 变两跳、且「👁 已完成项目：显示/隐藏」这种状态开关藏进菜单后当前状态不可见（V3.8.20 收纳
+ * 决策的代价，二次翻转理由见模板 .hero-tools 处备案）。
+ * toolsOpen state 与外点关闭监听（onDocClickCloseTools / capture 阶段 click）随下拉一并退役。
  * ★N4 页头文案就地编辑（眉标/大标题/副标 + ✎ + UIPrefs.compassCopy）随左文案栏一并退役：
  * 方向台是工作台面不是宣传页，定调语由骨架条 .spine-h「上层定方向 · 下层见动作」承担。 */
-const toolsOpen = ref(false)
-function onDocClickCloseTools(e: MouseEvent) {
-  if (!toolsOpen.value) return
-  if ((e.target as HTMLElement | null)?.closest('.hero-tools')) return
-  toolsOpen.value = false
-}
-onMounted(() => document.addEventListener('click', onDocClickCloseTools, true))
-onUnmounted(() => document.removeEventListener('click', onDocClickCloseTools, true))
 
 /* R3-B′：项目卡头入口收敛（6 枚 → 全景 / AI / ▾），其余四项进折叠菜单 */
 const projMenu = ref<string | null>(null)
@@ -373,8 +309,17 @@ function openPano(projId: string) {
   panoId.value = projId
   viewMode.value = 'pano'
   layerOpen.value = null
+  layerView.value = null
   showToast('横向全景 · 一根泳道就是一条成功指标')
 }
+
+/** ★F4：全景当前实际聚焦的项目 —— 与 CompassPano 内部 current 的兜底口径一致
+ *  （activeId 失效时兜底到第一个项目，避免诊断态错挂在空 id 上）。 */
+const panoEffectiveId = computed(() => {
+  const g = compassMeta.value.dirs
+  for (const grp of g) for (const pm of grp.projects) if (pm.id === panoId.value) return panoId.value
+  return g[0]?.projects[0]?.id || ''
+})
 /** 从全景回到项目塔：带着 dirFilter 定位（不做「回来就丢上下文」的假双向） */
 function backToTower(projId: string) {
   viewMode.value = 'tower'
@@ -392,7 +337,10 @@ function backToTower(projId: string) {
 /** 当前聚焦的战略目标 id；'' ＝全部 */
 const dirFilter = ref('')
 /** 当前展开的层级 1|2|3；null ＝全收起 */
-const layerOpen = ref<1 | 2 | 3 | null>(null)
+/** ★F7（2026-10-16）：层级两种驻留形态互斥——layerOpen 层面板（1/2）· layerView 层级专属列表（3/5/6）；
+ *  层 4 走定位不驻留（项目舱本身已是独立全貌）。 */
+const layerOpen = ref<1 | 2 | null>(null)
+const layerView = ref<3 | 5 | 6 | null>(null)
 /** 断链模式：只留有缺口的部分 */
 const riskOnly = ref(false)
 
@@ -464,36 +412,88 @@ function findMetric(metricId: string): { proj: Project; metric: import('@/shared
   return undefined
 }
 
-/** 层级 1/2/3：同层再点收起（★双向可达，判据 W11-3） */
-function onLayerOpen(lv: 1 | 2 | 3) {
+/* ══ ★F7 层级专属列表行数据（2026-10-16）══
+   纪律同 W11-5：单一真源取自 compassMeta（第 3/5 层）与 d.tasks 未删除口径（第 6 层，
+   与 counts.tasks 一致，含无归属孤儿）——组件 props-only 零 store 零再聚合。
+   由模板 layerRows3/5/6 表达式引用，仅在 <CompassLayerList v-if="layerView"> 挂载时求值。 */
+const layerRows3 = computed(() => compassMeta.value.dirs.map((g, i) => {
+  let done = 0, total = 0
+  for (const pm of g.projects) { done += pm.done; total += pm.total }
+  return {
+    id: g.dir.id, i, name: g.dir.name,
+    done, total, pct: total ? Math.round((done / total) * 100) : 0,
+    stall: g.projects.some(p => p.stall),
+    projs: g.projects.map(pm => ({ t: pm.total, risk: !!pm.risk }))
+  }
+}))
+const layerRows5 = computed(() => {
+  const out: { id: string; title: string; dirName: string; projName: string; projId: string; total: number; done: number; pct: number; orphan: boolean }[] = []
+  for (const g of compassMeta.value.dirs) {
+    for (const pm of g.projects) {
+      const proj = findProject(pm.id)
+      for (const m of pm.metrics) out.push({
+        id: m.id, title: m.title, dirName: g.dir.name,
+        projName: proj?.name || pm.id, projId: pm.id,
+        total: m.total, done: m.done, pct: m.pct, orphan: m.orphanMetric
+      })
+    }
+  }
+  return out
+})
+const layerRows6 = computed(() => {
+  const meta = compassMeta.value
+  /* metricId → 归属路径（dirs 一次遍历建表，行内不再各自 find） */
+  const path = new Map<string, { dirName: string; projName: string; projId: string; metricTitle: string }>()
+  for (const g of meta.dirs) for (const pm of g.projects) {
+    const proj = findProject(pm.id)
+    for (const m of pm.metrics) path.set(m.id, { dirName: g.dir.name, projName: proj?.name || pm.id, projId: pm.id, metricTitle: m.title })
+  }
+  return d.value.tasks.filter(t => !t.deletedAt).map(t => {
+    const p = t.metricId ? path.get(t.metricId) : undefined
+    return {
+      id: t.id, title: t.title, status: t.status,
+      metricTitle: p?.metricTitle || null,
+      projName: p?.projName || null,
+      projId: p?.projId || t.projectId || '',
+      dirName: p?.dirName || null,
+      orphan: !p
+    }
+  })
+})
+
+/** 层级 1/2 面板：同层再点收起（★双向可达，判据 W11-3；★F7 收窄：第 3 层迁出改走 layerView） */
+function onLayerOpen(lv: 1 | 2) {
   layerOpen.value = layerOpen.value === lv ? null : lv
   if (layerOpen.value) {
+    /* 与专属列表互斥：开面板即关列表（层板与列表都占同一条视线路径） */
+    layerView.value = null
     /* ★W12：面板开在骨架条之下（第 1/2 层正文已搬进面板），滚到面板而不是"愿景卡" */
     nextTick(() => document.getElementById('lvpanel-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
   }
 }
-/** 层级 4/5/6：定位到第一处对应实体并闪一下（★先切回纵向视图，定位不许挑视图） */
-function onLocateLayer(lv: 4 | 5 | 6) {
+/** ★F7 新增（用户拍板 2026-10-16）：层级专属列表视图 3/5/6 —— 同层再点收起（双向可达），
+ *  收起即恢复打开列表前的 viewMode（viewMode 本就不被改，占位靠模板 v-if/v-else-if 链互斥）。 */
+function onLayerList(lv: 3 | 5 | 6) {
+  layerView.value = layerView.value === lv ? null : lv
+  if (layerView.value) {
+    layerOpen.value = null
+    nextTick(() => document.getElementById('lvlist-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
+  }
+}
+/** 层级 4：定位到项目舱并闪一下（★F7 收窄：5/6 的定位语义由专属列表行内「定位」入口承担） */
+function onLocateLayer(lv: 4) {
   layerOpen.value = null
+  layerView.value = null
   activeLayer.value = lv
   ensureTower(`定位第 ${lv} 层`).then(() => {
-    if (lv === 4) {
-      document.querySelector('[data-tower]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      showToast('第 4 层 · 每个项目一个独立舱，色条即项目身份')
-    } else if (lv === 5) {
-      const el = document.querySelector('.metric-card')
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      el?.classList.add('w11-flash')
-      setTimeout(() => el?.classList.remove('w11-flash'), 1400)
-      showToast('第 5 层 · 成功指标成卡，任务内嵌在指标里')
-    } else {
-      const el = document.querySelector('.tk-row')
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      el?.classList.add('w11-flash')
-      setTimeout(() => el?.classList.remove('w11-flash'), 1400)
-      showToast('第 6 层 · 每条任务都隶属某个成功指标，悬停看完整归属路径')
-    }
+    document.querySelector('[data-tower]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    showToast('第 4 层 · 每个项目一个独立舱，色条即项目身份')
   })
+}
+/** ★F7 列表行「定位」：关列表回项目塔，定位到该行所属项目舱（与左栏项目导航同一入口 gotoTower） */
+function onListLocate(projId: string, label: string) {
+  layerView.value = null
+  nextTick(() => { gotoTower(projId); showToast(`${label} · 已定位所属项目舱`) })
 }
 /** 战略目标过滤：芯片 / 目标卡 / 分组头 三处同源 */
 function onDirFilter(id: string) {
@@ -701,6 +701,47 @@ function confirmGoalImport(payload: { goal?: GoalParseResult }) {
   goalImport.value.open = false
   showToast(`✓ 已导入：项目 ${pc} · 指标 ${mc} · 任务 ${tc}${sk ? `（跳过同名 ${sk}）` : ''}`)
 }
+
+/** ★F2（2026-10-15）：项目层模板导入 —— 入口在项目舱「⋯」菜单与全景项目头 📋。
+ *  解析粒度比 R108 下移一级（# 成功指标 / ## 任务），项目名恒等于当前项目，不新建项目。
+ *  幂等口径与 R108 同源：同名指标在本项目内跳过、同名任务在各自指标内跳过。 */
+const projImport = ref<{ open: boolean; projId: string; projName: string }>({ open: false, projId: '', projName: '' })
+function openProjImport(projId: string) {
+  const proj = allProjects().find(x => x.id === projId)
+  if (!proj) { showToast('⚠ 项目已不在'); return }
+  projImport.value = { open: true, projId, projName: proj.name }
+}
+function confirmProjImport(payload: { proj?: import('@/shared/utils/mdImport').ProjImportResult }) {
+  const g = payload.proj
+  if (!g) return
+  const proj = allProjects().find(x => x.id === projImport.value.projId)
+  if (!proj) { showToast('⚠ 项目已不在'); return }
+  let mc = 0, tc = 0, sk = 0
+  for (const m of g.metrics) {
+    let met = proj.metrics.find(x => x.title === m.name)
+    if (met) { sk++; continue }
+    met = { id: uid('met'), title: m.name, taskIds: [] }
+    proj.metrics.push(met)
+    mc++
+    for (const t of m.tasks) {
+      if (d.value.tasks.some(x => !x.deletedAt && x.projectId === proj.id && x.metricId === met!.id && x.title === t.name)) { sk++; continue }
+      const task: TaskCard = {
+        id: uid('task'), kind: 'task', title: t.name,
+        projectId: proj.id, metricId: met.id,
+        status: 'todo', priority: 'medium',
+        description: t.detail || undefined,
+        tags: [], customFields: {}, pinned: false,
+        createdAt: Date.now(), updatedAt: Date.now()
+      }
+      d.value.tasks.unshift(task)
+      met.taskIds.push(task.id)
+      tc++
+    }
+  }
+  store.persist()
+  projImport.value.open = false
+  showToast(`✓ 已导入：指标 ${mc} · 任务 ${tc}${sk ? `（跳过同名 ${sk}）` : ''}`)
+}
 /** R85（T0-A）：store 现返回结构化结果（超限会被拒绝），由调用方 toast——方向树此前无任何提示 */
 function onToggleFocus(id: string) {
   showToast(toggleFocusProject(id).msg)
@@ -718,6 +759,12 @@ function addMetric(projId: string) {
   store.persist()
   expandedMetrics.value.add(metric.id)
   showToast('✓ 指标已创建')
+}
+
+/** ★F1：删除成功指标 —— 四视图共用真源流程（报数确认 → 摘除 → 撤销），本函数只接线。
+ *  指标卡 hover 🗑、「⋯」菜单都走这里；项目舱菜单不放指标删除（菜单只管项目级动作）。 */
+function delMetricById(metricId: string) {
+  void removeMetricWithConfirm(d.value, metricId, () => store.persist())
 }
 
 /** 第卅三轮 REQ-016：添加任务双模式（新建 / 关联）→ 共享抽屉 TaskAddDrawer */
@@ -989,14 +1036,14 @@ onUnmounted(() => {
 
 <template>
   <div class="compass-layout">
-    <!-- ══ W12 HERO 区（V3.8.20 收口版）：上=动作行（视图切换主焦点 + ⚙ 工具下拉），下=读数行 ══
+    <!-- ══ W12 HERO 区（V3.8.22 F6 收口）：上=动作行（视图切换主焦点 + 两枚常驻开关），下=读数行（左对齐） ══
          ★V3.8.20（用户拍板 2026-10-15）：左上标题文案区（.hero-l：面包屑/眉标/大标题/副标 + N4 就地编辑）
          整块退役 —— 方向台是工作台面不是宣传页，首屏直接给「动作 + 状态」；定调语由骨架条
          .spine-h「战略骨架 · 上层定方向 · 下层见动作」承担，不摆两处。
          健康度徽章并入读数行首位（原在左栏标题下，N13 的意图是"状态不参与动作区竞争"，
-         挪到读数行同样满足 —— 它与计数同属"这页现在什么状况"）。
-         「全部展开/收起」「👁 已完成」收进「⚙ 工具」下拉，视图切换成为动作行唯一主焦点。
-         ★fromProjId / goBack / Esc 返回保留（R54-A1 深链来路感知），来路文本随行显示。 -->
+          挪到读数行同样满足 —— 它与计数同属"这页现在什么状况"）。
+          ★F6（2026-10-16 二次翻转）：「全部展开/收起」「👁 已完成」恢复动作行常驻，⚙ 下拉整壳退役。
+          ★fromProjId / goBack / Esc 返回保留（R54-A1 深链来路感知），来路文本随行显示。 -->
     <section class="hero">
       <div class="hero-acts">
         <!-- ★W11 视图切换（D3：方向台内第二视图）。双向可达：两个按钮都在，任何时候都能来回切。
@@ -1004,22 +1051,22 @@ onUnmounted(() => {
              病根＝它原来和旁边六枚同尺寸、同底色、同字重的按钮挤在一排里，谁都不像主入口；
              而这两个视图恰恰是这一页的第一个决策（它决定下方长什么样），其余都是它的从属开关。 -->
         <div class="view-seg" role="tablist" aria-label="方向台视图形态">
-          <button class="vs-b" :class="{ on: viewMode === 'tower' }" :aria-selected="viewMode === 'tower'" title="纵向项目舱列 · 看我在哪个位置" @click="viewMode = 'tower'">项目塔</button>
-          <button class="vs-b" :class="{ on: viewMode === 'pano' }" :aria-selected="viewMode === 'pano'" title="横向泳道全景 · 看这一个项目的完整链路" @click="viewMode = 'pano'">项目全景</button>
+          <button class="vs-b" :class="{ on: viewMode === 'tower' }" :aria-selected="viewMode === 'tower'" title="纵向项目舱列 · 看我在哪个位置" @click="viewMode = 'tower'; layerView = null">项目塔</button>
+          <button class="vs-b" :class="{ on: viewMode === 'pano' }" :aria-selected="viewMode === 'pano'" title="横向泳道全景 · 看这一个项目的完整链路" @click="viewMode = 'pano'; layerView = null">项目全景</button>
         </div>
         <span v-if="fromProjName" class="hero-from">来自项目「{{ fromProjName }}」</span>
         <div class="hero-tools">
-          <button class="tree-tool" :class="{ on: toolsOpen }" @click.stop="toolsOpen = !toolsOpen" title="展开 / 收起 / 已完成显隐">⚙ 工具</button>
-          <div v-if="toolsOpen" class="hero-tools-menu">
-            <!-- ★V3.8.18（N11）语义保留：反向开关自带当前状态，点一次反向，正反都可达（不做单向门） -->
-            <button class="tree-tool menu-item" @click="toggleAllNodes(); toolsOpen = false"
-              :title="allExpanded ? '当前：全部展开。点击收起全部战略目标与指标' : '当前：默认收起。点击展开全部层级'">↕ {{ allExpanded ? '全部收起' : '全部展开' }}</button>
-            <!-- ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：「← 返回项目详情」按钮退役。
-                 ★但 fromProjId / goBack / Esc 返回**保留**——那是「从项目详情深链进来后按 Esc 送回原处」的
-                 来路感知（R54-A1），不是"进项目详情"的入口，两者语义不同。 -->
-            <button class="tree-tool menu-item" :class="{ off: !showDone }" @click="toggleShowDone(); toolsOpen = false"
-              title="与方向台页头同一开关（同一偏好，一处切换全台生效）">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
-          </div>
+          <!-- ★F6 翻转（用户拍板 2026-10-16，二次翻转 V3.8.20 N11 收纳决策）：「↕ 展开/收起」「👁 已完成」
+               从 ⚙ 工具下拉恢复为动作行常驻按钮——高频操作变两跳 + 状态开关藏菜单后当前状态不可见。
+               视图切换仍是实底唯一主焦点（N10 不撤销），两枚为次级 tree-tool 形态；⚙ 下拉整壳退役。
+               ★V3.8.18（N11）语义保留：反向开关自带当前状态，点一次反向，正反都可达（不做单向门）。
+               ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：「← 返回项目详情」按钮退役，
+               但 fromProjId / goBack / Esc 返回**保留**——那是「从项目详情深链进来后按 Esc 送回原处」的
+               来路感知（R54-A1），不是"进项目详情"的入口，两者语义不同。 -->
+          <button class="tree-tool"
+            :title="allExpanded ? '当前：全部展开。点击收起全部战略目标与指标' : '当前：默认收起。点击展开全部层级'" @click="toggleAllNodes">↕ {{ allExpanded ? '全部收起' : '全部展开' }}</button>
+          <button class="tree-tool" :class="{ off: !showDone }" @click="toggleShowDone"
+            title="与方向台页头同一开关（同一偏好，一处切换全台生效）">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
         </div>
       </div>
       <!-- ★V3.8.20：健康度徽章移到读数行首位（原左栏 .hero-health，N13 意图"状态不参与动作区竞争"随迁）。
@@ -1054,8 +1101,10 @@ onUnmounted(() => {
         :meta="compassMeta"
         :dir-filter="dirFilter"
         :layer-open="layerOpen"
+        :layer-view="layerView"
         :risk-only="riskOnly"
         @layer="onLayerOpen"
+        @list="onLayerList"
         @locate="onLocateLayer"
         @dir="onDirFilter"
         @risk="toggleRiskOnly"
@@ -1128,6 +1177,7 @@ onUnmounted(() => {
             :layer="layerOpen"
             :dir-filter="dirFilter"
             @goto="onLayerOpen"
+            @list="onLayerList"
             @locate="onLocateLayer"
             @dir="onDirFilter"
             @close="layerOpen = null"
@@ -1204,11 +1254,29 @@ onUnmounted(() => {
               <button class="fb-clear" title="清除全部筛选，恢复完整视图" @click="clearFilters">✕ 清除筛选</button>
             </div>
 
+            <!-- ★F7 层级专属列表（用户拍板 2026-10-16）：第 3/5/6 层各占一个专属列表视图，
+                 与项目塔/项目全景**互斥占位**（v-if / v-else-if 链）——打开列表即整体切换下方形态，
+                 ✕ 返回或同层再点收起，viewMode 不被改所以关闭即原样恢复记忆。 -->
+            <CompassLayerList
+              v-if="layerView"
+              :layer="layerView"
+              :back-label="viewMode === 'pano' ? '全景' : '项目塔'"
+              :dir-filter="dirFilter"
+              :rows3="layerRows3"
+              :rows5="layerRows5"
+              :rows6="layerRows6"
+              @close="layerView = null"
+              @dir="onDirFilter"
+              @locate="onListLocate"
+            />
+
             <!-- ★W11 项目全景（横向泳道）。与项目塔同一份数据、两种投影，切换不重算。 -->
             <CompassPano
-              v-if="viewMode === 'pano'"
+              v-else-if="viewMode === 'pano'"
               :meta="compassMeta"
               :active-id="panoId"
+              :diag="diagFor(panoEffectiveId)"
+              :diag-stale="diagStale(panoEffectiveId)"
               @pick="panoId = $event"
               @to-tower="backToTower"
               @toggle-task="toggleTask"
@@ -1218,6 +1286,10 @@ onUnmounted(() => {
               @add-metric="addMetric"
               @ai-metric="(id) => aiChain('metrics', id)"
               @bind-orphan="bindOrphan"
+              @del-metric="delMetricById"
+              @import-template="openProjImport"
+              @diag-run="(id) => startProjectDiag(id)"
+              @diag-report="(id) => openDiagReport(id)"
             />
 
             <!-- W11（V3.8.11）★纵向项目舱序列 —— 替换原三列并排网格（.tree-columns-grid）
@@ -1226,7 +1298,7 @@ onUnmounted(() => {
                  判据 W11-1 钉住"纵向舱序列存在 + .tree-columns-grid 消失"。 -->
             <!-- ★W12-E 退役带备案：下面两个视图挂载点上的 @goto-detail 绑定已随「进项目详情」入口退役一并移除（子组件已无此 emit）。
            /compass/projects 整页与 ⌘K 项目搜索等其它消费方未动，只是不再从方向台把用户引过去。 -->
-            <div v-if="viewMode === 'tower'" class="tower-list" id="layer-4">
+            <div v-else-if="viewMode === 'tower'" class="tower-list" id="layer-4">
               <div v-if="!d.compass.directions.length" class="empty-state">
                 <div class="empty-icon">🎯</div>
                 <div>还没有战略目标，点击上方"添加战略目标"开始</div>
@@ -1307,6 +1379,8 @@ onUnmounted(() => {
                   @unbind="(tid) => { const t = d.tasks.find(x => x.id === tid); if (t) unbindTask(t) }"
                   @ai-task="(mid) => aiChain('tasks', mid)"
                   @add-metric="addMetric"
+                  @del-metric="delMetricById"
+                  @import-template="openProjImport"
                   @edit-title="(mid, ev) => startEdit('metric-' + mid, ev)"
                   @save-title="(mid, ev) => saveEdit('metric-' + mid, ev)"
                   @cancel-title="cancelEdit"
@@ -1396,6 +1470,14 @@ onUnmounted(() => {
     @close="goalImport.open = false"
     @confirm="confirmGoalImport"
   />
+  <!-- ★F2：项目层模板导入（# 成功指标 / ## 任务 —— 下移一级解析） -->
+  <ImportTemplateModal
+    :open="projImport.open"
+    mode="project"
+    :target-name="projImport.projName"
+    @close="projImport.open = false"
+    @confirm="confirmProjImport"
+  />
   <!-- R135：罗盘链式生成评审抽屉（目标/项目/指标/任务四层建议共用） -->
   <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
   <!-- N2：诊断报告中央弹窗（采纳后自动顶开；过期条与导出都在组件内） -->
@@ -1422,14 +1504,8 @@ onUnmounted(() => {
 .hero-acts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .hero-from { font-size: var(--fs-micro); color: var(--text-3); }
 .hero-tools { position: relative; margin-left: auto; }
-.hero-tools-menu {
-  position: absolute; right: 0; top: calc(100% + 6px); z-index: 30;
-  min-width: 208px; display: flex; flex-direction: column; gap: 4px;
-  padding: 6px; background: var(--surface); border: 1px solid var(--border);
-  border-radius: 10px; box-shadow: var(--shadow-lg);
-}
-/* ★W12-G：菜单项交互色沿用 .tree-tool 基类的 --text-2，不用 --text-4（notion 主题隐形档） */
-.hero-tools-menu .menu-item { width: 100%; justify-content: flex-start; text-align: left; }
+/* ★F6 二次翻转（2026-10-16）：.hero-tools-menu / .menu-item 下拉壳随「⚙ 工具」整壳退役，
+   两枚开关回 .hero-tools 内常驻（回流下拉形态即 dead-css + 判据红）。 */
 
 /* ══ ★V3.8.18（N14）战略骨架条的全宽承载容器 ══
    .spine-bar 只负责"占满一行并给下方左右结构留出间距"，卡片本体仍是 CompassSpine 自己的
@@ -1459,9 +1535,10 @@ onUnmounted(() => {
 .tl-head-row:hover .gs-i { color: var(--text-2); }
 .tl-head-row:hover .gs-i .gs-n { background: var(--accent-light); color: var(--accent-ink); }
 /* ★V3.8.20：.hero-r / .hero-meta 随左文案栏一并退役（hero 改纵向单列：acts 行 + stats 行）。
-   读数行保持右对齐收口 —— 与上方 ⚙ 工具（margin-left:auto）同侧落边。 */
+   ★F6（2026-10-16）：读数行由右对齐改**左对齐**——右对齐时健康度徽章（行首元素）被推到最右，
+   视线要横跨整行才读到；健康度是这行的第一个判断，应该在视线落点上。 */
 .hero-stats {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-start;
   font-size: var(--fs-micro); color: var(--text-4);
   font-variant-numeric: tabular-nums;
 }
@@ -1699,7 +1776,7 @@ onUnmounted(() => {
 .vs-b.on { color: #fff; background: var(--accent); }
 /* N11 合并开关：开着时给一点 accent 提示，让"当前是展开态"一眼可见 */
 /* ★V3.8.20：原 .fold-toggle（页头常驻展开收起钮）随 N11 反向开关 + 本轮工具下拉退役，
-   展开态强调色下沉为通用 .tree-tool.on（⚙ 工具菜单展开时用同一态）。 */
+   展开态强调色下沉为通用 .tree-tool.on。 */
 .tree-tool.on { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); background: var(--accent-light); }
 
 /* ── W11 筛选态提示条：过滤是隐形的就会让人以为项目丢了 ── */

@@ -81,14 +81,16 @@
    标签从「与药丸同行」提为独立表头行，于是上下都是网格、左右边界对齐。
    列数不强求与下方网格相同（B3-a 取舍：今日 6 / 近期 5 / 全年 4 各自成阵）。 */
 .pi-strip { display: flex; flex-direction: column; gap: 9px; }
-.pi-strip-row { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 9px; }
+/* ★W12-B3 终态化（2026-10-16 · W13-T6）：迁移期的「列数 = chip 数」自适应行容器随四模块
+   「strip4 定版」正式退役（T3 今日 → T4 本周 → T5 本月 → T6 本年全部落 .strip4）——
+   均分语义定版为 grid repeat(4,1fr) 单枚容器；本注释为退役带备案，模板与代码零命中。 */
 .pi-strip-lab {
   font-size: var(--fs-micro); font-weight: 700; letter-spacing: .1em; color: var(--text-4);
   text-transform: uppercase; padding-right: 2px;
 }
-/* ★W12-B 操作流分段筛选行：不是指标行，它要的是「筛选器靠左 · 错误出口靠右」的横向布局，
-   与 .pi-strip（已改纵向 flex）语义不同，故独立成类，不再借用指标行的容器。 */
-.pi-flowbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+/* ★W13-F13 退役带备案（2026-10-16）：操作流分段头筛选行 `.pi-flowbar` 随 `.pi-flow`
+   （50 条未按周过滤流水）整体退役——周维度能力由 #ins-week 诊断条 + strip4 下钻承接，
+   全量流水在页头「全部记录」全页唯一入口（W12-B2）。 */
 /* ★2026-10-15 用户拍板：读数要在药丸里**垂直居中**。原先 align-items: baseline 让内容组顶在 36px 药丸上沿、
    下沿空出一截，浅色主题下读起来像"字掉在药丸外面、没进模块"（与 W12-B 那轮"数字读不出属于这个模块"是同一类观感）。
    改 center 只动垂直对齐，不动网格形态（列数/均分/居中/截断仍由 W12-B3 判据钉着）。
@@ -137,75 +139,162 @@
 .pi-btn.line { background: transparent; box-shadow: inset 0 0 0 1px var(--border-strong); }
 .pi-btn.sm { padding: 5px 12px; font-size: var(--fs-caption); }
 
-/* ===== 分段控件 ===== */
-.pi-seg { display: inline-flex; padding: 3px; background: var(--surface-2); border-radius: 999px; gap: 2px; }
-.pi-seg button {
-  padding: 5px 14px; border-radius: 999px; font-size: var(--fs-caption); font-weight: 600; color: var(--text-3);
-  transition: all var(--dur); border: 0; background: transparent; cursor: pointer; font-family: inherit;
-}
-.pi-seg button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .10); }
+/* ===== 分段控件（★W13-F13 退役带备案 2026-10-16：`.pi-seg` 随操作流筛选行整体退役） ===== */
 
-/* ===== Hero（页头） ===== */
-.pi-hero { display: flex; align-items: flex-start; gap: 32px; flex-wrap: wrap; margin-bottom: 8px; }
-.pi-hero-l { flex: 1; min-width: 360px; }
-.pi-hero-r { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; padding-top: 6px; }
+/* ===== Hero（W13-D1 · 三层规整卡片 .hero-card，2026-10-16）=====
+   ① .hero-row-top 两端对齐页头（F1）② .hero-compass-bar 通栏使命/主攻坐标带（F2）
+   ③ .hero-kpis-grid 4 等宽底盘（F3）
+   ★随迁带备案：原 `.pi-hero-l/.pi-hero-r` 两栏 flex 与 `.pi-hero-sum/.pi-hchip` 5 药丸行
+   随三层结构整体退役（药丸读数改为底盘卡网格；N7「KPI 居中」的思路由 ③ 整行铺满承接——
+   读数不再是标题的附属，而是与标题分层的独立底盘）。 */
+.pi-hero.hero-card {
+  display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 12px 16px 12px; box-shadow: var(--shadow);
+}
+.hero-row-top { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+.hero-head { flex: 1; min-width: 320px; }
+/* ★W14-T2：眉标降为标题前的一枚小字（不再独占一行），字号降到 micro；`.pi-hero-sub` 随副标题退役。 */
 .pi-hero-eyebrow {
-  display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-caption); font-weight: 700;
-  letter-spacing: .12em; color: var(--accent-ink); margin-bottom: 12px;
+  display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: .1em; color: var(--accent-ink); margin-right: 10px;
+  white-space: nowrap; position: relative; top: -1px;
 }
-.pi-hero-eyebrow .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-.pi-hero-t { font-size: var(--fs-display); font-weight: 700; letter-spacing: -.025em; line-height: 1.15; margin: 0; color: var(--text); }
+.pi-hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.pi-hero-t {
+  font-size: var(--fs-title); font-weight: 700; letter-spacing: -.02em; line-height: 1.3;
+  color: var(--text);
+}
 .pi-hero-t .en { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .14em; color: var(--text-4); margin-left: 10px; }
-.pi-hero-sub { font-size: var(--fs-sub); color: var(--text-3); margin: 12px 0 0; max-width: 560px; line-height: 1.85; }
-/* ★N7（V3.8.18）Hero 的 5 枚 KPI 药丸居中：页头左边是标题区、右边是操作区，
-   两头都有重量，唯独这一排**身份是"整页的核心读数"**却贴着左边跟标题挤在一起——
-   它不是标题的附属，是读者第一眼要找的东西，位置应该在两头之间。
-   居中对 flex-wrap 后的每一行都生效（换行时居中的是当前行，不是整块），药丸数量随屏变也稳。 */
-.pi-hero-sum { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
-.pi-hchip {
-  display: inline-flex; align-items: baseline; gap: 6px; padding: 7px 14px; border-radius: 999px;
-  background: var(--surface); box-shadow: var(--shadow); cursor: pointer; transition: all var(--dur);
-  border: 0; font-family: inherit;
+/* ② 方向坐标带（F2）：mission 单行省略（title 悬停全文），主攻胶囊 ≤2 —— ★W14-T2 起与 ③ 读数行并作一行 */
+.hero-compass-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 6px 10px;
 }
-.pi-hchip:hover { transform: translateY(-2px); }
-.pi-hchip .v { font-size: var(--fs-title); font-weight: 700; color: var(--text); }
-.pi-hchip .v small { font-size: var(--fs-micro); font-weight: 600; color: var(--text-3); margin-left: 1px; }
-.pi-hchip .l { font-size: var(--fs-caption); color: var(--text-3); }
+.hcb-mission { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: var(--fs-sub); color: var(--text-2); }
+.hcb-ico { font-style: normal; flex: none; }
+.hcb-mission b { font-size: var(--fs-caption); color: var(--text-4); letter-spacing: .06em; flex: none; }
+.hcb-mission em {
+  font-style: normal; color: var(--text); min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56vw;
+}
+.hcb-empty {
+  background: none; border: 0; padding: 0; font: inherit; font-size: var(--fs-sub);
+  color: var(--accent-ink); cursor: pointer;
+}
+.hcb-empty:hover { text-decoration: underline; }
+.hcb-pills { display: inline-flex; gap: 8px; flex: none; flex-wrap: wrap; }
+.hcb-pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+  background: var(--accent-light); border: 1px solid var(--accent); color: var(--accent-ink);
+  font-size: var(--fs-caption); font-weight: 700; cursor: pointer; font-family: inherit;
+  transition: all var(--dur);
+}
+.hcb-pill:hover { border-color: var(--accent-ink); }
+/* ③ 4 等宽底盘网格（F3 · grid repeat(4,1fr) 等宽铺满）
+   ★W14-T2：数值与标签并作一行（原来是三行：值 / 标签 / 说明），卡内 padding 与 gap 同步压缩
+   —— Hero 是常驻路标不是舞台，读一眼就够；负锚：hover 不许再抬升（升起的卡会让常驻区显得躁动）。 */
+.hero-kpis-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.hero-kpi {
+  display: flex; flex-direction: column; gap: 2px; text-align: left; cursor: pointer; font-family: inherit;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 8px 10px; transition: border-color var(--dur); color: inherit; min-width: 0;
+}
+.hero-kpi:hover { border-color: var(--accent); }
+.hero-kpi .v { font-size: var(--fs-title); font-weight: 700; color: var(--text); line-height: 1.2; }
+.hero-kpi .v small { font-size: var(--fs-micro); font-weight: 600; color: var(--text-3); margin-left: 2px; }
+.hero-kpi .l { font-size: var(--fs-caption); font-weight: 700; color: var(--text-2); }
+.hero-kpi .d {
+  font-size: var(--fs-micro); color: var(--text-4);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* ★W14-T2：读数行与方向坐标带并作一行（使命在左、四格读数在右，窄屏回落到两行） */
+.hero-data-row { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
+.hero-data-row .hero-compass-bar { flex: 1 1 260px; min-width: 0; }
+.hero-data-row .hero-kpis-grid { flex: 3 1 480px; }
 .pi-hero-acts { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 
-/* ===== 今日三件事 mini 卡 ===== */
-.pi-f3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.pi-fcard {
-  position: relative; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: 14px 15px 12px; cursor: pointer; transition: all var(--dur); min-height: 110px;
-  display: flex; flex-direction: column; gap: 8px; font-family: inherit; text-align: left; color: inherit;
+/* ===== W13-D2 · 统一「一句人话洞察条」（四模块共用：今天/本周/本月/本年）=====
+   原 `.pi-insight`（今日均线洞察，且 todayAdd===0 时整块消失）与今日三件事 mini 卡
+   `.pi-f3/.pi-fcard/.fc-*` 随 W13-T3 三段式定版退役——诊断恒渲染、三行对账接替。 */
+.one-insight {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  padding: 10px 14px; border-radius: var(--radius-md);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  font-size: var(--fs-sub); color: var(--text-2); line-height: 1.7;
 }
-.pi-fcard:hover { border-color: var(--border-strong); }
-.pi-fcard .fc-n { font-size: var(--fs-micro); font-weight: 700; color: var(--text-4); letter-spacing: .1em; }
-.pi-fcard .fc-row { display: flex; align-items: flex-start; gap: 9px; }
-.pi-fcard .fc-ck {
-  flex: none; width: 18px; height: 18px; border-radius: 6px; border: 1.6px solid var(--border-strong);
-  display: grid; place-items: center; font-size: 10px; color: #fff; cursor: pointer; transition: all var(--dur); margin-top: 1px;
+.one-insight .oi-ic { flex: none; font-size: 14px; }
+.one-insight .oi-text { flex: 1; min-width: 0; }
+.one-insight.warn { border-left-color: var(--warning); background: color-mix(in srgb, var(--warning) 7%, var(--surface-2)); }
+.one-insight.ok { border-left-color: var(--success); }
+.act-link {
+  flex: none; border: 1px solid var(--accent); background: var(--accent-light); color: var(--accent-ink);
+  font-size: var(--fs-caption); font-weight: 700; padding: 5px 12px; border-radius: 999px;
+  cursor: pointer; font-family: inherit; transition: all var(--dur); white-space: nowrap;
 }
-.pi-fcard .fc-ck.done { background: var(--success); border-color: var(--success); }
-.pi-fcard .fc-t { font-size: var(--fs-sub); font-weight: 600; line-height: 1.55; flex: 1; min-width: 0; color: var(--text); }
-.pi-fcard .fc-meta { display: flex; gap: 5px; flex-wrap: wrap; }
+.act-link:hover { filter: brightness(1.05); transform: translateY(-1px); }
+
+/* ===== W13-D2 · strip4：唯一一行 4 等宽数字胶囊（W12-B3 终态定版形态：
+   均分铺满网格，单元格仍复用 .pi-chip——chip 数定版 4（F8），hover/active 两态不变） ===== */
+.strip4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+
+/* ===== W13-F9~F11 · f3-compact 紧凑三行对账（序号 · 就地勾选 · 标题 · 徽标 · 弹药 · 归位/填入） ===== */
+.f3-compact { display: flex; flex-direction: column; gap: 6px; }
+.f3-row {
+  display: flex; align-items: center; gap: 9px; min-width: 0;
+  padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface-2); transition: all var(--dur);
+}
+.f3-row:hover { border-color: var(--border-strong); }
+.f3-row.done .f3-title { color: var(--text-4); text-decoration: line-through; }
+.f3-no { flex: none; font-size: var(--fs-micro); font-weight: 700; color: var(--text-4); letter-spacing: .08em; width: 18px; }
+.f3-ck {
+  flex: none; width: 17px; height: 17px; border-radius: 5px; border: 1.6px solid var(--border-strong);
+  display: grid; place-items: center; font-size: 10px; color: #fff; cursor: pointer;
+  transition: all var(--dur); background: transparent; padding: 0;
+}
+.f3-ck.done { background: var(--success); border-color: var(--success); }
+.f3-ck.ghost { border-style: dashed; cursor: default; }
+.f3-title { flex: 1; min-width: 0; font-size: var(--fs-sub); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f3-title.done { color: var(--text-4); text-decoration: line-through; }
+.f3-title.muted { color: var(--text-4); font-weight: 500; }
+.f3-ammo { flex: none; font-size: var(--fs-micro); font-weight: 700; color: var(--text-3); }
+.f3-ammo.zero { color: var(--text-4); }
+.f3-bind {
+  flex: none; font-size: var(--fs-caption); font-weight: 700; font-family: inherit;
+  padding: 4px 11px; border-radius: 999px; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent);
+  transition: all var(--dur); white-space: nowrap;
+}
+.f3-bind:hover { filter: brightness(1.06); }
+.f3-fill {
+  flex: none; font-size: var(--fs-caption); font-weight: 700; font-family: inherit;
+  padding: 4px 11px; border-radius: 999px; cursor: pointer;
+  background: var(--success-bg-soft, var(--surface-3)); color: var(--success);
+  border: 1px dashed var(--success); transition: all var(--dur); white-space: nowrap;
+}
+.f3-fill:hover { filter: brightness(1.05); }
+.f3-rec { flex: 1; min-width: 0; font-size: var(--fs-caption); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f3-pending { flex: 1; min-width: 0; font-size: var(--fs-caption); color: var(--text-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f3-row.empty { border-style: dashed; background: transparent; }
 .pi-tag {
   display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-micro); font-weight: 600;
-  padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  padding: 2px 8px; border-radius: 999px; white-space: nowrap; flex: none;
 }
 .pi-tag.neutral { background: var(--surface-3); color: var(--text-3); }
 .pi-tag.ok { background: var(--success-bg-soft); color: var(--success); }
 .pi-tag.acc { background: var(--accent-light); color: var(--accent-ink); }
-.pi-f3-done { text-align: center; font-size: var(--fs-sub); color: var(--text-3); padding: 16px 0 2px; font-weight: 600; }
-
-/* ===== 洞察条 ===== */
-.pi-insight {
-  display: flex; align-items: flex-start; gap: 10px; font-size: var(--fs-sub); color: var(--text-2); line-height: 1.8;
-  padding: 12px 16px; border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--accent-light), transparent);
+.pi-tag.warn { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
+/* ★W14-T1：标签改可点（今日三件事行的 🚀 主攻标签 → 打开项目详情抽屉）。
+   按钮默认外观必须显式归零，否则线性/raycast 深色主题下会透出浏览器默认 buttonface 白底。 */
+.pi-tag.as-btn {
+  font-family: inherit; line-height: inherit; cursor: pointer; border: 1px solid transparent;
+  transition: all var(--dur); appearance: none; -webkit-appearance: none;
 }
-.pi-insight .ic { flex: none; margin-top: 1px; font-size: 14px; }
+.pi-tag.as-btn:hover { border-color: var(--accent); filter: brightness(1.06); }
+.pi-tag.as-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* ===== 节奏柱状图 ===== */
 .pi-bars { display: flex; align-items: flex-end; gap: 5px; height: 76px; padding: 0 2px; }
@@ -218,16 +307,55 @@
   display: flex; justify-content: space-between; font-size: var(--fs-micro); color: var(--text-4); margin-top: 7px; padding: 0 2px;
 }
 
-/* ===== 6 KPI 格（替代原六维） ===== */
-.pi-k6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
-.pi-k6 .k {
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: 11px 13px; cursor: pointer; transition: all var(--dur); font-family: inherit; text-align: left; color: inherit;
+/* ===== W13-F13 环比徽标（原在 k6 段尾，随 6 KPI 退役上移模块头）+ light-split 双栏（F14/F15） =====
+   `.m-badge` 与 wk-badge 同款双态（W13-F16 本月熵徽标复用形态：up=更发散语境由 title 说明，
+   类色只表达 数值升/降 两态；两选择器共用一组规则）。 */
+.wk-badge, .m-badge {
+  font-size: var(--fs-micro); font-weight: 700; padding: 4px 11px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text-3); flex: none;
 }
-.pi-k6 .k:hover { border-color: var(--border-strong); }
-.pi-k6 .k .lab { font-size: var(--fs-micro); color: var(--text-3); }
-.pi-k6 .k .v { font-size: var(--fs-title); font-weight: 700; margin-top: 4px; line-height: 1.1; color: var(--text); }
-.pi-k6 .k .note { font-size: var(--fs-micro); margin-top: 2px; color: var(--text-4); }
+.wk-badge.up, .m-badge.up { color: var(--success); background: var(--success-bg-soft); border-color: transparent; }
+.wk-badge.down, .m-badge.down { color: var(--danger); background: var(--danger-bg-soft); border-color: transparent; }
+.light-split { display: grid; grid-template-columns: 1.05fr 1fr; gap: 14px; align-items: start; }
+.lbox {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 14px 16px 15px; min-width: 0; display: flex; flex-direction: column; gap: 10px;
+}
+.lbox-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.lbox-h b { font-size: var(--fs-sub); font-weight: 700; color: var(--text); }
+.lbox-h span { font-size: var(--fs-micro); color: var(--text-4); text-align: right; }
+/* W13-F18 主题映射行（Top 输入主题 → 攻坚项目） */
+.topic-rows { display: flex; flex-direction: column; gap: 6px; }
+.topic-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: transparent;
+  font-family: inherit; text-align: left; color: inherit; cursor: pointer; padding: 4px 2px;
+  border-radius: var(--radius-md); transition: background var(--dur);
+}
+.topic-row:hover { background: var(--surface-3); }
+.topic-row .tg { flex: none; max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink); }
+.topic-row .bar { flex: 1; height: 8px; min-width: 30px; border-radius: 5px; background: var(--heat-0); overflow: hidden; }
+.topic-row .bar i { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+.topic-row .n { flex: none; width: 52px; text-align: right; font-size: var(--fs-caption); color: var(--text-3); }
+.topic-row .n b { color: var(--text); }
+.topic-row .pj { flex: none; max-width: 116px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-micro); color: var(--text-4); text-align: right; }
+/* W13-F19 认知流转三步漏斗（funnel3） */
+.funnel3 { display: flex; align-items: stretch; gap: 8px; }
+.funnel3 .fs {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 10px 12px; cursor: pointer; transition: all var(--dur); font-family: inherit; text-align: left; color: inherit;
+}
+.funnel3 .fs:hover { border-color: var(--accent); transform: translateY(-1px); }
+.funnel3 .fs .st { font-size: var(--fs-micro); color: var(--accent-ink); font-weight: 800; }
+.funnel3 .fs b { font-size: var(--fs-caption); color: var(--text); }
+.funnel3 .fs .v { font-size: var(--fs-title); font-weight: 700; line-height: 1.05; color: var(--text); }
+.funnel3 .fs .v small { font-size: var(--fs-micro); font-weight: 600; color: var(--text-3); margin-left: 1px; }
+.funnel3 .fs .s { font-size: var(--fs-micro); color: var(--text-4); line-height: 1.45; }
+.funnel3 .fa { flex: none; align-self: center; color: var(--text-4); font-size: 14px; font-weight: 700; }
+.funnel-note { font-size: var(--fs-micro); color: var(--text-4); line-height: 1.6; }
+/* W13-F13 ★KPI 段退役带备案（2026-10-16）：`.pi-k6`（复盘 6 指标同屏二次重复）连同
+   「kpisOf 消费 W_ROWS」的口径关系一并退役；W_ROWS 单一真源仍在 dailyStats.ts，
+   kpisOf 纯函数保留于 reviewReport.ts（PiYear 全年对账仍在用）。 */
 
 /* ===== 目标进度条 ===== */
 .pi-goals { display: flex; flex-direction: column; gap: 10px; }
@@ -241,26 +369,8 @@
 .pi-goal .n { flex: none; width: 78px; text-align: right; color: var(--text-3); }
 .pi-goal .n b { color: var(--text); }
 
-/* ===== 操作流 ===== */
-.pi-flow { display: flex; flex-direction: column; gap: 2px; max-height: 280px; overflow-y: auto; border-radius: var(--radius-md); }
-.pi-frow {
-  display: flex; align-items: center; gap: 11px; padding: 9px 12px; border-radius: var(--radius-md);
-  cursor: pointer; transition: background var(--dur); border: 0; background: transparent; font-family: inherit;
-  text-align: left; color: inherit; width: 100%;
-}
-.pi-frow:hover { background: var(--surface-2); }
-.pi-frow .tm {
-  flex: none; width: 40px; font-size: var(--fs-micro); color: var(--text-4);
-  font-family: ui-monospace, Consolas, monospace;
-}
-.pi-frow .ac { flex: none; font-size: var(--fs-micro); font-weight: 700; padding: 3px 9px; border-radius: 999px; }
-.pi-frow .ti { flex: 1; font-size: var(--fs-caption); color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pi-frow .kd { flex: none; font-size: var(--fs-micro); color: var(--text-4); }
-.pi-ac-create { color: var(--success); background: var(--success-bg-soft); }
-.pi-ac-call { color: var(--accent-ink); background: var(--accent-light); }
-.pi-ac-status { color: var(--info-blue); background: var(--info-blue-light); }
-.pi-ac-delete, .pi-ac-purge { color: var(--danger); background: var(--danger-bg-soft); }
-.pi-ac-restore { color: var(--warning); background: var(--warning-bg-soft); }
+/* ★W13-F13 退役带备案（2026-10-16）：`.pi-seg` 分段控件（原流水筛选）随 `.pi-flowbar`
+   操作流行一并退役；`.pi-flow`/`.pi-frow`/`.pi-ac-*` 操作流全组同批退役（D5/F13）。 */
 .pi-empty {
   border: 1.5px dashed var(--border-strong); background: transparent; display: flex; align-items: center;
   justify-content: center; text-align: center; padding: var(--sp-5); color: var(--text-4); font-size: var(--fs-sub);
@@ -281,31 +391,22 @@
    底栏原挂「只读纪律」免责文字 + 一枚「全部记录」，按用户 2026-10-13 拍板不留。
    样式留着就是孤儿规则（dead-css-scan 会判死），故同批清掉。 */
 
-/* ===== 复盘弹窗壳（中央大弹层） ===== */
-.pi-rev-overlay {
-  position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0, 0, 0, .45);
-  display: flex; align-items: center; justify-content: center; padding: 4vh 16px;
-}
-.pi-rev-modal {
-  width: min(960px, 94vw); max-height: 88vh; background: var(--surface); border: 1px solid var(--border-strong);
-  border-radius: 18px; box-shadow: var(--shadow-modal); overflow: hidden; display: flex; flex-direction: column;
-}
-.pi-rev-close {
-  position: absolute; top: 14px; right: 16px; z-index: 5; width: 32px; height: 32px; border-radius: 50%;
-  display: grid; place-items: center; background: var(--surface-2); border: 0; cursor: pointer; color: var(--text-2);
-  font-size: 16px; transition: all var(--dur); font-family: inherit;
-}
-.pi-rev-close:hover { background: var(--surface-3); color: var(--text); }
+/* ★W13-D5 复盘弹窗壳（.pi-rev-overlay / .pi-rev-modal / .pi-rev-close 及 :hover）随
+   ReviewPanel 挂载退役（2026-10-16 用户拍板）：壳只存在于宿主 Teleport 模板，宿主已零挂载
+   ⇒ 四段是孤儿规则（dead-css-scan 判死）。组件文件保留待复用，若复活需自带壳样式。 */
 
 /* ===== 小屏 ===== */
 @media (max-width: 900px) {
   .pi-tl { grid-template-columns: 1fr; }
   .pi-rail { display: none; }
-  .pi-k6 { grid-template-columns: repeat(3, 1fr); }
-  .pi-hero-r { align-items: flex-start; }
+  .light-split { grid-template-columns: 1fr; }
   .pi-hero-acts { justify-content: flex-start; }
+  /* ★W14-T2：数据行在窄屏回落为上下两段（使命带一行 + 读数两列），不压成四列挤字 */
+  .hero-data-row { flex-direction: column; align-items: stretch; }
+  .hero-kpis-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 640px) {
-  .pi-k6 { grid-template-columns: repeat(2, 1fr); }
-  .pi-f3 { grid-template-columns: 1fr; }
+  .f3-row { flex-wrap: wrap; }
+  .strip4 { grid-template-columns: repeat(2, 1fr); }
+  .pi-goal .nm { width: 112px; }
 }

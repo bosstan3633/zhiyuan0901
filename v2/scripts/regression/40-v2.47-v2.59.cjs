@@ -466,9 +466,15 @@ check('R85-8 M5-① 目标下新建项目 ★R3-B1 退役重指带备案：主�
   /* ★W11 随迁带备案：按钮 title 随术语统一改「添加攻坚项目」（第 4 层叫攻坚项目，不再笼统叫项目） */
   return t.includes("function addProject(dirId: string)") && t.includes("addProjectToDir(dirId, '新攻坚项目')") && t.includes('title="添加攻坚项目"') && !t.includes('chip-add-input');
 });
-check('R85-9/R121 M5-② 卡头动作防冒泡 ★W11(V3.8.11)随迁带备案：动作组已收为 tw-acts，且带 @click.stop 防冒泡（不误触卡头跳转）；拖拽手柄 tw-grip 同在动作组内', () => {
+check('R85-9/R121 M5-② 卡头动作防冒泡 ★W11(V3.8.11)随迁带备案 + ★F5 拖拽形态翻转（2026-10-15 拍板激进瘦身）：动作组已收为 tw-acts 且带 @click.stop 防冒泡（不误触卡头跳转）这条不变；★翻转点：独立 ⠿ 拖拽手柄退役，改为**整块舱头 draggable + onHeadDragStart 拦截**（按下 button/contenteditable/input/.tw-menu 即 preventDefault，防"想点按/改名却被拽走"）。防冒泡的承重点从「动作组」扩到「舱头整块」——舱头 @click 要跳全景，所以舱内任何点击都得 stop，手柄退役不等于防冒泡退役', () => {
+  const tc = codeOnly(TOWER)
   return /class="tw-acts" @click\.stop/.test(TOWER)
-    && /class="tw-grip"/.test(TOWER)
+    && /class="tw-head"[\s\S]*?draggable="true"/.test(tc)
+    && tc.includes("function onHeadDragStart(")
+    && tc.includes("closest('button, [contenteditable=\"true\"], input, .tw-menu')")
+    && /@dragstart="onHeadDragStart\(/.test(tc)
+    /* ★退役负锚：手柄与其拖拽绑定不许回流（缘由留注释里，判据只看剥注释形态） */
+    && !tc.includes('tw-grip') && !/class="tw-grip"/.test(tc)
     && /@click\.stop/.test(TOWER);
 });
 

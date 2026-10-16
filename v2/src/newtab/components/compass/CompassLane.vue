@@ -12,7 +12,7 @@
  *
  * 焦点纪律：任务标题最高 --fs-body，**不许用 --fs-title 及以上**（会与指标名争层级）。
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { MetricMeta } from '../../views/compassMeta'
 import { gradeColorVar } from '../../views/compassMeta'
 
@@ -47,7 +47,13 @@ const emit = defineEmits<{
   (e: 'editTitle', metricId: string, ev: MouseEvent | undefined): void
   (e: 'saveTitle', metricId: string, ev: FocusEvent | KeyboardEvent): void
   (e: 'cancelTitle', metricId: string): void
+  /** ★F1：删除成功指标（走真源 removeMetricWithConfirm —— 报数确认 + 撤销，本组件只上抛） */
+  (e: 'delMetric', metricId: string): void
 }>()
+
+/** ★F1：指标卡「⋯」菜单（当前只有删除一项；后续要放验收标准编辑等从这里长） */
+const menuFor = ref<string | null>(null)
+function toggleMenu(id: string) { menuFor.value = menuFor.value === id ? null : id }
 
 const dotGlyph = computed(() => (props.m.dot === 'done' ? '✓' : props.m.dot === 'doing' ? '◐' : '○'))
 const dotTitle = computed(() =>
@@ -103,6 +109,15 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
            常驻两枚操作钮会把标题挤到换行，正是实际截图里"指标名后面跟一排小方块"的成因。
            能力没删（判据 R32-14 守的是 @监听挂载点，不是视觉常驻），只是让位给读。 -->
       <button class="mc-add" title="在本成功指标下添加支撑任务" @click="emit('addTask', m.id)">＋任务</button>
+      <!-- ★F1：hover 🗑 + 「⋯」菜单 —— 与「＋任务」「✦」同一套 hover 显形。
+           删除走真源 removeMetricWithConfirm（报数确认→任务转未关联→撤销），这里只上抛。 -->
+      <span class="mc-ops" @click.stop>
+        <button class="mc-del" title="删除本成功指标（其下任务转为未关联，可撤销）" @click="emit('delMetric', m.id)">🗑</button>
+        <button class="mc-more" :class="{ on: menuFor === m.id }" title="指标更多操作" @click="toggleMenu(m.id)">⋯</button>
+        <span v-if="menuFor === m.id" class="mc-menu" @click.stop>
+          <button class="mcm-item danger" @click="menuFor = null; emit('delMetric', m.id)">🗑 删除本指标</button>
+        </span>
+      </span>
     </header>
 
     <p v-if="m.acceptance" class="mc-acc">
@@ -203,17 +218,34 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
   background: transparent; border: 1px solid transparent;
 }
 .mc-toggle:hover { color: var(--text); background: var(--surface-3); }
-/* ★W12：AI / 加任务 两枚操作钮 hover 才显形，让指标名先被读到（能力未删，见模板注释） */
-.mc-add, .mc-ai {
+/* ★W12：AI / 加任务 两枚操作钮 hover 才显形，让指标名先被读到（能力未删，见模板注释）
+   ★F1：删除 🗑 与「⋯」并入同一套 hover 显形 —— 不新增常驻位，指标头不因删除入口变挤 */
+.mc-add, .mc-ai, .mc-del, .mc-more {
   font-size: var(--fs-micro); color: var(--text-3);
   padding: 2px 7px; border-radius: 5px; cursor: pointer; transition: all var(--dur); flex: none;
-  opacity: 0;
+  opacity: 0; border: 1px solid transparent; background: transparent;
 }
 .mc-add { border: 1px solid var(--border); background: var(--surface); }
-.metric-card:hover .mc-add, .metric-card:hover .mc-ai,
-.mc-add:focus-visible, .mc-ai:focus-visible { opacity: 1; }
+.metric-card:hover .mc-add, .metric-card:hover .mc-ai, .metric-card:hover .mc-del, .metric-card:hover .mc-more,
+.mc-add:focus-visible, .mc-ai:focus-visible, .mc-del:focus-visible, .mc-more:focus-visible { opacity: 1; }
 .mc-add:hover { color: var(--accent-ink); background: var(--accent-light); border-color: var(--accent-light); }
 .mc-ai:hover { color: var(--accent-ink); background: var(--accent-light); }
+.mc-del:hover, .mc-more:hover { color: var(--danger); background: var(--danger-bg-soft); }
+.mc-more.on { opacity: 1; color: var(--accent-ink); background: var(--accent-light); }
+/* ★F1 指标「⋯」菜单：与项目舱菜单同一套下拉语言（绝对定位 + surface 卡） */
+.mc-ops { position: relative; display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.mc-menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 148px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  box-shadow: var(--shadow); padding: 4px; display: flex; flex-direction: column;
+}
+.mcm-item {
+  font-size: var(--fs-micro); font-weight: 600; color: var(--text-2); text-align: left;
+  padding: 6px 9px; border-radius: 5px; cursor: pointer; font-family: inherit; border: 0; background: transparent;
+}
+.mcm-item:hover { background: var(--surface-3); }
+.mcm-item.danger { color: var(--danger); }
+.mcm-item.danger:hover { background: var(--danger-bg-soft); }
 .mc-acc {
   font-size: var(--fs-micro); color: var(--text-3); line-height: 1.7;
   margin-top: 7px; padding-left: 26px;

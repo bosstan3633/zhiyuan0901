@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="notion">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知源调度台 Ownway · 画像洞察（极简认知版 v8.1）</title>
+<!--
+  v8.1 完善要点（根据用户反馈精准迭代）：
+  1. 【顶部 Hero 布局重构】：
+     - 第一行：左侧「眉标 + 你的知识生命体征大标题」，右侧稳稳停靠「⟳ 刷新 · ⬇ 导出 · 🗂️ 全部记录」操作组，两端对齐永不掉行悬空。
+     - 第二行：通栏「🧭 使命主线 + 🚀 双主攻项目胶囊」坐标带，左右贯通。
+     - 第三行：4 等宽网格「全库底盘指标卡」（全库净资产 / 知识熵 / 任务有证据支撑 / 近30天精力落主攻），与下方时间轴模块严丝合缝对齐。
+  2. 【完整保留五段式「今日战报（DayDetail）」与「全部记录」抽屉】：
+     - 点「打开今日战报」或点任意周柱/热力格，弹出原汁原味的五段式今日战报（①头部 ②摘要+最近时刻 ③四格彩色大数+点击下钻 DrillCardList ③.5热力等级带 ④分时段降序叙事时间线+单击定位/双击开链接 ⑤页脚导出 PNG/HTML/MD + 查看全部记录）。
+  3. 【完整保留「资源生命周期与高价值沉睡证据唤醒」模块】：
+     - 本年度（YEAR）模块内完整保留「年度热力图（含月份刻度与年/半年切换）」+「资源生命周期与高价值沉睡证据唤醒（三态圆环图 + 活跃/冷却/归档切换 + 高频核心证据卡一键唤醒复温/延后/归档 + ⚙ 冷却阈值设置弹窗）」。
+-->
+<style>
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+  --fs-micro: 10px;
+  --fs-tiny: 11px;
+  --fs-cap: 11.5px;
+  --fs-sub: 12.5px;
+  --fs-body: 13.5px;
+  --fs-title: 15px;
+  --fs-h2: 17px;
+  --fs-h1: 19px;
+  --fs-hero: 26px;
+  --r-card: 20px;
+  --r-block: 14px;
+  --r-md: 11px;
+  --r-sm: 8px;
+  --r-pill: 999px;
+  --dur: 150ms;
+  --ease: cubic-bezier(.22, .61, .36, 1);
+}
+
+/* 四套官方主题令牌（默认：纸墨白 notion，还原截图暖白质感） */
+:root, [data-theme='notion'] {
+  --bg: #F7F6F3;
+  --surface: #FFFFFF;
+  --surface-2: #F2F0EB;
+  --surface-3: #E7E4DC;
+  --line: rgba(40, 34, 24, .075);
+  --line-strong: rgba(40, 34, 24, .14);
+  --t1: rgba(35, 31, 25, .92);
+  --t2: rgba(35, 31, 25, .65);
+  --t3: rgba(35, 31, 25, .46);
+  --t4: rgba(35, 31, 25, .28);
+  --accent: #9E3FAF;
+  --accent-soft: #F6EDF8;
+  --accent-ink: #85349A;
+  --grad: linear-gradient(135deg, #9E3FAF, #C45C8A);
+  --ok: #3B7A57; --ok-soft: #E5F1EA;
+  --warn: #9A6A1F; --warn-soft: #F6EAD4;
+  --bad: #C0392B; --bad-soft: #FBE9E7;
+  --info: #3F6FA8; --info-soft: #E7EEF6;
+  --heat-ink: rgba(35, 31, 25, .75);
+  --h0: #ECEAE4; --h1: #E3D2E9; --h2: #CFAEDB; --h3: #B780CA; --h4: #9E3FAF; --h5: #722685;
+  --sh: 0 1px 2px rgba(20, 18, 14, .025), 0 10px 26px -8px rgba(20, 18, 14, .055);
+  --sh-pop: 0 4px 14px rgba(20, 18, 14, .08), 0 26px 64px -12px rgba(20, 18, 14, .18);
+  --chrome: rgba(247, 246, 243, .88);
+}
+
+[data-theme='apple'] {
+  --bg: #F5F5F7; --surface: #FFFFFF; --surface-2: #F0F0F5; --surface-3: #E5E5EC;
+  --line: rgba(0,0,0,.065); --line-strong: rgba(0,0,0,.12);
+  --t1: rgba(0,0,0,.90); --t2: rgba(0,0,0,.62); --t3: rgba(0,0,0,.44); --t4: rgba(0,0,0,.28);
+  --accent: #7C5CFC; --accent-soft: #EFEAFE; --accent-ink: #6441E8;
+  --grad: linear-gradient(135deg, #7C5CFC, #B45CF0);
+  --ok: #22A06B; --ok-soft: #E3F4EC; --warn: #B8791B; --warn-soft: #FAF0DE;
+  --bad: #D8453F; --bad-soft: #FBE9E8; --info: #3B6FD4; --info-soft: #E9EFFC;
+  --heat-ink: rgba(0,0,0,.72);
+  --h0: #EAECF0; --h1: #DAD4FA; --h2: #BBAEF7; --h3: #9B82FF; --h4: #7C5CFC; --h5: #5A31E0;
+  --sh: 0 1px 2px rgba(0,0,0,.03), 0 10px 24px -6px rgba(0,0,0,.055);
+  --sh-pop: 0 4px 14px rgba(0,0,0,.06), 0 26px 64px -12px rgba(0,0,0,.16);
+  --chrome: rgba(245, 245, 247, .88);
+}
+
+[data-theme='linear'] {
+  --bg: #0D0E11; --surface: #15171C; --surface-2: #1C1F26; --surface-3: #242832;
+  --line: rgba(255,255,255,.075); --line-strong: rgba(255,255,255,.14);
+  --t1: rgba(255,255,255,.93); --t2: rgba(255,255,255,.68); --t3: rgba(255,255,255,.48); --t4: rgba(255,255,255,.30);
+  --accent: #6E7BE8; --accent-soft: rgba(110,123,232,.16); --accent-ink: #9BA6F8;
+  --grad: linear-gradient(135deg, #6E7BE8, #9A6FF0);
+  --ok: #2BB673; --ok-soft: rgba(43,182,115,.15); --warn: #E0A038; --warn-soft: rgba(224,160,56,.15);
+  --bad: #EE5A5F; --bad-soft: rgba(238,90,95,.14); --info: #5B8DEF; --info-soft: rgba(91,141,239,.15);
+  --heat-ink: rgba(255,255,255,.82);
+  --h0: rgba(255,255,255,.05); --h1: #1E3455; --h2: #264572; --h3: #2B4E79; --h4: #356397; --h5: #4E86C8;
+  --sh: 0 0 0 1px var(--line), 0 14px 34px -10px rgba(0,0,0,.5);
+  --sh-pop: 0 4px 14px rgba(0,0,0,.45), 0 26px 64px -12px rgba(0,0,0,.75);
+  --chrome: rgba(21, 23, 28, .86);
+}
+
+[data-theme='raycast'] {
+  --bg: #08080A; --surface: #111116; --surface-2: #18181F; --surface-3: #202029;
+  --line: rgba(255,255,255,.10); --line-strong: rgba(255,255,255,.18);
+  --t1: rgba(255,255,255,.95); --t2: rgba(255,255,255,.70); --t3: rgba(255,255,255,.50); --t4: rgba(255,255,255,.32);
+  --accent: #2E7DF0; --accent-soft: rgba(46,125,240,.18); --accent-ink: #66A3FF;
+  --grad: linear-gradient(135deg, #2E7DF0, #3FC1D9);
+  --ok: #2BB673; --ok-soft: rgba(43,182,115,.16); --warn: #E0A038; --warn-soft: rgba(224,160,56,.16);
+  --bad: #EE5A5F; --bad-soft: rgba(238,90,95,.15); --info: #5B8DEF; --info-soft: rgba(91,141,239,.16);
+  --heat-ink: rgba(255,255,255,.85);
+  --h0: rgba(255,255,255,.06); --h1: #203757; --h2: #2B4A76; --h3: #2F5489; --h4: #3A6AA9; --h5: #5591D6;
+  --sh: 0 0 0 1px var(--line), 0 16px 38px -10px rgba(0,0,0,.6);
+  --sh-pop: 0 4px 14px rgba(0,0,0,.5), 0 26px 64px -12px rgba(0,0,0,.8);
+  --chrome: rgba(12, 12, 16, .88);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  font-family: var(--font); background: var(--bg); color: var(--t1);
+  font-size: var(--fs-body); line-height: 1.6; font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select { font-family: inherit; font-size: inherit; color: inherit; background: none; border: none; outline: none; }
+button { cursor: pointer; }
+input, select { background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--r-sm); padding: 5px 10px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+.sp { flex: 1; }
+
+/* 顶栏 */
+.nav { position: sticky; top: 0; z-index: 100; background: var(--chrome); backdrop-filter: blur(20px); border-bottom: 1px solid var(--line); }
+.nav-in { max-width: 1280px; margin: 0 auto; height: 54px; padding: 0 28px; display: flex; align-items: center; gap: 12px; }
+.brand { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 6px; border-radius: var(--r-pill); background: var(--accent-soft); font-weight: 700; font-size: 12.5px; color: var(--accent-ink); }
+.brand .mark { width: 22px; height: 22px; border-radius: 6px; background: var(--grad); color: #fff; display: grid; place-items: center; font-size: 12px; }
+.nav-tab { padding: 5px 11px; border-radius: var(--r-pill); font-size: 12.5px; color: var(--t2); font-weight: 500; }
+.nav-tab:hover { background: var(--surface-2); color: var(--t1); }
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: var(--r-pill);
+  font-size: 12px; font-weight: 600; background: var(--surface); color: var(--t2);
+  border: 1px solid var(--line-strong); transition: all var(--dur); white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-soft); transform: translateY(-1px); }
+.btn.pri { background: var(--grad); color: #fff; border-color: transparent; box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--accent) 55%, transparent); }
+.btn.pri:hover { filter: brightness(1.06); color: #fff; }
+.btn.sm { padding: 4px 11px; font-size: 11.5px; }
+
+.seg { display: inline-flex; padding: 2px; background: var(--surface-2); border-radius: var(--r-pill); border: 1px solid var(--line); }
+.seg button { padding: 4px 11px; border-radius: var(--r-pill); font-size: 11.5px; font-weight: 600; color: var(--t3); transition: all var(--dur); }
+.seg button.on { background: var(--surface); color: var(--accent-ink); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+
+/* 页面主容器 */
+.page { max-width: 1280px; margin: 0 auto; padding: 26px 28px 84px; }
+
+/* ══════════════════ 完善点 1：顶部 Hero 三层規整布局（彻底解决按钮悬空与右半屏空旷） ══════════════════ */
+.hero-card {
+  background: var(--surface); border-radius: var(--r-card); box-shadow: var(--sh);
+  border: 1px solid var(--line); padding: 22px 26px; margin-bottom: 26px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+/* 第一层：左标题 + 右操作按钮组（两端对齐，永不掉行悬空） */
+.hero-row-top {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+}
+.hero-eyebrow { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; letter-spacing: .12em; color: var(--accent-ink); margin-bottom: 5px; }
+.hero-eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--grad); }
+.hero-title { font-size: 24px; font-weight: 700; letter-spacing: -.02em; line-height: 1.2; display: flex; align-items: baseline; gap: 10px; }
+.hero-title .en { font-size: 10px; font-weight: 700; letter-spacing: .14em; color: var(--t4); }
+.hero-acts { display: flex; align-items: center; gap: 8px; padding-top: 4px; }
+
+/* 第二层：通栏「使命主线 + 双主攻项目」坐标条（左右撑满，视觉成带） */
+.hero-compass-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 10px 15px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line);
+}
+.hc-left { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--t2); min-width: 0; }
+.hc-badge { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-ink); flex: none; }
+.hc-text { font-weight: 600; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hc-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.compass-pill {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: var(--r-pill);
+  background: var(--surface); border: 1px solid var(--line-strong); font-size: 11.5px; font-weight: 600; color: var(--t1);
+  transition: all var(--dur);
+}
+.compass-pill:hover { border-color: var(--accent); color: var(--accent-ink); transform: translateY(-1px); }
+.compass-pill b { color: var(--accent-ink); }
+
+/* 第三层：4 等宽全库底盘指标（铺满容器宽度，左右边界与下方模块完全对齐） */
+.hero-kpis-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+}
+.hkpi-card {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 16px; border-radius: var(--r-md); background: var(--surface-2);
+  border: 1px solid var(--line); transition: all var(--dur); text-align: left;
+}
+.hkpi-card:hover { border-color: var(--accent); background: var(--accent-soft); transform: translateY(-1px); }
+.hkpi-card .l { font-size: 12px; font-weight: 600; color: var(--t2); }
+.hkpi-card .s { font-size: 10.5px; color: var(--t3); margin-top: 1px; }
+.hkpi-card .v { font-size: 20px; font-weight: 700; color: var(--t1); display: flex; align-items: baseline; gap: 2px; }
+.hkpi-card .v small { font-size: 11px; font-weight: 600; color: var(--t3); }
+
+/* ══ 时间轴：左 76px 吸顶导航轨 + 右 4 个模块 ══ */
+.tl { display: grid; grid-template-columns: 76px 1fr; gap: 18px; align-items: start; }
+.rail { position: sticky; top: 72px; display: flex; flex-direction: column; padding-top: 8px; }
+.rnode { position: relative; padding: 4px 0 64px; display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.rnode:not(:last-child)::after {
+  content: ''; position: absolute; left: 50%; top: 18px; bottom: -8px; width: 2.5px;
+  transform: translateX(-50%); background: linear-gradient(180deg, var(--accent), var(--info) 55%, var(--warn)); opacity: .38;
+}
+.rnode:last-child { padding-bottom: 0; }
+.rdot { width: 15px; height: 15px; border-radius: 50%; background: var(--bg); border: 3.5px solid var(--accent); position: relative; z-index: 2; transition: all var(--dur); }
+.rnode.on .rdot { background: var(--accent); transform: scale(1.25); box-shadow: 0 0 0 5px var(--accent-soft); }
+.rlab { font-size: 10.5px; font-weight: 700; color: var(--t3); text-align: center; line-height: 1.35; }
+.rnode.on .rlab { color: var(--accent-ink); }
+
+.rmods { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+
+/* ══ 时间尺度模块卡片 ══ */
+.mod {
+  background: var(--surface); border-radius: var(--r-card); box-shadow: var(--sh);
+  border: 1px solid var(--line); padding: 20px 24px 22px; display: flex; flex-direction: column; gap: 14px;
+  scroll-margin-top: 68px;
+}
+.mod-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.mod-title { display: flex; align-items: center; gap: 10px; }
+.mod-ico { width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); display: grid; place-items: center; font-size: 17px; }
+.mod-title h2 { font-size: 17px; font-weight: 700; display: flex; align-items: baseline; gap: 8px; }
+.mod-title h2 span { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; color: var(--t4); }
+
+/* 第一层：一句人话洞察条 */
+.one-insight {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 11px 15px; border-radius: var(--r-md);
+  background: linear-gradient(90deg, var(--accent-soft), var(--surface-2) 88%);
+  border-left: 3.5px solid var(--accent);
+  font-size: 13px; color: var(--t2); line-height: 1.55;
+}
+.one-insight.warn {
+  background: linear-gradient(90deg, var(--warn-soft), var(--surface-2) 88%);
+  border-left-color: var(--warn);
+}
+.one-insight b { color: var(--t1); font-weight: 700; }
+.one-insight .act-link {
+  flex: none; font-size: 12px; font-weight: 700; color: var(--accent-ink);
+  background: var(--surface); padding: 5px 13px; border-radius: var(--r-pill);
+  border: 1px solid var(--line-strong); transition: all var(--dur); white-space: nowrap;
+}
+.one-insight .act-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* 第二层：一行 4 个极简数字胶囊 */
+.strip4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.chip {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 40px; padding: 0 14px; border-radius: var(--r-md);
+  background: var(--surface-2); border: 1px solid var(--line); transition: all var(--dur);
+}
+.chip:hover { border-color: var(--accent); background: var(--accent-soft); }
+.chip .l { font-size: 12px; color: var(--t2); font-weight: 500; }
+.chip .v { font-size: 16px; font-weight: 700; color: var(--t1); display: flex; align-items: baseline; gap: 2px; }
+.chip .v small { font-size: 10.5px; color: var(--t3); font-weight: 600; }
+.chip.ok .v { color: var(--ok); }
+.chip.warn .v { color: var(--warn); }
+.chip.acc .v { color: var(--accent-ink); }
+
+/* 第三层：轻量视觉块 */
+.f3-compact { display: flex; flex-direction: column; gap: 7px; }
+.f3-row {
+  display: flex; align-items: center; gap: 10px; padding: 9px 13px;
+  border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line); font-size: 13px;
+}
+.f3-row.empty { border-style: dashed; background: transparent; color: var(--t3); }
+.f3-num { font-size: 11px; font-weight: 700; color: var(--accent-ink); background: var(--accent-soft); padding: 2px 7px; border-radius: 6px; }
+.f3-ck { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--line-strong); display: grid; place-items: center; font-size: 10px; color: #fff; flex: none; }
+.f3-ck.done { background: var(--ok); border-color: var(--ok); }
+.f3-title { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.f3-row.done .f3-title { text-decoration: line-through; color: var(--t3); }
+
+.tag { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: var(--r-pill); background: var(--surface); border: 1px solid var(--line); color: var(--t2); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+.tag.acc { background: var(--accent-soft); color: var(--accent-ink); border-color: transparent; }
+.tag.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.tag.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.tag.info { background: var(--info-soft); color: var(--info); border-color: transparent; }
+.tag.bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+
+.light-split { display: grid; grid-template-columns: 1fr 1.15fr; gap: 14px; }
+.lbox { background: var(--surface-2); border-radius: var(--r-md); padding: 12px 15px; border: 1px solid var(--line); display: flex; flex-direction: column; gap: 9px; }
+.lbox-h { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: var(--t3); }
+
+.bars7 { display: flex; align-items: flex-end; gap: 8px; height: 68px; padding-top: 6px; }
+.bcol { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; cursor: pointer; }
+.btrk { width: 100%; flex: 1; background: var(--surface); border-radius: 5px; display: flex; align-items: flex-end; overflow: hidden; }
+.bfil { width: 100%; border-radius: 4px; background: var(--accent); transition: height .2s; }
+.bcol:hover .bfil { filter: brightness(1.15); }
+.blbl { font-size: 10px; color: var(--t3); }
+
+.pbar-list { display: flex; flex-direction: column; gap: 7px; justify-content: center; flex: 1; }
+.pbar-row { display: flex; align-items: center; gap: 10px; font-size: 12px; cursor: pointer; }
+.pbar-row:hover .nm { color: var(--accent-ink); }
+.pbar-row .nm { width: 155px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: var(--t2); }
+.pbar-row .trk { flex: 1; height: 7px; border-radius: 4px; background: var(--surface); overflow: hidden; }
+.pbar-row .trk i { display: block; height: 100%; border-radius: 4px; background: var(--grad); }
+.pbar-row .val { width: 76px; text-align: right; font-size: 11px; color: var(--t3); }
+.pbar-row .val b { color: var(--t1); }
+
+.funnel3 { display: flex; align-items: center; gap: 8px; flex: 1; }
+.fn-box { flex: 1; background: var(--surface); border-radius: var(--r-sm); padding: 10px 12px; border: 1px solid var(--line); text-align: center; cursor: pointer; transition: all var(--dur); }
+.fn-box:hover { border-color: var(--accent); transform: translateY(-1px); }
+.fn-box .v { font-size: 18px; font-weight: 700; color: var(--t1); }
+.fn-box .k { font-size: 11px; color: var(--t3); margin-top: 2px; }
+.fn-arr { color: var(--t4); font-weight: 700; font-size: 14px; }
+
+/* 年度热力图（含月份刻度与图例） */
+.hmbox { background: var(--surface-2); border-radius: var(--r-md); padding: 14px 16px; border: 1px solid var(--line); }
+.hm-months { display: flex; gap: 3px; margin-bottom: 5px; font-size: 10px; color: var(--t4); padding-left: 20px; }
+.hm-months span { width: 13px; white-space: nowrap; overflow: visible; }
+.hm-body { display: flex; gap: 4px; align-items: stretch; }
+.hm-days { display: flex; flex-direction: column; justify-content: space-around; width: 16px; font-size: 10px; color: var(--t4); }
+.hm-wrap { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 2px; flex: 1; }
+.hm-col { display: flex; flex-direction: column; gap: 3px; flex: none; }
+.hm-c { width: 13px; height: 13px; border-radius: 3px; cursor: pointer; transition: transform 120ms; }
+.hm-c:hover { outline: 2px solid var(--accent); transform: scale(1.22); }
+.hm-legend { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--t3); margin-top: 10px; flex-wrap: wrap; }
+.hm-legend .s { width: 11px; height: 11px; border-radius: 2.5px; display: inline-block; }
+
+/* ══════════════════ 完善点 3：完整保留「资源生命周期与高价值沉睡证据唤醒」模块 ══════════════════ */
+.lc-section {
+  background: var(--surface-2); border-radius: var(--r-md); padding: 15px 18px; border: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.lc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.lc-head-l { display: flex; align-items: center; gap: 8px; }
+.lc-num { width: 20px; height: 20px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-ink); font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+.lc-grid { display: grid; grid-template-columns: 124px 235px 1fr; gap: 18px; align-items: center; }
+.donut {
+  width: 120px; height: 120px; border-radius: 50%; position: relative; flex: none;
+  background: conic-gradient(var(--ok) 0 80%, var(--warn) 80% 95%, var(--bad) 95% 100%);
+}
+.donut::after { content: ''; position: absolute; inset: 22px; border-radius: 50%; background: var(--surface-2); }
+.donut-c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2; }
+.donut-c .n { font-size: 21px; font-weight: 700; line-height: 1; color: var(--t1); }
+.donut-c .k { font-size: 10px; color: var(--t3); margin-top: 3px; }
+.lc-tabs { display: flex; flex-direction: column; gap: 6px; }
+.lctab {
+  display: flex; align-items: center; gap: 8px; padding: 8px 11px; border-radius: var(--r-sm);
+  background: var(--surface); border: 1px solid var(--line); font-size: 12px; cursor: pointer; transition: all var(--dur);
+}
+.lctab:hover { border-color: var(--line-strong); }
+.lctab.on { border-color: var(--accent); background: var(--accent-soft); }
+.lctab .sw { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.lc-cards { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.lccard {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 12px; border-radius: var(--r-sm); background: var(--surface); border: 1px solid var(--line);
+  font-size: 12px; transition: all var(--dur);
+}
+.lccard:hover { border-color: var(--line-strong); }
+.lccard-main { min-width: 0; flex: 1; }
+.lccard-title { font-weight: 600; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lccard-meta { font-size: 10.5px; color: var(--t3); margin-top: 2px; }
+.lccard-ops { display: flex; align-items: center; gap: 6px; flex: none; }
+
+/* ══════════════════ 完善点 2：原汁原味的五段式「今日战报（DayDetail）」中央大弹窗 ══════════════════ */
+.ov {
+  position: fixed; inset: 0; z-index: 300; background: rgba(0, 0, 0, .42); backdrop-filter: blur(5px);
+  display: none; align-items: center; justify-content: center; padding: 4vh 16px;
+}
+.ov.on { display: flex; }
+.battle-modal {
+  width: min(740px, 94vw); max-height: 88vh; overflow-y: auto; background: var(--surface);
+  border-radius: 18px; box-shadow: var(--sh-pop); border: 1px solid var(--line-strong);
+  display: flex; flex-direction: column; animation: pop .22s var(--ease) both;
+}
+@keyframes pop { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }
+/* ① 头部 */
+.dy-head { display: flex; align-items: center; gap: 12px; padding: 20px 24px 0; }
+.dy-ic { width: 38px; height: 38px; border-radius: 12px; background: var(--grad); color: #fff; display: grid; place-items: center; flex: none; box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--accent) 60%, transparent); }
+.dy-txt { flex: 1; }
+.dy-title { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+.dy-sub { font-size: 12px; color: var(--t3); margin-top: 1px; }
+/* ② 摘要行 */
+.dy-sum { margin: 14px 24px 0; font-size: 13.5px; color: var(--t2); line-height: 1.65; }
+.dy-sum b { color: var(--t1); font-weight: 700; }
+.dy-recent { font-size: 11.5px; color: var(--t3); margin-top: 3px; }
+/* ③ 四格统计（彩色大数，可点击下钻展开 DrillCardList） */
+.dy-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 16px 24px 0; }
+.dystat {
+  background: var(--surface-2); border-radius: var(--r-md); padding: 13px 15px;
+  display: flex; flex-direction: column; gap: 4px; cursor: pointer; text-align: left;
+  border: 1px solid var(--line); transition: all var(--dur);
+}
+.dystat:hover:not(.dim) { background: var(--accent-soft); transform: translateY(-1px); }
+.dystat.on { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.dystat.dim { opacity: .4; cursor: default; }
+.dystat .n { font-size: 24px; font-weight: 700; line-height: 1.05; }
+.dystat .lbl { font-size: 11.5px; color: var(--t3); display: flex; align-items: center; gap: 4px; font-weight: 600; }
+.sc-create .n { color: var(--ok); }
+.sc-call .n { color: var(--accent-ink); }
+.sc-status .n { color: var(--info); }
+.sc-del .n { color: var(--bad); }
+/* 下钻列表 DrillCardList */
+.drill-box { margin: 12px 24px 0; border-radius: var(--r-md); background: var(--surface-2); padding: 11px 14px; border: 1px solid var(--line); }
+.drill-h { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--t3); margin-bottom: 7px; }
+.drill-h b { color: var(--t1); }
+.drow { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: var(--r-sm); cursor: pointer; font-size: 12px; }
+.drow:hover { background: var(--surface); }
+.drow .t { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drow .mult { font-size: 10px; font-weight: 700; color: var(--accent-ink); background: var(--accent-soft); padding: 1px 6px; border-radius: var(--r-pill); }
+/* ③.5 热力带 */
+.dy-heatband {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin: 14px 24px 0; padding: 10px 15px; border-radius: var(--r-md);
+  background: var(--h2); color: var(--heat-ink); font-size: 12px; font-weight: 600;
+}
+.dy-heatband .lv { font-weight: 700; font-size: 13px; color: var(--t1); }
+/* ④ 分时段降序叙事时间线 */
+.dy-tl { padding: 0 24px 16px; }
+.dy-tl-head { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--t3); margin: 16px 0 8px; }
+.dy-tl-grp { margin-top: 12px; margin-bottom: 4px; font-size: 10.5px; font-weight: 700; color: var(--t4); letter-spacing: .04em; }
+.dy-tl-row {
+  display: flex; align-items: center; gap: 8px; padding: 8px 6px;
+  border-bottom: 1px solid var(--line); font-size: 12.5px; cursor: pointer; border-radius: 6px;
+}
+.dy-tl-row:hover { background: var(--surface-2); }
+.dy-tl-row .tm { width: 48px; flex: none; text-align: right; font-size: 11.5px; color: var(--t4); font-family: ui-monospace, Consolas, monospace; }
+.dy-tl-row .dotcol { width: 14px; flex: none; display: flex; justify-content: center; position: relative; }
+.dy-tl-row .dotcol::before { content: ''; position: absolute; top: -10px; bottom: -10px; left: 50%; width: 1px; background: var(--line-strong); }
+.dy-tl-row .tl-dot { width: 7px; height: 7px; border-radius: 50%; position: relative; z-index: 1; background: var(--accent); }
+.dy-tl-row .ti { flex: 1; color: var(--t1); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* ⑤ 页脚 */
+.dy-foot { display: flex; align-items: center; gap: 9px; padding: 13px 24px 18px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.dy-foot .note { font-size: 11px; color: var(--t4); flex: 1; min-width: 180px; }
+
+/* 右侧全部记录抽屉（DashboardLogDrawer） */
+.drawer-ov { position: fixed; inset: 0; z-index: 250; background: rgba(0,0,0,.32); backdrop-filter: blur(3px); display: none; }
+.drawer-ov.on { display: block; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 94vw); background: var(--surface);
+  border-left: 1px solid var(--line-strong); box-shadow: var(--sh-pop); z-index: 251;
+  display: none; flex-direction: column;
+}
+.drawer.on { display: flex; }
+.dr-h { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--line); }
+.dr-f { display: flex; gap: 7px; padding: 11px 22px; background: var(--surface-2); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.dr-b { flex: 1; overflow-y: auto; padding: 10px 18px 20px; }
+.dr-day { font-size: 10.5px; font-weight: 700; color: var(--t3); padding: 12px 6px 5px; position: sticky; top: 0; background: var(--surface); }
+
+.toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 400; background: var(--t1); color: var(--surface); padding: 8px 18px; border-radius: var(--r-pill); font-size: 12.5px; font-weight: 600; display: none; box-shadow: var(--sh-pop); }
+.toast.on { display: block; }
+
+@media (max-width: 960px) {
+  .hero-kpis-grid, .strip4, .light-split, .lc-grid { grid-template-columns: repeat(2, 1fr); }
+  .tl { grid-template-columns: 1fr; }
+  .rail { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- 顶栏 -->
+<header class="nav">
+  <div class="nav-in">
+    <div class="brand"><span class="mark">🧭</span><span>知源调度台 Ownway</span></div>
+    <button class="nav-tab" onclick="toast('路由演示：切回调度台首页 #/')">调度台</button>
+    <button class="nav-tab" onclick="toast('路由演示：切往方向台 #/compass')">方向台</button>
+    <div class="nav-right">
+      <div class="seg" title="切换数据状态观察一句话洞察">
+        <button class="on" onclick="setScene('zero', this)">📸 截图态(今日0入台)</button>
+        <button onclick="setScene('active', this)">⚡ 推进态(今日已调用)</button>
+      </div>
+      <div class="seg" title="切换四套官方主题">
+        <button class="on" onclick="setTheme('notion', this)">纸墨白</button>
+        <button onclick="setTheme('apple', this)">极简白</button>
+        <button onclick="setTheme('linear', this)">深空紫</button>
+        <button onclick="setTheme('raycast', this)">光速黑</button>
+      </div>
+      <button class="btn" onclick="downloadChecklistMd()">📋 下载开发清单 (.md)</button>
+      <button class="btn pri" onclick="downloadSelf()">⬇ 下载此 HTML</button>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+
+  <!-- ══════════════════ 完善点 1：顶部 Hero 三层规整卡片布局（彻底消除按钮悬空与右侧大片留白） ══════════════════ -->
+  <section class="hero-card">
+    <!-- 第一层：左标题 + 右操作按钮组（两端对齐，永不挤换行） -->
+    <div class="hero-row-top">
+      <div>
+        <div class="hero-eyebrow"><span class="dot"></span>画像洞察 · PROFILE INSIGHTS</div>
+        <h1 class="hero-title">你的知识生命体征<span class="en">PROFILE INSIGHTS</span></h1>
+      </div>
+      <div class="hero-acts">
+        <button class="btn" onclick="toast('⟳ 已重读本机事件日志并刷新统计')">⟳ 刷新</button>
+        <button class="btn" onclick="exportSummaryMd()">⬇ 导出摘要</button>
+        <button class="btn" onclick="openLogDrawer('all', '')">🗂️ 全部记录</button>
+      </div>
+    </div>
+
+    <!-- 第二层：通栏「使命主线 + 双主攻项目」坐标带（左右撑满，一目了然） -->
+    <div class="hero-compass-bar">
+      <div class="hc-left">
+        <span class="hc-badge">🧭 使命主线</span>
+        <span class="hc-text">以好奇过滤信息，以调度致用于己 —— 把散落的 AI 产出与政策数据转化为可复用的执业证据链</span>
+      </div>
+      <div class="hc-right">
+        <button class="compass-pill" onclick="openQuickModal('🚀 主攻项目一：AI 赋能培训与自媒体系统', 'proj1')">🚀 主攻 1：AI 赋能培训 <b>42%</b></button>
+        <button class="compass-pill" onclick="openQuickModal('🚀 主攻项目二：知源调度台 V3.8 打磨', 'proj2')">🚀 主攻 2：知源 V3.8 <b>78%</b></button>
+      </div>
+    </div>
+
+    <!-- 第三层：4 等宽全库底盘指标网格（与下方模块 4 列胶囊严格同宽对齐） -->
+    <div class="hero-kpis-grid">
+      <button class="hkpi-card" onclick="openQuickModal('📊 全库净资产明细（299 张存活卡）', 'total')">
+        <div><div class="l">全库净资产</div><div class="s">资源 214 · 任务 56 · 好奇 29</div></div>
+        <div class="v">299<small>张 ▸</small></div>
+      </button>
+      <button class="hkpi-card" onclick="openQuickModal('🏷️ 知识熵与 Top 标签分布（4.1 bit）', 'entropy')">
+        <div><div class="l">知识熵 (聚焦度)</div><div class="s">聚焦 #AI实操 #升学 #架构</div></div>
+        <div class="v">4.1<small>bit ▸</small></div>
+      </button>
+      <button class="hkpi-card" onclick="openQuickModal('🔗 任务证据支撑率（SupportLink 覆盖度）', 'support')">
+        <div><div class="l">任务有证据支撑</div><div class="s">已挂支撑资源卡的任务占比</div></div>
+        <div class="v" id="hk-sup">64<small>% ▸</small></div>
+      </button>
+      <button class="hkpi-card" onclick="openQuickModal('🎯 主攻精力聚焦度（近30天动作归因）', 'focus')">
+        <div><div class="l">近30天精力落主攻</div><div class="s">有效动作落入双主攻项目比</div></div>
+        <div class="v">72<small>% ▸</small></div>
+      </button>
+    </div>
+  </section>
+
+  <!-- ══ 时间轴主体 ══ -->
+  <div class="tl">
+    <aside class="rail">
+      <button class="rnode on" data-k="now" onclick="jump('mod-now','now')"><span class="rdot"></span><span class="rlab">今天<br>TODAY</span></button>
+      <button class="rnode" data-k="week" onclick="jump('mod-week','week')"><span class="rdot"></span><span class="rlab">本周<br>WEEK</span></button>
+      <button class="rnode" data-k="month" onclick="jump('mod-month','month')"><span class="rdot"></span><span class="rlab">本月<br>MONTH</span></button>
+      <button class="rnode" data-k="year" onclick="jump('mod-year','year')"><span class="rdot"></span><span class="rlab">本年度<br>YEAR</span></button>
+    </aside>
+
+    <div class="rmods">
+
+      <!-- ════════════════ ① 今天 · TODAY ════════════════ -->
+      <section class="mod" id="mod-now" data-k="now">
+        <div class="mod-head">
+          <div class="mod-title">
+            <span class="mod-ico">⚡</span>
+            <h2>今天 · 定焦与弹药<span>TODAY</span></h2>
+          </div>
+          <!-- 完善点 2：打开完整的五段式「今日战报」弹窗 -->
+          <button class="btn pri" onclick="openBattle('2026-10-15')">📊 打开今日战报 ›</button>
+        </div>
+
+        <!-- 1. 一句人话洞察 -->
+        <div class="one-insight" id="ins-today"></div>
+
+        <!-- 2. 一行 4 个今日数字 -->
+        <div class="strip4" id="strip-today"></div>
+
+        <!-- 3. 极简三件事单行对账 -->
+        <div class="f3-compact" id="list-today"></div>
+      </section>
+
+      <!-- ════════════════ ② 本周 · WEEK ════════════════ -->
+      <section class="mod" id="mod-week" data-k="week">
+        <div class="mod-head">
+          <div class="mod-title">
+            <span class="mod-ico">🎯</span>
+            <h2>本周 · 节奏与主攻对齐<span>WEEK · 10-12 → 10-15</span></h2>
+          </div>
+          <span class="tag acc">环比上周 +20%</span>
+        </div>
+
+        <!-- 1. 一句人话洞察 -->
+        <div class="one-insight warn">
+          <div>🎯 <b>本周洞察：</b>6 件动作里有 <b>5 件（83%）</b>集中在「AI 培训」，而另一主攻「知源 V3.8」仅 1 件、「升学证据库」<b>0 触达</b>；且本周<b>只推进任务、0 次调出旧卡</b> —— 记得先调库存再动笔。</div>
+          <button class="act-link" onclick="openQuickModal('↗ 主攻项目待召唤的 10 张支撑卡', 'support')">看可调出旧卡 ›</button>
+        </div>
+
+        <!-- 2. 一行 4 个本周数字 -->
+        <div class="strip4">
+          <button class="chip ok" onclick="openLogDrawer('all', '2026-10-12 → 2026-10-15')"><span class="l">有效动作</span><span class="v">6<small>件</small></span></button>
+          <button class="chip acc" onclick="openLogDrawer('all', '2026-10-12 → 2026-10-15')"><span class="l">加权得分</span><span class="v">9<small>分</small></span></button>
+          <button class="chip warn" onclick="openQuickModal('本周调出复用 · 0 次', 'support')"><span class="l">调出旧卡</span><span class="v" id="wk-call-v">0<small>次</small></span></button>
+          <button class="chip ok" onclick="toast('有动作日每日稳定 3 分，无暴饮暴食')"><span class="l">节奏波动</span><span class="v">±0<small>%</small></span></button>
+        </div>
+
+        <!-- 3. 左 7 日柱（点柱开完整当日战报） ｜ 右 3 条战略目标投入条 -->
+        <div class="light-split">
+          <div class="lbox">
+            <div class="lbox-h"><span>7 日能量密度</span><span>点任意柱 → 打开当日战报</span></div>
+            <div class="bars7" id="bars-week"></div>
+          </div>
+          <div class="lbox">
+            <div class="lbox-h"><span>三大战略目标投入占比</span><span>点条看产出任务</span></div>
+            <div class="pbar-list">
+              <div class="pbar-row" onclick="openQuickModal('🚀 AI 赋能培训与自媒体 · 本周 5 项动作', 'proj1')">
+                <span class="nm">🚀 AI 赋能培训与自媒体</span>
+                <span class="trk"><i style="width:83%"></i></span>
+                <span class="val"><b>5 项</b> · 83%</span>
+              </div>
+              <div class="pbar-row" onclick="openQuickModal('🚀 知源调度台 V3.8 · 本周 1 项动作', 'proj2')">
+                <span class="nm">🚀 知源调度台 V3.8</span>
+                <span class="trk"><i style="width:17%"></i></span>
+                <span class="val"><b>1 项</b> · 17%</span>
+              </div>
+              <div class="pbar-row" onclick="openQuickModal('🧭 34省高考志愿证据库 · 本周 0 触达', 'total')">
+                <span class="nm">🧭 34省高考志愿证据库</span>
+                <span class="trk"><i style="width:2%;background:var(--warn)"></i></span>
+                <span class="val" style="color:var(--warn)"><b>0 项</b> · 偏冷</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════ ③ 本月 · MONTH ════════════════ -->
+      <section class="mod" id="mod-month" data-k="month">
+        <div class="mod-head">
+          <div class="mod-title">
+            <span class="mod-ico">🗓️</span>
+            <h2>本月 · 主题聚焦与转化<span>MONTH · 2026-10</span></h2>
+          </div>
+          <span class="tag ok">知识熵 4.4 → 4.1 bit（更聚焦）</span>
+        </div>
+
+        <!-- 1. 一句人话洞察 -->
+        <div class="one-insight">
+          <div>🗓️ <b>本月洞察：</b>新入池 38 张卡中 <b>68% 聚焦 <code>#豆包 / #AI实操</code></b>，没有盲目发散收藏；但有 <b>11 张好奇心卡</b>停留超 14 天未转化，且仅 <b>5 张</b>沉淀进了策展台金字塔。</div>
+          <button class="act-link" onclick="openQuickModal('💡 4 张已有充足资源支撑、可直接求证闭环的好奇心卡', 'curio')">一键转化 4 张成熟好奇卡 ›</button>
+        </div>
+
+        <!-- 2. 一行 4 个本月数字 -->
+        <div class="strip4">
+          <button class="chip ok" onclick="openLogDrawer('create', '2026-10-01 → 2026-10-15')"><span class="l">本月入池</span><span class="v">+38<small>张</small></span></button>
+          <button class="chip acc" onclick="openLogDrawer('call', '2026-10-01 → 2026-10-15')"><span class="l">本月调出</span><span class="v">64<small>次</small></span></button>
+          <button class="chip warn" onclick="openQuickModal('好奇心转化 · 11 张探索中在途', 'curio')"><span class="l">好奇心转化</span><span class="v">38<small>%</small></span></button>
+          <button class="chip warn" onclick="openQuickModal('本月投射入策展台 · 5 张', 'proj1')"><span class="l">入策展金字塔</span><span class="v">5<small>张</small></span></button>
+        </div>
+
+        <!-- 3. 左 Top3 主题簇 ｜ 右 三步转化漏斗 -->
+        <div class="light-split">
+          <div class="lbox">
+            <div class="lbox-h"><span>本月 Top 输入主题 → 对应项目</span><span>6 张待打标</span></div>
+            <div class="pbar-list">
+              <div class="pbar-row" onclick="openQuickModal('#AI实操 / #豆包 · 26 张', 'proj1')">
+                <span class="nm">#AI实操 / #豆包</span>
+                <span class="trk"><i style="width:68%"></i></span>
+                <span class="val"><b>26 张</b> → AI培训</span>
+              </div>
+              <div class="pbar-row" onclick="openQuickModal('#产品架构 / #门禁 · 8 张', 'proj2')">
+                <span class="nm">#产品架构 / #门禁</span>
+                <span class="trk"><i style="width:21%"></i></span>
+                <span class="val"><b>8 张</b> → 知源V3.8</span>
+              </div>
+              <div class="pbar-row" onclick="openQuickModal('#升学政策 / #院校 · 4 张', 'total')">
+                <span class="nm">#升学政策 / #院校</span>
+                <span class="trk"><i style="width:11%"></i></span>
+                <span class="val"><b>4 张</b> → 志愿库</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="lbox">
+            <div class="lbox-h"><span>本月认知流转三步漏斗</span><span>点击下钻</span></div>
+            <div class="funnel3">
+              <div class="fn-box" onclick="openQuickModal('Step 1 · 捕捉入池（38 张）', 'total')">
+                <div class="v">38<small style="font-size:11px">张</small></div>
+                <div class="k">① 捕捉入池</div>
+              </div>
+              <span class="fn-arr">→</span>
+              <div class="fn-box" onclick="openQuickModal('Step 2 · 挂载参与任务（19 项）', 'support')">
+                <div class="v" style="color:var(--ok)">19<small style="font-size:11px">项</small></div>
+                <div class="k">② 支撑任务 (50%)</div>
+              </div>
+              <span class="fn-arr">→</span>
+              <div class="fn-box" onclick="openQuickModal('Step 3 · 沉淀入策展台（5 张）', 'proj1')">
+                <div class="v" style="color:var(--warn)">5<small style="font-size:11px">张</small></div>
+                <div class="k">③ 策展表达 (13%)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════ ④ 本年度 · YEAR（完整保留年度热力图 + 资源生命周期与高价值沉睡证据唤醒） ════════════════ -->
+      <section class="mod" id="mod-year" data-k="year">
+        <div class="mod-head">
+          <div class="mod-title">
+            <span class="mod-ico">🧭</span>
+            <h2>本年度 · 愿景基石与生命周期<span>YEAR · 2026</span></h2>
+          </div>
+          <div class="seg">
+            <button class="on" onclick="setHmWeeks(53, this)">全年 53 周</button>
+            <button onclick="setHmWeeks(26, this)">近半年 26 周</button>
+          </div>
+        </div>
+
+        <!-- 1. 一句人话洞察 -->
+        <div class="one-insight">
+          <div>🧭 <b>年度洞察：</b>299 张资产里 <b>70%</b> 锚定你的双轮愿景（AI 培训 112 张 + 34省升学库 98 张）；当前有 <b>18 张曾高频调用 ≥3 次的核心证据卡</b>超过 30 天未打开进入冷却期。</div>
+          <button class="act-link" onclick="scrollToLifecycleCool()">🔥 去下方唤醒 18 张核心卡 ›</button>
+        </div>
+
+        <!-- 2. 一行 4 个年度数字 -->
+        <div class="strip4">
+          <button class="chip ok" onclick="openLogDrawer('all', '2026 全年')"><span class="l">本年活跃</span><span class="v">186<small>天</small></span></button>
+          <button class="chip acc" onclick="openLogDrawer('all', '历史最长连续 28 天')"><span class="l">最长连续</span><span class="v">28<small>天</small></span></button>
+          <button class="chip ok" onclick="pickLcTab('act')"><span class="l">活跃期资产</span><span class="v" id="yr-act-v">239<small>张</small></span></button>
+          <button class="chip warn" onclick="scrollToLifecycleCool()"><span class="l">高价值冷却卡</span><span class="v" id="yr-cool-v">18<small>张</small></span></button>
+        </div>
+
+        <!-- 3A. 年度热力图（点任意格打开完整五段式当日战报） -->
+        <div class="hmbox">
+          <div class="hm-months" id="hmMonths"></div>
+          <div class="hm-body">
+            <div class="hm-days"><span>一</span><span>三</span><span>五</span></div>
+            <div class="hm-wrap" id="hm-year"></div>
+          </div>
+          <div class="hm-legend">
+            <span>少</span>
+            <span class="s" style="background:var(--h0)"></span>
+            <span class="s" style="background:var(--h1)"></span>
+            <span class="s" style="background:var(--h2)"></span>
+            <span class="s" style="background:var(--h3)"></span>
+            <span class="s" style="background:var(--h4)"></span>
+            <span class="s" style="background:var(--h5)"></span>
+            <span>多</span>
+            <span style="margin-left:auto">2026 累计加权 <b>1,842</b> 分 · 单日峰值 <b>48</b> 分（09-18）· 点任意格打开当日战报</span>
+          </div>
+        </div>
+
+        <!-- ══════════════════ 完善点 3：完整保留「资源生命周期与高价值沉睡证据唤醒」模块 ══════════════════ -->
+        <div class="lc-section" id="lc-sec">
+          <div class="lc-head">
+            <div class="lc-head-l">
+              <span class="lc-num">2</span>
+              <strong style="font-size:13.5px">资源生命周期与高价值沉睡证据唤醒</strong>
+              <span style="font-size:11.5px;color:var(--t3)">活跃 / 冷却 / 归档 三态 · 自动标记历史调用 ≥3 次的沉睡核心证据</span>
+            </div>
+            <button class="btn sm" onclick="openThresholdModal()">⚙ 冷却阈值设置 (默认 30 天)</button>
+          </div>
+
+          <div class="lc-grid">
+            <!-- 左侧：三态圆环图 -->
+            <div class="donut">
+              <div class="donut-c">
+                <span class="n" id="lc-total-num">299</span>
+                <span class="k">张存活卡</span>
+              </div>
+            </div>
+
+            <!-- 中栏：三态交互切换 Tab -->
+            <div class="lc-tabs" id="lcTabs"></div>
+
+            <!-- 右栏：当前状态卡片清单（支持一键唤醒复温 / 延后 / 归档） -->
+            <div class="lc-cards" id="lcCards"></div>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </div>
+</main>
+
+<!-- ══════════════════ 完善点 2：完整五段式「今日战报（DayDetail）」中央大弹窗（内容明细一字不减） ══════════════════ -->
+<div class="ov" id="ovBattle" onclick="if(event.target.id==='ovBattle')closeBattle()">
+  <div class="battle-modal" id="battleContent"></div>
+</div>
+
+<!-- 通用辅助弹窗（指标下钻 / 阈值设置） -->
+<div class="ov" id="ovQuick" onclick="if(event.target.id==='ovQuick')closeQuickModal()">
+  <div class="battle-modal" style="width:min(620px,94vw)" id="quickContent"></div>
+</div>
+
+<!-- 右侧全量操作记录抽屉（DashboardLogDrawer） -->
+<div class="drawer-ov" id="drvOv" onclick="closeLogDrawer()"></div>
+<aside class="drawer" id="logDrawer">
+  <div class="dr-h">
+    <div>
+      <div style="font-size:17px;font-weight:700" id="drTitle">🗂️ 全部记录</div>
+      <div style="font-size:11px;color:var(--t3);margin-top:2px" id="drSub">全部事件 · 类型 × 动作 × 时间三维可筛</div>
+    </div>
+    <button class="btn sm" onclick="closeLogDrawer()">收起 ×</button>
+  </div>
+  <div class="dr-f" id="drFilters"></div>
+  <div class="dr-b" id="drBody"></div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let scene = 'zero';
+let task2Bound = false;
+let task1Done = false;
+let slot3Added = false;
+let lcCur = 'cool';
+let hmCols = 53;
+let curBattleDay = '2026-10-15';
+let curBattleDrill = '';
+let defaultCoolingDays = 30;
+
+/* ══ 卡片字典与真实事件日志数据（供五段式今日战报与全部记录抽屉消费） ══ */
+const CARDS = {
+  c1: { icon: '📇', title: '《AI 培训：得到大脑核心功能与邀请链接话术清单》', kind: '资源', tag: '🚀 AI 赋能培训 · #得到', link: true },
+  c2: { icon: '📇', title: '《豆包自媒体爆款图文与短视频脚本拆解 SOP》', kind: '资源', tag: '🚀 AI 赋能培训 · #豆包', link: true },
+  c3: { icon: '📇', title: '《微信输入法 vs 豆包输入法效率实测对比》', kind: '资源', tag: '🚀 AI 赋能培训 · #输入法', link: true },
+  c4: { icon: '📇', title: '《AI 证件照、微信头像与微信表情包制作全流程》', kind: '资源', tag: '🚀 AI 赋能培训 · #实操', link: true },
+  c5: { icon: '📇', title: '《2026 全国 34 省高考一分一段表与位次换算主表》', kind: '资源', tag: '🧭 34省升学库 · #政策', link: true },
+  t1: { icon: '✅', title: 'AI 培训：推荐得到大脑——我的邀请链接 推荐微信输入法，豆包输入法…', kind: '任务', tag: '🚀 AI 赋能培训', link: false },
+  t2: { icon: '✅', title: '拆解豆包自媒体创作系统案例', kind: '任务', tag: '🚀 AI 赋能培训', link: false },
+  q1: { icon: '💡', title: '好奇：豆包多模态工作流能否做成 60 分钟标准实操课？', kind: '好奇', tag: '💡 好奇探索', link: false }
+};
+
+const TODAY_EVENTS_ACTIVE = [
+  { t: '09:15', a: 'create', k: '资源', c: 'c4', to: '入池 #AI实操' },
+  { t: '09:42', a: 'call',   k: '资源', c: 'c1' },
+  { t: '10:18', a: 'call',   k: '资源', c: 'c2' },
+  { t: '11:05', a: 'status', k: '任务', c: 't1', to: '子任务 2/5 → 3/5' },
+  { t: '14:10', a: 'call',   k: '资源', c: 'c2' },
+  { t: '14:35', a: 'create', k: '资源', c: 'c3', to: '入池 #豆包' },
+  { t: '15:20', a: 'call',   k: '资源', c: 'c3' },
+  { t: '16:02', a: 'status', k: '任务', c: 't2', to: '挂载 6 张支撑卡' },
+  { t: '16:40', a: 'create', k: '好奇', c: 'q1', to: '捕捉念头' },
+  { t: '17:15', a: 'call',   k: '资源', c: 'c1' }
+];
+
+function eventsOfDay(day) {
+  if (day === '2026-10-15') {
+    return scene === 'zero'
+      ? [
+          { t: '09:10', a: 'status', k: '任务', c: 't1', to: '排入今日三件事 #01' },
+          { t: '09:12', a: 'status', k: '任务', c: 't2', to: '排入今日三件事 #02' }
+        ]
+      : TODAY_EVENTS_ACTIVE;
+  }
+  const seed = parseInt(day.slice(-2), 10) || 12;
+  const list = [
+    { t: '10:12', a: 'create', k: '资源', c: 'c2', to: '入池 #豆包' },
+    { t: '11:30', a: 'call',   k: '资源', c: 'c1' },
+    { t: '14:25', a: 'status', k: '任务', c: 't1', to: '待办 → 进行中' },
+    { t: '16:18', a: 'call',   k: '资源', c: 'c5' },
+    { t: '17:45', a: 'delete', k: '好奇', c: 'q1', to: '移入回收站' }
+  ];
+  return list.slice(0, (seed % 4) + 2);
+}
+
+/* ══ 1. 渲染今天模块 ══ */
+function renderToday() {
+  const ins = document.getElementById('ins-today');
+  const strip = document.getElementById('strip-today');
+  const list = document.getElementById('list-today');
+
+  if (scene === 'zero') {
+    ins.className = 'one-insight' + (task2Bound ? '' : ' warn');
+    ins.innerHTML = task2Bound
+      ? `<div>💡 <b>今日诊断：</b>#01 与 #02 均已挂入主攻项目「🚀 AI 赋能培训」，且已备齐 <b>10 张</b>现成豆包/得到支撑卡 —— 直接调出旧卡即可开始拆解。</div>
+         <button class="act-link" onclick="openQuickModal('↗ 今日任务已绑定的 10 张支撑资源卡', 'support')">↗ 调出 10 张支撑卡 ›</button>`
+      : `<div>💡 <b>今日诊断：</b>虽尚未入台新卡，但你已排 2 件焦点任务 —— <b>#01</b> 有 4 张支撑卡待调用；<b>#02「拆解豆包案例」</b>未挂项目且 0 支撑，库内有 <b>6 张 <code>#豆包</code> 现成卡</b>可直接绑定。</div>
+         <button class="act-link" onclick="bindTask2()">🔗 一键将 #02 归入主攻 + 绑 6 张卡 ›</button>`;
+
+    strip.innerHTML = `
+      <button class="chip" onclick="openBattle('2026-10-15', 'create')"><span class="l">今日入台</span><span class="v">0<small>张</small></span></button>
+      <button class="chip ${task2Bound ? 'acc' : 'warn'}" onclick="openBattle('2026-10-15', 'call')"><span class="l">今日调出</span><span class="v">0<small>次</small></span></button>
+      <button class="chip acc" onclick="toast('点击下方三件事行可直接操作')"><span class="l">今日焦点</span><span class="v">${slot3Added ? '3/3' : '2/3'}<small>件</small></span></button>
+      <button class="chip ${task2Bound ? 'ok' : 'warn'}" onclick="openQuickModal('🔗 今日任务已绑定的支撑资源卡', 'support')"><span class="l">已备弹药</span><span class="v">${task2Bound ? '10' : '4'}<small>张卡</small></span></button>
+    `;
+  } else {
+    ins.className = 'one-insight';
+    ins.innerHTML = `<div>💡 <b>今日诊断：</b>已调出 <b>5 次</b>历史豆包案例卡并新入台 <b>3 张</b>（复用比 1.67），双主攻项目今日均有实质推进，可打开今日战报检视完整时间线。</div>
+      <button class="act-link" onclick="openBattle('2026-10-15')">📊 打开今日战报 ›</button>`;
+
+    strip.innerHTML = `
+      <button class="chip ok" onclick="openBattle('2026-10-15', 'create')"><span class="l">今日入台</span><span class="v">+3<small>张</small></span></button>
+      <button class="chip acc" onclick="openBattle('2026-10-15', 'call')"><span class="l">今日调出</span><span class="v">5<small>次</small></span></button>
+      <button class="chip ok" onclick="toast('今日三件事已满格推进')"><span class="l">今日焦点</span><span class="v">3/3<small>件</small></span></button>
+      <button class="chip ok" onclick="openQuickModal('🔗 今日任务已绑定的支撑资源卡', 'support')"><span class="l">已备弹药</span><span class="v">12<small>张卡</small></span></button>
+    `;
+  }
+
+  const rows = [
+    {
+      n: '01', done: task1Done,
+      t: 'AI 培训：推荐得到大脑——我的邀请链接 推荐微信输入法，豆包输入法 做微信表情包，做证件照，做微信头像，做视频等等',
+      proj: '<span class="tag acc">🚀 主攻：AI 赋能培训</span>',
+      ammo: '<button class="btn sm" onclick="openQuickModal(\'↗ #01 关联的 4 张支撑资源卡\', \'support\')">🔗 4 张支撑卡 ▸</button>'
+    },
+    {
+      n: '02', done: false,
+      t: '拆解豆包自媒体创作系统案例',
+      proj: (task2Bound || scene === 'active')
+        ? '<span class="tag acc">🚀 主攻：AI 赋能培训 ✓</span>'
+        : '<span class="tag warn">⚠️ 未挂项目 (游离)</span>',
+      ammo: (task2Bound || scene === 'active')
+        ? '<button class="btn sm" onclick="openQuickModal(\'↗ #02 绑定的 6 张 #豆包 支撑卡\', \'support\')">🔗 6 张支撑卡 ▸</button>'
+        : '<button class="btn pri sm" onclick="bindTask2()">🔗 归入主攻 + 绑 6 张豆包卡</button>'
+    }
+  ];
+
+  if (slot3Added || scene === 'active') {
+    rows.push({
+      n: '03', done: false,
+      t: '核对知源调度台 V3.8 画像洞察页重构清单（15分钟微任务）',
+      proj: '<span class="tag acc">🚀 主攻：知源 V3.8</span>',
+      ammo: '<button class="btn sm" onclick="openQuickModal(\'↗ #03 关联的 2 张架构卡\', \'proj2\')">🔗 2 张支撑卡 ▸</button>'
+    });
+  } else {
+    rows.push({
+      n: '03', empty: true,
+      t: '第 3 槽留空 —— 推荐补入另一主攻「知源 V3.8」微任务，防单线偏科',
+      proj: '',
+      ammo: '<button class="btn sm" onclick="slot3Added=true;renderToday();toast(\'✓ 已填入第 3 槽，双主攻平衡达成\')">＋ 一键填入</button>'
+    });
+  }
+
+  list.innerHTML = rows.map((r, i) => `
+    <div class="f3-row ${r.done ? 'done' : ''} ${r.empty ? 'empty' : ''}">
+      <span class="f3-num">${r.n}</span>
+      ${r.empty ? '' : `<button class="f3-ck ${r.done ? 'done' : ''}" onclick="if(${i}===0){task1Done=!task1Done;renderToday();toast(task1Done?'✓ 已完成 #01':'已取消完成')}">${r.done ? '✓' : ''}</button>`}
+      <span class="f3-title" title="${r.t}">${r.t}</span>
+      ${r.proj}
+      ${r.ammo}
+    </div>
+  `).join('');
+}
+
+function bindTask2() {
+  task2Bound = true;
+  document.getElementById('hk-sup').innerHTML = '71<small>% ▸</small>';
+  renderToday();
+  toast('✓ 已将 #02 归入主攻「AI 赋能培训」并绑定 6 张 #豆包 支撑卡！');
+}
+
+/* ══ 2. 渲染本周 7 日柱（点柱打开对应日期的完整五段式战报） ══ */
+function renderWeekBars() {
+  const scores = scene === 'zero' ? [9, 12, 15, 4, 0, 0, 0] : [9, 12, 15, 24, 0, 0, 0];
+  const days = [
+    ['一', '2026-10-12'], ['二', '2026-10-13'], ['三', '2026-10-14'],
+    ['四(今)', '2026-10-15'], ['五', '2026-10-16'], ['六', '2026-10-17'], ['日', '2026-10-18']
+  ];
+  const max = Math.max(15, ...scores);
+  document.getElementById('bars-week').innerHTML = scores.map((w, i) => `
+    <div class="bcol" onclick="openBattle('${days[i][1]}')" title="${days[i][1]} · 加权 ${w} 分 · 点击打开当日战报">
+      <div class="btrk"><div class="bfil" style="height:${Math.max(8, Math.round(w / max * 100))}%;opacity:${w ? 1 : .2}"></div></div>
+      <span class="blbl">周${days[i][0]}</span>
+    </div>
+  `).join('');
+}
+
+/* ══ 3. 渲染年度热力图与完整的「资源生命周期与高价值沉睡证据唤醒」模块 ══ */
+function renderHeatmap(cols) {
+  const box = document.getElementById('hm-year');
+  const mo = document.getElementById('hmMonths');
+  const base = new Date('2026-10-15');
+  const M = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  let mh = '';
+  let lastM = -1;
+  box.innerHTML = '';
+  for (let w = cols - 1; w >= 0; w--) {
+    const first = new Date(base);
+    first.setDate(base.getDate() - (w * 7 + 6));
+    const mIdx = first.getMonth();
+    mh += `<span style="width:13px">${mIdx !== lastM && w !== cols - 1 ? M[mIdx] : ''}</span>`;
+    lastM = mIdx;
+    const col = document.createElement('div');
+    col.className = 'hm-col';
+    for (let d = 0; d < 7; d++) {
+      const dt = new Date(base);
+      dt.setDate(base.getDate() - (w * 7 + (6 - d)));
+      const day = dt.toISOString().slice(0, 10);
+      const seed = (w * 11 + d * 17 + parseInt(day.slice(-2), 10)) % 13;
+      const lv = w < 5 ? (seed % 5 + 1) : (seed < 4 ? 0 : seed < 7 ? 1 : seed < 9 ? 2 : seed < 11 ? 3 : 4);
+      const c = document.createElement('div');
+      c.className = 'hm-c';
+      c.style.background = 'var(--h' + lv + ')';
+      c.title = day + ' · 加权 ' + (lv * 6) + ' 分 · 点击打开当日战报';
+      c.onclick = function() { openBattle(day); };
+      col.appendChild(c);
+    }
+    box.appendChild(col);
+  }
+  mo.innerHTML = mh;
+}
+
+const LC_STATE = {
+  act: {
+    name: '🟢 活跃期', desc: '30天内有调出/推进', cnt: 239, pct: '80%', col: 'var(--ok)',
+    items: [
+      { id: 'a1', t: '《得到大脑核心功能与邀请链接话术清单》', meta: '🚀 AI 赋能培训 · 历史调用 9 次 · 3 天前调用' },
+      { id: 'a2', t: '《豆包自媒体爆款图文与短视频脚本拆解 SOP》', meta: '🚀 AI 赋能培训 · 历史调用 7 次 · 昨天调用' },
+      { id: 'a3', t: '《知源调度台 V3.8 视觉焦点与极简洞察规范》', meta: '🚀 知源 V3.8 · 历史调用 14 次 · 今天调用' }
+    ]
+  },
+  cool: {
+    name: '🟡 冷却期（含18张核心卡）', desc: '>30天未调用 · 建议复温', cnt: 44, pct: '15%', col: 'var(--warn)',
+    items: [
+      { id: 'c1', t: '🔥 《2026 全国 34 省高考一分一段表与位次换算主表》', meta: '🧭 34省升学库 · 历史高频调用 19 次 · 已冷却 36 天（核心执业证据）' },
+      { id: 'c2', t: '🔥 《中高端家庭高考志愿咨询：首次质询应答话术库》', meta: '🧭 34省升学库 · 历史高频调用 12 次 · 已冷却 41 天（核心执业证据）' },
+      { id: 'c3', t: '🔥 《微信生态 AI 表情包与数字人证件照实操模板》', meta: '🚀 AI 赋能培训 · 历史调用 5 次 · 已冷却 32 天（今日 #01 任务直接可用！）' }
+    ]
+  },
+  arch: {
+    name: '🔴 归档候选', desc: '>90天未触达 · 建议归档', cnt: 16, pct: '5%', col: 'var(--bad)',
+    items: [
+      { id: 'r1', t: '《早期 V2.12 书签迁移测试记录》', meta: '系统历史卡 · 历史调用 1 次 · 已静置 108 天' },
+      { id: 'r2', t: '《某第三方网页剪藏插件对比草稿》', meta: '待打标 · 历史调用 0 次 · 已静置 96 天' }
+    ]
+  }
+};
+
+function renderLifecycle() {
+  document.getElementById('lcTabs').innerHTML = Object.keys(LC_STATE).map(k => {
+    const s = LC_STATE[k];
+    return `<div class="lctab ${lcCur === k ? 'on' : ''}" onclick="pickLcTab('${k}')">
+      <span class="sw" style="background:${s.col}"></span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700">${s.name}</div>
+        <div style="font-size:10px;color:var(--t3)">${s.desc}</div>
+      </div>
+      <span style="font-weight:700">${s.cnt} 张</span>
+    </div>`;
+  }).join('');
+
+  const cur = LC_STATE[lcCur];
+  document.getElementById('lcCards').innerHTML = cur.items.length
+    ? cur.items.map((it, idx) => `
+      <div class="lccard">
+        <div class="lccard-main">
+          <div class="lccard-title" title="${it.t}">${it.t}</div>
+          <div class="lccard-meta">${it.meta}</div>
+        </div>
+        <div class="lccard-ops">
+          ${lcCur !== 'act' ? `<button class="btn pri sm" onclick="wakeLcCard('${lcCur}', ${idx})">🔥 唤醒复温</button>` : `<button class="btn sm" onclick="toast('已定位卡片：' + '${it.t}')">定位 ›</button>`}
+          <button class="btn sm" onclick="snoozeLcCard('${lcCur}', ${idx})">延后30天</button>
+          ${lcCur !== 'arch' ? `<button class="btn sm" onclick="archiveLcCard('${lcCur}', ${idx})">归档</button>` : ''}
+        </div>
+      </div>
+    `).join('')
+    : '<div style="padding:20px;text-align:center;color:var(--t3);background:var(--surface);border-radius:8px">当前分组卡片已全部处理完毕 ✓</div>';
+}
+
+function pickLcTab(k) {
+  lcCur = k;
+  renderLifecycle();
+}
+
+function scrollToLifecycleCool() {
+  lcCur = 'cool';
+  renderLifecycle();
+  document.getElementById('lc-sec')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  toast('已定位至「冷却期」高价值核心证据卡，点「🔥 唤醒复温」即可激活');
+}
+
+function wakeLcCard(tab, idx) {
+  const it = LC_STATE[tab].items[idx];
+  if (!it) return;
+  LC_STATE[tab].items.splice(idx, 1);
+  LC_STATE[tab].cnt = Math.max(0, LC_STATE[tab].cnt - 1);
+  LC_STATE.act.cnt += 1;
+  LC_STATE.act.items.unshift({ id: it.id, t: it.t.replace('🔥 ', ''), meta: '刚刚手动唤醒复温 · 已重新计入活跃期资产' });
+  document.getElementById('yr-act-v').innerHTML = LC_STATE.act.cnt + '<small>张</small>';
+  if (tab === 'cool') {
+    const rem = Math.max(0, parseInt(document.getElementById('yr-cool-v').textContent, 10) - 1);
+    document.getElementById('yr-cool-v').innerHTML = rem + '<small>张</small>';
+  }
+  renderLifecycle();
+  toast('✓ 已唤醒复温：' + it.t.replace('🔥 ', ''));
+}
+
+function snoozeLcCard(tab, idx) {
+  const it = LC_STATE[tab].items[idx];
+  if (!it) return;
+  toast('⏳ 已将「' + it.t.replace('🔥 ', '') + '」冷却阈值延后 30 天');
+}
+
+function archiveLcCard(tab, idx) {
+  const it = LC_STATE[tab].items[idx];
+  if (!it) return;
+  LC_STATE[tab].items.splice(idx, 1);
+  LC_STATE[tab].cnt = Math.max(0, LC_STATE[tab].cnt - 1);
+  LC_STATE.arch.cnt += 1;
+  LC_STATE.arch.items.unshift({ id: it.id, t: it.t.replace('🔥 ', ''), meta: '刚刚归档 · 可随时唤醒恢复' });
+  renderLifecycle();
+  toast('📥 已归档：' + it.t.replace('🔥 ', ''));
+}
+
+/* ══════════════════ 完善点 2：完整五段式「今日战报（DayDetail）」弹窗渲染 ══════════════════ */
+const ACT_SYM = { create: '+', call: '↗', status: '◐', delete: '⌫' };
+const ACT_LBL = { create: '新增', call: '调出', status: '推进', delete: '清理' };
+const ACT_TAG = { create: 'ok', call: 'acc', status: 'info', delete: 'bad' };
+const ACT_COL = { create: 'var(--ok)', call: 'var(--accent)', status: 'var(--info)', delete: 'var(--bad)' };
+
+function openBattle(day, defaultDrill) {
+  curBattleDay = day || '2026-10-15';
+  if (defaultDrill !== undefined) curBattleDrill = defaultDrill;
+  const evs = eventsOfDay(curBattleDay);
+  const wd = ['一','二','三','四','五','六','日'][(new Date(curBattleDay.replace(/-/g, '/')).getDay() + 6) % 7];
+
+  const c = { create: 0, call: 0, status: 0, delete: 0 };
+  evs.forEach(e => { c[e.a] = (c[e.a] || 0) + 1; });
+
+  const cells = [
+    { k: 'create', n: c.create, lbl: '新增', sym: '+', cls: 'sc-create' },
+    { k: 'call',   n: c.call,   lbl: '调出', sym: '↗', cls: 'sc-call' },
+    { k: 'status', n: c.status, lbl: '推进', sym: '✓', cls: 'sc-status' },
+    { k: 'delete', n: c.delete, lbl: '清理', sym: '⌫', cls: 'sc-del' }
+  ];
+
+  const cardSet = new Set(evs.map(e => e.c)).size;
+  const W = c.create * 10 + c.call * 2 + c.status * 4 + c.delete * 4;
+  const lv = Math.min(5, Math.ceil(W / 12));
+  const lvName = ['静默','轻触','温流','常规','冲刺','满格'][lv];
+  const lvRange = ['0 分','1–12 分','13–24 分','25–36 分','37–48 分','49 分以上'][lv];
+  const intensity = Math.min(100, Math.round(W / 55 * 100));
+
+  // 按下午 / 上午 / 晚上降序分组
+  const groups = [];
+  [...evs].reverse().forEach(e => {
+    const h = parseInt(e.t.slice(0, 2), 10);
+    const label = h < 12 ? '上午' : h < 18 ? '下午' : '晚上';
+    let g = groups[groups.length - 1];
+    if (!g || g.label !== label) { g = { label, rows: [] }; groups.push(g); }
+    g.rows.push(e);
+  });
+
+  // 下钻区 HTML
+  let drillHtml = '';
+  if (curBattleDrill) {
+    const cellObj = cells.find(x => x.k === curBattleDrill);
+    const filtered = evs.filter(e => e.a === curBattleDrill);
+    const uniqKeys = [...new Set(filtered.map(e => e.c))];
+    drillHtml = `
+      <div class="drill-box">
+        <div class="drill-h">
+          <b>当日「${cellObj ? cellObj.lbl : ''}」下钻</b>
+          <span>${uniqKeys.length} 类卡片 · 共 ${filtered.length} 条记录（同卡多次已合并 ×N）</span>
+          <span class="sp"></span>
+          <span>单击定位卡片 · 双击直达链接</span>
+        </div>
+        ${uniqKeys.length ? uniqKeys.map(ck => {
+          const sub = filtered.filter(x => x.c === ck);
+          const card = CARDS[ck] || { icon: '📇', title: ck, tag: '卡片' };
+          return `<div class="drow" onclick="toast('已定位卡片：' + '${card.title}')" ondblclick="toast('↗ 已在新标签页打开链接：' + '${card.title}')">
+            <span>${card.icon}</span>
+            <span class="t">${card.title}</span>
+            ${sub.length > 1 ? `<span class="mult">×${sub.length}</span>` : ''}
+            <span style="font-size:10.5px;color:var(--t3);font-family:monospace">${sub.map(x => x.t).join(', ')}</span>
+            <span class="tag">${card.tag}</span>
+          </div>`;
+        }).join('') : '<div style="padding:10px;text-align:center;color:var(--t3)">该维度当日无记录</div>'}
+      </div>
+    `;
+  }
+
+  const html = `
+    <!-- ① 头部：图标 + 标题 + 日期 + 收起 -->
+    <div class="dy-head">
+      <span class="dy-ic">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="4"/></svg>
+      </span>
+      <div class="dy-txt">
+        <div class="dy-title">${curBattleDay === '2026-10-15' ? '今日战报' : '每日战报'}</div>
+        <div class="dy-sub">${curBattleDay} 周${wd}</div>
+      </div>
+      <button class="btn sm" onclick="closeBattle()">收起 ×</button>
+    </div>
+
+    <!-- ② 摘要行 + 最近一次操作时刻 -->
+    <div class="dy-sum">
+      ${evs.length ? `今天你完成了 <b>${evs.length}</b> 项操作，涉及 <b>${cardSet}</b> 张卡。` : '这一天没有操作记录。'}
+      <div class="dy-recent">最近一次操作：${evs.length ? evs[evs.length - 1].t : '—'}（2 小时前 · 主攻命中率 100%）</div>
+    </div>
+
+    <!-- ③ 四格彩色大数统计（支持点击下钻 DrillCardList） -->
+    <div class="dy-stats">
+      ${cells.map(cell => `
+        <button class="dystat ${cell.cls} ${cell.n === 0 ? 'dim' : ''} ${curBattleDrill === cell.k ? 'on' : ''}"
+          onclick="${cell.n > 0 ? `toggleBattleDrill('${cell.k}')` : `toast('当日无「${cell.lbl}」记录')`}"
+          title="${cell.n === 0 ? '当日无记录' : '点击展开/收起「' + cell.lbl + '」卡片下钻明细'}">
+          <span class="n">${cell.n}</span>
+          <span class="lbl"><span>${cell.sym}</span>${cell.lbl}</span>
+        </button>
+      `).join('')}
+    </div>
+
+    <!-- ③ 下钻列表（紧跟四格统计下方） -->
+    ${drillHtml}
+
+    <!-- ③.5 热力带 -->
+    <div class="dy-heatband">
+      <span class="lv">🔥 ${lvName}</span>
+      <span>加权 ${W} 分</span>
+      <span>区间 ${lvRange}</span>
+      <span>强度 ${intensity}%</span>
+      <span>有效动作 ${c.create + c.status + c.delete} 件</span>
+    </div>
+
+    <!-- ④ 分时段降序叙事时间线 -->
+    <div class="dy-tl">
+      <div class="dy-tl-head">
+        <b style="color:var(--t1)">当日操作时间线</b>
+        <span class="sp"></span>
+        <span>共 ${evs.length} 条 · 明细来自 zy_event_log</span>
+        <button class="btn sm" onclick="closeBattle();openLogDrawer('all', '${curBattleDay}')">查看全部记录 ›</button>
+      </div>
+      ${groups.map(g => `
+        <div class="dy-tl-grp">${g.label}</div>
+        ${g.rows.map(e => {
+          const card = CARDS[e.c] || { title: e.c };
+          return `<div class="dy-tl-row" onclick="toast('已定位卡片：' + '${card.title}')" ondblclick="toast('↗ 已打开链接：' + '${card.title}')" title="单击定位卡片 · 双击直达链接">
+            <span class="tm">${e.t}</span>
+            <span class="dotcol"><span class="tl-dot" style="background:${ACT_COL[e.a]}"></span></span>
+            <span class="tag ${ACT_TAG[e.a]}">${ACT_SYM[e.a]} ${ACT_LBL[e.a]}</span>
+            <span style="font-size:11px;color:var(--t3)">${e.k}</span>
+            <span class="ti">${card.title}</span>
+            ${e.to ? `<span class="tag acc">${e.to}</span>` : ''}
+          </div>`;
+        }).join('')}
+      `).join('')}
+    </div>
+
+    <!-- ⑤ 页脚（注 + 查看全部记录 + 导出三件套） -->
+    <div class="dy-foot">
+      <span class="note">数据来源：本机事件日志 · 仅当日 · 自然日口径</span>
+      <button class="btn sm" onclick="closeBattle();openLogDrawer('all', '${curBattleDay}')">查看全部记录 ›</button>
+      <div class="seg">
+        <button onclick="toast('✓ 已导出战报 PNG（当前主题配色）')">导出 PNG</button>
+        <button onclick="toast('✓ 已导出自包含 HTML 分享页')">HTML</button>
+        <button onclick="exportSummaryMd()">MD</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('battleContent').innerHTML = html;
+  document.getElementById('ovBattle').classList.add('on');
+}
+
+function toggleBattleDrill(k) {
+  curBattleDrill = curBattleDrill === k ? '' : k;
+  openBattle(curBattleDay);
+}
+function closeBattle() { document.getElementById('ovBattle').classList.remove('on'); }
+
+/* ══ 4. 右侧全部记录抽屉（DashboardLogDrawer） ══ */
+function openLogDrawer(actFilter, dayNote) {
+  document.getElementById('drSub').textContent = '全部事件 · 类型 × 动作 × 时间三维可筛' + (dayNote ? ' · 已按 ' + dayNote + ' 预筛' : '');
+  const acts = [['all','全部'],['create','＋ 新增'],['call','↗ 调出'],['status','◐ 推进'],['delete','⌫ 清理']];
+  document.getElementById('drFilters').innerHTML = acts.map(a => `
+    <button class="btn sm ${actFilter === a[0] ? 'pri' : ''}" onclick="openLogDrawer('${a[0]}', '${dayNote || ''}')">${a[1]}</button>
+  `).join('');
+
+  const days = ['2026-10-15', '2026-10-14', '2026-10-13', '2026-10-12'];
+  document.getElementById('drBody').innerHTML = days.map((d, idx) => {
+    const evs = eventsOfDay(d).filter(e => actFilter === 'all' || e.a === actFilter);
+    if (!evs.length) return '';
+    return `<div class="dr-day">${idx === 0 ? '今天 · ' + d : d} · ${evs.length} 条</div>` + evs.map(e => {
+      const card = CARDS[e.c] || { title: e.c };
+      return `<div class="dy-tl-row" onclick="closeLogDrawer();openBattle('${d}')">
+        <span class="tm">${e.t}</span>
+        <span class="tag ${ACT_TAG[e.a]}">${ACT_SYM[e.a]} ${ACT_LBL[e.a]}</span>
+        <span class="ti">${card.title}</span>
+        <span class="tag">${e.k}</span>
+      </div>`;
+    }).join('');
+  }).join('') || '<div style="padding:28px;text-align:center;color:var(--t3)">该筛选条件下暂无记录</div>';
+
+  document.getElementById('drvOv').classList.add('on');
+  document.getElementById('logDrawer').classList.add('on');
+}
+function closeLogDrawer() {
+  document.getElementById('drvOv').classList.remove('on');
+  document.getElementById('logDrawer').classList.remove('on');
+}
+
+/* ══ 5. 辅助弹窗（指标下钻 & 冷却阈值设置） ══ */
+function openQuickModal(title, kind) {
+  const rows = {
+    support: [
+      ['📇', '《豆包自媒体爆款图文与短视频脚本拆解 SOP》', '匹配 #02 · 历史调用 7 次', '↗ 打开链接'],
+      ['📇', '《得到大脑核心功能与邀请链接话术清单》', '匹配 #01 · 历史调用 9 次', '↗ 打开链接'],
+      ['📇', '《微信输入法 vs 豆包输入法效率实测对比》', '匹配 #01 · 历史调用 5 次', '↗ 打开链接'],
+      ['📇', '《AI 证件照、微信头像与表情包制作全流程》', '匹配 #01 · 含本地 PDF 附件', '↗ 打开附件']
+    ],
+    curio: [
+      ['💡', '《好奇：豆包多模态工作流能否做成 60 分钟标准实操课？》', '池内已有 6 张同标签资源卡支撑', '✓ 转为策展论点'],
+      ['💡', '《好奇：大厂免费志愿 AI 下，规划师如何三秒出示证据链？》', '池内已有 8 张政策卡支撑', '✓ 转为策展论点']
+    ]
+  }[kind] || [
+    ['📇', '《豆包自媒体爆款图文与短视频脚本拆解 SOP》', '🚀 AI 赋能培训体系', '定位卡片 ›'],
+    ['📇', '《知源调度台 V3.8 架构总览与视觉焦点契约》', '🚀 知源调度台 V3.8', '定位卡片 ›'],
+    ['📇', '《2026 全国 34 省高考一分一段表与位次换算主表》', '🧭 34省升学证据库', '定位卡片 ›']
+  ];
+
+  document.getElementById('quickContent').innerHTML = `
+    <div class="dy-head">
+      <span class="dy-ic">🔍</span>
+      <div class="dy-txt"><div class="dy-title">${title}</div><div class="dy-sub">单击定位卡片 · 双击直达链接</div></div>
+      <button class="btn sm" onclick="closeQuickModal()">关闭 ×</button>
+    </div>
+    <div style="padding:16px 24px 22px;display:flex;flex-direction:column;gap:8px">
+      ${rows.map(r => `
+        <div class="drow" style="background:var(--surface-2);padding:10px 12px" onclick="closeQuickModal();toast('✓ 已执行：' + '${r[1]}')">
+          <span>${r[0]}</span>
+          <div style="flex:1;min-width:0"><div class="t">${r[1]}</div><div style="font-size:11px;color:var(--t3)">${r[2]}</div></div>
+          <span class="tag acc">${r[3]}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  document.getElementById('ovQuick').classList.add('on');
+}
+
+function openThresholdModal() {
+  document.getElementById('quickContent').innerHTML = `
+    <div class="dy-head">
+      <span class="dy-ic">⚙</span>
+      <div class="dy-txt"><div class="dy-title">资源生命周期 · 冷却阈值设置</div><div class="dy-sub">修改阈值只影响状态判定，不会改变卡片本身活跃度</div></div>
+      <button class="btn sm" onclick="closeQuickModal()">关闭 ×</button>
+    </div>
+    <div style="padding:18px 24px 22px;display:flex;flex-direction:column;gap:14px;font-size:13px;color:var(--t2)">
+      <div>全局默认冷却天数：超过 <b>${defaultCoolingDays}</b> 天未调用进入「冷却期」，超过 <b>${defaultCoolingDays * 3}</b> 天（3×）进入「归档候选」。</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span>默认冷却天数：</span>
+        <input id="thInput" type="number" min="7" max="365" value="${defaultCoolingDays}" style="width:90px">
+        <button class="btn pri sm" onclick="defaultCoolingDays=Number(document.getElementById('thInput').value)||30;closeQuickModal();toast('✓ 默认冷却阈值已设为 ' + defaultCoolingDays + ' 天（归档 ' + (defaultCoolingDays*3) + ' 天）')">保存设置</button>
+      </div>
+      <div style="padding:10px 13px;border-radius:8px;background:var(--surface-2);font-size:12px;color:var(--t3)">
+        💡 <b>建议：</b>像《34省高考一分一段表》这类每年高考季高频使用的周期性权威证据，可单独设置 180 天冷却期，避免平时被误判为沉睡卡。
+      </div>
+    </div>
+  `;
+  document.getElementById('ovQuick').classList.add('on');
+}
+
+function closeQuickModal() { document.getElementById('ovQuick').classList.remove('on'); }
+
+/* ══ 6. 顶栏切换与工具函数 ══ */
+function setScene(s, btn) {
+  scene = s;
+  btn.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
+  document.getElementById('wk-call-v').innerHTML = (s === 'active' ? '5' : '0') + '<small>次</small>';
+  renderToday();
+  renderWeekBars();
+  toast(s === 'zero' ? '已切回：截图态（0入台）' : '已切至：推进态（今日已调用）');
+}
+
+function setTheme(t, btn) {
+  document.documentElement.dataset.theme = t;
+  btn.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
+}
+
+function setHmWeeks(w, btn) {
+  hmCols = w;
+  btn.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
+  renderHeatmap(w);
+}
+
+function jump(id, k) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.querySelectorAll('.rnode').forEach(n => n.classList.toggle('on', n.dataset.k === k));
+}
+
+function exportSummaryMd() {
+  const md = `# 知源调度台 · 画像洞察摘要 (2026-10-15)\n\n- 全库净资产：299 张\n- 知识熵：4.1 bit\n- 任务证据支撑率：64%\n- 近30天主攻聚焦度：72%\n`;
+  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '画像洞察摘要_2026-10-15.md';
+  a.click();
+  toast('✓ 已导出 Markdown 摘要');
+}
+
+
+const CHECKLIST_MD = "# 需求盘点与功能优化清单 · W13 画像洞察页（极简认知版 V8.1）\n\n> **配套唯一视觉基准**：`原型_画像洞察页_v8_极简版.html`（v8.1 定稿版）  \n> **代码基线**：GitHub 最新 `V3.8.20`（HEAD `7c9de00`，2026-10-15）· 静态回归 `1,738 通过 / 0 失败`  \n> **目标版本**：`V3.8.21`（W13 · 画像洞察极简去重与四尺度行为推理落地）  \n> **核心目标**：在**完整保留五段式「今日战报（`DayDetail`）」、「全部记录（`DashboardLogDrawer`）」与「资源生命周期与高价值沉睡证据唤醒（`LifecyclePanel`）」**的前提下，彻底清除跨层与同屏的重复指标，将每个时间模块统一收敛为**「1 句结合使命/主攻项目的人话诊断 + 1 行 4 个不重复的核心指标 + 1 个轻量视觉块」**。\n\n---\n\n## 〇、已拍板设计决议（D1 ~ D5，直接按此施工）\n\n| 编号 | 议题 | ✅ 已拍板决议 | 源码影响面 |\n| :--- | :--- | :--- | :--- |\n| **D1** | **顶部 Hero 布局与指标去重** | 采用**三层规整卡片布局**（`.hero-card`）：<br>① **第一层（左右两端对齐）**：左为眉标 + `你的知识生命体征` 大标题，右为 `⟳ 刷新 · ⬇ 导出摘要 · 🗂️ 全部记录` 按钮组，解决原版按钮掉行悬空与右侧留白问题；<br>② **第二层（通栏方向坐标带）**：左为 `🧭 使命主线`（取 `compass.mission.content` 或回落 `vision.content`），右为最多 2 枚 `🚀 主攻项目 + 进度%` 胶囊；<br>③ **第三层（4 等宽底盘网格）**：固定为 `全库净资产`、`知识熵 (聚焦度)`、`任务有证据支撑`、`近30天精力落主攻`，**彻底移除与下方时间轴重复的「连续打卡 / 活跃天数 / 最长连续」**。 | `PiHero.vue`<br>`ProfileInsights.vue`<br>`pi-timeline.css` |\n| **D2** | **四时间模块「三段式极简法则」** | `今天 TODAY`、`本周 WEEK`、`本月 MONTH`、`本年度 YEAR` 四个模块内部严格遵循统一认知节奏：<br>① **第一眼**：1 条带左边框强调的**「一句人话洞察条（`.one-insight`）」**（将指标数据 + 使命/主攻项目/支撑关系 + 1 个就地行动按钮合成为一句话，不堆砌多栏卡片）；<br>② **第二眼**：**唯一 1 行 4 个等宽数字胶囊（`.strip4`）**，彻底废除 `PiRhythm` 与 `PiMonth` 中「顶部 5 药丸 + 底部 6 KPI（`.pi-k6`）」同屏上下重复两遍的设计；<br>③ **第三眼**：1 个高度紧凑的专属视觉块（绝不跨模块克隆图表）。 | `PiToday.vue`<br>`PiRhythm.vue`<br>`PiMonth.vue`<br>`PiYear.vue` |\n| **D3** | **「今日战报」与「全部记录」零简化** | 点击「今天」模块的 `📊 打开今日战报 ›`、点击「本周」任意一根柱子、或点击「本年度」热力图任意一格，均弹出**原汁原味的五段式 `DayDetail.vue` 中央大弹窗**（①头部 ②摘要+最近操作时刻 ③四格彩色大数统计+点击展开 `DrillCardList` 下钻 ③.5热力等级带 ④分时段降序叙事时间线+单击定位/双击开链接 ⑤页脚导出 PNG/HTML/MD + 查看全部记录），**内容与交互明细一字不减**。 | `DayDetail.vue`（保持不动）<br>`DashboardLogDrawer.vue`（保持不动） |\n| **D4** | **「资源生命周期与高价值沉睡证据唤醒」完整保留并增强** | 在 `PiYear.vue` 年度热力图下方**完整保留 `#lc-sec` 生命周期模块**（左侧三态圆环图 + 中栏 `🟢 活跃期 / 🟡 冷却期 / 🔴 归档候选` 切换 Tab + 右栏卡片操作列表 + 右上角 `⚙ 冷却阈值设置` 弹窗）；同时在冷却期列表中**优先置顶并标记 `🔥` 历史调用次数 `callCount >= 3` 的高价值核心证据卡**，支持一键 `🔥 唤醒复温`、`延后30天`、`归档`。 | `PiYear.vue`<br>`LifecyclePanel.vue` |\n| **D5** | **退役重复弹窗与未过滤内嵌流** | ① 退役 `ProfileInsights.vue` 内挂载的独立 `ReviewPanel` 弹窗（周/月/年复盘能力已全量常驻于页面四段模块中）；<br>② 移除 `PiRhythm.vue` 底部未按周过滤的 50 条内嵌操作流（`.pi-flow`），所有细粒度事件检索统一收口至页头 `🗂️ 全部记录` 抽屉（支持传入时间与动作预设 `LogPreset`）。 | `ProfileInsights.vue`<br>`PiRhythm.vue` |\n\n---\n\n## 一、功能优化清单（F1 ~ F28）\n\n> 每项包含：**功能点** + **用户可见行为与视觉规格** + **数据/推理口径与验收标准**。\n\n### A. 顶部 Hero 区域（`PiHero.vue`）\n\n| 编号 | 功能点 | 用户可见行为与视觉规格 | 数据口径与验收标准 |\n| :--- | :--- | :--- | :--- |\n| **F1** | **首行两端对齐页头（`.hero-row-top`）** | 左侧显示眉标 `● 画像洞察 · PROFILE INSIGHTS` 与主标题 `你的知识生命体征 PROFILE INSIGHTS`；右侧水平排列 `⟳ 刷新`、`⬇ 导出摘要`、`🗂️ 全部记录`（若有运行错误则多一枚 `⚠ 错误 N`）。 | `display: flex; justify-content: space-between; align-items: flex-start`；在 `1280px` 标准视口下操作按钮组稳居右上角，绝不掉行到画面中间。 |\n| **F2** | **通栏使命与主攻坐标条（`.hero-compass-bar`）** | 位于标题行下方、底盘指标上方的一条通栏浅底容器（`background: var(--surface-2)`）：左侧显示 `🧭 使命主线` 徽标 + 用户使命/愿景单行文本（超长省略号 + `title` 悬停全文）；右侧展示当前主攻项目胶囊（`🚀 主攻 1：项目名 XX%`）。 | 文本优先取 `compass.mission.content`，为空则取 `compass.vision.content`，再空则显示轻引导 `尚未设定使命愿景 —— 点击前往方向台设定`；主攻胶囊取 `focusedProjects`（最多 2 个），点击直达对应项目或展开该项目任务下钻。 |\n| **F3** | **4 等宽全库底盘指标卡（`.hero-kpis-grid`）** | 采用 `grid-template-columns: repeat(4, 1fr)` 等宽铺满 Hero 底部，4 张卡片依次为：<br>1. **全库净资产**（`N 张` · 副行 `资源 X · 任务 Y · 好奇 Z`）<br>2. **知识熵 (聚焦度)**（`X.X bit` · 副行显示 Top 3 高频标签）<br>3. **任务有证据支撑**（`XX%` · 副行 `已挂支撑资源卡的任务占比`）<br>4. **近30天精力落主攻**（`XX%` · 副行 `有效动作落入主攻项目比`） | **全页零重复校验**：Hero 区不再出现「连续打卡」「活跃天数」「最长连续」三项（此三项归属下方时间轴）；任务证据支撑率 = `有 SupportLink 记录的未删任务数 / 未删任务总数`；主攻精力聚焦度 = `近30天归属主攻项目的有效动作数 / 近30天总有效动作数`。 |\n| **F4** | **底盘指标卡点击下钻** | 点击 4 张底盘卡任意一张，弹出快速明细弹窗或抽屉（如点「任务有证据支撑」列出已挂载/未挂载支撑资源的任务清单；点「知识熵」列出 Top 标签簇及对应卡片）。 | 每张卡均有明确点击反馈，支持在明细行单击定位卡片（`locateTargetOf`）、双击直达链接。 |\n| **F5** | **一键导出画像洞察 Markdown** | 点击右上角 `⬇ 导出摘要`，导出包含「使命主线 + 4 项全库底盘指标 + 四尺度一句话诊断结论」的 Markdown/CSV 文件。 | 文件名带当日时间戳 `画像洞察摘要_YYYY-MM-DD.md`，内容与界面实时计算值完全一致。 |\n\n### B. 左侧吸顶四节点导航轨（`PiRail.vue`）\n\n| 编号 | 功能点 | 用户可见行为与视觉规格 | 数据口径与验收标准 |\n| :--- | :--- | :--- | :--- |\n| **F6** | **四节点吸顶时间轨（`.rail`）** | 左侧 `76px` 宽，`position: sticky; top: 72px`；纵向排列 4 个节点：`今天 TODAY` → `本周 WEEK` → `本月 MONTH` → `本年度 YEAR`；节点间连线采用 `::after` 居中坐标系（`left: 50%`）。 | 随页面滚动由 `IntersectionObserver` 自动高亮当前视口所在节点（`.rnode.on`）；点击任意节点平滑滚动（`scrollIntoView`）至对应模块。 |\n\n### C. 模块① 今天 · 定焦与弹药（`PiToday.vue`）\n\n| 编号 | 功能点 | 用户可见行为与视觉规格 | 数据口径与验收标准 |\n| :--- | :--- | :--- | :--- |\n| **F7** | **今日「一句人话诊断条」（`#ins-today`）** | 模块头部下方第一行展示 `.one-insight` 诊断条（左侧一句话结论 + 右侧 1 个胶囊动作钮 `.act-link`）。**彻底修复原版 `todayAdd === 0` 时返回空串导致洞察区消失的缺陷**。 | **三态确定性推导优先级**：<br>① **存在游离/无弹药焦点任务时（`.warn`）**：指出哪件焦点任务未挂项目或 0 支撑卡，并检索资源卡池中词面/标签匹配的现成卡片数量，给出 `[🔗 一键归入主攻 + 绑 N 张卡 ›]` 动作；<br>② **焦点任务均已挂主攻且有支撑卡、但今日 `todayCalled === 0` 时**：提示已备齐 N 张支撑卡待调用，给出 `[↗ 调出 N 张支撑卡 ›]`；<br>③ **今日已有调出与新增推进时**：给出「调出/入台复用比」及主攻推进肯定，引导晚间打开今日战报。 |\n| **F8** | **今日唯一一行 4 格指标（`#strip-today`）** | 4 个等宽胶囊：`今日入台 (N张)`、`今日调出 (N次)`、`今日焦点 (M/3件)`、`已备弹药 (K张卡)`。 | **移除与旧版 Hero 重复的「连续打卡」**；`已备弹药` = 今日三件事所关联任务的 `SupportLink` 去重资源卡总数；点击 `今日入台` / `今日调出` 直接打开今日战报对应下钻档。 |\n| **F9** | **紧凑单行「今日三件事」对账列表（`.f3-compact`）** | 替代原版占高 110px 且空槽留白的三列大卡片，改为纵向 3 行紧凑条（`.f3-row`）：每行左起依次为 `序号 (01/02/03)` + `完成勾选框 (.f3-ck)` + `任务标题 (.f3-title)` + `所属项目徽标 (.tag)` + `支撑卡操作按钮`。 | 勾选框支持就地切换 `done` 状态并同步写回 `dailyFocus[today]` 与任务卡状态；已挂主攻项目的任务显示 `🚀 主攻：项目名`，未挂项目的任务显示黄色 `⚠️ 未挂项目 (游离)` 徽标。 |\n| **F10** | **游离焦点任务一键归位与绑卡** | 当今日三件事中的任务（如 `#02 拆解豆包自媒体创作系统案例`）未挂项目或 `SupportLink` 为 0 时，行尾显示主色按钮 `🔗 归入主攻 + 绑 N 张卡`。 | 点击后按标题关键词与标签在 `resources` 中预筛匹配卡片，一键将该任务的 `projectId`/`metricId` 归入匹配主攻项目，并在 `supportLinks` 表批量写入关联记录（严守「卡间零挂载」红线，不改资源卡本体）。 |\n| **F11** | **空槽双主攻平衡补位** | 当今日三件事未排满 3 槽（如 `#03` 为空）时，显示虚线引导行 `.f3-row.empty`，自动从「近 2 天无动作的另一主攻项目」中推荐 1 条待办任务，右侧提供 `＋ 一键填入` 按钮。 | 点击 `＋ 一键填入` 直接将该推荐任务写入 `dailyFocus[today]` 空槽并刷新今日定焦数（`2/3 → 3/3`）。 |\n\n### D. 模块② 本周 · 节奏与主攻对齐（`PiRhythm.vue`）\n\n| 编号 | 功能点 | 用户可见行为与视觉规格 | 数据口径与验收标准 |\n| :--- | :--- | :--- | :--- |\n| **F12** | **本周「一句人话诊断条」（`#ins-week`）** | 结合「本周有效动作在各战略目标的分布占比」「主攻项目触达情况」与「调出旧卡次数」生成一句话诊断 + 右侧行动按钮。 | 若单一目标占比 `>75%` 且存在 0 触达的战略目标/主攻项目，或者 `本周有效动作 > 0 且 本周调出 == 0`（只推任务不调库存），洞察条呈暖黄提醒态（`.warn`），右侧提供 `[看可调出旧卡 ›]` 或 `[看方向产出明细 ›]`。 |\n| **F13** | **本周唯一一行 4 格指标（砍掉底部 6 KPI 重复）** | 固定为 4 格等宽胶囊：`有效动作 (N件)`、`加权得分 (W分)`、`调出旧卡 (U次)`、`节奏波动 (±CV%)`；模块右上角挂 `环比上周 ±X%` 徽标。 | **彻底删除原 `PiRhythm.vue` 中的 `.pi-k6`（复盘 6 指标网格）与底部的 `.pi-flow`（50 条未按周过滤操作流）**，消除同屏二次重复。 |\n| **F14** | **左栏：7 日能量密度柱状图（`#bars-week`）** | 左侧子卡片（`.lbox`）展示周一至周日 7 根加权分柱状图，无动作日显示 20% 透明度底柱。 | **点击任意一根柱子，直接调用 `openBattle(dayKey)` 打开该日的完整五段式「每日战报」弹窗**。 |\n| **F15** | **右栏：三大战略目标投入占比条** | 右侧子卡片（`.lbox`）与 7 日柱并排（`.light-split`），展示方向台战略目标在本周的产出项数与占比进度条，0 触达目标以暖黄色标出 `0 项 · 偏冷`。 | 数据源复用 `objectivesOf(directions, tasks, weekWin)`；点击任意一行弹出该战略目标在本周新建/完成的任务明细列表。 |\n\n### E. 模块③ 本月 · 主题聚焦与转化（`PiMonth.vue`）\n\n| 编号 | 功能点 | 用户可见行为与视觉规格 | 数据口径与验收标准 |\n| :--- | :--- | :--- | :--- |\n| **F16** | **本月「一句人话诊断条」** | 交叉分析「本月新增卡片 Top 标签集中度（知识熵变化）」「停留 `exploring` 超 14 天的好奇心卡数」与「本月投射入策展台金字塔的卡片数」，合成一句话诊断。 | 模块右上角显示 `知识熵 X.X → Y.Y bit（更聚焦/发散）` 徽标；若存在已有同标签资源卡支撑却超 14 天未转化的好奇心卡，右侧按钮给出 `[一键转化 N 张成熟好奇卡 ›]`。 |\n| **F17** | **本月唯一一行 4 格指标** | 固定为 4 格等宽胶囊：`本月入池 (+N张)`、`本月调出 (M次)`、`好奇心转化 (X%)`、`入策展金字塔 (K张)`。 | **彻底删除原 `PiMonth.vue` 中与 `PiRhythm` 克隆的逐日柱状图和 6 KPI 网格**，确立月度专属指标口径。 |\n| **F18** | **左栏：本月 Top 输入主题 → 关联项目映射** | 列出本月新增卡片命中最多的前 3 个标签簇（如 `#AI实操 / #豆包`）及其占比条，并在右侧标出该标签簇主要服务的攻坚项目名称；头部附注 `N 张待打标`。 | 通过统计本月新建资源卡的 `tags` 与 `SupportLink` 关联任务的 `projectId` 自动映射；点击任一主题行下钻查看该主题本月新增卡片。 |\n| **F19** | **右栏：本月认知流转三步漏斗（`.funnel3`）** | 横向三步卡片通过 `→` 串联：<br>`① 捕捉入池 (N张)` → `② 支撑任务 (M项 · 转化率%)` → `③ 策展表达 (K张 · 沉淀率%)`。 | ① = 本月新建资源+好奇卡数；② = 本月新建 `SupportLink` + 完成任务数；③ = 本月新增 `CurationProjection`（投射入策展台）+ 新增 `ArgumentCard` 数。点击任意一步下钻查看对应卡片。 |\n\n### F. 模块④ 本年度 · 愿景基石与生命周期（`PiYear.vue` + `LifecyclePanel.vue`）\n\n| 编号 | 功能点 | 用户可见行为与视觉规格 | 数据口径与验收标准 |\n| :--- | :--- | :--- | :--- |\n| **F20** | **年度「一句人话诊断条」** | 统计全库存活卡片在各大战略方向上的归属占比（验证是否契合双轮愿景），并扫描进入「冷却期」的卡片中有多少张属于 **`callCount >= 3` 的高频核心证据卡**。 | 右侧按钮提供 `[🔥 去下方唤醒 N 张核心卡 ›]`，点击后平滑滚动至下方 `#lc-sec` 生命周期模块并自动切到 `🟡 冷却期` Tab。 |\n| **F21** | **年度唯一一行 4 格指标** | 固定为 4 格等宽胶囊：`本年活跃 (X天)`、`最长连续 (Y天)`、`活跃期资产 (A张)`、`高价值冷却卡 (C张)`。 | 原本重复摆在 `PiHero` 的「本年活跃天数」与「最长连续天数」正式归位到本年度模块，全页仅此一处展示。 |\n| **F22** | **2026 年度足迹热力图（`.hmbox`）** | 模块右上角提供 `全年 53 周 / 近半年 26 周` 分段切换；热力图顶部带 `1月..12月` 月份刻度、左侧带 `一/三/五` 星期刻度、底部带 6 档热力色阶图例与年度总加权分/峰值日摘要。 | **点击热力图任意一格，直接调用 `openBattle(day)` 打开那天的完整五段式「每日战报」弹窗**。 |\n| **F23** | **完整保留「资源生命周期与高价值沉睡证据唤醒」（`#lc-sec`）** | 位于年度热力图正下方，包含：<br>① **头部**：序号 `2` + 标题 `资源生命周期与高价值沉睡证据唤醒` + 右上角 `⚙ 冷却阈值设置 (默认 30 天)` 按钮；<br>② **左栏**：`120px` 三态圆环图（中心显示存活卡片总数 `299`）；<br>③ **中栏**：三态切换 Tab（`🟢 活跃期` / `🟡 冷却期（含N张核心卡）` / `🔴 归档候选`）；<br>④ **右栏**：当前选中状态的卡片列表，冷却期卡片按历史 `callCount` 降序排列，`callCount >= 3` 的卡片冠以 `🔥` 标记并注明 `历史高频调用 N 次 · 已冷却 M 天`。 | 1. 保留 `#lc-sec` 与 `#lifecycle` 深链锚点（供策展台/任务管理归档提示条跳转）；<br>2. 点击卡片右侧 `🔥 唤醒复温` 按钮，立即调用 `reactivateCard(card)` 并 `store.persist()`，卡片实时移入活跃期，上方 `活跃期资产` 与 `高价值冷却卡` 胶囊数字同步刷新；<br>3. 点击 `延后30天` 调用 `snoozeCard`；点击 `归档` 置 `lifecycleArchived = true`。 |\n| **F24** | **冷却阈值设置弹窗** | 点击 `⚙ 冷却阈值设置` 弹出配置框，支持修改全局默认冷却天数（1~365 天，归档阈值自动 = 冷却 × 3）及单卡覆盖天数。 | 保存后写入 `saveUIPrefs({ coolingDaysDefault })` 并触发生命周期三态重算。 |\n\n### G. 完整五段式「今日战报（`DayDetail`）」与「全部记录（`DashboardLogDrawer`）」\n\n| 编号 | 功能点 | 用户可见行为与视觉规格 | 数据口径与验收标准 |\n| :--- | :--- | :--- | :--- |\n| **F25** | **五段式「今日战报」弹窗（一字不减）** | 从今日模块 `📊 打开今日战报 ›`、本周 7 日柱、或年度热力格唤起，完整呈现五段结构：<br>① **头部**：战报十字星图标 + `今日战报 / 每日战报` + `YYYY-MM-DD 周X` + `收起 ×`<br>② **摘要行**：`今天你完成了 N 项操作，涉及 M 张卡。` + `最近一次操作：HH:mm`<br>③ **四格彩色大数统计**：`+ 新增` / `↗ 调出` / `✓ 推进` / `⌫ 清理`（零值压淡 `.dim`）<br>③.5 **热力等级带**：档位名（静默~满格）+ 加权分 + 区间 + 强度% + 有效动作数<br>④ **分时段降序叙事时间线**：按「晚上 / 下午 / 上午」分组，带圆点连线、动作徽标、类型、标题、状态变迁 chip<br>⑤ **页脚**：自然日口径说明 + `查看全部记录 ›` + `导出 PNG / HTML / MD` 三件套。 | 完全复用现有 `DayDetail.vue` 组件与 `dashboard.css` 样式，不做任何阉割或简化。 |\n| **F26** | **战报四格统计点击下钻（`DrillCardList`）** | 在今日战报弹窗内点击任意非零统计格（如 `↗ 调出`），紧跟四格下方展开 `DrillCardList`（同卡多次自动合并为 `×N` 徽标），再次点击收起。 | 明细行支持单击跳转定位卡片、双击直接打开外部链接或附件。 |\n| **F27** | **战报与「全部记录」抽屉无遮罩堆叠切换** | 在今日战报弹窗内点击 `查看全部记录 ›`，**先关闭战报弹窗，再滑出右侧 `DashboardLogDrawer` 抽屉**，且抽屉自动按该日 `from = day, to = day` 预筛。 | 严守 `W2-6` 判据纪律：绝不出现弹窗与抽屉双层遮罩叠加。 |\n| **F28** | **全页唯一「全部记录」三维筛选抽屉** | 点击 Hero 右上角 `🗂️ 全部记录` 或各模块指标下钻打开 `DashboardLogDrawer.vue`，支持按卡片类型（全部/资源/任务/好奇）× 动作（全部/新增/调出/推进/清理）× 日期区间三维筛选与 CSV 导出。 | 替代原 `ProfileInsights.vue` 中重复自建的 `statDrawer` 与 `dynDrawer`。 |\n\n---\n\n## 二、代码文件级施工任务分解（T1 ~ T7）\n\n| 任务编号 | 目标文件 | 施工内容明细 | 预估行数变化 |\n| :--- | :--- | :--- | :--- |\n| **T1** | `v2/src/shared/utils/reviewReport.ts` | 1. 新增 `computeTaskSupportRate(tasks, supportLinks)`（计算任务证据支撑率 %）；<br>2. 新增 `computeMainFocusShare(events, directions, tasks, days=30)`（计算近 30 天落入主攻项目的有效动作占比 %）；<br>3. 新增 `highValueCoolingCardsOf(resources, coolingDays)`（筛选处于冷却期且 `callCount >= 3` 的高价值沉睡证据卡）；<br>4. 新增 `buildConciseInsights(ctx)` 纯函数，生成 `today / week / month / year` 四条一句话诊断对象 `{ html, warn, ctaLabel, ctaAction }`。 | `+110 行` |\n| **T2** | `v2/src/newtab/components/profile/PiHero.vue` | 改造为 `.hero-card` 三层结构：<br>1. `.hero-row-top`（左标题 + 右刷新/导出/全部记录）；<br>2. `.hero-compass-bar`（传入 `missionText` 与 `focusedProjects`）；<br>3. `.hero-kpis-grid`（4 等宽底盘卡：`total` / `entropy` / `supportRate` / `focusShare`）。 | `+30 / -25 行` |\n| **T3** | `v2/src/newtab/components/profile/PiToday.vue` | 1. 顶部挂 `#ins-today` 一句话诊断条（移除 `todayAdd === 0` 隐藏逻辑）；<br>2. `.strip4` 改为 `今日入台 / 今日调出 / 今日焦点 / 已备弹药` 4 格；<br>3. 下方改为 `.f3-compact` 紧凑单行列表，支持就地勾选完成、游离任务一键归入主攻+绑卡、第 3 空槽一键填入推荐任务。 | `+45 / -40 行` |\n| **T4** | `v2/src/newtab/components/profile/PiRhythm.vue` | 1. 顶部挂 `#ins-week` 一句话诊断条；<br>2. 指标行精简为 `.strip4`（有效动作 / 加权得分 / 调出旧卡 / 节奏波动）；<br>3. **删除 `.pi-k6`（复盘 6 指标）与 `.pi-flow`（底部 50 条操作流）**；<br>4. 视觉区改为 `.light-split` 左右双栏（左 7 日柱状图点柱开战报，右三大战略目标投入占比条）。 | `+20 / -110 行` |\n| **T5** | `v2/src/newtab/components/profile/PiMonth.vue` | 1. 顶部挂 `#ins-month` 一句话诊断条 + 右上角知识熵变化徽标；<br>2. 指标行改为 `.strip4`（本月入池 / 本月调出 / 好奇心转化 / 入策展金字塔）；<br>3. **删除克隆自本周的逐日柱状图与 6 KPI**，改为 `.light-split` 左右双栏（左 Top 3 输入主题→项目映射条，右「捕捉入池 → 支撑任务 → 策展表达」三步极简漏斗）。 | `+55 / -65 行` |\n| **T6** | `v2/src/newtab/components/profile/PiYear.vue` & `LifecyclePanel.vue` | 1. 顶部挂 `#ins-year` 一句话诊断条；<br>2. 指标行改为 `.strip4`（本年活跃 / 最长连续 / 活跃期资产 / 高价值冷却卡）；<br>3. 保留完整 `Heatmap.vue`（含全年 53 周 / 近半年 26 周切换）；<br>4. **完整保留 `#lc-sec` 下的 `LifecyclePanel.vue`**，为冷却期 `callCount >= 3` 的卡片增加 `🔥` 高价值标记并排在最前。 | `+35 / -15 行` |\n| **T7** | `v2/src/newtab/views/ProfileInsights.vue` & `pi-timeline.css` | 1. 注入使命文本、主攻项目、支撑率等计算属性传给子组件；<br>2. **完整保留 `<DayDetail>` 战报弹窗与 `<DashboardLogDrawer>` 全量记录抽屉**；<br>3. 移除不再使用的 `<ReviewPanel>` 弹窗与重复抽屉代码；<br>4. 同步更新 `pi-timeline.css` 并跑 `dead-css-scan.cjs` 确保孤儿样式为 0。 | `-130 行` |\n\n---\n\n## 三、门禁随迁与新增回归断言计划（`v2/scripts/regression/`）\n\n### 3.1 受影响既有判据的随迁备案（严守「翻转理由写进正则正文、不删断言」纪律）\n\n| 既有判据 ID | 所在分片 | 原判据所守内容 | 本轮随迁改钉方案（带备案注释） |\n| :--- | :--- | :--- | :--- |\n| **`W12-B1`** | `04-w12-restore.cjs` | 页头 `PiHero` 仅留刷新/导出/全部记录，无 AI 解读与今日战报按钮 | **直接保持全绿**：本轮 `PiHero` 右上角依然严格是 `刷新 · 导出 · 全部记录` 三件套。 |\n| **`W12-B2`** | `04-w12-restore.cjs` | 「全部记录」为全页唯一入口，底栏 `.pi-endbar` 与 `PiRhythm` 内重复按钮已退役 | **直接保持全绿**（且 `PiRhythm` 进一步移除了 `.pi-flowbar`，改钉 `PiRhythm` 内零 `pi-flow` 残留）。 |\n| **`W12-B3`** | `04-w12-restore.cjs` | 模块内指标行采用等宽网格（而非流式药丸） | 随 `.pi-strip-row` 升级为 4 等宽网格 `.strip4`（`grid-template-columns: repeat(4, 1fr)`）同源改钉，所守「占满内容宽度的均分网格」语义不变。 |\n| **`E2E-21`** | `scripts/e2e.cjs` | 画像洞察页 `.pi-page` / `.pi-hero` / `.pi-tl` 渲染与交互检查 | 选择器 `.pi-hero` 兼容 `.hero-card`（或保留 `.pi-hero` 类名于 `<section class=\"pi-hero hero-card\">`），确保 E2E-21 零修改直过。 |\n\n### 3.2 本轮新增结构与认知契约判据（`W13-1 ~ W13-8`）\n\n1. **`W13-1 ★Hero 三层规整结构与全页指标零重复`**：断言 `PiHero.vue` 含 `.hero-row-top`、`.hero-compass-bar`、`.hero-kpis-grid` 三段，且 `PiHero.vue` 内不再出现 `连续打卡` / `最长连续`（这两项唯一归位至 `PiYear.vue`）。\n2. **`W13-2 ★四模块全部配备「一句人话诊断条（.one-insight）」且零入台不失语`**：断言 `PiToday`、`PiRhythm`、`PiMonth`、`PiYear` 均含 `.one-insight`，且 `PiToday.vue` 内不再存在 `todayAdd === 0 ? ''` 的静默隐藏分支。\n3. **`W13-3 ★消除同屏双层指标重复`**：断言 `PiRhythm.vue` 与 `PiMonth.vue` 均只含一层 `.strip4` 指标网格，两文件内 `.pi-k6` 与 `kpisOf` 重复网格零命中。\n4. **`W13-4 ★今天与本月视觉块差异化（拒绝跨模块克隆）`**：断言 `PiToday.vue` 采用 `.f3-compact` 单行归属弹药对账表（含 `bindTask` 一键归位绑卡出口），`PiMonth.vue` 采用「Top 主题映射 + `.funnel3` 三步转化漏斗」且不含重复柱状图。\n5. **`W13-5 ★五段式今日战报（DayDetail）完整在位、零简化`**：断言 `ProfileInsights.vue` 完整挂载 `<DayDetail>` 弹窗，且 `PiToday`（打开今日战报按钮）、`PiRhythm`（7日柱点击）、`PiYear`（热力格点击）三处 `@open-battle` 全部接通同一弹窗宿主。\n6. **`W13-6 ★资源生命周期与高价值沉睡证据唤醒完整在位`**：断言 `PiYear.vue` 内 `#lc-sec` 与 `<LifecyclePanel>` 完整保留，且冷却期支持识别 `callCount >= 3` 的高价值核心证据卡并具备唤醒/延后/归档与阈值设置弹窗。\n7. **`W13-7 ★孤儿 CSS 清零棘轮`**：实跑 `node scripts/dead-css-scan.cjs --json`，确认移除 `.pi-k6` / `.pi-flow` 等旧结构后同步清理 `pi-timeline.css` 对应规则，`死 = 0` 且 `祖先断 = 0`。\n8. **`W13-8 ★版本七处同步与代码索引反漂`**：同步升版至 `V3.8.21`，重跑 `node scripts/gen-code-index.cjs` 并同步更新 `评审交接包/01_项目透视卡.md` 分段行数与合计（确保分段相加严格等于合计）。\n";
+function downloadChecklistMd() {
+  const blob = new Blob([CHECKLIST_MD], { type: "text/markdown;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "需求盘点与开发清单_W13_画像洞察极简认知版.md";
+  a.click();
+  toast("✓ 已下载：需求盘点与开发清单_W13_画像洞察极简认知版.md");
+}
+
+function downloadSelf() {
+  const blob = new Blob(['<!DOCTYPE html>\n' + document.documentElement.outerHTML], { type: 'text/html;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '原型_画像洞察页_v8_极简版.html';
+  a.click();
+  toast('✓ 已下载：原型_画像洞察页_v8_极简版.html');
+}
+
+let tt = null;
+function toast(m) {
+  const el = document.getElementById('toast');
+  el.textContent = m;
+  el.classList.add('on');
+  if (tt) clearTimeout(tt);
+  tt = setTimeout(() => el.classList.remove('on'), 2200);
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closeBattle();
+    closeQuickModal();
+    closeLogDrawer();
+  }
+});
+
+['mod-now','mod-week','mod-month','mod-year'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  new IntersectionObserver(es => {
+    es.forEach(en => {
+      if (en.isIntersecting) {
+        document.querySelectorAll('.rnode').forEach(n => n.classList.toggle('on', n.dataset.k === en.target.dataset.k));
+      }
+    });
+  }, { rootMargin: '-20% 0px -60% 0px' }).observe(el);
+});
+
+renderToday();
+renderWeekBars();
+renderHeatmap(hmCols);
+renderLifecycle();
+</script>
+</body>
+</html>

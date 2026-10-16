@@ -220,21 +220,19 @@ const kicker = computed(() => {
       <template #link-actions>
         <button class="ds-ib" title="打开链接" @click="openLink">↗</button>
         <button class="ds-ib" title="复制链接" @click="copyLink">⧉</button>
+        <!-- ★W15-T3（用户拍板 2026-10-16）：镜像到策展台从「关联与凭证」面板提到**链接工具行常驻** ——
+             原入口埋在属性区里，用户找不到（列表侧同期补了行内 🪞，两处同口径 projectCardToBoard）。 -->
+        <template v-if="mirrorBoards.length">
+          <select v-model="mirrorWsId" class="rd-mirror-select" title="选一个策展台作为镜像目标">
+            <option value="">镜像到策展台…</option>
+            <option v-for="w in mirrorBoards" :key="w.id" :value="w.id">{{ w.name }}</option>
+          </select>
+          <button class="ds-ib" :disabled="!mirrorWsId" title="镜像到该策展台（引用投射，源卡仍留在资源卡池）" @click="mirrorToBoard">🪞</button>
+        </template>
       </template>
       <!-- 宿主差异内容：落在「关联与凭证」面板内 -->
       <template #extra>
         <ThesisBlock v-if="resource?.isThesis" :text="editing.description" :ws-id="editing.workspaceId" />
-        <!-- N8：镜像到策展台（没有策展台时整行不出现——不摆一枚点了没用的控件） -->
-        <div v-if="mirrorBoards.length" class="rd-kv">
-          <span class="k">📡</span>
-          <span class="v">
-            <select v-model="mirrorWsId" class="rd-mirror-select">
-              <option value="">镜像到策展台…</option>
-              <option v-for="w in mirrorBoards" :key="w.id" :value="w.id">{{ w.name }}</option>
-            </select>
-          </span>
-          <button class="ds-ib" :disabled="!mirrorWsId" title="镜像到该策展台（引用投射，源卡仍留在资源卡池）" @click="mirrorToBoard">⤴</button>
-        </div>
         <div class="rd-kv"><span class="k">打开</span><span class="v"><b>{{ resource?.callCount || 0 }}</b> 次<span v-if="resource?.lastCalledAt" style="color:var(--text-4)"> · 最近 {{ fmtTs(resource.lastCalledAt) }}</span></span></div>
         <!-- R166 T7：资源侧「支持的任务」只读反查（解绑只在任务侧，定案 10） -->
         <SupportTasksPanel v-if="resource && store.data" :d="store.data" :resource="resource" @open-task="gotoTaskOwner" />

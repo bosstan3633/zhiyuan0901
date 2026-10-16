@@ -18,11 +18,13 @@ const {
 
 console.log('【W12 · 方向台 1:1 还原（版面归属）】');
 
-check('W12-1 ★HERO 区必须是**独立结构**而不是把工具挤成一条横排。【W12 原判 · V3.8.12】钉「左文案 .hero-l + 右动作 .hero-r」两栏。★V3.8.20 翻转带备案（用户拍板 2026-10-15）：左上标题文案区（面包屑/眉标/大标题/副标 + N4 就地编辑）整块退役 —— 方向台是工作台面不是宣传页，定调语由骨架条 .spine-h 承担；hero 改**纵向单列**：动作行（.hero-acts：视图切换主焦点 + ⚙ 工具下拉 + 来路感知文本）+ 读数行（.hero-stats：健康度徽章领衔）。原病根（工具密排横排、首屏无结构）的解法不变：结构分层、主焦点唯一。★本条钉：① <section class="hero"> 在 .tree-layout 之前 ② .hero-acts 在位且含 view-seg ③ .hero-stats 在位且含 dhi-badge（健康度随迁读数行首位，N13 意图随迁）④ ⚙ 工具下拉（.hero-tools-menu）承接展开收起与已完成显隐。★负锚：.tree-page-head 一行密排形态不许复活；退役的 .hero-l/.hero-r 不许回流', () => {
+check('W12-1 ★HERO 区必须是**独立结构**而不是把工具挤成一条横排。【W12 原判 · V3.8.12】钉「左文案 .hero-l + 右动作 .hero-r」两栏。★V3.8.20 翻转带备案（用户拍板 2026-10-15）：左上标题文案区（面包屑/眉标/大标题/副标 + N4 就地编辑）整块退役 —— 方向台是工作台面不是宣传页，定调语由骨架条 .spine-h 承担；hero 改**纵向单列**：动作行（.hero-acts：视图切换主焦点 + 工具开关 + 来路感知文本）+ 读数行（.hero-stats：健康度徽章领衔，★F6 起左对齐）。原病根（工具密排横排、首屏无结构）的解法不变：结构分层、主焦点唯一。★本条钉：① <section class="hero"> 在 .tree-layout 之前 ② .hero-acts 在位且含 view-seg ③ .hero-stats 在位且含 dhi-badge（健康度随迁读数行首位，N13 意图随迁）④ 展开收起与已完成显隐两枚常驻按钮在 .hero-acts 的 .hero-tools 内，无下拉菜单（★F6 翻转带备案，用户拍板 2026-10-16：二次翻转 V3.8.20 下拉收纳——高频操作两跳 + 状态开关藏菜单后状态不可见，下拉壳退役）。★负锚：.tree-page-head 一行密排形态不许复活；退役的 .hero-l/.hero-r 不许回流；.hero-tools-menu 下拉壳不许回流', () => {
   const t = codeOnly(CT_W11);
   return t.includes('<section class="hero">')
     && t.includes('class="hero-acts"') && t.includes('class="hero-stats"')
-    && t.includes('class="hero-tools-menu"')
+    && t.includes('class="hero-tools"')
+    && t.includes('↕ ') && t.includes('👁 已完成项目')            /* ★F6 ④ 两枚常驻（在 .hero-acts 链上的 .hero-tools 内） */
+    && !t.includes('hero-tools-menu') && !t.includes('toolsOpen') /* ★F6 负锚：下拉壳与开关 state 零残留 */
     && t.includes('class="dhi-badge"')
     && /^\.hero \{[^}]*display: flex/m.test(t)
     && /\.hero \{[^}]*flex-direction: column/m.test(t)
@@ -86,14 +88,18 @@ check('W12-5 ★舱 / 指标 / 任务三层的**尺寸**必须撑得起原型给
     && /\.metric-list \{[^}]*padding: 0 0 0 26px/.test(l);
 });
 
-check('W12-6 ★指标头的操作钮必须让位给读 —— 常驻两枚按钮会把指标名挤到换行。★这条钉的是「hover 才显形」这个交互决策本身，防止后续轮次为了"让入口更好找"把它改回常驻（那正是实际截图里"指标名后面跟一排小方块"的成因）。★同时钉住**能力没丢**：两枚按钮仍在模板里（R32-14 加任务 / R135-4 任务层 AI 是六入口之二），只是不再常驻可见', () => {
+check('W12-6 ★指标头的操作钮必须让位给读 —— 常驻按钮会把指标名挤到换行。★这条钉的是「hover 才显形」这个交互决策本身，防止后续轮次为了"让入口更好找"把它改回常驻（那正是实际截图里"指标名后面跟一排小方块"的成因）。★同时钉住**能力没丢**：按钮仍在模板里（R32-14 加任务 / R135-4 任务层 AI 是六入口之二），只是不再常驻可见。★F1 随迁带备案（2026-10-15）：删除成功指标（.mc-del）与指标「⋯」菜单（.mc-more）并入**同一套 hover 门**——新增入口不新开显形规则，指标头仍只 hover 出一排（选择器锚由两枚扩为四枚，所守决策一字未改；.mc-more.on 常驻显形是菜单展开态，属可见性兜底不算常驻位）', () => {
   const l = codeOnly(LANE);
-  const hasBtns = l.includes('@click="emit(\'addTask\', m.id)"') && l.includes('@click="emit(\'aiTask\', m.id)"');
-  const hoverOnly = /\.mc-add, \.mc-ai \{[^}]*opacity: 0/.test(l)
-    && /\.metric-card:hover \.mc-add, \.metric-card:hover \.mc-ai/.test(l);
+  const hasBtns = l.includes('@click="emit(\'addTask\', m.id)"') && l.includes('@click="emit(\'aiTask\', m.id)"')
+    && l.includes('@click="emit(\'delMetric\', m.id)"');
+  const hoverOnly = /\.mc-add, \.mc-ai, \.mc-del, \.mc-more \{[^}]*opacity: 0/.test(l)
+    && /\.metric-card:hover \.mc-add, \.metric-card:hover \.mc-ai/.test(l)
+    && /\.metric-card:hover \.mc-del, \.metric-card:hover \.mc-more/.test(l);
   /* 键盘可达：focus-visible 必须也显形，否则 hover 化会把无鼠标用户彻底挡在门外 */
   const a11y = l.includes('mc-add:focus-visible') || l.includes('mc-ai:focus-visible');
-  return hasBtns && hoverOnly && a11y;
+  /* ★F1 负锚：删除/更多两枚不许自己另开一条常驻显形（opacity: 0 是同一段声明里的基线） */
+  const noIndependent = !/\.mc-del \{[^}]*opacity: 1/.test(l) && !/\.mc-more \{[^}]*opacity: 1/.test(l);
+  return hasBtns && hoverOnly && a11y && noIndependent;
 });
 
 check('W12-7 ★容器内边距属**跨页一致性**纪律，原型的值不许覆盖。★本轮实战：曾把 .compass-layout 的 padding 从 `20px 36px 64px` 改成原型 .page 的 `26px 32px 64px`，结果 R21-3 / R123-3 / R125-1 三条同时红 —— R125「骨架 1440+36」把四页页边距拍成一条纪律，方向台侧的内缩就落在这条规则上。★所以本条把这条纪律显式钉住：容器 padding 必须保持原值，HERO 区的呼吸由 .hero 自身的 margin 承担，不许拿原型的数值去动它。★V3.8.20 值同步（用户拍板「间隙温和 +8」）：.hero 与 .spine-bar 的 margin-bottom 由 22px 提到 30px（左文案栏退役后纵向堆叠变薄，温和补回呼吸；容器 padding 仍一字不动）', () => {
@@ -177,7 +183,9 @@ check('W12-12 ★方向台四个组件里所有 button 都必须显式压掉浏�
   const needBg = [[tw, '.tw-act'], [tw, '.twm-item'], [ln, '.mc-toggle'], [ln, '.tk-grade'], [ln, '.tk-unbind']]
   const btnOk = needBg.every(([src, cls]) => /background\s*:/.test(bodyOf(src, cls)))
   // ② 层级面板默认收起：初值必须是 null（原型 lvpanel 的 max-height 初值就是 0）
-  const panelOk = /const layerOpen = ref<1 \| 2 \| 3 \| null>\(null\)/.test(t)
+  // ★F7 随迁带备案（2026-10-16）：类型由 1|2|3 收窄为 1|2（第 3 层迁出面板改走
+  //   layerView 层级专属列表），初值 null 与 v-if 结构不变。
+  const panelOk = /const layerOpen = ref<1 \| 2 \| null>\(null\)/.test(t)
     && /<CompassLayerPanel[\s\S]{0,120}v-if="layerOpen"/.test(t)
   // ③ 折叠判据必须量可见性：v-show 收起时节点仍在 DOM，查存在性会误报
   const audit = codeOnly(fs.readFileSync(path.join(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'))
@@ -316,7 +324,7 @@ check('W12-B1 ★页头动作区收敛后必须仍是「刷新 · 导出 ·（�
   return true;
 });
 
-check('W12-B2 ★「全部记录」必须收敛成**全页唯一一枚**。原先底部底栏一枚、近期模块「操作流」分段头里一枚，共两枚；按拍板上提页头后另两枚都要退役。判据：① 底栏整条不存在（.pi-endbar 与那段「只读纪律」文字一并退役）② PiRhythm 里的「全部记录 ›」按钮零命中，且其 open-log emit 声明也已移除（留声明就是没人 emit 的死通道）③ PiRhythm 那处横向筛选行改用独立类 .pi-flowbar —— 指标行容器 .pi-strip 已改纵向 flex，若还借用会把「筛选器靠左 · 错误出口靠右」的横向布局压坏。★三条负锚一律走 codeOnly：退役缘由必须写在注释里，而注释里必然出现「只读纪律」「全部记录」「.pi-endbar」这些退役字面量，不剥注释判据恒假（R166 纪律）。★另：PiRhythm 底部那句用户可见提示「更早的记录在『全部记录』抽屉按日检索」**不在**收敛范围——入口仍在页面里（只是换了位置），指引依然成立，按 W13 视觉轮统一措辞', () => {
+check('W12-B2 ★「全部记录」必须收敛成**全页唯一一枚**。原先底部底栏一枚、近期模块「操作流」分段头里一枚，共两枚；按拍板上提页头后另两枚都要退役。判据：① 底栏整条不存在（.pi-endbar 与那段「只读纪律」文字一并退役）② PiRhythm 里的「全部记录 ›」按钮零命中，且其 open-log emit 声明也已移除（留声明就是没人 emit 的死通道）③ ★W13-F13 再随迁带备案（2026-10-16）：操作流分段头那处横向筛选行 `.pi-flowbar`（连同 `.pi-seg` 筛选钮与 50 条未按周过滤流水 `.pi-flow`/`.pi-frow`）随 F13「同屏只留一个事实来源」整体退役——原③「改用独立类」的布局保护随主体消失而消解，负锚改为退役后**零命中**（模板 + CSS 双侧，codeOnly 剥注释），正锚钉退役备案注释在位（W13-F13 字样）防无声删除。★三条负锚一律走 codeOnly：退役缘由必须写在注释里，而注释里必然出现「只读纪律」「全部记录」「.pi-endbar」这些退役字面量，不剥注释判据恒假（R166 纪律）。★另：PiRhythm 底部那句用户可见提示「更早的记录在『全部记录』抽屉按日检索」**不在**收敛范围——入口仍在页面里（只是换了位置），指引依然成立，按 W13 视觉轮统一措辞', () => {
   const pi = codeOnly(read('/newtab/views/ProfileInsights.vue'));
   const rh = read('/newtab/components/profile/PiRhythm.vue');
   const rhCode = codeOnly(rh);
@@ -329,29 +337,34 @@ check('W12-B2 ★「全部记录」必须收敛成**全页唯一一枚**。原�
   if (/\.pi-btn[^\n]*全部记录/.test(rhCode)) return false;
   if (/\(e: 'open-log'\): void/.test(rhCode)) return false;
   if (rhCode.includes("emit('open-log'")) return false;
-  // ③ 横向筛选行独立成类
-  if (!rh.includes('class="pi-flowbar"')) return false;
-  if (!/\.pi-flowbar \{[^}]*display: flex/.test(css)) return false;
+  // ③ 筛选行随操作流整体退役（★W13-F13 带备案：模板与 CSS 零命中，退役注释在位）
+  if (rhCode.includes('pi-flowbar')) return false;
+  if (css.includes('pi-flowbar')) return false;
+  if (!rh.includes('W13-F13') || !read('/newtab/components/profile/pi-timeline.css').includes('W13-F13')) return false;
   return true;
 });
 
-check('W12-B3 ★指标行必须网格化，且是「方案 A · B3-a」这一支：chip 变等宽网格单元、标签提为独立表头行，列数 = 各模块自身 chip 数，不强求与下方网格同列数。判据钉住实现形态而不只是效果：① 容器 .pi-strip 改纵向 flex（标签在上、网格行在下）② 新增 .pi-strip-row 用 grid-auto-flow:column + grid-auto-columns:1fr（均分铺满，不靠内容自适应宽）③ .pi-chip 补 min-width:0 + justify-content:center + overflow:hidden，窄屏下数字与标签整体居中不左偏 ④ 各模块模板各有且仅有一层 .pi-strip-row 包裹（★V3.8.20：PiMonth 新增后由三模块扩为四模块——今日 4 / 本周 5 / 本月 5 / 全年 4 枚 chip）⑤ hover / active 两态不得在改版中丢掉', () => {
+check('W12-B3 ★指标行必须网格化，且是「方案 A · B3-a」这一支：chip 变等宽网格单元、标签提为独立表头行。★W13-D2 终态化（2026-10-16 · W13-T6 收官）：四时间模块全部落定 `.strip4`（T3 今日 → T4 本周 → T5 本月 → T6 本年），迁移期「两种容器二选一」的双态判据结束——终态钉死 ① 容器 .pi-strip 纵向 flex（标签在上、网格行在下）② 模板侧：四模块各恰一枚 class="strip4"，迁移期自适应容器在模板零命中 ③ CSS 侧：.strip4 规则 repeat(4,1fr) 在位，自适应容器的样式规则退役（剥注释后零命中——退役带备案只许留在注释里）④ .pi-chip 补 min-width:0 + justify-content:center + overflow:hidden，窄屏下数字与标签整体居中不左偏 ⑤ 标签必须在指标行容器之外（pi-strip-lab 表头行）⑥ hover / active 两态不得丢掉', () => {
   const css = read('/newtab/components/profile/pi-timeline.css')
-  const strip = (css.match(/\.pi-strip \{[^}]*\}/) || [''])[0]
+  const cssCode = css.replace(/\/\*[\s\S]*?\*\//g, '')
   if (!/\.pi-strip \{[^}]*flex-direction: column/.test(css)) return false
-  const row = (css.match(/\.pi-strip-row \{[^}]*\}/) || [''])[0]
-  if (!row.includes('grid-auto-flow: column')) return false
-  if (!row.includes('grid-auto-columns: 1fr')) return false
+  // ③ 终态：自适应容器规则退役——代码（剥注释后）零命中，备案只许在注释里
+  if (cssCode.includes('.pi-strip-row {')) return false
+  const s4 = (css.match(/\.strip4 \{[^}]*\}/) || [''])[0]
+  if (!s4.includes('repeat(4, 1fr)')) return false
   const chip = (css.match(/\.pi-chip \{[^}]*\}/) || [''])[0]
   for (const n of ['min-width: 0', 'justify-content: center', 'overflow: hidden']) if (!chip.includes(n)) return false
   if (!/\.pi-chip:hover \{/.test(css)) return false
   if (!/\.pi-chip:active \{/.test(css)) return false
   for (const f of ['PiToday', 'PiRhythm', 'PiMonth', 'PiYear']) {
     const s = read('/newtab/components/profile/' + f + '.vue')
-    const n = (s.match(/class="pi-strip-row"/g) || []).length
-    if (n !== 1) return false
-    // 标签必须在 grid 行之外（表头行），不能在网格行里面
-    const seg = s.slice(s.indexOf('class="pi-strip"'), s.indexOf('class="pi-strip-row"'))
+    // ② 终态：恰一枚 strip4；迁移期容器模板零命中（不许回潮）
+    if ((s.match(/class="strip4"/g) || []).length !== 1) return false
+    if (s.includes('class="pi-strip-row"')) return false
+    // ⑤ 标签必须在指标行容器之外（表头行），不能在网格行里面
+    const idx = s.indexOf('class="strip4"')
+    if (idx < 0) return false
+    const seg = s.slice(s.indexOf('class="pi-strip"'), idx)
     if (!seg.includes('pi-strip-lab')) return false
   }
   return true
@@ -427,23 +440,32 @@ check('W12-D5 ★选中空槽必须显引导态、**不许静默回落**。原�
   return true;
 });
 
-check('W12-D6 ★七层全貌七层都在，且 ⑥ 那层必须是**本地规则式**、不得出现 AI 调用的痕迹（用户拍板 B4-a：先不做单任务 AI 解读，因为产品里没有这个现成能力，硬上要新增 prompt 与门禁；本地规则按优先级/成熟度/截止/子任务/久未推进/未被调用给直白建议）。判据逐层点名 + 负锚：无 fetch / no AI import / 标题写明「本地判断」', () => {
+check('W12-D6 ★「全貌」模块形态与能力守恒。【W12-D 原判】钉七层纵向全貌 + ⑥ 本地规则式（无 AI 痕迹）+ 限高内滚动。★V3.8.21 翻转带备案（用户拍板 P4，2026-10-15）：整块全貌**退役**，改单行三个子任务（恒高 54px）——三栏/七层把「属于哪 / 走过什么 / 下一步 / 属性带」压在首屏，真正要看的三张卡被顶出一屏，"看选中项"反而挡住"选下一件事"。逐条能力去向（属迁移不属丢）：属于哪→卡片 🏷 与抽屉六层链；走过什么→抽屉历史；属性带→卡片徽章 + 抽屉；下一步（本地规则）→ D4 拍板整体退役，判断由 AI 诊断与停滞标承担。翻转不删断言：七层文案/六层链/限高滚动改钉退役负锚（回流即红，说明"全貌"被悄悄搬回来）；正锚改钉单行三态（D1 前3条+溢出 / D2 单击就地勾选 / D5 空态拆分去处）+ 纯只读（不落库）+ 无 AI 调用痕迹这条原判一字未改', () => {
   const fd = read('/newtab/components/compass/FocusDetail.vue');
-  for (const layer of ['是什么', '属于哪', '要做什么', '凭什么', '走过什么', '下一步', '动作']) {
-    if (!fd.includes(layer)) return false;
+  const c = codeOnly(fd);
+  /* ★退役负锚：七层全貌与六层链文案不许回流（那是被拍板删掉的形态）。
+     走 codeOnly —— 文件头注释必须写清退役缘由与能力去向，裸读会把免责说明判成违规 */
+  for (const layer of ['是什么', '属于哪', '要做什么', '凭什么', '走过什么', '下一步']) {
+    if (c.includes(layer)) return false;
   }
-  // 六层链：愿景/使命/战略目标/攻坚项目/成功指标
-  for (const lv of ['愿景', '使命', '战略目标', '攻坚项目', '成功指标']) {
-    if (!fd.includes(lv)) return false;
-  }
-  // ⑥ 本地规则：不含 AI 调用痕迹
-  if (/fetch\(|XMLHttpRequest|runAI|@\/shared\/ai\//.test(fd)) return false;
-  if (!fd.includes('本地判断')) return false;
-  // 限高 + 内滚动（用户拍板）
-  if (!/max-height:/.test(fd) || !/overflow-y: auto/.test(fd)) return false;
-// 两个出口上抛而不自行改数据（纯只读）：负锚 —— 本组件不得出现任何落库动作
+  if (c.includes('本地判断')) return false;
+  if (/max-height:/.test(c) || /overflow-y: auto/.test(c)) return false;
+  /* ★正锚①：单行三子任务恒高 54px，只摆前 3 条 + 溢出徽标（D1） */
+  if (!/min-height: 54px/.test(fd)) return false;
+  if (!fd.includes('VISIBLE_MAX = 3')) return false;
+  if (!fd.includes('overflow > 0')) return false;
+  /* ★正锚②：D2 单击子任务条目 = 就地勾选，emit 上抛宿主（本组件不落库） */
+  if (!fd.includes("(e: 'toggleSub', taskId: string, subId: string): void")) return false;
+  if (!fd.includes('@click="onToggleSub(st.id)"')) return false;
+  /* ★正锚③：D5 空态给「＋ 拆分」直达出口（能力不因删全貌而失去去处） */
+  if (!fd.includes("'＋ 拆分'")) return false;
+  if (!fd.includes("(e: 'split', task: TaskCard): void")) return false;
+  /* ★原判未改：无 AI 调用痕迹（F4 诊断是另一条链，不进这个组件） */
+  if (/fetch\(|XMLHttpRequest|runAI|@\/shared\/ai\//.test(c)) return false;
+  /* 两个出口上抛而不自行改数据（纯只读）：负锚 —— 本组件不得出现任何落库动作
+     （走 codeOnly：文件头注释必须写明"纯只读纪律不变"，查散文会把这句免责判成违规） */
   if (!fd.includes("(e: 'edit', task: TaskCard): void")) return false;
-  if (fd.includes('store.persist')) return false;
+  if (c.includes('store.persist')) return false;
   return true;
 });
 
@@ -549,29 +571,36 @@ if (/var\(--text-4\)/.test((cz.match(/\.cz-kb-ai \{[\s\S]*?\n\}/) || [''])[0])) 
 
 // ============== N 系列 · 批 A/B/C（V3.8.18）：原型评审 15 条需求落库 ==============
 console.log('【N 系列 · 画像洞察 N9 战报入口收敛】');
-check('N9 ★PiToday 战报入口收敛（同一弹窗只留一个入口）。【N9 原判 · V3.8.18】strip 里退役「写入记录」「复盘就绪」两枚 chip，只留模块头右上的战报入口。病根＝那两枚不是读数，是**同一个弹窗的另两个入口**（都 emit open-battle），六个 chip 里三个跳同一处，读者要试过才知道它们是一件事；而 strip 自己的语义是"六格读数"。【2026-10-15 用户拍板翻转 ③】原判据 ③ 钉的是"模块头**两枚**战报按钮仍在位（≥2）"，而那两枚（文字「打开战报」+ ▶ 图标）**打开的是同一个 DayDetail 弹窗、同一根 emit 通道** —— 按 N9 自己立的原则「同一弹窗不给两个入口」，上一轮只收了 strip、漏了模块头这一对。**本条翻转不删断言，只把断言从"≥2"改为"恰好 1"**，理由写在这里：重复的是入口、不是能力，能力一项未减（open-battle 通道、DayDetail 弹窗、宿主 openTodayBattle 全部原样）。现行判据：① strip 只剩四枚读数 chip（今日入台 / 今日移出 / 今日调出 / 连续打卡），且四枚仍各带自己的 drill 键——能力减的是**重复入口**，不是下钻能力 ② 模块头**只剩一枚** open-battle 入口（文字「打开战报」，▶ 图标已退役）③ open-battle 这条 emit 通道未被顺手删（模板里必须有 @click="emit(\'open-battle\')" 的真实调用，不许只留 defineEmits 声明）④ 宿主侧那两个只为它们而生的 computed（writeCount/reviewReady）一并退役，不留死数据链 ⑤ 老的 R44-7 判据钉的四枚 drill chip 一字未动（本条与它不冲突，反而互为护栏）。★负锚走 codeOnly：退役理由的注释里必然回指那两个词，拿原文直查会自己咬自己', () => {
+check('N9 ★PiToday 战报入口收敛（同一弹窗只留一个入口）。【N9 原判 · V3.8.18】strip 里退役「写入记录」「复盘就绪」两枚 chip，只留模块头右上的战报入口。病根＝那两枚不是读数，是**同一个弹窗的另两个入口**（都 emit open-battle），六个 chip 里三个跳同一处，读者要试过才知道它们是一件事；而 strip 自己的语义是"六格读数"。【2026-10-15 用户拍板翻转 ③】同一弹窗不给两个入口，模块头只留一枚战报按钮。【2026-10-16 ★W13-F8 再随迁 ①】四枚读数 chip 定版为 今日入台/今日调出/今日焦点/已备弹药——「今日移出」随 F8 四格定版退役出 strip（全量删除下钻仍在 DashboardLogDrawer 动作筛选，能力一项未减）、「连续打卡」迁 PiYear 年度段（W13-D1 指标去重，全页仅时间轴一处），drill 键随之收窄为 d-in/d-call 两枚（焦点格 → open-focus 跳调度台、弹药格 → 读数徽标非下钻）。现行判据：① 写入记录/复盘就绪两枚重复入口零残留（codeOnly 负锚）② strip 恰为四枚读数 chip（入台/调出/焦点/弹药）且 d-in/d-call 两枚 drill 键在位、d-out/streak 零残留 ③ 模块头只剩一枚 open-battle 入口（文字「打开战报」）④ open-battle emit 通道未被顺手删（模板真实调用 + defineEmits 声明双在）⑤ 宿主侧死数据链已拔（writeCount/reviewReady 零残留），且 onTodayDrill 类型收窄为 d-in/d-call（与 strip 定版同源）。★负锚走 codeOnly：退役理由的注释里必然回指那些词，拿原文直查会自己咬自己', () => {
   const t = codeOnly(read('/newtab/components/profile/PiToday.vue'));
   const p = codeOnly(read('/newtab/views/ProfileInsights.vue'));
   // ① 两枚重复 chip 必须真的不在
   if (t.includes('写入记录')) return false;
   if (t.includes('复盘就绪')) return false;
-  // ② 四枚读数 chip 全在，且各自 drill 键一个不少（"只删入口、不删能力"）
-  for (const k of ['d-in', 'd-out', 'd-call', 'streak']) {
+  // ② ★W13-F8 定版四枚 + drill 收窄（d-out/streak 零残留）
+  for (const k of ['d-in', 'd-call']) {
     if (!t.includes(`emit('drill', '${k}')`)) return false;
   }
-  for (const lab of ['今日入台', '今日移出', '今日调出', '连续打卡']) {
+  // ★W15-T1（用户拍板 2026-10-16）：弹药格由"读数徽标非下钻"改可点 —— 四格不许有死格，
+  // 「已备弹药 N 张」的承诺必须能兑现成一份卡片清单（原先点不动）。
+  if (!t.includes(`emit('drill', 'd-ammo')`)) return false;
+  for (const lab of ['今日入台', '今日调出', '今日焦点', '已备弹药']) {
     if (!t.includes(`>${lab}<`)) return false;
   }
+  if (t.includes(`emit('drill', 'd-out')`)) return false;
+  if (t.includes(`emit('drill', 'streak')`)) return false;
+  // ★W15-T1 终态化：弹药格必须是 button（可点）而非 span —— "能点"这条不许退化成"看着能点"
   // ③ 模块头只剩一枚战报入口（2026-10-15 翻转：由"≥2"改"恰好 1"，理由写在判据正文）
   if ((t.match(/emit\('open-battle'\)/g) || []).length !== 1) return false;
   // ④ emit 通道本身还在（模板里必须有 open-battle 的真实调用，不许只留 defineEmits 声明）
   if (!t.includes(`@click="emit('open-battle')"`) || !t.includes('open-battle')) return false;
   if (!t.includes(`(e: 'open-battle'): void`)) return false;
-  // ⑤ 宿主侧死数据链已拔
+  // ⑤ 宿主侧死数据链已拔 + onTodayDrill 随 strip 定版收窄
   if (p.includes('const writeCount')) return false;
   if (p.includes('const reviewReady')) return false;
   if (p.includes(':write-count=')) return false;
   if (p.includes(':review-ready=')) return false;
+  if (!p.includes(`function onTodayDrill(k: 'd-in' | 'd-call' | 'd-ammo')`)) return false;
   return true;
 });
 
@@ -591,17 +620,17 @@ check('N6 ★时间轨吸顶（左轨 sticky）：三段式很长，左轨原先
   return read('/newtab/components/profile/PiRail.vue').includes('class="pi-rail"');
 });
 
-check('N7 ★Hero 5 枚 KPI 药丸居中：页头左标题区、右操作区两头都有重量，核心读数却贴左挤在标题下。`.pi-hero-sum` 必须 justify-content: center（flex-wrap 换行时居中的是当前行，不是整块，药丸数量随屏变也稳）。负锚：不许退回 flex-start / 不许用 margin auto 假居中（那只在单行、且需要容器留白时生效，换行即失效）', () => {
+check('N7 ★W13-D1 退役重指带备案（2026-10-16 · 画像洞察极简认知版）：原判「Hero 5 枚 KPI 药丸 `.pi-hero-sum` 必须 justify-content: center 居中」随 D1 三层卡片结构整体退役——N7 的病根（读数排"贴左挤在标题下"）在新结构里已消解：药丸行改为 `.hero-kpis-grid` 4 等宽底盘，grid repeat(4,1fr) 整行铺满，读数不再是标题的附属，而是与标题分层的独立底盘（N7「位置在两头之间」的意图由 ③ 独立层承接）。现行判据：① `.hero-kpis-grid` 主规则在位且含 repeat(4, 1fr)（等宽铺满 = 居中语义消解）② 退役负锚走 codeOnly：`.pi-hero-sum {` 与 `.pi-hchip {` 规则零命中（删干净的凭据；注释可回指）③ 老药丸的两个坑不许在新容器重演——.hero-kpis-grid 规则内不许 justify-content: flex-start、不许 margin auto 假居中', () => {
   const c = read('/newtab/components/profile/pi-timeline.css');
-  const m = c.match(/\.pi-hero-sum \{[\s\S]*?\}/);
+  const cod = codeOnly(c);
+  const m = c.match(/\.hero-kpis-grid \{[\s\S]*?\}/);
   if (!m) return false;
   const s = m[0];
-  if (!s.includes('justify-content: center')) return false;
+  if (!s.includes('repeat(4, 1fr)')) return false;
   if (/justify-content:\s*flex-start/.test(s)) return false;
   if (/margin:\s*0 auto|margin-left:\s*auto|margin-right:\s*auto/.test(s)) return false;
-  // 药丸本体没被顺手改（居中只动排列，不动每一枚）
-  const chip = c.match(/\.pi-hchip \{[\s\S]*?\}/);
-  return !!chip && chip[0].includes('border-radius: 999px');
+  // ② 退役负锚（codeOnly 剥注释，防备案注释自匹配）
+  return !cod.includes('.pi-hero-sum {') && !cod.includes('.pi-hchip {');
 });
 
 
@@ -625,15 +654,21 @@ check('N8 ★资源卡镜像到策展台（推送方向恢复）：V3.7.0（R179
   if (!ws.includes('确认镜像')) return false;
   if (!ws.includes(':disabled="!mirrorWsId"')) return false;
   if (!ws.includes('v-if="mirrorOpen"')) return false;
-  // ③+⑤ 宿主二：App 级抽屉，行内选台且在 #extra 内、不进 #footer
+// ③+⑤ 宿主二：App 级抽屉，行内选台
   const rdd = read('/newtab/components/ResourceDetailDrawer.vue');
   const c2 = codeOnly(rdd);
   if (!c2.includes('rd-mirror-select')) return false;
   if (!c2.includes('projectCardToBoard')) return false;
+  /* ★W15-T3（用户拍板 2026-10-16）⑤ 重指：镜像控件由「#extra 属性区」提到 **#link-actions 链接工具行**
+     —— 原入口埋在属性区里，用户找不到（列表侧同期补了行内 🪞，两处同口径）。
+     ⑤ 守的**意图**是「镜像控件不许进 #footer」（footer 仍是删除 + 保存两钮，theme-audit drawer-res
+     footCount===2 是硬门禁），位置在主区任一处都满足；故改钉「#link-actions 或 #extra 内有它」。 */
+  const la = rdd.indexOf('<template #link-actions>');
+  const lae = rdd.indexOf('</template>', la);
   const es = rdd.indexOf('<template #extra>');
   const ee = rdd.indexOf('</template>', es);
-  if (es < 0 || ee < 0) return false;
-  if (!rdd.slice(es, ee).includes('rd-mirror-select')) return false;
+  if (la < 0 || lae < 0 || es < 0 || ee < 0) return false;
+  if (!rdd.slice(la, lae).includes('rd-mirror-select') && !rdd.slice(es, ee).includes('rd-mirror-select')) return false;
   const fs = rdd.indexOf('<template #footer>');
   const fe = rdd.indexOf('</template>', fs);
   if (fs < 0 || fe < 0) return false;
@@ -691,12 +726,27 @@ check('N2 ★单项目 AI 诊断（与设置页 diagnose 整库会诊**各走各
   if (!cp.includes("(e: 'diagReport', projId: string)")) return false;
   if (!cp.includes('diagStale?: boolean')) return false;
   // ⑥ 宿主：恢复缓存 + 采纳回调顶开弹窗 + 中央弹窗挂载
+  // ★F4 随迁带备案（2026-10-15）：诊断入口从「只有项目塔一处」扩到三处（全景项目头 + 项目策展页头），
+  //   会话缓存必须全站一份 ⇒ 三段宿主逻辑（建 job / 恢复缓存 / 采纳顶开）下沉 composable useProjectDiag
+  //   单一实现，三个宿主共用；判据跟着搬进 composable —— 所守行为（手动触发 / 恢复 / 顶开）一字未改。
+  const dg = codeOnly(read('/newtab/composables/useProjectDiag.ts'));
+  if (!dg.includes('buildProjectDiagnoseJob(')) return false;
+  if (!dg.includes('loadAllDiagnoses()')) return false;
+  if (!dg.includes('setProjectDiagSavedHandler(')) return false;
+  /* 懒加载红线：诊断引擎按需 import，AI 栈不进宿主的入口 chunk */
+  if (!dg.includes("import('@/shared/ai/projectDiagnose')")) return false;
+  /* 模块级单例：跨宿主共享同一份会话缓存（否则塔里诊断完全景还是空的） */
+  if (!/const sharedDiags = shallowRef/.test(dg)) return false;
   const tr = read('/newtab/views/CompassTree.vue');
-  if (!tr.includes('buildProjectDiagnoseJob(')) return false;
-  if (!tr.includes('loadAllDiagnoses()')) return false;
-  if (!tr.includes('setProjectDiagSavedHandler(')) return false;
+  if (!tr.includes('useProjectDiag(')) return false;
   if (!tr.includes('<ProjectDiagnoseModal')) return false;
+  if (!tr.includes(':diag="diagFor(panoEffectiveId)"')) return false;
   if (!tr.includes(':diag="diagFor(row.proj.id)"')) return false;
+  /* ★F4 三处入口：全景项目头 + 项目策展页头都挂 CompassTowerStatus 两态挂件 */
+  const pano = read('/newtab/components/compass/CompassPano.vue');
+  if (!pano.includes('class="ph-diag"') || !pano.includes('<CompassTowerStatus')) return false;
+  const pc = read('/newtab/views/ProjectCuration.vue');
+  if (!pc.includes('useProjectDiag(') || !pc.includes('<CompassTowerStatus')) return false;
   // 弹窗形态：Teleport + overlay + 过期条 + 导出 HTML/MD（PNG 二批）
   const md = read('/newtab/components/compass/ProjectDiagnoseModal.vue');
   if (!md.includes('<Teleport to="body">')) return false;

@@ -595,7 +595,7 @@ check('W5-8 ★三卡交互统一「单击详情 / 双击开链接」（用户�
     && pc.includes('toOpenableUrl(r.linkType, r.link)') && pc.includes('openExternalLink(url)')
     && pc.includes('recordResourceOpen') && pc.includes('persistHot')
     && pc.includes('@dblclick="onCardDblClick(r)"')
-    && (pc.match(/@dblclick="onCardDblClick\(r\)"/g) || []).length === 2
+    && (pc.match(/@dblclick="onCardDblClick\(r\)"/g) || []).length >= 2 /* ★W15-T3 2026-10-16：列表视图新增分组分支后同款双击通道多一处（仍不许少于一档：列表 + 网格） */
     && pc.includes('双击打开链接')
     && tm.includes('onTaskRowDblClick') && tm.includes('260')
     && cz.includes('onCardDblClick') && cz.includes('260');

@@ -21,11 +21,17 @@ import { computed } from 'vue'
 import type { Direction, Project } from '@/shared/models'
 import type { CompassMeta, ProjectMeta } from '../../views/compassMeta'
 import CompassPanoLane from './CompassPanoLane.vue'
+import CompassTowerStatus from './CompassTowerStatus.vue'
+import type { ProjectDiagnosis } from '@/shared/ai/projectDiagnose'
 
 const props = defineProps<{
   meta: CompassMeta
   /** 当前全景聚焦的项目 id（双向：点选择条换主体 / 判据 W11-8） */
   activeId: string
+  /** ★F4：当前项目的 AI 诊断报告（宿主算好传入；null=还没生成过） */
+  diag?: ProjectDiagnosis | null
+  /** ★F4：报告指纹过期（数据已变更）→ 标签降亮 */
+  diagStale?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -42,6 +48,13 @@ const emit = defineEmits<{
   /* ★W12-E gotoDetail 随「📄 详情」一并退役（emit 声明不留：没人 emit 的死通道等于骗人）。
      /compass/projects 整页仍在，只是方向台两个视图不再把它当入口。 */
   (e: 'toTower', projId: string): void
+  /** ★F1：泳道指标删除成功指标 */
+  (e: 'delMetric', metricId: string): void
+  /** ★F2：项目层模板导入（📋） */
+  (e: 'importTemplate', projId: string): void
+  /** ★F4：AI 诊断两态（无报告→跑；有报告→开中央弹窗） */
+  (e: 'diagRun', projId: string): void
+  (e: 'diagReport', projId: string): void
 }>()
 
 /** 选择条上的项目序列（扁平成一条，前端不再嵌套遍历） */
@@ -147,31 +160,39 @@ const ringC = 2 * Math.PI * ringR
           </div>
           <div class="ph-acts">
             <button v-if="current.pm.risk > 0" class="ph-act risk" :title="`${current.pm.risk} 处断链：缺任务指标 + 无归属任务`">⚠ 断链 {{ current.pm.risk }}</button>
+            <!-- ★F2：项目层模板导入（📋 与战略目标行同构）——粘贴 # 成功指标 / ## 任务 一次生成 -->
+            <button class="ph-act" title="导入模板：粘贴 Markdown，按「# 成功指标 / ## 任务」批量生成本项目的指标与任务" @click="emit('importTemplate', current.proj.id)">📋 导入模板</button>
             <button class="ph-act" title="在本项目下新建成功指标" @click="emit('addMetric', current.proj.id)">＋ 指标</button>
             <button class="ph-act ai" title="✦ AI 依使命与本项目建议成功指标（查重后采纳才创建）" @click="emit('aiMetric', current.proj.id)">✦ AI 建议指标</button>
+            <!-- ★F4：AI 诊断两态入口 —— 与项目塔舱头 CompassTowerStatus 同一套交互（复用同一组件）：
+                 无报告 → 虚线「🧠 AI 诊断」点击才跑；有报告 → 标签组 + 「📄 诊断报告」开中央弹窗。
+                 手动触发红线不破：从不自动跑、不预生成。 -->
+            <CompassTowerStatus
+              class="ph-diag"
+              :proj-id="current.proj.id"
+              :hue="current.hue"
+              :meta="current.pm"
+              :diag="diag"
+              :stale="diagStale"
+              @diag-run="(id) => emit('diagRun', id)"
+              @diag-report="(id) => emit('diagReport', id)"
+            />
             <!-- ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：这枚「📄 详情」与项目塔
                  舱内菜单、页头那枚同属"进项目详情"的入口，四个视图已能就地看全，一并退役。 -->
           </div>
         </div>
       </section>
 
-      <!-- ③ 层级带：把「从属关系」直接印在结构上，不靠脑补 -->
+      <!-- ③ 层级带（F3 单行化）：从属引导降为一行面包屑 —— 原三段竖排色块实测 85–90px，
+           夺走下方泳道的视觉焦点；现压成恒高约 30px 的单行，只保留「层 + 计数」。
+           三段副文案（"1个攻坚项目·本次全景的主体"等）全砍：这些数字在项目头进度环与泳道里
+           都有第二来源，不值得再占一整行。 -->
       <section v-if="bandStats" class="band" aria-label="三层从属">
-        <div class="bd">
-          <div class="bd-l"><i>第 4 层</i>PROJECT</div>
-          <div class="bd-n">{{ current.proj.name }}</div>
-          <div class="bd-m">1 个攻坚项目 · 本次全景的主体</div>
-        </div>
-        <div class="bd">
-          <div class="bd-l"><i>第 5 层</i>METRIC</div>
-          <div class="bd-n">{{ bandStats.metrics }} 条成功指标</div>
-          <div class="bd-m">{{ bandStats.withTasks }} 条有任务 · {{ bandStats.zero }} 条零任务</div>
-        </div>
-        <div class="bd">
-          <div class="bd-l"><i>第 6 层</i>TASK</div>
-          <div class="bd-n">{{ bandStats.allTasks }} 条任务</div>
-          <div class="bd-m">{{ bandStats.doneTasks }} 已完成 · {{ bandStats.pending }} 待推进<template v-if="current.pm.orphanTasks.length"> · {{ current.pm.orphanTasks.length }} 条无归属</template></div>
-        </div>
+        <span class="bd-seg"><i>第 4 层</i> PROJECT</span>
+        <span class="bd-sep" aria-hidden="true">›</span>
+        <span class="bd-seg"><i>第 5 层</i> METRIC <b>{{ bandStats.metrics }}</b> 条指标</span>
+        <span class="bd-sep" aria-hidden="true">›</span>
+        <span class="bd-seg"><i>第 6 层</i> TASK <b>{{ bandStats.allTasks }}</b> 条任务</span>
       </section>
 
       <!-- ④ 横向泳道区：一根泳道 = 一条成功指标（组件化，见 CompassPanoLane） -->
@@ -186,6 +207,7 @@ const ringC = 2 * Math.PI * ringR
           @task-grade="emit('taskGrade', $event)"
           @open-detail="emit('openDetail', $event)"
           @add-task="(mid, pid) => emit('addTask', mid, pid)"
+          @del-metric="(mid) => emit('delMetric', mid)"
         />
 
         <!-- ★无归属收容泳道：在项目内但没挂任何成功指标的任务（判据 W11-8 钉它在泳道区最右侧） -->
@@ -278,27 +300,20 @@ const ringC = 2 * Math.PI * ringR
 .ph-act.risk { color: var(--danger); background: var(--danger-bg-soft); border-color: var(--danger-border); }
 .ph-act.ai { color: var(--accent-ink); background: var(--accent-light); border-color: transparent; }
 
-/* ── 层级带 ── */
+/* ── 层级带（F3 单行面包屑）── */
+/* 恒高单行：层名小字 + 计数强调；渐变底色降为极淡单色，不再用三段渐变抢焦点 */
 .band {
-  display: flex; align-items: stretch; border-radius: var(--radius-md);
-  overflow: hidden; margin-bottom: 16px; box-shadow: var(--shadow-sm);
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 14px; margin-bottom: 16px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--hue) 6%, var(--surface));
   border: 1px solid var(--border);
+  font-size: var(--fs-micro); color: var(--text-3); white-space: nowrap;
 }
-/* ★三段宽度递增（1.25 / 2 / 2.6）—— 视觉上就是"越往下越细"，从属直接印在结构上 */
-.bd { display: flex; flex-direction: column; gap: 3px; padding: 11px 16px; position: relative; }
-.bd:nth-child(1) { flex: 1.25; background: linear-gradient(90deg, color-mix(in srgb, var(--hue) 22%, transparent), color-mix(in srgb, var(--hue) 12%, transparent)); }
-.bd:nth-child(2) { flex: 2; background: linear-gradient(90deg, color-mix(in srgb, var(--hue) 14%, transparent), color-mix(in srgb, var(--hue) 9%, transparent)); }
-.bd:nth-child(3) { flex: 2.6; background: color-mix(in srgb, var(--hue) 9%, transparent); }
-/* ★段间箭头：无内容伪元素，用 clip-path 画折角。别删——删了三段就变成三块并列色块，从属感全失 */
-.bd::after {
-  content: ''; position: absolute; right: -7px; top: 0; bottom: 0; width: 14px;
-  background: inherit; clip-path: polygon(0 0, 100% 50%, 0 100%); z-index: 1;
-}
-.bd:last-child::after { display: none; }
-.bd-l { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .09em; color: var(--text-2); display: flex; align-items: center; gap: 6px; z-index: 2; }
-.bd-l i { font-style: normal; opacity: .7; font-weight: 700; }
-.bd-n { font-size: var(--fs-sub); font-weight: 700; line-height: 1.4; z-index: 2; color: var(--text); }
-.bd-m { font-size: var(--fs-micro); color: var(--text-3); z-index: 2; }
+.bd-seg { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; letter-spacing: .04em; }
+.bd-seg i { font-style: normal; color: var(--text-4); font-weight: 700; }
+.bd-seg b { font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.bd-sep { color: var(--text-4); opacity: .7; }
 
 /* ── 泳道区（横向容器；泳道本体在 CompassPanoLane）── */
 .lanes { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 16px; align-items: flex-start; }

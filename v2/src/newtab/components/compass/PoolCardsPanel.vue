@@ -19,6 +19,7 @@ import { showToast } from '@/shared/components/toast'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
+import { projectCardToBoard } from '@/shared/storage/hub'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import NewBadge from '@/shared/components/NewBadge.vue'
 import { useWorkspaceImport } from '../../composables/useWorkspaceImport'
@@ -31,8 +32,10 @@ const route = useRoute()
 const router = useRouter()
 
 const query = ref('')
-/** R3-Ca：视图两档（网格/列表）——与任务、好奇面板同口径存组件内 ref，不落盘（三面板一致，别在这里单开持久化） */
-const viewMode = ref<'card' | 'list'>('card')
+/** R3-Ca：视图两档（网格/列表）——与任务、好奇面板同口径存组件内 ref，不落盘（三面板一致，别在这里单开持久化）
+ *  ★W15-T2（用户拍板 2026-10-16）：**默认改列表** —— 池卡 261 张，网格一屏只放得下十几张且标签要折行，
+ *  列表才是一屏看更多的那个（网格保留为可选视图，不删）。 */
+const viewMode = ref<'card' | 'list'>('list')
 /** R3-Ca：「待打标」筛选——池卡由标签组织，无标签=召回不上的存量，这条是 R179 迁移时承诺的兜底出口 */
 const onlyUntagged = ref(false)
 /* W5（V3.8.5）#3：排序接线 DeckControls —— 三档（最近更新默认 / 最近采集 / 最近调出）+ 方向钮。
@@ -71,6 +74,72 @@ const poolTotal = computed(() => (store.data?.resources || []).filter(r => !r.de
 const untaggedCount = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID && !(r.tags || []).length).length)
 /** R3-Cc2：控制行的值域在这里配置，模板里不写第二套按钮 */
 const poolViews = [{ id: 'card', label: '▦ 网格', title: '网格视图' }, { id: 'list', label: '☰ 列表', title: '列表视图（一屏看更多，标签全展开）' }]
+
+/* ===== ★W15-T3（用户拍板 2026-10-16）链接类型分组 =====
+ * 口径已澄清定案（用户确认"一张卡只会拥有一个类别的链接"）：
+ *   link 为空 → 'none'（含"选了本地槽但没填值"）
+ *   linkType=file → 'file'（**含只存了文件名打不开的卡** —— 用户视角它就是本地文件卡）
+ *   linkType=obsidian → 'obsidian'
+ *   其余 → 'url'（**只收 http/https**，obsidian:// 在协议层也是 URL，不许重复计入）
+ * 组序固定：本地文件 → URL → Obsidian → 无链接（无链接垫底：它最不需要被优先找到）。
+ * 为什么按当前槽归唯一组：三槽设计允许一张卡存多条链，若"命中即入多个组"，各组张数相加会远大于池内
+ * 总数，头部「261 张」与分组计数对不上账，用户会以为数据错乱。若将来真有卡填了多条，副槽用行尾小徽标提示。 */
+type PoolGroup = 'file' | 'url' | 'obsidian' | 'none'
+const POOL_GROUPS: { id: PoolGroup; label: string; title: string }[] = [
+  { id: 'file', label: '📁 本地文件', title: '链接指向本机文件（仅存文件名、打不开的也算这一类）' },
+  { id: 'url', label: '🔗 含 URL 链接', title: '链接是网页地址（http/https）' },
+  { id: 'obsidian', label: '🧠 Obsidian 链接', title: 'obsidian:// 协议链接' },
+  { id: 'none', label: '○ 无链接', title: '没有链接的卡（纯文字卡 / 只选了槽没填值）' }
+]
+function groupOf(r: ResourceCard): PoolGroup {
+  if (!(r.link || '').trim()) return 'none'
+  if (r.linkType === 'file') return 'file'
+  if (r.linkType === 'obsidian') return 'obsidian'
+  return (r.link || '').trim().toLowerCase().startsWith('http') ? 'url' : 'url'
+}
+/** 当前选中的分组（'' = 不分组，按排序档位平铺） */
+const groupBy = ref<'' | PoolGroup>('')
+const groupCounts = computed(() => {
+  const m: Record<PoolGroup, number> = { file: 0, url: 0, obsidian: 0, none: 0 }
+  for (const r of poolCards.value) m[groupOf(r)]++
+  return m
+})
+/** 分组视图 = 只保留当前分组 + 空组不渲染（组序按 POOL_GROUPS 定义，池内无卡的小组直接不出现） */
+const groupSections = computed(() => {
+  if (!groupBy.value) return []
+  const all = poolCards.value
+  return [{ id: groupBy.value as PoolGroup, cards: all.filter(r => groupOf(r) === groupBy.value) }]
+    .filter(s => s.cards.length > 0)
+})
+function toggleGroup(id: string) { groupBy.value = groupBy.value === id ? '' : (id as PoolGroup) }
+watch(groupBy, () => { visibleCount.value = PAGE })
+
+/* ===== ★W15-T3 镜像到策展台（行内入口）=====
+ * 与详情抽屉 ResourceDetailDrawer 走**同一个** projectCardToBoard 口径（不另写一套投射逻辑），
+ * 目标台用行内小下拉选（不为一个下拉再加一层弹窗），选过的台记忆为下次默认。 */
+const mirrorBoards = computed(() =>
+  (store.data?.workspaces || []).filter(w => w.kind !== 'resource' && w.id !== CURATION_WS_ID && !w.archived))
+const mirrorWsId = ref('')
+const mirrorOpenFor = ref<string | null>(null)
+/** 已镜像过的卡（curationProjections 里有该卡的 card 记录）⇒ 行上标「已镜像」，防重复镜像 */
+function isMirrored(r: ResourceCard): boolean {
+  return (store.data?.curationProjections || []).some(p => p.kind === 'card' && p.cardId === r.id)
+}
+function openMirror(r: ResourceCard) {
+  mirrorOpenFor.value = mirrorOpenFor.value === r.id ? null : r.id
+  if (!mirrorWsId.value && mirrorBoards.value.length) mirrorWsId.value = mirrorBoards.value[0].id
+}
+function doMirror(r: ResourceCard) {
+  const wsId = mirrorWsId.value
+  if (!wsId) { showToast('⚠ 请先在行内选一个目标策展台'); return }
+  if (!store.data) { showToast('⚠ 数据未就绪'); return }
+  const rec = projectCardToBoard(store.data, r.id, wsId)
+  if (!rec) { showToast('⚠ 该台已经镜像过这张卡'); return }
+  store.persist()
+  const name = (store.data.workspaces || []).find(w => w.id === wsId)?.name || '策展台'
+  mirrorOpenFor.value = null
+  showToast(`✓ 已镜像到「${name}」（源卡仍在资源卡池）`)
+}
 /** 胶囊组没有"再点一次取消"的语义（点谁选谁），这里补上：再点「待打标」= 回到全部 */
 function onPoolFilter(v: string) { onlyUntagged.value = v === 'untagged' ? !onlyUntagged.value : false }
 const poolFilters = computed(() => [
@@ -244,6 +313,15 @@ function deleteSelected() {
       :batch-labels="['批量', '退出批量']" :batch-on="batchMode" @batch="toggleBatch"
       new-label="＋ 新建卡" new-title="新建单张资源卡（采集走 Ctrl+Shift+J）" @create="openNew">
       <button class="pcp-btn" title="图片 / HTML / PDF，一文件一卡（本体存本地 IndexedDB）" @click="fileImport()">📥 导入本地文件</button>
+      <!-- ★W15-T3（用户拍板 2026-10-16）链接类型分组下拉：组序固定 本地文件 → URL → Obsidian → 无链接（垫底）；
+           再点一次同一组 = 取消分组（回到平铺）。分组只在列表视图生效（网格不做分组，避免一屏信息过载）。 -->
+      <div v-if="viewMode === 'list'" class="pcp-groupbar">
+        <button class="pcp-btn" :class="{ on: !groupBy }" title="不分组，按排序档位平铺" @click="groupBy = ''">不分组</button>
+        <button v-for="g in POOL_GROUPS" :key="g.id" class="pcp-btn" :class="{ on: groupBy === g.id }"
+          :title="g.title" :disabled="!groupCounts[g.id]" @click="toggleGroup(g.id)">
+          {{ g.label }} <span class="pcp-gcount">{{ groupCounts[g.id] }}</span>
+        </button>
+      </div>
       <template #count><span class="pcp-count"><b>{{ poolCards.length }}</b> / 全部 {{ poolTotal }} 张</span></template>
     </DeckControls>
 
@@ -275,10 +353,52 @@ function deleteSelected() {
 
     <!-- R3-Ca 列表视图：一屏看更多 + 标签全展开（网格留作默认，两档共用同一份 poolCards 与分页） -->
     <div v-else-if="viewMode === 'list'" class="pcp-list">
+      <!-- ★W15-T3：分组视图下每组带一个组头（组名 + 张数）；无链接组永远垫底 -->
+      <template v-if="groupBy">
+        <div v-for="sec in groupSections" :key="sec.id" class="pcp-group-sec">
+          <div class="pcp-group-h">
+            <span class="n">{{ (POOL_GROUPS.find(g => g.id === sec.id)?.label) || sec.id }}</span>
+            <span class="c">{{ sec.cards.length }} 张</span>
+          </div>
+          <div v-for="r in sec.cards" :key="r.id" class="pcp-row" :class="{ flash: highlightId === r.id, picked: selected.has(r.id) }"
+            :data-rid="r.id" :title="r.title + ' · 单击打开详情 · 双击打开链接 · 右键更多'"
+            @click="openCard(r)" @dblclick="onCardDblClick(r)" @contextmenu="openCtx($event, r)">
+            <span v-if="batchMode" class="pcp-check">{{ selected.has(r.id) ? '✓' : '' }}</span>
+            <span class="pcp-r-title"><NewBadge :at="r.createdAt" /><span v-if="r.pinned" class="pcp-pin" title="已置顶">📌</span>{{ r.title }}
+              <span v-if="isMirrored(r)" class="pcp-mirror-badge" title="这张卡已镜像到某个策展台">🪞 已镜像</span></span>
+            <span class="pcp-r-tags">
+              <span v-if="!(r.tags || []).length" class="pcp-tag-none" title="无标签——任何筛选都召回不到它">无标签</span>
+              <span v-for="t in (r.tags || [])" :key="t" class="pcp-tag">{{ t }}</span>
+            </span>
+            <span class="pcp-r-marks">
+              <span v-if="r.link" class="pcp-mark" title="已挂链接">🔗</span>
+              <span v-if="r.assets?.length" class="pcp-mark" title="有附件">📎{{ r.assets.length }}</span>
+            </span>
+            <span class="pcp-date">{{ new Date(r.updatedAt || r.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span>
+            <!-- ★W15-T2/T3：删除与镜像从 hover 才出改为**常驻行末**（原先藏在 hover 里，用户找不到"不进详情就能删"） -->
+            <span class="pcp-r-acts">
+              <span class="pcp-mirror-wrap">
+                <button v-if="!batchMode" class="pcp-act" :class="{ on: mirrorOpenFor === r.id }"
+                  :title="isMirrored(r) ? '这张卡已镜像过（点可再镜像到其他台）' : '镜像到策展台（引用投射，源卡仍在池里）'"
+                  @click.stop="openMirror(r)">🪞</button>
+                <span v-if="mirrorOpenFor === r.id && mirrorBoards.length" class="pcp-mirror-pop" @click.stop>
+                  <select v-model="mirrorWsId" class="pcp-mirror-sel">
+                    <option v-for="w in mirrorBoards" :key="w.id" :value="w.id">{{ w.name }}</option>
+                  </select>
+                  <button class="pcp-act primary" title="确认镜像到所选策展台" @click.stop="doMirror(r)">✓ 镜像</button>
+                </span>
+              </span>
+              <button v-if="!batchMode" class="pcp-del" title="删除（进回收站，可撤销）" @click.stop="removeCard(r)">🗑</button>
+            </span>
+          </div>
+        </div>
+      </template>
+      <template v-else>
       <div v-for="r in rendered" :key="r.id" class="pcp-row" :class="{ flash: highlightId === r.id, picked: selected.has(r.id) }" :data-rid="r.id"
         :title="batchMode ? '点击选中 / 取消' : r.title + ' · 单击打开详情 · 双击打开链接 · 右键更多'" @click="openCard(r)" @dblclick="onCardDblClick(r)" @contextmenu="openCtx($event, r)">
         <span v-if="batchMode" class="pcp-check">{{ selected.has(r.id) ? '✓' : '' }}</span>
-        <span class="pcp-r-title"><NewBadge :at="r.createdAt" /><span v-if="r.pinned" class="pcp-pin" title="已置顶">📌</span>{{ r.title }}</span>
+        <span class="pcp-r-title"><NewBadge :at="r.createdAt" /><span v-if="r.pinned" class="pcp-pin" title="已置顶">📌</span>{{ r.title }}
+          <span v-if="isMirrored(r)" class="pcp-mirror-badge" title="这张卡已镜像到某个策展台">🪞 已镜像</span></span>
         <span class="pcp-r-tags">
           <span v-if="!(r.tags || []).length" class="pcp-tag-none" title="无标签——任何筛选都召回不到它">无标签</span>
           <span v-for="t in (r.tags || [])" :key="t" class="pcp-tag">{{ t }}</span>
@@ -288,8 +408,23 @@ function deleteSelected() {
           <span v-if="r.assets?.length" class="pcp-mark" title="有附件">📎{{ r.assets.length }}</span>
         </span>
         <span class="pcp-date">{{ new Date(r.updatedAt || r.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span>
-        <button v-if="!batchMode" class="pcp-del" title="删除（进回收站，可撤销）" @click.stop="removeCard(r)">🗑</button>
+        <!-- ★W15-T2/T3：删除与镜像常驻行末（原先 hover 才出 = 事实上找不到） -->
+        <span class="pcp-r-acts">
+          <span class="pcp-mirror-wrap">
+            <button v-if="!batchMode" class="pcp-act" :class="{ on: mirrorOpenFor === r.id }"
+              :title="isMirrored(r) ? '这张卡已镜像过（点可再镜像到其他台）' : '镜像到策展台（引用投射，源卡仍在池里）'"
+              @click.stop="openMirror(r)">🪞</button>
+            <span v-if="mirrorOpenFor === r.id && mirrorBoards.length" class="pcp-mirror-pop" @click.stop>
+              <select v-model="mirrorWsId" class="pcp-mirror-sel">
+                <option v-for="w in mirrorBoards" :key="w.id" :value="w.id">{{ w.name }}</option>
+              </select>
+              <button class="pcp-act primary" title="确认镜像到所选策展台" @click.stop="doMirror(r)">✓ 镜像</button>
+            </span>
+          </span>
+          <button v-if="!batchMode" class="pcp-del" title="删除（进回收站，可撤销）" @click.stop="removeCard(r)">🗑</button>
+        </span>
       </div>
+      </template>
     </div>
 
     <div v-else class="pcp-grid">
@@ -356,14 +491,47 @@ function deleteSelected() {
 .pcp-title { flex: 1; min-width: 0; font-size: var(--fs-body); font-weight: 600; line-height: 1.4; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
 .pcp-pin { flex-shrink: 0; font-size: var(--fs-tiny); }
 .pcp-check { flex-shrink: 0; width: 18px; height: 18px; border: 1px solid var(--border-strong); border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: var(--fs-caption); color: var(--accent); }
-.pcp-del { border: none; background: transparent; color: var(--text-3); cursor: pointer; font-size: var(--fs-caption); border-radius: 5px; padding: 2px 5px; flex-shrink: 0; opacity: 0; transition: opacity var(--dur-fast); font-family: inherit; }
+.pcp-del { border: none; background: transparent; color: var(--text-3); cursor: pointer; font-size: var(--fs-caption); border-radius: 5px; padding: 2px 5px; flex-shrink: 0; transition: color var(--dur-fast), background var(--dur-fast); font-family: inherit; }
 .pcp-card:hover .pcp-del { opacity: 1; }
 .pcp-del:hover { color: var(--danger); background: var(--danger-bg-soft); }
+/* ★W15-T2/T3（用户拍板 2026-10-16）：行末动作区**常驻**（原先 opacity:0 只在 hover 出现，
+   等于"不进详情就能删"这件事事实上没有出口）——低对比度常驻、hover 转 danger。 */
+.pcp-r-acts { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.pcp-act {
+  border: none; background: transparent; color: var(--text-3); cursor: pointer;
+  font-size: var(--fs-caption); border-radius: 5px; padding: 2px 6px; font-family: inherit;
+  transition: color var(--dur-fast), background var(--dur-fast);
+}
+.pcp-act:hover { color: var(--accent-ink); background: var(--accent-light); }
+.pcp-act.on { color: var(--accent-ink); background: var(--accent-light); }
+.pcp-act.primary { color: var(--accent); font-weight: 700; }
+.pcp-mirror-wrap { position: relative; display: inline-flex; }
+.pcp-mirror-pop {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 30;
+  display: inline-flex; align-items: center; gap: 4px; padding: 5px 6px;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg); white-space: nowrap;
+}
+.pcp-mirror-sel {
+  font-family: inherit; font-size: var(--fs-caption); color: var(--text);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-xs);
+  padding: 3px 6px; max-width: 180px;
+}
+.pcp-mirror-badge { font-size: var(--fs-micro); color: var(--accent-ink); background: var(--accent-light); border-radius: 99px; padding: 1px 6px; margin-left: 6px; }
+/* ★W15-T3 分组下拉 + 组头 */
+.pcp-groupbar { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.pcp-gcount { color: var(--text-4); font-variant-numeric: tabular-nums; margin-left: 2px; }
+.pcp-group-sec { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.pcp-group-h {
+  display: flex; align-items: baseline; gap: 8px; padding: 4px 10px 2px;
+  font-size: var(--fs-caption); font-weight: 700; color: var(--text-2);
+}
+.pcp-group-h .c { font-weight: 400; color: var(--text-4); font-variant-numeric: tabular-nums; }
 .pcp-foot { display: flex; align-items: center; gap: 5px; font-size: var(--fs-tiny); color: var(--text-3); flex-wrap: wrap; }
 .pcp-mark { flex-shrink: 0; }
 .pcp-tag { padding: 0 6px; border-radius: 99px; background: var(--surface-3); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
 .pcp-date { margin-left: auto; font-variant-numeric: tabular-nums; flex-shrink: 0; }
-/* R3-Ca：视图切换段控件 + 列表视图（行高固定、标签全展开、hover 才出删除——与网格同一套令牌） */
+/* R3-Ca：视图切换段控件 + 列表视图（行高固定、标签全展开；★W15-T2 行末动作常驻——与网格同一套令牌） */
 .pcp-list { display: flex; flex-direction: column; gap: 4px; }
 .pcp-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: border-color var(--dur) ease, background var(--dur) ease; }
 .pcp-row:hover { border-color: var(--border-strong); }

@@ -9,7 +9,7 @@
  * 改名用 `<input>` 而不是原型的 contenteditable：行为一致（就地改、失焦落库），
  * 但省掉 contenteditable 的粘贴富文本与光标陷阱。
  */
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import type { Subtask } from '@/shared/models'
 import { uid } from '@/shared/utils'
 
@@ -24,6 +24,10 @@ const emit = defineEmits<{
 }>()
 
 const draft = ref('')
+/** ★P4-D5：外部「＋ 拆分」直达 —— 抽屉开后把光标落进子任务输入框（省掉"先双击、再找位置"两步） */
+const addInput = ref<HTMLInputElement | null>(null)
+function focusAdd() { void nextTick(() => addInput.value?.focus()) }
+defineExpose({ focusAdd })
 const write = (fn: (list: Subtask[]) => Subtask[]) => emit('update', fn(props.subtasks || []))
 // R172-T2：勾选同时落 `doneAt`（热力图/复盘「推进」维度按日归集的唯一依据）
 function toggle(s: Subtask) { write(list => list.map(x => (x.id === s.id ? { ...x, done: !x.done, doneAt: !x.done ? Date.now() : undefined } : x))) }
@@ -53,7 +57,7 @@ const total = () => (props.subtasks || []).length
     </div>
     <div class="st-add" @click="draft && ($event.target as HTMLElement).querySelector('input')?.focus()">
       <span class="st-plus">＋</span>
-      <input v-model="draft" placeholder="加一条子任务，回车确认（也可让 AI 拆解批量写入）" @keydown.enter.prevent="add" @blur="add">
+      <input v-model="draft" ref="addInput" placeholder="加一条子任务，回车确认（也可让 AI 拆解批量写入）" @keydown.enter.prevent="add" @blur="add">
       <span v-if="total()" class="st-cnt">{{ done() }}/{{ total() }}</span>
     </div>
   </div>

@@ -7,10 +7,10 @@
  * 所以这里是三层各自的"展开说明书"，并且每层摊开后都必须给出**下一步入口**
  * （推导链或下挂实体），否则就等于把那张冗余的架构图换了个位置。
  *
- * 三层内容：
- *   1 愿景    → 全文 + 关联卡片数 + 推导链 + 下挂的 N 个战略目标芯片
- *   2 使命    → 全文 + 推导链
- *   3 战略目标 → 3 张目标横卡（项目数/指标数/完成数/进度条/下挂项目名），点卡即过滤
+ * 两层内容（★F7 收窄 2026-10-16：第 3 层迁出面板，改走骨架条专属列表视图）：
+ *   1 愿景 → 全文 + 关联卡片数 + 推导链 + 下挂的 N 个战略目标芯片
+ *   2 使命 → 全文 + 推导链
+ *   3 战略目标 → ★已迁至 CompassLayerList 第 3 层专属列表（能力一项不少：目标进度条/下挂项目/点行过滤）
  *
  * 折叠双向：父级用 open 传 null/false 收起，本组件只在 v-if 存在时渲染。
  */
@@ -19,29 +19,29 @@ import type { CompassMeta } from '../../views/compassMeta'
 
 const props = defineProps<{
   meta: CompassMeta
-  /** 当前展开层级 */
-  layer: 1 | 2 | 3
+  /** 当前展开层级（★F7 收窄：只有 1/2，第 3 层走专属列表） */
+  layer: 1 | 2
   /** 当前聚焦的战略目标 id */
   dirFilter: string
 }>()
 
 const emit = defineEmits<{
-  (e: 'goto', lv: 1 | 2 | 3): void
-  (e: 'locate', lv: 4 | 5 | 6): void
+  (e: 'goto', lv: 1 | 2): void
+  (e: 'list', lv: 3 | 5 | 6): void
+  (e: 'locate', lv: 4): void
   (e: 'dir', id: string): void
   (e: 'close'): void
 }>()
 
 const LAYER_META = {
   1: { n: 1, en: 'VISION', t: '终极方向', ic: '◎' },
-  2: { n: 2, en: 'MISSION', t: '行动准则', ic: '◆' },
-  3: { n: 3, en: 'DIRECTION', t: '分岔源头', ic: '⛳' }
+  2: { n: 2, en: 'MISSION', t: '行动准则', ic: '◆' }
 } as const
 
 const lm = computed(() => LAYER_META[props.layer])
 const c = computed(() => props.meta.counts)
 
-/** 推导链：当前层高亮为 .self，1~3 点切面板、4~6 点定位 */
+/** 推导链：当前层高亮为 .self，1~2 点切面板、3/5/6 点专属列表、4 点定位 */
 const CHAIN = [
   { n: 1, label: '愿景', key: 'vision' },
   { n: 2, label: '使命', key: 'mission' },
@@ -51,14 +51,9 @@ const CHAIN = [
   { n: 6, label: '任务', key: 'tasks' }
 ] as const
 function onChain(n: number) {
-  if (n <= 3) emit('goto', n as 1 | 2 | 3)
-  else emit('locate', n as 4 | 5 | 6)
-}
-/** 每个战略目标的完成度（跨其下全部项目的指标聚合） */
-function dirProgress(dirIdx: number): { done: number; total: number; pct: number } {
-  let done = 0, total = 0
-  for (const pm of props.meta.dirs[dirIdx].projects) { done += pm.done; total += pm.total }
-  return { done, total, pct: total ? Math.round((done / total) * 100) : 0 }
+  if (n <= 2) emit('goto', n as 1 | 2)
+  else if (n === 4) emit('locate', 4)
+  else emit('list', n as 3 | 5 | 6)
 }
 </script>
 
@@ -80,13 +75,9 @@ function dirProgress(dirIdx: number): { done: number; total: number; pct: number
            出现两次：一份能改、一份不能改，两份还会各自漂移。宁可空着（插槽始终会传）也不留影子文本。 -->
       <div class="lvp-main">
         <slot name="entity">
-          <template v-if="layer === 3">
-            <h3 class="lvp-hero sub">{{ c.dirs }} 个战略目标 · 向下分岔为 {{ c.projects }} 个攻坚项目</h3>
-            <p class="lvp-desc">
-              这是从"定方向"转向"分资源"的一层。<b>分岔点</b>：
-              每个目标各自去占资源，目标之间互不抢。
-            </p>
-          </template>
+          <!-- ★F7 迁出带备案（2026-10-16）：第 3 层的兜底 hero 与下挂目标横卡（lvp-cards）
+               随第 3 层迁出面板，移入 CompassLayerList 第 3 层专属列表——能力一项不少
+               （目标进度条 / 下挂项目 / 点行过滤），形态从面板横卡改列表行。 -->
         </slot>
       </div>
 
@@ -125,36 +116,8 @@ function dirProgress(dirIdx: number): { done: number; total: number; pct: number
         </div>
       </div>
 
-      <!-- 第 3 层下挂：目标横卡，点卡即过滤下方项目塔 -->
-      <div v-if="layer === 3" class="lvp-sec">
-        <span class="lvp-lab">点任一张卡 → 过滤下方项目塔</span>
-        <div class="lvp-cards">
-          <button
-            v-for="(g, i) in meta.dirs"
-            :key="g.dir.id"
-            class="dcard"
-            :class="{ on: dirFilter === g.dir.id }"
-            @click="emit('dir', g.dir.id)"
-          >
-            <div class="dc-h">
-              <span class="dc-i">{{ i + 1 }}</span>
-              <span class="dc-n">{{ g.dir.name }}</span>
-            </div>
-            <div class="dc-m">
-              {{ dirProgress(i).done }}/{{ dirProgress(i).total }} 任务 ·
-              {{ dirProgress(i).pct }}%
-              <span v-if="g.projects.reduce((s, p) => s + (p.stall ? 1 : 0), 0)" class="dc-warn">⚠ 有停滞</span>
-            </div>
-            <div class="dc-bar"><i :style="{ width: dirProgress(i).pct + '%' }" /></div>
-            <div class="dc-p">
-              <span v-for="pm in g.projects" :key="pm.id">
-                {{ pm.total }} 任务{{ pm.risk ? ' ⚠' : '' }}
-              </span>
-            </div>
-            <span class="dc-go">{{ dirFilter === g.dir.id ? '正在只看这个 · 再点取消' : '▸ 只看这个目标' }}</span>
-          </button>
-        </div>
-      </div>
+      <!-- ★F7 迁出带备案（2026-10-16）：原「第 3 层下挂：目标横卡，点卡即过滤」整段
+           迁入 CompassLayerList 第 3 层专属列表（点行过滤语义不变，形态横卡→列表行）。 -->
     </section>
   </div>
 </template>
@@ -190,15 +153,9 @@ function dirProgress(dirIdx: number): { done: number; total: number; pct: number
 
 .lvp-main { padding-left: 0; }
 .lvp-sec { padding-left: 0; display: flex; flex-direction: column; gap: 8px; }
-/* ★判据 W11-13：这里绝不许用 --fs-display / --fs-hero。
-   愿景的主角感由独占整行 + 留白 + 重边框承担，字号只到 --fs-title。 */
-.lvp-hero {
-  font-size: var(--fs-title); font-weight: 700; color: var(--text);
-  line-height: 1.5; letter-spacing: -.01em;
-}
-.lvp-hero.sub { font-size: var(--fs-title); font-weight: 600; color: var(--text-2); }
-.lvp-desc { font-size: var(--fs-micro); color: var(--text-3); line-height: 1.75; margin-top: 6px; }
-.lvp-desc b { color: var(--text-2); }
+/* ★F7 迁出带备案（2026-10-16）：原 .lvp-hero / .lvp-desc（第 3 层兜底 hero）与
+   .lvp-cards / .dcard / .dc-h / .dc-i / .dc-bar / .dc-p / .dc-go（第 3 层目标横卡）CSS
+   随第 3 层迁入 CompassLayerList 第 3 层专属列表一并退役（样式在新组件内重写为列表行形态）。 */
 
 .lvp-sec { padding-left: 30px; display: flex; flex-direction: column; gap: 8px; }
 .lvp-lab {
@@ -233,34 +190,7 @@ function dirProgress(dirIdx: number): { done: number; total: number; pct: number
 .dchip.on .dc-n { color: var(--text); }
 .dc-m { font-size: var(--fs-micro); color: var(--text-4); }
 
-.lvp-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px; }
-.dcard {
-  text-align: left; background: var(--surface-2); border: 1px solid transparent;
-  border-radius: var(--radius-md); padding: 10px 12px; cursor: pointer;
-  display: flex; flex-direction: column; gap: 6px; transition: all var(--dur);
-}
-.dcard:hover { border-color: var(--accent); }
-.dcard.on { background: var(--accent-light); border-color: var(--accent); }
-.dc-h { display: flex; align-items: center; gap: 6px; }
-.dc-i {
-  width: 16px; height: 16px; border-radius: 5px; flex: none;
-  background: var(--surface-3); color: var(--text-2);
-  font-size: var(--fs-micro); font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-}
-.dcard.on .dc-i { background: var(--accent); color: #fff; }
-.dc-n { font-size: var(--fs-sub); font-weight: 700; color: var(--text); line-height: 1.4; }
-.dc-m { font-size: var(--fs-micro); color: var(--text-3); display: flex; align-items: center; gap: 6px; }
-.dc-warn { color: var(--warning); }
-.dc-bar { height: 3px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
-.dc-bar i { display: block; height: 100%; border-radius: 2px; background: var(--accent); transition: width var(--dur); }
-.dc-p { display: flex; gap: 4px; flex-wrap: wrap; }
-.dc-p span {
-  font-size: var(--fs-micro); color: var(--text-3);
-  background: var(--surface-3); padding: 1px 7px; border-radius: 999px;
-}
-.dc-go { font-size: var(--fs-micro); color: var(--accent-ink); opacity: 0; transition: opacity var(--dur); }
-.dcard:hover .dc-go, .dcard.on .dc-go { opacity: 1; }
+/* ★F7 迁出带备案（2026-10-16）：第 3 层目标横卡整套样式（.lvp-cards / .dcard 系）随迁 CompassLayerList。 */
 
 @media (max-width: 900px) {
   .lvp-main, .lvp-sec { padding-left: 0; }

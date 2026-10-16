@@ -69,24 +69,32 @@ check('R3-B′ ★项目层折叠口径：主攻自动展开、非主攻折叠�
     && t.includes('function expandAllNodes') && /expandMetricsOf\(proj\)/.test(t)
     && /projFoldOverride\.value\[proj\.id\] = true/.test(t)
 });
-check('R3-B′ ★卡头 6 入口收敛为「全景 / AI / ▾」：设主攻·添加指标·进详情·删除四项收进 .tw-menu，删除仍走 compassNodeCounts 报数 + useConfirm + 撤销（收敛不降防呆），点菜单外区域关闭', () => {
+check('R3-B′ ★卡头常驻入口收敛：原「全景 / AI / ▾」六入口 → ★F5 激进瘦身（用户拍板 2026-10-15）舱头常驻只留三控件「＋指标 / ⋯ / 折叠」，菜单项收敛为五项（主攻 / 置顶 / ✦AI建议指标 / 📋导入模板 / 🗑删除）。★翻转带备案：① ＋添加成功指标由菜单项升为常驻「＋指标」钮（高频动作不必开菜单）② ✦ AI 建议指标由常驻钮收进菜单（低频且图标难懂）③ 菜单钮 ▾ 改 ⋯（此前两个 ▾ 并排，语义全靠 title 撑）④ 「📄 进入项目详情页」已随 W12-E 退役（进详情路径改走页头/⌘K）。删除防呆不降级：compassNodeCounts 报数 + useConfirm + 撤销照旧；点菜单外区域关闭照旧', () => {
   const t = CT_ALL, T = TOWER
+  /* ★口径备注（2026-10-15 实证踩坑）：TOWER = 塔 + 状态挂件两文件拼接，首文件 `<script` 在 0 位 ⇒
+     codeOnly 的分派把「塔的模板 + 挂件的脚本」整段当 JS 区走，模板里的 HTML 注释剥不掉。
+     所以下面的计数/负锚先自己剥一层 HTML 注释（缘由注释必须留在源码里，判据只看代码形态）。 */
+  const tc = codeOnly(TOWER).replace(/<!--[\s\S]*?-->/g, '')
   const once = (re, s) => (s.match(new RegExp(re, 'g')) || []).length === 1
-  return t.includes('class="tw-menu"') && t.includes('🚀 设为主攻') && t.includes('＋ 添加成功指标') && t.includes('🗑 删除项目')
-    /* ★W11(V3.8.11)随迁带备案 —— 收敛口径随结构拆分重述为两层，本条守的行为未变：
-       ① **菜单内每项恰好一处**（设主攻/置顶/加指标/进详情/删除，once 口径钉在舱组件 TOWER 上）；
-       ② **父组件 @监听各恰好一处**（emit 上抛后由树本体统一承接，不许同动作两条路）。
-       ★为什么不再钉「全文件唯一触发点」：W11 按原型给卡头加了语境性快捷出口（卡头 ＋指标 钮、
-         零指标空态「＋ 添加第一条成功指标」），它们与菜单项**语义不同**（一个是常驻快捷、一个是
-         空态引导），全文件唯一口径会把合理的增强判成违规。收窄到「菜单内唯一 + 父组件承接唯一」
-         才是这条判据真正要守的东西：右键菜单不许复活、同动作不许两条路。 */
-    && once("emit\\('focus', proj\\.id\\)", T) && once("emit\\('del', proj\\.id\\)", T)
-    /* ⚠ pin / addMetric **有意双路**（卡头快捷钮 + 菜单项并存，R121-6 备案已定），故不钉全文件唯一；
-       这里钉的是「**菜单内**恰好一处」——.tw-menu 块内每项一次，菜单外的语境性快捷钮不算重复。
-       ★切片到 .tw-menu 块首尾是刻意收窄：全文件计数会把合法的空态引导与卡头快捷误判成重复入口。 */
-    && (T.slice(T.indexOf('class="tw-menu"'), T.indexOf('</div>', T.indexOf('class="tw-menu"'))).match(/emit\('pin', dir\.id, proj\.id\)/g) || []).length === 1
-    && (T.slice(T.indexOf('class="tw-menu"'), T.indexOf('</div>', T.indexOf('class="tw-menu"'))).match(/emit\('addMetric', proj\.id\)/g) || []).length === 1
-    && once('📄 进入项目详情页', T)
+  /* 菜单块切片：tw-menu 开到舱身 tw-body（整块一次读出，计数口径不受块外干扰） */
+  const menu = tc.slice(tc.indexOf('class="tw-menu"'), tc.indexOf('class="tw-body"'))
+  const acts = tc.slice(tc.indexOf('class="tw-acts"'), tc.indexOf('class="tw-menu"'))
+  return t.includes('class="tw-menu"') && t.includes('🚀 设为主攻') && t.includes('🗑 删除项目')
+    /* ★F5 三控件常驻：＋指标 / ⋯ / 折叠 —— 钉按钮标签，防回流成 ▾ 与手柄 */
+    && T.includes('>＋指标</button>') && T.includes('>⋯</button>')
+    && T.includes('class="tw-fold"')
+    /* ★F5 菜单五项各恰好一处（menu 切片内计数，防同动作两条路） */
+    && (menu.match(/emit\('focus', proj\.id\)/g) || []).length === 1
+    && (menu.match(/emit\('pin', dir\.id, proj\.id\)/g) || []).length === 1
+    && (menu.match(/emit\('aiMetric', proj\.id\)/g) || []).length === 1
+    && (menu.match(/emit\('importTemplate', proj\.id\)/g) || []).length === 1
+    && (menu.match(/emit\('del', proj\.id\)/g) || []).length === 1
+    && menu.includes('📌 置顶到本目标前排') && menu.includes('✦ AI 建议指标') && menu.includes('📋 导入模板')
+    /* ★退役负锚（codeOnly 口径）：加指标不再作为菜单项（升常驻钮），进详情已随 W12-E 退役；
+       ✦ / ⠿ 不许回到常驻区（F5：✦ 收进菜单、手柄改整块舱头拖） */
+    && !menu.includes('＋ 添加成功指标') && !menu.includes('📄 进入项目详情页')
+    && !acts.includes('✦') && !tc.includes('⠿') && !acts.includes('tw-grip')
+    && once("emit\\('focus', proj\\.id\\)", tc) && once("emit\\('del', proj\\.id\\)", tc)
     && once('@focus="onToggleFocus"', t) && once("deleteNode\\('proj\\'", t)
     /* ⚠ W11 二批起 @add-metric 在**两个宿主里各一处**（.tower-list 的舱 + .pano 的全景头）——
        这是两个互斥视图的同一动作，不是"同一视图两条路"。收敛口径因此按**宿主切片**计数：
@@ -95,7 +103,7 @@ check('R3-B′ ★卡头 6 入口收敛为「全景 / AI / ▾」：设主攻·�
     && (t.slice(t.indexOf('class="tower-list"'), t.indexOf('class="footer-hint"')).match(/@add-metric="addMetric"/g) || []).length === 1
     && t.includes('toggleProjMenu') && t.includes('openProjectDrawer') && t.includes("aiChain('metrics', id)")
     && t.includes('onDocClickCloseProjMenu') && t.includes('compassNodeCounts') && t.includes('useConfirm')
-    /* ★负锚：右键菜单形态不许复活（排序走 ⠿ 拖拽、置顶走 📌 按钮） */
+    /* ★负锚：右键菜单形态不许复活（排序走整块舱头拖拽、置顶走菜单） */
     && !t.includes('contextmenu') && !t.includes('@contextmenu');
 });
 check('R3-B′ ★目标级入口上收页头：＋添加战略目标 与 建议目标 在页头区（原埋第 3 层卡头），层内只留 badge + hint。★W12(V3.8.12)随迁备案：页头区容器由 <div class="tree-page-head"> 改为 HERO 区 <section class="hero">（原型 .hero 两栏结构），承重锚随之改钉 .hero 切片 —— 守的是"这两个入口在页头区、不在层内"这条行为', () => {
@@ -141,12 +149,18 @@ check('R3-B1 ★树担得起首屏：项目级读数走 projMeta 预计算表（
 
 // ============== R3-B2 方向树：同目标内手动拖拽排序 + 置顶（用户拍板回归） ==============
 console.log('【R3-B2 · 方向树拖拽排序与置顶】');
-check('R3-B2 ★拖拽只在同一战略目标内且所见即所得：⠿ 手柄 draggable → dragover 只在同 dir 且非自身时给落位指示（.drop-on 用 inset box-shadow，不许把版面挤动）→ drop 取「当前所见序」重排并逐位重写 order，落完清 pinned；跨目标 drop 直接 return。★W11(V3.8.11)随迁带备案：手柄与落位指示已迁到舱组件 CompassTower.vue，逻辑仍由 CompassTree 的 onProjDragStart/Over/Drop 承担', () => {
+check('R3-B2 ★拖拽只在同一战略目标内且所见即所得：★F5 拖拽形态翻转（2026-10-15 拍板激进瘦身）——原「⠿ 手柄 draggable」改为**整块舱头 draggable + onHeadDragStart 拦截**（button/contenteditable/input/.tw-menu 起拖即取消）→ dragover 只在同 dir 且非自身时给落位指示（.drop-on 用 inset box-shadow，不许把版面挤动）→ drop 取「当前所见序」重排并逐位重写 order，落完清 pinned；跨目标 drop 直接 return。★W11(V3.8.11)随迁带备案：拖拽事件仍由舱组件 CompassTower 转发，逻辑仍由 CompassTree 的 onProjDragStart/Over/Drop 承担', () => {
   const T = TOWER, W = CT_W11;
-  /* 手柄 + 四个拖拽事件在位 */
-  const handle = /class="tw-grip"[\s\S]{0,320}?draggable="true"/.test(T)
-    && /@dragstart="emit\('dragstart'/.test(T)
-    && /@drop\.prevent="emit\('drop'/.test(T);
+  /* ★F5 随迁带备案（2026-10-15）：dragstart 的模板绑定不再直连 emit —— 中间隔了 onHeadDragStart
+     （拦截子元素起拖），所以「事件链在位」改钉三段：模板绑 onHeadDragStart → 函数体 emit('dragstart') →
+     舱头 draggable。原来那条 /@dragstart="emit\('dragstart'/ 直连形态已随拖拽头迁移退役。 */
+  const tc = codeOnly(T).replace(/<!--[\s\S]*?-->/g, '')
+  const handle = /class="tw-head"[\s\S]{0,320}?draggable="true"/.test(tc)
+    && tc.includes('function onHeadDragStart(')
+    && /@dragstart="onHeadDragStart\(/.test(tc)
+    && /emit\('dragstart', dirId, projId, ev\)/.test(tc)
+    && /@drop\.prevent="emit\('drop'/.test(tc)
+    && !tc.includes('tw-grip');
   /* 落位指示用 inset box-shadow（不挤版面） */
   const dropOn = /\.tower\.drop-on \{ box-shadow: inset 0 3px 0 0 var\(--hue\); \}/.test(T);
   /* 逻辑：同 dir 守卫 + 逐位重写 order + 清 pinned */
@@ -168,7 +182,7 @@ check('R3-B2 ★排序键口径：主攻 → 置顶 → order（pinned 不是第
 console.log('【R3-Ca · 资源卡池面板补齐】');
 check('R3-Ca ★两视图同一份数据源 + 待打标筛选：viewMode 存组件内 ref（与任务/好奇面板同口径，不单开持久化）；列表与网格都从 rendered（poolCards 分页切片）渲染，**不许复制第二份过滤链**；列表行同样带 data-rid/flash/picked（定位高亮与批量选择两视图等价）；无标签的行显式标出来；「🏷 待打标 N」是 R179 迁移承诺的兜底出口（无标签=任何筛选都召回不到）', () => {
   const t = read('/newtab/components/compass/PoolCardsPanel.vue')
-  return t.includes("const viewMode = ref<'card' | 'list'>('card')") && t.includes('v-else-if="viewMode === \'list\'"') && t.includes('class="pcp-list"')
+  return t.includes("const viewMode = ref<'card' | 'list'>('list')") /* ★W15-T2 2026-10-16 用户拍板：默认改列表（261 张卡网格一屏放不下、标签折行；网格保留为可选视图） */ && t.includes('v-else-if="viewMode === \'list\'"') && t.includes('class="pcp-list"')
     && (t.match(/v-for="r in rendered"/g) || []).length === 2
     && t.includes('class="pcp-row"') && t.includes(':data-rid="r.id"') && t.includes('.pcp-card.flash, .pcp-row.flash')
     && t.includes('class="pcp-tag-none"') && t.includes('const onlyUntagged = ref(false)') && t.includes("{ id: 'untagged', label: '🏷 待打标', count: untaggedCount.value")
