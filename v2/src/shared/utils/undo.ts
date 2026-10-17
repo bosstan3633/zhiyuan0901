@@ -7,8 +7,12 @@
  */
 export interface UndoEntry { label: string; cb: () => void; at: number }
 
-/** R159：撤销窗口 3s → 9s（配合固定态批量回执） */
-export const UNDO_WINDOW_MS = 9000
+/**
+ * G5（V3.8.27）：撤销窗口 9s → **6s**。9 秒对"刚删错了"足够，但会让撤销栈里堆着
+ * 早已时过境迁的操作；6 秒与 Toast 的撤销按钮驻留同寿（见 toast.ts），
+ * **按钮还在 → 一定还能撤**，两者不再有两套时间。
+ */
+export const UNDO_WINDOW_MS = 6000
 export const UNDO_STACK_CAP = 30
 
 const stack: UndoEntry[] = []
@@ -41,6 +45,6 @@ export function installGlobalUndo(notify?: (msg: string) => void): void {
     e.preventDefault()
     const r = runLastUndo()
     if (r.ok) notify?.(`↩ 已撤销：${r.label}`)
-    else notify?.('没有可撤销的操作（撤销窗口 9 秒）')
+    else notify?.('没有可撤销的操作（撤销窗口 6 秒）')
   }, true)
 }

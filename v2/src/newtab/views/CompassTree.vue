@@ -21,6 +21,7 @@ import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { taskMaturity, metricMaturity, projectMaturity, directionMaturity } from '@/shared/utils/maturity'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import Drawer from '@/shared/components/Drawer.vue'
+import EmptyState from '@/shared/components/EmptyState.vue'
 import type { Direction, Project, Metric, TaskCard, ID } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
@@ -1300,10 +1301,12 @@ onUnmounted(() => {
             <!-- ★W12-E 退役带备案：下面两个视图挂载点上的 @goto-detail 绑定已随「进项目详情」入口退役一并移除（子组件已无此 emit）。
            /compass/projects 整页与 ⌘K 项目搜索等其它消费方未动，只是不再从方向台把用户引过去。 -->
             <div v-else-if="viewMode === 'tower'" class="tower-list" id="layer-4">
-              <div v-if="!d.compass.directions.length" class="empty-state">
-                <div class="empty-icon"><Icon name="target" :size="13"/></div>
-                <div>还没有战略目标，点击上方"添加战略目标"开始</div>
-              </div>
+              <!-- G3（V3.8.27）：方向台零方向兜底改走 EmptyState（是什么 / 怎么开始）。
+                   ★不给主行动按钮：R3-B′ 明确「目标级入口上收页头」，层内再放一个「＋战略目标」
+                   等于开了第二入口——空态只指路，不复制按钮。 -->
+              <EmptyState v-if="!d.compass.directions.length" size="page" icon="target"
+                title="还没有战略目标"
+                hint="点上方「＋ 战略目标」写下第一件你真正想推进的事——方向树会从这里长出来。" />
 
               <template v-for="dg in towerGroups" :key="dg.dir.id">
                 <!-- 战略目标分组头：★与骨架条芯片、层级面板目标卡三处同源同色 -->
@@ -1723,8 +1726,8 @@ onUnmounted(() => {
    共 15 条是 R3-B2 时期的任务行样式，W11 起任务行已迁到 CompassLane 的 .tk-row（判死 13 + 祖先断 2，
    由 dead-css-scan 实跑坐实）。四票全零 = 模板零引用 + 全站 class 属性零引用 + 全站字符串零引用 + 104 场景普查零命中。
    同批不删 .metric-*（投影弹窗仍用）与 .proj-toggle/.toggle（R4-Ev① 的活体票载体，删了那条判据会假红）。 */
-.empty-state { text-align: center; padding: 40px 20px; color: var(--text-3); font-size: var(--fs-body); }
-.empty-icon { font-size: 32px; opacity: .4; margin-bottom: 8px; }
+/* G3（V3.8.27）：零方向兜底原用的裸容器类与图标位样式，随改走 EmptyState 组件一并退役
+   —— 留着会让下一个写空态的人"照着旧样式再写一遍"，正是本轮要断的那条路。 */
 
 /* 节点链接弹窗开关（愿景/使命关联资源） */
 .proj-toggle { display: flex; align-items: center; gap: 5px; cursor: pointer; }

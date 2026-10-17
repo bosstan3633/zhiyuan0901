@@ -451,7 +451,11 @@
             </div>
             </div>
           </template>
-          <div v-if="!resourceGroups.length" class="empty-state">暂无资源卡，点击右上角"新建资源卡"添加</div>
+          <!-- G3（V3.8.27）：列表视图零资源卡改走 EmptyState（原来是裸文本，无「怎么开始」） -->
+          <EmptyState v-if="!resourceGroups.length" size="section" icon="folder"
+            title="这台还没有资源卡"
+            hint="用 Ctrl+Shift+J 从任意网页采集，或在金字塔节点上「关联资源卡」。"
+            action-label="＋ 新建论证卡" @action="openNewArgument" />
           <!-- R112 性能：增量渲染的显式入口（列表视图同口径） -->
           <div v-if="hasMoreToRender" class="render-more" @click="renderMore">
             ↓ 已显示 {{ renderedCount }} / {{ totalVisibleCount }} 张 —— 点此加载更多
@@ -570,7 +574,10 @@
               <span v-if="pyDepthOf(cell.cat) < 3" class="py-node-add" title="新建子节点" @click.stop="openCreateCat(cell.cat.id)">＋</span>
             </div>
           </div>
-          <div v-if="!pyLayout.cells.length && thesisCard" class="py-level-empty">还没有论点节点 —— 节点卡右上「＋」或左侧目录「＋ 新建分类」建立骨架</div>
+          <!-- G3（V3.8.27）：金字塔画布内零节点改走 EmptyState（与同页另外两处同构） -->
+          <EmptyState v-if="!pyLayout.cells.length && thesisCard" size="inline" icon="hexagon"
+            title="还没有论点节点"
+            hint="节点卡右上「＋」或左侧目录「＋ 新建分类」建立骨架。" />
           <EmptyState v-if="!pyramidLevels.length && !thesisCard" icon="folder" title="金字塔还空着"
             desc="左侧目录「＋ 新建分类」建立论点骨架；右键台内卡片可设为中心论点（L1 根）" />
         </div>

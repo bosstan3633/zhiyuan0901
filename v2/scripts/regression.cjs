@@ -18,6 +18,7 @@ const SHARDS = [
   '09-w15-drill-focus',
   '10-w16-metrics',
   '11-p0-strings',
+  '13-components',
   '10-foundations',
   '20-req39-64',
   '30-v2.35-v2.46',

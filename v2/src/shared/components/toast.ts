@@ -16,8 +16,8 @@ export interface ToastAction { label: string; cb: () => void }
 export interface ToastItem { id: number; msg: string; action: ToastAction | null; n: number; sticky?: boolean }
 export interface ToastOpts { duration?: number; sticky?: boolean }
 
-/** REQ-030：统一 3 秒（原三套实现 5s/2.5s/2s 不一致） */
-const TOAST_DURATION = 3000
+/** G5（V3.8.27）：默认驻留 3s → **2.4s**（回执是确认，不是阅读材料；2.4s 够扫一眼又不挡事） */
+const TOAST_DURATION = 2400
 /** R146：最多同时可见 3 条，超出时最旧一条让位 */
 const TOAST_STACK = 3
 

@@ -848,7 +848,11 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <button class="t-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="13"/></button>
           </div>
         </div>
-        <div v-if="!filteredTasks.length" class="list-empty">暂无任务</div>
+        <!-- G3（V3.8.27）：列表视图与卡片视图同构，不再一个 EmptyState 一个裸文本 -->
+        <EmptyState v-if="!filteredTasks.length" class="list-empty" size="section" icon="clipboard"
+          title="暂无任务"
+          hint="点右上角「＋ 新建任务」，或在方向树的成功指标下添加任务。"
+          action-label="＋ 新建任务" @action="createNewTask" />
       </div>
 
       <!-- 列表视图（旧平铺分支已由 R127 统一分组取代） -->
@@ -1136,7 +1140,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .tname { font-size: var(--fs-body); flex: 1; min-width: 0; cursor: pointer; }
 .tname:hover { color: var(--accent); }
 .row-tags { display: flex; gap: 5px; flex-shrink: 0; flex-wrap: wrap; }
-.list-empty { text-align: center; padding: 30px; font-size: var(--fs-body); color: var(--text-3); }
+/* G3（V3.8.27）：.list-empty 的视觉已由 EmptyState 接管，class 只留作语义锚点 */
 .tgroup { border-bottom: 1px solid var(--border); }
 .tgroup:last-child { border-bottom: none; }
 .tg-head { display: flex; align-items: center; gap: 8px; padding: 9px 16px; background: var(--surface-3); position: sticky; top: 0; cursor: default; transition: background var(--dur-fast); }

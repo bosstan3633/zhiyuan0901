@@ -111,7 +111,7 @@ export function useCategoryCrud(ctx: CategoryCrudCtx) {
     if (activeCategory.value === cat.id) activeCategory.value = 'all'
     normalizeCatOrders('')
     persist()
-    showToast('已删除分类')
+    showToast('已删除分类——其下卡片已回到「待分类」，未丢失')
   }
   function toggleCatPin(cat: Category) {
     cat.pinned = !cat.pinned

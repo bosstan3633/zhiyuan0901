@@ -284,7 +284,7 @@
 .rr-action.on, .rc-action.on { color: #d99a1e; }
 .rc-action.on { background: color-mix(in srgb, #f5b942 14%, transparent); }
 .kc-star { font-size: var(--fs-sub); margin-right: 4px; }
-.empty-state { padding: 40px; text-align: center; color: var(--text-3); font-size: var(--fs-body); }
+/* G3（V3.8.27）：零资源兜底的裸空态容器样式，随改走 EmptyState 组件退役 */
 
 /* 看板视图 */
 .kanban { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 10px; min-height: 400px; }
@@ -459,7 +459,7 @@
 .py-node-add { position: absolute; right: -8px; top: -8px; width: 20px; height: 20px; display: none; align-items: center; justify-content: center; border-radius: 6px; background: var(--accent); color: #fff; font-size: var(--fs-body); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
 .py-node:hover .py-node-add { display: flex; }
 /* ★V3.8.25（G2）：居中与内边距原先写在模板的 style="text-align:center;padding:10px 0" 里（该类只此一处消费，直接并进来） */
-.py-level-empty { font-size: var(--fs-caption); color: var(--text-4); padding: 10px 0; text-align: center; }
+/* G3（V3.8.27）：.py-level-empty 随金字塔零节点改走 EmptyState 组件退役 */
 /* ===== R62-6：节点菜单 ===== */
 .node-menu-mask { position: fixed; inset: 0; z-index: var(--z-popover); }
 .node-menu { position: fixed; z-index: calc(var(--z-popover) + 1); width: 216px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; animation: ipIn .16s var(--ease-emphasis); }

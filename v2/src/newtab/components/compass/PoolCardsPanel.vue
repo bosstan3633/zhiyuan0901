@@ -10,6 +10,7 @@
  * 数据口径：workspaceId=CURATION_WS_ID（隐藏池 id，R179 定案）且未软删。
  */
 import Icon from '@/shared/components/Icon.vue'
+import EmptyState from '@/shared/components/EmptyState.vue'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../../stores/app'
@@ -349,11 +350,13 @@ function deleteSelected() {
       </div>
     </div>
 
-    <div v-if="!poolCards.length" class="pcp-empty">
-      <template v-if="onlyUntagged">没有待打标的卡——池里每张卡都有标签了</template>
-      <template v-else-if="query">没有匹配「{{ query }}」的资源卡——试试清空过滤</template>
-      <template v-else>资源卡池还空着——用 <b>Ctrl+Shift+J</b> 从任意网页采集第一张卡，或点上面「＋ 新建卡」</template>
-    </div>
+    <!-- G3（V3.8.27）：三种"空"收进同一个契约组件——区别只在 是什么/怎么开始/主行动，结构不再各写一套。
+         class="pcp-empty" 保留：theme-audit.cjs 的场景探针按这个选择器取面板，不能丢。 -->
+    <EmptyState v-if="!poolCards.length" class="pcp-empty" icon="folder"
+      :size="(onlyUntagged || query) ? 'inline' : 'section'"
+      :title="onlyUntagged ? '池里每张卡都有标签了' : (query ? `没有匹配「${query}」的资源卡` : '资源卡池还空着')"
+      :hint="onlyUntagged ? '切回「全部」即可看到池里的卡。' : (query ? '清空过滤词，或换个更短的关键词。' : '用 Ctrl+Shift+J 从任意网页采集第一张卡，或点上方「＋ 新建卡」。')"
+      :action-label="(onlyUntagged || query) ? '' : '＋ 新建卡'" @action="openNew" />
 
     <!-- R3-Ca 列表视图：一屏看更多 + 标签全展开（网格留作默认，两档共用同一份 poolCards 与分页） -->
     <div v-else-if="viewMode === 'list'" class="pcp-list">
@@ -481,7 +484,7 @@ function deleteSelected() {
 .pcp-pop input:focus { border-color: var(--accent); }
 .pcp-pop-f { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
 .pcp-pop-hint { font-size: var(--fs-caption); color: var(--text-4); flex: 1; }
-.pcp-empty { padding: 26px; text-align: center; font-size: var(--fs-sub); color: var(--text-3); }
+/* G3（V3.8.27）：原 .pcp-empty 的 padding/字号已由 EmptyState 三档尺寸接管；class 仅留作外部门禁选择器 */
 .pcp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
 .pcp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; min-height: 94px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; cursor: pointer; transition: all var(--dur) ease; }
 .pcp-card:hover { border-color: var(--border-strong); transform: translateY(-1px); box-shadow: var(--shadow-sm); }

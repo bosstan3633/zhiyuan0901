@@ -63,9 +63,9 @@ check('R146-3 回收站两口径（回退契约⑤⑥）：永久删除必过确
     && rb.includes('show(`已恢复 ${list.length} 项') && rb.includes('confirmText: `清空 ${list.length} 项`')
     && gs.includes('confirmText: `永久删除 ${n} 项`') && gs.includes('recycledCardsOf(d)')
 });
-check('R146-4 toast 队列（回退契约⑦）：最多叠 3 条、同文案+同动作合并计数、撤销动作在合并项上仍可点、时长仍 3000ms（B2/R34-4 口径不破）', () => {
+check('R146-4 toast 队列（回退契约⑦）：最多叠 3 条、同文案+同动作合并计数、撤销动作在合并项上仍可点、时长 2400ms（★G5(V3.8.27) 重指：3000 → 2400，队列与合并语义一字不动）', () => {
   const t = read('/shared/components/toast.ts'); const v = read('/shared/components/Toast.vue')
-  return t.includes('const TOAST_DURATION = 3000') && t.includes('const TOAST_STACK = 3') && t.includes('while (items.value.length > TOAST_STACK)')
+  return t.includes('const TOAST_DURATION = 2400') && t.includes('const TOAST_STACK = 3') && t.includes('while (items.value.length > TOAST_STACK)')
     && t.includes('last.msg === msg') && t.includes('last.n++') && t.includes('export function runToastAction') && t.includes('export const toastState')
     && v.includes('toastState') && v.includes('TransitionGroup') && v.includes('var(--toast-bg)')
 });

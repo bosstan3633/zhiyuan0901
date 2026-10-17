@@ -10,6 +10,7 @@ import { useAppStore } from '../stores/app'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
+import EmptyState from '@/shared/components/EmptyState.vue'
 import { purgeCardsCompletely, type PurgeTargets } from '@/shared/storage/purge'
 import type { ResourceCard, TaskCard, CuriosityCard, ArgumentCard, ID } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
@@ -228,7 +229,11 @@ const tabMeta = computed(() => [
           <button class="rb-btn sm danger" @click="purgeRes(r)">永久删除</button>
         </div>
       </div>
-      <div v-if="!res.length" class="rb-empty">回收站空空如也 <Icon name="sparkles" :size="13"/></div>
+      <!-- G3/D3（V3.8.27）：五类共用一个契约，且是"无主行动"特例——
+           这里不该催用户"去做点什么"，只说明这是什么、删除物的去向。 -->
+      <EmptyState v-if="!res.length" class="rb-empty" size="page" icon="trash"
+        title="这一类还没有删除项"
+        hint="删除的卡片会先来这里——可随时恢复；永久删除才真正离开本机。" />
     </div>
 
     <!-- 任务卡 -->
@@ -243,7 +248,9 @@ const tabMeta = computed(() => [
           <button class="rb-btn sm danger" @click="purgeTask(t)">永久删除</button>
         </div>
       </div>
-      <div v-if="!tasks.length" class="rb-empty">回收站空空如也 <Icon name="sparkles" :size="13"/></div>
+      <EmptyState v-if="!tasks.length" class="rb-empty" size="page" icon="trash"
+        title="这一类还没有删除项"
+        hint="删除的卡片会先来这里——可随时恢复；永久删除才真正离开本机。" />
     </div>
 
     <!-- 好奇心卡 -->
@@ -261,7 +268,9 @@ const tabMeta = computed(() => [
           <button class="rb-btn sm danger" @click="purgeCurio(c)">永久删除</button>
         </div>
       </div>
-      <div v-if="!curios.length" class="rb-empty">回收站空空如也 <Icon name="sparkles" :size="13"/></div>
+      <EmptyState v-if="!curios.length" class="rb-empty" size="page" icon="trash"
+        title="这一类还没有删除项"
+        hint="删除的卡片会先来这里——可随时恢复；永久删除才真正离开本机。" />
     </div>
 
     <!-- R109（F12-b）：分类分区（删除分类/删除策展台/合并重复 均走软删；恢复=清 deletedAt） -->
@@ -276,7 +285,9 @@ const tabMeta = computed(() => [
           <button class="rb-btn sm danger" @click="purgeCat(c)">永久删除</button>
         </div>
       </div>
-      <div v-if="!cats.length" class="rb-empty">回收站空空如也 <Icon name="sparkles" :size="13"/></div>
+      <EmptyState v-if="!cats.length" class="rb-empty" size="page" icon="trash"
+        title="这一类还没有删除项"
+        hint="删除的卡片会先来这里——可随时恢复；永久删除才真正离开本机。" />
     </div>
 
     <!-- R2-⑤：论证卡分区（台内原生第 4 种卡，软删后与三卡同一条恢复/永久删除通道） -->
@@ -291,7 +302,9 @@ const tabMeta = computed(() => [
           <button class="rb-btn sm danger" @click="purgeArg(a)">永久删除</button>
         </div>
       </div>
-      <div v-if="!args.length" class="rb-empty">回收站空空如也 <Icon name="sparkles" :size="13"/></div>
+      <EmptyState v-if="!args.length" class="rb-empty" size="page" icon="trash"
+        title="这一类还没有删除项"
+        hint="删除的卡片会先来这里——可随时恢复；永久删除才真正离开本机。" />
     </div>
 
     
@@ -328,5 +341,5 @@ const tabMeta = computed(() => [
 /* R167：转化出场的卡要读得出"它不是被删掉的，是转出去的"——恢复=撤销这次转化 */
 .rb-conv { color: var(--accent); font-weight: 600; }
 .rb-item-ops { display: flex; gap: 6px; flex-shrink: 0; }
-.rb-empty { text-align: center; color: var(--text-3); font-size: var(--fs-body); padding: 60px 0; }
+/* G3（V3.8.27）：.rb-empty 的视觉已由 EmptyState 接管，class 只留作语义锚点 */
 </style>

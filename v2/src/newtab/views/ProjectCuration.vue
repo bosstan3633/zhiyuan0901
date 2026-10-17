@@ -18,6 +18,7 @@ import TaskAddDrawer from '../components/TaskAddDrawer.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
+import EmptyState from '@/shared/components/EmptyState.vue'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 // R147-d：任务级 AI 菜单抽成共享组件（与任务面板/看板同一套动作）
@@ -591,9 +592,11 @@ function addTaskFromHeader() {
 
     <!-- ===== 零项目兜底（R117：原「项目选择墙」退役——无 ?p 时一律默认落在第一个项目，
          选择墙与左栏「📦 全部项目」功能重复；此处只保留真·零项目时的新建引导） ===== -->
-    <div v-if="!currentProject" class="empty-state">
-      还没有项目——<span class="empty-act" @click="openCreateProject">新建 / 规划项目</span>：选择战略目标后开始
-    </div>
+    <!-- G3（V3.8.27）：零项目兜底改走 EmptyState（是什么 / 怎么开始 / 主行动） -->
+    <EmptyState v-if="!currentProject" size="page" icon="package"
+      title="还没有项目"
+      hint="选一个战略目标，把「想推进的事」落成一个可执行项目——任务与指标都挂在它下面。"
+      action-label="＋ 新建 / 规划项目" @action="openCreateProject" />
 
     <!-- ===== 单项目展板（R131-N2：独立态恢复左侧项目目录，可拖拽调宽；内嵌态维持单列满宽） ===== -->
     <div v-else class="board-layout" :class="{ 'with-dir': !embedded }">
@@ -718,7 +721,10 @@ function addTaskFromHeader() {
           <div class="task-add" @click="openTaskAdd(m)">＋ 添加任务（新建 / 关联）</div>
         </div>
       </div>
-      <div v-if="!currentProject.metrics.length" class="empty-state">该项目暂无成功指标——点击上方「<Icon name="target" :size="13"/> 添加成功指标」开始</div>
+      <EmptyState v-if="!currentProject.metrics.length" size="section" icon="target"
+        title="这个项目还没有成功指标"
+        hint="成功指标是任务的归处——先定一个可验证的结果，再往下拆任务。"
+        action-label="＋ 添加成功指标" @action="startHeaderAddMetric" />
       <!-- B27：未归类任务（指标已删除的孤儿任务） -->
       <div v-if="orphanTasks.length" class="metric-sec" id="pd-sec-orphan">
         <div class="metric-head2">
@@ -753,7 +759,9 @@ function addTaskFromHeader() {
             <span class="tag">{{ taskAssetCount(t) }} 个 · {{ taskAssetSize(t) }}</span>
             <AssetBadge :assets="t.assets || []" />
           </div>
-          <div v-if="!tasksWithAssets.length" class="empty-asset">该项目下暂无任务附件——在任务详情中上传后在此聚合呈现</div>
+          <EmptyState v-if="!tasksWithAssets.length" size="inline" icon="paperclip"
+            title="这个项目暂无任务附件"
+            hint="在任务详情里上传附件，这里会自动汇总成可检索的资产清单。" />
         </div>
       </div>
       <!-- R49-D5：好奇心规则提示条（好奇心卡通过「转为任务/归档为资源」进入项目） -->
@@ -845,10 +853,8 @@ function addTaskFromHeader() {
 /* R49-D4：任务附件区 */
 .asset-sec { margin-top: 12px; }
 .asset-row { cursor: pointer; }
-.empty-asset { text-align: center; padding: 16px; font-size: var(--fs-sub); color: var(--text-4); }
-.empty-state { text-align: center; padding: 48px 20px; color: var(--text-3); font-size: var(--fs-body); }
-/* R117（04-61 C）：零项目兜底里的可点动作 */
-.empty-act { color: var(--accent); cursor: pointer; text-decoration: underline; }
+/* G3（V3.8.27）：三处零兜底（无项目 / 无指标 / 无附件）改走 EmptyState 组件，
+   原裸空态容器与可点行内动作的样式一并退役 */
 
 /* 展板 */
 .board-layout { display: block; } /* 内嵌态维持单列满宽（R121 口径） */

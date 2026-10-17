@@ -62,6 +62,7 @@ import ProjectDetailDrawer from '@/newtab/components/ProjectDetailDrawer.vue'
 import { useDashboardStats } from '@/newtab/components/dashboard/useDashboardStats'
 import DayDetail from '@/newtab/components/dashboard/DayDetail.vue'
 import Drawer from '@/shared/components/Drawer.vue'
+import EmptyState from '@/shared/components/EmptyState.vue'
 
 const router = useRouter()
 const store = useAppStore()
@@ -1081,7 +1082,10 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
             <span v-if="c.owner" class="gs-ev-owner">{{ c.owner }}</span>
             <span class="gs-ev-time">{{ fmtDay(c.ts) }}</span>
           </div>
-          <div v-if="!statFiltered.length" class="gs-ev-empty">{{ statSearch.trim() ? '没有匹配的卡片' : '暂无卡片' }}</div>
+          <!-- G3（V3.8.27）：筛选无结果与真空两态共用契约，措辞按"是不是搜出来的"分流 -->
+          <EmptyState v-if="!statFiltered.length" class="gs-ev-empty" size="inline" icon="folder"
+            :title="statSearch.trim() ? '没有匹配的卡片' : '还没有可列出的卡片'"
+            :hint="statSearch.trim() ? '换个更短的关键词，或清空搜索。' : '采集或新建卡片后，这里会按时间列出每一次变化。'" />
           <div v-if="statList.length" class="pi-hint"><Icon name="bulb" :size="13"/> 单击行可跳转定位到卡片所在页面。</div>
         </div>
         <div v-if="statPageCount > 1" class="gs-pager">
@@ -1173,7 +1177,7 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
 .gs-ev-title { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .gs-ev-owner { flex-shrink: 0; font-size: var(--fs-tiny); color: var(--text-3); }
 .gs-ev-time { flex-shrink: 0; font-size: var(--fs-tiny); color: var(--text-4); font-variant-numeric: tabular-nums; }
-.gs-ev-empty { padding: 28px 10px; text-align: center; color: var(--text-3); font-size: var(--fs-sub); }
+/* G3（V3.8.27）：.gs-ev-empty 的视觉已由 EmptyState 接管，class 只留作语义锚点 */
 .gs-pager { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: var(--fs-caption); color: var(--text-3); }
 .gs-pager button { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-caption);
   border-radius: var(--radius-sm); padding: 3px 10px; cursor: pointer; font-family: inherit; }

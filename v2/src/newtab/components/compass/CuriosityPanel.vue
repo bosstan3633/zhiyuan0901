@@ -269,7 +269,7 @@ async function deleteCard(c: CuriosityCard) {
   remove(c.id)
   if (detailId.value === c.id) detailId.value = null
   // B2：撤销
-  showToast(`已删除「${c.question.slice(0, 20)}」`, { label: '撤销', cb: () => {
+  showToast(`已移入回收站「${c.question.slice(0, 20)}」`, { label: '撤销', cb: () => {
     const cur = d.value.curiosities.find(x => x.id === c.id)
     if (cur) { cur.deletedAt = undefined; store.persist() }
   } })
@@ -439,7 +439,7 @@ function batchDelete() {
   selected.value.forEach(id => remove(id))
   selected.value.clear()
   batchMode.value = false
-  showToast('已批量删除')
+  showToast('已批量删除所选——已移入回收站，可恢复')
 }
 function batchSetStatus(status: CuriStatus) {
   selected.value.forEach(id => setStatus(id, status))
@@ -553,10 +553,10 @@ function srcShort(url: string): string {
             </div>
           </div>
         </template>
-        <div v-if="!filtered.length" class="cz-empty">
-          <div class="cz-empty-icon"><Icon name="bulb" :size="13"/></div>
-          <div>还没有好奇心 · 按 Ctrl+Shift+I 一键采集（支持选中网页文本后采集）</div>
-        </div>
+        <!-- G3（V3.8.27）：好奇心池零结果改走 EmptyState；class 保留为网格跨列锚点 -->
+        <EmptyState v-if="!filtered.length" class="cz-empty" size="section" icon="bulb"
+          title="还没有好奇心"
+          hint="按 Ctrl+Shift+I 一键采集；选中网页文本再采集，会自动带上原文。" />
       </div>
 
       <!-- 列表视图 -->
@@ -807,8 +807,9 @@ function srcShort(url: string): string {
 .cz-hover-btn { font-size: var(--fs-tiny); padding: 4px 8px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all var(--dur); flex: 1; text-align: center; font-family: inherit; }
 .cz-hover-btn:hover { border-color: var(--accent); color: var(--accent); }
 .cz-hover-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.cz-empty { grid-column: 1/-1; text-align: center; padding: 48px 20px; color: var(--text-3); font-size: var(--fs-body); }
-.cz-empty-icon { font-size: 36px; opacity: .4; margin-bottom: 8px; }
+/* G3（V3.8.27）：cz-empty 只保留"作为网格子项跨满整行"这一条布局职责，视觉由 EmptyState 接管；
+   旧版的 36px 图标位样式随组件化退役（新组件用 72px 虚线图形）。 */
+.cz-empty { grid-column: 1/-1; }
 .cz-list { display: flex; flex-direction: column; gap: 4px; }
 .cz-list-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-xs); cursor: pointer; transition: background .1s; }
 .cz-list-item:hover { background: var(--surface-2); }

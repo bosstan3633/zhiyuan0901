@@ -457,10 +457,17 @@ body .fds-value {
   font-variant-numeric: tabular-nums;
 }
 
-/* 焦点环 · 2px 强调色 40%（Linear 规范，R124 柔化） */
+/* G4（V3.8.27）：焦点环抽成令牌 —— 两件事必须同时成立：
+   「键盘焦点看得见」和「鼠标点击不出环」。漏掉前者的组件等于对键盘用户消失；
+   漏掉后者（:focus 而非 :focus-visible）会让每次点击都闪一圈，用户就会去关掉它。
+   本规则只在 :root 定义一次，--accent 随四主题在元素上解析，故四主题自动跟随。 */
+:root {
+  --focus-ring: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  --focus-ring-offset: 1px;
+}
 :focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
-  outline-offset: 1px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 /* 滚动条 · 更隐蔽（A6） */
