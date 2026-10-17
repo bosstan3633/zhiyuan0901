@@ -234,7 +234,7 @@ const kicker = computed(() => {
       <!-- 宿主差异内容：落在「关联与凭证」面板内 -->
       <template #extra>
         <ThesisBlock v-if="resource?.isThesis" :text="editing.description" :ws-id="editing.workspaceId" />
-        <div class="rd-kv"><span class="k">打开</span><span class="v"><b>{{ resource?.callCount || 0 }}</b> 次<span v-if="resource?.lastCalledAt" style="color:var(--text-4)"> · 最近 {{ fmtTs(resource.lastCalledAt) }}</span></span></div>
+        <div class="rd-kv"><span class="k">打开</span><span class="v"><b>{{ resource?.callCount || 0 }}</b> 次<span v-if="resource?.lastCalledAt" class="rd-last"> · 最近 {{ fmtTs(resource.lastCalledAt) }}</span></span></div>
         <!-- R166 T7：资源侧「支持的任务」只读反查（解绑只在任务侧，定案 10） -->
         <SupportTasksPanel v-if="resource && store.data" :d="store.data" :resource="resource" @open-task="gotoTaskOwner" />
       </template>
@@ -254,6 +254,8 @@ const kicker = computed(() => {
 .rd-kv > .k { width: 34px; flex-shrink: 0; font-size: var(--fs-caption); color: var(--text-4); letter-spacing: var(--tracking-sm); }
 .rd-kv > .v { flex: 1; min-width: 0; }
 .rd-kv > .v b { color: var(--text); font-weight: 600; }
+/* B1-c：「最近调用」时间戳弱一档（原内联 color） */
+.rd-last { color: var(--text-4); }
 /* N8：镜像目标台下拉——贴着行内其它字段的字号/高度走，不做成一个独立控件的体量 */
 .rd-mirror-select {
   width: 100%; max-width: 240px; height: 26px; padding: 0 6px;

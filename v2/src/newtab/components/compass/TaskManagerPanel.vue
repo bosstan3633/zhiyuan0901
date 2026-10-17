@@ -924,7 +924,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
             </div>
-            <div v-if="!kanbanGroups('todo').length" class="kg-empty" style="padding:20px">暂无任务</div>
+            <div v-if="!kanbanGroups('todo').length" class="kg-empty kg-empty-pad">暂无任务</div>
           </template>
           <template v-else>
             <div v-for="task in todoTasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
@@ -957,7 +957,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
             </div>
-            <div v-if="!kanbanGroups('doing').length" class="kg-empty" style="padding:20px">暂无任务</div>
+            <div v-if="!kanbanGroups('doing').length" class="kg-empty kg-empty-pad">暂无任务</div>
           </template>
           <template v-else>
             <div v-for="task in doingTasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
@@ -990,7 +990,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
             </div>
-            <div v-if="!kanbanGroups('done').length" class="kg-empty" style="padding:20px">暂无任务</div>
+            <div v-if="!kanbanGroups('done').length" class="kg-empty kg-empty-pad">暂无任务</div>
           </template>
           <template v-else>
             <div v-for="task in doneTasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
@@ -1010,7 +1010,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
       <div v-if="mountModalOpen" class="overlay" @click="mountModalOpen=false" />
     </Transition>
     <Transition name="modal">
-      <div v-if="mountModalOpen" class="picker-modal" style="width:420px">
+      <div v-if="mountModalOpen" class="picker-modal tm-modal-mount">
         <div class="pm-head">
           <span><Icon name="package" :size="13"/> 挂载 {{ selectedTaskIds.size }} 个任务到项目›指标</span>
           <div class="pm-close" @click="mountModalOpen=false">×</div>
@@ -1021,12 +1021,12 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <option value="">请选择项目…</option>
             <option v-for="p in mountProjectOptions" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
-          <div class="ts-label-pm" style="margin-top:12px"><Icon name="target" :size="13"/> 成功指标（可选）</div>
+          <div class="ts-label-pm tm-label-mount"><Icon name="target" :size="13"/> 成功指标（可选）</div>
           <select v-model="mountMetId" class="ts-select-pm" :disabled="!mountProjId">
             <option value="">暂不归属指标</option>
             <option v-for="m in mountMetricOptions" :key="m.id" :value="m.id">{{ m.title }}</option>
           </select>
-          <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+          <div class="tm-modal-footer">
             <button class="mini-btn" @click="mountModalOpen=false">取消</button>
             <button class="mini-btn primary" @click="confirmBatchMount"><Icon name="check" :size="13"/> 确认挂载</button>
           </div>
@@ -1155,6 +1155,11 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .kg-name { font-size: var(--fs-caption); font-weight: 700; color: var(--text-2); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kg-count { font-size: var(--fs-micro); color: var(--text-3); background: var(--surface); padding: 1px 7px; border-radius: 99px; }
 .kg-empty { font-size: var(--fs-caption); color: var(--text-4); text-align: center; padding: 10px; border: 1px dashed var(--border); border-radius: 6px; }
+/* B1-c（V3.8.26）：看板三列空态 / 批量挂载弹窗 6 处模板内联样式收口，值逐字等价 */
+.kg-empty.kg-empty-pad { padding: 20px; }
+.picker-modal.tm-modal-mount { width: 420px; }
+.ts-label-pm.tm-label-mount { margin-top: 12px; }
+.tm-modal-footer { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
 .kcard { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 10px 13px; margin-bottom: 8px; cursor: pointer; transition: all var(--dur); }
 .kcard:hover { border-color: var(--border-strong); background: var(--surface-2); }
 .kcard.done { opacity: .6; }

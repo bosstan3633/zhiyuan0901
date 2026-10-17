@@ -456,11 +456,13 @@ function deleteSelected() {
     <div v-if="hasMore" :ref="setSentinel" class="render-more" @click="renderMore">
       ↓ 已显示 {{ rendered.length }} / {{ poolCards.length }} 张 —— 点此加载更多
     </div>
-    <input ref="fileImportInput" type="file" multiple accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.avif,.ico,.html,.htm,.pdf,application/pdf,text/html" style="display:none" @change="handleFileImport">
+    <input ref="fileImportInput" type="file" multiple accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.avif,.ico,.html,.htm,.pdf,application/pdf,text/html" class="pci-file" @change="handleFileImport">
   </div>
 </template>
 
 <style scoped>
+/* B1-c：文件选择器只作触发器，不占版面（原内联 display:none） */
+.pci-file { display: none; }
 /* R2-③：池卡网格——与 DeckTabs 卡片语言同款（surface + hairline + hover 抬升） */
 .pcp { min-height: 120px; }
 .pcp-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: var(--radius-sm); padding: 5px 11px; font-size: var(--fs-sub); font-weight: 600; cursor: pointer; font-family: inherit; transition: all var(--dur); }

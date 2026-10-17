@@ -154,7 +154,7 @@
         </div>
         <div v-if="!filteredResults.length" class="gp-search-empty">
           <div class="gp-se-icon"><Icon name="inbox" :size="13"/></div>
-          <div class="gp-se-text">没有匹配的卡片<br><span style="font-size: var(--fs-caption)">试试更短的关键词</span></div>
+          <div class="gp-se-text">没有匹配的卡片<br><span class="gp-se-hint">试试更短的关键词</span></div>
         </div>
         <template v-for="grp in groupedResults" :key="grp.label">
           <div class="gp-group-title">{{ grp.label }} <span class="gp-group-cnt">{{ grp.total }}</span></div>
@@ -256,7 +256,7 @@
             <!-- V3.7.0（R179）：资源台退役——采集统一入资源卡池，标签由「保存后补全」AI 建议（可保存后编辑） -->
             <div class="gp-field">
               <label class="gp-field-label">存入</label>
-              <div class="gp-status-select" style="display:flex;align-items:center;gap:6px;"><Icon name="folder" :size="13"/> 资源卡池<span style="color:var(--text-tertiary);font-size:11px;">· 标签保存后自动补</span></div>
+              <div class="gp-status-select gp-status-row"><Icon name="folder" :size="13"/> 资源卡池<span class="gp-status-note">· 标签保存后自动补</span></div>
             </div>
           </div>
         </div>
@@ -366,7 +366,7 @@
           <textarea ref="curioInput" class="gp-field-input gp-curio-text" v-model="curioForm.text"
             placeholder="看到什么、想到什么、想探索什么？&#10;按 Enter 换行，Ctrl+Enter 保存"
             @keydown.ctrl.enter.prevent="saveCurio"></textarea>
-          <div class="gp-field" style="margin-top:10px">
+          <div class="gp-field gp-field-sep">
             <label class="gp-field-label"><Icon name="link" :size="13"/> 来源链接{{ curioForm.sourceUrl ? '（已自动捕获，可编辑）' : '（可选，留空即无来源）' }}</label>
             <input type="text" class="gp-field-input" v-model="curioForm.sourceUrl" placeholder="https://…">
           </div>
@@ -2071,6 +2071,13 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-se-icon { font-size: 32px; margin-bottom: 8px; opacity: .4; }
 .gp-se-text { font-size: var(--fs-body); line-height: 1.7; }
 .gp-se-text b { color: var(--text-2); font-weight: 600; }
+/* B1-c（V3.8.26）：搜索空态副行 / 资源卡池状态行 / 字段间距 4 处模板内联样式收口。
+   ★ 修复：.gp-status-note 原写 var(--text-tertiary)，该令牌在 tokens.css 里**不存在**，
+   浏览器一直丢弃这条声明（颜色继承父级）。按令牌阶梯改指 --text-3，属本批唯一故意改变像素处。 */
+.gp-se-hint { font-size: var(--fs-caption); }
+.gp-status-row { display: flex; align-items: center; gap: 6px; }
+.gp-status-note { color: var(--text-3); font-size: 11px; }
+.gp-field.gp-field-sep { margin-top: 10px; }
 
 /* 底部栏 */
 .gp-panel-foot { display: flex; align-items: center; gap: 16px; padding: 10px 22px; border-top: 1px solid var(--border);

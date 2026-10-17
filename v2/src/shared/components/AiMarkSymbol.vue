@@ -27,7 +27,7 @@
 </script>
 
 <template>
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <svg width="0" height="0" class="am-sym" aria-hidden="true" focusable="false">
     <defs>
       <linearGradient id="zy-ai-grad" x1="0" y1="0" x2="1" y2="1">
         <stop offset="0" class="zm-g1" /><stop offset="1" class="zm-g2" />
@@ -49,6 +49,8 @@
    渐变两端都取既有令牌（accent / accent-2），**不引入第二套品牌色**；
    宿主可用 --ai-mark-fill / --ai-mark-eye 覆写（accent 底上的两处就走这条）。 */
 #zy-ai-grad .zm-g1 { stop-color: var(--accent) }
+/* B1-c：渐变定义容器不占位（原内联 position:absolute） */
+.am-sym { position: absolute; }
 #zy-ai-grad .zm-g2 { stop-color: var(--accent-2) }
 #zy-ai-mark .zm-head { fill: var(--ai-mark-fill, url(#zy-ai-grad)); stroke: none }
 #zy-ai-mark .zm-solid { fill: var(--ai-mark-fill, url(#zy-ai-grad)); stroke: none }

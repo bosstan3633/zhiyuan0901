@@ -469,7 +469,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           </div>
         </div>
         <div class="ts-section">
-          <div class="ds-prop-label"><Icon name="link" :size="13"/> 链接 <span class="hint" style="font-weight:400">— 双击卡片直达</span></div>
+          <div class="ds-prop-label"><Icon name="link" :size="13"/> 链接 <span class="hint hint-normal">— 双击卡片直达</span></div>
           <div class="ts-link-row">
             <input v-model="selectedTask.link" class="ts-link-input" placeholder="https://… / D:\path\file.pdf / obsidian://…" @blur="touchTask" @keydown.enter.prevent="($event.target as HTMLElement).blur()">
             <button class="ts-link-btn" title="打开链接" @click="openTaskLink"><Icon name="external" :size="13"/></button>
@@ -486,7 +486,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           <span class="ts-goto ds-goto-inline" @click="router.push('/compass')"><Icon name="compass" :size="13"/> 没有合适的项目/指标？去方向台创建 ›</span>
         </div>
         <!-- R48：附属区折叠（附件）；R165：挂载区随卡间挂载退役 -->
-        <details class="ds-details" style="margin-top:14px">
+        <details class="ds-details ds-details-sep">
           <summary><Icon name="paperclip" :size="13"/> 附件 <span v-if="selectedTask.assets?.length" class="cnt">({{ selectedTask.assets.length }})</span><AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" /><span class="right">图片 / HTML / PDF</span></summary>
           <AssetManager v-model="selectedTask.assets" :owner-id="selectedTask.id" @update:model-value="onTaskAssetsChange" @html-added="onTaskHtmlAdded" />
         </details>
@@ -503,6 +503,9 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 </template>
 
 <style scoped>
+/* B1-c（V3.8.26）：链接提示与附件折叠区两处内联样式收口 */
+.hint.hint-normal { font-weight: 400; }
+.ds-details.ds-details-sep { margin-top: 14px; }
 .mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); user-select: none; }
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
 .mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }

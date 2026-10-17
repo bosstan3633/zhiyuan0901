@@ -1023,19 +1023,19 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
     <!-- ===== 阈值设置弹窗 ===== -->
     <Teleport to="body">
       <div class="gs-modal-overlay" :class="{ open: lcSetOpen }" @click.self="lcSetOpen = false">
-        <div class="gs-modal" style="width: 640px">
+        <div class="gs-modal pi-lc-modal">
           <div class="gs-modal-header"><Icon name="settings" :size="13"/> 冷却阈值设置</div>
           <div class="gs-modal-body">
             <p>全局默认冷却 <b>{{ lcDefaultDraft || 30 }}</b> 天 · 归档 = 冷却 × 3 = <b>{{ (lcDefaultDraft || 30) * 3 }}</b> 天；每张卡可单独覆盖（清除后回落全局默认）。<br />修改阈值只影响状态判定，<b>不会改变卡片活跃度</b>。</p>
             <div class="lc-set-global">
               <span>默认冷却天数</span>
-              <input v-model.number="lcDefaultDraft" type="number" min="1" max="365" class="gs-confirm-input" style="width: 90px" />
+              <input v-model.number="lcDefaultDraft" type="number" min="1" max="365" class="gs-confirm-input pi-num-sm" />
               <button class="gs-btn" @click="saveLcDefault">保存</button>
             </div>
             <div class="lc-set-list">
               <div v-for="c in lcCards" :key="c.id" class="lc-set-row">
                 <span class="lc-set-name" :title="(c as any).title">{{ (c as any).title || (c as any).question || '未命名' }}</span>
-                <input class="gs-confirm-input" style="width: 80px" type="number" min="1" max="365" placeholder="默认"
+                <input class="gs-confirm-input pi-num-xs" type="number" min="1" max="365" placeholder="默认"
                   :value="(c as any).coolingDays || ''"
                   @change="onLcSetDays(c.id, Number(($event.target as HTMLInputElement).value) || null)" />
                 <button class="gs-btn" @click="onLcSetDays(c.id, null)">清除</button>
@@ -1140,6 +1140,10 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
   font-size: var(--fs-sub); border-radius: var(--radius-sm); padding: 4px 8px; font-family: inherit; }
 .gs-confirm-input:focus { outline: none; border-color: var(--accent); }
 .lc-set-global { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+/* B1-c（V3.8.26）：阈值设置弹窗 3 处模板内联样式收口，值逐字等价 */
+.gs-modal.pi-lc-modal { width: 640px; }
+.gs-confirm-input.pi-num-sm { width: 90px; }
+.gs-confirm-input.pi-num-xs { width: 80px; }
 .lc-set-list { display: flex; flex-direction: column; gap: 4px; max-height: 280px; overflow-y: auto; }
 .lc-set-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); }
 .lc-set-name { flex: 1; font-size: var(--fs-caption); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }

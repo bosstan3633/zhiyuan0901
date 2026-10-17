@@ -34,8 +34,8 @@ onMounted(() => { document.title = '使用手册 · 知源调度台' })
 <template>
   <div class="mn-page">
     <header class="mn-head">
-      <button class="mn-back" @click="router.push('/settings')"><Icon name="arrowright" :size="13" style="transform: rotate(180deg)" />返回设置</button>
-      <div class="mn-brand"><Icon name="book" :size="13"/> 知源调度台 · 使用手册 <span class="mn-ver">V3.8.25</span></div>
+      <button class="mn-back" @click="router.push('/settings')"><Icon name="arrowright" :size="13" class="mn-back-ico" />返回设置</button>
+      <div class="mn-brand"><Icon name="book" :size="13"/> 知源调度台 · 使用手册 <span class="mn-ver">V3.8.26</span></div>
       <div class="mn-spacer" />
       <button class="mn-dl" @click="downloadShare"><Icon name="download" :size="13"/> 下载分享版</button>
     </header>
@@ -67,6 +67,8 @@ onMounted(() => { document.title = '使用手册 · 知源调度台' })
 .mn-head { position: sticky; top: 0; z-index: 10; height: 52px; display: flex; align-items: center; gap: 16px; padding: 0 24px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
 .mn-back { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); cursor: pointer; font-family: inherit; }
 .mn-back:hover { border-color: var(--accent); color: var(--accent); }
+/* B1-c：返回箭头朝左（原内联 transform），抽类后不再写内联样式 */
+.mn-back-ico { transform: rotate(180deg); }
 .mn-brand { font-size: 14px; font-weight: 600; }
 .mn-ver { font-size: var(--fs-caption); color: var(--text-3); font-weight: 500; margin-left: 6px; }
 .mn-spacer { flex: 1; }

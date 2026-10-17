@@ -69,7 +69,7 @@ function onPick(fmt: ExportFmt) { emit('export', fmt) }
       <div class="pi-hero-acts">
         <button class="pi-btn line" title="重读事件日志刷新统计" @click="emit('refresh')">⟳ 刷新</button>
         <ExportMenu @pick="onPick" />
-        <button v-if="props.errorCount > 0" class="pi-btn line" style="color:var(--warning)"
+        <button v-if="props.errorCount > 0" class="pi-btn line pi-btn-warn"
           title="运行错误日志导出" @click="emit('export-error')"><Icon name="warn" :size="13"/> 错误 {{ props.errorCount }}</button>
         <!-- ★W12-B 入口收敛（用户 2026-10-13 拍板）：AI 解读与今日战报两枚能力在下方模块各有同级入口，
              此格为全页唯一的「全部记录」入口。W13 起仍为刷新 · 导出 · 全部记录三件套（W12-B1 钉住）。 -->

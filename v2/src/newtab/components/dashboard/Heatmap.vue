@@ -212,7 +212,7 @@ function onExport(fmt: ExportFmt): void {
       <span class="dz-badge">{{ selDay ? `已选 ${selDay}` : '点格子看那一天' }}</span>
       <ExportMenu :formats="['png', 'html']" @pick="onExport" />
       <button class="dz-btn sm ghost" title="上一年" @click="shiftYear(-1)">‹</button>
-      <b style="font-size:var(--fs-sub);min-width:44px;text-align:center">{{ year }}</b>
+      <b class="hm-year">{{ year }}</b>
       <button class="dz-btn sm ghost" :disabled="year >= curYear" title="下一年" @click="shiftYear(1)">›</button>
       </template>
     </div>

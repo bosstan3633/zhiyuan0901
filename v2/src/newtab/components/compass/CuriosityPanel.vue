@@ -684,12 +684,12 @@ function srcShort(url: string): string {
 
         <section class="ds-pnl">
           <div class="ds-pnl-h"><b>流转与凭证</b><i>都有后果，不静默</i></div>
-          <div class="ds-kv clk" @click="openConvert(detailItem, 'task')"><span class="k">转任务</span><span class="v">建 1 张任务卡 · 本条<b style="color:var(--text)">从池中离场</b>（回收站可撤）· 已转化 +1<span class="go">›</span></span></div>
-          <div class="ds-kv clk" @click="openConvert(detailItem, 'res')"><span class="k">归档资源</span><span class="v">建 1 张资源卡 · 本条<b style="color:var(--text)">从池中离场</b>（回收站可撤）· 已转化 +1<span class="go">›</span></span></div>
+          <div class="ds-kv clk" @click="openConvert(detailItem, 'task')"><span class="k">转任务</span><span class="v">建 1 张任务卡 · 本条<b class="cz-strong">从池中离场</b>（回收站可撤）· 已转化 +1<span class="go">›</span></span></div>
+          <div class="ds-kv clk" @click="openConvert(detailItem, 'res')"><span class="k">归档资源</span><span class="v">建 1 张资源卡 · 本条<b class="cz-strong">从池中离场</b>（回收站可撤）· 已转化 +1<span class="go">›</span></span></div>
           <details class="ds-details">
             <summary>附件 · 时间 <span v-if="detailItem.assets?.length" class="cnt">({{ detailItem.assets.length }})</span><span class="right">捕获 {{ new Date(detailItem.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span></summary>
             <AssetManager v-model="detailItem.assets" :owner-id="detailItem.id" @update:model-value="onCurioAssetsChange" @html-added="onCurioHtmlAdded" />
-            <div class="ds-meta" style="padding:8px 0 4px">
+            <div class="ds-meta ds-meta-top">
               <span v-if="detailItem.updatedAt">更新 {{ new Date(detailItem.updatedAt).toLocaleString('zh-CN', { hour12: false }) }}</span>
               <AssetBadge v-if="detailItem.assets?.length" :assets="detailItem.assets" />
             </div>
@@ -699,7 +699,7 @@ function srcShort(url: string): string {
       <!-- R165-A：页脚收敛两钮——删除（二次确认，详情原先不能删）+ 保存 -->
       <template #footer>
         <ArmDeleteButton @confirm="detailItem && deleteCard(detailItem)" />
-        <button class="mini-btn primary cz-save" @click="saveDetail"><Icon name="check" :size="13"/> 保存 <span style="font-size: var(--fs-tiny);opacity:.75;margin-left:2px">Enter</span></button>
+        <button class="mini-btn primary cz-save" @click="saveDetail"><Icon name="check" :size="13"/> 保存 <span class="cz-enter-hint">Enter</span></button>
       </template>
     </Drawer>
 
@@ -835,6 +835,10 @@ function srcShort(url: string): string {
 .cz-h1q { font-size: var(--fs-title); font-weight: 600; line-height: var(--lh-title); color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cz-save { flex: 1; justify-content: center; }
+/* B1-c（V3.8.26）：详情抽屉 4 处模板内联样式收口，值逐字等价 */
+.cz-strong { color: var(--text); }
+.ds-meta.ds-meta-top { padding: 8px 0 4px; }
+.cz-enter-hint { font-size: var(--fs-tiny); opacity: .75; margin-left: 2px; }
 .expand-enter-active, .expand-leave-active { transition: all var(--dur) ease; overflow: hidden; }
 .expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; }
 

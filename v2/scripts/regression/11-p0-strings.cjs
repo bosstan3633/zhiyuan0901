@@ -159,12 +159,24 @@ check('P0-S6 ★`regression.cjs` 的 SHARDS 里每一个分片都必须①文件
 });
 
 // ────────────────────────── S7 · 内联样式棘轮（B1 收口过的文件不许回涨） ──────────────────────────
-check('P0-S7 ★内联视觉样式棘轮：已被 B1 收口过的文件（`Workspace.vue` / `GlobalSettings.vue`）模板内**静态** `style="…"` 必须为 0。★边界写死在这里，免得下一轮又争：`① 只算静态写法 —— `(?<!:)style="` 负向断言排除 `:style="…"`，动态绑定（树深度缩进、确认按钮禁用态透明度等由运行时求值的那几处）按 Q2 拍板**保留**，不计违规；② 只算模板段 —— `<script>` 里生成 HTML 字符串用的样式不收（那是数据不是版面，且 `GlobalSettings` 的预览骨架已改为走 `:deep()` 类）；③ 先剥注释 —— 否则"说明这里原本有个内联样式"的注释会把棘轮自己顶红。★为什么值得钉：内联样式是**令牌体系唯一的合法绕行口**，一个 `color:#3A6B4C` 写进模板就绕过了四主题跟随，而 `vue-tsc`、build、其余判据全都看不见它；本轮实测在 `GlobalSettings.vue` 里就挖到 `var(--ok,var(--info-green,#3A6B4C))` 两个令牌全不存在、实际一直渲染硬编码深绿这一例。收口完成后若不加棘轮，下一轮加功能时"顺手写个 style"是最省事的路径，收口等于白做', () => {
-  const FILES = ['newtab/views/Workspace.vue', 'newtab/views/GlobalSettings.vue'];
+check('P0-S7 ★内联视觉样式棘轮：已被 B1 收口过的 **22 个文件**（B1-a/b 的 `Workspace.vue` / `GlobalSettings.vue` + B1-c 的 20 个）模板内**静态** `style="…"` 必须为 0。★边界写死在这里，免得下一轮又争：`① 只算静态写法 —— `(?<!:)style="` 负向断言排除 `:style="…"`，动态绑定（树深度缩进、确认按钮禁用态透明度等由运行时求值的那几处）按 Q2 拍板**保留**，不计违规；② 只算模板段 —— 取第一个 `<template` 到最后一个 `</template>`（不依赖 script 在前后，SFC 两种写法都成立），`<script>` 里生成 HTML 字符串用的样式不收（那是数据不是版面，且 `GlobalSettings` 的预览骨架已改为走 `:deep()` 类）；③ 先剥注释 —— 否则"说明这里原本有个内联样式"的注释会把棘轮自己顶红。★为什么值得钉：内联样式是**令牌体系唯一的合法绕行口**，一个 `color:#3A6B4C` 写进模板就绕过了四主题跟随，而 `vue-tsc`、build、其余判据全都看不见它；B1-a 实测在 `GlobalSettings.vue` 里就挖到 `var(--ok,var(--info-green,#3A6B4C))` 两个令牌全不存在、实际一直渲染硬编码深绿，B1-c 又在 `GlobalPopups.vue` 挖到 `var(--text-tertiary)` 根本不存在、整条声明被浏览器丢弃。收口完成后若不加棘轮，下一轮加功能时"顺手写个 style"是最省事的路径，收口等于白做', () => {
+  const FILES = [
+    'newtab/views/Workspace.vue', 'newtab/views/GlobalSettings.vue',
+    'newtab/views/ManualPage.vue', 'shared/components/AiMarkSymbol.vue',
+    'newtab/views/RecycleBin.vue', 'newtab/components/ResourceEditForm.vue',
+    'newtab/components/ResourceDetailDrawer.vue', 'newtab/components/compass/PoolCardsPanel.vue',
+    'newtab/components/dashboard/Heatmap.vue', 'newtab/components/dashboard/ReviewPanel.vue',
+    'newtab/components/profile/PiHero.vue', 'newtab/components/profile/PiRhythm.vue',
+    'newtab/views/CompassHome.vue', 'newtab/components/profile/PiYear.vue',
+    'newtab/components/compass/TaskManagerPanel.vue', 'newtab/components/GlobalPopups.vue',
+    'newtab/components/compass/CuriosityPanel.vue', 'newtab/views/ProfileInsights.vue',
+    'newtab/components/CurationDrillDrawer.vue', 'newtab/components/compass/TaskDetailDrawer.vue',
+    'newtab/components/dashboard/DayDetail.vue', 'newtab/views/ProjectCuration.vue',
+  ];
   const bad = [];
   for (const f of FILES) {
     const raw = fs.readFileSync(path.join(SRC, f), 'utf8');
-    const i0 = raw.indexOf('<template'), i1 = raw.indexOf('<script');
+    const i0 = raw.indexOf('<template'), i1 = raw.lastIndexOf('</template>');
     if (i0 < 0 || i1 < i0) { bad.push(f + ' :: 取不到模板段（文件结构变了？本条必须重写而不是静默通过）'); continue; }
     const t = raw.slice(i0, i1).replace(/<!--[\s\S]*?-->/g, '');
     for (const m of t.matchAll(/(?<!:)style="([^"]*)"/g)) bad.push(f + ' :: style="' + m[1] + '"');

@@ -155,7 +155,7 @@ function fmtTs(ts?: number): string {
         <!-- R167：附件上限从「? tooltip」搬进展开区（说明该在看得见的地方，不该藏在一次悬停里） -->
         <div class="ref-limits">图片 ≤9 张（单张 ≤10MB）· HTML 单卡 1 个（≤20MB，重复上传=替换）· PDF 单卡 1 份（≤100MB）· 双击文件名在浏览器中打开</div>
       </details>
-      <div v-if="model.createdAt" class="ds-meta" style="padding:8px 0 4px">
+      <div v-if="model.createdAt" class="ds-meta ds-meta-top">
         <span>创建 {{ fmtTs(model.createdAt) }}</span>
         <span>更新 {{ fmtTs(model.updatedAt) }}</span>
       </div>
@@ -166,6 +166,8 @@ function fmtTs(ts?: number): string {
 <style scoped>
 /* R167：面板自带 margin-bottom，容器不再叠 gap（两处都给 ⇒ 面板间 32px，读起来是三段不是一块） */
 .ref-form { display: flex; flex-direction: column; }
+/* B1-c：元信息行上留一档呼吸（原内联 padding） */
+.ds-meta-top { padding: 8px 0 4px; }
 
 /* R167：标题行退役（`.ref-title*` / `.ref-close` / `.ref-title-assets`）——主标题进抽屉头（DetailTitle），
    附件凭证进「关联与凭证」面板的展开区计数，关闭钮归容器 ×。留着只会让人以为表单还管标题。 */

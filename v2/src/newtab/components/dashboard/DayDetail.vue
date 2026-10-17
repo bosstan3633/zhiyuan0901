@@ -251,10 +251,10 @@ function onExport(fmt: ExportFmt): void {
     <!-- ④ 分时段叙事时间线（原型 md-scroll：降序，下午在前；★W6.1 行可点击） -->
     <div class="dz-tl">
       <div class="th">当日操作时间线<span class="dz-sp"></span>
-        <span style="color:var(--text-3)">共 {{ dlSum.n }} 条 · 明细来自 zy_event_log</span>
+        <span class="dz-day-note">共 {{ dlSum.n }} 条 · 明细来自 zy_event_log</span>
         <button class="dz-btn sm" @click="emit('open-log', day)">查看全部记录 ›</button>
       </div>
-      <div v-if="!flowGroups.length" class="dz-row"><span class="ti" style="color:var(--text-3)">今天还没有操作记录 —— 去调度台做点什么吧：采集一张卡、推进一个任务、或打开一次资源</span></div>
+      <div v-if="!flowGroups.length" class="dz-row"><span class="ti dz-day-note">今天还没有操作记录 —— 去调度台做点什么吧：采集一张卡、推进一个任务、或打开一次资源</span></div>
       <template v-for="g in flowGroups" :key="g.label">
         <div class="dz-tl-grp">{{ g.label }}</div>
         <div v-for="({ tm, e }, i) in g.rows" :key="e.id + '-' + i" class="dz-tl-row"

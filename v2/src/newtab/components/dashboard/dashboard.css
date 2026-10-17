@@ -409,3 +409,10 @@
    V3.8.7 面板整体迁 ProfileInsights 后页面已是「页头 + 概览带 + 复盘段 + 生命周期 + 操作记录」一屏四节，
    无需再靠开关圈交互点。留着这两条会让 dead-css-scan 报 2 条祖先断（模板零引用的死规则），故清账。
    想复活该能力：先把开关写回 ProfileInsights 页头工具条，再把这段样式抄回来。 */
+
+/* B1-c（V3.8.26）：两处模板静态内联样式收口——热力图年份读数 / 复盘趋势图容器。
+   值与原内联逐字等价，不收口就绕过了四主题与像素门禁。 */
+.hm-year { font-size: var(--fs-sub); min-width: 44px; text-align: center; }
+.rp-chart { width: 100%; height: 76px; display: block; }
+/* B1-c（V3.8.26）：日详情两处提示文字（原内联 color） */
+.dz-day-note { color: var(--text-3); }

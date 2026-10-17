@@ -213,7 +213,7 @@ async function onCleanupAll() {
         <span class="dd-ico"><Icon name="monitor" :size="13"/></span><span class="dd-name">{{ c.title }}</span><span class="dd-time">{{ fmtTs(c.updatedAt) }}</span>
       </div>
       <div v-if="!nativeCards.length" class="dd-empty">暂无台内卡</div>
-      <div class="dd-group-title" style="margin-top:14px"><Icon name="satellite" :size="13"/> 资源台镜像（{{ mirrorCards.length }}）</div>
+      <div class="dd-group-title dd-group-sep"><Icon name="satellite" :size="13"/> 资源台镜像（{{ mirrorCards.length }}）</div>
       <div v-for="c in mirrorCards" :key="c.id" class="dd-row clickable" @click="rowClick(c.id, true)">
         <span class="dd-ico"><Icon name="satellite" :size="13"/></span><span class="dd-name">{{ c.title }}</span><span class="dd-hint">定位源卡 ›</span>
       </div>
@@ -239,7 +239,7 @@ async function onCleanupAll() {
 
       <!-- 孤儿附件（本体在本地、但无任何卡片引用）：逐个可删 + 顶部批量 -->
       <template v-if="orphanAssetIds.length">
-        <div class="dd-group-title" style="margin-top:14px"><Icon name="broom" :size="13"/> 孤儿附件本体（{{ orphanAssetIds.length }}）</div>
+        <div class="dd-group-title dd-group-sep"><Icon name="broom" :size="13"/> 孤儿附件本体（{{ orphanAssetIds.length }}）</div>
         <div v-for="id in orphanAssetIds" :key="'or-' + id" class="dd-row dd-row-warn">
           <span class="dd-ico"><Icon name="trash" :size="13"/></span>
           <span class="dd-name">
@@ -278,6 +278,8 @@ async function onCleanupAll() {
 <style scoped>
 .dd-list { display: flex; flex-direction: column; }
 .dd-group-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .4px; padding: 4px 0; }
+/* B1-c（V3.8.26）：分组间距（原两处内联 margin-top） */
+.dd-group-sep { margin-top: 14px; }
 .dd-row { display: flex; align-items: center; gap: 8px; padding: 8px 8px; border-radius: 6px; font-size: var(--fs-sub); color: var(--text-2); }
 .dd-row.clickable { cursor: pointer; transition: background var(--dur-fast); }
 .dd-row.clickable:hover { background: var(--surface-3); color: var(--text); }

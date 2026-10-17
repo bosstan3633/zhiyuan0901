@@ -269,7 +269,7 @@ const tabMeta = computed(() => [
       <div v-for="c in cats" :key="c.id" class="rb-item">
         <div class="rb-item-main">
           <div class="rb-item-title"><Icon name="folder" :size="13"/> {{ c.name }}</div>
-          <div class="rb-item-meta"><Icon name="folder" :size="13"/> {{ wsNameOf(c.workspaceId) }} · <Icon name="clock" :size="13"/> 删除于 {{ fmt(c.deletedAt) }}<span style="color:var(--text-4)"> · 恢复后其下卡片不会自动归位（仍在待分类/回收站）</span></div>
+          <div class="rb-item-meta"><Icon name="folder" :size="13"/> {{ wsNameOf(c.workspaceId) }} · <Icon name="clock" :size="13"/> 删除于 {{ fmt(c.deletedAt) }}<span class="rb-note"> · 恢复后其下卡片不会自动归位（仍在待分类/回收站）</span></div>
         </div>
         <div class="rb-item-ops">
           <button class="rb-btn sm" @click="restoreCat(c)">恢复</button>
@@ -284,7 +284,7 @@ const tabMeta = computed(() => [
       <div v-for="a in args" :key="a.id" class="rb-item">
         <div class="rb-item-main">
           <div class="rb-item-title"><Icon name="compass" :size="13"/> {{ a.title }}</div>
-          <div class="rb-item-meta"><Icon name="folder" :size="13"/> {{ wsNameOf(a.workspaceId) }} · <Icon name="clock" :size="13"/> 删除于 {{ fmt(a.deletedAt) }}<span style="color:var(--text-4)"> · 论证卡随策展台存续，台若已删需先恢复台</span></div>
+          <div class="rb-item-meta"><Icon name="folder" :size="13"/> {{ wsNameOf(a.workspaceId) }} · <Icon name="clock" :size="13"/> 删除于 {{ fmt(a.deletedAt) }}<span class="rb-note"> · 论证卡随策展台存续，台若已删需先恢复台</span></div>
         </div>
         <div class="rb-item-ops">
           <button class="rb-btn sm" @click="restoreArg(a)">恢复</button>
@@ -323,6 +323,8 @@ const tabMeta = computed(() => [
 .rb-item-main { flex: 1; min-width: 0; }
 .rb-item-title { font-size: var(--fs-body); font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 3px; }
 .rb-item-meta { font-size: var(--fs-sub); color: var(--text-3); }
+/* B1-c：说明性后缀弱一档（原两处内联 color） */
+.rb-note { color: var(--text-4); }
 /* R167：转化出场的卡要读得出"它不是被删掉的，是转出去的"——恢复=撤销这次转化 */
 .rb-conv { color: var(--accent); font-weight: 600; }
 .rb-item-ops { display: flex; gap: 6px; flex-shrink: 0; }

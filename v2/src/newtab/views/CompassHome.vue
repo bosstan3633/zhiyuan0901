@@ -928,7 +928,7 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
         <div class="pm-body">
           <!-- R113-N6：关键词 + 项目 两维筛选可叠加 -->
           <div class="pm-filters">
-            <div class="search-box" style="margin:0"><span><Icon name="search" :size="13"/></span><input v-model="pickerSearch" placeholder="搜索任务..."></div>
+            <div class="search-box pm-search-flat"><span><Icon name="search" :size="13"/></span><input v-model="pickerSearch" placeholder="搜索任务..."></div>
             <select v-model="pickerProject" class="pm-proj" title="按项目筛选任务">
               <option value="">全部项目</option>
               <option value="__none__">未关联项目（{{ pickerProjectOptions.none }}）</option>
@@ -957,21 +957,21 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
       <div v-if="exportOpen" class="overlay" @click="exportOpen=false" />
     </Transition>
     <Transition name="modal">
-      <div v-if="exportOpen" class="picker-modal" style="width:400px">
+      <div v-if="exportOpen" class="picker-modal pm-modal-export">
         <div class="pm-head">
           <span><Icon name="download" :size="13"/> 导出三件事任务（CSV）</span>
           <div class="pm-close" @click="exportOpen=false">×</div>
         </div>
         <div class="pm-body">
           <div class="ts-label-pm">时间范围（按三件事安排日期）</div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input type="date" v-model="exportFrom" class="ts-select-pm" style="flex:1">
-            <span style="color:var(--text-3)">›</span>
-            <input type="date" v-model="exportTo" class="ts-select-pm" style="flex:1">
+          <div class="pm-date-row">
+            <input type="date" v-model="exportFrom" class="ts-select-pm pm-date-input">
+            <span class="pm-date-sep">›</span>
+            <input type="date" v-model="exportTo" class="ts-select-pm pm-date-input">
           </div>
-          <div class="ce-desc" style="margin-top:10px">导出字段：任务内容 / 所属项目 / 项目›成功指标 / 任务状态 / 安排时间 / 创建时间</div>
+          <div class="ce-desc pm-export-desc">导出字段：任务内容 / 所属项目 / 项目›成功指标 / 任务状态 / 安排时间 / 创建时间</div>
         </div>
-        <div class="modal-footer-row" style="display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--border);justify-content:flex-end">
+        <div class="modal-footer-row pm-modal-footer">
           <button class="mini-btn" @click="exportOpen=false">取消</button>
           <button class="mini-btn primary" :disabled="exportBusy" @click="doExport"><Icon v-if="!exportBusy" name="download" :size="13"/>{{ exportBusy ? "导出中…" : "导出 CSV" }}</button>
         </div>
@@ -1218,6 +1218,15 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
 .pm-proj { flex-shrink: 0; max-width: 190px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); font-family: inherit; outline: none; cursor: pointer; }
 .pm-proj:hover { border-color: var(--accent); }
 .pm-proj:focus { border-color: var(--accent); color: var(--text); }
+/* B1-c（V3.8.26）：任务选择器 / 导出弹窗 8 处模板内联样式收口，值逐字等价。
+   组合选择器用于压过 .search-box / .picker-modal / .modal-footer-row 的既有规则。 */
+.search-box.pm-search-flat { margin: 0; }
+.picker-modal.pm-modal-export { width: 400px; }
+.pm-date-row { display: flex; gap: 8px; align-items: center; }
+.pm-date-input { flex: 1; }
+.pm-date-sep { color: var(--text-3); }
+.pm-export-desc { margin-top: 10px; }
+.modal-footer-row.pm-modal-footer { display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); justify-content: flex-end; }
 .list-empty { text-align: center; padding: 30px; font-size: var(--fs-body); color: var(--text-3); }
 .ts-label-pm { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin-bottom: 7px; }
 .ts-select-pm { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: var(--fs-body); color: var(--text); border: 1px solid transparent; outline: none; cursor: pointer; font-family: inherit; }

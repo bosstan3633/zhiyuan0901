@@ -114,7 +114,7 @@ function toggleRule(id: string) { openRule.value = openRule.value === id ? null 
           :title="`等长窗口对比：本周有效动作 ${agg.acts} vs 上周 ${prevAgg.acts}`">
           环比上周 {{ fmtPct(deltaActs) }}
         </span>
-        <button v-if="errorCount > 0" class="pi-btn sm line" style="color:var(--warning)"
+        <button v-if="errorCount > 0" class="pi-btn sm line pi-btn-warn"
           @click="emit('open-err')"><Icon name="alert" :size="13"/> 错误 {{ errorCount }}</button>
       </div>
     </div>
@@ -170,7 +170,7 @@ function toggleRule(id: string) { openRule.value = openRule.value === id ? null 
               <span class="gbar"><i :style="{ width: Math.round(g.share * 100) + '%' }"></i></span>
               <span class="n"><b>{{ g.v }}</b> 项 · {{ Math.round(g.share * 100) }}%</span>
             </button>
-            <div v-if="objectives.unassigned" style="font-size:var(--fs-caption);color:var(--text-4)">
+            <div v-if="objectives.unassigned" class="pi-obj-note">
               另有 {{ objectives.unassigned }} 项未归属方向（共 {{ objectives.total }} 项产出）
             </div>
           </div>
@@ -181,15 +181,15 @@ function toggleRule(id: string) { openRule.value = openRule.value === id ? null 
       <!-- 偏离预警（保留：与重复读数无关的确定性规则） -->
       <div v-if="rules.length">
         <div class="pi-sect"><span class="n">2</span><span class="t">偏离预警</span><span class="m">{{ rules.length }} 条命中 · 点规则看阈值与实测</span></div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button v-for="r in rules" :key="r.id" class="pi-chip" style="height:auto;padding:8px 14px;border-radius:var(--radius-md);align-items:flex-start;flex-direction:column;gap:3px;width:100%;text-align:left"
+        <div class="pi-rule-list">
+          <button v-for="r in rules" :key="r.id" class="pi-chip pi-rule-card"
             :class="{ warn: openRule !== r.id }" @click="toggleRule(r.id)">
-            <span style="display:flex;align-items:center;gap:8px;width:100%">
-              <span class="v" style="font-size:var(--fs-sub)">{{ r.id }} {{ r.name }}</span>
-              <span class="l" style="flex:1">{{ r.text }}</span>
+            <span class="pi-rule-head">
+              <span class="v pi-rule-id">{{ r.id }} {{ r.name }}</span>
+              <span class="l pi-rule-text">{{ r.text }}</span>
               <span class="ar">▸</span>
             </span>
-            <span v-if="openRule === r.id" style="font-size:var(--fs-caption);color:var(--text-3);line-height:1.7;padding-left:2px">
+            <span v-if="openRule === r.id" class="pi-rule-body">
               阈值：{{ r.thr }}<br>实测：{{ r.act }}
             </span>
           </button>

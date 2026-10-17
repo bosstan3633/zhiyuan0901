@@ -722,7 +722,7 @@ function addTaskFromHeader() {
       <!-- B27：未归类任务（指标已删除的孤儿任务） -->
       <div v-if="orphanTasks.length" class="metric-sec" id="pd-sec-orphan">
         <div class="metric-head2">
-          <span class="tag" style="flex-shrink:0"><Icon name="warn" :size="13"/> 未归类任务</span>
+          <span class="tag tag-fixed"><Icon name="warn" :size="13"/> 未归类任务</span>
           <span class="mname">原指标已删除 · 可拖回任意指标或删除</span>
         </div>
         <div class="task-rows">
@@ -744,7 +744,7 @@ function addTaskFromHeader() {
       <!-- R49-D4：任务附件区（按任务聚合，复用 AssetBadge 打开逻辑；资源卡本体在资源台管理，此处不呈现） -->
       <div class="metric-sec asset-sec" id="pd-sec-assets">
         <div class="metric-head2">
-          <span class="tag" style="flex-shrink:0"><Icon name="paperclip" :size="13"/> 任务附件</span>
+          <span class="tag tag-fixed"><Icon name="paperclip" :size="13"/> 任务附件</span>
           <span class="mname">按任务聚合 · <Icon name="image" :size="13"/> 图片弹窗预览 / <Icon name="globe" :size="13"/> HTML / <Icon name="book" :size="13"/> PDF 新标签打开</span>
         </div>
         <div class="task-rows">
@@ -821,6 +821,8 @@ function addTaskFromHeader() {
 </template>
 
 <style scoped>
+/* B1-c（V3.8.26）：任务树两枚状态标签不参与收缩（原两处内联 flex-shrink） */
+.tag.tag-fixed { flex-shrink: 0; }
 .page { max-width: 1440px; margin: 0 auto; padding: 20px 36px 64px; }
 /* R117（04-61 C）：内嵌于方向台一级时去掉自身页边距与宽度上限，避免与宿主 .page 双层缩进 */
 .page.is-embedded { max-width: none; margin: 0; padding: 0; }

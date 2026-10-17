@@ -348,7 +348,7 @@ function onExport(fmt: ExportFmt): void {
               <span class="sp"></span><span class="meta">{{ TREND_LABEL[trendMode] }}</span></div>
             <div class="bb dz-trend">
               <div class="cap"><span>{{ TREND_LABEL[trendMode] }}加权分</span><span class="sp"></span><span>{{ trendCap }}</span></div>
-              <svg v-if="bars.length" viewBox="0 0 640 76" preserveAspectRatio="xMidYMid meet" style="width:100%;height:76px;display:block">
+              <svg v-if="bars.length" viewBox="0 0 640 76" preserveAspectRatio="xMidYMid meet" class="rp-chart">
                 <rect v-for="(b, i) in bars" :key="i" :x="(640 / bars.length) * i + 2" :y="63 - b.h" :width="Math.max(2, 640 / bars.length - 4)" :height="b.h" rx="2" :fill="`var(--heat-${b.lv})`">
                   <title>{{ b.label }} · {{ b.w }} 分</title>
                 </rect>

@@ -110,9 +110,9 @@ const highCooling = computed(() => props.lcCards.filter(c => lifecycleState(c) =
             @open-log="emit('open-battle', $event)" />
           <div class="pi-hm-legend">
             <span>少</span>
-            <span class="s" style="background:var(--heat-0)"></span><span class="s" style="background:var(--heat-1)"></span>
-            <span class="s" style="background:var(--heat-2)"></span><span class="s" style="background:var(--heat-3)"></span>
-            <span class="s" style="background:var(--heat-4)"></span><span class="s" style="background:var(--heat-5)"></span>
+            <span class="s s-h0"></span><span class="s s-h1"></span>
+            <span class="s s-h2"></span><span class="s s-h3"></span>
+            <span class="s s-h4"></span><span class="s s-h5"></span>
             <span>多</span>
             <span class="hm-stats">活跃 <b>{{ ya.act }}</b> 天 · 最长连续 <b>{{ ls }}</b> 天<template v-if="ya.peak"> · 单日峰值 <b>{{ ya.peak[1] }}</b> 分（{{ ya.peak[0].slice(5) }}）</template></span>
           </div>
@@ -124,7 +124,7 @@ const highCooling = computed(() => props.lcCards.filter(c => lifecycleState(c) =
         <div class="pi-sect">
           <span class="n">2</span><span class="t">资源生命周期与高价值沉睡证据唤醒</span>
           <span class="m">活跃 / 冷却 / 归档 · 冷却态 <Icon name="flame" :size="13"/> 核心卡置顶</span>
-          <button class="pi-btn sm line" style="margin-left:auto" @click="emit('lc-settings')"><Icon name="settings" :size="13"/> 阈值设置</button>
+          <button class="pi-btn sm line pi-lc-settings" @click="emit('lc-settings')"><Icon name="settings" :size="13"/> 阈值设置</button>
         </div>
         <LifecyclePanel kind="all" :cards="lcCards" :focus="focusFilter"
           @locate="(id, kind) => emit('lc-locate', id, kind)"

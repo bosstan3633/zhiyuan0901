@@ -422,3 +422,26 @@
   .strip4 { grid-template-columns: repeat(2, 1fr); }
   .pi-goal .nm { width: 112px; }
 }
+
+/* B1-c（V3.8.26）：错误计数按钮的警示色（原内联 color），值与原内联等价 */
+.pi-btn-warn { color: var(--warning); }
+
+/* B1-c（V3.8.26）：节律段的偏离预警卡——原 8 处模板内联样式收口，值逐字等价。
+   .pi-rule-id 用 `.pi-chip .pi-rule-id` 提特异性，否则被 `.pi-chip .v` 的 title 字号盖回去。 */
+.pi-obj-note { font-size: var(--fs-caption); color: var(--text-4); }
+.pi-rule-list { display: flex; flex-direction: column; gap: 8px; }
+.pi-chip.pi-rule-card { height: auto; padding: 8px 14px; border-radius: var(--radius-md); align-items: flex-start; flex-direction: column; gap: 3px; width: 100%; text-align: left; }
+.pi-rule-head { display: flex; align-items: center; gap: 8px; width: 100%; }
+.pi-chip .pi-rule-id { font-size: var(--fs-sub); }
+.pi-rule-text { flex: 1; }
+.pi-rule-body { font-size: var(--fs-caption); color: var(--text-3); line-height: 1.7; padding-left: 2px; }
+
+/* B1-c（V3.8.26）：年度热力图图例色阶 + 阈值入口（原 7 处模板内联样式）。
+   图例格子的底色只认 --heat-*，不写死色值，四主题自动跟随。 */
+.pi-hm-legend .s-h0 { background: var(--heat-0); }
+.pi-hm-legend .s-h1 { background: var(--heat-1); }
+.pi-hm-legend .s-h2 { background: var(--heat-2); }
+.pi-hm-legend .s-h3 { background: var(--heat-3); }
+.pi-hm-legend .s-h4 { background: var(--heat-4); }
+.pi-hm-legend .s-h5 { background: var(--heat-5); }
+.pi-lc-settings { margin-left: auto; }
