@@ -13,6 +13,7 @@
  * ★W12-B3 终态化（T6）：四时间模块指标行全部落定 `.strip4`，`.pi-strip-row` 模板与
  *   CSS 双侧清零（迁移期双态结束）。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed } from 'vue'
 import { yearAgg, longestStreak, type ConciseInsight } from '@/shared/utils/reviewReport'
 import { lifecycleState } from '@/shared/utils/lifecycle'
@@ -64,16 +65,16 @@ const highCooling = computed(() => props.lcCards.filter(c => lifecycleState(c) =
 <template>
   <section class="pi-mod" id="mod-year">
     <div class="pi-mod-h">
-      <span class="pi-mod-ico i-year">📅</span>
+      <span class="pi-mod-ico i-year"><Icon name="calendar" :size="13"/></span>
       <div class="pi-mod-t">
         <h2>这一年，你走过什么<span class="en">YEAR</span></h2>
-        <p>全年尺度：诊断看方向、热力看分布、生命周期看流转。点任意一天 → 该日战报。</p>
+        <p>全年尺度：诊断看方向、热力看分布、生命周期看流转。点任意一天 › 该日战报。</p>
       </div>
     </div>
     <div class="pi-mod-b">
       <!-- ① F20 年度诊断条 -->
       <div id="ins-year" class="one-insight" :class="insight.warn ? 'warn' : 'info'">
-        <span class="oi-ic">{{ insight.warn ? '⚠️' : '💡' }}</span>
+        <span class="oi-ic"><Icon v-if="insight.warn" name="warn" :size="15"/><Icon v-else name="bulb" :size="15"/></span>
         <span class="oi-text" v-html="insight.html"></span>
         <button class="act-link" :title="insight.html" @click="emit('insight-action', insight.ctaAction)">
           {{ insight.ctaLabel }}
@@ -102,7 +103,7 @@ const highCooling = computed(() => props.lcCards.filter(c => lifecycleState(c) =
       <div class="pi-hair"></div>
 
       <div>
-        <div class="pi-sect"><span class="n">1</span><span class="t">年度热力图</span><span class="m">全年 53 周 / 近半年 26 周 · 点格 → 该日战报</span></div>
+        <div class="pi-sect"><span class="n">1</span><span class="t">年度热力图</span><span class="m">全年 53 周 / 近半年 26 周 · 点格 › 该日战报</span></div>
         <div class="pi-hmbox">
           <Heatmap :stats="stats" :year="year" :sel-day="selDay" :events="events" :live-link="liveLink"
             @update:year="emit('update:year', $event)" @update:sel-day="emit('update:selDay', $event)"
@@ -122,8 +123,8 @@ const highCooling = computed(() => props.lcCards.filter(c => lifecycleState(c) =
       <div id="lc-sec">
         <div class="pi-sect">
           <span class="n">2</span><span class="t">资源生命周期与高价值沉睡证据唤醒</span>
-          <span class="m">活跃 / 冷却 / 归档 · 冷却态 🔥 核心卡置顶</span>
-          <button class="pi-btn sm line" style="margin-left:auto" @click="emit('lc-settings')">⚙ 阈值设置</button>
+          <span class="m">活跃 / 冷却 / 归档 · 冷却态 <Icon name="flame" :size="13"/> 核心卡置顶</span>
+          <button class="pi-btn sm line" style="margin-left:auto" @click="emit('lc-settings')"><Icon name="settings" :size="13"/> 阈值设置</button>
         </div>
         <LifecyclePanel kind="all" :cards="lcCards" :focus="focusFilter"
           @locate="(id, kind) => emit('lc-locate', id, kind)"

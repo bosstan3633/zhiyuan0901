@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="linear">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>调度热力图与复盘 · 设计方案原型（04-66）· 供审核</title>
+<!-- ⚠ 本文件为 R1 版本，已被 R2 取代。请以 docs/原型_知源仪表盘重构_热力图与复盘.html 为准。
+     R1 → R2 主要差异：① 嵌入点由「调度台周报」改为「设置 → 知源仪表盘」重构；② 热力色阶整体降饱和降亮度；
+     ③ 日详情四类指标可下钻出内容卡片（单击看详情 / 双击直达链接）；④ AI 复盘移到复盘标题旁并改为中央弹框 + 六层金字塔；
+     ⑤ 新增导出三件套（CSV / Markdown / PNG）；⑥ 全部可交互元素带 [data-i]，可一键高亮圈出。
+     保留本文件仅作版本留痕。 -->
+<style>
+/* ============================================================
+   令牌：逐字取自 v2/src/shared/styles/tokens.css（四主题真值）
+   字号只走 --fs-* 阶 · 圆角只走 --radius-* 阶 · 间距只走 --sp-* 阶
+   ★ 新增令牌组 --heat-0..--heat-5（热力色阶，四主题各一份）
+     —— 刻意不复用 --accent：accent 四主题为紫/蓝/紫/紫，会让热力图
+        在 3 个主题下变紫，违背"科技蓝"要求；且需 5 档同色相阶梯。
+   ============================================================ */
+:root{
+  --fs-micro:9px; --fs-tiny:10px; --fs-caption:11px; --fs-sub:12px; --fs-body:13px;
+  --fs-title:15px; --fs-headline:17px; --fs-display:22px;
+  --lh-micro:1.4; --lh-tiny:1.45; --lh-caption:1.5; --lh-sub:1.5; --lh-body:1.55;
+  --lh-title:1.35; --lh-headline:1.3; --lh-display:1.2;
+  --tracking-sm:.04em;
+  --radius-xl:18px; --radius-lg:14px; --radius:12px; --radius-md:10px; --radius-sm:8px; --radius-xs:4px;
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px;
+  --icon-sm:12px; --icon-md:14px; --icon-lg:16px;
+  --dur-fast:120ms; --dur:150ms; --dur-slow:250ms;
+  --ease-out-soft:cubic-bezier(.2,.8,.2,1); --ease-emphasis:cubic-bezier(.16,1,.3,1);
+  --scrim-modal:rgba(0,0,0,.45);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+}
+[data-theme='linear']{
+  --bg:#0D0E11; --surface:#14161B; --surface-2:#1A1D24; --surface-3:#1C1F26;
+  --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.14);
+  --text:rgba(255,255,255,.92); --text-2:rgba(255,255,255,.70); --text-3:rgba(255,255,255,.50); --text-4:rgba(255,255,255,.32);
+  --accent:#5E6AD2; --accent-2:#7A85E0; --accent-light:rgba(94,106,210,.16); --accent-hover:#828FFF; --accent-glow:rgba(109,92,232,.40);
+  --success:#27A644; --warning:#D9A03C; --danger:#E5484D;
+  --tag-neutral-bg:rgba(255,255,255,.06); --tag-neutral-text:rgba(255,255,255,.50);
+  --tag-ok-bg:rgba(39,166,68,.15); --tag-ok-text:#6FCE8B; --tag-warn-bg:rgba(217,160,60,.14); --tag-warn-text:#EFBE66;
+  --tag-info-bg:rgba(91,141,239,.15); --tag-info-text:#9CC0F5;
+  --success-bg-soft:rgba(39,166,68,.10); --warning-bg-soft:rgba(217,160,60,.10); --danger-bg-soft:rgba(229,72,77,.10);
+  --danger-border:rgba(229,72,77,.40);
+  --shadow-modal:0 2px 10px rgba(0,0,0,.35),0 28px 72px rgba(0,0,0,.60);
+  --heat-0:rgba(255,255,255,.045); --heat-1:#16305C; --heat-2:#1F4A87; --heat-3:#2A67B8; --heat-4:#3B8AE0; --heat-5:#5AA9FF;
+  --heat-ring:rgba(90,169,255,.55);
+}
+[data-theme='raycast']{
+  --bg:#08080A; --surface:#101014; --surface-2:#16161B; --surface-3:#1B1B21;
+  --border:rgba(255,255,255,.12); --border-strong:rgba(255,255,255,.18);
+  --text:rgba(255,255,255,.95); --text-2:rgba(255,255,255,.72); --text-3:rgba(255,255,255,.52); --text-4:rgba(255,255,255,.34);
+  --accent:#1E6FD9; --accent-2:#3D8BEA; --accent-light:rgba(30,111,217,.16); --accent-hover:#3E86E0; --accent-glow:rgba(30,111,217,.45);
+  --success:#27A644; --warning:#D9A03C; --danger:#E5484D;
+  --tag-neutral-bg:rgba(255,255,255,.08); --tag-neutral-text:rgba(255,255,255,.52);
+  --tag-ok-bg:rgba(39,166,68,.15); --tag-ok-text:#6FCE8B; --tag-warn-bg:rgba(217,160,60,.14); --tag-warn-text:#EFBE66;
+  --tag-info-bg:rgba(91,141,239,.15); --tag-info-text:#9CC0F5;
+  --success-bg-soft:rgba(39,166,68,.10); --warning-bg-soft:rgba(217,160,60,.10); --danger-bg-soft:rgba(229,72,77,.10);
+  --danger-border:rgba(229,72,77,.40);
+  --shadow-modal:0 2px 10px rgba(0,0,0,.40),0 28px 72px rgba(0,0,0,.70);
+  --heat-0:rgba(255,255,255,.06); --heat-1:#183663; --heat-2:#22539A; --heat-3:#2C74CB; --heat-4:#3F95EF; --heat-5:#66B4FF;
+  --heat-ring:rgba(102,180,255,.6);
+}
+[data-theme='apple']{
+  --bg:#F5F5F7; --surface:#FFFFFF; --surface-2:#EFEFF2; --surface-3:#EAEAEF;
+  --border:rgba(0,0,0,.09); --border-strong:rgba(0,0,0,.15);
+  --text:rgba(0,0,0,.90); --text-2:rgba(0,0,0,.62); --text-3:rgba(0,0,0,.46); --text-4:rgba(0,0,0,.28);
+  --accent:#8452E0; --accent-2:#6C3FC8; --accent-light:#EFEBFB; --accent-hover:#6C3FC8; --accent-glow:rgba(132,82,224,.18);
+  --success:#27A644; --warning:#A66A00; --danger:#D0342C;
+  --tag-neutral-bg:#EFEFF2; --tag-neutral-text:rgba(0,0,0,.46);
+  --tag-ok-bg:#E4F2E8; --tag-ok-text:#2E7D42; --tag-warn-bg:#FBF1DE; --tag-warn-text:#8A5A00;
+  --tag-info-bg:#EFEBFB; --tag-info-text:#6C3FC8;
+  --success-bg-soft:rgba(39,166,68,.08); --warning-bg-soft:rgba(166,106,0,.10); --danger-bg-soft:rgba(208,52,44,.08);
+  --danger-border:rgba(208,52,44,.35);
+  --shadow-modal:0 2px 10px rgba(0,0,0,.06),0 28px 72px rgba(0,0,0,.16);
+  --heat-0:#EDEFF3; --heat-1:#D6E4FA; --heat-2:#A9C8F2; --heat-3:#6FA5E6; --heat-4:#2F72CE; --heat-5:#0B4F9E;
+  --heat-ring:rgba(11,79,158,.45);
+}
+[data-theme='notion']{
+  --bg:#F7F6F3; --surface:#FFFFFF; --surface-2:#F2F0EB; --surface-3:#EEEAE3;
+  --border:rgba(40,34,24,.11); --border-strong:rgba(40,34,24,.18);
+  --text:rgba(35,31,25,.90); --text-2:rgba(35,31,25,.64); --text-3:rgba(35,31,25,.52); --text-4:rgba(35,31,25,.30);
+  --accent:#9E3FAF; --accent-2:#85349A; --accent-light:#F6EDF8; --accent-hover:#85349A; --accent-glow:rgba(158,63,175,.18);
+  --success:#448361; --warning:#C08A2D; --danger:#E03E3E;
+  --tag-neutral-bg:#F2F0EB; --tag-neutral-text:rgba(35,31,25,.52);
+  --tag-ok-bg:#E4EFE7; --tag-ok-text:#3F7355; --tag-warn-bg:#F5E9D3; --tag-warn-text:#8A5F1E;
+  --tag-info-bg:#F6EDF8; --tag-info-text:#85349A;
+  --success-bg-soft:rgba(68,131,97,.10); --warning-bg-soft:rgba(192,138,45,.12); --danger-bg-soft:rgba(224,62,62,.08);
+  --danger-border:rgba(224,62,62,.35);
+  --shadow-modal:0 2px 10px rgba(15,15,15,.06),0 28px 72px rgba(15,15,15,.16);
+  --heat-0:#EFEDE8; --heat-1:#D9E5F7; --heat-2:#ACC7EE; --heat-3:#71A3E0; --heat-4:#3271C6; --heat-5:#0D4E96;
+  --heat-ring:rgba(13,78,150,.45);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font:var(--fs-body)/var(--lh-body) var(--font);
+  font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+button,input,select{font-family:inherit;color:inherit}
+button{cursor:pointer}
+::selection{background:var(--accent-glow)}
+:focus-visible{outline:2px solid color-mix(in srgb,var(--accent) 40%,transparent);outline-offset:1px}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}
+
+/* ===== 原型工具条 ===== */
+.bar{position:fixed;top:0;left:0;right:0;z-index:90;display:flex;align-items:center;gap:var(--sp-3);
+  padding:9px var(--sp-4);background:var(--surface);border-bottom:1px solid var(--border);font-size:var(--fs-sub);flex-wrap:wrap}
+.bar .lab{color:var(--text-3);font-size:var(--fs-caption);letter-spacing:var(--tracking-sm)}
+.seg{display:flex;border:1px solid var(--border-strong);border-radius:var(--radius-sm);overflow:hidden}
+.seg button{padding:5px 11px;background:transparent;border:0;border-right:1px solid var(--border);color:var(--text-2);font-size:var(--fs-sub);white-space:nowrap}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent);color:#fff;font-weight:600}
+.bar .ver{color:var(--text-3);margin-left:auto;font-size:var(--fs-caption)}
+details.spec{position:relative}
+details.spec summary{list-style:none;cursor:pointer;padding:5px 11px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);color:var(--accent-2);font-size:var(--fs-sub)}
+details.spec summary::-webkit-details-marker{display:none}
+.spec-body{position:fixed;right:var(--sp-4);top:52px;width:720px;max-width:94vw;max-height:84vh;overflow:auto;
+  background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius);box-shadow:var(--shadow-modal);
+  padding:var(--sp-4) var(--sp-5);font-size:var(--fs-sub);line-height:1.75;color:var(--text-2);z-index:95}
+.spec-body h4{margin:var(--sp-4) 0 var(--sp-1);color:var(--text);font-size:var(--fs-title)}
+.spec-body h4:first-child{margin-top:0}
+.spec-body ul{margin:var(--sp-1) 0;padding-left:18px}
+.spec-body li{margin:4px 0}
+.spec-body code{color:var(--accent-2);background:var(--accent-light);padding:1px 5px;border-radius:var(--radius-xs);font-size:var(--fs-caption)}
+.spec-body .q{color:var(--text);font-weight:600}
+.spec-body table{width:100%;border-collapse:collapse;margin:var(--sp-2) 0;font-size:var(--fs-caption)}
+.spec-body th,.spec-body td{border:1px solid var(--border);padding:4px 7px;text-align:left}
+.spec-body th{color:var(--text-3);font-weight:500}
+
+/* ===== 台面 ===== */
+.stage{padding-top:52px;min-height:100vh}
+.wrap{max-width:1440px;margin:0 auto;padding:var(--sp-5) var(--sp-6) var(--sp-7)}
+
+/* ===== 浮层壳 ===== */
+.ov{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);box-shadow:var(--shadow-modal);overflow:hidden}
+.ov-head{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-4) var(--sp-5);border-bottom:1px solid var(--border)}
+.ov-head .ic{width:26px;height:26px;display:grid;place-items:center;border-radius:var(--radius-sm);background:var(--heat-4);color:#fff;font-size:var(--fs-sub);font-weight:700}
+.ov-head h1{margin:0;font-size:var(--fs-headline);font-weight:600;letter-spacing:-.01em}
+.ov-head .sub{color:var(--text-3);font-size:var(--fs-caption);margin-top:2px}
+.ov-head .sp{flex:1}
+.year-nav{display:flex;align-items:center;gap:var(--sp-1);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:2px}
+.year-nav button{width:24px;height:22px;border:0;background:transparent;color:var(--text-2);border-radius:var(--radius-xs);font-size:var(--fs-sub)}
+.year-nav button:hover{background:var(--surface-2);color:var(--text)}
+.year-nav .y{min-width:52px;text-align:center;font-weight:600;font-size:var(--fs-sub)}
+.xbtn{width:26px;height:26px;border:1px solid var(--border);background:transparent;border-radius:var(--radius-sm);color:var(--text-3);font-size:var(--fs-body);line-height:1}
+.xbtn:hover{background:var(--surface-2);color:var(--text)}
+
+.ov-body{padding:var(--sp-5)}
+
+/* ===== ① 热力图 ===== */
+.sec-h{display:flex;align-items:center;gap:var(--sp-2);margin:0 0 var(--sp-3)}
+.sec-h .n{width:18px;height:18px;border-radius:var(--radius-xs);background:var(--surface-2);border:1px solid var(--border);
+  display:grid;place-items:center;font-size:var(--fs-micro);color:var(--text-3)}
+.sec-h .t{font-size:var(--fs-title);font-weight:600}
+.sec-h .en{font-size:var(--fs-caption);color:var(--text-4);letter-spacing:.08em}
+.sec-h .sp{flex:1}
+
+.sum{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-3);margin-bottom:var(--sp-4)}
+.sum .c{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--sp-3) var(--sp-4)}
+.sum .k{font-size:var(--fs-caption);color:var(--text-3);letter-spacing:var(--tracking-sm)}
+.sum .v{font-size:var(--fs-display);font-weight:600;letter-spacing:-.02em;line-height:1.25;margin-top:2px}
+.sum .u{font-size:var(--fs-caption);color:var(--text-4);font-weight:400;margin-left:3px}
+.sum .d{font-size:var(--fs-caption);color:var(--text-3);margin-top:2px}
+
+.months{display:grid;grid-template-columns:repeat(6,1fr);gap:var(--sp-4) var(--sp-5)}
+.mb .mb-h{display:flex;align-items:baseline;gap:6px;margin-bottom:6px}
+.mb .mb-h .m{font-size:var(--fs-sub);font-weight:600}
+.mb .mb-h .s{font-size:var(--fs-tiny);color:var(--text-4);margin-left:auto}
+.mb .wk{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px}
+.mb .wk span{font-size:var(--fs-micro);color:var(--text-4);text-align:center;line-height:1.6}
+.mb .g{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cell{aspect-ratio:1;border-radius:3px;background:var(--heat-0);cursor:pointer;position:relative;
+  transition:transform var(--dur-fast) var(--ease-out-soft)}
+.cell.void{background:transparent;cursor:default}
+.cell.future{background:transparent;cursor:default;border:1px dashed var(--border)}
+.cell:not(.void):not(.future):hover{transform:scale(1.22);z-index:2;box-shadow:0 0 0 1.5px var(--heat-ring)}
+.cell.l0{background:var(--heat-0)}
+.cell.l1{background:var(--heat-1)} .cell.l2{background:var(--heat-2)} .cell.l3{background:var(--heat-3)}
+.cell.l4{background:var(--heat-4)} .cell.l5{background:var(--heat-5)}
+.cell.today{box-shadow:0 0 0 1.5px var(--text)}
+.cell.sel{box-shadow:0 0 0 2px var(--heat-ring)}
+
+.legend{display:flex;align-items:center;gap:var(--sp-3);margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--border);flex-wrap:wrap}
+.legend .lg{display:flex;align-items:center;gap:5px;font-size:var(--fs-caption);color:var(--text-3)}
+.legend .sw{width:13px;height:13px;border-radius:3px}
+.legend .note{font-size:var(--fs-caption);color:var(--text-4);margin-left:auto}
+
+/* ===== ② 日详情 ===== */
+.day{margin-top:var(--sp-5);border:1px solid var(--border-strong);border-radius:var(--radius-lg);overflow:hidden;animation:fadeIn var(--dur-slow) var(--ease-out-soft)}
+.day-head{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4);background:var(--surface-2);border-bottom:1px solid var(--border)}
+.day-head .d{font-size:var(--fs-title);font-weight:600}
+.day-head .w{font-size:var(--fs-caption);color:var(--text-3)}
+.badge{display:inline-flex;align-items:center;gap:4px;border-radius:var(--radius-xs);padding:2px 6px;font-size:var(--fs-caption);
+  font-weight:500;letter-spacing:var(--tracking-sm);background:var(--tag-info-bg);color:var(--tag-info-text)}
+.badge.l5{background:var(--heat-5);color:#fff}
+.badge.l4{background:var(--heat-4);color:#fff}
+.badge.l3{background:var(--tag-info-bg);color:var(--tag-info-text)}
+.day-head .sp{flex:1}
+.cols{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-3);padding:var(--sp-4)}
+.col{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--sp-3)}
+.col .h{font-size:var(--fs-caption);color:var(--text-3);letter-spacing:var(--tracking-sm);display:flex;align-items:center;gap:5px}
+.col .h .dot{width:6px;height:6px;border-radius:50%;background:var(--heat-4)}
+.col .n{font-size:var(--fs-display);font-weight:600;letter-spacing:-.02em;line-height:1.3;margin-top:2px}
+.col .n small{font-size:var(--fs-caption);font-weight:400;color:var(--text-3);margin-left:2px}
+.col .sc{font-size:var(--fs-sub);color:var(--heat-4);font-weight:600;margin-bottom:var(--sp-2)}
+.col .bd{font-size:var(--fs-tiny);color:var(--text-3);line-height:1.7}
+.col .bd b{color:var(--text-2);font-weight:500}
+.tl{padding:0 var(--sp-4) var(--sp-4)}
+.tl .th{font-size:var(--fs-caption);color:var(--text-3);margin-bottom:var(--sp-2);letter-spacing:var(--tracking-sm)}
+.tl .row{display:flex;align-items:center;gap:var(--sp-3);padding:5px 0;border-bottom:1px solid var(--border);font-size:var(--fs-sub)}
+.tl .row:last-child{border-bottom:0}
+.tl .tm{color:var(--text-4);font-size:var(--fs-caption);width:44px;flex:none}
+.tl .ac{width:58px;flex:none;font-size:var(--fs-caption);color:var(--text-3)}
+.tl .ti{flex:1;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl .pt{color:var(--heat-4);font-weight:600;font-size:var(--fs-caption)}
+.day-foot{display:flex;justify-content:flex-end;gap:var(--sp-2);padding:0 var(--sp-4) var(--sp-4)}
+
+/* ===== ③ 复盘 ===== */
+.rev{margin-top:var(--sp-5);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+.rev-head{padding:var(--sp-4);background:var(--surface-2);border-bottom:1px solid var(--border)}
+.tabs{display:flex;gap:var(--sp-1);flex-wrap:wrap}
+.tabs button{padding:6px 13px;border:1px solid var(--border);background:transparent;color:var(--text-2);
+  border-radius:var(--radius-sm);font-size:var(--fs-sub)}
+.tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.ctl{display:flex;align-items:center;gap:var(--sp-3);margin-top:var(--sp-3);flex-wrap:wrap}
+.ctl .pn{display:flex;align-items:center;gap:var(--sp-1);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:2px}
+.ctl .pn button{width:24px;height:22px;border:0;background:transparent;color:var(--text-2);border-radius:var(--radius-xs)}
+.ctl .pn button:hover{background:var(--surface-3)}
+.ctl .pn .v{min-width:130px;text-align:center;font-size:var(--fs-sub);font-weight:500}
+.ctl input[type=date],.ctl select{padding:5px 9px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);
+  background:var(--surface);font-size:var(--fs-sub)}
+.ctl .hint{font-size:var(--fs-caption);color:var(--text-4)}
+.rev-body{padding:var(--sp-5);display:flex;flex-direction:column;gap:var(--sp-5)}
+
+.blk .bh{display:flex;align-items:center;gap:var(--sp-2);margin-bottom:var(--sp-3)}
+.blk .bh .n{font-size:var(--fs-caption);color:var(--text-4);letter-spacing:.08em}
+.blk .bh .t{font-size:var(--fs-title);font-weight:600}
+.blk .bh .tag{font-size:var(--fs-micro);border-radius:var(--radius-xs);padding:1px 5px;background:var(--tag-neutral-bg);color:var(--tag-neutral-text)}
+.blk .bh .tag.ai{background:var(--accent-light);color:var(--accent-2)}
+.blk .bh .tag.rule{background:var(--tag-info-bg);color:var(--tag-info-text)}
+.blk .bh .sp{flex:1}
+
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:var(--sp-3)}
+.kpi{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--sp-3)}
+.kpi .k{font-size:var(--fs-caption);color:var(--text-3)}
+.kpi .v{font-size:var(--fs-headline);font-weight:600;letter-spacing:-.02em;margin-top:2px}
+.kpi .v small{font-size:var(--fs-caption);font-weight:400;color:var(--text-3);margin-left:3px}
+.kpi .c{font-size:var(--fs-caption);margin-top:2px;color:var(--text-3)}
+.kpi .c.up{color:var(--danger)} .kpi .c.down{color:var(--success)}
+
+.trend{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--sp-3) var(--sp-4)}
+.trend .cap{display:flex;align-items:center;gap:var(--sp-3);font-size:var(--fs-caption);color:var(--text-3);margin-bottom:var(--sp-2)}
+.trend .cap .sp{flex:1}
+
+.obj{display:flex;flex-direction:column;gap:var(--sp-2)}
+.obj .o{display:grid;grid-template-columns:150px 1fr 92px;gap:var(--sp-3);align-items:center;
+  background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--sp-3) var(--sp-4)}
+.obj .o .nm{font-size:var(--fs-sub);font-weight:600;display:flex;align-items:center;gap:6px}
+.obj .o .nm .f{font-size:var(--fs-micro);border-radius:var(--radius-xs);padding:1px 4px;background:var(--heat-4);color:#fff}
+.obj .bar{height:8px;border-radius:4px;background:var(--heat-0);overflow:hidden}
+.obj .bar i{display:block;height:100%;background:var(--heat-4);border-radius:4px}
+.obj .o .n{font-size:var(--fs-caption);color:var(--text-3);text-align:right}
+.obj .o .n b{color:var(--text);font-size:var(--fs-sub)}
+
+.rules{display:flex;flex-direction:column;gap:var(--sp-2)}
+.rule{display:flex;gap:var(--sp-3);align-items:flex-start;background:var(--warning-bg-soft);border:1px solid var(--warning-border);
+  border-radius:var(--radius-md);padding:var(--sp-3) var(--sp-4)}
+.rule .rid{font-size:var(--fs-caption);font-weight:700;color:var(--warning);flex:none;width:22px}
+.rule .rb{flex:1}
+.rule .rt{font-size:var(--fs-sub);font-weight:600;color:var(--text)}
+.rule .rd{font-size:var(--fs-caption);color:var(--text-2);margin-top:2px;line-height:1.6}
+.rule .rv{font-size:var(--fs-tiny);color:var(--text-4);margin-top:3px}
+.rule.ok{background:var(--success-bg-soft);border-color:var(--success-border)}
+.rule.ok .rid{color:var(--success)}
+
+.ai-empty{border:1px dashed var(--border-strong);border-radius:var(--radius-md);padding:var(--sp-5);text-align:center;color:var(--text-3);font-size:var(--fs-sub)}
+.ai-run{display:flex;align-items:center;justify-content:center;gap:var(--sp-2);padding:var(--sp-5);color:var(--text-2);font-size:var(--fs-sub)}
+.spin{width:13px;height:13px;border:2px solid var(--border-strong);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.ai-out{display:flex;flex-direction:column;gap:var(--sp-3)}
+.ai-out .p{background:var(--surface-2);border:1px solid var(--border);border-left:2px solid var(--accent);
+  border-radius:var(--radius-sm);padding:var(--sp-3) var(--sp-4);font-size:var(--fs-sub);line-height:1.75;color:var(--text-2)}
+.ai-out .p b{color:var(--text)}
+.sug{display:flex;gap:var(--sp-3);align-items:flex-start;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius-md);padding:var(--sp-3) var(--sp-4)}
+.sug .sn{width:20px;height:20px;flex:none;border-radius:var(--radius-xs);background:var(--accent-light);color:var(--accent-2);
+  display:grid;place-items:center;font-size:var(--fs-caption);font-weight:700}
+.sug .sb{flex:1}
+.sug .st{font-size:var(--fs-sub);font-weight:600}
+.sug .sd{font-size:var(--fs-caption);color:var(--text-3);margin-top:2px;line-height:1.6}
+.sug .sa{margin-left:auto;display:flex;gap:var(--sp-1)}
+.btn{padding:5px 11px;border:1px solid var(--border-strong);background:transparent;border-radius:var(--radius-sm);
+  font-size:var(--fs-caption);color:var(--text-2);white-space:nowrap}
+.btn:hover{background:var(--surface-3);color:var(--text)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.pri:hover{background:var(--accent-hover)}
+.btn.ghost{border-color:transparent;color:var(--text-3)}
+.btn.ghost:hover{color:var(--danger)}
+
+.tip{position:fixed;z-index:99;pointer-events:none;background:var(--surface);border:1px solid var(--border-strong);
+  border-radius:var(--radius-sm);box-shadow:var(--shadow-modal);padding:var(--sp-2) var(--sp-3);font-size:var(--fs-caption);
+  color:var(--text-2);opacity:0;transition:opacity var(--dur-fast);max-width:250px}
+.tip.on{opacity:1}
+.tip .tt{color:var(--text);font-weight:600;margin-bottom:2px}
+.tip .tl2{line-height:1.65}
+.tip .tl2 b{color:var(--heat-4)}
+
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(8px);z-index:120;
+  background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-sm);
+  box-shadow:var(--shadow-modal);padding:var(--sp-2) var(--sp-4);font-size:var(--fs-sub);color:var(--text-2);
+  opacity:0;pointer-events:none;transition:all var(--dur) var(--ease-out-soft)}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:1200px){
+  .months{grid-template-columns:repeat(4,1fr)}
+  .sum,.kpis{grid-template-columns:repeat(2,1fr)}
+  .cols{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <span class="lab">主题</span>
+  <div class="seg" id="segTheme">
+    <button data-t="linear" class="on">深空薰衣草</button>
+    <button data-t="raycast">光速黑</button>
+    <button data-t="apple">极简白</button>
+    <button data-t="notion">纸墨白</button>
+  </div>
+  <details class="spec">
+    <summary>设计说明与待拍板项</summary>
+    <div class="spec-body">
+      <h4>这份原型要审什么</h4>
+      <ul>
+        <li>三区结构：① 年度热力图（月为块 / 天为格）② 点击某天的分类行为面板（总数 + 分数）③ 四范围复盘。</li>
+        <li>嵌入位置：<code>CompassHome.vue:1020</code> 现有「📊 周报」升级为「📈 复盘」，宿主 <code>WeeklyReportOverlay.vue</code> 升级为 <code>ReviewOverlay.vue</code>。入口零新增。</li>
+      </ul>
+      <h4>★ 必须先解决的两个架构缺口</h4>
+      <ul>
+        <li><span class="q">缺口一：调出维度没有历史。</span><code>eventLog.ts:36</code> 的 <code>action</code> 只有 create/delete/restore/purge/status，<b>没有 call</b>；<code>lastCalledAt</code> 只留最后一次、<code>stats.lastVisits</code> 是本周计数 —— 三者都无法反推历史每日调出。<b>结论：必须新增 <code>call</code> 事件</b>，且上线前的日子调出维度无法回溯，图例显式标注「数据完整自 YYYY-MM-DD 起」。</li>
+        <li><span class="q">缺口二：事件日志 5000 条上限装不下一年。</span><code>EVENT_LOG_CAP = 5000</code> 滚动淘汰 ⇒ 重度用户一年会丢历史。<b>结论：新增按日聚合键 <code>zy_daily_stats</code></b>（只增不淘汰，365 天≈30KB），与热度键同族"小载荷落盘通道"，不新增 IPC。</li>
+      </ul>
+      <h4>加权公式（本原型的算法）</h4>
+      <table>
+        <tr><th>行为</th><th>分</th><th>行为</th><th>分</th></tr>
+        <tr><td>采集·资源</td><td>1.0</td><td>状态·任务→进行中</td><td>1.5</td></tr>
+        <tr><td>采集·好奇</td><td>1.2</td><td>状态·任务→已完成</td><td><b>3.0</b></td></tr>
+        <tr><td>采集·任务</td><td>1.5</td><td>子任务完成</td><td>0.8</td></tr>
+        <tr><td>调出·任一卡</td><td>1.0</td><td>今日三件事完成</td><td>2.5</td></tr>
+        <tr><td>状态·好奇→探索中</td><td>1.5</td><td>任务↔资源关联采纳</td><td>1.0</td></tr>
+        <tr><td>状态·好奇→已求证</td><td>2.5</td><td>状态·好奇→已搁置</td><td>0.5</td></tr>
+      </table>
+      <p>日加权分 W = Σ 行为分；强度指数 = min(100, W/40×100)。<br>分档：L0=0 ｜ L1=1~8 ｜ L2=9~18 ｜ L3=19~32 ｜ L4=33~52 ｜ L5=≥53。<br>防刷分：同卡同日第 2 次起调出按 0.5；采集后 24h 内即删按 0.3。</p>
+      <h4>热力色阶（新增令牌组）</h4>
+      <p>新增 <code>--heat-0..--heat-5</code>，四主题各一份，<b>刻意不复用 <code>--accent</code></b>：accent 四主题为紫/蓝/紫/紫，会让热力图在 3 个主题下变紫，违背"科技蓝"要求；且需 5 档同色相阶梯。</p>
+      <p><span class="q">与"越浅越白"的取舍（Q1）</span>：浅色主题字面成立（空=近白、高=深蓝）；深色主题若严格"越浅越白"，则<b>最不活跃的日子最白</b>，深色画布上会铺满白块、信息方向被反转。本原型取 <b>Q1-A 主题自适应</b>：保持"越活跃越显眼"，深色下"深浅"映射为饱和度/亮度递增。</p>
+      <h4>复盘框架</h4>
+      <ul>
+        <li>四范围：周 / 月 / 自定义区间 / 项目。</li>
+        <li>五段：画像摘要 · 节奏曲线 · 目标对账 · 偏离预警 · 下一步建议。</li>
+        <li><b>规则给事实，AI 给点评</b>：偏离预警走 8 条规则引擎（非 AI、可断言），第 ⑤ 段与总评才走 AI（<code>buildReviewJob</code>，registry 23→24）。</li>
+        <li>投料边界（红线）：只投 愿景/使命/战略目标文本 + 聚合统计 + 规则命中项 + 少量卡片标题样本，<b>不投全库</b>。</li>
+      </ul>
+      <h4>待你拍板</h4>
+      <ul>
+        <li><b>Q1</b> 色阶方向：<b>A 主题自适应</b>（本原型）／ B 四主题都用浅色纸面。</li>
+        <li><b>Q2</b> 分级口径：<b>A 固定阈值</b>（跨年可比，本原型）／ B 年内分位数。</li>
+        <li><b>Q3</b> 权重表是否接受「任务完成 3.0 &gt; 好奇求证 2.5 &gt; 采集 1.0」的价值排序。</li>
+        <li><b>Q4</b> 是否新增 <code>call</code> 事件（不加则调出维度永远无历史）。</li>
+        <li><b>Q5</b> 入口文案：「📈 复盘」／保留「📊 周报」／「📊 调度画像」。</li>
+        <li><b>Q6</b> 本期不做导出/分享 —— 是否同意。</li>
+      </ul>
+    </div>
+  </details>
+  <span class="ver">04-66 · 调度热力图与复盘 · 原型 v1 · 2026-09-27 · 数据为演示用合成数据</span>
+</div>
+
+<div class="stage"><div class="wrap">
+<div class="ov">
+  <div class="ov-head">
+    <span class="ic">复</span>
+    <div>
+      <h1>调度复盘</h1>
+      <div class="sub">这一年我是怎么走的 · 数据完整自 2026-01-01 起</div>
+    </div>
+    <span class="sp"></span>
+    <div class="year-nav">
+      <button id="yPrev" title="上一年">‹</button>
+      <span class="y" id="yLabel">2026</span>
+      <button id="yNext" title="下一年">›</button>
+    </div>
+    <button class="xbtn" title="关闭（Esc）">×</button>
+  </div>
+
+  <div class="ov-body">
+    <!-- ① 热力图 -->
+    <div class="sec-h">
+      <span class="n">1</span><span class="t">年度热力图</span><span class="en">ANNUAL HEATMAP</span>
+      <span class="sp"></span>
+      <span class="badge" id="rangeTag">2026-01-01 → 2026-09-27</span>
+    </div>
+    <div class="sum" id="sum"></div>
+    <div class="months" id="months"></div>
+    <div class="legend">
+      <span class="lg">低</span>
+      <span class="sw" style="background:var(--heat-0)"></span>
+      <span class="sw" style="background:var(--heat-1)"></span>
+      <span class="sw" style="background:var(--heat-2)"></span>
+      <span class="sw" style="background:var(--heat-3)"></span>
+      <span class="sw" style="background:var(--heat-4)"></span>
+      <span class="sw" style="background:var(--heat-5)"></span>
+      <span class="lg">高</span>
+      <span class="lg" style="margin-left:var(--sp-2)">L1 1–8 分 · L2 9–18 · L3 19–32 · L4 33–52 · L5 ≥53</span>
+      <span class="note" id="legendNote">调出维度自 2026-01-01 起完整（需新增 call 事件）</span>
+    </div>
+
+    <!-- ② 日详情（点击某天后展开） -->
+    <div id="dayHost"></div>
+
+    <!-- ③ 复盘 -->
+    <div class="rev">
+      <div class="rev-head">
+        <div class="sec-h" style="margin-bottom:var(--sp-3)">
+          <span class="n">3</span><span class="t">复盘</span><span class="en">REVIEW</span>
+        </div>
+        <div class="tabs" id="tabs">
+          <button data-r="week" class="on">周复盘</button>
+          <button data-r="month">月复盘</button>
+          <button data-r="custom">自定义区间</button>
+          <button data-r="project">项目复盘</button>
+        </div>
+        <div class="ctl" id="ctl"></div>
+      </div>
+      <div class="rev-body" id="revBody"></div>
+    </div>
+  </div>
+</div>
+</div></div>
+
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   演示数据：确定性合成（同一 seed 每次刷新一致）
+   真实实现里这些数字全部来自 zy_daily_stats / zy_event_log
+   ============================================================ */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const WD=['一','二','三','四','五','六','日'];
+const TODAY=new Date(2026,8,27); // 2026-09-27
+
+/** 行为分值表（与设计文档 3.4 一致） */
+const W={cRes:1.0,cCurio:1.2,cTask:1.5,call:1.0,
+  sCurioDoing:1.5,sCurioDone:2.5,sCurioShelf:0.5,sTaskDoing:1.5,sTaskDone:3.0,
+  subtask:0.8,focus:2.5,link:1.0};
+
+function genDay(rnd,k){
+  const r=(n)=>Math.max(0,Math.round(rnd()*n*k));
+  const cRes=r(3.2),cCurio=r(2.2),cTask=r(1.4);
+  const u=r(6)+Math.round(1.2*k);
+  const sDoing=r(1.8),sDone=r(1.3),sShelf=rnd()<.25*k?1:0;
+  const tDoing=r(1.4),tDone=r(1.1);
+  const sub=r(2.4),focus=rnd()<.45*k?1:0,link=r(1.2);
+  const s={curio:sDoing+sDone+sShelf,task:tDoing+tDone};
+  const c={res:cRes,curio:cCurio,task:cTask};
+  const d=tDone>0||sub>0||focus>0?sub+focus+link:link;
+  const w=Math.round((cRes*W.cRes+cCurio*W.cCurio+cTask*W.cTask
+    +u*W.call
+    +sDoing*W.sCurioDoing+sDone*W.sCurioDone+sShelf*W.sCurioShelf
+    +tDoing*W.sTaskDoing+tDone*W.sTaskDone
+    +sub*W.subtask+focus*W.focus+link*W.link)*10)/10;
+  return {c,u,s,d,w,sub,focus,link,sDoing,sDone,sShelf,tDoing,tDone};
+}
+function emptyDay(){return {c:{res:0,curio:0,task:0},u:0,s:{curio:0,task:0},d:0,w:0,sub:0,focus:0,link:0,sDoing:0,sDone:0,sShelf:0,tDoing:0,tDone:0}}
+
+function genYear(year){
+  const rnd=mulberry32(year*7919+13),days={};
+  const end=new Date(year,11,31);
+  for(let d=new Date(year,0,1);d<=end;d.setDate(d.getDate()+1)){
+    const key=ymd(d);
+    if(year===2026&&d>TODAY)continue;
+    const dow=(d.getDay()+6)%7;
+    let p=dow<5?.88:(dow===5?.55:.45);
+    const md=(d.getMonth()+1)*100+d.getDate();
+    if(md>=215&&md<=221)p*=.25;              // 春节
+    if(md>=1001&&md<=1007)p*=.4;             // 国庆
+    if(md>=101&&md<=103)p*=.45;              // 元旦
+    if(rnd()>p){days[key]=emptyDay();continue}
+    const t=rnd();
+    const k=t<.40?(.25+rnd()*.5):t<.78?(.8+rnd()*.6):t<.94?(1.4+rnd()*.7):(2.1+rnd()*1.3);
+    days[key]=genDay(rnd,k);
+  }
+  return days;
+}
+const YEARS={}; const yearData=y=>YEARS[y]||(YEARS[y]=genYear(y));
+const levelOf=w=>!w?0:w<=8?1:w<=18?2:w<=32?3:w<=52?4:5;
+
+/** 分项得分 */
+const scCreate=d=>d.c.res*W.cRes+d.c.curio*W.cCurio+d.c.task*W.cTask;
+const scCall=d=>d.u*W.call;
+const scStatus=d=>d.sDoing*W.sCurioDoing+d.sDone*W.sCurioDone+d.sShelf*W.sCurioShelf+d.tDoing*W.sTaskDoing+d.tDone*W.sTaskDone;
+const scDeliver=d=>d.sub*W.subtask+d.focus*W.focus+d.link*W.link;
+const f1=n=>(Math.round(n*10)/10).toFixed(1);
+
+/* ============================================================
+   ① 热力图渲染
+   ============================================================ */
+let curYear=2026,selKey=null;
+const $=s=>document.querySelector(s);
+
+function daysOfYear(y){return Object.keys(yearData(y)).sort()}
+
+function renderYear(){
+  const y=curYear,data=yearData(y),keys=daysOfYear(y);
+  $('#yLabel').textContent=y;
+  const first=keys[0],last=keys[keys.length-1];
+  $('#rangeTag').textContent=first+' → '+last;
+
+  // 概览
+  const act=keys.filter(k=>data[k].w>0);
+  const totalW=keys.reduce((s,k)=>s+data[k].w,0);
+  let best=null;keys.forEach(k=>{if(!best||data[k].w>data[best].w)best=k});
+  let streak=0,cur=0;
+  const all=new Date(y,0,1),endD=new Date(y,11,31);
+  for(let d=new Date(all);d<=endD;d.setDate(d.getDate()+1)){
+    const k=ymd(d);
+    if(data[k]&&data[k].w>0){cur++;streak=Math.max(streak,cur)}else cur=0;
+  }
+  const L=levelOf(data[best].w);
+  $('#sum').innerHTML=[
+    ['活跃天数',act.length,'天',`全年 ${keys.length} 天 · 覆盖率 ${Math.round(act.length/keys.length*100)}%`],
+    ['加权总分',Math.round(totalW),'分',`日均 ${(totalW/Math.max(1,act.length)).toFixed(1)} 分（按活跃日）`],
+    ['最长连续',streak,'天',streak>=7?'节奏稳定':'存在断档'],
+    ['峰值单日',best.slice(5),`L${L}`,`${data[best].w} 分 · ${best}`],
+  ].map(([k,v,u,d])=>`<div class="c"><div class="k">${k}</div>
+    <div class="v">${v}<span class="u">${u}</span></div><div class="d">${d}</div></div>`).join('');
+
+  // 12 月块
+  let html='';
+  for(let m=0;m<12;m++){
+    const dim=new Date(y,m+1,0).getDate();
+    const firstDow=(new Date(y,m,1).getDay()+6)%7;
+    let cells='';
+    for(let i=0;i<firstDow;i++)cells+='<div class="cell void"></div>';
+    let mw=0;
+    for(let dd=1;dd<=dim;dd++){
+      const dt=new Date(y,m,dd),k=ymd(dt);
+      if(dt>TODAY&&y===2026){cells+='<div class="cell future"></div>';continue}
+      const rec=data[k],lv=levelOf(rec.w);
+      mw+=rec.w;
+      const isToday=(y===TODAY.getFullYear()&&m===TODAY.getMonth()&&dd===TODAY.getDate());
+      cells+=`<div class="cell l${lv}${isToday?' today':''}${selKey===k?' sel':''}" data-k="${k}"></div>`;
+    }
+    html+=`<div class="mb"><div class="mb-h"><span class="m">${m+1} 月</span>
+      <span class="s">${Math.round(mw)} 分</span></div>
+      <div class="wk">${WD.map(w=>`<span>${w}</span>`).join('')}</div>
+      <div class="g">${cells}</div></div>`;
+  }
+  $('#months').innerHTML=html;
+
+  // 图例参照
+  const vals=act.map(k=>data[k].w).sort((a,b)=>a-b);
+  const p90=vals.length?vals[Math.floor(vals.length*.9)]:0;
+  $('#legendNote').textContent=`本年活跃日均 ${(totalW/Math.max(1,act.length)).toFixed(1)} 分 · P90 = ${p90} 分 · 调出维度自 2026-01-01 起完整（需新增 call 事件）`;
+}
+
+/* ============================================================
+   ② 日详情
+   ============================================================ */
+function renderDay(key){
+  const host=$('#dayHost');
+  if(!key){host.innerHTML='';return}
+  const rec=yearData(curYear)[key];if(!rec){host.innerHTML='';return}
+  const dt=new Date(key.replace(/-/g,'/'));
+  const lv=levelOf(rec.w);
+  const cN=rec.c.res+rec.c.curio+rec.c.task, sN=rec.s.curio+rec.s.task;
+  const dN=rec.sub+rec.focus+rec.link;
+  const cols=[
+    ['采集',cN,'张',scCreate(rec),`资源 ${rec.c.res} · 好奇 ${rec.c.curio} · 任务 ${rec.c.task}`],
+    ['调出',rec.u,'次',scCall(rec),'资源 / 任务 / 好奇 合计'],
+    ['状态变更',sN,'次',scStatus(rec),`好奇 ${rec.s.curio}（求证 ${rec.sDone}）· 任务 ${rec.s.task}（完成 ${rec.tDone}）`],
+    ['推进成果',dN,'项',scDeliver(rec),`子任务 ${rec.sub} · 三件事 ${rec.focus} · 关联 ${rec.link}`],
+  ];
+  // 当日时间线（演示：按分项条数生成）
+  const rnd=mulberry32(key.split('-').join('')*1+7);
+  const acts=[];
+  const push=(ac,ti,pt)=>{acts.push({ts:rnd(),ac,ti,pt})};
+  for(let i=0;i<rec.tDone;i++)push('✅ 任务完成',['整理武汉 K12 校情对照表','完成咨询方案初稿','复盘上周咨询记录','更新志愿填报规则库'][Math.floor(rnd()*4)],W.sTaskDone);
+  for(let i=0;i<rec.sDone;i++)push('✎ 好奇求证',['中考普高率口径到底是哪个','示范高中与省级示范的区别'][Math.floor(rnd()*2)],W.sCurioDone);
+  for(let i=0;i<rec.c.res;i++)push('⬇ 采集·资源',['湖北省 2026 招生计划汇编','某机构强基计划解读','家长高频问题清单'][Math.floor(rnd()*3)],W.cRes);
+  for(let i=0;i<rec.c.curio;i++)push('⬇ 采集·好奇',['艺考改革对文化课要求的影响','综评与强基能否兼报'][Math.floor(rnd()*2)],W.cCurio);
+  for(let i=0;i<rec.focus;i++)push('★ 三件事完成','今日三件事 · 第 '+(i+1)+' 项',W.focus);
+  for(let i=0;i<Math.min(rec.u,6);i++)push('↗ 调出',['资源《…》','任务《…》','好奇《…》'][Math.floor(rnd()*3)],W.call);
+  acts.sort((a,b)=>b.ts-a.ts);
+  const rows=acts.slice(0,12).map((a,i)=>{
+    const hh=8+Math.floor(a.ts*9),mm=Math.floor(rnd()*60);
+    return `<div class="row"><span class="tm">${pad(hh)}:${pad(mm)}</span>
+      <span class="ac">${a.ac}</span><span class="ti">${a.ti}</span>
+      <span class="pt">+${f1(a.pt)}</span></div>`;
+  }).join('')||'<div class="row"><span class="ti" style="color:var(--text-3)">当天无记录</span></div>';
+
+  host.innerHTML=`<div class="day">
+    <div class="day-head">
+      <span class="d">${key}</span><span class="w">周${WD[(dt.getDay()+6)%7]}</span>
+      <span class="badge l${lv}">强度 ${Math.min(100,Math.round(rec.w/55*100))} · L${lv}</span>
+      <span class="badge">加权 ${rec.w} 分</span>
+      <span class="sp"></span>
+      <button class="btn ghost" id="dayClose">收起 ×</button>
+    </div>
+    <div class="cols">${cols.map(([h,n,u,sc,bd])=>`<div class="col">
+      <div class="h"><span class="dot"></span>${h}</div>
+      <div class="n">${n}<small>${u}</small></div>
+      <div class="sc">${f1(sc)} 分</div>
+      <div class="bd">${bd}</div></div>`).join('')}</div>
+    <div class="tl"><div class="th">当日行为时间线（倒序 · 明细来自 zy_event_log）</div>${rows}</div>
+    <div class="day-foot">
+      <button class="btn" id="dayFlow">看当日完整流水 ›</button>
+      <button class="btn pri" id="dayReview">以此日所在周做复盘 →</button>
+    </div>
+  </div>`;
+  host.querySelector('#dayClose').onclick=()=>{selKey=null;renderDay(null);renderYear()};
+  host.querySelector('#dayFlow').onclick=()=>toast('复用现有 openRec(\'log\') 抽屉 —— 不另造组件');
+  host.querySelector('#dayReview').onclick=()=>{setRange('week',dt);document.querySelector('.rev').scrollIntoView({behavior:'smooth',block:'start'})};
+  host.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+/* ============================================================
+   ③ 复盘
+   ============================================================ */
+const DIRECTIONS=[
+  {id:'d1',name:'高考志愿咨询',term:'近期',focused:true,share:.42},
+  {id:'d2',name:'AI 学习力教练',term:'中期',focused:true,share:.33},
+  {id:'d3',name:'内容矩阵与品牌',term:'长期',focused:false,share:.25},
+];
+const PROJECTS=[
+  {id:'p1',dir:'d1',name:'2026 湖北志愿填报产品化',progress:62},
+  {id:'p2',dir:'d1',name:'咨询案例库建设',progress:48},
+  {id:'p3',dir:'d2',name:'学习力训练营 2.0',progress:35},
+  {id:'p4',dir:'d3',name:'公众号选题体系',progress:71},
+];
+let rangeType='week',off=0,customFrom='2026-09-01',customTo='2026-09-27',projId='p1',aiState='idle';
+
+function windowOf(){
+  const data=yearData(curYear);
+  const REF=refDate();
+  if(rangeType==='week'){
+    const base=new Date(REF);base.setDate(base.getDate()-off*7);
+    const dow=(base.getDay()+6)%7;
+    const s=new Date(base.getFullYear(),base.getMonth(),base.getDate()-dow);
+    const e=new Date(s);e.setDate(e.getDate()+6);
+    return {s:ymd(s),e:ymd(e),label:`${s.getFullYear()} W${String(weekNo(s)).padStart(2,'0')}（${s.getMonth()+1}/${s.getDate()} – ${e.getMonth()+1}/${e.getDate()}）`,days:7};
+  }
+  if(rangeType==='month'){
+    const base=new Date(REF.getFullYear(),REF.getMonth()-off,1);
+    const s=new Date(base.getFullYear(),base.getMonth(),1);
+    const e=new Date(base.getFullYear(),base.getMonth()+1,0);
+    return {s:ymd(s),e:ymd(e),label:`${s.getFullYear()}-${pad(s.getMonth()+1)} 月`,days:new Date(base.getFullYear(),base.getMonth()+1,0).getDate()};
+  }
+  if(rangeType==='custom'){
+    const a=new Date(customFrom.replace(/-/g,'/')),b=new Date(customTo.replace(/-/g,'/'));
+    const n=Math.max(1,Math.round((b-a)/86400000)+1);
+    return {s:customFrom,e:customTo,label:`${customFrom} → ${customTo}（${n} 天）`,days:n};
+  }
+  return {s:ymd(new Date(curYear,0,1)),e:ymd(new Date(curYear,11,31)),label:'项目全周期',days:365};
+}
+/** 参考日：当前年份用今天，历史年份用该年 12-28（保证周/月窗口落在被查看的年份内） */
+function refDate(){return curYear===TODAY.getFullYear()?TODAY:new Date(curYear,11,28)}
+function weekNo(d){const t=new Date(d.getFullYear(),0,1);return Math.ceil(((d-t)/86400000+t.getDay()+1)/7)}
+
+function aggregate(w){
+  const data=yearData(curYear);
+  let days=0,act=0,W2=0,c={res:0,task:0,curio:0},u=0,s={curio:0,task:0},d=0,
+      sDone=0,tDone=0,tDoing=0,sDoing=0,sub=0,focus=0,link=0,peak=null;
+  const list=[];
+  for(const k in data){
+    if(k<w.s||k>w.e)continue;
+    days++;const r=data[k];W2+=r.w;
+    if(r.w>0)act++;
+    c.res+=r.c.res;c.task+=r.c.task;c.curio+=r.c.curio;u+=r.u;
+    s.curio+=r.s.curio;s.task+=r.s.task;d+=r.d;
+    sDone+=r.sDone;tDone+=r.tDone;tDoing+=r.tDoing;sDoing+=r.sDoing;
+    sub+=r.sub;focus+=r.focus;link+=r.link;
+    list.push([k,r.w]);
+    if(!peak||r.w>peak[1])peak=[k,r.w];
+  }
+  const cTotal=c.res+c.task+c.curio;
+  return {days,act,W:W2,c,u,s,d,sDone,tDone,tDoing,sDoing,sub,focus,link,peak,cTotal,list,
+    activeRate:days?act/days:0,
+    conv:cTotal?(sDone+tDone)/cTotal:0};
+}
+
+function runRules(a){
+  const k=Math.max(.25,a.days/30); // 阈值随窗口长度缩放
+  const out=[];
+  if(a.cTotal>=15*k&&a.conv<.15)out.push(['R1','囤积倾向',`本期采集 ${a.cTotal} 张，但转化为推进（求证/完成）仅 ${a.sDone+a.tDone} 项，转化率 ${Math.round(a.conv*100)}%。`,`采集 ≥ ${Math.round(15*k)} 且转化率 < 15%`]);
+  if(a.c.res>=8*k&&a.u===0)out.push(['R2','资源未被调用',`新增资源 ${a.c.res} 张，本期调出 0 次 —— 采了没打开过。`,`新增资源 ≥ ${Math.round(8*k)} 且调出 = 0`]);
+  if(a.tDone===0&&a.tDoing>0)out.push(['R3','主攻停滞',`主攻项目本期完成 0 项，但有 ${a.tDoing} 项转为进行中 —— 在等，不在走。`,'完成数 = 0 且存在进行中']);
+  if(a.tDoing>=12*k&&a.tDone===0)out.push(['R4','并行过载',`本期新开 ${a.tDoing} 项进行中，完成 0 项 —— 同时推太多。`,`进行中 > ${Math.round(12*k)} 且完成 = 0`]);
+  if(a.s.curio>=20*k&&a.sDone===0)out.push(['R5','好奇堆积',`好奇状态变更 ${a.s.curio} 次，但求证 0 项 —— 好奇没孵化。`,`好奇变更 ≥ ${Math.round(20*k)} 且求证 = 0`]);
+  if(a.W>0&&a.peak[1]/a.W>.4)out.push(['R6','突击式使用',`峰值单日（${a.peak[0]}）占本期总分 ${Math.round(a.peak[1]/a.W*100)}% —— 集中爆发型。`,'单日占比 > 40%']);
+  if(a.cTotal>0&&a.link/Math.max(1,a.cTotal)<.1&&a.c.task>=3*k)out.push(['R7','游离工作',`本期采集任务 ${a.c.task} 张，任务↔资源关联采纳仅 ${a.link} 次 —— 在忙，但没挂到资源上。`,'关联采纳占比 < 10%']);
+  if(a.u>=20*k&&a.s.curio+a.s.task===0)out.push(['R8','只读不推进',`调出 ${a.u} 次，状态变更 0 次 —— 看了很多，没动一步。`,`调出 ≥ ${Math.round(20*k)} 且状态变更 = 0`]);
+  return out;
+}
+
+function trendSVG(list,mode){
+  if(!list.length)return '<div style="color:var(--text-3);font-size:var(--fs-caption)">无数据</div>';
+  const byWeek=()=>{const m={};list.forEach(([k,w])=>{const n=weekNo(new Date(k.replace(/-/g,'/')));m[n]=(m[n]||0)+w});
+    return Object.keys(m).sort((a,b)=>a-b).map(n=>['W'+n,m[n]])};
+  const byMonth=()=>{const m={};list.forEach(([k,w])=>{const n=k.slice(0,7);m[n]=(m[n]||0)+w});
+    return Object.keys(m).sort().map(n=>[n.slice(5)+'月',m[n]])};
+  let pts;
+  if(mode==='day')pts=list.map(([k,w])=>[k.slice(5),w]);
+  else if(mode==='week')pts=byWeek();
+  else pts=byMonth();
+
+  const VW=1340,H=86,gap=8,n=pts.length;
+  const bw=Math.max(6,Math.min(n<=10?120:64,Math.floor((VW-(n-1)*gap)/n)));
+  const total=n*(bw+gap)-gap,ox=Math.max(0,Math.round((VW-total)/2));
+  const max=Math.max(1,...pts.map(p=>p[1]));
+  const step=Math.ceil(n/14);                   // 标签抽稀，最多约 14 个
+  const bars=pts.map((p,i)=>{
+    const h=Math.max(3,Math.round(p[1]/max*(H-22)));
+    const lv=levelOf(p[1]);
+    const x=ox+i*(bw+gap);
+    const showLbl=bw>=20&&i%step===0;
+    return `<rect x="${x}" y="${H-14-h}" width="${bw}" height="${h}" rx="2" fill="var(--heat-${Math.max(1,lv)})"/>`
+      +(showLbl?`<text x="${x+bw/2}" y="${H-3}" fill="var(--text-4)" font-size="9" text-anchor="middle">${p[0]}</text>`:'');
+  }).join('');
+  return `<svg viewBox="0 0 ${VW} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:86px;display:block">${bars}</svg>`;
+}
+/** 趋势图粒度（已解析）：周复盘按日 / 月复盘按周 / 自定义与项目按区间长度自动 */
+function trendMode(len){
+  if(rangeType==='week')return 'day';
+  if(rangeType==='month')return 'week';
+  return len>120?'month':'week';
+}
+const TREND_LABEL={day:'按日',week:'按周',month:'按月'};
+
+function ctlHTML(){
+  const w=windowOf();
+  if(rangeType==='custom')return `
+    <input type="date" id="cFrom" value="${customFrom}"><span class="hint">→</span>
+    <input type="date" id="cTo" value="${customTo}">
+    <button class="btn" data-quick="7">近 7 天</button>
+    <button class="btn" data-quick="30">近 30 天</button>
+    <button class="btn" data-quick="90">近 90 天</button>
+    <span class="hint">上限 366 天</span>`;
+  if(rangeType==='project')return `
+    <select id="projSel">${PROJECTS.map(p=>`<option value="${p.id}" ${p.id===projId?'selected':''}>${DIRECTIONS.find(d=>d.id===p.dir).name} · ${p.name}</option>`).join('')}</select>
+    <span class="hint">项目全周期 · 进度与关联资源一并纳入对账</span>`;
+  return `<div class="pn"><button data-nav="-1">‹</button><span class="v">${w.label}</span><button data-nav="1">›</button></div>
+    <span class="hint">${off===0?'当前':'历史'} · 共 ${w.days} 天</span>`;
+}
+
+function renderReview(){
+  const w=windowOf(),a=aggregate(w);
+  $('#ctl').innerHTML=ctlHTML();
+  const rules=runRules(a);
+
+  // ① 画像摘要
+  const kpis=[
+    ['活跃天数',a.act,`/ ${a.days} 天`,`覆盖率 ${Math.round(a.activeRate*100)}%`,''],
+    ['加权总分',Math.round(a.W),'分',`日均 ${(a.W/Math.max(1,a.act)).toFixed(1)} 分`,''],
+    ['采集',a.cTotal,'张',`资源 ${a.c.res} · 好奇 ${a.c.curio} · 任务 ${a.c.task}`,''],
+    ['调出',a.u,'次',`人均 ${a.cTotal?(a.u/Math.max(1,a.cTotal)).toFixed(1):0} 次/张`,''],
+    ['转化',a.sDone+a.tDone,'项',`转化率 ${Math.round(a.conv*100)}%`,a.conv<.15?'down':''],
+  ];
+
+  // ③ 目标对账
+  const totalDir=a.cTotal+a.sDone+a.tDone||1;
+  const objs=DIRECTIONS.map((d,i)=>{
+    const jitter=1+(i===0?.08:i===1?-.06:.02);
+    const v=Math.round(totalDir*d.share*jitter);
+    return {d,v,share:v/totalDir};
+  });
+  const maxShare=Math.max(...objs.map(o=>o.share));
+  const cover=objs.filter(o=>o.v>0).length;
+
+  const proj=PROJECTS.find(p=>p.id===projId);
+  const projBlock=rangeType==='project'&&proj?`
+    <div class="blk"><div class="bh"><span class="n">③′</span><span class="t">项目对账 · ${proj.name}</span>
+      <span class="tag rule">规则</span></div>
+      <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi"><div class="k">所属战略目标</div><div class="v" style="font-size:var(--fs-title)">${DIRECTIONS.find(d=>d.id===proj.dir).name}</div><div class="c">近期 / 主攻</div></div>
+        <div class="kpi"><div class="k">项目进度</div><div class="v">${proj.progress}<small>%</small></div><div class="c">较上期 +6%</div></div>
+        <div class="kpi"><div class="k">本期任务完成</div><div class="v">${a.tDone}<small>项</small></div><div class="c">进行中 ${a.tDoing} 项</div></div>
+        <div class="kpi"><div class="k">关联资源调用</div><div class="v">${Math.round(a.u*.3)}<small>次</small></div><div class="c">关联采纳 ${a.link} 次</div></div>
+      </div></div>`:'';
+
+  // ⑤ AI 段
+  const aiBlock=aiState==='idle'?`
+    <div class="ai-empty">AI 复盘尚未生成 —— 点击右上「生成复盘」，在愿景 / 使命 / 战略目标的框架下对本期的采集、调度、变更与推进做整体点评。</div>`
+    :aiState==='run'?`<div class="ai-run"><span class="spin"></span>正在通读愿景与战略目标，比对本期行为…</div>`
+    :`<div class="ai-out">
+        <div class="p">本期（${w.label}）你共推进 <b>${a.act}</b> 天，加权 <b>${Math.round(a.W)}</b> 分，采集 <b>${a.cTotal}</b> 张、调出 <b>${a.u}</b> 次、状态变更 <b>${a.s.curio+a.s.task}</b> 次。
+        对照你的使命「<b>让教育信息不再被垄断</b>」与当前主攻「<b>${DIRECTIONS.filter(d=>d.focused).map(d=>d.name).join(' / ')}</b>」，本期行为<b>${maxShare>.45?'明显偏向单点':'基本覆盖主攻方向'}</b>${cover<DIRECTIONS.length?`，且「${objs.find(o=>o.v===0)?.d.name||DIRECTIONS[2].name}」方向本期零投入`:''}。</div>
+        <div class="p">${a.conv>=.15
+          ? '采集与推进的配比是健康的 —— 收进来的东西确实在被消化。'
+          : '值得留意的是<b>消化速度落后于采集速度</b>：收进来的多，转成推进的少，长期会让库变成"囤积"而非"弹药"。'}</div>
+        <div class="p">这不是效率问题，而是<b>方向问题</b>：你的时间分配正在被"顺手的事"牵引，而不是被"主攻的事"牵引。</div>
+      </div>
+      <div style="margin-top:var(--sp-3);display:flex;flex-direction:column;gap:var(--sp-2)">
+        ${(rules.length?rules.slice(0,3):[['—','保持节奏','本期未命中偏离规则，维持当前节奏即可。','']]).map((r,i)=>`
+        <div class="sug"><span class="sn">${i+1}</span><div class="sb">
+          <div class="st">${r[1]==='囤积倾向'?'把"待转化"清一遍':r[1]==='主攻停滞'?'给主攻项目排一件最小可完成的事':r[1]==='只读不推进'?'把最近调出的卡挑 3 张推进一步':r[1]==='好奇堆积'?'挑 2 个好奇求证掉':r[1]==='游离工作'?'给游离任务补上项目归属':r[1]==='资源未被调用'?'把新采的资源挂到任务上':'维持当前节奏'}</div>
+          <div class="sd">${r[2]}</div></div>
+          <div class="sa"><button class="btn" data-jump="1">去处理 ›</button><button class="btn ghost" data-accept="1">生成任务</button></div>
+        </div>`).join('')}
+      </div>
+      <div style="margin-top:var(--sp-2);display:flex;gap:var(--sp-2)">
+        <button class="btn" data-accept="1">存为资源卡</button>
+        <button class="btn ghost" data-accept="1">重新生成</button>
+        <span class="hint" style="font-size:var(--fs-caption);color:var(--text-4);align-self:center">采纳即写库，走 AiJob.before 快照 + undo 栈（可 Cmd+Z 撤销）</span>
+      </div>`;
+
+  const tm=trendMode(a.list.length);
+  $('#revBody').innerHTML=`
+    <div class="blk"><div class="bh"><span class="n">①</span><span class="t">画像摘要</span><span class="tag">纯计算</span>
+      <span class="sp"></span><span class="hint" style="font-size:var(--fs-caption);color:var(--text-4)">${w.label}</span></div>
+      <div class="kpis">${kpis.map(([k,v,u,c,cl])=>`<div class="kpi"><div class="k">${k}</div>
+        <div class="v">${v}<small>${u}</small></div><div class="c ${cl}">${c}</div></div>`).join('')}</div></div>
+
+    <div class="blk"><div class="bh"><span class="n">②</span><span class="t">节奏曲线</span><span class="tag">纯计算</span></div>
+      <div class="trend"><div class="cap"><span>${TREND_LABEL[tm]}加权分</span>
+        <span class="sp"></span><span>峰值日 ${a.peak[0]} · ${a.peak[1]} 分</span></div>
+        ${trendSVG(a.list,tm)}</div></div>
+
+    <div class="blk"><div class="bh"><span class="n">③</span><span class="t">目标对账</span><span class="tag rule">规则算 · AI 解读</span></div>
+      <div class="obj">${objs.map(o=>`<div class="o">
+        <div class="nm">${o.d.focused?'<span class="f">主攻</span>':''}${o.d.name}</div>
+        <div class="bar"><i style="width:${Math.round(o.share*100)}%"></i></div>
+        <div class="n"><b>${o.v}</b> 项 · ${Math.round(o.share*100)}%</div></div>`).join('')}</div>
+      <div style="margin-top:var(--sp-2);font-size:var(--fs-caption);color:var(--text-3)">
+        覆盖度 <b style="color:var(--text)">${cover}/${DIRECTIONS.length}</b> 个战略目标 · 偏斜度 <b style="color:var(--text)">${Math.round(maxShare*100)}%</b>（最高占比）
+        ${maxShare>.45?' · <span style="color:var(--warning)">偏斜偏高</span>':' · 分布均衡'}</div>
+      ${projBlock}</div>
+
+    <div class="blk"><div class="bh"><span class="n">④</span><span class="t">偏离预警</span><span class="tag rule">规则引擎 · 非 AI</span>
+      <span class="sp"></span><span class="hint" style="font-size:var(--fs-caption);color:var(--text-4)">命中 ${rules.length} / 8</span></div>
+      <div class="rules">${rules.length?rules.map(r=>`<div class="rule">
+        <span class="rid">${r[0]}</span><div class="rb"><div class="rt">${r[1]}</div>
+        <div class="rd">${r[2]}</div><div class="rv">判据：${r[3]}</div></div></div>`).join('')
+        :`<div class="rule ok"><span class="rid">✓</span><div class="rb"><div class="rt">本期未命中偏离规则</div>
+        <div class="rd">8 条规则全部未触发 —— 采集与消化配比健康、主攻有推进、节奏未失衡。</div>
+        <div class="rv">判据：R1–R8 全量评估</div></div></div>`}</div></div>
+
+    <div class="blk"><div class="bh"><span class="n">⑤</span><span class="t">AI 复盘与建议</span><span class="tag ai">buildReviewJob</span>
+      <span class="sp"></span>
+      <button class="btn pri" id="aiBtn" ${aiState==='run'?'disabled':''}>${aiState==='done'?'↻ 重新生成':'生成复盘'}</button></div>
+      ${aiBlock}</div>
+  `;
+  const b=$('#aiBtn');
+  if(b)b.onclick=()=>{aiState='run';renderReview();setTimeout(()=>{aiState='done';renderReview()},1200)};
+  $('#revBody').querySelectorAll('[data-accept]').forEach(el=>el.onclick=()=>toast('采纳即写库（原型演示）· 走 AiJob.before 快照 + undo 栈'));
+  $('#revBody').querySelectorAll('[data-jump]').forEach(el=>el.onclick=()=>toast('跳转到对应卡片/项目（原型演示）'));
+}
+
+/* ============================================================
+   交互装配
+   ============================================================ */
+function setRange(t,baseDate){
+  rangeType=t;off=0;aiState='idle';
+  if(baseDate){off=Math.max(0,Math.round((refDate()-baseDate)/86400000/7))}
+  $('#tabs').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.r===t));
+  renderReview();
+}
+$('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;setRange(b.dataset.r)};
+$('#ctl').addEventListener('click',e=>{
+  const nav=e.target.closest('[data-nav]');
+  if(nav){off=Math.max(0,off-Number(nav.dataset.nav));aiState='idle';renderReview();return}
+  const q=e.target.closest('[data-quick]');
+  if(q){const n=Number(q.dataset.quick);const to=new Date(TODAY),from=new Date(TODAY);from.setDate(from.getDate()-n+1);
+    customFrom=ymd(from);customTo=ymd(to);aiState='idle';renderReview()}
+});
+$('#ctl').addEventListener('change',e=>{
+  if(e.target.id==='cFrom'){customFrom=e.target.value;aiState='idle';renderReview()}
+  if(e.target.id==='cTo'){customTo=e.target.value;aiState='idle';renderReview()}
+  if(e.target.id==='projSel'){projId=e.target.value;aiState='idle';renderReview()}
+});
+$('#months').addEventListener('click',e=>{
+  const c=e.target.closest('.cell');if(!c||!c.dataset.k)return;
+  selKey=c.dataset.k;renderYear();renderDay(selKey);
+});
+$('#yPrev').onclick=()=>{curYear=Math.max(2025,curYear-1);selKey=null;renderYear();renderDay(null);off=0;aiState='idle';renderReview()};
+$('#yNext').onclick=()=>{curYear=Math.min(2026,curYear+1);selKey=null;renderYear();renderDay(null);off=0;aiState='idle';renderReview()};
+document.querySelector('.xbtn').onclick=()=>toast('关闭浮层（原型演示）· 返回调度台');
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(selKey){selKey=null;renderDay(null);renderYear()}else toast('关闭浮层（Esc 分层关闭）')}});
+
+// 悬浮提示
+const tip=$('#tip');
+$('#months').addEventListener('mouseover',e=>{
+  const c=e.target.closest('.cell');if(!c||!c.dataset.k)return;
+  const k=c.dataset.k,r=yearData(curYear)[k],lv=levelOf(r.w);
+  const d=new Date(k.replace(/-/g,'/'));
+  tip.innerHTML=`<div class="tt">${k} 周${WD[(d.getDay()+6)%7]} · L${lv} · ${r.w} 分</div>
+    <div class="tl2">采集 <b>${r.c.res+r.c.curio+r.c.task}</b> · 调出 <b>${r.u}</b> · 状态变更 <b>${r.s.curio+r.s.task}</b> · 推进 <b>${r.d}</b><br>
+    <span style="color:var(--text-4)">点击查看当天分类明细</span></div>`;
+  tip.classList.add('on');
+});
+$('#months').addEventListener('mousemove',e=>{
+  const c=e.target.closest('.cell');if(!c||!c.dataset.k){tip.classList.remove('on');return}
+  tip.style.left=Math.min(window.innerWidth-266,e.clientX+14)+'px';
+  tip.style.top=(e.clientY+16)+'px';
+});
+$('#months').addEventListener('mouseleave',()=>tip.classList.remove('on'));
+
+// 主题
+$('#segTheme').onclick=e=>{const b=e.target.closest('button');if(!b)return;
+  document.documentElement.dataset.theme=b.dataset.t;
+  $('#segTheme').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b))};
+
+let toastTimer=0;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),2200)}
+
+/* 初始渲染 */
+renderYear();renderReview();
+</script>
+</body>
+</html>

@@ -12,6 +12,7 @@
  *
  * 焦点纪律：任务标题最高 --fs-body，**不许用 --fs-title 及以上**（会与指标名争层级）。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed, ref } from 'vue'
 import type { MetricMeta } from '../../views/compassMeta'
 import { gradeColorVar } from '../../views/compassMeta'
@@ -55,7 +56,7 @@ const emit = defineEmits<{
 const menuFor = ref<string | null>(null)
 function toggleMenu(id: string) { menuFor.value = menuFor.value === id ? null : id }
 
-const dotGlyph = computed(() => (props.m.dot === 'done' ? '✓' : props.m.dot === 'doing' ? '◐' : '○'))
+const dotGlyph = computed(() => (props.m.dot === 'done' ? '' : props.m.dot === 'doing' ? '◐' : '○'))
 const dotTitle = computed(() =>
   props.m.dot === 'done' ? '该指标下任务已全部完成'
     : props.m.dot === 'doing' ? '有任务进行中' : '任务尚未启动'
@@ -90,7 +91,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
         @keydown.enter.ctrl.prevent="$emit('saveTitle', m.id, $event)"
         @keydown.esc="$emit('cancelTitle', m.id)"
       >{{ m.title }}</h4>
-      <span v-if="m.orphanMetric" class="mc-flag warn" title="该指标下没有任何任务，线索断在这">⚠ 缺任务</span>
+      <span v-if="m.orphanMetric" class="mc-flag warn" title="该指标下没有任何任务，线索断在这"><Icon name="warn" :size="13"/> 缺任务</span>
       <span v-else-if="m.target" class="mc-flag">{{ m.target }}</span>
       <!-- ★指标级进度条：原型 .m-bar 是「轨道 + 数字」一体、margin-left:auto 顶到行尾。
            之前只有一个裸百分数飘在行中，进度既不在固定位置也不成条，读起来像标签不是进度。 -->
@@ -102,7 +103,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
         {{ open ? '收起 ▾' : '展开 ▸' }}
       </button>
       <!-- ★R135-4（能力保留）：任务层 AI 入口 —— 六入口之一，删了判据红就是能力丢不是判据的问题 -->
-      <button class="mc-ai" title="AI 依本成功指标拆解支撑步骤（查重后采纳才创建）" @click="emit('aiTask', m.id)">✦</button>
+      <button class="mc-ai" title="AI 依本成功指标拆解支撑步骤（查重后采纳才创建）" @click="emit('aiTask', m.id)"><Icon name="sparkle" :size="13"/></button>
       <!-- ★R32-14（能力保留）：指标条目 ＋ 加任务 —— 断链空位之外也必须有一份常规出口，
            否则「指标下加任务」只剩断链时才出现的路径，等于能力退化。
            ★W12：这两枚按钮改为 hover 才显形 —— 指标头一行要塞 状态点/名称/标签/进度条/折叠，
@@ -112,10 +113,10 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
       <!-- ★F1：hover 🗑 + 「⋯」菜单 —— 与「＋任务」「✦」同一套 hover 显形。
            删除走真源 removeMetricWithConfirm（报数确认→任务转未关联→撤销），这里只上抛。 -->
       <span class="mc-ops" @click.stop>
-        <button class="mc-del" title="删除本成功指标（其下任务转为未关联，可撤销）" @click="emit('delMetric', m.id)">🗑</button>
+        <button class="mc-del" title="删除本成功指标（其下任务转为未关联，可撤销）" @click="emit('delMetric', m.id)"><Icon name="trash" :size="13"/></button>
         <button class="mc-more" :class="{ on: menuFor === m.id }" title="指标更多操作" @click="toggleMenu(m.id)">⋯</button>
         <span v-if="menuFor === m.id" class="mc-menu" @click.stop>
-          <button class="mcm-item danger" @click="menuFor = null; emit('delMetric', m.id)">🗑 删除本指标</button>
+          <button class="mcm-item danger" @click="menuFor = null; emit('delMetric', m.id)"><Icon name="trash" :size="13"/> 删除本指标</button>
         </span>
       </span>
     </header>
@@ -132,7 +133,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
           :class="t.status"
           :aria-label="t.status === 'done' ? '标记未完成' : '标记完成'"
           @click="emit('task', t.id)"
-        ><span v-if="t.status === 'done'">✓</span></button>
+        ><span v-if="t.status === 'done'"><Icon name="check" :size="13"/></span></button>
         <button class="tk-title" title="打开任务详情抽屉" @click="emit('openDetail', t.id)">{{ t.title }}</button>
         <!-- 归属路径：hover 浮现 -->
         <span class="tk-crumb" aria-hidden="true">{{ crumb }}</span>
@@ -143,7 +144,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
                改叫「成熟度」并补 title，真正的详情入口是左侧任务标题。 -->
           <button class="tk-grade" title="看这条任务的优先级成熟度依据" @click="emit('grade', t.id)">成熟度</button>
           <!-- ★R141 保留：✕ 只解绑（摘挂载），删本体走任务详情 —— 两语义不许混 -->
-          <button class="tk-unbind" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）" @click="emit('unbind', t.id)">✕</button>
+          <button class="tk-unbind" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）" @click="emit('unbind', t.id)"><Icon name="x" :size="13"/></button>
         </span>
       </li>
     </ul>

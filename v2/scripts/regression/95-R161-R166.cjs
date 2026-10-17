@@ -272,7 +272,7 @@ check('R158-5 设置页被动入口退役：无 aiCrossDeck/aiThesisDrift/aiDorm
     && !SETTINGS_FILE.includes('function aiDormantScan')
     && !SETTINGS_FILE.includes('aiDormantDays')
     && !SETTINGS_FILE.includes('@click="aiCrossDeck"')
-    && SETTINGS_FILE.includes('被动建议在命令面板 Ctrl+K → AI 建议')
+    && SETTINGS_FILE.includes('被动建议在命令面板 Ctrl+K › AI 建议')
     && SETTINGS_FILE.includes('@click="aiTrashRescue"')
     && SETTINGS_FILE.includes('@click="aiWeeklyReview"')
     && SETTINGS_FILE.includes('@click="aiDeliver"');

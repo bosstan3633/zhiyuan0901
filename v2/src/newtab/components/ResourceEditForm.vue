@@ -15,6 +15,7 @@
  *   ③ 附件变更即时持久化：已入库卡(idx>=0)写回 + persist；新建未入库仅暂挂 model（宿主保存时统一入库）
  * - 宿主保留：容器与开关态（Drawer.vue 或自绘 overlay/drawer）、主标题（DetailTitle）、AI 入口条、save/delete/open/copy handler
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed, nextTick, ref } from 'vue'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
@@ -95,8 +96,8 @@ function onHtmlAdded(meta: AssetMeta, replacedOld: AssetMeta | null) {
   // 卡上原本那条 URL 会被就地冲掉（切回 URL 槽发现空了）。
   setLinkSlot(props.model, 'file', `zy-asset://${meta.id}`)
   showToast(meta.kind === 'pdf'
-    ? '✓ 已挂载 PDF：双击卡片即可在新标签页打开（Chrome 内置 viewer）'
-    : '✓ 已挂载 HTML：双击卡片即可在新标签页完整打开')
+    ? '已挂载 PDF：双击卡片即可在新标签页打开（Chrome 内置 viewer）'
+    : '已挂载 HTML：双击卡片即可在新标签页完整打开')
   onAssetsChange(props.model.assets)
 }
 
@@ -111,7 +112,7 @@ function fmtTs(ts?: number): string {
          标题若在表单里再留一份，就会出现"头部一份可编辑 + 正文一份可编辑"同屏两处。 -->
   <div class="ref-form">
     <section class="ds-pnl">
-      <div class="ds-pnl-h"><b>链接与归档</b><i>双击卡片即打开 · Ctrl+↩ 保存</i></div>
+      <div class="ds-pnl-h"><b>链接与归档</b><i>双击卡片即打开 · Ctrl+<Icon name="arrowleft" :size="13"/> 保存</i></div>
       <div class="ds-kv"><span class="k">链接</span><span class="v">
         <div class="ds-seg">
           <span v-for="tb in LINK_SLOT_TABS" :key="tb.t" :class="{ on: model.linkType === tb.t }"
@@ -127,7 +128,7 @@ function fmtTs(ts?: number): string {
         这一槽是空的 —— 三条链接各自独立（URL / 本地 / Obsidian），切过去没有就说明还没填，双击不会去打另一条。
       </div>
       <div v-if="linkIncomplete" class="ref-warn">
-        ⚠ 当前仅存文件名，双击打开前请补全完整路径（如 D:\docs\file.pdf）
+        <Icon name="warn" :size="13"/> 当前仅存文件名，双击打开前请补全完整路径（如 D:\docs\file.pdf）
       </div>
       <!-- V3.7.0（R179）：分类行退役（hub 分类→标签树），卡的组织机制由下行「标签」独任 -->
       <div class="ds-kv"><span class="k">标签</span><span class="v"><TagPicker v-model="model.tags" /></span></div>

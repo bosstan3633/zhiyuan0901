@@ -1,5 +1,6 @@
 <script lang="ts">
 /** R113-N2：三卡生命周期面板（内嵌化——R110 的 Drawer 外壳退役，入口收敛到 设置→总览） */
+import Icon from '@/shared/components/Icon.vue'
 import type { ResourceCard, TaskCard, CuriosityCard } from '@/shared/models'
 /** 三卡联合（宿主直接传 store 中的活卡引用，面板只发意图、宿主落库——面板不改 props） */
 export type LifecycleCard = ResourceCard | TaskCard | CuriosityCard
@@ -107,9 +108,9 @@ function lastOf(card: LifecycleCard): number {
   const c = card as { lastCalledAt?: number; completedAt?: number }
   return c.lastCalledAt || c.completedAt || card.updatedAt || card.createdAt || 0
 }
-function onArchive(e: Entry) { emit('archive', e.card.id); showToast(`📦 已归档「${titleOf(e.card).slice(0, 24)}」`) }
-function onSnooze(e: Entry) { emit('snooze', e.card.id); showToast(`⏳ 已忽略 ${daysOf(e.card)} 天（延后一个评估周期）`) }
-function onReactivate(e: Entry) { emit('reactivate', e.card.id); showToast(`🔥 「${titleOf(e.card).slice(0, 24)}」已重新激活`) }
+function onArchive(e: Entry) { emit('archive', e.card.id); showToast(`已归档「${titleOf(e.card).slice(0, 24)}」`) }
+function onSnooze(e: Entry) { emit('snooze', e.card.id); showToast(`已忽略 ${daysOf(e.card)} 天（延后一个评估周期）`) }
+function onReactivate(e: Entry) { emit('reactivate', e.card.id); showToast(`「${titleOf(e.card).slice(0, 24)}」已重新激活`) }
 function onLocate(e: Entry) { emit('locate', e.card.id, e.card.kind) }
 function fmtIdle(d: number): string { return d > 0 ? `${d} 天` : '今天' }
 /** 任务/好奇心卡都有 status（资源卡无）——模板不能写 TS 断言，故收在这里 */
@@ -136,12 +137,12 @@ function confirmDays(e: Entry) {
   const clamped = Math.min(COOLING_DAYS_MAX, Math.max(COOLING_DAYS_MIN, Math.round(n)))
   emit('setDays', e.card.id, clamped)
   editingDaysId.value = ''
-  showToast(`⏱ 冷却阈值 ${clamped} 天 · 归档 ${clamped * ARCHIVE_RATIO} 天（自动推算）`)
+  showToast(`冷却阈值 ${clamped} 天 · 归档 ${clamped * ARCHIVE_RATIO} 天（自动推算）`)
 }
 function clearDays(e: Entry) {
   emit('setDays', e.card.id, null)
   editingDaysId.value = ''
-  showToast(`⏱ 已恢复默认（冷却 ${DEFAULT_COOLING_DAYS} 天 · 归档 ${DEFAULT_COOLING_DAYS * ARCHIVE_RATIO} 天）`)
+  showToast(`已恢复默认（冷却 ${DEFAULT_COOLING_DAYS} 天 · 归档 ${DEFAULT_COOLING_DAYS * ARCHIVE_RATIO} 天）`)
 }
 const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任务卡', curiosity: '好奇心卡' }
 </script>
@@ -164,31 +165,31 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
       </svg>
       <div class="lc-stats">
         <div class="lc-stat clickable" :class="{ on: filter === 'active' }" @click="setFilter('active')">
-          <div class="lc-stat-num">🔥 {{ stats.active }}</div><div class="lc-stat-lab">活跃</div>
+          <div class="lc-stat-num"><Icon name="flame" :size="13"/> {{ stats.active }}</div><div class="lc-stat-lab">活跃</div>
         </div>
         <div class="lc-stat clickable" :class="{ on: filter === 'cooling' }" @click="setFilter('cooling')">
-          <div class="lc-stat-num">🧊 {{ stats.cooling }}</div>
+          <div class="lc-stat-num"><Icon name="snowflake" :size="13"/> {{ stats.cooling }}</div>
           <div class="lc-stat-lab">冷却<template v-if="stats.highCooling">（含 {{ stats.highCooling }} 核心）</template></div>
         </div>
         <div class="lc-stat clickable" :class="{ on: filter === 'archived' }" @click="setFilter('archived')">
-          <div class="lc-stat-num">📦 {{ stats.archived }}</div><div class="lc-stat-lab">归档</div>
+          <div class="lc-stat-num"><Icon name="package" :size="13"/> {{ stats.archived }}</div><div class="lc-stat-lab">归档</div>
         </div>
       </div>
     </div>
-    <div class="lc-hint">阈值：默认冷却 {{ DEFAULT_COOLING_DAYS }} 天 · 归档 {{ DEFAULT_COOLING_DAYS * ARCHIVE_RATIO }} 天（归档 = 冷却 × {{ ARCHIVE_RATIO }}）· 每张卡可用 ⏱ 自定义冷却天数（归档自动推算）· 点击统计切换列表 · 点击条目定位卡片</div>
+    <div class="lc-hint">阈值：默认冷却 {{ DEFAULT_COOLING_DAYS }} 天 · 归档 {{ DEFAULT_COOLING_DAYS * ARCHIVE_RATIO }} 天（归档 = 冷却 × {{ ARCHIVE_RATIO }}）· 每张卡可用 自定义冷却天数（归档自动推算）· 点击统计切换列表 · 点击条目定位卡片</div>
 
     <!-- 列表（当前过滤态） -->
     <div class="lc-list">
       <div v-for="e in visible" :key="e.card.id" class="lc-row clickable" :class="{ hv: isHigh(e) }" @click="onLocate(e)">
         <div class="lc-row-main">
           <!-- W13-F23④：callCount ≥ 3 的高价值核心证据卡冠 🔥，冷却态置顶（visible 排序保证） -->
-          <div class="lc-row-title" :class="{ done: isDone(e.card) }"><span v-if="isHigh(e)" class="lc-hv" title="历史调用 ≥ 3 次的高价值核心证据卡">🔥</span>{{ titleOf(e.card) }}</div>
+          <div class="lc-row-title" :class="{ done: isDone(e.card) }"><span v-if="isHigh(e)" class="lc-hv" title="历史调用 ≥ 3 次的高价值核心证据卡"><Icon name="flame" :size="13"/></span>{{ titleOf(e.card) }}</div>
           <div class="lc-row-meta">
-            <span class="lc-badge" :class="'lc-' + e.state">{{ e.state === 'active' ? '🔥 活跃' : e.state === 'cooling' ? '🧊 冷却' : '📦 归档' }} {{ fmtIdle(e.daysIdle) }}</span>
+            <span class="lc-badge" :class="'lc-' + e.state"><Icon name="dot" :size="8" :class="e.state === 'active' ? 'zy-dot-ok' : e.state === 'cooling' ? 'zy-dot-warn' : 'zy-dot-mut'"/>{{ e.state === 'active' ? '活跃' : e.state === 'cooling' ? '冷却' : '归档' }} {{ fmtIdle(e.daysIdle) }}</span>
             <span v-if="isHigh(e)" class="lc-hv-note">历史高频调用 {{ e.card.callCount }} 次 · 已冷却 {{ e.daysIdle }} 天</span>
             <span v-if="activeKind === 'all'" class="lc-kind-badge">{{ KIND_BADGE[e.card.kind] }}</span>
             <!-- R117（04-61 E）：自定义阈值标识（一眼看出这张卡不按默认 30/90 走） -->
-            <span v-if="hasCustom(e.card)" class="lc-custom-badge" :title="`自定义冷却 ${daysOf(e.card)} 天 · 归档 ${archiveDaysOf(e.card)} 天（自动推算）`">⏱ 自定义 {{ daysOf(e.card) }}d</span>
+            <span v-if="hasCustom(e.card)" class="lc-custom-badge" :title="`自定义冷却 ${daysOf(e.card)} 天 · 归档 ${archiveDaysOf(e.card)} 天（自动推算）`">自定义 {{ daysOf(e.card) }}d</span>
           </div>
         </div>
         <div class="lc-row-ops" @click.stop>
@@ -201,19 +202,19 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
           </template>
           <button v-else class="lc-op" :class="{ custom: hasCustom(e.card) }"
             :title="`自定义冷却阈值：冷却 ${daysOf(e.card)} 天 · 归档 ${archiveDaysOf(e.card)} 天（点此修改）`"
-            @click="startEditDays(e)">⏱ {{ daysOf(e.card) }}d<span v-if="hasCustom(e.card)">*</span></button>
+            @click="startEditDays(e)">{{ daysOf(e.card) }}d<span v-if="hasCustom(e.card)">*</span></button>
           <template v-if="e.state === 'cooling'">
             <!-- W13-D4：冷却期三动作齐装——🔥 唤醒复温（callCount≥3 高价值卡的主出路）+ 延后 + 归档 -->
-            <button class="lc-op primary" @click="onReactivate(e)">🔥 唤醒复温</button>
+            <button class="lc-op primary" @click="onReactivate(e)"><Icon name="flame" :size="13"/> 唤醒复温</button>
             <button class="lc-op" @click="onSnooze(e)">延后 {{ daysOf(e.card) }}d</button>
-            <button class="lc-op" @click="onArchive(e)">📦 归档</button>
+            <button class="lc-op" @click="onArchive(e)"><Icon name="package" :size="13"/> 归档</button>
           </template>
           <template v-else-if="e.state === 'archived'">
-            <button class="lc-op primary" @click="onReactivate(e)">🔥 唤醒复温</button>
+            <button class="lc-op primary" @click="onReactivate(e)"><Icon name="flame" :size="13"/> 唤醒复温</button>
           </template>
         </div>
       </div>
-      <div v-if="!visible.length" class="lc-empty">{{ filter === 'archived' ? '归档区是空的——冷却卡的「📦 归档」会把它移到这里' : '该状态下暂无卡片' }}</div>
+      <div v-if="!visible.length" class="lc-empty">{{ filter === 'archived' ? '归档区是空的——冷却卡的「 归档」会把它移到这里' : '该状态下暂无卡片' }}</div>
     </div>
   </div>
 </template>
@@ -250,7 +251,7 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
 .lc-row-title .lc-hv { display: inline; font-size: 13px; margin-right: 4px; }
 .lc-row-title.done { text-decoration: line-through; color: var(--text-3); }
 .lc-row-meta { margin-top: 2px; display: flex; gap: 8px; align-items: center; }
-.lc-badge { font-size: var(--fs-tiny); color: var(--text-3); }
+.lc-badge { font-size: var(--fs-tiny); color: var(--text-3); display: inline-flex; align-items: center; gap: 4px; }
 .lc-badge.lc-cooling { color: #E8A33D; }
 .lc-badge.lc-archived { color: var(--text-4); }
 .lc-kind-badge { font-size: var(--fs-tiny); color: var(--text-3); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }

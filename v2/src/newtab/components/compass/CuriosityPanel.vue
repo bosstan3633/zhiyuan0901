@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '@/shared/components/Icon.vue'
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, defineAsyncComponent, shallowRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCuriosity, type CuriStatus } from '../../stores/curiosity'
@@ -51,7 +52,7 @@ const viewMode = ref<'card' | 'list' | 'kanban'>('card')
 // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.curio；网格模板由 --grid-cols 驱动）
 const curioCols = useCardCols('curio', store.ui)
 /** R3-Cc2：控制行值域配置（视图三档 + 状态胶囊带计数由 statusCounts 现算） */
-const CURIO_VIEWS = [{ id: 'card', label: '▦ 卡片', title: '卡片视图' }, { id: 'list', label: '☰ 列表', title: '列表视图' }, { id: 'kanban', label: '▥ 看板', title: '看板视图' }]
+const CURIO_VIEWS = [{ id: 'card', label: '▦ 卡片', title: '卡片视图' }, { id: 'list', label: '列表', title: '列表视图' }, { id: 'kanban', label: '▥ 看板', title: '看板视图' }]
 const curioFilters = computed(() => [
   { id: 'all', label: '全部', count: statusCounts.value.all || 0 },
   ...Object.entries(STATUS_MAP).map(([key, v]) => ({ id: key, label: `${v.icon} ${v.label}`, count: statusCounts.value[key] || 0 }))
@@ -174,7 +175,7 @@ function openDetail(id: string) {
 function saveDetail() {
   if (detailId.value && editDraft.value.trim()) {
     update(detailId.value, { question: editDraft.value.trim() })
-    showToast('✓ 已更新')
+    showToast('已更新')
     detailId.value = null // 第卅三轮 REQ-015：保存后关闭抽屉
   }
 }
@@ -229,7 +230,7 @@ function togglePin(id: string) {
   if (!c) return
   const next = !c.pinned
   update(id, { pinned: next })
-  showToast(next ? '📌 已置顶，将在专区顶部展示' : '已取消置顶')
+  showToast(next ? '已置顶，将在专区顶部展示' : '已取消置顶')
 }
 /** 第卅三轮 REQ-020：好奇心星标切换（独立于置顶，可叠加） */
 function toggleStar(id: string) {
@@ -237,7 +238,7 @@ function toggleStar(id: string) {
   if (!c) return
   const next = !c.starred
   update(id, { starred: next, updatedAt: Date.now() })
-  showToast(next ? '⭐ 已星标，搜索时优先展示' : '已取消星标')
+  showToast(next ? '已星标，搜索时优先展示' : '已取消星标')
 }
 
 // ---- O7：单击详情 / 双击打开来源链接（与资源卡一致） ----
@@ -300,7 +301,7 @@ function onCzDrop(e: DragEvent, targetId: string, status?: CuriStatus) {
     const c = list[fi]
     if (c.status !== status) {
       setStatus(movedId, status)
-      showToast(`✓ 已移至「${STATUS_MAP[status].label}」`)
+      showToast(`已移至「${STATUS_MAP[status].label}」`)
     }
   }
   const [moved] = list.splice(fi, 1)
@@ -314,7 +315,7 @@ function onCzDrop(e: DragEvent, targetId: string, status?: CuriStatus) {
   }
   store.persist()
   dragCzId = null
-  showToast('✓ 已调整排序')
+  showToast('已调整排序')
 }
 function onCzKanbanDrop(e: DragEvent, status: CuriStatus) {
   e.preventDefault()
@@ -322,7 +323,7 @@ function onCzKanbanDrop(e: DragEvent, status: CuriStatus) {
   const c = curiosities.value.find(x => x.id === dragCzId)
   if (c && c.status !== status) {
     setStatus(dragCzId, status)
-    showToast(`✓ 已移至「${STATUS_MAP[status].label}」`)
+    showToast(`已移至「${STATUS_MAP[status].label}」`)
   }
   dragCzId = null
 }
@@ -377,12 +378,12 @@ function confirmConvert() {
     if (!convertWsId.value) { showToast('请选择存入位置'); return }
     convertToResource(c, convertWsId.value, convertCatId.value || undefined)
     // 台名走 wsNameById 单源；改前硬拼 `「${ws.name}」资源台`，存量库实测印成「已归档至「🗂 资源台」资源台」
-    showToast(`✓ 已归档至「${wsNameById(store.data!.workspaces, convertWsId.value) || '未命名台'}」`)
+    showToast(`已归档至「${wsNameById(store.data!.workspaces, convertWsId.value) || '未命名台'}」`)
   } else {
     const proj = convProjects.value.find(p => p.id === convertProjId.value)
     const wasShelf = c.status === 'shelf'
     convertToTask(c, convertProjId.value || undefined, convertMetId.value || undefined)
-    showToast(proj ? `✓ 已转为任务，归属「${proj.name}」` : '✓ 已转为任务，进入任务中心')
+    showToast(proj ? `已转为任务，归属「${proj.name}」` : '已转为任务，进入任务中心')
     // 第卌轮 REQ-050：搁置 → 任务按「待开始」处理，显式提示
     if (wasShelf) showToast('ℹ 已搁置的好奇心转为任务后按「待开始」处理')
   }
@@ -412,7 +413,7 @@ async function aiTriage(one?: CuriosityCard) {
         if (c.deletedAt) return false
         const t = convertToTask(c)
         t.title = title.slice(0, 40)
-        t.description = ((t.description ? t.description + '\n\n' : '') + '💡 源自好奇研判：' + c.question.slice(0, 80))
+        t.description = ((t.description ? t.description + '\n\n' : '') + '源自好奇研判：' + c.question.slice(0, 80))
         return true
       },
     })
@@ -421,7 +422,7 @@ async function aiTriage(one?: CuriosityCard) {
 /** R165-A：来源链接动作贴对象 */
 function copySourceUrl(c: CuriosityCard) {
   if (!c.sourceUrl) { showToast('来源为空'); return }
-  navigator.clipboard?.writeText(c.sourceUrl).then(() => showToast('✓ 来源已复制')).catch(() => {})
+  navigator.clipboard?.writeText(c.sourceUrl).then(() => showToast('来源已复制')).catch(() => {})
 }
 
 const batchMode = ref(false)
@@ -432,7 +433,7 @@ const { selected, allSelected: allCurioSelected, toggle: toggleSelect, selectAll
 function batchAddTag(t: string) {
   const n = addTagToCards(d.value.curiosities, selected.value, t)
   store.persist()
-  showToast(`✓ 已给 ${n} 张卡加标签「${t}」（只加不减，去标签到卡详情里改）`)
+  showToast(`已给 ${n} 张卡加标签「${t}」（只加不减，去标签到卡详情里改）`)
 }
 function batchDelete() {
   selected.value.forEach(id => remove(id))
@@ -484,10 +485,10 @@ function srcShort(url: string): string {
       <DeckControls panel="curio" :filters="curioFilters" :filter="statusFilter" @filter="statusFilter = $event as CuriStatus | 'all'"
         :views="CURIO_VIEWS" :view="viewMode" @view="viewMode = $event as 'card' | 'list' | 'kanban'"
         :sort-dir="sortDir" :sort-dir-titles="['捕获时间倒序（新→旧），点击切换正序', '捕获时间正序（旧→新），点击切换倒序']" @sort-dir="toggleSortDir"
-        :batch-labels="['☑ 批量管理', '✓ 完成']" :batch-on="batchMode" @batch="batchMode = setBatchMode(!batchMode)">
+        :batch-on="batchMode" @batch="batchMode = setBatchMode(!batchMode)">
         <ColsPicker v-if="viewMode === 'card'" v-model="curioCols" label="列数" />
         <!-- R167：转化即出路的账——离场的卡只能在这里被看见 -->
-        <span class="cz-converted" :title="convertedCount ? `已转出 ${convertedCount} 条（转任务 / 归档资源都算）· 在回收站点「恢复」即撤销这次转化` : '还没有好奇心被转出'">→ 已转化 <b>{{ convertedCount }}</b></span>
+        <span class="cz-converted" :title="convertedCount ? `已转出 ${convertedCount} 条（转任务 / 归档资源都算）· 在回收站点「恢复」即撤销这次转化` : '还没有好奇心被转出'">› 已转化 <b>{{ convertedCount }}</b></span>
         <button class="cz-batch-btn ai" title="AI 逐条研判待探索池：哪些值得转成任务、哪些继续养着、哪些可以放下（勾选采纳才写库）" @click="aiTriage()"><AiEntryButton variant="inline" label="转化研判" /></button>
       </DeckControls>
 
@@ -503,13 +504,13 @@ function srcShort(url: string): string {
 
       <!-- R110-LC（T3）：归档卡已从默认视图隐藏——降级提示（R113-N2 起点击跳 设置→总览·资源生命周期） -->
       <div v-if="archivedHintCount" class="cz-archived-hint" @click="router.push('/profile#lifecycle')">
-        📦 另有 {{ archivedHintCount }} 张已归档好奇卡未显示（点此在 设置 → 总览 · 资源生命周期 中查看 / 恢复）
+        <Icon name="package" :size="13"/> 另有 {{ archivedHintCount }} 张已归档好奇卡未显示（点此在 设置 › 总览 · 资源生命周期 中查看 / 恢复）
       </div>
 
       <!-- 卡片视图 -->
       <div v-if="viewMode === 'card'" class="cz-grid" :style="{ '--grid-cols': String(curioCols) }">
         <template v-for="(c, i) in filtered" :key="c.id">
-          <div v-if="pinnedCount && i === 0" class="cz-group-label">📌 已置顶</div>
+          <div v-if="pinnedCount && i === 0" class="cz-group-label"><Icon name="pin" :size="13"/> 已置顶</div>
           <div v-else-if="pinnedCount && i === pinnedCount" class="cz-group-label">全部好奇心</div>
           <div class="cz-card"
             :class="{selected: selected.has(c.id), pinned: c.pinned, flash: highlightId===c.id, 'drop-line-t': dropMark===c.id+'-t', 'drop-line-b': dropMark===c.id+'-b'}"
@@ -518,11 +519,11 @@ function srcShort(url: string): string {
             @dragstart="onCzDragStart($event, c.id)" @dragend="onCzDragEnd"
             @dragover.prevent="markDrop($event, c.id, 'x')" @dragleave="clearDropMark" @drop="onCzDrop($event, c.id)"
             @contextmenu.prevent="openCurioCtx($event, c)">
-            <span v-if="batchMode" class="cz-check" @click.stop="toggleSelect(c.id)">{{ selected.has(c.id) ? '☑' : '☐' }}</span>
+            <span v-if="batchMode" class="cz-check" @click.stop="toggleSelect(c.id)"><Icon v-if="selected.has(c.id)" name="checksquare" :size="13"/><Icon v-else name="square" :size="13"/></span>
             <!-- R117（04-61 D）：状态胶囊受「状态」字段显隐控制（批量态下仍让位给勾选框） -->
             <span v-if="cShow('status')" class="cz-status" :class="STATUS_MAP[c.status].cls">{{ STATUS_MAP[c.status].icon }} {{ STATUS_MAP[c.status].label }}</span>
-            <button class="cz-pin-corner" :class="{on: c.pinned}" @click.stop="togglePin(c.id)" title="置顶">📌</button>
-            <button class="cz-star-corner" :class="{on: c.starred}" @click.stop="toggleStar(c.id)" title="星标">⭐</button>
+            <button class="cz-pin-corner" :class="{on: c.pinned}" @click.stop="togglePin(c.id)" title="置顶"><Icon name="pin" :size="13"/></button>
+            <button class="cz-star-corner" :class="{on: c.starred}" @click.stop="toggleStar(c.id)" title="星标"><Icon name="star" :size="13"/></button>
             <div class="cz-title"><NewBadge :at="c.createdAt" />{{ c.question }}</div>
             <div class="cz-matrow"><MaturityBadge :m="curioMaturity(c)" /></div>
             <!-- 第卌轮 REQ-051：附件徽章 + 标签/自定义字段（字段设计控制显隐排序）
@@ -534,26 +535,26 @@ function srcShort(url: string): string {
                   <span v-for="t in c.tags" :key="t" class="cz-ext-tag">#{{ t }}</span>
                 </span>
                 <a v-else-if="f.key === 'sourceUrl' && toOpenableRawLink(c.sourceUrl)" class="cz-ext-src" :href="toOpenableRawLink(c.sourceUrl)"
-                  target="_blank" rel="noreferrer" :title="c.sourceUrl" @click.stop>🔗 {{ srcShort(c.sourceUrl || '') }}</a>
+                  target="_blank" rel="noreferrer" :title="c.sourceUrl" @click.stop><Icon name="link" :size="13"/> {{ srcShort(c.sourceUrl || '') }}</a>
                 <!-- R129-B5：协议不在白名单（含只有文件名的本地路径）→ 不再渲染可点链接，降级为纯文本 -->
-                <span v-else-if="f.key === 'sourceUrl' && c.sourceUrl" class="cz-ext-src" :title="c.sourceUrl" @click.stop>🔗 {{ srcShort(c.sourceUrl) }}</span>
+                <span v-else-if="f.key === 'sourceUrl' && c.sourceUrl" class="cz-ext-src" :title="c.sourceUrl" @click.stop><Icon name="link" :size="13"/> {{ srcShort(c.sourceUrl) }}</span>
                 <span v-else-if="f.key.startsWith('custom_') && curioExtVal(c, f)" class="cz-ext-custom">
                   <span class="cz-ext-lbl">{{ f.label }}:</span>{{ curioExtVal(c, f) }}
                 </span>
               </template>
             </div>
             <!-- R117（04-61 D）：创建时间受字段设置控制（原为硬编码 unconditional 渲染） -->
-            <div v-if="cShow('createdAt')" class="cz-meta">📅 {{ fmtDate(c.createdAt) }}</div>
+            <div v-if="cShow('createdAt')" class="cz-meta"><Icon name="calendar" :size="13"/> {{ fmtDate(c.createdAt) }}</div>
             <div class="cz-hover-bar">
               <button class="cz-hover-btn primary" @click.stop="openConvert(c, 'task')">转为任务</button>
               <button class="cz-hover-btn" @click.stop="openConvert(c, 'res')">归档资源</button>
               <button class="cz-hover-btn ai" @click.stop="aiTriage(c)" title="AI 研判这条好奇：值不值得转成任务（判据=对不对得上愿景与活跃目标）"><AiEntryButton variant="inline" label="研判" /></button>
-              <button class="cz-hover-btn danger" @click.stop="deleteCard(c)" title="删除">🗑</button>
+              <button class="cz-hover-btn danger" @click.stop="deleteCard(c)" title="删除"><Icon name="trash" :size="13"/></button>
             </div>
           </div>
         </template>
         <div v-if="!filtered.length" class="cz-empty">
-          <div class="cz-empty-icon">💡</div>
+          <div class="cz-empty-icon"><Icon name="bulb" :size="13"/></div>
           <div>还没有好奇心 · 按 Ctrl+Shift+I 一键采集（支持选中网页文本后采集）</div>
         </div>
       </div>
@@ -561,7 +562,7 @@ function srcShort(url: string): string {
       <!-- 列表视图 -->
       <div v-else-if="viewMode === 'list'" class="cz-list">
         <template v-for="(c, i) in filtered" :key="c.id">
-          <div v-if="pinnedCount && i === 0" class="cz-group-label">📌 已置顶</div>
+          <div v-if="pinnedCount && i === 0" class="cz-group-label"><Icon name="pin" :size="13"/> 已置顶</div>
           <div v-else-if="pinnedCount && i === pinnedCount" class="cz-group-label">全部好奇心</div>
           <div class="cz-list-item" draggable="true"
             @click="onCardClick(c.id)" @dblclick="onCardDblClick(c)"
@@ -569,9 +570,9 @@ function srcShort(url: string): string {
             @dragover.prevent="markDrop($event, c.id, 'y')" @dragleave="clearDropMark" @drop="onCzDrop($event, c.id)"
             @contextmenu.prevent="openCurioCtx($event, c)"
             :class="dropMark===c.id+'-t' ? 'drop-line-t' : dropMark===c.id+'-b' ? 'drop-line-b' : ''">
-            <span v-if="batchMode" class="cz-check" @click.stop="toggleSelect(c.id)">{{ selected.has(c.id) ? '☑' : '☐' }}</span>
-            <span v-else-if="c.pinned" class="cz-pin-flag">📌</span>
-            <span v-else-if="c.starred" class="cz-star-flag">⭐</span>
+            <span v-if="batchMode" class="cz-check" @click.stop="toggleSelect(c.id)"><Icon v-if="selected.has(c.id)" name="checksquare" :size="13"/><Icon v-else name="square" :size="13"/></span>
+            <span v-else-if="c.pinned" class="cz-pin-flag"><Icon name="pin" :size="13"/></span>
+            <span v-else-if="c.starred" class="cz-star-flag"><Icon name="star" :size="13"/></span>
             <span v-if="cShow('status')" class="cz-status" :class="STATUS_MAP[c.status].cls">{{ STATUS_MAP[c.status].icon }}</span>
             <span class="cz-list-text"><NewBadge :at="c.createdAt" />{{ c.question }}</span>
             <MaturityBadge :m="curioMaturity(c)" />
@@ -579,12 +580,12 @@ function srcShort(url: string): string {
             <!-- R117（04-61 D）：列表视图同步受字段设置控制 -->
             <span v-if="cShow('createdAt')" class="cz-list-date">{{ fmtDate(c.createdAt) }}</span>
             <div class="cz-list-actions">
-              <button class="mini-btn" :class="{pinon: c.pinned}" @click.stop="togglePin(c.id)" title="置顶">📌</button>
-              <button class="mini-btn" :class="{pinon: c.starred}" @click.stop="toggleStar(c.id)" title="星标">⭐</button>
+              <button class="mini-btn" :class="{pinon: c.pinned}" @click.stop="togglePin(c.id)" title="置顶"><Icon name="pin" :size="13"/></button>
+              <button class="mini-btn" :class="{pinon: c.starred}" @click.stop="toggleStar(c.id)" title="星标"><Icon name="star" :size="13"/></button>
               <button class="mini-btn" @click.stop="openConvert(c, 'task')">转任务</button>
               <button class="mini-btn" @click.stop="openConvert(c, 'res')">归档</button>
               <button class="mini-btn ai" @click.stop="aiTriage(c)" title="AI 研判这条好奇：值不值得转成任务"><AiEntryButton /></button>
-              <button class="mini-btn danger" @click.stop="deleteCard(c)">🗑</button>
+              <button class="mini-btn danger" @click.stop="deleteCard(c)"><Icon name="trash" :size="13"/></button>
             </div>
           </div>
         </template>
@@ -606,15 +607,15 @@ function srcShort(url: string): string {
               @click="onCardClick(c.id)" @dblclick="onCardDblClick(c)"
               @dragstart="onCzDragStart($event, c.id)" @dragend="onCzDragEnd"
               @dragover.prevent.stop="markDrop($event, c.id, 'y')" @dragleave="clearDropMark" @drop.stop="onCzDrop($event, c.id, col.status)">
-              <button class="cz-pin-corner" :class="{on: c.pinned}" @click.stop="togglePin(c.id)" title="置顶">📌</button>
-              <button class="cz-star-corner" :class="{on: c.starred}" @click.stop="toggleStar(c.id)" title="星标">⭐</button>
+              <button class="cz-pin-corner" :class="{on: c.pinned}" @click.stop="togglePin(c.id)" title="置顶"><Icon name="pin" :size="13"/></button>
+              <button class="cz-star-corner" :class="{on: c.starred}" @click.stop="toggleStar(c.id)" title="星标"><Icon name="star" :size="13"/></button>
               <div class="cz-kanban-text"><NewBadge :at="c.createdAt" />{{ c.question }}</div>
               <MaturityBadge :m="curioMaturity(c)" />
               <div class="cz-kanban-meta">
                 <AssetBadge v-if="curioExtFields.some(f => f.key === 'assets')" :assets="c.assets" />
                 <span>{{ fmtDate(c.createdAt) }}</span>
                 <button class="cz-kb-ai" @click.stop="aiTriage(c)" title="AI 研判这条好奇：值不值得转成任务"><AiEntryButton /></button>
-                <button class="cz-kb-del" @click.stop="deleteCard(c)" title="删除">🗑</button>
+                <button class="cz-kb-del" @click.stop="deleteCard(c)" title="删除"><Icon name="trash" :size="13"/></button>
               </div>
             </div>
             <div v-if="!col.items.length" class="cz-kanban-empty">拖拽卡片到此列</div>
@@ -663,7 +664,7 @@ function srcShort(url: string): string {
           <div class="ds-kv"><span class="k">来源</span><span class="v">
             <input v-model="detailItem.sourceUrl" placeholder="来源链接（网页 / 本地路径 / obsidian://，失焦即保存）…" class="ds-in"
               @change="update(detailItem.id, { sourceUrl: detailItem.sourceUrl })" />
-            <button class="ds-ib" title="打开来源" @click="detailItem.sourceUrl && openSourceUrl(detailItem.sourceUrl)">↗</button>
+            <button class="ds-ib" title="打开来源" @click="detailItem.sourceUrl && openSourceUrl(detailItem.sourceUrl)"><Icon name="external" :size="13"/></button>
             <button class="ds-ib" title="复制来源" @click="copySourceUrl(detailItem)">⧉</button>
           </span></div>
           <div class="ds-kv"><span class="k">标签</span><span class="v">
@@ -673,7 +674,7 @@ function srcShort(url: string): string {
 
         <!-- 焦点：问题原文整块撑高（R165-A 正名：现状标签「摘录」实绑 question；REQ-015 Ctrl+Enter 保存；REQ-024 高度拖拽记忆） -->
         <section class="ds-pnl hero">
-          <div class="ds-pnl-h"><b>问题原文</b><i>点进去即编辑 · Ctrl+↩ 保存并关闭</i><span class="r">{{ editDraft.length }} 字</span></div>
+          <div class="ds-pnl-h"><b>问题原文</b><i>点进去即编辑 · Ctrl+<Icon name="arrowleft" :size="13"/> 保存并关闭</i><span class="r">{{ editDraft.length }} 字</span></div>
           <div class="ta-wrap ds-quote-wrap">
             <textarea v-model="editDraft" rows="4" class="ds-hero-note" :style="{ height: detailH + 'px' }"
               @keydown.ctrl.enter.prevent="saveDetail" @keydown.meta.enter.prevent="saveDetail" />
@@ -698,7 +699,7 @@ function srcShort(url: string): string {
       <!-- R165-A：页脚收敛两钮——删除（二次确认，详情原先不能删）+ 保存 -->
       <template #footer>
         <ArmDeleteButton @confirm="detailItem && deleteCard(detailItem)" />
-        <button class="mini-btn primary cz-save" @click="saveDetail">✓ 保存 <span style="font-size: var(--fs-tiny);opacity:.75;margin-left:2px">⏎</span></button>
+        <button class="mini-btn primary cz-save" @click="saveDetail"><Icon name="check" :size="13"/> 保存 <span style="font-size: var(--fs-tiny);opacity:.75;margin-left:2px">Enter</span></button>
       </template>
     </Drawer>
 
@@ -708,7 +709,7 @@ function srcShort(url: string): string {
         <div v-if="convertOpen" class="cz-modal-overlay" @click.self="convertOpen = false">
           <div class="cz-modal">
             <div class="cz-modal-head">
-              <span>{{ convertTarget === 'task' ? '✅ 转为任务' : '📄 归档为资源' }}</span>
+              <span><Icon :name="convertTarget === 'task' ? 'branch' : 'save'" :size="13"/> {{ convertTarget === 'task' ? '转为任务' : '归档为资源' }}</span>
               <button class="mini-btn" @click="convertOpen = false">×</button>
             </div>
             <div class="cz-modal-sub">{{ convertItem?.question }}</div>
@@ -720,8 +721,8 @@ function srcShort(url: string): string {
               </select>
               <label class="cz-modal-label">分类（默认待分类）</label>
               <select v-model="convertCatId" class="cz-modal-select">
-                <option value="">📥 待分类</option>
-                <option v-for="cat in convCategories" :key="cat.id" :value="cat.id">📂 {{ cat.name }}</option>
+                <option value=""><Icon name="inbox" :size="13"/> 待分类</option>
+                <option v-for="cat in convCategories" :key="cat.id" :value="cat.id"><Icon name="folderopen" :size="13"/> {{ cat.name }}</option>
               </select>
             </template>
 
@@ -730,18 +731,18 @@ function srcShort(url: string): string {
               <!-- R70：项目变更时复位指标（见 onConvertProjChange）——此前只 disabled 不清空，可提交出「有指标无项目」的非法任务 -->
               <select v-model="convertProjId" class="cz-modal-select" @change="onConvertProjChange">
                 <option value="">暂不归属</option>
-                <option v-for="p in convProjects" :key="p.id" :value="p.id">📦 {{ p.name }}（{{ p.dir }}）</option>
+                <option v-for="p in convProjects" :key="p.id" :value="p.id"><Icon name="package" :size="13"/> {{ p.name }}（{{ p.dir }}）</option>
               </select>
               <label class="cz-modal-label">成功指标（可选）</label>
               <select v-model="convertMetId" class="cz-modal-select" :disabled="!convertProjId">
                 <option value="">暂不归属</option>
-                <option v-for="m in convMetrics" :key="m.id" :value="m.id">🎯 {{ m.title }}</option>
+                <option v-for="m in convMetrics" :key="m.id" :value="m.id"><Icon name="target" :size="13"/> {{ m.title }}</option>
               </select>
             </template>
 
             <div class="cz-modal-foot">
               <button class="mini-btn" @click="convertOpen = false">取消</button>
-              <button class="mini-btn primary" @click="confirmConvert">✓ 确认转化</button>
+              <button class="mini-btn primary" @click="confirmConvert"><Icon name="check" :size="13"/> 确认转化</button>
             </div>
           </div>
         </div>
@@ -859,6 +860,8 @@ function srcShort(url: string): string {
 .cz-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,.28); display: flex; align-items: flex-start; justify-content: center; padding-top: 20vh; }
 .cz-modal { width: 400px; max-width: 92vw; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 18px 20px; }
 .cz-modal-head { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+/* G1（V3.8.25）：转化弹窗头原是 ✅/📄 裸 emoji，Icon 化后与文字同行需 flex 对齐 */
+.cz-modal-head > span { display: inline-flex; align-items: center; gap: 6px; }
 .cz-modal-sub { font-size: var(--fs-sub); color: var(--text-3); line-height: 1.6; margin-bottom: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .cz-modal-label { display: block; font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); margin: 10px 0 5px; }
 .cz-modal-select { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-size: var(--fs-body); color: var(--text); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; }

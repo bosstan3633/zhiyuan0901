@@ -78,7 +78,7 @@ check('W14-3 ★Hero 不是视觉焦点：主标题降为 fs-title，且画像�
 
 check('W14-4 ★压体积不许压能力：页头三件套（刷新 · 导出 · 全部记录）零丢失、四张底盘卡的四个下钻出口零丢失、使命轻引导出口保留、H2P 双类锚点保持（E2E-21 靠它）', () => {
   return HERO.includes("emit('refresh')") && HERO.includes('<ExportMenu')
-    && HERO.includes("emit('open-log')") && HERO.includes('🗂 全部记录')
+    && HERO.includes("emit('open-log')") && HERO.includes('<Icon name="folder" :size="13"/> 全部记录')
     && ['total', 'entropy', 'support', 'focus'].every(k => HERO.includes(`emit('drill', '${k}')`))
     && HERO.includes('class="pi-hero hero-card"')                  /* E2E-21 双类锚点 */
     && HERO.includes("(e: 'goto-compass'): void")                 /* 使命轻引导出口保留 */

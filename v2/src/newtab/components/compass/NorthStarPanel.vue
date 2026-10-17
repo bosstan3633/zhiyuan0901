@@ -1,4 +1,5 @@
 ﻿<script setup lang="ts">
+import Icon from '@/shared/components/Icon.vue'
 import { ref, computed } from 'vue'
 import { useCompass } from '../../stores/compass'
 import { useAppStore } from '../../stores/app'
@@ -26,12 +27,12 @@ type DrawerType = 'dhi' | 'wce' | 'wrr' | 'today-add' | 'today-del' | 'tasks'
 const drawerOpen = ref(false)
 const drawerType = ref<DrawerType>('dhi')
 const drawerTitle = computed(() => ({
-  dhi: '🧭 方向健康度明细 · 战略目标 / 推进项目',
-  wce: '💡 好奇探索明细 · WCE',
-  wrr: '🟢 有效复用明细 · WRR',
-  'today-add': `📈 新增卡片明细 · ${periodLabel.value}`,
-  'today-del': `📉 删除卡片明细 · ${periodLabel.value}`,
-  tasks: '📥 未归档任务 · 待归档清单'
+  dhi: '方向健康度明细 · 战略目标 / 推进项目',
+  wce: '好奇探索明细 · WCE',
+  wrr: '有效复用明细 · WRR',
+  'today-add': `新增卡片明细 · ${periodLabel.value}`,
+  'today-del': `删除卡片明细 · ${periodLabel.value}`,
+  tasks: '未归档任务 · 待归档清单'
 }[drawerType.value]))
 /** R45-1：新增/删除卡片口径说明（随档位联动，本地维护，compass.formulas 不含） */
 const localFormulas = computed<Record<string, string>>(() => {
@@ -99,7 +100,7 @@ const allCardsFlat = computed<FlatCard[]>(() => [
   ...d.value.tasks.map(t => ({ kind: 'task' as const, id: t.id, title: t.title || '（无标题）', createdAt: t.createdAt || 0, deletedAt: t.deletedAt, importedAt: t.importedAt })),
   ...d.value.curiosities.map(c => ({ kind: 'curiosity' as const, id: c.id, title: c.question || '（无标题）', createdAt: c.createdAt || 0, deletedAt: c.deletedAt, importedAt: c.importedAt }))
 ])
-function kindIcon(kind: FlatCard['kind']): string { return kind === 'resource' ? '📇' : kind === 'task' ? '✅' : '💡' }
+function kindIcon(kind: FlatCard['kind']): string { return kind === 'resource' ? 'filetext' : kind === 'task' ? 'checksquare' : 'bulb' }
 /** 日档只显 HH:mm；周/累计档显 MM-DD HH:mm */
 function fmtStamp(ts?: number): string {
   if (!ts) return ''
@@ -123,7 +124,7 @@ const todayDelList = computed(() =>
 const todayAddSub = computed(() => {
   // R48-B2 双口径：窗口内有导入卡时，副标提示「含导入 N」（导入继承原 createdAt，不混入新建数）
   const imp = todayAddList.value.filter(x => x.importedAt && x.importedAt >= periodStart.value).length
-  return kindSub(todayAddList.value) + (imp ? ` · 含导入${imp}` : '')
+  return kindSub(todayAddList.value) + (imp ? `· 含导入${imp}` : '')
 })
 const todayDelSub = computed(() => kindSub(todayDelList.value))
 
@@ -146,9 +147,9 @@ const projectById = computed(() => {
 function taskArchiveIssue(t: { projectId?: string; metricId?: string }): string {
   if (!t.projectId) return '未挂项目'
   const proj = projectById.value.get(t.projectId)
-  if (!proj) return '⚠ 项目失效'
+  if (!proj) return '项目失效'
   if (!t.metricId) return '未挂指标'
-  if (!proj.metrics.some(mt => mt.id === t.metricId)) return '⚠ 指标失效'
+  if (!proj.metrics.some(mt => mt.id === t.metricId)) return '指标失效'
   return ''
 }
 const unarchivedTasks = computed(() =>
@@ -221,32 +222,32 @@ function changeTaskMetric(taskId: string, e: Event) {
     <div class="ns-body">
       <div class="ns-matrix">
         <div class="ns-card top" @click="openDrawer('dhi')">
-          <div class="ns-label">🧭 方向状态 <span class="ns-hint">↗</span></div>
+          <div class="ns-label"><Icon name="compass" :size="13"/> 方向状态 <span class="ns-hint"><Icon name="external" :size="13"/></span></div>
           <div class="ns-value">{{ metrics.dhi.goals }} 战略目标</div>
           <div class="ns-sub">{{ metrics.dhi.pushing }} 项目推进中</div>
         </div>
         <div class="ns-card top" @click="openDrawer('wce')">
-          <div class="ns-label">💡 WCE <span class="ns-hint">↗</span></div>
+          <div class="ns-label"><Icon name="bulb" :size="13"/> WCE <span class="ns-hint"><Icon name="external" :size="13"/></span></div>
           <div class="ns-value">{{ metrics.wce.label }}</div>
           <div class="ns-sub">{{ metrics.wce.sub }}</div>
         </div>
         <div class="ns-card top" @click="openDrawer('wrr')">
-          <div class="ns-label">🟢 WRR <span class="ns-hint">↗</span></div>
+          <div class="ns-label"><Icon name="dot" :size="9" class="zy-dot zy-dot-lo"/> WRR <span class="ns-hint"><Icon name="external" :size="13"/></span></div>
           <div class="ns-value">{{ metrics.wrr.label }}</div>
           <div class="ns-sub">{{ metrics.wrr.sub }}</div>
         </div>
         <div class="ns-card bottom" @click="openDrawer('today-add')">
-          <div class="ns-label">📈 新增卡片 <span class="ns-hint">↗</span></div>
+          <div class="ns-label"><Icon name="trendup" :size="13"/> 新增卡片 <span class="ns-hint"><Icon name="external" :size="13"/></span></div>
           <div class="ns-value">{{ todayAddList.length }}</div>
           <div class="ns-sub">{{ todayAddSub }} · {{ periodLabel }}</div>
         </div>
         <div class="ns-card bottom" @click="openDrawer('today-del')">
-          <div class="ns-label">📉 删除卡片 <span class="ns-hint">↗</span></div>
+          <div class="ns-label"><Icon name="trenddown" :size="13"/> 删除卡片 <span class="ns-hint"><Icon name="external" :size="13"/></span></div>
           <div class="ns-value">{{ todayDelList.length }}</div>
           <div class="ns-sub">{{ todayDelSub }} · {{ periodLabel }}</div>
         </div>
         <div class="ns-card bottom" @click="openDrawer('tasks')">
-          <div class="ns-label">📥 未归档任务 <span class="ns-hint">↗</span></div>
+          <div class="ns-label"><Icon name="inbox" :size="13"/> 未归档任务 <span class="ns-hint"><Icon name="external" :size="13"/></span></div>
           <div class="ns-value">{{ unarchivedTasks.length }}/{{ totalTasks }}</div>
           <div class="ns-sub">未挂指标 · 不分期</div>
         </div>
@@ -255,17 +256,17 @@ function changeTaskMetric(taskId: string, e: Event) {
 
     <!-- 六指标下钻抽屉 -->
     <Drawer :open="drawerOpen" :title="drawerTitle" width="460px" @close="drawerOpen = false">
-      <div class="nd-formula">📐 {{ drawerFormula }}</div>
+      <div class="nd-formula"><Icon name="ruler" :size="13"/> {{ drawerFormula }}</div>
 
       <!-- 战略目标 / 推进项目 -->
       <template v-if="drawerType === 'dhi'">
         <div class="dhi-list">
           <div v-for="item in dhiList" :key="item.project.id" class="nd-item clickable" @click="openProject(item.project)">
             <div class="nd-name">{{ item.project.name }}</div>
-            <div v-if="item.stagnant" class="nd-tag warn">⚠ 停滞</div>
+            <div v-if="item.stagnant" class="nd-tag warn"><Icon name="warn" :size="13"/> 停滞</div>
             <div v-else class="nd-meta">{{ item.done }}/{{ item.total }}</div>
             <div class="nd-progress"><div class="nd-bar" :style="{width: item.pct + '%'}" /></div>
-            <span class="nd-edit-hint">✎</span>
+            <span class="nd-edit-hint"><Icon name="edit" :size="13"/></span>
           </div>
           <div v-if="!dhiList.length" class="nd-empty">暂无项目，去六层思维树创建</div>
           <div class="nd-tip">点击项目可编辑指标与任务，实时同步罗盘</div>
@@ -292,8 +293,8 @@ function changeTaskMetric(taskId: string, e: Event) {
         <div class="dhi-list">
           <div v-for="r in wrrTop" :key="r.id" class="nd-item clickable" @click="openResLink(r)">
             <div class="nd-name text">{{ r.title }}</div>
-            <div class="nd-meta">🔥{{ r.callCount }}次</div>
-            <span class="nd-edit-hint">↗</span>
+            <div class="nd-meta"><Icon name="flame" :size="13"/>{{ r.callCount }}次</div>
+            <span class="nd-edit-hint"><Icon name="external" :size="13"/></span>
           </div>
           <div v-if="!wrrTop.length" class="nd-empty">还没有资源被打开过——去资源台双击卡片或搜索打开</div>
         </div>
@@ -303,19 +304,19 @@ function changeTaskMetric(taskId: string, e: Event) {
       <template v-else-if="drawerType === 'today-add'">
         <div class="dhi-list">
           <div v-for="x in todayAddList" :key="x.kind + x.id" class="nd-item">
-            <div class="nd-name text">{{ kindIcon(x.kind) }} {{ x.title }}<span v-if="x.importedAt && x.importedAt >= periodStart" class="ns-imp-badge" title="本次导入 · 继承原创建时间">⇪ 导入</span></div>
+            <div class="nd-name text"><Icon :name="kindIcon(x.kind)" :size="12"/> {{ x.title }}<span v-if="x.importedAt && x.importedAt >= periodStart" class="ns-imp-badge" title="本次导入 · 继承原创建时间"><Icon name="upload" :size="13"/> 导入</span></div>
             <div class="nd-meta">{{ fmtStamp(x.importedAt && x.importedAt >= periodStart ? x.importedAt : x.createdAt) }}</div>
           </div>
           <div v-if="!todayAddList.length" class="nd-empty">{{ periodLabel }}还没有新增卡片——去采集一张，这里立刻 +1</div>
         </div>
-        <div class="nd-tip">实时派生自卡片 createdAt · 导入卡带 ⇪ 徽标（继承原创建时间）</div>
+        <div class="nd-tip">实时派生自卡片 createdAt · 导入卡带 <Icon name="upload" :size="13"/> 徽标（继承原创建时间）</div>
       </template>
 
       <!-- 第卌四轮 T-02：今日删除明细 -->
       <template v-else-if="drawerType === 'today-del'">
         <div class="dhi-list">
           <div v-for="x in todayDelList" :key="x.kind + x.id" class="nd-item">
-            <div class="nd-name text">{{ kindIcon(x.kind) }} {{ x.title }}</div>
+            <div class="nd-name text"><Icon :name="kindIcon(x.kind)" :size="12"/> {{ x.title }}</div>
             <div class="nd-meta">{{ fmtStamp(x.deletedAt) }}</div>
           </div>
           <div v-if="!todayDelList.length" class="nd-empty">{{ periodLabel }}没有删除卡片</div>
@@ -333,18 +334,18 @@ function changeTaskMetric(taskId: string, e: Event) {
             </div>
             <div class="nd-task-links">
               <select class="nd-select" :value="t.projectId || ''" @change="changeTaskProject(t.id, $event)">
-                <option value="">📦 未关联项目</option>
-                <option v-for="p in projects" :key="p.id" :value="p.id">📦 {{ p.name }}</option>
+                <option value=""><Icon name="package" :size="13"/> 未关联项目</option>
+                <option v-for="p in projects" :key="p.id" :value="p.id"><Icon name="package" :size="13"/> {{ p.name }}</option>
               </select>
               <select class="nd-select" :value="t.metricId || ''" :disabled="!t.projectId" @change="changeTaskMetric(t.id, $event)" title="关联成功指标后即完成归档">
-                <option value="">🎯 未关联指标</option>
-                <option v-for="m in metricsOf(t.projectId)" :key="m.id" :value="m.id">🎯 {{ m.title }}</option>
+                <option value=""><Icon name="target" :size="13"/> 未关联指标</option>
+                <option v-for="m in metricsOf(t.projectId)" :key="m.id" :value="m.id"><Icon name="target" :size="13"/> {{ m.title }}</option>
               </select>
             </div>
           </div>
-          <div v-if="!unarchivedTasks.length" class="nd-empty">🎉 没有未归档任务——所有任务都已挂到成功指标</div>
+          <div v-if="!unarchivedTasks.length" class="nd-empty"><Icon name="star" :size="13"/> 没有未归档任务——所有任务都已挂到成功指标</div>
         </div>
-        <div class="nd-tip">📥 未归档 = 未挂成功指标的任务（含未挂项目的）。先选项目再选指标，关联成功后任务立即从清单消失，任务中心与罗盘同步生效</div>
+        <div class="nd-tip"><Icon name="inbox" :size="13"/> 未归档 = 未挂成功指标的任务（含未挂项目的）。先选项目再选指标，关联成功后任务立即从清单消失，任务中心与罗盘同步生效</div>
       </template>
     </Drawer>
 

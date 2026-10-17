@@ -11,6 +11,7 @@
  *
  * 全部数值、行详情、洞察文案、空槽推荐由宿主 ProfileInsights 推导传入；本组件零取 store。
  */
+import Icon from '@/shared/components/Icon.vue'
 import type { FocusSlot } from '@/shared/models'
 import type { ConciseInsight } from '@/shared/utils/reviewReport'
 
@@ -73,10 +74,10 @@ const emit = defineEmits<{
 <template>
   <section class="pi-mod" id="mod-now">
     <div class="pi-mod-h">
-      <span class="pi-mod-ico i-now">📊</span>
+      <span class="pi-mod-ico i-now"><Icon name="barchart" :size="13"/></span>
       <div class="pi-mod-t">
         <h2>今日战报<span class="en">DAILY REPORT</span><span class="tagline">DayDetail · 五段式</span></h2>
-        <p>当天的四类记录，全部来自本机事件日志。点任一格 → 明细下钻（单击定位 · 双击开链接）。</p>
+        <p>当天的四类记录，全部来自本机事件日志。点任一格 › 明细下钻（单击定位 · 双击开链接）。</p>
       </div>
       <div class="pi-mod-acts">
         <button class="pi-btn line" @click="emit('open-battle')">打开战报</button>
@@ -85,7 +86,7 @@ const emit = defineEmits<{
     <div class="pi-mod-b">
       <!-- ① 一句人话诊断条（F7 · 恒渲染 · ★W13-T7 文本与 CTA 由宿主 buildConciseInsights 注入） -->
       <div id="ins-today" class="one-insight" :class="props.insight.warn ? 'warn' : 'info'">
-        <span class="oi-ic">{{ props.insight.warn ? '⚠️' : '💡' }}</span>
+        <span class="oi-ic"><Icon v-if="props.insight.warn" name="warn" :size="15"/><Icon v-else name="bulb" :size="15"/></span>
         <span class="oi-text" v-html="props.insight.html"></span>
         <button class="act-link" :title="props.insight.html" @click="emit('insight-action', props.insight.ctaAction)">
           {{ props.insight.ctaLabel }}
@@ -124,21 +125,21 @@ const emit = defineEmits<{
           <div v-if="r" class="f3-row" :class="{ done: r.slot.done }">
             <span class="f3-no">{{ String(i + 1).padStart(2, '0') }}</span>
             <button class="f3-ck" :class="{ done: r.slot.done }" :title="r.slot.done ? '点击取消完成' : '点击就地完成'"
-              @click="emit('toggle', r.idx)">{{ r.slot.done ? '✓' : '' }}</button>
+              @click="emit('toggle', r.idx)"><Icon v-if="r.slot.done" name="check" :size="13"/></button>
             <span class="f3-title" :class="{ done: r.slot.done }">{{ r.slot.text || '（空槽）' }}</span>
             <button v-if="r.focused && r.projectId" class="pi-tag ok as-btn"
               :title="`主攻项目：${r.projectName} · 点击查看项目详情`"
-              @click="emit('open-project', r.projectId)">🚀 主攻：{{ r.projectName }}</button>
-            <span v-else-if="r.focused" class="pi-tag ok" :title="`主攻项目：${r.projectName}`">🚀 主攻：{{ r.projectName }}</span>
-            <span v-else-if="r.hasProject" class="pi-tag neutral" :title="`所属项目：${r.projectName}`">📁 {{ r.projectName }}</span>
-            <span v-else class="pi-tag warn" title="未挂任何项目——点右侧按钮归入主攻">⚠️ 未挂项目 (游离)</span>
+              @click="emit('open-project', r.projectId)"><Icon name="main-focus" :size="13"/> 主攻：{{ r.projectName }}</button>
+            <span v-else-if="r.focused" class="pi-tag ok" :title="`主攻项目：${r.projectName}`"><Icon name="main-focus" :size="13"/> 主攻：{{ r.projectName }}</span>
+            <span v-else-if="r.hasProject" class="pi-tag neutral" :title="`所属项目：${r.projectName}`"><Icon name="folder" :size="13"/> {{ r.projectName }}</span>
+            <span v-else class="pi-tag warn" title="未挂任何项目——点右侧按钮归入主攻"><Icon name="warn" :size="13"/> 未挂项目 (游离)</span>
             <span class="f3-ammo" :class="{ zero: !r.supportCount }" :title="r.supportCount ? `已挂 ${r.supportCount} 张支撑卡` : '尚无支撑卡'">
-              🛡 {{ r.supportCount }}
+              <Icon name="shield" :size="13"/> {{ r.supportCount }}
             </span>
             <button v-if="r.canBind" class="f3-bind"
               :title="`按标题关键词与标签预筛资源池（命中 ${r.matchCount} 张），一键归入主攻并批量写入支撑关联`"
               @click="emit('bind', r.idx)">
-              {{ r.matchCount ? `🔗 归入主攻 + 绑 ${r.matchCount} 张卡 ›` : '🔗 归入主攻 ›' }}
+              {{ r.matchCount ? `归入主攻 + 绑 ${r.matchCount} 张卡 ›` : '归入主攻 ›' }}
             </button>
           </div>
           <!-- 空槽行（F11：未排满时给出推荐 + 一键填入） -->
@@ -147,7 +148,7 @@ const emit = defineEmits<{
             <span class="f3-ck ghost"></span>
             <span class="f3-title muted">（空槽）</span>
             <template v-if="props.recommend && props.recommend.idx === i">
-              <span class="f3-rec" :title="props.recommend.why">✦ {{ props.recommend.title }}</span>
+              <span class="f3-rec" :title="props.recommend.why"><Icon name="sparkle" :size="13"/> {{ props.recommend.title }}</span>
               <button class="f3-fill" @click="emit('fill', i)">＋ 一键填入</button>
             </template>
             <span v-else class="f3-pending">去调度台排一排，晚上复盘会更清楚</span>

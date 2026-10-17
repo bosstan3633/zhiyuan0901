@@ -9,6 +9,7 @@
  *   它与网格不是"信息重叠"而是密度差（列表标签全展开、一屏看得多）。
  * 数据口径：workspaceId=CURATION_WS_ID（隐藏池 id，R179 定案）且未软删。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../../stores/app'
@@ -73,7 +74,7 @@ const poolCards = computed(() => {
 const poolTotal = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID).length)
 const untaggedCount = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID && !(r.tags || []).length).length)
 /** R3-Cc2：控制行的值域在这里配置，模板里不写第二套按钮 */
-const poolViews = [{ id: 'card', label: '▦ 网格', title: '网格视图' }, { id: 'list', label: '☰ 列表', title: '列表视图（一屏看更多，标签全展开）' }]
+const poolViews = [{ id: 'card', label: '▦ 网格', title: '网格视图' }, { id: 'list', label: '列表', title: '列表视图（一屏看更多，标签全展开）' }]
 
 /* ===== ★W15-T3（用户拍板 2026-10-16）链接类型分组 =====
  * 口径已澄清定案（用户确认"一张卡只会拥有一个类别的链接"）：
@@ -86,16 +87,19 @@ const poolViews = [{ id: 'card', label: '▦ 网格', title: '网格视图' }, {
  * 总数，头部「261 张」与分组计数对不上账，用户会以为数据错乱。若将来真有卡填了多条，副槽用行尾小徽标提示。 */
 type PoolGroup = 'file' | 'url' | 'obsidian' | 'none'
 const POOL_GROUPS: { id: PoolGroup; label: string; title: string }[] = [
-  { id: 'file', label: '📁 本地文件', title: '链接指向本机文件（仅存文件名、打不开的也算这一类）' },
-  { id: 'url', label: '🔗 含 URL 链接', title: '链接是网页地址（http/https）' },
-  { id: 'obsidian', label: '🧠 Obsidian 链接', title: 'obsidian:// 协议链接' },
+  { id: 'file', label: '本地文件', title: '链接指向本机文件（仅存文件名、打不开的也算这一类）' },
+  { id: 'url', label: '含 URL 链接', title: '链接是网页地址（http/https）' },
+  { id: 'obsidian', label: 'Obsidian 链接', title: 'obsidian:// 协议链接' },
   { id: 'none', label: '○ 无链接', title: '没有链接的卡（纯文字卡 / 只选了槽没填值）' }
 ]
 function groupOf(r: ResourceCard): PoolGroup {
   if (!(r.link || '').trim()) return 'none'
   if (r.linkType === 'file') return 'file'
   if (r.linkType === 'obsidian') return 'obsidian'
-  return (r.link || '').trim().toLowerCase().startsWith('http') ? 'url' : 'url'
+  // ★V3.8.25（B1-a 顺手清账）：原为 `startsWith('http') ? 'url' : 'url'` —— 两支同值，
+  // 是 G1 批量剥离留下的死三元（P0-S3 只认 `? '' : ''`，空格版/同字面量版都漏了）。
+  // 走到这里已经排除了 none/file/obsidian，剩下的就是 url 一类，判定条件本身没有意义。
+  return 'url'
 }
 /** 当前选中的分组（'' = 不分组，按排序档位平铺） */
 const groupBy = ref<'' | PoolGroup>('')
@@ -131,20 +135,20 @@ function openMirror(r: ResourceCard) {
 }
 function doMirror(r: ResourceCard) {
   const wsId = mirrorWsId.value
-  if (!wsId) { showToast('⚠ 请先在行内选一个目标策展台'); return }
-  if (!store.data) { showToast('⚠ 数据未就绪'); return }
+  if (!wsId) { showToast('请先在行内选一个目标策展台'); return }
+  if (!store.data) { showToast('数据未就绪'); return }
   const rec = projectCardToBoard(store.data, r.id, wsId)
-  if (!rec) { showToast('⚠ 该台已经镜像过这张卡'); return }
+  if (!rec) { showToast('该台已经镜像过这张卡'); return }
   store.persist()
   const name = (store.data.workspaces || []).find(w => w.id === wsId)?.name || '策展台'
   mirrorOpenFor.value = null
-  showToast(`✓ 已镜像到「${name}」（源卡仍在资源卡池）`)
+  showToast(`已镜像到「${name}」（源卡仍在资源卡池）`)
 }
 /** 胶囊组没有"再点一次取消"的语义（点谁选谁），这里补上：再点「待打标」= 回到全部 */
 function onPoolFilter(v: string) { onlyUntagged.value = v === 'untagged' ? !onlyUntagged.value : false }
 const poolFilters = computed(() => [
   { id: 'all', label: '全部', count: poolTotal.value },
-  { id: 'untagged', label: '🏷 待打标', count: untaggedCount.value, title: '无标签的卡在任何筛选下都召回不到——这里单独捞出来补标' }
+  { id: 'untagged', label: '待打标', count: untaggedCount.value, title: '无标签的卡在任何筛选下都召回不到——这里单独捞出来补标' }
 ])
 
 /* ===== R2-⑧ 增量渲染：默认一屏 60 张，滚动到底自动追加（260 张实测 449ms/longtask 0，
@@ -179,7 +183,7 @@ watch(() => route.query.hl, (hl) => {
   if (hk && hk !== 'res') return
   const hit = (store.data?.resources || []).find(r => r.id === hl && !r.deletedAt)
   if (!hit) return
-  if (hit.workspaceId !== CURATION_WS_ID) { showToast('⚠ 这张卡不在资源卡池（在策展台内）'); return }
+  if (hit.workspaceId !== CURATION_WS_ID) { showToast('这张卡不在资源卡池（在策展台内）'); return }
   query.value = '' // 过滤态下目标卡可能根本不在渲染列表里，定位先清过滤
   visibleCount.value = Math.max(visibleCount.value, poolCards.value.findIndex(r => r.id === hl) + 1) // 目标卡在分页之外时先把它渲出来
   highlightId.value = hl
@@ -233,8 +237,8 @@ function openCtx(e: MouseEvent, r: ResourceCard) {
   e.preventDefault()
   ctxItems.value = [
     { label: '打开详情', icon: 'eye', cb: () => emitOpenDrawer({ kind: 'res', id: r.id }) },
-    { label: r.pinned ? '取消置顶' : '📌 置顶', cb: () => { r.pinned = !r.pinned; r.updatedAt = Date.now(); store.persist() } },
-    ...(r.link ? [{ label: '复制链接', cb: () => { void navigator.clipboard?.writeText(r.link).then(() => showToast('✓ 链接已复制'), () => showToast('⚠ 复制失败（浏览器未授权剪贴板）')) } }] : []),
+    { label: r.pinned ? '取消置顶' : '置顶', cb: () => { r.pinned = !r.pinned; r.updatedAt = Date.now(); store.persist() } },
+    ...(r.link ? [{ label: '复制链接', cb: () => { void navigator.clipboard?.writeText(r.link).then(() => showToast('链接已复制'), () => showToast('复制失败（浏览器未授权剪贴板）')) } }] : []),
     { label: '删除（进回收站）', icon: 'trash', danger: true, cb: () => removeCard(r) }
   ]
   ctx.value = { open: true, x: Math.min(e.clientX, window.innerWidth - 190), y: Math.min(e.clientY, window.innerHeight - 220) }
@@ -266,7 +270,7 @@ function createCard() {
   store.persist()
   newOpen.value = false
   query.value = ''
-  showToast(`✓ 已入池「${title.slice(0, 20)}」`)
+  showToast(`已入池「${title.slice(0, 20)}」`)
 }
 
 /* ===== R2-⑧ 本地文件导入：入口重落到这里（R179 把链路 parked 在 Workspace.vue:673，
@@ -286,7 +290,7 @@ function toggleBatch() { batchMode.value = setMode(!batchMode.value) }
 function applyTagToSelected(t: string) {
   const n = addTagToCards(store.data!.resources, selected.value, t)
   store.persist()
-  showToast(`✓ 已给 ${n} 张卡加标签「${t}」（只加不减，去标签到卡详情里改）`)
+  showToast(`已给 ${n} 张卡加标签「${t}」（只加不减，去标签到卡详情里改）`)
 }
 function deleteSelected() {
   const ids = Array.from(selected.value)
@@ -312,7 +316,7 @@ function deleteSelected() {
       :sort-dir="sortDir" :sort-dir-titles="['当前倒序，点击切换正序', '当前正序，点击切换倒序']" @sort-dir="toggleSortDir"
       :batch-labels="['批量', '退出批量']" :batch-on="batchMode" @batch="toggleBatch"
       new-label="＋ 新建卡" new-title="新建单张资源卡（采集走 Ctrl+Shift+J）" @create="openNew">
-      <button class="pcp-btn" title="图片 / HTML / PDF，一文件一卡（本体存本地 IndexedDB）" @click="fileImport()">📥 导入本地文件</button>
+      <button class="pcp-btn" title="图片 / HTML / PDF，一文件一卡（本体存本地 IndexedDB）" @click="fileImport()"><Icon name="inbox" :size="13"/> 导入本地文件</button>
       <!-- ★W15-T3（用户拍板 2026-10-16）链接类型分组下拉：组序固定 本地文件 → URL → Obsidian → 无链接（垫底）；
            再点一次同一组 = 取消分组（回到平铺）。分组只在列表视图生效（网格不做分组，避免一屏信息过载）。 -->
       <div v-if="viewMode === 'list'" class="pcp-groupbar">
@@ -328,7 +332,7 @@ function deleteSelected() {
     <!-- R3-Cc：批量栏收归 DeckBatchBar 一份实现（全选/反选/打标签三处同源，卡型动作走默认槽） -->
     <DeckBatchBar v-if="batchMode" :size="selSize" :total="poolCards.length" :all-selected="allSelected"
       unit="张" @select-all="selectAll" @invert="invertSel" @apply-tag="applyTagToSelected">
-      <button class="pcp-btn sm danger" :disabled="!selSize" @click="deleteSelected">🗑 删除（进回收站）</button>
+      <button class="pcp-btn sm danger" :disabled="!selSize" @click="deleteSelected"><Icon name="trash" :size="13"/> 删除（进回收站）</button>
     </DeckBatchBar>
 
     <!-- 新建单卡浮层：v-if 不开即零节点（全站浮层纪律） -->
@@ -363,16 +367,16 @@ function deleteSelected() {
           <div v-for="r in sec.cards" :key="r.id" class="pcp-row" :class="{ flash: highlightId === r.id, picked: selected.has(r.id) }"
             :data-rid="r.id" :title="r.title + ' · 单击打开详情 · 双击打开链接 · 右键更多'"
             @click="openCard(r)" @dblclick="onCardDblClick(r)" @contextmenu="openCtx($event, r)">
-            <span v-if="batchMode" class="pcp-check">{{ selected.has(r.id) ? '✓' : '' }}</span>
-            <span class="pcp-r-title"><NewBadge :at="r.createdAt" /><span v-if="r.pinned" class="pcp-pin" title="已置顶">📌</span>{{ r.title }}
-              <span v-if="isMirrored(r)" class="pcp-mirror-badge" title="这张卡已镜像到某个策展台">🪞 已镜像</span></span>
+            <span v-if="batchMode" class="pcp-check"><Icon v-if="selected.has(r.id)" name="check" :size="12"/></span>
+            <span class="pcp-r-title"><NewBadge :at="r.createdAt" /><span v-if="r.pinned" class="pcp-pin" title="已置顶"><Icon name="pin" :size="13"/></span>{{ r.title }}
+              <span v-if="isMirrored(r)" class="pcp-mirror-badge" title="这张卡已镜像到某个策展台"><Icon name="mirror" :size="13"/> 已镜像</span></span>
             <span class="pcp-r-tags">
               <span v-if="!(r.tags || []).length" class="pcp-tag-none" title="无标签——任何筛选都召回不到它">无标签</span>
               <span v-for="t in (r.tags || [])" :key="t" class="pcp-tag">{{ t }}</span>
             </span>
             <span class="pcp-r-marks">
-              <span v-if="r.link" class="pcp-mark" title="已挂链接">🔗</span>
-              <span v-if="r.assets?.length" class="pcp-mark" title="有附件">📎{{ r.assets.length }}</span>
+              <span v-if="r.link" class="pcp-mark" title="已挂链接"><Icon name="link" :size="13"/></span>
+              <span v-if="r.assets?.length" class="pcp-mark" title="有附件"><Icon name="paperclip" :size="13"/>{{ r.assets.length }}</span>
             </span>
             <span class="pcp-date">{{ new Date(r.updatedAt || r.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span>
             <!-- ★W15-T2/T3：删除与镜像从 hover 才出改为**常驻行末**（原先藏在 hover 里，用户找不到"不进详情就能删"） -->
@@ -380,15 +384,15 @@ function deleteSelected() {
               <span class="pcp-mirror-wrap">
                 <button v-if="!batchMode" class="pcp-act" :class="{ on: mirrorOpenFor === r.id }"
                   :title="isMirrored(r) ? '这张卡已镜像过（点可再镜像到其他台）' : '镜像到策展台（引用投射，源卡仍在池里）'"
-                  @click.stop="openMirror(r)">🪞</button>
+                  @click.stop="openMirror(r)"><Icon name="mirror" :size="13"/></button>
                 <span v-if="mirrorOpenFor === r.id && mirrorBoards.length" class="pcp-mirror-pop" @click.stop>
                   <select v-model="mirrorWsId" class="pcp-mirror-sel">
                     <option v-for="w in mirrorBoards" :key="w.id" :value="w.id">{{ w.name }}</option>
                   </select>
-                  <button class="pcp-act primary" title="确认镜像到所选策展台" @click.stop="doMirror(r)">✓ 镜像</button>
+                  <button class="pcp-act primary" title="确认镜像到所选策展台" @click.stop="doMirror(r)"><Icon name="check" :size="13"/> 镜像</button>
                 </span>
               </span>
-              <button v-if="!batchMode" class="pcp-del" title="删除（进回收站，可撤销）" @click.stop="removeCard(r)">🗑</button>
+              <button v-if="!batchMode" class="pcp-del" title="删除（进回收站，可撤销）" @click.stop="removeCard(r)"><Icon name="trash" :size="13"/></button>
             </span>
           </div>
         </div>
@@ -396,16 +400,16 @@ function deleteSelected() {
       <template v-else>
       <div v-for="r in rendered" :key="r.id" class="pcp-row" :class="{ flash: highlightId === r.id, picked: selected.has(r.id) }" :data-rid="r.id"
         :title="batchMode ? '点击选中 / 取消' : r.title + ' · 单击打开详情 · 双击打开链接 · 右键更多'" @click="openCard(r)" @dblclick="onCardDblClick(r)" @contextmenu="openCtx($event, r)">
-        <span v-if="batchMode" class="pcp-check">{{ selected.has(r.id) ? '✓' : '' }}</span>
-        <span class="pcp-r-title"><NewBadge :at="r.createdAt" /><span v-if="r.pinned" class="pcp-pin" title="已置顶">📌</span>{{ r.title }}
-          <span v-if="isMirrored(r)" class="pcp-mirror-badge" title="这张卡已镜像到某个策展台">🪞 已镜像</span></span>
+        <span v-if="batchMode" class="pcp-check"><Icon v-if="selected.has(r.id)" name="check" :size="12"/></span>
+        <span class="pcp-r-title"><NewBadge :at="r.createdAt" /><span v-if="r.pinned" class="pcp-pin" title="已置顶"><Icon name="pin" :size="13"/></span>{{ r.title }}
+          <span v-if="isMirrored(r)" class="pcp-mirror-badge" title="这张卡已镜像到某个策展台"><Icon name="mirror" :size="13"/> 已镜像</span></span>
         <span class="pcp-r-tags">
           <span v-if="!(r.tags || []).length" class="pcp-tag-none" title="无标签——任何筛选都召回不到它">无标签</span>
           <span v-for="t in (r.tags || [])" :key="t" class="pcp-tag">{{ t }}</span>
         </span>
         <span class="pcp-r-marks">
-          <span v-if="r.link" class="pcp-mark" title="已挂链接">🔗</span>
-          <span v-if="r.assets?.length" class="pcp-mark" title="有附件">📎{{ r.assets.length }}</span>
+          <span v-if="r.link" class="pcp-mark" title="已挂链接"><Icon name="link" :size="13"/></span>
+          <span v-if="r.assets?.length" class="pcp-mark" title="有附件"><Icon name="paperclip" :size="13"/>{{ r.assets.length }}</span>
         </span>
         <span class="pcp-date">{{ new Date(r.updatedAt || r.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span>
         <!-- ★W15-T2/T3：删除与镜像常驻行末（原先 hover 才出 = 事实上找不到） -->
@@ -413,15 +417,15 @@ function deleteSelected() {
           <span class="pcp-mirror-wrap">
             <button v-if="!batchMode" class="pcp-act" :class="{ on: mirrorOpenFor === r.id }"
               :title="isMirrored(r) ? '这张卡已镜像过（点可再镜像到其他台）' : '镜像到策展台（引用投射，源卡仍在池里）'"
-              @click.stop="openMirror(r)">🪞</button>
+              @click.stop="openMirror(r)"><Icon name="mirror" :size="13"/></button>
             <span v-if="mirrorOpenFor === r.id && mirrorBoards.length" class="pcp-mirror-pop" @click.stop>
               <select v-model="mirrorWsId" class="pcp-mirror-sel">
                 <option v-for="w in mirrorBoards" :key="w.id" :value="w.id">{{ w.name }}</option>
               </select>
-              <button class="pcp-act primary" title="确认镜像到所选策展台" @click.stop="doMirror(r)">✓ 镜像</button>
+              <button class="pcp-act primary" title="确认镜像到所选策展台" @click.stop="doMirror(r)"><Icon name="check" :size="13"/> 镜像</button>
             </span>
           </span>
-          <button v-if="!batchMode" class="pcp-del" title="删除（进回收站，可撤销）" @click.stop="removeCard(r)">🗑</button>
+          <button v-if="!batchMode" class="pcp-del" title="删除（进回收站，可撤销）" @click.stop="removeCard(r)"><Icon name="trash" :size="13"/></button>
         </span>
       </div>
       </template>
@@ -433,14 +437,14 @@ function deleteSelected() {
         <div class="pcp-top">
           <div class="pcp-title">
             <NewBadge :at="r.createdAt" />
-            <span v-if="r.pinned" class="pcp-pin" title="已置顶">📌</span>{{ r.title }}
+            <span v-if="r.pinned" class="pcp-pin" title="已置顶"><Icon name="pin" :size="13"/></span>{{ r.title }}
           </div>
-          <span v-if="batchMode" class="pcp-check">{{ selected.has(r.id) ? '✓' : '' }}</span>
-          <button v-else class="pcp-del" title="删除（进回收站，可撤销）" @click.stop="removeCard(r)">🗑</button>
+          <span v-if="batchMode" class="pcp-check"><Icon v-if="selected.has(r.id)" name="check" :size="12"/></span>
+          <button v-else class="pcp-del" title="删除（进回收站，可撤销）" @click.stop="removeCard(r)"><Icon name="trash" :size="13"/></button>
         </div>
         <div class="pcp-foot">
-          <span v-if="r.link" class="pcp-mark" title="已挂链接">🔗</span>
-          <span v-if="r.assets?.length" class="pcp-mark" title="有附件">📎</span>
+          <span v-if="r.link" class="pcp-mark" title="已挂链接"><Icon name="link" :size="13"/></span>
+          <span v-if="r.assets?.length" class="pcp-mark" title="有附件"><Icon name="paperclip" :size="13"/></span>
           <span v-for="t in (r.tags || []).slice(0, 3)" :key="t" class="pcp-tag">{{ t }}</span>
           <span class="pcp-date">{{ new Date(r.updatedAt || r.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span>
         </div>

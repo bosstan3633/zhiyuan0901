@@ -15,6 +15,7 @@ export interface DrillAssetRow { cardId: string; cardTitle: string; assetId: str
  * - mode='recent'  最近更新 → 更新流水 Top 30（点击 → emit open-card / locate）
  * 数据由宿主（Workspace.vue）从 hub.curationMetrics + boardCardsOf 派生后传入，组件无 store 依赖。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { ref, computed, watch } from 'vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import { getAssetBlob, getAllAssetIds } from '@/shared/storage/assets'
@@ -53,10 +54,10 @@ const emit = defineEmits<{
 }>()
 
 const TITLE: Record<string, string> = {
-  total: '📊 卡片总数 · 按分类明细',
-  source: '🔀 来源构成 · 台内 vs 镜像',
-  assets: '📎 附件明细',
-  recent: '🕐 最近更新流水'
+  total: '卡片总数 · 按分类明细',
+  source: '来源构成 · 台内 vs 镜像',
+  assets: '附件明细',
+  recent: '最近更新流水'
 }
 
 const sortedAssets = computed(() => [...props.assetRows].sort((a, b) => b.createdAt - a.createdAt))
@@ -79,9 +80,9 @@ function fmtTs(ts?: number): string {
 }
 function fmtSize(n: number): string {
   if (!n) return '—'
-  if (n < 1024) return n + ' B'
-  if (n < 1048576) return (n / 1024).toFixed(1) + ' KB'
-  return (n / 1048576).toFixed(1) + ' MB'
+  if (n < 1024) return n + 'B'
+  if (n < 1048576) return (n / 1024).toFixed(1) + 'KB'
+  return (n / 1048576).toFixed(1) + 'MB'
 }
 function rowClick(id: string, isMirror: boolean) {
   if (isMirror) emit('locate', id)
@@ -126,8 +127,8 @@ const assetRowsView = computed(() => sortedAssets.value.map(a => {
 }))
 /** R110-BUG2：行点击 —— 正常行 = 定位来源卡（主诉「点击不跳卡」的修复）；异常行 = 提示如何清理 */
 function onAssetRowClick(row: { st: AssetRowState; cardId: string }) {
-  if (row.st === 'missing') { showToast('⚠ 附件本体已不在本地——可点行尾 🗑 清理这条失效引用'); return }
-  if (row.st === 'orphan') { showToast('⚠ 来源卡已不存在——可点行尾 🗑 清理这条残留'); return }
+  if (row.st === 'missing') { showToast('附件本体已不在本地——可点行尾  清理这条失效引用'); return }
+  if (row.st === 'orphan') { showToast('来源卡已不存在——可点行尾  清理这条残留'); return }
   emit('locate-asset', row.cardId)
 }
 
@@ -138,14 +139,14 @@ async function openDrillAsset(row: DrillAssetRow) {
   if (row.kind === 'image') {
     try {
       const b = await getAssetBlob(row.assetId)
-      if (!b) { showToast('⚠ 附件本体缺失（可能已被清理）'); return }
+      if (!b) { showToast('附件本体缺失（可能已被清理）'); return }
       previewUrl.value = URL.createObjectURL(b)
       previewName.value = row.name
-    } catch { showToast('⚠ 附件读取失败') }
+    } catch { showToast('附件读取失败') }
   } else {
     const meta = { id: row.assetId, kind: row.kind, name: row.name, size: row.size, mime: '', createdAt: row.createdAt } as AssetMeta
     const r = await openHtmlAsset(meta)
-    if (r === 'missing') showToast('⚠ 附件本体缺失（可能已被清理）')
+    if (r === 'missing') showToast('附件本体缺失（可能已被清理）')
   }
 }
 function closePreview() {
@@ -198,7 +199,7 @@ async function onCleanupAll() {
     <!-- 总数 · 按分类 -->
     <div v-if="mode === 'total'" class="dd-list">
       <div v-for="c in catRows" :key="c.id" class="dd-row clickable" :style="{ paddingLeft: (8 + c.depth * 16) + 'px' }" @click="emit('jump-cat', c.id)">
-        <span class="dd-ico">{{ c.depth ? '↳' : '📂' }}</span>
+        <span class="dd-ico"><template v-if="c.depth">↳</template><Icon v-else name="folder" :size="13"/></span>
         <span class="dd-name">{{ c.name }}</span>
         <span class="dd-count">{{ c.count }}</span>
       </div>
@@ -207,14 +208,14 @@ async function onCleanupAll() {
 
     <!-- 来源构成 -->
     <div v-else-if="mode === 'source'" class="dd-list">
-      <div class="dd-group-title">🖥 台内新建（{{ nativeCards.length }}）</div>
+      <div class="dd-group-title"><Icon name="monitor" :size="13"/> 台内新建（{{ nativeCards.length }}）</div>
       <div v-for="c in nativeCards" :key="c.id" class="dd-row clickable" @click="rowClick(c.id, false)">
-        <span class="dd-ico">🖥</span><span class="dd-name">{{ c.title }}</span><span class="dd-time">{{ fmtTs(c.updatedAt) }}</span>
+        <span class="dd-ico"><Icon name="monitor" :size="13"/></span><span class="dd-name">{{ c.title }}</span><span class="dd-time">{{ fmtTs(c.updatedAt) }}</span>
       </div>
       <div v-if="!nativeCards.length" class="dd-empty">暂无台内卡</div>
-      <div class="dd-group-title" style="margin-top:14px">📡 资源台镜像（{{ mirrorCards.length }}）</div>
+      <div class="dd-group-title" style="margin-top:14px"><Icon name="satellite" :size="13"/> 资源台镜像（{{ mirrorCards.length }}）</div>
       <div v-for="c in mirrorCards" :key="c.id" class="dd-row clickable" @click="rowClick(c.id, true)">
-        <span class="dd-ico">📡</span><span class="dd-name">{{ c.title }}</span><span class="dd-hint">定位源卡 →</span>
+        <span class="dd-ico"><Icon name="satellite" :size="13"/></span><span class="dd-name">{{ c.title }}</span><span class="dd-hint">定位源卡 ›</span>
       </div>
       <div v-if="!mirrorCards.length" class="dd-empty">暂无镜像卡</div>
     </div>
@@ -222,31 +223,31 @@ async function onCleanupAll() {
     <!-- 附件明细（R110-BUG2：点击行 = 定位来源卡；行尾 👁 预览 / 🗑 清理） -->
     <div v-else-if="mode === 'assets'" class="dd-list">
       <div v-if="orphanCount" class="dd-orphan-bar">
-        <span class="dd-orphan-txt">🧹 检测到 {{ orphanCount }} 个孤儿附件（未被任何卡片引用）</span>
+        <span class="dd-orphan-txt"><Icon name="broom" :size="13"/> 检测到 {{ orphanCount }} 个孤儿附件（未被任何卡片引用）</span>
         <button class="dd-orphan-btn" @click="onCleanupAll">清理全部</button>
       </div>
       <div v-for="(a, i) in assetRowsView" :key="a.assetId + i" class="dd-row clickable" :class="{ 'dd-row-warn': a.st !== 'ok' }" @click="onAssetRowClick(a)">
-        <span class="dd-ico">{{ a.kind === 'image' ? '🖼' : a.kind === 'pdf' ? '📕' : '🧾' }}</span>
+        <span class="dd-ico"><Icon v-if="a.kind === 'image'" name="image" :size="13"/><Icon v-else-if="a.kind === 'pdf'" name="book" :size="13"/><Icon v-else name="filetext" :size="13"/></span>
         <span class="dd-name" :title="a.cardTitle">
           <span class="dd-asset-name">{{ a.name }}</span>
-          <span class="dd-sub">来自：{{ a.cardTitle }}<template v-if="a.st === 'missing'"> · ⚠ 本体缺失</template><template v-else-if="a.st === 'orphan'"> · ⚠ 来源卡已不存在</template></span>
+          <span class="dd-sub">来自：{{ a.cardTitle }}<template v-if="a.st === 'missing'"> · <Icon name="warn" :size="13"/> 本体缺失</template><template v-else-if="a.st === 'orphan'"> · <Icon name="warn" :size="13"/> 来源卡已不存在</template></span>
         </span>
         <span class="dd-time">{{ fmtSize(a.size) }} · {{ fmtTs(a.createdAt) }}</span>
-        <button class="dd-act" :title="a.st === 'ok' ? '预览 / 打开附件' : '清理这条残留'" @click.stop="a.st === 'ok' ? openDrillAsset(a) : onCleanup(a)">{{ a.st === 'ok' ? '👁' : '🗑' }}</button>
+        <button class="dd-act" :title="a.st === 'ok' ? '预览 / 打开附件' : '清理这条残留'" @click.stop="a.st === 'ok' ? openDrillAsset(a) : onCleanup(a)"><Icon v-if="a.st === 'ok'" name="eye" :size="13"/><Icon v-else name="trash" :size="13"/></button>
       </div>
       <div v-if="!assetRowsView.length" class="dd-empty">暂无附件</div>
 
       <!-- 孤儿附件（本体在本地、但无任何卡片引用）：逐个可删 + 顶部批量 -->
       <template v-if="orphanAssetIds.length">
-        <div class="dd-group-title" style="margin-top:14px">🧹 孤儿附件本体（{{ orphanAssetIds.length }}）</div>
+        <div class="dd-group-title" style="margin-top:14px"><Icon name="broom" :size="13"/> 孤儿附件本体（{{ orphanAssetIds.length }}）</div>
         <div v-for="id in orphanAssetIds" :key="'or-' + id" class="dd-row dd-row-warn">
-          <span class="dd-ico">🗑</span>
+          <span class="dd-ico"><Icon name="trash" :size="13"/></span>
           <span class="dd-name">
             <span class="dd-asset-name">未命名残留 · {{ id.slice(-8) }}</span>
             <span class="dd-sub">未被任何卡片引用（来源卡已删除 / 上传中断）</span>
           </span>
           <span class="dd-time">—</span>
-          <button class="dd-act" title="删除这个残留附件" @click.stop="onCleanupOrphanBlob(id)">🗑</button>
+          <button class="dd-act" title="删除这个残留附件" @click.stop="onCleanupOrphanBlob(id)"><Icon name="trash" :size="13"/></button>
         </div>
       </template>
     </div>
@@ -255,7 +256,7 @@ async function onCleanupAll() {
     <div v-else class="dd-list">
       <div class="dd-scope">本台可见资源卡 · 按最后一次动作排序（已删除的卡请到回收站或调度台「写入记录」看）</div>
       <div v-for="c in recentShown" :key="c.id" class="dd-row clickable" @click="rowClick(c.id, mirrorIds.has(c.id))">
-        <span class="dd-ico">{{ mirrorIds.has(c.id) ? '📡' : '🖥' }}</span>
+        <span class="dd-ico"><Icon v-if="mirrorIds.has(c.id)" name="satellite" :size="13"/><Icon v-else name="monitor" :size="13"/></span>
         <span class="dd-verb">{{ c.verb || '更新' }}</span>
         <span class="dd-name">{{ c.title }}</span>
         <span class="dd-time">{{ fmtTs(c.updatedAt) }}</span>

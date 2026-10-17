@@ -137,7 +137,7 @@ check('R79-3 列表视图动作条（V3.7.0 重指：镜像推送退役后收敛
 check('R79-4（R122 重指）列表 🔥 rr-calls 与卡片 🔥 rc-heat 同口径（v-if="r.callCount"）', () => {
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('class="rr-calls"') && w.includes('<span v-if="r.callCount" class="rr-calls"')
-    && w.includes('class="rc-heat"') && w.includes('🔥 {{ r.callCount }}');
+    && w.includes('class="rc-heat"') && w.includes('<Icon name="flame" :size="13"/> {{ r.callCount }}');
 });
 check('R79-5 看板视图新增完整动作条 .kc-actions（六动作同顺序），.kc-card 已 position: relative', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -223,9 +223,9 @@ check('R81-1 R15 徽标三档独立计数：image / pdf / html 各自 filter，P
 });
 check('R81-2 R15 模板三档 chip 齐全且顺序为 图(🖼) → PDF(📕) → HTML(🧾)', () => {
   const at = (s) => BADGE_TPL.indexOf(s);
-  return BADGE_TPL.includes('class="ab-chip ab-img">🖼 {{ imgCount }}')
-    && BADGE_TPL.includes('class="ab-chip ab-pdf">📕 {{ pdfCount }}')
-    && BADGE_TPL.includes('class="ab-chip ab-html">🧾 {{ htmlCount }}')
+  return BADGE_TPL.includes('class="ab-chip ab-img"><Icon name="image" :size="13"/> {{ imgCount }}')
+    && BADGE_TPL.includes('class="ab-chip ab-pdf"><Icon name="book" :size="13"/> {{ pdfCount }}')
+    && BADGE_TPL.includes('class="ab-chip ab-html"><Icon name="receipt" :size="13"/> {{ htmlCount }}')
     && at('ab-img') < at('ab-pdf') && at('ab-pdf') < at('ab-html')
     && BADGE.includes('.ab-pdf { }');
 });
@@ -334,9 +334,9 @@ check('R83-4 M2 期限三值映射齐全（远期/中期/近期）★R3-B1 去�
   const pc = read('/newtab/views/ProjectCuration.vue');
   return pc.includes("dir.term === 'long' ? '远期'") && pc.includes("'近期'") && pc.includes("'中期'") && pc.includes("dir.term==='long' ? '（远期）'");
 });
-check('R83-5/R121 M2 主攻数与进度读数 ★R3-B1 去向点名：主航线 goalPct/focusedOf 随退役消失，方向台页头改由 treeStats 一次算齐（战略目标/项目/主攻/停滞/指标/任务），不在模板里逐项调', () => {
+check('R83-5/R121 M2 主攻数与进度读数 ★R3-B1 去向点名：主航线 goalPct/focusedOf 随退役消失，方向台页头改由 treeStats 一次算齐（战略目标/项目/主攻/停滞/指标/任务），不在模板里逐项调。★G1(V3.8.24)随迁带备案：主攻读数前缀由 emoji 「🚀」迁移为 <Icon name="main-focus">，锚点随迁（读数仍在）', () => {
   const t = CT_ALL;
-  return t.includes('const treeStats = computed(') && t.includes('focused, stalled') && t.includes('🚀 主攻 {{ treeStats.focused }}') && !t.includes('goalPct(');
+  return t.includes('const treeStats = computed(') && t.includes('focused, stalled') && t.includes('Icon name="main-focus"') && t.includes('主攻 {{ treeStats.focused }}') && !t.includes('goalPct(');
 });
 check('R83-6/R121 M3 项目卡头三读数 ★W11(V3.8.11)随迁带备案：读数落点由 tp-mark/tp-flag/tp-pct 迁为 tw-badge.focus / tw-badge.stall / tw-ring-v（完成数同时常驻舱头 .tw-num）', () => {
   const T = TOWER;
@@ -373,8 +373,9 @@ check('R83-8 版本五处同步（manifest/package/ManualPage/regression/关于�
 });
 
 console.log('【第八十四轮 · V2.53.0：策展台身份与中心论点（W1 + W2）】');
-check('R84-1 W1 页头四要素齐全：图标 + workspace.name + 台描述 + 右端结构摘要', () => {
-  return HEAD_TPL.includes("class=\"wsh-icon\">{{ workspace.icon")
+check('R84-1 W1 页头四要素齐全：图标 + workspace.name + 台描述 + 右端结构摘要（★G1(V3.8.25)随迁带备案：页头图标由固定 <Icon name="landmark" :size="15"/> 改为「用户自设 workspace.icon 优先、缺省回落 <Icon name="folder">」——四要素里的「有图标」一项未减，且自设图标属用户数据（G1 白名单），不参与 emoji 清理）', () => {
+  return HEAD_TPL.includes('class="wsh-icon">')
+    && HEAD_TPL.includes('v-if="workspace.icon"') && HEAD_TPL.includes('<Icon v-else name="folder" :size="13"/>')
     && HEAD_TPL.includes("class=\"wsh-name\">{{ wsDisplayNameOf(workspace) }}")
     && HEAD_TPL.includes('class="wsh-desc"')
     && HEAD_TPL.includes('class="wsh-summary"');
@@ -459,7 +460,7 @@ check('R85-6/R121 M4 聚焦条 ★R3-B1 退役重指带备案：主航线「当�
 });
 check('R85-7/R121 M4 两态齐全 ★R3-B1 退役重指带备案：fs-chip/fp-hint（含「最多 N 个」提示）随聚焦条退役；「最多 2 个」的口径仍在 store 的 toggleFocusProject 里拒绝超限，树 ▾ 菜单点主攻走同一条（返回 msg 即提示）', () => {
   const t = CT_ALL; const st = read('/newtab/stores/compass.ts');
-  return !t.includes('fs-chip') && !t.includes('fp-hint') && st.includes('FOCUS_PROJECT_LIMIT') && t.includes('onToggleFocus(') && t.includes('🚀 设为主攻');
+  return !t.includes('fs-chip') && !t.includes('fp-hint') && st.includes('FOCUS_PROJECT_LIMIT') && t.includes('onToggleFocus(') && t.includes('<Icon v-if="!proj.isFocused" name="main-focus"');
 });
 check('R85-8 M5-① 目标下新建项目 ★R3-B1 退役重指带备案：主航线目标卡底的内联输入（回车/Esc/失焦）随退役消失，树的出口是目标头 ＋ 直建「新攻坚项目」+ 就地改名；两处都经 addProjectToDir，不得回添第二份 projects.push', () => {
   const t = CT_ALL;
@@ -511,11 +512,11 @@ check('R86-5/R121 D-A ★R3-B1 退役重指带备案：主航线「看主线」�
   return !exists('/newtab/components/compass/LighthousePanel.vue') && !pc.includes('管项目')
     && pc.includes('class="pb-crumb"') && pc.includes('pb-title-row');
 });
-check('R86-6 D-B ★R3-B1 退役重指带备案（R3 计划点名项）：主航线状态筛选（all/active/stalled/done 分段组 + ovFilter/tools-gate 传参链）整体退役，全站零残留；停滞读数改由树页头「⚠ 停滞 N」+ 卡头停滞标承担（只读不筛）', () => {
+check('R86-6 D-B ★R3-B1 退役重指带备案（R3 计划点名项）：主航线状态筛选（all/active/stalled/done 分段组 + ovFilter/tools-gate 传参链）整体退役，全站零残留；停滞读数改由树页头「停滞 N」+ 卡头停滞标承担（只读不筛）。★G1(V3.8.24)随迁带备案：页头停滞前缀由 emoji 「⚠」迁移为 <Icon name="stall">，锚点随迁（读数仍在）', () => {
   const t = CT_ALL; /* ★W11 随迁：读数锚点从旧树切片 CT86 改 CT_ALL（W11 起六层分居四文件，CT86 只覆盖树本体，承重处已迁到舱组件） */ const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue');
   return !t.includes('ovFilter') && !h.includes('ovFilter') && !pc.includes('ovFilter') && !t.includes('lh-filter-group')
     /* ★W11 随迁带备案：停滞徽标承重处迁到舱卡头 CompassTower（.tw-badge.stall），页头读数仍在树本体 */
-    && t.includes('⚠ 停滞 {{ treeStats.stalled }}') && t.includes('class="tw-badge stall"') && t.includes('title="近 14 天无推进/完成活动"');
+    && t.includes('Icon name="stall"') && t.includes('停滞 {{ treeStats.stalled }}') && t.includes('class="tw-badge stall"') && t.includes('title="近 14 天无推进/完成活动"');
 });
 check('R86-7 D-B：★ 状态判定复用 isProjectStalled / isProjectDone 且**预计算成索引**（★R3-B1 随首屏换宿主：判据从 CompassShell 的 projState 换成方向树的 projMeta，模板内仍不得逐项调）', () => {
   const fn = stripComments(segOf(CT86, 'const projMeta = computed(', 'function toggleMetric'));
@@ -571,9 +572,9 @@ check('R87-5 R7：zy-asset:// 附件卡判为 ok（不再被误报「待补全�
   return fn.includes("if (isZyAssetLink(t)) return 'ok'") && iZy > 0 && iFile > iZy
     && REF87.includes('const linkIncomplete = computed') && REF87.includes('linkStateOf(props.model.linkType');
 });
-check('R87-6（R122 重指）断链三视图：卡片整卡警示 + 描述替换引导，列表/看板徽标沿用，样式全走 tokens', () => {
+check('R87-6（R122 重指）断链三视图：卡片整卡警示 + 描述替换引导，列表/看板徽标沿用，样式全走 tokens（★G1(V3.8.25)随迁带备案：⚠ 前缀迁 <Icon name="warn">，「本地路径断链 · 点击补全」文案与三视图徽标能力一件未减）', () => {
   return WS_TPL.includes('v-if="isBrokenPath(r)"')
-    && WS_TPL.includes("'warning-broken': isBrokenPath(r)") && WS_TPL.includes('⚠ 本地路径断链 · 点击补全') && WS_TPL.includes('class="rr-broken"') && WS_TPL.includes('class="kc-broken"')
+    && WS_TPL.includes("'warning-broken': isBrokenPath(r)") && /<Icon name="warn"[^>]*\/> 本地路径断链 · 点击补全/.test(WS_TPL) && WS_TPL.includes('class="rr-broken"') && WS_TPL.includes('class="kc-broken"')
     && WS_STY.includes('.rr-broken, .kc-broken') && WS_STY.includes('.warning-broken')
     && WS_STY.includes('var(--warning)') && WS_STY.includes('var(--surface-2)')
     && !WS_STY.includes('#D9A03C');
@@ -642,19 +643,19 @@ check('R88-5 W3-③：生效值徽标——四项非默认才计入、最多 2 �
     && WS88_TPL.includes('filterSummary.slice(0, 2)') && WS88_TPL.includes('filterSummary.length - 2')
     && WS88_TPL.includes('class="tf-chip"') && WS88_TPL.includes(':class="{on: filterSummary.length}"');
 });
-check('R88-6（R122 重指）批量开关常驻一级：批量中显「✓ 完成批量」（toggleBatchMode），退出通道不断', () => {
-  return WS88_TPL.includes("{{ batchMode ? '✓ 完成批量' : '☑ 批量' }}") && WS88_TPL.includes('toggleBatchMode');
+check('R88-6（R122 重指）批量开关常驻一级：批量中显「✓ 完成批量」（toggleBatchMode），退出通道不断（★G1(V3.8.25)随迁带备案：✓/☑ 前缀迁 Icon check/checksquare 双态，文案三元与退出通道不变）', () => {
+  return WS88_TPL.includes("'完成批量' : '批量'") && WS88_TPL.includes('toggleBatchMode');
 });
-check('R88-7 W6：导入收进 ⚙（V3.7.0 重指：资源台分支退役后单形态「⬇ 导入数据包」，按台改名消歧义不再需要）', () => {
-  return SM88.includes('@click="openImport"') && SM88.includes('⬇ 导入数据包') && !SM88.includes("isHub ? '⬇ 导入资源'")
+check('R88-7 W6：导入收进 ⚙（V3.7.0 重指：资源台分支退役后单形态「⬇ 导入数据包」，按台改名消歧义不再需要）（★G1(V3.8.25)随迁带备案：⬇ 前缀迁 <Icon name="download">，单形态与入口不变）', () => {
+  return SM88.includes('@click="openImport"') && /<Icon name="download"[^>]*\/> 导入数据包/.test(SM88) && !SM88.includes("isHub ? '⬇ 导入资源'")
     && WS88.includes('function openImport(') && WS88.includes('importModalOpen.value = true')
     && !TB1_88.includes('importModalOpen = true');
 });
-check('R88-8（R122 重指；V3.7.0 随迁 · R1.5 重指带备案：主 CTA 文案随「台内新建=论证卡」改「＋ 新建论证卡」）主色稀缺：一级只有一个 primary（导入/批量为 ghost 次级）', () => {
+check('R88-8（R122 重指；V3.7.0 随迁 · R1.5 重指带备案：主 CTA 文案随「台内新建=论证卡」改「＋ 新建论证卡」）主色稀缺：一级只有一个 primary（导入/批量为 ghost 次级）（★G1(V3.8.25)随迁带备案：⬇/☑ 前缀迁 <Icon>，一级 primary 唯一与两枚 ghost 的层级不变）', () => {
   return (TB1_88.match(/hero-btn primary/g) || []).length === 1
     && TB1_88.includes('hero-btn primary" @click="openNewArgument"')
     && (TB1_88.match(/hero-btn ghost/g) || []).length === 2
-    && TB1_88.includes('⬇ 导入数据包') && TB1_88.includes('☑ 批量');
+    && /<Icon name="download"[^>]*\/> 导入数据包/.test(TB1_88) && /:name="batchMode \? 'check' : 'checksquare'"/.test(TB1_88);
 });
 check('R88-9 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');
@@ -688,12 +689,12 @@ check('R89-3（R110 重指）★ R6：搜索判据**只有一份** matchCard（�
     && !fr.includes('matchCard(')
     && WS89_TPL.includes('#标签 可按标签直筛');
 });
-check('R89-4 W5：starred 星标筛选**四处同步**（白名单 / 谓词 / 标签 / 下拉）', () => {
+check('R89-4 W5：starred 星标筛选**四处同步**（白名单 / 谓词 / 标签 / 下拉）（★G1(V3.8.25)随迁带备案：下拉项 ⭐ 前缀迁 <Icon name="star">，四处同步一项未减）', () => {
   const keys = stripComments(segOf(WS89, 'const FILTER_KEYS = [', '\n'));
   const pred = stripComments(segOf(WS89, 'const FILTER_PREDICATES', '// 筛选（第八轮'));
   const labels = stripComments(segOf(WS89, 'const FILTER_LABELS', 'const filterLabel'));
   return keys.includes("'starred'") && pred.includes('starred: (r) => !!r.starred')
-    && labels.includes("starred: '⭐ 星标'") && WS89_TPL.includes('<option value="starred">⭐ 星标</option>');
+    && labels.includes("starred: '⭐ 星标'") && /<option value="starred"><Icon name="star"[^>]*\/> 星标<\/option>/.test(WS89_TPL);
 });
 check('R89-5 ★ W4：三视图写动作（📌📂🗑）对镜像卡隐藏——门控在包裹 template 上', () => {
   const wrap = '<template v-if="!isMirrorView(r)">';

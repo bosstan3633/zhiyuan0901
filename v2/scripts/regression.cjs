@@ -17,6 +17,7 @@ const SHARDS = [
   '08-w14-focus',
   '09-w15-drill-focus',
   '10-w16-metrics',
+  '11-p0-strings',
   '10-foundations',
   '20-req39-64',
   '30-v2.35-v2.46',
@@ -30,6 +31,7 @@ const SHARDS = [
   '97-r3-rounds',
   '98-r4-gates',
   '99-recent',
+  '100-p0-gates',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

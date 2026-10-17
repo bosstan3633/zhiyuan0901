@@ -506,3 +506,17 @@ html, body { font-variant-numeric: tabular-nums; }
   --card-gap: var(--sp-2);
   --card-min-w: 220px;
 }
+
+/* G1-R?（emoji→Icon 迁移）：状态/优先级彩色圆点改为 Icon dot + 语义工具类
+   用法：<Icon name="dot" :size="9" class="zy-dot-hi" />，颜色与字号由令牌驱动，四主题自动切换
+   替代原 🔴/🟡/🟢 裸 emoji；优先级语义：hi=高（红）、mi=中（黄）、lo=低（绿）；info=信息（accent）、mut=中性（text-3） */
+.zy-dot { flex-shrink: 0; }
+.zy-dot-hi { color: var(--danger); }
+.zy-dot-mi { color: var(--warning); }
+.zy-dot-lo { color: var(--success); }
+/* 生命周期/状态点：ok=正常态绿、warn=冷却/停滞黄、mut=归档/未开始中性（对齐 R10 语义色）
+   ★V3.8.25：原 `.zy-dot-info`（accent）全站零消费，按死 CSS 零容忍纪律删除；需要"信息态点"时
+   再连同真实消费点一起加回，不许先建规则后找用处。 */
+.zy-dot-ok { color: var(--success); }
+.zy-dot-warn { color: var(--warning); }
+.zy-dot-mut { color: var(--text-4); }

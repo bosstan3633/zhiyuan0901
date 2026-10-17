@@ -5,12 +5,12 @@
   <Transition name="pop">
     <div v-if="open" class="itm-modal">
       <div class="itm-head">
-        <span class="itm-title">📋 {{ modeTitle }}</span>
+        <span class="itm-title"><Icon name="filetext" :size="13"/> {{ modeTitle }}</span>
         <span class="itm-target">导入目标：{{ mode === 'project' ? '攻坚项目「' + targetName + '」' : mode === 'goal' ? '战略目标「' + targetName + '」' : '策展台「' + targetName + '」（金字塔视图）' }}</span>
         <span class="itm-close" @click="emit('close')">×</span>
       </div>
       <div class="itm-head-ops">
-        <button class="itm-rule-btn" @click="ruleOpen = !ruleOpen">📖 AI 整理规则{{ ruleOpen ? ' ▴' : ' ▾' }}</button>
+        <button class="itm-rule-btn" @click="ruleOpen = !ruleOpen"><Icon name="book" :size="13"/> AI 整理规则{{ ruleOpen ? ' ▴' : ' ▾' }}</button>
         <button class="itm-rule-btn" @click="copyRule">⧉ 复制规则给 AI</button>
       </div>
       <div v-if="ruleOpen" class="itm-rule-panel">{{ ruleText }}</div>
@@ -26,14 +26,14 @@
         </template>
       </div>
       <div v-if="mode === 'pyramid' && hasThesis" class="itm-notice">
-        ⚠ 本台已设中心论点——Markdown 中的 H1 将被忽略，导入从二级层级挂入现有论点
+        <Icon name="warn" :size="13"/> 本台已设中心论点——Markdown 中的 H1 将被忽略，导入从二级层级挂入现有论点
       </div>
       <div v-if="warns.length" class="itm-notice">
         <div v-for="w in warns" :key="w">{{ w }}</div>
       </div>
       <div class="itm-cols">
         <div class="itm-pane">
-          <div class="itm-pane-head">📋 粘贴标准化 Markdown（支持直接粘贴）</div>
+          <div class="itm-pane-head"><Icon name="filetext" :size="13"/> 粘贴标准化 Markdown（支持直接粘贴）</div>
           <textarea class="itm-md" v-model="src" spellcheck="false" placeholder="在此粘贴标准化 Markdown…"></textarea>
         </div>
         <div class="itm-pane">
@@ -77,18 +77,18 @@
                   <div v-for="n2 in pyr.thesis.children" :key="n2.name" class="p-col">
                     <div class="p-node"><div class="t"><span class="nm">{{ n2.name }}</span><span class="lb">L2</span></div>
                       <div v-if="n2.desc" class="d">{{ n2.desc }}</div>
-                      <div class="ops"><span>🔗 关联资源卡</span><span>➕ 新建卡片</span></div>
+                      <div class="ops"><span><Icon name="link" :size="13"/> 关联资源卡</span><span><Icon name="plus" :size="13"/> 新建卡片</span></div>
                     </div>
                     <div class="p-sub" v-if="n2.children.length">
                       <div v-for="n3 in n2.children" :key="n3.name" class="p-node">
                         <div class="t"><span class="nm">{{ n3.name }}</span><span class="lb">L3</span></div>
                         <div v-if="n3.desc" class="d">{{ n3.desc }}</div>
-                        <div class="ops"><span>🔗 关联资源卡</span><span>➕ 新建卡片</span></div>
+                        <div class="ops"><span><Icon name="link" :size="13"/> 关联资源卡</span><span><Icon name="plus" :size="13"/> 新建卡片</span></div>
                         <div class="p-sub" v-if="n3.children.length">
                           <div v-for="n4 in n3.children" :key="n4.name" class="p-node">
                             <div class="t"><span class="nm">{{ n4.name }}</span><span class="lb">L4</span></div>
                             <div v-if="n4.desc" class="d">{{ n4.desc }}</div>
-                            <div class="ops"><span>🔗 关联资源卡</span><span>➕ 新建卡片</span></div>
+                            <div class="ops"><span><Icon name="link" :size="13"/> 关联资源卡</span><span><Icon name="plus" :size="13"/> 新建卡片</span></div>
                           </div>
                         </div>
                       </div>
@@ -120,7 +120,7 @@
       <div class="itm-foot">
         <span class="itm-note">同名跳过/复用在确认导入时执行并汇总提示（幂等，防重复导入）</span>
         <button class="btn" @click="emit('close')">取消</button>
-        <button class="btn primary" :disabled="!canConfirm" @click="emitConfirm">✓ 确认导入</button>
+        <button class="btn primary" :disabled="!canConfirm" @click="emitConfirm"><Icon name="check" :size="13"/> 确认导入</button>
       </div>
     </div>
   </Transition>
@@ -135,6 +135,7 @@
  * - ★F2（2026-10-15）：project 模式 = goal 下移一级（# 成功指标 / ## 任务），
  *   项目名恒等于当前项目，解析结果不含项目维度，写入循环在宿主 confirmProjImport。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { ref, computed, watch } from 'vue'
 import { parseGoalTemplate, parsePyramidTemplate, parseProjectTemplate, GOAL_RULE, PYRAMID_RULE, PROJECT_RULE, type GoalParseResult, type PyramidParseResult, type PyramidNode, type ProjImportResult } from '@/shared/utils/mdImport'
 import { showToast } from '@/shared/components/toast'
@@ -161,8 +162,8 @@ const ruleText = computed(() => props.mode === 'project' ? PROJECT_RULE : props.
 async function copyRule() {
   try {
     await navigator.clipboard.writeText(ruleText.value + '\n\n现在请整理用户的以下文本：')
-    showToast('✓ 规则已复制——粘贴给任意 AI，把 AI 输出粘回左侧即可')
-  } catch { showToast('✗ 复制失败——请手动选择文本复制') }
+    showToast('规则已复制——粘贴给任意 AI，把 AI 输出粘回左侧即可')
+  } catch { showToast('复制失败——请手动选择文本复制') }
 }
 const goal = computed<GoalParseResult>(() => props.mode === 'goal' ? parseGoalTemplate(src.value) : { projects: [], warns: [] })
 const pyr = computed<PyramidParseResult>(() => props.mode === 'pyramid' ? parsePyramidTemplate(src.value) : { thesis: null, extraH1: [], warns: [] })

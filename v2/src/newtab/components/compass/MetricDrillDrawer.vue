@@ -6,6 +6,7 @@
  * - wrr：周期内调出资源 → 跳所属策展台定位（query.hl）
  * - unarch：未归档任务清单（口径同 NorthStarPanel O23）→ 就地级联归档 + 跳任务调度定位
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Drawer from '@/shared/components/Drawer.vue'
@@ -143,8 +144,8 @@ function locateTask(id: string) {
       <div class="md-list">
         <div v-for="row in dhiRows" :key="row.id" class="md-row clickable" title="点击定位到主航线对应行" @click="locateGoal(row.id)">
           <div class="md-main">
-            <span class="md-title">🎯 {{ row.name }}</span>
-            <span class="md-sub">📦 项目 {{ row.pinned }} · 推进中 {{ row.active }}</span>
+            <span class="md-title"><Icon name="target" :size="13"/> {{ row.name }}</span>
+            <span class="md-sub"><Icon name="package" :size="13"/> 项目 {{ row.pinned }} · 推进中 {{ row.active }}</span>
           </div>
           <div class="md-right">
             <span class="md-pct" :class="{ warn: row.pinned && row.pct < 50 }">{{ row.pct }}%</span>
@@ -162,7 +163,7 @@ function locateTask(id: string) {
       <div class="md-list">
         <div v-for="c in wceRows.list" :key="c.id" class="md-row clickable" title="点击定位到调度台好奇心培育卡" @click="locateCurio(c.id)">
           <div class="md-main">
-            <span class="md-title">{{ c.status === 'done' ? '✅' : '🔍' }} {{ c.question || '（无标题）' }}</span>
+            <span class="md-title"><Icon v-if="c.status === 'done'" name="checksquare" :size="14"/><Icon v-else name="search" :size="14"/> {{ c.question || '（无标题）' }}</span>
             <span class="md-sub">捕获 {{ fmtDay(c.createdAt) }}</span>
           </div>
           <span class="md-go">定位 ›</span>
@@ -178,7 +179,7 @@ function locateTask(id: string) {
       <div class="md-list">
         <div v-for="r in wrrRows" :key="r.id" class="md-row clickable" title="点击定位到资源卡所在策展台" @click="locateRes(r.id)">
           <div class="md-main">
-            <span class="md-title">🔗 {{ r.title }}</span>
+            <span class="md-title"><Icon name="link" :size="13"/> {{ r.title }}</span>
             <span class="md-sub">最近打开 {{ fmtDay(r.lastCalledAt) }} · 累计 {{ r.callCount || 0 }} 次</span>
           </div>
           <span class="md-go">定位 ›</span>
@@ -194,24 +195,24 @@ function locateTask(id: string) {
         <div v-for="t in unarchRows" :key="t.id" class="md-task">
           <div class="md-row">
             <div class="md-main">
-              <span class="md-title clickable" title="点击定位到调度台任务调度" @click="locateTask(t.id)">📋 {{ t.title }}</span>
+              <span class="md-title clickable" title="点击定位到调度台任务调度" @click="locateTask(t.id)"><Icon name="filetext" :size="13"/> {{ t.title }}</span>
               <span class="md-sub warn">{{ taskArchiveIssue(t) }}</span>
             </div>
           </div>
           <div class="md-task-links">
             <select class="md-select" :value="t.projectId || ''" @change="changeTaskProject(t.id, $event)">
-              <option value="">📦 未关联项目</option>
-              <option v-for="p in projOptions" :key="p.id" :value="p.id">📦 {{ p.name }}</option>
+              <option value=""><Icon name="package" :size="13"/> 未关联项目</option>
+              <option v-for="p in projOptions" :key="p.id" :value="p.id"><Icon name="package" :size="13"/> {{ p.name }}</option>
             </select>
             <select class="md-select" :value="t.metricId || ''" :disabled="!t.projectId" @change="changeTaskMetric(t.id, $event)" title="关联成功指标后即完成归档">
-              <option value="">🎯 未关联指标</option>
-              <option v-for="m in metricsOf(t.projectId || '')" :key="m.id" :value="m.id">🎯 {{ m.title }}</option>
+              <option value=""><Icon name="target" :size="13"/> 未关联指标</option>
+              <option v-for="m in metricsOf(t.projectId || '')" :key="m.id" :value="m.id"><Icon name="target" :size="13"/> {{ m.title }}</option>
             </select>
           </div>
         </div>
-        <div v-if="!unarchRows.length" class="md-empty">🎉 没有未归档任务——所有任务都已挂到成功指标</div>
+        <div v-if="!unarchRows.length" class="md-empty"><Icon name="star" :size="13"/> 没有未归档任务——所有任务都已挂到成功指标</div>
       </div>
-      <div class="md-tip">未归档 = 未挂项目/指标或引用失效的任务。选项目→选指标即完成归档，任务即时从清单消失。点击标题跳任务调度定位。</div>
+      <div class="md-tip">未归档 = 未挂项目/指标或引用失效的任务。选项目›选指标即完成归档，任务即时从清单消失。点击标题跳任务调度定位。</div>
     </template>
   </Drawer>
 </template>

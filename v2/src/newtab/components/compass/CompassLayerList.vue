@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '@/shared/components/Icon.vue'
 /**
  * F7 · 层级专属列表视图（骨架条第 3/5/6 层，用户拍板 2026-10-16）。
  *
@@ -36,14 +37,14 @@ const emit = defineEmits<{
 }>()
 
 const LAYER_META = {
-  3: { n: 3, t: '战略目标', en: 'DIRECTION', ic: '⛳', tip: '点任一行 → 过滤下方项目塔（再点取消）' },
+  3: { n: 3, t: '战略目标', en: 'DIRECTION', ic: '', tip: '点任一行 → 过滤下方项目塔（再点取消）' },
   5: { n: 5, t: '成功指标', en: 'METRIC', ic: '◎', tip: '全部指标平铺 · 行内「定位」回项目塔' },
-  6: { n: 6, t: '任务', en: 'TASK', ic: '☑', tip: '全部任务平铺（未删除即算，与骨架条同口径）· 行内「定位」回项目塔' }
+  6: { n: 6, t: '任务', en: 'TASK', ic: '', tip: '全部任务平铺（未删除即算，与骨架条同口径）· 行内「定位」回项目塔' }
 } as const
 const lm = LAYER_META[props.layer]
 
 /** 行状态徽标：任务状态三态（与塔内同语义） */
-function statusDot(s: string): string { return s === 'done' ? '✓' : s === 'doing' ? '◐' : '○' }
+function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing' ? '◐' : '○' }
 </script>
 
 <template>
@@ -55,7 +56,7 @@ function statusDot(s: string): string { return s === 'done' ? '✓' : s === 'doi
       </span>
       <span class="lvl-tip">{{ lm.tip }}</span>
       <span class="lvl-gap" />
-      <button class="lvl-x" title="同层再点骨架条该层也可收起（双向可达）" @click="emit('close')">✕ 返回{{ backLabel }}</button>
+      <button class="lvl-x" title="同层再点骨架条该层也可收起（双向可达）" @click="emit('close')"><Icon name="x" :size="13"/> 返回{{ backLabel }}</button>
     </header>
 
     <div class="lvl-rows">
@@ -68,14 +69,14 @@ function statusDot(s: string): string { return s === 'done' ? '✓' : s === 'doi
         >
           <span class="lr-i">{{ r.i + 1 }}</span>
           <span class="lr-n">{{ r.name }}</span>
-          <span v-if="r.stall" class="lr-w">⚠ 有停滞</span>
+          <span v-if="r.stall" class="lr-w"><Icon name="warn" :size="13"/> 有停滞</span>
           <span class="lr-pct">
             <b>{{ r.pct }}%</b>
             <span class="lr-bar"><i :style="{ width: r.pct + '%' }" /></span>
             <em>{{ r.done }}/{{ r.total }} 任务</em>
           </span>
           <span class="lr-sub">
-            <span v-for="(p, pi) in r.projs" :key="pi" class="lr-proj">{{ p.t }} 任务{{ p.risk ? ' ⚠' : '' }}</span>
+            <span v-for="(p, pi) in r.projs" :key="pi" class="lr-proj">{{ p.t }} 任务<Icon v-if="p.risk" name="warn" :size="12"/></span>
           </span>
           <span class="lr-go">{{ dirFilter === r.id ? '正在只看这个 · 再点取消' : '▸ 只看这个目标' }}</span>
         </button>
@@ -89,9 +90,9 @@ function statusDot(s: string): string { return s === 'done' ? '✓' : s === 'doi
           :title="`${r.dirName} › ${r.projName}`"
           @click="emit('locate', r.projId, `指标 · ${r.title}`)"
         >
-          <span class="lr-dot" :class="{ done: r.pct === 100 && r.total, doing: r.pct > 0 && r.pct < 100 }">{{ r.total ? (r.pct === 100 ? '✓' : '◐') : '○' }}</span>
+          <span class="lr-dot" :class="{ done: r.pct === 100 && r.total, doing: r.pct > 0 && r.pct < 100 }"><Icon v-if="r.total && r.pct === 100" name="check" :size="12"/><template v-else>{{ r.total ? '◐' : '○' }}</template></span>
           <span class="lr-n">{{ r.title }}</span>
-          <span v-if="r.orphan" class="lr-w">⚠ 缺任务</span>
+          <span v-if="r.orphan" class="lr-w"><Icon name="warn" :size="13"/> 缺任务</span>
           <span class="lr-path">{{ r.dirName }} › {{ r.projName }}</span>
           <span class="lr-pct">
             <b>{{ r.pct }}%</b>
@@ -111,9 +112,9 @@ function statusDot(s: string): string { return s === 'done' ? '✓' : s === 'doi
           @click="r.projId ? emit('locate', r.projId, `任务 · ${r.title}`) : undefined"
           :class="{ orphan: r.orphan }"
         >
-          <span class="lr-dot" :class="{ done: r.status === 'done', doing: r.status === 'doing' }">{{ statusDot(r.status) }}</span>
+          <span class="lr-dot" :class="{ done: r.status === 'done', doing: r.status === 'doing' }"><Icon v-if="r.status === 'done'" name="check" :size="11"/><template v-else>{{ statusDot(r.status) }}</template></span>
           <span class="lr-n" :class="{ done: r.status === 'done' }">{{ r.title }}</span>
-          <span v-if="r.orphan" class="lr-w">⚠ 未归属</span>
+          <span v-if="r.orphan" class="lr-w"><Icon name="warn" :size="13"/> 未归属</span>
           <span class="lr-path">{{ r.metricTitle ? `${r.projName} › ${r.metricTitle}` : (r.projName || '未挂项目') }}</span>
           <span class="lr-go" v-if="r.projId">▸ 定位</span>
           <span class="lr-go dim" v-else>不可定位</span>

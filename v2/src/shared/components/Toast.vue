@@ -5,6 +5,7 @@
  * 同文案连发由 toast.ts 合并成「×N」。原单条互相覆盖会让批量动作的回执被截断。
  * 底色/文字/动作色改走 --inverse-* 令牌（原写死 #1A1D23 + #8FC4A3，浅色主题下动作色对比仅 1.98:1）。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { toastState, runToastAction } from './toast'
 </script>
 
@@ -13,7 +14,7 @@ import { toastState, runToastAction } from './toast'
     <div v-for="t in toastState.items" :key="t.id" class="toast" role="status">
       <span class="toast-msg">{{ t.msg }}<b v-if="t.n > 1" class="toast-n"> ×{{ t.n }}</b></span>
       <span v-if="t.action" class="toast-action" @click="runToastAction(t)">{{ t.action.label }}</span>
-      <span v-if="t.sticky" class="toast-x" title="关闭" @click="toastState.dismiss(t.id)">✕</span>
+      <span v-if="t.sticky" class="toast-x" title="关闭" @click="toastState.dismiss(t.id)"><Icon name="x" :size="13"/></span>
     </div>
   </TransitionGroup>
 </template>

@@ -10,6 +10,7 @@
  * 所以回退同时落 `K.MIGRATE_OPTOUT`，启动期 `stores/app.ts` 认这个开关跳过整段池迁移，
  * 直到用户主动点「重新执行迁移」。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { onMounted, ref } from 'vue'
 import { useAppStore } from '../stores/app'
 import { K } from '@/shared/storage/keys'
@@ -42,19 +43,19 @@ function fmt(t: number) { return new Date(t).toLocaleString('zh-CN', { hour12: f
 
 async function download() {
   const b = await readMigrateBackup()
-  if (!b?.data) { showToast('⚠ 备份不存在（或结构不符）'); return }
+  if (!b?.data) { showToast('备份不存在（或结构不符）'); return }
   const blob = new Blob([JSON.stringify(b.data)], { type: 'application/json' })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
   a.download = `zhiyuan_backup_迁移前_${new Date(b.at).toISOString().slice(0, 10)}.json`
   document.body.appendChild(a); a.click(); a.remove()
   setTimeout(() => URL.revokeObjectURL(a.href), 5000)
-  showToast('✓ 迁移前备份已下载')
+  showToast('迁移前备份已下载')
 }
 
 async function rollback() {
   const b = await readMigrateBackup()
-  if (!b?.data) { showToast('⚠ 没有可用备份'); return }
+  if (!b?.data) { showToast('没有可用备份'); return }
   const cur = store.data
   const curRes = (cur?.resources || []).filter(r => !r.deletedAt).length
   const ok = await useConfirm({
@@ -65,13 +66,13 @@ async function rollback() {
   if (!ok) return
   try {
     const d = await restoreMigrateBackup()
-    if (!d) { showToast('⚠ 备份结构不符（需 v2 格式），已中止'); return }
+    if (!d) { showToast('备份结构不符（需 v2 格式），已中止'); return }
     await setMigrateOptOut(true)
     await chrome.storage.local.remove([K.MIGRATE_REPORT])
     await replaceData(d)
     await load()
     showToast('↺ 已回退到迁移前（标签树与卡面标签一并还原）')
-  } catch (e) { showToast('⚠ 回退失败：' + String(e).slice(0, 70)) }
+  } catch (e) { showToast('回退失败：' + String(e).slice(0, 70)) }
 }
 
 async function reRun() {
@@ -89,14 +90,14 @@ async function reRun() {
 <template>
   <div v-if="report || backup" class="gs-card mg-card">
     <div class="gs-card-header">
-      <span class="gs-card-title">🧬 分类 → 标签 迁移报告</span>
+      <span class="gs-card-title"><Icon name="dna" :size="13"/> 分类 › 标签 迁移报告</span>
       <span class="gs-card-desc">{{ report ? `迁移于 ${fmt(report.at)}` : '本库无迁移报告（已回退或从未迁移）' }}<template v-if="backup"> · 备份 {{ fmt(backup.at) }} · {{ backup.cards }} 张卡</template></span>
       <span v-if="optOut" class="mg-off">迁移已停用（回退态）</span>
     </div>
     <div class="gs-card-body">
       <div v-if="report" class="mg-stats">
-        <span>一级 → 父标签 <b>{{ report.l1 }}</b></span>
-        <span>二级 → 子标签 <b>{{ report.l2 }}</b></span>
+        <span>一级 › 父标签 <b>{{ report.l1 }}</b></span>
+        <span>二级 › 子标签 <b>{{ report.l2 }}</b></span>
         <span>三/四级拍平 <b>{{ report.deep }}</b></span>
         <span>打标卡片 <b>{{ report.cardsTouched }}</b> 张</span>
         <span>新增标签 <b>{{ report.tagsAdded }}</b> 次</span>
@@ -105,13 +106,13 @@ async function reRun() {
         <button class="gs-btn mg-mini" @click="mapOpen = !mapOpen">{{ mapOpen ? '收起' : '展开' }}逐条映射清单（{{ report.mapping.length }} 条）</button>
         <div v-if="mapOpen" class="mg-rows">
           <div v-for="m in report.mapping" :key="m.catId + m.tagName" class="mg-row">
-            <span class="p">{{ m.path }}</span><span class="ar">→</span><span class="t">{{ m.tagName }}</span><span class="k">{{ m.kind === 'parent' ? '父标签' : m.kind === 'child' ? '子标签' : '路径拍平' }}</span>
+            <span class="p">{{ m.path }}</span><span class="ar">›</span><span class="t">{{ m.tagName }}</span><span class="k">{{ m.kind === 'parent' ? '父标签' : m.kind === 'child' ? '子标签' : '路径拍平' }}</span>
           </div>
         </div>
       </div>
       <div class="mg-acts">
-        <button class="gs-btn mg-mini" :disabled="!backup" @click="download">⬇ 下载迁移前备份</button>
-        <button v-if="!optOut" class="gs-btn gs-btn-danger mg-mini" :disabled="!backup" @click="rollback">↺ 回退到迁移前（整库覆盖）</button>
+        <button class="gs-btn mg-mini" :disabled="!backup" @click="download"><Icon name="download" :size="13"/> 下载迁移前备份</button>
+        <button v-if="!optOut" class="gs-btn gs-btn-danger mg-mini" :disabled="!backup" @click="rollback"><Icon name="rotateccw" :size="13"/> 回退到迁移前（整库覆盖）</button>
         <button v-else class="gs-btn mg-mini" @click="reRun">▶ 重新执行迁移</button>
       </div>
     </div>

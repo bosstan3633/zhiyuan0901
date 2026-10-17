@@ -14,6 +14,7 @@
  * 只读纪律：本组件只读 props（含宿主传入的 `data` 快照），**不碰 store、不写任何存储**；
  * 所有数字都能在 `aggregateRange` / `runRules` / `objectivesOf` 的输出里找到同值（§8.1 AI 数值可回溯）。
  */
+import Icon from '@/shared/components/Icon.vue'
 import './dashboard.css'
 import { computed, defineAsyncComponent, ref, shallowRef } from 'vue'
 import type { AppData } from '@/shared/models'
@@ -121,19 +122,19 @@ const deliverRows = computed<DrillRow[]>(() => {
   for (const slots of Object.values(d.dailyFocus || {})) {
     for (const s of slots || []) {
       if (s && s.done && s.doneAt && inWindow(s.doneAt, win.value))
-        out.push({ kind: 'task', id: s.sourceId || s.id, title: s.text, icon: '★', tag: '三件事完成', n: 1, time: hm(s.doneAt) })
+        out.push({ kind: 'task', id: s.sourceId || s.id, title: s.text, icon: '', tag: '三件事完成', n: 1, time: hm(s.doneAt) })
     }
   }
   const resTitle = new Map((d.resources || []).map(r => [r.id, r.title]))
   const taskTitle = new Map((d.tasks || []).map(t => [t.id, t.title]))
   for (const l of d.supportLinks || []) {
     if (l && l.createdAt && inWindow(l.createdAt, win.value))
-      out.push({ kind: 'task', id: l.taskId, title: `${taskTitle.get(l.taskId) || '任务'} ← ${resTitle.get(l.resourceId) || '资源'}`, icon: '🔗', tag: '任务↔资源关联', n: 1, time: hm(l.createdAt) })
+      out.push({ kind: 'task', id: l.taskId, title: `${taskTitle.get(l.taskId) || '任务'} ← ${resTitle.get(l.resourceId) || '资源'}`, icon: '', tag: '任务↔资源关联', n: 1, time: hm(l.createdAt) })
   }
   for (const t of d.tasks || []) {
     for (const s of t.subtasks || []) {
       if (s && s.done && s.doneAt && inWindow(s.doneAt, win.value))
-        out.push({ kind: 'task', id: t.id, title: `${t.title} · ${s.title}`, icon: '☑', tag: '子任务完成', n: 1, time: hm(s.doneAt) })
+        out.push({ kind: 'task', id: t.id, title: `${t.title} · ${s.title}`, icon: '', tag: '子任务完成', n: 1, time: hm(s.doneAt) })
     }
   }
   return out.sort((a, b) => (b.time || '').localeCompare(a.time || ''))
@@ -164,7 +165,7 @@ const dirRows = computed<{ id: string; name: string; rows: DrillRow[] } | null>(
   const id = k.slice(4)
   const d = props.directions.find(x => x.id === id)
   const rows: DrillRow[] = tasksOfDirection(props.tasks, props.directions, id, win.value).map(t => ({
-    kind: 'task', id: t.id, title: t.title || '（无标题）', icon: '✅',
+    kind: 'task', id: t.id, title: t.title || '（无标题）', icon: '',
     tag: t.completedAt && inWindow(t.completedAt, win.value) ? '本期完成' : '本期新建', n: 1
   }))
   return { id, name: d?.name || id, rows }
@@ -253,7 +254,7 @@ function exportCsv(): void {
     { header: [TREND_LABEL[trendMode.value], '加权分'], rows: trendPts.value.map(p => [p[0], p[1]]) }
   ])
   downloadText(exportName('复盘', 'csv', win.value.label), csv, 'csv')
-  showToast(`✓ 已导出复盘 CSV（${expKpis.value.length} 项 KPI · ${expObj.value.length} 个方向 · ${expRules.value.length} 条规则）`)
+  showToast(`已导出复盘 CSV（${expKpis.value.length} 项 KPI · ${expObj.value.length} 个方向 · ${expRules.value.length} 条规则）`)
 }
 function exportMd(): void {
   const md = sectionsToMd(`复盘 · ${win.value.label}`, `${rev.value.win.s} → ${rev.value.win.e}（${win.value.days} 天）· 环比 有效动作 ${fmtPct(delta.value.acts)} / 加权 ${fmtPct(delta.value.W)}`, [
@@ -263,7 +264,7 @@ function exportMd(): void {
     { h: `节奏（${TREND_LABEL[trendMode.value]}）`, lines: trendPts.value.map(p => `- ${p[0]}：${p[1]} 分`) }
   ])
   downloadText(exportName('复盘', 'md', win.value.label), md, 'md')
-  showToast('✓ 已导出复盘 Markdown')
+  showToast('已导出复盘 Markdown')
 }
 async function exportPng(): Promise<void> {
   const blob = await pngBlobFromSpec({
@@ -274,7 +275,7 @@ async function exportPng(): Promise<void> {
     footer: `知源调度台 · 偏离规则命中 ${rules.value.length}/8 · 数据只在本机`
   })
   downloadBlob(exportName('复盘', 'png', win.value.label), blob)
-  showToast('✓ 已导出复盘 PNG（当前主题配色）')
+  showToast('已导出复盘 PNG（当前主题配色）')
 }
 function onExport(fmt: ExportFmt): void {
   if (fmt === 'csv') exportCsv()
@@ -304,7 +305,7 @@ function onExport(fmt: ExportFmt): void {
 
       <div class="dz-ctl">
         <template v-if="rt === 'custom'">
-          <input type="date" v-model="customFrom" /><span class="hint">→</span><input type="date" v-model="customTo" />
+          <input type="date" v-model="customFrom" /><span class="hint">›</span><input type="date" v-model="customTo" />
           <button class="dz-btn sm" @click="customTo = todayKey(); customFrom = addDays(todayKey(), -6)">近 7 天</button>
           <button class="dz-btn sm" @click="customTo = todayKey(); customFrom = addDays(todayKey(), -29)">近 30 天</button>
           <button class="dz-btn sm" @click="customTo = todayKey(); customFrom = addDays(todayKey(), -89)">近 90 天</button>
@@ -378,7 +379,7 @@ function onExport(fmt: ExportFmt): void {
                 <template v-if="obj.total">
                   <span v-if="maxShare > 0.45" class="warn"> · 偏斜偏高（>45%）</span><span v-else> · 分布均衡</span>
                 </template>
-                <template v-if="obj.unassigned"><br>另有 <b>{{ obj.unassigned }}</b> 项未挂项目 ⇒ 无法归属方向（资源卡 / 好奇卡本就无项目归属，见口径边界）。</template>
+                <template v-if="obj.unassigned"><br>另有 <b>{{ obj.unassigned }}</b> 项未挂项目 ， 无法归属方向（资源卡 / 好奇卡本就无项目归属，见口径边界）。</template>
               </div>
               <DrillCardList v-if="dirRows" :rows="dirRows.rows" :label="`${dirRows.name} · 本期产出`" plain />
 
@@ -386,7 +387,7 @@ function onExport(fmt: ExportFmt): void {
                 <div class="dz-kpis">
                   <div class="dz-kpi"><div class="k">项目完成度</div><div class="v">{{ projBlock.total ? Math.round(projBlock.done / projBlock.total * 100) : 0 }}<small>%</small></div><div class="c">共 {{ projBlock.total }} 张任务</div></div>
                   <div class="dz-kpi"><div class="k">本期完成</div><div class="v">{{ projBlock.done }}<small>项</small></div><div class="c">进行中 {{ projBlock.doing }} 项</div></div>
-                  <div class="dz-kpi"><div class="k">关联资源采纳</div><div class="v">{{ projBlock.links }}<small>次</small></div><div class="c">本期该项目任务↔资源</div></div>
+                  <div class="dz-kpi"><div class="k">关联资源采纳</div><div class="v">{{ projBlock.links }}<small>次</small></div><div class="c">本期该项目任务与资源</div></div>
                   <div class="dz-kpi"><div class="k">库容净变化</div><div class="v">{{ projBlock.net > 0 ? '+' : '' }}{{ projBlock.net }}<small>张</small></div><div class="c">入台 {{ agg.add }} · 移出 {{ agg.del }}</div></div>
                 </div>
               </div>
@@ -404,7 +405,7 @@ function onExport(fmt: ExportFmt): void {
                   <span class="go">›</span>
                 </button>
                 <div v-if="!rules.length" class="dz-rule ok">
-                  <span class="rid">✓</span>
+                  <span class="rid"><Icon name="check" :size="13"/></span>
                   <span class="rb"><span class="rt">本期未命中偏离规则</span>
                     <span class="rd">8 条规则全部未触发 —— 采集与消化配比健康、主攻有推进、节奏未失衡。</span></span>
                 </div>
@@ -413,7 +414,7 @@ function onExport(fmt: ExportFmt): void {
                 <div><span class="k">规则</span> {{ ruleHit.id }} {{ ruleHit.name }}</div>
                 <div><span class="k">阈值</span> <b>{{ ruleHit.thr }}</b></div>
                 <div><span class="k">实际</span> <b>{{ ruleHit.act }}</b></div>
-                <div><span class="k">窗口</span> {{ win.s }} → {{ win.e }}（{{ win.days }} 天，k = {{ Math.max(0.25, Math.round(win.days / 30 * 100) / 100) }}）</div>
+                <div><span class="k">窗口</span> {{ win.s }} › {{ win.e }}（{{ win.days }} 天，k = {{ Math.max(0.25, Math.round(win.days / 30 * 100) / 100) }}）</div>
               </div>
             </div>
           </div>

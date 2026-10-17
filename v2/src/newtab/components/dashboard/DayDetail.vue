@@ -78,7 +78,7 @@ const statCells = computed(() => {
   return [
     { k: 'create' as DrillKey, n: c.create, lbl: '新增', sym: '+', cls: 'sc-create' },
     { k: 'call' as DrillKey, n: c.call, lbl: '调出', sym: '↗', cls: 'sc-call' },
-    { k: 'status' as DrillKey, n: c.status, lbl: '推进', sym: '✓', cls: 'sc-status' },
+    { k: 'status' as DrillKey, n: c.status, lbl: '推进', sym: '', cls: 'sc-status' },
     { k: 'del' as DrillKey, n: c.del, lbl: '清理', sym: '⌫', cls: 'sc-del' }
   ]
 })
@@ -104,7 +104,7 @@ const drillRows = computed<{ label: string; rows: DrillRow[]; total: number } | 
 
 /** 动词徽标：符号 + EVENT_ACT_LABEL（单一真源，判据锚 `EVENT_ACT_LABEL[e.action]` 在此消费）。
  *  类名走**字面量表**而非 `act-${a}` 拼接：dead-css-scan 的 token 匹配看不见运行时拼串。 */
-const ACT_SYM: Record<EventAction, string> = { create: '+', call: '↗', status: '◐', delete: '✕', restore: '⟲', purge: '✕' }
+const ACT_SYM: Record<EventAction, string> = { create: '+', call: '↗', status: '◐', delete: '', restore: '⟲', purge: '' }
 const ACT_CLS: Record<EventAction, string> = {
   create: 'act-create', call: 'act-call', status: 'act-status',
   delete: 'act-delete', restore: 'act-restore', purge: 'act-purge'
@@ -135,7 +135,7 @@ function locateRow(e: CardEvent) {
   const kind = asLocateKind(e.kind)
   if (!kind || !e.cardId) { showToast(`「${e.title}」无对应卡片类型`); return }
   const t = locateTargetOf(store.data!, kind, e.cardId)
-  if (!t) { showToast(`⚠ 「${e.title}」已不在库中`); return }
+  if (!t) { showToast(`「${e.title}」已不在库中`); return }
   void router.push(t)
 }
 function openRow(e: CardEvent) {
@@ -161,7 +161,7 @@ const exportKpis = () => {
 }
 const exportRows = () => [...dayEvents.value].sort((a, b) => a.ts - b.ts).map(e => ({ time: hm(e.ts), label: EVENT_ACT_LABEL[e.action], title: e.title }))
 const summaryText = computed(() => dlSum.value.n
-  ? `当天完成 ${dlSum.value.n} 项操作，涉及 ${dlSum.value.cards} 张卡片${dlSum.value.last ? `，最近一次 ${hm(dlSum.value.last)}` : ''}`
+  ? `当天完成 ${dlSum.value.n} 项操作，涉及 ${dlSum.value.cards} 张卡片${dlSum.value.last ? `，最近一次 ${hm(dlSum.value.last)}`: ''}`
   : '这一天没有操作记录。')
 
 async function exportPng(): Promise<void> {
@@ -174,7 +174,7 @@ async function exportPng(): Promise<void> {
     footer: '知源调度台 · 每日战报 · 数据只在本机'
   })
   downloadBlob(exportName('战报', 'png', props.day), blob)
-  showToast('✓ 已导出战报 PNG（当前主题配色）')
+  showToast('已导出战报 PNG（当前主题配色）')
 }
 function exportHtml(): void {
   const html = dailyReportShareHtml({
@@ -186,7 +186,7 @@ function exportHtml(): void {
     footer: '知源调度台 · 每日战报 · 数据只在本机'
   })
   downloadText(exportName('战报', 'html', props.day), html, 'html')
-  showToast('✓ 已导出 HTML 分享页（任何人浏览器打开即看）')
+  showToast('已导出 HTML 分享页（任何人浏览器打开即看）')
 }
 function exportMd(): void {
   const md = sectionsToMd(`每日战报 ${props.day}`, `周${wd.value} · ${summaryText.value}`, [
@@ -195,7 +195,7 @@ function exportMd(): void {
     { h: '操作流水（正序）', lines: exportRows().map(r => `- ${r.time}　${r.label}　${r.title}`) }
   ])
   downloadText(exportName('战报', 'md', props.day), md, 'md')
-  showToast('✓ 已导出 Markdown（贴进笔记即成形）')
+  showToast('已导出 Markdown（贴进笔记即成形）')
 }
 function onExport(fmt: ExportFmt): void {
   if (fmt === 'png') void exportPng()

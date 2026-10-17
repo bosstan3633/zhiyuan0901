@@ -353,6 +353,53 @@ const DASH_SCENES = [
     })
   },
   {
+    /* ★B1-a（2026-10-17）新增：设置页里的「使用手册已升级为独立阅读页」入口面板。
+       为什么必须有这一屏：`st-manual` 走的是 `#/manual`（独立阅读页），而 V3.8.25 B1-a 改的是
+       **设置页 `#/settings?page=manual` 那张空态卡**——那上面有一颗书图标，原先外层写死
+       `font-size:34px`、图标本体却按 `:size="13"` 渲染（Icon 用 width/height 定尺寸，外层字号对它无效），
+       于是那颗"大图标"一直比正文还小。改完必须有人看过，而原来 26 个镜头一个都不走这条 hash，
+       文本断言更是完全看不见尺寸。判据：图标宽落在 30–40px 档即脱盲。 */
+    id: 'st-settings-manual', name: '手册入口卡（设置页）', hash: '#/settings?page=manual',
+    judge: async (page) => page.evaluate(() => {
+      const card = document.querySelector('.gs-empty')
+      const ico = card ? card.querySelector('.gs-empty-ico svg') : null
+      const box = ico ? ico.getBoundingClientRect() : null
+      const title = document.querySelector('.gs-empty-title')
+      const btn = document.querySelector('.gs-manual-open')
+      return { ok: !!card && !!box && box.width >= 30 && box.width <= 40 && !!title && !!btn,
+        txt: `卡=${!!card} 图标=${box ? Math.round(box.width) + '×' + Math.round(box.height) : '无'}px 标题=${!!title} 主钮=${!!btn}` }
+    })
+  },
+  {
+    /* ★B1-a（2026-10-17）新增：字段管理的"实时预览"。
+       V3.8.25 发现这一大片**从未生效过**：预览 HTML 走 `v-html` 注入，注入节点拿不到 scoped 的
+       scope id ⇒ `.gs-pv-field[data-v-xxxx]` 匹配不到，8 条预览样式一条都没命中，标签是一串纯文字
+       而不是胶囊。判据：胶囊必须有底色与圆角（两者齐 = 令牌样式真的进来了，不再是裸文本）。
+
+       ★★B1-a 当日补录（**第一版这份门禁是空转的，记下来免得再犯**）：
+       预览卡 `#/settings?page=resource` 页面**更下方**，实测 `.gs-preview-card` 视口坐标
+       y=922、卡高 before 113 / after 127，而截图视口只有 1440×900 且 `fullPage` 没开 ⇒
+       取景前 `resetView()` 把滚动归零后，**改动的整张卡在取景框外**。后果：两边截图字节级相同
+       （md5 都是 c5be96a9…）、img-diff 判"0 差"，而按 computed style 量，before 的胶囊
+       `bg=rgba(0,0,0,0) / radius=0 / pad=0`（裸文本）、after 是 `rgba(94,106,210,0.16) / 99px / 1px 6px`
+       ——**判据量到了变化、像素一屏都没看见**。这正是"判据与截图同源才可信"的反面教材：
+       判据读的是 `getComputedStyle`（视口外也算），截图只拍视口内。*/
+    id: 'st-fields-preview', name: '字段实时预览', hash: '#/settings?page=resource',
+    /* 取景前把预览卡滚进视口。用 `block:'start'` 而不是 `block:'end'`/`center`：卡在文档里的
+       绝对位置两边同为 y=922，对齐卡顶 ⇒ 两次跑的 scrollTop 相同、胶囊在视口里的落点也相同，
+       像素差就只剩胶囊本身那点变化；`center/end` 会因 before/after 卡高 113 vs 127 差出
+       不同滚动量，把"位移"混进"变化"里，A/B 反而说不清。 */
+    scrollTo: '.gs-preview-card',
+    judge: async (page) => page.evaluate(() => {
+      const tags = [...document.querySelectorAll('.gs-pv-tag')]
+      const bg = tags.length ? getComputedStyle(tags[0]).backgroundColor : ''
+      const r = tags.length ? getComputedStyle(tags[0]).borderTopLeftRadius : ''
+      const title = document.querySelector('.gs-pv-field-title')
+      return { ok: tags.length > 0 && bg !== 'rgba(0, 0, 0, 0)' && parseFloat(r) > 2 && !!title,
+        txt: `胶囊=${tags.length} 底色=${bg} 圆角=${r} 标题=${!!title}` }
+    })
+  },
+  {
     /* R4-Dl：⌘K 检索面板进视觉门禁。此前这条链在 theme-audit 与 e2e 里都是零触点（R4-Pa 补了 E2E-37、
        R4-Dk 补了 E2E-38 的运行时判据，但**像素层仍然没人看**——纯样式/版式改动只靠源码文本断言，
        而"面板真开、高亮真渲染、hover 才露出的那排钮真能露"这三件事在源码里都表现为什么都没变。
@@ -559,6 +606,70 @@ async function resetView(page) {
   await page.waitForTimeout(300)
 }
 
+/**
+ * ★B1-a（2026-10-17）新增：把镜头声明的 `scrollTo` 目标滚进视口，并等滚动落定。
+ *
+ * 为什么加：判据读的是 `getComputedStyle`（**视口外一样算得出值**），截图只拍视口内 ——
+ * 这两件事不同源。st-fields-preview 第一版就把整个改动放在了取景框外：判据报"胶囊=2 底色=…"，
+ * 而两侧截图字节级相同、像素 A/B 判 0 差，等于这一屏根本没进过门禁。修法是让镜头能自报取景目标。
+ *
+ * 对齐方式取 `block:'start'`：元素在文档里的绝对位置若两边相同，两次跑的滚动量就相同、
+ * 元素在视口里的落点也相同，像素差只剩目标自身那点变化。若用 `center/end`，只要目标高度
+ * 在改动前后不同（本例卡高 113 vs 127），滚动量就会差出几 px，把"位移"混进"变化"里。
+ *
+ * `scrollIntoView` 会自动把内层滚动容器（设置页正文 `.gs-content` 自带 overflow）一起滚到位，
+ * 所以写窗口滚动是滚不动的（这点第一版也踩过：`window.scrollY` 全程 0）。
+ */
+async function scrollIntoView(page, sel) {
+  return page.evaluate(async (s) => {
+    const el = document.querySelector(s)
+    if (!el) return { ok: false, why: '选择器没命中：' + s }
+    el.scrollIntoView({ block: 'start', inline: 'nearest' })
+    // 与 resetView 同思路：等滚动落定，别和截图抢那 0.5px。
+    // 落定判据取「元素视口 top 连续两次相同」——比盯 scrollTop 更直接：top 不变就说明不再动了。
+    let last = null
+    for (let i = 0; i < 10; i++) {
+      await new Promise(r => setTimeout(r, 70))
+      const top = Math.round(el.getBoundingClientRect().top)
+      if (top === last) break
+      last = top
+    }
+    const r = el.getBoundingClientRect()
+    return { ok: true, scrollY: window.scrollY, top: Math.round(r.top), h: Math.round(r.height) }
+  }, sel).catch(e => ({ ok: false, why: e instanceof Error ? e.message : String(e) }))
+}
+
+/**
+ * ★B1-a（2026-10-17）新增：DOM 沉降等待，替掉"盲等 2300ms"。
+ *
+ * 为什么加：跑 V3.8.25 B1-a 的像素 A/B 时，`st-tags` / `st-airtable` 两屏**偶发**抓不到面板 ——
+ * 同一段代码、同一份种子数据，连跑两次：一次 `goto('#/settings?page=tags')` 后 250ms 标签行就在（rows=4），
+ * 另一次 2300ms 时还没挂上（rows=0，`.gs-card` 取空 ⇒ judge 里 `getComputedStyle(null)` 直接抛异常，
+ * 整个走查中断在后半程）。已验证路由本身没走丢（改用 `location.hash` 赋值就能稳定出现），
+ * 是 SPA 挂载慢 + 固定盲等的抽样偶合。
+ *
+ * 判据：**DOM 指纹连续两次采样不变即视为沉降**（节点数 + hash），每 200ms 一次，最长 6s；
+ * 沉降后再走原有的 resetView。失败不抛（超时只是退化成原来的盲等），保持"能跑完"优先。
+ *
+ * 为什么这不破坏 A/B 可比性：改动前（--pkg=旧 dist）与改动后用**同一个版本的工具**跑，
+ * 两边都多等同一道沉降 —— 只减少"抓到半张脸"的噪声，不引入任何方向性偏移。
+ */
+async function settle(page, label) {
+  let last = null
+  let stable = 0
+  for (let i = 0; i < 30; i++) {
+    const fp = await page.evaluate(() => {
+      const n = document.getElementsByTagName('*').length
+      const h = location.hash
+      const panel = document.querySelectorAll('.gs-panel, .mn-list, .deck-frame').length
+      return n + '|' + h + '|' + panel
+    }).catch(() => null)
+    if (fp === null) return
+    if (fp === last) { stable++; if (stable >= 1) return } else { stable = 0; last = fp }
+    await page.waitForTimeout(200)
+  }
+}
+
 function pickData() {
   if (argv.data) return path.resolve(String(argv.data))
   const dl = path.join(os.homedir(), 'Downloads')
@@ -573,6 +684,23 @@ async function main() {
   const tag = String(argv.tag || new Date().toISOString().slice(0, 10))
   const outDir = path.resolve(ROOT, 'docs', '视觉归档', tag)
   const themes = argv.only ? String(argv.only).split(',') : THEMES
+/* ★B1-a（2026-10-17）新增 `--scenes=a,b,c`：只跑指定镜头。
+   为什么加：26 个镜头里有若干带 `act` 点击的深镜头（抽屉 / 看板 / 池列表 / 下钻 / 复盘 / 热力图），
+   它们要求种子数据里有对应内容；数据不全时这些镜头是空态不算数，而**它们开过抽屉/切过 tab 的
+   副作用会把后面的设置类镜头带进异常路由**（实测：跑完 19 个深镜头后 `#/settings?page=tags`
+   抓到的是空壳）。所以"改动只碰设置页"的时候必须能只取这几个镜头做 A/B，而不是每次都被
+   前 19 个空态镜头干扰。默认不加过滤 = 原有全量行为不变。 */
+const SCENES = argv.scenes ? String(argv.scenes).split(',').map(s => s.trim()).filter(Boolean) : null
+const pick = (list) => SCENES ? list.filter(v => SCENES.includes(v.id)) : list
+const views = pick(VIEWS)
+const modalViews = pick(MODAL_VIEWS)
+const drawerViews = pick(DRAWER_VIEWS)
+const dashScenes = pick(DASH_SCENES)
+if (argv.scenes) {
+  const hit = [...views, ...modalViews, ...drawerViews, ...dashScenes].length
+  if (!hit) throw new Error('--scenes 没匹配到任何镜头，可选：' + [MODAL_VIEWS, VIEWS, MODAL_VIEWS, DRAWER_VIEWS, DASH_SCENES].flat().map(v => v.id).join(' / '))
+  console.log(`镜头过滤：${argv.scenes} → 命中 ${hit} 个`)
+}
 
   if (!fs.existsSync(CHROME)) throw new Error('Chromium 不存在：' + CHROME)
   if (!fs.existsSync(path.join(pkg, 'manifest.json'))) throw new Error('目标不是有效扩展包：' + pkg)
@@ -725,6 +853,7 @@ async function main() {
   const spotFail = []
   const dashFail = []
   const overlayFail = [] /* R4-En：content 浮层两场景 */ /* R172-T13：仪表盘七场景 */
+  const frameFail = [] /* ★B1-a：scrollTo 取景失败 / 判据目标落在取景框外的记账 */
   const treeFail = [] /* R3-B′：完整方向树项目层折叠活体判据 */
   for (const theme of themes) {
     // 上一主题遗留的浮层先清掉（best-effort）：不掩盖问题——下面每张弹窗图收尾都会判一次 Esc
@@ -743,8 +872,9 @@ async function main() {
       document.documentElement.dataset.theme = t
       return document.documentElement.dataset.theme
     }, theme)
-    for (const v of VIEWS) {
+    for (const v of views) {
       await page.goto(base + v.hash, { waitUntil: 'domcontentloaded' })
+      await settle(page, v.id) /* ★B1-a：DOM 沉降后再盲等，避免抓到"设置子页还没挂载"的半张脸 */
       await page.waitForTimeout(2300)
       await resetView(page) /* 视角归零（滚动 + 鼠标 hover），否则 md5/像素对照全是假的 */
       const hash = await page.evaluate(() => location.hash)
@@ -809,7 +939,7 @@ async function main() {
       console.log(`  ✓ ${theme.padEnd(8)} ${v.name.padEnd(4)} hash=${(hash || '#/').padEnd(26)}${extra} → ${path.basename(file)} (${kb}KB)`)
     }
     // R161：AI 评审中央弹窗（走 设置 › AI 助手 › 本周回顾 —— 该入口已接左栏与指令条）
-    for (const m of MODAL_VIEWS) {
+    for (const m of modalViews) {
       await page.setViewportSize({ width: m.width, height: m.height })
       await page.goto(base + '#/settings', { waitUntil: 'domcontentloaded' })
       await page.waitForTimeout(1600)
@@ -847,7 +977,7 @@ async function main() {
       await closeOverlays(page) /* 兜底清场（旧包的 .drawer 在此清掉，不把遗留带进下一主题） */
     }
     // R165-A 补漏：三张卡的详情抽屉（本轮主交付面）——判据不过即记账，收尾统一非零退出
-    for (const v of DRAWER_VIEWS) {
+    for (const v of drawerViews) {
       await page.setViewportSize(VIEWPORT)
       await page.goto(base + v.hash, { waitUntil: 'domcontentloaded' })
       await page.waitForTimeout(1800)
@@ -991,10 +1121,15 @@ async function main() {
     if (!bbOk) spotFail.push(`${theme}/deck-batch：${JSON.stringify(bb)}（应：共用栏渲染且 全选/反选/应用标签/卡型动作 齐全）`)
     await closeOverlays(page)
     await page.setViewportSize(VIEWPORT)
-    for (const sc of DASH_SCENES) {
+    for (const sc of dashScenes) {
       await page.setViewportSize(VIEWPORT)
       await page.goto(base + (sc.hash || '#/profile'), { waitUntil: 'domcontentloaded' }) // ★W9 退役重指带备案：仪表盘/复盘段宿主由 /settings?page=dashboard迁画像洞察页 /profile
       await page.waitForTimeout(2400)
+      /* ★B1-a：补上 DOM 沉降等待。st-tags / st-airtable 就在这个循环里，实测偶发"2400ms 到了
+         面板还没挂上"（rows=0、.gs-card 取空 ⇒ judge 里 getComputedStyle(null) 抛 TypeError）。
+         上面 views 循环早已用 settle() 替盲等，这一段当时漏了。放在盲等之后：稳定就立刻返回，
+         不稳定才继续等，只会更稳不会更慢。 */
+      await settle(page, sc.id)
       /* ★W12(V3.8.12)随迁备案：全年 366 格自 V3.8.7 起收进「看全年 ›」展开态
          （Heatmap 的 expanded 初值 false），而 dz-heatmap 的判据直接数 .dz-cell ——
          这些节点**在收起态不存在** ⇒「格=0(应≥360)」是从 V3.8.7 起就一直红着的，
@@ -1008,6 +1143,16 @@ async function main() {
       }
       if (sc.act) await sc.act(page)
       await resetView(page)
+      /* ★B1-a：判据与截图必须同源。resetView 刚把滚动归零，而 `judge` 读的是 getComputedStyle
+         ——**视口外一样算得出值**；截图只拍视口内。两件事不同源，这一屏就可以"判据量到了变化、
+         两侧截图却字节相同、像素 A/B 判 0 差"地空转（st-fields-preview 第一版实测正是如此：
+         预览卡在文档 y=922、视口高 900，整张卡在取景框外）。
+         镜头可声明 scrollTo 把取景目标滚进视口；滚不动/没命中记进 frameFail，不允许静默。
+         注意钩子必须放在 **resetView 之后、screenshot 之前**：resetView 会把所有滚动容器归零。 */
+      if (sc.scrollTo) {
+        const sv = await scrollIntoView(page, sc.scrollTo)
+        if (!sv.ok) frameFail.push(`${theme}/${sc.id}：scrollTo 失败（${sv.why}）⇒ 这一屏可能又拍在取景框外`)
+      }
       const info = await sc.judge(page)
       const f = path.join(outDir, `${theme}-${sc.id}.png`)
       await page.screenshot({ path: f })
@@ -1105,6 +1250,12 @@ async function main() {
   if (spotFail.length) {
     console.log(`❌ DeckTabs/deck 判据未过 ${spotFail.length} 项：\n  ` + spotFail.join('\n  '))
     process.exit(1)
+  }
+  /* ★B1-a 取景框守卫：放在最后单独报，且单独退出码 3 —— 它与"产品判据不过"是两件事，
+     混在一个出口里下次就会为了看产品结论而把它忽略掉。 */
+  if (frameFail.length) {
+    console.log(`❌ 取景框守卫未过 ${frameFail.length} 项（判据可能又量在了视口外）：\n  ` + frameFail.join('\n  '))
+    process.exit(3)
   }
 }
 main().catch(e => { console.error('theme-audit 失败：', e); process.exit(2) })

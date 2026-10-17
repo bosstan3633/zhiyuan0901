@@ -11,6 +11,7 @@
  * 复盘段仍是 CSV / Markdown / PNG 三件套（`formats` 默认值不变），热力图段传 `['png','html']`。
  * html 生成的是一份**自包含可分享页**（任何人浏览器打开即看这一年的热力图），见 exportView.heatmapShareHtml。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed, onBeforeUnmount, ref } from 'vue'
 
 export type ExportFmt = 'csv' | 'md' | 'png' | 'html'
@@ -42,7 +43,7 @@ onBeforeUnmount(() => {
 
 <template>
   <span class="dz-exp-wrap">
-    <button class="dz-btn sm" :aria-expanded="open" :title="`导出当前视图（${labels.join(' / ')}）`" @click="open = !open">⬇ 导出</button>
+    <button class="dz-btn sm" :aria-expanded="open" :title="`导出当前视图（${labels.join(' / ')}）`" @click="open = !open"><Icon name="download" :size="13"/> 导出</button>
     <div v-if="open" class="dz-exp" role="menu">
       <button v-if="props.formats.includes('csv')" role="menuitem" @click="pick('csv')">▤ CSV 表格<span class="hint">Excel / Airtable 可开</span></button>
       <button v-if="props.formats.includes('md')" role="menuitem" @click="pick('md')">¶ Markdown 文档<span class="hint">贴进笔记即成形</span></button>

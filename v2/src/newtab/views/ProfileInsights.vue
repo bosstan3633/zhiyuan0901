@@ -20,6 +20,7 @@
  * 数据桥口径不变：readEventLog 优先，空日志回退卡片时间派生；只读 store.data 快照，
  * 写操作只经 store.persist()（lifecycle 三写 + 报告落卡）。
  */
+import Icon from '@/shared/components/Icon.vue'
 import '@/newtab/components/dashboard/dashboard.css'
 import '@/newtab/components/profile/pi-timeline.css'
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
@@ -333,7 +334,7 @@ function onTodayBind(i: number) {
     added++
   }
   store.persist()
-  showToast(`✓ 已归入「${projNameById.value.get(targetId || '') || '主攻项目'}」，新增绑定 ${added} 张支撑卡`)
+  showToast(`已归入「${projNameById.value.get(targetId || '') || '主攻项目'}」，新增绑定 ${added} 张支撑卡`)
 }
 function onTodayFill(i: number) {
   const key = todayKey()
@@ -345,7 +346,7 @@ function onTodayFill(i: number) {
   const list = gd.value.dailyFocus[key] || (gd.value.dailyFocus[key] = [])
   list[i] = { id: uid('focus'), sourceType: 'task', sourceId: c.taskId, text: c.title, done: false, auto: true }
   store.persist()
-  showToast(`✓ 已填入「${c.title}」`)
+  showToast(`已填入「${c.title}」`)
 }
 /** ★W13-T7 · 四条诊断 CTA 的统一动作分发（buildConciseInsights 出 8 个 ctaAction 键，
     四组件条带全部走这一个出口——原先四段各写各的 onXxxInsightAction，现按键分派）。
@@ -375,7 +376,7 @@ function onConciseAction(action: string) {
     const list = mMature.value
     if (!list.length) { showToast('没有可转化的成熟好奇卡'); return }
     for (const c of [...list]) curioApi.convertToTask(c)
-    showToast(`✓ 已将 ${list.length} 张成熟好奇卡转化为任务`)
+    showToast(`已将 ${list.length} 张成熟好奇卡转化为任务`)
     return
   }
   if (action === 'wakeCooling' || action === 'openLifecycle') wakeCooling()
@@ -386,7 +387,7 @@ function onConciseAction(action: string) {
 const projDetailOpen = ref(false)
 const projDetailId = ref<string | null>(null)
 function openProjectDetail(projectId: string) {
-  if (!projectId) { showToast('⚠ 未找到该项目'); return }
+  if (!projectId) { showToast('未找到该项目'); return }
   projDetailId.value = projectId
   projDetailOpen.value = true
 }
@@ -448,7 +449,7 @@ const statList = computed<StatRow[]>(() => {
   switch (statDrawer.value) {
     case 'support': return gTaskLive.value.map(t => ({
       kind: 'task' as const, id: t.id, title: t.title, ts: t.createdAt,
-      owner: supportedTaskIds.value.has(t.id) ? '✓ 已支撑' : '⚠ 未支撑'
+      owner: supportedTaskIds.value.has(t.id) ? '已支撑' : '未支撑'
     }))
     /* ★W15-T1 四类卡片清单型分支：弹药 / 冷却旧卡 / 今日入台 / 今日调出 */
     case 'ammo': return ammoCards.value
@@ -461,7 +462,7 @@ const statList = computed<StatRow[]>(() => {
       ? tasksOfDirection(dashTasks.value, dashDirections.value, goalDirId.value, windowOf('week', {}))
         .map(t => ({
           kind: 'task' as const, id: t.id, title: t.title || '（无标题）', ts: t.createdAt || 0,
-          owner: t.completedAt ? '✓ 本周完成' : '＋ 本周新建'
+          owner: t.completedAt ? '本周完成' : '＋ 本周新建'
         }))
       : []
     /* F17：本月转化离场的好奇卡（R167 convertedAt 记账戳，含软删离场卡——池里数不到靠它计数） */
@@ -478,17 +479,17 @@ const statList = computed<StatRow[]>(() => {
         return { kind: (card?.kind || 'resource') as StatRow['kind'], id: p.cardId!, title: card?.title || '（源卡已删除）', ts: 0, owner: '⇧ 投射' }
       }),
       ...(gd.value.argCards || []).filter(a => !a.deletedAt).map(a => ({
-        kind: 'resource' as const, id: a.id, title: a.title || a.content?.slice(0, 30) || '（论点卡）', ts: a.createdAt || 0, owner: '✎ 论点'
+        kind: 'resource' as const, id: a.id, title: a.title || a.content?.slice(0, 30) || '（论点卡）', ts: a.createdAt || 0, owner: '论点'
       }))
     ]
     /* F19②：本月新支撑链接 + 本月完成任务 */
     case 'mo-support': return [
       ...(gd.value.supportLinks || []).filter(l => (l.createdAt || 0) >= gStartOfMonth).map(l => {
         const card = gFlat.value.find(x => x.id === l.resourceId)
-        return { kind: (card?.kind || 'resource') as StatRow['kind'], id: l.resourceId, title: card?.title || '（源卡已删除）', ts: l.createdAt || 0, owner: '🔗 新支撑' }
+        return { kind: (card?.kind || 'resource') as StatRow['kind'], id: l.resourceId, title: card?.title || '（源卡已删除）', ts: l.createdAt || 0, owner: '新支撑' }
       }),
       ...gTaskLive.value.filter(t => (t.completedAt || 0) >= gStartOfMonth).map(t => ({
-        kind: 'task' as const, id: t.id, title: t.title, ts: t.completedAt || 0, owner: '✓ 已完成'
+        kind: 'task' as const, id: t.id, title: t.title, ts: t.completedAt || 0, owner: '已完成'
       }))
     ]
     /* F18：某标签本月新增的资源卡 */
@@ -532,7 +533,7 @@ const todayInCards = computed<StatRow[]>(() => gFlat.value
   .sort((a, b) => b.createdAt - a.createdAt)
   .map(x => ({
     kind: x.kind, id: x.id, title: x.title, ts: x.createdAt,
-    owner: x.importedAt ? '📥 本地导入' : (todayCreatedEventIds.value.has(x.id) ? '⚡ 采集入池' : '本地新建')
+    owner: x.importedAt ? '本地导入' : (todayCreatedEventIds.value.has(x.id) ? '采集入池' : '本地新建')
   })))
 /** 今日被调出的卡（只取 call 事件那批；同一张卡调出多次只列一行，次数差值由对账条说明） */
 const todayCalledCards = computed<StatRow[]>(() => gFlat.value
@@ -550,7 +551,7 @@ const ammoSplit = computed(() => {
     seen.add(l.resourceId)
     const card = gResLive.value.find(r => r.id === l.resourceId)
     if (!card) { removed++; continue }
-    live.push({ kind: 'resource', id: card.id, title: card.title, ts: card.createdAt || 0, owner: '🛡 已备弹药' })
+    live.push({ kind: 'resource', id: card.id, title: card.title, ts: card.createdAt || 0, owner: '已备弹药' })
   }
   return { live, removed }
 })
@@ -564,7 +565,7 @@ const coolingCards = computed<StatRow[]>(() => {
     .map(c => ({
       kind: c.kind as StatRow['kind'], id: c.id, title: titleOfLc(c),
       ts: c.updatedAt || 0,
-      owner: `💤 冷却中 · 阈值 ${Math.round(coolingMsOf(c) / 86400000)} 天`
+      owner: `冷却中 · 阈值 ${Math.round(coolingMsOf(c) / 86400000)} 天`
     }))
 })
 
@@ -580,28 +581,28 @@ const statFiltered = computed<StatRow[]>(() => {
 const statPageCount = computed(() => Math.max(1, Math.ceil(statFiltered.value.length / STAT_PAGE)))
 const statShown = computed(() => statFiltered.value.slice((statPage.value - 1) * STAT_PAGE, statPage.value * STAT_PAGE))
 function statGo(delta: number) { statPage.value = Math.min(statPageCount.value, Math.max(1, statPage.value + delta)) }
-function statKindIcon(kind: string) { return kind === 'task' ? '✅' : kind === 'curiosity' ? '💡' : '📇' }
+function statKindIcon(kind: string) { return kind === 'task' ? 'checksquare' : kind === 'curiosity' ? 'bulb' : 'filetext' }
 function statKindLabel(kind: string) { return kind === 'task' ? '任务' : kind === 'curiosity' ? '好奇' : '资源' }
 function openStatCard(x: { kind: string; id: string }) {
   const kind = asLocateKind(x.kind)
-  if (!kind) { showToast('⚠ 该卡片类型暂不支持定位'); return }
+  if (!kind) { showToast('该卡片类型暂不支持定位'); return }
   const t = locateTargetOf(gd.value, kind, x.id)
-  if (!t) { showToast('⚠ 该卡片已不在库中'); return }
+  if (!t) { showToast('该卡片已不在库中'); return }
   statDrawer.value = ''
   void router.push(t)
 }
 const statDrawerTitle = computed(() => ({
-  all: `📊 全部卡片明细（${totalCards.value}）`,
-  support: `🛡 任务证据支撑明细（${statList.value.length}）`,
-  ammo: `🛡 已备弹药 · 三件事的支撑卡清单（${statList.value.length} 张）`,
-  cooling: `💤 可调出的旧卡 · 冷却期清单（${statList.value.length} 张）`,
-  'today-in': `📥 今日入台的卡（${statList.value.length} 张）`,
+  all: `全部卡片明细（${totalCards.value}）`,
+  support: `任务证据支撑明细（${statList.value.length}）`,
+  ammo: `已备弹药 · 三件事的支撑卡清单（${statList.value.length} 张）`,
+  cooling: `可调出的旧卡 · 冷却期清单（${statList.value.length} 张）`,
+  'today-in': `今日入台的卡（${statList.value.length} 张）`,
   'today-call': `↗ 今日调出的卡（${statList.value.length} 张）`,
-  'goal-week': `🎯 ${dashDirections.value.find(d => d.id === goalDirId.value)?.name || '方向'} · 本周产出任务（${statList.value.length}）`,
-  'curio-conv': `🔁 本月转化的好奇卡（${statList.value.length}）`,
-  'curated': `🏛 入策展金字塔明细（${statList.value.length} · 投射 + 论点）`,
-  'mo-support': `🔗 本月支撑任务明细（${statList.value.length}）`,
-  topic: `🏷 #${topicTag.value} 本月新增卡片（${statList.value.length}）`,
+  'goal-week': `${dashDirections.value.find(d => d.id === goalDirId.value)?.name || '方向'} · 本周产出任务（${statList.value.length}）`,
+  'curio-conv': `本月转化的好奇卡（${statList.value.length}）`,
+  'curated': `入策展金字塔明细（${statList.value.length} · 投射 + 论点）`,
+  'mo-support': `本月支撑任务明细（${statList.value.length}）`,
+  topic: `#${topicTag.value} 本月新增卡片（${statList.value.length}）`,
   '': ''
 }[statDrawer.value]))
 
@@ -619,8 +620,8 @@ const statReconcile = computed<ReconCell[] | null>(() => {
         cell('涉及卡片', statList.value.length, '张'), cell('其中重复打开', Math.max(0, todayCalled.value - statList.value.length), '次')]
     case 'today-in':
       return [cell('今日入台', todayAdd.value, '张'), cell('清单行数', statList.value.length, '张'),
-        cell('本地导入', statList.value.filter(c => c.owner === '📥 本地导入').length, '张'),
-        cell('采集入池', statList.value.filter(c => c.owner === '⚡ 采集入池').length, '张')]
+        cell('本地导入', statList.value.filter(c => c.owner === '本地导入').length, '张'),
+        cell('采集入池', statList.value.filter(c => c.owner === '采集入池').length, '张')]
     case 'ammo':
       return [cell('存活弹药卡', ammoSplit.value.live.length, '张'), cell('已进回收站', ammoSplit.value.removed, '张', ammoSplit.value.removed > 0),
         cell('支撑关联条数', (gd.value.supportLinks || []).filter(l => l.taskId && todayRows.value.some(r => r && r.slot.sourceId === l.taskId)).length, '条')]
@@ -628,8 +629,8 @@ const statReconcile = computed<ReconCell[] | null>(() => {
       return [cell('冷却期卡', statList.value.length, '张'), cell('其中高价值（调用≥3）', coolingCards.value.filter(c => (c.owner || '').length >= 0).length, '张'),
         cell('默认冷却阈值', Math.round((coolingDefaultDaysOf() || 30)), '天'), cell('默认归档阈值', Math.round((coolingDefaultDaysOf() || 30) * 3), '天')]
     case 'support':
-      return [cell('支撑率', heroSupportRate.value, '%'), cell('已支撑', statList.value.filter(c => (c.owner || '').startsWith('✓')).length, '个'),
-        cell('未支撑', statList.value.filter(c => (c.owner || '').startsWith('⚠')).length, '个', statList.value.some(c => (c.owner || '').startsWith('⚠')))]
+      return [cell('支撑率', heroSupportRate.value, '%'), cell('已支撑', statList.value.filter(c => (c.owner || '').startsWith('')).length, '个'),
+        cell('未支撑', statList.value.filter(c => (c.owner || '').startsWith('')).length, '个', statList.value.some(c => (c.owner || '').startsWith('')))]
     case 'all':
       return [cell('存活卡片', totalCards.value, '张'), cell('资源', gResLive.value.length, '张'),
         cell('任务', gTaskLive.value.length, '张'), cell('好奇', gCurioLive.value.length, '张')]
@@ -680,7 +681,7 @@ function onLcReactivate(id: string) { const c = lcFind(id); if (!c) return; reac
 function onLcSetDays(id: string, days: number | null) { const c = lcFind(id); if (!c) return; setCoolingDays(c, days); store.persist() }
 function onLcLocate(id: string, kind: LifecycleCard['kind']) {
   const t = locateTargetOf(store.data!, kind, id)
-  if (!t) { showToast('⚠ 该卡片已不在库中'); return }
+  if (!t) { showToast('该卡片已不在库中'); return }
   void router.push(t)
 }
 const lcSetOpen = ref(false)
@@ -691,7 +692,7 @@ function saveLcDefault() {
   saveUIPrefs({ coolingDaysDefault: v })
   setCoolingDefaultDays(v)
   store.persist()
-  showToast(`⚙ 默认冷却天数已设为 ${v} 天（归档 ${v * 3} 天）`)
+  showToast(`默认冷却天数已设为 ${v} 天（归档 ${v * 3} 天）`)
 }
 
 /* ===== PiYear 年度诊断条（W13-T6/F20~F23：方向归属占比 × 高价值冷却卡） ===== */
@@ -765,7 +766,7 @@ function onHeroRefresh() {
   showToast('⟳ 已重读事件日志与错误日志')
 }
 /** F2 轻引导：使命为空时一键去方向台设定 */
-function gotoCompass() { void router.push('/compass'); showToast('🧭 已跳转方向台 · 在骨架条第 1 层设定使命愿景') }
+function gotoCompass() { void router.push('/compass'); showToast('已跳转方向台 · 在骨架条第 1 层设定使命愿景') }
 function onHeroExport(fmt: string) {
   /* F5：导出 = 使命主线 + 4 项全库底盘指标 + 四尺度一句话诊断（与界面四条同源：strip-html 后落盘） */
   const insightLines = (['today', 'week', 'month', 'year'] as const).map(k => {
@@ -789,7 +790,7 @@ function onHeroExport(fmt: string) {
   } else {
     downloadText(`画像洞察摘要_${stampDay()}.md`, lines.join('\n'), 'md')
   }
-  showToast('✓ 已导出画像摘要')
+  showToast('已导出画像摘要')
 }
 
 /* ===== PiToday 动作（★W13-T3 收窄：strip 四格定版为 入台/调出/焦点/弹药——
@@ -913,7 +914,7 @@ async function exportErrorLog() {
     `[${new Date(e.ts).toLocaleString('zh-CN', { hour12: false })}] ${e.source} @ ${e.route}\n${e.message}\n${e.stack}`
   ).join('\n\n———\n\n')
   downloadText(`zhiyuan_运行错误_${stampDay()}.txt`, rows, 'txt')
-  showToast(`✓ 已导出 ${logs.length} 条运行错误（含完整堆栈）`)
+  showToast(`已导出 ${logs.length} 条运行错误（含完整堆栈）`)
 }
 
 /* ===== 辅助 ===== */
@@ -1023,7 +1024,7 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
     <Teleport to="body">
       <div class="gs-modal-overlay" :class="{ open: lcSetOpen }" @click.self="lcSetOpen = false">
         <div class="gs-modal" style="width: 640px">
-          <div class="gs-modal-header">⚙ 冷却阈值设置</div>
+          <div class="gs-modal-header"><Icon name="settings" :size="13"/> 冷却阈值设置</div>
           <div class="gs-modal-body">
             <p>全局默认冷却 <b>{{ lcDefaultDraft || 30 }}</b> 天 · 归档 = 冷却 × 3 = <b>{{ (lcDefaultDraft || 30) * 3 }}</b> 天；每张卡可单独覆盖（清除后回落全局默认）。<br />修改阈值只影响状态判定，<b>不会改变卡片活跃度</b>。</p>
             <div class="lc-set-global">
@@ -1068,12 +1069,12 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
         </div>
         <p v-if="statReconcileNote" class="pi-recon-note">{{ statReconcileNote }}</p>
         <div class="gs-drawer-search">
-          <input v-model="statSearch" placeholder="🔍 搜索标题 / 归属 / 说明">
+          <input v-model="statSearch" placeholder="搜索标题 / 归属 / 说明">
           <span class="cnt">{{ statFiltered.length }} 条</span>
         </div>
         <div class="gs-ev-list">
           <div v-for="c in statShown" :key="c.id" class="gs-ev-row static clickable" @click="openStatCard(c)">
-            <span class="gs-ev-kind">{{ statKindIcon(c.kind) }}</span>
+            <span class="gs-ev-kind"><Icon :name="statKindIcon(c.kind)" :size="13"/></span>
             <span class="gs-ev-badge">{{ statKindLabel(c.kind) }}</span>
             <span class="gs-ev-title">{{ c.title }}</span>
             <!-- ★W16-T2：说明列对**所有**卡类显示（原先 v-if="c.kind === 'task'" ⇒ 冷却/弹药都是资源卡，说明整列都不显示） -->
@@ -1081,7 +1082,7 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
             <span class="gs-ev-time">{{ fmtDay(c.ts) }}</span>
           </div>
           <div v-if="!statFiltered.length" class="gs-ev-empty">{{ statSearch.trim() ? '没有匹配的卡片' : '暂无卡片' }}</div>
-          <div v-if="statList.length" class="pi-hint">💡 单击行可跳转定位到卡片所在页面。</div>
+          <div v-if="statList.length" class="pi-hint"><Icon name="bulb" :size="13"/> 单击行可跳转定位到卡片所在页面。</div>
         </div>
         <div v-if="statPageCount > 1" class="gs-pager">
           <button :disabled="statPage <= 1" @click="statGo(-1)">‹ 上一页</button>

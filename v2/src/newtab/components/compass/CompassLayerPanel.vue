@@ -14,6 +14,7 @@
  *
  * 折叠双向：父级用 open 传 null/false 收起，本组件只在 v-if 存在时渲染。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed } from 'vue'
 import type { CompassMeta } from '../../views/compassMeta'
 
@@ -66,7 +67,7 @@ function onChain(n: number) {
         <span class="lvp-t">
           第 {{ lm.n }} 层 · {{ lm.t }}<span class="lvp-en">{{ lm.en }}</span>
         </span>
-        <button class="lvp-x" title="收起（再点层级可重新展开）" @click="emit('close')">✕ 收起</button>
+        <button class="lvp-x" title="收起（再点层级可重新展开）" @click="emit('close')"><Icon name="x" :size="13"/> 收起</button>
       </header>
 
       <!-- 主体：这一层的实体本体。

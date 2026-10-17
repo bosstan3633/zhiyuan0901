@@ -7,6 +7,7 @@
  * - 联动：HTML/PDF 上传成功 emit('html-added', meta) —— 宿主做标题/链接属性联动（资源卡：标题取文件名 + linkType=file + link=zy-asset://）
  * - 性能红线：主 JSON 只存 meta，Blob 本体永不进 JSON
  */
+import Icon from '@/shared/components/Icon.vue'
 import { ref, computed } from 'vue'
 import type { AssetMeta } from '@/shared/models'
 import { putAsset, getAssetBlob } from '@/shared/storage/assets'
@@ -57,9 +58,9 @@ async function dropBlob(id: string): Promise<boolean> {
 // R80（R13）：判定抽到共享工具，供本地文件导入复用——两处口径必须只有一份实现
 const guessKind = guessAssetKind
 function fmtSize(n: number): string {
-  if (n < 1024) return n + ' B'
-  if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' KB'
-  return (n / 1024 / 1024).toFixed(1) + ' MB'
+  if (n < 1024) return n + 'B'
+  if (n < 1024 * 1024) return (n / 1024).toFixed(0) + 'KB'
+  return (n / 1024 / 1024).toFixed(1) + 'MB'
 }
 
 // ---- 上传 ----
@@ -81,13 +82,13 @@ async function onFilesChange(e: Event) {
     const isDocKind = (k: string) => k === 'html' || k === 'pdf'
     for (const f of files) {
       const kind = guessKind(f.name, f.type)
-      if (!kind) { showToast(`⚠ 仅支持图片 / HTML / PDF 文件，已跳过：${f.name.slice(0, 24)}`); continue }
+      if (!kind) { showToast(`仅支持图片 / HTML / PDF 文件，已跳过：${f.name.slice(0, 24)}`); continue }
       // REQ-061：图片 ≤10MB（独立上限）；PDF ≤100MB（第卌四轮拍板）；HTML 沿宿主 maxSizeMB
       const limitMB = kind === 'image' ? IMG_MAX_MB : kind === 'pdf' ? PDF_MAX_MB : props.maxSizeMB
-      if (f.size > limitMB * 1024 * 1024) { showToast(`⚠ ${f.name.slice(0, 24)} 超过 ${limitMB}MB 上限，已跳过`); continue }
+      if (f.size > limitMB * 1024 * 1024) { showToast(`${f.name.slice(0, 24)} 超过 ${limitMB}MB 上限，已跳过`); continue }
       // REQ-061：单卡图片 ≤9 张，超额拒绝
       if (kind === 'image') {
-        if (imgQuota <= 0) { showToast(`⚠ 图片数量已达上限 ${IMG_MAX_COUNT} 张，已跳过：${f.name.slice(0, 24)}`); continue }
+        if (imgQuota <= 0) { showToast(`图片数量已达上限 ${IMG_MAX_COUNT} 张，已跳过：${f.name.slice(0, 24)}`); continue }
         imgQuota--
       }
       const id = uid('at')
@@ -95,7 +96,7 @@ async function onFilesChange(e: Event) {
         await putAsset(id, f)
       } catch (err) {
         console.error('[assets] putAsset failed:', err)
-        showToast(`⚠ 附件写入失败：${f.name.slice(0, 24)}`)
+        showToast(`附件写入失败：${f.name.slice(0, 24)}`)
         continue
       }
       const meta: AssetMeta = { id, kind, name: f.name, size: f.size, mime: f.type || (kind === 'image' ? 'image/png' : kind === 'pdf' ? 'application/pdf' : 'text/html'), createdAt: Date.now() }
@@ -119,7 +120,7 @@ async function onFilesChange(e: Event) {
         for (const m of added.filter(a => isDocKind(a.kind))) emit('html-added', m, replacedOld)
       }
       const docPart = added.some(a => isDocKind(a.kind)) ? (hadOldDoc ? '，已替换原同名类型附件' : '') : ''
-      showToast(`✓ 已上传 ${added.length} 个附件（${fmtSize(added.reduce((s, a) => s + a.size, 0))}${docPart}）`)
+      showToast(`已上传 ${added.length} 个附件（${fmtSize(added.reduce((s, a) => s + a.size, 0))}${docPart}）`)
     }
   } finally {
     busy.value = false
@@ -134,11 +135,11 @@ async function removeAsset(meta: AssetMeta) {
   } catch (err) {
     // 第卌一轮 REQ-057：业务吞错收敛——本体删除失败必须让用户知道（meta 已软删但 Blob 残留 = 孤儿）
     console.error('[assets] deleteAsset failed:', err)
-    showToast('⚠ 附件本体删除失败，可到「设置 · 数据管理」清理孤儿')
+    showToast('附件本体删除失败，可到「设置 · 数据管理」清理孤儿')
   }
   emitList(list.value.filter(a => a.id !== meta.id))
   // R128-A3：本体仍被转卡孪生引用时不删 Blob，提示口径与「彻底移除」区分
-  showToast(purged ? '🗑 附件已移除' : '🗑 附件已从本卡移除（该本体仍被转出的卡片共用，已保留）')
+  showToast(purged ? '附件已移除' : '附件已从本卡移除（该本体仍被转出的卡片共用，已保留）')
 }
 
 // ---- 打开（图片弹窗多图预览 / HTML·PDF 下载副本后打开） ----
@@ -194,7 +195,7 @@ async function openAsset(meta: AssetMeta) {
       } catch { urls.push('') }
     }
     const valid = urls.filter(Boolean)
-    if (!valid.length) { showToast('⚠ 附件本体缺失（可能已被清理），请重新上传'); return }
+    if (!valid.length) { showToast('附件本体缺失（可能已被清理），请重新上传'); return }
     closeViewer()
     imageUrls.value = urls
     viewerOpen.value = true
@@ -210,15 +211,15 @@ async function openAsset(meta: AssetMeta) {
   <div class="am">
     <div v-if="list.length" class="am-list">
       <div v-for="a in list" :key="a.id" class="am-item" :title="`${a.name}（${fmtSize(a.size)}）`">
-        <span class="am-ico">{{ a.kind === 'image' ? '🖼' : a.kind === 'pdf' ? '📕' : '🧾' }}</span>
+        <span class="am-ico"><Icon v-if="a.kind === 'image'" name="image" :size="13"/><Icon v-else-if="a.kind === 'pdf'" name="book" :size="13"/><Icon v-else name="filetext" :size="13"/></span>
         <span class="am-name" @click="openAssetOnce(a)" @dblclick="openAssetOnce(a)">{{ a.name }}</span>
         <span class="am-size">{{ fmtSize(a.size) }}</span>
-        <span class="am-open" @click="openAssetOnce(a)" @dblclick="openAssetOnce(a)" :title="a.kind === 'image' ? '弹窗预览' : '双击在浏览器中打开（先下载本地副本）'">{{ a.kind === 'image' ? '👁' : '↗' }}</span>
+        <span class="am-open" @click="openAssetOnce(a)" @dblclick="openAssetOnce(a)" :title="a.kind === 'image' ? '弹窗预览' : '双击在浏览器中打开（先下载本地副本）'"><Icon v-if="a.kind === 'image'" name="eye" :size="13"/><Icon v-else name="external" :size="13"/></span>
         <span class="am-del" @click="removeAsset(a)" title="移除附件">×</span>
       </div>
     </div>
     <button class="am-add" :class="{ busy }" :disabled="busy" @click="onPick">
-      {{ busy ? '⏳ 上传中…' : '📎 添加附件（图片 / HTML / PDF）' }}
+      <Icon v-if="!busy" name="paperclip" :size="13"/>{{ busy ? '上传中…' : '添加附件（图片 / HTML / PDF）' }}
     </button>
     <input ref="fileInput" type="file" class="am-file" multiple accept="image/*,.html,.htm,.pdf" @change="onFilesChange" />
     <div class="am-tip">图片 ≤9 张（单张 ≤10MB）弹窗预览可左右切换；HTML 单卡 1 个（≤20MB，重复上传=替换）；PDF 单卡 1 份（≤100MB，重复上传=替换）；双击文件名在浏览器中打开（先下载本地副本，HTML 交互完整）</div>
@@ -250,6 +251,7 @@ async function openAsset(meta: AssetMeta) {
 .am-add {
   padding: 6px 10px; border: 1px dashed var(--border-strong); border-radius: 6px; background: transparent;
   color: var(--text-2); font-size: var(--fs-sub); cursor: pointer; font-family: inherit; transition: all var(--dur);
+  display: inline-flex; align-items: center; gap: 5px;   /* G1（V3.8.25）：📎 → Icon paperclip，与文字同行 */
 }
 .am-add:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .am-add.busy { opacity: .6; cursor: default; }

@@ -21,6 +21,7 @@
  *
  * 纯只读纪律不变：组件本体不调 store.persist，勾选与拆分都 emit 上抛。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed } from 'vue'
 import type { AppData, TaskCard } from '@/shared/models'
 
@@ -75,22 +76,22 @@ function onSplit() {
 
     <div v-else-if="!task && slotKind === 'stale'" class="fd-row empty">
       <div class="sr-l"><span class="lab">子任务</span></div>
-      <div class="em"><b>⚠ 源任务已失效</b><s>点上方那一格「重新选取」换一件</s></div>
+      <div class="em"><b><Icon name="warn" :size="13"/> 源任务已失效</b><s>点上方那一格「重新选取」换一件</s></div>
     </div>
 
     <div v-else-if="!task && slotKind === 'nonTask'" class="fd-row empty">
       <div class="sr-l"><span class="lab">子任务</span></div>
-      <div class="em"><b>📦 这一格装的是卡片，不是任务</b><s>{{ slotText || '全貌只对任务展开 —— 双击卡片可看它自己的详情' }}</s></div>
+      <div class="em"><b><Icon name="package" :size="13"/> 这一格装的是卡片，不是任务</b><s>{{ slotText || '全貌只对任务展开 —— 双击卡片可看它自己的详情' }}</s></div>
     </div>
 
     <div v-else-if="!task && slotKind === 'text'" class="fd-row empty">
       <div class="sr-l"><span class="lab">子任务</span></div>
-      <div class="em"><b>✅ 这一格是你自己写的一句话</b><s>{{ slotText || '自由文本不参与六层链 —— 要跟踪的话换成一条任务' }}</s></div>
+      <div class="em"><b><Icon name="check" :size="13"/> 这一格是你自己写的一句话</b><s>{{ slotText || '自由文本不参与六层链 —— 要跟踪的话换成一条任务' }}</s></div>
     </div>
 
     <div v-else-if="!task" class="fd-row empty">
       <div class="sr-l"><span class="lab">子任务</span></div>
-      <div class="em"><b>✦ 点上面任意一件，看它的全貌</b><s>单击选中 · 双击右侧滑出任务详情</s></div>
+      <div class="em"><b><Icon name="sparkle" :size="13"/> 点上面任意一件，看它的全貌</b><s>单击选中 · 双击右侧滑出任务详情</s></div>
     </div>
 
     <!-- S1～S5 路 单行子任务：恒高 54px，与条数、标题长度都无关 -->
@@ -114,7 +115,7 @@ function onSplit() {
           :title="st.title + (st.done ? '（已完成，单击取消）' : '（单击标记完成）')"
           @click="onToggleSub(st.id)"
         >
-          <span class="bx">{{ st.done ? '✓' : '' }}</span>
+          <span class="bx"><Icon v-if="st.done" name="check" :size="12"/></span>
           <span class="tx">{{ st.title }}</span>
         </div>
       </div>

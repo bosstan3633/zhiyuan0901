@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // R148-P1a：显式实例名——纳入 KeepAlive（切模块免重挂载与免重算首屏）
 defineOptions({ name: 'RecycleBinView' })
+import Icon from '@/shared/components/Icon.vue'
 
 import { ref, computed } from 'vue'
 import { wsDisplayNameOf, wsNameById } from '@/shared/utils/wsName'
@@ -41,7 +42,7 @@ const cats = computed(() =>
 function restoreCat(c: { id: ID; deletedAt?: number }) {
   c.deletedAt = undefined
   store.persist()
-  show('↩️ 分类已恢复（其下卡片仍在待分类/回收站，可手动归位）')
+  show('↩ 分类已恢复（其下卡片仍在待分类/回收站，可手动归位）')
 }
 
 /** R2-⑤：论证节点卡（第 4 种卡）进回收站族——R1.5 的「硬删不可恢复」旁路到此为止 */
@@ -51,7 +52,7 @@ function restoreArg(a: ArgumentCard) {
   a.deletedAt = undefined
   a.updatedAt = Date.now()
   store.persist()
-  show(`✓ 已恢复「${a.title.slice(0, 20)}」${d.value.workspaces.some(w => w.id === a.workspaceId) ? '' : '（原策展台已删除，回台面需先恢复该台）'}`)
+  show(`已恢复「${a.title.slice(0, 20)}」${d.value.workspaces.some(w => w.id === a.workspaceId) ? '' : '（原策展台已删除，回台面需先恢复该台）'}`)
 }
 
 const res = computed(() =>
@@ -103,7 +104,7 @@ function restoreRes(r: ResourceCard) {
   const note = rehomeIfOrphan(r)
   r.updatedAt = Date.now()
   store.persist()
-  show(`✓ 已恢复「${r.title.slice(0, 20)}」${note}`)
+  show(`已恢复「${r.title.slice(0, 20)}」${note}`)
 }
 function restoreTask(t: TaskCard) {
   t.deletedAt = undefined
@@ -119,7 +120,7 @@ function restoreTask(t: TaskCard) {
     }
   }
   store.persist()
-  show(`✓ 已恢复「${t.title.slice(0, 20)}」`)
+  show(`已恢复「${t.title.slice(0, 20)}」`)
 }
 function restoreCurio(c: CuriosityCard) {
   c.deletedAt = undefined
@@ -128,7 +129,7 @@ function restoreCurio(c: CuriosityCard) {
   c.convertedTo = undefined
   c.updatedAt = Date.now()
   store.persist()
-  show(`✓ 已恢复「${c.question.slice(0, 20)}」`)
+  show(`已恢复「${c.question.slice(0, 20)}」`)
 }
 
 // ---- 永久删除（R146：全应用唯一真正不可逆的动作，必须逐次确认 + 回执点名）----
@@ -138,13 +139,13 @@ function restoreCurio(c: CuriosityCard) {
 async function purge(targets: PurgeTargets): Promise<number> {
   const r = await purgeCardsCompletely(d.value, targets)
   store.persist()
-  if (r.assetsFailed > 0) show(`⚠ ${r.assetsFailed} 个附件本体删除失败（孤儿可到「设置 · 数据管理」清理）`)
+  if (r.assetsFailed > 0) show(`${r.assetsFailed} 个附件本体删除失败（孤儿可到「设置 · 数据管理」清理）`)
   return r.cards
 }
 async function purgeWith(what: string, name: string, targets: PurgeTargets) {
   if (!(await useConfirm({ title: '永久删除', message: `确定永久删除${what}「${name}」？\n此操作不可恢复：卡片本体、其附件（若无其它卡引用）与镜像投射记录一并清除。`, confirmText: '永久删除' }))) return
   const n = await purge(targets)
-  show(n ? `🗑 已永久删除${what}「${name.slice(0, 16)}」· 不可恢复` : `⚠ ${what}「${name.slice(0, 16)}」已不在回收站`)
+  show(n ? `已永久删除${what}「${name.slice(0, 16)}」· 不可恢复` : `${what}「${name.slice(0, 16)}」已不在回收站`)
 }
 function purgeRes(r: ResourceCard) { void purgeWith('资源卡', r.title, { resources: [r] }) }
 function purgeTask(t: TaskCard) { void purgeWith('任务卡', t.title, { tasks: [t] }) }
@@ -169,7 +170,7 @@ function restoreAll() {
     x.convertedTo = undefined
   }
   store.persist()
-  show(`♻ 已恢复 ${list.length} 项（${tabLabelOf(cur)}）· 归属需手动归位的见各条说明`)
+  show(`已恢复 ${list.length} 项（${tabLabelOf(cur)}）· 归属需手动归位的见各条说明`)
 }
 function tabLabelOf(k: typeof tab.value) { return k === 'res' ? '资源卡' : k === 'task' ? '任务卡' : k === 'cat' ? '分类' : k === 'arg' ? '论证卡' : '好奇心卡' }
 async function purgeAll() {
@@ -184,14 +185,14 @@ async function purgeAll() {
     : cur === 'arg' ? { argCards: list as ArgumentCard[] }
     : { curiosities: list as CuriosityCard[] }
   const n = await purge(targets)
-  show(n ? `✓ 已永久删除 ${n} 项（${tabLabelOf(cur)}）· 不可恢复` : '该分区已是空的')
+  show(n ? `已永久删除 ${n} 项（${tabLabelOf(cur)}）· 不可恢复` : '该分区已是空的')
 }
 const tabMeta = computed(() => [
-  { k: 'res' as const, label: '📄 资源卡', list: res.value, n: res.value.length },
-  { k: 'cat' as const, label: '📁 分类', list: cats.value, n: cats.value.length },
-  { k: 'task' as const, label: '📋 任务卡', list: tasks.value, n: tasks.value.length },
-  { k: 'curio' as const, label: '💡 好奇心卡', list: curios.value, n: curios.value.length },
-  { k: 'arg' as const, label: '🧭 论证卡', list: args.value, n: args.value.length }
+  { k: 'res' as const, label: '资源卡', list: res.value, n: res.value.length },
+  { k: 'cat' as const, label: '分类', list: cats.value, n: cats.value.length },
+  { k: 'task' as const, label: '任务卡', list: tasks.value, n: tasks.value.length },
+  { k: 'curio' as const, label: '好奇心卡', list: curios.value, n: curios.value.length },
+  { k: 'arg' as const, label: '论证卡', list: args.value, n: args.value.length }
 ])
 </script>
 
@@ -199,12 +200,12 @@ const tabMeta = computed(() => [
   <div class="rb-page">
     <div class="rb-head">
       <button class="rb-back" @click="router.push('/settings')">← 返回设置</button>
-      <div class="rb-title">🗑 回收站</div>
+      <div class="rb-title"><Icon name="trash" :size="13"/> 回收站</div>
       <div class="rb-desc">删除的卡片软删除移入此处，可恢复；永久删除不可撤销</div>
       <div class="rb-actions">
         <button class="rb-btn" @click="aiRescue" title="AI 对照现存卡与活跃目标，逐条判定值得恢复/建议清除"><AiEntryButton variant="inline" label="值得捞回" /></button>
-        <button class="rb-btn" @click="restoreAll">♻ 恢复当前分区全部</button>
-        <button class="rb-btn danger" @click="purgeAll">🗑 清空当前分区</button>
+        <button class="rb-btn" @click="restoreAll"><Icon name="refresh" :size="13"/> 恢复当前分区全部</button>
+        <button class="rb-btn danger" @click="purgeAll"><Icon name="trash" :size="13"/> 清空当前分区</button>
       </div>
     </div>
     <AiSuggestionDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
@@ -220,14 +221,14 @@ const tabMeta = computed(() => [
       <div v-for="r in res" :key="r.id" class="rb-item">
         <div class="rb-item-main">
           <div class="rb-item-title">{{ r.title }}</div>
-          <div class="rb-item-meta">📂 {{ wsNameOf(r.workspaceId) }} · {{ catNameOf(r.categoryId || "") }} · 🕓 删除于 {{ fmt(r.deletedAt) }}</div>
+          <div class="rb-item-meta"><Icon name="folderopen" :size="13"/> {{ wsNameOf(r.workspaceId) }} · {{ catNameOf(r.categoryId || "") }} · <Icon name="clock" :size="13"/> 删除于 {{ fmt(r.deletedAt) }}</div>
         </div>
         <div class="rb-item-ops">
           <button class="rb-btn sm" @click="restoreRes(r)">恢复</button>
           <button class="rb-btn sm danger" @click="purgeRes(r)">永久删除</button>
         </div>
       </div>
-      <div v-if="!res.length" class="rb-empty">回收站空空如也 ✨</div>
+      <div v-if="!res.length" class="rb-empty">回收站空空如也 <Icon name="sparkles" :size="13"/></div>
     </div>
 
     <!-- 任务卡 -->
@@ -235,14 +236,14 @@ const tabMeta = computed(() => [
       <div v-for="t in tasks" :key="t.id" class="rb-item">
         <div class="rb-item-main">
           <div class="rb-item-title">{{ t.title }}</div>
-          <div class="rb-item-meta">🎯 {{ metricNameOf(t.metricId) }} · {{ t.status === 'done' ? '✅ 已完成' : t.status === 'doing' ? '◐ 进行中' : '○ 待开始' }} · 🕓 删除于 {{ fmt(t.deletedAt) }}</div>
+          <div class="rb-item-meta"><Icon name="target" :size="13"/> {{ metricNameOf(t.metricId) }} · <Icon :name="t.status === 'done' ? 'check' : t.status === 'doing' ? 'half' : 'circle'" :size="11"/>{{ t.status === 'done' ? '已完成' : t.status === 'doing' ? '进行中' : '待开始' }} · <Icon name="clock" :size="13"/> 删除于 {{ fmt(t.deletedAt) }}</div>
         </div>
         <div class="rb-item-ops">
           <button class="rb-btn sm" @click="restoreTask(t)">恢复</button>
           <button class="rb-btn sm danger" @click="purgeTask(t)">永久删除</button>
         </div>
       </div>
-      <div v-if="!tasks.length" class="rb-empty">回收站空空如也 ✨</div>
+      <div v-if="!tasks.length" class="rb-empty">回收站空空如也 <Icon name="sparkles" :size="13"/></div>
     </div>
 
     <!-- 好奇心卡 -->
@@ -252,7 +253,7 @@ const tabMeta = computed(() => [
           <div class="rb-item-title">{{ c.question }}</div>
           <div class="rb-item-meta">
             <span v-if="c.convertedTo" class="rb-conv">{{ c.convertedTo === 'task' ? '→ 已转为任务' : '→ 已归档为资源' }}（{{ fmt(c.convertedAt) }}）· 恢复 = 撤销这次转化</span>
-            <span v-else>🕓 删除于 {{ fmt(c.deletedAt) }}</span>
+            <span v-else><Icon name="clock" :size="13"/> 删除于 {{ fmt(c.deletedAt) }}</span>
           </div>
         </div>
         <div class="rb-item-ops">
@@ -260,37 +261,37 @@ const tabMeta = computed(() => [
           <button class="rb-btn sm danger" @click="purgeCurio(c)">永久删除</button>
         </div>
       </div>
-      <div v-if="!curios.length" class="rb-empty">回收站空空如也 ✨</div>
+      <div v-if="!curios.length" class="rb-empty">回收站空空如也 <Icon name="sparkles" :size="13"/></div>
     </div>
 
     <!-- R109（F12-b）：分类分区（删除分类/删除策展台/合并重复 均走软删；恢复=清 deletedAt） -->
     <div v-else-if="tab === 'cat'" class="rb-list">
       <div v-for="c in cats" :key="c.id" class="rb-item">
         <div class="rb-item-main">
-          <div class="rb-item-title">📁 {{ c.name }}</div>
-          <div class="rb-item-meta">🗂 {{ wsNameOf(c.workspaceId) }} · 🕓 删除于 {{ fmt(c.deletedAt) }}<span style="color:var(--text-4)"> · 恢复后其下卡片不会自动归位（仍在待分类/回收站）</span></div>
+          <div class="rb-item-title"><Icon name="folder" :size="13"/> {{ c.name }}</div>
+          <div class="rb-item-meta"><Icon name="folder" :size="13"/> {{ wsNameOf(c.workspaceId) }} · <Icon name="clock" :size="13"/> 删除于 {{ fmt(c.deletedAt) }}<span style="color:var(--text-4)"> · 恢复后其下卡片不会自动归位（仍在待分类/回收站）</span></div>
         </div>
         <div class="rb-item-ops">
           <button class="rb-btn sm" @click="restoreCat(c)">恢复</button>
           <button class="rb-btn sm danger" @click="purgeCat(c)">永久删除</button>
         </div>
       </div>
-      <div v-if="!cats.length" class="rb-empty">回收站空空如也 ✨</div>
+      <div v-if="!cats.length" class="rb-empty">回收站空空如也 <Icon name="sparkles" :size="13"/></div>
     </div>
 
     <!-- R2-⑤：论证卡分区（台内原生第 4 种卡，软删后与三卡同一条恢复/永久删除通道） -->
     <div v-else-if="tab === 'arg'" class="rb-list">
       <div v-for="a in args" :key="a.id" class="rb-item">
         <div class="rb-item-main">
-          <div class="rb-item-title">🧭 {{ a.title }}</div>
-          <div class="rb-item-meta">🗂 {{ wsNameOf(a.workspaceId) }} · 🕓 删除于 {{ fmt(a.deletedAt) }}<span style="color:var(--text-4)"> · 论证卡随策展台存续，台若已删需先恢复台</span></div>
+          <div class="rb-item-title"><Icon name="compass" :size="13"/> {{ a.title }}</div>
+          <div class="rb-item-meta"><Icon name="folder" :size="13"/> {{ wsNameOf(a.workspaceId) }} · <Icon name="clock" :size="13"/> 删除于 {{ fmt(a.deletedAt) }}<span style="color:var(--text-4)"> · 论证卡随策展台存续，台若已删需先恢复台</span></div>
         </div>
         <div class="rb-item-ops">
           <button class="rb-btn sm" @click="restoreArg(a)">恢复</button>
           <button class="rb-btn sm danger" @click="purgeArg(a)">永久删除</button>
         </div>
       </div>
-      <div v-if="!args.length" class="rb-empty">回收站空空如也 ✨</div>
+      <div v-if="!args.length" class="rb-empty">回收站空空如也 <Icon name="sparkles" :size="13"/></div>
     </div>
 
     

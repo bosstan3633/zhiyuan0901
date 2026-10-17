@@ -7,6 +7,7 @@
  * - 自定义字段（custom_*）跨三卡型共享：新增/重命名/删除自动同步到 crossFields 三区，
  *   保证「转卡无损 + 一张表管所有卡」的字段键与标签一致。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { ref, computed } from 'vue'
 import { useConfirm } from '@/shared/components/confirm'
 import type { FieldDef } from '@/shared/models'
@@ -31,8 +32,8 @@ function isCustom(f: FieldDef) { return f.key.startsWith('custom_') }
 function catOf(f: FieldDef) { return isCustom(f) ? undefined : catalogMeta(kind.value, f.key) }
 
 function fieldIcon(f: FieldDef) {
-  if (isCustom(f)) return '⭐'
-  return catOf(f)?.icon || '📝'
+  if (isCustom(f)) return ''
+  return catOf(f)?.icon || ''
 }
 function typeLabel(f: FieldDef) {
   if (f.key === 'description') return '长文本'
@@ -150,13 +151,13 @@ const vFocus = { mounted: (el: HTMLInputElement) => el.focus() }
           :title="canEdit(f) ? '双击重命名' : '系统字段不可重命名'" @dblclick="startRename(f)">{{ f.label }}</span>
         <span class="gs-fr-type" :class="fieldCat(f)">{{ typeLabel(f) }} · {{ catLabel(f) }}</span>
         <span class="gs-fr-visibility" :class="[f.visible ? 'shown' : 'hidden', { disabled: isLocked(f) }]"
-          :title="f.visible ? '点击隐藏' : '点击显示'" @click="toggleVisibility(f)">{{ f.visible ? '👁' : '🚫' }}</span>
-        <span class="gs-fr-action" :class="{ disabled: !canEdit(f) }" title="重命名" @click="startRename(f)">✎</span>
-        <span class="gs-fr-action delete" :class="{ disabled: !canDelete(f) }" title="删除" @click="deleteField(f)">🗑</span>
+          :title="f.visible ? '点击隐藏' : '点击显示'" @click="toggleVisibility(f)"><Icon v-if="f.visible" name="eye" :size="13"/><Icon v-else name="eyeoff" :size="13"/></span>
+        <span class="gs-fr-action" :class="{ disabled: !canEdit(f) }" title="重命名" @click="startRename(f)"><Icon name="edit" :size="13"/></span>
+        <span class="gs-fr-action delete" :class="{ disabled: !canDelete(f) }" title="删除" @click="deleteField(f)"><Icon name="trash" :size="13"/></span>
       </div>
       <!-- 行内新增 -->
       <div v-if="adding" class="gs-field-row adding">
-        <span class="gs-fr-icon">⭐</span>
+        <span class="gs-fr-icon"><Icon name="star" :size="13"/></span>
         <input v-model="newName" class="gs-fr-input" placeholder="字段名称" v-focus
           @keydown.enter.prevent="confirmAdd" @keydown.esc="adding = false">
         <select v-model="newType" class="gs-fr-select">
@@ -166,12 +167,12 @@ const vFocus = { mounted: (el: HTMLInputElement) => el.focus() }
           <option value="number">数字</option>
           <option value="select">单选</option>
         </select>
-        <button class="gs-fr-btn confirm" @click="confirmAdd">✓ 确认</button>
+        <button class="gs-fr-btn confirm" @click="confirmAdd"><Icon name="check" :size="13"/> 确认</button>
         <button class="gs-fr-btn cancel" @click="adding = false">取消</button>
       </div>
       <div v-else class="gs-field-add" @click="startAdd">＋ 添加自定义字段</div>
     </div>
-    <div class="gs-field-hint">💡 {{ hintText }}</div>
+    <div class="gs-field-hint"><Icon name="bulb" :size="13"/> {{ hintText }}</div>
   </div>
 </template>
 

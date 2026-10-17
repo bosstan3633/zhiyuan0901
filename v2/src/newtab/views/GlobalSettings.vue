@@ -11,7 +11,7 @@
           :class="{ active: activePage === item.key }"
           @click="onNavClick(item)"
         >
-          <AiEntryButton v-if="item.mark" class="gs-nav-icon" /><span v-else class="gs-nav-icon">{{ item.icon }}</span>{{ item.label }}
+          <AiEntryButton v-if="item.mark" class="gs-nav-icon" /><Icon v-else-if="item.icon" class="gs-nav-icon" :name="item.icon" :size="14" />{{ item.label }}
         </div>
       </div>
     </aside>
@@ -28,7 +28,7 @@
       <!-- ===== 资源卡字段 ===== -->
       <div v-if="activePage === 'resource'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">📇 资源卡字段设计</div>
+          <div class="gs-page-title"><Icon name="contact" :size="13"/> 资源卡字段设计</div>
           <div class="gs-page-desc">拖拽字段调整顺序，开关控制在卡片/列表/看板视图中是否显示</div>
         </div>
         <div class="gs-card">
@@ -38,7 +38,7 @@
           </div>
         </div>
         <div class="gs-preview-section">
-          <div class="gs-preview-title">👁 实时预览 · {{ previewModeLabel }}视图</div>
+          <div class="gs-preview-title"><Icon name="eye" :size="13"/> 实时预览 · {{ previewModeLabel }}视图</div>
           <div class="gs-preview-tabs">
             <div v-for="m in previewModes" :key="m.key" class="gs-preview-tab" :class="{ active: previewMode === m.key }" @click="previewMode = m.key">{{ m.label }}</div>
           </div>
@@ -49,7 +49,7 @@
       <!-- ===== 任务卡字段 ===== -->
       <div v-if="activePage === 'task'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">✅ 任务卡字段设计</div>
+          <div class="gs-page-title"><Icon name="check" :size="13"/> 任务卡字段设计</div>
           <div class="gs-page-desc">拖拽字段调整顺序，开关控制在视图中是否显示</div>
         </div>
         <div class="gs-card">
@@ -63,7 +63,7 @@
       <!-- ===== 好奇心卡字段 ===== -->
       <div v-if="activePage === 'curiosity'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">💡 好奇心卡字段设计</div>
+          <div class="gs-page-title"><Icon name="bulb" :size="13"/> 好奇心卡字段设计</div>
           <div class="gs-page-desc">拖拽字段调整顺序，开关控制在视图中是否显示</div>
         </div>
         <div class="gs-card">
@@ -77,7 +77,7 @@
       <!-- ===== 策展主题卡字段（R62-3：isThesis 资源卡专用组，服务策展台金字塔根节点呈现） ===== -->
       <div v-if="activePage === 'thesis'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">🏛 策展主题卡字段设计</div>
+          <div class="gs-page-title"><Icon name="landmark" :size="13"/> 策展主题卡字段设计</div>
           <div class="gs-page-desc">主题卡 = 策展台的中心论点（每台一张）；此组仅作用于标记为中心论点的卡片</div>
         </div>
         <div class="gs-card">
@@ -91,7 +91,7 @@
       <!-- ===== 标签管理（N4 · 行内编辑） ===== -->
       <div v-if="activePage === 'tags'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">🏷 标签管理 <button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 体检标签体系：同义合并 + 裸标签归位（勾选采纳才级联改卡与树）" @click="aiTagGovern"><AiEntryButton variant="inline" label="标签体检" /></button><button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 整体梳理：盘点全库三类卡（只看卡面字段，不读链接正文）→ 结合愿景/目标重建标签树蓝图（每个标签标出预计收几张卡）→ 采纳即整树替换并同步改写卡标签 → 全卡补全打标，两道评审门 + 自动快照可还原" @click="aiTagRevise"><AiEntryButton variant="inline" label="🧹 整体梳理" /></button><button v-if="aiReviseBak" class="gs-btn ai-batch-btn" title="回滚到上次整体梳理之前（标签树与卡片标签全还原）" @click="aiRestoreRevise">↺ 还原上次梳理</button></div>
+          <div class="gs-page-title"><Icon name="tag" :size="13"/> 标签管理 <button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 体检标签体系：同义合并 + 裸标签归位（勾选采纳才级联改卡与树）" @click="aiTagGovern"><AiEntryButton variant="inline" label="标签体检" /></button><button class="gs-btn ai-batch-btn" :disabled="!aiReady" title="AI 整体梳理：盘点全库三类卡（只看卡面字段，不读链接正文）→ 结合愿景/目标重建标签树蓝图（每个标签标出预计收几张卡）→ 采纳即整树替换并同步改写卡标签 → 全卡补全打标，两道评审门 + 自动快照可还原" @click="aiTagRevise"><AiEntryButton variant="inline" label="整体梳理" /></button><button v-if="aiReviseBak" class="gs-btn ai-batch-btn" title="回滚到上次整体梳理之前（标签树与卡片标签全还原）" @click="aiRestoreRevise"><Icon name="rotateccw" :size="13"/> 还原上次梳理</button></div>
                     <div class="gs-page-desc">两级标签体系 · 三种卡片打标签的唯一来源 · 拖拽根标签到另一根标签上即成子标签（卡片标签同步为「父/子」）· 双击标签行直接改名</div>
         </div>
         <div class="tt-wrap">
@@ -103,7 +103,7 @@
             <div class="gs-tagtree">
               <!-- 新建根标签：行内输入 -->
               <div v-if="ttEditing && !ttEditing.id && !ttEditing.parentId" class="gs-tt-row editing">
-                <span class="gs-tt-ico">🏷</span>
+                <span class="gs-tt-ico"><Icon name="tag" :size="13"/></span>
                 <input v-model="ttEditing.value" class="gs-tt-input" v-focus
                   placeholder="输入根标签名称，Enter 确认 · Esc 取消"
                   @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
@@ -120,14 +120,14 @@
                     <span class="gs-tt-count">{{ tagUsage(root.name) }} 卡</span>
                     <span class="gs-tt-actions">
                       <span class="gs-tt-act" title="添加子标签" @click="ttAddChild(root.id)">＋</span>
-                      <span class="gs-tt-act" title="重命名" @click="ttRename(root.id)">✎</span>
-                      <span class="gs-tt-act del" title="删除" @click="ttRemove(root.id)">🗑</span>
+                      <span class="gs-tt-act" title="重命名" @click="ttRename(root.id)"><Icon name="edit" :size="13"/></span>
+                      <span class="gs-tt-act del" title="删除" @click="ttRemove(root.id)"><Icon name="trash" :size="13"/></span>
                     </span>
                   </template>
                 </div>
                 <!-- 新建子标签：行内输入 -->
                 <div v-if="ttEditing && !ttEditing.id && ttEditing.parentId === root.id" class="gs-tt-row editing" :style="{ paddingLeft: 8 + (tagDepth(root.id) + 1) * 18 + 'px' }">
-                  <span class="gs-tt-ico">🏷</span>
+                  <span class="gs-tt-ico"><Icon name="tag" :size="13"/></span>
                   <input v-model="ttEditing.value" class="gs-tt-input" v-focus
                     placeholder="输入子标签名称，Enter 确认 · Esc 取消"
                     @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
@@ -142,9 +142,9 @@
                       <span class="gs-tt-name sub">#{{ child.name || '未命名标签' }}</span>
                                             <span class="gs-tt-count">{{ tagUsage(root.name + '/' + child.name) }} 卡</span>
                       <span class="gs-tt-actions">
-                                                <span class="gs-tt-act" title="提升为根标签" @click="ttUnnest(root.id, child.id)">⇪</span>
-                        <span class="gs-tt-act" title="重命名" @click="ttRename(child.id)">✎</span>
-                        <span class="gs-tt-act del" title="删除" @click="ttRemove(child.id)">🗑</span>
+                                                <span class="gs-tt-act" title="提升为根标签" @click="ttUnnest(root.id, child.id)"><Icon name="upload" :size="13"/></span>
+                        <span class="gs-tt-act" title="重命名" @click="ttRename(child.id)"><Icon name="edit" :size="13"/></span>
+                        <span class="gs-tt-act del" title="删除" @click="ttRemove(child.id)"><Icon name="trash" :size="13"/></span>
                       </span>
                     </template>
                   </div>
@@ -155,8 +155,8 @@
               </div>
             </div>
                         <button class="gs-field-add" @click="ttAddRoot">＋ 新建根标签</button>
-            <button class="gs-field-add" style="margin-left: 8px" @click="ttCollectFromCards">⤓ 从卡片收纳标签</button>
-                        <div class="gs-field-hint">💡 重命名 / 删除 / 挂载会<b>同步更新卡片上的标签值</b>（子标签以「父/子」路径保存）；删除标签时，卡片上的对应标签一并移除。打标签入口：资源卡/任务卡/好奇心卡的详情编辑处。</div>
+            <button class="gs-field-add" @click="ttCollectFromCards">⤓ 从卡片收纳标签</button>
+                        <div class="gs-field-hint"><Icon name="bulb" :size="13"/> 重命名 / 删除 / 挂载会<b>同步更新卡片上的标签值</b>（子标签以「父/子」路径保存）；删除标签时，卡片上的对应标签一并移除。打标签入口：资源卡/任务卡/好奇心卡的详情编辑处。</div>
           </div>
         </div>
           <!-- R127：右列——当前标签下的卡片（三卡合一 / 类型过滤 / 搜索 / 多选拖拽移动） -->
@@ -168,11 +168,16 @@
                 <div class="tt-tools">
                   <select v-model="ttCardKind" class="gs-select">
                     <option value="all">全部类型</option>
-                    <option value="resource">📦 资源卡</option>
-                    <option value="task">✅ 任务卡</option>
-                    <option value="curiosity">💡 好奇心卡</option>
+                    <!-- ★V3.8.25（B1-a）：`<option>` 的内容模型是纯文本，子元素一律不渲染。
+                         G1 把 `🗂 资源卡` 这类 emoji 机械换成 `<Icon>` 后，这三处图标**从来没显示过**
+                         （浏览器丢弃 option 内的 SVG）——比原来的 emoji 还少一个标识。故移除，只留文字。 -->
+                    <option value="resource">资源卡</option>
+                    <option value="task">任务卡</option>
+                    <option value="curiosity">好奇心卡</option>
                   </select>
-                  <input v-model="ttCardQ" class="gs-tt-input" style="flex: 1" placeholder="搜索标题 / 链接 / 描述…" />
+                  <!-- ★V3.8.25（B1-a）：原来这里写内联 `flex: 1`，但 `.gs-tt-input` 自有规则里已经是
+                       `flex: 1; min-width: 0` —— 这条内联是纯冗余，直接删掉即可（不是收进类，是删除）。 -->
+                  <input v-model="ttCardQ" class="gs-tt-input" placeholder="搜索标题 / 链接 / 描述…" />
                   <span v-if="ttPicked.size" class="tt-picked">已选 {{ ttPicked.size }} 张 · 拖到左侧标签即可移动</span>
                 </div>
                 <div class="tt-list">
@@ -180,7 +185,7 @@
                     @click="onTtRowClick(row)" @dblclick="onTtRowDblClick(row)" @dragstart="onTtRowDragStart($event, row)" @dragend="onTtRowDragEnd">
                     <input type="checkbox" class="tt-check" :checked="ttPicked.has(row.id)" @click.stop @change="ttTogglePick(row.id)" />
                     <div class="tt-card-main">
-                      <div class="tt-card-title">{{ row.kind === 'resource' ? '📦' : row.kind === 'task' ? '✅' : '💡' }} {{ row.title }}</div>
+                      <div class="tt-card-title"><Icon v-if="row.kind === 'resource'" name="package" :size="14"/><Icon v-else-if="row.kind === 'task'" name="checksquare" :size="14"/><Icon v-else name="bulb" :size="14"/> {{ row.title }}</div>
                       <div class="tt-card-sub">{{ row.sub }}</div>
                     </div>
                   </div>
@@ -192,7 +197,7 @@
         </div>
         <!-- R130-T2：详情抽屉必须挂在标签管理面板内——R127 误放进「资源台全景」面板（v-if activePage==='panorama'），
              在标签管理页该面板整体不渲染，双击 ttDetail 赋值后无人消费 → 抽屉永不出现 -->
-        <Drawer :open="!!ttDetail" title="🏷 卡片详情" @close="ttDetail = null">
+        <Drawer :open="!!ttDetail" title="卡片详情" @close="ttDetail = null">
           <template v-if="ttDetail">
             <div class="gs-pd-title">{{ ttDetail.title }}</div>
             <div class="gs-pd-row" v-if="ttDetail.link"><span class="gs-pd-k">链接</span><span class="gs-pd-v">{{ ttDetail.link }}</span></div>
@@ -200,7 +205,7 @@
             <div class="gs-pd-row"><span class="gs-pd-k">类型</span><span class="gs-pd-v">{{ ttDetail.kind === 'resource' ? '资源卡' : ttDetail.kind === 'task' ? '任务卡 · ' + (ttDetail.status === 'done' ? '已完成' : ttDetail.status === 'doing' ? '进行中' : '待开始') : '好奇心卡 · ' + (ttDetail.status || '') }}</span></div>
             <div class="gs-pd-row" v-if="ttDetail.tags.length"><span class="gs-pd-k">标签</span><span class="gs-pd-v">#{{ ttDetail.tags.join(' #') }}</span></div>
             <div class="gs-pd-actions">
-              <button v-if="ttDetail.kind === 'resource' && ttDetail.link" class="gs-btn gs-btn-primary" @click="openCardLink({ link: ttDetail.link })">↗ 打开链接</button>
+              <button v-if="ttDetail.kind === 'resource' && ttDetail.link" class="gs-btn gs-btn-primary" @click="openCardLink({ link: ttDetail.link })"><Icon name="external" :size="13"/> 打开链接</button>
               <button class="gs-btn" @click="ttDetail = null">关闭</button>
             </div>
           </template>
@@ -212,7 +217,7 @@
       <!-- R148-T：AI 任务托盘——关抽屉继续跑，跑完在这儿能回来展开；不再"手滑一下全丢" -->
       <div v-if="aiTray.length" class="ai-tray">
         <div class="ai-tray-head">
-          <b>AI 任务 {{ aiTray.length }}</b><span class="ai-tray-hint">关掉抽屉也在后台跑；同一功能再点=回到这份进度，跑完可「↻ 重新运行」</span>
+          <b>AI 任务 {{ aiTray.length }}</b><span class="ai-tray-hint">关掉抽屉也在后台跑；同一功能再点=回到这份进度，跑完可「<Icon name="refresh" :size="13"/> 重新运行」</span>
           <button class="gs-btn sm ghost" @click="aiTrayClear">收起已完成</button>
         </div>
         <div v-for="s in aiTray" :key="s.key" class="ai-tray-row">
@@ -228,7 +233,7 @@
         </div>
 
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">🔌 接入配置</span><span class="gs-card-desc">DeepSeek / Kimi / 通义 / OpenAI 等兼容协议均可；模型可手填</span></div>
+          <div class="gs-card-header"><span class="gs-card-title"><Icon name="plug" :size="13"/> 接入配置</span><span class="gs-card-desc">DeepSeek / Kimi / 通义 / OpenAI 等兼容协议均可；模型可手填</span></div>
           <div class="gs-card-body ai-form">
             <label class="ai-field"><span>API 地址（baseUrl）</span><input class="gs-input" :value="aiConfig.baseUrl" placeholder="如 https://api.deepseek.com/v1" @change="patchAiConfig({ baseUrl: ($event.target as HTMLInputElement).value })" /></label>
             <label class="ai-field"><span>API Key</span><input class="gs-input" type="password" :value="aiConfig.apiKey" placeholder="sk-…（仅存本机 chrome.storage）" @change="patchAiConfig({ apiKey: ($event.target as HTMLInputElement).value })" /></label>
@@ -237,30 +242,30 @@
               <datalist id="ai-model-list"><option v-for="m in aiModels" :key="m" :value="m" /></datalist>
             </label>
             <div class="ai-form-row">
-              <button class="gs-btn" :disabled="aiBusy !== '' || !aiConfig.baseUrl || !aiConfig.apiKey" @click="aiFetchModels">{{ aiBusy === 'models' ? '拉取中…' : '⬇ 拉取模型列表' }}</button>
-              <button class="gs-btn" :disabled="aiBusy !== '' || !aiReady" @click="aiTestConn">{{ aiBusy === 'test' ? '测试中…' : '⚡ 测试连接' }}</button>
-              <span v-if="aiMsg" class="ai-msg" :class="{ err: aiMsg.startsWith('⚠') }">{{ aiMsg }}</span>
+              <button class="gs-btn" :disabled="aiBusy !== '' || !aiConfig.baseUrl || !aiConfig.apiKey" @click="aiFetchModels"><Icon v-if="aiBusy !== 'models'" name="download" :size="13"/>{{ aiBusy === 'models' ? '拉取中…' : '拉取模型列表' }}</button>
+              <button class="gs-btn" :disabled="aiBusy !== '' || !aiReady" @click="aiTestConn"><Icon v-if="aiBusy !== 'test'" name="zap" :size="13"/>{{ aiBusy === 'test' ? '测试中…' : '测试连接' }}</button>
+              <span v-if="aiMsg" class="ai-msg" :class="{ err: aiMsg.startsWith('') }">{{ aiMsg }}</span>
             </div>
           </div>
         </div>
 
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">🙋 关于我（全局画像 · 注入所有 AI 场景）</span><span class="gs-card-desc">写你在做什么、偏好什么风格、忌讳什么，模型不必每个场景重新交代背景</span></div>
+          <div class="gs-card-header"><span class="gs-card-title"><Icon name="contact" :size="13"/> 关于我（全局画像 · 注入所有 AI 场景）</span><span class="gs-card-desc">写你在做什么、偏好什么风格、忌讳什么，模型不必每个场景重新交代背景</span></div>
           <div class="gs-card-body">
             <textarea class="ai-textarea" rows="3" :value="aiConfig.aboutMe" placeholder="例：在读研究生，主线是毕业论文 + 个人知识体系；建议直接、给可执行动作，不要客套话与空泛鼓励" @change="patchAiConfig({ aboutMe: ($event.target as HTMLTextAreaElement).value })" />
           </div>
         </div>
 
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">🧠 深度诊断</span><span class="gs-card-desc">整库结构摘要投喂所选专家，逐员出「发现+建议」；勾选采纳=生成跟进任务卡</span></div>
+          <div class="gs-card-header"><span class="gs-card-title"><Icon name="brain" :size="13"/> 深度诊断</span><span class="gs-card-desc">整库结构摘要投喂所选专家，逐员出「发现+建议」；勾选采纳=生成跟进任务卡</span></div>
           <div class="gs-card-body">
-            <div class="ai-guide">三步上手：① 上方接入配置完成（⚡ 测试连接通过）→ ② 勾选本轮出诊专家（⚙ 可调启停 / 行文风格 / 自建资料）→ ③ 一键诊断。发现勾选采纳=逐条生成跟进任务卡；不采纳即纯看。</div>
+            <div class="ai-guide">三步上手：① 上方接入配置完成（<Icon name="zap" :size="13"/> 测试连接通过）› ② 勾选本轮出诊专家（<Icon name="settings" :size="13"/> 可调启停 / 行文风格 / 自建资料）› ③ 一键诊断。发现勾选采纳=逐条生成跟进任务卡；不采纳即纯看。</div>
             <div v-for="p in aiPersonas" :key="p.id" class="ai-pwrap">
               <div class="ai-persona-row">
                 <label class="ai-persona"><input type="checkbox" :checked="aiPersonaSel.includes(p.id)" @change="aiTogglePersona(p.id)" /> {{ p.icon }} {{ p.name }}</label>
                 <span class="ai-persona-brief">{{ p.brief }}</span>
-                <button class="ai-btn-mini" :class="{ on: aiEditP === p.id }" title="调整该专家：出诊启停 / 行文风格" @click="aiEditP = aiEditP === p.id ? '' : p.id">⚙</button>
-                <button v-if="p.id.startsWith('custom-')" class="ai-btn-mini danger" title="删除该自建专家" @click="aiRemovePersona(p.id)">✕</button>
+                <button class="ai-btn-mini" :class="{ on: aiEditP === p.id }" title="调整该专家：出诊启停 / 行文风格" @click="aiEditP = aiEditP === p.id ? '' : p.id"><Icon name="settings" :size="13"/></button>
+                <button v-if="p.id.startsWith('custom-')" class="ai-btn-mini danger" title="删除该自建专家" @click="aiRemovePersona(p.id)"><Icon name="x" :size="13"/></button>
               </div>
               <div v-if="aiEditP === p.id" class="ai-pedit">
                 <label class="ai-persona"><input type="checkbox" :checked="aiPersonaCfg(p.id)?.enabled !== false" @change="aiPatchPersona(p.id, { enabled: ($event.target as HTMLInputElement).checked })" /> 参与会诊与执笔</label>
@@ -269,7 +274,7 @@
                   <!-- R142（反馈 #6）：内置两员开放人设/关注面覆盖编辑，留空=用内置默认 -->
                   <textarea class="ai-textarea" rows="2" title="人设覆盖（留空=内置默认）" :value="p.brief" maxlength="120" @change="aiPatchPersona(p.id, { brief: ($event.target as HTMLTextAreaElement).value })" />
                   <textarea class="ai-textarea" rows="2" title="关注面覆盖（留空=内置默认）" :value="p.focus" maxlength="200" @change="aiPatchPersona(p.id, { focus: ($event.target as HTMLTextAreaElement).value })" />
-                  <div><button class="ai-btn-mini" style="width:auto; padding:2px 8px;" title="清空覆盖，恢复内置默认人设与关注面" @click="aiPatchPersona(p.id, { brief: '', focus: '' })">↺ 恢复内置默认</button></div>
+                  <div><button class="ai-btn-mini ai-btn-mini--text" title="清空覆盖，恢复内置默认人设与关注面" @click="aiPatchPersona(p.id, { brief: '', focus: '' })"><Icon name="rotateccw" :size="13"/> 恢复内置默认</button></div>
                 </template>
                 <template v-if="p.id.startsWith('custom-')">
                   <div class="ai-pedit-row">
@@ -291,10 +296,10 @@
                 <option value="eco">经济档（最小投料）</option><option value="std">标准档</option><option value="deep">深度档（最大上下文）</option>
               </select>
               <select class="gs-input ai-depth" title="拆解/生成/优化场景的默认执笔专家；打开抽屉后仍可临时换人" :value="aiConfig.defaultPersona || 'default'" @change="patchAiConfig({ defaultPersona: ($event.target as HTMLSelectElement).value })">
-                <option value="default">🧑‍🏫 默认执笔：场景内置角色</option>
+                <option value="default">默认执笔：场景内置角色</option>
                 <option v-for="p in aiPersonas.filter(x => personaOverrides()[x.id]?.enabled !== false)" :key="p.id" :value="p.id">{{ p.icon }} {{ p.name }} 执笔</option>
               </select>
-              <button class="gs-btn gs-btn-primary" :disabled="!aiReady" @click="aiDiagnose">🧠 一键诊断</button>
+              <button class="gs-btn gs-btn-primary" :disabled="!aiReady" @click="aiDiagnose"><Icon name="brain" :size="13"/> 一键诊断</button>
             </div>
           </div>
         </div>
@@ -302,12 +307,12 @@
         <div class="gs-card">
           <!-- R158：被动型 AI 入口（跨台镜像/主题漂移/沉睡唤醒）迁 AI 建议面板（命令面板 Ctrl+K → AI 建议）；
                本页只留主动型（回收站捞回 / 本周回顾 / 成果文稿）与轻量指引 -->
-          <div class="gs-card-header"><span class="gs-card-title">🧭 库内治理与成文</span><span class="gs-card-desc">主动型：回收站捞回 / 本周回顾 / 成果文稿（标签体检与整体梳理在「标签管理」页；被动建议在命令面板 Ctrl+K → AI 建议）</span></div>
+          <div class="gs-card-header"><span class="gs-card-title"><Icon name="compass" :size="13"/> 库内治理与成文</span><span class="gs-card-desc">主动型：回收站捞回 / 本周回顾 / 成果文稿（标签体检与整体梳理在「标签管理」页；被动建议在命令面板 Ctrl+K › AI 建议）</span></div>
           <div class="gs-card-body ai-form-row">
-            <button class="gs-btn" :disabled="!aiReady" @click="aiTrashRescue">🗑 回收站捞回</button>
-            <button class="gs-btn" :disabled="!aiReady" title="近 7 天台账 → 周回顾草稿；跑完自动存为一张周回顾卡（同日重跑只刷新那张）" @click="aiWeeklyReview">🗓 本周回顾</button>
+            <button class="gs-btn" :disabled="!aiReady" @click="aiTrashRescue"><Icon name="trash" :size="13"/> 回收站捞回</button>
+            <button class="gs-btn" :disabled="!aiReady" title="近 7 天台账 → 周回顾草稿；跑完自动存为一张周回顾卡（同日重跑只刷新那张）" @click="aiWeeklyReview"><Icon name="calendar" :size="13"/> 本周回顾</button>
             <label class="ai-field inline"><input class="gs-input ai-genre" type="text" v-model="aiGenre" placeholder="体裁（可留空）：公众号短文 / 分享稿 / 结项说明…" @keydown.enter.prevent="aiDeliver" /></label>
-            <button class="gs-btn" :disabled="!aiReady" title="论点卡 + 活跃目标 + 近 30 天完成 → 一篇可交付文稿；跑完自动存为一张成果文稿卡（同日重跑只刷新那张），也可下载 .md" @click="aiDeliver">📄 成果文稿</button>
+            <button class="gs-btn" :disabled="!aiReady" title="论点卡 + 活跃目标 + 近 30 天完成 → 一篇可交付文稿；跑完自动存为一张成果文稿卡（同日重跑只刷新那张），也可下载 .md" @click="aiDeliver"><Icon name="filetext" :size="13"/> 成果文稿</button>
           </div>
         </div>
 
@@ -317,55 +322,55 @@
       <!-- ===== 导入数据 ===== -->
       <div v-if="activePage === 'import'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">⬇ 导入数据</div>
+          <div class="gs-page-title"><Icon name="download" :size="13"/> 导入数据</div>
           <div class="gs-page-desc">从外部导入资源卡或策展台数据，导入时与现有数据取并集</div>
         </div>
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">导入方式</span></div>
           <div class="gs-card-body">
             <div class="gs-import-option" @click="triggerFileImport">
-              <div class="gs-io-icon">📦</div>
+              <div class="gs-io-icon"><Icon name="package" :size="13"/></div>
               <div><div class="gs-io-name">导入知源调度台数据</div><div class="gs-io-desc">选择 JSON 文件，与现有数据取并集（同 ID 更新，不同 ID 新增）；全量包附带界面偏好（主题/密度）时自动应用。<b>导入前会先自动下载一份当前数据备份</b>（防误合并，不含 Airtable 凭证）</div></div>
               <button class="gs-btn gs-btn-primary gs-io-btn">选择文件</button>
             </div>
             <div class="gs-import-option" @click="assetPackInput?.click()">
-              <div class="gs-io-icon">🗂</div>
+              <div class="gs-io-icon"><Icon name="folder" :size="13"/></div>
               <div><div class="gs-io-name">导入附件包</div><div class="gs-io-desc">选择「导出附件包」生成的 zip，附件本体按 assetId 写回（同 ID 覆盖）；先导 JSON 再导附件包 = 完整迁移</div></div>
               <button class="gs-btn gs-io-btn">选择文件</button>
             </div>
             <div class="gs-import-option" @click="bookmarkImport()">
-              <div class="gs-io-icon">🔖</div>
-              <div><div class="gs-io-name">导入书签文件</div><div class="gs-io-desc">选择浏览器导出的书签 HTML：<b>本页只把文件夹层级写成标签</b>，链接 + 标题进资源卡；文件夹→分类的建树导入已随资源台退役。</div></div>
+              <div class="gs-io-icon"><Icon name="bookmark" :size="13"/></div>
+              <div><div class="gs-io-name">导入书签文件</div><div class="gs-io-desc">选择浏览器导出的书签 HTML：<b>本页只把文件夹层级写成标签</b>，链接 + 标题进资源卡；文件夹›分类的建树导入已随资源台退役。</div></div>
               <button class="gs-btn gs-io-btn">选择文件</button>
             </div>
             <!-- R154（E3）：导入完不再自动弹评审抽屉——它抢焦点、也没人点过它。改成回执上的显式入口 -->
-            <div v-if="pendingImportEnrich && pendingImportEnrich.length" class="gs-setting-row" style="margin-top:6px">
+            <div v-if="pendingImportEnrich && pendingImportEnrich.length" class="gs-setting-row gs-setting-row--gap">
               <span class="gs-sr-label">刚导入 {{ pendingImportEnrich.length }} 张卡</span>
               <div class="gs-sr-control">
                 <button class="gs-btn" :disabled="!aiReady" @click="aiImportEnrichNow">{{ aiReady ? '归类并补全这批' : '先在 AI 助手完成接入' }}</button>
                 <button class="gs-btn" @click="pendingImportEnrich = null">这次不用</button>
               </div>
             </div>
-            <div class="gs-setting-row" style="margin-top:6px">
+            <div class="gs-setting-row gs-setting-row--gap">
               <span class="gs-sr-label">书签导入到</span>
               <div class="gs-sr-control">
                 <select class="gs-select" v-model="bookmarkTargetWs">
-                  <option value="__new__">🆕 新建「🔖 书签导入 <今天日期>」策展台</option>
+                  <option value="__new__">新建「书签导入 &lt;今天日期&gt;」策展台</option>
                   <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}</option>
                 </select>
               </div>
             </div>
           </div>
         </div>
-        <input ref="fileInput" type="file" accept=".json" style="display:none" @change="handleFileImport" />
-        <input ref="assetPackInput" type="file" accept=".zip" style="display:none" @change="handleAssetPackImport" />
-        <input ref="bookmarkInput" type="file" accept=".html,.htm" style="display:none" @change="onBookmarkFile" />
+        <input ref="fileInput" type="file" accept=".json" class="gs-file-hidden" @change="handleFileImport" />
+        <input ref="assetPackInput" type="file" accept=".zip" class="gs-file-hidden" @change="handleAssetPackImport" />
+        <input ref="bookmarkInput" type="file" accept=".html,.htm" class="gs-file-hidden" @change="onBookmarkFile" />
       </div>
 
       <!-- ===== 导出数据 ===== -->
       <div v-if="activePage === 'export'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">⬆ 导出数据</div>
+          <div class="gs-page-title"><Icon name="upload" :size="13"/> 导出数据</div>
           <div class="gs-page-desc">导出数据用于备份或跨设备迁移（全量 JSON + 附件包两步才算完整迁移）</div>
         </div>
         <div class="gs-card">
@@ -374,7 +379,7 @@
             <!-- V2.20.1 BUG-2：存量归属修复记录（静默回填，仅修复时显示） -->
             <div v-if="gd.projBackfillFixed" class="gs-export-row">
               <div class="gs-er-info">
-                <div class="gs-er-name">🛠 存量归属修复（V2.20.1）</div>
+                <div class="gs-er-name"><Icon name="wrench" :size="13"/> 存量归属修复（V2.20.1）</div>
                 <div class="gs-er-desc">启动时已自动修复 {{ gd.projBackfillFixed }} 个任务的项目归属（有成功指标但缺项目关联的历史数据，按指标反查所属项目补齐），数据一致性已恢复。</div>
               </div>
             </div>
@@ -424,7 +429,7 @@
           </div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">📎 附件存储</span><span class="gs-card-desc">图片/HTML 本体在 IndexedDB，不占主数据</span></div>
+          <div class="gs-card-header"><span class="gs-card-title"><Icon name="paperclip" :size="13"/> 附件存储</span><span class="gs-card-desc">图片/HTML 本体在 IndexedDB，不占主数据</span></div>
           <div class="gs-card-body">
             <div class="gs-export-row">
               <div class="gs-er-info">
@@ -449,8 +454,8 @@
       <!-- ===== 快捷键设置 ===== -->
       <div v-if="activePage === 'shortcuts'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">⌨ 快捷键设置</div>
-          <div class="gs-page-desc">💡 系统级快捷键（含完整方向树/快速采集任务/同步到 Airtable 等六条无默认键命令）请在浏览器地址栏打开 chrome://extensions/shortcuts 自定义（高效使用知源的第一步）；应用内快捷键开箱即用</div>
+          <div class="gs-page-title">快捷键设置</div>
+          <div class="gs-page-desc"><Icon name="bulb" :size="13"/> 系统级快捷键（含完整方向树/快速采集任务/同步到 Airtable 等六条无默认键命令）请在浏览器地址栏打开 chrome://extensions/shortcuts 自定义（高效使用知源的第一步）；应用内快捷键开箱即用</div>
         </div>
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">全局快捷键（任意网页可用）</span><span class="gs-card-desc">由 Chrome 统一管理 · 下表是本扩展的全部命令，键位显示「未设置」的几条没有默认键，需到 chrome://extensions/shortcuts 手动分配</span></div>
@@ -491,7 +496,7 @@
       <!-- ===== 策展台快捷键（R49-I2 引入；V3.7.0 R179：资源台退役后策展台顺延——1=调度台、2=方向台、3 起=各策展台） ===== -->
       <div v-if="activePage === 'shortcuts'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">🎛 策展台快捷键</div>
+          <div class="gs-page-title"><Icon name="sliders" :size="13"/> 策展台快捷键</div>
           <div class="gs-page-desc">应用内按「修饰键 + 数字」切台：1 = 调度台、2 = 方向台、3 起按台签顺序对应各策展台（拖拽改序后数字键跟随顺序）；完整方向树等浏览器级命令在 chrome://extensions/shortcuts 自定义</div>
         </div>
         <div class="gs-card">
@@ -512,38 +517,41 @@
       <!-- ===== Airtable 同步（R63-4：单向推送，手动为主） ===== -->
       <div v-if="activePage === 'airtable'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">⇄ Airtable 同步</div>
-          <div class="gs-page-desc">单向：知源 → Airtable，绝不回写本地 · 缺失字段自动创建（已存在列不改名不改类型，计算列不碰）· 软删卡置「已删除」勾选不物理删 · 手动触发为主</div>
+          <div class="gs-page-title"><Icon name="refresh" :size="13"/> Airtable 同步</div>
+          <div class="gs-page-desc">单向：知源 › Airtable，绝不回写本地 · 缺失字段自动创建（已存在列不改名不改类型，计算列不碰）· 软删卡置「已删除」勾选不物理删 · 手动触发为主</div>
         </div>
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">连接配置</span><span class="gs-card-desc">PAT 明文仅存本机 chrome.storage.local，随设备不跨端</span></div>
           <div class="gs-card-body">
             <div class="gs-setting-row">
               <span class="gs-sr-label">Personal Access Token</span>
-              <div class="gs-sr-control"><input class="gs-input" type="password" v-model="atPat" placeholder="pat…（需 data.records 读写 + schema.bases 写权限）" style="width:320px" /></div>
+              <div class="gs-sr-control"><input class="gs-input gs-input--pat" type="password" v-model="atPat" placeholder="pat…（需 data.records 读写 + schema.bases 写权限）" /></div>
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">Base ID</span>
-              <div class="gs-sr-control"><input class="gs-input" v-model="atBaseId" placeholder="app 开头" style="width:260px" /></div>
+              <div class="gs-sr-control"><input class="gs-input gs-input--ident" v-model="atBaseId" placeholder="app 开头" /></div>
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">Table ID</span>
-              <div class="gs-sr-control"><input class="gs-input" v-model="atTableId" placeholder="tbl 开头（表 URL 中获取）" style="width:260px" /></div>
+              <div class="gs-sr-control"><input class="gs-input gs-input--ident" v-model="atTableId" placeholder="tbl 开头（表 URL 中获取）" /></div>
             </div>
             <!-- R4-Dd：标签列名可指到自己表里已有的列。★只存列名、不存列类型——
                  类型每次同步时读远端真值；存下来必然与 Airtable 漂移，而漂移的代价是把一批 422 当成成功。 -->
             <div class="gs-setting-row">
               <span class="gs-sr-label">标签列名</span>
               <div class="gs-sr-control gs-sr-control-wrap">
-                <input class="gs-input" v-model="atTagColumn" :placeholder="atTagColumnDefault" style="width:260px" @change="applyTagColumn" />
+                <input class="gs-input gs-input--ident" v-model="atTagColumn" :placeholder="atTagColumnDefault" @change="applyTagColumn" />
                 <span class="gs-sr-hint">留空即「{{ atTagColumnDefault }}」；该列若是多选（multipleSelects）会自动按数组写入，否则用分号分隔</span>
               </div>
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">连接测试</span>
-              <div class="gs-sr-control" style="display:flex;gap:10px;align-items:center">
+              <div class="gs-sr-control gs-sr-control--inline">
                 <button class="gs-btn" :disabled="atBusy || !atPat || !atBaseId || !atTableId" @click="testAtConnection">{{ atBusy ? '测试中…' : '测试连接' }}</button>
-                <span v-if="atTableName" style="font-size: var(--fs-sub);color:var(--ok,var(--info-green,#3A6B4C))">✓ 已连上「{{ atTableName }}」</span>
+                <!-- ★V3.8.25（B1-a）：原写 `var(--ok, var(--info-green, #3A6B4C))`——两个令牌**都不存在**
+                     （tokens.css 真名是 `--success`），于是四主题里一律渲染兜底的硬编码 #3A6B4C，
+                     深色主题下对比度不足。改用 `--success`，跟随主题。 -->
+                <span v-if="atTableName" class="gs-sr-ok"><Icon name="check" :size="13"/> 已连上「{{ atTableName }}」</span>
               </div>
             </div>
           </div>
@@ -553,11 +561,11 @@
           <div class="gs-card-body">
             <div class="gs-setting-row">
               <span class="gs-sr-label">同步范围</span>
-              <div class="gs-sr-control" style="font-size: var(--fs-sub);color:var(--text-2);max-width:380px;line-height:1.7;text-align:left">调度台好奇心卡 · 方向台任务卡 · 资源卡池资源卡 · 各策展台镜像卡（每条镜像为独立记录，带各自所属工作台标识）· 主题卡以「是否中心论点」列体现</div>
+              <div class="gs-sr-control gs-sr-note gs-sr-note--wrap">调度台好奇心卡 · 方向台任务卡 · 资源卡池资源卡 · 各策展台镜像卡（每条镜像为独立记录，带各自所属工作台标识）· 主题卡以「是否中心论点」列体现</div>
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">增量游标</span>
-              <div class="gs-sr-control" style="font-size: var(--fs-sub);color:var(--text-2)">只推上次同步后有更新的卡（updatedAt 游标）</div>
+              <div class="gs-sr-control gs-sr-note">只推上次同步后有更新的卡（updatedAt 游标）</div>
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">3 小时自动轮询</span>
@@ -570,18 +578,18 @@
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">立即同步</span>
-              <div class="gs-sr-control" style="display:flex;gap:10px;align-items:center">
+              <div class="gs-sr-control gs-sr-control--inline">
                 <button class="gs-btn gs-btn-primary" :disabled="atBusy || !atPat || !atBaseId || !atTableId" @click="runAtSync">{{ atBusy ? '同步中…' : '立即同步' }}</button>
-                <span v-if="quotaText" style="font-size: var(--fs-sub);color:var(--text-3)">{{ quotaText }}</span>
+                <span v-if="quotaText" class="gs-sr-note gs-sr-note--muted">{{ quotaText }}</span>
               </div>
             </div>
             <div class="gs-setting-row" v-if="atStatusText">
               <span class="gs-sr-label">上次同步</span>
-              <div class="gs-sr-control" style="font-size: var(--fs-sub);color:var(--text-2)">{{ atStatusText }}</div>
+              <div class="gs-sr-control gs-sr-note">{{ atStatusText }}</div>
             </div>
             <div class="gs-setting-row" v-if="atErrorText">
               <span class="gs-sr-label">上次错误</span>
-              <div class="gs-sr-control" style="font-size: var(--fs-sub);color:var(--danger,#c0392b)">{{ atErrorText }}</div>
+              <div class="gs-sr-control gs-sr-note gs-sr-note--danger">{{ atErrorText }}</div>
             </div>
           </div>
         </div>
@@ -589,9 +597,17 @@
           <div class="gs-card-header"><span class="gs-card-title">同步日志</span><span class="gs-card-desc">最近 {{ atLog.length }} 条（最多保留 40 条）</span></div>
           <div class="gs-card-body">
             <div v-if="!atLog.length" class="gs-ev-empty">暂无同步记录——配置完成后点「立即同步」</div>
-            <div v-for="(l, i) in atLog" :key="i" class="gs-setting-row" style="align-items:flex-start">
-              <span class="gs-sr-label" style="white-space:nowrap">{{ new Date(l.at).toLocaleString('zh-CN') }}</span>
-              <div class="gs-sr-control" style="font-size: var(--fs-sub);text-align:left;max-width:420px;color:var(--text-2)">{{ l.kind === 'error' ? '✗ ' : l.kind === 'ok' ? '✓ ' : '· ' }}{{ l.msg }}</div>
+            <div v-for="(l, i) in atLog" :key="i" class="gs-setting-row gs-setting-row--top">
+              <span class="gs-sr-label gs-sr-label--nowrap">{{ new Date(l.at).toLocaleString('zh-CN') }}</span>
+              <!-- ★V3.8.25（B1-a）：原为 `l.kind === 'error' ? ' ' : l.kind === 'ok' ? ' ' : '· '`
+                   —— 三支里两支返回同一个空格，是 G1 把 `⚠ / ✓ / ·` 剥成 emoji 后留下的死三元：
+                   同步成功与失败两种日志在视觉上完全一样，只能靠读文字分辨。改为图标 + 只留正常行的小圆点。 -->
+              <div class="gs-sr-control gs-sr-note gs-sr-note--log">
+                <Icon v-if="l.kind === 'ok'" name="check" :size="12" class="gs-log-ico ok" />
+                <Icon v-else-if="l.kind === 'error'" name="warn" :size="12" class="gs-log-ico err" />
+                <span v-else class="gs-log-dot">·</span>
+                <span>{{ l.msg }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -600,15 +616,18 @@
       <!-- ===== 使用手册（第廿一轮：独立页入口） ===== -->
       <div v-if="activePage === 'manual'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">📖 产品使用手册</div>
+          <div class="gs-page-title"><Icon name="book" :size="13"/> 产品使用手册</div>
           <div class="gs-page-desc">速览 / 基础 / 方法 / 理念 / 附录 —— 五篇图文教程，独立页面阅读体验最佳</div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-body" style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:40px 20px;text-align:center">
-            <div style="font-size:34px">📖</div>
-            <div style="font-size: var(--fs-title);font-weight:600;color:var(--text)">使用手册已升级为独立阅读页</div>
-            <div style="font-size: var(--fs-sub);color:var(--text-3);line-height:1.8;max-width:420px">五篇结构：速览一页上手 → 基础篇 → 方法篇（认知增强方法论）→ 理念篇（知源哲学与理论根基）→ 附录（快捷键全表与数据安全）。点击下方按钮在新标签页打开，支持左侧目录锚点定位。</div>
-            <button class="gs-manual-open" @click="openManualTab">📖 打开使用手册（新标签页）</button>
+          <div class="gs-card-body gs-empty">
+            <!-- ★V3.8.25（B1-a）：原来外层 div 写死 font-size:34px、内层 Icon 却是 :size="13"——
+                 Icon 用 width/height 定尺寸，外层 font-size 对它无效，所以这颗"大图标"一直是 13px，
+                 比旁边的正文还小。改成直接给 :size="34"，外层只留排版的 flex 项。 -->
+            <div class="gs-empty-ico"><Icon name="book" :size="34"/></div>
+            <div class="gs-empty-title">使用手册已升级为独立阅读页</div>
+            <div class="gs-empty-desc">五篇结构：速览一页上手 › 基础篇 › 方法篇（认知增强方法论）› 理念篇（知源哲学与理论根基）› 附录（快捷键全表与数据安全）。点击下方按钮在新标签页打开，支持左侧目录锚点定位。</div>
+            <button class="gs-manual-open" @click="openManualTab"><Icon name="book" :size="13"/> 打开使用手册（新标签页）</button>
           </div>
         </div>
       </div>
@@ -616,25 +635,25 @@
       <!-- ===== 写给用户的一封信 ===== -->
       <div v-if="activePage === 'letter'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">✉️ 写给用户的一封信</div>
+          <div class="gs-page-title"><Icon name="mail" :size="13"/> 写给用户的一封信</div>
           <div class="gs-page-desc">donge 哥 · 致每一位知源调度台的同行者</div>
         </div>
         <div class="gs-card">
           <div class="gs-card-body gs-letter" v-html="LETTER_HTML"></div>
         </div>
-        <div style="text-align:center;margin-top:14px">
-          <button class="gs-manual-open" @click="downloadLetter">⬇ 下载这封信（分享 HTML）</button>
+        <div class="gs-letter-actions">
+          <button class="gs-manual-open" @click="downloadLetter"><Icon name="download" :size="13"/> 下载这封信（分享 HTML）</button>
         </div>
       </div>
 
       <!-- ===== 重置与回滚 ===== -->
       <div v-if="activePage === 'reset'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">🔄 重置与回滚</div>
+          <div class="gs-page-title"><Icon name="refresh" :size="13"/> 重置与回滚</div>
           <div class="gs-page-desc">危险操作，请谨慎执行，建议操作前先导出备份</div>
         </div>
         <div class="gs-card gs-danger-zone">
-          <div class="gs-card-header"><span class="gs-card-title">⚠ 危险操作区</span></div>
+          <div class="gs-card-header"><span class="gs-card-title"><Icon name="warn" :size="13"/> 危险操作区</span></div>
           <div class="gs-card-body">
             <div class="gs-danger-action">
               <div class="gs-da-info"><div class="gs-da-name">一键回滚至初始状态</div><div class="gs-da-desc">清空所有用户创建的策展台和所有资源卡、好奇心卡、任务卡，仅保留调度台、方向台（任务中心）和默认策展台</div></div>
@@ -659,7 +678,7 @@
       <!-- ===== 扩展设置 ===== -->
       <div v-if="activePage === 'extension'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">🔌 浏览器扩展设置</div>
+          <div class="gs-page-title"><Icon name="plug" :size="13"/> 浏览器扩展设置</div>
           <div class="gs-page-desc">配置浏览器扩展的连接和抓取行为</div>
         </div>
         <div class="gs-card">
@@ -671,7 +690,7 @@
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">扩展版本</span>
-              <div class="gs-sr-control" style="color:var(--text-2);font-size: var(--fs-sub)">V{{ runtimeVersion }}</div>
+              <div class="gs-sr-control gs-sr-note">V{{ runtimeVersion }}</div>
             </div>
           </div>
         </div>
@@ -706,7 +725,7 @@
       <!-- ===== 产品更新日志（W5 / V3.8.5） ===== -->
       <div v-if="activePage === 'changelog'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title">🕘 产品更新日志</div>
+          <div class="gs-page-title"><Icon name="clock" :size="13"/> 产品更新日志</div>
           <div class="gs-page-desc">每个版本的发版时间与功能要点——看看这个产品是怎么一步步长成今天这样的</div>
         </div>
         <div class="gs-card">
@@ -730,7 +749,7 @@
 
       <!-- ===== 关于 ===== -->
       <div v-if="activePage === 'about'" class="gs-panel">
-        <div class="gs-page-header"><div class="gs-page-title">ℹ 关于</div></div>
+        <div class="gs-page-header"><div class="gs-page-title"><Icon name="question" :size="13"/> 关于</div></div>
         <div class="gs-card">
           <div class="gs-card-body gs-about-card">
             <div class="gs-about-logo"><img :src="logoUrl" alt="知源调度台" /></div>
@@ -753,12 +772,12 @@
               </span>
             </div>
             <div v-if="saveError" class="gs-about-row gs-about-row-danger">
-              <span class="label">⚠ 写入异常</span>
+              <span class="label"><Icon name="warn" :size="13"/> 写入异常</span>
               <span class="value">
                 <span class="gs-save-error-kind">{{ saveErrorLabel(saveError.kind) }}</span>
                 · {{ saveError.message }}
                 <span v-if="saveError.bytesInUse != null">（当前 {{ formatBytes(saveError.bytesInUse) }}）</span>
-                <span class="gs-link" @click="markSaveErrorRead" style="margin-left:8px">已处理 ›</span>
+                <span class="gs-link gs-link--spaced" @click="markSaveErrorRead">已处理 ›</span>
               </span>
             </div>
             <div class="gs-about-row"><span class="label">检查更新</span><span class="value gs-link" @click="showToast('当前已是最新版本')">检查更新 ›</span></div>
@@ -775,10 +794,10 @@
     <Teleport to="body">
       <div class="gs-modal-overlay" :class="{ open: showResetModal }" @click.self="closeResetModal">
         <div class="gs-modal">
-          <div class="gs-modal-header">⚠ 确认回滚至初始状态</div>
+          <div class="gs-modal-header"><Icon name="warn" :size="13"/> 确认回滚至初始状态</div>
           <div class="gs-modal-body">
-            <p>此操作将清空所有用户创建的策展台和所有资源卡、好奇心卡、任务卡，<b style="color:var(--danger)">仅保留调度台、方向台（任务中心）和默认策展台</b>。</p>
-            <p>此操作<b style="color:var(--danger)">不可恢复</b>，建议先导出数据备份。</p>
+            <p>此操作将清空所有用户创建的策展台和所有资源卡、好奇心卡、任务卡，<b class="gs-danger-text">仅保留调度台、方向台（任务中心）和默认策展台</b>。</p>
+            <p>此操作<b class="gs-danger-text">不可恢复</b>，建议先导出数据备份。</p>
             <p>请输入 <b>"回滚"</b> 以确认：</p>
             <input v-model="resetConfirmText" type="text" class="gs-confirm-input" placeholder="请输入 回滚" />
           </div>
@@ -795,6 +814,7 @@
 <script setup lang="ts">
 // R148-P1a：显式实例名——纳入 KeepAlive（切模块免重挂载与免重算首屏）
 defineOptions({ name: 'GlobalSettingsView' })
+import Icon from '@/shared/components/Icon.vue'
 
 import { ref, reactive, computed, watch, watchEffect, onMounted, shallowRef } from 'vue'
 import { wsDisplayNameOf, wsNameById } from '@/shared/utils/wsName'
@@ -952,10 +972,10 @@ async function cleanupOrphanAssetsAction() {
     orphans = await listOrphanAssetIds(collectReferencedAssetIds(all))
   } catch (err) {
     console.error('[assets] scan failed:', err)
-    showToast('⚠ 盘点失败，请重试')
+    showToast('盘点失败，请重试')
     return
   }
-  if (!orphans.length) { showToast('✓ 无孤儿附件，一切干净'); return }
+  if (!orphans.length) { showToast('无孤儿附件，一切干净'); return }
   const ok = await useConfirm({
     title: '清理孤儿附件',
     message: `共发现 ${orphans.length} 个未被任何卡片（含回收站里的卡与论证卡）引用的附件本体。\n清理后不可恢复，但不会影响任何现存卡片的附件。\n想先留一份，可点上面的「导出附件包」。`,
@@ -965,10 +985,10 @@ async function cleanupOrphanAssetsAction() {
   try {
     const n = await cleanupOrphanAssetsOf(all)
     await refreshAssetStats()
-    showToast(n > 0 ? `🧹 已清理 ${n} 个孤儿附件` : '✓ 无孤儿附件，一切干净')
+    showToast(n > 0 ? `已清理 ${n} 个孤儿附件` : '无孤儿附件，一切干净')
   } catch (err) {
     console.error('[assets] cleanup failed:', err)
-    showToast('⚠ 清理失败，请重试')
+    showToast('清理失败，请重试')
   }
 }
 watch(activePage, (p) => { if (p === 'export') refreshAssetStats() })
@@ -991,10 +1011,10 @@ async function exportAssetPack() {
     const aEl = document.createElement('a')
     aEl.href = url; aEl.download = `zhiyuan_assets_${dateStr()}.zip`; aEl.click()
     URL.revokeObjectURL(url)
-    showToast(`✓ 附件包已导出：${all.length} 个附件`)
+    showToast(`附件包已导出：${all.length} 个附件`)
   } catch (err) {
     console.error('[assets] export pack failed:', err)
-    showToast('⚠ 附件包导出失败，请重试')
+    showToast('附件包导出失败，请重试')
   }
 }
 
@@ -1008,13 +1028,13 @@ async function handleAssetPackImport(e: Event) {
   try {
     const entries = readZip(await file.arrayBuffer())
     const assets = entries.filter(en => en.name.startsWith('assets/'))
-    if (!assets.length) { showToast('⚠ 附件包内无附件数据（manifest 或 zip 格式不符）'); return }
+    if (!assets.length) { showToast('附件包内无附件数据（manifest 或 zip 格式不符）'); return }
     await putAssets(assets.map(en => ({ id: en.name.slice('assets/'.length), blob: new Blob([en.data]) })))
     await refreshAssetStats()
-    showToast(`✓ 附件包导入完成：${assets.length} 个附件（同 ID 已覆盖）`)
+    showToast(`附件包导入完成：${assets.length} 个附件（同 ID 已覆盖）`)
   } catch (err) {
     console.error('[assets] import pack failed:', err)
-    showToast(`⚠ 附件包导入失败：${err instanceof Error ? err.message : '格式不符'}`)
+    showToast(`附件包导入失败：${err instanceof Error ? err.message : '格式不符'}`)
   }
 }
 
@@ -1049,13 +1069,13 @@ const navGroups: { title: string; items: NavItem[] }[] = [
     // 本组暂空；「通用与度量」语义由画像洞察页承担（/profile）。
   ]},
   { title: '卡片与字段', items: [
-    { key: 'resource', icon: '📇', label: '资源卡' },
-    { key: 'task', icon: '✅', label: '任务卡' },
-    { key: 'curiosity', icon: '💡', label: '好奇心卡' },
+    { key: 'resource', icon: 'filetext', label: '资源卡' },
+    { key: 'task', icon: 'checksquare', label: '任务卡' },
+    { key: 'curiosity', icon: 'bulb', label: '好奇心卡' },
     // R62-3：策展主题卡字段组（isThesis 资源卡专用）
-    { key: 'thesis', icon: '🏛', label: '策展主题卡' },
+    { key: 'thesis', icon: 'landmark', label: '策展主题卡' },
     // 第卌四轮 Q-6：标签管理上移——它服务卡片呈现，与三卡同组
-    { key: 'tags', icon: '🏷', label: '标签管理' },
+    { key: 'tags', icon: 'tag', label: '标签管理' },
   ]},
   // R178：AI 认知协作者独立成组（原型分组口径）
   { title: 'AI 认知协作者', items: [
@@ -1063,22 +1083,22 @@ const navGroups: { title: string; items: NavItem[] }[] = [
     { key: 'ai', mark: true, label: 'AI 助手' },
   ]},
   { title: '数据与信任', items: [
-    { key: 'import', icon: '⬇', label: '导入数据' },
-    { key: 'export', icon: '⬆', label: '导出数据' },
+    { key: 'import', icon: 'download', label: '导入数据' },
+    { key: 'export', icon: 'upload', label: '导出数据' },
     // R146-⑨：删除有两条路（回收站可反悔 / 永久删除不可逆），入口必须常驻左栏而不是埋在危险区里
-    { key: 'recycle', icon: '🗑', label: '回收站', route: '/recycle' },
-    { key: 'reset', icon: '🔄', label: '重置与回滚' },
+    { key: 'recycle', icon: 'trash', label: '回收站', route: '/recycle' },
+    { key: 'reset', icon: 'rotateccw', label: '重置与回滚' },
   ]},
   { title: '系统信息', items: [
-    { key: 'extension', icon: '🔌', label: '扩展设置' },
-    { key: 'shortcuts', icon: '⌨', label: '快捷键设置' },
+    { key: 'extension', icon: 'settings', label: '扩展设置' },
+    { key: 'shortcuts', icon: 'zap', label: '快捷键设置' },
     // R178：Airtable 归入「数据与信任」语义组（原型口径；同键不动，仅分组位置）
-    { key: 'airtable', icon: '⇄', label: 'Airtable 同步' },
-    { key: 'manual', icon: '📖', label: '使用手册' },
-    { key: 'letter', icon: '✉️', label: '一封信' },
+    { key: 'airtable', icon: 'refresh', label: 'Airtable 同步' },
+    { key: 'manual', icon: 'book', label: '使用手册' },
+    { key: 'letter', icon: 'mail', label: '一封信' },
     // W5（V3.8.5）：产品更新日志——时间线看版本演变
-    { key: 'changelog', icon: '🕘', label: '产品更新日志' },
-    { key: 'about', icon: 'ℹ', label: '关于' },
+    { key: 'changelog', icon: 'clipboard', label: '产品更新日志' },
+    { key: 'about', icon: 'question', label: '关于' },
   ]},
 ]
 
@@ -1132,6 +1152,20 @@ const previewModes = [
 ]
 const previewModeLabel = computed(() => previewModes.find(m => m.key === previewMode.value)?.label || '')
 
+/**
+ * 字段管理 › 实时预览的骨架 HTML。
+ *
+ * ★V3.8.25（B1-a）：这一段里的样式**必须靠 `:deep()` 才生效**。
+ *   本组件的样式块是 scoped 的，编译后选择器是 `.gs-pv-field[data-v-xxxx]`；而这里的 HTML 走
+ *   `v-html` 注入，注入节点没有 `data-v-xxxx` 属性 ⇒ 原来的 8 条 `.gs-pv-*` 规则**一条都没命中**，
+ *   预览卡实际只吃了那几个内联 style，标签是一串纯文字而不是胶囊。
+ *   故：① 8 条规则改成 `.gs-preview-card :deep(.gs-pv-*)`（宿主 `.gs-preview-card` 带 scope id，
+ *   `:deep()` 放行其内部）；② 原先散在字符串里的内联 style 一并收成 `.gs-pv-*` 类。
+ *   边界：v-html 里的内容不许再写内联 style —— 写在这里的类是有规则的，写内联是绕过令牌的。
+ *   注意：注释里不要出现 style 标签的字面量写法。`scripts/dead-css-scan.cjs` 用一条非贪婪正则抽样式块，
+ *   脚本区里只要出现一句"样式标签"注释，就会被它当成真样式块的起点，于是整段 TS 被当 CSS 解析
+ *   （本轮实测：规则数从 3721 涨到 4051，报出 16 条假的"祖先断"）。
+ */
 const resourcePreviewHtml = computed(() => {
   const visible = [...fields.value.resource].sort((a, b) => a.order - b.order).filter(f => f.visible)
   const has = (key: string) => visible.some(f => f.key === key)
@@ -1139,32 +1173,32 @@ const resourcePreviewHtml = computed(() => {
   if (previewMode.value === 'card') {
     let html = ''
     if (has('title')) html += '<div class="gs-pv-field gs-pv-field-title">知源调度台V2.12全产品PRD手册</div>'
-    if (has('link')) html += '<div class="gs-pv-field"><span class="gs-pv-field-link">🔗 D:\\zhiyuan-V2.12\\PRD手册.docx</span></div>'
-    if (has('description')) html += '<div class="gs-pv-field"><span class="gs-pv-field-text" style="color:var(--text-3);font-size: var(--fs-caption)">完整记录V2.12版本的功能设计、交互规范和数据模型...</span></div>'
+    if (has('link')) html += '<div class="gs-pv-field"><span class="gs-pv-field-link"> D:\\zhiyuan-V2.12\\PRD手册.docx</span></div>'
+    if (has('description')) html += '<div class="gs-pv-field"><span class="gs-pv-field-text gs-pv-desc">完整记录V2.12版本的功能设计、交互规范和数据模型...</span></div>'
     if (has('sourceType')) html += '<div class="gs-pv-field"><span class="gs-pv-field-label">来源:</span><span class="gs-pv-field-text">学术</span></div>'
     if (has('tags')) html += '<div class="gs-pv-field"><span class="gs-pv-field-tags"><span class="gs-pv-tag">#PRD</span><span class="gs-pv-tag">#产品设计</span></span></div>'
     if (has('createdAt')) html += '<div class="gs-pv-field"><span class="gs-pv-field-label">添加:</span><span class="gs-pv-field-text">2026-08-28</span></div>'
     return html
   }
   if (previewMode.value === 'list') {
-    let html = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-    if (has('title')) html += '<span style="font-weight:600;font-size: var(--fs-sub)">知源调度台V2.12全产品PRD手册</span>'
-    if (has('link')) html += '<span class="gs-pv-field-link">🔗</span>'
-    if (has('description')) html += '<span style="font-size: var(--fs-tiny);color:var(--text-3)">PRD手册...</span>'
-    if (has('sourceType')) html += '<span style="font-size: var(--fs-tiny);color:var(--text-3)">学术</span>'
+    let html = '<div class="gs-pv-list">'
+    if (has('title')) html += '<span class="gs-pv-name">知源调度台V2.12全产品PRD手册</span>'
+    if (has('link')) html += '<span class="gs-pv-field-link"></span>'
+    if (has('description')) html += '<span class="gs-pv-meta">PRD手册...</span>'
+    if (has('sourceType')) html += '<span class="gs-pv-meta">学术</span>'
     if (has('tags')) html += '<span class="gs-pv-tag">#PRD</span>'
-    if (has('createdAt')) html += '<span style="font-size: var(--fs-tiny);color:var(--text-3)">08-28</span>'
+    if (has('createdAt')) html += '<span class="gs-pv-meta">08-28</span>'
     html += '</div>'
     return html
   }
   // kanban
   let html = ''
-  if (has('title')) html += '<div class="gs-pv-field gs-pv-field-title" style="font-size: var(--fs-sub)">知源调度台V2.12全产品PRD手册</div>'
+  if (has('title')) html += '<div class="gs-pv-field gs-pv-field-title gs-pv-field-title--sm">知源调度台V2.12全产品PRD手册</div>'
   if (has('tags')) html += '<div class="gs-pv-field"><span class="gs-pv-field-tags"><span class="gs-pv-tag">#PRD</span></span></div>'
-  if (has('link')) html += '<div class="gs-pv-field"><span class="gs-pv-field-link" style="font-size: var(--fs-tiny)">🔗 PRD手册.docx</span></div>'
-  if (has('description')) html += '<div class="gs-pv-field"><span style="font-size: var(--fs-tiny);color:var(--text-3)">功能设计、交互规范...</span></div>'
-  if (has('sourceType')) html += '<div class="gs-pv-field"><span style="font-size: var(--fs-tiny);color:var(--text-3)">学术</span></div>'
-  if (has('createdAt')) html += '<div class="gs-pv-field"><span style="font-size: var(--fs-tiny);color:var(--text-3)">08-28</span></div>'
+  if (has('link')) html += '<div class="gs-pv-field"><span class="gs-pv-field-link gs-pv-field-link--sm"> PRD手册.docx</span></div>'
+  if (has('description')) html += '<div class="gs-pv-field"><span class="gs-pv-meta">功能设计、交互规范...</span></div>'
+  if (has('sourceType')) html += '<div class="gs-pv-field"><span class="gs-pv-meta">学术</span></div>'
+  if (has('createdAt')) html += '<div class="gs-pv-field"><span class="gs-pv-meta">08-28</span></div>'
   return html
 })
 
@@ -1196,7 +1230,7 @@ function handleFileImport(e: Event) {
       const imported = JSON.parse(reader.result as string) as AppData
       // R47-A2：版本校验（不兼容直接拒绝，不做部分导入）
       if (!imported || typeof imported !== 'object' || imported.version !== 2) {
-        showToast('✗ 数据版本不兼容（需 v2 格式），已取消导入'); return
+        showToast('数据版本不兼容（需 v2 格式），已取消导入'); return
       }
       // R47-A2：导入前自动备份当前数据到本地文件（防误合并，T3 安全网）
       // R70：自动备份同样剥离 Airtable 凭证与同步映射——用户不会预期「我只是导入，怎么生成了一个含令牌的文件」。
@@ -1207,7 +1241,7 @@ function handleFileImport(e: Event) {
       } catch (e) {
         // R114-59：导入前自动备份是防误合并安全网——失败必须让用户知道（导入仍继续，但明示风险）
         console.warn('[zy] 导入前自动备份失败', e)
-        showToast('⚠ 导入前自动备份失败（将直接导入，建议先取消并手动导出备份）')
+        showToast('导入前自动备份失败（将直接导入，建议先取消并手动导出备份）')
       }
       const n = mergeImport(imported)
       // R66-F4：全量包附带 uiPrefs 时自动应用主题/密度（即时生效，不再询问）
@@ -1230,8 +1264,8 @@ function handleFileImport(e: Event) {
         const wv = sanitizeWsView(ui.wsViewMode)
         if (Object.keys(wv).length) saveUIPrefs({ wsViewMode: wv })
       }
-      showToast(`✓ 导入完成（并集）：卡片 ${n.cards}、罗盘方向 ${n.dirs}、策展台 ${n.ws}${ui ? '；界面偏好已应用' : ''}${n.catFix ? `；分类树已自动修复（${n.catFix}）` : ''}${n.thesisClear ? `；中心论点重复已净化（清 ${n.thesisClear} 张多余标记）` : ''}；已自动下载导入前备份`)
-    } catch { showToast('✗ 文件格式错误，请选择有效的JSON文件') }
+      showToast(`导入完成（并集）：卡片 ${n.cards}、罗盘方向 ${n.dirs}、策展台 ${n.ws}${ui ? '；界面偏好已应用' : ''}${n.catFix ? `；分类树已自动修复（${n.catFix}）`: ''}${n.thesisClear ? `；中心论点重复已净化（清 ${n.thesisClear} 张多余标记）`: ''}；已自动下载导入前备份`)
+    } catch { showToast('文件格式错误，请选择有效的JSON文件') }
   }
   reader.readAsText(file)
   input.value = ''
@@ -1400,7 +1434,7 @@ async function exportAll() {
   const payload = uiPrefs ? { ...safeData, uiPrefs } : safeData
   downloadFile(`zhiyuan_backup_${dateStr()}.json`, JSON.stringify(payload, null, 2))
   markBackupNow()
-  showToast('✓ 全量数据已导出（含全部策展台与界面偏好）')
+  showToast('全量数据已导出（含全部策展台与界面偏好）')
 }
 
 /** 第卌一轮 REQ-055：资源目录字段 → CSV 单元格文本（系统字段键值映射；自定义字段取 customFields） */
@@ -1455,7 +1489,7 @@ function exportCsvForWorkspace() {
     { label: '分类路径', get: r => catPathOf(d, r.workspaceId, r.categoryId).path || '待分类' },
     { label: '层级', get: r => String(catPathOf(d, r.workspaceId, r.categoryId).level) },
     { label: '是否中心论点', get: r => (r.isThesis ? '是' : '') },
-    { label: '镜像标记', get: r => (isMirrorView(r) ? '📡' : '') },
+    { label: '镜像标记', get: r => (isMirrorView(r) ? '是' : '') },
     { label: '置顶', get: r => (r.pinned ? '是' : '') },
     { label: '星标', get: r => (r.starred ? '是' : '') },
     { label: '更新时间', get: r => (r.updatedAt ? new Date(r.updatedAt).toISOString().slice(0, 10) : '') }
@@ -1466,7 +1500,7 @@ function exportCsvForWorkspace() {
     '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n'),
     'text/csv;charset=utf-8')
   markBackupNow()
-  showToast(`✓ 「${wsDisplayNameOf(ws)}」已导出 ${cards.length} 条资源卡 CSV`)
+  showToast(`「${wsDisplayNameOf(ws)}」已导出 ${cards.length} 条资源卡 CSV`)
 }
 
 function exportWorkspace() {
@@ -1488,7 +1522,7 @@ function exportWorkspace() {
   }
   downloadFile(`zhiyuan_${ws.name}_${dateStr()}.json`, JSON.stringify(subset, null, 2))
   markBackupNow()
-  showToast(`✓ 「${ws.name}」已导出`)
+  showToast(`「${ws.name}」已导出`)
 }
 
 function exportMarkdown() {
@@ -1516,8 +1550,8 @@ function exportMarkdown() {
       md += `### ${catMap.get(catId) || '待分类'}\n\n`
       for (const r of catCards) {
         md += `- [${r.title}](${r.link})`
-        if (r.description) md += ` — ${r.description}`
-        if (r.tags?.length) md += ` ${r.tags.map(t => `#${t}`).join(' ')}`
+        if (r.description) md += `— ${r.description}`
+        if (r.tags?.length) md += `${r.tags.map(t => `#${t}`).join(' ')}`
         md += '\n'
       }
       md += '\n'
@@ -1525,7 +1559,7 @@ function exportMarkdown() {
   }
   downloadFile(`zhiyuan_resources_${dateStr()}.md`, md, 'text/markdown;charset=utf-8')
   markBackupNow()
-  showToast('✓ 资源卡已导出为Markdown')
+  showToast('资源卡已导出为Markdown')
 }
 
 function csvEscape(v: string): string {
@@ -1557,7 +1591,7 @@ function doReset() {
   store.persist()
   clearHot() // R148-P0b：热度拆键后，回滚必须连热度键一起清，否则旧 stats 下次启动会覆盖回来
   closeResetModal()
-  showToast('✓ 已回滚至初始状态')
+  showToast('已回滚至初始状态')
   setTimeout(() => router.push('/compass'), 800)
 }
 /** R128-A3：与回收站页共用同一硬删引擎（此前这里只 filter 数组——附件 Blob 全量泄漏成孤儿、
@@ -1572,10 +1606,10 @@ async function emptyRecycleBin() {
   if (!(await useConfirm({ title: '清空回收站', message: `确定永久删除回收站里全部 ${n} 项？\n不可恢复，且仅被这些卡引用的附件本体会一并清除。`, confirmText: `永久删除 ${n} 项` }))) return
   const r = await purgeCardsCompletely(d, targets)
   store.persist()
-  const parts = [`✓ 回收站已清空，永久删除 ${r.cards} 项`]
+  const parts = [`回收站已清空，永久删除 ${r.cards} 项`]
   if (r.assetsPurged) parts.push(`清理 ${r.assetsPurged} 个附件本体`)
   if (r.assetsShared) parts.push(`${r.assetsShared} 个共享附件保留`)
-  showToast(parts.join(' · ') + (r.assetsFailed ? ` ⚠ ${r.assetsFailed} 个附件删除失败（可清理孤儿）` : ''))
+  showToast(parts.join('· ') + (r.assetsFailed ? `  ${r.assetsFailed} 个附件删除失败（可清理孤儿）` : ''))
 }
 /** R146：这行按钮原先是**假回执**（函数体只有一句 showToast('✓ 缓存已清除')，什么都没做）——
  *  它会污染用户对其它 ✓ 的信任。现在真做事：清 AI 抓过的网页正文会话缓存与整体梳理抽读缓存
@@ -1585,7 +1619,7 @@ function clearCache() {
   const links = clearLinkCache()
   const snips = reviseSnips.size
   reviseSnips.clear()
-  showToast(links || snips ? `✓ 缓存已清：${links} 篇网页正文 · ${snips} 篇梳理抽读正文（卡片数据未动）` : '✓ 没有需要清理的缓存（AI 会话正文是空的）')
+  showToast(links || snips ? `缓存已清：${links} 篇网页正文 · ${snips} 篇梳理抽读正文（卡片数据未动）` : '没有需要清理的缓存（AI 会话正文是空的）')
 }
 
 // ---- 抓取偏好 ----
@@ -1683,7 +1717,7 @@ const atStatusText = computed(() => {
   if (s.lastSyncedCount != null) parts.push(`推送 ${s.lastSyncedCount} 条`)
   if (s.lastSyncMs != null) parts.push(`耗时 ${(s.lastSyncMs / 1000).toFixed(1)}s`)
   if (s.lastSyncCalls != null) parts.push(`调用 ${s.lastSyncCalls} 次`)
-  return parts.join(' · ')
+  return parts.join('· ')
 })
 const atErrorText = computed(() => atState.value.lastError || '')
 
@@ -1696,9 +1730,9 @@ async function testAtConnection() {
     atTableName.value = name
     atState.value.tableName = name
     store.persist()
-    showToast('✓ 连接成功：' + name)
+    showToast('连接成功：' + name)
   } catch (e) {
-    showToast('✗ ' + (e instanceof Error ? e.message : String(e)))
+    showToast('' + (e instanceof Error ? e.message : String(e)))
   } finally { atBusy.value = false }
 }
 
@@ -1710,10 +1744,10 @@ async function runAtSync() {
     syncAtConfig()
     const r = await runSync(store.data!)
     store.persist()
-    showToast(`✓ 同步完成：推送 ${r.pushed} 条 · 调用 ${r.calls} 次`)
+    showToast(`同步完成：推送 ${r.pushed} 条 · 调用 ${r.calls} 次`)
   } catch (e) {
     store.persist()
-    showToast('✗ 同步失败：' + (e instanceof Error ? e.message : String(e)))
+    showToast('同步失败：' + (e instanceof Error ? e.message : String(e)))
   } finally { atBusy.value = false }
 }
 
@@ -1722,7 +1756,7 @@ function toggleAtPoll() {
   s.pollEnabled = !s.pollEnabled
   store.persist()
   // 轮询注册由 background 监听 storage 变化自管（63-10）
-  showToast(s.pollEnabled ? '✓ 已开启 3 小时自动轮询' : '已关闭自动轮询')
+  showToast(s.pollEnabled ? '已开启 3 小时自动轮询' : '已关闭自动轮询')
 }
 
 
@@ -1884,7 +1918,7 @@ const ttRows = computed<TtRow[]>(() => {
       out.push({ kind: 'curiosity', id: c.id, title: c.question, sub: c.status === 'done' ? '已求证' : c.status === 'doing' ? '探索中' : c.status === 'shelf' ? '已搁置' : '待探索', status: c.status, tags: c.tags || [] })
     }
   }
-  return q ? out.filter(x => (x.title + ' ' + x.sub + ' ' + (x.link || '')).toLowerCase().includes(q)) : out
+  return q ? out.filter(x => (x.title + '' + x.sub + '' + (x.link || '')).toLowerCase().includes(q)) : out
 })
 function onTtRowClick(row: TtRow) { ttTogglePick(row.id) }
 // R132-T1：全选本标签——口径为当前类型过滤/搜索结果集（ttRows），与全景「全选本分类」一致
@@ -1916,7 +1950,7 @@ function aiAddPersona() {
   patchAiConfig({ customPersonas: list })
   aiPersonaSel.value = [...aiPersonaSel.value, list[list.length - 1].id]
   aiNewP.name = ''; aiNewP.brief = ''; aiNewP.focus = ''
-  showToast(`✓ 已添加专家「${name}」`)
+  showToast(`已添加专家「${name}」`)
 }
 function aiRemovePersona(id: string) {
   patchAiConfig({ customPersonas: (aiConfig.value.customPersonas || []).filter(x => x.id !== id) })
@@ -1956,14 +1990,14 @@ async function aiTagRevise() {
   if (!aiGuard()) return
   await loadAiConfig()
   const jb = buildTagBlueprintJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() })
-  if (!jb) { showToast('⚠ 全库卡还太少（三类合计不足 6 张），整体梳理等有库了再来'); return }
+  if (!jb) { showToast('全库卡还太少（三类合计不足 6 张），整体梳理等有库了再来'); return }
   aiJob.value = jb
 }
 function aiJobClosed() {
   if (consumeTagBlueprintAdopted()) {
     aiReviseBak.value = { at: Date.now() }
     const aj = buildTagAssignJob({ d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist() })
-    if (aj) { aiJob.value = aj; showToast('✓ 蓝图已落地，接着全卡归架打标'); return }
+    if (aj) { aiJob.value = aj; showToast('蓝图已落地，接着全卡归架打标'); return }
   }
   aiJob.value = null
   aiJobKey.value = ''
@@ -1991,14 +2025,14 @@ function aiGuard(): boolean {
 }
 async function aiFetchModels() {
   aiBusy.value = 'models'; aiMsg.value = ''
-  try { aiModels.value = await listModels(); aiMsg.value = `✓ 拉到 ${aiModels.value.length} 个模型，可直接选用` }
-  catch (e) { aiModels.value = []; aiMsg.value = `⚠ 列表拉取失败：${aiErr(e)}（模型名可手填）` }
+  try { aiModels.value = await listModels(); aiMsg.value = `拉到 ${aiModels.value.length} 个模型，可直接选用` }
+  catch (e) { aiModels.value = []; aiMsg.value = `列表拉取失败：${aiErr(e)}（模型名可手填）` }
   aiBusy.value = ''
 }
 async function aiTestConn() {
   aiBusy.value = 'test'; aiMsg.value = ''
-  try { aiMsg.value = `✓ 连接成功：${await aiTestConnection()}` }
-  catch (e) { aiMsg.value = `⚠ ${aiErr(e)}` }
+  try { aiMsg.value = `连接成功：${await aiTestConnection()}` }
+  catch (e) { aiMsg.value = `${aiErr(e)}` }
   aiBusy.value = ''
 }
 function aiTogglePersona(id: string) {
@@ -2059,7 +2093,7 @@ function aiEnrichIds(ids: Set<string>) {
         const fresh = freshTagsOf(addTags, known)
         if (fresh.length) drop.fresh++
         const parts: string[] = []
-        if (addTags.length) parts.push(`标签 +${addTags.join('、')}${fresh.length ? `（其中 ${fresh.join('、')} 是体系外新词）` : ''}`)
+        if (addTags.length) parts.push(`标签 +${addTags.join('、')}${fresh.length ? `（其中 ${fresh.join('、')} 是体系外新词）`: ''}`)
         if (s.description?.trim() && !card.description) parts.push(`描述：${s.description.trim()}`)
         if (s.categoryId && s.categoryId !== card.categoryId) parts.push(`分类 → ${aiCatPathOf(d, s.categoryId)}`)
         if (!parts.length) { drop.empty++; continue }
@@ -2083,7 +2117,7 @@ function aiEnrichIds(ids: Set<string>) {
         n++
       }
       if (n) store.persist()
-      return `✓ 已补全 ${n} 张卡`
+      return `已补全 ${n} 张卡`
     },
   }
 }
@@ -2113,21 +2147,21 @@ function aiDiagnose() {
         dd.tasks.unshift({
           id: uid('tk'), kind: 'task', title: String(f.title).slice(0, 40), status: 'todo',
           priority: f.severity === 'high' ? 'high' : f.severity === 'low' ? 'low' : 'medium',
-          description: ['🧠 诊断发现：', f.detail, f.suggestion && `➜ 建议：${f.suggestion}`].filter(Boolean).join('\n').slice(0, 600),
+          description: ['诊断发现：', f.detail, f.suggestion && `➜ 建议：${f.suggestion}`].filter(Boolean).join('\n').slice(0, 600),
           customFields: {},
           createdAt: Date.now(), updatedAt: Date.now(),
         } as import('@/shared/models').TaskCard)
         n++
       }
       if (n) store.persist()
-      return `✓ 已生成 ${n} 张诊断跟进任务（在任务面板未归类区，可再挂链）`
+      return `已生成 ${n} 张诊断跟进任务（在任务面板未归类区，可再挂链）`
     },
     async run({ signal, onDelta }) {
       let progress = ''
       const rows: AiRow[] = []
       for (const p of sel) {
         if (signal.aborted) break
-        progress += `⏳ ${p.icon} ${p.name} 分析中…\n`
+        progress += `${p.icon} ${p.name} 分析中…\n`
         onDelta(progress)
         const text = await chatStream({
           messages: [{ role: 'system', content: diagnosisSystem(p, ov[p.id]?.style || '') }, { role: 'user', content: digest }],
@@ -2144,14 +2178,14 @@ function aiDiagnose() {
           sub: [f.detail, f.suggestion && `➜ ${f.suggestion}`].filter(Boolean).join('\n'),
           data: f,
         }))
-        progress = progress.replace(`⏳ ${p.icon} ${p.name} 分析中…\n`, `✅ ${p.icon} ${p.name}：${found.length} 条发现\n`)
+        progress = progress.replace(`${p.icon} ${p.name} 分析中…\n`, `${p.icon} ${p.name}：${found.length} 条发现\n`)
         onDelta(progress)
       }
       if (!rows.length) throw new Error('各位专家都没有给出可成立的发现（数据太稀疏或模型过于保守，可换深度档重试）')
       return rows
     },
   }, { d, persist: () => store.persist() },
-    () => `🧠 深度诊断 ${new Date().toLocaleDateString('zh-CN')}`,
+    () => `深度诊断 ${new Date().toLocaleDateString('zh-CN')}`,
     (rows) => rows.map(r => `## ${r.badge || ''} ${r.main}\n${r.sub || ''}`).join('\n\n'),
     ['深度诊断']), '各位专家没有给出可成立的发现')
 }
@@ -2193,7 +2227,7 @@ function openCardLink(r: { linkType?: string; link?: string; assets?: Array<{ id
   }
   const url = toOpenableUrl(r.linkType as never, r.link || '')
   if (url) openExternalLink(url)
-  else showToast('⛔ 该卡片无可打开链接')
+  else showToast('该卡片无可打开链接')
 }
 /** B16：行内重命名 */
 function ttRename(id: string) {
@@ -2237,7 +2271,7 @@ function ttConfirm() {
     d.tasks.forEach(applySwap)
     d.curiosities.forEach(applySwap)
     store.persist()
-    showToast(synced ? `✓ 已重命名并同步 ${synced} 张卡片` : '✓ 已重命名（该标签当前无卡片挂载）')
+    showToast(synced ? `已重命名并同步 ${synced} 张卡片` : '已重命名（该标签当前无卡片挂载）')
   } else if (ed.parentId) {
     const parent = findTagNode(ed.parentId)
     if (!parent) return
@@ -2247,13 +2281,13 @@ function ttConfirm() {
     store.persist()
     ttCollapsed.value = new Set([...ttCollapsed.value].filter(x => x !== parent.node.id))
     ttFlash(nid)
-    showToast(`✓ 已在 #${parent.node.name} 下创建 #${name}`)
+    showToast(`已在 #${parent.node.name} 下创建 #${name}`)
   } else {
     const nid = uid('tag')
     store.data!.tagTree.push({ id: nid, name })
     store.persist()
     ttFlash(nid)
-    showToast(`✓ 已创建 #${name}`)
+    showToast(`已创建 #${name}`)
   }
 }
 function ttCancel() { ttEditing.value = null }
@@ -2263,7 +2297,7 @@ async function ttRemove(id: string) {
   const ids = tagSubtreeIds(id)
   const names = tagFlat().filter(t => ids.includes(t.id)).map(t => '#' + t.name)
   const subCount = ids.length - 1
-  if (!(await useConfirm({ title: '删除标签', message: `确定删除 ${names.join(' ')} ？${subCount > 0 ? `\n（含 ${subCount} 个子标签）` : ''}\n卡片上的对应标签会一并移除。`, confirmText: '确认删除' }))) return
+  if (!(await useConfirm({ title: '删除标签', message: `确定删除 ${names.join(' ')} ？${subCount > 0 ? `\n（含 ${subCount} 个子标签）`: ''}\n卡片上的对应标签会一并移除。`, confirmText: '确认删除' }))) return
   // R126（诉求 7）：删除级联——同步移除卡片上的路径标签（含子路径）
   const killPaths = new Set<string>()
   const collectPaths = (node: { name: string; children?: unknown[] }, parentName?: string) => {
@@ -2279,7 +2313,7 @@ async function ttRemove(id: string) {
   d.tasks.forEach(t => t.tags = strip(t.tags))
   d.curiosities.forEach(c => c.tags = strip(c.tags))
   store.persist()
-  showToast(`🗑 已删除 ${names.join(' ')}${subCount > 0 ? `（含 ${subCount} 个子标签）` : ''}`)
+  showToast(`已删除 ${names.join(' ')}${subCount > 0 ? `（含 ${subCount} 个子标签）`: ''}`)
 }
 function ttDragStart(e: DragEvent, id: string) { ttDragId = id }
 function ttDragEnd() { ttDragId = null; ttDropTarget.value = '' }
@@ -2314,7 +2348,7 @@ function ttDrop(e: DragEvent, targetId: string) {
   d.curiosities.forEach(c => c.tags = swap(c.tags))
   store.persist()
   ttDragId = null
-  showToast(`✅ 「${from.node.name}」已成为「${to.node.name}」的子标签（卡片同步为 #${newPath}）`)
+  showToast(`「${from.node.name}」已成为「${to.node.name}」的子标签（卡片同步为 #${newPath}）`)
 }
 /** R126（诉求 7）：子标签提升为根（卡片路径回退为名称） */
 function ttUnnest(rootId: string, childId: string) {
@@ -2395,7 +2429,7 @@ const activeManualSec = ref('quick-1')
 .gs-nav-item:hover { background: var(--surface-3); color: var(--text); }
 .gs-nav-item:hover { background: var(--surface-3); color: var(--text); }
 .gs-nav-item.active { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
-.gs-nav-icon { font-size: 14px; width: 18px; text-align: center; }
+.gs-nav-icon { font-size: 14px; width: 18px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
 
 /* 右侧内容 */
 .gs-content { flex: 1; min-width: 0; max-width: 1100px; padding: 24px 32px; overflow-y: auto; } /* R155-①：容器放到 1440 后右栏会到 1230px，表单强行拉满则单行过长 → 内容列限宽 1100 */
@@ -2418,11 +2452,30 @@ const activeManualSec = ref('quick-1')
 /* 设置行 */
 .gs-setting-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
 .gs-setting-row:last-child { border-bottom: none; }
+/* ★V3.8.25（B1-a）：两条修饰类，收的是原先写在模板上的内联样式 */
+.gs-setting-row--gap { margin-top: 6px; }
+.gs-setting-row--top { align-items: flex-start; }
 .gs-sr-label { font-size: var(--fs-body); color: var(--text); min-width: 120px; }
+.gs-sr-label--nowrap { white-space: nowrap; }
 .gs-sr-control { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+/* 按钮 + 状态文字并排：只把 gap 从 8 放大到 10，其余沿用 .gs-sr-control */
+.gs-sr-control--inline { gap: 10px; }
 /* R4-Dd：带说明文字的setting行——说明占满余下宽度并允许换行，输入框不被挤扁 */
 .gs-sr-control-wrap { gap: 10px; flex-wrap: wrap; }
 .gs-sr-hint { font-size: var(--fs-caption); color: var(--text-3); flex: 1; min-width: 220px; }
+/* ★V3.8.25（B1-a）：设置行右侧的说明性文字（同步范围 / 增量游标 / 上次同步 / 扩展版本）
+   原先每处各写一份内联 `font-size + color`，现归成一个基类 + 三个修饰。 */
+.gs-sr-note { font-size: var(--fs-sub); color: var(--text-2); }
+.gs-sr-note--muted { color: var(--text-3); }
+.gs-sr-note--danger { color: var(--danger); }
+.gs-sr-note--wrap { max-width: 380px; line-height: 1.7; text-align: left; }
+.gs-sr-note--log { max-width: 420px; text-align: left; }
+/* 连接测试成功态：原先是 `var(--ok, var(--info-green, #3A6B4C))`，两个令牌都不存在 ⇒ 四主题一律吃硬编码 */
+.gs-sr-ok { font-size: var(--fs-sub); color: var(--success); }
+.gs-log-ico { flex-shrink: 0; }
+.gs-log-ico.ok { color: var(--success); }
+.gs-log-ico.err { color: var(--danger); }
+.gs-log-dot { color: var(--text-4); }
 
 /* 开关 */
 .gs-toggle { width: 38px; height: 21px; border-radius: 99px; background: var(--border-strong); cursor: pointer; position: relative; transition: background .2s; flex-shrink: 0; }
@@ -2439,6 +2492,12 @@ const activeManualSec = ref('quick-1')
 .gs-input::placeholder { color: var(--text-4); }
 .gs-select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: var(--fs-sub); color: var(--text); background: var(--surface); outline: none; transition: all var(--dur); font-family: inherit; }
 .gs-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+/* ★V3.8.25（B1-a）：Airtable 连接区三种输入框宽度（原先写在模板内联 style 上）。
+   `--pat` 是 PAT 凭据框（占位提示最长，320）；`--ident` 是 Base/Table/标签列名（260）。 */
+.gs-input--pat { width: 320px; }
+.gs-input--ident { width: 260px; }
+/* 隐藏的原生 file input（导入 JSON / 附件包 / 书签 HTML 三个触发器） */
+.gs-file-hidden { display: none; }
 
 /* 按钮 */
 .gs-btn { padding: 7px 16px; border-radius: 8px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all var(--dur); display: inline-flex; align-items: center; gap: 5px; font-family: inherit; }
@@ -2453,7 +2512,17 @@ const activeManualSec = ref('quick-1')
 
 .gs-field-add { margin-top: 10px; padding: 14px; border: 1.5px dashed var(--border-strong); border-radius: 8px; text-align: center; cursor: pointer; font-size: var(--fs-body); color: var(--text-3); transition: all var(--dur); }
 .gs-field-add:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
+/* 两个并列的虚线按钮（新建根标签 / 从卡片收纳）：原先第二个写内联 margin-left:8px */
+.gs-field-add + .gs-field-add { margin-left: 8px; }
 .gs-field-hint { margin-top: 12px; padding: 10px 14px; background: var(--accent-light); border-radius: 8px; font-size: var(--fs-sub); color: var(--accent-ink); line-height: 1.7; }
+
+/* ★V3.8.25（B1-a）：手册页的"已升级为独立阅读页"空态。
+   原先是一串内联 flex + 三处 font-size，其中大图标因为 Icon 用 width/height 定尺寸而一直是 13px。
+   注意本段必须排在 `.gs-card-body` 之后，否则同为单类选择器时 padding 抢不过 16px 18px。 */
+.gs-empty { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 40px 20px; text-align: center; }
+.gs-empty-ico { line-height: 1; }
+.gs-empty-title { font-size: var(--fs-title); font-weight: 600; color: var(--text); }
+.gs-empty-desc { font-size: var(--fs-sub); color: var(--text-3); line-height: 1.8; max-width: 420px; }
 
 /* 预览 */
 .gs-preview-section { margin-top: 16px; }
@@ -2462,14 +2531,24 @@ const activeManualSec = ref('quick-1')
 .gs-preview-tab { padding: 4px 11px; border-radius: 6px; font-size: var(--fs-caption); cursor: pointer; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); transition: all var(--dur); }
 .gs-preview-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .gs-preview-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 14px; min-height: 80px; }
-.gs-pv-field { margin-bottom: 6px; font-size: var(--fs-sub); }
-.gs-pv-field:last-child { margin-bottom: 0; }
-.gs-pv-field-title { font-weight: 600; color: var(--text); font-size: var(--fs-body); }
-.gs-pv-field-label { color: var(--text-3); font-size: var(--fs-tiny); margin-right: 4px; }
-.gs-pv-field-text { color: var(--text-2); }
-.gs-pv-field-tags { display: inline-flex; gap: 4px; }
-.gs-pv-tag { font-size: var(--fs-micro); padding: 1px 6px; border-radius: 99px; background: var(--accent-light); color: var(--accent-ink); }
-.gs-pv-field-link { font-size: var(--fs-caption); color: var(--accent); }
+/* ★V3.8.25（B1-a）：以下 8 条原本是裸 `.gs-pv-*`，配合 `v-html` 注入的节点**从未生效**
+   （注入节点没有 scope id，`.gs-pv-field[data-v-xxxx]` 匹配不到）。宿主 `.gs-preview-card`
+   带 scope id，用 `:deep()` 放行其内部，规则才真正命中。新增的 `--sm` / `--meta` / `--desc` /
+   `--list` / `--name` 是原来写在字符串内联 style 里的那几条，收进来一并生效。 */
+.gs-preview-card :deep(.gs-pv-field) { margin-bottom: 6px; font-size: var(--fs-sub); }
+.gs-preview-card :deep(.gs-pv-field:last-child) { margin-bottom: 0; }
+.gs-preview-card :deep(.gs-pv-field-title) { font-weight: 600; color: var(--text); font-size: var(--fs-body); }
+.gs-preview-card :deep(.gs-pv-field-title--sm) { font-size: var(--fs-sub); }
+.gs-preview-card :deep(.gs-pv-field-label) { color: var(--text-3); font-size: var(--fs-tiny); margin-right: 4px; }
+.gs-preview-card :deep(.gs-pv-field-text) { color: var(--text-2); }
+.gs-preview-card :deep(.gs-pv-field-tags) { display: inline-flex; gap: 4px; }
+.gs-preview-card :deep(.gs-pv-tag) { font-size: var(--fs-micro); padding: 1px 6px; border-radius: 99px; background: var(--accent-light); color: var(--accent-ink); }
+.gs-preview-card :deep(.gs-pv-field-link) { font-size: var(--fs-caption); color: var(--accent); }
+.gs-preview-card :deep(.gs-pv-field-link--sm) { font-size: var(--fs-tiny); }
+.gs-preview-card :deep(.gs-pv-desc) { color: var(--text-3); font-size: var(--fs-caption); }
+.gs-preview-card :deep(.gs-pv-list) { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gs-preview-card :deep(.gs-pv-name) { font-weight: 600; font-size: var(--fs-sub); }
+.gs-preview-card :deep(.gs-pv-meta) { font-size: var(--fs-tiny); color: var(--text-3); }
 
 /* 导入导出 */
 .gs-import-option { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-xs); margin-bottom: 10px; cursor: pointer; transition: all var(--dur); background: var(--surface); }
@@ -2547,6 +2626,10 @@ const activeManualSec = ref('quick-1')
 .gs-about-row .value { color: var(--text-2); }
 .gs-about-row .value.gs-link { color: var(--accent); cursor: pointer; }
 .gs-about-row .value.gs-link:hover { text-decoration: underline; }
+/* ★V3.8.25（B1-a）：保存异常行里"已处理 ›"需要与前面的字节数拉开 8px（原先写内联 margin-left） */
+.gs-about-row .value .gs-link--spaced { margin-left: 8px; }
+/* 回滚确认弹窗里的高危强调（原先两处写内联 color:var(--danger)） */
+.gs-danger-text { color: var(--danger); }
 
 /* 弹窗 */
 .gs-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: var(--z-modal); display: none; align-items: center; justify-content: center; }
@@ -2559,6 +2642,8 @@ const activeManualSec = ref('quick-1')
 .gs-confirm-input:focus { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(196,68,68,.15); }
 .gs-modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
 .gs-manual-open { padding: 10px 22px; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; transition: all var(--dur); }
+/* 信件页底部"下载这封信"按钮的居中容器（原先写内联 text-align + margin-top） */
+.gs-letter-actions { text-align: center; margin-top: 14px; }
 .gs-manual-open:hover { background: var(--accent-hover); }
 
 /* 一封信 */
@@ -2718,4 +2803,7 @@ const activeManualSec = ref('quick-1')
 .ai-btn-mini { width: 20px; height: 20px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: transparent; color: var(--text-3); font-size: var(--fs-tiny); cursor: pointer; line-height: 1; }
 .ai-btn-mini.on { border-color: var(--accent); color: var(--accent); }
 .ai-btn-mini.danger:hover { color: var(--danger); border-color: var(--danger); }
+/* ★V3.8.25（B1-a）：`.ai-btn-mini` 是 20×20 的方图标钮；"恢复内置默认"要带文字，
+   故放开宽度、改内边距（原先写内联 width/padding）。 */
+.ai-btn-mini--text { width: auto; padding: 2px 8px; }
 </style>

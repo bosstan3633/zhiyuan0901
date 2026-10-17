@@ -52,7 +52,7 @@ const parsed = computed<{ thesis: string; why: string; parts: ThesisPartView[] }
       <li v-for="p in parsed.parts" :key="p.name">
         <b>{{ p.name }}</b><span v-if="p.definition" class="tb-def">—— {{ p.definition }}</span>
         <span class="tb-tag" :class="{ dim: !p.cards }">{{ p.cards ? '佐证 ' + p.cards + ' 张' : '没点到卡' }}</span>
-        <span class="tb-tag" :class="{ dim: !p.shelved }" :title="p.shelved ? '本台已有同名一级分类' : '本台还没建这个分支分类——要落架用提炼抽屉底部「🗂 分论点建成分类并归架」'">{{ p.shelved ? '✓ 已建架' : '○ 未建架' }}</span>
+        <span class="tb-tag" :class="{ dim: !p.shelved }" :title="p.shelved ? '本台已有同名一级分类' : '本台还没建这个分支分类——要落架用提炼抽屉底部「分论点建成分类并归架」'">{{ p.shelved ? '已建架' : '○ 未建架' }}</span>
       </li>
     </ol>
     <div v-else class="tb-none">还没有分论点骨架——只有论点一句话，可在策展台头重新提炼。</div>

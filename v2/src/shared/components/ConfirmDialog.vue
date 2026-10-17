@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '@/shared/components/Icon.vue'
 import { useOverlayTarget } from '@/shared/utils/overlayHost'
 // R113-N5：Teleport 目标动态化——金字塔真全屏期间浮层挂进全屏元素（否则不可见）
 const overlayTarget = useOverlayTarget()
@@ -19,7 +20,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
     <Transition name="cdf">
       <div v-if="confirmState.open" class="cdf-mask" @click="resolveConfirm(false)">
         <div class="cdf-box" @click.stop>
-          <div class="cdf-icon" :class="{ danger: confirmState.danger }">{{ confirmState.danger ? '🗑' : '❓' }}</div>
+          <div class="cdf-icon" :class="{ danger: confirmState.danger }"><Icon v-if="confirmState.danger" name="trash" :size="20"/><Icon v-else name="question" :size="20"/></div>
           <div class="cdf-title">{{ confirmState.title }}</div>
           <div class="cdf-msg">{{ confirmState.message }}</div>
           <div class="cdf-btns">

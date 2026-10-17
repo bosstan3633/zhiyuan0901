@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // R148-P1a：显式实例名——纳入 KeepAlive（切模块免重挂载与免重算首屏）
 defineOptions({ name: 'CompassTreeView' })
+import Icon from '@/shared/components/Icon.vue'
 
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, defineAsyncComponent, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -56,7 +57,7 @@ async function aiChain(level: import('@/shared/ai/scenarios').ChainLevel, anchor
   if (aiPersonaId.value === 'default' && aiConfig.value.defaultPersona) aiPersonaId.value = aiConfig.value.defaultPersona
   aiChainLast = { level, anchorId }
   const job = buildChainJob(level, anchorId, { d: d.value, depth: aiConfig.value.depth, persist: () => store.persist(), addProject: (id, name) => addProjectToDir(id, name), personaId: aiPersonaId.value, onPersona: (id) => { aiPersonaId.value = id; void aiChain(aiChainLast.level, aiChainLast.anchorId) } })
-  if (!job) { showToast('⚠ 锚点实体已不存在，请刷新后重试'); return }
+  if (!job) { showToast('锚点实体已不存在，请刷新后重试'); return }
   aiJob.value = job
 }
 
@@ -243,7 +244,7 @@ function toggleProjectPin(dir: Direction, p: Project) {
     p.order = minOrder - 1
   }
   store.persist()
-  showToast(p.pinned ? `📌 「${p.name}」置顶到该目标前排` : '已取消置顶')
+  showToast(p.pinned ? `「${p.name}」置顶到该目标前排` : '已取消置顶')
 }
 
 // R86（T0）：已完成项目显隐改由 store 提供（showDone / toggleShowDone）——三处模块共用同一份实现。
@@ -506,7 +507,7 @@ function onDirFilter(id: string) {
 }
 function toggleRiskOnly() {
   riskOnly.value = !riskOnly.value
-  showToast(riskOnly.value ? '⚠ 只看断链：缺任务指标 + 无归属任务' : '已恢复全部内容')
+  showToast(riskOnly.value ? '只看断链：缺任务指标 + 无归属任务' : '已恢复全部内容')
 }
 /** 跳到第一条无归属收容区（全景下则先把主体切到那个有缺口的项目，再进全景的收容泳道） */
 function gotoOrphans() {
@@ -538,12 +539,12 @@ function showRiskReport() {
       const p = findProject(pm.id)
       lines.push(`## ${g.dir.name} › ${p?.name || pm.id}`)
       for (const m of pm.metrics) {
-        if (m.orphanMetric) lines.push(`- ⚠ 指标「${m.title}」零任务（验收：${m.acceptance || '未写'}）`)
+        if (m.orphanMetric) lines.push(`-  指标「${m.title}」零任务（验收：${m.acceptance || '未写'}）`)
       }
-      for (const t of pm.orphanTasks) lines.push(`- ⚠ 任务「${t.title}」未挂任何成功指标`)
+      for (const t of pm.orphanTasks) lines.push(`-  任务「${t.title}」未挂任何成功指标`)
     }
   }
-  if (lines.length === 2) { showToast('✓ 当前无断链'); return }
+  if (lines.length === 2) { showToast('当前无断链'); return }
   const blob = new Blob([lines.join('\n')], { type: 'text/markdown' })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
@@ -624,7 +625,7 @@ function saveEdit(field: string, e: FocusEvent | KeyboardEvent) {
     store.persist()
   }
   editingField.value = null
-  showToast('✓ 已保存')
+  showToast('已保存')
 }
 
 function cancelEdit() {
@@ -642,7 +643,7 @@ function addDirection() {
   }
   d.value.compass.directions.push(dir)
   store.persist()
-  showToast('✓ 战略目标已创建，点击标题编辑')
+  showToast('战略目标已创建，点击标题编辑')
 }
 
 /**
@@ -652,7 +653,7 @@ function addDirection() {
  */
 function addProject(dirId: string) {
   const proj = addProjectToDir(dirId, '新攻坚项目')
-  if (proj) showToast('✓ 项目已创建')
+  if (proj) showToast('项目已创建')
 }
 
 /** R108（T2）：战略目标 · Markdown 模板批量导入——项目/指标/任务一次生成。
@@ -699,7 +700,7 @@ function confirmGoalImport(payload: { goal?: GoalParseResult }) {
   }
   store.persist()
   goalImport.value.open = false
-  showToast(`✓ 已导入：项目 ${pc} · 指标 ${mc} · 任务 ${tc}${sk ? `（跳过同名 ${sk}）` : ''}`)
+  showToast(`已导入：项目 ${pc} · 指标 ${mc} · 任务 ${tc}${sk ? `（跳过同名 ${sk}）`: ''}`)
 }
 
 /** ★F2（2026-10-15）：项目层模板导入 —— 入口在项目舱「⋯」菜单与全景项目头 📋。
@@ -708,14 +709,14 @@ function confirmGoalImport(payload: { goal?: GoalParseResult }) {
 const projImport = ref<{ open: boolean; projId: string; projName: string }>({ open: false, projId: '', projName: '' })
 function openProjImport(projId: string) {
   const proj = allProjects().find(x => x.id === projId)
-  if (!proj) { showToast('⚠ 项目已不在'); return }
+  if (!proj) { showToast('项目已不在'); return }
   projImport.value = { open: true, projId, projName: proj.name }
 }
 function confirmProjImport(payload: { proj?: import('@/shared/utils/mdImport').ProjImportResult }) {
   const g = payload.proj
   if (!g) return
   const proj = allProjects().find(x => x.id === projImport.value.projId)
-  if (!proj) { showToast('⚠ 项目已不在'); return }
+  if (!proj) { showToast('项目已不在'); return }
   let mc = 0, tc = 0, sk = 0
   for (const m of g.metrics) {
     let met = proj.metrics.find(x => x.title === m.name)
@@ -740,7 +741,7 @@ function confirmProjImport(payload: { proj?: import('@/shared/utils/mdImport').P
   }
   store.persist()
   projImport.value.open = false
-  showToast(`✓ 已导入：指标 ${mc} · 任务 ${tc}${sk ? `（跳过同名 ${sk}）` : ''}`)
+  showToast(`已导入：指标 ${mc} · 任务 ${tc}${sk ? `（跳过同名 ${sk}）`: ''}`)
 }
 /** R85（T0-A）：store 现返回结构化结果（超限会被拒绝），由调用方 toast——方向树此前无任何提示 */
 function onToggleFocus(id: string) {
@@ -758,7 +759,7 @@ function addMetric(projId: string) {
   proj.metrics.push(metric)
   store.persist()
   expandedMetrics.value.add(metric.id)
-  showToast('✓ 指标已创建')
+  showToast('指标已创建')
 }
 
 /** ★F1：删除成功指标 —— 四视图共用真源流程（报数确认 → 摘除 → 撤销），本函数只接线。
@@ -781,7 +782,7 @@ function onTaskCreated(t: TaskCard) { detailRef.value?.open(t) }
  *  （2026-10-13 真机反馈）。项目塔与全景两条路径都走这一处，单一实现。 */
 function openTaskDetail(taskId: string): void {
   const t = d.value.tasks.find((x) => x.id === taskId)
-  if (!t) { showToast('⚠ 该任务已不在'); return }
+  if (!t) { showToast('该任务已不在'); return }
   detailRef.value?.open(t)
 }
 const taskAddMetricTitle = computed(() => {
@@ -826,18 +827,18 @@ async function deleteNode(type: string, id: string) {
     : (c.tasks ? `\n其下 ${c.tasks} 个任务将回落「未关联指标」（任务本体不删）` : '\n该指标下还没有任务')
   if (!(await useConfirm({ title: `删除${c.label}`, message: `确定删除${c.label}「${name}」？${tail}`, confirmText: '确认删除' }))) return
   const snap = removeCompassNode(d.value, kind, id)
-  if (!snap) { showToast('⚠ 该节点已不存在'); return }
+  if (!snap) { showToast('该节点已不存在'); return }
   store.persist()
   showToast(`已删除${c.label}「${name.slice(0, 14)}」`, { label: '撤销', cb: () => {
-    if (restoreCompassNode(d.value, snap)) { store.persist(); showToast(`✓ 已恢复${c.label}「${name.slice(0, 14)}」`) }
-    else showToast(`⚠ 上级节点已不在，无法单独恢复「${name.slice(0, 14)}」`)
+    if (restoreCompassNode(d.value, snap)) { store.persist(); showToast(`已恢复${c.label}「${name.slice(0, 14)}」`) }
+    else showToast(`上级节点已不在，无法单独恢复「${name.slice(0, 14)}」`)
   } })
 }
 /** R141（反馈 #1）：指标下任务行的 ✕ = 解绑回任务调度模块，删除本体收进任务详情 */
 function unbindTask(task: TaskCard) {
   unbindTaskFromMetric(d.value, task)
   store.persist()
-  showToast(`✓ 已从本指标移除：「${task.title.slice(0, 16)}」回到任务调度模块`)
+  showToast(`已从本指标移除：「${task.title.slice(0, 16)}」回到任务调度模块`)
 }
 
 /* ★W11 二批清账：tasksForMetric() / metricTaskRows() 已退役。
@@ -1064,16 +1065,16 @@ onUnmounted(() => {
                但 fromProjId / goBack / Esc 返回**保留**——那是「从项目详情深链进来后按 Esc 送回原处」的
                来路感知（R54-A1），不是"进项目详情"的入口，两者语义不同。 -->
           <button class="tree-tool"
-            :title="allExpanded ? '当前：全部展开。点击收起全部战略目标与指标' : '当前：默认收起。点击展开全部层级'" @click="toggleAllNodes">↕ {{ allExpanded ? '全部收起' : '全部展开' }}</button>
+            :title="allExpanded ? '当前：全部展开。点击收起全部战略目标与指标' : '当前：默认收起。点击展开全部层级'" @click="toggleAllNodes"><Icon name="arrowupdown" :size="13"/> {{ allExpanded ? '全部收起' : '全部展开' }}</button>
           <button class="tree-tool" :class="{ off: !showDone }" @click="toggleShowDone"
-            title="与方向台页头同一开关（同一偏好，一处切换全台生效）">👁 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
+            title="与方向台页头同一开关（同一偏好，一处切换全台生效）"><Icon name="eye" :size="13"/> 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
         </div>
       </div>
       <!-- ★V3.8.20：健康度徽章移到读数行首位（原左栏 .hero-health，N13 意图"状态不参与动作区竞争"随迁）。
            ★不在这里重复断链条目数：骨架条的断链行已经有一份更全的清单，两处都写数字就会有两个真相。 -->
       <div class="hero-stats">
         <span class="dhi-badge" :class="dhiStatus.cls">
-          <span aria-hidden="true">🧭</span>
+          <span aria-hidden="true"><Icon name="compass" :size="13"/></span>
           <span>方向健康度：{{ dhiStatus.label }}</span>
         </span>
         <i>·</i>
@@ -1081,8 +1082,8 @@ onUnmounted(() => {
         <span>使命 {{ compassMeta.counts.mission }}</span><i>·</i>
         <span>战略目标 {{ treeStats.dirs }}</span><i>·</i>
         <span>项目 {{ treeStats.projects }}</span><i>·</i>
-        <span>🚀 主攻 {{ treeStats.focused }}</span><i>·</i>
-        <span>⚠ 停滞 {{ treeStats.stalled }}</span><i>·</i>
+        <span><Icon name="main-focus" :size="13"/> 主攻 {{ treeStats.focused }}</span><i>·</i>
+        <span><Icon name="stall" :size="13"/> 停滞 {{ treeStats.stalled }}</span><i>·</i>
         <span>指标 {{ treeStats.metrics }}</span><i>·</i>
         <span>任务 {{ treeStats.tasks }}</span>
       </div>
@@ -1144,7 +1145,7 @@ onUnmounted(() => {
             <span class="ns-idx">{{ dg.i + 1 }}.{{ pi + 1 }}</span>
             <span class="ns-body">
               <span class="ns-n">{{ row.proj.name }}</span>
-              <span class="ns-m">{{ row.meta.metrics.length }} 指标 · {{ row.meta.total }} 任务<span v-if="row.proj.isFocused" class="ns-f">🚀</span></span>
+              <span class="ns-m">{{ row.meta.metrics.length }} 指标 · {{ row.meta.total }} 任务<span v-if="row.proj.isFocused" class="ns-f"><Icon name="main-focus" :size="13"/></span></span>
             </span>
           </button>
         </template>
@@ -1192,10 +1193,10 @@ onUnmounted(() => {
                       @click="startEdit('vision', $event)" @blur="saveEdit('vision', $event)" @keydown.enter.ctrl.prevent="saveEdit('vision', $event)" @keydown.esc="cancelEdit">{{ visionText || '点击设定你的核心愿景…' }}</span>
                   </div>
                   <div class="tl-links">
-                    <span class="proj-toggle" @click.stop="toggleLinkPop('vision')">🔗 关联卡片 <span class="link-count">{{ linkCount('vision') }}</span></span>
+                    <span class="proj-toggle" @click.stop="toggleLinkPop('vision')"><Icon name="link" :size="13"/> 关联卡片 <span class="link-count">{{ linkCount('vision') }}</span></span>
                     <template v-if="linkCount('vision')">
-                      <span v-for="rid in linkIds('vision', 'res')" :key="'vr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico">📄</span><span class="lc-text">{{ resTitle(rid) }}</span></span>
-                      <span v-for="cid in linkIds('vision', 'curio')" :key="'vc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico">💡</span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
+                      <span v-for="rid in linkIds('vision', 'res')" :key="'vr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico"><Icon name="filetext" :size="13"/></span><span class="lc-text">{{ resTitle(rid) }}</span></span>
+                      <span v-for="cid in linkIds('vision', 'curio')" :key="'vc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico"><Icon name="bulb" :size="13"/></span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
                     </template>
                   </div>
                 </template>
@@ -1206,10 +1207,10 @@ onUnmounted(() => {
                       @click="startEdit('mission', $event)" @blur="saveEdit('mission', $event)" @keydown.enter.ctrl.prevent="saveEdit('mission', $event)" @keydown.esc="cancelEdit">{{ missionText || '点击设定你的核心使命…' }}</span>
                   </div>
                   <div class="tl-links">
-                    <span class="proj-toggle" @click.stop="toggleLinkPop('mission')">🔗 关联卡片 <span class="link-count">{{ linkCount('mission') }}</span></span>
+                    <span class="proj-toggle" @click.stop="toggleLinkPop('mission')"><Icon name="link" :size="13"/> 关联卡片 <span class="link-count">{{ linkCount('mission') }}</span></span>
                     <template v-if="linkCount('mission')">
-                      <span v-for="rid in linkIds('mission', 'res')" :key="'mr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico">📄</span><span class="lc-text">{{ resTitle(rid) }}</span></span>
-                      <span v-for="cid in linkIds('mission', 'curio')" :key="'mc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico">💡</span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
+                      <span v-for="rid in linkIds('mission', 'res')" :key="'mr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico"><Icon name="filetext" :size="13"/></span><span class="lc-text">{{ resTitle(rid) }}</span></span>
+                      <span v-for="cid in linkIds('mission', 'curio')" :key="'mc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico"><Icon name="bulb" :size="13"/></span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
                     </template>
                   </div>
                 </template>
@@ -1246,12 +1247,12 @@ onUnmounted(() => {
               <span class="fb-t">
                 <template v-if="dirFilter">正在只看战略目标「{{ dirFilterName }}」</template>
                 <template v-if="dirFilter && riskOnly"> · </template>
-                <template v-if="riskOnly">⚠ 只看断链</template>
+                <template v-if="riskOnly"><Icon name="warn" :size="13"/> 只看断链</template>
               </span>
               <span class="fb-n">
                 命中 {{ towerGroups.length }} 个目标 · {{ towerGroups.reduce((s, g) => s + g.projs.length, 0) }} 个项目舱
               </span>
-              <button class="fb-clear" title="清除全部筛选，恢复完整视图" @click="clearFilters">✕ 清除筛选</button>
+              <button class="fb-clear" title="清除全部筛选，恢复完整视图" @click="clearFilters"><Icon name="x" :size="13"/> 清除筛选</button>
             </div>
 
             <!-- ★F7 层级专属列表（用户拍板 2026-10-16）：第 3/5/6 层各占一个专属列表视图，
@@ -1300,7 +1301,7 @@ onUnmounted(() => {
            /compass/projects 整页与 ⌘K 项目搜索等其它消费方未动，只是不再从方向台把用户引过去。 -->
             <div v-else-if="viewMode === 'tower'" class="tower-list" id="layer-4">
               <div v-if="!d.compass.directions.length" class="empty-state">
-                <div class="empty-icon">🎯</div>
+                <div class="empty-icon"><Icon name="target" :size="13"/></div>
                 <div>还没有战略目标，点击上方"添加战略目标"开始</div>
               </div>
 
@@ -1318,7 +1319,7 @@ onUnmounted(() => {
                     <span class="dh-i">{{ dg.i + 1 }}</span>
                     <span class="node-title editable dh-n" :class="{editing: editingField === 'dir-' + dg.dir.id}" :data-edit="'dir-' + dg.dir.id" :contenteditable="editingField === 'dir-' + dg.dir.id"
                       @click="startEdit('dir-' + dg.dir.id, $event)" @blur="saveEdit('dir-' + dg.dir.id, $event)" @keydown.enter.prevent="saveEdit('dir-' + dg.dir.id, $event)" @keydown.esc="cancelEdit">{{ dg.dir.name }}</span>
-                    <span v-if="isStagnant(dg.dir)" class="stagnant-tag" title="该目标下项目近 14 天无推进">⚠ 停滞</span>
+                    <span v-if="isStagnant(dg.dir)" class="stagnant-tag" title="该目标下项目近 14 天无推进"><Icon name="warn" :size="13"/> 停滞</span>
                     <MaturityBadge :m="directionMaturity(d, dg.dir)" />
                     <span class="dh-meta">{{ dg.projs.length }} 攻坚项目 · {{ dg.metaCount }} 成功指标 · {{ dg.taskCount }} 任务</span>
                     <!-- ★发丝线（原型 .dir-line）：把一行读数在右侧收口，别让按钮组孤零零吊在行尾 -->
@@ -1335,10 +1336,10 @@ onUnmounted(() => {
                            t3 文字型 —— 状态开关（只看我），本质是"我在哪个视图"而不是"做什么" -->
                     <span class="node-action t1" @click="addProject(dg.dir.id)" title="添加攻坚项目">＋</span>
                     <span class="node-action t2" @click="aiChain('projects', dg.dir.id)" title="AI 建议攻坚项目（补路径依赖，查重后采纳才创建）"><AiEntryButton /></span>
-                    <span class="node-action t2" @click="openGoalImport(dg.dir)" title="导入模板（Markdown 批量生成项目/指标/任务）">📋</span>
+                    <span class="node-action t2" @click="openGoalImport(dg.dir)" title="导入模板（Markdown 批量生成项目/指标/任务）"><Icon name="filetext" :size="13"/></span>
                     <span class="node-action t3" :class="{ on: dirFilter === dg.dir.id }" @click="onDirFilter(dg.dir.id)"
-                      :title="dirFilter === dg.dir.id ? '正在只看这个目标 · 再点取消' : '只看这个战略目标的项目舱'">{{ dirFilter === dg.dir.id ? '✓ 正在只看' : '只看我' }}</span>
-                    <span class="node-action t3 danger" @click="deleteNode('dir', dg.dir.id)" title="删除目标">🗑</span>
+                      :title="dirFilter === dg.dir.id ? '正在只看这个目标 · 再点取消' : '只看这个战略目标的项目舱'"><Icon v-if="dirFilter === dg.dir.id" name="eye" :size="13"/>{{ dirFilter === dg.dir.id ? '正在只看' : '只看我' }}</span>
+                    <span class="node-action t3 danger" @click="deleteNode('dir', dg.dir.id)" title="删除目标"><Icon name="trash" :size="13"/></span>
                   </div>
                 </div>
 
@@ -1394,7 +1395,7 @@ onUnmounted(() => {
 
           <!-- 底部说明 -->
           <div class="footer-hint">
-            💡 点击标题即可编辑 · Enter 保存 / Esc 取消 · 点击指标展开/收起任务 · 空指标会亮 ⚠ 警示
+            <Icon name="bulb" :size="13"/> 点击标题即可编辑 · Enter 保存 / Esc 取消 · 点击指标展开/收起任务 · 空指标会亮 <Icon name="warn" :size="13"/> 警示
           </div>
 
         </div>
@@ -1407,13 +1408,13 @@ onUnmounted(() => {
         <div v-if="linkModal" class="lm-mask" @click.self="closeLinkModal">
           <div class="lm-box">
             <div class="lm-head">
-              <span>🔗 关联卡片 · {{ linkModal.node === 'vision' ? '愿景' : '使命' }}</span>
+              <span><Icon name="link" :size="13"/> 关联卡片 · {{ linkModal.node === 'vision' ? '愿景' : '使命' }}</span>
               <span class="lm-count">已选 {{ linkCount(linkModal.node) }}</span>
               <div class="pm-close" @click="closeLinkModal">×</div>
             </div>
             <div class="lm-body">
               <input v-model="linkQ" class="lm-search" placeholder="关键词或拼音首字母过滤（如 sj）…" v-focus @keydown.esc.stop="closeLinkModal">
-              <div class="link-pop-sec">📄 资源卡（{{ linkCandidates('res').length }}）</div>
+              <div class="link-pop-sec"><Icon name="filetext" :size="13"/> 资源卡（{{ linkCandidates('res').length }}）</div>
               <div class="lm-list">
                 <label v-for="r in linkCandidates('res')" :key="r.id" class="link-pop-item">
                   <input type="checkbox" :checked="isLinked(linkModal.node, 'res', r.id)" @change="toggleLinked(linkModal.node, 'res', r.id)">
@@ -1421,7 +1422,7 @@ onUnmounted(() => {
                 </label>
                 <div v-if="!linkCandidates('res').length" class="link-pop-empty">无匹配资源卡</div>
               </div>
-              <div class="link-pop-sec">💡 好奇心卡（{{ linkCandidates('curio').length }}）</div>
+              <div class="link-pop-sec"><Icon name="bulb" :size="13"/> 好奇心卡（{{ linkCandidates('curio').length }}）</div>
               <div class="lm-list">
                 <label v-for="c in linkCandidates('curio')" :key="c.id" class="link-pop-item">
                   <input type="checkbox" :checked="isLinked(linkModal.node, 'curio', c.id)" @change="toggleLinked(linkModal.node, 'curio', c.id)">
@@ -1440,14 +1441,14 @@ onUnmounted(() => {
     </Teleport>
 
     <!-- B24：关联卡片详情抽屉 -->
-    <Drawer :open="!!peekData" :title="peek?.kind === 'res' ? '📄 资源卡详情' : '💡 好奇心卡详情'" @close="peek = null">
+    <Drawer :open="!!peekData" :icon="peek?.kind === 'res' ? 'filetext' : 'bulb'" :title="peek?.kind === 'res' ? '资源卡详情' : '好奇心卡详情'" @close="peek = null">
       <template v-if="peekData">
         <div class="peek-row"><span class="peek-label">标题</span><div class="peek-val strong">{{ peekData.title }}</div></div>
         <div class="peek-row"><span class="peek-label">来源</span><div class="peek-val">{{ peekData.kind === 'res' ? peekData.src : '我的好奇心' }}{{ peekData.linkType ? ' · ' + peekData.linkType : '' }}</div></div>
         <div v-if="peekData.link" class="peek-row"><span class="peek-label">链接</span><div class="peek-val link">{{ peekData.link }}</div></div>
         <div v-if="peekData.desc" class="peek-row"><span class="peek-label">描述</span><div class="peek-val">{{ peekData.desc }}</div></div>
         <div v-if="peekData.tags.length" class="peek-row"><span class="peek-label">标签</span><div class="peek-val"><span v-for="t in peekData.tags" :key="t" class="peek-tag">#{{ t }}</span></div></div>
-        <button v-if="peekData.link" class="peek-open" @click="openPeekLink">↗ 打开链接</button>
+        <button v-if="peekData.link" class="peek-open" @click="openPeekLink"><Icon name="external" :size="13"/> 打开链接</button>
       </template>
     </Drawer>
 

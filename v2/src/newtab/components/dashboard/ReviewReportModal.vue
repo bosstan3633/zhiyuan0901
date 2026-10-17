@@ -12,6 +12,7 @@
  *     不等网络；AI 回来只替换「洞察 / 建议」两段，失败或未配置就留着本地版并标明。
  *  ③ **打开零写入**：`存为资源卡 / 生成任务` 必须用户显式点，写库动作在宿主。
  */
+import Icon from '@/shared/components/Icon.vue'
 import './dashboard.css'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import Modal from '@/shared/components/Modal.vue'
@@ -96,11 +97,11 @@ onUnmounted(() => { aborted = true })
           </select>
         </label>
         <input v-model="dirText" class="dir" placeholder="本轮想让它怎么写？（一次性指令：可改语气与角度，不改数字与结论）" @keydown.enter.prevent="runNarrate" />
-        <button class="dz-btn sm pri" :disabled="narrate === 'run'" title="按当前角色与提示词重新生成" @click="runNarrate">↻ 重新生成</button>
+        <button class="dz-btn sm pri" :disabled="narrate === 'run'" title="按当前角色与提示词重新生成" @click="runNarrate"><Icon name="refresh" :size="13"/> 重新生成</button>
       </div>
 
       <div class="dz-rpt-method">
-        方法：<b>金字塔原理</b> —— 结论先行 → 以上统下 → 归类分组（MECE）→ 逻辑递进。
+        方法：<b>金字塔原理</b> —— 结论先行 › 以上统下 › 归类分组（MECE）› 逻辑递进。
         <b>规则给事实，专家给判断</b>，不替你决策。
       </div>
 
@@ -145,7 +146,7 @@ onUnmounted(() => { aborted = true })
     <template #footer>
       <span class="dz-rpt-hint">采纳即写库 · 可 <kbd>Ctrl/Cmd+Z</kbd> 撤销</span>
       <span class="dz-sp" />
-      <button class="dz-btn sm" @click="emit('export')">⬇ 导出报告</button>
+      <button class="dz-btn sm" @click="emit('export')"><Icon name="download" :size="13"/> 导出报告</button>
       <button class="dz-btn sm" @click="emit('save')">存为资源卡</button>
       <button class="dz-btn sm pri" @click="emit('task', { id: 'top', title: report?.sugs?.[0]?.title || '复盘跟进', detail: report?.sugs?.[0]?.detail || '' })">生成任务</button>
     </template>

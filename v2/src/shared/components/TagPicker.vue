@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '@/shared/components/Icon.vue'
 import { useOverlayTarget } from '@/shared/utils/overlayHost'
 // R113-N5：Teleport 目标动态化——金字塔真全屏期间浮层挂进全屏元素（否则不可见）
 const overlayTarget = useOverlayTarget()
@@ -33,7 +34,7 @@ const flat = computed<FlatTag[]>(() => {
   const out: FlatTag[] = []
   const walk = (nodes: TagNode[], depth: number, prefix: string) =>
     nodes.forEach(n => {
-      const path = prefix ? prefix + ' / ' + n.name : n.name
+      const path = prefix ? prefix + '/ ' + n.name : n.name
       out.push({ id: n.id, name: n.name, depth, path })
       if (n.children?.length) walk(n.children, depth + 1, path)
     })
@@ -50,7 +51,7 @@ function persist(next: string[]) {
   store.persist()
 }
 /** R126（诉求 7）：选中值——根=名称；子=「父/子」路径（与卡片存储口径一致） */
-function valOf(t: FlatTag) { return t.depth === 0 ? t.name : t.path.split(' / ').join('/') }
+function valOf(t: FlatTag) { return t.depth === 0 ? t.name : t.path.split('/ ').join('/') }
 function toggle(name: string) {
   const set = new Set(tags.value)
   set.has(name) ? set.delete(name) : set.add(name)
@@ -86,15 +87,15 @@ function goTagManage() {
     <Teleport :to="overlayTarget">
       <div v-if="open" class="tp-mask" @click="open = false" />
       <div v-if="open" class="tp-pop" :style="{ left: popLeft + 'px', top: popTop + 'px' }" @click.stop>
-        <div class="tp-head">🏷 选择标签 <span class="tp-sub">来自标签管理体系（设置 → 标签管理）</span></div>
+        <div class="tp-head"><Icon name="tag" :size="13"/> 选择标签 <span class="tp-sub">来自标签管理体系（设置 › 标签管理）</span></div>
         <input v-model="q" class="tp-search" placeholder="搜索标签，或输入名称后新建…">
         <div class="tp-list">
           <!-- 标签体系为空：引导去标签管理创建 -->
           <div v-if="!flat.length" class="tp-guide">
-            <div class="tp-guide-icon">🏷</div>
+            <div class="tp-guide-icon"><Icon name="tag" :size="13"/></div>
             <div class="tp-guide-title">标签体系还未创建</div>
-            <div class="tp-guide-desc">标签统一在「设置 → 标签管理」中搭建（支持两级），创建后会自动出现在这里供勾选。</div>
-            <button class="tp-guide-btn" @click="goTagManage">🏷 去标签管理创建</button>
+            <div class="tp-guide-desc">标签统一在「设置 › 标签管理」中搭建（支持两级），创建后会自动出现在这里供勾选。</div>
+            <button class="tp-guide-btn" @click="goTagManage"><Icon name="tag" :size="13"/> 去标签管理创建</button>
             <div class="tp-new" @click="createNew">或输入「{{ q.trim() || '标签名' }}」快速新建根标签</div>
           </div>
           <template v-else>

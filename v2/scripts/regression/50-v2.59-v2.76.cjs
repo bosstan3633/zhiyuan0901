@@ -233,8 +233,8 @@ check('R94-6 B3：完成态挂在 .card.focus 上，.today-cards 走 filter: sat
   return CH94.includes('<div class="card focus" :class="{ \'all-done\': focusAllDone }">')
     && CH94.includes('.card.focus.all-done .today-cards { filter: saturate(.65); }');
 });
-check('R94-7 ★ B3 安静（R120-TB2 文案对齐原型）：完成行「✓ 今日三件事已闭环 · 专注带来从容」；完成态样式零 --danger / 零 animation / 零百分比', () => {
-  return TODAY94.includes('✓ 今日三件事已闭环 · 专注带来从容')
+check('R94-7 ★ B3 安静（R120-TB2 文案对齐原型）：完成行「✓ 今日三件事已闭环 · 专注带来从容」；完成态样式零 --danger / 零 animation / 零百分比（★G1(V3.8.25)随迁带备案：✓ 前缀迁 <Icon name="check">，文案与「零 --danger / 零 animation / 零百分比」三条样式纪律一字未动）', () => {
+  return /<Icon name="check"[^>]*\/> 今日三件事已闭环 · 专注带来从容/.test(TODAY94)
     && !DONE_STYLE94.includes('--danger') && !DONE_STYLE94.includes('animation') && !DONE_STYLE94.includes('%');
 });
 check('R94-8 ★ B2 不持久化：curTreeOpen 不写 saveUIPrefs / UIPrefs（写了就变成"记住上次"，与"默认折叠"矛盾）', () => {

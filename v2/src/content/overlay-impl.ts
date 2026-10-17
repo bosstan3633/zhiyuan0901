@@ -944,7 +944,7 @@ async function addTaskToDailyFocus(item: any) {
   await saveData(d)
   dataCache = d; dataCacheAt = Date.now() // 同步缓存，后续读不再取到旧快照
   refreshTodayFocus()
-  showToast(replaced >= 0 ? '✓ 已替换今日第 ' + (replaced + 1) + ' 件事' : '✓ 已加入今日三件事（' + list.length + '/' + FOCUS_LIMIT + '）')
+  showToast(replaced >= 0 ? '已替换今日第 ' + (replaced + 1) + ' 件事' : '已加入今日三件事（' + list.length + '/' + FOCUS_LIMIT + '）')
   refreshFocusButtons()
 }
 
@@ -1711,7 +1711,7 @@ async function openCuriosity() {
     })
     await saveData(d)
     closeOverlay()
-    showToast('💗好奇心+1')
+    showToast('好奇心+1')
   }
 
   document.getElementById('__zy_cur_save__')?.addEventListener('click', saveCuriosity)

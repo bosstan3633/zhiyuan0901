@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '@/shared/components/Icon.vue'
 import { useOverlayTarget } from '@/shared/utils/overlayHost'
 // R113-N5：Teleport 目标动态化——金字塔真全屏期间浮层挂进全屏元素（否则不可见）
 const overlayTarget = useOverlayTarget()
@@ -73,7 +74,7 @@ function onKey(e: KeyboardEvent) {
     <Teleport :to="overlayTarget">
       <div v-if="open" class="cp-mask" @click="open = false" />
       <div v-if="open" class="cp-pop" :style="{ left: popLeft + 'px', top: popTop + 'px' }" @click.stop>
-        <div class="cp-head">📂 选择分类 <span class="cp-sub">共 {{ options.length }} 个候选</span></div>
+        <div class="cp-head"><Icon name="folderopen" :size="13"/> 选择分类 <span class="cp-sub">共 {{ options.length }} 个候选</span></div>
         <input ref="filterRef" v-model="q" class="cp-search" placeholder="搜索分类…" @keydown="onKey">
         <div class="cp-list" @keydown="onKey">
           <div class="cp-item" :class="{ on: !modelValue, act: activeIdx === -1 && !q.trim() }" @click="pick('')"

@@ -14,7 +14,7 @@ updated: 2026-10-12 18:00:00
 
 **核心定位（April Dunford 视角）**：自造货架「信息洪流中的控制中心——AI 时代知识工作者的个人资源调度台」——不是书签插件、不是 PKM 笔记、不是新标签页美化。它不生产内容，而是横在所有 AI 工具、笔记、文件之上的**调度层**：经营你的认知周转率，让每一个被见过的信息都具备在正确时刻被召回的能力。
 
- - **产品版本**：V3.8.24（原型评审 N1–N15 全量落地：方向台页头 · 调度台三件事 · 画像洞察 · 镜像推送 · 单项目 AI 诊断）——三份原型（P1 调度台三件事横条 / P2 方向台页头与骨架条全宽 / P3 项目 AI 诊断）于 2026-10-14~15 拍板，15 条需求按「批 A→E 逐批过门禁」落地。**① 方向台页头（N3/N4/N5/N10–N15）**：三层引导带缩成极窄引导条（`.cp-guide` 一条路）；眉标 / 大标题 / 副标题就地可编辑，Enter 或失焦保存、Esc 取消，截断对象从整段文本改为内层 `.cp-edit`；舱头五枚动作按 t1/t2/t3 三级分层（t3 解除固定方块，gap 4→5px）；视图切换提为页头唯一主焦点；「⊞ 展开 / ⊟ 收起」合并为一枚反向开关；方向健康度搬到左上标题区；「＋战略目标 / 建议目标」移到骨架条第 3 层旁（插槽摆位、按钮本体归父级管）；战略骨架条提到全宽；吸顶常驻本轮**复核为已满足**（sticky + align-self:flex-start + top 偏移，判据照写不放宽）。**② 调度台三件事（N1）**：全貌模块从七层纵向堆叠改成「三栏横排 + 固定高度子任务区」（恰好 4 行 × 35px，更多在容器内滚），不再被子任务数量撑高；标题/描述不再重复抄一遍（两份会各自漂移），支撑材料与编辑动作移进抽屉；**双击决策翻转**：W12-D 的 B2 拍板「滚动定位并高亮下方任务列表」前提被三栏横排推翻，改为右侧滑出 `TaskDetailDrawer`，`?hl=&hk=task` 定位通道本身不退役；非任务槽按 `sourceType` 分 `none/stale/nonTask/text` 四类，资源卡与自由文本不再显示成「任务已删除」；「移出这一格」由 hover 显现改常驻可见、热区 18px→28px，title 写明「任务本体仍在任务库」。**③ 画像洞察（N6/N7/N9）**：`.pi-rail` sticky 吸顶三件套（sticky + align-self:start + max-height/overflow）、`.pi-hero-sum` 居中（不用 margin auto 假居中）、PiToday 战报入口 4 枚收成 1 枚（退役的「写入记录 / 复盘就绪」不是读数，是同一弹窗的另两个入口）。**④ 资源卡镜像到策展台（N8）**：恢复 V3.7.0 随镜像整域退役时被一并删掉的**推送**方向，与策展台侧的拉取同走 `projectCardToBoard` 引用投射（负锚：不许给 `.workspaceId` 直接赋值）；Workspace 选台弹窗与资源详情抽屉行内选台两处入口齐备；镜像卡本身不许再投射；新弹窗 `mirrorOpen` 走 v-if、进 `openConds` 负锚，台面浮层仍「不开不挂 DOM」。**⑤ 单项目 AI 诊断（N2）**：五维度结论由**规则算死**（进度停滞 / 指标空转等枚举写死在引擎里，模型改一个结论就无法断言），AI **只写 advice** 并做条数（≤5）与长度（≤200 字）消毒；报告存 `chrome.storage.session`（不进主数据、不进导出链、不进卡片池）；方向台两态入口（无报告 = 🧠 AI 诊断点开即跑，有报告 = 标签组 + 📄 中央弹窗 Teleport），手动触发、无定时，过期只降亮**不撤标签**；导出 HTML / Markdown；registry 新增 `project-diagnose` 与设置页 `diagnose` 各走各的，AI 入口 24→25。★工程纪律留档：W11-12 的「方向台单组件 ≤400 行」触发 `CompassTowerStatus.vue` 拆件（舱头只读侧外移，塔本体 443→387 行），随后 `helpers.cjs` 的 `TOWER` 改为「塔本体 + 状态挂件」**合看**并留备案——断言守行为、不守文件位置（与 `CT_W11` 同一套路）；被外移的舱头读数让 W12-5 / R83-6 / R121-4 / O19-R121 四条当场变红，红得对。版本号唯一来源 = `src/manifest.ts`，与 `package.json`、`package-lock.json` 两行、设置页关于（动态）、手册页、`regression` 版本锚、本文件版本行、根 README 当前版本行共 **7 处**同步——本行自 R96 起纳入回归断言把守
+ - **产品版本**：V3.8.25（图标语言收口 · 补齐 G1 批量整理执行过度的 8 处静默失能）——本轮不新增功能，只做两件事：**① 把"删掉了却没人发现"的地方补回来**：设置页导航 16 项图标（被清成空串）、资源卡类型图标 / 链接行 / 看板链接 / 镜像芯片四处（「按类型取图标」三条分支被清空）、策展台任务勾选圈对勾、附件行尾「新标签页打开」、搜索结果链接图标、CSV「镜像标记」列。这些共同点：**类型对、构建过、门禁绿、界面静默少一块**。**② 补上"以后不许再发生"的尺子**：新增 `11-p0-strings.cjs` 五条常驻判据（模板零装饰符号 / 零孤儿空格 / 零死三元 / 每个 Icon 名必须存在于图标表 / G1 五类各一条正锚），并修掉全局搜索多词缓存键碰撞（`ab c` 与 `a bc` 同键）。★口径纪律留档：**不做**「全站零 emoji」——`★` 是纪律标记（注释里上千处）；**不做**「toast 文案零符号」——`Toast.vue` 无图标位、`msg` 是纯文本，删 `✓/⚠` 等于物理删除"成功还是失败"这条信息（要做先给 Toast 加类型 + 图标位，属新功能，不属本批）；**不扫 `content/`**——纯 Vanilla + Shadow DOM 没有 Icon 组件。版本号唯一来源 = `src/manifest.ts`，与 `package.json`、`package-lock.json` 两行、设置页关于（动态）、手册页、`regression` 版本锚、本文件版本行、根 README 当前版本行共 **7 处**同步——本行自 R96 起纳入回归断言把守
 - **技术栈**：Vue 3.5 + TypeScript(strict) + Vite 5 + Pinia + @crxjs（MV3）+ UnoCSS（仅引入）
 - **运行环境**：Chromium 内核浏览器（Chrome / Edge / Brave 等）
 - **数据存储**：100% 本地——主数据 `chrome.storage.local` 单根 JSON（unlimitedStorage，无 10MB 上限）+ **附件二进制 IndexedDB 库 `zy_assets`**（单文件 ≤20MB，主 JSON 绝不存 base64）；无云端、无账号
@@ -208,7 +208,7 @@ npm install          # 按 package-lock.json 还原依赖
 npm run dev          # 开发模式（HMR 输出到 dist/）
 npm run build        # vue-tsc --noEmit 类型检查 + vite build（交付必须两者通过）
 npm run typecheck    # 仅类型检查
-node scripts/regression.cjs   # 静态回归：必须全绿（当前 1399 项，只增不减）
+node scripts/regression.cjs   # 静态回归：必须全绿（当前 1,785 项，只增不减）
 ```
 
 ### 4.3 加载到浏览器
@@ -314,7 +314,7 @@ node scripts/regression.cjs   # 静态回归：必须全绿（当前 1399 项，
 
 ## 十、开发规范与回归基线
 
-- **交付前置**：`npm run build` 全绿（vue-tsc 0 错误）+ `node scripts/regression.cjs` **全绿**（当前 1399 项，每轮只增不减），缺一不可（回归是字符串断言，代替不了编译检查）
+- **交付前置**：`npm run build` 全绿（vue-tsc 0 错误）+ `node scripts/regression.cjs` **全绿**（当前 1,785 项，每轮只增不减），缺一不可（回归是字符串断言，代替不了编译检查）
 - **性能门禁**：`scripts/perf.cjs` A/B 基准台——视图切换 <40ms 红线（R71 起）；新功能默认须过性能走查
 - **数据红线**：Resource/Curiosity/TagNode 禁止 taskId；删除一律软删；stats.lastVisits 只走 recordResourceOpen
 - **标记排序**：一律走 `utils/marksort.ts`（置顶 > 星标 > 命中度），拖拽排序列表的渲染 computed 禁止 `.sort()`

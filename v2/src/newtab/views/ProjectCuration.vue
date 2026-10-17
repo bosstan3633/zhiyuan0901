@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // R148-P1a：显式实例名——纳入 KeepAlive（切模块免重挂载与免重算首屏）
 defineOptions({ name: 'ProjectCurationView' })
+import Icon from '@/shared/components/Icon.vue'
 
 import { ref, computed, watch, onMounted, onUnmounted, defineAsyncComponent, shallowRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -136,7 +137,7 @@ const orphanTasks = computed(() => {
 })
 function renameMetric(m: Metric, e: FocusEvent) {
   const v = (e.target as HTMLElement).textContent?.trim()
-  if (v && v !== m.title) { m.title = v; store.persist(); showToast('✓ 指标已更新，同步方向树') }
+  if (v && v !== m.title) { m.title = v; store.persist(); showToast('指标已更新，同步方向树') }
   else if (!v) { (e.target as HTMLElement).textContent = m.title }
 }
 const treeDrop = ref<{ id: string; mode: 't' | 'b' | 'in' } | null>(null)
@@ -173,7 +174,7 @@ function treeMetricDrop(e: DragEvent, target: Metric) {
   const tj = arr.findIndex(x => x.id === target.id)
   arr.splice(mode === 'b' ? tj + 1 : tj, 0, moved)
   store.persist()
-  showToast(`✓ 指标「${drag.title}」已排序（同步调度台项目调度）`)
+  showToast(`指标「${drag.title}」已排序（同步调度台项目调度）`)
 }
 function treeTaskDragStart(e: DragEvent, t: TaskCard) {
   treeDragTask = t
@@ -204,7 +205,7 @@ function treeTaskDropOnMetric(e: DragEvent, m: Metric | null) {
   }
   t.updatedAt = Date.now()
   store.persist()
-  showToast(m ? `✓ 任务已归属「${m.title}」` : '✓ 任务已转为未归类')
+  showToast(m ? `任务已归属「${m.title}」` : '任务已转为未归类')
 }
 function scrollToMetric(id: string) {
   const el = document.getElementById('metric-sec-' + id)
@@ -229,7 +230,7 @@ function scrollToTask(id: string) {
 function toggleFocus(p: Project) {
   const res = toggleFocusProject(p.id)
   if (!res.ok) { showToast(res.msg); return }
-  showToast(p.isFocused ? '🚀 已设为主攻，同步今日行动' : '已取消主攻')
+  showToast(p.isFocused ? '已设为主攻，同步今日行动' : '已取消主攻')
 }
 /** R52-F6：头部级「＋添加成功指标」——与「＋添加任务」并置，输入名后创建（同步方向树） */
 const headerMetricAdding = ref(false)
@@ -249,7 +250,7 @@ async function aiChainMetrics() {
   if (!store.data) return
   if (aiPersonaId.value === 'default' && aiConfig.value.defaultPersona) aiPersonaId.value = aiConfig.value.defaultPersona
   const job = buildChainJob('metrics', p.id, { d: store.data, depth: aiConfig.value.depth, persist: () => store.persist(), personaId: aiPersonaId.value, onPersona: (id) => { aiPersonaId.value = id; void aiChainMetrics() } })
-  if (!job) { showToast('⚠ 项目已不存在'); return }
+  if (!job) { showToast('项目已不存在'); return }
   aiJob.value = job
 }
 /** R146（用户反馈）：AI 入口下沉到行——每个指标一颗「按此指标拆任务」、每个任务一颗「本任务 AI 辅助」。
@@ -261,7 +262,7 @@ async function aiChainAt(level: 'tasks', anchorId: string) {
   if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
   if (aiPersonaId.value === 'default' && aiConfig.value.defaultPersona) aiPersonaId.value = aiConfig.value.defaultPersona
   const job = buildChainJob(level, anchorId, { d: store.data, depth: aiConfig.value.depth, persist: () => store.persist(), personaId: aiPersonaId.value, onPersona: (id) => { aiPersonaId.value = id; void aiChainAt(level, anchorId) } })
-  if (!job) { showToast('⚠ 锚点已不存在（可能刚被删除）'); return }
+  if (!job) { showToast('锚点已不存在（可能刚被删除）'); return }
   aiJob.value = job
 }
 function confirmHeaderAddMetric() {
@@ -271,7 +272,7 @@ function confirmHeaderAddMetric() {
   if (!title) { headerMetricAdding.value = false; return }
   p.metrics.push({ id: uid('met'), title, taskIds: [] })
   store.persist()
-  showToast('✓ 成功指标已创建，同步方向树')
+  showToast('成功指标已创建，同步方向树')
   headerMetricAdding.value = false
 }
 
@@ -317,7 +318,7 @@ function confirmCreateProject() {
   const proj = addProjectToDir(createDirId.value, name)
   if (!proj) { showToast('请选择所属战略目标'); return }
   createOpen.value = false
-  showToast(`✓ 项目「${name}」已创建`)
+  showToast(`项目「${name}」已创建`)
   openProject(proj) // 直接进入全屏展板
 }
 
@@ -351,10 +352,10 @@ interface TocItem { id: string; icon: string; label: string; pct: number | null 
 const projToc = computed<TocItem[]>(() => {
   const p = currentProject.value
   if (!p) return []
-  const items: TocItem[] = [{ id: 'pd-sec-overview', icon: '📦', label: '项目概览', pct: projectProgress(p).pct }]
-  p.metrics.forEach((m, mi) => items.push({ id: 'metric-sec-' + m.id, icon: '🎯', label: `指标 ${mi + 1} · ${m.title}`, pct: metricPct(m.id) }))
-  if (orphanTasks.value.length) items.push({ id: 'pd-sec-orphan', icon: '⚠', label: '未归类任务', pct: null })
-  items.push({ id: 'pd-sec-assets', icon: '📎', label: '任务附件', pct: null })
+  const items: TocItem[] = [{ id: 'pd-sec-overview', icon: '', label: '项目概览', pct: projectProgress(p).pct }]
+  p.metrics.forEach((m, mi) => items.push({ id: 'metric-sec-' + m.id, icon: '', label: `指标 ${mi + 1} · ${m.title}`, pct: metricPct(m.id) }))
+  if (orphanTasks.value.length) items.push({ id: 'pd-sec-orphan', icon: '', label: '未归类任务', pct: null })
+  items.push({ id: 'pd-sec-assets', icon: '', label: '任务附件', pct: null })
   return items
 })
 function scrollToSec(id: string) {
@@ -473,7 +474,7 @@ function removeTask(task: TaskCard) {
 function unbindTask(task: TaskCard) {
   unbindTaskFromMetric(d.value, task)
   store.persist()
-  showToast(`✓ 已从本指标移除：「${task.title.slice(0, 16)}」回到任务调度模块`)
+  showToast(`已从本指标移除：「${task.title.slice(0, 16)}」回到任务调度模块`)
 }
 function toggleTaskDone(task: TaskCard) {
   task.status = task.status === 'done' ? 'todo' : 'done'
@@ -510,7 +511,7 @@ function onTaskDrop(e: DragEvent, target: TaskCard) {
   item.updatedAt = Date.now()
   store.persist()
   dragTask = null
-  showToast('✓ 已调整任务排序')
+  showToast('已调整任务排序')
 }
 function onMetricDrop(e: DragEvent, metricId: string) {
   e.preventDefault()
@@ -530,7 +531,7 @@ function onMetricDrop(e: DragEvent, metricId: string) {
   const targetName = currentProject.value?.metrics.find(m => m.id === metricId)?.title || ''
   store.persist()
   dragTask = null
-  showToast(`✓ 任务已归属「${targetName}」`)
+  showToast(`任务已归属「${targetName}」`)
 }
 function onMetricDragOver(e: DragEvent, _metricId: string) {
   (e.currentTarget as HTMLElement).classList.add('drag-over')
@@ -552,7 +553,7 @@ const tasksWithAssets = computed(() => {
   if (!p) return []
   return d.value.tasks.filter(t => !t.deletedAt && t.projectId === p.id && t.assets && t.assets.length)
 })
-const assetSizeLabel = (n?: number) => !n ? '' : n > 1024 * 1024 ? (n / 1024 / 1024).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'
+const assetSizeLabel = (n?: number) => !n ? '' : n > 1024 * 1024 ? (n / 1024 / 1024).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB'
 function taskAssetCount(t: TaskCard): number {
   return (t.assets || []).length
 }
@@ -568,7 +569,7 @@ function addTaskFromHeader() {
   if (!p.metrics.length) {
     p.metrics.push({ id: uid('met'), title: '新成功指标', taskIds: [] })
     store.persist()
-    showToast('✓ 已创建首个成功指标，继续添加任务')
+    showToast('已创建首个成功指标，继续添加任务')
   }
   taskAddMetric.value = p.metrics[0]!
 }
@@ -597,10 +598,10 @@ function addTaskFromHeader() {
     <!-- ===== 单项目展板（R131-N2：独立态恢复左侧项目目录，可拖拽调宽；内嵌态维持单列满宽） ===== -->
     <div v-else class="board-layout" :class="{ 'with-dir': !embedded }">
     <aside v-if="!embedded" class="pd-dir" :style="{ width: projDirW + 'px' }">
-      <div class="pd-dir-title pd-pan-head" @click="projPanOpen = !projPanOpen">🗺 项目全景<span class="pd-caret">{{ projPanOpen ? '▾' : '▸' }}</span></div>
+      <div class="pd-dir-title pd-pan-head" @click="projPanOpen = !projPanOpen"><Icon name="map" :size="13"/> 项目全景<span class="pd-caret">{{ projPanOpen ? '▾' : '▸' }}</span></div>
       <div v-show="projPanOpen" class="pd-pan">
         <div v-for="g in projDirGroups" :key="g.dir.id" class="pd-group">
-          <div class="pd-goal" :title="g.dir.name">🎯 {{ g.dir.name }}<span v-if="dirTermLabel(g.dir)" class="pd-term">{{ dirTermLabel(g.dir) }}</span></div>
+          <div class="pd-goal" :title="g.dir.name"><Icon name="target" :size="13"/> {{ g.dir.name }}<span v-if="dirTermLabel(g.dir)" class="pd-term">{{ dirTermLabel(g.dir) }}</span></div>
           <div v-for="p in g.projects" :key="p.id" class="pd-item" :class="{ active: p.id === currentProject?.id }" :title="p.name" @click="openProject(p)">
             <span class="pd-dot" :class="{ focus: p.isFocused }" />
             <span class="pd-name">{{ p.name }}</span>
@@ -609,7 +610,7 @@ function addTaskFromHeader() {
         </div>
         <div v-if="!projDirGroups.length" class="pd-empty">还没有项目</div>
       </div>
-      <div class="pd-dir-title">📁 项目目录</div>
+      <div class="pd-dir-title"><Icon name="folder" :size="13"/> 项目目录</div>
       <div v-for="it in projToc" :key="it.id" class="pd-item toc-item" :class="{ active: tocActive === it.id }" :title="it.label" @click="scrollToSec(it.id)">
         <span class="pd-name">{{ it.icon }} {{ it.label }}</span>
         <span v-if="it.pct !== null" class="pd-pct">{{ it.pct }}%</span>
@@ -637,7 +638,7 @@ function addTaskFromHeader() {
           <span class="pbs">已推进完成 <b class="ok">{{ projectProgress(currentProject).done }}</b></span>
           <span class="pb-sep">·</span>
           <span class="pbs">正在进行中 <b class="acc">{{ projectProgress(currentProject).total - projectProgress(currentProject).done }}</b></span>
-          <template v-if="currentProject.startDate || currentProject.endDate"><span class="pb-sep">·</span><span class="pbs pb-tail-inline">⏱ {{ currentProject.startDate || '—' }} → {{ currentProject.endDate || '—' }}</span></template>
+          <template v-if="currentProject.startDate || currentProject.endDate"><span class="pb-sep">·</span><span class="pbs pb-tail-inline"><Icon name="clock" :size="12"/> {{ currentProject.startDate || '—' }} › {{ currentProject.endDate || '—' }}</span></template>
         </div>
       </div>
       <!-- R52-F6：成功指标名输入行 -->
@@ -650,10 +651,10 @@ function addTaskFromHeader() {
       <!-- R177（原型 pec-summary-row）：标题行 = 名称+主攻徽标+⚙项目详情 ｜ 进度轨 ｜ 动作组（成功指标/建议/添加任务/⋯） -->
       <div class="pb-title-row">
         <div class="pb-title">
-          <span class="pb-picon" title="项目">📦</span>
+          <span class="pb-picon" title="项目"><Icon name="package" :size="13"/></span>
           <span class="hero-pname" contenteditable="true" spellcheck="false" @focus="editingProjId = currentProject?.id ?? null" @blur="renameProject" @keydown.enter.prevent="($event.target as HTMLElement).blur()">{{ currentProject.name }}</span>
-          <span v-if="currentProject.isFocused" class="tag accent">🚀 主攻项目</span>
-          <button class="mini-btn pd-open" title="项目详情：愿景 / 使命 / 日期 / 描述（滑出抽屉）" @click="openProjectDetail">⚙ 项目详情</button>
+          <span v-if="currentProject.isFocused" class="tag accent"><Icon name="main-focus" :size="13"/> 主攻项目</span>
+          <button class="mini-btn pd-open" title="项目详情：愿景 / 使命 / 日期 / 描述（滑出抽屉）" @click="openProjectDetail"><Icon name="settings" :size="13"/> 项目详情</button>
         </div>
         <div class="pb-progress-box">
           <span class="pb-progress-label">进度</span>
@@ -678,9 +679,9 @@ function addTaskFromHeader() {
           <span class="pb-more-wrap">
             <button class="mini-btn icon" title="更多：主攻 / 方向树定位 / 删除项目" @click.stop="projMenuOpen = !projMenuOpen">⋯</button>
             <div v-if="projMenuOpen" class="pb-menu" @click.stop>
-              <div class="pm-item" @click="toggleFocus(currentProject); projMenuOpen = false">🚀 {{ currentProject.isFocused ? '取消主攻' : '设为主攻' }}</div>
-              <div class="pm-item" @click="goTreeLocated(); projMenuOpen = false">🌳 在完整方向树中定位</div>
-              <div class="pm-item danger" @click="removeProject(currentProject); projMenuOpen = false">🗑 删除项目</div>
+              <div class="pm-item" @click="toggleFocus(currentProject); projMenuOpen = false"><Icon name="main-focus" :size="13"/> {{ currentProject.isFocused ? '取消主攻' : '设为主攻' }}</div>
+              <div class="pm-item" @click="goTreeLocated(); projMenuOpen = false"><Icon name="tree" :size="13"/> 在完整方向树中定位</div>
+              <div class="pm-item danger" @click="removeProject(currentProject); projMenuOpen = false"><Icon name="trash" :size="13"/> 删除项目</div>
             </div>
           </span>
         </div>
@@ -689,7 +690,7 @@ function addTaskFromHeader() {
       <div v-for="(m, mi) in currentProject.metrics" :key="m.id" class="metric-sec" :id="'metric-sec-' + m.id" :class="{ 'sec-flash': metricFlashId === m.id }"
         @dragover.prevent="onMetricDragOver($event, m.id)" @dragleave="onMetricDragLeave" @drop="onMetricDrop($event, m.id)">
         <div class="metric-head2">
-          <span class="mh-idx">🎯 指标 {{ mi+1 }}</span>
+          <span class="mh-idx"><Icon name="target" :size="13"/> 指标 {{ mi+1 }}</span>
           <span class="mname" contenteditable="true" spellcheck="false"
             @blur="renameMetric(m, $event)" @keydown.enter.prevent="($event.target as HTMLElement).blur()">{{ m.title }}</span>
           <span class="mh-meta">{{ metricPct(m.id) }}% · {{ tasksForMetric(m.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(m.id).length }} 任务</span>
@@ -697,7 +698,7 @@ function addTaskFromHeader() {
           <span class="mh-acts">
             <button class="icon-btn-sm ai" title="AI 按本指标缺口建议近两周任务（勾选采纳才创建，可换执笔专家）" @click="aiChainAt('tasks', m.id)"><AiEntryButton /></button>
             <button class="icon-btn-sm" title="添加任务（新建 / 关联）" @click="openTaskAdd(m)">＋</button>
-            <button class="icon-btn-sm del" title="删除指标" @click="removeMetric(m)">🗑</button>
+            <button class="icon-btn-sm del" title="删除指标" @click="removeMetric(m)"><Icon name="trash" :size="13"/></button>
           </span>
         </div>
         <div class="task-rows">
@@ -706,22 +707,22 @@ function addTaskFromHeader() {
             @dragstart="onTaskDragStart($event, task, m.id)" @dragend="onTaskDragEnd"
             @dragover.prevent.stop @drop.stop="onTaskDrop($event, task)">
             <span class="bdrag" title="拖拽排序 / 跨指标归属">⋮⋮</span>
-            <span class="bcheck" :class="{done: task.status==='done'}" @click="toggleTaskDone(task)">{{ task.status==='done'?'✓':'' }}</span>
+            <span class="bcheck" :class="{done: task.status==='done'}" @click="toggleTaskDone(task)"><Icon v-if="task.status==='done'" name="check" :size="12"/></span>
             <span class="bt" @click="openTaskDetail(task)" title="点击打开任务详情">{{ task.title }}</span>
             <span class="tag" :class="prTag(task.priority)"><i class="tag-dot" /><span class="tag-txt">{{ prLabel(task.priority) }}</span></span>
             <AssetBadge v-if="task.assets?.length" :assets="task.assets" />
             <MaturityBadge :m="taskMaturity(task)" />
             <TaskAiMenu :task="task" @detail="openTaskDetail" />
-            <button class="icon-btn-sm" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）" @click="unbindTask(task)">✕</button>
+            <button class="icon-btn-sm" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）" @click="unbindTask(task)"><Icon name="x" :size="13"/></button>
           </div>
           <div class="task-add" @click="openTaskAdd(m)">＋ 添加任务（新建 / 关联）</div>
         </div>
       </div>
-      <div v-if="!currentProject.metrics.length" class="empty-state">该项目暂无成功指标——点击上方「🎯 添加成功指标」开始</div>
+      <div v-if="!currentProject.metrics.length" class="empty-state">该项目暂无成功指标——点击上方「<Icon name="target" :size="13"/> 添加成功指标」开始</div>
       <!-- B27：未归类任务（指标已删除的孤儿任务） -->
       <div v-if="orphanTasks.length" class="metric-sec" id="pd-sec-orphan">
         <div class="metric-head2">
-          <span class="tag" style="flex-shrink:0">⚠ 未归类任务</span>
+          <span class="tag" style="flex-shrink:0"><Icon name="warn" :size="13"/> 未归类任务</span>
           <span class="mname">原指标已删除 · 可拖回任意指标或删除</span>
         </div>
         <div class="task-rows">
@@ -729,12 +730,12 @@ function addTaskFromHeader() {
             :data-task-id="t.id"
             @dragstart="onTaskDragStart($event, t, '__orphan__')" @dragend="onTaskDragEnd" @dragover.prevent @drop="onTaskDrop($event, t)">
             <span class="bdrag" title="拖拽到指标归属">⋮⋮</span>
-            <span class="bcheck" :class="{done: t.status==='done'}" @click="toggleTaskDone(t)">{{ t.status==='done'?'✓':'' }}</span>
+            <span class="bcheck" :class="{done: t.status==='done'}" @click="toggleTaskDone(t)"><Icon v-if="t.status==='done'" name="check" :size="13"/></span>
             <span class="bt" @click="openTaskDetail(t)" title="点击打开任务详情">{{ t.title }}</span>
             <span class="tag" :class="prTag(t.priority)"><i class="tag-dot" /><span class="tag-txt">{{ prLabel(t.priority) }}</span></span>
             <MaturityBadge :m="taskMaturity(t)" />
             <TaskAiMenu :task="t" @detail="openTaskDetail" />
-            <button class="icon-btn-sm del" title="删除任务（进回收站）" @click="removeTask(t)">🗑</button>
+            <button class="icon-btn-sm del" title="删除任务（进回收站）" @click="removeTask(t)"><Icon name="trash" :size="13"/></button>
           </div>
         </div>
       </div>
@@ -743,8 +744,8 @@ function addTaskFromHeader() {
       <!-- R49-D4：任务附件区（按任务聚合，复用 AssetBadge 打开逻辑；资源卡本体在资源台管理，此处不呈现） -->
       <div class="metric-sec asset-sec" id="pd-sec-assets">
         <div class="metric-head2">
-          <span class="tag" style="flex-shrink:0">📎 任务附件</span>
-          <span class="mname">按任务聚合 · 🖼 图片弹窗预览 / 🌐 HTML / 📕 PDF 新标签打开</span>
+          <span class="tag" style="flex-shrink:0"><Icon name="paperclip" :size="13"/> 任务附件</span>
+          <span class="mname">按任务聚合 · <Icon name="image" :size="13"/> 图片弹窗预览 / <Icon name="globe" :size="13"/> HTML / <Icon name="book" :size="13"/> PDF 新标签打开</span>
         </div>
         <div class="task-rows">
           <div v-for="t in tasksWithAssets" :key="t.id" class="btask asset-row" @click="openTaskDetail(t)">
@@ -756,7 +757,7 @@ function addTaskFromHeader() {
         </div>
       </div>
       <!-- R49-D5：好奇心规则提示条（好奇心卡通过「转为任务/归档为资源」进入项目） -->
-      <div class="board-foot-hint">💡 好奇心卡通过「转为任务 / 归档为资源」进入项目 · 本页与完整方向树实时双向同步 · 任务完成自动回流指标与战略目标进度</div>
+      <div class="board-foot-hint"><Icon name="bulb" :size="13"/> 好奇心卡通过「转为任务 / 归档为资源」进入项目 · 本页与完整方向树实时双向同步 · 任务完成自动回流指标与战略目标进度</div>
     </div>
     </div>
 
@@ -767,21 +768,21 @@ function addTaskFromHeader() {
     <Transition name="modal">
       <div v-if="createOpen" class="create-modal" @click.stop>
         <div class="cm-head">
-          <span>📦 新建 / 规划项目</span>
+          <span><Icon name="package" :size="13"/> 新建 / 规划项目</span>
           <div class="cm-close" @click="createOpen=false">×</div>
         </div>
         <div class="cm-body">
           <!-- 愿景 → 使命 → 战略目标 视觉链 -->
           <div class="cm-chain">
-            <div class="cm-node"><span class="cm-ic">🔭</span><div class="cm-txt"><i>愿景</i>{{ visionText || '尚未设定' }}</div></div>
+            <div class="cm-node"><span class="cm-ic"><Icon name="telescope" :size="13"/></span><div class="cm-txt"><i>愿景</i>{{ visionText || '尚未设定' }}</div></div>
             <div class="cm-link" />
-            <div class="cm-node"><span class="cm-ic">💡</span><div class="cm-txt"><i>使命</i>{{ missionText || '尚未设定' }}</div></div>
+            <div class="cm-node"><span class="cm-ic"><Icon name="bulb" :size="13"/></span><div class="cm-txt"><i>使命</i>{{ missionText || '尚未设定' }}</div></div>
             <div class="cm-link" />
-            <div class="cm-node"><span class="cm-ic">🎯</span><div class="cm-txt"><i>战略目标（选择归属）</i></div></div>
+            <div class="cm-node"><span class="cm-ic"><Icon name="target" :size="13"/></span><div class="cm-txt"><i>战略目标（选择归属）</i></div></div>
           </div>
           <select v-model="createDirId" class="cm-select">
             <option v-for="dir in d.compass.directions" :key="dir.id" :value="dir.id">
-              🎯 {{ dir.name }}{{ dir.term==='long' ? '（远期）' : dir.term==='short' ? '（近期）' : '（中期）' }}
+              <Icon name="target" :size="13"/> {{ dir.name }}{{ dir.term==='long' ? '（远期）' : dir.term==='short' ? '（近期）' : '（中期）' }}
             </option>
           </select>
           <input v-model="createName" class="cm-input" placeholder="项目名称，如「产品视觉重构」…"
@@ -789,7 +790,7 @@ function addTaskFromHeader() {
         </div>
         <div class="cm-foot">
           <button class="mini-btn" @click="createOpen=false">取消</button>
-          <button class="mini-btn primary" @click="confirmCreateProject">✓ 创建并进入展板</button>
+          <button class="mini-btn primary" @click="confirmCreateProject"><Icon name="check" :size="13"/> 创建并进入展板</button>
         </div>
       </div>
     </Transition>

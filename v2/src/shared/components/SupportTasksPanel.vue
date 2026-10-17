@@ -8,6 +8,7 @@
  *
  * 数据一律走 `buildSupportIndex` 的反查表；软删的任务/子任务已被索引过滤，恢复即回挂。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed } from 'vue'
 import type { AppData, ResourceCard, SupportLink, TaskCard } from '@/shared/models'
 import { buildSupportIndex } from '@/shared/utils/supportLinks'
@@ -28,7 +29,7 @@ const rows = computed(() => {
 
 <template>
   <div v-if="rows.length" class="stp">
-    <div class="stp-label">🧭 支持的任务 <span class="stp-hint">— 只读：这些任务把它当支撑材料；解绑请到任务侧</span></div>
+    <div class="stp-label"><Icon name="compass" :size="13"/> 支持的任务 <span class="stp-hint">— 只读：这些任务把它当支撑材料；解绑请到任务侧</span></div>
     <div v-for="row in rows" :key="row.l.id" class="stp-row" :title="row.l.why || '点击打开该任务'" @click="emit('openTask', row.t)">
       <span class="stp-nm">{{ row.sub ? '↳ ' + row.sub.title : row.t.title }}</span>
       <span v-if="row.sub" class="stp-parent">{{ row.t.title.slice(0, 14) }}</span>

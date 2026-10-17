@@ -97,7 +97,7 @@ const months = computed(() => {
       const cls = [`l${lv}`]
       if (k === today.value) cls.push('today')
       if (k === props.selDay) cls.push('sel')
-      cells.push({ k, lv, cls: cls.join(' ') })
+      cells.push({ k, lv, cls: cls.join('') })
     }
     out.push({ m: m + 1, w: Math.round(mw), start: firstDow + 1, cells })
   }
@@ -173,11 +173,11 @@ async function exportPng(): Promise<void> {
     title: `${props.year} 年调度热力图`,
     sub: `活跃 ${agg.value.act}/${agg.value.days} 天 · 有效动作 ${fmtW(agg.value.acts)} 件 · 加权 ${Math.round(agg.value.W)} 分 · P90 = ${agg.value.p90} 分 · 最长连续 ${streak.value} 天`,
     kpis: kpiSpec(),
-    grid: { cells: gridCells(), cols: 32, rows: 24, cell: 11, gap: 2, label: '六档：' + LV_NAME.join(' / ') },
+    grid: { cells: gridCells(), cols: 32, rows: 24, cell: 11, gap: 2, label: '六档：' + LV_NAME.join('/ ') },
     footer: footerText
   })
   downloadBlob(exportName('热力图', 'png', String(props.year)), blob)
-  showToast('✓ 已导出年历 PNG（当前主题配色）')
+  showToast('已导出年历 PNG（当前主题配色）')
 }
 function exportHtml(): void {
   const html = heatmapShareHtml({
@@ -189,7 +189,7 @@ function exportHtml(): void {
     footer: footerText
   })
   downloadText(exportName('热力图', 'html', String(props.year)), html, 'html')
-  showToast('✓ 已导出 HTML 分享页（任何人浏览器打开即看）')
+  showToast('已导出 HTML 分享页（任何人浏览器打开即看）')
 }
 function onExport(fmt: ExportFmt): void {
   if (fmt === 'png') void exportPng()
@@ -208,7 +208,7 @@ function onExport(fmt: ExportFmt): void {
            展开后与旧版长得一模一样、且回不去（真缺陷，W7-3 随迁钉住双向）。 -->
       <template v-if="expanded">
       <button class="dz-btn sm ghost" title="收起全年网格，回到近 26 周概览条" @click="expanded = false">收起</button>
-      <span class="dz-badge">{{ agg.first }} → {{ agg.last }}</span>
+      <span class="dz-badge">{{ agg.first }} › {{ agg.last }}</span>
       <span class="dz-badge">{{ selDay ? `已选 ${selDay}` : '点格子看那一天' }}</span>
       <ExportMenu :formats="['png', 'html']" @pick="onExport" />
       <button class="dz-btn sm ghost" title="上一年" @click="shiftYear(-1)">‹</button>

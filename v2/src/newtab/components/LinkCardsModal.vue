@@ -15,6 +15,7 @@
  * 数据纪律（与全局检索面板同一条）：AI 只读、零写库；`aiHits` 命中的行打标签，
  * 模型说"低置信"就打弱档标签 —— 让用户自己核，不让模型替他决定。
  */
+import Icon from '@/shared/components/Icon.vue'
 import Modal from '@/shared/components/Modal.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import type { ResourceCard } from '@/shared/models'
@@ -51,7 +52,7 @@ const emit = defineEmits<{
 <template>
   <Modal :open="open" :title="'关联资源卡到「' + catName + '」'" width="520px" @close="emit('close')">
     <div class="lc-search">
-      <span>🔍</span>
+      <span><Icon name="search" :size="13"/></span>
       <input :value="q" placeholder="关键词过滤（或写一句需求，再点右侧 AI 检索）"
         @input="emit('update:q', ($event.target as HTMLInputElement).value)" />
       <button type="button" class="lc-ai-btn" :class="{ busy: aiBusy, on: aiOn }"
@@ -70,27 +71,27 @@ const emit = defineEmits<{
     </div>
     <!-- R161-④：投料口径与收窄范围（与检索面板同一条「说实话」纪律：投了多少张、收窄到哪个范围都要看得见） -->
     <div v-if="aiOn || aiBusy" class="lc-ai-fed">
-      <span v-if="aiBusy">🤖 检索中…</span>
-      <span v-else>🤖 挑出 {{ Object.keys(aiHits).length }} 条 · 投料 {{ aiFed.scanned }}/{{ aiFed.total }} 张 · {{ aiTook }}ms</span>
-      <span v-if="aiScope" class="lc-ai-scope">🎯 范围 {{ aiScope }}</span>
+      <span v-if="aiBusy"><Icon name="bot" :size="13"/> 检索中…</span>
+      <span v-else><Icon name="bot" :size="13"/> 挑出 {{ Object.keys(aiHits).length }} 条 · 投料 {{ aiFed.scanned }}/{{ aiFed.total }} 张 · {{ aiTook }}ms</span>
+      <span v-if="aiScope" class="lc-ai-scope"><Icon name="target" :size="13"/> 范围 {{ aiScope }}</span>
       <span v-if="aiNote" class="lc-ai-note">「{{ aiNote }}」</span>
     </div>
     <div class="lc-list">
       <label v-for="c in list" :key="c.r.id" class="lc-item" :class="{ picked: picked?.has(c.r.id), mirrored: c.mirrored }">
         <input v-if="!c.mirrored" type="checkbox" :checked="picked?.has(c.r.id)" @change="emit('toggle-pick', c.r.id)" />
         <span v-else class="lc-badge">已在该台</span>
-        <span class="lc-title">{{ c.r.pinned ? '📌 ' : '' }}{{ c.r.title }}</span>
+        <span class="lc-title"><Icon v-if="c.r.pinned" name="pin" :size="12"/> {{ c.r.title }}</span>
         <span class="lc-link">{{ c.r.link }}</span>
         <!-- R161-④：命中信息挂在行上（同一张卡只出现一行，与检索面板同一条纪律） -->
         <span v-if="aiHits[c.r.id]" class="lc-ai-tag" :class="{ weak: aiHits[c.r.id].weak }"
-          :title="(aiHits[c.r.id].weak ? '模型给的分低或没给理由——它在猜，自己核一眼再用' : 'AI 从可镜像的卡里点名了这张') + (aiHits[c.r.id].why ? '：' + aiHits[c.r.id].why : '')">{{ aiHits[c.r.id].weak ? '🤖 低置信' : '🤖 命中' }}</span>
+          :title="(aiHits[c.r.id].weak ? '模型给的分低或没给理由——它在猜，自己核一眼再用' : 'AI 从可镜像的卡里点名了这张') + (aiHits[c.r.id].why ? '：' + aiHits[c.r.id].why : '')"><Icon name="sparkle" :size="10"/>{{ aiHits[c.r.id].weak ? '低置信' : '命中' }}</span>
       </label>
       <div v-if="!list.length" class="lc-empty">无匹配的资源台资源卡（也可以直接点右侧 AI 检索，按语义找）</div>
     </div>
     <template #footer>
       <div class="lc-foot">
         <button class="lc-btn" @click="emit('close')">取消</button>
-        <button class="lc-btn primary" @click="emit('confirm')">📡 镜像所选到该节点</button>
+        <button class="lc-btn primary" @click="emit('confirm')"><Icon name="satellite" :size="13"/> 镜像所选到该节点</button>
       </div>
     </template>
   </Modal>
@@ -123,7 +124,8 @@ const emit = defineEmits<{
 .lc-ai-scope { color: var(--text-3); }
 .lc-ai-note { color: var(--text-3); }
 .lc-ai-tag { flex-shrink: 0; font-size: var(--fs-tiny); padding: 1px 6px; border-radius: var(--radius-xs);
-  background: var(--accent-light); color: var(--accent-ink); font-weight: 600; white-space: nowrap; }
+  background: var(--accent-light); color: var(--accent-ink); font-weight: 600; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 3px; }  /* G1（V3.8.25）：🤖 → Icon sparkle，与文字同行 */
 .lc-ai-tag.weak { background: var(--warning-bg-soft); color: var(--warning); }
 /* 底栏：Modal 壳的 footer 插槽是纵向容器，这里自己排成一行（与原 .dr-footer-btn 视觉一致） */
 .lc-foot { display: flex; gap: var(--sp-2); }

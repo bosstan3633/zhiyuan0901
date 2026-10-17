@@ -13,6 +13,7 @@ export type { AiRow, AiJob } from '@/shared/ai/job'
  * 渲染零原文 HTML 指令：模型回显与用户编辑一律纯文本插值，天然免疫提示词注入的 XSS 面。
  * ★双栏在本组件内部自排，`Drawer.vue` 一字不动（它挂着全站 30+ 抽屉宿主）。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
 import Modal from '@/shared/components/Modal.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
@@ -83,7 +84,7 @@ const cur = computed<AiJob | null>(() => (bound.value ? bound.value.job : props.
 const vPhase = computed<Phase>(() => (bound.value ? (bound.value.phase === 'queued' ? 'running' : bound.value.phase) : phase.value))
 const vRows = computed<AiRow[]>(() => (bound.value ? bound.value.rows : rows.value))
 const vRaw = computed(() => (bound.value ? bound.value.raw : streamText.value))
-function copyRaw() { navigator.clipboard?.writeText(vRaw.value).then(() => showToast('✓ 模型原文已复制'), () => showToast('⚠ 复制失败（浏览器拦了剪贴板）')) }
+function copyRaw() { navigator.clipboard?.writeText(vRaw.value).then(() => showToast('模型原文已复制'), () => showToast('复制失败（浏览器拦了剪贴板）')) }
 const vErr = computed(() => (bound.value ? bound.value.err : errMsg.value))
 const vFeed = computed(() => (bound.value ? bound.value.feed : feed.value))
 const vSecs = computed(() => (bound.value ? bound.value.secs : secs.value))
@@ -127,8 +128,8 @@ const canResave = computed(() => !!cur.value?.resave && dirty.value)
 /* R166 定案 8：job 自己声明了主采纳文案就用它（拆解=「✓ 采纳为子任务」）——
    按钮该说出"点了会改什么"；没声明才回落通用的「采纳（直接写库）」。计数后缀两种都保留。 */
 const adoptLabel = computed(() => {
-  if (isVerdict.value) return VERDICT_LABEL[verdictPick.value] || '✓ 采纳判决'
-  const base = cur.value?.adoptLabel || (confirmText.value ? '✓ 确认写库' : '✓ 采纳（直接写库）')
+  if (isVerdict.value) return VERDICT_LABEL[verdictPick.value] || '采纳判决'
+  const base = cur.value?.adoptLabel || (confirmText.value ? '确认写库' : '采纳（直接写库）')
   return `${base}（${picked.value.size}）`
 })
 const hotPair = ref('')
@@ -156,7 +157,7 @@ function startDrag(e: MouseEvent): void {
 }
 /** 跑完后步骤不再单独占一行：折进「采纳前须知」的次行（跑动中仍显示在头部） */
 const stepsLine = computed(() => (vPhase.value === 'done' && cur.value?.steps?.length
-  ? cur.value.steps.map(s => '✓ ' + s.label).join(' · ') : ''))
+  ? cur.value.steps.map(s => '' + s.label).join('· ') : ''))
 /** R167：单条研判走「判决卡」版式（一条建议摊成左右对照会空半屏） */
 const isVerdict = computed(() => cur.value?.layout === 'verdict' && vPhase.value === 'done' && shown.value.length > 0)
 const curioMaturityOf = curioMaturity
@@ -178,7 +179,7 @@ const verdictTitle0 = computed(() => (verdictRow.value?.data as { __title?: stri
 const verdictPick = ref('')
 /** R167：判决卡——采纳钮必须说出"点下去会发生什么"（转=建卡+本条离场，搁置=只改状态，养=什么都不写） */
 const VERDICT_LABEL: Record<string, string> = {
-  convert: '✓ 转成任务（本条从池中离场）', keep: '✓ 继续养着（什么都不改）', drop: '✓ 置为已搁置（不删卡）',
+  convert: '转成任务（本条从池中离场）', keep: '继续养着（什么都不改）', drop: '置为已搁置（不删卡）',
 }
 const verdictTitle = ref('')
 /** 依据一律本地数出来的（模型只给判词），否则"依据"就成了第二份可编造的话 */
@@ -341,10 +342,10 @@ async function adopt() {
   try {
     const summary = await job.apply(sel)
     pushUndo(`AI 采纳（${sel.length} 项）`, () => { store.data = JSON.parse(snap); store.persist() })
-    showToast(typeof summary === 'string' ? summary : '✓ 已采纳', { label: '撤销', cb: () => { store.data = JSON.parse(snap); store.persist() } })
+    showToast(typeof summary === 'string' ? summary : '已采纳', { label: '撤销', cb: () => { store.data = JSON.parse(snap); store.persist() } })
     if (job.promptScope) markRunAdopted(job)
     finishAfterApply()
-  } catch (e) { showToast('⚠ 采纳失败：' + (e as Error).message) }
+  } catch (e) { showToast('采纳失败：' + (e as Error).message) }
 }
 function stop() { ctrl?.abort(); ctrl = null }
 function close() {
@@ -359,9 +360,9 @@ async function adoptSecondary() {
   if (!sel.length) return
   try {
     const summary = await job.secondary.apply(sel)
-    showToast(typeof summary === 'string' ? summary : '✓ 已处理')
+    showToast(typeof summary === 'string' ? summary : '已处理')
     finishAfterApply()
-  } catch (e) { showToast('⚠ 处理失败：' + (e as Error).message) }
+  } catch (e) { showToast('处理失败：' + (e as Error).message) }
 }
 /** R154（拍板③）：报告型「存为卡」——用编辑后的正文刷新**同一张**卡，不新增第二张 */
 async function saveAgain() {
@@ -369,9 +370,9 @@ async function saveAgain() {
   if (!job?.resave) return
   try {
     const s = await job.resave(shown.value)
-    showToast(typeof s === 'string' ? s : '✓ 已存为卡')
+    showToast(typeof s === 'string' ? s : '已存为卡')
     savedDrafts.value = new Map(drafts.value)
-  } catch (e) { showToast('⚠ 存卡失败：' + (e as Error).message) }
+  } catch (e) { showToast('存卡失败：' + (e as Error).message) }
 }
 
 /* ===== R154 指令框 ===== */
@@ -403,8 +404,8 @@ async function promote(): Promise<void> {
   commitDir()
   try {
     const id = await promoteToPersona(t, '')
-    showToast(`✓ 已存为自建专家「${t.slice(0, 12)}」· 设置 › AI 助手 › 角色库可改名与停用（${id}）`)
-  } catch (e) { showToast('⚠ ' + (e as Error).message) }
+    showToast(`已存为自建专家「${t.slice(0, 12)}」· 设置 › AI 助手 › 角色库可改名与停用（${id}）`)
+  } catch (e) { showToast('' + (e as Error).message) }
 }
 function pickDir(text: string): void { dirText.value = text; dirOpen.value = false }
 /** R166 D9：弹窗内不建第二套专家编辑器——只跳 设置 → AI 助手（hash 走 router 同款口径，不引新依赖） */
@@ -451,7 +452,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
         <option v-for="o in cur.persona.options" :key="o.id" :value="o.id">{{ o.label }}</option>
       </select>
       <button class="ai-btn sm ai-persona-manage" title="到 设置 → AI 助手 管理专家（启停与自建角色都只在那一处）"
-        @click="gotoPersonaAdmin">⚙ 管理专家</button>
+        @click="gotoPersonaAdmin"><Icon name="settings" :size="13"/> 管理专家</button>
     </template>
     <!-- ② 固定行：一次性指令（R167 压成三列一条：标签列 | 输入框 | 动作列）。
          角色=谁来写（可复用）、指令=这次要什么（优先级高于角色，但改不了输出结构）。
@@ -459,7 +460,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
     <template v-if="cur?.promptScope" #sub>
       <div class="ai-dir">
         <div class="ai-dir-l">
-          <b>🎯 本次指令</b>
+          <b><Icon name="target" :size="13"/> 本次指令</b>
           <span class="ai-dir-tiers">
             <button v-if="cur.promptObject" class="tier" :class="{ on: dirTier === 'object' }"
               :title="'这条只跟' + (cur.promptObjectLabel || '这个对象') + '走'"
@@ -485,8 +486,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
               </button>
             </span>
           </span>
-          <button class="ai-btn sm" title="把这条口径存成可复用角色，之后任何入口的角色下拉都能选它" @click="promote">↗ 存为角色</button>
-          <button class="ai-btn sm" title="带上这条指令重新生成" @click="applyDirAndRerun">应用并重跑 ↻</button>
+          <button class="ai-btn sm" title="把这条口径存成可复用角色，之后任何入口的角色下拉都能选它" @click="promote"><Icon name="external" :size="13"/> 存为角色</button>
+          <button class="ai-btn sm" title="带上这条指令重新生成" @click="applyDirAndRerun">应用并重跑 <Icon name="refresh" :size="13"/></button>
         </div>
       </div>
     </template>
@@ -527,26 +528,26 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
               <span class="ai-dot-pulse"></span>
               <template v-if="queued">排队中（同时最多 2 个 AI 任务，前面的跑完自动开始）</template>
               <template v-else>专家思考/生成中… 已 {{ vSecs }}s<span v-if="vFeed.calls"> · 已发 {{ vFeed.calls }} 次请求 / 投料 {{ vFeed.chars }} 字</span></template>
-              <button class="ai-btn sm" @click="stopAll">⏹ 停止</button>
+              <button class="ai-btn sm" @click="stopAll">停止</button>
             </div>
             <pre v-if="vRaw" class="ai-stream">{{ vRaw.slice(-600) }}</pre>
           </div>
 
           <div v-else-if="vPhase === 'error'" class="ai-status ai-err">
-            ⚠ {{ vErr }}
+            <Icon name="warn" :size="13"/> {{ vErr }}
             <span v-if="vFeed.chars" class="ai-err-feed">（本次已投料 {{ vFeed.chars }} 字 / {{ vSecs }}s）</span>
-            <button class="ai-btn sm" @click="keyOf ? rerun() : cur && run(cur)">↻ 重试</button>
+            <button class="ai-btn sm" @click="keyOf ? rerun() : cur && run(cur)"><Icon name="refresh" :size="13"/> 重试</button>
           </div>
 
           <!-- R149：⏹ 停止留下一条"作废"记录并给重跑出口（旧版把任务抹没，抽屉只剩空白） -->
           <div v-else-if="vPhase === 'stopped'" class="ai-status ai-stopped">
-            ⏹ 已停止，本轮结果作废（未写入任何数据）
+            已停止，本轮结果作废（未写入任何数据）
             <span v-if="vFeed.chars || vSecs" class="ai-err-feed">（本次已投料 {{ vFeed.chars }} 字 / {{ vSecs }}s）</span>
-            <button class="ai-btn sm" @click="keyOf ? rerun() : cur && run(cur)">↻ 重新运行</button>
+            <button class="ai-btn sm" @click="keyOf ? rerun() : cur && run(cur)"><Icon name="refresh" :size="13"/> 重新运行</button>
           </div>
 
           <template v-else-if="vPhase === 'done'">
-            <div v-if="vSaved" class="ai-saved">📥 {{ vSaved }}</div>
+            <div v-if="vSaved" class="ai-saved"><Icon name="inbox" :size="13"/> {{ vSaved }}</div>
             <div v-if="!shown.length" class="ai-empty">
               {{ hasAdopt || cur?.secondary ? '模型没有给出可采纳的建议' : '模型没有给出可存的正文' }}<span v-if="auditLine">——{{ auditLine }}</span>。
               <div class="ai-empty-hint">换专家执笔、把卡片描述补一句，或换个更具体的关键词再问一次。</div>
@@ -605,7 +606,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
                   :class="{ on: picksSomething && !r.advisory && picked.has(r.key), advisory: r.advisory || !picksSomething, weak: picksSomething && r.weak, same: r.changeType === 'same', edited: drafts.has(r.key), dim: onlyDiff && r.changeType === 'same', hot: hotPair === r.key, ['ct-' + (r.changeType || 'new')]: true }"
                   @mouseenter="hover(r)" @mouseleave="unhover">
                   <input v-if="!r.advisory && picksSomething && r.changeType !== 'same'" type="checkbox" :checked="picked.has(r.key)" @change="toggle(r.key)" />
-                  <span v-else-if="r.advisory" class="ai-adv-mark" title="参谋建议（只读）">🧭</span>
+                  <span v-else-if="r.advisory" class="ai-adv-mark" title="参谋建议（只读）"><Icon name="compass" :size="13"/></span>
                   <span v-else class="ai-cb-ph"></span>
                   <span class="ai-card-bd">
                     <span class="ai-card-hd">
@@ -624,7 +625,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
                       <template v-else>
                         <span :class="{ 'ai-clickable': canEdit(r) }" :title="canEdit(r) ? '点击编辑（编辑即视为要采纳这一项）' : ''"
                           @click.stop="startEdit(r)">{{ r.main }}</span>
-                        <span v-if="drafts.has(r.key)" class="ai-edited-mark" title="你改过这条">✏️</span>
+                        <span v-if="drafts.has(r.key)" class="ai-edited-mark" title="你改过这条"><Icon name="edit" :size="13"/></span>
                       </template>
                     </span>
                     <span v-if="r.sub" class="ai-row-sub">{{ r.sub }}</span>
@@ -653,11 +654,11 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
     </div>
 
     <template #footer>
-      <div v-if="confirmText" class="ai-confirm">⚠ {{ confirmText }}</div>
+      <div v-if="confirmText" class="ai-confirm"><Icon name="warn" :size="13"/> {{ confirmText }}</div>
       <div class="ai-foot-row">
         <button class="ai-btn" @click="close">关闭</button>
-        <button v-if="keyOf && vPhase === 'done'" class="ai-btn" title="重新问一次（当前结果作废）" @click="rerun">↻ 重新运行</button>
-        <button v-if="canResave" class="ai-btn" title="用你编辑过的正文刷新那张卡（同名复用，不新增第二张）" @click="saveAgain">📥 存为卡（已编辑 {{ drafts.size }}）</button>
+        <button v-if="keyOf && vPhase === 'done'" class="ai-btn" title="重新问一次（当前结果作废）" @click="rerun"><Icon name="refresh" :size="13"/> 重新运行</button>
+        <button v-if="canResave" class="ai-btn" title="用你编辑过的正文刷新那张卡（同名复用，不新增第二张）" @click="saveAgain"><Icon name="inbox" :size="13"/> 存为卡（已编辑 {{ drafts.size }}）</button>
         <button v-if="cur?.secondary && vRows.length" class="ai-btn" :class="{ primary: recDetail }" :disabled="picked.size === 0"
           @click="adoptSecondary">{{ cur.secondary.label }}（{{ picked.size }}）</button>
         <button v-if="hasAdopt && vRows.length" class="ai-btn" :class="{ primary: !recDetail, danger: !!cur?.confirm }" :disabled="!canApply"

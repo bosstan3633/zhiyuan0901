@@ -11,6 +11,7 @@
  *   （kpisOf 消费段，与 F13 的 PiRhythm k6 同批口径）整体退役——月度不再重复摆周度的读数。
  * props-only 红线（R172-9）：聚合全在宿主算好传入，本组件零扫 store。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed } from 'vue'
 import { windowOf, type ConciseInsight } from '@/shared/utils/reviewReport'
 import { aggregateRange, type DailyStats } from '@/shared/utils/dailyStats'
@@ -50,7 +51,7 @@ const topicMax = computed(() => Math.max(1, ...props.topics.map(t => t.n)))
 <template>
   <section class="pi-mod" id="mod-month">
     <div class="pi-mod-h">
-      <span class="pi-mod-ico i-month">🗓</span>
+      <span class="pi-mod-ico i-month"><Icon name="calendar" :size="13"/></span>
       <div class="pi-mod-t">
         <h2>这个月，走得怎样<span class="en">MONTH</span></h2>
         <p>主题看聚焦、漏斗看转化。读数口径月度专属，与本周段不重复。</p>
@@ -59,14 +60,14 @@ const topicMax = computed(() => Math.max(1, ...props.topics.map(t => t.n)))
         <!-- F16：知识熵变化徽标 -->
         <span class="m-badge" :class="entDelta > 0 ? 'down' : entDelta < 0 ? 'up' : ''"
           :title="`上月底 ${ent.from} bit → 当前 ${ent.to} bit（香农熵：越低越聚焦）`">
-          知识熵 {{ ent.from }} → {{ ent.to }} bit · {{ entState }}
+          知识熵 {{ ent.from }} › {{ ent.to }} bit · {{ entState }}
         </span>
       </div>
     </div>
     <div class="pi-mod-b">
       <!-- ① F16 诊断条（宿主确定性推导，三态） -->
       <div id="ins-month" class="one-insight" :class="insight.warn ? 'warn' : 'info'">
-        <span class="oi-ic">{{ insight.warn ? '⚠️' : '💡' }}</span>
+        <span class="oi-ic"><Icon v-if="insight.warn" name="warn" :size="15"/><Icon v-else name="bulb" :size="15"/></span>
         <span class="oi-text" v-html="insight.html"></span>
         <button class="act-link" :title="insight.html" @click="emit('insight-action', insight.ctaAction)">
           {{ insight.ctaLabel }}
@@ -98,7 +99,7 @@ const topicMax = computed(() => Math.max(1, ...props.topics.map(t => t.n)))
       <div class="light-split">
         <div class="lbox">
           <div class="lbox-h">
-            <b>Top 输入主题 → 项目</b>
+            <b>Top 输入主题 › 项目</b>
             <span>{{ untagged }} 张待打标 · 点行看该主题本月新卡</span>
           </div>
           <div v-if="topics.length" class="topic-rows">
@@ -112,20 +113,20 @@ const topicMax = computed(() => Math.max(1, ...props.topics.map(t => t.n)))
           <div v-else class="pi-empty">本月暂无带标签的新卡——先给采集的资源打上标签</div>
         </div>
         <div class="lbox">
-          <div class="lbox-h"><b>认知流转三步</b><span>点任一步 → 对应明细</span></div>
+          <div class="lbox-h"><b>认知流转三步</b><span>点任一步 › 对应明细</span></div>
           <div class="funnel3">
             <button class="fs" @click="emit('drill', 'mo-add')">
               <span class="st">①</span><b>捕捉入池</b>
               <span class="v">{{ funnel.pool }}<small>张</small></span>
               <span class="s">资源 + 好奇入池</span>
             </button>
-            <span class="fa">→</span>
+            <span class="fa">›</span>
             <button class="fs" @click="emit('drill', 'mo-support')">
               <span class="st">②</span><b>支撑任务</b>
               <span class="v">{{ funnel.support }}<small>条</small></span>
               <span class="s">新支撑 + 完成 · 转化 {{ funnel.convPct }}%</span>
             </button>
-            <span class="fa">→</span>
+            <span class="fa">›</span>
             <button class="fs" @click="emit('drill', 'mo-curate')">
               <span class="st">③</span><b>策展表达</b>
               <span class="v">{{ funnel.curate }}<small>张</small></span>

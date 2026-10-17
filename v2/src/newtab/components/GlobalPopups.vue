@@ -45,7 +45,7 @@
             <AiEntryButton variant="inline" label="AI 检索" />
             <span class="gp-ai-fed">挑出 {{ aiTopRows.length }} 条 · 投料 {{ aiSearch?.scanned }}/{{ aiSearch?.total }} 张 · {{ aiDur(aiTook) }}<template v-if="aiSearch && aiSearch.batches > 1"> · {{ aiSearch.batches }} 批</template></span>
             <!-- R161-③：把"按你这句话收窄到了什么范围"说清楚——不然 total 变小会被误读成"库里就这么点卡" -->
-            <span v-if="aiSearch && aiSearch.scope" class="gp-ai-scope" title="按你这句话的指向性（点名的类型 / 台 / 分类）收窄了候选范围；识别不到指向就查全库">🎯 范围 {{ aiSearch.scope }}</span>
+            <span v-if="aiSearch && aiSearch.scope" class="gp-ai-scope" title="按你这句话的指向性（点名的类型 / 台 / 分类）收窄了候选范围；识别不到指向就查全库"><Icon name="target" :size="13"/> 范围 {{ aiSearch.scope }}</span>
             <span v-if="aiSearch && aiSearch.note" class="gp-ai-note">{{ aiSearch.note }}</span>
             <span v-if="aiSearch && aiSearch.dropped" class="gp-ai-drop">消毒：{{ aiSearch.dropped }} 条 id 不在候选内</span>
             <button v-if="aiSearch && aiSearch.scanned < aiSearch.total" class="gp-ai-more" :disabled="aiBusy"
@@ -71,7 +71,7 @@
                 <div class="gp-ri-icon res"><Icon :name="ai.panel.icon" :size="15" /></div>
                 <div class="gp-ri-main"><div class="gp-ri-title">{{ ai.title }}</div>
                   <div class="gp-ri-cat">{{ ai.panel.hint }}</div></div>
-                <span class="gp-ri-link url">↗</span>
+                <span class="gp-ri-link url"><Icon name="external" :size="13"/></span>
               </div>
             </template>
             <template v-if="aiPanelRows.passive.length">
@@ -82,14 +82,14 @@
                 <div class="gp-ri-icon res"><Icon :name="ai.panel.icon" :size="15" /></div>
                 <div class="gp-ri-main"><div class="gp-ri-title">{{ ai.title }}</div>
                   <div class="gp-ri-cat">{{ ai.panel.hint }}</div></div>
-                <span class="gp-ri-link url">↗</span>
+                <span class="gp-ri-link url"><Icon name="external" :size="13"/></span>
               </div>
             </template>
           </template>
           <!-- 常用内容 Tab：近期最常用（置顶）→ 快捷操作 → 快速开关（索引 = recent + QA + TGL，与 flatList 逐项一致） -->
           <template v-if="browseTab==='common'">
             <template v-if="recentResources.length">
-              <div class="gp-group-title">🔥 近期最常用 · 按调用次数</div>
+              <div class="gp-group-title"><Icon name="flame" :size="13"/> 近期最常用 · 按调用次数</div>
               <div v-for="(r, j) in recentResources" :key="r.id"
                 class="gp-result-item" :class="{selected: selIndex===j}"
                 @click="runFlat(j)" @mouseenter="selIndex=j"
@@ -98,7 +98,7 @@
                 <div class="gp-ri-main"><div class="gp-ri-title">{{ r.title }}</div>
                   <div class="gp-ri-cat">{{ r.ws }}<template v-if="r.cat"> · {{ r.cat }}</template></div>
                 </div>
-                <span class="gp-ri-link url">🔥{{ (r.raw as any).callCount || 0 }}</span>
+                <span class="gp-ri-link url"><Icon name="flame" :size="13"/>{{ (r.raw as any).callCount || 0 }}</span>
               </div>
             </template>
             <div class="gp-group-title">快捷操作</div>
@@ -106,7 +106,7 @@
               class="gp-result-item" :class="{selected: selIndex===recentResources.length+i}" @click="runFlat(recentResources.length+i)" @mouseenter="selIndex=recentResources.length+i">
               <div class="gp-ri-icon res"><Icon :name="qa.icon" :size="15" /></div>
               <div class="gp-ri-main"><div class="gp-ri-title">{{ qa.label }}</div></div>
-              <span class="gp-ri-link url">↵</span>
+              <span class="gp-ri-link url"><Icon name="arrowleft" :size="13"/></span>
             </div>
             <!-- R171-C1：快速开关（04-63 任务书「全部开关收进去」的收口）——行内明示当前态，点了立即生效 -->
             <template v-if="PALETTE_TOGGLES.length">
@@ -126,15 +126,15 @@
         <!-- R49-G2：策展台类型 → 策展台→分类树（点击分类定位：有卡=高亮第一张，无卡=高亮分类行） -->
         <template v-if="currentType==='ws'">
           <div v-if="!wsTree.length" class="gp-search-empty">
-            <div class="gp-se-icon">🗂</div>
+            <div class="gp-se-icon"><Icon name="folder" :size="13"/></div>
             <div class="gp-se-text">没有匹配的策展台</div>
           </div>
           <template v-for="wsn in wsTree" :key="wsn.id">
-            <div class="gp-group-title">🗂 {{ wsNameOf(wsn.id) }} <span class="gp-group-cnt">{{ wsn.cards }} 张卡</span></div>
+            <div class="gp-group-title"><Icon name="folder" :size="13"/> {{ wsNameOf(wsn.id) }} <span class="gp-group-cnt">{{ wsn.cards }} 张卡</span></div>
             <div v-for="cn in wsn.cats" :key="wsn.id + '-' + cn.id"
               class="gp-result-item" @click="locateCat(wsn.id, cn)"
               title="单击 → 定位到该分类（有卡高亮第一张，无卡高亮分类行）">
-              <div class="gp-ri-icon ws">📁</div>
+              <div class="gp-ri-icon ws"><Icon name="folder" :size="13"/></div>
               <div class="gp-ri-main">
                 <div class="gp-ri-title">{{ cn.name }}</div>
                 <div class="gp-ri-meta">
@@ -142,7 +142,7 @@
                   <span v-if="!cn.count" class="gp-ri-badge">空分类 · 定位到分类</span>
                 </div>
               </div>
-              <span class="gp-ri-link url">定位 ↗</span>
+              <span class="gp-ri-link url">定位 <Icon name="external" :size="13"/></span>
             </div>
             <div v-if="!wsn.cats.length" class="gp-group-more">该策展台暂无分类</div>
           </template>
@@ -150,10 +150,10 @@
         <template v-else>
         <!-- R110-LC（T3）：归档卡已从默认检索结果排除——一行降级提示（不打断结果流） -->
         <div v-if="archivedMatchCount" class="gp-archived-hint">
-          📦 另有 {{ archivedMatchCount }} 张已归档卡片匹配（在「⏳ 生命周期」中查看 / 恢复）
+          <Icon name="package" :size="13"/> 另有 {{ archivedMatchCount }} 张已归档卡片匹配（在「生命周期」中查看 / 恢复）
         </div>
         <div v-if="!filteredResults.length" class="gp-search-empty">
-          <div class="gp-se-icon">🪹</div>
+          <div class="gp-se-icon"><Icon name="inbox" :size="13"/></div>
           <div class="gp-se-text">没有匹配的卡片<br><span style="font-size: var(--fs-caption)">试试更短的关键词</span></div>
         </div>
         <template v-for="grp in groupedResults" :key="grp.label">
@@ -171,9 +171,9 @@
               <span v-for="b in item.badges" :key="b.text" class="gp-ri-badge" :class="b.type">{{ b.text }}</span>
               <!-- R152：AI 命中挂在主列表这一行上（弱相关仍标"低置信"，判弱只用客观信号不藏） -->
               <!-- R152：命中信息并入主列表这一行；弱相关仍显式标「低置信」，不许因为并组就藏掉 -->
-              <span v-if="aiHitById[item.id]" class="gp-ri-badge ai" :class="{ weak: aiHitById[item.id].weak }" :title="aiHitById[item.id].weak ? '模型给的分低或没给理由——它在猜，自己核一眼再用' : 'AI 从库内挑出来时点名了这张卡'">{{ aiHitById[item.id].weak ? '🤖 低置信' : '🤖 命中' }}</span>
-              <span v-if="item.link" class="gp-ri-link" :class="item.link.type">{{ item.link.icon }} {{ item.link.text }}</span>
-              <span v-if="item.due" class="gp-ri-due" :class="{overdue: item.dueOverdue}">{{ item.dueOverdue ? '⏰' : '📅' }} {{ item.due }}</span>
+              <span v-if="aiHitById[item.id]" class="gp-ri-badge ai" :class="{ weak: aiHitById[item.id].weak }" :title="aiHitById[item.id].weak ? '模型给的分低或没给理由——它在猜，自己核一眼再用' : 'AI 从库内挑出来时点名了这张卡'"><Icon name="sparkle" :size="10"/>{{ aiHitById[item.id].weak ? '低置信' : '命中' }}</span>
+              <span v-if="item.link" class="gp-ri-link" :class="item.link.type"><Icon :name="linkIconName(item.link.type)" :size="12"/> {{ item.link.text }}</span>
+              <span v-if="item.due" class="gp-ri-due" :class="{overdue: item.dueOverdue}"><Icon v-if="item.dueOverdue" name="clock" :size="13"/> {{ item.due }}</span>
             </div>
             <div v-if="item.summary" class="gp-ri-summary" v-html="hlTitle(item.summary)"></div>
             <div v-if="aiHitById[item.id]?.why" class="gp-ai-why">{{ aiHitById[item.id].why }}</div>
@@ -181,25 +181,25 @@
           <div v-if="grp.total > grp.items.length" class="gp-group-more">… 还有 {{ grp.total - grp.items.length }} 条，输入更精确的关键词</div>
           <div class="gp-ri-actions">
             <template v-if="item.type==='res'">
-              <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)">⭐</button>
-              <button class="gp-ri-act del" title="删除" @click.stop="deleteItem(item)">🗑</button>
-              <button class="gp-ri-act go" title="打开链接（外开浏览器）" @click.stop="openResLink(item)">↗</button>
+              <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)"><Icon name="star" :size="13"/></button>
+              <button class="gp-ri-act del" title="删除" @click.stop="deleteItem(item)"><Icon name="trash" :size="13"/></button>
+              <button class="gp-ri-act go" title="打开链接（外开浏览器）" @click.stop="openResLink(item)"><Icon name="external" :size="13"/></button>
             </template>
             <template v-else-if="item.type==='task'">
-              <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)">⭐</button>
-              <button class="gp-ri-act del" title="删除" @click.stop="deleteItem(item)">🗑</button>
-              <button class="gp-ri-act go" title="定位到任务卡片" @click.stop="openItem(item)">↗</button>
+              <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)"><Icon name="star" :size="13"/></button>
+              <button class="gp-ri-act del" title="删除" @click.stop="deleteItem(item)"><Icon name="trash" :size="13"/></button>
+              <button class="gp-ri-act go" title="定位到任务卡片" @click.stop="openItem(item)"><Icon name="external" :size="13"/></button>
             </template>
             <template v-else-if="item.type==='curio'">
-              <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)">⭐</button>
+              <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)"><Icon name="star" :size="13"/></button>
               <div class="gp-ri-act convert" title="转化为...">
-                <span @click.stop="toggleConvertMenu(item.id)">🔄▾</span>
+                <span @click.stop="toggleConvertMenu(item.id)"><Icon name="refresh" :size="13"/>▾</span>
                 <div class="gp-convert-menu" :class="{open: convertMenuId===item.id}" @click.stop>
-                  <div class="gp-convert-menu-item" @click="convertCurio(item, 'res')">📄 转化为资源卡</div>
-                  <div class="gp-convert-menu-item" @click="convertCurio(item, 'task')">✅ 转化为任务卡</div>
+                  <div class="gp-convert-menu-item" @click="convertCurio(item, 'res')"><Icon name="filetext" :size="13"/> 转化为资源卡</div>
+                  <div class="gp-convert-menu-item" @click="convertCurio(item, 'task')"><Icon name="check" :size="13"/> 转化为任务卡</div>
                 </div>
               </div>
-              <button class="gp-ri-act go" title="定位到好奇心卡片" @click.stop="openItem(item)">↗</button>
+              <button class="gp-ri-act go" title="定位到好奇心卡片" @click.stop="openItem(item)"><Icon name="external" :size="13"/></button>
             </template>
           </div>
           </div><!-- /gp-result-item -->
@@ -209,8 +209,8 @@
       </div>
       <div class="gp-panel-foot">
         <span><kbd>↑↓</kbd> 选择</span>
-        <span><kbd>⏎</kbd> 打开链接</span>
-        <span><kbd>Ctrl+⏎ / 单击</kbd> 定位卡片</span>
+        <span><kbd>Enter</kbd> 打开链接</span>
+        <span><kbd>Ctrl+Enter / 单击</kbd> 定位卡片</span>
         <span><kbd>Tab</kbd> 过滤类型</span>
         <span><kbd>Esc</kbd> 关闭</span>
         <span class="gp-foot-brand">知源调度台 · 万千可调用，自有我方向</span>
@@ -223,7 +223,7 @@
     <div class="gp-panel gp-panel-narrow">
       <template v-if="!capSaved">
         <div class="gp-cap-head">
-          <div class="gp-cap-icon res">📥</div>
+          <div class="gp-cap-icon res"><Icon name="inbox" :size="13"/></div>
           <div class="gp-cap-titles">
             <div class="gp-cap-title">快速采集资源卡</div>
             <div class="gp-cap-sub">把当前页面收进你的来源网络</div>
@@ -239,9 +239,9 @@
           <div class="gp-field">
             <label class="gp-field-label">链接类型</label>
             <div class="gp-seg-control">
-              <button class="gp-seg-btn" :class="{active: capForm.linkType==='url'}" @click="capForm.linkType='url'">🔗 URL</button>
-              <button class="gp-seg-btn" :class="{active: capForm.linkType==='file'}" @click="capForm.linkType='file'">📁 本地文件</button>
-              <button class="gp-seg-btn" :class="{active: capForm.linkType==='obsidian'}" @click="capForm.linkType='obsidian'">📝 Obsidian</button>
+              <button class="gp-seg-btn" :class="{active: capForm.linkType==='url'}" @click="capForm.linkType='url'"><Icon name="link" :size="13"/> URL</button>
+              <button class="gp-seg-btn" :class="{active: capForm.linkType==='file'}" @click="capForm.linkType='file'"><Icon name="folder" :size="13"/> 本地文件</button>
+              <button class="gp-seg-btn" :class="{active: capForm.linkType==='obsidian'}" @click="capForm.linkType='obsidian'"><Icon name="filetext" :size="13"/> Obsidian</button>
             </div>
             <input type="text" class="gp-field-input" v-model="capForm.link" :placeholder="capLinkPlaceholder"
               @keydown.ctrl.enter.prevent="saveCapture" @keydown.meta.enter.prevent="saveCapture">
@@ -256,7 +256,7 @@
             <!-- V3.7.0（R179）：资源台退役——采集统一入资源卡池，标签由「保存后补全」AI 建议（可保存后编辑） -->
             <div class="gp-field">
               <label class="gp-field-label">存入</label>
-              <div class="gp-status-select" style="display:flex;align-items:center;gap:6px;">🗂 资源卡池<span style="color:var(--text-tertiary);font-size:11px;">· 标签保存后自动补</span></div>
+              <div class="gp-status-select" style="display:flex;align-items:center;gap:6px;"><Icon name="folder" :size="13"/> 资源卡池<span style="color:var(--text-tertiary);font-size:11px;">· 标签保存后自动补</span></div>
             </div>
           </div>
         </div>
@@ -266,14 +266,14 @@
                这里只保留开关本体与说明，不再改标签措辞。 -->
           <label class="gp-cap-enrich" title="保存成功后自动打开 AI 补全评审（勾选采纳才写库）；W4 起默认开——新卡入库自动预打标"><input type="checkbox" v-model="capEnrichOn" @change="capEnrichSave" /> <AiEntryButton variant="inline" label="保存后补全" /></label>
           <button class="gp-btn gp-btn-ghost" @click="closeAll">取消</button>
-          <button class="gp-btn gp-btn-primary" @click="saveCapture">💾 保存（Ctrl+Enter）</button>
+          <button class="gp-btn gp-btn-primary" @click="saveCapture"><Icon name="save" :size="13"/> 保存（Ctrl+Enter）</button>
         </div>
       </template>
 
       <!-- 已保存状态条：Enter 打开看板 / Esc 关闭 / 5 秒自动消失 -->
       <template v-else>
         <div class="gp-saved">
-          <div class="gp-saved-icon">✓</div>
+          <div class="gp-saved-icon"><Icon name="check" :size="13"/></div>
           <div class="gp-saved-title">资源卡已保存</div>
           <div class="gp-saved-hint">按 <kbd>Enter</kbd> 打开看板 · 定位新卡片</div>
           <div class="gp-saved-sub">按 <kbd>Esc</kbd> 关闭 · 5 秒后自动关闭</div>
@@ -292,7 +292,7 @@
     <div class="gp-panel gp-panel-narrow">
       <template v-if="!tcSaved">
         <div class="gp-cap-head">
-          <div class="gp-cap-icon res">⚡</div>
+          <div class="gp-cap-icon res"><Icon name="zap" :size="13"/></div>
           <div class="gp-cap-titles">
             <div class="gp-cap-title">快速采集任务</div>
             <div class="gp-cap-sub">四项皆可留空 · 存入全域任务统一管理</div>
@@ -316,26 +316,26 @@
               <label class="gp-field-label">所属项目（可留空）</label>
               <select class="gp-status-select" v-model="tcForm.projectId">
                 <option value="">未关联项目</option>
-                <option v-for="p in tcProjects" :key="p.id" :value="p.id">📦 {{ p.name }}</option>
+                <option v-for="p in tcProjects" :key="p.id" :value="p.id"><Icon name="package" :size="13"/> {{ p.name }}</option>
               </select>
             </div>
             <div class="gp-field">
               <label class="gp-field-label">所属指标（可留空）</label>
               <select class="gp-status-select" v-model="tcForm.metricId" :disabled="!tcForm.projectId">
                 <option value="">暂不归属</option>
-                <option v-for="m in tcMetrics" :key="m.id" :value="m.id">🎯 {{ m.title }}</option>
+                <option v-for="m in tcMetrics" :key="m.id" :value="m.id"><Icon name="target" :size="13"/> {{ m.title }}</option>
               </select>
             </div>
           </div>
         </div>
         <div class="gp-cap-foot">
           <button class="gp-btn gp-btn-ghost" @click="closeAll">取消</button>
-          <button class="gp-btn gp-btn-primary" @click="saveTaskCapture">⚡ 保存任务（Ctrl+Enter）</button>
+          <button class="gp-btn gp-btn-primary" @click="saveTaskCapture"><Icon name="zap" :size="13"/> 保存任务（Ctrl+Enter）</button>
         </div>
       </template>
       <template v-else>
         <div class="gp-saved">
-          <div class="gp-saved-icon">⚡</div>
+          <div class="gp-saved-icon"><Icon name="zap" :size="13"/></div>
           <div class="gp-saved-title">任务已保存</div>
           <div class="gp-saved-sub">{{ tcForm.projectId ? '已挂项目/指标 · 全域任务统一管理' : '暂为未归档任务 · 可随时在方向台归档' }}</div>
           <div class="gp-saved-hint">按 <kbd>Enter</kbd> 打开任务管理</div>
@@ -353,7 +353,7 @@
   <div class="gp-overlay" :class="{open: activePanel==='curio'}" @click.self="closeAll">
     <div class="gp-panel gp-panel-curio">
       <div class="gp-cap-head">
-        <div class="gp-cap-icon curio">💡</div>
+        <div class="gp-cap-icon curio"><Icon name="bulb" :size="13"/></div>
         <div class="gp-cap-titles">
           <div class="gp-cap-title">采集好奇心</div>
           <div class="gp-cap-sub">从好奇出发，向源头求证</div>
@@ -367,18 +367,18 @@
             placeholder="看到什么、想到什么、想探索什么？&#10;按 Enter 换行，Ctrl+Enter 保存"
             @keydown.ctrl.enter.prevent="saveCurio"></textarea>
           <div class="gp-field" style="margin-top:10px">
-            <label class="gp-field-label">🔗 来源链接{{ curioForm.sourceUrl ? '（已自动捕获，可编辑）' : '（可选，留空即无来源）' }}</label>
+            <label class="gp-field-label"><Icon name="link" :size="13"/> 来源链接{{ curioForm.sourceUrl ? '（已自动捕获，可编辑）' : '（可选，留空即无来源）' }}</label>
             <input type="text" class="gp-field-input" v-model="curioForm.sourceUrl" placeholder="https://…">
           </div>
           <div class="gp-field">
-            <label class="gp-field-label">📝 来源标题</label>
+            <label class="gp-field-label"><Icon name="filetext" :size="13"/> 来源标题</label>
             <input type="text" class="gp-field-input" v-model="curioForm.sourceTitle" placeholder="来源页面标题（可选）">
           </div>
         </div>
       </div>
       <div class="gp-cap-foot">
         <button class="gp-btn gp-btn-ghost" @click="closeAll">取消</button>
-        <button class="gp-btn gp-btn-primary" @click="saveCurio">💾 保存到罗盘</button>
+        <button class="gp-btn gp-btn-primary" @click="saveCurio"><Icon name="save" :size="13"/> 保存到罗盘</button>
       </div>
     </div>
   </div>
@@ -680,7 +680,7 @@ function syncIndexFromId() {
 const convertMenuId = ref<string | null>(null)
 
 function typeLabel(t: 'all'|'res'|'task'|'curio'|'ws'|'proj'): string {
-  return t === 'res' ? '📄 资源卡' : t === 'task' ? '✅ 任务卡' : t === 'curio' ? '💡 好奇心' : t === 'ws' ? '🗂 策展台' : t === 'proj' ? '📦 项目' : '🔍 搜全部'
+  return t === 'res' ? '资源卡' : t === 'task' ? '任务卡' : t === 'curio' ? '好奇心' : t === 'ws' ? '策展台' : t === 'proj' ? '项目' : '搜全部'
 }
 const filterLabel = computed(() => typeLabel(currentType.value))
 
@@ -707,7 +707,7 @@ interface SearchResult {
   ws: string
   cat: string
   badges: {type: string, text: string}[]
-  link?: {type: string, icon: string, text: string}
+  link?: {type: string, text: string}
   due?: string
   dueOverdue?: boolean
   summary?: string
@@ -767,10 +767,10 @@ const resultTable = computed<SearchResult[]>(() => {
     const cat = catById.get(r.categoryId || "")
     const rlink = r.link
     results.push(withMatchFields({
-      id: r.id, type: 'res', iconClass: 'res', iconText: '📄',
+      id: r.id, type: 'res', iconClass: 'res', iconText: '',
       title: r.title, ws: wsNameById(all.workspaces, r.workspaceId) || '未知', cat: cat?.name || '待分类',
       badges: [],
-      link: rlink ? { type: r.linkType, icon: r.linkType==='url'?'🔗':r.linkType==='file'?'📁':'📝', text: linkShort(rlink as string) } : undefined,
+      link: rlink ? { type: r.linkType, text: linkShort(rlink as string) } : undefined,
       summary: r.description,
       archived: !!r.lifecycleArchived,
       raw: r
@@ -780,11 +780,11 @@ const resultTable = computed<SearchResult[]>(() => {
   // 任务卡
   all.tasks.filter(t=>!t.deletedAt).forEach(t => {
     const proj = projById.get(t.projectId || '')
-    const statusIcon = t.status==='done'?'✓':t.status==='doing'?'◐':'○'
+    const statusIcon = t.status==='done'?'':t.status==='doing'?'◐':'○'
     const statusClass = t.status==='done'?'task-done':t.status==='doing'?'task-doing':'task-todo'
     const badges: {type:string,text:string}[] = []
-    if (t.priority==='high') badges.push({type:'prio-high', text:'🔴 高'})
-    else if (t.priority==='medium') badges.push({type:'prio-mid', text:'🟡 中'})
+    if (t.priority==='high') badges.push({type:'prio-high', text:'高'})
+    else if (t.priority==='medium') badges.push({type:'prio-mid', text:'中'})
     badges.push({type:`status-${t.status}`, text: t.status==='done'?'已完成':t.status==='doing'?'进行中':'待开始'})
     results.push(withMatchFields({
       id: t.id, type: 'task', iconClass: statusClass, iconText: statusIcon,
@@ -798,9 +798,9 @@ const resultTable = computed<SearchResult[]>(() => {
 
   // 好奇心
   all.curiosities.filter(c=>!c.deletedAt).forEach(c => {
-    const statusText = c.status==='todo'?'🔵 待探索':c.status==='doing'?'🟡 探索中':c.status==='done'?'🟢 已求证':'⚪ 已搁置'
+    const statusText = c.status==='todo'?'待探索':c.status==='doing'?'探索中':c.status==='done'?'已求证':'已搁置'
     results.push(withMatchFields({
-      id: c.id, type: 'curio', iconClass: 'curio', iconText: '💡',
+      id: c.id, type: 'curio', iconClass: 'curio', iconText: '',
       title: c.question, ws: '调度台', cat: '好奇心',
       badges: [{type:'curio-status', text: statusText}],
       archived: !!c.lifecycleArchived,
@@ -814,7 +814,7 @@ const resultTable = computed<SearchResult[]>(() => {
   d.value.workspaces.filter(w => !w.archived && w.id !== CURATION_WS_ID).forEach(w => {
     const cardCount = wsCardCount.get(w.id) || 0
     results.push(withMatchFields({
-      id: w.id, type: 'ws', iconClass: 'ws', iconText: '🗂',
+      id: w.id, type: 'ws', iconClass: 'ws', iconText: '',
       title: w.name, ws: '策展台', cat: `${cardCount} 张资源卡`,
       badges: [{ type: 'ws-badge', text: '策展台' }],
       summary: '',
@@ -826,10 +826,10 @@ const resultTable = computed<SearchResult[]>(() => {
   allProjects().filter(p => showDoneProjects.value || !isProjectDone(p)).forEach(p => {
     const dir = { name: projDirName.get(p.id) || '—' }
     const badges: {type:string,text:string}[] = []
-    if (p.isFocused) badges.push({ type: 'prio-high', text: '🚀 主攻' })
+    if (p.isFocused) badges.push({ type: 'prio-high', text: '主攻' })
     if (p.status === 'archived') badges.push({ type: 'curio-status', text: '已完成' })
     results.push(withMatchFields({
-      id: p.id, type: 'proj', iconClass: 'ws', iconText: '📦',
+      id: p.id, type: 'proj', iconClass: 'ws', iconText: '',
       title: p.name, ws: '方向台', cat: dir?.name || '—',
       badges,
       summary: '',
@@ -898,8 +898,8 @@ function normKey(s: string): string {
 }
 /** 命中字段拼接（R58-B4 两端同构：搜索面板与网页浮层一致；raw 为原始卡） */
 function blobOf(r: SearchResultSeed): string {
-  const rawTags = Array.isArray((r.raw as { tags?: string[] })?.tags) ? ((r.raw as { tags?: string[] }).tags as string[]).join(' ') : ''
-  return r.title + ' ' + r.ws + ' ' + r.cat + ' ' + (r.summary || '') + ' ' + (r.link?.text || '') + ' ' + rawTags
+  const rawTags = Array.isArray((r.raw as { tags?: string[] })?.tags) ? ((r.raw as { tags?: string[] }).tags as string[]).join('') : ''
+  return r.title + '' + r.ws + '' + r.cat + '' + (r.summary || '') + '' + (r.link?.text || '') + '' + rawTags
 }
 /**
  * R4-Pa：同一查询词的"每词派生量"只算一份（一轮键入 2,548 行传的是同一个 parts）。
@@ -914,6 +914,8 @@ let partsKey = ''
 let partsNp: string[] = []
 let partsPy: boolean[] = []
 function normedParts(parts: string[]): { np: string[]; py: boolean[] } {
+  // 缓存键必须带分隔符：join('') 会让 ['ab','c'] 与 ['a','bc'] 撞成同一个 'abc'，
+  // 而两者的 np/py 数组并不相同 ⇒ 第二次查询会拿到另一组词的归一结果（静默错召回）。
   const key = parts.join(' ')
   if (key !== partsKey) {
     partsKey = key
@@ -1056,9 +1058,9 @@ function cardFieldText(card: AnyCard): string {
     const v = cf[k]
     if (v == null || v === '') continue
     parts.push(`${k}:${String(v).replace(/\s+/g, ' ')}`)
-    if (parts.join(' ').length >= 120) break
+    if (parts.join('').length >= 120) break
   }
-  return parts.join(' ').slice(0, 120)
+  return parts.join('').slice(0, 120)
 }
 const aiCands = computed<AiCand[]>(() => {
   const want = currentType.value === 'all' ? null : currentType.value
@@ -1082,9 +1084,9 @@ const aiCands = computed<AiCand[]>(() => {
 const aiProgress = computed(() => {
   if (!aiBusy.value) return 'AI 检索'
   const mid = aiScanned.value > 0
-    ? `已扫 ${aiScanned.value}/${aiTotal.value} 张${aiFound.value ? ` · 已命中 ${aiFound.value}` : ''}`
+    ? `已扫 ${aiScanned.value}/${aiTotal.value} 张${aiFound.value ? ` · 已命中 ${aiFound.value}`: ''}`
     : `库内 ${aiTotal.value} 张里挑`
-  return `检索中 ${aiSecs.value}s · ${mid}${aiChars.value ? ` · 已回 ${aiChars.value} 字` : ''}`
+  return `检索中 ${aiSecs.value}s · ${mid}${aiChars.value ? ` · 已回 ${aiChars.value} 字`: ''}`
 })
 const aiMoreBatches = computed(() => {
   const s = aiSearch.value
@@ -1102,7 +1104,7 @@ async function aiSearchRun(allScope: boolean) {
     const cached = aiCache.get(key)
     if (cached) {
       aiSearch.value = cached.hits.length ? cached : null
-      showToast(cached.hits.length ? `✓ 秒回（这句刚问过）：AI 挑出 ${cached.hits.length} 条` : 'AI 认为库里没有贴合这句的——换个说法或全库扫')
+      showToast(cached.hits.length ? `秒回（这句刚问过）：AI 挑出 ${cached.hits.length} 条` : 'AI 认为库里没有贴合这句的——换个说法或全库扫')
       return
     }
   }
@@ -1125,18 +1127,18 @@ async function aiSearchRun(allScope: boolean) {
       : await semanticSearch(q, cands, depth, { signal: ctl.signal, onDelta: (n) => { aiChars.value = n } })
     aiTook.value = Date.now() - t0
     aiScanned.value = out.scanned; aiTotal.value = out.total
-    if (allScope) showToast(out.hits.length ? `✓ 全库扫完：${out.batches} 批 / ${out.scanned} 张 · 挑出 ${out.hits.length} 条 · ${aiDur(aiTook.value)}` : `✓ 全库 ${out.scanned} 张都看了，没有真正贴合这句的`)
+    if (allScope) showToast(out.hits.length ? `全库扫完：${out.batches} 批 / ${out.scanned} 张 · 挑出 ${out.hits.length} 条 · ${aiDur(aiTook.value)}` : `全库 ${out.scanned} 张都看了，没有真正贴合这句的`)
     else {
       if (aiCache.size >= 12) aiCache.delete(aiCache.keys().next().value as string)
       aiCache.set(key, out)
       aiSearch.value = out.hits.length ? out : null
-      showToast(out.hits.length ? `✓ AI 挑出 ${out.hits.length} 条（看了 ${out.scanned}/${out.total} 张）· ${aiDur(aiTook.value)}` : 'AI 认为这批候选里没有贴合的——换个说法，或点「全库分批扫」')
+      showToast(out.hits.length ? `AI 挑出 ${out.hits.length} 条（看了 ${out.scanned}/${out.total} 张）· ${aiDur(aiTook.value)}` : 'AI 认为这批候选里没有贴合的——换个说法，或点「全库分批扫」')
     }
     if (allScope) aiSearch.value = out.hits.length ? out : null
   } catch (e) {
     if (aiCancelMsg !== undefined) { if (aiCancelMsg) showToast(aiCancelMsg); return }
     aiSearch.value = null
-    showToast('⚠ AI 检索失败：' + ((e as Error).message || String(e)).slice(0, 80))
+    showToast('AI 检索失败：' + ((e as Error).message || String(e)).slice(0, 80))
   } finally { aiStopTick(); if (aiAbortCtl === ctl) aiAbortCtl = null; aiBusy.value = false }
 }
 /** R152：id → 命中信息（模板按行查表，不再另列一组） */
@@ -1272,8 +1274,8 @@ const flatList = computed<FlatItem[]>(() => {
 })
 const groupedResults = computed(() => {
   const defs: { type: 'res'|'task'|'curio'|'ws'|'proj'; label: string }[] = [
-    { type: 'res', label: '📄 资源卡' }, { type: 'task', label: '✅ 任务卡' }, { type: 'curio', label: '💡 好奇心' },
-    { type: 'ws', label: '🗂 策展台' }, { type: 'proj', label: '📦 项目' }
+    { type: 'res', label: '资源卡' }, { type: 'task', label: '任务卡' }, { type: 'curio', label: '好奇心' },
+    { type: 'ws', label: '策展台' }, { type: 'proj', label: '项目' }
   ]
   // REQ-046 速度优化：每组最多渲染 30 条，防超大结果集首屏卡顿
   const MAX_PER_GROUP = 30
@@ -1392,26 +1394,26 @@ function locateOnly(item: SearchResult) {
     if (r.workspaceId === CURATION_WS_ID) {
       router.push({ path: '/', query: { hl: item.id, hk: 'res' } })
       closeAll()
-      showToast('🎯 已定位到资源卡池')
+      showToast('已定位到资源卡池')
       return
     }
     const query: Record<string, string> = { hl: item.id, hk: 'res' }
     if (r.categoryId) query.cat = r.categoryId
     router.push({ path: `/workspace/${r.workspaceId}`, query })
     closeAll()
-    showToast('🎯 已定位到卡片所在处')
+    showToast('已定位到卡片所在处')
     return
   }
   if (item.type === 'task') {
     router.push({ path: '/', query: { hl: item.id, hk: 'task' } })
     closeAll()
-    showToast('🎯 已定位到任务卡片')
+    showToast('已定位到任务卡片')
     return
   }
   if (item.type === 'curio') {
     router.push({ path: '/', query: { hl: item.id, hk: 'curio' } })
     closeAll()
-    showToast('🎯 已定位到好奇心卡片')
+    showToast('已定位到好奇心卡片')
     return
   }
   // ws / proj：打开目标页即视为"定位到所在处"
@@ -1444,7 +1446,7 @@ function onSearchKeydown(e: KeyboardEvent) {
       currentType.value = cycle[(cycle.indexOf(currentType.value) + 1) % cycle.length]
     }
     selIndex.value = 0
-    showToast('🔍 ' + typeLabel(currentType.value))
+    showToast('' + typeLabel(currentType.value))
   }
   else if (e.key === 'Escape') { closeAll() }
 }
@@ -1504,7 +1506,7 @@ function openItem(item: SearchResult) {
     /* V3.7.0（R179）资源台退役 → R2-④ 定位改靶：无链接的资源卡不再只回一句「已回调度台」的
        空话，而是与 Ctrl+Enter 同一条定位链路（池卡落「资源卡池」并高亮该卡）。
        外开仍走行内「↗ 打开链接」（openResLink），不改 R120 三键契约。 */
-    if (r.link && !toOpenableUrl(r.linkType, r.link)) showToast('⚠ 本地文件缺少完整路径 · 先定位到卡')
+    if (r.link && !toOpenableUrl(r.linkType, r.link)) showToast('本地文件缺少完整路径 · 先定位到卡')
     locateOnly(item)
     return
   }
@@ -1538,7 +1540,7 @@ function openResLink(item: SearchResult) {
 }
 
 function editItem(item: SearchResult) {
-  showToast('✏️ 编辑功能（开发中）')
+  showToast('编辑功能（开发中）')
 }
 
 /** 第卅三轮 REQ-019/020：搜索结果行星标切换（点亮持久化，置顶>星标>命中度） */
@@ -1550,7 +1552,7 @@ function toggleStar(item: SearchResult) {
   card.starred = !card.starred
   card.updatedAt = Date.now()
   store.persist()
-  showToast(card.starred ? '⭐ 已星标，搜索时优先展示' : '已取消星标')
+  showToast(card.starred ? '已星标，搜索时优先展示' : '已取消星标')
 }
 
 async function deleteItem(item: SearchResult) {
@@ -1572,7 +1574,7 @@ async function deleteItem(item: SearchResult) {
         if (m.id === t.metricId && !m.taskIds.includes(t.id)) m.taskIds.push(t.id)
     }
     store.persist()
-    showToast('✓ 已撤销删除')
+    showToast('已撤销删除')
   } })
 }
 
@@ -1594,7 +1596,7 @@ function convertCurio(item: SearchResult, target: 'res'|'task') {
   if (target === 'res') {
     const r = convertToResource(c, CURATION_WS_ID, '')
     closeAll()
-    showToast('✓ 已转化为资源卡，存入资源卡池', { label: '查看', cb: () => {
+    showToast('已转化为资源卡，存入资源卡池', { label: '查看', cb: () => {
       // 与 locateOnly 同一改靶口径：池卡的居所是调度台「资源卡池」，不是策展台深链
       router.push({ path: '/', query: { hl: r.id, hk: 'res' } })
     } })
@@ -1602,7 +1604,7 @@ function convertCurio(item: SearchResult, target: 'res'|'task') {
   }
   const t = convertToTask(c)
   closeAll()
-  showToast('✓ 已转化为任务，前往任务调度', { label: '查看', cb: () => router.push({ path: '/', query: { hl: t.id, hk: 'task' } }) })
+  showToast('已转化为任务，前往任务调度', { label: '查看', cb: () => router.push({ path: '/', query: { hl: t.id, hk: 'task' } }) })
 }
 
 // ===== B3：快捷键速查数据 =====
@@ -1823,7 +1825,7 @@ async function aiAdviceRun(entryId: 'cross-deck' | 'thesis-drift' | 'dormant-sca
             else { card.deletedAt = Date.now(); rec++ }
           }
           if (pin || rec) store.persist()
-          return `✓ 唤醒置顶 ${pin} 张 · 归档 ${rec} 张（回收站可反悔）`
+          return `唤醒置顶 ${pin} 张 · 归档 ${rec} 张（回收站可反悔）`
         },
       }
     }
@@ -1845,7 +1847,7 @@ function saveCurio() {
   store.persist()
   curioForm.text = ''
   closeAll()
-  showToast('💗好奇心+1')
+  showToast('好奇心+1')
 }
 
 // ===== 工具函数 =====
@@ -1854,6 +1856,11 @@ function linkShort(link: string) {
   if (link.startsWith('obsidian')) return 'Obsidian笔记'
   const parts = link.split(/[\\/]/)
   return parts[parts.length-1].substring(0,25)
+}
+/** 链接类型 → 图标名（★G1(V3.8.25)：原先把图标名塞进数据对象的 icon 字段，剥离 emoji 后三支全空，
+ *  模板里就只剩一个孤儿空格 + 文本。图标属于渲染层，不该存在数据对象里，故改为按 type 现算。 */
+function linkIconName(type: string) {
+  return type === 'url' ? 'link' : type === 'file' ? 'filetext' : type === 'obsidian' ? 'book' : 'layers'
 }
 
 /** R49-G：跨方向扁平项目列表（复用 useCompass 口径，避免多处手写双循环漂移） */
@@ -2019,6 +2026,8 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
   text-overflow: ellipsis; line-height: 1.4; }
 .gp-ri-meta { display: flex; gap: 5px; margin-top: 3px; flex-wrap: wrap; align-items: center; }
 .gp-ri-badge { font-size: var(--fs-caption); padding: 1.5px 8px; border-radius: 99px; font-weight: 500; line-height: 1.5; }
+/* G1（V3.8.25）：AI 命中徽标原是 🤖 裸 emoji，迁移后 Icon 化并与文字同行（inline-flex 对齐） */
+.gp-ri-badge.ai { display: inline-flex; align-items: center; gap: 3px; }
 .gp-ri-badge.ws { background: var(--accent-light); color: var(--accent-ink); }
 .gp-ri-badge.cat { background: var(--surface-3); color: var(--text-2); }
 .gp-ri-badge.prio-high { background: var(--tag-danger-bg); color: var(--tag-danger-text); }

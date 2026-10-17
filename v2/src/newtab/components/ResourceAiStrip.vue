@@ -64,7 +64,7 @@ async function run(kind: 'enrich' | 'linkTask'): Promise<void> {
       const { buildResourceLinkTaskJob } = await import('@/shared/ai/resourceLinkTask')
       j = buildResourceLinkTaskJob({ ...ctx, resourceId: card.id })
     }
-    if (!j) { showToast('⚠ 这张卡已不存在或没有可发起的内容'); return }
+    if (!j) { showToast('这张卡已不存在或没有可发起的内容'); return }
     wrapApply(j)
     job.value = j
   } finally { busy.value = '' }

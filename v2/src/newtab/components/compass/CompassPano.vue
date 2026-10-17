@@ -17,6 +17,7 @@
  * 焦点纪律：★不得出现 font-size: var(--fs-display) / var(--fs-hero)（判据 W11-11 负锚）。
  * 项目名 --fs-title(15px)，主角感由横向铺开与留白承担。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed } from 'vue'
 import type { Direction, Project } from '@/shared/models'
 import type { CompassMeta, ProjectMeta } from '../../views/compassMeta'
@@ -114,7 +115,7 @@ const ringC = 2 * Math.PI * ringR
         >
           <span class="pp-n">{{ r.i + 1 }} {{ r.proj.name }}</span>
           <span class="pp-m">
-            {{ r.pm.metrics.length }} 指标 · {{ r.pm.total }} 任务<template v-if="r.proj.isFocused"> · 🚀</template>
+            {{ r.pm.metrics.length }} 指标 · {{ r.pm.total }} 任务<template v-if="r.proj.isFocused"> · <Icon name="main-focus" :size="13"/></template>
           </span>
         </button>
         <div v-if="!pickRows.length" class="pp-empty">还没有攻坚项目 —— 先在项目塔里添加一个</div>
@@ -128,16 +129,16 @@ const ringC = 2 * Math.PI * ringR
         <div class="ph-b">
           <h3 class="ph-n">
             {{ current.proj.name }}
-            <span v-if="current.proj.isFocused" class="ph-badge focus" title="主攻项目">🚀 主攻</span>
-            <span v-if="current.proj.pinned" class="ph-badge" title="已置顶">📌 置顶</span>
-            <span v-if="current.pm.stall" class="ph-badge stall" title="近 14 天无推进/完成活动">⚠ 停滞 14 天+</span>
+            <span v-if="current.proj.isFocused" class="ph-badge focus" title="主攻项目"><Icon name="main-focus" :size="13"/> 主攻</span>
+            <span v-if="current.proj.pinned" class="ph-badge" title="已置顶"><Icon name="pin" :size="13"/> 置顶</span>
+            <span v-if="current.pm.stall" class="ph-badge stall" title="近 14 天无推进/完成活动"><Icon name="warn" :size="13"/> 停滞 14 天+</span>
           </h3>
           <!-- ★归属路径：全景里最容易丢的就是"这个项目的指标从哪来"，所以路径常驻不折叠 -->
           <nav class="ph-c">
             <span>{{ current.dir.name }}</span><span class="ph-sep">›</span>
             <b>第 4 层 · 攻坚项目</b><span class="ph-sep">›</span>
             <span>{{ bandStats?.metrics }} 条成功指标 · {{ bandStats?.allTasks }} 条任务</span>
-            <button class="ph-link" title="回到项目塔里看它与其它项目的对比" @click="emit('toTower', current.proj.id)">⇅ 回项目塔</button>
+            <button class="ph-link" title="回到项目塔里看它与其它项目的对比" @click="emit('toTower', current.proj.id)"><Icon name="arrowupdown" :size="13"/> 回项目塔</button>
           </nav>
         </div>
         <div class="ph-r">
@@ -159,11 +160,11 @@ const ringC = 2 * Math.PI * ringR
             </div>
           </div>
           <div class="ph-acts">
-            <button v-if="current.pm.risk > 0" class="ph-act risk" :title="`${current.pm.risk} 处断链：缺任务指标 + 无归属任务`">⚠ 断链 {{ current.pm.risk }}</button>
+            <button v-if="current.pm.risk > 0" class="ph-act risk" :title="`${current.pm.risk} 处断链：缺任务指标 + 无归属任务`"><Icon name="warn" :size="13"/> 断链 {{ current.pm.risk }}</button>
             <!-- ★F2：项目层模板导入（📋 与战略目标行同构）——粘贴 # 成功指标 / ## 任务 一次生成 -->
-            <button class="ph-act" title="导入模板：粘贴 Markdown，按「# 成功指标 / ## 任务」批量生成本项目的指标与任务" @click="emit('importTemplate', current.proj.id)">📋 导入模板</button>
+            <button class="ph-act" title="导入模板：粘贴 Markdown，按「# 成功指标 / ## 任务」批量生成本项目的指标与任务" @click="emit('importTemplate', current.proj.id)"><Icon name="filetext" :size="13"/> 导入模板</button>
             <button class="ph-act" title="在本项目下新建成功指标" @click="emit('addMetric', current.proj.id)">＋ 指标</button>
-            <button class="ph-act ai" title="✦ AI 依使命与本项目建议成功指标（查重后采纳才创建）" @click="emit('aiMetric', current.proj.id)">✦ AI 建议指标</button>
+            <button class="ph-act ai" title=" AI 依使命与本项目建议成功指标（查重后采纳才创建）" @click="emit('aiMetric', current.proj.id)"><Icon name="sparkle" :size="13"/> AI 建议指标</button>
             <!-- ★F4：AI 诊断两态入口 —— 与项目塔舱头 CompassTowerStatus 同一套交互（复用同一组件）：
                  无报告 → 虚线「🧠 AI 诊断」点击才跑；有报告 → 标签组 + 「📄 诊断报告」开中央弹窗。
                  手动触发红线不破：从不自动跑、不预生成。 -->
@@ -223,7 +224,7 @@ const ringC = 2 * Math.PI * ringR
             <div v-for="t in current.pm.orphanTasks" :key="t.id" class="ltask orph">
               <div class="ltask-t">{{ t.title }}</div>
               <div class="ltask-b">
-                <span class="lb lb-clue">⚠ 缺指标归属</span>
+                <span class="lb lb-clue"><Icon name="warn" :size="13"/> 缺指标归属</span>
                 <button class="lb lb-bind" @click="emit('bindOrphan', t.id, current.proj.id)">＋ 挂指标</button>
               </div>
             </div>

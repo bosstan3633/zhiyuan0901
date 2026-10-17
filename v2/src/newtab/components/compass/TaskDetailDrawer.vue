@@ -2,6 +2,7 @@
 // 第卌五轮 T-03：任务详情抽屉共享组件（自 CompassActions.vue 抽离）
 // 宿主：TaskManagerPanel（任务管理 Tab）+ CompassActions（今日三件事双击详情）
 // 用法：ref 后调用 open(task)；关闭/删除/保存逻辑全部内聚
+import Icon from '@/shared/components/Icon.vue'
 import { ref, computed, onMounted, onUnmounted, shallowRef, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../../stores/app'
@@ -94,7 +95,7 @@ function fmtTaskTs(ts?: number): string {
 function setTaskStatus(t: TaskCard, status: 'todo' | 'doing' | 'done') {
   if (t.status === status) return
   setTaskStatusOf(t, status)
-  showToast('✓ 状态已切换为「' + (status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始') + '」')
+  showToast('状态已切换为「' + (status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始') + '」')
 }
 // ---- R166 定案 6：任务详情三枚 AI 入口（补全 / 拆解 / 找资源支持）----
 // 三态与互斥：一把 `aiBusy` 锁（同时只跑一个，点了没反应会一直等是最难查的"卡"）；
@@ -130,7 +131,7 @@ async function runAi(kind: AiEntryKind, subId?: string) {
         d: ctx.d, depth: ctx.depth, persist: () => store.persist(),
         personaId: aiPersonaId.value, onPersona: (id) => { aiPersonaId.value = id; self() },
       })
-      if (!job) { showToast('⚠ 任务已不存在'); return }
+      if (!job) { showToast('任务已不存在'); return }
       aiJob.value = job
       return
     }
@@ -147,7 +148,7 @@ async function runAi(kind: AiEntryKind, subId?: string) {
       d: ctx.d, depth: ctx.depth, persist: () => store.persist(), taskId: t.id, ...(subId ? { subId } : {}),
       personaId: aiPersonaId.value, onPersona: (id) => { aiPersonaId.value = id; self() },
     })
-    if (!job) { showToast('⚠ 任务已不存在'); return }
+    if (!job) { showToast('任务已不存在'); return }
     aiJob.value = job
   } finally { aiBusy.value = false }
 }
@@ -161,13 +162,13 @@ function openTaskLink() {
   const t = selectedTask.value
   if (!t) return
   const url = toOpenableRawLink(t.link || '')
-  if (!url) { showToast('⚠ 链接为空或协议不支持直达'); return }
+  if (!url) { showToast('链接为空或协议不支持直达'); return }
   openExternalLink(url)
 }
 function copyTaskLink() {
   const t = selectedTask.value
   if (!t || !t.link) { showToast('链接为空'); return }
-  navigator.clipboard?.writeText(t.link).then(() => showToast('✓ 链接已复制')).catch(() => {})
+  navigator.clipboard?.writeText(t.link).then(() => showToast('链接已复制')).catch(() => {})
 }
 /* R166 定案 1：子任务是**本卡内嵌字段**，不再反查别的卡——
    原 R144 的 parentTask / childTasks / promoteSubtask（父指针双向查表）随 parentId 退役。 */
@@ -223,7 +224,7 @@ function addSupportManual() {
   if (out.dup) { showToast('这张卡已经挂在支持里了'); return }
   supportDraft.value = ''
   store.persist()
-  showToast(`✓ 已关联「${r.title.slice(0, 12)}」`)
+  showToast(`已关联「${r.title.slice(0, 12)}」`)
 }
 async function deleteTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
@@ -234,7 +235,7 @@ async function deleteTask(taskId: string) {
   store.persist()
   close()
   // REQ-030：撤销（含指标 taskIds 回填，按 id 定位当前树）；R166 定案 1：子任务是本卡内嵌字段，随卡一起进回收站
-  showToast(`已删除「${t.title.slice(0, 20)}」${kids ? ` · 含 ${kids} 个子任务` : ''}`, { label: '撤销', cb: () => {
+  showToast(`已删除「${t.title.slice(0, 20)}」${kids ? ` · 含 ${kids} 个子任务`: ''}`, { label: '撤销', cb: () => {
     const cur = d.value.tasks.find(x => x.id === taskId)
     if (cur && cur.deletedAt) {
       cur.deletedAt = undefined
@@ -284,7 +285,7 @@ function saveTaskTitle() {
   t.updatedAt = Date.now()
   selectedTask.value = t
   store.persist()
-  showToast('✓ 已保存')
+  showToast('已保存')
 }
 function saveTaskTitleAndClose() {
   saveTaskTitle()
@@ -329,7 +330,7 @@ const statusMenuOpen = ref(false)
 const STATUS_UI: Record<'todo' | 'doing' | 'done', { label: string; cls: string }> = {
   todo: { label: '○ 待开始', cls: 'st-todo' },
   doing: { label: '◐ 进行中', cls: 'st-doing' },
-  done: { label: '✓ 已完成', cls: 'st-done' }
+  done: { label: '已完成', cls: 'st-done' }
 }
 function pickStatus(status: 'todo' | 'doing' | 'done') {
   statusMenuOpen.value = false
@@ -373,7 +374,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         <!-- R166 定案 6：头部三行。① 勾选+标题+关闭 ② **AI 三入口独立一行**（等宽三格，不挤标题行）
              ③ 状态/成熟度/子任务进度/AI 凭据。三入口都改的是这张卡，放一行里彼此并列、也说得清各管什么。 -->
         <div class="ts-head-row">
-          <div class="check-lg" :class="{done: selectedTask.status==='done'}" @click="toggleTask(selectedTask.id)" title="切换完成状态">{{ selectedTask.status==='done'?'✓':'' }}</div>
+          <div class="check-lg" :class="{done: selectedTask.status==='done'}" @click="toggleTask(selectedTask.id)" title="切换完成状态"><Icon v-if="selectedTask.status==='done'" name="check" :size="16"/></div>
           <textarea v-model="taskTitleDraft" class="ts-title" rows="2" placeholder="任务标题..."
             @blur="saveTaskTitle" />
           <div class="ts-close" @click="close">×</div>
@@ -400,7 +401,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           <AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" />
           <!-- R166 定案 1：子任务进度胶囊（内嵌清单的 done/all，零子任务零噪音）——
                原 R144 的「↳ 父名 ⤴ / N 子任务」父子软层级随 parentId 退役 -->
-          <span v-if="subtasks.length" class="ts-rel-chip" :title="`子任务 ${subtaskDone}/${subtasks.length} 已完成（不进成熟度与周报计分）`">↳ 子任务 {{ subtaskDone }}/{{ subtasks.length }}</span>
+          <span v-if="subtasks.length" class="ts-rel-chip" :title="`子任务 ${subtaskDone}/${subtasks.length} 已完成（不进成熟度与周报计分）`"><Icon name="corner" :size="13"/> 子任务 {{ subtaskDone }}/{{ subtasks.length }}</span>
           <!-- R142（反馈 #4）：成熟度大徽标——规则引擎即时分，hover 展开扣分构成 -->
           <MaturityBadge lg :m="taskMaturity(selectedTask)" title="成熟度=可执行/可归属/新鲜度（规则引擎即时评）" />
           <!-- 三入口共用一个 aiTouchedAt ⇒ verb 传空，chip 说"最近"而不硬猜是哪一枚动的 -->
@@ -418,13 +419,13 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         </div>
         <!-- R166 F1/F2：子任务清单紧跟说明——它是本卡内容，不是独立卡，不进看板/指标/周报 -->
         <div class="ts-section">
-          <div class="ds-hero-label">↳ 子任务清单 <span class="hint">— 本卡内容 · 不是独立任务卡 · 完成不进计分</span></div>
+          <div class="ds-hero-label"><Icon name="corner" :size="13"/> 子任务清单 <span class="hint">— 本卡内容 · 不是独立任务卡 · 完成不进计分</span></div>
           <SubtaskList ref="subListRef" :subtasks="subtasks" :sup-count="supCountOf" @update="onSubtasksUpdate" @sup="openSupport" />
         </div>
         <!-- R166 定案 5/F4：资源支持区——行=资源标题+AI 判词，点行打开链接并计热度，× 只删关联记录。
              两张卡本体互不持有 id（关联住在 AppData.supportLinks 独立表），「卡间零挂载」红线不破。 -->
         <div class="ts-section">
-          <div class="ds-hero-label">🧭 资源支持 <span class="hint">— 点行打开链接 · 解绑只删记录，不动两张卡</span></div>
+          <div class="ds-hero-label"><Icon name="compass" :size="13"/> 资源支持 <span class="hint">— 点行打开链接 · 解绑只删记录，不动两张卡</span></div>
           <div v-if="supportRows.length" class="ts-sup">
             <div v-for="row in supportRows" :key="row.link.id" class="ts-sup-row" :title="row.link.why || '点击打开资源链接'">
               <span class="ts-sup-nm" @click="openSupportResource(row.resource)">{{ row.resource.title.slice(0, 40) }}</span>
@@ -445,14 +446,14 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         <!-- R48：属性紧凑化——项目/指标双列一行，优先级/链接紧随 -->
         <div class="ts-section ds-props2">
           <div class="ds-prop-field">
-            <label class="ds-prop-label">📦 项目</label>
+            <label class="ds-prop-label"><Icon name="package" :size="13"/> 项目</label>
             <select v-model="selProjectId" class="ds-prop-select" @change="onSelProjectChange">
               <option value="">未关联项目</option>
               <option v-for="p in sidebarProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
             </select>
           </div>
           <div class="ds-prop-field">
-            <label class="ds-prop-label">🎯 指标</label>
+            <label class="ds-prop-label"><Icon name="target" :size="13"/> 指标</label>
             <select v-model="selMetricId" class="ds-prop-select" :disabled="!selProjectId" @change="onSelMetricChange">
               <option value="">暂不归属</option>
               <option v-for="m in sidebarMetrics" :key="m.id" :value="m.id">{{ m.title }}</option>
@@ -461,17 +462,17 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         </div>
         <!-- R165-A：优先级 3 段 segment（单击直达，语义色 tint）；链接升整行 + 动作贴边 -->
         <div class="ts-section">
-          <div class="ds-prop-label">⚡ 优先级</div>
+          <div class="ds-prop-label"><Icon name="zap" :size="13"/> 优先级</div>
           <div class="ts-prio">
             <button v-for="p in (['high','medium','low'] as const)" :key="p" :data-p="p" :class="{ on: selectedTask.priority === p }"
-              @click="setPriority(p)">{{ p === 'high' ? '🔴 高' : p === 'medium' ? '🟡 中' : '🟢 低' }}</button>
+              @click="setPriority(p)"><Icon name="dot" :size="9" :class="p === 'high' ? 'zy-dot-hi' : p === 'medium' ? 'zy-dot-mi' : 'zy-dot-lo'"/>{{ p === 'high' ? '高' : p === 'medium' ? '中' : '低' }}</button>
           </div>
         </div>
         <div class="ts-section">
-          <div class="ds-prop-label">🔗 链接 <span class="hint" style="font-weight:400">— 双击卡片直达</span></div>
+          <div class="ds-prop-label"><Icon name="link" :size="13"/> 链接 <span class="hint" style="font-weight:400">— 双击卡片直达</span></div>
           <div class="ts-link-row">
             <input v-model="selectedTask.link" class="ts-link-input" placeholder="https://… / D:\path\file.pdf / obsidian://…" @blur="touchTask" @keydown.enter.prevent="($event.target as HTMLElement).blur()">
-            <button class="ts-link-btn" title="打开链接" @click="openTaskLink">↗</button>
+            <button class="ts-link-btn" title="打开链接" @click="openTaskLink"><Icon name="external" :size="13"/></button>
             <button class="ts-link-btn" title="复制链接" @click="copyTaskLink">⧉</button>
           </div>
         </div>
@@ -482,18 +483,18 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         <div class="ts-section ds-meta">
           <span>创建 {{ fmtTaskTs(selectedTask.createdAt) }}</span>
           <span>更新 {{ fmtTaskTs(selectedTask.updatedAt) }}</span>
-          <span class="ts-goto ds-goto-inline" @click="router.push('/compass')">🧭 没有合适的项目/指标？去方向台创建 ›</span>
+          <span class="ts-goto ds-goto-inline" @click="router.push('/compass')"><Icon name="compass" :size="13"/> 没有合适的项目/指标？去方向台创建 ›</span>
         </div>
         <!-- R48：附属区折叠（附件）；R165：挂载区随卡间挂载退役 -->
         <details class="ds-details" style="margin-top:14px">
-          <summary>📎 附件 <span v-if="selectedTask.assets?.length" class="cnt">({{ selectedTask.assets.length }})</span><AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" /><span class="right">图片 / HTML / PDF</span></summary>
+          <summary><Icon name="paperclip" :size="13"/> 附件 <span v-if="selectedTask.assets?.length" class="cnt">({{ selectedTask.assets.length }})</span><AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" /><span class="right">图片 / HTML / PDF</span></summary>
           <AssetManager v-model="selectedTask.assets" :owner-id="selectedTask.id" @update:model-value="onTaskAssetsChange" @html-added="onTaskHtmlAdded" />
         </details>
       </div>
       <!-- R165-A：页脚收敛两钮——删除（二次确认）+ 完成并关闭；AI 拆解已升标题行 -->
       <div class="ts-foot">
         <ArmDeleteButton @confirm="deleteTask(selectedTask.id)" />
-        <button class="mini-btn primary" @click="saveTaskTitleAndClose">✓ 完成并关闭 <span class="ts-kbd">Ctrl+↩</span></button>
+        <button class="mini-btn primary" @click="saveTaskTitleAndClose"><Icon name="check" :size="13"/> 完成并关闭 <span class="ts-kbd">Ctrl+<Icon name="arrowleft" :size="13"/></span></button>
       </div>
     </div>
   </Transition>
@@ -568,7 +569,10 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ta-resize:hover { opacity: .9; }
 /* R165-A：优先级 3 段 segment（语义色 tint，对比度过 4.5） */
 .ts-prio { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 4px; }
-.ts-prio button { padding: 7px 16px; font-size: var(--fs-sub); background: var(--surface-2); border: 0; color: var(--text-3); cursor: pointer; transition: all var(--dur); font-family: inherit; }
+.ts-prio button { padding: 7px 16px; font-size: var(--fs-sub); background: var(--surface-2); border: 0; color: var(--text-3); cursor: pointer; transition: all var(--dur); font-family: inherit; display: inline-flex; align-items: center; gap: 5px; }
+/* G1（V3.8.25）：优先级彩点原本是 🔴🟡🟢 裸 emoji，迁移后只剩文字。点色由 .zy-dot-* 工具类给，
+   未选中态也保留彩点（优先级语义不随选中态消失）；选中态由 button.on 的文字色与底色承担。 */
+.ts-prio button .zy-dot { opacity: .85; }
 .ts-prio button + button { border-left: 1px solid var(--border); }
 .ts-prio button.on { font-weight: 600; }
 .ts-prio button.on[data-p="high"] { color: var(--danger); background: color-mix(in srgb, var(--danger) 16%, var(--surface-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 55%, transparent); }

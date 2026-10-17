@@ -40,7 +40,7 @@ async function run() {
 </script>
 
 <template>
-  <button class="taic-btn" title="✦ AI 补全本任务（勾选采纳才写库，可换执笔专家）" @click.stop="run"><AiEntryButton :spin="busy" /></button>
+  <button class="taic-btn" title=" AI 补全本任务（勾选采纳才写库，可换执笔专家）" @click.stop="run"><AiEntryButton :spin="busy" /></button>
   <AiDrawer v-if="job" :job="job" @close="job = null" />
 </template>
 

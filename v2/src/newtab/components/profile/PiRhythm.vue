@@ -14,6 +14,7 @@
  *   「kpisOf 消费 W_ROWS」的口径关系随 k6 退役消解，W_ROWS 单一真源仍在 dailyStats.ts。
  *   偏离预警（runRules 8 规则）不属于重复读数，保留为独立分段。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed, ref } from 'vue'
 import {
   windowOf, prevWindow, pct,
@@ -102,7 +103,7 @@ function toggleRule(id: string) { openRule.value = openRule.value === id ? null 
 <template>
   <section class="pi-mod" id="mod-recent">
     <div class="pi-mod-h">
-      <span class="pi-mod-ico i-recent">🎯</span>
+      <span class="pi-mod-ico i-recent"><Icon name="target" :size="13"/></span>
       <div class="pi-mod-t">
         <h2>一周的节奏<span class="en">RHYTHM</span></h2>
         <p>柱看密度、目标看分布、预警看堆积。全量流水在页头「全部记录」，本段只看周维度。</p>
@@ -114,13 +115,13 @@ function toggleRule(id: string) { openRule.value = openRule.value === id ? null 
           环比上周 {{ fmtPct(deltaActs) }}
         </span>
         <button v-if="errorCount > 0" class="pi-btn sm line" style="color:var(--warning)"
-          @click="emit('open-err')">🚨 错误 {{ errorCount }}</button>
+          @click="emit('open-err')"><Icon name="alert" :size="13"/> 错误 {{ errorCount }}</button>
       </div>
     </div>
     <div class="pi-mod-b">
       <!-- ① F12 诊断条 -->
       <div id="ins-week" class="one-insight" :class="insight.warn ? 'warn' : 'info'">
-        <span class="oi-ic">{{ insight.warn ? '⚠️' : '💡' }}</span>
+        <span class="oi-ic"><Icon v-if="insight.warn" name="warn" :size="15"/><Icon v-else name="bulb" :size="15"/></span>
         <span class="oi-text" v-html="insight.html"></span>
         <button class="act-link" :title="insight.html" @click="emit('insight-action', insight.ctaAction)">
           {{ insight.ctaLabel }}
@@ -151,7 +152,7 @@ function toggleRule(id: string) { openRule.value = openRule.value === id ? null 
       <!-- ③ F14/F15 light-split 左右双栏 -->
       <div class="light-split">
         <div class="lbox">
-          <div class="lbox-h"><b>能量密度</b><span>加权分 · 点柱 → 该日战报</span></div>
+          <div class="lbox-h"><b>能量密度</b><span>加权分 · 点柱 › 该日战报</span></div>
           <div class="pi-bars">
             <div v-for="b in bars" :key="b.key" class="b" :class="'l' + b.lv"
               :style="{ height: Math.max(4, b.w / barMax * 100) + '%', background: b.lv > 0 ? 'var(--heat-' + b.lv + ')' : 'var(--surface-3)' }"
@@ -162,10 +163,10 @@ function toggleRule(id: string) { openRule.value = openRule.value === id ? null 
           </div>
         </div>
         <div class="lbox">
-          <div class="lbox-h"><b>战略目标投入</b><span>本周新建 ∪ 完成 · 点行 → 任务明细</span></div>
+          <div class="lbox-h"><b>战略目标投入</b><span>本周新建 ∪ 完成 · 点行 › 任务明细</span></div>
           <div v-if="goalRows.length" class="pi-goals">
             <button v-for="g in goalRows" :key="g.id" class="pi-goal" @click="emit('goal-drill', g.id)">
-              <span class="nm">{{ g.focused ? '🚀 ' : '' }}{{ g.name }}</span>
+              <span class="nm"><Icon v-if="g.focused" name="main-focus" :size="12"/> {{ g.name }}</span>
               <span class="gbar"><i :style="{ width: Math.round(g.share * 100) + '%' }"></i></span>
               <span class="n"><b>{{ g.v }}</b> 项 · {{ Math.round(g.share * 100) }}%</span>
             </button>

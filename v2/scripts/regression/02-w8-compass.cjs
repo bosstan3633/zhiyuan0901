@@ -39,8 +39,8 @@ check('W8-3 ★层级倒置不得复发：内容标题必须**大于**页头基�
 });
 check('W8-4 ★主攻项目必须是**次级焦点**（原仅 accent-28% 边框 + 🚀 emoji，而它是「我现在在哪」的唯一落点）。★W11(V3.8.11)随迁带备案：项目舱结构重排，承重处迁到 .tower 的 tw-badge.focus 徽标 + 舱头 accent 强调；本条守的是"主攻一眼可辨且是次级焦点"，弱描边旧规则仍不许复活', () => {
   return TOWER.includes('class="tw-badge focus"')
-    /* ★随迁：设主攻文案随舱 ▾ 菜单迁到 CompassTower（不再是树本体的函数调用点） */
-    && TOWER.includes('🚀 设为主攻')
+    /* ★随迁：设主攻文案随舱 ▾ 菜单迁到 CompassTower（不再是树本体的函数调用点）；G1 迁移后裸文本 */
+    && TOWER.includes('设为主攻')
     && /\.tw-badge\.focus \{[^}]*accent-ink/.test(TOWER)
     /* ★次级焦点的另一半：字号必须小于 --fs-title（主攻也不能抢愿景的 display）。
        注意 font-size 写在基类 .tw-badge 上、focus 只改色承重，所以判据钉基类而不是 .focus。 */

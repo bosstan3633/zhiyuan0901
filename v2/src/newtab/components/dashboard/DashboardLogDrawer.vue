@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '@/shared/components/Icon.vue'
 import { tablesToCsv, exportName } from '@/shared/utils/exportView'
 import { downloadText } from '@/shared/utils/download'
 /**
@@ -100,7 +101,7 @@ const filtered = computed<CardEvent[]>(() => {
 })
 
 const ACT_BADGE: Record<EventAction, string> = {
-  create: '+ 新增', call: '↗ 调出', delete: '− 删除', restore: '↩ 恢复', status: '◐ 状态变更', purge: '✕ 永久删除'
+  create: '+ 新增', call: '↗ 调出', delete: '− 删除', restore: '↩ 恢复', status: '◐ 状态变更', purge: '永久删除'
 }
 const KIND_LABEL: Record<CardEvent['kind'], string> = { resource: '资源', task: '任务', curiosity: '好奇', system: '系统' }
 const pad2 = (n: number): string => String(n).padStart(2, '0')
@@ -111,7 +112,7 @@ function fmtTime(ts: number): string {
 
 /** 展开明细：卡片 ID + 归属/链接/状态（老数据卡片可能已永久删除） */
 function detailLines(e: CardEvent): string[] {
-  const lines: string[] = [`卡片 ID：${e.cardId || '—'}`, `动作：${EVENT_ACT_LABEL[e.action]}${e.to ? `（→ ${e.to}）` : ''}`]
+  const lines: string[] = [`卡片 ID：${e.cardId || '—'}`, `动作：${EVENT_ACT_LABEL[e.action]}${e.to ? `（→ ${e.to}）`: ''}`]
   const d = props.data
   let found = false
   if (e.kind === 'resource') {
@@ -160,7 +161,7 @@ function exportCsv() {
 </script>
 
 <template>
-  <Drawer :open="open" title="🕘 全部记录" width="560px" @close="emit('close')">
+  <Drawer :open="open" icon="clock" title="全部记录" width="560px" @close="emit('close')">
     <div class="dz-log">
       <div v-if="presetNote" class="dz-log-note">{{ presetNote }}</div>
 
@@ -179,11 +180,11 @@ function exportCsv() {
         <input type="date" class="sel" v-model="from" /><span class="tilde">~</span><input type="date" class="sel" v-model="to" />
         <span class="dz-sp"></span>
         <button class="dz-btn sm" @click="kind = 'all'; action = 'all'; from = ''; to = ''">重置</button>
-        <button class="dz-btn sm pri" @click="exportCsv">⬇ 导出 CSV</button>
+        <button class="dz-btn sm pri" @click="exportCsv"><Icon name="download" :size="13"/> 导出 CSV</button>
       </div>
       <div class="dz-log-count">
         <b>{{ filtered.length }}</b> 条匹配 · 列表按时间倒序 · 单击行展开明细
-        <span v-if="exported" class="ok">✓ 已导出 {{ exported }} 条</span>
+        <span v-if="exported" class="ok"><Icon name="check" :size="13"/> 已导出 {{ exported }} 条</span>
       </div>
 
       <div class="dz-log-list">
@@ -205,7 +206,7 @@ function exportCsv() {
 
       <!-- F20 容量提示：与 EVENT_LOG_CAP 同源 -->
       <div class="dz-log-foot">
-        📦 日志容量 <b>{{ events.length }}</b> / {{ EVENT_LOG_CAP }} 条滚动保留（含恢复与永久删除）；老数据无日志时自动回退为卡片时间派生。<br>
+        <Icon name="package" :size="13"/> 日志容量 <b>{{ events.length }}</b> / {{ EVENT_LOG_CAP }} 条滚动保留（含恢复与永久删除）；老数据无日志时自动回退为卡片时间派生。<br>
         导出为 UTF-8+BOM CSV，可直接导入 Airtable。
       </div>
     </div>

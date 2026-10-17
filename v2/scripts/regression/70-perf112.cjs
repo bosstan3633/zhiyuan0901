@@ -129,8 +129,8 @@ check('R113-2 ★ 孤儿组件全量护栏：src 下所有 .vue 模板中出现�
 // ---- R113 批次1（N1 / N4 / N6）----
 check('R113-3 N4 导入金字塔模板一级入口：hero-btn settings 样式（R88-8 主色稀缺约束：非 primary 非 ghost）+ pyramidImportOpen 直连', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return w.includes('class="hero-btn settings py-import-btn"') && w.includes('@click="pyramidImportOpen = true">📋 导入模板</button>')
-    && !w.includes('📋 导入金字塔模板'); // 旧溢出菜单项已移除
+  return w.includes('class="hero-btn settings py-import-btn"') && w.includes('@click="pyramidImportOpen = true"><Icon name="filetext" :size="13"/> 导入模板</button>')
+    && !w.includes('导入金字塔模板'); // 旧溢出菜单项已移除
 });
 check('R113-4 N1 分类行操作收敛（V3.7.0 重指）：hover 只余「＋/⋯」两入口，原平铺 🗑 等移入 ⋯ 溢出菜单（ctm），菜单收敛为置顶/重命名/删除三项（📤 镜像项随资源台退役）', () => {
   const w = read('/newtab/views/Workspace.vue');

@@ -43,7 +43,7 @@ check('W16-2 ★"数字"与"清单"必须对得上账（用户 2026-10-16 真机
     && PI.includes('const coolingCards = computed') && PI.includes("lifecycleState(c) === 'cooling')")
     && row.length > 0 && !PI.includes(`v-if="c.kind === 'task'" class="gs-ev-owner"`)
     /* 来源标记：入台清单区分采集/导入/本地新建（事件只用于标注，不再决定"有没有这张卡"） */
-    && PI.includes('📥 本地导入') && PI.includes('⚡ 采集入池');
+    && PI.includes('本地导入') && PI.includes('采集入池');
 });
 
 check('W16-3 ★抽屉必须自带对账条（用户拍板 2026-10-16「要」）：把"次数"与"张数"两套口径**并排摆出来** + 一句脚注说清两者差在哪。★病根：今日调出按事件次数计、去重后才是卡数，标题只写一个数时用户点开一看对不上，以为是 bug。断言钉：① 对账条结构（k/n/u/warn）与渲染节点 ② 六个分支各有自己的对账内容（今日调出 = 动作次数 vs 涉及卡片 vs 重复打开）③ 脚注把"这个抽屉是什么维度"写在明面上 ④ 事件流水仍只有页头一处入口', () => {

@@ -5,7 +5,7 @@
  */
 import { ref, onUnmounted } from 'vue'
 
-const props = withDefaults(defineProps<{ label?: string; busy?: boolean }>(), { label: '🗑 删除', busy: false })
+const props = withDefaults(defineProps<{ label?: string; busy?: boolean }>(), { label: '删除', busy: false })
 const emit = defineEmits<{ confirm: [] }>()
 
 const armed = ref(false)

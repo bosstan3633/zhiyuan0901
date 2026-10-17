@@ -4,6 +4,7 @@
  * 用于：🚀 主攻项目点击、北极星 战略目标/任务推进率下钻、任务中心项目看板。
  * 所有编辑实时写回 store 并持久化——罗盘二级界面同步生效。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed, ref } from 'vue'
 import { useAppStore } from '@/newtab/stores/app'
 import { uid } from '@/shared/utils'
@@ -128,7 +129,7 @@ function unbindTask(taskId: string) {
   if (!t) return
   unbindTaskFromMetric(d.value, t)
   store.persist()
-  showToast(`✓ 已从本指标移除：「${t.title.slice(0, 16)}」回到任务调度模块`)
+  showToast(`已从本指标移除：「${t.title.slice(0, 16)}」回到任务调度模块`)
 }
 /* R166 定案 1：子任务改成卡内嵌 `subtasks`，不再是"独立卡 + parentId"——
    因此指标下的任务行是一维列表，R144 的 flattenTaskTree 展平与 ⤴ 升顶层随之退役。 */
@@ -136,7 +137,7 @@ function metricTaskRows(metricId: string) { return tasksForMetric(metricId) }
 </script>
 
 <template>
-  <Drawer :open="open && !!project" :title="project ? `📁 ${project.name}` : ''" width="480px" @close="emit('close')">
+  <Drawer :open="open && !!project" :title="project ? ` ${project.name}` : ''" width="480px" @close="emit('close')">
     <template v-if="project">
       <!-- 项目名 + 主攻标记 -->
       <div class="pd-head">
@@ -154,13 +155,13 @@ function metricTaskRows(metricId: string) { return tasksForMetric(metricId) }
       <div class="pd-progress"><div class="bar" :style="{width: progress() + '%'}" /></div>
 
       <!-- 隶属战略目标 -->
-      <div class="pd-label">📂 隶属战略目标（切换即同步罗盘）</div>
+      <div class="pd-label"><Icon name="folderopen" :size="13"/> 隶属战略目标（切换即同步罗盘）</div>
       <select class="pd-select" :value="dir?.id" @change="switchDirection">
         <option v-for="x in d.compass.directions" :key="x.id" :value="x.id">{{ x.name }}</option>
       </select>
 
       <!-- 成功指标与任务树（可编辑） -->
-      <div class="pd-label">🎯 成功指标（点击名称可编辑，实时同步罗盘）</div>
+      <div class="pd-label"><Icon name="target" :size="13"/> 成功指标（点击名称可编辑，实时同步罗盘）</div>
       <div v-if="!project.metrics.length" class="pd-empty">暂无成功指标</div>
       <div v-for="m in project.metrics" :key="m.id" class="pd-metric">
         <div class="pd-metric-head">
@@ -168,21 +169,21 @@ function metricTaskRows(metricId: string) { return tasksForMetric(metricId) }
           <span class="pd-metric-count">{{ tasksForMetric(m.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(m.id).length }}</span>
           <MaturityBadge :m="metricMaturity(d, m)" />
           <button class="pd-mini" @click="openTaskAdd(m.id)" title="添加任务（新建 / 关联）">＋</button>
-          <button class="pd-mini danger" @click="removeMetric(m.id)" title="删除指标">🗑</button>
+          <button class="pd-mini danger" @click="removeMetric(m.id)" title="删除指标"><Icon name="trash" :size="13"/></button>
         </div>
         <div class="pd-tasks">
           <div v-for="task in metricTaskRows(m.id)" :key="task.id" class="pd-task" :class="{done: task.status==='done'}">
-            <div class="pd-check" :class="{done: task.status==='done'}" @click="toggleTask(task.id)">{{ task.status==='done'?'✓':'' }}</div>
+            <div class="pd-check" :class="{done: task.status==='done'}" @click="toggleTask(task.id)"><Icon v-if="task.status==='done'" name="check" :size="14"/></div>
             <input class="pd-task-name" :value="task.title" @change="renameTask(task.id, $event)" />
             <MaturityBadge :m="taskMaturity(task)" />
-            <button class="pd-mini" @click="unbindTask(task.id)" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）">✕</button>
+            <button class="pd-mini" @click="unbindTask(task.id)" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）"><Icon name="x" :size="13"/></button>
           </div>
           <div v-if="!tasksForMetric(m.id).length" class="pd-task-empty">暂无任务，点击 ＋ 添加</div>
         </div>
       </div>
       <button class="pd-add-metric" @click="addMetric">＋ 添加成功指标</button>
 
-      <div class="pd-sync-hint">💡 此处编辑实时写回调度台，方向台二级界面同步生效</div>
+      <div class="pd-sync-hint"><Icon name="bulb" :size="13"/> 此处编辑实时写回调度台，方向台二级界面同步生效</div>
     </template>
   </Drawer>
 

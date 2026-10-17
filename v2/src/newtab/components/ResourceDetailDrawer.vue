@@ -14,6 +14,7 @@
  *     与「关联任务」（新，资源侧反向写 SupportLink）。
  *  ③ 抽屉宽 460 → 520：上半部收紧后腾出的高度给「我的注解」这块焦点区。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed, reactive, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import Drawer from '@/shared/components/Drawer.vue'
@@ -93,7 +94,7 @@ function save() {
   if (idx >= 0) store.data.resources[idx] = { ...editing }
   store.persist()
   close()
-  showToast('✓ 已保存')
+  showToast('已保存')
 }
 
 function remove() {
@@ -120,13 +121,13 @@ function openLink() {
   recordResourceOpen(store.data, r)
   store.persistHot()
   const url = toOpenableUrl(r.linkType, r.link)
-  if (!url) { showToast('⚠ 请先补全链接（本地文件需完整路径，如 D:\\docs\\file.pdf）'); return }
+  if (!url) { showToast('请先补全链接（本地文件需完整路径，如 D:\\docs\\file.pdf）'); return }
   openExternalLink(url)
 }
 
 function copyLink() {
   if (!editing.link) { showToast('链接为空'); return }
-  navigator.clipboard?.writeText(editing.link).then(() => showToast('✓ 链接已复制')).catch(() => {})
+  navigator.clipboard?.writeText(editing.link).then(() => showToast('链接已复制')).catch(() => {})
 }
 
 /* N8（V3.8.18）镜像到策展台——推送方向。★两宿主同源（R167 那条规矩：只改一边等于交付一半）：
@@ -142,10 +143,10 @@ function mirrorToBoard() {
   if (!id || !wsId) { showToast('请先选一个目标策展台'); return }
   if (!store.data) return
   const rec = projectCardToBoard(store.data, id, wsId)
-  if (!rec) { showToast('⚠ 该台已经镜像过这张卡了'); return }
+  if (!rec) { showToast('该台已经镜像过这张卡了'); return }
   store.persist()
   const name = (store.data.workspaces || []).find(w => w.id === wsId)?.name || '策展台'
-  showToast(`✓ 已镜像到「${name}」（源卡仍在资源卡池）`)
+  showToast(`已镜像到「${name}」（源卡仍在资源卡池）`)
 }
 
 /**
@@ -192,7 +193,7 @@ const kicker = computed(() => {
   if (!c) return '资源卡'
   const ws = (store.data?.workspaces || []).find(w => w.id === c.workspaceId)
   const cat = (store.data?.categories || []).find(x => x.id === c.categoryId)
-  return ['资源卡', ws ? (ws.id === 'zy-curation' ? '资源卡池' : '策展台镜像') : '资源卡池', cat?.name].filter(Boolean).join(' · ')
+  return ['资源卡', ws ? (ws.id === 'zy-curation' ? '资源卡池' : '策展台镜像') : '资源卡池', cat?.name].filter(Boolean).join('· ')
 })
 </script>
 
@@ -218,7 +219,7 @@ const kicker = computed(() => {
       @save="save"
     >
       <template #link-actions>
-        <button class="ds-ib" title="打开链接" @click="openLink">↗</button>
+        <button class="ds-ib" title="打开链接" @click="openLink"><Icon name="external" :size="13"/></button>
         <button class="ds-ib" title="复制链接" @click="copyLink">⧉</button>
         <!-- ★W15-T3（用户拍板 2026-10-16）：镜像到策展台从「关联与凭证」面板提到**链接工具行常驻** ——
              原入口埋在属性区里，用户找不到（列表侧同期补了行内 🪞，两处同口径 projectCardToBoard）。 -->
@@ -227,7 +228,7 @@ const kicker = computed(() => {
             <option value="">镜像到策展台…</option>
             <option v-for="w in mirrorBoards" :key="w.id" :value="w.id">{{ w.name }}</option>
           </select>
-          <button class="ds-ib" :disabled="!mirrorWsId" title="镜像到该策展台（引用投射，源卡仍留在资源卡池）" @click="mirrorToBoard">🪞</button>
+          <button class="ds-ib" :disabled="!mirrorWsId" title="镜像到该策展台（引用投射，源卡仍留在资源卡池）" @click="mirrorToBoard"><Icon name="mirror" :size="13"/></button>
         </template>
       </template>
       <!-- 宿主差异内容：落在「关联与凭证」面板内 -->
@@ -242,7 +243,7 @@ const kicker = computed(() => {
     <!-- R165-A：页脚收敛两钮——删除（二次确认）+ 保存（Ctrl+↩）；其余动作已贴对象/进正文 -->
     <template #footer>
       <ArmDeleteButton @confirm="remove" />
-      <button class="red-save" @click="save">✓ 保存<span class="red-kbd">Ctrl+↩</span></button>
+      <button class="red-save" @click="save"><Icon name="check" :size="13"/> 保存<span class="red-kbd">Ctrl+<Icon name="arrowleft" :size="13"/></span></button>
     </template>
   </Drawer>
 </template>

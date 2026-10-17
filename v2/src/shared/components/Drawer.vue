@@ -5,9 +5,14 @@ const overlayTarget = useOverlayTarget()
 import { ref, computed, onUnmounted, watch } from 'vue'
 import { useAppStore } from '@/newtab/stores/app'
 import { saveUIPrefs } from '@/shared/storage/repository'
+import Icon from '@/shared/components/Icon.vue'
 const props = defineProps<{
   open: boolean
   title?: string
+  /** G1 迁移（V3.8.25）：抽屉标题的图标标记走 prop 而不是塞进 title 字符串 ——
+   *  title 是纯文本，组件插不进组件；原做法是把 emoji 写进 title（📄 资源卡详情），
+   *  迁移时 emoji 被剥掉只留下孤儿空格。icon 由壳统一渲染，四主题自动换色。 */
+  icon?: string
   width?: string
   /** R169-老账③：body 附加类——宿主态样式（如镜像只读 .dr-readonly）挂到 .drawer-body 上，
    *  让 Workspace 自绘 .drawer 退役、两代抽屉容器合并为一代（Drawer.vue 唯一壳） */
@@ -71,7 +76,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
           <!-- R167：可选 title 插槽——把"就地可编辑主标题 + kicker"放进头部，
                正文里就不再重复一份标题（现状是头部一份只读、正文一份 textarea，同屏两处且头部那份长标题被截断）。
                不给插槽的宿主照旧渲染 {{ title }}，19 个既有抽屉零影响。 -->
-          <div class="drawer-title"><slot name="title">{{ title }}</slot></div>
+          <div class="drawer-title"><Icon v-if="icon" :name="icon" :size="14" class="drawer-title-icon"/><slot name="title">{{ title }}</slot></div>
           <!-- 第卌一轮 REQ-054：标题右侧扩展区（附件徽章等） -->
           <div v-if="$slots['title-extra']" class="drawer-title-extra"><slot name="title-extra" /></div>
           <button class="drawer-close" @click="emit('close')">×</button>
@@ -106,7 +111,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; gap: 10px;
 }
-.drawer-title { font-size: var(--fs-title); font-weight: 600; flex: 1; color: var(--text); }
+.drawer-title { font-size: var(--fs-title); font-weight: 600; flex: 1; color: var(--text); display: flex; align-items: center; gap: 7px; }
+.drawer-title-icon { color: var(--text-3); flex-shrink: 0; }
 .drawer-title-extra { flex-shrink: 0; display: flex; align-items: center; }
 .drawer-close {
   width: 30px; height: 30px;

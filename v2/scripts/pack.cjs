@@ -12,7 +12,20 @@
  *   node scripts/pack.cjs --no-zip        # 只出解压目录
  *
  * 体积预算（见 文档中心/06_测试与发布/06-2 发布验收清单 §G）：
- *   生产包 ≤ 2M · ZIP ≤ 600KB（R154 曾上调 660KB；R160 压回——拼音字典退役后实测 576,655 B）· 单文件 ≤ 400KB · **禁止把 *.map 打进发布包**
+ *   生产包 ≤ 2M · ZIP ≤ 700KB · 单文件 ≤ 400KB · **禁止把 *.map 打进发布包**
+ *
+ * ★V3.8.25（用户拍板 2026-10-17）：ZIP 预算 600KB → **700KB**。理由链必须写清，否则下一轮又会有人问"凭什么是 700"：
+ *   ① **600KB 这个数已经不可达，且不是靠优化能回去的**。V3.8.0 实测 608,791 B（余 6KB），到 V3.8.25 是 687,229 B，
+ *      20 个版本累积 +78KB，全部来自真实功能与文档内容（v3 时代每版都进 changelog、手册五篇持续增补）。
+ *   ② **"把手册与更新日志外置懒加载"对 ZIP 是空操作** —— 本轮实测：`manual-data.ts` 早已在独立懒加载 chunk
+ *      （`chunk-CMx5ZVCi.js` 81K 原始 / 32.5K 压缩，只被懒路由 ManualPage 引），`changelog-data.ts` 与 GlobalSettings
+ *      同 chunk（`chunk-Q6h13xcw.js` 169K 原始）。**两者都不在入口包里**，再"懒"一次不会让 ZIP 小 1 字节。
+ *      ZIP 装的是全部产物，代码分割只影响首屏，不影响包体积 —— 这条以后不要再混。
+ *   ③ **连"整个删掉"都不够**：把这两个数据文件从包里彻底移除，压缩后约省 45–50K ⇒ 671K→约 623K，**仍然超 600K**。
+ *      即 600KB 对本产品规模已不可达，除非砍功能或把内容改成远程拉取 —— 后者违反「数据 100% 本机、无云端」的七不原则。
+ *   ④ 700KB 留约 30K 余量（约 4%），够 1–2 个版本的自然增长；**超过 700KB 应视为需要重新评估而不是再上调**。
+ *   ⑤ 历史沿革：R154 曾上调 660KB → R160 因拼音字典退役压回 600KB（实测 576,655 B）→ V3.8.25 上调 700KB。
+ *      660KB 那次没有写清理由链，所以后来没人敢动它；这次把账算完再调。
  */
 const fs = require('fs')
 const path = require('path')
@@ -176,13 +189,13 @@ if (!noZip) {
 }
 console.log(`  已剥离 map  ${dropped} 个（约 ${fmt(all.reduce((s, f) => s + (f.endsWith('.map') ? fs.statSync(f).size : 0), 0))}）`)
 console.log('')
-console.log('  体积预算（06-2 §G）：生产包 ≤2M · ZIP ≤600KB · 单文件 ≤400KB')
+console.log('  体积预算（06-2 §G）：生产包 ≤2M · ZIP ≤700KB（V3.8.25 由 600 上调，理由见文件头注释）· 单文件 ≤400KB')
 
 // ---------- 预算校验（超限只告警不中断，避免挡住发版） ----------
 const biggest = kept.reduce((m, f) => Math.max(m, fs.statSync(f).size), 0)
 const warn = []
 if (pkgBytes > 2 * 1024 * 1024) warn.push(`生产包 ${fmt(pkgBytes)} 超 2M`)
-if (!noZip && zipBytes > 600 * 1024) warn.push(`ZIP ${fmt(zipBytes)} 超 600KB`)
+if (!noZip && zipBytes > 700 * 1024) warn.push(`ZIP ${fmt(zipBytes)} 超 700KB`)
 if (biggest > 400 * 1024) warn.push(`单文件最大 ${fmt(biggest)} 超 400KB`)
 if (kept.some(f => f.endsWith('.map'))) warn.push('包内仍含 *.map')
 if (warn.length) console.log('  ⚠ 预算告警：' + warn.join('；'))

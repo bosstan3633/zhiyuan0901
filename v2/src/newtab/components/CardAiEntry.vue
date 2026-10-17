@@ -40,6 +40,6 @@ async function run() {
 </script>
 
 <template>
-  <div class="rc-action ai" :title="card.link ? '✦ AI 读链接正文补全这张卡（你已经写过的字段只给建议，勾选采纳才写库）' : '✦ AI 按卡面信息补全（本卡没有链接）'" @click.stop="run"><AiEntryButton variant="icon" :spin="busy" /></div>
+  <div class="rc-action ai" :title="card.link ? ' AI 读链接正文补全这张卡（你已经写过的字段只给建议，勾选采纳才写库）' : ' AI 按卡面信息补全（本卡没有链接）'" @click.stop="run"><AiEntryButton variant="icon" :spin="busy" /></div>
   <AiDrawer v-if="job" :job="job" @close="job = null" />
 </template>

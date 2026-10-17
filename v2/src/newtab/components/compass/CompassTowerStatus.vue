@@ -12,6 +12,7 @@
  *  - 有报告 → 标签组（最多 3 枚 + 折叠 +N）+ 一枚「📄 诊断报告」（点它=开中央弹窗）
  * 过期（数据已变更）只降亮标签，**不撤标签**——撤了反而看不出"这个项目曾经有过结论"。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed } from 'vue'
 import type { ProjectMeta } from '../../views/compassMeta'
 import type { ProjectDiagnosis } from '@/shared/ai/projectDiagnose'
@@ -69,9 +70,9 @@ const tagTitle = (t: { tag: string; dim: string }) =>
           :title="tagTitle(t)"
         >{{ t.tag }}</span>
         <span v-if="extra > 0" class="dt more" :title="`另有 ${extra} 条诊断标签`">+{{ extra }}</span>
-        <button class="dt view" title="查看完整诊断报告" @click="emit('diagReport', projId)">📄 诊断报告</button>
+        <button class="dt view" title="查看完整诊断报告" @click="emit('diagReport', projId)"><Icon name="filetext" :size="13"/> 诊断报告</button>
       </template>
-      <button v-else class="dt run" title="AI 诊断：五维度规则结论 + AI 建议动作" @click="emit('diagRun', projId)">🧠 AI 诊断</button>
+      <button v-else class="dt run" title="AI 诊断：五维度规则结论 + AI 建议动作" @click="emit('diagRun', projId)"><Icon name="brain" :size="13"/> AI 诊断</button>
     </div>
   </div>
 </template>

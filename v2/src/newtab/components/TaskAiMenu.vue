@@ -5,6 +5,7 @@
  * 自包含纪律（承 R144）：按钮、浮层菜单、评审抽屉、样式都在本组件内，
  * 宿主 workspace.css 是 scoped，fragment 根不继承父 scope；AI 依赖零静态引用，点击时才 dynamic import。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { ref, shallowRef } from 'vue'
 import type { TaskCard } from '@/shared/models'
 import { useAppStore } from '@/newtab/stores/app'
@@ -41,7 +42,7 @@ async function breakdown() {
     d, depth: aiConfig.value.depth, persist: () => store.persist(),
     personaId: personaId.value, onPersona: (id) => { personaId.value = id; void breakdown() },
   })
-  if (!j) { showToast('⚠ 任务已不存在（可能刚被删除）'); return }
+  if (!j) { showToast('任务已不存在（可能刚被删除）'); return }
   job.value = j
 }
 
@@ -60,7 +61,7 @@ async function pick(kind: 'breakdown' | 'detail') {
     <div v-if="shown" class="tam-mask" @click="shown = false" />
     <div v-if="shown" class="tam-menu" :style="{ left: pos.x + 'px', top: pos.y + 'px' }" @click.stop>
       <button class="tam-item" @click="pick('breakdown')"><AiEntryButton variant="inline" label="拆解成子任务" /></button>
-      <button class="tam-item" @click="pick('detail')">📋 打开任务详情</button>
+      <button class="tam-item" @click="pick('detail')"><Icon name="filetext" :size="13"/> 打开任务详情</button>
     </div>
   </Teleport>
   <AiDrawer v-if="job" :job="job" @close="job = null" />

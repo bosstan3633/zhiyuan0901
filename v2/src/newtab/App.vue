@@ -245,7 +245,7 @@ async function archiveDeck() {
   const r = archiveWorkspace(store.data, ws)
   store.persist()
   if (activeWorkspaceId.value === ws.id) navigate('/')
-  showToast(`📦 已归档「${wsDisplayNameOf(ws).slice(0, 14)}」· ${r.moved} 张卡移至待分类`)
+  showToast(`已归档「${wsDisplayNameOf(ws).slice(0, 14)}」· ${r.moved} 张卡移至待分类`)
 }
 
 // ===== 全局快捷键 =====
@@ -305,7 +305,7 @@ function onWsTabDrop(e: DragEvent, ws: Workspace) {
   list.forEach((w, i) => { w.order = i })
   store.persist()
   dragWsId = null
-  showToast('✓ 已调整策展台顺序')
+  showToast('已调整策展台顺序')
 }
 
 function onGlobalKeydown(e: KeyboardEvent) {
@@ -357,7 +357,7 @@ onMounted(async () => {
     const act = e.kind === 'quota'
       ? { label: '清理回收站', cb: () => { clearLastSaveError(); navigate('/recycle') } }
       : { label: '查看', cb: () => { clearLastSaveError(); navigate('/settings?page=about') } }
-    showToast(`⛔ 数据保存失败（${tag}${sz}），请清理或导出后重试`, act)
+    showToast(`数据保存失败（${tag}${sz}），请清理或导出后重试`, act)
   })
   // 监听 background 发来的消息（扩展快捷键触发）
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -432,10 +432,10 @@ async function runAirtableSync(withToast: boolean): Promise<void> {
     const { runSync } = await import('@/shared/storage/airtable')
     const r = await runSync(store.data!)
     store.persist()
-    if (withToast) showToast(`✓ Airtable 同步完成：推送 ${r.pushed} 条 · 调用 ${r.calls} 次`)
+    if (withToast) showToast(`Airtable 同步完成：推送 ${r.pushed} 条 · 调用 ${r.calls} 次`)
   } catch (e) {
     store.persist()
-    if (withToast) showToast('✗ Airtable 同步失败：' + (e instanceof Error ? e.message : String(e)))
+    if (withToast) showToast('Airtable 同步失败：' + (e instanceof Error ? e.message : String(e)))
   } finally { atSyncBusy = false }
 }
 onUnmounted(() => { window.removeEventListener('keydown', onGlobalKeydown, true) })
@@ -506,7 +506,7 @@ const backupReminderDot = computed(() => {
             />
           </template>
           <template v-else>
-            <span>{{ ws.icon || '📁' }}</span>{{ wsDisplayNameOf(ws) }}
+            <span><template v-if="ws.icon">{{ ws.icon }}</template><Icon v-else name="folder" :size="13"/></span>{{ wsDisplayNameOf(ws) }}
           </template>
         </div>
 
@@ -555,7 +555,7 @@ const backupReminderDot = computed(() => {
               <div v-for="t in themes" :key="t.id" class="theme-option" :class="{active: store.theme === t.id}" @click="selectTheme(t.id)">
                 <span class="theme-dot" :style="{ background: t.dot }"></span>
                 {{ t.name }}
-                <span v-if="store.theme === t.id" class="theme-check">✓</span>
+                <span v-if="store.theme === t.id" class="theme-check"><Icon name="check" :size="13"/></span>
               </div>
             </div>
           </Transition>
@@ -585,22 +585,22 @@ const backupReminderDot = computed(() => {
       </template>
       <!-- B30a：渲染错误兜底卡片（替代黑屏，保持系统可用） -->
       <div v-else class="render-error">
-        <div class="re-icon">⚠️</div>
+        <div class="re-icon"><Icon name="warn" :size="13"/></div>
         <div class="re-title">页面渲染出错（已拦截，系统其余功能不受影响）</div>
         <div class="re-msg">{{ renderError }}</div>
         <div class="re-actions">
-          <button class="re-btn" @click="renderError = null">🔄 重试渲染</button>
+          <button class="re-btn" @click="renderError = null"><Icon name="refresh" :size="13"/> 重试渲染</button>
           <button class="re-btn" @click="reloadPage">刷新页面</button>
         </div>
-        <div class="re-hint">💡 若反复出现，请按 F12 打开控制台截图完整报错并反馈</div>
+        <div class="re-hint"><Icon name="bulb" :size="13"/> 若反复出现，请按 F12 打开控制台截图完整报错并反馈</div>
       </div>
     </main>
 
     <!-- 右键菜单 -->
     <Teleport to="body">
       <div v-if="menuWs" class="ctx-menu" :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }" @click.stop>
-        <div class="ctx-item" @click="startRename">✏️ 重命名</div>
-        <div class="ctx-item" @click="archiveDeck">📦 归档此台（卡移至待分类）</div>
+        <div class="ctx-item" @click="startRename"><Icon name="edit" :size="13"/> 重命名</div>
+        <div class="ctx-item" @click="archiveDeck"><Icon name="package" :size="13"/> 归档此台（卡移至待分类）</div>
       </div>
     </Teleport>
 

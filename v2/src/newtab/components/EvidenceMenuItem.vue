@@ -27,7 +27,7 @@ function branchPath(d: NonNullable<ReturnType<typeof useAppStore>['data']>, cat:
   let guard = 0
   while (p && !seen.has(p.id) && guard++ < 4) { parts.unshift(p.name); seen.add(p.id); p = p.parentId ? d.categories.find(x => x.id === p!.parentId) : undefined }
   const ws = d.workspaces.find(w => w.id === cat.workspaceId)
-  return (ws ? wsDisplayNameOf(ws) + ' / ' : '') + parts.join(' / ')
+  return (ws ? wsDisplayNameOf(ws) + '/ ' : '') + parts.join('/ ')
 }
 
 async function run() {
@@ -38,16 +38,16 @@ async function run() {
     const d = store.data
     if (!d) return
     const cat = d.categories.find(c => c.id === props.catId && !c.deletedAt)
-    if (!cat) { showToast('⚠ 该节点已不存在'); return }
+    if (!cat) { showToast('该节点已不存在'); return }
     const [{ loadAiConfig, aiReady, aiConfig }, { buildEvidenceJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/batchG')])
     await loadAiConfig()
     if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
     job.value = buildEvidenceJob({
       d, depth: aiConfig.value.depth, persist: () => store.persist(),
       wsId: props.wsId, catId: props.catId, branchName: cat.name, branchPath: branchPath(d, cat),
-      onApplied: n => showToast(`✓ ${n} 张佐证卡已挂上「${cat.name}」`),
+      onApplied: n => showToast(`${n} 张佐证卡已挂上「${cat.name}」`),
     })
-    if (!job.value) showToast('⚠ 资源卡池里没有可推荐的卡（或都已挂在本分支）')
+    if (!job.value) showToast('资源卡池里没有可推荐的卡（或都已挂在本分支）')
   } finally { busy.value = false }
 }
 </script>

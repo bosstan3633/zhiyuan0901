@@ -359,12 +359,28 @@
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: var(--z-modal); display: none; align-items: center; justify-content: center; }
 .modal-overlay.open { display: flex; }
 .modal { background: var(--surface); border-radius: 12px; box-shadow: 0 10px 36px rgba(0,0,0,.12); width: 480px; max-width: 90vw; overflow: hidden; }
+/* ★V3.8.25（G2 内联样式收口）：三档宽度原先写在 6 处模板的 style="width:Npx" 里。
+   为什么改成类而不是留内联：同一张弹窗的宽度是**设计决策**，散在模板里就没人能一次看全，
+   而且改版时容易只改一半（本轮实测就有 380/420/460 三种并存、没有任何注释说明为什么不同）。
+   注意顺序：这三条必须排在 .modal 之后，同优先级靠后者覆盖。 */
+.modal-sm { width: 380px; }
+.modal-md { width: 420px; }
+.modal-lg { width: 460px; }
 .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+/* ★V3.8.25（G2）：弹窗头图标壳。原先 7 处写的是 style="font-size:16px" ——
+   那是 emoji 时代靠 font-size 控制字形大小的遗留；换成 <Icon :size="13"/> 之后这行**完全无效**
+   （SVG 尺寸由 :size 决定，不吃 font-size）。这里只保留真正需要的布局职责：把 SVG 与文字基线对齐。 */
+.mh-ico { display: inline-flex; align-items: center; }
+/* ★V3.8.25（G2）：隐藏的 file input。全站 5 处同一写法，统一成一个类，语义自解释 */
+.file-hidden { display: none; }
 .modal-header .mh-title { font-size: 14px; font-weight: 600; color: var(--text); flex: 1; }
 .modal-close { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: 16px; }
 .modal-close:hover { background: var(--surface-3); color: var(--text); }
 .modal-body { padding: 18px 20px; max-height: 50vh; overflow-y: auto; }
 .modal-footer-row { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+/* ★V3.8.25（G2）：六处 footer 里有一处内联写 14px —— 同一个类出现两种内边距属隐性分叉，
+   收成修饰类后至少它是有名字、可被搜索到的差异，而不是藏在模板里 */
+.modal-footer-row--tall { padding-top: 14px; padding-bottom: 14px; }
 /* N8（V3.8.18）镜像选台弹窗的说明行——只做"这一步是干什么的"，不抢主控件的注意力：
    颜色取 --text-3 而不是 --text-4（W12-G：交互区附近不许用最淡档，纯说明文字才允许 --text-4） */
 .dr-hint { margin-top: 8px; font-size: var(--fs-caption); color: var(--text-3); line-height: 1.6; }
@@ -442,7 +458,8 @@
    —— 本文件是 Workspace.vue 的 scoped 样式，跨不到子组件内部，留着就是死代码 */
 .py-node-add { position: absolute; right: -8px; top: -8px; width: 20px; height: 20px; display: none; align-items: center; justify-content: center; border-radius: 6px; background: var(--accent); color: #fff; font-size: var(--fs-body); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
 .py-node:hover .py-node-add { display: flex; }
-.py-level-empty { font-size: var(--fs-caption); color: var(--text-4); padding: 4px 0; }
+/* ★V3.8.25（G2）：居中与内边距原先写在模板的 style="text-align:center;padding:10px 0" 里（该类只此一处消费，直接并进来） */
+.py-level-empty { font-size: var(--fs-caption); color: var(--text-4); padding: 10px 0; text-align: center; }
 /* ===== R62-6：节点菜单 ===== */
 .node-menu-mask { position: fixed; inset: 0; z-index: var(--z-popover); }
 .node-menu { position: fixed; z-index: calc(var(--z-popover) + 1); width: 216px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; animation: ipIn .16s var(--ease-emphasis); }
@@ -568,5 +585,7 @@
 .arg-del { border: none; background: transparent; color: var(--text-3); cursor: pointer; font-size: var(--fs-caption); border-radius: 5px; padding: 2px 6px; flex-shrink: 0; font-family: inherit; }
 .arg-del:hover { color: var(--danger); background: var(--danger-bg-soft); }
 .arg-label { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin-bottom: 6px; }
+/* ★V3.8.25（G2）：两处 .arg-label 只有第二处需要上方留白（原先内联 margin-top:12px），故用修饰类而不是改基类 */
+.arg-label--spaced { margin-top: 12px; }
 .arg-input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: var(--fs-body); background: var(--surface); color: var(--text); outline: none; font-family: inherit; box-sizing: border-box; }
 .arg-input:focus { border-color: var(--accent); }

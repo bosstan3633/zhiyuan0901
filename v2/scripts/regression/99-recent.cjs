@@ -383,7 +383,7 @@ check('R171-2 ★两条导入链即净化：策展台数据包导入（useWorksp
 check('R171-3 ★数据体检卡（设置→导出数据页）：中心论点重复检测（纯盘点 countThesisDuplicates，挂载即刷新）+ 一键修复按钮（useConfirm 确认 → sanitizeThesisDuplicates → persist → 复扫）——真库脏卡有了不进 AI 链的修复入口（R171 重指：R164-2 增长门禁，卡片实现抽独立组件 DataCheckupCard.vue，宿主一行挂载）', () => {
   const dc = read('/newtab/components/DataCheckupCard.vue');
   const gs = read('/newtab/views/GlobalSettings.vue');
-  return dc.includes('🩺 数据体检') && dc.includes('refreshThesisScan') && dc.includes('fixThesisDuplicates')
+  return dc.includes('<Icon name="stethoscope"') && dc.includes('数据体检') && dc.includes('refreshThesisScan') && dc.includes('fixThesisDuplicates')
     && dc.includes("countThesisDuplicates(store.data!)") && dc.includes('onMounted(refreshThesisScan)')
     && gs.includes('<DataCheckupCard v-if="activePage === \'export\'" />');
 });
@@ -731,7 +731,7 @@ check('R2-⑤ ★论证卡进回收站族（R1.5 硬删旁路退役）：软删 
   return seg.includes('live.deletedAt = Date.now()') && !seg.includes('useConfirm') && seg.includes("label: '撤销'")
     && u.includes('a.workspaceId === workspaceId.value && !a.deletedAt')
     && pu.includes('argCards?: ArgumentCard[]') && pu.includes('d.argCards = (d.argCards || []).filter') && pu.includes('argCards: (d.argCards || []).filter(a => a.deletedAt)')
-    && rb.includes('function restoreArg') && rb.includes("purgeWith('论证卡'") && rb.includes("'🧭 论证卡'")
+    && rb.includes('function restoreArg') && rb.includes("purgeWith('论证卡'") && rb.includes('<Icon name="compass"')
 });
 
 // ============== R2-⑦ 热度写通道修复（persistHot 空转的两层病根） ==============
@@ -754,7 +754,7 @@ check('R2-⑦ ★调出事件不再等整库保存：writeHot 的 set 载荷并�
 console.log('【R2-⑧ · 池管理面收编】');
 check('R2-⑧ ★控制行四件套在位且导入口径与旧宿主一致：新建卡 / 导入本地文件（accept 串逐字同 R80-6 那份，选了不支持的类型不会静默吞）/ 批量开关 / 计数', () => {
   const p = read('/newtab/components/compass/PoolCardsPanel.vue')
-  return p.includes('＋ 新建卡') && p.includes('📥 导入本地文件') && p.includes('function toggleBatch')
+  return p.includes('＋ 新建卡') && p.includes('<Icon name="inbox"') && p.includes('导入本地文件') && p.includes('function toggleBatch')
     && p.includes('accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.avif,.ico,.html,.htm,.pdf,application/pdf,text/html"')
     && p.includes('fileImport()') && p.includes('handleFileImport')
 });
@@ -892,5 +892,3 @@ check('W3-3 ★AI 动作 Tab：flatList AI 分支顺序 proactive→passive、�
     && gp.includes('function setBrowseTab')
     && /function setBrowseTab[\s\S]{0,200}selIndex\.value = 0[\s\S]{0,80}selectedId\.value = ''/.test(gp);
 });
-
-// ============== R3 收尾 · F38 交互点高亮开关 ==============

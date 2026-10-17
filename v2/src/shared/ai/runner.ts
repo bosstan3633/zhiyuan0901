@@ -107,7 +107,7 @@ async function execute(key: string): Promise<void> {
     let raw = ''
     if (job.run) {
       rows = await job.run({ signal: ac.signal, onDelta: (t) => { const c = states.value.get(key); if (c && mine()) c.raw = t } })
-      raw = rows.length ? '' : ''
+      raw = ''
     } else {
       const { messages, jsonMode } = await job.build()
       raw = await chatStream({ messages, jsonMode: job.rawText ? false : jsonMode !== false, signal: ac.signal, onDelta: (t) => { if (mine()) patch(key, { raw: t }) } })

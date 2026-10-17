@@ -12,6 +12,7 @@
  *  2. `panel` prop 落到 `data-panel`——三张卡同页挂载，共用组件后裸类名一次命中多枚
  *     （Playwright 严格模式直接抛），E2E 与排障都需要一个按卡型稳定的锚点。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed } from 'vue'
 
 export type DkOption = { id: string; label: string; title?: string; count?: number }
@@ -40,7 +41,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   search: false, searchPh: '快速过滤...', query: '', filters: () => [], filterKind: 'pills', filter: '',
   views: () => [], view: '', sorts: () => [], sort: '', sortDir: '', groups: () => [], group: '',
-  batchLabels: () => ['☑ 批量管理', '✓ 完成'], batchOn: false
+  batchLabels: () => ['批量管理', '完成'], batchOn: false
 })
 
 const emit = defineEmits<{
@@ -64,7 +65,7 @@ const sortDirTitle = computed(() => {
 
 <template>
   <div class="dk-row" :data-panel="panel">
-    <div v-if="search" class="dk-search"><span>🔍</span><input :value="query" :placeholder="searchPh"
+    <div v-if="search" class="dk-search"><span><Icon name="search" :size="13"/></span><input :value="query" :placeholder="searchPh"
       @input="emit('search', ($event.target as HTMLInputElement).value)"></div>
 
     <div v-if="filters.length" class="dk-filters" :class="filterKind === 'pills' ? 'pills' : 'select'">

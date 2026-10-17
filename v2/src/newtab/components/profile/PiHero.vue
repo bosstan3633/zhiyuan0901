@@ -19,6 +19,7 @@
  * W12-B 页头三件套（刷新 · 导出 · 全部记录）与 E2E-21 选择器（.pi-hero）保持不变——
  *   本组件以 `class="pi-hero hero-card"` 双类共存，E2E 零修改直过（排期文档 §三-2 勘误）。
  */
+import Icon from '@/shared/components/Icon.vue'
 import ExportMenu, { type ExportFmt } from '@/newtab/components/dashboard/ExportMenu.vue'
 
 const props = defineProps<{
@@ -69,11 +70,11 @@ function onPick(fmt: ExportFmt) { emit('export', fmt) }
         <button class="pi-btn line" title="重读事件日志刷新统计" @click="emit('refresh')">⟳ 刷新</button>
         <ExportMenu @pick="onPick" />
         <button v-if="props.errorCount > 0" class="pi-btn line" style="color:var(--warning)"
-          title="运行错误日志导出" @click="emit('export-error')">⚠ 错误 {{ props.errorCount }}</button>
+          title="运行错误日志导出" @click="emit('export-error')"><Icon name="warn" :size="13"/> 错误 {{ props.errorCount }}</button>
         <!-- ★W12-B 入口收敛（用户 2026-10-13 拍板）：AI 解读与今日战报两枚能力在下方模块各有同级入口，
              此格为全页唯一的「全部记录」入口。W13 起仍为刷新 · 导出 · 全部记录三件套（W12-B1 钉住）。 -->
         <button class="pi-btn line" title="打开全量操作记录（类型 / 动作 / 时间三维筛选 + CSV 导出）"
-          @click="emit('open-log')">🗂 全部记录</button>
+          @click="emit('open-log')"><Icon name="folder" :size="13"/> 全部记录</button>
       </div>
     </div>
 
@@ -84,7 +85,7 @@ function onPick(fmt: ExportFmt) { emit('export', fmt) }
       <!-- ② 使命主线 + 主攻胶囊（F2） -->
       <div class="hero-compass-bar">
         <span class="hcb-mission" :title="props.missionText || '尚未设定使命愿景'">
-          <i class="hcb-ico">🧭</i><b>使命主线</b>
+          <i class="hcb-ico"><Icon name="compass" :size="13"/></i><b>使命主线</b>
           <em v-if="props.missionText">{{ props.missionText }}</em>
           <button v-else class="hcb-empty" @click="emit('goto-compass')">尚未设定使命愿景 —— 点击前往方向台设定 ›</button>
         </span>
@@ -92,7 +93,7 @@ function onPick(fmt: ExportFmt) { emit('export', fmt) }
           <button v-for="(p, i) in props.focusPills.slice(0, 2)" :key="p.id" class="hcb-pill"
             :title="`主攻 ${i + 1} · ${p.name} · 进度 ${p.progress}% · 点击查看项目详情`"
             @click="emit('open-project', p.id)">
-            🚀 主攻 {{ i + 1 }}：{{ p.name }} <b>{{ p.progress }}%</b>
+            <Icon name="main-focus" :size="13"/> 主攻 {{ i + 1 }}：{{ p.name }} <b>{{ p.progress }}%</b>
           </button>
         </span>
       </div>

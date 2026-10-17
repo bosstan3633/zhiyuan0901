@@ -23,7 +23,7 @@ check('W12-1 ★HERO 区必须是**独立结构**而不是把工具挤成一条�
   return t.includes('<section class="hero">')
     && t.includes('class="hero-acts"') && t.includes('class="hero-stats"')
     && t.includes('class="hero-tools"')
-    && t.includes('↕ ') && t.includes('👁 已完成项目')            /* ★F6 ④ 两枚常驻（在 .hero-acts 链上的 .hero-tools 内） */
+    && t.includes('↕ ') && t.includes('<Icon name="eye" :size="13"/> 已完成项目')   /* ★F6 ④ 两枚常驻（在 .hero-acts 链上的 .hero-tools 内；G1 迁移后 Icon eye） */
     && !t.includes('hero-tools-menu') && !t.includes('toolsOpen') /* ★F6 负锚：下拉壳与开关 state 零残留 */
     && t.includes('class="dhi-badge"')
     && /^\.hero \{[^}]*display: flex/m.test(t)
@@ -310,7 +310,7 @@ check('W12-B1 ★页头动作区收敛后必须仍是「刷新 · 导出 ·（�
   if (h.includes('ai-read')) return false;
   if (h.includes("emit('battle')")) return false;
   // ② 全部记录在位
-  if (!h.includes('>🗂 全部记录</button>')) return false;
+  if (!h.includes('<Icon name="folder" :size="13"/> 全部记录</button>')) return false; /* G1 迁移后 Icon folder */
   if (!raw.includes('打开全量操作记录（类型 / 动作 / 时间三维筛选 + CSV 导出）')) return false;
   // ③ 错误出口仍是条件渲染
   if (!h.includes('v-if="props.errorCount > 0"')) return false;
@@ -419,8 +419,8 @@ check('W12-D4 ★热力图必须真的退役：调度台无 HeatmapModule 引用
   if (ch.includes('HeatmapModule')) return false;
   if (iH < 0 || iF < 0 || iC < 0) return false;
   if (!(iH > iF && iH < iC)) return false;
-  // Heatmap 本体保留（画像洞察页在用）
-  const exists = require('fs').existsSync(require('path').resolve('D:/zhiyuan0904/v2/src/newtab/components/dashboard/Heatmap.vue'));
+  // Heatmap 本体保留（画像洞察页在用）——基路径走 helpers 的 base，禁止硬编码盘符（原 D:/… 在非 Windows 环境恒 false）
+  const exists = fs.existsSync(base + '/newtab/components/dashboard/Heatmap.vue');
   if (!exists) return false;
   // 画像洞察页仍在用
   return read('/newtab/components/profile/PiYear.vue').includes('Heatmap');

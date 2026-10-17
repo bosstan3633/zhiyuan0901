@@ -12,6 +12,7 @@
  * 焦点纪律：★不得出现 font-size: var(--fs-display) / var(--fs-hero)（判据 W11-11 负锚）。
  * 层级：指标名 --fs-sub(12px)、任务 --fs-micro，与项目名 --fs-title(15px) 严格拉开。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { ref } from 'vue'
 import type { TaskCard } from '@/shared/models'
 import type { MetricMeta } from '../../views/compassMeta'
@@ -43,7 +44,7 @@ function toggleMenu(id: string) { menuFor.value = menuFor.value === id ? null : 
 
 /** 状态点：○ 空 / ◐ 进行中 / ✓ 全完成（与 CompassLane 同口径） */
 function dotOf(m: MetricMeta): { cls: string; g: string } {
-  return m.dot === 'done' ? { cls: 'done', g: '✓' } : m.dot === 'doing' ? { cls: 'doing', g: '◐' } : { cls: '', g: '○' }
+  return m.dot === 'done' ? { cls: 'done', g: '' } : m.dot === 'doing' ? { cls: 'doing', g: '◐' } : { cls: '', g: '○' }
 }
 
 /** 任务是否带「支撑任务（线索未开）」软提示（不在 TaskCard 模型里，按可选扩展读） */
@@ -74,10 +75,10 @@ function priOf(t: TaskCard): string {
         <span class="lane-dot" :class="dotOf(m).cls" :title="`完成 ${m.done}/${m.total}`">{{ dotOf(m).g }}</span>
         <!-- ★F1：hover 🗑 + 「⋯」—— 与项目塔指标卡同一套删除语义（真源报数确认 + 撤销） -->
         <span class="lane-ops" @click.stop>
-          <button class="lo-del" title="删除本成功指标（其下任务转为未关联，可撤销）" @click="emit('delMetric', m.id)">🗑</button>
+          <button class="lo-del" title="删除本成功指标（其下任务转为未关联，可撤销）" @click="emit('delMetric', m.id)"><Icon name="trash" :size="13"/></button>
           <button class="lo-more" :class="{ on: menuFor === m.id }" title="指标更多操作" @click="toggleMenu(m.id)">⋯</button>
           <span v-if="menuFor === m.id" class="lo-menu" @click.stop>
-            <button class="lom-item danger" @click="menuFor = null; emit('delMetric', m.id)">🗑 删除本指标</button>
+            <button class="lom-item danger" @click="menuFor = null; emit('delMetric', m.id)"><Icon name="trash" :size="13"/> 删除本指标</button>
           </span>
         </span>
       </div>
@@ -105,7 +106,7 @@ function priOf(t: TaskCard): string {
           />
           <button class="ltask-t" title="打开任务详情抽屉" @click="emit('openDetail', t.id)">{{ t.title }}</button>
           <div class="ltask-b">
-            <span v-if="hasClue(t)" class="lb lb-clue" :title="clueOf(t)">⚠ {{ clueOf(t) }}</span>
+            <span v-if="hasClue(t)" class="lb lb-clue" :title="clueOf(t)"><Icon name="warn" :size="13"/> {{ clueOf(t) }}</span>
             <span class="lb lb-pri">{{ priOf(t) }}</span>
             <button class="lb lb-g" :style="{ color: gradeColorVar(gradeOf(t)) }" :title="`成熟度等级 ${gradeOf(t)} · 点击看详情`" @click="emit('taskGrade', t.id)">{{ gradeOf(t) }}</button>
           </div>
@@ -113,7 +114,7 @@ function priOf(t: TaskCard): string {
       </template>
       <!-- ★空泳道也占位：让"缺任务"在全景里同样可见（判据 W11-8 钉它不许消失） -->
       <div v-else class="lane-empty">
-        <span class="le-i" aria-hidden="true">⚠</span>
+        <span class="le-i" aria-hidden="true"><Icon name="warn" :size="13"/></span>
         <span class="le-t">零任务</span>
         <span class="le-d">验收标准已定<br />动作还没落</span>
         <button class="le-add" @click="emit('addTask', m.id, projId)">＋ 建第一条任务</button>

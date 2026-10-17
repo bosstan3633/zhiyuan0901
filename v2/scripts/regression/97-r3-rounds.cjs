@@ -79,7 +79,7 @@ check('R3-B′ ★卡头常驻入口收敛：原「全景 / AI / ▾」六入口
   /* 菜单块切片：tw-menu 开到舱身 tw-body（整块一次读出，计数口径不受块外干扰） */
   const menu = tc.slice(tc.indexOf('class="tw-menu"'), tc.indexOf('class="tw-body"'))
   const acts = tc.slice(tc.indexOf('class="tw-acts"'), tc.indexOf('class="tw-menu"'))
-  return t.includes('class="tw-menu"') && t.includes('🚀 设为主攻') && t.includes('🗑 删除项目')
+  return t.includes('class="tw-menu"') && t.includes('设为主攻') && t.includes('删除项目') /* ★G1(V3.8.25)随迁带备案：🚀/🗑 前缀迁 <Icon main-focus/trash>，菜单两项文案与「删除防呆不降级」不变 */
     /* ★F5 三控件常驻：＋指标 / ⋯ / 折叠 —— 钉按钮标签，防回流成 ▾ 与手柄 */
     && T.includes('>＋指标</button>') && T.includes('>⋯</button>')
     && T.includes('class="tw-fold"')
@@ -89,7 +89,7 @@ check('R3-B′ ★卡头常驻入口收敛：原「全景 / AI / ▾」六入口
     && (menu.match(/emit\('aiMetric', proj\.id\)/g) || []).length === 1
     && (menu.match(/emit\('importTemplate', proj\.id\)/g) || []).length === 1
     && (menu.match(/emit\('del', proj\.id\)/g) || []).length === 1
-    && menu.includes('📌 置顶到本目标前排') && menu.includes('✦ AI 建议指标') && menu.includes('📋 导入模板')
+    && menu.includes('<Icon v-if="!proj.pinned" name="pin"') && menu.includes('<Icon name="sparkle" :size="13"/> AI 建议指标') && menu.includes('<Icon name="filetext" :size="13"/> 导入模板')
     /* ★退役负锚（codeOnly 口径）：加指标不再作为菜单项（升常驻钮），进详情已随 W12-E 退役；
        ✦ / ⠿ 不许回到常驻区（F5：✦ 收进菜单、手柄改整块舱头拖） */
     && !menu.includes('＋ 添加成功指标') && !menu.includes('📄 进入项目详情页')
@@ -126,11 +126,11 @@ check('R3-B1 ★树担得起首屏：项目级读数走预计算 ★W11(V3.8.11)
     && !/projectProgress\(/.test(CT_W11.slice(CT_W11.indexOf('<template>')));
 });
 
-check('R3-B1 ★退役不悬空（能力去向逐条点名；★R3-B2 拍板后置顶与排序已回归树内，不在本条清单里）：主航线实现（vm-bar/focus-bar/goals-grid/proj-row/proj-menu/ovFilter/toolsGate/CHIP_LIMIT）随宿主整体退役，三面全站零命中；读数改由树页头 treeStats（主攻/停滞）+ 卡头 tp-flag 承担，密度由 R3-B′ 折叠承担', () => {
+check('R3-B1 ★退役不悬空（能力去向逐条点名；★R3-B2 拍板后置顶与排序已回归树内，不在本条清单里）：主航线实现（vm-bar/focus-bar/goals-grid/proj-row/proj-menu/ovFilter/toolsGate/CHIP_LIMIT）随宿主整体退役，三面全站零命中；读数改由树页头 treeStats（主攻/停滞）+ 卡头 tp-flag 承担，密度由 R3-B′ 折叠承担。★G1(V3.8.24)随迁带备案：主攻/停滞两处页头读数前缀由 emoji「🚀/⚠」迁移为 <Icon name="main-focus"/"stall">，锚点随迁（读数表达式不动）', () => {
   const t = CT_ALL, h = read('/newtab/views/CompassHome.vue'), pc = read('/newtab/views/ProjectCuration.vue')
   const gone = ['vm-bar', 'focus-bar', 'goals-grid', 'proj-row', 'proj-menu', 'ovFilter', 'toolsGate', 'CHIP_LIMIT']
   return gone.every(k => !t.includes(k) && !h.includes(k) && !pc.includes(k))
-    && t.includes('⚠ 停滞 {{ treeStats.stalled }}') && t.includes('class="tw-badge stall"') && t.includes('🚀 主攻 {{ treeStats.focused }}')
+    && t.includes('Icon name="stall"') && t.includes('停滞 {{ treeStats.stalled }}') && t.includes('class="tw-badge stall"') && t.includes('Icon name="main-focus"') && t.includes('主攻 {{ treeStats.focused }}')
     /* ★W11 随迁带备案：主攻/置顶的显式徽标随舱结构落为 tw-badge.focus / tw-badge（两处都在位，缺一即能力丢） */
     && t.includes('class="tw-badge focus" title="主攻项目"') && t.includes('class="tw-badge" title="已置顶"')
 });
@@ -175,7 +175,7 @@ check('R3-B2 ★排序键口径：主攻 → 置顶 → order（pinned 不是第
   const t = CT_ALL
   return t.includes("(Number(b.isFocused) - Number(a.isFocused)) || (Number(!!b.pinned) - Number(!!a.pinned)) || ((a.order ?? 999) - (b.order ?? 999))")
     && t.includes('function toggleProjectPin(dir: Direction, p: Project)') && t.includes('p.order = minOrder - 1') && t.includes('store.persist()')
-    && t.includes('class="tw-badge" title="已置顶">📌 置顶') && t.includes('📌 置顶到本目标前排') && t.includes('☆ 取消置顶')
+    && t.includes('class="tw-badge" title="已置顶"><Icon name="pin"') && t.includes('<Icon v-if="!proj.pinned" name="pin"') && t.includes('☆ 取消置顶')
 });
 
 // ============== R3-Ca 池面板补齐：列表视图 / 待打标筛选 / 批量反选 / 右键菜单 ==============
@@ -185,7 +185,7 @@ check('R3-Ca ★两视图同一份数据源 + 待打标筛选：viewMode 存组�
   return t.includes("const viewMode = ref<'card' | 'list'>('list')") /* ★W15-T2 2026-10-16 用户拍板：默认改列表（261 张卡网格一屏放不下、标签折行；网格保留为可选视图） */ && t.includes('v-else-if="viewMode === \'list\'"') && t.includes('class="pcp-list"')
     && (t.match(/v-for="r in rendered"/g) || []).length === 2
     && t.includes('class="pcp-row"') && t.includes(':data-rid="r.id"') && t.includes('.pcp-card.flash, .pcp-row.flash')
-    && t.includes('class="pcp-tag-none"') && t.includes('const onlyUntagged = ref(false)') && t.includes("{ id: 'untagged', label: '🏷 待打标', count: untaggedCount.value")
+    && t.includes('class="pcp-tag-none"') && t.includes('const onlyUntagged = ref(false)') && t.includes("{ id: 'untagged', label: '待打标', count: untaggedCount.value") /* ★G1(V3.8.25)随迁带备案：🏷 前缀迁到胶囊的 <Icon name="tag">，label 去符号；兜底出口语义不变 */
     && t.includes('const untaggedCount = computed(') && !t.includes('wsViewMode')
 });
 check('R3-Ca ★批量反选只在当前过滤结果内取反（★R3-Cb 收归 useBatchSelect，三面板共用同一份语义）：invert 遍历 visibleIds()（各面板传的是**当前过滤结果**，不是全量集合）——过滤态下"反选全量"会把看不见的卡卷进批量动作，而批量动作里就有删除', () => {
@@ -198,7 +198,7 @@ check('R3-Ca ★右键菜单复用 ContextMenu 单根（不新写第二套菜单
   const t = read('/newtab/components/compass/PoolCardsPanel.vue')
   return t.includes("import ContextMenu from '@/shared/components/ContextMenu.vue'") && t.includes('<ContextMenu :state="ctx" :items="ctxItems" @close="ctx.open = false" />')
     && t.includes('@contextmenu="openCtx($event, r)"') && t.includes('function openCtx(') && !t.includes('ctx-menu')
-    && t.includes("cb: () => removeCard(r)") && t.includes("label: r.pinned ? '取消置顶' : '📌 置顶'") && t.includes('navigator.clipboard?.writeText')
+    && t.includes("cb: () => removeCard(r)") && t.includes("label: r.pinned ? '取消置顶' : '置顶'") /* ★G1(V3.8.25)随迁带备案：📌 前缀随 ContextMenu items 去符号（菜单项插不了组件），置顶动作与就地翻转不变 */ && t.includes('navigator.clipboard?.writeText')
 });
 
 // ============== R3-Cb 批量口径合一：三张卡共用一份选择与打标实现 ==============

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '@/shared/components/Icon.vue'
 import { ref, computed, watch, shallowRef } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
@@ -36,9 +37,9 @@ const tab = ref<'create' | 'link'>('create')
 const newTitle = ref('')
 const newPriority = ref<'high' | 'medium' | 'low'>('medium')
 const prioList = [
-  { v: 'high' as const, l: '🔴 高优' },
-  { v: 'medium' as const, l: '🟡 中优' },
-  { v: 'low' as const, l: '🟢 低优' }
+  { v: 'high' as const, l: '高优' },
+  { v: 'medium' as const, l: '中优' },
+  { v: 'low' as const, l: '低优' }
 ]
 
 // R138-C1′：一句话智能录入——AI 只回填表单态（含草稿扩展字段 due/时长/归属），建卡仍由用户确认
@@ -57,8 +58,8 @@ async function aiParse() {
       if (draft.title) newTitle.value = draft.title
       if (draft.priority === 'high' || draft.priority === 'medium' || draft.priority === 'low') newPriority.value = draft.priority
       aiDraft.value = { dueDate: draft.dueDate, estimatedMinutes: draft.estimatedMinutes, projectId: draft.projectId, metricId: draft.metricId }
-      const extra = [draft.dueDate && `截止 ${draft.dueDate}`, draft.estimatedMinutes && `约${draft.estimatedMinutes}分钟`].filter(Boolean).join(' · ')
-      return '✓ 已回填表单' + (extra ? `（${extra}）` : '') + '，核对后点「创建」'
+      const extra = [draft.dueDate && `截止 ${draft.dueDate}`, draft.estimatedMinutes && `约${draft.estimatedMinutes}分钟`].filter(Boolean).join('· ')
+      return '已回填表单' + (extra ? `（${extra}）` : '') + '，核对后点「创建」'
     })
     if (job) aiJob.value = job
   } finally { aiBusy.value = false }
@@ -114,7 +115,7 @@ function createTask() {
     const m = findMetric(task.metricId)
     if (m && !m.taskIds.includes(task.id)) m.taskIds.push(task.id)
     store.persist()
-    showToast('✓ 任务已创建并计入指标进度')
+    showToast('任务已创建并计入指标进度')
     emit('created', task)
     emit('close')
   } finally {
@@ -217,7 +218,7 @@ function linkTasks() {
       if (m && !m.taskIds.includes(id)) m.taskIds.push(id)
     }
     store.persist()
-    showToast(`✓ 已关联 ${ids.length} 个任务，计入指标进度`)
+    showToast(`已关联 ${ids.length} 个任务，计入指标进度`)
     emit('close')
   } finally {
     linking = false
@@ -226,16 +227,16 @@ function linkTasks() {
 </script>
 
 <template>
-  <Drawer :open="open" :title="metricTitle ? `🎯 ${metricTitle} · 添加任务` : '🎯 添加任务'" width="480px" @close="emit('close')">
+  <Drawer :open="open" icon="target" :title="metricTitle ? `${metricTitle} · 添加任务` : '添加任务'" width="480px" @close="emit('close')">
     <div class="tad-tabs">
-      <button class="tad-tab" :class="{on: tab === 'create'}" @click="tab = 'create'">🆕 新建任务</button>
-      <button class="tad-tab" :class="{on: tab === 'link'}" @click="tab = 'link'">🔗 关联已有任务</button>
+      <button class="tad-tab" :class="{on: tab === 'create'}" @click="tab = 'create'"><Icon name="squareplus" :size="13"/> 新建任务</button>
+      <button class="tad-tab" :class="{on: tab === 'link'}" @click="tab = 'link'"><Icon name="link" :size="13"/> 关联已有任务</button>
     </div>
 
     <!-- 新建模式 -->
     <div v-if="tab === 'create'" class="tad-body">
       <!-- R138-C1′：一句话智能录入（AI 回填草稿 → 用户核对创建） -->
-      <label class="tad-label">🪄 一句话录入（可选）</label>
+      <label class="tad-label"><Icon name="wand" :size="13"/> 一句话录入（可选）</label>
       <div class="tad-ai-row">
         <input v-model="aiSay" class="tad-input" placeholder="例：下周三前做完论文图表，挂毕业项目，大约两小时" @keydown.enter.prevent="aiParse" />
         <button class="tad-btn" :disabled="!aiSay.trim() || aiBusy" @click="aiParse"><AiEntryButton variant="inline" label="AI 填表" :spin="aiBusy" /></button>
@@ -253,7 +254,7 @@ function linkTasks() {
       </div>
 
       <div class="tad-foot">
-        <span class="tad-hint">💾 Ctrl+Enter 保存并关闭</span>
+        <span class="tad-hint"><Icon name="save" :size="13"/> Ctrl+Enter 保存并关闭</span>
         <button class="tad-btn primary" @click="createTask">创建并计入指标</button>
       </div>
     </div>

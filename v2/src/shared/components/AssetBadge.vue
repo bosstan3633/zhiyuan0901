@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '@/shared/components/Icon.vue'
 import { useOverlayTarget } from '@/shared/utils/overlayHost'
 // R113-N5：Teleport 目标动态化——金字塔真全屏期间浮层挂进全屏元素（否则不可见）
 const overlayTarget = useOverlayTarget()
@@ -31,9 +32,9 @@ const htmlCount = computed(() => list.value.filter(a => a.kind === 'html').lengt
 const has = computed(() => list.value.length > 0)
 
 function fmtSize(n: number): string {
-  if (n < 1024) return n + ' B'
-  if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' KB'
-  return (n / 1024 / 1024).toFixed(1) + ' MB'
+  if (n < 1024) return n + 'B'
+  if (n < 1024 * 1024) return (n / 1024).toFixed(0) + 'KB'
+  return (n / 1024 / 1024).toFixed(1) + 'MB'
 }
 
 // ---- R81（R15）：徽标单击分流 + 随数量变化的悬浮提示 ----
@@ -104,7 +105,7 @@ async function openAsset(meta: AssetMeta) {
         urls.push(b ? URL.createObjectURL(b) : '')
       } catch { urls.push('') }
     }
-    if (!urls.some(Boolean)) { showToast('⚠ 附件本体缺失（可能已被清理），请重新上传'); return }
+    if (!urls.some(Boolean)) { showToast('附件本体缺失（可能已被清理），请重新上传'); return }
     closeViewer()
     imageUrls.value = urls
     viewerOpen.value = true
@@ -120,9 +121,9 @@ async function openAsset(meta: AssetMeta) {
 
 <template>
   <span v-if="has" class="ab" :title="badgeTitle" @click.stop="onBadgeClick" @dblclick.stop>
-    <span v-if="imgCount" class="ab-chip ab-img">🖼 {{ imgCount }}</span>
-    <span v-if="pdfCount" class="ab-chip ab-pdf">📕 {{ pdfCount }}</span>
-    <span v-if="htmlCount" class="ab-chip ab-html">🧾 {{ htmlCount }}</span>
+    <span v-if="imgCount" class="ab-chip ab-img"><Icon name="image" :size="13"/> {{ imgCount }}</span>
+    <span v-if="pdfCount" class="ab-chip ab-pdf"><Icon name="book" :size="13"/> {{ pdfCount }}</span>
+    <span v-if="htmlCount" class="ab-chip ab-html"><Icon name="receipt" :size="13"/> {{ htmlCount }}</span>
   </span>
 
   <!-- 文件列表浮层 -->
@@ -131,15 +132,15 @@ async function openAsset(meta: AssetMeta) {
       <div v-if="listOpen" class="ab-pop" @click.self="closeList">
         <div class="ab-pop-box">
           <div class="ab-pop-head">
-            <span class="ab-pop-title">📎 附件（{{ list.length }}）</span>
+            <span class="ab-pop-title"><Icon name="paperclip" :size="13"/> 附件（{{ list.length }}）</span>
             <button class="ab-pop-close" @click="closeList">×</button>
           </div>
           <div class="ab-pop-body">
             <div v-for="a in list" :key="a.id" class="ab-item" :title="`${a.name}（${fmtSize(a.size)}）`" @click="openAsset(a)" @dblclick="openAsset(a)">
-              <span class="ab-ico">{{ a.kind === 'image' ? '🖼' : a.kind === 'pdf' ? '📕' : '🧾' }}</span>
+              <span class="ab-ico"><Icon v-if="a.kind === 'image'" name="image" :size="13"/><Icon v-else-if="a.kind === 'pdf'" name="book" :size="13"/><Icon v-else name="filetext" :size="13"/></span>
               <span class="ab-name">{{ a.name }}</span>
               <span class="ab-size">{{ fmtSize(a.size) }}</span>
-              <span class="ab-go" :title="a.kind === 'image' ? '弹窗预览' : '新标签页打开'">{{ a.kind === 'image' ? '👁' : '↗' }}</span>
+              <span class="ab-go" :title="a.kind === 'image' ? '弹窗预览' : '新标签页打开'"><Icon v-if="a.kind === 'image'" name="eye" :size="12"/><Icon v-else name="external" :size="12"/></span>
             </div>
             <div v-if="!list.length" class="ab-empty">无附件</div>
           </div>

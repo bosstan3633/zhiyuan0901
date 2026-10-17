@@ -9,6 +9,7 @@
  * 改名用 `<input>` 而不是原型的 contenteditable：行为一致（就地改、失焦落库），
  * 但省掉 contenteditable 的粘贴富文本与光标陷阱。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { ref, nextTick } from 'vue'
 import type { Subtask } from '@/shared/models'
 import { uid } from '@/shared/utils'
@@ -50,9 +51,9 @@ const total = () => (props.subtasks || []).length
 <template>
   <div class="st">
     <div v-for="s in subtasks" :key="s.id" class="st-row">
-      <span class="st-dot" :class="{ done: s.done }" :title="s.done ? '标记未完成' : '标记完成（不进成熟度与周报）'" @click="toggle(s)">{{ s.done ? '✓' : '' }}</span>
+      <span class="st-dot" :class="{ done: s.done }" :title="s.done ? '标记未完成' : '标记完成（不进成熟度与周报）'" @click="toggle(s)"><Icon v-if="s.done" name="check" :size="11"/></span>
       <input class="st-t" :class="{ done: s.done }" :value="s.title" spellcheck="false" @change="rename(s, $event)" @keydown.enter.prevent="($event.target as HTMLInputElement).blur()">
-      <span v-if="supCount && supCount(s.id)" class="st-sup" title="这条子任务已挂资源支持，点开看" @click="emit('sup', s)">🧭 {{ supCount(s.id) }}</span>
+      <span v-if="supCount && supCount(s.id)" class="st-sup" title="这条子任务已挂资源支持，点开看" @click="emit('sup', s)"><Icon name="compass" :size="13"/> {{ supCount(s.id) }}</span>
       <span class="st-x" title="删除这一行（清单行不是卡，无回收站）" @click="remove(s)">×</span>
     </div>
     <div class="st-add" @click="draft && ($event.target as HTMLElement).querySelector('input')?.focus()">

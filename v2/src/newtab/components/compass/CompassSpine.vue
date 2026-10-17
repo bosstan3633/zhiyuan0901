@@ -9,6 +9,7 @@
  * 焦点纪律：★全组件不得出现 --fs-display / --fs-hero（判据 W11-13 负锚）。
  * 层级标题最高只到 --fs-title，主角感由版式与留白承担。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed } from 'vue'
 import type { CompassMeta } from '../../views/compassMeta'
 
@@ -118,14 +119,14 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
           <i class="dc-dot" />
           <span class="dc-n">{{ g.dir.name }}</span>
           <span class="dc-m">{{ g.projects.length }} 项目 · {{ g.projects.reduce((s, p) => s + p.total, 0) }} 任务</span>
-          <span class="dc-x">{{ dirFilter === g.dir.id ? '✓' : '▸' }}</span>
+          <span class="dc-x"><Icon v-if="dirFilter === g.dir.id" name="check" :size="12"/><template v-else>▸</template></span>
         </button>
       </div>
 
       <!-- 断链行：收在骨架条内，不独占横幅 -->
       <div class="spine-risk">
         <span class="sr-ico" :class="{ zero: meta.counts.risk === 0 }">
-          {{ meta.counts.risk === 0 ? '✓' : '⚠' }}
+          <Icon v-if="meta.counts.risk === 0" name="check" :size="14"/><Icon v-else name="warn" :size="14"/>
         </span>
         <span v-if="meta.counts.risk > 0" class="sr-t">
           <b>{{ meta.counts.risk }} 处归属/支撑缺失</b> —— 缺任务指标与无归属任务已就地标黄
@@ -133,9 +134,9 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
         <span v-else class="sr-t"><b>链路完整</b> —— 每条指标都有任务，每条任务都有归属</span>
         <div class="sr-acts">
           <button v-if="meta.counts.risk > 0" class="sr-btn" :class="{ on: riskOnly }" @click="emit('risk')">
-            {{ riskOnly ? '✓ 断链模式 · 退出' : '⚠ 只看断链' }}
+            <Icon v-if="riskOnly" name="check" :size="13"/><Icon v-else name="warn" :size="13"/>{{ riskOnly ? '断链模式 · 退出' : '只看断链' }}
           </button>
-          <button v-if="meta.counts.risk > 0" class="sr-btn" @click="emit('orphan')">↗ 无归属收容区</button>
+          <button v-if="meta.counts.risk > 0" class="sr-btn" @click="emit('orphan')"><Icon name="external" :size="13"/> 无归属收容区</button>
           <button class="sr-btn" @click="emit('riskBar')">⤓ 断链清单</button>
         </div>
       </div>
@@ -257,6 +258,7 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
 .spine-risk .sr-t:has(b) b { color: var(--warning); }
 .sr-acts { margin-left: auto; display: flex; gap: 6px; flex: none; }
 .sr-btn {
+  display: inline-flex; align-items: center; gap: 4px;
   font-size: var(--fs-micro); font-weight: 600; color: var(--text-3);
   background: var(--surface-2); border: 1px solid transparent;
   padding: 3px 9px; border-radius: 999px; cursor: pointer; transition: all var(--dur);

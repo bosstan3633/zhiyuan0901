@@ -44,7 +44,7 @@ check('R106-3 F4 镜像卡三键：单击只读详情（表单禁交互+只读�
 check('R106-4 F7 一键清理本台镜像卡：只删投射（源卡保留）+ 确认框报数 + 仅策展台入口', () => {
   return WSP106.includes('async function cleanAllMirrors()')
     && WSP106.includes("if (pp.targetWsId === workspaceId.value && removeProjection(d.value, pp.id)) removed++")
-    && WSP106.includes('🧹 清理本台镜像卡')
+    && WSP106.includes('<Icon name="broom" :size="13"/> 清理本台镜像卡')
     && WSP106.includes("confirmText: '确认清理'");
 });
 check('R106-5 F5 性能（R128-A1 升级）：content 数据源改走 repository 缓存（TTL 手工缓存与裸 storage 读写退役，新鲜度由仓库统一保活）', () => {
@@ -177,9 +177,9 @@ check('R99-2 M8 筛选传参链 ★R3-B1 退役重指带备案：ovFilter/tools-
   const t = CT_ALL; const pc = read('/newtab/views/ProjectCuration.vue');
   return !t.includes('tools-gate') && !t.includes('toolsGate') && !t.includes('selectedId') && !pc.includes('ovFilter') && !t.includes('update:ovFilter');
 });
-check('R99-3 D-D 方向台页头主线状态摘要 ★R3-B1 随宿主改靶（R177 的 cph-summary-badge 形态随 Shell 退役）+ ★W12(V3.8.12)随迁备案：读数由方向树页头 treeStats 一次算齐、不在模板逐项调这条不变；载体随页头重构从 .tree-stats 一行密排改为 HERO 右栏的 .hero-stats（原型 .hero 右侧动作区下方的读数行）。★锚点用分段正则而非跨标签 includes —— 跨标签字面量对空白极敏感，一次格式化就静默失效', () => {
+check('R99-3 D-D 方向台页头主线状态摘要 ★R3-B1 随宿主改靶（R177 的 cph-summary-badge 形态随 Shell 退役）+ ★W12(V3.8.12)随迁备案：读数由方向树页头 treeStats 一次算齐、不在模板逐项调这条不变；载体随页头重构从 .tree-stats 一行密排改为 HERO 右栏的 .hero-stats（原型 .hero 右侧动作区下方的读数行）。★G1(V3.8.24)随迁带备案：主攻读数的 emoji 前缀迁移为 <Icon name="main-focus">，分段锚随迁（读数表达式不动）。★锚点用分段正则而非跨标签 includes —— 跨标签字面量对空白极敏感，一次格式化就静默失效', () => {
   const t = CT_ALL;
-  return /🚀 主攻 \{\{ treeStats\.focused \}\}/.test(t) && /战略目标 \{\{ treeStats\.dirs \}\}/.test(t)
+  return t.includes('Icon name="main-focus"') && t.includes('主攻 {{ treeStats.focused }}') && /战略目标 \{\{ treeStats\.dirs \}\}/.test(t)
     && t.includes('const treeStats = computed(') && !t.includes('focusCount')
     && t.includes('class="hero-stats"');
 });
@@ -202,7 +202,7 @@ check('R108-2 共享导入弹窗：双模式（goal/pyramid）+ hasThesis 决定
   return ITM108.includes("mode: 'goal' | 'pyramid'")
     && ITM108.includes('parseGoalTemplate(src.value)')
     && ITM108.includes('parsePyramidTemplate(src.value)')
-    && ITM108.includes('🔗 关联资源卡') && ITM108.includes('➕ 新建卡片')
+    && /<Icon name="link"[^>]*\/> 关联资源卡/.test(ITM108) && /<Icon name="plus"[^>]*\/> 新建卡片/.test(ITM108) /* ★G1(V3.8.25)随迁带备案：🔗/➕ 迁 <Icon link/plus>，节点双入口两枚一项未减 */
     && ITM108.includes('hasThesis')
 
 });
@@ -221,7 +221,7 @@ check('R108-4 ★ pyramid 写入链：论点卡+setThesis（本台未设时）+ 
     && WSP108.includes('if (nodeTotal > 200) { showToast(\'⚠ 单次导入建议不超过 200 个节点——请分批导入\'); return }')
     && WSP108.includes("pyramidImportOpen.value = false") && WSP108.includes("setViewMode('pyramid')")
     // R113-N4：入口从 ⚙ 溢出菜单提到一级工具条，文案缩短为「📋 导入模板」
-    && WSP108.includes('📋 导入模板') && WSP108.includes('@click="pyramidImportOpen = true">📋 导入模板</button>');
+    && WSP108.includes('📋 导入模板') && WSP108.includes('@click="pyramidImportOpen = true"><Icon name="filetext" :size="13"/> 导入模板</button>');
 });
 check('R108-5 F10 页边距统一：ws-page 1440 居中 + topbar 三档（align-ws 退役）', () => {
   return WSP108.includes('.ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; }')
@@ -240,7 +240,7 @@ check('R109-1 ★ F11 导入弹窗内嵌 AI 整理规则：GOAL_RULE/PYRAMID_RUL
     && ITM109.includes('GOAL_RULE, PYRAMID_RULE')
     && ITM109.includes('async function copyRule()')
     && ITM109.includes("navigator.clipboard.writeText(ruleText.value")
-    && ITM109.includes('📖 AI 整理规则');
+    && /<Icon name="book"[^>]*\/> AI 整理规则/.test(ITM109) /* ★G1(V3.8.25)随迁带备案：📖 迁 <Icon name="book"> */;
 });
 check('R109-2 ★ F13 资源台/策展台单一滚动域：顶部三模块移入 ws-content + 工具条吸顶', () => {
   return WSP109.includes('.ws-content { flex: 1; min-width: 0; padding: 20px 36px 90px; overflow-y: auto; }')

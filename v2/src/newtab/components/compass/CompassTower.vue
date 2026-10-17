@@ -9,6 +9,7 @@
  * 舱内是**归属轨道**（判据 W11-2）：项目色条 → 竖轨 → 各指标卡 → 各任务分叉，
  * 全程用线连起来，让"任务属于这个项目的这个指标"成为视觉事实。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed } from 'vue'
 import CompassLane from './CompassLane.vue'
 import CompassTowerStatus from './CompassTowerStatus.vue'
@@ -141,9 +142,9 @@ function hasClue(t: TaskCard): boolean {
       <div class="tw-id">
         <h3 class="tw-name">
           <span class="tw-name-t editable" @click.stop="emit('editProject')">{{ proj.name }}</span>
-          <span v-if="proj.isFocused" class="tw-badge focus" title="主攻项目">🚀 主攻</span>
-          <span v-if="proj.pinned" class="tw-badge" title="已置顶">📌 置顶</span>
-          <span v-if="meta.stall" class="tw-badge stall" title="近 14 天无推进/完成活动">⚠ 停滞</span>
+          <span v-if="proj.isFocused" class="tw-badge focus" title="主攻项目"><Icon name="main-focus" :size="13"/> 主攻</span>
+          <span v-if="proj.pinned" class="tw-badge" title="已置顶"><Icon name="pin" :size="13"/> 置顶</span>
+          <span v-if="meta.stall" class="tw-badge stall" title="近 14 天无推进/完成活动"><Icon name="stall" :size="13"/> 停滞</span>
           <span v-if="meta.risk > 0" class="tw-badge risk">{{ meta.risk }} 处断链</span>
         </h3>
         <!-- 归属面包屑：点任一段可跳回该层 -->
@@ -180,17 +181,17 @@ function hasClue(t: TaskCard): boolean {
           </button>
           <div v-if="menuOn" class="tw-menu" @click.stop>
             <button class="twm-item" @click="emit('menu', proj.id); emit('focus', proj.id)">
-              {{ proj.isFocused ? '☆ 取消主攻' : '🚀 设为主攻' }}
+              <Icon v-if="!proj.isFocused" name="main-focus" :size="13"/>{{ proj.isFocused ? '☆ 取消主攻' : '设为主攻' }}
             </button>
             <button class="twm-item" @click="emit('menu', proj.id); emit('pin', dir.id, proj.id)">
-              {{ proj.pinned ? '☆ 取消置顶' : '📌 置顶到本目标前排' }}
+              <Icon v-if="!proj.pinned" name="pin" :size="13"/>{{ proj.pinned ? '☆ 取消置顶' : '置顶到本目标前排' }}
             </button>
-            <button class="twm-item" @click="emit('menu', proj.id); emit('aiMetric', proj.id)">✦ AI 建议指标</button>
-            <button class="twm-item" @click="emit('menu', proj.id); emit('importTemplate', proj.id)">📋 导入模板（指标与任务）</button>
+            <button class="twm-item" @click="emit('menu', proj.id); emit('aiMetric', proj.id)"><Icon name="sparkle" :size="13"/> AI 建议指标</button>
+            <button class="twm-item" @click="emit('menu', proj.id); emit('importTemplate', proj.id)"><Icon name="filetext" :size="13"/> 导入模板（指标与任务）</button>
             <!-- ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：舱头「全景」与项目塔
                  已能就地看全这个项目，这枚「进入项目详情页」随之退役；跨目标改归属一类动作
                  仍在项目塔的拖拽与骨架条里做（见文件头「改归属不跨目标」说明）。 -->
-            <button class="twm-item danger" @click="emit('menu', proj.id); emit('del', proj.id)">🗑 删除项目</button>
+            <button class="twm-item danger" @click="emit('menu', proj.id); emit('del', proj.id)"><Icon name="trash" :size="13"/> 删除项目</button>
           </div>
         </div>
       </div>
@@ -225,7 +226,7 @@ function hasClue(t: TaskCard): boolean {
 
       <!-- 无归属收容区：在舱内但没挂任何成功指标的任务 -->
       <div v-if="shownOrphans.length" class="tw-orphans">
-        <span class="to-i">⚠</span>
+        <span class="to-i"><Icon name="warn" :size="13"/></span>
         <span class="to-t">
           <b>{{ shownOrphans.length }} 条无归属任务</b> —— 在本舱内但未挂任何成功指标
         </span>
@@ -315,7 +316,7 @@ function hasClue(t: TaskCard): boolean {
   border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); overflow: hidden;
 }
 .twm-item {
-  display: block; width: 100%; text-align: left;
+  display: flex; align-items: center; gap: 6px; width: 100%; text-align: left;
   padding: 7px 11px; font-size: var(--fs-sub); color: var(--text-2);
   cursor: pointer; transition: background var(--dur);
   /* 同 .tw-act：button 默认白底必须显式压掉，否则深色主题下菜单项是一列白块 */

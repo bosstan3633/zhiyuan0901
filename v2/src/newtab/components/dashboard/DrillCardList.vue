@@ -43,7 +43,7 @@ function pick(r: Row) {
   const kind = asLocateKind(r.kind)
   if (!kind) { showToast(`「${r.title}」无对应卡片类型`); return }
   const t = locateTargetOf(store.data!, kind, r.id)
-  if (!t) { showToast(`⚠ 「${r.title}」已不在库中`); return }
+  if (!t) { showToast(`「${r.title}」已不在库中`); return }
   void router.push(t)
 }
 

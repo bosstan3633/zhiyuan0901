@@ -197,7 +197,7 @@ async function refineWithAi(key: string): Promise<void> {
     if (list.some(s => s.auto !== true && !s.done)) return // 用户已定过格 → 只留判词，不动位置
     const { applyFocusOrder } = await import('@/shared/utils/focusSuggest')
     if (applyFocusOrder(d.value, key, r.order, FOCUS_LIMIT).changed) {
-      showToast('✦ AI 复核了今日三件事的顺序（你手工选过的格子未动）')
+      showToast('AI 复核了今日三件事的顺序（你手工选过的格子未动）')
       store.persist()
     }
   } catch { /* 静默回落：网络/Key 问题不许把台面弄空，也不许弹一层错误 */ }
@@ -227,7 +227,7 @@ async function reshuffleFocus(): Promise<void> {
   for (const c of next) localWhy.value[c.taskId] = c.why
   applyFocusOrder(d.value, key, next.map(c => c.taskId), FOCUS_LIMIT)
   store.persist()
-  showToast('✦ 已换一批（只改今日计划位，不动任务卡）')
+  showToast('已换一批（只改今日计划位，不动任务卡）')
 }
 function muteFocusToday(): void {
   d.value.focusMutedDate = todayKey.value
@@ -254,7 +254,7 @@ async function openFocusReview(): Promise<void> {
   if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
   const { buildFocusSuggestJob } = await import('@/shared/ai/focusSuggest')
   const j = buildFocusSuggestJob({ d: d.value, depth: aiConfig.value.depth, persist: () => store.persist(), anchorKey: key, limit: FOCUS_LIMIT })
-  if (!j) { showToast('⚠ 本地候选池是空的（任务库没有可推荐的未完成事项）'); return }
+  if (!j) { showToast('本地候选池是空的（任务库没有可推荐的未完成事项）'); return }
   closeWhy()
   focusJob.value = j
 }
@@ -345,7 +345,7 @@ function openPicker(slot: number) {
   const isStale = !!c?.slot && !c?.task
   // R117（04-61 C3）：失效槽不算占位——点它的「重新选取」即便 3 件已满也放行（原位替换）；
   // 满额 + 点正常格/空位时才按原口径拦截（3 件有效任务不能再加第 4 件）。
-  if (focusFull.value && !isStale) { showToast('⚖ 今日三件事已满（3/3）——先完成或移除一件'); return }
+  if (focusFull.value && !isStale) { showToast('今日三件事已满（3/3）——先完成或移除一件'); return }
   pickerSlot.value = Math.min(slot, FOCUS_LIMIT - 1)
   pickerSearch.value = ''
   pickerProject.value = '' // R113-N6：每次打开复位为「全部项目」
@@ -368,7 +368,7 @@ function selectTaskForSlot(task: TaskCard) {
   store.persist()
   pickerOpen.value = false
   focusSelIdx.value = Math.min(pickerSlot.value, FOCUS_LIMIT - 1)
-  showToast('✓ 已添加到今日三件事')
+  showToast('已添加到今日三件事')
 }
 const pickerCandidates = computed(() => {
   const q = pickerSearch.value.trim().toLowerCase()
@@ -420,7 +420,7 @@ function copyYesterday() {
   d.value.dailyFocus[today] = JSON.parse(JSON.stringify(yesterdayList))
   d.value.dailyFocus[today].forEach(s => { s.done = false; s.doneAt = undefined })
   store.persist()
-  showToast('✓ 已复制昨日三件事')
+  showToast('已复制昨日三件事')
 }
 // 三件事导出弹窗（时间范围 + CSV）
 const exportOpen = ref(false)
@@ -473,7 +473,7 @@ function doExport() {
   a.click(); URL.revokeObjectURL(url)
   exportOpen.value = false
   exportBusy.value = false
-  showToast(`✓ 已导出 ${rows.length} 条记录`)
+  showToast(`已导出 ${rows.length} 条记录`)
 }
 function toggleTodayDone(slot: FocusSlot) {
   slot.done = !slot.done
@@ -615,8 +615,8 @@ function timeAgo(ts: number): string {
 }
 async function onStorageClick() {
   if (saveErr.value) {
-    try { await saveDataNow(); showToast('✓ 已重试写入，存储恢复正常') }
-    catch { showToast('✗ 重试仍失败，建议导出备份（设置 → 导出数据）') }
+    try { await saveDataNow(); showToast('已重试写入，存储恢复正常') }
+    catch { showToast('重试仍失败，建议导出备份（设置 → 导出数据）') }
     return
   }
   const bytes = await getBytesInUse()
@@ -637,8 +637,8 @@ const atChipText = computed(() => {
   if (atSyncErr.value) return '⇄ 同步出错'
   if (!s?.lastSyncAt) return `⇄ 待同步 ${atPending.value}`
   const ago = Date.now() - s.lastSyncAt
-  const agoText = ago < 3600_000 ? Math.max(1, Math.round(ago / 60000)) + ' 分钟前' : ago < 86400_000 ? Math.round(ago / 3600_000) + ' 小时前' : Math.round(ago / 86400_000) + ' 天前'
-  return `⇄ ${agoText}同步${atPending.value ? ` · 待推 ${atPending.value}` : ''}`
+  const agoText = ago < 3600_000 ? Math.max(1, Math.round(ago / 60000)) + '分钟前' : ago < 86400_000 ? Math.round(ago / 3600_000) + '小时前' : Math.round(ago / 86400_000) + '天前'
+  return `⇄ ${agoText}同步${atPending.value ? ` · 待推 ${atPending.value}`: ''}`
 })
 const atChipTitle = computed(() => {
   const s = atSync.value
@@ -646,7 +646,7 @@ const atChipTitle = computed(() => {
   const parts = ['点击立即同步到 Airtable']
   if (s?.lastSyncedCount != null) parts.push(`上次推送 ${s.lastSyncedCount} 条`)
   if (s?.lastSyncCalls != null) parts.push(`调用 ${s.lastSyncCalls} 次`)
-  return parts.join(' · ')
+  return parts.join('· ')
 })
 let atSyncing = false
 async function onSyncChipClick() {
@@ -657,10 +657,10 @@ async function onSyncChipClick() {
   try {
     const r = await runSync(store.data!)
     store.persist()
-    showToast(`✓ 已同步到 Airtable：推送 ${r.pushed} 条 · 调用 ${r.calls} 次`)
+    showToast(`已同步到 Airtable：推送 ${r.pushed} 条 · 调用 ${r.calls} 次`)
   } catch (e) {
     store.persist()
-    showToast('✗ 同步失败：' + (e instanceof Error ? e.message : String(e)))
+    showToast('同步失败：' + (e instanceof Error ? e.message : String(e)))
   } finally { atSyncing = false }
 }
 
@@ -709,13 +709,13 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
          点击语义（查看用量/重试写入/立即同步/⚙ 进设置）一字未动。 -->
     <MetricBar>
       <template #left>
-        <span class="cf-label" title="当前战略重心（最多 2 个）">🚀 主攻</span>
+        <span class="cf-label" title="当前战略重心（最多 2 个）"><Icon name="main-focus" :size="13"/> 主攻</span>
         <template v-if="focusedProjects.length">
           <span v-for="p in focusedProjects" :key="p.id" class="cf-item" :class="{ done: focusMeta.get(p.id)?.finished }"
             :title="p.name + ' · 点击进入项目详情'" @click="openFocusProject(p)">
             <span class="cf-name">{{ p.name }}</span>
             <span class="cf-pct">{{ focusMeta.get(p.id)?.pct || 0 }}%</span>
-            <span v-if="focusMeta.get(p.id)?.stall" class="cf-stall" title="近 14 天无推进">⚠ 停滞</span>
+            <span v-if="focusMeta.get(p.id)?.stall" class="cf-stall" title="近 14 天无推进"><Icon name="warn" :size="13"/> 停滞</span>
           </span>
         </template>
         <span v-else class="cf-hint" title="去方向台指定主攻项目" @click="router.push('/compass')">尚无主攻 · 去方向台指定</span>
@@ -732,9 +732,9 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
         <button class="sync-chip" :class="{ on: atConfigured, err: !!atSyncErr }" :title="atChipTitle" @click="onSyncChipClick">
           <span class="sc-dot" />
           <span>{{ atChipText }}</span>
-          <span class="sync-gear" title="Airtable 同步设置" @click.stop="router.push('/settings?page=airtable')">⚙</span>
+          <span class="sync-gear" title="Airtable 同步设置" @click.stop="router.push('/settings?page=airtable')"><Icon name="settings" :size="13"/></span>
         </button>
-        <button class="mb-act cta" title="今天的全貌 · 打开今日战报弹窗" @click="openReview">📈 今日战报</button>
+        <button class="mb-act cta" title="今天的全貌 · 打开今日战报弹窗" @click="openReview"><Icon name="trendup" :size="13"/> 今日战报</button>
       </template>
     </MetricBar>
 
@@ -793,15 +793,15 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
                   @click="onFocusCardClick(c.idx)" @dblclick="openCellTask(c)">
                   <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
                   <div class="tc-row">
-                    <div class="tc-check" :class="{done: c.slot?.done}" @click.stop="c.slot && toggleTodayDone(c.slot)">{{ c.slot?.done?'✓':'' }}</div>
+                    <div class="tc-check" :class="{done: c.slot?.done}" @click.stop="c.slot && toggleTodayDone(c.slot)"><Icon v-if="c.slot?.done" name="check" :size="14"/></div>
                     <div class="tc-title"><NewBadge :at="c.task.createdAt" />{{ c.slot?.text }}</div>
                   </div>
                   <div class="tc-meta">
-                    <span class="tag neutral">📦 {{ projectName(c.task.projectId) }}</span>
-                    <span class="tag neutral">🎯 {{ metricName(c.task.metricId) }}</span>
+                    <span class="tag neutral"><Icon name="package" :size="13"/> {{ projectName(c.task.projectId) }}</span>
+                    <span class="tag neutral"><Icon name="target" :size="13"/> {{ metricName(c.task.metricId) }}</span>
                     <AssetBadge v-if="taskAssetsOn && c.task.assets?.length" :assets="c.task.assets" />
                     <MaturityBadge :m="taskMaturity(c.task)" />
-                    <span v-if="c.slot?.auto === true" class="tag rec" data-testid="focus-rec" title="系统推荐写入的一格 · 点右上角 ✦ 看依据">✦ 荐</span>
+                    <span v-if="c.slot?.auto === true" class="tag rec" data-testid="focus-rec" title="系统推荐写入的一格 · 点右上角  看依据"><Icon name="sparkle" :size="13"/> 荐</span>
                   </div>
                   <!-- ★P5（V3.8.22）：卡内子任务视口（R2-① tc-subs）整块退役——同一批子任务在 P4 全貌单行
                        已有一份（前 3 条 + +N + 就地勾选），卡内 5 行视口是重复份；两份并存时用户不知看哪份勾哪份，
@@ -822,7 +822,7 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
                      装资源卡 / 自由文本的格子不再误入这一支（它们进下面的 nonTask 分支）。 -->
                 <div v-else-if="c.slot && c.slot.sourceType === 'task'" class="today-card stale-card" @click="openPicker(c.idx)" title="源任务已删除或归档 · 点击重新选取">
                   <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
-                  <div class="tc-title empty-t">⚠ 源任务已失效 · 重新选取</div>
+                  <div class="tc-title empty-t"><Icon name="warn" :size="13"/> 源任务已失效 · 重新选取</div>
                   <div class="tc-meta"><span class="tag warn">原任务已删除</span></div>
                   <div class="tc-remove" @click.stop="removeTodaySlot(c.idx)" title="移出今日三件事">×</div>
                 </div>
@@ -832,11 +832,11 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
                 <div v-else-if="c.slot" class="today-card nonTask-card" @click="onFocusCardClick(c.idx)">
                   <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
                   <div class="tc-row">
-                    <div class="tc-check" :class="{done: c.slot.done}" @click.stop="toggleTodayDone(c.slot)">{{ c.slot.done?'✓':'' }}</div>
+                    <div class="tc-check" :class="{done: c.slot.done}" @click.stop="toggleTodayDone(c.slot)"><Icon v-if="c.slot.done" name="check" :size="14"/></div>
                     <div class="tc-title">{{ c.slot.text }}</div>
                   </div>
                   <div class="tc-meta">
-                    <span class="tag neutral">{{ c.slot.sourceType === 'text' ? '✎ 自由文本' : '📦 卡片' }}</span>
+                    <span class="tag neutral"><Icon :name="c.slot.sourceType === 'text' ? 'edit' : 'package'" :size="12"/>{{ c.slot.sourceType === 'text' ? '自由文本' : '卡片' }}</span>
                     <span class="tag neutral">不参与六层链</span>
                   </div>
                   <div class="tc-remove" @click.stop="removeTodaySlot(c.idx)" title="移出今日三件事">×</div>
@@ -849,7 +849,7 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
             </div>
             <!-- R94（B3）：全完成的**安静**收束——一行中性小字（整块去饱和由 .all-done 承担）。
                  不用庆祝动画、不用红色、不用进度百分比。 -->
-            <div v-if="focusAllDone" class="td-done">✓ 今日三件事已闭环 · 专注带来从容</div>
+            <div v-if="focusAllDone" class="td-done"><Icon name="check" :size="13"/> 今日三件事已闭环 · 专注带来从容</div>
           </div>
 
           <!-- ★W15-T4（用户拍板 2026-10-16）：子任务区从**独立 module 并入本卡下半区** ——
@@ -922,13 +922,13 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
     <Transition name="modal">
       <div v-if="pickerOpen" class="picker-modal">
         <div class="pm-head">
-          <span>📋 从任务库选取</span>
+          <span><Icon name="filetext" :size="13"/> 从任务库选取</span>
           <div class="pm-close" @click="pickerOpen=false">×</div>
         </div>
         <div class="pm-body">
           <!-- R113-N6：关键词 + 项目 两维筛选可叠加 -->
           <div class="pm-filters">
-            <div class="search-box" style="margin:0"><span>🔍</span><input v-model="pickerSearch" placeholder="搜索任务..."></div>
+            <div class="search-box" style="margin:0"><span><Icon name="search" :size="13"/></span><input v-model="pickerSearch" placeholder="搜索任务..."></div>
             <select v-model="pickerProject" class="pm-proj" title="按项目筛选任务">
               <option value="">全部项目</option>
               <option value="__none__">未关联项目（{{ pickerProjectOptions.none }}）</option>
@@ -942,7 +942,7 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
               <div class="pi-title">{{ task.title }}</div>
               <div class="pi-meta">
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
-                <span class="tag" :class="{ok: task.status==='done'}">{{ task.status==='done'?'✅ 已完成':task.status==='doing'?'◐ 进行中':'○ 待开始' }}</span>
+                <span class="tag" :class="{ok: task.status==='done'}"><Icon :name="task.status==='done'?'check':task.status==='doing'?'half':'circle'" :size="11"/>{{ task.status==='done'?'已完成':task.status==='doing'?'进行中':'待开始' }}</span>
                 <span v-if="pickedIds.has(task.id)" class="tag">已选入</span>
               </div>
             </div>
@@ -959,21 +959,21 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
     <Transition name="modal">
       <div v-if="exportOpen" class="picker-modal" style="width:400px">
         <div class="pm-head">
-          <span>⬇ 导出三件事任务（CSV）</span>
+          <span><Icon name="download" :size="13"/> 导出三件事任务（CSV）</span>
           <div class="pm-close" @click="exportOpen=false">×</div>
         </div>
         <div class="pm-body">
           <div class="ts-label-pm">时间范围（按三件事安排日期）</div>
           <div style="display:flex;gap:8px;align-items:center">
             <input type="date" v-model="exportFrom" class="ts-select-pm" style="flex:1">
-            <span style="color:var(--text-3)">→</span>
+            <span style="color:var(--text-3)">›</span>
             <input type="date" v-model="exportTo" class="ts-select-pm" style="flex:1">
           </div>
-          <div class="ce-desc" style="margin-top:10px">导出字段：任务内容 / 所属项目 / 项目→成功指标 / 任务状态 / 安排时间 / 创建时间</div>
+          <div class="ce-desc" style="margin-top:10px">导出字段：任务内容 / 所属项目 / 项目›成功指标 / 任务状态 / 安排时间 / 创建时间</div>
         </div>
         <div class="modal-footer-row" style="display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--border);justify-content:flex-end">
           <button class="mini-btn" @click="exportOpen=false">取消</button>
-          <button class="mini-btn primary" :disabled="exportBusy" @click="doExport">{{ exportBusy ? "导出中…" : "✓ 导出 CSV" }}</button>
+          <button class="mini-btn primary" :disabled="exportBusy" @click="doExport"><Icon v-if="!exportBusy" name="download" :size="13"/>{{ exportBusy ? "导出中…" : "导出 CSV" }}</button>
         </div>
       </div>
     </Transition>

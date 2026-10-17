@@ -8,6 +8,7 @@
  * 三块内容全部是**已定稿数据**：结论来自规则、建议来自已采纳的 AI 行，
  * 弹窗自己不调模型、不写库，只负责展示与导出。
  */
+import Icon from '@/shared/components/Icon.vue'
 import { computed, ref, watch } from 'vue'
 import type { ProjectDiagnosis } from '@/shared/ai/projectDiagnose'
 
@@ -41,7 +42,7 @@ const fmtTime = (t: number) => {
 const isStale = computed(() => !!props.report && props.stale)
 
 // ── 导出（HTML / Markdown 都是自包含单文件，PNG 二批再做） ──
-const esc = (s: string) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string))
+const esc = (s: string) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c] as string))
 const stripB = (s: string) => String(s).replace(/<\/?b>/g, '')
 
 function download(name: string, mime: string, text: string) {
@@ -93,9 +94,9 @@ function exportHtml() {
 </section>`).join('')
   const advice = r.advice.length ? `
 <section style="border:1px solid rgba(139,92,246,.3);border-radius:10px;background:rgba(139,92,246,.07);padding:13px 15px">
-  <b style="font-size:12px;color:#6d28d9">💡 建议动作（按优先级）</b>
+  <b style="font-size:12px;color:#6d28d9"><Icon name="bulb" :size="13"/>&nbsp;建议动作（按优先级）</b>
   ${r.advice.map((a, i) => `<p style="margin:7px 0;font-size:12px;line-height:1.8"><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:rgba(139,92,246,.2);color:#6d28d9;font-size:10px;text-align:center;line-height:16px">${i + 1}</span> ${esc(a)}</p>`).join('')}
-</section>` : ''
+</section>`: ''
   const html = `<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8"><title>${esc(r.projName)} · AI 诊断报告</title></head>
 <body style="margin:0;padding:26px 30px 60px;font:14px/1.65 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#1f2328;max-width:860px">
@@ -119,7 +120,7 @@ ${dims}${advice}
       <div class="pd-modal" role="dialog" aria-modal="true" :aria-label="report.projName + ' AI 诊断'">
         <!-- 头 -->
         <div class="pd-h">
-          <div class="pd-ic">🧠</div>
+          <div class="pd-ic"><Icon name="brain" :size="13"/></div>
           <div class="pd-hx">
             <div class="pd-t">{{ report.projName }} · AI 诊断</div>
             <div class="pd-s">
@@ -133,17 +134,17 @@ ${dims}${advice}
 
         <!-- 过期条 -->
         <div v-if="isStale" class="pd-stale">
-          <span>⚠</span>
+          <span><Icon name="warn" :size="13"/></span>
           <span>本项目自生成后数据已变更（当前指纹与报告不一致），结论可能已过期。</span>
-          <button class="pd-stale-btn" @click="emit('rerun')">↻ 重新诊断</button>
+          <button class="pd-stale-btn" @click="emit('rerun')"><Icon name="refresh" :size="13"/> 重新诊断</button>
         </div>
 
         <!-- 导出条 -->
         <div class="pd-bar">
           <span class="pd-lb">导出</span>
           <div class="pd-seg">
-            <i @click="exportHtml">🌐 HTML</i>
-            <i @click="exportMd">📄 Markdown</i>
+            <i @click="exportHtml"><Icon name="globe" :size="13"/> HTML</i>
+            <i @click="exportMd"><Icon name="filetext" :size="13"/> Markdown</i>
           </div>
           <span class="pd-rt">PNG 二批再做</span>
         </div>
@@ -171,7 +172,7 @@ ${dims}${advice}
           </div>
 
           <div v-if="report.advice.length" class="pd-advs">
-            <div class="pd-adv-h">💡 建议动作（按优先级）</div>
+            <div class="pd-adv-h"><Icon name="bulb" :size="13"/> 建议动作（按优先级）</div>
             <div v-for="(a, i) in report.advice" :key="i" class="pd-adv">
               <span class="pd-adv-i">{{ i + 1 }}</span>
               <span>{{ a }}</span>
@@ -184,7 +185,7 @@ ${dims}${advice}
         <div class="pd-f">
           <span>报告存于会话缓存，关闭浏览器即失效 · 不落卡片池</span>
           <span class="pd-f-sp">
-            <button class="pd-btn" @click="emit('rerun')">↻ 重新诊断</button>
+            <button class="pd-btn" @click="emit('rerun')"><Icon name="refresh" :size="13"/> 重新诊断</button>
             <button class="pd-btn pri" @click="emit('close')">关闭</button>
           </span>
         </div>

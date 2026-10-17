@@ -27,7 +27,7 @@ check('R144-5 G3/G4 语义：佐证 id 只认资源台目录且未挂本分支�
   return g.includes('!taken.has(r.id)') && g.includes('(bag.items || []).slice(0, 6)') && g.includes('projectCardToBoard(d, id, ctx.wsId, ctx.catId)') && g.includes('function boardCardsInCat')
     && /export function buildDeliverJob[\s\S]*?adoptable: false[\s\S]*?return withReport\(job, ctx,[\s\S]*?\['成果文稿'\]/.test(g) && !/export function buildDeliverJob[\s\S]{0,900}?apply:/.test(g)
     && g.includes('rawText: true') && g.includes("label: '📥 下载 .md'") && g.includes('replace(/^```(?:md|markdown)?')
-    && em.includes("import('@/shared/ai/batchG')") && gs.includes('📄 成果文稿') && w.includes('<EvidenceMenuItem :ws-id="workspaceId" :cat-id="nodeMenu.catId"');
+    && em.includes("import('@/shared/ai/batchG')") && gs.includes('成果文稿') /* ★G1(V3.8.25)随迁带备案：设置页卡片头 📄 前缀迁 <Icon name="compass">，「成果文稿」入口文案仍在 */ && w.includes('<EvidenceMenuItem :ws-id="workspaceId" :cat-id="nodeMenu.catId"');
 });
 check('R144-6 入口零净增与懒化：Workspace 物理行数仍 ≤1500（裸 fs 尺，与 R115-1/R140-3 同刀）；G1/G3 两组件 AI 依赖全懒 + 自带样式（scoped 宿主跨不到 fragment 根）；手册 ai-3 收录四场景与软层级三规矩', () => {
   const ws = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
@@ -51,7 +51,7 @@ check('R146-2 ★策展台两语义拆名（回退契约④）：归档=archived
   const app = read('/newtab/App.vue'); const wm = read('/newtab/composables/useWsMeta.ts')
   return CRUD146.includes('export function archiveWorkspace') && CRUD146.includes('ws.archived = true') && CRUD146.includes("name === '待分类'")
     && CRUD146.includes('export function deleteDeck') && CRUD146.includes('if (wsId === CURATION_WS_ID) return null')
-    && app.includes('async function archiveDeck') && app.includes('📦 归档此台（卡移至待分类）') && app.includes('archiveWorkspace(store.data, ws)') && !app.includes('async function deleteWorkspace')
+    && app.includes('async function archiveDeck') && /<Icon name="package"[^>]*\/> 归档此台（卡移至待分类）/.test(app) && app.includes('archiveWorkspace(store.data, ws)') && !app.includes('async function deleteWorkspace')
     && wm.includes('const snap = deleteDeck(d.value, workspaceId.value)') && wm.includes('restoreDeck(d.value, snap)') && wm.includes('deckCardCount')
     && !app.includes('confirm(') && !wm.includes('window.confirm')
 });
@@ -60,7 +60,7 @@ check('R146-3 回收站两口径（回退契约⑤⑥）：永久删除必过确
   const seg = segOf(rb, 'async function purgeWith', '// ---- 全部恢复 / 清空 ----')
   return seg.includes("title: '永久删除'") && seg.includes('此操作不可恢复') && seg.includes('已永久删除') && rb.includes('function purgeCat')
     && (rb.match(/purgeWith\('/g) || []).length === 5 // R2-⑤：论证卡分区补齐，永久删除回执点名对象由四路增至五路
-    && rb.includes('show(`♻ 已恢复 ${list.length} 项') && rb.includes('confirmText: `清空 ${list.length} 项`')
+    && rb.includes('show(`已恢复 ${list.length} 项') && rb.includes('confirmText: `清空 ${list.length} 项`')
     && gs.includes('confirmText: `永久删除 ${n} 项`') && gs.includes('recycledCardsOf(d)')
 });
 check('R146-4 toast 队列（回退契约⑦）：最多叠 3 条、同文案+同动作合并计数、撤销动作在合并项上仍可点、时长仍 3000ms（B2/R34-4 口径不破）', () => {
@@ -99,7 +99,7 @@ check('R146-7 检索浮层类型 tab 版式（实测 emoji 把「搜全部」劈
 check('R146-8 设置页左栏与清缓存真回执（回退契约⑧⑨）：回收站作路由出口常驻「数据」组（深链不接受路由项）、导航项支持「知」徽标；清除缓存点名清了什么（网页正文 + 抽读缓存计数），不再空报', () => {
   const gs = read('/newtab/views/GlobalSettings.vue'); const lf = read('/shared/ai/linkFetch.ts')
   return gs.includes("interface NavItem { key: string; icon?: string; label: string; route?: string; mark?: boolean }") && gs.includes("function onNavClick(item: NavItem)")
-    && gs.includes("{ key: 'recycle', icon: '🗑', label: '回收站', route: '/recycle' }") && gs.includes('i.key === p && !i.route')
+    && gs.includes("{ key: 'recycle', icon: 'trash', label: '回收站', route: '/recycle' }") && gs.includes('i.key === p && !i.route') /* ★G1(V3.8.25)随迁带备案：🗑 迁 Icon 名 'trash'（导航图标统一走 <Icon :name>），路由出口与深链纪律不变 */
     && gs.includes('clearLinkCache()') && gs.includes('reviseSnips.size') && gs.includes('卡片数据与附件本体不动') && lf.includes('export function clearLinkCache')
 });
 check('R146-9（R155-⑤ 备案：入口组件化，末尾锚点 AiMark → AiEntryButton）项目页 AI 入口补位（用户点名需求）：每个指标行有「按本指标建议近两周任务」、每个任务行（含未归类区）有 AI 辅助菜单（拆解/推荐卡/详情）· R147 备案：菜单搬进 TaskAiMenu 共享组件，页面只留引用', () => {
@@ -305,7 +305,7 @@ check('R152-2 ★keep-alive 视图不许替别人消费 ?hl：资源台定位器
 check('R152-3 ★手势矩阵收口：单击/Enter=打开、Ctrl+单击 与 Ctrl+Enter 同为"只定位"（把键盘约定平移到鼠标），AI 命中并入主列表每卡只一行（重复 id 曾让选中行与执行行不是同一条）；弱相关仍显式标「低置信」不许随并组藏掉', () => {
   const g = read('/newtab/components/GlobalPopups.vue')
   return g.includes('function pickRow(item: SearchResult, ev?: MouseEvent)') && g.includes('if (ev && (ev.ctrlKey || ev.metaKey)) { locateOnly(item); return }')
-    && g.includes('const aiHitById = computed') && g.includes("'🤖 低置信'") && !g.includes('pair.hit.weak')
+    && g.includes('const aiHitById = computed') && g.includes('name="sparkle"') && !g.includes('pair.hit.weak')
     && g.includes('rank.has(a.id)') && !g.includes("for (const pair of aiTopRows.value) out.push")
 });
 check('R152-4 ★"AI 动过"要有凭据：aiTouchedAt 由**每一枚会写卡/写关联的入口**共同盖戳（别做两套定义，也不能有一枚不盖）· R167 备案：资源侧入口从"页脚钮"变成共享 AI 行的两格，凭据据此翻「↻ 重新补全」＋行尾「最近 · 」；入口钮不再均分挤压的口径随版式搬到 .ds-ai-cell（说明行禁折行）；抽屉懒组件提到模块作用域单例（script setup 顶层=setup 函数体，原来每张卡新建一份组件定义）', () => {
@@ -372,7 +372,7 @@ check('R150-4 「全库分批扫」是显式慢路径不默认：仅在 scanned<
 check('R150-5 中文查询要有能用的字面近似 + 判弱只用客观信号：粗筛分词含整句/空格词/连续中文 2-gram（只按空格切会让中文长句整条落空）；weak = 模型自报把握 <0.55 或干脆没给 why，行上挂「低置信」而非默认藏掉', () => {
   const sel = read('/shared/ai/select.ts'); const g = read('/newtab/components/GlobalPopups.vue')
   return sel.includes('function queryTokens') && sel.includes('/[一-龥]{3,}/g') && sel.includes("if (t.includes(p)) n += 6")
-    && sel.includes("weak: ok < 0.55 || !String(h?.why || '').trim()") && g.includes('class="gp-ri-badge ai"') && g.includes('🤖 低置信') /* R152：命中徽标并入主列表行，弱相关仍显式标出来 */
+    && sel.includes("weak: ok < 0.55 || !String(h?.why || '').trim()") && g.includes('class="gp-ri-badge ai"') && g.includes('name="sparkle"') /* R152：命中徽标并入主列表行，弱相关仍显式标出来 */
 });
 check('R150-6 跑动态那句话必须渲染成数字而不是对象：computed 里插值 ref 必须带 .value（首版写了 ${aiSecs} 直接露出 [object Object]），且单次投料没有中间进度时不许假装有进度（改说"库内 N 张里挑"）', () => {
   const g = read('/newtab/components/GlobalPopups.vue')
@@ -442,9 +442,9 @@ check('R154-7 ★报告型「存为卡」（拍板③）：编辑过才点亮、
     && w.includes('const canResave = computed(() => !!cur.value?.resave && dirty.value)') && w.includes('存为卡（已编辑')
     && s.includes("paneMode: 'context'") && s.includes('before: () => digestPane(digest)')
 });
-check('R154-8 ★采纳文案全站统一「✓ 采纳（直接写库）」（拍板①）；配了 confirm 才走二次确认，第一下只弹红条不写库', () => {
+check('R154-8 ★采纳文案全站统一「采纳（直接写库）」（拍板①）；配了 confirm 才走二次确认，第一下只弹红条不写库（★G1(V3.8.25)随迁带备案：✓ 前缀由文案迁到按钮图标，语义句「（直接写库）」一字未动）', () => {
   const w = read('/newtab/components/AiSuggestionDrawer.vue'); const j = read('/shared/ai/job.ts')
-  return w.includes("'✓ 采纳（直接写库）'") && !w.includes('采纳勾选项') && j.includes('confirm?: (rows: AiRow[]) => string')
+  return w.includes("'采纳（直接写库）'") && !w.includes('采纳勾选项') && j.includes('confirm?: (rows: AiRow[]) => string')
     && w.includes('if (cf && !confirmText.value) { confirmText.value = cf; return }')
 });
 check('R154-9 ★E3 导入归类不再自动弹 + 采纳直接写库：两处旧语义退役且不留死代码（inline job 与 knownTags 缓存一并删）· R167 备案：apply 的同步包装层随入口搬进共享 ResourceAiStrip，判据改指该组件（宿主只留 onAdopted 回调）', () => {
