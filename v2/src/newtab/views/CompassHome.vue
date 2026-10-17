@@ -1149,10 +1149,13 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
 .today-card.empty-card { opacity: .55; border-style: dashed; background: transparent; align-items: center; justify-content: center; }
 .today-card.empty-card:hover { opacity: .9; border-color: var(--accent); color: var(--accent); }
 /* R117（04-61 C3）：失效槽卡——虚线 + 警示色，与中性的「空位」区分开；
-   ⚠ 末行与上方 `.card.focus .today-card:not(.empty-card)` 同权重，靠**源码顺序在后**生效（不要前移本组）。 */
-.today-card.stale-card { border-style: dashed; background: transparent; border-color: color-mix(in srgb, var(--tag-warn-text) 45%, var(--border)); }
-.today-card.stale-card:hover { border-color: var(--tag-warn-text); background: var(--surface); }
-.card.focus .today-card.stale-card { border-color: color-mix(in srgb, var(--tag-warn-text) 45%, var(--border)); }
+   ⚠ 末行与上方 `.card.focus .today-card:not(.empty-card)` 同权重，靠**源码顺序在后**生效（不要前移本组）。
+   ★M1（V3.8.28）：边框去琥珀，改 border-strong 中性虚线 —— 虚线本身已经说「这一格坏了」，
+   再叠一层琥珀就是第二次催促；卡内「源任务已失效 · 重新选取」才是用户要读的那句话。
+   与「空位卡」（opacity .55 + 内容居中 + 占位文案）仍可区分：失效卡留着原任务标题与标签。 */
+.today-card.stale-card { border-style: dashed; background: transparent; border-color: var(--border-strong); }
+.today-card.stale-card:hover { border-color: var(--text-3); background: var(--surface); }
+.card.focus .today-card.stale-card { border-color: var(--border-strong); }
 .tc-num { position: absolute; top: 12px; right: 14px; font-size: var(--fs-sub); color: var(--text-4); font-weight: 700; font-variant-numeric: tabular-nums; }
 .tc-row { display: flex; align-items: flex-start; gap: 8px; }
 /* R120-TB2：方形勾选框（对齐原型：16px / 4px 圆角 / 1.5px 边框 / 选中随主题强调色） */

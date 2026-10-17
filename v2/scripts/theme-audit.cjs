@@ -69,6 +69,10 @@ const VIEWS = [
   // R3-B1：老深链 #/compass/tree（content 快捷动作 / 浏览器命令 / 用户收藏）必须带 query 落到 /compass
   { id: 'compass-tree', hash: '#/compass/tree', name: '方向台老深链重定向' },
   // R1.5：资源台台面场随 R179 资源台退役（/workspace/zy-curation 为隐藏池 id，用户不可达，拍了也是空调试面）
+  // ★B3（V3.8.28）补：画像洞察是一级页面却一直不在 VIEWS 里 —— 只在 MODAL_VIEWS 里以「下钻/复盘/报告」
+  //   浮层形式出现，于是**页面本身的四主题走查从来没有证据**。A2 那批改的是 KPI 数值与环比徽标的颜色，
+  //   正好落在这个盲区里；补进来后 `--scenes=profile` 可单独取。
+  { id: 'profile', hash: '#/profile', name: '画像洞察' },
   { id: 'settings', hash: '#/settings', name: '设置页' }
 ]
 /** R161：AI 评审已是**中央弹窗**（不再是右侧抽屉），只抓四个台面默认态等于没抓本轮主交付面。
@@ -1220,8 +1224,11 @@ if (argv.scenes) {
   fs.writeFileSync(path.join(outDir, 'scene-state.json'), JSON.stringify({ 生成: new Date().toISOString(), 场景数: Object.keys(sceneState).length, 取样点: STATE_PTS, 状态: sceneState }, null, 1))
   console.log(`场景几何记账：${Object.keys(sceneState).length} 张图的 ${STATE_PTS.length} 个取样点 → ${path.join(outDir, 'scene-state.json')}`)
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
-  const want = themes.length * (VIEWS.length + MODAL_VIEWS.length + DRAWER_VIEWS.length  + 3 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 + R3-Cc 共用批量栏 */ + DASH_SCENES.length + OVERLAY_SCENES.length /* R4-En content 浮层 2 场景 ⇒ 96→104；R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 + R3-Cc 批量栏 ⇒ 72→80；R4-Da 标签双栏 ⇒ 80→84；R4-Dd Airtable 面板 ⇒ 84→88；R4-Df 使用手册 ⇒ 88→92；R4-Dl ⌘K 检索面板 ⇒ 92→96 */)
-  if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${VIEWS.length} 台面 + ${MODAL_VIEWS.length} 弹窗 + ${DRAWER_VIEWS.length} 卡详情 + 1 deck)）`); process.exit(1) }
+  // ★B3（V3.8.28）修：原式一律用 VIEWS / MODAL_VIEWS / DRAWER_VIEWS / DASH_SCENES 的**全量长度**，
+  //   于是 `--scenes=` 过滤时「拍到的图」永远少于「应有图数」，收尾必假红 exit 1 —— 明明全拍成功了。
+  //   这里改用 pick 之后的实际镜头数（overlay 两场景不走过滤，仍按全量算）。
+  const want = themes.length * (views.length + modalViews.length + drawerViews.length  + 3 /* R2-②③ DeckTabs deck 判据 + R3-Ca 池列表视图 + R3-Cc 共用批量栏 */ + dashScenes.length + OVERLAY_SCENES.length /* R4-En content 浮层 2 场景 ⇒ 96→104；R172-T13 仪表盘七场景 + R3-B′ 方向台台面 ⇒ 68→72；R3-Ca 池列表 + R3-Cc 批量栏 ⇒ 72→80；R4-Da 标签双栏 ⇒ 80→84；R4-Dd Airtable 面板 ⇒ 84→88；R4-Df 使用手册 ⇒ 88→92；R4-Dl ⌘K 检索面板 ⇒ 92→96 */)
+  if (shots.length !== want) { console.log(`❌ 图数 ${shots.length} ≠ 应有 ${want}（${themes.length} 主题 × (${views.length} 台面 + ${modalViews.length} 弹窗 + ${drawerViews.length} 卡详情 + 3 deck + ${dashScenes.length} 仪表盘 + ${OVERLAY_SCENES.length} content 浮层${SCENES ? '；本次带 --scenes 过滤' : ''})）`); process.exit(1) }
   if (escLeak.length) {
     console.log(`❌ Esc 未能关闭中央弹窗：${escLeak.join(' / ')}（台面图已受影响，请查 Modal.vue 的 watch immediate）`)
     process.exit(1)

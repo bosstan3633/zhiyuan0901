@@ -222,9 +222,13 @@ check('W12-13 ★theme-audit 的场景宿主随 W10 三段式重构搬进了弹�
   const dayOk = /\.dz-cell\.l1:not\(\.future\)/.test(audit)
     && /has\.count\(\) \? has : page\.locator/.test(audit)
   // ⑤ 三个宿主在弹窗里的场景必须自带开弹窗这一步，且场景 hash 指向画像页
+  // ★B3（V3.8.28）重指带备案：`hash: '#/profile'` 的计数由 `=== 3` 放宽为 `>= 3` ——
+  //   本批把「画像洞察」台面本身补进了 VIEWS（此前一级页面从未被四主题拍过），于是这个字面量
+  //   自然多出第 4 处。本条守的是**弹窗场景在画像页上拍**，不是"全脚本只允许三个 /profile"；
+  //   真正承重的锚是上面那句 `await openReviewModal(page)` 恰为 3 处，一字未动。
   const modalOk = /async function openReviewModal\(page\)/.test(audit)
     && (audit.match(/await openReviewModal\(page\)/g) || []).length === 3
-    && (audit.match(/hash: '#\/profile'/g) || []).length === 3
+    && (audit.match(/hash: '#\/profile'/g) || []).length >= 3
   // ⑥ 图例判据不许写死数量：V3.8.7 加了第 7 枚「今天」说明项（当日格底色是 heat-N，
   //    图例块要用 accent 描边另画），原判据 `legend.length === 6` 从那版起就一直红。
   //    改成钉「前六项严格等于 LV_NAME 六档 + 第七项必须是今天」—— 少档/改名/多无关项都会红。

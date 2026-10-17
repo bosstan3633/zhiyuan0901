@@ -44,7 +44,7 @@ check('R65-11（R74 重写 · ★R3-B1 随宿主改靶）KeepAlive 切台缓存�
   const inc = (a.match(/keep-alive include="([^"]+)"/) || [, ''])[1].split(',')
   return inc.includes('CompassHomeView') && inc.includes('WorkspaceView') && inc.includes('CompassTreeView') && !inc.includes('CompassShell') && t.includes("defineOptions({ name: 'CompassTreeView' })") && w.includes("defineOptions({ name: 'WorkspaceView' })") && h.includes("defineOptions({ name: 'CompassHomeView' })") && w.includes('watch(() => route.params.id');
 });
-check('R65-12 方向状态单行指标条：副行收 tooltip（mb-v 13.5px 单行 + st-warn 保留）', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); return mb.includes('mb-row') && mb.includes('mb-k') && mb.includes('mb-v') && mb.includes('st-warn') && !mb.includes('mb-head'); });
+check('R65-12（★M1/V3.8.28 翻转带备案）方向状态单行指标条：副行收 tooltip 的口径不变，末位读数由「琥珀警示」改中性 —— 本条守的三件事（单行 mb-row / key-value 分列 / 无 mb-head 表头）一字不动，只有"警示色"这一项翻转：原断言钉「末位读数带警示类」，M1 判定该染色把「还有多少没做完」读成催促（镜面不评价），故改钉「零警示类 + 读数仍有口径 tooltip」。翻转理由即 M1 验收：「指标条无红色计数/琥珀催促；每个读数可悬停看口径」', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); return mb.includes('mb-row') && mb.includes('mb-k') && mb.includes('mb-v') && !mb.includes('st-warn') && mb.includes('尚未归位到方向') && !mb.includes('mb-head'); });
 
 // ============== 第六十六轮：任务采集选区预填 + 项目调度瘦身 + 操作记录整合 + 全量导入导出 uiPrefs + 全景递归 + 金字塔居中树 + 品牌刷新 ==============
 console.log('【第六十六轮 · V2.36.0：任务采集选区预填 + 金字塔居中树布局 + 品牌口径升级】');

@@ -128,7 +128,7 @@ check('R4-Dm ★"取 workspaces[0] 当默认落点"这一族形状必须逐处�
 
 // ============== R4-En content 浮层进视觉门禁（#115） ==============
 console.log('【R4-En · content 浮层场景】');
-check('R4-En ★两个 content 浮层终于有像素门禁：theme-audit 必须有 ov-capture（采集面板）与 ov-search（网页 ⌘K）两条场景，且都在**宿主页**上拍（浮层只注入 http/https 页，扩展页里拍到的是空文档），任一判据不过即非零退出。起因是 R4-Dm 在采集下拉里量出一枚本该不可达的退役台面「资源台」且它是默认项——那件事只有真开一次浮层看得见，而 e2e 驱动采集浮层 0 条、本脚本此前浮层场景 0 条。★W4（V3.8.4）随迁：采集面板的两枚下拉退役，就绪锚从 #__zy_cap_ws__ 换成保存钮 #__zy_cap_save__（msg 仍是 zy-open-capture，不变）', () => {
+check('R4-En ★两个 content 浮层终于有像素门禁：theme-audit 必须有 ov-capture（采集面板）与 ov-search（网页 ⌘K）两条场景，且都在**宿主页**上拍（浮层只注入 http/https 页，扩展页里拍到的是空文档），任一判据不过即非零退出。起因是 R4-Dm 在采集下拉里量出一枚本该不可达的退役台面「资源台」且它是默认项——那件事只有真开一次浮层看得见，而 e2e 驱动采集浮层 0 条、本脚本此前浮层场景 0 条。★W4（V3.8.4）随迁：采集面板的两枚下拉退役，就绪锚从 #__zy_cap_ws__ 换成保存钮 #__zy_cap_save__（msg 仍是 zy-open-capture，不变）。★B3（V3.8.28）重指带备案：图数下限里 `DASH_SCENES.length` 改为过滤后的 `dashScenes.length`（`--scenes` 过滤时原式必然假红），所守行为不变', () => {
   const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
   const i1 = t.indexOf("id: 'ov-capture'");
   const i2 = t.indexOf("id: 'ov-search'");
@@ -138,7 +138,7 @@ check('R4-En ★两个 content 浮层终于有像素门禁：theme-audit 必须�
     && t.includes('chrome.tabs.sendMessage') && t.includes('ovServer.listen')
     && t.includes('if (!ovPage) { ovPage = await ctx.newPage()')
     && t.includes('if (overlayFail.length)') && /overlayFail\.length\) \{\s*console\.log\(`❌ content 浮层判据未过/.test(t)
-    && t.includes('DASH_SCENES.length + OVERLAY_SCENES.length');
+    && t.includes('dashScenes.length + OVERLAY_SCENES.length');
 });
 check('R4-En ★采集面板的判据钉的是形状不是条数：真实库里可见台可能只剩一枚（改前实测台选项=["资源卡池"]，其它台已归档），所以条数从来不是判据。★W4（V3.8.4）随迁：两枚下拉退役，判据从「选项文本非空 + 无退役名 + 池项显示单源名」翻面成「静态池提示行 .zy-cap-pool 在且含资源卡池 + 两个下拉 id 负锚不在」；同类控件底色只能有一种 + 浮层强调色与应用内 --accent 同值两条腿不动（它们守的是主题映射会漂这件事，与下拉存废无关）', () => {
   const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
@@ -506,15 +506,16 @@ check('W4-2 ★保存后自动预打标（用户拍板①）：captureEnrich 的
 
 // ============== W5 · 调度台五条反馈 + 今日战报（V3.8.5） ==============
 console.log('【W5 · 调度台五条反馈 + 今日战报】');
-check('W5-1 ★指标条三段分组块（用户拍板#1/#5）：MetricBar 模板三段 `.mb-group`（mb-nav 左槽+档位段控 / mb-metrics 5 格 / mb-right），组件内样式 `.mb-group` 用 surface-2 浅底圆角块、`.mb-metrics gap:2px`；旧 `.mb-divider` 退役删除。R120-10 锚不动：`min-height: 38px; max-height: 38px`、`<slot name="left/right"`、mb-right', () => {
+check('W5-1 ★指标条三段分组块（用户拍板#1/#5）：MetricBar 模板三段 `.mb-group`（mb-nav 左槽+档位段控 / mb-metrics 5 格 / mb-right），组件内样式 `.mb-group` 用 surface-2 浅底圆角块、`.mb-metrics` 窄间距；旧 `.mb-divider` 退役删除。R120-10 锚不动：`min-height: 38px; max-height: 38px`、`<slot name="left/right"`、mb-right。★M2（V3.8.28）翻转带备案：原断言钉 `.mb-metrics gap:2px` 这个具体值，M2 把读数行间距统一到 8px 网格（2→4，与 mb-row/mb-group 的 8 同族），故数值锚改为「有 gap 声明且 ≤8px」——本条守的「三段分组 + 格间紧凑」一项未减，只是不再锁死 2px', () => {
   const mb = codeOnly(read('/newtab/components/compass/MetricBar.vue'));
+  const gapM = mb.match(/\.mb-metrics \{[^}]*gap: (\d+)px/);
   return mb.includes('class="mb-group mb-nav"')
     && mb.includes('class="mb-group mb-metrics"')
     && mb.includes('class="mb-group mb-right"')
     && mb.includes('min-height: 38px; max-height: 38px')
     && mb.includes('<slot name="left"') && mb.includes('<slot name="right"')
     && mb.includes('.mb-group {') && mb.includes('background: var(--surface-2)')
-    && mb.includes('.mb-metrics {') && mb.includes('gap: 2px')
+    && mb.includes('.mb-metrics {') && !!gapM && Number(gapM[1]) <= 8
     && !mb.includes('.mb-divider');
 });
 check('W5-2 ★标题统一「SVG 图标(accent) + 英文副标」（用户拍板#2/#3）：Heatmap 标题 dz-n 数字退役，改 `.dz-n dz-ico` 内联日历 SVG + CompassHome 三张卡上方加 `.decks-title`（Icon layers + 三张卡 + THREE DECKS 英文副标）。★V3.8.7 随迁带备案：原「三标题统一 17px」这一条被焦点契约推翻——统一形态（图标+英文副标）保留，但**字号分层**改由 W7-1 守（今日三件事 display 唯一，三张卡与热力图降到 title）；W5-2 守的是"三标题形态一致"，不再是"三标题同字号"', () => {

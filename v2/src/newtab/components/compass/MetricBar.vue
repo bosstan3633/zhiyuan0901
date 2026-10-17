@@ -70,7 +70,10 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
         <div class="mb-cell clickable" title="WRR 资源复用 = 资源卡被打开次数（{{ m.wrr.sub }}）· 点击下钻调出资源清单" @click="openCell('wrr')">
           <span class="mb-k">WRR 复用</span><span class="mb-v">{{ wrrMain }}</span>
         </div>
-        <div class="mb-cell clickable" :class="{ 'st-warn': unarchived > 0 }" title="未归档任务 = 未挂项目/指标或引用失效的任务（口径同明细）· 点击下钻归档" @click="openCell('unarch')">
+        <!-- ★M1（V3.8.28）：读数去琥珀。原实现在读数 > 0 时给这一格挂警示类、把数字染成琥珀，
+             于是「还有多少没做完」被读成催促；镜面口径下它只是一个事实读数，颜色不参与评价。
+             琥珀只留给真正的停滞细节（14 天无推进一类），不留给"你还没做完"。 -->
+        <div class="mb-cell clickable" title="未归档任务 = 未挂项目/指标、或引用已失效的任务，尚未归位到方向 · 分母为全部未删任务 · 口径同明细 · 点击下钻归档" @click="openCell('unarch')">
           <span class="mb-k">未归档</span><span class="mb-v">{{ unarchived }}<i class="mb-denom">/{{ totalTasks }}</i></span>
         </div>
       </div>
@@ -85,24 +88,29 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
 
 <style scoped>
 /* R120-TB1：合流方向条——单行 ≤38px，全 tokens（四主题自适应）
-   R175（原型）：圆角对齐 radius-md（10px），磨砂底玻璃浓度 72%→88% 更贴近原型近实心 */
-.metric-bar { background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 10px; box-shadow: var(--shadow-sm); }
-.mb-row { display: flex; align-items: center; gap: 6px; padding: 5px 14px; min-height: 38px; max-height: 38px; min-width: 0; }
+   R175（原型）：圆角对齐 radius-md（10px），磨砂底玻璃浓度 72%→88% 更贴近原型近实心
+   ★M2（V3.8.28）：本条是「支撑层」不是主角面 —— 去掉投影（投影意味着浮起），
+   底色回收一档；读数行退到 caption 网格，让下方三件事重新成为首屏焦点。 */
+.metric-bar { background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 10px; }
+/* ★M2：间距统一到 8px 网格（原 6/2/5/7 混用），一眼可扫而不再零碎 */
+.mb-row { display: flex; align-items: center; gap: 8px; padding: 5px 14px; min-height: 38px; max-height: 38px; min-width: 0; }
 /* W5（V3.8.5）#1：三段浅底色分组块（替代 1px 分隔线）——surface-2 浅底 + 圆角，38px 单行不变 */
-.mb-group { display: flex; align-items: center; gap: 6px; min-width: 0; background: var(--surface-2); border-radius: 7px; padding: 3px 8px; }
-.mb-metrics { gap: 2px; }
+.mb-group { display: flex; align-items: center; gap: 8px; min-width: 0; background: var(--surface-2); border-radius: 7px; padding: 3px 8px; }
+.mb-metrics { gap: 4px; }
 .mb-period { display: flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; flex-shrink: 0; }
 .mb-period span { padding: 2px 9px; font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; transition: all var(--dur-fast); }
 .mb-period span + span { border-left: 1px solid var(--border); }
 .mb-period span:hover { background: var(--surface-3); color: var(--text-2); }
 .mb-period span.on { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
-.mb-cell { display: flex; align-items: baseline; gap: 5px; min-width: 0; padding: 2px 7px; border-radius: 6px; }
+.mb-cell { display: flex; align-items: baseline; gap: 6px; min-width: 0; padding: 2px 8px; border-radius: 6px; }
 .mb-cell.clickable { cursor: pointer; transition: background var(--dur-fast); }
 .mb-cell.clickable:hover { background: var(--surface-2); }
-.mb-k { font-size: var(--fs-sub); font-weight: 500; color: var(--text-2); flex-shrink: 0; }
-.mb-v { font-size: var(--fs-sub); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
+/* ★M2：只降字号、不降对比 —— 读数退为支撑层靠的是字阶（12→11px）与 8px 网格，
+   不是把字调暗。R153-4 记着一条实测：这一行的小字曾量到 3.14:1（低于 AA）而抬到 text-2，
+   所以这里的 key/value/denom 全部保持 text-2 及以上，denom 也不再往下压到 9px。 */
+.mb-k { font-size: var(--fs-caption); font-weight: 500; color: var(--text-2); flex-shrink: 0; }
+.mb-v { font-size: var(--fs-caption); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
 .mb-denom { font-size: var(--fs-caption); font-weight: 500; color: var(--text-2); font-style: normal; }
-.mb-cell.st-warn .mb-v { color: var(--tag-warn-text); }
 /* 右端扩展位——今日记录四格 + 周报 + 去方向台（右对齐） */
 .mb-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 

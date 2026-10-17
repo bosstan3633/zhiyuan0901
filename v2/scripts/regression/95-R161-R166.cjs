@@ -443,11 +443,11 @@ check('R165-A9 ★键字典豁免面钉死：只认「两个 AI 键名 × 只在
     && !/path\.relative\([^)]*\)\s*===\s*['"]src\//.test(g)
     && g.includes('aiEdges.length') && /process\.exit\(fail \? 1 : 0\)/.test(g)
 });
-check('R165-A10 ★视觉走查覆盖到"本轮真正改的那一面"：theme-audit 必须含三张卡详情场景，且判据不是空转——DRAWER_VIEWS 三条各自带 开/AI在标题行/页脚钮数 三条现场判据，任一不过要能进 drawerFail 并参与退出码，图数下限也要把这三条算进去（否则"少抓一面"会静默通过）', () => {
+check('R165-A10 ★视觉走查覆盖到"本轮真正改的那一面"：theme-audit 必须含三张卡详情场景，且判据不是空转——DRAWER_VIEWS 三条各自带 开/AI在标题行/页脚钮数 三条现场判据，任一不过要能进 drawerFail 并参与退出码，图数下限也要把这三条算进去（否则"少抓一面"会静默通过）。★B3（V3.8.28）重指带备案：图数下限算式里的 `DRAWER_VIEWS.length` 已改为 `drawerViews.length`（过滤后的实际镜头数）——原式一律用全量长度，`--scenes` 过滤时收尾必然假红「图数 32 ≠ 应有 112」；本条守的「图数下限把三张卡详清算进去」一项未减，改用过滤后计数反而更准', () => {
   const g = read('/../scripts/theme-audit.cjs')
   return (g.match(/id: 'drawer-(resource|task|curio)'/g) || []).length === 3
     && g.includes('const drawerFail = []') && g.includes('drawerFail.push') && g.includes('if (drawerFail.length)')
-    && g.includes('DRAWER_VIEWS.length') && g.includes("footCount === 2") && g.includes("'[data-tid]'")
+    && g.includes('drawerViews.length') && g.includes("footCount === 2") && g.includes("'[data-tid]'")
 });
 check('R165-A11 ★手册宣传面与功能现状对账：已退役能力不得留在使用手册里（「🤖 推荐卡」R162 已整体退役、代码全仓零命中，手册却仍挂着这句假承诺四轮）；AI 入口位置措辞须随版式（R165-A 标题行 → R166 任务三入口独立行 → R167 「AI 入口行」）· R167 备案：本条原把"标题行右侧"钉成合格判据，正是它让手册在版式再迁一次后仍显绿——判据改为**只认现行版式词，且旧位置词出现即红**', () => {
   const m = read('/newtab/manual-data.ts')

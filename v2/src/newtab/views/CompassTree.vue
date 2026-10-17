@@ -265,7 +265,11 @@ const treeStats = computed(() => {
   for (const dir of d.value.compass.directions) {
     const vis = visibleProjectsOf(dir)
     projects += vis.length
-    metrics += dir.projects.reduce((s, p) => s + p.metrics.length, 0)
+    // ★C1（V3.8.28）口径修正：原实现用 dir.projects（**含已隐藏的已完成项目**）累加指标，
+    // 与同行的「项目」用 visibleProjectsOf 不是同一把尺子 —— 隐藏已完成后会出现
+    // 「项目 3 · 指标 20」而树上只数得到 12 个指标的两份真相。四项状态读数（项目/指标/主攻/停滞）
+    // 统一按可见项目算；「任务」仍按全库未删计（不同维度，tooltip 已写清）。
+    metrics += vis.reduce((s, p) => s + p.metrics.length, 0)
     for (const p of vis) {
       if (p.isFocused) focused++
       if (isProjectStalled(p)) stalled++
@@ -1074,19 +1078,22 @@ onUnmounted(() => {
       <!-- ★V3.8.20：健康度徽章移到读数行首位（原左栏 .hero-health，N13 意图"状态不参与动作区竞争"随迁）。
            ★不在这里重复断链条目数：骨架条的断链行已经有一份更全的清单，两处都写数字就会有两个真相。 -->
       <div class="hero-stats">
-        <span class="dhi-badge" :class="dhiStatus.cls">
+        <!-- ★C1（V3.8.28）：每个读数都要能悬停看到口径 —— 镜面不评价，但必须说清这个数字怎么来的
+             （A2 同一口径：数值 + 单位 + 口径 tooltip）。 -->
+        <span class="dhi-badge" :class="dhiStatus.cls"
+          title="方向健康度 = 未停滞的战略目标数 ÷ 战略目标总数（某个目标下最近一次任务更新距今超过 14 天，记为停滞）· 只描述现状，不是评分">
           <span aria-hidden="true"><Icon name="compass" :size="13"/></span>
           <span>方向健康度：{{ dhiStatus.label }}</span>
         </span>
-        <i>·</i>
-        <span>愿景 {{ compassMeta.counts.vision }}</span><i>·</i>
-        <span>使命 {{ compassMeta.counts.mission }}</span><i>·</i>
-        <span>战略目标 {{ treeStats.dirs }}</span><i>·</i>
-        <span>项目 {{ treeStats.projects }}</span><i>·</i>
-        <span><Icon name="main-focus" :size="13"/> 主攻 {{ treeStats.focused }}</span><i>·</i>
-        <span><Icon name="stall" :size="13"/> 停滞 {{ treeStats.stalled }}</span><i>·</i>
-        <span>指标 {{ treeStats.metrics }}</span><i>·</i>
-        <span>任务 {{ treeStats.tasks }}</span>
+        <i class="hs-sep" aria-hidden="true"></i>
+        <span title="愿景 = 终极方向（第 1 层），全库一条">愿景 {{ compassMeta.counts.vision }}</span><i class="hs-sep" aria-hidden="true"></i>
+        <span title="使命 = 行动准则（第 2 层），由愿景派生">使命 {{ compassMeta.counts.mission }}</span><i class="hs-sep" aria-hidden="true"></i>
+        <span title="战略目标 = 第 3 层方向数（使命下拆解出的推进方向）">战略目标 {{ treeStats.dirs }}</span><i class="hs-sep" aria-hidden="true"></i>
+        <span title="项目 = 第 4 层攻坚项目数 · 仅统计当前可见项目（受「已完成项目：显示/隐藏」影响）">项目 {{ treeStats.projects }}</span><i class="hs-sep" aria-hidden="true"></i>
+        <span title="主攻 = 标记为战略重心的可见项目数（上限 2 个）"><Icon name="main-focus" :size="13"/> 主攻 {{ treeStats.focused }}</span><i class="hs-sep" aria-hidden="true"></i>
+        <span title="停滞 = 近 14 天无任务推进、且已有任务的可见项目数"><Icon name="stall" :size="13"/> 停滞 {{ treeStats.stalled }}</span><i class="hs-sep" aria-hidden="true"></i>
+        <span title="指标 = 第 5 层成功指标数 · 与「项目」同口径，只统计当前可见项目下的指标">指标 {{ treeStats.metrics }}</span><i class="hs-sep" aria-hidden="true"></i>
+        <span title="任务 = 第 6 层任务数 · 全库未删除任务都算（含尚未挂到项目的）">任务 {{ treeStats.tasks }}</span>
       </div>
     </section>
 
@@ -1542,13 +1549,17 @@ onUnmounted(() => {
    ★F6（2026-10-16）：读数行由右对齐改**左对齐**——右对齐时健康度徽章（行首元素）被推到最右，
    视线要横跨整行才读到；健康度是这行的第一个判断，应该在视线落点上。 */
 .hero-stats {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-start;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-start;
   font-size: var(--fs-micro); color: var(--text-4);
   font-variant-numeric: tabular-nums;
 }
-.hero-stats i { opacity: .5; font-style: normal; }
-/* 健康度徽章在读数行首位：自带药丸壳与纯文本读数拉开一档 —— 它是状态不是计数，
-   N13 意图（不参与动作区竞争）随迁到这里：与计数同属"这页现在什么状况"。 */
+/* ★C1（V3.8.28）：分隔符由「·」中点改 1px 发丝线 —— 中点夹在 9px 读数之间像正文标点，
+   发丝线才是刻度（沿用骨架条 .gs-sep 的既有语言）；gap 同时收上 8px 网格。 */
+.hs-sep { width: 1px; height: 10px; background: var(--border); flex: none; }
+/* 健康度徽章在读数行首位：★C1（V3.8.28）镜面口径 —— 健康度是「这页现在什么状况」，不是评分。
+   原 accent 实底药丸让它在 9px 计数行里像一枚按钮/徽章，视线先落颜色再读数字；改中性浅底 +
+   text-2，字号落 caption，只比计数重一档。warning 态不再用琥珀催促色：语义由「关注 / 需聚焦」
+   这三个字承担，颜色不参与评价（与 A2 同批口径）。 */
 .hero-stats .dhi-badge { cursor: default; }
 
 /* ★W12：容器 padding 完全不动（`20px 36px 64px`）——
@@ -1592,8 +1603,10 @@ onUnmounted(() => {
 .peek-open { width: 100%; margin-top: 14px; padding: 10px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; }
 .peek-open:hover { background: var(--accent-hover); }
 .topbar { height: 48px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0; }
-.dhi-badge { display: flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 99px; background: var(--accent-light); font-size: var(--fs-sub); font-weight: 500; color: var(--accent-ink); }
-.dhi-badge.warning { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
+/* ★C1（V3.8.28）：健康度徽章退成药丸形"读数"——中性浅底 + text-2 字，不再用强调色实底；
+   warning 态只加深一档表面，不换色相（琥珀是催促，镜面不催促）。 */
+.dhi-badge { display: flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 99px; background: var(--surface-2); font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); }
+.dhi-badge.warning { background: var(--surface-3); color: var(--text); }
 
 /* 画布（左侧为项目导航预留空间） */
 .canvas { flex: 1; min-width: 0; padding: 0 4px 20px; }

@@ -109,11 +109,16 @@
 .pi-chip .l { font-size: var(--fs-caption); color: var(--text-3); font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pi-chip .ar { font-size: 8px; color: var(--text-4); margin-left: -1px; }
 .pi-chip:hover .ar { color: var(--accent-ink); }
-.pi-chip.ok .v { color: var(--success); }
-.pi-chip.bad .v { color: var(--danger); }
-.pi-chip.acc .v { color: var(--accent-ink); }
-.pi-chip.warn .v { color: var(--warning); }
-.pi-chip.up .v { color: var(--success); }
+/* ★A2（V3.8.28）镜面口径：KPI 数值一律中性色 —— 原先这条染色阶梯把芯片分成
+   「绿=好 / 红=坏 / 琥珀=要小心 / 强调=重要」，于是同一行四个本来就只是分类不同的读数，
+   被读成了四种评价。现在数值统一走基类 `.pi-chip .v` 的 --text；`.ok / .bad / .acc / .warn / .up`
+   保留为**语义钩子**（模板还在用，将来要做非颜色的区分时有用），但不再改任何颜色。
+   依据：A2「数值一律中性色（不做红绿好坏绑定）」。 */
+.pi-chip.ok .v,
+.pi-chip.bad .v,
+.pi-chip.acc .v,
+.pi-chip.warn .v,
+.pi-chip.up .v { color: var(--text); }
 
 /* ===== 分节标题 ===== */
 .pi-sect { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
@@ -239,8 +244,10 @@
 }
 .one-insight .oi-ic { flex: none; font-size: 14px; }
 .one-insight .oi-text { flex: 1; min-width: 0; }
-.one-insight.warn { border-left-color: var(--warning); background: color-mix(in srgb, var(--warning) 7%, var(--surface-2)); }
-.one-insight.ok { border-left-color: var(--success); }
+/* ★A2（V3.8.28）：洞察卡左边框去红绿 —— 「一条洞察」是提醒你看见什么，不是给你打分。
+   ok 用强调色（值得看）、warn 用中性深一档（值得留意），两档只差明度不差色相。 */
+.one-insight.warn { border-left-color: var(--text-3); background: var(--surface-2); }
+.one-insight.ok { border-left-color: var(--accent); }
 .act-link {
   flex: none; border: 1px solid var(--accent); background: var(--accent-light); color: var(--accent-ink);
   font-size: var(--fs-caption); font-weight: 700; padding: 5px 12px; border-radius: 999px;
@@ -296,9 +303,11 @@
   padding: 2px 8px; border-radius: 999px; white-space: nowrap; flex: none;
 }
 .pi-tag.neutral { background: var(--surface-3); color: var(--text-3); }
-.pi-tag.ok { background: var(--success-bg-soft); color: var(--success); }
+/* ★A2（V3.8.28）：`ok` / `warn` 两档去色相 —— 「主攻」是归属标记、「未挂项目」是当前状态，
+   都不是好坏裁决；原来一绿一琥珀，等于给任务贴了对错标签。文案与图标保留，颜色收成中性。 */
+.pi-tag.ok { background: var(--surface-3); color: var(--text-2); }
 .pi-tag.acc { background: var(--accent-light); color: var(--accent-ink); }
-.pi-tag.warn { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
+.pi-tag.warn { background: var(--surface-3); color: var(--text-2); }
 /* ★W14-T1：标签改可点（今日三件事行的 🚀 主攻标签 → 打开项目详情抽屉）。
    按钮默认外观必须显式归零，否则线性/raycast 深色主题下会透出浏览器默认 buttonface 白底。 */
 .pi-tag.as-btn {
@@ -326,8 +335,11 @@
   font-size: var(--fs-micro); font-weight: 700; padding: 4px 11px; border-radius: 999px;
   background: var(--surface-2); border: 1px solid var(--border); color: var(--text-3); flex: none;
 }
-.wk-badge.up, .m-badge.up { color: var(--success); background: var(--success-bg-soft); border-color: transparent; }
-.wk-badge.down, .m-badge.down { color: var(--danger); background: var(--danger-bg-soft); border-color: transparent; }
+/* ★A2（V3.8.28）：环比徽标去红绿 —— 涨跌本身不等于好坏（有效动作涨是好事，知识熵涨是更分散），
+   原「升绿 / 降红」把中性的变化量读成了评价。方向由数值自带的 +/− 号表达，
+   颜色只区分「有增 / 有减」两档明度（surface-3 与 surface-2），不做价值判断。 */
+.wk-badge.up, .m-badge.up { color: var(--text-2); background: var(--surface-3); border-color: transparent; }
+.wk-badge.down, .m-badge.down { color: var(--text-2); background: var(--surface-2); border-color: transparent; }
 .light-split { display: grid; grid-template-columns: 1.05fr 1fr; gap: 14px; align-items: start; }
 .lbox {
   background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg);
