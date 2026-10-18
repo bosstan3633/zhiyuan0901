@@ -334,7 +334,7 @@
                 <!-- 骨架（原型）：类型图标 + 标题（2 行钳制） -->
                 <div class="rc-head">
                   <span class="rc-type-icon"><Icon :name="linkIcon(r.linkType)" :size="13"/></span>
-                  <span class="rc-title"><NewBadge :at="r.createdAt" /><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源卡池"><Icon name="satellite" :size="13"/></span>{{ r.title }}</span>
+                  <span class="rc-title"><NewBadge :at="r.createdAt" /><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像自原资源卡 · 只读，编辑回源处生效"><Icon name="satellite" :size="13"/></span>{{ r.title }}</span>
                 </div>
                 <!-- 摘要：2 行钳制（R155-③）；断链卡替换为补全引导（原型 P7） -->
                 <div v-if="isBrokenPath(r)" class="rc-desc broken" title="仅存文件名，双击无法打开 —— 点击补全完整路径" @click.stop="fixLink(r)"><Icon name="warn" :size="13"/> 本地路径断链 · 点击补全</div>
@@ -424,7 +424,7 @@
                 <!-- R117（04-61 F1）：列表行用行内勾选框 .rr-check（原复用卡片 absolute 定位的 .rc-batch-check 会逃逸重叠） -->
                 <div v-if="batchMode" class="rr-check" :class="{on: selectedIds.has(r.id)}" @click.stop="toggleSelect(r.id)"><Icon v-if="selectedIds.has(r.id)" name="check" :size="12"/></div>
                 <span v-else class="rr-drag">⋮⋮</span>
-                <span class="rr-title"><NewBadge :at="r.createdAt" /><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源卡池"><Icon name="satellite" :size="13"/></span>{{ val(r, titleKey) }}</span>
+                <span class="rr-title"><NewBadge :at="r.createdAt" /><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像自原资源卡 · 只读，编辑回源处生效"><Icon name="satellite" :size="13"/></span>{{ val(r, titleKey) }}</span>
                 <AssetBadge v-if="hasField('assets') && r.assets?.length" :assets="r.assets" class="rr-assets" />
                 <!-- R87（R7-①）：列表视图同一枚徽标（三视图与卡片同源，见 R79 立的推平原则） -->
                 <span v-if="isBrokenPath(r)" class="rr-broken" title="仅存文件名，双击无法打开 —— 点击补全完整路径" @click.stop="fixLink(r)"><Icon name="warn" :size="13"/> 待补全</span>
@@ -562,7 +562,7 @@
                 <span v-for="r in cell.cards" :key="r.id" class="py-card-chip" :class="{ 'py-chip-mirror': isMirrorView(r) }" :draggable="!batchMode" :data-rid="r.id"
                   @dragstart="onDragStart($event, r)" @dragend="clearCardDropTarget"
                   @click.stop="onCardClick(r)" @dblclick.stop="onCardDblClick(r)" @contextmenu.prevent.stop="openResCtx($event, r)">
-                  <span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源卡池"><Icon name="satellite" :size="13"/></span>{{ r.title }}
+                  <span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像自原资源卡 · 只读，编辑回源处生效"><Icon name="satellite" :size="13"/></span>{{ r.title }}
                 </span>
                 <span v-if="!cell.cards.length" class="py-node-empty">拖入资源卡</span>
               </div>

@@ -633,15 +633,19 @@ function addTaskFromHeader() {
           <b class="pc-current">{{ currentProject.name }}</b>
         </div>
         <!-- R177（原型 pec-metrics-strip）：4 项事实指标随面包屑同排单行轻量文本（原大色块统计条降权降位） -->
+        <!-- ★P1（V3.8.34）：这一行是「对账读数」不是主角——数字与标签一律降到 caption 档、且不再染色
+             （原 .ok 绿 / .acc 强调色是"结论色"，会把视线从下方指标→任务明细拽回页头）。
+             四个数念出来就是一句账：关联任务 = 已推进完成 + 正在进行中。口径逐项进 tooltip，
+             想查能查、不查也不碍眼；明细列表（任务行，已有 --hairline 分隔）仍是整页焦点。 -->
         <div class="pb-stats">
-          <span class="pbs">成功指标 <b>{{ currentProject.metrics.length }}</b></span>
+          <span class="pbs" title="成功指标 = 本项目的可验证结果；任务挂在指标下才计入完成度">成功指标 <b>{{ currentProject.metrics.length }}</b></span>
           <span class="pb-sep">·</span>
-          <span class="pbs">关联任务 <b>{{ projectProgress(currentProject).total }}</b></span>
+          <span class="pbs" title="关联任务 = 本项目全部指标下的任务（去重后）">关联任务 <b>{{ projectProgress(currentProject).total }}</b></span>
           <span class="pb-sep">·</span>
-          <span class="pbs">已推进完成 <b class="ok">{{ projectProgress(currentProject).done }}</b></span>
+          <span class="pbs" title="已推进完成 = 状态为「已完成」的任务数">已推进完成 <b>{{ projectProgress(currentProject).done }}</b></span>
           <span class="pb-sep">·</span>
-          <span class="pbs">正在进行中 <b class="acc">{{ projectProgress(currentProject).total - projectProgress(currentProject).done }}</b></span>
-          <template v-if="currentProject.startDate || currentProject.endDate"><span class="pb-sep">·</span><span class="pbs pb-tail-inline"><Icon name="clock" :size="12"/> {{ currentProject.startDate || '—' }} › {{ currentProject.endDate || '—' }}</span></template>
+          <span class="pbs" title="正在进行中 = 关联任务 − 已完成（含尚未开始的）">正在进行中 <b>{{ projectProgress(currentProject).total - projectProgress(currentProject).done }}</b></span>
+          <template v-if="currentProject.startDate || currentProject.endDate"><span class="pb-sep">·</span><span class="pbs pb-tail-inline" title="项目起止日期"><Icon name="clock" :size="12"/> {{ currentProject.startDate || '—' }} › {{ currentProject.endDate || '—' }}</span></template>
         </div>
       </div>
       <!-- R52-F6：成功指标名输入行 -->
@@ -859,10 +863,14 @@ function addTaskFromHeader() {
 /* 展板 */
 .board-layout { display: block; } /* 内嵌态维持单列满宽（R121 口径） */
 /* R131-N2：独立态 = 左目录 + 分隔条 + 右展板三列；展板 flex:1 撑满（防 R130-T7 收缩类 BUG） */
+/* ★P2（V3.8.34）：双列节奏——左目录退为**支撑列**（窄、贴在 bg 上、右缘一条发丝线与主列分开），
+   右展板为主体（卡面自带 --surface，主从不靠"宽度差不多"这种巧合）。
+   列间距按 sp-5 记账：10(把手左) + 4(把手) + 10(把手右) = 24 = var(--sp-5)。
+   窄窗下单列，先让路的是目录列——本页在窄窗里只做一件事：看任务树（导航回方向台仍有完整树）。 */
 .board-layout.with-dir { display: flex; align-items: flex-start; }
 .board-layout.with-dir .board { flex: 1; min-width: 0; }
-.pd-dir { flex-shrink: 0; position: sticky; top: 64px; max-height: calc(100vh - 96px); overflow-y: auto; padding: 2px 4px 8px 0; }
-.pd-dir-title { font-size: var(--fs-sub); font-weight: 600; color: var(--text-3); padding: 6px 8px; letter-spacing: .3px; }
+.pd-dir { flex-shrink: 0; position: sticky; top: 64px; max-height: calc(100vh - 96px); overflow-y: auto; padding: 2px 0 8px; border-right: 1px solid var(--border); }
+.pd-dir-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); padding: 6px 8px; letter-spacing: var(--tracking-sm); }
 .pd-group { margin-bottom: 10px; }
 .pd-goal { display: flex; align-items: baseline; gap: 4px; font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); padding: 4px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pd-term { font-size: var(--fs-tiny); color: var(--text-3); font-weight: 400; flex-shrink: 0; }
@@ -874,8 +882,14 @@ function addTaskFromHeader() {
 .pd-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .pd-pct { font-size: var(--fs-caption); color: var(--text-3); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .pd-empty { font-size: var(--fs-sub); color: var(--text-3); padding: 6px 8px; }
-.pd-split { width: 4px; flex-shrink: 0; align-self: stretch; margin: 4px 0 4px 4px; cursor: col-resize; border-radius: 2px; transition: background var(--dur-fast); z-index: 5; }
+/* ★P2：把手的左右外边距就是列间距（10+4+10 = sp-5），不再另外叠 gap */
+.pd-split { width: 4px; flex-shrink: 0; align-self: stretch; margin: 4px 10px; cursor: col-resize; border-radius: 2px; transition: background var(--dur-fast); z-index: 5; }
 .pd-split:hover { background: var(--accent-light); }
+/* ★P2：窄窗单列——列宽吃不住内容时先收起目录列，任务树不被挤成两行 */
+@media (max-width: 1024px) {
+  .board-layout.with-dir { display: block; }
+  .pd-dir, .pd-split { display: none; }
+}
 /* R132-T4/T5：左栏两段式——全景折叠块头 + 目录锚点项；锚点滚动留出顶栏高度 */
 .pb-head-row, .metric-sec { scroll-margin-top: 72px; }
 .pd-pan-head { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
@@ -952,10 +966,9 @@ function addTaskFromHeader() {
 .pb-title .hero-pname:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
 .pb-pct { flex-shrink: 0; font-size: 18px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 /* R177（原型 pec-metrics-strip）：统计条降权为面包屑同排单行轻量文本 */
-.pb-stats { display: flex; align-items: center; gap: 10px; font-size: var(--fs-sub); color: var(--text-3); flex-wrap: wrap; }
-.pb-stats .pbs b { font-size: var(--fs-sub); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
-.pb-stats .pbs b.ok { color: var(--success); }
-.pb-stats .pbs b.acc { color: var(--accent); }
+/* ★P1（V3.8.34）：再降一档到 caption，且数字一律中性（--text-2）——对账读数只该被查到，不该被看见 */
+.pb-stats { display: flex; align-items: center; gap: 10px; font-size: var(--fs-caption); color: var(--text-3); flex-wrap: wrap; }
+.pb-stats .pbs b { font-size: var(--fs-caption); font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .pb-sep { color: var(--text-4); }
 .pb-tail-inline { color: var(--text-3); }
 /* R177（原型 pec-progress-box）：标题行进度轨（label + 5px 轨 + 数值） */

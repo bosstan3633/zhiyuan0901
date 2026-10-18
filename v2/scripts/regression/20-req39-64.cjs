@@ -634,7 +634,7 @@ check('R63-11 ★R4-Da 退役重指带备案：原守「全景两级：panCountB
   return retired.every(k => !g.includes(k))
     && g.includes('const isBoard = !isHubWs(ws)') && g.includes('boardCardsOf(d, ws.id)')
     && g.includes("{ label: '镜像标记', get: r => (isMirrorView(r) ? '是' : '') }")
-    && ws.includes('<span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像卡 · 源在资源卡池"><Icon name="satellite"')
+    && (ws.match(/class="rc-mirror-badge"/g) || []).length === 3 && (ws.match(/class="rc-mirror-badge" title="([^"]+)"/g) || []).every(x => x.includes('镜像自原资源卡'))
     && ws.includes('const allResources = computed<ResourceCard[]>(() => boardCardsOf(d.value, workspaceId.value))')
     && mir.includes('function locateMirrorSource(r: ResourceCard)') && mir.includes("router.push('/')");
 });

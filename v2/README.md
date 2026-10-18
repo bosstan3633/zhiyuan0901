@@ -14,7 +14,7 @@ updated: 2026-10-12 18:00:00
 
 **核心定位（April Dunford 视角）**：自造货架「信息洪流中的控制中心——AI 时代知识工作者的个人资源调度台」——不是书签插件、不是 PKM 笔记、不是新标签页美化。它不生产内容，而是横在所有 AI 工具、笔记、文件之上的**调度层**：经营你的认知周转率，让每一个被见过的信息都具备在正确时刻被召回的能力。
 
-  - **产品版本**：V3.8.33（B5-c · C2 收尾）——**筛选态提示并回页头**（`.hero-filter`：原画布内的整宽横幅删除，改 hero 动作行内 inline-flex 胶囊 + 999px，宽度由内容定；筛选名 / 命中数 / 清除出口三件全留）；**旧类整体退役**（模板 `filter-bar` 与样式 `.fb-t/.fb-n/.fb-clear` 一并清零，避免两处各画一份）；**判据**：`16-b5-compass.cjs` 追加 C2-4（在 hero 内、且在画布之前 + 旧类零残留）与 C2-5（胶囊形态、无块级下边距）；`03-w11-pyramid.cjs` 的 W11-3 ⑤ 与 W11-9 随迁重指（只钉出口与文案，不钉图标尺寸）。**同时拍板 ZIP 预算 700KB → 900KB**（`pack.cjs` 告警线与文件头理由链、`06-2 §G`、透视卡、计划文档同步）。上一版 V3.8.32（B5-b 调度台）详见 `docs/交付说明_B5b调度台_V3.8.32.md`。
+  - **产品版本**：V3.8.34（B6 · 项目详情与策展台）——**P1 对账读数弱化**（`.pb-stats` 降 caption、数字中性、逐项口径 tooltip）；**P2 双列节奏**（`.pd-dir` 加右缘发丝线、标题 caption+tracking、把手 margin 4px 10px 凑成 sp-5 列距，≤1024px 目录与把手退场）；**W1 金字塔主角**（`.pyramid` 加 surface 大板 + `--radius-xl`、`.py-board::before` 中轴发丝线、节点 `--radius-lg` / chip `--radius-sm`，全屏态收板）；**W5 论点层级**（`.tb-title` 与 `.py-root-title` → `--fs-headline`、`.thesis-banner` 与 `.py-root-card` inset 3px accent 竖条、`th-ai-btn` → caption）；**W2 镜像角标中性**（`.rc-mirror-badge` 取 `--text-3` 去滤镜、三视图 tooltip 统一含「编辑回源处生效」）；**W3 台头计数降 caption**。**判据**：新建 `18-b6-workspace.cjs` 13 条；重指 `R63-11`（角标改守三视图同源）与 `R127-6`（改守画布 100% / 网格限宽两不变量）。上一版 V3.8.33（B5-c · C2 收尾）详见 `docs/交付说明_B5c_C2收尾_V3.8.33.md`。
 - **技术栈**：Vue 3.5 + TypeScript(strict) + Vite 5 + Pinia + @crxjs（MV3）+ UnoCSS（仅引入）
 - **运行环境**：Chromium 内核浏览器（Chrome / Edge / Brave 等）
 - **数据存储**：100% 本地——主数据 `chrome.storage.local` 单根 JSON（unlimitedStorage，无 10MB 上限）+ **附件二进制 IndexedDB 库 `zy_assets`**（单文件 ≤20MB，主 JSON 绝不存 base64）；无云端、无账号
