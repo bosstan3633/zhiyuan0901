@@ -984,6 +984,11 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
           @open-project="openProjectDetail"
           @bind="onTodayBind" @fill="onTodayFill" />
 
+        <!-- ★A3（V3.8.35）段间发丝线：三处分隔线盒把四段在视觉上立成四段（间距由线盒承担，见 pi-timeline.css）。
+             写死三处而不是给 .pi-mod 加兄弟选择器伪元素：线要落在**卡外**的间距中央，
+             而 .pi-mod 有 `overflow: hidden`（裁圆角外的子元素），伪元素画不出卡外。 -->
+        <div class="pi-sep" aria-hidden="true"></div>
+
         <!-- ★V3.8.20 @open-review / ★W13-D5 目标对账按钮：复盘入口随 ReviewPanel 全量退役，Hero 不再有 review 出口 -->
         <PiRhythm
           :stats="dashStats" :directions="dashDirections"
@@ -993,11 +998,15 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
           @open-battle="openDayBattle" @drill="onRhythmDrill" @goal-drill="onGoalDrill"
           @insight-action="onConciseAction" />
 
+        <div class="pi-sep" aria-hidden="true"></div>
+
         <PiMonth
           :stats="dashStats" :insight="concise.month" :ent="mEntTrend"
           :topics="mTopics" :untagged="mUntagged" :funnel="mFunnel"
           :curio-conv="mCurioConv" :projected="mProjected"
           @drill="onMonthDrill" @topic="onMonthTopic" @insight-action="onConciseAction" />
+
+        <div class="pi-sep" aria-hidden="true"></div>
 
         <PiYear
           :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"

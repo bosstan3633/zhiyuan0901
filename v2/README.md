@@ -14,7 +14,7 @@ updated: 2026-10-12 18:00:00
 
 **核心定位（April Dunford 视角）**：自造货架「信息洪流中的控制中心——AI 时代知识工作者的个人资源调度台」——不是书签插件、不是 PKM 笔记、不是新标签页美化。它不生产内容，而是横在所有 AI 工具、笔记、文件之上的**调度层**：经营你的认知周转率，让每一个被见过的信息都具备在正确时刻被召回的能力。
 
-  - **产品版本**：V3.8.34（B6 · 项目详情与策展台）——**P1 对账读数弱化**（`.pb-stats` 降 caption、数字中性、逐项口径 tooltip）；**P2 双列节奏**（`.pd-dir` 加右缘发丝线、标题 caption+tracking、把手 margin 4px 10px 凑成 sp-5 列距，≤1024px 目录与把手退场）；**W1 金字塔主角**（`.pyramid` 加 surface 大板 + `--radius-xl`、`.py-board::before` 中轴发丝线、节点 `--radius-lg` / chip `--radius-sm`，全屏态收板）；**W5 论点层级**（`.tb-title` 与 `.py-root-title` → `--fs-headline`、`.thesis-banner` 与 `.py-root-card` inset 3px accent 竖条、`th-ai-btn` → caption）；**W2 镜像角标中性**（`.rc-mirror-badge` 取 `--text-3` 去滤镜、三视图 tooltip 统一含「编辑回源处生效」）；**W3 台头计数降 caption**。**判据**：新建 `18-b6-workspace.cjs` 13 条；重指 `R63-11`（角标改守三视图同源）与 `R127-6`（改守画布 100% / 网格限宽两不变量）。上一版 V3.8.33（B5-c · C2 收尾）详见 `docs/交付说明_B5c_C2收尾_V3.8.33.md`。
+  - **产品版本**：V3.8.35（B7-a · 画像洞察）——**A1 Hero 主次归位**（`.hero-compass-bar` 药丸盒退役改 `inset 3px 0 0 var(--accent)` 左竖条、使命文本 `em` 抬 `--fs-body`+600、`hcb-mission b` 补 600 + 字距走 `--tracking-sm`、KPI 数字 700→600 **只降字重不降对比度**、宽度权重 1:3 → 1:2）；**A3 四段时间轴节奏统一**（段间 72px → `.pi-sep` 线盒 `var(--sp-6)`、`.pi-rmods` gap 归零由线盒承担间距、`PiYear` 段头补 `.pi-mod-acts` + `.m-badge`「本年活跃 N 天」、`.pi-hmbox` 圆角 md→lg 与 `.lbox` 齐平）。**判据**：新建 `19-b7-profile.cjs` 12 条（A1×5 / A3×7）。上一版 V3.8.34（B6 · 项目详情与策展台）详见 `docs/交付说明_B6_项目详情与策展台_V3.8.34.md`。
 - **技术栈**：Vue 3.5 + TypeScript(strict) + Vite 5 + Pinia + @crxjs（MV3）+ UnoCSS（仅引入）
 - **运行环境**：Chromium 内核浏览器（Chrome / Edge / Brave 等）
 - **数据存储**：100% 本地——主数据 `chrome.storage.local` 单根 JSON（unlimitedStorage，无 10MB 上限）+ **附件二进制 IndexedDB 库 `zy_assets`**（单文件 ≤20MB，主 JSON 绝不存 base64）；无云端、无账号

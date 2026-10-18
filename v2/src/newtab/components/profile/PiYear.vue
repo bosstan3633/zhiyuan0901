@@ -70,6 +70,20 @@ const highCooling = computed(() => props.lcCards.filter(c => lifecycleState(c) =
         <h2>这一年，你走过什么<span class="en">YEAR</span></h2>
         <p>全年尺度：诊断看方向、热力看分布、生命周期看流转。点任意一天 › 该日战报。</p>
       </div>
+      <!-- ★A3（V3.8.35）：本段原先是四段里唯一段头右缘空着的（今日=按钮 / 本周=徽标+按钮 / 本月=徽标）。
+           补一枚同模具的 m-badge —— 只报「本年活跃天数」，是 strip4 四格之外的时间刻度，不与格内读数重复。
+
+           ★★坑（V3.8.35 实测踩到，代价很大）：本段注释第一版里写了带反引号的类名，而下面节点自身的 title
+           又含模板字符串反引号。Vue 的 template 解析按 HTML 注释规则走，注释一旦被判成未正常闭合，
+           后面整段模板（含本枚徽标与整个段体）都被降级成注释文本丢弃。症状极具欺骗性——源码在位、
+           vue-tsc 绿、build 绿、regression 也全绿（判据读的是源码不是产物），只有实拍 DOM 才看得出段头右缘仍然是空的。
+           纪律：模板区注释里一律不写反引号，更不要把 title 的模板字符串搬进注释。 -->
+      <div class="pi-mod-acts">
+        <span class="m-badge" :class="ya.act > 0 ? 'up' : ''"
+          :title="`${year} 年内有动作的天数 = ${ya.act} 天（与热力图同口径，点格看某天明细）`">
+          本年活跃 {{ ya.act }} 天
+        </span>
+      </div>
     </div>
     <div class="pi-mod-b">
       <!-- ① F20 年度诊断条 -->

@@ -44,13 +44,30 @@
 .pi-rnode.on .pi-rdot { transform: scale(1.28); box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 16%, transparent); }
 .pi-rlab { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .05em; color: var(--text-4); text-align: center; line-height: 1.5; }
 .pi-rnode.on .pi-rlab { color: var(--accent-ink); }
-.pi-rmods { display: flex; flex-direction: column; gap: 72px; min-width: 0; }
+/* ★A3（V3.8.35）段间节奏：72px → `var(--sp-6)`(32px)。
+   72px 是「三段时代」留下的间距：段数从 3 涨到 4 之后，每段的滚动长度都变了，
+   72px 的空档在长段之间读成断裂（像四张不相干的卡），32px 才是「一段结束、下一段开始」的呼吸。
+   四段共用同一档（不是每段各自一个值），横向扫下来节奏才一致 —— 段间节奏不统一正是 A3 要治的病。
+   ★轨的节点间距（`.pi-rnode` 的 padding-bottom 76px）不动：它是导航轨自己的固定步进，
+   与内容段间距是两套坐标系（N6 已把两者解耦）。 */
+.pi-rmods { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+
+/* ★A3（V3.8.35）段间发丝线：把「段」在视觉上真正立成四段，而不是四张散落的卡。
+   做法：线盒占满整段间距（高 `var(--sp-6)`），线在盒内垂直居中 —— 于是段间读起来是
+   「卡 16px · 线 · 16px 卡」，线既标出了分节，又不额外吃掉节奏。
+   为此 `.pi-rmods` 的 gap 归零（间距改由本盒承担），避免「gap + 线盒」两处各算一次间距。
+   负锚：线宽恒 1px 且用 `var(--border)`（不写死色值，四主题自动跟随）。 */
+.pi-sep { height: var(--sp-6); display: flex; align-items: center; }
+.pi-sep::before { content: ''; flex: 1; height: 1px; background: var(--border); }
 
 /* ===== 模块卡壳 ===== */
 .pi-mod {
+  position: relative;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   overflow: hidden; scroll-margin-top: 72px;
 }
+/* ★A3：段头右缘操作统一挂 `.pi-mod-acts`（四段同模具：今日=按钮 / 本周=徽标+按钮 / 本月=徽标 / 本年=徽标）。
+   段头本身已是 `--fs-headline`(17px)，四段共用同一条规则，无需逐段写死字号。 */
 .pi-mod-h { display: flex; align-items: center; gap: 14px; padding: 22px 26px 0; flex-wrap: wrap; }
 .pi-mod-ico { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; flex: none; font-size: 20px; }
 .pi-mod-ico.i-now { background: var(--accent-light); }
@@ -171,21 +188,32 @@
   color: var(--text);
 }
 .pi-hero-t .en { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .14em; color: var(--text-4); margin-left: 10px; }
-/* ② 方向坐标带（F2）：mission 单行省略（title 悬停全文），主攻胶囊 ≤2 —— ★W14-T2 起与 ③ 读数行并作一行 */
+/* ② 方向坐标带（F2）：mission 单行省略（title 悬停全文），主攻胶囊 ≤2 —— ★W14-T2 起与 ③ 读数行并作一行
+   ★A1（V3.8.35）主次归位：**这条是 Hero 的主角，③ 读数带才是副带**。
+   改前的病灶是主次正好反过来 —— 主角被裹进一个 `surface-2 + border` 的药丸盒里、只分到 1 份宽，
+   副带（KPI）却裸着占 3 份宽、数字还是 13px/700，比使命文本（12px/400）更重。
+   于是首眼落在"四个数字"上，读到的不是"画像"而是"仪表盘"。
+   修法三件（都在这一条里闭环）：
+     ① 药丸盒退役 —— 去掉底色与边框，改**左缘 accent 竖条**（inset 内画，与 B6 的 W5 论点根同一手法），
+        主角行不需要再套一层容器才像主角；
+     ② 使命文本抬档 —— `em` 由继承 `--fs-sub`(12px) 提到 `--fs-body`(13px) 并加 600，与 KPI 数字同档但更宽更重；
+     ③ 「使命主线」标签降到 caption 档（它是路标的前缀，不是内容）。
+   负锚：竖条用 inset 内画，不许改 `border-left`（这条本身没有 border，加外边会与 Hero 卡面边框双线）。 */
 .hero-compass-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  padding: 5px 10px 5px 12px;
+  box-shadow: inset 3px 0 0 var(--accent);
 }
-.hcb-mission { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: var(--fs-sub); color: var(--text-2); }
+.hcb-mission { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: var(--fs-body); color: var(--text-2); }
 .hcb-ico { font-style: normal; flex: none; }
-.hcb-mission b { font-size: var(--fs-caption); color: var(--text-4); letter-spacing: .06em; flex: none; }
+.hcb-mission b { font-size: var(--fs-caption); font-weight: 600; color: var(--text-4); letter-spacing: var(--tracking-sm); flex: none; }
 .hcb-mission em {
-  font-style: normal; color: var(--text); min-width: 0;
+  font-style: normal; color: var(--text); font-weight: 600; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56vw;
 }
 .hcb-empty {
-  background: none; border: 0; padding: 0; font: inherit; font-size: var(--fs-sub);
+  background: none; border: 0; padding: 0; font: inherit; font-size: var(--fs-body); font-weight: 600;
   color: var(--accent-ink); cursor: pointer;
 }
 .hcb-empty:hover { text-decoration: underline; }
@@ -215,7 +243,7 @@
 }
 .hero-kpi:last-child { border-right: none; }
 .hero-kpi:hover { background: var(--surface-2); }
-.hero-kpi .v { font-size: var(--fs-body); font-weight: 700; color: var(--text); line-height: 1.45; white-space: nowrap; }
+.hero-kpi .v { font-size: var(--fs-body); font-weight: 600; color: var(--text); line-height: 1.45; white-space: nowrap; }
 .hero-kpi .v small { font-size: var(--fs-micro); font-weight: 600; color: var(--text-4); margin-left: 2px; }
 .hero-kpi .l { font-size: var(--fs-micro); font-weight: 400; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* ★W16-T1：原 `.hero-kpi .d` 说明行随方案A 整段退役 —— 说明文字已改为各格 title 悬浮，
@@ -226,10 +254,13 @@
   font-size: 9px; color: var(--text-4); opacity: 0; transition: opacity var(--dur-fast);
 }
 .hero-kpi:hover::after { opacity: 1; }
-/* ★W16-T1 数据行：使命带 + 四格读数（读数区不再有卡面，两段之间的层级靠竖线与底色差） */
+/* ★W16-T1 数据行：使命带 + 四格读数（读数区不再有卡面，两段之间的层级靠竖线与底色差）
+   ★A1（V3.8.35）权重反转：主角拿大头、副带让位 —— 原比例是 1:3（`flex: 1 1 240px` vs `3 1 460px`），
+   正好把三分之二宽度给了读数；现改为 1:2 并抬高主角的 flex 基准，使全宽下使命文本可读的宽度增加约 25%。
+   窄屏回落见下方 @media 900px（折行后各段 100% 宽，比例不再生效）。 */
 .hero-data-row { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
-.hero-data-row .hero-compass-bar { flex: 1 1 240px; min-width: 0; }
-.hero-data-row .hero-kpis-grid { flex: 3 1 460px; }
+.hero-data-row .hero-compass-bar { flex: 1 1 300px; min-width: 0; }
+.hero-data-row .hero-kpis-grid { flex: 2 1 420px; }
 .pi-hero-acts { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 
 /* ===== W13-D2 · 统一「一句人话洞察条」（四模块共用：今天/本周/本月/本年）=====
@@ -402,7 +433,9 @@
 }
 
 /* ===== 年度热力盒子 ===== */
-.pi-hmbox { background: var(--surface-2); border-radius: var(--radius-md); padding: 16px 18px; }
+/* ★A3（V3.8.35）段内卡片圆角统一 lg：热力盒与四段里的其它段内卡（`.lbox`）原是 md，
+   同为「段内一级容器」却两档圆角 —— 横向扫下来节奏在全年段断了一下。 */
+.pi-hmbox { background: var(--surface-2); border-radius: var(--radius-lg); padding: 16px 18px; }
 .pi-hm-legend {
   display: flex; align-items: center; gap: 5px; font-size: var(--fs-micro); color: var(--text-4);
   margin-top: 12px; flex-wrap: wrap;
