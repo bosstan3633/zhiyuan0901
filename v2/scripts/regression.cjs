@@ -28,6 +28,7 @@ const SHARDS = [
   '20-b7-a2',
   '21-b7b-empty',
   '22-b7c-s5',
+  '23-b7d-d1',
   '10-foundations',
   '20-req39-64',
   '30-v2.35-v2.46',

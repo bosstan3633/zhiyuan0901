@@ -12,6 +12,7 @@ import { useConfirm } from '@/shared/components/confirm'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import { purgeCardsCompletely, type PurgeTargets } from '@/shared/storage/purge'
+import { detachTaskFromMetrics } from '@/shared/utils/taskLinks'
 import type { ResourceCard, TaskCard, CuriosityCard, ArgumentCard, ID } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 // R137-H2：AI 捞回清单（懒路由，可直接静态引 AI 栈；采纳=恢复 deletedAt 置空，与手工恢复同字段）
@@ -37,23 +38,119 @@ const store = useAppStore()
 const d = computed(() => store.data!)
 
 const tab = ref<'res' | 'task' | 'curio' | 'cat' | 'arg'>('res')
+
+// ================= D1（V3.8.39）：恢复即生效 + 可撤销 =================
+/**
+ * ★撤销必须「整笔快照-回滚」，不能只把 deletedAt 塞回去。恢复动作一共改了 6 处：
+ *   deletedAt / updatedAt / workspaceId / categoryId（rehomeIfOrphan 可能换台）/
+ *   metric.taskIds（任务卡被回填引用）/ convertedAt+convertedTo（好奇卡清转化戳）。
+ * 少回滚任何一处，都会留下一张「半恢复」的卡：例如只回滚 deletedAt 而没摘 taskIds，
+ * 指标里就挂着一个已软删任务的 id——正是 `sanitizeMetricTaskIds` 启动期要消毒的那类脏数据，
+ * 却在撤销这条最该「回到旧样」的路径上重新造了一遍。
+ *
+ * 快照按引用字段逐个存值（不是深拷贝整张卡）：撤销窗口 6s，卡在这期间只可能被本视图自己改动。
+ */
+interface RestoreSnap {
+  id: ID
+  /** 展示名，回执与撤销二次回执共用 */
+  name: string
+  deletedAt: number | undefined
+  updatedAt: number | undefined
+  /** 仅资源卡：rehomeIfOrphan 可能改过归属，撤销要把原值还回去 */
+  workspaceId?: string
+  categoryId?: string
+  /** 仅好奇卡：恢复时清了转化戳，撤销要复原 */
+  convertedAt?: number
+  convertedTo?: 'task' | 'res'
+}
+
+/**
+ * 可快照对象：五类对象里只有卡类有 updatedAt，分类（Category）没有——
+ * 所以这里按「至少有 id 与可选 deletedAt」的最宽结构声明，具体字段走 `as` 取。
+ * 与其写四份重载，不如承认它们的公共面就这么窄。
+ */
+type RestoreSnapSource = { id: ID; deletedAt?: number }
+
+/** 取一组快照。必须在**改动之前**调用——它只读，不产生副作用。 */
+function snapOf(x: RestoreSnapSource): RestoreSnap {
+  const any = x as unknown as Record<string, unknown>
+  return {
+    id: x.id,
+    name: '',
+    deletedAt: x.deletedAt,
+    updatedAt: any.updatedAt as number | undefined,
+    workspaceId: any.workspaceId as ID | undefined,
+    categoryId: any.categoryId as string | undefined,
+    convertedAt: any.convertedAt as number | undefined,
+    convertedTo: any.convertedTo as 'task' | 'res' | undefined
+  }
+}
+
+/** 撤销：把快照整笔还回去。找不到卡（如已被永久删除）时如实说，不假装成功。 */
+function rollback(s: RestoreSnap): boolean {
+  // REQ-030 口径：persist 后整树会替换引用，闭包里的旧对象已失效 ⇒ 一律按 id 回当前树找
+  const cur =
+    d.value.resources.find(x => x.id === s.id) ||
+    d.value.tasks.find(x => x.id === s.id) ||
+    d.value.curiosities.find(x => x.id === s.id) ||
+    (d.value.argCards || []).find(x => x.id === s.id) ||
+    d.value.categories.find(x => x.id === s.id)
+  if (!cur) return false
+  const any = cur as unknown as Record<string, unknown>
+  cur.deletedAt = s.deletedAt
+  // 分类没有 updatedAt（见 RestoreSnapSource 注释）⇒ 字段缺失时跳过，不给它凭空造一个
+  if (s.updatedAt !== undefined && any.updatedAt !== undefined) any.updatedAt = s.updatedAt
+  // 资源卡：归属只在「恢复时确实动过」的情况下回填，避免给从未动过的卡乱写 undefined
+  if (any.workspaceId !== undefined && s.workspaceId !== undefined) any.workspaceId = s.workspaceId
+  if (any.categoryId !== undefined) any.categoryId = s.categoryId
+  if (any.convertedAt !== undefined || any.convertedTo !== undefined) {
+    any.convertedAt = s.convertedAt
+    any.convertedTo = s.convertedTo
+  }
+  // 任务卡：摘掉恢复时回填的指标引用，否则指标上留一个指向已软删卡的死 id
+  detachTaskFromMetrics(d.value, s.id)
+  store.persist()
+  return true
+}
+
+/** 统一的「恢复完成 + 可撤销」回执。★文案按真实归属说话，不一律写「已恢复到原位置」。 */
+function restored(s: RestoreSnap, note: string) {
+  s.name = s.name || ''
+  showToast(`${s.name ? `已恢复「${s.name}」` : '已恢复'}${note}`, { label: '撤销', cb: () => {
+    // ★先摘淡出缓冲再回滚：否则用户点撤销时那一行还在 150ms 缓冲里，
+    // 看到的是「撤销了却什么都没回来」
+    unmarkLeaving(s.id)
+    if (rollback(s)) show(`↩ 已撤销恢复「${s.name || '该项'}」· 回到回收站`)
+    else show('⚠ 该项已不在回收站，无法撤销恢复')
+  } })
+}
+
 /** R109（F12-b）：软删分类（删除分类/删除策展台/合并重复 均走 deletedAt）——恢复 = 清 deletedAt */
 const cats = computed(() =>
   d.value.categories.filter(c => c.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
 function restoreCat(c: { id: ID; deletedAt?: number }) {
+  const s = snapOf(c)
+  // ★注解只写了 id/deletedAt，但运行时传入的就是 Category 本体（见模板 v-for="c in catRows"），
+  // 名字与排序锚从实际对象上取。判据 R109-5 锚的就是这串签名，不必为它扩字段。
+  const real = c as { id: ID; name?: string; deletedAt?: number }
+  s.name = real.name || ''
+  markLeaving(c.id, c, c.deletedAt)
   c.deletedAt = undefined
   store.persist()
-  show('↩ 分类已恢复（其下卡片仍在待分类/回收站，可手动归位）')
+  restored(s, '（其下卡片仍在待分类/回收站，可手动归位）')
 }
 
 /** R2-⑤：论证节点卡（第 4 种卡）进回收站族——R1.5 的「硬删不可恢复」旁路到此为止 */
 const args = computed(() =>
   (d.value.argCards || []).filter(a => a.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
 function restoreArg(a: ArgumentCard) {
+  const s = snapOf(a)
+  s.name = a.title.slice(0, 20)
+  markLeaving(a.id, a, a.deletedAt)
   a.deletedAt = undefined
   a.updatedAt = Date.now()
   store.persist()
-  show(`已恢复「${a.title.slice(0, 20)}」${d.value.workspaces.some(w => w.id === a.workspaceId) ? '' : '（原策展台已删除，回台面需先恢复该台）'}`)
+  restored(s, d.value.workspaces.some(w => w.id === a.workspaceId) ? '' : '（原策展台已删除，回台面需先恢复该台）')
 }
 
 const res = computed(() =>
@@ -85,7 +182,78 @@ function fmt(t?: number): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}`
 }
-function show(msg: string) { showToast(msg) }
+/** D1：show 升级为带可选撤销动作的包装——批量恢复与单条恢复走同一条回执通道 */
+function show(msg: string, act?: { label: string; cb: () => void }) { showToast(msg, act) }
+
+// ========== D1 · 恢复行 150ms 淡出 ==========
+/**
+ * ★为什么不能只靠 CSS 动画类：卡片一恢复，`res`/`tasks` 这类 computed 当场就不含它了，
+ * v-for 直接把 DOM 节点摘掉——纯 CSS 的 fade-out 类根本没机会播。所以必须**本地多留一会儿**：
+ * 把刚恢复的行塞进 `leaving`，渲染时把它并进列表末尾（带 leaving 样式），150ms 后真移除。
+ *
+ * ★为什么不用 <TransitionGroup>：它要求整块列表是一个稳定的 keyed 容器，而这里五个分区是
+ * `v-if / v-else-if` 整块替换。切 tab 时旧块被直接销毁，过渡钩子根本不跑（这本身是对的），
+ * 但恢复时"行离场"发生在块内、与 TransitionGroup 的 diff 时序叠在一起，很难证它每次都触发。
+ * 自己控一份 leaving 缓冲，行为可读、可判据、也更好实拍。
+ */
+const LEAVE_MS = 150
+/**
+ * id → { obj 该行的原始对象（恢复后已不在软删集合里，渲染要靠它）· at 它恢复前的 deletedAt
+ *       用于把缓冲行放回**原来的排序位** · timer 到期摘除 }
+ */
+const leaving = ref<Record<string, { obj: unknown; at: number; timer: number }>>({})
+
+/** 把一行挂进淡出缓冲，150ms 后真移除。id 相同则以最后一次为准（连点恢复不会留下两份）。 */
+function markLeaving(id: ID, obj: unknown, at?: number) {
+  const prev = leaving.value[id]
+  if (prev) clearTimeout(prev.timer)
+  leaving.value = {
+    ...leaving.value,
+    [id]: { obj, at: at ?? (obj as { deletedAt?: number })?.deletedAt ?? 0, timer: window.setTimeout(() => {
+      const next = { ...leaving.value }
+      delete next[id]
+      leaving.value = next
+    }, LEAVE_MS) }
+  }
+}
+
+/** 撤销恢复时：卡要立刻回来，别让它在淡出缓冲里再待 150ms（用户看到的是"撤销了却没反应"）。 */
+function unmarkLeaving(id: ID) {
+  const prev = leaving.value[id]
+  if (!prev) return
+  clearTimeout(prev.timer)
+  const next = { ...leaving.value }
+  delete next[id]
+  leaving.value = next
+}
+
+/** 某 id 是否正在淡出（渲染层据此挂样式与禁按钮） */
+function isLeaving(id: ID) { return leaving.value[id] !== undefined }
+
+/**
+ * 「真实列表 + 淡出缓冲」合流视图。
+ * ★两条约束缺一不可：
+ *   ① 只并入**不在 live 里**的行——否则同一张卡渲染两次；
+ *   ② 缓冲行按原 deletedAt 插回原位——直接 append 会让恢复中间行时它先跳到末尾再淡出，
+ *      看起来像「卡片乱滚了一下」，与「恢复有即时感知」的原意相反。
+ */
+function withLeaving<T extends { id: ID; deletedAt?: number }>(live: T[]): T[] {
+  const extra: { obj: T; at: number }[] = []
+  for (const k of Object.keys(leaving.value)) {
+    const e = leaving.value[k]!
+    const x = e.obj as T
+    if (x && !live.some(y => y.id === x.id)) extra.push({ obj: x, at: e.at })
+  }
+  if (!extra.length) return live
+  // 与 live 同规则倒序（软删列表一律按 deletedAt desc），缓冲行插到第一个"比我新"的活行之前
+  const merged = [...live]
+  for (const e of extra) {
+    let i = 0
+    while (i < merged.length && (merged[i]!.deletedAt || 0) > e.at) i++
+    merged.splice(i, 0, e.obj)
+  }
+  return merged
+}
 
 // ---- 恢复 ----
 /** R58-B1：恢复时原策展台/分类可能已随「删除策展台」消失——回落到第一个可用策展台的未分类，保证卡片可见可用 */
@@ -101,13 +269,19 @@ function rehomeIfOrphan(r: ResourceCard): string {
   return note
 }
 function restoreRes(r: ResourceCard) {
+  const s = snapOf(r)
+  s.name = r.title.slice(0, 20)
+  markLeaving(r.id, r, r.deletedAt)
   r.deletedAt = undefined
   const note = rehomeIfOrphan(r)
   r.updatedAt = Date.now()
   store.persist()
-  show(`已恢复「${r.title.slice(0, 20)}」${note}`)
+  restored(s, note)
 }
 function restoreTask(t: TaskCard) {
+  const s = snapOf(t)
+  s.name = t.title.slice(0, 20)
+  markLeaving(t.id, t, t.deletedAt)
   t.deletedAt = undefined
   t.updatedAt = Date.now()
   // 原指标仍存在则回填 taskIds（与删除撤销口径一致）
@@ -121,16 +295,19 @@ function restoreTask(t: TaskCard) {
     }
   }
   store.persist()
-  show(`已恢复「${t.title.slice(0, 20)}」`)
+  restored(s, '')
 }
 function restoreCurio(c: CuriosityCard) {
+  const s = snapOf(c)
+  s.name = c.question.slice(0, 20)
+  markLeaving(c.id, c, c.deletedAt)
   c.deletedAt = undefined
   /** R167：恢复即撤销这次转化——清掉转化戳，否则池里多一条卡、头部「已转化」却还记着它（两头都对不上） */
   c.convertedAt = undefined
   c.convertedTo = undefined
   c.updatedAt = Date.now()
   store.persist()
-  show(`已恢复「${c.question.slice(0, 20)}」`)
+  restored(s, '')
 }
 
 // ---- 永久删除（R146：全应用唯一真正不可逆的动作，必须逐次确认 + 回执点名）----
@@ -163,7 +340,10 @@ function restoreAll() {
   const list = cur === 'res' ? res.value : cur === 'task' ? tasks.value : cur === 'cat' ? cats.value : cur === 'arg' ? args.value : curios.value
   if (!list.length) { show('该分区没有可恢复的条目'); return }
   const now = Date.now()
-  for (const x of list as { deletedAt?: number; updatedAt?: number; convertedAt?: number; convertedTo?: 'task' | 'res' }[]) {
+  // ★D1：先给每条拍快照（只读），改动才动手——顺序反了就只能回滚出「改动后的值」
+  const snaps = (list as (ResourceCard | TaskCard | CuriosityCard | ArgumentCard)[]).map(x => snapOf(x))
+  for (const x of list as { id: ID; deletedAt?: number; updatedAt?: number; convertedAt?: number; convertedTo?: 'task' | 'res' }[]) {
+    markLeaving(x.id, x, x.deletedAt)
     x.deletedAt = undefined
     if (x.updatedAt !== undefined) x.updatedAt = now
     /** R167：批量恢复同样撤销转化戳（只对好奇卡存在这两个字段，其余恒为 undefined，无副作用） */
@@ -171,7 +351,12 @@ function restoreAll() {
     x.convertedTo = undefined
   }
   store.persist()
-  show(`已恢复 ${list.length} 项（${tabLabelOf(cur)}）· 归属需手动归位的见各条说明`)
+  show(`已恢复 ${list.length} 项（${tabLabelOf(cur)}）· 归属需手动归位的见各条说明`, { label: '撤销', cb: () => {
+    // 逐条回滚并如实报数：可能有人在 6 秒窗口内已把其中几项永久删除
+    let n = 0
+    for (const s of snaps) { unmarkLeaving(s.id); if (rollback(s)) n++ }
+    show(n ? `↩ 已撤销恢复 ${n} 项（${tabLabelOf(cur)}）· 回到回收站` : '⚠ 这些项已不在回收站，无法撤销恢复')
+  } })
 }
 function tabLabelOf(k: typeof tab.value) { return k === 'res' ? '资源卡' : k === 'task' ? '任务卡' : k === 'cat' ? '分类' : k === 'arg' ? '论证卡' : '好奇心卡' }
 async function purgeAll() {
@@ -195,6 +380,12 @@ const tabMeta = computed(() => [
   { k: 'curio' as const, label: '好奇心卡', list: curios.value, n: curios.value.length },
   { k: 'arg' as const, label: '论证卡', list: args.value, n: args.value.length }
 ])
+/** D1：五个分区的渲染视图 = 真实软删集合 + 淡出缓冲（缓冲行只剩 150ms，期间带 .leaving） */
+const resRows = computed(() => withLeaving(res.value))
+const taskRows = computed(() => withLeaving(tasks.value))
+const curioRows = computed(() => withLeaving(curios.value))
+const catRows = computed(() => withLeaving(cats.value))
+const argRows = computed(() => withLeaving(args.value))
 </script>
 
 <template>
@@ -219,7 +410,7 @@ const tabMeta = computed(() => [
 
     <!-- 资源卡 -->
     <div v-if="tab === 'res'" class="rb-list">
-      <div v-for="r in res" :key="r.id" class="rb-item">
+      <div v-for="r in resRows" :key="r.id" class="rb-item" :class="{ leaving: isLeaving(r.id) }">
         <div class="rb-item-main">
           <div class="rb-item-title">{{ r.title }}</div>
           <div class="rb-item-meta"><Icon name="folderopen" :size="13"/> {{ wsNameOf(r.workspaceId) }} · {{ catNameOf(r.categoryId || "") }} · <Icon name="clock" :size="13"/> 删除于 {{ fmt(r.deletedAt) }}</div>
@@ -252,7 +443,7 @@ title="这台删除过的资源卡会停在这里"
 
     <!-- 任务卡 -->
     <div v-else-if="tab === 'task'" class="rb-list">
-      <div v-for="t in tasks" :key="t.id" class="rb-item">
+      <div v-for="t in taskRows" :key="t.id" class="rb-item" :class="{ leaving: isLeaving(t.id) }">
         <div class="rb-item-main">
           <div class="rb-item-title">{{ t.title }}</div>
           <div class="rb-item-meta"><Icon name="target" :size="13"/> {{ metricNameOf(t.metricId) }} · <Icon :name="t.status === 'done' ? 'check' : t.status === 'doing' ? 'half' : 'circle'" :size="11"/>{{ t.status === 'done' ? '已完成' : t.status === 'doing' ? '进行中' : '待开始' }} · <Icon name="clock" :size="13"/> 删除于 {{ fmt(t.deletedAt) }}</div>
@@ -270,7 +461,7 @@ title="这台删除过的任务卡会停在这里"
 
     <!-- 好奇心卡 -->
     <div v-else-if="tab === 'curio'" class="rb-list">
-      <div v-for="c in curios" :key="c.id" class="rb-item">
+      <div v-for="c in curioRows" :key="c.id" class="rb-item" :class="{ leaving: isLeaving(c.id) }">
         <div class="rb-item-main">
           <div class="rb-item-title">{{ c.question }}</div>
           <div class="rb-item-meta">
@@ -291,7 +482,7 @@ title="这台删除过的好奇心卡会停在这里"
 
     <!-- R109（F12-b）：分类分区（删除分类/删除策展台/合并重复 均走软删；恢复=清 deletedAt） -->
     <div v-else-if="tab === 'cat'" class="rb-list">
-      <div v-for="c in cats" :key="c.id" class="rb-item">
+      <div v-for="c in catRows" :key="c.id" class="rb-item" :class="{ leaving: isLeaving(c.id) }">
         <div class="rb-item-main">
           <div class="rb-item-title"><Icon name="folder" :size="13"/> {{ c.name }}</div>
           <div class="rb-item-meta"><Icon name="folder" :size="13"/> {{ wsNameOf(c.workspaceId) }} · <Icon name="clock" :size="13"/> 删除于 {{ fmt(c.deletedAt) }}<span class="rb-note"> · 恢复后其下卡片不会自动归位（仍在待分类/回收站）</span></div>
@@ -309,7 +500,7 @@ title="这台删除过的分类会停在这里"
 
     <!-- R2-⑤：论证卡分区（台内原生第 4 种卡，软删后与三卡同一条恢复/永久删除通道） -->
     <div v-else-if="tab === 'arg'" class="rb-list">
-      <div v-for="a in args" :key="a.id" class="rb-item">
+      <div v-for="a in argRows" :key="a.id" class="rb-item" :class="{ leaving: isLeaving(a.id) }">
         <div class="rb-item-main">
           <div class="rb-item-title"><Icon name="compass" :size="13"/> {{ a.title }}</div>
           <div class="rb-item-meta"><Icon name="folder" :size="13"/> {{ wsNameOf(a.workspaceId) }} · <Icon name="clock" :size="13"/> 删除于 {{ fmt(a.deletedAt) }}<span class="rb-note"> · 论证卡随策展台存续，台若已删需先恢复台</span></div>
@@ -359,5 +550,10 @@ title="这台删除过的论证卡会停在这里"
 /* R167：转化出场的卡要读得出"它不是被删掉的，是转出去的"——恢复=撤销这次转化 */
 .rb-conv { color: var(--accent); font-weight: 600; }
 .rb-item-ops { display: flex; gap: 6px; flex-shrink: 0; }
+/* D1（V3.8.39）：恢复行本地淡出 150ms。
+   ★与 R153-4「降噪只动字号与间距」不冲突：那条管的是**静态**可读性（不许把正文调成灰到看不清），
+   这里是一次性的离场动效——用户已经看到回执、卡片正在离场，透明回落正是「走了」的信号。
+   150ms 与 toast 无关，是纯视觉时长：短到不像等待，长到能被眼睛捕捉（≈ 6 帧）。 */
+.rb-item.leaving { opacity: 0; pointer-events: none; transition: opacity var(--d1-leave, 150ms) linear; }
 /* G3（V3.8.27）：.rb-empty 的视觉已由 EmptyState 接管，class 只留作语义锚点 */
 </style>
