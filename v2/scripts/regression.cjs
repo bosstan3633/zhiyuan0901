@@ -27,6 +27,7 @@ const SHARDS = [
   '19-b7-profile',
   '20-b7-a2',
   '21-b7b-empty',
+  '22-b7c-s5',
   '10-foundations',
   '20-req39-64',
   '30-v2.35-v2.46',

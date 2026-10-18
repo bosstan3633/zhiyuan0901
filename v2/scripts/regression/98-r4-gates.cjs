@@ -621,7 +621,7 @@ check('W11-1 ★版本同步第七处「根 README 当前版本行」真正纳�
     && /^3\.8\.\d+$/.test(vs[1]) && Number(vs[1].split('.')[2]) === Number(CUR_VER.split('.')[2]) - 1;
 });
 
-check('W5-10 ★设置页产品更新日志（用户拍板 NEW-#3）：changelog-data.ts 单一真源（CHANGELOG 倒序、裸版本号与 manifest 同格式、发版日期、要点数组）+ GlobalSettings 导航「系统信息」组 letter 与 about 之间挂 changelog 分区 + 时间线面板（gs-cl-* 样式、current 版本轨染 accent、当前版本徽标对照 runtimeVersion 不写字面量）；深链 /settings?page=changelog 经 navGroups 白名单自动生效', () => {
+check('W5-10 ★设置页产品更新日志（用户拍板 NEW-#3）：changelog-data.ts 单一真源（CHANGELOG 倒序、裸版本号与 manifest 同格式、发版日期、要点数组）+ GlobalSettings 导航「系统信息」组 letter 与 about 之间挂 changelog 分区 + 时间线面板（gs-cl-* 样式、current 版本轨染 accent、当前版本徽标对照 runtimeVersion 不写字面量）；深链 /settings?page=changelog 经 navGroups 白名单自动生效。★V3.8.38（S5）重指：面板不再平铺渲染，改走 RichText + 三段式分组，导入语句由 `import { CHANGELOG }` 变为 `import { CHANGELOG, kindGroupsOf }`——断言改为「两个具名都取自 changelog-data」，不因多取一个具名而失效', () => {
   const cl = codeOnly(read('/newtab/changelog-data.ts'));
   const gs = codeOnly(read('/newtab/views/GlobalSettings.vue'));
   return cl.includes('export const CHANGELOG') && cl.includes("version: '3.8.6'")
@@ -629,8 +629,8 @@ check('W5-10 ★设置页产品更新日志（用户拍板 NEW-#3）：changelog
     && cl.includes("version: '3.8.5'") /* 历史条目保留（倒序最新在前） */
     && gs.includes("key: 'changelog'") && gs.includes("label: '产品更新日志'")
     && gs.includes("activePage === 'changelog'")
-    && gs.includes("import { CHANGELOG } from '../changelog-data'")
-    && gs.includes('gs-cl-list') && gs.includes('gs-cl-item')
+    /* ★V3.8.38 重指：原断言整串已不存在（S5 多取 kindGroupsOf），改为断言两者同源 */
+    && /import \{ CHANGELOG, kindGroupsOf \} from '\.\.\/changelog-data'/.test(gs) && gs.includes('gs-cl-list') && gs.includes('gs-cl-item')
     && gs.includes("e.version === runtimeVersion")
     && !/version:\s*['"]3\.8\.[0-9]/.test(gs); // 面板不写字面量版本（对照走 runtimeVersion）
 });

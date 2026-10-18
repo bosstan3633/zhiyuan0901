@@ -736,7 +736,7 @@
         </div>
       </div>
 
-      <!-- ===== 产品更新日志（W5 / V3.8.5） ===== -->
+      <!-- ===== 产品更新日志（W5 / V3.8.5 · V3.8.38 S5 结构化） ===== -->
       <div v-if="activePage === 'changelog'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title"><Icon name="clock" :size="13"/> 产品更新日志</div>
@@ -745,16 +745,25 @@
         <div class="gs-card">
           <div class="gs-card-body">
             <div class="gs-cl-list">
-              <div v-for="e in CHANGELOG" :key="e.version" class="gs-cl-item" :class="{ current: e.version === runtimeVersion }">
+              <!-- S5：当前版本置顶（CHANGELOG 本身倒序，「最新」自然在首；此处的置顶是对
+                   「数据顺序与展示顺序是两件事」的显式声明——将来若有人把数组改成正序，
+                   置顶不靠运气。徽章仍由 runtimeVersion 对照，不用数组下标。 -->
+              <div v-for="e in orderedChangelog" :key="e.version" class="gs-cl-item" :class="{ current: e.version === runtimeVersion }">
                 <div class="gs-cl-meta">
                   <span class="gs-cl-ver">V{{ e.version }}</span>
                   <span class="gs-cl-date">{{ e.date }}</span>
                   <span v-if="e.version === runtimeVersion" class="gs-cl-now">当前版本</span>
                 </div>
                 <div class="gs-cl-title">{{ e.title }}</div>
-                <ul class="gs-cl-points">
-                  <li v-for="(p, i) in e.points" :key="i">{{ p }}</li>
-                </ul>
+                <!-- S5：三段式（新增 / 修复 / 优化）。kindGroupsOf 返回 null 的版本
+                     （v2 时代单要点、标注缺失或脱节）走平铺列表，不硬造空段。 -->
+                <template v-if="kindGroupsOf(e)">
+                  <div v-for="g in kindGroupsOf(e)" :key="g.kind" class="gs-cl-group">
+                    <div class="gs-cl-group-h"><span class="gs-cl-group-k">{{ g.label }}</span><span class="gs-cl-group-n">{{ g.items.length }}</span></div>
+                    <ul class="gs-cl-points"><li v-for="(p, i) in g.items" :key="i"><RichText :text="p" /></li></ul>
+                  </div>
+                </template>
+                <ul v-else class="gs-cl-points"><li v-for="(p, i) in e.points" :key="i"><RichText :text="p" /></li></ul>
               </div>
             </div>
           </div>
@@ -845,7 +854,8 @@ import { createDefaultData, defaultThesisFieldDefs } from '@/shared/storage/defa
 // R63-4：Airtable 单向同步（连接测试 / 立即同步 / 配额提示）
 import { testConnection, runSync, quotaHint, catPathOf, DEFAULT_TAG_COLUMN } from '@/shared/storage/airtable'
 import { LETTER_HTML, buildLetterStandaloneHtml } from '../letter-data'
-import { CHANGELOG } from '../changelog-data'
+import { CHANGELOG, kindGroupsOf } from '../changelog-data'
+import RichText from '../components/RichText.vue'
 import { uid, dateKey, weekStartKey } from '@/shared/utils'
 import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
 import { getAssetStats, cleanupOrphanAssetsOf, collectReferencedAssetIds, listOrphanAssetIds, getAllAssets, putAssets } from '@/shared/storage/assets'
@@ -942,6 +952,18 @@ const runtimeVersion = (() => {
     const m = (chrome as any)?.runtime?.getManifest?.()
     return m?.version || '?'
   } catch { return '?' }
+})()
+
+/**
+ * S5 / V3.8.38：更新日志展示顺序——**当前版本恒在首位**，其余按数据原序（倒序）。
+ * 为什么显式排而不靠数组顺序：数据文件本就倒序，「当前版本在首」目前是巧合；
+ * 一旦有人把数组改成正序、或某版本尚未发 tag 就先进表，首位就不再是当前版本，
+ * 「当前版本一眼可见」这条验收会静默失效。这里把展示顺序与数据顺序解耦。
+ */
+const orderedChangelog = (() => {
+  const cur = CHANGELOG.find(e => e.version === runtimeVersion)
+  if (!cur) return CHANGELOG
+  return [cur, ...CHANGELOG.filter(e => e.version !== runtimeVersion)]
 })()
 const bytesInUse = ref(0)
 const unlimitedStorage = ref(hasUnlimitedStorage())
@@ -2663,7 +2685,7 @@ const activeManualSec = ref('quick-1')
 .gs-shortcut-link { font-size: var(--fs-sub); color: var(--accent); text-decoration: none; }
 .gs-shortcut-link:hover { text-decoration: underline; }
 
-/* 产品更新日志（W5 / V3.8.5）——时间线：左轨 + 圆点，当前版本整轨染 accent */
+/* 产品更新日志（W5 / V3.8.5 · V3.8.38 S5 结构化）——时间线：左轨 + 圆点，当前版本整轨染 accent */
 .gs-cl-list { position: relative; }
 .gs-cl-item { border-left: 2px solid var(--border); padding: 0 0 22px 18px; position: relative; }
 .gs-cl-item:last-child { border-left-color: transparent; padding-bottom: 0; }
@@ -2671,12 +2693,31 @@ const activeManualSec = ref('quick-1')
 .gs-cl-item.current { border-left-color: var(--accent); }
 .gs-cl-item.current::before { background: var(--accent); border-color: var(--accent); }
 .gs-cl-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.gs-cl-ver { font-weight: 700; font-size: var(--fs-sub); color: var(--text); font-variant-numeric: tabular-nums; }
-.gs-cl-date { font-size: var(--fs-caption); color: var(--text-4); }
+/* S5：版本号走等宽字体。版本号是一串要被逐位比对的字符（3.8.37 / 3.8.4 谁新谁旧），
+   等宽下 8 与 3 的宽度一致、竖排时小数点自然对齐；比例字体下这些数字宽窄不一，
+   扫一列版本号时找不到对齐线。 */
+.gs-cl-ver { font-weight: 700; font-size: var(--fs-sub); color: var(--text); font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+/* S5：日期升到 --text-3。此前用 --text-4，在浅色主题下约 2:1（真机近乎隐形）——
+   日期是"这个版本什么时候发的"这一层事实，不该弱到读不出来。降噪只动字号与间距，不动对比度。 */
+.gs-cl-date { font-size: var(--fs-caption); color: var(--text-3); }
 .gs-cl-now { font-size: var(--fs-micro); background: var(--accent-light); color: var(--accent-ink); border-radius: 99px; padding: 1px 8px; font-weight: 600; }
 .gs-cl-title { font-size: var(--fs-body); font-weight: 600; color: var(--text); margin-bottom: 4px; }
-.gs-cl-points { margin: 0; padding-left: 18px; font-size: var(--fs-sub); color: var(--text-2); }
-.gs-cl-points li { margin-bottom: 2px; }
+/* S5：正文行宽 ≤68ch。设置页内容列宽 1100px，12px 正文铺满一行有近 90 个汉字，
+   眼睛从行尾扫回行首会迷路；限宽后一行约 34 个汉字（中文按半角折算），落在可读区间。
+   只限正文与标题，左轨继续通到卡片右缘——轨是时间轴的脊，不该被行宽截断。 */
+.gs-cl-title, .gs-cl-points { max-width: 68ch; }
+.gs-cl-points { margin: 0; padding-left: 18px; font-size: var(--fs-sub); color: var(--text-2); line-height: 1.75; }
+.gs-cl-points li { margin-bottom: 6px; }
+.gs-cl-points li:last-child { margin-bottom: 0; }
+/* S5：要点里的 `**加粗**` 由 RichText 渲染成真加粗（此前星号原样显示给用户） */
+.gs-cl-points b { color: var(--text); font-weight: 600; }
+/* S5：变更分组（新增 / 修复 / 优化）。段头弱而不隐——它是扫读时的路标，
+   用 caption 字号 + --text-2，不靠加粗抢眼（内容本身才是主角）。 */
+.gs-cl-group { margin-top: 10px; }
+.gs-cl-group:first-of-type { margin-top: 6px; }
+.gs-cl-group-h { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.gs-cl-group-k { font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); letter-spacing: var(--tracking-sm); }
+.gs-cl-group-n { font-size: var(--fs-micro); color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 0 6px; line-height: var(--lh-micro); }
 
 /* 关于 */
 .gs-about-card { text-align: center; padding: 28px 20px; }
