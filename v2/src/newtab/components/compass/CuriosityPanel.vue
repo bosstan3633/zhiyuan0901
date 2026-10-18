@@ -775,7 +775,12 @@ function srcShort(url: string): string {
 .cz-grid { display: grid; /* R106（F3）：精确 N 列——选中 N 即渲染 N 列，卡片宽度自适应收缩（含看板外全部视图） */ grid-template-columns: repeat(var(--grid-cols, 4), minmax(0, 1fr)); gap: 12px; }
 .cz-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .cz-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.cz-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; cursor: pointer; transition: all var(--dur); position: relative; overflow: hidden; min-width: 0; /* R107（F8） */ }
+/* ★M5（V3.8.32）：三张卡的卡内单元同构 —— 圆角统一 md(10)、内距统一 12px 14px。
+   原先好奇心卡是 sm(8)/四周 12，任务卡与资源卡是 md(10)/12px 14px；
+   三张卡在同一个框里轮播，差这一档圆角会让"同一族的卡片"看起来像两套东西。
+   底色仍保留 surface-2（比另两卡低一层）：它的悬停操作条要用同色 surface 叠上来，
+   底色若拉平，操作条就看不见了 —— 这是刻意保留的一处差异，不是漏改。 */
+.cz-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; cursor: pointer; transition: all var(--dur); position: relative; overflow: hidden; min-width: 0; /* R107（F8） */ }
 .cz-card.flash { animation: cz-flash 2s ease-out; }
 @keyframes cz-flash { 0%,60% { background: var(--accent-light); box-shadow: 0 0 0 2px var(--accent); } 100% { background: var(--surface-2); box-shadow: none; } }
 .cz-card.dragging { opacity: .4; }

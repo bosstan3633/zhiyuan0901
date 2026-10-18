@@ -734,7 +734,12 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
           <span>{{ atChipText }}</span>
           <span class="sync-gear" title="Airtable 同步设置" @click.stop="router.push('/settings?page=airtable')"><Icon name="settings" :size="13"/></span>
         </button>
-        <button class="mb-act cta" title="今天的全貌 · 打开今日战报弹窗" @click="openReview"><Icon name="trendup" :size="13"/> 今日战报</button>
+        <!-- ★M4（V3.8.32）：战报入口降为 **tool 级**（原 `.mb-act.cta` 用 accent 软底，
+             在页头造出第二个"主行动"，与下方三件事抢第一眼）。战报是"看一眼今天"的工具，
+             不是要你现在就做的事 —— 于是与左右两枚 chip 同权，全站入口仍只有这一处
+             （画像洞察页那枚是另一页的入口，A4 判据照旧守"全局唯一"）。
+             中段也不再有任何战报常驻卡：TodayBattleHost 只暴露 openToday()，自己不渲染可见内容。 -->
+        <button class="mb-act" title="今天的全貌 · 打开今日战报弹窗" @click="openReview"><Icon name="trendup" :size="13"/> 今日战报</button>
       </template>
     </MetricBar>
 
@@ -1018,7 +1023,9 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
    「📈 复盘」保留强调态（全站单一复盘入口的视觉锚点，原型以中性 chip 表达周报、语义不同） */
 .mb-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); font-size: var(--fs-caption); padding: 3px 9px; border-radius: var(--radius-xs); cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
 .mb-act:hover { border-color: var(--border-strong); background: var(--surface-3); color: var(--text); }
-.mb-act.cta { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }
+/* ★M4（V3.8.32）：`.mb-act.cta` 的 accent 软底规则随入口降级一并删除。
+   留一条注释备案：这里曾经有一个"页头主行动"，它抢的正是下方三件事的第一眼；
+   删掉之后页头不再有第二处 accent，主行动唯一位于 hero（空槽入口）。 */
 
 /* R120-TB1：合流方向条内元素（主攻 / 去方向台）——单行 ≤40px，全 tokens */
 /* R175（原型）：主攻标签改强调胶囊（accent-light 底 + xs 圆角） */
@@ -1036,7 +1043,7 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
 /* W5（V3.8.5）#2 三标题统一：三张卡标题行（图标 accent + 17px + 英文副标），与今日三件事 / 年度热力图同规格
    W6（V3.8.6）#2 标题入框：标题行包进 .deck-frame（.card 同款框），margin 由 frame 内边距接管 */
 .decks-title { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.deck-frame { padding: 12px 20px 16px; /* ★V3.8.7 焦点契约 #3：去框体阴影，与 hero 的 shadow-lg 拉开层级 */ box-shadow: none; }
+.deck-frame { padding: 12px 20px 16px; /* ★V3.8.7 焦点契约 #3：去框体阴影，与 hero 的 shadow-lg 拉开层级 */ box-shadow: none; border-radius: var(--radius-lg); /* ★M5（V3.8.32）：三卡同构 —— 面板外框统一 lg（14），与 hero 的 radius 一档、比卡内单元大一档 */ }
 /* W6 #2：内层 ModuleCard 压成无框无底（标题/边框由外层 deck-frame 统一；tab 已标明当前面板） */
 .deck-frame :deep(.module-card) { background: transparent; border: none; box-shadow: none; }
 .deck-frame :deep(.module-title) { display: none; }
@@ -1146,8 +1153,14 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
 .today-card.sel { border-color: var(--accent); background: var(--surface); animation: none; box-shadow: 0 0 0 1px var(--accent), 0 4px 12px color-mix(in srgb, var(--accent) 8%, transparent); }
 .today-card.done { opacity: .6; animation: none; }
 .today-card.done .tc-title { text-decoration: line-through; color: var(--text-3); }
-.today-card.empty-card { opacity: .55; border-style: dashed; background: transparent; align-items: center; justify-content: center; }
-.today-card.empty-card:hover { opacity: .9; border-color: var(--accent); color: var(--accent); }
+/* ★M3（V3.8.32）：空槽是本页**唯一的主行动**，不是"缺一块"。
+   原实现给整格 55% 半透明 + 虚边 —— 那套视觉在别处一直是「禁用」的意思，
+   于是"今天还差一件事没排"读起来像"这个位置坏了"。现在改成：不透明度回 1、
+   虚边取 accent、文字取 accent，hover 才给淡底 —— 空位仍是空位（虚边），
+   但它是**可点的主行动**，而不是灰着的占位。 */
+.today-card.empty-card { border-style: dashed; border-color: var(--accent); background: transparent; align-items: center; justify-content: center; }
+.today-card.empty-card .tc-title { color: var(--accent); font-weight: 500; }
+.today-card.empty-card:hover { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
 /* R117（04-61 C3）：失效槽卡——虚线 + 警示色，与中性的「空位」区分开；
    ⚠ 末行与上方 `.card.focus .today-card:not(.empty-card)` 同权重，靠**源码顺序在后**生效（不要前移本组）。
    ★M1（V3.8.28）：边框去琥珀，改 border-strong 中性虚线 —— 虚线本身已经说「这一格坏了」，

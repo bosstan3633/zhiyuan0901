@@ -96,9 +96,10 @@ check('R112-13 预取不跳过归一化：loadData 的 fixTags/fixEncoded/fixTag
 // 本批次分四批施工（0 热修 / 1 入口交互 / 2 生命周期 / 3 全屏），断言随批次追加。
 
 // ---- 批次 0：P0 周报失效 ----
-check('R113-1 ★ P0 周报入口修复（R172-T9 重指带备案）：周报浮层退役 ⇒ "模板引用但从未 import"的病根整体消失；双向断言 = 旧浮层引用/导入零残留 + 新入口「📈 复盘」可见且其依赖（router / openReview）先于模板引用', () => {
+check('R113-1 ★ P0 周报入口修复（R172-T9 重指带备案 · M4/V3.8.32 再重指）：周报浮层退役 ⇒ "模板引用但从未 import"的病根整体消失；双向断言 = 旧浮层引用/导入零残留 + 右槽战报工具入口的**使用点**可见且其依赖（router / openReview）先于该使用点', () => {
   const h = read('/newtab/views/CompassHome.vue');
-  const tagIdx = h.indexOf('mb-act cta');
+  // ★M4（V3.8.32）重指：锚点从类名 mb-act cta 改为入口的使用点，类名不是契约，使用点才是。
+  const tagIdx = h.indexOf('@click="openReview"');
   const routerIdx = h.indexOf("import { useRouter, useRoute } from 'vue-router'");
   const fnIdx = h.indexOf('function openReview');
   return tagIdx > 0 && routerIdx > 0 && routerIdx < tagIdx && fnIdx > 0 && fnIdx < tagIdx && !h.includes('wr-overlay') && !h.includes("from '../components/WeeklyReport");

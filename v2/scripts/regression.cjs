@@ -22,6 +22,7 @@ const SHARDS = [
   '14-mirror-whip',
   '15-settings',
   '16-b5-compass',
+  '17-b5-home',
   '10-foundations',
   '20-req39-64',
   '30-v2.35-v2.46',

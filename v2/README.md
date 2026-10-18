@@ -14,7 +14,7 @@ updated: 2026-10-12 18:00:00
 
 **核心定位（April Dunford 视角）**：自造货架「信息洪流中的控制中心——AI 时代知识工作者的个人资源调度台」——不是书签插件、不是 PKM 笔记、不是新标签页美化。它不生产内容，而是横在所有 AI 工具、笔记、文件之上的**调度层**：经营你的认知周转率，让每一个被见过的信息都具备在正确时刻被召回的能力。
 
-  - **产品版本**：V3.8.31（B5-a 方向台 · C2/C3/C4）——**C2 树画布主角**（`.canvas-inner` 加 `--surface` 55% 混色大板 + `--radius-xl` + 发丝边；`.navside` 210→176px；`.spine-bar` 补全宽 `border-bottom` 发丝线）；**C3 视图过渡**（三分支包进 `<Transition name="viewfade" mode="out-in">` 并各带 key——无 key 时同标签节点会被复用、过渡根本不触发；150ms 淡入 + 8px 上浮，`prefers-reduced-motion` 下 `transition: none` 彻底归零）；**C4 圆角层级**（板 xl / 舱·泳道·层级列表 lg / 子卡 sm，四组件无 20px 以上游离圆角）。判据新增 `16-b5-compass.cjs` 7 条（C2×3 / C3×2 / C4×2）。顺手修 `theme-audit` 一处**长期空转红**：备份里 `directions[].projects` 全空时折叠判据无从判起，此前一律记失败 ⇒ 现单列 `treeSkip` 显式跳过（⚠ 输出，**不等于通过**），并把「数据前置」写进代码注释。上一版 V3.8.30（S2 组标题统一）详见 `docs/交付说明_S2组标题统一_V3.8.30.md`。
+  - **产品版本**：V3.8.32（B5-b 调度台 · M3/M4/M5）——**M3 主角收束**（`.today-card.empty-card` 从 `opacity: .55` + 虚线改为 accent 虚边 + 不透明度 1：半透明在本项目一直是「禁用」语义，空位不该读成坏了；它成为整页唯一主行动）；**M4 战报折叠**（`.mb-act.cta` 的 accent 软底规则删除，入口降为 tool 级，仍走 `openReview → battleHost.openToday`，A4「全局唯一」不变；`TodayBattleHost` 模板零可见常驻内容）；**M5 三卡同构**（`.deck-frame` 圆角 12→`--radius-lg` 14；`cz-card` 圆角 sm→md、内距对齐 12px 14px；卡头本已共用 `DeckControls`）。判据新增 `17-b5-home.cjs` 7 条并注册进 `SHARDS`；重指 `R56-3/R66` / `R120-6` / `R113-1` 三条历史锚点（原钉 `mb-act cta` 类名，其中两处「📈 复盘」实际只存在于注释里——类名不是契约，使用点才是）。上一版 V3.8.31（B5-a 方向台）详见 `docs/交付说明_B5a方向台_V3.8.31.md`。
 - **技术栈**：Vue 3.5 + TypeScript(strict) + Vite 5 + Pinia + @crxjs（MV3）+ UnoCSS（仅引入）
 - **运行环境**：Chromium 内核浏览器（Chrome / Edge / Brave 等）
 - **数据存储**：100% 本地——主数据 `chrome.storage.local` 单根 JSON（unlimitedStorage，无 10MB 上限）+ **附件二进制 IndexedDB 库 `zy_assets`**（单文件 ≤20MB，主 JSON 绝不存 base64）；无云端、无账号
