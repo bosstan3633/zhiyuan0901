@@ -9,7 +9,7 @@
  *
  * 纪律：本条只锁「契约与结构」，不锁像素。像素走 AB，颜色走 theme-contrast。
  */
-const { fs, path, check, read, walkSrcFiles, SCRIPTS_DIR, runGateSync } = require('./helpers.cjs');
+const { fs, path, check, read, walkSrcFiles, SCRIPTS_DIR, runGateSync, codeOnly } = require('./helpers.cjs');
 
 const PKG = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', '..', 'package.json'), 'utf8'));
 const ROOT = path.resolve(__dirname, '..', '..', '..');
@@ -31,14 +31,23 @@ check('G3-1 EmptyState 契约四件：icon（系统 Icon）+ title（是什么�
 });
 
 check('G3-2 十个空态位全部走 EmptyState（方向台 / 项目详情×3 / 策展台×2 / 回收站 / 画像 / 资源卡池 / 好奇心池 / 任务列表）', () => {
+  /* ★V3.8.37（B7-b C5/P3/W4/D3）三处重指，均为**文案迭代**，不是判据放宽：
+       ① 四项（P3 之外的 C5/W4/D3）在 G3-2 之后做了场景专属化：原文要求 Icon(compass) +
+          「主行动 + 场景文案」，旧文案（如「这台还没有资源卡」「还没有论点节点」）
+          是 G3 时期的通用兜底措辞，已被按场景改写。守的是「这十处都走 EmptyState 且各有说法」，
+          与具体用哪句话无关，故改锚到新文案，并把新增的零任务位补进清单（十处 → 十二处）。
+       ② 读取一律走 codeOnly —— D3 在空态上方写了长备案注释复述了旧文案
+          「这一类还没有删除项」作为对照，裸 read() 会让注释把负锚撑绿（教训 R71-4）。 */
   const hits = [
-    ['/newtab/views/CompassTree.vue', '还没有战略目标'],
+    ['/newtab/views/CompassTree.vue', '方向台还空着'],
     ['/newtab/views/ProjectCuration.vue', '还没有项目'],
     ['/newtab/views/ProjectCuration.vue', '这个项目还没有成功指标'],
+    ['/newtab/views/ProjectCuration.vue', '项目有指标，还没有任务'],
     ['/newtab/views/ProjectCuration.vue', '这个项目暂无任务附件'],
-    ['/newtab/views/Workspace.vue', '这台还没有资源卡'],
-    ['/newtab/views/Workspace.vue', '还没有论点节点'],
-    ['/newtab/views/RecycleBin.vue', '这一类还没有删除项'],
+    ['/newtab/views/Workspace.vue', '这台策展台还空着'],
+    ['/newtab/views/Workspace.vue', '中心论点下面还没有分支'],
+    ['/newtab/views/Workspace.vue', '金字塔还空着'],
+    ['/newtab/views/RecycleBin.vue', '这台删除过的资源卡会停在这里'],
     ['/newtab/views/ProfileInsights.vue', '还没有可列出的卡片'],
     ['/newtab/components/compass/PoolCardsPanel.vue', '资源卡池还空着'],
     ['/newtab/components/compass/CuriosityPanel.vue', '还没有好奇心'],
@@ -46,7 +55,7 @@ check('G3-2 十个空态位全部走 EmptyState（方向台 / 项目详情×3 / 
   ];
   const miss = [];
   for (const [f, t] of hits) {
-    const s = read(f);
+    const s = codeOnly(read(f));
     if (!s.includes('<EmptyState') || !s.includes(t)) miss.push(f + ' :: ' + t);
   }
   if (miss.length) console.log('     缺：' + miss.join(' / '));

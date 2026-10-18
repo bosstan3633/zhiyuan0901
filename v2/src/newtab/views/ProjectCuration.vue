@@ -136,6 +136,23 @@ const orphanTasks = computed(() => {
   const mids = new Set(currentProject.value.metrics.map(m => m.id))
   return d.value.tasks.filter(t => !t.deletedAt && t.projectId === currentProject.value!.id && (!t.metricId || !mids.has(t.metricId)))
 })
+
+/** ★P3（V3.8.37）项目级「零任务」判据——空态插在**指标列表之后**而不是每个指标下面。
+ *  为什么放项目级：任务挂在指标下，若按「每个指标零任务」各插一个 EmptyState，
+ *  一个刚建的项目会一屏排出 3–5 个图标块（每个 44px 高），画布直接变成图标墙。
+ *  而项目级只需判一次：有指标、但整个项目一条任务都没有——这才是「项目还只是张骨架」的处境。
+ *  口径与 tasksForMetric 一致（同一 store、同一 deletedAt 过滤），不另起炉灶。
+ */
+const projectTaskTotal = computed(() => {
+  if (!currentProject.value) return 0
+  return d.value.tasks.filter(t => !t.deletedAt && t.projectId === currentProject.value!.id).length
+})
+/** 指标是否已有任务（用于「零任务」空态的主行动：没有指标可挂时先加指标） */
+function firstEmptyMetricId(): string | null {
+  if (!currentProject.value) return null
+  for (const m of currentProject.value.metrics) if (!tasksForMetric(m.id).length) return m.id
+  return null
+}
 function renameMetric(m: Metric, e: FocusEvent) {
   const v = (e.target as HTMLElement).textContent?.trim()
   if (v && v !== m.title) { m.title = v; store.persist(); showToast('指标已更新，同步方向树') }
@@ -700,7 +717,11 @@ function addTaskFromHeader() {
           <span class="mh-idx"><Icon name="target" :size="13"/> 指标 {{ mi+1 }}</span>
           <span class="mname" contenteditable="true" spellcheck="false"
             @blur="renameMetric(m, $event)" @keydown.enter.prevent="($event.target as HTMLElement).blur()">{{ m.title }}</span>
-          <span class="mh-meta">{{ metricPct(m.id) }}% · {{ tasksForMetric(m.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(m.id).length }} 任务</span>
+          <!-- ★P3（V3.8.37）指标口径 tooltip（P3 原文第二条：指标一律附口径 tooltip，含对账口径）：
+               百分比 = 该指标下已完成任务数 ÷ 任务总数。分子分母同屏可见（"2/5"），
+               但「完成」按什么判、软删任务算不算、跨指标任务算哪个——这三点必须说清，
+               否则 60% 既不知道数的是谁，也不知道点了会看到什么。口径与 metricPct 同源，不另写一套。 -->
+          <span class="mh-meta" :title="`完成度 ${metricPct(m.id)}% = 已完成任务 ${tasksForMetric(m.id).filter(t=>t.status==='done').length} ÷ 本指标任务 ${tasksForMetric(m.id).length}（只数未删除且归属本指标的任务；已完成即状态为已完成，无权重差异）`">{{ metricPct(m.id) }}% · {{ tasksForMetric(m.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(m.id).length }} 任务</span>
           <MaturityBadge :m="metricMaturity(d, m)" />
           <span class="mh-acts">
             <button class="icon-btn-sm ai" title="AI 按本指标缺口建议近两周任务（勾选采纳才创建，可换执笔专家）" @click="aiChainAt('tasks', m.id)"><AiEntryButton /></button>
@@ -729,6 +750,16 @@ function addTaskFromHeader() {
         title="这个项目还没有成功指标"
         hint="成功指标是任务的归处——先定一个可验证的结果，再往下拆任务。"
         action-label="＋ 添加成功指标" @action="startHeaderAddMetric" />
+      <!-- ★P3（V3.8.37）零任务空态：原文「空任务 = EmptyState + 在这里把项目拆成可推进的任务」。
+           ★放在项目级而非每个指标下（理由见 firstEmptyMetricId 上方注释：一屏图标墙）。
+           ★主行动两态：有空指标时直接对第一个空指标开新建任务框（一步到位，
+             因为任务必须挂指标才有意义）；没有空指标时（理论不该发生，判据兜底）退回加指标。 -->
+      <EmptyState v-if="currentProject.metrics.length && !projectTaskTotal" size="section" icon="clipboard"
+        title="项目有指标，还没有任务"
+        desc="任务是指标往下拆出来的下一步——每个任务都挂在某个成功指标下。"
+        hint="先在第一个空指标下新建任务，或在任务调度模块建好再来关联。"
+        :action-label="firstEmptyMetricId() ? '＋ 在第一个指标下新建任务' : '＋ 添加成功指标'"
+        @action="firstEmptyMetricId() ? openTaskAdd(currentProject.metrics.find(mm => mm.id === firstEmptyMetricId())!) : startHeaderAddMetric()" />
       <!-- B27：未归类任务（指标已删除的孤儿任务） -->
       <div v-if="orphanTasks.length" class="metric-sec" id="pd-sec-orphan">
         <div class="metric-head2">

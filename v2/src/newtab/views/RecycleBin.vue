@@ -231,9 +231,23 @@ const tabMeta = computed(() => [
       </div>
       <!-- G3/D3（V3.8.27）：五类共用一个契约，且是"无主行动"特例——
            这里不该催用户"去做点什么"，只说明这是什么、删除物的去向。 -->
-      <EmptyState v-if="!res.length" class="rb-empty" size="page" icon="trash"
-        title="这一类还没有删除项"
-        hint="删除的卡片会先来这里——可随时恢复；永久删除才真正离开本机。" />
+            <!-- ★D3（V3.8.37）回收站空态：五处原本逐字相同（"这一类还没有删除项"），
+           用户切到任一分区看到的都是同一句话，等于没分区。本批按 tabMeta 的五个分区别写文案。
+
+           ★★否决原文「可在 30 天内找回」——这条不能照抄：
+           规范 D3 原文写「删除的任务、好奇与资源可在 30 天内找回」，但**产品里没有这个机制**。
+           逐条核过源码：软删只写 deletedAt，全库没有 purge/expire/cleanup/retention 任何定时或过期逻辑，
+           也没有任何地方按天数清理；母版里 "30 天" 出现 0 次。
+           真实口径是**软删永久保留**，只有用户主动点「永久删除」或「清空回收站」才真正不可逆。
+           照抄 30 天等于在空态里对用户撒一个不存在的谎——用户会以为第 31 天卡就没了，
+           反而不敢把重要内容放进回收站。改成"没有期限"是把机制说准，不是偷懒。
+
+           ★幽灵按钮按原文 D3 的备选做「回到调度台」：回收站空时唯一合理的事就是离开，
+           主行动位留空（D3 原文「无主行动（或回到调度台幽灵按钮）」），不硬凑一个操作。 -->
+<EmptyState v-if="!res.length" class="rb-empty" size="page" icon="trash"
+title="这台删除过的资源卡会停在这里"
+        hint="没有期限——软删不会自己过期。只有你点「永久删除」或清空回收站，卡才真正离开本机。"
+        secondary-label="回到调度台" @secondary="router.push('/')" />
     </div>
 
     <!-- 任务卡 -->
@@ -249,8 +263,9 @@ const tabMeta = computed(() => [
         </div>
       </div>
       <EmptyState v-if="!tasks.length" class="rb-empty" size="page" icon="trash"
-        title="这一类还没有删除项"
-        hint="删除的卡片会先来这里——可随时恢复；永久删除才真正离开本机。" />
+title="这台删除过的任务卡会停在这里"
+        hint="没有期限——软删不会自己过期。只有你点「永久删除」或清空回收站，卡才真正离开本机。"
+        secondary-label="回到调度台" @secondary="router.push('/')" />
     </div>
 
     <!-- 好奇心卡 -->
@@ -269,8 +284,9 @@ const tabMeta = computed(() => [
         </div>
       </div>
       <EmptyState v-if="!curios.length" class="rb-empty" size="page" icon="trash"
-        title="这一类还没有删除项"
-        hint="删除的卡片会先来这里——可随时恢复；永久删除才真正离开本机。" />
+title="这台删除过的好奇心卡会停在这里"
+        hint="没有期限——软删不会自己过期。只有你点「永久删除」或清空回收站，卡才真正离开本机。"
+        secondary-label="回到调度台" @secondary="router.push('/')" />
     </div>
 
     <!-- R109（F12-b）：分类分区（删除分类/删除策展台/合并重复 均走软删；恢复=清 deletedAt） -->
@@ -286,8 +302,9 @@ const tabMeta = computed(() => [
         </div>
       </div>
       <EmptyState v-if="!cats.length" class="rb-empty" size="page" icon="trash"
-        title="这一类还没有删除项"
-        hint="删除的卡片会先来这里——可随时恢复；永久删除才真正离开本机。" />
+title="这台删除过的分类会停在这里"
+        hint="没有期限——软删不会自己过期。只有你点「永久删除」或清空回收站，卡才真正离开本机。"
+        secondary-label="回到调度台" @secondary="router.push('/')" />
     </div>
 
     <!-- R2-⑤：论证卡分区（台内原生第 4 种卡，软删后与三卡同一条恢复/永久删除通道） -->
@@ -303,8 +320,9 @@ const tabMeta = computed(() => [
         </div>
       </div>
       <EmptyState v-if="!args.length" class="rb-empty" size="page" icon="trash"
-        title="这一类还没有删除项"
-        hint="删除的卡片会先来这里——可随时恢复；永久删除才真正离开本机。" />
+title="这台删除过的论证卡会停在这里"
+        hint="没有期限——软删不会自己过期。只有你点「永久删除」或清空回收站，卡才真正离开本机。"
+        secondary-label="回到调度台" @secondary="router.push('/')" />
     </div>
 
     

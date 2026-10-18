@@ -452,10 +452,16 @@
             </div>
           </template>
           <!-- G3（V3.8.27）：列表视图零资源卡改走 EmptyState（原来是裸文本，无「怎么开始」） -->
-          <EmptyState v-if="!resourceGroups.length" size="section" icon="folder"
-            title="这台还没有资源卡"
-            hint="用 Ctrl+Shift+J 从任意网页采集，或在金字塔节点上「关联资源卡」。"
-            action-label="＋ 新建论证卡" @action="openNewArgument" />
+          <!-- ★W4（V3.8.37）空台引导：原文要求 Icon(compass) +「从好奇与资源里搭出你的主线」
+               + 主行动「添加第一张卡」，呼应「策展成果」定位。
+               ★为什么 icon 从 folder 改成 compass：folder 说的是「这里该放文件」，
+               而策展台放的**不是文件而是策展成果**——原文那句「把研究变成可表达的成果」
+               才是这一台的定位。文案与图标都回到定位上，用户才知道自己在这里干什么。 -->
+          <EmptyState v-if="!resourceGroups.length" size="section" icon="compass"
+            title="这台策展台还空着"
+            desc="策展台是把好奇与资源摆成主线的成果台——卡进来之后，才谈得上论证与取舍。"
+            hint="第一张卡有两个来路：从任意网页 Ctrl+Shift+J 采集，或直接新建一张论证卡。"
+            action-label="＋ 添加第一张卡" @action="openNewArgument" />
           <!-- R112 性能：增量渲染的显式入口（列表视图同口径） -->
           <div v-if="hasMoreToRender" class="render-more" @click="renderMore">
             ↓ 已显示 {{ renderedCount }} / {{ totalVisibleCount }} 张 —— 点此加载更多
@@ -575,11 +581,24 @@
             </div>
           </div>
           <!-- G3（V3.8.27）：金字塔画布内零节点改走 EmptyState（与同页另外两处同构） -->
+          <!-- ★W4（V3.8.37）零节点：原文验收「空态有主行动」，此处原缺。
+               主行动建的是**子分类**（论据分支），不是又一张中心论点——中心论点已经有了。 -->
           <EmptyState v-if="!pyLayout.cells.length && thesisCard" size="inline" icon="hexagon"
-            title="还没有论点节点"
-            hint="节点卡右上「＋」或左侧目录「＋ 新建分类」建立骨架。" />
-          <EmptyState v-if="!pyramidLevels.length && !thesisCard" icon="folder" title="金字塔还空着"
-            desc="左侧目录「＋ 新建分类」建立论点骨架；右键台内卡片可设为中心论点（L1 根）" />
+            title="中心论点下面还没有分支"
+            desc="中心论点是结论，分支是支撑它的论据——先把要拿什么证明它写下来。"
+            hint="新建一个子分类作为第一个论据分支，卡挂在分支上。"
+            action-label="＋ 新建论据分支" @action="openCreateCat()"
+            secondary-label="新建一张论证卡" @secondary="openNewArgument" />
+          <!-- ★W4（V3.8.37）空金字塔：原文验收「空态有主行动」，此处原缺。
+               ★主行动用 openThesisCreate（建出来的卡自动成为中心论点 L1 根），
+               而非 openNewArgument（那只是一张普通卡，还要用户自己右键设为中心论点，多绕一步）。
+               幽灵按钮留给「先摆一张普通卡」，两条路都在，用户不必先想清楚区别。 -->
+          <EmptyState v-if="!pyramidLevels.length && !thesisCard" icon="compass"
+            title="金字塔还空着"
+            desc="金字塔从中心论点长出来：先定「要证明什么」，再挂「拿什么证明」。"
+            hint="新建一张论点卡并确立为中心论点，或从台内现有卡片里指定一张。"
+            action-label="＋ 写下中心论点" @action="openThesisCreate"
+            secondary-label="新建一张论证卡" @secondary="openNewArgument" />
         </div>
       </div>
     </div>

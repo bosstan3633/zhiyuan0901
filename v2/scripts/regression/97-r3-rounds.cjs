@@ -107,10 +107,23 @@ check('R3-B′ ★卡头常驻入口收敛：原「全景 / AI / ▾」六入口
     && !t.includes('contextmenu') && !t.includes('@contextmenu');
 });
 check('R3-B′ ★目标级入口上收页头：＋添加战略目标 与 建议目标 在页头区（原埋第 3 层卡头），层内只留 badge + hint。★W12(V3.8.12)随迁备案：页头区容器由 <div class="tree-page-head"> 改为 HERO 区 <section class="hero">（原型 .hero 两栏结构），承重锚随之改钉 .hero 切片 —— 守的是"这两个入口在页头区、不在层内"这条行为', () => {
-  const t = CT_ALL
+  /* ★V3.8.37（B7-b C5）修一处**潜伏 bug**：原切片下界写作 '<div class="tower-list"'，
+     而真实节点是 `<div v-else-if="viewMode === 'tower'" class="tower-list" ...>`，
+     indexOf 因此返回 -1，slice(start, -1) 退化成「从 tl-head-row 到文件倒数第二字符」——
+     等于把后半份文件全算进 layer。它此前一直绿，是因为层内真的没调用 addDirection，
+     属**侥幸为绿**：一旦 C5 给空态加了主行动（同一个 addDirection），立刻变红，
+     而红的原因与判据想守的纪律其实并不冲突。
+     本次修法两处：
+     ① 下界改成不带 '<' 的 'class="tower-list"'（带属性前缀也能匹配，且不会命中 CSS 选择器前的空格差异）；
+     ② 两个切片都走 codeOnly 剥注释——C5 在空态上方写了长注释解释 R3-B′ 的裁定，
+        注释里复述了 addDirection()（教训 R71-4：注释复述字面量会让负判据假红）。
+     守的仍是同一条纪律：这两个入口在页头区、不在层内。 */
+  const t = codeOnly(CT_ALL)
   const head = t.slice(t.indexOf('<section class="hero">'), t.indexOf('class="tree-layout"'))
-  const layer = t.slice(t.indexOf('<div class="tl-head-row">'), t.indexOf('<div class="tower-list"'))
-  return head.includes('addDirection') && head.includes("aiChain('directions'") && !layer.includes('addDirection')
+  const iRow = t.indexOf('<div class="tl-head-row">')
+  const iTower = t.indexOf('class="tower-list"')
+  const layer = iRow >= 0 && iTower > iRow ? t.slice(iRow, iTower) : ''
+  return head.includes('addDirection') && head.includes("aiChain('directions'") && !!layer && !layer.includes('addDirection')
 });
 function pc0() { return read('/newtab/views/ProjectCuration.vue') }
 
