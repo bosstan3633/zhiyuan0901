@@ -1266,8 +1266,16 @@ onUnmounted(() => {
             <!-- ★F7 层级专属列表（用户拍板 2026-10-16）：第 3/5/6 层各占一个专属列表视图，
                  与项目塔/项目全景**互斥占位**（v-if / v-else-if 链）——打开列表即整体切换下方形态，
                  ✕ 返回或同层再点收起，viewMode 不被改所以关闭即原样恢复记忆。 -->
+            <!-- ★C3（V3.8.31）：视图形态切换加 150ms 内容过渡（淡入 + 8px 上浮）。
+                 病根：点「项目塔 / 项目全景」时画布是**瞬间换整体**，没有任何空间关系交代，
+                 用户会以为"点错了、页面跳走了"。过渡只给**同一容器内的形态切换**，
+                 路由级切换仍零动画（R13 纪律不变）。reduced-motion 下平滑降级为无动画。
+                 三个分支是 v-if / v-else-if 链——Transition 每次只渲染其中一个，key 保证
+                 Vue 认得出"换的是另一个形态"，否则同标签 div 会被复用、过渡不触发。 -->
+            <Transition name="viewfade" mode="out-in">
             <CompassLayerList
               v-if="layerView"
+              :key="'lv-' + layerView"
               :layer="layerView"
               :back-label="viewMode === 'pano' ? '全景' : '项目塔'"
               :dir-filter="dirFilter"
@@ -1282,6 +1290,7 @@ onUnmounted(() => {
             <!-- ★W11 项目全景（横向泳道）。与项目塔同一份数据、两种投影，切换不重算。 -->
             <CompassPano
               v-else-if="viewMode === 'pano'"
+              key="pano"
               :meta="compassMeta"
               :active-id="panoId"
               :diag="diagFor(panoEffectiveId)"
@@ -1307,7 +1316,7 @@ onUnmounted(() => {
                  判据 W11-1 钉住"纵向舱序列存在 + .tree-columns-grid 消失"。 -->
             <!-- ★W12-E 退役带备案：下面两个视图挂载点上的 @goto-detail 绑定已随「进项目详情」入口退役一并移除（子组件已无此 emit）。
            /compass/projects 整页与 ⌘K 项目搜索等其它消费方未动，只是不再从方向台把用户引过去。 -->
-            <div v-else-if="viewMode === 'tower'" class="tower-list" id="layer-4">
+            <div v-else-if="viewMode === 'tower'" class="tower-list" id="layer-4" key="tower">
               <!-- G3（V3.8.27）：方向台零方向兜底改走 EmptyState（是什么 / 怎么开始）。
                    ★不给主行动按钮：R3-B′ 明确「目标级入口上收页头」，层内再放一个「＋战略目标」
                    等于开了第二入口——空态只指路，不复制按钮。 -->
@@ -1402,6 +1411,7 @@ onUnmounted(() => {
                 />
               </template>
           </div>
+            </Transition>
 
           <!-- 底部说明 -->
           <div class="footer-hint">
@@ -1521,7 +1531,7 @@ onUnmounted(() => {
 /* ══ ★V3.8.18（N14）战略骨架条的全宽承载容器 ══
    .spine-bar 只负责"占满一行并给下方左右结构留出间距"，卡片本体仍是 CompassSpine 自己的
    .spine（带自己的边框/圆角/阴影）—— 容器不接管卡片样式，避免两处各画一半边框。 */
-.spine-bar { margin-bottom: 30px; }
+.spine-bar { margin-bottom: 26px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .spine-bar .spine { margin-bottom: 0; }
 
 /* ══ ★V3.8.18（N3）三层引导条：极窄路牌 ══ */
@@ -1612,7 +1622,18 @@ onUnmounted(() => {
 .canvas { flex: 1; min-width: 0; padding: 0 4px 20px; }
 /* ★W12：放开原先 1000px/700px 的窄栏约束。原型 .page 是 1440px 满宽 + 210px 侧栏，
    1000px 会让右侧项目舱被压扁、舱头按钮挤成两行（就是实际截图里的那个问题）。 */
-.canvas-inner { max-width: 1180px; margin: 0; }
+/* ★C2（V3.8.31）：树区成为「主角面」——大板 + xl 圆角 + 发丝边。
+   为什么底色用 color-mix 而不是直接用 --surface：树板里躺着的项目舱/泳道/层级列表本身
+   就是 --surface，直接铺 --surface 会让"卡在板上"变成"卡与板同色"，层级反而消失。
+   55% 的混合在两套光向（暗色提亮 / 亮色压灰）下都与 bg 有可辨差、又不吃掉卡的亮度。
+   圆角取 xl（18）是本页层级的第一档，C4 的「板 xl / 舱 lg / 子卡 sm」从这里往下排。 */
+.canvas-inner {
+  max-width: 1180px; margin: 0;
+  background: color-mix(in srgb, var(--surface) 55%, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 18px 20px 20px;
+}
 
 /* ══ W12 左侧项目导航（原型 .navside）：项目清单 + 滚动跟随高亮 ══
    ★V3.8.18（N15）吸顶常驻**本轮复核为已满足**：sticky + align-self:flex-start + top 偏移
@@ -1622,7 +1643,7 @@ onUnmounted(() => {
    max-height + overflow-y 同时在位：舱数多到超过一屏时左栏自己滚，不把整页撑出第二条滚动条。 */
 .navside {
   position: sticky; top: 16px; align-self: flex-start;
-  width: 210px; flex-shrink: 0;
+  width: 176px; flex-shrink: 0;
   display: flex; flex-direction: column; gap: 8px;
   max-height: calc(100vh - 120px); overflow-y: auto;
 }
@@ -1791,6 +1812,17 @@ onUnmounted(() => {
 }
 .vs-b:hover { color: var(--text); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .vs-b.on { color: #fff; background: var(--accent); }
+/* ★C3（V3.8.31）：视图形态切换的 150ms 内容过渡。
+   进：淡入 + 从下 8px 升起（新形态"从画布里长出来"）；出：淡出 + 上移 4px（旧形态退场）。
+   ⚠ 只给形态切换，路由切换仍零动画；reduced-motion 下全部归零（不是"缩短到 1ms"，
+     而是彻底不加过渡——前庭敏感用户要的是没有位移，不是一个看不出来的位移）。 */
+.viewfade-enter-active, .viewfade-leave-active { transition: opacity 150ms ease, transform 150ms ease; }
+.viewfade-enter-from { opacity: 0; transform: translateY(8px); }
+.viewfade-leave-to { opacity: 0; transform: translateY(-4px); }
+@media (prefers-reduced-motion: reduce) {
+  .viewfade-enter-active, .viewfade-leave-active { transition: none; }
+  .viewfade-enter-from, .viewfade-leave-to { opacity: 1; transform: none; }
+}
 /* N11 合并开关：开着时给一点 accent 提示，让"当前是展开态"一眼可见 */
 /* ★V3.8.20：原 .fold-toggle（页头常驻展开收起钮）随 N11 反向开关 + 本轮工具下拉退役，
    展开态强调色下沉为通用 .tree-tool.on。 */

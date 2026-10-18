@@ -754,6 +754,9 @@ if (argv.scenes) {
 
   const raw = JSON.parse(fs.readFileSync(dataFile, 'utf8'))
   const data = raw.zy_data_v2 || raw
+  /* ★B5-a：折叠判据的数据前置——方向树里至少得有一个项目舱，否则 .tw-head 恒为 0，
+     "每舱都有卡头 / 折叠真的摘节点"这两条无从判起（见 treeSkip 处注释）。 */
+  const dataHasProjects = (data.directions || []).some(d => Array.isArray(d.projects) && d.projects.length > 0)
   const alive = (data.resources || []).filter(r => !r.deletedAt).length
   console.log(`数据源：${path.basename(dataFile)}（资源 ${(data.resources || []).length} / 活 ${alive} · 分类 ${(data.categories || []).length} · 策展台 ${(data.workspaces || []).length}）`)
   console.log(`扩展包：${pkg}`)
@@ -901,6 +904,7 @@ if (argv.scenes) {
   const overlayFail = [] /* R4-En：content 浮层两场景 */ /* R172-T13：仪表盘七场景 */
   const frameFail = [] /* ★B1-a：scrollTo 取景失败 / 判据目标落在取景框外的记账 */
   const treeFail = [] /* R3-B′：完整方向树项目层折叠活体判据 */
+  const treeSkip = [] /* ★B5-a：数据前置不满足时的**显式跳过**，与 ❌ 分开记账 */
   for (const theme of themes) {
     // 上一主题遗留的浮层先清掉（best-effort）：不掩盖问题——下面每张弹窗图收尾都会判一次 Esc
     if (await overlayOpen(page)) {
@@ -974,7 +978,8 @@ if (argv.scenes) {
           }
         })
         extra = ` 舱=${j.branches} 卡头=${j.heads} 开合把手=${j.carets} 收起=${j.folded} 指标卡=${j.metrics} 收起舱内DOM残留=${j.domInFolded}`
-        if (!j.heads) treeFail.push(`${theme}/${v.id}：一张项目舱卡头都没有（数据没种上或视图没渲染）——判据空转`)
+        if (!j.heads && !dataHasProjects) treeSkip.push(`${theme}/${v.id}：数据里没有项目舱（备份的 directions[].projects 全空）⇒ 折叠判据**跳过**`)
+        else if (!j.heads) treeFail.push(`${theme}/${v.id}：一张项目舱卡头都没有（数据没种上或视图没渲染）——判据空转`)
         else if (j.bad) treeFail.push(`${theme}/${v.id}：${j.bad} 个收起的舱里指标卡**仍然可见** ⇒ 折叠是假折叠`)
         else if (j.carets !== j.heads) treeFail.push(`${theme}/${v.id}：开合把手 ${j.carets} != 卡头 ${j.heads} ⇒ 有卡头没有开合把手`)
         if (v.id === 'compass-tree') {
@@ -1292,6 +1297,14 @@ if (argv.scenes) {
   if (drawerFail.length) {
     console.log(`❌ 卡详情抽屉判据未过 ${drawerFail.length} 项：\n  ` + drawerFail.join('\n  '))
     process.exit(1)
+  }
+  if (treeSkip.length) {
+    /* ★B5-a（V3.8.31）新增：**跳过 ≠ 通过**。
+       由来：本机唯一备份 `zhiyuan_backup_20261017.json` 里 directions[].projects 全空，
+       方向台只剩骨架条与空态，折叠判据无从判起 → 一直判红。但这不是代码缺陷，
+       是数据前置不满足；把它混进 ❌ 会让"真红"和"没法判"同形（R71 教训的翻版）。
+       所以单列 ⚠ 且**逐条写明跳过了什么**；要真验证折叠，得给 --data 一份含项目的备份。 */
+    console.log(`⚠ 方向树折叠判据跳过 ${treeSkip.length} 项（数据前置不满足，**不等于通过**）：\n  ` + treeSkip.join('\n  '))
   }
   if (treeFail.length) {
     console.log(`❌ 方向树折叠判据未过 ${treeFail.length} 项：\n  ` + treeFail.join('\n  '))

@@ -30,7 +30,7 @@ check('W11-1 ★第 4 层的排布必须是「纵向舱序列」，三列并排�
     /* ★F7 随迁带备案（2026-10-16）：第 3/5/6 层专属列表占位后，塔/全景/列表走
        v-if / v-else-if 互斥链（打开列表即整体切换下方形态），本条锚随改 v-else-if ——
        守的"第 4 层 = 纵向舱序列 + id=layer-4"语义不变，互斥性反而更强。 */
-    && CT_W11.includes('<div v-else-if="viewMode === \'tower\'" class="tower-list" id="layer-4">')
+    && CT_W11.includes('<div v-else-if="viewMode === \'tower\'" class="tower-list" id="layer-4"')
     && !CT_W11.includes('.tree-columns-grid {')
     /* ★间距只由 .tower-list 的 gap 承担一份，舱体自身不许再叠 margin-bottom */
     && !/\.tower \{[^}]*margin-bottom: \d+px/.test(TOWER)

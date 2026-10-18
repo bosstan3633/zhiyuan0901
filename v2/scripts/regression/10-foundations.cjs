@@ -55,7 +55,7 @@ check('H1 策展台快捷键映射+五修饰键', () => read('/newtab/views/Glob
 
 console.log('【第五轮】');
 check('B17 方向树目录入 tree-layout 左栏 ★W12(V3.8.12)随迁备案：.tree-page-head 密排页头被 HERO 区（.hero）取代，承重锚改钉 .hero 在 .tree-layout 之前 —— 本条守的是"页头在左栏之前、不在内容流里"这条布局关系，不是某个类名', () => CT_ALL.indexOf('<section class="hero">') < CT_ALL.indexOf('class="tree-layout"') && CT_ALL.includes('class="tree-layout"'));
-check('B17 目录与策展目录样式统一(200px sticky) ★W12 随迁备案：左栏宽度由 200px 调整为 210px（对齐原型 .split 的 grid-template-columns:210px 1fr），本条守的是"左栏定宽 + sticky"这两条布局纪律', () => CT_ALL.includes('width: 210px; flex-shrink: 0;') && CT_ALL.includes('position: sticky'));
+check('B17 目录与策展目录样式统一(200px sticky) ★W12 随迁备案：左栏宽度由 200px 调整为 210px（对齐原型 .split 的 grid-template-columns:210px 1fr）· ★C2（V3.8.31）二次备案：方向台树区升为主角面后，左栏 210 → 176px（大板接管视觉重量，目录退为支撑层）。本条守的仍是「左栏定宽 + sticky」这两条布局纪律，宽度值随设计决策走并留痕', () => CT_ALL.includes('width: 176px; flex-shrink: 0;') && CT_ALL.includes('position: sticky'));
 check('B18 字段行样式迁入子组件', () => count('/newtab/views/FieldEditor.vue', 'gs-fr-action') >= 2);
 check('B22 状态三选 chips · ★R4-Ev 随迁备案：原锚 ts-status-chip 只剩一条死样式在撑着——模板早在 R167 换成 ds-status-chip2 + STATUS_UI[...].cls，而 CSS 里那份 .ts-status-chip.active 是旧实现留下的孤儿（R4-Et 删了基规则，本轮删了 .active 这条），所以这条判据一直在核一件不再存在的事。改钉现役三件：钮在位 + 状态类由 STATUS_UI 映射 + 三档 st-* 各有规则；并负锚旧类名不许回流', () => {
   const f = read('/newtab/components/compass/TaskDetailDrawer.vue');
@@ -234,7 +234,12 @@ check('V13-2 任务抽屉链接+备注（可拖拽调高）· ★R4-Et 随迁备
   && f.includes('<div class="ta-resize" @mousedown="startTaskNoteResize"') && !f.includes('.ts-note {') });
 check('V13-3 好奇心链接口径（sourceUrl+本地路径直达；R129-B5 起统一走 link.toOpenableRawLink）', () => { const cp = read('/newtab/components/compass/CuriosityPanel.vue'); return cp.includes('toOpenableRawLink') && !cp.includes('function toOpenableCurioLink') && cp.includes('来源链接（网页 / 本地路径 / obsidian://，失焦即保存）'); });
 check('V13-4 文本框可拖拽调高（三卡详情）· R167 重指：资源表单的 `.ref-note` 搬进 ds-* 面板成 `.ds-hero-note`，判据跟着换成「焦点区 + 拖拽把手 + 记忆 hook」三件同在（把手没了就是"调了不记"，比不调更气人）', () => { const f = read('/newtab/components/ResourceEditForm.vue'); return f.includes('ds-hero-note') && f.includes('ref-ta-resize') && f.includes('useTaHeight') && read('/newtab/components/compass/CuriosityPanel.vue').includes('class="ds-hero-note"') && read('/newtab/components/compass/CuriosityPanel.vue').includes('height: detailH') /* ★R4-Dj 随迁备案：原锚 max-height:400px 挂在 .detail-textarea 上，而 .detail-textarea 模板零引用（R167 详情重设计后 Curio 走 ds-hero-note + detailH 记忆高度）；换成"类名与记忆高度两件事都在"，比只看一条 max-height 更实 */ && read('/newtab/components/compass/TaskDetailDrawer.vue').includes("useTaHeight('task-note'") /* ★R4-Et 随迁备案：原锚 max-height: 320px 是死规则 .ts-note 的属性（同 V13-2），换成任务抽屉这一路的"记忆 hook"本体——三件同在的口径本来就比一条写死的 max-height 承重 */ });
-check('V13-5 罗盘子页 out-in 过渡移除（切换即时）★R3-B1 随宿主改靶：过渡宿主是 App 级 router-view（方向台一级化后仍不得回添 out-in）', () => !read('/newtab/App.vue').includes('mode="out-in"') && !CT_ALL.includes('mode="out-in"'));
+check('V13-5 罗盘子页 out-in 过渡移除（切换即时）★R3-B1 随宿主改靶：过渡宿主是 App 级 router-view（方向台一级化后仍不得回添 out-in）· ★C3（V3.8.31）二次靶：方向台**页内**视图形态切换现在明确要求 out-in（C3 规格），与「路由级零动画」不是一回事——本条的靶收窄为「App 级 router-view 不许多余过渡」+「页内至多一处 out-in 且必须是 viewfade」', () => {
+  const appNoOutIn = !read('/newtab/App.vue').includes('mode="out-in"');
+  const n = (CT_ALL.match(/mode="out-in"/g) || []).length;
+  const onlyViewfade = n === 0 || (n === 1 && CT_ALL.includes('<Transition name="viewfade" mode="out-in">'));
+  return appNoOutIn && onlyViewfade;
+});
 check('V13-6 刷新骨架品牌动画保留（仅加载时）', () => read('/../src/newtab/index.html').includes('zy-skl'));
 
 console.log('【第廿八轮 · 拖拽体系修复】');
