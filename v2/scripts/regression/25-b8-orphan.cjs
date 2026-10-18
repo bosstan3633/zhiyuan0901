@@ -115,8 +115,14 @@ check('B8-4c ★新鲜度闸必须「按文件性质精确化」，不能只看 
   const p = path.resolve(base, '..', 'scripts', 'dead-css-scan.cjs');
   const r = runGateSync(p, ['--json']);
   const said = (r.stdout || '') + (r.stderr || '');
-  // 两种合法结局：① 直接出结论（exit 0）② 因顶旧而拒，但必须点名是哪些文件、且区分「影响 class 的」
-  if (r.status === 0) return true;
+  // ★★新增负锚：`--json` 的 stdout 必须是**纯 JSON**。这条是被真事件打出来的——
+  //   豁免提示第一版写在 stdout，于是「改一句 changelog ⇒ 豁免 ⇒ 提示多两行 ⇒
+  //   R4-Ev① / R4-Et① / W13-7 三条判据同时假红」。症状看着像判据坏了，实际是我的提示污染了数据面。
+  //   ⇒ 凡 stdout 有机器可读契约的脚本，提示一律走 stderr、退出码说话。
+  if (r.status === 0) {
+    try { JSON.parse(r.stdout || '') } catch { return false }
+    return true;
+  }
   return said.includes('影响 class 的') && said.includes('顶旧');
 });
 
@@ -128,4 +134,71 @@ check('B8-5 ★B8 批次实拍权威 census 在位（docs/视觉归档/_census/c
   try { j = JSON.parse(fs.readFileSync(p, 'utf8')) } catch { return false }
   return j.全量 === true && j.token数 > 400 && j.场景数 > 20
     && typeof j.src最新 === 'number' && j.src最新 > 0;
+});
+
+console.log('【B8-6 · 文档不能是唯一不带门禁的产物】');
+/* ★V3.8.41 末轮补记：这一组的起因是一次**没跑任何测试**才发现的事——
+   `文档中心/00_架构总览.md` 的版本行被更新过很多次，而正文静默腐烂了约二十个版本：
+   门禁基线停在「回归 1,675 且带 3 条失败」、存储键名写的是 V1 时代的 `zy_data`（还多写了一个
+   根本不存在的 `zy_backup`）、主题数写「六」（实际四个）、AI 能力数写 24（实际 25↔27）。
+   ⇒ **代码有 39 个分片在守着，文档一份守都没有**。这是本项目体系里唯一完全裸奔的一类产物。
+   本组不试图给文档写通用语法检查（那是无底洞），只钉三件最容易错且**能从代码侧独立判定**的事：
+   ① 架构总览里的门禁读数必须与权威 census / 索引同源，且不得含已退役的旧口径；
+   ② 存储键真源只有 keys.ts 一处，架构总览不得复述 V1 旧键或虚构键；
+   ③ 主题数以 tokens.css 实际选择器为准。 */
+const ARCH = read('/../../文档中心/00_架构总览.md');
+check('B8-6a ★架构总览的门禁读数不得停留在旧口径 —— 本项目门禁是「越修越好的东西」，旧读数不会自己失效，只会越看越像"还行"（V3.8.41 实测：正文写着回归 1,675 带 3 条失败 / 索引 180 文件 / 实拍 104 图 / 入口 24↔26，而实际已全绿且数字翻了一倍）。判定不写死具体数字（会随版本变），而是**禁止已知退役口径出现在现行段落里**：104 图 / 180 文件 / 24 声明 / 26 调用点 / 1,675 这五个旧值只允许出现在文末的「差异账」对照列中', () => {
+  if (!ARCH) return false;
+  // 差异账从「附 · 本轮回填」开始，在那之前是现行正文
+  const cur = ARCH.slice(0, ARCH.indexOf('## 附 · 本轮回填'));
+  if (!cur) return false;
+  const stale = ['104 图', '180 文件', '24 声明', '26 调用点', '1,675', '六主题', 'zy_backup'];
+  for (const s of stale) {
+    // ★豁免只认**显式的过时标记**（"全部过时"/"旧文档写…已不成立"/"从不存在"/"本轮回填更正"）。
+    //   第一版豁免写得太宽（只查「虚构」「本轮回填更正」两个词），结果**门禁表上方那句
+    //   「旧表读数停留在…全部过时」自己把判据打红**——它明明是在正确地交代旧值。
+    //   ⇒ 豁免条件必须逐个旧值对齐它出现的**那一句的语义**，不能只查一两个关键词。
+    const NEG = ['全部过时', '已不成立', '从不存在', '本轮回填更正', '纯属虚构'];
+    const lines = cur.split('\n').filter((l) => l.includes(s) && !NEG.some((k) => l.includes(k)));
+    if (lines.length) return false;
+  }
+  // 现行正文必须给出**当期**读数。
+  // ★不写死具体数字（会随版本变，那等于给自己埋一颗定时炸弹）——从代码生成物里实读当期值来对照：
+  // 索引的第一行摘要句里就有「202 文件 / 52,301 行」。这才是「独立重算必须照抄被校验方口径」的文档侧版本。
+  // ★锚点纪律：取生成器的摘要句格式「**N 个源文件 / M 行**」，
+  //   不是随手猜的「N 文件 / M 行」——判据锚错了会假红，而生成物完全正确（这是本条的第一版写法）。
+  const IDX = read('/../../评审交接包/02_代码索引.md');
+  if (!IDX) return false;
+  const line = (IDX.match(/规模：\*\*(\d+)\s*个源文件\s*\/\s*([\d,]+)\s*行/) || []);
+  if (!line[2]) return false;
+  const files = line[1];
+  const lines = line[2];
+  return cur.includes(lines) && cur.includes(files) && cur.includes('100 图');
+});
+check('B8-6b ★存储键的唯一真源是 shared/storage/keys.ts —— 文档里每多复述一份键名，就多一处会静默失真的副本（R159 已规定 src 内除该文件外裸键名即红，文档侧此前无同等约束）。本条要求架构总览的存储段指向 keys.ts 常量而非裸键名，且不得出现 keys.ts 里不存在的键', () => {
+  if (!ARCH) return false;
+  const KEYS = read('/../src/shared/storage/keys.ts');
+  if (!KEYS) return false;
+  const seg = ARCH.slice(ARCH.indexOf('## 五、存储架构'), ARCH.indexOf('## 六、AI 架构'));
+  if (!seg || seg.length < 300) return false;
+  // keys.ts 里真实存在的键：K.* 的取值，形如 `DATA: 'zy_data_v2'`（★第一版按对象字面量的 `': '` 匹配 ⇒ 取到 0 个 ⇒ 判据恒假红，代码完全正确）
+  const real = new Set(
+    [...KEYS.matchAll(/^\s*[A-Z_0-9]+:\s*'([^']+)'/gm)].map((m) => m[1]).filter((x) => /^zy_/.test(x))
+  );
+  if (real.size < 8) return false;
+  // 段里出现的 zy_ 字面量，必须都来自 keys.ts（`K.XXX` 常量形式不算字面量，本就不在正则匹配范围内）
+  const used = [...seg.matchAll(/`(zy_[a-z0-9_]+)`/g)].map((m) => m[1]);
+  for (const u of used) if (!real.has(u)) return false;
+  // 且必须真的指向了 keys.ts（否则读者只能来读这张表，而这张表正是会腐烂的东西）
+  return seg.includes('keys.ts') && seg.includes('K.DATA');
+});
+check('B8-6c ★文档与代码对账要有责任标记 —— 「活文档」三个字最容易变成自我安慰。判据要求：架构总览的版本行必须等于 manifest 现行版本，且必须存在一份「本轮改了哪几类」的差异账（否则下一个人无从判断这份文档该信几分，只能全盘不信或全盘信，两种都危险）', () => {
+  if (!ARCH) return false;
+  const cur = ARCH.match(/> \*\*版本\*\*：V([\d.]+)/);
+  if (!cur) return false;
+  const man = read('/../src/manifest.ts');
+  if (!man) return false;
+  const mv = man.match(/version: '([\d.]+)'/);
+  if (!mv || mv[1] !== cur[1]) return false;
+  return ARCH.includes('本轮回填改了哪七类') || ARCH.includes('回填说明');
 });

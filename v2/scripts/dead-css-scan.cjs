@@ -100,8 +100,14 @@ function loadCensus() {
       const fresh = staleFiles.filter(f => !noClass(path.relative(SRC, f).split(path.sep).join('/')))
       if (fresh.length === 0) {
         const only = staleFiles.map(f => path.relative(SRC, f).split(path.sep).join('/')).join('、')
-        console.log(`ℹ 普查戳被 ${staleFiles.length} 个纯文案数据文件顶旧（${only}）——它们不产出任何 DOM class，跳过新鲜度闸。`)
-        console.log('  （豁免是自检出来的：这些文件里一旦出现 class 关键词或 CSS import，下次就会照常拦。）')
+        /* ★提示必须走 stderr，不能走 stdout —— 本脚本的 stdout 是**机器可读契约**（`--json` 的
+           JSON 就打在这里，判据 R4-Ev① / R4-Et① / W13-7 都在 `JSON.parse(r.stdout)`）。
+           第一版把豁免提示写到 stdout，于是「改一句 changelog 文案 → 豁免 → 提示多两行 →
+           三条判据同时假红」——**提示污染了数据面**。这属「测量出错」那一族：看起来是判据坏了，
+           实际是被测物的输出面被我的话搅了。⇒ 凡「stdout 有机器可读契约」的脚本，一律
+           **提示走 stderr、退出码说话**，与错误路径保持一致。 */
+        console.error(`ℹ 普查戳被 ${staleFiles.length} 个纯文案数据文件顶旧（${only}）——它们不产出任何 DOM class，跳过新鲜度闸。`)
+        console.error('  （豁免是自检出来的：这些文件里一旦出现 class 关键词或 CSS import，下次就会照常拦。）')
       } else {
         console.error('✗ 源码比权威普查新（普查的 src最新戳早于当前 src 最新改动）——普查已不代表当前产品。')
         console.error(`  census: ${p}（生成 ${j.生成}，src最新 ${new Date(j.src最新).toISOString()}）`)
