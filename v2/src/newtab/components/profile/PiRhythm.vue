@@ -178,12 +178,18 @@ function toggleRule(id: string) { openRule.value = openRule.value === id ? null 
         </div>
       </div>
 
-      <!-- 偏离预警（保留：与重复读数无关的确定性规则） -->
+      <!-- ★A2（V3.8.36）规则对照（原名「偏离预警」）：与重复读数无关的确定性规则清单，保留。
+           ★A2 修法一（措辞）：「预警」是评价式判断，等于替用户宣布「你偏离了」；A2 原文要求
+           「删除任何『值得警惕』式视觉」。改为「规则对照」——只陈述「哪条规则的实测值与阈值不同」，
+           是事实不是评判，好坏判断留给用户。
+           ★A2 修法二（类名）：原 `:class="{ warn: openRule !== r.id }"` 的 warn 表达的是
+           **未展开态**，与「有警告」毫无关系，纯属借用警告语义（A2 的镜子不许带鞭子）。
+           改 `collapsed` 后语义自洽，也让本判据能负锚「此处不许再出现 warn 类」。 -->
       <div v-if="rules.length">
-        <div class="pi-sect"><span class="n">2</span><span class="t">偏离预警</span><span class="m">{{ rules.length }} 条命中 · 点规则看阈值与实测</span></div>
+        <div class="pi-sect"><span class="n">2</span><span class="t">规则对照</span><span class="m">{{ rules.length }} 条命中 · 点规则看阈值与实测</span></div>
         <div class="pi-rule-list">
           <button v-for="r in rules" :key="r.id" class="pi-chip pi-rule-card"
-            :class="{ warn: openRule !== r.id }" @click="toggleRule(r.id)">
+            :class="{ collapsed: openRule !== r.id }" @click="toggleRule(r.id)">
             <span class="pi-rule-head">
               <span class="v pi-rule-id">{{ r.id }} {{ r.name }}</span>
               <span class="l pi-rule-text">{{ r.text }}</span>

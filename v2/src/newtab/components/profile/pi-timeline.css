@@ -242,6 +242,21 @@
   padding: 2px 14px; transition: background var(--dur-fast); color: inherit; min-width: 0;
 }
 .hero-kpi:last-child { border-right: none; }
+/* ★A2（V3.8.36）中性进度条 —— 只给「近30天精力落主攻」这一格（A2 原文点名的那一个）。
+   口径纪律：轨=--surface-3、条=--accent，**两种中性色，零阈值色**。不按数值分段、不设阈值线、
+   不随高低换色相——进度条一旦染上「达标/偏低」色，这块镜子就又变回鞭子（R03/R10）。
+   负锚：其余三格是计数与熵值（无「占多少」语义），不许给它们也加轨，故下面用 `.hero-kpi-bar` 限定。 */
+.hero-kpi-bar .hero-kpi-track {
+  display: block; width: 100%; height: 3px; margin-top: 5px;
+  background: var(--surface-3); border-radius: 999px; overflow: hidden;
+}
+.hero-kpi-bar .hero-kpi-fill {
+  display: block; height: 100%; background: var(--accent);
+  border-radius: 999px; transition: width var(--dur-fast);
+}
+/* 零值时不该留一个「看起来像 100% 但其实空」的圆头 */
+.hero-kpi-bar .hero-kpi-fill[style*="width: 0%"] { border-radius: 0; }
+
 .hero-kpi:hover { background: var(--surface-2); }
 .hero-kpi .v { font-size: var(--fs-body); font-weight: 600; color: var(--text); line-height: 1.45; white-space: nowrap; }
 .hero-kpi .v small { font-size: var(--fs-micro); font-weight: 600; color: var(--text-4); margin-left: 2px; }
@@ -480,6 +495,17 @@
 .pi-chip .pi-rule-id { font-size: var(--fs-sub); }
 .pi-rule-text { flex: 1; }
 .pi-rule-body { font-size: var(--fs-caption); color: var(--text-3); line-height: 1.7; padding-left: 2px; }
+/* ★A2（V3.8.36）未展开态：原 `.warn` 类（借用警告语义）改为 `.collapsed`。
+   折叠时正文收起、标题行降一档灰度——是「还没展开」的诚实表达，不是「有警告」的暗示。
+   ★只动灰度不动色相：不给折叠态任何警告色，理由同 A2 进度条（镜子不带鞭子）。
+   ★三档同 --text-2 的备案（V3.8.36 · theme-contrast 实测打红后改）：初版把 .pi-rule-text 与 .ar
+   降到 --text-4（"最淡档"），W12-G 当场判红 —— notion 主题下 ≈2:1，真机接近隐形。
+   折叠与否靠**正文块的有无**（展开才渲染 .pi-rule-body）区分，不靠文字深浅；
+   弱化交给 hover，不用降低对比度（R153-4：降噪只能动字号与间距）。 */
+.pi-chip.pi-rule-card.collapsed .pi-rule-id { color: var(--text-2); }
+.pi-chip.pi-rule-card.collapsed .pi-rule-text { color: var(--text-2); }
+.pi-chip.pi-rule-card.collapsed .ar { color: var(--text-2); }
+
 
 /* B1-c（V3.8.26）：年度热力图图例色阶 + 阈值入口（原 7 处模板内联样式）。
    图例格子的底色只认 --heat-*，不写死色值，四主题自动跟随。 */

@@ -114,9 +114,17 @@ function onPick(fmt: ExportFmt) { emit('export', fmt) }
           <span class="v">{{ props.supportRate }}<small>%</small></span>
           <span class="l">任务有证据支撑</span>
         </button>
-        <button class="hero-kpi" :title="`近30天精力落主攻 ${props.focusShare}% = 归属主攻项目任务的有效动作 ÷ 近30天总有效动作 —— 点击看明细`" @click="emit('drill', 'focus')">
+        <button class="hero-kpi hero-kpi-bar" :title="`近30天精力落主攻 ${props.focusShare}% = 归属主攻项目任务的有效动作 ÷ 近30天总有效动作 —— 点击看明细`" @click="emit('drill', 'focus')">
           <span class="v">{{ props.focusShare }}<small>%</small></span>
           <span class="l">近30天精力落主攻</span>
+          <!-- ★A2（V3.8.36）中性进度条：A2 原文要求「精力落主攻用百分比 + 中性进度条表达，不设阈值色」。
+               宽度即读数本身，是同一个数的第二处呈现，不是新指标。
+               ★口径纪律：轨与条**只走 --accent / --surface-3 两种中性色**，不设分段、不设阈值线、不随数值换色相 ——
+               一旦按高低分段染色，这块就又变回「鞭子」（R03/R10：镜子不鞭子）。
+               负锚：另外三格是计数与熵值（无「占多少」语义），不许给它们也加轨。 -->
+          <span class="hero-kpi-track" aria-hidden="true">
+            <span class="hero-kpi-fill" :style="{ width: Math.max(0, Math.min(100, props.focusShare)) + '%' }"></span>
+          </span>
         </button>
       </div>
     </div>

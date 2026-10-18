@@ -305,7 +305,9 @@ check('R174-4 概览带 ★W10 退役重指带备案：概览带（DashboardOver
   const hero = read('/newtab/components/profile/PiHero.vue');
   const pi = read('/newtab/views/ProfileInsights.vue');
   return gone
-    && (hero.match(/class="hero-kpi"/g) || []).length === 4
+    // ★V3.8.36（A2）重指：A2 给第四格加 hero-kpi-bar 类，原锚 `class="hero-kpi"` 带引号定界会漏配。
+    // 改锚「以 hero-kpi 开头的 button 数」，仍钉死四格不多不少。
+    && (hero.match(/<button class="hero-kpi[\s"]/g) || []).length === 4
     && hero.includes("emit('drill', 'total')") && hero.includes("emit('drill', 'entropy')")
     && hero.includes("emit('drill', 'support')") && hero.includes("emit('drill', 'focus')")
     && pi.includes("import '@/newtab/components/profile/pi-timeline.css'")

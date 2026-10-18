@@ -83,7 +83,9 @@ check(NAME(
   'A1-4 ★Hero 的能力零损失（降噪不许降能力）：四个下钻出口全在、四格口径 tooltip 全在、',
   '主攻胶囊与空态引导出口在、E2E-21 的双类锚点不动 —— 本项只动视觉层级，一个出口都不许少'), () => {
   return ['total', 'entropy', 'support', 'focus'].every(k => HERO.includes(`emit('drill', '${k}')`))
-    && (HERO.match(/class="hero-kpi" :title=/g) || []).length === 4
+    // ★V3.8.36（A2）重指：第四格新增 hero-kpi-bar（中性进度条），原锚把 class 字面量钉死会假红。
+    // 改锚「带 title 的 KPI 格数 = 4」，守的是四格口径一个不少这件事本身。
+    && (HERO.match(/<button class="hero-kpi[^"]*"[^>]*:title=/g) || []).length === 4
     && (HERO.match(/点击看明细/g) || []).length === 4
     && (HERO.match(/emit\('drill', '/g) || []).length === 4
     && HERO.includes("(e: 'open-project', projectId: string): void")

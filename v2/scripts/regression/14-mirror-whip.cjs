@@ -123,10 +123,16 @@ check('A2-2 环比徽标零红绿：涨跌不是好坏（动作涨是好事、�
 });
 
 check('A2-3 四格 KPI 每格都有口径 tooltip，且数值用中性 text（不按好坏上色）', () => {
-  const n = (PI_HERO.match(/class="hero-kpi" :title=/g) || []).length;
+  // ★V3.8.36（A2）重指：原锚 `class="hero-kpi" :title=` 把 class 与 title 的**相邻关系**钉住了，
+  // 而 A2 给第四格加了 hero-kpi-bar（进度条），字面量随之变长。守的是「四格都有口径」这件事，
+  // 与第四格还带不带别的类无关，故改为分别计数：KPI 格数 + 带 title 的格数，两者相等即达标。
+  const kpiCells = (PI_HERO.match(/<button class="hero-kpi[^"]*"/g) || []).length;
+  const titledCells = (PI_HERO.match(/<button class="hero-kpi[^"]*"[^>]*:title=/g) || []).length;
+  const n = titledCells;
   const v = (PI_CSS.match(/\.hero-kpi \.v \{[^}]*\}/) || [''])[0];
   if (n < 4) console.log('     当前 ' + n + ' 格有 title');
-  return n >= 4 && v.includes('color: var(--text)') && !/success|danger/.test(v);
+  return n >= 4 && kpiCells === n
+    && v.includes('color: var(--text)') && !/success|danger/.test(v);
 });
 
 check('A2-4 洞察卡与归属标签同样不裁决：one-insight / pi-tag 的 ok 与 warn 不落红绿琥珀', () => {
