@@ -214,12 +214,18 @@ check('W12-13 ★theme-audit 的场景宿主每迁一次，判据与act 就必�
     && /base\.rows === 1/.test(audit)
     && /base\.titled === N/.test(audit)
     && /base\.n === N/.test(audit)
-  // ③ 负锚：已退役的 DashboardOverview 三件套不得复活（dashboard.css 里仍有 7 条 .dz-calib 规则，
-  //    但无任何模板挂载点 —— 样式孤儿不是活体，判据不许再拿它当活证据）
+  // ③ 负锚：已退役的 DashboardOverview 三件套不得复活。
+  //    ★B8（V3.8.41）补：原注释写「dashboard.css 里仍有 7 条 .dz-calib 规则，但无任何模板挂载点」——
+  //    换真 census 后那13 条已被 dead-css-scan 判死并删除，负锚从「不许复活」升级为
+  //    「CSS 与组件两头都不许再有」，故加一条 dashboard.css 零命中。
+  //    备案教训：★「样式孤儿不是活体」这条判断，在 census 失真时只能靠人眼维持；
+  //    census 一旦可信，判死就该真删——留着负锚只当护栏、不当记账。
   //    ★B7-e 补一条：`.pi-hchip` 也进了负锚——它与 .dz-calib 同族（只在 CSS 里有字面量）。
+  const DASH_CSS = read('/newtab/components/dashboard/dashboard.css');
   const ovDead = !/querySelectorAll\('\.dz-ov \.dz-chip'\)/.test(audit)
     && !/\.dz-calib \.cb \.r/.test(audit)
     && !/pi-hero-sum \.pi-hchip/.test(audit)
+    && !/\.dz-calib/.test(DASH_CSS) && !/\.dz-ov-say/.test(DASH_CSS) && !/\.dz-recentry/.test(DASH_CSS)
   // ④ ★B7-e 重指：act 不再"点有记录的格子"——**点格子现在只改选中态，不开弹窗**
   //    （Heatmap 的click 只 emit update:selDay，一路到 ProfileInsights 只写 dashSelDay；
   //      开弹窗的 openDayBattle() 全库零调用）。真实入口是 PiToday 的「打开战报」→

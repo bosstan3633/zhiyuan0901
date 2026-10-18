@@ -846,7 +846,7 @@ import { wsDisplayNameOf, wsNameById } from '@/shared/utils/wsName'
 import { shortcutsOf, modLabelOf } from '@/shared/utils/shortcuts'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
-import { saveUIPrefs, loadUIPrefs, getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage, stripRetiredCardKeys } from '@/shared/storage/repository'
+import { saveUIPrefs, loadUIPrefs, getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage, stripRetiredCardKeys, normalizeLegacyCards } from '@/shared/storage/repository'
 import { K, EXPORT_MARKERS } from '@/shared/storage/keys'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
@@ -1339,6 +1339,14 @@ function mergeImport(imported: AppData): { cards: number; dirs: number; ws: numb
   d.resources = mergeById(d.resources, stripRetiredCardKeys<ResourceCard>(imported.resources).map(r => ({ ...r, importedAt: importedNow })))
   d.tasks = mergeById(d.tasks, stripRetiredCardKeys<TaskCard>(imported.tasks).map(t => ({ ...t, importedAt: importedNow })))
   d.curiosities = mergeById(d.curiosities, stripRetiredCardKeys<CuriosityCard>(imported.curiosities).map(c => ({ ...c, importedAt: importedNow })))
+  /* P0-2（V3.8.41）★导入是**老库的主要入口**，必须走同一套字段归一化。
+     漏它的后果具体到可复现：用户导入一份 V2.x 备份，那份里的好奇卡是
+     `{title, desc, done}` 旧结构、资源卡只有 `url` 没有 `linkType`——
+     合并进库后当场炸在 `STATUS_MAP[c.status].cls`（崩溃），
+     而本地文件卡会静默走错打开通道（不崩，但双击打不开 ⇒ 更难查）。
+     归一化幂等，只在缺失时补，所以先合并后归一化 == 先归一化后合并，本处选后者口径更简：
+     在**合并之后**、返回之前对整棵 `d` 跑一次，同时顺带治好了「库里本来就有的残缺卡」。 */
+  normalizeLegacyCards(d)
   const cardsAdded = (imported.resources?.length || 0) + (imported.tasks?.length || 0) + (imported.curiosities?.length || 0)
 
   // ---- 调度台：愿景/使命（内容取较新，关联取并集）----
@@ -2512,10 +2520,10 @@ const activeManualSec = ref('quick-1')
 /* 右侧内容 */
 .gs-content { flex: 1; min-width: 0; max-width: 1100px; padding: 24px 32px; overflow-y: auto; } /* R155-①：容器放到 1440 后右栏会到 1230px，表单强行拉满则单行过长 → 内容列限宽 1100 */
 .gs-page-header { margin-bottom: 22px; position: relative; }
-/* R3-F38：交互点高亮开关（工具条位） */
-.gs-dash-hl { position: absolute; right: 0; top: 0; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); font-weight: 600; border-radius: var(--radius-sm); padding: 5px 12px; cursor: pointer; font-family: inherit; transition: all var(--dur); }
-.gs-dash-hl:hover { border-color: var(--accent); color: var(--accent); }
-.gs-dash-hl.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
+/* ★V3.8.41（P0-1 真 census 后首次浮出的真死 CSS）：R3-F38 的 `.gs-dash-hl` 三条
+   （自身 / `:hover` / `.on`）随设置页仪表盘整段退役零挂载 —— 模板里全库 `class=` 零命中，判据亦零命中。
+   此前一直被历史 census 快照救活而"看着绿"（真 census 换源后才第一次浮出来）。
+   ★同域的 `.gs-page-header` / `.gs-page-title` / `.gs-page-des*` 仍活着，未动。 */
 /* ★V3.8.30：18px 是字阶表外的孤立取值（表内最接近的是 headline 17）。归位到令牌，顺带压 1px。 */
 .gs-page-title { font-size: var(--fs-headline); font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
 .gs-page-desc { font-size: var(--fs-sub); color: var(--text-3); margin-top: 4px; }

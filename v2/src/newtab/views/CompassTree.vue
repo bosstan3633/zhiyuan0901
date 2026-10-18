@@ -1730,23 +1730,17 @@ onUnmounted(() => {
   border-top: 1px solid var(--border); margin-top: 4px;
 }
 
-.tree-page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-.tree-page-head .crumb { font-size: var(--fs-body); color: var(--text-2); }
-/* ⑤ 层级倒置的修法**不是**降面包屑，而是抬内容标题：原状面包屑 16px > 内容标题 11px。
-   ★R123 定案「工作台/项目详情/方向台三页页头统一 16px」是跨页一致性决策，用户 2026-10-12 拍板
-   **保三页一致**，故 crumb 维持 16px 不动，改把「六层思维链」提到 --fs-headline(17px) ——
-   层级变成愿景 22 › 区块标题 17 › 面包屑 16 › 正文 13，单调递减，倒置同样被消除，
-   且不需要随迁 R51-6 / R123-10 两条判据。 */
-/* ★W12 随迁备案：原 .tree-page-head .crumb（16px 面包屑载体）随页头退役，
-   16px 档曾由 HERO 区的 .hero-crumb 承担；★V3.8.20（用户拍板 2026-10-15）文案区整块退役后，
-   方向台侧不再有 16px 页头载体 —— R51-6 / R123-10 随翻转为「工作台/项目详情两页守 16px
-   + 方向台侧负锚」，翻转理由在那两条判据正文里。 */
-
-.tree-page-head .crumb .sep { color: var(--text-4); margin: 0 6px; }
-.tree-page-head .spacer { flex: 1; }
-/* R49-C7：顶部统计 + 展开收起/显隐工具 */
-.tree-stats { font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* ★V3.8.41（P0-1 真 census 后首次浮出的真死 CSS）：`.tree-page-head` 三条（自身 / `.crumb` /
+   `.crumb .sep` / `.spacer`）与 `.tree-stats` 随 W12 页头退役即零挂载——模板里全库 `class=` 零命中。
+   ★为什么此前一直"绿"：\`dead-css-scan\` 取的是「最新一个日期目录」的 census 快照，
+     实测读到两周前那份，其间下线的类名仍被 census 票救活 ⇒「零死样式」是**看着绿、其实没查**。
+     本批改为只认全量实拍写下的权威 census 后，它们才第一次浮出来。
+   ★同族的 `.tree-tool` 三条**仍活着**（工具钮还在用），故只删上面四条，不连坐。
+   ★保留下面这段备案：它记的是「16px 档在方向台侧不再有载体」这条 R51-6/R123-10 翻转理由，
+     判据正文要用，删样式不许连带删掉理由。 */
+/* R49-C7：顶部统计 + 展开收起/显隐工具（★V3.8.41：`.tree-stats` 随上方一并退役，同族的 `.tree-tool` 三条仍活着） */
 .tree-tool { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); border-radius: 8px; padding: 5px 11px; cursor: pointer; font-family: inherit; transition: all var(--dur); white-space: nowrap; }
+
 
 .tree-tool:hover { border-color: var(--accent); color: var(--accent); }
 .tree-tool.off { opacity: .6; }
@@ -1832,7 +1826,11 @@ onUnmounted(() => {
 .tl-text.sub { font-size: var(--fs-headline); font-weight: 500; color: var(--text-2); line-height: 1.4; }
 .tl-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--fs-sub); color: var(--text-3); }
 .tl-head-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-.tl-hint { font-size: var(--fs-sub); color: var(--text-3); }
+/* ★V3.8.41（B8）：本行下方原有一条辅助提示样式判死——全库仅此一处字面量、无模板挂载点、
+   判据零命中。同族的愿景正文与其副形态、链接行、头行四段仍在用，未连坐。
+   ★备案：这是"删样式"与"删掉一个提示"是两回事——那条提示连同它的语义早已在层级重构里被更好的
+   头部结构取代，留着样式只会在下一次 census 换真时又被捞出来，徒增一轮判死。
+   同段判据仍在：.tl-text 的 display 档与其 .sub 的 headline 档由 03-w11-pyramid / 02-w8 钉死。 */
 
 /* ── W11 视图切换段（项目塔 / 项目全景）── */
 /* ★两个按钮都必须常驻可点：切过去容易、切回来难是典型的单向门。

@@ -1276,7 +1276,30 @@ if (argv.scenes) {
     for (const sc of OVERLAY_SCENES) {
       if (!ovPage) { ovPage = await ctx.newPage(); ovPage.setDefaultTimeout(20000) }
       await ovPage.goto(ovUrl, { waitUntil: 'load' })
-      await ovPage.waitForTimeout(1400)   // content script 注入 + 读 storage
+      /* ★V3.8.41：等 content script **真的就绪**，不再固定等 1400ms。
+         病根：`ovPage` 是循环外复用的同一个 page，每个镜头 goto 后只等固定时长，
+         而 MV3 content script 的注入时刻受 service worker 唤醒时机影响（本机实测可差出秒级）。
+         时长不够就 `chrome.tabs.sendMessage` 打到"还没注入的页面" ⇒
+         `Could not establish connection. Receiving end does not exist.`
+         ⇒ 表现是**两个 content 场景随机红**，而产品代码一行没改——最坏的一种假红：
+           它会让人以为改坏了浮层，去改真正没问题的东西。
+         ★就绪的判据不用造标记（content script 侧本来就没有 window 标记，加一个只为测试服务反而污染产品）：
+           **直接用一次探测消息去问**——问的就是后面真要发的那条消息，能问通就是就绪。
+           与「等选择器真的出现，不等固定时长」（M6）是同一条纪律，两处都写着。 */
+      const CONTENT_READY = Date.now() + 20000
+      let contentReady = false
+      while (Date.now() < CONTENT_READY) {
+        contentReady = await worker.evaluate(async ({ p }) => {
+          const tabs = await chrome.tabs.query({ url: `http://127.0.0.1:${p}/*` })
+          if (!tabs[0]) return false
+          try { await chrome.tabs.sendMessage(tabs[0].id, { type: '__zy_probe__' }); return true }
+          catch (e) { return false }
+        }, { p: ovPort }).catch(() => false)
+        if (contentReady) break
+        await ovPage.waitForTimeout(300)
+      }
+      await ovPage.waitForTimeout(400)   /* 就绪后再留一点余量给首帧渲染 */
+
     {
       const os = ovPage.screenshot.bind(ovPage)
       /* ★R4-Fe：浮层页也要记 DOM 态。R4-Fd 的 scene-state 只包在主页面截图上（104 张里只覆盖 96 张），
@@ -1316,6 +1339,37 @@ if (argv.scenes) {
     计数: Object.fromEntries([...classSeen.entries()].sort())
   }, null, 1))
   console.log(`类名普查：${classSeen.size} 个 class token → ${path.join(outDir, 'class-census.json')}`)
+  /* ★★B8（V3.8.41）census 权威件：只有**全量跑**才更新，且自带源码新鲜度戳。
+     为什么立：V3.8.40 盘点时发现 `dead-css-scan` 取的是"最新一个**日期目录**"的 census，
+     而日期目录是历史快照——实测它当时读到的是 10-04 那份（两周前），
+     其间下线的类名仍被 census 票救活 ⇒ 「死 CSS 3,847 条 0/0」**是假绿**。
+     权威件放固定路径 `视觉归档/_census/`，dead-css-scan 只认它 + 校新鲜度。
+     ★部分跑（--scenes / --only 过滤）**不碰权威件**：一次单镜头探针会把 971 token 的普查
+       替换成 3 个镜头的残缺普查，把一大批活类误判成死——那比假绿更糟（直接误导删除）。
+     ★`src最新` 记的是写入这一刻 src 下最新的 mtime；dead-css-scan 重算后比对，
+       源码只要比普查新就拒绝出结论（宁可不给清单，不给一份"看起来能删"的清单）。 */
+  if (!SCENES && !argv.only) {
+    const srcDir = path.resolve(ROOT, 'v2', 'src')
+    let srcNewest = 0
+    const walkMtime = (dir) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.name === 'node_modules' || e.name.startsWith('.')) continue
+        const p = path.join(dir, e.name)
+        if (e.isDirectory()) walkMtime(p)
+        else { const m = fs.statSync(p).mtimeMs; if (m > srcNewest) srcNewest = m }
+      }
+    }
+    walkMtime(srcDir)
+    const canonicalDir = path.resolve(ROOT, 'docs', '视觉归档', '_census')
+    fs.mkdirSync(canonicalDir, { recursive: true })
+    fs.writeFileSync(path.join(canonicalDir, 'class-census.json'), JSON.stringify({
+      生成: new Date().toISOString(), 全量: true, 场景数: shots.length, token数: classSeen.size,
+      计数: Object.fromEntries([...classSeen.entries()].sort()), src最新: srcNewest
+    }, null, 1))
+    console.log(`权威普查已更新（全量跑）：${path.join(canonicalDir, 'class-census.json')}（src最新=${new Date(srcNewest).toISOString()}）`)
+  } else {
+    console.log('· 本次带过滤（--scenes/--only），不更新权威普查——dead-css-scan 仍以全量跑的普查为准')
+  }
   fs.writeFileSync(path.join(outDir, 'scene-state.json'), JSON.stringify({ 生成: new Date().toISOString(), 场景数: Object.keys(sceneState).length, 取样点: STATE_PTS, 状态: sceneState }, null, 1))
   console.log(`场景几何记账：${Object.keys(sceneState).length} 张图的 ${STATE_PTS.length} 个取样点 → ${path.join(outDir, 'scene-state.json')}`)
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)

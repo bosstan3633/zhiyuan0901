@@ -37,24 +37,82 @@ const argOf = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i +
 const SRC = path.resolve(argOf('--src') || path.resolve(__dirname, '..', 'src'))
 const ARCHIVE = path.resolve(__dirname, '..', '..', 'docs', '视觉归档')
 
-/** 取最新一份 census（或 --census 指定）；拿不到就拒绝出结论 */
+/** 取权威 census（★B8/V3.8.41 起只认 `视觉归档/_census/class-census.json`）。
+ *  ★为什么改：此前取"最新一个日期目录"的 census，而日期目录是**历史快照**——
+ *    V3.8.40 实测读到的是 10-04 那份（两周前），其间产品已下线的类名仍被 census 票救活，
+ *    「死 CSS 0/0」是假绿。权威件由全量 theme-audit 写，且带 `src最新` 新鲜度戳。
+ *  ★拿不到 / 不新鲜就拒绝出结论（R4-Et 立的硬闸：宁可不给候选，也不给一份"看起来能删"的清单）。 */
 function loadCensus() {
   const pinned = argOf('--census')
-  let p = pinned
-  if (!p && fs.existsSync(ARCHIVE)) {
-    p = fs.readdirSync(ARCHIVE).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().reverse()
-      .map(d => path.join(ARCHIVE, d, 'class-census.json')).find(f => fs.existsSync(f))
-  }
-  if (!p || !fs.existsSync(p)) {
-    console.error('✗ 没有 DOM class census（docs/视觉归档/<日期>/class-census.json 或 --census 指定）。')
-    console.error('  先跑一次 node scripts/theme-audit.cjs（四主题全量，它会顺手产出 census）再来扫。')
+  const canonical = path.resolve(ARCHIVE, '_census', 'class-census.json')
+  const p = pinned || canonical
+  if (!pinned && !fs.existsSync(p)) {
+    console.error('✗ 没有权威 DOM 类名普查（docs/视觉归档/_census/class-census.json）。')
+    console.error('  先跑一次 node scripts/theme-audit.cjs 全量跑（不带 --scenes/--only）再来扫。')
     console.error('  这条硬闸是 R4-Et 立的：无 census 的"孤儿清单"曾经把 150 条规则的判据变成纯猜。')
+    process.exit(2)
+  }
+  if (!fs.existsSync(p)) {
+    console.error(`✗ census 文件不存在：${p}`)
+    console.error('  先跑一次 node scripts/theme-audit.cjs 全量跑（不带 --scenes/--only）再来扫。')
     process.exit(2)
   }
   const j = JSON.parse(fs.readFileSync(p, 'utf8'))
   if (!j.计数 || Object.keys(j.计数).length < 100) {
     console.error(`✗ census 文件不像话（token 数=${j.计数 ? Object.keys(j.计数).length : '无'}），拒绝据此出结论：${p}`)
     process.exit(2)
+  }
+  /* ★B8 新鲜度闸：源码只要比普查新，普查就不再代表当前产品。
+     `--src` 显式指向别处时跳过（A/B 自证"删的都是死的"那种用法，用户自己知道在干什么）。
+     ★★B8.1 补（V3.8.41 末轮实测踩到）：闸只看 mtime、不看文件性质，于是**改一句更新日志文案**
+       也会把普查顶旧、逼人重跑 6 分钟实拍。这不是"严"，是**把纪律变成负担**——负担足够重时，
+       人会绕过纪律（改用 --census 硬绕），那才是真风险。
+       精确化：**只有可能产出 DOM class 的改动才该顶旧普查**。文案类文件（更新日志 / 手册章节）
+       不产出任何 class，且它们自己也不含 CSS import 与class 关键词——一旦有人往里塞 class，
+       下面的 CLASS_HINT 自检会自动把它踢出豁免名单，不需要额外维护。
+       ★口径边界：凡「可能间接产出 class」的文件（拼接类名、数据表里的 cls 字段、组件）一律不豁免。
+         这条闸宁可多拦（多跑一次实拍，代价 6 分钟），不可错放（错放的代价是给出假绿清单）。
+         ★豁免时必打印文件名与理由——静默放行等于偷偷开闸。 */
+  if (!pinned && !argOf('--src') && typeof j.src最新 === 'number') {
+    let srcNewest = 0
+    const staleFiles = []
+    const walkMtime = (dir) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.name === 'node_modules' || e.name.startsWith('.')) continue
+        const q = path.join(dir, e.name)
+        if (e.isDirectory()) walkMtime(q)
+        else {
+          const m = fs.statSync(q).mtimeMs
+          if (m > srcNewest) srcNewest = m
+          if (m > j.src最新 + 1000) staleFiles.push(q)
+        }
+      }
+    }
+    walkMtime(SRC)
+    if (srcNewest > j.src最新 + 1000) {
+      // 纯文案数据文件白名单：必须既不含 class 关键词，也不含 CSS import
+      const CLASS_HINT = /\bclass\s*[=:]|:class\s*=|\bcls\s*:|\bicon\s*:|\.css'|\.css"|from\s+['"][^'"]*\.css/
+      const TEXT_ONLY = ['newtab/changelog-data.ts', 'newtab/manual-data.ts']
+      const noClass = (rel) => {
+        if (!TEXT_ONLY.includes(rel)) return false
+        return !CLASS_HINT.test(fs.readFileSync(path.join(SRC, rel), 'utf8'))
+      }
+      const fresh = staleFiles.filter(f => !noClass(path.relative(SRC, f).split(path.sep).join('/')))
+      if (fresh.length === 0) {
+        const only = staleFiles.map(f => path.relative(SRC, f).split(path.sep).join('/')).join('、')
+        console.log(`ℹ 普查戳被 ${staleFiles.length} 个纯文案数据文件顶旧（${only}）——它们不产出任何 DOM class，跳过新鲜度闸。`)
+        console.log('  （豁免是自检出来的：这些文件里一旦出现 class 关键词或 CSS import，下次就会照常拦。）')
+      } else {
+        console.error('✗ 源码比权威普查新（普查的 src最新戳早于当前 src 最新改动）——普查已不代表当前产品。')
+        console.error(`  census: ${p}（生成 ${j.生成}，src最新 ${new Date(j.src最新).toISOString()}）`)
+        console.error(`  src 最新: ${new Date(srcNewest).toISOString()}；顶旧的改动文件 ${staleFiles.length} 个，其中影响 class 的 ${fresh.length} 个：`)
+        for (const f of fresh.slice(0, 8)) console.error(`    ${path.relative(SRC, f).split(path.sep).join('/')}`)
+        if (fresh.length > 8) console.error(`    ……另有 ${fresh.length - 8} 个`)
+        console.error('  先跑一次全量 node scripts/theme-audit.cjs（约 6 分钟）再来扫；')
+        console.error('  确需用旧普查做 A/B 对照时，显式 --census <文件> 绕过本闸。')
+        process.exit(2)
+      }
+    }
   }
   return { file: p, 场景数: j.场景数, tokens: j.计数 }
 }

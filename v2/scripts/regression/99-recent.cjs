@@ -278,8 +278,8 @@ check('R169-25 老账③ 抽屉两代容器合并：Workspace 自绘 .drawer 退
     && !css.includes('.dr-head') && !css.includes('.dr-close') && !css.includes('.drawer {') && !css.includes('.dr-enter-active')
     && css.includes('.dr-readonly .ref-form') && css.includes('.dr-footer-btn {');
 });
-check('R169-26 老账④ 脚本归档白名单：scripts/ 根目录只允许 21 个登记脚本（门禁/量具/生成器）；一次性探针 9 个已归档 scripts/archive/（R164 提案 E4：门禁清单只列活的）——根目录出现未登记文件即红 ★R174-1 备案：regression/ 分片目录（helpers + 时代分片，见 R164-2 行数门禁）随分片落地加入白名单；★R4-Ea 备案：browser.cjs 是七个门禁脚本共用的浏览器解析实现，属门禁基建不是探针；★G4/G6(V3.8.27)：a11y-tab-audit.cjs（键盘可达审计）与 install-hooks.cjs（pre-commit 安装器）登记入册；★B7-e(V3.8.40)：m6-responsive-audit.cjs 登记入册（响应式实拍量具——量的是运行时盒子，静态扫描读不出横向溢出，与 theme-audit 同类）', () => {
-  const ALLOW = ['a11y-tab-audit.cjs', 'install-hooks.cjs', 'browser.cjs', 'check-cycles.cjs', 'dead-css-scan.cjs', 'e2e.cjs', 'entry-literals.cjs', 'entry-matrix.cjs', 'gen-code-index.cjs', 'gen-pinyin-table.cjs', 'img-diff.cjs', 'm6-responsive-audit.cjs', 'pack.cjs', 'perf-census.cjs', 'perf.cjs', 'probe-f.cjs', 'regression-eb.cjs', 'regression.cjs', 'test-import-compat.cjs', 'theme-audit.cjs', 'theme-contrast.cjs', '.gate-cache.json'];
+check('R169-26 老账④ 脚本归档白名单：scripts/ 根目录只允许 22 个登记脚本（门禁/量具/生成器）；一次性探针 9 个已归档 scripts/archive/（R164 提案 E4：门禁清单只列活的）——根目录出现未登记文件即红 ★R174-1 备案：regression/ 分片目录（helpers + 时代分片，见 R164-2 行数门禁）随分片落地加入白名单；★R4-Ea 备案：browser.cjs 是七个门禁脚本共用的浏览器解析实现，属门禁基建不是探针；★G4/G6(V3.8.27)：a11y-tab-audit.cjs（键盘可达审计）与 install-hooks.cjs（pre-commit 安装器）登记入册；★B7-e(V3.8.40)：m6-responsive-audit.cjs 登记入册（响应式实拍量具——量的是运行时盒子，静态扫描读不出横向溢出，与 theme-audit 同类）；★B8(V3.8.41)：orphan-check.cjs 登记入册（import 图孤立检测——"grep 文件名"数不出引用数，注释/备案句/字符串里都有文件名而真 import 只有两种形态）', () => {
+  const ALLOW = ['a11y-tab-audit.cjs', 'install-hooks.cjs', 'browser.cjs', 'check-cycles.cjs', 'dead-css-scan.cjs', 'e2e.cjs', 'entry-literals.cjs', 'entry-matrix.cjs', 'gen-code-index.cjs', 'gen-pinyin-table.cjs', 'img-diff.cjs', 'm6-responsive-audit.cjs', 'orphan-check.cjs', 'pack.cjs', 'perf-census.cjs', 'perf.cjs', 'probe-f.cjs', 'regression-eb.cjs', 'regression.cjs', 'test-import-compat.cjs', 'theme-audit.cjs', 'theme-contrast.cjs', '.gate-cache.json'];
   const actual = fs.readdirSync(SCRIPTS_DIR).filter(f => f !== 'archive' && f !== 'regression' && !f.endsWith('.log'));
   return actual.length === ALLOW.length && actual.every(f => ALLOW.includes(f)) && fs.existsSync(path.join(SCRIPTS_DIR, 'archive', 'test-perf.cjs')) && fs.existsSync(path.join(SCRIPTS_DIR, 'regression', 'helpers.cjs'));
 });
@@ -299,7 +299,7 @@ check('R174-3 ★zy_daily_stats 落盘（04-69 T1）：热力图不褪色的数�
     && ds.includes('c: sr.c, del: sr.del, s: sr.s, u: sr.u, x: sr.x') && ds.includes('if (k > boundary) continue')
     && ub.includes('readDailySnapshot') && ub.includes('mergeDailyStats(snapRef.value, rebuilt, boundaryDayOf(ev))') && ub.includes('snapRef.value = s');
 });
-check('R174-4 概览带 ★W10 退役重指带备案：概览带（DashboardOverview + dz-sec-ov 专段版式）随 W10 时间轴三段式重构整体退役——D1 拍板砍假六维、Hero KPI 卡承接存量摘要职责；判据转退役三条腿：① DashboardOverview.vue 文件不存在（删干净的凭据）② 新宿主 PiHero 底盘卡在位（★W13-D1 再随迁 2026-10-16：原 5 枚 pi-hchip 改 4 枚 .hero-kpi total/entropy/support/focus，时间三指标迁 PiYear）③ 宿主 import pi-timeline.css 且不再 import DashboardOverview', () => {
+check('R174-4 概览带 ★W10 退役重指带备案：概览带（DashboardOverview + 概览带专段版式）随 W10 时间轴三段式重构整体退役——D1 拍板砍假六维、Hero KPI 卡承接存量摘要职责；★B8 补（V3.8.41）：其版式 CSS（.dz-sec-ov 等 13 条）已随换真 census 被 dead-css-scan 判死并删除，退役从"组件没了、样式还在"补齐为"组件与样式都清干净"；判据转退役三条腿：① DashboardOverview.vue 文件不存在（删干净的凭据）② 新宿主 PiHero 底盘卡在位（★W13-D1 再随迁2026-10-16：原 5 枚 pi-hchip 改 4 枚 .hero-kpi total/entropy/support/focus，时间三指标迁 PiYear）③ 宿主 import pi-timeline.css 且不再 import DashboardOverview', () => {
   const fsx = require('fs');
   const gone = !fsx.existsSync(path.resolve(base, 'newtab/components/dashboard/DashboardOverview.vue'));
   const hero = read('/newtab/components/profile/PiHero.vue');
@@ -503,7 +503,7 @@ check('R172-4 ★T4 复盘计算引擎（04-67 §6/§7.6）：四范围窗口 + 
     && !/\.persist\(|saveData|chrome\.storage/.test(rr);
 });
 
-check('R172-5 ★W10 退役重指带备案：概览带 UI（DashboardOverview 5 存量 chip + dz-ov-say + bind 高亮）随时间轴三段式整体退役——能力拆解为：① 存量摘要移交 PiHero（★W13-D1 再随迁带备案 2026-10-16：原 total/streak/active/entropy/longest 5 枚 chip 改 4 枚底盘卡 total/entropy/support/focus——streak/active/longest 三枚时间指标不再留在 Hero，迁 PiYear 年度段，消除全页重复）② 窗口聚合移交 PiRhythm（aggregateRange + 等长窗口 prevWindow/pct）③ W_ROWS 口径表单一真源留 dailyStats.ts ④ 数据桥 useDashboardStats 三锚不变（buildDailyStats 重建 + 快照合并 + selDay 态）⑤ GS 零命中负锚不变', () => {
+check('R172-5 ★W10 退役重指带备案：概览带 UI（DashboardOverview 5 存量 chip + 概览带叙述行 + bind 高亮）随时间轴三段式整体退役（★B8 补V3.8.41：叙述行与校准面板的 CSS 已判死删除）；能力拆解为：① 存量摘要移交 PiHero（★W13-D1 再随迁带备案 2026-10-16：原 total/streak/active/entropy/longest 5 枚 chip 改 4 枚底盘卡 total/entropy/support/focus——streak/active/longest 三枚时间指标不再留在 Hero，迁 PiYear 年度段，消除全页重复）② 窗口聚合移交 PiRhythm（aggregateRange + 等长窗口 prevWindow/pct）③ W_ROWS 口径表单一真源留 dailyStats.ts ④ 数据桥 useDashboardStats 三锚不变（buildDailyStats 重建 + 快照合并 + selDay 态）⑤ GS 零命中负锚不变', () => {
   const fsx = require('fs');
   const gone = !fsx.existsSync(path.resolve(base, 'newtab/components/dashboard/DashboardOverview.vue'));
   const hero = read('/newtab/components/profile/PiHero.vue');

@@ -1,0 +1,68 @@
+{
+  "_说明": "脱敏的老库形状样本 —— P0-2 判据的常驻夹具。全部内容为虚构，与任何真实用户数据无关。",
+  "_形状来源": "V3.8.40 实拍本机唯一备份 zhiyuan_backup_20261017.json 后逐字段归纳；本文件只保留形状、去掉真实内容。",
+  "version": 2,
+  "curiosities": [
+    {
+      "src": "c-old-done",
+      "id": "c1",
+      "title": "老库里那个已求证的问题",
+      "desc": "老结构的说明文字",
+      "done": true,
+      "tags": [],
+      "createdAt": 1735689600000,
+      "updatedAt": 1738368000000
+    },
+    {
+      "src": "c-old-todo",
+      "id": "c2",
+      "title": "老库里那个待探索的问题",
+      "desc": "",
+      "done": false,
+      "tags": "旧库, 手写逗号",
+      "createdAt": 1735689600000,
+      "updatedAt": 1738368000000
+    }
+  ],
+  "resources": [
+    {
+      "src": "r-win-path",
+      "id": "r1",
+      "title": "本地讲义",
+      "url": "D:\\资料\\讲义.pdf",
+      "desc": "老结构描述",
+      "tags": [],
+      "createdAt": 1735689600000,
+      "updatedAt": 1738368000000
+    },
+    {
+      "src": "r-obsidian",
+      "id": "r2",
+      "title": "Obsidian 笔记",
+      "url": "obsidian://open?vault=知识库&file=笔记/某页",
+      "tags": [],
+      "createdAt": 1735689600000,
+      "updatedAt": 1738368000000
+    }
+  ],
+  "tasks": [
+    {
+      "src": "t-nostatus",
+      "id": "t1",
+      "title": "老任务",
+      "desc": "老结构描述",
+      "dueAt": 1738368000000,
+      "tags": [],
+      "createdAt": 1735689600000,
+      "updatedAt": 1738368000000
+    }
+  ],
+  "workspaces": [
+    {
+      "src": "w-noorder",
+      "id": "w1",
+      "name": "老策展台"
+    }
+  ],
+  "categories": []
+}

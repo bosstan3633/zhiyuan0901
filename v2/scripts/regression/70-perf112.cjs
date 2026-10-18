@@ -85,11 +85,15 @@ check('R112-12 ★ 冷启动单次读取：ensureBootData 会话内幂等 + 首�
     && r.includes('export async function loadData(prefetched?: Record<string, unknown>)')
     && r.includes('prefetched ? (prefetched[STORAGE_KEY] as AppData | undefined) : undefined');
 });
-check('R112-13 预取不跳过归一化：loadData 的 fixTags/fixEncoded/fixTagNames 修复段在预取分支之后仍无条件执行', () => {
+check('R112-13 预取不跳过归一化：loadData 的归一化段在预取分支之后仍无条件执行。★P0-2(V3.8.41) 重指带备案：归一化段原是 loadData 里的内联 `const fixTags =`，现已抽成导出的 `normalizeLegacyCards`，loadData 内只剩一次调用——**锚点随之换居所，守的行为（预取不豁免归一化）一字未变**', () => {
   const r = read('/shared/storage/repository.ts');
   const iPrefetch = r.indexOf('let raw = prefetched ?');
-  const iFix = r.indexOf('const fixTags =');
-  return iPrefetch > 0 && iFix > iPrefetch && r.includes('fixTagNames(data.resources as { tags?: string[] }[])');
+  const iCall = r.indexOf('normalizeLegacyCards(data)');
+  return iPrefetch > 0 && iCall > iPrefetch
+    && r.includes('export function normalizeLegacyCards')
+    /* ★口径备案：`fixTagNames`（标签名 URL 解码）**仍在 loadData 里**且仍用 `data.`——
+       它归一化的是名字不是卡片字段，不随 P0-2 搬迁（registry 会抄错形参）。故此条查它仍在原地。 */
+    && r.includes('fixTagNames(data.resources as { tags?: string[] }[])');
 });
 
 // ===== R113（V2.81.0）生产反馈第三批（六项）=====

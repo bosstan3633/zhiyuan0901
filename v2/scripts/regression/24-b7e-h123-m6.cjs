@@ -372,15 +372,18 @@ check(NAME(
   // ★切片起点/终点都必须带行首前缀：`stripRetiredCardKeys` 的**首现**是文件头那句备案注释
   //   （3424 行，远在调用点之前），用裸子串会得到 start > end ⇒ 空串 ⇒ 「什么都匹配不上」的假红。
   //   这与M6-3 的 .f3-title 是同一个坑（R4-Dl 族第八次）
-  const iStart = repo.indexOf('\n  fixTags(data.curiosities')
-  const iEnd = repo.indexOf('\n  stripRetiredCardKeys(data.tasks')
+  // ★P0-2(V3.8.41) 重指带备案：归一化段随 P0-2 抽成导出的 `normalizeLegacyCards`，
+  //   切片随之改从**函数体内部**取（原锚 `fixTags(data.curiosities` 在 loadData 内，现已不在那里）。
+  //   守的行为逐条不变：两条状态兜底 + 好奇卡旧字段改名 + 三类卡统一改名 + 调用点仍在 loadData。
+  const iStart = repo.indexOf('const fixTags =')
+  const iEnd = repo.indexOf('const fixEncoded =')
   if (iStart < 0 || iEnd < 0 || iEnd <= iStart) { console.log(`切片锚点失效 iStart=${iStart} iEnd=${iEnd}`); return false }
   const body = repo.slice(iStart, iEnd)
   if (!body) { console.log('切片为空'); return false }
   // ①缺省兜底（两条消费点同源写法）
   for (const f of ['fixTaskStatus', 'fixCurioStatus']) {
     if (!body.includes(`const ${f} =`)) { console.log(`加载期缺 ${f}`); return false }
-    if (!body.includes(`${f}(data.`)) { console.log(`${f} 未在 loadData 里调用`); return false }
+    if (!body.includes(`${f}(d.`)) { console.log(`${f} 未在归一化里调用`); return false }
   }
   // ②旧字段改名：好奇卡专属（title→question 只对好奇卡成立，资源卡/任务卡的标题位就叫 title）
   if (!body.includes('const fixCurioLegacyFields =')) { console.log('缺好奇卡旧字段改名'); return false }
@@ -390,9 +393,14 @@ check(NAME(
   // 三类卡共用的那条（desc→description / dueAt→dueDate / customFields 兜底）
   if (!body.includes('const fixCardLegacyFields =')) { console.log('缺三类卡统一旧字段改名'); return false }
   if (!body.includes('c.dueAt') || !body.includes('c.dueDate')) { console.log('缺 dueAt→dueDate 改名'); return false }
-  // 必须三类卡都调（第一版漏了资源卡，回读才发现）
+  // ★P0-2 新增一条：「映射必须排在兜底之前」。老库的 done:true 会被 fixCurioStatus 先兜成 todo，
+  //   轮到改名段时 status 已非 undefined ⇒ done 读不到 ⇒ 完成标记被静默清零。
+  if (body.indexOf('fixCurioLegacyFields(d.curiosities') > body.indexOf('fixCurioStatus(d.curiosities')) {
+    console.log('映射排在兜底之后：老库 done:true 会被清成 todo'); return false
+  }
+  // 必须三类卡都调（第一版漏了资源卡，回读才发现）★P0-2：形参已随函数抽取改为 d.
   for (const t of ['tasks', 'curiosities', 'resources']) {
-    if (!body.includes(`fixCardLegacyFields(data.${t} `)) { console.log(`fixCardLegacyFields 未覆盖 ${t}`); return false }
+    if (!body.includes(`fixCardLegacyFields(d.${t} `)) { console.log(`fixCardLegacyFields 未覆盖 ${t}`); return false }
   }
   // ★负锚：`done: boolean` 不得回到**卡级**模型上——它是旧好奇卡结构的残留。
   //   一旦有人"顺手"把它加回 CuriosityCard，这条改名链就静默失效（库里会优先读 status，done 永不生效）。

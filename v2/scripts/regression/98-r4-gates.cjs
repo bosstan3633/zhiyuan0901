@@ -457,7 +457,7 @@ check('R4-Ev① ★"祖先段整段判死"这条口径要能独立站住，就�
     && s.includes('function splitTopLevel') && s.includes('function stripParens')
     && s.includes('interpPrefixes.add') && s.includes('globalTokens.has(tok)')
     && ex('.metric-item.expanded') && ex('.dz-cell.l4') && ex('body .module-title')
-    && ex('.picker-item') && ex('.toggle') && ex('.dz-recentry') /* ★W9 退役重指带备案：本格原放 ex('.dz-hl')——那张票（运行时插值类名 + 跨文件产出的类名）在 .dz-hl 随 R3-F38 开关退役后失去载体。四条票一条没拆：插值前缀票仍由 ex('.dz-cell.l4') 守，全站精确字符串票仍由 ex('.picker-item') / ex('.toggle') 守；本格改放画像洞察页的 scoped 类 .dz-recentry，顺带证明扫描器在新页的 <style scoped> 上照常工作 */;
+    && ex('.picker-item') && ex('.toggle') && ex('.pi-recon-cell') /* ★W9 退役重指带备案：本格原放 ex('.dz-hl')——那张票（运行时插值类名 + 跨文件产出的类名）在它随 R3-F38 开关退役后失去载体。四条票一条没拆：插值前缀票仍由 ex('.dz-cell.l4') 守，全站精确字符串票仍由 ex('.picker-item') / ex('.toggle') 守；本格改放画像洞察页的 scoped 类，顺带证明扫描器在新页的 <style scoped> 上照常工作。★B8 再随迁（V3.8.41）：第二张票随概览带整族判死而失效——它本来就在 dashboard.css 里（注释里写的"画像洞察页 scoped 类"从一开始就不准确，该名全库只出现在 CSS 里），故一并作废。教训与头注①同源：**"证明扫描器在某类宿主上工作"的票必须选真正活着的宿主类，不能选一个恰好没被清理的同名残留**——票红时先问"被测物是不是已经退役了"，别急着换锚点。 */;
 });
 
 // ============== R4-Ew 三条运行时触点进 e2e ==============
