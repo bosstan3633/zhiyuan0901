@@ -1061,6 +1061,19 @@ onUnmounted(() => {
           <button class="vs-b" :class="{ on: viewMode === 'pano' }" :aria-selected="viewMode === 'pano'" title="横向泳道全景 · 看这一个项目的完整链路" @click="viewMode = 'pano'; layerView = null">项目全景</button>
         </div>
         <span v-if="fromProjName" class="hero-from">来自项目「{{ fromProjName }}」</span>
+        <!-- ★C2（V3.8.33 B5-c）：筛选态提示条从画布内提到这里，压成 hero 动作行里的一枚胶囊。
+             病根＝它原来横在引导条与项目舱之间，把树区从中间拦了一刀；而它本质是"当前视图正被什么收窄"，
+             属于页头状态，不属于树内容。移走后树区从引导条到舱列一路连续，主角面才立得住。
+             能力一件不少：只要任一筛选开着就常驻（隐形筛选会让人以为项目丢了），命中数照旧，清除出口照旧（W11-9）。 -->
+        <div v-if="dirFilter || riskOnly" class="hero-filter" role="status">
+          <span class="hf-t">
+            <template v-if="dirFilter">只看战略目标「{{ dirFilterName }}」</template>
+            <template v-if="dirFilter && riskOnly"> · </template>
+            <template v-if="riskOnly"><Icon name="warn" :size="12"/> 只看断链</template>
+          </span>
+          <span class="hf-n">命中 {{ towerGroups.length }} 个目标 · {{ towerGroups.reduce((s, g) => s + g.projs.length, 0) }} 个项目舱</span>
+          <button class="hf-clear" title="清除全部筛选，恢复完整视图" @click="clearFilters"><Icon name="x" :size="12"/> 清除筛选</button>
+        </div>
         <div class="hero-tools">
           <!-- ★F6 翻转（用户拍板 2026-10-16，二次翻转 V3.8.20 N11 收纳决策）：「↕ 展开/收起」「👁 已完成」
                从 ⚙ 工具下拉恢复为动作行常驻按钮——高频操作变两跳 + 状态开关藏菜单后当前状态不可见。
@@ -1249,19 +1262,8 @@ onUnmounted(() => {
             <span class="gs-d">今天动哪一件</span>
           </div>
 
-            <!-- ★W11 筛选态提示条：过滤是隐形的就会让人以为项目丢了。
-                 只要 dirFilter / riskOnly 任一开着就常驻，并给一个一键全清的出口（判据 W11-9）。 -->
-            <div v-if="dirFilter || riskOnly" class="filter-bar" role="status">
-              <span class="fb-t">
-                <template v-if="dirFilter">正在只看战略目标「{{ dirFilterName }}」</template>
-                <template v-if="dirFilter && riskOnly"> · </template>
-                <template v-if="riskOnly"><Icon name="warn" :size="13"/> 只看断链</template>
-              </span>
-              <span class="fb-n">
-                命中 {{ towerGroups.length }} 个目标 · {{ towerGroups.reduce((s, g) => s + g.projs.length, 0) }} 个项目舱
-              </span>
-              <button class="fb-clear" title="清除全部筛选，恢复完整视图" @click="clearFilters"><Icon name="x" :size="13"/> 清除筛选</button>
-            </div>
+            <!-- ★C2（V3.8.33 B5-c）：筛选态提示条已上提到 hero 动作行（页头状态，不是树内容），
+                 这里不再有横幅占位 —— 树区从引导条到舱列连续，不再被拦腰截断。 -->
 
             <!-- ★F7 层级专属列表（用户拍板 2026-10-16）：第 3/5/6 层各占一个专属列表视图，
                  与项目塔/项目全景**互斥占位**（v-if / v-else-if 链）——打开列表即整体切换下方形态，
@@ -1527,6 +1529,32 @@ onUnmounted(() => {
 .hero-tools { position: relative; margin-left: auto; }
 /* ★F6 二次翻转（2026-10-16）：.hero-tools-menu / .menu-item 下拉壳随「⚙ 工具」整壳退役，
    两枚开关回 .hero-tools 内常驻（回流下拉形态即 dead-css + 判据红）。 */
+
+/* ★C2（V3.8.33 B5-c）：筛选态提示条并入 hero 工具行后压成胶囊。
+   原来是画布内一条整宽横幅（accent 浅底 + 边框 + 12px 内边距），把引导条与舱列之间撑出一道横带；
+   收进动作行后宽度由内容决定，与 view-seg、两枚 tree-tool 同一基线，页头只多一枚小件，
+   树区不再被横向色块切断。三件事仍就地可见：被什么收窄（.hf-t）、命中多少（.hf-n）、怎么退出（.hf-clear）。 */
+.hero-filter {
+  display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 3px 4px 3px 10px; border-radius: 999px;
+  background: var(--accent-light);
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+}
+.hf-t {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--fs-caption); font-weight: 600; color: var(--accent-ink);
+}
+/* 命中数是这一行的"口径"，不是结论：比筛选名弱一档（micro + text-3），读起来是注脚。
+   口径里两个数字分别在 .hf-n 与骨架条计数各自成立，不合并成第三个真源。 */
+.hf-n { font-size: var(--fs-micro); color: var(--text-3); }
+.hf-clear {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: var(--fs-micro); font-weight: 600; color: var(--text-2);
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 2px 9px; border-radius: 999px; cursor: pointer; transition: all var(--dur);
+}
+.hf-clear:hover { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+
 
 /* ══ ★V3.8.18（N14）战略骨架条的全宽承载容器 ══
    .spine-bar 只负责"占满一行并给下方左右结构留出间距"，卡片本体仍是 CompassSpine 自己的
@@ -1828,21 +1856,7 @@ onUnmounted(() => {
    展开态强调色下沉为通用 .tree-tool.on。 */
 .tree-tool.on { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); background: var(--accent-light); }
 
-/* ── W11 筛选态提示条：过滤是隐形的就会让人以为项目丢了 ── */
-.filter-bar {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  margin-bottom: 12px; padding: 7px 12px;
-  border: 1px solid var(--accent-light); border-radius: var(--radius-sm);
-  background: var(--accent-light);
-}
-.fb-t { font-size: var(--fs-sub); font-weight: 600; color: var(--accent-ink); }
-.fb-n { font-size: var(--fs-micro); color: var(--text-3); }
-.fb-clear {
-  margin-left: auto; font-size: var(--fs-micro); font-weight: 600; color: var(--text-2);
-  background: var(--surface); border: 1px solid var(--border);
-  padding: 3px 10px; border-radius: 999px; cursor: pointer; transition: all var(--dur);
-}
-.fb-clear:hover { color: var(--accent-ink); border-color: var(--accent-light); }
+/* ── W11 筛选态提示条：已随 C2（V3.8.33）并入 hero 动作行，见上方 .hero-filter 三档 ── */
 /* ══ W11：纵向项目舱序列 ══
    .tree-columns-grid 三列并排已退役（判据 W11-1 钉住它不许复活）——
    三列时项目之间只靠列边界，扫视易串行，归属靠"在哪一列"推断。 */

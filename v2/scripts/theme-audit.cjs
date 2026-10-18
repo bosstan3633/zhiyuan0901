@@ -329,11 +329,16 @@ const DASH_SCENES = [
          这样浅色主题不会被误判，而"没走主题 token"一定红。 */
       const ins = [...document.querySelectorAll('.gs-setting-row input[type="text"], .gs-setting-row input:not([type]), .gs-setting-row input[type="password"]')]
       const bgs = Array.from(new Set(ins.map(i => getComputedStyle(i).backgroundColor)))
-      const cardBg = getComputedStyle(document.querySelector('.gs-card')).backgroundColor
-      const offToken = ins.filter(i => getComputedStyle(i).backgroundColor !== cardBg)
-      return { ok: !!tagRow && !!pat && pat.getAttribute('type') === 'password' && syncBtn
+      /* ★V3.8.33（B5-c）修：这里原来对 querySelector 的结果裸调 getComputedStyle —— 页面没进到
+         设置页（路由未落地 / 上一场景把弹层留开 / 卡片尚未挂载）时参数是 null，直接抛 TypeError，
+         **整个审计脚本当场中断**：本轮实测 linear 主题跑到这一屏就崩，后面三个主题与十余场景一张都没拍。
+         一张截图失败的代价是"少一张"，脚本崩掉的代价是"整轮审计不存在"——后者更危险，因为它不产出红。 */
+      const card = document.querySelector('.gs-card')
+      const cardBg = card ? getComputedStyle(card).backgroundColor : ''
+      const offToken = card ? ins.filter(i => getComputedStyle(i).backgroundColor !== cardBg) : ins
+      return { ok: !!card && !!tagRow && !!pat && pat.getAttribute('type') === 'password' && syncBtn
           && bgs.length === 1 && offToken.length === 0,
-        txt: `标签列行=${!!tagRow} PAT型=${pat ? pat.getAttribute('type') : '无'} 同步钮=${syncBtn} 输入框底色=${bgs.length}种/${ins.length}枚 与卡同色=${offToken.length === 0}(卡=${cardBg})` }
+        txt: `卡片=${!!card} 标签列行=${!!tagRow} PAT型=${pat ? pat.getAttribute('type') : '无'} 同步钮=${syncBtn} 输入框底色=${bgs.length}种/${ins.length}枚 与卡同色=${!!card && offToken.length === 0}(卡=${cardBg || '无'})` }
     })
   },
   {

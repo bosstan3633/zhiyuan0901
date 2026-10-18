@@ -64,7 +64,7 @@ check('W11-3 ★所有展开/切换都必须**双向可达**（开了能回、�
     && CT_W11.includes("viewMode === 'tower'") && CT_W11.includes("viewMode === 'pano'")
     && (CT_W11.match(/class="vs-b"/g) || []).length === 2                /* ④ 两个按钮都在 */
     && CT_W11.includes('v-if="dirFilter || riskOnly"') && CT_W11.includes('clearFilters')
-    && CT_W11.includes('<Icon name="x" :size="13"/> 清除筛选');        /* ⑤ 筛选有出口（G1 迁移后 Icon x） */
+    && CT_W11.includes('class="hf-clear"') && CT_W11.includes('清除筛选');   /* ⑤ 筛选有出口（★B5-c：并入 hero 后类名随迁，只钉出口与文案，不钉图标尺寸） */
 });
 
 check('W11-4 ★断链必须**双向都显性**：正向「缺任务的指标」亮 ⚠ 并给虚线空位；反向「无归属任务」进收容区可一键挂指标。只做正向会漏掉"任务已经录了但没挂到指标上"这一类——它是数据录入的常态，比缺任务更隐蔽。判据钉两处宿主都在（舱内纵向 + 全景横向），且收容区必须带可点出口（只显示不给出路等于制造绝望）。★空位承重处随 W11-12 拆到 CompassPanoLane', () => {
@@ -167,8 +167,9 @@ check('W11-9 ★全景视图必须真的是**同一份数据的第二种投影**
     && CT_W11.includes('function onListLocate(')
     /* ★全景下滚动不得改左栏高亮（横向视图不产生纵向层级信号，否则会乱跳） */
     && /function onCanvasScroll\(\)[\s\S]{0,200}viewMode\.value === 'pano'\) return/.test(CT_W11)
-    /* 筛选态提示条：过滤是隐形的就会让人以为项目丢了 */
-    && CT_W11.includes('class="filter-bar"')
+    /* 筛选态提示条：过滤是隐形的就会让人以为项目丢了。★B5-c（V3.8.33）随迁：横幅并入 hero 工具行后压成胶囊，
+       类名由画布内那枚改为页头这枚 —— 钉的是"这页任何视图下都看得到被什么收窄"，不是钉它横在哪。 */
+    && CT_W11.includes('class="hero-filter"')
     && CT_W11.includes('{{ dirFilterName }}');
 });
 

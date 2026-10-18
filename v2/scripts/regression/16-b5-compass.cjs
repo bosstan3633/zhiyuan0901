@@ -45,6 +45,36 @@ check('C2-3 骨架条与树区之间有一条全宽发丝线：spine-bar 带 bor
   return !!rule && rule.includes('border-bottom: 1px solid var(--border)') && rule.includes('padding-bottom');
 });
 
+/* ★B5-c（V3.8.33）：C2 的最后一件 —— 过滤条并入 hero 工具行。
+   病根：它横在引导条与项目舱之间，把树区拦腰切成两段；而它表达的是"当前视图被什么收窄"，属页头状态。
+   判据钉**位置**（在 hero 动作行内、且在画布之前）与**形态**（单行胶囊），不钉观感。 */
+check('C2-4 筛选态提示条在 hero 动作行内，且在树画布之前 —— 不再横在引导条与项目舱之间', () => {
+  const heroStart = CT.indexOf('<section class="hero">');
+  const heroEnd = CT.indexOf('</section>', heroStart);
+  if (heroStart < 0 || heroEnd < 0) { console.log('     hero 区切片失败'); return false; }
+  const heroBlock = CT.slice(heroStart, heroEnd);
+  const at = CT.indexOf('class="hero-filter"');
+  const canvasAt = CT.indexOf('class="canvas-inner"');
+  const inHero = heroBlock.includes('class="hero-filter"');
+  const beforeCanvas = at >= 0 && canvasAt >= 0 && at < canvasAt;
+  /* 旧横幅类名必须整体消失（模板与样式都不得残留，否则就是两处各画一份） */
+  const legacyGone = !CT.includes('class="filter-bar"') && !/^\.fb-(t|n|clear)\b/m.test(CT);
+  if (!inHero || !beforeCanvas || !legacyGone) {
+    console.log('     hero 内=' + inHero + ' / 画布前=' + beforeCanvas + ' / 旧类已清=' + legacyGone);
+    return false;
+  }
+  return true;
+});
+
+check('C2-5 它是动作行里的一枚胶囊（inline-flex + 999px，宽度由内容决定），不是整宽横幅：不带 margin-bottom 撑行', () => {
+  const rule = (CT.match(/^\.hero-filter \{[^}]*\}/m) || [''])[0];
+  if (!rule) { console.log('     规则缺失'); return false; }
+  const pill = rule.includes('display: inline-flex') && rule.includes('border-radius: 999px');
+  const noBlockGap = !rule.includes('margin-bottom');
+  if (!pill || !noBlockGap) console.log('     胶囊=' + pill + ' / 无块级下边距=' + noBlockGap);
+  return pill && noBlockGap;
+});
+
 /* ============ C3 · 视图过渡 ============ */
 check('C3-1 形态切换走 Transition 且三分支各有 key：没有 key 时同标签节点会被复用，过渡根本不触发', () => {
   return CT.includes('<Transition name="viewfade" mode="out-in">')
