@@ -233,7 +233,7 @@
         </div>
 
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title"><Icon name="plug" :size="13"/> 接入配置</span><span class="gs-card-desc">DeepSeek / Kimi / 通义 / OpenAI 等兼容协议均可；模型可手填</span></div>
+          <div class="gs-card-header"><span class="gs-card-title"><Icon name="plug" :size="12"/> 接入配置</span><span class="gs-card-desc">DeepSeek / Kimi / 通义 / OpenAI 等兼容协议均可；模型可手填</span></div>
           <div class="gs-card-body ai-form">
             <label class="ai-field"><span>API 地址（baseUrl）</span><input class="gs-input" :value="aiConfig.baseUrl" placeholder="如 https://api.deepseek.com/v1" @change="patchAiConfig({ baseUrl: ($event.target as HTMLInputElement).value })" /></label>
             <label class="ai-field"><span>API Key</span><input class="gs-input" type="password" :value="aiConfig.apiKey" placeholder="sk-…（仅存本机 chrome.storage）" @change="patchAiConfig({ apiKey: ($event.target as HTMLInputElement).value })" /></label>
@@ -250,14 +250,14 @@
         </div>
 
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title"><Icon name="contact" :size="13"/> 关于我（全局画像 · 注入所有 AI 场景）</span><span class="gs-card-desc">写你在做什么、偏好什么风格、忌讳什么，模型不必每个场景重新交代背景</span></div>
+          <div class="gs-card-header"><span class="gs-card-title"><Icon name="contact" :size="12"/> 关于我（全局画像 · 注入所有 AI 场景）</span><span class="gs-card-desc">写你在做什么、偏好什么风格、忌讳什么，模型不必每个场景重新交代背景</span></div>
           <div class="gs-card-body">
             <textarea class="ai-textarea" rows="3" :value="aiConfig.aboutMe" placeholder="例：在读研究生，主线是毕业论文 + 个人知识体系；建议直接、给可执行动作，不要客套话与空泛鼓励" @change="patchAiConfig({ aboutMe: ($event.target as HTMLTextAreaElement).value })" />
           </div>
         </div>
 
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title"><Icon name="brain" :size="13"/> 深度诊断</span><span class="gs-card-desc">整库结构摘要投喂所选专家，逐员出「发现+建议」；勾选采纳=生成跟进任务卡</span></div>
+          <div class="gs-card-header"><span class="gs-card-title"><Icon name="brain" :size="12"/> 深度诊断</span><span class="gs-card-desc">整库结构摘要投喂所选专家，逐员出「发现+建议」；勾选采纳=生成跟进任务卡</span></div>
           <div class="gs-card-body">
             <div class="ai-guide">三步上手：① 上方接入配置完成（<Icon name="zap" :size="13"/> 测试连接通过）› ② 勾选本轮出诊专家（<Icon name="settings" :size="13"/> 可调启停 / 行文风格 / 自建资料）› ③ 一键诊断。发现勾选采纳=逐条生成跟进任务卡；不采纳即纯看。</div>
             <div v-for="p in aiPersonas" :key="p.id" class="ai-pwrap">
@@ -307,7 +307,7 @@
         <div class="gs-card">
           <!-- R158：被动型 AI 入口（跨台镜像/主题漂移/沉睡唤醒）迁 AI 建议面板（命令面板 Ctrl+K → AI 建议）；
                本页只留主动型（回收站捞回 / 本周回顾 / 成果文稿）与轻量指引 -->
-          <div class="gs-card-header"><span class="gs-card-title"><Icon name="compass" :size="13"/> 库内治理与成文</span><span class="gs-card-desc">主动型：回收站捞回 / 本周回顾 / 成果文稿（标签体检与整体梳理在「标签管理」页；被动建议在命令面板 Ctrl+K › AI 建议）</span></div>
+          <div class="gs-card-header"><span class="gs-card-title"><Icon name="compass" :size="12"/> 库内治理与成文</span><span class="gs-card-desc">主动型：回收站捞回 / 本周回顾 / 成果文稿（标签体检与整体梳理在「标签管理」页；被动建议在命令面板 Ctrl+K › AI 建议）</span></div>
           <div class="gs-card-body ai-form-row">
             <button class="gs-btn" :disabled="!aiReady" @click="aiTrashRescue"><Icon name="trash" :size="13"/> 回收站捞回</button>
             <button class="gs-btn" :disabled="!aiReady" title="近 7 天台账 → 周回顾草稿；跑完自动存为一张周回顾卡（同日重跑只刷新那张）" @click="aiWeeklyReview"><Icon name="calendar" :size="13"/> 本周回顾</button>
@@ -429,7 +429,7 @@
           </div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title"><Icon name="paperclip" :size="13"/> 附件存储</span><span class="gs-card-desc">图片/HTML 本体在 IndexedDB，不占主数据</span></div>
+          <div class="gs-card-header"><span class="gs-card-title"><Icon name="paperclip" :size="12"/> 附件存储</span><span class="gs-card-desc">图片/HTML 本体在 IndexedDB，不占主数据</span></div>
           <div class="gs-card-body">
             <div class="gs-export-row">
               <div class="gs-er-info">
@@ -667,7 +667,7 @@
           <div class="gs-page-desc">危险操作，请谨慎执行，建议操作前先导出备份</div>
         </div>
         <div class="gs-card gs-danger-zone">
-          <div class="gs-card-header"><span class="gs-card-title"><Icon name="warn" :size="13"/> 危险操作区</span></div>
+          <div class="gs-card-header"><span class="gs-card-title"><Icon name="warn" :size="12"/> 危险操作区</span></div>
           <div class="gs-card-body">
             <div class="gs-danger-action">
               <div class="gs-da-info"><div class="gs-da-name">一键回滚至初始状态</div><div class="gs-da-desc">清空所有用户创建的策展台和所有资源卡、好奇心卡、任务卡，仅保留调度台、方向台（任务中心）和默认策展台</div></div>
@@ -2463,10 +2463,12 @@ const activeManualSec = ref('quick-1')
 /* 左侧导航 */
 /* R178（原型 settings-nav-sidebar）：浮动卡片轨（radius-lg + 卡影 + sticky 66px），边线分栏退役 */
 .gs-nav { width: 210px; flex-shrink: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 10px; background: var(--surface); box-shadow: var(--shadow-sm); position: sticky; top: 66px; height: fit-content; align-self: flex-start; display: flex; flex-direction: column; gap: 3px; }
-/* R178（原型 sns-group-title）：组标题 11px/700 三级字 */
+/* R178（原型 sns-group-title）：组标题 11px/700 三级字
+   ★V3.8.30：字距改走 --tracking-sm（同值 0.04em 的令牌，不再写字面量）——
+   与卡片分区名共用同一套「小字号 + 正字距 + 700」标签排印，两处只差颜色（导航侧 text-3，分区名 text）。 */
 .gs-nav-group { margin-bottom: 10px; }
 .gs-nav-group:last-child { margin-bottom: 0; }
-.gs-nav-group-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); padding: 8px 8px 4px; letter-spacing: .04em; }
+.gs-nav-group-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); padding: 8px 8px 4px; letter-spacing: var(--tracking-sm); }
 /* R178（原型 sns-nav-item）：12.5px 档 + hover 浅底 + active accent-light
    ★S1（V3.8.29）：当前态补「accent 左侧 2px 竖条」——原来只有填充底，与 hover 的浅底
    属于同一种「整块变色」，一眼分不出「我在这里」还是「鼠标在这里」。竖条是形状信号，
@@ -2486,14 +2488,20 @@ const activeManualSec = ref('quick-1')
 .gs-dash-hl { position: absolute; right: 0; top: 0; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); font-weight: 600; border-radius: var(--radius-sm); padding: 5px 12px; cursor: pointer; font-family: inherit; transition: all var(--dur); }
 .gs-dash-hl:hover { border-color: var(--accent); color: var(--accent); }
 .gs-dash-hl.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
-.gs-page-title { font-size: 18px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+/* ★V3.8.30：18px 是字阶表外的孤立取值（表内最接近的是 headline 17）。归位到令牌，顺带压 1px。 */
+.gs-page-title { font-size: var(--fs-headline); font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
 .gs-page-desc { font-size: var(--fs-sub); color: var(--text-3); margin-top: 4px; }
 
 /* 卡片 */
 /* R178（原型 settings-section-card）：radius-lg + 卡影 + 分隔节奏 */
 .gs-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 16px; overflow: hidden; box-shadow: var(--shadow-sm); }
-.gs-card-header { padding: 13px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
-.gs-card-title { font-size: var(--fs-body); font-weight: 600; color: var(--text); }
+/* ★V3.8.30（S2 补完）：分区名与左侧导航组标题同档（caption 11 / 700 / 正字距）。
+   为什么敢压到 11：这一层不是「标题」，是卡片的**标签**——它下面紧跟的是 13px 正文，
+   原来 13px/600 与正文同字号，只能靠字重区分，八区在长页里反而糊成一片。
+   压小后层级由「字号差」变成「字号 + 字距 + 字重」三点差，且颜色仍是 --text（不下调，
+   守 R153-4 的 AA 底线：11px 与 13px 的对比度门槛同为 4.5:1）。 */
+.gs-card-header { padding: 10px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.gs-card-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text); letter-spacing: var(--tracking-sm); }
 .gs-card-desc { font-size: var(--fs-caption); color: var(--text-3); margin-left: auto; }
 .gs-card-body { padding: 16px 18px; }
 
@@ -2574,7 +2582,7 @@ const activeManualSec = ref('quick-1')
 
 /* 预览 */
 .gs-preview-section { margin-top: 16px; }
-.gs-preview-title { font-size: var(--fs-sub); font-weight: 600; color: var(--text-3); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.gs-preview-title { font-size: var(--fs-caption); font-weight: 700; letter-spacing: var(--tracking-sm); color: var(--text-3); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
 .gs-preview-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
 .gs-preview-tab { padding: 4px 11px; border-radius: 6px; font-size: var(--fs-caption); cursor: pointer; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); transition: all var(--dur); }
 .gs-preview-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }

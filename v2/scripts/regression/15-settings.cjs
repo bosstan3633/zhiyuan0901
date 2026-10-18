@@ -10,6 +10,9 @@
  *
  * 纪律：锁结构事实，不锁像素；色值归 theme-contrast，观感归四主题截图。
  * ★注释里不写被禁的字面量本身 —— 判据用 includes 扫源码，写进注释等于自己把判据喂绿（R71）。
+ *
+ * V3.8.30 追加 S2-6 / S2-7：组标题统一压小（分区名 / 导航组名 / 预览组名共用 caption+700+字距令牌），
+ * 页标题归位 --fs-headline。这两条锁的是「三层一个写法」这件事本身，而不是某个像素值。
  */
 const fs = require('fs');
 const path = require('path');
@@ -83,6 +86,28 @@ check('S2-5 开关是 accent 不是绿：gs-switch 开启态走 --accent；绿�
   return on.includes('background: var(--accent)')
     && badge.includes('var(--success)')
     && !on.includes('var(--success)');
+});
+
+check('S2-6 组标题统一压小（V3.8.30）：分区名 / 导航组名 / 预览组名三层共用同一套标签排印（caption + 700 + 正字距令牌），不再是三种写法', () => {
+  const card = (GS.match(/^\.gs-card-title \{[^}]*\}/m) || [''])[0];
+  const nav = (GS.match(/^\.gs-nav-group-title \{[^}]*\}/m) || [''])[0];
+  const pv = (GS.match(/^\.gs-preview-title \{[^}]*\}/m) || [''])[0];
+  if (!card || !nav || !pv) { console.log('     规则缺失'); return false; }
+  const same = (r) => r.includes('font-size: var(--fs-caption)')
+    && r.includes('font-weight: 700')
+    && r.includes('letter-spacing: var(--tracking-sm)');
+  if (!same(card) || !same(nav) || !same(pv)) {
+    console.log('     分区名 ' + same(card) + ' / 导航组名 ' + same(nav) + ' / 预览组名 ' + same(pv));
+    return false;
+  }
+  // 颜色不下调：分区名仍是 --text（守 AA 底线，压字号不等于压对比度）
+  return card.includes('color: var(--text)') && !/color: var\(--text-[34]\)/.test(card);
+});
+
+check('S2-7 页标题归位令牌：gs-page-title 取 --fs-headline，字阶表外的孤立取值清零', () => {
+  const rule = (GS.match(/^\.gs-page-title \{[^}]*\}/m) || [''])[0];
+  if (!rule) { console.log('     规则缺失'); return false; }
+  return rule.includes('font-size: var(--fs-headline)') && !rule.includes('18px');
 });
 
 /* ============ S3 · Airtable 三态 ============ */
