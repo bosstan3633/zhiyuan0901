@@ -33,7 +33,8 @@ check('R4-Dl ★hover 判据必须在 resetView 把鼠标挪走**之前**测完�
 check('R4-Dl ★收尾必须认得 ⌘K 浮层：主题/场景之间只切 hash 不重载页面，`overlayOpen` 不含 .gp-overlay.open 就会把开着的面板一路带进后面每一张台面图（污染证据且无人报错）；面板没有关闭钮，兜底点遮罩盒子左上角触发 @click.self（点中心会命中结果行、反而打开详情）', () => {
   const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
   const iO = t.indexOf('async function overlayOpen');
-  const iC = t.indexOf('async function closeOverlays');
+  const iC = t.indexOf('async function closeOverlays'); // ★B4 重指：原锚 iC+700 是定长窗口，函数开头一加行就把「点遮罩左上角」挤出去（假红与真红同形）⇒ 改按函数体切
+  const iEnd = iC >= 0 ? t.indexOf('\n}', iC) : -1, cBody = iC >= 0 && iEnd > iC ? t.slice(iC, iEnd) : '';
   return /\.md-panel/.test(t.slice(iO, iO + 400))
     && /\.gp-overlay\.open/.test(t.slice(iO, iO + 400))
     /* ★W12(V3.8.12)随迁备案：原锚写死整串 `'.md-panel, .drawer, .gp-overlay.open'`，
@@ -42,8 +43,8 @@ check('R4-Dl ★收尾必须认得 ⌘K 浮层：主题/场景之间只切 hash 
        改为逐个点名必须存在的壳（钉语义不钉排列），新增壳不再撞本条，删掉任一壳仍会红。 */
     && /\.pi-rev-overlay/.test(t.slice(iO, iO + 400))
     && /\.dz-day-modal-overlay/.test(t.slice(iO, iO + 400))
-    && iC > 0 && t.slice(iC, iC + 700).includes("locator('.gp-overlay.open').click({ position:")
-    && t.slice(iC, iC + 700).includes('x: 6, y: 6');
+    && iC > 0 && cBody.includes("locator('.gp-overlay.open').click({ position:")
+    && cBody.includes('x: 6, y: 6');
 });
 check('R4-Dl ★截图可复现两闩在位且**可关**（逃生阀不是装饰：关掉它才量得出"没有它会怎样"，实测同码重采 13/24 → 24/24 字节一致）：① ctx.addInitScript 只冻无参 Date 与 Date.now()（带参 new Date(x) 原样透传，性能计时不碰）② resetView 注入 animation/transition:none 并跑完非循环动画（静照里没有"正在动"，留着只会让两次采样差在随机帧上，而 hover 露出这类终态判据不受影响）', () => {
   const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
@@ -734,7 +735,6 @@ check('R4-Ey① ★评审交接包的数字不许漂：透视卡 §2.1 的合计
     && card.includes(`### 2.2 结构性债务候选（≥800 行的单文件，实测 ${big} 个）`)
     && /^> \*\*数据时效\*\*：/m.test(card) && card.includes('## 附 · 与 09-23 版的差异账');
 });
-
 
 // ============== R4-Ez 注释里的退役台面名：只许出现在"写明是历史"的地方 ==============
 console.log('【R4-Ez · 注释旧称清账棘轮】');

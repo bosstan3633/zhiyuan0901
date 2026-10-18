@@ -70,12 +70,17 @@ onOpenDrawer((p) => {
 // R53-D：主题精简为四套（删除 原野绿/暗夜红；存量 green/night 由 repository 启动迁移到深空薰衣草）
 // R156：① 新增「跟随系统」（ui.theme='auto'，落 data-theme 前经 resolveTheme 解析为 linear/apple）
 //       ② 四个主题的 dot 改为各自 accent（R124~R155 四者同为 #5E6AD2，解禁后须与新 accent 对齐）
+/* ★S4（V3.8.29）：主题选择器改「色板样例卡」。palette = [底色, 卡片色, 强调色]，
+   三色**取自 tokens.css 的真实值**（linear #0D0E11/#14161B/#5E6AD2、raycast #08080A/#101014/#1E6FD9、
+   apple #F5F5F7/#FFFFFF/#8452E0、notion #F7F6F3/#FFFFFF/#9E3FAF），不臆造。
+   auto 一支用「深色半 + 浅色半」的对角渐变示意"跟随系统"，与顶栏 dot 同一视觉语言。 */
 const themes = [
-  { id: 'auto', name: '跟随系统', dot: 'linear-gradient(135deg, #5E6AD2 0 50%, #F5F5F7 50% 100%)' },
-  { id: 'linear', name: '深空薰衣草', dot: '#5E6AD2' },
-  { id: 'raycast', name: '光速黑', dot: '#1E6FD9' },
-  { id: 'apple', name: '极简白', dot: '#8452E0' },
-  { id: 'notion', name: '纸墨白', dot: '#9E3FAF' }
+  { id: 'auto', name: '跟随系统', dot: 'linear-gradient(135deg, #5E6AD2 0 50%, #F5F5F7 50% 100%)',
+    palette: ['linear-gradient(135deg, #0D0E11 0 50%, #F5F5F7 50% 100%)', 'linear-gradient(135deg, #14161B 0 50%, #FFFFFF 50% 100%)', '#5E6AD2'] },
+  { id: 'linear', name: '深空薰衣草', dot: '#5E6AD2', palette: ['#0D0E11', '#14161B', '#5E6AD2'] },
+  { id: 'raycast', name: '光速黑', dot: '#1E6FD9', palette: ['#08080A', '#101014', '#1E6FD9'] },
+  { id: 'apple', name: '极简白', dot: '#8452E0', palette: ['#F5F5F7', '#FFFFFF', '#8452E0'] },
+  { id: 'notion', name: '纸墨白', dot: '#9E3FAF', palette: ['#F7F6F3', '#FFFFFF', '#9E3FAF'] }
 ]
 
 /** R106（F2）→ R108（F10）修订：资源台/策展台容器与调度台/方向台统一为 1440 居中后，
@@ -552,11 +557,16 @@ const backupReminderDot = computed(() => {
           </button>
           <Transition name="fade">
             <div v-if="themeOpen" class="theme-dropdown">
-              <div v-for="t in themes" :key="t.id" class="theme-option" :class="{active: store.theme === t.id}" @click="selectTheme(t.id)">
-                <span class="theme-dot" :style="{ background: t.dot }"></span>
-                {{ t.name }}
-                <span v-if="store.theme === t.id" class="theme-check"><Icon name="check" :size="13"/></span>
-              </div>
+              <button
+                v-for="t in themes" :key="t.id"
+                class="theme-option" :class="{ active: store.theme === t.id }"
+                :title="t.name"
+                @click="selectTheme(t.id)"
+              >
+                <span class="theme-swatch" aria-hidden="true"><i :style="{ background: t.palette[0] }"></i><i :style="{ background: t.palette[1] }"></i><i :style="{ background: t.palette[2] }"></i></span>
+                <span class="theme-name">{{ t.name }}</span>
+                <span v-if="store.theme === t.id" class="theme-check"><Icon name="check" :size="12"/></span>
+              </button>
             </div>
           </Transition>
         </div>
@@ -678,11 +688,17 @@ const backupReminderDot = computed(() => {
 .theme-btn:hover { border-color: var(--border-strong); }
 .theme-caret { font-size: var(--fs-micro); opacity: .6; }
 .theme-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.theme-dropdown { position: absolute; top: calc(100% + 6px); right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; min-width: 130px; z-index: var(--z-overlay); }
-.theme-option { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 7px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; transition: all .1s; }
+.theme-dropdown { position: absolute; top: calc(100% + 6px); right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 6px; width: 276px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; z-index: var(--z-overlay); }
+/* ★S4：选项从「一行文字 + 单色圆点」改成样例卡——三色圆点给出"换过去是什么样"的信息，
+   当前态靠 accent 描边 + ✓ 双信号（只描边在浅色主题里偏弱）。用原生 button 顺带把
+   键盘可达从"Tab 到不了"改成"Tab 能到"（G4 棘轮只许降）。 */
+.theme-option { display: flex; align-items: center; gap: 7px; padding: 7px 8px; border: 1px solid transparent; border-radius: var(--radius-sm); font-size: var(--fs-caption); color: var(--text-2); cursor: pointer; transition: all .1s; background: transparent; font-family: inherit; text-align: left; }
 .theme-option:hover { background: var(--surface-3); color: var(--text); }
-.theme-option.active { color: var(--accent); font-weight: 600; }
-.theme-check { margin-left: auto; font-size: var(--fs-caption); }
+.theme-option.active { color: var(--accent-ink); background: var(--accent-light); border-color: var(--accent); font-weight: 600; }
+.theme-swatch { display: inline-flex; gap: 2px; flex-shrink: 0; }
+.theme-swatch i { width: 8px; height: 8px; border-radius: 50%; display: block; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent); }
+.theme-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.theme-check { margin-left: auto; font-size: var(--fs-caption); color: var(--accent); display: inline-flex; flex-shrink: 0; }
 .fade-enter-active, .fade-leave-active { transition: opacity var(--dur), transform var(--dur); }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-4px); }
 .icon-btn { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; color: var(--text-2); transition: all var(--dur); font-size: 16px; position: relative; }

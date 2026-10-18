@@ -189,7 +189,7 @@
                       <div class="tt-card-sub">{{ row.sub }}</div>
                     </div>
                   </div>
-                  <div v-if="!ttRows.length" class="gs-ev-empty">该标签下暂无卡片</div>
+                  <EmptyState v-if="!ttRows.length" size="inline" icon="folder" title="该标签下暂无卡片" hint="给卡片打上这个标签后，会在这里列出来" />
                 </div>
               </template>
             </div>
@@ -521,19 +521,33 @@
           <div class="gs-page-desc">单向：知源 › Airtable，绝不回写本地 · 缺失字段自动创建（已存在列不改名不改类型，计算列不碰）· 软删卡置「已删除」勾选不物理删 · 手动触发为主</div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">连接配置</span><span class="gs-card-desc">PAT 明文仅存本机 chrome.storage.local，随设备不跨端</span></div>
+          <div class="gs-card-header">
+            <span class="gs-card-title">连接配置</span>
+            <span class="gs-status-badge" :class="atBadge.cls" :title="atBadge.tip"><span class="gs-status-dot"></span>{{ atBadge.label }}</span>
+            <span class="gs-card-desc">PAT 明文仅存本机 chrome.storage.local，随设备不跨端</span>
+          </div>
           <div class="gs-card-body">
             <div class="gs-setting-row">
               <span class="gs-sr-label">Personal Access Token</span>
-              <div class="gs-sr-control"><input class="gs-input gs-input--pat" type="password" v-model="atPat" placeholder="pat…（需 data.records 读写 + schema.bases 写权限）" /></div>
+              <div class="gs-sr-control gs-sr-control-wrap">
+                <input class="gs-input gs-input--pat" :class="{ 'is-invalid': atFieldErr.pat }" type="password" v-model="atPat" :placeholder="atPatPlaceholder" />
+                <span v-if="atFieldErr.pat" class="gs-field-err">{{ atFieldErr.pat }}</span>
+                <span v-else-if="atPatSaved && !atPat" class="gs-sr-hint">已保存，替换需重填（原值不回显，避免凭据被复制）</span>
+              </div>
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">Base ID</span>
-              <div class="gs-sr-control"><input class="gs-input gs-input--ident" v-model="atBaseId" placeholder="app 开头" /></div>
+              <div class="gs-sr-control gs-sr-control-wrap">
+                <input class="gs-input gs-input--ident" :class="{ 'is-invalid': atFieldErr.base }" v-model="atBaseId" placeholder="app 开头" />
+                <span v-if="atFieldErr.base" class="gs-field-err">{{ atFieldErr.base }}</span>
+              </div>
             </div>
             <div class="gs-setting-row">
               <span class="gs-sr-label">Table ID</span>
-              <div class="gs-sr-control"><input class="gs-input gs-input--ident" v-model="atTableId" placeholder="tbl 开头（表 URL 中获取）" /></div>
+              <div class="gs-sr-control gs-sr-control-wrap">
+                <input class="gs-input gs-input--ident" :class="{ 'is-invalid': atFieldErr.tbl }" v-model="atTableId" placeholder="tbl 开头（表 URL 中获取）" />
+                <span v-if="atFieldErr.tbl" class="gs-field-err">{{ atFieldErr.tbl }}</span>
+              </div>
             </div>
             <!-- R4-Dd：标签列名可指到自己表里已有的列。★只存列名、不存列类型——
                  类型每次同步时读远端真值；存下来必然与 Airtable 漂移，而漂移的代价是把一批 422 当成成功。 -->
@@ -547,7 +561,7 @@
             <div class="gs-setting-row">
               <span class="gs-sr-label">连接测试</span>
               <div class="gs-sr-control gs-sr-control--inline">
-                <button class="gs-btn" :disabled="atBusy || !atPat || !atBaseId || !atTableId" @click="testAtConnection">{{ atBusy ? '测试中…' : '测试连接' }}</button>
+                <button class="gs-btn" :disabled="atBusy || !atCredReady || !atBaseId || !atTableId" @click="testAtConnection">{{ atBusy ? '测试中…' : '测试连接' }}</button>
                 <!-- ★V3.8.25（B1-a）：原写 `var(--ok, var(--info-green, #3A6B4C))`——两个令牌**都不存在**
                      （tokens.css 真名是 `--success`），于是四主题里一律渲染兜底的硬编码 #3A6B4C，
                      深色主题下对比度不足。改用 `--success`，跟随主题。 -->
@@ -579,7 +593,7 @@
             <div class="gs-setting-row">
               <span class="gs-sr-label">立即同步</span>
               <div class="gs-sr-control gs-sr-control--inline">
-                <button class="gs-btn gs-btn-primary" :disabled="atBusy || !atPat || !atBaseId || !atTableId" @click="runAtSync">{{ atBusy ? '同步中…' : '立即同步' }}</button>
+                <button class="gs-btn gs-btn-primary" :disabled="atBusy || !atCredReady || !atBaseId || !atTableId" @click="runAtSync">{{ atBusy ? '同步中…' : '立即同步' }}</button>
                 <span v-if="quotaText" class="gs-sr-note gs-sr-note--muted">{{ quotaText }}</span>
               </div>
             </div>
@@ -596,7 +610,7 @@
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">同步日志</span><span class="gs-card-desc">最近 {{ atLog.length }} 条（最多保留 40 条）</span></div>
           <div class="gs-card-body">
-            <div v-if="!atLog.length" class="gs-ev-empty">暂无同步记录——配置完成后点「立即同步」</div>
+            <EmptyState v-if="!atLog.length" size="inline" icon="refresh" title="暂无同步记录" hint="配好连接后点「立即同步」，每次推送都会留一行日志" />
             <div v-for="(l, i) in atLog" :key="i" class="gs-setting-row gs-setting-row--top">
               <span class="gs-sr-label gs-sr-label--nowrap">{{ new Date(l.at).toLocaleString('zh-CN') }}</span>
               <!-- ★V3.8.25（B1-a）：原为 `l.kind === 'error' ? ' ' : l.kind === 'ok' ? ' ' : '· '`
@@ -815,6 +829,7 @@
 // R148-P1a：显式实例名——纳入 KeepAlive（切模块免重挂载与免重算首屏）
 defineOptions({ name: 'GlobalSettingsView' })
 import Icon from '@/shared/components/Icon.vue'
+import EmptyState from '@/shared/components/EmptyState.vue'
 
 import { ref, reactive, computed, watch, watchEffect, onMounted, shallowRef } from 'vue'
 import { wsDisplayNameOf, wsNameById } from '@/shared/utils/wsName'
@@ -1687,10 +1702,15 @@ function applyTagColumn() {
   store.persist()
 }
 // 配置回填（不在模板直接 v-model 到 storage——「改完即写」会把半截 PAT 存库；失焦/操作时统一写回）
+/* ★S3（V3.8.29）：PAT 不再回填进输入框。原先那段回填把存储里的明文塞回 DOM，
+   `type=password` 只是把它画成圆点——value 仍是明文，选中即可复制，开发者工具里也直接可见。
+   规范要求「不显示密钥明文 + 已保存替换需重填」，因此改为：storage 里有凭据时只置 atPatSaved，
+   输入框留空并以提示说明「已保存，替换请重填」；syncAtConfig 遇空不回写，避免把旧密钥清掉。 */
+const atPatSaved = ref(false)
 watchEffect(() => {
   const s = store.data?.airtableSync
   if (!s) return
-  if (!atPat.value) atPat.value = s.pat
+  if (s.pat) atPatSaved.value = true
   if (!atBaseId.value) atBaseId.value = s.baseId
   if (!atTableId.value) atTableId.value = s.tableId
   if (s.tableName && !atTableName.value) atTableName.value = s.tableName
@@ -1701,11 +1721,27 @@ watchEffect(() => {
 })
 function syncAtConfig() {
   const s = store.data!.airtableSync!
-  s.pat = atPat.value.trim()
+  // 空 = 用户没填新密钥（沿用已保存的），不是「要清空」
+  const typedPat = atPat.value.trim()
+  if (typedPat) s.pat = typedPat
   s.baseId = atBaseId.value.trim()
   s.tableId = atTableId.value.trim()
   store.persist()
 }
+/** 连接凭据是否可用：已存过 PAT，或本次填了新的 */
+const atCredReady = computed(() => !!atPat.value.trim() || atPatSaved.value)
+const atPatPlaceholder = computed(() => atPatSaved.value
+  ? '已保存（不回显）· 替换请直接重填'
+  : 'pat…（需 data.records 读写 + schema.bases 写权限）')
+/** 字段级内联校验：只在「填了东西但格式不对」时报，未填交给三态徽章说「未连接」 */
+const atFieldErr = computed<Record<string, string>>(() => {
+  const e: Record<string, string> = {}
+  const pat = atPat.value.trim(), base = atBaseId.value.trim(), tbl = atTableId.value.trim()
+  if (pat && !pat.startsWith('pat')) e.pat = 'PAT 以 pat 开头——请从 Airtable 账户页「创建令牌」后整段复制'
+  if (base && !base.startsWith('app')) e.base = 'Base ID 以 app 开头——在表 URL 的 /appXXXX/ 段里'
+  if (tbl && !tbl.startsWith('tbl')) e.tbl = 'Table ID 以 tbl 开头——在表 URL 的 /tblXXXX/ 段里'
+  return e
+})
 const atState = computed(() => store.data!.airtableSync!)
 const atPoll = computed(() => !!atState.value.pollEnabled)
 const atLog = computed(() => atState.value.log || [])
@@ -1720,6 +1756,13 @@ const atStatusText = computed(() => {
   return parts.join('· ')
 })
 const atErrorText = computed(() => atState.value.lastError || '')
+/* ★S3（V3.8.29）：三态徽章。优先级 异常 > 已连接 > 未连接 —— 一次推送失败比"上次连通过"更该先说。
+   绿只给"已连接"、琥珀只给"推送异常"，这两个是状态而非评价（同 B3 的镜子口径）。 */
+const atBadge = computed(() => {
+  if (atErrorText.value) return { cls: 'error', label: '推送异常', tip: atErrorText.value }
+  if (atTableName.value) return { cls: 'connected', label: '已连接', tip: `已连上「${atTableName.value}」` }
+  return { cls: 'idle', label: '未连接', tip: '填好 PAT / Base ID / Table ID 后点「测试连接」' }
+})
 
 async function testAtConnection() {
   if (atBusy.value) return
@@ -1738,7 +1781,7 @@ async function testAtConnection() {
 
 async function runAtSync() {
   if (atBusy.value) return
-  if (!atPat.value.trim() || !atBaseId.value.trim() || !atTableId.value.trim()) { showToast('请先填写完整连接配置'); return }
+  if (!atCredReady.value || !atBaseId.value.trim() || !atTableId.value.trim()) { showToast('请先填写完整连接配置'); return }
   atBusy.value = true
   try {
     syncAtConfig()
@@ -2424,11 +2467,16 @@ const activeManualSec = ref('quick-1')
 .gs-nav-group { margin-bottom: 10px; }
 .gs-nav-group:last-child { margin-bottom: 0; }
 .gs-nav-group-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); padding: 8px 8px 4px; letter-spacing: .04em; }
-/* R178（原型 sns-nav-item）：12.5px 档 + hover 浅底 + active accent-light */
-.gs-nav-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--radius-sm); font-size: var(--fs-sub); font-weight: 500; color: var(--text-2); cursor: pointer; transition: all var(--dur-fast); margin-bottom: 0; }
-.gs-nav-item:hover { background: var(--surface-3); color: var(--text); }
+/* R178（原型 sns-nav-item）：12.5px 档 + hover 浅底 + active accent-light
+   ★S1（V3.8.29）：当前态补「accent 左侧 2px 竖条」——原来只有填充底，与 hover 的浅底
+   属于同一种「整块变色」，一眼分不出「我在这里」还是「鼠标在这里」。竖条是形状信号，
+   不依赖色相差异，因此四主题下都成立（含对底色不敏感的高对比场景）。
+   注：规范写"accent-soft 底"，tokens 里的实际令牌名是 --accent-light（同义），沿用不新造。
+   原 2429/2430 两行完全重复的 hover 规则一并删去一条。 */
+.gs-nav-item { position: relative; display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--radius-sm); font-size: var(--fs-sub); font-weight: 500; color: var(--text-2); cursor: pointer; transition: all var(--dur-fast); margin-bottom: 0; }
 .gs-nav-item:hover { background: var(--surface-3); color: var(--text); }
 .gs-nav-item.active { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
+.gs-nav-item.active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 2px; height: 14px; border-radius: 0 2px 2px 0; background: var(--accent); }
 .gs-nav-icon { font-size: 14px; width: 18px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
 
 /* 右侧内容 */
@@ -2487,10 +2535,10 @@ const activeManualSec = ref('quick-1')
 /* R4-Dh：`.gs-input` 此前全站没有一条自有规则（只有三处 `.ai-field .gs-input` 之类的复合选择器改宽度/字号），
    实测四主题 × 设置页输入框全部吃浏览器默认：底色 rgb(255,255,255)、字色黑、边框 2px 灰——
    在 linear / raycast 两个深色主题里就是两排白块，其中一枚是 PAT（凭据）框。按同段 .gs-select 的语言补齐。 */
-.gs-input { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: var(--fs-sub); color: var(--text); background: var(--surface); outline: none; transition: all var(--dur); font-family: inherit; }
+.gs-input { padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: var(--fs-sub); color: var(--text); background: var(--surface); outline: none; transition: all var(--dur); font-family: inherit; }
 .gs-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
 .gs-input::placeholder { color: var(--text-4); }
-.gs-select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: var(--fs-sub); color: var(--text); background: var(--surface); outline: none; transition: all var(--dur); font-family: inherit; }
+.gs-select { padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: var(--fs-sub); color: var(--text); background: var(--surface); outline: none; transition: all var(--dur); font-family: inherit; }
 .gs-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
 /* ★V3.8.25（B1-a）：Airtable 连接区三种输入框宽度（原先写在模板内联 style 上）。
    `--pat` 是 PAT 凭据框（占位提示最长，320）；`--ident` 是 Base/Table/标签列名（260）。 */
@@ -2589,6 +2637,15 @@ const activeManualSec = ref('quick-1')
 /* 状态徽章 */
 .gs-status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: var(--fs-caption); font-weight: 500; }
 .gs-status-badge.connected { background: var(--tag-ok-bg); color: var(--success); }
+/* ★S3（V3.8.29）：三态补齐。未连接走中性 surface-3（不是灰字压白底——那在 notion 下几乎看不见）；
+   「推送异常」才用琥珀，且只在真有 lastError 时出现，不做常驻警示。 */
+.gs-status-badge.idle { background: var(--surface-3); color: var(--text-2); }
+.gs-status-badge.error { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
+/* ★S2（V3.8.29）：字段级错误内联。原先只有整行 gs-sr-note--danger（错误出现在"上次错误"行，
+   输入框本身毫无提示，用户要读到卡片底部才知道哪个字段写错了）。 */
+.gs-input.is-invalid { border-color: var(--danger); }
+.gs-input.is-invalid:focus { border-color: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent); }
+.gs-field-err { flex-basis: 100%; font-size: var(--fs-caption); color: var(--danger); line-height: 1.5; text-align: left; }
 .gs-status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 
 /* 按键 */
@@ -2728,7 +2785,7 @@ const activeManualSec = ref('quick-1')
 .gs-ev-owner { font-size: var(--fs-caption); color: var(--text-2); background: var(--bg-3, rgba(127,127,127,.12)); border-radius: 4px; padding: 1px 6px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
 .gs-ev-kind { font-size: var(--fs-caption); color: var(--text-3); flex-shrink: 0; }
 .gs-ev-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
-.gs-ev-empty { text-align: center; padding: 22px; color: var(--text-3); font-size: var(--fs-body); }
+
 
 /* ===== R4-Da（旧世界清账）：🗺 全景整页退役后，原同一段样式里仍被存活页面消费的规则补回。
    ★这一段不是"把全景样式留着"——它守的是两类连带损失：标签管理双栏与右列卡片（tt-*）、

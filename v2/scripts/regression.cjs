@@ -20,6 +20,7 @@ const SHARDS = [
   '11-p0-strings',
   '13-components',
   '14-mirror-whip',
+  '15-settings',
   '10-foundations',
   '20-req39-64',
   '30-v2.35-v2.46',

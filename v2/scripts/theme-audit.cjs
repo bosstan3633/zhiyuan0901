@@ -454,6 +454,39 @@ const DASH_SCENES = [
         [ 'rgba(0, 0, 0, 0)', panelBg ].includes(inputBg) && hover.acts && hover.vis >= 3
       return { ok, txt: `开=${!!ov}/opacity${op.toFixed(2)} 宽=${panel ? Math.round(pr.width) : 0} 越视口=${overflow} 行=${rows} 组=${groups} tab=${tabs} 高亮=${marks.length} 高亮底色≠卡底=${markBg !== panelBg && !!markBg} 输入框底色=${inputBg === 'rgba(0, 0, 0, 0)' ? '透明(随面板)' : inputBg} hover露钮=${hover.vis}` }
     })
+  },
+  {
+    /* ★S4（V3.8.29）：主题选择器从「一行文字 + 单色圆点」改成三色样例卡之后，
+       四主题下"卡里的色点是否还看得见、选中描边是否被底色吃掉"必须逐主题看一眼——
+       而它只在**展开态**存在，任何静态截图都拍不到。 */
+    id: 'dz-theme-menu', name: '主题色板',
+    hash: '#/profile',
+    act: async (page) => {
+      // 幂等：已经开着就不再点（再点等于关掉 —— 见 closeOverlays 里的交替红说明）
+      if ((await page.locator('.theme-dropdown').count()) === 0) {
+        await page.locator('.theme-btn').first().click({ timeout: 6000 }).catch(() => {})
+      }
+      await page.waitForTimeout(280)
+    },
+    judge: async (page) => {
+      const r = await page.evaluate(() => {
+        const cards = [...document.querySelectorAll('.theme-dropdown .theme-option')]
+        const act = cards.filter((c) => c.classList.contains('active'))
+        const dots = cards.map((c) => c.querySelectorAll('.theme-swatch i').length)
+        return {
+          n: cards.length,
+          tag: cards[0] ? cards[0].tagName : '',
+          dots,
+          act: act.length,
+          border: act[0] ? getComputedStyle(act[0]).borderTopColor : '',
+          borderW: act[0] ? getComputedStyle(act[0]).borderTopWidth : '',
+          nameEmpty: cards.filter((c) => !(c.querySelector('.theme-name') || {}).textContent).length
+        }
+      })
+      const ok = r.n === 5 && r.tag === 'BUTTON' && r.dots.every((x) => x === 3) && r.act === 1
+        && r.borderW !== '0px' && r.nameEmpty === 0
+      return { ok, txt: `卡=${r.n}/${r.tag} 色点=${r.dots.join(',')} 选中=${r.act} 描边=${r.borderW} ${r.border} 无名称=${r.nameEmpty}` }
+    }
   }
 ]
 
@@ -547,6 +580,15 @@ const OVERLAY_SCENES = [
  * 这里兜底是为了让**旧包（V3.2.1）的 before 套**也能出一份干净对照，而不是让缺陷污染证据。
  */
 async function closeOverlays(page) {
+  /* ★B4（V3.8.29）：顶栏主题选择器是「点一下开、再点一下关」的下拉，不属于 overlay/scrim/mask
+     任何一种语义，原先这里收不到它 ⇒ 展开态会泄漏到下一个主题的全部场景（实测 raycast 的
+     st-airtable 截图里就挂着一块打开的主题菜单）。泄漏还会反向打断下一个主题：act 再点一次
+     等于关掉，于是 dz-theme-menu 在 raycast/notion 上判 0、linear/apple 上判 5——**交替红**。
+     这里按「点同一个按钮收回」处理，同时 act 侧也做幂等保护。 */
+  if (await page.locator('.theme-dropdown').count()) {
+    await page.locator('.theme-btn').first().click({ timeout: 3000 }).catch(() => {})
+    await page.waitForTimeout(120)
+  }
   for (let i = 0; i < 3; i++) {
     if (!(await overlayOpen(page))) return
     if (i === 0) await page.keyboard.press('Escape').catch(() => {})
@@ -1059,13 +1101,23 @@ if (argv.scenes) {
       const b = [...document.querySelectorAll('.bt-tab')].find(x => (x.textContent || '').includes('资源卡'))
       if (b) b.click()
     })
-    await page.waitForTimeout(500)
+    /* ★B4（V3.8.29）：池面板是懒挂载的。500ms 盲等在每个 run 的**第一个主题**上会量到"面板还没进 DOM"，
+       于是 paneOn 假红（实测只在 linear 复现，raycast 起数据已就绪就绿了——交替出现的红最容易被当成偶发忽略）。
+       改成显式等容器 `.pcp` 出现，超时才退回盲等；判据本身一个都没放松。 */
+    await page.locator('.pcp').first().waitFor({ state: 'attached', timeout: 6000 }).catch(() => {})
+    /* 视图模式（网格/列表）是持久化的：上一次 run 停在列表时，这一屏既没有 .pcp-card 也没有 .pcp-empty，
+       paneOn 会假红。判据只认「面板在不在」，但截图必须与其它主题同构 ⇒ 先幂等切回网格。 */
+    await page.evaluate(() => {
+      const b = [...document.querySelectorAll('.dk-row[data-panel="pool"] .dk-view')].find(x => (x.textContent || '').includes('网格'))
+      if (b) b.click()
+    })
+    await page.waitForTimeout(300)
     await resetView(page)
     const spot = await page.evaluate(() => {
       const tabs = Array.from(document.querySelectorAll('.bt-tab'))
       const poolBtn = tabs.find(x => (x.textContent || '').includes('资源卡'))
       const poolOn = !!poolBtn && poolBtn.classList.contains('on')
-      const pane = document.querySelector('.pcp-card, .pcp-empty')
+      const pane = document.querySelector('.pcp-card, .pcp-empty') || document.querySelector('.pcp')
       /* 不靠数据碰运气：无 .tc-subs 时视口判据记「无数据」，DeckTabs 结构判据恒核 */
       const subs = document.querySelector('.today-cards .tc-subs')
       let subInfo = null
